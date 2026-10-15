@@ -47,6 +47,25 @@ export const BUILTIN_FONT_SETS: ReadonlyMap<string, FontSet> = new Map(
   ].map((set) => [set.id, Object.freeze(set)]),
 );
 
+/**
+ * SHA-256 (lowercase hex) of every bundled font file, by absolute path. Kept
+ * in sync with `assets/fonts/<set>/README.md`; `sumi doctor` verifies them.
+ */
+export const BUNDLED_FONT_SHA256: ReadonlyMap<string, string> = new Map([
+  [
+    join(bizUdGothic, "BIZUDPGothic-Regular.ttf"),
+    "5050778170c19fde190eb7ac7b3c5285bbf917d2cb0bdf184d89b6e4b6207d96",
+  ],
+  [
+    join(bizUdGothic, "BIZUDPGothic-Bold.ttf"),
+    "4372c4325944342bdd5efa489ff6204b273953c384ad3d8b4625fb58aaec5a1e",
+  ],
+  [
+    join(bizUdGothic, "BIZUDGothic-Regular.ttf"),
+    "031b7e944e42528927e141d097bff50b554de67c906513cb0737180e9ba0f2a9",
+  ],
+]);
+
 /** Returns the built-in font set with the given ID, if any. */
 export function getFontSet(id: string): FontSet | undefined {
   return BUILTIN_FONT_SETS.get(id);
