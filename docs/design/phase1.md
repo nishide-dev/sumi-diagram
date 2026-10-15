@@ -592,6 +592,41 @@ layout:
 - **カバレッジ**: Linux のジョブで `bun test --coverage` の表をログに出す（参考情報。閾値は設けない）。CLI は子プロセスで E2E テストしているため `src/cli/commands/*` の数値は実態より低く出る。#16 で数値を手がかりに見直し、未検査だったエラー経路（スキーマの `version` / `figure` 欠落・入れ子の未知フィールド・空の部品参照、inspect の数値でない属性・不正な points・shape group の数・描画の viewBox 不一致、検査後に消えた D2 バイナリ）にテストを追加した。
 - **PR タイトルの検査**（`.github/workflows/pr-title.yml`、`scripts/commitlint.ts`）: タイトルは squash merge のコミットになるため、CONTRIBUTING.md の規則を検査する。検査する: `<type>(<scope>)!: <summary>` の形、type の語彙（`style` は不可）、空でない小文字の scope、コロンの後の空白 1 つ、空でない summary、summary が大文字の単語（`Add`）で始まらないこと・末尾のピリオドがないこと、日本語（かな・漢字・全角）を含まないこと。検査しない（誤検出を避ける）: 英語としての正しさや命令形か、長さ、先頭の略語・コード（`SVG`、`` `sumi fmt` ``）、アクセント付きの文字や記号（`→`、`×`）。同じ検査はコミットにも使える（`bun run commitlint origin/main..HEAD`）が、コミットは squash されるため CI では検査しない。
 
+### 6.8 #20 での配布の判断
+`bun build --compile` の単一バイナリを、GitHub Release の tarball で配布する。D2.js（WASM）は採用しない（§6、#9）ため、D2 をバイナリの中に含めることはできない。
+
+1. **tarball の構成（ターゲットごとに 1 つ）**: `sumi-<version>-<target>.tar.gz` の中に、prefix 形式で次を置く。
+   ```
+   sumi-<version>-<target>/
+     bin/sumi                     bun build --compile（--no-compile-autoload-dotenv / -bunfig）
+     libexec/sumi/d2              D2 v0.9.0 の公式バイナリ（無改変。MPL-2.0）
+     share/sumi/fonts/<set>/      同梱フォント（OFL-1.1）と出典の README
+     licenses/d2/                 D2 の LICENSE.txt・THIRD_PARTY_NOTICES.txt
+     licenses/biz-ud-gothic/      OFL.txt
+     LICENSE  NOTICE  README.md  VERSION
+     SHA256SUMS                   tarball 内の全ファイルの sha256
+   ```
+   - D2 は tarball に同梱する。`sumi doctor` での案内だけにすると、利用者が D2 v0.9.0 を正確に入手する手間が残り、決定性（§6）の前提が崩れやすい。D2 は MPL-2.0 で、無改変のバイナリの再配布は、ライセンス本文の同梱と、ソースの入手先（`NOTICE` に tag の URL）の明記で足りる。
+   - `libexec/sumi/` に置き、`bin/` には置かない。`bin/` を `PATH` に通したときに、別の `d2` を隠したり上書きしたりしないため。
+   - リリース側の sha256 は、ターゲットごとの `.tar.gz.sha256` と、それらをまとめた `SHA256SUMS` を添付する。tarball 自体は決定的に作る（エントリを名前順に並べ、uid / gid 0、mtime は `SOURCE_DATE_EPOCH` か最後のコミット、gzip のヘッダは固定）。GNU tar と bsdtar で必要なフラグが違うため、ustar の書き出しは `scripts/release/lib.ts` で行う。同じ入力からの再ビルドで同じ sha256 になることを確認した（darwin-arm64）。
+   - x64 は Bun の `baseline` ランタイム（AVX2 不要）でビルドする。
+2. **フォントは埋め込まず、実ファイルとして同梱する**: D2 は `--font-*` にファイルのパスを要求する。バイナリに埋め込むと、実行時にキャッシュディレクトリへ展開する処理（展開先の決定、書き込めない環境、並行実行、版の切り替え、破損時の再展開）が必要になる。実ファイルなら、`sumi doctor` がディスク上の sha256 をそのまま検証でき、geometry lint（§6.5）も同じファイルを読む。配布サイズはどちらでも変わらない（フォント 3 ファイルで約 14MB）。
+3. **実行モードとパスの解決（`src/core/install-layout.ts`）**: モジュールのパスが `/$bunfs/`（Windows では `B:/~BUN/`）で始まれば compiled、それ以外は source とする。
+   - source: フォントは `<repo>/assets/fonts`（従来どおり）。
+   - compiled: `process.execPath` を realpath で解決した実体の `../`（prefix）を基準に、フォントは `share/sumi/fonts`、D2 は `libexec/sumi/d2`。`PATH` 上のシンボリックリンクから起動しても同梱物を見つけられる。
+   - `sumi doctor --json` の `runtime` に `mode`（`source` / `compiled`）を追加した（JSON の版は 1 のまま。項目の追加のみ）。D2 とフォントの hint も、compiled では「tarball を入れ直す」「`SUMI_D2_PATH`」を案内する。
+4. **D2 の探索順**: オプション → `SUMI_D2_PATH` → **compiled のときの `<prefix>/libexec/sumi/d2`（source: `bundled`）** → `<cwd>/.sumi/bin/d2`（`managed`）→ `PATH`。明示したパス（オプション・環境変数）が存在しなければ error のまま、`bundled` と `managed` は無ければ次へ進む。`bundled` を `managed` より前に置くのは、リリースのバイナリは同じ tarball の D2 と組で検証しており、作業ディレクトリによって D2 が変わらないようにするため。source での実行では `bundled` の段はない。
+5. **対象**: darwin-arm64・darwin-x64・linux-x64・linux-arm64（D2 に公式の tarball があり、GitHub に ARM の Linux runner があるため追加した）。Windows は見送る（D2 の Windows 版の配布形式と、`/$bunfs/` 以外のパス解決・smoke の整備が必要）。各ターゲットは native の runner（`macos-15`、`macos-15-intel`、`ubuntu-24.04`、`ubuntu-24.04-arm`）でビルドし、同じ runner で smoke test する。クロスビルドは smoke できないため使わない。
+6. **smoke test（`scripts/smoke-release.ts`）**: tarball を空白を含む一時ディレクトリに展開し、リポジトリの外の空のディレクトリから、`PATH` を `/usr/bin:/bin:/usr/sbin:/sbin` に絞り（Bun・Node.js が見えないことも確認する）、`HOME` を一時ディレクトリにし、`SUMI_D2_PATH` を外して実行する。tarball と中身の sha256、`sumi --version` と `VERSION` の一致、`sumi doctor --json`（compiled・D2 は `bundled`・フォントの sha256）、日本語ラベルの図の `render`（終了コード 0、SVG が XML として正しく、ラベルを含む）を、バイナリ直接とシンボリックリンク経由の両方で確認する。release.yml の各ターゲットと、PR ごとの ci.yml の `release` ジョブ（linux-x64）で同じスクリプトを使う。
+7. **バージョン**: バイナリは `package.json` の `version` を表示するため、ビルドの `--version` と tag は `package.json` と一致しなければならない（不一致はビルドと release.yml の preflight で失敗）。リリースノートは `docs/releases/v<version>.md` に置き、無ければ release.yml が失敗する。
+8. **npm には公開しない**: `sumi` は npm で使用済みの名前で、パッケージ名は `sumi-diagram`。D2 とフォントを同梱する必要があり、npm の配布形態（`bunx` 等）では D2 の取得とプラットフォームごとの配布を別に設計する必要がある。`package.json` の `private: true` は維持し、必要になれば別の Issue で検討する。
+9. **ライセンス**: Sumi は MIT（#41）。tarball には次のライセンス文を入れ、`NOTICE` に各同梱物の出典・版・ライセンスとファイルの場所をまとめる。ビルドはどれかが欠けると失敗し、smoke test も存在を確認する。release.yml も tag のときに LICENSE の存在を確認する。
+   - Sumi: `LICENSE`（MIT）。
+   - バイナリに bundle される npm パッケージ: `licenses/npm/<package>/LICENSE`。対象は固定のリストではなく、`bun build --compile --metafile` の入力から `node_modules/` 配下のパッケージを導出する（推移的な依存を含め、実際に bundle されたものだけ。現在は commander・semver・yaml・zod）。各パッケージのディレクトリのライセンスファイル（著作権表示・許諾・免責を含む本文）をそのままコピーし、無ければビルドを失敗させる。
+   - Bun ランタイム: `licenses/bun/LICENSE.md`。Bun のリポジトリにある唯一のライセンス文書で、`.bun-version` の版の `LICENSE.md` を `scripts/release/bun/` に固定して置く（`VERSION` が `.bun-version` と違えばビルドが失敗する）。Bun 本体は MIT、JavaScriptCore / WebKit（LGPL-2）と tinycc（LGPL-2.1）などを静的リンクしており、同文書にそれらの一覧・ライセンス・パッチ済み WebKit のソース（oven-sh/webkit）と再リンクの手順が書かれている。
+   - D2: `licenses/d2/LICENSE.txt`（MPL-2.0）と `THIRD_PARTY_NOTICES.txt`。フォント: `licenses/biz-ud-gothic/OFL.txt`。
+   - **未解決（要判断）**: (a) LGPL の静的リンクについて、Bun の LICENSE.md は「利用者が改変・再リンクできるよう、アプリケーションをオブジェクト形式で提供する」ことを求める LGPL の条項を引用している。`bun build --compile` の実行ファイルを再配布する側（Sumi）に、同じ義務（Sumi の JS バンドルを再リンク可能な形で提供すること等）がどこまで及ぶかは Bun が明示しておらず、この Issue では判断しない。Sumi のソースは公開リポジトリにあり、tag から同じバイナリを再ビルドできる。(b) Bun が静的リンクする MIT / BSD / Apache-2.0 等のライブラリ（boringssl・ICU など）のライセンス本文は Bun 自身の配布物にも含まれておらず、tarball には Bun の LICENSE.md（一覧とリンク）だけを入れている。本文の同梱が必要かどうかも未判断として残す。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）

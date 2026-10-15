@@ -1,0 +1,42 @@
+# Sumi {{version}} ({{target}})
+
+Sumi は、事前定義されたコンポーネントとデザインシステムから図を構築する Diagram-as-Code CLI です。`*.sumi.yaml` から SVG を生成します。Bun・Node.js は不要です。
+
+詳しい使い方: https://github.com/nishide-dev/sumi-diagram
+
+## 内容
+
+| パス | 内容 |
+| --- | --- |
+| `bin/sumi` | Sumi 本体（単一実行ファイル） |
+| `libexec/sumi/d2` | レイアウトに使う D2 CLI v{{d2Version}}（MPL-2.0。`licenses/d2/`） |
+| `share/sumi/fonts/` | 同梱フォント BIZ UD ゴシック（SIL OFL 1.1。`licenses/biz-ud-gothic/`） |
+| `LICENSE` | Sumi のライセンス（MIT） |
+| `licenses/bun/`・`licenses/npm/` | `bin/sumi` に含まれる Bun ランタイムと npm パッケージのライセンス |
+| `NOTICE` | 同梱物の出典・版・ライセンス |
+| `SHA256SUMS` | このディレクトリ内の全ファイルの sha256 |
+
+## インストール
+
+ディレクトリ構成を保ったまま任意の場所に置き、`bin/sumi` を `PATH` に通すか、`PATH` 上のディレクトリからシンボリックリンクを張ります。`sumi` は自身の実体の位置（シンボリックリンクは解決します）から `../libexec/sumi/d2` と `../share/sumi/fonts/` を探すため、`bin/sumi` だけを別の場所へコピーしないでください。
+
+```sh
+mkdir -p ~/.local/opt
+tar -xzf sumi-{{version}}-{{target}}.tar.gz -C ~/.local/opt
+ln -s ~/.local/opt/sumi-{{version}}-{{target}}/bin/sumi ~/.local/bin/sumi
+sumi doctor
+```
+
+macOS でブラウザからダウンロードした場合、`sumi` と `d2` は公証（notarization）されていないため Gatekeeper に止められることがあります。`curl -LO` や `gh release download` で取得するか、展開したディレクトリに `xattr -dr com.apple.quarantine <dir>` を実行してください。
+
+`sumi doctor` は D2 の場所とバージョン（`bundled` と表示されます）、同梱フォントの sha256 を確認します。別の D2 v{{d2Version}} を使う場合は `SUMI_D2_PATH` を設定してください。
+
+## 使い方
+
+```sh
+sumi render figure.sumi.yaml          # figure.svg を出力
+sumi lint figure.sumi.yaml            # 描画せずに検査
+sumi fmt figure.sumi.yaml             # 整形
+sumi catalog                          # 使える部品の一覧
+sumi --help
+```

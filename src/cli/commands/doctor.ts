@@ -5,9 +5,15 @@
 
 import { readFile } from "node:fs/promises";
 import { relative } from "node:path";
-import { checkD2Version, D2_PATH_ENV, findD2Binary } from "../../backends/d2/binary";
+import {
+  checkD2Version,
+  D2_INSTALL_HINT,
+  D2_PATH_ENV,
+  findD2Binary,
+} from "../../backends/d2/binary";
 import { D2_VERSION, d2ReleaseAsset } from "../../backends/d2/version";
 import { SUMI_VERSION } from "../../core/figure/validate";
+import { RUN_MODE, type RunMode } from "../../core/install-layout";
 import { BUILTIN_FONT_SETS, BUNDLED_FONT_SHA256, FONT_ASSETS_DIR } from "../../core/theme/fonts";
 import { loadFontMetrics } from "../../lint/metrics";
 import { type CliContext, EXIT, type ExitCode } from "../io";
@@ -29,7 +35,8 @@ export interface DoctorCheck {
 export interface DoctorReport {
   version: typeof DOCTOR_JSON_VERSION;
   sumi: { version: string };
-  runtime: { bun: string; platform: string; arch: string };
+  /** `mode`: `source` (run with Bun from a checkout) or `compiled` (release binary). */
+  runtime: { bun: string; platform: string; arch: string; mode: RunMode };
   checks: DoctorCheck[];
   /** No required check failed. */
   ok: boolean;
@@ -53,7 +60,7 @@ export async function buildDoctorReport(context: CliContext): Promise<DoctorRepo
   return {
     version: DOCTOR_JSON_VERSION,
     sumi: { version: SUMI_VERSION },
-    runtime: { bun: Bun.version, platform: process.platform, arch: process.arch },
+    runtime: { bun: Bun.version, platform: process.platform, arch: process.arch, mode: RUN_MODE },
     checks,
     ok: checks.every((c) => !(c.required && c.status === "error")),
   };
@@ -63,7 +70,7 @@ async function checkD2(context: CliContext): Promise<DoctorCheck> {
   const install =
     d2ReleaseAsset() === undefined
       ? `D2 publishes no v${D2_VERSION} binary for ${process.platform}-${process.arch}; build it from source and set ${D2_PATH_ENV}.`
-      : `Run \`bun run d2:install\`, or set ${D2_PATH_ENV} to a d2 v${D2_VERSION} binary.`;
+      : D2_INSTALL_HINT;
   const base = { id: "d2", required: true } as const;
   const found = findD2Binary({ projectRoot: context.cwd, env: context.env });
   if (!found.ok) {
@@ -95,6 +102,9 @@ async function checkD2(context: CliContext): Promise<DoctorCheck> {
   }
   return { ...base, status: "ok", message: `D2 v${version.value} (${source}: ${path})`, details };
 }
+
+/** Where the bundled fonts live, for hints: the release layout or the source tree. */
+const FONTS_LOCATION = RUN_MODE === "compiled" ? FONT_ASSETS_DIR : "assets/fonts";
 
 async function checkFonts(): Promise<DoctorCheck> {
   const files: {
@@ -141,7 +151,7 @@ async function checkFonts(): Promise<DoctorCheck> {
         ? `${files.length} bundled font files present, sha256 verified`
         : `Bundled fonts are damaged: ${bad.map((f) => `${f.path} (${f.problem})`).join(", ")}`,
     ...(bad.length > 0 && {
-      hint: "Restore assets/fonts from the Sumi distribution; do not modify the font files.",
+      hint: `Restore ${FONTS_LOCATION} from the Sumi distribution; do not modify the font files.`,
     }),
     details: { directory: FONT_ASSETS_DIR, files },
   };
@@ -178,7 +188,7 @@ function geometryLintCheck(): DoctorCheck {
         ? `font metrics readable for ${files.length} font files; geometry lint runs with render and lint --geometry (needs D2)`
         : `Cannot read font metrics for geometry lint: ${problems.join(", ")}`,
     ...(problems.length > 0 && {
-      hint: "Restore assets/fonts from the Sumi distribution; geometry lint measures labels with these files.",
+      hint: `Restore ${FONTS_LOCATION} from the Sumi distribution; geometry lint measures labels with these files.`,
     }),
     details: { files },
   };
@@ -194,7 +204,7 @@ const STATUS_COLORS: Record<DoctorStatus, string> = {
 export function formatDoctorText(report: DoctorReport, options: { color?: boolean } = {}): string {
   const { sumi, runtime } = report;
   const lines = [
-    `Sumi ${sumi.version} (Bun ${runtime.bun}, ${runtime.platform}-${runtime.arch})`,
+    `Sumi ${sumi.version} (Bun ${runtime.bun}, ${runtime.platform}-${runtime.arch}${runtime.mode === "compiled" ? ", compiled" : ""})`,
     "",
   ];
   const idWidth = Math.max(...report.checks.map((c) => c.id.length));

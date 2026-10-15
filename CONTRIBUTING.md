@@ -167,6 +167,28 @@ Closes #4
 - [ ] 単体テストと D2 描画テストを追加・更新した
 - [ ] `bun run check`・`bun run typecheck`・`bun test`・`bun run gallery:check` が通る
 
+## リリース
+
+配布物は GitHub Release の tarball（ターゲットごとに `sumi` の単一バイナリ・D2 v0.9.0・同梱フォント・ライセンス・チェックサム）です。構成と判断は [設計 §6.8](docs/design/phase1.md) を参照してください。npm には公開しません。
+
+1. **バージョンを上げる PR を出す**: `package.json` の `version` を上げ（バイナリの `sumi --version` と SVG のメタデータはこの値です）、リリースノート `docs/releases/v<version>.md`（日本語。利用者向けの変更点・互換性・既知の制約）を追加する。PR タイトルは `build: release v<version>` とする。
+2. **手元で確認する（任意）**: 現在のプラットフォームの tarball を作り、smoke test を通す。
+   ```sh
+   bun run release:build --target darwin-arm64 --version <version>
+   bun run release:smoke dist/release/sumi-<version>-darwin-arm64.tar.gz
+   ```
+   PR ごとに CI の `Release smoke (linux-x64)` ジョブが同じ build と smoke を実行しています。全ターゲットを試すには、Actions から `Release` workflow を手動実行（`workflow_dispatch`）します。この場合は tarball を artifact に残すだけで、Release は作りません。
+3. **マージ後に tag を push する**: `main` の該当コミットに `v<version>` の annotated tag を付けて push する。
+   ```sh
+   git switch main && git pull
+   git tag -a v<version> -m "v<version>"
+   git push origin v<version>
+   ```
+4. `Release` workflow が、tag と `package.json` の一致、リリースノートと LICENSE の存在を確認し、4 ターゲットを native の runner でビルド・smoke test してから、tarball と `SHA256SUMS` を添付した GitHub Release を作成する（`-` を含む tag は pre-release）。失敗した場合は原因を直し、tag を付け直す（Release の作成前なら `git push --delete origin v<version>` で消せます）。
+
+- tag は `v<major>.<minor>.<patch>`（pre-release は `v0.2.0-rc.1` など）とし、`package.json` と一致させる。
+- 固定の D2 バージョンやフォントを変えた場合は、出力が変わることをリリースノートに明記する。
+
 ## 設計判断の記録
 
 - 設計上の判断・代替案・トレードオフは、**関連 Issue のコメント**に記録する。PR だけで議論を完結させない
