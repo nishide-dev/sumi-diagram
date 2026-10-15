@@ -290,6 +290,18 @@ describe("createD2CliBackend", () => {
     expect(await fake.calls()).toEqual([]);
   });
 
+  test("reports a binary removed after the version check as d2-failed and cleans up", async () => {
+    const { fake, backend } = await setup({ svg: SVG });
+    expect((await backend.render(input)).ok).toBe(true);
+    await rm(fake.path);
+    const result = await backend.render(input);
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toMatchObject([
+      { code: "backend/d2-failed", message: expect.stringContaining("Could not run") },
+    ]);
+    expect(await readdir(renderTmp)).toEqual([]);
+  });
+
   test("reports d2-not-found", async () => {
     const backend = createD2CliBackend({
       env: { PATH: "" },

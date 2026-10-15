@@ -130,6 +130,7 @@ describe("inspectSvg", () => {
       `<path d="M 30 70 L 30 40 L 60 40 L 60 70 C 50 64 40 76 30 70 Z" />`,
       `<polygon points="20,40 70,40 45,70" />`,
       `<path d="M 20 45 C 20 35 70 35 70 45 V 65 C 70 75 20 75 20 65 V 45 Z" /><path d="M 20 45 C 20 55 70 55 70 45" />`,
+      `<g><line x1="25" y1="42" x2="65" y2="68" /></g>`,
     ];
     const expected = [
       { x: 8.5, y: 35, width: 73, height: 40 },
@@ -137,6 +138,7 @@ describe("inspectSvg", () => {
       { x: 30, y: 40, width: 30, height: expect.closeTo(31.732, 3) },
       { x: 20, y: 40, width: 50, height: 30 },
       { x: 20, y: 37.5, width: 50, height: 35 },
+      { x: 25, y: 42, width: 40, height: 26 },
     ];
     shapes.forEach((shape, i) => {
       const a = TINY_PARTS.a.replace(
@@ -285,6 +287,22 @@ describe("inspectSvg", () => {
         [grp, a.replace(/<rect [^>]*\/>/, ""), note, edge0, back],
         "draws nothing",
       ],
+      [
+        "a rect without a numeric size",
+        [grp, a.replace('width="50"', 'width="auto"'), note, edge0, back],
+        "lacks a numeric x/y/width/height",
+      ],
+      [
+        "a polygon with an odd number of coordinates",
+        [
+          grp,
+          a.replace(/<rect [^>]*\/>/, `<polygon points="20,40 70,40 45" />`),
+          note,
+          edge0,
+          back,
+        ],
+        "invalid points",
+      ],
     ];
     for (const [name, parts, message] of cases) {
       test(name, () => {
@@ -342,6 +360,14 @@ describe("inspectSvg", () => {
       );
     });
 
+    test("a node without exactly one shape group is invalid", () => {
+      const extraShape = `<g class="shape" ><rect x="0" y="0" width="1" height="1" /></g>`;
+      const twoShapes = a.replace("<text ", `${extraShape}<text `);
+      expect(failure(tinySvg([grp, twoShapes, note, edge0, back]))).toMatchObject([
+        { code: "svg/invalid", subject: { kind: "node", id: "a" } },
+      ]);
+    });
+
     test("an edge without exactly one connection path is invalid", () => {
       const noPath = back.replace(/<path [^>]*\/>/, "");
       expect(failure(tinySvg([grp, a, note, edge0, noPath]))).toMatchObject([
@@ -366,6 +392,19 @@ describe("inspectSvg", () => {
       [
         "two drawings",
         `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><svg class="d2-svg"><g/></svg><svg class="d2-svg"><g/></svg></svg>`,
+        "svg/invalid",
+      ],
+      [
+        "an empty drawing",
+        `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><svg class="d2-svg"></svg></svg>`,
+        "svg/empty",
+      ],
+      [
+        "a drawing sized differently from the root",
+        tinySvg().replace(
+          '<svg class="d2-1 d2-svg" width="200" height="100" viewBox="0 0 200 100">',
+          '<svg class="d2-1 d2-svg" width="200" height="100" viewBox="0 0 400 100">',
+        ),
         "svg/invalid",
       ],
     ];

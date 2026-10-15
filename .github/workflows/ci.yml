@@ -9,28 +9,33 @@ on:
 permissions:
   contents: read
 
-jobs:
-  ci:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+# A new push to a PR cancels its superseded run; runs on main always finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-      - uses: oven-sh/setup-bun@v2
+# Third-party actions are pinned by full commit SHA (tag in the comment).
+jobs:
+  # Platform-independent checks: run once.
+  static:
+    name: Static checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: .bun-version
 
+      - name: Cache Bun packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('bun.lock') }}
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
-
-      - name: Cache D2
-        uses: actions/cache@v4
-        with:
-          path: .sumi/bin
-          key: d2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('src/backends/d2/version.ts') }}
-
-      # Pinned, checksum-verified D2 CLI for the integration tests.
-      - name: Install D2
-        run: bun run d2:install
 
       - name: Biome check
         run: bun run check
@@ -38,11 +43,63 @@ jobs:
       - name: Typecheck
         run: bun run typecheck
 
-      - name: Test
-        run: bun test
-
       - name: JSON Schema up to date
         run: bun run schema:check
+
+  # The full suite with the pinned D2 on Linux and macOS: unit tests, the D2
+  # integration tests (required here because CI is set) and the byte-for-byte
+  # SVG goldens of the examples and the gallery, so rendering determinism is
+  # checked on both platforms.
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            coverage: true
+          - os: macos-latest
+            coverage: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: .bun-version
+
+      - name: Cache Bun packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('bun.lock') }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Cache D2
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .sumi/bin
+          key: d2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('src/backends/d2/version.ts') }}
+
+      # Pinned, checksum-verified D2 CLI (src/backends/d2/version.ts).
+      - name: Install D2
+        run: bun run d2:install
+
+      # Records the environment the goldens were checked in: OS, Bun
+      # (.bun-version), D2 (src/backends/d2/version.ts) and the sha256 of each
+      # bundled font (src/core/theme/fonts.ts). Fails early if any is off.
+      - name: Environment
+        run: |
+          uname -a
+          if [ "$RUNNER_OS" = "macOS" ]; then sw_vers; fi
+          bun src/cli/index.ts doctor
+          bun src/cli/index.ts doctor --json
+
+      - name: Test
+        run: bun test ${{ matrix.coverage && '--coverage' || '' }}
 
       # Re-renders docs/gallery/ and examples/*/*.svg; fails if they are stale.
       - name: Gallery and examples up to date

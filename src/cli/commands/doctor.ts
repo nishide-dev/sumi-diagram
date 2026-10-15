@@ -97,8 +97,15 @@ async function checkD2(context: CliContext): Promise<DoctorCheck> {
 }
 
 async function checkFonts(): Promise<DoctorCheck> {
-  const files: { fontSet: string; slot: string; path: string; ok: boolean; problem?: string }[] =
-    [];
+  const files: {
+    fontSet: string;
+    slot: string;
+    path: string;
+    /** Actual SHA-256 of the file, recorded so CI logs show the exact font environment. */
+    sha256: string | null;
+    ok: boolean;
+    problem?: string;
+  }[] = [];
   for (const set of BUILTIN_FONT_SETS.values()) {
     const slots = { regular: set.regular, bold: set.bold, italic: set.italic, mono: set.mono };
     for (const [slot, path] of Object.entries(slots)) {
@@ -106,8 +113,9 @@ async function checkFonts(): Promise<DoctorCheck> {
       const shown = relative(FONT_ASSETS_DIR, path);
       const expected = BUNDLED_FONT_SHA256.get(path);
       let problem: string | undefined;
+      let actual: string | null = null;
       try {
-        const actual = new Bun.CryptoHasher("sha256").update(await readFile(path)).digest("hex");
+        actual = new Bun.CryptoHasher("sha256").update(await readFile(path)).digest("hex");
         if (expected === undefined) problem = "no recorded checksum";
         else if (actual !== expected) problem = `sha256 ${actual} does not match ${expected}`;
       } catch {
@@ -117,6 +125,7 @@ async function checkFonts(): Promise<DoctorCheck> {
         fontSet: set.id,
         slot,
         path: shown,
+        sha256: actual,
         ok: problem === undefined,
         ...(problem !== undefined && { problem }),
       });
