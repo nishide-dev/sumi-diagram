@@ -177,7 +177,7 @@ Closes #4
    bun run release:build --target darwin-arm64 --version <version>
    bun run release:smoke dist/release/sumi-<version>-darwin-arm64.tar.gz
    ```
-   PR ごとに `Release check` workflow が linux-x64 で同じ build と smoke を実行しています。全ターゲットを試すには、Actions から `Release` workflow を手動実行（`workflow_dispatch`）します。この場合は tarball を artifact に残すだけで、Release は作りません。
+   PR ごとに CI の `Release smoke (linux-x64)` ジョブが同じ build と smoke を実行しています。全ターゲットを試すには、Actions から `Release` workflow を手動実行（`workflow_dispatch`）します。この場合は tarball を artifact に残すだけで、Release は作りません。
 3. **マージ後に tag を push する**: `main` の該当コミットに `v<version>` の annotated tag を付けて push する。
    ```sh
    git switch main && git pull
