@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { runCommand } from "./subprocess";
 
 const bun = process.execPath;
@@ -51,8 +54,43 @@ describe("runCommand", () => {
     expect(performance.now() - started).toBeLessThan(5_000);
   });
 
-  test("rejects an invalid timeout", async () => {
+  test("escalates to SIGKILL when the process ignores SIGTERM", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "sumi-subprocess-test-"));
+    const pidFile = join(dir, "pid");
+    try {
+      const started = performance.now();
+      const result = await runCommand(
+        [
+          bun,
+          "-e",
+          `process.on("SIGTERM", () => {});
+           require("node:fs").writeFileSync(process.argv[1], String(process.pid));
+           setInterval(() => {}, 1_000);`,
+          pidFile,
+        ],
+        { timeoutMs: 1_000, killGraceMs: 200 },
+      );
+      expect(result.timedOut).toBe(true);
+      expect(result.exitCode).toBeNull();
+      expect(result.signal).toBe("SIGKILL");
+      expect(performance.now() - started).toBeLessThan(5_000);
+    } finally {
+      // Make sure the child does not outlive the test, even if assertions failed.
+      const pid = Number(await readFile(pidFile, "utf8").catch(() => ""));
+      if (Number.isInteger(pid) && pid > 0) {
+        try {
+          process.kill(pid, "SIGKILL");
+        } catch {
+          // Already exited.
+        }
+      }
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("rejects an invalid timeout or kill grace period", async () => {
     await expect(runCommand([bun, "--version"], { timeoutMs: 0 })).rejects.toThrow(RangeError);
+    await expect(runCommand([bun, "--version"], { killGraceMs: -1 })).rejects.toThrow(RangeError);
   });
 
   test("throws when the executable does not exist", async () => {

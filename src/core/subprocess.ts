@@ -13,9 +13,16 @@ export interface RunCommandOptions {
   cwd?: string;
   /** Environment variables for the child process. Defaults to the current environment. */
   env?: Record<string, string | undefined>;
-  /** Kill the process (SIGTERM) if it runs longer than this many milliseconds. */
+  /** Send SIGTERM to the process if it runs longer than this many milliseconds. */
   timeoutMs?: number;
+  /**
+   * After a timeout's SIGTERM, wait this many milliseconds for the process to
+   * exit before sending SIGKILL. Defaults to {@link DEFAULT_KILL_GRACE_MS}.
+   */
+  killGraceMs?: number;
 }
+
+export const DEFAULT_KILL_GRACE_MS = 2_000;
 
 export interface RunCommandResult {
   /** Exit code, or `null` if the process was terminated by a signal. */
@@ -38,9 +45,12 @@ export async function runCommand(
   argv: CommandArgv,
   options: RunCommandOptions = {},
 ): Promise<RunCommandResult> {
-  const { timeoutMs } = options;
+  const { timeoutMs, killGraceMs = DEFAULT_KILL_GRACE_MS } = options;
   if (timeoutMs !== undefined && !(Number.isFinite(timeoutMs) && timeoutMs > 0)) {
     throw new RangeError(`timeoutMs must be a positive finite number, got ${timeoutMs}`);
+  }
+  if (!(Number.isFinite(killGraceMs) && killGraceMs >= 0)) {
+    throw new RangeError(`killGraceMs must be a non-negative finite number, got ${killGraceMs}`);
   }
 
   const proc = Bun.spawn([...argv], {
@@ -52,12 +62,15 @@ export async function runCommand(
   });
 
   let timedOut = false;
+  let killTimer: Timer | undefined;
   const timer =
     timeoutMs === undefined
       ? undefined
       : setTimeout(() => {
           timedOut = true;
-          proc.kill();
+          proc.kill("SIGTERM");
+          // Escalate in case the process traps or ignores SIGTERM.
+          killTimer = setTimeout(() => proc.kill("SIGKILL"), killGraceMs);
         }, timeoutMs);
 
   try {
@@ -75,5 +88,6 @@ export async function runCommand(
     };
   } finally {
     clearTimeout(timer);
+    clearTimeout(killTimer);
   }
 }
