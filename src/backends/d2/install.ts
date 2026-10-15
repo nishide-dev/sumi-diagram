@@ -40,6 +40,27 @@ async function fetchBytes(url: string): Promise<Uint8Array> {
 }
 
 /**
+ * Downloads a D2 release tarball and verifies its SHA-256 against the pinned
+ * value. Throws on a download failure or a checksum mismatch. Also used by the
+ * release build (`scripts/build-release.ts`), which ships D2 in the tarball.
+ */
+export async function downloadD2Release(
+  asset: D2ReleaseAsset,
+  options: Pick<InstallD2Options, "download" | "log"> = {},
+): Promise<Uint8Array> {
+  const { download = fetchBytes, log = () => {} } = options;
+  const url = `${D2_RELEASE_BASE_URL}/${asset.name}`;
+  log(`Downloading ${url}`);
+  const tarball = await download(url);
+  const actual = new Bun.CryptoHasher("sha256").update(tarball).digest("hex");
+  if (actual !== asset.sha256) {
+    throw new Error(`SHA-256 mismatch for ${asset.name}: expected ${asset.sha256}, got ${actual}`);
+  }
+  log(`Verified SHA-256 ${actual}`);
+  return tarball;
+}
+
+/**
  * Downloads, verifies and extracts the pinned `d2` to `options.destination`.
  * Throws on failure.
  *
@@ -65,14 +86,7 @@ export async function installD2(options: InstallD2Options): Promise<InstallD2Out
     );
   }
 
-  const url = `${D2_RELEASE_BASE_URL}/${asset.name}`;
-  log(`Downloading ${url}`);
-  const tarball = await download(url);
-  const actual = new Bun.CryptoHasher("sha256").update(tarball).digest("hex");
-  if (actual !== asset.sha256) {
-    throw new Error(`SHA-256 mismatch for ${asset.name}: expected ${asset.sha256}, got ${actual}`);
-  }
-  log(`Verified SHA-256 ${actual}`);
+  const tarball = await downloadD2Release(asset, { download, log });
 
   const parent = dirname(destination);
   await mkdir(parent, { recursive: true });
