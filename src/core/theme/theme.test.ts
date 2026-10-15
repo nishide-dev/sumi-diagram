@@ -325,14 +325,13 @@ describe("validateTheme: values", () => {
       codes(
         theme({
           base: { edge: { fill: "#fff", radius: "1pt" }, node: { filled: true } },
-          components: { arrow: { default: { fill: "#fff" } } },
+          components: { arrow: { default: { fill: "#fff", radius: "0pt" } } },
         }),
       ),
     ).toEqual([
       ["theme/inapplicable-property", ["base", "node", "filled"]],
-      ["theme/inapplicable-property", ["base", "edge", "fill"]],
       ["theme/inapplicable-property", ["base", "edge", "radius"]],
-      ["theme/inapplicable-property", ["components", "arrow", "default", "fill"]],
+      ["theme/inapplicable-property", ["components", "arrow", "default", "radius"]],
     ]);
   });
 });
@@ -505,7 +504,8 @@ describe("resolveStyle", () => {
       fontSize: { pt: 9 },
     });
     expect(KIND_DEFAULTS.edge).toMatchObject({ filled: true, fontSize: { pt: 7, units: 14 } });
-    expect("fill" in KIND_DEFAULTS.edge).toBe(false);
+    // On edges, fill is the label background (#31).
+    expect(KIND_DEFAULTS.edge.fill).toBe("#ffffff");
   });
 });
 

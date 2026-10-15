@@ -85,6 +85,7 @@ describe("generateD2", () => {
   label: "open"
   class: ["sumi-k-e--_1"; "sumi-kind-edge"]
   style: {
+    fill: "#ffffff"
     stroke: "#1f2328"
     stroke-width: 2
     stroke-dash: 0
@@ -104,6 +105,7 @@ describe("generateD2", () => {
   label: ""
   class: ["sumi-k-e--_2"; "sumi-kind-edge"]
   style: {
+    fill: "#ffffff"
     stroke: "#1f2328"
     stroke-width: 2
     stroke-dash: 0
@@ -140,6 +142,34 @@ describe("generateD2", () => {
     font: mono
   }
 }`);
+  });
+
+  test("puts group labels at the top-left and gives edge labels a background (#31)", () => {
+    const result = compileFigure(`version: 1
+figure: { id: readability, theme: academic }
+groups:
+  - { id: g, label: Group }
+nodes:
+  - { id: a, component: box, label: A, group: g }
+  - { id: b, component: box, label: B }
+edges:
+  - { from: b, to: a, label: x }
+`);
+    if (!result.ok) throw new Error("expected ok");
+    const { d2Source } = result.value;
+    expect(d2Source).toContain(`"g_g": {
+  label: "Group"
+  class: ["sumi-k-g--g"; "sumi-kind-group"]
+  shape: rectangle
+  label.near: top-left
+`);
+    expect(d2Source.match(/label\.near/g)).toHaveLength(1);
+    // academic's edge fill is its paper color.
+    expect(d2Source).toContain(`  label: "x"
+  class: ["sumi-k-e--_0"; "sumi-kind-edge"]
+  style: {
+    fill: "#ffffff"
+`);
   });
 
   test("writes an explicit empty label and no arrowheads for undirected edges", async () => {

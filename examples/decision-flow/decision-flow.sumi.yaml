@@ -5,9 +5,10 @@
 # figure stays within paper-single's 88mm (about 60mm wide); branches spread
 # sideways.
 #
-# No group here: wrapping the retry loop (a cycle) in a container makes D2/ELK
-# reverse the loop and place `done` above `process`. See examples/pipeline for
-# groups.
+# No group here: wrapping the retry loop (a cycle) in a container can make
+# D2/ELK reverse the loop and place `done` above `process`; `sumi lint
+# --geometry` reports that as geometry/reversed-edge (#31). See
+# examples/pipeline for groups.
 #
 # Render: bun run example:render examples/decision-flow/decision-flow.sumi.yaml
 version: 1

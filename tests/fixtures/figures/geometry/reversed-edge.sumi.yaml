@@ -1,0 +1,24 @@
+# A retry loop (process -> done -> process) inside a container. D2/ELK v0.9.0
+# reverses the wrong edge of the cycle and draws `done` above `process`
+# (#31, item 2). Expected: geometry/reversed-edge (warning) on edges[1]
+# (process -> done). reversed-edge-reordered.sumi.yaml is the fix from the hint.
+version: 1
+figure:
+  id: reversed-edge
+  theme: minimal
+  profile: paper-single
+  layout:
+    direction: down
+groups:
+  - id: retry
+    label: Retry
+nodes:
+  - { id: start, component: ellipse, label: Start }
+  - { id: process, component: box, label: Process, group: retry }
+  - { id: done, component: diamond, label: Done?, group: retry }
+  - { id: finish, component: ellipse, label: End }
+edges:
+  - { from: start, to: process }
+  - { from: process, to: done }
+  - { from: done, to: process, label: retry }
+  - { from: done, to: finish, label: "yes" }

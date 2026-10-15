@@ -1,0 +1,24 @@
+# reversed-edge.sumi.yaml with `done` declared before `process`, as the hint of
+# geometry/reversed-edge suggests: D2/ELK v0.9.0 then reverses `done ->
+# process` (the edge that closes the cycle) and draws the loop top to bottom.
+# Expected: no geometry diagnostics.
+version: 1
+figure:
+  id: reversed-edge-reordered
+  theme: minimal
+  profile: paper-single
+  layout:
+    direction: down
+groups:
+  - id: retry
+    label: Retry
+nodes:
+  - { id: start, component: ellipse, label: Start }
+  - { id: done, component: diamond, label: Done?, group: retry }
+  - { id: process, component: box, label: Process, group: retry }
+  - { id: finish, component: ellipse, label: End }
+edges:
+  - { from: start, to: process }
+  - { from: process, to: done }
+  - { from: done, to: process, label: retry }
+  - { from: done, to: finish, label: "yes" }

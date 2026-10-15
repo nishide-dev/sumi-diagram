@@ -1,0 +1,27 @@
+# An edge enters a container from above (#31, item 1). With D2's centered
+# container label, `input -> parse` crossed the label "Pipeline"; Sumi puts
+# group labels at the top-left corner, where the edge (aimed at the centered
+# first child of a container wider than its label) passes beside it.
+# Expected: no geometry diagnostics.
+version: 1
+figure:
+  id: container-label
+  theme: academic
+  profile: paper-single
+  layout:
+    direction: down
+groups:
+  - id: stages
+    label: Pipeline
+nodes:
+  - { id: input, component: parallelogram, label: Input }
+  - { id: parse, component: box, label: Parse, group: stages }
+  - { id: validate, component: box, label: Validate, group: stages }
+  - { id: transform, component: box, label: Transform, variant: emphasis, group: stages }
+  - { id: report, component: document, label: Report }
+edges:
+  - { from: input, to: parse }
+  - { from: parse, to: validate }
+  - { from: validate, to: transform }
+  - { from: transform, to: report, label: write }
+  - { from: validate, to: report, label: errors, variant: dashed }

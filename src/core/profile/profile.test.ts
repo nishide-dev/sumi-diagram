@@ -51,12 +51,12 @@ describe("built-in profiles", () => {
     };
     expect(summary("paper-single")).toEqual({
       maxWidth: "88mm",
-      maxHeight: undefined,
+      maxHeight: "220mm",
       minFontSize: 7,
     });
     expect(summary("paper-double")).toEqual({
       maxWidth: "180mm",
-      maxHeight: undefined,
+      maxHeight: "220mm",
       minFontSize: 7,
     });
     expect(summary("presentation-16x9")).toEqual({
@@ -74,16 +74,16 @@ describe("toD2LayoutArgs", () => {
         "--pad",
         "11",
         "--elk-nodeNodeBetweenLayers",
-        "57",
+        "45",
         "--elk-edgeNodeBetweenLayers",
-        "29",
+        "23",
         "--elk-padding",
         "[top=23,left=23,bottom=23,right=23]",
       ],
       effective: {
         pad: { units: 11, pt: 5.5 },
-        nodeNodeBetweenLayers: { units: 57, pt: 28.5 },
-        edgeNodeBetweenLayers: { units: 29, pt: 14.5 },
+        nodeNodeBetweenLayers: { units: 45, pt: 22.5 }, // 8mm = 45.35 units
+        edgeNodeBetweenLayers: { units: 23, pt: 11.5 }, // 45 / 2 = 22.5, rounded up
         padding: { units: 23, pt: 11.5 },
       },
     });
@@ -92,8 +92,8 @@ describe("toD2LayoutArgs", () => {
   test("scales the presentation profile", () => {
     const { effective } = toD2LayoutArgs(builtin("presentation-16x9"));
     expect(effective.pad.units).toBe(23); // 4mm = 22.68 units
-    expect(effective.nodeNodeBetweenLayers.units).toBe(113); // 20mm = 113.39 units
-    expect(effective.edgeNodeBetweenLayers.units).toBe(57); // 113 / 2 = 56.5, rounded up
+    expect(effective.nodeNodeBetweenLayers.units).toBe(91); // 16mm = 90.71 units
+    expect(effective.edgeNodeBetweenLayers.units).toBe(46); // 91 / 2 = 45.5, rounded up
     expect(effective.padding.units).toBe(45); // 8mm = 45.35 units
   });
 

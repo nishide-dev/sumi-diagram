@@ -1,9 +1,13 @@
 /**
  * Built-in output profiles (design doc §5.2) and lookup by name.
  *
- * Paper profiles use a 2mm margin, a 10mm layer gap and 4mm container padding
- * (the design doc example). The presentation profile doubles every spacing
- * value, matching its doubled minimum font size (14pt vs 7pt).
+ * Paper profiles use a 2mm margin, an 8mm layer gap and 4mm container padding.
+ * The presentation profile doubles every spacing value, matching its doubled
+ * minimum font size (14pt vs 7pt).
+ *
+ * The layer gap was 10mm (the design doc example) until #31: 6–7 layers then
+ * came out about 165mm tall. 8mm shortens such figures by about 10% and still
+ * leaves edge labels between layers clear of the nodes (6mm did not).
  */
 
 import { type DocPath, didYouMean } from "../diagnostics";
@@ -12,9 +16,17 @@ import type { Locator } from "../figure/yaml";
 import type { Result } from "../result";
 import { type Profile, type ProfileDefinition, validateProfile } from "./schema";
 
+/**
+ * Maximum height of a paper figure (#31): the text block of common two-column
+ * templates is about 235mm (US letter with 0.75in / 1in margins) to 250mm (A4
+ * with 25mm margins); about 15mm of that is left for the caption and the
+ * spacing around the float. Both paper profiles share it: the page is the same.
+ */
+const PAPER_MAX_HEIGHT = "220mm";
+
 const PAPER_SPACING = {
   margin: "2mm",
-  layout: { layerGap: "10mm", containerPadding: "4mm" },
+  layout: { layerGap: "8mm", containerPadding: "4mm" },
 } as const;
 
 export const BUILTIN_PROFILE_DEFINITIONS: readonly ProfileDefinition[] = [
@@ -22,7 +34,7 @@ export const BUILTIN_PROFILE_DEFINITIONS: readonly ProfileDefinition[] = [
     version: 1,
     id: "paper-single",
     description: "Single-column figure in a two-column paper",
-    page: { maxWidth: "88mm" },
+    page: { maxWidth: "88mm", maxHeight: PAPER_MAX_HEIGHT },
     ...PAPER_SPACING,
     typography: { minFontSize: "7pt" },
   },
@@ -30,7 +42,7 @@ export const BUILTIN_PROFILE_DEFINITIONS: readonly ProfileDefinition[] = [
     version: 1,
     id: "paper-double",
     description: "Full-width (double-column) figure in a two-column paper",
-    page: { maxWidth: "180mm" },
+    page: { maxWidth: "180mm", maxHeight: PAPER_MAX_HEIGHT },
     ...PAPER_SPACING,
     typography: { minFontSize: "7pt" },
   },
@@ -41,7 +53,7 @@ export const BUILTIN_PROFILE_DEFINITIONS: readonly ProfileDefinition[] = [
     page: { maxWidth: "338.7mm", maxHeight: "190.5mm" },
     margin: "4mm",
     typography: { minFontSize: "14pt" },
-    layout: { layerGap: "20mm", containerPadding: "8mm" },
+    layout: { layerGap: "16mm", containerPadding: "8mm" },
   },
 ];
 

@@ -76,6 +76,7 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
         bold: true,
       },
       edge: {
+        fill: "{color.bg}",
         stroke: "{color.fg}",
         strokeWidth: "{line.regular}",
         fontSize: "{size.small}",
@@ -135,6 +136,7 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
         bold: true,
       },
       edge: {
+        fill: "{color.paper}",
         stroke: "{color.line}",
         strokeWidth: "{line.regular}",
         fontSize: "{size.small}",

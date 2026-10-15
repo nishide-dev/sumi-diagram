@@ -1,5 +1,6 @@
 # With `direction: down`, an edge entering a container from above crosses the
-# container's centered label (#31, item 1). Expected:
+# container's label (#31, item 1): even at the top-left corner, the label of a
+# container as narrow as this one spans the column the edge comes down. Expected:
 # geometry/edge-crosses-label (warning) on the edge, naming group "stages".
 version: 1
 figure:

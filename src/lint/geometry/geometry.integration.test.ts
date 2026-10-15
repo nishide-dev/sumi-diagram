@@ -40,6 +40,11 @@ describe.skipIf(!available && !inCI)("geometry lint with D2", () => {
     ["exceeds-page-width", ["geometry/exceeds-page-width"]],
     ["label-overflow", ["geometry/label-overflow"]],
     ["edge-crosses-label", ["geometry/edge-crosses-label"]],
+    // #31: the regression fixtures of the readability fixes.
+    ["exceeds-page-height", ["geometry/exceeds-page-height"]],
+    ["container-label", []],
+    ["reversed-edge", ["geometry/reversed-edge"]],
+    ["reversed-edge-reordered", []],
     ["containment", []],
     ["whitespace", []],
   ])("fixture %s", async (name, expected) => {
@@ -85,6 +90,24 @@ describe.skipIf(!available && !inCI)("geometry lint with D2", () => {
     expect(geometry[0]?.message).toBe('Edge "enter" crosses the label of group "stages".');
   });
 
+  test("reversed-edge names the edge and where its target is drawn (#31)", async () => {
+    const { geometry } = await lintFile(join(FIXTURES, "geometry", "reversed-edge.sumi.yaml"));
+    expect(geometry[0]?.path).toEqual(["edges", 1]);
+    expect(geometry[0]?.message).toBe(
+      'Edge edges[1] points against layout.direction (down): node "done" is drawn above node "process", although the edge does not close a cycle in declaration order.',
+    );
+  });
+
+  test("exceeds-page-height compares with the paper profile's 220mm (#31)", async () => {
+    const { report, geometry } = await lintFile(
+      join(FIXTURES, "geometry", "exceeds-page-height.sumi.yaml"),
+    );
+    expect(geometry[0]?.message).toMatch(
+      /^The figure is \d+(\.\d+)?mm tall, more than the 220mm maximum height of profile "paper-single"\.$/,
+    );
+    expect(report.exitCode).toBe(1);
+  });
+
   test.each(["decision-flow", "pipeline"])(
     "example %s has no geometry diagnostics",
     async (name) => {
@@ -114,6 +137,7 @@ describe.skipIf(!available && !inCI)("geometry lint with D2", () => {
         "geometry/out-of-canvas",
         "geometry/node-overlap",
         "geometry/text-too-small",
+        "geometry/reversed-edge",
       ].includes(d.code),
     );
     expect(unexpected).toEqual([]);

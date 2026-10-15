@@ -4,7 +4,7 @@
  * the SVG with its theme's colors and the arrowheads its component implies.
  * Also renders the examples under `examples/` (through the shared
  * `renderFigure()` pipeline, #11) and checks them against the committed SVGs
- * and their profile's page width.
+ * and their profile's page size.
  *
  * Skipped when the pinned `d2` is not installed locally (`bun run d2:install`);
  * required in CI (`CI` set), as in `d2-render.test.ts`.
@@ -136,10 +136,14 @@ describe.skipIf(!available)("built-in primitives render with D2", () => {
           const compiled = compileFigure(source);
           if (!compiled.ok) throw new Error("expected ok");
           expect(compiled.diagnostics).toEqual([]);
-          const maxWidth = getProfile(compiled.value.ir.meta.profileId)?.page.maxWidth;
-          const width = /viewBox="0 0 (\d+) \d+"/.exec(svg)?.[1];
-          expect(width).toBeDefined();
-          if (maxWidth) expect(d2UnitsToPt(Number(width))).toBeLessThanOrEqual(maxWidth.pt);
+          // `sumi render` also runs the geometry lint: the empty stderr above means
+          // no geometry diagnostics (e.g. no edge crossing a container label, #31).
+          const { page } = getProfile(compiled.value.ir.meta.profileId) ?? {};
+          const size = /viewBox="0 0 (\d+) (\d+)"/.exec(svg);
+          expect(size).not.toBeNull();
+          const [width, height] = [Number(size?.[1]), Number(size?.[2])].map(d2UnitsToPt);
+          if (page?.maxWidth) expect(width).toBeLessThanOrEqual(page.maxWidth.pt);
+          if (page?.maxHeight) expect(height).toBeLessThanOrEqual(page.maxHeight.pt);
         } finally {
           await rm(dir, { recursive: true, force: true });
         }

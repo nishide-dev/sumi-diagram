@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { mmToPt } from "../../core/units";
 import { LintConfigError } from "../config";
+import { cycleClosingEdges } from "./rules";
 import { centeredBaseline, compile, label, lintSpec } from "./testing";
 
 // Line numbers matter for the location tests below.
@@ -455,6 +456,163 @@ describe("geometry/aspect-distorted", () => {
       ["warning", 'The circle node "c" is drawn 35pt × 80pt, not with equal width and height.'],
     ]);
     expect(run(70, 71)).toEqual([]);
+  });
+});
+
+describe("geometry/reversed-edge", () => {
+  const code = "geometry/reversed-edge";
+  const LOOP = `version: 1
+figure: { id: loop, layout: { direction: down } }
+groups:
+  - { id: grp, label: Group }
+nodes:
+  - { id: start, component: box, label: Start }
+  - { id: p, component: box, label: P, group: grp }
+  - { id: d, component: box, label: D, group: grp }
+  - { id: t, component: label, label: Note }
+edges:
+  - { from: start, to: p }
+  - { from: p, to: d }
+  - { id: retry, from: d, to: p }
+  - { from: t, to: d, component: line }
+  - { from: d, to: d }
+  - { from: grp, to: p }
+`;
+  const loop = compile(LOOP);
+  const box = (y: number) => ({ x: 0, y, width: 40, height: 20 });
+  const run = (
+    ys: { start: number; p: number; d: number; t?: number },
+    figure = loop,
+    source = LOOP,
+  ) =>
+    lintSpec(
+      figure,
+      {
+        elements: {
+          "n:start": { bbox: box(ys.start) },
+          "n:p": { bbox: box(ys.p) },
+          "n:d": { bbox: box(ys.d) },
+          "n:t": { labels: [label("Note", 20, centeredBaseline(ys.t ?? 0))] },
+          "g:grp": { bbox: { x: -10, y: 0, width: 60, height: 200 } },
+        },
+      },
+      { code, source },
+    );
+
+  test("the edge that closes the cycle in declaration order may run backwards", () => {
+    expect(run({ start: 0, p: 50, d: 100 })).toEqual([]);
+  });
+
+  test("another edge of the cycle drawn backwards is reported", () => {
+    const reversed = run({ start: 0, p: 100, d: 50 });
+    expect(reversed.map((d) => [d.severity, d.path, d.message])).toEqual([
+      [
+        "warning",
+        ["edges", 1],
+        'Edge edges[1] points against layout.direction (down): node "d" is drawn above node "p", although the edge does not close a cycle in declaration order.',
+      ],
+    ]);
+    expect(reversed[0]?.hint).toContain("Declare the cycle's nodes in a different order");
+    expect(reversed[0]?.related?.[0]?.message).toBe('Node "d" is defined here.');
+  });
+
+  test("touching shapes are not reversed; lines, self-loops and group edges are ignored", () => {
+    // d reaching 1 unit into p still counts as above it (tolerance); 2 units do not.
+    expect(run({ start: 0, p: 100, d: 81 })).toHaveLength(1);
+    expect(run({ start: 0, p: 100, d: 82 })).toEqual([]);
+    // The line from the text node t runs upwards: lines show no direction.
+    expect(run({ start: 0, p: 50, d: 100, t: 300 })).toEqual([]);
+  });
+
+  test("every direction", () => {
+    for (const [direction, words, start, p, d] of [
+      ["up", "below", 200, 100, 150],
+      ["right", "to the left of", 0, 100, 50],
+      ["left", "to the right of", 200, 50, 100],
+    ] as const) {
+      const source = LOOP.replace("direction: down", `direction: ${direction}`);
+      const figure = compile(source);
+      const horizontal = direction !== "up";
+      const at = (v: number) => (horizontal ? { x: v, y: 0 } : { x: 0, y: v });
+      const result = lintSpec(
+        figure,
+        {
+          elements: {
+            "n:start": { bbox: { ...at(start), width: 20, height: 20 } },
+            "n:p": { bbox: { ...at(p), width: 20, height: 20 } },
+            "n:d": { bbox: { ...at(d), width: 20, height: 20 } },
+          },
+        },
+        { code, source },
+      );
+      expect(result.map((r) => r.message)).toEqual([
+        `Edge edges[1] points against layout.direction (${direction}): node "d" is drawn ${words} node "p", although the edge does not close a cycle in declaration order.`,
+      ]);
+    }
+  });
+});
+
+describe("cycleClosingEdges", () => {
+  const closing = (source: string) => {
+    const { ir } = compile(source);
+    const keys = cycleClosingEdges(ir, () => true);
+    return ir.edges.filter((e) => keys.has(e.key)).map((e) => `${e.from}->${e.to}`);
+  };
+  const figure = (nodes: string[], edges: [string, string][]) =>
+    `version: 1
+figure: { id: cycles }
+nodes:
+${nodes.map((id) => `  - { id: ${id}, component: box }`).join("\n")}
+edges:
+${edges.map(([from, to]) => `  - { from: ${from}, to: ${to} }`).join("\n")}
+`;
+
+  test("searches from the sources first, in declaration order", () => {
+    // c is declared first but has an incoming edge; a is the source.
+    expect(
+      closing(
+        figure(
+          ["c", "b", "a"],
+          [
+            ["a", "b"],
+            ["b", "c"],
+            ["c", "b"],
+          ],
+        ),
+      ),
+    ).toEqual(["n:c->n:b"]);
+  });
+
+  test("a cycle without a source starts at its first declared node", () => {
+    expect(
+      closing(
+        figure(
+          ["b", "a", "c"],
+          [
+            ["a", "b"],
+            ["b", "c"],
+            ["c", "a"],
+          ],
+        ),
+      ),
+    ).toEqual(["n:a->n:b"]);
+  });
+
+  test("cross and forward edges into finished branches do not close cycles", () => {
+    expect(
+      closing(
+        figure(
+          ["a", "b", "c", "d"],
+          [
+            ["a", "b"],
+            ["a", "c"],
+            ["b", "d"],
+            ["c", "d"],
+            ["a", "d"],
+          ],
+        ),
+      ),
+    ).toEqual([]);
   });
 });
 

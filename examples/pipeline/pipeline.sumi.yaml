@@ -6,7 +6,8 @@
 # bottom and the figure stays within a single paper column (about 62mm wide).
 #
 # `input` sits inside the `stages` group on purpose: in D2/ELK an edge that
-# enters a container from above crosses the container's centered label, so the
+# enters a container from above can cross the container's label (Sumi puts it
+# at the top-left corner, #31, which avoids most but not all crossings), so the
 # first edge is kept inside the group.
 #
 # Render: bun run example:render examples/pipeline/pipeline.sumi.yaml
