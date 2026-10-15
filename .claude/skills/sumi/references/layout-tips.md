@@ -30,11 +30,20 @@ plus an 8mm layer gap (paper profiles). Measured with short labels
 
 ## Slides (`presentation-16x9`)
 
-Its minimum font size is 14pt, but both built-in themes use 7–9pt text, so
-every labelled element fails with `profile/font-too-small`. There is no way
-to enlarge text from a figure. Tell the user; options are to render for
-`paper-double` and scale the SVG on the slide, or wait for a slide theme.
-Do not try to work around it.
+For slides use `theme: slides` + `profile: presentation-16x9`. The profile
+requires 14pt text; only `slides` meets it (16pt text, 14pt edge labels).
+`minimal` and `academic` (7–9pt) fail every labelled element with
+`profile/font-too-small` by design. Themes and profiles stay independent:
+the profile never enlarges text, so pick the theme to match.
+
+- A slide is about 338mm × 190mm, and `slides` text plus the profile's
+  doubled spacing (16mm layer gap) make figures about 1.5–2 times larger
+  than on paper. Wide, shallow figures fit: 3–4 layers with `direction:
+  right` (e.g. three tiers of containers) take about 280mm × 100mm.
+- A chain of 6–7 layers does not fit in either direction (about 240–250mm
+  tall with `down`, 350–430mm wide with `right`): `geometry/exceeds-page-height`
+  or `-width`. Split it into several slides or drop trivial steps (ask the
+  user); do not switch the theme or profile on your own.
 
 ## Labels
 

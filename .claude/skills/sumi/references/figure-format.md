@@ -101,15 +101,16 @@ lists them in the hint of `theme/unknown` / `profile/unknown`.
 | --- | --- |
 | `minimal` | monochrome with clear outlines (default) |
 | `academic` | restrained, for papers: thin lines, black text, gray emphasis |
+| `slides` | for slides: 16pt text (14pt on edges, 18pt container labels), 2pt lines; use with `presentation-16x9` |
 
-Both use 8pt text (7pt on edges) and the bundled `sumi/biz-ud-gothic` font
-set (Latin and Japanese).
+`minimal` and `academic` use 8pt text (7pt on edges). All three use the
+bundled `sumi/biz-ud-gothic` font set (Latin and Japanese).
 
 | Profile | Max width | Max height | Min font size | Use |
 | --- | --- | --- | --- | --- |
 | `paper-single` | 88mm | — | 7pt | one column of a two-column paper (default) |
 | `paper-double` | 180mm | — | 7pt | full page width |
-| `presentation-16x9` | 338.7mm | 190.5mm | 14pt | slides (see layout-tips: not usable with the built-in themes yet) |
+| `presentation-16x9` | 338.7mm | 190.5mm | 14pt | slides; only `slides` meets its 14pt minimum (see layout-tips) |
 
 `sumi render --theme <name> --profile <name>` overrides them for one render
 without editing the file.

@@ -77,8 +77,11 @@ function propRows(entry: CatalogEntry): PropRow[] {
 
 function sizeText(outcome: RenderOutcome): string {
   if (outcome.widthPt === undefined || outcome.heightPt === undefined) return "not rendered";
-  const limit =
-    outcome.maxWidthPt === undefined ? "" : ` (max width ${formatMm(outcome.maxWidthPt)})`;
+  const limits = [
+    ...(outcome.maxWidthPt === undefined ? [] : [`max width ${formatMm(outcome.maxWidthPt)}`]),
+    ...(outcome.maxHeightPt === undefined ? [] : [`max height ${formatMm(outcome.maxHeightPt)}`]),
+  ];
+  const limit = limits.length === 0 ? "" : ` (${limits.join(", ")})`;
   return `${formatMm(outcome.widthPt)} × ${formatMm(outcome.heightPt)}${limit}`;
 }
 
@@ -165,7 +168,7 @@ function htmlFigure(outcome: RenderOutcome, caption: string, alt: string): strin
   const diagnostics = diagnosticSummary(outcome.diagnostics);
   const body =
     outcome.svg === undefined
-      ? `<p class="failed">Not rendered.</p>`
+      ? `<p class="failed">Not rendered: rejected before drawing (see below).</p>`
       : `<img src="${urlAttribute(rel(outcome.rendering.output))}" alt="${escapeHtml(alt)}" loading="lazy">`;
   const notes = diagnostics.map((d) => `<br><span class="failed">${inlineCode(d)}</span>`).join("");
   const size = outcome.svg === undefined ? "" : `<br>${escapeHtml(sizeText(outcome))}`;
@@ -249,7 +252,12 @@ const COMPARISON_NOTE =
   "Profiles never scale a figure. The paper profiles share their spacing and differ only in the " +
   "width limit that the geometry lint checks, so their drawings match. A profile whose minimum " +
   "font size is larger than a theme's font sizes rejects the figure before rendering " +
-  "(`profile/font-too-small`).";
+  "(`profile/font-too-small`): `presentation-16x9` requires 14pt text, so it accepts only the " +
+  "`slides` theme, and the paper themes are not rendered there by design. Theme and profile stay " +
+  "independent; for slides use `theme: slides` with `profile: presentation-16x9`. A figure that " +
+  "exceeds a page limit is still drawn, with the geometry error below it: `slides` doubles the " +
+  "text and the presentation profile doubles the spacing, so this tall top-to-bottom figure is " +
+  "taller than a slide. A slide needs a shallow figure: fewer layers, or several figures.";
 
 function htmlComparison(comparison: GalleryModel["comparison"]): string {
   const rows = THEMES.map((theme) => {
@@ -354,7 +362,7 @@ export function mdFence(code: string, language: string): string {
 }
 
 function mdImage(outcome: RenderOutcome, alt: string): string {
-  if (outcome.svg === undefined) return "_not rendered_";
+  if (outcome.svg === undefined) return "_rejected before drawing_";
   return `<img src="${urlAttribute(rel(outcome.rendering.output))}" alt="${escapeHtml(alt).replaceAll("|", "&#124;")}">`;
 }
 

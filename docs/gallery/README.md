@@ -35,10 +35,10 @@ A rectangle; the general\-purpose node\.
 | <code>width</code> | <code>string</code> | no | Explicit width as a length such as &quot;30mm&quot; or &quot;40pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
 | <code>height</code> | <code>string</code> | no | Explicit height as a length such as &quot;10mm&quot; or &quot;20pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
 
-| <code>minimal</code> | <code>academic</code> |
-| --- | --- |
-| <img src="components/sumi-box.minimal.svg" alt="sumi/box, theme minimal"> | <img src="components/sumi-box.academic.svg" alt="sumi/box, theme academic"> |
-| <code>sumi render sumi\-box\.sumi\.yaml</code><br>71\.61mm × 15\.35mm \(max width 180mm\) | <code>sumi render sumi\-box\.sumi\.yaml \-\-theme academic</code><br>71\.61mm × 14\.99mm \(max width 180mm\) |
+| <code>minimal</code> | <code>academic</code> | <code>slides</code> |
+| --- | --- | --- |
+| <img src="components/sumi-box.minimal.svg" alt="sumi/box, theme minimal"> | <img src="components/sumi-box.academic.svg" alt="sumi/box, theme academic"> | <img src="components/sumi-box.slides.svg" alt="sumi/box, theme slides"> |
+| <code>sumi render sumi\-box\.sumi\.yaml</code><br>71\.61mm × 15\.35mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-box\.sumi\.yaml \-\-theme academic</code><br>71\.61mm × 14\.99mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-box\.sumi\.yaml \-\-theme slides</code><br>107\.77mm × 18\.87mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-box.sumi.yaml</code></summary>
@@ -81,10 +81,10 @@ A square\.
 | <code>width</code> | <code>string</code> | no | Explicit width as a length such as &quot;30mm&quot; or &quot;40pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
 | <code>height</code> | <code>string</code> | no | Explicit height as a length such as &quot;10mm&quot; or &quot;20pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
 
-| <code>minimal</code> | <code>academic</code> |
-| --- | --- |
-| <img src="components/sumi-square.minimal.svg" alt="sumi/square, theme minimal"> | <img src="components/sumi-square.academic.svg" alt="sumi/square, theme academic"> |
-| <code>sumi render sumi\-square\.sumi\.yaml</code><br>71\.61mm × 27\.34mm \(max width 180mm\) | <code>sumi render sumi\-square\.sumi\.yaml \-\-theme academic</code><br>71\.61mm × 26\.99mm \(max width 180mm\) |
+| <code>minimal</code> | <code>academic</code> | <code>slides</code> |
+| --- | --- | --- |
+| <img src="components/sumi-square.minimal.svg" alt="sumi/square, theme minimal"> | <img src="components/sumi-square.academic.svg" alt="sumi/square, theme academic"> | <img src="components/sumi-square.slides.svg" alt="sumi/square, theme slides"> |
+| <code>sumi render sumi\-square\.sumi\.yaml</code><br>71\.61mm × 27\.34mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-square\.sumi\.yaml \-\-theme academic</code><br>71\.61mm × 26\.99mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-square\.sumi\.yaml \-\-theme slides</code><br>107\.77mm × 42\.69mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-square.sumi.yaml</code></summary>
@@ -127,10 +127,10 @@ A circle\.
 | <code>width</code> | <code>string</code> | no | Explicit width as a length such as &quot;30mm&quot; or &quot;40pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
 | <code>height</code> | <code>string</code> | no | Explicit height as a length such as &quot;10mm&quot; or &quot;20pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
 
-| <code>minimal</code> | <code>academic</code> |
-| --- | --- |
-| <img src="components/sumi-circle.minimal.svg" alt="sumi/circle, theme minimal"> | <img src="components/sumi-circle.academic.svg" alt="sumi/circle, theme academic"> |
-| <code>sumi render sumi\-circle\.sumi\.yaml</code><br>88\.02mm × 33\.87mm \(max width 180mm\) | <code>sumi render sumi\-circle\.sumi\.yaml \-\-theme academic</code><br>88\.02mm × 33\.51mm \(max width 180mm\) |
+| <code>minimal</code> | <code>academic</code> | <code>slides</code> |
+| --- | --- | --- |
+| <img src="components/sumi-circle.minimal.svg" alt="sumi/circle, theme minimal"> | <img src="components/sumi-circle.academic.svg" alt="sumi/circle, theme academic"> | <img src="components/sumi-circle.slides.svg" alt="sumi/circle, theme slides"> |
+| <code>sumi render sumi\-circle\.sumi\.yaml</code><br>88\.02mm × 33\.87mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-circle\.sumi\.yaml \-\-theme academic</code><br>88\.02mm × 33\.51mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-circle\.sumi\.yaml \-\-theme slides</code><br>139\.17mm × 55\.39mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-circle.sumi.yaml</code></summary>
@@ -173,10 +173,10 @@ An ellipse\.
 | <code>width</code> | <code>string</code> | no | Explicit width as a length such as &quot;30mm&quot; or &quot;40pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
 | <code>height</code> | <code>string</code> | no | Explicit height as a length such as &quot;10mm&quot; or &quot;20pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
 
-| <code>minimal</code> | <code>academic</code> |
-| --- | --- |
-| <img src="components/sumi-ellipse.minimal.svg" alt="sumi/ellipse, theme minimal"> | <img src="components/sumi-ellipse.academic.svg" alt="sumi/ellipse, theme academic"> |
-| <code>sumi render sumi\-ellipse\.sumi\.yaml</code><br>95\.6mm × 15\.17mm \(max width 180mm\) | <code>sumi render sumi\-ellipse\.sumi\.yaml \-\-theme academic</code><br>95\.6mm × 14\.82mm \(max width 180mm\) |
+| <code>minimal</code> | <code>academic</code> | <code>slides</code> |
+| --- | --- | --- |
+| <img src="components/sumi-ellipse.minimal.svg" alt="sumi/ellipse, theme minimal"> | <img src="components/sumi-ellipse.academic.svg" alt="sumi/ellipse, theme academic"> | <img src="components/sumi-ellipse.slides.svg" alt="sumi/ellipse, theme slides"> |
+| <code>sumi render sumi\-ellipse\.sumi\.yaml</code><br>95\.6mm × 15\.17mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-ellipse\.sumi\.yaml \-\-theme academic</code><br>95\.6mm × 14\.82mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-ellipse\.sumi\.yaml \-\-theme slides</code><br>146\.76mm × 22\.93mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-ellipse.sumi.yaml</code></summary>
@@ -219,10 +219,10 @@ A diamond, e\.g\. for decisions\.
 | <code>width</code> | <code>string</code> | no | Explicit width as a length such as &quot;30mm&quot; or &quot;40pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
 | <code>height</code> | <code>string</code> | no | Explicit height as a length such as &quot;10mm&quot; or &quot;20pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
 
-| <code>minimal</code> | <code>academic</code> |
-| --- | --- |
-| <img src="components/sumi-diamond.minimal.svg" alt="sumi/diamond, theme minimal"> | <img src="components/sumi-diamond.academic.svg" alt="sumi/diamond, theme academic"> |
-| <code>sumi render sumi\-diamond\.sumi\.yaml</code><br>100\.19mm × 19\.05mm \(max width 180mm\) | <code>sumi render sumi\-diamond\.sumi\.yaml \-\-theme academic</code><br>100\.19mm × 18\.7mm \(max width 180mm\) |
+| <code>minimal</code> | <code>academic</code> | <code>slides</code> |
+| --- | --- | --- |
+| <img src="components/sumi-diamond.minimal.svg" alt="sumi/diamond, theme minimal"> | <img src="components/sumi-diamond.academic.svg" alt="sumi/diamond, theme academic"> | <img src="components/sumi-diamond.slides.svg" alt="sumi/diamond, theme slides"> |
+| <code>sumi render sumi\-diamond\.sumi\.yaml</code><br>100\.19mm × 19\.05mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-diamond\.sumi\.yaml \-\-theme academic</code><br>100\.19mm × 18\.7mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-diamond\.sumi\.yaml \-\-theme slides</code><br>172\.16mm × 25\.4mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-diamond.sumi.yaml</code></summary>
@@ -265,10 +265,10 @@ A hexagon\.
 | <code>width</code> | <code>string</code> | no | Explicit width as a length such as &quot;30mm&quot; or &quot;40pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
 | <code>height</code> | <code>string</code> | no | Explicit height as a length such as &quot;10mm&quot; or &quot;20pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
 
-| <code>minimal</code> | <code>academic</code> |
-| --- | --- |
-| <img src="components/sumi-hexagon.minimal.svg" alt="sumi/hexagon, theme minimal"> | <img src="components/sumi-hexagon.academic.svg" alt="sumi/hexagon, theme academic"> |
-| <code>sumi render sumi\-hexagon\.sumi\.yaml</code><br>86\.08mm × 15\.52mm \(max width 180mm\) | <code>sumi render sumi\-hexagon\.sumi\.yaml \-\-theme academic</code><br>86\.08mm × 15\.17mm \(max width 180mm\) |
+| <code>minimal</code> | <code>academic</code> | <code>slides</code> |
+| --- | --- | --- |
+| <img src="components/sumi-hexagon.minimal.svg" alt="sumi/hexagon, theme minimal"> | <img src="components/sumi-hexagon.academic.svg" alt="sumi/hexagon, theme academic"> | <img src="components/sumi-hexagon.slides.svg" alt="sumi/hexagon, theme slides"> |
+| <code>sumi render sumi\-hexagon\.sumi\.yaml</code><br>86\.08mm × 15\.52mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-hexagon\.sumi\.yaml \-\-theme academic</code><br>86\.08mm × 15\.17mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-hexagon\.sumi\.yaml \-\-theme slides</code><br>140\.05mm × 20\.46mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-hexagon.sumi.yaml</code></summary>
@@ -311,10 +311,10 @@ A parallelogram, e\.g\. for input or output\.
 | <code>width</code> | <code>string</code> | no | Explicit width as a length such as &quot;30mm&quot; or &quot;40pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
 | <code>height</code> | <code>string</code> | no | Explicit height as a length such as &quot;10mm&quot; or &quot;20pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
 
-| <code>minimal</code> | <code>academic</code> |
-| --- | --- |
-| <img src="components/sumi-parallelogram.minimal.svg" alt="sumi/parallelogram, theme minimal"> | <img src="components/sumi-parallelogram.academic.svg" alt="sumi/parallelogram, theme academic"> |
-| <code>sumi render sumi\-parallelogram\.sumi\.yaml</code><br>99\.13mm × 15\.35mm \(max width 180mm\) | <code>sumi render sumi\-parallelogram\.sumi\.yaml \-\-theme academic</code><br>99\.13mm × 14\.99mm \(max width 180mm\) |
+| <code>minimal</code> | <code>academic</code> | <code>slides</code> |
+| --- | --- | --- |
+| <img src="components/sumi-parallelogram.minimal.svg" alt="sumi/parallelogram, theme minimal"> | <img src="components/sumi-parallelogram.academic.svg" alt="sumi/parallelogram, theme academic"> | <img src="components/sumi-parallelogram.slides.svg" alt="sumi/parallelogram, theme slides"> |
+| <code>sumi render sumi\-parallelogram\.sumi\.yaml</code><br>99\.13mm × 15\.35mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-parallelogram\.sumi\.yaml \-\-theme academic</code><br>99\.13mm × 14\.99mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-parallelogram\.sumi\.yaml \-\-theme slides</code><br>135\.29mm × 18\.87mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-parallelogram.sumi.yaml</code></summary>
@@ -357,10 +357,10 @@ A cylinder, e\.g\. for storage\.
 | <code>width</code> | <code>string</code> | no | Explicit width as a length such as &quot;30mm&quot; or &quot;40pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
 | <code>height</code> | <code>string</code> | no | Explicit height as a length such as &quot;10mm&quot; or &quot;20pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
 
-| <code>minimal</code> | <code>academic</code> |
-| --- | --- |
-| <img src="components/sumi-cylinder.minimal.svg" alt="sumi/cylinder, theme minimal"> | <img src="components/sumi-cylinder.academic.svg" alt="sumi/cylinder, theme academic"> |
-| <code>sumi render sumi\-cylinder\.sumi\.yaml</code><br>71\.61mm × 24\.52mm \(max width 180mm\) | <code>sumi render sumi\-cylinder\.sumi\.yaml \-\-theme academic</code><br>71\.61mm × 24\.17mm \(max width 180mm\) |
+| <code>minimal</code> | <code>academic</code> | <code>slides</code> |
+| --- | --- | --- |
+| <img src="components/sumi-cylinder.minimal.svg" alt="sumi/cylinder, theme minimal"> | <img src="components/sumi-cylinder.academic.svg" alt="sumi/cylinder, theme academic"> | <img src="components/sumi-cylinder.slides.svg" alt="sumi/cylinder, theme slides"> |
+| <code>sumi render sumi\-cylinder\.sumi\.yaml</code><br>71\.61mm × 24\.52mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-cylinder\.sumi\.yaml \-\-theme academic</code><br>71\.61mm × 24\.17mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-cylinder\.sumi\.yaml \-\-theme slides</code><br>107\.77mm × 28\.05mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-cylinder.sumi.yaml</code></summary>
@@ -403,10 +403,10 @@ A page with a wavy bottom edge, e\.g\. for documents\.
 | <code>width</code> | <code>string</code> | no | Explicit width as a length such as &quot;30mm&quot; or &quot;40pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
 | <code>height</code> | <code>string</code> | no | Explicit height as a length such as &quot;10mm&quot; or &quot;20pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
 
-| <code>minimal</code> | <code>academic</code> |
-| --- | --- |
-| <img src="components/sumi-document.minimal.svg" alt="sumi/document, theme minimal"> | <img src="components/sumi-document.academic.svg" alt="sumi/document, theme academic"> |
-| <code>sumi render sumi\-document\.sumi\.yaml</code><br>71\.61mm × 16\.76mm \(max width 180mm\) | <code>sumi render sumi\-document\.sumi\.yaml \-\-theme academic</code><br>71\.61mm × 16\.4mm \(max width 180mm\) |
+| <code>minimal</code> | <code>academic</code> | <code>slides</code> |
+| --- | --- | --- |
+| <img src="components/sumi-document.minimal.svg" alt="sumi/document, theme minimal"> | <img src="components/sumi-document.academic.svg" alt="sumi/document, theme academic"> | <img src="components/sumi-document.slides.svg" alt="sumi/document, theme slides"> |
+| <code>sumi render sumi\-document\.sumi\.yaml</code><br>71\.61mm × 16\.76mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-document\.sumi\.yaml \-\-theme academic</code><br>71\.61mm × 16\.4mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-document\.sumi\.yaml \-\-theme slides</code><br>107\.77mm × 21\.34mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-document.sumi.yaml</code></summary>
@@ -449,10 +449,10 @@ Text without a border\.
 | <code>width</code> | <code>string</code> | no | Explicit width as a length such as &quot;30mm&quot; or &quot;40pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
 | <code>height</code> | <code>string</code> | no | Explicit height as a length such as &quot;10mm&quot; or &quot;20pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
 
-| <code>minimal</code> | <code>academic</code> |
-| --- | --- |
-| <img src="components/sumi-label.minimal.svg" alt="sumi/label, theme minimal"> | <img src="components/sumi-label.academic.svg" alt="sumi/label, theme academic"> |
-| <code>sumi render sumi\-label\.sumi\.yaml</code><br>28\.4mm × 6\.7mm \(max width 180mm\) | <code>sumi render sumi\-label\.sumi\.yaml \-\-theme academic</code><br>28\.4mm × 6\.7mm \(max width 180mm\) |
+| <code>minimal</code> | <code>academic</code> | <code>slides</code> |
+| --- | --- | --- |
+| <img src="components/sumi-label.minimal.svg" alt="sumi/label, theme minimal"> | <img src="components/sumi-label.academic.svg" alt="sumi/label, theme academic"> | <img src="components/sumi-label.slides.svg" alt="sumi/label, theme slides"> |
+| <code>sumi render sumi\-label\.sumi\.yaml</code><br>28\.4mm × 6\.7mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-label\.sumi\.yaml \-\-theme academic</code><br>28\.4mm × 6\.7mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-label\.sumi\.yaml \-\-theme slides</code><br>49\.04mm × 9\.53mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-label.sumi.yaml</code></summary>
@@ -488,10 +488,10 @@ A rectangular container that groups nodes and other groups\.
 
 No props.
 
-| <code>minimal</code> | <code>academic</code> |
-| --- | --- |
-| <img src="components/sumi-container.minimal.svg" alt="sumi/container, theme minimal"> | <img src="components/sumi-container.academic.svg" alt="sumi/container, theme academic"> |
-| <code>sumi render sumi\-container\.sumi\.yaml</code><br>65\.26mm × 24\.17mm \(max width 180mm\) | <code>sumi render sumi\-container\.sumi\.yaml \-\-theme academic</code><br>65\.26mm × 23\.64mm \(max width 180mm\) |
+| <code>minimal</code> | <code>academic</code> | <code>slides</code> |
+| --- | --- | --- |
+| <img src="components/sumi-container.minimal.svg" alt="sumi/container, theme minimal"> | <img src="components/sumi-container.academic.svg" alt="sumi/container, theme academic"> | <img src="components/sumi-container.slides.svg" alt="sumi/container, theme slides"> |
+| <code>sumi render sumi\-container\.sumi\.yaml</code><br>65\.26mm × 24\.17mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-container\.sumi\.yaml \-\-theme academic</code><br>65\.26mm × 23\.64mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-container\.sumi\.yaml \-\-theme slides</code><br>90\.66mm × 30\.52mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-container.sumi.yaml</code></summary>
@@ -537,10 +537,10 @@ A line with an arrowhead at the target\.
 
 No props.
 
-| <code>minimal</code> | <code>academic</code> |
-| --- | --- |
-| <img src="components/sumi-arrow.minimal.svg" alt="sumi/arrow, theme minimal"> | <img src="components/sumi-arrow.academic.svg" alt="sumi/arrow, theme academic"> |
-| <code>sumi render sumi\-arrow\.sumi\.yaml</code><br>53\.09mm × 57\.86mm \(max width 180mm\) | <code>sumi render sumi\-arrow\.sumi\.yaml \-\-theme academic</code><br>53\.09mm × 57\.86mm \(max width 180mm\) |
+| <code>minimal</code> | <code>academic</code> | <code>slides</code> |
+| --- | --- | --- |
+| <img src="components/sumi-arrow.minimal.svg" alt="sumi/arrow, theme minimal"> | <img src="components/sumi-arrow.academic.svg" alt="sumi/arrow, theme academic"> | <img src="components/sumi-arrow.slides.svg" alt="sumi/arrow, theme slides"> |
+| <code>sumi render sumi\-arrow\.sumi\.yaml</code><br>53\.09mm × 57\.86mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-arrow\.sumi\.yaml \-\-theme academic</code><br>53\.09mm × 57\.86mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-arrow\.sumi\.yaml \-\-theme slides</code><br>69\.5mm × 69\.5mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-arrow.sumi.yaml</code></summary>
@@ -614,10 +614,10 @@ A line without arrowheads\.
 
 No props.
 
-| <code>minimal</code> | <code>academic</code> |
-| --- | --- |
-| <img src="components/sumi-line.minimal.svg" alt="sumi/line, theme minimal"> | <img src="components/sumi-line.academic.svg" alt="sumi/line, theme academic"> |
-| <code>sumi render sumi\-line\.sumi\.yaml</code><br>53\.09mm × 57\.86mm \(max width 180mm\) | <code>sumi render sumi\-line\.sumi\.yaml \-\-theme academic</code><br>53\.09mm × 57\.86mm \(max width 180mm\) |
+| <code>minimal</code> | <code>academic</code> | <code>slides</code> |
+| --- | --- | --- |
+| <img src="components/sumi-line.minimal.svg" alt="sumi/line, theme minimal"> | <img src="components/sumi-line.academic.svg" alt="sumi/line, theme academic"> | <img src="components/sumi-line.slides.svg" alt="sumi/line, theme slides"> |
+| <code>sumi render sumi\-line\.sumi\.yaml</code><br>53\.09mm × 57\.86mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-line\.sumi\.yaml \-\-theme academic</code><br>53\.09mm × 57\.86mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-line\.sumi\.yaml \-\-theme slides</code><br>69\.5mm × 69\.5mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-line.sumi.yaml</code></summary>
@@ -691,10 +691,10 @@ A line with arrowheads at both ends\.
 
 No props.
 
-| <code>minimal</code> | <code>academic</code> |
-| --- | --- |
-| <img src="components/sumi-double-arrow.minimal.svg" alt="sumi/double-arrow, theme minimal"> | <img src="components/sumi-double-arrow.academic.svg" alt="sumi/double-arrow, theme academic"> |
-| <code>sumi render sumi\-double\-arrow\.sumi\.yaml</code><br>53\.09mm × 57\.86mm \(max width 180mm\) | <code>sumi render sumi\-double\-arrow\.sumi\.yaml \-\-theme academic</code><br>53\.09mm × 57\.86mm \(max width 180mm\) |
+| <code>minimal</code> | <code>academic</code> | <code>slides</code> |
+| --- | --- | --- |
+| <img src="components/sumi-double-arrow.minimal.svg" alt="sumi/double-arrow, theme minimal"> | <img src="components/sumi-double-arrow.academic.svg" alt="sumi/double-arrow, theme academic"> | <img src="components/sumi-double-arrow.slides.svg" alt="sumi/double-arrow, theme slides"> |
+| <code>sumi render sumi\-double\-arrow\.sumi\.yaml</code><br>53\.09mm × 57\.86mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-double\-arrow\.sumi\.yaml \-\-theme academic</code><br>53\.09mm × 57\.86mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-double\-arrow\.sumi\.yaml \-\-theme slides</code><br>69\.5mm × 69\.5mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-double-arrow.sumi.yaml</code></summary>
@@ -766,25 +766,25 @@ The committed SVGs of <code>examples/</code>, rendered from their sources as wri
 
 ### Generic decision flow
 
-[<code>examples/decision\-flow/decision\-flow\.sumi\.yaml</code>](../../examples/decision-flow/decision-flow.sumi.yaml) · theme <code>minimal</code> · profile <code>paper\-single</code> · 59\.62mm × 149\.4mm \(max width 88mm\)
+[<code>examples/decision\-flow/decision\-flow\.sumi\.yaml</code>](../../examples/decision-flow/decision-flow.sumi.yaml) · theme <code>minimal</code> · profile <code>paper\-single</code> · 59\.62mm × 149\.4mm \(max width 88mm, max height 220mm\)
 
 <img src="../../examples/decision-flow/decision-flow.svg" alt="Generic decision flow">
 
 ### Nested groups
 
-[<code>examples/grouped/grouped\.sumi\.yaml</code>](../../examples/grouped/grouped.sumi.yaml) · theme <code>minimal</code> · profile <code>paper\-double</code> · 167\.57mm × 65\.97mm \(max width 180mm\)
+[<code>examples/grouped/grouped\.sumi\.yaml</code>](../../examples/grouped/grouped.sumi.yaml) · theme <code>minimal</code> · profile <code>paper\-double</code> · 167\.57mm × 65\.97mm \(max width 180mm, max height 220mm\)
 
 <img src="../../examples/grouped/grouped.svg" alt="Nested groups">
 
 ### Generic processing pipeline
 
-[<code>examples/pipeline/pipeline\.sumi\.yaml</code>](../../examples/pipeline/pipeline.sumi.yaml) · theme <code>academic</code> · profile <code>paper\-single</code> · 61\.74mm × 150\.28mm \(max width 88mm\)
+[<code>examples/pipeline/pipeline\.sumi\.yaml</code>](../../examples/pipeline/pipeline.sumi.yaml) · theme <code>academic</code> · profile <code>paper\-single</code> · 61\.74mm × 150\.28mm \(max width 88mm, max height 220mm\)
 
 <img src="../../examples/pipeline/pipeline.svg" alt="Generic processing pipeline">
 
 ### Generic three\-tier system
 
-[<code>examples/system\-architecture/system\-architecture\.sumi\.yaml</code>](../../examples/system-architecture/system-architecture.sumi.yaml) · theme <code>academic</code> · profile <code>paper\-double</code> · 157\.34mm × 71\.97mm \(max width 180mm\)
+[<code>examples/system\-architecture/system\-architecture\.sumi\.yaml</code>](../../examples/system-architecture/system-architecture.sumi.yaml) · theme <code>academic</code> · profile <code>paper\-double</code> · 157\.34mm × 71\.97mm \(max width 180mm, max height 220mm\)
 
 <img src="../../examples/system-architecture/system-architecture.svg" alt="Generic three-tier system">
 
@@ -794,6 +794,7 @@ The committed SVGs of <code>examples/</code>, rendered from their sources as wri
 | --- | --- | --- |
 | <code>minimal</code> | Monochrome theme with clear outlines | <code>sumi/biz\-ud\-gothic</code> |
 | <code>academic</code> | Restrained theme for papers: thin lines, black text, gray emphasis | <code>sumi/biz\-ud\-gothic</code> |
+| <code>slides</code> | Large text and thick lines for slides \(use with presentation\-16x9\) | <code>sumi/biz\-ud\-gothic</code> |
 
 | profile | description | max width | max height | min font size |
 | --- | --- | --- | --- | --- |
@@ -803,9 +804,10 @@ The committed SVGs of <code>examples/</code>, rendered from their sources as wri
 
 ### One figure, every theme × profile
 
-The same source rendered with <code>\-\-theme</code> and <code>\-\-profile</code> overrides: nothing is duplicated\. Profiles never scale a figure\. The paper profiles share their spacing and differ only in the width limit that the geometry lint checks, so their drawings match\. A profile whose minimum font size is larger than a theme's font sizes rejects the figure before rendering \(<code>profile/font\-too\-small</code>\)\.
+The same source rendered with <code>\-\-theme</code> and <code>\-\-profile</code> overrides: nothing is duplicated\. Profiles never scale a figure\. The paper profiles share their spacing and differ only in the width limit that the geometry lint checks, so their drawings match\. A profile whose minimum font size is larger than a theme's font sizes rejects the figure before rendering \(<code>profile/font\-too\-small</code>\): <code>presentation\-16x9</code> requires 14pt text, so it accepts only the <code>slides</code> theme, and the paper themes are not rendered there by design\. Theme and profile stay independent; for slides use <code>theme: slides</code> with <code>profile: presentation\-16x9</code>\. A figure that exceeds a page limit is still drawn, with the geometry error below it: <code>slides</code> doubles the text and the presentation profile doubles the spacing, so this tall top\-to\-bottom figure is taller than a slide\. A slide needs a shallow figure: fewer layers, or several figures\.
 
 | theme \ profile | <code>paper\-single</code> | <code>paper\-double</code> | <code>presentation\-16x9</code> |
 | --- | --- | --- | --- |
-| <code>minimal</code> | <img src="compare/pipeline.minimal.paper-single.svg" alt="examples/pipeline/pipeline.sumi.yaml, minimal, paper-single"><br><code>sumi render examples/pipeline/pipeline\.sumi\.yaml \-\-theme minimal \-\-profile paper\-single</code><br>61\.74mm × 151\.34mm \(max width 88mm\) | <img src="compare/pipeline.minimal.paper-double.svg" alt="examples/pipeline/pipeline.sumi.yaml, minimal, paper-double"><br><code>sumi render examples/pipeline/pipeline\.sumi\.yaml \-\-theme minimal \-\-profile paper\-double</code><br>61\.74mm × 151\.34mm \(max width 180mm\) | _not rendered_<br><code>sumi render examples/pipeline/pipeline\.sumi\.yaml \-\-theme minimal \-\-profile presentation\-16x9</code><br>not rendered<br>error profile/font\-too\-small \(×11\): Font size 9pt of group &quot;stages&quot; is below the minimum 14pt of profile &quot;presentation\-16x9&quot;\. |
-| <code>academic</code> | <img src="compare/pipeline.academic.paper-single.svg" alt="examples/pipeline/pipeline.sumi.yaml, academic, paper-single"><br><code>sumi render examples/pipeline/pipeline\.sumi\.yaml \-\-theme academic \-\-profile paper\-single</code><br>61\.74mm × 150\.28mm \(max width 88mm\) | <img src="compare/pipeline.academic.paper-double.svg" alt="examples/pipeline/pipeline.sumi.yaml, academic, paper-double"><br><code>sumi render examples/pipeline/pipeline\.sumi\.yaml \-\-theme academic \-\-profile paper\-double</code><br>61\.74mm × 150\.28mm \(max width 180mm\) | _not rendered_<br><code>sumi render examples/pipeline/pipeline\.sumi\.yaml \-\-theme academic \-\-profile presentation\-16x9</code><br>not rendered<br>error profile/font\-too\-small \(×11\): Font size 8pt of group &quot;stages&quot; is below the minimum 14pt of profile &quot;presentation\-16x9&quot;\. |
+| <code>minimal</code> | <img src="compare/pipeline.minimal.paper-single.svg" alt="examples/pipeline/pipeline.sumi.yaml, minimal, paper-single"><br><code>sumi render examples/pipeline/pipeline\.sumi\.yaml \-\-theme minimal \-\-profile paper\-single</code><br>61\.74mm × 151\.34mm \(max width 88mm, max height 220mm\) | <img src="compare/pipeline.minimal.paper-double.svg" alt="examples/pipeline/pipeline.sumi.yaml, minimal, paper-double"><br><code>sumi render examples/pipeline/pipeline\.sumi\.yaml \-\-theme minimal \-\-profile paper\-double</code><br>61\.74mm × 151\.34mm \(max width 180mm, max height 220mm\) | _rejected before drawing_<br><code>sumi render examples/pipeline/pipeline\.sumi\.yaml \-\-theme minimal \-\-profile presentation\-16x9</code><br>not rendered<br>error profile/font\-too\-small \(×11\): Font size 9pt of group &quot;stages&quot; is below the minimum 14pt of profile &quot;presentation\-16x9&quot;\. |
+| <code>academic</code> | <img src="compare/pipeline.academic.paper-single.svg" alt="examples/pipeline/pipeline.sumi.yaml, academic, paper-single"><br><code>sumi render examples/pipeline/pipeline\.sumi\.yaml \-\-theme academic \-\-profile paper\-single</code><br>61\.74mm × 150\.28mm \(max width 88mm, max height 220mm\) | <img src="compare/pipeline.academic.paper-double.svg" alt="examples/pipeline/pipeline.sumi.yaml, academic, paper-double"><br><code>sumi render examples/pipeline/pipeline\.sumi\.yaml \-\-theme academic \-\-profile paper\-double</code><br>61\.74mm × 150\.28mm \(max width 180mm, max height 220mm\) | _rejected before drawing_<br><code>sumi render examples/pipeline/pipeline\.sumi\.yaml \-\-theme academic \-\-profile presentation\-16x9</code><br>not rendered<br>error profile/font\-too\-small \(×11\): Font size 8pt of group &quot;stages&quot; is below the minimum 14pt of profile &quot;presentation\-16x9&quot;\. |
+| <code>slides</code> | <img src="compare/pipeline.slides.paper-single.svg" alt="examples/pipeline/pipeline.sumi.yaml, slides, paper-single"><br><code>sumi render examples/pipeline/pipeline\.sumi\.yaml \-\-theme slides \-\-profile paper\-single</code><br>83\.78mm × 178\.51mm \(max width 88mm, max height 220mm\)<br>warning geometry/label\-collision: The label of group &quot;storage&quot; overlaps the label of edge edges\[6\]\.<br>warning geometry/edge\-crosses\-label: Edge edges\[3\] crosses the label of group &quot;storage&quot;\. | <img src="compare/pipeline.slides.paper-double.svg" alt="examples/pipeline/pipeline.sumi.yaml, slides, paper-double"><br><code>sumi render examples/pipeline/pipeline\.sumi\.yaml \-\-theme slides \-\-profile paper\-double</code><br>83\.78mm × 178\.51mm \(max width 180mm, max height 220mm\)<br>warning geometry/label\-collision: The label of group &quot;storage&quot; overlaps the label of edge edges\[6\]\.<br>warning geometry/edge\-crosses\-label: Edge edges\[3\] crosses the label of group &quot;storage&quot;\. | <img src="compare/pipeline.slides.presentation-16x9.svg" alt="examples/pipeline/pipeline.sumi.yaml, slides, presentation-16x9"><br><code>sumi render examples/pipeline/pipeline\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>95\.78mm × 239\.18mm \(max width 338\.7mm, max height 190\.5mm\)<br>error geometry/exceeds\-page\-height: The figure is 239\.18mm tall, more than the 190\.5mm maximum height of profile &quot;presentation\-16x9&quot;\.<br>warning geometry/edge\-crosses\-label: Edge edges\[3\] crosses the label of group &quot;storage&quot;\. |

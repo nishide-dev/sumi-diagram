@@ -89,7 +89,7 @@ const diagnostics = lintGeometry(rendered, { config, source: text, file });
 |---|---|---|---|
 | `geometry/exceeds-page-width` | error | 出力幅（余白込み）が Profile の `maxWidth` を超える。pt のまま量子化せずに比較し、両方の大きさを mm で示す。 | `layout.direction: down` にする、ラベルを短くする、幅の広い Profile（`paper-double` など）を使う。 |
 | `geometry/exceeds-page-height` | error | 出力の高さが Profile の `maxHeight` を超える（`maxHeight` がある Profile だけ。組み込みでは paper 系 220mm、presentation-16x9 190.5mm）。 | `layout.direction: right` にする、図を分ける、高さに余裕のある Profile を使う。 |
-| `geometry/text-too-small` | error | 描画されたラベルの文字サイズが Profile の `minFontSize` 未満。通常は `profile/font-too-small` が描画前に防ぐので、描画後の安全網。 | 文字サイズの大きい Theme / variant を使う。 |
+| `geometry/text-too-small` | error | 描画されたラベルの文字サイズが Profile の `minFontSize` 未満。通常は `profile/font-too-small` が描画前に防ぐので、描画後の安全網。 | 文字サイズの大きい Theme / variant を使う（`presentation-16x9` なら `slides`）。 |
 | `geometry/label-overflow` | error | ノード・グループのラベル（再計測）が、図形の中の文字を置ける範囲（下表）に収まらない。明示サイズ（`props.width` / `height`）が小さい場合は `props` を指す（D2 は明示サイズを保ち、ラベルを図形の外に出す）。 | 明示サイズを大きくするか外す。ラベルを短くするか改行する。文字の入る範囲が広い図形にする。 |
 | `geometry/out-of-canvas` | error | 図形・ラベル（再計測）・エッジの経路がキャンバスの外にはみ出す（切れて表示される）。 | ラベルを短くする。解消しなければ不具合として報告する。 |
 | `geometry/node-overlap` | warning | 2 つのノード・グループの図形（外接矩形）が重なり、グループの木でどちらも他方を含まない。子と祖先グループの重なり（意図した包含）は対象外。 | 明示サイズを見直す。同じグループに入れる。 |

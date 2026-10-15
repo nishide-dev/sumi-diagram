@@ -356,7 +356,7 @@ components:
 - variant の扱い: manifest にない variant は `component/unknown-variant`（error）。manifest にはあるが Theme に定義がない variant は `default` を使い、`theme/missing-variant`（warning）を出す。
 - **Figure 側からのスタイル直接指定は v1 では提供しない**（見た目は variant で選ぶ）。
 - 解決結果は全プロパティが確定した、immutable な `ResolvedStyle` とする。
-- 組み込み Theme: `minimal`（モノクロ）と `academic`（論文向け）。分野固有のパレットは持たない。
+- 組み込み Theme: `minimal`（モノクロ）、`academic`（論文向け）、`slides`（スライド向け。#36 で追加、§6.9）。分野固有のパレットは持たない。
 
 ### 4.4 実装で確定した事項（#6）
 - **フォントセット**: `sumi/biz-ud-gothic` を同梱する（`assets/fonts/biz-ud-gothic/`。出典・版・sha256 は同ディレクトリの README）。Noto Sans JP は google/fonts では可変 TTF のみ、noto-cjk の公式配布は OTF / OTC（CFF）で、D2 が受け付ける静的 TTF の公式配布がないため、静的 TTF を公式リリースで配布している BIZ UD ゴシックを採用した。D2 v0.9.0 で 8 つの `--font-*` をすべて指定し、日本語＋英字のラベルが WOFF subset として `@font-face` に埋め込まれることを確認済み。フォントのパスはソースからの相対で解決する（`bun build --compile` での同梱は配布の Issue で扱う）。
@@ -410,7 +410,7 @@ layout:
 - 組み込み Profile:
   - `paper-single`: maxWidth 88mm, maxHeight 220mm, minFontSize 7pt
   - `paper-double`: maxWidth 180mm, maxHeight 220mm, minFontSize 7pt
-  - `presentation-16x9`: maxWidth 338.7mm, maxHeight 190.5mm, minFontSize 14pt（固定キャンバスへの配置は MVP 外。上限としてのみ扱う）
+  - `presentation-16x9`: maxWidth 338.7mm, maxHeight 190.5mm, minFontSize 14pt（固定キャンバスへの配置は MVP 外。上限としてのみ扱う）。組み込み Theme では `slides` だけがこの最小文字サイズを満たす（§6.9）
   - 間隔: paper 系は margin 2mm、layerGap 8mm、containerPadding 4mm。presentation は paper 系の 2 倍（4mm、16mm、8mm）。maxHeight と layerGap は #31 で決めた（§6.6）。
 - 自動再配置（方向を変えて試すなど）は段階的に導入する。MVP は診断のみ。
 
@@ -626,6 +626,35 @@ layout:
    - Bun ランタイム: `licenses/bun/LICENSE.md`。Bun のリポジトリにある唯一のライセンス文書で、`.bun-version` の版の `LICENSE.md` を `scripts/release/bun/` に固定して置く（`VERSION` が `.bun-version` と違えばビルドが失敗する）。Bun 本体は MIT、JavaScriptCore / WebKit（LGPL-2）と tinycc（LGPL-2.1）などを静的リンクしており、同文書にそれらの一覧・ライセンス・パッチ済み WebKit のソース（oven-sh/webkit）と再リンクの手順が書かれている。
    - D2: `licenses/d2/LICENSE.txt`（MPL-2.0）と `THIRD_PARTY_NOTICES.txt`。フォント: `licenses/biz-ud-gothic/OFL.txt`。
    - **未解決（要判断）**: (a) LGPL の静的リンクについて、Bun の LICENSE.md は「利用者が改変・再リンクできるよう、アプリケーションをオブジェクト形式で提供する」ことを求める LGPL の条項を引用している。`bun build --compile` の実行ファイルを再配布する側（Sumi）に、同じ義務（Sumi の JS バンドルを再リンク可能な形で提供すること等）がどこまで及ぶかは Bun が明示しておらず、この Issue では判断しない。Sumi のソースは公開リポジトリにあり、tag から同じバイナリを再ビルドできる。(b) Bun が静的リンクする MIT / BSD / Apache-2.0 等のライブラリ（boringssl・ICU など）のライセンス本文は Bun 自身の配布物にも含まれておらず、tarball には Bun の LICENSE.md（一覧とリンク）だけを入れている。本文の同梱が必要かどうかも未判断として残す。
+
+### 6.9 #36 の slides テーマ
+`presentation-16x9` の最小文字サイズは 14pt だが、組み込み Theme（`minimal` / `academic`）の文字は 7〜9pt なので、ラベルのある図はすべて `profile/font-too-small` になり、スライド向けの図を作れなかった（#15 の Skill の検証で判明）。
+
+1. **方式: スライド向けの組み込み Theme `slides` を追加する**。Theme（見た目）と Profile（出力先の制約）の責務分担は変えない。
+   - 検討した代替案: (a) Profile に文字サイズの倍率（`typography.fontScale` など）を持たせる。(b) Profile の最小文字サイズに合わせて、Theme の文字を自動で拡大する。
+   - (a)・(b) を採らない理由: §5.2 の「Theme だけを変えても Profile の制約は変わらない」「Profile は図を縮小・拡大しない」という独立性が崩れる。スタイルの解決結果が Theme と Profile の両方に依存し、`ResolvedStyle`・ギャラリーの部品カード・`profile/font-too-small` の意味（Theme の値と Profile の下限の比較）がすべて変わる。また、文字だけを拡大すると線幅・矢尻・余白との釣り合いが崩れ、それを補う倍率がさらに必要になる。見た目の比率を一か所（Theme）で決めるほうが予測しやすい。
+   - 影響: `presentation-16x9` で使える組み込み Theme は `slides` だけになる。`minimal` / `academic` × `presentation-16x9` が `profile/font-too-small` になるのは意図どおりで、ギャラリーの比較表と Skill の参照文書でそう説明する。`slides` は paper 系の Profile でも使える（最小 7pt を満たす）が、図が大きくなるため想定しない。
+2. **値**（`src/core/theme/builtin.ts`。D2 unit は ×2）:
+
+   | 項目 | `minimal` | `slides` | D2 unit |
+   | --- | --- | --- | --- |
+   | 文字（node） | 8pt | 16pt | 32 |
+   | 文字（edge のラベル） | 7pt | 14pt | 28 |
+   | 文字（group のラベル、bold） | 9pt | 18pt | 36 |
+   | 線（regular / bold） | 1pt / 2pt | 2pt / 4pt | 4 / 8 |
+   | 角の丸み | 0 | 0 | 0 |
+   | 色（fg / muted / surface / highlight） | `#1f2328` / `#6e7781` / `#f6f8fa` / — | `#1a1a1a` / `#595959` / `#f2f2f2` / `#e0e0e0` | — |
+   | 破線 | 4 | 4 | — |
+
+   - 文字は `minimal` の 2 倍とした。最小のエッジのラベルが Profile の下限 14pt にちょうど届き、node と group の文字の比率（8 : 7 : 9）も保つ。線も 2 倍にして、文字との釣り合いを `minimal` と同じにした（`presentation-16x9` の間隔も paper 系の 2 倍で、図全体がほぼ相似に大きくなる）。最大値は D2 の範囲内（fontSize ≤ 50pt、strokeWidth ≤ 7.5pt）で、すべて 0.5pt 刻みで表せる。
+   - 角の丸みは他の Theme と同じ 0 にした。比例させても 0 であり、角丸の矩形は流れ図で別の意味（端子など）に読まれることがあるため。
+   - 色は他の Theme と同じくモノクロに抑えた。プロジェクタでは淡い灰色が飛ぶため、muted を `#595959`（白地でコントラスト比約 7:1）に濃くし、group の塗り `#f2f2f2` と強調の塗り `#e0e0e0` も `minimal` より少し濃くした。強調は太い線（4pt）・太字・灰色の塗りの 3 つで示し、投影しても区別できるようにした。
+3. **実際の描画**（D2 v0.9.0、`--theme slides --profile presentation-16x9`、`sumi lint --geometry`）:
+   - ギャラリーの全部品のサンプル（14 図）: 幾何 lint の診断なし（エッジのない部品のサンプルに構造 lint の `lint/no-edges` が出るのは、他の Theme と同じ）。ギャラリーの部品カードは、他の Theme と同じく `paper-double` で描く。
+   - `system-architecture`（278.0 × 93.7mm）・`grouped`（285.8 × 104.4mm）: 診断なし。`builtins-render.test.ts` で検査する。
+   - `pipeline`（95.8 × 239.2mm）・`decision-flow`（97.0 × 254.0mm）: `geometry/exceeds-page-height`（error）と `geometry/edge-crosses-label`（warning。大きくなったコンテナ・注記のラベルをエッジが横切る）。6〜7 段の縦の流れで、層の間隔 16mm だけで約 100mm になる。`direction: right` にしても幅が 356mm・434mm で `exceeds-page-width` になる。スライドには層の少ない図が向くという制約で、Theme をこれに合わせて小さくはしない（文字をすべて下限の 14pt にしても、高さは pipeline 239.2 → 234.9mm、decision-flow 254.0 → 248.5mm と 2% ほどしか縮まず、収まらない。高さの大半は Profile の層の間隔とノードの枠で決まる）。ギャラリーの比較表では、この図を描いたうえで error を示す。
+   - 目視（headless Chrome で PNG 化）: 文字・線は投影向けの太さで、variant（強調・muted・破線）は区別できる。コンテナのラベル（18pt bold）は最初の子に近いが重ならない（D2 がラベル分の余白を取る）。エッジのラベルの背景（§6.6）は 14pt でも機能している。
+4. **テスト**: `theme.test.ts` で、`slides` が全部品 × 全 variant で `presentation-16x9` の最小文字サイズを満たし D2 の範囲内であること、`builtins.test.ts` で全部品 × 全 variant の図が `presentation-16x9` の検査を通る（`minimal` / `academic` は `profile/font-too-small` だけになる）こと、`builtins-render.test.ts` で実際の D2 で例を描画して診断がないことを検査する。全部品 × 全 variant × 全 Theme の既存のテストとギャラリーは `BUILTIN_THEMES` から自動で `slides` を含む。
 
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures

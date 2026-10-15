@@ -53,9 +53,10 @@ Before writing YAML, make sure you know:
 - **Target**: one paper column (`paper-single`, max 88mm wide), a full-width
   paper figure (`paper-double`, 180mm) or a slide (`presentation-16x9`).
   This is the user's decision — ask if it is not stated. See
-  [layout-tips](references/layout-tips.md) for the current limits of
+  [layout-tips](references/layout-tips.md) for what fits on
   `presentation-16x9`.
-- **Theme** (`minimal` or `academic`; default `minimal`) and the output
+- **Theme** (`minimal`, `academic` or `slides`; default `minimal`; a slide
+  needs `slides` with `presentation-16x9`) and the output
   path (default: the figure next to the user's other files, named
   `<figure-id>.sumi.yaml`).
 

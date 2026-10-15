@@ -7,6 +7,11 @@
  * - `minimal`: monochrome. Emphasis is a heavier outline and bold text.
  * - `academic`: restrained, for papers. Thin lines, black text, emphasis by a
  *   light gray fill and a slightly heavier outline; prints well in grayscale.
+ * - `slides`: for projection (#36). Text at least 14pt (the minimum of
+ *   `presentation-16x9`) and lines twice as thick as `minimal`, matching the
+ *   doubled text; darker grays so muted text stays readable on a projector.
+ *   Monochrome like the others; emphasis is a heavier outline, bold text and a
+ *   light gray fill.
  */
 
 import { type DocPath, didYouMean } from "../diagnostics";
@@ -154,6 +159,69 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
         muted: { fontColor: "{color.muted}" },
       },
       container: { muted: { strokeDash: "{dash.regular}", fontColor: "{color.muted}" } },
+      edge: {
+        dashed: { strokeDash: "{dash.regular}" },
+        emphasis: { strokeWidth: "{line.bold}" },
+        muted: { stroke: "{color.muted}", fontColor: "{color.muted}" },
+      },
+    }),
+  },
+  {
+    version: 1,
+    id: "slides",
+    description: "Large text and thick lines for slides (use with presentation-16x9)",
+    fonts: DEFAULT_FONT_SET_ID,
+    tokens: {
+      // Projectors wash out light grays: muted is darker than minimal's
+      // (contrast about 7:1 on white) and the fills stay clearly visible.
+      color: {
+        fg: "#1a1a1a",
+        bg: "#ffffff",
+        muted: "#595959",
+        surface: "#f2f2f2",
+        highlight: "#e0e0e0",
+      },
+      // presentation-16x9 requires 14pt; edge labels, the smallest text, meet it.
+      size: { text: "16pt", small: "14pt", heading: "18pt" },
+      // Twice minimal's lines, matching the doubled text.
+      line: { regular: "2pt", bold: "4pt" },
+      dash: { regular: 4 },
+    },
+    base: {
+      node: {
+        fill: "{color.bg}",
+        stroke: "{color.fg}",
+        strokeWidth: "{line.regular}",
+        fontSize: "{size.text}",
+        fontColor: "{color.fg}",
+      },
+      group: {
+        fill: "{color.surface}",
+        stroke: "{color.muted}",
+        strokeWidth: "{line.regular}",
+        fontSize: "{size.heading}",
+        fontColor: "{color.fg}",
+        bold: true,
+      },
+      edge: {
+        fill: "{color.bg}",
+        stroke: "{color.fg}",
+        strokeWidth: "{line.regular}",
+        fontSize: "{size.small}",
+        fontColor: "{color.fg}",
+        filled: true,
+      },
+    },
+    components: componentStyles({
+      shape: {
+        emphasis: { fill: "{color.highlight}", strokeWidth: "{line.bold}", bold: true },
+        muted: { stroke: "{color.muted}", fontColor: "{color.muted}" },
+      },
+      label: {
+        default: { fill: "transparent", strokeWidth: "0pt" },
+        muted: { fontColor: "{color.muted}" },
+      },
+      container: { muted: { fill: "{color.bg}", fontColor: "{color.muted}", bold: false } },
       edge: {
         dashed: { strokeDash: "{dash.regular}" },
         emphasis: { strokeWidth: "{line.bold}" },

@@ -114,6 +114,24 @@ sumi catalog --kind node                         # 使える部品の一覧
 - 使い方の誤りはスタックトレースを出さず 1 行で報告します。内部エラーのスタックトレースは `SUMI_DEBUG=1` で表示します。
 - 出力は同じ入力に対して決定的です。JSON の形式は `version` で版を管理します。
 
+### テーマとプロファイル
+
+見た目はテーマ（`figure.theme`）、出力先の制約（ページの大きさ・最小文字サイズ・間隔）はプロファイル（`figure.profile`）で選びます。両者は独立で、プロファイルが図や文字を拡大・縮小することはありません。
+
+| テーマ | 内容 |
+| --- | --- |
+| `minimal`（既定） | モノクロ、はっきりした線。文字 8pt（エッジ 7pt） |
+| `academic` | 論文向け。細い線・黒い文字・灰色の強調。文字 8pt（エッジ 7pt） |
+| `slides` | スライド向け。文字 16pt（エッジ 14pt、コンテナ 18pt）、線 2pt。`presentation-16x9` と組み合わせる |
+
+| プロファイル | 最大幅 | 最大高さ | 最小文字サイズ |
+| --- | --- | --- | --- |
+| `paper-single`（既定） | 88mm | 220mm | 7pt |
+| `paper-double` | 180mm | 220mm | 7pt |
+| `presentation-16x9` | 338.7mm | 190.5mm | 14pt |
+
+スライドの図は `theme: slides` と `profile: presentation-16x9` で作ります。`presentation-16x9` は 14pt 以上の文字を求めるため、`minimal` / `academic` では `profile/font-too-small` になります（意図どおり）。描き比べは[ギャラリー](docs/gallery/README.md#themes-and-profiles)にあります。
+
 ## Claude Code から使う
 
 このリポジトリには Claude Code 用の Skill（[`.claude/skills/sumi/`](.claude/skills/sumi/SKILL.md)）が含まれています。リポジトリで Claude Code を開き、「この処理の流れを Sumi で図にして（論文の 1 段組）」のように頼むと、Skill が次の手順で図を作ります。
