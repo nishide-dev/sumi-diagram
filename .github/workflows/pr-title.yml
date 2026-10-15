@@ -1,0 +1,38 @@
+name: PR title
+
+# The PR title becomes the squash-merge commit message, so it must follow
+# CONTRIBUTING.md: an English Conventional Commit. Rules and what is not
+# checked: scripts/commitlint/rules.ts.
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - reopened
+      - synchronize
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  title:
+    name: Conventional Commit title
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: .bun-version
+
+      # The title goes through the environment, never into the script text.
+      # The checker imports nothing outside scripts/, so no install is needed.
+      - name: Check title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: bun scripts/commitlint.ts --title "$PR_TITLE"
