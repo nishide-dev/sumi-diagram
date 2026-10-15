@@ -3,6 +3,9 @@
  * {@link Registry}, validates its variant and props, and records the result in
  * `state.components` (design doc §0, §3).
  *
+ * Nodes whose component draws only text (shape `text`, e.g. `sumi/label`)
+ * need a label with visible text (`component/missing-label`).
+ *
  * Elements already invalid are skipped. Elements whose component fails are
  * marked invalid, and so are the elements depending on them (children of a
  * group, edges touching a node), without further diagnostics. Only valid
@@ -20,12 +23,27 @@ import type { Locator } from "../figure/yaml";
 import { type ComponentKind, componentId, type ResolvedComponent } from "./manifest";
 import type { Registry } from "./registry";
 
+/**
+ * Whitespace as D2 trims it (Go `unicode.IsSpace`): JavaScript `\s` without
+ * U+FEFF, plus U+0085. Checked against D2 v0.9.0.
+ */
+const D2_BLANK = /^(?:[^\S\ufeff]|\u0085)*$/;
+
+/**
+ * `true` if D2 treats the label as empty: it rejects a text shape whose label
+ * is empty or only whitespace ("shape text must have a non-empty label").
+ */
+export function isBlankForD2(label: string): boolean {
+  return D2_BLANK.test(label);
+}
+
 interface Element {
   kind: ComponentKind;
   key: ElementKey;
   path: DocPath;
   subject: DiagnosticSubject;
   component: string;
+  label: string;
   variant: string;
   props: Record<string, unknown>;
 }
@@ -56,15 +74,27 @@ export function resolveComponents(state: CheckState, registry: Registry, locate:
       state.invalid.add(element.key);
       continue;
     }
-    const usage = registry.validateUsage(resolved.value, element);
+    const manifest = resolved.value;
+    const usage = registry.validateUsage(manifest, element);
     report(usage.diagnostics, (d) => [...element.path, ...(d.path ?? [])]);
-    if (!usage.ok) {
+    const missingLabel =
+      manifest.kind === "node" && manifest.shape === "text" && isBlankForD2(element.label);
+    if (missingLabel) {
+      const diagnostic: Diagnostic = {
+        code: "component/missing-label",
+        severity: "error",
+        message: `${componentId(manifest)} draws only its label, so the label must not be empty or only whitespace.`,
+        hint: "Add a label, or remove the node.",
+      };
+      report([diagnostic], () => [...element.path, "label"]);
+    }
+    if (!usage.ok || missingLabel) {
       state.invalid.add(element.key);
       continue;
     }
     components.set(element.key, {
-      id: componentId(resolved.value),
-      manifest: resolved.value,
+      id: componentId(manifest),
+      manifest,
       ...usage.value,
     });
   }
@@ -86,6 +116,7 @@ function* elements(state: CheckState): Generator<Element> {
       path,
       subject,
       component: element.component,
+      label: element.label,
       variant: element.variant,
       props: entry.kind === "group" ? {} : entry.element.props,
     };

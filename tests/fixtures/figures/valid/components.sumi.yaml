@@ -31,6 +31,7 @@ nodes:
     component: document
   - id: note
     component: label
+    label: Note
     variant: muted
     group: stage
 edges:

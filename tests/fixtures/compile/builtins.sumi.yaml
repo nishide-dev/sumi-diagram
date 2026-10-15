@@ -1,0 +1,58 @@
+# Every built-in component with every variant, under the academic theme.
+version: 1
+figure:
+  id: builtins
+  theme: academic
+  profile: paper-double
+  layout:
+    direction: down
+groups:
+  - id: plain
+    label: Default container
+  - id: quiet
+    label: Muted container
+    component: sumi/container
+    variant: muted
+nodes:
+  - { id: box, component: box, label: box, group: plain, props: { width: 40pt, height: 0.25in } }
+  - { id: box-emphasis, component: box, label: box, variant: emphasis, group: plain }
+  - { id: box-muted, component: box, label: box, variant: muted, group: plain }
+  - { id: square, component: square, label: square, props: { width: 1in, height: 72pt } }
+  - { id: square-emphasis, component: square, label: square, variant: emphasis }
+  - { id: square-muted, component: square, label: square, variant: muted }
+  - { id: circle, component: circle, label: circle, props: { width: 30pt } }
+  - { id: circle-emphasis, component: circle, label: circle, variant: emphasis }
+  - { id: circle-muted, component: circle, label: circle, variant: muted }
+  - { id: ellipse, component: ellipse, label: ellipse }
+  - { id: ellipse-emphasis, component: ellipse, label: ellipse, variant: emphasis }
+  - { id: ellipse-muted, component: ellipse, label: ellipse, variant: muted }
+  - { id: diamond, component: diamond, label: diamond }
+  - { id: diamond-emphasis, component: diamond, label: diamond, variant: emphasis }
+  - { id: diamond-muted, component: diamond, label: diamond, variant: muted }
+  - { id: hexagon, component: hexagon, label: hexagon }
+  - { id: hexagon-emphasis, component: hexagon, label: hexagon, variant: emphasis }
+  - { id: hexagon-muted, component: hexagon, label: hexagon, variant: muted }
+  - { id: parallelogram, component: parallelogram, label: parallelogram }
+  - { id: parallelogram-emphasis, component: parallelogram, label: parallelogram, variant: emphasis }
+  - { id: parallelogram-muted, component: parallelogram, label: parallelogram, variant: muted }
+  - { id: cylinder, component: cylinder, label: cylinder, group: quiet }
+  - { id: cylinder-emphasis, component: cylinder, label: cylinder, variant: emphasis, group: quiet }
+  - { id: cylinder-muted, component: cylinder, label: cylinder, variant: muted, group: quiet }
+  - { id: document, component: document, label: document }
+  - { id: document-emphasis, component: document, label: document, variant: emphasis }
+  - { id: document-muted, component: document, label: document, variant: muted }
+  - { id: label, component: label, label: label }
+  - { id: label-muted, component: sumi/label, label: label, variant: muted }
+edges:
+  - { from: box, to: square, component: arrow, label: arrow }
+  - { from: box, to: square-emphasis, component: arrow, variant: dashed }
+  - { from: box, to: square-muted, component: arrow, variant: emphasis }
+  - { from: box, to: circle, component: arrow, variant: muted }
+  - { from: circle, to: ellipse, component: line, label: line }
+  - { from: circle, to: ellipse-emphasis, component: line, variant: dashed }
+  - { from: circle, to: ellipse-muted, component: line, variant: emphasis }
+  - { from: circle, to: diamond, component: line, variant: muted }
+  - { from: diamond, to: hexagon, component: double-arrow, label: double-arrow }
+  - { from: diamond, to: plain, component: double-arrow, variant: dashed }
+  - { from: plain, to: quiet, component: sumi/double-arrow, variant: emphasis }
+  - { from: quiet, to: label, component: double-arrow, variant: muted }
