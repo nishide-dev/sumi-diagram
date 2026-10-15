@@ -1,0 +1,12 @@
+version: 1
+figure:
+  id: component-wrong-kind
+nodes:
+  - id: a
+    component: box
+  - id: b
+    component: box
+edges:
+  - from: a
+    to: b
+    component: diamond

@@ -1,0 +1,6 @@
+version: 1
+figure:
+  id: component-unknown
+nodes:
+  - id: api
+    component: rectangel

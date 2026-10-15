@@ -1,0 +1,45 @@
+version: 1
+figure:
+  id: components
+groups:
+  - id: stage
+    component: sumi/container
+    variant: muted
+nodes:
+  - id: box
+    component: box
+    props:
+      width: 40pt
+      height: 0.5in
+  - id: square
+    component: sumi/square
+    props: { width: 1in, height: 2.54cm }
+  - id: circle
+    component: circle
+    variant: emphasis
+  - id: ellipse
+    component: ellipse
+  - id: diamond
+    component: diamond
+  - id: hexagon
+    component: hexagon
+  - id: parallelogram
+    component: parallelogram
+  - id: cylinder
+    component: cylinder
+  - id: document
+    component: document
+  - id: note
+    component: label
+    variant: muted
+    group: stage
+edges:
+  - from: box
+    to: square
+  - from: square
+    to: circle
+    component: line
+    variant: dashed
+  - from: circle
+    to: stage
+    component: sumi/double-arrow
