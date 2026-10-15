@@ -1,2 +1,3 @@
-// Backends: layout engine integrations (e.g. D2 + ELK).
-export {};
+// Backends: layout engine integrations (D2 CLI + ELK).
+export * from "./d2";
+export * from "./types";
