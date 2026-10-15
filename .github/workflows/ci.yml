@@ -43,3 +43,7 @@ jobs:
 
       - name: JSON Schema up to date
         run: bun run schema:check
+
+      # Re-renders docs/gallery/ and examples/*/*.svg; fails if they are stale.
+      - name: Gallery and examples up to date
+        run: bun run gallery:check
