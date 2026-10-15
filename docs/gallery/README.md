@@ -540,7 +540,7 @@ No props.
 | <code>minimal</code> | <code>academic</code> |
 | --- | --- |
 | <img src="components/sumi-arrow.minimal.svg" alt="sumi/arrow, theme minimal"> | <img src="components/sumi-arrow.academic.svg" alt="sumi/arrow, theme academic"> |
-| <code>sumi render sumi\-arrow\.sumi\.yaml</code><br>57\.33mm × 57\.86mm \(max width 180mm\) | <code>sumi render sumi\-arrow\.sumi\.yaml \-\-theme academic</code><br>57\.33mm × 57\.86mm \(max width 180mm\) |
+| <code>sumi render sumi\-arrow\.sumi\.yaml</code><br>53\.09mm × 57\.86mm \(max width 180mm\) | <code>sumi render sumi\-arrow\.sumi\.yaml \-\-theme academic</code><br>53\.09mm × 57\.86mm \(max width 180mm\) |
 
 <details>
 <summary>Source: <code>sumi-arrow.sumi.yaml</code></summary>
@@ -617,7 +617,7 @@ No props.
 | <code>minimal</code> | <code>academic</code> |
 | --- | --- |
 | <img src="components/sumi-line.minimal.svg" alt="sumi/line, theme minimal"> | <img src="components/sumi-line.academic.svg" alt="sumi/line, theme academic"> |
-| <code>sumi render sumi\-line\.sumi\.yaml</code><br>57\.33mm × 57\.86mm \(max width 180mm\) | <code>sumi render sumi\-line\.sumi\.yaml \-\-theme academic</code><br>57\.33mm × 57\.86mm \(max width 180mm\) |
+| <code>sumi render sumi\-line\.sumi\.yaml</code><br>53\.09mm × 57\.86mm \(max width 180mm\) | <code>sumi render sumi\-line\.sumi\.yaml \-\-theme academic</code><br>53\.09mm × 57\.86mm \(max width 180mm\) |
 
 <details>
 <summary>Source: <code>sumi-line.sumi.yaml</code></summary>
@@ -694,7 +694,7 @@ No props.
 | <code>minimal</code> | <code>academic</code> |
 | --- | --- |
 | <img src="components/sumi-double-arrow.minimal.svg" alt="sumi/double-arrow, theme minimal"> | <img src="components/sumi-double-arrow.academic.svg" alt="sumi/double-arrow, theme academic"> |
-| <code>sumi render sumi\-double\-arrow\.sumi\.yaml</code><br>57\.33mm × 57\.86mm \(max width 180mm\) | <code>sumi render sumi\-double\-arrow\.sumi\.yaml \-\-theme academic</code><br>57\.33mm × 57\.86mm \(max width 180mm\) |
+| <code>sumi render sumi\-double\-arrow\.sumi\.yaml</code><br>53\.09mm × 57\.86mm \(max width 180mm\) | <code>sumi render sumi\-double\-arrow\.sumi\.yaml \-\-theme academic</code><br>53\.09mm × 57\.86mm \(max width 180mm\) |
 
 <details>
 <summary>Source: <code>sumi-double-arrow.sumi.yaml</code></summary>
@@ -766,25 +766,25 @@ The committed SVGs of <code>examples/</code>, rendered from their sources as wri
 
 ### Generic decision flow
 
-[<code>examples/decision\-flow/decision\-flow\.sumi\.yaml</code>](../../examples/decision-flow/decision-flow.sumi.yaml) · theme <code>minimal</code> · profile <code>paper\-single</code> · 59\.62mm × 166\.33mm \(max width 88mm\)
+[<code>examples/decision\-flow/decision\-flow\.sumi\.yaml</code>](../../examples/decision-flow/decision-flow.sumi.yaml) · theme <code>minimal</code> · profile <code>paper\-single</code> · 59\.62mm × 149\.4mm \(max width 88mm\)
 
 <img src="../../examples/decision-flow/decision-flow.svg" alt="Generic decision flow">
 
 ### Nested groups
 
-[<code>examples/grouped/grouped\.sumi\.yaml</code>](../../examples/grouped/grouped.sumi.yaml) · theme <code>minimal</code> · profile <code>paper\-double</code> · 176\.04mm × 65\.97mm \(max width 180mm\)
+[<code>examples/grouped/grouped\.sumi\.yaml</code>](../../examples/grouped/grouped.sumi.yaml) · theme <code>minimal</code> · profile <code>paper\-double</code> · 167\.57mm × 65\.97mm \(max width 180mm\)
 
 <img src="../../examples/grouped/grouped.svg" alt="Nested groups">
 
 ### Generic processing pipeline
 
-[<code>examples/pipeline/pipeline\.sumi\.yaml</code>](../../examples/pipeline/pipeline.sumi.yaml) · theme <code>academic</code> · profile <code>paper\-single</code> · 61\.74mm × 162\.98mm \(max width 88mm\)
+[<code>examples/pipeline/pipeline\.sumi\.yaml</code>](../../examples/pipeline/pipeline.sumi.yaml) · theme <code>academic</code> · profile <code>paper\-single</code> · 61\.74mm × 150\.28mm \(max width 88mm\)
 
 <img src="../../examples/pipeline/pipeline.svg" alt="Generic processing pipeline">
 
 ### Generic three\-tier system
 
-[<code>examples/system\-architecture/system\-architecture\.sumi\.yaml</code>](../../examples/system-architecture/system-architecture.sumi.yaml) · theme <code>academic</code> · profile <code>paper\-double</code> · 163\.69mm × 71\.97mm \(max width 180mm\)
+[<code>examples/system\-architecture/system\-architecture\.sumi\.yaml</code>](../../examples/system-architecture/system-architecture.sumi.yaml) · theme <code>academic</code> · profile <code>paper\-double</code> · 157\.34mm × 71\.97mm \(max width 180mm\)
 
 <img src="../../examples/system-architecture/system-architecture.svg" alt="Generic three-tier system">
 
@@ -797,8 +797,8 @@ The committed SVGs of <code>examples/</code>, rendered from their sources as wri
 
 | profile | description | max width | max height | min font size |
 | --- | --- | --- | --- | --- |
-| <code>paper\-single</code> | Single\-column figure in a two\-column paper | 88mm | — | 7pt |
-| <code>paper\-double</code> | Full\-width \(double\-column\) figure in a two\-column paper | 180mm | — | 7pt |
+| <code>paper\-single</code> | Single\-column figure in a two\-column paper | 88mm | 220mm | 7pt |
+| <code>paper\-double</code> | Full\-width \(double\-column\) figure in a two\-column paper | 180mm | 220mm | 7pt |
 | <code>presentation\-16x9</code> | 16:9 presentation slide \(13\.33in × 7\.5in\); used as an upper bound only | 338\.7mm | 190\.5mm | 14pt |
 
 ### One figure, every theme × profile
@@ -807,5 +807,5 @@ The same source rendered with <code>\-\-theme</code> and <code>\-\-profile</code
 
 | theme \ profile | <code>paper\-single</code> | <code>paper\-double</code> | <code>presentation\-16x9</code> |
 | --- | --- | --- | --- |
-| <code>minimal</code> | <img src="compare/pipeline.minimal.paper-single.svg" alt="examples/pipeline/pipeline.sumi.yaml, minimal, paper-single"><br><code>sumi render examples/pipeline/pipeline\.sumi\.yaml \-\-theme minimal \-\-profile paper\-single</code><br>61\.74mm × 164\.04mm \(max width 88mm\) | <img src="compare/pipeline.minimal.paper-double.svg" alt="examples/pipeline/pipeline.sumi.yaml, minimal, paper-double"><br><code>sumi render examples/pipeline/pipeline\.sumi\.yaml \-\-theme minimal \-\-profile paper\-double</code><br>61\.74mm × 164\.04mm \(max width 180mm\) | _not rendered_<br><code>sumi render examples/pipeline/pipeline\.sumi\.yaml \-\-theme minimal \-\-profile presentation\-16x9</code><br>not rendered<br>error profile/font\-too\-small \(×11\): Font size 9pt of group &quot;stages&quot; is below the minimum 14pt of profile &quot;presentation\-16x9&quot;\. |
-| <code>academic</code> | <img src="compare/pipeline.academic.paper-single.svg" alt="examples/pipeline/pipeline.sumi.yaml, academic, paper-single"><br><code>sumi render examples/pipeline/pipeline\.sumi\.yaml \-\-theme academic \-\-profile paper\-single</code><br>61\.74mm × 162\.98mm \(max width 88mm\) | <img src="compare/pipeline.academic.paper-double.svg" alt="examples/pipeline/pipeline.sumi.yaml, academic, paper-double"><br><code>sumi render examples/pipeline/pipeline\.sumi\.yaml \-\-theme academic \-\-profile paper\-double</code><br>61\.74mm × 162\.98mm \(max width 180mm\) | _not rendered_<br><code>sumi render examples/pipeline/pipeline\.sumi\.yaml \-\-theme academic \-\-profile presentation\-16x9</code><br>not rendered<br>error profile/font\-too\-small \(×11\): Font size 8pt of group &quot;stages&quot; is below the minimum 14pt of profile &quot;presentation\-16x9&quot;\. |
+| <code>minimal</code> | <img src="compare/pipeline.minimal.paper-single.svg" alt="examples/pipeline/pipeline.sumi.yaml, minimal, paper-single"><br><code>sumi render examples/pipeline/pipeline\.sumi\.yaml \-\-theme minimal \-\-profile paper\-single</code><br>61\.74mm × 151\.34mm \(max width 88mm\) | <img src="compare/pipeline.minimal.paper-double.svg" alt="examples/pipeline/pipeline.sumi.yaml, minimal, paper-double"><br><code>sumi render examples/pipeline/pipeline\.sumi\.yaml \-\-theme minimal \-\-profile paper\-double</code><br>61\.74mm × 151\.34mm \(max width 180mm\) | _not rendered_<br><code>sumi render examples/pipeline/pipeline\.sumi\.yaml \-\-theme minimal \-\-profile presentation\-16x9</code><br>not rendered<br>error profile/font\-too\-small \(×11\): Font size 9pt of group &quot;stages&quot; is below the minimum 14pt of profile &quot;presentation\-16x9&quot;\. |
+| <code>academic</code> | <img src="compare/pipeline.academic.paper-single.svg" alt="examples/pipeline/pipeline.sumi.yaml, academic, paper-single"><br><code>sumi render examples/pipeline/pipeline\.sumi\.yaml \-\-theme academic \-\-profile paper\-single</code><br>61\.74mm × 150\.28mm \(max width 88mm\) | <img src="compare/pipeline.academic.paper-double.svg" alt="examples/pipeline/pipeline.sumi.yaml, academic, paper-double"><br><code>sumi render examples/pipeline/pipeline\.sumi\.yaml \-\-theme academic \-\-profile paper\-double</code><br>61\.74mm × 150\.28mm \(max width 180mm\) | _not rendered_<br><code>sumi render examples/pipeline/pipeline\.sumi\.yaml \-\-theme academic \-\-profile presentation\-16x9</code><br>not rendered<br>error profile/font\-too\-small \(×11\): Font size 8pt of group &quot;stages&quot; is below the minimum 14pt of profile &quot;presentation\-16x9&quot;\. |
