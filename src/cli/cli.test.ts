@@ -31,6 +31,7 @@ import { D2_VERSION } from "../backends/d2/version";
 import { createBuiltinRegistry } from "../core/registry/builtins";
 import { buildCatalog } from "../core/registry/catalog";
 import { runCommand } from "../core/subprocess";
+import { BUNDLED_FONT_SHA256 } from "../core/theme/fonts";
 import { readSvgMetadata } from "../render";
 import { isCaseInsensitiveDir } from "./io";
 import { run } from "./program";
@@ -448,6 +449,11 @@ describe("sumi doctor", () => {
     expect(json.checks[0].hint).toContain("d2:install");
     expect(json.checks[1]).toMatchObject({ id: "fonts", status: "ok", required: true });
     expect(json.checks[1].details.files).toHaveLength(3);
+    // The actual font hashes are recorded (CI prints them), matching the pinned table.
+    const pinned = new Set(BUNDLED_FONT_SHA256.values());
+    for (const file of json.checks[1].details.files) {
+      expect(pinned.has(file.sha256)).toBe(true);
+    }
     // Geometry lint needs only the bundled fonts' metrics (D2 is checked separately).
     expect(json.checks[2]).toMatchObject({ id: "geometry-lint", status: "ok", required: false });
     expect(json.checks[2].details.files).toHaveLength(3);
