@@ -9,10 +9,19 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { accessSync, constants, existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { mkdtemp, rm } from "node:fs/promises";
+import {
+  accessSync,
+  constants,
+  existsSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  statSync,
+} from "node:fs";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
 import { checkD2Version, findD2Binary } from "../backends/d2/binary";
 import { BUILTIN_PROFILES } from "../core/profile/builtin";
@@ -22,6 +31,7 @@ import { BUILTIN_THEMES } from "../core/theme/builtin";
 import { BUILTIN_FONT_SETS } from "../core/theme/fonts";
 import { lintRenderedFigure } from "../lint/geometry";
 import { lintFigure } from "../lint/lint";
+import { parseXml } from "../render/xml";
 
 const ROOT = resolve(import.meta.dir, "..", "..");
 const SKILL_DIR = join(ROOT, ".claude", "skills", "sumi");
@@ -239,18 +249,158 @@ describe("figures in the skill", () => {
   );
 });
 
-describe("CLI wrapper", () => {
-  test("scripts/sumi runs the CLI from any directory", async () => {
-    const cwd = await mkdtemp(join(tmpdir(), "sumi-skill-"));
-    try {
-      const proc = Bun.spawnSync([join(SKILL_DIR, "scripts", "sumi"), "catalog", "--json"], {
-        cwd,
-        env: { ...process.env, NO_COLOR: "1" },
+/** Runs a skill script from a fresh temporary directory outside the repository. */
+async function runScript(
+  script: string,
+  args: string[],
+  env: Record<string, string | undefined> = {},
+): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+  const cwd = await mkdtemp(join(tmpdir(), "sumi-skill-"));
+  const merged: Record<string, string> = {};
+  for (const [key, value] of Object.entries({ ...process.env, NO_COLOR: "1", ...env })) {
+    if (value !== undefined) merged[key] = value;
+  }
+  try {
+    const proc = Bun.spawnSync([join(SKILL_DIR, "scripts", script), ...args], {
+      cwd,
+      env: merged,
+    });
+    return {
+      exitCode: proc.exitCode,
+      stdout: proc.stdout.toString(),
+      stderr: proc.stderr.toString(),
+    };
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+}
+
+interface DoctorCheck {
+  id: string;
+  status: string;
+  message: string;
+  details?: { path?: string; source?: string };
+}
+
+function d2Check(stdout: string): DoctorCheck | undefined {
+  const report = JSON.parse(stdout) as { checks: DoctorCheck[] };
+  return report.checks.find((c) => c.id === "d2");
+}
+
+const MANAGED_D2 = join(ROOT, ".sumi", "bin", "d2");
+
+describe("scripts/sumi", () => {
+  test("runs the CLI from any directory", async () => {
+    const run = await runScript("sumi", ["catalog", "--json"]);
+    expect(run.exitCode).toBe(0);
+    expect(JSON.parse(run.stdout)).toEqual(buildCatalog(createBuiltinRegistry()));
+  });
+
+  // Needs the managed D2 (`bun run d2:install`); required in CI.
+  test.skipIf(!existsSync(MANAGED_D2) && !process.env.CI)(
+    "defaults SUMI_D2_PATH to the repository's managed D2",
+    async () => {
+      const run = await runScript("sumi", ["doctor", "--json"], { SUMI_D2_PATH: undefined });
+      expect(d2Check(run.stdout)).toMatchObject({
+        status: "ok",
+        details: { path: MANAGED_D2, source: "env" },
       });
-      expect(proc.exitCode).toBe(0);
-      expect(JSON.parse(proc.stdout.toString())).toEqual(buildCatalog(createBuiltinRegistry()));
+    },
+  );
+
+  test("keeps an explicit SUMI_D2_PATH", async () => {
+    const explicit = join(tmpdir(), "sumi-skill-no-such-dir", "d2");
+    const run = await runScript("sumi", ["doctor", "--json"], { SUMI_D2_PATH: explicit });
+    expect(run.exitCode).toBe(1);
+    const check = d2Check(run.stdout);
+    expect(check?.status).toBe("error");
+    expect(check?.message).toContain(explicit);
+  });
+});
+
+/**
+ * `scripts/preview` with a stand-in `qlmanage` first on PATH, so the test runs
+ * on any platform: the stand-in records the wrapper SVG it is given and writes
+ * a dummy PNG, or fails when FAKE_QL_FAIL is set.
+ */
+describe("scripts/preview", () => {
+  async function withFakeQuickLook(
+    fn: (env: Record<string, string>, dirs: { work: string; tmp: string }) => Promise<void>,
+  ) {
+    const work = await mkdtemp(join(tmpdir(), "sumi-preview-test-"));
+    const bin = join(work, "bin");
+    const tmp = join(work, "tmp");
+    await mkdir(bin);
+    await mkdir(tmp);
+    await writeFile(
+      join(bin, "qlmanage"),
+      [
+        "#!/bin/sh",
+        'if [ -n "$FAKE_QL_FAIL" ]; then exit 1; fi',
+        'cp "$6" "$FAKE_QL_CAPTURE"',
+        'printf png > "$5/$(basename "$6").png"',
+        "",
+      ].join("\n"),
+      { mode: 0o755 },
+    );
+    try {
+      await fn(
+        {
+          PATH: `${bin}:${process.env.PATH ?? ""}`,
+          TMPDIR: tmp,
+          FAKE_QL_CAPTURE: join(work, "wrapper.svg"),
+        },
+        { work, tmp },
+      );
     } finally {
-      await rm(cwd, { recursive: true, force: true });
+      await rm(work, { recursive: true, force: true });
     }
+  }
+
+  const XML_ENTITIES: Record<string, string> = {
+    amp: "&",
+    lt: "<",
+    gt: ">",
+    quot: '"',
+    apos: "'",
+  };
+  const unescapeXml = (value: string) =>
+    value.replace(/&(amp|lt|gt|quot|apos);/g, (_, name: string) => XML_ENTITIES[name] ?? "");
+
+  test("references the SVG by a well-formed file URL, whatever its path", async () => {
+    await withFakeQuickLook(async (env, { work, tmp }) => {
+      const dir = join(work, `R&D #1 "q" 'a' <b> 図 100%`);
+      await mkdir(dir);
+      const svg = join(dir, "fig#1 & 50%.svg");
+      await writeFile(svg, "<svg xmlns='http://www.w3.org/2000/svg'/>");
+
+      const run = await runScript("preview", [svg, "400"], env);
+      expect(run.stderr).toBe("");
+      expect(run.exitCode).toBe(0);
+      const png = run.stdout.trim();
+      expect(png.endsWith("/fig#1 & 50%.png")).toBe(true);
+      expect(dirname(dirname(png))).toBe(tmp);
+      // Only the PNG is kept.
+      expect(readdirSync(dirname(png))).toEqual(["fig#1 & 50%.png"]);
+
+      const wrapper = readFileSync(env.FAKE_QL_CAPTURE ?? "", "utf8");
+      expect(parseXml(wrapper).ok).toBe(true);
+      const href = /<image href="([^"]*)"/.exec(wrapper)?.[1] ?? "";
+      const url = new URL(unescapeXml(href));
+      expect(url.protocol).toBe("file:");
+      expect(url.hash).toBe("");
+      expect(realpathSync(fileURLToPath(url))).toBe(realpathSync(svg));
+    });
+  });
+
+  test("leaves nothing behind when the converter fails", async () => {
+    await withFakeQuickLook(async (env, { work, tmp }) => {
+      const svg = join(work, "figure.svg");
+      await writeFile(svg, "<svg xmlns='http://www.w3.org/2000/svg'/>");
+      const run = await runScript("preview", [svg], { ...env, FAKE_QL_FAIL: "1" });
+      expect(run.exitCode).not.toBe(0);
+      expect(run.stdout).toBe("");
+      expect(readdirSync(tmp)).toEqual([]);
+    });
   });
 });
