@@ -18,6 +18,10 @@ export interface FakeD2Behavior {
   exitCode?: number;
   /** Sleep before doing anything else. */
   sleepMs?: number;
+  /** Create a directory at the output path, so reading the SVG fails. */
+  outputAsDirectory?: boolean;
+  /** Leave a file in the render's temp dir and make that dir read-only, so cleanup fails. */
+  lockWorkDir?: boolean;
 }
 
 export interface RecordedCall {
@@ -50,6 +54,12 @@ if (args[0] === "--version") {
 }
 const [input, output] = args.slice(-2);
 fs.appendFileSync(cfg.log, JSON.stringify({ args, env: process.env, input: fs.readFileSync(input, "utf8") }) + "\\n");
+if (cfg.outputAsDirectory) fs.mkdirSync(output);
+if (cfg.lockWorkDir) {
+  const dir = require("node:path").dirname(input);
+  fs.writeFileSync(dir + "/leftover", "");
+  fs.chmodSync(dir, 0o555);
+}
 setTimeout(() => {
   if (cfg.stderr !== undefined) process.stderr.write(cfg.stderr.replaceAll("$IN", input));
   if (cfg.svg !== undefined) fs.writeFileSync(output, cfg.svg);

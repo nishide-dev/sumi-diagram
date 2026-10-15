@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { getProfile, toD2LayoutArgs } from "../../core/profile";
@@ -232,6 +232,55 @@ describe("createD2CliBackend", () => {
     expect(result.ok).toBe(false);
     expect(result.diagnostics[0]?.code).toBe("backend/empty-output");
     expect(await readdir(renderTmp)).toEqual([]);
+  });
+
+  test("reports a temp dir that cannot be created as io-error instead of rejecting", async () => {
+    const { fake, backend } = await setup(
+      { svg: SVG },
+      { tmpDir: join(root, "does not exist", "nested") },
+    );
+    const result = await backend.render(input);
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toEqual([
+      expect.objectContaining({
+        code: "backend/io-error",
+        severity: "error",
+        message: expect.stringContaining("create a temporary directory"),
+      }),
+    ]);
+    expect(await fake.calls()).toEqual([]);
+  });
+
+  test("reports a failed output read as io-error and cleans up", async () => {
+    const { backend } = await setup({ outputAsDirectory: true });
+    const result = await backend.render(input);
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toEqual([
+      expect.objectContaining({
+        code: "backend/io-error",
+        severity: "error",
+        message: expect.stringContaining("read the SVG"),
+      }),
+    ]);
+    expect(await readdir(renderTmp)).toEqual([]);
+  });
+
+  test("keeps the timeout diagnostic when cleanup also fails", async () => {
+    const { backend } = await setup({ lockWorkDir: true, sleepMs: 10_000 }, { timeoutMs: 300 });
+    try {
+      const result = await backend.render(input);
+      expect(result.ok).toBe(false);
+      expect(result.diagnostics).toEqual([
+        expect.objectContaining({ code: "backend/d2-timeout", severity: "error" }),
+        expect.objectContaining({
+          code: "backend/io-error",
+          severity: "warning",
+          message: expect.stringContaining("remove the temporary directory"),
+        }),
+      ]);
+    } finally {
+      for (const name of await readdir(renderTmp)) await chmod(join(renderTmp, name), 0o755);
+    }
   });
 
   test("reports invalid args before running d2", async () => {

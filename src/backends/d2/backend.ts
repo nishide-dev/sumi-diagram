@@ -3,7 +3,7 @@
  * and the ELK layout engine.
  */
 
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Diagnostic } from "../../core/diagnostics";
@@ -69,6 +69,19 @@ export function sanitizeD2Env(
   return Object.fromEntries(
     Object.entries(env).filter(([key]) => !key.startsWith("D2_") && !D2_UNPREFIXED_ENV.has(key)),
   );
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/** A failed file-system operation around the D2 invocation (temp dir, input, output, cleanup). */
+function ioError(severity: "error" | "warning", action: string, error: unknown): Diagnostic {
+  return {
+    code: "backend/io-error",
+    severity,
+    message: `Could not ${action}: ${errorMessage(error)}`,
+  };
 }
 
 function invalidArgs(message: string): Diagnostic {
@@ -183,6 +196,91 @@ export function createD2CliBackend(options: D2CliBackendOptions = {}): DiagramBa
     return current;
   };
 
+  /** Runs one render inside `dir`. The caller owns `dir` and its cleanup. */
+  const renderIn = async (
+    dir: string,
+    input: RenderInput,
+    args: string[],
+    binary: { path: string; version: string },
+    sourceName: string,
+  ): Promise<Result<RenderArtifact>> => {
+    const fail = (diagnostic: Diagnostic): Result<RenderArtifact> => ({
+      ok: false,
+      diagnostics: [diagnostic],
+    });
+    const inputPath = join(dir, "input.d2");
+    const outputPath = join(dir, "output.svg");
+    try {
+      await Bun.write(inputPath, input.d2Source);
+    } catch (error) {
+      return fail(ioError("error", "write the D2 source", error));
+    }
+
+    let result: Awaited<ReturnType<typeof runCommand>>;
+    try {
+      result = await runCommand([binary.path, ...args, inputPath, outputPath], {
+        env: childEnv,
+        timeoutMs,
+      });
+    } catch (error) {
+      return fail({
+        code: "backend/d2-failed",
+        severity: "error",
+        message: `Could not run "${binary.path}": ${errorMessage(error)}`,
+      });
+    }
+
+    if (result.timedOut) {
+      return fail({
+        code: "backend/d2-timeout",
+        severity: "error",
+        message: `D2 did not finish within ${timeoutMs} ms.`,
+        hint: "Simplify the figure or raise the backend timeout.",
+      });
+    }
+    if (result.exitCode !== 0) {
+      const parsed = parseD2Stderr(result.stderr, inputPath, sourceName);
+      if (parsed.length > 0) return { ok: false, diagnostics: parsed };
+      const status =
+        result.exitCode === null
+          ? `was terminated by ${result.signal}`
+          : `exited with code ${result.exitCode}`;
+      return fail({ code: "backend/d2-failed", severity: "error", message: `D2 ${status}.` });
+    }
+
+    let svg: string;
+    try {
+      svg = await readFile(outputPath, "utf8");
+    } catch (error) {
+      // A missing file is D2 producing nothing, not an I/O failure.
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") svg = "";
+      else return fail(ioError("error", "read the SVG written by D2", error));
+    }
+    if (!/<svg[\s>]/.test(svg) || !svg.trimEnd().endsWith("</svg>")) {
+      return fail({
+        code: "backend/empty-output",
+        severity: "error",
+        message:
+          svg.trim() === ""
+            ? "D2 exited successfully but produced no SVG."
+            : "D2 exited successfully but its output is not a complete SVG document.",
+      });
+    }
+
+    return {
+      ok: true,
+      value: {
+        svg,
+        d2Source: input.d2Source,
+        backend: { name: "d2-cli", version: binary.version },
+        args,
+        layout: input.layout.effective,
+        ...(input.fontSet !== undefined && { fontSetId: input.fontSet.id }),
+      },
+      diagnostics: [],
+    };
+  };
+
   return {
     name: "d2-cli",
     async render(input: RenderInput): Promise<Result<RenderArtifact>> {
@@ -197,81 +295,31 @@ export function createD2CliBackend(options: D2CliBackendOptions = {}): DiagramBa
         diagnostics: [...diagnostics, ...more],
       });
 
-      const dir = await mkdtemp(join(options.tmpDir ?? tmpdir(), "sumi-d2-"));
+      // Every file operation is caught: render() reports failures as diagnostics and never rejects.
+      let dir: string;
       try {
-        const inputPath = join(dir, "input.d2");
-        const outputPath = join(dir, "output.svg");
-        await Bun.write(inputPath, input.d2Source);
-
-        let result: Awaited<ReturnType<typeof runCommand>>;
-        try {
-          result = await runCommand([binary.value.path, ...args.value, inputPath, outputPath], {
-            env: childEnv,
-            timeoutMs,
-          });
-        } catch (error) {
-          return fail([
-            {
-              code: "backend/d2-failed",
-              severity: "error",
-              message: `Could not run "${binary.value.path}": ${error instanceof Error ? error.message : String(error)}`,
-            },
-          ]);
-        }
-
-        if (result.timedOut) {
-          return fail([
-            {
-              code: "backend/d2-timeout",
-              severity: "error",
-              message: `D2 did not finish within ${timeoutMs} ms.`,
-              hint: "Simplify the figure or raise the backend timeout.",
-            },
-          ]);
-        }
-        if (result.exitCode !== 0) {
-          const parsed = parseD2Stderr(result.stderr, inputPath, sourceName);
-          const status =
-            result.exitCode === null
-              ? `was terminated by ${result.signal}`
-              : `exited with code ${result.exitCode}`;
-          return fail(
-            parsed.length > 0
-              ? parsed
-              : [{ code: "backend/d2-failed", severity: "error", message: `D2 ${status}.` }],
-          );
-        }
-
-        const output = Bun.file(outputPath);
-        const svg = (await output.exists()) ? await output.text() : "";
-        if (!/<svg[\s>]/.test(svg) || !svg.trimEnd().endsWith("</svg>")) {
-          return fail([
-            {
-              code: "backend/empty-output",
-              severity: "error",
-              message:
-                svg.trim() === ""
-                  ? "D2 exited successfully but produced no SVG."
-                  : "D2 exited successfully but its output is not a complete SVG document.",
-            },
-          ]);
-        }
-
-        return {
-          ok: true,
-          value: {
-            svg,
-            d2Source: input.d2Source,
-            backend: { name: "d2-cli", version: binary.value.version },
-            args: args.value,
-            layout: input.layout.effective,
-            ...(input.fontSet !== undefined && { fontSetId: input.fontSet.id }),
-          },
-          diagnostics,
-        };
-      } finally {
-        await rm(dir, { recursive: true, force: true });
+        dir = await mkdtemp(join(options.tmpDir ?? tmpdir(), "sumi-d2-"));
+      } catch (error) {
+        return fail([ioError("error", "create a temporary directory", error)]);
       }
+
+      let result: Result<RenderArtifact>;
+      try {
+        result = await renderIn(dir, input, args.value, binary.value, sourceName);
+      } catch (error) {
+        result = { ok: false, diagnostics: [ioError("error", "access the render files", error)] };
+      }
+      result = { ...result, diagnostics: [...diagnostics, ...result.diagnostics] };
+
+      try {
+        await rm(dir, { recursive: true, force: true });
+      } catch (error) {
+        // Keep the render's own outcome; only report the leftover directory.
+        result.diagnostics.push(
+          ioError("warning", `remove the temporary directory "${dir}"`, error),
+        );
+      }
+      return result;
     },
   };
 }
