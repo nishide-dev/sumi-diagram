@@ -14,6 +14,8 @@ import { inspectSvg, type SvgInspection } from "./inspect";
 export interface RenderFigureOptions extends CompileOptions {
   /** Backend to render with. Defaults to a new D2 CLI backend. */
   backend?: DiagramBackend;
+  /** Name of the generated D2 source in backend diagnostics (see `RenderInput.sourceName`). */
+  sourceName?: string;
 }
 
 export interface RenderedFigure {
@@ -38,7 +40,7 @@ export async function renderFigure(
   text: string,
   options: RenderFigureOptions = {},
 ): Promise<Result<RenderedFigure>> {
-  const { backend = createD2CliBackend(), ...compileOptions } = options;
+  const { backend = createD2CliBackend(), sourceName, ...compileOptions } = options;
   const compiled = compileFigure(text, compileOptions);
   if (!compiled.ok) return compiled;
   const diagnostics: Diagnostic[] = [...compiled.diagnostics];
@@ -60,6 +62,7 @@ export async function renderFigure(
     d2Source: compiled.value.d2Source,
     layout: compiled.value.layout,
     fontSet: compiled.value.fontSet,
+    ...(sourceName !== undefined && { sourceName }),
   });
   diagnostics.push(...rendered.diagnostics);
   if (!rendered.ok) return fail();

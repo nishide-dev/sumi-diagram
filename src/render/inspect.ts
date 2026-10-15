@@ -64,7 +64,10 @@ export interface ProfileLimits {
 
 export interface SvgInspection {
   canvas: {
-    /** Root viewBox in D2 units: the whole output, margin included. */
+    /**
+     * The whole output (margin included) in the coordinates of the element
+     * geometry: the viewBox of `svg.d2-svg`, whose size equals the root viewBox.
+     */
     viewBox: Rect;
     width: Size;
     height: Size;
@@ -231,7 +234,7 @@ function findElementGroups(
 export function inspectSvg(svg: string, ir: FigureIR): Result<SvgInspection> {
   const read = readD2Svg(svg);
   if (!read.ok) return { ok: false, diagnostics: [read.diagnostic] };
-  const { viewBox, drawing } = read.doc;
+  const { drawingViewBox: viewBox, drawing } = read.doc;
   const diagnostics: Diagnostic[] = [];
 
   const groupsByKey = new Map<ElementKey, XmlElement[]>();

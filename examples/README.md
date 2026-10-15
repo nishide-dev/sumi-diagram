@@ -23,11 +23,14 @@ bun run example:render examples/pipeline/pipeline.sumi.yaml  # writes examples/p
 bun run example:render <figure.sumi.yaml> <out.svg>          # any figure, any output path
 ```
 
-The script runs `compileFigure()` and the D2 CLI backend, prints diagnostics,
-and writes D2's SVG with `width`/`height` in pt added to the root `<svg>` (1 D2
-unit = 0.5pt), so viewers show the physical size. It also prints the output
-size and whether it fits the profile's `page.maxWidth`. It does not run the
-SVG post-processing or lint of #11–#13.
+The script runs the shared render pipeline (`renderFigure()` from
+`src/render`, #11): compile, the D2 CLI backend, SVG finalization and
+inspection. It prints diagnostics and writes the finalized SVG: D2's output
+with `width`/`height` in pt on the root `<svg>` (1 D2 unit = 0.5pt), so viewers
+show the physical size, and Sumi's deterministic `<metadata>` (versions, theme,
+profile, font set, sha256 of the YAML and the D2 source). It also prints the
+output size and whether it fits the profile's `page.maxWidth`. It does not run
+the lint of #12/#13.
 
 ## Committed SVGs
 

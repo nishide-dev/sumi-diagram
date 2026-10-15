@@ -15,6 +15,11 @@ export interface D2SvgDocument {
   viewBox: Rect;
   /** The single `svg.d2-svg` holding the drawing. */
   drawing: XmlElement;
+  /**
+   * The drawing's viewBox: the same canvas in the drawing's own coordinates
+   * (D2 may shift its origin, e.g. `1 0 W H`). Element geometry uses these coordinates.
+   */
+  drawingViewBox: Rect;
 }
 
 export type D2SvgResult = { ok: true; doc: D2SvgDocument } | { ok: false; diagnostic: Diagnostic };
@@ -96,5 +101,12 @@ export function readD2Svg(svg: string): D2SvgResult {
   if (drawing === undefined || childElements(drawing).length === 0) {
     return { ok: false, diagnostic: empty("The SVG contains no D2 drawing.") };
   }
-  return { ok: true, doc: { root, viewBox, drawing } };
+  const drawingViewBox = parseViewBox(attribute(drawing, "viewBox")) ?? viewBox;
+  if (drawingViewBox.width !== viewBox.width || drawingViewBox.height !== viewBox.height) {
+    return {
+      ok: false,
+      diagnostic: invalid("The D2 drawing's viewBox size differs from the root viewBox."),
+    };
+  }
+  return { ok: true, doc: { root, viewBox, drawing, drawingViewBox } };
 }

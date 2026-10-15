@@ -2,8 +2,9 @@
  * The built-in primitives rendered with the real D2 CLI (#10): every component
  * × every variant × both built-in themes renders, and each element appears in
  * the SVG with its theme's colors and the arrowheads its component implies.
- * Also renders the examples under `examples/` and checks them against the
- * committed SVGs and their profile's page width.
+ * Also renders the examples under `examples/` (through the shared
+ * `renderFigure()` pipeline, #11) and checks them against the committed SVGs
+ * and their profile's page width.
  *
  * Skipped when the pinned `d2` is not installed locally (`bun run d2:install`);
  * required in CI (`CI` set), as in `d2-render.test.ts`.
@@ -18,6 +19,7 @@ import { checkD2Version, findD2Binary } from "../backends/d2/binary";
 import { D2_VERSION } from "../backends/d2/version";
 import { getProfile } from "../core/profile/builtin";
 import { d2UnitsToPt } from "../core/units";
+import { readSvgMetadata, sha256 } from "../render/finalize";
 import { compileFigure } from "./compile";
 import { elementClass } from "./d2";
 import { primitivesFigure } from "./testing";
@@ -125,7 +127,12 @@ describe.skipIf(!available)("built-in primitives render with D2", () => {
           const committed = example.replace(/\.sumi\.yaml$/, ".svg");
           expect(svg).toBe(await Bun.file(join(ROOT, committed)).text());
 
-          const compiled = compileFigure(await Bun.file(join(ROOT, example)).text());
+          const source = await Bun.file(join(ROOT, example)).text();
+          const metadata = readSvgMetadata(svg);
+          if (!metadata.ok) throw new Error(JSON.stringify(metadata.diagnostics));
+          expect(metadata.value?.inputSha256).toBe(sha256(source));
+
+          const compiled = compileFigure(source);
           if (!compiled.ok) throw new Error("expected ok");
           expect(compiled.diagnostics).toEqual([]);
           const maxWidth = getProfile(compiled.value.ir.meta.profileId)?.page.maxWidth;
