@@ -1,6 +1,6 @@
 /**
  * The built-in primitives rendered with the real D2 CLI (#10): every component
- * × every variant × both built-in themes renders, and each element appears in
+ * × every variant × every built-in theme renders, and each element appears in
  * the SVG with its theme's colors and the arrowheads its component implies.
  * Also renders the examples under `examples/` (through the shared
  * `renderFigure()` pipeline, #11) and checks them against the committed SVGs
@@ -18,6 +18,7 @@ import { createD2CliBackend } from "../backends/d2/backend";
 import { checkD2Version, findD2Binary } from "../backends/d2/binary";
 import { D2_VERSION } from "../backends/d2/version";
 import { getProfile } from "../core/profile/builtin";
+import { BUILTIN_THEMES } from "../core/theme/builtin";
 import { d2UnitsToPt } from "../core/units";
 import { readSvgMetadata, sha256 } from "../render/finalize";
 import { compileFigure } from "./compile";
@@ -61,7 +62,7 @@ test("the pinned d2 is installed in CI", () => {
 });
 
 describe.skipIf(!available)("built-in primitives render with D2", () => {
-  for (const theme of ["minimal", "academic"]) {
+  for (const theme of BUILTIN_THEMES.keys()) {
     test(
       `every component × variant (${theme})`,
       async () => {

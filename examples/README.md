@@ -8,9 +8,20 @@ Generic, domain-neutral figures built only from the built-in components
 | --- | --- | --- |
 | [`pipeline/`](pipeline/pipeline.sumi.yaml) | `academic` / `paper-single` | groups (default and muted container), box, parallelogram, cylinder, document, emphasis / muted variants, `arrow`, `double-arrow`, dashed edge, edge labels |
 | [`decision-flow/`](decision-flow/decision-flow.sumi.yaml) | `minimal` / `paper-single` | ellipse terminals, parallelogram input, diamond decisions, a retry loop, a `label` note attached with a `line`, emphasis / muted / dashed variants |
+| [`system-architecture/`](system-architecture/system-architecture.sumi.yaml) | `academic` / `paper-double` | three tiers as groups (default and muted), hexagon entry point, cylinders and a document in the data tier, `double-arrow` reads/writes, a dashed path |
+| [`grouped/`](grouped/grouped.sumi.yaml) | `minimal` / `paper-double` | nested groups (three levels, one muted), two parallel paths crossing group boundaries at every level, ellipse and document outside the groups |
 
-Both use `direction: down`: four or more nodes in a row to the right are
-already wider than `paper-single` (88mm).
+`pipeline` and `decision-flow` use `direction: down`: four or more nodes in a
+row to the right are already wider than `paper-single` (88mm).
+`system-architecture` and `grouped` use `direction: right` so that edges enter
+groups from the side (with `direction: down` they cross the groups' centered
+labels, `geometry/edge-crosses-label`), which makes them wider than one paper
+column: they use `paper-double` (180mm).
+
+All four pass `sumi lint --geometry` without errors or warnings.
+
+The [component gallery](../docs/gallery/README.md) shows every example next to
+every built-in component, and compares one figure across themes and profiles.
 
 ## Rendering
 
@@ -40,5 +51,10 @@ anything. They are small (about 25KB, with the font subset embedded) and
 deterministic for a given D2 version, font set and source. A test
 (`src/compiler/builtins-render.test.ts`, run in CI) re-renders every example
 and fails if a committed SVG is stale or wider than its profile allows; after
-changing an example, the compiler, a theme or the fonts, re-render the
-affected examples with the command above.
+changing an example, the compiler, a theme or the fonts, re-render every
+example and the gallery with one command:
+
+```sh
+bun run gallery         # re-renders examples/*/*.svg and docs/gallery/
+bun run gallery:check   # fails if any of them is stale (run in CI)
+```
