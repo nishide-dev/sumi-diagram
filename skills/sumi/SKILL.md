@@ -28,19 +28,28 @@ it is clean — never to draw the SVG yourself, and never to edit generated
 - **Let the CLI decide.** Treat diagnostics as the source of truth and fix
   what they report; do not guess whether something is valid.
 
-## Running the CLI
+## Prerequisites
 
-This skill ships a wrapper that runs Sumi from this repository's source from
-any directory and points it at the repository's pinned D2:
+The skill drives the Sumi CLI but does not contain it. Install a release
+build (macOS / Linux) from
+[GitHub Releases](https://github.com/nishide-dev/sumi-diagram/releases):
+extract `sumi-<version>-<target>.tar.gz`, keep the directory intact and
+put its `bin/sumi` on `PATH`; D2 and the fonts are bundled. Check with
+`sumi doctor`. Optional: `SUMI_BIN` (a specific `sumi` executable),
+`SUMI_D2_PATH` (a specific D2 v0.9.0). In a Sumi source checkout, no
+release is needed (Bun + `bun run d2:install`).
+
+## Running the CLI
 
 ```sh
 <skill-dir>/scripts/sumi <command> ...   # <skill-dir> = the base directory of this skill
 ```
 
-Use the absolute path in every command (shell variables do not persist
-between Bash calls). Below, `sumi` means that wrapper. If the wrapper is
-unavailable (skill copied outside the repository) but a `sumi` executable is
-on `PATH`, use that instead. Do not install anything without asking.
+This wrapper runs `$SUMI_BIN`, else the Sumi source checkout it lives in,
+else `sumi` on `PATH`, else a checkout around the current directory;
+otherwise it exits 127 with install instructions — relay them to the user
+and stop (do not install anything without asking). Use the absolute path in every command (shell
+variables do not persist between Bash calls). Below, `sumi` means the wrapper.
 
 ## Workflow
 
@@ -72,9 +81,10 @@ sumi doctor
 ```
 
 Exit 0 and `Ready to render.` means D2, the fonts and the geometry lint
-are in place. If the `d2` check fails, tell the user to run
-`bun run d2:install` in the repository (or set `SUMI_D2_PATH` to a D2
-v0.9.0 binary) and stop. `sumi lint` without `--geometry` works without D2.
+are in place. If a check fails, relay its `hint` and stop: for
+`d2` that is reinstalling the release tarball (D2 is bundled), running
+`bun run d2:install` in a source checkout, or setting `SUMI_D2_PATH` to a
+D2 v0.9.0 binary. `sumi lint` without `--geometry` works without D2.
 
 ### 3. Discover components, themes and profiles
 
@@ -131,7 +141,8 @@ edges:
 - Choose `direction` for the target width: chains of four or more nodes
   laid out `right` do not fit `paper-single` — prefer `down`
   ([layout-tips](references/layout-tips.md)).
-- Editors can validate against `schema/figure.v1.schema.json`.
+- Editors can validate against `schema/figure.v1.schema.json` (in the Sumi
+  repository).
 
 ### 5. Format, lint, fix
 

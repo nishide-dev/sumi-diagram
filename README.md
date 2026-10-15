@@ -193,7 +193,14 @@ sumi catalog --json --section themes --section profiles   # Theme と Profile �
 
 ## Claude Code から使う
 
-このリポジトリには Claude Code 用の Skill（[`.claude/skills/sumi/`](.claude/skills/sumi/SKILL.md)）が含まれています。リポジトリで Claude Code を開き、「この処理の流れを Sumi で図にして（論文の 1 段組）」のように頼むと、Skill が次の手順で図を作ります。
+Claude Code 用の Skill を [`skills/sumi/`](skills/sumi/SKILL.md) で配布しています。[skills CLI](https://github.com/vercel-labs/skills) で、使いたいプロジェクトに導入します。
+
+```sh
+npx skills add nishide-dev/sumi-diagram --skill sumi           # 対話的に導入先のエージェントを選ぶ
+npx skills add nishide-dev/sumi-diagram --skill sumi -a claude-code -y   # Claude Code のプロジェクト（.claude/skills/sumi）に導入
+```
+
+Skill は CLI を含みません。先に[リリース版](#インストールリリース版)を導入して `sumi` を `PATH` に通し、`sumi doctor` で確認してください（D2 とフォントは tarball に同梱）。Claude Code で「この処理の流れを Sumi で図にして（論文の 1 段組）」のように頼むと、Skill が次の手順で図を作ります。
 
 1. 図の内容と出力先（`paper-single` / `paper-double` / `presentation-16x9`）を確認する
 2. `sumi doctor` で環境を確認し、`sumi catalog --json` で使える部品・variant・props と Theme・Profile を調べる（存在しない部品やスタイルは使わない）
@@ -201,7 +208,16 @@ sumi catalog --json --section themes --section profiles   # Theme と Profile �
 4. `sumi render` で SVG を出力し、幾何 lint（`geometry/*`）の診断を確認したうえで、PNG に変換して目視で確認する
 5. 作成したファイル・サイズ・残った warning・仮定を報告する（修正が進まない場合や、内容・Profile の判断が必要な場合は推測せずに確認する）
 
-Skill は CLI をソースから実行するラッパー（`.claude/skills/sumi/scripts/sumi`）を使います。作業ディレクトリによらず動き、`SUMI_D2_PATH` が未設定ならリポジトリの `.sumi/bin/d2` を使うため、事前に `bun install` と `bun run d2:install` を済ませておいてください。手順の詳細と、診断・レイアウトの参照資料は `.claude/skills/sumi/references/` にあります。Skill の記述（部品名・診断コード・作例の YAML）は `src/cli/skill.test.ts` で実装と照合しています。
+Skill は CLI をラッパー（`skills/sumi/scripts/sumi`）経由で実行します。ラッパーは次の順に CLI を探し、どれも無ければ導入手順と `sumi doctor` を案内して終了コード 127 で終わります。
+
+1. 環境変数 `SUMI_BIN`（実行ファイルのパス）
+2. ラッパー（シンボリックリンクを解決した実体）を含む Sumi のソースチェックアウト。このリポジトリで開発するときは常にソースが使われます
+3. `PATH` 上の `sumi`（リリース版の単一バイナリ。ラッパー自身とその複製は除外）
+4. 作業ディレクトリの上にある Sumi のソースチェックアウト
+
+ソースチェックアウトでは `bun <repo>/src/cli/index.ts` を実行し、`SUMI_D2_PATH` が未設定ならリポジトリの `.sumi/bin/d2` を使います。
+
+このリポジトリで開発するときは、`.claude/skills/sumi` が `../../skills/sumi` へのシンボリックリンクになっているので、リポジトリで Claude Code を開けばそのまま Skill が読み込まれます（Windows で `core.symlinks` が無効なチェックアウトでは使えません）。ラッパーはリリース版が `PATH` にあってもこのリポジトリのソースから実行するため、事前に `bun install` と `bun run d2:install` を済ませておいてください。手順の詳細と、診断・レイアウトの参照資料は `skills/sumi/references/` にあります。Skill の記述（部品名・診断コード・作例の YAML）とラッパーの探索順は `src/cli/skill.test.ts` で実装と照合しています。
 
 ## 開発コマンド
 
@@ -232,6 +248,7 @@ Skill は CLI をソースから実行するラッパー（`.claude/skills/sumi/
 | `tests/fixtures` | テスト用の入力ファイル |
 | `examples` | 図の例（`*.sumi.yaml` と生成した SVG） |
 | `docs/gallery` | 生成されたコンポーネントギャラリー（手で編集しない） |
+| `skills/sumi` | Claude Code 用の Skill（`npx skills add` で配布。`.claude/skills/sumi` はここへのシンボリックリンク） |
 
 ## ライセンス
 
