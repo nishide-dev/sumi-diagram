@@ -393,6 +393,19 @@ describe("scripts/preview", () => {
     });
   });
 
+  test("keeps the PNG of an input named like its intermediate file (figure.svg)", async () => {
+    await withFakeQuickLook(async (env, { work }) => {
+      const svg = join(work, "figure.svg");
+      await writeFile(svg, "<svg xmlns='http://www.w3.org/2000/svg'/>");
+      const run = await runScript("preview", [svg], env);
+      expect(run.stderr).toBe("");
+      expect(run.exitCode).toBe(0);
+      const png = run.stdout.trim();
+      expect(png.endsWith("/figure.png")).toBe(true);
+      expect(readdirSync(dirname(png))).toEqual(["figure.png"]);
+    });
+  });
+
   test("leaves nothing behind when the converter fails", async () => {
     await withFakeQuickLook(async (env, { work, tmp }) => {
       const svg = join(work, "figure.svg");

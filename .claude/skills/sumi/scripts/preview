@@ -63,5 +63,6 @@ else
   rsvg-convert -a -w "$size" -h "$size" -b white "$svg_abs" -o "$out/figure.png"
 fi
 name=$(basename -- "$1" .svg)
-mv "$out/figure.png" "$out/$name.png"
+# GNU mv fails when source and destination are the same (input figure.svg).
+if [ "$name" != figure ]; then mv "$out/figure.png" "$out/$name.png"; fi
 echo "$out/$name.png"
