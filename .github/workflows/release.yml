@@ -1,3 +1,5 @@
+# Third-party actions are pinned by full commit SHA (tag in the comment), as in ci.yml.
+#
 # Builds the release tarballs on native runners, smoke-tests each one on the
 # runner that built it, and publishes a GitHub Release (design doc §6.8, #20).
 # The procedure (version bump, release notes, tag) is in CONTRIBUTING.md.
@@ -23,6 +25,7 @@ concurrency:
 jobs:
   preflight:
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
@@ -67,6 +70,7 @@ jobs:
           - target: linux-arm64
             runs-on: ubuntu-24.04-arm
     runs-on: ${{ matrix.runs-on }}
+    timeout-minutes: 30
     env:
       TARGET: ${{ matrix.target }}
       VERSION: ${{ needs.preflight.outputs.version }}
@@ -107,6 +111,7 @@ jobs:
     if: github.ref_type == 'tag'
     needs: [preflight, build]
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     permissions:
       contents: write
     steps:

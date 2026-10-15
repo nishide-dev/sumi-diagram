@@ -104,3 +104,40 @@ jobs:
       # Re-renders docs/gallery/ and examples/*/*.svg; fails if they are stale.
       - name: Gallery and examples up to date
         run: bun run gallery:check
+
+  # Keeps the release path from rotting (#20): builds the linux-x64 tarball
+  # exactly as release.yml does and runs the same smoke test (extract to a path
+  # with a space, run outside the checkout without Bun/Node on PATH: --version,
+  # doctor, a Japanese-label render). The other targets run in release.yml.
+  release:
+    name: Release smoke (linux-x64)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: .bun-version
+
+      - name: Cache Bun packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('bun.lock') }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # The D2 release tarball; the build re-verifies its sha256 on every use.
+      - name: Cache D2 release tarball
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .sumi/cache
+          key: d2-tarball-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('src/backends/d2/version.ts') }}
+
+      - name: Build tarball
+        run: bun run release:build --target linux-x64
+
+      - name: Smoke test
+        run: bun run release:smoke "dist/release/sumi-$(jq -r .version package.json)-linux-x64.tar.gz"
