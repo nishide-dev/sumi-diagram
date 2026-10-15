@@ -554,6 +554,44 @@ layout:
 
 - examples の SVG はこれらの変更で再生成した（ラベルの位置・背景・高さが変わる）。`builtins-render.test.ts` は、examples が Profile の幅と高さに収まり、`sumi render` の幾何 lint が何も出さないことを検査する。
 
+### 6.7 #16 のテスト戦略と CI
+- **テストは `bun test` 1 本**。単体テストは各モジュールの隣（`*.test.ts`）、実際の D2 を使う統合テストは `*.integration.test.ts` と `src/compiler/*-render.test.ts`・`src/cli/cli.test.ts` の描画部分。統合テストは、ローカルでは固定版の D2 がなければスキップ（警告を出す）し、`CI` が設定されていれば必須（D2 がなければ失敗）とする。
+- **層ごとの主なテスト**:
+
+  | 層 | 単体 | 統合（D2） / E2E |
+  | --- | --- | --- |
+  | schema（YAML・検証・参照） | `core/figure/*.test.ts`（不正入力の fixture 一式 `tests/fixtures/figures/invalid/`） | — |
+  | registry / theme / profile | `core/registry`・`core/theme`・`core/profile` の各テスト | `compiler/builtins-render.test.ts`（全部品 × 全 variant × 全テーマ） |
+  | compiler（IR・D2 生成） | `compiler/ir.test.ts`・`d2.test.ts`（`.d2` ゴールデン） | `compiler/d2-render.test.ts`（`d2 fmt` で不変・全要素が SVG に 1 回） |
+  | backend | `backends/d2/*.test.ts`（偽の d2 で引数・環境・タイムアウト・I/O 失敗） | `d2.integration.test.ts`（決定性・位置付きエラー） |
+  | render / inspect | `render/*.test.ts`（合成 SVG で未対応の幾何・壊れた出力） | `render.integration.test.ts` |
+  | lint（構造 / 幾何） | `lint/**/*.test.ts`（出力形式のゴールデン `tests/fixtures/lint-output/`） | `geometry.integration.test.ts`（はみ出し・横切り・ページ超過の fixture） |
+  | CLI / Skill | — | `cli/cli.test.ts`・`cli/skill.test.ts`（実際のエントリポイントを子プロセスで起動） |
+  | gallery / examples | `scripts/gallery/*.test.ts` | `bun run gallery:check`（SVG のバイト一致） |
+  | PR タイトル | `scripts/commitlint/rules.test.ts` | — |
+
+- **ゴールデン**は 3 種類で、いずれもバイト一致で比較する。
+  1. D2 ソース `tests/fixtures/d2/*.d2`（D2 を使わない）。更新: `SUMI_UPDATE_GOLDEN=1 bun test src/compiler/d2.test.ts`
+  2. lint の出力 `tests/fixtures/lint-output/*`。更新: `SUMI_UPDATE_GOLDEN=1 bun test src/lint/lint.test.ts`
+  3. SVG: `examples/*/*.svg` と `docs/gallery/`。更新: `bun run gallery`、検査: `bun run gallery:check`。サンプルと例は診断ゼロ（幾何 lint を含む）でなければ生成自体が失敗する。
+
+  SVG のキーは §6 のとおり（D2 ソース、D2 のバージョン、フォントセットの hash、CLI 引数）。OS は含めない: CI は Linux（x64）と macOS（arm64）の両方で `gallery:check` を実行し、同じバイト列になることを検査する。
+- **ラスタ画像の比較（視覚回帰）は現時点では導入しない**。理由:
+  - SVG のバイト一致はラスタ比較より厳しい。ラスタで差が出る変更は必ず SVG にも差が出る。出力は決定的なので、許容差やその調整も要らない。
+  - ラスタ化はラスタライザ（resvg・Chromium など）と OS ごとのアンチエイリアス・ヒンティングに依存し、許容差が必要になる。許容差は誤検出と見逃しの両方を生む。Playwright などの依存は `bun build --compile` の単一バイナリ方針（CLAUDE.md）にも合わない。
+  - 「見た目の崩れ」は、ラベルのはみ出し・重なり・ページ超過などを幾何 lint（§6.5）が SVG の幾何から決定的に検出する。ブラウザでの文字幅との一致も #13 で確認済み。
+  - 人による確認は、ギャラリー（`docs/gallery/index.html`）と PR の SVG 差分（GitHub の画像差分表示）で行う。
+  - 再検討する条件: 出力が決定的でないバックエンド（D2.js など）を加える場合、または PNG / PDF 出力を提供する場合。
+- **D2・フォントを更新するときの手順**（1 つの PR で行う）:
+  1. D2: `src/backends/d2/version.ts` の `D2_VERSION` と全プラットフォームの sha256（リリースの `SHA256SUMS`）を更新し、`bun run d2:install`。フォント: `assets/fonts/<set>/` のファイル、`src/core/theme/fonts.ts` の `BUNDLED_FONT_SHA256`、同ディレクトリの README の表（テストで一致を検査）を更新する
+  2. `SUMI_UPDATE_GOLDEN=1 bun test` → `bun test` が通るまで、D2 の挙動に依存する箇所（幾何 lint の比率など）を直す
+  3. `bun run gallery` でギャラリーと例を再生成し、ギャラリーで見た目を確認して差分をコミットする
+  4. CI の両 OS で `gallery:check` が通ることを確認する（D2 のキャッシュは `version.ts` の hash で自動的に入れ替わる）
+- **環境の記録と唯一の出典**: Bun は `.bun-version`（CI の setup-bun が読む）、D2 は `src/backends/d2/version.ts`（インストーラ・backend・CI のキャッシュキーが参照）、フォントは `src/core/theme/fonts.ts` の sha256 表。CI のテストジョブは最初に OS（`uname -a`、macOS は `sw_vers`）と `sumi doctor`（text と `--json`: Bun・OS・アーキテクチャ・D2 のパスと版・各フォントの sha256）を出力する。doctor が失敗すればその時点でジョブを止める。
+- **CI の構成**（`.github/workflows/ci.yml`）: `static`（ubuntu: Biome・tsc・`schema:check`）と `test`（ubuntu-latest / macos-latest の matrix: D2 の導入、環境の記録、`bun test`、`gallery:check`）。サードパーティの action はコミット SHA で固定し、`permissions: contents: read`、PR では新しい push が古い実行を取り消す（`concurrency`）、各ジョブにタイムアウトを設ける。D2 と Bun のパッケージはキャッシュする。
+- **カバレッジ**: Linux のジョブで `bun test --coverage` の表をログに出す（参考情報。閾値は設けない）。CLI は子プロセスで E2E テストしているため `src/cli/commands/*` の数値は実態より低く出る。#16 で数値を手がかりに見直し、未検査だったエラー経路（スキーマの `version` / `figure` 欠落・入れ子の未知フィールド・空の部品参照、inspect の数値でない属性・不正な points・shape group の数・描画の viewBox 不一致、検査後に消えた D2 バイナリ）にテストを追加した。
+- **PR タイトルの検査**（`.github/workflows/pr-title.yml`、`scripts/commitlint.ts`）: タイトルは squash merge のコミットになるため、CONTRIBUTING.md の規則を検査する。検査する: `<type>(<scope>)!: <summary>` の形、type の語彙（`style` は不可）、空でない小文字の scope、コロンの後の空白 1 つ、空でない summary、summary が大文字の単語（`Add`）で始まらないこと・末尾のピリオドがないこと、日本語（かな・漢字・全角）を含まないこと。検査しない（誤検出を避ける）: 英語としての正しさや命令形か、長さ、先頭の略語・コード（`SVG`、`` `sumi fmt` ``）、アクセント付きの文字や記号（`→`、`×`）。同じ検査はコミットにも使える（`bun run commitlint origin/main..HEAD`）が、コミットは squash されるため CI では検査しない。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）

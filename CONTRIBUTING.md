@@ -31,6 +31,40 @@ bun test            # テスト
 
 PR を出す前に `bun run check`、`bun run typecheck`、`bun test` がすべて通ることを確認してください。CI でも同じ検査を実行します。
 
+### テストをすべて実行する
+
+D2 で実際に描画する統合テストは、固定版の D2 がなければローカルではスキップされます（CI では必須）。CI と同じ範囲を手元で通すには次を実行します。
+
+```sh
+bun run d2:install       # 固定版の D2（src/backends/d2/version.ts）を .sumi/bin/d2 に導入
+bun src/cli/index.ts doctor  # Bun・D2・フォントの状態を確認
+CI=1 bun test            # D2 の統合テストを必須にして全テストを実行
+bun run schema:check     # schema/figure.v1.schema.json が最新か
+bun run gallery:check    # examples/*/*.svg と docs/gallery/ が最新か（SVG のバイト一致）
+```
+
+### ゴールデンの更新
+
+出力を意図して変えた場合は、ゴールデンを再生成して差分を確認し、同じ PR でコミットします。
+
+| 対象 | 更新コマンド |
+| --- | --- |
+| D2 ソース（`tests/fixtures/d2/*.d2`） | `SUMI_UPDATE_GOLDEN=1 bun test src/compiler/d2.test.ts` |
+| lint の出力（`tests/fixtures/lint-output/`） | `SUMI_UPDATE_GOLDEN=1 bun test src/lint/lint.test.ts` |
+| SVG（`examples/*/*.svg`・`docs/gallery/`） | `bun run gallery` |
+
+SVG は D2 のバージョンとフォントが同じなら OS によらずバイト単位で一致します。D2 やフォントを更新する手順と、画像（ラスタ）比較を使わない理由は [設計 §6.7](docs/design/phase1.md#67-16-のテスト戦略と-ci) を参照してください。
+
+### CI が検査すること
+
+| ワークフロー | ジョブ | 内容 |
+| --- | --- | --- |
+| CI | Static checks（Linux） | `bun run check`・`bun run typecheck`・`bun run schema:check` |
+| CI | Test（Linux / macOS） | D2 の導入、環境の記録（OS・`sumi doctor`: Bun・D2・フォントの sha256）、`bun test`（Linux ではカバレッジの表も出力。閾値なし）、`bun run gallery:check` |
+| PR title | Conventional Commit title | PR タイトルが下記の[コミットメッセージ](#コミットメッセージ)の規則に従うか |
+
+PR タイトルの検査は手元でも実行できます: `bun run commitlint --title "feat(cli): add doctor"`。コミットを検査する場合は `bun run commitlint origin/main..HEAD` です。検査する規則と、誤検出を避けるため検査しないこと（英語として自然か、命令形か、長さなど）は `scripts/commitlint/rules.ts` の先頭に書いてあります。
+
 ## ブランチ名
 
 ```
