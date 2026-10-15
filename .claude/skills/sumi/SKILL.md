@@ -69,10 +69,10 @@ in your report.
 sumi doctor
 ```
 
-Exit 0 and `Ready to render.` means D2 and the fonts are in place. If the
-`d2` check fails, tell the user to run `bun run d2:install` in the
-repository (or set `SUMI_D2_PATH` to a D2 v0.9.0 binary) and stop. You can
-still lint without D2.
+Exit 0 and `Ready to render.` means D2, the fonts and the geometry lint
+are in place. If the `d2` check fails, tell the user to run
+`bun run d2:install` in the repository (or set `SUMI_D2_PATH` to a D2
+v0.9.0 binary) and stop. `sumi lint` without `--geometry` works without D2.
 
 ### 3. Discover components
 
@@ -142,40 +142,43 @@ hide follow-up errors that depend on it, so new diagnostics can appear after
 a fix — that is progress. Per-code fixes:
 [references/diagnostics.md](references/diagnostics.md).
 
-Exit codes: 0 clean (warnings allowed), 1 problems found, 2 usage error
-(bad flag, unknown `--theme`/`--profile`, unreadable file) — fix the
-command, not the figure.
+Exit codes (all commands): 0 clean (warnings allowed), 1 problems found,
+2 usage error (bad flag, unknown `--theme`/`--profile`, unreadable file) —
+fix the command, not the figure.
 
 Resolve every error. Fix warnings unless they are intended (e.g.
 `lint/no-edges` for a deliberate set of unconnected nodes) and mention the
 ones you keep.
 
-### 6. Render
+### 6. Render and check geometry
 
 Render only after lint is clean (`render` does not run the `lint/*` rules).
 
 ```sh
-sumi render figure.sumi.yaml              # writes figure.svg
-sumi render --json figure.sumi.yaml       # same, diagnostics as JSON ("output" = SVG path)
+sumi render figure.sumi.yaml              # writes figure.svg, then runs geometry lint
+sumi render --json figure.sumi.yaml       # same; diagnostics as JSON ("output" = SVG path)
+sumi lint --geometry --json figure.sumi.yaml   # lint + render in memory + geometry; writes nothing
 ```
 
-The text mode prints `Wrote figure.svg: <W>mm × <H>mm (<profile>, max width
-<M>mm[, TOO WIDE]; theme <theme>)`. `TOO WIDE` means the figure does not fit
-the target: change the layout (usually `direction: down`), shorten labels or
-ask whether a wider profile is acceptable — never just switch profiles on
-your own. Render errors (`svg/*`, `backend/*`) are described in
-[diagnostics](references/diagnostics.md).
+`render` measures the drawn figure and reports `geometry/*` diagnostics
+(page width/height, label overflow, overlaps, labels crossed by edges).
+Geometry errors make it exit 1 but **the SVG is still written**, so you can
+look at the problem. The text mode also prints `Wrote figure.svg: <W>mm ×
+<H>mm (<profile>, max width <M>mm[, TOO WIDE]; theme <theme>)`.
 
-**Geometry lint (when available, #13):** `sumi lint --geometry --json`
-renders the figure and adds `geometry/*` diagnostics (page width/height,
-label overflow, overlaps, edges crossing labels); `sumi render` then reports
-them too and exits 1 on geometry errors while still writing the SVG. If
-`sumi lint --help` does not list `--geometry`, rely on the `Wrote …` line
-and your visual inspection.
+- `geometry/exceeds-page-width`: change the layout (usually
+  `direction: down`) or shorten labels. The hint also mentions a wider
+  profile — that is the user's choice; ask, never switch on your own.
+- Geometry warnings (`edge-crosses-label`, `label-collision`, …) are
+  readability problems D2/ELK does not always let you fix; try the
+  workarounds in [layout-tips](references/layout-tips.md) once or twice,
+  then keep them and mention them in the report.
+- Render errors (`svg/*`, `backend/*`) and every `geometry/*` code are in
+  [diagnostics](references/diagnostics.md).
 
 ### 7. Inspect the result
 
-Look at the rendered figure; a clean lint does not guarantee readability.
+Look at the rendered figure; clean diagnostics do not guarantee readability.
 Rasterize it and open the printed PNG path with the Read tool:
 
 ```sh

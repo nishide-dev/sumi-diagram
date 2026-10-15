@@ -57,8 +57,8 @@ Do not try to work around it.
   at the top, and an edge coming from outside (especially with `down`)
   often runs through it. Mitigations: put the first node of a flow inside
   the group (see `examples/pipeline` in the repository), keep the number of
-  edges crossing the border small, or accept it and mention it. Geometry
-  lint reports this as `geometry/edge-crosses-label` when available.
+  edges crossing the border small, or accept it and mention it. `sumi render`
+  reports it as `geometry/edge-crosses-label` (warning).
 - **Cycles inside a group may be reversed**: wrapping a loop (A → B → A) in
   a container can make ELK flip it so the flow reads backwards. Keep retry
   loops outside groups (see `examples/decision-flow`).

@@ -4,7 +4,8 @@
  * profile and diagnostic code it names exists, and every complete figure in
  * it passes `sumi lint` (or fails with exactly the documented errors).
  * Figures marked `# expect-render:` are also rendered with the pinned D2 when
- * it is installed (required in CI) and checked against the profile width.
+ * it is installed (required in CI) and geometry-linted: `fits` means no
+ * diagnostics, `too-wide` exactly `geometry/exceeds-page-width`.
  */
 
 import { describe, expect, test } from "bun:test";
@@ -19,25 +20,12 @@ import { createBuiltinRegistry } from "../core/registry/builtins";
 import { buildCatalog } from "../core/registry/catalog";
 import { BUILTIN_THEMES } from "../core/theme/builtin";
 import { BUILTIN_FONT_SETS } from "../core/theme/fonts";
+import { lintRenderedFigure } from "../lint/geometry";
 import { lintFigure } from "../lint/lint";
-import { renderFigure } from "../render/render";
 
 const ROOT = resolve(import.meta.dir, "..", "..");
 const SKILL_DIR = join(ROOT, ".claude", "skills", "sumi");
 const SKILL_MD = join(SKILL_DIR, "SKILL.md");
-
-/** Geometry lint codes (#13, PR #34) that the skill documents as "when available". */
-const PENDING_CODES = new Set([
-  "geometry/exceeds-page-width",
-  "geometry/exceeds-page-height",
-  "geometry/text-too-small",
-  "geometry/label-overflow",
-  "geometry/out-of-canvas",
-  "geometry/node-overlap",
-  "geometry/label-collision",
-  "geometry/edge-crosses-label",
-  "geometry/aspect-distorted",
-]);
 
 const STAGES = [
   "yaml",
@@ -183,7 +171,7 @@ describe("skill references", () => {
     for (const doc of docs) {
       for (const match of doc.text.matchAll(pattern)) {
         const code = match[1] ?? "";
-        expect(codes.has(code) || PENDING_CODES.has(code), `${doc.name}: ${code}`).toBe(true);
+        expect(codes.has(code), `${doc.name}: ${code}`).toBe(true);
       }
     }
   });
@@ -240,14 +228,13 @@ describe("figures in the skill", () => {
   test
     .skipIf(!d2Available && !process.env.CI)
     .each(rendered.map((f) => [`${f.doc}:${f.line}`, f] as const))(
-    "%s renders with the documented fit",
+    "%s renders with the documented geometry",
     async (_, figure) => {
-      const result = await renderFigure(figure.body);
-      expect(result.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
-      if (!result.ok) return;
-      const { canvas, profile } = result.value.inspection;
-      const fits = profile.maxWidthPt === undefined || canvas.width.pt <= profile.maxWidthPt;
-      expect(fits ? "fits" : "too-wide").toBe(marker(figure.body, "expect-render") ?? "");
+      const report = await lintRenderedFigure(figure.body);
+      expect(report.rendered).toBeDefined();
+      const codes = report.diagnostics.map((d) => d.code);
+      const expected = marker(figure.body, "expect-render");
+      expect(codes).toEqual(expected === "fits" ? [] : ["geometry/exceeds-page-width"]);
     },
   );
 });

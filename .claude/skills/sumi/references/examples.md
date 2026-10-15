@@ -3,8 +3,9 @@
 Real runs of the workflow (outputs abbreviated). `sumi` is the skill's
 `scripts/sumi` wrapper. Every complete figure on this page is checked by the
 repository's tests (`src/cli/skill.test.ts`): a `# expect-error:` comment
-lists the errors `sumi lint` must report, `# expect-render:` whether the
-rendered width fits the profile.
+lists the errors `sumi lint` must report, `# expect-render: fits` means no
+geometry diagnostics after rendering, `too-wide` exactly
+`geometry/exceeds-page-width`.
 
 ## 1. Success: a decision flow
 
@@ -18,6 +19,7 @@ The content is fully given, the target is `paper-single`; nothing to ask.
 $ sumi doctor
 ok      d2             D2 v0.9.0 (env: …/.sumi/bin/d2)
 ok      fonts          3 bundled font files present, sha256 verified
+ok      geometry-lint  font metrics readable for 3 font files; …
 Ready to render.
 $ sumi catalog --kind node      # → ellipse (terminals), diamond (decisions), box (steps)
 ```
@@ -82,12 +84,13 @@ $ sumi lint --json cache-lookup.sumi.yaml | jq -c .summary
 {"errors":0,"warnings":0,"infos":0}
 $ sumi render cache-lookup.sumi.yaml
 Wrote cache-lookup.svg: 48.86mm × 154.87mm (paper-single, max width 88mm; theme minimal).
+                                 # no geometry diagnostics, exit 0
 $ <skill-dir>/scripts/preview cache-lookup.svg   # then Read the PNG
 ```
 
 Inspection: top-to-bottom flow, both decisions readable, edge labels sit on
 their lines (known, see layout-tips). Report: files, 48.9 × 154.9mm within
-paper-single, no diagnostics; note that the figure is tall (6 layers) and
+paper-single, no diagnostics (lint and geometry); note that the figure is tall (6 layers) and
 that `emphasis` marks the end state and `dashed` the stale-entry path.
 
 ## 2. Failure: an unknown component
@@ -183,12 +186,14 @@ edges:
 ```
 
 ```sh
-$ sumi render etl-pipeline.sumi.yaml
+$ sumi render etl-pipeline.sumi.yaml; echo "exit $?"
+etl-pipeline.sumi.yaml:4:3 error geometry/exceeds-page-width The figure is 182.56mm wide, more than the 88mm maximum width of profile "paper-single".
+  hint: Sumi never shrinks a figure to fit. Lay it out top to bottom (layout.direction: down), shorten long labels, or use a wider profile (e.g. paper-double).
 Wrote etl-pipeline.svg: 182.56mm × 32.46mm (paper-single, max width 88mm, TOO WIDE; theme academic).
+exit 1
 ```
 
-With geometry lint available, the same run reports
-`geometry/exceeds-page-width` (error, exit 1) and still writes the SVG.
+The SVG is written despite the error, so it can be inspected.
 
 Fix: a six-step chain cannot fit 88mm side by side, so change the layout,
 not the target: `direction: down`.
@@ -240,8 +245,9 @@ edges:
 ```
 
 ```sh
-$ sumi render etl-pipeline.sumi.yaml
+$ sumi render etl-pipeline.sumi.yaml; echo "exit $?"
 Wrote etl-pipeline.svg: 42.69mm × 130mm (paper-single, max width 88mm; theme academic).
+exit 0
 ```
 
 Had `down` still been too wide (e.g. many parallel branches), the next

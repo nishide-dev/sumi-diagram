@@ -87,19 +87,22 @@ is no per-figure suppression; mention kept warnings in your report instead.
 | `backend/d2-failed`, `backend/d2-timeout`, `backend/empty-output`, `backend/io-error`, `backend/invalid-args` | D2 itself failed | not a figure problem; report with the message (use `--emit-d2 out.d2` to keep the generated source) |
 | other `svg/*` (`svg/invalid`, `svg/missing-element`, `svg/missing-font-face`, …) | the SVG did not pass Sumi's own checks | a Sumi bug, not a figure problem; report it |
 
-### Geometry lint (`geometry/*`, when available — #13)
+### Geometry lint (`geometry/*`)
 
-Produced by `sumi lint --geometry` and by `sumi render` once geometry lint
-has landed. The SVG is still written; errors make the exit code 1.
+Reported by `sumi render` (unless `--no-geometry`) and `sumi lint
+--geometry`, after rendering. Labels are re-measured with the theme's font,
+so the checks match what is drawn. The SVG is still written; errors make the
+exit code 1. Configure like structural rules
+(`--rule geometry/node-overlap=off`). Details: `docs/lint-rules.md`.
 
 | Code | Default | Fix |
 | --- | --- | --- |
-| `geometry/exceeds-page-width` | error | `direction: down`, shorter labels, fewer nodes per layer; or ask whether a wider profile is acceptable |
-| `geometry/exceeds-page-height` | error | `direction: right`, fewer layers, or split the figure |
-| `geometry/text-too-small` | error | as `profile/font-too-small` |
-| `geometry/label-overflow` | error | remove or enlarge explicit `width`/`height`, shorten the label |
-| `geometry/out-of-canvas` | error | report (layout problem) |
-| `geometry/node-overlap` | warning | change direction or grouping |
-| `geometry/label-collision` | warning | shorten edge labels or drop non-essential ones |
-| `geometry/edge-crosses-label` | warning | see layout-tips: edges entering a group from outside |
-| `geometry/aspect-distorted` | warning | shorter label on `circle`/`square`, or use `ellipse`/`box` |
+| `geometry/exceeds-page-width` | error | `direction: down`, shorter labels, fewer nodes side by side; a wider profile only if the user agrees |
+| `geometry/exceeds-page-height` | error | only profiles with `maxHeight` (`presentation-16x9`): `direction: right`, fewer layers, or split the figure |
+| `geometry/text-too-small` | error | as `profile/font-too-small` (a safety net after rendering) |
+| `geometry/label-overflow` | error | remove or enlarge explicit `width`/`height` (the `path` points at `props` then), shorten or break the label, or use a shape with more room for text (`box`) |
+| `geometry/out-of-canvas` | error | shorten labels; if it persists, report it as a Sumi bug |
+| `geometry/node-overlap` | warning | review explicit sizes; put the nodes in the same group |
+| `geometry/label-collision` | warning | shorten labels; change `direction` or grouping |
+| `geometry/edge-crosses-label` | warning | connect elements inside the group rather than the group, change `direction`, shorten the label (see layout-tips) |
+| `geometry/aspect-distorted` | warning | fewer edges on that `circle`/`square`, or use `ellipse`/`box` |
