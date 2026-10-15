@@ -441,7 +441,12 @@ describe("sumi doctor", () => {
     expect(json).toMatchObject({
       version: 1,
       sumi: { version: pkg.version },
-      runtime: { bun: Bun.version, platform: process.platform, arch: process.arch },
+      runtime: {
+        bun: Bun.version,
+        platform: process.platform,
+        arch: process.arch,
+        mode: "source",
+      },
       ok: false,
     });
     expect(json.checks.map((c: { id: string }) => c.id)).toEqual(["d2", "fonts", "geometry-lint"]);

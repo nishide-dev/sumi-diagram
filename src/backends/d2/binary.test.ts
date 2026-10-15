@@ -92,6 +92,36 @@ describe("findD2Binary", () => {
     });
   });
 
+  test("then the D2 bundled with a compiled sumi, before the managed binary", async () => {
+    const bundled = (await createFakeD2(join(root, "release", "libexec", "sumi"))).path;
+    const withEnv = findD2Binary({
+      env: { SUMI_D2_PATH: fromEnv, PATH: pathDir },
+      bundledPath: bundled,
+      projectRoot: project,
+    });
+    expect(withEnv).toMatchObject({ ok: true, value: { path: fromEnv, source: "env" } });
+
+    const result = findD2Binary({
+      env: { PATH: pathDir },
+      bundledPath: bundled,
+      projectRoot: project,
+    });
+    expect(result).toMatchObject({ ok: true, value: { path: bundled, source: "bundled" } });
+  });
+
+  test("falls through when the bundled D2 is missing or disabled", () => {
+    const missing = join(root, "no release", "libexec", "sumi", "d2");
+    for (const bundledPath of [missing, null]) {
+      const result = findD2Binary({ env: { PATH: pathDir }, bundledPath, projectRoot: project });
+      expect(result).toMatchObject({ ok: true, value: { path: managed(), source: "managed" } });
+    }
+  });
+
+  test("has no bundled D2 when running from source", () => {
+    const result = findD2Binary({ env: { PATH: "" }, projectRoot: emptyProject() });
+    expect(result.ok).toBe(false);
+  });
+
   test("ignores an empty SUMI_D2_PATH", () => {
     const result = findD2Binary({ env: { SUMI_D2_PATH: "", PATH: pathDir }, projectRoot: project });
     expect(result).toMatchObject({ ok: true, value: { source: "managed" } });

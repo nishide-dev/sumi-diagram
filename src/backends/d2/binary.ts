@@ -5,12 +5,13 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import type { Diagnostic } from "../../core/diagnostics";
+import { bundledD2Path, RELEASE_LAYOUT, RUN_MODE } from "../../core/install-layout";
 import type { Result } from "../../core/result";
 import { runCommand } from "../../core/subprocess";
 import { D2_VERSION, MANAGED_D2_PATH } from "./version";
 
 /** Where a `d2` binary was found, in discovery order. */
-export type D2BinarySource = "option" | "env" | "managed" | "path";
+export type D2BinarySource = "option" | "env" | "bundled" | "managed" | "path";
 
 export interface D2Binary {
   path: string;
@@ -22,25 +23,39 @@ export interface FindD2BinaryOptions {
   binaryPath?: string;
   /** Environment to read `SUMI_D2_PATH` and `PATH` from. Defaults to `process.env`. */
   env?: Record<string, string | undefined>;
+  /**
+   * The `d2` shipped next to a compiled `sumi` (`<prefix>/libexec/sumi/d2`).
+   * Defaults to {@link bundledD2Path}, which is `undefined` when running from
+   * source; `null` disables this step.
+   */
+  bundledPath?: string | null;
   /** Directory containing the managed `.sumi/bin/d2`. Defaults to the current directory. */
   projectRoot?: string;
 }
 
 export const D2_PATH_ENV = "SUMI_D2_PATH";
 
-const INSTALL_HINT = `Install D2 v${D2_VERSION} with \`bun run d2:install\`, or set ${D2_PATH_ENV} to the path of a d2 v${D2_VERSION} binary.`;
+/** How to get the pinned D2: reinstall the release when compiled, `bun run d2:install` from source. */
+export const D2_INSTALL_HINT =
+  RUN_MODE === "compiled"
+    ? `Reinstall the Sumi release tarball (it ships D2 v${D2_VERSION} as ${RELEASE_LAYOUT.d2}), or set ${D2_PATH_ENV} to the path of a d2 v${D2_VERSION} binary.`
+    : `Install D2 v${D2_VERSION} with \`bun run d2:install\`, or set ${D2_PATH_ENV} to the path of a d2 v${D2_VERSION} binary.`;
 
 function notFound<T>(message: string): Result<T> {
   return {
     ok: false,
-    diagnostics: [{ code: "backend/d2-not-found", severity: "error", message, hint: INSTALL_HINT }],
+    diagnostics: [
+      { code: "backend/d2-not-found", severity: "error", message, hint: D2_INSTALL_HINT },
+    ],
   };
 }
 
 /**
- * Finds `d2`: explicit option → `$SUMI_D2_PATH` → the project's managed
+ * Finds `d2`: explicit option → `$SUMI_D2_PATH` → the `d2` shipped next to a
+ * compiled `sumi` (`<prefix>/libexec/sumi/d2`) → the project's managed
  * `.sumi/bin/d2` → `d2` on `PATH`. An explicitly configured path that does not
- * exist is an error rather than falling through to the next source.
+ * exist is an error rather than falling through to the next source; a missing
+ * bundled or managed binary just falls through.
  */
 export function findD2Binary(options: FindD2BinaryOptions = {}): Result<D2Binary> {
   const env = options.env ?? process.env;
@@ -53,6 +68,12 @@ export function findD2Binary(options: FindD2BinaryOptions = {}): Result<D2Binary
     const absolute = resolve(path);
     if (!existsSync(absolute)) return notFound(`${label} "${path}" does not exist.`);
     return { ok: true, value: { path: absolute, source }, diagnostics: [] };
+  }
+
+  const bundled =
+    options.bundledPath === undefined ? bundledD2Path() : (options.bundledPath ?? undefined);
+  if (bundled !== undefined && existsSync(bundled)) {
+    return { ok: true, value: { path: resolve(bundled), source: "bundled" }, diagnostics: [] };
   }
 
   const managed = resolve(options.projectRoot ?? process.cwd(), MANAGED_D2_PATH);
@@ -119,7 +140,7 @@ export async function checkD2Version(
     code: "backend/d2-version-mismatch",
     severity: options.allowVersionMismatch ? "warning" : "error",
     message: `"${binary}" reports ${found}, but Sumi requires D2 v${D2_VERSION}; output may differ from the pinned version.`,
-    hint: INSTALL_HINT,
+    hint: D2_INSTALL_HINT,
   };
   return options.allowVersionMismatch
     ? { ok: true, value: version ?? output.trim(), diagnostics: [diagnostic] }

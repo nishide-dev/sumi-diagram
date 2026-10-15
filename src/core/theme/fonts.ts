@@ -9,6 +9,7 @@
  */
 
 import { join } from "node:path";
+import { fontAssetsDir } from "../install-layout";
 
 /** Font set ID: `<namespace>/<name>`, e.g. `sumi/biz-ud-gothic`. */
 export type FontSetId = `${string}/${string}`;
@@ -26,8 +27,11 @@ export interface FontSet {
   mono?: string;
 }
 
-/** Directory of the bundled fonts (`assets/fonts`). */
-export const FONT_ASSETS_DIR = join(import.meta.dir, "..", "..", "..", "assets", "fonts");
+/**
+ * Directory of the bundled fonts: `<repo>/assets/fonts` when running from
+ * source, `<prefix>/share/sumi/fonts` in a release (see `install-layout.ts`).
+ */
+export const FONT_ASSETS_DIR = fontAssetsDir();
 
 const bizUdGothic = join(FONT_ASSETS_DIR, "biz-ud-gothic");
 
