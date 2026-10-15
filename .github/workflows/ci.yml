@@ -30,3 +30,6 @@ jobs:
 
       - name: Test
         run: bun test
+
+      - name: JSON Schema up to date
+        run: bun run schema:check

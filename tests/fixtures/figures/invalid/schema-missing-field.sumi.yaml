@@ -1,0 +1,6 @@
+version: 1
+figure:
+  id: missing
+nodes:
+  - id: a
+    label: No component

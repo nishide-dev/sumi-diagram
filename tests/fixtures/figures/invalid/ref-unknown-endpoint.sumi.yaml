@@ -1,0 +1,11 @@
+version: 1
+figure:
+  id: endpoints
+nodes:
+  - id: client
+    component: box
+  - id: server
+    component: box
+edges:
+  - from: client
+    to: sever

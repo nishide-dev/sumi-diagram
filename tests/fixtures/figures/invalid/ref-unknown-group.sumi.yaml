@@ -1,0 +1,9 @@
+version: 1
+figure:
+  id: parents
+groups:
+  - id: backend
+nodes:
+  - id: api
+    component: box
+    group: bakend

@@ -1,0 +1,40 @@
+version: 1
+figure:
+  id: request-pipeline
+  theme: minimal                 # 省略時 minimal
+  profile: paper-single          # 省略時 paper-single
+  layout:
+    direction: right             # right | down | left | up。省略時 right
+
+groups:
+  - id: backend
+    label: Backend               # 省略時はラベルなし（空文字と同じ扱い）
+
+nodes:
+  - id: client
+    component: box
+    label: Client
+  - id: api
+    component: box
+    label: API Server
+    group: backend
+  - id: auth
+    component: diamond
+    label: "Authorized?"
+    group: backend
+  - id: db
+    component: cylinder
+    label: "Database\n(primary)" # \n は改行
+    variant: muted
+    group: backend
+
+edges:
+  - from: client
+    to: api
+    label: HTTPS
+  - from: api
+    to: auth
+  - from: auth
+    to: db
+    label: "yes"
+    variant: dashed
