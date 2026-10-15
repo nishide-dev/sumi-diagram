@@ -28,9 +28,12 @@ import { join } from "node:path";
 import pkg from "../../package.json";
 import { checkD2Version, findD2Binary } from "../backends/d2/binary";
 import { D2_VERSION } from "../backends/d2/version";
+import { buildFullCatalog } from "../core/catalog";
+import { BUILTIN_PROFILES } from "../core/profile/builtin";
 import { createBuiltinRegistry } from "../core/registry/builtins";
 import { buildCatalog } from "../core/registry/catalog";
 import { runCommand } from "../core/subprocess";
+import { BUILTIN_THEMES } from "../core/theme/builtin";
 import { BUNDLED_FONT_SHA256 } from "../core/theme/fonts";
 import { readSvgMetadata } from "../render";
 import { isCaseInsensitiveDir } from "./io";
@@ -410,23 +413,99 @@ describe("sumi render (output paths)", () => {
 });
 
 describe("sumi catalog", () => {
-  test("--json prints exactly buildCatalog()", async () => {
+  test("--json prints exactly buildFullCatalog(): components, themes and profiles", async () => {
     const result = await sumi(["catalog", "--json"]);
     expect(result).toMatchObject({ exitCode: 0, stderr: "" });
     const json = JSON.parse(result.stdout);
-    expect(json).toEqual(JSON.parse(JSON.stringify(buildCatalog(createBuiltinRegistry()))));
+    expect(json).toEqual(JSON.parse(JSON.stringify(buildFullCatalog(createBuiltinRegistry()))));
+    expect(Object.keys(json)).toEqual(["version", "components", "themes", "profiles"]);
     expect(json.version).toBe(1);
+    // The version 1 contract of #14 is unchanged: the components are buildCatalog()'s.
+    expect(json.components).toEqual(
+      JSON.parse(JSON.stringify(buildCatalog(createBuiltinRegistry()).components)),
+    );
+    expect(json.themes.map((t: { id: string }) => t.id)).toEqual([...BUILTIN_THEMES.keys()]);
+    expect(json.profiles.map((p: { id: string }) => p.id)).toEqual([...BUILTIN_PROFILES.keys()]);
+    for (const theme of json.themes) {
+      expect(Object.keys(theme)).toEqual([
+        "id",
+        "description",
+        "fonts",
+        "fontSizePt",
+        "missingVariants",
+        "compatibleProfiles",
+      ]);
+    }
+    for (const profile of json.profiles) {
+      expect(Object.keys(profile)).toEqual([
+        "id",
+        "description",
+        "page",
+        "margin",
+        "typography",
+        "layout",
+      ]);
+    }
   });
 
-  test("--kind filters; the table lists IDs", async () => {
-    const json = JSON.parse((await sumi(["catalog", "--json", "--kind", "group"])).stdout);
-    expect(json.components.map((c: { id: string }) => c.id)).toEqual(["sumi/container"]);
+  test("--section selects sections; --kind alone keeps the components-only output", async () => {
+    const sections = JSON.parse(
+      (await sumi(["catalog", "--json", "--section", "profiles", "--section", "themes"])).stdout,
+    );
+    expect(Object.keys(sections)).toEqual(["version", "themes", "profiles"]);
+    // As before #37: `--kind` without `--section` prints { version, components }.
+    const kind = JSON.parse((await sumi(["catalog", "--json", "--kind", "group"])).stdout);
+    expect(kind).toEqual(
+      JSON.parse(JSON.stringify(buildCatalog(createBuiltinRegistry(), { kind: "group" }))),
+    );
+    const both = JSON.parse(
+      (
+        await sumi([
+          "catalog",
+          "--json",
+          "--kind",
+          "edge",
+          "--section",
+          "components",
+          "--section",
+          "themes",
+        ])
+      ).stdout,
+    );
+    expect(Object.keys(both)).toEqual(["version", "components", "themes"]);
+    expect(both.components.every((c: { kind: string }) => c.kind === "edge")).toBe(true);
+
+    for (const args of [
+      ["--section", "fonts"],
+      ["--kind", "shape"],
+      ["--kind", "node", "--section", "themes"],
+    ]) {
+      const result = await sumi(["catalog", ...args]);
+      expect(result.exitCode, args.join(" ")).toBe(2);
+      expect(result.stdout).toBe("");
+    }
+  });
+
+  test("the table lists every section, or one without titles", async () => {
+    const all = await sumi(["catalog"]);
+    expect(all).toMatchObject({ exitCode: 0, stderr: "" });
+    expect(all.stdout).toMatch(/^Components:\nID\s+KIND\s+VARIANTS\s+DESCRIPTION$/m);
+    expect(all.stdout).toMatch(/^Themes:\nID\s+FONT SIZE\s+FONTS\s+PROFILES\s+DESCRIPTION$/m);
+    expect(all.stdout).toMatch(/^Profiles:\nID\s+MAX WIDTH\s+MAX HEIGHT\s+MIN FONT\s+/m);
+    for (const id of [...BUILTIN_THEMES.keys(), ...BUILTIN_PROFILES.keys()]) {
+      expect(all.stdout).toMatch(new RegExp(`^${id} `, "m"));
+    }
+    expect(all.stdout).toMatch(/^paper-single\s+88mm\s+220mm\s+7pt\s+2mm\/8mm\/4mm\s/m);
+
     const table = await sumi(["catalog", "--kind", "edge"]);
     expect(table.exitCode).toBe(0);
     expect(table.stdout.split("\n")[0]).toMatch(/^ID\s+KIND\s+VARIANTS\s+DESCRIPTION$/);
     expect(table.stdout).toContain("sumi/arrow");
     expect(table.stdout).not.toContain("sumi/box");
-    expect((await sumi(["catalog", "--kind", "shape"])).exitCode).toBe(2);
+    expect(table.stdout).not.toContain("Themes:");
+
+    const profiles = await sumi(["catalog", "--section", "profiles"]);
+    expect(profiles.stdout.split("\n")[0]).toMatch(/^ID\s+MAX WIDTH/);
   });
 });
 
@@ -553,6 +632,11 @@ describe.skipIf(!d2Available && !process.env.CI)("sumi render (D2)", () => {
     const json = JSON.parse((await sumi(["render", "--json", file], { env: env() })).stdout);
     expect(json.output).toBe("wide.svg");
     expect(json.summary.errors).toBe(1);
+    expect(json.size).toMatchObject({
+      profile: { id: "paper-single", maxWidthMm: 88, maxHeightMm: 220, minFontSizePt: 7 },
+      fits: false,
+    });
+    expect(json.size.widthMm).toBeGreaterThan(88);
 
     const skipped = await sumi(["render", "--no-geometry", file], { env: env() });
     expect(skipped).toMatchObject({ exitCode: 0, stderr: "" });
@@ -583,6 +667,10 @@ describe.skipIf(!d2Available && !process.env.CI)("sumi render (D2)", () => {
       "geometry/exceeds-page-width",
     ]);
     expect(json.results[0]).not.toHaveProperty("rendered");
+    expect(json.results[0].size).toMatchObject({ profile: { id: "paper-single" }, fits: false });
+    // Without --geometry, nothing is rendered and there is no size.
+    const plain = JSON.parse((await sumi(["lint", "--json", wide], { env: env() })).stdout);
+    expect(plain.results[0]).not.toHaveProperty("size");
 
     const off = await sumi(
       ["lint", "--geometry", "--rule", "geometry/exceeds-page-width=warning", wide],
@@ -599,6 +687,14 @@ describe.skipIf(!d2Available && !process.env.CI)("sumi render (D2)", () => {
     });
     expect(result.exitCode).toBe(1);
     expect(result.stdout).toContain("backend/");
+    const json = JSON.parse(
+      (
+        await sumi(["lint", "--geometry", "--json", file], {
+          env: { SUMI_D2_PATH: join(dir, "no-such-d2") },
+        })
+      ).stdout,
+    );
+    expect(json.results[0].size).toBeNull();
   });
 
   test("--json prints the envelope with the files written", async () => {
@@ -613,6 +709,32 @@ describe.skipIf(!d2Available && !process.env.CI)("sumi render (D2)", () => {
       d2: null,
       summary: { errors: 0, warnings: 0, infos: 0 },
     });
+    expect(Object.keys(json)).toEqual([
+      "version",
+      "file",
+      "diagnostics",
+      "summary",
+      "output",
+      "d2",
+      "size",
+    ]);
+    // The size is the SVG's own width / height (pt) and agrees with the profile's limits.
+    const svg = await readFile(join(dir, "json.svg"), "utf8");
+    const width = Number(/<svg[^>]* width="([\d.]+)pt"/.exec(svg)?.[1]);
+    const height = Number(/<svg[^>]* height="([\d.]+)pt"/.exec(svg)?.[1]);
+    expect(json.size).toEqual({
+      widthPt: width,
+      heightPt: height,
+      widthMm: Math.round(((width * 25.4) / 72) * 100) / 100,
+      heightMm: Math.round(((height * 25.4) / 72) * 100) / 100,
+      profile: { id: "paper-single", maxWidthMm: 88, maxHeightMm: 220, minFontSizePt: 7 },
+      fits: true,
+    });
+
+    const override = JSON.parse(
+      (await sumi(["render", "--json", "--profile", "paper-double", file], { env: env() })).stdout,
+    );
+    expect(override.size.profile).toMatchObject({ id: "paper-double", maxWidthMm: 180 });
   });
 
   test("errors exit 1 with diagnostics on stderr and no SVG", async () => {
@@ -626,6 +748,7 @@ describe.skipIf(!d2Available && !process.env.CI)("sumi render (D2)", () => {
     const empty = await copyFixture("lint/empty-figure.sumi.yaml", "empty.sumi.yaml");
     const json = JSON.parse((await sumi(["render", "--json", empty], { env: env() })).stdout);
     expect(json.output).toBeNull();
+    expect(json.size).toBeNull();
     expect(json.diagnostics.map((d: { code: string }) => d.code)).toContain("svg/empty-figure");
   });
 

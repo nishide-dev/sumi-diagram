@@ -1,4 +1,5 @@
 // Core: shared types and utilities used across the pipeline.
+export * from "./catalog";
 export * from "./check";
 export * from "./check-state";
 export * from "./diagnostics";

@@ -179,6 +179,12 @@ info は終了コードに影響しない。
 { "version": 1, "results": [{ "version": 1, "file": "figure.sumi.yaml", "diagnostics": [], "summary": { "errors": 0, "warnings": 0, "infos": 0 } }], "summary": { "errors": 0, "warnings": 0, "infos": 0 } }
 ```
 
+`--geometry` を付けると、ファイルごとの封筒に描画結果の出力サイズ `size` が加わる（#37。`sumi render --json` の `size` と同じ形で、描画しなかった・できなかったファイルは `null`）。`--geometry` なしでは `size` キーを出さない。同じ版のうちはフィールドの追加だけを行う（design doc §6.10）。
+
+```json
+{ "size": { "widthPt": 138.5, "heightPt": 439, "widthMm": 48.86, "heightMm": 154.87, "profile": { "id": "paper-single", "maxWidthMm": 88, "maxHeightMm": 220, "minFontSizePt": 7 }, "fits": true } }
+```
+
 **テキスト**（`formatLintText()`）: 1 診断 1 行の `file:line:col severity code message`。続く行に `hint:` と `related:` を字下げして出し、最後に件数をまとめる。`sumi lint` は複数ファイルの診断を続けて出し、件数は最後に全体で 1 行だけ出す。端末に出力するときは severity に色を付ける（`--no-color` / `NO_COLOR` で無効）。
 
 ```text

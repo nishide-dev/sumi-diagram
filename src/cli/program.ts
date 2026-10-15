@@ -1,7 +1,8 @@
 import { Command, CommanderError, Option } from "commander";
 import pkg from "../../package.json";
+import type { CatalogSection } from "../core/catalog";
 import { COMPONENT_KINDS, type ComponentKind } from "../core/registry/manifest";
-import { catalogCommand } from "./commands/catalog";
+import { catalogCommand, collectSection } from "./commands/catalog";
 import { doctorCommand } from "./commands/doctor";
 import { fmtCommand } from "./commands/fmt";
 import { lintCommand, parseMaxWarnings } from "./commands/lint";
@@ -106,12 +107,17 @@ stack traces for internal errors.`,
 
   program
     .command("catalog")
-    .description("list the available components")
+    .description("list the available components, themes and profiles")
     .option("--json", "print the catalog as JSON")
+    .option(
+      "--section <name>",
+      "only this section: components, themes or profiles (repeatable; default: all, or components with --kind)",
+      collectSection,
+    )
     .addOption(
       new Option("--kind <kind>", "only components of this kind").choices([...COMPONENT_KINDS]),
     )
-    .action((options: { json?: boolean; kind?: ComponentKind }) => {
+    .action((options: { json?: boolean; kind?: ComponentKind; section?: CatalogSection[] }) => {
       setExitCode(catalogCommand(options, context));
     });
 

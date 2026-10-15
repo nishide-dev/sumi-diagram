@@ -15,7 +15,9 @@
  *   first output is removed again when this run created it, and the command
  *   exits 2.
  * - Text mode: diagnostics → stderr; `Wrote …` → stdout (stderr with `-o -`).
- *   `--json`: `{ version, file, output, d2, diagnostics, summary }` → stdout.
+ *   `--json`: `{ version, file, diagnostics, summary, output, d2, size }` →
+ *   stdout; `size` (#37) is the output size against the profile's limits, or
+ *   `null` if nothing was rendered.
  * - The rendered figure is checked by the geometry rules (`lintGeometry()`,
  *   #13; default configuration) unless `--no-geometry`. Their diagnostics are
  *   reported with the others. The SVG is written even when they contain
@@ -41,7 +43,7 @@ import {
   lintGeometry,
   summarize,
 } from "../../lint";
-import { renderFigure } from "../../render";
+import { type OutputSize, outputSize, renderFigure } from "../../render";
 import {
   type CliContext,
   type Destination,
@@ -74,6 +76,8 @@ export interface RenderJson extends LintJson {
   output: string | null;
   /** The D2 source written with `--emit-d2`, or `null`. */
   d2: string | null;
+  /** Output size and the profile's limits (#37), or `null` if rendering failed. */
+  size: OutputSize | null;
 }
 
 /** Default output: the input with `.sumi.yaml` / `.yaml` / `.yml` replaced by `.svg`. */
@@ -185,6 +189,7 @@ export async function renderCommand(
       summary,
       output: svgWritten,
       d2: d2Written,
+      size: result.ok ? outputSize(result.value.inspection) : null,
     };
     context.stdout.write(`${JSON.stringify(json, null, 2)}\n`);
   } else {
