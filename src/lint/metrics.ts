@@ -3,7 +3,7 @@
  * (`head`, `hhea`, `maxp`, `hmtx`, optionally `OS/2`), combined with the
  * `cmap` reader into a {@link FontMetrics} that measures text advance widths.
  * Used by the geometry lint (#13) to re-measure labels with the same TTF D2
- * embedded in the SVG (design doc §6.4).
+ * embedded in the SVG (design doc §6.5).
  *
  * Like `cmap.ts`, every read is confined to the declared bounds of its table,
  * and inconsistent counts (more horizontal metrics than glyphs, an `hmtx`

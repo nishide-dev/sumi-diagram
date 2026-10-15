@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { getFontSet } from "../../core/theme/fonts";
-import { fontFileFor, measureLabel } from "./measure";
+import { fontFileFor, measureLabel, renderedLines } from "./measure";
 import {
   depthInside,
   flattenPath,
@@ -141,6 +141,47 @@ describe("label measurement", () => {
 
   test("bold labels use the bold advances", () => {
     const measured = measureLabel(label("A", 0, 0, { font: "bold" }), fonts);
-    expect(measured.box.width).toBe((1597 / 2048) * 16);
+    expect(measured.box?.width).toBe((1597 / 2048) * 16);
+  });
+});
+
+// D2's <text> has no xml:space="preserve" / white-space: pre, so renderers
+// collapse whitespace like CSS `white-space: normal`.
+describe("whitespace as rendered", () => {
+  test.each<[string, string, string[]]>([
+    ["spaces only", " ".repeat(50), [""]],
+    ["inner runs of spaces", "x     y", ["x y"]],
+    ["leading and trailing spaces", "  lead and trail  ", ["lead and trail"]],
+    ["tabs", "tab\there\t\tend", ["tab here end"]],
+    ["no-break spaces are kept", "nb   sp", ["nb   sp"]],
+    ["ideographic spaces are kept", "全　角", ["全　角"]],
+    ["a whitespace-only middle line", "line\n   \nend", ["line", " ", "end"]],
+    // Lines are inline boxes of one text: a run across a line break collapses
+    // to its first space, and only the whole text is trimmed.
+    ["runs across lines", "a  \n  b", ["a ", "b"]],
+    ["trailing space of the whole text", "a\nb  \n  ", ["a", "b", ""]],
+  ])("%s", (_, text, lines) => {
+    expect(renderedLines(text)).toEqual(lines);
+  });
+
+  const set = getFontSet("sumi/biz-ud-gothic");
+  if (set === undefined) throw new Error("bundled font set is missing");
+  const space = (683 / 2048) * 16;
+  const measure = (text: string) => measureLabel(label(text, 0, 0), set);
+
+  test("collapsed spaces are measured once; whitespace-only lines draw nothing", () => {
+    expect(measure("x     y").lines[0]?.width).toBeCloseTo(measure("x y").lines[0]?.width ?? 0, 9);
+    expect(measure("  漢  ").lines[0]?.width).toBe(16);
+    expect(measure("漢\t漢").lines[0]?.width).toBeCloseTo(32 + space, 9);
+    const blank = measure(" ".repeat(50));
+    expect(blank.visibleLines).toEqual([]);
+    expect(blank.box).toBeUndefined();
+    // No-break spaces take room but draw nothing.
+    const nbsp = measure("  ");
+    expect(nbsp.lines[0]?.width).toBeCloseTo(2 * space, 9);
+    expect(nbsp.visibleLines).toEqual([]);
+    const middle = measure("漢\n \n漢");
+    expect(middle.visibleLines.length).toBe(2);
+    expect(middle.box?.height).toBe(16 * 3);
   });
 });

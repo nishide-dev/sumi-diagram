@@ -5,7 +5,7 @@
  * 1 unit = 0.5pt), like the inspection's.
  *
  * Shapes are reconstructed from the shape's bounding box with D2 v0.9.0's
- * fixed proportions (design doc §6.4), checked against D2's SVG output in the
+ * fixed proportions (design doc §6.5), checked against D2's SVG output in the
  * integration tests.
  */
 

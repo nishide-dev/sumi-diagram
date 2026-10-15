@@ -180,6 +180,42 @@ describe("geometry/label-overflow", () => {
     expect(result).toEqual([]);
   });
 
+  test("whitespace collapses as rendered: blank labels and runs of spaces do not overflow", () => {
+    const result = lintSpec(compiled, {
+      elements: {
+        // 50 spaces would be 267 units wide if every space were drawn.
+        "n:a": {
+          bbox: { x: 10, y: 10, width: 45, height: 45 },
+          labels: [label(" ".repeat(50), 32.5, 40)],
+        },
+        // "x     y" is drawn as "x y" (about 30 units).
+        "n:b": {
+          bbox: { x: 100, y: 10, width: 40, height: 30 },
+          labels: [label("x     y", 120, 30)],
+        },
+        "n:s": {
+          bbox: { x: 200, y: 10, width: 40, height: 30 },
+          labels: [label("\t漢\t", 220, 30)],
+        },
+      },
+    });
+    expect(result).toEqual([]);
+    // No-break spaces are not collapsed.
+    const nbsp = lintSpec(
+      compiled,
+      {
+        elements: {
+          "n:b": {
+            bbox: { x: 100, y: 10, width: 40, height: 30 },
+            labels: [label("x       y", 120, 30)],
+          },
+        },
+      },
+      { code },
+    );
+    expect(codes(nbsp)).toEqual([code]);
+  });
+
   test("text nodes and edges have no shape to overflow", () => {
     const result = lintSpec(
       compiled,

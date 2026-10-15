@@ -1,7 +1,7 @@
 /**
  * Geometry lint rules (stage `geometry`, #13): checks on the rendered SVG's
  * geometry, with labels re-measured from the theme's TTF files. Tolerances
- * and limits are documented in design doc §6.4 and docs/lint-rules.md.
+ * and limits are documented in design doc §6.5 and docs/lint-rules.md.
  *
  * None of these rules changes the figure: Sumi never shrinks text or the
  * canvas to make a problem go away (design doc §5).
@@ -12,6 +12,7 @@ import { formatMm, formatPt } from "../../core/units";
 import { type Point, type Rect, unitsToPt } from "../../render/geometry";
 import { defineGeometryRule, type GeometryRule, type LintFinding } from "../rule";
 import type { GeometryContext, GeometryElement } from "./context";
+import { unionOf } from "./measure";
 import {
   overhang,
   polylinesCrossRect,
@@ -130,10 +131,10 @@ export const labelOverflow = defineGeometryRule({
       if (labelArea === undefined || bbox === undefined) continue;
       // The label must stay clear of the border's inner half.
       const margin = element.strokeInset - GEOMETRY_TOLERANCE_UNITS;
-      const lines = element.labels.flatMap((l) => l.lines).filter((r) => r.width > 0);
+      const lines = element.labels.flatMap((l) => l.visibleLines);
       const overflows = lines.some((line) => rectDepthInside(labelArea, line) < margin);
       if (!overflows) continue;
-      const box = boundsOf(element.labels.map((l) => l.box));
+      const box = unionOf(element.labels.flatMap((l) => (l.box === undefined ? [] : [l.box])));
       const { ir } = element;
       const explicit = ir.kind === "node" && (ir.width !== undefined || ir.height !== undefined);
       const outside = box !== undefined && !rectsOverlap(box, bbox, 0);
@@ -153,15 +154,6 @@ export const labelOverflow = defineGeometryRule({
   },
 });
 
-function boundsOf(rects: readonly Rect[]): Rect | undefined {
-  if (rects.length === 0) return undefined;
-  const x0 = Math.min(...rects.map((r) => r.x));
-  const y0 = Math.min(...rects.map((r) => r.y));
-  const x1 = Math.max(...rects.map((r) => r.x + r.width));
-  const y1 = Math.max(...rects.map((r) => r.y + r.height));
-  return { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
-}
-
 export const outOfCanvas = defineGeometryRule({
   id: "geometry/out-of-canvas",
   description:
@@ -174,7 +166,7 @@ export const outOfCanvas = defineGeometryRule({
     for (const element of context.elements) {
       const rects: Rect[] = [
         ...(element.bbox === undefined ? [] : [element.bbox]),
-        ...element.labels.map((l) => l.box),
+        ...element.labels.flatMap((l) => (l.box === undefined ? [] : [l.box])),
         ...(element.route ?? []).flat().map((p: Point) => ({ ...p, width: 0, height: 0 })),
       ];
       const outside = rects.filter((r) => !rectInside(canvas, r, GEOMETRY_TOLERANCE_UNITS));
@@ -229,8 +221,7 @@ export const labelCollision = defineGeometryRule({
     const findings: LintFinding[] = [];
     const tolerance = GEOMETRY_TOLERANCE_UNITS;
     const labelled = context.elements.filter((e) => e.labels.length > 0);
-    const lineBoxes = (e: GeometryElement) =>
-      e.labels.flatMap((l) => l.lines).filter((r) => r.width > 0);
+    const lineBoxes = (e: GeometryElement) => e.labels.flatMap((l) => l.visibleLines);
     const reported = new Set<string>();
     const report = (a: GeometryElement, b: GeometryElement, what: string) => {
       const pair = [a.key, b.key].sort().join(" ");
@@ -283,8 +274,8 @@ export const edgeCrossesLabel = defineGeometryRule({
       for (const other of context.elements) {
         if (other === edge) continue;
         const crossed = other.labels
-          .flatMap((l) => l.lines)
-          .some((box) => box.width > 0 && polylinesCrossRect(route, box, GEOMETRY_TOLERANCE_UNITS));
+          .flatMap((l) => l.visibleLines)
+          .some((box) => polylinesCrossRect(route, box, GEOMETRY_TOLERANCE_UNITS));
         if (!crossed) continue;
         findings.push({
           message: `${capitalize(edge.name)} crosses the label of ${other.name}.`,

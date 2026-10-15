@@ -1,0 +1,23 @@
+# Labels with whitespace that SVG renderers collapse (D2's <text> has no
+# xml:space="preserve"): spaces only, runs of inner spaces, leading and
+# trailing spaces, tabs, a whitespace-only line, and no-break spaces (kept).
+# Expected: no geometry diagnostics.
+version: 1
+figure:
+  id: whitespace
+  profile: paper-double
+  layout:
+    direction: down
+nodes:
+  - { id: blank, component: box, label: "                                                  " }
+  - { id: inner, component: box, label: "x     y" }
+  - { id: edges, component: box, label: "  lead and trail  " }
+  - { id: tabs, component: box, label: "tab\there" }
+  - { id: nbsp, component: box, label: "nb   sp" }
+  - { id: lines, component: box, label: "line\n   \nend" }
+edges:
+  - { from: blank, to: inner }
+  - { from: inner, to: edges }
+  - { from: edges, to: tabs }
+  - { from: tabs, to: nbsp }
+  - { from: nbsp, to: lines }

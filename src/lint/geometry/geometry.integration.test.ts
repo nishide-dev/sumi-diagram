@@ -41,6 +41,7 @@ describe.skipIf(!available && !inCI)("geometry lint with D2", () => {
     ["label-overflow", ["geometry/label-overflow"]],
     ["edge-crosses-label", ["geometry/edge-crosses-label"]],
     ["containment", []],
+    ["whitespace", []],
   ])("fixture %s", async (name, expected) => {
     const { report, geometry } = await lintFile(join(FIXTURES, "geometry", `${name}.sumi.yaml`));
     expect(report.rendered).toBeDefined();
