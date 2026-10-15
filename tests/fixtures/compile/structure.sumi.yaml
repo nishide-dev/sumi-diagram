@@ -1,0 +1,32 @@
+# Nested groups (children declared before their parents), edges to groups,
+# ancestor/descendant edges, self-loops, multi-edges and IDs with dashes.
+version: 1
+figure:
+  id: structure
+  layout:
+    direction: left
+groups:
+  - id: inner
+    label: Inner
+    group: middle
+  - id: outer
+    label: Outer
+  - id: middle
+    group: outer
+  - id: side
+    label: Side
+nodes:
+  - { id: deep, component: box, label: Deep, group: inner }
+  - { id: a--b, component: box, label: Dashes, group: middle }
+  - { id: x-, component: circle, label: X }
+  - { id: free, component: ellipse }
+  - { id: lonely, component: box, label: Lonely, group: side }
+edges:
+  - { from: x-, to: deep, label: into the depths }
+  - { id: twin-1, from: x-, to: a--b }
+  - { id: twin-2, from: x-, to: a--b, component: line }
+  - { from: x-, to: x-, label: self }
+  - { from: side, to: side, component: double-arrow }
+  - { from: outer, to: deep, label: ancestor }
+  - { from: inner, to: side, component: line }
+  - { from: free, to: lonely, component: double-arrow }

@@ -1,0 +1,29 @@
+# Labels with characters that D2 treats specially inside or outside quotes.
+version: 1
+figure:
+  id: labels
+  layout:
+    direction: up
+groups:
+  - id: g
+    label: 'Group "quoted" ${var}'
+nodes:
+  - { id: quotes, component: box, label: 'He said "hi"', group: g }
+  - { id: backslash, component: box, label: 'C:\path\n\t (literal backslashes)', group: g }
+  - { id: newline, component: box, label: "line 1\nline 2\n\nline 4" }
+  - { id: japanese, component: box, label: "日本語ラベル（全角）" }
+  - { id: dollar, component: box, label: "$5 ${x} $${y} cost$" }
+  - { id: hash, component: box, label: "#1 # not a comment" }
+  - { id: dots, component: box, label: "a.b.c ..." }
+  - { id: colon, component: box, label: "key: value; {braces} [brackets] | pipe" }
+  - { id: operators, component: box, label: "a -> b <- c -- d <-> e" }
+  - { id: reserved, component: box, label: "null" }
+  - { id: spaces, component: box, label: "  padded  " }
+  - { id: tab, component: box, label: "col1\tcol2" }
+  - { id: crlf, component: box, label: "carriage\r\nreturn" }
+  - { id: empty, component: box }
+  - { id: apostrophe, component: box, label: "it's `code`" }
+edges:
+  - { from: quotes, to: backslash, label: 'edge "quoted" \ $x' }
+  - { from: newline, to: japanese, label: "多行\nラベル" }
+  - { from: dollar, to: hash }
