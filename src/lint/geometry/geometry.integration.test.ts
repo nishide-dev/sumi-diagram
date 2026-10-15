@@ -45,6 +45,7 @@ describe.skipIf(!available && !inCI)("geometry lint with D2", () => {
     ["container-label", []],
     ["reversed-edge", ["geometry/reversed-edge"]],
     ["reversed-edge-reordered", []],
+    ["reversed-edge-group", []],
     ["containment", []],
     ["whitespace", []],
   ])("fixture %s", async (name, expected) => {

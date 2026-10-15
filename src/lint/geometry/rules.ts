@@ -325,18 +325,53 @@ export const aspectDistorted = defineGeometryRule({
  * in document order. An edge to an element still on the search path closes a
  * cycle. These are the edges a reader expects to run against the layout
  * direction (e.g. a "retry" edge back to an earlier step).
+ *
+ * ELK lays out a group as one block among its siblings, so an edge that
+ * crosses group boundaries is followed both between its endpoints and between
+ * their ancestors that are children of the lowest common ancestor: `g -> b`
+ * and `b -> a` (with `a` inside group `g`) form the cycle `g -> b -> g`,
+ * closed by `b -> a`.
  */
 export function cycleClosingEdges(
   ir: FigureIR,
   isLayoutEdge: (edge: EdgeIR) => boolean,
 ): ReadonlySet<ElementKey> {
   const vertices: ElementKey[] = [...ir.groups, ...ir.nodes].map((e) => e.key);
-  const outgoing = new Map<ElementKey, EdgeIR[]>(vertices.map((key) => [key, []]));
+  /** The element's ancestors from the root down, ending with the element itself. */
+  const chain = (key: ElementKey): ElementKey[] => {
+    const keys: ElementKey[] = [];
+    const seen = new Set<ElementKey>();
+    for (let k: ElementKey | undefined = key; k !== undefined && !seen.has(k); ) {
+      seen.add(k);
+      keys.unshift(k);
+      const element = ir.elements.get(k);
+      k = element === undefined || element.kind === "edge" ? undefined : element.parent;
+    }
+    return keys;
+  };
+  /** The endpoints projected onto the children of their lowest common ancestor. */
+  const project = (edge: EdgeIR): [ElementKey, ElementKey] => {
+    const from = chain(edge.from);
+    const to = chain(edge.to);
+    let i = 0;
+    while (i < from.length - 1 && i < to.length - 1 && from[i] === to[i]) i++;
+    return [from[i] as ElementKey, to[i] as ElementKey];
+  };
+  const outgoing = new Map<ElementKey, { edge: EdgeIR; to: ElementKey }[]>(
+    vertices.map((key) => [key, []]),
+  );
   const hasIncoming = new Set<ElementKey>();
   for (const edge of ir.edges) {
     if (!isLayoutEdge(edge)) continue;
-    outgoing.get(edge.from)?.push(edge);
-    hasIncoming.add(edge.to);
+    // The edge itself orders the elements; its projection adds the cycles it
+    // forms with edges of the enclosing groups.
+    const [from, to] = project(edge);
+    const pairs: [ElementKey, ElementKey][] = [[edge.from, edge.to]];
+    if (from !== to && (from !== edge.from || to !== edge.to)) pairs.push([from, to]);
+    for (const [f, t] of pairs) {
+      outgoing.get(f)?.push({ edge, to: t });
+      hasIncoming.add(t);
+    }
   }
   const closing = new Set<ElementKey>();
   const visited = new Set<ElementKey>();
@@ -353,19 +388,18 @@ export function cycleClosingEdges(
     onPath.add(root);
     while (stack.length > 0) {
       const frame = stack[stack.length - 1] as { key: ElementKey; next: number };
-      const edges = outgoing.get(frame.key) ?? [];
-      const edge = edges[frame.next++];
-      if (edge === undefined) {
+      const step = (outgoing.get(frame.key) ?? [])[frame.next++];
+      if (step === undefined) {
         onPath.delete(frame.key);
         stack.pop();
         continue;
       }
-      if (onPath.has(edge.to)) {
-        closing.add(edge.key);
-      } else if (!visited.has(edge.to)) {
-        visited.add(edge.to);
-        onPath.add(edge.to);
-        stack.push({ key: edge.to, next: 0 });
+      if (onPath.has(step.to)) {
+        closing.add(step.edge.key);
+      } else if (!visited.has(step.to)) {
+        visited.add(step.to);
+        onPath.add(step.to);
+        stack.push({ key: step.to, next: 0 });
       }
     }
   }

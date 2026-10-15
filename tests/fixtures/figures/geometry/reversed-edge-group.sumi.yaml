@@ -1,0 +1,20 @@
+# A cycle across a group boundary (PR #39 review): `g -> b`, then a retry
+# edge `b -> a` back into the group. ELK lays the group out as one block, so
+# `g -> b -> g` is a cycle closed by `b -> a`, which may run upwards.
+# Expected: no geometry diagnostics (not geometry/reversed-edge).
+version: 1
+figure:
+  id: reversed-edge-group
+  theme: minimal
+  profile: paper-single
+  layout:
+    direction: down
+groups:
+  - id: g
+    label: Stage
+nodes:
+  - { id: a, component: box, label: Work, group: g }
+  - { id: b, component: box, label: Check }
+edges:
+  - { from: g, to: b }
+  - { from: b, to: a, label: retry }

@@ -598,6 +598,29 @@ ${edges.map(([from, to]) => `  - { from: ${from}, to: ${to} }`).join("\n")}
     ).toEqual(["n:a->n:b"]);
   });
 
+  test("edges across group boundaries are searched between the LCA's children", () => {
+    // g -> b, b -> a with a inside g: the cycle g -> b -> g is closed by b -> a.
+    const source = `version: 1
+figure: { id: cycles }
+groups:
+  - { id: g }
+  - { id: h, group: g }
+nodes:
+  - { id: a, component: box, group: h }
+  - { id: c, component: box, group: g }
+  - { id: b, component: box }
+edges:
+  - { from: g, to: b }
+  - { from: b, to: a }
+  - { from: c, to: a }
+`;
+    const { ir } = compile(source);
+    const keys = cycleClosingEdges(ir, () => true);
+    expect(ir.edges.filter((e) => keys.has(e.key)).map((e) => `${e.from}->${e.to}`)).toEqual([
+      "n:b->n:a",
+    ]);
+  });
+
   test("cross and forward edges into finished branches do not close cycles", () => {
     expect(
       closing(
