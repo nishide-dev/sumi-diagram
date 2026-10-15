@@ -46,7 +46,7 @@ interface CheckState {
 ```
 
 - **診断を集める段**（validate → link → resolve → style → constrain）は、前段で error があっても続行する。
-  - 各段は、自分が検査する要素とその**依存先**（親グループ、edge の両端点、部品）がすべて `invalid` に含まれない場合だけ、その要素を検査する。依存先が無効な要素は検査を飛ばし、連鎖的な診断を出さない。
+  - 各段は、`invalid` に含まれる要素を検査しない。要素の**依存先**（親グループ、edge の両端点、部品）が `invalid` に含まれる場合、その依存先が原因となる診断は出さない（依存先とは独立した誤りは報告する）。依存先が無効な要素自身も invalid に加え、後段の検査対象から外す。
   - error を出した要素は `invalid` に追加する。
   - 例: 部品が未知の node は `style` 段でスタイル検査をしない。その node を端点とする edge は `ref` 段で検査済みのため、追加の診断を出さない。
 - **生成する段**（IR → D2 → render）は、diagnostics に error が 1 件もないときだけ実行し、`CheckState` から完全な `FigureIR` を作る。

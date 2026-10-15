@@ -4,9 +4,11 @@
  *
  * Rules every stage follows:
  * - keep going even if an earlier stage reported errors;
- * - check an element only if neither it nor any of its dependencies (parent
- *   group, edge endpoints, component) is in `invalid`, so errors never cascade;
- * - add every element it reports an error for to `invalid`.
+ * - skip elements that are themselves in `invalid`;
+ * - never report a diagnostic caused by an invalid dependency (parent group,
+ *   edge endpoint, component), but still report errors independent of it;
+ * - add every element it reports an error for, and every element with an
+ *   invalid dependency, to `invalid`.
  */
 
 import type { Diagnostic } from "./diagnostics";

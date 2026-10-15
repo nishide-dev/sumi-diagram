@@ -32,7 +32,8 @@ export function linkFigure(state: CheckState, locate: Locator): void {
   const edges = entries(doc.edges, "edges", (e, i) => edgeKey(e.id, i), "edge");
 
   // Duplicate IDs. Nodes and groups share one ID space; edges have their own.
-  // A duplicated ID makes its key ambiguous, so the key is marked invalid.
+  // A duplicated ID makes its keys ambiguous, so every definition is marked
+  // invalid (for nodes and groups, both the `n:` and the `g:` key).
   const groupById = new Map<string, Entry<FigureGroup>>();
   const nodeById = new Map<string, Entry<FigureNode>>();
   const firstById = new Map<string, Entry<FigureGroup | FigureNode>>();
@@ -40,6 +41,7 @@ export function linkFigure(state: CheckState, locate: Locator): void {
     const first = firstById.get(entry.value.id);
     if (first) {
       report(duplicate(locate, entry, first), entry.key);
+      invalid.add(first.key);
       continue;
     }
     firstById.set(entry.value.id, entry);
@@ -112,15 +114,38 @@ export function linkFigure(state: CheckState, locate: Locator): void {
     for (const g of chain) done.add(g);
   }
 
-  // Edge endpoints.
+  // Elements inside an invalid group are invalid too (transitively), so later
+  // stages skip them. No diagnostic: the group already has one.
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const entry of [...groups, ...nodes]) {
+      const parent = entry.value.group;
+      if (parent !== undefined && !invalid.has(entry.key) && invalid.has(groupKey(parent))) {
+        invalid.add(entry.key);
+        changed = true;
+      }
+    }
+  }
+
+  // Edge endpoints. An endpoint that is invalid (or unknowable because its
+  // collection is unreadable) produces no diagnostic but makes the edge
+  // invalid; an unknown endpoint is reported even if the other one is invalid.
   const endpointIds = [...firstById.keys()];
   for (const entry of edges) {
     if (invalid.has(entry.key)) continue;
     for (const end of ["from", "to"] as const) {
       const id = entry.value[end];
+      if (
+        doc.nodes === undefined ||
+        doc.groups === undefined ||
+        invalid.has(nodeKey(id)) ||
+        invalid.has(groupKey(id))
+      ) {
+        invalid.add(entry.key);
+        continue;
+      }
       if (firstById.has(id)) continue;
-      if (doc.nodes === undefined || doc.groups === undefined) continue;
-      if (invalid.has(nodeKey(id)) || invalid.has(groupKey(id))) continue;
       report(
         errorAt(
           locate,
@@ -140,8 +165,12 @@ export function linkFigure(state: CheckState, locate: Locator): void {
     const id = entry.value.id;
     if (id === undefined) continue;
     const first = edgeById.get(id);
-    if (first) report(duplicate(locate, entry, first), entry.key);
-    else edgeById.set(id, entry);
+    if (first) {
+      report(duplicate(locate, entry, first), entry.key);
+      invalid.add(first.key);
+    } else {
+      edgeById.set(id, entry);
+    }
   }
 }
 

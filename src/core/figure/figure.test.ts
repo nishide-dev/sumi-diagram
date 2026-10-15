@@ -191,8 +191,13 @@ describe("no cascading diagnostics", () => {
       ["ref/group-cycle", ["groups", 0, "group"], 6, 12],
     ]);
     expect([...state.invalid].sort()).toEqual([
+      // Edges and the node inside the cycle are invalid through a dependency.
+      "e:#0",
+      "e:#1",
+      "e:#2",
       "g:loop-a",
       "g:loop-b",
+      "n:inner",
       "n:lost",
       "n:missing-component",
       "n:typo",
@@ -201,6 +206,63 @@ describe("no cascading diagnostics", () => {
     expect(state.doc.nodes?.[1]?.id).toBe("typo");
     expect(state.doc.nodes?.[0]).toBeUndefined();
   });
+
+  const duplicateOrders: [order: string, groupsFirst: boolean][] = [
+    ["group first", true],
+    ["node first", false],
+  ];
+  for (const [order, groupsFirst] of duplicateOrders) {
+    test(`a node/group duplicate invalidates both definitions (${order})`, () => {
+      const groups = "groups:\n  - id: api\n  - id: child\n    group: api\n";
+      const nodes =
+        "nodes:\n  - id: api\n    component: box\n  - id: x\n    component: box\n    group: api\n";
+      const text = [
+        "version: 1\nfigure: { id: f }\n",
+        groupsFirst ? groups : nodes,
+        groupsFirst ? nodes : groups,
+        "edges:\n  - { from: api, to: x }\n  - { from: child, to: api }\n",
+      ].join("");
+      const { state } = checkFigureSource(text);
+      expect(state.diagnostics.map((d) => [d.code, d.path])).toEqual([
+        ["ref/duplicate-id", groupsFirst ? ["nodes", 0, "id"] : ["groups", 0, "id"]],
+      ]);
+      expect([...state.invalid].sort()).toEqual([
+        "e:#0",
+        "e:#1",
+        "g:api",
+        "g:child",
+        "n:api",
+        "n:x",
+      ]);
+    });
+  }
+
+  test("duplicate edge IDs invalidate both edges", () => {
+    const { state } = checkFigureSource(
+      "version: 1\nfigure: { id: f }\nnodes: [{ id: a, component: box }]\n" +
+        "edges:\n  - { id: e, from: a, to: a }\n  - { from: a, to: a }\n  - { id: e, from: a, to: a }\n",
+    );
+    expect(state.diagnostics.map((d) => d.code)).toEqual(["ref/duplicate-id"]);
+    expect([...state.invalid]).toEqual(["e:e"]);
+  });
+
+  const endpointCases: [from: string, to: string, end: "from" | "to"][] = [
+    ["bad", "missing", "to"],
+    ["missing", "bad", "from"],
+  ];
+  for (const [from, to, end] of endpointCases) {
+    test(`an invalid endpoint still reports an independent unknown endpoint (${end})`, () => {
+      const { state } = checkFigureSource(
+        "version: 1\nfigure: { id: f }\nnodes:\n  - id: bad\n" +
+          `edges:\n  - { from: ${from}, to: ${to} }\n  - { from: bad, to: bad }\n`,
+      );
+      expect(state.diagnostics.map((d) => [d.code, d.path])).toEqual([
+        ["schema/missing-field", ["nodes", 0, "component"]],
+        ["ref/unknown-endpoint", ["edges", 0, end]],
+      ]);
+      expect([...state.invalid].sort()).toEqual(["e:#0", "e:#1", "n:bad"]);
+    });
+  }
 
   test("an unreadable collection disables checks that depend on it", () => {
     const { state } = checkFigureSource(
