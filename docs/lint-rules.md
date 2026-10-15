@@ -36,7 +36,11 @@
 
 ## 設定
 
-設定は JSON 互換のオブジェクトで渡す（CLI のフラグや設定ファイルからの組み立ては #14）。
+設定は JSON 互換のオブジェクトで渡す。CLI では、`--config <file>`（同じ形の JSON ファイル）→ `--rule <id>=<level>`（繰り返し可。level だけを置き換え、options は保つ）→ `--max-warnings <n>` の順に上書きして組み立てる。
+
+```sh
+sumi lint figure.sumi.yaml --config lint.json --rule lint/no-edges=off --max-warnings 0
+```
 
 ```ts
 lintFigure(text, {
@@ -52,6 +56,7 @@ lintFigure(text, {
 });
 ```
 
+- CLI の `--max-warnings`（と設定ファイルの `maxWarnings`）は、指定した**全ファイルの warning の合計**で判定する。
 - `rules` の値は `"off" | "error" | "warning" | "info"`、または `{ level?, options? }`。書かなかった規則は既定の severity で有効になる。
 - 対象は `lint/*` の規則だけで、他の段の診断の severity は変えられない。
 - 未知の規則 ID（近い候補を示す）、不正な level、不正な options、options を取らない規則への options は、`LintConfigError` になる（図の診断ではなく使い方の誤り。exit code 2）。
@@ -92,7 +97,13 @@ info は終了コードに影響しない。
 }
 ```
 
-**テキスト**（`formatLintText()`）: 1 診断 1 行の `file:line:col severity code message`。続く行に `hint:` と `related:` を字下げして出し、最後に件数をまとめる。
+`sumi lint --json` は、ファイルごとの上記の封筒を `results` に並べ、全体の件数を添えて出力する。ファイルが 1 つでも同じ形にする。読めなかったファイルは `results` に含めない（stderr にエラーを出し、終了コードは 2）。
+
+```json
+{ "version": 1, "results": [{ "version": 1, "file": "figure.sumi.yaml", "diagnostics": [], "summary": { "errors": 0, "warnings": 0, "infos": 0 } }], "summary": { "errors": 0, "warnings": 0, "infos": 0 } }
+```
+
+**テキスト**（`formatLintText()`）: 1 診断 1 行の `file:line:col severity code message`。続く行に `hint:` と `related:` を字下げして出し、最後に件数をまとめる。`sumi lint` は複数ファイルの診断を続けて出し、件数は最後に全体で 1 行だけ出す。端末に出力するときは severity に色を付ける（`--no-color` / `NO_COLOR` で無効）。
 
 ```text
 figure.sumi.yaml:21:5 warning lint/ancestor-edge Edge edges[1] connects group "outer" with "api", which is inside it.

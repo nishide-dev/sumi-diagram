@@ -8,6 +8,19 @@ import { type Locator, parseYaml } from "./yaml";
 export interface CheckFigureOptions {
   /** File name recorded in diagnostic locations. */
   file?: string;
+  /**
+   * Values that replace `figure.theme` / `figure.profile` without editing the
+   * source (`sumi render --theme/--profile`). They are applied after schema
+   * validation, so the source's own values must still be valid strings.
+   * Diagnostics at an overridden path carry no source location, since the
+   * value does not come from the file.
+   */
+  overrides?: FigureOverrides;
+}
+
+export interface FigureOverrides {
+  theme?: string;
+  profile?: string;
 }
 
 export interface FigureCheck {
@@ -30,10 +43,35 @@ export function checkFigureSource(text: string, options: CheckFigureOptions = {}
   const state: CheckState = { doc: {}, invalid: new Set(), diagnostics: parsed.diagnostics };
   if (parsed.source === undefined) return { state, locate: () => undefined };
 
-  const { value, locate } = parsed.source;
-  validateFigure(state, value, locate);
+  const { value } = parsed.source;
+  // The source's own values are validated where they are written; later stages see the overrides.
+  validateFigure(state, value, parsed.source.locate);
+  const locate = overrideLocator(parsed.source.locate, options.overrides);
+  applyOverrides(state.doc, options.overrides);
   linkFigure(state, locate);
   return { state, locate };
+}
+
+function applyOverrides(doc: PartialFigure, overrides: FigureOverrides | undefined): void {
+  if (doc.figure === undefined || overrides === undefined) return;
+  const { theme, profile } = overrides;
+  doc.figure = {
+    ...doc.figure,
+    ...(theme !== undefined && { theme }),
+    ...(profile !== undefined && { profile }),
+  };
+}
+
+/** A locator that has no location for overridden fields (and their sub-paths). */
+function overrideLocator(locate: Locator, overrides: FigureOverrides | undefined): Locator {
+  const fields = Object.entries(overrides ?? {})
+    .filter(([, value]) => value !== undefined)
+    .map(([field]) => field);
+  if (fields.length === 0) return locate;
+  return (path, options) =>
+    path[0] === "figure" && typeof path[1] === "string" && fields.includes(path[1])
+      ? undefined
+      : locate(path, options);
 }
 
 /**

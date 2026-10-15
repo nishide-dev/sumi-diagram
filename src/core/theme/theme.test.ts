@@ -1,12 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
-import { isAbsolute } from "node:path";
+import { basename, dirname, isAbsolute, join } from "node:path";
 import { createBuiltinRegistry } from "../registry/builtins";
 import { componentId } from "../registry/manifest";
 import {
   BUILTIN_FONT_SETS,
   BUILTIN_THEME_DEFINITIONS,
   BUILTIN_THEMES,
+  BUNDLED_FONT_SHA256,
   DEFAULT_FONT_SET_ID,
   type FontSet,
   fontSetArgs,
@@ -58,6 +59,18 @@ describe("font sets", () => {
       expect(isAbsolute(file)).toBe(true);
       expect(file.endsWith(".ttf")).toBe(true);
       expect(existsSync(file)).toBe(true);
+    }
+  });
+
+  test("every bundled font file has a checksum that matches the file and its README", async () => {
+    const set = defaultFontSet();
+    const files = [set.regular, set.bold, set.mono ?? ""];
+    expect([...BUNDLED_FONT_SHA256.keys()].sort()).toEqual([...files].sort());
+    const readme = await Bun.file(join(dirname(set.regular), "README.md")).text();
+    for (const [file, expected] of BUNDLED_FONT_SHA256) {
+      const bytes = await Bun.file(file).bytes();
+      expect(new Bun.CryptoHasher("sha256").update(bytes).digest("hex")).toBe(expected);
+      expect(readme).toContain(`\`${basename(file)}\` | ${bytes.length} | \`${expected}\``);
     }
   });
 

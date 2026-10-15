@@ -41,21 +41,26 @@ const ALLOWED_TAGS = new Set(
   ["str", "int", "float", "bool", "null", "map", "seq"].map((t) => `tag:yaml.org,2002:${t}`),
 );
 
+/**
+ * Options every Sumi YAML parse uses (YAML 1.2 core schema, no merge keys).
+ * Shared with the formatter so it reads documents exactly like the checker.
+ */
+export const YAML_PARSE_OPTIONS = Object.freeze({
+  version: "1.2",
+  schema: "core",
+  merge: false,
+  // Duplicate keys are reported by our own walk, which knows the DocPath.
+  uniqueKeys: false,
+  prettyErrors: false,
+  logLevel: "silent",
+} as const);
+
 type YamlNode = Node | Pair<unknown, unknown> | null | undefined;
 
 /** Parses YAML text into plain data plus a {@link Locator}. */
 export function parseYaml(text: string, file?: string): ParseYamlResult {
   const lineCounter = new LineCounter();
-  const docs = parseAllDocuments(text, {
-    lineCounter,
-    version: "1.2",
-    schema: "core",
-    merge: false,
-    // Duplicate keys are reported by our own walk, which knows the DocPath.
-    uniqueKeys: false,
-    prettyErrors: false,
-    logLevel: "silent",
-  });
+  const docs = parseAllDocuments(text, { ...YAML_PARSE_OPTIONS, lineCounter });
 
   const toLocation = (start: number, end?: number): SourceLocation => {
     const s = lineCounter.linePos(start);

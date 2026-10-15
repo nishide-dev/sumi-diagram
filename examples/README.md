@@ -14,18 +14,19 @@ already wider than `paper-single` (88mm).
 
 ## Rendering
 
-Until `sumi render` lands (#14), render with the helper script. It needs the
-pinned D2 CLI:
+Render with `sumi render` (or its alias `bun run example:render`, which
+regenerates the committed SVGs). It needs the pinned D2 CLI:
 
 ```sh
 bun run d2:install                                           # once
-bun run example:render examples/pipeline/pipeline.sumi.yaml  # writes examples/pipeline/pipeline.svg
+bun src/cli/index.ts render examples/pipeline/pipeline.sumi.yaml  # writes examples/pipeline/pipeline.svg
+bun run example:render examples/pipeline/pipeline.sumi.yaml  # the same
 bun run example:render <figure.sumi.yaml> <out.svg>          # any figure, any output path
 ```
 
-The script runs the shared render pipeline (`renderFigure()` from
+Both run the shared render pipeline (`renderFigure()` from
 `src/render`, #11): compile, the D2 CLI backend, SVG finalization and
-inspection. It prints diagnostics and writes the finalized SVG: D2's output
+inspection. They print diagnostics and write the finalized SVG: D2's output
 with `width`/`height` in pt on the root `<svg>` (1 D2 unit = 0.5pt), so viewers
 show the physical size, and Sumi's deterministic `<metadata>` (versions, theme,
 profile, font set, sha256 of the YAML and the D2 source). It also prints the
