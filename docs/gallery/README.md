@@ -803,7 +803,7 @@ The committed SVGs of <code>examples/</code>, rendered from their sources as wri
 
 ### One figure, every theme × profile
 
-The same source rendered with <code>\-\-theme</code> and <code>\-\-profile</code> overrides: nothing is duplicated\. Profiles never scale a figure\. The paper profiles share their spacing and differ only in the width limit that the geometry lint checks, so their drawings match\. A profile whose minimum font size is larger than a theme&\#39;s font sizes rejects the figure before rendering \(<code>profile/font\-too\-small</code>\)\.
+The same source rendered with <code>\-\-theme</code> and <code>\-\-profile</code> overrides: nothing is duplicated\. Profiles never scale a figure\. The paper profiles share their spacing and differ only in the width limit that the geometry lint checks, so their drawings match\. A profile whose minimum font size is larger than a theme's font sizes rejects the figure before rendering \(<code>profile/font\-too\-small</code>\)\.
 
 | theme \ profile | <code>paper\-single</code> | <code>paper\-double</code> | <code>presentation\-16x9</code> |
 | --- | --- | --- | --- |

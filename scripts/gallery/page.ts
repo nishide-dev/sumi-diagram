@@ -320,13 +320,19 @@ ${htmlComparison(model.comparison)}
 
 /**
  * Plain text for GitHub-flavored Markdown, safe in paragraphs, headings and
- * table cells: HTML is escaped (GitHub renders inline HTML), Markdown
- * punctuation is backslash-escaped, `|` becomes `&#124;` (GFM splits table
- * cells on `|` even inside code spans) and line breaks become spaces.
+ * table cells. In this order, so that no step escapes another's output:
+ * Markdown punctuation is backslash-escaped; `&`, `<`, `>` and `"` become
+ * entities (GitHub renders inline HTML; `'` needs no entity outside quoted
+ * attributes and is kept); `|` becomes `&#124;` (GFM splits table cells on
+ * `|` even inside code spans); line breaks become spaces.
  */
 export const mdText = (text: string): string =>
-  escapeHtml(text)
+  text
     .replace(/[\\`*_[\]{}()#+\-.!~]/g, (c) => `\\${c}`)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
     .replaceAll("|", "&#124;")
     .replace(/\r?\n/g, " ");
 

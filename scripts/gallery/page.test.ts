@@ -86,6 +86,20 @@ describe("Markdown escaping", () => {
     expect(text).toContain("&quot;q&quot;");
   });
 
+  test("mdText yields exactly one escape per character (no double escaping)", () => {
+    // Each output decodes, under CommonMark, back to the input character:
+    // `\x` → x for ASCII punctuation, `&name;` / `&#n;` → the character.
+    expect(mdText("theme's")).toBe("theme's");
+    expect(mdText("a & b")).toBe("a &amp; b");
+    expect(mdText("<b>")).toBe("&lt;b&gt;");
+    expect(mdText("#1")).toBe("\\#1");
+    expect(mdText("a|b")).toBe("a&#124;b");
+    expect(mdText('"q"')).toBe("&quot;q&quot;");
+    expect(mdText("\\")).toBe("\\\\");
+    expect(mdText("&#39;")).toBe("&amp;\\#39;");
+    expect(mdText("x\ny")).toBe("x y");
+  });
+
   test("mdCode cannot be closed by a backtick; mdInline keeps code spans", () => {
     expect(mdCode("a`b|c")).toBe("<code>a\\`b&#124;c</code>");
     expect(mdInline("use `x|y` here")).toBe("use <code>x&#124;y</code> here");
