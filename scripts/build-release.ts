@@ -8,7 +8,7 @@
  *   libexec/sumi/d2            pinned D2 CLI (MPL-2.0), checksum-verified
  *   share/sumi/fonts/<set>/    bundled fonts (OFL-1.1), checksum-verified
  *   licenses/                  D2's LICENSE / THIRD_PARTY_NOTICES, the fonts' OFL
- *   LICENSE                    Sumi's license (when the repository has one)
+ *   LICENSE                    Sumi's license (MIT)
  *   NOTICE  README.md  VERSION
  *   SHA256SUMS                 sha256 of every other file in the tree
  * ```
@@ -98,14 +98,14 @@ async function listFiles(dir: string, base = dir): Promise<string[]> {
   return out;
 }
 
-function notice(version: string, target: string, hasLicense: boolean): string {
+function notice(version: string, target: string): string {
   return `Sumi ${version} (${target})
 https://github.com/nishide-dev/sumi-diagram
 
 This distribution contains the following components.
 
 1. Sumi (bin/sumi)
-   ${hasLicense ? "License: see LICENSE." : "License: not yet specified by the project (no LICENSE file in the repository)."}
+   License: MIT License, see LICENSE.
    bin/sumi is a single-file executable built with Bun (https://bun.sh, MIT License)
    and includes Sumi's npm dependencies: commander (MIT), semver (ISC),
    yaml (ISC), zod (MIT).
@@ -191,10 +191,9 @@ async function build(argv: string[]): Promise<void> {
 
     // 4. Top-level documents.
     const license = join(ROOT, "LICENSE");
-    const hasLicense = existsSync(license);
-    if (hasLicense) await copyFile(license, at("LICENSE"));
-    else log("warning: the repository has no LICENSE file; the tarball ships without one.");
-    await Bun.write(at("NOTICE"), notice(version, target, hasLicense));
+    if (!existsSync(license)) throw new Error(`${license} is missing; a release must ship it.`);
+    await copyFile(license, at("LICENSE"));
+    await Bun.write(at("NOTICE"), notice(version, target));
     const readme = (await readFile(join(import.meta.dir, "release", "README.dist.md"), "utf8"))
       .replaceAll("{{version}}", version)
       .replaceAll("{{target}}", target)

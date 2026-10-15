@@ -111,6 +111,14 @@ async function smoke(tarballArg: string, keep: boolean): Promise<void> {
         `SHA256SUMS lists nothing under ${path}`,
       );
     }
+    for (const required of [
+      "LICENSE",
+      "NOTICE",
+      "licenses/d2/LICENSE.txt",
+      "licenses/biz-ud-gothic/OFL.txt",
+    ]) {
+      check(inner.has(required), `the tarball lacks ${required}`);
+    }
     for (const [file, expected] of inner) {
       check(sha256Hex(await readFile(join(prefix, file))) === expected, `${file}: sha256 mismatch`);
     }
