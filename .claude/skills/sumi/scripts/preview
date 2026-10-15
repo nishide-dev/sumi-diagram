@@ -1,0 +1,34 @@
+#!/bin/sh
+# Rasterize a rendered Sumi SVG to a PNG for visual inspection and print the
+# PNG's path. Usage: preview <figure.svg> [size-in-px, default 1600]
+#
+# macOS: Quick Look (`qlmanage`), which uses the fonts embedded in the SVG.
+#   Quick Look thumbnails are square and crop the rest, so the figure is
+#   wrapped in a square SVG and scaled to fit it.
+# Elsewhere: `rsvg-convert` (librsvg) if installed; it may substitute a
+#   system font for the embedded one, so judge layout, not typography.
+set -eu
+if [ $# -lt 1 ] || [ ! -f "$1" ]; then
+  echo "usage: preview <figure.svg> [size]" >&2
+  exit 2
+fi
+size=${2:-1600}
+svg_dir=$(CDPATH='' cd -- "$(dirname -- "$1")" && pwd)
+svg_abs="$svg_dir/$(basename -- "$1")"
+name=$(basename -- "$1" .svg)
+tmp=${TMPDIR:-/tmp}
+out=$(mktemp -d "${tmp%/}/sumi-preview.XXXXXX")
+
+if command -v qlmanage >/dev/null 2>&1; then
+  cat >"$out/$name.svg" <<EOF
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 $size $size" width="$size" height="$size"><rect width="$size" height="$size" fill="#ffffff"/><image href="file://$svg_abs" xlink:href="file://$svg_abs" width="$size" height="$size"/></svg>
+EOF
+  qlmanage -t -s "$size" -o "$out" "$out/$name.svg" >/dev/null 2>&1
+  mv "$out/$name.svg.png" "$out/$name.png"
+elif command -v rsvg-convert >/dev/null 2>&1; then
+  rsvg-convert -a -w "$size" -h "$size" -b white "$svg_abs" -o "$out/$name.png"
+else
+  echo "preview: neither qlmanage (macOS) nor rsvg-convert is available" >&2
+  exit 1
+fi
+echo "$out/$name.png"
