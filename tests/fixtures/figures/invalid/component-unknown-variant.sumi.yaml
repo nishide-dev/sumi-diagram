@@ -1,0 +1,7 @@
+version: 1
+figure:
+  id: component-unknown-variant
+nodes:
+  - id: db
+    component: cylinder
+    variant: mutted

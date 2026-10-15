@@ -1,0 +1,29 @@
+version: 1
+figure:
+  id: component-no-cascade
+groups:
+  - id: outer
+    component: frame
+  - id: inner
+    group: outer
+nodes:
+  - id: client
+    component: box
+  - id: ghost
+    component: cloud
+  - id: api
+    component: box
+    group: inner
+  - id: db
+    component: cylinder
+    variant: loud
+edges:
+  - from: client
+    to: ghost
+  - from: client
+    to: api
+  - from: client
+    to: db
+    component: zigzag
+  - from: client
+    to: client

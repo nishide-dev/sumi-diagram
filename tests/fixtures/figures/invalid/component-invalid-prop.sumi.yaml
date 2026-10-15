@@ -1,0 +1,8 @@
+version: 1
+figure:
+  id: component-invalid-prop
+nodes:
+  - id: api
+    component: box
+    props:
+      width: 40px

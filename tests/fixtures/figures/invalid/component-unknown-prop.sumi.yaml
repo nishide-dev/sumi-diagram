@@ -1,0 +1,8 @@
+version: 1
+figure:
+  id: component-unknown-prop
+nodes:
+  - id: api
+    component: box
+    props:
+      widht: 40
