@@ -1,0 +1,78 @@
+# A generic decision flow built only from built-in components: start and end
+# terminals, an input step, two decisions, a retry loop and a note.
+#
+# Layout: `direction: down`, so the main path reads top to bottom and the
+# figure stays within paper-single's 88mm (about 60mm wide); branches spread
+# sideways.
+#
+# No group here: wrapping the retry loop (a cycle) in a container makes D2/ELK
+# reverse the loop and place `done` above `process`. See examples/pipeline for
+# groups.
+#
+# Render: bun run example:render examples/decision-flow/decision-flow.sumi.yaml
+version: 1
+figure:
+  id: decision-flow
+  title: Generic decision flow
+  theme: minimal
+  profile: paper-single
+  layout:
+    direction: down
+
+nodes:
+  - id: start
+    component: ellipse
+    label: Start
+  - id: request
+    component: parallelogram
+    label: Read request
+  - id: valid
+    component: diamond
+    label: Valid?
+  - id: reject
+    component: box
+    label: Reject
+    variant: muted
+  - id: process
+    component: box
+    label: Process
+  - id: done
+    component: diamond
+    label: Done?
+  - id: note
+    component: label
+    label: "at most\n3 attempts"
+    variant: muted
+  - id: finish
+    component: ellipse
+    label: End
+    variant: emphasis
+
+edges:
+  - from: start
+    to: request
+  - from: request
+    to: valid
+  - from: valid
+    to: process
+    label: "yes"
+  - from: valid
+    to: reject
+    label: "no"
+    variant: muted
+  - from: process
+    to: done
+  - from: done
+    to: process
+    label: retry
+    variant: dashed
+  - from: done
+    to: finish
+    label: "yes"
+    variant: emphasis
+  - from: reject
+    to: finish
+  - from: note
+    to: done
+    component: line
+    variant: muted

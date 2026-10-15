@@ -8,7 +8,7 @@
 import { join } from "node:path";
 import { z } from "zod";
 import type { ElementKey } from "../core/check-state";
-import { createBuiltinRegistry } from "../core/registry/builtins";
+import { BUILTIN_MANIFESTS, createBuiltinRegistry } from "../core/registry/builtins";
 import type { EdgeManifest } from "../core/registry/manifest";
 import type { ResolvedStyle } from "../core/theme/style";
 import { compileFigure } from "./compile";
@@ -108,4 +108,52 @@ export function withStyles(
     [...groups, ...nodes, ...edges].map((e) => [e.key, e]),
   );
   return { ...ir, groups, nodes, edges, elements };
+}
+
+/**
+ * A figure using every built-in component with every variant under the given
+ * theme. Each element has the ID and label `<component>-<variant>`.
+ * Default-variant nodes sit in the default container and muted ones in the
+ * muted container; the edges chain the nodes in order.
+ */
+export function primitivesFigure(theme: string): string {
+  const ofKind = (kind: string) => BUILTIN_MANIFESTS.filter((m) => m.kind === kind);
+  const lines = [
+    "version: 1",
+    `figure: { id: primitives-${theme}, theme: ${theme}, profile: paper-double, layout: { direction: down } }`,
+    "groups:",
+  ];
+  const containers = new Set<string>();
+  for (const m of ofKind("group")) {
+    for (const variant of m.variants) {
+      containers.add(variant);
+      lines.push(
+        `  - { id: ${m.name}-${variant}, label: ${m.name}-${variant}, variant: ${variant} }`,
+      );
+    }
+  }
+  lines.push("nodes:");
+  const nodes: string[] = [];
+  for (const m of ofKind("node")) {
+    for (const variant of m.variants) {
+      const id = `${m.name}-${variant}`;
+      const group = containers.has(variant) ? `, group: container-${variant}` : "";
+      lines.push(
+        `  - { id: ${id}, component: ${m.name}, label: ${id}, variant: ${variant}${group} }`,
+      );
+      nodes.push(id);
+    }
+  }
+  lines.push("edges:");
+  for (const m of ofKind("edge")) {
+    for (const variant of m.variants) {
+      const id = `${m.name}-${variant}`;
+      const from = nodes[(lines.length * 7) % nodes.length];
+      const to = nodes[(lines.length * 7 + 1) % nodes.length];
+      lines.push(
+        `  - { id: ${id}, from: ${from}, to: ${to}, component: ${m.name}, label: ${id}, variant: ${variant} }`,
+      );
+    }
+  }
+  return `${lines.join("\n")}\n`;
 }

@@ -1,0 +1,81 @@
+# A generic processing pipeline built only from built-in components:
+# input → stages → storage → output, with a side store and an optional path.
+#
+# Layout: `direction: down`. A chain of four or more boxes laid out to the
+# right is already wider than paper-single's 88mm, so the stages run top to
+# bottom and the figure stays within a single paper column (about 62mm wide).
+#
+# `input` sits inside the `stages` group on purpose: in D2/ELK an edge that
+# enters a container from above crosses the container's centered label, so the
+# first edge is kept inside the group.
+#
+# Render: bun run example:render examples/pipeline/pipeline.sumi.yaml
+version: 1
+figure:
+  id: pipeline
+  title: Generic processing pipeline
+  theme: academic
+  profile: paper-single
+  layout:
+    direction: down
+
+groups:
+  - id: stages
+    label: Pipeline
+  - id: storage
+    label: Storage
+    variant: muted
+
+nodes:
+  - id: input
+    component: parallelogram
+    label: Input
+    group: stages
+  - id: parse
+    component: box
+    label: Parse
+    group: stages
+  - id: validate
+    component: box
+    label: Validate
+    group: stages
+  - id: transform
+    component: box
+    label: Transform
+    variant: emphasis
+    group: stages
+  - id: cache
+    component: cylinder
+    label: Cache
+    variant: muted
+    group: storage
+  - id: store
+    component: cylinder
+    label: Store
+    group: storage
+  - id: report
+    component: document
+    label: Report
+
+edges:
+  - from: input
+    to: parse
+  - from: parse
+    to: validate
+  - from: validate
+    to: transform
+  # Read and write: one edge with arrowheads at both ends.
+  - from: transform
+    to: cache
+    component: double-arrow
+    variant: muted
+  - from: transform
+    to: store
+    label: write
+  - from: store
+    to: report
+  # An optional path that skips the remaining stages.
+  - from: validate
+    to: report
+    label: errors
+    variant: dashed
