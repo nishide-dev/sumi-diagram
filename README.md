@@ -118,3 +118,7 @@ Skill は CLI をソースから実行するラッパー（`.claude/skills/sumi/
 | `tests/fixtures` | テスト用の入力ファイル |
 | `examples` | 図の例（`*.sumi.yaml` と生成した SVG） |
 | `docs/gallery` | 生成されたコンポーネントギャラリー（手で編集しない） |
+
+## ライセンス
+
+Sumi は [MIT License](LICENSE) で提供する。同梱・配布するサードパーティのファイルは、それぞれのライセンスに従う（BIZ UD ゴシック: SIL Open Font License 1.1 — `assets/fonts/biz-ud-gothic/OFL.txt`）。
