@@ -1,0 +1,5 @@
+version: 1
+figure:
+  id: dup-key
+  theme: minimal
+  theme: academic

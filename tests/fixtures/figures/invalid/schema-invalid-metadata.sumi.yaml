@@ -1,0 +1,6 @@
+version: 1
+figure:
+  id: meta
+metadata:
+  source: survey
+  scale: [1, .inf]

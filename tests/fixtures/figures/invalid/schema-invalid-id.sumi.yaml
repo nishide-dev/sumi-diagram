@@ -1,0 +1,6 @@
+version: 1
+figure:
+  id: ids
+nodes:
+  - id: API
+    component: box

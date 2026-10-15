@@ -1,0 +1,26 @@
+version: 1
+figure:
+  id: no-cascade
+groups:
+  - id: loop-a
+    group: loop-b
+  - id: loop-b
+    group: loop-a
+nodes:
+  - id: missing-component
+  - id: typo
+    component: box
+    colour: red
+  - id: lost
+    component: box
+    group: nowhere
+  - id: inner
+    component: box
+    group: loop-a
+edges:
+  - from: missing-component
+    to: typo
+  - from: lost
+    to: inner
+  - from: inner
+    to: loop-b

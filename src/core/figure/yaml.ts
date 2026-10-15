@@ -1,0 +1,219 @@
+/**
+ * Stage `yaml`: parses a Sumi document with source positions and enforces the
+ * YAML restrictions of design doc §2.2 (no duplicate keys, anchors, aliases,
+ * merge keys, multiple documents or custom tags).
+ */
+
+import {
+  type Document,
+  isAlias,
+  isMap,
+  isScalar,
+  isSeq,
+  LineCounter,
+  type Node,
+  type Pair,
+  parseAllDocuments,
+} from "yaml";
+import type { Diagnostic, DocPath, SourceLocation } from "../diagnostics";
+
+/**
+ * Maps a document path to its source location. Resolves to the nearest
+ * existing ancestor when the path does not exist (e.g. a missing field points
+ * at its parent mapping). With `key: true`, a mapping entry resolves to its key
+ * instead of its value.
+ */
+export type Locator = (path: DocPath, options?: { key?: boolean }) => SourceLocation | undefined;
+
+export interface YamlSource {
+  /** The document as plain JS data (YAML 1.2 core schema). */
+  value: unknown;
+  locate: Locator;
+}
+
+export interface ParseYamlResult {
+  /** Present only when the yaml stage reported no errors. */
+  source?: YamlSource;
+  diagnostics: Diagnostic[];
+}
+
+const ALLOWED_TAGS = new Set(
+  ["str", "int", "float", "bool", "null", "map", "seq"].map((t) => `tag:yaml.org,2002:${t}`),
+);
+
+type YamlNode = Node | Pair<unknown, unknown> | null | undefined;
+
+/** Parses YAML text into plain data plus a {@link Locator}. */
+export function parseYaml(text: string, file?: string): ParseYamlResult {
+  const lineCounter = new LineCounter();
+  const docs = parseAllDocuments(text, {
+    lineCounter,
+    version: "1.2",
+    schema: "core",
+    merge: false,
+    // Duplicate keys are reported by our own walk, which knows the DocPath.
+    uniqueKeys: false,
+    prettyErrors: false,
+    logLevel: "silent",
+  });
+
+  const toLocation = (start: number, end?: number): SourceLocation => {
+    const s = lineCounter.linePos(start);
+    const location: SourceLocation = {
+      ...(file !== undefined && { file }),
+      line: s.line,
+      column: s.col,
+    };
+    if (end !== undefined) {
+      const e = lineCounter.linePos(end);
+      location.endLine = e.line;
+      location.endColumn = e.col;
+    }
+    return location;
+  };
+  const nodeLocation = (node: Node): SourceLocation | undefined =>
+    node.range ? toLocation(node.range[0], node.range[1]) : undefined;
+
+  const diagnostics: Diagnostic[] = [];
+  const report = (code: string, message: string, path: DocPath | undefined, node?: Node | null) => {
+    const location = node ? nodeLocation(node) : undefined;
+    diagnostics.push({
+      code,
+      severity: "error",
+      message,
+      ...(path !== undefined && { path }),
+      ...(location !== undefined && { location }),
+    });
+  };
+
+  // An empty stream has no documents; treat it as an empty (null) document.
+  const doc: Document.Parsed | undefined = Array.isArray(docs) ? docs[0] : undefined;
+  if (Array.isArray(docs)) {
+    for (const extra of docs.slice(1)) {
+      diagnostics.push({
+        code: "yaml/multiple-documents",
+        severity: "error",
+        message: "A Sumi file must contain exactly one YAML document.",
+        location: toLocation(extra.range[0]),
+        hint: "Remove the `---` separator and split the figures into separate files.",
+      });
+    }
+  }
+  for (const error of doc?.errors ?? []) {
+    diagnostics.push({
+      code: "yaml/syntax",
+      severity: "error",
+      message: `YAML syntax error: ${firstLine(error.message)}`,
+      location: toLocation(error.pos[0], error.pos[1]),
+    });
+  }
+  if (diagnostics.length > 0) return { diagnostics };
+  if (doc === undefined) {
+    return { source: { value: null, locate: () => undefined }, diagnostics };
+  }
+
+  const checkNodeProperties = (node: Node, path: DocPath) => {
+    if (isAlias(node)) {
+      report(
+        "yaml/alias-not-allowed",
+        `Aliases (*${node.source}) are not allowed in Sumi documents.`,
+        path,
+        node,
+      );
+      return false;
+    }
+    if (node.anchor !== undefined) {
+      report(
+        "yaml/alias-not-allowed",
+        `Anchors (&${node.anchor}) are not allowed in Sumi documents.`,
+        path,
+        node,
+      );
+    }
+    if (node.tag !== undefined && !ALLOWED_TAGS.has(node.tag)) {
+      report("yaml/tag-not-allowed", `The YAML tag ${node.tag} is not allowed.`, path, node);
+    }
+    return true;
+  };
+
+  const walk = (node: YamlNode, path: DocPath): void => {
+    if (!node || !("range" in node)) return;
+    if (!checkNodeProperties(node, path)) return;
+    if (isMap(node)) {
+      const seen = new Map<string, Node>();
+      for (const pair of node.items) {
+        const key = pair.key as YamlNode;
+        if (key && "range" in key && !checkNodeProperties(key, path)) continue;
+        if (!isScalar(key) || typeof key.value !== "string") {
+          const at = key && "range" in key ? key : (pair.value as Node | null);
+          report("yaml/non-string-key", "Mapping keys must be strings.", path, at);
+          continue;
+        }
+        const name = key.value;
+        if (name === "<<" && key.type === "PLAIN") {
+          report("yaml/alias-not-allowed", "Merge keys (<<) are not allowed.", path, key);
+          continue;
+        }
+        const first = seen.get(name);
+        if (first) {
+          const firstLocation = nodeLocation(first);
+          diagnostics.push({
+            code: "yaml/duplicate-key",
+            severity: "error",
+            message: `Duplicate key "${name}".`,
+            path: [...path, name],
+            ...withLocation(nodeLocation(key)),
+            related: [
+              {
+                path: [...path, name],
+                ...withLocation(firstLocation),
+                message: "First defined here.",
+              },
+            ],
+          });
+          continue;
+        }
+        seen.set(name, key);
+        walk(pair.value as YamlNode, [...path, name]);
+      }
+    } else if (isSeq(node)) {
+      node.items.forEach((item, index) => {
+        walk(item as YamlNode, [...path, index]);
+      });
+    }
+  };
+  walk(doc.contents, []);
+  if (diagnostics.length > 0) return { diagnostics };
+
+  const locate: Locator = (path, options = {}) => {
+    let node: Node | null = doc.contents;
+    let located = node ? nodeLocation(node) : undefined;
+    for (const [i, segment] of path.entries()) {
+      if (isMap(node)) {
+        const pair = node.items.find((p) => isScalar(p.key) && p.key.value === segment);
+        if (!pair) break;
+        if (options.key && i === path.length - 1 && isScalar(pair.key)) {
+          return nodeLocation(pair.key) ?? located;
+        }
+        node = pair.value as Node | null;
+      } else if (isSeq(node) && typeof segment === "number") {
+        node = (node.items[segment] as Node | undefined) ?? null;
+      } else {
+        break;
+      }
+      if (!node) break;
+      located = nodeLocation(node) ?? located;
+    }
+    return located;
+  };
+
+  return { source: { value: doc.toJS(), locate }, diagnostics };
+}
+
+function firstLine(message: string): string {
+  return message.split("\n", 1)[0] ?? message;
+}
+
+function withLocation(location: SourceLocation | undefined): { location?: SourceLocation } {
+  return location === undefined ? {} : { location };
+}

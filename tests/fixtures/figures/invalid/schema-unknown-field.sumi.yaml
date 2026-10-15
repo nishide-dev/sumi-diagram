@@ -1,0 +1,7 @@
+version: 1
+figure:
+  id: unknown
+nodes:
+  - id: a
+    component: box
+    lable: Typo

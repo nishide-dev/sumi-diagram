@@ -1,0 +1,15 @@
+version: 1
+figure:
+  id: dup
+groups:
+  - id: api
+nodes:
+  - id: api
+    component: box
+edges:
+  - id: link
+    from: api
+    to: api
+  - id: link
+    from: api
+    to: api

@@ -1,0 +1,246 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "number",
+      "const": 1
+    },
+    "requires": {
+      "description": "Minimum Sumi version as a semver range, e.g. \">=0.4.0\".",
+      "type": "string",
+      "minLength": 1
+    },
+    "figure": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+        },
+        "title": {
+          "type": "string"
+        },
+        "theme": {
+          "default": "minimal",
+          "description": "Built-in theme name.",
+          "type": "string",
+          "minLength": 1
+        },
+        "profile": {
+          "default": "paper-single",
+          "description": "Built-in output profile name.",
+          "type": "string",
+          "minLength": 1
+        },
+        "layout": {
+          "default": {},
+          "type": "object",
+          "properties": {
+            "direction": {
+              "default": "right",
+              "description": "Flow direction of the root layout.",
+              "type": "string",
+              "enum": [
+                "right",
+                "down",
+                "left",
+                "up"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false
+    },
+    "groups": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+          },
+          "label": {
+            "default": "",
+            "description": "Plain text; newlines break lines. Empty or omitted means no label.",
+            "type": "string"
+          },
+          "component": {
+            "default": "container",
+            "description": "Component reference (kind: group).",
+            "type": "string",
+            "minLength": 1
+          },
+          "variant": {
+            "default": "default",
+            "type": "string",
+            "minLength": 1
+          },
+          "group": {
+            "description": "Parent group ID. Omitted means the root.",
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "nodes": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+          },
+          "component": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Component reference (kind: node), e.g. `box` or `sumi/box`."
+          },
+          "label": {
+            "default": "",
+            "description": "Plain text; newlines break lines. Empty or omitted means no label.",
+            "type": "string"
+          },
+          "variant": {
+            "default": "default",
+            "type": "string",
+            "minLength": 1
+          },
+          "props": {
+            "description": "Component props, validated against the component manifest.",
+            "default": {},
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          },
+          "group": {
+            "description": "Containing group ID. Omitted means the root.",
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+          }
+        },
+        "required": [
+          "id",
+          "component"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "edges": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Optional edge ID (separate ID space from nodes and groups).",
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+          },
+          "from": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+            "description": "Source node or group ID."
+          },
+          "to": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+            "description": "Target node or group ID."
+          },
+          "label": {
+            "default": "",
+            "description": "Plain text; newlines break lines. Empty or omitted means no label.",
+            "type": "string"
+          },
+          "component": {
+            "default": "arrow",
+            "description": "Component reference (kind: edge).",
+            "type": "string",
+            "minLength": 1
+          },
+          "variant": {
+            "default": "default",
+            "type": "string",
+            "minLength": 1
+          },
+          "props": {
+            "description": "Component props, validated against the component manifest.",
+            "default": {},
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "from",
+          "to"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "metadata": {
+      "description": "Arbitrary JSON-compatible data; not interpreted.",
+      "$ref": "#/$defs/JsonValue"
+    }
+  },
+  "required": [
+    "version",
+    "figure"
+  ],
+  "additionalProperties": false,
+  "title": "Sumi figure (schema v1)",
+  "$defs": {
+    "JsonValue": {
+      "$ref": "#/$defs/__schema0"
+    },
+    "__schema0": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/__schema0"
+          }
+        },
+        {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/__schema0"
+          }
+        }
+      ]
+    }
+  }
+}

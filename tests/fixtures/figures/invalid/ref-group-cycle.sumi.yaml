@@ -1,0 +1,8 @@
+version: 1
+figure:
+  id: cycle
+groups:
+  - id: a
+    group: b
+  - id: b
+    group: a
