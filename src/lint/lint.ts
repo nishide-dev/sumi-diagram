@@ -9,8 +9,7 @@ import { formatDocPath } from "../core/diagnostics";
 import type { FigureCheck } from "../core/figure/check";
 import { getTheme } from "../core/theme/builtin";
 import { type LintConfig, type ResolvedLintConfig, resolveLintConfig } from "./config";
-import { createLintContext, type LintRule, toDiagnostic } from "./rule";
-import { BUILTIN_LINT_RULES } from "./rules";
+import { type AnyLintRule, createLintContext, isStructuralRule, toDiagnostic } from "./rule";
 
 /**
  * Exit codes of `sumi lint`:
@@ -40,8 +39,11 @@ export interface LintReport {
 export interface LintOptions extends CheckOptions {
   /** Rule levels, options and the warning budget. Validated; throws `LintConfigError`. */
   config?: LintConfig;
-  /** Rules to run. Defaults to {@link BUILTIN_LINT_RULES}. */
-  rules?: readonly LintRule[];
+  /**
+   * Rules to configure. Defaults to every built-in rule (`ALL_LINT_RULES`);
+   * `lintFigure()` runs the structural ones, the geometry lint the `geometry/*` ones.
+   */
+  rules?: readonly AnyLintRule[];
 }
 
 /**
@@ -54,7 +56,9 @@ export function runLintRules(check: FigureCheck, config: ResolvedLintConfig): Di
   const themeId = state.doc.figure?.theme;
   const context = createLintContext(state, themeId === undefined ? undefined : getTheme(themeId));
   return config.rules.flatMap(({ rule, severity, options }) =>
-    rule.run(context, options).map((f) => toDiagnostic(f, rule.id, severity, locate)),
+    !isStructuralRule(rule)
+      ? []
+      : rule.run(context, options).map((f) => toDiagnostic(f, rule.id, severity, locate)),
   );
 }
 

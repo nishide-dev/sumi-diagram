@@ -1,6 +1,6 @@
 # Lint ルール
 
-`sumi lint`（API: `lintFigure()`、`src/lint`）は、診断を集める段（`yaml` → `schema` → `ref` → `component` → `theme` → `profile`）と、**構造 lint**（stage `lint`）を実行する。構造 lint は描画前の文書だけを検査し、D2 を必要としない。描画後の SVG を検査する幾何 lint（stage `geometry`）は別の段である（#13）。
+`sumi lint`（API: `lintFigure()`、`src/lint`）は、診断を集める段（`yaml` → `schema` → `ref` → `component` → `theme` → `profile`）と、**構造 lint**（stage `lint`）を実行する。構造 lint は描画前の文書だけを検査し、D2 を必要としない。描画後の SVG を検査する幾何 lint（stage `geometry`、#13）は別の段で、`lintRenderedFigure()` / `lintGeometry()` が実行する（下記の「幾何 lint」）。
 
 構造 lint の規則は、前段で error になった要素（`CheckState.invalid` に含まれる要素と、その要素に依存する要素）を検査しない。そのため、1 つの誤りから lint の警告が連鎖して出ることはない。
 
@@ -58,9 +58,66 @@ lintFigure(text, {
 
 - CLI の `--max-warnings`（と設定ファイルの `maxWarnings`）は、指定した**全ファイルの warning の合計**で判定する。
 - `rules` の値は `"off" | "error" | "warning" | "info"`、または `{ level?, options? }`。書かなかった規則は既定の severity で有効になる。
-- 対象は `lint/*` の規則だけで、他の段の診断の severity は変えられない。
+- 対象は `lint/*` と `geometry/*` の規則だけで、他の段の診断の severity は変えられない。1 つの設定で両方の段を設定する（`lintFigure()` は `geometry/*` の設定を検証するだけで、実行しない）。
 - 未知の規則 ID（近い候補を示す）、不正な level、不正な options、options を取らない規則への options は、`LintConfigError` になる（図の診断ではなく使い方の誤り。exit code 2）。
 - 図ごとに規則を抑制するフィールドは、Figure Schema にはまだない。
+
+## 幾何 lint（stage `geometry`、#13）
+
+描画した SVG（`renderFigure()` → `inspectSvg()`）の幾何情報を検査する。ラベルの外接矩形は、D2 が SVG に埋め込んだのと同じ TTF（Theme のフォントセット）で**再計測**する（ブラウザは使わない。方法と許容誤差は [設計 §6.5](design/phase1.md)）。どの規則も図を変更しない。文字や図を黙って縮小することはなく、自動修正もない。
+
+API（`src/lint/geometry`）:
+
+```ts
+// lintFigure() の全診断 + 描画 + 幾何 lint。`sumi lint --geometry` 用
+const report = await lintRenderedFigure(text, { file, config });  // LintReport & { rendered? }
+// 描画済みの図だけを検査する。`sumi render` が描画結果に対して呼ぶ
+const diagnostics = lintGeometry(rendered, { config, source: text, file });
+```
+
+- `lintRenderedFigure()` は、`checkFigure()` の段に error があれば描画しない（`rendered` なし、幾何の診断なし）。描画に失敗した場合は `compile` / `backend` / `svg` の診断を加える（check 段の診断は重複させない）。終了コードの規則は `lintFigure()` と同じ。
+- `lintGeometry()` に `source`（YAML の本文）を渡すと、診断は `props` や `label` の位置を指す。渡さない場合は、IR の source map から要素の位置を使う（図全体の診断には位置が付かない）。
+- 不正な設定は `LintConfigError`。
+
+| code | 既定 | 内容 | 直し方 |
+|---|---|---|---|
+| `geometry/exceeds-page-width` | error | 出力幅（余白込み）が Profile の `maxWidth` を超える。pt のまま量子化せずに比較し、両方の大きさを mm で示す。 | `layout.direction: down` にする、ラベルを短くする、幅の広い Profile（`paper-double` など）を使う。 |
+| `geometry/exceeds-page-height` | error | 出力の高さが Profile の `maxHeight` を超える（`maxHeight` がある Profile だけ）。 | `layout.direction: right` にする、図を分ける、高さに余裕のある Profile を使う。 |
+| `geometry/text-too-small` | error | 描画されたラベルの文字サイズが Profile の `minFontSize` 未満。通常は `profile/font-too-small` が描画前に防ぐので、描画後の安全網。 | 文字サイズの大きい Theme / variant を使う。 |
+| `geometry/label-overflow` | error | ノード・グループのラベル（再計測）が、図形の中の文字を置ける範囲（下表）に収まらない。明示サイズ（`props.width` / `height`）が小さい場合は `props` を指す（D2 は明示サイズを保ち、ラベルを図形の外に出す）。 | 明示サイズを大きくするか外す。ラベルを短くするか改行する。文字の入る範囲が広い図形にする。 |
+| `geometry/out-of-canvas` | error | 図形・ラベル（再計測）・エッジの経路がキャンバスの外にはみ出す（切れて表示される）。 | ラベルを短くする。解消しなければ不具合として報告する。 |
+| `geometry/node-overlap` | warning | 2 つのノード・グループの図形（外接矩形）が重なり、グループの木でどちらも他方を含まない。子と祖先グループの重なり（意図した包含）は対象外。 | 明示サイズを見直す。同じグループに入れる。 |
+| `geometry/label-collision` | warning | ラベル（再計測）が、別の要素のラベル、または別のノードの図形と重なる（エッジのラベルとノードの図形を含む）。自分の図形との重なり、グループの図形との重なり（中の要素は意図して重ねて描く）は対象外。グループのラベルと子ノードの図形の重なりは対象。要素の組ごとに 1 件。 | ラベルを短くする。レイアウト（方向・グループ）を変える。 |
+| `geometry/edge-crosses-label` | warning | エッジの経路が、別の要素のラベル（再計測）を横切る。例: `direction: down` で上からコンテナに入るエッジが、中央上部のコンテナのラベルを横切る（#31）。自分のラベルは対象外（D2 はラベルの下の線をマスクする）。 | コンテナではなく中の要素どうしをつなぐ、`layout.direction` を変える、ラベルを短くする。 |
+| `geometry/aspect-distorted` | warning | 縦横比が固定の部品（`circle`、`square`）が、縦横の異なる大きさで描かれている。ELK は次数の多いノードや自己ループのあるノードを一方向に拡大する。 | ノードのエッジを減らす。縦横比が重要でなければ `ellipse` / `box` を使う。 |
+
+### 文字を置ける範囲（`geometry/label-overflow`）
+
+図形の外接矩形（stroke を含まない）から、D2 v0.9.0 の固定の比率で図形を復元する。ラベルは**行ごと**の矩形の 4 隅が範囲内にあれば収まっている（範囲は凸なので 4 隅で判定できる）。行ごとに判定するため、短い行と長い行がある複数行のラベルも菱形・楕円で正しく扱える。
+
+| 図形 | 範囲 |
+|---|---|
+| `box`（rectangle）、`square`、page、コンテナ | 外接矩形 |
+| `circle`、`ellipse`（oval） | 内接する楕円（ELK が円を引き伸ばした場合も、描かれた楕円） |
+| `diamond` | 4 辺の中点を結ぶ菱形 |
+| `hexagon` | 幅の 1/4 で折れる六角形 |
+| `parallelogram` | 斜辺の水平方向のずれ 26 unit（D2 の固定値。幅の半分まで） |
+| `cylinder` | 上の蓋の手前の縁（上端から 2 × 24 unit）から、下の蓋の上端（下端から 24 unit）までの胴体。24 unit は D2 の固定値（高さの 1/3 まで） |
+| `document` | 波形の下端より上（高さの 14 / 18.925） |
+| `label`（shape `text`） | 図形がないので検査しない |
+
+ラベルは枠線の内側半分（stroke 幅の半分）にかかってはいけない。許容誤差 1 unit（0.5pt）を差し引く。
+
+### 許容誤差と限界
+
+- 座標はすべて SVG の user unit（= D2 unit、0.5pt）。許容誤差は **1 unit（0.5pt）**: D2 は座標を整数または 0.5 単位で出力するため、接しているだけの図形・ラベルは問題にしない（重なりは 1 unit を超える深さが必要。はみ出しは 1 unit を超えたものだけ）。
+- ページの上限と最小文字サイズは、量子化せず pt の実数で比較する（浮動小数点の誤差 1e-6pt のみ許容）。
+- ラベルの矩形は、各行の advance 幅の合計 × 文字サイズ、高さは ascender から descender まで（`hhea`。同梱フォントでは合計がちょうど 1em）。実際のインク（字形の輪郭）ではなく、文字送りの箱で判定する。
+- カーニング・合字・shaping は扱わない。同梱の BIZ UD Gothic は `kern` / `GPOS` を持たないので、advance の合計がブラウザの描画幅と一致する。ほかのフォントセットを追加する場合は、カーニングの分（通常は数 % 以内）だけ幅を過大に見積もりうる。
+- 角丸（`radius`）は範囲に反映しない（ラベルは中央に置かれるため、角に届くことはない）。cylinder と document の衝突判定は外接矩形を使う。
+- `geometry/node-overlap` は外接矩形で判定する（円や菱形の角の空白でも重なりとみなす）。ELK は通常ノードを重ねないので、明示サイズや D2 の不具合の検出が目的。
+- エッジの経路は、3 次ベジェを 16 本の弦に分割して判定する（D2 の曲線は角の丸めだけなので誤差は許容誤差より十分小さい）。矢尻は判定しない。
+- 図ごとに規則を抑制するフィールドはまだない。誤検出は設定で規則を無効にするか severity を下げて扱う。
 
 ## 終了コード
 
@@ -115,4 +172,4 @@ figure.sumi.yaml:21:5 warning lint/ancestor-edge Edge edges[1] connects group "o
 
 ## 規則の追加
 
-規則は `defineRule()`（`src/lint/rule.ts`）で定義し、`BUILTIN_LINT_RULES`（`src/lint/rules/index.ts`）に加える。規則は `LintContext`（有効な要素、解決済みの部品とスタイル、Theme）を受け取り、`{ message, path, subject?, hint?, related? }` を返す。code・severity・位置情報は枠組みが付ける。options を取る規則は、既定値付きの Zod スキーマを `options` に指定する。規則は汎用的に保ち、特定分野に固有の検査は加えない。
+規則は `defineRule()`（`src/lint/rule.ts`）で定義し、`BUILTIN_LINT_RULES`（`src/lint/rules/index.ts`）に加える。幾何の規則は `defineGeometryRule()` で定義し、`BUILTIN_GEOMETRY_RULES`（`src/lint/geometry/rules.ts`）に加える（`GeometryContext` を受け取る）。規則は `LintContext`（有効な要素、解決済みの部品とスタイル、Theme）を受け取り、`{ message, path, subject?, hint?, related? }` を返す。code・severity・位置情報は枠組みが付ける。options を取る規則は、既定値付きの Zod スキーマを `options` に指定する。規則は汎用的に保ち、特定分野に固有の検査は加えない。

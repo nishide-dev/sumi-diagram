@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { z } from "zod";
 import type { Diagnostic } from "../core/diagnostics";
-import { LintConfigError, resolveLintConfig } from "./config";
+import { ALL_LINT_RULES, LintConfigError, resolveLintConfig } from "./config";
 import { formatLintJson, formatLintText, toLintJson } from "./format";
 import { compareDiagnostics, LINT_EXIT_CODES, type LintOptions, lintFigure } from "./lint";
 import { defineRule } from "./rule";
@@ -226,8 +226,13 @@ describe("config", () => {
   test("defaults: every built-in rule enabled with its default severity", () => {
     const { rules, maxWarnings } = resolveLintConfig();
     expect(rules.map((r) => [r.rule.id, r.severity])).toEqual(
-      BUILTIN_LINT_RULES.map((r) => [r.id, r.defaultSeverity]),
+      ALL_LINT_RULES.map((r) => [r.id, r.defaultSeverity]),
     );
+    // Structural rules first, then the geometry rules (#13).
+    expect(ALL_LINT_RULES.slice(0, BUILTIN_LINT_RULES.length)).toEqual([...BUILTIN_LINT_RULES]);
+    expect(
+      ALL_LINT_RULES.slice(BUILTIN_LINT_RULES.length).every((r) => r.id.startsWith("geometry/")),
+    ).toBe(true);
     expect(maxWarnings).toBeUndefined();
     expect(rules.find((r) => r.rule.id === "lint/long-label")?.options).toEqual({
       maxLineWidth: 40,

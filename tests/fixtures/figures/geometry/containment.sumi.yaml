@@ -1,0 +1,19 @@
+# Nested groups whose shapes contain their children's shapes on purpose,
+# with Latin and Japanese labels. Expected: no geometry diagnostics (in
+# particular no geometry/node-overlap for the intended containment).
+version: 1
+figure:
+  id: containment
+  profile: paper-single
+  layout:
+    direction: down
+groups:
+  - { id: system, label: システム }
+  - { id: core, label: Core, group: system }
+nodes:
+  - { id: api, component: box, label: API サーバ, group: core }
+  - { id: db, component: cylinder, label: "Database\n(primary)", group: core }
+  - { id: cache, component: circle, label: キャッシュ, group: system }
+edges:
+  - { from: api, to: db }
+  - { from: api, to: cache, label: 参照 }
