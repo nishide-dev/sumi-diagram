@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
 import { basename, dirname, isAbsolute, join } from "node:path";
+import { getProfile } from "../profile/builtin";
 import { createBuiltinRegistry } from "../registry/builtins";
 import { componentId } from "../registry/manifest";
 import {
@@ -512,8 +513,8 @@ describe("resolveStyle", () => {
 describe("built-in themes", () => {
   const registry = createBuiltinRegistry();
 
-  test("minimal and academic are registered and use the bundled font set", () => {
-    expect([...BUILTIN_THEMES.keys()]).toEqual(["minimal", "academic"]);
+  test("minimal, academic and slides are registered and use the bundled font set", () => {
+    expect([...BUILTIN_THEMES.keys()]).toEqual(["minimal", "academic", "slides"]);
     for (const t of BUILTIN_THEMES.values()) expect(t.fontSet.id).toBe(DEFAULT_FONT_SET_ID);
     for (const definition of BUILTIN_THEME_DEFINITIONS) {
       expect(validateTheme(definition).diagnostics).toEqual([]);
@@ -555,6 +556,26 @@ describe("built-in themes", () => {
     }
   });
 
+  test("slides meets presentation-16x9's minimum font size everywhere (#36)", () => {
+    const slides = BUILTIN_THEMES.get("slides");
+    const min = getProfile("presentation-16x9")?.typography.minFontSize.pt;
+    if (slides === undefined || min === undefined) throw new Error("missing slides or profile");
+    expect(min).toBe(14);
+    for (const manifest of registry.list()) {
+      for (const variant of manifest.variants) {
+        const target = { kind: manifest.kind, id: componentId(manifest), variant };
+        const { style } = resolveStyle(slides, target);
+        expect({ ...target, fontSize: style.fontSize.pt >= min }).toEqual({
+          ...target,
+          fontSize: true,
+        });
+        // D2's limits after the ×2 conversion (design doc §4.1).
+        expect(style.fontSize.pt).toBeLessThanOrEqual(50);
+        expect(style.strokeWidth.pt).toBeLessThanOrEqual(7.5);
+      }
+    }
+  });
+
   test("resolveTheme suggests the closest theme name", () => {
     expect(resolveTheme("academic").ok).toBe(true);
     const result = resolveTheme("minimall");
@@ -563,7 +584,7 @@ describe("built-in themes", () => {
       [
         "theme/unknown",
         ["figure", "theme"],
-        'Did you mean "minimal"? Available themes: minimal, academic.',
+        'Did you mean "minimal"? Available themes: minimal, academic, slides.',
       ],
     ]);
   });

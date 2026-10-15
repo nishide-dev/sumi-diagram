@@ -70,7 +70,7 @@ describe("theme stage", () => {
     });
     expect(summarize(state)).toEqual([["theme/unknown", "error", ["figure", "theme"], 4]]);
     expect(state.diagnostics[0]?.hint).toBe(
-      'Did you mean "academic"? Available themes: minimal, academic.',
+      'Did you mean "academic"? Available themes: minimal, academic, slides.',
     );
     expect(state.styles?.size).toBe(0);
   });
@@ -129,6 +129,12 @@ describe("profile stage", () => {
       'Font size 8pt of node "client" is below the minimum 14pt of profile "presentation-16x9".',
     );
     expect(state.invalid.has("n:dot")).toBe(false);
+  });
+
+  test("the slides theme meets presentation-16x9's minimum (#36)", async () => {
+    const text = await read("invalid/profile-font-too-small.sumi.yaml");
+    const { state } = checkFigure(text.replace("theme: minimal", "theme: slides"));
+    expect(state.diagnostics).toEqual([]);
   });
 
   test("the same figure passes with a profile whose minimum the theme meets", async () => {

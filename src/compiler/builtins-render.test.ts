@@ -20,6 +20,8 @@ import { D2_VERSION } from "../backends/d2/version";
 import { getProfile } from "../core/profile/builtin";
 import { BUILTIN_THEMES } from "../core/theme/builtin";
 import { d2UnitsToPt } from "../core/units";
+import { lintGeometry } from "../lint";
+import { renderFigure } from "../render";
 import { readSvgMetadata, sha256 } from "../render/finalize";
 import { compileFigure } from "./compile";
 import { elementClass } from "./d2";
@@ -100,6 +102,33 @@ describe.skipIf(!available)("built-in primitives render with D2", () => {
             });
           }
         }
+      },
+      TIMEOUT_MS,
+    );
+  }
+
+  // #36: a labeled figure renders on a slide with no diagnostic. The two wide
+  // examples fit 16:9; the tall top-down ones (pipeline, decision-flow) do
+  // not, by design (design doc §6.9).
+  for (const example of [
+    "examples/system-architecture/system-architecture.sumi.yaml",
+    "examples/grouped/grouped.sumi.yaml",
+  ]) {
+    test(
+      `${example} renders with theme slides and profile presentation-16x9`,
+      async () => {
+        const source = await Bun.file(join(ROOT, example)).text();
+        const result = await renderFigure(source, {
+          file: example,
+          overrides: { theme: "slides", profile: "presentation-16x9" },
+        });
+        if (!result.ok) throw new Error(JSON.stringify(result.diagnostics, null, 2));
+        const diagnostics = [...result.diagnostics, ...lintGeometry(result.value, { source })];
+        expect(diagnostics.map((d) => `${d.code}: ${d.message}`)).toEqual([]);
+        expect(result.value.metadata).toMatchObject({
+          theme: "slides",
+          profile: "presentation-16x9",
+        });
       },
       TIMEOUT_MS,
     );

@@ -62,7 +62,7 @@ describe("built-in components lower to standard D2 shapes", () => {
     );
   });
 
-  for (const theme of ["minimal", "academic"]) {
+  for (const { id: theme } of BUILTIN_THEME_DEFINITIONS) {
     test(`every component and variant (${theme})`, () => {
       const { ir, d2Source } = compile(primitivesFigure(theme));
       const seen = lowerings(ir);
@@ -152,6 +152,23 @@ describe("the same components under different themes", () => {
       source.replace(/^( *)style: \{\n[\s\S]*?^\1\}\n/gm, "").replace(/^#.*\n/, "");
     expect(withoutStyles(academic.d2Source)).toBe(withoutStyles(minimal.d2Source));
     expect(academic.d2Source).not.toBe(minimal.d2Source);
+  });
+});
+
+describe("the slides theme with the presentation profile (#36)", () => {
+  const presentation = (theme: string) =>
+    primitivesFigure(theme).replace("profile: paper-double", "profile: presentation-16x9");
+
+  test("every labeled component × variant passes the profile's font check", () => {
+    const { state } = checkFigure(presentation("slides"));
+    expect(state.diagnostics).toEqual([]);
+  });
+
+  test("the paper themes are rejected with profile/font-too-small by design", () => {
+    for (const theme of ["minimal", "academic"]) {
+      const codes = new Set(checkFigure(presentation(theme)).state.diagnostics.map((d) => d.code));
+      expect([...codes]).toEqual(["profile/font-too-small"]);
+    }
   });
 });
 
