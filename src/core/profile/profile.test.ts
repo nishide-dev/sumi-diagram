@@ -119,7 +119,12 @@ describe("validateProfile", () => {
   test("accepts a complete definition and normalizes lengths", () => {
     const result = validateProfile(paper);
     if (!result.ok) throw new Error("expected ok");
-    expect(result.value.margin).toEqual({ value: 2, unit: "mm", pt: (2 * 72) / 25.4 });
+    expect(result.value.margin).toEqual({
+      value: 2,
+      unit: "mm",
+      pt: 720 / 127,
+      exactPt: { num: 720n, den: 127n },
+    });
     expect(result.value.page.maxHeight?.unit).toBe("mm");
   });
 

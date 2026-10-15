@@ -25,9 +25,6 @@ export interface ConstrainInput {
   fonts?: Iterable<FontUsage>;
 }
 
-/** Tolerance for comparing pt values converted from different units. */
-const EPSILON_PT = 1e-9;
-
 const PROFILE_PATH: DocPath = ["figure", "profile"];
 
 /**
@@ -71,7 +68,7 @@ export function checkFontSizes(
 ): void {
   const min = profile.typography.minFontSize.pt;
   for (const { key, fontSizePt } of fonts) {
-    if (state.invalid.has(key) || fontSizePt + EPSILON_PT >= min) continue;
+    if (state.invalid.has(key) || fontSizePt >= min) continue;
     const { subject, path, name } = locateElement(state, key);
     state.diagnostics.push(
       errorAt(

@@ -38,7 +38,7 @@ function lengthField(bound: "positive" | "non-negative") {
       return z.NEVER;
     }
     const { length } = parsed;
-    if (bound === "positive" ? length.pt <= 0 : length.pt < 0) {
+    if (bound === "positive" ? length.exactPt.num <= 0n : length.exactPt.num < 0n) {
       ctx.addIssue({
         code: "custom",
         message: `Length ${JSON.stringify(input)} must be ${bound === "positive" ? "greater than zero" : "zero or more"}.`,

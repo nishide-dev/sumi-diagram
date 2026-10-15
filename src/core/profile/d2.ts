@@ -38,11 +38,11 @@ export interface D2LayoutArgs {
 /** Converts a profile's margin and layout spacing to D2 CLI arguments. */
 export function toD2LayoutArgs(profile: Profile): D2LayoutArgs {
   const value = (units: number): D2LayoutValue => ({ units, pt: d2UnitsToPt(units) });
-  const pad = value(roundToD2Units(profile.margin.pt));
-  const nodeNodeBetweenLayers = value(roundToD2Units(profile.layout.layerGap.pt));
+  const pad = value(roundToD2Units(profile.margin));
+  const nodeNodeBetweenLayers = value(roundToD2Units(profile.layout.layerGap));
   // round(N / 2) with .5 up, where N is the already rounded layer gap.
   const edgeNodeBetweenLayers = value(Math.floor(nodeNodeBetweenLayers.units / 2 + 0.5));
-  const padding = value(roundToD2Units(profile.layout.containerPadding.pt));
+  const padding = value(roundToD2Units(profile.layout.containerPadding));
   const p = padding.units;
   return {
     args: [
