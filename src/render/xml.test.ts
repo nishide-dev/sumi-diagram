@@ -69,6 +69,49 @@ describe("parseXml", () => {
       expect(failure(`<svg>& </svg>`)).toContain("entity");
     });
 
+    test("entity names never resolve through the object prototype", () => {
+      for (const name of ["constructor", "__proto__", "toString", "hasOwnProperty"]) {
+        expect(failure(`<svg>&${name};</svg>`)).toContain(`Undefined entity "&${name};"`);
+        expect(failure(`<svg a="&${name};"/>`)).toContain("Undefined entity");
+      }
+    });
+
+    test("raw characters outside the XML Char production, in every context", () => {
+      const bad: [string, string][] = [
+        ["NUL", "\u0000"],
+        ["a C0 control", "\u0001"],
+        ["a lone high surrogate", "\uD800"],
+        ["a lone low surrogate", "\uDC00"],
+        ["U+FFFE", "\uFFFE"],
+        ["U+FFFF", "\uFFFF"],
+      ];
+      const contexts = [
+        (c: string) => `<svg>a${c}b</svg>`,
+        (c: string) => `<svg a="x${c}"/>`,
+        (c: string) => `<svg><![CDATA[x${c}]]></svg>`,
+        (c: string) => `<svg><!-- x${c} --></svg>`,
+        (c: string) => `<!-- ${c} --><svg/>`,
+      ];
+      for (const [name, char] of bad) {
+        for (const context of contexts) {
+          const text = context(char);
+          const result = parseXml(text);
+          expect({ name, text, ok: result.ok }).toEqual({ name, text, ok: false });
+          if (!result.ok) {
+            expect(result.message).toMatch(/not allowed|surrogate/);
+            // The offset points at the offending character.
+            expect(result.column).toBe(text.indexOf(char) + 1);
+          }
+        }
+      }
+    });
+
+    test("supplementary-plane characters and allowed whitespace are accepted", () => {
+      const root = parse(`<svg a="😀\t">𠮷\r\n<![CDATA[😀]]><!-- 𝄞 --></svg>`);
+      expect(attribute(root, "a")).toBe("😀\t");
+      expect(textContent(root)).toBe("𠮷\r\n😀");
+    });
+
     test("processing instructions", () => {
       expect(failure(`<?xml-stylesheet href="x.css"?><svg/>`)).toContain("Processing instructions");
       expect(failure(`<svg><?php echo 1 ?></svg>`)).toContain("Processing instructions");

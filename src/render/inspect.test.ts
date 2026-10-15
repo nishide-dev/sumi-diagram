@@ -228,6 +228,54 @@ describe("inspectSvg", () => {
       });
     }
 
+    test("transforms on any measured element or its ancestors", () => {
+      const scale = 'transform="scale(2)" ';
+      const cases: [string, string][] = [
+        [
+          "shape group",
+          tinySvg([
+            grp,
+            a.replace('<g class="shape" >', `<g ${scale}class="shape" >`),
+            note,
+            edge0,
+            back,
+          ]),
+        ],
+        [
+          "connection path",
+          tinySvg([grp, a, note, edge0, back.replace("<path ", `<path ${scale}`)]),
+        ],
+        [
+          "element group",
+          tinySvg([grp, a.replace("<g class=", `<g ${scale}class=`), note, edge0, back]),
+        ],
+        [
+          "label",
+          tinySvg([grp, a.replace('<text x="45"', `<text ${scale}x="45"`), note, edge0, back]),
+        ],
+        [
+          "drawing svg",
+          tinySvg().replace('<svg class="d2-1 d2-svg"', `<svg ${scale}class="d2-1 d2-svg"`),
+        ],
+        ["root svg", tinySvg().replace("<svg xmlns=", `<svg ${scale}xmlns=`)],
+        [
+          "offset drawing svg",
+          tinySvg().replace('<svg class="d2-1 d2-svg"', '<svg x="5" class="d2-1 d2-svg"'),
+        ],
+      ];
+      for (const [where, svg] of cases) {
+        const diagnostics = failure(svg);
+        expect({ where, codes: [...new Set(codes(diagnostics))] }).toEqual({
+          where,
+          codes: ["svg/unsupported-geometry"],
+        });
+      }
+      // x="0" on the drawing is harmless.
+      inspect(
+        tinySvg().replace('<svg class="d2-1 d2-svg"', '<svg x="0" y="0" class="d2-1 d2-svg"'),
+      );
+    });
+
     test("an edge without exactly one connection path is invalid", () => {
       const noPath = back.replace(/<path [^>]*\/>/, "");
       expect(failure(tinySvg([grp, a, note, edge0, noPath]))).toMatchObject([

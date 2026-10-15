@@ -234,8 +234,23 @@ function findElementGroups(
 export function inspectSvg(svg: string, ir: FigureIR): Result<SvgInspection> {
   const read = readD2Svg(svg);
   if (!read.ok) return { ok: false, diagnostics: [read.diagnostic] };
-  const { drawingViewBox: viewBox, drawing } = read.doc;
+  const { drawingViewBox: viewBox, drawing, root } = read.doc;
   const diagnostics: Diagnostic[] = [];
+
+  // Every coordinate is read in the drawing's user space, so nothing above it may move it.
+  for (const svgElement of [root, drawing]) {
+    const where = svgElement === root ? "root <svg>" : 'D2 drawing <svg class="d2-svg">';
+    if (attribute(svgElement, "transform") !== undefined) {
+      diagnostics.push(unsupported(`The ${where} has a transform.`));
+    }
+  }
+  for (const name of ["x", "y"]) {
+    const value = attribute(drawing, name);
+    if (value !== undefined && parseNumber(value) !== 0) {
+      diagnostics.push(unsupported(`The D2 drawing <svg> is offset (${name}="${value}").`));
+    }
+  }
+  if (diagnostics.length > 0) return { ok: false, diagnostics };
 
   const groupsByKey = new Map<ElementKey, XmlElement[]>();
   for (const { group, classes } of findElementGroups(drawing, diagnostics)) {
@@ -307,7 +322,11 @@ export function inspectSvg(svg: string, ir: FigureIR): Result<SvgInspection> {
         });
         continue;
       }
-      const parsed = parsePath(attribute(paths[0] as XmlElement, "d") ?? "");
+      const connection = paths[0] as XmlElement;
+      if (attribute(connection, "transform") !== undefined) {
+        problems.push("the connection path has a transform");
+      }
+      const parsed = parsePath(attribute(connection, "d") ?? "");
       if (parsed.ok) geometry.path = parsed.segments;
       else problems.push(`connection path: ${parsed.message}`);
     } else {
@@ -321,10 +340,16 @@ export function inspectSvg(svg: string, ir: FigureIR): Result<SvgInspection> {
         });
         continue;
       }
+      const shape = shapes[0] as XmlElement;
+      if (attribute(shape, "transform") !== undefined) {
+        problems.push("the shape group has a transform");
+      }
       const bounds = new BoundsBuilder();
-      addShape(bounds, shapes[0] as XmlElement, problems);
+      addShape(bounds, shape, problems);
       const bbox = bounds.rect();
-      if (bbox !== undefined) geometry.bbox = bbox;
+      if (bbox !== undefined && !Object.values(bbox).every(Number.isFinite)) {
+        problems.push("the shape's extent is not finite");
+      } else if (bbox !== undefined) geometry.bbox = bbox;
       else if (!(element.kind === "node" && element.shape === "text")) {
         problems.push("the shape group draws nothing");
       }

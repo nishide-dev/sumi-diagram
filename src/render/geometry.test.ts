@@ -87,6 +87,13 @@ describe("parsePath", () => {
     fails("M 0 0 X 1", "Invalid path data");
     fails("M 0 0 Z 1 1", "after Z");
     fails("", "empty");
+    // Non-finite coordinates, from the input or from arithmetic overflow.
+    fails("M 1e999 0 L 1 1", "out of range");
+    fails("M 0 0 L 1 -1e400", "out of range");
+    fails("M 1.7e308 0 l 1.7e308 0", "non-finite");
+    fails("m 1.7e308 0 1.7e308 0", "non-finite");
+    fails("M 0 0 C 0 0 -1.7e308 0 1e308 0 S 1.7e308 0 1 1", "non-finite");
+    fails("M 0 0 h 1.7e308 h 1.7e308", "non-finite");
   });
 });
 

@@ -65,13 +65,14 @@ const NAME = /[A-Za-z0-9_:.\-·À-￿]*/y;
 const WHITESPACE = /[ \t\r\n]*/y;
 const XML_DECLARATION = /<\?xml[ \t\r\n][^?]*\?>/y;
 
-const PREDEFINED_ENTITIES: Readonly<Record<string, string>> = {
-  amp: "&",
-  lt: "<",
-  gt: ">",
-  quot: '"',
-  apos: "'",
-};
+/** The predefined entities. A `Map`, so names such as `constructor` never resolve through a prototype. */
+const PREDEFINED_ENTITIES: ReadonlyMap<string, string> = new Map([
+  ["amp", "&"],
+  ["lt", "<"],
+  ["gt", ">"],
+  ["quot", '"'],
+  ["apos", "'"],
+]);
 
 /** `true` for a code point allowed in XML 1.0 documents. */
 function isXmlChar(code: number): boolean {
@@ -83,6 +84,34 @@ function isXmlChar(code: number): boolean {
     (code >= 0xe000 && code <= 0xfffd) ||
     (code >= 0x10000 && code <= 0x10ffff)
   );
+}
+
+/**
+ * Rejects characters outside the XML 1.0 `Char` production anywhere in the
+ * document (text, attribute values, CDATA, comments, markup): C0 controls
+ * other than tab / LF / CR, lone surrogates, U+FFFE and U+FFFF. Scans by code
+ * point and reports the offset of the offending UTF-16 unit.
+ */
+function checkCharacters(text: string): void {
+  for (let i = 0; i < text.length; i++) {
+    const unit = text.charCodeAt(i);
+    if (unit >= 0x20 && unit < 0xd800) continue;
+    if (unit >= 0xd800 && unit <= 0xdbff) {
+      const next = text.charCodeAt(i + 1);
+      if (next >= 0xdc00 && next <= 0xdfff) {
+        i++; // A valid surrogate pair: a supplementary-plane character.
+        continue;
+      }
+      throw new XmlError("Unpaired surrogate (invalid UTF-16) in the document.", i);
+    }
+    if (unit >= 0xdc00 && unit <= 0xdfff) {
+      throw new XmlError("Unpaired surrogate (invalid UTF-16) in the document.", i);
+    }
+    if (!isXmlChar(unit)) {
+      const hex = unit.toString(16).toUpperCase().padStart(4, "0");
+      throw new XmlError(`Character U+${hex} is not allowed in XML.`, i);
+    }
+  }
 }
 
 /** Decodes entity and character references in `raw`, which starts at `offset` in the document. */
@@ -108,7 +137,7 @@ function decode(raw: string, offset: number): string {
       }
       decoded = String.fromCodePoint(code);
     } else {
-      decoded = PREDEFINED_ENTITIES[ref];
+      decoded = PREDEFINED_ENTITIES.get(ref);
     }
     if (decoded === undefined) {
       throw new XmlError(
@@ -149,6 +178,7 @@ class Parser {
   constructor(private readonly text: string) {}
 
   document(): XmlElement {
+    checkCharacters(this.text);
     if (this.text.startsWith("﻿")) this.pos = 1;
     XML_DECLARATION.lastIndex = this.pos;
     if (XML_DECLARATION.test(this.text)) this.pos = XML_DECLARATION.lastIndex;

@@ -90,7 +90,13 @@ export function parsePath(d: string): PathParseResult {
       };
     }
     if (match[1] !== undefined) tokens.push(match[1]);
-    else tokens.push(Number(match[2]));
+    else {
+      const value = Number(match[2]);
+      if (!Number.isFinite(value)) {
+        return { ok: false, message: `Number "${match[2]}" in path data is out of range.` };
+      }
+      tokens.push(value);
+    }
   }
 
   const segments: PathSegment[] = [];
@@ -199,11 +205,24 @@ export function parsePath(d: string): PathParseResult {
         current = subpathStart;
         break;
     }
+    // Relative offsets, reflections and degree elevation can overflow finite inputs.
+    const last = segments[segments.length - 1];
+    if (last !== undefined && !segmentIsFinite(last)) {
+      return { ok: false, message: `Path command "${command}" produces a non-finite coordinate.` };
+    }
     lastCubic = cubic;
     lastQuad = quad;
   }
   if (segments.length === 0) return { ok: false, message: "Path data is empty." };
   return { ok: true, segments };
+}
+
+const isFinitePoint = (p: Point): boolean => Number.isFinite(p.x) && Number.isFinite(p.y);
+
+function segmentIsFinite(segment: PathSegment): boolean {
+  return segment.command === "C"
+    ? isFinitePoint(segment.c1) && isFinitePoint(segment.c2) && isFinitePoint(segment.to)
+    : isFinitePoint(segment.to);
 }
 
 /** Reflection of `control` about `point`, or `point` itself without a previous control. */
