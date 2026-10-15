@@ -7,7 +7,8 @@
       "!.claude",
       "!**/dist",
       "!**/node_modules",
-      "!schema/*.schema.json"
+      "!schema/*.schema.json",
+      "!assets/fonts"
     ]
   },
   "formatter": {

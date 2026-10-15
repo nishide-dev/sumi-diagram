@@ -12,13 +12,10 @@
 import {
   type CheckState,
   type ElementKey,
-  edgeKey,
-  groupKey,
+  figureElements,
   invalidateDependents,
-  nodeKey,
 } from "../check-state";
 import type { Diagnostic, DiagnosticSubject, DocPath } from "../diagnostics";
-import type { FigureEdge, FigureGroup, FigureNode } from "../figure/schema";
 import type { Locator } from "../figure/yaml";
 import { type ComponentKind, componentId, type ResolvedComponent } from "./manifest";
 import type { Registry } from "./registry";
@@ -81,41 +78,16 @@ export function resolveComponents(state: CheckState, registry: Registry, locate:
 }
 
 function* elements(state: CheckState): Generator<Element> {
-  const { groups = [], nodes = [], edges = [] } = state.doc;
-  const each = <T>(list: (T | undefined)[]) =>
-    list.flatMap((value, index) => (value === undefined ? [] : [{ value, index }]));
-
-  for (const { value: g, index } of each<FigureGroup>(groups)) {
+  for (const entry of figureElements(state.doc)) {
+    const { kind, key, path, subject, element } = entry;
     yield {
-      kind: "group",
-      key: groupKey(g.id),
-      path: ["groups", index],
-      subject: { kind: "group", id: g.id },
-      component: g.component,
-      variant: g.variant,
-      props: {},
-    };
-  }
-  for (const { value: n, index } of each<FigureNode>(nodes)) {
-    yield {
-      kind: "node",
-      key: nodeKey(n.id),
-      path: ["nodes", index],
-      subject: { kind: "node", id: n.id },
-      component: n.component,
-      variant: n.variant,
-      props: n.props,
-    };
-  }
-  for (const { value: e, index } of each<FigureEdge>(edges)) {
-    yield {
-      kind: "edge",
-      key: edgeKey(e.id, index),
-      path: ["edges", index],
-      subject: { kind: "edge", id: e.id ?? `edges[${index}]` },
-      component: e.component,
-      variant: e.variant,
-      props: e.props,
+      kind,
+      key,
+      path,
+      subject,
+      component: element.component,
+      variant: element.variant,
+      props: entry.kind === "group" ? {} : entry.element.props,
     };
   }
 }

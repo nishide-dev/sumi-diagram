@@ -1,0 +1,8 @@
+version: 1
+figure:
+  id: theme-unknown
+  theme: academc
+nodes:
+  - id: a
+    component: box
+    label: A
