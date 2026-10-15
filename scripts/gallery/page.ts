@@ -108,12 +108,21 @@ function renderCommand(file: string, outcome: RenderOutcome): string {
 
 // ---------------------------------------------------------------- HTML
 
-const escapeHtml = (text: string) =>
+/** Escapes text for HTML text and (double- or single-quoted) attribute values. */
+export const escapeHtml = (text: string): string =>
   text
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+
+/** A relative path as a URL: each segment percent-encoded. */
+export const encodePath = (path: string): string =>
+  path.split("/").map(encodeURIComponent).join("/");
+
+/** A relative path as a `src` / `href` attribute value. */
+const urlAttribute = (path: string): string => escapeHtml(encodePath(path));
 
 /** Inline code spans in plain text: `x` → <code>x</code>. */
 const inlineCode = (text: string) =>
@@ -157,7 +166,7 @@ function htmlFigure(outcome: RenderOutcome, caption: string, alt: string): strin
   const body =
     outcome.svg === undefined
       ? `<p class="failed">Not rendered.</p>`
-      : `<img src="${escapeHtml(rel(outcome.rendering.output))}" alt="${escapeHtml(alt)}" loading="lazy">`;
+      : `<img src="${urlAttribute(rel(outcome.rendering.output))}" alt="${escapeHtml(alt)}" loading="lazy">`;
   const notes = diagnostics.map((d) => `<br><span class="failed">${inlineCode(d)}</span>`).join("");
   const size = outcome.svg === undefined ? "" : `<br>${escapeHtml(sizeText(outcome))}`;
   return `<figure>${body}<figcaption>${caption}${size}${notes}</figcaption></figure>`;
@@ -192,8 +201,8 @@ function htmlComponent({ sample, outcomes }: GalleryModel["components"][number])
       ),
     )
     .join("");
-  return `<section class="card" id="${anchor(entry)}">
-<header><h3>${escapeHtml(entry.id)}</h3><span class="kind">${entry.kind}</span></header>
+  return `<section class="card" id="${escapeHtml(anchor(entry))}">
+<header><h3>${escapeHtml(entry.id)}</h3><span class="kind">${escapeHtml(entry.kind)}</span></header>
 <p>${inlineCode(entry.description)}</p>
 <ul class="chips" aria-label="variants">${entry.variants.map((v) => `<li>${escapeHtml(v)}</li>`).join("")}</ul>
 <dl class="meta">${meta}</dl>
@@ -261,13 +270,13 @@ export function galleryHtml(model: GalleryModel): string {
   const toc = model.components
     .map(
       ({ sample }) =>
-        `<li><a href="#${anchor(sample.entry)}">${escapeHtml(sample.entry.id)}</a></li>`,
+        `<li><a href="#${escapeHtml(anchor(sample.entry))}">${escapeHtml(sample.entry.id)}</a></li>`,
     )
     .join("");
   const examples = model.examples
     .map(
       ({ source, title, outcome }) => `<section class="card">
-<header><h3>${escapeHtml(title)}</h3><a href="${escapeHtml(rel(source))}"><code>${escapeHtml(source)}</code></a></header>
+<header><h3>${escapeHtml(title)}</h3><a href="${urlAttribute(rel(source))}"><code>${escapeHtml(source)}</code></a></header>
 <div class="renders">${htmlFigure(outcome, `theme <code>${escapeHtml(outcome.theme)}</code> · profile <code>${escapeHtml(outcome.profile)}</code>`, title)}</div>
 </section>`,
     )
@@ -309,52 +318,86 @@ ${htmlComparison(model.comparison)}
 
 // ---------------------------------------------------------------- Markdown
 
-/** Escapes text for a Markdown table cell (inline code spans are kept). */
-const cell = (text: string) => text.replaceAll("|", "\\|").replaceAll("\n", " ");
+/**
+ * Plain text for GitHub-flavored Markdown, safe in paragraphs, headings and
+ * table cells: HTML is escaped (GitHub renders inline HTML), Markdown
+ * punctuation is backslash-escaped, `|` becomes `&#124;` (GFM splits table
+ * cells on `|` even inside code spans) and line breaks become spaces.
+ */
+export const mdText = (text: string): string =>
+  escapeHtml(text)
+    .replace(/[\\`*_[\]{}()#+\-.!~]/g, (c) => `\\${c}`)
+    .replaceAll("|", "&#124;")
+    .replace(/\r?\n/g, " ");
+
+/** Code in Markdown: `<code>` around {@link mdText} (a backtick in the text cannot end it). */
+export const mdCode = (text: string): string => `<code>${mdText(text)}</code>`;
+
+/** {@link mdText}, with the text's `x` spans rendered as code. */
+export const mdInline = (text: string): string =>
+  text
+    .split(/(`[^`]+`)/)
+    .map((part) => (/^`[^`]+`$/.test(part) ? mdCode(part.slice(1, -1)) : mdText(part)))
+    .join("");
+
+/** A fenced code block whose fence is longer than any backtick run in `code`. */
+export function mdFence(code: string, language: string): string {
+  const longest = Math.max(0, ...[...code.matchAll(/`+/g)].map((m) => m[0].length));
+  const fence = "`".repeat(Math.max(3, longest + 1));
+  return `${fence}${language}\n${code.trimEnd()}\n${fence}`;
+}
 
 function mdImage(outcome: RenderOutcome, alt: string): string {
   if (outcome.svg === undefined) return "_not rendered_";
-  return `<img src="${rel(outcome.rendering.output)}" alt="${escapeHtml(alt)}">`;
+  return `<img src="${urlAttribute(rel(outcome.rendering.output))}" alt="${escapeHtml(alt).replaceAll("|", "&#124;")}">`;
 }
 
+/** A link to a repository file: the path as code, the target URL-encoded. */
+const mdLink = (path: string) => `[${mdCode(path)}](${encodePath(rel(path))})`;
+
 function mdCaption(outcome: RenderOutcome): string {
-  const notes = diagnosticSummary(outcome.diagnostics).map((d) => `<br>${cell(d)}`);
-  return `${sizeText(outcome)}${notes.join("")}`;
+  const notes = diagnosticSummary(outcome.diagnostics).map((d) => `<br>${mdInline(d)}`);
+  return `${mdText(sizeText(outcome))}${notes.join("")}`;
 }
+
+/** GitHub's anchor for a component heading: lowercase, punctuation other than `-` dropped. */
+const mdAnchor = (entry: CatalogEntry) =>
+  entry.id
+    .toLowerCase()
+    .replace(/[^a-z0-9 _-]/g, "")
+    .replaceAll(" ", "-");
 
 function mdComponent({ sample, outcomes }: GalleryModel["components"][number]): string {
   const { entry } = sample;
-  const lines = [`### ${entry.id}`, "", `${entry.description}`, ""];
+  const lines = [`### ${mdText(entry.id)}`, "", mdInline(entry.description), ""];
   const fields = [
     ["kind", entry.kind],
     ["variants", entry.variants.join(", ")],
     ["since", entry.since],
     ...manifestFields(entry),
   ];
-  lines.push(fields.map(([k, v]) => `**${k}**: \`${v}\``).join(" · "), "");
+  lines.push(fields.map(([k, v]) => `**${mdText(k ?? "")}**: ${mdCode(v ?? "")}`).join(" · "), "");
   const props = propRows(entry);
   if (props.length === 0) lines.push("No props.", "");
   else {
     lines.push("| prop | type | required | description |", "| --- | --- | --- | --- |");
     for (const p of props) {
       lines.push(
-        `| \`${p.name}\` | \`${cell(p.type)}\` | ${p.required ? "yes" : "no"} | ${cell(p.description)} |`,
+        `| ${mdCode(p.name)} | ${mdCode(p.type)} | ${p.required ? "yes" : "no"} | ${mdInline(p.description)} |`,
       );
     }
     lines.push("");
   }
   lines.push(
-    `| ${outcomes.map((o) => `\`${o.theme}\``).join(" | ")} |`,
+    `| ${outcomes.map((o) => mdCode(o.theme)).join(" | ")} |`,
     `| ${outcomes.map(() => "---").join(" | ")} |`,
     `| ${outcomes.map((o) => mdImage(o, `${entry.id}, theme ${o.theme}`)).join(" | ")} |`,
-    `| ${outcomes.map((o) => `\`${renderCommand(sample.fileName, o)}\`<br>${mdCaption(o)}`).join(" | ")} |`,
+    `| ${outcomes.map((o) => `${mdCode(renderCommand(sample.fileName, o))}<br>${mdCaption(o)}`).join(" | ")} |`,
     "",
     "<details>",
-    `<summary>Source: <code>${sample.fileName}</code></summary>`,
+    `<summary>Source: <code>${escapeHtml(sample.fileName)}</code></summary>`,
     "",
-    "```yaml",
-    sample.source.trimEnd(),
-    "```",
+    mdFence(sample.source, "yaml"),
     "",
     "</details>",
     "",
@@ -363,33 +406,36 @@ function mdComponent({ sample, outcomes }: GalleryModel["components"][number]): 
 }
 
 export function galleryMarkdown(model: GalleryModel): string {
+  const profile = model.components[0]?.outcomes[0]?.profile ?? "";
   const lines = [
     "# Sumi component gallery",
     "",
-    `> ${GENERATED_NOTE} The same content as a standalone page: [\`index.html\`](index.html).`,
+    `> ${mdInline(GENERATED_NOTE)} The same content as a standalone page: [${mdCode("index.html")}](index.html).`,
     "",
     "- [Components](#components)",
     ...model.components.map(
-      ({ sample }) => `  - [${sample.entry.id}](#${sample.entry.id.replace("/", "")})`,
+      ({ sample }) => `  - [${mdText(sample.entry.id)}](#${mdAnchor(sample.entry)})`,
     ),
     "- [Examples](#examples)",
     "- [Themes and profiles](#themes-and-profiles)",
     "",
     "## Components",
     "",
-    `Every built-in component with every variant, under every built-in theme (profile \`${model.components[0]?.outcomes[0]?.profile ?? ""}\`). Each sample is the source shown below it; the other themes are rendered from the same source with \`--theme\`.`,
+    mdInline(
+      `Every built-in component with every variant, under every built-in theme (profile \`${profile}\`). Each sample is the source shown below it; the other themes are rendered from the same source with \`--theme\`.`,
+    ),
     "",
     ...model.components.map(mdComponent),
     "## Examples",
     "",
-    "The committed SVGs of `examples/`, rendered from their sources as written.",
+    mdInline("The committed SVGs of `examples/`, rendered from their sources as written."),
     "",
   ];
   for (const { source, title, outcome } of model.examples) {
     lines.push(
-      `### ${title}`,
+      `### ${mdText(title)}`,
       "",
-      `[\`${source}\`](${rel(source)}) · theme \`${outcome.theme}\` · profile \`${outcome.profile}\` · ${mdCaption(outcome)}`,
+      `${mdLink(source)} · theme ${mdCode(outcome.theme)} · profile ${mdCode(outcome.profile)} · ${mdCaption(outcome)}`,
       "",
       mdImage(outcome, title),
       "",
@@ -401,18 +447,20 @@ export function galleryMarkdown(model: GalleryModel): string {
     "| theme | description | font set |",
     "| --- | --- | --- |",
     ...[...BUILTIN_THEMES.values()].map(
-      (t) => `| \`${t.id}\` | ${cell(t.description ?? "")} | \`${t.fontSet.id}\` |`,
+      (t) => `| ${mdCode(t.id)} | ${mdText(t.description ?? "")} | ${mdCode(t.fontSet.id)} |`,
     ),
     "",
     `| ${PROFILE_HEADER.join(" | ")} |`,
     `| ${PROFILE_HEADER.map(() => "---").join(" | ")} |`,
-    ...profileRows().map(([id, ...rest]) => `| \`${id}\` | ${rest.map(cell).join(" | ")} |`),
+    ...profileRows().map(
+      ([id, ...rest]) => `| ${mdCode(id ?? "")} | ${rest.map(mdText).join(" | ")} |`,
+    ),
     "",
     "### One figure, every theme × profile",
     "",
-    COMPARISON_NOTE,
+    mdInline(COMPARISON_NOTE),
     "",
-    `| theme \\ profile | ${PROFILES.map((p) => `\`${p}\``).join(" | ")} |`,
+    `| theme \\ profile | ${PROFILES.map(mdCode).join(" | ")} |`,
     `| --- | ${PROFILES.map(() => "---").join(" | ")} |`,
   );
   for (const theme of THEMES) {
@@ -422,9 +470,9 @@ export function galleryMarkdown(model: GalleryModel): string {
       );
       return o === undefined
         ? ""
-        : `${mdImage(o, `${model.comparison.source}, ${theme}, ${profile}`)}<br>\`${renderCommand(model.comparison.source, o)}\`<br>${mdCaption(o)}`;
+        : `${mdImage(o, `${model.comparison.source}, ${theme}, ${profile}`)}<br>${mdCode(renderCommand(model.comparison.source, o))}<br>${mdCaption(o)}`;
     });
-    lines.push(`| \`${theme}\` | ${cells.join(" | ")} |`);
+    lines.push(`| ${mdCode(theme)} | ${cells.join(" | ")} |`);
   }
   lines.push("");
   return lines.join("\n");
