@@ -24,7 +24,7 @@ tarball には次が入っています。
 | `bin/sumi` | Sumi 本体（`bun build --compile` の単一実行ファイル） |
 | `libexec/sumi/d2` | 固定版の D2 CLI v0.9.0（公式バイナリを無改変で同梱。MPL-2.0） |
 | `share/sumi/fonts/` | 同梱フォント（BIZ UD ゴシック。SIL OFL 1.1） |
-| `LICENSE`・`licenses/`・`NOTICE` | Sumi（MIT）・D2・フォントのライセンス、出典と版 |
+| `LICENSE`・`licenses/`・`NOTICE` | Sumi（MIT）と同梱物（Bun ランタイム・bundle した npm パッケージ・D2・フォント）のライセンス、出典と版 |
 | `SHA256SUMS` | tarball 内の全ファイルの sha256 |
 
 ```sh

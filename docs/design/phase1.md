@@ -620,7 +620,12 @@ layout:
 6. **smoke test（`scripts/smoke-release.ts`）**: tarball を空白を含む一時ディレクトリに展開し、リポジトリの外の空のディレクトリから、`PATH` を `/usr/bin:/bin:/usr/sbin:/sbin` に絞り（Bun・Node.js が見えないことも確認する）、`HOME` を一時ディレクトリにし、`SUMI_D2_PATH` を外して実行する。tarball と中身の sha256、`sumi --version` と `VERSION` の一致、`sumi doctor --json`（compiled・D2 は `bundled`・フォントの sha256）、日本語ラベルの図の `render`（終了コード 0、SVG が XML として正しく、ラベルを含む）を、バイナリ直接とシンボリックリンク経由の両方で確認する。release.yml の各ターゲットと、PR ごとの ci.yml の `release` ジョブ（linux-x64）で同じスクリプトを使う。
 7. **バージョン**: バイナリは `package.json` の `version` を表示するため、ビルドの `--version` と tag は `package.json` と一致しなければならない（不一致はビルドと release.yml の preflight で失敗）。リリースノートは `docs/releases/v<version>.md` に置き、無ければ release.yml が失敗する。
 8. **npm には公開しない**: `sumi` は npm で使用済みの名前で、パッケージ名は `sumi-diagram`。D2 とフォントを同梱する必要があり、npm の配布形態（`bunx` 等）では D2 の取得とプラットフォームごとの配布を別に設計する必要がある。`package.json` の `private: true` は維持し、必要になれば別の Issue で検討する。
-9. **ライセンス**: Sumi は MIT（#41）。tarball には Sumi の `LICENSE`、D2 の `LICENSE.txt`（MPL-2.0）と `THIRD_PARTY_NOTICES.txt`、フォントの `OFL.txt` を入れ、`NOTICE` に各同梱物の出典・版・ライセンス（バイナリに含まれる Bun と npm 依存のライセンスも）をまとめる。ビルドは LICENSE が無いと失敗し、release.yml も tag のときに LICENSE の存在を確認する。
+9. **ライセンス**: Sumi は MIT（#41）。tarball には次のライセンス文を入れ、`NOTICE` に各同梱物の出典・版・ライセンスとファイルの場所をまとめる。ビルドはどれかが欠けると失敗し、smoke test も存在を確認する。release.yml も tag のときに LICENSE の存在を確認する。
+   - Sumi: `LICENSE`（MIT）。
+   - バイナリに bundle される npm パッケージ: `licenses/npm/<package>/LICENSE`。対象は固定のリストではなく、`bun build --compile --metafile` の入力から `node_modules/` 配下のパッケージを導出する（推移的な依存を含め、実際に bundle されたものだけ。現在は commander・semver・yaml・zod）。各パッケージのディレクトリのライセンスファイル（著作権表示・許諾・免責を含む本文）をそのままコピーし、無ければビルドを失敗させる。
+   - Bun ランタイム: `licenses/bun/LICENSE.md`。Bun のリポジトリにある唯一のライセンス文書で、`.bun-version` の版の `LICENSE.md` を `scripts/release/bun/` に固定して置く（`VERSION` が `.bun-version` と違えばビルドが失敗する）。Bun 本体は MIT、JavaScriptCore / WebKit（LGPL-2）と tinycc（LGPL-2.1）などを静的リンクしており、同文書にそれらの一覧・ライセンス・パッチ済み WebKit のソース（oven-sh/webkit）と再リンクの手順が書かれている。
+   - D2: `licenses/d2/LICENSE.txt`（MPL-2.0）と `THIRD_PARTY_NOTICES.txt`。フォント: `licenses/biz-ud-gothic/OFL.txt`。
+   - **未解決（要判断）**: (a) LGPL の静的リンクについて、Bun の LICENSE.md は「利用者が改変・再リンクできるよう、アプリケーションをオブジェクト形式で提供する」ことを求める LGPL の条項を引用している。`bun build --compile` の実行ファイルを再配布する側（Sumi）に、同じ義務（Sumi の JS バンドルを再リンク可能な形で提供すること等）がどこまで及ぶかは Bun が明示しておらず、この Issue では判断しない。Sumi のソースは公開リポジトリにあり、tag から同じバイナリを再ビルドできる。(b) Bun が静的リンクする MIT / BSD / Apache-2.0 等のライブラリ（boringssl・ICU など）のライセンス本文は Bun 自身の配布物にも含まれておらず、tarball には Bun の LICENSE.md（一覧とリンク）だけを入れている。本文の同梱が必要かどうかも未判断として残す。
 
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
