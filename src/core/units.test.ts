@@ -95,10 +95,16 @@ describe("parseLength", () => {
     expect(ptOf("-100000pt")).toBe(-100000);
   });
 
-  test("keeps long decimals finite", () => {
-    const tiny = `0.${"0".repeat(400)}1pt`;
-    expect(ptOf(tiny)).toBe(0);
-    expect(ptOf(`1.${"0".repeat(400)}mm`)).toBeCloseTo(360 / 127, 12);
+  test("keeps tiny and long decimals finite and non-zero", () => {
+    expect(ptOf("0.000000000000000000001pt")).toBe(1e-21);
+    expect(ptOf("0.000000000000000000001mm")).toBeCloseTo((1e-21 * 360) / 127, 35);
+    expect(ptOf("-0.000000000000000000001in")).toBe(-72e-21);
+    expect(ptOf(`0.${"0".repeat(299)}1pt`)).toBe(1e-300);
+    expect(ptOf(`0.${"0".repeat(400)}1pt`)).toBe(0); // below the smallest float
+    expect(ptOf(`1.${"0".repeat(400)}mm`)).toBe(360 / 127);
+    expect(ptOf(`7.${"0".repeat(400)}1pt`)).toBe(7);
+    expect(ptOf(`99999.${"9".repeat(400)}pt`)).toBe(100000);
+    expect(ptOf("12345.678901234567890123pt")).toBeCloseTo(12345.678901234567, 10);
   });
 });
 

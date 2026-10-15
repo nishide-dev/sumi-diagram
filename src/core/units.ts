@@ -229,12 +229,25 @@ function floorDiv(a: bigint, b: bigint): bigint {
 }
 
 /**
- * The float nearest to a rational. Long decimals can have numerators and
- * denominators beyond the float range, so those are split into an integer and
- * a fraction first.
+ * A float for a rational, correctly rounded when numerator and denominator are
+ * safe integers and within 1 ulp otherwise. Long decimals have numerators and
+ * denominators far beyond the float range (e.g. 10^400), so the quotient is
+ * computed in BigInt with 64 significant bits and then scaled by a power of two.
  */
 function toNumber({ num, den }: Rational): number {
   const safe = BigInt(Number.MAX_SAFE_INTEGER);
   if (num <= safe && -num <= safe && den <= safe) return Number(num) / Number(den);
-  return Number(num / den) + Number(((num % den) * 10n ** 20n) / den) / 1e20;
+  const magnitude = num < 0n ? -num : num;
+  // Choose `shift` so that magnitude · 2^shift / den has about 64 bits.
+  const shift = 64 - (bitLength(magnitude) - bitLength(den));
+  const quotient =
+    shift >= 0 ? (magnitude << BigInt(shift)) / den : magnitude / (den << BigInt(-shift));
+  // Scale in two steps so an intermediate power of two does not underflow.
+  const half = Math.trunc(-shift / 2);
+  const value = Number(quotient) * 2 ** half * 2 ** (-shift - half);
+  return num < 0n ? -value : value;
+}
+
+function bitLength(value: bigint): number {
+  return value === 0n ? 0 : value.toString(2).length;
 }

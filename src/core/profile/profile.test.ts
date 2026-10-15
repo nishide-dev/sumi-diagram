@@ -170,6 +170,15 @@ describe("validateProfile", () => {
     ]);
   });
 
+  test("keeps a tiny positive length positive", () => {
+    const result = validateProfile({
+      ...paper,
+      typography: { minFontSize: "0.000000000000000000001pt" },
+    });
+    if (!result.ok) throw new Error("expected ok");
+    expect(result.value.typography.minFontSize.pt).toBeGreaterThan(0);
+  });
+
   test("requires positive page limits and font size", () => {
     const result = validateProfile({ ...paper, typography: { minFontSize: "0pt" } });
     expect(result.diagnostics.map((d) => [d.code, d.message])).toEqual([
