@@ -66,6 +66,12 @@ lintFigure(text, {
 
 描画した SVG（`renderFigure()` → `inspectSvg()`）の幾何情報を検査する。ラベルの外接矩形は、D2 が SVG に埋め込んだのと同じ TTF（Theme のフォントセット）で**再計測**する（ブラウザは使わない。方法と許容誤差は [設計 §6.5](design/phase1.md)）。どの規則も図を変更しない。文字や図を黙って縮小することはなく、自動修正もない。
 
+CLI:
+
+- `sumi lint --geometry <files...>`: `lintFigure()` の検査に加えて、各ファイルを D2 で描画し（ファイルは書かない）、幾何 lint を実行する（`lintRenderedFigure()`）。check 段に error があるファイルは描画しない。D2 がない場合は `backend/*` の error になる（exit 1）。`--config` / `--rule` で `geometry/*` も設定できる。
+- `sumi render <file>`: 描画結果に幾何 lint を既定の設定で実行し（`lintGeometry()`）、ほかの診断と一緒に stderr に出す。**error があっても SVG は書き出す**（はみ出しや超過を目で確認できるように）が、終了コードは 1 になる。`--no-geometry` で省ける。
+- `sumi doctor`: 同梱フォントの metrics（`hmtx` など）を読めるかを `geometry-lint` として報告する（必須ではない）。
+
 API（`src/lint/geometry`）:
 
 ```ts

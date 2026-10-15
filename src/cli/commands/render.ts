@@ -16,7 +16,13 @@
  *   exits 2.
  * - Text mode: diagnostics → stderr; `Wrote …` → stdout (stderr with `-o -`).
  *   `--json`: `{ version, file, output, d2, diagnostics, summary }` → stdout.
- * - exit: 0 rendered (warnings allowed); 1 errors; 2 usage errors.
+ * - The rendered figure is checked by the geometry rules (`lintGeometry()`,
+ *   #13; default configuration) unless `--no-geometry`. Their diagnostics are
+ *   reported with the others. The SVG is written even when they contain
+ *   errors (e.g. the figure is wider than the profile allows), so it can be
+ *   inspected; the exit code is still 1.
+ * - exit: 0 rendered without errors (warnings allowed); 1 errors (including
+ *   geometry errors, with the SVG written); 2 usage errors.
  */
 
 import { basename } from "node:path";
@@ -32,6 +38,7 @@ import {
   formatLintText,
   LINT_JSON_VERSION,
   type LintJson,
+  lintGeometry,
   summarize,
 } from "../../lint";
 import { renderFigure } from "../../render";
@@ -56,6 +63,8 @@ export interface RenderCommandOptions {
   theme?: string;
   profile?: string;
   json?: boolean;
+  /** Run the geometry rules on the rendered figure (default; `--no-geometry` turns it off). */
+  geometry?: boolean;
   color: boolean;
 }
 
@@ -162,7 +171,11 @@ export async function renderCommand(
     }
   }
 
-  const diagnostics = [...result.diagnostics].sort(compareDiagnostics);
+  const diagnostics = [...result.diagnostics];
+  if (result.ok && options.geometry !== false) {
+    diagnostics.push(...lintGeometry(result.value, { source: text, file }));
+  }
+  diagnostics.sort(compareDiagnostics);
   const summary = summarize(diagnostics);
   if (options.json) {
     const json: RenderJson = {
@@ -194,7 +207,7 @@ export async function renderCommand(
     }
     if (d2Written !== null) log.write(`Wrote ${d2Written}.\n`);
   }
-  return result.ok ? EXIT.ok : EXIT.failed;
+  return result.ok && summary.errors === 0 ? EXIT.ok : EXIT.failed;
 }
 
 /**

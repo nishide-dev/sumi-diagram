@@ -9,6 +9,7 @@ import { checkD2Version, D2_PATH_ENV, findD2Binary } from "../../backends/d2/bin
 import { D2_VERSION, d2ReleaseAsset } from "../../backends/d2/version";
 import { SUMI_VERSION } from "../../core/figure/validate";
 import { BUILTIN_FONT_SETS, BUNDLED_FONT_SHA256, FONT_ASSETS_DIR } from "../../core/theme/fonts";
+import { loadFontMetrics } from "../../lint/metrics";
 import { type CliContext, EXIT, type ExitCode } from "../io";
 
 export const DOCTOR_JSON_VERSION = 1;
@@ -137,12 +138,40 @@ async function checkFonts(): Promise<DoctorCheck> {
   };
 }
 
+/**
+ * Geometry lint (#13) re-measures labels with the font sets' metrics (`hmtx`
+ * via `cmap`); it runs wherever D2 renders. Checks that every font file's
+ * metrics can be read. Not required: rendering works without it.
+ */
 function geometryLintCheck(): DoctorCheck {
+  const problems: string[] = [];
+  const files: { fontSet: string; slot: string; path: string; unitsPerEm?: number }[] = [];
+  for (const set of BUILTIN_FONT_SETS.values()) {
+    const slots = { regular: set.regular, bold: set.bold, italic: set.italic, mono: set.mono };
+    for (const [slot, path] of Object.entries(slots)) {
+      if (path === undefined) continue;
+      const shown = relative(FONT_ASSETS_DIR, path);
+      try {
+        const metrics = loadFontMetrics(path);
+        files.push({ fontSet: set.id, slot, path: shown, unitsPerEm: metrics.unitsPerEm });
+      } catch (error) {
+        problems.push(`${shown} (${error instanceof Error ? error.message : String(error)})`);
+        files.push({ fontSet: set.id, slot, path: shown });
+      }
+    }
+  }
   return {
     id: "geometry-lint",
-    status: "skipped",
     required: false,
-    message: "Geometry lint (issue #13) is not available yet; nothing to check.",
+    status: problems.length === 0 ? "ok" : "error",
+    message:
+      problems.length === 0
+        ? `font metrics readable for ${files.length} font files; geometry lint runs with render and lint --geometry (needs D2)`
+        : `Cannot read font metrics for geometry lint: ${problems.join(", ")}`,
+    ...(problems.length > 0 && {
+      hint: "Restore assets/fonts from the Sumi distribution; geometry lint measures labels with these files.",
+    }),
+    details: { files },
   };
 }
 

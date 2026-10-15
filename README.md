@@ -41,6 +41,7 @@ bun run d2:install
 sumi render figure.sumi.yaml                     # figure.svg を出力
 sumi render figure.sumi.yaml -o out.svg --emit-d2 out.d2 --profile paper-double --theme academic
 sumi lint figures/*.sumi.yaml --max-warnings 0   # 描画せずに検査
+sumi lint --geometry figure.sumi.yaml            # D2 で描画し、幅・文字のはみ出し・重なりも検査
 sumi fmt figure.sumi.yaml                        # その場で整形（--check で検査のみ）
 sumi doctor                                      # D2・同梱フォントなど環境の確認
 sumi catalog --kind node                         # 使える部品の一覧
@@ -48,10 +49,10 @@ sumi catalog --kind node                         # 使える部品の一覧
 
 | コマンド | 内容 | 主なオプション |
 | --- | --- | --- |
-| `render <file>` | 全段（D2 を含む）を実行し、SVG を書き出す。既定の出力先は入力の `.sumi.yaml` を `.svg` に替えたパス。書き込みは一時ファイル経由で行う | `-o, --out <file>`（`-` で stdout）、`--emit-d2 <file>`、`--theme <name>`・`--profile <name>`（ファイルを編集せずに上書き）、`--json` |
-| `lint <files...>` | 描画せずに schema・参照・部品・Theme・Profile と構造 lint を検査する（[規則の一覧](docs/lint-rules.md)） | `--json`、`--config <lint.json>`、`--rule <id>=<level>`（繰り返し可）、`--max-warnings <n>`（全ファイルの合計） |
+| `render <file>` | 全段（D2 を含む）を実行し、SVG を書き出す。続けて描画結果に幾何 lint（`geometry/*`。ページ幅の超過・ラベルのはみ出しなど）を実行する。幾何 lint に error があっても SVG は書き出し（確認できるように）、終了コードは 1 になる。既定の出力先は入力の `.sumi.yaml` を `.svg` に替えたパス。書き込みは一時ファイル経由で行う | `-o, --out <file>`（`-` で stdout）、`--emit-d2 <file>`、`--theme <name>`・`--profile <name>`（ファイルを編集せずに上書き）、`--no-geometry`（幾何 lint を省く）、`--json` |
+| `lint <files...>` | 描画せずに schema・参照・部品・Theme・Profile と構造 lint を検査する。`--geometry` を付けると D2 で描画し（ファイルは書かない）、幾何 lint も実行する（[規則の一覧](docs/lint-rules.md)） | `--geometry`、`--json`、`--config <lint.json>`、`--rule <id>=<level>`（繰り返し可。`geometry/*` も可）、`--max-warnings <n>`（全ファイルの合計） |
 | `fmt <files...>` | YAML を意味を変えずに整形する（コメント・引用符・キー順は保つ）。YAML として不正なファイルは整形しない | `--check`（書き込まずに未整形のファイルを列挙）、`--stdout`、`--canonical-order`（既知のキーを schema の順に並べる） |
-| `doctor` | Sumi / Bun のバージョン、D2 の有無とバージョン、同梱フォントの sha256 を確認する | `--json` |
+| `doctor` | Sumi / Bun のバージョン、D2 の有無とバージョン、同梱フォントの sha256、幾何 lint 用のフォントの metrics を読めるかを確認する | `--json` |
 | `catalog` | 部品の一覧（`--json` は `buildCatalog()` の出力そのもの） | `--json`、`--kind node\|group\|edge` |
 
 ### 出力先と終了コード
@@ -64,7 +65,7 @@ sumi catalog --kind node                         # 使える部品の一覧
 | 終了コード | 意味 |
 | --- | --- |
 | 0 | 成功（warning・info はあってもよい） |
-| 1 | 問題あり: error がある、warning が `--max-warnings` を超えた、`fmt --check` で未整形のファイルがある、`fmt` の入力が YAML として不正、`doctor` の必須項目が失敗した |
+| 1 | 問題あり: error がある（`render` の幾何 lint の error を含む。SVG は書き出す）、warning が `--max-warnings` を超えた、`fmt --check` で未整形のファイルがある、`fmt` の入力が YAML として不正、`doctor` の必須項目が失敗した |
 | 2 | 使い方の誤り・内部エラー: 不正なフラグや設定、読めない / 書けないファイル、未知の theme / profile、例外 |
 
 - 色は端末への出力にだけ付けます。`--no-color` または `NO_COLOR=1` で無効、`FORCE_COLOR=1` で常に有効になります。
