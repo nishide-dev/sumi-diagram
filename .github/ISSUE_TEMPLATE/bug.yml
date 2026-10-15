@@ -1,0 +1,41 @@
+name: Bug report
+description: 不具合の報告
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **タイトルは英語**で、症状を表す短文にしてください（例: `Render fails on nested containers`）。本文は日本語で記述してください。
+  - type: textarea
+    id: summary
+    attributes:
+      label: 概要
+      description: 何が起きているか
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 再現手順
+      description: 最小の `*.sumi.yaml` と実行したコマンドを含めてください
+      placeholder: |
+        1. `sumi render example.sumi.yaml`
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期待する動作と実際の動作
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: 環境
+      description: OS、Sumi のバージョン、Bun / D2 のバージョンなど
+      placeholder: |
+        - OS:
+        - Sumi:
+        - Bun:
+        - D2:

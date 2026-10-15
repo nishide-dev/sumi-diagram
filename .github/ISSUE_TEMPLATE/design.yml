@@ -1,0 +1,39 @@
+name: Design discussion
+description: 設計判断・仕様変更の提案と議論
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **タイトルは英語**で、論点を表す短文にしてください（例: `Decide token resolution order for themes`）。本文は日本語で記述してください。
+        結論が出たら、この Issue に決定事項を記録し、計画に影響する場合はロードマップ #1 を更新してください。
+  - type: textarea
+    id: background
+    attributes:
+      label: 背景
+      description: 現状と、判断が必要になった理由
+    validations:
+      required: true
+  - type: textarea
+    id: options
+    attributes:
+      label: 選択肢とトレードオフ
+      placeholder: |
+        ### 案 A
+        - 利点:
+        - 欠点:
+
+        ### 案 B
+        - 利点:
+        - 欠点:
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 提案
+      description: 推奨する案とその理由
+  - type: textarea
+    id: impact
+    attributes:
+      label: 影響範囲
+      description: API・後方互換性・関連 Issue への影響
