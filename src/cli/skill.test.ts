@@ -378,22 +378,27 @@ function d2Check(stdout: string): DoctorCheck | undefined {
 const MANAGED_D2 = join(ROOT, ".sumi", "bin", "d2");
 
 /**
- * `scripts/sumi` resolves the CLI as SUMI_BIN → `sumi` on PATH → the source
- * checkout → an error. Each test builds its own PATH: a directory (with a
- * space in its name) holding only `bun`, plus /usr/bin and /bin, so a `sumi`
- * installed on the developer's machine never takes part.
+ * `scripts/sumi` resolves the CLI as SUMI_BIN → the checkout it lives in →
+ * `sumi` on PATH → a checkout above the current directory → an error. Each
+ * test builds its own PATH: a directory (with a space in its name) holding
+ * only `bun`, plus /usr/bin and /bin, so a `sumi` installed on the
+ * developer's machine never takes part. Copies of the skill outside the
+ * repository stand in for an installed skill.
  */
 describe("scripts/sumi", () => {
   let work = "";
-  let toolBin = "";
   let cleanPath = "";
+  let fakeBin = "";
+  const catalog = buildFullCatalog(createBuiltinRegistry());
 
   beforeAll(async () => {
     work = await mkdtemp(join(tmpdir(), "sumi skill wrapper "));
-    toolBin = join(work, "tool bin");
+    const toolBin = join(work, "tool bin");
     await mkdir(toolBin);
     await symlink(process.execPath, join(toolBin, "bun"));
     cleanPath = `${toolBin}:/usr/bin:/bin`;
+    fakeBin = join(work, "path bin");
+    await fakeSumi(fakeBin, "path-sumi");
   });
   afterAll(async () => {
     await rm(work, { recursive: true, force: true });
@@ -407,18 +412,18 @@ describe("scripts/sumi", () => {
     return path;
   }
 
-  /** A copy of this skill outside the repository. */
+  /** A copy of this skill outside the repository; returns its wrapper. */
   async function copySkill(name: string): Promise<string> {
     const dir = join(work, name, "sumi");
     await cp(SKILL_DIR, dir, { recursive: true });
-    return dir;
+    return join(dir, "scripts", "sumi");
   }
 
-  test("falls back to the source checkout and runs from any directory", async () => {
+  test("in the repository, runs the CLI from source from any directory", async () => {
     const run = await runScript("sumi", ["catalog", "--json"], { PATH: cleanPath });
     expect(run.stderr).toBe("");
     expect(run.exitCode).toBe(0);
-    expect(JSON.parse(run.stdout)).toEqual(buildFullCatalog(createBuiltinRegistry()));
+    expect(JSON.parse(run.stdout)).toEqual(catalog);
   });
 
   // Needs the managed D2 (`bun run d2:install`); required in CI.
@@ -448,20 +453,42 @@ describe("scripts/sumi", () => {
     expect(check?.message).toContain(explicit);
   });
 
-  test("prefers `sumi` on PATH over the source checkout", async () => {
-    const bin = join(work, "path bin");
-    await fakeSumi(bin, "path-sumi");
-    const run = await runScript("sumi", ["doctor", "a b"], { PATH: `${bin}:${cleanPath}` });
+  test("prefers its own checkout over `sumi` on PATH", async () => {
+    const run = await runScript("sumi", ["catalog", "--json"], {
+      PATH: `${fakeBin}:${cleanPath}`,
+    });
+    expect(run.exitCode).toBe(0);
+    expect(JSON.parse(run.stdout)).toEqual(catalog);
+  });
+
+  test("installed, prefers `sumi` on PATH over a checkout around the current directory", async () => {
+    const wrapper = await copySkill("installed with path");
+    const run = await runScript(
+      wrapper,
+      ["doctor", "a b"],
+      { PATH: `${fakeBin}:${cleanPath}` },
+      { cwd: join(ROOT, "src") },
+    );
     expect(run.exitCode).toBe(0);
     expect(run.stdout).toBe("path-sumi doctor a b\n");
   });
 
-  test("SUMI_BIN overrides PATH", async () => {
-    const pathBin = join(work, "path bin");
-    await fakeSumi(pathBin, "path-sumi");
+  test("installed, falls back to a checkout around the current directory", async () => {
+    const wrapper = await copySkill("installed");
+    const run = await runScript(
+      wrapper,
+      ["catalog", "--json", "--section", "themes"],
+      { PATH: cleanPath },
+      { cwd: join(ROOT, "src") },
+    );
+    expect(run.exitCode).toBe(0);
+    expect(Object.keys(JSON.parse(run.stdout))).toEqual(["version", "themes"]);
+  });
+
+  test("SUMI_BIN overrides the checkout and PATH", async () => {
     const override = await fakeSumi(join(work, "override dir"), "override-sumi");
     const run = await runScript("sumi", ["--version"], {
-      PATH: `${pathBin}:${cleanPath}`,
+      PATH: `${fakeBin}:${cleanPath}`,
       SUMI_BIN: override,
     });
     expect(run.exitCode).toBe(0);
@@ -475,51 +502,52 @@ describe("scripts/sumi", () => {
     expect(run.stderr).toContain(`not an executable file: ${missing}`);
   });
 
-  test("rejects a SUMI_BIN that points back to the wrapper", async () => {
-    const run = await runScript("sumi", ["doctor"], {
-      PATH: cleanPath,
-      SUMI_BIN: join(SKILL_DIR, "scripts", "sumi"),
-    });
+  test.each([
+    ["the wrapper itself", async () => join(SKILL_DIR, "scripts", "sumi")],
+    ["a copy of the wrapper", async () => copySkill("bin copy")],
+  ])("rejects a SUMI_BIN that is %s", async (_, target) => {
+    const run = await runScript("sumi", ["doctor"], { PATH: cleanPath, SUMI_BIN: await target() });
     expect(run.exitCode).toBe(127);
     expect(run.stderr).toContain("points to this wrapper");
   });
 
-  test("skips itself on PATH (a symlink named sumi to the wrapper)", async () => {
-    const bin = join(work, "self link");
-    await mkdir(bin);
-    await symlink(join(SKILL_DIR, "scripts", "sumi"), join(bin, "sumi"));
-    const run = await runScript(join(bin, "sumi"), ["catalog", "--json"], {
-      PATH: `${bin}:${cleanPath}`,
+  test("invoked through an alias, skips its own link on PATH and finds the real CLI", async () => {
+    const wrapper = await copySkill("aliased");
+    const links = join(work, "alias links");
+    await mkdir(links);
+    await symlink(wrapper, join(links, "sumi"));
+    await symlink(wrapper, join(links, "sumi-skill"));
+    const run = await runScript(join(links, "sumi-skill"), ["doctor"], {
+      PATH: `${links}:${fakeBin}:${cleanPath}`,
     });
+    expect(run.stderr).toBe("");
     expect(run.exitCode).toBe(0);
-    expect(JSON.parse(run.stdout)).toEqual(buildFullCatalog(createBuiltinRegistry()));
+    expect(run.stdout).toBe("path-sumi doctor\n");
   });
 
-  test("does not loop through a copy of itself on PATH", async () => {
-    const skill = await copySkill("copy a");
+  test("skips a copy of itself on PATH and finds the real CLI after it", async () => {
+    const wrapper = await copySkill("copy a");
     const other = await copySkill("copy b");
-    const run = await runScript(join(skill, "scripts", "sumi"), ["doctor"], {
-      PATH: `${join(other, "scripts")}:${cleanPath}`,
+    const run = await runScript(wrapper, ["doctor"], {
+      PATH: `${dirname(other)}:${fakeBin}:${cleanPath}`,
+    });
+    expect(run.exitCode).toBe(0);
+    expect(run.stdout).toBe("path-sumi doctor\n");
+  });
+
+  test("does not loop when only copies of itself are on PATH", async () => {
+    const wrapper = await copySkill("copy c");
+    const other = await copySkill("copy d");
+    const run = await runScript(wrapper, ["doctor"], {
+      PATH: `${dirname(other)}:${dirname(wrapper)}:${cleanPath}`,
     });
     expect(run.exitCode).toBe(127);
     expect(run.stderr).toContain("the Sumi CLI was not found");
   });
 
-  test("outside a checkout, finds the checkout from the current directory", async () => {
-    const skill = await copySkill("installed");
-    const run = await runScript(
-      join(skill, "scripts", "sumi"),
-      ["catalog", "--json", "--section", "themes"],
-      { PATH: cleanPath },
-      { cwd: join(ROOT, "src") },
-    );
-    expect(run.exitCode).toBe(0);
-    expect(Object.keys(JSON.parse(run.stdout))).toEqual(["version", "themes"]);
-  });
-
   test("with no CLI anywhere, exits 127 and explains how to install", async () => {
-    const skill = await copySkill("nowhere");
-    const run = await runScript(join(skill, "scripts", "sumi"), ["doctor"], { PATH: cleanPath });
+    const wrapper = await copySkill("nowhere");
+    const run = await runScript(wrapper, ["doctor"], { PATH: cleanPath });
     expect(run.exitCode).toBe(127);
     expect(run.stdout).toBe("");
     expect(run.stderr).toContain("the Sumi CLI was not found");
@@ -578,52 +606,58 @@ describe("scripts/preview", () => {
   const unescapeXml = (value: string) =>
     value.replace(/&(amp|lt|gt|quot|apos);/g, (_, name: string) => XML_ENTITIES[name] ?? "");
 
-  // Outside a Sumi checkout there may be no Bun or Node.js; then the URL is
-  // built with Python 3. That case needs a PATH without either JS runtime.
-  const python3 = Bun.which("python3");
-  const jsInSystemPath = ["/usr/bin", "/bin"].some((dir) =>
-    ["bun", "node"].some((name) => existsSync(join(dir, name))),
-  );
-  const urlBuilders = [
-    ["bun", true],
-    ["python3", python3 !== null && !jsInSystemPath],
-  ] as const;
+  // The file URL is built with Bun, else Node.js, else Python 3 (an installed
+  // skill may have no JS runtime). Each case runs with a PATH holding only the
+  // fake qlmanage, the system commands the scripts use, and that one runtime.
+  // All three runtimes are required in CI.
+  const SYSTEM_PATH = "/usr/bin:/bin";
+  const COMMANDS = ["basename", "cat", "cp", "dirname", "mktemp", "mv", "rm"];
+  const runtimes = {
+    bun: process.execPath,
+    node: Bun.which("node"),
+    python3: Bun.which("python3"),
+  };
 
-  test.each(urlBuilders)(
-    "references the SVG by a well-formed file URL, whatever its path (%s)",
-    async (builder, available) => {
-      if (!available) return;
-      await withFakeQuickLook(async (env, { work, tmp }) => {
-        const dir = join(work, `R&D #1 "q" 'a' <b> 図 100%`);
-        await mkdir(dir);
-        const svg = join(dir, "fig#1 & 50%.svg");
-        await writeFile(svg, "<svg xmlns='http://www.w3.org/2000/svg'/>");
-        if (builder === "python3") {
-          const py = join(work, "py");
-          await mkdir(py);
-          await symlink(realpathSync(python3 ?? ""), join(py, "python3"));
-          env.PATH = `${env.PATH?.split(":")[0]}:${py}:/usr/bin:/bin`;
-        }
+  for (const [runtime, found] of Object.entries(runtimes)) {
+    test.skipIf(found === null && !process.env.CI)(
+      `references the SVG by a well-formed file URL, whatever its path (${runtime})`,
+      async () => {
+        expect(found, `${runtime} is required in CI`).not.toBeNull();
+        await withFakeQuickLook(async (env, { work, tmp }) => {
+          const dir = join(work, `R&D #1 "q" 'a' <b> 図 100%`);
+          await mkdir(dir);
+          const svg = join(dir, "fig#1 & 50%.svg");
+          await writeFile(svg, "<svg xmlns='http://www.w3.org/2000/svg'/>");
+          const tools = join(work, "tools");
+          await mkdir(tools);
+          for (const command of COMMANDS) {
+            const target = Bun.which(command, { PATH: SYSTEM_PATH });
+            expect(target, command).not.toBeNull();
+            await symlink(target ?? "", join(tools, command));
+          }
+          await symlink(realpathSync(found ?? ""), join(tools, runtime));
+          env.PATH = `${env.PATH?.split(":")[0]}:${tools}`;
 
-        const run = await runScript("preview", [svg, "400"], env);
-        expect(run.stderr).toBe("");
-        expect(run.exitCode).toBe(0);
-        const png = run.stdout.trim();
-        expect(png.endsWith("/fig#1 & 50%.png")).toBe(true);
-        expect(dirname(dirname(png))).toBe(tmp);
-        // Only the PNG is kept.
-        expect(readdirSync(dirname(png))).toEqual(["fig#1 & 50%.png"]);
+          const run = await runScript("preview", [svg, "400"], env);
+          expect(run.stderr).toBe("");
+          expect(run.exitCode).toBe(0);
+          const png = run.stdout.trim();
+          expect(png.endsWith("/fig#1 & 50%.png")).toBe(true);
+          expect(dirname(dirname(png))).toBe(tmp);
+          // Only the PNG is kept.
+          expect(readdirSync(dirname(png))).toEqual(["fig#1 & 50%.png"]);
 
-        const wrapper = readFileSync(env.FAKE_QL_CAPTURE ?? "", "utf8");
-        expect(parseXml(wrapper).ok).toBe(true);
-        const href = /<image href="([^"]*)"/.exec(wrapper)?.[1] ?? "";
-        const url = new URL(unescapeXml(href));
-        expect(url.protocol).toBe("file:");
-        expect(url.hash).toBe("");
-        expect(realpathSync(fileURLToPath(url))).toBe(realpathSync(svg));
-      });
-    },
-  );
+          const wrapper = readFileSync(env.FAKE_QL_CAPTURE ?? "", "utf8");
+          expect(parseXml(wrapper).ok).toBe(true);
+          const href = /<image href="([^"]*)"/.exec(wrapper)?.[1] ?? "";
+          const url = new URL(unescapeXml(href));
+          expect(url.protocol).toBe("file:");
+          expect(url.hash).toBe("");
+          expect(realpathSync(fileURLToPath(url))).toBe(realpathSync(svg));
+        });
+      },
+    );
+  }
 
   test("keeps the PNG of an input named like its intermediate file (figure.svg)", async () => {
     await withFakeQuickLook(async (env, { work }) => {

@@ -1,23 +1,27 @@
 #!/bin/sh
+# sumi-skill-wrapper (marker: copies of this script on PATH are recognised by it; keep it in the first 512 bytes)
 # Run the Sumi CLI for this skill, wherever the skill is installed.
 #
 # Resolution order:
-#   1. $SUMI_BIN, if set (must be an executable file).
-#   2. `sumi` on PATH (the release binary), skipping this wrapper itself and
-#      any other copy of it.
-#   3. Inside a Sumi source checkout (found by walking up from this skill's
-#      directory, then from the current directory, to a package.json named
-#      "sumi-diagram" next to src/cli/index.ts): `bun <repo>/src/cli/index.ts`,
-#      with SUMI_D2_PATH defaulting to <repo>/.sumi/bin/d2 (installed by
-#      `bun run d2:install`), since D2 is otherwise looked up relative to the
-#      current directory.
-#   4. Otherwise exit 127 with install instructions.
+#   1. $SUMI_BIN, if set (must be an executable file, not this wrapper).
+#   2. The Sumi source checkout containing this script's real (symlink-
+#      resolved) location, so development in the repository always uses its
+#      own source.
+#   3. `sumi` on PATH (the release binary), skipping this wrapper and any
+#      copy of it.
+#   4. A Sumi source checkout above the current directory.
+#   5. Otherwise exit 127 with install instructions.
+# A source checkout is a directory with a package.json named "sumi-diagram"
+# and src/cli/index.ts; it runs as `bun <repo>/src/cli/index.ts`, with
+# SUMI_D2_PATH defaulting to <repo>/.sumi/bin/d2 (`bun run d2:install`),
+# since D2 is otherwise looked up relative to the current directory.
 set -eu
 
 releases=https://github.com/nishide-dev/sumi-diagram/releases
 readme=https://github.com/nishide-dev/sumi-diagram#readme
+marker=sumi-skill-wrapper
 
-# Follow symlinks to this file (e.g. a `sumi` link on PATH) to its real directory.
+# Follow symlinks to this file (e.g. a `sumi` link on PATH) to the real file.
 self=$0
 while [ -L "$self" ]; do
   link=$(readlink -- "$self")
@@ -27,46 +31,14 @@ while [ -L "$self" ]; do
   esac
 done
 self_dir=$(CDPATH='' cd -- "$(dirname -- "$self")" && pwd -P)
-self="$self_dir/$(basename -- "$0")"
+self="$self_dir/$(basename -- "$self")"
 
-# 1. Explicit override.
-if [ -n "${SUMI_BIN:-}" ]; then
-  if ! [ -f "$SUMI_BIN" ] || ! [ -x "$SUMI_BIN" ]; then
-    echo "sumi (skill wrapper): SUMI_BIN is set but is not an executable file: $SUMI_BIN" >&2
-    exit 127
-  fi
-  if [ "$SUMI_BIN" -ef "$self" ] || [ -n "${SUMI_SKILL_WRAPPER:-}" ]; then
-    echo "sumi (skill wrapper): SUMI_BIN points to this wrapper, not to the Sumi CLI: $SUMI_BIN" >&2
-    exit 127
-  fi
-  SUMI_SKILL_WRAPPER=1
-  export SUMI_SKILL_WRAPPER
-  exec "$SUMI_BIN" "$@"
-fi
+# True if $1 is this wrapper or a copy of it (the marker in its first bytes).
+is_wrapper() {
+  [ "$1" -ef "$self" ] && return 0
+  dd if="$1" bs=512 count=1 2>/dev/null | grep -q "$marker"
+}
 
-# 2. `sumi` on PATH. A candidate that is this file (same inode, so symlinks
-# count) is skipped. A copy of this wrapper elsewhere on PATH is entered with
-# SUMI_SKILL_WRAPPER set and then skips this step, so it cannot loop.
-if [ -z "${SUMI_SKILL_WRAPPER:-}" ]; then
-  old_ifs=$IFS
-  IFS=:
-  set -f
-  for dir in ${PATH:-}; do
-    [ -n "$dir" ] || dir=.
-    candidate="$dir/sumi"
-    if [ -f "$candidate" ] && [ -x "$candidate" ] && ! [ "$candidate" -ef "$self" ]; then
-      IFS=$old_ifs
-      set +f
-      SUMI_SKILL_WRAPPER=1
-      export SUMI_SKILL_WRAPPER
-      exec "$candidate" "$@"
-    fi
-  done
-  IFS=$old_ifs
-  set +f
-fi
-
-# 3. A Sumi source checkout above the skill or the current directory.
 is_checkout() {
   [ -f "$1/package.json" ] && [ -f "$1/src/cli/index.ts" ] &&
     grep -q '"name"[[:space:]]*:[[:space:]]*"sumi-diagram"' "$1/package.json"
@@ -82,9 +54,9 @@ find_checkout() {
     dir=$(dirname -- "$dir")
   done
 }
-
-repo=$(find_checkout "$self_dir") || repo=$(find_checkout "$(pwd -P)") || repo=
-if [ -n "$repo" ]; then
+run_checkout() {
+  repo=$1
+  shift
   if ! command -v bun >/dev/null 2>&1; then
     echo "sumi (skill wrapper): found the Sumi source checkout at $repo, but bun is not on PATH." >&2
     echo "Install Bun (see $repo/README.md), or install a release build of Sumi: $releases" >&2
@@ -95,9 +67,48 @@ if [ -n "$repo" ]; then
     export SUMI_D2_PATH
   fi
   exec bun "$repo/src/cli/index.ts" "$@"
+}
+
+# 1. Explicit override.
+if [ -n "${SUMI_BIN:-}" ]; then
+  if ! [ -f "$SUMI_BIN" ] || ! [ -x "$SUMI_BIN" ]; then
+    echo "sumi (skill wrapper): SUMI_BIN is set but is not an executable file: $SUMI_BIN" >&2
+    exit 127
+  fi
+  if is_wrapper "$SUMI_BIN"; then
+    echo "sumi (skill wrapper): SUMI_BIN points to this wrapper, not to the Sumi CLI: $SUMI_BIN" >&2
+    exit 127
+  fi
+  exec "$SUMI_BIN" "$@"
 fi
 
-# 4. Nothing found.
+# 2. The checkout this wrapper lives in.
+if repo=$(find_checkout "$self_dir"); then
+  run_checkout "$repo" "$@"
+fi
+
+# 3. `sumi` on PATH, skipping this wrapper and copies of it.
+old_ifs=$IFS
+IFS=:
+set -f
+for dir in ${PATH:-}; do
+  [ -n "$dir" ] || dir=.
+  candidate="$dir/sumi"
+  if [ -f "$candidate" ] && [ -x "$candidate" ] && ! is_wrapper "$candidate"; then
+    IFS=$old_ifs
+    set +f
+    exec "$candidate" "$@"
+  fi
+done
+IFS=$old_ifs
+set +f
+
+# 4. A checkout above the current directory.
+if repo=$(find_checkout "$(pwd -P)"); then
+  run_checkout "$repo" "$@"
+fi
+
+# 5. Nothing found.
 cat >&2 <<EOF
 sumi (skill wrapper): the Sumi CLI was not found.
 Install a release build (macOS / Linux; it bundles D2 and the fonts):

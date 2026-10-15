@@ -45,10 +45,10 @@ release is needed (Bun + `bun run d2:install`).
 <skill-dir>/scripts/sumi <command> ...   # <skill-dir> = the base directory of this skill
 ```
 
-This wrapper runs `$SUMI_BIN`, else `sumi` on `PATH`, else the source
-checkout around the skill or the current directory; otherwise it exits 127
-with install instructions — relay them to the user and stop (do not install
-anything without asking). Use the absolute path in every command (shell
+This wrapper runs `$SUMI_BIN`, else the Sumi source checkout it lives in,
+else `sumi` on `PATH`, else a checkout around the current directory;
+otherwise it exits 127 with install instructions — relay them to the user
+and stop (do not install anything without asking). Use the absolute path in every command (shell
 variables do not persist between Bash calls). Below, `sumi` means the wrapper.
 
 ## Workflow

@@ -211,10 +211,13 @@ Skill は CLI を含みません。先に[リリース版](#インストール�
 Skill は CLI をラッパー（`skills/sumi/scripts/sumi`）経由で実行します。ラッパーは次の順に CLI を探し、どれも無ければ導入手順と `sumi doctor` を案内して終了コード 127 で終わります。
 
 1. 環境変数 `SUMI_BIN`（実行ファイルのパス）
-2. `PATH` 上の `sumi`（リリース版の単一バイナリ。ラッパー自身は除外）
-3. Skill の場所か作業ディレクトリの上にある Sumi のソースチェックアウト（`bun <repo>/src/cli/index.ts`。`SUMI_D2_PATH` が未設定ならリポジトリの `.sumi/bin/d2`）
+2. ラッパー（シンボリックリンクを解決した実体）を含む Sumi のソースチェックアウト。このリポジトリで開発するときは常にソースが使われます
+3. `PATH` 上の `sumi`（リリース版の単一バイナリ。ラッパー自身とその複製は除外）
+4. 作業ディレクトリの上にある Sumi のソースチェックアウト
 
-このリポジトリで開発するときは、`.claude/skills/sumi` が `../../skills/sumi` へのシンボリックリンクになっているので、リポジトリで Claude Code を開けばそのまま Skill が読み込まれます（Windows で `core.symlinks` が無効なチェックアウトでは使えません）。`PATH` に `sumi` が無ければソースから実行するため、事前に `bun install` と `bun run d2:install` を済ませておいてください（リリース版が `PATH` にあるとそちらが優先されます）。手順の詳細と、診断・レイアウトの参照資料は `skills/sumi/references/` にあります。Skill の記述（部品名・診断コード・作例の YAML）とラッパーの探索順は `src/cli/skill.test.ts` で実装と照合しています。
+ソースチェックアウトでは `bun <repo>/src/cli/index.ts` を実行し、`SUMI_D2_PATH` が未設定ならリポジトリの `.sumi/bin/d2` を使います。
+
+このリポジトリで開発するときは、`.claude/skills/sumi` が `../../skills/sumi` へのシンボリックリンクになっているので、リポジトリで Claude Code を開けばそのまま Skill が読み込まれます（Windows で `core.symlinks` が無効なチェックアウトでは使えません）。ラッパーはリリース版が `PATH` にあってもこのリポジトリのソースから実行するため、事前に `bun install` と `bun run d2:install` を済ませておいてください。手順の詳細と、診断・レイアウトの参照資料は `skills/sumi/references/` にあります。Skill の記述（部品名・診断コード・作例の YAML）とラッパーの探索順は `src/cli/skill.test.ts` で実装と照合しています。
 
 ## 開発コマンド
 

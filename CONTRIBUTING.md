@@ -171,7 +171,7 @@ Closes #4
 
 Skill の正は [`skills/sumi/`](skills/sumi/SKILL.md) です（`npx skills add nishide-dev/sumi-diagram` で配布。構成は skills CLI の規約 `skills/<name>/SKILL.md` に合わせる）。`.claude/skills/sumi` は `../../skills/sumi` への相対シンボリックリンクで、このリポジトリで Claude Code を開いたときに同じ Skill を読み込むためだけに置いています。ファイルは必ず `skills/sumi/` 側で編集してください。
 
-- Skill はリポジトリの外に導入されるため、`references/` の記述はリポジトリのファイルがなくても成り立つようにする（リポジトリ内のパスを挙げるときは「in the repository」と明記する）。CLI は `scripts/sumi` 経由で呼び、その探索順（`SUMI_BIN` → `PATH` 上の `sumi` → ソースチェックアウト）を変えたら README と `src/cli/skill.test.ts` も更新する。
+- Skill はリポジトリの外に導入されるため、`references/` の記述はリポジトリのファイルがなくても成り立つようにする（リポジトリ内のパスを挙げるときは「in the repository」と明記する）。CLI は `scripts/sumi` 経由で呼び、その探索順（`SUMI_BIN` → ラッパーを含むソースチェックアウト → `PATH` 上の `sumi` → 作業ディレクトリの上のソースチェックアウト）を変えたら README と `src/cli/skill.test.ts` も更新する。
 - 部品・Theme・Profile・診断コードを追加・変更したら、Skill の記述も合わせる。`src/cli/skill.test.ts` が、記述された名前・コード・作例の YAML・JSON の例を実装と照合します。
 - skills CLI からの見え方は次で確認できます（`sumi` が 1 件だけ列挙されること）。
   ```sh
