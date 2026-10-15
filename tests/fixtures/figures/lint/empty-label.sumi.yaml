@@ -1,0 +1,18 @@
+version: 1
+figure:
+  id: empty-label
+nodes:
+  - id: start
+    component: circle
+  - id: blank
+    component: box
+    label: "  "
+  - id: named
+    component: box
+    label: Named
+  - id: note
+    component: label
+    label: A note
+edges:
+  - from: start
+    to: blank

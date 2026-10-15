@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "file": "lint/ancestor-edge.sumi.yaml",
+  "diagnostics": [
+    {
+      "code": "lint/ancestor-edge",
+      "severity": "warning",
+      "message": "Edge edges[1] connects group \"outer\" with \"api\", which is inside it.",
+      "path": [
+        "edges",
+        1
+      ],
+      "location": {
+        "file": "lint/ancestor-edge.sumi.yaml",
+        "line": 21,
+        "column": 5,
+        "endLine": 23,
+        "endColumn": 1
+      },
+      "subject": {
+        "kind": "edge",
+        "id": "edges[1]"
+      },
+      "hint": "D2 draws such an edge across the group's border and label; connect elements that are both inside or both outside the group instead.",
+      "related": [
+        {
+          "path": [
+            "groups",
+            0
+          ],
+          "location": {
+            "file": "lint/ancestor-edge.sumi.yaml",
+            "line": 5,
+            "column": 5,
+            "endLine": 7,
+            "endColumn": 1
+          },
+          "message": "Group \"outer\" is defined here."
+        }
+      ]
+    },
+    {
+      "code": "lint/ancestor-edge",
+      "severity": "warning",
+      "message": "Edge \"up\" connects group \"outer\" with \"inner\", which is inside it.",
+      "path": [
+        "edges",
+        2
+      ],
+      "location": {
+        "file": "lint/ancestor-edge.sumi.yaml",
+        "line": 23,
+        "column": 5,
+        "endLine": 26,
+        "endColumn": 1
+      },
+      "subject": {
+        "kind": "edge",
+        "id": "up"
+      },
+      "hint": "D2 draws such an edge across the group's border and label; connect elements that are both inside or both outside the group instead.",
+      "related": [
+        {
+          "path": [
+            "groups",
+            0
+          ],
+          "location": {
+            "file": "lint/ancestor-edge.sumi.yaml",
+            "line": 5,
+            "column": 5,
+            "endLine": 7,
+            "endColumn": 1
+          },
+          "message": "Group \"outer\" is defined here."
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 0,
+    "warnings": 2,
+    "infos": 0
+  }
+}

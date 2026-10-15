@@ -1,0 +1,8 @@
+lint/ancestor-edge.sumi.yaml:21:5 warning lint/ancestor-edge Edge edges[1] connects group "outer" with "api", which is inside it.
+  hint: D2 draws such an edge across the group's border and label; connect elements that are both inside or both outside the group instead.
+  related: lint/ancestor-edge.sumi.yaml:5:5 Group "outer" is defined here.
+lint/ancestor-edge.sumi.yaml:23:5 warning lint/ancestor-edge Edge "up" connects group "outer" with "inner", which is inside it.
+  hint: D2 draws such an edge across the group's border and label; connect elements that are both inside or both outside the group instead.
+  related: lint/ancestor-edge.sumi.yaml:5:5 Group "outer" is defined here.
+
+0 errors, 2 warnings, 0 infos

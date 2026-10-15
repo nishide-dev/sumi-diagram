@@ -1,0 +1,22 @@
+version: 1
+figure:
+  id: missing-glyph
+groups:
+  # U+20BB7 (CJK Extension B) is not in BIZ UD Gothic; groups use the bold font.
+  - id: family
+    label: 𠮷野家
+nodes:
+  - id: happy
+    component: box
+    label: "Deploy 😀"
+    group: family
+  - id: rare
+    component: box
+    label: "龘 and ก"
+  - id: covered
+    component: box
+    label: "漢字 かな カナ ＡＢＣ\n※ ① ～ 𠀋"
+edges:
+  - from: happy
+    to: rare
+    label: "✅"
