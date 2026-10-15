@@ -17,6 +17,7 @@ PR タイトルは英語の Conventional Commits 形式にしてください（s
 - [ ] `bun run check`
 - [ ] `bun run typecheck`
 - [ ] `bun test`
+- [ ] 部品・テーマ・コンパイラ・例を変えた場合: `bun run gallery` で再生成し、`bun run gallery:check` が通る（CONTRIBUTING.md「部品の追加・変更」）
 
 <!-- 手動での確認手順や生成物（SVG など）があれば追記 -->
 

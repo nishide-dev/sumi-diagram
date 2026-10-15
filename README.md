@@ -6,6 +6,13 @@ Sumi は、事前定義されたコンポーネントとデザインシステム
 
 `*.sumi.yaml` の形式は [Phase 1 設計](docs/design/phase1.md) の Figure Schema v1 で定義し、エディタ補完用の JSON Schema を [`schema/figure.v1.schema.json`](schema/figure.v1.schema.json) に置いています。
 
+## ギャラリーと例
+
+- [コンポーネントギャラリー](docs/gallery/README.md)（[単体の HTML 版](docs/gallery/index.html)）: 組み込み部品のすべての variant を、組み込みテーマごとに描画した一覧。部品ごとの説明・props・それを生成する YAML と、同じ図をテーマ × プロファイルで描き比べた例を載せています。
+- [`examples/`](examples/README.md): 汎用的な図の例（pipeline、decision flow、system architecture、入れ子のグループ）。各ディレクトリに元の `*.sumi.yaml` と生成した SVG があります。
+
+どちらも `bun run gallery` で再生成します（CI の `bun run gallery:check` で、ソースと SVG が一致していることを検査します）。
+
 ## セットアップ
 
 Bun のバージョンは [`.bun-version`](.bun-version) で固定しています（現在 1.3.14）。
@@ -96,6 +103,7 @@ Skill は CLI をソースから実行するラッパー（`.claude/skills/sumi/
 | `bun run d2:install` | 固定バージョンの D2 CLI を `.sumi/bin/d2` に導入 |
 | `bun run src/cli/index.ts --help` | CLI をソースから実行 |
 | `bun run example:render <file> [out.svg]` | `sumi render` の別名（`examples/` の再生成用） |
+| `bun run gallery` / `gallery:check` | `docs/gallery/` と `examples/*/*.svg` の再生成 / 差分検査（D2 が必要） |
 
 ## ディレクトリ構成
 
@@ -108,3 +116,5 @@ Skill は CLI をソースから実行するラッパー（`.claude/skills/sumi/
 | `src/lint` | 構造・視覚 Lint |
 | `schema` | 生成された JSON Schema（手で編集しない） |
 | `tests/fixtures` | テスト用の入力ファイル |
+| `examples` | 図の例（`*.sumi.yaml` と生成した SVG） |
+| `docs/gallery` | 生成されたコンポーネントギャラリー（手で編集しない） |

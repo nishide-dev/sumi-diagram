@@ -114,6 +114,25 @@ Closes #4
 - タイトルは内容を表す英語の短文とする（例: `Define figure YAML schema and diagnostics`）。Conventional Commits の接頭辞は不要
 - 受け入れ条件はチェックリストで書く
 
+## 部品の追加・変更
+
+組み込み部品（`src/core/registry/builtins.ts` の manifest）を追加・変更する PR は、次をすべて含めてください。部品は人間と AI エージェントの双方が `sumi catalog --json` と[ギャラリー](docs/gallery/README.md)から探すため、説明・見た目・サンプルが揃っていない部品は使えないものとして扱います。
+
+1. **カタログの記述**: manifest の `description`（何を表す部品か、英語 1 文）、`variants`、`since`、props のスキーマと各 prop の `describe()`。`sumi catalog --json` にそのまま出ます。特定の業務・研究分野に固有の部品にしないでください。
+2. **テーマの対応**: すべての組み込みテーマ（`src/core/theme/builtin.ts`）で、すべての variant の見た目を定義する。定義のない variant は `theme/missing-variant`（warning）で `default` に戻り、ギャラリーの生成とテストが失敗します。
+3. **ギャラリーの再生成**: `bun run gallery` を実行し、`docs/gallery/` の変更をコミットする。サンプルの図はカタログから自動で作られます（全 variant × 全テーマ）。サンプルと `examples/` は診断ゼロ（幾何 lint を含む）でなければ生成が失敗します。CI の `bun run gallery:check` が、コミットされた出力が古くないことを検査します。
+4. **テスト**: 単体テスト（manifest・props・テーマの解決）と、実際の D2 で描画するテスト（`src/compiler/builtins-render.test.ts` は全部品 × 全 variant × 全テーマを自動で含みます。部品固有の描画上の約束があれば追加する）。
+
+コンパイラ・テーマ・フォント・プロファイルを変えて SVG が変わる場合も、`bun run gallery` で例とギャラリーをまとめて再生成してください。
+
+チェックリスト:
+
+- [ ] `description`・`variants`・`since`・props（説明付き）を書いた
+- [ ] すべての組み込みテーマで、すべての variant を定義した
+- [ ] `bun run gallery` で再生成し、ギャラリーで見た目を確認した
+- [ ] 単体テストと D2 描画テストを追加・更新した
+- [ ] `bun run check`・`bun run typecheck`・`bun test`・`bun run gallery:check` が通る
+
 ## 設計判断の記録
 
 - 設計上の判断・代替案・トレードオフは、**関連 Issue のコメント**に記録する。PR だけで議論を完結させない
