@@ -105,6 +105,38 @@ export function parseBuildArgs(argv: readonly string[], packageVersion: string):
   return { target, version, outdir: values.get("--outdir") ?? "dist/release" };
 }
 
+/**
+ * The npm packages bundled into the binary, from the input paths of a
+ * `bun build --metafile` (e.g. `node_modules/yaml/dist/index.js`). Returns
+ * package name → package directory (relative like the inputs), sorted by
+ * name; a package nested in another's `node_modules` is found by its last
+ * `node_modules/` segment.
+ */
+export function bundledPackages(inputs: Iterable<string>): Map<string, string> {
+  const packages = new Map<string, string>();
+  for (const input of inputs) {
+    const path = input.split("\\").join("/");
+    const at = path.lastIndexOf("node_modules/");
+    if (at === -1) continue;
+    const rest = path.slice(at + "node_modules/".length).split("/");
+    const nameParts = rest[0]?.startsWith("@") ? rest.slice(0, 2) : rest.slice(0, 1);
+    if (nameParts.length === 0 || nameParts.some((p) => p === "")) continue;
+    const name = nameParts.join("/");
+    const dir = `${path.slice(0, at)}node_modules/${name}`;
+    const known = packages.get(name);
+    if (known !== undefined && known !== dir) {
+      throw new Error(`Two copies of ${name} are bundled (${known}, ${dir}); ship both licenses.`);
+    }
+    packages.set(name, dir);
+  }
+  return new Map([...packages].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
+}
+
+/** The license file among a package directory's file names (`LICENSE`, `LICENSE.md`, `COPYING`, …). */
+export function findLicenseFile(fileNames: readonly string[]): string | undefined {
+  return [...fileNames].sort().find((f) => /^(licen[cs]e|copying)([.-].*)?$/i.test(f));
+}
+
 export function sha256Hex(data: Uint8Array | string): string {
   return new Bun.CryptoHasher("sha256").update(data).digest("hex");
 }

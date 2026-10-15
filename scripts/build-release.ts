@@ -7,7 +7,10 @@
  *   bin/sumi                   compiled with `bun build --compile`
  *   libexec/sumi/d2            pinned D2 CLI (MPL-2.0), checksum-verified
  *   share/sumi/fonts/<set>/    bundled fonts (OFL-1.1), checksum-verified
- *   licenses/                  D2's LICENSE / THIRD_PARTY_NOTICES, the fonts' OFL
+ *   licenses/bun/              Bun's LICENSE.md (runtime embedded in bin/sumi)
+ *   licenses/npm/<package>/    license file of every npm package bundled into bin/sumi
+ *   licenses/d2/               D2's LICENSE.txt / THIRD_PARTY_NOTICES.txt
+ *   licenses/biz-ud-gothic/    the fonts' OFL.txt
  *   LICENSE                    Sumi's license (MIT)
  *   NOTICE  README.md  VERSION
  *   SHA256SUMS                 sha256 of every other file in the tree
@@ -36,7 +39,9 @@ import {
   archiveBaseName,
   BUILD_USAGE,
   bunCompileTarget,
+  bundledPackages,
   createTar,
+  findLicenseFile,
   formatSha256Sums,
   gzipDeterministic,
   hostTarget,
@@ -49,6 +54,16 @@ import {
 const ROOT = resolve(import.meta.dir, "..");
 const D2_CACHE_DIR = join(ROOT, ".sumi", "cache");
 const D2_SOURCE_URL = `https://github.com/terrastruct/d2/tree/v${D2_VERSION}`;
+/** Bun's LICENSE.md, vendored for the Bun version in `.bun-version` (Bun's repo has no other license file). */
+const BUN_LICENSE_DIR = join(import.meta.dir, "release", "bun");
+
+interface BundledPackage {
+  name: string;
+  version: string;
+  license: string;
+  /** License file path inside the stage. */
+  file: string;
+}
 
 const log = (message: string) => console.error(message);
 
@@ -98,7 +113,15 @@ async function listFiles(dir: string, base = dir): Promise<string[]> {
   return out;
 }
 
-function notice(version: string, target: string): string {
+function notice(
+  version: string,
+  target: string,
+  bunVersion: string,
+  packages: readonly BundledPackage[],
+): string {
+  const npm = packages
+    .map((p) => `      - ${p.name} ${p.version} (${p.license}): ${p.file}`)
+    .join("\n");
   return `Sumi ${version} (${target})
 https://github.com/nishide-dev/sumi-diagram
 
@@ -106,9 +129,18 @@ This distribution contains the following components.
 
 1. Sumi (bin/sumi)
    License: MIT License, see LICENSE.
-   bin/sumi is a single-file executable built with Bun (https://bun.sh, MIT License)
-   and includes Sumi's npm dependencies: commander (MIT), semver (ISC),
-   yaml (ISC), zod (MIT).
+   bin/sumi is a single-file executable built with \`bun build --compile\`. It
+   contains the following, each under its own license.
+
+   a. The Bun ${bunVersion} runtime (https://bun.sh)
+      Bun is MIT-licensed and statically links JavaScriptCore/WebKit (LGPL-2)
+      and other libraries; see licenses/bun/LICENSE.md for the list, their
+      licenses, and where to get Bun's patched WebKit source
+      (https://github.com/oven-sh/webkit) and Bun's source
+      (https://github.com/oven-sh/bun/tree/bun-v${bunVersion}).
+
+   b. npm packages bundled into the executable (license texts included):
+${npm}
 
 2. D2 ${D2_VERSION} (libexec/sumi/d2)
    License: Mozilla Public License 2.0, see licenses/d2/LICENSE.txt and
@@ -134,9 +166,11 @@ async function build(argv: string[]): Promise<void> {
   const at = (path: string) => join(stage, path);
 
   try {
-    // 1. Sumi itself.
+    // 1. Sumi itself. The metafile lists every bundled module, so the npm
+    // licenses below cover exactly what is in the binary.
     log(`Compiling bin/sumi for ${bunCompileTarget(target)}`);
     await mkdir(at("bin"), { recursive: true });
+    const metafile = join(work, "metafile.json");
     await run([
       process.execPath,
       "build",
@@ -146,9 +180,45 @@ async function build(argv: string[]): Promise<void> {
       // A CLI must not pick up the user's .env or bunfig.toml from the cwd.
       "--no-compile-autoload-dotenv",
       "--no-compile-autoload-bunfig",
+      `--metafile=${metafile}`,
       "--outfile",
       at(RELEASE_LAYOUT.sumi),
     ]);
+
+    // 1b. Licenses of the Bun runtime and of every bundled npm package.
+    const bunVersion = (await readFile(join(ROOT, ".bun-version"), "utf8")).trim();
+    const vendoredBun = (await readFile(join(BUN_LICENSE_DIR, "VERSION"), "utf8")).trim();
+    if (vendoredBun !== bunVersion) {
+      throw new Error(
+        `scripts/release/bun/LICENSE.md is for Bun ${vendoredBun}, but .bun-version is ${bunVersion}; update it and its VERSION file from https://github.com/oven-sh/bun/blob/bun-v${bunVersion}/LICENSE.md`,
+      );
+    }
+    await mkdir(at("licenses/bun"), { recursive: true });
+    await copyFile(join(BUN_LICENSE_DIR, "LICENSE.md"), at("licenses/bun/LICENSE.md"));
+
+    const meta = JSON.parse(await readFile(metafile, "utf8")) as {
+      inputs: Record<string, unknown>;
+    };
+    const packages: BundledPackage[] = [];
+    for (const [name, dir] of bundledPackages(Object.keys(meta.inputs))) {
+      const packageDir = resolve(ROOT, dir);
+      const licenseFile = findLicenseFile(await readdir(packageDir));
+      if (licenseFile === undefined) {
+        throw new Error(`${name} is bundled into bin/sumi but ${packageDir} has no license file.`);
+      }
+      const manifest = JSON.parse(await readFile(join(packageDir, "package.json"), "utf8"));
+      const file = `licenses/npm/${name}/${licenseFile}`;
+      await mkdir(dirname(at(file)), { recursive: true });
+      await copyFile(join(packageDir, licenseFile), at(file));
+      packages.push({
+        name,
+        version: String(manifest.version),
+        license: String(manifest.license ?? "see the license file"),
+        file,
+      });
+    }
+    if (packages.length === 0) throw new Error("The metafile lists no bundled npm packages.");
+    log(`Bundled npm packages: ${packages.map((p) => `${p.name}@${p.version}`).join(", ")}`);
 
     // 2. D2 and its license files, from the checksum-verified release tarball.
     const d2Archive = await d2Tarball(target);
@@ -193,7 +263,7 @@ async function build(argv: string[]): Promise<void> {
     const license = join(ROOT, "LICENSE");
     if (!existsSync(license)) throw new Error(`${license} is missing; a release must ship it.`);
     await copyFile(license, at("LICENSE"));
-    await Bun.write(at("NOTICE"), notice(version, target));
+    await Bun.write(at("NOTICE"), notice(version, target, bunVersion, packages));
     const readme = (await readFile(join(import.meta.dir, "release", "README.dist.md"), "utf8"))
       .replaceAll("{{version}}", version)
       .replaceAll("{{target}}", target)

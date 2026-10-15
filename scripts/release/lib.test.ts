@@ -6,7 +6,9 @@ import { runCommand } from "../../src/core/subprocess";
 import {
   archiveBaseName,
   bunCompileTarget,
+  bundledPackages,
   createTar,
+  findLicenseFile,
   formatSha256Sums,
   gzipDeterministic,
   hostTarget,
@@ -66,6 +68,40 @@ describe("targets", () => {
 
   test("archiveBaseName", () => {
     expect(archiveBaseName("0.1.0", "darwin-arm64")).toBe("sumi-0.1.0-darwin-arm64");
+  });
+});
+
+describe("bundled npm packages", () => {
+  test("derives packages from metafile inputs", () => {
+    const packages = bundledPackages([
+      "src/cli/index.ts",
+      "package.json",
+      "node_modules/zod/v4/core/core.js",
+      "node_modules/commander/index.js",
+      "node_modules/commander/lib/command.js",
+      "node_modules/@scope/pkg/dist/index.js",
+      "node_modules/a/node_modules/b/index.js",
+    ]);
+    expect([...packages]).toEqual([
+      ["@scope/pkg", "node_modules/@scope/pkg"],
+      ["b", "node_modules/a/node_modules/b"],
+      ["commander", "node_modules/commander"],
+      ["zod", "node_modules/zod"],
+    ]);
+  });
+
+  test("rejects two bundled copies of one package", () => {
+    expect(() =>
+      bundledPackages(["node_modules/b/index.js", "node_modules/a/node_modules/b/index.js"]),
+    ).toThrow("Two copies of b");
+  });
+
+  test("finds the license file", () => {
+    expect(findLicenseFile(["package.json", "LICENSE", "README.md"])).toBe("LICENSE");
+    expect(findLicenseFile(["license.md", "index.js"])).toBe("license.md");
+    expect(findLicenseFile(["LICENCE-MIT"])).toBe("LICENCE-MIT");
+    expect(findLicenseFile(["COPYING"])).toBe("COPYING");
+    expect(findLicenseFile(["index.js", "licensed.js"])).toBeUndefined();
   });
 });
 

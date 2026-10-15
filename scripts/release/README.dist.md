@@ -12,6 +12,7 @@ Sumi は、事前定義されたコンポーネントとデザインシステム
 | `libexec/sumi/d2` | レイアウトに使う D2 CLI v{{d2Version}}（MPL-2.0。`licenses/d2/`） |
 | `share/sumi/fonts/` | 同梱フォント BIZ UD ゴシック（SIL OFL 1.1。`licenses/biz-ud-gothic/`） |
 | `LICENSE` | Sumi のライセンス（MIT） |
+| `licenses/bun/`・`licenses/npm/` | `bin/sumi` に含まれる Bun ランタイムと npm パッケージのライセンス |
 | `NOTICE` | 同梱物の出典・版・ライセンス |
 | `SHA256SUMS` | このディレクトリ内の全ファイルの sha256 |
 

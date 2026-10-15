@@ -22,6 +22,7 @@ import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readdir, readFile, realpath, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
+import pkg from "../package.json";
 import { RELEASE_LAYOUT } from "../src/core/install-layout";
 import { runCommand } from "../src/core/subprocess";
 import { descendants, parseXml, textContent } from "../src/render/xml";
@@ -116,8 +117,16 @@ async function smoke(tarballArg: string, keep: boolean): Promise<void> {
       "NOTICE",
       "licenses/d2/LICENSE.txt",
       "licenses/biz-ud-gothic/OFL.txt",
+      "licenses/bun/LICENSE.md",
     ]) {
       check(inner.has(required), `the tarball lacks ${required}`);
+    }
+    // Every production dependency is bundled into bin/sumi and needs its license text.
+    for (const dependency of Object.keys(pkg.dependencies)) {
+      check(
+        [...inner.keys()].some((f) => f.startsWith(`licenses/npm/${dependency}/`)),
+        `the tarball lacks the license of the bundled npm package ${dependency}`,
+      );
     }
     for (const [file, expected] of inner) {
       check(sha256Hex(await readFile(join(prefix, file))) === expected, `${file}: sha256 mismatch`);
