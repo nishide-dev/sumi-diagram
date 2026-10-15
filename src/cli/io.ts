@@ -283,6 +283,23 @@ export async function writeDestination(
 }
 
 /**
+ * Removes a file this process wrote, but only if it is still that file: its
+ * directory still resolves to itself and the entry still has the identity
+ * recorded at write time. Returns `false` (and removes nothing) otherwise.
+ */
+export async function removeWritten(file: WrittenFile): Promise<boolean> {
+  const dir = dirname(file.path);
+  if ((await realpath(dir).catch(() => undefined)) !== dir) return false;
+  const now = await lstat(file.path).then(
+    (s): FileIdentity => `${s.dev}:${s.ino}`,
+    () => undefined,
+  );
+  if (now !== file.identity) return false;
+  await rm(file.path, { force: true });
+  return true;
+}
+
+/**
  * Resolves `path` (relative to the working directory) and writes `content`
  * there atomically ({@link resolveDestination}, {@link writeDestination}).
  * Symbolic links are followed: writing to a link replaces the file it points

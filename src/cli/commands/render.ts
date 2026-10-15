@@ -19,7 +19,6 @@
  * - exit: 0 rendered (warnings allowed); 1 errors; 2 usage errors.
  */
 
-import { rm } from "node:fs/promises";
 import { basename } from "node:path";
 import { createD2CliBackend } from "../../backends/d2/backend";
 import { compileFigure } from "../../compiler/compile";
@@ -43,6 +42,7 @@ import {
   type ExitCode,
   protectedFile,
   readTextFile,
+  removeWritten,
   resolveDestination,
   sameDestination,
   UsageError,
@@ -108,7 +108,15 @@ export async function renderCommand(
         }),
       );
     } catch (error) {
-      for (const file of written) if (file.created) await rm(file.path, { force: true });
+      const kept: string[] = [];
+      for (const file of written) {
+        if (file.created && !(await removeWritten(file))) kept.push(file.display);
+      }
+      if (kept.length > 0 && error instanceof UsageError) {
+        throw new UsageError(
+          `${error.message} Did not remove ${kept.join(", ")}: it changed after it was written.`,
+        );
+      }
       throw error;
     }
   };

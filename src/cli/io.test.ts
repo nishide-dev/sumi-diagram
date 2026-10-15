@@ -21,6 +21,7 @@ import {
   destinationKey,
   isCaseInsensitiveDir,
   protectedFile,
+  removeWritten,
   resolveDestination,
   sameDestination,
   writeDestination,
@@ -191,6 +192,34 @@ describe("resolveDestination + writeDestination", () => {
       "is the same file as",
     );
     expect(await readFile(first.path, "utf8")).toBe("FIRST");
+  });
+
+  test("removeWritten deletes only the file it wrote", async () => {
+    const root = await scenario("remove");
+    await mkdir(join(dir, root, "d"));
+    await mkdir(join(dir, root, "elsewhere"));
+    await writeFile(join(dir, root, "elsewhere", "out.d2"), "PRECIOUS");
+    const write = () =>
+      resolveDestination(context, `${root}/d/out.d2`).then((d) => writeDestination(d, "D2"));
+
+    const kept = await write();
+    await rename(join(dir, root, "d"), join(dir, root, "d-old"));
+    await symlink("elsewhere", join(dir, root, "d"));
+    expect(await removeWritten(kept)).toBe(false);
+    expect(await readFile(join(dir, root, "elsewhere", "out.d2"), "utf8")).toBe("PRECIOUS");
+
+    await unlink(join(dir, root, "d"));
+    await mkdir(join(dir, root, "d"));
+    const replaced = await write();
+    // Replace it with a different file (created while the old one exists, so no inode reuse).
+    await writeFile(`${replaced.path}.new`, "NEW FILE");
+    await rename(`${replaced.path}.new`, replaced.path);
+    expect(await removeWritten(replaced)).toBe(false);
+    expect(await readFile(replaced.path, "utf8")).toBe("NEW FILE");
+
+    const own = await write();
+    expect(await removeWritten(own)).toBe(true);
+    expect(await Bun.file(own.path).exists()).toBe(false);
   });
 
   test("a broken link is a usage error", async () => {

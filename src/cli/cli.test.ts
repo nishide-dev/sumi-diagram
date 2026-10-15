@@ -17,6 +17,7 @@ import {
   readdir,
   readFile,
   realpath,
+  rename,
   rm,
   stat,
   symlink,
@@ -654,6 +655,39 @@ describe.skipIf(!d2Available && !process.env.CI)("sumi render (D2)", () => {
     await writeFile(join(dir, "twice", "out.d2"), "OLD");
     expect((await renderTwice()).code).toBe(2);
     expect(await readFile(join(dir, "twice", "out.d2"), "utf8")).toContain('"n_');
+  });
+
+  test("the rollback does not delete a file elsewhere when the output directory was swapped", async () => {
+    await mkdir(join(dir, "swap"));
+    await mkdir(join(dir, "other"));
+    await copyFile(join(FIXTURES, "lint/clean.sumi.yaml"), join(dir, "fig-swap.sumi.yaml"));
+    await writeFile(join(dir, "other", "out.d2"), "PRECIOUS");
+    let stderr = "";
+    const code = await run(
+      ["render", "fig-swap.sumi.yaml", "-o", "swap/out.svg", "--emit-d2", "swap/out.d2"],
+      {
+        stdout: { write: () => {} },
+        stderr: {
+          write: (chunk: string) => {
+            stderr += chunk;
+          },
+        },
+        cwd: dir,
+        env: { ...baseEnv(), ...env() },
+        hooks: {
+          beforeCommit: async (display) => {
+            if (display !== "swap/out.svg") return;
+            await rename(join(dir, "swap"), join(dir, "swap-old"));
+            await symlink("other", join(dir, "swap"));
+          },
+        },
+      },
+    );
+    expect(code).toBe(2);
+    expect(stderr).toContain("Cannot write swap/out.svg: its directory changed");
+    expect(stderr).toContain("Did not remove swap/out.d2: it changed after it was written.");
+    expect(await readFile(join(dir, "other", "out.d2"), "utf8")).toBe("PRECIOUS");
+    expect(await readFile(join(dir, "swap-old", "out.d2"), "utf8")).toContain('"n_');
   });
 
   test("outputs the file system folds together (Σ.svg / ς.svg) are refused", async () => {
