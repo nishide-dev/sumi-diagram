@@ -1,0 +1,24 @@
+version: 1
+figure:
+  id: long-label
+nodes:
+  - id: wide
+    component: box
+    label: This label is far too long to fit on a single line of a figure
+  - id: tall
+    component: box
+    label: "one\ntwo\nthree\nfour\nfive"
+  # 26 wide characters = 52 columns.
+  - id: cjk
+    component: box
+    label: 日本語のラベルは一文字が二桁分の幅として数えられます
+  # 20 wide characters = 40 columns: exactly at the limit.
+  - id: fits
+    component: box
+    label: 四十桁にちょうど収まる日本語のラベルです
+edges:
+  - from: wide
+    to: tall
+    label: "1234567890123456789012345678901234567890"
+  - from: tall
+    to: cjk

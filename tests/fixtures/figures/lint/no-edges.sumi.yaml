@@ -1,0 +1,10 @@
+version: 1
+figure:
+  id: no-edges
+nodes:
+  - id: a
+    component: box
+    label: A
+  - id: b
+    component: box
+    label: B

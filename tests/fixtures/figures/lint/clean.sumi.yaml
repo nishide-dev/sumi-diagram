@@ -1,0 +1,24 @@
+version: 1
+figure:
+  id: clean
+groups:
+  - id: backend
+    label: Backend
+nodes:
+  - id: client
+    component: box
+    label: Client
+  - id: api
+    component: box
+    label: API サーバ
+    group: backend
+  - id: db
+    component: cylinder
+    label: "Database\n(primary)"
+    group: backend
+edges:
+  - from: client
+    to: api
+    label: HTTPS
+  - from: api
+    to: db

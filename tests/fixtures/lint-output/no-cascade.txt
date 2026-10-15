@@ -1,0 +1,9 @@
+lint/no-cascade.sumi.yaml:7:16 error component/unknown Unknown group component "frame".
+  hint: Known group components: container.
+lint/no-cascade.sumi.yaml:11:16 error component/unknown Unknown node component "cloud".
+  hint: Known node components: box, square, circle, ellipse, diamond, hexagon, parallelogram, cylinder, document, label.
+lint/no-cascade.sumi.yaml:17:5 error schema/unknown-field Unknown field "colour" in nodes[2].
+  hint: If this field was added in a newer Sumi version, upgrade Sumi.
+lint/no-cascade.sumi.yaml:31:11 error ref/unknown-endpoint Unknown source "nowhere" in edge edges[4]; endpoints must be node or group IDs.
+
+4 errors, 0 warnings, 0 infos

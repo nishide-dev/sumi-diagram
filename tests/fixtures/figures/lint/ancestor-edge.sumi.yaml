@@ -1,0 +1,25 @@
+version: 1
+figure:
+  id: ancestor-edge
+groups:
+  - id: outer
+    label: Outer
+  - id: inner
+    label: Inner
+    group: outer
+nodes:
+  - id: api
+    component: box
+    label: API
+    group: inner
+  - id: client
+    component: box
+    label: Client
+edges:
+  - from: client
+    to: api
+  - from: outer
+    to: api
+  - id: up
+    from: inner
+    to: outer

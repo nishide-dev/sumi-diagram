@@ -9,7 +9,8 @@
       "!**/node_modules",
       "!schema/*.schema.json",
       "!assets/fonts",
-      "!examples/**/*.svg"
+      "!examples/**/*.svg",
+      "!tests/fixtures/lint-output"
     ]
   },
   "formatter": {

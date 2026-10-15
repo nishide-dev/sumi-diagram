@@ -1,0 +1,32 @@
+version: 1
+figure:
+  id: no-cascade
+groups:
+  # Unknown component: the group, its children and their edges are invalid.
+  - id: broken
+    component: frame
+    label: 😀
+nodes:
+  - id: ghost
+    component: cloud
+  - id: inside
+    component: box
+    group: broken
+  - id: typo
+    component: box
+    colour: red
+    label: This label is far too long to fit on a single line of a figure 😀
+  - id: ok
+    component: box
+    label: OK
+edges:
+  - from: ghost
+    to: ghost
+  - from: ghost
+    to: ok
+  - from: ghost
+    to: ok
+  - from: broken
+    to: inside
+  - from: nowhere
+    to: ok

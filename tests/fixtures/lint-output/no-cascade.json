@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "file": "lint/no-cascade.sumi.yaml",
+  "diagnostics": [
+    {
+      "code": "component/unknown",
+      "severity": "error",
+      "message": "Unknown group component \"frame\".",
+      "hint": "Known group components: container.",
+      "path": [
+        "groups",
+        0,
+        "component"
+      ],
+      "location": {
+        "file": "lint/no-cascade.sumi.yaml",
+        "line": 7,
+        "column": 16,
+        "endLine": 7,
+        "endColumn": 21
+      },
+      "subject": {
+        "kind": "group",
+        "id": "broken"
+      }
+    },
+    {
+      "code": "component/unknown",
+      "severity": "error",
+      "message": "Unknown node component \"cloud\".",
+      "hint": "Known node components: box, square, circle, ellipse, diamond, hexagon, parallelogram, cylinder, document, label.",
+      "path": [
+        "nodes",
+        0,
+        "component"
+      ],
+      "location": {
+        "file": "lint/no-cascade.sumi.yaml",
+        "line": 11,
+        "column": 16,
+        "endLine": 11,
+        "endColumn": 21
+      },
+      "subject": {
+        "kind": "node",
+        "id": "ghost"
+      }
+    },
+    {
+      "code": "schema/unknown-field",
+      "severity": "error",
+      "message": "Unknown field \"colour\" in nodes[2].",
+      "path": [
+        "nodes",
+        2,
+        "colour"
+      ],
+      "location": {
+        "file": "lint/no-cascade.sumi.yaml",
+        "line": 17,
+        "column": 5,
+        "endLine": 17,
+        "endColumn": 11
+      },
+      "hint": "If this field was added in a newer Sumi version, upgrade Sumi."
+    },
+    {
+      "code": "ref/unknown-endpoint",
+      "severity": "error",
+      "message": "Unknown source \"nowhere\" in edge edges[4]; endpoints must be node or group IDs.",
+      "path": [
+        "edges",
+        4,
+        "from"
+      ],
+      "location": {
+        "file": "lint/no-cascade.sumi.yaml",
+        "line": 31,
+        "column": 11,
+        "endLine": 31,
+        "endColumn": 18
+      },
+      "subject": {
+        "kind": "edge",
+        "id": "edges[4]"
+      }
+    }
+  ],
+  "summary": {
+    "errors": 4,
+    "warnings": 0,
+    "infos": 0
+  }
+}

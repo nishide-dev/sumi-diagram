@@ -1,0 +1,11 @@
+version: 1
+figure:
+  id: self-loop
+nodes:
+  - id: worker
+    component: box
+    label: Worker
+edges:
+  - from: worker
+    to: worker
+    label: retry
