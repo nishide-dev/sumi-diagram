@@ -1,1 +1,3 @@
 *.ttf binary
+# Figure sources are hashed into the SVG metadata; keep them byte-identical on every platform.
+*.sumi.yaml text eol=lf
