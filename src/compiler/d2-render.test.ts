@@ -16,7 +16,9 @@ import { join } from "node:path";
 import { createD2CliBackend } from "../backends/d2/backend";
 import { checkD2Version, findD2Binary } from "../backends/d2/binary";
 import { D2_VERSION } from "../backends/d2/version";
+import type { ElementKey } from "../core/check-state";
 import { runCommand } from "../core/subprocess";
+import { inspectSvg } from "../render/inspect";
 import { type CompiledFigure, compileFigure } from "./compile";
 import { elementClass, generateD2 } from "./d2";
 import type { FigureIR } from "./ir";
@@ -124,6 +126,41 @@ describe.skipIf(!available)("D2 CLI validation", () => {
         if (line.trim() !== "") expect(lines).toContain(line);
       }
     }
+  });
+
+  test("group labels at the top-left and edge label backgrounds (#31)", async () => {
+    const result = compileFigure(`version: 1
+figure: { id: readability, layout: { direction: down } }
+groups:
+  - { id: g, label: Stages }
+nodes:
+  - { id: top, component: box, label: Top }
+  - { id: a, component: box, label: A wide node inside, group: g }
+  - { id: b, component: box, label: B, group: g }
+edges:
+  - { from: top, to: a, label: enter }
+  - { from: a, to: b }
+`);
+    if (!result.ok) throw new Error("expected ok");
+    const svg = await render(result.value);
+    const inspected = inspectSvg(svg, result.value.ir);
+    if (!inspected.ok) throw new Error(JSON.stringify(inspected.diagnostics));
+    const group = inspected.value.elements.find((e) => e.key === "g:g");
+    const bbox = group?.bbox;
+    const anchor = group?.labels[0]?.anchor;
+    if (bbox === undefined || anchor === undefined) throw new Error("missing group geometry");
+    // The label is drawn in the left half, near the top: not centered.
+    expect(anchor.x).toBeLessThan(bbox.x + bbox.width / 3);
+    expect(anchor.y).toBeLessThan(bbox.y + 30);
+    // D2 draws `style.fill` of a labelled edge as a rounded box behind the label,
+    // and nothing for an unlabelled one.
+    const edgeMarkup = (key: ElementKey) => {
+      const start = svg.indexOf(elementClass(key));
+      expect(start).toBeGreaterThan(0);
+      return svg.slice(start, svg.indexOf("</g>", start));
+    };
+    expect(edgeMarkup("e:#0")).toMatch(/<rect [^>]*rx="10" fill="#ffffff"/);
+    expect(edgeMarkup("e:#1")).not.toContain("<rect");
   });
 
   test("custom edges and text styles", async () => {

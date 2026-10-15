@@ -7,6 +7,8 @@
  * canvas to make a problem go away (design doc §5).
  */
 
+import type { EdgeIR, FigureIR } from "../../compiler/ir";
+import type { ElementKey } from "../../core/check-state";
 import type { DocPath } from "../../core/diagnostics";
 import { formatMm, formatPt } from "../../core/units";
 import { type Point, type Rect, unitsToPt } from "../../render/geometry";
@@ -283,7 +285,7 @@ export const edgeCrossesLabel = defineGeometryRule({
           subject: edge.subject,
           hint:
             other.kind === "group"
-              ? "D2 centers a container's label at its top, so edges that enter the container from above cross it. Connect elements inside the container instead of the container itself, or change layout.direction."
+              ? "A container's label sits at its top-left corner, so edges that enter the container from above can cross it when the label is wide. Shorten the label, connect elements inside the container instead of the container itself, or change layout.direction."
               : "Change the layout (direction or grouping) so the edge is routed around the label, or shorten the label.",
           related: [{ path: labelPath(other), message: "The label is defined here." }],
         });
@@ -316,6 +318,168 @@ export const aspectDistorted = defineGeometryRule({
   },
 });
 
+/**
+ * The edges that close a cycle when the figure is read in declaration order
+ * (#31): a depth-first search from the sources (elements without incoming
+ * edges), then from the remaining elements, all in IR order, following edges
+ * in document order. An edge to an element still on the search path closes a
+ * cycle. These are the edges a reader expects to run against the layout
+ * direction (e.g. a "retry" edge back to an earlier step).
+ *
+ * ELK lays out a group as one block among its siblings, so an edge that
+ * crosses group boundaries is followed both between its endpoints and between
+ * their ancestors that are children of the lowest common ancestor: `g -> b`
+ * and `b -> a` (with `a` inside group `g`) form the cycle `g -> b -> g`,
+ * closed by `b -> a`.
+ */
+export function cycleClosingEdges(
+  ir: FigureIR,
+  isLayoutEdge: (edge: EdgeIR) => boolean,
+): ReadonlySet<ElementKey> {
+  const vertices: ElementKey[] = [...ir.groups, ...ir.nodes].map((e) => e.key);
+  /** The element's ancestors from the root down, ending with the element itself. */
+  const chain = (key: ElementKey): ElementKey[] => {
+    const keys: ElementKey[] = [];
+    const seen = new Set<ElementKey>();
+    for (let k: ElementKey | undefined = key; k !== undefined && !seen.has(k); ) {
+      seen.add(k);
+      keys.unshift(k);
+      const element = ir.elements.get(k);
+      k = element === undefined || element.kind === "edge" ? undefined : element.parent;
+    }
+    return keys;
+  };
+  /** The endpoints projected onto the children of their lowest common ancestor. */
+  const project = (edge: EdgeIR): [ElementKey, ElementKey] => {
+    const from = chain(edge.from);
+    const to = chain(edge.to);
+    let i = 0;
+    while (i < from.length - 1 && i < to.length - 1 && from[i] === to[i]) i++;
+    return [from[i] as ElementKey, to[i] as ElementKey];
+  };
+  const outgoing = new Map<ElementKey, { edge: EdgeIR; to: ElementKey }[]>(
+    vertices.map((key) => [key, []]),
+  );
+  const hasIncoming = new Set<ElementKey>();
+  for (const edge of ir.edges) {
+    if (!isLayoutEdge(edge)) continue;
+    // The edge itself orders the elements; its projection adds the cycles it
+    // forms with edges of the enclosing groups.
+    const [from, to] = project(edge);
+    const pairs: [ElementKey, ElementKey][] = [[edge.from, edge.to]];
+    if (from !== to && (from !== edge.from || to !== edge.to)) pairs.push([from, to]);
+    for (const [f, t] of pairs) {
+      outgoing.get(f)?.push({ edge, to: t });
+      hasIncoming.add(t);
+    }
+  }
+  const closing = new Set<ElementKey>();
+  const visited = new Set<ElementKey>();
+  const onPath = new Set<ElementKey>();
+  const roots = [
+    ...vertices.filter((key) => !hasIncoming.has(key)),
+    ...vertices.filter((key) => hasIncoming.has(key)),
+  ];
+  for (const root of roots) {
+    if (visited.has(root)) continue;
+    // Iterative DFS: each frame is a vertex and the index of its next edge.
+    const stack: { key: ElementKey; next: number }[] = [{ key: root, next: 0 }];
+    visited.add(root);
+    onPath.add(root);
+    while (stack.length > 0) {
+      const frame = stack[stack.length - 1] as { key: ElementKey; next: number };
+      const step = (outgoing.get(frame.key) ?? [])[frame.next++];
+      if (step === undefined) {
+        onPath.delete(frame.key);
+        stack.pop();
+        continue;
+      }
+      if (onPath.has(step.to)) {
+        closing.add(step.edge.key);
+      } else if (!visited.has(step.to)) {
+        visited.add(step.to);
+        onPath.add(step.to);
+        stack.push({ key: step.to, next: 0 });
+      }
+    }
+  }
+  return closing;
+}
+
+const DIRECTION_WORDS: Readonly<Record<FigureIR["meta"]["direction"], string>> = {
+  down: "above",
+  up: "below",
+  right: "to the left of",
+  left: "to the right of",
+};
+
+/**
+ * `true` if `target` lies entirely before `source` along the layout direction,
+ * i.e. an edge from `source` to `target` runs against it.
+ */
+function isBefore(
+  direction: FigureIR["meta"]["direction"],
+  source: Rect,
+  target: Rect,
+  tolerance: number,
+): boolean {
+  switch (direction) {
+    case "down":
+      return target.y + target.height <= source.y + tolerance;
+    case "up":
+      return target.y >= source.y + source.height - tolerance;
+    case "right":
+      return target.x + target.width <= source.x + tolerance;
+    case "left":
+      return target.x >= source.x + source.width - tolerance;
+  }
+}
+
+export const reversedEdge = defineGeometryRule({
+  id: "geometry/reversed-edge",
+  description:
+    "An arrow is drawn against layout.direction although it does not close a cycle in declaration order: the layout engine reversed a different edge of the cycle than the source implies.",
+  defaultSeverity: "warning",
+  fixable: false,
+  run(context) {
+    const { ir } = context;
+    const { direction } = ir.meta;
+    // Self-loops have no direction, and edges between a group and its
+    // descendants are lint/ancestor-edge's concern.
+    const isLayoutEdge = (edge: EdgeIR) =>
+      edge.from !== edge.to &&
+      !context.isAncestor(edge.from, edge.to) &&
+      !context.isAncestor(edge.to, edge.from);
+    const closing = cycleClosingEdges(ir, isLayoutEdge);
+    const boxOf = (key: ElementKey): Rect | undefined => {
+      const element = context.get(key);
+      if (element === undefined) return undefined;
+      return element.bbox ?? unionOf(element.labels.flatMap((l) => l.visibleLines));
+    };
+    const findings: LintFinding[] = [];
+    for (const edge of ir.edges) {
+      // Only one-way arrows show a direction; lines and double arrows do not.
+      if (edge.direction !== "forward" || !isLayoutEdge(edge) || closing.has(edge.key)) continue;
+      const source = boxOf(edge.from);
+      const target = boxOf(edge.to);
+      const element = context.get(edge.key);
+      if (source === undefined || target === undefined || element === undefined) continue;
+      if (!isBefore(direction, source, target, GEOMETRY_TOLERANCE_UNITS)) continue;
+      const from = context.get(edge.from);
+      const to = context.get(edge.to);
+      if (from === undefined || to === undefined) continue;
+      findings.push({
+        message: `${capitalize(element.name)} points against layout.direction (${direction}): ${to.name} is drawn ${DIRECTION_WORDS[direction]} ${from.name}, although the edge does not close a cycle in declaration order.`,
+        path: element.docPath,
+        subject: element.subject,
+        hint: "The layout engine (ELK) reverses one edge of every cycle, and inside a container it may pick a different one than intended. Declare the cycle's nodes in a different order (e.g. swap them in `nodes`), or move the cycle out of the container.",
+        related: [{ path: to.docPath, message: `${capitalize(to.name)} is defined here.` }],
+      });
+    }
+    return findings;
+  },
+});
+
 /** The built-in geometry rules, all enabled by default. */
 export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
   exceedsPageWidth,
@@ -327,4 +491,5 @@ export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
   labelCollision,
   edgeCrossesLabel,
   aspectDistorted,
+  reversedEdge,
 ] as GeometryRule[]);

@@ -1,0 +1,38 @@
+# A chain of 14 steps top to bottom: taller than the 220mm maximum height of
+# the paper profiles (#31, item 4). Expected: geometry/exceeds-page-height
+# (error) on the figure.
+version: 1
+figure:
+  id: exceeds-page-height
+  profile: paper-single
+  layout:
+    direction: down
+nodes:
+  - { id: s1, component: box, label: Step 1 }
+  - { id: s2, component: box, label: Step 2 }
+  - { id: s3, component: box, label: Step 3 }
+  - { id: s4, component: box, label: Step 4 }
+  - { id: s5, component: box, label: Step 5 }
+  - { id: s6, component: box, label: Step 6 }
+  - { id: s7, component: box, label: Step 7 }
+  - { id: s8, component: box, label: Step 8 }
+  - { id: s9, component: box, label: Step 9 }
+  - { id: s10, component: box, label: Step 10 }
+  - { id: s11, component: box, label: Step 11 }
+  - { id: s12, component: box, label: Step 12 }
+  - { id: s13, component: box, label: Step 13 }
+  - { id: s14, component: box, label: Step 14 }
+edges:
+  - { from: s1, to: s2 }
+  - { from: s2, to: s3 }
+  - { from: s3, to: s4 }
+  - { from: s4, to: s5 }
+  - { from: s5, to: s6 }
+  - { from: s6, to: s7 }
+  - { from: s7, to: s8 }
+  - { from: s8, to: s9 }
+  - { from: s9, to: s10 }
+  - { from: s10, to: s11 }
+  - { from: s11, to: s12 }
+  - { from: s12, to: s13 }
+  - { from: s13, to: s14 }

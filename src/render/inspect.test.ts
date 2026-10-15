@@ -56,6 +56,7 @@ describe("inspectSvg", () => {
     expect(inspection.profile).toEqual({
       id: "paper-single",
       maxWidthPt: getProfile("paper-single")?.page.maxWidth?.pt as number,
+      maxHeightPt: getProfile("paper-single")?.page.maxHeight?.pt as number,
       minFontSizePt: 7,
     });
     expect(inspection.elements.map((e) => e.key)).toEqual([

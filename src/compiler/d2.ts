@@ -27,6 +27,14 @@ const EDGE_OPERATORS: Readonly<Record<EdgeIR["direction"], string>> = {
   none: "--",
 };
 
+/**
+ * Where a group's label goes (#31). D2 centers it at the top by default, where
+ * ELK routes edges entering the container from above (into the first child,
+ * which ELK also centers); at the top-left corner it is out of their way in
+ * most layouts. D2 still reserves the room for it above the children.
+ */
+const GROUP_LABEL_NEAR = "top-left";
+
 /** Generates the D2 source for a figure. */
 export function generateD2(ir: FigureIR): string {
   const out: string[] = [
@@ -46,6 +54,7 @@ export function generateD2(ir: FigureIR): string {
     write(body, `label: ${d2String(element.label)}`);
     write(body, `class: ${classList(key, element.kind)}`);
     write(body, `shape: ${element.shape}`);
+    if (element.kind === "group") write(body, `label.near: ${GROUP_LABEL_NEAR}`);
     if (element.kind === "node") writeSize(element, body, write);
     writeStyle(element.style, body, write);
     if (element.kind === "group") for (const child of element.children) writeObject(child, body);
@@ -89,7 +98,8 @@ function writeSize(node: NodeIR, depth: number, write: Write): void {
 function writeStyle(style: ResolvedStyle, depth: number, write: Write): void {
   const shape = style.kind !== "edge";
   const entries: [string, string | false][] = [
-    ["fill", shape && d2String(style.fill)],
+    // On an edge, D2 draws the fill as a padded box behind the label (#31).
+    ["fill", d2String(style.fill)],
     ["stroke", d2String(style.stroke)],
     ["stroke-width", units(style.strokeWidth)],
     ["stroke-dash", integer(style.strokeDash)],

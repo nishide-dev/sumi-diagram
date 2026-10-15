@@ -98,7 +98,7 @@ exit code 1. Configure like structural rules
 | Code | Default | Fix |
 | --- | --- | --- |
 | `geometry/exceeds-page-width` | error | `direction: down`, shorter labels, fewer nodes side by side; a wider profile only if the user agrees |
-| `geometry/exceeds-page-height` | error | only profiles with `maxHeight` (`presentation-16x9`): `direction: right`, fewer layers, or split the figure |
+| `geometry/exceeds-page-height` | error | paper profiles 220mm, `presentation-16x9` 190.5mm: `direction: right`, fewer layers, or split the figure |
 | `geometry/text-too-small` | error | as `profile/font-too-small` (a safety net after rendering) |
 | `geometry/label-overflow` | error | remove or enlarge explicit `width`/`height` (the `path` points at `props` then), shorten or break the label, or use a shape with more room for text (`box`) |
 | `geometry/out-of-canvas` | error | shorten labels; if it persists, report it as a Sumi bug |
@@ -106,3 +106,4 @@ exit code 1. Configure like structural rules
 | `geometry/label-collision` | warning | shorten labels; change `direction` or grouping |
 | `geometry/edge-crosses-label` | warning | connect elements inside the group rather than the group, change `direction`, shorten the label (see layout-tips) |
 | `geometry/aspect-distorted` | warning | fewer edges on that `circle`/`square`, or use `ellipse`/`box` |
+| `geometry/reversed-edge` | warning | ELK reversed the wrong edge of a cycle (typically a loop inside a group): swap the order of the loop's nodes in `nodes`, or move the loop out of the group |

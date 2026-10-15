@@ -56,6 +56,11 @@ export interface GroupStyle extends CommonStyle {
 
 export interface EdgeStyle extends CommonStyle {
   readonly kind: "edge";
+  /**
+   * Background of the edge's label (D2 `style.fill` on a connection, #31). D2
+   * draws it as a padded box behind the label; `transparent` draws nothing.
+   */
+  readonly fill: Color;
   /** Whether arrowheads are filled. */
   readonly filled: boolean;
 }
@@ -91,7 +96,8 @@ const SHAPES: readonly ComponentKind[] = ["node", "group"];
 
 /** The style properties, in documentation order (§4.1). */
 export const STYLE_PROPERTIES = {
-  fill: { type: "color", kinds: SHAPES },
+  // On edges, the background of the label (#31).
+  fill: { type: "color", kinds: ALL },
   stroke: { type: "color", kinds: ALL },
   strokeWidth: { type: "length", kinds: ALL, min: 0, max: 7.5 },
   strokeDash: { type: "number", kinds: ALL, min: 0, max: 10, integer: true },
@@ -169,6 +175,7 @@ export const KIND_DEFAULTS: { readonly [K in ComponentKind]: StyleOf<K> } = deep
   edge: {
     kind: "edge",
     ...COMMON_DEFAULTS,
+    fill: "#ffffff",
     fontSize: length(7),
     bold: false,
     filled: true,
