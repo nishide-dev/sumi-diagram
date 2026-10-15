@@ -277,7 +277,7 @@ Sumi が公開するスタイルプロパティは、D2 で表現できるもの
 
 | prop | 対象 kind | 型・範囲（pt） | D2 |
 |---|---|---|---|
-| `fill` | node, group | `#rrggbb` / `#rgb` / `transparent` | `style.fill` |
+| `fill` | 全部（edge ではラベルの背景。#31） | `#rrggbb` / `#rgb` / `transparent` | `style.fill` |
 | `stroke` | 全部 | 色 | `style.stroke` |
 | `strokeWidth` | 全部 | 0–7.5（0.5 刻み） | `style.stroke-width`（×2） |
 | `strokeDash` | 全部 | 整数 0–10（段階値。実長ではない） | `style.stroke-dash` |
@@ -290,7 +290,8 @@ Sumi が公開するスタイルプロパティは、D2 で表現できるもの
 | `filled` | edge | bool（矢尻の塗り） | arrowhead の `style.filled` |
 
 - `shadow`、`3d`、`multiple`、`double-border` は公開しない（形状ごとの制約と固定オフセットがあるため）。
-- 対象外の kind に指定されたプロパティ（edge の `fill` 等）は Theme 読み込み時に error（`theme/inapplicable-property`）。
+- 対象外の kind に指定されたプロパティ（edge の `radius` 等）は Theme 読み込み時に error（`theme/inapplicable-property`）。
+- edge の `fill` は、D2 の connection の `style.fill` と同じく**ラベルの背景**になる。D2 はラベルのあるエッジにだけ、ラベルより少し大きい角丸の矩形（`rx=10`）を描く（§6.6）。`transparent` なら背景を描かない。
 - 色は `rgb()` を受け付けない（D2 が拒否する）。Theme 側で `#hex` に正規化する。
 
 ### 4.2 フォント
@@ -336,7 +337,7 @@ components:
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | node | `#ffffff` | `#000000` | 1pt | 0 | 0pt | 1 | 8pt | `#000000` | false | false | false | — |
 | group | `transparent` | `#000000` | 1pt | 0 | 0pt | 1 | 9pt | `#000000` | true | false | false | — |
-| edge | — | `#000000` | 1pt | 0 | — | 1 | 7pt | `#000000` | false | false | false | true |
+| edge | `#ffffff`（ラベルの背景） | `#000000` | 1pt | 0 | — | 1 | 7pt | `#000000` | false | false | false | true |
 
 - **token の葉の型判定**（機械的に判定できる規則）:
   - YAML の数値 → `number`
@@ -380,12 +381,12 @@ id: paper-single
 description: Single-column figure in a two-column paper
 page:
   maxWidth: 88mm        # 余白込みの出力幅の上限
-  maxHeight: 120mm      # 任意
+  maxHeight: 220mm      # 任意
 margin: 2mm             # 内容境界の外側の余白（D2 の --pad として渡す。stroke のはみ出しは D2 が境界に含める）
 typography:
   minFontSize: 7pt
 layout:
-  layerGap: 10mm        # ELK: nodeNodeBetweenLayers = layerGap、edgeNodeBetweenLayers = layerGap / 2
+  layerGap: 8mm         # ELK: nodeNodeBetweenLayers = layerGap、edgeNodeBetweenLayers = layerGap / 2
   containerPadding: 4mm # ELK: --elk-padding（上側はラベル分を D2 が強制する）
 ```
 - **Profile の値から D2 引数への変換**:
@@ -397,7 +398,7 @@ layout:
 | Profile 項目 | 例 | unit | CLI 引数 |
 |---|---|---|---|
 | `margin` | 2mm = 5.669pt | 11.34 → **11** | `--pad 11` |
-| `layout.layerGap` | 10mm = 28.35pt | 56.69 → **57** | `--elk-nodeNodeBetweenLayers 57`、`--elk-edgeNodeBetweenLayers 29`（= round(57 / 2)） |
+| `layout.layerGap` | 8mm = 22.68pt | 45.35 → **45** | `--elk-nodeNodeBetweenLayers 45`、`--elk-edgeNodeBetweenLayers 23`（= round(45 / 2)。22.5 は切り上げ） |
 | `layout.containerPadding` | 4mm = 11.34pt | 22.68 → **23** | `--elk-padding "[top=23,left=23,bottom=23,right=23]"`（top はラベル分を D2 が拡張する） |
 | `page.maxWidth` | 88mm = 249.45pt | 量子化しない | 使わない（geometry lint で比較） |
 | `typography.minFontSize` | 7pt | 量子化しない | 使わない（profile 段で比較） |
@@ -407,9 +408,10 @@ layout:
 - 出力サイズの算出: 出力幅 = (D2 の viewBox 幅) × 0.5pt。viewBox は内容の境界と `--pad` を含む。これが `page.maxWidth` を超えたら縮小せず、`geometry/exceeds-page-width`（error）を出す。`maxHeight` も同様。
 - 事前検査（stage `profile`）: 図中で実際に使われる要素の実効 `fontSize` が `minFontSize` 未満なら `profile/font-too-small`（error）。Theme だけを変えても Profile の制約は変わらない。「実際に使われる」は**ラベルが空でない要素**とする（ラベルのない要素は文字を描かないため。#6 で確定）。
 - 組み込み Profile:
-  - `paper-single`: maxWidth 88mm, minFontSize 7pt
-  - `paper-double`: maxWidth 180mm, minFontSize 7pt
+  - `paper-single`: maxWidth 88mm, maxHeight 220mm, minFontSize 7pt
+  - `paper-double`: maxWidth 180mm, maxHeight 220mm, minFontSize 7pt
   - `presentation-16x9`: maxWidth 338.7mm, maxHeight 190.5mm, minFontSize 14pt（固定キャンバスへの配置は MVP 外。上限としてのみ扱う）
+  - 間隔: paper 系は margin 2mm、layerGap 8mm、containerPadding 4mm。presentation は paper 系の 2 倍（4mm、16mm、8mm）。maxHeight と layerGap は #31 で決めた（§6.6）。
 - 自動再配置（方向を変えて試すなど）は段階的に導入する。MVP は診断のみ。
 
 ## 6. #8〜#13 に引き継ぐ契約
@@ -518,12 +520,38 @@ layout:
 - **空白**: D2 の `<text>` には `xml:space="preserve"` も `white-space: pre` もないため、描画側は CSS `white-space: normal` で空白を畳む。D2 は空白とタブをそのまま出力する（タブも文字として残る）。再計測は計測前に同じ正規化をする（`renderedLines()`）: タブ等は空白にし、連続する空白は最初の 1 つに畳み（`<tspan>` の境界をまたいでも畳む）、text 全体の先頭・末尾の空白を除く。U+00A0・U+3000 は畳まない。空白だけの行（U+00A0 だけの行を含む）は何も描かないので規則の判定から除く（`visibleLines`）。Chrome の描画と一致することを確認した（`"x     y"` 24.70 / 再計測 24.70、空白 50 個は 0、`"line\n   \nend"` の中央の行は空白 1 個分 5.34）。この正規化がないと、空白 50 個のラベルで `label-overflow` と `out-of-canvas` が誤検出された（PR #34 のレビュー）。
 - **ラベルの矩形**: 各行は anchor の x を中心とし（`text-anchor: middle`、`<tspan>` の x は `<text>` と同じ）、幅は advance の合計 × font-size。縦は 1 行目のベースラインが anchor の y、行送りは `<tspan>` の `dy`。D2 v0.9.0 の `dy` は font-size と一致しない。D2 が計測したラベルの高さを行数で割った値で、2 行目以降はすべて同じ値になる（16px → 16、18px → 18.5、14px → 14.5）。先頭・末尾の空行は高さに数えないため、`"\nmiddle\n"` では 16 / 3、空行だけのラベル（`"\n"`、`" \n "`）では **0** になる。そのため、`inspectSvg()` の `LabelGeometry` に **`lineHeightUnits`**（2 行目以降の `dy`。1 行なら font-size）を追加した。`dy` が 0 の行送りは受け付け、負の値・行ごとに異なる値・相対単位・`<tspan>` の x が異なる場合は `svg/unsupported-geometry`。再計測は `dy` をそのまま使うので、重なって描かれる行も描画どおりの位置で測る（空白だけの行はもともと判定から除く）。各行の高さは ascender から descender（`hhea`。BIZ UD Gothic は 1802 + 246 = 2048 = 1em）。
 - **実測で確認した D2 v0.9.0 の挙動**: 明示サイズの box にラベルが収まらない場合、D2 はサイズを保ち、ラベルを図形の**下の外側**に描く（`label-overflow` は「図形の外に描かれる」と伝える）。circle は明示サイズより大きく描かれることがある（ラベルに合わせて拡大）。自動サイズの図形では、D2 の過大な見積もり（bold・CJK）により再計測したラベルは常に収まる（全 fixture で誤検出なし）。
-- **規則**（stage `geometry`）: `exceeds-page-width`（error）、`exceeds-page-height`（error、`maxHeight` がある Profile のみ）、`text-too-small`（error）、`label-overflow`（error）、`out-of-canvas`（error）、`node-overlap`（warning）、`label-collision`（warning）、`edge-crosses-label`（warning）、`aspect-distorted`（warning。§6.3 の観察の ELK による円の変形）。内容・図形ごとの文字の範囲・許容誤差（1 unit = 0.5pt）・限界は [docs/lint-rules.md](../lint-rules.md)。
+- **規則**（stage `geometry`）: `exceeds-page-width`（error）、`exceeds-page-height`（error、`maxHeight` がある Profile のみ）、`text-too-small`（error）、`label-overflow`（error）、`out-of-canvas`（error）、`node-overlap`（warning）、`label-collision`（warning）、`edge-crosses-label`（warning）、`aspect-distorted`（warning。§6.3 の観察の ELK による円の変形）、`reversed-edge`（warning。#31 で追加。§6.6）。内容・図形ごとの文字の範囲・許容誤差（1 unit = 0.5pt）・限界は [docs/lint-rules.md](../lint-rules.md)。
 - **意図した包含の除外**: `node-overlap` はグループの木（IR の `parent`）で祖先・子孫の組を除外する。`label-collision` はグループの図形との重なりを除外し（中の要素は意図して重ねて描く）、グループのラベルとの重なりは検出する。
-- **#31 との関係**: 項目 1（上から入るエッジがコンテナのラベルを横切る）は `edge-crosses-label` で、項目 5（円が長いラベルで大きくなる・縦横比）は `aspect-distorted` と `label-overflow` で検出する。項目 2〜4 は lowering / Theme / Profile の課題として #31 に残す。
+- **#31 との関係**: 項目 1（上から入るエッジがコンテナのラベルを横切る）は `edge-crosses-label` で、項目 5（円が長いラベルで大きくなる・縦横比）は `aspect-distorted` と `label-overflow` で検出する。項目 2〜4 は lowering / Theme / Profile の課題として #31 に残す（#31 での判断は §6.6）。
 - **観察**: `tests/fixtures/compile/builtins.sumi.yaml` では、ELK がエッジ（circle → ellipse）を別のノード（ellipse-muted）の上に通し、そのラベルが `label-collision` で検出される。エッジとノードの図形の交差そのものを検出する規則は MVP では設けない。
 - **CLI**（#14 の後に配線）: `sumi lint --geometry` は `lintRenderedFigure()` を呼ぶ（ファイルは書かない）。`sumi render` は描画結果に `lintGeometry()` を既定の設定で実行し、診断を stderr に出す。幾何の error があっても SVG は書き出し、終了コードを 1 にする（成果物を確認できるようにするため。`--no-geometry` で省ける）。`sumi doctor` の `geometry-lint` は、同梱フォントの metrics を読めれば `ok`。`tests/fixtures/figures/lint/clean.sumi.yaml` は paper-single の幅を超えていたため、Profile を `paper-double` にした（幾何 lint でも clean にするため）。
 - 自動修正はしない。文字や図を黙って縮小しない（§5）。
+
+### 6.6 #31 での読みやすさの判断
+#10 の目視確認で見つかった 5 項目を、D2 v0.9.0 の実出力（同梱フォント、paper 系 Profile）と幾何 lint で確かめて判断した。比較には examples の 2 図と、コンテナ・ループ・縦長・横向きの検証用の図 7 つを使った。
+
+1. **コンテナのラベルとエッジの交差 → lowering で対応**: group を `label.near: top-left` で出力する（`src/compiler/d2.ts`）。
+   - D2 の既定ではコンテナのラベルは上辺の中央にあり、ELK は上から入るエッジを、中央に置いた最初の子へ向けて引く。そのため、ラベルがエッジの通り道に重なる。
+   - ELK レイアウトでコンテナに使える `label.near` を試した。`top-left` / `top-right` / `bottom-left` は、D2 がラベル分の余白を内側に確保する（`bottom-left` は下側に確保するので、下へ出るエッジと交差する）。`outside-top-left` はラベルを枠の外（上）に描く。交差は減らず、`label-overflow` の前提（ラベルは図形の内側）とも合わないため採らない。
+   - `geometry/edge-crosses-label` の件数は、中央 4 → `top-left` 2 → `outside-top-left` 2（加えて全コンテナで `label-overflow`）だった。`top-left` で残るのは、ラベルがコンテナの幅の半分を超える場合だけ（幅の狭い 1 列のコンテナ。`tests/fixtures/figures/geometry/edge-crosses-label.sumi.yaml`）。この場合は従来どおり `edge-crosses-label` が検出する。
+   - 位置を選ぶ Theme のプロパティ（`labelPosition` など）は追加しない。D2 の挙動を Sumi が決めた 1 つの位置に固定するほうが、出力を予測しやすい。必要になれば、互換的な追加として Theme の group のプロパティにする。
+   - 回帰 fixture: `container-label.sumi.yaml`（中央なら交差、`top-left` なら交差しないことを確認済み）。`d2-render.test.ts` で、ラベルの anchor が group の左 1/3 にあることを検査する。
+2. **コンテナ内のループの反転 → lint の warning（`geometry/reversed-edge`）**:
+   - 再現: `process → done → process` をコンテナで囲むと、ELK は `process → done` を逆向きにし、`done` を上に置く。コンテナがない場合と、コンテナの中の 3 ノードのループでは起きない。同じ 2 ノードのループでも、コンテナの中で `done` を先に宣言すると正しい向きになる。
+   - lowering での回避（コンテナの子の宣言順を逆にする）は採らない。2 ノードのループは直るが、3 ノードのループが逆に反転した。ELK の閉路の切り方は宣言順への依存が一定でなく、D2 v0.9.0 は ELK の `cycleBreaking` を CLI で指定できない。確実な回避がないため、検出にとどめる。
+   - 規則: 宣言順に読んだときに閉路を閉じる辺（入次数 0 の要素から、残りは IR の順に深さ優先探索し、探索中の経路上の要素へ戻る辺）以外の矢印（`forward` のエッジ）が、`layout.direction` に逆らって描かれていれば warning にする。「逆らう」は、終点の図形（`label` 部品はラベルの矩形）が始点より方向の手前側に完全にある（許容誤差 1 unit）こと。線（`line`）・両矢印は向きが見えないので報告しない。自己ループと、group とその子孫を結ぶエッジ（`lint/ancestor-edge` の対象）は探索にも含めない。hint で、宣言順を入れ替えるか、ループをコンテナの外に出すよう示す（`reversed-edge-reordered.sumi.yaml` で効果を確認済み）。
+   - 既存の fixture・examples で誤検出はない（統合テストで検査）。
+3. **エッジのラベルの背景 → Theme の edge の `fill` で対応**:
+   - D2 はもともと、すべてのエッジの線をラベルの位置でマスクしている（`<mask>` の黒い矩形）。背景がないように見えた原因は、マスクの余白がほとんどないこと。同梱フォントの計測では、7pt のラベル "yes" のマスクは 31 × 15 unit で、文字の箱（14 unit）との差は上下とも 1 unit 未満。`y` の descender が線に触れていた。
+   - D2 の connection の `style.fill` は、ラベルの背後に角丸の矩形（`rx=10`、同じラベルで 35 × 21 unit。左右 2・上下 3 unit 広い）を描く。ラベルのないエッジには何も描かない（検査済み）。これを edge の `fill` として公開し（§4.1）、組み込みの kind 既定値と組み込み Theme では背景色（白）にした。矩形はエッジの `<g>` の中にあり、inspect は図形として扱わない（edge の bbox は持たない）。
+   - コンテナの中では、白い矩形が group の塗り（`minimal` の surface `#f6f8fa`）の上に見えるが、ラベルのチップとして読めるので許容する。エッジの中点ではなく折れ曲がりの近くに置かれる配置は ELK が決める。D2 の connection の `label.near` は ELK では無視されることを確認したため、配置は変えない。
+4. **縦長の図 → Profile の maxHeight と層間隔を見直す**:
+   - `paper-single` / `paper-double` に `maxHeight: 220mm` を追加した。二段組の論文テンプレートの本文領域の高さは、おおよそ 235mm（US letter、上 0.75in・下 1in）〜 250mm（A4、上下 25mm）で、キャプションと前後の間隔に 15mm ほど残す。1 段組と 2 段組でページは同じなので、同じ値にした。超えると `geometry/exceeds-page-height`（error。`exceeds-page-height.sumi.yaml`、14 段で 258mm）。
+   - `layerGap` を 10mm → 8mm にした（presentation は 2 倍の 16mm）。6〜7 段の図の高さは pipeline 163.0 → 150.3mm、decision-flow 166.3 → 149.4mm、7 段の直列 139.9 → 127.2mm。6mm も試したが（それぞれ 137.9 / 133.2 / 115.5mm）、層の間のエッジのラベルが隣のノードの枠に接した（"query" と Auth）ため採らない。
+   - それでも 165mm 程度の図は 220mm に収まるので診断は出ない。単段の図としては縦長だが、ページに収まる図を error にはしない。読みやすさの目安としての警告は、必要になれば別の規則として検討する。
+5. **ラベルの寸法 → 見送り**: D2 の bold での計測と CJK の過大な見積もりは、ノードを広くするだけで、はみ出しは起こさない（§6.5 の実測）。円・正方形が長いラベルで大きくなる・歪む場合は `aspect-distorted` と `label-overflow` で検出できる。D2 の計測を補正する手段（D2 にラベルの寸法を渡す方法）はなく、明示サイズを自動で付けると `label-overflow` の誤検出の原因になるため、今は何もしない。円・正方形のラベルの長さの目安を lint にするかは、実際の図で問題になってから判断する。
+
+- examples の SVG はこれらの変更で再生成した（ラベルの位置・背景・高さが変わる）。`builtins-render.test.ts` は、examples が Profile の幅と高さに収まり、`sumi render` の幾何 lint が何も出さないことを検査する。
 
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
