@@ -1,4 +1,4 @@
 #!/usr/bin/env bun
-import { createProgram } from "./program";
+import { run } from "./program";
 
-await createProgram().parseAsync(process.argv);
+process.exitCode = await run(process.argv.slice(2));
