@@ -22,12 +22,14 @@ import {
   type LintSummary,
   lintFigure,
   lintRenderedFigure,
+  type RenderedLintReport,
   RULE_LEVELS,
   type RuleLevel,
   type RuleSetting,
   resolveLintConfig,
   toLintJson,
 } from "../../lint";
+import { type OutputSize, outputSize } from "../../render";
 import { type CliContext, EXIT, type ExitCode, readTextFile, UsageError } from "../io";
 
 export interface LintCommandOptions {
@@ -42,10 +44,16 @@ export interface LintCommandOptions {
   color: boolean;
 }
 
-/** The `--json` output: one per-file envelope (docs/lint-rules.md) per readable file. */
+/**
+ * One file's result: the per-file envelope (docs/lint-rules.md), plus with
+ * `--geometry` the output size (#37), `null` if the figure was not rendered.
+ */
+export type LintFileJson = LintJson & { size?: OutputSize | null };
+
+/** The `--json` output: one per-file envelope per readable file. */
 export interface LintRunJson {
   version: typeof LINT_JSON_VERSION;
-  results: LintJson[];
+  results: LintFileJson[];
   summary: LintSummary;
 }
 
@@ -57,7 +65,7 @@ export async function lintCommand(
   const config = await buildLintConfig(options, context);
   const { maxWarnings, ...perFile } = config;
 
-  const results: LintJson[] = [];
+  const results: LintFileJson[] = [];
   const total: LintSummary = { errors: 0, warnings: 0, infos: 0 };
   let unreadable = false;
   for (const file of files) {
@@ -70,7 +78,7 @@ export async function lintCommand(
       unreadable = true;
       continue;
     }
-    const report = options.geometry
+    const report: RenderedLintReport = options.geometry
       ? await lintRenderedFigure(text, {
           file,
           config: perFile,
@@ -80,8 +88,14 @@ export async function lintCommand(
     total.errors += report.summary.errors;
     total.warnings += report.summary.warnings;
     total.infos += report.summary.infos;
-    if (options.json) results.push(toLintJson(report));
-    else context.stdout.write(formatLintText(report, { color: options.color, summary: false }));
+    if (options.json) {
+      results.push({
+        ...toLintJson(report),
+        ...(options.geometry && {
+          size: report.rendered === undefined ? null : outputSize(report.rendered.inspection),
+        }),
+      });
+    } else context.stdout.write(formatLintText(report, { color: options.color, summary: false }));
   }
 
   const tooManyWarnings = maxWarnings !== undefined && total.warnings > maxWarnings;

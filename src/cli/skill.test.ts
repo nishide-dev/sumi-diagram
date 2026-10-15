@@ -24,13 +24,15 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
 import { checkD2Version, findD2Binary } from "../backends/d2/binary";
+import { buildFullCatalog } from "../core/catalog";
 import { BUILTIN_PROFILES } from "../core/profile/builtin";
 import { createBuiltinRegistry } from "../core/registry/builtins";
-import { buildCatalog } from "../core/registry/catalog";
 import { BUILTIN_THEMES } from "../core/theme/builtin";
 import { BUILTIN_FONT_SETS } from "../core/theme/fonts";
 import { lintRenderedFigure } from "../lint/geometry";
 import { lintFigure } from "../lint/lint";
+import { toSize } from "../render/geometry";
+import { outputSize } from "../render/size";
 import { parseXml } from "../render/xml";
 
 const ROOT = resolve(import.meta.dir, "..", "..");
@@ -200,6 +202,47 @@ describe("skill references", () => {
     expect(rows("Profile").sort()).toEqual([...BUILTIN_PROFILES.keys()].sort());
   });
 
+  test("documented catalog entries are exactly what `sumi catalog --json` prints", () => {
+    const catalog = buildFullCatalog(createBuiltinRegistry());
+    const documented = blocks
+      .filter((b) => b.lang === "json")
+      .map((b) => JSON.parse(b.body) as Record<string, unknown>)
+      .filter((json) => "themes" in json || "profiles" in json);
+    expect(documented.length).toBeGreaterThan(0);
+    for (const json of documented) {
+      expect(json.version).toBe(catalog.version);
+      for (const section of ["themes", "profiles"] as const) {
+        for (const entry of (json[section] ?? []) as { id: string }[]) {
+          expect(entry).toEqual(catalog[section]?.find((e) => e.id === entry.id) as never);
+        }
+      }
+    }
+  });
+
+  test("the documented `size` of render --json has the CLI's shape", () => {
+    const shape = (value: unknown): unknown =>
+      value === null || typeof value !== "object"
+        ? value === null
+          ? "null"
+          : typeof value
+        : Object.fromEntries(Object.entries(value).map(([k, v]) => [k, shape(v)]));
+    const sizes = blocks
+      .filter((b) => b.lang === "json")
+      .map((b) => JSON.parse(b.body) as Record<string, unknown>)
+      .filter((json) => "size" in json)
+      .map((json) => json.size);
+    expect(sizes.length).toBeGreaterThan(0);
+    const actual = outputSize({
+      canvas: {
+        viewBox: { x: 0, y: 0, width: 2, height: 2 },
+        width: toSize(2),
+        height: toSize(2),
+      },
+      profile: { id: "p", maxWidthPt: 10, maxHeightPt: 10, minFontSizePt: 7 },
+    });
+    for (const size of sizes) expect(shape(size)).toEqual(shape(actual));
+  });
+
   test("themes and profiles in code blocks and CLI flags exist", () => {
     for (const block of blocks) {
       if (marker(block.body, "expect-error") !== undefined) continue;
@@ -293,7 +336,7 @@ describe("scripts/sumi", () => {
   test("runs the CLI from any directory", async () => {
     const run = await runScript("sumi", ["catalog", "--json"]);
     expect(run.exitCode).toBe(0);
-    expect(JSON.parse(run.stdout)).toEqual(buildCatalog(createBuiltinRegistry()));
+    expect(JSON.parse(run.stdout)).toEqual(buildFullCatalog(createBuiltinRegistry()));
   });
 
   // Needs the managed D2 (`bun run d2:install`); required in CI.
