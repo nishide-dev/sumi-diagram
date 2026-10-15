@@ -1,0 +1,9 @@
+version: 1
+figure:
+  id: component-missing-label
+nodes:
+  - id: caption
+    component: label
+  - id: blank
+    component: sumi/label
+    label: ""

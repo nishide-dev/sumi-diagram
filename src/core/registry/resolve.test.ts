@@ -73,6 +73,13 @@ describe("invalid fixtures", () => {
     ["component-unknown-variant", [["component/unknown-variant", ["nodes", 0, "variant"], 7, 14]]],
     ["component-unknown-prop", [["component/unknown-prop", ["nodes", 0, "props", "widht"], 8, 7]]],
     ["component-invalid-prop", [["component/invalid-prop", ["nodes", 0, "props", "width"], 8, 14]]],
+    [
+      "component-missing-label",
+      [
+        ["component/missing-label", ["nodes", 0, "label"], 5, 5],
+        ["component/missing-label", ["nodes", 1, "label"], 9, 12],
+      ],
+    ],
   ];
 
   for (const [fixture, expected] of cases) {

@@ -3,6 +3,9 @@
  * {@link Registry}, validates its variant and props, and records the result in
  * `state.components` (design doc §0, §3).
  *
+ * Nodes whose component draws only text (shape `text`, e.g. `sumi/label`)
+ * need a non-empty label (`component/missing-label`).
+ *
  * Elements already invalid are skipped. Elements whose component fails are
  * marked invalid, and so are the elements depending on them (children of a
  * group, edges touching a node), without further diagnostics. Only valid
@@ -26,6 +29,7 @@ interface Element {
   path: DocPath;
   subject: DiagnosticSubject;
   component: string;
+  label: string;
   variant: string;
   props: Record<string, unknown>;
 }
@@ -56,15 +60,28 @@ export function resolveComponents(state: CheckState, registry: Registry, locate:
       state.invalid.add(element.key);
       continue;
     }
-    const usage = registry.validateUsage(resolved.value, element);
+    const manifest = resolved.value;
+    const usage = registry.validateUsage(manifest, element);
     report(usage.diagnostics, (d) => [...element.path, ...(d.path ?? [])]);
-    if (!usage.ok) {
+    // D2 rejects a text shape without text ("shape text must have a non-empty label").
+    const missingLabel =
+      manifest.kind === "node" && manifest.shape === "text" && element.label === "";
+    if (missingLabel) {
+      const diagnostic: Diagnostic = {
+        code: "component/missing-label",
+        severity: "error",
+        message: `${componentId(manifest)} draws only its label, so the label must not be empty.`,
+        hint: "Add a label, or remove the node.",
+      };
+      report([diagnostic], () => [...element.path, "label"]);
+    }
+    if (!usage.ok || missingLabel) {
       state.invalid.add(element.key);
       continue;
     }
     components.set(element.key, {
-      id: componentId(resolved.value),
-      manifest: resolved.value,
+      id: componentId(manifest),
+      manifest,
       ...usage.value,
     });
   }
@@ -86,6 +103,7 @@ function* elements(state: CheckState): Generator<Element> {
       path,
       subject,
       component: element.component,
+      label: element.label,
       variant: element.variant,
       props: entry.kind === "group" ? {} : entry.element.props,
     };
