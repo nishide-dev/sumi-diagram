@@ -1,0 +1,21 @@
+version: 1
+figure:
+  id: profile-font-too-small
+  theme: minimal
+  profile: presentation-16x9
+groups:
+  - id: stage
+    label: Stage
+nodes:
+  - id: client
+    component: box
+    label: Client
+    group: stage
+  - id: dot
+    component: circle
+edges:
+  - from: client
+    to: dot
+  - from: dot
+    to: client
+    label: back

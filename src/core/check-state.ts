@@ -11,9 +11,10 @@
  *   invalid dependency, to `invalid`.
  */
 
-import type { Diagnostic } from "./diagnostics";
+import type { Diagnostic, DiagnosticSubject, DocPath } from "./diagnostics";
 import type { FigureEdge, FigureGroup, FigureMeta, FigureNode, JsonValue } from "./figure/schema";
 import type { ResolvedComponent } from "./registry/manifest";
+import type { ResolvedStyle } from "./theme/style";
 
 /**
  * Internal element identifier (design doc §2.4): `n:<id>`, `g:<id>`, and
@@ -51,6 +52,43 @@ export interface CheckState {
   diagnostics: Diagnostic[];
   /** Set by the `component` stage: the component of every element it resolved. */
   components?: Map<ElementKey, ResolvedComponent>;
+  /** Set by the `theme` stage: the effective style of every element it styled. */
+  styles?: Map<ElementKey, ResolvedStyle>;
+}
+
+interface ElementEntryBase {
+  key: ElementKey;
+  /** Path of the element in the document, e.g. `["nodes", 2]`. */
+  path: DocPath;
+  subject: DiagnosticSubject;
+}
+
+/** A readable element of the document with its key, path and diagnostic subject. */
+export type ElementEntry =
+  | (ElementEntryBase & { kind: "group"; element: FigureGroup })
+  | (ElementEntryBase & { kind: "node"; element: FigureNode })
+  | (ElementEntryBase & { kind: "edge"; element: FigureEdge });
+
+/**
+ * The readable elements of a document: groups, then nodes, then edges, each in
+ * document order. Edges without an ID have the subject ID `edges[<index>]`.
+ */
+export function* figureElements(doc: PartialFigure): Generator<ElementEntry> {
+  for (const [index, g] of (doc.groups ?? []).entries()) {
+    if (g === undefined) continue;
+    const subject = { kind: "group", id: g.id } as const;
+    yield { kind: "group", key: groupKey(g.id), path: ["groups", index], subject, element: g };
+  }
+  for (const [index, n] of (doc.nodes ?? []).entries()) {
+    if (n === undefined) continue;
+    const subject = { kind: "node", id: n.id } as const;
+    yield { kind: "node", key: nodeKey(n.id), path: ["nodes", index], subject, element: n };
+  }
+  for (const [index, e] of (doc.edges ?? []).entries()) {
+    if (e === undefined) continue;
+    const subject = { kind: "edge", id: e.id ?? `edges[${index}]` } as const;
+    yield { kind: "edge", key: edgeKey(e.id, index), path: ["edges", index], subject, element: e };
+  }
 }
 
 /**

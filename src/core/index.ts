@@ -7,4 +7,5 @@ export * from "./profile";
 export * from "./registry";
 export * from "./result";
 export * from "./subprocess";
+export * from "./theme";
 export * from "./units";
