@@ -10,6 +10,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import {
   chmod,
   copyFile,
+  link,
   lstat,
   mkdir,
   mkdtemp,
@@ -610,6 +611,65 @@ describe.skipIf(!d2Available && !process.env.CI)("sumi render (D2)", () => {
     expect(await readFile(join(dir, "race", "fig.sumi.yaml"), "utf8")).toBe(input);
     expect(await readFile(join(dir, "race", "elsewhere.svg"), "utf8")).toStartWith("<?xml");
     expect(await readFile(join(dir, "race", "new.d2"), "utf8")).toContain('"n_');
+  });
+
+  test("the second output is refused if the file system says it is the first (hard link)", async () => {
+    await mkdir(join(dir, "twice"));
+    await copyFile(join(FIXTURES, "lint/clean.sumi.yaml"), join(dir, "twice", "fig.sumi.yaml"));
+    const renderTwice = async () => {
+      let stderr = "";
+      const code = await run(
+        ["render", "twice/fig.sumi.yaml", "-o", "twice/out.svg", "--emit-d2", "twice/out.d2"],
+        {
+          stdout: { write: () => {} },
+          stderr: {
+            write: (chunk: string) => {
+              stderr += chunk;
+            },
+          },
+          cwd: dir,
+          env: { ...baseEnv(), ...env() },
+          hooks: {
+            beforeCommit: async (display) => {
+              if (display !== "twice/out.svg") return;
+              await rm(join(dir, "twice", "out.svg"), { force: true });
+              await link(join(dir, "twice", "out.d2"), join(dir, "twice", "out.svg"));
+            },
+          },
+        },
+      );
+      return { code, stderr };
+    };
+
+    // out.d2 is created by this run, so it is removed again.
+    const created = await renderTwice();
+    expect(created.code).toBe(2);
+    expect(created.stderr).toBe(
+      "sumi: error: Cannot write twice/out.svg: it is the same file as twice/out.d2.\n",
+    );
+    expect(await Bun.file(join(dir, "twice", "out.d2")).exists()).toBe(false);
+
+    // An out.d2 that existed before keeps its new content.
+    await rm(join(dir, "twice", "out.svg"));
+    await writeFile(join(dir, "twice", "out.d2"), "OLD");
+    expect((await renderTwice()).code).toBe(2);
+    expect(await readFile(join(dir, "twice", "out.d2"), "utf8")).toContain('"n_');
+  });
+
+  test("outputs the file system folds together (Σ.svg / ς.svg) are refused", async () => {
+    await mkdir(join(dir, "fold"));
+    if (!(await isCaseInsensitiveDir(await realpath(join(dir, "fold"))))) {
+      console.warn("[cli render] the temp file system is case-sensitive; skipping the Σ/ς test.");
+      return;
+    }
+    await copyFile(join(FIXTURES, "lint/clean.sumi.yaml"), join(dir, "fold", "fig.sumi.yaml"));
+    const result = await sumi(
+      ["render", "fold/fig.sumi.yaml", "-o", "fold/Σ.svg", "--emit-d2", "fold/ς.svg"],
+      { env: env() },
+    );
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toContain("is the same file as fold/ς.svg");
+    expect(await readdir(join(dir, "fold"))).toEqual(["fig.sumi.yaml"]);
   });
 });
 

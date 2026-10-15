@@ -6,6 +6,7 @@ import {
   mkdtemp,
   readdir,
   readFile,
+  realpath,
   rename,
   rm,
   stat,
@@ -19,6 +20,7 @@ import {
   type CliContext,
   destinationKey,
   isCaseInsensitiveDir,
+  protectedFile,
   resolveDestination,
   sameDestination,
   writeDestination,
@@ -90,7 +92,7 @@ describe("resolveDestination + writeDestination", () => {
     expect(out.name).toBe("other.svg");
 
     await writeDestination(out, "SVG", {
-      protect: input,
+      protect: [protectedFile(input)],
       beforeCommit: async () => {
         await unlink(join(dir, root, "out.svg"));
         await symlink("in.yaml", join(dir, root, "out.svg"));
@@ -105,7 +107,7 @@ describe("resolveDestination + writeDestination", () => {
     const input = await resolveDestination(context, `${root}/in.yaml`);
     const out = await resolveDestination(context, `${root}/new.svg`);
     await writeDestination(out, "SVG", {
-      protect: input,
+      protect: [protectedFile(input)],
       beforeCommit: () => symlink("in.yaml", join(dir, root, "new.svg")),
     });
     expect(await readFile(join(dir, root, "in.yaml"), "utf8")).toBe("INPUT");
@@ -119,7 +121,7 @@ describe("resolveDestination + writeDestination", () => {
     const input = await resolveDestination(context, `${root}/in.yaml`);
     const out = await resolveDestination(context, `${root}/d/in.yaml`);
     const write = writeDestination(out, "SVG", {
-      protect: input,
+      protect: [protectedFile(input)],
       beforeCommit: async () => {
         await rename(join(dir, root, "d"), join(dir, root, "d-old"));
         await symlink(".", join(dir, root, "d"));
@@ -136,12 +138,59 @@ describe("resolveDestination + writeDestination", () => {
     const input = await resolveDestination(context, `${root}/in.yaml`);
     const out = await resolveDestination(context, `${root}/out.svg`);
     const write = writeDestination(out, "SVG", {
-      protect: input,
+      protect: [protectedFile(input)],
       beforeCommit: () => link(join(dir, root, "in.yaml"), join(dir, root, "out.svg")),
     });
-    await expect(write).rejects.toThrow("now refers to");
+    await expect(write).rejects.toThrow("is the same file as");
     expect(await readFile(join(dir, root, "in.yaml"), "utf8")).toBe("INPUT");
     expect((await readdir(join(dir, root))).sort()).toEqual(["in.yaml", "out.svg"]);
+  });
+
+  test("refuses a second output that the file system says is the first one (hard link)", async () => {
+    const root = await scenario("second-output");
+    const first = await writeDestination(
+      await resolveDestination(context, `${root}/a.svg`),
+      "FIRST",
+    );
+    expect(first.created).toBe(true);
+    const second = await resolveDestination(context, `${root}/b.d2`);
+    const write = writeDestination(second, "SECOND", {
+      protect: [first],
+      beforeCommit: () => link(first.path, join(dir, root, "b.d2")),
+    });
+    await expect(write).rejects.toThrow(
+      `Cannot write ${root}/b.d2: it is the same file as ${root}/a.svg.`,
+    );
+    expect(await readFile(join(dir, root, "a.svg"), "utf8")).toBe("FIRST");
+    expect((await readdir(join(dir, root))).sort()).toEqual(["a.svg", "b.d2", "in.yaml"]);
+  });
+
+  test("catches names the file system folds together beyond lowercasing (Σ / ς)", async () => {
+    const root = await scenario("sigma");
+    const folder = join(dir, root);
+    if (!(await isCaseInsensitiveDir(await realpath(folder)))) {
+      console.warn("[cli io] the temp file system is case-sensitive; skipping the Σ/ς test.");
+      return;
+    }
+    const upper = await resolveDestination(context, `${root}/Σ.svg`);
+    const final = await resolveDestination(context, `${root}/ς.svg`);
+    // The name heuristic does not model this folding ...
+    expect(sameDestination(upper, final)).toBe(false);
+    const first = await writeDestination(upper, "FIRST");
+    if (
+      !(await stat(join(folder, "ς.svg")).then(
+        () => true,
+        () => false,
+      ))
+    ) {
+      console.warn("[cli io] this file system does not fold Σ and ς; skipping.");
+      return;
+    }
+    // ... but the identity check right before the rename does.
+    await expect(writeDestination(final, "SECOND", { protect: [first] })).rejects.toThrow(
+      "is the same file as",
+    );
+    expect(await readFile(first.path, "utf8")).toBe("FIRST");
   });
 
   test("a broken link is a usage error", async () => {

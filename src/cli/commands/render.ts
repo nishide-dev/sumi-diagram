@@ -10,11 +10,16 @@
  *   even if D2 itself then fails (useful for debugging).
  * - Outputs that resolve to the input or to each other (symbolic links
  *   included) are usage errors; writing through a link replaces its target.
+ *   Before the second output is committed, the file system confirms it is not
+ *   the input or the first output (same device and inode); if it is, the
+ *   first output is removed again when this run created it, and the command
+ *   exits 2.
  * - Text mode: diagnostics → stderr; `Wrote …` → stdout (stderr with `-o -`).
  *   `--json`: `{ version, file, output, d2, diagnostics, summary }` → stdout.
  * - exit: 0 rendered (warnings allowed); 1 errors; 2 usage errors.
  */
 
+import { rm } from "node:fs/promises";
 import { basename } from "node:path";
 import { createD2CliBackend } from "../../backends/d2/backend";
 import { compileFigure } from "../../compiler/compile";
@@ -36,10 +41,12 @@ import {
   type Destination,
   EXIT,
   type ExitCode,
+  protectedFile,
   readTextFile,
   resolveDestination,
   sameDestination,
   UsageError,
+  type WrittenFile,
   writeDestination,
 } from "../io";
 
@@ -84,13 +91,27 @@ export async function renderCommand(
     ],
     context,
   );
-  const write = (destination: Destination, content: string) =>
-    writeDestination(destination, content, {
-      protect: input,
-      ...(context.hooks?.beforeCommit !== undefined && {
-        beforeCommit: () => context.hooks?.beforeCommit?.(destination.display) ?? Promise.resolve(),
-      }),
-    });
+  // Each write must not replace the input or an output this run already wrote
+  // (checked by the file system's own identity, right before the rename). If a
+  // later write is refused, outputs this run newly created are removed again;
+  // files that existed before keep their new content.
+  const written: WrittenFile[] = [];
+  const write = async (destination: Destination, content: string) => {
+    try {
+      written.push(
+        await writeDestination(destination, content, {
+          protect: [protectedFile(input), ...written],
+          ...(context.hooks?.beforeCommit !== undefined && {
+            beforeCommit: () =>
+              context.hooks?.beforeCommit?.(destination.display) ?? Promise.resolve(),
+          }),
+        }),
+      );
+    } catch (error) {
+      for (const file of written) if (file.created) await rm(file.path, { force: true });
+      throw error;
+    }
+  };
   const overrides: FigureOverrides = {
     ...(options.theme !== undefined && {
       theme: checkName("theme", options.theme, BUILTIN_THEMES.keys()),

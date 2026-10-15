@@ -188,11 +188,41 @@ export function isCaseInsensitiveDir(dir: string): Promise<boolean> {
   return probe;
 }
 
+/** A file a write must not replace, identified by name and/or by device and inode. */
+export interface ProtectedFile {
+  /** The path as the user wrote it (for messages). */
+  display: string;
+  /** {@link destinationKey} of the file, if known. */
+  key?: string;
+  /** Device and inode of the file, if it exists. */
+  identity?: FileIdentity;
+}
+
+/** The {@link ProtectedFile} for a resolved destination. */
+export function protectedFile(destination: Destination): ProtectedFile {
+  return {
+    display: destination.display,
+    key: destinationKey(destination),
+    ...(destination.identity !== undefined && { identity: destination.identity }),
+  };
+}
+
 export interface WriteDestinationOptions {
-  /** Refuse the write if, just before the rename, the destination is this file. */
-  protect?: Destination;
+  /** Refuse the write if, just before the rename, the destination is one of these files. */
+  protect?: readonly ProtectedFile[];
   /** Called after the temporary file is written, right before the final checks (tests only). */
   beforeCommit?: () => Promise<void>;
+}
+
+/** What {@link writeDestination} wrote. */
+export interface WrittenFile {
+  display: string;
+  /** Absolute path of the file written (`dir/name`). */
+  path: string;
+  /** Device and inode of the file written. */
+  identity: FileIdentity;
+  /** Whether the file did not exist before this write. */
+  created: boolean;
 }
 
 /**
@@ -203,43 +233,48 @@ export interface WriteDestinationOptions {
  * The destination is not resolved again: `rename` replaces the entry
  * `dir/name` itself and never follows a link created there in the meantime.
  * Right before the rename, the write is refused if `dir` no longer resolves
- * to itself (a parent was swapped for a link) or the entry is now the
- * protected file. A failure is a {@link UsageError}.
+ * to itself (a parent was swapped for a link) or the entry is now one of the
+ * protected files. The identity check asks the file system itself, so it also
+ * catches names that the file system folds together in ways
+ * {@link destinationKey} does not model (e.g. `Σ` and `ς` on APFS) and hard
+ * links. A failure is a {@link UsageError}.
  */
 export async function writeDestination(
   destination: Destination,
   content: string,
   options: WriteDestinationOptions = {},
-): Promise<void> {
+): Promise<WrittenFile> {
   const target = join(destination.dir, destination.name);
   const temp = join(destination.dir, `.${destination.name}.${randomBytes(6).toString("hex")}.tmp`);
   const { display } = destination;
   try {
-    const mode = await stat(target).then(
-      (s) => s.mode & 0o7777,
-      () => undefined,
-    );
+    const existing = await stat(target).catch(() => undefined);
     await writeFile(temp, content, { encoding: "utf8", flag: "wx" });
-    if (mode !== undefined) await chmod(temp, mode);
+    if (existing !== undefined) await chmod(temp, existing.mode & 0o7777);
     await options.beforeCommit?.();
 
     if ((await realpath(destination.dir).catch(() => undefined)) !== destination.dir) {
       throw new UsageError(`Cannot write ${display}: its directory changed while rendering.`);
     }
-    const { protect } = options;
-    if (protect !== undefined) {
-      const now = await lstat(target).then(
-        (s): FileIdentity => `${s.dev}:${s.ino}`,
-        () => undefined,
-      );
-      if (
-        destinationKey(destination) === destinationKey(protect) ||
-        (now !== undefined && now === protect.identity)
-      ) {
-        throw new UsageError(`Cannot write ${display}: it now refers to ${protect.display}.`);
-      }
+    const now = await lstat(target).then(
+      (s): FileIdentity => `${s.dev}:${s.ino}`,
+      () => undefined,
+    );
+    const key = destinationKey(destination);
+    const hit = (options.protect ?? []).find(
+      (p) => p.key === key || (now !== undefined && p.identity === now),
+    );
+    if (hit !== undefined) {
+      throw new UsageError(`Cannot write ${display}: it is the same file as ${hit.display}.`);
     }
     await rename(temp, target);
+    const written = await lstat(target);
+    return {
+      display,
+      path: target,
+      identity: `${written.dev}:${written.ino}`,
+      created: now === undefined,
+    };
   } catch (error) {
     await rm(temp, { force: true }).catch(() => {});
     if (error instanceof UsageError) throw error;
@@ -257,8 +292,8 @@ export async function writeFileAtomic(
   context: CliContext,
   path: string,
   content: string,
-): Promise<void> {
-  await writeDestination(await resolveDestination(context, path), content);
+): Promise<WrittenFile> {
+  return writeDestination(await resolveDestination(context, path), content);
 }
 
 function describeFsError(error: unknown): string {
