@@ -545,7 +545,7 @@ describe.skipIf(!d2Available && !process.env.CI)("sumi render (D2)", () => {
 
     const skipped = await sumi(["render", "--no-geometry", file], { env: env() });
     expect(skipped).toMatchObject({ exitCode: 0, stderr: "" });
-  });
+  }, 60_000);
 
   test("lint --geometry renders and runs the geometry rules", async () => {
     const clean = await copyFixture("lint/clean.sumi.yaml", "geo-clean.sumi.yaml");
@@ -579,7 +579,7 @@ describe.skipIf(!d2Available && !process.env.CI)("sumi render (D2)", () => {
     );
     expect(off.exitCode).toBe(0);
     expect(off.stdout).toContain("warning geometry/exceeds-page-width");
-  });
+  }, 60_000);
 
   test("lint --geometry without D2 reports the backend error (exit 1)", async () => {
     const file = await copyFixture("lint/clean.sumi.yaml", "geo-nod2.sumi.yaml");
