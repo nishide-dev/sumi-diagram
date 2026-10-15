@@ -1,3 +1,6 @@
 *.ttf binary
 # Figure sources are hashed into the SVG metadata; keep them byte-identical on every platform.
 *.sumi.yaml text eol=lf
+# Generated outputs compared byte for byte by `bun run gallery:check`.
+examples/**/*.svg text eol=lf
+docs/gallery/** text eol=lf

@@ -15,7 +15,9 @@
     "schema:gen": "bun scripts/gen-schema.ts",
     "schema:check": "bun scripts/gen-schema.ts --check",
     "d2:install": "bun scripts/install-d2.ts",
-    "example:render": "bun scripts/render-example.ts"
+    "example:render": "bun scripts/render-example.ts",
+    "gallery": "bun scripts/gallery.ts",
+    "gallery:check": "bun scripts/gallery.ts --check"
   },
   "dependencies": {
     "commander": "15.0.0",
