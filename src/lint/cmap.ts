@@ -1,6 +1,8 @@
 /**
  * Minimal reader for the `cmap` table of TrueType / OpenType fonts: which
- * Unicode code points a font maps to a glyph. Used by `lint/missing-glyph`.
+ * Unicode code points a font maps to a glyph, and to which glyph ID. Used by
+ * `lint/missing-glyph` and, through the glyph IDs, by the text measurement of
+ * the geometry lint (`metrics.ts`).
  *
  * Supports the Unicode subtables of formats 4 (BMP) and 12 (full range),
  * preferring format 12. Every read is confined to the declared bounds of the
@@ -11,97 +13,75 @@
  */
 
 import { readFileSync } from "node:fs";
+import { FontParseError, type Reader, readTables } from "./sfnt";
 
-export class FontParseError extends Error {
-  override name = "FontParseError";
-}
+export { FontParseError } from "./sfnt";
 
-/** The code points a font has glyphs for. */
+/** The code points a font has glyphs for, and their glyph IDs. */
 export interface GlyphCoverage {
   has(codePoint: number): boolean;
+  /** Glyph ID of a code point, or 0 (`.notdef`) if the font does not map it. */
+  glyph(codePoint: number): number;
   /** Number of mapped code points. */
   readonly size: number;
 }
 
 const MAX_CODE_POINT = 0x10ffff;
 
-/** sfnt versions of single fonts: TrueType outlines (two spellings) and CFF (`OTTO`). */
-const SFNT_VERSIONS = new Set([0x00010000, 0x74727565, 0x4f54544f]);
-const TTC_TAG = 0x74746366; // "ttcf"
-const CMAP_TAG = 0x636d6170; // "cmap"
-
-/** Bounds-checked big-endian reader over a window of the font file. */
-class Reader {
-  readonly #view: DataView;
-  readonly #name: string;
-  constructor(bytes: Uint8Array, name = "font") {
-    this.#view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-    this.#name = name;
-  }
-  get length(): number {
-    return this.#view.byteLength;
-  }
-  #check(offset: number, size: number): void {
-    if (!Number.isInteger(offset) || offset < 0 || offset + size > this.#view.byteLength) {
-      throw new FontParseError(
-        `read of ${size} bytes at offset ${offset} is outside the ${this.#name} (${this.#view.byteLength} bytes)`,
-      );
-    }
-  }
-  /** A reader restricted to `[offset, offset + length)` of this one. */
-  window(offset: number, length: number, name: string): Reader {
-    this.#check(offset, length);
-    const { buffer, byteOffset } = this.#view;
-    return new Reader(new Uint8Array(buffer, byteOffset + offset, length), name);
-  }
-  u16(offset: number): number {
-    this.#check(offset, 2);
-    return this.#view.getUint16(offset);
-  }
-  i16(offset: number): number {
-    this.#check(offset, 2);
-    return this.#view.getInt16(offset);
-  }
-  u32(offset: number): number {
-    this.#check(offset, 4);
-    return this.#view.getUint32(offset);
-  }
-}
-
-/** Collects code points in ascending order as merged `[start, end]` ranges. */
+/**
+ * Collects code points in ascending order as `[start, end]` ranges mapped to
+ * consecutive glyph IDs from `glyphStart`. Adjacent ranges merge only when
+ * their glyph IDs continue, so a range lookup also yields the glyph ID.
+ */
 class RangeBuilder {
   readonly starts: number[] = [];
   readonly ends: number[] = [];
+  readonly glyphs: number[] = [];
   size = 0;
-  add(start: number, end: number): void {
+  add(start: number, end: number, glyphStart: number): void {
     if (end < start) return;
     const last = this.ends.length - 1;
     const lastEnd = this.ends[last];
     if (lastEnd !== undefined && start <= lastEnd) {
       throw new FontParseError("cmap ranges are not ascending");
     }
-    if (lastEnd !== undefined && start === lastEnd + 1) this.ends[last] = end;
-    else {
+    const lastStart = this.starts[last] ?? 0;
+    const lastGlyph = this.glyphs[last] ?? 0;
+    if (
+      lastEnd !== undefined &&
+      start === lastEnd + 1 &&
+      glyphStart === lastGlyph + (start - lastStart)
+    ) {
+      this.ends[last] = end;
+    } else {
       this.starts.push(start);
       this.ends.push(end);
+      this.glyphs.push(glyphStart);
     }
     this.size += end - start + 1;
   }
   build(): GlyphCoverage {
     const starts = Uint32Array.from(this.starts);
     const ends = Uint32Array.from(this.ends);
+    // Format 12 glyph IDs are 32-bit; Float64 keeps them exact.
+    const glyphs = Float64Array.from(this.glyphs);
+    const find = (codePoint: number): number => {
+      let lo = 0;
+      let hi = starts.length - 1;
+      while (lo <= hi) {
+        const mid = (lo + hi) >>> 1;
+        if (codePoint < (starts[mid] ?? 0)) hi = mid - 1;
+        else if (codePoint > (ends[mid] ?? 0)) lo = mid + 1;
+        else return mid;
+      }
+      return -1;
+    };
     return {
       size: this.size,
-      has(codePoint) {
-        let lo = 0;
-        let hi = starts.length - 1;
-        while (lo <= hi) {
-          const mid = (lo + hi) >>> 1;
-          if (codePoint < (starts[mid] ?? 0)) hi = mid - 1;
-          else if (codePoint > (ends[mid] ?? 0)) lo = mid + 1;
-          else return true;
-        }
-        return false;
+      has: (codePoint) => find(codePoint) >= 0,
+      glyph(codePoint) {
+        const i = find(codePoint);
+        return i < 0 ? 0 : (glyphs[i] ?? 0) + (codePoint - (starts[i] ?? 0));
       },
     };
   }
@@ -120,26 +100,13 @@ const PREFERENCE: readonly [platform: number, encoding: number, format: number][
   [0, 0, 4],
 ];
 
-/** Parses the Unicode coverage of a font file's bytes. */
+/** Parses the Unicode coverage (with glyph IDs) of a font file's bytes. */
 export function parseGlyphCoverage(bytes: Uint8Array): GlyphCoverage {
-  const file = new Reader(bytes);
-  const sfntVersion = file.u32(0);
-  if (sfntVersion === TTC_TAG) {
-    throw new FontParseError("font collections (.ttc) are not supported");
-  }
-  if (!SFNT_VERSIONS.has(sfntVersion)) {
-    throw new FontParseError("not a TrueType or OpenType font");
-  }
-  const numTables = file.u16(4);
-  let cmap: Reader | undefined;
-  for (let i = 0; i < numTables; i++) {
-    const record = 12 + i * 16;
-    if (file.u32(record) === CMAP_TAG) {
-      cmap = file.window(file.u32(record + 8), file.u32(record + 12), "cmap table");
-    }
-  }
-  if (cmap === undefined) throw new FontParseError("the font has no cmap table");
+  return parseCmapTable(readTables(bytes).require("cmap"));
+}
 
+/** Parses a `cmap` table (a reader over exactly the table). */
+export function parseCmapTable(cmap: Reader): GlyphCoverage {
   const numSubtables = cmap.u16(2);
   const subtables: { platform: number; encoding: number; format: number; offset: number }[] = [];
   for (let i = 0; i < numSubtables; i++) {
@@ -187,7 +154,13 @@ function readFormat4(r: Reader): GlyphCoverage {
     const rangeOffsetAt = idRangeOffsets + s * 2;
     const rangeOffset = r.u16(rangeOffsetAt);
     // Segments are disjoint within 0–0xFFFF, so this loop runs at most 65536 times overall.
+    // Runs of code points with consecutive glyph IDs become one range.
     let runStart = -1;
+    let runGlyph = 0;
+    const flush = (runEnd: number) => {
+      if (runStart >= 0) ranges.add(runStart, runEnd, runGlyph);
+      runStart = -1;
+    };
     for (let cp = start; cp <= end && cp !== 0xffff; cp++) {
       let glyph: number;
       if (rangeOffset === 0) {
@@ -197,13 +170,13 @@ function readFormat4(r: Reader): GlyphCoverage {
         glyph = r.u16(rangeOffsetAt + rangeOffset + (cp - start) * 2);
         if (glyph !== 0) glyph = (glyph + delta) & 0xffff;
       }
-      if (glyph !== 0 && runStart < 0) runStart = cp;
-      if (glyph === 0 && runStart >= 0) {
-        ranges.add(runStart, cp - 1);
-        runStart = -1;
+      if (runStart >= 0 && (glyph === 0 || glyph !== runGlyph + (cp - runStart))) flush(cp - 1);
+      if (glyph !== 0 && runStart < 0) {
+        runStart = cp;
+        runGlyph = glyph;
       }
     }
-    if (runStart >= 0) ranges.add(runStart, Math.min(end, 0xfffe));
+    flush(Math.min(end, 0xfffe));
   }
   return ranges.build();
 }
@@ -226,7 +199,8 @@ function readFormat12(r: Reader): GlyphCoverage {
     }
     previousEnd = end;
     // Glyph 0 is `.notdef`: a group starting at glyph 0 does not cover its first code point.
-    ranges.add(startGlyph === 0 ? start + 1 : start, end);
+    if (startGlyph === 0) ranges.add(start + 1, end, 1);
+    else ranges.add(start, end, startGlyph);
   }
   return ranges.build();
 }

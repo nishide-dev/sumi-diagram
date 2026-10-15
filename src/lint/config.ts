@@ -1,7 +1,8 @@
 /**
  * Lint configuration: per-rule level (off or a severity) and options, and the
  * warning budget. The shape is plain JSON so the CLI (#14) can build it from
- * flags or a file.
+ * flags or a file. One configuration covers both stages: structural rules
+ * (`lint/*`) and geometry rules on the rendered SVG (`geometry/*`, #13).
  *
  * ```ts
  * { rules: { "lint/no-edges": "off", "lint/long-label": { level: "error", options: { maxLineWidth: 30 } } }, maxWarnings: 0 }
@@ -10,8 +11,15 @@
 
 import { z } from "zod";
 import { didYouMean, type Severity } from "../core/diagnostics";
-import type { LintRule } from "./rule";
+import { BUILTIN_GEOMETRY_RULES } from "./geometry/rules";
+import type { AnyLintRule } from "./rule";
 import { BUILTIN_LINT_RULES } from "./rules";
+
+/** Every built-in rule of both stages: structural (`lint/*`), then geometry (`geometry/*`). */
+export const ALL_LINT_RULES: readonly AnyLintRule[] = Object.freeze([
+  ...BUILTIN_LINT_RULES,
+  ...BUILTIN_GEOMETRY_RULES,
+]);
 
 export const RULE_LEVELS = ["off", "error", "warning", "info"] as const;
 export type RuleLevel = (typeof RULE_LEVELS)[number];
@@ -28,7 +36,7 @@ export const RuleSettingSchema = z.union([
 export type RuleSetting = z.input<typeof RuleSettingSchema>;
 
 export const LintConfigSchema = z.strictObject({
-  /** Rule ID (`lint/<rule>`) → level, or `{ level?, options? }`. Omitted rules keep their defaults. */
+  /** Rule ID (`lint/<rule>` or `geometry/<rule>`) → level, or `{ level?, options? }`. Omitted rules keep their defaults. */
   rules: z.record(z.string(), RuleSettingSchema).optional(),
   /** Fail (exit code 1) when there are more warnings than this. Unlimited when omitted. */
   maxWarnings: z.int().nonnegative().optional(),
@@ -45,7 +53,7 @@ export class LintConfigError extends Error {
 
 /** An enabled rule with its effective severity and validated options. */
 export interface ActiveRule {
-  rule: LintRule;
+  rule: AnyLintRule;
   severity: Severity;
   options: unknown;
 }
@@ -64,7 +72,7 @@ export interface ResolvedLintConfig {
  */
 export function resolveLintConfig(
   config: unknown = {},
-  rules: readonly LintRule[] = BUILTIN_LINT_RULES,
+  rules: readonly AnyLintRule[] = ALL_LINT_RULES,
 ): ResolvedLintConfig {
   const parsed = LintConfigSchema.safeParse(config);
   if (!parsed.success) {
@@ -76,7 +84,7 @@ export function resolveLintConfig(
   const problems: string[] = [];
   const known = new Set(rules.map((r) => r.id));
   for (const id of Object.keys(settings)) {
-    if (known.has(id as LintRule["id"])) continue;
+    if (known.has(id as AnyLintRule["id"])) continue;
     const hint = didYouMean(id, known);
     problems.push(`Unknown lint rule "${id}".${hint === undefined ? "" : ` ${hint}`}`);
   }

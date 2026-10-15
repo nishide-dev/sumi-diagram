@@ -1,8 +1,9 @@
 /**
  * Lint rule framework (stage `lint`, design doc §0): structural checks that
  * run on the {@link CheckState} after the diagnostic-collecting stages, before
- * any rendering. Geometry checks on the rendered SVG are a separate stage
- * (`geometry`, #13).
+ * any rendering, and geometry checks (stage `geometry`, #13) that run on the
+ * inspected SVG of a rendered figure. Both kinds of rules share findings,
+ * configuration (`LintConfig`) and diagnostics.
  */
 
 import type { z } from "zod";
@@ -17,9 +18,14 @@ import type { Locator } from "../core/figure/yaml";
 import type { ResolvedComponent } from "../core/registry/manifest";
 import type { Theme } from "../core/theme/schema";
 import type { ResolvedStyle } from "../core/theme/style";
+import type { GeometryContext } from "./geometry/context";
 
-/** Lint diagnostic codes: `lint/<rule>`. */
-export type LintCode = `lint/${string}`;
+/** Codes of structural lint rules: `lint/<rule>`. */
+export type StructuralLintCode = `lint/${string}`;
+/** Codes of geometry lint rules on the rendered SVG: `geometry/<rule>` (#13). */
+export type GeometryLintCode = `geometry/${string}`;
+/** Codes of all configurable lint rules. */
+export type LintCode = StructuralLintCode | GeometryLintCode;
 
 /**
  * A problem found by a rule. The framework adds the rule's code and configured
@@ -51,9 +57,10 @@ export interface LintContext {
   isValid(key: ElementKey): boolean;
 }
 
-export interface LintRule<Options = unknown> {
+/** What every rule has, whatever stage it runs in. */
+interface RuleBase<Code extends LintCode, Context, Options> {
   /** The diagnostic code, e.g. `lint/empty-figure`. */
-  readonly id: LintCode;
+  readonly id: Code;
   /** One English sentence: what the rule reports. */
   readonly description: string;
   readonly defaultSeverity: Severity;
@@ -61,11 +68,34 @@ export interface LintRule<Options = unknown> {
   readonly fixable: false;
   /** Options with their defaults; rules without options omit it. */
   readonly options?: z.ZodType<Options>;
-  run(context: LintContext, options: Options): LintFinding[];
+  run(context: Context, options: Options): LintFinding[];
 }
+
+/** A structural rule (stage `lint`): runs on the checked document, before rendering. */
+export interface LintRule<Options = unknown>
+  extends RuleBase<StructuralLintCode, LintContext, Options> {}
+
+/** A geometry rule (stage `geometry`, #13): runs on the inspected, rendered SVG. */
+export interface GeometryRule<Options = unknown>
+  extends RuleBase<GeometryLintCode, GeometryContext, Options> {}
+
+/** Any configurable rule. One `LintConfig` configures both stages. */
+export type AnyLintRule = LintRule | GeometryRule;
+
+export const isStructuralRule = (rule: AnyLintRule): rule is LintRule =>
+  rule.id.startsWith("lint/");
+export const isGeometryRule = (rule: AnyLintRule): rule is GeometryRule =>
+  rule.id.startsWith("geometry/");
 
 /** Defines a rule; infers its option type from the `options` schema. */
 export function defineRule<Options = undefined>(rule: LintRule<Options>): LintRule<Options> {
+  return Object.freeze(rule);
+}
+
+/** Defines a geometry rule; infers its option type from the `options` schema. */
+export function defineGeometryRule<Options = undefined>(
+  rule: GeometryRule<Options>,
+): GeometryRule<Options> {
   return Object.freeze(rule);
 }
 

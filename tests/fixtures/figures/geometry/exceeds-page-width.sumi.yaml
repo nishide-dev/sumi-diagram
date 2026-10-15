@@ -1,0 +1,17 @@
+# A chain of five boxes laid out left to right is wider than paper-single's
+# 88mm. Expected: geometry/exceeds-page-width (error); nothing else.
+version: 1
+figure:
+  id: exceeds-page-width
+  profile: paper-single
+nodes:
+  - { id: load, component: box, label: Load }
+  - { id: parse, component: box, label: Parse }
+  - { id: check, component: box, label: Validate }
+  - { id: transform, component: box, label: Transform }
+  - { id: store, component: box, label: Store }
+edges:
+  - { from: load, to: parse }
+  - { from: parse, to: check }
+  - { from: check, to: transform }
+  - { from: transform, to: store }

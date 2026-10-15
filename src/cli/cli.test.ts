@@ -160,7 +160,7 @@ describe("sumi lint", () => {
       ["--rule", "lint/self-loop=loud"],
       ["--max-warnings", "-1"],
       ["--config", "missing.json"],
-      ["--geometry"],
+      ["--geometry", "--rule", "geometry/no-such-rule=off"],
     ]) {
       const result = await sumi(["lint", ...args, file]);
       expect(result.exitCode).toBe(2);
@@ -448,7 +448,9 @@ describe("sumi doctor", () => {
     expect(json.checks[0].hint).toContain("d2:install");
     expect(json.checks[1]).toMatchObject({ id: "fonts", status: "ok", required: true });
     expect(json.checks[1].details.files).toHaveLength(3);
-    expect(json.checks[2]).toMatchObject({ status: "skipped", required: false });
+    // Geometry lint needs only the bundled fonts' metrics (D2 is checked separately).
+    expect(json.checks[2]).toMatchObject({ id: "geometry-lint", status: "ok", required: false });
+    expect(json.checks[2].details.files).toHaveLength(3);
   });
 
   test("text output names each check", async () => {
@@ -485,11 +487,11 @@ describe.skipIf(!d2Available && !process.env.CI)("sumi render (D2)", () => {
     const file = await copyFixture("lint/clean.sumi.yaml", "default.sumi.yaml");
     const result = await sumi(["render", file], { env: env() });
     expect(result).toMatchObject({ exitCode: 0, stderr: "" });
-    expect(result.stdout).toMatch(/^Wrote default\.svg: [\d.]+mm × [\d.]+mm \(paper-single/);
+    expect(result.stdout).toMatch(/^Wrote default\.svg: [\d.]+mm × [\d.]+mm \(paper-double/);
     const svg = await readFile(join(dir, "default.svg"), "utf8");
     expect(svg).toContain("<svg");
     const metadata = readSvgMetadata(svg);
-    expect(metadata.ok && metadata.value?.profile).toBe("paper-single");
+    expect(metadata.ok && metadata.value?.profile).toBe("paper-double");
   });
 
   test("--theme / --profile override the file; --emit-d2 writes the D2 source", async () => {
@@ -525,6 +527,67 @@ describe.skipIf(!d2Available && !process.env.CI)("sumi render (D2)", () => {
     expect(first).toMatchObject({ exitCode: 0, stderr: "" });
     expect(first.stdout).toStartWith("<?xml");
     expect((await sumi(["render", file, "-o", "-"], { env: env() })).stdout).toBe(first.stdout);
+  });
+
+  test("geometry errors exit 1 but still write the SVG; --no-geometry skips them", async () => {
+    const file = await copyFixture("geometry/exceeds-page-width.sumi.yaml", "wide.sumi.yaml");
+    const result = await sumi(["render", file], { env: env() });
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toMatch(
+      /^wide\.sumi\.yaml:5:3 error geometry\/exceeds-page-width The figure is [\d.]+mm wide, more than the 88mm maximum width of profile "paper-single"\.$/m,
+    );
+    expect(result.stdout).toMatch(/^Wrote wide\.svg: .*TOO WIDE/);
+    expect(await Bun.file(join(dir, "wide.svg")).exists()).toBe(true);
+
+    const json = JSON.parse((await sumi(["render", "--json", file], { env: env() })).stdout);
+    expect(json.output).toBe("wide.svg");
+    expect(json.summary.errors).toBe(1);
+
+    const skipped = await sumi(["render", "--no-geometry", file], { env: env() });
+    expect(skipped).toMatchObject({ exitCode: 0, stderr: "" });
+  }, 60_000);
+
+  test("lint --geometry renders and runs the geometry rules", async () => {
+    const clean = await copyFixture("lint/clean.sumi.yaml", "geo-clean.sumi.yaml");
+    const wide = await copyFixture("geometry/exceeds-page-width.sumi.yaml", "geo-wide.sumi.yaml");
+    const overflow = await copyFixture(
+      "geometry/label-overflow.sumi.yaml",
+      "geo-overflow.sumi.yaml",
+    );
+    expect((await sumi(["lint", "--geometry", clean], { env: env() })).exitCode).toBe(0);
+
+    const result = await sumi(["lint", "--geometry", wide, overflow], { env: env() });
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toContain("geo-wide.sumi.yaml:5:3 error geometry/exceeds-page-width");
+    expect(result.stdout).toContain("geo-overflow.sumi.yaml:15:7 error geometry/label-overflow");
+    // Without --geometry, the same files pass: nothing is rendered.
+    expect((await sumi(["lint", wide, overflow], { env: env() })).exitCode).toBe(0);
+    // Nothing is written next to the input.
+    expect(await Bun.file(join(dir, "geo-wide.svg")).exists()).toBe(false);
+
+    const json = JSON.parse(
+      (await sumi(["lint", "--geometry", "--json", wide], { env: env() })).stdout,
+    );
+    expect(json.results[0].diagnostics.map((d: { code: string }) => d.code)).toEqual([
+      "geometry/exceeds-page-width",
+    ]);
+    expect(json.results[0]).not.toHaveProperty("rendered");
+
+    const off = await sumi(
+      ["lint", "--geometry", "--rule", "geometry/exceeds-page-width=warning", wide],
+      { env: env() },
+    );
+    expect(off.exitCode).toBe(0);
+    expect(off.stdout).toContain("warning geometry/exceeds-page-width");
+  }, 60_000);
+
+  test("lint --geometry without D2 reports the backend error (exit 1)", async () => {
+    const file = await copyFixture("lint/clean.sumi.yaml", "geo-nod2.sumi.yaml");
+    const result = await sumi(["lint", "--geometry", file], {
+      env: { SUMI_D2_PATH: join(dir, "no-such-d2") },
+    });
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toContain("backend/");
   });
 
   test("--json prints the envelope with the files written", async () => {

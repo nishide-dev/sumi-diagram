@@ -1,0 +1,330 @@
+/**
+ * Geometry lint rules (stage `geometry`, #13): checks on the rendered SVG's
+ * geometry, with labels re-measured from the theme's TTF files. Tolerances
+ * and limits are documented in design doc §6.5 and docs/lint-rules.md.
+ *
+ * None of these rules changes the figure: Sumi never shrinks text or the
+ * canvas to make a problem go away (design doc §5).
+ */
+
+import type { DocPath } from "../../core/diagnostics";
+import { formatMm, formatPt } from "../../core/units";
+import { type Point, type Rect, unitsToPt } from "../../render/geometry";
+import { defineGeometryRule, type GeometryRule, type LintFinding } from "../rule";
+import type { GeometryContext, GeometryElement } from "./context";
+import { unionOf } from "./measure";
+import {
+  overhang,
+  polylinesCrossRect,
+  rectDepthInside,
+  rectInside,
+  rectsOverlap,
+  regionIntersectsRect,
+} from "./shapes";
+
+/**
+ * Slack in SVG units (0.5pt) for D2's rounding: D2 writes shape coordinates
+ * as integers or halves and positions labels from its own (different) text
+ * measurement, so geometry that merely touches is not a problem.
+ */
+export const GEOMETRY_TOLERANCE_UNITS = 1;
+
+/** Slack for comparing physical sizes in pt (floating point only; sizes are not quantized). */
+const PT_EPSILON = 1e-6;
+
+const formatSize = (rect: Rect): string =>
+  `${formatPt(unitsToPt(rect.width))} × ${formatPt(unitsToPt(rect.height))}`;
+
+const figurePath: DocPath = ["figure"];
+
+function figureSubject(context: GeometryContext) {
+  return { kind: "figure", id: context.ir.meta.id } as const;
+}
+
+const labelPath = (element: GeometryElement): DocPath => [...element.docPath, "label"];
+
+const capitalize = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
+
+export const exceedsPageWidth = defineGeometryRule({
+  id: "geometry/exceeds-page-width",
+  description:
+    "The rendered figure (margin included) is wider than the profile's maximum page width.",
+  defaultSeverity: "error",
+  fixable: false,
+  run(context) {
+    const { profile } = context;
+    const width = context.inspection.canvas.width.pt;
+    if (profile.maxWidthPt === undefined || width <= profile.maxWidthPt + PT_EPSILON) return [];
+    return [
+      {
+        message: `The figure is ${formatMm(width)} wide, more than the ${formatMm(profile.maxWidthPt)} maximum width of profile "${profile.id}".`,
+        path: figurePath,
+        subject: figureSubject(context),
+        hint: "Sumi never shrinks a figure to fit. Lay it out top to bottom (layout.direction: down), shorten long labels, or use a wider profile (e.g. paper-double).",
+      },
+    ];
+  },
+});
+
+export const exceedsPageHeight = defineGeometryRule({
+  id: "geometry/exceeds-page-height",
+  description:
+    "The rendered figure (margin included) is taller than the profile's maximum page height, if the profile sets one.",
+  defaultSeverity: "error",
+  fixable: false,
+  run(context) {
+    const { profile } = context;
+    const height = context.inspection.canvas.height.pt;
+    if (profile.maxHeightPt === undefined || height <= profile.maxHeightPt + PT_EPSILON) return [];
+    return [
+      {
+        message: `The figure is ${formatMm(height)} tall, more than the ${formatMm(profile.maxHeightPt)} maximum height of profile "${profile.id}".`,
+        path: figurePath,
+        subject: figureSubject(context),
+        hint: "Sumi never shrinks a figure to fit. Lay it out left to right (layout.direction: right), split it into several figures, or use a taller profile.",
+      },
+    ];
+  },
+});
+
+export const textTooSmall = defineGeometryRule({
+  id: "geometry/text-too-small",
+  description:
+    "A label is drawn with a font size below the profile's minimum (a safety net behind profile/font-too-small).",
+  defaultSeverity: "error",
+  fixable: false,
+  run(context) {
+    const findings: LintFinding[] = [];
+    const min = context.profile.minFontSizePt;
+    for (const element of context.elements) {
+      const sizes = element.labels.map((l) => unitsToPt(l.label.fontSizeUnits));
+      const smallest = Math.min(...sizes);
+      if (sizes.length === 0 || smallest >= min - PT_EPSILON) continue;
+      findings.push({
+        message: `The label of ${element.name} is drawn at ${formatPt(smallest)}, below the ${formatPt(min)} minimum font size of profile "${context.profile.id}".`,
+        path: labelPath(element),
+        subject: element.subject,
+        hint: "Use a theme or variant with a larger font size. Sumi does not shrink text below the profile's minimum.",
+      });
+    }
+    return findings;
+  },
+});
+
+/** Shape names for messages. */
+function shapeName(element: GeometryElement): string {
+  if (element.ir.kind === "group") return "container";
+  if (element.ir.kind === "node") return element.ir.shape === "oval" ? "ellipse" : element.ir.shape;
+  return "shape";
+}
+
+export const labelOverflow = defineGeometryRule({
+  id: "geometry/label-overflow",
+  description:
+    "A node's or group's label, re-measured with the theme's fonts, does not fit inside the area of its shape that can hold text.",
+  defaultSeverity: "error",
+  fixable: false,
+  run(context) {
+    const findings: LintFinding[] = [];
+    for (const element of context.elements) {
+      const { labelArea, bbox } = element;
+      if (labelArea === undefined || bbox === undefined) continue;
+      // The label must stay clear of the border's inner half.
+      const margin = element.strokeInset - GEOMETRY_TOLERANCE_UNITS;
+      const lines = element.labels.flatMap((l) => l.visibleLines);
+      const overflows = lines.some((line) => rectDepthInside(labelArea, line) < margin);
+      if (!overflows) continue;
+      const box = unionOf(element.labels.flatMap((l) => (l.box === undefined ? [] : [l.box])));
+      const { ir } = element;
+      const explicit = ir.kind === "node" && (ir.width !== undefined || ir.height !== undefined);
+      const outside = box !== undefined && !rectsOverlap(box, bbox, 0);
+      findings.push({
+        message: `The label of ${element.name} (${box === undefined ? "" : `${formatSize(box)}, `}measured with the theme's fonts) does not fit inside its ${shapeName(element)} shape (${formatSize(bbox)})${outside ? "; it is drawn outside the shape" : ""}.`,
+        path: explicit ? [...element.docPath, "props"] : labelPath(element),
+        subject: element.subject,
+        hint: explicit
+          ? "Make props.width / props.height larger, or remove them so the node is sized to its label; or shorten the label or break it into lines (\\n)."
+          : "Shorten the label or break it into lines (\\n), or use a shape with more room for text (e.g. box instead of diamond or circle).",
+        ...(explicit && {
+          related: [{ path: labelPath(element), message: "The label is defined here." }],
+        }),
+      });
+    }
+    return findings;
+  },
+});
+
+export const outOfCanvas = defineGeometryRule({
+  id: "geometry/out-of-canvas",
+  description:
+    "An element's shape, label (re-measured) or edge route extends outside the canvas, so it is clipped.",
+  defaultSeverity: "error",
+  fixable: false,
+  run(context) {
+    const { canvas } = context;
+    const findings: LintFinding[] = [];
+    for (const element of context.elements) {
+      const rects: Rect[] = [
+        ...(element.bbox === undefined ? [] : [element.bbox]),
+        ...element.labels.flatMap((l) => (l.box === undefined ? [] : [l.box])),
+        ...(element.route ?? []).flat().map((p: Point) => ({ ...p, width: 0, height: 0 })),
+      ];
+      const outside = rects.filter((r) => !rectInside(canvas, r, GEOMETRY_TOLERANCE_UNITS));
+      if (outside.length === 0) continue;
+      const by = Math.max(...outside.map((r) => overhang(canvas, r)));
+      findings.push({
+        message: `${capitalize(element.name)} extends ${formatPt(unitsToPt(by))} outside the canvas, so part of it is clipped.`,
+        path: element.docPath,
+        subject: element.subject,
+        hint: "D2 normally sizes the canvas to its contents: shorten the label if it is a label that sticks out, and report the figure if the problem remains.",
+      });
+    }
+    return findings;
+  },
+});
+
+export const nodeOverlap = defineGeometryRule({
+  id: "geometry/node-overlap",
+  description:
+    "The shapes of two nodes or groups overlap, and neither contains the other in the group tree.",
+  defaultSeverity: "warning",
+  fixable: false,
+  run(context) {
+    const findings: LintFinding[] = [];
+    const shapes = context.elements.filter((e) => e.bbox !== undefined && e.kind !== "edge");
+    for (const [i, a] of shapes.entries()) {
+      for (const b of shapes.slice(i + 1)) {
+        if (context.isAncestor(a.key, b.key) || context.isAncestor(b.key, a.key)) continue;
+        if (a.bbox === undefined || b.bbox === undefined) continue;
+        if (!rectsOverlap(a.bbox, b.bbox, GEOMETRY_TOLERANCE_UNITS)) continue;
+        findings.push({
+          message: `The shapes of ${a.name} and ${b.name} overlap.`,
+          path: a.docPath,
+          subject: a.subject,
+          hint: "Elements overlap only when one contains the other through `group`. Check explicit sizes, or put the nodes in the same group.",
+          related: [{ path: b.docPath, message: `${capitalize(b.name)} is defined here.` }],
+        });
+      }
+    }
+    return findings;
+  },
+});
+
+/** Label collisions: label vs label of another element, and label vs another node's shape. */
+export const labelCollision = defineGeometryRule({
+  id: "geometry/label-collision",
+  description:
+    "A label (re-measured) overlaps a label of another element, or the shape of another node.",
+  defaultSeverity: "warning",
+  fixable: false,
+  run(context) {
+    const findings: LintFinding[] = [];
+    const tolerance = GEOMETRY_TOLERANCE_UNITS;
+    const labelled = context.elements.filter((e) => e.labels.length > 0);
+    const lineBoxes = (e: GeometryElement) => e.labels.flatMap((l) => l.visibleLines);
+    const reported = new Set<string>();
+    const report = (a: GeometryElement, b: GeometryElement, what: string) => {
+      const pair = [a.key, b.key].sort().join(" ");
+      if (reported.has(pair)) return;
+      reported.add(pair);
+      findings.push({
+        message: `The label of ${a.name} overlaps ${what} of ${b.name}.`,
+        path: labelPath(a),
+        subject: a.subject,
+        hint: "Overlapping text is hard to read. Shorten the labels, or change the layout (direction, grouping, edge labels).",
+        related: [{ path: b.docPath, message: `${capitalize(b.name)} is defined here.` }],
+      });
+    };
+    for (const [i, a] of labelled.entries()) {
+      const boxesA = lineBoxes(a);
+      for (const b of labelled.slice(i + 1)) {
+        const boxesB = lineBoxes(b);
+        if (boxesA.some((ra) => boxesB.some((rb) => rectsOverlap(ra, rb, tolerance)))) {
+          report(a, b, "the label");
+        }
+      }
+    }
+    // Labels over node shapes. Group shapes are left out: elements inside a
+    // group are drawn over it on purpose, and group labels are covered above.
+    for (const a of labelled) {
+      const boxesA = lineBoxes(a);
+      for (const b of context.elements) {
+        if (b === a || b.kind !== "node" || b.outline === undefined) continue;
+        const { outline } = b;
+        if (boxesA.some((r) => regionIntersectsRect(outline, r, tolerance))) {
+          report(a, b, "the shape");
+        }
+      }
+    }
+    return findings;
+  },
+});
+
+export const edgeCrossesLabel = defineGeometryRule({
+  id: "geometry/edge-crosses-label",
+  description:
+    "An edge's route passes through the label (re-measured) of another element, such as a container label.",
+  defaultSeverity: "warning",
+  fixable: false,
+  run(context) {
+    const findings: LintFinding[] = [];
+    for (const edge of context.elements) {
+      const { route } = edge;
+      if (route === undefined) continue;
+      for (const other of context.elements) {
+        if (other === edge) continue;
+        const crossed = other.labels
+          .flatMap((l) => l.visibleLines)
+          .some((box) => polylinesCrossRect(route, box, GEOMETRY_TOLERANCE_UNITS));
+        if (!crossed) continue;
+        findings.push({
+          message: `${capitalize(edge.name)} crosses the label of ${other.name}.`,
+          path: edge.docPath,
+          subject: edge.subject,
+          hint:
+            other.kind === "group"
+              ? "D2 centers a container's label at its top, so edges that enter the container from above cross it. Connect elements inside the container instead of the container itself, or change layout.direction."
+              : "Change the layout (direction or grouping) so the edge is routed around the label, or shorten the label.",
+          related: [{ path: labelPath(other), message: "The label is defined here." }],
+        });
+      }
+    }
+    return findings;
+  },
+});
+
+export const aspectDistorted = defineGeometryRule({
+  id: "geometry/aspect-distorted",
+  description:
+    "A fixed-aspect node (circle, square) is drawn with unequal width and height, typically stretched by the layout engine.",
+  defaultSeverity: "warning",
+  fixable: false,
+  run(context) {
+    const findings: LintFinding[] = [];
+    for (const element of context.elements) {
+      const { ir, bbox } = element;
+      if (ir.kind !== "node" || ir.sizing !== "fixed-aspect-1" || bbox === undefined) continue;
+      if (Math.abs(bbox.width - bbox.height) <= GEOMETRY_TOLERANCE_UNITS) continue;
+      findings.push({
+        message: `The ${ir.shape} ${element.name} is drawn ${formatSize(bbox)}, not with equal width and height.`,
+        path: element.docPath,
+        subject: element.subject,
+        hint: "The layout engine (ELK) enlarges nodes with many edges or a self-loop along one axis. Reduce the edges at the node, or use an ellipse or box if the aspect does not matter.",
+      });
+    }
+    return findings;
+  },
+});
+
+/** The built-in geometry rules, all enabled by default. */
+export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
+  exceedsPageWidth,
+  exceedsPageHeight,
+  textTooSmall,
+  labelOverflow,
+  outOfCanvas,
+  nodeOverlap,
+  labelCollision,
+  edgeCrossesLabel,
+  aspectDistorted,
+] as GeometryRule[]);

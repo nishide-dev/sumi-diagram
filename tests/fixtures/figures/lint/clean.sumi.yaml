@@ -1,6 +1,7 @@
 version: 1
 figure:
   id: clean
+  profile: paper-double
 groups:
   - id: backend
     label: Backend

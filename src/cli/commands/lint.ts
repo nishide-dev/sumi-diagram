@@ -1,6 +1,8 @@
 /**
  * `sumi lint <files...>`: the diagnostic-collecting stages plus structural
- * lint (`lintFigure()`), for one or more files. No D2.
+ * lint (`lintFigure()`), for one or more files. No D2 — unless `--geometry`:
+ * then each figure without errors is also rendered with D2 and checked by the
+ * geometry rules (`lintRenderedFigure()`, #13). Nothing is written.
  *
  * - stdout: the report (text, or JSON with `--json`).
  * - exit: 0 no errors and warnings within `--max-warnings` (counted over all
@@ -9,6 +11,7 @@
  */
 
 import { InvalidArgumentError } from "commander";
+import { createD2CliBackend } from "../../backends/d2/backend";
 import {
   formatLintSummary,
   formatLintText,
@@ -18,6 +21,7 @@ import {
   type LintJson,
   type LintSummary,
   lintFigure,
+  lintRenderedFigure,
   RULE_LEVELS,
   type RuleLevel,
   type RuleSetting,
@@ -33,7 +37,7 @@ export interface LintCommandOptions {
   maxWarnings?: number;
   /** `--rule <id>=<level>`, repeatable. */
   rule?: string[];
-  /** Reserved for geometry lint (#13). */
+  /** Also render with D2 and run the `geometry/*` rules (#13). */
   geometry?: boolean;
   color: boolean;
 }
@@ -50,9 +54,6 @@ export async function lintCommand(
   options: LintCommandOptions,
   context: CliContext,
 ): Promise<ExitCode> {
-  if (options.geometry) {
-    throw new UsageError("--geometry is not implemented yet (geometry lint, issue #13).");
-  }
   const config = await buildLintConfig(options, context);
   const { maxWarnings, ...perFile } = config;
 
@@ -69,7 +70,13 @@ export async function lintCommand(
       unreadable = true;
       continue;
     }
-    const report = lintFigure(text, { file, config: perFile });
+    const report = options.geometry
+      ? await lintRenderedFigure(text, {
+          file,
+          config: perFile,
+          backend: createD2CliBackend({ projectRoot: context.cwd, env: context.env }),
+        })
+      : lintFigure(text, { file, config: perFile });
     total.errors += report.summary.errors;
     total.warnings += report.summary.warnings;
     total.infos += report.summary.infos;

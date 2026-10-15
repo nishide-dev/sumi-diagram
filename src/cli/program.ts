@@ -44,12 +44,13 @@ stack traces for internal errors.`,
 
   program
     .command("render")
-    .description("render a figure to SVG (all stages, D2 included)")
+    .description("render a figure to SVG (all stages, D2 included) and check its geometry")
     .argument("<file>", "figure source (*.sumi.yaml)")
     .option("-o, --out <file>", "SVG output path; - for stdout (default: <file> with .svg)")
     .option("--emit-d2 <file>", "also write the generated D2 source")
     .option("--theme <name>", "use this built-in theme instead of figure.theme")
     .option("--profile <name>", "use this built-in profile instead of figure.profile")
+    .option("--no-geometry", "skip the geometry rules on the rendered SVG")
     .option("--json", "print a JSON report to stdout instead of text")
     .action(async (file: string, options, command: Command) => {
       setExitCode(
@@ -59,7 +60,9 @@ stack traces for internal errors.`,
 
   program
     .command("lint")
-    .description("check figures without rendering (schema, references, components, lint rules)")
+    .description(
+      "check figures (schema, references, components, lint rules); --geometry also renders and checks the drawing",
+    )
     .argument("<files...>", "figure sources (*.sumi.yaml)")
     .option("--json", "print a JSON report")
     .option("--config <file>", "lint configuration (JSON: { rules?, maxWarnings? })")
@@ -73,7 +76,7 @@ stack traces for internal errors.`,
       "set a rule's level: off, error, warning or info (repeatable)",
       collect,
     )
-    .addOption(new Option("--geometry", "reserved for geometry lint (#13)").hideHelp())
+    .option("--geometry", "also render with D2 and run the geometry rules (geometry/*)")
     .action(async (files: string[], options, command: Command) => {
       setExitCode(
         await lintCommand(files, { ...options, color: colorFor(command, "stdout") }, context),

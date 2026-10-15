@@ -1,0 +1,19 @@
+# With `direction: down`, an edge entering a container from above crosses the
+# container's centered label (#31, item 1). Expected:
+# geometry/edge-crosses-label (warning) on the edge, naming group "stages".
+version: 1
+figure:
+  id: edge-crosses-label
+  profile: paper-single
+  layout:
+    direction: down
+groups:
+  - id: stages
+    label: Pipeline
+nodes:
+  - { id: input, component: box, label: Input }
+  - { id: parse, component: box, label: Parse, group: stages }
+  - { id: store, component: box, label: Store, group: stages }
+edges:
+  - { id: enter, from: input, to: parse }
+  - { from: parse, to: store }

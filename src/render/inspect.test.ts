@@ -71,17 +71,38 @@ describe("inspectSvg", () => {
       kind: "group",
       bbox: { x: 10, y: 10, width: 120, height: 80 },
       labels: [
-        { text: "Group", anchor: { x: 70, y: 31 }, fontSizeUnits: 18, lines: 1, font: "bold" },
+        {
+          text: "Group",
+          anchor: { x: 70, y: 31 },
+          fontSizeUnits: 18,
+          lines: 1,
+          lineHeightUnits: 18,
+          font: "bold",
+        },
       ],
     });
     expect(a?.bbox).toEqual({ x: 20, y: 40, width: 50, height: 30 });
     expect(a?.labels).toEqual([
-      { text: "A", anchor: { x: 45, y: 60 }, fontSizeUnits: 16, lines: 1, font: "regular" },
+      {
+        text: "A",
+        anchor: { x: 45, y: 60 },
+        fontSizeUnits: 16,
+        lines: 1,
+        lineHeightUnits: 16,
+        font: "regular",
+      },
     ]);
     // A text-shaped node has no shape geometry; its label has two lines.
     expect(note?.bbox).toBeUndefined();
     expect(note?.labels).toEqual([
-      { text: "No\nte", anchor: { x: 170, y: 60 }, fontSizeUnits: 16, lines: 2, font: "regular" },
+      {
+        text: "No\nte",
+        anchor: { x: 170, y: 60 },
+        fontSizeUnits: 16,
+        lines: 2,
+        lineHeightUnits: 16,
+        font: "regular",
+      },
     ]);
     // S is normalized to C; the marker's polygon.connection is ignored.
     expect(edge0?.path).toEqual([
@@ -181,6 +202,24 @@ describe("inspectSvg", () => {
     });
   });
 
+  test("line advances as D2 writes them for blank lines: below the font size, or 0", () => {
+    const { grp, a, note, edge0, back } = TINY_PARTS;
+    // D2 v0.9.0 for "\n" (blank lines only): every dy is 0.
+    const blank = note.replace(
+      /<tspan x="170" dy="0">No<\/tspan><tspan x="170" dy="16">te<\/tspan>/,
+      '<tspan x="170" dy="0"> </tspan><tspan x="170" dy="0"> </tspan>',
+    );
+    const [, , zero] = inspect(tinySvg([grp, a, blank, edge0, back])).elements;
+    expect(zero?.labels[0]).toMatchObject({ text: " \n ", lines: 2, lineHeightUnits: 0 });
+    // D2 v0.9.0 for "\nmiddle\n": blank first and last lines add no height (16 / 3).
+    const thirds = note.replace(
+      /<tspan x="170" dy="0">No<\/tspan><tspan x="170" dy="16">te<\/tspan>/,
+      '<tspan x="170" dy="0"> </tspan><tspan x="170" dy="5.333333">middle</tspan><tspan x="170" dy="5.333333"> </tspan>',
+    );
+    const [, , third] = inspect(tinySvg([grp, a, thirds, edge0, back])).elements;
+    expect(third?.labels[0]).toMatchObject({ lines: 3, lineHeightUnits: 5.333333 });
+  });
+
   describe("svg/unsupported-geometry instead of guessing", () => {
     const { grp, a, note, edge0, back } = TINY_PARTS;
     const cases: [string, string[], string][] = [
@@ -213,6 +252,32 @@ describe("inspectSvg", () => {
         "a label that is not centered",
         [grp, a.replace("text-anchor:middle", "text-anchor:start"), note, edge0, back],
         "text-anchor",
+      ],
+      [
+        "a label whose lines advance by different amounts",
+        [
+          grp,
+          a,
+          note.replace('dy="16">te', 'dy="16">te</tspan><tspan x="170" dy="20">x'),
+          edge0,
+          back,
+        ],
+        "different line heights",
+      ],
+      [
+        "a label line that moves backwards",
+        [grp, a, note.replace('dy="16"', 'dy="-16"'), edge0, back],
+        "dy",
+      ],
+      [
+        "a label line with a relative unit",
+        [grp, a, note.replace('dy="16"', 'dy="1em"'), edge0, back],
+        "dy",
+      ],
+      [
+        "a label line at another x",
+        [grp, a, note.replace('<tspan x="170" dy="16"', '<tspan x="20" dy="16"'), edge0, back],
+        "different from its <text>",
       ],
       [
         "a box that draws nothing",

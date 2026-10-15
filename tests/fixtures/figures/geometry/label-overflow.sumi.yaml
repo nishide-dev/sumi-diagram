@@ -1,0 +1,21 @@
+# A box with an explicit size that is too small for its label. D2 keeps the
+# size and draws the label below the box. Expected: geometry/label-overflow
+# (error) at the node's props.
+version: 1
+figure:
+  id: label-overflow
+  profile: paper-single
+  layout:
+    direction: down
+nodes:
+  - id: small
+    component: box
+    label: Request handler
+    props:
+      width: 30pt
+      height: 15pt
+  - id: next
+    component: box
+    label: Next
+edges:
+  - { from: small, to: next }
