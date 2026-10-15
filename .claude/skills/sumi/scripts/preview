@@ -1,0 +1,68 @@
+#!/bin/sh
+# Rasterize a rendered Sumi SVG to a PNG for visual inspection and print the
+# PNG's path. Usage: preview <figure.svg> [size-in-px, default 1600]
+#
+# macOS: Quick Look (`qlmanage`), which uses the fonts embedded in the SVG.
+#   Quick Look thumbnails are square and crop the rest, so the figure is
+#   wrapped in a square SVG (referencing it by file URL) and scaled to fit.
+# Elsewhere: `rsvg-convert` (librsvg) if installed; it may substitute a
+#   system font for the embedded one, so judge layout, not typography.
+#
+# On success only the PNG is left in a new temporary directory; on failure
+# nothing is left behind.
+set -eu
+if [ $# -lt 1 ] || [ ! -f "$1" ]; then
+  echo "usage: preview <figure.svg> [size]" >&2
+  exit 2
+fi
+size=${2:-1600}
+case $size in
+  '' | *[!0-9]*)
+    echo "preview: size must be a positive integer" >&2
+    exit 2
+    ;;
+esac
+
+if command -v qlmanage >/dev/null 2>&1; then
+  tool=qlmanage
+elif command -v rsvg-convert >/dev/null 2>&1; then
+  tool=rsvg-convert
+else
+  echo "preview: neither qlmanage (macOS) nor rsvg-convert is available" >&2
+  exit 1
+fi
+
+svg_dir=$(CDPATH='' cd -- "$(dirname -- "$1")" && pwd)
+svg_abs="$svg_dir/$(basename -- "$1")"
+tmp=${TMPDIR:-/tmp}
+out=$(mktemp -d "${tmp%/}/sumi-preview.XXXXXX")
+cleanup() {
+  status=$?
+  if [ "$status" -ne 0 ]; then rm -rf "$out"; fi
+  exit "$status"
+}
+trap cleanup EXIT
+trap 'exit 130' INT TERM
+
+if [ "$tool" = qlmanage ]; then
+  # A percent-encoded file URL (spaces, '#', '%', non-ASCII), then escaped
+  # for an XML attribute ('&', '<', '>', quotes).
+  href=$(SUMI_PREVIEW_PATH="$svg_abs" bun -e '
+    const { pathToFileURL } = require("node:url");
+    const url = pathToFileURL(process.env.SUMI_PREVIEW_PATH).href;
+    const xml = { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'\''": "&apos;" };
+    process.stdout.write(url.replace(/[&<>"'\'']/g, (c) => xml[c]));
+  ')
+  cat >"$out/figure.svg" <<EOF
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 $size $size" width="$size" height="$size"><rect width="$size" height="$size" fill="#ffffff"/><image href="$href" xlink:href="$href" width="$size" height="$size"/></svg>
+EOF
+  qlmanage -t -s "$size" -o "$out" "$out/figure.svg" >/dev/null 2>&1
+  rm -f "$out/figure.svg"
+  mv "$out/figure.svg.png" "$out/figure.png"
+else
+  rsvg-convert -a -w "$size" -h "$size" -b white "$svg_abs" -o "$out/figure.png"
+fi
+name=$(basename -- "$1" .svg)
+# GNU mv fails when source and destination are the same (input figure.svg).
+if [ "$name" != figure ]; then mv "$out/figure.png" "$out/$name.png"; fi
+echo "$out/$name.png"

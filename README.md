@@ -72,6 +72,18 @@ sumi catalog --kind node                         # 使える部品の一覧
 - 使い方の誤りはスタックトレースを出さず 1 行で報告します。内部エラーのスタックトレースは `SUMI_DEBUG=1` で表示します。
 - 出力は同じ入力に対して決定的です。JSON の形式は `version` で版を管理します。
 
+## Claude Code から使う
+
+このリポジトリには Claude Code 用の Skill（[`.claude/skills/sumi/`](.claude/skills/sumi/SKILL.md)）が含まれています。リポジトリで Claude Code を開き、「この処理の流れを Sumi で図にして（論文の 1 段組）」のように頼むと、Skill が次の手順で図を作ります。
+
+1. 図の内容と出力先（`paper-single` / `paper-double` / `presentation-16x9`）を確認する
+2. `sumi doctor` で環境を確認し、`sumi catalog --json` で使える部品・variant・props を調べる（存在しない部品やスタイルは使わない）
+3. `*.sumi.yaml` を書き、`sumi fmt` → `sumi lint --json` → 診断の `code` / `path` / `hint` に従って修正する
+4. `sumi render` で SVG を出力し、幾何 lint（`geometry/*`）の診断を確認したうえで、PNG に変換して目視で確認する
+5. 作成したファイル・サイズ・残った warning・仮定を報告する（修正が進まない場合や、内容・Profile の判断が必要な場合は推測せずに確認する）
+
+Skill は CLI をソースから実行するラッパー（`.claude/skills/sumi/scripts/sumi`）を使います。作業ディレクトリによらず動き、`SUMI_D2_PATH` が未設定ならリポジトリの `.sumi/bin/d2` を使うため、事前に `bun install` と `bun run d2:install` を済ませておいてください。手順の詳細と、診断・レイアウトの参照資料は `.claude/skills/sumi/references/` にあります。Skill の記述（部品名・診断コード・作例の YAML）は `src/cli/skill.test.ts` で実装と照合しています。
+
 ## 開発コマンド
 
 | コマンド | 内容 |
