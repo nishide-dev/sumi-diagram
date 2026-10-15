@@ -7,3 +7,15 @@ nodes:
   - id: blank
     component: sumi/label
     label: ""
+  - id: spaces
+    component: label
+    label: "   "
+  - id: breaks
+    component: label
+    label: "\t\n \r\n"
+  - id: wide
+    component: label
+    label: "　 \u0085"
+  - id: visible
+    component: label
+    label: " x "

@@ -141,7 +141,13 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
   const sourceMap = new Map<ElementKey, SourceMapEntry>();
   const mapSource = (key: ElementKey, path: DocPath) => {
     const location = locate(path);
-    sourceMap.set(key, freeze({ path: freeze(path), ...(location !== undefined && { location }) }));
+    sourceMap.set(
+      key,
+      freeze({
+        path: freeze([...path]),
+        ...(location !== undefined && { location: freeze({ ...location }) }),
+      }),
+    );
   };
 
   const groupsById = new Map<string, FigureGroup>();
@@ -224,8 +230,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
     mapSource(edgeKey(e.id, index), ["edges", index]);
   }
 
-  const elements = new Map<ElementKey, ElementIR>();
-  for (const element of [...groups, ...nodes, ...edges]) elements.set(element.key, element);
+  const elements = readonlyMap([...groups, ...nodes, ...edges].map((e) => [e.key, e] as const));
 
   return freeze({
     meta: freeze({
@@ -241,8 +246,59 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
     edges: freeze(edges),
     roots: freeze(childrenOf.get(undefined) ?? []),
     elements,
-    sourceMap,
+    sourceMap: readonlyMap(sourceMap),
   });
+}
+
+/**
+ * A map that cannot be changed: a frozen object over a private `Map`, with
+ * only the reading methods. (`Object.freeze` on a `Map` itself would not stop
+ * `set`, `delete` or `clear`.)
+ */
+class ReadonlyMapView<K, V> implements ReadonlyMap<K, V> {
+  readonly #map: Map<K, V>;
+
+  constructor(entries: Iterable<readonly [K, V]>) {
+    this.#map = new Map(entries);
+    Object.freeze(this);
+  }
+
+  get size(): number {
+    return this.#map.size;
+  }
+
+  get(key: K): V | undefined {
+    return this.#map.get(key);
+  }
+
+  has(key: K): boolean {
+    return this.#map.has(key);
+  }
+
+  forEach(callback: (value: V, key: K, map: ReadonlyMap<K, V>) => void, thisArg?: unknown): void {
+    for (const [key, value] of this.#map) callback.call(thisArg, value, key, this);
+  }
+
+  keys() {
+    return this.#map.keys();
+  }
+
+  values() {
+    return this.#map.values();
+  }
+
+  entries() {
+    return this.#map.entries();
+  }
+
+  [Symbol.iterator]() {
+    return this.#map.entries();
+  }
+}
+
+/** An immutable map with the given entries, in order. */
+export function readonlyMap<K, V>(entries: Iterable<readonly [K, V]>): ReadonlyMap<K, V> {
+  return new ReadonlyMapView(entries);
 }
 
 function edgeIR(

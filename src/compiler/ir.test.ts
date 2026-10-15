@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
 import { checkFigure } from "../core/check";
 import { compileFigure } from "./compile";
+import { generateD2 } from "./d2";
 import { buildFigureIR, type FigureIR } from "./ir";
 import { FIXTURES_DIR } from "./testing";
 
@@ -129,7 +130,38 @@ describe("buildFigureIR", () => {
       expect(Object.isFrozen(element)).toBe(true);
       expect(Object.isFrozen(element.style)).toBe(true);
       if (element.kind !== "edge") expect(Object.isFrozen(element.d2Path)).toBe(true);
+      if (element.kind === "group") expect(Object.isFrozen(element.children)).toBe(true);
     }
+    for (const entry of ir.sourceMap.values()) {
+      expect(Object.isFrozen(entry)).toBe(true);
+      expect(Object.isFrozen(entry.path)).toBe(true);
+      expect(Object.isFrozen(entry.location)).toBe(true);
+    }
+  });
+
+  test("rejects mutation of its maps and source map", async () => {
+    const ir = await irOf("compile/structure.sumi.yaml");
+    const before = generateD2(ir);
+    for (const map of [ir.elements, ir.sourceMap]) {
+      // Only the reading methods exist; the backing Map is private.
+      const mutable = map as unknown as Partial<Map<unknown, unknown>>;
+      expect(map).not.toBeInstanceOf(Map);
+      expect(mutable.set).toBeUndefined();
+      expect(mutable.delete).toBeUndefined();
+      expect(mutable.clear).toBeUndefined();
+      expect(() => Object.assign(map, { get: () => undefined })).toThrow(TypeError);
+      expect(Object.getOwnPropertyNames(map)).toEqual([]);
+    }
+    const entry = ir.sourceMap.get("n:deep");
+    if (!entry?.location) throw new Error("expected a location");
+    const location = entry.location as { line: number };
+    expect(() => {
+      location.line = 0;
+    }).toThrow(TypeError);
+    expect(() => (entry.path as (string | number)[]).push("x")).toThrow(TypeError);
+    expect(generateD2(ir)).toBe(before);
+    expect(ir.elements.size).toBe(17);
+    expect([...ir.elements.keys()]).toEqual([...ir.sourceMap.keys()]);
   });
 
   test("refuses a check with errors", async () => {

@@ -12,7 +12,7 @@ import { createBuiltinRegistry } from "../core/registry/builtins";
 import type { EdgeManifest } from "../core/registry/manifest";
 import type { ResolvedStyle } from "../core/theme/style";
 import { compileFigure } from "./compile";
-import type { ElementIR, FigureIR } from "./ir";
+import { type ElementIR, type FigureIR, readonlyMap } from "./ir";
 
 export const FIXTURES_DIR = join(import.meta.dir, "..", "..", "tests", "fixtures");
 
@@ -104,7 +104,8 @@ export function withStyles(
   const groups = ir.groups.map(patch);
   const nodes = ir.nodes.map(patch);
   const edges = ir.edges.map(patch);
-  const elements = new Map<ElementKey, ElementIR>();
-  for (const element of [...groups, ...nodes, ...edges]) elements.set(element.key, element);
+  const elements = readonlyMap<ElementKey, ElementIR>(
+    [...groups, ...nodes, ...edges].map((e) => [e.key, e]),
+  );
   return { ...ir, groups, nodes, edges, elements };
 }

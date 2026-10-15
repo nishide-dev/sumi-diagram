@@ -1,26 +1,40 @@
 /**
- * Validates generated D2 sources with the real D2 CLI: they compile with the
+ * End-to-end check of the compiler with the real D2 CLI backend (#9):
+ * `compileFigure()` output renders through `createD2CliBackend()` with the
  * profile's layout flags and the theme's fonts, every element appears in the
  * SVG exactly once under its `sumi-k-*` class, labels survive escaping, and
  * the source is already in `d2 fmt` form.
  *
- * Needs the D2 binary in `SUMI_D2_PATH`; skipped otherwise.
+ * Uses the backend's binary discovery. Skipped when the pinned `d2` is not
+ * installed locally (`bun run d2:install`); required in CI (`CI` set).
  */
 
 import { describe, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { createD2CliBackend } from "../backends/d2/backend";
+import { checkD2Version, findD2Binary } from "../backends/d2/binary";
+import { D2_VERSION } from "../backends/d2/version";
 import { runCommand } from "../core/subprocess";
 import { type CompiledFigure, compileFigure } from "./compile";
 import { elementClass, generateD2 } from "./d2";
 import type { FigureIR } from "./ir";
 import { extrasFigure, goldenCases } from "./testing";
 
-const d2 = process.env.SUMI_D2_PATH;
-if (!d2) console.warn("SUMI_D2_PATH is not set; skipping D2 CLI validation tests.");
+const binary = findD2Binary();
+const available = binary.ok && (await checkD2Version(binary.value.path)).ok;
+const d2Path = binary.ok ? binary.value.path : "";
+const inCI = Boolean(process.env.CI);
+
+if (!available && !inCI) {
+  console.warn(
+    `[compiler d2] D2 v${D2_VERSION} not found; skipping. Run \`bun run d2:install\` to enable.`,
+  );
+}
 
 const TIMEOUT_MS = 30_000;
+const backend = createD2CliBackend();
 
 async function inTempDir<T>(run: (dir: string) => Promise<T>): Promise<T> {
   const dir = await mkdtemp(join(tmpdir(), "sumi-d2-"));
@@ -31,37 +45,24 @@ async function inTempDir<T>(run: (dir: string) => Promise<T>): Promise<T> {
   }
 }
 
-/** Renders with D2 and returns the SVG. */
-async function render(binary: string, compiled: Omit<CompiledFigure, "ir" | "sourceMap">) {
-  return inTempDir(async (dir) => {
-    const input = join(dir, "figure.d2");
-    const output = join(dir, "figure.svg");
-    await Bun.write(input, compiled.d2Source);
-    const result = await runCommand(
-      [
-        binary,
-        "--layout",
-        "elk",
-        ...compiled.layout.args,
-        ...compiled.fontSet.args,
-        "--omit-version",
-        input,
-        output,
-      ],
-      { timeoutMs: TIMEOUT_MS },
-    );
-    expect(result.stderr).not.toContain("err:");
-    expect(result.exitCode).toBe(0);
-    return Bun.file(output).text();
+/** Renders through the D2 CLI backend and returns the SVG. */
+async function render(compiled: Pick<CompiledFigure, "d2Source" | "layout" | "fontSet">) {
+  const result = await backend.render({
+    d2Source: compiled.d2Source,
+    layout: compiled.layout,
+    fontSet: compiled.fontSet,
   });
+  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics, null, 2));
+  expect(result.value.fontSetId).toBe(compiled.fontSet.id);
+  return result.value.svg;
 }
 
 /** Runs `d2 fmt` on the source and returns the formatted text. */
-async function format(binary: string, source: string) {
+async function format(source: string) {
   return inTempDir(async (dir) => {
     const file = join(dir, "figure.d2");
     await Bun.write(file, source);
-    const result = await runCommand([binary, "fmt", file], { timeoutMs: TIMEOUT_MS });
+    const result = await runCommand([d2Path, "fmt", file], { timeoutMs: TIMEOUT_MS });
     expect(result.exitCode).toBe(0);
     return Bun.file(file).text();
   });
@@ -92,17 +93,19 @@ function xmlText(text: string): string {
     .replace(/&amp;/g, "&");
 }
 
-describe.skipIf(!d2)("D2 CLI validation", () => {
-  const binary = d2 ?? "";
+test("the pinned d2 is installed in CI", () => {
+  if (inCI) expect(available).toBe(true);
+});
 
+describe.skipIf(!available)("D2 CLI validation", () => {
   for (const { name, input } of goldenCases()) {
     test(name, async () => {
       const result = compileFigure(await Bun.file(input).text());
       if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
       const compiled = result.value;
-      // D2 v0.9.0 exits 0 without writing an SVG for an empty diagram (a backend concern, #9).
-      if (compiled.ir.elements.size > 0) expectClasses(compiled.ir, await render(binary, compiled));
-      expect(await format(binary, compiled.d2Source)).toBe(compiled.d2Source);
+      // D2 v0.9.0 writes no SVG for an empty diagram (`backend/empty-output`, #9).
+      if (compiled.ir.elements.size > 0) expectClasses(compiled.ir, await render(compiled));
+      expect(await format(compiled.d2Source)).toBe(compiled.d2Source);
     });
   }
 
@@ -111,7 +114,7 @@ describe.skipIf(!d2)("D2 CLI validation", () => {
     if (!labels) throw new Error("missing labels fixture");
     const result = compileFigure(await Bun.file(labels.input).text());
     if (!result.ok) throw new Error("expected ok");
-    const svg = await render(binary, result.value);
+    const svg = await render(result.value);
     // Each label line is the content of a <text> (one line) or <tspan> (several).
     const lines = [...svg.matchAll(/<(?:text|tspan)\b[^>]*>([^<]*)(?=<)/g)].map((m) =>
       xmlText(m[1] ?? ""),
@@ -128,10 +131,10 @@ describe.skipIf(!d2)("D2 CLI validation", () => {
     const result = compileFigure("version: 1\nfigure: { id: extras }\n");
     if (!result.ok) throw new Error("expected ok");
     const compiled = { ...result.value, d2Source: generateD2(ir) };
-    const svg = await render(binary, compiled);
+    const svg = await render(compiled);
     expectClasses(ir, svg);
     expect(svg.match(/marker-start=/g)).toHaveLength(2);
     expect(svg.match(/marker-end=/g)).toHaveLength(2);
-    expect(await format(binary, compiled.d2Source)).toBe(compiled.d2Source);
+    expect(await format(compiled.d2Source)).toBe(compiled.d2Source);
   });
 });

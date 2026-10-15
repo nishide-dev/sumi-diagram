@@ -4,6 +4,7 @@ import { checkFigure } from "../check";
 import type { DocPath } from "../diagnostics";
 import { createBuiltinRegistry } from "./builtins";
 import { Registry } from "./registry";
+import { isBlankForD2 } from "./resolve";
 
 const fixtures = `${import.meta.dir}/../../../tests/fixtures/figures`;
 const read = (name: string) => Bun.file(`${fixtures}/${name}`).text();
@@ -78,6 +79,9 @@ describe("invalid fixtures", () => {
       [
         ["component/missing-label", ["nodes", 0, "label"], 5, 5],
         ["component/missing-label", ["nodes", 1, "label"], 9, 12],
+        ["component/missing-label", ["nodes", 2, "label"], 12, 12],
+        ["component/missing-label", ["nodes", 3, "label"], 15, 12],
+        ["component/missing-label", ["nodes", 4, "label"], 18, 12],
       ],
     ],
   ];
@@ -101,6 +105,22 @@ describe("invalid fixtures", () => {
     const [edge] = (await check("invalid/component-wrong-kind.sumi.yaml")).diagnostics;
     expect(edge?.subject).toEqual({ kind: "edge", id: "edges[0]" });
     expect(edge?.hint).toBe("Known edge components: arrow, line, double-arrow.");
+  });
+});
+
+describe("isBlankForD2", () => {
+  // Matches D2 v0.9.0, which trims labels with Go's unicode.IsSpace.
+  test.each([
+    ["", true],
+    ["   ", true],
+    ["\t\n\r\v\f", true],
+    [" \u0085 　 ", true],
+    ["x", false],
+    [" x ", false],
+    ["​", false],
+    ["﻿", false],
+  ])("%j → %p", (label, blank) => {
+    expect(isBlankForD2(label)).toBe(blank);
   });
 });
 
