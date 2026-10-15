@@ -10,6 +10,7 @@ import {
 import { createBuiltinRegistry } from "./registry/builtins";
 import { buildCatalog } from "./registry/catalog";
 import { componentId } from "./registry/manifest";
+import { Registry } from "./registry/registry";
 import {
   BUILTIN_THEMES,
   buildThemeCatalog,
@@ -98,6 +99,32 @@ describe("buildThemeCatalog", () => {
     expect(themeCatalogEntry(largeTheme, { profiles: custom }).compatibleProfiles).toEqual([
       "exact",
     ]);
+  });
+
+  test("base sizes every component overrides do not count toward min / max", () => {
+    // Every component × variant is 14pt; the bases keep Sumi's defaults (8 / 9 / 7pt).
+    const components = Object.fromEntries(
+      createBuiltinRegistry()
+        .list()
+        .map((m) => [
+          componentId(m),
+          Object.fromEntries(m.variants.map((v) => [v, { fontSize: "14pt" }])),
+        ]),
+    );
+    const entry = themeCatalogEntry(theme({ components }));
+    expect(entry.fontSizePt).toEqual({
+      min: 14,
+      max: 14,
+      base: { node: 8, group: 9, edge: 7 },
+    });
+    expect(entry.compatibleProfiles).toEqual([...BUILTIN_PROFILES.keys()]);
+    expect(entry.compatibleProfiles).toContain("presentation-16x9");
+  });
+
+  test("without components, the base sizes give the range", () => {
+    const entry = themeCatalogEntry(theme({}), { registry: new Registry() });
+    expect(entry.fontSizePt).toEqual({ min: 7, max: 9, base: { node: 8, group: 9, edge: 7 } });
+    expect(entry.missingVariants).toEqual({});
   });
 
   test("variants without a style are listed by component", () => {

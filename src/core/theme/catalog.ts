@@ -30,9 +30,9 @@ export interface ThemeCatalogEntry {
   fonts: { id: string; description: string; styles: FontStyle[] };
   /** Effective font sizes in pt. */
   fontSizePt: {
-    /** Smallest over every component and variant (and the base sizes). */
+    /** Smallest effective size over every component and variant (the base sizes if there are no components). */
     min: number;
-    /** Largest over every component and variant (and the base sizes). */
+    /** Largest effective size over every component and variant (the base sizes if there are no components). */
     max: number;
     /** The theme's base size per kind (before variants). */
     base: { [K in ComponentKind]: number };
@@ -86,10 +86,11 @@ export function themeCatalogEntry(
   const base = Object.fromEntries(
     COMPONENT_KINDS.map((kind) => [kind, mergeStyle(kind, [theme.base[kind]]).fontSize.pt]),
   ) as ThemeCatalogEntry["fontSizePt"]["base"];
-  // The base sizes count too, so a registry without components still has a range.
-  sizes.push(...Object.values(base));
-  const min = Math.min(...sizes);
-  const max = Math.max(...sizes);
+  // Only effective sizes count; the base sizes stand in only for a registry
+  // without components (a base size every component overrides is never drawn).
+  const effective = sizes.length > 0 ? sizes : Object.values(base);
+  const min = Math.min(...effective);
+  const max = Math.max(...effective);
   return {
     id: theme.id,
     description: theme.description ?? null,

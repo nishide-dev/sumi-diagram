@@ -663,7 +663,7 @@ layout:
   - **表**: セクションが 2 つ以上なら見出し（`Components:` 等）付きで表を並べ、1 つなら見出しなしで出す（`catalog --kind node` の表は従来どおり）。Theme の表は ID・FONT SIZE（最小〜最大）・FONTS・PROFILES（`compatibleProfiles`）・DESCRIPTION、Profile の表は ID・MAX WIDTH・MAX HEIGHT・MIN FONT・MARGIN/GAP/PADDING・DESCRIPTION（いずれも書かれたとおりの長さ）。
 - **Theme の項目**: `{ id, description, fonts: { id, description, styles }, fontSizePt: { min, max, base: { node, group, edge } }, missingVariants, compatibleProfiles }`。
   - `fonts.styles` はフォントセットにある書体（`regular`・`bold` と、あれば `italic`・`mono`）。`italic: true` / `mono: true` が使えるかの判断に使う。フォントファイルのパスと sha256 は載せない（インストール先に依存し、移植性がない。検査は `sumi doctor` の役割）。
-  - `fontSizePt` は、Registry の全部品 × 全 variant の実効スタイル（`resolveStyle()`）の文字サイズの最小・最大と、kind ごとの base のサイズ。
+  - `fontSizePt` は、Registry の全部品 × 全 variant の実効スタイル（`resolveStyle()`）の文字サイズの最小・最大と、kind ごとの base のサイズ。最小・最大は実効値だけから求め、どの部品でも上書きされる base の値は含めない（部品が 1 つもない Registry のときだけ base で代える）。
   - `missingVariants` は Theme にスタイルがなく `default` に戻る（`theme/missing-variant`）variant を部品 ID ごとに並べたもの（あるものだけ）。base は kind ごとに必ずあるので、どの部品もどの Theme でも使える。組み込み Theme では空。
   - `compatibleProfiles` は `minFontSize` ≤ `fontSizePt.min` の Profile。この Theme ならどの図でも `profile/font-too-small` にならない Profile で、エージェントが Theme と Profile の組み合わせを選ぶ材料になる（外れていても、小さい文字を使う要素がなければ通ることはある）。
 - **Profile の項目**: 定義の構造（§5.2）に合わせて `{ id, description, page: { maxWidth, maxHeight }, margin, typography: { minFontSize }, layout: { layerGap, containerPadding } }`。長さはすべて `{ written, pt, mm }`（`written` は定義に書かれたとおりの文字列、pt・mm は 0.01 に丸めた値。比較は丸めない値で行う）。D2 に渡す長さ（`margin`・`layerGap`・`containerPadding`）には、丸めた実効値 `d2Units`（`toD2LayoutArgs()` と同じ）も付ける。上限のない `maxWidth` / `maxHeight` は `null`。
