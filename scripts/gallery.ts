@@ -19,8 +19,9 @@
  *
  * Output is byte-deterministic: D2's SVG is deterministic for a given D2
  * version, font set and source, and the pages contain no dates or absolute
- * paths. Files under docs/gallery/ that the generator no longer produces are
- * deleted (reported as stale by --check).
+ * paths. Files under docs/gallery/ and example SVGs without a matching
+ * source that the generator no longer produces are deleted (reported as stale
+ * by --check).
  */
 
 import { mkdir, readdir, rm } from "node:fs/promises";
@@ -132,7 +133,14 @@ async function listFiles(dir: string): Promise<string[]> {
   return out;
 }
 
-const stale = (await listFiles(GALLERY_DIR)).filter((path) => !files.has(path)).sort();
+// Stale: anything under docs/gallery/ and any example SVG (`examples/*/*.svg`)
+// that this run did not produce, e.g. the SVG of a deleted or renamed example.
+const exampleSvgs = [...new Bun.Glob("examples/*/*.svg").scanSync(ROOT)].map((p) =>
+  p.split("\\").join("/"),
+);
+const stale = [...(await listFiles(GALLERY_DIR)), ...exampleSvgs]
+  .filter((path) => !files.has(path))
+  .sort();
 const changed: string[] = [];
 for (const [path, content] of [...files].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
   const file = Bun.file(join(ROOT, path));
