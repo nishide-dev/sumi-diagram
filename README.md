@@ -13,6 +13,38 @@ Sumi は、事前定義されたコンポーネントとデザインシステム
 
 どちらも `bun run gallery` で再生成します（CI の `bun run gallery:check` で、ソースと SVG が一致していることを検査します）。
 
+## インストール（リリース版）
+
+[GitHub Releases](https://github.com/nishide-dev/sumi-diagram/releases) で、macOS（arm64 / x64）と Linux（x64 / arm64）向けの tarball を配布しています。Bun・Node.js は不要です。Windows 版はまだありません。
+
+tarball には次が入っています。
+
+| パス | 内容 |
+| --- | --- |
+| `bin/sumi` | Sumi 本体（`bun build --compile` の単一実行ファイル） |
+| `libexec/sumi/d2` | 固定版の D2 CLI v0.9.0（公式バイナリを無改変で同梱。MPL-2.0） |
+| `share/sumi/fonts/` | 同梱フォント（BIZ UD ゴシック。SIL OFL 1.1） |
+| `licenses/`・`NOTICE` | D2 とフォントのライセンス、出典と版 |
+| `SHA256SUMS` | tarball 内の全ファイルの sha256 |
+
+```sh
+version=0.1.0 target=darwin-arm64   # darwin-arm64 | darwin-x64 | linux-x64 | linux-arm64
+base=https://github.com/nishide-dev/sumi-diagram/releases/download/v$version
+curl -LO "$base/sumi-$version-$target.tar.gz"
+curl -LO "$base/SHA256SUMS"
+shasum -a 256 --check --ignore-missing SHA256SUMS   # Linux では sha256sum --check --ignore-missing SHA256SUMS
+
+mkdir -p ~/.local/opt ~/.local/bin
+tar -xzf "sumi-$version-$target.tar.gz" -C ~/.local/opt
+ln -sf ~/.local/opt/sumi-$version-$target/bin/sumi ~/.local/bin/sumi   # ~/.local/bin を PATH に通しておく
+sumi doctor
+```
+
+- 展開したディレクトリの構成は変えないでください。`sumi` は自身の実体の位置（シンボリックリンクは解決します）から `../libexec/sumi/d2` と `../share/sumi/fonts/` を探します。`bin/sumi` だけを別の場所にコピーすると D2 とフォントが見つかりません。
+- `sumi doctor` は、実行モード（`compiled`）、使う D2 の場所（`bundled`）とバージョン、同梱フォントの sha256 を確認します。
+- macOS でブラウザからダウンロードした場合、`sumi` と `d2` は公証（notarization）されていないため Gatekeeper に止められることがあります。上のように `curl` や `gh release download` で取得するか、`xattr -dr com.apple.quarantine <展開したディレクトリ>` を実行してください。
+- npm には公開していません（`sumi` は npm で使用済みの名前です）。
+
 ## セットアップ
 
 Bun のバージョンは [`.bun-version`](.bun-version) で固定しています（現在 1.3.14）。
@@ -31,12 +63,15 @@ bun run d2:install
 
 公式リリースから現在のプラットフォーム（macOS / Linux の arm64・amd64）向けの tarball を取得し、[`src/backends/d2/version.ts`](src/backends/d2/version.ts) に記録した sha256 で検証してから `.sumi/bin/d2`（git 管理外）に配置します。既に v0.9.0 が入っていれば何もしません（`--force` で再インストール）。
 
-`d2` は次の順に探します。
+`d2` は次の順に探します（`sumi doctor` の `source` に、どれを使ったかを表示します）。
 
-1. API のオプションで明示したパス
-2. 環境変数 `SUMI_D2_PATH`
-3. `.sumi/bin/d2`（`bun run d2:install` で入れたもの）
-4. `PATH` 上の `d2`
+1. API のオプションで明示したパス（`option`）
+2. 環境変数 `SUMI_D2_PATH`（`env`）
+3. リリース版のときだけ: `sumi` と同じ tarball の `libexec/sumi/d2`（`bundled`）
+4. 作業ディレクトリの `.sumi/bin/d2`（`bun run d2:install` で入れたもの。`managed`）
+5. `PATH` 上の `d2`（`path`）
+
+1・2 で指定したパスが存在しなければ、次へ進まずにエラーにします。
 
 別の場所にある v0.9.0 を使う場合は `SUMI_D2_PATH=/path/to/d2` を設定してください。D2 の統合テストは `d2` が見つからなければスキップされます（CI では必須）。
 
@@ -103,6 +138,8 @@ Skill は CLI をソースから実行するラッパー（`.claude/skills/sumi/
 | `bun run d2:install` | 固定バージョンの D2 CLI を `.sumi/bin/d2` に導入 |
 | `bun run src/cli/index.ts --help` | CLI をソースから実行 |
 | `bun run example:render <file> [out.svg]` | `sumi render` の別名（`examples/` の再生成用） |
+| `bun run release:build --target <target>` | リリース用 tarball を `dist/release/` に作る（[リリース手順](CONTRIBUTING.md#リリース)） |
+| `bun run release:smoke <tarball>` | tarball を一時ディレクトリに展開し、Bun・Node.js のない `PATH` で `--version`・`doctor`・`render` を確認する |
 | `bun run gallery` / `gallery:check` | `docs/gallery/` と `examples/*/*.svg` の再生成 / 差分検査（D2 が必要） |
 
 ## ディレクトリ構成
