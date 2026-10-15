@@ -86,7 +86,9 @@ sumi lint figures/*.sumi.yaml --max-warnings 0   # 描画せずに検査
 sumi lint --geometry figure.sumi.yaml            # D2 で描画し、幅・文字のはみ出し・重なりも検査
 sumi fmt figure.sumi.yaml                        # その場で整形（--check で検査のみ）
 sumi doctor                                      # D2・同梱フォントなど環境の確認
-sumi catalog --kind node                         # 使える部品の一覧
+sumi catalog                                     # 使える部品・Theme・Profile の一覧
+sumi catalog --kind node                         # 部品（node）だけの一覧
+sumi catalog --json --section themes --section profiles   # Theme と Profile を JSON で
 ```
 
 | コマンド | 内容 | 主なオプション |
@@ -95,7 +97,7 @@ sumi catalog --kind node                         # 使える部品の一覧
 | `lint <files...>` | 描画せずに schema・参照・部品・Theme・Profile と構造 lint を検査する。`--geometry` を付けると D2 で描画し（ファイルは書かない）、幾何 lint も実行する（[規則の一覧](docs/lint-rules.md)） | `--geometry`、`--json`、`--config <lint.json>`、`--rule <id>=<level>`（繰り返し可。`geometry/*` も可）、`--max-warnings <n>`（全ファイルの合計） |
 | `fmt <files...>` | YAML を意味を変えずに整形する（コメント・引用符・キー順は保つ）。YAML として不正なファイルは整形しない | `--check`（書き込まずに未整形のファイルを列挙）、`--stdout`、`--canonical-order`（既知のキーを schema の順に並べる） |
 | `doctor` | Sumi / Bun のバージョン、D2 の有無とバージョン、同梱フォントの sha256、幾何 lint 用のフォントの metrics を読めるかを確認する | `--json` |
-| `catalog` | 部品の一覧（`--json` は `buildCatalog()` の出力そのもの） | `--json`、`--kind node\|group\|edge` |
+| `catalog` | 部品・Theme・Profile の一覧（`--json` は `buildFullCatalog()` の出力そのもの） | `--json`、`--section components\|themes\|profiles`（繰り返し可）、`--kind node\|group\|edge`（`--section` なしでは部品だけを出す） |
 
 ### 出力先と終了コード
 
@@ -112,7 +114,64 @@ sumi catalog --kind node                         # 使える部品の一覧
 
 - 色は端末への出力にだけ付けます。`--no-color` または `NO_COLOR=1` で無効、`FORCE_COLOR=1` で常に有効になります。
 - 使い方の誤りはスタックトレースを出さず 1 行で報告します。内部エラーのスタックトレースは `SUMI_DEBUG=1` で表示します。
-- 出力は同じ入力に対して決定的です。JSON の形式は `version` で版を管理します。
+- 出力は同じ入力に対して決定的です。JSON の形式は `version` で版を管理します。同じ版のうちはフィールドの追加だけを行うので、未知のフィールドは無視してください（[設計 §6.10](docs/design/phase1.md)）。
+
+### 機械可読な出力（JSON）
+
+`sumi catalog --json` は `{ version: 1, components, themes, profiles }` を出力します。Theme には説明・フォントセット（使える書体）・文字サイズの範囲・最小文字サイズを満たす Profile（`compatibleProfiles`）が、Profile にはページの上限・余白・最小文字サイズ・レイアウトの間隔（書かれた値、pt、mm、D2 に渡す unit）が入ります。
+
+```json
+{
+  "version": 1,
+  "themes": [
+    {
+      "id": "academic",
+      "description": "Restrained theme for papers: thin lines, black text, gray emphasis",
+      "fonts": { "id": "sumi/biz-ud-gothic", "description": "…", "styles": ["regular", "bold", "mono"] },
+      "fontSizePt": { "min": 7, "max": 8, "base": { "node": 8, "group": 8, "edge": 7 } },
+      "missingVariants": {},
+      "compatibleProfiles": ["paper-single", "paper-double"]
+    }
+  ],
+  "profiles": [
+    {
+      "id": "presentation-16x9",
+      "description": "16:9 presentation slide (13.33in × 7.5in); used as an upper bound only",
+      "page": {
+        "maxWidth": { "written": "338.7mm", "pt": 960.09, "mm": 338.7 },
+        "maxHeight": { "written": "190.5mm", "pt": 540, "mm": 190.5 }
+      },
+      "margin": { "written": "4mm", "pt": 11.34, "mm": 4, "d2Units": 23 },
+      "typography": { "minFontSize": { "written": "14pt", "pt": 14, "mm": 4.94 } },
+      "layout": {
+        "layerGap": { "written": "16mm", "pt": 45.35, "mm": 16, "d2Units": 91 },
+        "containerPadding": { "written": "8mm", "pt": 22.68, "mm": 8, "d2Units": 45 }
+      }
+    }
+  ]
+}
+```
+
+`sumi render --json`（と `sumi lint --geometry --json` のファイルごとの結果）は、出力サイズと Profile の上限を `size` に入れます（描画できなかったときは `null`）。`fits` は幅と高さが上限以内かどうかで、文字サイズは診断で報告します。
+
+```json
+{
+  "version": 1,
+  "file": "figure.sumi.yaml",
+  "diagnostics": [],
+  "summary": { "errors": 0, "warnings": 0, "infos": 0 },
+  "output": "figure.svg",
+  "d2": null,
+  "size": {
+    "widthPt": 138.5,
+    "heightPt": 439,
+    "widthMm": 48.86,
+    "heightMm": 154.87,
+    "profile": { "id": "paper-single", "maxWidthMm": 88, "maxHeightMm": 220, "minFontSizePt": 7 },
+    "fits": true
+  }
+}
+```
 
 ### テーマとプロファイル
 
@@ -137,7 +196,7 @@ sumi catalog --kind node                         # 使える部品の一覧
 このリポジトリには Claude Code 用の Skill（[`.claude/skills/sumi/`](.claude/skills/sumi/SKILL.md)）が含まれています。リポジトリで Claude Code を開き、「この処理の流れを Sumi で図にして（論文の 1 段組）」のように頼むと、Skill が次の手順で図を作ります。
 
 1. 図の内容と出力先（`paper-single` / `paper-double` / `presentation-16x9`）を確認する
-2. `sumi doctor` で環境を確認し、`sumi catalog --json` で使える部品・variant・props を調べる（存在しない部品やスタイルは使わない）
+2. `sumi doctor` で環境を確認し、`sumi catalog --json` で使える部品・variant・props と Theme・Profile を調べる（存在しない部品やスタイルは使わない）
 3. `*.sumi.yaml` を書き、`sumi fmt` → `sumi lint --json` → 診断の `code` / `path` / `hint` に従って修正する
 4. `sumi render` で SVG を出力し、幾何 lint（`geometry/*`）の診断を確認したうえで、PNG に変換して目視で確認する
 5. 作成したファイル・サイズ・残った warning・仮定を報告する（修正が進まない場合や、内容・Profile の判断が必要な場合は推測せずに確認する）

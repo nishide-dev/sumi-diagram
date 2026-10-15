@@ -94,8 +94,10 @@ Always take these from `sumi catalog --json`. Each entry has `id`
 
 ## Themes and profiles
 
-They are built in; there is no way to define your own in a figure. The CLI
-lists them in the hint of `theme/unknown` / `profile/unknown`.
+They are built in; there is no way to define your own in a figure.
+`sumi catalog --json` lists them (see
+[below](#discovering-themes-and-profiles)); the hint of `theme/unknown` /
+`profile/unknown` names them too. The tables are a summary.
 
 | Theme | Look |
 | --- | --- |
@@ -114,6 +116,82 @@ bundled `sumi/biz-ud-gothic` font set (Latin and Japanese).
 
 `sumi render --theme <name> --profile <name>` overrides them for one render
 without editing the file.
+
+## Discovering themes and profiles
+
+```sh
+sumi catalog --json --section themes --section profiles
+```
+
+prints `{ "version": 1, "themes": [...], "profiles": [...] }` (plain
+`sumi catalog --json` adds `components`). One entry of each:
+
+```json
+{
+  "version": 1,
+  "themes": [
+    {
+      "id": "minimal",
+      "description": "Monochrome theme with clear outlines",
+      "fonts": {
+        "id": "sumi/biz-ud-gothic",
+        "description": "BIZ UDPGothic (regular, bold) and BIZ UDGothic (mono) v1.051: Latin and Japanese, OFL-1.1",
+        "styles": ["regular", "bold", "mono"]
+      },
+      "fontSizePt": { "min": 7, "max": 9, "base": { "node": 8, "group": 9, "edge": 7 } },
+      "missingVariants": {},
+      "compatibleProfiles": ["paper-single", "paper-double"]
+    }
+  ],
+  "profiles": [
+    {
+      "id": "paper-single",
+      "description": "Single-column figure in a two-column paper",
+      "page": {
+        "maxWidth": { "written": "88mm", "pt": 249.45, "mm": 88 },
+        "maxHeight": { "written": "220mm", "pt": 623.62, "mm": 220 }
+      },
+      "margin": { "written": "2mm", "pt": 5.67, "mm": 2, "d2Units": 11 },
+      "typography": { "minFontSize": { "written": "7pt", "pt": 7, "mm": 2.47 } },
+      "layout": {
+        "layerGap": { "written": "8mm", "pt": 22.68, "mm": 8, "d2Units": 45 },
+        "containerPadding": { "written": "4mm", "pt": 11.34, "mm": 4, "d2Units": 23 }
+      }
+    }
+  ]
+}
+```
+
+- `compatibleProfiles`: profiles whose minimum font size every component
+  and variant of the theme meets. A profile outside it fails
+  with `profile/font-too-small` for labelled elements; changing the theme
+  or profile is the user's decision.
+- `fonts.styles`: `italic: true` / `mono: true` need `italic` / `mono` here.
+- `missingVariants`: variants the theme does not style (they fall back to
+  `default` with `theme/missing-variant`); empty for the built-ins.
+- `page.maxWidth` / `maxHeight` (`null` = no limit) include the margin.
+  `layerGap` is the space between layers; nodes in the same layer are always
+  10pt apart.
+
+After rendering, `sumi render --json` (and each result of
+`sumi lint --geometry --json`) reports the output size against these limits
+in `size` (`null` if nothing was rendered):
+
+```json
+{
+  "size": {
+    "widthPt": 138.5,
+    "heightPt": 439,
+    "widthMm": 48.86,
+    "heightMm": 154.87,
+    "profile": { "id": "paper-single", "maxWidthMm": 88, "maxHeightMm": 220, "minFontSizePt": 7 },
+    "fits": true
+  }
+}
+```
+
+`fits` covers width and height only; font sizes are reported as
+diagnostics.
 
 ## YAML restrictions
 

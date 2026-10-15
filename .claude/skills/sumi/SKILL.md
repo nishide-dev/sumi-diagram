@@ -13,10 +13,10 @@ it is clean — never to draw the SVG yourself, and never to edit generated
 
 ## Ground rules
 
-- **Use only what Sumi provides.** Components, variants and props come from
-  `sumi catalog --json`; fields from the Figure Schema; themes and profiles
-  from the lists in [references/figure-format.md](references/figure-format.md)
-  (or the hint of a `theme/unknown` / `profile/unknown` diagnostic). Never
+- **Use only what Sumi provides.** Components, variants and props, themes
+  and profiles come from `sumi catalog --json` (`components`, `themes`,
+  `profiles`); fields from the Figure Schema
+  ([references/figure-format.md](references/figure-format.md)). Never
   invent a component, variant, prop, field, theme, profile or style. If the
   diagram needs something Sumi lacks (icons, colors per node, ports, a
   domain-specific shape), say so and use the closest generic component.
@@ -56,7 +56,8 @@ Before writing YAML, make sure you know:
   [layout-tips](references/layout-tips.md) for what fits on
   `presentation-16x9`.
 - **Theme** (`minimal`, `academic` or `slides`; default `minimal`; a slide
-  needs `slides` with `presentation-16x9`) and the output
+  needs `slides` with `presentation-16x9`; `sumi catalog --section themes`
+  lists them with the profiles each one suits) and the output
   path (default: the figure next to the user's other files, named
   `<figure-id>.sumi.yaml`).
 
@@ -75,17 +76,23 @@ are in place. If the `d2` check fails, tell the user to run
 `bun run d2:install` in the repository (or set `SUMI_D2_PATH` to a D2
 v0.9.0 binary) and stop. `sumi lint` without `--geometry` works without D2.
 
-### 3. Discover components
+### 3. Discover components, themes and profiles
 
 ```sh
-sumi catalog --json              # all components: id, kind, variants, props (JSON Schema)
-sumi catalog --kind node         # human-readable table, one kind
+sumi catalog --json              # { version, components, themes, profiles }
+sumi catalog --json --section themes --section profiles   # only those sections
+sumi catalog --kind node         # human-readable table, one kind of component
+sumi catalog                     # human-readable tables of all three
 ```
 
-Pick each node, group and edge component from this output, matching the
+Pick each node, group and edge component from `components`, matching the
 `description` to the element's role (e.g. `diamond` for a decision,
 `cylinder` for storage). Use a variant only if it is listed for that
-component, and props only if they are in its `props` schema.
+component, and props only if they are in its `props` schema. Check the
+chosen theme against the target: its `compatibleProfiles` must include the
+profile, otherwise labelled elements fail with `profile/font-too-small`.
+Page limits and spacing are in `profiles`
+([figure-format](references/figure-format.md#discovering-themes-and-profiles)).
 
 ### 4. Write the figure
 
@@ -157,7 +164,7 @@ Render only after lint is clean (`render` does not run the `lint/*` rules).
 
 ```sh
 sumi render figure.sumi.yaml              # writes figure.svg, then runs geometry lint
-sumi render --json figure.sumi.yaml       # same; diagnostics as JSON ("output" = SVG path)
+sumi render --json figure.sumi.yaml       # same; diagnostics as JSON ("output" = SVG path, "size")
 sumi lint --geometry --json figure.sumi.yaml   # lint + render in memory + geometry; writes nothing
 ```
 
@@ -165,7 +172,11 @@ sumi lint --geometry --json figure.sumi.yaml   # lint + render in memory + geome
 (page width/height, label overflow, overlaps, labels crossed by edges).
 Geometry errors make it exit 1 but **the SVG is still written**, so you can
 look at the problem. The text mode also prints `Wrote figure.svg: <W>mm ×
-<H>mm (<profile>, max width <M>mm[, TOO WIDE]; theme <theme>)`.
+<H>mm (<profile>, max width <M>mm[, TOO WIDE]; theme <theme>)`. With
+`--json` (also `lint --geometry --json`, per file), read the size from
+`size`: `widthMm` / `heightMm` (and pt), the profile's `maxWidthMm` /
+`maxHeightMm` / `minFontSizePt`, and `fits` (within the page limits);
+`null` if nothing was rendered.
 
 - `geometry/exceeds-page-width`: change the layout (usually
   `direction: down`) or shorten labels. The hint also mentions a wider
