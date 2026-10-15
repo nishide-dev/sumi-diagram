@@ -108,7 +108,8 @@ jobs:
           if-no-files-found: error
 
   release:
-    if: github.ref_type == 'tag'
+    # Only a pushed tag publishes; workflow_dispatch (even on a tag ref) is a dry run.
+    if: github.event_name == 'push' && github.ref_type == 'tag'
     needs: [preflight, build]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
