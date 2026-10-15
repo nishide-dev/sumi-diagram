@@ -68,6 +68,18 @@ describe.skipIf(!available && !inCI)("geometry lint with D2", () => {
     expect(geometry[0]?.location?.line).toBe(15);
   });
 
+  test("labels with blank lines render; D2's line advances are measured as written", async () => {
+    const { report, geometry } = await lintFile(join(FIXTURES, "geometry", "whitespace.sumi.yaml"));
+    expect(geometry).toEqual([]);
+    const labelOf = (key: string) =>
+      report.rendered?.inspection.elements.find((e) => e.key === key)?.labels[0];
+    // D2 v0.9.0 divides its measured height (blank first / last lines add none) by the line count.
+    expect(labelOf("n:newline")).toMatchObject({ lines: 2, lineHeightUnits: 0 });
+    expect(labelOf("n:blank-lines")).toMatchObject({ lines: 2, lineHeightUnits: 0 });
+    expect(labelOf("n:framed")?.lineHeightUnits).toBeCloseTo(16 / 3, 5);
+    expect(labelOf("n:gap")).toMatchObject({ lines: 3, lineHeightUnits: 16 });
+  });
+
   test("edge-crosses-label names the container", async () => {
     const { geometry } = await lintFile(join(FIXTURES, "geometry", "edge-crosses-label.sumi.yaml"));
     expect(geometry[0]?.message).toBe('Edge "enter" crosses the label of group "stages".');

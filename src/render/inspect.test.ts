@@ -202,6 +202,24 @@ describe("inspectSvg", () => {
     });
   });
 
+  test("line advances as D2 writes them for blank lines: below the font size, or 0", () => {
+    const { grp, a, note, edge0, back } = TINY_PARTS;
+    // D2 v0.9.0 for "\n" (blank lines only): every dy is 0.
+    const blank = note.replace(
+      /<tspan x="170" dy="0">No<\/tspan><tspan x="170" dy="16">te<\/tspan>/,
+      '<tspan x="170" dy="0"> </tspan><tspan x="170" dy="0"> </tspan>',
+    );
+    const [, , zero] = inspect(tinySvg([grp, a, blank, edge0, back])).elements;
+    expect(zero?.labels[0]).toMatchObject({ text: " \n ", lines: 2, lineHeightUnits: 0 });
+    // D2 v0.9.0 for "\nmiddle\n": blank first and last lines add no height (16 / 3).
+    const thirds = note.replace(
+      /<tspan x="170" dy="0">No<\/tspan><tspan x="170" dy="16">te<\/tspan>/,
+      '<tspan x="170" dy="0"> </tspan><tspan x="170" dy="5.333333">middle</tspan><tspan x="170" dy="5.333333"> </tspan>',
+    );
+    const [, , third] = inspect(tinySvg([grp, a, thirds, edge0, back])).elements;
+    expect(third?.labels[0]).toMatchObject({ lines: 3, lineHeightUnits: 5.333333 });
+  });
+
   describe("svg/unsupported-geometry instead of guessing", () => {
     const { grp, a, note, edge0, back } = TINY_PARTS;
     const cases: [string, string[], string][] = [
@@ -245,6 +263,11 @@ describe("inspectSvg", () => {
           back,
         ],
         "different line heights",
+      ],
+      [
+        "a label line that moves backwards",
+        [grp, a, note.replace('dy="16"', 'dy="-16"'), edge0, back],
+        "dy",
       ],
       [
         "a label line with a relative unit",

@@ -36,8 +36,11 @@ export interface LabelGeometry {
   lines: number;
   /**
    * Baseline-to-baseline distance in D2 units: the `dy` of the second and later
-   * `<tspan>`s (D2 v0.9.0 writes the same value for each, e.g. 18.5 for 18px
-   * text). For a single line, `fontSizeUnits`.
+   * `<tspan>`s. D2 v0.9.0 writes the same value for each: its measured height
+   * of the label divided by the number of lines, e.g. 18.5 for two lines of
+   * 18px text. Blank leading or trailing lines add no height, so it can be
+   * smaller than the font size (16 / 3 for `"\nmiddle\n"` at 16px) or 0 (a
+   * label of blank lines only). For a single line, `fontSizeUnits`.
    */
   lineHeightUnits: number;
   /**
@@ -198,7 +201,8 @@ function readLabel(text: XmlElement): LabelGeometry | string {
   for (const [i, tspan] of tspans.entries()) {
     const dy = attribute(tspan, "dy");
     const value = parseNumber(dy ?? "0");
-    if (value === undefined || (i === 0 ? value !== 0 : value <= 0)) {
+    // Later lines may advance by 0 (D2 does so for labels of blank lines only), never backwards.
+    if (value === undefined || (i === 0 ? value !== 0 : value < 0)) {
       return `<tspan> has an unsupported dy "${dy}"`;
     }
     const tspanX = attribute(tspan, "x");
