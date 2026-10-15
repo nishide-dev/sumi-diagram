@@ -31,18 +31,20 @@ export const emptyFigure = defineRule({
 
 export const noEdges = defineRule({
   id: "lint/no-edges",
-  description: "The figure has two or more nodes but no edges.",
+  description: "The figure has two or more valid nodes but no edges.",
   defaultSeverity: "warning",
   fixable: false,
   run(context) {
-    const { nodes, edges } = context.state.doc;
-    if (nodes === undefined || edges === undefined || nodes.length < 2 || edges.length > 0) {
-      return [];
-    }
+    // Any edge, even an invalid one, means the author did draw edges.
+    const { edges } = context.state.doc;
+    if (edges === undefined || edges.length > 0) return [];
+    // Invalid nodes already have errors; count only the valid ones.
+    const nodeCount = context.elements.filter((e) => e.kind === "node").length;
+    if (nodeCount < 2) return [];
     const subject = figureSubject(context);
     return [
       {
-        message: `The figure has ${nodes.length} nodes but no edges.`,
+        message: `The figure has ${nodeCount} nodes but no edges.`,
         path: ["edges"],
         ...(subject !== undefined && { subject }),
         hint: "Connect the nodes with edges, or turn off lint/no-edges if unconnected nodes are intended.",

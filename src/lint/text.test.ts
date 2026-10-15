@@ -19,6 +19,12 @@ test.each([
   ["❤", 1], // text presentation by default
   ["❤️", 2], // emoji presentation selector
   ["𠀋", 2], // CJK Extension B
+  ["1\ufe0f\u20e3", 2], // keycap sequences
+  ["#\ufe0f\u20e3", 2],
+  ["*\ufe0f\u20e3", 2],
+  ["9\u20e3", 2], // keycap without VS16
+  ["1\ufe0f\u20e3 2\ufe0f\u20e3", 5],
+  ["1#*", 3], // plain digits and symbols stay narrow
   ["DB サーバ", 9],
 ])("displayWidth(%p) = %p", (line, width) => {
   expect(displayWidth(line)).toBe(width);

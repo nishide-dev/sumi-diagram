@@ -37,7 +37,13 @@ const WIDE_RANGES: readonly [number, number][] = [
   [0x30000, 0x3fffd], // CJK Unified Ideographs Extensions G–H
 ];
 
-const EMOJI_PRESENTATION = /\p{Emoji_Presentation}|\p{Extended_Pictographic}️/u;
+/**
+ * Graphemes shown as emoji: emoji-presentation characters, pictographs with
+ * VS16, and keycap sequences (a digit, "#" or "*", an optional VS16 and
+ * U+20E3), whose bases are not pictographs themselves.
+ */
+const EMOJI_PRESENTATION =
+  /\p{Emoji_Presentation}|\p{Extended_Pictographic}\ufe0f|^[0-9#*]\ufe0f?\u20e3$/u;
 
 function isWide(codePoint: number): boolean {
   return WIDE_RANGES.some(([start, end]) => codePoint >= start && codePoint <= end);
@@ -46,9 +52,9 @@ function isWide(codePoint: number): boolean {
 /**
  * Display width of one line in columns, like a terminal: each grapheme cluster
  * counts 2 if it is East Asian Wide / Fullwidth (CJK, kana, Hangul, fullwidth
- * forms) or an emoji shown as an emoji, otherwise 1. So "API" is 3 columns and
- * "認証サーバ" is 10. Combining marks and joiners do not add width because
- * they belong to the cluster of their base character.
+ * forms) or an emoji shown as an emoji (including keycap sequences), otherwise
+ * 1. So "API" is 3 columns and "認証サーバ" is 10. Combining marks and joiners
+ * do not add width because they belong to the cluster of their base character.
  */
 export function displayWidth(line: string): number {
   let width = 0;

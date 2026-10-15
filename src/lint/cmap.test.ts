@@ -15,8 +15,14 @@ class Bytes {
   }
 }
 
-/** A minimal sfnt with a single `cmap` table holding the given subtables. */
-function font(subtables: { platform: number; encoding: number; body: Bytes }[]): Uint8Array {
+/**
+ * A minimal sfnt with a single `cmap` table holding the given subtables,
+ * followed by `padding` zero bytes that still belong to the table.
+ */
+function font(
+  subtables: { platform: number; encoding: number; body: Bytes }[],
+  { padding = 0, tableLength }: { padding?: number; tableLength?: number } = {},
+): Uint8Array {
   const cmap = new Bytes().u16(0, subtables.length);
   let offset = 4 + subtables.length * 8;
   for (const s of subtables) {
@@ -24,10 +30,11 @@ function font(subtables: { platform: number; encoding: number; body: Bytes }[]):
     offset += s.body.data.length;
   }
   for (const s of subtables) cmap.data.push(...s.body.data);
+  cmap.data.push(...new Array<number>(padding).fill(0));
   const header = new Bytes()
     .u32(0x00010000)
     .u16(1, 16, 0, 0) // numTables, searchRange, entrySelector, rangeShift
-    .u32(0x636d6170, 0, 12 + 16, cmap.data.length); // "cmap" record
+    .u32(0x636d6170, 0, 12 + 16, tableLength ?? cmap.data.length); // "cmap" record
   return new Uint8Array([...header.data, ...cmap.data]);
 }
 
@@ -37,26 +44,36 @@ function font(subtables: { platform: number; encoding: number; body: Bytes }[]):
  * - 0x61–0x63 via the glyph array (0x62 maps to glyph 0: missing);
  * - the required final 0xFFFF segment.
  */
-function format4(): Bytes {
+function format4({ rangeOffset = 4 } = {}): Bytes {
   const segCount = 3;
-  return new Bytes()
-    .u16(4, 0, 0, segCount * 2, 0, 0, 0) // format, length, language, segCountX2, search fields
+  const body = new Bytes()
+    .u16(4, 0, 0, segCount * 2, 0, 0, 0) // format, length (set below), language, segCountX2, search fields
     .u16(0x43, 0x63, 0xffff) // endCode
     .u16(0) // reservedPad
     .u16(0x41, 0x61, 0xffff) // startCode
     .u16(0x10000 - 0x40, 0, 1) // idDelta: -0x40, 0, 1
-    .u16(0, 4, 0) // idRangeOffset: segment 1 points 4 bytes ahead, at the glyph array
+    .u16(0, rangeOffset, 0) // idRangeOffset: segment 1 points 4 bytes ahead, at the glyph array
     .u16(10, 0, 11); // glyphIdArray for 0x61, 0x62, 0x63
+  body.data[2] = body.data.length >> 8;
+  body.data[3] = body.data.length & 0xff;
+  return body;
 }
 
-/** Format 12 with two groups; the second starts at glyph 0, so its first code point is missing. */
-function format12(): Bytes {
-  return new Bytes()
-    .u16(12, 0)
-    .u32(16 + 2 * 12, 0, 2) // length, language, numGroups
-    .u32(0x1f600, 0x1f601, 5)
-    .u32(0x20000, 0x20002, 0);
+/** Format 12 with the given `[start, end, startGlyph]` groups. */
+function format12(
+  groups: [number, number, number][] = [
+    [0x1f600, 0x1f601, 5],
+    // Starts at glyph 0, so its first code point is missing.
+    [0x20000, 0x20002, 0],
+  ],
+): Bytes {
+  const body = new Bytes().u16(12, 0).u32(16 + groups.length * 12, 0, groups.length);
+  for (const group of groups) body.u32(...group);
+  return body;
 }
+
+const parse12 = (groups: [number, number, number][]) =>
+  parseGlyphCoverage(font([{ platform: 3, encoding: 10, body: format12(groups) }]));
 
 describe("parseGlyphCoverage", () => {
   test("reads format 4 (delta and glyph array segments)", () => {
@@ -87,17 +104,71 @@ describe("parseGlyphCoverage", () => {
   test("rejects malformed and unsupported data", () => {
     const valid = font([{ platform: 3, encoding: 1, body: format4() }]);
     const cases: [Uint8Array, RegExp][] = [
-      [new Uint8Array(2), /out of bounds/],
-      [valid.slice(0, valid.length - 4), /out of bounds/],
+      [new Uint8Array(2), /outside the font/],
+      [valid.slice(0, valid.length - 4), /outside the font/],
       [new Uint8Array([0x74, 0x74, 0x63, 0x66, 0, 1, 0, 0]), /collections/],
       [new Uint8Array([0x77, 0x4f, 0x46, 0x46, 0, 0, 0, 0]), /not a TrueType/],
       [font([{ platform: 1, encoding: 0, body: format4() }]), /no Unicode cmap subtable/],
+      // The table directory claims more bytes than the file has.
+      [
+        font([{ platform: 3, encoding: 1, body: format4() }], { tableLength: 1000 }),
+        /outside the font/,
+      ],
+      // idRangeOffset points into the cmap table, but past the end of the subtable.
+      [
+        font([{ platform: 3, encoding: 1, body: format4({ rangeOffset: 40 }) }], { padding: 64 }),
+        /outside the cmap format 4 subtable/,
+      ],
       [new Uint8Array(new Bytes().u32(0x00010000).u16(0, 0, 0, 0).data), /no cmap table/],
     ];
     for (const [bytes, message] of cases) {
       expect(() => parseGlyphCoverage(bytes)).toThrow(FontParseError);
       expect(() => parseGlyphCoverage(bytes)).toThrow(message);
     }
+  });
+});
+
+describe("format 12 groups", () => {
+  test.each<[string, [number, number, number][]]>([
+    [
+      "unsorted",
+      [
+        [0x200, 0x2ff, 1],
+        [0x100, 0x1ff, 1],
+      ],
+    ],
+    [
+      "overlapping",
+      [
+        [0x100, 0x1ff, 1],
+        [0x1ff, 0x2ff, 1],
+      ],
+    ],
+    ["reversed", [[0x200, 0x100, 1]]],
+    ["beyond U+10FFFF", [[0x10ff00, 0x110000, 1]]],
+  ])("rejects %s groups", (_, groups) => {
+    expect(() => parse12(groups)).toThrow(/not sorted, disjoint and in range/);
+  });
+
+  test("rejects a group count larger than the subtable", () => {
+    const body = format12();
+    body.data.splice(12, 4, 0, 0, 0x10, 0); // numGroups = 4096
+    const bytes = font([{ platform: 3, encoding: 10, body }]);
+    expect(() => parseGlyphCoverage(bytes)).toThrow(/exceed the subtable/);
+  });
+
+  test("covering all of Unicode stays cheap (ranges, not a set of code points)", () => {
+    const groups: [number, number, number][] = [];
+    const step = 0x1100;
+    for (let start = 0; start <= 0x10ffff; start += step) {
+      groups.push([start, Math.min(start + step - 1, 0x10ffff), 1]);
+    }
+    const began = performance.now();
+    const coverage = parse12(groups);
+    expect(performance.now() - began).toBeLessThan(100);
+    expect(coverage.size).toBe(0x110000);
+    for (const cp of [0, 0x41, 0x1100, 0x10ffff]) expect(coverage.has(cp)).toBe(true);
+    expect(coverage.has(0x110000)).toBe(false);
   });
 });
 

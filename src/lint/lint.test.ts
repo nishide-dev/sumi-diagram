@@ -111,6 +111,32 @@ describe("rules", () => {
     );
   });
 
+  test("long-label counts keycap emoji as 2 columns", () => {
+    const keycaps = (n: number) => "1\ufe0f\u20e3".repeat(n);
+    const figure = (label: string) =>
+      `version: 1\nfigure: { id: k }\nnodes:\n  - { id: a, component: box, label: "${label}" }\n`;
+    const longLabels = (label: string) =>
+      codes(lintFigure(figure(label)).diagnostics).filter((c) => c === "lint/long-label");
+    expect(longLabels(keycaps(20))).toEqual([]); // 40 columns: at the limit
+    expect(longLabels(keycaps(21))).toEqual(["lint/long-label"]); // 42 columns
+  });
+
+  test("no-edges counts only valid nodes", () => {
+    const text = [
+      "version: 1",
+      "figure: { id: x }",
+      "nodes:",
+      "  - { id: a, component: cloud }",
+      "  - { id: b, component: cloud }",
+      "  - { id: c, component: box, label: C }",
+      "",
+    ].join("\n");
+    expect(codes(lintFigure(text).diagnostics)).toEqual(["component/unknown", "component/unknown"]);
+    const three = text.replace(/cloud/g, "box");
+    const [warning] = lintFigure(three).diagnostics.filter((d) => d.code === "lint/no-edges");
+    expect(warning?.message).toBe("The figure has 3 nodes but no edges.");
+  });
+
   test("missing-glyph lists characters with code points and the font slot", () => {
     const messages = lint("lint/missing-glyph.sumi.yaml").diagnostics.map((d) => d.message);
     expect(messages).toEqual([
