@@ -35,6 +35,12 @@ export interface LabelGeometry {
   /** Number of lines (`<tspan>` count, or 1). */
   lines: number;
   /**
+   * Baseline-to-baseline distance in D2 units: the `dy` of the second and later
+   * `<tspan>`s (D2 v0.9.0 writes the same value for each, e.g. 18.5 for 18px
+   * text). For a single line, `fontSizeUnits`.
+   */
+  lineHeightUnits: number;
+  /**
    * D2's font class without the `text` prefix: `regular` for `text`, otherwise
    * e.g. `bold`, `italic`, `mono`, `mono-bold`. Selects the TTF to re-measure with (#13).
    */
@@ -188,11 +194,26 @@ function readLabel(text: XmlElement): LabelGeometry | string {
   }
   const fontClass = classList(text).find((c) => c === "text" || c.startsWith("text-"));
   const tspans = childElements(text).filter((c) => c.name === "tspan");
+  let lineHeightUnits = fontSizeUnits;
+  for (const [i, tspan] of tspans.entries()) {
+    const dy = attribute(tspan, "dy");
+    const value = parseNumber(dy ?? "0");
+    if (value === undefined || (i === 0 ? value !== 0 : value <= 0)) {
+      return `<tspan> has an unsupported dy "${dy}"`;
+    }
+    const tspanX = attribute(tspan, "x");
+    if (tspanX !== undefined && parseNumber(tspanX) !== x) {
+      return `<tspan> has x "${tspanX}" different from its <text>`;
+    }
+    if (i === 1) lineHeightUnits = value;
+    else if (i > 1 && value !== lineHeightUnits) return "<tspan>s have different line heights";
+  }
   return {
     text: tspans.length > 0 ? tspans.map(textContent).join("\n") : textContent(text),
     anchor: { x, y },
     fontSizeUnits,
     lines: Math.max(tspans.length, 1),
+    lineHeightUnits,
     font: fontClass === undefined || fontClass === "text" ? "regular" : fontClass.slice(5),
   };
 }
