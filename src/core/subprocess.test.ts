@@ -57,25 +57,7 @@ describe("runCommand", () => {
   test("escalates to SIGKILL when the process ignores SIGTERM", async () => {
     const dir = await mkdtemp(join(tmpdir(), "sumi-subprocess-test-"));
     const pidFile = join(dir, "pid");
-    try {
-      const started = performance.now();
-      const result = await runCommand(
-        [
-          bun,
-          "-e",
-          `process.on("SIGTERM", () => {});
-           require("node:fs").writeFileSync(process.argv[1], String(process.pid));
-           setInterval(() => {}, 1_000);`,
-          pidFile,
-        ],
-        { timeoutMs: 1_000, killGraceMs: 200 },
-      );
-      expect(result.timedOut).toBe(true);
-      expect(result.exitCode).toBeNull();
-      expect(result.signal).toBe("SIGKILL");
-      expect(performance.now() - started).toBeLessThan(5_000);
-    } finally {
-      // Make sure the child does not outlive the test, even if assertions failed.
+    const killChild = async () => {
       const pid = Number(await readFile(pidFile, "utf8").catch(() => ""));
       if (Number.isInteger(pid) && pid > 0) {
         try {
@@ -84,9 +66,42 @@ describe("runCommand", () => {
           // Already exited.
         }
       }
+    };
+    // Independent watchdog: if escalation is broken, runCommand never resolves,
+    // so kill the child ourselves and fail before Bun's test timeout fires.
+    let watchdog: Timer | undefined;
+    const watchdogFired = new Promise<never>((_, reject) => {
+      watchdog = setTimeout(() => {
+        void killChild().finally(() =>
+          reject(new Error("runCommand did not return within the watchdog period")),
+        );
+      }, 4_000);
+    });
+    try {
+      const result = await Promise.race([
+        runCommand(
+          [
+            bun,
+            "-e",
+            `process.on("SIGTERM", () => {});
+             require("node:fs").writeFileSync(process.argv[1], String(process.pid));
+             setInterval(() => {}, 1_000);`,
+            pidFile,
+          ],
+          { timeoutMs: 1_000, killGraceMs: 200 },
+        ),
+        watchdogFired,
+      ]);
+      expect(result.timedOut).toBe(true);
+      expect(result.exitCode).toBeNull();
+      expect(result.signal).toBe("SIGKILL");
+    } finally {
+      clearTimeout(watchdog);
+      // Make sure the child does not outlive the test, even if assertions failed.
+      await killChild();
       await rm(dir, { recursive: true, force: true });
     }
-  });
+  }, 10_000);
 
   test("rejects an invalid timeout or kill grace period", async () => {
     await expect(runCommand([bun, "--version"], { timeoutMs: 0 })).rejects.toThrow(RangeError);
