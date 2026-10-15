@@ -1,0 +1,40 @@
+# Keeps the release path from rotting (#20): builds the linux-x64 tarball the
+# same way release.yml does and runs the same smoke test. Kept separate from
+# ci.yml so it runs in parallel and can be merged into it later.
+name: Release check
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux-x64:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: .bun-version
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build tarball
+        run: bun run release:build --target linux-x64
+
+      - name: Smoke test
+        run: |
+          version="$(jq -r .version package.json)"
+          bun run release:smoke "dist/release/sumi-${version}-linux-x64.tar.gz"
