@@ -36,5 +36,5 @@ Run `bun run check`, `bun run typecheck`, and `bun test` before committing.
 
 - Work on a branch named `<type>/<issue>-<desc>`; never commit directly to `main`
 - Commit messages and PR titles: English Conventional Commits. Issue/PR bodies: Japanese, following the templates in `.github/`
-- Include `Closes #<number>` in the PR body. PRs are squash-merged
+- In the PR body, use `Closes #<number>` only when the PR fully resolves the issue; use `Refs #<number>` for partial or related work. PRs are squash-merged
 - Record design decisions and trade-offs in the related issue; update #1 when the plan changes
