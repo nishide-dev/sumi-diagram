@@ -278,6 +278,85 @@ describe("no cascading diagnostics", () => {
   });
 });
 
+describe("schema error paths", () => {
+  // Inputs that no fixture covers: each must produce exactly one located
+  // diagnostic with an actionable message, never a raw Zod message.
+  const cases: [name: string, text: string, expected: Record<string, unknown>][] = [
+    [
+      "a list instead of a mapping",
+      "- a\n",
+      {
+        code: "schema/invalid-type",
+        path: [],
+        message: "The document must be a mapping, got a list.",
+      },
+    ],
+    [
+      "a missing version (with a hint)",
+      "figure: { id: f }\n",
+      {
+        code: "schema/missing-field",
+        path: ["version"],
+        hint: 'Add "version: 1" at the top of the file.',
+      },
+    ],
+    [
+      "a missing figure",
+      "version: 1\n",
+      {
+        code: "schema/missing-field",
+        path: ["figure"],
+        message: 'Missing required field "figure".',
+      },
+    ],
+    [
+      "a scalar where a mapping is expected",
+      "version: 1\nfigure: 5\n",
+      {
+        code: "schema/invalid-type",
+        path: ["figure"],
+        message: "Expected a mapping at figure, got the number 5.",
+        location: expect.objectContaining({ line: 2, column: 9 }),
+      },
+    ],
+    [
+      "an unknown field in a nested optional object",
+      "version: 1\nfigure: { id: f, layout: { directon: down } }\n",
+      {
+        code: "schema/unknown-field",
+        path: ["figure", "layout", "directon"],
+        hint: 'Did you mean "direction"? If this field was added in a newer Sumi version, upgrade Sumi.',
+      },
+    ],
+    [
+      "an ID that no case change can fix",
+      "version: 1\nfigure: { id: f }\nnodes: [{ id: 1abc, component: box }]\n",
+      {
+        code: "schema/invalid-id",
+        path: ["nodes", 0, "id"],
+        hint: "Start with a lowercase letter and use only a-z, 0-9, '_' and '-' (max 64 characters).",
+      },
+    ],
+    [
+      "an empty component reference",
+      "version: 1\nfigure: { id: f }\nnodes: [{ id: a, component: '' }]\n",
+      {
+        code: "schema/invalid-value",
+        path: ["nodes", 0, "component"],
+        message: "nodes[0].component must not be empty.",
+      },
+    ],
+  ];
+  for (const [name, text, expected] of cases) {
+    test(name, () => {
+      const { diagnostics } = checkFigureSource(text).state;
+      expect(diagnostics).toHaveLength(1);
+      expect(diagnostics[0]).toMatchObject({ severity: "error", ...expected });
+      expect(diagnostics[0]?.location).toBeDefined();
+    });
+  }
+});
+
 describe("edge cases", () => {
   test("an empty file is not a figure", () => {
     expect(checkFigureSource("").state.diagnostics).toEqual([
