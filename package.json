@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "schema:gen": "bun scripts/gen-schema.ts",
-    "schema:check": "bun scripts/gen-schema.ts --check"
+    "schema:check": "bun scripts/gen-schema.ts --check",
+    "d2:install": "bun scripts/install-d2.ts"
   },
   "dependencies": {
     "commander": "15.0.0",
