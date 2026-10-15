@@ -8,7 +8,8 @@
       "!**/dist",
       "!**/node_modules",
       "!schema/*.schema.json",
-      "!assets/fonts"
+      "!assets/fonts",
+      "!examples/**/*.svg"
     ]
   },
   "formatter": {
