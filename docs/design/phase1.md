@@ -487,6 +487,21 @@ layout:
 - `scripts/render-example.ts`（`bun run example:render`。#10 で暫定的に width / height を自前で付けていた）は `renderFigure()` を使うよう切り替えた。width / height とメタデータの実装は `finalizeSvg()` の 1 か所だけになる。`examples/` の SVG はこの経路で再生成し、golden 比較のテストでメタデータの input hash も検査する。入力 YAML の hash がプラットフォームで変わらないよう、`.gitattributes` で `*.sumi.yaml` を `eol=lf` に固定した。
 - 実際の D2 を使う統合テスト（`src/render/render.integration.test.ts`）で、全 fixture について次を固定している: 幅・高さ = viewBox × 0.5pt、全要素がちょうど 1 回、子の bbox が親 group の bbox に含まれる、label の anchor が図形の内側にある、edge の端点が両端の要素の近く（12 unit 以内）にある、出力がバイト単位で決定的、メタデータの内容。
 
+### 6.4 実装で確定した事項（#14）
+- **CLI の構成**: `src/cli/program.ts` の `run(argv, { stdout, stderr, cwd, env }): Promise<ExitCode>` が唯一の入口で、`process.exit` を呼ばない。bin（`src/cli/index.ts`）・テスト・`scripts/render-example.ts`（`sumi render` の別名になった）が同じ関数を使う。commander のエラーは `exitOverride` で例外として受け、exit 2 に変換する。
+- **stdout / stderr**: stdout は結果（lint の報告、JSON、`fmt --stdout` の本文、`render -o -` の SVG、`Wrote …`）、stderr は成果物がファイルであるコマンド（`render`・`fmt`）の診断、使い方の誤り、ログ。`render -o -` のときは `Wrote …` も stderr に出し、stdout を SVG だけにする。
+- **終了コード**（全コマンド共通）: 0 = 成功、1 = 問題あり（error、`--max-warnings` 超過、`fmt --check` で未整形、`fmt` の YAML エラー、`doctor` の必須項目の失敗）、2 = 使い方の誤り・内部エラー（不正なフラグ・設定、読めない / 書けないファイル、例外）。使い方の誤りは 1 行のメッセージだけを出し、内部エラーのスタックトレースは `SUMI_DEBUG=1` のときだけ出す。
+- **色**: `--no-color` または空でない `NO_COLOR` で無効、空でなく `0` でない `FORCE_COLOR` で有効、それ以外は出力先が端末のときだけ有効。色を付けるのは severity・summary・doctor の状態だけで、JSON には付けない。
+- **`render` の `--theme` / `--profile`**: `CheckFigureOptions.overrides` として、schema 検証の**後**に正規化済みの `figure.theme` / `figure.profile` を置き換える。ファイル側の値の schema エラーは元の位置で報告する。上書きしたフィールド（`["figure", "theme" | "profile"]` 以下）を指す診断・related には位置情報を付けない（ファイル中の値は使っていないため。例: `profile/font-too-small` の related「Profile … is selected here」は位置なし）。未知の名前は CLI が事前に検査し、使い方の誤り（exit 2、近い候補付き）とする。メタデータの `inputSha256` はファイルの内容の hash のままで、theme / profile は上書き後の値になる。
+- **`render` の出力**: 既定の出力先は入力の `.sumi.yaml` / `.yaml` / `.yml` を `.svg` に置き換えたパス。SVG と `--emit-d2` の D2 ソースは、同じディレクトリの一時ファイルに書いてから rename する（既存ファイルのパーミッションを保つ）。`--emit-d2` は compile が成功すれば、D2 が失敗しても書く。入力ファイルを上書きする指定は拒否する。`--json` は lint の封筒に `output`（書いた SVG。失敗時は `null`）と `d2` を加えたもの。
+- **`lint`**: 複数ファイルを受け付ける。`--json` は `{ version: 1, results: [<ファイルごとの封筒>], summary }` で、ファイル数によらず同じ形にする（ファイルごとの封筒は docs/lint-rules.md のとおり）。`--max-warnings` は全ファイルの合計で判定する（設定ファイルの `maxWarnings` も同じ）。`--config <json>` → `--rule <id>=<level>`（options は保つ）→ `--max-warnings` の順に上書きする。読めないファイルがあっても他のファイルは検査し、終了コードは 2。`--geometry` は #13 用に予約し（help には出さない）、指定すると exit 2。
+- **`fmt`**: `formatFigureSource()`（`src/core/figure/format.ts`）。`yaml` の Document API で出力し直す。変えるのはインデント（2、シーケンスもキーの下に字下げ）、`:` や `-` の後・行末コメントの前の空白（行末コメントの桁揃えは保たない）、flow collection の内側の空白（`{ a: 1 }`、`[ 1, 2 ]`）、改行コード（LF）、行末の空白、連続した空行（1 行にまとめる）、等価な plain scalar の表記（例: `0x1F` → `0x1f`）。キーの順序、scalar の引用符の種類、block scalar、flow / block の別、コメント、エントリ間の空行の有無は変えない。1 行の引用符付き scalar はエスケープを含めて元の文字列のまま残す（ライブラリに任せると `"\u0085"` が不可視の生の文字になるため）。長い行は折り返さない。
+  - キーの並べ替えは意味を変えないが差分が大きくなるため、`--canonical-order` を指定したときだけ行う。root・`figure`・`figure.layout`・group・node・edge の既知のキーを Figure Schema のフィールド順（Zod の shape の順）に並べ、未知のキーは元の順で後ろに置く。`props` と `metadata` は並べ替えない。エントリの前のコメントはエントリと一緒に動くが、root の先頭のコメントはファイルのヘッダとして先頭に残す。
+  - YAML 段のエラー（構文、重複キー、alias、タグ、複数文書）がある文書は整形せず、診断を返す（exit 1、ファイルは変更しない）。schema 以降のエラーは整形を妨げない。
+  - 安全検査: 整形結果を再度解析し、YAML エラーがないこと、データが同じであること（`--canonical-order` でなければキーの順序も同じ）、コメントの集合が同じであること、もう一度整形しても変わらないことを確かめる。満たさなければ `FormatSafetyError` で、CLI は書き込まずに exit 2 とする（formatter の不具合として扱う）。
+- **`doctor`**: Sumi・Bun のバージョンとプラットフォーム、D2（探索結果・パス・バージョン・固定版との一致・導入方法）、同梱フォントの存在と sha256（`BUNDLED_FONT_SHA256`。`assets/fonts/*/README.md` の表と一致することをテストで検査）、幾何 lint の検査環境（#13 までは `skipped`）を報告する。必須項目（D2・フォント）が `error` なら exit 1。`--json` は `{ version: 1, sumi, runtime, checks: [{ id, status, required, message, hint?, details? }], ok }`。
+- **`catalog`**: `--json` は `buildCatalog()` の出力そのもの（`version` 付き）。`--kind node|group|edge` で絞り込む。表は ID・KIND・VARIANTS・DESCRIPTION（非推奨の部品は説明に追記）。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）
