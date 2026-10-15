@@ -1,13 +1,110 @@
 #!/bin/sh
-# Run the Sumi CLI from this repository's source, from any working directory.
-# This script lives at <repo>/.claude/skills/sumi/scripts/sumi. D2 is looked up
-# relative to the current directory, so unless SUMI_D2_PATH is already set,
-# point it at the repository's managed D2 (installed by `bun run d2:install`).
+# Run the Sumi CLI for this skill, wherever the skill is installed.
+#
+# Resolution order:
+#   1. $SUMI_BIN, if set (must be an executable file).
+#   2. `sumi` on PATH (the release binary), skipping this wrapper itself and
+#      any other copy of it.
+#   3. Inside a Sumi source checkout (found by walking up from this skill's
+#      directory, then from the current directory, to a package.json named
+#      "sumi-diagram" next to src/cli/index.ts): `bun <repo>/src/cli/index.ts`,
+#      with SUMI_D2_PATH defaulting to <repo>/.sumi/bin/d2 (installed by
+#      `bun run d2:install`), since D2 is otherwise looked up relative to the
+#      current directory.
+#   4. Otherwise exit 127 with install instructions.
 set -eu
-script_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
-repo=$(CDPATH='' cd -- "$script_dir/../../../.." && pwd)
-if [ -z "${SUMI_D2_PATH:-}" ] && [ -x "$repo/.sumi/bin/d2" ]; then
-  SUMI_D2_PATH="$repo/.sumi/bin/d2"
-  export SUMI_D2_PATH
+
+releases=https://github.com/nishide-dev/sumi-diagram/releases
+readme=https://github.com/nishide-dev/sumi-diagram#readme
+
+# Follow symlinks to this file (e.g. a `sumi` link on PATH) to its real directory.
+self=$0
+while [ -L "$self" ]; do
+  link=$(readlink -- "$self")
+  case $link in
+    /*) self=$link ;;
+    *) self=$(dirname -- "$self")/$link ;;
+  esac
+done
+self_dir=$(CDPATH='' cd -- "$(dirname -- "$self")" && pwd -P)
+self="$self_dir/$(basename -- "$0")"
+
+# 1. Explicit override.
+if [ -n "${SUMI_BIN:-}" ]; then
+  if ! [ -f "$SUMI_BIN" ] || ! [ -x "$SUMI_BIN" ]; then
+    echo "sumi (skill wrapper): SUMI_BIN is set but is not an executable file: $SUMI_BIN" >&2
+    exit 127
+  fi
+  if [ "$SUMI_BIN" -ef "$self" ] || [ -n "${SUMI_SKILL_WRAPPER:-}" ]; then
+    echo "sumi (skill wrapper): SUMI_BIN points to this wrapper, not to the Sumi CLI: $SUMI_BIN" >&2
+    exit 127
+  fi
+  SUMI_SKILL_WRAPPER=1
+  export SUMI_SKILL_WRAPPER
+  exec "$SUMI_BIN" "$@"
 fi
-exec bun "$repo/src/cli/index.ts" "$@"
+
+# 2. `sumi` on PATH. A candidate that is this file (same inode, so symlinks
+# count) is skipped. A copy of this wrapper elsewhere on PATH is entered with
+# SUMI_SKILL_WRAPPER set and then skips this step, so it cannot loop.
+if [ -z "${SUMI_SKILL_WRAPPER:-}" ]; then
+  old_ifs=$IFS
+  IFS=:
+  set -f
+  for dir in ${PATH:-}; do
+    [ -n "$dir" ] || dir=.
+    candidate="$dir/sumi"
+    if [ -f "$candidate" ] && [ -x "$candidate" ] && ! [ "$candidate" -ef "$self" ]; then
+      IFS=$old_ifs
+      set +f
+      SUMI_SKILL_WRAPPER=1
+      export SUMI_SKILL_WRAPPER
+      exec "$candidate" "$@"
+    fi
+  done
+  IFS=$old_ifs
+  set +f
+fi
+
+# 3. A Sumi source checkout above the skill or the current directory.
+is_checkout() {
+  [ -f "$1/package.json" ] && [ -f "$1/src/cli/index.ts" ] &&
+    grep -q '"name"[[:space:]]*:[[:space:]]*"sumi-diagram"' "$1/package.json"
+}
+find_checkout() {
+  dir=$1
+  while :; do
+    if is_checkout "$dir"; then
+      printf '%s\n' "$dir"
+      return 0
+    fi
+    [ "$dir" != / ] || return 1
+    dir=$(dirname -- "$dir")
+  done
+}
+
+repo=$(find_checkout "$self_dir") || repo=$(find_checkout "$(pwd -P)") || repo=
+if [ -n "$repo" ]; then
+  if ! command -v bun >/dev/null 2>&1; then
+    echo "sumi (skill wrapper): found the Sumi source checkout at $repo, but bun is not on PATH." >&2
+    echo "Install Bun (see $repo/README.md), or install a release build of Sumi: $releases" >&2
+    exit 127
+  fi
+  if [ -z "${SUMI_D2_PATH:-}" ] && [ -x "$repo/.sumi/bin/d2" ]; then
+    SUMI_D2_PATH="$repo/.sumi/bin/d2"
+    export SUMI_D2_PATH
+  fi
+  exec bun "$repo/src/cli/index.ts" "$@"
+fi
+
+# 4. Nothing found.
+cat >&2 <<EOF
+sumi (skill wrapper): the Sumi CLI was not found.
+Install a release build (macOS / Linux; it bundles D2 and the fonts):
+  1. Download sumi-<version>-<target>.tar.gz from $releases
+  2. Extract it and put its bin/ on PATH (e.g. ln -s <dir>/bin/sumi ~/.local/bin/sumi)
+  3. Check the environment with: sumi doctor
+Details: $readme
+Alternatively, set SUMI_BIN to the path of a sumi executable.
+EOF
+exit 127

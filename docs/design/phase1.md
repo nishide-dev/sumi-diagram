@@ -671,6 +671,13 @@ layout:
 - **`sumi lint --geometry --json`**: ファイルごとの封筒にも同じ `size` を追加する（描画しなかった・できなかったファイルは `null`）。`--geometry` なしでは描画しないので、`size` キー自体を出さない（従来の出力のまま）。
 - **Skill**: Theme・Profile の発見を参照資料の表ではなく `sumi catalog --json` で行い、出力サイズを `render --json` の `size` から読むように変更した。参照資料に載せた JSON の例は、`src/cli/skill.test.ts` で CLI の出力と照合する（catalog の項目は値まで一致、`size` は形が一致）。
 
+### 6.11 #45 の Skill の配布
+- **置き場所**: Skill の正を `.claude/skills/sumi/` から `skills/sumi/` に移した（`git mv`）。skills CLI（vercel-labs/skills、`npx skills add <owner/repo>`）が最初に探す `skills/<name>/SKILL.md` の構成で、`nishide-dev/vega-paper` と揃う。`.claude/skills/` はこのリポジトリの開発用設定に戻る。
+- **開発用のシンボリックリンク**: `.claude/skills/sumi` → `../../skills/sumi`（相対、git にはシンボリックリンク（mode 120000）として保存）を置き、このリポジトリの Claude Code のセッションでも同じ Skill を読み込む。skills CLI（1.7.2 で確認）は、`skills/` を `.claude/skills` などのエージェント用ディレクトリより先に探し、同じ `name` の Skill を重ねて列挙しない。また走査ではディレクトリの実体だけをたどり（`Dirent.isDirectory()`）、シンボリックリンクは対象にならない。`npx -y skills@1.7.2 add . -l`（`--full-depth` 付きでも）で `sumi` は 1 件だけ列挙される。代替案（リンクを置かず、開発者が `npx skills add . --skill sumi` で自分の環境に導入する）は、リポジトリを開くだけで使えなくなるため採らなかった。Windows で `core.symlinks` が無効なチェックアウトでは、リンクはテキストファイルになり Skill は読み込まれない（Windows は §6.8 で対象外）。
+- **CLI の探索（`skills/sumi/scripts/sumi`）**: Skill をリポジトリの外に導入するとソースはないため、ラッパーは次の順に CLI を探す。(1) `SUMI_BIN`（実行可能なファイルでなければ、またラッパー自身を指していれば終了コード 127）→ (2) `PATH` 上の `sumi`（§6.8 のリリース版。ラッパー自身と同じ inode のものは飛ばし、別の場所にあるラッパーの複製に入ったときは環境変数 `SUMI_SKILL_WRAPPER` で `PATH` の探索を省くので、循環しない）→ (3) ラッパーの実体の場所、次に作業ディレクトリから上にたどって見つけた Sumi のソースチェックアウト（`package.json` の `name` が `sumi-diagram` で `src/cli/index.ts` がある）を `bun` で実行し、`SUMI_D2_PATH` が未設定ならその `.sumi/bin/d2` を使う → (4) どれも無ければ、リリース版の導入手順と `sumi doctor` を案内して終了コード 127。リリース版をソースチェックアウトより前に置くのは、導入先での動作（利用者の主な経路）を開発中にも同じにするため。POSIX sh で書き、空白を含むパスを扱う。
+- **`scripts/preview`**: SVG の file URL を作るのに Bun を使っていたが、導入先には Bun も Node.js もないことがあるため、Bun → Node.js → Python 3 の順に使う。
+- **検証**: `src/cli/skill.test.ts` で、skills CLI が期待する構成（`skills/` の直下のディレクトリごとに、ディレクトリ名と同じ `name` を持つ SKILL.md）、シンボリックリンク、ラッパーの探索順（`SUMI_BIN` の優先、`PATH` の `sumi` がソースより優先、ソースへのフォールバック、どれも無いときのメッセージと終了コード、自己参照の回避）を検査する。テストはネットワークを使わないため、`npx skills add` 自体は PR で手動で確認した。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）

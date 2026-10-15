@@ -40,9 +40,14 @@ the profile never enlarges text, so pick the theme to match.
   doubled spacing (16mm layer gap) make figures about 1.5–2 times larger
   than on paper. Wide, shallow figures fit: 3–4 layers with `direction:
   right` (e.g. three tiers of containers) take about 280mm × 100mm.
-- A chain of 6–7 layers does not fit in either direction (about 240–250mm
-  tall with `down`, 350–430mm wide with `right`): `geometry/exceeds-page-height`
-  or `-width`. Split it into several slides or drop trivial steps (ask the
+- Long flows can overflow either way. Two measured examples, the 6–7-layer
+  `examples/pipeline` and `examples/decision-flow` in the repository, came
+  out about 240–250mm tall with `down` and 356mm / 434mm wide with
+  `right` — over the page both ways. That holds for those two figures
+  only; for any other figure, do not assume: render it and check `size`
+  from `render --json` and the `geometry/*` diagnostics. On
+  `geometry/exceeds-page-height` or `-width`, try the other direction,
+  then split the figure into several slides or drop trivial steps (ask the
   user); do not switch the theme or profile on your own.
 
 ## Labels

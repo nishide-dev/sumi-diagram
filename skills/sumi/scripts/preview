@@ -46,13 +46,30 @@ trap 'exit 130' INT TERM
 
 if [ "$tool" = qlmanage ]; then
   # A percent-encoded file URL (spaces, '#', '%', non-ASCII), then escaped
-  # for an XML attribute ('&', '<', '>', quotes).
-  href=$(SUMI_PREVIEW_PATH="$svg_abs" bun -e '
+  # for an XML attribute ('&', '<', '>', quotes). Uses Bun or Node.js, else
+  # Python 3: outside a Sumi source checkout neither JS runtime may exist.
+  js='
     const { pathToFileURL } = require("node:url");
     const url = pathToFileURL(process.env.SUMI_PREVIEW_PATH).href;
     const xml = { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'\''": "&apos;" };
     process.stdout.write(url.replace(/[&<>"'\'']/g, (c) => xml[c]));
-  ')
+  '
+  py='
+import os, pathlib, sys
+url = pathlib.Path(os.environ["SUMI_PREVIEW_PATH"]).as_uri()
+xml = {"&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", chr(39): "&apos;"}
+sys.stdout.write("".join(xml.get(c, c) for c in url))
+'
+  if command -v bun >/dev/null 2>&1; then
+    href=$(SUMI_PREVIEW_PATH="$svg_abs" bun -e "$js")
+  elif command -v node >/dev/null 2>&1; then
+    href=$(SUMI_PREVIEW_PATH="$svg_abs" node -e "$js")
+  elif command -v python3 >/dev/null 2>&1; then
+    href=$(SUMI_PREVIEW_PATH="$svg_abs" python3 -I -c "$py")
+  else
+    echo "preview: needs bun, node or python3 to build the file URL" >&2
+    exit 1
+  fi
   cat >"$out/figure.svg" <<EOF
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 $size $size" width="$size" height="$size"><rect width="$size" height="$size" fill="#ffffff"/><image href="$href" xlink:href="$href" width="$size" height="$size"/></svg>
 EOF
