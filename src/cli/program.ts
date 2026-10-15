@@ -129,6 +129,7 @@ export async function run(
     stderr: context.stderr ?? process.stderr,
     cwd: context.cwd ?? process.cwd(),
     env: context.env ?? process.env,
+    ...(context.hooks !== undefined && { hooks: context.hooks }),
   };
   let exitCode: ExitCode = EXIT.ok;
   const program = createProgram(full, (code) => {

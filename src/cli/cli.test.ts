@@ -15,6 +15,7 @@ import {
   mkdtemp,
   readdir,
   readFile,
+  realpath,
   rm,
   stat,
   symlink,
@@ -29,6 +30,7 @@ import { createBuiltinRegistry } from "../core/registry/builtins";
 import { buildCatalog } from "../core/registry/catalog";
 import { runCommand } from "../core/subprocess";
 import { readSvgMetadata } from "../render";
+import { isCaseInsensitiveDir } from "./io";
 import { run } from "./program";
 
 const ROOT = join(import.meta.dir, "..", "..");
@@ -382,6 +384,26 @@ describe("sumi render (output paths)", () => {
     expect(aliased.stderr).toContain("are the same file");
     expect(await Bun.file(join(dir, "real", "out.svg")).exists()).toBe(false);
   });
+
+  test("refuses outputs differing only by case on a case-insensitive file system", async () => {
+    if (!(await isCaseInsensitiveDir(await realpath(dir)))) {
+      console.warn("[cli render] the temp file system is case-sensitive; skipping the case test.");
+      return;
+    }
+    const result = await sumi([
+      "render",
+      "real/fig.sumi.yaml",
+      "-o",
+      "result.svg",
+      "--emit-d2",
+      "RESULT.svg",
+    ]);
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toContain("are the same file");
+    const input = await sumi(["render", "real/fig.sumi.yaml", "-o", "real/FIG.SUMI.YAML"]);
+    expect(input.exitCode).toBe(2);
+    expect(input.stderr).toContain("would overwrite the input file");
+  });
 });
 
 describe("sumi catalog", () => {
@@ -555,6 +577,39 @@ describe.skipIf(!d2Available && !process.env.CI)("sumi render (D2)", () => {
     });
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain("backend/d2-not-found");
+  });
+
+  test("an output link retargeted at the input while rendering does not overwrite the input", async () => {
+    await mkdir(join(dir, "race"));
+    await copyFile(join(FIXTURES, "lint/clean.sumi.yaml"), join(dir, "race", "fig.sumi.yaml"));
+    const input = await readFile(join(dir, "race", "fig.sumi.yaml"), "utf8");
+    await writeFile(join(dir, "race", "elsewhere.svg"), "");
+    await symlink("elsewhere.svg", join(dir, "race", "linked.svg"));
+    const sink = { write: () => {} };
+    const swaps: string[] = [];
+    const code = await run(
+      ["render", "race/fig.sumi.yaml", "-o", "race/linked.svg", "--emit-d2", "race/new.d2"],
+      {
+        stdout: sink,
+        stderr: sink,
+        cwd: dir,
+        env: { ...baseEnv(), ...env() },
+        hooks: {
+          // Between validation and the rename: point both outputs at the input.
+          beforeCommit: async (display) => {
+            swaps.push(display);
+            const path = join(dir, display);
+            await rm(path, { force: true });
+            await symlink("fig.sumi.yaml", path);
+          },
+        },
+      },
+    );
+    expect(code).toBe(0);
+    expect(swaps).toEqual(["race/new.d2", "race/linked.svg"]);
+    expect(await readFile(join(dir, "race", "fig.sumi.yaml"), "utf8")).toBe(input);
+    expect(await readFile(join(dir, "race", "elsewhere.svg"), "utf8")).toStartWith("<?xml");
+    expect(await readFile(join(dir, "race", "new.d2"), "utf8")).toContain('"n_');
   });
 });
 

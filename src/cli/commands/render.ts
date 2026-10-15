@@ -15,8 +15,7 @@
  * - exit: 0 rendered (warnings allowed); 1 errors; 2 usage errors.
  */
 
-import { stat } from "node:fs/promises";
-import { basename, resolve } from "node:path";
+import { basename } from "node:path";
 import { createD2CliBackend } from "../../backends/d2/backend";
 import { compileFigure } from "../../compiler/compile";
 import { didYouMean } from "../../core/diagnostics";
@@ -34,12 +33,14 @@ import {
 import { renderFigure } from "../../render";
 import {
   type CliContext,
+  type Destination,
   EXIT,
   type ExitCode,
   readTextFile,
-  realDestination,
+  resolveDestination,
+  sameDestination,
   UsageError,
-  writeFileAtomic,
+  writeDestination,
 } from "../io";
 
 export interface RenderCommandOptions {
@@ -75,7 +76,7 @@ export async function renderCommand(
   if (toStdout && options.json) {
     throw new UsageError("--json cannot be combined with -o - (both write to stdout).");
   }
-  await checkDestinations(
+  const [input, svgDestination, d2Destination] = await checkDestinations(
     file,
     [
       ["--out", toStdout ? undefined : out],
@@ -83,6 +84,13 @@ export async function renderCommand(
     ],
     context,
   );
+  const write = (destination: Destination, content: string) =>
+    writeDestination(destination, content, {
+      protect: input,
+      ...(context.hooks?.beforeCommit !== undefined && {
+        beforeCommit: () => context.hooks?.beforeCommit?.(destination.display) ?? Promise.resolve(),
+      }),
+    });
   const overrides: FigureOverrides = {
     ...(options.theme !== undefined && {
       theme: checkName("theme", options.theme, BUILTIN_THEMES.keys()),
@@ -102,7 +110,7 @@ export async function renderCommand(
   });
 
   let d2Written: string | null = null;
-  if (options.emitD2 !== undefined) {
+  if (d2Destination !== undefined) {
     const d2Source = result.ok
       ? result.value.compiled.d2Source
       : (() => {
@@ -110,8 +118,8 @@ export async function renderCommand(
           return compiled.ok ? compiled.value.d2Source : undefined;
         })();
     if (d2Source !== undefined) {
-      await writeFileAtomic(context, options.emitD2, d2Source);
-      d2Written = options.emitD2;
+      await write(d2Destination, d2Source);
+      d2Written = d2Destination.display;
     }
   }
 
@@ -119,8 +127,9 @@ export async function renderCommand(
   if (result.ok) {
     if (toStdout) context.stdout.write(result.value.svg);
     else {
-      await writeFileAtomic(context, out, result.value.svg);
-      svgWritten = out;
+      if (svgDestination === undefined) throw new Error("internal error: no SVG destination");
+      await write(svgDestination, result.value.svg);
+      svgWritten = svgDestination.display;
     }
   }
 
@@ -160,42 +169,40 @@ export async function renderCommand(
 }
 
 /**
- * Refuses outputs that would overwrite the input or each other. Paths are
- * compared by their real destinations (symbolic links in the file or any
- * parent directory resolved), and existing files also by device and inode
- * (hard links, case-insensitive file systems).
+ * Resolves the input and every output once, and refuses outputs that would
+ * overwrite the input or each other (see {@link sameDestination}: symbolic
+ * links in the file or any parent resolved, existing files also compared by
+ * device and inode, names case-folded on case-insensitive file systems).
+ * Returns the input's destination followed by one per output (`undefined`
+ * where no path is given); writes go to exactly these destinations.
  */
 async function checkDestinations(
   input: string,
   outputs: readonly (readonly [flag: string, path: string | undefined])[],
   context: CliContext,
-): Promise<void> {
-  const identify = async (path: string) => ({
-    real: await realDestination(context, path),
-    inode: await stat(resolve(context.cwd, path)).then(
-      (s) => `${s.dev}:${s.ino}`,
-      () => undefined,
-    ),
-  });
-  const same = (a: Awaited<ReturnType<typeof identify>>, b: typeof a) =>
-    a.real === b.real || (a.inode !== undefined && a.inode === b.inode);
-
-  const source = await identify(input);
-  const seen: { flag: string; path: string; id: typeof source }[] = [];
+): Promise<[Destination, ...(Destination | undefined)[]]> {
+  const source = await resolveDestination(context, input);
+  const resolved: (Destination | undefined)[] = [];
+  const seen: { flag: string; destination: Destination }[] = [];
   for (const [flag, path] of outputs) {
-    if (path === undefined) continue;
-    const id = await identify(path);
-    if (same(id, source)) {
+    if (path === undefined) {
+      resolved.push(undefined);
+      continue;
+    }
+    const destination = await resolveDestination(context, path);
+    if (sameDestination(destination, source)) {
       throw new UsageError(`${flag} ${path} would overwrite the input file ${input}.`);
     }
-    const clash = seen.find((other) => same(other.id, id));
+    const clash = seen.find((other) => sameDestination(other.destination, destination));
     if (clash !== undefined) {
       throw new UsageError(
-        `${flag} ${path} and ${clash.flag} ${clash.path} are the same file; choose different paths.`,
+        `${flag} ${path} and ${clash.flag} ${clash.destination.display} are the same file; choose different paths.`,
       );
     }
-    seen.push({ flag, path, id });
+    seen.push({ flag, destination });
+    resolved.push(destination);
   }
+  return [source, ...resolved];
 }
 
 function checkName(kind: string, name: string, available: Iterable<string>): string {
