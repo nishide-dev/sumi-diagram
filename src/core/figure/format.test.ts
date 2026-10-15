@@ -116,6 +116,28 @@ nodes:
     expect(format(output)).toBe(output);
   });
 
+  test("keeps the meaning of explicitly tagged scalars", () => {
+    const input = [
+      "version: 1",
+      "metadata:",
+      '  count: !!int "123"',
+      "  ratio: !!float '1.5'",
+      '  flag: !!bool "true"',
+      "  text: !!str 123",
+      '  quoted: !!str "x\\ty"',
+      "  plain: !!int 7",
+      "",
+    ].join("\n");
+    const output = format(input);
+    expect(parseYaml(output).source?.value).toEqual({
+      version: 1,
+      metadata: { count: 123, ratio: 1.5, flag: true, text: "123", quoted: "x\ty", plain: 7 },
+    });
+    expect(output).toContain("count: !!int 123\n");
+    expect(output).toContain(`text: !!str "123"`);
+    expect(format(output)).toBe(output);
+  });
+
   test("does not fold long lines", () => {
     const label = Array.from({ length: 30 }, () => "word").join(" ");
     const input = `version: 1\nfigure:\n  id: x\n  title: ${label}\n`;

@@ -12,10 +12,12 @@
  *   the same (e.g. `0x1F` → `0x1f`).
  *
  * What does not change: key order (unless `canonicalOrder`), the quoting style
- * of every scalar (single-line quoted values are kept byte for byte, escapes
- * included), block scalars (`|`, `>`), flow vs. block collections, comments
- * and whether entries are separated by a blank line. Long lines are never
- * folded. A document with only comments keeps its comments.
+ * of untagged scalars (single-line quoted strings are kept byte for byte,
+ * escapes included), block scalars (`|`, `>`), flow vs. block collections,
+ * comments and whether entries are separated by a blank line. Long lines are
+ * never folded. A document with only comments keeps its comments. Explicitly
+ * tagged scalars (`!!int "123"`) keep their tag and value but are re-printed
+ * by the YAML library (e.g. `!!int 123`, `!!str "123"`).
  *
  * With `canonicalOrder`, the known keys of the root, `figure`,
  * `figure.layout`, groups, nodes and edges are put in Figure Schema field
@@ -141,6 +143,9 @@ function print(text: string, canonicalOrder: boolean): string {
     Scalar(key, node) {
       if (key === "key" || node.range === undefined || node.range === null) return;
       if (node.type !== Scalar.QUOTE_DOUBLE && node.type !== Scalar.QUOTE_SINGLE) return;
+      // A tag (`!!int "123"`, `!!str "x"`) is part of the source and may change the type:
+      // leave tagged scalars to the printer, which keeps the tag and the resolved value.
+      if (node.tag !== undefined || typeof node.value !== "string") return;
       const source = text.slice(node.range[0], node.range[1]);
       if (/[\r\n]/.test(source)) return;
       const placeholder = `__sumi_fmt_${nonce}_${verbatim.size}__`;

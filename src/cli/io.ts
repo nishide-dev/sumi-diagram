@@ -8,7 +8,7 @@
  */
 
 import { randomBytes } from "node:crypto";
-import { chmod, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import { chmod, lstat, readFile, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 
 export interface CliStream {
@@ -67,9 +67,36 @@ export async function readTextFile(context: CliContext, path: string): Promise<s
 }
 
 /**
+ * The file that writing to `path` (relative to the working directory) would
+ * actually change, with every symbolic link resolved: the real path of an
+ * existing file (following a link to its target), otherwise the real path of
+ * the parent directory joined with the base name. Two paths name the same
+ * file exactly when their real destinations are equal, whatever links lead
+ * there. A link whose target does not exist is a {@link UsageError}.
+ */
+export async function realDestination(context: CliContext, path: string): Promise<string> {
+  const absolute = resolve(context.cwd, path);
+  try {
+    return await realpath(absolute);
+  } catch {
+    // Does not exist (or is a broken link): resolve the directory instead.
+  }
+  const isLink = await lstat(absolute).then(
+    (s) => s.isSymbolicLink(),
+    () => false,
+  );
+  if (isLink) throw new UsageError(`Cannot write ${path}: it is a broken symbolic link.`);
+  const parent = await realpath(dirname(absolute)).catch(() => dirname(absolute));
+  return join(parent, basename(absolute));
+}
+
+/**
  * Writes `content` to `path` (relative to the working directory) atomically:
  * to a temporary file in the same directory, then renamed over the target, so
  * readers never see a partial file. An existing file keeps its permissions.
+ *
+ * Symbolic links are followed: writing to a link replaces the file it points
+ * to (in that file's directory) and leaves the link itself in place.
  * A failure is a {@link UsageError}.
  */
 export async function writeFileAtomic(
@@ -77,7 +104,7 @@ export async function writeFileAtomic(
   path: string,
   content: string,
 ): Promise<void> {
-  const target = resolve(context.cwd, path);
+  const target = await realDestination(context, path);
   const temp = join(dirname(target), `.${basename(target)}.${randomBytes(6).toString("hex")}.tmp`);
   try {
     const mode = await stat(target).then(

@@ -7,7 +7,19 @@
  */
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { chmod, copyFile, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  copyFile,
+  lstat,
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rm,
+  stat,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import pkg from "../../package.json";
@@ -289,6 +301,86 @@ nodes:
       expect(result.exitCode).toBe(2);
       expect(result.stderr).toStartWith("sumi: error: ");
     }
+  });
+
+  test("formats the target of a symbolic link and keeps the link", async () => {
+    await mkdir(join(dir, "fmt-real"));
+    const target = join(dir, "fmt-real", "target.sumi.yaml");
+    const link = join(dir, "fmt-link.sumi.yaml");
+    await writeFile(target, unformatted);
+    await symlink(join("fmt-real", "target.sumi.yaml"), link);
+
+    expect(await sumi(["fmt", "fmt-link.sumi.yaml"])).toMatchObject({
+      exitCode: 0,
+      stdout: "fmt-link.sumi.yaml\n",
+      stderr: "",
+    });
+    expect((await lstat(link)).isSymbolicLink()).toBe(true);
+    expect(await readFile(target, "utf8")).toBe(formatted);
+    expect(await readdir(join(dir, "fmt-real"))).toEqual(["target.sumi.yaml"]);
+
+    // The target itself, too.
+    await writeFile(target, unformatted);
+    expect((await sumi(["fmt", "fmt-real/target.sumi.yaml"])).exitCode).toBe(0);
+    expect(await readFile(target, "utf8")).toBe(formatted);
+    expect((await lstat(link)).isSymbolicLink()).toBe(true);
+  });
+
+  test("a broken symbolic link is a usage error", async () => {
+    await symlink(join(dir, "no-such-target.sumi.yaml"), join(dir, "broken.sumi.yaml"));
+    const result = await sumi(["fmt", "broken.sumi.yaml"]);
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toStartWith("sumi: error: Cannot read broken.sumi.yaml");
+  });
+});
+
+describe("sumi render (output paths)", () => {
+  // Checked before D2 runs, so no D2 is needed.
+  let input: string;
+  beforeAll(async () => {
+    await mkdir(join(dir, "real"));
+    await symlink("real", join(dir, "alias"));
+    await copyFile(join(FIXTURES, "lint/clean.sumi.yaml"), join(dir, "real", "fig.sumi.yaml"));
+    input = await readFile(join(dir, "real", "fig.sumi.yaml"), "utf8");
+  });
+
+  test("refuses to overwrite the input, also through a symlinked directory", async () => {
+    for (const args of [
+      ["-o", "alias/fig.sumi.yaml"],
+      ["--emit-d2", "alias/fig.sumi.yaml"],
+      ["-o", "./real/../real/fig.sumi.yaml"],
+    ]) {
+      const result = await sumi(["render", "real/fig.sumi.yaml", ...args]);
+      expect(result.exitCode).toBe(2);
+      expect(result.stderr).toContain("would overwrite the input file real/fig.sumi.yaml");
+      expect(await readFile(join(dir, "real", "fig.sumi.yaml"), "utf8")).toBe(input);
+    }
+  });
+
+  test("refuses the same file for --out and --emit-d2", async () => {
+    for (const d2 of ["result.svg", "./result.svg", "alias/../real/../result.svg"]) {
+      const result = await sumi([
+        "render",
+        "real/fig.sumi.yaml",
+        "-o",
+        "result.svg",
+        "--emit-d2",
+        d2,
+      ]);
+      expect(result.exitCode).toBe(2);
+      expect(result.stderr).toContain("are the same file");
+    }
+    const aliased = await sumi([
+      "render",
+      "real/fig.sumi.yaml",
+      "-o",
+      "real/out.svg",
+      "--emit-d2",
+      "alias/out.svg",
+    ]);
+    expect(aliased.exitCode).toBe(2);
+    expect(aliased.stderr).toContain("are the same file");
+    expect(await Bun.file(join(dir, "real", "out.svg")).exists()).toBe(false);
   });
 });
 

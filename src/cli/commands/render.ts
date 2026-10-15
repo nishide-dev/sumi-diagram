@@ -8,11 +8,14 @@
  * - `-o -` writes the SVG to stdout.
  * - `--emit-d2` writes the generated D2 source whenever compilation succeeds,
  *   even if D2 itself then fails (useful for debugging).
+ * - Outputs that resolve to the input or to each other (symbolic links
+ *   included) are usage errors; writing through a link replaces its target.
  * - Text mode: diagnostics → stderr; `Wrote …` → stdout (stderr with `-o -`).
  *   `--json`: `{ version, file, output, d2, diagnostics, summary }` → stdout.
  * - exit: 0 rendered (warnings allowed); 1 errors; 2 usage errors.
  */
 
+import { stat } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import { createD2CliBackend } from "../../backends/d2/backend";
 import { compileFigure } from "../../compiler/compile";
@@ -34,6 +37,7 @@ import {
   EXIT,
   type ExitCode,
   readTextFile,
+  realDestination,
   UsageError,
   writeFileAtomic,
 } from "../io";
@@ -71,14 +75,14 @@ export async function renderCommand(
   if (toStdout && options.json) {
     throw new UsageError("--json cannot be combined with -o - (both write to stdout).");
   }
-  for (const [flag, path] of [
-    ["--out", toStdout ? undefined : out],
-    ["--emit-d2", options.emitD2],
-  ] as const) {
-    if (path !== undefined && resolve(context.cwd, path) === resolve(context.cwd, file)) {
-      throw new UsageError(`${flag} must not overwrite the input file ${file}.`);
-    }
-  }
+  await checkDestinations(
+    file,
+    [
+      ["--out", toStdout ? undefined : out],
+      ["--emit-d2", options.emitD2],
+    ],
+    context,
+  );
   const overrides: FigureOverrides = {
     ...(options.theme !== undefined && {
       theme: checkName("theme", options.theme, BUILTIN_THEMES.keys()),
@@ -153,6 +157,45 @@ export async function renderCommand(
     if (d2Written !== null) log.write(`Wrote ${d2Written}.\n`);
   }
   return result.ok ? EXIT.ok : EXIT.failed;
+}
+
+/**
+ * Refuses outputs that would overwrite the input or each other. Paths are
+ * compared by their real destinations (symbolic links in the file or any
+ * parent directory resolved), and existing files also by device and inode
+ * (hard links, case-insensitive file systems).
+ */
+async function checkDestinations(
+  input: string,
+  outputs: readonly (readonly [flag: string, path: string | undefined])[],
+  context: CliContext,
+): Promise<void> {
+  const identify = async (path: string) => ({
+    real: await realDestination(context, path),
+    inode: await stat(resolve(context.cwd, path)).then(
+      (s) => `${s.dev}:${s.ino}`,
+      () => undefined,
+    ),
+  });
+  const same = (a: Awaited<ReturnType<typeof identify>>, b: typeof a) =>
+    a.real === b.real || (a.inode !== undefined && a.inode === b.inode);
+
+  const source = await identify(input);
+  const seen: { flag: string; path: string; id: typeof source }[] = [];
+  for (const [flag, path] of outputs) {
+    if (path === undefined) continue;
+    const id = await identify(path);
+    if (same(id, source)) {
+      throw new UsageError(`${flag} ${path} would overwrite the input file ${input}.`);
+    }
+    const clash = seen.find((other) => same(other.id, id));
+    if (clash !== undefined) {
+      throw new UsageError(
+        `${flag} ${path} and ${clash.flag} ${clash.path} are the same file; choose different paths.`,
+      );
+    }
+    seen.push({ flag, path, id });
+  }
 }
 
 function checkName(kind: string, name: string, available: Iterable<string>): string {
