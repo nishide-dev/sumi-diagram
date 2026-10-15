@@ -90,6 +90,26 @@ describe("parseGlyphCoverage", () => {
     for (const cp of [0x1f602, 0x20000]) expect(coverage.has(cp)).toBe(false);
   });
 
+  test("maps code points to glyph IDs (0 when missing)", () => {
+    const four = parseGlyphCoverage(font([{ platform: 3, encoding: 1, body: format4() }]));
+    expect([0x41, 0x42, 0x43, 0x61, 0x62, 0x63, 0x44].map((cp) => four.glyph(cp))).toEqual([
+      1, 2, 3, 10, 0, 11, 0,
+    ]);
+    const twelve = parseGlyphCoverage(font([{ platform: 3, encoding: 10, body: format12() }]));
+    expect(
+      [0x1f600, 0x1f601, 0x20000, 0x20001, 0x20002, 0x1f602].map((cp) => twelve.glyph(cp)),
+    ).toEqual([5, 6, 0, 1, 2, 0]);
+  });
+
+  test("adjacent ranges with discontinuous glyph IDs keep their own glyphs", () => {
+    const coverage = parse12([
+      [0x100, 0x1ff, 1],
+      [0x200, 0x2ff, 500],
+    ]);
+    expect(coverage.size).toBe(0x200);
+    expect([0x1ff, 0x200, 0x2ff].map((cp) => coverage.glyph(cp))).toEqual([0x100, 500, 755]);
+  });
+
   test("prefers format 12 over format 4", () => {
     const coverage = parseGlyphCoverage(
       font([
