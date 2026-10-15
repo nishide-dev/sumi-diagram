@@ -9,11 +9,11 @@ nodes:
   - id: box
     component: box
     props:
-      width: 40
-      height: 20mm
+      width: 40pt
+      height: 0.5in
   - id: square
     component: sumi/square
-    props: { width: 1in, height: 72pt }
+    props: { width: 1in, height: 2.54cm }
   - id: circle
     component: circle
     variant: emphasis

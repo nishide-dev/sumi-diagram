@@ -100,13 +100,21 @@ const ManifestBase = {
     .optional(),
 };
 
-export const NodeManifestSchema = z.strictObject({
-  kind: z.literal("node"),
-  ...ManifestBase,
-  shape: z.enum(NODE_SHAPES),
-  /** `fixed-aspect-1` keeps width = height (circle, square). */
-  sizing: z.enum(NODE_SIZINGS),
-});
+/** Shapes D2 always draws with equal width and height. */
+export const FIXED_ASPECT_SHAPES: readonly NodeShape[] = ["circle", "square"];
+
+export const NodeManifestSchema = z
+  .strictObject({
+    kind: z.literal("node"),
+    ...ManifestBase,
+    shape: z.enum(NODE_SHAPES),
+    /** `fixed-aspect-1` keeps width = height; required for, and only for, circle and square. */
+    sizing: z.enum(NODE_SIZINGS),
+  })
+  .refine((m) => (m.sizing === "fixed-aspect-1") === FIXED_ASPECT_SHAPES.includes(m.shape), {
+    error: `must be "fixed-aspect-1" for the shapes ${FIXED_ASPECT_SHAPES.join(" and ")}, and "auto" otherwise`,
+    path: ["sizing"],
+  });
 
 export const GroupManifestSchema = z.strictObject({
   kind: z.literal("group"),

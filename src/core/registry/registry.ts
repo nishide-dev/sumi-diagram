@@ -209,7 +209,14 @@ function propIssue(manifest: ComponentManifest, issue: z.core.$ZodIssue): Diagno
     );
   }
   const subject = path.length > 1 ? `prop "${formatDocPath(path.slice(1))}"` : "props";
-  return [error("component/invalid-prop", `Invalid ${subject} for ${id}: ${issue.message}.`, path)];
+  const message = issue.message.replace(/\.$/, "");
+  // Prop schemas may pass a hint through custom issue params (see SizeLength).
+  const hint = issue.code === "custom" ? issue.params?.hint : undefined;
+  return [
+    error("component/invalid-prop", `Invalid ${subject} for ${id}: ${message}.`, path, {
+      ...(typeof hint === "string" && { hint }),
+    }),
+  ];
 }
 
 function error(

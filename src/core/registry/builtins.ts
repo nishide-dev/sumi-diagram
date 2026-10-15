@@ -5,7 +5,7 @@
  */
 
 import { z } from "zod";
-import { PositiveLength } from "./length";
+import { SizeLength } from "./length";
 import {
   BUILTIN_NAMESPACE,
   type ComponentManifest,
@@ -23,14 +23,15 @@ const NODE_VARIANTS = ["default", "emphasis", "muted"];
 const EDGE_VARIANTS = ["default", "dashed", "emphasis", "muted"];
 
 const sizeProps = z.strictObject({
-  width: PositiveLength.optional().describe(
-    'Explicit width in pt, or a length such as "30mm". Omitted means sized to the label.',
+  width: SizeLength.optional().describe(
+    'Explicit width as a length such as "30mm" or "40pt" (a multiple of 0.5pt). Omitted means sized to the label.',
   ),
-  height: PositiveLength.optional().describe(
-    'Explicit height in pt, or a length such as "10mm". Omitted means sized to the label.',
+  height: SizeLength.optional().describe(
+    'Explicit height as a length such as "10mm" or "20pt" (a multiple of 0.5pt). Omitted means sized to the label.',
   ),
 });
 
+// Sizes parse to exact multiples of 0.5pt, so comparing them is exact.
 const squareSizeProps = sizeProps.refine(
   ({ width, height }) => width === undefined || height === undefined || width === height,
   { error: "width and height must be equal for a fixed aspect ratio", path: ["height"] },

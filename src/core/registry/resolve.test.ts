@@ -50,8 +50,7 @@ describe("valid fixtures", () => {
     expect(state.invalid.size).toBe(0);
     const components = summaryOf(state);
     expect(components["g:stage"]).toEqual(["sumi/container", "muted", {}]);
-    expect(components["n:box"]?.[0]).toBe("sumi/box");
-    expect(components["n:box"]?.[2]).toEqual({ width: 40, height: expect.closeTo(56.693, 3) });
+    expect(components["n:box"]).toEqual(["sumi/box", "default", { width: 40, height: 36 }]);
     expect(components["n:square"]).toEqual(["sumi/square", "default", { width: 72, height: 72 }]);
     expect(components["n:circle"]).toEqual(["sumi/circle", "emphasis", {}]);
     expect(components["n:note"]).toEqual(["sumi/label", "muted", {}]);

@@ -101,6 +101,9 @@ describe("register", () => {
     ["an empty description", custom({ description: "" }), ["description"]],
     ["an invalid since", custom({ since: "soon" }), ["since"]],
     ["a disallowed shape", custom({ shape: "cloud" as never }), ["shape"]],
+    ["a circle without a fixed aspect", custom({ shape: "circle" }), ["sizing"]],
+    ["a square without a fixed aspect", custom({ shape: "square" }), ["sizing"]],
+    ["a fixed aspect on another shape", custom({ sizing: "fixed-aspect-1" }), ["sizing"]],
     ["a non-strict props object", custom({ props: z.object({}) }), ["props"]],
     ["props that are not an object", custom({ props: z.string() as never }), ["props"]],
     [
@@ -231,21 +234,21 @@ describe("validateUsage", () => {
     });
   });
 
-  test("normalizes lengths to pt", () => {
+  test("parses sizes to pt", () => {
     const result = registry.validateUsage(box, {
-      props: { width: 40, height: "10mm" },
+      props: { width: "40pt", height: "0.5in" },
       variant: "muted",
     });
-    expect(result.ok && result.value.variant).toBe("muted");
-    expect(result.ok && result.value.props.width).toBe(40);
-    expect(result.ok && result.value.props.height).toBeCloseTo(28.3465, 4);
-    const units = ["2.5pt", "1cm", "1in"].map((width) => {
+    expect(result).toEqual({
+      ok: true,
+      value: { variant: "muted", props: { width: 40, height: 36 } },
+      diagnostics: [],
+    });
+    const widths = ["2.5pt", "2.54cm", "25.4mm", "1in"].map((width) => {
       const r = registry.validateUsage(box, { props: { width } });
       return r.ok ? r.value.props.width : undefined;
     });
-    expect(units[0]).toBe(2.5);
-    expect(units[1]).toBeCloseTo(28.3465, 4);
-    expect(units[2]).toBe(72);
+    expect(widths).toEqual([2.5, 72, 72, 72]);
   });
 
   test("applies manifest defaults", () => {
@@ -281,24 +284,45 @@ describe("validateUsage", () => {
     );
   });
 
-  const invalidLengths: unknown[] = ["40px", "-4mm", 0, -1, "0pt", true, "", "4 mm"];
-  for (const width of invalidLengths) {
+  const invalidSizes: [width: unknown, message: string, hint?: string][] = [
+    [40, "Expected a length with a unit, got the number 40", 'Add a unit, e.g. "40mm" or "40pt".'],
+    ["40", 'Missing unit in length "40"', 'Add a unit, e.g. "40mm" or "40pt".'],
+    ["40px", 'Unsupported unit "px" in "40px"; pixel sizes depend on the display'],
+    ["4 mm", 'Invalid length "4 mm"; whitespace is not allowed', 'Write "4mm".'],
+    [true, 'Expected a length such as "2mm", got a boolean'],
+    ["-4mm", 'Size "-4mm" must be positive'],
+    ["0pt", 'Size "0pt" must be positive'],
+    [
+      "15mm",
+      'Size "15mm" (42.52pt) is not a multiple of 0.5pt, the D2 unit',
+      'The nearest valid size is "42.5pt".',
+    ],
+    [
+      "0.1pt",
+      'Size "0.1pt" (0.1pt) is not a multiple of 0.5pt, the D2 unit',
+      'The nearest valid size is "0.5pt".',
+    ],
+  ];
+  for (const [width, message, hint] of invalidSizes) {
     test(`rejects the width ${JSON.stringify(width)}`, () => {
-      expect(registry.validateUsage(box, { props: { width } }).diagnostics).toEqual([
-        {
-          code: "component/invalid-prop",
-          severity: "error",
-          message:
-            'Invalid prop "width" for sumi/box: expected a positive length such as 40, "40pt" or "15mm".',
-          path: ["props", "width"],
-        },
-      ]);
+      const [d, ...rest] = registry.validateUsage(box, { props: { width } }).diagnostics;
+      expect(rest).toEqual([]);
+      expect(d).toMatchObject({
+        code: "component/invalid-prop",
+        severity: "error",
+        message: `Invalid prop "width" for sumi/box: ${message}.`,
+        path: ["props", "width"],
+      });
+      if (hint !== undefined) expect(d?.hint).toBe(hint);
     });
   }
 
-  test("fixed-aspect components need equal width and height", () => {
-    expect(registry.validateUsage(circle, { props: { width: "1in", height: 72 } }).ok).toBe(true);
-    expect(registry.validateUsage(circle, { props: { width: 10, height: 20 } })).toEqual({
+  test("fixed-aspect components need equal width and height, compared exactly", () => {
+    // 2.54cm is exactly 72pt, though 2.54 * 3600 / 127 is not 72 in floating point.
+    expect(registry.validateUsage(circle, { props: { width: "1in", height: "2.54cm" } }).ok).toBe(
+      true,
+    );
+    expect(registry.validateUsage(circle, { props: { width: "10pt", height: "20pt" } })).toEqual({
       ok: false,
       diagnostics: [
         {
@@ -354,12 +378,10 @@ describe("catalog", () => {
         properties: {
           width: {
             description: expect.stringContaining("Explicit width"),
-            anyOf: [
-              { type: "number" },
-              { type: "string", pattern: "^(\\d+(?:\\.\\d+)?)(pt|mm|cm|in)$" },
-            ],
+            type: "string",
+            pattern: "^\\d+(\\.\\d+)?(mm|cm|in|pt)$",
           },
-          height: expect.objectContaining({ anyOf: expect.any(Array) }),
+          height: expect.objectContaining({ type: "string" }),
         },
         additionalProperties: false,
       },
