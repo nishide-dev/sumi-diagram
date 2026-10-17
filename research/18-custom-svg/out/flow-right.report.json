@@ -1,0 +1,103 @@
+{
+  "figure": "flow-right",
+  "footprints": {
+    "n:filter": {
+      "shape": "trapezoid",
+      "d2AutoUnits": {
+        "width": 93,
+        "height": 80
+      },
+      "footprintUnits": {
+        "width": 157,
+        "height": 80
+      }
+    },
+    "n:jobs": {
+      "shape": "stack",
+      "d2AutoUnits": {
+        "width": 86,
+        "height": 61
+      },
+      "footprintUnits": {
+        "width": 102,
+        "height": 77
+      }
+    }
+  },
+  "edgeEnds": [
+    {
+      "edge": "edges[0]",
+      "end": "target",
+      "node": "n:filter",
+      "gapUnits": 10.766,
+      "missed": false,
+      "endToOutlineUnits": 12.766,
+      "endToFootprintUnits": 2,
+      "gapPt": 5.383,
+      "composedEndToOutlineUnits": 2
+    },
+    {
+      "edge": "edges[1]",
+      "end": "target",
+      "node": "n:filter",
+      "gapUnits": 21.433,
+      "missed": false,
+      "endToOutlineUnits": 23.433,
+      "endToFootprintUnits": 2,
+      "gapPt": 10.7165,
+      "composedEndToOutlineUnits": 2
+    },
+    {
+      "edge": "edges[2]",
+      "end": "source",
+      "node": "n:filter",
+      "gapUnits": 10.766,
+      "missed": false,
+      "endToOutlineUnits": 11.766,
+      "endToFootprintUnits": 1,
+      "gapPt": 5.383,
+      "composedEndToOutlineUnits": 1
+    },
+    {
+      "edge": "edges[2]",
+      "end": "target",
+      "node": "n:jobs",
+      "gapUnits": 0,
+      "missed": false,
+      "endToOutlineUnits": 2,
+      "endToFootprintUnits": 2,
+      "gapPt": 0,
+      "composedEndToOutlineUnits": 2
+    },
+    {
+      "edge": "edges[3]",
+      "end": "source",
+      "node": "n:jobs",
+      "gapUnits": 0,
+      "missed": false,
+      "endToOutlineUnits": 1,
+      "endToFootprintUnits": 1,
+      "gapPt": 0,
+      "composedEndToOutlineUnits": 1
+    },
+    {
+      "edge": "edges[4]",
+      "end": "source",
+      "node": "n:filter",
+      "gapUnits": 21.433,
+      "missed": false,
+      "endToOutlineUnits": 22.433,
+      "endToFootprintUnits": 1,
+      "gapPt": 10.7165,
+      "composedEndToOutlineUnits": 1
+    }
+  ],
+  "composedInspection": {
+    "ok": true,
+    "footprintBboxesUnchanged": true
+  },
+  "geometryLint": {
+    "placeholder": [],
+    "composed": []
+  }
+}

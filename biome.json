@@ -10,6 +10,7 @@
       "!schema/*.schema.json",
       "!assets/fonts",
       "!examples/**/*.svg",
+      "!research/*/out",
       "!docs/gallery",
       "!tests/fixtures/lint-output"
     ]

@@ -1,0 +1,50 @@
+# #18 PoC: two custom shapes (research/trapezoid, research/stack) in a
+# left-to-right flow. Two edges enter the trapezoid's slanted side at different
+# heights; the stack sits inside a container with a neighbour.
+version: 1
+figure:
+  id: custom-svg-right
+  theme: academic
+  profile: paper-double
+  layout:
+    direction: right
+
+groups:
+  - id: workers
+    label: Workers
+
+nodes:
+  - id: upload
+    component: box
+    label: Upload
+  - id: import
+    component: box
+    label: Import
+  - id: filter
+    component: research/trapezoid
+    label: Filter
+  - id: jobs
+    component: research/stack
+    label: Jobs
+    group: workers
+  - id: worker
+    component: box
+    label: Worker
+    group: workers
+  - id: rejected
+    component: document
+    label: Rejected
+
+edges:
+  - from: upload
+    to: filter
+  - from: import
+    to: filter
+  - from: filter
+    to: jobs
+  - from: jobs
+    to: worker
+  - from: filter
+    to: rejected
+    label: reject
+    variant: dashed
