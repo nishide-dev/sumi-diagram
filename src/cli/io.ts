@@ -52,7 +52,6 @@ export class UsageError extends Error {
 interface WritableLike extends CliStream {
   write(chunk: string, callback?: (error?: Error | null) => void): unknown;
   on?(event: "error", listener: (error: Error) => void): unknown;
-  off?(event: "error", listener: (error: Error) => void): unknown;
 }
 
 /** An output stream that survives its reader going away; see {@link guardStream}. */
@@ -63,12 +62,16 @@ export interface GuardedStream extends CliStream {
   readonly failure: Error | undefined;
   /** Resolves once every write so far has completed or failed. */
   settled(): Promise<void>;
-  /**
-   * Waits for every write and its `error` event, then removes the guard's
-   * listener from the stream. Later writes go to the stream unguarded.
-   */
-  release(): Promise<void>;
 }
+
+/**
+ * The one `error` listener each real stream gets, for good: it forwards to
+ * the latest guard of that stream. Never removing it means a late `error`
+ * event (for example from an asynchronous `_destroy()` after `run()` has
+ * returned) cannot crash the process, and repeated `run()` calls on the same
+ * stream add no listeners.
+ */
+const errorSinks = new WeakMap<object, { current: (error: Error) => void }>();
 
 const errorCode = (error: unknown): unknown =>
   typeof error === "object" && error !== null ? (error as { code?: unknown }).code : undefined;
@@ -85,7 +88,7 @@ const errorCode = (error: unknown): unknown =>
  * Bun and Node report a failed write to a pipe asynchronously: to the write's
  * callback, or as an `error` event that would otherwise crash the process.
  * Streams with `on` (real `Writable`s) are therefore written with a callback
- * and get an `error` listener (removed again by {@link GuardedStream.release});
+ * and share one persistent `error` listener per stream ({@link errorSinks});
  * plain test streams are called as they are.
  */
 export function guardStream(stream: WritableLike): GuardedStream {
@@ -108,7 +111,15 @@ export function guardStream(stream: WritableLike): GuardedStream {
   };
   const settled = () =>
     pending === 0 ? Promise.resolve() : new Promise<void>((resolve) => waiters.push(resolve));
-  if (writable) stream.on?.("error", fail);
+  if (writable) {
+    const sink = errorSinks.get(stream);
+    if (sink !== undefined) sink.current = fail;
+    else {
+      const created = { current: fail };
+      errorSinks.set(stream, created);
+      stream.on?.("error", (error) => created.current(error));
+    }
+  }
 
   return {
     get isTTY() {
@@ -137,13 +148,6 @@ export function guardStream(stream: WritableLike): GuardedStream {
       }
     },
     settled,
-    async release() {
-      if (!writable) return;
-      await settled();
-      // Node emits a write's `error` event on a later tick than its callback.
-      await new Promise((resolve) => setImmediate(resolve));
-      stream.off?.("error", fail);
-    },
   };
 }
 

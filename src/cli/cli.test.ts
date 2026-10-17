@@ -1044,6 +1044,8 @@ describe("run() in process", () => {
     }
   });
 
+  const errorCode = (error: unknown) => (error as { code?: unknown } | undefined)?.code;
+
   /** A real `Writable` whose writes fail asynchronously with `code`, as a pipe or full disk does. */
   const failingWritable = (code: string, delayMs = 1) => {
     return new Writable({
@@ -1114,6 +1116,33 @@ describe("run() in process", () => {
       await run(["lint", "--no-such-flag"], { ...streams, cwd: FIXTURES, env: {} });
       await run(["catalog"], { ...broken, cwd: FIXTURES, env: { SUMI_DEBUG: "1" } });
     }
-    expect([counts(streams), counts(broken)]).toEqual(initial);
+    // One persistent listener per stream, however many runs.
+    const once = initial.map((pair) => pair.map((n) => n + 1));
+    expect([counts(streams), counts(broken)]).toEqual(once);
+  });
+
+  test("a late error event (asynchronous destroy) after run() returns is not uncaught", async () => {
+    let emitted: unknown;
+    const stdout = new Writable({
+      write(_chunk, _encoding, callback) {
+        callback(Object.assign(new Error("write EPIPE"), { code: "EPIPE" }));
+      },
+      destroy(error, callback) {
+        setTimeout(() => callback(error), 30);
+      },
+    });
+    const emit = stdout.emit.bind(stdout);
+    // Throws (an uncaught error in the timer) if no listener is left.
+    stdout.emit = ((event: string, ...args: unknown[]) => {
+      if (event === "error") emitted = args[0];
+      return emit(event, ...args);
+    }) as typeof stdout.emit;
+    const err = capture();
+    const code = await run(["catalog"], { stdout, stderr: err.stream, cwd: FIXTURES, env: {} });
+    expect(code).toBe(0);
+    expect(err.text()).toBe("");
+    expect(emitted).toBeUndefined();
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    expect(errorCode(emitted)).toBe("EPIPE");
   });
 });
