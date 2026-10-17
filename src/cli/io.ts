@@ -52,6 +52,7 @@ export class UsageError extends Error {
 interface WritableLike extends CliStream {
   write(chunk: string, callback?: (error?: Error | null) => void): unknown;
   on?(event: "error", listener: (error: Error) => void): unknown;
+  off?(event: "error", listener: (error: Error) => void): unknown;
 }
 
 /** An output stream that survives its reader going away; see {@link guardStream}. */
@@ -62,6 +63,11 @@ export interface GuardedStream extends CliStream {
   readonly failure: Error | undefined;
   /** Resolves once every write so far has completed or failed. */
   settled(): Promise<void>;
+  /**
+   * Waits for every write and its `error` event, then removes the guard's
+   * listener from the stream. Later writes go to the stream unguarded.
+   */
+  release(): Promise<void>;
 }
 
 const errorCode = (error: unknown): unknown =>
@@ -79,7 +85,8 @@ const errorCode = (error: unknown): unknown =>
  * Bun and Node report a failed write to a pipe asynchronously: to the write's
  * callback, or as an `error` event that would otherwise crash the process.
  * Streams with `on` (real `Writable`s) are therefore written with a callback
- * and get an `error` listener; plain test streams are called as they are.
+ * and get an `error` listener (removed again by {@link GuardedStream.release});
+ * plain test streams are called as they are.
  */
 export function guardStream(stream: WritableLike): GuardedStream {
   const writable = typeof stream.on === "function";
@@ -99,6 +106,8 @@ export function guardStream(stream: WritableLike): GuardedStream {
     for (const resolve of waiters) resolve();
     waiters = [];
   };
+  const settled = () =>
+    pending === 0 ? Promise.resolve() : new Promise<void>((resolve) => waiters.push(resolve));
   if (writable) stream.on?.("error", fail);
 
   return {
@@ -127,10 +136,13 @@ export function guardStream(stream: WritableLike): GuardedStream {
         return false;
       }
     },
-    settled() {
-      return pending === 0
-        ? Promise.resolve()
-        : new Promise<void>((resolve) => waiters.push(resolve));
+    settled,
+    async release() {
+      if (!writable) return;
+      await settled();
+      // Node emits a write's `error` event on a later tick than its callback.
+      await new Promise((resolve) => setImmediate(resolve));
+      stream.off?.("error", fail);
     },
   };
 }

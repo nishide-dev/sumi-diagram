@@ -1043,11 +1043,12 @@ describe("run() in process", () => {
       expect(err.text().includes("    at ")).toBe(stack);
     }
   });
+
   /** A real `Writable` whose writes fail asynchronously with `code`, as a pipe or full disk does. */
-  const failingWritable = (code: string) => {
+  const failingWritable = (code: string, delayMs = 1) => {
     return new Writable({
       write(_chunk, _encoding, callback) {
-        setTimeout(() => callback(Object.assign(new Error(`write ${code}`), { code })), 1);
+        setTimeout(() => callback(Object.assign(new Error(`write ${code}`), { code })), delayMs);
       },
     });
   };
@@ -1074,5 +1075,45 @@ describe("run() in process", () => {
     });
     expect(code).toBe(2);
     expect(err.text()).toBe("sumi: error: cannot write to stdout: write ENOSPC\n");
+  });
+
+  test("a failure of the final stderr lines is folded into the exit code", async () => {
+    // stdout EPIPE + SUMI_DEBUG=1 writes a debug line to stderr after the
+    // first wait; its (delayed) failure must still count.
+    for (const [stderrCode, expected] of [
+      ["ENOSPC", 2],
+      ["EPIPE", 1],
+    ] as const) {
+      const code = await run(["lint", "invalid/ref-unknown-endpoint.sumi.yaml"], {
+        stdout: failingWritable("EPIPE"),
+        stderr: failingWritable(stderrCode, 20),
+        cwd: FIXTURES,
+        env: { SUMI_DEBUG: "1" },
+      });
+      expect(code).toBe(expected);
+    }
+  });
+
+  test("repeated runs on the same streams do not accumulate listeners", async () => {
+    const ok = () =>
+      new Writable({
+        write(_chunk, _encoding, callback) {
+          setTimeout(callback, 1);
+        },
+      });
+    const streams = { stdout: ok(), stderr: ok() };
+    const broken = { stdout: failingWritable("EPIPE"), stderr: failingWritable("ENOSPC") };
+    const counts = (pair: { stdout: Writable; stderr: Writable }) => [
+      pair.stdout.listenerCount("error"),
+      pair.stderr.listenerCount("error"),
+    ];
+    const initial = [counts(streams), counts(broken)];
+    for (let i = 0; i < 15; i++) {
+      // Success, usage error and failing streams (normal and error paths).
+      await run(["lint", "lint/clean.sumi.yaml"], { ...streams, cwd: FIXTURES, env: {} });
+      await run(["lint", "--no-such-flag"], { ...streams, cwd: FIXTURES, env: {} });
+      await run(["catalog"], { ...broken, cwd: FIXTURES, env: { SUMI_DEBUG: "1" } });
+    }
+    expect([counts(streams), counts(broken)]).toEqual(initial);
   });
 });

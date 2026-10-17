@@ -149,20 +149,26 @@ export async function run(
     env: context.env ?? process.env,
     ...(context.hooks !== undefined && { hooks: context.hooks }),
   };
-  let exitCode = await execute(argv, full);
-  // Write errors arrive asynchronously: wait for every write to complete.
-  await Promise.all([streams.stdout.settled(), streams.stderr.settled()]);
-  for (const [name, stream] of Object.entries(streams)) {
-    if (stream.failure !== undefined) {
-      streams.stderr.write(`sumi: error: cannot write to ${name}: ${stream.failure.message}\n`);
-      exitCode = EXIT.usage;
-    } else if (stream.closed && full.env.SUMI_DEBUG === "1") {
-      streams.stderr.write(
-        `sumi: debug: ${name} was closed by its reader (EPIPE); the rest of the output was discarded.\n`,
-      );
+  try {
+    let exitCode = await execute(argv, full);
+    // Write errors arrive asynchronously: wait for every write to complete.
+    await Promise.all([streams.stdout.settled(), streams.stderr.settled()]);
+    for (const [name, stream] of Object.entries(streams)) {
+      if (stream.failure !== undefined) {
+        streams.stderr.write(`sumi: error: cannot write to ${name}: ${stream.failure.message}\n`);
+        exitCode = EXIT.usage;
+      } else if (stream.closed && full.env.SUMI_DEBUG === "1") {
+        streams.stderr.write(
+          `sumi: debug: ${name} was closed by its reader (EPIPE); the rest of the output was discarded.\n`,
+        );
+      }
     }
+    // The lines above can fail too; a failed stderr is not reported to itself.
+    await streams.stderr.settled();
+    return streams.stderr.failure === undefined ? exitCode : EXIT.usage;
+  } finally {
+    await Promise.all([streams.stdout.release(), streams.stderr.release()]);
   }
-  return exitCode;
 }
 
 async function execute(argv: readonly string[], full: CliContext): Promise<ExitCode> {
