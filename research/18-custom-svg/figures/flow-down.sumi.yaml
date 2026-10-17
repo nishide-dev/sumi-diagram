@@ -1,0 +1,40 @@
+# #18 PoC: the same custom shapes laid out top to bottom, so edges meet the
+# trapezoid's horizontal sides and the stack's stepped corners.
+version: 1
+figure:
+  id: custom-svg-down
+  theme: minimal
+  profile: paper-single
+  layout:
+    direction: down
+
+nodes:
+  - id: source
+    component: box
+    label: Source
+  - id: filter
+    component: research/trapezoid
+    label: Filter
+    variant: emphasis
+  - id: batches
+    component: research/stack
+    label: Batches
+  - id: audit
+    component: box
+    label: Audit
+  - id: sink
+    component: box
+    label: Sink
+
+edges:
+  - from: source
+    to: filter
+  - from: filter
+    to: batches
+  - from: filter
+    to: audit
+  - from: batches
+    to: sink
+  - from: audit
+    to: batches
+    label: retry
