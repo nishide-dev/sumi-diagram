@@ -1,0 +1,4 @@
+# Built / downloaded tools (svg2pdf crate, cargo target, binaries, WASM, Chrome profile)
+.tools/
+# Regenerated outputs; a curated copy lives in results/
+out/

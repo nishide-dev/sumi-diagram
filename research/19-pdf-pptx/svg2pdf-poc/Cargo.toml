@@ -1,0 +1,31 @@
+[package]
+name = "sumi-svg2pdf-poc"
+version = "0.0.0"
+edition = "2021"
+publish = false
+description = "#19 research: SVG -> vector PDF with svg2pdf, fonts only from the given TTFs (no system fonts)"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "sumi-svg2pdf"
+path = "src/main.rs"
+
+[dependencies]
+# svg2pdf 0.13 = usvg 0.45 / fontdb 0.23. No system-font feature: the font
+# database only ever contains the TTFs passed in.
+svg2pdf = { version = "=0.13.0", default-features = false, features = ["text"] }
+usvg = { version = "=0.45.0", default-features = false, features = ["text"] }
+fontdb = { version = "=0.23.0", default-features = false }
+
+# svg2pdf 0.13.0 + svg2pdf-deterministic.patch, unpacked by scripts/build-tools.sh.
+[patch.crates-io]
+svg2pdf = { path = "../.tools/svg2pdf-0.13.0" }
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"

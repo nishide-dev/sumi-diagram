@@ -1,0 +1,59 @@
+# Research fixture for #19: Japanese labels (regular + bold group label),
+# a multi-line label, edge labels, dashed / muted / double-arrow edges and
+# several shapes, so the PDF / PPTX conversions exercise CJK text and markers.
+version: 1
+figure:
+  id: ja-review
+  title: 査読フロー
+  theme: academic
+  profile: paper-double
+  layout:
+    direction: down
+
+groups:
+  - id: editor
+    label: 編集委員会
+
+nodes:
+  - id: author
+    component: box
+    label: 著者
+  - id: submit
+    component: parallelogram
+    label: 原稿の投稿
+  - id: check
+    component: diamond
+    label: 形式は適切？
+    group: editor
+  - id: review
+    component: box
+    label: "査読\n（2 名）"
+    group: editor
+  - id: store
+    component: cylinder
+    label: 原稿データベース
+    variant: muted
+  - id: decision
+    component: hexagon
+    label: 採否の判定
+    variant: emphasis
+    group: editor
+
+edges:
+  - from: author
+    to: submit
+  - from: submit
+    to: check
+  - from: check
+    to: review
+    label: はい
+  - from: check
+    to: author
+    label: 差し戻し
+    variant: dashed
+  - from: review
+    to: decision
+  - from: submit
+    to: store
+    component: double-arrow
+    variant: muted

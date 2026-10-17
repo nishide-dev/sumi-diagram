@@ -1,0 +1,1543 @@
+[
+  {
+    "figure": "system-architecture",
+    "tool": "svg2pdf-poc (native, bundled TTF)",
+    "ok": true,
+    "bytes": 29510,
+    "deterministic": true,
+    "deterministicWithSourceDateEpoch": true,
+    "expectedPagePt": [
+      446,
+      204
+    ],
+    "pages": 1,
+    "widthPt": 446,
+    "heightPt": 204,
+    "producer": "svg2pdf",
+    "creationDate": null,
+    "fonts": [
+      "ZHZARP+BIZUDPGothic-Bold CID TrueType Identity-H yes yes yes 1 0",
+      "NTKCGB+BIZUDPGothic-Regular CID TrueType Identity-H yes yes yes 2 0"
+    ],
+    "rasterImages": {
+      "count": 0,
+      "byType": {},
+      "ppi": [],
+      "list": []
+    },
+    "text": {
+      "expected": 12,
+      "matched": 12,
+      "maxDxPt": 0,
+      "maxDwidthPt": 0,
+      "maxDyTopPt": 0
+    },
+    "pixelDiffPercent": 0.639
+  },
+  {
+    "figure": "system-architecture",
+    "tool": "svg2pdf-poc (WASM in Bun, bundled TTF)",
+    "ok": true,
+    "bytes": 29510,
+    "deterministic": true,
+    "deterministicWithSourceDateEpoch": true,
+    "expectedPagePt": [
+      446,
+      204
+    ],
+    "pages": 1,
+    "widthPt": 446,
+    "heightPt": 204,
+    "producer": "svg2pdf",
+    "creationDate": null,
+    "fonts": [
+      "YHORVF+BIZUDPGothic-Bold CID TrueType Identity-H yes yes yes 1 0",
+      "NIWJQP+BIZUDPGothic-Regular CID TrueType Identity-H yes yes yes 2 0"
+    ],
+    "rasterImages": {
+      "count": 0,
+      "byType": {},
+      "ppi": [],
+      "list": []
+    },
+    "text": {
+      "expected": 12,
+      "matched": 12,
+      "maxDxPt": 0,
+      "maxDwidthPt": 0,
+      "maxDyTopPt": 0
+    },
+    "pixelDiffPercent": 0.639
+  },
+  {
+    "figure": "system-architecture",
+    "tool": "svg2pdf-cli 0.13 (system fonts, original SVG)",
+    "ok": true,
+    "bytes": 35582,
+    "deterministic": false,
+    "deterministicWithSourceDateEpoch": false,
+    "expectedPagePt": [
+      446,
+      204
+    ],
+    "pages": 1,
+    "widthPt": 594.667,
+    "heightPt": 272,
+    "producer": "svg2pdf",
+    "creationDate": null,
+    "fonts": [
+      "GCLPQB+TimesNewRomanPSMT CID TrueType Identity-H yes yes yes 1 0"
+    ],
+    "rasterImages": {
+      "count": 0,
+      "byType": {},
+      "ppi": [],
+      "list": []
+    },
+    "text": {
+      "expected": 12,
+      "matched": 12,
+      "maxDxPt": 129.61,
+      "maxDwidthPt": 3.01,
+      "maxDyTopPt": 55.9
+    },
+    "pixelDiffPercent": 4.344
+  },
+  {
+    "figure": "system-architecture",
+    "tool": "rsvg-convert (fontconfig: bundled TTF)",
+    "ok": true,
+    "bytes": 34598,
+    "deterministic": false,
+    "deterministicWithSourceDateEpoch": true,
+    "expectedPagePt": [
+      446,
+      204
+    ],
+    "pages": 1,
+    "widthPt": 446,
+    "heightPt": 204,
+    "producer": "cairo 1.18.6 (https://cairographics.org)",
+    "creationDate": "Sun Oct 18 04:39:57 2026 JST",
+    "fonts": [
+      "RIXUQD+Helvetica-Bold TrueType WinAnsi yes yes yes 7 0",
+      "[none] Type 3 Custom yes no yes 8 0",
+      "KILWOP+Helvetica TrueType WinAnsi yes yes yes 9 0",
+      "[none] Type 3 Custom yes no yes 10 0"
+    ],
+    "rasterImages": {
+      "count": 8,
+      "byType": {
+        "image": 8
+      },
+      "ppi": [
+        72
+      ],
+      "list": [
+        {
+          "type": "image",
+          "width": 446,
+          "height": 204,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 446,
+          "height": 204,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 446,
+          "height": 204,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 446,
+          "height": 204,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 446,
+          "height": 204,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 446,
+          "height": 204,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 446,
+          "height": 204,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 446,
+          "height": 204,
+          "xPpi": 72,
+          "yPpi": 72
+        }
+      ]
+    },
+    "text": {
+      "expected": 12,
+      "matched": 12,
+      "maxDxPt": 5.71,
+      "maxDwidthPt": 11.43,
+      "maxDyTopPt": 0.88
+    },
+    "pixelDiffPercent": 1.287
+  },
+  {
+    "figure": "system-architecture",
+    "tool": "Inkscape (fontconfig: bundled TTF)",
+    "ok": true,
+    "bytes": 29858,
+    "deterministic": false,
+    "deterministicWithSourceDateEpoch": false,
+    "expectedPagePt": [
+      446,
+      204
+    ],
+    "pages": 1,
+    "widthPt": 446,
+    "heightPt": 204,
+    "producer": "cairo 1.18.2 (https://cairographics.org)",
+    "creationDate": "Sun Oct 18 04:40:01 2026 JST",
+    "fonts": [
+      "FCFAVF+BIZUDPGothic-Bold TrueType WinAnsi yes yes yes 7 0",
+      "NCCFAO+BIZUDPGothic-Regular TrueType WinAnsi yes yes yes 8 0"
+    ],
+    "rasterImages": {
+      "count": 8,
+      "byType": {
+        "image": 8
+      },
+      "ppi": [
+        72
+      ],
+      "list": [
+        {
+          "type": "image",
+          "width": 446,
+          "height": 204,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 446,
+          "height": 204,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 446,
+          "height": 204,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 446,
+          "height": 204,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 446,
+          "height": 204,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 446,
+          "height": 204,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 446,
+          "height": 204,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 446,
+          "height": 204,
+          "xPpi": 72,
+          "yPpi": 72
+        }
+      ]
+    },
+    "text": {
+      "expected": 12,
+      "matched": 12,
+      "maxDxPt": 0,
+      "maxDwidthPt": 0,
+      "maxDyTopPt": 0.01
+    },
+    "pixelDiffPercent": 23.882
+  },
+  {
+    "figure": "system-architecture",
+    "tool": "Chrome headless (original SVG, @font-face)",
+    "ok": true,
+    "bytes": 97215,
+    "deterministic": false,
+    "deterministicWithSourceDateEpoch": false,
+    "expectedPagePt": [
+      446,
+      204
+    ],
+    "pages": 1,
+    "widthPt": 445.92,
+    "heightPt": 204,
+    "producer": "Skia/PDF m155",
+    "creationDate": "Sun Oct 18 04:40:04 2026 JST",
+    "fonts": [
+      "AAAAAA+BIZUDPGothic-Bold CID TrueType Identity-H yes yes yes 5 0",
+      "BAAAAA+BIZUDPGothic-Regular CID TrueType Identity-H yes yes yes 8 0"
+    ],
+    "rasterImages": {
+      "count": 16,
+      "byType": {
+        "image": 8,
+        "smask": 8
+      },
+      "ppi": [
+        300
+      ],
+      "list": [
+        {
+          "type": "image",
+          "width": 1858,
+          "height": 850,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "smask",
+          "width": 1858,
+          "height": 850,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "image",
+          "width": 1858,
+          "height": 850,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "smask",
+          "width": 1858,
+          "height": 850,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "image",
+          "width": 1858,
+          "height": 850,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "smask",
+          "width": 1858,
+          "height": 850,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "image",
+          "width": 1858,
+          "height": 850,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "smask",
+          "width": 1858,
+          "height": 850,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "image",
+          "width": 1858,
+          "height": 850,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "smask",
+          "width": 1858,
+          "height": 850,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "image",
+          "width": 1858,
+          "height": 850,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "smask",
+          "width": 1858,
+          "height": 850,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "image",
+          "width": 1858,
+          "height": 850,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "smask",
+          "width": 1858,
+          "height": 850,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "image",
+          "width": 1858,
+          "height": 850,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "smask",
+          "width": 1858,
+          "height": 850,
+          "xPpi": 300,
+          "yPpi": 300
+        }
+      ]
+    },
+    "text": {
+      "expected": 12,
+      "matched": 12,
+      "maxDxPt": 0.01,
+      "maxDwidthPt": 0.04,
+      "maxDyTopPt": 0.01
+    },
+    "pixelDiffPercent": 0.807
+  },
+  {
+    "figure": "decision-flow",
+    "tool": "svg2pdf-poc (native, bundled TTF)",
+    "ok": true,
+    "bytes": 30010,
+    "deterministic": true,
+    "deterministicWithSourceDateEpoch": true,
+    "expectedPagePt": [
+      169,
+      423.5
+    ],
+    "pages": 1,
+    "widthPt": 169,
+    "heightPt": 423.5,
+    "producer": "svg2pdf",
+    "creationDate": null,
+    "fonts": [
+      "NAQCQJ+BIZUDPGothic-Regular CID TrueType Identity-H yes yes yes 1 0",
+      "PFMRMY+BIZUDPGothic-Bold CID TrueType Identity-H yes yes yes 2 0"
+    ],
+    "rasterImages": {
+      "count": 0,
+      "byType": {},
+      "ppi": [],
+      "list": []
+    },
+    "text": {
+      "expected": 13,
+      "matched": 13,
+      "maxDxPt": 0,
+      "maxDwidthPt": 0,
+      "maxDyTopPt": 0
+    },
+    "pixelDiffPercent": 0.296
+  },
+  {
+    "figure": "decision-flow",
+    "tool": "svg2pdf-poc (WASM in Bun, bundled TTF)",
+    "ok": true,
+    "bytes": 30010,
+    "deterministic": true,
+    "deterministicWithSourceDateEpoch": true,
+    "expectedPagePt": [
+      169,
+      423.5
+    ],
+    "pages": 1,
+    "widthPt": 169,
+    "heightPt": 423.5,
+    "producer": "svg2pdf",
+    "creationDate": null,
+    "fonts": [
+      "AYUTRX+BIZUDPGothic-Regular CID TrueType Identity-H yes yes yes 1 0",
+      "XAAPYE+BIZUDPGothic-Bold CID TrueType Identity-H yes yes yes 2 0"
+    ],
+    "rasterImages": {
+      "count": 0,
+      "byType": {},
+      "ppi": [],
+      "list": []
+    },
+    "text": {
+      "expected": 13,
+      "matched": 13,
+      "maxDxPt": 0,
+      "maxDwidthPt": 0,
+      "maxDyTopPt": 0
+    },
+    "pixelDiffPercent": 0.296
+  },
+  {
+    "figure": "decision-flow",
+    "tool": "svg2pdf-cli 0.13 (system fonts, original SVG)",
+    "ok": true,
+    "bytes": 36349,
+    "deterministic": false,
+    "deterministicWithSourceDateEpoch": false,
+    "expectedPagePt": [
+      169,
+      423.5
+    ],
+    "pages": 1,
+    "widthPt": 225.333,
+    "heightPt": 564.667,
+    "producer": "svg2pdf",
+    "creationDate": null,
+    "fonts": [
+      "QISJFO+TimesNewRomanPSMT CID TrueType Identity-H yes yes yes 1 0"
+    ],
+    "rasterImages": {
+      "count": 0,
+      "byType": {},
+      "ppi": [],
+      "list": []
+    },
+    "text": {
+      "expected": 13,
+      "matched": 13,
+      "maxDxPt": 46.65,
+      "maxDwidthPt": 4.53,
+      "maxDyTopPt": 135.14
+    },
+    "pixelDiffPercent": 5.38
+  },
+  {
+    "figure": "decision-flow",
+    "tool": "rsvg-convert (fontconfig: bundled TTF)",
+    "ok": true,
+    "bytes": 44515,
+    "deterministic": false,
+    "deterministicWithSourceDateEpoch": true,
+    "expectedPagePt": [
+      169,
+      423.5
+    ],
+    "pages": 1,
+    "widthPt": 169,
+    "heightPt": 423.5,
+    "producer": "cairo 1.18.6 (https://cairographics.org)",
+    "creationDate": "Sun Oct 18 04:40:16 2026 JST",
+    "fonts": [
+      "IYNGRM+Helvetica TrueType WinAnsi yes yes yes 7 0",
+      "[none] Type 3 Custom yes no yes 8 0",
+      "KQMMMC+Helvetica-Bold TrueType WinAnsi yes yes yes 9 0",
+      "UWTGSB+Helvetica TrueType WinAnsi yes yes yes 13 0"
+    ],
+    "rasterImages": {
+      "count": 18,
+      "byType": {
+        "image": 9,
+        "smask": 9
+      },
+      "ppi": [
+        72
+      ],
+      "list": [
+        {
+          "type": "image",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "smask",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "smask",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "smask",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "smask",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "smask",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "smask",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "smask",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "smask",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "smask",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        }
+      ]
+    },
+    "text": {
+      "expected": 13,
+      "matched": 13,
+      "maxDxPt": 5.76,
+      "maxDwidthPt": 11.52,
+      "maxDyTopPt": 0.88
+    },
+    "pixelDiffPercent": 0.63
+  },
+  {
+    "figure": "decision-flow",
+    "tool": "Inkscape (fontconfig: bundled TTF)",
+    "ok": true,
+    "bytes": 34767,
+    "deterministic": false,
+    "deterministicWithSourceDateEpoch": false,
+    "expectedPagePt": [
+      169,
+      423.5
+    ],
+    "pages": 1,
+    "widthPt": 169,
+    "heightPt": 423.5,
+    "producer": "cairo 1.18.2 (https://cairographics.org)",
+    "creationDate": "Sun Oct 18 04:40:19 2026 JST",
+    "fonts": [
+      "MVNBWB+BIZUDPGothic-Regular TrueType WinAnsi yes yes yes 7 0",
+      "STIIWZ+BIZUDPGothic-Bold TrueType WinAnsi yes yes yes 8 0"
+    ],
+    "rasterImages": {
+      "count": 18,
+      "byType": {
+        "image": 9,
+        "smask": 9
+      },
+      "ppi": [
+        72
+      ],
+      "list": [
+        {
+          "type": "image",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "smask",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "smask",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "smask",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "smask",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "smask",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "smask",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "smask",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "smask",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "smask",
+          "width": 169,
+          "height": 424,
+          "xPpi": 72,
+          "yPpi": 72
+        }
+      ]
+    },
+    "text": {
+      "expected": 13,
+      "matched": 13,
+      "maxDxPt": 0,
+      "maxDwidthPt": 0,
+      "maxDyTopPt": 0.01
+    },
+    "pixelDiffPercent": 0.12
+  },
+  {
+    "figure": "decision-flow",
+    "tool": "Chrome headless (original SVG, @font-face)",
+    "ok": true,
+    "bytes": 95650,
+    "deterministic": false,
+    "deterministicWithSourceDateEpoch": false,
+    "expectedPagePt": [
+      169,
+      423.5
+    ],
+    "pages": 1,
+    "widthPt": 168.96,
+    "heightPt": 424.08,
+    "producer": "Skia/PDF m155",
+    "creationDate": "Sun Oct 18 04:40:23 2026 JST",
+    "fonts": [
+      "AAAAAA+BIZUDPGothic-Regular CID TrueType Identity-H yes yes yes 5 0",
+      "BAAAAA+BIZUDPGothic-Bold CID TrueType Identity-H yes yes yes 7 0"
+    ],
+    "rasterImages": {
+      "count": 18,
+      "byType": {
+        "image": 9,
+        "smask": 9
+      },
+      "ppi": [
+        300
+      ],
+      "list": [
+        {
+          "type": "image",
+          "width": 704,
+          "height": 1765,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "smask",
+          "width": 704,
+          "height": 1765,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "image",
+          "width": 704,
+          "height": 1765,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "smask",
+          "width": 704,
+          "height": 1765,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "image",
+          "width": 704,
+          "height": 1765,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "smask",
+          "width": 704,
+          "height": 1765,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "image",
+          "width": 704,
+          "height": 1765,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "smask",
+          "width": 704,
+          "height": 1765,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "image",
+          "width": 704,
+          "height": 1765,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "smask",
+          "width": 704,
+          "height": 1765,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "image",
+          "width": 704,
+          "height": 1765,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "smask",
+          "width": 704,
+          "height": 1765,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "image",
+          "width": 704,
+          "height": 1765,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "smask",
+          "width": 704,
+          "height": 1765,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "image",
+          "width": 704,
+          "height": 1765,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "smask",
+          "width": 704,
+          "height": 1765,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "image",
+          "width": 704,
+          "height": 1765,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "smask",
+          "width": 704,
+          "height": 1765,
+          "xPpi": 300,
+          "yPpi": 300
+        }
+      ]
+    },
+    "text": {
+      "expected": 13,
+      "matched": 13,
+      "maxDxPt": 0.01,
+      "maxDwidthPt": 0.04,
+      "maxDyTopPt": 0.02
+    },
+    "pixelDiffPercent": 0.295
+  },
+  {
+    "figure": "ja-review",
+    "tool": "svg2pdf-poc (native, bundled TTF)",
+    "ok": true,
+    "bytes": 28554,
+    "deterministic": true,
+    "deterministicWithSourceDateEpoch": true,
+    "expectedPagePt": [
+      220.5,
+      454.5
+    ],
+    "pages": 1,
+    "widthPt": 220.5,
+    "heightPt": 454.5,
+    "producer": "svg2pdf",
+    "creationDate": null,
+    "fonts": [
+      "RCSRUP+BIZUDPGothic-Bold CID TrueType Identity-H yes yes yes 1 0",
+      "MIUDFB+BIZUDPGothic-Regular CID TrueType Identity-H yes yes yes 2 0"
+    ],
+    "rasterImages": {
+      "count": 0,
+      "byType": {},
+      "ppi": [],
+      "list": []
+    },
+    "text": {
+      "expected": 10,
+      "matched": 10,
+      "maxDxPt": 0,
+      "maxDwidthPt": 0,
+      "maxDyTopPt": 0
+    },
+    "pixelDiffPercent": 0.378
+  },
+  {
+    "figure": "ja-review",
+    "tool": "svg2pdf-poc (WASM in Bun, bundled TTF)",
+    "ok": true,
+    "bytes": 28554,
+    "deterministic": true,
+    "deterministicWithSourceDateEpoch": true,
+    "expectedPagePt": [
+      220.5,
+      454.5
+    ],
+    "pages": 1,
+    "widthPt": 220.5,
+    "heightPt": 454.5,
+    "producer": "svg2pdf",
+    "creationDate": null,
+    "fonts": [
+      "YDJEPV+BIZUDPGothic-Bold CID TrueType Identity-H yes yes yes 1 0",
+      "OBKYXN+BIZUDPGothic-Regular CID TrueType Identity-H yes yes yes 2 0"
+    ],
+    "rasterImages": {
+      "count": 0,
+      "byType": {},
+      "ppi": [],
+      "list": []
+    },
+    "text": {
+      "expected": 10,
+      "matched": 10,
+      "maxDxPt": 0,
+      "maxDwidthPt": 0,
+      "maxDyTopPt": 0
+    },
+    "pixelDiffPercent": 0.378
+  },
+  {
+    "figure": "ja-review",
+    "tool": "svg2pdf-cli 0.13 (system fonts, original SVG)",
+    "ok": true,
+    "bytes": 32681,
+    "deterministic": false,
+    "deterministicWithSourceDateEpoch": false,
+    "expectedPagePt": [
+      220.5,
+      454.5
+    ],
+    "pages": 1,
+    "widthPt": 294,
+    "heightPt": 606,
+    "producer": "svg2pdf",
+    "creationDate": null,
+    "fonts": [
+      "VTDEHF+ArialUnicodeMS CID TrueType Identity-H yes yes yes 1 0"
+    ],
+    "rasterImages": {
+      "count": 0,
+      "byType": {},
+      "ppi": [],
+      "list": []
+    },
+    "text": {
+      "expected": 10,
+      "matched": 10,
+      "maxDxPt": 47.67,
+      "maxDwidthPt": 23.89,
+      "maxDyTopPt": 142.69
+    },
+    "pixelDiffPercent": 3.926
+  },
+  {
+    "figure": "ja-review",
+    "tool": "rsvg-convert (fontconfig: bundled TTF)",
+    "ok": true,
+    "bytes": 39415,
+    "deterministic": false,
+    "deterministicWithSourceDateEpoch": true,
+    "expectedPagePt": [
+      220.5,
+      454.5
+    ],
+    "pages": 1,
+    "widthPt": 220.5,
+    "heightPt": 454.5,
+    "producer": "cairo 1.18.6 (https://cairographics.org)",
+    "creationDate": "Sun Oct 18 04:40:35 2026 JST",
+    "fonts": [
+      "IMHTYC+HiraginoSans-W6 CID Type 0C Identity-H yes yes yes 7 0",
+      "BUFBAF+HiraginoSans-W3 CID Type 0C Identity-H yes yes yes 8 0",
+      "IWJMSD+Helvetica TrueType WinAnsi yes yes yes 9 0",
+      "[none] Type 3 Custom yes no yes 10 0",
+      "GHFGGG+HiraginoSans-W3 CID Type 0C Identity-H yes yes yes 14 0"
+    ],
+    "rasterImages": {
+      "count": 12,
+      "byType": {
+        "image": 6,
+        "smask": 6
+      },
+      "ppi": [
+        72
+      ],
+      "list": [
+        {
+          "type": "image",
+          "width": 221,
+          "height": 455,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "smask",
+          "width": 221,
+          "height": 455,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 221,
+          "height": 455,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "smask",
+          "width": 221,
+          "height": 455,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 221,
+          "height": 455,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "smask",
+          "width": 221,
+          "height": 455,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 221,
+          "height": 455,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "smask",
+          "width": 221,
+          "height": 455,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 221,
+          "height": 455,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "smask",
+          "width": 221,
+          "height": 455,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 221,
+          "height": 455,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "smask",
+          "width": 221,
+          "height": 455,
+          "xPpi": 72,
+          "yPpi": 72
+        }
+      ]
+    },
+    "text": {
+      "expected": 10,
+      "matched": 10,
+      "maxDxPt": 2.96,
+      "maxDwidthPt": 5.93,
+      "maxDyTopPt": 0
+    },
+    "pixelDiffPercent": 0.508
+  },
+  {
+    "figure": "ja-review",
+    "tool": "Inkscape (fontconfig: bundled TTF)",
+    "ok": true,
+    "bytes": 37833,
+    "deterministic": false,
+    "deterministicWithSourceDateEpoch": false,
+    "expectedPagePt": [
+      220.5,
+      454.5
+    ],
+    "pages": 1,
+    "widthPt": 220.5,
+    "heightPt": 454.5,
+    "producer": "cairo 1.18.2 (https://cairographics.org)",
+    "creationDate": "Sun Oct 18 04:40:38 2026 JST",
+    "fonts": [
+      "MZNTUH+BIZUDPGothic-Bold CID TrueType Identity-H yes yes yes 7 0",
+      "IDNIYY+BIZUDPGothic-Regular CID TrueType Identity-H yes yes yes 8 0",
+      "WPHZET+BIZUDPGothic-Regular TrueType WinAnsi yes yes yes 9 0"
+    ],
+    "rasterImages": {
+      "count": 12,
+      "byType": {
+        "image": 6,
+        "smask": 6
+      },
+      "ppi": [
+        72
+      ],
+      "list": [
+        {
+          "type": "image",
+          "width": 221,
+          "height": 455,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "smask",
+          "width": 221,
+          "height": 455,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 221,
+          "height": 455,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "smask",
+          "width": 221,
+          "height": 455,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 221,
+          "height": 455,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "smask",
+          "width": 221,
+          "height": 455,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 221,
+          "height": 455,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "smask",
+          "width": 221,
+          "height": 455,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 221,
+          "height": 455,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "smask",
+          "width": 221,
+          "height": 455,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "image",
+          "width": 221,
+          "height": 455,
+          "xPpi": 72,
+          "yPpi": 72
+        },
+        {
+          "type": "smask",
+          "width": 221,
+          "height": 455,
+          "xPpi": 72,
+          "yPpi": 72
+        }
+      ]
+    },
+    "text": {
+      "expected": 10,
+      "matched": 10,
+      "maxDxPt": 0,
+      "maxDwidthPt": 0,
+      "maxDyTopPt": 0.01
+    },
+    "pixelDiffPercent": 27.462
+  },
+  {
+    "figure": "ja-review",
+    "tool": "Chrome headless (original SVG, @font-face)",
+    "ok": true,
+    "bytes": 108532,
+    "deterministic": false,
+    "deterministicWithSourceDateEpoch": false,
+    "expectedPagePt": [
+      220.5,
+      454.5
+    ],
+    "pages": 1,
+    "widthPt": 221.04,
+    "heightPt": 455.04,
+    "producer": "Skia/PDF m155",
+    "creationDate": "Sun Oct 18 04:40:42 2026 JST",
+    "fonts": [
+      "AAAAAA+BIZUDPGothic-Bold CID TrueType Identity-H yes yes yes 6 0",
+      "BAAAAA+BIZUDPGothic-Regular CID TrueType Identity-H yes yes yes 7 0"
+    ],
+    "rasterImages": {
+      "count": 12,
+      "byType": {
+        "image": 6,
+        "smask": 6
+      },
+      "ppi": [
+        300
+      ],
+      "list": [
+        {
+          "type": "image",
+          "width": 919,
+          "height": 1894,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "smask",
+          "width": 919,
+          "height": 1894,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "image",
+          "width": 919,
+          "height": 1894,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "smask",
+          "width": 919,
+          "height": 1894,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "image",
+          "width": 919,
+          "height": 1894,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "smask",
+          "width": 919,
+          "height": 1894,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "image",
+          "width": 919,
+          "height": 1894,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "smask",
+          "width": 919,
+          "height": 1894,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "image",
+          "width": 919,
+          "height": 1894,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "smask",
+          "width": 919,
+          "height": 1894,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "image",
+          "width": 919,
+          "height": 1894,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "smask",
+          "width": 919,
+          "height": 1894,
+          "xPpi": 300,
+          "yPpi": 300
+        }
+      ]
+    },
+    "text": {
+      "expected": 10,
+      "matched": 10,
+      "maxDxPt": 0.01,
+      "maxDwidthPt": 0.04,
+      "maxDyTopPt": 0
+    },
+    "pixelDiffPercent": 0.613
+  }
+]

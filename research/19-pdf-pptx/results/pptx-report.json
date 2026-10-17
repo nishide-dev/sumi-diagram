@@ -1,0 +1,514 @@
+[
+  {
+    "powerpointVersion": "16.114",
+    "platform": "darwin"
+  },
+  {
+    "figure": "control",
+    "variant": "cxn-custgeom",
+    "ok": true,
+    "shapesKept": 0,
+    "pages": 1,
+    "widthPt": 288,
+    "heightPt": 216,
+    "producer": "macOS バージョン26.2（ビルド25C56） Quartz PDFContext",
+    "creationDate": "Sun Oct 18 04:41:03 2026 JST",
+    "fonts": [],
+    "rasterImages": {
+      "count": 0,
+      "byType": {},
+      "ppi": [],
+      "list": []
+    }
+  },
+  {
+    "figure": "control",
+    "variant": "cxn-line",
+    "ok": true,
+    "shapesKept": 1,
+    "pages": 1,
+    "widthPt": 288,
+    "heightPt": 216,
+    "producer": "macOS バージョン26.2（ビルド25C56） Quartz PDFContext",
+    "creationDate": "Sun Oct 18 04:41:03 2026 JST",
+    "fonts": [],
+    "rasterImages": {
+      "count": 0,
+      "byType": {},
+      "ppi": [],
+      "list": []
+    }
+  },
+  {
+    "figure": "control",
+    "variant": "sp-custgeom",
+    "ok": true,
+    "shapesKept": 1,
+    "pages": 1,
+    "widthPt": 288,
+    "heightPt": 216,
+    "producer": "macOS バージョン26.2（ビルド25C56） Quartz PDFContext",
+    "creationDate": "Sun Oct 18 04:41:04 2026 JST",
+    "fonts": [],
+    "rasterImages": {
+      "count": 0,
+      "byType": {},
+      "ppi": [],
+      "list": []
+    }
+  },
+  {
+    "figure": "decision-flow",
+    "variant": "image-control",
+    "ok": true,
+    "shapesKept": 1,
+    "pages": 1,
+    "widthPt": 169,
+    "heightPt": 424,
+    "producer": "macOS バージョン26.2（ビルド25C56） Quartz PDFContext",
+    "creationDate": "Sun Oct 18 04:41:05 2026 JST",
+    "fonts": [],
+    "rasterImages": {
+      "count": 2,
+      "byType": {
+        "image": 1,
+        "smask": 1
+      },
+      "ppi": [
+        300
+      ],
+      "list": [
+        {
+          "type": "image",
+          "width": 704,
+          "height": 1765,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "smask",
+          "width": 704,
+          "height": 1765,
+          "xPpi": 300,
+          "yPpi": 300
+        }
+      ]
+    },
+    "text": {
+      "expected": 13,
+      "matched": 0,
+      "maxDxPt": 0,
+      "maxDwidthPt": 0,
+      "maxDyTopPt": 0
+    },
+    "pixelDiffPercent": 1.482
+  },
+  {
+    "figure": "decision-flow",
+    "variant": "image",
+    "ok": true,
+    "shapesKept": 1,
+    "pages": 1,
+    "widthPt": 169,
+    "heightPt": 424,
+    "producer": "macOS バージョン26.2（ビルド25C56） Quartz PDFContext",
+    "creationDate": "Sun Oct 18 04:41:06 2026 JST",
+    "fonts": [],
+    "rasterImages": {
+      "count": 2,
+      "byType": {
+        "image": 1,
+        "smask": 1
+      },
+      "ppi": [
+        300
+      ],
+      "list": [
+        {
+          "type": "image",
+          "width": 704,
+          "height": 1765,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "smask",
+          "width": 704,
+          "height": 1765,
+          "xPpi": 300,
+          "yPpi": 300
+        }
+      ]
+    },
+    "text": {
+      "expected": 13,
+      "matched": 0,
+      "maxDxPt": 0,
+      "maxDwidthPt": 0,
+      "maxDyTopPt": 0
+    },
+    "pixelDiffPercent": 1.482
+  },
+  {
+    "figure": "decision-flow",
+    "variant": "native-glued",
+    "ok": true,
+    "shapesKept": 21,
+    "pages": 1,
+    "widthPt": 169,
+    "heightPt": 424,
+    "producer": "macOS バージョン26.2（ビルド25C56） Quartz PDFContext",
+    "creationDate": "Sun Oct 18 04:41:06 2026 JST",
+    "fonts": [
+      "AAAAAC+Calibri TrueType WinAnsi yes yes yes 8 0",
+      "AAAAAE+Calibri-Bold TrueType WinAnsi yes yes yes 10 0",
+      "AAAAAG+Calibri TrueType WinAnsi yes yes yes 12 0"
+    ],
+    "rasterImages": {
+      "count": 0,
+      "byType": {},
+      "ppi": [],
+      "list": []
+    },
+    "text": {
+      "expected": 13,
+      "matched": 13,
+      "maxDxPt": 8.15,
+      "maxDwidthPt": 16.24,
+      "maxDyTopPt": 2.6
+    },
+    "pixelDiffPercent": 1.74
+  },
+  {
+    "figure": "decision-flow",
+    "variant": "native",
+    "ok": true,
+    "shapesKept": 21,
+    "pages": 1,
+    "widthPt": 169,
+    "heightPt": 424,
+    "producer": "macOS バージョン26.2（ビルド25C56） Quartz PDFContext",
+    "creationDate": "Sun Oct 18 04:41:07 2026 JST",
+    "fonts": [
+      "AAAAAC+Calibri TrueType WinAnsi yes yes yes 8 0",
+      "AAAAAE+Calibri-Bold TrueType WinAnsi yes yes yes 10 0",
+      "AAAAAG+Calibri TrueType WinAnsi yes yes yes 12 0"
+    ],
+    "rasterImages": {
+      "count": 0,
+      "byType": {},
+      "ppi": [],
+      "list": []
+    },
+    "text": {
+      "expected": 13,
+      "matched": 13,
+      "maxDxPt": 8.15,
+      "maxDwidthPt": 16.24,
+      "maxDyTopPt": 2.6
+    },
+    "pixelDiffPercent": 0.883
+  },
+  {
+    "figure": "ja-review",
+    "variant": "image-control",
+    "ok": true,
+    "shapesKept": 1,
+    "pages": 1,
+    "widthPt": 221,
+    "heightPt": 455,
+    "producer": "macOS バージョン26.2（ビルド25C56） Quartz PDFContext",
+    "creationDate": "Sun Oct 18 04:41:08 2026 JST",
+    "fonts": [],
+    "rasterImages": {
+      "count": 2,
+      "byType": {
+        "image": 1,
+        "smask": 1
+      },
+      "ppi": [
+        300
+      ],
+      "list": [
+        {
+          "type": "image",
+          "width": 919,
+          "height": 1894,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "smask",
+          "width": 919,
+          "height": 1894,
+          "xPpi": 300,
+          "yPpi": 300
+        }
+      ]
+    },
+    "text": {
+      "expected": 10,
+      "matched": 0,
+      "maxDxPt": 0,
+      "maxDwidthPt": 0,
+      "maxDyTopPt": 0
+    },
+    "pixelDiffPercent": 1.14
+  },
+  {
+    "figure": "ja-review",
+    "variant": "image",
+    "ok": true,
+    "shapesKept": 1,
+    "pages": 1,
+    "widthPt": 221,
+    "heightPt": 455,
+    "producer": "macOS バージョン26.2（ビルド25C56） Quartz PDFContext",
+    "creationDate": "Sun Oct 18 04:41:09 2026 JST",
+    "fonts": [],
+    "rasterImages": {
+      "count": 2,
+      "byType": {
+        "image": 1,
+        "smask": 1
+      },
+      "ppi": [
+        300
+      ],
+      "list": [
+        {
+          "type": "image",
+          "width": 919,
+          "height": 1894,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "smask",
+          "width": 919,
+          "height": 1894,
+          "xPpi": 300,
+          "yPpi": 300
+        }
+      ]
+    },
+    "text": {
+      "expected": 10,
+      "matched": 0,
+      "maxDxPt": 0,
+      "maxDwidthPt": 0,
+      "maxDyTopPt": 0
+    },
+    "pixelDiffPercent": 1.14
+  },
+  {
+    "figure": "ja-review",
+    "variant": "native-glued",
+    "ok": true,
+    "shapesKept": 15,
+    "pages": 1,
+    "widthPt": 221,
+    "heightPt": 455,
+    "producer": "macOS バージョン26.2（ビルド25C56） Quartz PDFContext",
+    "creationDate": "Sun Oct 18 04:41:10 2026 JST",
+    "fonts": [
+      "AAAAAC+MS-Gothic TrueType WinAnsi yes yes yes 8 0",
+      "AAAAAE+Calibri TrueType WinAnsi yes yes yes 10 0",
+      "AAAAAG+MS-Gothic TrueType WinAnsi yes yes yes 12 0"
+    ],
+    "rasterImages": {
+      "count": 0,
+      "byType": {},
+      "ppi": [],
+      "list": []
+    },
+    "text": {
+      "expected": 10,
+      "matched": 10,
+      "maxDxPt": 2.5,
+      "maxDwidthPt": 5,
+      "maxDyTopPt": 0.98
+    },
+    "pixelDiffPercent": 1.263
+  },
+  {
+    "figure": "ja-review",
+    "variant": "native",
+    "ok": true,
+    "shapesKept": 15,
+    "pages": 1,
+    "widthPt": 221,
+    "heightPt": 455,
+    "producer": "macOS バージョン26.2（ビルド25C56） Quartz PDFContext",
+    "creationDate": "Sun Oct 18 04:41:11 2026 JST",
+    "fonts": [
+      "AAAAAC+MS-Gothic TrueType WinAnsi yes yes yes 8 0",
+      "AAAAAE+Calibri TrueType WinAnsi yes yes yes 10 0",
+      "AAAAAG+MS-Gothic TrueType WinAnsi yes yes yes 12 0"
+    ],
+    "rasterImages": {
+      "count": 0,
+      "byType": {},
+      "ppi": [],
+      "list": []
+    },
+    "text": {
+      "expected": 10,
+      "matched": 10,
+      "maxDxPt": 2.5,
+      "maxDwidthPt": 5,
+      "maxDyTopPt": 0.98
+    },
+    "pixelDiffPercent": 0.899
+  },
+  {
+    "figure": "system-architecture",
+    "variant": "image-control",
+    "ok": true,
+    "shapesKept": 1,
+    "pages": 1,
+    "widthPt": 446,
+    "heightPt": 204,
+    "producer": "macOS バージョン26.2（ビルド25C56） Quartz PDFContext",
+    "creationDate": "Sun Oct 18 04:41:11 2026 JST",
+    "fonts": [],
+    "rasterImages": {
+      "count": 2,
+      "byType": {
+        "image": 1,
+        "smask": 1
+      },
+      "ppi": [
+        300
+      ],
+      "list": [
+        {
+          "type": "image",
+          "width": 1858,
+          "height": 849,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "smask",
+          "width": 1858,
+          "height": 849,
+          "xPpi": 300,
+          "yPpi": 300
+        }
+      ]
+    },
+    "text": {
+      "expected": 12,
+      "matched": 0,
+      "maxDxPt": 0,
+      "maxDwidthPt": 0,
+      "maxDyTopPt": 0
+    },
+    "pixelDiffPercent": 1.054
+  },
+  {
+    "figure": "system-architecture",
+    "variant": "image",
+    "ok": true,
+    "shapesKept": 1,
+    "pages": 1,
+    "widthPt": 446,
+    "heightPt": 204,
+    "producer": "macOS バージョン26.2（ビルド25C56） Quartz PDFContext",
+    "creationDate": "Sun Oct 18 04:41:12 2026 JST",
+    "fonts": [],
+    "rasterImages": {
+      "count": 2,
+      "byType": {
+        "image": 1,
+        "smask": 1
+      },
+      "ppi": [
+        300
+      ],
+      "list": [
+        {
+          "type": "image",
+          "width": 1858,
+          "height": 849,
+          "xPpi": 300,
+          "yPpi": 300
+        },
+        {
+          "type": "smask",
+          "width": 1858,
+          "height": 849,
+          "xPpi": 300,
+          "yPpi": 300
+        }
+      ]
+    },
+    "text": {
+      "expected": 12,
+      "matched": 0,
+      "maxDxPt": 0,
+      "maxDwidthPt": 0,
+      "maxDyTopPt": 0
+    },
+    "pixelDiffPercent": 1.054
+  },
+  {
+    "figure": "system-architecture",
+    "variant": "native-glued",
+    "ok": true,
+    "shapesKept": 20,
+    "pages": 1,
+    "widthPt": 446,
+    "heightPt": 204,
+    "producer": "macOS バージョン26.2（ビルド25C56） Quartz PDFContext",
+    "creationDate": "Sun Oct 18 04:41:13 2026 JST",
+    "fonts": [
+      "AAAAAC+Calibri-Bold TrueType WinAnsi yes yes yes 8 0",
+      "AAAAAE+Calibri TrueType WinAnsi yes yes yes 10 0"
+    ],
+    "rasterImages": {
+      "count": 0,
+      "byType": {},
+      "ppi": [],
+      "list": []
+    },
+    "text": {
+      "expected": 12,
+      "matched": 12,
+      "maxDxPt": 7.56,
+      "maxDwidthPt": 15.13,
+      "maxDyTopPt": 1.72
+    },
+    "pixelDiffPercent": 1.792
+  },
+  {
+    "figure": "system-architecture",
+    "variant": "native",
+    "ok": true,
+    "shapesKept": 20,
+    "pages": 1,
+    "widthPt": 446,
+    "heightPt": 204,
+    "producer": "macOS バージョン26.2（ビルド25C56） Quartz PDFContext",
+    "creationDate": "Sun Oct 18 04:41:14 2026 JST",
+    "fonts": [
+      "AAAAAC+Calibri-Bold TrueType WinAnsi yes yes yes 8 0",
+      "AAAAAE+Calibri TrueType WinAnsi yes yes yes 10 0"
+    ],
+    "rasterImages": {
+      "count": 0,
+      "byType": {},
+      "ppi": [],
+      "list": []
+    },
+    "text": {
+      "expected": 12,
+      "matched": 12,
+      "maxDxPt": 7.56,
+      "maxDwidthPt": 15.13,
+      "maxDyTopPt": 1.72
+    },
+    "pixelDiffPercent": 1.495
+  }
+]
