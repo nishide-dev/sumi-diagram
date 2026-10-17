@@ -7,6 +7,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { spawn } from "node:child_process";
 import {
   chmod,
   copyFile,
@@ -25,6 +26,7 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { Writable } from "node:stream";
 import pkg from "../../package.json";
 import { checkD2Version, findD2Binary } from "../backends/d2/binary";
 import { D2_VERSION } from "../backends/d2/version";
@@ -63,6 +65,33 @@ function sumi(args: string[], options: { cwd?: string; env?: Record<string, stri
     env: { ...baseEnv(), ...options.env },
     timeoutMs: TIMEOUT_MS,
   });
+}
+
+/**
+ * Runs `sumi` with stdout connected to a pipe whose reader is already gone
+ * (like `sumi … | head -c 0`): the read end is closed right after spawning,
+ * before the child can write, so every stdout write fails with EPIPE.
+ */
+async function sumiClosedStdout(
+  args: string[],
+  options: { env?: Record<string, string> } = {},
+): Promise<{ exitCode: number | null; stderr: string }> {
+  const child = spawn(process.execPath, [ENTRY, ...args], {
+    cwd: dir,
+    env: { ...baseEnv(), ...options.env },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  child.stdout.destroy();
+  let stderr = "";
+  child.stderr.setEncoding("utf8");
+  child.stderr.on("data", (chunk: string) => {
+    stderr += chunk;
+  });
+  const exitCode = await new Promise<number | null>((resolve, reject) => {
+    child.on("error", reject);
+    child.on("close", (code) => resolve(code));
+  });
+  return { exitCode, stderr };
 }
 
 /** Copies a fixture into the temp dir and returns its file name there. */
@@ -553,6 +582,50 @@ describe("sumi doctor", () => {
   });
 });
 
+describe("stdout closed by the reader (EPIPE)", () => {
+  // Each command discards the rest of its output without a message or stack
+  // trace and exits with its own status (design §6.4).
+  test("catalog --json exits 0 quietly", async () => {
+    expect(await sumiClosedStdout(["catalog", "--json"])).toEqual({ exitCode: 0, stderr: "" });
+  });
+
+  test("lint --json keeps its own exit code (0 clean, 1 with errors)", async () => {
+    const clean = await copyFixture("lint/clean.sumi.yaml", "epipe-clean.sumi.yaml");
+    expect(await sumiClosedStdout(["lint", clean, "--json"])).toEqual({ exitCode: 0, stderr: "" });
+    const broken = await copyFixture(
+      "invalid/ref-unknown-endpoint.sumi.yaml",
+      "epipe-bad.sumi.yaml",
+    );
+    expect(await sumiClosedStdout(["lint", broken, "--json"])).toEqual({
+      exitCode: 1,
+      stderr: "",
+    });
+  });
+
+  test("doctor keeps its own exit code", async () => {
+    const result = await sumiClosedStdout(["doctor"], {
+      env: { SUMI_D2_PATH: join(dir, "no-such-d2") },
+    });
+    expect(result).toEqual({ exitCode: 1, stderr: "" });
+  });
+
+  test("fmt --stdout exits 0 quietly and leaves the file alone", async () => {
+    const file = await copyFixture("lint/clean.sumi.yaml", "epipe-fmt.sumi.yaml");
+    const before = await readFile(join(dir, file), "utf8");
+    expect(await sumiClosedStdout(["fmt", "--stdout", file])).toEqual({ exitCode: 0, stderr: "" });
+    expect(await readFile(join(dir, file), "utf8")).toBe(before);
+  });
+
+  test("SUMI_DEBUG=1 notes the closed stream on stderr", async () => {
+    const result = await sumiClosedStdout(["catalog"], { env: { SUMI_DEBUG: "1" } });
+    expect(result).toEqual({
+      exitCode: 0,
+      stderr:
+        "sumi: debug: stdout was closed by its reader (EPIPE); the rest of the output was discarded.\n",
+    });
+  });
+});
+
 const d2 = findD2Binary({ projectRoot: ROOT });
 const d2Available = d2.ok && (await checkD2Version(d2.value.path)).ok;
 if (!d2Available && !process.env.CI) {
@@ -563,6 +636,23 @@ if (!d2Available && !process.env.CI) {
 
 describe.skipIf(!d2Available && !process.env.CI)("sumi render (D2)", () => {
   const env = () => ({ SUMI_D2_PATH: d2.ok ? d2.value.path : "" });
+
+  test("render --json with a closed stdout still writes the complete SVG", async () => {
+    const file = await copyFixture("lint/clean.sumi.yaml", "epipe-render.sumi.yaml");
+    const reference = await sumi(["render", file, "-o", "epipe-reference.svg"], { env: env() });
+    expect(reference.exitCode).toBe(0);
+    const result = await sumiClosedStdout(["render", file, "--json"], { env: env() });
+    expect(result).toEqual({ exitCode: 0, stderr: "" });
+    const svg = await readFile(join(dir, "epipe-render.svg"), "utf8");
+    expect(svg.trimEnd()).toEndWith("</svg>");
+    expect(svg).toBe(await readFile(join(dir, "epipe-reference.svg"), "utf8"));
+  });
+
+  test("render -o - with a closed stdout exits 0 without a stack trace", async () => {
+    const file = await copyFixture("lint/clean.sumi.yaml", "epipe-stdout.sumi.yaml");
+    const result = await sumiClosedStdout(["render", file, "-o", "-"], { env: env() });
+    expect(result).toEqual({ exitCode: 0, stderr: "" });
+  });
 
   test("doctor passes with the pinned D2", async () => {
     const result = await sumi(["doctor", "--json"], { env: env() });
@@ -952,5 +1042,37 @@ describe("run() in process", () => {
       expect(err.text()).toStartWith("sumi: internal error: disk on fire\n");
       expect(err.text().includes("    at ")).toBe(stack);
     }
+  });
+  /** A real `Writable` whose writes fail asynchronously with `code`, as a pipe or full disk does. */
+  const failingWritable = (code: string) => {
+    return new Writable({
+      write(_chunk, _encoding, callback) {
+        setTimeout(() => callback(Object.assign(new Error(`write ${code}`), { code })), 1);
+      },
+    });
+  };
+
+  test("EPIPE on stdout is quiet and keeps the command's own exit code", async () => {
+    const err = capture();
+    const code = await run(["lint", "invalid/ref-unknown-endpoint.sumi.yaml"], {
+      stdout: failingWritable("EPIPE"),
+      stderr: err.stream,
+      cwd: FIXTURES,
+      env: {},
+    });
+    expect(code).toBe(1);
+    expect(err.text()).toBe("");
+  });
+
+  test("other write errors exit 2 with a one-line message", async () => {
+    const err = capture();
+    const code = await run(["lint", "lint/clean.sumi.yaml"], {
+      stdout: failingWritable("ENOSPC"),
+      stderr: err.stream,
+      cwd: FIXTURES,
+      env: {},
+    });
+    expect(code).toBe(2);
+    expect(err.text()).toBe("sumi: error: cannot write to stdout: write ENOSPC\n");
   });
 });

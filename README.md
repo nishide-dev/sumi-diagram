@@ -114,6 +114,7 @@ sumi catalog --json --section themes --section profiles   # Theme と Profile �
 
 - 色は端末への出力にだけ付けます。`--no-color` または `NO_COLOR=1` で無効、`FORCE_COLOR=1` で常に有効になります。
 - 使い方の誤りはスタックトレースを出さず 1 行で報告します。内部エラーのスタックトレースは `SUMI_DEBUG=1` で表示します。
+- 出力の読み手が先に終了した場合（`sumi catalog | head -1` など。EPIPE）は、残りの出力を捨てて何も表示せず、コマンド自身の終了コードで終わります。`render` の SVG や `fmt` の書き換えは最後まで行います。
 - 出力は同じ入力に対して決定的です。JSON の形式は `version` で版を管理します。同じ版のうちはフィールドの追加だけを行うので、未知のフィールドは無視してください（[設計 §6.10](docs/design/phase1.md)）。
 
 ### 機械可読な出力（JSON）

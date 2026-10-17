@@ -16,9 +16,11 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { Writable } from "node:stream";
 import {
   type CliContext,
   destinationKey,
+  guardStream,
   isCaseInsensitiveDir,
   protectedFile,
   removeWritten,
@@ -228,5 +230,37 @@ describe("resolveDestination + writeDestination", () => {
     await expect(resolveDestination(context, `${root}/out.svg`)).rejects.toThrow(
       "broken symbolic link",
     );
+  });
+});
+
+describe("guardStream", () => {
+  test("after EPIPE, marks the stream closed and drops later writes", async () => {
+    const written: string[] = [];
+    const guarded = guardStream(
+      new Writable({
+        write(chunk, _encoding, callback) {
+          written.push(String(chunk));
+          setTimeout(() => callback(Object.assign(new Error("broken pipe"), { code: "EPIPE" })), 1);
+        },
+      }),
+    );
+    guarded.write("first");
+    await guarded.settled();
+    expect(guarded.closed).toBe(true);
+    expect(guarded.failure).toBeUndefined();
+    expect(guarded.write("second")).toBe(false);
+    expect(written).toEqual(["first"]);
+  });
+
+  test("passes plain streams through and lets errors without a code propagate", () => {
+    const written: string[] = [];
+    expect(guardStream({ write: (chunk) => written.push(chunk) }).write("a")).toBe(1);
+    expect(written).toEqual(["a"]);
+    const bug = guardStream({
+      write: () => {
+        throw new Error("bug");
+      },
+    });
+    expect(() => bug.write("a")).toThrow("bug");
   });
 });

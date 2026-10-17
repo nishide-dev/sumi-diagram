@@ -7,7 +7,7 @@ import { doctorCommand } from "./commands/doctor";
 import { fmtCommand } from "./commands/fmt";
 import { lintCommand, parseMaxWarnings } from "./commands/lint";
 import { renderCommand } from "./commands/render";
-import { type CliContext, colorEnabled, EXIT, type ExitCode, UsageError } from "./io";
+import { type CliContext, colorEnabled, EXIT, type ExitCode, guardStream, UsageError } from "./io";
 
 const collect = (value: string, previous: string[] = []) => [...previous, value];
 
@@ -37,7 +37,8 @@ export function createProgram(
 Output: results go to stdout; diagnostics of render/fmt, errors and logs go to stderr.
 Exit codes: 0 success, 1 problems found (errors, too many warnings, unformatted
 files, failed doctor checks), 2 usage or internal error. SUMI_DEBUG=1 prints
-stack traces for internal errors.`,
+stack traces for internal errors. If the reader of the output exits early
+(e.g. | head), the rest is discarded and the exit code is the command's own.`,
     );
 
   const colorFor = (command: Command, stream: "stdout" | "stderr") =>
@@ -128,18 +129,43 @@ stack traces for internal errors.`,
  * Runs the CLI with `argv` (the arguments after the executable and script)
  * and returns the exit code; never calls `process.exit`. Used by the `sumi`
  * entry point and by tests.
+ *
+ * Both streams are guarded ({@link guardStream}): if the reader of a pipe
+ * exits early (EPIPE), the rest of that output is discarded without a
+ * message and the command still finishes with its own exit code. Any other
+ * failure to write is reported as one line with exit code 2.
  */
 export async function run(
   argv: readonly string[],
   context: Partial<CliContext> = {},
 ): Promise<ExitCode> {
+  const streams = {
+    stdout: guardStream(context.stdout ?? process.stdout),
+    stderr: guardStream(context.stderr ?? process.stderr),
+  };
   const full: CliContext = {
-    stdout: context.stdout ?? process.stdout,
-    stderr: context.stderr ?? process.stderr,
+    ...streams,
     cwd: context.cwd ?? process.cwd(),
     env: context.env ?? process.env,
     ...(context.hooks !== undefined && { hooks: context.hooks }),
   };
+  let exitCode = await execute(argv, full);
+  // Write errors arrive asynchronously: wait for every write to complete.
+  await Promise.all([streams.stdout.settled(), streams.stderr.settled()]);
+  for (const [name, stream] of Object.entries(streams)) {
+    if (stream.failure !== undefined) {
+      streams.stderr.write(`sumi: error: cannot write to ${name}: ${stream.failure.message}\n`);
+      exitCode = EXIT.usage;
+    } else if (stream.closed && full.env.SUMI_DEBUG === "1") {
+      streams.stderr.write(
+        `sumi: debug: ${name} was closed by its reader (EPIPE); the rest of the output was discarded.\n`,
+      );
+    }
+  }
+  return exitCode;
+}
+
+async function execute(argv: readonly string[], full: CliContext): Promise<ExitCode> {
   let exitCode: ExitCode = EXIT.ok;
   const program = createProgram(full, (code) => {
     exitCode = code;
