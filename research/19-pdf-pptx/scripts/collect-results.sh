@@ -15,6 +15,10 @@ for id in system-architecture decision-flow ja-review; do
   cp "$OUT/pdf/$id.0.pdf" "$RES/$id.svg2pdf.pdf"
 done
 cp "$OUT/pptx/ja-review.native.pptx" "$OUT/pptx/ja-review.native-glued.pptx" "$OUT/pptx/ja-review.image.pptx" "$RES/"
+# Control cases (pptx.ts --controls): PNG-vs-SVG and the minimal connector files.
+for f in "$OUT"/pptx/ja-review.image-control.pptx "$OUT"/pptx/control.*.pptx; do
+  [ -f "$f" ] && cp "$f" "$RES/"
+done
 
 sheet() { # sheet <out.png> <cols> <label:file>...
   local out="$1" cols="$2"
@@ -41,6 +45,12 @@ if [ -f "$OUT/pptx/ja-review.native.powerpoint.png" ]; then
   P="$OUT/pptx/system-architecture"
   sheet "$RES/pptx-system-architecture-powerpoint.png" 1 \
     "(b1) native, freeform edges:$P.native.powerpoint.png" "(b2) native, glued connectors:$P.native-glued.powerpoint.png"
+fi
+if [ -f "$OUT/pptx/ja-review.image-control.powerpoint.png" ]; then
+  sheet "$RES/pptx-png-fallback-control.png" 3 \
+    "PNG fallback in image-control.pptx:$OUT/pptx/ja-review.control.png" \
+    "PowerPoint: image-control.pptx:$OUT/pptx/ja-review.image-control.powerpoint.png" \
+    "PowerPoint: image.pptx:$OUT/pptx/ja-review.image.powerpoint.png"
 fi
 if [ -f "$OUT/pptx/moved/sa-free-moved.pdf" ]; then
   pdftoppm -r 100 -png -singlefile "$OUT/pptx/moved/sa-free-moved.pdf" "$OUT/pptx/moved/free"

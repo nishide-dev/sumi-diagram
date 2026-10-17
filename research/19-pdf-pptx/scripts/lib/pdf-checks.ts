@@ -96,6 +96,19 @@ export function pdfInfo(pdf: string) {
     .slice(2)
     .filter((l) => l.trim() !== "")
     .map((l) => l.replace(/\s+/g, " ").trim());
+  // `pdfimages -list`: every raster image (and soft mask) with its size and resolution.
+  const images = run(["pdfimages", "-list", pdf])
+    .out.split("\n")
+    .slice(2)
+    .map((l) => l.trim().split(/\s+/))
+    .filter((c) => c.length >= 14)
+    .map((c) => ({
+      type: c[2],
+      width: Number(c[3]),
+      height: Number(c[4]),
+      xPpi: Number(c[12]),
+      yPpi: Number(c[13]),
+    }));
   return {
     pages,
     widthPt: Number(size?.[1]),
@@ -103,6 +116,17 @@ export function pdfInfo(pdf: string) {
     producer: /Producer:\s+(.*)/.exec(info)?.[1]?.trim() ?? null,
     creationDate: /CreationDate:\s+(.*)/.exec(info)?.[1]?.trim() ?? null,
     fonts,
+    rasterImages: {
+      count: images.length,
+      byType: Object.fromEntries(
+        [...new Set(images.map((i) => i.type))].map((t) => [
+          t,
+          images.filter((i) => i.type === t).length,
+        ]),
+      ),
+      ppi: [...new Set(images.map((i) => i.xPpi))].sort((a, b) => a - b),
+      list: images,
+    },
   };
 }
 

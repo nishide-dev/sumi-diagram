@@ -11,7 +11,16 @@
  *                                  arrowheads / dashes as line properties,
  *                                  edge labels as text boxes
  *
- *   bun research/19-pdf-pptx/scripts/pptx.ts
+ *   bun research/19-pdf-pptx/scripts/pptx.ts [--controls]
+ *
+ * --controls also writes control cases for the PowerPoint check (#19 review):
+ *   out/pptx/<id>.image-control.pptx      (a) with a deliberately different PNG
+ *                                         (solid color, "PNG FALLBACK"), to tell
+ *                                         whether PowerPoint shows the SVG or the PNG
+ *   out/pptx/control.cxn-custgeom.pptx    one p:cxnSp whose geometry is a:custGeom
+ *                                         (the case PowerPoint did not open)
+ *   out/pptx/control.cxn-line.pptx        the same connector with prstGeom "line"
+ *   out/pptx/control.sp-custgeom.pptx     the same custGeom in a p:sp
  *
  * Slide size = the figure's pt size; 1 D2 unit = 0.5pt = 6350 EMU.
  */
@@ -198,9 +207,9 @@ function nativeSlide(
       const src = rel && shapeBoxes.get(rel.from);
       const dst = rel && shapeBoxes.get(rel.to);
       if (edgeMode === "connector" && first && last) {
-        // (b2) A glued straight connector: PowerPoint has no freeform
-        // connectors (custGeom in p:cxnSp makes it drop the slide content), so
-        // the ELK route is lost; moving a node re-routes the connector.
+        // (b2) A glued straight connector. A p:cxnSp with a:custGeom (the exact
+        // route) did not open in PowerPoint for Mac 16.x in this PoC (see the
+        // control.cxn-* files), so the ELK route is lost; moving a node re-routes it.
         const glue = `${src ? `<a:stCxn id="${src.id}" idx="${site(src, first)}"/>` : ""}${dst ? `<a:endCxn id="${dst.id}" idx="${site(dst, last)}"/>` : ""}`;
         const box = {
           x: Math.min(first.x, last.x),
@@ -294,6 +303,7 @@ function imageSlide(cx: number, cy: number) {
   return `<p:pic><p:nvPicPr><p:cNvPr id="2" name="Sumi figure" descr="Sumi figure"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed="rId2"><a:extLst><a:ext uri="{96DAC541-7B7A-43D3-8B79-37D633B846F1}"><asvg:svgBlip xmlns:asvg="${NS.asvg}" r:embed="rId3"/></a:ext></a:extLst></a:blip><a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>`;
 }
 
+const CONTROLS = process.argv.includes("--controls");
 mkdirSync(OUT, { recursive: true });
 for (const input of INPUTS) {
   const id = figureId(input);
@@ -332,5 +342,66 @@ for (const input of INPUTS) {
     writeFileSync(join(OUT, `${id}.${suffix}.pptx`), pptx);
     sizes.push(`${suffix} ${pptx.length}B`);
   }
+  if (CONTROLS) {
+    // Same SVG, but a PNG that cannot be mistaken for it.
+    const controlPng = join(OUT, `${id}.control.png`);
+    const w = Math.round((inspection.canvas.width.pt * 144) / 72);
+    const h = Math.round((inspection.canvas.height.pt * 144) / 72);
+    const made = Bun.spawnSync([
+      "magick",
+      "-size",
+      `${w}x${h}`,
+      "xc:#ff00ff",
+      "-fill",
+      "white",
+      "-font",
+      (fontSet as NonNullable<typeof fontSet>).regular,
+      "-gravity",
+      "center",
+      "-pointsize",
+      String(Math.max(12, Math.round(w / 10))),
+      "-annotate",
+      "0",
+      "PNG FALLBACK",
+      controlPng,
+    ]);
+    if (made.exitCode !== 0) throw new Error(made.stderr.toString());
+    const control = zip(
+      presentation({
+        cx,
+        cy,
+        shapes: imageSlide(cx, cy),
+        media: [
+          { rId: "rId2", name: "image1.png", data: readFileSync(controlPng) },
+          { rId: "rId3", name: "image2.svg", data: svg },
+        ],
+      }),
+    );
+    writeFileSync(join(OUT, `${id}.image-control.pptx`), control);
+    sizes.push(`image-control ${control.length}B`);
+  }
   console.log(`${id}: ${sizes.join(", ")}`);
+}
+
+if (CONTROLS) {
+  // Minimal connector cases: one vertical 1pt line with an arrowhead, 2in long.
+  const ln =
+    '<a:ln w="12700"><a:solidFill><a:srgbClr val="000000"/></a:solidFill><a:tailEnd type="triangle"/></a:ln>';
+  const xf = '<a:xfrm><a:off x="914400" y="457200"/><a:ext cx="914400" cy="1828800"/></a:xfrm>';
+  const free =
+    '<a:custGeom><a:avLst/><a:gdLst/><a:ahLst/><a:cxnLst/><a:rect l="0" t="0" r="r" b="b"/><a:pathLst><a:path w="914400" h="1828800" fill="none"><a:moveTo><a:pt x="0" y="0"/></a:moveTo><a:lnTo><a:pt x="0" y="914400"/></a:lnTo><a:lnTo><a:pt x="914400" y="914400"/></a:lnTo><a:lnTo><a:pt x="914400" y="1828800"/></a:lnTo></a:path></a:pathLst></a:custGeom>';
+  const cxn = (geom: string) =>
+    `<p:cxnSp><p:nvCxnSpPr><p:cNvPr id="2" name="edge"/><p:cNvCxnSpPr/><p:nvPr/></p:nvCxnSpPr><p:spPr>${xf}${geom}${ln}</p:spPr></p:cxnSp>`;
+  const cases = {
+    "cxn-custgeom": cxn(free),
+    "cxn-line": cxn('<a:prstGeom prst="line"><a:avLst/></a:prstGeom>'),
+    "sp-custgeom": `<p:sp><p:nvSpPr><p:cNvPr id="2" name="edge"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>${xf}${free}${ln}</p:spPr></p:sp>`,
+  };
+  for (const [name, shapes] of Object.entries(cases)) {
+    writeFileSync(
+      join(OUT, `control.${name}.pptx`),
+      zip(presentation({ cx: 3657600, cy: 2743200, shapes, media: [] })),
+    );
+  }
+  console.log(`controls: ${Object.keys(cases).join(", ")}`);
 }

@@ -13,7 +13,7 @@
 | `scripts/build-tools.sh` | 上記と、比較用の公式 `svg2pdf-cli` 0.13 を `.tools/` にビルドする |
 | `scripts/pdf.ts` | 各ツールで PDF を 2 回ずつ（1 秒以上空けて）作り、決定性・`SOURCE_DATE_EPOCH`・ページサイズ・フォント・ラベル位置・画素差を `out/pdf/report.json` に記録する |
 | `scripts/pptx.ts` | PPTX の PoC を 3 種類書く（依存なし。OOXML と決定的な zip を自前で生成）: (a) `image` SVG 画像＋PNG フォールバック、(b1) `native` ネイティブ図形・エッジは厳密な経路のフリーフォーム、(b2) `native-glued` ネイティブ図形・エッジは図形に接着した直線コネクタ |
-| `scripts/validate-pptx.ts` | macOS の Microsoft PowerPoint で PPTX を開き、残った図形数を数え、PDF に書き出して `pdf.ts` と同じ検査をする（`*.applescript` を使う） |
+| `scripts/validate-pptx.ts` | macOS の Microsoft PowerPoint で PPTX を開き、残った図形数を数え、PDF に書き出して `pdf.ts` と同じ検査をする（`*.applescript` を使う）。レポートの先頭に PowerPoint の版を記録する（調査時は 16.114） |
 | `scripts/embed-check.ts` | WASM を `bun build --compile` の単一バイナリに埋め込んで動くかの確認 |
 | `scripts/collect-results.sh` | `out/` から `results/` へ小さな成果物と比較画像をまとめる |
 | `results/` | 各レポート（JSON）、svg2pdf PoC の PDF、PPTX の PoC、比較画像（コミット対象） |
@@ -35,7 +35,7 @@ bun research/19-pdf-pptx/scripts/render-inputs.ts
 bun research/19-pdf-pptx/scripts/pdf.ts
 
 # 4. PPTX の PoC と、PowerPoint での検証（macOS + PowerPoint のみ）
-bun research/19-pdf-pptx/scripts/pptx.ts
+bun research/19-pdf-pptx/scripts/pptx.ts --controls   # --controls: PNG を差し替えた対照と、コネクタの最小再現 3 種
 bun research/19-pdf-pptx/scripts/validate-pptx.ts
 osascript research/19-pdf-pptx/scripts/powerpoint-move-shape.applescript \
   ~/Library/Containers/com.microsoft.Powerpoint/Data/Documents/sumi19/system-architecture.native-glued.pptx \
@@ -64,3 +64,4 @@ macOS 26.2（arm64）。導入したものと場所:
 - rustup の一部の環境では `rust-lld` / `rust-objcopy` が `libLLVM.dylib` を見つけられない。`build-tools.sh` は `DYLD_FALLBACK_LIBRARY_PATH` で回避する（ネイティブの strip は Apple の `strip` を使う）。
 - PowerPoint はサンドボックス化されているため、ファイルは `~/Library/Containers/com.microsoft.Powerpoint/Data/` 以下に置く。PowerPoint が修復ダイアログを出すファイルでは AppleScript がタイムアウトする（`validate-pptx.ts` は PowerPoint を終了して次へ進む）。
 - Keynote は PPTX の読み込み時にダイアログを出して自動化が止まったため、検証できていない。
+- 調査用マシンに残した変更と削除方法はメモの付録を参照（Homebrew の librsvg・inkscape、rustup の wasm32 target、PowerPoint / Keynote のサンドボックス内の `sumi19` フォルダ）。

@@ -5,6 +5,10 @@
  * the SVG, pixel difference vs Chrome's rendering of the SVG).
  *
  *   bun research/19-pdf-pptx/scripts/validate-pptx.ts
+ *
+ * The report records the PowerPoint version. A file that fails is one whose
+ * AppleScript call errored or timed out (PowerPoint was then quit); that alone
+ * does not tell an invalid-for-PowerPoint file from a dialog or another fault.
  */
 
 import { copyFileSync, existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
@@ -18,7 +22,18 @@ const BOX = join(homedir(), "Library/Containers/com.microsoft.Powerpoint/Data/Do
 const SCRIPT = join(import.meta.dir, "powerpoint-to-pdf.applescript");
 mkdirSync(BOX, { recursive: true });
 
-const report: Record<string, unknown>[] = [];
+const version = Bun.spawnSync(
+  ["osascript", "-e", 'version of application "Microsoft PowerPoint"'],
+  {
+    stdout: "pipe",
+  },
+)
+  .stdout.toString()
+  .trim();
+const report: Record<string, unknown>[] = [
+  { powerpointVersion: version, platform: process.platform },
+];
+console.log(`PowerPoint ${version}`);
 for (const file of readdirSync(PPTX)
   .filter((f) => f.endsWith(".pptx"))
   .sort()) {
@@ -41,6 +56,19 @@ for (const file of readdirSync(PPTX)
   copyFileSync(pdfInBox, pdf);
   const png = pdf.replace(/\.pdf$/, ".png");
   rasterize(pdf, png);
+  if (id === "control") {
+    // Minimal connector cases: no figure to compare with, just what PowerPoint kept.
+    const result = {
+      figure: id,
+      variant,
+      ok: true,
+      shapesKept: Number(p.stdout.toString().trim()),
+      ...pdfInfo(pdf),
+    };
+    report.push(result);
+    console.log(`${file}: shapes=${result.shapesKept}`);
+    continue;
+  }
   const ref = join(HERE, "out", "pdf", `${id}.reference.png`);
   const result = {
     figure: id,
