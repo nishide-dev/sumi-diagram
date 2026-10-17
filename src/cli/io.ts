@@ -48,6 +48,109 @@ export class UsageError extends Error {
   override name = "UsageError";
 }
 
+/** A Node / Bun `Writable` as far as {@link guardStream} uses it. */
+interface WritableLike extends CliStream {
+  write(chunk: string, callback?: (error?: Error | null) => void): unknown;
+  on?(event: "error", listener: (error: Error) => void): unknown;
+}
+
+/** An output stream that survives its reader going away; see {@link guardStream}. */
+export interface GuardedStream extends CliStream {
+  /** The reader has closed the pipe (EPIPE); later output is discarded. */
+  readonly closed: boolean;
+  /** The first write failure other than EPIPE (output was lost). */
+  readonly failure: Error | undefined;
+  /** Resolves once every write so far has completed or failed. */
+  settled(): Promise<void>;
+}
+
+/**
+ * The one `error` listener each real stream gets, for good: it forwards to
+ * the latest guard of that stream. Never removing it means a late `error`
+ * event (for example from an asynchronous `_destroy()` after `run()` has
+ * returned) cannot crash the process, and repeated `run()` calls on the same
+ * stream add no listeners.
+ */
+const errorSinks = new WeakMap<object, { current: (error: Error) => void }>();
+
+const errorCode = (error: unknown): unknown =>
+  typeof error === "object" && error !== null ? (error as { code?: unknown }).code : undefined;
+
+/**
+ * Wraps an output stream so a closed reader (`sumi … | head -1`) is not an
+ * error: on EPIPE the stream is marked {@link GuardedStream.closed} and later
+ * writes are dropped. The command keeps running and exits with its own status
+ * (design §6.4). Any other failure of a real stream (an error with a system
+ * `code`, such as ENOSPC) is kept in {@link GuardedStream.failure} for the
+ * caller to report. A synchronous throw without a `code` is not an I/O error
+ * and propagates.
+ *
+ * Bun and Node report a failed write to a pipe asynchronously: to the write's
+ * callback, or as an `error` event that would otherwise crash the process.
+ * Streams with `on` (real `Writable`s) are therefore written with a callback
+ * and share one persistent `error` listener per stream ({@link errorSinks});
+ * plain test streams are called as they are.
+ */
+export function guardStream(stream: WritableLike): GuardedStream {
+  const writable = typeof stream.on === "function";
+  let closed = false;
+  let failure: Error | undefined;
+  let pending = 0;
+  let waiters: (() => void)[] = [];
+
+  const fail = (error: unknown) => {
+    if (closed || failure !== undefined) return;
+    if (errorCode(error) === "EPIPE") closed = true;
+    else failure = error instanceof Error ? error : new Error(String(error));
+  };
+  const done = () => {
+    pending--;
+    if (pending > 0) return;
+    for (const resolve of waiters) resolve();
+    waiters = [];
+  };
+  const settled = () =>
+    pending === 0 ? Promise.resolve() : new Promise<void>((resolve) => waiters.push(resolve));
+  if (writable) {
+    const sink = errorSinks.get(stream);
+    if (sink !== undefined) sink.current = fail;
+    else {
+      const created = { current: fail };
+      errorSinks.set(stream, created);
+      stream.on?.("error", (error) => created.current(error));
+    }
+  }
+
+  return {
+    get isTTY() {
+      return stream.isTTY === true;
+    },
+    get closed() {
+      return closed;
+    },
+    get failure() {
+      return failure;
+    },
+    write(chunk: string) {
+      if (closed || failure !== undefined) return false;
+      try {
+        if (!writable) return stream.write(chunk);
+        pending++;
+        return stream.write(chunk, (error) => {
+          if (error) fail(error);
+          done();
+        });
+      } catch (error) {
+        if (writable) done();
+        if (typeof errorCode(error) !== "string") throw error;
+        fail(error);
+        return false;
+      }
+    },
+    settled,
+  };
+}
+
 /**
  * Whether to color output written to `stream`: not with `--no-color` or a
  * non-empty `NO_COLOR`; always with a non-empty `FORCE_COLOR` other than `0`;
