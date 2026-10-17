@@ -11,7 +11,10 @@
       "!assets/fonts",
       "!examples/**/*.svg",
       "!docs/gallery",
-      "!tests/fixtures/lint-output"
+      "!tests/fixtures/lint-output",
+      "!research/*/.tools",
+      "!research/*/out",
+      "!research/*/results"
     ]
   },
   "formatter": {
