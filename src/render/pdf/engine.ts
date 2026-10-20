@@ -18,7 +18,7 @@ import wasmPath from "../../../assets/wasm/sumi-svg2pdf.wasm" with { type: "file
 
 /** sha256 of `assets/wasm/sumi-svg2pdf.wasm`; written by `bun run pdf:wasm`. */
 export const SVG2PDF_WASM_SHA256 =
-  "117a83a64de52da41e895ba900edb31f7db8a16f4f743f2c119765c720ae9fb4";
+  "7a8ea73e55d113facda46ed261f6dd144d1fee341ab02d96bccd3bc128e7e71d";
 
 /** The svg2pdf release the engine is built from (crates.io, plus the determinism patch). */
 export const SVG2PDF_VERSION = "0.13.0";

@@ -8,8 +8,7 @@
  * 2. `cargo build --release --locked --target wasm32-unknown-unknown` with the
  *    toolchain pinned in `rust-toolchain.toml`. Local paths are remapped
  *    (`--remap-path-prefix`) so panic locations embedded in the module do not
- *    depend on the checkout or `CARGO_HOME`: the same toolchain builds the
- *    same bytes on any machine.
+ *    depend on the checkout or `CARGO_HOME`.
  * 3. Copies the module to `assets/wasm/sumi-svg2pdf.wasm` and writes its
  *    sha256 into `src/render/pdf/engine.ts` (`SVG2PDF_WASM_SHA256`).
  * 4. Regenerates the third-party list (`native/svg2pdf-wasm/THIRD_PARTY.md`)
@@ -17,7 +16,17 @@
  *    (`native/svg2pdf-wasm/licenses/<crate>-<version>/`, shipped in the
  *    release tarball under `licenses/svg2pdf-wasm/`) from `cargo metadata`.
  *
- * CI runs this on Linux and fails if anything committed changes (`git diff`).
+ * The reference build is linux-x64: CI runs this there and fails if anything
+ * committed changes (`git diff`). Each host builds the same bytes every time,
+ * but hosts differ in a few code bytes (darwin-arm64 vs linux-x64; not paths,
+ * presumably LLVM folding float constants with the host's math library), so a
+ * module built elsewhere is for local testing. To commit a change, take the
+ * module the CI job uploads when it differs and install it with
+ *
+ *   bun run pdf:wasm --adopt <sumi-svg2pdf.wasm>
+ *
+ * which copies it and updates `SVG2PDF_WASM_SHA256` without building.
+ *
  * Needs rustup; nothing is installed system-wide except the pinned toolchain
  * and its wasm32 target (rustup's own directories).
  */
@@ -213,7 +222,30 @@ async function updateEngineSha(sha: string): Promise<void> {
   }
 }
 
+/** The host the committed module is built on (CI's `pdf-wasm` job). */
+const REFERENCE_HOST = "linux-x64";
+
+/** `--adopt <file>`: installs a module built elsewhere (the CI artifact) without building. */
+async function adopt(file: string): Promise<void> {
+  const bytes = await readFile(file);
+  if (bytes.subarray(0, 4).toString("latin1") !== "\0asm") {
+    throw new Error(`${file} is not a WebAssembly module`);
+  }
+  const sha = sha256Hex(bytes);
+  await copyFile(file, WASM_OUT);
+  await chmod(WASM_OUT, 0o644);
+  await updateEngineSha(sha);
+  log(`Adopted ${file} as ${relative(ROOT, WASM_OUT)}: ${bytes.length} bytes, sha256 ${sha}`);
+  console.log(sha);
+}
+
 async function main(): Promise<void> {
+  const host = `${process.platform}-${process.arch}`;
+  if (host !== REFERENCE_HOST) {
+    log(
+      `Note: the committed module is built on ${REFERENCE_HOST}; on ${host} a few bytes differ. Use this build for local testing; commit the one from CI (--adopt).`,
+    );
+  }
   const channel = await toolchain();
   const rustup = (args: string[]) => run(["rustup", ...args]);
   await rustup(["toolchain", "install", channel, "--profile", "minimal", "--target", TARGET]);
@@ -253,8 +285,14 @@ async function main(): Promise<void> {
   console.log(sha);
 }
 
+const args = process.argv.slice(2);
 try {
-  await main();
+  if (args[0] === "--adopt" && args[1] !== undefined && args.length === 2) await adopt(args[1]);
+  else if (args.length === 0) await main();
+  else {
+    console.error("Usage: bun run pdf:wasm [--adopt <sumi-svg2pdf.wasm>]");
+    process.exit(2);
+  }
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
   process.exit(1);

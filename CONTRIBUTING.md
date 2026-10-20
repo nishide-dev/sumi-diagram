@@ -76,7 +76,15 @@ PDF 出力（#59）は、`native/svg2pdf-wasm/` の Rust クレート（svg2pdf 
 bun run pdf:wasm   # rustup が必要。rust-toolchain.toml の版と wasm32 target は自動で導入される
 ```
 
-このコマンドは、crates.io の svg2pdf 0.13.0 を sha256 を検査してから `native/svg2pdf-wasm/vendor/`（gitignore）に展開してパッチを当て、`cargo build --release --locked` し、`.wasm`・`src/render/pdf/engine.ts` の `SVG2PDF_WASM_SHA256`・`native/svg2pdf-wasm/THIRD_PARTY.md`・`native/svg2pdf-wasm/licenses/` を書き換えます。差分をすべてコミットしてください（CI の `PDF engine reproducible build` が Linux で同じビルドをして一致を確かめます）。ローカルのパス（チェックアウトと `CARGO_HOME`）は `--remap-path-prefix` で消すので、同じツールチェーンならマシンによらず同じバイトになります。PDF の出力が変わるので、続けて `bun run gallery` で `examples/*/*.pdf` を更新します。
+このコマンドは、crates.io の svg2pdf 0.13.0 を sha256 を検査してから `native/svg2pdf-wasm/vendor/`（gitignore）に展開してパッチを当て、`cargo build --release --locked` し、`.wasm`・`src/render/pdf/engine.ts` の `SVG2PDF_WASM_SHA256`・`native/svg2pdf-wasm/THIRD_PARTY.md`・`native/svg2pdf-wasm/licenses/` を書き換えます。ローカルのパス（チェックアウトと `CARGO_HOME`）は `--remap-path-prefix` で消します。
+
+**コミットする `.wasm` は linux-x64 でのビルド**です（CI の `PDF engine reproducible build` が同じビルドをして一致を確かめます）。同じホストなら何度ビルドしても同じバイトになりますが、ホストが違うとコードの数バイトが変わります（darwin-arm64 と linux-x64 で確認。パスではなく、LLVM がホストの数学ライブラリで浮動小数の定数を畳み込むためと推測。変換結果の PDF は同じでした）。Linux 以外で変更する場合は次の手順にします。
+
+1. `bun run pdf:wasm` で手元のビルドを作り、テストする（スクリプトは注意を表示します）。
+2. ライセンス一覧などの差分と一緒に push する。CI の `PDF engine reproducible build` は `.wasm` の違いで失敗し、Linux で作った `.wasm` を artifact `sumi-svg2pdf-wasm-linux` に残す。
+3. `gh run download <run-id> -n sumi-svg2pdf-wasm-linux -D /tmp/wasm` で取得し、`bun run pdf:wasm --adopt /tmp/wasm/sumi-svg2pdf.wasm` で置き換える（ビルドせずにコピーし、`SVG2PDF_WASM_SHA256` を更新する）。
+
+PDF の出力が変わる変更なら、続けて `bun run gallery` で `examples/*/*.pdf` を更新します。
 
 - macOS の rustup では `rust-lld` が `libLLVM.dylib` を見つけられないことがあります。スクリプトはツールチェーンの `lib/` を `DYLD_FALLBACK_LIBRARY_PATH` に入れて回避します（Linux では影響しません）。
 - 依存（Cargo.lock）を変えた場合は、`THIRD_PARTY.md` のライセンスがすべて配布できるものか（MIT・Apache-2.0・BSD・Zlib などの許容的なライセンス）を確認します。リリースの tarball は `licenses/svg2pdf-wasm/` にこれらをそのまま入れます。
