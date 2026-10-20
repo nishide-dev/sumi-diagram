@@ -766,25 +766,25 @@ The committed SVGs of <code>examples/</code>, rendered from their sources as wri
 
 ### Generic decision flow
 
-[<code>examples/decision\-flow/decision\-flow\.sumi\.yaml</code>](../../examples/decision-flow/decision-flow.sumi.yaml) · theme <code>minimal</code> · profile <code>paper\-single</code> · 59\.62mm × 149\.4mm \(max width 88mm, max height 220mm\)
+[<code>examples/decision\-flow/decision\-flow\.sumi\.yaml</code>](../../examples/decision-flow/decision-flow.sumi.yaml) · [PDF](../../examples/decision-flow/decision-flow.pdf) · theme <code>minimal</code> · profile <code>paper\-single</code> · 59\.62mm × 149\.4mm \(max width 88mm, max height 220mm\)
 
 <img src="../../examples/decision-flow/decision-flow.svg" alt="Generic decision flow">
 
 ### Nested groups
 
-[<code>examples/grouped/grouped\.sumi\.yaml</code>](../../examples/grouped/grouped.sumi.yaml) · theme <code>minimal</code> · profile <code>paper\-double</code> · 167\.57mm × 65\.97mm \(max width 180mm, max height 220mm\)
+[<code>examples/grouped/grouped\.sumi\.yaml</code>](../../examples/grouped/grouped.sumi.yaml) · [PDF](../../examples/grouped/grouped.pdf) · theme <code>minimal</code> · profile <code>paper\-double</code> · 167\.57mm × 65\.97mm \(max width 180mm, max height 220mm\)
 
 <img src="../../examples/grouped/grouped.svg" alt="Nested groups">
 
 ### Generic processing pipeline
 
-[<code>examples/pipeline/pipeline\.sumi\.yaml</code>](../../examples/pipeline/pipeline.sumi.yaml) · theme <code>academic</code> · profile <code>paper\-single</code> · 61\.74mm × 150\.28mm \(max width 88mm, max height 220mm\)
+[<code>examples/pipeline/pipeline\.sumi\.yaml</code>](../../examples/pipeline/pipeline.sumi.yaml) · [PDF](../../examples/pipeline/pipeline.pdf) · theme <code>academic</code> · profile <code>paper\-single</code> · 61\.74mm × 150\.28mm \(max width 88mm, max height 220mm\)
 
 <img src="../../examples/pipeline/pipeline.svg" alt="Generic processing pipeline">
 
 ### Generic three\-tier system
 
-[<code>examples/system\-architecture/system\-architecture\.sumi\.yaml</code>](../../examples/system-architecture/system-architecture.sumi.yaml) · theme <code>academic</code> · profile <code>paper\-double</code> · 157\.34mm × 71\.97mm \(max width 180mm, max height 220mm\)
+[<code>examples/system\-architecture/system\-architecture\.sumi\.yaml</code>](../../examples/system-architecture/system-architecture.sumi.yaml) · [PDF](../../examples/system-architecture/system-architecture.pdf) · theme <code>academic</code> · profile <code>paper\-double</code> · 157\.34mm × 71\.97mm \(max width 180mm, max height 220mm\)
 
 <img src="../../examples/system-architecture/system-architecture.svg" alt="Generic three-tier system">
 

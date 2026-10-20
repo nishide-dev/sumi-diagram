@@ -14,6 +14,10 @@
  * 4. `sumi render` of a figure with Japanese labels exits 0 and writes a
  *    well-formed SVG that contains the labels
  * 5. the same through a symlink to `bin/sumi` in another directory
+ * 6. `sumi render -o x.pdf` (#59): one page of the SVG's pt size, the labels
+ *    as text in embedded font subsets, no raster images, and the same bytes
+ *    as the PDF engine produces from source for that SVG (so every target
+ *    writes the same PDF); its sha256 is printed for comparison across targets
  *
  * Exits 1 on the first failure.
  */
@@ -25,6 +29,8 @@ import { basename, dirname, join, resolve } from "node:path";
 import pkg from "../package.json";
 import { RELEASE_LAYOUT } from "../src/core/install-layout";
 import { runCommand } from "../src/core/subprocess";
+import { svgToPdf } from "../src/render/pdf";
+import { inspectPdf, textLines } from "../src/render/pdf/testing";
 import { descendants, parseXml, textContent } from "../src/render/xml";
 import { parseSha256Sums, sha256Hex } from "./release/lib";
 
@@ -118,6 +124,9 @@ async function smoke(tarballArg: string, keep: boolean): Promise<void> {
       "licenses/d2/LICENSE.txt",
       "licenses/biz-ud-gothic/OFL.txt",
       "licenses/bun/LICENSE.md",
+      "licenses/svg2pdf-wasm/THIRD_PARTY.md",
+      "licenses/svg2pdf-wasm/svg2pdf-0.13.0/NOTICE",
+      "licenses/svg2pdf-wasm/svg2pdf-0.13.0/LICENSE-MIT",
     ]) {
       check(inner.has(required), `the tarball lacks ${required}`);
     }
@@ -205,6 +214,45 @@ async function smoke(tarballArg: string, keep: boolean): Promise<void> {
       const missing = EXPECTED_LABELS.filter((l) => !texts.some((t) => t.includes(l)));
       check(missing.length === 0, `${label}: SVG lacks the labels ${missing.join(", ")}`);
       step(`${label}: sumi render wrote a valid SVG (${svg.length} bytes) with Japanese labels`);
+    }
+
+    // 6. The same figure as PDF.
+    const svg = await readFile(join(work, "出力-direct.svg"), "utf8");
+    const fromSource = svgToPdf(svg);
+    check(fromSource.ok, "the PDF engine failed from source on the binary's SVG");
+    const widthPt = Number(/<svg[^>]* width="([\d.]+)pt"/.exec(svg)?.[1]);
+    const heightPt = Number(/<svg[^>]* height="([\d.]+)pt"/.exec(svg)?.[1]);
+    let first: Uint8Array | undefined;
+    for (const [path, label] of [
+      [sumi, "direct"],
+      [join(linkDir, "sumi"), "symlink"],
+    ] as const) {
+      const pdfPath = join(work, `出力-${label}.pdf`);
+      await sumiAt(path, ["render", "図.sumi.yaml", "-o", pdfPath]);
+      const pdf = new Uint8Array(await readFile(pdfPath));
+      const inspected = inspectPdf(pdf);
+      const box = inspected.pages[0]?.mediaBox ?? [];
+      check(
+        inspected.pages.length === 1 && box.join(" ") === `0 0 ${widthPt} ${heightPt}`,
+        `${label}: PDF page is [${box.join(" ")}], the SVG is ${widthPt} × ${heightPt}pt`,
+      );
+      check(inspected.images === 0, `${label}: the PDF has ${inspected.images} raster images`);
+      check(
+        inspected.fonts.length > 0 && inspected.fonts.every((f) => f.embedded && f.subset),
+        `${label}: fonts are not embedded subsets: ${JSON.stringify(inspected.fonts)}`,
+      );
+      const text = textLines(inspected.glyphs).map((l) => l.text);
+      const missing = EXPECTED_LABELS.filter((l) => !text.includes(l));
+      check(missing.length === 0, `${label}: PDF text lacks ${missing.join(", ")}`);
+      check(
+        sha256Hex(pdf) === sha256Hex(fromSource.value),
+        `${label}: the PDF differs from the engine's output from source`,
+      );
+      first ??= pdf;
+      check(sha256Hex(pdf) === sha256Hex(first), `${label}: PDF differs from the direct run`);
+      step(
+        `${label}: sumi render wrote a ${widthPt} × ${heightPt}pt vector PDF with the labels as text (sha256 ${sha256Hex(pdf)})`,
+      );
     }
 
     console.log(`\nSmoke test passed: ${basename(tarball)}`);

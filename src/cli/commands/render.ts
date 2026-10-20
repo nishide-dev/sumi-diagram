@@ -1,6 +1,11 @@
 /**
  * `sumi render <file>`: every stage, D2 included (`renderFigure()`), then
- * writes the finalized SVG.
+ * writes the finalized SVG, or converts it to PDF (`svgToPdf()`, #59).
+ *
+ * - The format is `--format svg|pdf`, else the extension of `-o` (`.pdf` →
+ *   PDF), else SVG. An explicit format that contradicts a `.svg` / `.pdf`
+ *   output name is a usage error. The default output is the input with
+ *   `.svg` or `.pdf`. A PDF cannot go to stdout (`-o -`).
  *
  * - `--theme` / `--profile` replace `figure.theme` / `figure.profile` without
  *   editing the file (applied after schema validation; see
@@ -15,14 +20,15 @@
  *   first output is removed again when this run created it, and the command
  *   exits 2.
  * - Text mode: diagnostics → stderr; `Wrote …` → stdout (stderr with `-o -`).
- *   `--json`: `{ version, file, diagnostics, summary, output, d2, size }` →
- *   stdout; `size` (#37) is the output size against the profile's limits, or
- *   `null` if nothing was rendered.
+ *   `--json`: `{ version, file, diagnostics, summary, output, d2, size, format }`
+ *   → stdout; `size` (#37) is the output size against the profile's limits,
+ *   or `null` if nothing was rendered; `format` (#59) is `svg` or `pdf`.
  * - The rendered figure is checked by the geometry rules (`lintGeometry()`,
- *   #13; default configuration) unless `--no-geometry`. Their diagnostics are
- *   reported with the others. The SVG is written even when they contain
- *   errors (e.g. the figure is wider than the profile allows), so it can be
- *   inspected; the exit code is still 1.
+ *   #13; default configuration) unless `--no-geometry`, on the SVG stage for
+ *   both formats. Their diagnostics are reported with the others. The output
+ *   is written even when they contain errors (e.g. the figure is wider than
+ *   the profile allows), so it can be inspected; the exit code is still 1.
+ *   A failed PDF conversion (`pdf/*` errors) writes no output.
  * - exit: 0 rendered without errors (warnings allowed); 1 errors (including
  *   geometry errors, with the SVG written); 2 usage errors.
  */
@@ -44,6 +50,7 @@ import {
   summarize,
 } from "../../lint";
 import { type OutputSize, outputSize, renderFigure } from "../../render";
+import { svgToPdf } from "../../render/pdf";
 import {
   type CliContext,
   type Destination,
@@ -59,8 +66,14 @@ import {
   writeDestination,
 } from "../io";
 
+/** Output formats of `sumi render`. */
+export const OUTPUT_FORMATS = ["svg", "pdf"] as const;
+export type OutputFormat = (typeof OUTPUT_FORMATS)[number];
+
 export interface RenderCommandOptions {
   out?: string;
+  /** `--format`: wins over the output's extension; a contradiction is a usage error. */
+  format?: string;
   emitD2?: string;
   theme?: string;
   profile?: string;
@@ -72,18 +85,41 @@ export interface RenderCommandOptions {
 
 /** The `--json` output: the lint envelope plus the files written. */
 export interface RenderJson extends LintJson {
-  /** The SVG written, or `null` if rendering failed or the SVG went to stdout. */
+  /** The SVG or PDF written, or `null` if rendering failed or the SVG went to stdout. */
   output: string | null;
   /** The D2 source written with `--emit-d2`, or `null`. */
   d2: string | null;
   /** Output size and the profile's limits (#37), or `null` if rendering failed. */
   size: OutputSize | null;
+  /** The output format (#59): added last, so earlier keys keep their order. */
+  format: OutputFormat;
 }
 
-/** Default output: the input with `.sumi.yaml` / `.yaml` / `.yml` replaced by `.svg`. */
-export function defaultOutputPath(input: string): string {
+/** Default output: the input with `.sumi.yaml` / `.yaml` / `.yml` replaced by `.svg` (or `.pdf`). */
+export function defaultOutputPath(input: string, format: OutputFormat = "svg"): string {
   const stripped = input.replace(/(\.sumi)?\.ya?ml$/i, "");
-  return `${stripped}.svg`;
+  return `${stripped}.${format}`;
+}
+
+/**
+ * The output format: `--format`, else the output's `.svg` / `.pdf` extension
+ * (any case), else SVG. Throws a {@link UsageError} for an unknown format or
+ * one that contradicts the extension.
+ */
+export function outputFormat(out: string | undefined, format: string | undefined): OutputFormat {
+  if (format !== undefined && !(OUTPUT_FORMATS as readonly string[]).includes(format)) {
+    throw new UsageError(
+      `Unknown format "${format}". Available formats: ${OUTPUT_FORMATS.join(", ")}.`,
+    );
+  }
+  const extension = out === undefined || out === "-" ? undefined : /\.(svg|pdf)$/i.exec(out)?.[1];
+  const fromName = extension?.toLowerCase() as OutputFormat | undefined;
+  if (format !== undefined && fromName !== undefined && format !== fromName) {
+    throw new UsageError(
+      `--format ${format} contradicts the output file ${out}; use a .${format} name or drop --format.`,
+    );
+  }
+  return (format as OutputFormat | undefined) ?? fromName ?? "svg";
 }
 
 export async function renderCommand(
@@ -91,12 +127,16 @@ export async function renderCommand(
   options: RenderCommandOptions,
   context: CliContext,
 ): Promise<ExitCode> {
-  const out = options.out ?? defaultOutputPath(file);
+  const format = outputFormat(options.out, options.format);
+  const out = options.out ?? defaultOutputPath(file, format);
   const toStdout = out === "-";
   if (toStdout && options.json) {
     throw new UsageError("--json cannot be combined with -o - (both write to stdout).");
   }
-  const [input, svgDestination, d2Destination] = await checkDestinations(
+  if (toStdout && format === "pdf") {
+    throw new UsageError("A PDF cannot be written to stdout (-o -); give an output file.");
+  }
+  const [input, outDestination, d2Destination] = await checkDestinations(
     file,
     [
       ["--out", toStdout ? undefined : out],
@@ -109,7 +149,7 @@ export async function renderCommand(
   // later write is refused, outputs this run newly created are removed again;
   // files that existed before keep their new content.
   const written: WrittenFile[] = [];
-  const write = async (destination: Destination, content: string) => {
+  const write = async (destination: Destination, content: string | Uint8Array) => {
     try {
       written.push(
         await writeDestination(destination, content, {
@@ -165,17 +205,23 @@ export async function renderCommand(
     }
   }
 
-  let svgWritten: string | null = null;
+  const diagnostics = [...result.diagnostics];
+  let outputWritten: string | null = null;
   if (result.ok) {
-    if (toStdout) context.stdout.write(result.value.svg);
-    else {
-      if (svgDestination === undefined) throw new Error("internal error: no SVG destination");
-      await write(svgDestination, result.value.svg);
-      svgWritten = svgDestination.display;
+    let content: string | Uint8Array | undefined = result.value.svg;
+    if (format === "pdf") {
+      const pdf = svgToPdf(result.value.svg);
+      diagnostics.push(...pdf.diagnostics);
+      content = pdf.ok ? pdf.value : undefined;
+    }
+    if (typeof content === "string" && toStdout) context.stdout.write(content);
+    else if (content !== undefined) {
+      if (outDestination === undefined) throw new Error("internal error: no output destination");
+      await write(outDestination, content);
+      outputWritten = outDestination.display;
     }
   }
 
-  const diagnostics = [...result.diagnostics];
   if (result.ok && options.geometry !== false) {
     diagnostics.push(...lintGeometry(result.value, { source: text, file }));
   }
@@ -187,9 +233,10 @@ export async function renderCommand(
       file,
       diagnostics,
       summary,
-      output: svgWritten,
+      output: outputWritten,
       d2: d2Written,
       size: result.ok ? outputSize(result.value.inspection) : null,
+      format,
     };
     context.stdout.write(`${JSON.stringify(json, null, 2)}\n`);
   } else {
@@ -200,13 +247,13 @@ export async function renderCommand(
         formatLintText({ file, diagnostics, summary }, { color: options.color }),
       );
     }
-    if (result.ok && svgWritten !== null) {
+    if (result.ok && outputWritten !== null) {
       const { canvas, profile } = result.value.inspection;
       const limit =
         profile.maxWidthPt === undefined ? "" : `, max width ${formatMm(profile.maxWidthPt)}`;
       const tooWide = profile.maxWidthPt !== undefined && canvas.width.pt > profile.maxWidthPt;
       log.write(
-        `Wrote ${svgWritten}: ${formatMm(canvas.width.pt)} × ${formatMm(canvas.height.pt)} ` +
+        `Wrote ${outputWritten}: ${formatMm(canvas.width.pt)} × ${formatMm(canvas.height.pt)} ` +
           `(${profile.id}${limit}${tooWide ? ", TOO WIDE" : ""}; theme ${result.value.compiled.ir.meta.themeId}).\n`,
       );
     }

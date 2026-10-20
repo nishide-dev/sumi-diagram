@@ -16,6 +16,7 @@
     "schema:gen": "bun scripts/gen-schema.ts",
     "schema:check": "bun scripts/gen-schema.ts --check",
     "d2:install": "bun scripts/install-d2.ts",
+    "pdf:wasm": "bun scripts/build-pdf-wasm.ts",
     "example:render": "bun scripts/render-example.ts",
     "gallery": "bun scripts/gallery.ts",
     "gallery:check": "bun scripts/gallery.ts --check",

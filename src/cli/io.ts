@@ -344,7 +344,7 @@ export interface WrittenFile {
  */
 export async function writeDestination(
   destination: Destination,
-  content: string,
+  content: string | Uint8Array,
   options: WriteDestinationOptions = {},
 ): Promise<WrittenFile> {
   const target = join(destination.dir, destination.name);
@@ -352,7 +352,11 @@ export async function writeDestination(
   const { display } = destination;
   try {
     const existing = await stat(target).catch(() => undefined);
-    await writeFile(temp, content, { encoding: "utf8", flag: "wx" });
+    await writeFile(
+      temp,
+      content,
+      typeof content === "string" ? { encoding: "utf8", flag: "wx" } : { flag: "wx" },
+    );
     if (existing !== undefined) await chmod(temp, existing.mode & 0o7777);
     await options.beforeCommit?.();
 

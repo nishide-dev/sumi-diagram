@@ -18,7 +18,8 @@ import { type ComponentSample, GALLERY_DIR, PROFILES, THEMES } from "./samples";
 
 export interface GalleryModel {
   components: { sample: ComponentSample; outcomes: RenderOutcome[] }[];
-  examples: { source: string; title: string; outcome: RenderOutcome }[];
+  /** `pdf`: the committed PDF of the example (#59), if it was converted. */
+  examples: { source: string; title: string; outcome: RenderOutcome; pdf?: string }[];
   comparison: { source: string; outcomes: RenderOutcome[] };
 }
 
@@ -283,8 +284,8 @@ export function galleryHtml(model: GalleryModel): string {
     .join("");
   const examples = model.examples
     .map(
-      ({ source, title, outcome }) => `<section class="card">
-<header><h3>${escapeHtml(title)}</h3><a href="${urlAttribute(rel(source))}"><code>${escapeHtml(source)}</code></a></header>
+      ({ source, title, outcome, pdf }) => `<section class="card">
+<header><h3>${escapeHtml(title)}</h3><a href="${urlAttribute(rel(source))}"><code>${escapeHtml(source)}</code></a>${pdf === undefined ? "" : ` · <a href="${urlAttribute(rel(pdf))}">PDF</a>`}</header>
 <div class="renders">${htmlFigure(outcome, `theme <code>${escapeHtml(outcome.theme)}</code> · profile <code>${escapeHtml(outcome.profile)}</code>`, title)}</div>
 </section>`,
     )
@@ -445,11 +446,11 @@ export function galleryMarkdown(model: GalleryModel): string {
     mdInline("The committed SVGs of `examples/`, rendered from their sources as written."),
     "",
   ];
-  for (const { source, title, outcome } of model.examples) {
+  for (const { source, title, outcome, pdf } of model.examples) {
     lines.push(
       `### ${mdText(title)}`,
       "",
-      `${mdLink(source)} · theme ${mdCode(outcome.theme)} · profile ${mdCode(outcome.profile)} · ${mdCaption(outcome)}`,
+      `${mdLink(source)}${pdf === undefined ? "" : ` · [PDF](${encodePath(rel(pdf))})`} · theme ${mdCode(outcome.theme)} · profile ${mdCode(outcome.profile)} · ${mdCaption(outcome)}`,
       "",
       mdImage(outcome, title),
       "",

@@ -15,7 +15,10 @@
       "!tests/fixtures/lint-output",
       "!research/*/.tools",
       "!research/*/out",
-      "!research/*/results"
+      "!research/*/results",
+      "!native/*/target",
+      "!native/*/vendor",
+      "!native/*/licenses"
     ]
   },
   "formatter": {

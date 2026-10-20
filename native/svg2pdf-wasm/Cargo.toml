@@ -1,0 +1,40 @@
+# Sumi's SVG → PDF engine (#59): svg2pdf compiled to wasm32-unknown-unknown and
+# run from Bun (src/render/pdf). Build with `bun run pdf:wasm`; the result is
+# committed as assets/wasm/sumi-svg2pdf.wasm and pinned by sha256 in
+# src/render/pdf/engine.ts. CI rebuilds it from this directory and fails if the
+# bytes differ (reproducible build).
+[package]
+name = "sumi-svg2pdf"
+version = "0.0.0"
+edition = "2021"
+publish = false
+license = "MIT"
+description = "SVG -> vector PDF for Sumi; fonts only from the given files (no system fonts)"
+
+[lib]
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+[dependencies]
+# svg2pdf 0.13 = usvg 0.45 / fontdb 0.23 / pdf-writer 0.12. Default features
+# off: no raster images or filters (vectors only), and no system fonts — the
+# font database only ever contains the files passed in.
+svg2pdf = { version = "=0.13.0", default-features = false, features = ["text"] }
+usvg = { version = "=0.45.0", default-features = false, features = ["text"] }
+fontdb = { version = "=0.23.0", default-features = false }
+
+# svg2pdf 0.13.0 from crates.io (sha256 e50dc062439cc1a396181059c80932a6e6bd731b130e674c597c0c8874b6df22)
+# plus svg2pdf-deterministic.patch, unpacked into vendor/ (gitignored) by
+# scripts/build-pdf-wasm.ts. The patch writes font objects and resource
+# dictionaries in reference order instead of HashMap order, so the PDF is
+# byte-identical across runs. Upstream: #60.
+[patch.crates-io]
+svg2pdf = { path = "vendor/svg2pdf-0.13.0" }
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
+debug = false

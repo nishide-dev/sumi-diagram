@@ -46,9 +46,13 @@ stack traces for internal errors. If the reader of the output exits early
 
   program
     .command("render")
-    .description("render a figure to SVG (all stages, D2 included) and check its geometry")
+    .description("render a figure to SVG or PDF (all stages, D2 included) and check its geometry")
     .argument("<file>", "figure source (*.sumi.yaml)")
-    .option("-o, --out <file>", "SVG output path; - for stdout (default: <file> with .svg)")
+    .option(
+      "-o, --out <file>",
+      "output path; - for stdout (SVG only) (default: <file> with .svg or .pdf)",
+    )
+    .option("--format <format>", "svg or pdf (default: from the -o extension, else svg)")
     .option("--emit-d2 <file>", "also write the generated D2 source")
     .option("--theme <name>", "use this built-in theme instead of figure.theme")
     .option("--profile <name>", "use this built-in profile instead of figure.profile")
