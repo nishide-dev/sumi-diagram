@@ -60,21 +60,34 @@ export function loadEngine(path: string = SVG2PDF_WASM_PATH): WebAssembly.Module
  * Converts an SVG whose fonts are already resolved to real family names
  * (`resolveSvgFonts()`), with exactly the given font files available. The
  * first font is the fallback for text that names no known family.
+ *
+ * A trap of the module (out-of-bounds access after a stack overflow, out of
+ * memory, `unreachable` after a Rust panic) or a module without the expected
+ * exports is returned as a failure, never thrown. The instance is discarded
+ * either way; the next call gets a fresh one.
  */
 export function runEngine(
   module: WebAssembly.Module,
   svg: Uint8Array,
   fonts: readonly Uint8Array[],
 ): EngineResult {
-  const instance = new WebAssembly.Instance(module, {});
-  const wasm = instance.exports as unknown as EngineExports;
-  const pass = (bytes: Uint8Array): number => {
-    const ptr = wasm.alloc(bytes.length);
-    new Uint8Array(wasm.memory.buffer, ptr, bytes.length).set(bytes);
-    return ptr;
-  };
-  for (const font of fonts) wasm.add_font(pass(font), font.length);
-  const n = wasm.convert(pass(svg), svg.length);
-  const out = new Uint8Array(wasm.memory.buffer, wasm.output_ptr(), Math.abs(n)).slice();
-  return n > 0 ? { ok: true, pdf: out } : { ok: false, message: new TextDecoder().decode(out) };
+  try {
+    const instance = new WebAssembly.Instance(module, {});
+    const wasm = instance.exports as unknown as EngineExports;
+    const pass = (bytes: Uint8Array): number => {
+      const ptr = wasm.alloc(bytes.length);
+      new Uint8Array(wasm.memory.buffer, ptr, bytes.length).set(bytes);
+      return ptr;
+    };
+    for (const font of fonts) wasm.add_font(pass(font), font.length);
+    const n = wasm.convert(pass(svg), svg.length);
+    const out = new Uint8Array(wasm.memory.buffer, wasm.output_ptr(), Math.abs(n)).slice();
+    return n > 0 ? { ok: true, pdf: out } : { ok: false, message: new TextDecoder().decode(out) };
+  } catch (e) {
+    const reason = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+    return {
+      ok: false,
+      message: `the engine stopped (${reason.replace(/\s*\(evaluating .*\)$/, "")})`,
+    };
+  }
 }
