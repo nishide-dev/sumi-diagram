@@ -5,12 +5,13 @@ import { DEFAULT_FONT_SET_ID, type FontSet, getFontSet } from "../../core/theme/
 import { FontParseError } from "../../lint/sfnt";
 import { readFontFace, resolveSvgFonts } from "./fonts";
 import { svgToPdf } from "./pdf";
+import { inspectPdf, textLines } from "./testing";
 
 const fontSet = getFontSet(DEFAULT_FONT_SET_ID) as FontSet;
 const bytes = (path: string) => new Uint8Array(readFileSync(path));
 
 /** The style block D2 v0.9.0 writes (WOFF data shortened). */
-const d2Svg = (slots: string[], extra = "") => `<?xml version="1.0" encoding="utf-8"?>
+const d2Svg = (slots: string[], extra = "", label = "A") => `<?xml version="1.0" encoding="utf-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="10pt" height="10pt" viewBox="0 0 20 20"><style type="text/css"><![CDATA[
 ${slots
   .map(
@@ -22,7 +23,7 @@ ${slots
 	src: url("data:application/font-woff;base64,d09GRg==");
 }`,
   )
-  .join("\n")}${extra}]]></style><text x="10" y="10" class="text">A</text></svg>`;
+  .join("\n")}${extra}]]></style><text x="10" y="10" class="text">${label}</text></svg>`;
 
 describe("readFontFace", () => {
   test("reads the bundled fonts' real family, weight and style", () => {
@@ -98,6 +99,38 @@ describe("resolveSvgFonts", () => {
       fontSet,
     );
     expect(result.diagnostics.map((d) => d.code)).toEqual(["pdf/unresolved-font"]);
+  });
+
+  test("labels that look like D2 families or CSS are text, not fonts: kept verbatim", () => {
+    for (const label of [
+      "d2-123-font-regular",
+      'font-family: "d2-123-font-regular";',
+      "@font-face { font-family: x; }",
+    ]) {
+      const escaped = label.replaceAll("&", "&amp;").replaceAll("<", "&lt;");
+      const input = d2Svg(["regular"], "", escaped);
+      const result = resolveSvgFonts(input, fontSet);
+      if (!result.ok) throw new Error(`${label}: ${JSON.stringify(result.diagnostics)}`);
+      expect(result.value.svg).toContain(`<text x="10" y="10" class="text">${escaped}</text>`);
+      expect(result.value.svg).not.toContain("d2-123-font-regular;\n\tsrc");
+
+      // …and drawn as that text in the PDF.
+      const pdf = svgToPdf(input, { fontSet });
+      if (!pdf.ok) throw new Error(`${label}: ${JSON.stringify(pdf.diagnostics)}`);
+      expect(textLines(inspectPdf(pdf.value).glyphs).map((l) => l.text)).toEqual([label]);
+    }
+  });
+
+  test("a D2 family in a font-family or style attribute is pdf/unresolved-font", () => {
+    for (const attribute of [
+      'font-family="d2-123-font-bold"',
+      'style="font-family: d2-123-font-bold"',
+    ]) {
+      const input = d2Svg(["regular"]).replace('class="text">', `class="text" ${attribute}>`);
+      expect(resolveSvgFonts(input, fontSet).diagnostics).toMatchObject([
+        { code: "pdf/unresolved-font", message: expect.stringContaining("d2-123-font-bold") },
+      ]);
+    }
   });
 
   test("an unreadable font file is pdf/missing-font", () => {

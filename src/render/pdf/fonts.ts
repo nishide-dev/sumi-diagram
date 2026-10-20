@@ -17,6 +17,7 @@ import type { Diagnostic } from "../../core/diagnostics";
 import type { Result } from "../../core/result";
 import { type FontSet, fontSetArgs } from "../../core/theme/fonts";
 import { FontParseError, readTables } from "../../lint/sfnt";
+import { descendants, parseXml } from "../xml";
 
 /** How a font file names itself: what usvg/fontdb match a CSS rule against. */
 export interface FontFace {
@@ -85,10 +86,11 @@ const cssString = (value: string) => `"${value.replaceAll("\\", "\\\\").replaceA
 
 /**
  * Rewrites a finalized SVG's D2 font families to the font set's real faces
- * (see the module comment). Fails with `pdf/missing-font` if a font file of
- * the set cannot be read or parsed, and `pdf/unresolved-font` if the SVG
- * names a D2 font slot that has no file or still refers to a D2 family after
- * the rewrite.
+ * (see the module comment), in `<style>` content only. Fails with
+ * `pdf/missing-font` if a font file of the set cannot be read or parsed,
+ * `pdf/unresolved-font` if the CSS names a D2 font slot that has no file, or
+ * the CSS or a `font-family` / `style` attribute still names a D2 family
+ * after the rewrite, and `svg/invalid` if the SVG is not well-formed.
  */
 export function resolveSvgFonts(svg: string, fontSet: FontSet): Result<ResolvedSvgFonts> {
   // `--font-<slot> <file>` is exactly how D2 was told which file each slot uses.
@@ -120,19 +122,49 @@ export function resolveSvgFonts(svg: string, fontSet: FontSet): Result<ResolvedS
     }
   }
 
+  // Only CSS is rewritten: the content of each <style> element, located by
+  // the strict XML parser's offsets and spliced into the original text. Text
+  // content (labels) is never touched, whatever it says.
+  const parsed = parseXml(svg);
+  if (!parsed.ok) {
+    return {
+      ok: false,
+      diagnostics: [error("svg/invalid", `The SVG is not well-formed XML: ${parsed.message}`)],
+    };
+  }
   const faces = new Map<string, FontFace>();
   const unknown = new Set<string>();
-  const rewritten = svg.replace(FONT_FACE_RULE, "").replace(D2_FAMILY, (whole, slot: string) => {
-    const file = fileOf.get(slot);
-    const face = file === undefined ? undefined : faceOfFile.get(file);
-    if (face === undefined) {
-      unknown.add(slot);
-      return whole;
+  let leftover: string | undefined;
+  const parts: string[] = [];
+  let copied = 0;
+  for (const element of [parsed.root, ...descendants(parsed.root)]) {
+    // Font-related attributes are checked, not rewritten (D2 never writes them).
+    for (const { name, value } of element.attributes) {
+      if (name === "font-family" || name === "style") {
+        leftover ??= D2_FAMILY_ANYWHERE.exec(value)?.[0];
+      }
     }
-    faces.set(slot, face);
-    return `font-family: ${cssString(face.family)}; font-weight: ${face.weight}; font-style: ${face.italic ? "italic" : "normal"};`;
-  });
-  const leftover = D2_FAMILY_ANYWHERE.exec(rewritten)?.[0];
+    if (element.name !== "style" || element.end === element.startTagEnd) continue;
+    const contentEnd = svg.lastIndexOf("</", element.end);
+    const css = svg
+      .slice(element.startTagEnd, contentEnd)
+      .replace(FONT_FACE_RULE, "")
+      .replace(D2_FAMILY, (whole, slot: string) => {
+        const file = fileOf.get(slot);
+        const face = file === undefined ? undefined : faceOfFile.get(file);
+        if (face === undefined) {
+          unknown.add(slot);
+          return whole;
+        }
+        faces.set(slot, face);
+        return `font-family: ${cssString(face.family)}; font-weight: ${face.weight}; font-style: ${face.italic ? "italic" : "normal"};`;
+      });
+    leftover ??= D2_FAMILY_ANYWHERE.exec(css)?.[0];
+    parts.push(svg.slice(copied, element.startTagEnd), css);
+    copied = contentEnd;
+  }
+  parts.push(svg.slice(copied));
+  const rewritten = parts.join("");
   if (unknown.size > 0 || leftover !== undefined) {
     const what =
       unknown.size > 0 ? `font slot(s) ${[...unknown].sort().join(", ")}` : `"${leftover}"`;
