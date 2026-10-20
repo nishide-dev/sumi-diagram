@@ -9,9 +9,9 @@ Sumi は、事前定義されたコンポーネントとデザインシステム
 ## ギャラリーと例
 
 - [コンポーネントギャラリー](docs/gallery/README.md)（[単体の HTML 版](docs/gallery/index.html)）: 組み込み部品のすべての variant を、組み込みテーマごとに描画した一覧。部品ごとの説明・props・それを生成する YAML と、同じ図をテーマ × プロファイルで描き比べた例を載せています。
-- [`examples/`](examples/README.md): 汎用的な図の例（pipeline、decision flow、system architecture、入れ子のグループ）。各ディレクトリに元の `*.sumi.yaml` と生成した SVG があります。
+- [`examples/`](examples/README.md): 汎用的な図の例（pipeline、decision flow、system architecture、入れ子のグループ）。各ディレクトリに元の `*.sumi.yaml` と生成した SVG・PDF があります。
 
-どちらも `bun run gallery` で再生成します（CI の `bun run gallery:check` で、ソースと SVG が一致していることを検査します）。
+どちらも `bun run gallery` で再生成します（CI の `bun run gallery:check` で、ソースと SVG・PDF が一致していることを検査します）。
 
 ## インストール（リリース版）
 
@@ -81,6 +81,7 @@ bun run d2:install
 
 ```sh
 sumi render figure.sumi.yaml                     # figure.svg を出力
+sumi render figure.sumi.yaml -o figure.pdf       # ベクター PDF を出力（--format pdf でも可）
 sumi render figure.sumi.yaml -o out.svg --emit-d2 out.d2 --profile paper-double --theme academic
 sumi lint figures/*.sumi.yaml --max-warnings 0   # 描画せずに検査
 sumi lint --geometry figure.sumi.yaml            # D2 で描画し、幅・文字のはみ出し・重なりも検査
@@ -93,7 +94,7 @@ sumi catalog --json --section themes --section profiles   # Theme と Profile �
 
 | コマンド | 内容 | 主なオプション |
 | --- | --- | --- |
-| `render <file>` | 全段（D2 を含む）を実行し、SVG を書き出す。続けて描画結果に幾何 lint（`geometry/*`。ページ幅の超過・ラベルのはみ出しなど）を実行する。幾何 lint に error があっても SVG は書き出し（確認できるように）、終了コードは 1 になる。既定の出力先は入力の `.sumi.yaml` を `.svg` に替えたパス。書き込みは一時ファイル経由で行う | `-o, --out <file>`（`-` で stdout）、`--emit-d2 <file>`、`--theme <name>`・`--profile <name>`（ファイルを編集せずに上書き）、`--no-geometry`（幾何 lint を省く）、`--json` |
+| `render <file>` | 全段（D2 を含む）を実行し、SVG または PDF を書き出す。続けて描画結果（SVG）に幾何 lint（`geometry/*`。ページ幅の超過・ラベルのはみ出しなど）を実行する。幾何 lint に error があっても出力は書き出し（確認できるように）、終了コードは 1 になる。形式は `--format`、なければ `-o` の拡張子（`.pdf` なら PDF）、どちらもなければ SVG。既定の出力先は入力の `.sumi.yaml` を `.svg`（PDF なら `.pdf`）に替えたパス。書き込みは一時ファイル経由で行う | `-o, --out <file>`（`-` で stdout。SVG のみ）、`--format svg\|pdf`（`-o` の拡張子と矛盾すれば使い方の誤り）、`--emit-d2 <file>`、`--theme <name>`・`--profile <name>`（ファイルを編集せずに上書き）、`--no-geometry`（幾何 lint を省く）、`--json` |
 | `lint <files...>` | 描画せずに schema・参照・部品・Theme・Profile と構造 lint を検査する。`--geometry` を付けると D2 で描画し（ファイルは書かない）、幾何 lint も実行する（[規則の一覧](docs/lint-rules.md)） | `--geometry`、`--json`、`--config <lint.json>`、`--rule <id>=<level>`（繰り返し可。`geometry/*` も可）、`--max-warnings <n>`（全ファイルの合計） |
 | `fmt <files...>` | YAML を意味を変えずに整形する（コメント・引用符・キー順は保つ）。YAML として不正なファイルは整形しない | `--check`（書き込まずに未整形のファイルを列挙）、`--stdout`、`--canonical-order`（既知のキーを schema の順に並べる） |
 | `doctor` | Sumi / Bun のバージョン、D2 の有無とバージョン、同梱フォントの sha256、幾何 lint 用のフォントの metrics を読めるかを確認する | `--json` |
@@ -153,7 +154,7 @@ sumi catalog --json --section themes --section profiles   # Theme と Profile �
 }
 ```
 
-`sumi render --json`（と `sumi lint --geometry --json` のファイルごとの結果）は、出力サイズと Profile の上限を `size` に入れます（描画できなかったときは `null`）。`fits` は幅と高さが上限以内かどうかで、文字サイズは診断で報告します。
+`sumi render --json`（と `sumi lint --geometry --json` のファイルごとの結果）は、出力サイズと Profile の上限を `size` に入れます（描画できなかったときは `null`）。`fits` は幅と高さが上限以内かどうかで、文字サイズは診断で報告します。`render --json` の `format` は出力形式（`svg` / `pdf`）です。
 
 ```json
 {
@@ -170,9 +171,20 @@ sumi catalog --json --section themes --section profiles   # Theme と Profile �
     "heightMm": 154.87,
     "profile": { "id": "paper-single", "maxWidthMm": 88, "maxHeightMm": 220, "minFontSizePt": 7 },
     "fits": true
-  }
+  },
+  "format": "svg"
 }
 ```
+
+### PDF 出力
+
+`sumi render figure.sumi.yaml -o figure.pdf`（または `--format pdf`）は、SVG と同じ図をベクター PDF にします（[設計 §6.12](docs/design/phase1.md#612-59-の-pdf-出力)）。
+
+- ページは SVG の `width` × `height`（pt）と同じ大きさの 1 ページです。論文の `\includegraphics` などで縮尺を変えずに使えます。
+- 文字は同梱フォント（BIZ UDPGothic / BIZ UDGothic）のサブセットを埋め込んだ文字として残り、検索・コピーできます。閲覧側・変換側のフォントには依存しません。
+- 図形・線はベクターのままで、ラスタ画像は含みません。同じ入力・同じ版の Sumi なら、OS によらずバイト単位で同じ PDF になります。
+- 変換は svg2pdf（WebAssembly にして `sumi` に同梱）が行い、Node.js・ブラウザ・追加のバイナリは不要です。
+- PDF/A・PDF/X などの規格には適合しません（エッジのラベルの下の線を消すために透明（soft mask）を使います）。PDF のバージョンは 1.7 です。
 
 ### テーマとプロファイル
 
@@ -230,11 +242,12 @@ Skill は CLI をラッパー（`skills/sumi/scripts/sumi`）経由で実行し�
 | `bun test` | テスト実行 |
 | `bun run schema:gen` / `schema:check` | JSON Schema の再生成 / 差分検査 |
 | `bun run d2:install` | 固定バージョンの D2 CLI を `.sumi/bin/d2` に導入 |
+| `bun run pdf:wasm` | PDF エンジン（`native/svg2pdf-wasm` → `assets/wasm/sumi-svg2pdf.wasm`）を再ビルドする（rustup が必要。[手順](CONTRIBUTING.md#pdf-エンジンwasmの再ビルド)） |
 | `bun run src/cli/index.ts --help` | CLI をソースから実行 |
 | `bun run example:render <file> [out.svg]` | `sumi render` の別名（`examples/` の再生成用） |
 | `bun run release:build --target <target>` | リリース用 tarball を `dist/release/` に作る（[リリース手順](CONTRIBUTING.md#リリース)） |
-| `bun run release:smoke <tarball>` | tarball を一時ディレクトリに展開し、Bun・Node.js のない `PATH` で `--version`・`doctor`・`render` を確認する |
-| `bun run gallery` / `gallery:check` | `docs/gallery/` と `examples/*/*.svg` の再生成 / 差分検査（D2 が必要） |
+| `bun run release:smoke <tarball>` | tarball を一時ディレクトリに展開し、Bun・Node.js のない `PATH` で `--version`・`doctor`・`render`（SVG と PDF）を確認する |
+| `bun run gallery` / `gallery:check` | `docs/gallery/` と `examples/*/*.{svg,pdf}` の再生成 / 差分検査（D2 が必要） |
 
 ## ディレクトリ構成
 
@@ -243,11 +256,12 @@ Skill は CLI をラッパー（`skills/sumi/scripts/sumi`）経由で実行し�
 | `src/cli` | CLI エントリポイントとコマンド定義 |
 | `src/core` | スキーマ・IR・共通ユーティリティ |
 | `src/backends` | レイアウトバックエンド（D2 / ELK） |
-| `src/render` | SVG 出力 |
+| `src/render` | SVG 出力（`src/render/pdf`: PDF への変換） |
+| `native/svg2pdf-wasm` | PDF エンジンの Rust クレート（svg2pdf を WASM に。生成物は `assets/wasm/`） |
 | `src/lint` | 構造・視覚 Lint |
 | `schema` | 生成された JSON Schema（手で編集しない） |
 | `tests/fixtures` | テスト用の入力ファイル |
-| `examples` | 図の例（`*.sumi.yaml` と生成した SVG） |
+| `examples` | 図の例（`*.sumi.yaml` と生成した SVG・PDF） |
 | `docs/gallery` | 生成されたコンポーネントギャラリー（手で編集しない） |
 | `skills/sumi` | Claude Code 用の Skill（`npx skills add` で配布。`.claude/skills/sumi` はここへのシンボリックリンク） |
 

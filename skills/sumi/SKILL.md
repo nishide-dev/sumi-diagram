@@ -177,7 +177,12 @@ Render only after lint is clean (`render` does not run the `lint/*` rules).
 sumi render figure.sumi.yaml              # writes figure.svg, then runs geometry lint
 sumi render --json figure.sumi.yaml       # same; diagnostics as JSON ("output" = SVG path, "size")
 sumi lint --geometry --json figure.sumi.yaml   # lint + render in memory + geometry; writes nothing
+sumi render figure.sumi.yaml -o figure.pdf     # vector PDF instead (or --format pdf); same checks
 ```
+
+Write a PDF only when the user asks for one (e.g. for LaTeX or print): the
+page is the figure's size in pt, text stays text in the bundled fonts. Inspect
+the SVG (step 7) either way; the PDF draws the same figure.
 
 `render` measures the drawn figure and reports `geometry/*` diagnostics
 (page width/height, label overflow, overlaps, labels crossed by edges).

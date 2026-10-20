@@ -38,6 +38,7 @@ import { runCommand } from "../core/subprocess";
 import { BUILTIN_THEMES } from "../core/theme/builtin";
 import { BUNDLED_FONT_SHA256 } from "../core/theme/fonts";
 import { readSvgMetadata } from "../render";
+import { inspectPdf } from "../render/pdf/testing";
 import { isCaseInsensitiveDir } from "./io";
 import { run } from "./program";
 
@@ -379,6 +380,23 @@ describe("sumi render (output paths)", () => {
     await symlink("real", join(dir, "alias"));
     await copyFile(join(FIXTURES, "lint/clean.sumi.yaml"), join(dir, "real", "fig.sumi.yaml"));
     input = await readFile(join(dir, "real", "fig.sumi.yaml"), "utf8");
+  });
+
+  test("--format must be svg or pdf and agree with the output's extension", async () => {
+    for (const [args, message] of [
+      [["--format", "png"], 'Unknown format "png". Available formats: svg, pdf.'],
+      [["--format", "svg", "-o", "out.pdf"], "--format svg contradicts the output file out.pdf"],
+      [["--format", "pdf", "-o", "out.SVG"], "--format pdf contradicts the output file out.SVG"],
+      [["--format", "pdf", "-o", "-"], "A PDF cannot be written to stdout (-o -)"],
+      [["-o", "real/fig.sumi.yaml", "--format", "pdf"], "would overwrite the input file"],
+    ] as const) {
+      const result = await sumi(["render", "real/fig.sumi.yaml", ...args]);
+      expect(result.exitCode).toBe(2);
+      expect(result.stderr).toStartWith("sumi: error: ");
+      expect(result.stderr).toContain(message);
+    }
+    expect(await readFile(join(dir, "real", "fig.sumi.yaml"), "utf8")).toBe(input);
+    expect(await readdir(join(dir, "real"))).toEqual(["fig.sumi.yaml"]);
   });
 
   test("refuses to overwrite the input, also through a symlinked directory", async () => {
@@ -807,7 +825,9 @@ describe.skipIf(!d2Available && !process.env.CI)("sumi render (D2)", () => {
       "output",
       "d2",
       "size",
+      "format",
     ]);
+    expect(json.format).toBe("svg");
     // The size is the SVG's own width / height (pt) and agrees with the profile's limits.
     const svg = await readFile(join(dir, "json.svg"), "utf8");
     const width = Number(/<svg[^>]* width="([\d.]+)pt"/.exec(svg)?.[1]);
@@ -826,6 +846,41 @@ describe.skipIf(!d2Available && !process.env.CI)("sumi render (D2)", () => {
     );
     expect(override.size.profile).toMatchObject({ id: "paper-double", maxWidthMm: 180 });
   });
+
+  test("-o x.pdf writes a PDF of the figure's size; the geometry lint still runs", async () => {
+    const file = await copyFixture("lint/clean.sumi.yaml", "pdf.sumi.yaml");
+    const result = await sumi(["render", file, "-o", "pdf-out.pdf", "--emit-d2", "pdf.d2"], {
+      env: env(),
+    });
+    expect(result).toMatchObject({ exitCode: 0, stderr: "" });
+    expect(result.stdout).toMatch(/^Wrote pdf-out\.pdf: [\d.]+mm × [\d.]+mm \(paper-double/);
+    expect(result.stdout).toContain("Wrote pdf.d2.");
+    const pdf = new Uint8Array(await readFile(join(dir, "pdf-out.pdf")));
+    const svg = await sumi(["render", file, "-o", "-"], { env: env() });
+    const width = Number(/<svg[^>]* width="([\d.]+)pt"/.exec(svg.stdout)?.[1]);
+    const height = Number(/<svg[^>]* height="([\d.]+)pt"/.exec(svg.stdout)?.[1]);
+    const inspected = inspectPdf(pdf);
+    expect(inspected.pages).toEqual([{ mediaBox: [0, 0, width, height] }]);
+    expect(inspected.images).toBe(0);
+    expect(inspected.glyphs.length).toBeGreaterThan(0);
+    expect(inspected.fonts.every((f) => f.embedded && f.subset)).toBe(true);
+
+    // --format pdf: the default output is <input>.pdf, with the same bytes.
+    const json = JSON.parse(
+      (await sumi(["render", file, "--format", "pdf", "--json"], { env: env() })).stdout,
+    );
+    expect(json).toMatchObject({ format: "pdf", output: "pdf.pdf", summary: { errors: 0 } });
+    expect(json.size).toMatchObject({ widthPt: width, heightPt: height });
+    expect(new Uint8Array(await readFile(join(dir, "pdf.pdf")))).toEqual(pdf);
+
+    // Geometry errors are reported for PDFs too; the PDF is still written.
+    const wide = await copyFixture("geometry/exceeds-page-width.sumi.yaml", "pdf-wide.sumi.yaml");
+    const failed = await sumi(["render", wide, "-o", "pdf-wide.PDF"], { env: env() });
+    expect(failed.exitCode).toBe(1);
+    expect(failed.stderr).toContain("error geometry/exceeds-page-width");
+    expect(failed.stdout).toMatch(/^Wrote pdf-wide\.PDF: .*TOO WIDE/);
+    expect(await Bun.file(join(dir, "pdf-wide.PDF")).exists()).toBe(true);
+  }, 60_000);
 
   test("errors exit 1 with diagnostics on stderr and no SVG", async () => {
     const file = await copyFixture("invalid/ref-unknown-endpoint.sumi.yaml", "bad.sumi.yaml");
