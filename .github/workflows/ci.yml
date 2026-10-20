@@ -152,6 +152,15 @@ jobs:
           untracked="$(git status --porcelain --untracked-files=all -- assets/wasm native src/render/pdf)"
           if [ -n "$untracked" ]; then echo "$untracked"; exit 1; fi
 
+      # On a mismatch, keep what this runner built for comparison.
+      - name: Upload the rebuilt module
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sumi-svg2pdf-wasm-linux
+          path: assets/wasm/sumi-svg2pdf.wasm
+          retention-days: 7
+
   # Keeps the release path from rotting (#20): builds the linux-x64 tarball
   # exactly as release.yml does and runs the same smoke test (extract to a path
   # with a space, run outside the checkout without Bun/Node on PATH: --version,
