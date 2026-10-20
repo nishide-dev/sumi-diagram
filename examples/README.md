@@ -2,7 +2,8 @@
 
 Generic, domain-neutral figures built only from the built-in components
 (`docs/design/phase1.md` §3). Each directory holds the source
-(`*.sumi.yaml`, the primary source) and its rendered SVG.
+(`*.sumi.yaml`, the primary source), its rendered SVG and that SVG as a
+vector PDF (#59).
 
 | Example | Theme / Profile | Shows |
 | --- | --- | --- |
@@ -55,6 +56,15 @@ changing an example, the compiler, a theme or the fonts, re-render every
 example and the gallery with one command:
 
 ```sh
-bun run gallery         # re-renders examples/*/*.svg and docs/gallery/
+bun run gallery         # re-renders examples/*/*.{svg,pdf} and docs/gallery/
 bun run gallery:check   # fails if any of them is stale (run in CI)
 ```
+
+## Committed PDFs
+
+`<name>.pdf` is `<name>.svg` converted by `sumi render -o <name>.pdf`'s PDF
+engine (svg2pdf compiled to WebAssembly): one page of the SVG's size in pt,
+text in subsets of the bundled fonts, no raster images. They are
+byte-identical goldens: `src/render/pdf/pdf.test.ts` converts the committed
+SVGs on Linux and macOS in CI and compares the bytes, and checks the page
+size, fonts and every label's position against Sumi's own measurement.

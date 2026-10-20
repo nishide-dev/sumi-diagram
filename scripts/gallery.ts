@@ -1,7 +1,7 @@
 /**
  * Generates the component gallery (#17) and re-renders the examples.
  *
- *   bun run gallery          # write docs/gallery/ and examples/<name>/<name>.svg
+ *   bun run gallery          # write docs/gallery/ and examples/<name>/<name>.{svg,pdf}
  *   bun run gallery:check    # fail if any of them differs from what would be written
  *
  * Renders, with the pinned D2 CLI (`bun run d2:install`) and the shared
@@ -9,7 +9,9 @@
  *
  * - every catalog component × every built-in theme (one figure per component
  *   showing all its variants) → docs/gallery/components/
- * - every `examples/<name>/<name>.sumi.yaml` as written → the SVG next to it
+ * - every `examples/<name>/<name>.sumi.yaml` as written → the SVG next to it,
+ *   and that SVG converted to PDF (`svgToPdf()`, as `sumi render -o x.pdf`;
+ *   #59) → the PDF next to it
  * - `examples/pipeline` under every theme × profile via overrides →
  *   docs/gallery/compare/
  *
@@ -18,15 +20,16 @@
  * may fail (a profile can reject a theme's font sizes) and show why.
  *
  * Output is byte-deterministic: D2's SVG is deterministic for a given D2
- * version, font set and source, and the pages contain no dates or absolute
- * paths. Files under docs/gallery/ and example SVGs without a matching
- * source that the generator no longer produces are deleted (reported as stale
- * by --check).
+ * version, font set and source, the PDF engine is one pinned WASM module, and
+ * the pages contain no dates or absolute paths. Files under docs/gallery/ and
+ * example SVGs / PDFs without a matching source that the generator no longer
+ * produces are deleted (reported as stale by --check).
  */
 
 import { mkdir, readdir, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { parse } from "yaml";
+import { svgToPdf } from "../src/render/pdf";
 import { type GalleryModel, galleryHtml, galleryMarkdown } from "./gallery/page";
 import { type RenderJob, type RenderOutcome, renderAll } from "./gallery/render";
 import { COMPARISON_EXAMPLE, comparison, componentSamples, GALLERY_DIR } from "./gallery/samples";
@@ -40,6 +43,10 @@ if (args.some((a) => a !== "--check")) {
 }
 
 const read = (path: string) => Bun.file(join(ROOT, path)).text();
+/** `examples/<name>/<name>.sumi.yaml` → `examples/<name>/<name>.pdf`. */
+const examplePdf = (source: string) => source.replace(/\.sumi\.yaml$/, ".pdf");
+const sameBytes = (a: Uint8Array, b: Uint8Array) =>
+  a.length === b.length && a.every((byte, i) => byte === b[i]);
 
 const samples = componentSamples();
 const exampleSources = [...new Bun.Glob("examples/*/*.sumi.yaml").scanSync(ROOT)]
@@ -86,7 +93,7 @@ const model: GalleryModel = {
   examples: take(exampleSources.length).map((outcome, i) => {
     const source = exampleSources[i] ?? "";
     const doc = parse(exampleTexts.get(source) ?? "") as { figure?: { title?: string } };
-    return { source, title: doc.figure?.title ?? source, outcome };
+    return { source, title: doc.figure?.title ?? source, outcome, pdf: examplePdf(source) };
   }),
   comparison: { source: COMPARISON_EXAMPLE, outcomes: take(compare.renderings.length) },
 };
@@ -115,9 +122,21 @@ if (problems.length > 0) {
 }
 
 // Everything the generator owns, by path relative to the repository root.
-const files = new Map<string, string>();
+const files = new Map<string, string | Uint8Array>();
 for (const outcome of outcomes) {
   if (outcome.svg !== undefined) files.set(outcome.rendering.output, outcome.svg);
+}
+// The examples' PDFs, from the SVGs above (byte-identical goldens, #59).
+for (const { source, outcome } of model.examples) {
+  if (outcome.svg === undefined) continue;
+  const pdf = svgToPdf(outcome.svg);
+  if (!pdf.ok) {
+    console.error(
+      `${source}: PDF conversion failed:\n${pdf.diagnostics.map((d) => `  ${d.code}: ${d.message}`).join("\n")}`,
+    );
+    process.exit(1);
+  }
+  files.set(examplePdf(source), pdf.value);
 }
 files.set(`${GALLERY_DIR}/index.html`, galleryHtml(model));
 files.set(`${GALLERY_DIR}/README.md`, galleryMarkdown(model));
@@ -133,9 +152,10 @@ async function listFiles(dir: string): Promise<string[]> {
   return out;
 }
 
-// Stale: anything under docs/gallery/ and any example SVG (`examples/*/*.svg`)
-// that this run did not produce, e.g. the SVG of a deleted or renamed example.
-const exampleSvgs = [...new Bun.Glob("examples/*/*.svg").scanSync(ROOT)].map((p) =>
+// Stale: anything under docs/gallery/ and any example SVG or PDF
+// (`examples/*/*.{svg,pdf}`) that this run did not produce, e.g. the output
+// of a deleted or renamed example.
+const exampleSvgs = [...new Bun.Glob("examples/*/*.{svg,pdf}").scanSync(ROOT)].map((p) =>
   p.split("\\").join("/"),
 );
 const stale = [...(await listFiles(GALLERY_DIR)), ...exampleSvgs]
@@ -144,8 +164,14 @@ const stale = [...(await listFiles(GALLERY_DIR)), ...exampleSvgs]
 const changed: string[] = [];
 for (const [path, content] of [...files].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
   const file = Bun.file(join(ROOT, path));
-  const current = (await file.exists()) ? await file.text() : undefined;
-  if (current !== content) changed.push(path);
+  if (!(await file.exists())) changed.push(path);
+  else if (
+    typeof content === "string"
+      ? (await file.text()) !== content
+      : !sameBytes(new Uint8Array(await file.arrayBuffer()), content)
+  ) {
+    changed.push(path);
+  }
 }
 
 if (check) {
@@ -169,7 +195,10 @@ for (const path of changed) {
   await Bun.write(target, files.get(path) ?? "");
 }
 for (const path of stale) await rm(join(ROOT, path));
-const total = [...files.values()].reduce((n, c) => n + Buffer.byteLength(c), 0);
+const total = [...files.values()].reduce(
+  (n, c) => n + (typeof c === "string" ? Buffer.byteLength(c) : c.length),
+  0,
+);
 console.log(
   `Wrote ${changed.length} of ${files.size} files, removed ${stale.length} (${Math.round(total / 1024)}KB in total, ${GALLERY_DIR}/ and examples/).`,
 );
