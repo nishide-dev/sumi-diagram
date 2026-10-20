@@ -40,7 +40,7 @@ bun run d2:install       # 固定版の D2（src/backends/d2/version.ts）を .s
 bun src/cli/index.ts doctor  # Bun・D2・フォントの状態を確認
 CI=1 bun test            # D2 の統合テストを必須にして全テストを実行
 bun run schema:check     # schema/figure.v1.schema.json が最新か
-bun run gallery:check    # examples/*/*.svg と docs/gallery/ が最新か（SVG のバイト一致）
+bun run gallery:check    # examples/*/*.{svg,pdf} と docs/gallery/ が最新か（バイト一致）
 ```
 
 ### ゴールデンの更新
@@ -52,6 +52,7 @@ bun run gallery:check    # examples/*/*.svg と docs/gallery/ が最新か（SVG
 | D2 ソース（`tests/fixtures/d2/*.d2`） | `SUMI_UPDATE_GOLDEN=1 bun test src/compiler/d2.test.ts` |
 | lint の出力（`tests/fixtures/lint-output/`） | `SUMI_UPDATE_GOLDEN=1 bun test src/lint/lint.test.ts` |
 | SVG（`examples/*/*.svg`・`docs/gallery/`） | `bun run gallery` |
+| PDF（`examples/*/*.pdf`） | `bun run gallery`（または `SUMI_UPDATE_GOLDEN=1 bun test src/render/pdf`。同じバイトを書く） |
 
 SVG は D2 のバージョンとフォントが同じなら OS によらずバイト単位で一致します。D2 やフォントを更新する手順と、画像（ラスタ）比較を使わない理由は [設計 §6.7](docs/design/phase1.md#67-16-のテスト戦略と-ci) を参照してください。
 
@@ -60,10 +61,25 @@ SVG は D2 のバージョンとフォントが同じなら OS によらずバ�
 | ワークフロー | ジョブ | 内容 |
 | --- | --- | --- |
 | CI | Static checks（Linux） | `bun run check`・`bun run typecheck`・`bun run schema:check` |
-| CI | Test（Linux / macOS） | D2 の導入、環境の記録（OS・`sumi doctor`: Bun・D2・フォントの sha256）、`bun test`（Linux ではカバレッジの表も出力。閾値なし）、`bun run gallery:check` |
+| CI | Test（Linux / macOS） | D2 の導入、環境の記録（OS・`sumi doctor`: Bun・D2・フォントの sha256）、`bun test`（Linux ではカバレッジの表も出力。閾値なし。PDF の golden もここで両 OS のバイト一致を検査）、`bun run gallery:check` |
+| CI | PDF engine reproducible build（Linux） | `bun run pdf:wasm` で PDF エンジンをソースから再ビルドし、コミット済みの `.wasm`・sha256・ライセンス一覧と一致するか（`git diff`） |
+| CI | Release smoke（linux-x64） | `release:build` と `release:smoke`（SVG と PDF の描画を含む） |
 | PR title | Conventional Commit title | PR タイトルが下記の[コミットメッセージ](#コミットメッセージ)の規則に従うか |
 
 PR タイトルの検査は手元でも実行できます: `bun run commitlint --title "feat(cli): add doctor"`。コミットを検査する場合は `bun run commitlint origin/main..HEAD` です。検査する規則と、誤検出を避けるため検査しないこと（英語として自然か、命令形か、長さなど）は `scripts/commitlint/rules.ts` の先頭に書いてあります。
+
+### PDF エンジン（WASM）の再ビルド
+
+PDF 出力（#59）は、`native/svg2pdf-wasm/` の Rust クレート（svg2pdf 0.13.0 ＋決定性パッチ）を `wasm32-unknown-unknown` にビルドした `assets/wasm/sumi-svg2pdf.wasm` を使います。生成物はコミットしてあり、通常の開発・テスト・リリースに Rust は不要です。クレート・パッチ・依存の版・ツールチェーンを変えたときだけ再ビルドします。
+
+```sh
+bun run pdf:wasm   # rustup が必要。rust-toolchain.toml の版と wasm32 target は自動で導入される
+```
+
+このコマンドは、crates.io の svg2pdf 0.13.0 を sha256 を検査してから `native/svg2pdf-wasm/vendor/`（gitignore）に展開してパッチを当て、`cargo build --release --locked` し、`.wasm`・`src/render/pdf/engine.ts` の `SVG2PDF_WASM_SHA256`・`native/svg2pdf-wasm/THIRD_PARTY.md`・`native/svg2pdf-wasm/licenses/` を書き換えます。差分をすべてコミットしてください（CI の `PDF engine reproducible build` が Linux で同じビルドをして一致を確かめます）。ローカルのパス（チェックアウトと `CARGO_HOME`）は `--remap-path-prefix` で消すので、同じツールチェーンならマシンによらず同じバイトになります。PDF の出力が変わるので、続けて `bun run gallery` で `examples/*/*.pdf` を更新します。
+
+- macOS の rustup では `rust-lld` が `libLLVM.dylib` を見つけられないことがあります。スクリプトはツールチェーンの `lib/` を `DYLD_FALLBACK_LIBRARY_PATH` に入れて回避します（Linux では影響しません）。
+- 依存（Cargo.lock）を変えた場合は、`THIRD_PARTY.md` のライセンスがすべて配布できるものか（MIT・Apache-2.0・BSD・Zlib などの許容的なライセンス）を確認します。リリースの tarball は `licenses/svg2pdf-wasm/` にこれらをそのまま入れます。
 
 ## ブランチ名
 
