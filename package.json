@@ -1,6 +1,6 @@
 {
   "name": "sumi-diagram",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Diagram-as-Code CLI that builds diagrams from predefined components and a design system",
   "license": "MIT",
   "private": true,
