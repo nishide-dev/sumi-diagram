@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { z } from "zod";
-import type { Point, Rect } from "../geometry";
+import type { Point, Rect, Region } from "../geometry";
 import { BUILTIN_OUTLINE_RENDERERS, getOutlineRenderer } from "./builtin";
 import { assertOutlineDrawing } from "./testing";
 import type { OutlineDrawing, OutlineParams, OutlinePath } from "./types";
@@ -156,4 +156,77 @@ test("the oracle rejects an outline that rays from part of a side cannot hit", (
   expect(() => assertOutlineDrawing(drawing, { x: 0, y: 0, width: 4, height: 4 })).toThrow(
     "inward rays miss",
   );
+});
+
+test("small valid stack steps are not mistaken for self intersections", () => {
+  const renderer = getOutlineRenderer("sumi/stack");
+  if (!renderer) throw new Error("missing stack");
+  const footprint = { x: 100, y: 100, width: 160, height: 80 };
+  for (const offset of [1e-7, 1e-6, 1e-5]) {
+    assertOutlineDrawing(renderer.draw(footprint, renderer.params.parse({ offset })), footprint);
+  }
+});
+
+test("explicit collision regions must be finite, nondegenerate, convex and contain the outline", () => {
+  const renderer = getOutlineRenderer("sumi/trapezoid");
+  if (!renderer) throw new Error("missing trapezoid");
+  const footprint = { x: 0, y: 0, width: 4, height: 4 };
+  const drawing = renderer.draw(footprint, renderer.params.parse({}));
+  const polygon: Region = {
+    kind: "polygon",
+    points: [
+      { x: 0, y: 0 },
+      { x: 4, y: 0 },
+      { x: 4, y: 4 },
+      { x: 0, y: 4 },
+    ],
+  };
+  for (const collision of [
+    polygon,
+    { ...polygon, points: [...polygon.points].reverse() },
+    { kind: "ellipse", cx: 2, cy: 2, rx: 3, ry: 3 },
+  ] as Region[]) {
+    assertOutlineDrawing({ ...drawing, collision }, footprint);
+  }
+  const invalid: Region[] = [
+    {
+      kind: "polygon",
+      points: [
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+        { x: 0, y: 1 },
+      ],
+    },
+    {
+      kind: "polygon",
+      points: [
+        { x: 0, y: 0 },
+        { x: 4, y: 0 },
+        { x: 1, y: 1 },
+        { x: 4, y: 4 },
+        { x: 0, y: 4 },
+      ],
+    },
+    {
+      kind: "polygon",
+      points: [
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+        { x: 2, y: 0 },
+      ],
+    },
+    {
+      kind: "polygon",
+      points: [
+        { x: NaN, y: 0 },
+        { x: 4, y: 0 },
+        { x: 0, y: 4 },
+      ],
+    },
+    { kind: "ellipse", cx: NaN, cy: 2, rx: -1, ry: 0 },
+    { kind: "ellipse", cx: 2, cy: 2, rx: 0, ry: 3 },
+    { kind: "ellipse", cx: 2, cy: 2, rx: 1, ry: 1 },
+  ];
+  for (const collision of invalid)
+    expect(() => assertOutlineDrawing({ ...drawing, collision }, footprint)).toThrow();
 });

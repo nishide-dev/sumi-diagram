@@ -28,7 +28,9 @@ function intersection([a, b]: Edge, [c, d]: Edge): Point | undefined {
   }
   const t = cross(subtract(c, a), v) / denominator;
   const s = cross(subtract(c, a), u) / denominator;
-  if (t < -EPS || t > 1 + EPS || s < -EPS || s > 1 + EPS) return;
+  const tTolerance = EPS / Math.hypot(u.x, u.y);
+  const sTolerance = EPS / Math.hypot(v.x, v.y);
+  if (t < -tTolerance || t > 1 + tTolerance || s < -sTolerance || s > 1 + sTolerance) return;
   return { x: a.x + t * u.x, y: a.y + t * u.y };
 }
 
@@ -116,6 +118,45 @@ export function assertOutlineDrawing(drawing: OutlineDrawing, footprint: Rect): 
     p.y >= footprint.y - EPS &&
     p.y <= footprint.y + footprint.height + EPS;
   polygon(drawing.outline);
+  const collision = drawing.collision;
+  if (collision?.kind === "polygon") {
+    polygon(collision.points);
+    const lines = edges(collision.points);
+    let orientation = 0;
+    for (const [a, b] of lines) {
+      const u = subtract(b, a);
+      const length = Math.hypot(u.x, u.y);
+      for (const point of collision.points) {
+        const side: number = cross(u, subtract(point, a)) / length;
+        if (Math.abs(side) <= EPS) continue;
+        orientation ||= Math.sign(side);
+        assert(Math.sign(side) === orientation, "collision polygon must be convex");
+      }
+    }
+    for (const point of drawing.outline) {
+      assert(
+        lines.every(
+          ([a, b]) =>
+            (orientation * cross(subtract(b, a), subtract(point, a))) /
+              Math.hypot(b.x - a.x, b.y - a.y) >=
+            -EPS,
+        ),
+        "collision does not contain outline",
+      );
+    }
+  } else if (collision?.kind === "ellipse") {
+    const { cx, cy, rx, ry } = collision;
+    assert(
+      [cx, cy, rx, ry].every(Number.isFinite) && rx > 0 && ry > 0,
+      "invalid collision ellipse",
+    );
+    for (const point of drawing.outline) {
+      assert(
+        Math.hypot((point.x - cx) / rx, (point.y - cy) / ry) <= 1 + EPS,
+        "collision does not contain outline",
+      );
+    }
+  }
   const bodies: Polygon[] = [];
   for (const layer of drawing.layers) {
     assert(layer.path.points.length >= 2, "empty path");
