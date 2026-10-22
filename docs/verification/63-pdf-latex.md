@@ -36,6 +36,24 @@
 
 日本語 fixture と system-architecture の描画は、元の PDF と取り込み後の PDF を PNG 化して目視でも確認した。日本語・太字・破線・円柱・文書形状・矢印・ラベルに欠落はなかった。取り込みによる微小な座標丸めで、細線のアンチエイリアスは変わる。
 
+### Linux CI の結果
+
+[PR #67](https://github.com/nishide-dev/sumi-diagram/pull/67) の [CI run 39808286103](https://github.com/nishide-dev/sumi-diagram/actions/runs/39808286103)（コミット `810e266`）で、専用ジョブ [PDF LaTeX inclusion](https://github.com/nishide-dev/sumi-diagram/actions/runs/39808286103/job/119927298008) が55秒で成功した。環境と20通りの結果は artifact `pdf-latex` の `report.json` でも確認した。
+
+| 項目 | 確認した値 |
+| --- | --- |
+| OS / CPU | Ubuntu 24.04 / x64 |
+| TeX ディストリビューション | TeX Live 2023/Debian（Ubuntu のパッケージ） |
+| pdfLaTeX | pdfTeX 3.141592653-2.6-1.40.25、kpathsea 6.3.5 |
+| LuaLaTeX | LuaHBTeX 1.17.0、development id 7581 |
+| Poppler | 24.02.0 |
+
+- **20通りすべて成功**。文字・埋め込みサブセット・ToUnicode・物理サイズ・ラスタ画像0を確認し、文字 bbox の最大差は約0.001bpだった。描画差は上の macOS の表と同じだった。
+- 両エンジンとも、既定の出力 PDF は **1.5**。入力が PDF 1.7 であるため取り込み時にバージョン差の警告が出るが、コンパイルと内容の検査は成功した。
+- PDF 1.7 を明示した10通りでは、出力も **1.7** になり、警告は0だった。下記の利用例のバージョン指定で解消できることを実測できた。
+- 5つの元 PDF の SHA-256 は、macOS の検証で生成した同じ図とすべて一致した。これは上記の各環境での取り込み結果の検査に加えて確認したもの。
+- 同じ run の Static checks・Linux/macOS の Test・PDF engine reproducible build・Release smoke、および PR タイトル検査もすべて成功した。
+
 ### 既存の4ターゲット同一性検証
 
 2026-10-20 の [Release dry run 39383474251](https://github.com/nishide-dev/sumi-diagram/actions/runs/39383474251)（#65）で、darwin-arm64 / darwin-x64 / linux-x64 / linux-arm64 の日本語 smoke test の PDF はすべて次の SHA-256 だった。直接実行・シンボリックリンク経由・ソースからの変換も一致している。今回の LaTeX fixture とは別の図である。
@@ -85,7 +103,7 @@ PPM の比較は、同じ環境で作った2つの PDF の間だけで行う。O
 
 TeX は配布物・通常の単体テストから分離し、CI に専用の **PDF LaTeX inclusion** ジョブ（Ubuntu 24.04）を追加する。TeX Live の必要なパッケージと Poppler のみを `--no-install-recommends` で導入し、`bun run pdf:latex` を実行する。実行環境・PDF・ログ・画像・report は artifact `pdf-latex` として7日間残す。
 
-今回の macOS 環境での検査時間は約 8.6 秒（TeX の導入時間を除く）だった。すべての OS の単体テストへ TeX の導入を広げず、1 ジョブで実際の利用経路を継続検査する方針とした。Linux の LaTeX 検証結果は、このジョブの初回実行で確認する（今回ローカルで実行したのは macOS）。
+今回の macOS 環境での検査時間は約 8.6 秒（TeX の導入時間を除く）だった。Linux の初回 CI は TeX / Poppler の導入・検査・artifact 保存を含むジョブ全体で55秒で成功した。すべての OS の単体テストへ TeX の導入を広げず、1 ジョブで実際の利用経路を継続検査する方針とした。
 
 ## 利用者向けの最小例
 
