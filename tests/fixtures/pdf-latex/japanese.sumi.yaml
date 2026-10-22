@@ -1,0 +1,24 @@
+# Japanese regular / bold text, multiple lines, an edge-label mask and a cylinder.
+version: 1
+figure:
+  id: pdf-latex-japanese
+  theme: academic
+  profile: paper-double
+  layout:
+    direction: down
+groups:
+  - id: system
+    label: 処理系
+nodes:
+  - id: input
+    component: box
+    label: "入力データ\n日本語と English"
+    group: system
+  - id: output
+    component: cylinder
+    label: 出力 (PDF)
+edges:
+  - from: input
+    to: output
+    label: 変換
+    variant: dashed

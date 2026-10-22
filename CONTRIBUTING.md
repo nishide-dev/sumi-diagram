@@ -63,10 +63,13 @@ SVG は D2 のバージョンとフォントが同じなら OS によらずバ�
 | CI | Static checks（Linux） | `bun run check`・`bun run typecheck`・`bun run schema:check` |
 | CI | Test（Linux / macOS） | D2 の導入、環境の記録（OS・`sumi doctor`: Bun・D2・フォントの sha256）、`bun test`（Linux ではカバレッジの表も出力。閾値なし。PDF の golden もここで両 OS のバイト一致を検査）、`bun run gallery:check` |
 | CI | PDF engine reproducible build（Linux） | `bun run pdf:wasm` で PDF エンジンをソースから再ビルドし、コミット済みの `.wasm`・sha256・ライセンス一覧と一致するか（`git diff`） |
+| CI | PDF LaTeX inclusion（Linux） | `bun run pdf:latex` で pdfLaTeX / LuaLaTeX に実際に取り込み、文字・位置・フォント埋め込み・ベクター・表示を検査する（TeX / Poppler はこのジョブのみで導入） |
 | CI | Release smoke（linux-x64） | `release:build` と `release:smoke`（SVG と PDF の描画を含む） |
 | PR title | Conventional Commit title | PR タイトルが下記の[コミットメッセージ](#コミットメッセージ)の規則に従うか |
 
 PR タイトルの検査は手元でも実行できます: `bun run commitlint --title "feat(cli): add doctor"`。コミットを検査する場合は `bun run commitlint origin/main..HEAD` です。検査する規則と、誤検出を避けるため検査しないこと（英語として自然か、命令形か、長さなど）は `scripts/commitlint/rules.ts` の先頭に書いてあります。
+
+PDF の LaTeX 取り込み検証（#63）は、TeX Live と Poppler がある環境で `bun run pdf:latex` を実行します。通常の `bun test` とは独立しています。検証環境・導入パッケージ・検査内容・結果の読み方は [検証記録](docs/verification/63-pdf-latex.md) を参照してください。
 
 ### PDF エンジン（WASM）の再ビルド
 
