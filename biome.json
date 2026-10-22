@@ -5,6 +5,7 @@
       "**",
       "!**/.worktrees",
       "!.claude",
+      "!.sumi",
       "!**/dist",
       "!**/node_modules",
       "!schema/*.schema.json",

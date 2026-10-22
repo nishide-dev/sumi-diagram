@@ -186,6 +186,8 @@ sumi catalog --json --section themes --section profiles   # Theme と Profile �
 - 変換は svg2pdf（WebAssembly にして `sumi` に同梱）が行い、Node.js・ブラウザ・追加のバイナリは不要です。
 - PDF/A・PDF/X などの規格には適合しません（エッジのラベルの下の線を消すために透明（soft mask）を使います）。PDF のバージョンは 1.7 です。
 
+pdfLaTeX / LuaLaTeX では `graphicx` の `\includegraphics{figure.pdf}` で取り込めます。図の日本語フォントも PDF に埋め込まれているため、図のための CJK パッケージやシステムフォントは不要です。[検証環境と再現手順](docs/verification/63-pdf-latex.md)を参照してください。取り込み時に PDF のバージョンの警告が出る環境では、文書の先頭で PDF 1.7 を指定します（pdfLaTeX: `\pdfminorversion=7`、LuaLaTeX: `\pdfvariable minorversion=7`）。
+
 ### テーマとプロファイル
 
 見た目はテーマ（`figure.theme`）、出力先の制約（ページの大きさ・最小文字サイズ・間隔）はプロファイル（`figure.profile`）で選びます。両者は独立で、プロファイルが図や文字を拡大・縮小することはありません。
@@ -243,6 +245,7 @@ Skill は CLI をラッパー（`skills/sumi/scripts/sumi`）経由で実行し�
 | `bun run schema:gen` / `schema:check` | JSON Schema の再生成 / 差分検査 |
 | `bun run d2:install` | 固定バージョンの D2 CLI を `.sumi/bin/d2` に導入 |
 | `bun run pdf:wasm` | PDF エンジン（`native/svg2pdf-wasm` → `assets/wasm/sumi-svg2pdf.wasm`）を再ビルドする（rustup が必要。[手順](CONTRIBUTING.md#pdf-エンジンwasmの再ビルド)） |
+| `bun run pdf:latex` | pdfLaTeX / LuaLaTeX への実際の取り込みを検証する（TeX Live・Poppler・D2 が必要。[検証記録](docs/verification/63-pdf-latex.md)） |
 | `bun run src/cli/index.ts --help` | CLI をソースから実行 |
 | `bun run example:render <file> [out.svg]` | `sumi render` の別名（`examples/` の再生成用） |
 | `bun run release:build --target <target>` | リリース用 tarball を `dist/release/` に作る（[リリース手順](CONTRIBUTING.md#リリース)） |

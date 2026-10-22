@@ -1,0 +1,11 @@
+% Replaced by scripts/check-pdf-latex.ts. Dimensions are PDF points (bp), not TeX pt.
+@@VERSION@@
+\documentclass{article}
+\usepackage{graphicx}
+\usepackage[paperwidth=@@WIDTH@@bp,paperheight=@@HEIGHT@@bp,margin=12bp]{geometry}
+\pagestyle{empty}
+\setlength{\topskip}{0pt}
+\setlength{\parindent}{0pt}
+\begin{document}
+\noindent\includegraphics{input.pdf}
+\end{document}

@@ -105,6 +105,49 @@ jobs:
       - name: Gallery and examples up to date
         run: bun run gallery:check
 
+  # Real LaTeX consumers of the generated PDFs (#63). TeX/Poppler are test-only
+  # dependencies, isolated from the normal unit suite and release binaries.
+  pdf-latex:
+    name: PDF LaTeX inclusion
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: .bun-version
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install TeX and Poppler (test only)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends texlive-latex-base texlive-latex-recommended texlive-luatex lmodern poppler-utils
+
+      - name: Cache D2
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .sumi/bin
+          key: d2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('src/backends/d2/version.ts') }}
+
+      - name: Install D2
+        run: bun run d2:install
+
+      - name: Verify PDF inclusion in pdfLaTeX and LuaLaTeX
+        run: bun run pdf:latex
+
+      - name: Keep TeX logs, PDFs, raster comparisons and environment report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pdf-latex
+          path: .sumi/pdf-latex/
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 7
+
   # Reproducible build of the PDF engine (#59): rebuilds
   # assets/wasm/sumi-svg2pdf.wasm from native/svg2pdf-wasm with the toolchain
   # pinned in rust-toolchain.toml (svg2pdf from crates.io, sha256-verified and
