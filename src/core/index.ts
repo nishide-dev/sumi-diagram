@@ -4,6 +4,8 @@ export * from "./check";
 export * from "./check-state";
 export * from "./diagnostics";
 export * from "./figure";
+export * from "./geometry";
+export * from "./outline";
 export * from "./profile";
 export * from "./registry";
 export * from "./result";

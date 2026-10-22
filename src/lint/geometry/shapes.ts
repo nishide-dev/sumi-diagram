@@ -9,13 +9,11 @@
  * integration tests.
  */
 
+import type { Region } from "../../core/geometry";
 import type { NodeShape } from "../../core/registry/manifest";
 import type { PathSegment, Point, Rect } from "../../render/geometry";
 
-/** A convex region: a polygon (vertices in order, either orientation) or an axis-aligned ellipse. */
-export type Region =
-  | { kind: "polygon"; points: readonly Point[] }
-  | { kind: "ellipse"; cx: number; cy: number; rx: number; ry: number };
+export type { Region } from "../../core/geometry";
 
 const EPSILON = 1e-9;
 

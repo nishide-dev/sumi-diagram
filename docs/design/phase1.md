@@ -227,6 +227,7 @@ interface NodeManifest extends ManifestBase {
   kind: "node";
   shape: NodeShape;             // 下記の許可リストのみ
   sizing: "auto" | "fixed-aspect-1"; // circle / square は fixed-aspect-1
+  render?: OutlineRender;       // #52: 省略時は従来の D2 shape
 }
 interface GroupManifest extends ManifestBase {
   kind: "group";
@@ -270,6 +271,46 @@ type Arrowhead = "triangle" | "arrow" | "diamond" | "circle" | "box" | "cross" |
 - **名前解決**: 参照は短縮名（`box`）か正規 ID（`sumi/box`）。短縮名は MVP では `sumi` 名前空間にのみ解決する。外部名前空間が入った時点で、短縮名の衝突は error とする。**alias は MVP では提供しない**（Theme の適用先が曖昧になるため）。解決後は必ず正規 ID で扱い、Theme のキーも正規 ID（組み込みは短縮名で書くことを許し、読み込み時に正規化する）とする。
 - **ports は v1 スキーマから除外する**。D2/ELK で意味的なポートや辺の向きを保証できないことをスパイクで確認したため。必要になったら manifest と Figure に互換的な追加として入れる。
 - **Registry API**: `register(manifest)`（manifest の検証と ID 衝突の検出）、`resolve(ref, kind)`、`list({ kind? })`、`validateUsage(manifest, { props, variant })`。いずれも同期関数で副作用を持たない（register はインスタンス内の状態のみ変更する）。
+
+### 3.1 カスタム輪郭の契約（#52）
+
+#18 の[調査](../research/18-custom-svg-components.md)に基づく v1 互換の追加。一次ソースの Figure YAML ではなく、部品 manifest に描画方式を持たせる。
+
+```ts
+interface OutlineRender {
+  type: "outline";
+  renderer: string; // 正規 ID。組み込み Registry に存在するもの
+  params?: Record<string, number | boolean | string>;
+}
+
+interface OutlinePath {
+  points: readonly Point[]; // 直線の頂点列のみ。曲線・SVG の断片は受け付けない
+  closed: boolean;         // SVG に書くときの Z を保つ
+}
+
+interface OutlineDrawing {
+  layers: readonly { role: "body" | "line"; path: OutlinePath }[]; // 背面から順
+  outline: readonly Point[]; // body の和集合の境界と一致する単純多角形
+  safeArea: Rect;            // body の和集合に含まれる矩形。中心へラベルを置く
+  collision?: Region;       // outline を含む凸領域。省略時は outline の凸包
+}
+
+interface OutlineRenderer<P extends Record<string, number | boolean | string>> {
+  id: `${string}/${string}`;
+  version: 1;
+  params: z.ZodType<P>; // 組み込みは strict な Zod object。既定値適用後の P を使う
+  footprint(label: { width: number; height: number }, params: P): { width: number; height: number };
+  draw(footprint: Rect, params: P): OutlineDrawing;
+}
+```
+
+- **manifest の検証**: `render` は node のみ。`shape: "rectangle"` と既存の sizing 制約により `sizing: "auto"` を要求する。renderer は正規 ID で引き、未知の ID・不正な params・shape / sizing の不一致は既存の `component/invalid-manifest` で返す。検証に失敗した manifest は登録しない。
+- **params**: Figure の props ではなく manifest 固有の固定値。renderer の strict object で検証し、省略時も既定値を適用した新しい値を登録 manifest の `render.params` に保存する（呼び出し元の manifest は変えない）。カタログはこの実効値を JSON で返す。`render` のない既存の manifest / catalog には新しいキーを付けない。
+- **Registry**: `src/core/outline/` の `BUILTIN_OUTLINE_RENDERERS`（ReadonlyMap）と `getOutlineRenderer(id)`。外部 renderer の登録・実行コードのロードは行わない。型と実装の単位は D2 / SVG user unit（1 unit = 0.5pt）。Point / Rect / Region の宣言は `src/core/geometry.ts` で共有し、既存の render / lint の export は維持する。
+- **純関数の契約**: 正で有限のラベル寸法・footprint と、スキーマで検証済みの params を入力とし、入力を変えず、同じ値から同じ幾何を返す。座標は footprint の内側にあり、各辺の全位置から内向きの射線が輪郭に当たる。`footprint()` はラベルを safeArea に含む寸法を返し、ラベルの幅・高さに対して単調増加。色・線・Theme・SVG 文字列は返さない。`body` は閉じた塗り付きの多角形、`line` は塗らない装飾線。inspect 用の `PathSegment` は Z を L に正規化するため、renderer のパス型とは分ける。
+- **最初の実装**: 台形と stack の純関数 renderer を契約の実例として追加する。台形は `slant`（0〜1、既定0.4）、stack は `layers`（整数1〜8、既定3）と `offset`（0より大きく64以下、既定8 user unit）。台形の斜辺は幅の1/4まで、stack の段差は幅・高さの `1/(2*layers)` までに抑え、小さい明示 footprint でも safeArea と連続した body を保つ。`footprint()` は指定した段差を含めて余裕を確保する。
+- **実装の境界**: #52 は契約・幾何 renderer・manifest 検証・catalog メタデータを用意する。IR / SVG 合成は #53、幾何 lint の接続は #54、利用者向けの部品 manifest・Theme・variant・ギャラリーは #55 で接続する。ここでは組み込み部品一覧と既存の描画結果を保つ。
+- **契約の検査**: 型検査で曲線のパスを拒否する。幾何のテストは多角形の頂点・交点で断面を分割し、body の和集合と outline の一致、safeArea の包含、両軸への投影（各辺からの射線）を検査する。正方形・縦長・横長・微小な footprint、パラメータの境界値、位置の平行移動、決定性・入力非破壊・サイズの単調性を含む。欠けたレイヤー・誤った輪郭・開いた body・凹部にまたがる safeArea などの負例でも検査を固定する。
 
 ## 4. Theme と style 解決（#6）
 

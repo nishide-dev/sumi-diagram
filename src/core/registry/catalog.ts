@@ -13,7 +13,7 @@ export const CATALOG_VERSION = 1;
 
 type JsonSchema = z.core.JSONSchema.JSONSchema;
 
-/** A manifest with `props` as JSON Schema and its canonical `id` added. */
+/** A manifest with JSON Schema props and canonical id; optional render metadata is preserved. */
 export type CatalogEntry = { id: ComponentId } & DistributiveOmit<
   ComponentManifest,
   "version" | "props"

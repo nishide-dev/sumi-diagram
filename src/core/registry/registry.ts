@@ -10,6 +10,7 @@
 
 import type { z } from "zod";
 import { type Diagnostic, type DocPath, didYouMean, formatDocPath } from "../diagnostics";
+import { getOutlineRenderer } from "../outline";
 import type { Result } from "../result";
 import { propsJsonSchema } from "./catalog";
 import {
@@ -73,6 +74,36 @@ export class Registry {
           ),
         ],
       };
+    }
+    if (value.kind === "node" && value.render !== undefined) {
+      const renderer = getOutlineRenderer(value.render.renderer);
+      if (renderer === undefined) {
+        return {
+          ok: false,
+          diagnostics: [
+            error(
+              "component/invalid-manifest",
+              `Invalid component manifest ${name}: unknown outline renderer "${value.render.renderer}".`,
+              ["render", "renderer"],
+            ),
+          ],
+        };
+      }
+      const params = renderer.params.safeParse(value.render.params ?? {});
+      if (!params.success) {
+        return {
+          ok: false,
+          diagnostics: params.error.issues.map((issue) => {
+            const path = ["render", "params", ...issue.path.filter((s) => typeof s !== "symbol")];
+            return error(
+              "component/invalid-manifest",
+              `Invalid component manifest ${name}: ${formatDocPath(path)}: ${issue.message}.`,
+              path,
+            );
+          }),
+        };
+      }
+      value.render = { ...value.render, params: params.data };
     }
     const id = componentId(value);
     if (this.#manifests.has(id)) {

@@ -65,6 +65,15 @@ const Version = z
   .string()
   .refine((v) => validVersion(v) !== null, { error: "must be a semver version" });
 
+export const OutlineRenderSchema = z.strictObject({
+  type: z.literal("outline"),
+  renderer: z.string().refine((id) => parseComponentId(id) !== undefined, {
+    error: "must be a canonical renderer ID",
+  }),
+  params: z.record(z.string(), z.union([z.number(), z.boolean(), z.string()])).optional(),
+});
+export type OutlineRender = z.output<typeof OutlineRenderSchema>;
+
 /** True for `z.strictObject(...)` (unknown keys are rejected, not stripped). */
 function isStrictObject(value: unknown): value is z.ZodObject {
   return value instanceof z.ZodObject && value.def.catchall?._zod.def.type === "never";
@@ -110,10 +119,15 @@ export const NodeManifestSchema = z
     shape: z.enum(NODE_SHAPES),
     /** `fixed-aspect-1` keeps width = height; required for, and only for, circle and square. */
     sizing: z.enum(NODE_SIZINGS),
+    render: OutlineRenderSchema.optional(),
   })
   .refine((m) => (m.sizing === "fixed-aspect-1") === FIXED_ASPECT_SHAPES.includes(m.shape), {
     error: `must be "fixed-aspect-1" for the shapes ${FIXED_ASPECT_SHAPES.join(" and ")}, and "auto" otherwise`,
     path: ["sizing"],
+  })
+  .refine((m) => m.render === undefined || m.shape === "rectangle", {
+    error: 'outline rendering requires shape "rectangle" and sizing "auto"',
+    path: ["shape"],
   });
 
 export const GroupManifestSchema = z.strictObject({

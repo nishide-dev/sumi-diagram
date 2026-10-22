@@ -92,6 +92,29 @@ Always take these from `sumi catalog --json`. Each entry has `id`
 - `label` components (`sumi/label`) draw text without a border and need a
   non-empty label.
 
+### Catalog render metadata
+
+A node component manifest may include a `render` block. For example, this
+metadata identifies an outline renderer with fixed, validated parameters:
+
+```json
+{
+  "type": "outline",
+  "renderer": "sumi/trapezoid",
+  "params": { "slant": 0.4 }
+}
+```
+
+When present, `catalog --json` keeps this block as the component entry's
+`render` field, including parameter defaults applied during registration.
+Without it the component uses its ordinary D2 shape. This is **manifest /
+catalog metadata**, not a field to write in Figure YAML or `props`. A renderer
+ID is not a component ID: select the component listed in the catalog.
+
+The outline contract is foundation work; render-pipeline composition and the
+components using it follow separately. The current built-in component entries
+omit `render`. Keep using their catalog IDs, variants and props.
+
 ## Themes and profiles
 
 They are built in; there is no way to define your own in a figure.
