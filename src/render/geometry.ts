@@ -6,19 +6,10 @@
  * 1 unit = 0.5pt); {@link unitsToPt} / {@link unitsToMm} convert them.
  */
 
+import type { Point, Rect } from "../core/geometry";
 import { d2UnitsToPt, ptToMm } from "../core/units";
 
-export interface Point {
-  x: number;
-  y: number;
-}
-
-export interface Rect {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
+export type { Point, Rect } from "../core/geometry";
 
 /** A path segment with absolute coordinates. Every subpath starts with `M`. */
 export type PathSegment =

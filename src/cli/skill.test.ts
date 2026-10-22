@@ -25,9 +25,12 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
+import { z } from "zod";
 import { checkD2Version, findD2Binary } from "../backends/d2/binary";
 import { buildFullCatalog } from "../core/catalog";
+import { BUILTIN_OUTLINE_RENDERERS } from "../core/outline";
 import { BUILTIN_PROFILES } from "../core/profile/builtin";
+import { OutlineRenderSchema, Registry } from "../core/registry";
 import { createBuiltinRegistry } from "../core/registry/builtins";
 import { BUILTIN_THEMES } from "../core/theme/builtin";
 import { BUILTIN_FONT_SETS } from "../core/theme/fonts";
@@ -199,12 +202,13 @@ describe("skill references", () => {
     }
   });
 
-  test("every `sumi/<name>` is a built-in component or font set", () => {
+  test("every `sumi/<name>` is a built-in component, renderer or font set", () => {
     const valid = new Set([
       ...createBuiltinRegistry()
         .list()
         .map((m) => `${m.namespace}/${m.name}`),
       ...BUILTIN_FONT_SETS.keys(),
+      ...BUILTIN_OUTLINE_RENDERERS.keys(),
     ]);
     for (const doc of docs) {
       for (const match of doc.text.matchAll(/(?<![.\w])sumi\/([a-z][a-z0-9-]*)/g)) {
@@ -252,6 +256,35 @@ describe("skill references", () => {
           expect(entry).toEqual(catalog[section]?.find((e) => e.id === entry.id) as never);
         }
       }
+    }
+  });
+
+  test("documented outline metadata matches registered manifests and catalog JSON", () => {
+    const examples = blocks
+      .filter((b) => b.lang === "json")
+      .map((b) => JSON.parse(b.body) as Record<string, unknown>)
+      .filter((value) => value.type === "outline");
+    expect(examples.length).toBeGreaterThan(0);
+    for (const example of examples) {
+      const render = OutlineRenderSchema.parse(example);
+      const registry = new Registry();
+      const registered = registry.register({
+        version: 1,
+        kind: "node",
+        namespace: "example",
+        name: "outline-doc",
+        description: "A test of documented render metadata.",
+        since: "0.2.0",
+        variants: ["default"],
+        props: z.strictObject({}),
+        shape: "rectangle",
+        sizing: "auto",
+        render,
+      });
+      expect(registered.diagnostics).toEqual([]);
+      const entry = buildFullCatalog(registry).components?.[0];
+      expect(entry?.kind === "node" && entry.render).toEqual(render);
+      expect(JSON.parse(JSON.stringify(entry)).render).toEqual(example);
     }
   });
 
