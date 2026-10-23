@@ -85,6 +85,9 @@ is no per-figure suppression; mention kept warnings in your report instead.
 | `svg/empty-figure` | no nodes or groups to draw | add elements |
 | `backend/d2-not-found`, `backend/d2-version-mismatch` | D2 missing or not v0.9.0 | user reinstalls the release tarball (D2 is bundled), runs `bun run d2:install` in a source checkout, or sets `SUMI_D2_PATH`; stop |
 | `backend/d2-failed`, `backend/d2-timeout`, `backend/empty-output`, `backend/io-error`, `backend/invalid-args` | D2 itself failed | not a figure problem; report with the message (use `--emit-d2 out.d2` to keep the generated source) |
+| `svg/outline-edge-miss` (warning) | an edge end could not be extended to its custom outline; that end is kept unchanged | inspect the gap and report the diagnostic; do not invent port coordinates |
+| `svg/outline-edge-crossing` (warning) | extended edge segments intersect near the same custom node | inspect the node named in the message and both edges (`related`); try another direction or grouping if appropriate |
+| `svg/outline-radius-ignored` (warning) | polygon outlines cannot apply the theme's rounded corners | report the limitation; changing the theme is a user decision |
 | other `svg/*` (`svg/invalid`, `svg/missing-element`, `svg/missing-font-face`, …) | the SVG did not pass Sumi's own checks | a Sumi bug, not a figure problem; report it |
 | `pdf/input-too-large`, `pdf/missing-font`, `pdf/unresolved-font`, `pdf/engine-unavailable`, `pdf/conversion-failed` | the PDF conversion (`-o x.pdf` / `--format pdf`) failed; no PDF is written | not a figure problem: `sumi doctor` for the fonts; otherwise report it with the message (the SVG renders without `--format pdf`) |
 

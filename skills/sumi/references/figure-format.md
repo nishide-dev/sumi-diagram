@@ -111,9 +111,12 @@ Without it the component uses its ordinary D2 shape. This is **manifest /
 catalog metadata**, not a field to write in Figure YAML or `props`. A renderer
 ID is not a component ID: select the component listed in the catalog.
 
-The outline contract is foundation work; render-pipeline composition and the
-components using it follow separately. The current built-in component entries
-omit `render`. Keep using their catalog IDs, variants and props.
+The render pipeline composes these outlines and adjusts labels and edge ends.
+It measures auto-sized outlines with two D2 passes; explicit width and height
+use one pass. A written dimension is preserved when only one is specified.
+The current built-in component entries omit `render`; the components using
+this foundation follow separately. Keep using the catalog IDs, variants and
+props rather than treating the renderer IDs as available components.
 
 ## Themes and profiles
 

@@ -55,6 +55,10 @@ export function generateD2(ir: FigureIR): string {
     write(body, `class: ${classList(key, element.kind)}`);
     write(body, `shape: ${element.shape}`);
     if (element.kind === "group") write(body, `label.near: ${GROUP_LABEL_NEAR}`);
+    // D2 otherwise moves labels outside undersized explicit rectangles. Keep
+    // outline labels centered so composition can translate into the safe area.
+    if (element.kind === "node" && element.render !== undefined)
+      write(body, "label.near: center-center");
     if (element.kind === "node") writeSize(element, body, write);
     writeStyle(element.style, body, write);
     if (element.kind === "group") for (const child of element.children) writeObject(child, body);

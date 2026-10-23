@@ -1,0 +1,10 @@
+# Synthetic SVG fixture pins the adjacent-side extension crossing case (#53).
+version: 1
+figure: { id: corner }
+nodes:
+  - { id: left, component: box }
+  - { id: top, component: box }
+  - { id: stack, component: test/stack }
+edges:
+  - { id: left, from: left, to: stack }
+  - { id: top, from: top, to: stack }
