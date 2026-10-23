@@ -170,4 +170,50 @@ edges:
       if (initial.ok) expect(Object.isFrozen(node?.render?.params)).toBe(true);
     }
   });
+
+  test("narrow explicit and partial dimensions keep labels centered inside the safe area", async () => {
+    for (const component of ["stack", "trapezoid"]) {
+      const template = (props: string) =>
+        `version: 1\nfigure: { id: narrow }\nnodes:\n  - { id: a, component: test/${component}, label: "LongLongLong\\n日本語", props: ${props} }\n`;
+      const reference = await renderFigure(template("{ width: 160pt, height: 80pt }"), {
+        registry: outlineRegistry(),
+      });
+      if (!reference.ok) throw new Error(JSON.stringify(reference.diagnostics));
+      const refNode = reference.value.compiled.ir.nodes[0];
+      const refGeometry = reference.value.inspection.elements[0];
+      const renderer = refNode?.render && getOutlineRenderer(refNode.render.renderer);
+      if (!renderer || !refGeometry?.bbox || !refGeometry.labels[0])
+        throw new Error("missing reference geometry");
+      const refArea = renderer.draw(
+        refGeometry.bbox,
+        renderer.params.parse(refNode?.render?.params),
+      ).safeArea;
+      const baselineOffset = refGeometry.labels[0].anchor.y - refArea.y - refArea.height / 2;
+      for (const props of ["{ width: 10pt, height: 40pt }", "{ width: 10pt }"]) {
+        const registry = outlineRegistry();
+        const source = template(props);
+        const result = await renderFigure(source, { registry });
+        if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+        expect(result.diagnostics).toEqual([]);
+        const node = result.value.compiled.ir.nodes[0];
+        const geometry = result.value.inspection.elements[0];
+        if (!node?.render || !geometry?.bbox) throw new Error("missing outline");
+        const renderer = getOutlineRenderer(node.render.renderer);
+        if (!renderer) throw new Error("missing renderer");
+        const area = renderer.draw(
+          geometry.bbox,
+          renderer.params.parse(node.render.params),
+        ).safeArea;
+        const label = geometry.labels[0];
+        if (!label) throw new Error("missing label");
+        expect(geometry.bbox.width).toBe(20);
+        if (props.includes("height")) expect(geometry.bbox.height).toBe(80);
+        expect(label.anchor.x).toBeCloseTo(area.x + area.width / 2, 2);
+        // Keep D2's baseline offset of the same centered multiline label,
+        // even when its width overflows the explicitly preserved footprint.
+        expect(label.anchor.y - area.y - area.height / 2).toBeCloseTo(baselineOffset, 2);
+        expect(result.value.compiled.d2Source).toContain("label.near: center-center");
+      }
+    }
+  });
 });
