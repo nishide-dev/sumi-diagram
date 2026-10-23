@@ -76,6 +76,7 @@ export function sizeOutlineNodes(
     }
     return Object.freeze({
       ...node,
+      ...(node.width === undefined && node.height === undefined && { autoSized: true }),
       width: node.width ?? Object.freeze({ units: width, pt: width * 0.5 }),
       height: node.height ?? Object.freeze({ units: height, pt: height * 0.5 }),
     });

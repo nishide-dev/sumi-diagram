@@ -76,6 +76,8 @@ export interface NodeIR extends ObjectIRBase {
   readonly sizing: NodeSizing;
   /** Fixed, validated outline metadata; omitted for ordinary D2 shapes. */
   readonly render?: Readonly<OutlineRender>;
+  /** Outline width/height were both generated at render time, not written in props. */
+  readonly autoSized?: boolean;
   /** Explicit width from props; omitted means sized to the label. */
   readonly width?: StyleLength;
   /** Explicit height from props; omitted means sized to the label. */

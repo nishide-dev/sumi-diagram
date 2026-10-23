@@ -760,6 +760,15 @@ layout:
 - **再検査とメタデータ**: 合成後に inspect を再実行し、移動後のラベル・エッジを返す。bbox は footprint と一致し、コンテナの包含は維持する。`artifact.svg` は最終 D2 パスの生の SVG、`svg` は合成済みの成果物。メタデータ形式1は維持し、合成フラグは追加しない（IR の render と Sumi 版で方式が分かる）。
 - **統合テスト**: 固定 D2 v0.9.0 で3テーマ × 4方向、auto / explicit / partial のサイズ、入れ子・複数行日本語、両矢印・line・逆向き・自己ループ・多重エッジを描く。端点の最後の線分が footprint に垂直で、from/to の端に入ること、元の隙間が輪郭までの距離として0.01 unit以内で保たれること、bbox / 親の包含、metadata / 最終 D2 の一致、バイト決定性を確認する。合成単体では曲線の制御点・非対象バイト・異常プレースホルダ・miss / crossing の診断・各パスの backend 失敗を検査する。
 
+### 6.14 #54 のカスタム輪郭の幾何 lint
+
+- **領域の解決**: `createGeometryContext()` が outline ノードの合成後 bbox を renderer.draw() に渡し、`collision`（なければ silhouette の凸包）を GeometryElement.outline、`safeArea` の矩形を labelArea にする。純粋な幾何の再現のみで SVG / IR / renderer 出力は変更しない。既存ノードの shapeOutline / labelArea は維持する。
+- **凸包と衝突**: 凸包は monotone chain で頂点の重複・一直線上の中間点を除く。カスタム部品が片方以上にあれば node-overlap は両者の凸領域の交差を検査し、通常部品同士は従来の bbox 判定を維持する。許容誤差は各領域を0.5 unitずつ縮めて吸収する。多角形は半平面の inset、楕円は半径の縮小による近似。多角形同士は分離軸、多角形/楕円は単位円への変換と辺との距離、楕円同士は GJK（最大64反復）。詳細・近似の限界は [lint 規則](../lint-rules.md#カスタム輪郭54) に記録する。
+- **ルールの接続**: label-overflow は safeArea と strokeInset を検査する。label-collision は凸衝突領域を自動的に利用し、edge-crosses-label は合成後のラベルと経路を使う。祖先グループの包含除外・severity 設定・ソース位置の仕組みは変えない。独自の新しい規則は追加しない。
+- **サイズの由来**: 2パス描画で元の両軸が未指定だったノードだけ NodeIR.autoSized を true にする。IR の寸法が補完されていても、overflow の位置と案内は label を指す。片軸以上が明示済みの場合は従来どおり props を指し label を related とする。この内部フラグを Figure YAML・D2・SVG に追加しない。
+- **延長失敗の診断**: #53 の svg/outline-edge-miss と svg/outline-edge-crossing を引き継ぐ。描画の診断は lintRenderedFigure がすでに返すため、同じ内容の geometry 規則を増やさない。
+- **検証**: 実際の D2 で3テーマ×2 renderer の自動サイズと安全領域を確認し、明示の台形が外接矩形には収まるラベルを safeArea overflow として報告すること、部分指定の props 位置を検査する。synthetic inspection で斜辺・stack の前面・角の空白・衝突・祖先除外・auto サイズの label 位置を固定し、明示 collision の採用・凸包・許容誤差・polygon/ellipse の交差を検査する。既存 fixture / gallery / examples の差分は不要。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）

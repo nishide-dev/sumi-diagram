@@ -92,7 +92,7 @@ const diagnostics = lintGeometry(rendered, { config, source: text, file });
 | `geometry/text-too-small` | error | 描画されたラベルの文字サイズが Profile の `minFontSize` 未満。通常は `profile/font-too-small` が描画前に防ぐので、描画後の安全網。 | 文字サイズの大きい Theme / variant を使う（`presentation-16x9` なら `slides`）。 |
 | `geometry/label-overflow` | error | ノード・グループのラベル（再計測）が、図形の中の文字を置ける範囲（下表）に収まらない。明示サイズ（`props.width` / `height`）が小さい場合は `props` を指す（D2 は明示サイズを保ち、ラベルを図形の外に出す）。 | 明示サイズを大きくするか外す。ラベルを短くするか改行する。文字の入る範囲が広い図形にする。 |
 | `geometry/out-of-canvas` | error | 図形・ラベル（再計測）・エッジの経路がキャンバスの外にはみ出す（切れて表示される）。 | ラベルを短くする。解消しなければ不具合として報告する。 |
-| `geometry/node-overlap` | warning | 2 つのノード・グループの図形（外接矩形）が重なり、グループの木でどちらも他方を含まない。子と祖先グループの重なり（意図した包含）は対象外。 | 明示サイズを見直す。同じグループに入れる。 |
+| `geometry/node-overlap` | warning | 2 つのノード・グループの図形が重なり、グループの木でどちらも他方を含まない。通常部品同士は従来の外接矩形、カスタム輪郭が関わる組は下記の凸衝突領域で判定する。子と祖先グループの重なり（意図した包含）は対象外。 | 明示サイズを見直す。同じグループに入れる。 |
 | `geometry/label-collision` | warning | ラベル（再計測）が、別の要素のラベル、または別のノードの図形と重なる（エッジのラベルとノードの図形を含む）。自分の図形との重なり、グループの図形との重なり（中の要素は意図して重ねて描く）は対象外。グループのラベルと子ノードの図形の重なりは対象。要素の組ごとに 1 件。 | ラベルを短くする。レイアウト（方向・グループ）を変える。 |
 | `geometry/edge-crosses-label` | warning | エッジの経路が、別の要素のラベル（再計測）を横切る。例: `direction: down` で上からコンテナに入るエッジが、コンテナのラベルを横切る（#31）。Sumi はコンテナのラベルを左上に置くので、多くの図では起きないが、ラベルがコンテナの幅の半分を超えると起きる。自分のラベルは対象外（D2 はラベルの下の線をマスクする）。 | ラベルを短くする、コンテナではなく中の要素どうしをつなぐ、`layout.direction` を変える。 |
 | `geometry/aspect-distorted` | warning | 縦横比が固定の部品（`circle`、`square`）が、縦横の異なる大きさで描かれている。ELK は次数の多いノードや自己ループのあるノードを一方向に拡大する。 | ノードのエッジを減らす。縦横比が重要でなければ `ellipse` / `box` を使う。 |
@@ -112,8 +112,18 @@ const diagnostics = lintGeometry(rendered, { config, source: text, file });
 | `cylinder` | 上の蓋の手前の縁（上端から 2 × 24 unit）から、下の蓋の上端（下端から 24 unit）までの胴体。24 unit は D2 の固定値（高さの 1/3 まで） |
 | `document` | 波形の下端より上（高さの 14 / 18.925） |
 | `label`（shape `text`） | 図形がないので検査しない |
+| カスタム輪郭（manifest の `render.type: outline`） | renderer が実際の footprint に返す `safeArea` の矩形。台形の斜辺・stack の前面レイヤーなどを考慮する |
 
 ラベルは枠線の内側半分（stroke 幅の半分）にかかってはいけない。許容誤差 1 unit（0.5pt）を差し引く。
+
+### カスタム輪郭（#54）
+
+- `GeometryContext` は合成後の SVG の bbox と IR の renderer / params から幾何を再現する。衝突用の `outline` は renderer の `collision`、省略時は `outline` の凸包。文字の `labelArea` は `safeArea`。レイアウト用の占有矩形をそのまま文字範囲・衝突領域にはしない。
+- `geometry/label-overflow` は行ごとに safeArea と stroke inset を検査する。カスタム輪郭の ID を診断に示す。利用者が片軸以上を指定した場合は `props`、2パス描画で両軸とも自動補完した場合は `label` を指す（自動補完した寸法を明示 props と誤認しない）。狭い明示サイズでも、ラベルの中央配置と寸法の保持は #53 の描画経路で行う。
+- `geometry/label-collision` は文字矩形とカスタム部品の凸衝突領域で判定する。`geometry/node-overlap` でも片方以上がカスタム部品なら両者の凸衝突領域を使い、台形や stack の角の空白での誤検出を減らす。通常部品同士の既存判定と、祖先グループの包含除外は維持する。
+- 衝突は両方の領域を許容誤差の半分（0.5 unit）ずつ内側へ縮めて判定する。凸多角形は辺の半平面を移動し、楕円は半径を縮める近似を使う。多角形同士は分離軸、多角形と楕円は楕円を単位円へ変換した線分距離、楕円同士は support mapping（GJK、最大64反復）で検査する。境界で触れるだけは報告しない。
+- 凹んだ輪郭を凸包で近似するため、stack の細かい段差の空白などで保守的な衝突警告が出る場合がある。safeArea も実際の輪郭より保守的な矩形であり、「斜辺の一部にはまだ空きがある」場合でも安全領域からのはみ出しは error とする。
+- エッジの輪郭への延長失敗は、#53 の `svg/outline-edge-miss` で描画時にすでに報告する。同じ内容の geometry 規則は追加しない。延長区間同士の交差は `svg/outline-edge-crossing`。両方とも `lint --geometry` の報告に含まれるが `--rule` で severity は変更できない。
 
 ### 閉路を閉じる辺（`geometry/reversed-edge`）
 
@@ -134,7 +144,7 @@ const diagnostics = lintGeometry(rendered, { config, source: text, file });
 - ラベルの矩形は、各行の advance 幅の合計 × 文字サイズ、高さは ascender から descender まで（`hhea`。同梱フォントでは合計がちょうど 1em）。実際のインク（字形の輪郭）ではなく、文字送りの箱で判定する。
 - カーニング・合字・shaping は扱わない。同梱の BIZ UD Gothic は `kern` / `GPOS` を持たないので、advance の合計がブラウザの描画幅と一致する。ほかのフォントセットを追加する場合は、カーニングの分（通常は数 % 以内）だけ幅を過大に見積もりうる。
 - 角丸（`radius`）は範囲に反映しない（ノードのラベルは中央に置かれるため、角に届くことはない。コンテナのラベルは左上に置かれるので、大きな `radius` のコンテナでは角の曲線にかかっても検出しない）。cylinder と document の衝突判定は外接矩形を使う。
-- `geometry/node-overlap` は外接矩形で判定する（円や菱形の角の空白でも重なりとみなす）。ELK は通常ノードを重ねないので、明示サイズや D2 の不具合の検出が目的。
+- `geometry/node-overlap` は通常部品同士では外接矩形で判定する（円や菱形の角の空白でも重なりとみなす）。カスタム輪郭が関わる場合は上記の凸領域を使う。ELK は通常ノードを重ねないので、明示サイズや D2 の不具合の検出が目的。
 - エッジの経路は、3 次ベジェを 16 本の弦に分割して判定する（D2 の曲線は角の丸めだけなので誤差は許容誤差より十分小さい）。矢尻は判定しない。
 - 図ごとに規則を抑制するフィールドはまだない。誤検出は設定で規則を無効にするか severity を下げて扱う。
 
