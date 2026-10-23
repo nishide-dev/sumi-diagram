@@ -154,12 +154,14 @@ describe("outline manifests", () => {
     expect(r.register(manifest({ type: "outline", renderer: "sumi/trapezoid" })).ok).toBe(true);
   });
 
-  test("legacy manifests and the existing built-in catalog have no render field", () => {
+  test("legacy manifests and ordinary built-in catalog entries have no render field", () => {
     const r = new Registry();
     const original = manifest();
     expect(r.register(original)).toEqual({ ok: true, value: original, diagnostics: [] });
     expect(buildCatalog(r).components[0]).not.toHaveProperty("render");
-    for (const entry of buildCatalog(createBuiltinRegistry()).components)
-      expect(entry).not.toHaveProperty("render");
+    for (const entry of buildCatalog(createBuiltinRegistry()).components) {
+      if (entry.id !== "sumi/trapezoid" && entry.id !== "sumi/stack")
+        expect(entry).not.toHaveProperty("render");
+    }
   });
 });

@@ -14,7 +14,6 @@ import { describe, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createD2CliBackend } from "../backends/d2/backend";
 import { checkD2Version, findD2Binary } from "../backends/d2/binary";
 import { D2_VERSION } from "../backends/d2/version";
 import { getProfile } from "../core/profile/builtin";
@@ -68,11 +67,10 @@ describe.skipIf(!available)("built-in primitives render with D2", () => {
     test(
       `every component × variant (${theme})`,
       async () => {
-        const compiled = compileFigure(primitivesFigure(theme));
-        if (!compiled.ok) throw new Error(JSON.stringify(compiled.diagnostics, null, 2));
-        const { ir, d2Source, layout, fontSet } = compiled.value;
-        const rendered = await createD2CliBackend().render({ d2Source, layout, fontSet });
+        const rendered = await renderFigure(primitivesFigure(theme));
         if (!rendered.ok) throw new Error(JSON.stringify(rendered.diagnostics, null, 2));
+        expect(rendered.diagnostics).toEqual([]);
+        const { ir } = rendered.value.compiled;
         const markup = elementMarkup(rendered.value.svg);
         expect(markup.size).toBe(ir.elements.size);
 
@@ -89,6 +87,12 @@ describe.skipIf(!available)("built-in primitives render with D2", () => {
               key,
               stroke: true,
             });
+          }
+          if (element.kind === "node" && element.render !== undefined) {
+            expect(count(chunk, /<path d="M/g)).toBe(
+              element.render.renderer === "sumi/stack" ? 3 : 1,
+            );
+            expect(count(chunk, /<rect\b/g)).toBe(0);
           }
           if (element.kind === "edge") {
             expect({

@@ -97,7 +97,7 @@ sumi catalog                     # human-readable tables of all three
 
 Pick each node, group and edge component from `components`, matching the
 `description` to the element's role (e.g. `diamond` for a decision,
-`cylinder` for storage). Use a variant only if it is listed for that
+`cylinder` for storage, `stack` for a collection of layers if available). Use a variant only if it is listed for that
 component, and props only if they are in its `props` schema. Check the
 chosen theme against the target: its `compatibleProfiles` must include the
 profile, otherwise labelled elements fail with `profile/font-too-small`.

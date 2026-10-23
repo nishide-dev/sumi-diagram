@@ -26,6 +26,8 @@ const LOWERING: Record<string, string> = {
   "sumi/parallelogram": "parallelogram",
   "sumi/cylinder": "cylinder",
   "sumi/document": "document",
+  "sumi/trapezoid": "rectangle",
+  "sumi/stack": "rectangle",
   "sumi/label": "text",
   "sumi/container": "rectangle",
   "sumi/arrow": "-> target:triangle",

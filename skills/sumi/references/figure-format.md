@@ -114,9 +114,30 @@ ID is not a component ID: select the component listed in the catalog.
 The render pipeline composes these outlines and adjusts labels and edge ends.
 It measures auto-sized outlines with two D2 passes; explicit width and height
 use one pass. A written dimension is preserved when only one is specified.
-The current built-in component entries omit `render`; the components using
-this foundation follow separately. Keep using the catalog IDs, variants and
-props rather than treating the renderer IDs as available components.
+The built-in `trapezoid` and `stack` node components use these renderers
+(introduced in 0.3.0; use them only when the installed CLI lists them).
+`trapezoid` has a wider top and narrower bottom; `stack` draws three overlapping
+rectangles with the label on the front one. Both offer `default`, `emphasis`
+and `muted`, with optional `width` / `height` props. Slant, layer count and
+offset are fixed manifest parameters, not YAML props. Other ordinary built-in
+components omit `render`.
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: outline-pipeline
+  theme: academic
+  profile: paper-double
+  layout: { direction: right }
+groups:
+  - { id: processing, label: Processing }
+nodes:
+  - { id: filter, component: trapezoid, label: Filter, group: processing }
+  - { id: jobs, component: stack, label: Jobs, variant: emphasis, group: processing }
+edges:
+  - { from: filter, to: jobs }
+```
 
 ## Themes and profiles
 

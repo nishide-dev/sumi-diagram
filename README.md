@@ -100,6 +100,16 @@ sumi catalog --json --section themes --section profiles   # Theme と Profile �
 | `doctor` | Sumi / Bun のバージョン、D2 の有無とバージョン、同梱フォントの sha256、幾何 lint 用のフォントの metrics を読めるかを確認する | `--json` |
 | `catalog` | 部品・Theme・Profile の一覧（`--json` は `buildFullCatalog()` の出力そのもの） | `--json`、`--section components\|themes\|profiles`（繰り返し可）、`--kind node\|group\|edge`（`--section` なしでは部品だけを出す） |
 
+### 台形と stack
+
+開発版では、台形 `trapezoid` と重なった矩形 `stack` を使えます（`since: 0.3.0`、未リリース。現時点ではソースから実行してください）。インストール済みの CLI では `sumi catalog --kind node` にある部品を選びます。
+
+- `trapezoid`: 上辺が広く、下辺が狭い台形。
+- `stack`: 3枚の矩形を重ねた形。書類やレイヤーの集まりなどに使い、文字は前面に配置します。
+- どちらも `default`・`emphasis`・`muted`、3テーマに対応し、props は任意の `width` / `height` です。傾き・枚数・ずれ幅は固定で、props では変更できません。通常はサイズを省略し、文字に合わせて自動配置します。
+
+`sumi catalog --json` の `render` は Sumi が輪郭を合成する部品のメタデータで、Figure YAML に書くフィールドではありません。接続は ELK が選ぶ辺と位置に従い、輪郭までエッジを延ばします。任意位置のポートは提供しません。[ギャラリー](docs/gallery/README.md)に全 variant・全テーマの作例があります。
+
 ### 出力先と終了コード
 
 | 出力 | 内容 |
