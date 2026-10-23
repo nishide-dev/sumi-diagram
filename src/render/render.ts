@@ -1,6 +1,6 @@
 /**
  * The whole render pipeline for one figure (#11): compile → D2 backend →
- * finalize → inspect.
+ * optional outline measurement → D2 → finalize → inspect → compose → inspect.
  */
 
 import { createD2CliBackend } from "../backends/d2/backend";
@@ -8,8 +8,10 @@ import type { DiagramBackend, RenderArtifact } from "../backends/types";
 import { type CompiledFigure, type CompileOptions, compileFigure } from "../compiler/compile";
 import type { Diagnostic } from "../core/diagnostics";
 import type { Result } from "../core/result";
+import { composeOutlines } from "./compose";
 import { type FinalizedSvg, finalizeSvg } from "./finalize";
 import { inspectSvg, type SvgInspection } from "./inspect";
+import { needsOutlineSizing, outlineMeasurementFigure, sizeOutlineNodes } from "./outline-sizing";
 
 export interface RenderFigureOptions extends CompileOptions {
   /** Backend to render with. Defaults to a new D2 CLI backend. */
@@ -58,31 +60,59 @@ export async function renderFigure(
     return fail();
   }
 
-  const rendered = await backend.render({
-    d2Source: compiled.value.d2Source,
-    layout: compiled.value.layout,
-    fontSet: compiled.value.fontSet,
-    ...(sourceName !== undefined && { sourceName }),
-  });
+  let effective = compiled.value;
+  const render = (figure: CompiledFigure) =>
+    backend.render({
+      d2Source: figure.d2Source,
+      layout: figure.layout,
+      fontSet: figure.fontSet,
+      ...(sourceName !== undefined && { sourceName }),
+    });
+  if (ir.nodes.some(needsOutlineSizing)) {
+    const measurement = outlineMeasurementFigure(effective);
+    const first = await render(measurement);
+    diagnostics.push(...first.diagnostics);
+    if (!first.ok) return fail();
+    const firstFinalized = finalizeSvg(first.value, measurement, { source: text });
+    diagnostics.push(...firstFinalized.diagnostics);
+    if (!firstFinalized.ok) return fail();
+    const measured = inspectSvg(firstFinalized.value.svg, measurement.ir);
+    diagnostics.push(...measured.diagnostics);
+    if (!measured.ok) return fail();
+    const sized = sizeOutlineNodes(effective, measured.value);
+    diagnostics.push(...sized.diagnostics);
+    if (!sized.ok) return fail();
+    effective = sized.value;
+  }
+  const rendered = await render(effective);
   diagnostics.push(...rendered.diagnostics);
   if (!rendered.ok) return fail();
   const artifact = rendered.value;
 
-  const finalized = finalizeSvg(artifact, compiled.value, { source: text });
+  const finalized = finalizeSvg(artifact, effective, { source: text });
   diagnostics.push(...finalized.diagnostics);
   if (!finalized.ok) return fail();
 
-  const inspected = inspectSvg(finalized.value.svg, ir);
+  let inspected = inspectSvg(finalized.value.svg, effective.ir);
   diagnostics.push(...inspected.diagnostics);
   if (!inspected.ok) return fail();
+
+  const composed = composeOutlines(finalized.value.svg, effective.ir, inspected.value);
+  diagnostics.push(...composed.diagnostics);
+  if (!composed.ok) return fail();
+  if (effective.ir.nodes.some((n) => n.render !== undefined)) {
+    inspected = inspectSvg(composed.value, effective.ir);
+    diagnostics.push(...inspected.diagnostics);
+    if (!inspected.ok) return fail();
+  }
 
   return {
     ok: true,
     value: {
-      svg: finalized.value.svg,
+      svg: composed.value,
       metadata: finalized.value.metadata,
       inspection: inspected.value,
-      compiled: compiled.value,
+      compiled: effective,
       artifact,
     },
     diagnostics,

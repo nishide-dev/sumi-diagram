@@ -309,7 +309,7 @@ interface OutlineRenderer<P extends Record<string, number | boolean | string>> {
 - **Registry**: `src/core/outline/` の `BUILTIN_OUTLINE_RENDERERS`（ReadonlyMap）と `getOutlineRenderer(id)`。外部 renderer の登録・実行コードのロードは行わない。型と実装の単位は D2 / SVG user unit（1 unit = 0.5pt）。Point / Rect / Region の宣言は `src/core/geometry.ts` で共有し、既存の render / lint の export は維持する。
 - **純関数の契約**: 正で有限のラベル寸法・footprint と、スキーマで検証済みの params を入力とし、入力を変えず、同じ値から同じ幾何を返す。座標は footprint の内側にあり、各辺の全位置から内向きの射線が輪郭に当たる。`footprint()` はラベルを safeArea に含む寸法を返し、ラベルの幅・高さに対して単調増加。色・線・Theme・SVG 文字列は返さない。`body` は閉じた塗り付きの多角形、`line` は塗らない装飾線。inspect 用の `PathSegment` は Z を L に正規化するため、renderer のパス型とは分ける。
 - **最初の実装**: 台形と stack の純関数 renderer を契約の実例として追加する。台形は `slant`（0〜1、既定0.4）、stack は `layers`（整数1〜8、既定3）と `offset`（0より大きく64以下、既定8 user unit）。台形の斜辺は幅の1/4まで、stack の段差は幅・高さの `1/(2*layers)` までに抑え、小さい明示 footprint でも safeArea と連続した body を保つ。`footprint()` は指定した段差を含めて余裕を確保する。
-- **実装の境界**: #52 は契約・幾何 renderer・manifest 検証・catalog メタデータを用意する。IR / SVG 合成は #53、幾何 lint の接続は #54、利用者向けの部品 manifest・Theme・variant・ギャラリーは #55 で接続する。ここでは組み込み部品一覧と既存の描画結果を保つ。
+- **実装の境界**: #52 は契約・幾何 renderer・manifest 検証・catalog メタデータを用意する。IR / SVG 合成は #53（§6.13）、幾何 lint の接続は #54、利用者向けの部品 manifest・Theme・variant・ギャラリーは #55 で接続する。ここでは組み込み部品一覧と既存の描画結果を保つ。
 - **契約の検査**: 型検査で曲線のパスを拒否する。幾何のテストは多角形の頂点・交点で断面を分割し、body の和集合と outline の一致、safeArea の包含、両軸への投影（各辺からの射線）を検査する。正方形・縦長・横長・微小な footprint、パラメータの境界値、位置の平行移動、決定性・入力非破壊・サイズの単調性を含む。欠けたレイヤー・誤った輪郭・開いた body・凹部にまたがる safeArea などの負例でも検査を固定する。
 
 ## 4. Theme と style 解決（#6）
@@ -502,7 +502,7 @@ layout:
 - **API**（`src/render`）:
   - `finalizeSvg(artifact, compiled, { source }): Result<{ svg, metadata, widthPt, heightPt }>` — D2 の SVG を Sumi の成果物に仕上げる。
   - `inspectSvg(svg, ir): Result<SvgInspection>` — 生の SVG と仕上げ後の SVG のどちらも受け付ける。
-  - `renderFigure(text, opts): Promise<Result<{ svg, metadata, inspection, compiled, artifact }>>` — compile → backend.render → finalize → inspect を順に実行する。各段の warning も含めて diagnostics を返す。`opts.backend` の既定は D2 CLI backend。
+  - `renderFigure(text, opts): Promise<Result<{ svg, metadata, inspection, compiled, artifact }>>` — compile → backend.render → finalize → inspect を順に実行する。#53 の outline があれば測定パスと compose → 再 inspect を加える（§6.13）。各段の warning も含めて diagnostics を返す。`opts.backend` の既定は D2 CLI backend。
   - `readSvgMetadata(svg)`、`parsePath(d)`、`decodeElementClass(class)`、`unitsToPt` / `unitsToMm` / `toSize` も公開する。
 - **XML parser**: 依存ライブラリを追加せず、`src/render/xml.ts` に最小の厳格な parser を実装した。理由は次のとおり。
   1. DTD（`<!DOCTYPE`）とマークアップ宣言を構文として受け付けないため、XXE や entity 展開攻撃（billion laughs）が原理的に起きない。entity は定義済みの 5 つと数値文字参照だけを展開し、それ以外は error とする。`<?xml?>` 宣言以外の処理命令（`<?xml-stylesheet?>` 等）も拒否する。
@@ -511,6 +511,7 @@ layout:
   - entity 名は `Map` で引く（`&constructor;` や `&__proto__;` が prototype 経由で解決されない）。XML 1.0 の `Char` に含まれない生の文字（tab / LF / CR 以外の C0 制御文字、対になっていないサロゲート、U+FFFE / U+FFFF）は、テキスト・属性値・CDATA・コメントのどこにあっても、code point 単位で走査して拒否する。
   - 走査は再帰しない（深いネストでもスタックが溢れない）。不正な XML は行・列付きで `svg/invalid` とする。
 - **仕上げ（finalize）**: root `<svg>` の開始タグに `width="{W·0.5}pt" height="{H·0.5}pt"` を追加し、直後に `<metadata>` を挿入する。それ以外の D2 の出力はバイト単位でそのまま残す（root 開始タグ内の属性は、元の順序のまま正規の空白で再出力する）。viewBox は変更せず、縮小もしない。数値は指数表記を使わず、小数点以下は最大 6 桁とする。
+  - #53 の outline 合成は finalize の後の独立した段で、outline ノードの `g.shape` の中身、ラベルの `text` / `tspan` の位置、接するエッジの `d` のみを編集する。それ以外のバイトと metadata の形式は保つ。通常の部品のみの図は従来どおりで、合成しない（§6.13）。
 - **メタデータの形式**（決定的。時刻や絶対パスは含めない）:
   ```xml
   <metadata><sumi:render xmlns:sumi="https://github.com/nishide-dev/sumi-diagram/ns/svg-metadata/1"
@@ -746,6 +747,18 @@ layout:
    - **リリース**: `release:smoke` が、同梱バイナリ（直接とシンボリックリンク経由）で日本語の図を PDF にし、ページの大きさ・埋め込みサブセット・画像 0・ラベルの文字を検査し、**ソースから同じ SVG を変換したバイトと一致する**ことを確かめ、sha256 を出力する。release.yml は 4 ターゲットでこれを実行するので、各ターゲットのバイナリがソースと同じ（したがって互いに同じ）PDF を出すことが確かめられる。
 9. **ライセンス**（§6.8 の 9 に追加）: `bun run pdf:wasm` が `cargo metadata`（wasm の target、Cargo.lock）から、WASM にコンパイルされるクレート 67 個と、ビルド時だけ使うクレート 7 個（proc-macro とその依存。同梱しない）を `native/svg2pdf-wasm/THIRD_PARTY.md` に書き、前者のライセンスファイルをクレートのパッケージからそのまま `native/svg2pdf-wasm/licenses/<crate>-<version>/` にコピーする（コミットし、CI で一致を検査）。ライセンスはすべて許容的なもの（MIT・Apache-2.0 の選択が大半。ほかに BSD-2-Clause（arrayref）・BSD-3-Clause（tiny-skia、tiny-skia-path）・Zlib（slotmap、zlib-rs）、選択肢として 0BSD・Unlicense・BSL-1.0）。svg2pdf の NOTICE によれば、ICC プロファイル（`src/icc/`）は CC0、`src/util/helper.rs` と `src/render/path.rs` の一部は MPL-2.0。MPL-2.0 の部分はソース（crates.io の 0.13.0 と、パッチを含む Sumi のリポジトリ）の入手先を `NOTICE` に書いた（パッチはこれらのファイルを変更しない）。release build は `licenses/svg2pdf-wasm/` にこれらを入れ、`NOTICE` に PDF エンジンの項（版・WASM の sha256・パッチ・MPL の部分）を加える。build は WASM の sha256 と svg2pdf のライセンスファイルが揃っていなければ失敗し、smoke もその存在を確かめる。
 10. **保証しないこと・制約**: PDF/A・PDF/X 等の規格適合（D2 のラベル用 mask が透明を使う。必要になれば、変換前に mask をラベルの白い背景に置き換える前処理（#19 §3.2・§10 の 6）で透明をなくせる。需要が出てから別 Issue）、タグ付き PDF（アクセシビリティ）、複数ページ、レイヤー・リンク。pdfLaTeX / LuaLaTeX での取り込み（PDF 1.7）は #63 で検証済み（TeX Live 2026、文字・フォント埋め込み・位置・表示）。[検証記録](../verification/63-pdf-latex.md)と `bun run pdf:latex` で再現でき、CI に専用の検査ジョブを設ける。svg2pdf / usvg の版を上げると出力が変わる（golden の更新が必要。D2 の更新と同じ扱い）。
+
+### 6.13 #53 のカスタム輪郭合成
+
+- **IR**: NodeIR に任意の `render` を保持する。manifest 検証後の固定 params を複製して freeze し、既存ノードにはキーを追加しない。render のない図では描画パス・D2・SVG・PDF の出力を変更しない。
+- **2パス描画**: 自動寸法の outline ノードがあれば、測定専用 IR ではそのノードの width / height をいったん外し、D2 のラベル・余白・次数を含む箱を得る。`renderer.footprint()` から必要寸法を求め、D2 unit の整数へ切り上げた幅・高さを最終 IR へ補完して2回目を描く。片方が明示済みならその値を保ち、未指定の軸だけ補完する。両方明示済みなら1パス。YAML は書き換えず、最終 `compiled.ir`・`d2Source`・`artifact.d2Source` を一致させる。入力 hash は元の YAML、D2 hash は最終パスのソース。
+- **合成**（`src/render/compose.ts`）: inspect 済みの SVG を XML offset で部分編集する。プレースホルダは `g.shape` 1つの直下に rect 1つであることを要求し、違えば `svg/unsupported-geometry`（error、要素・位置付き）。rect の x/y/width/height/rx/ry 以外の属性を輪郭の各 path へ写し、塗り・線・class・style・破線を維持する。`line` レイヤーは fill を none にする。パスは3桁に丸めた M/L と Z。角丸は多角形に適用できないため、非0の radius は `svg/outline-radius-ignored`（warning）。
+- **ラベル**: 元の footprint の中心から safeArea の中心への差分を text の x/y と各 tspan の x へ加える。文字・フォント・行送りは変えない。明示 footprint が小さすぎる場合もサイズを強制変更しない。safeArea を使う幾何 lint の詳細は #54 で接続する。
+- **エッジ**: 正規化した経路の先頭は IR の from、末尾は to に対応させる。最後の線分（曲線では端点の制御点）から内向きの単位射線を取り、footprint と輪郭への最初の交差距離の差だけ端点を延ばす。矢じり・stroke のために D2 が空けた距離と接線方向は保つ。曲線の端の制御点も同じ差分だけ動かす。エッジラベル・mask・marker の属性・他の経路部分は変更しない。自己ループ・逆向き・両矢印・矢印なし・多重エッジも同じ処理。
+- **端点契約が成立しない場合**: 射線が footprint / outline に当たらない、端が退化して方向を決められない、最後の方向が水平/垂直でない場合は、その端を変更せず `svg/outline-edge-miss`（warning）。近くの別ノードへ推測して付け替えない。
+- **延長区間の交差方針**: 同じ部品で延ばした区間どうしの内部交差と共線の重なりを `svg/outline-edge-crossing`（warning）として報告する。境界で触れるだけは除外する。主診断は片方のエッジを指し、related にもう一方のエッジ位置を添える。`tests/fixtures/outlines/corner.*` で stack の左上の角へ隣り合う2辺から接続する例を固定した。これら svg 段の warning は lint 規則の severity 設定の対象ではない。
+- **再検査とメタデータ**: 合成後に inspect を再実行し、移動後のラベル・エッジを返す。bbox は footprint と一致し、コンテナの包含は維持する。`artifact.svg` は最終 D2 パスの生の SVG、`svg` は合成済みの成果物。メタデータ形式1は維持し、合成フラグは追加しない（IR の render と Sumi 版で方式が分かる）。
+- **統合テスト**: 固定 D2 v0.9.0 で3テーマ × 4方向、auto / explicit / partial のサイズ、入れ子・複数行日本語、両矢印・line・逆向き・自己ループ・多重エッジを描く。端点の最後の線分が footprint に垂直で、from/to の端に入ること、元の隙間が輪郭までの距離として0.01 unit以内で保たれること、bbox / 親の包含、metadata / 最終 D2 の一致、バイト決定性を確認する。合成単体では曲線の制御点・非対象バイト・異常プレースホルダ・miss / crossing の診断・各パスの backend 失敗を検査する。
 
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures

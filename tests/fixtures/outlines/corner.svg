@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-100 -100 300 300" role="img" aria-label="Outline corner fixture"><svg class="d2-svg" viewBox="-100 -100 300 300" width="300" height="300" role="img" aria-label="Crossing extended edges">
+<g class="sumi-k-n--left sumi-kind-node"><g class="shape"><rect x="-60" y="0" width="40" height="20" fill="#ffffff" stroke="#000000" style="stroke-width:2;" /></g></g>
+<g class="sumi-k-n--top sumi-kind-node"><g class="shape"><rect x="0" y="-60" width="20" height="40" fill="#ffffff" stroke="#000000" style="stroke-width:2;" /></g></g>
+<g class="sumi-k-n--stack sumi-kind-node"><g class="shape"><rect x="0" y="0" width="100" height="100" fill="#ffffff" stroke="#000000" style="stroke-width:2;" /></g></g>
+<g class="sumi-k-e--left sumi-kind-edge"><path d="M -18 4 L -2 4" class="connection" fill="none" stroke="#000000" style="stroke-width:2;" /></g>
+<g class="sumi-k-e--top sumi-kind-edge"><path d="M 4 -18 L 4 -2" class="connection" fill="none" stroke="#000000" style="stroke-width:2;" /></g>
+</svg></svg>

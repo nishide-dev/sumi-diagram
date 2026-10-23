@@ -18,6 +18,7 @@ import type {
   EdgeDirection,
   NodeShape,
   NodeSizing,
+  OutlineRender,
   ResolvedComponent,
 } from "../core/registry/manifest";
 import { getTheme } from "../core/theme/builtin";
@@ -73,6 +74,8 @@ export interface NodeIR extends ObjectIRBase {
   readonly kind: "node";
   readonly shape: NodeShape;
   readonly sizing: NodeSizing;
+  /** Fixed, validated outline metadata; omitted for ordinary D2 shapes. */
+  readonly render?: Readonly<OutlineRender>;
   /** Explicit width from props; omitted means sized to the label. */
   readonly width?: StyleLength;
   /** Explicit height from props; omitted means sized to the label. */
@@ -201,6 +204,14 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
         kind: "node",
         shape: component.manifest.shape,
         sizing: component.manifest.sizing,
+        ...(component.manifest.render !== undefined && {
+          render: freeze({
+            ...component.manifest.render,
+            ...(component.manifest.render.params !== undefined && {
+              params: freeze({ ...component.manifest.render.params }),
+            }),
+          }),
+        }),
         ...(typeof width === "number" && { width: lengthOf(width) }),
         ...(typeof height === "number" && { height: lengthOf(height) }),
         style: styleOf(state, key, "node"),
