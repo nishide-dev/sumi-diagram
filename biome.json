@@ -17,6 +17,7 @@
       "!research/*/.tools",
       "!research/*/out",
       "!research/*/results",
+      "!research/*/wasm/target",
       "!native/*/target",
       "!native/*/vendor",
       "!native/*/licenses"

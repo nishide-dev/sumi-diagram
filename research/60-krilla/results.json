@@ -1,0 +1,1289 @@
+{
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "bun": "1.3.14",
+    "poppler": "pdfinfo version 26.04.0",
+    "imageMagick": "Version: ImageMagick 7.1.2-32 Q16-HDRI aarch64 68f8d115a:20260926 https://imagemagick.org"
+  },
+  "wasm": {
+    "bytes": 3515317,
+    "sha256": "89ef776e7ac0ab783441fc1093052641b33c894e75d2d45303ad4864f68a7e47",
+    "imports": [],
+    "currentBytes": 1922851
+  },
+  "rows": [
+    {
+      "path": "docs/gallery/components/sumi-arrow.academic.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 14843,
+          "sha256": "47af16d8526e1835194ae0dd0f44034337ce26354620a8f131917b27ed6b6993",
+          "page": "150.5 x 164 pts",
+          "pages": "1",
+          "fonts": 1
+        },
+        {
+          "engine": "krilla",
+          "bytes": 11885,
+          "sha256": "7a6acc4e46b1aee19c0f994fac299e03a4847b112842f05656a34f38ef3db331",
+          "page": "150.5 x 164 pts",
+          "pages": "1",
+          "fonts": 1
+        }
+      ],
+      "maxTextDeltaPt": 0.000007000000010748408,
+      "rasterRmse": 0.08770562507864561,
+      "changedPixelFraction": 0.00895389352564622
+    },
+    {
+      "path": "docs/gallery/components/sumi-arrow.minimal.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 14921,
+          "sha256": "ee5e955a12a40cf5deb06ca66dae57cace66f7a5a3194cae1d2c618e0ffdf3fd",
+          "page": "150.5 x 164 pts",
+          "pages": "1",
+          "fonts": 1
+        },
+        {
+          "engine": "krilla",
+          "bytes": 11994,
+          "sha256": "aacb12e96551fd2800b830fe41e8f26437bb362415bea06551cde1fc785a4f91",
+          "page": "150.5 x 164 pts",
+          "pages": "1",
+          "fonts": 1
+        }
+      ],
+      "maxTextDeltaPt": 0.000007000000010748408,
+      "rasterRmse": 0.025917895786677116,
+      "changedPixelFraction": 0.0035248359128109553
+    },
+    {
+      "path": "docs/gallery/components/sumi-arrow.slides.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 14927,
+          "sha256": "f742983348c42d1daf3acd4f5fc77ada5ac1cfc2f70b338b55dfe7f5f0e5d99f",
+          "page": "197 x 197 pts",
+          "pages": "1",
+          "fonts": 1
+        },
+        {
+          "engine": "krilla",
+          "bytes": 11989,
+          "sha256": "0d10a9e1827f7b7ae405415d7a7a3b7b4089ba65d4b8da6796d3ff44435d8cc4",
+          "page": "197 x 197 pts",
+          "pages": "1",
+          "fonts": 1
+        }
+      ],
+      "maxTextDeltaPt": 0.000007999999994012796,
+      "rasterRmse": 0.00925184847406905,
+      "changedPixelFraction": 0.0011466412430106419
+    },
+    {
+      "path": "docs/gallery/components/sumi-box.academic.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 8661,
+          "sha256": "61d0e4cf9a7652ee3d89a17a4a3841bd4730f52870f8cb661301730b17dd8419",
+          "page": "203 x 42.5 pts",
+          "pages": "1",
+          "fonts": 1
+        },
+        {
+          "engine": "krilla",
+          "bytes": 7659,
+          "sha256": "f3daefac10c609b06fe245b423e6fc5442af574fcdf8904fb3281aeae1cca037",
+          "page": "203 x 42.5 pts",
+          "pages": "1",
+          "fonts": 1
+        }
+      ],
+      "maxTextDeltaPt": 0.000008000000008223651,
+      "rasterRmse": 0,
+      "changedPixelFraction": 0
+    },
+    {
+      "path": "docs/gallery/components/sumi-box.minimal.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 14732,
+          "sha256": "9cf95cb2fda972bfd04b061ec872c78513b9fde690340c685fbaa4de099e2e9b",
+          "page": "203 x 43.5 pts",
+          "pages": "1",
+          "fonts": 2
+        },
+        {
+          "engine": "krilla",
+          "bytes": 13435,
+          "sha256": "c5198fda4051f34adb4eb8acb81cc607300e2089aaccd3cebde1989c2d907911",
+          "page": "203 x 43.5 pts",
+          "pages": "1",
+          "fonts": 2
+        }
+      ],
+      "maxTextDeltaPt": 0.000008000000008223651,
+      "rasterRmse": 0,
+      "changedPixelFraction": 0
+    },
+    {
+      "path": "docs/gallery/components/sumi-box.slides.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 14740,
+          "sha256": "58cb84329b5158cfae1af254a034eb3786c29847430815b2da211b765ce5a3d3",
+          "page": "305.5 x 53.5 pts",
+          "pages": "1",
+          "fonts": 2
+        },
+        {
+          "engine": "krilla",
+          "bytes": 13387,
+          "sha256": "807248b5e721288548865e776d731a358c86f4c2931209c7c3c4602b3015993f",
+          "page": "305.5 x 53.5 pts",
+          "pages": "1",
+          "fonts": 2
+        }
+      ],
+      "maxTextDeltaPt": 0.00001499999999055035,
+      "rasterRmse": 0,
+      "changedPixelFraction": 0
+    },
+    {
+      "path": "docs/gallery/components/sumi-circle.academic.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 8816,
+          "sha256": "23576ad4aa01a8e77ea79a02c73ad1d7fee8b4c852e6892510610db1d0a69ad2",
+          "page": "249.5 x 95 pts",
+          "pages": "1",
+          "fonts": 1
+        },
+        {
+          "engine": "krilla",
+          "bytes": 7800,
+          "sha256": "4724c23c325228f4b8deea972e4634a14b545afae4679a1f29b5e610942f0a7a",
+          "page": "249.5 x 95 pts",
+          "pages": "1",
+          "fonts": 1
+        }
+      ],
+      "maxTextDeltaPt": 0.000005000000015797923,
+      "rasterRmse": 0,
+      "changedPixelFraction": 0
+    },
+    {
+      "path": "docs/gallery/components/sumi-circle.minimal.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 14886,
+          "sha256": "feb148c1b73212fa6702f94fd385bf0af7dc8d8c3225d52b8f7c6f914648bec3",
+          "page": "249.5 x 96 pts",
+          "pages": "1",
+          "fonts": 2
+        },
+        {
+          "engine": "krilla",
+          "bytes": 13568,
+          "sha256": "6f794396363b7bbd78feeec9873051f57764c3029b17bbfb0fc0594f4ebadd21",
+          "page": "249.5 x 96 pts",
+          "pages": "1",
+          "fonts": 2
+        }
+      ],
+      "maxTextDeltaPt": 0.000005000000015797923,
+      "rasterRmse": 0,
+      "changedPixelFraction": 0
+    },
+    {
+      "path": "docs/gallery/components/sumi-circle.slides.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 14894,
+          "sha256": "311bdda85157819d67ec230d28d9aa0f4679373688a7a0492aad452a5f49deab",
+          "page": "394.5 x 157 pts",
+          "pages": "1",
+          "fonts": 2
+        },
+        {
+          "engine": "krilla",
+          "bytes": 13565,
+          "sha256": "6c25bd67524085728d3c6f42bf5209b941fe55e3e63606b42bc907a84df44ac4",
+          "page": "394.5 x 157 pts",
+          "pages": "1",
+          "fonts": 2
+        }
+      ],
+      "maxTextDeltaPt": 0.00001499999996212864,
+      "rasterRmse": 0,
+      "changedPixelFraction": 0
+    },
+    {
+      "path": "docs/gallery/components/sumi-container.academic.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 14547,
+          "sha256": "5116455d18fbb50442b1ce5bbca27b57e45634f7ff540eedce6b0954d666becb",
+          "page": "185 x 67 pts",
+          "pages": "1",
+          "fonts": 2
+        },
+        {
+          "engine": "krilla",
+          "bytes": 13108,
+          "sha256": "d5a398b4d82cb87305aa52d6deb34566de7cc02ae4e37b3e1c599c0346322f3c",
+          "page": "185 x 67 pts",
+          "pages": "1",
+          "fonts": 2
+        }
+      ],
+      "maxTextDeltaPt": 0.000012999999995599865,
+      "rasterRmse": 0.12048486521726497,
+      "changedPixelFraction": 0.027974989915288424
+    },
+    {
+      "path": "docs/gallery/components/sumi-container.minimal.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 14593,
+          "sha256": "9c026bb0b5c3bcdc60ed6095503895e09b2223279ca586a41ef835d521734847",
+          "page": "185 x 68.5 pts",
+          "pages": "1",
+          "fonts": 2
+        },
+        {
+          "engine": "krilla",
+          "bytes": 13282,
+          "sha256": "acb9a16cbe4f0f35e141cb3cc78e011614c04a6178b491b5a4b261acd62b2c96",
+          "page": "185 x 68.5 pts",
+          "pages": "1",
+          "fonts": 2
+        }
+      ],
+      "maxTextDeltaPt": 0.000012999999995599865,
+      "rasterRmse": 0.04391123060033021,
+      "changedPixelFraction": 0.008719668573683172
+    },
+    {
+      "path": "docs/gallery/components/sumi-container.slides.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 14587,
+          "sha256": "8da2c9d52efd41cd34b546b1668e9997915a0760dfe28296f350db5ee0b59265",
+          "page": "257 x 86.5 pts",
+          "pages": "1",
+          "fonts": 2
+        },
+        {
+          "engine": "krilla",
+          "bytes": 13281,
+          "sha256": "ab3a42d236297ded8c5dac371aefbcfc3708c54d872ca7a53fab00ac0d5c6d20",
+          "page": "257 x 86.5 pts",
+          "pages": "1",
+          "fonts": 2
+        }
+      ],
+      "maxTextDeltaPt": 0.000004999999999810711,
+      "rasterRmse": 0.05262068406305127,
+      "changedPixelFraction": 0.009975034299723353
+    },
+    {
+      "path": "docs/gallery/components/sumi-cylinder.academic.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 8839,
+          "sha256": "c16d738b52e52fe4b313486976545368d458397029ba8242265a3ac29ca60944",
+          "page": "203 x 68.5 pts",
+          "pages": "1",
+          "fonts": 1
+        },
+        {
+          "engine": "krilla",
+          "bytes": 7811,
+          "sha256": "4e99bd9730f2948e4b99a1d20042895812f689f17145bf16ca1fabcdc52452c6",
+          "page": "203 x 68.5 pts",
+          "pages": "1",
+          "fonts": 1
+        }
+      ],
+      "maxTextDeltaPt": 0.000008000000008223651,
+      "rasterRmse": 0.000514121144110908,
+      "changedPixelFraction": 0
+    },
+    {
+      "path": "docs/gallery/components/sumi-cylinder.minimal.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 14916,
+          "sha256": "65db2c3792f6ed595582ecb203fe887d936f089cdcb848b83644b085fb83c7bf",
+          "page": "203 x 69.5 pts",
+          "pages": "1",
+          "fonts": 2
+        },
+        {
+          "engine": "krilla",
+          "bytes": 13586,
+          "sha256": "d8864bd878085600472cd2a04e24ef839d95667ea337f4863606be5fabca91e0",
+          "page": "203 x 69.5 pts",
+          "pages": "1",
+          "fonts": 2
+        }
+      ],
+      "maxTextDeltaPt": 0.000008000000008223651,
+      "rasterRmse": 0.0009574528499651151,
+      "changedPixelFraction": 0
+    },
+    {
+      "path": "docs/gallery/components/sumi-cylinder.slides.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 14914,
+          "sha256": "c75bc3ef62fbb6e5ba8fe8b2cd6aef19fe91d9ca6581f615a18ff968b78a7aeb",
+          "page": "305.5 x 79.5 pts",
+          "pages": "1",
+          "fonts": 2
+        },
+        {
+          "engine": "krilla",
+          "bytes": 13539,
+          "sha256": "da45ab7e01adb7e7ef5cf31e5a861d90a9013184cf1072306f9d890aa75787fc",
+          "page": "305.5 x 79.5 pts",
+          "pages": "1",
+          "fonts": 2
+        }
+      ],
+      "maxTextDeltaPt": 0.00001499999999055035,
+      "rasterRmse": 0.0001440045784281526,
+      "changedPixelFraction": 0
+    },
+    {
+      "path": "docs/gallery/components/sumi-diamond.academic.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 8796,
+          "sha256": "f5ad078b89ede1a8dab40ea9d82c2a9f2f04256e141429026dea057a8038d110",
+          "page": "284 x 53 pts",
+          "pages": "1",
+          "fonts": 1
+        },
+        {
+          "engine": "krilla",
+          "bytes": 7788,
+          "sha256": "027ca00de6f2ba69dba6b51687b6ffaf7d15f6201224bdc5281b5775ed9596d2",
+          "page": "284 x 53 pts",
+          "pages": "1",
+          "fonts": 1
+        }
+      ],
+      "maxTextDeltaPt": 0.000007999999979801942,
+      "rasterRmse": 0.0035849720436871187,
+      "changedPixelFraction": 0.00006643635397289396
+    },
+    {
+      "path": "docs/gallery/components/sumi-diamond.minimal.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 14864,
+          "sha256": "8af86cce98669477b8e64f4baa3c86e94e90db5327219db572f5941f5663a58d",
+          "page": "284 x 54 pts",
+          "pages": "1",
+          "fonts": 2
+        },
+        {
+          "engine": "krilla",
+          "bytes": 13559,
+          "sha256": "2066c4e824e63e862e266896cff027dcea86ba03fdc6c900e4e0b8909fa0f70d",
+          "page": "284 x 54 pts",
+          "pages": "1",
+          "fonts": 2
+        }
+      ],
+      "maxTextDeltaPt": 0.000007999999979801942,
+      "rasterRmse": 0,
+      "changedPixelFraction": 0
+    },
+    {
+      "path": "docs/gallery/components/sumi-diamond.slides.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 14882,
+          "sha256": "75ac4998b782e6c87a277654b19c8270c14f1f03db62b130e802111b1a397796",
+          "page": "488 x 72 pts",
+          "pages": "1",
+          "fonts": 2
+        },
+        {
+          "engine": "krilla",
+          "bytes": 13528,
+          "sha256": "2497c5a6295c9027a63871c5661353655d9ad34d6c095fc17d7804ddefbff059",
+          "page": "488 x 72 pts",
+          "pages": "1",
+          "fonts": 2
+        }
+      ],
+      "maxTextDeltaPt": 0.000020000000006348273,
+      "rasterRmse": 0.0015144303475681097,
+      "changedPixelFraction": 0
+    },
+    {
+      "path": "docs/gallery/components/sumi-document.academic.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 8726,
+          "sha256": "5f18d03019b8c494bcf7052c4748727898cd8e7d1d015b242f29552570a9b8dc",
+          "page": "203 x 46.5 pts",
+          "pages": "1",
+          "fonts": 1
+        },
+        {
+          "engine": "krilla",
+          "bytes": 7721,
+          "sha256": "fb8266a0f96d2ed8808c21e44fe68ee09f628acc934c553e429168feacce1bb4",
+          "page": "203 x 46.5 pts",
+          "pages": "1",
+          "fonts": 1
+        }
+      ],
+      "maxTextDeltaPt": 0.000008000000008223651,
+      "rasterRmse": 0,
+      "changedPixelFraction": 0
+    },
+    {
+      "path": "docs/gallery/components/sumi-document.minimal.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 14803,
+          "sha256": "959eec3254432f7138ca0aa55f681b5876ef46ad61e5d4f5c6cc05f631bbade1",
+          "page": "203 x 47.5 pts",
+          "pages": "1",
+          "fonts": 2
+        },
+        {
+          "engine": "krilla",
+          "bytes": 13494,
+          "sha256": "baed9f6351bcc7897320bd6c12581ed2b45f33ccfc04794036c4697b5603883b",
+          "page": "203 x 47.5 pts",
+          "pages": "1",
+          "fonts": 2
+        }
+      ],
+      "maxTextDeltaPt": 0.000008000000008223651,
+      "rasterRmse": 0.013208086698730028,
+      "changedPixelFraction": 0
+    },
+    {
+      "path": "docs/gallery/components/sumi-document.slides.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 14804,
+          "sha256": "b59cab6f0b69d77fcdc86b981337d2f462df129ed178b5da6d38bc67a04da669",
+          "page": "305.5 x 60.5 pts",
+          "pages": "1",
+          "fonts": 2
+        },
+        {
+          "engine": "krilla",
+          "bytes": 13485,
+          "sha256": "185326a7b83fc1783534d7e000e58849c732f30cab4134556a110c492b4278c1",
+          "page": "305.5 x 60.5 pts",
+          "pages": "1",
+          "fonts": 2
+        }
+      ],
+      "maxTextDeltaPt": 0.000007999999979801942,
+      "rasterRmse": 0.012385235811473732,
+      "changedPixelFraction": 0
+    },
+    {
+      "path": "docs/gallery/components/sumi-double-arrow.academic.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 14904,
+          "sha256": "caf6f1055bab70aaa00356cafb92f298bfa5d0e0cad19da8f916de02481a5b3b",
+          "page": "150.5 x 164 pts",
+          "pages": "1",
+          "fonts": 1
+        },
+        {
+          "engine": "krilla",
+          "bytes": 12000,
+          "sha256": "0c245f2350823b583f6c544d8483f9f49885c054b00d2964602859425404a805",
+          "page": "150.5 x 164 pts",
+          "pages": "1",
+          "fonts": 1
+        }
+      ],
+      "maxTextDeltaPt": 0.000007000000010748408,
+      "rasterRmse": 0.08769209418993776,
+      "changedPixelFraction": 0.00895389352564622
+    },
+    {
+      "path": "docs/gallery/components/sumi-double-arrow.minimal.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 14984,
+          "sha256": "c68bc96f20e1a0b5dccf053250e8b3c77fafb2aa383df76ab52de30c7d19ef00",
+          "page": "150.5 x 164 pts",
+          "pages": "1",
+          "fonts": 1
+        },
+        {
+          "engine": "krilla",
+          "bytes": 12103,
+          "sha256": "5afdeef0d516ec0faac458c491858d92f45b3d001a4b53e0a0920416e626b262",
+          "page": "150.5 x 164 pts",
+          "pages": "1",
+          "fonts": 1
+        }
+      ],
+      "maxTextDeltaPt": 0.000007000000010748408,
+      "rasterRmse": 0.02568882434608843,
+      "changedPixelFraction": 0.0033222591362126247
+    },
+    {
+      "path": "docs/gallery/components/sumi-double-arrow.slides.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 14993,
+          "sha256": "0297a39214ed0d544c9f3d01b4abcfa2cd94e176f9001db2c9fc0b590c643240",
+          "page": "197 x 197 pts",
+          "pages": "1",
+          "fonts": 1
+        },
+        {
+          "engine": "krilla",
+          "bytes": 12103,
+          "sha256": "c667695230ba6fb3db3f47021213654b306d139765bc6d9e93569947edb2f3ad",
+          "page": "197 x 197 pts",
+          "pages": "1",
+          "fonts": 1
+        }
+      ],
+      "maxTextDeltaPt": 0.000007999999994012796,
+      "rasterRmse": 0.008513884438599129,
+      "changedPixelFraction": 0.0009662707104022263
+    },
+    {
+      "path": "docs/gallery/components/sumi-ellipse.academic.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 8816,
+          "sha256": "aff87158e5cae6b8a38db1c7c523497669e2882935f9dee46965242530e764c8",
+          "page": "271 x 42 pts",
+          "pages": "1",
+          "fonts": 1
+        },
+        {
+          "engine": "krilla",
+          "bytes": 7769,
+          "sha256": "f8fc83d8718e9f6df6b41ac75a0773c3a1f31b6fe0e433af6fde556c552b0219",
+          "page": "271 x 42 pts",
+          "pages": "1",
+          "fonts": 1
+        }
+      ],
+      "maxTextDeltaPt": 0.000016000000016447302,
+      "rasterRmse": 0,
+      "changedPixelFraction": 0
+    },
+    {
+      "path": "docs/gallery/components/sumi-ellipse.minimal.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 14894,
+          "sha256": "82c798a29cfe94214f5acb8a0da19b1454147cc08d13583978f88483902dc4a4",
+          "page": "271 x 43 pts",
+          "pages": "1",
+          "fonts": 2
+        },
+        {
+          "engine": "krilla",
+          "bytes": 13574,
+          "sha256": "9af05f4b8758dcdf3ec6fe5bc2965caba6fc67184842e2028966c69c7f09f7be",
+          "page": "271 x 43 pts",
+          "pages": "1",
+          "fonts": 2
+        }
+      ],
+      "maxTextDeltaPt": 0.000006999999982326699,
+      "rasterRmse": 0.0001757937713477542,
+      "changedPixelFraction": 0
+    },
+    {
+      "path": "docs/gallery/components/sumi-ellipse.slides.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 14893,
+          "sha256": "030711fa3d2000c1651897ba298a0e62ba2d4c523698dfe6ff25915b7dae63f1",
+          "page": "416 x 65 pts",
+          "pages": "1",
+          "fonts": 2
+        },
+        {
+          "engine": "krilla",
+          "bytes": 13575,
+          "sha256": "044619d16c34c0b98c3bd688a2dfe2219e0cc698b41bfa3302a0109703f2e3a5",
+          "page": "416 x 65 pts",
+          "pages": "1",
+          "fonts": 2
+        }
+      ],
+      "maxTextDeltaPt": 0.000016999999957079126,
+      "rasterRmse": 0,
+      "changedPixelFraction": 0
+    },
+    {
+      "path": "docs/gallery/components/sumi-hexagon.academic.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 8678,
+          "sha256": "62e61fe3829b3de7f8639cd8644cf023485bb803875498aec26b50cfaaabeaa1",
+          "page": "244 x 43 pts",
+          "pages": "1",
+          "fonts": 1
+        },
+        {
+          "engine": "krilla",
+          "bytes": 7676,
+          "sha256": "37fc9e4e8bb29c8fe05877c78759fa5fcacea2657937ff5357871cfcab891baf",
+          "page": "244 x 43 pts",
+          "pages": "1",
+          "fonts": 1
+        }
+      ],
+      "maxTextDeltaPt": 0.000005000000015797923,
+      "rasterRmse": 0.02138396885217181,
+      "changedPixelFraction": 0.003240564239420511
+    },
+    {
+      "path": "docs/gallery/components/sumi-hexagon.minimal.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 14752,
+          "sha256": "a427d23fdc6d6dbfda3a931adbd35ef769d2cac76187abde59d0d692468981c1",
+          "page": "244 x 44 pts",
+          "pages": "1",
+          "fonts": 2
+        },
+        {
+          "engine": "krilla",
+          "bytes": 13416,
+          "sha256": "d0a02c29fb4c52b433360ac8fdb3cdffda21e943503989e8056e386b1604199e",
+          "page": "244 x 44 pts",
+          "pages": "1",
+          "fonts": 2
+        }
+      ],
+      "maxTextDeltaPt": 0.00001499999999055035,
+      "rasterRmse": 0.009888156870905718,
+      "changedPixelFraction": 0
+    },
+    {
+      "path": "docs/gallery/components/sumi-hexagon.slides.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 14753,
+          "sha256": "76a3a98da0abea9ede7f0df94413cb564f609f2a547e1b3ee3688199278ed013",
+          "page": "397 x 58 pts",
+          "pages": "1",
+          "fonts": 2
+        },
+        {
+          "engine": "krilla",
+          "bytes": 13438,
+          "sha256": "e5a9be432d63f8924a21fa64a556fdc8d9e709619870001b7bd3666ca7dd253f",
+          "page": "397 x 58 pts",
+          "pages": "1",
+          "fonts": 2
+        }
+      ],
+      "maxTextDeltaPt": 0.000015999999959603883,
+      "rasterRmse": 0,
+      "changedPixelFraction": 0
+    },
+    {
+      "path": "docs/gallery/components/sumi-label.academic.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 7987,
+          "sha256": "98925fe98ec547aa6e1a55a6d683f518202ef45fb53b8209ec4a7f11c0fc2e8c",
+          "page": "80.5 x 19 pts",
+          "pages": "1",
+          "fonts": 1
+        },
+        {
+          "engine": "krilla",
+          "bytes": 7010,
+          "sha256": "f2a608de51b0ab908ee1314a27ab8697860c8c00c531d4476e96c373846f1f05",
+          "page": "80.5 x 19 pts",
+          "pages": "1",
+          "fonts": 1
+        }
+      ],
+      "maxTextDeltaPt": 0.000003999999997006398,
+      "rasterRmse": 0,
+      "changedPixelFraction": 0
+    },
+    {
+      "path": "docs/gallery/components/sumi-label.minimal.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 8010,
+          "sha256": "7dc9bec3807701288e3d79db8b4d014b03c271829851474c817ff63066b8af22",
+          "page": "80.5 x 19 pts",
+          "pages": "1",
+          "fonts": 1
+        },
+        {
+          "engine": "krilla",
+          "bytes": 7037,
+          "sha256": "b9e9e84a3982d30a9090d30ff4ae811bdb28bb36451cb9f945b8b7a998de0ddb",
+          "page": "80.5 x 19 pts",
+          "pages": "1",
+          "fonts": 1
+        }
+      ],
+      "maxTextDeltaPt": 0.000003999999997006398,
+      "rasterRmse": 0,
+      "changedPixelFraction": 0
+    },
+    {
+      "path": "docs/gallery/components/sumi-label.slides.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 7992,
+          "sha256": "c951c94b3f318fa3394cb744d288933d1faf7d35dc06e7a1f7384c502e6d8c83",
+          "page": "139 x 27 pts",
+          "pages": "1",
+          "fonts": 1
+        },
+        {
+          "engine": "krilla",
+          "bytes": 7050,
+          "sha256": "5743f4ec1b4117bf7cee01d6fe70891b025b6068d082f75e5491153686046ee9",
+          "page": "139 x 27 pts",
+          "pages": "1",
+          "fonts": 1
+        }
+      ],
+      "maxTextDeltaPt": 0.000006999999982326699,
+      "rasterRmse": 0,
+      "changedPixelFraction": 0
+    },
+    {
+      "path": "docs/gallery/components/sumi-line.academic.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 14629,
+          "sha256": "092e7060ddb8bdd35a0f5b67ce8f327ad6b71b1b31f8825b007bb6be9030b932",
+          "page": "150.5 x 164 pts",
+          "pages": "1",
+          "fonts": 1
+        },
+        {
+          "engine": "krilla",
+          "bytes": 11642,
+          "sha256": "866441b399442795ce2ff00345f321cd6772b0cca14a287fa7501f653228464b",
+          "page": "150.5 x 164 pts",
+          "pages": "1",
+          "fonts": 1
+        }
+      ],
+      "maxTextDeltaPt": 0.000007000000010748408,
+      "rasterRmse": 0.08772185299756532,
+      "changedPixelFraction": 0.00895389352564622
+    },
+    {
+      "path": "docs/gallery/components/sumi-line.minimal.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 14721,
+          "sha256": "2d110a531d9b2eb59890f9c6d93d49d3a37158942ed156e7ebe6c0788862053f",
+          "page": "150.5 x 164 pts",
+          "pages": "1",
+          "fonts": 1
+        },
+        {
+          "engine": "krilla",
+          "bytes": 11767,
+          "sha256": "7d64daf6da239da33c036e42240432d57f51756108b4f43faae908e8aa80d9f3",
+          "page": "150.5 x 164 pts",
+          "pages": "1",
+          "fonts": 1
+        }
+      ],
+      "maxTextDeltaPt": 0.000007000000010748408,
+      "rasterRmse": 0.026146461615232527,
+      "changedPixelFraction": 0.003707155011749453
+    },
+    {
+      "path": "docs/gallery/components/sumi-line.slides.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 14721,
+          "sha256": "b594a23ad72078169b86f83d0a478347276441263f0db96c92479d7368fbf546",
+          "page": "197 x 197 pts",
+          "pages": "1",
+          "fonts": 1
+        },
+        {
+          "engine": "krilla",
+          "bytes": 11780,
+          "sha256": "d05b9106d02aafd5e618933ba30b8df7943d74f50e8f2c2b9163abdc8d01c36a",
+          "page": "197 x 197 pts",
+          "pages": "1",
+          "fonts": 1
+        }
+      ],
+      "maxTextDeltaPt": 0.000007999999994012796,
+      "rasterRmse": 0.00994484568589405,
+      "changedPixelFraction": 0.001339895385091087
+    },
+    {
+      "path": "docs/gallery/components/sumi-parallelogram.academic.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 8673,
+          "sha256": "b4c5e89823defca9875ae100c04c21756ca7411f65cb28880188d4efc7d9b3ca",
+          "page": "281 x 42.5 pts",
+          "pages": "1",
+          "fonts": 1
+        },
+        {
+          "engine": "krilla",
+          "bytes": 7665,
+          "sha256": "eaffa52fc47301cc50ef6d0a34225a7903bd8f0fb07e253305fbf43d4fbed1f2",
+          "page": "281 x 42.5 pts",
+          "pages": "1",
+          "fonts": 1
+        }
+      ],
+      "maxTextDeltaPt": 0.000006999999982326699,
+      "rasterRmse": 0,
+      "changedPixelFraction": 0
+    },
+    {
+      "path": "docs/gallery/components/sumi-parallelogram.minimal.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 14744,
+          "sha256": "67d4ab384ff91964a008a6d1fa6b7e17f2b951ebec40e032c934e38f3a0c1626",
+          "page": "281 x 43.5 pts",
+          "pages": "1",
+          "fonts": 2
+        },
+        {
+          "engine": "krilla",
+          "bytes": 13442,
+          "sha256": "4ef50aa214382fcd1dc4edeea62835acf7be581d7636ae7cfaeb0ab739947111",
+          "page": "281 x 43.5 pts",
+          "pages": "1",
+          "fonts": 2
+        }
+      ],
+      "maxTextDeltaPt": 0.000006999999982326699,
+      "rasterRmse": 0,
+      "changedPixelFraction": 0
+    },
+    {
+      "path": "docs/gallery/components/sumi-parallelogram.slides.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 14747,
+          "sha256": "c2e822576cfa93c98cc595d5e5f92fc4d7bd053d2237d4db4325c76866245513",
+          "page": "383.5 x 53.5 pts",
+          "pages": "1",
+          "fonts": 2
+        },
+        {
+          "engine": "krilla",
+          "bytes": 13402,
+          "sha256": "a31b472a2cdced55b2c24b2d6e15b9e3868ae55b4e271b8c20a8c96dfd40a31b",
+          "page": "383.5 x 53.5 pts",
+          "pages": "1",
+          "fonts": 2
+        }
+      ],
+      "maxTextDeltaPt": 0.000016999999985500835,
+      "rasterRmse": 0.012561932807262543,
+      "changedPixelFraction": 0
+    },
+    {
+      "path": "docs/gallery/components/sumi-square.academic.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 8673,
+          "sha256": "72f7e3ce62c4303256012efcb0a8c03b517861aab5a44f2d14d9b3c252e5d322",
+          "page": "203 x 76.5 pts",
+          "pages": "1",
+          "fonts": 1
+        },
+        {
+          "engine": "krilla",
+          "bytes": 7681,
+          "sha256": "7e8c64130f1f9bde23ae40b12e2bdca0468c2f9f8a70cbd24a0bc37d402ed4da",
+          "page": "203 x 76.5 pts",
+          "pages": "1",
+          "fonts": 1
+        }
+      ],
+      "maxTextDeltaPt": 0.000008000000008223651,
+      "rasterRmse": 0,
+      "changedPixelFraction": 0
+    },
+    {
+      "path": "docs/gallery/components/sumi-square.minimal.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 14753,
+          "sha256": "7a75f2ed4f5f06560f9a06d1776f5321261ec14a4601c5a076611186f955bf54",
+          "page": "203 x 77.5 pts",
+          "pages": "1",
+          "fonts": 2
+        },
+        {
+          "engine": "krilla",
+          "bytes": 13449,
+          "sha256": "eb86d686825737445b167a7c3cb8a50bb5401a85bfe1728c67a37b3e9f9c05a2",
+          "page": "203 x 77.5 pts",
+          "pages": "1",
+          "fonts": 2
+        }
+      ],
+      "maxTextDeltaPt": 0.000008000000008223651,
+      "rasterRmse": 0,
+      "changedPixelFraction": 0
+    },
+    {
+      "path": "docs/gallery/components/sumi-square.slides.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 14753,
+          "sha256": "50e62622fd6e295f094350047db9bdf3c52d62ce8d6b1135f1015792a920f121",
+          "page": "305.5 x 121 pts",
+          "pages": "1",
+          "fonts": 2
+        },
+        {
+          "engine": "krilla",
+          "bytes": 13436,
+          "sha256": "796a298bb643d92191cad57e2817ddf2799bff74ff15ac538ed56882a06c79a6",
+          "page": "305.5 x 121 pts",
+          "pages": "1",
+          "fonts": 2
+        }
+      ],
+      "maxTextDeltaPt": 0.000007999999979801942,
+      "rasterRmse": 0,
+      "changedPixelFraction": 0
+    },
+    {
+      "path": "docs/gallery/components/sumi-stack.academic.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 8799,
+          "sha256": "0c4be3f5257f9a7ed4a057653ff942d59674fe64115cdce3e5ea94b2411d2f57",
+          "page": "227 x 50.5 pts",
+          "pages": "1",
+          "fonts": 1
+        },
+        {
+          "engine": "krilla",
+          "bytes": 7763,
+          "sha256": "1779e3eead9e611ac4eb9678e85e063e6bd54ae16b53e351b0f0ff08ee344570",
+          "page": "227 x 50.5 pts",
+          "pages": "1",
+          "fonts": 1
+        }
+      ],
+      "maxTextDeltaPt": 0.000002999999992425728,
+      "rasterRmse": 0,
+      "changedPixelFraction": 0
+    },
+    {
+      "path": "docs/gallery/components/sumi-stack.minimal.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 14875,
+          "sha256": "b772982c9965b065dee1e59a9ac8e63634c904c733ce7a35d9b246f973335fee",
+          "page": "227 x 51.5 pts",
+          "pages": "1",
+          "fonts": 2
+        },
+        {
+          "engine": "krilla",
+          "bytes": 13531,
+          "sha256": "44c9b15b1a06153275846bb1d838c7af9e440bfde0fbad24b5332424072a734e",
+          "page": "227 x 51.5 pts",
+          "pages": "1",
+          "fonts": 2
+        }
+      ],
+      "maxTextDeltaPt": 0.0000029999999995311555,
+      "rasterRmse": 0,
+      "changedPixelFraction": 0
+    },
+    {
+      "path": "docs/gallery/components/sumi-stack.slides.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 14875,
+          "sha256": "67bbd4c3aa7ad4cb420416a74dc5421b0951dd847e26b3bc75a35190e82d6275",
+          "page": "329.5 x 61.5 pts",
+          "pages": "1",
+          "fonts": 2
+        },
+        {
+          "engine": "krilla",
+          "bytes": 13493,
+          "sha256": "44df4ea36ce5b39fb09dbd716a58ec91cbc9a6b64078160c85a34f6f54ac9ae4",
+          "page": "329.5 x 61.5 pts",
+          "pages": "1",
+          "fonts": 2
+        }
+      ],
+      "maxTextDeltaPt": 0.00001499999999055035,
+      "rasterRmse": 0,
+      "changedPixelFraction": 0
+    },
+    {
+      "path": "docs/gallery/components/sumi-trapezoid.academic.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 8671,
+          "sha256": "20bbe84ce3d6f290c0bc537e8e3bd0f51b24407456152a2ed2350b0515afcd2f",
+          "page": "276.5 x 42.5 pts",
+          "pages": "1",
+          "fonts": 1
+        },
+        {
+          "engine": "krilla",
+          "bytes": 7665,
+          "sha256": "ad6c7446b944329a8b327aae865bbebca07ac392814dcfa90d52fc1470e248a5",
+          "page": "276.5 x 42.5 pts",
+          "pages": "1",
+          "fonts": 1
+        }
+      ],
+      "maxTextDeltaPt": 0.000006999999982326699,
+      "rasterRmse": 0,
+      "changedPixelFraction": 0
+    },
+    {
+      "path": "docs/gallery/components/sumi-trapezoid.minimal.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 14738,
+          "sha256": "078dff26d7f5094cdccdc53208ed3d6b8347b177fcff7ba1c9c4c6af625061a2",
+          "page": "276.5 x 43.5 pts",
+          "pages": "1",
+          "fonts": 2
+        },
+        {
+          "engine": "krilla",
+          "bytes": 13438,
+          "sha256": "29a39167ccc66887c92b478deb5516d333c65643d5844c336c4b41a218017e05",
+          "page": "276.5 x 43.5 pts",
+          "pages": "1",
+          "fonts": 2
+        }
+      ],
+      "maxTextDeltaPt": 0.000006999999982326699,
+      "rasterRmse": 0,
+      "changedPixelFraction": 0
+    },
+    {
+      "path": "docs/gallery/components/sumi-trapezoid.slides.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 14742,
+          "sha256": "18a889e96188e03ebc2c9c7393122b3db25125d28b401e349b76d4cd3dc6e7cb",
+          "page": "398.5 x 53.5 pts",
+          "pages": "1",
+          "fonts": 2
+        },
+        {
+          "engine": "krilla",
+          "bytes": 13425,
+          "sha256": "20673232483afb5ee28146e3cfdfd04693d51a5ea31a97e71f5b85f858f815d0",
+          "page": "398.5 x 53.5 pts",
+          "pages": "1",
+          "fonts": 2
+        }
+      ],
+      "maxTextDeltaPt": 0.000015999999959603883,
+      "rasterRmse": 0,
+      "changedPixelFraction": 0
+    },
+    {
+      "path": "examples/decision-flow/decision-flow.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 30010,
+          "sha256": "9fa1a803d0cfa97f425e0e56963a44d1ce59949a6d99897d9583dcbc4ba413f3",
+          "page": "169 x 423.5 pts",
+          "pages": "1",
+          "fonts": 2
+        },
+        {
+          "engine": "krilla",
+          "bytes": 23786,
+          "sha256": "bdb39c2539060fed858a109b3e422619b4a867010731d0bc85c10963c252a222",
+          "page": "169 x 423.5 pts",
+          "pages": "1",
+          "fonts": 2
+        }
+      ],
+      "maxTextDeltaPt": 0.00004100000001017179,
+      "rasterRmse": 0.021492268070160143,
+      "changedPixelFraction": 0.001603291813082023
+    },
+    {
+      "path": "examples/grouped/grouped.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 27746,
+          "sha256": "781a0e0f5b90573ad9bccc1fc0cce518f92283f10572bbb9f8a7dde566ae6164",
+          "page": "475 x 187 pts",
+          "pages": "1",
+          "fonts": 2
+        },
+        {
+          "engine": "krilla",
+          "bytes": 23098,
+          "sha256": "08a4f8d337ade83466e5d648b1d9096703d8f83e922864577d94e50519356be5",
+          "page": "475 x 187 pts",
+          "pages": "1",
+          "fonts": 2
+        }
+      ],
+      "maxTextDeltaPt": 0.00001500000001897206,
+      "rasterRmse": 0.01433989095158659,
+      "changedPixelFraction": 0.0008978328173374613
+    },
+    {
+      "path": "examples/pipeline/pipeline.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 27984,
+          "sha256": "249af70550f4e79e11ada31678394223dda46ab3203579c76cb18c0c89261d7d",
+          "page": "175 x 426 pts",
+          "pages": "1",
+          "fonts": 2
+        },
+        {
+          "engine": "krilla",
+          "bytes": 22969,
+          "sha256": "b0c026c12060d2e05ef5c13d38affff2323ca2ec404c1c71350aadc8270ef996",
+          "page": "175 x 426 pts",
+          "pages": "1",
+          "fonts": 2
+        }
+      ],
+      "maxTextDeltaPt": 0.000013999999993075107,
+      "rasterRmse": 0.01904664470311722,
+      "changedPixelFraction": 0.0009154929577464789
+    },
+    {
+      "path": "examples/system-architecture/system-architecture.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 29510,
+          "sha256": "69083a163c7ec13a11a6bb301e6f3778f22f6ef4271847aae1aa21bd7dabe36a",
+          "page": "446 x 204 pts",
+          "pages": "1",
+          "fonts": 2
+        },
+        {
+          "engine": "krilla",
+          "bytes": 24159,
+          "sha256": "332c1322b9c0ac59d085799639978cd6f77eb3e87094ce68950c09f5a6f29908",
+          "page": "446 x 204 pts",
+          "pages": "1",
+          "fonts": 2
+        }
+      ],
+      "maxTextDeltaPt": 0.000024999999993724487,
+      "rasterRmse": 0.0002955408711583825,
+      "changedPixelFraction": 0
+    },
+    {
+      "path": "synthetic.svg",
+      "results": [
+        {
+          "engine": "current",
+          "bytes": 16688,
+          "sha256": "8456ff57f3ce039f3359fc35e34768b273b0e87014ae9fd39f6194fe37336490",
+          "page": "240 x 120 pts",
+          "pages": "1",
+          "fonts": 2
+        },
+        {
+          "engine": "krilla",
+          "bytes": 15347,
+          "sha256": "25223cf261f6769aa06bf8c0e8bf3f17816d904ac5210814000a49dc253e7fa4",
+          "page": "240 x 120 pts",
+          "pages": "1",
+          "fonts": 2
+        }
+      ],
+      "maxTextDeltaPt": 0.000005000000001587068,
+      "rasterRmse": 0.0609201211443109,
+      "changedPixelFraction": 0.010069444444444445
+    }
+  ]
+}
