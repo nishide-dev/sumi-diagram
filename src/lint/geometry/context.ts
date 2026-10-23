@@ -7,10 +7,12 @@
 import type { ElementIR, FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type { DiagnosticSubject, DocPath } from "../../core/diagnostics";
+import { getOutlineRenderer } from "../../core/outline";
 import type { FontSet } from "../../core/theme/fonts";
 import type { Point, Rect } from "../../render/geometry";
 import type { ProfileLimits, SvgInspection } from "../../render/inspect";
 import { type MeasuredLabel, measureLabel } from "./measure";
+import { outlineRegions } from "./outlines";
 import { type DrawnShape, flattenPath, labelArea, type Region, shapeOutline } from "./shapes";
 
 export interface GeometryElement {
@@ -24,9 +26,9 @@ export interface GeometryElement {
   name: string;
   /** Shape bounding box (stroke excluded); undefined for edges and `text` nodes. */
   bbox?: Rect;
-  /** The shape's outline (see `shapeOutline`); set with `bbox`. */
+  /** Convex collision region: renderer collision/hull for custom nodes, otherwise shapeOutline. */
   outline?: Region;
-  /** Where the shape's label may be drawn (see `labelArea`); set with `bbox`. */
+  /** Custom renderer safeArea or the ordinary shape's labelArea; set with bbox. */
   labelArea?: Region;
   /** Half the stroke width in units: the part of the border drawn inside the outline. */
   strokeInset: number;
@@ -78,6 +80,17 @@ export function createGeometryContext(
     const shape: DrawnShape | undefined =
       element.kind === "edge" || element.shape === "text" ? undefined : element.shape;
     const bbox = shape === undefined ? undefined : geometry.bbox;
+    let regions: { outline: Region; labelArea: Region } | undefined;
+    if (shape !== undefined && bbox !== undefined) {
+      if (element.kind === "node" && element.render !== undefined) {
+        const renderer = getOutlineRenderer(element.render.renderer);
+        if (!renderer)
+          throw new Error(`internal error: unknown outline renderer ${element.render.renderer}`);
+        regions = outlineRegions(
+          renderer.draw(bbox, renderer.params.parse(element.render.params ?? {})),
+        );
+      } else regions = { outline: shapeOutline(shape, bbox), labelArea: labelArea(shape, bbox) };
+    }
     elements.push({
       key: geometry.key,
       kind: geometry.kind,
@@ -88,8 +101,7 @@ export function createGeometryContext(
       ...(shape !== undefined &&
         bbox !== undefined && {
           bbox,
-          outline: shapeOutline(shape, bbox),
-          labelArea: labelArea(shape, bbox),
+          ...regions,
         }),
       strokeInset: element.style.strokeWidth.units / 2,
       labels: geometry.labels.map((label) => measureLabel(label, fonts)),

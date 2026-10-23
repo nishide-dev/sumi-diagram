@@ -111,3 +111,11 @@ exit code 1. Configure like structural rules
 | `geometry/edge-crosses-label` | warning | connect elements inside the group rather than the group, change `direction`, shorten the label (see layout-tips) |
 | `geometry/aspect-distorted` | warning | fewer edges on that `circle`/`square`, or use `ellipse`/`box` |
 | `geometry/reversed-edge` | warning | ELK reversed the wrong edge of a cycle (typically a loop inside a group): swap the order of the loop's nodes in `nodes`, or move the loop out of the group |
+
+For custom outline components, `geometry/label-overflow` checks the renderer's
+safe label rectangle, and shape collisions use its convex collision region
+(or the outline's convex hull). A label may fit the layout rectangle and still
+overflow its safe area. Automatically generated dimensions do not count as
+explicit `props`: those findings point at `label`. Partial or fully explicit
+dimensions point at `props`. Concave silhouettes use a conservative convex
+hull for collisions, so a warning in a small empty step may be intentional.

@@ -15,6 +15,7 @@ import { type Point, type Rect, unitsToPt } from "../../render/geometry";
 import { defineGeometryRule, type GeometryRule, type LintFinding } from "../rule";
 import type { GeometryContext, GeometryElement } from "./context";
 import { unionOf } from "./measure";
+import { regionsOverlap } from "./outlines";
 import {
   overhang,
   polylinesCrossRect,
@@ -116,7 +117,12 @@ export const textTooSmall = defineGeometryRule({
 /** Shape names for messages. */
 function shapeName(element: GeometryElement): string {
   if (element.ir.kind === "group") return "container";
-  if (element.ir.kind === "node") return element.ir.shape === "oval" ? "ellipse" : element.ir.shape;
+  if (element.ir.kind === "node")
+    return element.ir.render
+      ? `custom outline (${element.ir.render.renderer})`
+      : element.ir.shape === "oval"
+        ? "ellipse"
+        : element.ir.shape;
   return "shape";
 }
 
@@ -138,7 +144,8 @@ export const labelOverflow = defineGeometryRule({
       if (!overflows) continue;
       const box = unionOf(element.labels.flatMap((l) => (l.box === undefined ? [] : [l.box])));
       const { ir } = element;
-      const explicit = ir.kind === "node" && (ir.width !== undefined || ir.height !== undefined);
+      const explicit =
+        ir.kind === "node" && !ir.autoSized && (ir.width !== undefined || ir.height !== undefined);
       const outside = box !== undefined && !rectsOverlap(box, bbox, 0);
       findings.push({
         message: `The label of ${element.name} (${box === undefined ? "" : `${formatSize(box)}, `}measured with the theme's fonts) does not fit inside its ${shapeName(element)} shape (${formatSize(bbox)})${outside ? "; it is drawn outside the shape" : ""}.`,
@@ -198,7 +205,12 @@ export const nodeOverlap = defineGeometryRule({
       for (const b of shapes.slice(i + 1)) {
         if (context.isAncestor(a.key, b.key) || context.isAncestor(b.key, a.key)) continue;
         if (a.bbox === undefined || b.bbox === undefined) continue;
-        if (!rectsOverlap(a.bbox, b.bbox, GEOMETRY_TOLERANCE_UNITS)) continue;
+        const custom =
+          (a.ir.kind === "node" && a.ir.render !== undefined) ||
+          (b.ir.kind === "node" && b.ir.render !== undefined);
+        if (custom && a.outline && b.outline) {
+          if (!regionsOverlap(a.outline, b.outline, GEOMETRY_TOLERANCE_UNITS)) continue;
+        } else if (!rectsOverlap(a.bbox, b.bbox, GEOMETRY_TOLERANCE_UNITS)) continue;
         findings.push({
           message: `The shapes of ${a.name} and ${b.name} overlap.`,
           path: a.docPath,
