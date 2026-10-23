@@ -243,3 +243,46 @@ test("ellipse support-map overlap agrees with analytic circle and homothetic ell
     }
   }
 });
+
+test("inset removes short stack corner edges without losing the remaining collision region", () => {
+  const renderer = getOutlineRenderer("sumi/stack");
+  if (!renderer) throw new Error("missing stack");
+  for (const offset of [0.01, 0.1, 0.2, 0.5, 8]) {
+    for (const shift of [0, 100, -100]) {
+      const footprint = { x: shift, y: shift, width: 100, height: 100 };
+      const drawing = renderer.draw(footprint, renderer.params.parse({ layers: 3, offset }));
+      const region = outlineRegions(drawing).outline;
+      const center = rectPolygon({ x: shift + 20, y: shift + 20, width: 60, height: 60 });
+      expect(regionsOverlap(region, center, 1)).toBe(true);
+      expect(regionsOverlap(center, region, 1)).toBe(true);
+      expect(regionsOverlap(region, region, 1)).toBe(true);
+      if (region.kind === "polygon")
+        expect(regionsOverlap({ ...region, points: [...region.points].reverse() }, center, 1)).toBe(
+          true,
+        );
+    }
+  }
+});
+
+test("node-overlap reports central collisions for a stack with tiny valid step params", () => {
+  const registry = outlineRegistry();
+  const base = registry.get("test/stack");
+  if (base?.kind !== "node") throw new Error("missing stack");
+  const registered = registry.register({
+    ...base,
+    name: "small-step",
+    render: { type: "outline", renderer: "sumi/stack", params: { layers: 3, offset: 0.1 } },
+  });
+  if (!registered.ok) throw new Error(JSON.stringify(registered.diagnostics));
+  const source =
+    "version: 1\nfigure: { id: tiny-step }\nnodes:\n  - { id: a, component: test/small-step }\n  - { id: b, component: box }\n";
+  const result = compileFigure(source, { registry });
+  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+  expect(
+    lintSpec(
+      result.value,
+      { elements: { "n:a": { bbox }, "n:b": { bbox: { x: 20, y: 20, width: 60, height: 60 } } } },
+      { code: "geometry/node-overlap" },
+    ),
+  ).toHaveLength(1);
+});

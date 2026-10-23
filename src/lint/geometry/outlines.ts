@@ -44,8 +44,11 @@ function inset(region: Region, amount: number): Region | undefined {
     return rx > 0 && ry > 0 ? { ...region, rx, ry } : undefined;
   }
   const points = region.points;
+  const origin = points[0];
+  if (!origin || points.length < 3) return;
   const area = points.reduce(
-    (sum, p, i) => sum + cross(p, points[(i + 1) % points.length] as Point),
+    (sum, p, i) =>
+      sum + cross(subtract(p, origin), subtract(points[(i + 1) % points.length] as Point, origin)),
     0,
   );
   const sign = Math.sign(area);
@@ -54,20 +57,28 @@ function inset(region: Region, amount: number): Region | undefined {
     const b = points[(i + 1) % points.length] as Point;
     const length = Math.hypot(b.x - a.x, b.y - a.y);
     const normal = { x: (sign * (a.y - b.y)) / length, y: (sign * (b.x - a.x)) / length };
-    return { normal, value: dot(normal, a) + amount };
+    return { normal, anchor: a };
   });
-  const inner: Point[] = [];
-  for (const [i, current] of lines.entries()) {
-    const previous = lines[(i + lines.length - 1) % lines.length] as typeof current;
-    const determinant = cross(previous.normal, current.normal);
-    if (Math.abs(determinant) < 1e-12) continue;
-    const point = {
-      x: (previous.value * current.normal.y - current.value * previous.normal.y) / determinant,
-      y: (previous.normal.x * current.value - current.normal.x * previous.value) / determinant,
-    };
-    if (!lines.every((line) => dot(line.normal, point) >= line.value - 1e-8)) return;
-    inner.push(point);
+  let inner = [...points];
+  // Clip against every shifted half-plane. Short edges may disappear during
+  // erosion; their original neighbours must not be assumed to remain adjacent.
+  for (const line of lines) {
+    const next: Point[] = [];
+    const distance = (p: Point) => dot(line.normal, subtract(p, line.anchor)) - amount;
+    for (const [i, a] of inner.entries()) {
+      const b = inner[(i + 1) % inner.length] as Point;
+      const da = distance(a);
+      const db = distance(b);
+      if (da >= 0) next.push(a);
+      if (da >= 0 !== db >= 0) {
+        const t = da / (da - db);
+        next.push({ x: a.x + t * (b.x - a.x), y: a.y + t * (b.y - a.y) });
+      }
+    }
+    inner = next;
+    if (inner.length < 3) return;
   }
+  inner = convexHull(inner);
   return inner.length >= 3 ? { kind: "polygon", points: inner } : undefined;
 }
 
