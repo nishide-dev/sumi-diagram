@@ -86,6 +86,14 @@ const container: GroupManifest = {
   shape: "rectangle",
 };
 
+function outline(name: "trapezoid" | "stack", description: string): NodeManifest {
+  return {
+    ...node(name, "rectangle", description),
+    since: "0.3.0",
+    render: { type: "outline", renderer: `sumi/${name}` },
+  };
+}
+
 /** The built-in manifests, in catalog order. */
 export const BUILTIN_MANIFESTS: readonly ComponentManifest[] = [
   node("box", "rectangle", "A rectangle; the general-purpose node."),
@@ -97,6 +105,8 @@ export const BUILTIN_MANIFESTS: readonly ComponentManifest[] = [
   node("parallelogram", "parallelogram", "A parallelogram, e.g. for input or output."),
   node("cylinder", "cylinder", "A cylinder, e.g. for storage."),
   node("document", "document", "A page with a wavy bottom edge, e.g. for documents."),
+  outline("trapezoid", "A trapezoid with a wider top and a narrower bottom."),
+  outline("stack", "Three overlapping rectangles, e.g. for a collection of documents or layers."),
   node("label", "text", "Text without a border.", { variants: ["default", "muted"] }),
   container,
   edge("arrow", "A line with an arrowhead at the target.", {

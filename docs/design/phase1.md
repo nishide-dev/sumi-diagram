@@ -260,6 +260,8 @@ type Arrowhead = "triangle" | "arrow" | "diamond" | "circle" | "box" | "cross" |
 | `sumi/parallelogram` | node | `shape: parallelogram` | 同上 |
 | `sumi/cylinder` | node | `shape: cylinder` | 同上 |
 | `sumi/document` | node | `shape: document` | 同上 |
+| `sumi/trapezoid`（#55、since 0.3.0） | node | rectangle プレースホルダ + 台形の outline 合成 | 同上 |
+| `sumi/stack`（#55、since 0.3.0） | node | rectangle プレースホルダ + 3枚の矩形の outline 合成 | 同上 |
 | `sumi/label` | node | `shape: text`（枠なしのテキスト）。label は必須（空または空白のみなら `component/missing-label`。D2 は Go の `unicode.IsSpace` で trim して空になるラベルの text shape を拒否する。#8） | default, muted |
 | `sumi/container` | group | コンテナ（`shape: rectangle`） | default, muted |
 | `sumi/arrow` | edge | `->`、target-arrowhead `triangle` | default, dashed, emphasis, muted |
@@ -309,7 +311,7 @@ interface OutlineRenderer<P extends Record<string, number | boolean | string>> {
 - **Registry**: `src/core/outline/` の `BUILTIN_OUTLINE_RENDERERS`（ReadonlyMap）と `getOutlineRenderer(id)`。外部 renderer の登録・実行コードのロードは行わない。型と実装の単位は D2 / SVG user unit（1 unit = 0.5pt）。Point / Rect / Region の宣言は `src/core/geometry.ts` で共有し、既存の render / lint の export は維持する。
 - **純関数の契約**: 正で有限のラベル寸法・footprint と、スキーマで検証済みの params を入力とし、入力を変えず、同じ値から同じ幾何を返す。座標は footprint の内側にあり、各辺の全位置から内向きの射線が輪郭に当たる。`footprint()` はラベルを safeArea に含む寸法を返し、ラベルの幅・高さに対して単調増加。色・線・Theme・SVG 文字列は返さない。`body` は閉じた塗り付きの多角形、`line` は塗らない装飾線。inspect 用の `PathSegment` は Z を L に正規化するため、renderer のパス型とは分ける。
 - **最初の実装**: 台形と stack の純関数 renderer を契約の実例として追加する。台形は `slant`（0〜1、既定0.4）、stack は `layers`（整数1〜8、既定3）と `offset`（0より大きく64以下、既定8 user unit）。台形の斜辺は幅の1/4まで、stack の段差は幅・高さの `1/(2*layers)` までに抑え、小さい明示 footprint でも safeArea と連続した body を保つ。`footprint()` は指定した段差を含めて余裕を確保する。
-- **実装の境界**: #52 は契約・幾何 renderer・manifest 検証・catalog メタデータを用意する。IR / SVG 合成は #53（§6.13）、幾何 lint の接続は #54、利用者向けの部品 manifest・Theme・variant・ギャラリーは #55 で接続する。ここでは組み込み部品一覧と既存の描画結果を保つ。
+- **実装の境界**: #52 は契約・幾何 renderer・manifest 検証・catalog メタデータを用意する。IR / SVG 合成は #53（§6.13）、幾何 lint の接続は #54（§6.14）、利用者向けの部品 manifest・Theme・variant・ギャラリーは #55（§6.15）で接続する。既存の通常部品の描画結果は保つ。
 - **契約の検査**: 型検査で曲線のパスを拒否する。幾何のテストは多角形の頂点・交点で断面を分割し、body の和集合と outline の一致、safeArea の包含、両軸への投影（各辺からの射線）を検査する。正方形・縦長・横長・微小な footprint、パラメータの境界値、位置の平行移動、決定性・入力非破壊・サイズの単調性を含む。欠けたレイヤー・誤った輪郭・開いた body・凹部にまたがる safeArea などの負例でも検査を固定する。
 
 ## 4. Theme と style 解決（#6）
@@ -768,6 +770,14 @@ layout:
 - **サイズの由来**: 2パス描画で元の両軸が未指定だったノードだけ NodeIR.autoSized を true にする。IR の寸法が補完されていても、overflow の位置と案内は label を指す。片軸以上が明示済みの場合は従来どおり props を指し label を related とする。この内部フラグを Figure YAML・D2・SVG に追加しない。
 - **延長失敗の診断**: #53 の svg/outline-edge-miss と svg/outline-edge-crossing を引き継ぐ。描画の診断は lintRenderedFigure がすでに返すため、同じ内容の geometry 規則を増やさない。
 - **検証**: 実際の D2 で3テーマ×2 renderer の自動サイズと安全領域を確認し、明示の台形が外接矩形には収まるラベルを safeArea overflow として報告すること、部分指定の props 位置を検査する。synthetic inspection で斜辺・stack の前面・角の空白・衝突・祖先除外・auto サイズの label 位置を固定し、明示 collision の採用・凸包・許容誤差・polygon/ellipse の交差を検査する。既存 fixture / gallery / examples の差分は不要。
+
+### 6.15 #55 の台形・stack の公開
+
+- **部品名と契約**: `sumi/trapezoid`（短縮名 trapezoid）、`sumi/stack`（stack）を node として登録する。placeholder は rectangle / auto。幅と高さの props は既存図形と共通の単位付き長さで、0.5pt刻み。variants は default / emphasis / muted。`since: 0.3.0` として次回機能リリース向けに追加する（この変更では package.json の版とリリースは変更しない）。
+- **固定パラメータ**: trapezoid は slant 0.4、stack は layers 3 / offset 8 user unit。renderer は #52 の実装を再利用する。これらは catalog の render.params に出し、利用者の props としては公開しない。stack の文字は前面の safeArea に置く。
+- **見た目**: 既存の汎用図形用 variant 定義を3テーマすべてに適用する。塗り・線・太字・文字色は Theme から来る。新しいドメイン固有の表現・スタイルキーは追加しない。
+- **発見と説明**: catalog の description / variants / since / 説明付き props / render を公開する。ギャラリーは catalog から6枚（2部品×3テーマ）の SVG を生成し、各図に全 variant を含める。Skill に新部品の使い方・固定 props の境界と、コンテナ内で接続する YAML 例を追加する。
+- **テスト**: 全組み込み部品×variant×Theme の既存描画テストを renderFigure 経由にし、outline が rect のまま出ていないことを検査する。公開ID・短縮名・metadata・props の単体テスト、3テーマ×3variant×4方向の接続をコンテナ内で描く統合テストを追加する。合成後の幾何 lint は診断ゼロ、塗り・線・stroke幅・layer数・bbox包含・端点clearanceを確認する。既存 examples の SVG / PDF は保つ。
 
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures

@@ -32,6 +32,8 @@ const SHAPE_NODES = [
   "parallelogram",
   "cylinder",
   "document",
+  "trapezoid",
+  "stack",
 ];
 const EDGES = ["arrow", "line", "double-arrow"];
 
