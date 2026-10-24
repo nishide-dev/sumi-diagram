@@ -27,12 +27,13 @@ import { mkdir, mkdtemp, readdir, readFile, realpath, rm, symlink } from "node:f
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import pkg from "../package.json";
+import { compileFigure } from "../src/compiler/compile";
 import { RELEASE_LAYOUT } from "../src/core/install-layout";
 import { runCommand } from "../src/core/subprocess";
 import { svgToPdf } from "../src/render/pdf";
 import { inspectPdf, textLines } from "../src/render/pdf/testing";
-import { svgToPptx } from "../src/render/pptx";
-import { inspectPptx } from "../src/render/pptx/testing";
+import { svgToEditablePptx, svgToPptx } from "../src/render/pptx";
+import { inspectPptx, readPptx } from "../src/render/pptx/testing";
 import { descendants, parseXml, textContent } from "../src/render/xml";
 import { parseSha256Sums, sha256Hex } from "./release/lib";
 
@@ -280,6 +281,44 @@ async function smoke(tarballArg: string, keep: boolean): Promise<void> {
       step(
         `${label}: one-picture PPTX with outlined SVG + PNG fallback (sha256 ${sha256Hex(bytes)})`,
       );
+    }
+
+    const compiled = compileFigure(FIGURE);
+    check(compiled.ok, "Cannot compile native smoke source");
+    for (const connectors of ["freeform", "glued"] as const) {
+      const expected = svgToEditablePptx(svg, compiled.value.ir, { connectors });
+      check(expected.ok, `Cannot make ${connectors} native source`);
+      for (const [path, label] of [
+        [sumi, "direct"],
+        [join(linkDir, "sumi"), "symlink"],
+      ] as const) {
+        const file = join(work, `編集-${label}-${connectors}.pptx`);
+        await sumiAt(path, [
+          "render",
+          "図.sumi.yaml",
+          "-o",
+          file,
+          "--pptx-mode",
+          "editable",
+          "--pptx-connectors",
+          connectors,
+        ]);
+        const bytes = new Uint8Array(await readFile(file));
+        const parts = readPptx(bytes);
+        check(
+          ![...parts.keys()].some((p) => p.startsWith("ppt/media/")),
+          "Native PPTX contains picture media",
+        );
+        const xml = parseXml(new TextDecoder().decode(parts.get("ppt/slides/slide1.xml")));
+        check(xml.ok, "Malformed native slide");
+        const words = [...descendants(xml.root)].filter((e) => e.name === "a:t").map(textContent);
+        check(
+          EXPECTED_LABELS.every((text) => words.includes(text)),
+          "Native text missing",
+        );
+        check(sha256Hex(bytes) === sha256Hex(expected.value), "Native PPTX differs from source");
+        step(`${label}: experimental editable PPTX ${connectors} (sha256 ${sha256Hex(bytes)})`);
+      }
     }
 
     console.log(`\nSmoke test passed: ${basename(tarball)}`);

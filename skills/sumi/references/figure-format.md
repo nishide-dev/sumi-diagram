@@ -252,6 +252,15 @@ about 16 million pixels. `--json` size still describes the figure, not added pad
 Do not promise SVG support in every app; app verification is recorded in the
 repository's `docs/verification/61-pptx.md`.
 
+Only when the user requests experimental editable objects, use
+`--pptx-mode editable`. The default `--pptx-connectors freeform` preserves
+the initial route but does not glue edges. `--pptx-connectors glued` replaces
+routes with straight connectors; labels do not follow later edits. Fonts
+are referenced, not embedded, and may be substituted by the viewer. Do not
+promise exact appearance, layout preservation after editing, grouped
+container movement or YAML round-trip. See the repository's
+`docs/verification/62-editable-pptx.md` for the Mac verification and limits.
+
 ## YAML restrictions
 
 One document per file (no `---`), no anchors / aliases / merge keys (`&`,

@@ -58,6 +58,14 @@ stack traces for internal errors. If the reader of the output exits early
       "--format <format>",
       "svg, pdf or pptx (PPTX: one picture, not editable shapes; default: -o extension, else svg)",
     )
+    .option(
+      "--pptx-mode <mode>",
+      "picture (default) or editable (EXPERIMENTAL: fonts required; no exact appearance, edit-layout or YAML round-trip guarantee)",
+    )
+    .option(
+      "--pptx-connectors <mode>",
+      "editable PPTX only: freeform keeps routes but is not glued (default); glued replaces routes with straight connectors; labels stay fixed",
+    )
     .option("--emit-d2 <file>", "also write the generated D2 source")
     .option("--theme <name>", "use this built-in theme instead of figure.theme")
     .option("--profile <name>", "use this built-in profile instead of figure.profile")

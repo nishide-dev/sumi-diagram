@@ -1,0 +1,333 @@
+{
+  "powerpoint": "16.114.1",
+  "platform": "darwin",
+  "arch": "arm64",
+  "results": [
+    {
+      "mode": "freeform",
+      "shapeCount": 8,
+      "movePt": 20,
+      "textEdited": "EDITED 日本語",
+      "edgeFollowed": false,
+      "fonts": ["AAAAAC+MS-Gothic", "AAAAAE+MS-Gothic"]
+    },
+    {
+      "mode": "glued",
+      "shapeCount": 8,
+      "movePt": 20,
+      "textEdited": "EDITED 日本語",
+      "edgeFollowed": true,
+      "fonts": ["AAAAAC+MS-Gothic", "AAAAAE+MS-Gothic"]
+    }
+  ],
+  "savedObjects": [
+    {
+      "file": "japanese.freeform.roundtrip.pptx",
+      "shapes": [
+        {
+          "name": "g:pipeline",
+          "kind": "sp",
+          "text": "処理",
+          "x": "76200",
+          "y": "76200",
+          "cx": "4121150",
+          "cy": "800100"
+        },
+        {
+          "name": "n:source",
+          "kind": "sp",
+          "text": "入力データ",
+          "x": "222250",
+          "y": "241300",
+          "cx": "660400",
+          "cy": "488950"
+        },
+        {
+          "name": "n:store",
+          "kind": "sp",
+          "text": "保管",
+          "x": "1670050",
+          "y": "241300",
+          "cx": "635000",
+          "cy": "488950"
+        },
+        {
+          "name": "n:sink",
+          "kind": "sp",
+          "text": "結果",
+          "x": "3206750",
+          "y": "292100",
+          "cx": "844550",
+          "cy": "387350"
+        },
+        {
+          "name": "e:transfer",
+          "kind": "sp",
+          "text": "",
+          "x": "895350",
+          "y": "485775",
+          "cx": "758825",
+          "cy": "1"
+        },
+        {
+          "name": "e:#1",
+          "kind": "sp",
+          "text": "",
+          "x": "2314575",
+          "y": "485775",
+          "cx": "956945",
+          "cy": "1"
+        },
+        {
+          "name": "e:transfer label 0",
+          "kind": "sp",
+          "text": "送信",
+          "x": "1174750",
+          "y": "448828",
+          "cx": "203200",
+          "cy": "88900"
+        },
+        {
+          "name": "e:#1 label 0",
+          "kind": "sp",
+          "text": "読出し",
+          "x": "2616513",
+          "y": "448828",
+          "cx": "278774",
+          "cy": "88900"
+        }
+      ]
+    },
+    {
+      "file": "japanese.freeform.edited.pptx",
+      "shapes": [
+        {
+          "name": "g:pipeline",
+          "kind": "sp",
+          "text": "処理",
+          "x": "76200",
+          "y": "76200",
+          "cx": "4121150",
+          "cy": "800100"
+        },
+        {
+          "name": "n:source",
+          "kind": "sp",
+          "text": "EDITED 日本語",
+          "x": "476250",
+          "y": "241300",
+          "cx": "660400",
+          "cy": "488950"
+        },
+        {
+          "name": "n:store",
+          "kind": "sp",
+          "text": "保管",
+          "x": "1670050",
+          "y": "241300",
+          "cx": "635000",
+          "cy": "488950"
+        },
+        {
+          "name": "n:sink",
+          "kind": "sp",
+          "text": "結果",
+          "x": "3206750",
+          "y": "292100",
+          "cx": "844550",
+          "cy": "387350"
+        },
+        {
+          "name": "e:transfer",
+          "kind": "sp",
+          "text": "",
+          "x": "895350",
+          "y": "485775",
+          "cx": "758825",
+          "cy": "1"
+        },
+        {
+          "name": "e:#1",
+          "kind": "sp",
+          "text": "",
+          "x": "2314575",
+          "y": "485775",
+          "cx": "956945",
+          "cy": "1"
+        },
+        {
+          "name": "e:transfer label 0",
+          "kind": "sp",
+          "text": "送信",
+          "x": "1174750",
+          "y": "448828",
+          "cx": "203200",
+          "cy": "88900"
+        },
+        {
+          "name": "e:#1 label 0",
+          "kind": "sp",
+          "text": "読出し",
+          "x": "2616513",
+          "y": "448828",
+          "cx": "278774",
+          "cy": "88900"
+        }
+      ]
+    },
+    {
+      "file": "japanese.glued.roundtrip.pptx",
+      "shapes": [
+        {
+          "name": "g:pipeline",
+          "kind": "sp",
+          "text": "処理",
+          "x": "76200",
+          "y": "76200",
+          "cx": "4121150",
+          "cy": "800100"
+        },
+        {
+          "name": "n:source",
+          "kind": "sp",
+          "text": "入力データ",
+          "x": "222250",
+          "y": "241300",
+          "cx": "660400",
+          "cy": "488950"
+        },
+        {
+          "name": "n:store",
+          "kind": "sp",
+          "text": "保管",
+          "x": "1670050",
+          "y": "241300",
+          "cx": "635000",
+          "cy": "488950"
+        },
+        {
+          "name": "n:sink",
+          "kind": "sp",
+          "text": "結果",
+          "x": "3206750",
+          "y": "292100",
+          "cx": "844550",
+          "cy": "387350"
+        },
+        {
+          "name": "e:transfer",
+          "kind": "cxnSp",
+          "text": "",
+          "x": "882650",
+          "y": "485775",
+          "cx": "787400",
+          "cy": "1"
+        },
+        {
+          "name": "e:#1",
+          "kind": "cxnSp",
+          "text": "",
+          "x": "2305050",
+          "y": "485775",
+          "cx": "901700",
+          "cy": "1"
+        },
+        {
+          "name": "e:transfer label 0",
+          "kind": "sp",
+          "text": "送信",
+          "x": "1174750",
+          "y": "448828",
+          "cx": "203200",
+          "cy": "88900"
+        },
+        {
+          "name": "e:#1 label 0",
+          "kind": "sp",
+          "text": "読出し",
+          "x": "2616513",
+          "y": "448828",
+          "cx": "278774",
+          "cy": "88900"
+        }
+      ]
+    },
+    {
+      "file": "japanese.glued.edited.pptx",
+      "shapes": [
+        {
+          "name": "g:pipeline",
+          "kind": "sp",
+          "text": "処理",
+          "x": "76200",
+          "y": "76200",
+          "cx": "4121150",
+          "cy": "800100"
+        },
+        {
+          "name": "n:source",
+          "kind": "sp",
+          "text": "EDITED 日本語",
+          "x": "476250",
+          "y": "241300",
+          "cx": "660400",
+          "cy": "488950"
+        },
+        {
+          "name": "n:store",
+          "kind": "sp",
+          "text": "保管",
+          "x": "1670050",
+          "y": "241300",
+          "cx": "635000",
+          "cy": "488950"
+        },
+        {
+          "name": "n:sink",
+          "kind": "sp",
+          "text": "結果",
+          "x": "3206750",
+          "y": "292100",
+          "cx": "844550",
+          "cy": "387350"
+        },
+        {
+          "name": "e:transfer",
+          "kind": "cxnSp",
+          "text": "",
+          "x": "1136650",
+          "y": "485775",
+          "cx": "533400",
+          "cy": "0"
+        },
+        {
+          "name": "e:#1",
+          "kind": "cxnSp",
+          "text": "",
+          "x": "2305050",
+          "y": "485775",
+          "cx": "901700",
+          "cy": "1"
+        },
+        {
+          "name": "e:transfer label 0",
+          "kind": "sp",
+          "text": "送信",
+          "x": "1174750",
+          "y": "448828",
+          "cx": "203200",
+          "cy": "88900"
+        },
+        {
+          "name": "e:#1 label 0",
+          "kind": "sp",
+          "text": "読出し",
+          "x": "2616513",
+          "y": "448828",
+          "cx": "278774",
+          "cy": "88900"
+        }
+      ]
+    }
+  ]
+}

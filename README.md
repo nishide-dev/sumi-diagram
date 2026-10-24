@@ -212,6 +212,17 @@ sumi render figure.sumi.yaml --format pptx
 
 生成は macOS／Linux（x64／arm64）をサポートし、表示は PowerPoint for Mac 16.114.1 で確認しています。Windows PowerPoint・Keynote・Google Slides は今回の保証対象外です。
 
+#### 編集可能 PPTX（実験的・開発版）
+
+```sh
+sumi render figure.sumi.yaml -o editable.pptx --pptx-mode editable
+sumi render figure.sumi.yaml -o glued.pptx --pptx-mode editable --pptx-connectors glued
+```
+
+`--pptx-mode editable` は図形と文字を DrawingML の個別オブジェクトにします。**保証するのは個別の選択・編集のみ**で、見た目の完全一致、編集後のレイアウト維持、YAMLへの逆変換は保証しません。文字はフォント名を参照し、フォント自体は埋め込まないため、閲覧側に BIZ UDPGothic / BIZ UDGothic がなければ置換されます。
+
+既定の `freeform` は元の経路を自由形状として保持しますが、ノードを動かしてもエッジは追従しません。`--pptx-connectors glued` は上下左右の接着点へ接続する標準の直線コネクタに置き換えます。元の折れ線・曲線は失われ、エッジラベルは追従しません。コンテナは独立した枠で、子オブジェクトをまとめて移動する PowerPoint グループではありません。詳細・対応しない形状とMac実確認は [編集可能PPTXの記録](docs/verification/62-editable-pptx.md) を参照してください。画像方式は引き続き既定です。
+
 ### テーマとプロファイル
 
 見た目はテーマ（`figure.theme`）、出力先の制約（ページの大きさ・最小文字サイズ・間隔）はプロファイル（`figure.profile`）で選びます。両者は独立で、プロファイルが図や文字を拡大・縮小することはありません。

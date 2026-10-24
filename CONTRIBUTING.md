@@ -53,6 +53,7 @@ bun run gallery:check    # examples/*/*.{svg,pdf} と docs/gallery/ が最新か
 | lint の出力（`tests/fixtures/lint-output/`） | `SUMI_UPDATE_GOLDEN=1 bun test src/lint/lint.test.ts` |
 | SVG（`examples/*/*.svg`・`docs/gallery/`） | `bun run gallery` |
 | PDF（`examples/*/*.pdf`） | `bun run gallery`（または `SUMI_UPDATE_GOLDEN=1 bun test src/render/pdf`。同じバイトを書く） |
+| 編集可能PPTX（slide XML / package hash） | `SUMI_UPDATE_GOLDEN=1 bun test src/render/pptx/editable.test.ts`。日本語fixtureのYAMLを変えたら先にSVGを通常のrenderで更新する（[再現手順](docs/verification/62-editable-pptx.md)） |
 
 SVG は D2 のバージョンとフォントが同じなら OS によらずバイト単位で一致します。D2 やフォントを更新する手順と、画像（ラスタ）比較を使わない理由は [設計 §6.7](docs/design/phase1.md#67-16-のテスト戦略と-ci) を参照してください。
 
@@ -64,7 +65,7 @@ SVG は D2 のバージョンとフォントが同じなら OS によらずバ�
 | CI | Test（Linux / macOS） | D2 の導入、環境の記録（OS・`sumi doctor`: Bun・D2・フォントの sha256）、`bun test`（Linux ではカバレッジの表も出力。閾値なし。PDF の golden もここで両 OS のバイト一致を検査）、`bun run gallery:check` |
 | CI | PDF engine reproducible build（Linux） | `bun run pdf:wasm` で PDF エンジンをソースから再ビルドし、コミット済みの `.wasm`・sha256・ライセンス一覧と一致するか（`git diff`） |
 | CI | PDF LaTeX inclusion（Linux） | `bun run pdf:latex` で pdfLaTeX / LuaLaTeX に実際に取り込み、文字・位置・フォント埋め込み・ベクター・表示を検査する（TeX / Poppler はこのジョブのみで導入） |
-| CI | PPTX Open XML validation（Linux） | 53ケースの通常版＋PNG対照版を生成し、固定版 Open XML SDK でスキーマを独立検証。確認用ファイルを `pptx-compatibility-fixtures` artifact に残す（.NET は検証専用） |
+| CI | PPTX Open XML validation（Linux） | 画像方式の通常版＋PNG対照版、編集可能方式の両mode＋接続対照を固定版 Open XML SDK で独立検証。各方式の確認用artifactを残す（.NET は検証専用） |
 | CI | Release smoke（linux-x64） | `release:build` と `release:smoke`（SVG と PDF の描画を含む） |
 | PR title | Conventional Commit title | PR タイトルが下記の[コミットメッセージ](#コミットメッセージ)の規則に従うか |
 

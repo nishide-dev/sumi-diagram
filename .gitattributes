@@ -9,3 +9,5 @@ docs/gallery/** text eol=lf
 *.wasm binary
 # Upstream license texts are checksum-verified and copied byte for byte.
 native/pdf-wasm/licenses/** -text -whitespace
+tests/fixtures/pptx-editable/** text eol=lf
+tests/fixtures/pptx-editable-japanese.svg text eol=lf

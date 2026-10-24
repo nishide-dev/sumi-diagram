@@ -50,6 +50,28 @@ export function picturePptx(
   heightPt: number,
   metadata?: SumiSvgMetadata,
 ): Uint8Array {
+  return slidePptx(svg, png, widthPt, heightPt, metadata);
+}
+
+/** Shared blank-slide packaging; picture output remains byte-identical. */
+export function editablePptx(
+  shapes: string,
+  widthPt: number,
+  heightPt: number,
+  metadata: SumiSvgMetadata | undefined,
+  connectors: string,
+): Uint8Array {
+  return slidePptx("", new Uint8Array(), widthPt, heightPt, metadata, { shapes, connectors });
+}
+
+function slidePptx(
+  svg: string,
+  png: Uint8Array,
+  widthPt: number,
+  heightPt: number,
+  metadata?: SumiSvgMetadata,
+  native?: { shapes: string; connectors: string },
+): Uint8Array {
   const w = Math.max(1, Math.round(widthPt * 12700));
   const h = Math.max(1, Math.round(heightPt * 12700));
   // ST_SlideSizeCoordinate is 1..56 inches. Pad tiny figures without scaling them.
@@ -59,8 +81,9 @@ export function picturePptx(
   const y = Math.floor((cy - h) / 2);
   const title = escapeXml(metadata?.figureId ?? "Sumi diagram");
   const creator = metadata ? `Sumi ${metadata.sumiVersion}` : "Sumi";
-  const description =
-    "One picture with outlined SVG and PNG fallback; shapes and text are not individually editable.";
+  const description = native
+    ? "Experimental editable DrawingML. Appearance, layout after edits and YAML round-trip are not guaranteed. Fonts must be installed by the viewer."
+    : "One picture with outlined SVG and PNG fallback; shapes and text are not individually editable.";
   const pic = `<p:pic><p:nvPicPr><p:cNvPr id="2" name="${title}" descr="${description}"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed="rId2"><a:extLst><a:ext uri="{96DAC541-7B7A-43D3-8B79-37D633B846F1}"><asvg:svgBlip xmlns:asvg="http://schemas.microsoft.com/office/drawing/2016/SVG/main" r:embed="rId3"/></a:ext></a:extLst></a:blip><a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr><a:xfrm><a:off x="${x}" y="${y}"/><a:ext cx="${w}" cy="${h}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>`;
   const overrides: [string, string][] = [
     ["ppt/presentation.xml", "presentation.main"],
@@ -69,10 +92,15 @@ export function picturePptx(
     ["ppt/slides/slide1.xml", "slide"],
     ["ppt/theme/theme1.xml", "theme"],
   ];
-  const properties: [string, string][] = [
-    ["SumiPictureFormat", "outlined-svg+png"],
-    ["SumiRasterizer", `resvg ${RESVG_VERSION}`],
-  ];
+  const properties: [string, string][] = native
+    ? [
+        ["SumiPptxMode", "experimental-editable"],
+        ["SumiPptxConnectors", native.connectors],
+      ]
+    : [
+        ["SumiPictureFormat", "outlined-svg+png"],
+        ["SumiRasterizer", `resvg ${RESVG_VERSION}`],
+      ];
   if (metadata)
     properties.push(
       ["SumiVersion", metadata.sumiVersion],
@@ -86,7 +114,7 @@ export function picturePptx(
   const entries: ZipEntry[] = [
     {
       name: "[Content_Types].xml",
-      data: `${XML}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Default Extension="svg" ContentType="image/svg+xml"/>${overrides.map(([part, kind]) => `<Override PartName="/${part}" ContentType="application/vnd.openxmlformats-officedocument.${kind === "theme" ? "theme" : `presentationml.${kind}`}+xml"/>`).join("")}<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/><Override PartName="/docProps/custom.xml" ContentType="application/vnd.openxmlformats-officedocument.custom-properties+xml"/></Types>`,
+      data: `${XML}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>${native ? "" : '<Default Extension="png" ContentType="image/png"/><Default Extension="svg" ContentType="image/svg+xml"/>'}${overrides.map(([part, kind]) => `<Override PartName="/${part}" ContentType="application/vnd.openxmlformats-officedocument.${kind === "theme" ? "theme" : `presentationml.${kind}`}+xml"/>`).join("")}<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/><Override PartName="/docProps/custom.xml" ContentType="application/vnd.openxmlformats-officedocument.custom-properties+xml"/></Types>`,
     },
     {
       name: "_rels/.rels",
@@ -146,18 +174,22 @@ export function picturePptx(
     { name: "ppt/theme/theme1.xml", data: theme },
     {
       name: "ppt/slides/slide1.xml",
-      data: `${XML}<p:sld ${ns}><p:cSld><p:spTree>${tree}${pic}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`,
+      data: `${XML}<p:sld ${ns}><p:cSld><p:spTree>${tree}${native?.shapes ?? pic}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`,
     },
     {
       name: "ppt/slides/_rels/slide1.xml.rels",
-      data: rels([
-        ["rId1", `${R}/slideLayout`, "../slideLayouts/slideLayout1.xml"],
-        ["rId2", `${R}/image`, "../media/figure.png"],
-        ["rId3", `${R}/image`, "../media/figure.svg"],
-      ]),
+      data: rels(
+        native
+          ? [["rId1", `${R}/slideLayout`, "../slideLayouts/slideLayout1.xml"]]
+          : [
+              ["rId1", `${R}/slideLayout`, "../slideLayouts/slideLayout1.xml"],
+              ["rId2", `${R}/image`, "../media/figure.png"],
+              ["rId3", `${R}/image`, "../media/figure.svg"],
+            ],
+      ),
     },
     { name: "ppt/media/figure.svg", data: svg },
     { name: "ppt/media/figure.png", data: png },
   ];
-  return zip(entries);
+  return zip(native ? entries.filter((entry) => !entry.name.startsWith("ppt/media/")) : entries);
 }
