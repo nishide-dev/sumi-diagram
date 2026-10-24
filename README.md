@@ -199,6 +199,19 @@ sumi catalog --json --section themes --section profiles   # Theme と Profile �
 
 pdfLaTeX / LuaLaTeX では `graphicx` の `\includegraphics{figure.pdf}` で取り込めます。図の日本語フォントも PDF に埋め込まれているため、図のための CJK パッケージやシステムフォントは不要です。[検証環境と再現手順](docs/verification/63-pdf-latex.md)を参照してください。取り込み時に PDF のバージョンの警告が出る環境では、文書の先頭で PDF 1.7 を指定します（pdfLaTeX: `\pdfminorversion=7`、LuaLaTeX: `\pdfvariable minorversion=7`）。
 
+### PPTX（開発版）
+
+```sh
+sumi render figure.sumi.yaml -o figure.pptx
+sumi render figure.sumi.yaml --format pptx
+```
+
+図全体を **1 枚の画像**として 1 スライドへ格納します。文字をアウトライン化した SVG と、resvg で生成した PNG フォールバックを両方含むため、閲覧側のフォントに依存しません。**図形・文字・矢印は個別に編集できません**（編集可能な PPTX は別機能の #62）。PDF への再書き出しがベクターになることも保証しません。
+
+画像は元 SVG の物理サイズを保ちます。PPTX の仕様に合わせ、スライドは各辺 1〜56 inch。1 inch 未満の図は余白を足して中央に配置し、56 inch 超は `pptx/unsupported-size` になります。PNG は原則 192dpi、最大 8192px/辺・約 1600 万画素に収まるよう大きな図では解像度を下げます。`--json` の `size` は従来どおり図自体の寸法です。詳細・アプリ別の確認状況は [PPTX 検証記録](docs/verification/61-pptx.md) を参照してください。
+
+生成は macOS／Linux（x64／arm64）をサポートし、表示は PowerPoint for Mac 16.114.1 で確認しています。Windows PowerPoint・Keynote・Google Slides は今回の保証対象外です。
+
 ### テーマとプロファイル
 
 見た目はテーマ（`figure.theme`）、出力先の制約（ページの大きさ・最小文字サイズ・間隔）はプロファイル（`figure.profile`）で選びます。両者は独立で、プロファイルが図や文字を拡大・縮小することはありません。
@@ -255,7 +268,7 @@ Skill は CLI をラッパー（`skills/sumi/scripts/sumi`）経由で実行し�
 | `bun test` | テスト実行 |
 | `bun run schema:gen` / `schema:check` | JSON Schema の再生成 / 差分検査 |
 | `bun run d2:install` | 固定バージョンの D2 CLI を `.sumi/bin/d2` に導入 |
-| `bun run pdf:wasm` | PDF エンジン（`native/pdf-wasm` → `assets/wasm/sumi-pdf.wasm`）を再ビルドする（rustup が必要。[手順](CONTRIBUTING.md#pdf-エンジンwasmの再ビルド)） |
+| `bun run pdf:wasm` | PDF/PPTX 共通エンジン（`native/pdf-wasm` → `assets/wasm/sumi-pdf.wasm`）を再ビルドする（rustup が必要。[手順](CONTRIBUTING.md#pdf-エンジンwasmの再ビルド)） |
 | `bun run pdf:latex` | pdfLaTeX / LuaLaTeX への実際の取り込みを検証する（TeX Live・Poppler・D2 が必要。[検証記録](docs/verification/63-pdf-latex.md)） |
 | `bun run src/cli/index.ts --help` | CLI をソースから実行 |
 | `bun run example:render <file> [out.svg]` | `sumi render` の別名（`examples/` の再生成用） |
@@ -271,7 +284,7 @@ Skill は CLI をラッパー（`skills/sumi/scripts/sumi`）経由で実行し�
 | `src/core` | スキーマ・IR・共通ユーティリティ |
 | `src/backends` | レイアウトバックエンド（D2 / ELK） |
 | `src/render` | SVG 出力（`src/render/pdf`: PDF への変換） |
-| `native/pdf-wasm` | PDF エンジンの Rust クレート（krilla + krilla-svg を WASM に。生成物は `assets/wasm/`） |
+| `native/pdf-wasm` | PDF/PPTX 共通の Rust エンジン（krilla・krilla-svg・resvg を WASM に。生成物は `assets/wasm/`） |
 | `src/lint` | 構造・視覚 Lint |
 | `schema` | 生成された JSON Schema（手で編集しない） |
 | `tests/fixtures` | テスト用の入力ファイル |

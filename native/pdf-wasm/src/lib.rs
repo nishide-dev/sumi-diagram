@@ -18,7 +18,7 @@ use krilla::page::PageSettings;
 use krilla::{Document, SerializeSettings};
 use krilla_svg::{SurfaceExt, SvgSettings};
 
-fn convert_svg(svg: &[u8], fonts: Vec<Vec<u8>>) -> Result<Vec<u8>, String> {
+fn parse_svg(svg: &[u8], fonts: Vec<Vec<u8>>) -> Result<usvg::Tree, String> {
     let mut db = fontdb::Database::new();
     for font in fonts {
         db.load_font_data(font);
@@ -40,7 +40,11 @@ fn convert_svg(svg: &[u8], fonts: Vec<Vec<u8>>) -> Result<Vec<u8>, String> {
         font_family: fallback,
         ..usvg::Options::default()
     };
-    let tree = usvg::Tree::from_data(svg, &options).map_err(|e| e.to_string())?;
+    usvg::Tree::from_data(svg, &options).map_err(|e| e.to_string())
+}
+
+fn convert_svg(svg: &[u8], fonts: Vec<Vec<u8>>) -> Result<Vec<u8>, String> {
+    let tree = parse_svg(svg, fonts)?;
     let settings = SerializeSettings {
         configuration: ConfigurationBuilder::new()
             .with_version(PdfVersion::Pdf17)
@@ -61,6 +65,41 @@ fn convert_svg(svg: &[u8], fonts: Vec<Vec<u8>>) -> Result<Vec<u8>, String> {
     surface.finish();
     page.finish();
     document.finish().map_err(|e| format!("{e:?}"))
+}
+
+fn picture_assets(svg: &[u8], fonts: Vec<Vec<u8>>) -> Result<Vec<u8>, String> {
+    let tree = parse_svg(svg, fonts)?;
+    let w = tree.size().width();
+    let h = tree.size().height();
+    // Aim for 192 dpi (usvg's CSS px are 96/in). Bound allocation to 64 MiB
+    // RGBA and 8192px per side; large pictures get a lower-resolution fallback.
+    let scale = 2.0_f32
+        .min(8192.0 / w)
+        .min(8192.0 / h)
+        .min((16_000_000.0 / (w * h)).sqrt());
+    let width = ((w * scale).ceil() as u32).min(8192);
+    let height = ((h * scale).ceil() as u32).min(8192);
+    if width == 0 || height == 0 || u64::from(width) * u64::from(height) > 16_100_000 {
+        return Err("invalid or excessive raster dimensions".into());
+    }
+    let mut pixmap = resvg::tiny_skia::Pixmap::new(width, height)
+        .ok_or_else(|| "cannot allocate raster fallback".to_string())?;
+    resvg::render(
+        &tree,
+        resvg::tiny_skia::Transform::from_scale(scale, scale),
+        &mut pixmap.as_mut(),
+    );
+    let png = pixmap.encode_png().map_err(|e| e.to_string())?;
+    let outlined = tree.to_string(&usvg::WriteOptions {
+        preserve_text: false,
+        ..Default::default()
+    });
+    // LE u32 PNG length, then PNG, then UTF-8 outlined SVG.
+    let mut result = Vec::with_capacity(4 + png.len() + outlined.len());
+    result.extend_from_slice(&(png.len() as u32).to_le_bytes());
+    result.extend_from_slice(&png);
+    result.extend_from_slice(outlined.as_bytes());
+    Ok(result)
 }
 
 thread_local! {
@@ -95,9 +134,25 @@ pub unsafe extern "C" fn add_font(ptr: *mut u8, len: usize) {
 /// `ptr` / `len` must come from `alloc(len)`, filled by the host.
 #[no_mangle]
 pub unsafe extern "C" fn convert(ptr: *mut u8, len: usize) -> isize {
+    transform(ptr, len, convert_svg)
+}
+
+/// Produces outlined SVG and PNG assets for a picture PPTX (#61).
+/// # Safety
+/// `ptr` / `len` must come from `alloc(len)`, filled by the host.
+#[no_mangle]
+pub unsafe extern "C" fn picture(ptr: *mut u8, len: usize) -> isize {
+    transform(ptr, len, picture_assets)
+}
+
+unsafe fn transform(
+    ptr: *mut u8,
+    len: usize,
+    operation: fn(&[u8], Vec<Vec<u8>>) -> Result<Vec<u8>, String>,
+) -> isize {
     let svg = Vec::from_raw_parts(ptr, len, len);
     let fonts = FONTS.with(|f| std::mem::take(&mut *f.borrow_mut()));
-    let (bytes, ok) = match convert_svg(&svg, fonts) {
+    let (bytes, ok) = match operation(&svg, fonts) {
         Ok(pdf) => (pdf, true),
         Err(message) => (message.into_bytes(), false),
     };

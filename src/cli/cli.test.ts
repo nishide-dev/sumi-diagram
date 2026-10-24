@@ -39,6 +39,7 @@ import { BUILTIN_THEMES } from "../core/theme/builtin";
 import { BUNDLED_FONT_SHA256 } from "../core/theme/fonts";
 import { readSvgMetadata } from "../render";
 import { inspectPdf } from "../render/pdf/testing";
+import { inspectPptx } from "../render/pptx/testing";
 import { isCaseInsensitiveDir } from "./io";
 import { run } from "./program";
 
@@ -382,9 +383,12 @@ describe("sumi render (output paths)", () => {
     input = await readFile(join(dir, "real", "fig.sumi.yaml"), "utf8");
   });
 
-  test("--format must be svg or pdf and agree with the output's extension", async () => {
+  test("--format must be supported and agree with the output's extension", async () => {
     for (const [args, message] of [
-      [["--format", "png"], 'Unknown format "png". Available formats: svg, pdf.'],
+      [["--format", "png"], 'Unknown format "png". Available formats: svg, pdf, pptx.'],
+      [["--format", "pptx", "-o", "out.pdf"], "--format pptx contradicts the output file out.pdf"],
+      [["--format", "svg", "-o", "out.PPTX"], "--format svg contradicts the output file out.PPTX"],
+      [["--format", "pptx", "-o", "-"], "A PPTX cannot be written to stdout (-o -)"],
       [["--format", "svg", "-o", "out.pdf"], "--format svg contradicts the output file out.pdf"],
       [["--format", "pdf", "-o", "out.SVG"], "--format pdf contradicts the output file out.SVG"],
       [["--format", "pdf", "-o", "-"], "A PDF cannot be written to stdout (-o -)"],
@@ -846,6 +850,27 @@ describe.skipIf(!d2Available && !process.env.CI)("sumi render (D2)", () => {
     );
     expect(override.size.profile).toMatchObject({ id: "paper-double", maxWidthMm: 180 });
   });
+
+  test("PPTX extension and explicit format write identical one-picture packages", async () => {
+    const file = await copyFixture("lint/clean.sumi.yaml", "pptx.sumi.yaml");
+    const inferred = await sumi(["render", file, "-o", "picture.PPTX", "--json"], { env: env() });
+    expect(inferred.exitCode).toBe(0);
+    expect(JSON.parse(inferred.stdout)).toMatchObject({
+      format: "pptx",
+      output: "picture.PPTX",
+      summary: { errors: 0 },
+    });
+    const bytes = new Uint8Array(await readFile(join(dir, "picture.PPTX")));
+    expect(inspectPptx(bytes).parts.has("ppt/media/figure.svg")).toBe(true);
+    const explicit = await sumi(["render", file, "--format", "pptx", "--json"], { env: env() });
+    expect(explicit.exitCode).toBe(0);
+    expect(JSON.parse(explicit.stdout)).toMatchObject({ format: "pptx", output: "pptx.pptx" });
+    expect(new Uint8Array(await readFile(join(dir, "pptx.pptx")))).toEqual(bytes);
+    const wide = await copyFixture("geometry/exceeds-page-width.sumi.yaml", "pptx-wide.sumi.yaml");
+    const failed = await sumi(["render", wide, "-o", "pptx-wide.pptx"], { env: env() });
+    expect(failed.exitCode).toBe(1);
+    expect(await Bun.file(join(dir, "pptx-wide.pptx")).exists()).toBe(true);
+  }, 60_000);
 
   test("-o x.pdf writes a PDF of the figure's size; the geometry lint still runs", async () => {
     const file = await copyFixture("lint/clean.sumi.yaml", "pdf.sumi.yaml");

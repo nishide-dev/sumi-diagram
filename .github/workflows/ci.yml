@@ -105,6 +105,35 @@ jobs:
       - name: Gallery and examples up to date
         run: bun run gallery:check
 
+  # The independent Open XML SDK is test-only, never bundled with the CLI.
+  pptx-schema:
+    name: PPTX Open XML validation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: .bun-version
+      - run: bun install --frozen-lockfile
+      - name: Generate picture PPTX corpus and fallback controls
+        run: bun scripts/check-pptx.ts
+      - name: Validate Office 2019 schema with pinned Open XML SDK
+        env:
+          DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+        run: |
+          dotnet build scripts/pptx-validator/Validator.csproj --configuration Release --artifacts-path .sumi/pptx-validator -p:RestoreLockedMode=true
+          dotnet .sumi/pptx-validator/bin/Validator/release/Validator.dll .sumi/pptx/*.pptx
+      - name: Keep app-compatibility fixtures and alternate-PNG controls
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pptx-compatibility-fixtures
+          path: .sumi/pptx/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
+
   # Real LaTeX consumers of the generated PDFs (#63). TeX/Poppler are test-only
   # dependencies, isolated from the normal unit suite and release binaries.
   pdf-latex:

@@ -240,6 +240,18 @@ in `size` (`null` if nothing was rendered):
 `fits` covers width and height only; font sizes are reported as
 diagnostics.
 
+## Output formats
+
+`sumi render -o figure.svg`, `-o figure.pdf`, or `-o figure.pptx` selects the
+format by extension; `--format svg|pdf|pptx` is explicit. SVG alone supports stdout.
+PPTX is one picture with outlined SVG plus PNG fallback: shapes and text are not
+individually editable, and a slide app's PDF export need not stay vector.
+The picture keeps its physical size; slide sides under 1 inch are padded, and
+over 56 inches are rejected. PNG aims for 192dpi, bounded to 8192px per side and
+about 16 million pixels. `--json` size still describes the figure, not added padding.
+Do not promise SVG support in every app; app verification is recorded in the
+repository's `docs/verification/61-pptx.md`.
+
 ## YAML restrictions
 
 One document per file (no `---`), no anchors / aliases / merge keys (`&`,

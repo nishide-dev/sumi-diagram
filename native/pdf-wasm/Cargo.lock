@@ -573,6 +573,7 @@ dependencies = [
  "fontdb",
  "krilla",
  "krilla-svg",
+ "resvg",
  "usvg",
 ]
 

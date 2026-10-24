@@ -796,6 +796,16 @@ layout:
 - **発見と説明**: catalog の description / variants / since / 説明付き props / render を公開する。ギャラリーは catalog から6枚（2部品×3テーマ）の SVG を生成し、各図に全 variant を含める。Skill に新部品の使い方・固定 props の境界と、コンテナ内で接続する YAML 例を追加する。
 - **テスト**: 全組み込み部品×variant×Theme の既存描画テストを renderFigure 経由にし、outline が rect のまま出ていないことを検査する。公開ID・短縮名・metadata・props の単体テスト、3テーマ×3variant×4方向の接続をコンテナ内で描く統合テストを追加する。合成後の幾何 lint は診断ゼロ、塗り・線・stroke幅・layer数・bbox包含・端点clearanceを確認する。既存 examples の SVG / PDF は保つ。
 
+### 6.16 #61 の画像方式 PPTX
+
+- **API / CLI**: `src/render/pptx` の `svgToPptx(svg, { fontSet? }): Result<Uint8Array>`。`sumi render --format pptx` または `-o x.pptx`。出力先推論・矛盾検出・atomic write・geometry lint・JSON は既存と共通。stdout は SVG のみ。PPTX は図全体が1枚の画像で、図形・文字・矢印の個別編集は保証しない（#62 と分離）。
+- **パッケージ**: 自前 ZIP32（固定時刻・固定順序）と OOXML。blank master/layout、1スライド、1つの `p:pic`、PNG の `a:blip` と SVG の `asvg:svgBlip`、内部 relationships、core/custom provenance。日時は入れない。
+- **画像**: PDF と共通の import-free WASM に resvg 0.47.0 の直接依存と `picture` ABI を追加。同じ同梱フォントで usvg tree を作り、文字を path 化した SVG と原則192dpiの PNG を返す。PNG は8192px/辺・約1600万画素に制限する。CLI 自体にブラウザ・Office・.NET は不要。
+- **サイズ**: 1pt = 12700EMU。画像の物理サイズと縦横比を維持し、PPTX の1〜56inch制約に合わせて小さな図には余白を加え中央配置する。56inch超は `pptx/unsupported-size`。JSON の size は図自身を指す。
+- **診断**: `pptx/input-too-large` / `unsupported-size` / `missing-font` / `unresolved-font` / `engine-unavailable` / `conversion-failed` は共有 Diagnostic の error。変換失敗時はPPTXを書かない。幾何 error 時は従来どおり出力を書いて exit 1。
+- **検証と配布**: 53ケースの固定 hash、ZIP/XML/relationships・画像・寸法・反復決定性を検査し、release workflow の4ターゲットでも実行する。独立した Open XML SDK 3.3.0 は通常版＋マゼンタPNG対照版106ファイルをOffice2019スキーマで検証する（検証専用で非同梱）。resvgと推移依存の固定版・原文は `licenses/pdf-wasm/` に含める。
+- **保証範囲と実アプリ確認**: 生成は macOS/Linux × x64/arm64、実アプリの表示確認は PowerPoint for Mac（16.114.1）を対象とする。日本語/mask の通常版とPNG対照版を比較し、SVG表示を確認済み（[検証記録](../verification/61-pptx.md)）。Windows PowerPoint・Keynote・Google Slides は今回の保証対象外とし、確認をマージ条件には含めない。生成環境と閲覧アプリの対応範囲は別の契約として扱う。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）

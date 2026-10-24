@@ -64,6 +64,7 @@ SVG は D2 のバージョンとフォントが同じなら OS によらずバ�
 | CI | Test（Linux / macOS） | D2 の導入、環境の記録（OS・`sumi doctor`: Bun・D2・フォントの sha256）、`bun test`（Linux ではカバレッジの表も出力。閾値なし。PDF の golden もここで両 OS のバイト一致を検査）、`bun run gallery:check` |
 | CI | PDF engine reproducible build（Linux） | `bun run pdf:wasm` で PDF エンジンをソースから再ビルドし、コミット済みの `.wasm`・sha256・ライセンス一覧と一致するか（`git diff`） |
 | CI | PDF LaTeX inclusion（Linux） | `bun run pdf:latex` で pdfLaTeX / LuaLaTeX に実際に取り込み、文字・位置・フォント埋め込み・ベクター・表示を検査する（TeX / Poppler はこのジョブのみで導入） |
+| CI | PPTX Open XML validation（Linux） | 53ケースの通常版＋PNG対照版を生成し、固定版 Open XML SDK でスキーマを独立検証。確認用ファイルを `pptx-compatibility-fixtures` artifact に残す（.NET は検証専用） |
 | CI | Release smoke（linux-x64） | `release:build` と `release:smoke`（SVG と PDF の描画を含む） |
 | PR title | Conventional Commit title | PR タイトルが下記の[コミットメッセージ](#コミットメッセージ)の規則に従うか |
 
@@ -74,6 +75,8 @@ PDF の LaTeX 取り込み検証（#63）は、TeX Live と Poppler がある環
 ### PDF エンジン（WASM）の再ビルド
 
 PDF 出力（#59、#74）は、`native/pdf-wasm/` の Rust クレート（krilla 0.8.2 + krilla-svg 0.8.1、upstream パッチなし）を `wasm32-unknown-unknown` にビルドした `assets/wasm/sumi-pdf.wasm` を使います。生成物はコミットしてあり、通常の開発・テスト・リリースに Rust は不要です。クレート・依存の版・ツールチェーンを変えたときだけ再ビルドします。
+
+#61 の PPTX は同じ WASM に resvg 0.47.0 の outlined SVG / PNG 生成を追加して使います。既存の `pdf:wasm` コマンドで両方を再ビルドします。PPTX の golden は `SUMI_UPDATE_GOLDEN=1 bun test src/render/pptx` で更新し、実アプリ確認の手順・制約は [検証記録](docs/verification/61-pptx.md) を参照してください。
 
 ```sh
 bun run pdf:wasm   # rustup が必要。rust-toolchain.toml の版と wasm32 target は自動で導入される
