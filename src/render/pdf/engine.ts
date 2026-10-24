@@ -19,7 +19,7 @@ import { readFileSync } from "node:fs";
 import wasmPath from "../../../assets/wasm/sumi-pdf.wasm" with { type: "file" };
 
 /** sha256 of `assets/wasm/sumi-pdf.wasm`; written by `bun run pdf:wasm`. */
-export const PDF_WASM_SHA256 = "5e1e21fa2d0f4b4c13ea640a9da353f2e73a3837727fa31ed260731378df65ed";
+export const PDF_WASM_SHA256 = "cf6ec1982be2a2b7186eb4bb4a15434d3d98129f1bdc5bc6fc964928b54cff3c";
 
 /** Exact, unpatched crates.io releases in native/pdf-wasm/Cargo.lock. */
 export const KRILLA_VERSION = "0.8.2";

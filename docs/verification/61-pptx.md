@@ -41,4 +41,15 @@ Mac PowerPoint は日本語・太字・透明マスクの穴が保持されて�
 
 ## ライセンスと配布
 
-resvg 0.47.0 と推移依存は Cargo.lock 固定。既に krilla-svg 経由で同じ resvg が含まれており、新たなクレートは増えない。`bun run pdf:wasm` がライセンスを再生成し、配布物の `licenses/pdf-wasm/` へ同梱する。WASM 生サイズの macOS 比較は 3,515,287 → 約 3,565KB（約 50KB 増）。Linux 基準ビルドと tarball の増分は CI で確認する。
+resvg 0.47.0 と推移依存は Cargo.lock 固定。既に krilla-svg 経由で同じ resvg が含まれており、新たなクレートは増えない。`bun run pdf:wasm` がライセンスを再生成し、配布物の `licenses/pdf-wasm/` へ同梱する。
+
+Linux 基準 WASM は [初回 CI](https://github.com/nishide-dev/sumi-diagram/actions/runs/40062059837) の artifact を採用した。3,565,005 bytes、SHA-256 `cf6ec1982be2a2b7186eb4bb4a15434d3d98129f1bdc5bc6fc964928b54cff3c`。初回の不一致は macOS ビルドとの差327 bytesと固定hashだけで、ライセンスの再生成は一致した。採用後も PDF/PPTX の全 golden/hash は変更なく一致した。
+
+Bun 1.3.14 / darwin-arm64 で、基点 `69336ae` と今回の Linux WASM 採用版を同じホストで再ビルドして計測した（D2・フォント・package version は同じ）。
+
+| 対象 | 前 | 後 | 増分 |
+| --- | --- | --- | --- |
+| Linux 基準 WASM | 3,515,484 bytes | 3,565,005 bytes | 49,521 bytes |
+| WASM gzip（Bun.gzipSync） | 1,264,745 bytes | 1,282,781 bytes | 18,036 bytes |
+| darwin-arm64 `bin/sumi` | 68,399,714 bytes | 68,465,762 bytes | 66,048 bytes |
+| darwin-arm64 tarball | 51,332,484 bytes | 51,356,803 bytes | 24,319 bytes |
