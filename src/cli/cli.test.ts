@@ -39,7 +39,7 @@ import { BUILTIN_THEMES } from "../core/theme/builtin";
 import { BUNDLED_FONT_SHA256 } from "../core/theme/fonts";
 import { readSvgMetadata } from "../render";
 import { inspectPdf } from "../render/pdf/testing";
-import { inspectPptx } from "../render/pptx/testing";
+import { inspectPptx, readPptx } from "../render/pptx/testing";
 import { isCaseInsensitiveDir } from "./io";
 import { run } from "./program";
 
@@ -389,6 +389,13 @@ describe("sumi render (output paths)", () => {
       [["--format", "pptx", "-o", "out.pdf"], "--format pptx contradicts the output file out.pdf"],
       [["--format", "svg", "-o", "out.PPTX"], "--format svg contradicts the output file out.PPTX"],
       [["--format", "pptx", "-o", "-"], "A PPTX cannot be written to stdout (-o -)"],
+      [["--format", "pptx", "--pptx-mode", "bad"], "--pptx-mode must be picture or editable"],
+      [["--format", "pdf", "--pptx-mode", "editable"], "require PPTX output"],
+      [["--format", "pptx", "--pptx-connectors", "glued"], "requires --pptx-mode editable"],
+      [
+        ["--format", "pptx", "--pptx-mode", "editable", "--pptx-connectors", "bad"],
+        "--pptx-connectors must be freeform or glued",
+      ],
       [["--format", "svg", "-o", "out.pdf"], "--format svg contradicts the output file out.pdf"],
       [["--format", "pdf", "-o", "out.SVG"], "--format pdf contradicts the output file out.SVG"],
       [["--format", "pdf", "-o", "-"], "A PDF cannot be written to stdout (-o -)"],
@@ -870,6 +877,37 @@ describe.skipIf(!d2Available && !process.env.CI)("sumi render (D2)", () => {
     const failed = await sumi(["render", wide, "-o", "pptx-wide.pptx"], { env: env() });
     expect(failed.exitCode).toBe(1);
     expect(await Bun.file(join(dir, "pptx-wide.pptx")).exists()).toBe(true);
+  }, 60_000);
+
+  test("editable PPTX is explicit and reports its experimental boundaries", async () => {
+    const file = await copyFixture("lint/clean.sumi.yaml", "editable.sumi.yaml");
+    for (const connectors of ["freeform", "glued"]) {
+      const result = await sumi(
+        [
+          "render",
+          file,
+          "-o",
+          `editable-${connectors}.pptx`,
+          "--pptx-mode",
+          "editable",
+          "--pptx-connectors",
+          connectors,
+          "--json",
+        ],
+        { env: env() },
+      );
+      expect(result.exitCode).toBe(0);
+      const json = JSON.parse(result.stdout);
+      expect(json.format).toBe("pptx");
+      expect(json.diagnostics.map((d: { code: string }) => d.code)).toContain(
+        "pptx/experimental-editable",
+      );
+      const parts = readPptx(
+        new Uint8Array(await readFile(join(dir, `editable-${connectors}.pptx`))),
+      );
+      expect([...parts.keys()].some((k) => k.startsWith("ppt/media/"))).toBe(false);
+      expect(new TextDecoder().decode(parts.get("ppt/slides/slide1.xml"))).toContain("<p:txBody>");
+    }
   }, 60_000);
 
   test("-o x.pdf writes a PDF of the figure's size; the geometry lint still runs", async () => {

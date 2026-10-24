@@ -806,6 +806,15 @@ layout:
 - **検証と配布**: 53ケースの固定 hash、ZIP/XML/relationships・画像・寸法・反復決定性を検査し、release workflow の4ターゲットでも実行する。独立した Open XML SDK 3.3.0 は通常版＋マゼンタPNG対照版106ファイルをOffice2019スキーマで検証する（検証専用で非同梱）。resvgと推移依存の固定版・原文は `licenses/pdf-wasm/` に含める。
 - **保証範囲と実アプリ確認**: 生成は macOS/Linux × x64/arm64、実アプリの表示確認は PowerPoint for Mac（16.114.1）を対象とする。日本語/mask の通常版とPNG対照版を比較し、SVG表示を確認済み（[検証記録](../verification/61-pptx.md)）。Windows PowerPoint・Keynote・Google Slides は今回の保証対象外とし、確認をマージ条件には含めない。生成環境と閲覧アプリの対応範囲は別の契約として扱う。
 
+### 6.17 #62 の実験的な編集可能 PPTX
+
+- **選択**: PPTXの既定は画像方式。`--pptx-mode editable` で実験的DrawingMLを選び、`--pptx-connectors freeform|glued`（既定freeform）を指定する。PPTX以外での指定やmodeの矛盾はusage error。個別選択・編集だけを保証し、完全な表示一致・編集後のレイアウト維持・YAML逆変換は保証しない。
+- **入力と出力**: 対応するfinalized SVGとFigure IRを再inspectし、描画順・bbox・M/L/C・同梱フォントで測ったラベルを使う。node/groupを個別`p:sp`、文字を`p:txBody`、edge labelをtext boxとして出す。複合輪郭はcustom geometry、楕円はpreset。コンテナは独立枠でPowerPointの階層groupにしない。
+- **経路**: freeformは通常図形`p:sp`の開いた自由形状で経路を保持するが接着しない。gluedは標準`p:cxnSp`直線と接着参照を出し、元経路を捨てる。ラベルは固定。自己ループのgluedや非対応矢じりは診断で拒否する。PPTX固有の接着点であり、Figure YAMLの固定ポートは追加しない。
+- **文字・矢じり**: 文字はlive textで、同梱fontの実family/weightを参照するが埋め込まない。閲覧側の置換を許容し、今回のMacではMS-Gothicを観測した。矢じりはSVG markerからDrawingML離散サイズへ近似する。角丸のcubic化や白背景labelによるmask近似も完全一致の保証には含めない。
+- **共通基盤と検証**: 既存の決定的ZIP・blank slide・provenanceを共有し、画像方式のbyteを維持する。53入力×2modeのXML goldenとPPTX hash、独立スキーマ検証、全4生成ターゲットのbyte一致と配布smokeを検査する。追加runtime依存・WASM変更なし。
+- **実確認と境界**: 生成はmacOS/Linux、実アプリはPowerPoint for Mac16.114.1。日本語fixtureで8個のobjectを保持し、文字変更と20pt移動を保存、freeformは非追従・gluedは追従と確認。自由形状`p:cxnSp`の対照は正常activationを確認できず公開構造から除外した。根拠・再現は [検証記録](../verification/62-editable-pptx.md)。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）

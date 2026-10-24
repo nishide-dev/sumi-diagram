@@ -1,0 +1,34 @@
+version: 1
+figure:
+  id: editable-japanese
+  theme: academic
+  profile: paper-double
+  layout:
+    direction: right
+groups:
+  - id: pipeline
+    label: 処理
+nodes:
+  - id: source
+    group: pipeline
+    component: box
+    label: "入力\nデータ"
+  - id: store
+    group: pipeline
+    component: stack
+    label: 保管
+    variant: emphasis
+  - id: sink
+    group: pipeline
+    component: trapezoid
+    label: 結果
+edges:
+  - id: transfer
+    from: source
+    to: store
+    label: 送信
+    component: double-arrow
+  - from: store
+    to: sink
+    label: 読出し
+    variant: dashed

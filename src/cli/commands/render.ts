@@ -51,7 +51,7 @@ import {
 } from "../../lint";
 import { type OutputSize, outputSize, renderFigure } from "../../render";
 import { svgToPdf } from "../../render/pdf";
-import { svgToPptx } from "../../render/pptx";
+import { type PptxConnectors, svgToEditablePptx, svgToPptx } from "../../render/pptx";
 import {
   type CliContext,
   type Destination,
@@ -75,6 +75,8 @@ export interface RenderCommandOptions {
   out?: string;
   /** `--format`: wins over the output's extension; a contradiction is a usage error. */
   format?: string;
+  pptxMode?: string;
+  pptxConnectors?: string;
   emitD2?: string;
   theme?: string;
   profile?: string;
@@ -130,6 +132,24 @@ export async function renderCommand(
   context: CliContext,
 ): Promise<ExitCode> {
   const format = outputFormat(options.out, options.format);
+  if (options.pptxMode !== undefined && !["picture", "editable"].includes(options.pptxMode)) {
+    throw new UsageError("--pptx-mode must be picture or editable (experimental).");
+  }
+  if (
+    (options.pptxMode !== undefined || options.pptxConnectors !== undefined) &&
+    format !== "pptx"
+  ) {
+    throw new UsageError("--pptx-mode and --pptx-connectors require PPTX output.");
+  }
+  if (options.pptxConnectors !== undefined && options.pptxMode !== "editable") {
+    throw new UsageError("--pptx-connectors requires --pptx-mode editable.");
+  }
+  if (
+    options.pptxConnectors !== undefined &&
+    !["freeform", "glued"].includes(options.pptxConnectors)
+  ) {
+    throw new UsageError("--pptx-connectors must be freeform or glued.");
+  }
   const out = options.out ?? defaultOutputPath(file, format);
   const toStdout = out === "-";
   if (toStdout && options.json) {
@@ -218,7 +238,12 @@ export async function renderCommand(
       diagnostics.push(...pdf.diagnostics);
       content = pdf.ok ? pdf.value : undefined;
     } else if (format === "pptx") {
-      const pptx = svgToPptx(result.value.svg);
+      const pptx =
+        options.pptxMode === "editable"
+          ? svgToEditablePptx(result.value.svg, result.value.compiled.ir, {
+              connectors: (options.pptxConnectors ?? "freeform") as PptxConnectors,
+            })
+          : svgToPptx(result.value.svg);
       diagnostics.push(...pptx.diagnostics);
       content = pptx.ok ? pptx.value : undefined;
     }
