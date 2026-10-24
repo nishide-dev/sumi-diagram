@@ -5,7 +5,7 @@ body:
     attributes:
       value: |
         **タイトルは英語**で、論点を表す短文にしてください（例: `Decide token resolution order for themes`）。本文は日本語で記述してください。
-        結論が出たら、この Issue に決定事項を記録し、計画に影響する場合はロードマップ #1 を更新してください。
+        結論が出たら、この Issue に決定事項を記録し、計画に影響する場合は現行ロードマップ #80 を更新してください。
   - type: textarea
     id: background
     attributes:
