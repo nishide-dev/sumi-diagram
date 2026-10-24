@@ -1,11 +1,11 @@
 /**
  * `sumi render <file>`: every stage, D2 included (`renderFigure()`), then
- * writes the finalized SVG, or converts it to PDF (`svgToPdf()`, #59).
+ * writes finalized SVG, vector PDF or a one-picture PPTX (#59, #61).
  *
- * - The format is `--format svg|pdf`, else the extension of `-o` (`.pdf` →
- *   PDF), else SVG. An explicit format that contradicts a `.svg` / `.pdf`
+ * - The format is `--format svg|pdf|pptx`, else the extension of `-o` (`.pdf` →
+ *   PDF, `.pptx` → picture PPTX), else SVG. A contradictory known extension
  *   output name is a usage error. The default output is the input with
- *   `.svg` or `.pdf`. A PDF cannot go to stdout (`-o -`).
+ *   `.svg`, `.pdf` or `.pptx`. Binary formats cannot go to stdout (`-o -`).
  *
  * - `--theme` / `--profile` replace `figure.theme` / `figure.profile` without
  *   editing the file (applied after schema validation; see
@@ -25,10 +25,10 @@
  *   or `null` if nothing was rendered; `format` (#59) is `svg` or `pdf`.
  * - The rendered figure is checked by the geometry rules (`lintGeometry()`,
  *   #13; default configuration) unless `--no-geometry`, on the SVG stage for
- *   both formats. Their diagnostics are reported with the others. The output
+ *   all formats. Their diagnostics are reported with the others. The output
  *   is written even when they contain errors (e.g. the figure is wider than
  *   the profile allows), so it can be inspected; the exit code is still 1.
- *   A failed PDF conversion (`pdf/*` errors) writes no output.
+ *   A failed conversion (`pdf/*` or `pptx/*` errors) writes no output.
  * - exit: 0 rendered without errors (warnings allowed); 1 errors (including
  *   geometry errors, with the SVG written); 2 usage errors.
  */
@@ -51,6 +51,7 @@ import {
 } from "../../lint";
 import { type OutputSize, outputSize, renderFigure } from "../../render";
 import { svgToPdf } from "../../render/pdf";
+import { svgToPptx } from "../../render/pptx";
 import {
   type CliContext,
   type Destination,
@@ -67,7 +68,7 @@ import {
 } from "../io";
 
 /** Output formats of `sumi render`. */
-export const OUTPUT_FORMATS = ["svg", "pdf"] as const;
+export const OUTPUT_FORMATS = ["svg", "pdf", "pptx"] as const;
 export type OutputFormat = (typeof OUTPUT_FORMATS)[number];
 
 export interface RenderCommandOptions {
@@ -85,7 +86,7 @@ export interface RenderCommandOptions {
 
 /** The `--json` output: the lint envelope plus the files written. */
 export interface RenderJson extends LintJson {
-  /** The SVG or PDF written, or `null` if rendering failed or the SVG went to stdout. */
+  /** The SVG, PDF or picture PPTX written, or null if conversion failed/stdout. */
   output: string | null;
   /** The D2 source written with `--emit-d2`, or `null`. */
   d2: string | null;
@@ -95,14 +96,14 @@ export interface RenderJson extends LintJson {
   format: OutputFormat;
 }
 
-/** Default output: the input with `.sumi.yaml` / `.yaml` / `.yml` replaced by `.svg` (or `.pdf`). */
+/** Default output: the input's YAML suffix replaced by the output format. */
 export function defaultOutputPath(input: string, format: OutputFormat = "svg"): string {
   const stripped = input.replace(/(\.sumi)?\.ya?ml$/i, "");
   return `${stripped}.${format}`;
 }
 
 /**
- * The output format: `--format`, else the output's `.svg` / `.pdf` extension
+ * The output format: `--format`, else the output's `.svg` / `.pdf` / `.pptx` extension
  * (any case), else SVG. Throws a {@link UsageError} for an unknown format or
  * one that contradicts the extension.
  */
@@ -112,7 +113,8 @@ export function outputFormat(out: string | undefined, format: string | undefined
       `Unknown format "${format}". Available formats: ${OUTPUT_FORMATS.join(", ")}.`,
     );
   }
-  const extension = out === undefined || out === "-" ? undefined : /\.(svg|pdf)$/i.exec(out)?.[1];
+  const extension =
+    out === undefined || out === "-" ? undefined : /\.(svg|pdf|pptx)$/i.exec(out)?.[1];
   const fromName = extension?.toLowerCase() as OutputFormat | undefined;
   if (format !== undefined && fromName !== undefined && format !== fromName) {
     throw new UsageError(
@@ -133,8 +135,10 @@ export async function renderCommand(
   if (toStdout && options.json) {
     throw new UsageError("--json cannot be combined with -o - (both write to stdout).");
   }
-  if (toStdout && format === "pdf") {
-    throw new UsageError("A PDF cannot be written to stdout (-o -); give an output file.");
+  if (toStdout && format !== "svg") {
+    throw new UsageError(
+      `A ${format.toUpperCase()} cannot be written to stdout (-o -); give an output file.`,
+    );
   }
   const [input, outDestination, d2Destination] = await checkDestinations(
     file,
@@ -213,6 +217,10 @@ export async function renderCommand(
       const pdf = svgToPdf(result.value.svg);
       diagnostics.push(...pdf.diagnostics);
       content = pdf.ok ? pdf.value : undefined;
+    } else if (format === "pptx") {
+      const pptx = svgToPptx(result.value.svg);
+      diagnostics.push(...pptx.diagnostics);
+      content = pptx.ok ? pptx.value : undefined;
     }
     if (typeof content === "string" && toStdout) context.stdout.write(content);
     else if (content !== undefined) {

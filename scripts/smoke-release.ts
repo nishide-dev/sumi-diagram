@@ -31,6 +31,8 @@ import { RELEASE_LAYOUT } from "../src/core/install-layout";
 import { runCommand } from "../src/core/subprocess";
 import { svgToPdf } from "../src/render/pdf";
 import { inspectPdf, textLines } from "../src/render/pdf/testing";
+import { svgToPptx } from "../src/render/pptx";
+import { inspectPptx } from "../src/render/pptx/testing";
 import { descendants, parseXml, textContent } from "../src/render/xml";
 import { parseSha256Sums, sha256Hex } from "./release/lib";
 
@@ -129,6 +131,8 @@ async function smoke(tarballArg: string, keep: boolean): Promise<void> {
       "licenses/pdf-wasm/krilla-0.8.2/LICENSE_MIT",
       "licenses/pdf-wasm/krilla-0.8.2/LICENSE-MPL-2.0",
       "licenses/pdf-wasm/krilla-svg-0.8.1/LICENSE_MIT",
+      "licenses/pdf-wasm/resvg-0.47.0/LICENSE-MIT",
+      "licenses/pdf-wasm/resvg-0.47.0/LICENSE-APACHE",
     ]) {
       check(inner.has(required), `the tarball lacks ${required}`);
     }
@@ -254,6 +258,27 @@ async function smoke(tarballArg: string, keep: boolean): Promise<void> {
       check(sha256Hex(pdf) === sha256Hex(first), `${label}: PDF differs from the direct run`);
       step(
         `${label}: sumi render wrote a ${widthPt} × ${heightPt}pt vector PDF with the labels as text (sha256 ${sha256Hex(pdf)})`,
+      );
+    }
+
+    // 7. Picture PPTX uses the same embedded WASM, without Bun/Node on PATH.
+    const pptxSource = svgToPptx(svg);
+    check(pptxSource.ok, "PPTX conversion failed from source");
+    for (const [path, label] of [
+      [sumi, "direct"],
+      [join(linkDir, "sumi"), "symlink"],
+    ] as const) {
+      const file = join(work, `出力-${label}.pptx`);
+      await sumiAt(path, ["render", "図.sumi.yaml", "-o", file]);
+      const bytes = new Uint8Array(await readFile(file));
+      const picture = inspectPptx(bytes);
+      check(
+        picture.widthPt === Math.max(72, widthPt) && picture.heightPt === Math.max(72, heightPt),
+        `${label}: PPTX slide size changed`,
+      );
+      check(sha256Hex(bytes) === sha256Hex(pptxSource.value), `${label}: PPTX differs from source`);
+      step(
+        `${label}: one-picture PPTX with outlined SVG + PNG fallback (sha256 ${sha256Hex(bytes)})`,
       );
     }
 

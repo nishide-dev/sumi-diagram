@@ -90,6 +90,8 @@ is no per-figure suppression; mention kept warnings in your report instead.
 | `svg/outline-radius-ignored` (warning) | polygon outlines cannot apply the theme's rounded corners | report the limitation; changing the theme is a user decision |
 | other `svg/*` (`svg/invalid`, `svg/missing-element`, `svg/missing-font-face`, …) | the SVG did not pass Sumi's own checks | a Sumi bug, not a figure problem; report it |
 | `pdf/input-too-large`, `pdf/missing-font`, `pdf/unresolved-font`, `pdf/engine-unavailable`, `pdf/conversion-failed` | the PDF conversion (`-o x.pdf` / `--format pdf`) failed; no PDF is written | not a figure problem: `sumi doctor` for the fonts; otherwise report it with the message (the SVG renders without `--format pdf`) |
+| `pptx/unsupported-size` | a slide side exceeds 56 inches, or the SVG lacks valid pt dimensions | use a smaller profile only if the user agrees; report invalid finalized SVG dimensions as a bug |
+| `pptx/input-too-large`, `pptx/missing-font`, `pptx/unresolved-font`, `pptx/engine-unavailable`, `pptx/conversion-failed` | picture PPTX conversion failed; no PPTX is written | `sumi doctor` for fonts; otherwise report the message; inspect the SVG separately |
 
 ### Geometry lint (`geometry/*`)
 

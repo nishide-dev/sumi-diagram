@@ -43,6 +43,7 @@ import {
   PDF_ENGINE_VERSION,
   PDF_WASM_PATH,
   PDF_WASM_SHA256,
+  RESVG_VERSION,
 } from "../src/render/pdf/engine";
 import {
   archiveBaseName,
@@ -153,7 +154,8 @@ This distribution contains the following components.
    b. npm packages bundled into the executable (license texts included):
 ${npm}
 
-    c. The PDF engine: ${PDF_ENGINE_VERSION} and its Rust dependencies,
+    c. The SVG export engine (PDF / picture PPTX): ${PDF_ENGINE_VERSION},
+       resvg ${RESVG_VERSION} and its Rust dependencies,
        compiled to WebAssembly (sha256 ${PDF_WASM_SHA256}) from
        native/pdf-wasm in Sumi's source. Each crate is under its own
       license (MIT, Apache-2.0, BSD, Zlib and others, as listed); see
@@ -258,6 +260,8 @@ async function build(argv: string[]): Promise<void> {
         `krilla-svg-${KRILLA_SVG_VERSION}/LICENSE_MIT`,
         `krilla-${KRILLA_VERSION}/NOTICE.md`,
         `krilla-${KRILLA_VERSION}/LICENSE-MPL-2.0`,
+        `resvg-${RESVG_VERSION}/LICENSE-MIT`,
+        `resvg-${RESVG_VERSION}/LICENSE-APACHE`,
       ].every((f) => crates.includes(f))
     ) {
       throw new Error(`${crateLicenses} lacks krilla's license files; run \`bun run pdf:wasm\`.`);

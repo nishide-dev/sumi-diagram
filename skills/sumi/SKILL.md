@@ -184,6 +184,8 @@ Write a PDF only when the user asks for one (e.g. for LaTeX or print): the
 page is the figure's size in pt, text stays text in the bundled fonts. Inspect
 the SVG (step 7) either way; the PDF draws the same figure.
 
+Use `-o figure.pptx` only when requested: one picture, not editable shapes/text. Inspect its SVG too; see [output formats](references/figure-format.md#output-formats) for limits.
+
 `render` measures the drawn figure and reports `geometry/*` diagnostics
 (page width/height, label overflow, overlaps, labels crossed by edges).
 Geometry errors make it exit 1 but **the SVG is still written**, so you can

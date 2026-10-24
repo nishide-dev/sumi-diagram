@@ -92,7 +92,11 @@ const cssString = (value: string) => `"${value.replaceAll("\\", "\\\\").replaceA
  * the CSS or a `font-family` / `style` attribute still names a D2 family
  * after the rewrite, and `svg/invalid` if the SVG is not well-formed.
  */
-export function resolveSvgFonts(svg: string, fontSet: FontSet): Result<ResolvedSvgFonts> {
+export function resolveSvgFonts(
+  svg: string,
+  fontSet: FontSet,
+  format: "pdf" | "pptx" = "pdf",
+): Result<ResolvedSvgFonts> {
   // `--font-<slot> <file>` is exactly how D2 was told which file each slot uses.
   const args = fontSetArgs(fontSet);
   const fileOf = new Map<string, string>();
@@ -113,7 +117,7 @@ export function resolveSvgFonts(svg: string, fontSet: FontSet): Result<ResolvedS
         ok: false,
         diagnostics: [
           error(
-            "pdf/missing-font",
+            `${format}/missing-font`,
             `Cannot read the font ${file} of font set "${fontSet.id}": ${reason}.`,
             "Run `sumi doctor` to check the bundled fonts.",
           ),
@@ -172,8 +176,8 @@ export function resolveSvgFonts(svg: string, fontSet: FontSet): Result<ResolvedS
       ok: false,
       diagnostics: [
         error(
-          "pdf/unresolved-font",
-          `The SVG uses ${what}, which font set "${fontSet.id}" cannot provide for the PDF.`,
+          `${format}/unresolved-font`,
+          `The SVG uses ${what}, which font set "${fontSet.id}" cannot provide for the ${format.toUpperCase()}.`,
           "Render the SVG with Sumi from the same font set.",
         ),
       ],

@@ -92,8 +92,8 @@ jobs:
         run: test "$(bun -e 'console.log(`${process.platform}-${process.arch}`)')" = "$TARGET"
 
       # The same committed WASM and corpus hashes on all four OS/CPU targets.
-      - name: PDF byte equality and vector/font contracts
-        run: bun test src/render/pdf
+      - name: PDF/PPTX byte equality and format contracts
+        run: bun test src/render/pdf src/render/pptx
 
       - name: Build tarball
         run: bun run release:build --target "$TARGET" --version "$VERSION"
