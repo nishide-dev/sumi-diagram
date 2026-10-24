@@ -5,7 +5,7 @@
   "browserVersion": "\"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36\"",
   "poppler": "pdfinfo version 26.04.0",
   "imageMagick": "Version: ImageMagick 7.1.2-32 Q16-HDRI aarch64 68f8d115a:20260926 https://imagemagick.org",
-  "wasmSha256": "3d0318d047f7dd5d60141a9ca2ed877eeb615f05e83aadff7bafcac249abbd38",
+  "wasmSha256": "ed01e5997634d7c47c9741266063fad8f9febbd44173a5d23e151d67a7049366",
   "dpi": 144,
   "pixelThreshold": 64,
   "filter": "3x3 box",
@@ -14,6 +14,7 @@
   "rows": [
     {
       "path": "docs/gallery/components/sumi-arrow.academic.svg",
+      "svgSha256": "a2f4b0992945ba2ccf718b32799ca49cb036006bf271a7d49ca45c39389b1f0f",
       "width": 301,
       "height": 328,
       "metrics": [
@@ -33,6 +34,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-arrow.minimal.svg",
+      "svgSha256": "88f9e3e2a9b898b9a053f8dc16c8a38baf338e67f28801a8a5fa5a7d02cce8c1",
       "width": 301,
       "height": 328,
       "metrics": [
@@ -52,6 +54,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-arrow.slides.svg",
+      "svgSha256": "50070793625233b4d51ad332df0e85c80ac809f24366bd423a2ec5980198239f",
       "width": 394,
       "height": 394,
       "metrics": [
@@ -71,6 +74,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-box.academic.svg",
+      "svgSha256": "c102bcfd725e3d2e53a57217b61c279904b0982cc802e0468bdd87279848b1dc",
       "width": 406,
       "height": 85,
       "metrics": [
@@ -90,6 +94,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-box.minimal.svg",
+      "svgSha256": "8636c00ea3fa8f6006e3bee0b45ce0d3e3358eb3d7ea86b74c3217c73b39c77d",
       "width": 406,
       "height": 87,
       "metrics": [
@@ -109,6 +114,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-box.slides.svg",
+      "svgSha256": "7b69e1b00c7143b6872b237e3ab331fe2f0dedac71a4bce8639000cdfe7e674a",
       "width": 611,
       "height": 107,
       "metrics": [
@@ -128,6 +134,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-circle.academic.svg",
+      "svgSha256": "4021cb0410071de9e5516dc72d23da41493a59cfa350667f8999c111594600ae",
       "width": 499,
       "height": 190,
       "metrics": [
@@ -147,6 +154,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-circle.minimal.svg",
+      "svgSha256": "3567bbfddbd14c0762b334fc9f97a6adeb6d2f5ba71261e8979bd758b30b04d3",
       "width": 499,
       "height": 192,
       "metrics": [
@@ -166,6 +174,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-circle.slides.svg",
+      "svgSha256": "e99166b737c2b73250cda2afb641f2fbd6c4f4e4059df9594056c1151def4d15",
       "width": 789,
       "height": 314,
       "metrics": [
@@ -185,6 +194,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-container.academic.svg",
+      "svgSha256": "e5d5486dfe5f0656af33c760c07af7746fae35c841ef44fb08f26ee54d0ac815",
       "width": 370,
       "height": 134,
       "metrics": [
@@ -204,6 +214,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-container.minimal.svg",
+      "svgSha256": "c33c9bcae2dd0bb3c3de7d1e29c6ff0c03079d2845cd12bd91d77020ef19d899",
       "width": 370,
       "height": 137,
       "metrics": [
@@ -223,6 +234,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-container.slides.svg",
+      "svgSha256": "8a65746da446121fe857afce3f20ecddef46d30a22d4111848559cec07329006",
       "width": 514,
       "height": 173,
       "metrics": [
@@ -242,6 +254,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-cylinder.academic.svg",
+      "svgSha256": "d31f394d4d4a4cbf7912c87b826f91204eb7b3cecd23cd9e14cfe56ca71c9f77",
       "width": 406,
       "height": 137,
       "metrics": [
@@ -261,6 +274,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-cylinder.minimal.svg",
+      "svgSha256": "5886ecd73ed97e8f4ae5ccd7bfc7f8eed4ac78ffc930fc8669301f6d0da247e5",
       "width": 406,
       "height": 139,
       "metrics": [
@@ -280,6 +294,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-cylinder.slides.svg",
+      "svgSha256": "98e73bd4b2dd048b447d464c1e880e719954e6cae50902f5f068fdb4d1b544a6",
       "width": 611,
       "height": 159,
       "metrics": [
@@ -299,6 +314,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-diamond.academic.svg",
+      "svgSha256": "9923905221d89eb04b3f5c2b07a84cbb248a6c46f4e1ed795086eea0e30499f2",
       "width": 568,
       "height": 106,
       "metrics": [
@@ -318,6 +334,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-diamond.minimal.svg",
+      "svgSha256": "e76450f386a5bc024dba147603fa431e2a1275eb6dbd9d363d7d7b1889da3605",
       "width": 568,
       "height": 108,
       "metrics": [
@@ -337,6 +354,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-diamond.slides.svg",
+      "svgSha256": "68be18cefd81aab7433fd0d9450ed6fbad975eb65c713a1fa518b881b63ecf4a",
       "width": 976,
       "height": 144,
       "metrics": [
@@ -356,6 +374,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-document.academic.svg",
+      "svgSha256": "a7c159784ac530a677e5f4cedee07a9d4716dd6db99f9e40c6d1518bc3f4b00b",
       "width": 406,
       "height": 93,
       "metrics": [
@@ -375,6 +394,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-document.minimal.svg",
+      "svgSha256": "3a55fe0c962a9f514ac387eccb596d2aea2033412bf4c96350c100b896aa53e4",
       "width": 406,
       "height": 95,
       "metrics": [
@@ -394,6 +414,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-document.slides.svg",
+      "svgSha256": "6469bed1ec5129a4c3ced52c1cc81ff830c6655c62378e79c34578fa0a79a587",
       "width": 611,
       "height": 121,
       "metrics": [
@@ -413,6 +434,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-double-arrow.academic.svg",
+      "svgSha256": "121a7ac7646de3aef218d2fac154d3ca48dce4997b400e53236276448db3eeed",
       "width": 301,
       "height": 328,
       "metrics": [
@@ -432,6 +454,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-double-arrow.minimal.svg",
+      "svgSha256": "b6c687364418192606c0f3273139b51e7621327b92c3c382ee9dffc10e00c4b5",
       "width": 301,
       "height": 328,
       "metrics": [
@@ -451,6 +474,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-double-arrow.slides.svg",
+      "svgSha256": "4859045a480d84d67640f2316bd6b2dcd0af9332ba1b5df43272af2227abee8e",
       "width": 394,
       "height": 394,
       "metrics": [
@@ -470,6 +494,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-ellipse.academic.svg",
+      "svgSha256": "56a42c091c274bc2d6954577b9021ad8d8b1504c1b1191d09fe7dee2efa323ba",
       "width": 542,
       "height": 84,
       "metrics": [
@@ -489,6 +514,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-ellipse.minimal.svg",
+      "svgSha256": "949db5311ef17fad902fa508f4eac2c771b943d37227b3051e57155adde11bac",
       "width": 542,
       "height": 86,
       "metrics": [
@@ -508,6 +534,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-ellipse.slides.svg",
+      "svgSha256": "cb9a0585711b6747563ba2944a0b4ed97827076830491b12dc502dd13f1229bf",
       "width": 832,
       "height": 130,
       "metrics": [
@@ -527,6 +554,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-hexagon.academic.svg",
+      "svgSha256": "14285507be4a5effe18f514ead31e7acd6e7e174746cf9cc16b675149a9d9d88",
       "width": 488,
       "height": 86,
       "metrics": [
@@ -546,6 +574,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-hexagon.minimal.svg",
+      "svgSha256": "9e32b23b6c026698e0453de4ba976561fb117cf2d5b3864b6acd90699e7bf692",
       "width": 488,
       "height": 88,
       "metrics": [
@@ -565,6 +594,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-hexagon.slides.svg",
+      "svgSha256": "1cfe09ef37a807100290344e6d3eeb5ff0025d47078e14c56f0a383fb8c2a39f",
       "width": 794,
       "height": 116,
       "metrics": [
@@ -584,6 +614,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-label.academic.svg",
+      "svgSha256": "6106da269636b47d1f6a523ae6e40c9ae8315532cf2df1c687a36e9f7bdc0062",
       "width": 161,
       "height": 38,
       "metrics": [
@@ -603,6 +634,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-label.minimal.svg",
+      "svgSha256": "88800d9d1faaba7fadac230879c4f9608e9f69cad5abd1afdc510a7771568cc4",
       "width": 161,
       "height": 38,
       "metrics": [
@@ -622,6 +654,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-label.slides.svg",
+      "svgSha256": "944dccf18d7b55a43cbf4e23ed26b0ca81a3903b117ce566a691ce3df22dab69",
       "width": 278,
       "height": 54,
       "metrics": [
@@ -641,6 +674,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-line.academic.svg",
+      "svgSha256": "6e2d2eced9a7a26471734d52832f3a57cb7c15b1a71373547d58220120f2bd3e",
       "width": 301,
       "height": 328,
       "metrics": [
@@ -660,6 +694,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-line.minimal.svg",
+      "svgSha256": "3d58b88df08c410122e92ed5b1f71a26e41138775250e777d99c63dcc027fd00",
       "width": 301,
       "height": 328,
       "metrics": [
@@ -679,6 +714,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-line.slides.svg",
+      "svgSha256": "308e6e9a0492db6874ea474fbc12e20b7e0673f68ed1c3d8103791efa4e319a1",
       "width": 394,
       "height": 394,
       "metrics": [
@@ -698,6 +734,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-parallelogram.academic.svg",
+      "svgSha256": "f7dc88602a2f4ee5825d59202a72704d3387d27b3678cc853a4a87b68f59f631",
       "width": 562,
       "height": 85,
       "metrics": [
@@ -717,6 +754,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-parallelogram.minimal.svg",
+      "svgSha256": "4fd8737d4e40770a9c2654ab947de842cddc0c224ee1e93db3c7d174f77d35b3",
       "width": 562,
       "height": 87,
       "metrics": [
@@ -736,6 +774,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-parallelogram.slides.svg",
+      "svgSha256": "83ff8794190dcc27cea0bce7aadf70e0e3291c506ae5fb6f90d9614654ffd3ad",
       "width": 767,
       "height": 107,
       "metrics": [
@@ -755,6 +794,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-square.academic.svg",
+      "svgSha256": "87d67951c40252cd01b1c1a212aa33275aedf9f7c3aad271299f7676c510379f",
       "width": 406,
       "height": 153,
       "metrics": [
@@ -774,6 +814,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-square.minimal.svg",
+      "svgSha256": "8816f810d3bddac56f5b76cc7b3dbad9dc0c502d97c3bc6347ca8568eb7dd582",
       "width": 406,
       "height": 155,
       "metrics": [
@@ -793,6 +834,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-square.slides.svg",
+      "svgSha256": "5dec3bc2ae860f57a04772192c5c39ac569848ca28500893e9e0cec22d9a08dc",
       "width": 611,
       "height": 242,
       "metrics": [
@@ -812,6 +854,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-stack.academic.svg",
+      "svgSha256": "bb11280604ed29b6c96cb2ab50d49fab772edb374bcd7bda1fb0f9f203549b85",
       "width": 454,
       "height": 101,
       "metrics": [
@@ -831,6 +874,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-stack.minimal.svg",
+      "svgSha256": "09d79159d1776dd5f9bcd36707754570d7bb6210acea2e99c870b3a7fdb512f3",
       "width": 454,
       "height": 103,
       "metrics": [
@@ -850,6 +894,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-stack.slides.svg",
+      "svgSha256": "fdfd216cdb15476584101f2e06ed169cc95c651e8f69aaafd8c7ee0b7233c713",
       "width": 659,
       "height": 123,
       "metrics": [
@@ -869,6 +914,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-trapezoid.academic.svg",
+      "svgSha256": "daffbd188a656c4a435cb21504f23805e6870cef1dfe8d0d65ca5eebaa998142",
       "width": 553,
       "height": 85,
       "metrics": [
@@ -888,6 +934,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-trapezoid.minimal.svg",
+      "svgSha256": "f64311ab5dcf711716d94f490e25d87622cd6cdff2a9f46fe909bc44f39bfa21",
       "width": 553,
       "height": 87,
       "metrics": [
@@ -907,6 +954,7 @@
     },
     {
       "path": "docs/gallery/components/sumi-trapezoid.slides.svg",
+      "svgSha256": "73a27e07c3279a7140c4658932003d517b354fceaef88e568f317806385a145c",
       "width": 797,
       "height": 107,
       "metrics": [
@@ -926,6 +974,7 @@
     },
     {
       "path": "examples/decision-flow/decision-flow.svg",
+      "svgSha256": "e0038a7aaf993262645645f196d86ed96aad978dd2b3f5012244fd76f641297b",
       "width": 338,
       "height": 847,
       "metrics": [
@@ -945,6 +994,7 @@
     },
     {
       "path": "examples/grouped/grouped.svg",
+      "svgSha256": "da14bee7903591f1b7a301f8637caa2e6714aeb5439ed5bcb4a3f0c16fc9a8f7",
       "width": 950,
       "height": 374,
       "metrics": [
@@ -964,6 +1014,7 @@
     },
     {
       "path": "examples/pipeline/pipeline.svg",
+      "svgSha256": "3c89badd7a9c6e9051218c02ce4da63a76b46fbca0dd4428613028ee1ccba656",
       "width": 350,
       "height": 852,
       "metrics": [
@@ -983,6 +1034,7 @@
     },
     {
       "path": "examples/system-architecture/system-architecture.svg",
+      "svgSha256": "01c1cbfc68c5fe7a8b03ada7da6acc419b0f4b1292e3356da431ded100a0dfff",
       "width": 892,
       "height": 408,
       "metrics": [
@@ -1002,6 +1054,7 @@
     },
     {
       "path": "tests/fixtures/pdf/japanese-mask.svg",
+      "svgSha256": "5f87038cac1aff98f1df7a44c164802dd055fc355bbc3c73a9c8fdd26cd2bd49",
       "width": 480,
       "height": 240,
       "metrics": [

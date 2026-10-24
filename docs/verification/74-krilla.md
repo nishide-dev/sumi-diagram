@@ -34,7 +34,7 @@ bun scripts/check-pdf-svg.ts
 - Release workflow は darwin-arm64 / darwin-x64 / linux-x64 / linux-arm64 の native runner で **同じコミット済み WASM と PDF golden** を検査し、単一バイナリを作って実際の配布 tarball を smoke-test する。`workflow_dispatch` では公開リリースを作らない。
 - `bun run pdf:latex` は新エンジンの PDF を pdfLaTeX / LuaLaTeX に実際に取り込み、日本語・フォント・寸法・位置・画像 0・表示を独立検査する。
 
-Linux 基準 WASM の採用、最終 CI と全ターゲット dry run の結果は、この移行の PR / #74 に記録する。
+Linux 基準 WASM は [初回 CI](https://github.com/nishide-dev/sumi-diagram/actions/runs/40057024769) の artifact を採用した。サイズ 3,515,484 bytes、SHA-256 `ed01e5997634d7c47c9741266063fad8f9febbd44173a5d23e151d67a7049366`。macOS でのビルドは 197 bytes 小さいが、採用後も全 PDF golden / hash は一致した。ライセンス原文・一覧も Linux の再生成結果と一致する。最終 CI と全ターゲット dry run の結果は、この移行の PR / #74 に記録する。
 
 ## ライセンス原文
 

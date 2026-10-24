@@ -119,8 +119,7 @@ try {
         ...difference(reference, pixels, width, height),
       });
     }
-    rows.push({ path, width, height, metrics });
-    console.log(`${path}: ${JSON.stringify(metrics)}`);
+    rows.push({ path, svgSha256: hash(new TextEncoder().encode(svg)), width, height, metrics });
   }
   const report = {
     platform: process.platform,
@@ -148,6 +147,14 @@ try {
   if (Bun.argv.includes("--record")) {
     writeFileSync("docs/verification/74-pdf-svg.json", `${JSON.stringify(report, null, 2)}\n`);
   }
+  console.log(
+    JSON.stringify({
+      cases: rows.length,
+      wasmSha256: PDF_WASM_SHA256,
+      maxFiltered: Math.max(...rows.map((row) => row.metrics[1]?.filtered ?? 0)),
+      report: `${out}/report.json`,
+    }),
+  );
 } finally {
   browser("close");
 }
