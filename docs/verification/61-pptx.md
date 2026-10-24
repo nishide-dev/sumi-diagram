@@ -26,18 +26,20 @@ dotnet .sumi/pptx-validator/bin/Validator/release/Validator.dll .sumi/pptx/*.ppt
 
 `check-pptx.ts` は `.sumi/pptx/` に通常版・`.control.pptx`・抽出 SVG/PNG・report を残す。通常版では図、対照版でマゼンタが出れば PNG、対照版でも図なら SVG を表示している。元 SVG は `report.json` の `source` にある。
 
-## アプリ別確認（進行中）
+## 保証範囲とアプリ確認
+
+生成のサポート対象は macOS / Linux（それぞれ x64 / arm64）。実アプリの表示確認対象は PowerPoint for Mac（確認版 16.114.1）とする。生成環境と閲覧アプリの対応範囲は別に定義し、今回は Windows PowerPoint・Keynote・Google Slides を保証対象に含めない。これらの確認は #61 の完了・マージ条件にしない（ユーザーと合意した範囲）。SVG＋PNG フォールバックは維持する。
 
 | アプリ | 今回の確認状況 | SVG / PNG |
 | --- | --- | --- |
 | PowerPoint Mac 16.114.1 | 権限付与後、日本語/mask の通常版・対照版とも画像1枚で保持、PDF書き出し成功。144dpi画像が全画素一致 | SVG（対照PNGのマゼンタは現れない） |
-| PowerPoint Windows | 実行環境未接続 | 未確認 |
-| Keynote | 実アプリ確認待ち | 未確認 |
-| Google Slides | ブラウザが Google ログイン画面へ遷移。サインイン済み環境の確認待ち | 未確認 |
+| PowerPoint Windows | 今回の保証対象外（未検証） | 未確認 |
+| Keynote | 今回の保証対象外（未検証） | 未確認 |
+| Google Slides | 今回の保証対象外（未検証） | 未確認 |
 
-#19 の旧 PoC の結果を今回の製品出力の結果として流用しない。各アプリで通常版と対照版を開き、日本語・mask・破線・台形/stack・矢印を確認し、版と使用画像を記録してから、この受け入れ条件を完了とする。PowerPoint の補助スクリプトは `scripts/pptx-validator/powerpoint.applescript`。生成した fixture 名を確認し、他の presentation の保存/終了やアプリ全体の終了はしない。
+#19 の旧 PoC の結果を今回の製品出力の結果として流用しない。Mac PowerPoint の実確認は下記の日本語/mask fixture に対する結果であり、53ケースの構造・hash・スキーマ検証とは区別する。PowerPoint の補助スクリプトは `scripts/pptx-validator/powerpoint.applescript`。生成した fixture 名を確認し、他の presentation の保存/終了やアプリ全体の終了はしない。
 
-Mac PowerPoint は日本語・太字・透明マスクの穴が保持されていた。通常版と、PNGだけをマゼンタにした対照版のPDFを `pdftoppm -r 144 -singlefile -png` で画像化し、ImageMagick `compare -metric AE` の結果は **0**。PDF再出力は300ppiの画像となり、ベクターPDFにはならなかった（保証外としている挙動）。[PDF出力の144dpi画像](61-powerpoint-japanese.png)も記録する。残る実アプリでの確認待ちというユーザー指定に従い、マージと #61 クローズは保留する。
+Mac PowerPoint は日本語・太字・透明マスクの穴が保持されていた。通常版と、PNGだけをマゼンタにした対照版のPDFを `pdftoppm -r 144 -singlefile -png` で画像化し、ImageMagick `compare -metric AE` の結果は **0**。PDF再出力は300ppiの画像となり、ベクターPDFにはならなかった（保証外としている挙動）。[PDF出力の144dpi画像](61-powerpoint-japanese.png)も記録する。この確認と自動検証により、今回の保証範囲の受け入れ条件を満たす。
 
 ## ライセンスと配布
 
