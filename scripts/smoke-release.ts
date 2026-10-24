@@ -124,9 +124,11 @@ async function smoke(tarballArg: string, keep: boolean): Promise<void> {
       "licenses/d2/LICENSE.txt",
       "licenses/biz-ud-gothic/OFL.txt",
       "licenses/bun/LICENSE.md",
-      "licenses/svg2pdf-wasm/THIRD_PARTY.md",
-      "licenses/svg2pdf-wasm/svg2pdf-0.13.0/NOTICE",
-      "licenses/svg2pdf-wasm/svg2pdf-0.13.0/LICENSE-MIT",
+      "licenses/pdf-wasm/THIRD_PARTY.md",
+      "licenses/pdf-wasm/krilla-0.8.2/NOTICE.md",
+      "licenses/pdf-wasm/krilla-0.8.2/LICENSE_MIT",
+      "licenses/pdf-wasm/krilla-0.8.2/LICENSE-MPL-2.0",
+      "licenses/pdf-wasm/krilla-svg-0.8.1/LICENSE_MIT",
     ]) {
       check(inner.has(required), `the tarball lacks ${required}`);
     }

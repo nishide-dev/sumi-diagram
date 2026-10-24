@@ -18,6 +18,7 @@ bun research/60-krilla/compare.ts
 - `out/report.json`: 全 53 ケースの PDF hash・サイズ・文字・word bbox・変換時間・画素差。PDF と 144dpi PNG も `out/` に残す。
 - 記録時の検査ツールは Poppler 26.04.0 / ImageMagick 7.1.2-32。版は report の environment に残す。異なる版では、同じ PDF でも画素差などの測定値が変わる場合がある。
 - 現行エンジンは同じ `resolveSvgFonts()` 後の SVG を変換する。製品の PDF metadata 後処理前で比較するため、コミット済み examples の PDF hash とは一致しない。
+- #74 移行後も旧エンジンとの比較を再現できるよう、baseline WASM は `git show 2073ccc:assets/wasm/sumi-svg2pdf.wasm` から取得して固定 hash を検証する。その commit を含む Git 履歴が必要。
 - 各入力の krilla 出力を新規 WASM instance で 5 回生成し、hash 一致を検査。ページ・文字・フォント・画像数・日時・word bbox の不一致は失敗する。画素差は測定値であり、自動の合否閾値を置いていない。
 - `results.json` と `dependencies.json` は macOS arm64 の記録。意図して更新するときだけ `bun research/60-krilla/compare.ts --record`。これは比較と記録用であり、記録値との回帰検査ではない。
 

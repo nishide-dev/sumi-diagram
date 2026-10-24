@@ -4,7 +4,7 @@
  * D2 embeds each font as a WOFF subset in an `@font-face` rule with a
  * per-diagram family name (`d2-<hash>-font-regular`) and selects it per class
  * (`.d2-<hash> .text { font-family: "d2-<hash>-font-regular"; }`). Browsers
- * read those rules; usvg (svg2pdf) does not load `@font-face` fonts, so it
+ * read those rules; usvg (krilla-svg) does not load `@font-face` fonts, so it
  * would fall back to some other font. {@link resolveSvgFonts} therefore
  * rewrites each class rule to the real family, weight and style of the font
  * set's file for that slot (read from the file's `name` and `OS/2` tables),

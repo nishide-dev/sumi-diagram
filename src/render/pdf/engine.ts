@@ -1,30 +1,31 @@
 /**
- * The PDF engine (#59): svg2pdf 0.13.0 (with Sumi's determinism patch)
- * compiled to `wasm32-unknown-unknown` from `native/svg2pdf-wasm/` by
- * `bun run pdf:wasm`, committed as `assets/wasm/sumi-svg2pdf.wasm`.
+ * The PDF engine (#74): unmodified krilla + krilla-svg,
+ * compiled to `wasm32-unknown-unknown` from `native/pdf-wasm/` by
+ * `bun run pdf:wasm`, committed as `assets/wasm/sumi-pdf.wasm`.
  *
  * The module is imported as a file, so `bun build --compile` embeds it in the
  * single binary (a `/$bunfs/` path there, the file in the checkout when run
  * from source). It has no imports (no WASI, no host functions): it can only
  * read the SVG and font bytes handed to it and return bytes.
  *
- * The bytes are checked against {@link SVG2PDF_WASM_SHA256} before use. Each
+ * The bytes are checked against {@link PDF_WASM_SHA256} before use. Each
  * conversion gets a fresh instance of the compiled module, so no state (fonts,
  * grown memory) carries over from one conversion to the next.
  */
 
 import { readFileSync } from "node:fs";
-import wasmPath from "../../../assets/wasm/sumi-svg2pdf.wasm" with { type: "file" };
+import wasmPath from "../../../assets/wasm/sumi-pdf.wasm" with { type: "file" };
 
-/** sha256 of `assets/wasm/sumi-svg2pdf.wasm`; written by `bun run pdf:wasm`. */
-export const SVG2PDF_WASM_SHA256 =
-  "7a8ea73e55d113facda46ed261f6dd144d1fee341ab02d96bccd3bc128e7e71d";
+/** sha256 of `assets/wasm/sumi-pdf.wasm`; written by `bun run pdf:wasm`. */
+export const PDF_WASM_SHA256 = "3d0318d047f7dd5d60141a9ca2ed877eeb615f05e83aadff7bafcac249abbd38";
 
-/** The svg2pdf release the engine is built from (crates.io, plus the determinism patch). */
-export const SVG2PDF_VERSION = "0.13.0";
+/** Exact, unpatched crates.io releases in native/pdf-wasm/Cargo.lock. */
+export const KRILLA_VERSION = "0.8.2";
+export const KRILLA_SVG_VERSION = "0.8.1";
+export const PDF_ENGINE_VERSION = `krilla ${KRILLA_VERSION}, krilla-svg ${KRILLA_SVG_VERSION}`;
 
 /** Path of the engine module (inside the binary's `/$bunfs/` when compiled). */
-export const SVG2PDF_WASM_PATH: string = wasmPath;
+export const PDF_WASM_PATH: string = wasmPath;
 
 interface EngineExports {
   memory: WebAssembly.Memory;
@@ -40,19 +41,22 @@ let compiled: WebAssembly.Module | undefined;
 
 /**
  * Loads and compiles the engine once per process. Throws if the module is
- * missing or does not match {@link SVG2PDF_WASM_SHA256}.
+ * missing or does not match {@link PDF_WASM_SHA256}.
  */
-export function loadEngine(path: string = SVG2PDF_WASM_PATH): WebAssembly.Module {
-  if (compiled !== undefined && path === SVG2PDF_WASM_PATH) return compiled;
+export function loadEngine(path: string = PDF_WASM_PATH): WebAssembly.Module {
+  if (compiled !== undefined && path === PDF_WASM_PATH) return compiled;
   const bytes = readFileSync(path);
   const actual = new Bun.CryptoHasher("sha256").update(bytes).digest("hex");
-  if (actual !== SVG2PDF_WASM_SHA256) {
+  if (actual !== PDF_WASM_SHA256) {
     throw new Error(
-      `the PDF engine ${path} has sha256 ${actual}, expected ${SVG2PDF_WASM_SHA256} (rebuild it with \`bun run pdf:wasm\`)`,
+      `the PDF engine ${path} has sha256 ${actual}, expected ${PDF_WASM_SHA256} (rebuild it with \`bun run pdf:wasm\`)`,
     );
   }
   const module = new WebAssembly.Module(bytes);
-  if (path === SVG2PDF_WASM_PATH) compiled = module;
+  if (WebAssembly.Module.imports(module).length !== 0) {
+    throw new Error("the PDF engine must not import host functions");
+  }
+  if (path === PDF_WASM_PATH) compiled = module;
   return module;
 }
 

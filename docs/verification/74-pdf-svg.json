@@ -1,0 +1,1023 @@
+{
+  "platform": "darwin",
+  "arch": "arm64",
+  "bun": "1.3.14",
+  "browserVersion": "\"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36\"",
+  "poppler": "pdfinfo version 26.04.0",
+  "imageMagick": "Version: ImageMagick 7.1.2-32 Q16-HDRI aarch64 68f8d115a:20260926 https://imagemagick.org",
+  "wasmSha256": "3d0318d047f7dd5d60141a9ca2ed877eeb615f05e83aadff7bafcac249abbd38",
+  "dpi": 144,
+  "pixelThreshold": 64,
+  "filter": "3x3 box",
+  "maxFilteredFraction": 0.03,
+  "maxRegressionFraction": 0.005,
+  "rows": [
+    {
+      "path": "docs/gallery/components/sumi-arrow.academic.svg",
+      "width": 301,
+      "height": 328,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "47af16d8526e1835194ae0dd0f44034337ce26354620a8f131917b27ed6b6993",
+          "raw": 0.04644072603516733,
+          "filtered": 0.0015497123409772304
+        },
+        {
+          "engine": "krilla",
+          "sha256": "20cf60a6203b125ac1ffa01d6ce492aa9975452eb995164bdbeaf2e6b327ac86",
+          "raw": 0.044759338789401186,
+          "filtered": 0.0011749453042703185
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-arrow.minimal.svg",
+      "width": 301,
+      "height": 328,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "ee5e955a12a40cf5deb06ca66dae57cace66f7a5a3194cae1d2c618e0ffdf3fd",
+          "raw": 0.007221862085730492,
+          "filtered": 0.0006279880074548254
+        },
+        {
+          "engine": "krilla",
+          "sha256": "c0b5d0eab22b39359bee517b2bc4b6525cc4da57e67939c4fae39b83f49d0b19",
+          "raw": 0.0055404748399643464,
+          "filtered": 0.0004861842638359938
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-arrow.slides.svg",
+      "width": 394,
+      "height": 394,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "f742983348c42d1daf3acd4f5fc77ada5ac1cfc2f70b338b55dfe7f5f0e5d99f",
+          "raw": 0.014345899147105053,
+          "filtered": 0.006274317812878456
+        },
+        {
+          "engine": "krilla",
+          "sha256": "ad3dc2f75c4288b6a6618792a9084201c1f19a78917990f2d96bda26c3268300",
+          "raw": 0.014352340951841068,
+          "filtered": 0.006274317812878456
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-box.academic.svg",
+      "width": 406,
+      "height": 85,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "61d0e4cf9a7652ee3d89a17a4a3841bd4730f52870f8cb661301730b17dd8419",
+          "raw": 0.059026369168357,
+          "filtered": 0.0034482758620689655
+        },
+        {
+          "engine": "krilla",
+          "sha256": "b1ffd9252177d7c6f976864255630c8f02dd1eb993305ed91919beea9f32aba8",
+          "raw": 0.059026369168357,
+          "filtered": 0.0034482758620689655
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-box.minimal.svg",
+      "width": 406,
+      "height": 87,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "9cf95cb2fda972bfd04b061ec872c78513b9fde690340c685fbaa4de099e2e9b",
+          "raw": 0.01927976898250382,
+          "filtered": 0.002491365154860993
+        },
+        {
+          "engine": "krilla",
+          "sha256": "450d308a306a89551c9416db582541fda5e333e28907ba92740717230520f9dc",
+          "raw": 0.01927976898250382,
+          "filtered": 0.002491365154860993
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-box.slides.svg",
+      "width": 611,
+      "height": 107,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "58cb84329b5158cfae1af254a034eb3786c29847430815b2da211b765ce5a3d3",
+          "raw": 0.01988466892026248,
+          "filtered": 0.007953867568104992
+        },
+        {
+          "engine": "krilla",
+          "sha256": "19a35c8ae3930dab95cdde016d8ecad53da736e340f71d6682ea793389466cbb",
+          "raw": 0.01988466892026248,
+          "filtered": 0.007953867568104992
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-circle.academic.svg",
+      "width": 499,
+      "height": 190,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "23576ad4aa01a8e77ea79a02c73ad1d7fee8b4c852e6892510610db1d0a69ad2",
+          "raw": 0.007298808142600991,
+          "filtered": 0.0012340470414513238
+        },
+        {
+          "engine": "krilla",
+          "sha256": "3d844ee0409d74395457559a38ba41a227fae30f50de864fa1fd9420437a6899",
+          "raw": 0.007298808142600991,
+          "filtered": 0.0012340470414513238
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-circle.minimal.svg",
+      "width": 499,
+      "height": 192,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "feb148c1b73212fa6702f94fd385bf0af7dc8d8c3225d52b8f7c6f914648bec3",
+          "raw": 0.006920090180360721,
+          "filtered": 0.001033316633266533
+        },
+        {
+          "engine": "krilla",
+          "sha256": "3357afb96a933aa860a892f3af2c3096b1b2fa20ad31749d53692dd863cc737d",
+          "raw": 0.006920090180360721,
+          "filtered": 0.001033316633266533
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-circle.slides.svg",
+      "width": 789,
+      "height": 314,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "311bdda85157819d67ec230d28d9aa0f4679373688a7a0492aad452a5f49deab",
+          "raw": 0.005408765429108845,
+          "filtered": 0.002098923897863134
+        },
+        {
+          "engine": "krilla",
+          "sha256": "2bb3998b56993a3a754bf5b51f4c7ed07166d017403e1025851979a14ca148b2",
+          "raw": 0.005408765429108845,
+          "filtered": 0.002098923897863134
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-container.academic.svg",
+      "width": 370,
+      "height": 134,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "5116455d18fbb50442b1ce5bbca27b57e45634f7ff540eedce6b0954d666becb",
+          "raw": 0.049052037111738604,
+          "filtered": 0.0042759177087535296
+        },
+        {
+          "engine": "krilla",
+          "sha256": "409831331a7d46ba4c34217ee5261c40216b64eb80b12f7b95494feb442cdfec",
+          "raw": 0.041972569584509886,
+          "filtered": 0.002581686163775716
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-container.minimal.svg",
+      "width": 370,
+      "height": 137,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "9c026bb0b5c3bcdc60ed6095503895e09b2223279ca586a41ef835d521734847",
+          "raw": 0.018445452752022095,
+          "filtered": 0.0021897810218978104
+        },
+        {
+          "engine": "krilla",
+          "sha256": "904df6367e6ba222e3c62dc7b81df9daa464997958563e9cb350d49504353aee",
+          "raw": 0.010889721838626949,
+          "filtered": 0.001262576445058197
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-container.slides.svg",
+      "width": 514,
+      "height": 173,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "8da2c9d52efd41cd34b546b1668e9997915a0760dfe28296f350db5ee0b59265",
+          "raw": 0.019466498729223364,
+          "filtered": 0.010065000787206766
+        },
+        {
+          "engine": "krilla",
+          "sha256": "ca1fdbf21626abeb43dd09ffdc78474f3b2745a6df09950fa772d2dbbbc08c17",
+          "raw": 0.014754503947279639,
+          "filtered": 0.0060952295270011924
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-cylinder.academic.svg",
+      "width": 406,
+      "height": 137,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "c16d738b52e52fe4b313486976545368d458397029ba8242265a3ac29ca60944",
+          "raw": 0.013304088310380784,
+          "filtered": 0.0021034842328575025
+        },
+        {
+          "engine": "krilla",
+          "sha256": "735a61b34f87dd0d0661a24ff4e451b1951cb27b2a789cfe7f2e2d0753775c58",
+          "raw": 0.013304088310380784,
+          "filtered": 0.0021034842328575025
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-cylinder.minimal.svg",
+      "width": 406,
+      "height": 139,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "65db2c3792f6ed595582ecb203fe887d936f089cdcb848b83644b085fb83c7bf",
+          "raw": 0.012758266293369246,
+          "filtered": 0.0015593436580784634
+        },
+        {
+          "engine": "krilla",
+          "sha256": "7dda91646f78bca86c338704053618901f5af1d418db1814de3f9d8c5e62b7ef",
+          "raw": 0.012758266293369246,
+          "filtered": 0.0015593436580784634
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-cylinder.slides.svg",
+      "width": 611,
+      "height": 159,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "c75bc3ef62fbb6e5ba8fe8b2cd6aef19fe91d9ca6581f615a18ff968b78a7aeb",
+          "raw": 0.013762365026917415,
+          "filtered": 0.005352602703064365
+        },
+        {
+          "engine": "krilla",
+          "sha256": "babad51c45b3e1559e89f3e680099eeae64002097cbc4e6b6c997c6d7b3df63c",
+          "raw": 0.013762365026917415,
+          "filtered": 0.005352602703064365
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-diamond.academic.svg",
+      "width": 568,
+      "height": 106,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "f5ad078b89ede1a8dab40ea9d82c2a9f2f04256e141429026dea057a8038d110",
+          "raw": 0.015330188679245283,
+          "filtered": 0.0019432633537071486
+        },
+        {
+          "engine": "krilla",
+          "sha256": "76464dd8f8e20b9efeb22ffd626084245aa62eaf8835d9d30873023c60979a12",
+          "raw": 0.015330188679245283,
+          "filtered": 0.0019432633537071486
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-diamond.minimal.svg",
+      "width": 568,
+      "height": 108,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "8af86cce98669477b8e64f4baa3c86e94e90db5327219db572f5941f5663a58d",
+          "raw": 0.011459963484611372,
+          "filtered": 0.001613849765258216
+        },
+        {
+          "engine": "krilla",
+          "sha256": "cd7c5d41526596650f9ad4301d0498f82964322927636b19b4b3ff691331a03b",
+          "raw": 0.011459963484611372,
+          "filtered": 0.001613849765258216
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-diamond.slides.svg",
+      "width": 976,
+      "height": 144,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "75ac4998b782e6c87a277654b19c8270c14f1f03db62b130e802111b1a397796",
+          "raw": 0.004881033697632058,
+          "filtered": 0
+        },
+        {
+          "engine": "krilla",
+          "sha256": "db9b93e5cb4152209c733d0bbef176d3776215aa7e005bf187551ac6a95f6f87",
+          "raw": 0.004888148907103825,
+          "filtered": 0
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-document.academic.svg",
+      "width": 406,
+      "height": 93,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "5f18d03019b8c494bcf7052c4748727898cd8e7d1d015b242f29552570a9b8dc",
+          "raw": 0.019677949043911225,
+          "filtered": 0.003098681074209439
+        },
+        {
+          "engine": "krilla",
+          "sha256": "f9a9f5341a0d16691f7e7d995a4c48c0594896aecafd3e6a756907364030c358",
+          "raw": 0.019677949043911225,
+          "filtered": 0.003098681074209439
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-document.minimal.svg",
+      "width": 406,
+      "height": 95,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "959eec3254432f7138ca0aa55f681b5876ef46ad61e5d4f5c6cc05f631bbade1",
+          "raw": 0.01877106559502204,
+          "filtered": 0.0022815659839253307
+        },
+        {
+          "engine": "krilla",
+          "sha256": "4684575524abdaef071486a871f62fce131eedaa75f5429d5613f5615a555454",
+          "raw": 0.0187192118226601,
+          "filtered": 0.0022815659839253307
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-document.slides.svg",
+      "width": 611,
+      "height": 121,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "b59cab6f0b69d77fcdc86b981337d2f462df129ed178b5da6d38bc67a04da669",
+          "raw": 0.018895997619401875,
+          "filtered": 0.007101215998701492
+        },
+        {
+          "engine": "krilla",
+          "sha256": "b09b65f6640270acd02b018f2a3afbdad7746e8357011867c28f801164076082",
+          "raw": 0.018882471493690062,
+          "filtered": 0.007101215998701492
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-double-arrow.academic.svg",
+      "width": 301,
+      "height": 328,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "caf6f1055bab70aaa00356cafb92f298bfa5d0e0cad19da8f916de02481a5b3b",
+          "raw": 0.046471112551657076,
+          "filtered": 0.0015497123409772304
+        },
+        {
+          "engine": "krilla",
+          "sha256": "652de70d0272c2fdd50f45a69ddce4e3193b33a4f0e9fe59fff66ef17f311a50",
+          "raw": 0.04477959646706101,
+          "filtered": 0.0011749453042703185
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-double-arrow.minimal.svg",
+      "width": 301,
+      "height": 328,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "c68bc96f20e1a0b5dccf053250e8b3c77fafb2aa383df76ab52de30c7d19ef00",
+          "raw": 0.007201604408070659,
+          "filtered": 0.0006279880074548254
+        },
+        {
+          "engine": "krilla",
+          "sha256": "c4955a31d2efc3bc23d2d04ebccce08a06f16b938f66c2c54e336c6d6baa2de4",
+          "raw": 0.005510088323474597,
+          "filtered": 0.0004861842638359938
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-double-arrow.slides.svg",
+      "width": 394,
+      "height": 394,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "0297a39214ed0d544c9f3d01b4abcfa2cd94e176f9001db2c9fc0b590c643240",
+          "raw": 0.014390991780257156,
+          "filtered": 0.006274317812878456
+        },
+        {
+          "engine": "krilla",
+          "sha256": "faf20740a625cbace87d9502c747adea9c1a7a69f80ebac0e832b33d0681a774",
+          "raw": 0.014403875389729186,
+          "filtered": 0.006274317812878456
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-ellipse.academic.svg",
+      "width": 542,
+      "height": 84,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "aff87158e5cae6b8a38db1c7c523497669e2882935f9dee46965242530e764c8",
+          "raw": 0.007380073800738007,
+          "filtered": 0.000043929010718678616
+        },
+        {
+          "engine": "krilla",
+          "sha256": "b8b2b6160e87673a664c8d906f1b1d2e13c6163f0bb46cdb3aa24054ccc46669",
+          "raw": 0.007380073800738007,
+          "filtered": 0.000043929010718678616
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-ellipse.minimal.svg",
+      "width": 542,
+      "height": 86,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "82c798a29cfe94214f5acb8a0da19b1454147cc08d13583978f88483902dc4a4",
+          "raw": 0.015854286449841243,
+          "filtered": 0.0017806573414571355
+        },
+        {
+          "engine": "krilla",
+          "sha256": "0fa8e7d1d1401a569e516a042626d2886e7196984dc7312b019ab7cc06110501",
+          "raw": 0.015854286449841243,
+          "filtered": 0.0017806573414571355
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-ellipse.slides.svg",
+      "width": 832,
+      "height": 130,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "030711fa3d2000c1651897ba298a0e62ba2d4c523698dfe6ff25915b7dae63f1",
+          "raw": 0.013267381656804734,
+          "filtered": 0.004807692307692308
+        },
+        {
+          "engine": "krilla",
+          "sha256": "89fed3d877cc59fa351cf1ea92e62cee74c493c58645a812167236c621bfe62a",
+          "raw": 0.013267381656804734,
+          "filtered": 0.004807692307692308
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-hexagon.academic.svg",
+      "width": 488,
+      "height": 86,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "62e61fe3829b3de7f8639cd8644cf023485bb803875498aec26b50cfaaabeaa1",
+          "raw": 0.01751334349980938,
+          "filtered": 0.0027878383530308805
+        },
+        {
+          "engine": "krilla",
+          "sha256": "e96d88528e755e77b61acb80f6ccaad55348d13368e23280a7b140397f3520dd",
+          "raw": 0.01751334349980938,
+          "filtered": 0.0027878383530308805
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-hexagon.minimal.svg",
+      "width": 488,
+      "height": 88,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "a427d23fdc6d6dbfda3a931adbd35ef769d2cac76187abde59d0d692468981c1",
+          "raw": 0.0026080476900149033,
+          "filtered": 0
+        },
+        {
+          "engine": "krilla",
+          "sha256": "c3413f0bd6bc8b885a0f134dcb17d8c8ae524b76f0bc4dad357d8ab3e64bf736",
+          "raw": 0.0026080476900149033,
+          "filtered": 0
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-hexagon.slides.svg",
+      "width": 794,
+      "height": 116,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "76a3a98da0abea9ede7f0df94413cb564f609f2a547e1b3ee3688199278ed013",
+          "raw": 0.014744202206201686,
+          "filtered": 0.005645791713714931
+        },
+        {
+          "engine": "krilla",
+          "sha256": "9edc59b5cc58a9cf9b585ebe11938e8561a2f0a93a87b9cac839085d3d214934",
+          "raw": 0.014744202206201686,
+          "filtered": 0.005645791713714931
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-label.academic.svg",
+      "width": 161,
+      "height": 38,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "98925fe98ec547aa6e1a55a6d683f518202ef45fb53b8209ec4a7f11c0fc2e8c",
+          "raw": 0.017816279830009808,
+          "filtered": 0
+        },
+        {
+          "engine": "krilla",
+          "sha256": "8a1ec157111f1cb67fe8a6d3db4c2d93df00038bdfdd4497b7ef2582228c3c9a",
+          "raw": 0.017816279830009808,
+          "filtered": 0
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-label.minimal.svg",
+      "width": 161,
+      "height": 38,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "7dc9bec3807701288e3d79db8b4d014b03c271829851474c817ff63066b8af22",
+          "raw": 0.010951291271657405,
+          "filtered": 0
+        },
+        {
+          "engine": "krilla",
+          "sha256": "65607fc58272e65d74b3a38ab1d80b8f99f774661295eeefa77470fcc58e73db",
+          "raw": 0.010951291271657405,
+          "filtered": 0
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-label.slides.svg",
+      "width": 278,
+      "height": 54,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "c951c94b3f318fa3394cb744d288933d1faf7d35dc06e7a1f7384c502e6d8c83",
+          "raw": 0.050293098854249936,
+          "filtered": 0.020050626165734078
+        },
+        {
+          "engine": "krilla",
+          "sha256": "ab80ee2bf8ca7f4dad838af3fd9f339612b43334f9e4cb8b647d69ce87172480",
+          "raw": 0.050293098854249936,
+          "filtered": 0.020050626165734078
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-line.academic.svg",
+      "width": 301,
+      "height": 328,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "092e7060ddb8bdd35a0f5b67ce8f327ad6b71b1b31f8825b007bb6be9030b932",
+          "raw": 0.046157118547929664,
+          "filtered": 0.0015497123409772304
+        },
+        {
+          "engine": "krilla",
+          "sha256": "c99340b5bd25aa04619bd007eab9c105e983424eb2c536f7aeeb5c7ffc408e44",
+          "raw": 0.04447573130216352,
+          "filtered": 0.0011749453042703185
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-line.minimal.svg",
+      "width": 301,
+      "height": 328,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "2d110a531d9b2eb59890f9c6d93d49d3a37158942ed156e7ebe6c0788862053f",
+          "raw": 0.007231990924560408,
+          "filtered": 0.0006279880074548254
+        },
+        {
+          "engine": "krilla",
+          "sha256": "c350b9bb385532e1186dbe4034641fc6bc2d3cba5a475e1301ab3099b1a39f16",
+          "raw": 0.005560732517624179,
+          "filtered": 0.0004861842638359938
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-line.slides.svg",
+      "width": 394,
+      "height": 394,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "b594a23ad72078169b86f83d0a478347276441263f0db96c92479d7368fbf546",
+          "raw": 0.014313690123424979,
+          "filtered": 0.006274317812878456
+        },
+        {
+          "engine": "krilla",
+          "sha256": "981360ff3c8080fd42df62b24246182d741e88d7807197c150873fa9c5aee541",
+          "raw": 0.014313690123424979,
+          "filtered": 0.006274317812878456
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-parallelogram.academic.svg",
+      "width": 562,
+      "height": 85,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "b4c5e89823defca9875ae100c04c21756ca7411f65cb28880188d4efc7d9b3ca",
+          "raw": 0.01647477496336613,
+          "filtered": 0.002449235922126858
+        },
+        {
+          "engine": "krilla",
+          "sha256": "bf44484537e1bcb08cf40905ba59041dffdf3666d5362de9280b8c6f9c7624b5",
+          "raw": 0.01647477496336613,
+          "filtered": 0.002449235922126858
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-parallelogram.minimal.svg",
+      "width": 562,
+      "height": 87,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "67d4ab384ff91964a008a6d1fa6b7e17f2b951ebec40e032c934e38f3a0c1626",
+          "raw": 0.015482472286988179,
+          "filtered": 0.0017998118378533153
+        },
+        {
+          "engine": "krilla",
+          "sha256": "dbfb1c5e47523762da9b9ac83b4ebd8269f3ba635d8b0aa08ce93cd8a0bee403",
+          "raw": 0.015482472286988179,
+          "filtered": 0.0017998118378533153
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-parallelogram.slides.svg",
+      "width": 767,
+      "height": 107,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "c2e822576cfa93c98cc595d5e5f92fc4d7bd053d2237d4db4325c76866245513",
+          "raw": 0.01642520318268774,
+          "filtered": 0.006336131791541264
+        },
+        {
+          "engine": "krilla",
+          "sha256": "29d46b1bc10ade1f265ebc7214f4533de24526c6b71d2920456468392ffbc33c",
+          "raw": 0.016437388051517624,
+          "filtered": 0.006336131791541264
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-square.academic.svg",
+      "width": 406,
+      "height": 153,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "72f7e3ce62c4303256012efcb0a8c03b517861aab5a44f2d14d9b3c252e5d322",
+          "raw": 0.03865224250619788,
+          "filtered": 0.0019157088122605363
+        },
+        {
+          "engine": "krilla",
+          "sha256": "a5383f70dd51346822df01acc4306172f28d6a53d815dba8ebb0b83445c77a79",
+          "raw": 0.03865224250619788,
+          "filtered": 0.0019157088122605363
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-square.minimal.svg",
+      "width": 406,
+      "height": 155,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "7a75f2ed4f5f06560f9a06d1776f5321261ec14a4601c5a076611186f955bf54",
+          "raw": 0.010821547751469887,
+          "filtered": 0.001398379151438106
+        },
+        {
+          "engine": "krilla",
+          "sha256": "45b2403de7824a248ea86025d87c1e656605309883157c2084372221a24b7f22",
+          "raw": 0.010821547751469887,
+          "filtered": 0.001398379151438106
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-square.slides.svg",
+      "width": 611,
+      "height": 242,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "50e62622fd6e295f094350047db9bdf3c52d62ce8d6b1135f1015792a920f121",
+          "raw": 0.008798744775533943,
+          "filtered": 0.003550607999350746
+        },
+        {
+          "engine": "krilla",
+          "sha256": "810c73575983651a8fe2cf5da7708c664fa6c08d1ddf0cca1969cb6f647d3ac6",
+          "raw": 0.008798744775533943,
+          "filtered": 0.003550607999350746
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-stack.academic.svg",
+      "width": 454,
+      "height": 101,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "0c4be3f5257f9a7ed4a057653ff942d59674fe64115cdce3e5ea94b2411d2f57",
+          "raw": 0.07582762681554499,
+          "filtered": 0.0027260435294630785
+        },
+        {
+          "engine": "krilla",
+          "sha256": "afa384cc948ec855cc12f3acc4c1b4e6d1396314223a5f9a0aa85f1d6ebd9213",
+          "raw": 0.07582762681554499,
+          "filtered": 0.0027260435294630785
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-stack.minimal.svg",
+      "width": 454,
+      "height": 103,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "b772982c9965b065dee1e59a9ac8e63634c904c733ce7a35d9b246f973335fee",
+          "raw": 0.014648646336769171,
+          "filtered": 0.0018818698943586672
+        },
+        {
+          "engine": "krilla",
+          "sha256": "570277df8ec9c418ccbefa30f8d99620e445b9b9705c7e558b6cd3b05de5fea7",
+          "raw": 0.014648646336769171,
+          "filtered": 0.0018818698943586672
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-stack.slides.svg",
+      "width": 659,
+      "height": 123,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "67bbd4c3aa7ad4cb420416a74dc5421b0951dd847e26b3bc75a35190e82d6275",
+          "raw": 0.016038096648037802,
+          "filtered": 0.00641523865921512
+        },
+        {
+          "engine": "krilla",
+          "sha256": "535d0dbe2c8a6bc922f977e90927b14e19a076ee7f1720daef412619c2a17539",
+          "raw": 0.016038096648037802,
+          "filtered": 0.00641523865921512
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-trapezoid.academic.svg",
+      "width": 553,
+      "height": 85,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "20bbe84ce3d6f290c0bc537e8e3bd0f51b24407456152a2ed2350b0515afcd2f",
+          "raw": 0.01672162535900436,
+          "filtered": 0.002595468567173705
+        },
+        {
+          "engine": "krilla",
+          "sha256": "4caae7a760cfa3a349ee1325c7f8e8b7d86826ae3f5a2294185382fbc5fff329",
+          "raw": 0.01672162535900436,
+          "filtered": 0.002595468567173705
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-trapezoid.minimal.svg",
+      "width": 553,
+      "height": 87,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "078dff26d7f5094cdccdc53208ed3d6b8347b177fcff7ba1c9c4c6af625061a2",
+          "raw": 0.015464238947434058,
+          "filtered": 0.0019538151358317224
+        },
+        {
+          "engine": "krilla",
+          "sha256": "87c6f5a2db69eb2e9cecd93b4f9b29549b14a18388cbbe7f0798db0506d5ae04",
+          "raw": 0.015464238947434058,
+          "filtered": 0.0019538151358317224
+        }
+      ]
+    },
+    {
+      "path": "docs/gallery/components/sumi-trapezoid.slides.svg",
+      "width": 797,
+      "height": 107,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "18a889e96188e03ebc2c9c7393122b3db25125d28b401e349b76d4cd3dc6e7cb",
+          "raw": 0.016158726063860974,
+          "filtered": 0.006156263558437599
+        },
+        {
+          "engine": "krilla",
+          "sha256": "d6d95744c294da3f4910d76e6f36b9f139ebc44c952cb33c283cb5412c250c75",
+          "raw": 0.016158726063860974,
+          "filtered": 0.006156263558437599
+        }
+      ]
+    },
+    {
+      "path": "examples/decision-flow/decision-flow.svg",
+      "width": 338,
+      "height": 847,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "9fa1a803d0cfa97f425e0e56963a44d1ce59949a6d99897d9583dcbc4ba413f3",
+          "raw": 0.0090329251168412,
+          "filtered": 0.0007160671496335832
+        },
+        {
+          "engine": "krilla",
+          "sha256": "9f71a521d1e09c9f3eb1bfae46fa58861a4cfa7a828c89d9210fee0fe4035c20",
+          "raw": 0.007593804796602,
+          "filtered": 0.0005623746882488141
+        }
+      ]
+    },
+    {
+      "path": "examples/grouped/grouped.svg",
+      "width": 950,
+      "height": 374,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "781a0e0f5b90573ad9bccc1fc0cce518f92283f10572bbb9f8a7dde566ae6164",
+          "raw": 0.007526034337179848,
+          "filtered": 0.000911905432029271
+        },
+        {
+          "engine": "krilla",
+          "sha256": "873ff1111454a19970d8428c8c6a32de41e552e7ce1581d04fe91c378e4bc2be",
+          "raw": 0.006828032648466085,
+          "filtered": 0.0007711792851111737
+        }
+      ]
+    },
+    {
+      "path": "examples/pipeline/pipeline.svg",
+      "width": 350,
+      "height": 852,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "249af70550f4e79e11ada31678394223dda46ab3203579c76cb18c0c89261d7d",
+          "raw": 0.013058350100603622,
+          "filtered": 0.0014621059691482226
+        },
+        {
+          "engine": "krilla",
+          "sha256": "62ea8951c86544f8e4d77fa9dc5cef67ba22e37085b1fe1982396d7a7f9ba619",
+          "raw": 0.012280348759222,
+          "filtered": 0.0011502347417840376
+        }
+      ]
+    },
+    {
+      "path": "examples/system-architecture/system-architecture.svg",
+      "width": 892,
+      "height": 408,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "69083a163c7ec13a11a6bb301e6f3778f22f6ef4271847aae1aa21bd7dabe36a",
+          "raw": 0.01607975028576453,
+          "filtered": 0.0009644552888419942
+        },
+        {
+          "engine": "krilla",
+          "sha256": "94ba57b1bbec72bf3317ac05154554f3ecc78e87e68cc213619ea16e8152684f",
+          "raw": 0.01607975028576453,
+          "filtered": 0.0009644552888419942
+        }
+      ]
+    },
+    {
+      "path": "tests/fixtures/pdf/japanese-mask.svg",
+      "width": 480,
+      "height": 240,
+      "metrics": [
+        {
+          "engine": "svg2pdf",
+          "sha256": "8456ff57f3ce039f3359fc35e34768b273b0e87014ae9fd39f6194fe37336490",
+          "raw": 0.011276041666666667,
+          "filtered": 0.004340277777777778
+        },
+        {
+          "engine": "krilla",
+          "sha256": "c7b546afbd40dcfba658751f44035381547fd048252bcfce29dc9a0d1355f606",
+          "raw": 0.004470486111111111,
+          "filtered": 0
+        }
+      ]
+    }
+  ]
+}

@@ -78,5 +78,5 @@ test("document information is set even when the xref table exceeds 64 KiB", () =
   const xrefAt = Number(/startxref\n(\d+)\n%%EOF$/.exec(text)?.[1]);
   expect(pdf.length - xrefAt).toBeGreaterThan(64 * 1024);
   expect(() => parsePdf(pdf)).not.toThrow();
-  expect(inspectPdf(pdf).info).toEqual({ Producer: "svg2pdf 0.13.0" });
+  expect(inspectPdf(pdf).info).toEqual({ Producer: "krilla 0.8.2, krilla-svg 0.8.1" });
 });
