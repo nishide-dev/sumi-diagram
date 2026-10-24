@@ -1,6 +1,6 @@
 # Contributing to Sumi
 
-Sumi への貢献ガイドです。Issue・ブランチ・コミット・PR の形式を揃え、履歴と議論を追いやすく保つことを目的とします。全体の設計方針とロードマップは [#1](https://github.com/nishide-dev/sumi-diagram/issues/1) を参照してください。
+Sumi への貢献ガイドです。Issue・ブランチ・コミット・PR の形式を揃え、履歴と議論を追いやすく保つことを目的とします。現行ロードマップは [#80](https://github.com/nishide-dev/sumi-diagram/issues/80)、完了したMVPと初期アーキテクチャの記録は [#1](https://github.com/nishide-dev/sumi-diagram/issues/1) を参照してください。
 
 ## 言語の使い分け
 
@@ -230,12 +230,13 @@ Skill の正は [`skills/sumi/`](skills/sumi/SKILL.md) です（`npx skills add 
 
 - tag は `v<major>.<minor>.<patch>`（pre-release は `v0.2.0-rc.1` など）とし、`package.json` と一致させる。
 - 固定の D2 バージョンやフォントを変えた場合は、出力が変わることをリリースノートに明記する。
+- 不具合修正・互換性修正だけなら patch、利用者向けの機能追加をまとめる場合は minor を上げる。0.x の開発中でも、出力やAPIの互換性に影響する変更はリリースノートへ記録する。実装が一区切りついたらリリース準備を個別Issueで管理し、次の機能計画とは分ける。
 
 ## 設計判断の記録
 
 - 設計上の判断・代替案・トレードオフは、**関連 Issue のコメント**に記録する。PR だけで議論を完結させない
 - API や後方互換性に影響する変更は、その影響を Issue と PR の双方に明記する
-- 計画やフェーズ構成が変わった場合は、ロードマップ [#1](https://github.com/nishide-dev/sumi-diagram/issues/1) を更新する
+- 計画やフェーズ構成が変わった場合は、現行ロードマップ [#80](https://github.com/nishide-dev/sumi-diagram/issues/80) を更新する。完了済みの #1 は履歴として残す
 - Issue に書かれた詳細仕様は実装前の初期提案であり、検証結果に応じて見直してよい
 
 ## リポジトリ上の約束事

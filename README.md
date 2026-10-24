@@ -2,7 +2,7 @@
 
 Sumi は、事前定義されたコンポーネントとデザインシステムから図を構築する、汎用的な Diagram-as-Code CLI です。
 
-`*.sumi.yaml` を一次ソースとし、コンポーネントレジストリ → テーマ／プロファイル解決 → Figure IR → D2（ELK）→ SVG → Lint のパイプラインで図を生成・検証します。現在は開発初期段階です（[ロードマップ](https://github.com/nishide-dev/sumi-diagram/issues/1)）。
+`*.sumi.yaml` を一次ソースとし、コンポーネントレジストリ → テーマ／プロファイル解決 → Figure IR → D2（ELK）→ SVG → Lint のパイプラインで図を生成・検証します。MVPと当初の拡張タスクは完了し、SVG・PDF・PPTX出力に対応しています（[現行ロードマップ](https://github.com/nishide-dev/sumi-diagram/issues/80)、[初期計画の完了記録](https://github.com/nishide-dev/sumi-diagram/issues/1)）。[v0.3.0 の変更点](docs/releases/v0.3.0.md)も参照してください。
 
 `*.sumi.yaml` の形式は [Phase 1 設計](docs/design/phase1.md) の Figure Schema v1 で定義し、エディタ補完用の JSON Schema を [`schema/figure.v1.schema.json`](schema/figure.v1.schema.json) に置いています。
 
@@ -28,7 +28,7 @@ tarball には次が入っています。
 | `SHA256SUMS` | tarball 内の全ファイルの sha256 |
 
 ```sh
-version=0.1.0 target=darwin-arm64   # darwin-arm64 | darwin-x64 | linux-x64 | linux-arm64
+version=0.3.0 target=darwin-arm64   # darwin-arm64 | darwin-x64 | linux-x64 | linux-arm64
 base=https://github.com/nishide-dev/sumi-diagram/releases/download/v$version
 curl -LO "$base/sumi-$version-$target.tar.gz"
 curl -LO "$base/SHA256SUMS"
@@ -94,7 +94,7 @@ sumi catalog --json --section themes --section profiles   # Theme と Profile �
 
 | コマンド | 内容 | 主なオプション |
 | --- | --- | --- |
-| `render <file>` | 全段（D2 を含む）を実行し、SVG または PDF を書き出す。続けて描画結果（SVG）に幾何 lint（`geometry/*`。ページ幅の超過・ラベルのはみ出しなど）を実行する。幾何 lint に error があっても出力は書き出し（確認できるように）、終了コードは 1 になる。形式は `--format`、なければ `-o` の拡張子（`.pdf` なら PDF）、どちらもなければ SVG。既定の出力先は入力の `.sumi.yaml` を `.svg`（PDF なら `.pdf`）に替えたパス。書き込みは一時ファイル経由で行う | `-o, --out <file>`（`-` で stdout。SVG のみ）、`--format svg\|pdf`（`-o` の拡張子と矛盾すれば使い方の誤り）、`--emit-d2 <file>`、`--theme <name>`・`--profile <name>`（ファイルを編集せずに上書き）、`--no-geometry`（幾何 lint を省く）、`--json` |
+| `render <file>` | 全段（D2 を含む）を実行し、SVG・PDF・PPTXを書き出す。描画結果（SVG）に幾何 lintを実行し、幾何errorでも出力を残してexit 1。変換失敗時は出力しない。形式は `--format`、なければ `-o` の既知の拡張子、どちらもなければSVG。既定は入力のYAML拡張子を出力形式へ替えたパス。一時ファイル経由で書き込む | `-o, --out <file>`（stdoutはSVGのみ）、`--format svg\|pdf\|pptx`（拡張子との矛盾はusage error）、`--pptx-mode picture\|editable`（editableは実験的）、`--pptx-connectors freeform\|glued`（editableのみ）、`--emit-d2 <file>`、`--theme <name>`・`--profile <name>`、`--no-geometry`、`--json` |
 | `lint <files...>` | 描画せずに schema・参照・部品・Theme・Profile と構造 lint を検査する。`--geometry` を付けると D2 で描画し（ファイルは書かない）、幾何 lint も実行する（[規則の一覧](docs/lint-rules.md)） | `--geometry`、`--json`、`--config <lint.json>`、`--rule <id>=<level>`（繰り返し可。`geometry/*` も可）、`--max-warnings <n>`（全ファイルの合計） |
 | `fmt <files...>` | YAML を意味を変えずに整形する（コメント・引用符・キー順は保つ）。YAML として不正なファイルは整形しない | `--check`（書き込まずに未整形のファイルを列挙）、`--stdout`、`--canonical-order`（既知のキーを schema の順に並べる） |
 | `doctor` | Sumi / Bun のバージョン、D2 の有無とバージョン、同梱フォントの sha256、幾何 lint 用のフォントの metrics を読めるかを確認する | `--json` |
@@ -102,7 +102,7 @@ sumi catalog --json --section themes --section profiles   # Theme と Profile �
 
 ### 台形と stack
 
-開発版では、台形 `trapezoid` と重なった矩形 `stack` を使えます（`since: 0.3.0`、未リリース。現時点ではソースから実行してください）。インストール済みの CLI では `sumi catalog --kind node` にある部品を選びます。
+v0.3.0 から、台形 `trapezoid` と重なった矩形 `stack` を使えます。インストール済みの CLI では `sumi catalog --kind node` にある部品を選びます。
 
 - `trapezoid`: 上辺が広く、下辺が狭い台形。
 - `stack`: 3枚の矩形を重ねた形。書類やレイヤーの集まりなどに使い、文字は前面に配置します。
@@ -164,7 +164,7 @@ sumi catalog --json --section themes --section profiles   # Theme と Profile �
 }
 ```
 
-`sumi render --json`（と `sumi lint --geometry --json` のファイルごとの結果）は、出力サイズと Profile の上限を `size` に入れます（描画できなかったときは `null`）。`fits` は幅と高さが上限以内かどうかで、文字サイズは診断で報告します。`render --json` の `format` は出力形式（`svg` / `pdf`）です。
+`sumi render --json`（と `sumi lint --geometry --json` のファイルごとの結果）は、出力サイズと Profile の上限を `size` に入れます（描画できなかったときは `null`）。`fits` は幅と高さが上限以内かどうかで、文字サイズは診断で報告します。`render --json` の `format` は出力形式（`svg` / `pdf` / `pptx`）です。
 
 ```json
 {
@@ -194,12 +194,12 @@ sumi catalog --json --section themes --section profiles   # Theme と Profile �
 - 文字は同梱フォント（BIZ UDPGothic / BIZ UDGothic）のサブセットを埋め込んだ文字として残り、検索・コピーできます。閲覧側・変換側のフォントには依存しません。
 - 図形・線はベクターのままで、ラスタ画像は含みません。同じ入力・同じ版の Sumi なら、OS によらずバイト単位で同じ PDF になります。
 - 変換は krilla + krilla-svg（WebAssembly にして `sumi` に同梱）が行い、Node.js・ブラウザ・追加のバイナリは不要です。
-- 開発版では PDF エンジンを移行したため、v0.2.0 の PDF とは内部表現・Producer・バイト列が変わります。寸法・検索可能な日本語・ベクター・provenance は維持します（[移行の検証](docs/verification/74-krilla.md)）。
+- v0.3.0 では PDF エンジンを移行したため、v0.2.0 の PDF とは内部表現・Producer・バイト列が変わります。寸法・検索可能な日本語・ベクター・provenance は維持します（[移行の検証](docs/verification/74-krilla.md)）。
 - PDF/A・PDF/X などの規格には適合しません（エッジのラベルの下の線を消すために透明（soft mask）を使います）。PDF のバージョンは 1.7 です。
 
 pdfLaTeX / LuaLaTeX では `graphicx` の `\includegraphics{figure.pdf}` で取り込めます。図の日本語フォントも PDF に埋め込まれているため、図のための CJK パッケージやシステムフォントは不要です。[検証環境と再現手順](docs/verification/63-pdf-latex.md)を参照してください。取り込み時に PDF のバージョンの警告が出る環境では、文書の先頭で PDF 1.7 を指定します（pdfLaTeX: `\pdfminorversion=7`、LuaLaTeX: `\pdfvariable minorversion=7`）。
 
-### PPTX（開発版）
+### PPTX（v0.3.0〜）
 
 ```sh
 sumi render figure.sumi.yaml -o figure.pptx
@@ -212,7 +212,7 @@ sumi render figure.sumi.yaml --format pptx
 
 生成は macOS／Linux（x64／arm64）をサポートし、表示は PowerPoint for Mac 16.114.1 で確認しています。Windows PowerPoint・Keynote・Google Slides は今回の保証対象外です。
 
-#### 編集可能 PPTX（実験的・開発版）
+#### 編集可能 PPTX（実験的）
 
 ```sh
 sumi render figure.sumi.yaml -o editable.pptx --pptx-mode editable
