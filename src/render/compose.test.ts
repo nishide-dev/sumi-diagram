@@ -6,7 +6,13 @@ import { readonlyMap } from "../compiler/ir";
 import { composeOutlines } from "./compose";
 import { finalizeSvg } from "./finalize";
 import { inspectSvg } from "./inspect";
-import { extensionsCross, rayHit, rectPoints } from "./outline-geometry";
+import {
+  ENDPOINT_ANGLE_TOLERANCE_DEG,
+  entryAngle,
+  extensionsCross,
+  rayHit,
+  rectPoints,
+} from "./outline-geometry";
 import { outlineRegistry } from "./outline-testing";
 import { renderFigure } from "./render";
 import { artifactFor, tinyCompiled, tinySvg } from "./testing";
@@ -215,5 +221,82 @@ test("backend errors in either pass propagate without output and preserve source
     expect(result.diagnostics.map((d) => d.code)).toEqual(["backend/test-failure"]);
     expect(calls).toBe(failingCall);
     expect(inputs.every((name) => name === "fixture.d2")).toBe(true);
+  }
+});
+
+// #82: the left edge ends at (-2, 4), 2 units before the stack's footprint and
+// 18 before its back layer. Re-aim the incoming segment by `degrees`.
+const slanted = (degrees: number, end = { x: -2, y: 4 }) => {
+  const r = (degrees * Math.PI) / 180;
+  const start = { x: end.x - 16 * Math.cos(r), y: end.y - 16 * Math.sin(r) };
+  return fixture(
+    raw.replace(
+      'd="M -18 4 L -2 4"',
+      `d="M ${start.x.toFixed(6)} ${start.y.toFixed(6)} L ${end.x} ${end.y}"`,
+    ),
+  );
+};
+const misses = (diagnostics: readonly { code: string; subject?: { id: string } }[]) =>
+  diagnostics.filter((d) => d.code === "svg/outline-edge-miss").map((d) => d.subject?.id);
+const leftEnd = (svg: string, ir: Parameters<typeof inspectSvg>[1]) => {
+  const after = inspectSvg(svg, ir);
+  if (!after.ok) throw new Error(JSON.stringify(after.diagnostics));
+  return after.value.elements.find((e) => e.key === "e:left")?.path?.at(-1)?.to;
+};
+
+test("entry angles are measured against the normal of the footprint side that is hit", () => {
+  const rect = { x: 0, y: 0, width: 10, height: 10 };
+  const at = (deg: number) => ({
+    x: Math.cos((deg * Math.PI) / 180),
+    y: Math.sin((deg * Math.PI) / 180),
+  });
+  expect(entryAngle(rect, { x: -2, y: 5 }, { x: 1, y: 0 }, 2)).toBe(0);
+  expect(entryAngle(rect, { x: -2, y: 5 }, at(4), 2 / Math.cos((4 * Math.PI) / 180))).toBeCloseTo(
+    4,
+    9,
+  );
+  expect(entryAngle(rect, { x: 5, y: 12 }, { x: 0, y: -1 }, 2)).toBe(0);
+  // Nearly horizontal, but grazing the top side: far from its normal.
+  const grazing = at(3);
+  expect(entryAngle(rect, { x: 2, y: -0.5 }, grazing, 0.5 / grazing.y)).toBeCloseTo(87, 9);
+});
+
+test("ends within the angular tolerance are extended along their own direction", () => {
+  for (const degrees of [0.27, 1.3, ENDPOINT_ANGLE_TOLERANCE_DEG - 0.1]) {
+    const f = slanted(degrees);
+    const result = composeOutlines(f.svg, f.compiled.ir, f.inspection);
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    expect(misses(result.diagnostics)).toEqual([]);
+    const end = leftEnd(result.value, f.compiled.ir);
+    // Moved by 16 / cos θ along the ray: 16 further in x, 16 tan θ in y.
+    expect(end?.x).toBeCloseTo(14, 2);
+    expect(end?.y).toBeCloseTo(4 + 16 * Math.tan((degrees * Math.PI) / 180), 2);
+  }
+});
+
+test("ends beyond the angular tolerance or inside the footprint warn and stay unchanged", () => {
+  for (const degrees of [ENDPOINT_ANGLE_TOLERANCE_DEG + 0.1, 30, -30]) {
+    const f = slanted(degrees);
+    const result = composeOutlines(f.svg, f.compiled.ir, f.inspection);
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    expect(misses(result.diagnostics)).toEqual(["left"]);
+    expect(leftEnd(result.value, f.compiled.ir)).toEqual({ x: -2, y: 4 });
+  }
+  // The end already lies inside the footprint: no trustworthy entry side.
+  const inside = slanted(0, { x: 5, y: 4 });
+  const result = composeOutlines(inside.svg, inside.compiled.ir, inside.inspection);
+  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+  expect(misses(result.diagnostics)).toEqual(["left"]);
+  expect(leftEnd(result.value, inside.compiled.ir)).toEqual({ x: 5, y: 4 });
+});
+
+test("an end whose outline coincides with the footprint needs no extension and no warning", () => {
+  // y = 50 is on the stack's front layer, flush with the footprint's left side.
+  for (const degrees of [0, 3, 30]) {
+    const f = slanted(degrees, { x: -2, y: 50 });
+    const result = composeOutlines(f.svg, f.compiled.ir, f.inspection);
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    expect(misses(result.diagnostics)).toEqual([]);
+    expect(leftEnd(result.value, f.compiled.ir)).toEqual({ x: -2, y: 50 });
   }
 });

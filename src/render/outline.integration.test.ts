@@ -1,15 +1,18 @@
 import { describe, expect, test } from "bun:test";
+import { join } from "node:path";
 import { createD2CliBackend } from "../backends/d2/backend";
 import { checkD2Version, findD2Binary } from "../backends/d2/binary";
 import type { DiagramBackend } from "../backends/types";
 import { compileFigure } from "../compiler/compile";
 import { generateD2 } from "../compiler/d2";
 import { getOutlineRenderer } from "../core/outline";
+import { lintRenderedFigure } from "../lint/geometry";
 import { finalizeSvg, readSvgMetadata, sha256 } from "./finalize";
 import { containsRect, type Point } from "./geometry";
 import { inspectSvg } from "./inspect";
-import { rayHit, rectPoints } from "./outline-geometry";
+import { ENDPOINT_ANGLE_TOLERANCE_DEG, entryAngle, rayHit, rectPoints } from "./outline-geometry";
 import { OUTLINE_SOURCE, outlineRegistry } from "./outline-testing";
+import { svgToEditablePptx } from "./pptx";
 import { renderFigure } from "./render";
 
 const binary = findD2Binary();
@@ -242,4 +245,79 @@ edges:
     },
     D2_TEST_TIMEOUT_MS,
   );
+
+  // #82: D2 traces straight routes to diamond ends, leaving them < 1 unit off
+  // axis. Such ends are extended along their own direction without warnings.
+  for (const [fixture, minDeg, extended] of [
+    ["nearly-aligned", 1.2, 0],
+    ["slanted-side", 1.2, 2],
+  ] as const) {
+    test(
+      `${fixture}: nearly axis-aligned ends reach the outline without outline-edge-miss`,
+      async () => {
+        const source = await Bun.file(
+          join(import.meta.dir, `../../tests/fixtures/outlines/${fixture}.sumi.yaml`),
+        ).text();
+        const report = await lintRenderedFigure(source);
+        expect(report.diagnostics).toEqual([]);
+        const rendered = report.rendered;
+        if (!rendered) throw new Error("render failed");
+        const { compiled, artifact, inspection, svg } = rendered;
+        const finalized = finalizeSvg(artifact, compiled, { source });
+        if (!finalized.ok) throw new Error("finalize failed");
+        const raw = inspectSvg(finalized.value.svg, compiled.ir);
+        if (!raw.ok) throw new Error("inspect failed");
+        const before = new Map(raw.value.elements.map((g) => [g.key, g]));
+        const after = new Map(inspection.elements.map((g) => [g.key, g]));
+        let maxDeg = 0;
+        let moved = 0;
+        for (const edge of compiled.ir.edges) {
+          const original = before.get(edge.key)?.path ?? [];
+          const composed = after.get(edge.key)?.path ?? [];
+          for (const end of ["source", "target"] as const) {
+            const node = compiled.ir.elements.get(end === "source" ? edge.from : edge.to);
+            if (node?.kind !== "node" || !node.render) continue;
+            const bbox = before.get(node.key)?.bbox;
+            if (!bbox) throw new Error("missing node geometry");
+            const index = end === "source" ? 0 : original.length - 1;
+            const point = original[index]?.to as Point;
+            const neighbour = (
+              end === "source" ? original[1]?.to : original[index - 1]?.to
+            ) as Point;
+            const length = Math.hypot(point.x - neighbour.x, point.y - neighbour.y);
+            const ray = {
+              x: (point.x - neighbour.x) / length,
+              y: (point.y - neighbour.y) / length,
+            };
+            const clearance = rayHit(rectPoints(bbox), point, ray) as number;
+            const angle = entryAngle(bbox, point, ray, clearance);
+            expect(angle).toBeLessThanOrEqual(ENDPOINT_ANGLE_TOLERANCE_DEG);
+            maxDeg = Math.max(maxDeg, angle);
+            const renderer = getOutlineRenderer(node.render.renderer);
+            if (!renderer) throw new Error("missing renderer");
+            const outline = renderer.draw(bbox, renderer.params.parse(node.render.params)).outline;
+            const end_ = composed[index]?.to as Point;
+            // The end keeps D2's clearance to the drawn outline along its own ray.
+            expect(rayHit(outline, end_, ray)).toBeCloseTo(clearance, 2);
+            const shift = Math.hypot(end_.x - point.x, end_.y - point.y);
+            if (shift > 1) {
+              moved++;
+              // Extended along the travel direction, not snapped to an axis.
+              expect(
+                Math.abs((end_.x - point.x) * ray.y - (end_.y - point.y) * ray.x),
+              ).toBeLessThan(0.01);
+            }
+          }
+        }
+        // Guard that D2 still produces the off-axis routes this fixture pins.
+        expect(maxDeg).toBeGreaterThan(minDeg);
+        expect(moved).toBe(extended);
+        for (const connectors of ["freeform", "glued"] as const) {
+          const pptx = svgToEditablePptx(svg, compiled.ir, { connectors });
+          if (!pptx.ok) throw new Error(JSON.stringify(pptx.diagnostics));
+        }
+      },
+      D2_TEST_TIMEOUT_MS,
+    );
+  }
 });
