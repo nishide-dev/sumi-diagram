@@ -1,0 +1,13 @@
+# #82 regression: slightly slanted straight routes (~0.65° / ~1.30°, the largest
+# angle measured) enter the trapezoid's slanted sides ~15 units before its outline.
+version: 1
+figure: { id: slanted-side, profile: paper-double, layout: { direction: right } }
+nodes:
+  - { id: x, component: diamond, label: "判定" }
+  - { id: t, component: trapezoid, label: "Filter\n日本語" }
+  - { id: y, component: diamond, label: "判定" }
+  - { id: s, component: stack, label: "Filter\n日本語" }
+edges:
+  - { from: x, to: t }
+  - { from: t, to: y }
+  - { from: y, to: s }

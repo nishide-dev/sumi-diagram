@@ -6,7 +6,15 @@ import { getOutlineRenderer, type OutlineDrawing } from "../core/outline";
 import type { Result } from "../core/result";
 import type { PathSegment, Point, Rect } from "./geometry";
 import { decodeElementClass, type SvgInspection } from "./inspect";
-import { extensionsCross, rayHit, rectPoints } from "./outline-geometry";
+import {
+  ENDPOINT_ANGLE_TOLERANCE_DEG,
+  entryAngle,
+  extensionsCross,
+  FLUSH_TOLERANCE,
+  insideRect,
+  rayHit,
+  rectPoints,
+} from "./outline-geometry";
 import {
   attribute,
   childElements,
@@ -196,19 +204,26 @@ export function composeOutlines(
           x: (point.x - neighbour.x) / length,
           y: (point.y - neighbour.y) / length,
         };
-        const rectDistance =
-          length > 1e-9 ? rayHit(rectPoints(custom.bbox), point, direction) : undefined;
-        const outlineDistance =
-          length > 1e-9 ? rayHit(custom.drawing.outline, point, direction) : undefined;
-        // D2 endpoints enter their declared footprint normally, from outside.
-        // Never guess a different node if a backend changes this contract.
-        const normal = Math.abs(direction.x) < 1e-6 || Math.abs(direction.y) < 1e-6;
-        if (
-          rectDistance === undefined ||
-          outlineDistance === undefined ||
-          outlineDistance < rectDistance - 0.01 ||
-          !normal
-        ) {
+        const usable = length > 1e-9 && !insideRect(custom.bbox, point);
+        const rectDistance = usable ? rayHit(rectPoints(custom.bbox), point, direction) : undefined;
+        const outlineDistance = usable
+          ? rayHit(custom.drawing.outline, point, direction)
+          : undefined;
+        // D2 endpoints approach their declared footprint from outside and enter
+        // it approximately normally (within ENDPOINT_ANGLE_TOLERANCE_DEG, #82).
+        // Extend along the end's own travel direction; never guess a different
+        // node if a backend changes this contract. An end whose outline already
+        // coincides with the footprint along its ray needs no extension, so it
+        // is left as D2 drew it without a warning, whatever its angle.
+        const delta =
+          rectDistance !== undefined && outlineDistance !== undefined
+            ? outlineDistance - rectDistance
+            : undefined;
+        const normal =
+          rectDistance !== undefined &&
+          entryAngle(custom.bbox, point, direction, rectDistance) <= ENDPOINT_ANGLE_TOLERANCE_DEG;
+        const flush = delta !== undefined && Math.abs(delta) <= FLUSH_TOLERANCE;
+        if (delta === undefined || delta < -0.01 || (!normal && !flush)) {
           diagnostics.push(
             outlineDiagnostic(
               ir,
@@ -220,8 +235,8 @@ export function composeOutlines(
           );
           continue;
         }
-        const delta = outlineDistance - rectDistance;
-        if (delta <= 1e-9) continue;
+        // Ends that are not normal reach this point only when flush.
+        if (delta <= 1e-9 || !normal) continue;
         const shift = (p: Point): Point => ({
           x: p.x + direction.x * delta,
           y: p.y + direction.y * delta,

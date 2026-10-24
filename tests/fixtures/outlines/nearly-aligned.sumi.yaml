@@ -1,0 +1,23 @@
+# #82 regression: D2 traces the diamond ends, so the straight routes into the
+# trapezoid's top side and the stack's back layer are ~0.27° / ~1.27° off axis.
+version: 1
+figure:
+  id: hello
+  layout:
+    direction: down
+nodes:
+  - id: a
+    component: trapezoid
+    label: 入力データ
+  - id: b
+    component: diamond
+    label: 判定
+  - id: c
+    component: stack
+    label: 結果群
+edges:
+  - from: a
+    to: b
+    label: 検査
+  - from: b
+    to: c

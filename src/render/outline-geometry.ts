@@ -30,6 +30,53 @@ export function rayHit(
   return best;
 }
 
+/**
+ * Largest angle (degrees) between an edge end's travel direction and the inward
+ * normal of the footprint side it enters that still counts as "entering
+ * normally" (#82). ELK's last segment is orthogonal to the side, but when D2
+ * traces the other end to a diamond/oval/circle the straight route between
+ * two nearly aligned centres keeps a lateral offset below 1 unit. Measured with
+ * D2 v0.9.0 over 241 figures / 770 custom-outline ends: at most 1.302° (0.95
+ * unit over 32 units). 5° keeps a ~4x margin, accepts a 1-unit offset down to
+ * an 11.5-unit segment, and still rejects routes that clearly are not a normal
+ * entry (diagonal, curved or corner approaches). See design §6.13.
+ */
+export const ENDPOINT_ANGLE_TOLERANCE_DEG = 5;
+/** |outline − footprint| distance along the ray (units) treated as already touching. */
+export const FLUSH_TOLERANCE = 1e-6;
+
+/** Whether `point` lies strictly inside `rect`, beyond `tolerance` from every side. */
+export function insideRect(rect: Rect, point: Point, tolerance = 0.01): boolean {
+  return (
+    point.x > rect.x + tolerance &&
+    point.x < rect.x + rect.width - tolerance &&
+    point.y > rect.y + tolerance &&
+    point.y < rect.y + rect.height - tolerance
+  );
+}
+
+/**
+ * Angle in degrees between the unit `direction` and the inward normal of the
+ * side of `rect` that the ray from `origin` reaches at `distance`. At a corner
+ * the smaller of the two angles is used.
+ */
+export function entryAngle(rect: Rect, origin: Point, direction: Point, distance: number): number {
+  const hit = { x: origin.x + direction.x * distance, y: origin.y + direction.y * distance };
+  const sides = [
+    { gap: Math.abs(hit.x - rect.x), normal: { x: 1, y: 0 } },
+    { gap: Math.abs(hit.x - rect.x - rect.width), normal: { x: -1, y: 0 } },
+    { gap: Math.abs(hit.y - rect.y), normal: { x: 0, y: 1 } },
+    { gap: Math.abs(hit.y - rect.y - rect.height), normal: { x: 0, y: -1 } },
+  ];
+  const nearest = Math.min(...sides.map((s) => s.gap));
+  const cosine = Math.max(
+    ...sides
+      .filter((s) => s.gap <= nearest + 1e-6)
+      .map((s) => direction.x * s.normal.x + direction.y * s.normal.y),
+  );
+  return (Math.acos(Math.min(1, Math.max(-1, cosine))) * 180) / Math.PI;
+}
+
 /** Interior intersection (or overlapping interiors), excluding a mere shared endpoint. */
 export function extensionsCross(a: Point, b: Point, c: Point, d: Point): boolean {
   const u = { x: b.x - a.x, y: b.y - a.y };
