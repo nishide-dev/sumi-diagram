@@ -149,9 +149,9 @@ jobs:
           retention-days: 7
 
   # Reproducible build of the PDF engine (#59): rebuilds
-  # assets/wasm/sumi-svg2pdf.wasm from native/svg2pdf-wasm with the toolchain
-  # pinned in rust-toolchain.toml (svg2pdf from crates.io, sha256-verified and
-  # patched) and fails if it, its sha256 in src/render/pdf/engine.ts, or the
+  # assets/wasm/sumi-pdf.wasm from native/pdf-wasm with the toolchain
+  # pinned in rust-toolchain.toml (unmodified, checksum-pinned crates.io packages)
+  # and fails if it, its sha256 in src/render/pdf/engine.ts, or the
   # generated third-party list and license files differ from what is
   # committed. The other jobs use the committed module and need no Rust.
   pdf-wasm:
@@ -183,14 +183,14 @@ jobs:
             ~/.rustup/toolchains
             ~/.cargo/registry/index
             ~/.cargo/registry/cache
-          key: rust-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('native/svg2pdf-wasm/rust-toolchain.toml', 'native/svg2pdf-wasm/Cargo.lock') }}
+          key: rust-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('native/pdf-wasm/rust-toolchain.toml', 'native/pdf-wasm/Cargo.lock') }}
 
       - name: Build the PDF engine
         run: bun run pdf:wasm
 
       - name: Committed module and licenses match the build
         run: |
-          sha256sum assets/wasm/sumi-svg2pdf.wasm
+          sha256sum assets/wasm/sumi-pdf.wasm
           git diff --stat --exit-code -- assets/wasm native src/render/pdf
           untracked="$(git status --porcelain --untracked-files=all -- assets/wasm native src/render/pdf)"
           if [ -n "$untracked" ]; then echo "$untracked"; exit 1; fi
@@ -200,8 +200,8 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: sumi-svg2pdf-wasm-linux
-          path: assets/wasm/sumi-svg2pdf.wasm
+          name: sumi-pdf-wasm-linux
+          path: assets/wasm/sumi-pdf.wasm
           retention-days: 7
 
   # Keeps the release path from rotting (#20): builds the linux-x64 tarball

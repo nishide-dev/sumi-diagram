@@ -193,7 +193,8 @@ sumi catalog --json --section themes --section profiles   # Theme と Profile �
 - ページは SVG の `width` × `height`（pt）と同じ大きさの 1 ページです。論文の `\includegraphics` などで縮尺を変えずに使えます。
 - 文字は同梱フォント（BIZ UDPGothic / BIZ UDGothic）のサブセットを埋め込んだ文字として残り、検索・コピーできます。閲覧側・変換側のフォントには依存しません。
 - 図形・線はベクターのままで、ラスタ画像は含みません。同じ入力・同じ版の Sumi なら、OS によらずバイト単位で同じ PDF になります。
-- 変換は svg2pdf（WebAssembly にして `sumi` に同梱）が行い、Node.js・ブラウザ・追加のバイナリは不要です。
+- 変換は krilla + krilla-svg（WebAssembly にして `sumi` に同梱）が行い、Node.js・ブラウザ・追加のバイナリは不要です。
+- 開発版では PDF エンジンを移行したため、v0.2.0 の PDF とは内部表現・Producer・バイト列が変わります。寸法・検索可能な日本語・ベクター・provenance は維持します（[移行の検証](docs/verification/74-krilla.md)）。
 - PDF/A・PDF/X などの規格には適合しません（エッジのラベルの下の線を消すために透明（soft mask）を使います）。PDF のバージョンは 1.7 です。
 
 pdfLaTeX / LuaLaTeX では `graphicx` の `\includegraphics{figure.pdf}` で取り込めます。図の日本語フォントも PDF に埋め込まれているため、図のための CJK パッケージやシステムフォントは不要です。[検証環境と再現手順](docs/verification/63-pdf-latex.md)を参照してください。取り込み時に PDF のバージョンの警告が出る環境では、文書の先頭で PDF 1.7 を指定します（pdfLaTeX: `\pdfminorversion=7`、LuaLaTeX: `\pdfvariable minorversion=7`）。
@@ -254,7 +255,7 @@ Skill は CLI をラッパー（`skills/sumi/scripts/sumi`）経由で実行し�
 | `bun test` | テスト実行 |
 | `bun run schema:gen` / `schema:check` | JSON Schema の再生成 / 差分検査 |
 | `bun run d2:install` | 固定バージョンの D2 CLI を `.sumi/bin/d2` に導入 |
-| `bun run pdf:wasm` | PDF エンジン（`native/svg2pdf-wasm` → `assets/wasm/sumi-svg2pdf.wasm`）を再ビルドする（rustup が必要。[手順](CONTRIBUTING.md#pdf-エンジンwasmの再ビルド)） |
+| `bun run pdf:wasm` | PDF エンジン（`native/pdf-wasm` → `assets/wasm/sumi-pdf.wasm`）を再ビルドする（rustup が必要。[手順](CONTRIBUTING.md#pdf-エンジンwasmの再ビルド)） |
 | `bun run pdf:latex` | pdfLaTeX / LuaLaTeX への実際の取り込みを検証する（TeX Live・Poppler・D2 が必要。[検証記録](docs/verification/63-pdf-latex.md)） |
 | `bun run src/cli/index.ts --help` | CLI をソースから実行 |
 | `bun run example:render <file> [out.svg]` | `sumi render` の別名（`examples/` の再生成用） |
@@ -270,7 +271,7 @@ Skill は CLI をラッパー（`skills/sumi/scripts/sumi`）経由で実行し�
 | `src/core` | スキーマ・IR・共通ユーティリティ |
 | `src/backends` | レイアウトバックエンド（D2 / ELK） |
 | `src/render` | SVG 出力（`src/render/pdf`: PDF への変換） |
-| `native/svg2pdf-wasm` | PDF エンジンの Rust クレート（svg2pdf を WASM に。生成物は `assets/wasm/`） |
+| `native/pdf-wasm` | PDF エンジンの Rust クレート（krilla + krilla-svg を WASM に。生成物は `assets/wasm/`） |
 | `src/lint` | 構造・視覚 Lint |
 | `schema` | 生成された JSON Schema（手で編集しない） |
 | `tests/fixtures` | テスト用の入力ファイル |

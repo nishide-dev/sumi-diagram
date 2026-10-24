@@ -1,22 +1,17 @@
 /**
- * The PDF's document information dictionary (#59). svg2pdf 0.13 writes a
- * fixed `/Producer (svg2pdf)` as the last object before the cross-reference
- * table. {@link setDocumentInfo} replaces that object's dictionary with
- * Sumi's provenance (the same fields as the SVG metadata: no timestamps, no
- * paths, so the PDF stays deterministic) and shifts `startxref` by the size
- * difference. The objects before it keep their offsets, so the xref table
- * itself is unchanged. No XMP metadata stream is written.
+ * The PDF's document information dictionary (#74). Our krilla wrapper writes
+ * a fixed Producer marker. setDocumentInfo replaces it with Sumi provenance,
+ * updating the offsets of every subsequent object and startxref. No incremental
+ * update or XMP stream is added. The pinned engine writes classic xref tables;
+ * unexpected structures fail closed rather than producing a damaged PDF.
  *
- * Why here and not in the engine: svg2pdf 0.13's `to_pdf` writes the
- * dictionary itself from crate-private state (`Context`, `tree_to_stream`),
- * so setting it in Rust would mean a second, larger patch to svg2pdf (or
- * re-implementing `to_pdf`), and a new WASM build whenever the provenance
- * fields change. The byte edit is checked strictly against svg2pdf's output
- * and the golden PDFs.
+ * krilla's public Metadata API supports standard fields, but not arbitrary
+ * Sumi provenance keys. This checked edit retains those fields without an
+ * upstream patch, a second PDF implementation or a new host/WASM metadata ABI.
  */
 
 import type { SumiSvgMetadata } from "../finalize";
-import { SVG2PDF_VERSION } from "./engine";
+import { PDF_ENGINE_VERSION } from "./engine";
 
 /** Encodes a PDF text string: a literal for printable ASCII, else UTF-16BE hex with a BOM. */
 export function pdfTextString(value: string): string {
@@ -32,7 +27,7 @@ export function pdfTextString(value: string): string {
 
 /** The entries Sumi writes, in order (PDF names without the slash → text). */
 export function documentInfoEntries(metadata: SumiSvgMetadata | undefined): [string, string][] {
-  const producer = `svg2pdf ${SVG2PDF_VERSION}`;
+  const producer = PDF_ENGINE_VERSION;
   if (metadata === undefined) return [["Producer", producer]];
   return [
     ["Title", metadata.figureId],
@@ -50,12 +45,13 @@ export function documentInfoEntries(metadata: SumiSvgMetadata | undefined): [str
 const latin1 = new TextDecoder("latin1");
 
 /**
- * Replaces svg2pdf's document information dictionary (see the module
+ * Replaces the engine's document information dictionary (see the module
  * comment). The dictionary is found through the file's own structure, never
  * a fixed window: the final `startxref` gives the cross-reference table, the
  * trailer's `/Info` reference names the object and the table gives its
- * offset. It must be svg2pdf's `/Producer (svg2pdf)` object and the last one
- * before the table, so no other offset moves. Returns `undefined` otherwise
+ * offset. It must be our `/Producer(Sumi krilla)` marker. The following
+ * objects (including krilla's Catalog) move by the size delta, and their
+ * xref entries are rewritten. Returns `undefined` on an unexpected structure
  * (the engine changed); the caller reports that as an error.
  */
 export function setDocumentInfo(
@@ -77,8 +73,9 @@ export function setDocumentInfo(
   const entriesAt = head[0].length;
   const trailerAt = entriesAt + count * 20;
   const trailer = xref.slice(trailerAt);
-  if (!trailer.startsWith("trailer\n<<\n") || !trailer.endsWith(">>\n")) return undefined;
-  const infoRef = /\n {2}\/Info (\d+) 0 R\n/.exec(trailer);
+  if (!trailer.startsWith("trailer\n<<") || !trailer.endsWith(">>\n")) return undefined;
+  if (/\/(Prev|Encrypt|XRefStm)\b/.test(trailer)) return undefined;
+  const infoRef = /\/Info (\d+) 0 R(?=[\s/<>])/.exec(trailer);
   if (infoRef === null) return undefined;
   const info = Number(infoRef[1]);
   const entry = /^(\d{10}) 00000 n\r\n$/.exec(
@@ -86,20 +83,37 @@ export function setDocumentInfo(
   );
   if (info >= count || entry === null) return undefined;
   const infoAt = Number(entry[1]);
-  const oldDict = "<<\n  /Producer (svg2pdf)\n>>";
-  const oldObject = `${info} 0 obj\n${oldDict}\nendobj\n\n`;
-  if (infoAt + oldObject.length !== xrefAt || text(infoAt, xrefAt) !== oldObject) {
+  const oldDict = "<</Producer(Sumi krilla)>>";
+  const oldObject = `${info} 0 obj\n${oldDict}\nendobj\n`;
+  const oldEnd = infoAt + oldObject.length;
+  if (oldEnd > xrefAt || text(infoAt, oldEnd) !== oldObject) {
     return undefined;
   }
 
   const newDict = `<<\n${entries.map(([k, v]) => `  /${k} ${pdfTextString(v)}\n`).join("")}>>`;
   const dictAt = infoAt + `${info} 0 obj\n`.length;
-  const startxref = xrefAt + (newDict.length - oldDict.length);
+  const delta = newDict.length - oldDict.length;
+  const startxref = xrefAt + delta;
+  const updatedEntries: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const raw = xref.slice(entriesAt + i * 20, entriesAt + (i + 1) * 20);
+    const parsed = /^(\d{10}) (\d{5}) ([nf])\r\n$/.exec(raw);
+    if (parsed === null) return undefined;
+    const offset = Number(parsed[1]);
+    if (parsed[3] === "n") {
+      if (parsed[2] !== "00000" || offset >= xrefAt || offset < 1) return undefined;
+      if (offset > infoAt && offset < oldEnd) return undefined;
+      const shifted = offset >= oldEnd ? offset + delta : offset;
+      if (shifted < 0 || shifted > 9_999_999_999) return undefined;
+      updatedEntries.push(`${String(shifted).padStart(10, "0")} 00000 n\r\n`);
+    } else updatedEntries.push(raw);
+  }
   const encoder = new TextEncoder();
   const parts = [
     pdf.subarray(0, dictAt),
     encoder.encode(newDict),
-    pdf.subarray(dictAt + oldDict.length, startxrefAt),
+    pdf.subarray(dictAt + oldDict.length, xrefAt),
+    encoder.encode(`${head[0]}${updatedEntries.join("")}${trailer}`),
     encoder.encode(`startxref\n${startxref}\n%%EOF`),
   ];
   const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));

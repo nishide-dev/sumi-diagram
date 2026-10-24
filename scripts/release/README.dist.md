@@ -13,7 +13,7 @@ Sumi は、事前定義されたコンポーネントとデザインシステム
 | `share/sumi/fonts/` | 同梱フォント BIZ UD ゴシック（SIL OFL 1.1。`licenses/biz-ud-gothic/`） |
 | `LICENSE` | Sumi のライセンス（MIT） |
 | `licenses/bun/`・`licenses/npm/` | `bin/sumi` に含まれる Bun ランタイムと npm パッケージのライセンス |
-| `licenses/svg2pdf-wasm/` | `bin/sumi` に含まれる PDF エンジン（svg2pdf と Rust の依存クレート。WebAssembly）のライセンスと一覧（`THIRD_PARTY.md`） |
+| `licenses/pdf-wasm/` | `bin/sumi` に含まれる PDF エンジン（krilla・krilla-svg と Rust の依存クレート。WebAssembly）のライセンスと一覧（`THIRD_PARTY.md`） |
 | `NOTICE` | 同梱物の出典・版・ライセンス |
 | `SHA256SUMS` | このディレクトリ内の全ファイルの sha256 |
 

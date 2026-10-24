@@ -22,7 +22,7 @@ v1 からの変更: D2 の実際の値域・フォント・ID・SVG 構造に合
   → render       (D2 CLI, #9)                       stage: backend
   → SVG artifact (#11)                              stage: svg
   → lint         (#12 構造 / #13 幾何)               stage: lint / geometry
-  → PDF          (任意。svg2pdf/WASM, #59, §6.12)    stage: pdf
+  → PDF          (任意。krilla/WASM, #59・#74, §6.12) stage: pdf
 ```
 
 ```ts
@@ -650,7 +650,7 @@ layout:
      share/sumi/fonts/<set>/      同梱フォント（OFL-1.1）と出典の README
      licenses/d2/                 D2 の LICENSE.txt・THIRD_PARTY_NOTICES.txt
      licenses/biz-ud-gothic/      OFL.txt
-     licenses/svg2pdf-wasm/       bin/sumi に埋め込む PDF エンジンのクレートの一覧とライセンス（#59、§6.12）
+     licenses/pdf-wasm/           bin/sumi に埋め込む PDF エンジンのクレートの一覧とライセンス（#74、§6.12）
      LICENSE  NOTICE  README.md  VERSION
      SHA256SUMS                   tarball 内の全ファイルの sha256
    ```
@@ -726,7 +726,22 @@ layout:
 - **`scripts/preview`**: SVG の file URL を作るのに Bun を使っていたが、導入先には Bun も Node.js もないことがあるため、Bun → Node.js → Python 3 の順に使う。
 - **検証**: `src/cli/skill.test.ts` で、skills CLI が期待する構成（`skills/` の直下のディレクトリごとに、ディレクトリ名と同じ `name` を持つ SKILL.md）、シンボリックリンク、ラッパーの探索順（`SUMI_BIN` の優先、自身のチェックアウトが `PATH` の `sumi` より優先、導入先では `PATH` の `sumi` が作業ディレクトリのチェックアウトより優先、そのチェックアウトへのフォールバック、どれも無いときのメッセージと終了コード、別名のリンク・複製を `PATH` 上で飛ばすこと）と、preview の Bun・Node.js・Python 3 の各経路（それぞれの実行環境だけを置いた `PATH` で。CI では 3 つとも必須）を検査する。テストはネットワークを使わないため、`npx skills add` 自体は PR で手動で確認した。
 
-### 6.12 #59 の PDF 出力
+### 6.12 PDF 出力（#59・#74）
+
+**現行実装は #74 の krilla + krilla-svg。** 保守終了した svg2pdf を置き換える判断は [#60 の評価](../research/60-krilla.md)、移行の検証は [#74 の記録](../verification/74-krilla.md) を参照。
+
+- **契約**: `svgToPdf(svg, { fontSet? }): Result<Uint8Array>`、CLI の形式・出力先・JSON、provenance の項目、既存 `pdf/*` Diagnostic、入力上限は #59 の契約を維持する。
+- **エンジン**: `native/pdf-wasm/` の krilla 0.8.2 + krilla-svg 0.8.1、usvg 0.47.0、fontdb 0.23.0。Rust 1.98.1 / `wasm32-unknown-unknown`、Cargo.lock の版・checksum 固定、upstream パッチなし。raw ABI は `alloc` / `add_font` / `convert` / `output_ptr`。host imports は 0 と検査する。
+- **生成物と配布**: `assets/wasm/sumi-pdf.wasm`、`src/render/pdf/engine.ts` の `PDF_WASM_SHA256`。`with { type: "file" }` で単一実行ファイルへ埋め込み、sha256 検証・プロセス単位のコンパイル・変換単位の新規 instance を維持する。基準ビルドは linux-x64。`bun run pdf:wasm` の再現ビルドと `--adopt` の運用は CONTRIBUTING.md のとおり。
+- **文字とページ**: 既存 `resolveSvgFonts()` で D2 の CSS を同梱 TTF の実 family/weight へ解決する。fontdb は渡したファイルだけを読む。usvg の CSS px を ×72/96 して MediaBox と描画先の Size を定義し、SVG の pt と一致する 1 ページの PDF 1.7 を生成する。Sumi の図は文字のサブセット・ToUnicode とベクターマスクを保ち、画像数 0。krilla-svg の推移 feature に画像・フィルタ機能があるため、任意の外部 SVG 全般について純ベクターを保証する意味ではない。
+- **メタデータ**: krilla の公開 Metadata API は独自項目に対応しないため、wrapper が書く `/Producer(Sumi krilla)` の辞書を TS 側で厳密に確認して置換する。Info は Catalog より前にあるので、辞書の長さ差に合わせて後続オブジェクトの全 xref offset と startxref を更新する。日時・XMP・incremental update は追加しない。項目は従来どおり、Producer は `Sumi <版> (krilla 0.8.2, krilla-svg 0.8.1)`。形式の不一致は `pdf/conversion-failed`。
+- **reader と決定性**: 固定版 krilla の classic xref、compact 辞書、indirect resources は既存の最小 reader が対応済み（object/xref stream は出力されない）。examples 4 図の PDF と、全 48 部品/テーマ＋日本語 mask の hash を golden として Linux/macOS と release の全 4 OS/CPU ターゲットで検査する。Poppler での独立検査、実 pdfLaTeX / LuaLaTeX の取り込み検査も維持する。
+- **ライセンス**: `native/pdf-wasm/THIRD_PARTY.md` と `licenses/` を生成し、tarball の `licenses/pdf-wasm/` に同梱する。Cargo metadata から埋め込み 78 crates / build-only 10 crates を分類する。krilla の crate package に欠ける原文は `.cargo_vcs_info.json` の commit から SHA-256 検証して取得する。NOTICE の MPL-2.0 部分について、原文と無改変 upstream の対応ソース入手先を記録する。
+- **互換性**: PDF の内部構造・subset tag・Producer・バイト列は更新される。YAML・CLI・SVG・ページ寸法・フォント・provenance の契約を変えるものではない。PDF/A / PDF/X・タグ付き PDF・複数ページ等は引き続き保証しない。
+
+<details>
+<summary>#59 時点の svg2pdf 実装の記録（#74 で置換済み）</summary>
+
 #19 の評価（[docs/research/19-pdf-pptx-export.md](../research/19-pdf-pptx-export.md)）で推した方式（svg2pdf を WASM にして同梱）で実装した。
 
 1. **段と API**（`src/render/pdf`）: 仕上げ後の SVG（§6.3）を入力にする新しい段 `pdf`（§0）。`svgToPdf(svg, { fontSet? }): Result<Uint8Array>`。フォントセットは省略すると SVG のメタデータの `font-set` から引く。診断コード（いずれも error）: `pdf/input-too-large`（下記の入力の上限を超えた）、`pdf/missing-font`（フォントセットが分からない、またはフォントファイルを読めない・解析できない）、`pdf/unresolved-font`（SVG が使う D2 のフォント slot にファイルがない、または書き換え後も D2 の family 名が残る）、`pdf/engine-unavailable`（WASM がない、または sha256 が固定値と違う）、`pdf/conversion-failed`（エンジンが SVG を拒否した、エンジンが trap で止まった、または出力の文書情報が想定と違う）。
@@ -749,6 +764,8 @@ layout:
    - **リリース**: `release:smoke` が、同梱バイナリ（直接とシンボリックリンク経由）で日本語の図を PDF にし、ページの大きさ・埋め込みサブセット・画像 0・ラベルの文字を検査し、**ソースから同じ SVG を変換したバイトと一致する**ことを確かめ、sha256 を出力する。release.yml は 4 ターゲットでこれを実行するので、各ターゲットのバイナリがソースと同じ（したがって互いに同じ）PDF を出すことが確かめられる。
 9. **ライセンス**（§6.8 の 9 に追加）: `bun run pdf:wasm` が `cargo metadata`（wasm の target、Cargo.lock）から、WASM にコンパイルされるクレート 67 個と、ビルド時だけ使うクレート 7 個（proc-macro とその依存。同梱しない）を `native/svg2pdf-wasm/THIRD_PARTY.md` に書き、前者のライセンスファイルをクレートのパッケージからそのまま `native/svg2pdf-wasm/licenses/<crate>-<version>/` にコピーする（コミットし、CI で一致を検査）。ライセンスはすべて許容的なもの（MIT・Apache-2.0 の選択が大半。ほかに BSD-2-Clause（arrayref）・BSD-3-Clause（tiny-skia、tiny-skia-path）・Zlib（slotmap、zlib-rs）、選択肢として 0BSD・Unlicense・BSL-1.0）。svg2pdf の NOTICE によれば、ICC プロファイル（`src/icc/`）は CC0、`src/util/helper.rs` と `src/render/path.rs` の一部は MPL-2.0。MPL-2.0 の部分はソース（crates.io の 0.13.0 と、パッチを含む Sumi のリポジトリ）の入手先を `NOTICE` に書いた（パッチはこれらのファイルを変更しない）。release build は `licenses/svg2pdf-wasm/` にこれらを入れ、`NOTICE` に PDF エンジンの項（版・WASM の sha256・パッチ・MPL の部分）を加える。build は WASM の sha256 と svg2pdf のライセンスファイルが揃っていなければ失敗し、smoke もその存在を確かめる。
 10. **保証しないこと・制約**: PDF/A・PDF/X 等の規格適合（D2 のラベル用 mask が透明を使う。必要になれば、変換前に mask をラベルの白い背景に置き換える前処理（#19 §3.2・§10 の 6）で透明をなくせる。需要が出てから別 Issue）、タグ付き PDF（アクセシビリティ）、複数ページ、レイヤー・リンク。pdfLaTeX / LuaLaTeX での取り込み（PDF 1.7）は #63 で検証済み（TeX Live 2026、文字・フォント埋め込み・位置・表示）。[検証記録](../verification/63-pdf-latex.md)と `bun run pdf:latex` で再現でき、CI に専用の検査ジョブを設ける。svg2pdf / usvg の版を上げると出力が変わる（golden の更新が必要。D2 の更新と同じ扱い）。
+
+</details>
 
 ### 6.13 #53 のカスタム輪郭合成
 

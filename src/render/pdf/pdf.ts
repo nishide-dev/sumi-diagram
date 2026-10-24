@@ -127,7 +127,7 @@ export function svgToPdf(svg: string, options: SvgToPdfOptions = {}): Result<Uin
   if (pdf === undefined) {
     return failed(
       "pdf/conversion-failed",
-      "The PDF engine's output does not end with the document information Sumi expects.",
+      "The PDF engine's output does not have the document information structure Sumi expects.",
     );
   }
   return { ok: true, value: pdf, diagnostics: [] };

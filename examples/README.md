@@ -63,7 +63,7 @@ bun run gallery:check   # fails if any of them is stale (run in CI)
 ## Committed PDFs
 
 `<name>.pdf` is `<name>.svg` converted by `sumi render -o <name>.pdf`'s PDF
-engine (svg2pdf compiled to WebAssembly): one page of the SVG's size in pt,
+engine (krilla + krilla-svg compiled to WebAssembly): one page of the SVG's size in pt,
 text in subsets of the bundled fonts, no raster images. They are
 byte-identical goldens: `src/render/pdf/pdf.test.ts` converts the committed
 SVGs on Linux and macOS in CI and compares the bytes, and checks the page

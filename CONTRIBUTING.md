@@ -73,24 +73,24 @@ PDF の LaTeX 取り込み検証（#63）は、TeX Live と Poppler がある環
 
 ### PDF エンジン（WASM）の再ビルド
 
-PDF 出力（#59）は、`native/svg2pdf-wasm/` の Rust クレート（svg2pdf 0.13.0 ＋決定性パッチ）を `wasm32-unknown-unknown` にビルドした `assets/wasm/sumi-svg2pdf.wasm` を使います。生成物はコミットしてあり、通常の開発・テスト・リリースに Rust は不要です。クレート・パッチ・依存の版・ツールチェーンを変えたときだけ再ビルドします。
+PDF 出力（#59、#74）は、`native/pdf-wasm/` の Rust クレート（krilla 0.8.2 + krilla-svg 0.8.1、upstream パッチなし）を `wasm32-unknown-unknown` にビルドした `assets/wasm/sumi-pdf.wasm` を使います。生成物はコミットしてあり、通常の開発・テスト・リリースに Rust は不要です。クレート・依存の版・ツールチェーンを変えたときだけ再ビルドします。
 
 ```sh
 bun run pdf:wasm   # rustup が必要。rust-toolchain.toml の版と wasm32 target は自動で導入される
 ```
 
-このコマンドは、crates.io の svg2pdf 0.13.0 を sha256 を検査してから `native/svg2pdf-wasm/vendor/`（gitignore）に展開してパッチを当て、`cargo build --release --locked` し、`.wasm`・`src/render/pdf/engine.ts` の `SVG2PDF_WASM_SHA256`・`native/svg2pdf-wasm/THIRD_PARTY.md`・`native/svg2pdf-wasm/licenses/` を書き換えます。ローカルのパス（チェックアウトと `CARGO_HOME`）は `--remap-path-prefix` で消します。
+このコマンドは、Cargo.lock の版と checksum で固定された crates.io パッケージを `cargo build --release --locked` し、`.wasm`・`src/render/pdf/engine.ts` の `PDF_WASM_SHA256`・`native/pdf-wasm/THIRD_PARTY.md`・`native/pdf-wasm/licenses/` を書き換えます。krilla のパッケージに欠けているライセンス原文は、パッケージの Git commit に対応する upstream 原文を SHA-256 検証して補います。ローカルのパス（チェックアウトと `CARGO_HOME`）は `--remap-path-prefix` で消します。
 
 **コミットする `.wasm` は linux-x64 でのビルド**です（CI の `PDF engine reproducible build` が同じビルドをして一致を確かめます）。同じホストなら何度ビルドしても同じバイトになりますが、ホストが違うとコードの数バイトが変わります（darwin-arm64 と linux-x64 で確認。パスではなく、LLVM がホストの数学ライブラリで浮動小数の定数を畳み込むためと推測。変換結果の PDF は同じでした）。Linux 以外で変更する場合は次の手順にします。
 
 1. `bun run pdf:wasm` で手元のビルドを作り、テストする（スクリプトは注意を表示します）。
-2. ライセンス一覧などの差分と一緒に push する。CI の `PDF engine reproducible build` は `.wasm` の違いで失敗し、Linux で作った `.wasm` を artifact `sumi-svg2pdf-wasm-linux` に残す。
-3. `gh run download <run-id> -n sumi-svg2pdf-wasm-linux -D /tmp/wasm` で取得し、`bun run pdf:wasm --adopt /tmp/wasm/sumi-svg2pdf.wasm` で置き換える（ビルドせずにコピーし、`SVG2PDF_WASM_SHA256` を更新する）。
+2. ライセンス一覧などの差分と一緒に push する。CI の `PDF engine reproducible build` は `.wasm` の違いで失敗し、Linux で作った `.wasm` を artifact `sumi-pdf-wasm-linux` に残す。
+3. `gh run download <run-id> -n sumi-pdf-wasm-linux -D /tmp/wasm` で取得し、`bun run pdf:wasm --adopt /tmp/wasm/sumi-pdf.wasm` で置き換える（ビルドせずにコピーし、`PDF_WASM_SHA256` を更新する）。
 
-PDF の出力が変わる変更なら、続けて `bun run gallery` で `examples/*/*.pdf` を更新します。
+PDF の出力が変わる変更なら、続けて `SUMI_UPDATE_GOLDEN=1 bun test src/render/pdf` で examples の PDF と `tests/fixtures/pdf/corpus-sha256.json` を更新します。後者はギャラリー 48 図と日本語マスクの hash です。通常 CI の両 OS と release workflow の全 4 ターゲットで同じ値を検査します。
 
 - macOS の rustup では `rust-lld` が `libLLVM.dylib` を見つけられないことがあります。スクリプトはツールチェーンの `lib/` を `DYLD_FALLBACK_LIBRARY_PATH` に入れて回避します（Linux では影響しません）。
-- 依存（Cargo.lock）を変えた場合は、`THIRD_PARTY.md` のライセンスがすべて配布できるものか（MIT・Apache-2.0・BSD・Zlib などの許容的なライセンス）を確認します。リリースの tarball は `licenses/svg2pdf-wasm/` にこれらをそのまま入れます。
+- 依存（Cargo.lock）を変えた場合は、`THIRD_PARTY.md` のライセンスと NOTICE を確認します。krilla の NOTICE は `content_draw_path` の一部を MPL-2.0 としており、原文と対応ソースの入手先も同梱します。リリースの tarball は `licenses/pdf-wasm/` にこれらをそのまま入れます。
 
 ## ブランチ名
 

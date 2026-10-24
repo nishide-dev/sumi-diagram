@@ -10,7 +10,9 @@
  * Tf / Tj / TJ, and form XObjects via Do) and decodes each glyph through the
  * font's ToUnicode CMap, with its origin and advance in page space (pt, y up).
  *
- * Only what svg2pdf writes is supported (no object streams, xref streams,
+ * The pinned krilla 0.8.2 serializer uses classic xref tables, including
+ * compact dictionaries and indirect resources (supported here). Only its
+ * emitted subset is supported (no object streams, xref streams,
  * encryption or incremental updates); anything else throws.
  */
 

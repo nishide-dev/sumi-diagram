@@ -19,7 +19,7 @@ import { DEFAULT_FONT_SET_ID, getFontSet } from "../../core/theme/fonts";
 import { measureLabel, renderedLines } from "../../lint/geometry/measure";
 import { readSvgMetadata } from "../finalize";
 import { inspectSvg } from "../inspect";
-import { loadEngine, SVG2PDF_WASM_PATH, SVG2PDF_WASM_SHA256 } from "./engine";
+import { loadEngine, PDF_ENGINE_VERSION, PDF_WASM_PATH, PDF_WASM_SHA256 } from "./engine";
 import { svgToPdf } from "./pdf";
 import { inspectPdf, textLines } from "./testing";
 
@@ -39,7 +39,7 @@ if (fontSet === undefined) throw new Error("no default font set");
 const sha256 = (bytes: Uint8Array) => new Bun.CryptoHasher("sha256").update(bytes).digest("hex");
 
 test("the engine module matches its pinned sha256", () => {
-  expect(sha256(new Uint8Array(readFileSync(SVG2PDF_WASM_PATH)))).toBe(SVG2PDF_WASM_SHA256);
+  expect(sha256(new Uint8Array(readFileSync(PDF_WASM_PATH)))).toBe(PDF_WASM_SHA256);
   expect(() => loadEngine(join(ROOT, "assets", "fonts", "biz-ud-gothic", "OFL.txt"))).toThrow(
     /expected [0-9a-f]{64}/,
   );
@@ -89,7 +89,7 @@ describe.each(EXAMPLES)("%s", (example) => {
     expect(inspected.info).toEqual({
       Title: m.figureId,
       Creator: `Sumi ${m.sumiVersion}`,
-      Producer: `Sumi ${m.sumiVersion} (svg2pdf 0.13.0)`,
+      Producer: `Sumi ${m.sumiVersion} (${PDF_ENGINE_VERSION})`,
       SumiBackend: `${m.backend.name} ${m.backend.version}`,
       SumiTheme: m.theme,
       SumiProfile: m.profile,

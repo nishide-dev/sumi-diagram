@@ -1,7 +1,7 @@
-import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { BUILTIN_FONT_SETS } from "../../src/core/theme/fonts";
-import { loadEngine, runEngine } from "../../src/render/pdf/engine";
+import { runEngine } from "../../src/render/pdf/engine";
 import { resolveSvgFonts } from "../../src/render/pdf/fonts";
 import wasmPath from "./wasm/target/wasm32-unknown-unknown/release/sumi_krilla_poc.wasm" with {
   type: "file",
@@ -32,7 +32,12 @@ if (process.argv[2] === "--smoke") {
   console.log(hash(convert(candidate, svg, fonts)));
   process.exit(0);
 }
-const current = loadEngine();
+// Preserve the evaluated baseline even after the production engine migrates.
+const baseline = Bun.spawnSync(["git", "show", "2073ccc:assets/wasm/sumi-svg2pdf.wasm"]);
+if (baseline.exitCode !== 0) throw new Error("Fetch git history through 2073ccc to reproduce #60");
+if (hash(baseline.stdout) !== "7a8ea73e55d113facda46ed261f6dd144d1fee341ab02d96bccd3bc128e7e71d")
+  throw new Error("Wrong #60 baseline");
+const current = new WebAssembly.Module(new Uint8Array(baseline.stdout));
 const paths = [
   ...new Bun.Glob("examples/*/*.svg").scanSync("."),
   ...new Bun.Glob("docs/gallery/components/*.svg").scanSync("."),
@@ -147,7 +152,7 @@ const report = {
     bytes: bytes.length,
     sha256: hash(bytes),
     imports: WebAssembly.Module.imports(candidate),
-    currentBytes: statSync("assets/wasm/sumi-svg2pdf.wasm").size,
+    currentBytes: baseline.stdout.length,
   },
   rows,
 };

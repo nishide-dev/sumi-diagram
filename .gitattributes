@@ -7,3 +7,5 @@ docs/gallery/** text eol=lf
 # Binary goldens and the committed PDF engine (#59): never touched by line-ending conversion.
 *.pdf binary
 *.wasm binary
+# Upstream license texts are checksum-verified and copied byte for byte.
+native/pdf-wasm/licenses/** -text -whitespace
