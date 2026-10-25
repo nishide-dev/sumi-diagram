@@ -9,9 +9,9 @@
  */
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { runCommand } from "../../../src/core/subprocess";
 import { getFontSet } from "../../../src/core/theme/fonts";
 import { loadEngine, runEngine } from "../../../src/render/pdf/engine";
+import { countPdfImages, mustRun } from "./tools";
 
 const OUT = join(import.meta.dir, "..", "out", "engine");
 
@@ -25,7 +25,7 @@ async function makeRasters(): Promise<Record<string, Uint8Array>> {
   for (const ext of ["png", "jpg", "webp", "gif"]) {
     const file = join(OUT, `sample.${ext}`);
     // Deterministic synthetic image: a 64x48 gradient. -strip drops timestamps.
-    const r = await runCommand([
+    const r = await mustRun([
       "magick",
       "-size",
       "64x48",
@@ -73,7 +73,7 @@ async function pngInk(png: Uint8Array, name: string): Promise<number> {
   const file = join(OUT, `${name}.png`);
   await writeFile(file, png);
   // Fraction of pixels in the central box that are not near-white.
-  const r = await runCommand([
+  const r = await mustRun([
     "magick",
     file,
     "-gravity",
@@ -89,7 +89,9 @@ async function pngInk(png: Uint8Array, name: string): Promise<number> {
     "%[fx:mean]",
     "info:",
   ]);
-  return Number(r.stdout.trim());
+  const ink = Number(r.stdout.trim());
+  if (r.stdout.trim() === "" || !Number.isFinite(ink)) throw new Error(`magick: ${r.stdout}`);
+  return ink;
 }
 
 export async function runEngineImageProbes(): Promise<EngineImageCase[]> {
@@ -130,8 +132,8 @@ export async function runEngineImageProbes(): Promise<EngineImageCase[]> {
       row.pdfBytes = pdf.pdf.length;
       const again = runEngine(module, svg, fonts, "convert");
       row.pdfDeterministic = again.ok && Buffer.from(again.pdf).equals(Buffer.from(pdf.pdf));
-      const list = await runCommand(["pdfimages", "-list", file]);
-      row.pdfImages = Math.max(0, list.stdout.trim().split("\n").length - 2);
+      const list = await mustRun(["pdfimages", "-list", file]);
+      row.pdfImages = countPdfImages(list.stdout);
     } else row.pdfMessage = pdf.message;
     const picture = runEngine(module, svg, fonts, "picture");
     if (picture.ok) {

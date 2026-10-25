@@ -2,6 +2,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { checkLayout } from "./check";
 import { importSvg } from "./icons";
 import { runPrototype } from "./index";
 import { ModelError, parseModel } from "./model";
@@ -79,12 +80,104 @@ describe("SVG import allowlist", () => {
       "image",
     ]);
   });
+  test("validates inherited and local paint values", () => {
+    const icon = importSvg(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke="url(#x)" stroke-width="2"><path d="M1 1L2 2" fill="red" stroke-linecap="javascript:x"/></svg>',
+    );
+    expect(icon.markup).toBe('<path d="M1 1L2 2" stroke-width="2"/>');
+    expect(icon.rejected).toEqual([
+      "svg@stroke=url(#x)",
+      "path@fill=red",
+      "path@stroke-linecap=javascript:x",
+    ]);
+  });
+  test("entity-encoded quotes cannot inject attributes", () => {
+    const icon = importSvg(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke="&quot; onmouseover=&quot;alert(1)"><path d="M0 0L1 1"/></svg>',
+    );
+    expect(icon.markup).toBe('<path d="M0 0L1 1"/>');
+    expect(icon.rejected).toEqual(['svg@stroke=" onmouseover="alert(1)']);
+    expect(icon.markup).not.toContain("onmouseover");
+  });
   test("refuses DTDs (XXE / entity expansion)", () => {
     expect(() =>
       importSvg(
         '<!DOCTYPE svg [<!ENTITY x "y">]><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"/>',
       ),
     ).toThrow();
+  });
+});
+
+describe("checker negative cases", () => {
+  // Two unrelated nets: (0,0)→(40,0) and (20,-20)→(20,0) ends on the first one (a T contact),
+  // and an arrow whose head lies on the other net.
+  const model = parseModel(MINIMAL);
+  const layout = {
+    nodes: new Map([
+      ["a", { x: 0, y: 0, w: 0, h: 0 }],
+      ["b", { x: 40, y: 0, w: 0, h: 0 }],
+    ]),
+    groups: new Map([["g", { x: 10, y: -30, w: 20, h: 20 }]]),
+    captions: new Map(),
+    labels: new Map(),
+    width: 100,
+    height: 100,
+  };
+  const edge = (index: number) => ({
+    index,
+    from: "a",
+    to: "b",
+    fromAnchor: undefined,
+    toAnchor: undefined,
+    arrow: true,
+    label: "",
+  });
+  const routed = [
+    {
+      edge: edge(0),
+      net: "p",
+      points: [
+        { x: 0, y: 0 },
+        { x: 40, y: 0 },
+      ],
+      toSide: undefined,
+      fromSide: undefined,
+    },
+    {
+      edge: edge(1),
+      net: "q",
+      points: [
+        { x: 20, y: -20 },
+        { x: 20, y: 0 },
+      ],
+      toSide: undefined,
+      fromSide: undefined,
+    },
+    {
+      // ends 3 units below net p: its arrowhead (9 long) reaches across p
+      edge: edge(2),
+      net: "r",
+      points: [
+        { x: 36, y: -20 },
+        { x: 36, y: 3 },
+      ],
+      toSide: undefined,
+      fromSide: undefined,
+    },
+  ];
+  const placed = [
+    {
+      edge: 1,
+      rect: { x: 25, y: -14, w: 10, h: 8 },
+      label: { lines: [], width: 10, height: 8, size: 14, bold: false },
+    },
+  ];
+  const report = checkLayout(model, layout, routed, placed);
+  test("T contacts, arrowheads on another net and labels across a border are reported", () => {
+    expect(report.crossings).toBe(1); // only e#2 properly crosses e#0 …
+    expect(report.contacts).toEqual(["e#1 vertex on e#0"]); // … e#1 ends on it (T contact)
+    expect(report.arrowheadHits).toEqual(["e#0 head / e#2", "e#2 head / e#0"]);
+    expect(report.labelCollisions).toEqual(["e#1 label / border g"]);
   });
 });
 
@@ -99,6 +192,8 @@ describe("figure A (Transformer)", () => {
     expect(c.overlapLength).toBe(0);
     expect(c.nodeOverlaps).toEqual([]);
     expect(c.containment).toEqual([]);
+    expect(c.contacts).toEqual([]);
+    expect(c.arrowheadHits).toEqual([]);
   });
   test("deterministic", () => {
     expect(runPrototype(figure("a-transformer")).svg).toBe(result.svg);
@@ -128,6 +223,8 @@ describe("figure B panel (adaLN-Zero)", () => {
     expect(result.checks.crossings).toBe(0);
     expect(result.checks.edgeThroughNode).toEqual([]);
     expect(result.checks.labelCollisions).toEqual([]);
+    expect(result.checks.contacts).toEqual([]);
+    expect(result.checks.arrowheadHits).toEqual([]);
     expect(result.edgeLabels.map((l) => l.edge)).toHaveLength(4);
     expect(new Set(result.routed.filter((e) => e.edge.from === "mlp").map((e) => e.net)).size).toBe(
       1,

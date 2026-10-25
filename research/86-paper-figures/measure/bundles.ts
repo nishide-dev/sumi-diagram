@@ -10,6 +10,7 @@ import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 import { runCommand } from "../../../src/core/subprocess";
 import { PINNED } from "./packages";
+import { installLocked } from "./tools";
 
 const DIR = join(import.meta.dir, "..", ".tools", "bundles");
 
@@ -43,8 +44,7 @@ export async function measureBundles(): Promise<BundleReport[]> {
   await mkdir(DIR, { recursive: true });
   const deps = Object.fromEntries(Object.keys(ENTRIES).map((n) => [n, PINNED[n] ?? ""]));
   await writeFile(join(DIR, "package.json"), JSON.stringify({ private: true, dependencies: deps }));
-  const install = await runCommand(["bun", "install", "--ignore-scripts"], { cwd: DIR });
-  if (install.exitCode !== 0) throw new Error(install.stderr);
+  await installLocked(DIR, "bundles");
   const out: BundleReport[] = [];
   for (const [name, source] of Object.entries(ENTRIES)) {
     const base = name.replace(/[@/]/g, "_");

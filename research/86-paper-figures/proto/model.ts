@@ -133,7 +133,9 @@ export function parseModel(text: string): Model {
   const root = obj(parse(text), "root");
   only(root, ["version", "requires", "figure", "groups", "nodes", "edges"], "root");
   const figure = obj(root.figure, "figure");
+  only(figure, ["id", "title", "theme", "profile", "layout"], "figure");
   const layout = obj(figure.layout, "figure.layout");
+  only(layout, ["engine", "arrange"], "figure.layout");
   if (layout.engine !== "structured")
     throw new ModelError("figure.layout.engine: expected structured");
   const nodes = new Map<string, NodeDef>();
@@ -142,6 +144,7 @@ export function parseModel(text: string): Model {
     const g = obj(raw, `groups[${i}]`);
     only(g, ["id", "label", "caption", "arrange"], `groups[${i}]`);
     const id = str(g.id, `groups[${i}].id`);
+    if (groups.has(id)) throw new ModelError(`groups[${i}]: duplicate id ${id}`);
     groups.set(id, {
       id,
       label: g.label === undefined ? "" : str(g.label, `groups[${i}].label`),

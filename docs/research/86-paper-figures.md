@@ -10,14 +10,14 @@
 ## 0. 結論
 
 1. **配置モデル: 案 B（Sumi 独自の構造的配置）を、新しい選択式のエンジンとして追加する。** `figure.layout.engine: structured` の図だけが、Sumi の stack / row（段階 B で grid）・`attach`・整列で配置し、Sumi 自身が直交ルーティングと SVG 出力を行う。既定は今の `auto`（D2/ELK）のままで、既存の図・golden は変えない。
-   - 実測: 試作（依存なし、配置と経路の中核は約 960 行）で図 A を配置・描画できた。30 ノード・30 エッジで、エッジのノード貫通・異なるネット間の交差・重なり・端点のずれがすべて 0、87.7 × 137.6mm（paper-single に収まる）、出力はバイト一致で決定的、中央値 20ms。同じ図を現行 v1 の範囲で書くと、D2/ELK の出力は 96.7 × 327.4mm で、幅と高さの超過を含む幾何 lint の診断が 4 件、スタックの中心は最大 55.5 unit ずれ、ブロック間の隙間は 0 ではなく 46 unit（23pt）になった（§3.2）。
+   - 実測: 試作（依存なし、配置と経路の中核は約 960 行）で図 A を配置・描画できた。30 ノード・30 エッジで、試作に実装した検査（§3.2 に範囲と対象外を列挙）の検出が 0、87.7 × 137.6mm（paper-single に収まる）、同じ環境での 2 回の実行で SVG がバイト一致、全体の中央値 21.5ms。同じ図を現行 v1 の範囲で書くと、D2/ELK の出力は 96.7 × 327.4mm で、幅と高さの超過を含む幾何 lint の診断が 4 件、スタックの中心は最大 55.5 unit ずれ、ブロック間の隙間は 0 ではなく 46 unit（23pt）になった（§3.2）。
    - 案 A（D2/ELK にヒントを足す）は、D2 の grid コンテナで「隙間 0 の積み重ね」は作れるが、grid 内のエッジは中心を結ぶ直線で、残差の線が間のブロックを貫通した（§3.1）。固定ポートも #57 のとおり D2 では公開されない。論文図の主用途には使えないと判断する。
    - 案 C（座標の直接指定）は、段階 B で `free` ボックス内の局所座標として、検査付きの逃げ道にとどめる。図全体の主な書き方にはしない。
    - 制約ソルバ（kiwi 系）・WebCola・dagre・elkjs の直接利用は段階 A では採らない。段階 A の箱モデルは 1 パスの決定的な計算で足りた。ELK の直接利用（#57）は、構造的な図の一部に自由グラフを置く段階 C の候補として残す。
 2. **線: 構造的エンジンでは、Sumi が直交ルーティングを持つ。** 端点は `fromAnchor` / `toAnchor`（辺と 0〜1 の位置）、分岐点は汎用部品 `junction`、**同じ出口から出るエッジは 1 つのネットとして幹線を共有**する。この 3 つで、図 A の Q/K/V への分岐・残差の迂回線・エンコーダ出力の共有幹線と、図 B の 4 本に分かれるバスを、交差 0 で描けた（§4）。`auto` エンジンでは anchor を受け付けず、黙って無視せずにエラーにする（#57 の方針を維持）。
 3. **文字: 段階 A は「ラベル内の数式の小さな部分集合」を、本物の文字の `<tspan>` で描く。** `$...$` の中のギリシャ文字のマクロ・`_`・`^` に限る。MathJax は段階 A では同梱しない（グリフが輪郭になり PDF で検索できない、+1.39〜1.65MB、v4 は一部の記法で非同期のフォント読み込みが必要。§5.2）。ただし**同梱の BIZ UDPGothic は Unicode の下付き数字を持たず、ギリシャ文字が全角幅（1em）**なので、数式用の欧文フォント（OFL）を font set に足す必要がある（§5.3）。
 4. **画像: ユーザー画像（PNG / JPEG / SVG、WebP / GIF も可）は、YAML からの相対パスで参照し、sha256 で固定でき、SVG には data URI で埋め込む。** 製品の PDF/PNG エンジンは、今のまま data URI の 4 形式を決定的に PDF の画像へ、SVG を図形のまま変換した。一方で**外部のファイル・URL への参照と foreignObject はエラーにならず黙って消えた**ため、Sumi 側で事前に検査して埋め込む（§6.1〜6.2）。SVG は #18 §5.5 の許可リストで読み直して出力する。
-5. **アイコン: Tabler Icons（MIT）を既定の同梱セットの第一候補とする。** outline 5,184 個で 2.90MB（gzip 0.36MB）、全ファイルが幾何だけの許可リストを通った。Simple Icons は**同梱しない**（パッケージは CC0 だが、224 個に個別のライセンス情報があり、CC BY-NC・GPL・AGPL 等を含む。商標の免責も別にある）。絵文字は Fluent Emoji の Flat（MIT）か Noto Emoji の画像（Apache-2.0）を候補とし、Twemoji（画像は CC BY 4.0。npm の `@twemoji/svg` の表示は MIT だが誤解を招く）と OpenMoji（CC BY-SA 4.0）は採らない（§6.4）。
+5. **アイコン: Tabler Icons（MIT）を既定の同梱セットの第一候補とする。** 全ファイルが幾何だけの許可リストを通った。ただしロゴ（商標）を同梱しない方針に合わせ、Tabler 自身の Brand カテゴリ 376 個を除いた outline 4,808 個（2,672,527 bytes、gzip 226,530）を対象にする。Simple Icons は**同梱しない**（パッケージは CC0 だが、224 個に個別のライセンス情報があり、CC BY-NC・GPL・AGPL 等を含む。商標の免責も別にある）。絵文字は Fluent Emoji の Flat（MIT）か Noto Emoji の画像（Apache-2.0）を候補とし、Twemoji（画像は CC BY 4.0。npm の `@twemoji/svg` の表示は MIT だが誤解を招く）と OpenMoji（CC BY-SA 4.0）は採らない（§6.4）。
 6. **データから描く部品（トークン列・キー・行列・凡例）は部品にする**が、段階 C とする。複数パネル・キャプション・薄表示・拡大の引き出し線は段階 B（§7・§8）。
 7. **段階 A（最初の実装）は 8 件の Issue に分け、図 A を描けることを完了条件にする**（§9.1）。すべて Figure v1 への任意フィールドの追加（`requires` で最小版を示す）で、v2 にはしない。`auto` の図の出力と既存の golden は変わらない。
 
@@ -100,7 +100,7 @@ edges:
 
 [`c-h3world.sumi.yaml`](../../research/86-paper-figures/figures/ideal/c-h3world.sumi.yaml)（草案。試作は描かない）。B に加えて、ユーザー画像（`component: image`、`props.src` / `sha256` / `fit` / `layers`）、表のように行と列を揃える `grid`（`span` 付き）、トークン列（`tokens`、セルをエッジの端点 `sequence.a5` にできる）、キーの集合（`keys`）、色つきの文字範囲、回転した文字（`labelRotation: -90`）、角のバッジ（`badge: { icon: emoji/fire }`）、斜線と凡例つきの行列（`matrix`）、`bowtie`、破線のパネルと「(a) …」の見出し。
 
-画像のパスは構文の例のための仮の値で、ファイルは置いていない。
+画像のパスは構文の例のための仮の値で、ファイルは置いていない。B・C の草案は構文の方向を示すもので、厳密なスキーマでそのまま検証できる完成形ではない（例: `tokens` の props の形、`node.cell` 端点の ID 規則は実装 Issue で決める）。
 
 ### 2.5 現行 v1 の反応（実測）
 
@@ -158,7 +158,7 @@ grid で「積み重ね」自体はできるが、grid の中のエッジは ELK
 | 項目 | v1（D2/ELK） | 試作（structured） |
 | --- | --- | --- |
 | 大きさ | 96.7 × 327.4mm | 87.7 × 137.6mm |
-| 幾何 lint | `exceeds-page-height`、`exceeds-page-width`、`aspect-distorted` × 2 | （試作の検査で違反 0。製品の lint には未接続） |
+| 幾何 lint | `exceeds-page-height`、`exceeds-page-width`、`aspect-distorted` × 2 | （試作の検査（§3.2）で検出 0。製品の lint には未接続） |
 | エンコーダのブロックの中心 x | 107.5 / 163 / 114 / 163（最大 55.5 unit ずれる） | すべて一致 |
 | Multi-Head Attention と Add & Norm の隙間 | 46 unit（Profile の層間隔） | 0（指定どおり） |
 | デコーダの位置 | エンコーダの**上**に積まれる（ELK の層） | 横に並び、下端が揃う |
@@ -171,14 +171,16 @@ grid で「積み重ね」自体はできるが、grid の中のエッジは ELK
 2. **経路**（`route.ts`）: §4。
 3. **SVG**（`svg.ts`）: 製品が inspect する語彙（`g.sumi-k-*`、`g.shape`、中央揃えの `<text>`、`path.connection` の M/L）で出力する。フォントは実 family 名で指定した（§5.4）。
 
-| 図 | ノード / エッジ | 大きさ | 折れ | 違反（貫通・端点・交差・重なり・包含・ラベル衝突） | 決定性 | 中央値 | PDF |
+| 図 | ノード / エッジ | 大きさ | 折れ | 検査の検出（下記の項目） | 決定性 | 中央値（全体 / 経路） | PDF |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| A | 30 / 30 | 87.67 × 137.58mm | 23 | すべて 0 | SVG 2 回でバイト一致 | 20.4ms | 14,988 bytes、画像 0、文字は抽出可、BIZ UDPGothic のサブセット埋め込み |
-| B の 1 パネル | 16 / 20 | 68.26 × 107.95mm | 14 | すべて 0 | 一致 | 4.5ms | 画像 0、`γ1,β1`・`α2` 等も文字として抽出可 |
+| A | 30 / 30 | 87.67 × 137.58mm | 23 | すべて 0 | SVG 2 回でバイト一致 | 21.54 / 19.06ms | 14,988 bytes、画像 0、文字は抽出可、BIZ UDPGothic のサブセット埋め込み |
+| B の 1 パネル | 16 / 20 | 68.26 × 107.95mm | 14 | すべて 0 | 一致 | 5.27 / 4.18ms | 画像 0、`γ1,β1`・`α2` 等も文字として抽出可 |
 
-時間は parse・配置・経路・SVG の合計で、PDF 変換は含まない。macOS arm64 の 1 環境の値で、大きな図の性能保証ではない。
+時間は 5 回の中央値で、全体は parse・配置・経路（エッジラベルの配置を含む）・SVG の合計。PDF 変換は含まない。macOS arm64 の 1 環境の値で、実行ごとに数 ms 変動する。大きな図の性能保証ではない。
 
-- 図 A は最初 95.6mm 幅で paper-single（88mm）を超えた。列の間隔 8mm → 3mm、位置エンコーディングの添え 3mm → 1.5mm の 2 か所を変えて 87.67mm に収まった。**判断:** 構造的配置では大きさが入力から予測でき、寸法の調整が局所的な値の変更で済む。ELK では層の数と間隔で高さが決まり（§3.1 の 327mm）、作者が直接は調整できない。
+**試作の検査（`proto/check.ts`）の範囲**: 斜めの線分、ノードの矩形の内部を通る線分、端点が指定の辺・位置にない、異なるネットどうしの真の交差、異なるネットの線分の重なり、**異なるネットの端点・折れ点が他のネットの線分上にある（T 字の接触）**、**矢じりの領域（長さ 9・幅 8 unit）に他のネットの線分や終点以外のノードが入る**、ノードどうしの重なり、group からのはみ出し、エッジラベルとノード・キャプション・group の枠・線分・他のラベルの重なり。負例（T 字の接触・矢じりへの貫通・枠をまたぐラベル）をテストで固定した。**対象外**: 同じネット内の線どうしの関係、線幅（stroke）を含む太さの干渉、ノード内のラベルのはみ出しと字形の欠落（製品の幾何 lint・`lint/missing-glyph` の範囲）、キャプションどうしの重なり。したがって「検出 0」はこの範囲での結果で、製品の幾何 lint を通した結果ではない。
+
+- 図 A の最初の草案（列の間隔 8mm、位置エンコーディングの添え 3mm）は 95.6mm 幅で paper-single（88mm）を超えた（report の `a-transformer (first draft: gaps 8mm / 3mm)`）。この 2 か所を 3mm / 1.5mm に変えて 87.67mm に収まった。**判断:** 構造的配置では大きさが入力から予測でき、寸法の調整が局所的な値の変更で済む。ELK では層の数と間隔で高さが決まり（§3.1 の 327mm）、作者が直接は調整できない。
 - 生成物の目視（`out/a-transformer.png`、`out/b-adaln-panel.png`）では、ブロックの積み重ね・Q/K/V の分岐・左右の残差・エンコーダ出力の幹線・N× の注記・位置エンコーディングの記号が、元の図と同じ構造に並んだ。
 
 ### 3.3 案 C: 座標の直接指定（判断）
@@ -193,7 +195,7 @@ grid で「積み重ね」自体はできるが、grid の中のエッジは ELK
 | 試作の自前実装 | （Sumi） | 中核約 960 行、依存 0 | A・B で SVG がバイト一致 | 問題なし | **段階 A で採用**（box モデル＋格子の経路探索） |
 | elkjs 0.12.0（#57） | EPL-2.0 OR GPL-3.0-or-later | compile の差 1,618,176 bytes（#57） | 正規化した幾何のみ一致（生 JSON は `$H` で不一致） | 互換 adapter が必要（#57） | 段階 C の候補（構造の中の自由グラフ、FIXED_POS のポート） |
 | @dagrejs/dagre 3.1.3 | MIT | minify 48,750 bytes（gzip 17,386） | 2 回同じ出力 | 動作 | 不採用。層状配置のみで、ポート・直交経路・箱の入れ子を持たない |
-| webcola 3.4.0 | MIT | minify 79,994 bytes（gzip 24,004）、d3 系の依存 4 | 2 回同じ出力（小さな入力） | 動作 | 不採用。力学モデルの反復で、入力の小さな変更で位置が大きく動きうる。直交ルーティングは別途必要 |
+| webcola 3.4.0 | MIT | minify 79,994 bytes（gzip 24,004）、d3 系の依存 4 | 2 回同じ出力（小さな入力） | 動作 | 不採用。配置は力学モデルの反復で、入力の小さな変更で位置が大きく動きうる。直交ルータ（`GridRouter`、`WebCola/src/gridrouter.ts`）を同梱するが、固定 anchor・ネットの共有・Sumi の箱モデルとの統合と、その bundle の大きさは今回評価していない（上の大きさは `Layout` だけを呼んだ場合） |
 | @lume/kiwi 0.4.4（Cassowary） | BSD-3-Clause | minify 12,641 bytes（gzip 3,992） | 2 回同じ出力 | 動作 | 段階 A は不要。段階 B で「別の箱にある要素どうしを揃える」制約が要れば候補 |
 | KaTeX / Typst 等の組版系 | — | — | — | — | 配置エンジンとしては対象外（§5.2） |
 
@@ -210,7 +212,7 @@ grid で「積み重ね」自体はできるが、grid の中のエッジは ELK
 ```
 
 - Layout IR は #57 §5 が必要とした「Figure IR / Profile / 文字寸法を受け取り、node・port・route・label の座標を返す」中間表現そのものである。今回これを ELK ではなく Sumi の箱モデルで作る。将来 ELK を直接使う場合も同じ Layout IR を返せばよい。
-- SVG writer は §6.3 の inspect 契約（`g.sumi-k-*`、`g.shape`、中央揃えの text、M/L/C の path.connection、transform なし）を守る。そうすれば inspect・幾何 lint・PDF・画像方式 PPTX・編集可能 PPTX をそのまま、または小さな変更で使える。試作の SVG は製品の WASM で PDF・PNG にでき、PDF の文字は検索可能・画像 0 だった（§3.2）。
+- SVG writer は §6.3 の inspect 契約（`g.sumi-k-*`、`g.shape`、中央揃えの text、M/L/C の path.connection、transform なし）に合わせる。試作の SVG は製品の WASM で直接 PDF・PNG にでき、PDF の文字は検索可能・画像 0 だった（§3.2）。**ただし、試作の SVG は今の `inspectSvg()` をそのままでは通らない**（レビューで、2 ノードの試作 SVG を対応する IR と渡すと `svg/empty` になった）。差は少なくとも次のとおりで、段階 A の Issue 4 で writer か inspect のどちらかを合わせる: 内側の `svg.d2-svg` の描画の包みがない、id のないエッジの class の符号化（試作は `#`、契約は `_`）、文字を tspan ごとの x/y で置いている（契約は `<text>` の中心の anchor と行送り）、junction が inspect できる要素を出さない、アイコンを入れ子の `<svg>` で置いている。inspect → 幾何 lint の経路は試作では通していない。
 - metadata は形式 1 のまま、`backend` に新しい値（例 `sumi-structured`）と Sumi の版を書く。D2 の hash は structured では書かない。
 - Profile の `layerGap` などは `auto` 専用の値として残し、structured の既定の `gap` は Theme / Profile の新しい値（例 `layout.stackGap`）から取る。#56 の結論（`auto` の既定の寸法を変えない）とは独立で、`auto` の出力は変わらない。
 
@@ -222,7 +224,7 @@ grid で「積み重ね」自体はできるが、grid の中のエッジは ELK
 - 状態（格子点, 進行方向）の Dijkstra。費用は長さ＋折れ 40＋group の境界の通過 150＋他のネットとの交差 80＋他のネットとの重なり 4000。**同じネットが既に使った格子の辺は費用 0** にする。
 - 端点は anchor の点から外向きに 6 unit 進んだ stub から探索し、最後は内向きの stub で入る（矢じりが常に辺に垂直）。junction は向きが自由な点。
 - 向かい合って一直線に並ぶ隣のブロック（隙間が 2 × 6 unit より狭いことがある）は、間に障害物がなければ直線でつなぐ。図 B の 2mm 間隔のスタックでは、この特別扱いがないと経路が見つからなかった（実測）。
-- エッジの順番は YAML の順で固定、同点は挿入順。格子は整数の添字で、浮動小数の座標は 1/1000 unit に丸める。
+- エッジの順番は YAML の順で固定。ヒープの同点は（距離, 状態の番号）の順で決まる（挿入順ではないが決定的）。格子は整数の添字で、浮動小数の座標は 1/1000 unit に丸める。
 
 | 表現 | 書き方 | 結果（実測） |
 | --- | --- | --- |
@@ -238,11 +240,13 @@ grid で「積み重ね」自体はできるが、grid の中のエッジは ELK
 - `structured` では Sumi が全経路を持つ。段階 C で構造の中に自由グラフ（`arrange: auto`）を入れる場合も、ELK には箱の中の配置だけを任せ、経路は Sumi の router で引き直すか、ELK の経路を Layout IR に正規化して使う（#57 の幾何の正規化と同じ）。どちらにするかは段階 C で測る。
 - **拡大の引き出し線（zoom）** は経路探索をせず、元のノードと拡大先のパネルの対応する 2 つの角を結ぶ破線にする。角の組は相対位置から決める（右にあれば右上 → 左上、右下 → 左下）。ノードを横切る場合は幾何 lint の warning にする（避けて曲げると引き出し線として読めないため）。
 - 同じ出口からのエッジを自動でネットにするのは、論文図ではほぼ常に望ましい（分岐を描くため）からである。別の線として描きたい場合は anchor の位置を変える。明示の `bundle` フィールドは需要が出るまで作らない。
-- 幾何 lint には「エッジがノードを貫通する」規則を加える（今の MVP は検出しない。設計 §6.5 の観察）。structured の router はこれを保証し、lint は独立に再検査する。
+- 幾何 lint には「エッジがノードを貫通する」規則を加える（今の MVP は検出しない。設計 §6.5 の観察）。structured の router はこれを設計上の目標とし（試作は障害物を膨らませた格子で避ける）、lint が独立に再検査する。
 
 ### 4.3 限界（実測・判断）
 
-- 試作の格子は O(格子点数 × 4) の Dijkstra をエッジごとに行う。図 A で経路は約 20ms だったが、数百ノードの図は未測定。製品では、ネットごとの探索範囲の制限か、可視グラフの縮約が要るかもしれない。
+- 試作は、状態数が（格子点数 × 方向）の Dijkstra をエッジごとに行い、各ステップで障害物と group を線形に走査する。図 A で経路の段は中央値 19.06ms だったが、数百ノードの図は未測定。製品では、障害物の空間索引、ネットごとの探索範囲の制限、可視グラフの縮約が要るかもしれない。
+- 隣り合うブロックを結ぶ直線の特別扱いは、既に引いた経路との交差を費用に入れず、自身の占有も記録しない。そのため、後から引く経路はこの直線を避けられず、直線どうしが交差しても迂回しない（交差は検査で検出される）。製品では同じ占有の登録・費用の判定を通す。
+- ネットの決め方は「始点が junction ならその junction、終点が junction ならその junction、それ以外は始点の出口」の 1 つを選ぶだけで、junction どうしをつなぐエッジのネットを推移的に統合しない。また格子の辺の所有者は 1 つだけ記録する（別のネットの重なりは重い費用で避け、検査で検出する）。製品では union-find で連結なネットを決め、所有者をすべて保持する。
 - 交差の最小化は貪欲（YAML の順に引く）で、全体最適ではない。交差が残った場合は lint で報告し、エッジの順番か anchor で直してもらう。
 - エッジラベルの位置は経路の後に決めるので、衝突は検出のみ（自動で避けない）。
 
@@ -354,7 +358,7 @@ Sumi は画像を生成・加工しない（切り抜き・色調整・ラスタ
 
 | 候補 | ライセンス（確認した原文） | 個数・大きさ（主なディレクトリ） | 判断 |
 | --- | --- | --- | --- |
-| **Tabler Icons** 3.49.0 | MIT | outline 5,184 個、2,899,771 bytes（gzip 360,805）。filled 1,054 個 | **既定の第一候補**。`wave-sine`・`flame`・`snowflake`・`keyboard` あり。許可リストをすべて通る |
+| **Tabler Icons** 3.49.0 | MIT | outline 5,184 個、2,899,771 bytes（gzip 360,805）。うち `categories/outline/Brand/` の 376 個を除くと 4,808 個、2,672,527 bytes（名前順に連結して gzip 226,530）。filled 1,054 個 | **既定の第一候補（Brand カテゴリを除く）**。`wave-sine`・`flame`・`snowflake`・`keyboard` あり（いずれも Brand 外）。許可リストをすべて通る |
 | Lucide（lucide-static 1.61.0） | ISC。Feather 由来の 115 個は MIT（同じ LICENSE に列挙） | 2,171 個、1,053,672 bytes（gzip 131,092） | 第二候補。小さい。`flame`・`snowflake`・`audio-waveform` あり、`wave-sine` 相当は `audio-waveform` |
 | Material Symbols（svg-400 0.48.1） | Apache-2.0 | 各スタイル 7,864 個、outlined 3,846,532 bytes（gzip 1,194,030） | 大きい。採るならスタイル 1 つに限る |
 | Phosphor（core 2.1.1） | MIT | 6 ウェイト × 1,512 個、各約 0.7〜0.9MB | 候補（ウェイトを選べる） |
@@ -365,9 +369,11 @@ Sumi は画像を生成・加工しない（切り抜き・色調整・ラスタ
 | Twemoji（jdecked `b6b55fe`、npm `@twemoji/svg` 15.0.0） | 上流 README: **コードは MIT、画像は CC BY 4.0**。npm の再配布パッケージは MIT の LICENSE だけを含む | 3,720 個、8,147,297 bytes | 採らない（論文図で帰属表示を求められる。npm の表示を根拠にしない） |
 | OpenMoji 17.0.0 | CC BY-SA 4.0 | 43MB | 採らない（継承条件） |
 
-- 単一バイナリへの影響（判断）: `bun build --compile` で埋め込むファイルは圧縮されないと見込み、セットを 1 つの gzip のアーカイブにまとめ、実行時に必要なアイコンだけを展開する。Tabler outline なら約 0.36MB の増加。全セットの同梱ではなく、1 セット＋絵文字の小さな部分集合から始める。
+- 単一バイナリへの影響（判断）: `bun build --compile` で埋め込むファイルは圧縮されないと見込み、セットを 1 つの gzip のアーカイブにまとめ、実行時に必要なアイコンだけを展開する。Brand を除く Tabler outline なら約 0.23MB の増加（gzip の大きさはファイルの並べ順でも変わる。上の 360,805 と 226,530 は並べ順も違う）。
+- ロゴ・商標: MIT などのアイコンセットでも、ブランドのロゴはライセンスとは別に商標の問題が残る。同梱するセットからは、そのセット自身のブランド分類（Tabler の Brand）を除く。分類のないセットを採る場合は、除外の一覧を Issue で決める。全セットの同梱ではなく、1 セット＋絵文字の小さな部分集合から始める。
 - 参照の形: `icon: tabler/wave-sine`、絵文字は `icon: emoji/fire`（CLDR の短い英語名）。名前の誤りは編集距離の候補付きのエラー（既存の未知 ID と同じ）。`sumi catalog --json` にセット名・版・ライセンスと、検索用の名前一覧（JSON は大きいので `--icons <query>` の検索を用意）を出す。
-- ライセンスの同梱: release の `licenses/` に各セットの LICENSE を入れ、NOTICE に版と出典を書く（既存の PDF エンジンの方式）。図の中に帰属表示を描く義務がないもの（MIT / ISC / Apache-2.0 / OFL）に限る。
+- ライセンスの同梱: release の `licenses/` に各セットの LICENSE を入れ、NOTICE に版と出典を書く（既存の PDF エンジンの方式）。図の中に見える形の帰属表示（クレジット）を描く義務がないもの（MIT / ISC / Apache-2.0 / OFL）に限る。
+- 生成物での告知の保持（判断）: 「図の中にクレジットを描かなくてよい」ことと、「著作権・許諾の告知を保持しなくてよい」ことは別である。SVG / PDF / PPTX の生成物はアイコンの図形を再配布するので、使ったアイコンのセット・版・ライセンス名・出典を SVG の metadata と PDF / PPTX の文書情報に書き、`sumi render --json` と別ファイル（例 `<出力>.third-party.txt`）で告知の全文を出せるようにする。Lucide は ISC と（Feather 由来の 115 個は）MIT の両方の文、Apache-2.0（Material Symbols、Noto の画像）は NOTICE の有無と、Sumi が変換（色の置き換え・再直列化）を加えたことの記載を確認する。MIT / ISC が論文の図そのものに告知の掲載を求めるかは、実装 Issue で法的な確認の要否を含めて判断する。
 
 ## 7. データから描く部品（判断）
 
@@ -393,7 +399,7 @@ Sumi は画像を生成・加工しない（切り抜き・色調整・ラスタ
 
 ### 9.1 段階 A（最初の実装）: 図 A を描けること
 
-目標: 図 A の理想の YAML（`requires: ">=0.4.0"`）が、そのまま（試作の構文で）診断ゼロで描け、SVG / PDF / 画像方式 PPTX が出ること。互換性: **すべて Figure v1 への任意フィールド・部品の追加**。`engine` の既定は `auto` で、既存の図・examples・gallery・PDF/PPTX の golden は変わらない（`bun run gallery:check` が差分なしで通ることを各 Issue の受け入れ条件にする）。structured 用の新しい golden（examples に 1 図）を追加する。
+目標: 図 A の理想の YAML（`requires: ">=0.4.0"`）が、そのまま（試作の構文で）診断ゼロで描け、SVG / PDF / 画像方式 PPTX が出ること。互換性: **すべて Figure v1 への任意フィールド・部品の追加**。`engine` の既定は `auto` で、**既存の**図・examples・部品の gallery・PDF/PPTX の golden はバイト単位で変わらない。新しい部品（Issue 5）と structured の作例は、CONTRIBUTING.md の手順で gallery・examples に**新しい** golden を追加し、gallery の索引・カタログの文書もそれに応じて変わる。各 Issue の受け入れ条件は「既存の生成物は不変、意図した追加をコミットしたうえで `bun run gallery:check` が通る」とする。
 
 1. **Add the structured layout tree to the figure schema**
    - figure.layout.engine / arrange、group.arrange、node.attach を Zod に追加し、JSON Schema を再生成する。配置の木の検査（未知の ID、配置漏れ・重複、attach の循環、`auto` での structured 専用フィールド）を新しい stage `layout` の診断にする。`sumi fmt --canonical-order` の順序も更新。
@@ -405,16 +411,16 @@ Sumi は画像を生成・加工しない（切り抜き・色調整・ラスタ
    - `fromAnchor` / `toAnchor`、`junction` 部品、同じ出口のネット共有、隣接ブロックの直線、経路が見つからないときの `layout/no-route`（error、エッジの位置付き）。
    - 依存: 2。受け入れ条件: 図 A・B パネルで、貫通・端点のずれ・異なるネットの交差・重なりが 0／ノード 100 程度の合成図で時間を測り記録する／幾何 lint に「エッジのノード貫通」規則を追加。
 4. **Write SVG from the layout IR and embed font subsets**
-   - §6.3 の inspect 契約に沿った SVG writer、`@font-face` のサブセット埋め込み（WASM に `subsetter` の export を追加し `pdf:wasm` で再ビルド）、metadata の `backend`、finalize / inspect / 幾何 lint / PDF / 画像方式 PPTX の接続。編集可能 PPTX は対応するか、明示的な診断で拒否する。
+   - §6.3 の inspect 契約に沿った SVG writer（§3.5 に挙げた試作との差を解消し、`inspectSvg()` を実際に通す受け入れテストを置く）、`@font-face` のサブセット埋め込み（WASM に `subsetter` の export を追加し `pdf:wasm` で再ビルド）、metadata の `backend`、finalize / inspect / 幾何 lint / PDF / 画像方式 PPTX の接続。編集可能 PPTX は対応するか、明示的な診断で拒否する。
    - 依存: 2・3。受け入れ条件: structured の図で `svg/missing-font-face` が出ない／PDF の文字の位置が幾何 lint の再計測と 0.01pt 以内（既存の PDF 構造検査を流用）／全 4 ターゲットでバイト一致。
 5. **Add generic operator and junction components and theme tones**
    - `sumi/operator`（symbol: plus / times / concat 等）、`sumi/junction`、node の `tone` と 3 つの組み込み Theme のパレット（CONTRIBUTING の部品のチェックリスト: catalog・全 Theme × variant・gallery・テスト）。
-   - 依存: 1（描画は 4）。受け入れ条件: gallery に追加され `gallery:check` が通る／既存の部品の出力は不変。
+   - 依存: 1（描画は 4）。受け入れ条件: 新しい部品の全 Theme × variant が gallery に追加され、それをコミットしたうえで `gallery:check` が通る／既存の部品・examples の出力はバイト単位で不変。
 6. **Support a label math subset with a math-capable font**
    - `$...$`（Greek マクロ・`_`・`^`・`\times` 等の記号）。未対応の記法はエラー。欧文・数学用の OFL フォントを font set の slot に追加し、`$...$` 内で使う。`auto` では `component/unsupported-in-auto`（D2 に tspan を渡せないため）。幾何 lint の tspan 単位の計測。
    - 依存: 4。受け入れ条件: §5.3 の文字が豆腐にならない（`lint/missing-glyph` で検査）／PDF から `γ1,β1` が抽出できる／フォント追加後のバイナリ・tarball の増分を記録する。
 7. **Embed user images and a bundled icon set**
-   - `component: image`（相対パス・sha256・形式・上限・data URI）、`icon: <set>/<name>`（Tabler を 1 セット、gzip アーカイブで同梱）、SVG の許可リスト取り込み、metadata の `assets-sha256`、`auto` でもプレースホルダ＋合成で使える。外部参照は事前にエラー（§6.1 の黙って消える挙動に頼らない）。
+   - `component: image`（相対パス・sha256・形式・上限・data URI）、`icon: <set>/<name>`（Tabler の Brand を除く 1 セット、gzip アーカイブで同梱）、生成物への告知の保持（§6.4）、SVG の許可リスト取り込み、metadata の `assets-sha256`、`auto` でもプレースホルダ＋合成で使える。外部参照は事前にエラー（§6.1 の黙って消える挙動に頼らない）。
    - 依存: 4（`auto` 側は #53 の合成の流用）。受け入れ条件: PNG / JPEG / SVG の各 fixture で SVG / PDF / 画像方式 PPTX が決定的／`script`・外部参照・DTD を含む SVG が位置付きエラー／ライセンスが release の `licenses/` に入る／絵文字は段階 C。
 8. **Teach the Skill structured layout, anchors and assets**
    - `skills/sumi/references/` に structured の書き方・anchor・junction・アイコンの探し方・画像の置き場所を追加し、`src/cli/skill.test.ts` の照合に含める。`layout-tips.md` に「論文のブロック図は structured、フロー図は auto」という選び方を書く。

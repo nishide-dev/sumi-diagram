@@ -4,7 +4,7 @@
  * would cost and whether a strict SVG allowlist can ingest every file.
  * Nothing here is committed or embedded in the product.
  */
-import { mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { gzipSync } from "node:zlib";
 import { runCommand } from "../../../src/core/subprocess";
@@ -78,7 +78,7 @@ function elements(node: XmlNode, out: XmlElement[] = []): XmlElement[] {
   return out;
 }
 
-async function fetchPackage(name: string, version: string): Promise<string> {
+export async function fetchPackage(name: string, version: string): Promise<string> {
   const facts = await packageFacts(name, version);
   if (facts.tarball === undefined || facts.integrity === undefined) throw new Error(name);
   const dir = join(TOOLS, `${name.replace("/", "__")}-${facts.version}`);
@@ -97,14 +97,11 @@ async function fetchPackage(name: string, version: string): Promise<string> {
     throw new Error(`${name}: integrity mismatch`);
   await mkdir(TOOLS, { recursive: true });
   await writeFile(archive, bytes);
-  try {
-    await stat(join(dir, "package.json"));
-  } catch {
-    await rm(dir, { recursive: true, force: true });
-    await mkdir(dir, { recursive: true });
-    const tar = await runCommand(["tar", "-xzf", archive, "--strip-components=1", "-C", dir]);
-    if (tar.exitCode !== 0) throw new Error(tar.stderr);
-  }
+  // Always re-extract from the verified archive: never trust an existing tree.
+  await rm(dir, { recursive: true, force: true });
+  await mkdir(dir, { recursive: true });
+  const tar = await runCommand(["tar", "-xzf", archive, "--strip-components=1", "-C", dir]);
+  if (tar.exitCode !== 0) throw new Error(tar.stderr);
   return dir;
 }
 
@@ -188,6 +185,39 @@ export async function measureIconSet(name: string): Promise<IconSetReport> {
     disallowedElements: disallowed,
     notableAttributes: notable,
     parseErrors,
+  };
+}
+
+/**
+ * Tabler outline without its "Brand" category (logos / trademarks), the set
+ * the doc proposes to bundle. The category is read from the package's own
+ * categories/outline/Brand/ directory.
+ */
+export async function tablerWithoutBrands(): Promise<{
+  outline: number;
+  brand: number;
+  kept: number;
+  bytes: number;
+  gzipBytes: number;
+  usedIconsKept: boolean;
+}> {
+  const dir = await fetchPackage("@tabler/icons", PINNED["@tabler/icons"] ?? "");
+  const outlineDir = join(dir, "icons", "outline");
+  const outline = (await readdir(outlineDir)).filter((f) => f.endsWith(".svg")).sort();
+  const brand = new Set(
+    (await readdir(join(dir, "categories", "outline", "Brand"))).filter((f) => f.endsWith(".svg")),
+  );
+  const kept = outline.filter((f) => !brand.has(f));
+  const all = Buffer.concat(await Promise.all(kept.map((f) => readFile(join(outlineDir, f)))));
+  return {
+    outline: outline.length,
+    brand: brand.size,
+    kept: kept.length,
+    bytes: all.length,
+    gzipBytes: gzipSync(all).length,
+    usedIconsKept: ["wave-sine.svg", "flame.svg", "snowflake.svg", "keyboard.svg"].every((f) =>
+      kept.includes(f),
+    ),
   };
 }
 

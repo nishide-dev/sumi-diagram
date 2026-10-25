@@ -7,6 +7,7 @@
 import { mkdir, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { runCommand } from "../../../src/core/subprocess";
+import { installLocked } from "./tools";
 
 const TOOLS = join(import.meta.dir, "..", ".tools");
 
@@ -89,11 +90,7 @@ export async function measureMathJax(compile = true): Promise<MathJaxReport[]> {
       join(dir, "package.json"),
       JSON.stringify({ private: true, dependencies: { [spec.pkg]: spec.version } }, null, 2),
     );
-    const install = await runCommand(["bun", "install", "--ignore-scripts"], { cwd: dir });
-    if (install.exitCode !== 0) {
-      reports.push({ variant, error: install.stderr.slice(-400) });
-      continue;
-    }
+    await installLocked(dir, `mathjax-${spec.pkg.replace("/", "__")}-${spec.version}`);
     const v4 = spec.pkg === "@mathjax/src";
     await writeFile(join(dir, "entry.mjs"), entrySource(spec.root, v4));
     await writeFile(join(dir, "control.mjs"), "console.log(JSON.stringify([{ok:true}]));\n");

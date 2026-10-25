@@ -15,11 +15,14 @@
 | `proto/` | 構造的配置（stack / row / attach）・直交ルーティング・SVG 出力・幾何検査の試作 |
 | `measure/` | D2 の挙動、製品の PDF/PNG エンジンでの画像、同梱フォントの字形、npm パッケージ、アイコン集、MathJax、配置ライブラリの測定 |
 | `run.ts` | すべての測定を実行する |
+| `locks/` | `.tools/` 内の研究用プロジェクト（MathJax、配置ライブラリ）の lockfile |
 | `results/report.json` | 測定スナップショット（macOS arm64） |
 
 提案構文の YAML は、現行の Sumi では `schema/unsatisfied-requires`（`requires: ">=0.5.0"` 等）で止まる。`run.ts` は `requires` を外した場合の未知フィールドも記録する。
 
 ## 再現
+
+前提: Bun（`package.json` の版）、ネットワーク（`--offline` 以外）、ImageMagick 7（`magick`。合成画像の生成と PNG の検査）、Poppler（`pdfimages` / `pdffonts` / `pdftotext`）、`tar`。使った版は report の `environment.tools` に記録する。
 
 ```sh
 bun install --frozen-lockfile
@@ -31,9 +34,10 @@ bun test research/86-paper-figures          # 試作の検査（ネットワー�
 ```
 
 - `out/` に、試作の SVG と、製品の WASM エンジン（krilla / resvg、無変更）で変換した PDF・PNG、v1 版の SVG/PDF/PNG、D2 プローブの `.d2` / `.svg` を書く。
-- ネットワークを使う測定は、npm registry の tarball を **sha512 integrity で検査して** `.tools/`（gitignore）に展開する。MathJax と配置ライブラリは `.tools/` 内の独立した `package.json` に `bun install --ignore-scripts` で入れる。root の `package.json` / `bun.lock` / `node_modules` は変更しない。
+- ネットワークを使う測定は、npm registry の tarball を **sha512 integrity で検査して** `.tools/`（gitignore）に置き、実行のたびに検査済みの tarball から展開し直す（既存の展開済みの木は信用しない）。MathJax と配置ライブラリは `.tools/` 内の独立した `package.json` に `bun install --ignore-scripts` で入れ、推移的な依存の版は `locks/*.bun.lock`（コミット済み）で `--frozen-lockfile` に固定する。root の `package.json` / `bun.lock` / `node_modules` は変更しない。
+- 外部ツールが失敗した・想定外の出力だった場合は、0 件として記録せずに実行を止める（`measure/tools.ts`）。
 - MathJax の測定は `bun build --compile` で 2 つの実行ファイル（MathJax あり / 最小の対照）を作り、サイズ差を測る。数十秒かかる。
-- `@tabler/icons` を取得済みなら、試作は `tabler/wave-sine` を `.tools/` の SVG から読み込む。未取得なら同じ形の組み込みの代替を使う（テストはこちら）。このため、`results/report.json` の試作 SVG の sha256 は tabler 取得後の値である。
+- 試作は `@tabler/icons` を取得済みなら `tabler/wave-sine` を `.tools/` の SVG から読み込み、未取得なら同じ形の組み込みの代替を使う（テストはこちら）。`run.ts` は試作より先に tabler を取得するので、初回でも再実行でも同じ SVG になる。`--offline` では代替のアイコンになり、試作 SVG の sha256 は report と変わる（report の `environment.icon` に記録）。
 - 測定スナップショットを意図して更新する場合だけ `--record` を付ける。時間・サイズ・OS 依存の値を CI の golden にはしない。
 
 ## 注意

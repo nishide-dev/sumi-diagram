@@ -6,7 +6,7 @@
  */
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { parseXml, type XmlElement } from "../../../src/render/xml";
+import { escapeAttribute, parseXml, type XmlElement } from "../../../src/render/xml";
 
 const SHAPES: Record<string, readonly string[]> = {
   path: ["d"],
@@ -20,6 +20,14 @@ const SHAPES: Record<string, readonly string[]> = {
 const PAINT = ["fill", "stroke", "stroke-width", "stroke-linecap", "stroke-linejoin", "fill-rule"];
 const NUMBER = /^-?(\d+\.?\d*|\.\d+)(e-?\d+)?$/i;
 const COLOR = /^(none|currentColor|#[0-9a-fA-F]{3}|#[0-9a-fA-F]{6})$/;
+const PAINT_VALUE: Record<string, RegExp> = {
+  fill: COLOR,
+  stroke: COLOR,
+  "stroke-width": NUMBER,
+  "stroke-linecap": /^(butt|round|square)$/,
+  "stroke-linejoin": /^(miter|round|bevel)$/,
+  "fill-rule": /^(nonzero|evenodd)$/,
+};
 const PATH_DATA = /^[MmLlHhVvCcSsQqTtZz0-9eE.,+\-\s]*$/; // no arcs (A), see design §6.3
 
 export interface ImportedSvg {
@@ -39,19 +47,22 @@ export function importSvg(text: string): ImportedSvg {
     .split(/[\s,]+/)
     .map(Number);
   if (vb.length !== 4 || vb.some((n) => !Number.isFinite(n))) throw new Error("icon: bad viewBox");
-  const inherited = PAINT.filter((p) => root.attributes.some((a) => a.name === p));
   const rejected: string[] = [];
+  /** Copies allowlisted paint attributes with valid values; reports the rest. */
+  const paintOf = (el: XmlElement, into: Map<string, string>) => {
+    for (const a of el.attributes) {
+      const valid = PAINT_VALUE[a.name];
+      if (valid === undefined) continue;
+      if (valid.test(a.value)) into.set(a.name, a.value);
+      else rejected.push(`${el.name}@${a.name}=${a.value}`);
+    }
+    return into;
+  };
   const out: string[] = [];
   const visit = (el: XmlElement, paint: Map<string, string>) => {
     for (const child of el.children) {
       if (child.type !== "element") continue;
-      const local = new Map(paint);
-      for (const a of child.attributes)
-        if (PAINT.includes(a.name)) {
-          if ((a.name === "fill" || a.name === "stroke") && !COLOR.test(a.value))
-            rejected.push(`${child.name}@${a.name}=${a.value}`);
-          else local.set(a.name, a.value);
-        }
+      const local = paintOf(child, new Map(paint));
       if (child.name === "g") {
         for (const a of child.attributes) if (!PAINT.includes(a.name)) rejected.push(`g@${a.name}`);
         visit(child, local);
@@ -81,19 +92,14 @@ export function importSvg(text: string): ImportedSvg {
           broken = true;
           continue;
         }
-        attrs.push(`${a.name}="${a.value}"`);
+        attrs.push(`${a.name}="${escapeAttribute(a.value)}"`);
       }
       if (broken) continue; // never emit a shape with a dropped geometry attribute
-      for (const [k, v] of local) attrs.push(`${k}="${v}"`);
+      for (const [k, v] of local) attrs.push(`${k}="${escapeAttribute(v)}"`);
       out.push(`<${child.name} ${attrs.join(" ")}/>`);
     }
   };
-  visit(
-    root,
-    new Map(
-      inherited.map((p) => [p, root.attributes.find((a) => a.name === p)?.value ?? ""] as const),
-    ),
-  );
+  visit(root, paintOf(root, new Map()));
   return { viewBox: vb as [number, number, number, number], markup: out.join(""), rejected };
 }
 

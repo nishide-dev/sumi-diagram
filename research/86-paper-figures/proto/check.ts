@@ -22,13 +22,38 @@ export interface CheckReport {
   nodeOverlaps: string[];
   /** Nodes not inside their container (with 1 unit tolerance). */
   containment: string[];
-  /** Edge labels overlapping a node, a caption or any edge segment. */
+  /** A vertex (end or bend) of one net lying on a segment of another net (T contacts, touching bends). */
+  contacts: string[];
+  /** Arrowhead areas hit by another net, or by a node other than the target. */
+  arrowheadHits: string[];
+  /** Edge labels overlapping a node, a caption, a group border, another label or any edge. */
   labelCollisions: string[];
   bends: number;
   totalLength: number;
 }
 
 const EPS = 0.01;
+/** Must match svg.ts. */
+const ARROW_LENGTH = 9;
+const ARROW_HALF = 4;
+
+function rectsOverlap(a: Rect, b: Rect): boolean {
+  return (
+    a.x < b.x + b.w - EPS && b.x < a.x + a.w - EPS && a.y < b.y + b.h - EPS && b.y < a.y + a.h - EPS
+  );
+}
+
+/** p lies on the axis-aligned segment a–b, ends included. */
+function onSegment(p: Point, a: Point, b: Point): boolean {
+  const axis = Math.abs(a.x - b.x) <= EPS || Math.abs(a.y - b.y) <= EPS;
+  return (
+    axis &&
+    p.x >= Math.min(a.x, b.x) - EPS &&
+    p.x <= Math.max(a.x, b.x) + EPS &&
+    p.y >= Math.min(a.y, b.y) - EPS &&
+    p.y <= Math.max(a.y, b.y) + EPS
+  );
+}
 
 function segments(points: Point[]): [Point, Point][] {
   const out: [Point, Point][] = [];
@@ -77,6 +102,8 @@ export function checkLayout(
     overlapLength: 0,
     nodeOverlaps: [],
     containment: [],
+    contacts: [],
+    arrowheadHits: [],
     labelCollisions: [],
     bends: 0,
     totalLength: 0,
@@ -126,6 +153,37 @@ export function checkLayout(
     };
     check(e.edge.from, e.points[0] as Point, e.fromSide, e.edge.fromAnchor !== undefined);
     check(e.edge.to, e.points.at(-1) as Point, e.toSide, e.edge.toAnchor !== undefined);
+  }
+  // Contacts: any vertex (end or bend) of one net on a segment of another net.
+  for (const p of routed)
+    for (const q of routed) {
+      if (p.net === q.net) continue;
+      for (const v of p.points)
+        if (segments(q.points).some(([a, b]) => onSegment(v, a, b)))
+          report.contacts.push(`e#${p.edge.index} vertex on e#${q.edge.index}`);
+    }
+  // Arrowheads: the last ARROW_LENGTH of the final segment, ARROW_HALF to each side.
+  for (const e of routed) {
+    if (!e.edge.arrow || e.points.length < 2) continue;
+    const tip = e.points.at(-1) as Point;
+    const prev = e.points.at(-2) as Point;
+    const len = Math.hypot(tip.x - prev.x, tip.y - prev.y);
+    const ux = (tip.x - prev.x) / len;
+    const uy = (tip.y - prev.y) / len;
+    const bx = tip.x - ux * ARROW_LENGTH;
+    const by = tip.y - uy * ARROW_LENGTH;
+    const head: Rect = {
+      x: Math.min(tip.x, bx) - Math.abs(uy) * ARROW_HALF,
+      y: Math.min(tip.y, by) - Math.abs(ux) * ARROW_HALF,
+      w: Math.abs(tip.x - bx) + 2 * Math.abs(uy) * ARROW_HALF,
+      h: Math.abs(tip.y - by) + 2 * Math.abs(ux) * ARROW_HALF,
+    };
+    for (const q of routed)
+      if (q.net !== e.net && segments(q.points).some(([a, b]) => segmentHitsRect(a, b, head)))
+        report.arrowheadHits.push(`e#${e.edge.index} head / e#${q.edge.index}`);
+    for (const [id, r] of solid)
+      if (id !== e.edge.to && rectsOverlap(head, r))
+        report.arrowheadHits.push(`e#${e.edge.index} head / ${id}`);
   }
   // Crossings / overlaps between different nets.
   for (let i = 0; i < routed.length; i++)
@@ -197,6 +255,12 @@ export function checkLayout(
       o.y < r.y + r.h - EPS;
     for (const [id, o] of solid)
       if (overlaps(o)) report.labelCollisions.push(`e#${l.edge} label / ${id}`);
+    for (const [id, o] of layout.captions)
+      if (overlaps(o)) report.labelCollisions.push(`e#${l.edge} label / caption ${id}`);
+    for (const [id, g] of layout.groups) {
+      const inside = r.x >= g.x && r.y >= g.y && r.x + r.w <= g.x + g.w && r.y + r.h <= g.y + g.h;
+      if (overlaps(g) && !inside) report.labelCollisions.push(`e#${l.edge} label / border ${id}`);
+    }
     for (const e of routed)
       for (const [a, b] of segments(e.points))
         if (segmentHitsRect(a, b, r))

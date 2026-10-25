@@ -18,9 +18,16 @@ import { runD2Probes } from "./measure/d2-probes";
 import { runEngineImageProbes } from "./measure/engine-images";
 import { exportSvg } from "./measure/export";
 import { measureGlyphs } from "./measure/glyphs";
-import { emojiSamples, measureIconSets, simpleIconsLicenses } from "./measure/icons";
+import {
+  emojiSamples,
+  fetchPackage,
+  measureIconSets,
+  simpleIconsLicenses,
+  tablerWithoutBrands,
+} from "./measure/icons";
 import { measureMathJax } from "./measure/mathjax";
-import { allPackageFacts } from "./measure/packages";
+import { allPackageFacts, PINNED } from "./measure/packages";
+import { toolVersions } from "./measure/tools";
 import { runPrototype } from "./proto";
 
 const DIR = import.meta.dir;
@@ -38,9 +45,14 @@ const report: Record<string, unknown> = {
     date: new Date().toLocaleDateString("sv"),
     platform: `${process.platform}-${process.arch}`,
     bun: Bun.version,
+    tools: await toolVersions(),
   },
 };
 await mkdir(OUT, { recursive: true });
+// The prototype reads tabler/wave-sine from .tools/ when present: fetch it first so a clean
+// run and a re-run render the same SVG. Offline runs use the built-in fallback icon.
+if (!offline) await fetchPackage("@tabler/icons", PINNED["@tabler/icons"] ?? "");
+report.environment = { ...(report.environment as object), icon: offline ? "fallback" : "tabler" };
 
 const IDEAL = ["a-transformer", "b-dit", "c-h3world"];
 const PROTO = ["a-transformer", "b-adaln-panel"];
@@ -52,11 +64,9 @@ if (want("proto")) {
     const first = runPrototype(text);
     const second = runPrototype(text);
     // Warm timing: median of 5 further runs.
-    const times = [0, 1, 2, 3, 4].map(() => {
-      const t = runPrototype(text).timing;
-      return t.parseMs + t.layoutMs + t.routeMs + t.svgMs;
-    });
-    times.sort((a, b) => a - b);
+    const runs = [0, 1, 2, 3, 4].map(() => runPrototype(text).timing);
+    const median = (values: number[]) =>
+      Math.round(([...values].sort((a, b) => a - b)[2] ?? 0) * 100) / 100;
     await writeFile(join(OUT, `${name}.svg`), first.svg);
     const exported = await exportSvg(first.svg, join(OUT, name));
     proto[name] = {
@@ -68,10 +78,24 @@ if (want("proto")) {
       svgBytes: first.svg.length,
       svgSha256: sha256(first.svg),
       deterministic: first.svg === second.svg,
-      medianMs: Math.round((times[2] ?? 0) * 100) / 100,
+      // Total = parse + layout + route (incl. edge labels) + SVG; route alone separately.
+      medianMs: median(runs.map((t) => t.parseMs + t.layoutMs + t.routeMs + t.svgMs)),
+      medianRouteMs: median(runs.map((t) => t.routeMs)),
       export: exported,
     };
   }
+  // The first draft of figure A used wider gaps (row 8mm, positional-encoding attach 3mm)
+  // and came out wider than paper-single; recorded so the doc's comparison is reproducible.
+  const a = await readFile(join(DIR, "figures", "ideal", "a-transformer.sumi.yaml"), "utf8");
+  const wide = a.replace(/^ {8}gap: 3mm$/m, "        gap: 8mm").replace(/gap: 1.5mm/g, "gap: 3mm");
+  if (wide === a) throw new Error("wide-gap variant did not change the input");
+  const widePrototype = runPrototype(wide);
+  proto["a-transformer (first draft: gaps 8mm / 3mm)"] = {
+    sizeMm: [widePrototype.layout.width, widePrototype.layout.height].map(
+      (u) => Math.round(((u / 2) * 25.4 * 100) / 72) / 100,
+    ),
+    checks: widePrototype.checks,
+  };
   report.prototype = proto;
 }
 
@@ -137,6 +161,7 @@ if (!offline && want("packages")) report.packages = await allPackageFacts();
 if (!offline && want("icons")) {
   report.iconSets = await measureIconSets();
   report.simpleIconsLicenses = await simpleIconsLicenses();
+  report.tablerWithoutBrands = await tablerWithoutBrands();
   report.emojiSamples = await emojiSamples();
 }
 if (!offline && want("bundles")) report.bundles = await measureBundles();

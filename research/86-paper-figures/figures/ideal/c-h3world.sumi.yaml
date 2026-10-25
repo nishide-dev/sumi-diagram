@@ -142,7 +142,7 @@ nodes:
     component: image
     props:
       src: assets/frame-13.png
-      sha256: "<pinned by `sumi fmt --pin-assets`>"
+      # sha256: optional pin, written by `sumi fmt --pin-assets` (proposed)
       fit: cover
       width: 30mm
       height: 17mm
@@ -227,8 +227,8 @@ nodes:
   - { id: c-add-out, component: operator, props: { symbol: plus }, tone: orange }
   - id: mask
     component: matrix
-    caption: Masked Attention
     props:
+      title: Masked Attention # drawn under the matrix
       rows: [Static, "A$_1$", A2, A3, "I$_0$", V1, V2, V3, pad]
       columns: [Static, "A$_1$", A2, A3, "I$_0$", V1, V2, V3, pad]
       rowTitle: Query

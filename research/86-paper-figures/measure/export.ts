@@ -6,9 +6,9 @@
  */
 import { readFileSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
-import { runCommand } from "../../../src/core/subprocess";
 import { loadEngine, runEngine } from "../../../src/render/pdf/engine";
 import { FONT_FILES } from "../proto/text";
+import { countPdfImages, mustRun } from "./tools";
 
 export interface ExportReport {
   pdfBytes: number;
@@ -33,9 +33,9 @@ export async function exportSvg(svg: string, base: string): Promise<ExportReport
   const n = new DataView(picture.pdf.buffer, picture.pdf.byteOffset).getUint32(0, true);
   const png = picture.pdf.slice(4, 4 + n);
   await writeFile(`${base}.png`, png);
-  const fontsOut = await runCommand(["pdffonts", `${base}.pdf`]);
-  const images = await runCommand(["pdfimages", "-list", `${base}.pdf`]);
-  const text = await runCommand(["pdftotext", "-layout", `${base}.pdf`, "-"]);
+  const fontsOut = await mustRun(["pdffonts", `${base}.pdf`]);
+  const images = await mustRun(["pdfimages", "-list", `${base}.pdf`]);
+  const text = await mustRun(["pdftotext", "-layout", `${base}.pdf`, "-"]);
   return {
     pdfBytes: pdf.pdf.length,
     pdfDeterministic: again.ok && Buffer.from(again.pdf).equals(Buffer.from(pdf.pdf)),
@@ -44,7 +44,7 @@ export async function exportSvg(svg: string, base: string): Promise<ExportReport
       .split("\n")
       .slice(2)
       .map((l) => l.replace(/\s+/g, " ").trim()),
-    pdfImages: Math.max(0, images.stdout.trim().split("\n").length - 2),
+    pdfImages: countPdfImages(images.stdout),
     pdfText: text.stdout.replace(/\s+/g, " ").trim(),
     pngBytes: png.length,
   };
