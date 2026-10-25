@@ -99,6 +99,13 @@ describe("SVG import allowlist", () => {
     expect(icon.rejected).toEqual(['svg@stroke=" onmouseover="alert(1)']);
     expect(icon.markup).not.toContain("onmouseover");
   });
+  test("prototype property names are plain unknown names", () => {
+    const icon = importSvg(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" constructor="x" toString="y"><constructor/><path d="M0 0L1 1" __proto__="z"/></svg>',
+    );
+    expect(icon.markup).toBe('<path d="M0 0L1 1"/>');
+    expect(icon.rejected).toEqual(["constructor", "path@__proto__"]);
+  });
   test("refuses DTDs (XXE / entity expansion)", () => {
     expect(() =>
       importSvg(

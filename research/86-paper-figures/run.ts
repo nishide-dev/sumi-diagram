@@ -51,7 +51,8 @@ const report: Record<string, unknown> = {
 await mkdir(OUT, { recursive: true });
 // The prototype reads tabler/wave-sine from .tools/ when present: fetch it first so a clean
 // run and a re-run render the same SVG. Offline runs use the built-in fallback icon.
-if (!offline) await fetchPackage("@tabler/icons", PINNED["@tabler/icons"] ?? "");
+if (offline) process.env.SUMI86_ICONS = "fallback";
+else await fetchPackage("@tabler/icons", PINNED["@tabler/icons"] ?? "");
 report.environment = { ...(report.environment as object), icon: offline ? "fallback" : "tabler" };
 
 const IDEAL = ["a-transformer", "b-dit", "c-h3world"];

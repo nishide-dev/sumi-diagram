@@ -162,6 +162,7 @@ export function parseModel(text: string): Model {
     if (!COMPONENTS.has(component))
       throw new ModelError(`${where}: unknown component ${component}`);
     const props = n.props === undefined ? {} : obj(n.props, `${where}.props`);
+    only(props, component === "operator" ? ["symbol"] : [], `${where}.props`);
     let attach: NodeDef["attach"];
     if (n.attach !== undefined) {
       const a = obj(n.attach, `${where}.attach`);

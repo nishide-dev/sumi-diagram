@@ -110,7 +110,7 @@ edges:
 | --- | --- | --- | --- |
 | A | 42 | component/unknown 7 | arrange, attach, engine, fromAnchor, icon, toAnchor, tone |
 | B | 68 | component/unknown 17 | 上記（icon を除く）＋ caption, sublabel |
-| C | 66 | component/unknown 9、component/unknown-variant 3、schema/invalid-id 2（`sequence.a5` 形式の端点） | 上記＋ badge, labelAt, labelRotation, textAlign |
+| C | 65 | component/unknown 10、component/unknown-variant 3、schema/invalid-id 2（`sequence.a5` 形式の端点） | arrange, attach, badge, engine, fromAnchor, labelAt, labelRotation, sublabel, textAlign, toAnchor, tone |
 
 ### 2.6 機能差の一覧
 

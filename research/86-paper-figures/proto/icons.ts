@@ -20,14 +20,15 @@ const SHAPES: Record<string, readonly string[]> = {
 const PAINT = ["fill", "stroke", "stroke-width", "stroke-linecap", "stroke-linejoin", "fill-rule"];
 const NUMBER = /^-?(\d+\.?\d*|\.\d+)(e-?\d+)?$/i;
 const COLOR = /^(none|currentColor|#[0-9a-fA-F]{3}|#[0-9a-fA-F]{6})$/;
-const PAINT_VALUE: Record<string, RegExp> = {
-  fill: COLOR,
-  stroke: COLOR,
-  "stroke-width": NUMBER,
-  "stroke-linecap": /^(butt|round|square)$/,
-  "stroke-linejoin": /^(miter|round|bevel)$/,
-  "fill-rule": /^(nonzero|evenodd)$/,
-};
+/** A Map, so names such as `constructor` never resolve through a prototype. */
+const PAINT_VALUE: ReadonlyMap<string, RegExp> = new Map([
+  ["fill", COLOR],
+  ["stroke", COLOR],
+  ["stroke-width", NUMBER],
+  ["stroke-linecap", /^(butt|round|square)$/],
+  ["stroke-linejoin", /^(miter|round|bevel)$/],
+  ["fill-rule", /^(nonzero|evenodd)$/],
+]);
 const PATH_DATA = /^[MmLlHhVvCcSsQqTtZz0-9eE.,+\-\s]*$/; // no arcs (A), see design §6.3
 
 export interface ImportedSvg {
@@ -51,7 +52,7 @@ export function importSvg(text: string): ImportedSvg {
   /** Copies allowlisted paint attributes with valid values; reports the rest. */
   const paintOf = (el: XmlElement, into: Map<string, string>) => {
     for (const a of el.attributes) {
-      const valid = PAINT_VALUE[a.name];
+      const valid = PAINT_VALUE.get(a.name);
       if (valid === undefined) continue;
       if (valid.test(a.value)) into.set(a.name, a.value);
       else rejected.push(`${el.name}@${a.name}=${a.value}`);
@@ -68,7 +69,7 @@ export function importSvg(text: string): ImportedSvg {
         visit(child, local);
         continue;
       }
-      const geometry = SHAPES[child.name];
+      const geometry = Object.hasOwn(SHAPES, child.name) ? SHAPES[child.name] : undefined;
       if (geometry === undefined) {
         rejected.push(child.name);
         continue;
@@ -111,7 +112,8 @@ const TABLER = join(import.meta.dir, "..", ".tools", "@tabler__icons-3.49.0", "i
 
 /** Resolves `tabler/<name>` from the research download, else a built-in fallback. */
 export function loadIcon(ref: string): { svg: ImportedSvg; source: string } {
-  const m = /^tabler\/([a-z0-9-]+)$/.exec(ref);
+  // SUMI86_ICONS=fallback forces the built-in icon (run.ts --offline sets it).
+  const m = process.env.SUMI86_ICONS === "fallback" ? null : /^tabler\/([a-z0-9-]+)$/.exec(ref);
   if (m !== null) {
     const file = join(TABLER, `${m[1]}.svg`);
     if (existsSync(file))
