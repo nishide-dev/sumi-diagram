@@ -1,0 +1,67 @@
+# Figure A within today's Figure v1 (Sumi v0.3.1): the best approximation
+# without new syntax, to measure the gap. No ports, no per-group layout, no
+# fills per block type, no junctions: residuals and the Q/K/V fan-out become
+# plain edges routed by ELK.
+version: 1
+figure:
+  id: transformer-v1
+  theme: academic
+  profile: paper-single
+  layout:
+    direction: up
+
+groups:
+  - id: encoder
+    label: "N×"
+  - id: decoder
+    label: "N×"
+
+nodes:
+  - { id: inputs, component: label, label: Inputs }
+  - { id: input-embedding, component: box, label: "Input\nEmbedding" }
+  - { id: enc-add, component: circle, label: "+" }
+  - { id: enc-pe, component: label, label: "Positional\nEncoding" }
+  - { id: enc-mha, component: box, label: "Multi-Head\nAttention", group: encoder }
+  - { id: enc-norm1, component: box, label: "Add & Norm", group: encoder }
+  - { id: enc-ff, component: box, label: "Feed\nForward", group: encoder }
+  - { id: enc-norm2, component: box, label: "Add & Norm", group: encoder }
+  - { id: outputs, component: label, label: "Outputs\n(shifted right)" }
+  - { id: output-embedding, component: box, label: "Output\nEmbedding" }
+  - { id: dec-add, component: circle, label: "+" }
+  - { id: dec-pe, component: label, label: "Positional\nEncoding" }
+  - { id: dec-mmha, component: box, label: "Masked\nMulti-Head\nAttention", group: decoder }
+  - { id: dec-norm1, component: box, label: "Add & Norm", group: decoder }
+  - { id: dec-mha, component: box, label: "Multi-Head\nAttention", group: decoder }
+  - { id: dec-norm2, component: box, label: "Add & Norm", group: decoder }
+  - { id: dec-ff, component: box, label: "Feed\nForward", group: decoder }
+  - { id: dec-norm3, component: box, label: "Add & Norm", group: decoder }
+  - { id: linear, component: box, label: Linear }
+  - { id: softmax, component: box, label: Softmax }
+  - { id: probabilities, component: label, label: "Output\nProbabilities" }
+
+edges:
+  - { from: inputs, to: input-embedding }
+  - { from: input-embedding, to: enc-add }
+  - { from: enc-pe, to: enc-add, component: line }
+  - { from: enc-add, to: enc-mha }
+  - { from: enc-add, to: enc-norm1 }
+  - { from: enc-mha, to: enc-norm1 }
+  - { from: enc-norm1, to: enc-ff }
+  - { from: enc-norm1, to: enc-norm2 }
+  - { from: enc-ff, to: enc-norm2 }
+  - { from: outputs, to: output-embedding }
+  - { from: output-embedding, to: dec-add }
+  - { from: dec-pe, to: dec-add, component: line }
+  - { from: dec-add, to: dec-mmha }
+  - { from: dec-add, to: dec-norm1 }
+  - { from: dec-mmha, to: dec-norm1 }
+  - { from: dec-norm1, to: dec-mha }
+  - { from: dec-norm1, to: dec-norm2 }
+  - { from: enc-norm2, to: dec-mha }
+  - { from: dec-mha, to: dec-norm2 }
+  - { from: dec-norm2, to: dec-ff }
+  - { from: dec-norm2, to: dec-norm3 }
+  - { from: dec-ff, to: dec-norm3 }
+  - { from: dec-norm3, to: linear }
+  - { from: linear, to: softmax }
+  - { from: softmax, to: probabilities }

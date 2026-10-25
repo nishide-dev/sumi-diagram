@@ -1,0 +1,128 @@
+# Figure A (easy): the Transformer architecture, reconstructed from the
+# *structure* of Vaswani et al. 2017, Fig. 1 (no pixels, text or styling
+# copied beyond generic block names).
+#
+# PROPOSED syntax for #86 (docs/research/86-paper-figures.md). Sumi v0.3.1
+# rejects this file; research/86-paper-figures/proto/ lays it out.
+#
+# New in this draft (all additive to Figure v1):
+#   figure.layout.engine / figure.layout.arrange   structured layout tree
+#   group.arrange                                  layout inside a container
+#   node.tone                                      categorical fill from the theme palette
+#   node.attach                                    place beside another element (outside the flow)
+#   node.icon                                      bundled icon reference <set>/<name>
+#   components junction / operator                generic point and circled-operator nodes
+#   edge.fromAnchor / edge.toAnchor                "<side>" or "<side>:<offset 0..1>"
+version: 1
+requires: ">=0.4.0"
+figure:
+  id: transformer
+  theme: academic
+  profile: paper-single
+  layout:
+    engine: structured # auto (D2/ELK, today's behavior) | structured
+    arrange:
+      row:
+        gap: 3mm
+        align: end # bottom edges line up
+        items:
+          - stack: { direction: up, gap: 4mm, items: [inputs, input-embedding, enc-add, encoder] }
+          - stack:
+              direction: up
+              gap: 4mm
+              items: [outputs, output-embedding, dec-add, decoder, linear, softmax, probabilities]
+
+groups:
+  - id: encoder
+    arrange:
+      stack:
+        direction: up
+        gap: 3mm
+        align: stretch # every block as wide as the widest
+        items:
+          - enc-split1
+          - stack: { direction: up, gap: 0, items: [enc-mha, enc-norm1] }
+          - enc-split2
+          - stack: { direction: up, gap: 0, items: [enc-ff, enc-norm2] }
+  - id: decoder
+    arrange:
+      stack:
+        direction: up
+        gap: 3mm
+        align: stretch
+        items:
+          - dec-split1
+          - stack: { direction: up, gap: 0, items: [dec-mmha, dec-norm1] }
+          - dec-split2
+          - stack: { direction: up, gap: 0, items: [dec-mha, dec-norm2] }
+          - dec-split3
+          - stack: { direction: up, gap: 0, items: [dec-ff, dec-norm3] }
+
+nodes:
+  # encoder side
+  - { id: inputs, component: label, label: Inputs }
+  - { id: input-embedding, component: box, label: "Input\nEmbedding", tone: pink }
+  - { id: enc-add, component: operator, props: { symbol: plus } }
+  - { id: enc-pe, component: circle, icon: tabler/wave-sine, attach: { to: enc-add, side: west, gap: 1.5mm } }
+  - { id: enc-pe-label, component: label, label: "Positional\nEncoding", attach: { to: enc-pe, side: west, gap: 1mm } }
+  - { id: enc-split1, component: junction }
+  - { id: enc-mha, component: box, label: "Multi-Head\nAttention", tone: orange }
+  - { id: enc-norm1, component: box, label: "Add & Norm", tone: yellow }
+  - { id: enc-split2, component: junction }
+  - { id: enc-ff, component: box, label: "Feed\nForward", tone: blue }
+  - { id: enc-norm2, component: box, label: "Add & Norm", tone: yellow }
+  - { id: enc-n, component: label, label: "N×", attach: { to: encoder, side: west, gap: 2mm } }
+  # decoder side
+  - { id: outputs, component: label, label: "Outputs\n(shifted right)" }
+  - { id: output-embedding, component: box, label: "Output\nEmbedding", tone: pink }
+  - { id: dec-add, component: operator, props: { symbol: plus } }
+  - { id: dec-pe, component: circle, icon: tabler/wave-sine, attach: { to: dec-add, side: east, gap: 1.5mm } }
+  - { id: dec-pe-label, component: label, label: "Positional\nEncoding", attach: { to: dec-pe, side: east, gap: 1mm } }
+  - { id: dec-split1, component: junction }
+  - { id: dec-mmha, component: box, label: "Masked\nMulti-Head\nAttention", tone: orange }
+  - { id: dec-norm1, component: box, label: "Add & Norm", tone: yellow }
+  - { id: dec-split2, component: junction }
+  - { id: dec-mha, component: box, label: "Multi-Head\nAttention", tone: orange }
+  - { id: dec-norm2, component: box, label: "Add & Norm", tone: yellow }
+  - { id: dec-split3, component: junction }
+  - { id: dec-ff, component: box, label: "Feed\nForward", tone: blue }
+  - { id: dec-norm3, component: box, label: "Add & Norm", tone: yellow }
+  - { id: dec-n, component: label, label: "N×", attach: { to: decoder, side: east, gap: 2mm } }
+  - { id: linear, component: box, label: Linear, tone: purple }
+  - { id: softmax, component: box, label: Softmax, tone: green }
+  - { id: probabilities, component: label, label: "Output\nProbabilities" }
+
+edges:
+  # encoder trunk; a junction fans out to Q/K/V and the residual
+  - { from: inputs, to: input-embedding }
+  - { from: input-embedding, to: enc-add }
+  - { from: enc-pe, to: enc-add, component: line }
+  - { from: enc-add, to: enc-split1, component: line }
+  - { from: enc-split1, to: enc-mha, toAnchor: "south:0.15" }
+  - { from: enc-split1, to: enc-mha, toAnchor: "south:0.5" }
+  - { from: enc-split1, to: enc-mha, toAnchor: "south:0.85" }
+  - { from: enc-split1, to: enc-norm1, toAnchor: west } # residual
+  - { from: enc-norm1, to: enc-split2, component: line }
+  - { from: enc-split2, to: enc-ff }
+  - { from: enc-split2, to: enc-norm2, toAnchor: west } # residual
+  # decoder trunk
+  - { from: outputs, to: output-embedding }
+  - { from: output-embedding, to: dec-add }
+  - { from: dec-pe, to: dec-add, component: line }
+  - { from: dec-add, to: dec-split1, component: line }
+  - { from: dec-split1, to: dec-mmha, toAnchor: "south:0.15" }
+  - { from: dec-split1, to: dec-mmha, toAnchor: "south:0.5" }
+  - { from: dec-split1, to: dec-mmha, toAnchor: "south:0.85" }
+  - { from: dec-split1, to: dec-norm1, toAnchor: east }
+  - { from: dec-norm1, to: dec-split2, component: line }
+  - { from: dec-split2, to: dec-mha, toAnchor: "south:0.85" } # query from the decoder
+  - { from: dec-split2, to: dec-norm2, toAnchor: east }
+  # encoder output -> keys and values of the decoder (one source: a shared trunk)
+  - { from: enc-norm2, fromAnchor: north, to: dec-mha, toAnchor: "south:0.15" }
+  - { from: enc-norm2, fromAnchor: north, to: dec-mha, toAnchor: "south:0.5" }
+  - { from: dec-norm2, to: dec-split3, component: line }
+  - { from: dec-split3, to: dec-ff }
+  - { from: dec-split3, to: dec-norm3, toAnchor: east }
+  - { from: dec-norm3, to: linear }
+  - { from: linear, to: softmax }
+  - { from: softmax, to: probabilities }
