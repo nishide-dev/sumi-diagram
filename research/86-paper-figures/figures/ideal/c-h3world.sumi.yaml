@@ -1,0 +1,285 @@
+# Figure C (hard): an "H3-World"-style overview figure, reconstructed from
+# its *structure* only: (a) a packed-sequence build with video frames, key
+# presses and prompts, (b) a block stack, (c) LoRA in self-attention with a
+# masked attention matrix. The frames are the user's own image files (the
+# paths below are placeholders; no reference pixels are used or committed).
+#
+# PROPOSED syntax for #86. Not run by the prototype.
+#
+# New beyond figures A and B:
+#   component: image (props.src / sha256 / fit)   user raster/SVG assets, relative to this file
+#   props.layers on image                         a stack of offset copies (frame sequence)
+#   grid arrange (columns, span)                  table-like alignment across rows
+#   rich text [text]{tone=...}                    colored spans inside a label
+#   node.labelRotation: -90                       vertical (rotated) Latin text
+#   node.badge                                    small icon on a corner (🔥 / ❄ as emoji icons)
+#   component: tokens                             a row of small labelled cells (data-driven)
+#   component: keys                               keycap cluster with highlighted keys
+#   component: matrix (+ legend)                  categorical cell matrix with hatch pattern
+#   component: bowtie                             generic two-trapezoid "bow-tie" outline (the LoRA shape)
+#   component: spacer                             an empty grid cell
+#   node.textAlign: left                          left-aligned multi-line text
+#   edge endpoint <node>.<cell>                   an edge to one cell of a tokens row
+#   edge.tone, edge.labelAt                       colored edges; label at the middle instead of the end
+#   group.variant: dashed, label "(a) …"           panel titles and dashed panels
+version: 1
+requires: ">=0.6.0"
+figure:
+  id: h3world-overview
+  theme: academic
+  profile: paper-double
+  layout:
+    engine: structured
+    arrange:
+      stack:
+        gap: 3mm
+        items:
+          - build
+          - row: { gap: 4mm, align: stretch, items: [adapt, lora] }
+
+groups:
+  # (a) -------------------------------------------------------------------
+  - id: build
+    component: panel
+    label: "(a) Build the packed H3-World sequence"
+    arrange:
+      row:
+        gap: 3mm
+        align: stretch
+        items:
+          - grid:
+              columns: 6 # row-heading column + 5 time steps
+              column-gap: 3mm
+              row-gap: 2mm
+              align: center
+              items:
+                - visual-heading
+                - frame0
+                - frame1
+                - frame2
+                - frame3
+                - frame4
+                - action-heading
+                - keys0
+                - keys1
+                - keys2
+                - keys3
+                - keys4
+                - first-frame
+                - prompt0
+                - prompt1
+                - prompt2
+                - prompt3
+                - prompt4
+                - first-encoder
+                - enc0
+                - enc1
+                - enc2
+                - enc3
+                - enc4
+                - empty
+                - { item: refiner, span: 5 }
+                - sequence-heading
+                - { item: sequence, span: 5 }
+          - vae # tall box to the right, spanning the rows
+
+  # (b) -------------------------------------------------------------------
+  - id: adapt
+    component: panel
+    label: "(b) Adapt the H3 block"
+    arrange:
+      stack:
+        gap: 2mm
+        align: stretch
+        items: [b-tokens, b-block1, b-dots1, b-inner, b-dots2, b-block2]
+  - id: b-inner
+    component: container
+    tone: blue
+    arrange:
+      stack: { gap: 2mm, align: stretch, items: [b-attn, b-ffn] }
+
+  # (c) -------------------------------------------------------------------
+  - id: lora
+    component: panel
+    variant: dashed
+    label: "(c) LoRA inside H3 self-attention"
+    arrange:
+      row:
+        gap: 4mm
+        align: center
+        items:
+          - c-tokens
+          - stack: { gap: 6mm, items: [lora-in, qkv] }
+          - c-add-in
+          - mask
+          - stack: { gap: 6mm, items: [lora-out, out-proj] }
+          - c-add-out
+
+nodes:
+  # (a) row headings
+  - { id: visual-heading, component: label, label: Visual Stream, variant: emphasis }
+  - { id: action-heading, component: label, label: Action Stream, variant: emphasis }
+  - { id: sequence-heading, component: label, label: Sequence, variant: emphasis }
+  - { id: empty, component: spacer }
+  # (a) frames: user images, a stack of offset copies for multi-frame steps
+  - id: frame0
+    component: image
+    props: { src: assets/frame-00.png, fit: cover, width: 30mm, height: 17mm }
+    sublabel: "$I_0$"
+  - id: frame1
+    component: image
+    props: { src: assets/frame-01.png, fit: cover, width: 30mm, height: 17mm, layers: 4 }
+    sublabel: "$I_{1-4}$"
+  - id: frame2
+    component: image
+    props: { src: assets/frame-05.png, fit: cover, width: 30mm, height: 17mm, layers: 4 }
+    sublabel: "$I_{5-8}$"
+  - id: frame3
+    component: image
+    props: { src: assets/frame-09.png, fit: cover, width: 30mm, height: 17mm, layers: 4 }
+    sublabel: "$I_{9-12}$"
+  - id: frame4
+    component: image
+    props:
+      src: assets/frame-13.png
+      sha256: "<pinned by `sumi fmt --pin-assets`>"
+      fit: cover
+      width: 30mm
+      height: 17mm
+      layers: 4
+    sublabel: "$I_{13-16}$"
+  - id: first-frame
+    component: image
+    props: { src: assets/frame-00.png, fit: cover, width: 20mm, height: 11mm }
+    sublabel: "$I_0$"
+  # (a) key presses: data-driven keycaps, highlighted keys take the tone
+  - { id: keys0, component: keys, props: { layout: [[W, null, null, I, F], [A, S, D, J, K, L]], pressed: [], tone: orange } }
+  - { id: keys1, component: keys, props: { layout: [[W, null, null, I, F], [A, S, D, J, K, L]], pressed: [A], tone: orange } }
+  - { id: keys2, component: keys, props: { layout: [[W, null, null, I, F], [A, S, D, J, K, L]], pressed: [A, S, L], tone: orange } }
+  - { id: keys3, component: keys, props: { layout: [[W, null, null, I, F], [A, S, D, J, K, L]], pressed: [A, S, I, L], tone: orange } }
+  - { id: keys4, component: keys, props: { layout: [[W, null, null, I, F], [A, S, D, J, K, L]], pressed: [A, S, F, L], tone: orange } }
+  # (a) prompts with colored spans
+  - { id: prompt0, component: box, tone: gray, textAlign: left, label: "The character [stands still]{tone=orange},\ncamera [holds steady]{tone=blue}" }
+  - { id: prompt1, component: box, tone: gray, textAlign: left, label: "The character [strafes left]{tone=orange},\ncamera [follows him]{tone=blue}" }
+  - { id: prompt2, component: box, tone: gray, textAlign: left, label: "The character [walks backward\nand strafes left]{tone=orange}, camera [pans\nright slowly]{tone=blue}" }
+  - { id: prompt3, component: box, tone: gray, textAlign: left, label: "The character [walks backward\nand strafes left]{tone=orange}, camera [pans\nright slowly and tilts up]{tone=blue}" }
+  - { id: prompt4, component: box, tone: gray, textAlign: left, label: "The character [walks backward\nand strafes left]{tone=orange}, camera [pans\nright sharply]{tone=blue}" }
+  - { id: first-encoder, component: box, label: H3 Encoder, tone: purple, variant: emphasis }
+  - { id: enc0, component: box, label: H3 Encoder, tone: purple, variant: emphasis }
+  - { id: enc1, component: box, label: H3 Encoder, tone: purple, variant: emphasis }
+  - { id: enc2, component: box, label: H3 Encoder, tone: purple, variant: emphasis }
+  - { id: enc3, component: box, label: H3 Encoder, tone: purple, variant: emphasis }
+  - { id: enc4, component: box, label: H3 Encoder, tone: purple, variant: emphasis }
+  - { id: refiner, component: box, label: 2-Layer Token Refiner, tone: gray, variant: muted }
+  # (a) packed sequence: one data-driven row; cells can be edge endpoints as <id>.<cell>
+  - id: sequence
+    component: tokens
+    props:
+      cells:
+        - { id: static, label: Static, width: 4 }
+        - { id: a1, label: "A$_1$", tone: purple }
+        - { id: a2, label: A2, tone: purple }
+        - { id: a3, label: A3, tone: purple }
+        - { id: a4, label: A4, tone: purple }
+        - { id: a5, label: A5, tone: purple }
+        - { id: adots, label: "A....", tone: purple }
+        - { separator: dotted }
+        - { id: i0, label: "I$_0$" }
+        - { id: v1, label: "V$_1$", tone: orange }
+        - { id: v2, label: V2, tone: orange }
+        - { id: v3, label: V3, tone: orange }
+        - { id: v4, label: V4, tone: orange }
+        - { id: v5, label: V5, tone: orange }
+        - { id: vdots, label: V..., tone: orange }
+  - { id: vae, component: box, label: Visual VAE Encoder, labelRotation: -90, tone: orange, variant: emphasis }
+  - { id: frames-more, component: label, label: "…", attach: { to: frame4, side: east, gap: 1mm } }
+  # (b)
+  - id: b-tokens
+    component: tokens
+    props:
+      cells:
+        - { id: static, label: Static, width: 3 }
+        - { id: a1, label: "A$_1$", tone: purple }
+        - { id: a2, label: A2, tone: purple }
+        - { id: a3, label: A3, tone: purple }
+        - { id: i0, label: "I$_0$" }
+        - { id: v1, label: "V$_1$", tone: orange }
+        - { id: v2, label: V2, tone: orange }
+        - { id: v3, label: V3, tone: orange }
+        - { id: pad, label: Pad }
+  - { id: b-block1, component: box, label: H3 Omni Transformer Block, tone: blue }
+  - { id: b-dots1, component: label, label: "…" }
+  - { id: b-attn, component: box, label: Single Stream Self-Attention, tone: orange }
+  - { id: b-ffn, component: box, label: Feed Forward Network, tone: gray }
+  - { id: b-dots2, component: label, label: "…" }
+  - { id: b-block2, component: box, label: H3 Omni Transformer Block, tone: blue }
+  # (c)
+  - id: c-tokens
+    component: tokens
+    props:
+      direction: down
+      cells: [{ tone: gray }, { tone: purple }, { tone: purple }, { tone: purple }, { tone: gray }, { tone: orange }, { tone: orange }, { tone: orange }, { tone: gray }]
+  - { id: lora-in, component: bowtie, label: LoRA, tone: pink, badge: { icon: emoji/fire, corner: north-east } }
+  - { id: qkv, component: box, label: "QKV\nProj.", tone: blue, badge: { icon: emoji/snowflake, corner: north-east } }
+  - { id: c-add-in, component: operator, props: { symbol: plus }, tone: orange }
+  - { id: lora-out, component: bowtie, label: LoRA, tone: pink, badge: { icon: emoji/fire, corner: north-east } }
+  - { id: out-proj, component: box, label: "Out\nProj.", tone: blue, badge: { icon: emoji/snowflake, corner: north-east } }
+  - { id: c-add-out, component: operator, props: { symbol: plus }, tone: orange }
+  - id: mask
+    component: matrix
+    caption: Masked Attention
+    props:
+      rows: [Static, "A$_1$", A2, A3, "I$_0$", V1, V2, V3, pad]
+      columns: [Static, "A$_1$", A2, A3, "I$_0$", V1, V2, V3, pad]
+      rowTitle: Query
+      columnTitle: Key
+      # one string per row, one character per cell, keys in `classes`
+      cells:
+        - "o...oooo."
+        - "oo..oL..."
+        - "o.o.o.L.."
+        - "o..oo..L."
+        - "o...oooo."
+        - "oL..oooo."
+        - "o.L.oooo."
+        - "o..Loooo."
+        - "........o"
+      classes:
+        o: { tone: green, label: Allowed }
+        L: { tone: orange, label: "A↔V Link" }
+        ".": { pattern: hatch, label: Masked }
+      legend: { side: east, frame: dashed }
+
+edges:
+  # (a) data flow: frames and prompts into the encoders, encoders into the refiner
+  - { from: action-heading, fromAnchor: south, to: prompt0, toAnchor: west, label: "scheduled\nprompt", labelAt: middle, variant: muted }
+  - { from: prompt0, to: prompt1 }
+  - { from: prompt1, to: prompt2 }
+  - { from: prompt2, to: prompt3 }
+  - { from: prompt3, to: prompt4 }
+  - { from: prompt0, to: enc0 }
+  - { from: prompt1, to: enc1 }
+  - { from: prompt2, to: enc2 }
+  - { from: prompt3, to: enc3 }
+  - { from: prompt4, to: enc4 }
+  - { from: first-frame, to: first-encoder }
+  - { from: first-encoder, to: refiner, toAnchor: west }
+  - { from: enc0, to: refiner, toAnchor: "north:0.1" }
+  - { from: enc1, to: refiner, toAnchor: "north:0.3" }
+  - { from: enc2, to: refiner, toAnchor: "north:0.5" }
+  - { from: enc3, to: refiner, toAnchor: "north:0.7" }
+  - { from: enc4, to: refiner, toAnchor: "north:0.9" }
+  - { from: refiner, fromAnchor: "south:0.5", to: sequence.a5 }
+  - { from: frames-more, to: vae, toAnchor: "west:0.1", tone: orange }
+  - { from: vae, fromAnchor: south, to: sequence.vdots, tone: orange }
+  # (b)
+  - { from: b-tokens, to: b-block1 }
+  # zoom: the attention box of (b) is detailed in (c)
+  - { from: b-attn, to: lora, component: zoom }
+  # (c)
+  - { from: lora-in, to: c-add-in, tone: orange }
+  - { from: qkv, to: c-add-in, tone: orange }
+  - { from: c-add-in, to: mask }
+  - { from: mask, to: lora-out }
+  - { from: lora-out, to: c-add-out, tone: orange }
+  - { from: out-proj, to: c-add-out, tone: orange }

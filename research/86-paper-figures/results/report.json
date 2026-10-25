@@ -1,0 +1,1338 @@
+{
+  "environment": {
+    "date": "2026-10-26",
+    "platform": "darwin-arm64",
+    "bun": "1.3.14"
+  },
+  "prototype": {
+    "a-transformer": {
+      "sizeUnits": [
+        497,
+        780
+      ],
+      "sizeMm": [
+        87.67,
+        137.58
+      ],
+      "checks": {
+        "nodes": 30,
+        "edges": 30,
+        "nonOrthogonalSegments": 0,
+        "edgeThroughNode": [],
+        "misplacedEnds": [],
+        "crossings": 0,
+        "overlapLength": 0,
+        "nodeOverlaps": [],
+        "containment": [],
+        "labelCollisions": [],
+        "bends": 23,
+        "totalLength": 2031.753
+      },
+      "svgBytes": 16685,
+      "svgSha256": "2accb547db579c7407dddec18442ebc7b5e5280837b8d8784ecee3e70d726ed0",
+      "deterministic": true,
+      "medianMs": 20.41,
+      "export": {
+        "pdfBytes": 14988,
+        "pdfDeterministic": true,
+        "pdfFonts": [
+          "PPFMTW+BIZUDPGothic-Regular CID TrueType Identity-H yes yes yes 3 0"
+        ],
+        "pdfImages": 0,
+        "pdfText": "Output Probabilities Softmax Linear Add & Norm Feed Forward Add & Norm Add & Norm Multi-Head N× Attention Feed Forward Add & Norm N× Add & Norm Masked Multi-Head Multi-Head Attention Attention Positional Positional Encoding Encoding Output Input Embedding Embedding Outputs Inputs (shifted right)",
+        "pngBytes": 61643
+      }
+    },
+    "b-adaln-panel": {
+      "sizeUnits": [
+        387,
+        612
+      ],
+      "sizeMm": [
+        68.26,
+        107.95
+      ],
+      "checks": {
+        "nodes": 16,
+        "edges": 20,
+        "nonOrthogonalSegments": 0,
+        "edgeThroughNode": [],
+        "misplacedEnds": [],
+        "crossings": 0,
+        "overlapLength": 0,
+        "nodeOverlaps": [],
+        "containment": [],
+        "labelCollisions": [],
+        "bends": 14,
+        "totalLength": 2136.285
+      },
+      "svgBytes": 10035,
+      "svgSha256": "291d0829a6e324ab947a4f54dd3f5a3f3f69f358a334406c4824626ff0b436d1",
+      "deterministic": true,
+      "medianMs": 4.65,
+      "export": {
+        "pdfBytes": 13632,
+        "pdfDeterministic": true,
+        "pdfFonts": [
+          "EEWILX+BIZUDPGothic-Regular CID TrueType Identity-H yes yes yes 3 0"
+        ],
+        "pdfImages": 0,
+        "pdfText": "α2 Scale Pointwise Feedforward γ2,β2 Scale, Shift Layer Norm α1 Scale Multi-Head Self-Attention γ1,β1 Scale, Shift MLP Layer Norm Input Tokens Conditioning DiT Block with adaLN-Zero",
+        "pngBytes": 38313
+      }
+    }
+  },
+  "currentSchema": {
+    "a-transformer": {
+      "withRequires": [
+        "schema/unsatisfied-requires"
+      ],
+      "withoutRequires": {
+        "schema/unknown-field": 42,
+        "component/unknown": 7
+      },
+      "unknownFields": [
+        "arrange",
+        "attach",
+        "engine",
+        "fromAnchor",
+        "icon",
+        "toAnchor",
+        "tone"
+      ]
+    },
+    "b-dit": {
+      "withRequires": [
+        "schema/unsatisfied-requires"
+      ],
+      "withoutRequires": {
+        "schema/unknown-field": 68,
+        "component/unknown": 17
+      },
+      "unknownFields": [
+        "arrange",
+        "attach",
+        "caption",
+        "engine",
+        "fromAnchor",
+        "sublabel",
+        "toAnchor",
+        "tone"
+      ]
+    },
+    "c-h3world": {
+      "withRequires": [
+        "schema/unsatisfied-requires"
+      ],
+      "withoutRequires": {
+        "schema/unknown-field": 66,
+        "schema/invalid-id": 2,
+        "component/unknown-variant": 3,
+        "component/unknown": 9
+      },
+      "unknownFields": [
+        "arrange",
+        "attach",
+        "badge",
+        "caption",
+        "engine",
+        "fromAnchor",
+        "labelAt",
+        "labelRotation",
+        "sublabel",
+        "textAlign",
+        "toAnchor",
+        "tone"
+      ]
+    }
+  },
+  "v1Approximation": {
+    "sizeMm": [
+      96.66111111111111,
+      327.3777777777778
+    ],
+    "diagnostics": [
+      "geometry/exceeds-page-height: The figure is 327.38mm tall, more than the 220mm maximum height of profile \"paper-single\".",
+      "geometry/exceeds-page-width: The figure is 96.66mm wide, more than the 88mm maximum width of profile \"paper-single\".",
+      "geometry/aspect-distorted: The circle node \"enc-add\" is drawn 40pt × 35pt, not with equal width and height.",
+      "geometry/aspect-distorted: The circle node \"dec-add\" is drawn 40pt × 35pt, not with equal width and height."
+    ],
+    "encoderCentersX": [
+      107.5,
+      163,
+      114,
+      163
+    ],
+    "gapMhaToNormUnits": 46,
+    "gapFfToNormUnits": 46
+  },
+  "d2Probes": [
+    {
+      "name": "grid-stack",
+      "ok": true,
+      "bytes": 20308,
+      "rects": [
+        {
+          "key": "enc",
+          "x": 12,
+          "y": 12,
+          "width": 356,
+          "height": 283
+        },
+        {
+          "key": "emb",
+          "x": 388,
+          "y": 123,
+          "width": 200,
+          "height": 61
+        },
+        {
+          "key": "enc.an2",
+          "x": 72,
+          "y": 51,
+          "width": 236,
+          "height": 61
+        },
+        {
+          "key": "enc.ff",
+          "x": 72,
+          "y": 112,
+          "width": 236,
+          "height": 61
+        },
+        {
+          "key": "enc.an1",
+          "x": 72,
+          "y": 173,
+          "width": 236,
+          "height": 61
+        },
+        {
+          "key": "enc.mha",
+          "x": 72,
+          "y": 234,
+          "width": 236,
+          "height": 61
+        }
+      ],
+      "paths": [
+        "M 404.129056 184.206801 L 274.741888 233.086398",
+        "M 190 232.5 L 190 237.5",
+        "M 190 171.5 L 190 176.5",
+        "M 190 171.5 L 190 115.5"
+      ],
+      "elements": {
+        "image": 0,
+        "foreignObject": 0,
+        "text": 6,
+        "path": 4,
+        "use": 0
+      }
+    },
+    {
+      "name": "grid-row",
+      "ok": true,
+      "bytes": 18228,
+      "rects": [
+        {
+          "key": "fig",
+          "x": 12,
+          "y": 12,
+          "width": 476,
+          "height": 338
+        },
+        {
+          "key": "fig.enc",
+          "x": 52,
+          "y": 72,
+          "width": 178,
+          "height": 218
+        },
+        {
+          "key": "fig.dec",
+          "x": 270,
+          "y": 72,
+          "width": 178,
+          "height": 218
+        },
+        {
+          "key": "fig.enc.a",
+          "x": 112,
+          "y": 107,
+          "width": 58,
+          "height": 61
+        },
+        {
+          "key": "fig.enc.b",
+          "x": 112,
+          "y": 168,
+          "width": 58,
+          "height": 61
+        },
+        {
+          "key": "fig.dec.c",
+          "x": 330,
+          "y": 107,
+          "width": 58,
+          "height": 61
+        },
+        {
+          "key": "fig.dec.d",
+          "x": 330,
+          "y": 168,
+          "width": 58,
+          "height": 61
+        },
+        {
+          "key": "fig.dec.e",
+          "x": 330,
+          "y": 229,
+          "width": 58,
+          "height": 61
+        }
+      ],
+      "paths": [
+        "M 171.925302 146.041491 L 326.149396 189.417018"
+      ],
+      "elements": {
+        "image": 0,
+        "foreignObject": 0,
+        "text": 8,
+        "path": 1,
+        "use": 0
+      }
+    },
+    {
+      "name": "icon",
+      "ok": true,
+      "bytes": 10218,
+      "rects": [
+        {
+          "key": "box",
+          "x": 12,
+          "y": 12,
+          "width": 115,
+          "height": 103
+        },
+        {
+          "key": "other",
+          "x": 20,
+          "y": 185,
+          "width": 98,
+          "height": 61
+        }
+      ],
+      "paths": [
+        "M 69.5 117 L 69.5 181"
+      ],
+      "elements": {
+        "image": 1,
+        "foreignObject": 0,
+        "text": 2,
+        "path": 1,
+        "use": 0
+      }
+    },
+    {
+      "name": "latex",
+      "ok": true,
+      "bytes": 11184,
+      "rects": [
+        {
+          "key": "n",
+          "x": 12,
+          "y": 100,
+          "width": 57,
+          "height": 61
+        }
+      ],
+      "paths": [
+        "M 40.5 32 L 40.5 96"
+      ],
+      "elements": {
+        "image": 0,
+        "foreignObject": 0,
+        "text": 1,
+        "path": 6,
+        "use": 0
+      }
+    },
+    {
+      "name": "markdown",
+      "ok": true,
+      "bytes": 23304,
+      "rects": [
+        {
+          "key": "x",
+          "x": 97,
+          "y": 106,
+          "width": 58,
+          "height": 61
+        }
+      ],
+      "paths": [
+        "M 126.5 38 L 126.5 102"
+      ],
+      "elements": {
+        "image": 0,
+        "foreignObject": 0,
+        "text": 5,
+        "path": 1,
+        "use": 0
+      }
+    }
+  ],
+  "engineImages": [
+    {
+      "name": "data-png",
+      "pdfOk": true,
+      "pictureOk": true,
+      "pdfBytes": 1376,
+      "pdfDeterministic": true,
+      "pdfImages": 1,
+      "inkFraction": 0.75,
+      "outlinedSvgHasImage": true
+    },
+    {
+      "name": "data-jpg",
+      "pdfOk": true,
+      "pictureOk": true,
+      "pdfBytes": 1483,
+      "pdfDeterministic": true,
+      "pdfImages": 1,
+      "inkFraction": 0.75,
+      "outlinedSvgHasImage": true
+    },
+    {
+      "name": "data-webp",
+      "pdfOk": true,
+      "pictureOk": true,
+      "pdfBytes": 2118,
+      "pdfDeterministic": true,
+      "pdfImages": 1,
+      "inkFraction": 0.75,
+      "outlinedSvgHasImage": true
+    },
+    {
+      "name": "data-gif",
+      "pdfOk": true,
+      "pictureOk": true,
+      "pdfBytes": 1221,
+      "pdfDeterministic": true,
+      "pdfImages": 1,
+      "inkFraction": 0.75,
+      "outlinedSvgHasImage": true
+    },
+    {
+      "name": "data-svg",
+      "pdfOk": true,
+      "pictureOk": true,
+      "pdfBytes": 751,
+      "pdfDeterministic": true,
+      "pdfImages": 0,
+      "inkFraction": 1,
+      "outlinedSvgHasImage": true
+    },
+    {
+      "name": "xlink-href-png",
+      "pdfOk": true,
+      "pictureOk": true,
+      "pdfBytes": 1376,
+      "pdfDeterministic": true,
+      "pdfImages": 1,
+      "inkFraction": 0.75,
+      "outlinedSvgHasImage": true
+    },
+    {
+      "name": "external-file",
+      "pdfOk": true,
+      "pictureOk": true,
+      "pdfBytes": 712,
+      "pdfDeterministic": true,
+      "pdfImages": 0,
+      "inkFraction": 0,
+      "outlinedSvgHasImage": false
+    },
+    {
+      "name": "external-url",
+      "pdfOk": true,
+      "pictureOk": true,
+      "pdfBytes": 712,
+      "pdfDeterministic": true,
+      "pdfImages": 0,
+      "inkFraction": 0,
+      "outlinedSvgHasImage": false
+    },
+    {
+      "name": "hostile-svg",
+      "pdfOk": true,
+      "pictureOk": true,
+      "pdfBytes": 751,
+      "pdfDeterministic": true,
+      "pdfImages": 0,
+      "inkFraction": 1,
+      "outlinedSvgHasImage": true
+    },
+    {
+      "name": "inline-foreign-object",
+      "pdfOk": true,
+      "pictureOk": true,
+      "pdfBytes": 712,
+      "pdfDeterministic": true,
+      "pdfImages": 0,
+      "inkFraction": 0,
+      "outlinedSvgHasImage": false
+    }
+  ],
+  "glyphs": [
+    {
+      "font": "regular:BIZUDPGothic-Regular.ttf",
+      "groups": {
+        "greekLower": {
+          "covered": 12,
+          "total": 12,
+          "missing": ""
+        },
+        "greekUpper": {
+          "covered": 4,
+          "total": 4,
+          "missing": ""
+        },
+        "subscriptDigits": {
+          "covered": 0,
+          "total": 10,
+          "missing": "₀₁₂₃₄₅₆₇₈₉"
+        },
+        "superscriptDigits": {
+          "covered": 4,
+          "total": 10,
+          "missing": "⁰⁵⁶⁷⁸⁹"
+        },
+        "subscriptLetters": {
+          "covered": 0,
+          "total": 5,
+          "missing": "ₐₑₒₓₜ"
+        },
+        "operators": {
+          "covered": 13,
+          "total": 15,
+          "missing": "∼⋯"
+        },
+        "mathItalic": {
+          "covered": 0,
+          "total": 6,
+          "missing": "𝑥𝑦𝑡𝛼𝛽𝛾"
+        },
+        "emoji": {
+          "covered": 0,
+          "total": 2,
+          "missing": "🔥❄"
+        }
+      },
+      "advancesEm": {
+        "a": 0.6499,
+        "x": 0.6001,
+        "α": 1,
+        "β": 1,
+        "γ": 1,
+        "Σ": 1,
+        "×": 0.8398
+      }
+    },
+    {
+      "font": "bold:BIZUDPGothic-Bold.ttf",
+      "groups": {
+        "greekLower": {
+          "covered": 12,
+          "total": 12,
+          "missing": ""
+        },
+        "greekUpper": {
+          "covered": 4,
+          "total": 4,
+          "missing": ""
+        },
+        "subscriptDigits": {
+          "covered": 0,
+          "total": 10,
+          "missing": "₀₁₂₃₄₅₆₇₈₉"
+        },
+        "superscriptDigits": {
+          "covered": 4,
+          "total": 10,
+          "missing": "⁰⁵⁶⁷⁸⁹"
+        },
+        "subscriptLetters": {
+          "covered": 0,
+          "total": 5,
+          "missing": "ₐₑₒₓₜ"
+        },
+        "operators": {
+          "covered": 13,
+          "total": 15,
+          "missing": "∼⋯"
+        },
+        "mathItalic": {
+          "covered": 0,
+          "total": 6,
+          "missing": "𝑥𝑦𝑡𝛼𝛽𝛾"
+        },
+        "emoji": {
+          "covered": 0,
+          "total": 2,
+          "missing": "🔥❄"
+        }
+      },
+      "advancesEm": {
+        "a": 0.6602,
+        "x": 0.6201,
+        "α": 1,
+        "β": 1,
+        "γ": 1,
+        "Σ": 1,
+        "×": 0.8398
+      }
+    },
+    {
+      "font": "mono:BIZUDGothic-Regular.ttf",
+      "groups": {
+        "greekLower": {
+          "covered": 12,
+          "total": 12,
+          "missing": ""
+        },
+        "greekUpper": {
+          "covered": 4,
+          "total": 4,
+          "missing": ""
+        },
+        "subscriptDigits": {
+          "covered": 0,
+          "total": 10,
+          "missing": "₀₁₂₃₄₅₆₇₈₉"
+        },
+        "superscriptDigits": {
+          "covered": 4,
+          "total": 10,
+          "missing": "⁰⁵⁶⁷⁸⁹"
+        },
+        "subscriptLetters": {
+          "covered": 0,
+          "total": 5,
+          "missing": "ₐₑₒₓₜ"
+        },
+        "operators": {
+          "covered": 13,
+          "total": 15,
+          "missing": "∼⋯"
+        },
+        "mathItalic": {
+          "covered": 0,
+          "total": 6,
+          "missing": "𝑥𝑦𝑡𝛼𝛽𝛾"
+        },
+        "emoji": {
+          "covered": 0,
+          "total": 2,
+          "missing": "🔥❄"
+        }
+      },
+      "advancesEm": {
+        "a": 0.5,
+        "x": 0.5,
+        "α": 1,
+        "β": 1,
+        "γ": 1,
+        "Σ": 1,
+        "×": 1
+      }
+    }
+  ],
+  "packages": [
+    {
+      "name": "elkjs",
+      "version": "0.12.0",
+      "license": "EPL-2.0 OR GPL-3.0-or-later",
+      "unpackedSize": 8046232,
+      "fileCount": 12,
+      "integrity": "sha512-YZcKynxVxYoKIOEpywEPwCFdg+BTbxQRNf3pbwdDCvc8O3kQD8bmIwSxKU1eOTVc4Xo+VG9Te+575mlfvOrhEQ==",
+      "tarball": "https://registry.npmjs.org/elkjs/-/elkjs-0.12.0.tgz",
+      "dependencies": []
+    },
+    {
+      "name": "@dagrejs/dagre",
+      "version": "3.1.3",
+      "license": "MIT",
+      "unpackedSize": 1423484,
+      "fileCount": 78,
+      "integrity": "sha512-X4aUTwOReZvthaZWOVHqlJ52/ZdhZFEM4+Lh/uR4XooUSLE6p71bcy7MPGzYnNUcNh+nj+i/qJQpCMIdQnSmrg==",
+      "tarball": "https://registry.npmjs.org/@dagrejs/dagre/-/dagre-3.1.3.tgz",
+      "dependencies": [
+        "@dagrejs/graphlib"
+      ]
+    },
+    {
+      "name": "webcola",
+      "version": "3.4.0",
+      "license": "MIT",
+      "unpackedSize": 2094382,
+      "fileCount": 135,
+      "integrity": "sha512-4BiLXjXw3SJHo3Xd+rF+7fyClT6n7I+AR6TkBqyQ4kTsePSAMDLRCXY1f3B/kXJeP9tYn4G1TblxTO+jAt0gaw==",
+      "tarball": "https://registry.npmjs.org/webcola/-/webcola-3.4.0.tgz",
+      "dependencies": [
+        "d3-drag",
+        "d3-shape",
+        "d3-timer",
+        "d3-dispatch"
+      ]
+    },
+    {
+      "name": "@lume/kiwi",
+      "version": "0.4.4",
+      "license": "BSD-3-Clause",
+      "unpackedSize": 124514,
+      "fileCount": 31,
+      "integrity": "sha512-ie0YTKgiZqD4TXlJ4eUbfi4UEoKs6YlLRYNTfPm5eUXwfudTBmPRs7Qcxz2SWKDpVTwThv3sWG6zwtyAA0nPpw==",
+      "tarball": "https://registry.npmjs.org/@lume/kiwi/-/kiwi-0.4.4.tgz",
+      "dependencies": []
+    },
+    {
+      "name": "mathjax-full",
+      "version": "3.2.2",
+      "license": "Apache-2.0",
+      "unpackedSize": 34300253,
+      "fileCount": 2700,
+      "integrity": "sha512-+LfG9Fik+OuI8SLwsiR02IVdjcnRCy5MufYLi0C3TdMT56L/pjB0alMVGgoWJF8pN9Rc7FESycZB9BMNWIid5w==",
+      "tarball": "https://registry.npmjs.org/mathjax-full/-/mathjax-full-3.2.2.tgz",
+      "dependencies": [
+        "esm",
+        "mhchemparser",
+        "mj-context-menu",
+        "speech-rule-engine"
+      ]
+    },
+    {
+      "name": "@mathjax/src",
+      "version": "4.1.3",
+      "license": "Apache-2.0",
+      "unpackedSize": 33726950,
+      "fileCount": 4287,
+      "integrity": "sha512-rIrWquuBSoJuoMBdC/1qD+AUHTorlccPicoVy6P2xbUgnuDBpCcpbHtOAsB8L3hdCHtNBg92lF8e3Fz+pkcQbw==",
+      "tarball": "https://registry.npmjs.org/@mathjax/src/-/src-4.1.3.tgz",
+      "dependencies": [
+        "mhchemparser",
+        "mj-context-menu",
+        "speech-rule-engine",
+        "@mathjax/mathjax-newcm-font"
+      ]
+    },
+    {
+      "name": "katex",
+      "version": "0.19.1",
+      "license": "MIT",
+      "unpackedSize": 4045207,
+      "fileCount": 225,
+      "integrity": "sha512-jG8uKntjSEcm2EpQOh0XturpPuuC9r3Sq5HLHdsFdWZT27E672SF19QEi+of0/YeOy15lDgRhKvr5614uRrEfA==",
+      "tarball": "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz",
+      "dependencies": [
+        "commander"
+      ]
+    },
+    {
+      "name": "lucide-static",
+      "version": "1.61.0",
+      "license": "ISC",
+      "unpackedSize": 52249650,
+      "fileCount": 6006,
+      "integrity": "sha512-yLAiQB3MWUJEstsEDAwenSA3m7vr1tdLvgnC16Q/XMxRRma0DWwMs8M2bWlvgShrIs1m2mWMJ+0AiahqQO4GrA==",
+      "tarball": "https://registry.npmjs.org/lucide-static/-/lucide-static-1.61.0.tgz",
+      "dependencies": []
+    },
+    {
+      "name": "@tabler/icons",
+      "version": "3.49.0",
+      "license": "MIT",
+      "unpackedSize": 11340617,
+      "fileCount": 11446,
+      "integrity": "sha512-l+GnSkFETx0U26icxv1VUFnxxiTqXfCcVRiRAnyMwibupM2S2L/hSaZ9gmSgz01rkrsH/93NvLsxykqdanc6lw==",
+      "tarball": "https://registry.npmjs.org/@tabler/icons/-/icons-3.49.0.tgz",
+      "dependencies": []
+    },
+    {
+      "name": "@material-symbols/svg-400",
+      "version": "0.48.1",
+      "license": "Apache-2.0",
+      "unpackedSize": 13132185,
+      "fileCount": 23595,
+      "integrity": "sha512-l3zCJuHOtBdha7C3fZ/OXjt6N0pP+a7+TUtYJeWOLbsOh2hDn8weIPgj1a9hwvF7aI1U5lwuxi0to7JysAiBvg==",
+      "tarball": "https://registry.npmjs.org/@material-symbols/svg-400/-/svg-400-0.48.1.tgz",
+      "dependencies": []
+    },
+    {
+      "name": "@phosphor-icons/core",
+      "version": "2.1.1",
+      "license": "MIT",
+      "unpackedSize": 6476685,
+      "fileCount": 9081,
+      "integrity": "sha512-v4ARvrip4qBCImOE5rmPUylOEK4iiED9ZyKjcvzuezqMaiRASCHKcRIuvvxL/twvLpkfnEODCOJp5dM4eZilxQ==",
+      "tarball": "https://registry.npmjs.org/@phosphor-icons/core/-/core-2.1.1.tgz",
+      "dependencies": []
+    },
+    {
+      "name": "simple-icons",
+      "version": "16.35.0",
+      "license": "CC0-1.0",
+      "unpackedSize": 16107937,
+      "fileCount": 3484,
+      "integrity": "sha512-TCfl/2+GTrx0nCo4pEWGvxhOb8c6NsqOU1OpwjtF4lwJAthB8IYVD0fuIMjLMg6JFuG1YBO0t1iETQqJLqkoJA==",
+      "tarball": "https://registry.npmjs.org/simple-icons/-/simple-icons-16.35.0.tgz",
+      "dependencies": []
+    },
+    {
+      "name": "@twemoji/svg",
+      "version": "15.0.0",
+      "license": "MIT",
+      "unpackedSize": 8149432,
+      "fileCount": 3723,
+      "integrity": "sha512-ZSPef2B6nBaYnfgdTbAy4jgW95o7pi2xPGwGCU+WMTxo7J6B1lMPTWwSq/wTuiMq+N0khQ90CcvYp1wFoQpo/w==",
+      "tarball": "https://registry.npmjs.org/@twemoji/svg/-/svg-15.0.0.tgz",
+      "dependencies": []
+    },
+    {
+      "name": "openmoji",
+      "version": "17.0.0",
+      "license": "CC-BY-SA-4.0",
+      "unpackedSize": 43405090,
+      "fileCount": 11539,
+      "integrity": "sha512-EBnYrNGdcdw+OSXmENeNE1yBNRu6tOraTmoOyUbJkTmvT/+XETp8RZLSJFzD3lrPc5N9CzsyPnRTk0Vp4UaI9w==",
+      "tarball": "https://registry.npmjs.org/openmoji/-/openmoji-17.0.0.tgz",
+      "dependencies": []
+    },
+    {
+      "name": "@iconify/json",
+      "version": "2.2.547",
+      "license": "MIT",
+      "unpackedSize": 506384263,
+      "fileCount": 260,
+      "integrity": "sha512-eBBSng2ayRNTRKzXy8u9urDZRc63dpW28Gr5by2R9f8V4UyK/0z6BoxSLqLYrc4m7HSHzEQyCNvwjEAW2iLskQ==",
+      "tarball": "https://registry.npmjs.org/@iconify/json/-/json-2.2.547.tgz",
+      "dependencies": [
+        "pathe",
+        "@iconify/types"
+      ]
+    }
+  ],
+  "iconSets": [
+    {
+      "name": "lucide-static",
+      "version": "1.61.0",
+      "npmLicense": "ISC",
+      "licenseFiles": [
+        {
+          "file": "LICENSE",
+          "firstLine": "ISC License"
+        }
+      ],
+      "svgDirs": [
+        {
+          "dir": "icons",
+          "count": 2171,
+          "bytes": 1053672,
+          "gzipBytes": 131092
+        },
+        {
+          "dir": "font",
+          "count": 2,
+          "bytes": 26709820,
+          "gzipBytes": 3724303
+        },
+        {
+          "dir": "",
+          "count": 1,
+          "bytes": 531993,
+          "gzipBytes": 93058
+        }
+      ],
+      "lookups": {
+        "flame": "icons/flame.svg",
+        "snowflake": "icons/snowflake.svg",
+        "audio-waveform": "icons/audio-waveform.svg",
+        "keyboard": "icons/keyboard.svg"
+      },
+      "disallowedElements": {
+        "symbol": 2,
+        "defs": 1
+      },
+      "notableAttributes": {
+        "class": 2171,
+        "stroke=currentColor": 2171,
+        "fill=currentColor": 13,
+        "style": 1,
+        "fill-rule": 1
+      },
+      "parseErrors": 1
+    },
+    {
+      "name": "@tabler/icons",
+      "version": "3.49.0",
+      "npmLicense": "MIT",
+      "licenseFiles": [
+        {
+          "file": "LICENSE",
+          "firstLine": "MIT License"
+        },
+        {
+          "file": "icons/outline/license-off.svg",
+          "firstLine": "<svg"
+        },
+        {
+          "file": "icons/outline/license.svg",
+          "firstLine": "<svg"
+        },
+        {
+          "file": "categories/outline/Document/license-off.svg",
+          "firstLine": "<svg"
+        },
+        {
+          "file": "categories/outline/Document/license.svg",
+          "firstLine": "<svg"
+        }
+      ],
+      "svgDirs": [
+        {
+          "dir": "icons/outline",
+          "count": 5184,
+          "bytes": 2899771,
+          "gzipBytes": 360805
+        },
+        {
+          "dir": "icons/filled",
+          "count": 1054,
+          "bytes": 748911,
+          "gzipBytes": 134271
+        },
+        {
+          "dir": "categories/outline/System",
+          "count": 784,
+          "bytes": 450521,
+          "gzipBytes": 48462
+        },
+        {
+          "dir": "categories/outline/Brand",
+          "count": 376,
+          "bytes": 227244,
+          "gzipBytes": 39430
+        }
+      ],
+      "lookups": {
+        "flame": "icons/outline/flame.svg",
+        "snowflake": "icons/outline/snowflake.svg",
+        "wave-sine": "icons/outline/wave-sine.svg",
+        "keyboard": "icons/outline/keyboard.svg"
+      },
+      "disallowedElements": {},
+      "notableAttributes": {
+        "fill=currentColor": 1152,
+        "class": 11422,
+        "stroke=currentColor": 10368
+      },
+      "parseErrors": 0
+    },
+    {
+      "name": "@material-symbols/svg-400",
+      "version": "0.48.1",
+      "npmLicense": "Apache-2.0",
+      "licenseFiles": [
+        {
+          "file": "LICENSE",
+          "firstLine": "Apache License"
+        },
+        {
+          "file": "rounded/license.svg",
+          "firstLine": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"48\" height=\"48\" viewBox=\"0 -960 960 960\"><path d=\"M40"
+        },
+        {
+          "file": "rounded/license-fill.svg",
+          "firstLine": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"48\" height=\"48\" viewBox=\"0 -960 960 960\"><path d=\"M40"
+        },
+        {
+          "file": "outlined/license.svg",
+          "firstLine": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"48\" height=\"48\" viewBox=\"0 -960 960 960\"><path d=\"M40"
+        },
+        {
+          "file": "outlined/license-fill.svg",
+          "firstLine": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"48\" height=\"48\" viewBox=\"0 -960 960 960\"><path d=\"M40"
+        },
+        {
+          "file": "sharp/license.svg",
+          "firstLine": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"48\" height=\"48\" viewBox=\"0 -960 960 960\"><path d=\"M40"
+        },
+        {
+          "file": "sharp/license-fill.svg",
+          "firstLine": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"48\" height=\"48\" viewBox=\"0 -960 960 960\"><path d=\"M40"
+        }
+      ],
+      "svgDirs": [
+        {
+          "dir": "rounded",
+          "count": 7864,
+          "bytes": 5910218,
+          "gzipBytes": 1682881
+        },
+        {
+          "dir": "outlined",
+          "count": 7864,
+          "bytes": 3846532,
+          "gzipBytes": 1194030
+        },
+        {
+          "dir": "sharp",
+          "count": 7864,
+          "bytes": 3358795,
+          "gzipBytes": 1051606
+        }
+      ],
+      "lookups": {
+        "local_fire_department": "outlined/local_fire_department.svg",
+        "ac_unit": "outlined/ac_unit.svg",
+        "keyboard": "outlined/keyboard.svg"
+      },
+      "disallowedElements": {},
+      "notableAttributes": {},
+      "parseErrors": 0
+    },
+    {
+      "name": "@phosphor-icons/core",
+      "version": "2.1.1",
+      "npmLicense": "MIT",
+      "licenseFiles": [
+        {
+          "file": "LICENSE",
+          "firstLine": "MIT License"
+        }
+      ],
+      "svgDirs": [
+        {
+          "dir": "assets/fill",
+          "count": 1512,
+          "bytes": 684316,
+          "gzipBytes": 172412
+        },
+        {
+          "dir": "assets/duotone",
+          "count": 1512,
+          "bytes": 939480,
+          "gzipBytes": 251880
+        },
+        {
+          "dir": "assets/thin",
+          "count": 1512,
+          "bytes": 809681,
+          "gzipBytes": 217019
+        },
+        {
+          "dir": "assets/bold",
+          "count": 1512,
+          "bytes": 760716,
+          "gzipBytes": 204275
+        }
+      ],
+      "lookups": {
+        "fire": "assets/regular/fire.svg",
+        "snowflake": "assets/regular/snowflake.svg",
+        "wave-sine": "assets/regular/wave-sine.svg",
+        "keyboard": "assets/regular/keyboard.svg"
+      },
+      "disallowedElements": {},
+      "notableAttributes": {
+        "fill=currentColor": 9072
+      },
+      "parseErrors": 0
+    },
+    {
+      "name": "simple-icons",
+      "version": "16.35.0",
+      "npmLicense": "CC0-1.0",
+      "licenseFiles": [
+        {
+          "file": "LICENSE.md",
+          "firstLine": "# CC0 1.0 Universal"
+        }
+      ],
+      "svgDirs": [
+        {
+          "dir": "icons",
+          "count": 3466,
+          "bytes": 4992988,
+          "gzipBytes": 2013149
+        }
+      ],
+      "lookups": {
+        "pytorch": "icons/pytorch.svg",
+        "github": "icons/github.svg",
+        "huggingface": "icons/huggingface.svg"
+      },
+      "disallowedElements": {},
+      "notableAttributes": {},
+      "parseErrors": 0
+    },
+    {
+      "name": "@twemoji/svg",
+      "version": "15.0.0",
+      "npmLicense": "MIT",
+      "licenseFiles": [
+        {
+          "file": "license",
+          "firstLine": "MIT License"
+        }
+      ],
+      "svgDirs": [
+        {
+          "dir": "",
+          "count": 3720,
+          "bytes": 8147297,
+          "gzipBytes": 2773984
+        }
+      ],
+      "lookups": {
+        "2744": "2744.svg",
+        "1f525": "1f525.svg"
+      },
+      "disallowedElements": {
+        "defs": 3,
+        "clipPath": 3
+      },
+      "notableAttributes": {
+        "fill-rule": 25,
+        "clip-rule": 25,
+        "transform": 56,
+        "clip-path": 3
+      },
+      "parseErrors": 0
+    }
+  ],
+  "simpleIconsLicenses": {
+    "icons": 3466,
+    "withLicense": 224,
+    "byLicense": {
+      "CC0-1.0": 12,
+      "CC-BY-4.0": 19,
+      "Apache-2.0": 49,
+      "MIT": 29,
+      "GPL-3.0-only": 7,
+      "CC-BY-3.0": 4,
+      "AGPL-3.0-only": 1,
+      "GPL-3.0-or-later": 4,
+      "CC-BY-SA-4.0": 29,
+      "custom": 23,
+      "CC-BY-SA-3.0": 11,
+      "CC-BY-NC-4.0": 4,
+      "GPL-2.0-only": 1,
+      "GPL-2.0-or-later": 3,
+      "CC-BY-NC-ND-4.0": 3,
+      "CC-BY-SA-2.5": 3,
+      "CC-BY-SA-2.0": 1,
+      "BSD-3-Clause": 5,
+      "AGPL-3.0-or-later": 1,
+      "CC-BY-2.5": 1,
+      "CC-BY-ND-4.0": 2,
+      "MPL-2.0": 7,
+      "CC-BY-NC-SA-4.0": 3,
+      "Unlicense": 1,
+      "CC-BY-NC-SA-3.0": 1
+    }
+  },
+  "emojiSamples": [
+    {
+      "sample": "noto-emoji@e20cbc2 1f525",
+      "status": 200,
+      "bytes": 2502,
+      "elements": [
+        "g",
+        "path",
+        "radialGradient",
+        "stop",
+        "svg"
+      ]
+    },
+    {
+      "sample": "noto-emoji@e20cbc2 2744",
+      "status": 200,
+      "bytes": 7426,
+      "elements": [
+        "path",
+        "polygon",
+        "svg"
+      ]
+    },
+    {
+      "sample": "fluentui-emoji@1ffb34c fire flat",
+      "status": 200,
+      "bytes": 660,
+      "elements": [
+        "path",
+        "svg"
+      ]
+    },
+    {
+      "sample": "fluentui-emoji@1ffb34c snowflake flat",
+      "status": 200,
+      "bytes": 2615,
+      "elements": [
+        "path",
+        "svg"
+      ]
+    }
+  ],
+  "bundles": [
+    {
+      "name": "@lume/kiwi",
+      "version": "0.4.4",
+      "ok": true,
+      "output": "[-5,5]",
+      "sameOutputTwice": true,
+      "minifiedBytes": 12641,
+      "gzipBytes": 3992
+    },
+    {
+      "name": "webcola",
+      "version": "3.4.0",
+      "ok": true,
+      "output": "[[10,-1],[-9,2]]",
+      "sameOutputTwice": true,
+      "minifiedBytes": 79994,
+      "gzipBytes": 24004
+    },
+    {
+      "name": "@dagrejs/dagre",
+      "version": "3.1.3",
+      "ok": true,
+      "output": "[[5,5],[5,65]]",
+      "sameOutputTwice": true,
+      "minifiedBytes": 48750,
+      "gzipBytes": 17386
+    }
+  ],
+  "mathjax": [
+    {
+      "variant": "mathjax-full@3.2.2",
+      "run": [
+        {
+          "tex": "\\alpha_2",
+          "ms": 4.08,
+          "bytes": 1623,
+          "paths": 2,
+          "texts": 0,
+          "uses": 2,
+          "width": "2.436ex",
+          "sha256": "c84f633394a00d906280b7b4b113a67e3cdcd2237e4fdaf39e79bde0129e65d3"
+        },
+        {
+          "tex": "\\gamma_1,\\beta_1",
+          "ms": 1.47,
+          "bytes": 2649,
+          "paths": 4,
+          "texts": 0,
+          "uses": 5,
+          "width": "5.434ex",
+          "sha256": "0bbac9f0840257fee4e61a7381826e57e9ce2a0cffd0aaf91e1535f658760717"
+        },
+        {
+          "tex": "32 \\times 32 \\times 4",
+          "ms": 0.83,
+          "bytes": 2862,
+          "paths": 4,
+          "texts": 0,
+          "uses": 7,
+          "width": "11.188ex",
+          "sha256": "d956669f968ef7fc301d7e3304b130baef2bee7a71b1e72d3f2c31fff8759d87"
+        },
+        {
+          "tex": "I_{13-16}",
+          "ms": 1.12,
+          "bytes": 3162,
+          "paths": 5,
+          "texts": 0,
+          "uses": 6,
+          "width": "5.627ex",
+          "sha256": "95d67c25dd6d71577dafa59b431d6f613b0260acb3a399143220623fb7488dd0"
+        },
+        {
+          "tex": "\\mathcal{L} = \\sum_i \\lVert x_i \\rVert^2",
+          "ms": 2.07,
+          "bytes": 4832,
+          "paths": 7,
+          "texts": 0,
+          "uses": 9,
+          "width": "12.991ex",
+          "sha256": "8bd679300b41a513c521750000c4b0b1910e887850a88e3cab2ca216ccc7743b"
+        }
+      ],
+      "deterministic": true,
+      "installedPackages": 8,
+      "compiled": {
+        "controlBytes": 63446114,
+        "withMathJaxBytes": 65097314,
+        "deltaBytes": 1651200,
+        "sameOutput": true
+      }
+    },
+    {
+      "variant": "@mathjax/src@4.1.3",
+      "run": [
+        {
+          "tex": "\\alpha_2",
+          "ms": 4.12,
+          "bytes": 1733,
+          "paths": 2,
+          "texts": 0,
+          "uses": 2,
+          "width": "2.436ex",
+          "sha256": "5f56ae1f7e1c1408d4d9a47abbd5b1ce22d86bc8b70a32b77775d86340a7fef0"
+        },
+        {
+          "tex": "\\gamma_1,\\beta_1",
+          "ms": 1.54,
+          "bytes": 2895,
+          "paths": 4,
+          "texts": 0,
+          "uses": 5,
+          "width": "5.434ex",
+          "sha256": "e37f61fecedd8ca802e8d0cec560b2307afd102db378ae29e69824171028a751"
+        },
+        {
+          "tex": "32 \\times 32 \\times 4",
+          "ms": 1.3,
+          "bytes": 3645,
+          "paths": 4,
+          "texts": 0,
+          "uses": 7,
+          "width": "2.262ex",
+          "sha256": "9ca127cb2956a4dcde69e7e412df08025f19226d7f81737c6963c46d8727be07"
+        },
+        {
+          "tex": "I_{13-16}",
+          "ms": 1.03,
+          "bytes": 3288,
+          "paths": 5,
+          "texts": 0,
+          "uses": 6,
+          "width": "5.627ex",
+          "sha256": "8168dcab72d3329b45fd75a17274581a38b9be2ed25c40a98491b5d0e954aeee"
+        },
+        {
+          "tex": "\\mathcal{L} = \\sum_i \\lVert x_i \\rVert^2",
+          "error": "Error: MathJax retry -- an asynchronous action is required; try using one of the promise-based functions and await its resolution."
+        }
+      ],
+      "deterministic": true,
+      "installedPackages": 17,
+      "compiled": {
+        "controlBytes": 63446114,
+        "withMathJaxBytes": 64833122,
+        "deltaBytes": 1387008,
+        "sameOutput": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,223 @@
+# Figure B (medium): the DiT architecture, reconstructed from the *structure*
+# of Peebles & Xie 2023, Fig. 3 (four panels: the latent diffusion
+# transformer, the adaLN-Zero block, and two dimmed alternative blocks).
+#
+# PROPOSED syntax for #86. Not run by the prototype as a whole; the
+# adaLN-Zero panel alone is b-adaln-panel.sumi.yaml (laid out by proto/).
+#
+# New beyond figure A:
+#   group.caption                   subcaption under a panel
+#   group.variant: dim              whole panel drawn muted (cascades to descendants)
+#   component: panel                container with optional title / caption, no fill by default
+#   component: frame                invisible container (only arranges; for panel 1)
+#   edge component: zoom            two dashed lines joining corresponding corners
+#   node.sublabel                   smaller second line (dimensions, shapes)
+#   label math $...$                Greek, sub/superscripts, italic variables
+#   edge.label next to arrowhead    (labelAt: end, the default for taps)
+version: 1
+requires: ">=0.5.0"
+figure:
+  id: dit
+  theme: academic
+  profile: paper-double
+  layout:
+    engine: structured
+    arrange:
+      row:
+        gap: 6mm
+        align: start
+        items: [ldt, adaln, cross, incontext]
+
+groups:
+  - id: ldt
+    component: frame
+    caption: Latent Diffusion Transformer
+    arrange:
+      stack:
+        direction: up
+        gap: 2mm
+        items:
+          - row:
+              gap: 3mm
+              align: end
+              items: [noised, stack: { direction: up, gap: 1mm, items: [class-label, timestep] }]
+          - row: { gap: 3mm, items: [patchify, embed] }
+          - dit-block
+          - layer-norm
+          - linear
+          - row: { gap: 3mm, items: [noise, sigma] }
+
+  - id: adaln
+    component: panel
+    caption: DiT Block with adaLN-Zero
+    variant: emphasis
+    arrange:
+      row:
+        gap: 6mm
+        align: end
+        items:
+          - stack:
+              direction: up
+              gap: 2mm
+              align: stretch
+              items: [a-tokens, a-split0, a-ln1, a-ss1, a-attn, a-scale1, a-add1, a-split1, a-ln2, a-ss2, a-ff, a-scale2, a-add2, a-out]
+          - stack: { direction: up, gap: 6mm, items: [a-cond, a-mlp] }
+
+  - id: cross
+    component: panel
+    caption: DiT Block with Cross-Attention
+    variant: dim
+    arrange:
+      row:
+        gap: 6mm
+        align: end
+        items:
+          - stack:
+              direction: up
+              gap: 2mm
+              align: stretch
+              items: [c-tokens, c-split0, c-ln1, c-attn, c-add1, c-split1, c-ln2, c-xattn, c-add2, c-split2, c-ln3, c-ff, c-add3, c-out]
+          - c-cond
+
+  - id: incontext
+    component: panel
+    caption: DiT Block with In-Context Conditioning
+    variant: dim
+    arrange:
+      row:
+        gap: 6mm
+        align: end
+        items:
+          - stack:
+              direction: up
+              gap: 2mm
+              align: stretch
+              items: [i-tokens, i-concat, i-split0, i-ln1, i-attn, i-add1, i-split1, i-ln2, i-ff, i-add2, i-out]
+          - i-cond
+
+nodes:
+  # panel 1
+  - { id: noised, component: box, label: "Noised\nLatent", sublabel: "32 × 32 × 4", tone: gray }
+  - { id: patchify, component: box, label: Patchify, tone: gray }
+  - { id: timestep, component: box, label: "Timestep $t$", tone: blue }
+  - { id: class-label, component: box, label: "Label $y$", tone: blue }
+  - { id: embed, component: box, label: Embed, tone: blue }
+  - { id: dit-block, component: box, label: DiT Block, variant: emphasis }
+  - { id: dit-n, component: label, label: "N ×", attach: { to: dit-block, side: west, gap: 2mm } }
+  - { id: layer-norm, component: box, label: Layer Norm, tone: blue }
+  - { id: linear, component: box, label: Linear and Reshape, tone: green }
+  - { id: noise, component: box, label: Noise, sublabel: "32 × 32 × 4", tone: gray }
+  - { id: sigma, component: box, label: "$\\Sigma$", sublabel: "32 × 32 × 4", tone: gray }
+  # panel 2 (same as b-adaln-panel.sumi.yaml, ids prefixed a-)
+  - { id: a-tokens, component: box, label: Input Tokens, tone: gray }
+  - { id: a-split0, component: junction }
+  - { id: a-ln1, component: box, label: Layer Norm, tone: blue }
+  - { id: a-ss1, component: box, label: "Scale, Shift", tone: blue }
+  - { id: a-attn, component: box, label: "Multi-Head\nSelf-Attention", tone: orange }
+  - { id: a-scale1, component: box, label: Scale, tone: blue }
+  - { id: a-add1, component: operator, props: { symbol: plus } }
+  - { id: a-split1, component: junction }
+  - { id: a-ln2, component: box, label: Layer Norm, tone: blue }
+  - { id: a-ss2, component: box, label: "Scale, Shift", tone: blue }
+  - { id: a-ff, component: box, label: "Pointwise\nFeedforward", tone: green }
+  - { id: a-scale2, component: box, label: Scale, tone: blue }
+  - { id: a-add2, component: operator, props: { symbol: plus } }
+  - { id: a-out, component: junction }
+  - { id: a-cond, component: box, label: Conditioning, tone: blue }
+  - { id: a-mlp, component: box, label: MLP, tone: blue }
+  # panel 3
+  - { id: c-tokens, component: box, label: Input Tokens, tone: gray }
+  - { id: c-split0, component: junction }
+  - { id: c-ln1, component: box, label: Layer Norm, tone: blue }
+  - { id: c-attn, component: box, label: "Multi-Head\nSelf-Attention", tone: orange }
+  - { id: c-add1, component: operator, props: { symbol: plus } }
+  - { id: c-split1, component: junction }
+  - { id: c-ln2, component: box, label: Layer Norm, tone: blue }
+  - { id: c-xattn, component: box, label: "Multi-Head\nCross-Attention", tone: pink }
+  - { id: c-add2, component: operator, props: { symbol: plus } }
+  - { id: c-split2, component: junction }
+  - { id: c-ln3, component: box, label: Layer Norm, tone: blue }
+  - { id: c-ff, component: box, label: "Pointwise\nFeedforward", tone: green }
+  - { id: c-add3, component: operator, props: { symbol: plus } }
+  - { id: c-out, component: junction }
+  - { id: c-cond, component: box, label: Conditioning, tone: blue }
+  # panel 4
+  - { id: i-tokens, component: box, label: Input Tokens, tone: gray }
+  - { id: i-concat, component: box, label: "Concatenate\non Sequence\nDimension", tone: blue }
+  - { id: i-split0, component: junction }
+  - { id: i-ln1, component: box, label: Layer Norm, tone: blue }
+  - { id: i-attn, component: box, label: "Multi-Head\nSelf-Attention", tone: orange }
+  - { id: i-add1, component: operator, props: { symbol: plus } }
+  - { id: i-split1, component: junction }
+  - { id: i-ln2, component: box, label: Layer Norm, tone: blue }
+  - { id: i-ff, component: box, label: "Pointwise\nFeedforward", tone: green }
+  - { id: i-add2, component: operator, props: { symbol: plus } }
+  - { id: i-out, component: junction }
+  - { id: i-cond, component: box, label: Conditioning, tone: blue }
+
+edges:
+  # panel 1: plain connectors (no arrowheads in the reference) and two outputs
+  - { from: noised, to: patchify, component: line }
+  - { from: patchify, to: dit-block, component: line }
+  - { from: timestep, to: embed, component: line }
+  - { from: embed, to: dit-block, component: line }
+  - { from: dit-block, to: layer-norm, component: line }
+  - { from: layer-norm, to: linear, component: line }
+  - { from: linear, to: noise }
+  - { from: linear, to: sigma }
+  # zoom callout: DiT Block is shown enlarged as the adaLN-Zero panel
+  - { from: dit-block, to: adaln, component: zoom }
+  # panel 2 (as in b-adaln-panel.sumi.yaml)
+  - { from: a-tokens, to: a-split0, component: line }
+  - { from: a-split0, to: a-ln1 }
+  - { from: a-split0, to: a-add1, toAnchor: west }
+  - { from: a-ln1, to: a-ss1, component: line }
+  - { from: a-ss1, to: a-attn, component: line }
+  - { from: a-attn, to: a-scale1, component: line }
+  - { from: a-scale1, to: a-add1 }
+  - { from: a-add1, to: a-split1, component: line }
+  - { from: a-split1, to: a-ln2 }
+  - { from: a-split1, to: a-add2, toAnchor: west }
+  - { from: a-ln2, to: a-ss2, component: line }
+  - { from: a-ss2, to: a-ff, component: line }
+  - { from: a-ff, to: a-scale2, component: line }
+  - { from: a-scale2, to: a-add2 }
+  - { from: a-add2, to: a-out }
+  - { from: a-cond, to: a-mlp, component: line }
+  - { from: a-mlp, fromAnchor: north, to: a-ss1, toAnchor: east, label: '$\gamma_1,\beta_1$' }
+  - { from: a-mlp, fromAnchor: north, to: a-scale1, toAnchor: east, label: '$\alpha_1$' }
+  - { from: a-mlp, fromAnchor: north, to: a-ss2, toAnchor: east, label: '$\gamma_2,\beta_2$' }
+  - { from: a-mlp, fromAnchor: north, to: a-scale2, toAnchor: east, label: '$\alpha_2$' }
+  # panel 3
+  - { from: c-tokens, to: c-split0, component: line }
+  - { from: c-split0, to: c-ln1, component: line }
+  - { from: c-split0, to: c-add1, toAnchor: west }
+  - { from: c-ln1, to: c-attn, component: line }
+  - { from: c-attn, to: c-add1, component: line }
+  - { from: c-add1, to: c-split1, component: line }
+  - { from: c-split1, to: c-ln2, component: line }
+  - { from: c-split1, to: c-add2, toAnchor: west }
+  - { from: c-ln2, to: c-xattn, component: line }
+  - { from: c-xattn, to: c-add2, component: line }
+  - { from: c-cond, fromAnchor: north, to: c-xattn, toAnchor: east }
+  - { from: c-add2, to: c-split2, component: line }
+  - { from: c-split2, to: c-ln3, component: line }
+  - { from: c-split2, to: c-add3, toAnchor: west }
+  - { from: c-ln3, to: c-ff, component: line }
+  - { from: c-ff, to: c-add3, component: line }
+  - { from: c-add3, to: c-out }
+  # panel 4
+  - { from: i-tokens, to: i-concat, component: line }
+  - { from: i-cond, fromAnchor: north, to: i-concat, toAnchor: east }
+  - { from: i-concat, to: i-split0, component: line }
+  - { from: i-split0, to: i-ln1, component: line }
+  - { from: i-split0, to: i-add1, toAnchor: west }
+  - { from: i-ln1, to: i-attn, component: line }
+  - { from: i-attn, to: i-add1, component: line }
+  - { from: i-add1, to: i-split1, component: line }
+  - { from: i-split1, to: i-ln2, component: line }
+  - { from: i-split1, to: i-add2, toAnchor: west }
+  - { from: i-ln2, to: i-ff, component: line }
+  - { from: i-ff, to: i-add2, component: line }
+  - { from: i-add2, to: i-out }
+
