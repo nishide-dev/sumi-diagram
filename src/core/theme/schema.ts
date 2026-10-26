@@ -7,6 +7,9 @@
  * Validation resolves every reference, checks types, ranges and fonts, and
  * normalizes component keys to canonical IDs, so a valid {@link Theme} only
  * holds checked, quantized values.
+ *
+ * `tones` (#92) maps tone names ({@link TONE_NAMES}) to color-only layers
+ * applied over the variant of a node or group that sets `tone`.
  */
 
 import { z } from "zod";
@@ -42,6 +45,7 @@ import {
   type StyleValues,
   type TypedValue,
 } from "./style";
+import { isTone, TONE_NAMES, type Tone } from "./tones";
 
 export const THEME_FORMAT_VERSION = 1;
 
@@ -72,6 +76,8 @@ export interface ThemeDefinition {
   base?: { [K in ComponentKind]?: StyleLayerInput };
   /** Component reference (short name or canonical ID) → variant → partial style. */
   components?: Record<string, Record<string, StyleLayerInput>>;
+  /** Tone name → colors (fill, stroke, fontColor) for nodes and groups with that tone. */
+  tones?: Partial<Record<Tone, StyleLayerInput>>;
 }
 
 /** A validated theme. All values are checked and resolved; component keys are canonical. */
@@ -83,7 +89,12 @@ export interface Theme {
   readonly tokens: ReadonlyMap<string, TypedValue>;
   readonly base: { readonly [K in ComponentKind]: StyleLayer };
   readonly components: ReadonlyMap<ComponentId, ReadonlyMap<string, StyleLayer>>;
+  /** Color layers by tone; a tone the theme does not define is not here. */
+  readonly tones: ReadonlyMap<Tone, StyleLayer>;
 }
+
+/** The style properties a tone may set: colors only, so tones never change sizes or fonts. */
+export const TONE_PROPERTIES: readonly StyleProperty[] = ["fill", "stroke", "fontColor"];
 
 // Property values are checked by `validateTheme` itself (typing needs tokens),
 // so the Zod schema only fixes the structure.
@@ -107,6 +118,7 @@ export const ThemeSchema = z.strictObject({
     })
     .optional(),
   components: z.record(z.string(), z.record(z.string(), StyleLayerSchema)).optional(),
+  tones: z.record(z.string(), StyleLayerSchema).optional(),
 });
 
 export interface ValidateThemeOptions {
@@ -234,6 +246,33 @@ class ThemeChecker {
       components.set(id, layers);
     }
 
+    const tones = new Map<Tone, StyleLayer>();
+    for (const [name, layer] of Object.entries(theme.tones ?? {})) {
+      const path = ["tones", name];
+      if (!isTone(name)) {
+        this.error("theme/unknown-tone", `Unknown tone "${name}".`, path, {
+          atKey: true,
+          hint: didYouMean(name, TONE_NAMES) ?? `Tones: ${TONE_NAMES.join(", ")}.`,
+        });
+        continue;
+      }
+      const colors: ParsedLayer = {};
+      for (const [property, value] of Object.entries(layer) as [StyleProperty, unknown][]) {
+        if (value === undefined) continue;
+        if (TONE_PROPERTIES.includes(property)) {
+          colors[property] = value;
+          continue;
+        }
+        this.error(
+          "theme/inapplicable-property",
+          `Property "${property}" does not apply to tones; a tone sets only ${TONE_PROPERTIES.join(", ")}.`,
+          [...path, property],
+          { atKey: true },
+        );
+      }
+      tones.set(name, this.#checkLayer(colors, "node", path));
+    }
+
     this.#checkFontCombinations(base, components, refs);
 
     if (hasErrors(this.diagnostics) || this.#fontSet === undefined) {
@@ -250,6 +289,7 @@ class ThemeChecker {
         tokens,
         base,
         components,
+        tones,
       }),
       diagnostics: this.diagnostics,
     };
@@ -517,7 +557,8 @@ function structuralDiagnostics(
     case "unrecognized_keys": {
       const isLayer =
         (path[0] === "base" && path.length === 2) ||
-        (path[0] === "components" && path.length === 3);
+        (path[0] === "components" && path.length === 3) ||
+        (path[0] === "tones" && path.length === 2);
       return issue.keys.map((key) =>
         isLayer
           ? errorAt(
@@ -528,8 +569,11 @@ function structuralDiagnostics(
               {
                 atKey: true,
                 hint:
-                  didYouMean(key, STYLE_PROPERTY_NAMES) ??
-                  `Style properties: ${STYLE_PROPERTY_NAMES.join(", ")}.`,
+                  path[0] === "tones"
+                    ? (didYouMean(key, TONE_PROPERTIES) ??
+                      `A tone sets only ${TONE_PROPERTIES.join(", ")}.`)
+                    : (didYouMean(key, STYLE_PROPERTY_NAMES) ??
+                      `Style properties: ${STYLE_PROPERTY_NAMES.join(", ")}.`),
               },
             )
           : errorAt(

@@ -57,12 +57,15 @@ Every stage reports problems as the same diagnostic object. In
 | `component/unknown-variant` | variant not listed for that component | use one from the hint / catalog |
 | `component/unknown-prop`, `component/invalid-prop` | prop not in the component's schema, or a bad value (e.g. `px`, not a multiple of 0.5pt) | remove it, or use the value the hint suggests |
 | `component/missing-label` | a text-only component (`label`) has no text | give it a label or use another component |
+| `component/unexpected-label` | `operator` or `junction` has a label (they draw a symbol / a dot) | remove the label; put a `label` node next to it if text is needed |
+| `component/tone-unsupported` | `tone` on a `junction` (drawn in the line color) | remove the tone |
 | `component/deprecated` (warning) | still works but is being replaced | switch to the replacement in the message |
-| `theme/unknown` | `figure.theme` is not built in | `minimal`, `academic` or `slides` (see hint) |
+| `theme/unknown` | `figure.theme` is not built in | `minimal`, `academic`, `slides` or `color` (see hint) |
 | `theme/missing-variant` (warning) | the theme has no style for that variant | usually ignore; choose another variant if it matters |
+| `theme/missing-tone` (warning) | the theme has no color for that tone (built-in themes define every tone) | usually ignore; choose another tone if it matters |
 | other `theme/*` | a problem in a theme definition | not fixable in the figure — report it |
 | `profile/unknown` | `figure.profile` is not built in | `paper-single`, `paper-double` or `presentation-16x9` (see hint) |
-| `profile/font-too-small` | text is smaller than the profile's minimum | a user decision: another profile or theme. For `presentation-16x9` (14pt minimum) use theme `slides`; `minimal` and `academic` fail it |
+| `profile/font-too-small` | text is smaller than the profile's minimum | a user decision: another profile or theme. For `presentation-16x9` (14pt minimum) use theme `slides`; `minimal`, `academic` and `color` fail it |
 | `lint/*` | structural warnings — see `docs/lint-rules.md` | below |
 
 ### Structural lint (`lint/*`)

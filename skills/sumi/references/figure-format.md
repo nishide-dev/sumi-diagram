@@ -23,14 +23,31 @@ metadata: {}               # optional, any JSON-compatible data; not drawn
 
 | Element | Fields (required in bold) | Defaults |
 | --- | --- | --- |
-| group | **`id`**, `label`, `component`, `variant`, `group` | component `container`, variant `default`, no parent |
-| node | **`id`**, **`component`**, `label`, `variant`, `props`, `group` | variant `default`, no label, no group |
+| group | **`id`**, `label`, `component`, `variant`, `tone`, `group` | component `container`, variant `default`, no tone, no parent |
+| node | **`id`**, **`component`**, `label`, `variant`, `tone`, `props`, `group` | variant `default`, no label, no tone, no group |
 | edge | **`from`**, **`to`**, `id`, `label`, `component`, `variant`, `props` | component `arrow`, variant `default` |
 
 Every object is strict: an unknown key is an error (`schema/unknown-field`).
 There is no per-element style, color, font, size, position or port field —
-appearance is chosen with `variant`, size with the `width` / `height` props
-of node components (see the catalog).
+appearance is chosen with `variant` and `tone` (below), size with the
+`width` / `height` props of node components (see the catalog).
+
+## Tones
+
+`tone` on a node or group picks a color category: `gray`, `red`, `orange`,
+`yellow`, `green`, `blue`, `purple` or `pink`. The theme decides the color:
+`color` fills each tone with its own pastel hue; `minimal`, `academic` and
+`slides` stay monochrome and map the tones to three gray fills (tones in the
+same step look alike: yellow/green, gray/orange/blue, red/purple/pink). A tone
+changes only the fill, on top of the variant. Use tones to encode categories
+consistently (e.g. all attention blocks `orange`), not for decoration; when the
+user wants distinguishable colors, use theme `color`.
+
+```yaml
+nodes:
+  - { id: attention, component: box, label: Attention, tone: orange }
+  - { id: norm, component: box, label: Norm, tone: yellow }
+```
 
 ## IDs
 
@@ -91,6 +108,12 @@ Always take these from `sumi catalog --json`. Each entry has `id`
   nodes are sized to their labels.
 - `label` components (`sumi/label`) draw text without a border and need a
   non-empty label.
+- `operator` draws a small circle with a symbol (`props.symbol`: `plus`,
+  `minus`, `times`, `dot` or `concat`) and `junction` a small dot where lines
+  branch or merge. Both take **no label** (`component/unexpected-label`) and no
+  size props: the theme sizes them. `junction` takes no `tone`. Connect into a
+  junction with `line` (an arrowhead would cover the dot). Introduced in 0.4.0;
+  use them only when the installed CLI lists them.
 
 ### Catalog render metadata
 
@@ -151,8 +174,9 @@ They are built in; there is no way to define your own in a figure.
 | `minimal` | monochrome with clear outlines (default) |
 | `academic` | restrained, for papers: thin lines, black text, gray emphasis |
 | `slides` | for slides: 16pt text (14pt on edges, 18pt container labels), 2pt lines; use with `presentation-16x9` |
+| `color` | general purpose with color: like `minimal`, but tones are pastel fills and emphasis is blue (0.4.0) |
 
-`minimal` and `academic` use 8pt text (7pt on edges). All three use the
+`minimal`, `academic` and `color` use 8pt text (7pt on edges). All four use the
 bundled `sumi/biz-ud-gothic` font set (Latin and Japanese).
 
 | Profile | Max width | Max height | Min font size | Use |

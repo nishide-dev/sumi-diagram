@@ -24,8 +24,14 @@ export const emptyLabel = defineRule({
     const findings: LintFinding[] = [];
     for (const element of context.elements) {
       const manifest = element.component?.manifest;
-      // Text-only shapes already require a label (`component/missing-label`).
-      if (element.kind !== "node" || manifest?.kind !== "node" || manifest.shape === "text") {
+      // Text-only shapes already require a label (`component/missing-label`);
+      // marks (operator, junction) take none (`component/unexpected-label`).
+      if (
+        element.kind !== "node" ||
+        manifest?.kind !== "node" ||
+        manifest.shape === "text" ||
+        manifest.mark !== undefined
+      ) {
         continue;
       }
       if (!isBlankForD2(element.element.label)) continue;

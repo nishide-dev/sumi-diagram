@@ -15,7 +15,7 @@
 | `lint/ancestor-edge` | warning | グループと、その（間接的な）子孫をつなぐエッジ（§2.2）。D2 ではエッジがグループの枠とラベルを横切る。 | 両端をともにグループの内側、またはともに外側の要素にする。 |
 | `lint/self-loop` | info | 始点と終点が同じエッジ。スキーマ上は有効なので info とする。 | 意図していなければ削除する。 |
 | `lint/duplicate-edge` | warning | 端点・部品・ラベルがすべて同じエッジが 2 本以上ある（2 本目以降に出す）。variant は比較しない。structured の図では端点の anchor（`fromAnchor` / `toAnchor`）も比較し、anchor が違うエッジは重複としない。方向のない部品（`line`）と両方向の部品（`double-arrow`）は端点の順序を区別しない。 | 一方を削除するか、ラベルを変える。 |
-| `lint/empty-label` | warning | ラベルが空（または空白のみ）のノード。文字だけを描く部品（`label`、shape `text`）は `component/missing-label`（error）で検査済みなので対象外。 | ラベルを付ける。ラベルなしの図形を意図している場合は無効にする。 |
+| `lint/empty-label` | warning | ラベルが空（または空白のみ）のノード。文字だけを描く部品（`label`、shape `text`）は `component/missing-label`（error）で検査済みなので対象外。ラベルを取らない印の部品（manifest の `mark`。`operator`・`junction`）も対象外。 | ラベルを付ける。ラベルなしの図形を意図している場合は無効にする。 |
 | `lint/long-label` | warning | ラベルのいずれかの行の表示幅が `maxLineWidth`（既定 40）桁を超える、または行数が `maxLines`（既定 4）を超える。node・group・edge のラベルが対象。 | ラベルを短くする、または `\n` で改行する。 |
 | `lint/missing-glyph` | warning | ラベルに、Theme のフォントセットが字形を持たない文字がある。メッセージに文字と `U+XXXX` を列挙する（最大 10 文字）。 | 文字を置き換えるか、その文字を含むフォントセットの Theme を使う。 |
 

@@ -64,7 +64,7 @@ Before writing YAML, make sure you know:
   This is the user's decision — ask if it is not stated. See
   [layout-tips](references/layout-tips.md) for what fits on
   `presentation-16x9`.
-- **Theme** (`minimal`, `academic` or `slides`; default `minimal`; a slide
+- **Theme** (`minimal`, `academic`, `slides` or `color`; default `minimal`; a slide
   needs `slides` with `presentation-16x9`; `sumi catalog --section themes`
   lists them with the profiles each one suits) and the output
   path (default: the figure next to the user's other files, named

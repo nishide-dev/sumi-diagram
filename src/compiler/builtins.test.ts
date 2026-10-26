@@ -29,6 +29,8 @@ const LOWERING: Record<string, string> = {
   "sumi/trapezoid": "rectangle",
   "sumi/stack": "rectangle",
   "sumi/label": "text",
+  "sumi/operator": "circle",
+  "sumi/junction": "circle",
   "sumi/container": "rectangle",
   "sumi/arrow": "-> target:triangle",
   "sumi/line": "--",
@@ -149,9 +151,13 @@ describe("the same components under different themes", () => {
     expect(academic.ir.meta.profileId).toBe(minimal.ir.meta.profileId);
     expect(academic.ir.meta.direction).toBe(minimal.ir.meta.direction);
     expect(academic.fontSet).toEqual(minimal.fontSet);
-    // Only the `style` blocks of the D2 source differ.
+    // Only the `style` blocks of the D2 source differ, and the sizes of marks
+    // (#92), which follow the theme's font size or stroke width.
     const withoutStyles = (source: string) =>
-      source.replace(/^( *)style: \{\n[\s\S]*?^\1\}\n/gm, "").replace(/^#.*\n/, "");
+      source
+        .replace(/^( *)style: \{\n[\s\S]*?^\1\}\n/gm, "")
+        .replace(/^ *(width|height): \d+\n/gm, "")
+        .replace(/^#.*\n/, "");
     expect(withoutStyles(academic.d2Source)).toBe(withoutStyles(minimal.d2Source));
     expect(academic.d2Source).not.toBe(minimal.d2Source);
   });

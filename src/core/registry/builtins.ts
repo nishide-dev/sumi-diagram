@@ -94,6 +94,52 @@ function outline(name: "trapezoid" | "stack", description: string): NodeManifest
   };
 }
 
+/** Glyphs of `sumi/operator`, by `symbol` (all in the bundled font set). */
+export const OPERATOR_GLYPHS = {
+  plus: "+",
+  minus: "−", // − MINUS SIGN
+  times: "×", // × MULTIPLICATION SIGN
+  dot: "•", // • BULLET
+  concat: "‖", // ‖ DOUBLE VERTICAL LINE
+} as const;
+
+const operator: NodeManifest = {
+  ...base,
+  since: "0.4.0",
+  kind: "node",
+  name: "operator",
+  description:
+    "A small circle with an operator symbol, e.g. where inputs are added or combined; takes no label.",
+  variants: NODE_VARIANTS,
+  props: z.strictObject({
+    symbol: z
+      .enum(Object.keys(OPERATOR_GLYPHS) as [keyof typeof OPERATOR_GLYPHS])
+      .describe(
+        "The operator drawn in the circle: plus (+), minus (−), times (×), dot (•) or concat (‖).",
+      ),
+  }),
+  shape: "circle",
+  sizing: "fixed-aspect-1",
+  // Twice the font size: the glyph's advance box (up to 1em square) fits the
+  // inscribed circle with room for the outline.
+  mark: { type: "glyph", prop: "symbol", glyphs: OPERATOR_GLYPHS, size: 2 },
+};
+
+const junction: NodeManifest = {
+  ...base,
+  since: "0.4.0",
+  kind: "node",
+  name: "junction",
+  description:
+    "A point where lines branch or merge, drawn as a small dot; takes no label and no tone.",
+  variants: ["default", "muted"],
+  props: noProps,
+  shape: "circle",
+  sizing: "fixed-aspect-1",
+  // Three stroke widths: a dot that scales with the theme's line weight.
+  mark: { type: "point", size: 3 },
+};
+
 /** The built-in manifests, in catalog order. */
 export const BUILTIN_MANIFESTS: readonly ComponentManifest[] = [
   node("box", "rectangle", "A rectangle; the general-purpose node."),
@@ -108,6 +154,8 @@ export const BUILTIN_MANIFESTS: readonly ComponentManifest[] = [
   outline("trapezoid", "A trapezoid with a wider top and a narrower bottom."),
   outline("stack", "Three overlapping rectangles, e.g. for a collection of documents or layers."),
   node("label", "text", "Text without a border.", { variants: ["default", "muted"] }),
+  operator,
+  junction,
   container,
   edge("arrow", "A line with an arrowhead at the target.", {
     direction: "forward",

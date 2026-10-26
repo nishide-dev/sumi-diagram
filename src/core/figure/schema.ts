@@ -7,6 +7,7 @@
 
 import { validRange } from "semver";
 import { z } from "zod";
+import { TONE_NAMES } from "../theme/tones";
 import { parseLength } from "../units";
 
 /** Element ID: lowercase only, because D2 keys are case-insensitive. */
@@ -23,6 +24,12 @@ const Label = z
   .default("")
   .describe("Plain text; newlines break lines. Empty or omitted means no label.");
 const Variant = z.string().min(1).default("default");
+const Tone = z
+  .enum(TONE_NAMES)
+  .optional()
+  .describe(
+    "Color category from the theme's palette (e.g. a pastel fill in the color theme, a gray step in monochrome themes). Omitted means none.",
+  );
 const Props = z
   .record(z.string(), z.unknown())
   .prefault({})
@@ -216,6 +223,7 @@ export const GroupSchema = z.strictObject({
   label: Label,
   component: ComponentRef.default("container").describe("Component reference (kind: group)."),
   variant: Variant,
+  tone: Tone,
   group: Id.optional().describe(
     "Parent group ID. Omitted means the root (or, in structured layout, the group whose arrange lists it).",
   ),
@@ -229,6 +237,7 @@ export const NodeSchema = z.strictObject({
   component: ComponentRef.describe("Component reference (kind: node), e.g. `box` or `sumi/box`."),
   label: Label,
   variant: Variant,
+  tone: Tone,
   props: Props,
   group: Id.optional().describe(
     "Containing group ID. Omitted means the root (or, in structured layout, the group whose arrange lists it).",

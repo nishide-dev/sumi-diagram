@@ -14,13 +14,15 @@ import type { CatalogEntry } from "../../src/core/registry/catalog";
 import { BUILTIN_THEMES } from "../../src/core/theme/builtin";
 import { formatMm, formatPt } from "../../src/core/units";
 import type { RenderOutcome } from "./render";
-import { type ComponentSample, GALLERY_DIR, PROFILES, THEMES } from "./samples";
+import { type ComponentSample, GALLERY_DIR, PROFILES, THEMES, type ToneSample } from "./samples";
 
 export interface GalleryModel {
   components: { sample: ComponentSample; outcomes: RenderOutcome[] }[];
   /** `pdf`: the committed PDF of the example (#59), if it was converted. */
   examples: { source: string; title: string; outcome: RenderOutcome; pdf?: string }[];
   comparison: { source: string; outcomes: RenderOutcome[] };
+  /** Every tone under every theme (#92). */
+  tones: { sample: ToneSample; outcomes: RenderOutcome[] };
 }
 
 const GENERATED_NOTE =
@@ -254,11 +256,32 @@ const COMPARISON_NOTE =
   "width limit that the geometry lint checks, so their drawings match. A profile whose minimum " +
   "font size is larger than a theme's font sizes rejects the figure before rendering " +
   "(`profile/font-too-small`): `presentation-16x9` requires 14pt text, so it accepts only the " +
-  "`slides` theme, and the paper themes are not rendered there by design. Theme and profile stay " +
+  "`slides` theme, and the other themes are not rendered there by design. Theme and profile stay " +
   "independent; for slides use `theme: slides` with `profile: presentation-16x9`. A figure that " +
   "exceeds a page limit is still drawn, with the geometry error below it: `slides` doubles the " +
   "text and the presentation profile doubles the spacing, so this tall top-to-bottom figure is " +
   "taller than a slide. A slide needs a shallow figure: fewer layers, or several figures.";
+
+const TONES_NOTE =
+  "A node or group picks a color category with `tone` (gray, red, orange, yellow, green, blue, " +
+  "purple, pink); the theme decides the color. `color` fills each tone with its own pastel hue. " +
+  "The monochrome themes map the tones to three gray steps so a figure still prints in grayscale; " +
+  "tones in the same step look alike there. A tone changes only colors, over the variant.";
+
+function htmlTones(tones: GalleryModel["tones"]): string {
+  const renders = tones.outcomes
+    .map((o) =>
+      htmlFigure(
+        o,
+        `theme <code>${escapeHtml(o.theme)}</code> · <code>${escapeHtml(renderCommand(tones.sample.fileName, o))}</code>`,
+        `every tone, theme ${o.theme}`,
+      ),
+    )
+    .join("");
+  return `<p>${inlineCode(TONES_NOTE)}</p>
+<div class="renders">${renders}</div>
+<details><summary>Source: <code>${escapeHtml(tones.sample.fileName)}</code></summary><pre>${escapeHtml(tones.sample.source)}</pre></details>`;
+}
 
 function htmlComparison(comparison: GalleryModel["comparison"]): string {
   const rows = THEMES.map((theme) => {
@@ -315,6 +338,8 @@ ${examples}
 <h2 id="comparison">Themes and profiles</h2>
 <h3>Themes</h3>
 ${themesTable()}
+<h3 style="margin-top:16px" id="tones">Tones</h3>
+${htmlTones(model.tones)}
 <h3 style="margin-top:16px">Profiles</h3>
 ${profilesTable()}
 <h3 style="margin-top:16px">One figure, every theme × profile</h3>
@@ -464,6 +489,24 @@ export function galleryMarkdown(model: GalleryModel): string {
     ...[...BUILTIN_THEMES.values()].map(
       (t) => `| ${mdCode(t.id)} | ${mdText(t.description ?? "")} | ${mdCode(t.fontSet.id)} |`,
     ),
+    "",
+    "### Tones",
+    "",
+    mdInline(TONES_NOTE),
+    "",
+    `| ${model.tones.outcomes.map((o) => mdCode(o.theme)).join(" | ")} |`,
+    `| ${model.tones.outcomes.map(() => "---").join(" | ")} |`,
+    `| ${model.tones.outcomes.map((o) => mdImage(o, `every tone, theme ${o.theme}`)).join(" | ")} |`,
+    `| ${model.tones.outcomes.map((o) => `${mdCode(renderCommand(model.tones.sample.fileName, o))}<br>${mdCaption(o)}`).join(" | ")} |`,
+    "",
+    "<details>",
+    `<summary>Source: <code>${escapeHtml(model.tones.sample.fileName)}</code></summary>`,
+    "",
+    mdFence(model.tones.sample.source, "yaml"),
+    "",
+    "</details>",
+    "",
+    "### Profiles",
     "",
     `| ${PROFILE_HEADER.join(" | ")} |`,
     `| ${PROFILE_HEADER.map(() => "---").join(" | ")} |`,

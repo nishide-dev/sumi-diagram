@@ -4,7 +4,10 @@
  * `state.components` (design doc §0, §3).
  *
  * Nodes whose component draws only text (shape `text`, e.g. `sumi/label`)
- * need a label with visible text (`component/missing-label`).
+ * need a label with visible text (`component/missing-label`). Nodes drawn as
+ * a mark (manifest `mark`, e.g. `sumi/operator`) take no label
+ * (`component/unexpected-label`), and point marks no tone
+ * (`component/tone-unsupported`).
  *
  * Elements already invalid are skipped. Elements whose component fails are
  * marked invalid, and so are the elements depending on them (children of a
@@ -45,6 +48,7 @@ interface Element {
   component: string;
   label: string;
   variant: string;
+  tone: string | undefined;
   props: Record<string, unknown>;
 }
 
@@ -88,7 +92,31 @@ export function resolveComponents(state: CheckState, registry: Registry, locate:
       };
       report([diagnostic], () => [...element.path, "label"]);
     }
-    if (!usage.ok || missingLabel) {
+    const mark = manifest.kind === "node" ? manifest.mark : undefined;
+    const unexpectedLabel = mark !== undefined && !isBlankForD2(element.label);
+    if (unexpectedLabel) {
+      const diagnostic: Diagnostic = {
+        code: "component/unexpected-label",
+        severity: "error",
+        message:
+          mark.type === "glyph"
+            ? `${componentId(manifest)} draws the symbol chosen by props.${mark.prop}, so it takes no label.`
+            : `${componentId(manifest)} is drawn as a point, so it takes no label.`,
+        hint: "Remove the label; put text next to it with a label node if needed.",
+      };
+      report([diagnostic], () => [...element.path, "label"]);
+    }
+    const toneUnsupported = mark?.type === "point" && element.tone !== undefined;
+    if (toneUnsupported) {
+      const diagnostic: Diagnostic = {
+        code: "component/tone-unsupported",
+        severity: "error",
+        message: `${componentId(manifest)} is drawn as a point in the line color, so it takes no tone.`,
+        hint: "Remove the tone.",
+      };
+      report([diagnostic], () => [...element.path, "tone"]);
+    }
+    if (!usage.ok || missingLabel || unexpectedLabel || toneUnsupported) {
       state.invalid.add(element.key);
       continue;
     }
@@ -118,6 +146,7 @@ function* elements(state: CheckState): Generator<Element> {
       component: element.component,
       label: element.label,
       variant: element.variant,
+      tone: entry.kind === "edge" ? undefined : entry.element.tone,
       props: entry.kind === "group" ? {} : entry.element.props,
     };
   }
