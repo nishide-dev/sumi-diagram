@@ -10,6 +10,7 @@
  *   invalid configuration) — the other files are still linted.
  */
 
+import { dirname, resolve } from "node:path";
 import { InvalidArgumentError } from "commander";
 import { createD2CliBackend } from "../../backends/d2/backend";
 import {
@@ -83,6 +84,7 @@ export async function lintCommand(
           file,
           config: perFile,
           backend: createD2CliBackend({ projectRoot: context.cwd, env: context.env }),
+          assetBase: dirname(resolve(context.cwd, file)),
         })
       : lintFigure(text, { file, config: perFile });
     total.errors += report.summary.errors;

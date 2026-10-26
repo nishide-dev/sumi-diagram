@@ -6,7 +6,9 @@
  *   viewBox (design doc §5.1). The viewBox is kept; nothing is scaled down.
  * - A `<metadata>` element with Sumi's provenance is inserted as the first
  *   child of the root (namespaced, no timestamps, so output stays
- *   byte-deterministic for the same input).
+ *   byte-deterministic for the same input). A figure with icons or images
+ *   (#94) also records `assets-sha256`, and one `<sumi:notice>` with the
+ *   full license text per bundled icon set it uses (research #86 §6.4).
  * - Everything else is D2's output byte for byte: the root start tag is
  *   rewritten and the metadata spliced in; the rest is copied unparsed.
  *
@@ -16,6 +18,7 @@
  */
 
 import { createHash } from "node:crypto";
+import type { FigureAssets, ThirdPartyNotice } from "../assets/load";
 import type { RenderArtifact } from "../backends/types";
 import type {
   CompiledD2Figure,
@@ -61,6 +64,13 @@ export interface SumiSvgMetadata {
    * without D2 source (`sumi-structured`, design doc §6.23).
    */
   d2Sha256?: string;
+  /**
+   * sha256 (hex) of the figure's icons and images (`loadFigureAssets()`, #94).
+   * Omitted for a figure without them.
+   */
+  assetsSha256?: string;
+  /** Notices of the bundled third-party assets the figure uses (#94); omitted if none. */
+  notices?: ThirdPartyNotice[];
 }
 
 /** The backend name of SVGs drawn by the structured SVG writer (#91); its version is Sumi's. */
@@ -69,6 +79,8 @@ export const STRUCTURED_BACKEND = "sumi-structured";
 export interface FinalizeOptions {
   /** The `*.sumi.yaml` source text the figure was compiled from (hashed into the metadata). */
   source: string;
+  /** The figure's loaded icons and images (#94), for `assets-sha256` and the notices. */
+  assets?: Pick<FigureAssets, "sha256" | "notices">;
 }
 
 export interface FinalizedSvg {
@@ -91,7 +103,18 @@ const METADATA_ATTRIBUTES = [
   ["font-set", (m: SumiSvgMetadata) => m.fontSet],
   ["input-sha256", (m: SumiSvgMetadata) => m.inputSha256],
   ["d2-sha256", (m: SumiSvgMetadata) => m.d2Sha256],
+  ["assets-sha256", (m: SumiSvgMetadata) => m.assetsSha256],
 ] as const;
+
+/** Attributes that may be absent: `d2-sha256` (structured backend) and `assets-sha256`. */
+const OPTIONAL_ATTRIBUTES = new Set(["assets-sha256"]);
+
+/** Attribute names of `<sumi:notice>`, in output order; its text is the license. */
+const NOTICE_ATTRIBUTES = ["name", "version", "license", "source"] as const;
+
+/** Escapes text for element content. */
+const escapeText = (value: string): string =>
+  value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 export const sha256 = (text: string): string =>
   createHash("sha256").update(text, "utf8").digest("hex");
@@ -107,7 +130,13 @@ export function serializeMetadata(metadata: SumiSvgMetadata): string {
     const value = get(metadata);
     return value === undefined ? "" : ` ${name}="${escapeAttribute(value)}"`;
   }).join("");
-  return `<metadata><sumi:render xmlns:sumi="${SUMI_METADATA_NAMESPACE}"${attributes}/></metadata>`;
+  const notices = (metadata.notices ?? [])
+    .map(
+      (notice) =>
+        `<sumi:notice xmlns:sumi="${SUMI_METADATA_NAMESPACE}"${NOTICE_ATTRIBUTES.map((name) => ` ${name}="${escapeAttribute(notice[name])}"`).join("")}>${escapeText(notice.text)}</sumi:notice>`,
+    )
+    .join("");
+  return `<metadata><sumi:render xmlns:sumi="${SUMI_METADATA_NAMESPACE}"${attributes}/>${notices}</metadata>`;
 }
 
 /**
@@ -122,18 +151,28 @@ export function readSvgMetadata(svg: string): Result<SumiSvgMetadata | undefined
       diagnostics: [invalid(`The SVG is not well-formed XML: ${parsed.message}`)],
     };
   }
-  const element = childElements(parsed.root)
+  const ours = childElements(parsed.root)
     .filter((child) => child.name === "metadata")
     .flatMap(childElements)
-    .find(
-      (child) =>
-        child.name.endsWith(":render") &&
-        attribute(child, `xmlns:${child.name.split(":")[0]}`) === SUMI_METADATA_NAMESPACE,
+    .filter(
+      (child) => attribute(child, `xmlns:${child.name.split(":")[0]}`) === SUMI_METADATA_NAMESPACE,
     );
+  const element = ours.find((child) => child.name.endsWith(":render"));
+  const notices = ours
+    .filter((child) => child.name.endsWith(":notice"))
+    .map((child) => ({
+      name: attribute(child, "name") ?? "",
+      version: attribute(child, "version") ?? "",
+      license: attribute(child, "license") ?? "",
+      source: attribute(child, "source") ?? "",
+      text: textContent(child),
+    }));
   if (element === undefined) return { ok: true, value: undefined, diagnostics: [] };
   const get = (name: string): string | undefined => attribute(element, name);
   // Only a D2 backend has D2 source to hash (the structured writer has none).
-  const optional = (name: string) => name === "d2-sha256" && get("backend") === STRUCTURED_BACKEND;
+  const optional = (name: string) =>
+    OPTIONAL_ATTRIBUTES.has(name) ||
+    (name === "d2-sha256" && get("backend") === STRUCTURED_BACKEND);
   const missing = METADATA_ATTRIBUTES.map(([name]) => name).filter(
     (n) => get(n) === undefined && !optional(n),
   );
@@ -160,9 +199,36 @@ export function readSvgMetadata(svg: string): Result<SumiSvgMetadata | undefined
       fontSet: value("font-set"),
       inputSha256: value("input-sha256"),
       ...(get("d2-sha256") !== undefined && { d2Sha256: value("d2-sha256") }),
+      ...(get("assets-sha256") !== undefined && { assetsSha256: value("assets-sha256") }),
+      ...(notices.length > 0 && { notices }),
     },
     diagnostics: [],
   };
+}
+
+/**
+ * Document properties for the assets of a figure (#94), shared by the PDF
+ * information dictionary and the PPTX custom properties: `SumiAssetsSha256`,
+ * and for bundled icons `SumiThirdParty` (set, version, license, source) and
+ * `SumiThirdPartyNotice` (the full license text), so a PDF or PPTX keeps the
+ * notice of what it redistributes. Empty for a figure without assets.
+ */
+export function assetProvenanceEntries(metadata: SumiSvgMetadata): [string, string][] {
+  const notices = metadata.notices ?? [];
+  return [
+    ...(metadata.assetsSha256 === undefined
+      ? []
+      : [["SumiAssetsSha256", metadata.assetsSha256] as [string, string]]),
+    ...(notices.length === 0
+      ? []
+      : ([
+          [
+            "SumiThirdParty",
+            notices.map((n) => `${n.name} ${n.version} (${n.license}): ${n.source}`).join("; "),
+          ],
+          ["SumiThirdPartyNotice", notices.map((n) => `${n.name}\n\n${n.text}`).join("\n\n")],
+        ] as [string, string][])),
+  ];
 }
 
 /** Removes quotes and surrounding whitespace from a CSS font-family value. */
@@ -265,6 +331,7 @@ function metadataBase(
   options: FinalizeOptions,
 ): Omit<SumiSvgMetadata, "backend" | "d2Sha256"> {
   const { ir } = compiled;
+  const { assets } = options;
   return {
     format: METADATA_FORMAT,
     sumiVersion: SUMI_VERSION,
@@ -273,6 +340,8 @@ function metadataBase(
     profile: ir.meta.profileId,
     fontSet: compiled.fontSet.id,
     inputSha256: sha256(options.source),
+    ...(assets?.sha256 !== undefined && { assetsSha256: assets.sha256 }),
+    ...(assets !== undefined && assets.notices.length > 0 && { notices: [...assets.notices] }),
   };
 }
 

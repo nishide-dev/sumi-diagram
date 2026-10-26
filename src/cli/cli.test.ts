@@ -8,6 +8,7 @@
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import {
   chmod,
   copyFile,
@@ -373,6 +374,65 @@ nodes:
   });
 });
 
+describe("sumi render (icons and images, #94)", () => {
+  // A structured figure: no D2 needed.
+  const figure = (src: string) => `version: 1
+figure: { id: assets, layout: { arrange: { row: { items: [icon, image] } } } }
+nodes:
+  - { id: icon, component: circle, icon: tabler/wave-sine }
+  - { id: image, component: image, props: { src: ${src}, height: 20pt } }
+`;
+
+  test("image paths resolve against the YAML file's directory, not the cwd", async () => {
+    await mkdir(join(dir, "assets-fig", "img"), { recursive: true });
+    await copyFile(
+      join(ROOT, "tests", "fixtures", "assets", "gradient.png"),
+      join(dir, "assets-fig", "img", "g.png"),
+    );
+    await Bun.write(join(dir, "assets-fig", "fig.sumi.yaml"), figure("img/g.png"));
+    const result = await sumi(["render", "assets-fig/fig.sumi.yaml", "--json"]);
+    expect(result.exitCode).toBe(0);
+    const json = JSON.parse(result.stdout);
+    expect(json.diagnostics).toEqual([]);
+    expect(json.notices).toEqual([
+      expect.objectContaining({ name: "Tabler Icons", version: "3.49.0", license: "MIT" }),
+    ]);
+    const svg = await readFile(join(dir, "assets-fig", "fig.svg"), "utf8");
+    expect(svg).toContain('xlink:href="data:image/png;base64,');
+    expect(svg).toContain('<g class="sumi-icon"');
+  });
+
+  test("a path outside the directory is a located error; nothing is written", async () => {
+    await mkdir(join(dir, "assets-out"), { recursive: true });
+    await Bun.write(join(dir, "assets-out", "fig.sumi.yaml"), figure("../secret.png"));
+    const result = await sumi(["render", "assets-out/fig.sumi.yaml"]);
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("assets-out/fig.sumi.yaml:5:");
+    expect(result.stderr).toContain("asset/invalid-path");
+    expect(existsSync(join(dir, "assets-out", "fig.svg"))).toBe(false);
+  });
+
+  test("the editable PPTX refuses icons and images", async () => {
+    await mkdir(join(dir, "assets-pptx", "img"), { recursive: true });
+    await copyFile(
+      join(ROOT, "tests", "fixtures", "assets", "gradient.png"),
+      join(dir, "assets-pptx", "img", "g.png"),
+    );
+    await Bun.write(join(dir, "assets-pptx", "fig.sumi.yaml"), figure("img/g.png"));
+    const result = await sumi([
+      "render",
+      "assets-pptx/fig.sumi.yaml",
+      "-o",
+      "assets-pptx/fig.pptx",
+      "--pptx-mode",
+      "editable",
+    ]);
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("pptx/unsupported-asset");
+    expect(existsSync(join(dir, "assets-pptx", "fig.pptx"))).toBe(false);
+  });
+});
+
 describe("sumi render (output paths)", () => {
   // Checked before D2 runs, so no D2 is needed.
   let input: string;
@@ -497,12 +557,16 @@ describe("sumi render (output paths)", () => {
 });
 
 describe("sumi catalog", () => {
-  test("--json prints exactly buildFullCatalog(): components, themes and profiles", async () => {
+  test("--json prints exactly buildFullCatalog(): components, themes, profiles and icons", async () => {
     const result = await sumi(["catalog", "--json"]);
     expect(result).toMatchObject({ exitCode: 0, stderr: "" });
     const json = JSON.parse(result.stdout);
     expect(json).toEqual(JSON.parse(JSON.stringify(buildFullCatalog(createBuiltinRegistry()))));
-    expect(Object.keys(json)).toEqual(["version", "components", "themes", "profiles"]);
+    expect(Object.keys(json)).toEqual(["version", "components", "themes", "profiles", "icons"]);
+    // #94: the bundled icon set, without the (long) list of names.
+    expect(json.icons).toEqual([
+      expect.objectContaining({ id: "tabler", version: "3.49.0", license: "MIT", count: 4808 }),
+    ]);
     expect(json.version).toBe(1);
     // The version 1 contract of #14 is unchanged: the components are buildCatalog()'s.
     expect(json.components).toEqual(
@@ -531,6 +595,23 @@ describe("sumi catalog", () => {
         "layout",
       ]);
     }
+  });
+
+  test("--icons lists matching icon references (#94)", async () => {
+    const text = await sumi(["catalog", "--icons", "wave sine"]);
+    expect(text).toMatchObject({ exitCode: 0, stderr: "" });
+    expect(text.stdout.split("\n")).toContain("tabler/wave-sine");
+    const json = JSON.parse((await sumi(["catalog", "--json", "--icons", "WAVE"])).stdout);
+    expect(json.version).toBe(1);
+    expect(json.query).toBe("WAVE");
+    expect(json.icons).toContain("tabler/wave-sine");
+    expect(
+      json.icons.every((ref: string) => ref.startsWith("tabler/") && ref.includes("wave")),
+    ).toBe(true);
+    // The Brand category is not bundled.
+    expect((await sumi(["catalog", "--icons", "brand-github"])).stdout).toBe("");
+    const usage = await sumi(["catalog", "--icons", "x", "--section", "themes"]);
+    expect(usage.exitCode).toBe(2);
   });
 
   test("--section selects sections; --kind alone keeps the components-only output", async () => {

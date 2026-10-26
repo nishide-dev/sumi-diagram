@@ -7,6 +7,7 @@
  * groups, nodes and edges each in the order they are written.
  */
 
+import { parseIconRef } from "../assets/icon-ref";
 import { type CheckState, type ElementKey, edgeKey, groupKey, nodeKey } from "../core/check-state";
 import { type DocPath, hasErrors, type SourceLocation } from "../core/diagnostics";
 import type { FigureCheck } from "../core/figure/check";
@@ -22,10 +23,12 @@ import type {
   Side,
 } from "../core/figure/schema";
 import { getProfile } from "../core/profile/builtin";
+
 import {
   type Arrowhead,
   type ComponentId,
   type EdgeDirection,
+  IMAGE_FITS,
   markText,
   type NodeMark,
   type NodeShape,
@@ -44,6 +47,8 @@ import type {
 } from "../core/theme/style";
 
 export type LayoutDirection = FigureMeta["layout"]["direction"];
+
+export type ImageFit = (typeof IMAGE_FITS)[number];
 
 /** Where an element is written in the source document. */
 export interface SourceMapEntry {
@@ -131,6 +136,27 @@ export interface NodeIR extends ObjectIRBase {
   readonly style: NodeStyle;
   /** Structured layout: placed beside another element instead of in an arrange tree. */
   readonly attach?: AttachIR;
+  /** A bundled icon drawn in place of the label (#94); the node has no label. */
+  readonly icon?: IconIR;
+  /** The image a `sumi/image` node embeds (#94); the node has no label. */
+  readonly image?: ImageIR;
+}
+
+/** `icon: <set>/<name>`, checked against the bundled sets. */
+export interface IconIR {
+  readonly set: string;
+  readonly name: string;
+}
+
+/** An image node's props.src, sha256 and fit, as written (the file is read when rendering). */
+export interface ImageIR {
+  /** Relative to the figure's directory, `/`-separated (checked by the `asset` stage). */
+  readonly src: string;
+  /** Lowercase hex, if written. */
+  readonly sha256?: string;
+  readonly fit: ImageFit;
+  /** Where `props.src` is written, for diagnostics about the file. */
+  readonly srcAt: SourceMapEntry;
 }
 
 export interface GroupIR extends ObjectIRBase {
@@ -200,16 +226,14 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
   }
 
   const sourceMap = new Map<ElementKey, SourceMapEntry>();
-  const mapSource = (key: ElementKey, path: DocPath) => {
+  const sourceEntry = (path: DocPath): SourceMapEntry => {
     const location = locate(path);
-    sourceMap.set(
-      key,
-      freeze({
-        path: freeze([...path]),
-        ...(location !== undefined && { location: freeze({ ...location }) }),
-      }),
-    );
+    return freeze({
+      path: freeze([...path]),
+      ...(location !== undefined && { location: freeze({ ...location }) }),
+    });
   };
+  const mapSource = (key: ElementKey, path: DocPath) => sourceMap.set(key, sourceEntry(path));
 
   const groupsById = new Map<string, FigureGroup>();
   for (const g of present(doc.groups)) groupsById.set(g.id, g);
@@ -286,6 +310,10 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
             side: n.attach.side,
             gapPt: n.attach.gap ?? 0,
           }),
+        }),
+        ...(n.icon !== undefined && { icon: iconIR(n.icon) }),
+        ...(component.manifest.embed === "image" && {
+          image: imageIR(component.props, sourceEntry(["nodes", index, "props", "src"])),
         }),
       }),
     );
@@ -484,6 +512,26 @@ function freezeMark(mark: NodeMark): Readonly<NodeMark> {
   return mark.type === "glyph"
     ? freeze({ ...mark, glyphs: freeze({ ...mark.glyphs }) })
     : freeze({ ...mark });
+}
+
+function iconIR(ref: string): IconIR {
+  const parsed = parseIconRef(ref);
+  if (parsed === undefined) throw new Error(`internal error: malformed icon "${ref}"`);
+  return freeze(parsed);
+}
+
+function imageIR(props: Record<string, unknown>, srcAt: SourceMapEntry): ImageIR {
+  const { src, sha256, fit = "contain" } = props;
+  // The registry checks src is a string prop and fit one of IMAGE_FITS (manifest `embed`).
+  if (typeof src !== "string" || !(IMAGE_FITS as readonly unknown[]).includes(fit)) {
+    throw new Error("internal error: image props without src or with an unknown fit");
+  }
+  return freeze({
+    src,
+    ...(typeof sha256 === "string" && { sha256: sha256.toLowerCase() }),
+    fit: fit as ImageFit,
+    srcAt,
+  });
 }
 
 /** A size prop in pt (an exact multiple of 0.5pt, checked by the manifest). */

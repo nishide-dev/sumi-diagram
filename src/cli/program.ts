@@ -125,19 +125,30 @@ stack traces for internal errors. If the reader of the output exits early
 
   program
     .command("catalog")
-    .description("list the available components, themes and profiles")
+    .description("list the available components, themes, profiles and icon sets")
     .option("--json", "print the catalog as JSON")
     .option(
       "--section <name>",
-      "only this section: components, themes or profiles (repeatable; default: all, or components with --kind)",
+      "only this section: components, themes, profiles or icons (repeatable; default: all, or components with --kind)",
       collectSection,
+    )
+    .option(
+      "--icons <words>",
+      'list the bundled icons whose name contains every word, as icon: references ("" for all)',
     )
     .addOption(
       new Option("--kind <kind>", "only components of this kind").choices([...COMPONENT_KINDS]),
     )
-    .action((options: { json?: boolean; kind?: ComponentKind; section?: CatalogSection[] }) => {
-      setExitCode(catalogCommand(options, context));
-    });
+    .action(
+      (options: {
+        json?: boolean;
+        kind?: ComponentKind;
+        section?: CatalogSection[];
+        icons?: string;
+      }) => {
+        setExitCode(catalogCommand(options, context));
+      },
+    );
 
   return program;
 }

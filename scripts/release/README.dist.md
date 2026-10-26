@@ -14,6 +14,7 @@ Sumi は、事前定義されたコンポーネントとデザインシステム
 | `LICENSE` | Sumi のライセンス（MIT） |
 | `licenses/bun/`・`licenses/npm/` | `bin/sumi` に含まれる Bun ランタイムと npm パッケージのライセンス |
 | `licenses/pdf-wasm/` | `bin/sumi` に含まれる PDF エンジン（krilla・krilla-svg と Rust の依存クレート。WebAssembly）のライセンスと一覧（`THIRD_PARTY.md`） |
+| `licenses/tabler-icons/` | `bin/sumi` に含まれるアイコン集 Tabler Icons（MIT。Brand カテゴリを除く outline）のライセンス |
 | `NOTICE` | 同梱物の出典・版・ライセンス |
 | `SHA256SUMS` | このディレクトリ内の全ファイルの sha256 |
 

@@ -199,6 +199,14 @@ describe.each(Object.entries(FIGURES))("%s", (_name, path) => {
     expect(picture.ok && picture.diagnostics).toEqual([]);
     for (const connectors of ["freeform", "glued"] as const) {
       const editable = svgToEditablePptx(svg, compiled.ir, { connectors });
+      if (compiled.ir.nodes.some((n) => n.icon !== undefined)) {
+        // Icons (#94) have no editable form yet: refused, never dropped.
+        expect(editable.ok).toBe(false);
+        expect(new Set(editable.diagnostics.map((d) => d.code))).toEqual(
+          new Set(["pptx/unsupported-asset"]),
+        );
+        continue;
+      }
       if (!editable.ok) throw new Error(JSON.stringify(editable.diagnostics));
       const slide = new TextDecoder().decode(readPptx(editable.value).get("ppt/slides/slide1.xml"));
       // Every edge is a visible line (the connection path carries no stroke paint).

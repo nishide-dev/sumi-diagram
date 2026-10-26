@@ -152,7 +152,7 @@ function decode(raw: string, offset: number): string {
 }
 
 /** Converts an offset into a 1-based line and column. */
-function position(text: string, offset: number): { line: number; column: number } {
+export function position(text: string, offset: number): { line: number; column: number } {
   let line = 1;
   let lineStart = 0;
   for (let i = text.indexOf("\n"); i !== -1 && i < offset; i = text.indexOf("\n", i + 1)) {
@@ -162,10 +162,20 @@ function position(text: string, offset: number): { line: number; column: number 
   return { line, column: offset - lineStart + 1 };
 }
 
+/**
+ * Optional budgets, enforced while parsing (before the tree is complete), for
+ * documents from outside Sumi (#94): at most `maxElements` elements in total
+ * and `maxDepth` levels of nesting (the root is level 1).
+ */
+export interface XmlParseLimits {
+  maxElements?: number;
+  maxDepth?: number;
+}
+
 /** Parses an XML document with a single root element. Never throws. */
-export function parseXml(text: string): XmlParseResult {
+export function parseXml(text: string, limits: XmlParseLimits = {}): XmlParseResult {
   try {
-    return { ok: true, root: new Parser(text).document() };
+    return { ok: true, root: new Parser(text, limits).document() };
   } catch (error) {
     if (!(error instanceof XmlError)) throw error;
     return { ok: false, message: error.message, ...position(text, error.offset) };
@@ -175,7 +185,12 @@ export function parseXml(text: string): XmlParseResult {
 class Parser {
   private pos = 0;
 
-  constructor(private readonly text: string) {}
+  private elements = 0;
+
+  constructor(
+    private readonly text: string,
+    private readonly limits: XmlParseLimits = {},
+  ) {}
 
   document(): XmlElement {
     checkCharacters(this.text);
@@ -265,6 +280,10 @@ class Parser {
         throw new XmlError("Processing instructions are not allowed.", lt);
       } else {
         const child = this.startTag();
+        const depth = stack.length + 1;
+        if (this.limits.maxDepth !== undefined && depth > this.limits.maxDepth) {
+          throw new XmlError(`Elements are nested deeper than ${this.limits.maxDepth} levels.`, lt);
+        }
         current.children.push(child);
         if (child.end === -1) stack.push(child);
       }
@@ -289,6 +308,9 @@ class Parser {
   /** Parses a start tag at `pos`; `end` is -1 unless the element is empty (`/>`). */
   private startTag(): XmlElement {
     const start = this.pos;
+    if (this.limits.maxElements !== undefined && ++this.elements > this.limits.maxElements) {
+      throw new XmlError(`The document has more than ${this.limits.maxElements} elements.`, start);
+    }
     this.pos++;
     const name = this.name();
     const attributes: XmlAttribute[] = [];

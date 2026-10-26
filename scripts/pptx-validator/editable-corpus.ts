@@ -27,9 +27,14 @@ export function editableCorpus() {
     svgPath: "tests/fixtures/pptx-editable-japanese.svg",
     overrides: {},
   });
-  return inputs.map((input) => {
+  // Figures with icons or images (#94) are refused by the editable export
+  // (`pptx/unsupported-asset`), so they are not in its corpus.
+  return inputs.flatMap((input) => {
     const compiled = compileFigure(input.source, { overrides: input.overrides });
     if (!compiled.ok) throw new Error(JSON.stringify(compiled.diagnostics));
+    if (compiled.value.ir.nodes.some((n) => n.icon !== undefined || n.image !== undefined)) {
+      return [];
+    }
     const svg = readFileSync(resolve(root, input.svgPath), "utf8");
     const metadata = readSvgMetadata(svg);
     if (
@@ -38,10 +43,6 @@ export function editableCorpus() {
         new Bun.CryptoHasher("sha256").update(input.source).digest("hex")
     )
       throw new Error(`Stale native SVG fixture: ${input.svgPath}`);
-    return {
-      id: input.id,
-      ir: compiled.value.ir,
-      svg,
-    };
+    return [{ id: input.id, ir: compiled.value.ir, svg }];
   });
 }

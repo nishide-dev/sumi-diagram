@@ -163,6 +163,38 @@ function enumValues(props: unknown, prop: string): string[] | undefined {
   return values.every((v) => typeof v === "string") ? (values as string[]) : undefined;
 }
 
+/** How an image fills its node's box (#94); the SVG `preserveAspectRatio` of each. */
+export const IMAGE_FITS = ["contain", "cover", "fill"] as const;
+
+/** A prop's schema without its `.optional()` / `.default()` wrappers. */
+function unwrapped(props: unknown, prop: string): unknown {
+  if (!(props instanceof z.ZodObject)) return undefined;
+  let schema: unknown = props.shape[prop];
+  while (schema instanceof z.ZodOptional || schema instanceof z.ZodDefault) {
+    schema = schema.unwrap();
+  }
+  return schema;
+}
+
+/**
+ * The props an image embed needs: `src` a string, `fit` (if any) a string
+ * enum of {@link IMAGE_FITS} values, and `width` / `height`.
+ */
+function imageProps(props: unknown): boolean {
+  const fit = unwrapped(props, "fit");
+  return (
+    // src must always be a string: not optional (a default is fine).
+    props instanceof z.ZodObject &&
+    !(props.shape.src instanceof z.ZodOptional) &&
+    unwrapped(props, "src") instanceof z.ZodString &&
+    (fit === undefined ||
+      (fit instanceof z.ZodEnum &&
+        (fit.options as unknown[]).every((v) => (IMAGE_FITS as readonly unknown[]).includes(v)))) &&
+    hasProp(props, "width") &&
+    hasProp(props, "height")
+  );
+}
+
 function sameSet(a: readonly string[], b: readonly string[]): boolean {
   const set = new Set(a);
   return set.size === a.length && a.length === b.length && b.every((v) => set.has(v));
@@ -180,6 +212,12 @@ export const NodeManifestSchema = z
     sizing: z.enum(NODE_SIZINGS),
     render: OutlineRenderSchema.optional(),
     mark: NodeMarkSchema.optional(),
+    /**
+     * `image` (#94): the node embeds the user's image file named by
+     * `props.src` (PNG, JPEG or SVG) in its box instead of drawing a label.
+     * It takes no label (`component/unexpected-label`) and no icon.
+     */
+    embed: z.literal("image").optional(),
   })
   .refine((m) => (m.sizing === "fixed-aspect-1") === FIXED_ASPECT_SHAPES.includes(m.shape), {
     error: `must be "fixed-aspect-1" for the shapes ${FIXED_ASPECT_SHAPES.join(" and ")}, and "auto" otherwise`,
@@ -193,6 +231,19 @@ export const NodeManifestSchema = z
     error: 'a mark requires sizing "fixed-aspect-1" and no outline rendering',
     path: ["mark"],
   })
+  .refine(
+    (m) =>
+      m.embed === undefined ||
+      (m.shape === "rectangle" &&
+        m.render === undefined &&
+        m.mark === undefined &&
+        imageProps(m.props)),
+    {
+      error:
+        'an image embed requires shape "rectangle", no outline rendering or mark, a string prop src, props width and height, and an optional prop fit of contain / cover / fill',
+      path: ["embed"],
+    },
+  )
   .refine((m) => m.mark === undefined || !hasProp(m.props, "width", "height"), {
     error: "a mark takes its size from the theme, so props must not have width or height",
     path: ["props"],

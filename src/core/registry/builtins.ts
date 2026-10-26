@@ -11,6 +11,7 @@ import {
   type ComponentManifest,
   type EdgeManifest,
   type GroupManifest,
+  IMAGE_FITS,
   MANIFEST_VERSION,
   type NodeManifest,
   type NodeShape,
@@ -140,6 +141,53 @@ const junction: NodeManifest = {
   mark: { type: "point", size: 3 },
 };
 
+export { IMAGE_FITS };
+
+const image: NodeManifest = {
+  ...base,
+  since: "0.4.0",
+  kind: "node",
+  name: "image",
+  description:
+    "A PNG, JPEG or SVG file embedded as it is and scaled to the node's box; takes no label.",
+  variants: ["default", "framed"],
+  props: z
+    .strictObject({
+      src: z
+        .string()
+        .min(1)
+        .describe(
+          'Path of the image file relative to the figure\'s YAML file, with "/" between directories, e.g. "img/photo.png". Absolute paths, URLs and paths outside that directory are not allowed.',
+        ),
+      sha256: z
+        .string()
+        .regex(/^[0-9a-fA-F]{64}$/)
+        .optional()
+        .describe(
+          "Expected sha256 of the file in hex. Rendering fails if the file has changed. Omitted means not checked.",
+        ),
+      fit: z
+        .enum(IMAGE_FITS)
+        .default("contain")
+        .describe(
+          "contain: the whole image, centered, keeping its aspect ratio (the default). cover: fills the box, keeping the aspect ratio and clipping the overflow. fill: stretched to the box.",
+        ),
+      width: SizeLength.optional().describe(
+        'Width as a length such as "30mm" (a multiple of 0.5pt). Omitted means from the height and the image\'s aspect ratio.',
+      ),
+      height: SizeLength.optional().describe(
+        'Height as a length such as "20mm" (a multiple of 0.5pt). Omitted means from the width and the image\'s aspect ratio.',
+      ),
+    })
+    .refine(({ width, height }) => width !== undefined || height !== undefined, {
+      error: "an image needs a width or a height (or both)",
+      path: ["width"],
+    }),
+  shape: "rectangle",
+  sizing: "auto",
+  embed: "image",
+};
+
 /** The built-in manifests, in catalog order. */
 export const BUILTIN_MANIFESTS: readonly ComponentManifest[] = [
   node("box", "rectangle", "A rectangle; the general-purpose node."),
@@ -156,6 +204,7 @@ export const BUILTIN_MANIFESTS: readonly ComponentManifest[] = [
   node("label", "text", "Text without a border.", { variants: ["default", "muted"] }),
   operator,
   junction,
+  image,
   container,
   edge("arrow", "A line with an arrowhead at the target.", {
     direction: "forward",

@@ -284,8 +284,11 @@ export function parsePdf(bytes: Uint8Array): ParsedPdf {
       const filter = dict.Filter;
       if (filter === undefined) stream = raw;
       else if (filter instanceof PdfName) {
-        if (filter.name !== "FlateDecode") throw new Error(`unsupported filter ${filter.name}`);
-        stream = new Uint8Array(inflateSync(raw));
+        // A JPEG image (#94) is embedded as it is (DCTDecode); its data is not inspected.
+        if (filter.name === "DCTDecode") stream = raw;
+        else if (filter.name !== "FlateDecode")
+          throw new Error(`unsupported filter ${filter.name}`);
+        else stream = new Uint8Array(inflateSync(raw));
       } else throw new Error(`object ${num}: unsupported /Filter`);
     }
     objects.set(num, stream === undefined ? { value } : { value, stream });

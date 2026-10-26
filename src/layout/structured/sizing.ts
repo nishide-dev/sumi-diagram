@@ -18,6 +18,9 @@ import {
 } from "../../lint/geometry/shapes";
 import type { TextMetrics } from "../ir";
 
+/** The box a node's content takes: its measured label, or an icon's square (#94). */
+export type LabelBox = Pick<TextMetrics, "width" | "height">;
+
 export interface Size {
   width: number;
   height: number;
@@ -51,7 +54,7 @@ export interface NodePadding {
  */
 export function naturalSize(
   shape: NodeShape,
-  label: TextMetrics | undefined,
+  label: LabelBox | undefined,
   padding: NodePadding,
 ): Size {
   const w = label?.width ?? 0;
@@ -167,7 +170,7 @@ function outlineOf(node: Pick<NodeIR, "key" | "render">) {
  */
 export function nodeSize(
   node: Pick<NodeIR, "key" | "shape" | "sizing" | "render" | "width" | "height">,
-  label: TextMetrics | undefined,
+  label: LabelBox | undefined,
   padding: NodePadding,
 ): Size {
   if (node.sizing === "fixed-aspect-1") {

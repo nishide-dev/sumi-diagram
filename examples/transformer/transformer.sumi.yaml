@@ -1,8 +1,7 @@
 # The Transformer model architecture (Vaswani et al. 2017, figure 1), drawn
 # with the structured layout (figure.layout.arrange): stacks and rows of
 # blocks, attached side notes, operators, junctions and shared trunks.
-# The sinusoid icon of the positional encodings is a circle labeled "~" until
-# icons are available (#94).
+# The positional encodings are circles with the bundled sine-wave icon (#94).
 version: 1
 figure:
   id: transformer
@@ -52,7 +51,7 @@ nodes:
   - { id: inputs, component: label, label: Inputs }
   - { id: input-embedding, component: box, label: "Input\nEmbedding", tone: pink }
   - { id: enc-add, component: operator, props: { symbol: plus } }
-  - { id: enc-pe, component: circle, label: "~", attach: { to: enc-add, side: west, gap: 1mm } }
+  - { id: enc-pe, component: circle, icon: tabler/wave-sine, attach: { to: enc-add, side: west, gap: 1mm } }
   - { id: enc-pe-label, component: label, label: "Positional\nEncoding", attach: { to: enc-pe, side: west, gap: 0.5mm } }
   - { id: enc-split1, component: junction }
   - { id: enc-mha, component: box, label: "Multi-Head\nAttention", tone: orange }
@@ -65,7 +64,7 @@ nodes:
   - { id: outputs, component: label, label: "Outputs\n(shifted right)" }
   - { id: output-embedding, component: box, label: "Output\nEmbedding", tone: pink }
   - { id: dec-add, component: operator, props: { symbol: plus } }
-  - { id: dec-pe, component: circle, label: "~", attach: { to: dec-add, side: east, gap: 1mm } }
+  - { id: dec-pe, component: circle, icon: tabler/wave-sine, attach: { to: dec-add, side: east, gap: 1mm } }
   - { id: dec-pe-label, component: label, label: "Positional\nEncoding", attach: { to: dec-pe, side: east, gap: 0.5mm } }
   - { id: dec-split1, component: junction }
   - { id: dec-mmha, component: box, label: "Masked\nMulti-Head\nAttention", tone: orange }

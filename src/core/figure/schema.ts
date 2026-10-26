@@ -7,6 +7,7 @@
 
 import { validRange } from "semver";
 import { z } from "zod";
+import { ICON_REF_MAX_LENGTH, ICON_REF_PATTERN } from "../../assets/icon-ref";
 import { TONE_NAMES } from "../theme/tones";
 import { parseLength } from "../units";
 
@@ -236,6 +237,14 @@ export const NodeSchema = z.strictObject({
   id: Id,
   component: ComponentRef.describe("Component reference (kind: node), e.g. `box` or `sumi/box`."),
   label: Label,
+  icon: z
+    .string()
+    .max(ICON_REF_MAX_LENGTH)
+    .regex(ICON_REF_PATTERN)
+    .optional()
+    .describe(
+      "A bundled icon drawn in place of the label, as <set>/<name>, e.g. tabler/wave-sine. Drawn in the node's text color.",
+    ),
   variant: Variant,
   tone: Tone,
   props: Props,

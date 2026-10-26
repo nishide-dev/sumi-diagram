@@ -4,7 +4,8 @@
  * edge route, plus the canvas and the profile's physical limits.
  */
 
-import type { ElementIR, FigureIR } from "../../compiler/ir";
+import { iconRect } from "../../assets/draw";
+import type { ElementIR, FigureIR, NodeIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type { DiagnosticSubject, DocPath } from "../../core/diagnostics";
 import { getOutlineRenderer } from "../../core/outline";
@@ -62,6 +63,27 @@ function nameOf(element: ElementIR): string {
   return `${element.kind} "${element.id}"`;
 }
 
+/** An icon's square as a one-line label without text (1 em, where `iconRect()` draws it). */
+function iconAsLabel(node: NodeIR, box: Rect): MeasuredLabel {
+  const rect = iconRect(node, box);
+  const size = node.style.fontSize.units;
+  return {
+    label: {
+      text: "",
+      anchor: { x: rect.x + rect.width / 2, y: rect.y + rect.height },
+      fontSizeUnits: size,
+      lines: 1,
+      lineHeightUnits: size,
+      font: "regular",
+    },
+    fontPath: "",
+    texts: [""],
+    lines: [rect],
+    visibleLines: [rect],
+    box: rect,
+  };
+}
+
 /**
  * Builds the context from the IR and the SVG inspection of the same render.
  * Labels are measured with `fonts` (the theme's font set).
@@ -104,7 +126,14 @@ export function createGeometryContext(
           ...regions,
         }),
       strokeInset: element.style.strokeWidth.units / 2,
-      labels: geometry.labels.map((label) => measureLabel(label, fonts)),
+      labels: [
+        ...geometry.labels.map((label) => measureLabel(label, fonts)),
+        // An icon (#94) is drawn in place of the label: the rules that keep
+        // labels inside their shape and apart from others check it too.
+        ...(element.kind === "node" && element.icon !== undefined && geometry.bbox !== undefined
+          ? [iconAsLabel(element, geometry.bbox)]
+          : []),
+      ],
       ...(geometry.path !== undefined && { route: flattenPath(geometry.path) }),
     });
   }

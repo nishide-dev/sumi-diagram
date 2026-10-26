@@ -30,11 +30,17 @@ export interface RenderJob {
   file: string;
   source: string;
   rendering: Rendering;
+  /** Absolute directory image paths resolve against (#94). */
+  assetBase?: string;
 }
 
 export async function renderOne(job: RenderJob): Promise<RenderOutcome> {
-  const { file, source, rendering } = job;
-  const result = await renderFigure(source, { file, overrides: rendering.overrides });
+  const { file, source, rendering, assetBase } = job;
+  const result = await renderFigure(source, {
+    file,
+    overrides: rendering.overrides,
+    ...(assetBase !== undefined && { assetBase }),
+  });
   if (!result.ok) {
     return {
       rendering,

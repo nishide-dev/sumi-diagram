@@ -22,7 +22,8 @@
  * - Text mode: diagnostics → stderr; `Wrote …` → stdout (stderr with `-o -`).
  *   `--json`: `{ version, file, diagnostics, summary, output, d2, size, format }`
  *   → stdout; `size` (#37) is the output size against the profile's limits,
- *   or `null` if nothing was rendered; `format` (#59) is `svg` or `pdf`.
+ *   or `null` if nothing was rendered; `format` (#59) is `svg` or `pdf`;
+ *   `notices` (#94) the third-party notices of bundled icons, if any.
  * - The rendered figure is checked by the geometry rules (`lintGeometry()`,
  *   #13; default configuration) unless `--no-geometry`, on the SVG stage for
  *   all formats. Their diagnostics are reported with the others. The output
@@ -33,7 +34,8 @@
  *   geometry errors, with the SVG written); 2 usage errors.
  */
 
-import { basename } from "node:path";
+import { basename, dirname, resolve } from "node:path";
+import type { ThirdPartyNotice } from "../../assets/load";
 import { createD2CliBackend } from "../../backends/d2/backend";
 import { compileFigure } from "../../compiler/compile";
 import { didYouMean } from "../../core/diagnostics";
@@ -96,6 +98,12 @@ export interface RenderJson extends LintJson {
   size: OutputSize | null;
   /** The output format (#59): added last, so earlier keys keep their order. */
   format: OutputFormat;
+  /**
+   * Third-party notices of the bundled icons the figure uses (#94): name,
+   * version, license, source and the full license text. Present only when
+   * the rendered figure uses any.
+   */
+  notices?: ThirdPartyNotice[];
 }
 
 /** Default output: the input's YAML suffix replaced by the output format. */
@@ -221,6 +229,8 @@ export async function renderCommand(
     overrides,
     sourceName,
     backend: createD2CliBackend({ projectRoot: context.cwd, env: context.env }),
+    // Image paths (#94) are relative to the YAML file's directory.
+    assetBase: dirname(resolve(context.cwd, file)),
   });
 
   let d2Written: string | null = null;
@@ -282,6 +292,8 @@ export async function renderCommand(
       d2: d2Written,
       size: result.ok ? outputSize(result.value.inspection) : null,
       format,
+      ...(result.ok &&
+        result.value.metadata.notices !== undefined && { notices: result.value.metadata.notices }),
     };
     context.stdout.write(`${JSON.stringify(json, null, 2)}\n`);
   } else {

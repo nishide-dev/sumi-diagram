@@ -38,6 +38,7 @@
  * in the design doc.
  */
 
+import { iconBox } from "../../assets/draw";
 import type { ArrangeBoxIR, ArrangeItemIR, FigureIR, GroupIR, NodeIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type { Side } from "../../core/figure/schema";
@@ -140,7 +141,8 @@ class StructuredLayout {
       this.#nodes.set(node.key, node);
       const label = measureText(node.label, node.style, measurer);
       if (label !== undefined) this.#labels.set(node.key, label);
-      this.#leafSizes.set(node.key, nodeSize(node, label, padding));
+      // An icon (#94) takes the place of the label: a square of 1 em.
+      this.#leafSizes.set(node.key, nodeSize(node, label ?? iconBox(node), padding));
       if (node.attach !== undefined) {
         const container = node.parent ?? ROOT;
         const list = this.#attached.get(container) ?? [];

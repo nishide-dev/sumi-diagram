@@ -30,7 +30,8 @@ for (const { id, svg } of corpus) {
     const pdf = inspectPdf(result.value);
     expect(pdf.version).toBe("1.7");
     expect(pdf.pages).toHaveLength(1);
-    expect(pdf.images).toBe(0);
+    // Raster images (#94) are embedded as PDF images; everything else stays vector.
+    expect(pdf.images > 0).toBe(/data:image\/(png|jpeg)/.test(svg));
     expect(pdf.fonts.length).toBeGreaterThan(0);
     for (const font of pdf.fonts) expect(font).toMatchObject({ embedded: true, subset: true });
     expect(pdf.glyphs.every((g) => g.text !== "�")).toBe(true);

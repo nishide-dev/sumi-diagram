@@ -4,8 +4,14 @@
  * A structured figure (#91, design doc §6.23) is laid out and routed by Sumi
  * instead: compile → layout → route → structured SVG writer → finalize →
  * inspect.
+ *
+ * A figure with icons or images (#94, §6.25) loads them after compiling
+ * (`loadFigureAssets()`: the image files, checked) and completes image sizes
+ * from their aspect ratio. The structured writer draws them itself; for D2
+ * they are composed into the placeholders after the outlines.
  */
 
+import { type FigureAssets, hasAssets, loadFigureAssets } from "../assets/load";
 import { createD2CliBackend } from "../backends/d2/backend";
 import type { DiagramBackend, RenderArtifact } from "../backends/types";
 import {
@@ -22,6 +28,7 @@ import type { LayoutIR } from "../layout/ir";
 import { routeEdges } from "../layout/route/router";
 import { layoutStructured } from "../layout/structured/engine";
 import { composeOutlines } from "./compose";
+import { composeAssets, withImageSizes } from "./compose-assets";
 import { type FinalizedSvg, finalizeStructuredSvg, finalizeSvg } from "./finalize";
 import { inspectSvg, type SvgInspection } from "./inspect";
 import { needsOutlineSizing, outlineMeasurementFigure, sizeOutlineNodes } from "./outline-sizing";
@@ -32,6 +39,12 @@ export interface RenderFigureOptions extends CompileOptions {
   backend?: DiagramBackend;
   /** Name of the generated D2 source in backend diagnostics (see `RenderInput.sourceName`). */
   sourceName?: string;
+  /**
+   * The directory image paths (`props.src`, #94) are relative to: the figure's
+   * YAML file's directory. Without it, a figure with images fails with
+   * `asset/no-base-directory`.
+   */
+  assetBase?: string;
 }
 
 interface RenderedFigureBase {
@@ -79,7 +92,7 @@ export async function renderFigure(
   text: string,
   options: RenderFigureOptions = {},
 ): Promise<Result<RenderedFigure>> {
-  const { backend, sourceName, ...compileOptions } = options;
+  const { backend, sourceName, assetBase, ...compileOptions } = options;
   const compiled = compileFigure(text, compileOptions);
   if (!compiled.ok) return compiled;
   const diagnostics: Diagnostic[] = [...compiled.diagnostics];
@@ -95,9 +108,18 @@ export async function renderFigure(
     });
     return { ok: false, diagnostics };
   }
-  return compiled.value.engine === "structured"
-    ? renderStructured(text, compiled.value, diagnostics)
-    : renderD2(text, compiled.value, diagnostics, backend ?? createD2CliBackend(), sourceName);
+  let figure = compiled.value;
+  let assets: FigureAssets | undefined;
+  if (hasAssets(ir)) {
+    const loaded = loadFigureAssets(ir, { ...(assetBase !== undefined && { base: assetBase }) });
+    diagnostics.push(...loaded.diagnostics);
+    if (!loaded.ok) return { ok: false, diagnostics };
+    assets = loaded.value;
+    figure = withImageSizes(figure, assets);
+  }
+  return figure.engine === "structured"
+    ? renderStructured(text, figure, diagnostics, assets)
+    : renderD2(text, figure, diagnostics, backend ?? createD2CliBackend(), sourceName, assets);
 }
 
 async function renderD2(
@@ -106,6 +128,7 @@ async function renderD2(
   diagnostics: Diagnostic[],
   backend: DiagramBackend,
   sourceName: string | undefined,
+  assets: FigureAssets | undefined,
 ): Promise<Result<RenderedFigure>> {
   const fail = (): Result<RenderedFigure> => ({ ok: false, diagnostics });
   let effective = compiled;
@@ -137,7 +160,10 @@ async function renderD2(
   if (!rendered.ok) return fail();
   const artifact = rendered.value;
 
-  const finalized = finalizeSvg(artifact, effective, { source: text });
+  const finalized = finalizeSvg(artifact, effective, {
+    source: text,
+    ...(assets !== undefined && { assets }),
+  });
   diagnostics.push(...finalized.diagnostics);
   if (!finalized.ok) return fail();
 
@@ -153,11 +179,20 @@ async function renderD2(
     diagnostics.push(...inspected.diagnostics);
     if (!inspected.ok) return fail();
   }
+  // Icons and images go into the placeholders' boxes; the inspection does not
+  // read them, so it stays valid.
+  let svg = composed.value;
+  if (assets !== undefined) {
+    const withAssets = composeAssets(svg, effective.ir, inspected.value, assets);
+    diagnostics.push(...withAssets.diagnostics);
+    if (!withAssets.ok) return fail();
+    svg = withAssets.value;
+  }
 
   return {
     ok: true,
     value: {
-      svg: composed.value,
+      svg,
       metadata: finalized.value.metadata,
       inspection: inspected.value,
       compiled: effective,
@@ -176,6 +211,7 @@ function renderStructured(
   text: string,
   compiled: CompiledStructuredFigure,
   diagnostics: Diagnostic[],
+  assets: FigureAssets | undefined,
 ): Result<RenderedFigure> {
   const fail = (): Result<RenderedFigure> => ({ ok: false, diagnostics });
   const { ir } = compiled;
@@ -189,7 +225,7 @@ function renderStructured(
 
   let svg: string;
   try {
-    svg = writeStructuredSvg(ir, layout, fonts);
+    svg = writeStructuredSvg(ir, layout, fonts, assets);
   } catch (e) {
     if (e instanceof Error && e.message.startsWith("internal error")) throw e;
     diagnostics.push({
@@ -200,7 +236,10 @@ function renderStructured(
     });
     return fail();
   }
-  const finalized = finalizeStructuredSvg(svg, compiled, { source: text });
+  const finalized = finalizeStructuredSvg(svg, compiled, {
+    source: text,
+    ...(assets !== undefined && { assets }),
+  });
   diagnostics.push(...finalized.diagnostics);
   if (!finalized.ok) return fail();
   const inspected = inspectSvg(finalized.value.svg, ir);

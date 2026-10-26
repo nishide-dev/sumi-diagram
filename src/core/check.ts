@@ -1,3 +1,4 @@
+import { checkAssets } from "../assets/check";
 import { type CheckFigureOptions, checkFigureSource, type FigureCheck } from "./figure/check";
 import { constrainFigure } from "./profile/constrain";
 import { createBuiltinRegistry } from "./registry/builtins";
@@ -12,8 +13,9 @@ export interface CheckOptions extends CheckFigureOptions {
 
 /**
  * Runs every diagnostic-collecting stage on a `*.sumi.yaml` source: `yaml`,
- * `schema`, `ref` (see {@link checkFigureSource}), `component`, `theme` and
- * `profile`. The returned state has `components` and `styles` set.
+ * `schema`, `ref` (see {@link checkFigureSource}), `component`, `asset`
+ * (icons and image paths, #94), `theme` and `profile`. The returned state has
+ * `components` and `styles` set.
  *
  * The `profile` stage checks the font size of every styled element that has a
  * label (elements without a label draw no text).
@@ -22,6 +24,7 @@ export function checkFigure(text: string, options: CheckOptions = {}): FigureChe
   const { registry = createBuiltinRegistry(), ...rest } = options;
   const check = checkFigureSource(text, rest);
   resolveComponents(check.state, registry, check.locate);
+  checkAssets(check.state, check.locate);
   styleFigure(check.state, check.locate);
   constrainFigure(check.state, check.locate, { fonts: labelFontUsages(check.state) });
   return check;

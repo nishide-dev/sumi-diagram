@@ -244,6 +244,16 @@ node と group の `tone`（`gray` / `red` / `orange` / `yellow` / `green` / `bl
 
 スライドの図は `theme: slides` と `profile: presentation-16x9` で作ります。`presentation-16x9` は 14pt 以上の文字を求めるため、`minimal` / `academic` / `color` では `profile/font-too-small` になります（意図どおり）。描き比べは[ギャラリー](docs/gallery/README.md#themes-and-profiles)にあります。
 
+### アイコンと画像
+
+node の `icon: tabler/<name>` で、同梱の [Tabler Icons](https://github.com/tabler/tabler-icons)（MIT。outline から Brand カテゴリを除いた 4,808 個）のアイコンをラベルの代わりに描けます。色は node の文字色に従います。名前は `sumi catalog --icons <語>` で探せます。自分の画像は `component: image` と `props.src`（YAML ファイルからの相対パス。PNG / JPEG / SVG）・`width` か `height` で埋め込みます。Sumi は画像を加工せずそのまま埋め込み、SVG は許可した図形だけを取り込みます（スクリプトや外部への参照は位置付きのエラー）。編集可能 PPTX では使えません（[設計 §6.25](docs/design/phase1.md#625-94-のユーザー画像と同梱アイコン)）。
+
+```yaml
+nodes:
+  - { id: pe, component: circle, icon: tabler/wave-sine }
+  - { id: photo, component: image, props: { src: img/photo.png, height: 30pt } }
+```
+
 ## Claude Code から使う
 
 Claude Code 用の Skill を [`skills/sumi/`](skills/sumi/SKILL.md) で配布しています。[skills CLI](https://github.com/vercel-labs/skills) で、使いたいプロジェクトに導入します。
