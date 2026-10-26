@@ -491,6 +491,7 @@ describe("sumi catalog", () => {
         "fonts",
         "fontSizePt",
         "missingVariants",
+        "tones",
         "compatibleProfiles",
       ]);
     }

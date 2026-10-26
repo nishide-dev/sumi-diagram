@@ -79,8 +79,19 @@ describe.skipIf(!available)("built-in primitives render with D2", () => {
           expect({ key, count: chunks.length }).toEqual({ key, count: 1 });
           const chunk = chunks[0] ?? "";
           expect(chunk).toContain(`sumi-kind-${element.kind}`);
-          expect(chunk).toContain(`>${element.label}<`);
-          expect(chunk).toContain(`fill="${element.style.fontColor}"`);
+          if (element.kind === "node" && element.mark?.type === "point") {
+            // A point (#92) draws no text: a filled circle of the mark's size.
+            expect(chunk).not.toContain("<text");
+            expect(chunk).toContain(`fill="${element.style.fill}"`);
+            expect(chunk).toContain(`rx="${(element.width?.units ?? 0) / 2}"`);
+          } else {
+            expect(chunk).toContain(`>${element.label}<`);
+            expect(chunk).toContain(`fill="${element.style.fontColor}"`);
+          }
+          if (element.kind === "node" && element.mark?.type === "glyph") {
+            // A glyph mark draws its symbol in a circle of the mark's size.
+            expect(chunk).toContain(`rx="${(element.width?.units ?? 0) / 2}"`);
+          }
           // A text shape draws no outline.
           if (element.kind !== "node" || element.shape !== "text") {
             expect({ key, stroke: chunk.includes(`stroke="${element.style.stroke}"`) }).toEqual({

@@ -138,9 +138,15 @@ export function primitivesFigure(theme: string): string {
     for (const variant of m.variants) {
       const id = `${m.name}-${variant}`;
       const group = containers.has(variant) ? `, group: container-${variant}` : "";
-      lines.push(
-        `  - { id: ${id}, component: ${m.name}, label: ${id}, variant: ${variant}${group} }`,
-      );
+      // Marks (#92) take no label; a glyph mark needs its prop.
+      const mark = m.kind === "node" ? m.mark : undefined;
+      const label =
+        mark === undefined
+          ? `, label: ${id}`
+          : mark.type === "glyph"
+            ? `, props: { ${mark.prop}: ${Object.keys(mark.glyphs)[0]} }`
+            : "";
+      lines.push(`  - { id: ${id}, component: ${m.name}${label}, variant: ${variant}${group} }`);
       nodes.push(id);
     }
   }

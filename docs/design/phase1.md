@@ -406,7 +406,7 @@ components:
 - variant の扱い: manifest にない variant は `component/unknown-variant`（error）。manifest にはあるが Theme に定義がない variant は `default` を使い、`theme/missing-variant`（warning）を出す。
 - **Figure 側からのスタイル直接指定は v1 では提供しない**（見た目は variant で選ぶ）。
 - 解決結果は全プロパティが確定した、immutable な `ResolvedStyle` とする。
-- 組み込み Theme: `minimal`（モノクロ）、`academic`（論文向け）、`slides`（スライド向け。#36 で追加、§6.9）。分野固有のパレットは持たない。
+- 組み込み Theme: `minimal`（モノクロ）、`academic`（論文向け）、`slides`（スライド向け。#36 で追加、§6.9）、`color`（色を使う汎用。#92 で追加、§6.20）。分野固有のパレットは持たない。tone（色の分類の名前）の色は Theme の `tones` にだけ置く（§6.20）。
 
 ### 4.4 実装で確定した事項（#6）
 - **フォントセット**: `sumi/biz-ud-gothic` を同梱する（`assets/fonts/biz-ud-gothic/`。出典・版・sha256 は同ディレクトリの README）。Noto Sans JP は google/fonts では可変 TTF のみ、noto-cjk の公式配布は OTF / OTC（CFF）で、D2 が受け付ける静的 TTF の公式配布がないため、静的 TTF を公式リリースで配布している BIZ UD ゴシックを採用した。D2 v0.9.0 で 8 つの `--font-*` をすべて指定し、日本語＋英字のラベルが WOFF subset として `@font-face` に埋め込まれることを確認済み。フォントのパスはソースからの相対で解決する（`bun build --compile` での同梱は配布の Issue で扱う）。
@@ -715,7 +715,7 @@ layout:
 - **`sumi catalog --json`**: `buildFullCatalog()`（`src/core/catalog.ts`）の出力そのもので、`{ version: 1, components, themes, profiles }`。`components` は従来の `buildCatalog()` の `components` と同じ。`themes` は `buildThemeCatalog()`（`src/core/theme/catalog.ts`）、`profiles` は `buildProfileCatalog()`（`src/core/profile/catalog.ts`）。どちらも `BUILTIN_THEMES` / `BUILTIN_PROFILES` と Registry から導出するので、組み込みの Theme・Profile・部品を追加すれば自動で現れる。gallery や Skill の検証も同じ関数を使える。
   - **セクションの選択**: `--section components|themes|profiles`（繰り返し可）で選んだセクションだけを出す（キーの順は固定）。`--section` がなければ全セクション。ただし `--kind` だけを指定したときは従来どおり `components` だけを出す（`catalog --json --kind node` の出力は #14 から変わらない）。`--kind` と、`components` を含まない `--section` の組み合わせは使い方の誤り（exit 2）。
   - **表**: セクションが 2 つ以上なら見出し（`Components:` 等）付きで表を並べ、1 つなら見出しなしで出す（`catalog --kind node` の表は従来どおり）。Theme の表は ID・FONT SIZE（最小〜最大）・FONTS・PROFILES（`compatibleProfiles`）・DESCRIPTION、Profile の表は ID・MAX WIDTH・MAX HEIGHT・MIN FONT・MARGIN/GAP/PADDING・DESCRIPTION（いずれも書かれたとおりの長さ）。
-- **Theme の項目**: `{ id, description, fonts: { id, description, styles }, fontSizePt: { min, max, base: { node, group, edge } }, missingVariants, compatibleProfiles }`。
+- **Theme の項目**: `{ id, description, fonts: { id, description, styles }, fontSizePt: { min, max, base: { node, group, edge } }, missingVariants, tones, compatibleProfiles }`（`tones` は #92 で追加。§6.20）。
   - `fonts.styles` はフォントセットにある書体（`regular`・`bold` と、あれば `italic`・`mono`）。`italic: true` / `mono: true` が使えるかの判断に使う。フォントファイルのパスと sha256 は載せない（インストール先に依存し、移植性がない。検査は `sumi doctor` の役割）。
   - `fontSizePt` は、Registry の全部品 × 全 variant の実効スタイル（`resolveStyle()`）の文字サイズの最小・最大と、kind ごとの base のサイズ。最小・最大は実効値だけから求め、どの部品でも上書きされる base の値は含めない（部品が 1 つもない Registry のときだけ base で代える）。
   - `missingVariants` は Theme にスタイルがなく `default` に戻る（`theme/missing-variant`）variant を部品 ID ごとに並べたもの（あるものだけ）。base は kind ごとに必ずあるので、どの部品もどの Theme でも使える。組み込み Theme では空。
@@ -853,6 +853,29 @@ layout:
 - **描画（暫定）**: structured の図は `sumi lint` で上記をすべて検査できる。`sumi render`（`compileFigure()`）は、検査が通っても D2 には渡さず `layout/engine-unavailable`（error、`figure.layout.arrange` か `engine` の位置）で止める。#89〜#91 で structured のエンジンが入るときに外す。`lintRenderedFigure()` は、検査時と描画時の両方で出る stage `layout` の診断を、`lintFigure()` と同じものだけ重複として除く。
 - **その他**: `sumi fmt --canonical-order` は `figure.layout`（engine → direction → arrange）、group（… → group → arrange）、node（… → group → attach）、edge（id → from → fromAnchor → to → toAnchor → …）、`attach`（to → side → gap）と配置の木の箱（direction → gap → align → items、入れ子も）をスキーマ順にする。`lint/duplicate-edge` は structured の図で anchor も比較し、`south:0.15` と `south:0.85` に入る 2 本を重複としない（`south` と `south:0.5` は同じ）。
 - **検証**: 各診断のコード・パス・行・列、engine の推定と正規化、所属の補完、`auto` での拒否、`compileFigure()` での停止を単体テストで固定した。図 A の理想の YAML（調査の `figures/ideal/a-transformer.sumi.yaml`）は、`requires` を外すと残る診断が後続の Issue の範囲（`tone` / `icon` の `schema/unknown-field`、`operator` / `junction` の `component/unknown`。#92・#94）だけであることをテストで確かめる。それらを既存の部品に置き換えた `tests/fixtures/figures/layout/a-transformer.sumi.yaml` は、構造 lint を含めて診断ゼロ。
+
+### 6.20 #92 の operator・junction・tone と color テーマ
+
+[#86 の調査](../research/86-paper-figures.md)（§2.1・§9.1 の Issue 5）。すべて追加で、`tone` を書かず新しい部品も使わない図の診断・IR・D2・SVG・PDF は変わらない（既存の examples・ギャラリーの SVG はバイト単位で同じ）。
+
+- **`tone` はフィールド（props ではない）**: `nodes[].tone` と `groups[].tone`（任意）。値は Sumi が固定する 8 色名 `gray | red | orange | yellow | green | blue | purple | pink`（`src/core/theme/tones.ts`。スキーマの enum なので未知の名前は `schema/*`、エディタ補完が効く）。
+  - 理由: tone は `variant` と同じく「Theme が見た目を決める、部品をまたいだ選択」で、部品の意味（props）ではない。props にすると全 manifest に同じ prop を宣言させることになり、部品の契約と見た目が混ざる。調査の提案（node のフィールド）どおり。group にも同じ規則で付けられる（追加の費用がほぼない）。edge の tone（調査の段階 C）は対象外。
+  - 名前の集合を閉じるのは、どの Theme でも同じ図が描けるようにするため（Theme ごとに名前が違うと、`--theme` の切り替えで図が壊れる）。名前は色相だけで、分野の意味を持たない。
+- **Theme の `tones`**: `tones.<tone>` は部分スタイルで、**色だけ**（`fill`・`stroke`・`fontColor`）を書ける。他のプロパティは `theme/inapplicable-property`、未知の tone 名は `theme/unknown-tone`。解決順は §4.3 の最後に足す: kind 既定 → `base` → `components.<id>.default` → `<variant>` → **`tones.<tone>`**（tone を書いた node / group だけ）。色だけなので、文字の大きさ・フォント・線幅は変えず、Profile の文字サイズ検査・カタログの文字サイズ・bold/italic の検査に影響しない。variant との組み合わせは「tone の色が後勝ち」（例: academic の emphasis は灰色の塗りと太線だが、tone を付けると塗りだけ tone の色になり、太線は残る）。Theme が定義しない tone は `theme/missing-tone`（warning、`tone` の位置）で、その tone なしで描く。組み込み Theme は 8 色すべてを定義する。
+- **既存 Theme の写像（判断）**: `minimal`・`academic`・`slides` は単色のまま（利用者の判断 2026-10-26: academic に色を入れない）。tone は 3 段の灰色の塗りに写す: 明 `yellow`・`green`、中 `gray`・`orange`・`blue`、暗 `red`・`purple`・`pink`（minimal / academic は `#f2f2f2`・`#e3e3e3`・`#d4d4d4`、slides は投影で薄い灰色が飛ぶので `#ebebeb`・`#d9d9d9`・`#c7c7c7`）。図 A のように隣り合いやすい組（orange / blue のブロックと yellow の Add & Norm、purple と green）が別の段になるよう割り当てた。同じ段の tone は単色 Theme では見分けられない（すべてを区別するなら `color`）。グレースケールで印刷できる方針は保つ。
+- **新しい Theme `color`（判断）**: 論文専用ではない汎用の色つき Theme（利用者の判断 2026-10-26）。線・文字・大きさは `minimal` と同じ（8pt、1pt / 2pt の線）で、tone は淡い色の塗り（文字色 `#1f2328` とのコントラスト 11:1 以上）、emphasis は青のアクセント（`#0969da`）の太線と太字、muted は灰色。名前は「色を使う」ことだけを表す（`academic-color` のような用途名にしない）。`presentation-16x9`（14pt 以上）には `minimal` と同じく合わない。
+- **部品 `sumi/operator`**: 記号の入った小さな円（props `symbol`: `plus` + / `minus` − / `times` × / `dot` • / `concat` ‖、必須）。variant は default / emphasis / muted、tone 可。**`sumi/junction`**: 線が分かれる・合流する点（props なし、variant は default / muted、tone 不可）。どちらも 0.4.0 から。
+- **manifest の `mark`（判断）**: 2 つの部品は「ラベルの代わりに決まった印を描く node」として、manifest に任意の `mark` を持つ（カタログにもそのまま出る。他の部品には付けない）。
+  - `{ type: "glyph", prop, glyphs, size }`: `props[prop]`（文字列の enum。値は `glyphs` のキーと一致することを登録時に検査）に対応する文字を、ラベルとして中央に描く。直径は `size` × 実効の文字サイズ。operator は `size: 2`（同梱フォントの記号の advance の箱は最大 1em 四方で、内接円に枠線の分も含めて収まる。`geometry/label-overflow` を満たす最小の切りのよい倍率）。
+  - `{ type: "point", size }`: 図形だけを描く。直径は `size` × 実効の線幅。junction は `size: 3`（academic 1.5pt、minimal 3pt、slides 6pt。線の太さに合わせて点が大きくなる）。Theme は junction を線の色で塗る（`fill` = `stroke` = 線の色）。
+  - 共通: `mark` のある node は**ラベルを取らない**（空白以外のラベルは `component/unexpected-label`、error）。大きさは Theme から決まるので、manifest は `width` / `height` の props を持てない（登録時に検査）。`sizing: fixed-aspect-1` を要求する。`lint/empty-label` は対象外。glyph の node は文字を描くので、Profile の最小文字サイズの検査と `lint/missing-glyph`（記号の文字を `props.<prop>` の位置で検査。IR と同じ `markText()` を使う）に含め、point の node はラベル（空白だけでも）があっても文字を描かないので含めない。point の node に `tone` を書くと `component/tone-unsupported`（error。点は線の色で描く）。
+  - 大きさは D2 の unit（0.5pt）に丸める（最小 1 unit）。利用者が書いた長さではなく導出した値なので、§5.1 の「丸めない」規則の対象外。
+  - 部品ごとの特別扱いをコンパイラに書かず、manifest の宣言から IR を作るために `mark` にした。既存の `render`（カスタム輪郭）は Figure の props を受け取れない（params は manifest に固定）ため使わなかった。
+- **`auto`（D2/ELK）での描画**: IR は `mark` を保持し、`label` を glyph の文字（point は `""`）、`width` = `height` を mark の大きさにする。D2 では operator は明示サイズの `circle` にラベルとして記号を置き、junction は明示サイズの小さい `circle`（塗りつぶした点）になる。明示サイズなので、入力が複数でも ELK は円を引き伸ばさない（`geometry/aspect-distorted` なし。3 入力・4 出力で確認）。記号はフォントの文字なので、PDF・PPTX でも文字として残る。junction へ入る線は `line` にするのがよい（矢じりが点を覆う）。
+- **構造的配置（#90・#91）への引き継ぎ**: 契約は「ラベルなし・Theme から決まる正方形の footprint」まで。structured の配置は IR の `width` / `height` をそのまま footprint に使える。junction のネットの共有・向きの自由な端点は #90、structured での記号の描き方（文字か線分か）と junction を描くかどうか（Theme の塗りが透明でなければ点を描く、等）は #91 が決める。
+- **カタログ**: `sumi catalog --json` の Theme の項目に `tones`（その Theme が色を持つ tone 名。`TONE_NAMES` の順）を追加した（§6.10 の「同じ版ではフィールドの追加だけ」に従う）。部品の項目は mark のある部品だけ `mark` を持つ。
+- **ギャラリー**: operator は variant ごと・記号ごとに `box` から指す行、junction は variant ごとに `box` → 点 → 2 つの `box` を描く（mark はラベルを取らないため、サンプルの生成で分岐する）。全部品 × 全 Theme に `color` が加わり、tone は `docs/gallery/tones/`（全 tone と tone 付きの group・operator を全 Theme で）に描く。
+- **検証**: manifest の `mark` の検査、`unexpected-label`・`tone-unsupported`・`missing-tone`・`unknown-tone`・tone の色以外のプロパティ、解決順（variant の後）、IR の大きさとラベル、D2 の出力、既存 Theme の出力が tone なしでは変わらないことを単体テストで固定した。図 A の理想の YAML は、`requires` を外すと残る診断が `icon` の `schema/unknown-field`（#94）だけになる。
 
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures

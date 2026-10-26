@@ -109,6 +109,65 @@ const ManifestBase = {
     .optional(),
 };
 
+/**
+ * A node drawn as a fixed mark instead of a labeled shape (#92, design doc
+ * §6.20). Such a node takes no label (`component/unexpected-label`) and no
+ * size props: its width and height (equal) follow from the theme.
+ *
+ * - `glyph`: the text for the value of prop `prop` (a string enum whose
+ *   values are exactly the keys of `glyphs`) is drawn as the label, centered.
+ *   The diameter is `size` × the resolved font size.
+ * - `point`: only the shape is drawn, e.g. a dot where lines branch. The
+ *   diameter is `size` × the resolved stroke width. Tones do not apply
+ *   (`component/tone-unsupported`).
+ *
+ * Sizes are rounded to whole D2 units (0.5pt), at least one unit.
+ */
+export const NodeMarkSchema = z.discriminatedUnion("type", [
+  z.strictObject({
+    type: z.literal("glyph"),
+    prop: z.string().min(1),
+    glyphs: z.record(z.string(), z.string().min(1)),
+    size: z.number().positive(),
+  }),
+  z.strictObject({
+    type: z.literal("point"),
+    size: z.number().positive(),
+  }),
+]);
+export type NodeMark = z.output<typeof NodeMarkSchema>;
+
+/**
+ * The text a mark draws for validated props: the glyph of the prop's value,
+ * or `""` for a point. Shared by the IR and the text lint rules, so both see
+ * the same drawn text. `undefined` if the props select no glyph.
+ */
+export function markText(mark: NodeMark, props: Record<string, unknown>): string | undefined {
+  if (mark.type === "point") return "";
+  return Object.hasOwn(mark.glyphs, String(props[mark.prop]))
+    ? mark.glyphs[String(props[mark.prop])]
+    : undefined;
+}
+
+/** `true` if the props schema (when it is a Zod object) declares any of `names`. */
+function hasProp(props: unknown, ...names: string[]): boolean {
+  return props instanceof z.ZodObject && names.some((name) => name in props.shape);
+}
+
+/** The values of a string enum prop, or `undefined` if the prop is not one. */
+function enumValues(props: unknown, prop: string): string[] | undefined {
+  if (!(props instanceof z.ZodObject)) return undefined;
+  const schema = props.shape[prop];
+  if (!(schema instanceof z.ZodEnum)) return undefined;
+  const values: unknown[] = schema.options;
+  return values.every((v) => typeof v === "string") ? (values as string[]) : undefined;
+}
+
+function sameSet(a: readonly string[], b: readonly string[]): boolean {
+  const set = new Set(a);
+  return set.size === a.length && a.length === b.length && b.every((v) => set.has(v));
+}
+
 /** Shapes D2 always draws with equal width and height. */
 export const FIXED_ASPECT_SHAPES: readonly NodeShape[] = ["circle", "square"];
 
@@ -120,6 +179,7 @@ export const NodeManifestSchema = z
     /** `fixed-aspect-1` keeps width = height; required for, and only for, circle and square. */
     sizing: z.enum(NODE_SIZINGS),
     render: OutlineRenderSchema.optional(),
+    mark: NodeMarkSchema.optional(),
   })
   .refine((m) => (m.sizing === "fixed-aspect-1") === FIXED_ASPECT_SHAPES.includes(m.shape), {
     error: `must be "fixed-aspect-1" for the shapes ${FIXED_ASPECT_SHAPES.join(" and ")}, and "auto" otherwise`,
@@ -128,7 +188,26 @@ export const NodeManifestSchema = z
   .refine((m) => m.render === undefined || m.shape === "rectangle", {
     error: 'outline rendering requires shape "rectangle" and sizing "auto"',
     path: ["shape"],
-  });
+  })
+  .refine((m) => m.mark === undefined || (m.sizing === "fixed-aspect-1" && !m.render), {
+    error: 'a mark requires sizing "fixed-aspect-1" and no outline rendering',
+    path: ["mark"],
+  })
+  .refine((m) => m.mark === undefined || !hasProp(m.props, "width", "height"), {
+    error: "a mark takes its size from the theme, so props must not have width or height",
+    path: ["props"],
+  })
+  .refine(
+    (m) => {
+      if (m.mark?.type !== "glyph") return true;
+      const values = enumValues(m.props, m.mark.prop);
+      return values !== undefined && sameSet(values, Object.keys(m.mark.glyphs));
+    },
+    {
+      error: "a glyph mark's prop must be a string enum prop whose values are the keys of glyphs",
+      path: ["mark", "glyphs"],
+    },
+  );
 
 export const GroupManifestSchema = z.strictObject({
   kind: z.literal("group"),

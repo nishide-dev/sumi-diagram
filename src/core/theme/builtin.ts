@@ -12,6 +12,13 @@
  *   doubled text; darker grays so muted text stays readable on a projector.
  *   Monochrome like the others; emphasis is a heavier outline, bold text and a
  *   light gray fill.
+ * - `color` (#92): general purpose, with color. Outlines and text as
+ *   `minimal`; tones are soft pastel fills and emphasis uses a blue accent.
+ *
+ * Tones (#92, design doc §6.20) only change colors, and only of nodes and
+ * groups that set `tone`. The monochrome themes map the eight tones to three
+ * gray fills, so a toned figure still prints in grayscale; tones in the same
+ * step look alike there (use `color` to tell all of them apart).
  */
 
 import { type DocPath, didYouMean } from "../diagnostics";
@@ -20,6 +27,7 @@ import type { Locator } from "../figure/yaml";
 import type { Result } from "../result";
 import { DEFAULT_FONT_SET_ID } from "./fonts";
 import { type StyleLayerInput, type Theme, type ThemeDefinition, validateTheme } from "./schema";
+import type { Tone } from "./tones";
 
 /** Node components with the variants default, emphasis and muted. */
 const SHAPE_NODES = [
@@ -34,12 +42,14 @@ const SHAPE_NODES = [
   "document",
   "trapezoid",
   "stack",
+  "operator",
 ];
 const EDGES = ["arrow", "line", "double-arrow"];
 
 interface VariantStyles {
   shape: { emphasis: StyleLayerInput; muted: StyleLayerInput };
   label: { default: StyleLayerInput; muted: StyleLayerInput };
+  junction: { default: StyleLayerInput; muted: StyleLayerInput };
   container: { muted: StyleLayerInput };
   edge: { dashed: StyleLayerInput; emphasis: StyleLayerInput; muted: StyleLayerInput };
 }
@@ -49,10 +59,38 @@ function componentStyles(styles: VariantStyles): NonNullable<ThemeDefinition["co
   return {
     ...Object.fromEntries(SHAPE_NODES.map((name) => [name, styles.shape])),
     label: styles.label,
+    junction: styles.junction,
     container: styles.container,
     ...Object.fromEntries(EDGES.map((name) => [name, styles.edge])),
   };
 }
+
+/**
+ * Gray fills of the tones in a monochrome theme, in three steps. Hues usually
+ * drawn next to each other (warm and cool, light and dark) land in different
+ * steps, e.g. orange or blue blocks beside yellow ones.
+ */
+function grayTones(light: string, middle: string, dark: string): Record<Tone, StyleLayerInput> {
+  const steps: Record<Tone, string> = {
+    gray: middle,
+    red: dark,
+    orange: middle,
+    yellow: light,
+    green: light,
+    blue: middle,
+    purple: dark,
+    pink: dark,
+  };
+  return Object.fromEntries(
+    Object.entries(steps).map(([tone, fill]) => [tone, { fill }]),
+  ) as Record<Tone, StyleLayerInput>;
+}
+
+/** A junction is a dot in the line color. */
+const junctionStyles = (line: string, muted: string): VariantStyles["junction"] => ({
+  default: { fill: line, stroke: line },
+  muted: { fill: muted, stroke: muted },
+});
 
 export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
   {
@@ -100,6 +138,7 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
         default: { fill: "transparent", strokeWidth: "0pt" },
         muted: { fontColor: "{color.muted}" },
       },
+      junction: junctionStyles("{color.fg}", "{color.muted}"),
       container: { muted: { fill: "{color.bg}", fontColor: "{color.muted}", bold: false } },
       edge: {
         dashed: { strokeDash: "{dash.regular}" },
@@ -107,6 +146,7 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
         muted: { stroke: "{color.muted}", fontColor: "{color.muted}" },
       },
     }),
+    tones: grayTones("#f2f2f2", "#e3e3e3", "#d4d4d4"),
   },
   {
     version: 1,
@@ -160,6 +200,7 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
         default: { fill: "transparent", strokeWidth: "0pt" },
         muted: { fontColor: "{color.muted}" },
       },
+      junction: junctionStyles("{color.line}", "{color.muted}"),
       container: { muted: { strokeDash: "{dash.regular}", fontColor: "{color.muted}" } },
       edge: {
         dashed: { strokeDash: "{dash.regular}" },
@@ -167,6 +208,7 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
         muted: { stroke: "{color.muted}", fontColor: "{color.muted}" },
       },
     }),
+    tones: grayTones("#f2f2f2", "#e3e3e3", "#d4d4d4"),
   },
   {
     version: 1,
@@ -223,6 +265,7 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
         default: { fill: "transparent", strokeWidth: "0pt" },
         muted: { fontColor: "{color.muted}" },
       },
+      junction: junctionStyles("{color.fg}", "{color.muted}"),
       container: { muted: { fill: "{color.bg}", fontColor: "{color.muted}", bold: false } },
       edge: {
         dashed: { strokeDash: "{dash.regular}" },
@@ -230,6 +273,89 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
         muted: { stroke: "{color.muted}", fontColor: "{color.muted}" },
       },
     }),
+    // Darker than minimal's steps: projectors wash out light grays.
+    tones: grayTones("#ebebeb", "#d9d9d9", "#c7c7c7"),
+  },
+  {
+    version: 1,
+    id: "color",
+    description: "General-purpose theme with color: pastel tone fills, blue accent for emphasis",
+    fonts: DEFAULT_FONT_SET_ID,
+    tokens: {
+      color: {
+        fg: "#1f2328",
+        bg: "#ffffff",
+        muted: "#6e7781",
+        surface: "#f6f8fa",
+        accent: "#0969da",
+      },
+      // Light fills: the text (fg) keeps a contrast of at least 11:1 on each.
+      tone: {
+        gray: "#e6e6e6",
+        red: "#f8d0cc",
+        orange: "#fbe1c0",
+        yellow: "#f7f0b8",
+        green: "#d3ead4",
+        blue: "#cfe8f3",
+        purple: "#e0dcf2",
+        pink: "#f9dbe8",
+      },
+      size: { text: "8pt", small: "7pt", heading: "9pt" },
+      line: { regular: "1pt", bold: "2pt" },
+      dash: { regular: 4 },
+    },
+    base: {
+      node: {
+        fill: "{color.bg}",
+        stroke: "{color.fg}",
+        strokeWidth: "{line.regular}",
+        fontSize: "{size.text}",
+        fontColor: "{color.fg}",
+      },
+      group: {
+        fill: "{color.surface}",
+        stroke: "{color.muted}",
+        strokeWidth: "{line.regular}",
+        fontSize: "{size.heading}",
+        fontColor: "{color.fg}",
+        bold: true,
+      },
+      edge: {
+        fill: "{color.bg}",
+        stroke: "{color.fg}",
+        strokeWidth: "{line.regular}",
+        fontSize: "{size.small}",
+        fontColor: "{color.fg}",
+        filled: true,
+      },
+    },
+    components: componentStyles({
+      shape: {
+        emphasis: { stroke: "{color.accent}", strokeWidth: "{line.bold}", bold: true },
+        muted: { stroke: "{color.muted}", fontColor: "{color.muted}" },
+      },
+      label: {
+        default: { fill: "transparent", strokeWidth: "0pt" },
+        muted: { fontColor: "{color.muted}" },
+      },
+      junction: junctionStyles("{color.fg}", "{color.muted}"),
+      container: { muted: { fill: "{color.bg}", fontColor: "{color.muted}", bold: false } },
+      edge: {
+        dashed: { strokeDash: "{dash.regular}" },
+        emphasis: { stroke: "{color.accent}", strokeWidth: "{line.bold}" },
+        muted: { stroke: "{color.muted}", fontColor: "{color.muted}" },
+      },
+    }),
+    tones: {
+      gray: { fill: "{tone.gray}" },
+      red: { fill: "{tone.red}" },
+      orange: { fill: "{tone.orange}" },
+      yellow: { fill: "{tone.yellow}" },
+      green: { fill: "{tone.green}" },
+      blue: { fill: "{tone.blue}" },
+      purple: { fill: "{tone.purple}" },
+      pink: { fill: "{tone.pink}" },
+    },
   },
 ];
 

@@ -669,16 +669,8 @@ describe("figure A of #86", () => {
         .filter((d) => d.code === "schema/unknown-field")
         .map((d) => String(d.path?.at(-1))),
     );
-    const components = new Set(
-      state.diagnostics
-        .filter((d) => d.code === "component/unknown")
-        .map((d) => /"([^"]+)"/.exec(d.message)?.[1]),
-    );
-    expect([...new Set(state.diagnostics.map((d) => d.code))].sort()).toEqual([
-      "component/unknown",
-      "schema/unknown-field",
-    ]);
-    expect([...fields].sort()).toEqual(["icon", "tone"]); // #92, #94
-    expect([...components].sort()).toEqual(["junction", "operator"]); // #92
+    // `tone`, `operator` and `junction` (#92) are known now; `icon` is #94.
+    expect([...new Set(state.diagnostics.map((d) => d.code))]).toEqual(["schema/unknown-field"]);
+    expect([...fields]).toEqual(["icon"]);
   });
 });

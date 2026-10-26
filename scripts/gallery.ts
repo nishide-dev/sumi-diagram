@@ -14,6 +14,7 @@
  *   #59) → the PDF next to it
  * - `examples/pipeline` under every theme × profile via overrides →
  *   docs/gallery/compare/
+ * - every tone under every built-in theme (#92) → docs/gallery/tones/
  *
  * and writes docs/gallery/index.html and docs/gallery/README.md. Component
  * samples and examples must render without any diagnostic; comparison cells
@@ -32,7 +33,13 @@ import { parse } from "yaml";
 import { svgToPdf } from "../src/render/pdf";
 import { type GalleryModel, galleryHtml, galleryMarkdown } from "./gallery/page";
 import { type RenderJob, type RenderOutcome, renderAll } from "./gallery/render";
-import { COMPARISON_EXAMPLE, comparison, componentSamples, GALLERY_DIR } from "./gallery/samples";
+import {
+  COMPARISON_EXAMPLE,
+  comparison,
+  componentSamples,
+  GALLERY_DIR,
+  toneSample,
+} from "./gallery/samples";
 
 const ROOT = join(import.meta.dir, "..");
 const args = process.argv.slice(2);
@@ -53,6 +60,7 @@ const exampleSources = [...new Bun.Glob("examples/*/*.sumi.yaml").scanSync(ROOT)
   .map((p) => p.split("\\").join("/"))
   .sort();
 const compare = comparison();
+const tones = toneSample();
 
 const jobs: RenderJob[] = [];
 for (const sample of samples) {
@@ -79,6 +87,9 @@ const comparisonText = exampleTexts.get(COMPARISON_EXAMPLE) ?? (await read(COMPA
 for (const rendering of compare.renderings) {
   jobs.push({ file: COMPARISON_EXAMPLE, source: comparisonText, rendering });
 }
+for (const rendering of tones.renderings) {
+  jobs.push({ file: tones.fileName, source: tones.source, rendering });
+}
 
 const outcomes = await renderAll(jobs);
 let cursor = 0;
@@ -96,15 +107,17 @@ const model: GalleryModel = {
     return { source, title: doc.figure?.title ?? source, outcome, pdf: examplePdf(source) };
   }),
   comparison: { source: COMPARISON_EXAMPLE, outcomes: take(compare.renderings.length) },
+  tones: { sample: tones, outcomes: take(tones.renderings.length) },
 };
 
-// Component samples and examples must be clean.
+// Component and tone samples and examples must be clean.
 const problems: string[] = [];
 const strict: [string, RenderOutcome][] = [
   ...model.components.flatMap(({ sample, outcomes }) =>
     outcomes.map((o): [string, RenderOutcome] => [`${sample.entry.id} (${o.theme})`, o]),
   ),
   ...model.examples.map(({ source, outcome }): [string, RenderOutcome] => [source, outcome]),
+  ...model.tones.outcomes.map((o): [string, RenderOutcome] => [`tones (${o.theme})`, o]),
 ];
 for (const [name, outcome] of strict) {
   if (outcome.svg === undefined || outcome.diagnostics.length > 0) {

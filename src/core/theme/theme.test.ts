@@ -513,8 +513,8 @@ describe("resolveStyle", () => {
 describe("built-in themes", () => {
   const registry = createBuiltinRegistry();
 
-  test("minimal, academic and slides are registered and use the bundled font set", () => {
-    expect([...BUILTIN_THEMES.keys()]).toEqual(["minimal", "academic", "slides"]);
+  test("minimal, academic, slides and color are registered and use the bundled font set", () => {
+    expect([...BUILTIN_THEMES.keys()]).toEqual(["minimal", "academic", "slides", "color"]);
     for (const t of BUILTIN_THEMES.values()) expect(t.fontSet.id).toBe(DEFAULT_FONT_SET_ID);
     for (const definition of BUILTIN_THEME_DEFINITIONS) {
       expect(validateTheme(definition).diagnostics).toEqual([]);
@@ -584,7 +584,7 @@ describe("built-in themes", () => {
       [
         "theme/unknown",
         ["figure", "theme"],
-        'Did you mean "minimal"? Available themes: minimal, academic, slides.',
+        'Did you mean "minimal"? Available themes: minimal, academic, slides, color.',
       ],
     ]);
   });

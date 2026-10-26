@@ -232,6 +232,9 @@ sumi render figure.sumi.yaml -o glued.pptx --pptx-mode editable --pptx-connector
 | `minimal`（既定） | モノクロ、はっきりした線。文字 8pt（エッジ 7pt） |
 | `academic` | 論文向け。細い線・黒い文字・灰色の強調。文字 8pt（エッジ 7pt） |
 | `slides` | スライド向け。文字 16pt（エッジ 14pt、コンテナ 18pt）、線 2pt。`presentation-16x9` と組み合わせる |
+| `color` | 色を使う汎用テーマ。`minimal` と同じ線・文字で、tone は淡い色の塗り、強調は青。文字 8pt（エッジ 7pt） |
+
+node と group の `tone`（`gray` / `red` / `orange` / `yellow` / `green` / `blue` / `purple` / `pink`）で色の分類を指定できます。色の値はテーマが決めます。`color` では色ごとに別の淡い塗りになり、`minimal` / `academic` / `slides` ではグレースケールで印刷できるよう 3 段階の灰色になります（[設計 §6.20](docs/design/phase1.md#620-92-の-operatorjunctiontone-と-color-テーマ)、[ギャラリー](docs/gallery/README.md#tones)）。
 
 | プロファイル | 最大幅 | 最大高さ | 最小文字サイズ |
 | --- | --- | --- | --- |
@@ -239,7 +242,7 @@ sumi render figure.sumi.yaml -o glued.pptx --pptx-mode editable --pptx-connector
 | `paper-double` | 180mm | 220mm | 7pt |
 | `presentation-16x9` | 338.7mm | 190.5mm | 14pt |
 
-スライドの図は `theme: slides` と `profile: presentation-16x9` で作ります。`presentation-16x9` は 14pt 以上の文字を求めるため、`minimal` / `academic` では `profile/font-too-small` になります（意図どおり）。描き比べは[ギャラリー](docs/gallery/README.md#themes-and-profiles)にあります。
+スライドの図は `theme: slides` と `profile: presentation-16x9` で作ります。`presentation-16x9` は 14pt 以上の文字を求めるため、`minimal` / `academic` / `color` では `profile/font-too-small` になります（意図どおり）。描き比べは[ギャラリー](docs/gallery/README.md#themes-and-profiles)にあります。
 
 ## Claude Code から使う
 

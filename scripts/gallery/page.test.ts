@@ -73,6 +73,10 @@ const model: GalleryModel = {
       ),
     ],
   },
+  tones: {
+    sample: { fileName: "tones.sumi.yaml", source: "# ``` fence\nversion: 1\n", renderings: [] },
+    outcomes: [outcome({ diagnostics: [{ code: "x/y", severity: "warning", message: NASTY }] })],
+  },
 };
 
 describe("Markdown escaping", () => {

@@ -95,6 +95,20 @@
             "type": "string",
             "minLength": 1
           },
+          "tone": {
+            "description": "Color category from the theme's palette (e.g. a pastel fill in the color theme, a gray step in monochrome themes). Omitted means none.",
+            "type": "string",
+            "enum": [
+              "gray",
+              "red",
+              "orange",
+              "yellow",
+              "green",
+              "blue",
+              "purple",
+              "pink"
+            ]
+          },
           "group": {
             "description": "Parent group ID. Omitted means the root (or, in structured layout, the group whose arrange lists it).",
             "type": "string",
@@ -135,6 +149,20 @@
             "default": "default",
             "type": "string",
             "minLength": 1
+          },
+          "tone": {
+            "description": "Color category from the theme's palette (e.g. a pastel fill in the color theme, a gray step in monochrome themes). Omitted means none.",
+            "type": "string",
+            "enum": [
+              "gray",
+              "red",
+              "orange",
+              "yellow",
+              "green",
+              "blue",
+              "purple",
+              "pink"
+            ]
           },
           "props": {
             "description": "Component props, validated against the component manifest.",

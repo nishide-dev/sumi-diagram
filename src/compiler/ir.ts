@@ -12,14 +12,16 @@ import { type DocPath, hasErrors, type SourceLocation } from "../core/diagnostic
 import type { FigureCheck } from "../core/figure/check";
 import type { FigureEdge, FigureGroup, FigureMeta, FigureNode } from "../core/figure/schema";
 import { getProfile } from "../core/profile/builtin";
-import type {
-  Arrowhead,
-  ComponentId,
-  EdgeDirection,
-  NodeShape,
-  NodeSizing,
-  OutlineRender,
-  ResolvedComponent,
+import {
+  type Arrowhead,
+  type ComponentId,
+  type EdgeDirection,
+  markText,
+  type NodeMark,
+  type NodeShape,
+  type NodeSizing,
+  type OutlineRender,
+  type ResolvedComponent,
 } from "../core/registry/manifest";
 import { getTheme } from "../core/theme/builtin";
 import type { FontSetId } from "../core/theme/fonts";
@@ -76,11 +78,16 @@ export interface NodeIR extends ObjectIRBase {
   readonly sizing: NodeSizing;
   /** Fixed, validated outline metadata; omitted for ordinary D2 shapes. */
   readonly render?: Readonly<OutlineRender>;
+  /**
+   * The manifest's mark (#92): the node is drawn as a glyph or a point, its
+   * `label` is the glyph (or `""`) and `width` / `height` are the mark's size.
+   */
+  readonly mark?: Readonly<NodeMark>;
   /** Outline width/height were both generated at render time, not written in props. */
   readonly autoSized?: boolean;
-  /** Explicit width from props; omitted means sized to the label. */
+  /** Explicit width from props or a mark's size; omitted means sized to the label. */
   readonly width?: StyleLength;
-  /** Explicit height from props; omitted means sized to the label. */
+  /** Explicit height from props or a mark's size; omitted means sized to the label. */
   readonly height?: StyleLength;
   readonly style: NodeStyle;
 }
@@ -200,9 +207,13 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
     const component = componentOf(state, key);
     if (component.manifest.kind !== "node") throw kindMismatch(key);
     const { width, height } = component.props;
+    const style = styleOf(state, key, "node");
+    const { mark } = component.manifest;
+    const markSize = mark && markSizeOf(mark, style);
     nodes.push(
       freeze({
         ...objectBase(key, "n", n),
+        ...(mark !== undefined && { label: markLabel(mark, component.props) }),
         kind: "node",
         shape: component.manifest.shape,
         sizing: component.manifest.sizing,
@@ -214,9 +225,11 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
             }),
           }),
         }),
+        ...(mark !== undefined && { mark: freezeMark(mark) }),
         ...(typeof width === "number" && { width: lengthOf(width) }),
         ...(typeof height === "number" && { height: lengthOf(height) }),
-        style: styleOf(state, key, "node"),
+        ...(markSize !== undefined && { width: markSize, height: markSize }),
+        style,
       }),
     );
     mapSource(key, ["nodes", index]);
@@ -358,6 +371,30 @@ function styleOf<K extends ResolvedStyle["kind"]>(
   const style = state.styles?.get(key);
   if (style?.kind !== kind) throw new Error(`internal error: ${key} has no ${kind} style`);
   return style as Extract<ResolvedStyle, { kind: K }>;
+}
+
+/**
+ * The width and height of a mark (manifest `mark`, #92): `size` times the
+ * resolved font size (glyph) or stroke width (point), rounded to whole D2
+ * units, at least one.
+ */
+export function markSizeOf(mark: NodeMark, style: NodeStyle): StyleLength {
+  const basis = mark.type === "glyph" ? style.fontSize : style.strokeWidth;
+  const units = Math.max(1, Math.round(mark.size * basis.units));
+  return freeze({ pt: units / 2, units });
+}
+
+/** The text a mark draws: the glyph for the prop's value, or nothing for a point. */
+function markLabel(mark: NodeMark, props: Record<string, unknown>): string {
+  const text = markText(mark, props);
+  if (text === undefined) throw new Error("internal error: the props select no glyph");
+  return text;
+}
+
+function freezeMark(mark: NodeMark): Readonly<NodeMark> {
+  return mark.type === "glyph"
+    ? freeze({ ...mark, glyphs: freeze({ ...mark.glyphs }) })
+    : freeze({ ...mark });
 }
 
 /** A size prop in pt (an exact multiple of 0.5pt, checked by the manifest). */
