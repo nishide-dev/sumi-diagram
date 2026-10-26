@@ -11,7 +11,7 @@ import type { Region } from "../../core/geometry";
 import { obstaclesCrossedByRoute, type RouteObstacle } from "../../lint/geometry/edges";
 import { rectPolygon, segmentCrossesRect } from "../../lint/geometry/shapes";
 import type { EdgeLayout, LayoutIR, Point, Rect } from "../ir";
-import { anchorPoint, isJunction, nodeRegion, SIDE_DIR } from "./ports";
+import { anchorPoint, DIRS, isJunction, nodeRegion, SIDE_DIR } from "./ports";
 import { arrowheadLength } from "./router";
 
 /** Each list names the problems found; all empty is a clean routing. */
@@ -20,12 +20,17 @@ export interface RouteCheckReport {
   unrouted: string[];
   /** Segments that are neither horizontal nor vertical. */
   nonOrthogonal: string[];
-  /** Segments passing through a node that is not one of the edge's ends. */
+  /** Repeated points, or consecutive segments on one line (including turning back). */
+  malformed: string[];
+  /**
+   * Segments passing through a node that is not one of the edge's ends, or
+   * through one of its ends other than along the segment that ends there.
+   */
   throughNode: string[];
   /**
    * Ends not on the outline of their element, not at a junction's center,
    * not at the requested anchor, or not leaving / entering perpendicular to
-   * the side.
+   * the side, away from / into the element.
    */
   endpointMisses: string[];
   /** Proper crossings between routes of different nets. */
@@ -98,6 +103,7 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
   const report: RouteCheckReport = {
     unrouted: [],
     nonOrthogonal: [],
+    malformed: [],
     throughNode: [],
     endpointMisses: [],
     crossings: [],
@@ -125,6 +131,16 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
     key: n.key,
     region: regions.get(n.key) as Region,
   }));
+  const parents = new Map<ElementKey, ElementKey | undefined>(
+    [...layout.nodes, ...layout.groups].map((e) => [e.key, e.parent]),
+  );
+  /** `inner` lies (transitively) in the group `outer`. */
+  const inside = (inner: ElementKey, outer: ElementKey) => {
+    for (let p = parents.get(inner); p !== undefined; p = parents.get(p)) {
+      if (p === outer) return true;
+    }
+    return false;
+  };
   const netOf = (e: EdgeLayout) => e.route?.net ?? -1;
   const routed = layout.edges.filter((e) => e.route !== undefined);
   const pointsOf = (e: EdgeLayout) => e.route?.points ?? [];
@@ -142,6 +158,19 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
         report.nonOrthogonal.push(`${edge.key} ${a.x},${a.y} → ${b.x},${b.y}`);
       }
     }
+    for (const [i, p] of points.entries()) {
+      const q = points[i + 1];
+      const r = points[i + 2];
+      if (q !== undefined && Math.abs(p.x - q.x) <= EPS && Math.abs(p.y - q.y) <= EPS) {
+        report.malformed.push(`${edge.key} repeats ${p.x},${p.y}`);
+      }
+      if (q !== undefined && r !== undefined) {
+        const line =
+          (Math.abs(p.x - q.x) <= EPS && Math.abs(q.x - r.x) <= EPS) ||
+          (Math.abs(p.y - q.y) <= EPS && Math.abs(q.y - r.y) <= EPS);
+        if (line) report.malformed.push(`${edge.key} straight or turning back at ${q.x},${q.y}`);
+      }
+    }
     for (const key of obstaclesCrossedByRoute(
       [points],
       obstacles,
@@ -149,6 +178,18 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
       EPS,
     )) {
       report.throughNode.push(`${edge.key} through ${key}`);
+    }
+    // Its own end nodes: only the segment that ends there may be inside.
+    for (const key of new Set([edge.from, edge.to])) {
+      const region = regions.get(key);
+      if (region === undefined || !nodeIR.has(key)) continue;
+      const rest = points.slice(
+        key === edge.from ? 1 : 0,
+        key === edge.to ? points.length - 1 : points.length,
+      );
+      if (obstaclesCrossedByRoute([rest], [{ key, region }], new Set(), EPS).length > 0) {
+        report.throughNode.push(`${edge.key} back through its end ${key}`);
+      }
     }
     // Ends.
     const ends = [
@@ -185,6 +226,13 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
       if (vertical ? Math.abs(end.x - next.x) > EPS : Math.abs(end.y - next.y) > EPS) {
         miss(`not perpendicular to the ${side} side`);
       }
+      // Away from the element (into it for a group entered from inside).
+      const other = which === "from" ? edge.to : edge.from;
+      const inward = !nodeIR.has(key) && inside(other, key);
+      const out = DIRS[inward ? (SIDE_DIR[side] + 2) % 4 : SIDE_DIR[side]] as Point;
+      if ((next.x - end.x) * out.x + (next.y - end.y) * out.y <= 0) {
+        miss(`not ${inward ? "into" : "away from"} the element`);
+      }
       if (anchor !== undefined) {
         const want = anchorPoint(rect, anchor);
         const off = vertical ? Math.abs(want.x - end.x) : Math.abs(want.y - end.y);
@@ -199,10 +247,22 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
       const length = ([a, b]: Segment) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
       const first = segments[0];
       const last = segments[segments.length - 1];
-      if (ir.sourceArrowhead !== undefined && first !== undefined && length(first) < arrow - EPS) {
+      // Junction ends have no stub (design doc §6.22).
+      const free = (key: ElementKey) => isJunction(nodeIR.get(key));
+      if (
+        ir.sourceArrowhead !== undefined &&
+        !free(edge.from) &&
+        first !== undefined &&
+        length(first) < arrow - EPS
+      ) {
         report.shortArrowSegments.push(`${edge.key} source`);
       }
-      if (ir.targetArrowhead !== undefined && last !== undefined && length(last) < arrow - EPS) {
+      if (
+        ir.targetArrowhead !== undefined &&
+        !free(edge.to) &&
+        last !== undefined &&
+        length(last) < arrow - EPS
+      ) {
         report.shortArrowSegments.push(`${edge.key} target`);
       }
     }

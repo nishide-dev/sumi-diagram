@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { obstaclesCrossedByRoute, segmentCrossesRegion, segmentInterval } from "./edges";
+import {
+  ellipseDepth,
+  obstaclesCrossedByRoute,
+  segmentCrossesRegion,
+  segmentInterval,
+} from "./edges";
 import { rectPolygon, shapeOutline } from "./shapes";
 
 const square = rectPolygon({ x: 0, y: 0, width: 10, height: 10 });
@@ -24,6 +29,27 @@ describe("segmentCrossesRegion", () => {
     expect(segmentCrossesRegion({ x: -1, y: 5 }, { x: 2, y: 5 }, diamond, 0)).toBe(true);
     // Tangent to the circle.
     expect(segmentCrossesRegion({ x: -5, y: 0 }, { x: 15, y: 0 }, circle, 0)).toBe(false);
+  });
+
+  test("an elongated ellipse: the tolerance is a distance from the outline", () => {
+    const oval = { kind: "ellipse", cx: 0, cy: 0, rx: 100, ry: 10 } as const;
+    // About 0.79 unit from the outline: shallower than the tolerance of 1
+    // (shrinking both radii by 1 would count it).
+    expect(segmentCrossesRegion({ x: 69.9, y: 6.35 }, { x: 70.1, y: 6.35 }, oval, 1)).toBe(false);
+    expect(segmentCrossesRegion({ x: 69.9, y: 5 }, { x: 70.1, y: 5 }, oval, 1)).toBe(true);
+    expect(segmentCrossesRegion({ x: -200, y: 9.5 }, { x: 200, y: 9.5 }, oval, 1)).toBe(false);
+    expect(segmentCrossesRegion({ x: -200, y: 8.5 }, { x: 200, y: 8.5 }, oval, 1)).toBe(true);
+  });
+
+  test("ellipseDepth", () => {
+    expect(ellipseDepth({ cx: 0, cy: 0, rx: 5, ry: 5 }, { x: 0, y: 0 })).toBe(5);
+    expect(ellipseDepth({ cx: 0, cy: 0, rx: 100, ry: 10 }, { x: 0, y: 0 })).toBe(10);
+    expect(ellipseDepth({ cx: 0, cy: 0, rx: 100, ry: 10 }, { x: 99, y: 0 })).toBeCloseTo(1, 9);
+    expect(ellipseDepth({ cx: 0, cy: 0, rx: 100, ry: 10 }, { x: 70, y: 6.35 })).toBeCloseTo(
+      0.7876,
+      3,
+    );
+    expect(ellipseDepth({ cx: 0, cy: 0, rx: 100, ry: 10 }, { x: 0, y: 20 })).toBe(0);
   });
 
   test("the interval along the segment", () => {

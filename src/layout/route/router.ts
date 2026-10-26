@@ -252,8 +252,17 @@ class Router {
         this.#report(edge.ir, "every path is blocked by nodes or too narrow for its stubs");
         continue;
       }
+      const points = this.#points(edge, cells);
+      // The stubs keep bends away from the ends, so a short segment at an
+      // arrowhead can only be a straight route between ends closer than
+      // the arrowhead is long: there is no room to draw it.
+      const short = shortArrowEnd(edge.ir, edge.from, edge.to, points);
+      if (short !== undefined) {
+        this.#report(edge.ir, `the ends are closer than its arrowhead at the ${short} is long`);
+        continue;
+      }
       this.#occupy(cells, edge.net);
-      routes.set(edge.ir.key, this.#points(edge, cells));
+      routes.set(edge.ir.key, points);
     }
     return { layout: this.#result(routable, routes), diagnostics: this.#diagnostics };
   }
@@ -793,6 +802,37 @@ class Router {
       nets,
     });
   }
+}
+
+/**
+ * The end (`source` / `target`) whose arrowhead is longer than the route's
+ * segment there, if any. Junction ends are not checked (they have no stub;
+ * design doc §6.22).
+ */
+export function shortArrowEnd(
+  edge: EdgeIR,
+  from: End,
+  to: End,
+  points: readonly Point[],
+): "source" | "target" | undefined {
+  const arrow = arrowheadLength(edge.style.strokeWidth.units);
+  const length = (a: Point, b: Point) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+  const n = points.length;
+  if (
+    edge.sourceArrowhead !== undefined &&
+    !from.junction &&
+    length(points[0] as Point, points[1] as Point) < arrow - 1e-9
+  ) {
+    return "source";
+  }
+  if (
+    edge.targetArrowhead !== undefined &&
+    !to.junction &&
+    length(points[n - 2] as Point, points[n - 1] as Point) < arrow - 1e-9
+  ) {
+    return "target";
+  }
+  return undefined;
 }
 
 /** Cuts out loops (a point visited twice) from a path of grid points. */

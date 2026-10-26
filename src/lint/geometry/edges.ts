@@ -11,7 +11,62 @@ import type { Point, Region } from "../../core/geometry";
 
 const EPSILON = 1e-9;
 
-/** The parameter interval `[t0, t1]` of `a + t (b - a)`, `t ∈ [0, 1]`, inside `region` shrunk by `inset`. */
+/**
+ * Distance from a point inside an ellipse to its outline (0 outside or on
+ * it). Eberly, "Distance from a Point to an Ellipse" (robust bisection).
+ */
+export function ellipseDepth(
+  ellipse: { cx: number; cy: number; rx: number; ry: number },
+  p: Point,
+): number {
+  let y0 = Math.abs(p.x - ellipse.cx);
+  let y1 = Math.abs(p.y - ellipse.cy);
+  let e0 = ellipse.rx;
+  let e1 = ellipse.ry;
+  if ((y0 / e0) ** 2 + (y1 / e1) ** 2 >= 1) return 0;
+  if (e0 < e1) {
+    [e0, e1] = [e1, e0];
+    [y0, y1] = [y1, y0];
+  }
+  if (y1 > 0) {
+    if (y0 > 0) {
+      const z0 = y0 / e0;
+      const z1 = y1 / e1;
+      const g = z0 * z0 + z1 * z1 - 1;
+      const r0 = (e0 / e1) ** 2;
+      const n0 = r0 * z0;
+      let s0 = z1 - 1;
+      let s1 = g < 0 ? 0 : Math.hypot(n0, z1) - 1;
+      let s = 0;
+      for (let i = 0; i < 200; i++) {
+        s = (s0 + s1) / 2;
+        if (s === s0 || s === s1) break;
+        const ratio0 = n0 / (s + r0);
+        const ratio1 = z1 / (s + 1);
+        const value = ratio0 * ratio0 + ratio1 * ratio1 - 1;
+        if (value > 0) s0 = s;
+        else if (value < 0) s1 = s;
+        else break;
+      }
+      return Math.hypot((r0 * y0) / (s + r0) - y0, y1 / (s + 1) - y1);
+    }
+    return Math.abs(y1 - e1);
+  }
+  const numer = e0 * y0;
+  const denom = e0 * e0 - e1 * e1;
+  if (numer < denom) {
+    const ratio = numer / denom;
+    return Math.hypot(e0 * ratio - y0, e1 * Math.sqrt(1 - ratio * ratio));
+  }
+  return Math.abs(y0 - e0);
+}
+
+/**
+ * The parameter interval `[t0, t1]` of `a + t (b - a)`, `t ∈ [0, 1]`, inside
+ * `region` shrunk by `inset` (for an ellipse: with both radii reduced by
+ * `inset`, an approximation of the inward offset; exact for `inset` 0).
+ * Touching the outline or running along it is not inside.
+ */
 export function segmentInterval(
   a: Point,
   b: Point,
@@ -84,6 +139,24 @@ export function segmentCrossesRegion(
   region: Region,
   tolerance: number,
 ): boolean {
+  if (region.kind === "ellipse" && tolerance > 0) {
+    // Shrinking both radii by the tolerance is not the inward offset of an
+    // ellipse (it reaches closer than `tolerance` to the outline of an
+    // elongated one), so measure the depth itself. Inside a convex region
+    // the distance to the outline is concave, hence unimodal along the
+    // segment: a ternary search finds the deepest point.
+    const inside = segmentInterval(a, b, region, 0);
+    if (inside === undefined) return false;
+    const at = (t: number): Point => ({ x: a.x + t * (b.x - a.x), y: a.y + t * (b.y - a.y) });
+    let [lo, hi] = inside;
+    for (let i = 0; i < 100 && hi - lo > 1e-12; i++) {
+      const m1 = lo + (hi - lo) / 3;
+      const m2 = hi - (hi - lo) / 3;
+      if (ellipseDepth(region, at(m1)) < ellipseDepth(region, at(m2))) lo = m1;
+      else hi = m2;
+    }
+    return ellipseDepth(region, at((lo + hi) / 2)) > tolerance + 1e-6;
+  }
   const interval = segmentInterval(a, b, region, tolerance);
   if (interval === undefined) return false;
   const length = Math.hypot(b.x - a.x, b.y - a.y);

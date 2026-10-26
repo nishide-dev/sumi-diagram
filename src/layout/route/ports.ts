@@ -10,7 +10,6 @@ import type { Anchor } from "../../core/figure/layout";
 import type { Side } from "../../core/figure/schema";
 import type { Region } from "../../core/geometry";
 import { getOutlineRenderer } from "../../core/outline";
-import { segmentInterval } from "../../lint/geometry/edges";
 import { outlineRegions } from "../../lint/geometry/outlines";
 import { rectPolygon, shapeOutline } from "../../lint/geometry/shapes";
 import { type LayoutIR, type Point, type Rect, roundUnits } from "../ir";
@@ -60,6 +59,62 @@ export function nodeRegion(node: NodeIR, rect: Rect): Region {
       .outline;
   }
   return node.shape === "text" ? rectPolygon(rect) : shapeOutline(node.shape, rect);
+}
+
+/**
+ * The first `t ∈ [0, 1]` where `a + t (b - a)` meets the closed `region`,
+ * touching included (a ray along a polygon side, or tangent to an ellipse,
+ * meets it at its first common point); `undefined` if it never does.
+ */
+export function boundaryEntry(a: Point, b: Point, region: Region): number | undefined {
+  const EPS = 1e-9;
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  if (region.kind === "ellipse") {
+    const px = (a.x - region.cx) / region.rx;
+    const py = (a.y - region.cy) / region.ry;
+    const qx = dx / region.rx;
+    const qy = dy / region.ry;
+    const qa = qx * qx + qy * qy;
+    const qb = 2 * (px * qx + py * qy);
+    const qc = px * px + py * py - 1;
+    if (qc <= EPS) return 0;
+    if (qa < EPS) return undefined;
+    // A tangent ray has a (numerically) zero discriminant: clamp it.
+    const disc = qb * qb - 4 * qa * qc;
+    if (disc < -1e-9) return undefined;
+    const t = (-qb - Math.sqrt(Math.max(0, disc))) / (2 * qa);
+    return t >= -EPS && t <= 1 + EPS ? Math.min(1, Math.max(0, t)) : undefined;
+  }
+  const points = region.points;
+  let area = 0;
+  for (const [i, p] of points.entries()) {
+    const q = points[(i + 1) % points.length] as Point;
+    area += p.x * q.y - q.x * p.y;
+  }
+  const sign = Math.sign(area);
+  if (points.length < 3 || sign === 0) return undefined;
+  let t0 = 0;
+  let t1 = 1;
+  for (const [i, p] of points.entries()) {
+    const q = points[(i + 1) % points.length] as Point;
+    const length = Math.hypot(q.x - p.x, q.y - p.y);
+    if (length < EPS) continue;
+    const nx = (sign * (p.y - q.y)) / length;
+    const ny = (sign * (q.x - p.x)) / length;
+    // Closed: inside or on the side means n · (x - p) ≥ 0.
+    const start = nx * (a.x - p.x) + ny * (a.y - p.y);
+    const rate = nx * dx + ny * dy;
+    if (Math.abs(rate) < EPS) {
+      if (start < -EPS) return undefined;
+      continue;
+    }
+    const t = -start / rate;
+    if (rate > 0) t0 = Math.max(t0, t);
+    else t1 = Math.min(t1, t);
+    if (t1 < t0 - EPS) return undefined;
+  }
+  return t0;
 }
 
 /** A junction: a node drawn as a point (#92), where edges meet in any direction. */
@@ -234,11 +289,11 @@ export function resolveEnds(
       const depth = outward % 2 === 0 ? self.rect.width : self.rect.height;
       const d = DIRS[opposite(outward)] as Point;
       const far = { x: port.x + d.x * depth, y: port.y + d.y * depth };
-      const interval = segmentInterval(port, far, nodeRegion(self.node, self.rect), 0);
-      if (interval !== undefined && interval[0] > 0) {
+      const t = boundaryEntry(port, far, nodeRegion(self.node, self.rect));
+      if (t !== undefined && t > 0) {
         outline = {
-          x: roundUnits(port.x + d.x * depth * interval[0]),
-          y: roundUnits(port.y + d.y * depth * interval[0]),
+          x: roundUnits(port.x + d.x * depth * t),
+          y: roundUnits(port.y + d.y * depth * t),
         };
       }
     }

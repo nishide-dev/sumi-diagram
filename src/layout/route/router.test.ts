@@ -310,6 +310,122 @@ describe("layout/no-route", () => {
       'No route was found for edge edges[0] from "a" to "a": both ends are the same point of the element.',
     ]);
   });
+
+  test("ends closer than the arrowhead: no room for it; a line is fine", () => {
+    const text = (component: string) =>
+      figure(
+        { stack: { gap: "1pt", items: ["a", "b"] } },
+        [box("a"), box("b")],
+        [{ from: "a", to: "b", component }],
+      );
+    const result = layoutStructuredFigure(text("arrow"), { measurer: FAKE });
+    expect(result.diagnostics.map((d) => d.message)).toEqual([
+      'No route was found for edge edges[0] from "a" to "b": the ends are closer than its arrowhead at the target is long.',
+    ]);
+    const back = layoutStructuredFigure(
+      figure(
+        { stack: { gap: "1pt", items: ["a", "b"] } },
+        [box("a"), box("b")],
+        [{ from: "a", to: "b", component: "double-arrow" }],
+      ),
+      { measurer: FAKE },
+    );
+    expect(back.diagnostics.map((d) => d.message)).toEqual([
+      'No route was found for edge edges[0] from "a" to "b": the ends are closer than its arrowhead at the source is long.',
+    ]);
+    const value = run(text("line"));
+    expect(pointsOf(value.layout, 0)).toHaveLength(2);
+    expectClean(value);
+  });
+});
+
+describe("outlines", () => {
+  test.each(["circle", "diamond"])(
+    "%s: anchors at the ends of every side meet the outline",
+    (component) => {
+      const sides = ["north", "east", "south", "west"];
+      const edges = sides.flatMap((side) =>
+        ["0", "1"].map((offset) => ({
+          from: side === "north" ? "n" : side === "south" ? "s" : side === "east" ? "e" : "w",
+          to: "c",
+          toAnchor: `${side}:${offset}`,
+          component: "line",
+        })),
+      );
+      const value = run(
+        figure(
+          {
+            stack: {
+              gap: "12mm",
+              items: ["n", { row: { gap: "12mm", items: ["w", "c", "e"] } }, "s"],
+            },
+          },
+          [
+            box("n"),
+            box("s"),
+            box("e"),
+            box("w"),
+            { id: "c", component, label: "C", props: { width: "40pt", height: "40pt" } },
+          ],
+          edges,
+        ),
+      );
+      const c = rectOf(value.layout, "c");
+      const report = checkRoutes(value.ir, value.layout);
+      expect(report.endpointMisses).toEqual([]);
+      // At an end of a side, the outline is the shape's extreme point on the
+      // perpendicular line: a circle's (and a diamond's) left / right / top / bottom.
+      const north0 = pointsOf(value.layout, 0).at(-1) as Point;
+      expect(north0.x).toBeCloseTo(c.x, 3);
+      expect(north0.y).toBeCloseTo(c.y + c.height / 2, 3);
+    },
+  );
+});
+
+describe("checkRoutes catches what the router must not do", () => {
+  const text = figure(
+    { row: { items: ["a", "b"] } },
+    [box("a"), box("b")],
+    [{ from: "a", to: "b" }],
+  );
+  const value = run(text);
+  const corrupt = (points: Point[]) => {
+    const layout = structuredClone(value.layout) as LayoutIR;
+    const edge = layout.edges[0] as EdgeLayout & { route: { points: Point[] } };
+    edge.route.points = points;
+    return checkRoutes(value.ir, layout);
+  };
+  const [start, end] = pointsOf(value.layout, 0) as [Point, Point];
+  const a = rectOf(value.layout, "a");
+
+  test("leaving a port inward and turning back inside the source", () => {
+    const report = corrupt([start, { x: a.x + a.width / 2, y: start.y }, end]);
+    expect(report.endpointMisses).toEqual(["e:#0 from n:a: not away from the element"]);
+    expect(report.malformed).toEqual([
+      `e:#0 straight or turning back at ${a.x + a.width / 2},${start.y}`,
+    ]);
+  });
+
+  test("going back through its own source", () => {
+    const report = corrupt([
+      start,
+      { x: start.x + 6, y: start.y },
+      { x: start.x + 6, y: a.y - 10 },
+      { x: a.x + 10, y: a.y - 10 },
+      { x: a.x + 10, y: a.y + a.height + 10 },
+      { x: end.x - 6, y: a.y + a.height + 10 },
+      { x: end.x - 6, y: end.y },
+      end,
+    ]);
+    expect(report.throughNode).toEqual(["e:#0 back through its end n:a"]);
+  });
+
+  test("repeated points", () => {
+    expect(corrupt([start, start, end]).malformed).toEqual([
+      `e:#0 repeats ${start.x},${start.y}`,
+      `e:#0 straight or turning back at ${start.x},${start.y}`,
+    ]);
+  });
 });
 
 describe("edge labels", () => {
@@ -385,6 +501,7 @@ describe.each(["a-transformer", "b-adaln-panel"])("%s (bundled fonts)", (name) =
     expect(report).toEqual({
       unrouted: [],
       nonOrthogonal: [],
+      malformed: [],
       throughNode: [],
       endpointMisses: [],
       crossings: [],
@@ -519,6 +636,7 @@ describe.each(["columns", "grid"] as const)("synthetic 100-node figure: %s", (ki
     expect({ ...report, crossings: [] }).toEqual({
       unrouted: [],
       nonOrthogonal: [],
+      malformed: [],
       throughNode: [],
       endpointMisses: [],
       crossings: [],
