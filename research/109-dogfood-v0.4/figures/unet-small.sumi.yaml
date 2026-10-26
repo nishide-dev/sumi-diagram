@@ -1,0 +1,46 @@
+version: 1
+figure:
+  id: unet-small
+  theme: academic
+  profile: paper-single
+  layout:
+    arrange:
+      row:
+        gap: 8mm
+        align: end
+        items:
+          - stack: { gap: 12mm, align: stretch, items: [ enc1, enc2, { stack: { gap: 16mm, items: [ enc3, down-corner ] } } ] }
+          - bottleneck
+          - stack: { gap: 12mm, align: stretch, items: [ dec1, dec2, { stack: { gap: 16mm, items: [ dec3, up-corner ] } } ] }
+nodes:
+  - { id: x, component: label, label: '$x$', attach: { to: enc1, side: west, gap: 3mm } }
+  - { id: enc1, component: box, label: "Conv ×2\n64", tone: blue }
+  - { id: enc2, component: box, label: "Conv ×2\n128", tone: blue }
+  - { id: enc3, component: box, label: "Conv ×2\n256", tone: blue }
+  - { id: down-corner, component: junction, variant: hidden }
+  - { id: bottleneck, component: box, label: "Conv ×2\n512", variant: emphasis }
+  - { id: up-corner, component: junction, variant: hidden }
+  - { id: cat3, component: operator, props: { symbol: concat }, attach: { to: dec3, side: south, gap: 2mm } }
+  - { id: dec3, component: box, label: "Conv ×2\n256", tone: green }
+  - { id: cat2, component: operator, props: { symbol: concat }, attach: { to: dec2, side: south, gap: 2mm } }
+  - { id: dec2, component: box, label: "Conv ×2\n128", tone: green }
+  - { id: cat1, component: operator, props: { symbol: concat }, attach: { to: dec1, side: south, gap: 2mm } }
+  - { id: dec1, component: box, label: "Conv ×2\n64", tone: green }
+  - { id: head, component: box, label: '$1{\times}1$ Conv', attach: { to: dec1, side: north, gap: 3mm } }
+  - { id: y, component: label, label: 'mask $y$', attach: { to: head, side: north, gap: 3mm } }
+edges:
+  - { from: x, to: enc1 }
+  - { from: enc1, to: enc2, label: pool }
+  - { from: enc2, to: enc3, label: pool }
+  - { from: enc3, to: bottleneck, fromAnchor: south, toAnchor: west, label: pool }
+  - { from: bottleneck, to: cat3, fromAnchor: east, toAnchor: south, label: up }
+  - { from: cat3, to: dec3 }
+  - { from: dec3, to: cat2 }
+  - { from: cat2, to: dec2 }
+  - { from: dec2, to: cat1 }
+  - { from: cat1, to: dec1 }
+  - { from: dec1, to: head }
+  - { from: head, to: y }
+  - { from: enc3, to: cat3, variant: dashed }
+  - { from: enc2, to: cat2, variant: dashed }
+  - { from: enc1, to: cat1, variant: dashed }

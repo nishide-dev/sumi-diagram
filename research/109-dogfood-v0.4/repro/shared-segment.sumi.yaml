@@ -1,0 +1,20 @@
+version: 1
+figure:
+  id: shared-segment
+  theme: color
+  profile: paper-single
+  layout:
+    arrange:
+      stack:
+        gap: 8mm
+        items:
+          - row: { gap: 10mm, align: center, items: [ api, worker ] }
+          - row: { gap: 10mm, items: [ store, spacer ] }
+nodes:
+  - { id: api, component: box, label: API }
+  - { id: worker, component: box, label: Worker }
+  - { id: store, component: cylinder, label: Store }
+  - { id: spacer, component: junction, variant: hidden }
+edges:
+  - { from: api, to: worker }
+  - { from: worker, fromAnchor: west, to: store, toAnchor: north }
