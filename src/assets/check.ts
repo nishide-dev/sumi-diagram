@@ -30,6 +30,7 @@ import { srcProblem } from "./paths";
 export function checkAssets(state: CheckState, locate: Locator): void {
   const components = state.components;
   if (components === undefined) return;
+  let failed = false;
   for (const [index, node] of (state.doc.nodes ?? []).entries()) {
     if (node === undefined) continue;
     const key = nodeKey(node.id);
@@ -43,6 +44,7 @@ export function checkAssets(state: CheckState, locate: Locator): void {
         errorAt(locate, code, message, ["nodes", index, ...path], { subject, hint }),
       );
       state.invalid.add(key);
+      failed = true;
     };
 
     if (node.icon !== undefined) {
@@ -115,6 +117,7 @@ export function checkAssets(state: CheckState, locate: Locator): void {
       }
     }
   }
+  if (!failed) return;
   invalidateDependents(state);
   for (const key of components.keys()) if (state.invalid.has(key)) components.delete(key);
 }
