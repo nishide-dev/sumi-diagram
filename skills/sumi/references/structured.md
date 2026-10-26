@@ -104,6 +104,13 @@ YAML order, greedily: edges declared first get the best routes.
   or merges. Place it in the tree like any node, between the blocks it
   connects; connect into it with `component: line` (an arrowhead would hide
   the dot). Every edge touching a junction is drawn as one connected net.
+  `variant: hidden` draws no dot: the lines fork smoothly, as in paper
+  figures. Keep the dot where another line crosses nearby (it is what tells
+  a join from a crossing). A hidden junction with one incoming arrow is an
+  **open end**: the arrow stops in empty space (e.g. a block's output at the
+  top of a stack: `{ id: out, component: junction, variant: hidden }`, then
+  `{ from: add, to: out }`). Put it straight in line, since an arrowhead
+  needs a straight stretch before its tip.
 
   ```yaml
   # residual connection: split before the block, re-enter at the side
@@ -127,6 +134,8 @@ YAML order, greedily: edges declared first get the best routes.
   final stub can put the label beside the arrowhead), or mid-line on a
   `line`. Collisions are not avoided; keep them to a word or a math symbol
   and check the preview.
+- Line corners are drawn rounded (radius up to 4pt, smaller in tight spots);
+  there is no option to make them sharp. Editable PPTX keeps sharp corners.
 - Trunks and side paths run close beside the blocks (about 3pt away); the
   lever to move them is the `gap` of the enclosing box, not a coordinate.
 

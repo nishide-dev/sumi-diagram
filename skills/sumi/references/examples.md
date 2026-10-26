@@ -302,10 +302,10 @@ nodes:
   - { id: add-pe, component: operator, props: { symbol: plus } }
   - { id: pe, component: circle, icon: tabler/wave-sine, attach: { to: add-pe, side: west, gap: 1mm } }
   - { id: pe-label, component: label, label: "Positional\nEncoding", attach: { to: pe, side: west, gap: 0.5mm } }
-  - { id: split1, component: junction }
+  - { id: split1, component: junction, variant: hidden }
   - { id: attention, component: box, label: "Multi-Head\nAttention", tone: orange }
   - { id: norm1, component: box, label: Add & Norm, tone: yellow }
-  - { id: split2, component: junction }
+  - { id: split2, component: junction, variant: hidden }
   - { id: feed-forward, component: box, label: Feed Forward, tone: blue }
   - { id: norm2, component: box, label: Add & Norm, tone: yellow }
   - { id: repeat, component: label, label: '$N \times$', attach: { to: encoder, side: east, gap: 2mm } }
@@ -331,14 +331,16 @@ edges:
 $ sumi fmt encoder-block.sumi.yaml && sumi lint encoder-block.sumi.yaml
 0 errors, 0 warnings, 0 infos
 $ sumi render encoder-block.sumi.yaml
-Wrote encoder-block.svg: 51.68mm × 82.2mm (paper-single, max width 88mm; theme academic).
+Wrote encoder-block.svg: 51.68mm × 81.49mm (paper-single, max width 88mm; theme academic).
 ```
 
 Points to note: every node and group appears once, in a tree or with
 `attach` (the positional encoding and its caption hang off the ⊕, `N×` off
 the group); the group's members come from its `arrange`, so no `group:`
 fields; `gap: 0` stacks join each block to its `Add & Norm` with no edge
-between them; edges into junctions are `line`s; math labels are
+between them; edges into junctions are `line`s; the junctions are
+`variant: hidden`, so Q, K, V and the residual fork off the line along
+rounded turns without a dot (nothing else crosses there); math labels are
 single-quoted and use `\,` after commas. `academic` maps the tones to gray
 steps; with `theme: color` the same YAML is in color.
 
