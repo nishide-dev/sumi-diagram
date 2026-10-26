@@ -20,6 +20,7 @@ export const STYLE = {
   boxPadX: 14,
   boxPadY: 7,
   operatorSize: 18,
+  junctionSize: 0,
   iconCircleSize: 34,
   groupPad: 16,
   groupRadius: 12,
@@ -50,7 +51,7 @@ export function layoutModel(model: Model): Layout {
     labels.set(node.id, label);
     switch (node.component) {
       case "junction":
-        return { w: 0, h: 0 };
+        return { w: STYLE.junctionSize, h: STYLE.junctionSize };
       case "operator":
         return { w: STYLE.operatorSize, h: STYLE.operatorSize };
       case "circle":

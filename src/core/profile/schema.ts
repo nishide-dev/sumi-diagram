@@ -50,6 +50,18 @@ function lengthField(bound: "positive" | "non-negative") {
   });
 }
 
+/**
+ * Defaults of the structured-layout spacing (design doc §6.21), so profile
+ * definitions written before it stay valid. They are the paper profiles'
+ * values, taken from the #86 prototype.
+ */
+export const STRUCTURED_DEFAULTS = {
+  arrangeGap: "4mm",
+  groupPadding: "8pt",
+  nodePaddingX: "7pt",
+  nodePaddingY: "3.5pt",
+} as const;
+
 export const ProfileSchema = z.strictObject({
   version: z.literal(PROFILE_FORMAT_VERSION),
   id: z.string().regex(ID_PATTERN),
@@ -73,6 +85,17 @@ export const ProfileSchema = z.strictObject({
     layerGap: lengthField("non-negative"),
     /** Inner padding of containers; ELK `--elk-padding` (D2 enlarges the top for the label). */
     containerPadding: lengthField("non-negative"),
+    /**
+     * Structured layout (design doc §6.21): space between the items of a stack
+     * or row that omits `gap`. Not quantized (like a written `gap`).
+     */
+    arrangeGap: lengthField("non-negative").prefault(STRUCTURED_DEFAULTS.arrangeGap),
+    /** Structured layout: inner padding of a group on all four sides. */
+    groupPadding: lengthField("non-negative").prefault(STRUCTURED_DEFAULTS.groupPadding),
+    /** Structured layout: space between a node's label and its shape, left and right. */
+    nodePaddingX: lengthField("non-negative").prefault(STRUCTURED_DEFAULTS.nodePaddingX),
+    /** Structured layout: space between a node's label and its shape, top and bottom. */
+    nodePaddingY: lengthField("non-negative").prefault(STRUCTURED_DEFAULTS.nodePaddingY),
   }),
 });
 

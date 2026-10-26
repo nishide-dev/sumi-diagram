@@ -22,6 +22,7 @@ describe("buildFigureIR", () => {
       themeId: "minimal",
       profileId: "paper-single",
       direction: "right",
+      engine: "auto",
       fontSetId: "sumi/biz-ud-gothic",
     });
     expect(ir.roots).toEqual(["g:backend", "n:client"]);

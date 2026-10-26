@@ -5,6 +5,10 @@
  * The presentation profile doubles every spacing value, matching its doubled
  * minimum font size (14pt vs 7pt).
  *
+ * The structured-layout spacing (design doc §6.21: arrange gap, group and
+ * node padding) follows the same rule: paper values from the #86 prototype,
+ * doubled for the presentation profile.
+ *
  * The layer gap was 10mm (the design doc example) until #31: 6–7 layers then
  * came out about 165mm tall. 8mm shortens such figures by about 10% and still
  * leaves edge labels between layers clear of the nodes (6mm did not).
@@ -14,7 +18,12 @@ import { type DocPath, didYouMean } from "../diagnostics";
 import { errorAt } from "../figure/report";
 import type { Locator } from "../figure/yaml";
 import type { Result } from "../result";
-import { type Profile, type ProfileDefinition, validateProfile } from "./schema";
+import {
+  type Profile,
+  type ProfileDefinition,
+  STRUCTURED_DEFAULTS,
+  validateProfile,
+} from "./schema";
 
 /**
  * Maximum height of a paper figure (#31): the text block of common two-column
@@ -26,7 +35,7 @@ const PAPER_MAX_HEIGHT = "220mm";
 
 const PAPER_SPACING = {
   margin: "2mm",
-  layout: { layerGap: "8mm", containerPadding: "4mm" },
+  layout: { layerGap: "8mm", containerPadding: "4mm", ...STRUCTURED_DEFAULTS },
 } as const;
 
 export const BUILTIN_PROFILE_DEFINITIONS: readonly ProfileDefinition[] = [
@@ -53,7 +62,14 @@ export const BUILTIN_PROFILE_DEFINITIONS: readonly ProfileDefinition[] = [
     page: { maxWidth: "338.7mm", maxHeight: "190.5mm" },
     margin: "4mm",
     typography: { minFontSize: "14pt" },
-    layout: { layerGap: "16mm", containerPadding: "8mm" },
+    layout: {
+      layerGap: "16mm",
+      containerPadding: "8mm",
+      arrangeGap: "8mm",
+      groupPadding: "16pt",
+      nodePaddingX: "14pt",
+      nodePaddingY: "7pt",
+    },
   },
 ];
 

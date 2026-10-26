@@ -1,0 +1,77 @@
+# One panel of figure B of #86 (docs/research/86-paper-figures.md §2.3),
+# adapted for #89 like a-transformer.sumi.yaml: the structured layout fields
+# exactly as in research/86-paper-figures/figures/ideal/b-adaln-panel.sumi.yaml,
+# with the parts owned by later issues replaced by existing components:
+#   - no `requires: ">=0.5.0"`;
+#   - operator (#92)  → circle with the label "+";
+#   - junction (#92)  → circle with the label "·";
+#   - tone (#92)      → removed;
+#   - caption (stage B) → removed;
+#   - label math (#93)  → plain text.
+# Both the #86 prototype and the structured engine read it; the layout test
+# compares their rectangles.
+version: 1
+figure:
+  id: dit-adaln-block
+  theme: academic
+  profile: paper-single
+  layout:
+    engine: structured
+    arrange:
+      stack: { items: [panel] }
+
+groups:
+  - id: panel
+    arrange:
+      row:
+        gap: 6mm
+        align: end
+        items:
+          - stack:
+              direction: up
+              gap: 2mm
+              align: stretch
+              items:
+                [tokens, split0, ln1, ss1, attn, scale1, add1, split1, ln2, ss2, ff, scale2, add2, out]
+          - stack: { direction: up, gap: 6mm, items: [conditioning, mlp] }
+
+nodes:
+  - { id: tokens, component: box, label: Input Tokens }
+  - { id: split0, component: circle, label: "·" }
+  - { id: ln1, component: box, label: Layer Norm }
+  - { id: ss1, component: box, label: "Scale, Shift" }
+  - { id: attn, component: box, label: "Multi-Head\nSelf-Attention" }
+  - { id: scale1, component: box, label: Scale }
+  - { id: add1, component: circle, label: "+" }
+  - { id: split1, component: circle, label: "·" }
+  - { id: ln2, component: box, label: Layer Norm }
+  - { id: ss2, component: box, label: "Scale, Shift" }
+  - { id: ff, component: box, label: "Pointwise\nFeedforward" }
+  - { id: scale2, component: box, label: Scale }
+  - { id: add2, component: circle, label: "+" }
+  - { id: out, component: circle, label: "·" }
+  - { id: conditioning, component: box, label: Conditioning }
+  - { id: mlp, component: box, label: MLP }
+
+edges:
+  - { from: tokens, to: split0, component: line }
+  - { from: split0, to: ln1 }
+  - { from: split0, to: add1, toAnchor: west } # residual
+  - { from: ln1, to: ss1, component: line }
+  - { from: ss1, to: attn, component: line }
+  - { from: attn, to: scale1, component: line }
+  - { from: scale1, to: add1 }
+  - { from: add1, to: split1, component: line }
+  - { from: split1, to: ln2 }
+  - { from: split1, to: add2, toAnchor: west } # residual
+  - { from: ln2, to: ss2, component: line }
+  - { from: ss2, to: ff, component: line }
+  - { from: ff, to: scale2, component: line }
+  - { from: scale2, to: add2 }
+  - { from: add2, to: out }
+  - { from: conditioning, to: mlp, component: line }
+  # one source port, four taps: routed as a single shared bus (#90)
+  - { from: mlp, fromAnchor: north, to: ss1, toAnchor: east, label: "gamma1, beta1" }
+  - { from: mlp, fromAnchor: north, to: scale1, toAnchor: east, label: alpha1 }
+  - { from: mlp, fromAnchor: north, to: ss2, toAnchor: east, label: "gamma2, beta2" }
+  - { from: mlp, fromAnchor: north, to: scale2, toAnchor: east, label: alpha2 }
