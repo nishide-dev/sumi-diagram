@@ -323,6 +323,148 @@ describe("placement", () => {
   });
 });
 
+describe("invalid elements and dependents", () => {
+  const structured = (rest: string, arrange = "{ row: { items: [a] } }") =>
+    figure(`  layout:\n    engine: structured\n    arrange: ${arrange}\n${rest}`);
+  const codes = (text: string) => check(text).map(([code, path]) => [code, path]);
+  const invalidOf = (text: string) => [...checkFigureSource(text).state.invalid].sort();
+
+  test("an element invalid before the stage gets no layout diagnostics", () => {
+    const text = structured(
+      [
+        "nodes:",
+        "  - { id: a, component: box, colour: red, attach: { to: zz, side: east } }",
+        "edges:",
+        "  - { from: nope, to: a, toAnchor: top }",
+        "",
+      ].join("\n"),
+    );
+    expect(codes(text)).toEqual([
+      ["schema/unknown-field", ["nodes", 0, "colour"]],
+      ["ref/unknown-endpoint", ["edges", 0, "from"]],
+    ]);
+  });
+
+  test("the tree of an invalid group is not checked, but its items count as placed", () => {
+    const text = structured(
+      [
+        "groups:",
+        "  - { id: g, colour: red, arrange: { stack: { items: [b, zz] } } }",
+        "nodes:",
+        "  - { id: b, component: box }",
+        "",
+      ].join("\n"),
+      "{ row: { items: [g] } }",
+    );
+    expect(codes(text)).toEqual([["schema/unknown-field", ["groups", 0, "colour"]]]);
+    // "b" is a child of the invalid group, so invalid itself.
+    expect(invalidOf(text)).toEqual(["g:g", "n:b"]);
+  });
+
+  test("duplicate group IDs with different trees report only the duplicate", () => {
+    const text = structured(
+      [
+        "groups:",
+        "  - { id: g, arrange: { stack: { items: [b] } } }",
+        "  - { id: g, arrange: { stack: { items: [b, c] } } }",
+        "nodes:",
+        "  - { id: b, component: box }",
+        "  - { id: c, component: box }",
+        "",
+      ].join("\n"),
+      "{ row: { items: [g] } }",
+    );
+    expect(codes(text)).toEqual([["ref/duplicate-id", ["groups", 1, "id"]]]);
+    expect(invalidOf(text)).toEqual(["g:g", "n:b", "n:c"]);
+  });
+
+  test("a node attached to an unplaced element is invalid, and so are its edges", () => {
+    const text = figure(
+      [
+        "  layout: { engine: structured }",
+        "nodes:",
+        "  - { id: a, component: box, label: A }",
+        "  - { id: b, component: box, label: B, attach: { to: a, side: east } }",
+        "edges:",
+        "  - { from: b, to: b }",
+        "",
+      ].join("\n"),
+    );
+    expect(codes(text)).toEqual([["layout/unplaced", ["nodes", 0, "id"]]]);
+    expect(invalidOf(text)).toEqual(["e:#0", "n:a", "n:b"]);
+    expect(lintFigure(text).diagnostics.map((d) => d.code)).toEqual(["layout/unplaced"]);
+  });
+
+  test("a node attached to an element invalid in a later stage is invalid too", () => {
+    const text = structured(
+      [
+        "nodes:",
+        "  - { id: a, component: no-such-component }",
+        "  - { id: b, component: box, label: B, attach: { to: a, side: east } }",
+        "edges:",
+        "  - { from: b, to: b }",
+        "",
+      ].join("\n"),
+    );
+    const { state } = checkFigure(text);
+    expect(state.diagnostics.map((d) => d.code)).toEqual(["component/unknown"]);
+    expect([...state.invalid].sort()).toEqual(["e:#0", "n:a", "n:b"]);
+  });
+
+  test("an attach chain to an unknown target is reported once", () => {
+    const text = structured(
+      [
+        "groups:",
+        "  - { id: g, arrange: { stack: { items: [x] } } }",
+        "nodes:",
+        "  - { id: a, component: box, group: g, attach: { to: b, side: east } }",
+        "  - { id: b, component: box, attach: { to: c, side: east } }",
+        "  - { id: c, component: box, attach: { to: missing, side: east } }",
+        "  - { id: x, component: box }",
+        "",
+      ].join("\n"),
+      "{ row: { items: [g] } }",
+    );
+    expect(codes(text)).toEqual([["layout/unknown-attach-target", ["nodes", 2, "attach", "to"]]]);
+    expect(invalidOf(text)).toEqual(["n:a", "n:b", "n:c"]);
+  });
+
+  test("an attach target in an unreadable collection invalidates the node silently", () => {
+    for (const broken of ["groups: 3\nnodes:", "nodes: 3\ngroups: []\nextra:"]) {
+      const text = figure(
+        `  layout: { engine: structured }\n${broken}\n  - { id: b, component: box, attach: { to: a, side: east } }\n`,
+      );
+      const { state } = checkFigureSource(text);
+      expect(state.diagnostics.every((d) => d.code.startsWith("schema/"))).toBe(true);
+      if (broken.startsWith("groups")) expect([...state.invalid]).toEqual(["n:b"]);
+    }
+  });
+
+  test("only the outermost unplaced group is reported, in any declaration order", () => {
+    const groups = [
+      "  - { id: child, group: parent }",
+      "  - { id: parent, group: top }",
+      "  - { id: top }",
+    ];
+    for (const order of [groups, [...groups].reverse()]) {
+      const text = figure(
+        [
+          "  layout: { engine: structured, arrange: { row: { items: [n] } } }",
+          "groups:",
+          ...order,
+          "nodes:",
+          "  - { id: n, component: box, label: N }",
+          "  - { id: m, component: box, label: M, group: child }",
+          "",
+        ].join("\n"),
+      );
+      const diagnostics = checkFigureSource(text).state.diagnostics;
+      expect(diagnostics.map((d) => [d.code, d.subject?.id])).toEqual([["layout/unplaced", "top"]]);
+      expect(invalidOf(text)).toEqual(["g:child", "g:parent", "g:top", "n:m"]);
+    }
+  });
+});
+
 describe("anchors", () => {
   test("parseAnchor accepts a side and an optional position from 0 to 1", () => {
     expect(parseAnchor("south")).toEqual({ side: "south", offset: 0.5 });
@@ -393,7 +535,11 @@ describe("schema of the structured fields", () => {
     expect(check(text("{ stack: { items: [a] }, row: { items: [a] } }"))).toEqual([
       ["schema/invalid-value", at, 5, 14],
     ]);
-    // A typo is one unknown-field error with a suggestion, not two errors.
+    // A typo is one unknown-field error with a suggestion, not two errors,
+    // at the root of a tree and inside it.
+    expect(check(text("{ stak: { items: [a] } }"))).toEqual([
+      ["schema/unknown-field", [...at, "stak"], 5, 16],
+    ]);
     expect(check(text("{ row: { items: [{ stak: { items: [a] } }] } }"))).toEqual([
       ["schema/unknown-field", [...at, "row", "items", 0, "stak"], 5, 33],
     ]);

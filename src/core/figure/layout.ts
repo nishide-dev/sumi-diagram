@@ -13,10 +13,14 @@
  *   placement, so later stages see the membership; when it is written and
  *   disagrees, that is an error.
  *
- * Errors invalidate the element they are about (the placed element, the
- * attached node, the edge with a bad anchor), never the arrange tree's owner:
- * an unknown ID in a group's arrange tree does not make the group's other
- * children unusable.
+ * Like every check stage (see `check-state.ts`), elements that are already
+ * invalid get no new diagnostics, and elements that depend on an invalid one
+ * (its children, nodes attached to it) become invalid silently. The trees and
+ * attachments of invalid elements still count as placements, so their items
+ * are not reported as unplaced. Errors invalidate the element they are about
+ * (the placed element, the attached node, the edge with a bad anchor), never
+ * the arrange tree's owner: an unknown ID in a group's arrange tree does not
+ * make the group's other children unusable.
  */
 
 import {
@@ -68,14 +72,19 @@ interface Occurrence {
   via: "arrange" | "attach";
   /** arrange: the group whose tree lists the item (`undefined` = root). */
   owner?: string | undefined;
-  /** arrange: the tree's owner, for messages. */
-  ownerSubject?: DiagnosticSubject;
-  /** attach: the attached node and its target. */
-  node?: Element;
+  /**
+   * The tree's owner (arrange) or the attached node (attach) was invalid
+   * before this stage: the occurrence counts as a placement but is not
+   * reported on.
+   */
+  silent: boolean;
+  /** attach: the target. */
   target?: string;
   location: SourceLocation | undefined;
   order: number;
 }
+
+type Push = (diagnostic: Diagnostic, key?: ElementKey) => void;
 
 const STRUCTURED_HINT =
   'The structured layout is selected by figure.layout.arrange or "engine: structured"; otherwise remove this field.';
@@ -91,7 +100,7 @@ export function checkLayout(state: CheckState, locate: Locator): void {
   invalidateDependents(state);
 }
 
-/** `auto`: every structured-only field is an error. */
+/** `auto`: every structured-only field of a valid element is an error. */
 function checkAuto(state: CheckState, locate: Locator): void {
   const { doc, invalid } = state;
   const report = (field: string, path: DocPath, key?: ElementKey, subject?: DiagnosticSubject) => {
@@ -110,17 +119,17 @@ function checkAuto(state: CheckState, locate: Locator): void {
     report("arrange", ["figure", "layout", "arrange"]);
   }
   for (const [index, group] of (doc.groups ?? []).entries()) {
-    if (group?.arrange === undefined) continue;
+    if (group?.arrange === undefined || invalid.has(groupKey(group.id))) continue;
     const subject = { kind: "group", id: group.id } as const;
     report("arrange", ["groups", index, "arrange"], groupKey(group.id), subject);
   }
   for (const [index, node] of (doc.nodes ?? []).entries()) {
-    if (node?.attach === undefined) continue;
+    if (node?.attach === undefined || invalid.has(nodeKey(node.id))) continue;
     const subject = { kind: "node", id: node.id } as const;
     report("attach", ["nodes", index, "attach"], nodeKey(node.id), subject);
   }
   for (const [index, edge] of (doc.edges ?? []).entries()) {
-    if (edge === undefined) continue;
+    if (edge === undefined || invalid.has(edgeKey(edge.id, index))) continue;
     const subject = { kind: "edge", id: edge.id ?? `edges[${index}]` } as const;
     for (const field of ["fromAnchor", "toAnchor"] as const) {
       if (edge[field] !== undefined) {
@@ -132,37 +141,43 @@ function checkAuto(state: CheckState, locate: Locator): void {
 
 function checkStructured(state: CheckState, locate: Locator): void {
   const { doc, invalid } = state;
-  const push = (diagnostic: Diagnostic, key?: ElementKey) => {
+  const push: Push = (diagnostic, key) => {
     state.diagnostics.push(diagnostic);
     if (key !== undefined) invalid.add(key);
   };
 
-  // Readable nodes and groups by ID (the first definition; duplicates are
-  // already `ref/duplicate-id` and invalid).
+  // Readable nodes and groups: every definition, and by ID the first one
+  // (duplicated IDs are already `ref/duplicate-id` and invalid).
   const elements = new Map<string, Element>();
+  const groupEntries: Element[] = [];
+  const nodeEntries: Element[] = [];
   for (const [index, group] of (doc.groups ?? []).entries()) {
-    if (group === undefined || elements.has(group.id)) continue;
-    elements.set(group.id, {
+    if (group === undefined) continue;
+    const entry: Element = {
       kind: "group",
       value: group,
       path: ["groups", index],
       key: groupKey(group.id),
       subject: { kind: "group", id: group.id },
-    });
+    };
+    groupEntries.push(entry);
+    if (!elements.has(group.id)) elements.set(group.id, entry);
   }
   for (const [index, node] of (doc.nodes ?? []).entries()) {
-    if (node === undefined || elements.has(node.id)) continue;
-    elements.set(node.id, {
+    if (node === undefined) continue;
+    const entry: Element = {
       kind: "node",
       value: node,
       path: ["nodes", index],
       key: nodeKey(node.id),
       subject: { kind: "node", id: node.id },
-    });
+    };
+    nodeEntries.push(entry);
+    if (!elements.has(node.id)) elements.set(node.id, entry);
   }
   const isInvalidId = (id: string) => invalid.has(nodeKey(id)) || invalid.has(groupKey(id));
-  // Unknown IDs are reported only if both collections are readable (an
-  // unreadable element with a string ID is in `invalid`, so it counts as known).
+  // An ID is unknown only if both collections are readable (an unreadable
+  // element with a string ID is in `invalid`, so it counts as known).
   const collectionsReadable = doc.nodes !== undefined && doc.groups !== undefined;
   // "Not placed" needs every arrange tree: none may be in an unreadable element.
   const everyTreeReadable =
@@ -173,7 +188,7 @@ function checkStructured(state: CheckState, locate: Locator): void {
       ? `"${id}" is an edge; only nodes and groups are placed.`
       : didYouMean(id, elementIds);
 
-  // 1. Collect every placement, in source order.
+  // 1. Collect every placement.
   const occurrences: Occurrence[] = [];
   const add = (occurrence: Omit<Occurrence, "location" | "order">) =>
     occurrences.push({
@@ -186,6 +201,7 @@ function checkStructured(state: CheckState, locate: Locator): void {
     path: DocPath,
     owner: string | undefined,
     ownerSubject: DiagnosticSubject,
+    silent: boolean,
   ) => {
     for (const kind of ["stack", "row"] as const) {
       const spec = box[kind];
@@ -193,11 +209,11 @@ function checkStructured(state: CheckState, locate: Locator): void {
       for (const [index, item] of spec.items.entries()) {
         const itemPath = [...path, kind, "items", index];
         if (typeof item !== "string") {
-          walk(item, itemPath, owner, ownerSubject);
+          walk(item, itemPath, owner, ownerSubject, silent);
           continue;
         }
         if (!elements.has(item) && !isInvalidId(item)) {
-          if (collectionsReadable) {
+          if (collectionsReadable && !silent) {
             push(
               errorAt(
                 locate,
@@ -210,61 +226,61 @@ function checkStructured(state: CheckState, locate: Locator): void {
           }
           continue;
         }
-        add({ id: item, path: itemPath, via: "arrange", owner, ownerSubject });
+        add({ id: item, path: itemPath, via: "arrange", owner, silent });
       }
     }
   };
   const figureSubject = { kind: "figure", id: doc.figure?.id ?? "" } as const;
   const rootArrange = doc.figure?.layout.arrange;
   if (rootArrange !== undefined) {
-    walk(rootArrange, ["figure", "layout", "arrange"], undefined, figureSubject);
+    walk(rootArrange, ["figure", "layout", "arrange"], undefined, figureSubject, false);
   }
-  for (const element of elements.values()) {
-    if (element.kind !== "group") continue;
-    const { arrange } = element.value as FigureGroup;
-    if (arrange !== undefined) {
-      walk(arrange, [...element.path, "arrange"], element.value.id, element.subject);
-    }
+  for (const group of groupEntries) {
+    const { arrange } = group.value as FigureGroup;
+    if (arrange === undefined) continue;
+    const silent = invalid.has(group.key);
+    walk(arrange, [...group.path, "arrange"], group.value.id, group.subject, silent);
   }
-  for (const element of elements.values()) {
-    if (element.kind !== "node") continue;
-    const { attach } = element.value as FigureNode;
+  for (const node of nodeEntries) {
+    const { attach } = node.value as FigureNode;
     if (attach === undefined) continue;
-    const toPath = [...element.path, "attach", "to"];
+    const silent = invalid.has(node.key);
+    const toPath = [...node.path, "attach", "to"];
     if (!elements.has(attach.to) && !isInvalidId(attach.to)) {
-      if (collectionsReadable) {
+      if (collectionsReadable && !silent) {
         push(
           errorAt(
             locate,
             "layout/unknown-attach-target",
-            `Unknown attach target "${attach.to}" in node "${element.value.id}"; attach to a node or group ID.`,
+            `Unknown attach target "${attach.to}" in node "${node.value.id}"; attach to a node or group ID.`,
             toPath,
-            { subject: element.subject, hint: unknownHint(attach.to) },
+            { subject: node.subject, hint: unknownHint(attach.to) },
           ),
-          element.key,
         );
       }
-    } else if (attach.to === element.value.id) {
+      // Unknown, or unknowable (an unreadable collection): it cannot be placed.
+      invalid.add(node.key);
+    } else if (attach.to === node.value.id && !silent) {
       push(
         errorAt(
           locate,
           "layout/attach-cycle",
-          `Node "${element.value.id}" is attached to itself.`,
+          `Node "${node.value.id}" is attached to itself.`,
           toPath,
-          { subject: element.subject, hint: "Attach it to another node or group." },
+          { subject: node.subject, hint: "Attach it to another node or group." },
         ),
-        element.key,
+        node.key,
       );
     }
     add({
-      id: element.value.id,
-      path: [...element.path, "attach"],
+      id: node.value.id,
+      path: [...node.path, "attach"],
       via: "attach",
-      node: element,
       target: attach.to,
+      silent,
     });
   }
-  occurrences.sort((a, b) => compareLocations(a, b));
+  occurrences.sort(compareLocations);
 
   // 2. Each element is placed once; the first occurrence in the file counts.
   const placement = new Map<string, Occurrence>();
@@ -275,6 +291,12 @@ function checkStructured(state: CheckState, locate: Locator): void {
       continue;
     }
     const element = elements.get(occurrence.id);
+    if (element === undefined) continue;
+    if (invalid.has(element.key) || first.silent || occurrence.silent) {
+      // Already explained by an earlier error, but where it belongs is ambiguous.
+      invalid.add(element.key);
+      continue;
+    }
     push(
       errorAt(
         locate,
@@ -283,7 +305,7 @@ function checkStructured(state: CheckState, locate: Locator): void {
         occurrence.path,
         {
           atKey: occurrence.via === "attach",
-          subject: element?.subject,
+          subject: element.subject,
           hint: "Place each node and group exactly once: in one arrange tree, or with attach.",
           related: [
             relatedAt(
@@ -294,11 +316,11 @@ function checkStructured(state: CheckState, locate: Locator): void {
           ],
         },
       ),
-      element?.key,
+      element.key,
     );
   }
 
-  // 3. Attach chains: find cycles and resolve each attached node's parent.
+  // 3. Attach cycles of more than one node (self-attachment is reported above).
   const attachedTarget = (id: string): string | undefined => {
     const occurrence = placement.get(id);
     return occurrence?.via === "attach" ? occurrence.target : undefined;
@@ -312,32 +334,30 @@ function checkStructured(state: CheckState, locate: Locator): void {
       chain.push(current);
       current = attachedTarget(current);
     }
-    if (current !== undefined && chain.includes(current) && !resolvedChains.has(current)) {
+    if (current !== undefined && chain.includes(current)) {
       const members = chain.slice(chain.indexOf(current));
-      // A self-attachment is already reported.
-      if (members.length > 1) {
+      if (members.length > 1)
         reportAttachCycle(members, placement, elements, locate, push, invalid);
-      }
     }
     for (const id of chain) resolvedChains.add(id);
   }
+  // Attached nodes and children of what is invalid so far are invalid before
+  // parents are compared.
+  invalidateDependents(state);
 
   // 4. Parents: an arrange item belongs to the tree's owner, an attached node
   // to its target's parent. A written `group:` must agree.
   const parentOf = new Map<string, string | undefined>();
-  const resolving = new Set<string>();
-  const parent = (id: string): string | undefined => {
+  const parent = (id: string, depth = 0): string | undefined => {
     if (parentOf.has(id)) return parentOf.get(id);
-    const element = elements.get(id);
     const occurrence = placement.get(id);
-    let result = element?.value.group;
+    let result = elements.get(id)?.value.group;
     if (occurrence?.via === "arrange") {
       result = occurrence.owner;
     } else if (occurrence?.via === "attach" && occurrence.target !== undefined) {
-      if (resolving.has(id)) return element?.value.group; // a cycle; already reported
-      resolving.add(id);
-      result = parent(occurrence.target);
-      resolving.delete(id);
+      // Attach cycles are invalid and never compared; the depth guards anyway.
+      if (depth > elements.size) return result;
+      result = parent(occurrence.target, depth + 1);
     }
     parentOf.set(id, result);
     return result;
@@ -345,10 +365,13 @@ function checkStructured(state: CheckState, locate: Locator): void {
   for (const occurrence of placement.values()) {
     const element = elements.get(occurrence.id);
     if (element === undefined || invalid.has(element.key)) continue;
-    if (occurrence.via === "attach" && isInvalidId(occurrence.target ?? "")) continue;
     const expected = parent(occurrence.id);
     const written = element.value.group;
     if (written === undefined || written === expected) continue;
+    if (occurrence.silent) {
+      invalid.add(element.key);
+      continue;
+    }
     const where =
       occurrence.via === "arrange"
         ? `is listed in ${describeOwner(expected)}`
@@ -372,7 +395,8 @@ function checkStructured(state: CheckState, locate: Locator): void {
     );
   }
 
-  // 5. Fill in the membership the placement implies.
+  // 5. Fill in the membership the placement implies. An item of an invalid
+  // group's tree becomes its child, and so invalid below.
   for (const element of elements.values()) {
     if (invalid.has(element.key) || element.value.group !== undefined) continue;
     if (!placement.has(element.value.id)) continue;
@@ -383,37 +407,31 @@ function checkStructured(state: CheckState, locate: Locator): void {
   // 6. Groups nested inside themselves through arrange trees. A cycle of
   // written `group:` fields is `ref/group-cycle` and its groups are invalid.
   checkArrangeCycles(elements, placement, state, locate, push);
+  invalidateDependents(state);
 
-  // A node attached to an invalid element is invalid too (no diagnostic).
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (const occurrence of placement.values()) {
-      const node = occurrence.node;
-      if (occurrence.via !== "attach" || node === undefined || invalid.has(node.key)) continue;
-      if (isInvalidId(occurrence.target ?? "")) {
-        invalid.add(node.key);
-        changed = true;
+  // 7. Every node and group is placed. An element inside an unplaced group
+  // (at any depth, in any declaration order) is invalid without a diagnostic.
+  if (everyTreeReadable) {
+    const unplaced = new Set<string>();
+    for (const element of elements.values()) {
+      if (!invalid.has(element.key) && !placement.has(element.value.id)) {
+        unplaced.add(element.value.id);
       }
     }
-  }
-
-  // 7. Every node and group is placed.
-  // Groups come first, so the children of an unplaced group are skipped.
-  const insideInvalidGroup = (element: Element): boolean => {
-    const seen = new Set<string>();
-    let parentId = element.value.group;
-    while (parentId !== undefined && !seen.has(parentId)) {
-      seen.add(parentId);
-      if (invalid.has(groupKey(parentId))) return true;
-      parentId = elements.get(parentId)?.value.group;
-    }
-    return false;
-  };
-  if (everyTreeReadable) {
-    for (const element of elements.values()) {
-      if (invalid.has(element.key) || placement.has(element.value.id)) continue;
-      if (insideInvalidGroup(element)) {
+    const insideUnplaced = (element: Element): boolean => {
+      const seen = new Set<string>();
+      let parentId = element.value.group;
+      while (parentId !== undefined && !seen.has(parentId)) {
+        if (unplaced.has(parentId)) return true;
+        seen.add(parentId);
+        parentId = elements.get(parentId)?.value.group;
+      }
+      return false;
+    };
+    for (const id of unplaced) {
+      const element = elements.get(id);
+      if (element === undefined) continue;
+      if (insideUnplaced(element)) {
         invalid.add(element.key);
         continue;
       }
@@ -428,11 +446,12 @@ function checkStructured(state: CheckState, locate: Locator): void {
         element.key,
       );
     }
+    invalidateDependents(state);
   }
 
-  // 8. Edge anchors.
+  // 8. Anchors of the edges that are still valid.
   for (const [index, edge] of (doc.edges ?? []).entries()) {
-    if (edge === undefined) continue;
+    if (edge === undefined || invalid.has(edgeKey(edge.id, index))) continue;
     for (const field of ["fromAnchor", "toAnchor"] as const) {
       const value = edge[field];
       if (value === undefined || parseAnchor(value) !== undefined) continue;
@@ -458,10 +477,11 @@ function reportAttachCycle(
   placement: Map<string, Occurrence>,
   elements: Map<string, Element>,
   locate: Locator,
-  push: (diagnostic: Diagnostic, key?: ElementKey) => void,
+  push: Push,
   invalid: Set<ElementKey>,
 ): void {
-  // Report at the member that comes first in the file.
+  // Reported at the member that comes first in the file, unless a member is
+  // already invalid (its own error explains the problem).
   const sorted = [...members].sort((a, b) =>
     compareLocations(placement.get(a) as Occurrence, placement.get(b) as Occurrence),
   );
@@ -470,25 +490,29 @@ function reportAttachCycle(
   const cycle = [...members.slice(start), ...members.slice(0, start)];
   const headElement = elements.get(head);
   const headOccurrence = placement.get(head);
-  if (headElement === undefined || headOccurrence === undefined) return;
-  push(
-    errorAt(
-      locate,
-      "layout/attach-cycle",
-      `Node "${head}" is attached to itself through ${[...cycle, head].join(" → ")}.`,
-      [...headOccurrence.path, "to"],
-      {
-        subject: headElement.subject,
-        hint: "Place one of these nodes in an arrange tree instead of attaching it.",
-        related: cycle.slice(1).map((id) => {
-          const path = placement.get(id)?.path ?? [];
-          return relatedAt(locate, [...path, "to"], `"${id}" is part of the cycle.`);
-        }),
-      },
-    ),
-    headElement.key,
-  );
-  // The other members are invalid too, without a diagnostic of their own.
+  const allValid = cycle.every((id) => {
+    const element = elements.get(id);
+    return element !== undefined && !invalid.has(element.key);
+  });
+  if (allValid && headElement !== undefined && headOccurrence !== undefined) {
+    push(
+      errorAt(
+        locate,
+        "layout/attach-cycle",
+        `Node "${head}" is attached to itself through ${[...cycle, head].join(" → ")}.`,
+        [...headOccurrence.path, "to"],
+        {
+          subject: headElement.subject,
+          hint: "Place one of these nodes in an arrange tree instead of attaching it.",
+          related: cycle.slice(1).map((id) => {
+            const path = placement.get(id)?.path ?? [];
+            return relatedAt(locate, [...path, "to"], `"${id}" is part of the cycle.`);
+          }),
+        },
+      ),
+    );
+  }
+  // Every member is invalid; the others without a diagnostic of their own.
   for (const id of cycle) {
     const element = elements.get(id);
     if (element !== undefined) invalid.add(element.key);
@@ -500,7 +524,7 @@ function checkArrangeCycles(
   placement: Map<string, Occurrence>,
   state: CheckState,
   locate: Locator,
-  push: (diagnostic: Diagnostic, key?: ElementKey) => void,
+  push: Push,
 ): void {
   const { invalid } = state;
   const parentGroup = (id: string): string | undefined => {

@@ -164,7 +164,7 @@ function parseElement<S extends z.ZodObject>(
   const strict = schema.safeParse(value);
   if (strict.success) return { ok: true, value: strict.data };
 
-  for (const issue of strict.error.issues) {
+  for (const issue of withoutRedundantIssues(strict.error.issues)) {
     state.diagnostics.push(...issueToDiagnostics(issue, schema, value, path, locate));
   }
   if (strict.error.issues.every((issue) => issue.code === "unrecognized_keys")) {
@@ -196,13 +196,10 @@ function issueToDiagnostics(
       const [branch] = matching;
       if (matching.length === 1 && branch !== undefined) {
         const nested = schemaAt(schema, relative) ?? schema;
-        const hasUnknownKeys = branch.some(
-          (i) => i.code === "unrecognized_keys" && i.path.length === 0,
-        );
         // Nested issue paths are relative to the union's value.
-        return branch
-          .filter((i) => !(hasUnknownKeys && isArrangeBoxIssue(i)))
-          .flatMap((i) => issueToDiagnostics(i, nested, actual, path, locate));
+        return withoutRedundantIssues(branch).flatMap((i) =>
+          issueToDiagnostics(i, nested, actual, path, locate),
+        );
       }
       return [
         errorAt(
@@ -339,6 +336,18 @@ function schemaAt(schema: z.ZodType, path: readonly PropertyKey[]): z.ZodType | 
     }
   }
   return undefined;
+}
+
+/**
+ * Drops the "exactly one of stack / row" issue of an arrange box that also
+ * has unknown keys: a typo such as `stak` is reported once, as an unknown
+ * field with a suggestion.
+ */
+function withoutRedundantIssues(issues: readonly core.$ZodIssue[]): core.$ZodIssue[] {
+  const unknownAt = new Set(
+    issues.filter((i) => i.code === "unrecognized_keys").map((i) => JSON.stringify(i.path)),
+  );
+  return issues.filter((i) => !(isArrangeBoxIssue(i) && unknownAt.has(JSON.stringify(i.path))));
 }
 
 function isArrangeBoxIssue(issue: core.$ZodIssue): boolean {
