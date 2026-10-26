@@ -191,7 +191,7 @@ was rendered).
   layout. Auto: the other `layout.direction`; if both overflow, see
   [layout-tips](references/layout-tips.md#too-wide-with-right-too-tall-with-down).
   Structured ignores it: re-arrange the trees (a long row as two rows),
-  reduce `gap`s. A wider profile (none is taller), if not already on it,
+  reduce `gap`s. A wider profile (none allows over 220mm height), if not on it,
   is the user's choice: ask, never switch on your own.
 - Geometry warnings (`edge-crosses-label`, `label-collision`, …) are
   readability problems D2/ELK does not always let you fix; try the
