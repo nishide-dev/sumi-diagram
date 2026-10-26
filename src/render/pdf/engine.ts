@@ -8,7 +8,9 @@
  * single binary (a `/$bunfs/` path there, the file in the checkout when run
  * from source). It has no imports (no WASI, no host functions): it can only
  * read the SVG and font bytes handed to it and return bytes. The `picture`
- * operation returns a u32 LE PNG length followed by PNG and outlined SVG.
+ * operation returns a u32 LE PNG length followed by PNG and outlined SVG; the
+ * `subset` operation (#91) takes a glyph list instead of an SVG and one font,
+ * and returns a font subset (see `src/render/font-subset.ts`).
  *
  * The bytes are checked against {@link PDF_WASM_SHA256} before use. Each
  * conversion gets a fresh instance of the compiled module, so no state (fonts,
@@ -19,7 +21,7 @@ import { readFileSync } from "node:fs";
 import wasmPath from "../../../assets/wasm/sumi-pdf.wasm" with { type: "file" };
 
 /** sha256 of `assets/wasm/sumi-pdf.wasm`; written by `bun run pdf:wasm`. */
-export const PDF_WASM_SHA256 = "cf6ec1982be2a2b7186eb4bb4a15434d3d98129f1bdc5bc6fc964928b54cff3c";
+export const PDF_WASM_SHA256 = "dbbcf82fdc6881c7d810cade7b1270f03fc16e8d400c0010de6ddd158866d749";
 
 /** Exact, unpatched crates.io releases in native/pdf-wasm/Cargo.lock. */
 export const KRILLA_VERSION = "0.8.2";
@@ -36,6 +38,7 @@ interface EngineExports {
   add_font(ptr: number, len: number): void;
   convert(ptr: number, len: number): number;
   picture(ptr: number, len: number): number;
+  subset(ptr: number, len: number): number;
   output_ptr(): number;
 }
 
@@ -78,7 +81,7 @@ export function runEngine(
   module: WebAssembly.Module,
   svg: Uint8Array,
   fonts: readonly Uint8Array[],
-  operation: "convert" | "picture" = "convert",
+  operation: "convert" | "picture" | "subset" = "convert",
 ): EngineResult {
   try {
     const instance = new WebAssembly.Instance(module, {});

@@ -19,7 +19,7 @@ import { D2_VERSION } from "../backends/d2/version";
 import type { ElementKey } from "../core/check-state";
 import { runCommand } from "../core/subprocess";
 import { inspectSvg } from "../render/inspect";
-import { type CompiledFigure, compileFigure } from "./compile";
+import { type CompiledD2Figure, compileFigure, expectD2Figure } from "./compile";
 import { elementClass, generateD2 } from "./d2";
 import type { FigureIR } from "./ir";
 import { extrasFigure, goldenCases } from "./testing";
@@ -48,7 +48,7 @@ async function inTempDir<T>(run: (dir: string) => Promise<T>): Promise<T> {
 }
 
 /** Renders through the D2 CLI backend and returns the SVG. */
-async function render(compiled: Pick<CompiledFigure, "d2Source" | "layout" | "fontSet">) {
+async function render(compiled: Pick<CompiledD2Figure, "d2Source" | "layout" | "fontSet">) {
   const result = await backend.render({
     d2Source: compiled.d2Source,
     layout: compiled.layout,
@@ -104,7 +104,7 @@ describe.skipIf(!available)("D2 CLI validation", () => {
     test(name, async () => {
       const result = compileFigure(await Bun.file(input).text());
       if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
-      const compiled = result.value;
+      const compiled = expectD2Figure(result.value);
       // D2 v0.9.0 writes no SVG for an empty diagram (`backend/empty-output`, #9).
       if (compiled.ir.elements.size > 0) expectClasses(compiled.ir, await render(compiled));
       expect(await format(compiled.d2Source)).toBe(compiled.d2Source);
@@ -116,7 +116,7 @@ describe.skipIf(!available)("D2 CLI validation", () => {
     if (!labels) throw new Error("missing labels fixture");
     const result = compileFigure(await Bun.file(labels.input).text());
     if (!result.ok) throw new Error("expected ok");
-    const svg = await render(result.value);
+    const svg = await render(expectD2Figure(result.value));
     // Each label line is the content of a <text> (one line) or <tspan> (several).
     const lines = [...svg.matchAll(/<(?:text|tspan)\b[^>]*>([^<]*)(?=<)/g)].map((m) =>
       xmlText(m[1] ?? ""),
@@ -142,7 +142,7 @@ edges:
   - { from: a, to: b }
 `);
     if (!result.ok) throw new Error("expected ok");
-    const svg = await render(result.value);
+    const svg = await render(expectD2Figure(result.value));
     const inspected = inspectSvg(svg, result.value.ir);
     if (!inspected.ok) throw new Error(JSON.stringify(inspected.diagnostics));
     const group = inspected.value.elements.find((e) => e.key === "g:g");
@@ -167,7 +167,7 @@ edges:
     const ir = extrasFigure();
     const result = compileFigure("version: 1\nfigure: { id: extras }\n");
     if (!result.ok) throw new Error("expected ok");
-    const compiled = { ...result.value, d2Source: generateD2(ir) };
+    const compiled = { ...expectD2Figure(result.value), d2Source: generateD2(ir) };
     const svg = await render(compiled);
     expectClasses(ir, svg);
     expect(svg.match(/marker-start=/g)).toHaveLength(2);

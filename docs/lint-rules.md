@@ -97,7 +97,7 @@ const diagnostics = lintGeometry(rendered, { config, source: text, file });
 | `geometry/edge-crosses-label` | warning | エッジの経路が、別の要素のラベル（再計測）を横切る。例: `direction: down` で上からコンテナに入るエッジが、コンテナのラベルを横切る（#31）。Sumi はコンテナのラベルを左上に置くので、多くの図では起きないが、ラベルがコンテナの幅の半分を超えると起きる。自分のラベルは対象外（D2 はラベルの下の線をマスクする）。 | ラベルを短くする、コンテナではなく中の要素どうしをつなぐ、`layout.direction` を変える。 |
 | `geometry/edge-through-node` | warning | エッジの経路が、端でないノードの図形（凸の衝突領域。円・ひし形は外接矩形ではなく図形）を許容 1 unit より深く通る。図形のない `text`（`label` 部品）は `edge-crosses-label` の対象。structured の図ではルータが貫通を避けるので、その独立の再検査になる（設計 §6.22）。auto（D2/ELK）の図にも掛かる。 | structured: `fromAnchor` / `toAnchor` を変える、ノードの間に通り道を空ける。auto: `layout.direction` やグループを変える。 |
 | `geometry/aspect-distorted` | warning | 縦横比が固定の部品（`circle`、`square`）が、縦横の異なる大きさで描かれている。ELK は次数の多いノードや自己ループのあるノードを一方向に拡大する。 | ノードのエッジを減らす。縦横比が重要でなければ `ellipse` / `box` を使う。 |
-| `geometry/reversed-edge` | warning | 矢印（方向が `forward` の部品。`arrow` など）が `layout.direction` に逆らって描かれている（終点の図形が始点より手前側に完全にある）のに、宣言順に読むと閉路を閉じる辺ではない。ELK は閉路ごとに 1 本の辺を逆向きにするが、コンテナの中では意図と違う辺を選ぶことがある（例: コンテナの中の `process → done → process` で `done` が上に描かれる。#31）。宣言順で閉路を閉じる辺（下記）が逆向きなのは意図どおりなので対象外。線・両矢印・自己ループ・グループとその子孫を結ぶエッジも対象外。 | ループのノードの宣言順を入れ替える（`nodes` の中で順序を変える）、またはループをコンテナの外に出す。 |
+| `geometry/reversed-edge` | warning | structured の図（§6.23）には掛けない（配置は利用者が書いた配置の木のとおりで、`layout.direction` も ELK の閉路の処理もない）。矢印（方向が `forward` の部品。`arrow` など）が `layout.direction` に逆らって描かれている（終点の図形が始点より手前側に完全にある）のに、宣言順に読むと閉路を閉じる辺ではない。ELK は閉路ごとに 1 本の辺を逆向きにするが、コンテナの中では意図と違う辺を選ぶことがある（例: コンテナの中の `process → done → process` で `done` が上に描かれる。#31）。宣言順で閉路を閉じる辺（下記）が逆向きなのは意図どおりなので対象外。線・両矢印・自己ループ・グループとその子孫を結ぶエッジも対象外。 | ループのノードの宣言順を入れ替える（`nodes` の中で順序を変える）、またはループをコンテナの外に出す。 |
 
 ### 文字を置ける範囲（`geometry/label-overflow`）
 

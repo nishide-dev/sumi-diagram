@@ -14,7 +14,7 @@ import { describe, expect, test } from "bun:test";
 import { createD2CliBackend } from "../backends/d2/backend";
 import { checkD2Version, findD2Binary } from "../backends/d2/binary";
 import { D2_VERSION } from "../backends/d2/version";
-import { compileFigure } from "../compiler/compile";
+import { compileFigure, expectD2Figure } from "../compiler/compile";
 import { generateD2 } from "../compiler/d2";
 import type { FigureIR } from "../compiler/ir";
 import { extrasFigure, goldenCases } from "../compiler/testing";
@@ -23,7 +23,7 @@ import { SUMI_VERSION } from "../core/figure/validate";
 import { finalizeSvg, readSvgMetadata, sha256 } from "./finalize";
 import { containsPoint, containsRect, distanceToRect, type Point, type Rect } from "./geometry";
 import { type ElementGeometry, inspectSvg, type SvgInspection } from "./inspect";
-import { renderFigure } from "./render";
+import { expectD2Rendered, renderFigure } from "./render";
 import { attribute, parseXml } from "./xml";
 
 const binary = findD2Binary();
@@ -135,7 +135,13 @@ describe.skipIf(!available)("renderFigure with D2", () => {
         return;
       }
       if (!result.ok) throw new Error(JSON.stringify(result.diagnostics, null, 2));
-      const { svg, inspection, metadata, artifact, compiled: rendered } = result.value;
+      const {
+        svg,
+        inspection,
+        metadata,
+        artifact,
+        compiled: rendered,
+      } = expectD2Rendered(result.value);
       const { ir } = rendered;
 
       // Root size: width/height in pt = viewBox × 0.5; viewBox unchanged.
@@ -178,7 +184,12 @@ describe.skipIf(!available)("renderFigure with D2", () => {
     const ir = extrasFigure();
     const base = compileFigure("version: 1\nfigure: { id: extras }\n");
     if (!base.ok) throw new Error("expected ok");
-    const compiled = { ...base.value, ir, d2Source: generateD2(ir), sourceMap: ir.sourceMap };
+    const compiled = {
+      ...expectD2Figure(base.value),
+      ir,
+      d2Source: generateD2(ir),
+      sourceMap: ir.sourceMap,
+    };
     const rendered = await backend.render({
       d2Source: compiled.d2Source,
       layout: compiled.layout,

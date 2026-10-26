@@ -5,7 +5,7 @@
  */
 
 import type { RenderArtifact } from "../backends/types";
-import { type CompiledFigure, compileFigure } from "../compiler/compile";
+import { type CompiledD2Figure, compileFigure, expectD2Figure } from "../compiler/compile";
 
 export const TINY_SOURCE = `version: 1
 figure: { id: tiny }
@@ -19,10 +19,10 @@ edges:
   - { id: back, from: note, to: a }
 `;
 
-export function tinyCompiled(): CompiledFigure {
+export function tinyCompiled(): CompiledD2Figure {
   const result = compileFigure(TINY_SOURCE);
   if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
-  return result.value;
+  return expectD2Figure(result.value);
 }
 
 const FONT_CSS = `
@@ -64,7 +64,7 @@ export function tinySvg(
 }
 
 /** A render artifact for `compiled` carrying `svg`, as the D2 CLI backend would return it. */
-export function artifactFor(compiled: CompiledFigure, svg: string): RenderArtifact {
+export function artifactFor(compiled: CompiledD2Figure, svg: string): RenderArtifact {
   return {
     svg,
     d2Source: compiled.d2Source,

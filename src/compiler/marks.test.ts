@@ -13,7 +13,7 @@ import type { NodeManifest } from "../core/registry/manifest";
 import { Registry } from "../core/registry/registry";
 import { getTheme } from "../core/theme/builtin";
 import { lintFigure } from "../lint/lint";
-import { compileFigure } from "./compile";
+import { compileFigure, expectD2Figure } from "./compile";
 import { markSizeOf } from "./ir";
 
 const figure = (body: string, theme = "minimal") =>
@@ -22,7 +22,7 @@ const figure = (body: string, theme = "minimal") =>
 function compile(source: string) {
   const result = compileFigure(source);
   if (!result.ok) throw new Error(JSON.stringify(result.diagnostics, null, 2));
-  return result.value;
+  return expectD2Figure(result.value);
 }
 
 const codes = (source: string) =>

@@ -10,6 +10,9 @@
  * set's file for that slot (read from the file's `name` and `OS/2` tables),
  * removes the `@font-face` rules, and returns the files to hand to the engine.
  * The engine sees only those files, never system fonts.
+ *
+ * SVGs of the structured writer (#91) name their families `sumi-<n>-font-<slot>`
+ * the same way and are resolved alike.
  */
 
 import { readFileSync } from "node:fs";
@@ -75,8 +78,8 @@ export interface ResolvedSvgFonts {
 }
 
 const FONT_FACE_RULE = /@font-face\s*\{[^}]*\}\s*/g;
-const D2_FAMILY = /font-family:\s*"?d2-\d+-font-([a-z-]+)"?\s*;/g;
-const D2_FAMILY_ANYWHERE = /d2-\d+-font-[a-z-]+/;
+const D2_FAMILY = /font-family:\s*"?(?:d2|sumi)-\d+-font-([a-z-]+)"?\s*;/g;
+const D2_FAMILY_ANYWHERE = /(?:d2|sumi)-\d+-font-[a-z-]+/;
 
 function error(code: string, message: string, hint?: string): Diagnostic {
   return { code, severity: "error", message, ...(hint !== undefined && { hint }) };

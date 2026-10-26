@@ -10,23 +10,40 @@ import { buildFigureIR, type FigureIR, type SourceMap } from "./ir";
 
 export type CompileOptions = CheckOptions;
 
-/** Everything a backend needs to render a figure, plus what maps results back to the source. */
-export interface CompiledFigure {
+interface CompiledFigureBase {
   ir: FigureIR;
-  /** Generated D2 source (an intermediate artifact; never edited by hand). */
-  d2Source: string;
-  /** Layout CLI arguments derived from the figure's profile. */
-  layout: D2LayoutArgs;
   /** The theme's font set and the `--font-*` CLI arguments for it. */
   fontSet: { id: FontSetId; args: string[] };
   /** ElementKey → document path and source location (same as `ir.sourceMap`). */
   sourceMap: SourceMap;
 }
 
+/** An `auto` figure: everything the D2 backend needs to render it. */
+export interface CompiledD2Figure extends CompiledFigureBase {
+  engine: "auto";
+  /** Generated D2 source (an intermediate artifact; never edited by hand). */
+  d2Source: string;
+  /** Layout CLI arguments derived from the figure's profile. */
+  layout: D2LayoutArgs;
+}
+
+/**
+ * A `structured` figure (design doc §6.23): laid out and routed by Sumi
+ * (`src/layout`) and drawn by the structured SVG writer when it is rendered.
+ * It has no D2 source.
+ */
+export interface CompiledStructuredFigure extends CompiledFigureBase {
+  engine: "structured";
+}
+
+/** A compiled figure, by its layout engine (`ir.meta.engine`). */
+export type CompiledFigure = CompiledD2Figure | CompiledStructuredFigure;
+
 /**
  * Compiles a `*.sumi.yaml` source: runs every checking stage
  * ({@link checkFigure}) and, only if none reported an error, builds the
- * {@link FigureIR} and generates D2 source. Pure: no I/O, no D2 CLI.
+ * {@link FigureIR} and, for an `auto` figure, generates D2 source. Pure: no
+ * I/O, no D2 CLI (a structured figure is laid out when it is rendered).
  *
  * Diagnostics (including warnings on success) are returned in both cases.
  */
@@ -35,44 +52,36 @@ export function compileFigure(text: string, options: CompileOptions = {}): Resul
   const { diagnostics } = check.state;
   if (hasErrors(diagnostics)) return { ok: false, diagnostics };
 
-  // The structured engine is checked (`sumi lint`) but not implemented yet
-  // (#89–#91): fail clearly instead of laying the figure out with D2.
-  const layout = check.state.doc.figure?.layout;
-  if (layout?.engine === "structured") {
-    const written = layout.arrange === undefined ? "engine" : "arrange";
-    const path = ["figure", "layout", written];
-    const location = check.locate(path, { key: true });
-    return {
-      ok: false,
-      diagnostics: [
-        ...diagnostics,
-        {
-          code: "layout/engine-unavailable",
-          severity: "error",
-          message:
-            "The structured layout engine is not available in this Sumi version yet; the figure can be checked but not rendered.",
-          path,
-          ...(location !== undefined && { location }),
-          subject: { kind: "figure", id: check.state.doc.figure?.id ?? "" },
-          hint: 'Use "sumi lint" to check it, or remove the structured layout fields to render with the auto engine.',
-        },
-      ],
-    };
-  }
-
   const ir = buildFigureIR(check);
   const theme = getTheme(ir.meta.themeId);
   const profile = getProfile(ir.meta.profileId);
   if (!theme || !profile) throw new Error("internal error: theme or profile vanished");
+  const fontSet = { id: theme.fontSet.id, args: fontSetArgs(theme.fontSet) };
+  if (ir.meta.engine === "structured") {
+    return {
+      ok: true,
+      value: { engine: "structured", ir, fontSet, sourceMap: ir.sourceMap },
+      diagnostics,
+    };
+  }
   return {
     ok: true,
     value: {
+      engine: "auto",
       ir,
       d2Source: generateD2(ir),
       layout: toD2LayoutArgs(profile),
-      fontSet: { id: theme.fontSet.id, args: fontSetArgs(theme.fontSet) },
+      fontSet,
       sourceMap: ir.sourceMap,
     },
     diagnostics,
   };
+}
+
+/** Narrows a compiled figure to an `auto` one; throws for a structured figure (tests and D2-only paths). */
+export function expectD2Figure(compiled: CompiledFigure): CompiledD2Figure {
+  if (compiled.engine !== "auto") {
+    throw new Error(`internal error: figure "${compiled.ir.meta.id}" is not an auto (D2) figure`);
+  }
+  return compiled;
 }

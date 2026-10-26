@@ -1,5 +1,5 @@
 /** Research candidates for #56, not imported by Sumi's production pipeline. */
-import type { CompiledFigure } from "../../src/compiler/compile";
+import type { CompiledD2Figure } from "../../src/compiler/compile";
 import type { NodeIR } from "../../src/compiler/ir";
 import { getOutlineRenderer, type OutlineSize } from "../../src/core/outline";
 import { getTheme } from "../../src/core/theme/builtin";
@@ -12,7 +12,7 @@ export type Candidate = "d2-approx" | "compact" | "compact-aware";
 const graphemes = new Intl.Segmenter("ja", { granularity: "grapheme" });
 
 /** Deliberately incomplete: advance widths are not D2's hinted ink bounds. */
-export function approximateBox(node: NodeIR, compiled: CompiledFigure): OutlineSize {
+export function approximateBox(node: NodeIR, compiled: CompiledD2Figure): OutlineSize {
   if (node.label.trim() === "") return { width: 100, height: 100 };
   const fonts = getTheme(compiled.ir.meta.themeId)?.fontSet;
   if (!fonts) throw new Error("missing fonts");
@@ -36,7 +36,7 @@ export function approximateBox(node: NodeIR, compiled: CompiledFigure): OutlineS
 }
 
 /** Actual painted font advances + 8 units per side, not D2's invisible padding. */
-export function compactBox(node: NodeIR, compiled: CompiledFigure): OutlineSize {
+export function compactBox(node: NodeIR, compiled: CompiledD2Figure): OutlineSize {
   if (node.label.trim() === "") return { width: 100, height: 100 };
   const fonts = getTheme(compiled.ir.meta.themeId)?.fontSet;
   if (!fonts) throw new Error("missing fonts");
@@ -50,7 +50,7 @@ export function compactBox(node: NodeIR, compiled: CompiledFigure): OutlineSize 
   };
 }
 
-function degreeFloor(node: NodeIR, compiled: CompiledFigure, size: OutlineSize): OutlineSize {
+function degreeFloor(node: NodeIR, compiled: CompiledD2Figure, size: OutlineSize): OutlineSize {
   const incoming = compiled.ir.edges.filter((e) => e.to === node.key).length;
   const outgoing = compiled.ir.edges.filter((e) => e.from === node.key).length;
   const degree = Math.max(incoming, outgoing);
@@ -63,7 +63,7 @@ function degreeFloor(node: NodeIR, compiled: CompiledFigure, size: OutlineSize):
 }
 
 /** Preserve written dimensions; only missing outline dimensions are estimated. */
-export function estimateFigure(compiled: CompiledFigure, candidate: Candidate): CompiledFigure {
+export function estimateFigure(compiled: CompiledD2Figure, candidate: Candidate): CompiledD2Figure {
   return withOutlineNodes(
     compiled,
     compiled.ir.nodes.map((node) => {

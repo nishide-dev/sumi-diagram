@@ -1,5 +1,5 @@
 /** Two-pass layout sizing changes IR only, never the user's YAML. */
-import type { CompiledFigure } from "../compiler/compile";
+import type { CompiledD2Figure } from "../compiler/compile";
 import { generateD2 } from "../compiler/d2";
 import { type FigureIR, type NodeIR, readonlyMap } from "../compiler/ir";
 import type { Diagnostic } from "../core/diagnostics";
@@ -9,9 +9,9 @@ import { outlineDiagnostic } from "./compose";
 import type { SvgInspection } from "./inspect";
 
 export function withOutlineNodes(
-  compiled: CompiledFigure,
+  compiled: CompiledD2Figure,
   nodes: readonly NodeIR[],
-): CompiledFigure {
+): CompiledD2Figure {
   const ir: FigureIR = Object.freeze({
     ...compiled.ir,
     nodes: Object.freeze([...nodes]),
@@ -26,7 +26,7 @@ export const needsOutlineSizing = (node: NodeIR) =>
   node.render !== undefined && (node.width === undefined || node.height === undefined);
 
 /** Measure an auto-sized padded D2 label box even when just one dimension was supplied. */
-export function outlineMeasurementFigure(compiled: CompiledFigure): CompiledFigure {
+export function outlineMeasurementFigure(compiled: CompiledD2Figure): CompiledD2Figure {
   return withOutlineNodes(
     compiled,
     compiled.ir.nodes.map((node) => {
@@ -38,9 +38,9 @@ export function outlineMeasurementFigure(compiled: CompiledFigure): CompiledFigu
 }
 
 export function sizeOutlineNodes(
-  compiled: CompiledFigure,
+  compiled: CompiledD2Figure,
   inspection: SvgInspection,
-): Result<CompiledFigure> {
+): Result<CompiledD2Figure> {
   const geometry = new Map(inspection.elements.map((e) => [e.key, e]));
   const diagnostics: Diagnostic[] = [];
   const nodes = compiled.ir.nodes.map((node) => {

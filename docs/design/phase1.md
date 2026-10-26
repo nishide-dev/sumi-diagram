@@ -19,7 +19,7 @@ v1 からの変更: D2 の実際の値域・フォント・ID・SVG 構造に合
   → style        (Theme: token → 実効スタイル)       stage: theme
   → constrain    (Profile: 単位・制約の事前検査)      stage: profile
   → Figure IR    (#8)
-  → Layout IR    (structured のみ。#89, §6.21。経路 #90・SVG #91 は未接続)
+  → Layout IR    (structured のみ。配置 #89 §6.21・経路 #90 §6.22 → SVG writer #91 §6.23。D2 の段は通らない)
   → D2 source    (#8)                               stage: compile
   → render       (D2 CLI, #9)                       stage: backend
   → SVG artifact (#11)                              stage: svg
@@ -855,7 +855,7 @@ layout:
   - anchor の形式を schema 段の正規表現でなく layout 段で検査するのは、anchor の妥当性が端点に依存しうるため（段階 C のセル端点 `sequence.a5` 等）。JSON Schema には同じ pattern を載せ、エディタでの補助は保つ。長さ・箱の形（stack / row のちょうど 1 つ）・`side`・`align`・`direction` の誤りは schema 段の `schema/*`。
   - 無効化（§0 の規則）: 前段までに invalid になった要素（未知のフィールド・重複 ID・未知の参照など）には layout の診断を出さない。ただしその要素の配置の木と `attach` も「置いた」と数え、木の項目を `layout/unplaced` にしない（その項目は無効な group の子として診断なしで invalid になる）。layout 段の誤りは、その誤りの要素（重複して置かれた要素、食い違う要素、未知の対象に attach した node、不正な anchor の edge）を invalid にし、配置の木の持ち主は invalid にしない（未知の項目が 1 つあっても、その group の他の子の検査を続けるため）。
   - 依存の伝播: 共通の `invalidateDependents()` に「`attach.to` が無効な node は無効」を加え、group の子・edge の端点と同じく推移的に伝播する。layout 段の中でも、親の比較・`layout/unplaced` の前後で伝播するので、無効な要素に連なる attach の鎖や子には重ねて診断を出さない。後段（component 等）で無効になった対象に attach した node も、同じ関数で無効になる。置かれていない group の中の要素は、宣言の順序によらず、最も外側の置かれていない要素だけを報告する。`attach.to` が読めないコレクション（schema 段の error）のために確かめられない場合も、診断なしでその node を invalid にする。読めない group / node がある場合は、その木が読めないので `layout/unplaced` を出さない（誤検出を避ける）。
-- **描画（暫定）**: structured の図は `sumi lint` で上記をすべて検査できる。`sumi render`（`compileFigure()`）は、検査が通っても D2 には渡さず `layout/engine-unavailable`（error、`figure.layout.arrange` か `engine` の位置）で止める。#89〜#91 で structured のエンジンが入るときに外す。`lintRenderedFigure()` は、検査時と描画時の両方で出る stage `layout` の診断を、`lintFigure()` と同じものだけ重複として除く。
+- **描画（暫定）**: structured の図は `sumi lint` で上記をすべて検査できる。`sumi render`（`compileFigure()`）は、検査が通っても D2 には渡さず `layout/engine-unavailable`（error、`figure.layout.arrange` か `engine` の位置）で止める。#89〜#91 で structured のエンジンが入るときに外す。`lintRenderedFigure()` は、検査時と描画時の両方で出る stage `layout` の診断を、`lintFigure()` と同じものだけ重複として除く。 **#91 で `layout/engine-unavailable` を外した**（§6.23）。
 - **その他**: `sumi fmt --canonical-order` は `figure.layout`（engine → direction → arrange）、group（… → group → arrange）、node（… → group → attach）、edge（id → from → fromAnchor → to → toAnchor → …）、`attach`（to → side → gap）と配置の木の箱（direction → gap → align → items、入れ子も）をスキーマ順にする。`lint/duplicate-edge` は structured の図で anchor も比較し、`south:0.15` と `south:0.85` に入る 2 本を重複としない（`south` と `south:0.5` は同じ）。
 - **検証**: 各診断のコード・パス・行・列、engine の推定と正規化、所属の補完、`auto` での拒否、`compileFigure()` での停止を単体テストで固定した。図 A の理想の YAML（調査の `figures/ideal/a-transformer.sumi.yaml`）は、`requires` を外すと残る診断が後続の Issue の範囲（`tone` / `icon` の `schema/unknown-field`、`operator` / `junction` の `component/unknown`。#92・#94）だけであることをテストで確かめる。それらを既存の部品に置き換えた `tests/fixtures/figures/layout/a-transformer.sumi.yaml` は、構造 lint を含めて診断ゼロ。
 
@@ -935,7 +935,7 @@ layout:
   - 0.001 の差は丸め方の違い（試作は x と幅を別々に丸め、製品は辺を丸める）による。計測したラベルの幅・高さも一致する。
   - 設計上の違い（fixture では差が出ない）: 試作の circle は 34 固定で、製品の circle はラベルから大きさを決める（上記）。operator / junction の大きさ（上記）。試作は group のラベルを無視し、キャプション（段階 B）を持つ。試作は空白を畳まない。試作は明示サイズを持たない。試作は margin を 11 に固定、製品は Profile から（paper 系で同じ 11）。
 - **決定性**: 図 A・B の Layout IR を JSON にした golden（`tests/fixtures/layout/*.layout.json`、`SUMI_UPDATE_GOLDEN=1` で更新）とバイト単位で比べ、2 回の実行の一致も確かめる。探索・反復・乱数・Map の走査順への依存はない（出力の並びは文書順と group の木の前順）。
-- **未確認（#91 と結合して確認）**: Layout IR から作った SVG で `exceeds-page-*` などの既存の幾何 lint が働くこと。SVG writer がないため、ここでは確かめていない。
+- **#91 で確認**: Layout IR から作った SVG で `exceeds-page-*` などの既存の幾何 lint が働くこと（§6.23。図 A の fixture は paper-single の幅を超え、`geometry/exceeds-page-width` だけが出る）。
 
 ### 6.22 #90 の直交ルータ
 
@@ -999,6 +999,39 @@ layout:
 - **決定性**: 図 A・B の経路込みの Layout IR を golden（`tests/fixtures/layout/*.routed.layout.json`）とバイト単位で比べ、2 回の実行の一致も確かめる。合成図でも 3 回の出力が一致することを確かめる。union-find の根は小さい添字、ネットの番号は文書順、Map の走査は挿入順だけを使う。
 - **限界（判断）**: 交差の最小化は貪欲。エッジのラベルの衝突は解消しない。アウトライン部品の端点は衝突領域（凸包）の上で、描く輪郭（凹みがある場合）とは一致しないことがある。junction の端には stub がないので、junction に入る矢じりは短い線分の上に描かれうる（junction へは `line` を推奨。§6.20）。
 - **#91（SVG writer）への引き継ぎ**: 経路は `route.points` を折れ線として描き、矢じりは最後の線分の向き（`arrowheadLength()` 以下の長さ）。共有の幹線を重ねて描かない場合は `nets[].segments` を描く（ネット内で線のスタイルが混ざる場合の扱いは #91 が決める）。junction の点・operator の記号は #92 の mark から描く。エッジのラベルは `route.label`（`TextLayout`、node のラベルと同じ描き方）。描いた SVG では `geometry/edge-through-node` を含む既存の幾何 lint が掛かる。
+
+### 6.23 #91 の structured の SVG writer とフォントのサブセット
+
+[#86 の調査](../research/86-paper-figures.md)（§3.5）の段階 A の 4 件目。§6.21・§6.22 の Layout IR から SVG を書き、既存の finalize・inspect・幾何 lint・PDF・PPTX に接続した。§6.19 の `layout/engine-unavailable` はなくなり、structured の図は `sumi render` で描ける。`auto` の図の出力（D2 ソース・SVG・PDF・PPTX・lint の golden・ギャラリー）はバイト単位で変わらない。
+
+- **経路**: `compileFigure()` の値 `CompiledFigure` を `engine` で判別する union にした。`auto` は従来どおり `d2Source` と `layout`（D2 の引数）を持つ `CompiledD2Figure`、`structured` はそれらを持たない `CompiledStructuredFigure`（D2 ソースがないので、作り物の D2 を持たせない）。`compileFigure()` は I/O のない純関数のまま（配置はフォントファイルを読むので描画時に行う）。`renderFigure()` は structured を **配置（`layoutStructured`）→ 経路（`routeEdges`）→ `writeStructuredSvg()` → `finalizeStructuredSvg()` → `inspectSvg()`** で描き、D2 backend を呼ばない。`layout/no-route` は error として失敗を返す。`RenderedFigure` も union で、D2 なら `artifact`、structured なら描いた `layout`（経路付きの Layout IR）を持つ。要素のない図は従来どおり `svg/empty-figure`。
+- **inspect 契約との差の解消**（調査 §3.5 の 5 点）:
+
+  | 試作の差 | writer |
+  | --- | --- |
+  | `svg.d2-svg` の包みがない | root `<svg>`（viewBox = キャンバス）の中に `svg.d2-svg` を 1 つ（同じ viewBox、transform・offset なし）。class は `sumi-<n> d2-svg` |
+  | edge の class が `#` | §2.4 と同じ符号化（`:` → `--`、`#` → `_`。`sumi-k-e--_3`） |
+  | tspan ごとの x/y | `<text x y>` は Layout IR の `anchor`（中心・1 行目のベースライン）、`text-anchor:middle`、2 行目以降は `<tspan x dy>` で `lineHeightUnits` ずつ。`xml:space` なし。フォント class は D2 と同じ `text` / `text-bold` / `text-mono` … |
+  | junction が inspect できない | junction も `g.shape` の中の `<circle>`（外接矩形 = Layout IR の 3×3 などの `rect`） |
+  | アイコンが入れ子の `<svg>` | 入れ子の `<svg>` は使わない（アイコンは #94。`g.shape` の中の図形として描く前提） |
+
+- **描画の約束**（`src/render/structured.ts`）: group（前順）→ node → 線（ネット）→ edge の順。node・group の `g.shape` の図形の外接矩形は Layout IR の `rect` と一致する（テストで 1e-9 以内）。形は D2 v0.9.0 の比率に合わせた: rectangle / square は `rect`（radius → `rx`）、circle / oval は `circle` / `ellipse`、diamond・hexagon・parallelogram は幾何 lint の `shapeOutline()` と同じ多角形、cylinder は D2 と同じ曲線（蓋の深さ 24、制御点は幅の 5%）、document は D2 の波線（単位の箱で縁 0.8586）の制御点を、波の最下点が箱の下端にちょうど来るよう 1.0471 にした（D2 は整数に丸めるので外接矩形が 1 unit ほどずれる）、page は折り返しの角、アウトライン部品は renderer の `draw(rect)` の層（`line` は塗りなし）。`text` は図形なし。キャンバスは D2 と同じく白の矩形で塗る。破線は D2 の式（`stroke-width × dash` と、太いほど狭くなる間隔）、`opacity` は要素の `<g>` に付ける。
+- **mark（判断、#92 の引き継ぎ）**: junction（`point`）は Theme の `fill`（= 線の色）で塗った枠線なしの円。外接矩形がそのまま点の大きさになる。塗りが `transparent` なら見えないだけで、要素は残る。operator（`glyph`）の記号は**文字**で描く（線分にしない）: PDF で検索・抽出でき、`auto` の D2 の描画と同じで、幾何 lint の再計測・`lint/missing-glyph` もそのまま働く。同梱の BIZ UDPGothic（regular / bold）は `+ − × • ‖` をすべて収録している（cmap で確認）。
+- **矢じり**: 経路の端に、最後の線分の向きで描く多角形（`marker` は使わない。id が要らず、決定的）。長さは `arrowheadLength()`（ルータが空けた長さ）以下、幅はその半分ずつ。triangle・arrow（切り欠き付き）・diamond・circle・box は `filled` なら線の色で塗り、そうでなければ白で塗って線の色で縁取る。cross は線。線（下記）は矢じりの底で止める（cross と none は止めない）。
+- **線とネット（判断）**: 共有の幹線を 2 回描かないよう、線は edge ごとではなく**ネットごと・線のスタイル（色・太さ・破線・不透明度）ごと**に 1 本の path（`path.sumi-wire`、最大の軸平行な線分の和、丸い端）で描く。重ねて描くと、破線の幹線は位相のずれで実線のように見え、半透明の幹線は濃くなるため。線分の和は各 edge の折れ線から矢じりの分を除いて作る（`nets[].segments` は矢じりの下まで含むので、そのままは使わない）。**ネットの中でスタイルが混ざる場合**はスタイルごとに別の path にし、両方が通る区間は両方で描く（文書順で後の edge が上）。inspect のための edge ごとの `path.connection` は経路全体（M/L）を持ち、線幅と破線は書くが `stroke` は書かない（SVG の初期値 `none` なので見えない）。そのため幾何 lint・編集可能 PPTX は従来どおり edge ごとの経路を読む。
+- **エッジのラベル**: `route.label`（node のラベルと同じ描き方）。edge の `fill` が `transparent` でなければ、ラベルの行の箱を 1 unit 広げた矩形を背景に描く（#31。ルータはラベルを線から 3 unit 離すので、線は隠れない）。
+- **フォント（判断）**: `@font-face` は、使ったフォント class ごとに、フォントセットのファイル（幾何 lint の `fontFileFor()` と同じ対応）から、描いた文字だけの **TrueType のサブセット**（`data:font/ttf;base64`）を埋め込む。family 名は `sumi-<n>-font-<class>`（`<n>` は描画部分の FNV-1a。同じページに複数の図を置いても衝突しない）。PDF・PPTX の `resolveSvgFonts()` は `d2-<n>-font-*` と同じく `sumi-<n>-font-*` を同梱 TTF の実名に書き換える。
+  - サブセットは WASM エンジンの新しい export `subset`（krilla が PDF に使う subsetter 0.2.6 をそのまま呼ぶ）で作る。subsetter は PDF の CID フォント用で `cmap` と `OS/2` を落とすので、TS 側（`src/render/font-subset.ts`）が、元の `cmap` で文字を glyph に引き、複合 glyph の部品を推移的に加えて昇順に並べた glyph の列を渡し（新しい glyph ID が `.notdef` に続いてこの順になることを WASM 側でも確かめる）、新しい `cmap`（BMP は 3/1 の format 4、全体は 3/10 の format 12）と元の `OS/2` を加えてフォントを組み直す（tag 順、checksum、`head.checkSumAdjustment`）。フォントにない文字は `cmap` に入れない（閲覧側の代替。`lint/missing-glyph` が報告する）。
+  - 検証: ヘッドレス Chrome で図 A の SVG の `@font-face` が `loaded` になり、`getComputedTextLength()` が Layout IR の行の幅と 0.05 unit（0.04%）以内で一致した（§6.5 のブラウザ確認と同じ丸めの差）。テストでは、埋め込んだフォントが描いた全文字を収録し、advance が元のフォントと一致することを確かめる。WOFF にはしない（圧縮を WASM か TS に足す必要があり、図 A で regular の TTF が約 11.6KB と十分小さいため）。
+  - ライセンス: BIZ UD は OFL 1.1（Reserved Font Name なし）。サブセットは `name` テーブル（著作権・ライセンスの記述）を保つ。D2 も同じフォントのサブセットを SVG に埋め込んでいる。subsetter はもともと krilla の依存として WASM に入っていた crate なので、`Cargo.lock` は sumi-pdf の依存の行が増えるだけで、`THIRD_PARTY.md`・`licenses/` は変わらない。WASM は darwin-arm64 のビルドで 3,565,005 → 3,566,407 バイト（+1,402）。コミットするのは CONTRIBUTING の手順どおり CI（linux-x64）のビルド。
+- **メタデータ**: 形式 1 のまま、`backend="sumi-structured"`、`backend-version` は Sumi の版、`d2-sha256` は書かない（D2 ソースがない）。`readSvgMetadata()` は `sumi-structured` のときだけ `d2-sha256` を省略可とし、`SumiSvgMetadata.d2Sha256` は任意になった。PDF の文書情報と PPTX の custom properties は `SumiD2Sha256` を省く。
+- **CLI**: structured の図に `--emit-d2` を付けると使い方の誤り（exit 2、何も書かない）。
+- **PDF・PPTX**: PDF・画像方式の PPTX は既存の経路のまま。**編集可能 PPTX も対応した**: `path.connection` に `stroke` がないので、線の色は Figure IR の `stroke` から取り（既存の処理）、矢じりは Figure IR の種類と既定の大きさ（`marker` がないため）になる。freeform・glued の両方で全 edge が線を持つことをテストで確かめた。
+- **幾何 lint**: 既存の規則がそのまま掛かる（`edge-through-node` を含む）。#89 の残りの受け入れ条件として、図 A の fixture（paper-single で 90.13mm）で `geometry/exceeds-page-width` だけが出て、paper-double では何も出ないことを確かめた。`geometry/reversed-edge` は structured の図には掛けない（`layout.direction` と ELK の閉路の処理が前提の規則で、structured では配置の木が向きを決めるため）。
+- **決定性**: 数値は小数 3 桁以内、Map は挿入順だけを走査、フォントのサブセットは 1 つの WASM と整数演算。2 回の描画のバイト一致をテストし、examples の SVG・PDF・PPTX の golden は CI の Linux / macOS と release の 4 ターゲットで検査される。
+- **作例（golden）**: `examples/transformer`（図 A、academic / paper-single。88mm に収めるため、列の間隔と位置エンコーディングの注記の gap を図 A の fixture より狭くした。正弦波のアイコンは #94 までは `~` の円）と `examples/dit-block`（図 B の adaLN のパネル、color / paper-single、tone・group のラベル・ラベル付きのバス。color テーマの太い線の矢じりに合わせて縦の間隔は 3mm）。ギャラリー・PDF・PPTX の golden は追加だけで、既存のものは変わらない。
+- **テスト**（`src/render/structured.test.ts` ほか）: 作例と fixture の 4 図で、実際の `inspectSvg()` が通り、bbox・ラベルの anchor / 行 / 行送り / フォント class・経路が Layout IR と一致すること、決定性とメタデータ、埋め込みフォント、PDF・PPTX（両方式）への変換と編集可能 PPTX の線、幾何 lint（作例と B は 0 件、A は `exceeds-page-width`）。全部品（アウトライン・mark・各形）を 1 図に置いた図の inspect と幾何 lint 0 件、全矢じりが `arrowheadLength()` 以内、線分の結合、D2 の破線の式、サブセットの cmap / advance / 複合 glyph。CLI の E2E（SVG・PDF・PPTX 両方式、`--emit-d2` の拒否）。PDF の文字位置が幾何 lint の再計測と 0.01pt 以内で一致することは、既存の PDF の構造検査が examples に自動で掛かる。
+- **限界・引き継ぎ**: 空行（renderedLines で空になった行）は中身のない `<tspan>` になり、ブラウザによっては `dy` が効かない（D2 と同じ）。junction に入る矢じりは短い線分の上に描かれうる（§6.22）。operator の記号の上下は文字の行の箱の中央で、記号の字形の中心とは少しずれうる。エッジのラベルの衝突はルータの限界のまま（§6.22）。#93（数式）は、`<tspan>` の上付き・下付きと数式フォントのサブセットを同じ writer と `subset` に足す。#94（画像・アイコン）は、inspect の bbox の対象にならないよう `g.shape` の外か、許可した図形として描き、入れ子の `<svg>` は使わない。#95（Skill）は structured の書き方・`layout/no-route` の直し方・`--emit-d2` の制約を教える。
 
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures

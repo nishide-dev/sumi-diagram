@@ -2,7 +2,7 @@
 import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createD2CliBackend } from "../../src/backends/d2/backend";
-import { compileFigure } from "../../src/compiler/compile";
+import { compileFigure, expectD2Figure } from "../../src/compiler/compile";
 import { type CommandArgv, runCommand } from "../../src/core/subprocess";
 import { childElements, classList, descendants, parseXml } from "../../src/render/xml";
 import { elkFromText } from "./load-elk";
@@ -41,7 +41,7 @@ async function main() {
     await writeFile(join(OUT, `${name}.d2`), text);
     const result = await backend.render({
       d2Source: text,
-      layout: baseline.value.layout,
+      layout: expectD2Figure(baseline.value).layout,
       fontSet: baseline.value.fontSet,
     });
     const nodes: string[] = [];

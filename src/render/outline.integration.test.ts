@@ -13,7 +13,7 @@ import { inspectSvg } from "./inspect";
 import { ENDPOINT_ANGLE_TOLERANCE_DEG, entryAngle, rayHit, rectPoints } from "./outline-geometry";
 import { OUTLINE_SOURCE, outlineRegistry } from "./outline-testing";
 import { svgToEditablePptx } from "./pptx";
-import { renderFigure } from "./render";
+import { expectD2Rendered, renderFigure } from "./render";
 
 const binary = findD2Binary();
 const available = binary.ok && (await checkD2Version(binary.value.path)).ok;
@@ -73,7 +73,7 @@ edges:
           if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
           expect(result.diagnostics).toEqual([]);
           expect(calls).toBe(2);
-          const { compiled, artifact, svg, inspection, metadata } = result.value;
+          const { compiled, artifact, svg, inspection, metadata } = expectD2Rendered(result.value);
           expect(artifact.d2Source).toBe(compiled.d2Source);
           expect(generateD2(compiled.ir)).toBe(compiled.d2Source);
           expect(metadata.inputSha256).toBe(sha256(source));
@@ -239,7 +239,9 @@ edges:
           // Keep D2's baseline offset of the same centered multiline label,
           // even when its width overflows the explicitly preserved footprint.
           expect(label.anchor.y - area.y - area.height / 2).toBeCloseTo(baselineOffset, 2);
-          expect(result.value.compiled.d2Source).toContain("label.near: center-center");
+          expect(expectD2Rendered(result.value).compiled.d2Source).toContain(
+            "label.near: center-center",
+          );
         }
       }
     },
@@ -262,7 +264,7 @@ edges:
         expect(report.diagnostics).toEqual([]);
         const rendered = report.rendered;
         if (!rendered) throw new Error("render failed");
-        const { compiled, artifact, inspection, svg } = rendered;
+        const { compiled, artifact, inspection, svg } = expectD2Rendered(rendered);
         const finalized = finalizeSvg(artifact, compiled, { source });
         if (!finalized.ok) throw new Error("finalize failed");
         const raw = inspectSvg(finalized.value.svg, compiled.ir);

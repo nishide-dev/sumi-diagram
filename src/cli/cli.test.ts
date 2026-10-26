@@ -449,6 +449,32 @@ describe("sumi render (output paths)", () => {
     expect(await Bun.file(join(dir, "real", "out.svg")).exists()).toBe(false);
   });
 
+  test("renders a structured figure to SVG, PDF and both PPTX modes, but no D2 (#91)", async () => {
+    const example = join(import.meta.dir, "../../examples/dit-block/dit-block.sumi.yaml");
+    const d2 = await sumi(["render", example, "-o", "structured.svg", "--emit-d2", "s.d2"]);
+    expect(d2.exitCode).toBe(2);
+    expect(d2.stderr).toContain("--emit-d2 is not available for a structured figure");
+    expect(await Bun.file(join(dir, "structured.svg")).exists()).toBe(false);
+    for (const [out, extra] of [
+      ["structured.svg", []],
+      ["structured.pdf", []],
+      ["structured.pptx", []],
+      ["editable.pptx", ["--pptx-mode", "editable"]],
+      ["glued.pptx", ["--pptx-mode", "editable", "--pptx-connectors", "glued"]],
+    ] as const) {
+      const result = await sumi(["render", example, "-o", out, ...extra]);
+      expect(result.exitCode, result.stderr).toBe(0);
+      expect(result.stderr).not.toMatch(/[1-9]\d* errors?/);
+      expect(await Bun.file(join(dir, out)).exists()).toBe(true);
+    }
+    const svg = await readFile(join(dir, "structured.svg"), "utf8");
+    const metadata = readSvgMetadata(svg);
+    expect(metadata.ok && metadata.value?.backend.name).toBe("sumi-structured");
+    const pdf = inspectPdf(new Uint8Array(await readFile(join(dir, "structured.pdf"))));
+    expect(pdf.info.SumiBackend).toBe(`sumi-structured ${pkg.version}`);
+    expect(pdf.info.SumiD2Sha256).toBeUndefined();
+  });
+
   test("refuses outputs differing only by case on a case-insensitive file system", async () => {
     if (!(await isCaseInsensitiveDir(await realpath(dir)))) {
       console.warn("[cli render] the temp file system is case-sensitive; skipping the case test.");

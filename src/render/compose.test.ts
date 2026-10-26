@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { join } from "node:path";
 import type { DiagramBackend } from "../backends/types";
-import { compileFigure } from "../compiler/compile";
+import { compileFigure, expectD2Figure } from "../compiler/compile";
 import { readonlyMap } from "../compiler/ir";
 import { composeOutlines } from "./compose";
 import { finalizeSvg } from "./finalize";
@@ -24,11 +24,19 @@ const raw = await Bun.file(join(ROOT, "tests/fixtures/outlines/corner.svg")).tex
 function fixture(svg = raw) {
   const compiled = compileFigure(source, { registry: outlineRegistry(), file: "corner.sumi.yaml" });
   if (!compiled.ok) throw new Error(JSON.stringify(compiled.diagnostics));
-  const finalized = finalizeSvg(artifactFor(compiled.value, svg), compiled.value, { source });
+  const finalized = finalizeSvg(
+    artifactFor(expectD2Figure(compiled.value), svg),
+    expectD2Figure(compiled.value),
+    { source },
+  );
   if (!finalized.ok) throw new Error(JSON.stringify(finalized.diagnostics));
   const inspection = inspectSvg(finalized.value.svg, compiled.value.ir);
   if (!inspection.ok) throw new Error(JSON.stringify(inspection.diagnostics));
-  return { compiled: compiled.value, svg: finalized.value.svg, inspection: inspection.value };
+  return {
+    compiled: expectD2Figure(compiled.value),
+    svg: finalized.value.svg,
+    inspection: inspection.value,
+  };
 }
 
 test("corner fixture warns when extended segments intersect, preserving clearance and provenance", () => {

@@ -77,7 +77,7 @@ PDF の LaTeX 取り込み検証（#63）は、TeX Live と Poppler がある環
 
 PDF 出力（#59、#74）は、`native/pdf-wasm/` の Rust クレート（krilla 0.8.2 + krilla-svg 0.8.1、upstream パッチなし）を `wasm32-unknown-unknown` にビルドした `assets/wasm/sumi-pdf.wasm` を使います。生成物はコミットしてあり、通常の開発・テスト・リリースに Rust は不要です。クレート・依存の版・ツールチェーンを変えたときだけ再ビルドします。
 
-#61 の PPTX は同じ WASM に resvg 0.47.0 の outlined SVG / PNG 生成を追加して使います。既存の `pdf:wasm` コマンドで両方を再ビルドします。PPTX の golden は `SUMI_UPDATE_GOLDEN=1 bun test src/render/pptx` で更新し、実アプリ確認の手順・制約は [検証記録](docs/verification/61-pptx.md) を参照してください。
+#61 の PPTX は同じ WASM に resvg 0.47.0 の outlined SVG / PNG 生成を追加して使います。#91 の structured の SVG は、同じ WASM の `subset`（krilla の依存の subsetter 0.2.6）で `@font-face` のフォントのサブセットを作ります。既存の `pdf:wasm` コマンドでまとめて再ビルドします。PPTX の golden は `SUMI_UPDATE_GOLDEN=1 bun test src/render/pptx` で更新し、実アプリ確認の手順・制約は [検証記録](docs/verification/61-pptx.md) を参照してください。
 
 ```sh
 bun run pdf:wasm   # rustup が必要。rust-toolchain.toml の版と wasm32 target は自動で導入される
