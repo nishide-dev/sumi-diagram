@@ -211,6 +211,7 @@ prints `{ "version": 1, "themes": [...], "profiles": [...] }` (plain
       },
       "fontSizePt": { "min": 7, "max": 9, "base": { "node": 8, "group": 9, "edge": 7 } },
       "missingVariants": {},
+      "tones": ["gray", "red", "orange", "yellow", "green", "blue", "purple", "pink"],
       "compatibleProfiles": ["paper-single", "paper-double"]
     }
   ],
@@ -240,6 +241,7 @@ prints `{ "version": 1, "themes": [...], "profiles": [...] }` (plain
 - `fonts.styles`: `italic: true` / `mono: true` need `italic` / `mono` here.
 - `missingVariants`: variants the theme does not style (they fall back to
   `default` with `theme/missing-variant`); empty for the built-ins.
+- `tones`: the tone names the theme colors (every tone for the built-ins).
 - `page.maxWidth` / `maxHeight` (`null` = no limit) include the margin.
   `layerGap` is the space between layers; nodes in the same layer are always
   10pt apart.

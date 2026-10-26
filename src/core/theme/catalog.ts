@@ -20,6 +20,7 @@ import type { FontSet } from "./fonts";
 import { resolveStyle } from "./resolve";
 import type { Theme } from "./schema";
 import { mergeStyle } from "./style";
+import { TONE_NAMES, type Tone } from "./tones";
 
 /** Font styles a font set provides; `italic: true` / `mono: true` need theirs. */
 export type FontStyle = "regular" | "bold" | "italic" | "mono";
@@ -44,6 +45,11 @@ export interface ThemeCatalogEntry {
    * with every theme.
    */
   missingVariants: Record<ComponentId, string[]>;
+  /**
+   * Tone names the theme gives colors (#92), in the order of `TONE_NAMES`.
+   * A tone it lacks is drawn without color, with `theme/missing-tone`.
+   */
+  tones: Tone[];
   /**
    * Profiles whose minimum font size every component and variant of the theme
    * meets, so the theme never causes `profile/font-too-small` with them.
@@ -101,6 +107,7 @@ export function themeCatalogEntry(
     },
     fontSizePt: { min, max, base },
     missingVariants,
+    tones: TONE_NAMES.filter((tone) => theme.tones.has(tone)),
     compatibleProfiles: [...profiles.values()]
       .filter((profile) => profile.typography.minFontSize.pt <= min)
       .map((profile) => profile.id),

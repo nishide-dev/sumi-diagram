@@ -19,6 +19,7 @@ import {
   themeCatalogEntry,
   validateTheme,
 } from "./theme";
+import { TONE_NAMES } from "./theme/tones";
 
 function theme(definition: object): Theme {
   const result = validateTheme({
@@ -55,6 +56,7 @@ describe("buildThemeCatalog", () => {
   test("built-in themes style every variant and use the bundled font set", () => {
     for (const entry of buildThemeCatalog()) {
       expect(entry.missingVariants).toEqual({});
+      expect(entry.tones).toEqual([...TONE_NAMES]);
       expect(entry.fonts.id).toBe(DEFAULT_FONT_SET_ID);
       expect(entry.fonts.styles).toEqual(["regular", "bold", "mono"]);
       expect(entry.description).toEqual(expect.any(String));

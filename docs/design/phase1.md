@@ -715,7 +715,7 @@ layout:
 - **`sumi catalog --json`**: `buildFullCatalog()`（`src/core/catalog.ts`）の出力そのもので、`{ version: 1, components, themes, profiles }`。`components` は従来の `buildCatalog()` の `components` と同じ。`themes` は `buildThemeCatalog()`（`src/core/theme/catalog.ts`）、`profiles` は `buildProfileCatalog()`（`src/core/profile/catalog.ts`）。どちらも `BUILTIN_THEMES` / `BUILTIN_PROFILES` と Registry から導出するので、組み込みの Theme・Profile・部品を追加すれば自動で現れる。gallery や Skill の検証も同じ関数を使える。
   - **セクションの選択**: `--section components|themes|profiles`（繰り返し可）で選んだセクションだけを出す（キーの順は固定）。`--section` がなければ全セクション。ただし `--kind` だけを指定したときは従来どおり `components` だけを出す（`catalog --json --kind node` の出力は #14 から変わらない）。`--kind` と、`components` を含まない `--section` の組み合わせは使い方の誤り（exit 2）。
   - **表**: セクションが 2 つ以上なら見出し（`Components:` 等）付きで表を並べ、1 つなら見出しなしで出す（`catalog --kind node` の表は従来どおり）。Theme の表は ID・FONT SIZE（最小〜最大）・FONTS・PROFILES（`compatibleProfiles`）・DESCRIPTION、Profile の表は ID・MAX WIDTH・MAX HEIGHT・MIN FONT・MARGIN/GAP/PADDING・DESCRIPTION（いずれも書かれたとおりの長さ）。
-- **Theme の項目**: `{ id, description, fonts: { id, description, styles }, fontSizePt: { min, max, base: { node, group, edge } }, missingVariants, compatibleProfiles }`。
+- **Theme の項目**: `{ id, description, fonts: { id, description, styles }, fontSizePt: { min, max, base: { node, group, edge } }, missingVariants, tones, compatibleProfiles }`（`tones` は #92 で追加。§6.20）。
   - `fonts.styles` はフォントセットにある書体（`regular`・`bold` と、あれば `italic`・`mono`）。`italic: true` / `mono: true` が使えるかの判断に使う。フォントファイルのパスと sha256 は載せない（インストール先に依存し、移植性がない。検査は `sumi doctor` の役割）。
   - `fontSizePt` は、Registry の全部品 × 全 variant の実効スタイル（`resolveStyle()`）の文字サイズの最小・最大と、kind ごとの base のサイズ。最小・最大は実効値だけから求め、どの部品でも上書きされる base の値は含めない（部品が 1 つもない Registry のときだけ base で代える）。
   - `missingVariants` は Theme にスタイルがなく `default` に戻る（`theme/missing-variant`）variant を部品 ID ごとに並べたもの（あるものだけ）。base は kind ごとに必ずあるので、どの部品もどの Theme でも使える。組み込み Theme では空。
@@ -873,6 +873,7 @@ layout:
   - 部品ごとの特別扱いをコンパイラに書かず、manifest の宣言から IR を作るために `mark` にした。既存の `render`（カスタム輪郭）は Figure の props を受け取れない（params は manifest に固定）ため使わなかった。
 - **`auto`（D2/ELK）での描画**: IR は `mark` を保持し、`label` を glyph の文字（point は `""`）、`width` = `height` を mark の大きさにする。D2 では operator は明示サイズの `circle` にラベルとして記号を置き、junction は明示サイズの小さい `circle`（塗りつぶした点）になる。明示サイズなので、入力が複数でも ELK は円を引き伸ばさない（`geometry/aspect-distorted` なし。3 入力・4 出力で確認）。記号はフォントの文字なので、PDF・PPTX でも文字として残る。junction へ入る線は `line` にするのがよい（矢じりが点を覆う）。
 - **構造的配置（#90・#91）への引き継ぎ**: 契約は「ラベルなし・Theme から決まる正方形の footprint」まで。structured の配置は IR の `width` / `height` をそのまま footprint に使える。junction のネットの共有・向きの自由な端点は #90、structured での記号の描き方（文字か線分か）と junction を描くかどうか（Theme の塗りが透明でなければ点を描く、等）は #91 が決める。
+- **カタログ**: `sumi catalog --json` の Theme の項目に `tones`（その Theme が色を持つ tone 名。`TONE_NAMES` の順）を追加した（§6.10 の「同じ版ではフィールドの追加だけ」に従う）。部品の項目は mark のある部品だけ `mark` を持つ。
 - **ギャラリー**: operator は variant ごと・記号ごとに `box` から指す行、junction は variant ごとに `box` → 点 → 2 つの `box` を描く（mark はラベルを取らないため、サンプルの生成で分岐する）。全部品 × 全 Theme に `color` が加わり、tone は `docs/gallery/tones/`（全 tone と tone 付きの group・operator を全 Theme で）に描く。
 - **検証**: manifest の `mark` の検査、`unexpected-label`・`tone-unsupported`・`missing-tone`・`unknown-tone`・tone の色以外のプロパティ、解決順（variant の後）、IR の大きさとラベル、D2 の出力、既存 Theme の出力が tone なしでは変わらないことを単体テストで固定した。図 A の理想の YAML は、`requires` を外すと残る診断が `icon` の `schema/unknown-field`（#94）だけになる。
 
