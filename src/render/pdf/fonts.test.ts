@@ -1,9 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DEFAULT_FONT_SET_ID, type FontSet, getFontSet } from "../../core/theme/fonts";
 import { type GlyphCoverage, parseGlyphCoverage } from "../../lint/cmap";
 import { FontParseError, readTables } from "../../lint/sfnt";
+import { withoutTables } from "../font-subset";
+import { loadEngine, runEngine } from "./engine";
 import { readFontFace, resolveSvgFonts } from "./fonts";
 import { svgToPdf } from "./pdf";
 import { inspectPdf, textLines } from "./testing";
@@ -18,6 +21,22 @@ function cmapSubtables(font: Uint8Array): string[] {
     const record = 4 + i * 8;
     return `${cmap.u16(record)}/${cmap.u16(record + 2)} f${cmap.u16(cmap.u32(record + 4))}`;
   });
+}
+
+/** A font's PostScript name (name ID 6, Windows Unicode). */
+function postScriptName(font: Uint8Array): string | undefined {
+  const name = readTables(font).require("name");
+  const storage = name.u16(4);
+  for (let i = 0; i < name.u16(2); i++) {
+    const record = 6 + i * 12;
+    if (name.u16(record) !== 3 || name.u16(record + 6) !== 6) continue;
+    const offset = storage + name.u16(record + 10);
+    let out = "";
+    for (let j = 0; j < name.u16(record + 8); j += 2)
+      out += String.fromCharCode(name.u16(offset + j));
+    return out;
+  }
+  return undefined;
 }
 
 /** A font's table tags. */
@@ -104,7 +123,7 @@ describe("resolveSvgFonts", () => {
     expect(result.value.fonts[1]).toEqual(bytes(fontSet.bold));
   });
 
-  test("fonts of a text with runs in several fonts also map the other runs' characters (#112)", () => {
+  test("a text with runs in several fonts gets renamed copies that also map the other runs' characters (#112)", () => {
     // Text (regular), math-italic and math runs in one <text>, like a label with math;
     // U+1F600 is in no font, so no font may claim it (it keeps falling back as before).
     const label =
@@ -114,12 +133,27 @@ describe("resolveSvgFonts", () => {
     if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
     const files = [fontSet.regular, fontSet.math as string, fontSet.mathItalic as string];
     const original = files.map((f) => parseGlyphCoverage(bytes(f)));
-    // Handed: the set's files (regular first), then the math files the SVG uses.
-    const { fonts } = result.value;
-    const handed = [0, fonts.length - 2, fonts.length - 1].map((i) =>
-      parseGlyphCoverage(fonts[i] as Uint8Array),
+    // Handed: the set's files unchanged (regular first, the math files the SVG
+    // uses last), then one copy per font of the mixed text, in that order.
+    const { fonts, svg } = result.value;
+    expect(fonts).toHaveLength(8);
+    expect(fonts[0]).toEqual(bytes(fontSet.regular));
+    const copies = fonts.slice(5);
+    expect(copies.map((f) => readFontFace(f).family)).toEqual([
+      "BIZ UDPGothic Sumi Runs 1",
+      "STIX Two Math Sumi Runs 2",
+      "STIX Two Text Sumi Runs 3",
+    ]);
+    // The CSS selects the copies; the copies keep weight, style and the PostScript name.
+    expect(svg).toContain(
+      `.d2-123 .text {\n\tfont-family: "BIZ UDPGothic Sumi Runs 1"; font-weight: 400; font-style: normal;`,
     );
-    expect(handed).toHaveLength(3);
+    expect(svg).toContain(
+      `.d2-123 .text-math-italic {\n\tfont-family: "STIX Two Text Sumi Runs 3"; font-weight: 400; font-style: italic;`,
+    );
+    expect(readFontFace(copies[2] as Uint8Array)).toMatchObject({ weight: 400, italic: true });
+    expect(postScriptName(copies[2] as Uint8Array)).toBe("STIXTwoText-Italic");
+    const handed = copies.map((f) => parseGlyphCoverage(f));
     const chars = [..."損失 y∇∣x"].map((c) => c.codePointAt(0) as number);
     for (const [i, coverage] of handed.entries()) {
       for (const cp of chars)
@@ -138,8 +172,10 @@ describe("resolveSvgFonts", () => {
     // The italic font lacked ∇ and the CJK text: the case that lost the italic (#112).
     expect(original[2]?.has(0x2207)).toBe(false);
     expect(original[2]?.has(0x640d)).toBe(false);
-    // The math font is handed without GSUB / GPOS, as before.
-    expect(tableTags(fonts[fonts.length - 2] as Uint8Array)).not.toContain("GSUB");
+    // The math fonts are handed without GSUB / GPOS, as before.
+    for (const font of [fonts[3], fonts[4], copies[1], copies[2]]) {
+      expect(tableTags(font as Uint8Array)).not.toContain("GSUB");
+    }
   });
 
   test("a rewritten cmap keeps the font's variation sequences (format 14)", () => {
@@ -149,11 +185,80 @@ describe("resolveSvgFonts", () => {
       fontSet,
     );
     if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
-    const handed = result.value.fonts[0] as Uint8Array;
-    expect(handed).not.toEqual(gothic);
+    const copy = result.value.fonts.at(-1) as Uint8Array;
+    expect(readFontFace(copy).family).toBe("BIZ UDPGothic Sumi Runs 1");
     expect(cmapSubtables(gothic)).toContain("0/5 f14");
     // Gothic's mapping needs too many format 4 segments: format 12 only.
-    expect(cmapSubtables(handed)).toEqual(["0/5 f14", "3/10 f12"]);
+    expect(cmapSubtables(copy)).toEqual(["0/5 f14", "3/10 f12"]);
+    const f14 = (font: Uint8Array) => {
+      const cmap = readTables(font).require("cmap");
+      for (let i = 0; i < cmap.u16(2); i++) {
+        const offset = cmap.u32(4 + i * 8 + 4);
+        if (cmap.u16(offset) !== 14) continue;
+        const length = cmap.u32(offset + 2);
+        return Array.from({ length: Math.floor(length / 2) }, (_, j) => cmap.u16(offset + j * 2));
+      }
+      return undefined;
+    };
+    expect(f14(copy)).toEqual(f14(gothic));
+  });
+
+  test("a character a run's own font lacks still falls back to an unchanged font (#112)", async () => {
+    // The mixed text makes a math copy that maps 損 to a blank glyph. The
+    // second text's 𝐀 (not in the regular font) must fall back to the
+    // unchanged math file, not the copy: the copy also "has" 損 and would
+    // replace the whole line, drawing 損 blank.
+    const css = `.d2-123 .text { font-family: "d2-123-font-regular"; }
+.d2-123 .text-math { font-family: "d2-123-font-math"; }`;
+    const svg = (body: string) =>
+      `<svg xmlns="http://www.w3.org/2000/svg" width="100pt" height="100pt" viewBox="0 0 200 200"><style type="text/css"><![CDATA[${css}]]></style><g class="d2-123">${body}</g></svg>`;
+    const own = '<text x="0" y="60" class="text">損\u{1D400}</text>';
+    const mixed = '<text x="0" y="20" class="text">損<tspan class="text-math">∇</tspan></text>';
+    const glyphs = (input: string) => {
+      const pdf = svgToPdf(input, { fontSet });
+      if (!pdf.ok) throw new Error(JSON.stringify(pdf.diagnostics));
+      return inspectPdf(pdf.value)
+        .glyphs.filter((g) => g.y === 70)
+        .map((g) => [g.text, g.font.replace(/^[A-Z]{6}\+/, "")]);
+    };
+    const expected = [
+      ["損", "BIZUDPGothic-Regular"],
+      ["\u{1D400}", "STIXTwoMath-Regular"],
+    ];
+    expect(glyphs(svg(own))).toEqual(expected);
+    expect(glyphs(svg(mixed + own))).toEqual(expected);
+    // The picture PPTX draws the same outlines for that text with or without the mixed one.
+    const outlines = (input: string) => {
+      const resolved = resolveSvgFonts(input, fontSet, "pptx");
+      if (!resolved.ok) throw new Error(JSON.stringify(resolved.diagnostics));
+      const out = runEngine(
+        loadEngine(),
+        new TextEncoder().encode(resolved.value.svg),
+        resolved.value.fonts,
+        "picture",
+      );
+      if (!out.ok) throw new Error(out.message);
+      const png = new DataView(out.pdf.buffer, out.pdf.byteOffset).getUint32(0, true);
+      const text = new TextDecoder().decode(out.pdf.subarray(4 + png));
+      return [...text.matchAll(/<path fill="#000000" stroke="none" d="([^"]*)"/g)].map((m) => m[1]);
+    };
+    const alone = outlines(svg(own));
+    expect(alone.length).toBeGreaterThan(0);
+    expect(outlines(svg(mixed + own)).slice(-alone.length)).toEqual(alone);
+  });
+
+  test("a font whose character map cannot be read is pdf/missing-font, not a throw", () => {
+    const dir = mkdtempSync(join(tmpdir(), "sumi-cmap-"));
+    try {
+      const broken = join(dir, "no-cmap.ttf");
+      writeFileSync(broken, withoutTables(bytes(fontSet.regular), ["cmap"]));
+      const result = resolveSvgFonts(d2Svg(["regular"]), { ...fontSet, regular: broken });
+      expect(result.diagnostics).toMatchObject([
+        { code: "pdf/missing-font", message: expect.stringContaining("character map") },
+      ]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   test("leaves the rest of the SVG untouched", () => {

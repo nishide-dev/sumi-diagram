@@ -21,12 +21,17 @@
  * that font lacks a character of *another* run (STIX Two Text Italic has no
  * `∇`), usvg falls back, and if the fallback font has every character of the
  * chunk (BIZ UDPGothic has `y∇x`) it replaces *all* glyphs with it: the run
- * loses its font. {@link resolveSvgFonts} therefore hands the engine copies of
- * such fonts whose `cmap` also maps those other runs' characters (to the
- * space glyph, which is never drawn: those glyphs are discarded), so shaping
- * a chunk with any of its fonts misses nothing and never falls back. A
- * character a run's *own* font lacks is not added anywhere, so it still falls
- * back as before (`lint/missing-glyph` warns about it).
+ * loses its font. {@link resolveSvgFonts} therefore hands the engine, after
+ * the unchanged files, a copy of each font of such texts whose `cmap` also
+ * maps those other runs' characters (to the space glyph, which is never
+ * drawn: usvg keeps each run's glyphs from its own font) and whose family is
+ * renamed (`<family> Sumi Runs <n>`); the CSS selects the copies. Shaping a
+ * chunk with any of its fonts then misses only characters a run's *own* font
+ * lacks (`lint/missing-glyph`), which are added nowhere. For those, usvg's
+ * fallback takes the first face with the character, which is an unchanged
+ * file (a copy has a character only if its file has it, and the files come
+ * first), so they fall back as before and a copy's blank glyphs never stand
+ * in for another text's characters.
  */
 
 import { readFileSync } from "node:fs";
@@ -37,7 +42,7 @@ import { type FontSet, fontSetArgs } from "../../core/theme/fonts";
 import { type GlyphCoverage, parseGlyphCoverage } from "../../lint/cmap";
 import { fontFileFor } from "../../lint/geometry/measure";
 import { FontParseError, readTables } from "../../lint/sfnt";
-import { withCodePoints, withoutTables } from "../font-subset";
+import { withCodePoints, withFamily, withoutTables } from "../font-subset";
 import { classList, descendants, parseXml, type XmlElement, type XmlNode } from "../xml";
 
 /** How a font file names itself: what usvg/fontdb match a CSS rule against. */
@@ -89,7 +94,10 @@ export function readFontFace(bytes: Uint8Array): FontFace {
 export interface ResolvedSvgFonts {
   /** The SVG with D2's font families replaced by the real ones and no `@font-face` rules. */
   svg: string;
-  /** The distinct font files of the font set, regular first (the engine's fallback). */
+  /**
+   * The distinct font files of the font set, regular first (the engine's
+   * fallback), then the renamed copies for texts with runs in several fonts (#112).
+   */
   fonts: Uint8Array[];
   /** Real face per D2 font slot used by the SVG (e.g. `regular`, `bold`). */
   faces: ReadonlyMap<string, FontFace>;
@@ -104,6 +112,7 @@ const FAMILY_SLOT = /font-family:\s*"?(?:d2|sumi)-\d+-font-([a-z-]+)"?\s*;/;
 const LAST_CLASS = /\.([A-Za-z0-9_-]+)\s*$/;
 const D2_FAMILY = /font-family:\s*"?(?:d2|sumi)-\d+-font-([a-z-]+)"?\s*;/g;
 const D2_FAMILY_ANYWHERE = /(?:d2|sumi)-\d+-font-[a-z-]+/;
+const FAMILY_MARK = /\uffff(\d+)\uffff/g;
 
 function error(code: string, message: string, hint?: string): Diagnostic {
   return { code, severity: "error", message, ...(hint !== undefined && { hint }) };
@@ -160,7 +169,8 @@ export function resolveSvgFonts(
     if (problem !== undefined) return { ok: false, diagnostics: [problem] };
   }
   let loadProblem: Diagnostic | undefined;
-  const coverageOf = new Map<string, GlyphCoverage>();
+  // U+FFFF cannot occur in XML, so the mark cannot clash with the SVG's own text.
+  const familyMark = (file: string) => `\uffff${files.indexOf(file)}\uffff`;
 
   // Only CSS is rewritten: the content of each <style> element, located by
   // the strict XML parser's offsets and spliced into the original text. Text
@@ -214,7 +224,8 @@ export function resolveSvgFonts(
       }
       faces.set(slot, face);
       fileOfSlot.set(slot, file as string);
-      return `font-family: ${cssString(face.family)}; font-weight: ${face.weight}; font-style: ${face.italic ? "italic" : "normal"};`;
+      // The family is filled in below: a file may be handed as a renamed copy (#112).
+      return `font-family: ${familyMark(file as string)}; font-weight: ${face.weight}; font-style: ${face.italic ? "italic" : "normal"};`;
     });
     leftover ??= D2_FAMILY_ANYWHERE.exec(css)?.[0];
     parts.push(svg.slice(copied, element.startTagEnd), css);
@@ -222,7 +233,7 @@ export function resolveSvgFonts(
   }
   parts.push(svg.slice(copied));
   if (loadProblem !== undefined) return { ok: false, diagnostics: [loadProblem] };
-  const rewritten = parts.join("");
+  const marked = parts.join("");
   if (unknown.size > 0 || leftover !== undefined) {
     const what =
       unknown.size > 0 ? `font slot(s) ${[...unknown].sort().join(", ")}` : `"${leftover}"`;
@@ -243,30 +254,53 @@ export function resolveSvgFonts(
       { file: fileOfSlot.get(slot) as string, order },
     ]),
   );
-  const extra = foreignCodePoints(parsed.root, fileOfClass, fontSet.regular, (file) => {
-    let coverage = coverageOf.get(file);
-    if (coverage === undefined) {
-      coverage = parseGlyphCoverage(bytes.get(file) as Uint8Array);
-      coverageOf.set(file, coverage);
+  // Copies of fonts of texts with runs in several fonts (#112, see the module
+  // comment), after the unchanged files: usvg's fallback takes the first face
+  // with a character, so it finds the unchanged file before any copy.
+  const copies: Uint8Array[] = [];
+  const familyOf = new Map<string, string>();
+  try {
+    const coverageOf = new Map<string, GlyphCoverage>();
+    const coverage = (file: string) => {
+      let found = coverageOf.get(file);
+      if (found === undefined) {
+        found = parseGlyphCoverage(bytes.get(file) as Uint8Array);
+        coverageOf.set(file, found);
+      }
+      return found;
+    };
+    const extra = foreignCodePoints(parsed.root, fileOfClass, fontSet.regular, coverage);
+    for (const file of files) {
+      const codePoints = extra.get(file);
+      if (codePoints === undefined) continue;
+      const blank = coverage(file).glyph(0x20) || 1;
+      const family = `${(faceOfFile.get(file) as FontFace).family} Sumi Runs ${copies.length + 1}`;
+      const added = new Map([...codePoints].map((cp) => [cp, blank]));
+      copies.push(withFamily(withCodePoints(bytes.get(file) as Uint8Array, added), family));
+      familyOf.set(file, family);
     }
-    return coverage;
-  });
-  for (const [file, codePoints] of extra) {
-    const coverage = coverageOf.get(file) as GlyphCoverage;
-    const blank = coverage.glyph(0x20) || 1;
-    bytes.set(
-      file,
-      withCodePoints(
-        bytes.get(file) as Uint8Array,
-        new Map([...codePoints].map((cp) => [cp, blank])),
-      ),
-    );
+  } catch (e) {
+    const reason = e instanceof Error ? e.message : String(e);
+    return {
+      ok: false,
+      diagnostics: [
+        error(
+          `${format}/missing-font`,
+          `Cannot read the character map of a font of font set "${fontSet.id}": ${reason}.`,
+          "Run `sumi doctor` to check the bundled fonts.",
+        ),
+      ],
+    };
   }
+  const rewritten = marked.replace(FAMILY_MARK, (_, i: string) => {
+    const file = files[Number(i)] as string;
+    return cssString(familyOf.get(file) ?? (faceOfFile.get(file) as FontFace).family);
+  });
   return {
     ok: true,
     value: {
       svg: rewritten,
-      fonts: files.map((f) => bytes.get(f) as Uint8Array),
+      fonts: [...files.map((f) => bytes.get(f) as Uint8Array), ...copies],
       faces,
     },
     diagnostics: [],

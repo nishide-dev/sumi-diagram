@@ -294,6 +294,56 @@ export function withCodePoints(bytes: Uint8Array, extra: ReadonlyMap<number, num
   return assemble(tables);
 }
 
+/**
+ * A copy of a TrueType font with another family name: the `name` records of
+ * the family (ID 1) and typographic family (ID 16) are replaced by one
+ * Windows Unicode (3/1, US English) family record; all other records (the
+ * PostScript name, copyright and license) are kept. Used by the PDF export
+ * (#112, see `pdf/fonts.ts`) so that CSS can select a copy by name.
+ */
+export function withFamily(bytes: Uint8Array, family: string): Uint8Array {
+  const tables = rawTables(bytes);
+  const name = tables.get("name");
+  if (name === undefined) throw new FontParseError("the font has no name table");
+  const v = view(name);
+  const count = v.getUint16(2);
+  const storage = v.getUint16(4);
+  if (6 + count * 12 > name.length) throw new FontParseError("the name table is truncated");
+  const records: { key: number[]; text: Uint8Array }[] = [];
+  for (let i = 0; i < count; i++) {
+    const record = 6 + i * 12;
+    const key = [0, 1, 2, 3].map((j) => v.getUint16(record + j * 2));
+    if (key[3] === 1 || key[3] === 16) continue;
+    const length = v.getUint16(record + 8);
+    const offset = storage + v.getUint16(record + 10);
+    if (offset + length > name.length)
+      throw new FontParseError("a name record is outside the table");
+    records.push({ key, text: name.subarray(offset, offset + length) });
+  }
+  const utf16 = new Writer();
+  for (let i = 0; i < family.length; i++) utf16.u16(family.charCodeAt(i));
+  records.push({ key: [3, 1, 0x0409, 1], text: utf16.bytes() });
+  records.sort((a, b) => {
+    for (let j = 0; j < 4; j++) {
+      const d = (a.key[j] ?? 0) - (b.key[j] ?? 0);
+      if (d !== 0) return d;
+    }
+    return 0;
+  });
+  const header = new Writer()
+    .u16(0)
+    .u16(records.length)
+    .u16(6 + records.length * 12);
+  let offset = 0;
+  for (const { key, text } of records) {
+    for (const k of key) header.u16(k);
+    header.u16(text.length).u16(offset);
+    offset += text.length;
+  }
+  tables.set("name", concat([header.bytes(), ...records.map((r) => r.text)]));
+  return assemble(tables);
+}
+
 const fontBytes = new Map<string, Uint8Array>();
 
 function readFont(path: string): Uint8Array {
