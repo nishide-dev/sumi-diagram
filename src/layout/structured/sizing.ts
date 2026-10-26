@@ -3,10 +3,13 @@
  * shape is made just large enough that its label, padded by the profile's
  * node padding, fits inside the shape's label area as the geometry lint
  * reconstructs it (`src/lint/geometry/shapes.ts`). Explicit `width` /
- * `height` props win. Sizes are whole units (rounded up), like the #86
+ * `height` props win, and outline components use their renderer's footprint
+ * ({@link nodeSize}). Sizes are whole units (rounded up), like the #86
  * prototype's leaves.
  */
 
+import type { NodeIR } from "../../compiler/ir";
+import { getOutlineRenderer } from "../../core/outline";
 import type { NodeShape } from "../../core/registry/manifest";
 import {
   CYLINDER_ARC_UNITS,
@@ -142,4 +145,60 @@ export function stretchableShape(shape: NodeShape): boolean {
 
 function unreachable(value: never): never {
   throw new Error(`internal error: unknown node shape ${String(value)}`);
+}
+
+/** The outline renderer of a node and its parsed params; `undefined` for ordinary shapes. */
+function outlineOf(node: Pick<NodeIR, "key" | "render">) {
+  if (node.render === undefined) return undefined;
+  const renderer = getOutlineRenderer(node.render.renderer);
+  // The registry only accepts manifests whose renderer is bundled.
+  if (renderer === undefined) {
+    throw new Error(`internal error: ${node.key} has an unknown outline renderer`);
+  }
+  return { renderer, params: renderer.params.parse(node.render.params ?? {}) };
+}
+
+/**
+ * The size of a node in the layout: explicit `width` / `height` props win
+ * (for a fixed-aspect node, either one sets both); otherwise the natural
+ * size. An outline component (#53) takes its renderer's footprint around the
+ * padded label box (the padded box is what its `safeArea` must hold, like the
+ * auto engine's two-pass sizing), rounded up to whole units.
+ */
+export function nodeSize(
+  node: Pick<NodeIR, "key" | "shape" | "sizing" | "render" | "width" | "height">,
+  label: TextMetrics | undefined,
+  padding: NodePadding,
+): Size {
+  if (node.sizing === "fixed-aspect-1") {
+    const side = node.width?.units ?? node.height?.units;
+    if (side !== undefined) return { width: side, height: side };
+  }
+  let natural = naturalSize(node.shape, label, padding);
+  const outline = outlineOf(node);
+  if (outline !== undefined) {
+    // Footprints need a positive label box.
+    const box = { width: Math.max(natural.width, 1), height: Math.max(natural.height, 1) };
+    const footprint = outline.renderer.footprint(box, outline.params);
+    natural = { width: Math.ceil(footprint.width), height: Math.ceil(footprint.height) };
+  }
+  return {
+    width: node.width?.units ?? natural.width,
+    height: node.height?.units ?? natural.height,
+  };
+}
+
+/**
+ * The center of a node's label: the center of its outline renderer's
+ * `safeArea` for an outline component (what the geometry lint checks it
+ * against), otherwise {@link labelCenter} of its shape.
+ */
+export function nodeLabelCenter(
+  node: Pick<NodeIR, "key" | "shape" | "render">,
+  rect: { x: number; y: number; width: number; height: number },
+) {
+  const outline = outlineOf(node);
+  if (outline === undefined) return labelCenter(node.shape, rect);
+  const { safeArea } = outline.renderer.draw(rect, outline.params);
+  return { x: safeArea.x + safeArea.width / 2, y: safeArea.y + safeArea.height / 2 };
 }

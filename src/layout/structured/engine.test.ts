@@ -1,9 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { stringify } from "yaml";
 import { buildFigureIR } from "../../compiler/ir";
 import { checkFigure } from "../../core/check";
+import { getOutlineRenderer } from "../../core/outline";
 import { getProfile } from "../../core/profile/builtin";
+import { getFontSet } from "../../core/theme/fonts";
+import { measureLabel } from "../../lint/geometry/measure";
 import { type LayoutFigureOptions, layoutStructuredFigure } from "../index";
 import type { LayoutIR, NodeLayout, Rect } from "../ir";
 import type { TextMeasurer } from "../text";
@@ -53,6 +56,13 @@ function rectOf(layout: LayoutIR, id: string): Rect {
   if (element === undefined) throw new Error(`no ${id}`);
   return element.rect;
 }
+
+/** `inner` lies in `outer` (up to the 1/1000-unit rounding of both). */
+const inside = (outer: Rect, inner: Rect) =>
+  inner.x >= outer.x - 0.002 &&
+  inner.y >= outer.y - 0.002 &&
+  inner.x + inner.width <= outer.x + outer.width + 0.002 &&
+  inner.y + inner.height <= outer.y + outer.height + 0.002;
 
 const close = (actual: number, expected: number) =>
   expect(Math.abs(actual - expected)).toBeLessThanOrEqual(0.001);
@@ -280,6 +290,88 @@ describe("attach", () => {
   });
 });
 
+describe("sizes from props and outline components", () => {
+  test.each([
+    ["circle", { width: "20pt" }],
+    ["circle", { height: "20pt" }],
+    ["square", { width: "20pt" }],
+    ["square", { height: "20pt" }],
+  ])("%s with only %o stays square", (component, props) => {
+    const layout = layoutOf(
+      figure({ stack: { items: ["c"] } }, [{ id: "c", component, label: "A", props }]),
+    );
+    expect(rectOf(layout, "c")).toMatchObject({ width: 40, height: 40 });
+  });
+
+  const MULTILINE = "Long label here\nSecond line here\nThird line here";
+  test.each(["trapezoid", "stack"])(
+    "%s: sized by its renderer's footprint, the label in its safe area (bundled fonts)",
+    (component) => {
+      const text = figure({ stack: { align: "stretch", items: ["o", "wide"] } }, [
+        { id: "o", component, label: MULTILINE },
+        box("o2", "x", { attach: { to: "o", side: "east" } }),
+        box("wide", "A much wider box than the outline component itself, to stretch it"),
+      ]);
+      for (const stretched of [false, true]) {
+        const source = stretched ? text : text.replace("align: stretch", "align: center");
+        const result = layoutStructuredFigure(source);
+        if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+        const { ir, layout } = result.value;
+        const node = layout.nodes.find((n) => n.key === "n:o");
+        const irNode = ir.nodes.find((n) => n.key === "n:o");
+        const renderer = getOutlineRenderer(irNode?.render?.renderer ?? "");
+        if (node?.label === undefined || renderer === undefined) throw new Error("no outline");
+        const params = renderer.params.parse(irNode?.render?.params ?? {});
+        const { safeArea } = renderer.draw(node.rect, params);
+        expect(inside(safeArea, node.label.box)).toBe(true);
+        if (!stretched) {
+          const padded = {
+            width: Math.ceil(node.label.width + 28),
+            height: Math.ceil(node.label.height + 14),
+          };
+          const footprint = renderer.footprint(padded, params);
+          expect(node.rect.width).toBe(Math.ceil(footprint.width));
+          expect(node.rect.height).toBe(Math.ceil(footprint.height));
+        }
+      }
+    },
+  );
+});
+
+describe("labels and the geometry lint's re-measurement", () => {
+  test.each(["Add & Norm", "Two\nlines", "\nblank\n\nlines\n", "Japanese 日本語\nand more"])(
+    "%j: the glyph boxes the lint measures lie inside the layout's line box",
+    (label) => {
+      const text = figure({ stack: { items: ["t", "l"] } }, [
+        box("t", label),
+        { id: "l", component: "label", label },
+      ]);
+      const result = layoutStructuredFigure(text);
+      if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+      const fonts = getFontSet(result.value.ir.meta.fontSetId);
+      if (fonts === undefined) throw new Error("no fonts");
+      for (const node of result.value.layout.nodes) {
+        const layoutLabel = node.label;
+        if (layoutLabel === undefined) throw new Error("no label");
+        const measured = measureLabel(
+          {
+            text: layoutLabel.lines.join("\n"),
+            anchor: layoutLabel.anchor,
+            fontSizeUnits: layoutLabel.fontSizeUnits,
+            lines: layoutLabel.lines.length,
+            lineHeightUnits: layoutLabel.lineHeightUnits,
+            font: layoutLabel.font,
+          },
+          fonts,
+        );
+        expect(measured.texts).toEqual([...layoutLabel.lines]);
+        for (const line of measured.visibleLines) expect(inside(layoutLabel.box, line)).toBe(true);
+        expect(inside(node.rect, layoutLabel.box)).toBe(true);
+      }
+    },
+  );
+});
+
 describe("output", () => {
   test("labels: centered in the node, baseline from the font's metrics", () => {
     const layout = layoutOf(figure({ stack: { items: ["t"] } }, [box("t", "AB\nA")]));
@@ -352,7 +444,7 @@ describe.each(["a-transformer", "b-adaln-panel"])("%s (bundled fonts)", (name) =
     const first = `${JSON.stringify(run(), null, 2)}\n`;
     expect(`${JSON.stringify(run(), null, 2)}\n`).toBe(first);
     const golden = `${goldens}/${name}.layout.json`;
-    if (update || !existsSync(golden)) {
+    if (update) {
       mkdirSync(goldens, { recursive: true });
       writeFileSync(golden, first);
     }
@@ -455,12 +547,6 @@ describe("randomized containment", () => {
     };
     return stringify({ version: 1, figure: { id: "r", layout: { arrange: root } }, groups, nodes });
   }
-
-  const inside = (outer: Rect, inner: Rect) =>
-    inner.x >= outer.x - 0.002 &&
-    inner.y >= outer.y - 0.002 &&
-    inner.x + inner.width <= outer.x + outer.width + 0.002 &&
-    inner.y + inner.height <= outer.y + outer.height + 0.002;
 
   test("every node and group (attached ones included) lies inside its parent's content", () => {
     let attachedInGroups = 0;

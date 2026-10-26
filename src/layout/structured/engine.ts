@@ -22,7 +22,11 @@
  *    (moving them away from both edges), keeps `start` / `end` items at their
  *    edge, or widens `stretch` items that already reach the edges, so an
  *    attached node, centered on its target's side, can only end up further
- *    inside. (A seeded randomized test checks this containment.)
+ *    inside. Put precisely: when the frame grows by Δ on an axis, every
+ *    arranged edge moves by an amount in [0, Δ] (nested boxes compose), and an
+ *    attached node of fixed size follows one target edge or the mean of two,
+ *    so it does too, through chains. (A seeded randomized test checks the
+ *    containment.)
  * 4. Normalize: shift so the content starts at the margin, round every
  *    coordinate to 1/1000 unit; the canvas is the content plus the margins,
  *    rounded up to whole units.
@@ -53,7 +57,7 @@ import {
   type TextMetrics,
 } from "../ir";
 import { fontSetMeasurer, measureText, type TextMeasurer } from "../text";
-import { labelCenter, naturalSize, type Size, stretchableShape } from "./sizing";
+import { nodeLabelCenter, nodeSize, type Size, stretchableShape } from "./sizing";
 
 /** The engine name recorded in the Layout IR. */
 export const STRUCTURED_ENGINE = "sumi-structured";
@@ -136,11 +140,7 @@ class StructuredLayout {
       this.#nodes.set(node.key, node);
       const label = measureText(node.label, node.style, measurer);
       if (label !== undefined) this.#labels.set(node.key, label);
-      const natural = naturalSize(node.shape, label, padding);
-      this.#leafSizes.set(node.key, {
-        width: node.width?.units ?? natural.width,
-        height: node.height?.units ?? natural.height,
-      });
+      this.#leafSizes.set(node.key, nodeSize(node, label, padding));
       if (node.attach !== undefined) {
         const container = node.parent ?? ROOT;
         const list = this.#attached.get(container) ?? [];
@@ -349,7 +349,7 @@ class StructuredLayout {
       const metrics = this.#labels.get(node.key);
       const rect = this.#rect(node.key);
       if (metrics !== undefined) {
-        labels.set(node.key, placeText(metrics, labelCenter(node.shape, rect)));
+        labels.set(node.key, placeText(metrics, nodeLabelCenter(node, rect)));
       }
     }
     for (const group of this.#ir.groups) {

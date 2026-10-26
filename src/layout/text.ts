@@ -3,8 +3,9 @@
  * with the theme's bundled TTF files, read in-process by the same font reader
  * and with the same rules as the geometry lint (§6.5): `hmtx` advance widths
  * without kerning or shaping, `hhea` ascender / descender, and whitespace
- * collapsed as an SVG `<text>` without `xml:space` draws it. A layout and the
- * lint's re-measurement of the SVG drawn from it therefore agree.
+ * collapsed as an SVG `<text>` without `xml:space` draws it. The lint's
+ * re-measurement of an SVG drawn from a layout therefore finds the same lines
+ * and widths, and glyph boxes inside the layout's line boxes.
  */
 
 import type { FontSet } from "../core/theme/fonts";

@@ -4,6 +4,10 @@
  * a future ELK-direct backend (#57 §5) returns the same type. The orthogonal
  * router (#90) fills in the edge routes, and the SVG writer (#91) draws it.
  *
+ * Geometry only: components, outline renderers, effective styles (stroke
+ * widths, arrowheads) and the font set stay in the Figure IR. Consumers join
+ * the two by `ElementKey`.
+ *
  * Conventions:
  * - Coordinates are SVG user units (1 unit = 0.5pt, like D2 and `inspectSvg`),
  *   y pointing down, origin at the top-left corner of the canvas (the margin
@@ -69,7 +73,12 @@ export interface TextMetrics {
 
 /** A placed label: metrics plus where it is drawn. */
 export interface TextLayout extends TextMetrics {
-  /** The label's box: every line centered in it, lines stacked by `lineHeightUnits`. */
+  /**
+   * The label's line box: `lines.length × lineHeightUnits` high, as wide as
+   * the widest line, every line centered in it. A typographic box, not the
+   * glyph bounds: the geometry lint's per-line ascender-to-descender boxes lie
+   * inside it (blank lines take their height here; the lint skips them).
+   */
   readonly box: Rect;
   /**
    * Where an SVG `<text text-anchor="middle">` goes: x = the center of the
