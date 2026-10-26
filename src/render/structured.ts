@@ -33,7 +33,7 @@
  * resolution maps back to the font set like D2's `d2-<n>-font-<class>`.
  *
  * The output is a pure function of the two IRs and the font files: numbers
- * are written with at most 3 decimals, and no maps are iterated except in
+ * are written with at most 6 decimals, and no maps are iterated except in
  * insertion order.
  */
 
