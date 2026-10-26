@@ -128,6 +128,15 @@ describe("parseLabel", () => {
     expect(errors("$\\text{ab$")[0]).toMatchObject({ at: "{", start: 6 });
   });
 
+  test("braces inside \\text count toward the nesting limit", () => {
+    const nested = (prefix: string, n: number) => `$${prefix}{${"{".repeat(n)}x${"}".repeat(n)}}$`;
+    for (const prefix of ["\\text", "x_\\text"]) {
+      expect(parseLabel(nested(prefix, 31)).ok).toBe(true);
+      expect(errors(nested(prefix, 32))[0]?.message).toContain("nests more than 32 groups");
+      expect(errors(nested(prefix, 20000))[0]?.at).toBe("{");
+    }
+  });
+
   test("looksLikeMath finds math syntax, not dollar amounts", () => {
     expect(looksLikeMath("$5 or $10")).toBe(false);
     expect(looksLikeMath("costs $5")).toBe(false);

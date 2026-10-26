@@ -447,7 +447,9 @@ class MathParser {
           "Commands are not supported in \\text{…}; write \\{, \\}, \\$ or \\\\ for those characters.",
         );
       }
-      if (c === "{") depth++;
+      if (c === "{" && this.#depth + ++depth > MAX_DEPTH) {
+        this.#error(this.#pos, this.#pos + 1, `Label math nests more than ${MAX_DEPTH} groups.`);
+      }
       if (c === "}") {
         if (depth === 0) return out;
         depth--;
