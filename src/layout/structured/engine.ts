@@ -275,7 +275,9 @@ class StructuredLayout {
     const node = this.#nodes.get(item);
     if (node === undefined) return true;
     const explicit = vertical ? node.width : node.height;
-    return explicit === undefined && stretchableShape(node.shape);
+    // Outline components keep their footprint: stretching changes the
+    // renderer's safe area (e.g. a taller trapezoid has deeper slants).
+    return explicit === undefined && node.render === undefined && stretchableShape(node.shape);
   }
 
   /** Places a container's arrange tree and attached nodes in its content area. */

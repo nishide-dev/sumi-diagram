@@ -305,16 +305,21 @@ describe("sizes from props and outline components", () => {
 
   const MULTILINE = "Long label here\nSecond line here\nThird line here";
   test.each(["trapezoid", "stack"])(
-    "%s: sized by its renderer's footprint, the label in its safe area (bundled fonts)",
+    "%s: sized by its renderer's footprint, never stretched, the label in its safe area",
     (component) => {
-      const text = figure({ stack: { align: "stretch", items: ["o", "wide"] } }, [
+      const nodes = [
         { id: "o", component, label: MULTILINE },
         box("o2", "x", { attach: { to: "o", side: "east" } }),
-        box("wide", "A much wider box than the outline component itself, to stretch it"),
-      ]);
-      for (const stretched of [false, true]) {
-        const source = stretched ? text : text.replace("align: stretch", "align: center");
-        const result = layoutStructuredFigure(source);
+        box("big", "X", { props: { width: "200pt", height: "200pt" } }),
+      ];
+      // Stretching would change the renderer's safe area (a taller trapezoid
+      // has deeper slants), so outline components keep their footprint.
+      for (const arrange of [
+        { stack: { align: "center", items: ["o", "big"] } },
+        { stack: { align: "stretch", items: ["o", "big"] } },
+        { row: { align: "stretch", items: ["o", "big"] } },
+      ]) {
+        const result = layoutStructuredFigure(figure(arrange, nodes));
         if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
         const { ir, layout } = result.value;
         const node = layout.nodes.find((n) => n.key === "n:o");
@@ -324,15 +329,13 @@ describe("sizes from props and outline components", () => {
         const params = renderer.params.parse(irNode?.render?.params ?? {});
         const { safeArea } = renderer.draw(node.rect, params);
         expect(inside(safeArea, node.label.box)).toBe(true);
-        if (!stretched) {
-          const padded = {
-            width: Math.ceil(node.label.width + 28),
-            height: Math.ceil(node.label.height + 14),
-          };
-          const footprint = renderer.footprint(padded, params);
-          expect(node.rect.width).toBe(Math.ceil(footprint.width));
-          expect(node.rect.height).toBe(Math.ceil(footprint.height));
-        }
+        const padded = {
+          width: Math.ceil(node.label.width + 28),
+          height: Math.ceil(node.label.height + 14),
+        };
+        const footprint = renderer.footprint(padded, params);
+        expect(node.rect.width).toBe(Math.ceil(footprint.width));
+        expect(node.rect.height).toBe(Math.ceil(footprint.height));
       }
     },
   );
