@@ -107,11 +107,20 @@ subset drawn as real, searchable text in the bundled STIX Two math fonts:
 - `\$` (outside `$...$`) is a literal dollar sign; in auto figures it is
   drawn as written.
 - Not supported (`component/invalid-math`): `\frac`, `\sqrt`, `\mathbf`,
-  `\mathbb`, matrices, `$$`, nested scripts, an unclosed `$` or `{`,
-  characters it does not know (`@`, `ℝ`, …). Rewrite with
+  `\mathbb`, accents (`\hat`, `\tilde`, `\bar`, `\vec`, `\dot`, …),
+  matrices, `$$`, nested scripts, an unclosed `$` or `{`,
+  characters it does not know (`@`, `ℝ`, `ŷ`, …). Rewrite with
   the subset (`a/b`, `\mathrm{…}`), put text in `\text{…}`, or type a
   special character outside the `$...$` (`'$x \in$ ℝ$^d$'`: structured
   figures draw `ℝ`, `₂`, `∼`, `⋯` and similar with the math font).
+- **Accented variables** (ŷ, x̃, ȳ): type the accented letter outside the
+  `$...$`, with a script after it if needed (`'ŷ$_t$'`), or inside
+  `\text{…}` (`'$\text{ŷ} = f(x)$'`). It is drawn upright in the label
+  font, not as an italic variable. Use a precomposed character (`ŷ`, `ā`)
+  if `lint` accepts it; otherwise the letter followed by a combining
+  accent in a double-quoted label (`"x̃"` for x̃, `"ȳ"` for ȳ,
+  whose precomposed form gets `lint/missing-glyph`). Or change the
+  notation if the user agrees: `$y'$`, `$y^{*}$`.
 - **Quote math labels in single quotes**: backslashes stay literal
   (`label: '$\alpha_1$'`). In a flow mapping (`{ … }`) a label containing
   `,` must be quoted, otherwise YAML splits it and Sumi reports

@@ -87,8 +87,7 @@ Exit 0 and `Ready to render.` means D2, the fonts and the geometry lint
 are in place. If a check fails, relay its `hint` and stop — except that a
 `d2` failure alone does not block structured figures (they render without
 D2). For `d2`: reinstall the release tarball (D2 is bundled), run
-`bun run d2:install` in a source checkout, or set `SUMI_D2_PATH` to a D2
-v0.9.0 binary.
+`bun run d2:install` in a source checkout, or set `SUMI_D2_PATH` (v0.9.0).
 
 ### 3. Discover components, themes and profiles
 
@@ -96,7 +95,6 @@ v0.9.0 binary.
 sumi catalog --json              # { version, components, themes, profiles }
 sumi catalog --json --section themes --section profiles   # only those sections
 sumi catalog --kind node         # human-readable table, one kind of component
-sumi catalog                     # human-readable tables
 sumi catalog --icons "wave sine" # bundled icons whose names contain all the words
 ```
 
@@ -189,17 +187,19 @@ width <M>mm[, TOO WIDE]; theme <theme>)`; with `--json`, read `size`
 (`widthMm`, `heightMm`, the profile's limits, `fits`; `null` if nothing
 was rendered).
 
-- `geometry/exceeds-page-width`: change the layout (usually
-  `direction: down`) or shorten labels. The hint also mentions a wider
-  profile — that is the user's choice; ask, never switch on your own.
+- `geometry/exceeds-page-width` / `-height`: shorten labels, change the
+  layout. Auto: the other `layout.direction`; if both overflow, see
+  [layout-tips](references/layout-tips.md#too-wide-with-right-too-tall-with-down).
+  Structured ignores it: re-arrange the trees (a long row as two rows),
+  reduce `gap`s. A wider profile (none allows over 220mm height), if not on it,
+  is the user's choice: ask, never switch on your own.
 - Geometry warnings (`edge-crosses-label`, `label-collision`, …) are
   readability problems D2/ELK does not always let you fix; try the
   workarounds in [layout-tips](references/layout-tips.md) once or twice,
   then keep them and mention them in the report.
-- Structured figures: `layout/no-route` (no SVG written) means an edge
-  has no room — widen that `gap`
-  ([structured](references/structured.md#spacing-that-routes));
-  `--emit-d2` is refused for them (they do not use D2).
+- Structured: `layout/no-route` (no SVG written) means an edge has no room:
+  widen that `gap` or move an attached node out of it ([structured](references/structured.md#spacing-that-routes)).
+  `--emit-d2` is refused for structured figures (they do not use D2).
 - Render errors (`svg/*`, `backend/*`, `asset/*`) and every `geometry/*`
   code are in [diagnostics](references/diagnostics.md).
 

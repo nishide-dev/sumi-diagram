@@ -115,14 +115,14 @@ exit code 1. Configure like structural rules
 
 | Code | Default | Fix |
 | --- | --- | --- |
-| `geometry/exceeds-page-width` | error | `direction: down`, shorter labels, fewer nodes side by side; a wider profile only if the user agrees |
-| `geometry/exceeds-page-height` | error | paper profiles 220mm, `presentation-16x9` 190.5mm: `direction: right`, fewer layers, or split the figure |
+| `geometry/exceeds-page-width` | error | shorter labels; auto: `direction: down`, fewer nodes side by side; structured: re-arrange the trees (a long row as two rows), smaller `gap`s; too wide and too tall: [two rows](layout-tips.md#too-wide-with-right-too-tall-with-down); a wider profile only if the user agrees and the figure is not already on `paper-double` |
+| `geometry/exceeds-page-height` | error | paper profiles 220mm, `presentation-16x9` 190.5mm (no profile allows more than 220mm): auto: `direction: right`, fewer layers; structured: re-arrange the trees (a long stack as a row of stacks), smaller `gap`s; or split the figure |
 | `geometry/text-too-small` | error | as `profile/font-too-small` (a safety net after rendering) |
 | `geometry/label-overflow` | error | remove or enlarge explicit `width`/`height` (the `path` points at `props` then), shorten or break the label, or use a shape with more room for text (`box`) |
 | `geometry/out-of-canvas` | error | shorten labels; if it persists, report it as a Sumi bug |
-| `geometry/node-overlap` | warning | review explicit sizes; put the nodes in the same group |
+| `geometry/node-overlap` | warning | review explicit sizes; put the nodes in the same group; structured: an attached node in a `gap` overlaps its neighbour, put it in the tree or widen the `gap` ([attach](structured.md#attach-side-notes)) |
 | `geometry/label-collision` | warning | shorten labels; change `direction` or grouping |
-| `geometry/edge-crosses-label` | warning | connect elements inside the group rather than the group, change `direction`, shorten the label (see layout-tips) |
+| `geometry/edge-crosses-label` | warning | auto: connect elements inside the group rather than the group, change `direction`, shorten the label (see layout-tips); structured: the group label is at the top centre, enter from the side or move the label ([arrange trees](structured.md#arrange-trees)) |
 | `geometry/edge-through-node` | warning | an edge is drawn across a node it does not connect: change `layout.direction` or the grouping so the layout has a free path |
 | `geometry/aspect-distorted` | warning | fewer edges on that `circle`/`square`, or use `ellipse`/`box` |
 | `geometry/reversed-edge` | warning | ELK reversed the wrong edge of a cycle (typically a loop inside a group): swap the order of the loop's nodes in `nodes`, or move the loop out of the group |
