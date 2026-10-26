@@ -17,7 +17,7 @@ import { join } from "node:path";
 import { compileFigure } from "../../compiler/compile";
 import { DEFAULT_FONT_SET_ID, getFontSet } from "../../core/theme/fonts";
 import { measureLabel, renderedLines } from "../../lint/geometry/measure";
-import { readSvgMetadata } from "../finalize";
+import { assetProvenanceEntries, readSvgMetadata } from "../finalize";
 import { inspectSvg } from "../inspect";
 import { loadEngine, PDF_ENGINE_VERSION, PDF_WASM_PATH, PDF_WASM_SHA256 } from "./engine";
 import { svgToPdf } from "./pdf";
@@ -98,6 +98,8 @@ describe.each(EXAMPLES)("%s", (example) => {
       SumiFontSet: m.fontSet,
       SumiInputSha256: m.inputSha256,
       ...(m.d2Sha256 !== undefined && { SumiD2Sha256: m.d2Sha256 }),
+      // Icons and images (#94): the assets' hash and the third-party notices.
+      ...Object.fromEntries(assetProvenanceEntries(m)),
     });
   });
 

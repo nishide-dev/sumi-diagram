@@ -9,8 +9,6 @@
   "examples/pipeline/pipeline.glued": "7f3f0553a114aa67858d0cbf7f61872b8813e90e4ed1f7ea204ab3f049e10f38",
   "examples/system-architecture/system-architecture.freeform": "0a938fbf64f6ce9030c8c7770678acb6dada677a4ddfcf6b95c5773e337b57f3",
   "examples/system-architecture/system-architecture.glued": "895d7cade9b222df4bdf9d1b60499c3c91f1c6a06d4776614141bd36c8614077",
-  "examples/transformer/transformer.freeform": "5dba93b777389af6508dcf52c9f0f64c89eb6ae59c541fa236faa71eefffdd99",
-  "examples/transformer/transformer.glued": "312569ed01ed00ec6fc51a7c6fce1d3ae4b8b841949a0cb685407c03dc618302",
   "docs/gallery/components/sumi-box.minimal.freeform": "8b1074020ad839b234f81fa8ee4bc3e041d013429f6639e878222bfe744ccb57",
   "docs/gallery/components/sumi-box.minimal.glued": "a760ad072691f17f58fe098a18430a1f5b05a918ed34296209b6b8924d6eeb99",
   "docs/gallery/components/sumi-box.academic.freeform": "945c235cf98542b78800af0d8f8813a47c45ecb9bc7cb12c7f0d653cf293256b",

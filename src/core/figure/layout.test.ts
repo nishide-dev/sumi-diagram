@@ -658,19 +658,13 @@ describe("figure A of #86", () => {
     expect(groupOf.get("enc-pe-label")).toBeUndefined();
   });
 
-  test("the research YAML reports only features owned by later issues", async () => {
+  test("the research YAML checks with zero diagnostics", async () => {
     const text = await Bun.file(
       join(ROOT, "research/86-paper-figures/figures/ideal/a-transformer.sumi.yaml"),
     ).text();
-    // `requires: ">=0.4.0"` is satisfied once v0.4.0 is released.
+    // `requires: ">=0.4.0"` is satisfied once v0.4.0 is released. `tone`,
+    // `operator` and `junction` are #92; `icon: tabler/wave-sine` is #94.
     const { state } = checkFigure(text.replace(/^requires: .*\n/m, ""));
-    const fields = new Set(
-      state.diagnostics
-        .filter((d) => d.code === "schema/unknown-field")
-        .map((d) => String(d.path?.at(-1))),
-    );
-    // `tone`, `operator` and `junction` (#92) are known now; `icon` is #94.
-    expect([...new Set(state.diagnostics.map((d) => d.code))]).toEqual(["schema/unknown-field"]);
-    expect([...fields]).toEqual(["icon"]);
+    expect(state.diagnostics).toEqual([]);
   });
 });

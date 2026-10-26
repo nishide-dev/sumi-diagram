@@ -152,7 +152,7 @@ function decode(raw: string, offset: number): string {
 }
 
 /** Converts an offset into a 1-based line and column. */
-function position(text: string, offset: number): { line: number; column: number } {
+export function position(text: string, offset: number): { line: number; column: number } {
   let line = 1;
   let lineStart = 0;
   for (let i = text.indexOf("\n"); i !== -1 && i < offset; i = text.indexOf("\n", i + 1)) {

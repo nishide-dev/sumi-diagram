@@ -10,7 +10,7 @@
  * upstream patch, a second PDF implementation or a new host/WASM metadata ABI.
  */
 
-import type { SumiSvgMetadata } from "../finalize";
+import { assetProvenanceEntries, type SumiSvgMetadata } from "../finalize";
 import { PDF_ENGINE_VERSION } from "./engine";
 
 /** Encodes a PDF text string: a literal for printable ASCII, else UTF-16BE hex with a BOM. */
@@ -41,6 +41,7 @@ export function documentInfoEntries(metadata: SumiSvgMetadata | undefined): [str
     ...(metadata.d2Sha256 === undefined
       ? []
       : [["SumiD2Sha256", metadata.d2Sha256] as [string, string]]),
+    ...assetProvenanceEntries(metadata),
   ];
 }
 

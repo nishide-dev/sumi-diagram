@@ -20,6 +20,12 @@ export const GALLERY_DIR = "docs/gallery";
 /** Profile of the component samples: wide enough for every sample. */
 export const SAMPLE_PROFILE = "paper-double";
 
+/**
+ * The directory the `sumi/image` sample's files are read from (#94), relative
+ * to the repository root: the self-made test images.
+ */
+export const SAMPLE_ASSET_DIR = "tests/fixtures/assets";
+
 /** The example compared across every theme × profile. */
 export const COMPARISON_EXAMPLE = "examples/pipeline/pipeline.sumi.yaml";
 
@@ -44,6 +50,8 @@ export interface ComponentSample {
   source: string;
   /** One rendering per built-in theme; the first is the source as written. */
   renderings: Rendering[];
+  /** Where image paths resolve (repository-relative), for a sample with images (#94). */
+  assetBase?: string;
 }
 
 export interface ExampleEntry {
@@ -69,7 +77,9 @@ export const componentStem = (entry: CatalogEntry): string => entry.id.replace("
  *
  * Marks take no label (#92), so a `box` named after the variant points at
  * each one: a glyph mark (`operator`) once per variant and once per glyph, a
- * point mark (`junction`) once per variant, branching to two boxes.
+ * point mark (`junction`) once per variant, branching to two boxes. An image
+ * (#94) also takes no label: a `box` points at it once per variant, and once
+ * per other fit and format ({@link SAMPLE_ASSET_DIR}).
  */
 export function sampleSource(entry: CatalogEntry, theme: string): string {
   const lines = [
@@ -81,10 +91,14 @@ export function sampleSource(entry: CatalogEntry, theme: string): string {
     `  theme: ${theme}`,
     `  profile: ${SAMPLE_PROFILE}`,
     "  layout:",
-    // Edges and marks are drawn as chains, one per row.
-    `    direction: ${entry.kind === "edge" || (entry.kind === "node" && entry.mark !== undefined) ? "right" : "down"}`,
+    // Edges, marks and images are drawn as chains, one per row.
+    `    direction: ${entry.kind === "edge" || (entry.kind === "node" && (entry.mark !== undefined || entry.embed !== undefined)) ? "right" : "down"}`,
   ];
   const variants = entry.variants;
+  if (entry.kind === "node" && entry.embed !== undefined) {
+    lines.push(...imageSample(entry));
+    return `${lines.join("\n")}\n`;
+  }
   if (entry.kind === "node" && entry.mark !== undefined) {
     lines.push(...markSample(entry, entry.mark));
     return `${lines.join("\n")}\n`;
@@ -133,6 +147,32 @@ export function sampleSource(entry: CatalogEntry, theme: string): string {
 
 type MarkedEntry = Extract<CatalogEntry, { kind: "node" }>;
 
+function imageSample(entry: MarkedEntry): string[] {
+  const rows = [
+    ...entry.variants.map((v) => ({
+      id: v,
+      variant: v,
+      props: "{ src: gradient.png, height: 24pt }",
+    })),
+    {
+      id: "cover",
+      variant: "default",
+      props: "{ src: gradient.png, width: 48pt, height: 18pt, fit: cover }",
+    },
+    { id: "svg", variant: "default", props: "{ src: shapes.svg, height: 24pt }" },
+  ];
+  const nodes: string[] = [];
+  const edges: string[] = [];
+  for (const row of rows) {
+    nodes.push(`  - id: ${row.id}`, "    component: box", `    label: ${row.id}`);
+    nodes.push(`  - id: ${row.id}-${entry.name}`, `    component: ${entry.id}`);
+    if (row.variant !== "default") nodes.push(`    variant: ${row.variant}`);
+    nodes.push(`    props: ${row.props}`);
+    edges.push(`  - from: ${row.id}`, `    to: ${row.id}-${entry.name}`);
+  }
+  return ["", "nodes:", ...nodes, "", "edges:", ...edges];
+}
+
 function markSample(entry: MarkedEntry, mark: NonNullable<MarkedEntry["mark"]>): string[] {
   const nodes: string[] = [];
   const edges: string[] = [];
@@ -179,6 +219,7 @@ export function componentSamples(): ComponentSample[] {
     entry,
     fileName: `${componentStem(entry)}.sumi.yaml`,
     source: sampleSource(entry, first),
+    ...(entry.kind === "node" && entry.embed !== undefined && { assetBase: SAMPLE_ASSET_DIR }),
     renderings: THEMES.map((theme) => ({
       output: `${GALLERY_DIR}/components/${componentStem(entry)}.${theme}.svg`,
       theme,

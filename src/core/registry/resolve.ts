@@ -4,9 +4,10 @@
  * `state.components` (design doc §0, §3).
  *
  * Nodes whose component draws only text (shape `text`, e.g. `sumi/label`)
- * need a label with visible text (`component/missing-label`). Nodes drawn as
- * a mark (manifest `mark`, e.g. `sumi/operator`) take no label
- * (`component/unexpected-label`), and point marks no tone
+ * need a label with visible text (`component/missing-label`) unless they draw
+ * an icon (#94). Nodes drawn as a mark (manifest `mark`, e.g.
+ * `sumi/operator`) or embedding an image (manifest `embed`, `sumi/image`)
+ * take no label (`component/unexpected-label`), and point marks no tone
  * (`component/tone-unsupported`).
  *
  * Label math (`$...$`, #93) is parsed here: in structured figures invalid
@@ -56,6 +57,7 @@ interface Element {
   label: string;
   variant: string;
   tone: string | undefined;
+  icon: string | undefined;
   props: Record<string, unknown>;
 }
 
@@ -89,7 +91,10 @@ export function resolveComponents(state: CheckState, registry: Registry, locate:
     const usage = registry.validateUsage(manifest, element);
     report(usage.diagnostics, (d) => [...element.path, ...(d.path ?? [])]);
     const missingLabel =
-      manifest.kind === "node" && manifest.shape === "text" && isBlankForD2(element.label);
+      manifest.kind === "node" &&
+      manifest.shape === "text" &&
+      element.icon === undefined &&
+      isBlankForD2(element.label);
     if (missingLabel) {
       const diagnostic: Diagnostic = {
         code: "component/missing-label",
@@ -100,15 +105,19 @@ export function resolveComponents(state: CheckState, registry: Registry, locate:
       report([diagnostic], () => [...element.path, "label"]);
     }
     const mark = manifest.kind === "node" ? manifest.mark : undefined;
-    const unexpectedLabel = mark !== undefined && !isBlankForD2(element.label);
+    const embed = manifest.kind === "node" ? manifest.embed : undefined;
+    const unexpectedLabel =
+      (mark !== undefined || embed !== undefined) && !isBlankForD2(element.label);
     if (unexpectedLabel) {
       const diagnostic: Diagnostic = {
         code: "component/unexpected-label",
         severity: "error",
         message:
-          mark.type === "glyph"
-            ? `${componentId(manifest)} draws the symbol chosen by props.${mark.prop}, so it takes no label.`
-            : `${componentId(manifest)} is drawn as a point, so it takes no label.`,
+          mark === undefined
+            ? `${componentId(manifest)} draws the image file of props.src, so it takes no label.`
+            : mark.type === "glyph"
+              ? `${componentId(manifest)} draws the symbol chosen by props.${mark.prop}, so it takes no label.`
+              : `${componentId(manifest)} is drawn as a point, so it takes no label.`,
         hint: "Remove the label; put text next to it with a label node if needed.",
       };
       report([diagnostic], () => [...element.path, "label"]);
@@ -201,6 +210,7 @@ function* elements(state: CheckState): Generator<Element> {
       label: element.label,
       variant: element.variant,
       tone: entry.kind === "edge" ? undefined : entry.element.tone,
+      icon: entry.kind === "node" ? entry.element.icon : undefined,
       props: entry.kind === "group" ? {} : entry.element.props,
     };
   }

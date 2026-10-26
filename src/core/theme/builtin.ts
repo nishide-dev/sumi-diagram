@@ -60,6 +60,11 @@ function componentStyles(styles: VariantStyles): NonNullable<ThemeDefinition["co
     ...Object.fromEntries(SHAPE_NODES.map((name) => [name, styles.shape])),
     label: styles.label,
     junction: styles.junction,
+    // An image (#94) is drawn as it is: no background, and a frame only when asked for.
+    image: {
+      default: { fill: "transparent", strokeWidth: "0pt" },
+      framed: { fill: "transparent", strokeWidth: "{line.regular}" },
+    },
     container: styles.container,
     ...Object.fromEntries(EDGES.map((name) => [name, styles.edge])),
   };

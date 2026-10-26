@@ -27,6 +27,11 @@
  * carries the route and line width / dashes but no `stroke` (SVG's initial
  * value, `none`). At an arrowhead the wire stops at the arrowhead's base.
  *
+ * Icons and images (#94) are drawn by `assetMarkup()` next to the node's
+ * `g.shape`: an icon after it, as shapes under one transformed `g.sumi-icon`
+ * (never a nested `<svg>`); an image before it (under the frame), as one
+ * `image.sumi-image` with a `data:` URI.
+ *
  * Fonts: the `@font-face` of every font class the labels use is a TrueType
  * subset of the font set's file for it (`font-subset.ts`), with the
  * per-figure family name `sumi-<n>-font-<class>`, which the PDF / PPTX font
@@ -37,6 +42,8 @@
  * insertion order.
  */
 
+import { assetMarkup } from "../assets/draw";
+import type { FigureAssets } from "../assets/load";
 import type { EdgeIR, FigureIR, GroupIR, NodeIR } from "../compiler/ir";
 import type { ElementKey } from "../core/check-state";
 import type { Arrowhead } from "../core/registry/manifest";
@@ -248,9 +255,13 @@ function objectGroup(
   element: NodeIR | GroupIR,
   shape: string,
   layout: TextLayout | undefined,
+  asset = "",
 ): string {
   const labelSvg = layout === undefined ? "" : label(layout, element.style.fontColor);
-  return `<g class="${elementClass(element.key)} sumi-kind-${element.kind}"${opacity(element.style)}><g class="shape">${shape}</g>${labelSvg}</g>`;
+  // An image goes under its (transparent) shape, so a frame is drawn over its edge; an icon over the shape's fill.
+  const image = element.kind === "node" && element.image !== undefined;
+  const shapeSvg = `<g class="shape">${shape}</g>`;
+  return `<g class="${elementClass(element.key)} sumi-kind-${element.kind}"${opacity(element.style)}>${image ? asset + shapeSvg : shapeSvg + asset}${labelSvg}</g>`;
 }
 
 const unit = (from: Point, to: Point): Point => {
@@ -485,7 +496,12 @@ const STATIC_CSS = `.shape {
  * two IRs do not belong together, or (`FontParseError` / `Error`) if a font
  * cannot be read or subset.
  */
-export function writeStructuredSvg(ir: FigureIR, layout: LayoutIR, fonts: FontSet): string {
+export function writeStructuredSvg(
+  ir: FigureIR,
+  layout: LayoutIR,
+  fonts: FontSet,
+  assets?: FigureAssets,
+): string {
   const groups = new Map(ir.groups.map((g) => [g.key, g]));
   const nodes = new Map(ir.nodes.map((n) => [n.key, n]));
   const edges = new Map(ir.edges.map((e) => [e.key, e]));
@@ -511,7 +527,8 @@ export function writeStructuredSvg(ir: FigureIR, layout: LayoutIR, fonts: FontSe
     const node = nodes.get(placed.key);
     if (node === undefined)
       throw new Error(`internal error: ${placed.key} is not a node of the figure`);
-    body.push(objectGroup(node, nodeShape(node, placed.rect), placed.label));
+    const asset = assetMarkup(node, assets?.nodes.get(node.key), placed.rect);
+    body.push(objectGroup(node, nodeShape(node, placed.rect), placed.label, asset));
     useText(placed.label);
   }
   body.push(...wires(ir, layout));

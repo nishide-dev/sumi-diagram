@@ -29,12 +29,15 @@ export const emptyLabel = defineRule({
     for (const element of context.elements) {
       const manifest = element.component?.manifest;
       // Text-only shapes already require a label (`component/missing-label`);
-      // marks (operator, junction) take none (`component/unexpected-label`).
+      // marks (operator, junction) and images take none (`component/unexpected-label`),
+      // and an icon (#94) is drawn in place of the label.
       if (
         element.kind !== "node" ||
         manifest?.kind !== "node" ||
         manifest.shape === "text" ||
-        manifest.mark !== undefined
+        manifest.mark !== undefined ||
+        manifest.embed !== undefined ||
+        element.element.icon !== undefined
       ) {
         continue;
       }

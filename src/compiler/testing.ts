@@ -16,6 +16,12 @@ import { type ElementIR, type FigureIR, readonlyMap } from "./ir";
 
 export const FIXTURES_DIR = join(import.meta.dir, "..", "..", "tests", "fixtures");
 
+/**
+ * The directory of the self-made test images (#94): pass it as `assetBase`
+ * when rendering a figure with `sumi/image` nodes from {@link primitivesFigure}.
+ */
+export const ASSETS_DIR = join(FIXTURES_DIR, "assets");
+
 export interface GoldenCase {
   name: string;
   /** Path of the `.sumi.yaml` input. */
@@ -138,14 +144,18 @@ export function primitivesFigure(theme: string): string {
     for (const variant of m.variants) {
       const id = `${m.name}-${variant}`;
       const group = containers.has(variant) ? `, group: container-${variant}` : "";
-      // Marks (#92) take no label; a glyph mark needs its prop.
+      // Marks (#92) take no label; a glyph mark needs its prop. An image
+      // (#94) takes none either; it shows a test image (see ASSETS_DIR).
       const mark = m.kind === "node" ? m.mark : undefined;
+      const embed = m.kind === "node" ? m.embed : undefined;
       const label =
-        mark === undefined
-          ? `, label: ${id}`
-          : mark.type === "glyph"
-            ? `, props: { ${mark.prop}: ${Object.keys(mark.glyphs)[0]} }`
-            : "";
+        embed !== undefined
+          ? ", props: { src: gradient.png, height: 24pt }"
+          : mark === undefined
+            ? `, label: ${id}`
+            : mark.type === "glyph"
+              ? `, props: { ${mark.prop}: ${Object.keys(mark.glyphs)[0]} }`
+              : "";
       lines.push(`  - { id: ${id}, component: ${m.name}${label}, variant: ${variant}${group} }`);
       nodes.push(id);
     }

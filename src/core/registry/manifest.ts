@@ -180,6 +180,12 @@ export const NodeManifestSchema = z
     sizing: z.enum(NODE_SIZINGS),
     render: OutlineRenderSchema.optional(),
     mark: NodeMarkSchema.optional(),
+    /**
+     * `image` (#94): the node embeds the user's image file named by
+     * `props.src` (PNG, JPEG or SVG) in its box instead of drawing a label.
+     * It takes no label (`component/unexpected-label`) and no icon.
+     */
+    embed: z.literal("image").optional(),
   })
   .refine((m) => (m.sizing === "fixed-aspect-1") === FIXED_ASPECT_SHAPES.includes(m.shape), {
     error: `must be "fixed-aspect-1" for the shapes ${FIXED_ASPECT_SHAPES.join(" and ")}, and "auto" otherwise`,
@@ -193,6 +199,21 @@ export const NodeManifestSchema = z
     error: 'a mark requires sizing "fixed-aspect-1" and no outline rendering',
     path: ["mark"],
   })
+  .refine(
+    (m) =>
+      m.embed === undefined ||
+      (m.shape === "rectangle" &&
+        m.render === undefined &&
+        m.mark === undefined &&
+        hasProp(m.props, "src") &&
+        hasProp(m.props, "width") &&
+        hasProp(m.props, "height")),
+    {
+      error:
+        'an image embed requires shape "rectangle", no outline rendering or mark, and props src, width and height',
+      path: ["embed"],
+    },
+  )
   .refine((m) => m.mark === undefined || !hasProp(m.props, "width", "height"), {
     error: "a mark takes its size from the theme, so props must not have width or height",
     path: ["props"],

@@ -167,6 +167,28 @@ export function svgToEditablePptx(
     ok: false,
     diagnostics: [{ code: "pptx/unsupported-geometry", severity: "error", message }],
   });
+  // Icons and images (#94) have no editable DrawingML form yet (research #86
+  // §6.2: a separate `p:pic` is stage B). Refuse rather than drop them.
+  const withAssets = ir.nodes.filter((n) => n.icon !== undefined || n.image !== undefined);
+  if (withAssets.length > 0) {
+    return {
+      ok: false,
+      diagnostics: withAssets.map((node) => {
+        const source = ir.sourceMap.get(node.key);
+        return {
+          code: "pptx/unsupported-asset",
+          severity: "error",
+          message: `The editable PPTX cannot carry the ${node.icon !== undefined ? "icon" : "image"} of node "${node.id}" yet.`,
+          ...(source !== undefined && {
+            path: [...source.path, node.icon !== undefined ? "icon" : "component"],
+          }),
+          ...(source?.location !== undefined && { location: source.location }),
+          subject: { kind: "node", id: node.id },
+          hint: "Use the picture PPTX (the default --pptx-mode), which keeps icons and images.",
+        };
+      }),
+    };
+  }
   const connectors = options.connectors ?? "freeform";
   const fonts = options.fontSet ?? getFontSet(ir.meta.fontSetId);
   if (!fonts)

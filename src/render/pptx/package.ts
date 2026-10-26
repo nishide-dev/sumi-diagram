@@ -1,5 +1,5 @@
 /** One picture, one blank slide: SVG extension + PNG fallback (ECMA-376 / MS-ODRAWXML). */
-import type { SumiSvgMetadata } from "../finalize";
+import { assetProvenanceEntries, type SumiSvgMetadata } from "../finalize";
 import { RESVG_VERSION } from "../pdf/engine";
 import { type ZipEntry, zip } from "./zip";
 
@@ -112,6 +112,7 @@ function slidePptx(
       ...(metadata.d2Sha256 === undefined
         ? []
         : [["SumiD2Sha256", metadata.d2Sha256] as [string, string]]),
+      ...assetProvenanceEntries(metadata),
     );
   const entries: ZipEntry[] = [
     {

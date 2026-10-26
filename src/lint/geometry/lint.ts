@@ -104,14 +104,15 @@ export function lintGeometry(
 const CHECK_STAGES = new Set(["yaml", "schema", "ref", "component", "theme", "profile"]);
 
 /**
- * The `layout` stage reports both while checking (`lintFigure()`) and while
- * rendering (e.g. `layout/no-route`), so its rendering diagnostics
- * are kept unless `lintFigure()` already reported the same one.
+ * The `layout` and `asset` stages report both while checking (`lintFigure()`)
+ * and while rendering (e.g. `layout/no-route`, `asset/not-found`), so their
+ * rendering diagnostics are kept unless `lintFigure()` already reported the
+ * same one.
  */
-const MIXED_STAGES = new Set(["layout"]);
+const MIXED_STAGES = new Set(["layout", "asset"]);
 
 export type LintRenderedOptions = LintOptions &
-  Pick<RenderFigureOptions, "backend" | "sourceName"> & {
+  Pick<RenderFigureOptions, "backend" | "sourceName" | "assetBase"> & {
     /** Font set to measure labels with. Defaults to the figure theme's font set. */
     fontSet?: FontSet;
   };
@@ -137,7 +138,7 @@ export async function lintRenderedFigure(
   text: string,
   options: LintRenderedOptions = {},
 ): Promise<RenderedLintReport> {
-  const { backend, sourceName, fontSet, ...lintOptions } = options;
+  const { backend, sourceName, fontSet, assetBase, ...lintOptions } = options;
   const config = resolveLintConfig(lintOptions.config, lintOptions.rules);
   const structural = lintFigure(text, lintOptions);
   const diagnostics = [...structural.diagnostics];
@@ -153,6 +154,7 @@ export async function lintRenderedFigure(
       ...(lintOptions.registry !== undefined && { registry: lintOptions.registry }),
       ...(backend !== undefined && { backend }),
       ...(sourceName !== undefined && { sourceName }),
+      ...(assetBase !== undefined && { assetBase }),
     });
     diagnostics.push(
       ...result.diagnostics.filter(

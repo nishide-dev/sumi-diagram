@@ -87,6 +87,14 @@ edges:
   - { from: a, to: b, label: $\\alpha_2$ }
 `;
 
+/** A structured figure with a bundled icon and an image beside it (#94). */
+const ASSET_FIGURE = `version: 1
+figure: { id: assets, layout: { arrange: { row: { items: [icon, image] } } } }
+nodes:
+  - { id: icon, component: circle, icon: tabler/wave-sine }
+  - { id: image, component: image, props: { src: gradient.png, height: 20pt } }
+`;
+
 const EXPECTED_LABELS = ["入力データ", "構文解析", "出力 (SVG)", "読み込み", "処理系"];
 
 class SmokeFailure extends Error {}
@@ -153,6 +161,7 @@ async function smoke(tarballArg: string, keep: boolean): Promise<void> {
       "licenses/pdf-wasm/krilla-svg-0.8.1/LICENSE_MIT",
       "licenses/pdf-wasm/resvg-0.47.0/LICENSE-MIT",
       "licenses/pdf-wasm/resvg-0.47.0/LICENSE-APACHE",
+      "licenses/tabler-icons/LICENSE",
     ]) {
       check(inner.has(required), `the tarball lacks ${required}`);
     }
@@ -241,6 +250,21 @@ async function smoke(tarballArg: string, keep: boolean): Promise<void> {
       check(missing.length === 0, `${label}: SVG lacks the labels ${missing.join(", ")}`);
       step(`${label}: sumi render wrote a valid SVG (${svg.length} bytes) with Japanese labels`);
     }
+
+    // 5. Icons and images (#94): the icon archive embedded in bin/sumi, an image next to the YAML.
+    await mkdir(join(work, "assets"));
+    await Bun.write(
+      join(work, "assets", "gradient.png"),
+      await readFile(join(import.meta.dir, "..", "tests", "fixtures", "assets", "gradient.png")),
+    );
+    await Bun.write(join(work, "assets", "icons.sumi.yaml"), ASSET_FIGURE);
+    await sumiAt(sumi, ["render", "assets/icons.sumi.yaml", "-o", join(work, "icons.svg")]);
+    const iconSvg = await readFile(join(work, "icons.svg"), "utf8");
+    check(iconSvg.includes('<g class="sumi-icon"'), "the icon was not drawn");
+    check(iconSvg.includes('xlink:href="data:image/png;base64,'), "the image was not embedded");
+    check(/assets-sha256="[0-9a-f]{64}"/.test(iconSvg), "the SVG lacks assets-sha256");
+    check(iconSvg.includes('name="Tabler Icons"'), "the SVG lacks the Tabler notice");
+    step("sumi render drew a bundled icon and embedded an image");
 
     // 6. The same figure as PDF.
     const svg = await readFile(join(work, "出力-direct.svg"), "utf8");

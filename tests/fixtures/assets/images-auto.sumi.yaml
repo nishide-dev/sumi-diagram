@@ -1,0 +1,31 @@
+# #94: the same images and icons as images.sumi.yaml, laid out by D2/ELK
+# (auto): placeholders composed with the assets after rendering.
+version: 1
+figure:
+  id: images-auto
+  theme: color
+  profile: paper-double
+  layout:
+    direction: right
+
+nodes:
+  - id: png
+    component: image
+    props: { src: gradient.png, height: 34pt }
+  - id: jpeg
+    component: image
+    variant: framed
+    props: { src: gradient.jpg, width: 45pt, fit: cover, height: 22.5pt }
+  - id: svg
+    component: image
+    props: { src: shapes.svg, width: 56pt }
+  - { id: sine, component: circle, icon: tabler/wave-sine }
+  - { id: flame, component: box, icon: tabler/flame, tone: orange }
+  - { id: bare, component: label, icon: tabler/snowflake }
+
+edges:
+  - { from: png, to: jpeg }
+  - { from: jpeg, to: svg }
+  - { from: svg, to: sine, component: line }
+  - { from: sine, to: flame }
+  - { from: flame, to: bare }

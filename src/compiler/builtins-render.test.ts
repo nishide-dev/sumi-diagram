@@ -24,7 +24,7 @@ import { renderFigure } from "../render";
 import { readSvgMetadata, sha256 } from "../render/finalize";
 import { compileFigure } from "./compile";
 import { elementClass } from "./d2";
-import { primitivesFigure } from "./testing";
+import { ASSETS_DIR, primitivesFigure } from "./testing";
 
 const binary = findD2Binary();
 const available = binary.ok && (await checkD2Version(binary.value.path)).ok;
@@ -67,7 +67,7 @@ describe.skipIf(!available)("built-in primitives render with D2", () => {
     test(
       `every component × variant (${theme})`,
       async () => {
-        const rendered = await renderFigure(primitivesFigure(theme));
+        const rendered = await renderFigure(primitivesFigure(theme), { assetBase: ASSETS_DIR });
         if (!rendered.ok) throw new Error(JSON.stringify(rendered.diagnostics, null, 2));
         expect(rendered.diagnostics).toEqual([]);
         const { ir } = rendered.value.compiled;
@@ -84,6 +84,11 @@ describe.skipIf(!available)("built-in primitives render with D2", () => {
             expect(chunk).not.toContain("<text");
             expect(chunk).toContain(`fill="${element.style.fill}"`);
             expect(chunk).toContain(`rx="${(element.width?.units ?? 0) / 2}"`);
+          } else if (element.kind === "node" && element.image !== undefined) {
+            // An image (#94) draws no text: one embedded image in the placeholder's box.
+            expect(chunk).not.toContain("<text");
+            expect(count(chunk, /<image class="sumi-image"/g)).toBe(1);
+            expect(chunk).toContain('xlink:href="data:image/png;base64,');
           } else {
             expect(chunk).toContain(`>${element.label}<`);
             expect(chunk).toContain(`fill="${element.style.fontColor}"`);

@@ -145,6 +145,11 @@
             "description": "Plain text; newlines break lines. Empty or omitted means no label.",
             "type": "string"
           },
+          "icon": {
+            "description": "A bundled icon drawn in place of the label, as <set>/<name>, e.g. tabler/wave-sine. Drawn in the node's text color.",
+            "type": "string",
+            "pattern": "^([a-z][a-z0-9]*)\\/([a-z0-9]+(?:-[a-z0-9]+)*)$"
+          },
           "variant": {
             "default": "default",
             "type": "string",

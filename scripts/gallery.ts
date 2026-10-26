@@ -65,7 +65,12 @@ const tones = toneSample();
 const jobs: RenderJob[] = [];
 for (const sample of samples) {
   for (const rendering of sample.renderings) {
-    jobs.push({ file: sample.fileName, source: sample.source, rendering });
+    jobs.push({
+      file: sample.fileName,
+      source: sample.source,
+      rendering,
+      ...(sample.assetBase !== undefined && { assetBase: join(ROOT, sample.assetBase) }),
+    });
   }
 }
 const exampleTexts = new Map<string, string>();
@@ -75,6 +80,8 @@ for (const source of exampleSources) {
   jobs.push({
     file: source,
     source: text,
+    // Image paths (#94) are relative to the example's YAML file.
+    assetBase: join(ROOT, dirname(source)),
     rendering: {
       output: source.replace(/\.sumi\.yaml$/, ".svg"),
       theme: "",

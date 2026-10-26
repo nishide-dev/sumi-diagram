@@ -53,6 +53,7 @@ bun run gallery:check    # examples/*/*.{svg,pdf} と docs/gallery/ が最新か
 | lint の出力（`tests/fixtures/lint-output/`） | `SUMI_UPDATE_GOLDEN=1 bun test src/lint/lint.test.ts` |
 | SVG（`examples/*/*.svg`・`docs/gallery/`） | `bun run gallery` |
 | PDF（`examples/*/*.pdf`） | `bun run gallery`（または `SUMI_UPDATE_GOLDEN=1 bun test src/render/pdf`。同じバイトを書く） |
+| 画像・アイコンの fixture（`tests/fixtures/assets/outputs-sha256.json`、#94） | `SUMI_UPDATE_GOLDEN=1 bun test src/render/assets.integration.test.ts` |
 | 編集可能PPTX（slide XML / package hash） | `SUMI_UPDATE_GOLDEN=1 bun test src/render/pptx/editable.test.ts`。日本語fixtureのYAMLを変えたら先にSVGを通常のrenderで更新する（[再現手順](docs/verification/62-editable-pptx.md)） |
 
 SVG は D2 のバージョンとフォントが同じなら OS によらずバイト単位で一致します。D2 やフォントを更新する手順と、画像（ラスタ）比較を使わない理由は [設計 §6.7](docs/design/phase1.md#67-16-のテスト戦略と-ci) を参照してください。
@@ -61,7 +62,7 @@ SVG は D2 のバージョンとフォントが同じなら OS によらずバ�
 
 | ワークフロー | ジョブ | 内容 |
 | --- | --- | --- |
-| CI | Static checks（Linux） | `bun run check`・`bun run typecheck`・`bun run schema:check` |
+| CI | Static checks（Linux） | `bun run check`・`bun run typecheck`・`bun run schema:check`・`bun run icons:check`（同梱アイコンのアーカイブが固定版の Tabler Icons と一致するか。npm から取得する） |
 | CI | Test（Linux / macOS） | D2 の導入、環境の記録（OS・`sumi doctor`: Bun・D2・フォントの sha256）、`bun test`（Linux ではカバレッジの表も出力。閾値なし。PDF の golden もここで両 OS のバイト一致を検査）、`bun run gallery:check` |
 | CI | PDF engine reproducible build（Linux） | `bun run pdf:wasm` で PDF エンジンをソースから再ビルドし、コミット済みの `.wasm`・sha256・ライセンス一覧と一致するか（`git diff`） |
 | CI | PDF LaTeX inclusion（Linux） | `bun run pdf:latex` で pdfLaTeX / LuaLaTeX に実際に取り込み、文字・位置・フォント埋め込み・ベクター・表示を検査する（TeX / Poppler はこのジョブのみで導入） |
@@ -72,6 +73,10 @@ SVG は D2 のバージョンとフォントが同じなら OS によらずバ�
 PR タイトルの検査は手元でも実行できます: `bun run commitlint --title "feat(cli): add doctor"`。コミットを検査する場合は `bun run commitlint origin/main..HEAD` です。検査する規則と、誤検出を避けるため検査しないこと（英語として自然か、命令形か、長さなど）は `scripts/commitlint/rules.ts` の先頭に書いてあります。
 
 PDF の LaTeX 取り込み検証（#63）は、TeX Live と Poppler がある環境で `bun run pdf:latex` を実行します。通常の `bun test` とは独立しています。検証環境・導入パッケージ・検査内容・結果の読み方は [検証記録](docs/verification/63-pdf-latex.md) を参照してください。
+
+### 同梱アイコンの更新
+
+`icon: tabler/<name>`（#94）のアイコンは、`assets/icons/tabler-outline.json.gz`（Tabler Icons の outline から Brand カテゴリを除いたもの）と `tabler-LICENSE.txt` を単一実行ファイルに埋め込んで使います。版を上げるときは `src/assets/icons.ts` の `TABLER_VERSION` と `scripts/build-icons.ts` の npm の integrity を書き換えて `bun run icons:build` を実行し（`src/assets/icons.ts` の sha256 も更新されます）、LICENSE と除外するカテゴリを確認して、ギャラリーと golden を更新します。方針は[設計 §6.25](docs/design/phase1.md#625-94-のユーザー画像と同梱アイコン)を参照してください。
 
 ### PDF エンジン（WASM）の再ビルド
 

@@ -5,11 +5,17 @@
  * `CATALOG_VERSION`). Exit 0.
  *
  * Sections: `--section <name>` (repeatable) selects them; without it, all
- * three are printed — except with `--kind`, which filters components and,
+ * are printed — except with `--kind`, which filters components and,
  * without `--section`, prints only components (as before #37).
+ *
+ * `--icons <words>` (#94) lists the bundled icons whose name contains every
+ * word (case-insensitive; `""` lists all) as `icon:` references, one per
+ * line, or with `--json` `{ version, query, icons: ["tabler/…", …] }`. It
+ * cannot be combined with `--section` or `--kind`.
  */
 
 import { InvalidArgumentError } from "commander";
+import { type IconSetInfo, iconNames, iconSets } from "../../assets/icons";
 import {
   buildFullCatalog,
   CATALOG_SECTIONS,
@@ -18,13 +24,15 @@ import {
 } from "../../core/catalog";
 import type { ProfileCatalogEntry } from "../../core/profile/catalog";
 import { createBuiltinRegistry } from "../../core/registry/builtins";
-import type { CatalogEntry } from "../../core/registry/catalog";
+import { CATALOG_VERSION, type CatalogEntry } from "../../core/registry/catalog";
 import type { ComponentKind } from "../../core/registry/manifest";
 import type { ThemeCatalogEntry } from "../../core/theme/catalog";
 import { type CliContext, EXIT, type ExitCode, UsageError } from "../io";
 
 export interface CatalogCommandOptions {
   json?: boolean;
+  /** `--icons <words>`: search the bundled icons instead of printing the catalog. */
+  icons?: string;
   kind?: ComponentKind;
   /** `--section`, repeatable. */
   section?: CatalogSection[];
@@ -41,6 +49,18 @@ export function collectSection(value: string, previous: CatalogSection[] = []): 
 }
 
 export function catalogCommand(options: CatalogCommandOptions, context: CliContext): ExitCode {
+  if (options.icons !== undefined) {
+    if (options.section !== undefined || options.kind !== undefined) {
+      throw new UsageError("--icons cannot be combined with --section or --kind.");
+    }
+    const icons = searchIcons(options.icons);
+    context.stdout.write(
+      options.json
+        ? `${JSON.stringify({ version: CATALOG_VERSION, query: options.icons, icons }, null, 2)}\n`
+        : icons.map((ref) => `${ref}\n`).join(""),
+    );
+    return EXIT.ok;
+  }
   const sections =
     options.section ??
     (options.kind === undefined ? [...CATALOG_SECTIONS] : (["components"] as CatalogSection[]));
@@ -60,6 +80,7 @@ export function formatCatalogText(catalog: FullCatalog): string {
   if (catalog.components) tables.push(["Components", formatCatalogTable(catalog.components)]);
   if (catalog.themes) tables.push(["Themes", formatThemeTable(catalog.themes)]);
   if (catalog.profiles) tables.push(["Profiles", formatProfileTable(catalog.profiles)]);
+  if (catalog.icons) tables.push(["Icons", formatIconTable(catalog.icons)]);
   if (tables.length === 1) return tables[0]?.[1] ?? "";
   return tables.map(([title, table]) => `${title}:\n${table}`).join("\n");
 }
@@ -110,6 +131,33 @@ export function formatProfileTable(entries: readonly ProfileCatalogEntry[]): str
         .join("/"),
       entry.description,
     ]),
+  );
+}
+
+/** One row per bundled icon set: ID, version, license, count and what is bundled. */
+export function formatIconTable(entries: readonly IconSetInfo[]): string {
+  return formatTable(
+    ["ID", "VERSION", "LICENSE", "ICONS", "DESCRIPTION"],
+    entries.map((e) => [
+      e.id,
+      e.version,
+      e.license,
+      String(e.count),
+      `${e.name}: ${e.contents} (${e.source}); find names with --icons <words>`,
+    ]),
+  );
+}
+
+/** `icon:` references (`<set>/<name>`) of the bundled icons whose name contains every word. */
+export function searchIcons(query: string): string[] {
+  const words = query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((w) => w !== "");
+  return iconSets().flatMap((set) =>
+    iconNames(set.id)
+      .filter((name) => words.every((w) => name.includes(w)))
+      .map((name) => `${set.id}/${name}`),
   );
 }
 
