@@ -413,16 +413,23 @@ nodes:
   });
 
   test("the editable PPTX refuses icons and images", async () => {
+    await mkdir(join(dir, "assets-pptx", "img"), { recursive: true });
+    await copyFile(
+      join(ROOT, "tests", "fixtures", "assets", "gradient.png"),
+      join(dir, "assets-pptx", "img", "g.png"),
+    );
+    await Bun.write(join(dir, "assets-pptx", "fig.sumi.yaml"), figure("img/g.png"));
     const result = await sumi([
       "render",
-      "assets-fig/fig.sumi.yaml",
+      "assets-pptx/fig.sumi.yaml",
       "-o",
-      "assets-fig/fig.pptx",
+      "assets-pptx/fig.pptx",
       "--pptx-mode",
       "editable",
     ]);
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain("pptx/unsupported-asset");
+    expect(existsSync(join(dir, "assets-pptx", "fig.pptx"))).toBe(false);
   });
 });
 

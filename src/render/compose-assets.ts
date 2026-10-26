@@ -3,8 +3,8 @@
  * the node as a placeholder (an icon node without a label at the size the
  * structured engine would give it, an image as a transparent rectangle of the
  * image's size), and this step splices the asset's markup (`assetMarkup()`)
- * into the node's `<g>` next to its `g.shape` (an icon after it, an image
- * before it), in the box the inspection measured. Like the outline composition (#53, `compose.ts`), it edits the
+ * into the node's `<g>` right after its `g.shape`, in the box the inspection
+ * measured. Like the outline composition (#53, `compose.ts`), it edits the
  * finalized SVG by XML offsets and leaves every other byte as D2 wrote it.
  */
 
@@ -97,9 +97,7 @@ export function composeAssets(
         ],
       };
     }
-    // As in the structured writer: an image under its shape (the frame), an icon over it.
-    const at = node.image !== undefined ? shape.start : shape.end;
-    inserts.push({ at, text: assetMarkup(node, assets.nodes.get(node.key), box) });
+    inserts.push({ at: shape.end, text: assetMarkup(node, assets.nodes.get(node.key), box) });
   }
   let out = svg;
   for (const { at, text } of inserts.sort((a, b) => b.at - a.at)) {

@@ -7,10 +7,11 @@
  *   one `<g class="sumi-icon" transform="…">` (no nested `<svg>`), in the
  *   node's text color (Tabler icons stroke `currentColor`).
  * - An image is one `<image class="sumi-image">` filling the node's box with
- *   the `data:` URI, `preserveAspectRatio` from `props.fit`.
+ *   the `data:` URI, `preserveAspectRatio` from `props.fit`, and its frame
+ *   drawn again over it (`framed`).
  *
- * Both are children of the element's `<g>` next to its `g.shape` (an icon
- * after it, over the fill; an image before it, under the frame), so the
+ * Both are children of the element's `<g>` right after its `g.shape` (over
+ * the shape's fill, e.g. a tone behind an image), so the
  * inspection (`inspectSvg()`), which reads only `g.shape`, `text` and
  * `path.connection`, and the geometry lint treat the node as its box.
  */
@@ -18,10 +19,8 @@
 import type { ImageFit, NodeIR } from "../compiler/ir";
 import type { Rect } from "../core/geometry";
 import { labelCenter } from "../layout/structured/sizing";
+import { n, strokeAttributes } from "../render/stroke";
 import type { LoadedAsset, LoadedIcon, LoadedImage } from "./load";
-
-/** At most 6 decimals, never `-0` (as the structured writer). */
-const n = (value: number): string => String(Number(value.toFixed(6)) || 0);
 
 const XLINK = "http://www.w3.org/1999/xlink";
 
@@ -61,8 +60,22 @@ function iconMarkup(icon: LoadedIcon, box: Rect): string {
   return `<g class="sumi-icon" transform="translate(${n(tx)} ${n(ty)}) scale(${n(scale)})">${icon.svg.markup}</g>`;
 }
 
-function imageMarkup(image: LoadedImage, fit: ImageFit, rect: Rect): string {
-  return `<image class="sumi-image" xmlns:xlink="${XLINK}" x="${n(rect.x)}" y="${n(rect.y)}" width="${n(rect.width)}" height="${n(rect.height)}" preserveAspectRatio="${FIT[fit]}" xlink:href="${image.href}"/>`;
+/**
+ * The image over the node's shape (its background: transparent, or a tone),
+ * and the frame again over the image (the `framed` variant), so neither hides
+ * the other.
+ */
+function imageMarkup(
+  image: LoadedImage,
+  fit: ImageFit,
+  rect: Rect,
+  style: NodeIR["style"],
+): string {
+  const picture = `<image class="sumi-image" xmlns:xlink="${XLINK}" x="${n(rect.x)}" y="${n(rect.y)}" width="${n(rect.width)}" height="${n(rect.height)}" preserveAspectRatio="${FIT[fit]}" xlink:href="${image.href}"/>`;
+  if (style.strokeWidth.units <= 0 || style.stroke === "transparent") return picture;
+  const radius = Math.min(style.radius.units, rect.width / 2, rect.height / 2);
+  const rx = radius > 0 ? ` rx="${n(radius)}"` : "";
+  return `${picture}<rect class="sumi-image-frame" x="${n(rect.x)}" y="${n(rect.y)}" width="${n(rect.width)}" height="${n(rect.height)}"${rx} fill="none"${strokeAttributes(style)}/>`;
 }
 
 /**
@@ -82,5 +95,5 @@ export function assetMarkup(
   }
   if (asset.kind === "icon") return iconMarkup(asset, iconRect(node, rect));
   if (node.image === undefined) throw new Error(`internal error: ${node.key} is not an image`);
-  return imageMarkup(asset, node.image.fit, rect);
+  return imageMarkup(asset, node.image.fit, rect, node.style);
 }

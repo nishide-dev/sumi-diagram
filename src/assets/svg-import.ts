@@ -25,7 +25,7 @@
  * #86 §6.1); Sumi reports them instead of relying on that.
  */
 
-import { childElements, escapeAttribute, parseXml, position, type XmlElement } from "../render/xml";
+import { childElements, escapeAttribute, parseXml, type XmlElement } from "../render/xml";
 
 export type SvgIssueKind = "unsafe" | "unsupported" | "invalid";
 
@@ -69,6 +69,7 @@ export const SVG_IMPORT_LIMITS = Object.freeze({ maxElements: 20_000, maxDepth: 
 // linearly (the SVG may be large): no nested or adjacent overlapping quantifiers.
 const NUM = String.raw`[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?`;
 const NUMBER = new RegExp(`^${NUM}$`);
+const NUM_GLOBAL = new RegExp(NUM, "g");
 const LENGTH = new RegExp(`^${NUM}(?:px)?$`);
 const PATH_DATA = /^[MmLlHhVvCcSsQqTtAaZz0-9eE.,+\-\s]*$/;
 const COLOR =
@@ -156,31 +157,61 @@ const UNSAFE_ELEMENTS = new Set([
 /** Elements that never render: skipped with their content. */
 const SKIPPED_ELEMENTS = new Set(["title", "desc", "metadata"]);
 
-/** Namespace prefixes of editor metadata (never rendered): skipped. */
-const EDITOR_PREFIXES = new Set(["sodipodi", "inkscape", "sketch", "serif", "rdf", "cc", "dc"]);
+const SVG_NS = "http://www.w3.org/2000/svg";
 
-/** Attributes without effect on the drawing once re-serialized (never written). */
+/**
+ * Namespaces of editor metadata (never rendered): elements in them are
+ * skipped with their content, attributes in them ignored. Recognized by the
+ * namespace a prefix is bound to, never by the prefix's spelling.
+ */
+const EDITOR_NAMESPACES = new Set([
+  "http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd",
+  "http://www.inkscape.org/namespaces/inkscape",
+  "http://www.bohemiancoding.com/sketch/ns",
+  "http://www.serif.com/",
+  "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+  "http://creativecommons.org/ns#",
+  "http://purl.org/dc/elements/1.1/",
+  "http://ns.adobe.com/AdobeIllustrator/10.0/",
+  "http://ns.adobe.com/AdobeSVGViewerExtensions/3.0/",
+  "http://ns.adobe.com/Extensibility/1.0/",
+  "http://ns.adobe.com/Graphs/1.0/",
+  "http://ns.adobe.com/SaveForWeb/1.0/",
+  "http://ns.adobe.com/Variables/1.0/",
+]);
+
+/** Prefix → namespace URI in scope (`""` is the default namespace). */
+type Scope = ReadonlyMap<string, string>;
+
+/** The scope inside `element`: its parent's plus its own `xmlns` / `xmlns:*` declarations. */
+function scopeOf(element: XmlElement, parent: Scope): Scope {
+  const declared = element.attributes.filter(
+    (a) => a.name === "xmlns" || a.name.startsWith("xmlns:"),
+  );
+  if (declared.length === 0) return parent;
+  const scope = new Map(parent);
+  for (const a of declared) scope.set(a.name === "xmlns" ? "" : a.name.slice(6), a.value);
+  return scope;
+}
+
+const prefixOf = (name: string): string => (name.includes(":") ? (name.split(":")[0] ?? "") : "");
+const localName = (name: string): string => (name.split(":").pop() ?? name).toLowerCase();
+
+/** Unprefixed attributes without effect on the drawing once re-serialized (never written). */
 function inertAttribute(name: string): boolean {
   return (
-    name === "xmlns" ||
-    name.startsWith("xmlns:") ||
     name === "id" ||
     name === "class" ||
     name === "version" ||
     name === "baseProfile" ||
-    name === "xml:space" ||
-    name === "xml:lang" ||
     name === "lang" ||
     name === "role" ||
     name === "focusable" ||
     name === "enable-background" ||
     name.startsWith("data-") ||
-    name.startsWith("aria-") ||
-    EDITOR_PREFIXES.has(name.split(":")[0] ?? "")
+    name.startsWith("aria-")
   );
 }
-
-const localName = (name: string): string => (name.split(":").pop() ?? name).toLowerCase();
 
 /** Lengths of the root's `width` / `height` in CSS px (unitless = px). */
 const ROOT_UNITS: ReadonlyMap<string, number> = new Map([
@@ -193,9 +224,11 @@ const ROOT_UNITS: ReadonlyMap<string, number> = new Map([
   ["in", 96],
 ]);
 
+const ROOT_LENGTH = new RegExp(`^(${NUM}) ?(px|pt|pc|mm|cm|in)?$`);
+
 function rootLength(value: string | undefined): number | undefined {
   if (value === undefined) return undefined;
-  const match = new RegExp(`^(${NUM})\\s?(px|pt|pc|mm|cm|in)?$`).exec(value.trim());
+  const match = ROOT_LENGTH.exec(value.trim());
   if (match === null) return undefined;
   const scale = ROOT_UNITS.get(match[2] ?? "");
   const n = Number(match[1]) * (scale ?? Number.NaN);
@@ -218,37 +251,86 @@ function styleDeclarations(style: string): [string, string][] | undefined {
   return out;
 }
 
+/** At most this many issues of each kind are kept (each costs a position lookup). */
+const MAX_ISSUES_PER_KIND = 100;
+
+/** 1-based line and column of offsets in `text`, by binary search over the line starts. */
+function positions(text: string): (offset: number) => { line: number; column: number } {
+  let starts: number[] | undefined;
+  return (offset) => {
+    if (starts === undefined) {
+      starts = [0];
+      for (let i = text.indexOf("\n"); i !== -1; i = text.indexOf("\n", i + 1)) starts.push(i + 1);
+    }
+    let lo = 0;
+    let hi = starts.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if ((starts[mid] as number) <= offset) lo = mid;
+      else hi = mid - 1;
+    }
+    return { line: lo + 1, column: offset - (starts[lo] as number) + 1 };
+  };
+}
+
 /**
  * Imports an SVG document (see the module comment). Never throws; every
  * problem is an issue with its position.
  */
 export function importSvg(text: string, options: SvgImportOptions = {}): SvgImportResult {
   const issues: SvgImportIssue[] = [];
-  const at = (offset: number) => position(text, offset);
-  const issue = (kind: SvgIssueKind, message: string, offset: number) =>
-    issues.push({ kind, message, ...at(offset) });
+  const counts = new Map<SvgIssueKind, number>();
+  const at = positions(text);
+  const issue = (kind: SvgIssueKind, message: string, offset: number) => {
+    const count = (counts.get(kind) ?? 0) + 1;
+    counts.set(kind, count);
+    if (count <= MAX_ISSUES_PER_KIND) issues.push({ kind, message, ...at(offset) });
+  };
 
-  const parsed = parseXml(text);
+  // The budgets hold while parsing, before the whole tree exists (skipped
+  // metadata counts too).
+  const parsed = parseXml(text, SVG_IMPORT_LIMITS);
   if (!parsed.ok) {
     const unsafe = /DOCTYPE|declaration|entity|Processing instruction/i.test(parsed.message);
+    const budget = /more than|deeper than/.test(parsed.message);
     const message = unsafe
       ? `${parsed.message.replace(/\.$/, "")}: DTDs, entities and processing instructions can reach outside the file.`
-      : `The SVG is not well-formed XML: ${parsed.message}`;
+      : budget
+        ? parsed.message
+        : `The SVG is not well-formed XML: ${parsed.message}`;
     return {
       ok: false,
       issues: [
-        { kind: unsafe ? "unsafe" : "invalid", message, line: parsed.line, column: parsed.column },
+        {
+          kind: unsafe ? "unsafe" : budget ? "unsupported" : "invalid",
+          message,
+          line: parsed.line,
+          column: parsed.column,
+        },
       ],
     };
   }
   const root = parsed.root;
-  if (localName(root.name) !== "svg" || root.name.includes(":")) {
-    issue("invalid", `The root element is <${root.name}>, not <svg>.`, root.start);
+  const rootScope = scopeOf(root, new Map());
+  const rootNs = rootScope.get("");
+  if (root.name !== "svg" || (rootNs !== undefined && rootNs !== SVG_NS)) {
+    issue("invalid", `The root element is <${root.name}>, not an SVG <svg>.`, root.start);
     return { ok: false, issues };
   }
 
+  /** `true` if every number in `value` is finite (e.g. no `1e999`). */
+  const finite = (value: string): boolean => {
+    for (const match of value.matchAll(NUM_GLOBAL))
+      if (!Number.isFinite(Number(match[0]))) return false;
+    return true;
+  };
+
   /** Validated paint of an element (attributes, then `style`, which wins). */
-  const paintOf = (element: XmlElement, allowed: readonly string[]): Map<string, string> => {
+  const paintOf = (
+    element: XmlElement,
+    scope: Scope,
+    allowed: readonly string[],
+  ): Map<string, string> => {
     const paint = new Map<string, string>();
     const set = (name: string, value: string, offset: number, inStyle: boolean) => {
       if (/url\s*\(|javascript:|expression\s*\(/i.test(value)) {
@@ -268,18 +350,27 @@ export function importSvg(text: string, options: SvgImportOptions = {}): SvgImpo
         );
         return;
       }
-      if (!passes(pattern, value.trim())) {
-        issue("unsupported", `<${element.name}> has an unsupported ${name} "${value}".`, offset);
+      const trimmed = value.trim();
+      if (!passes(pattern, trimmed) || !finite(trimmed)) {
+        issue(
+          "unsupported",
+          `<${element.name}> has an unsupported ${name} "${value.slice(0, 40)}".`,
+          offset,
+        );
         return;
       }
-      let v = value.trim();
-      if (options.currentColor !== undefined && /^currentcolor$/i.test(v)) v = options.currentColor;
-      paint.set(name, v);
+      paint.set(
+        name,
+        options.currentColor !== undefined && /^currentcolor$/i.test(trimmed)
+          ? options.currentColor
+          : trimmed,
+      );
     };
     let style: string | undefined;
     for (const a of element.attributes) {
       const name = a.name;
       const local = localName(name);
+      const prefix = prefixOf(name);
       if (local.startsWith("on")) {
         issue("unsafe", `<${element.name}> has an event attribute "${name}".`, element.start);
       } else if (local === "href" || local === "src") {
@@ -288,6 +379,21 @@ export function importSvg(text: string, options: SvgImportOptions = {}): SvgImpo
           `<${element.name}> has "${name}", a reference to another file or URL.`,
           element.start,
         );
+      } else if (name === "xmlns" || prefix === "xmlns") {
+        // Namespace declarations (see scopeOf).
+      } else if (prefix !== "") {
+        // xml:space / xml:lang and editor metadata are inert; anything else is not drawn by Sumi.
+        const inert =
+          name === "xml:space" ||
+          name === "xml:lang" ||
+          EDITOR_NAMESPACES.has(scope.get(prefix) ?? "");
+        if (!inert) {
+          issue(
+            "unsupported",
+            `<${element.name}> attribute "${name}" (a namespaced attribute) is not supported.`,
+            element.start,
+          );
+        }
       } else if (/url\s*\(|javascript:/i.test(a.value) && !inertAttribute(name)) {
         issue(
           "unsafe",
@@ -318,47 +424,37 @@ export function importSvg(text: string, options: SvgImportOptions = {}): SvgImpo
       .map((name) => ` ${name}="${escapeAttribute(paint.get(name) as string)}"`)
       .join("");
 
-  let count = 0;
-  const visit = (parent: XmlElement, depth: number): string => {
+  const visit = (parent: XmlElement, parentScope: Scope): string => {
     let out = "";
     for (const child of childElements(parent)) {
-      if (++count > SVG_IMPORT_LIMITS.maxElements) {
-        if (count === SVG_IMPORT_LIMITS.maxElements + 1) {
-          issue(
-            "unsupported",
-            `The SVG has more than ${SVG_IMPORT_LIMITS.maxElements} elements.`,
-            child.start,
-          );
-        }
-        return out;
-      }
+      const scope = scopeOf(child, parentScope);
       const name = child.name;
       const local = localName(name);
-      const prefix = name.includes(":") ? (name.split(":")[0] ?? "") : "";
+      const prefix = prefixOf(name);
+      const namespace = scope.get(prefix);
       if (UNSAFE_ELEMENTS.has(local)) {
         issue(
           "unsafe",
           `<${name}> is not allowed: it can run code, load other files or embed foreign content.`,
           child.start,
         );
+        visit(child, scope); // report what is inside too
         continue;
       }
-      if (EDITOR_PREFIXES.has(prefix) || (prefix === "" && SKIPPED_ELEMENTS.has(local))) continue;
-      if (prefix !== "") {
-        issue("unsupported", `<${name}> (a namespaced element) is not supported.`, child.start);
-        continue;
-      }
-      if (depth >= SVG_IMPORT_LIMITS.maxDepth) {
+      if (namespace !== undefined && EDITOR_NAMESPACES.has(namespace)) continue;
+      if (prefix !== "" || (namespace !== undefined && namespace !== SVG_NS)) {
         issue(
           "unsupported",
-          `The SVG nests elements deeper than ${SVG_IMPORT_LIMITS.maxDepth} levels.`,
+          `<${name}> is in ${namespace === undefined ? "an undeclared namespace" : `the namespace ${namespace}`}, not drawn by Sumi.`,
           child.start,
         );
+        visit(child, scope);
         continue;
       }
+      if (SKIPPED_ELEMENTS.has(name)) continue;
       if (name === "g") {
-        const paint = paintOf(child, []);
-        out += `<g${paintAttributes(paint)}>${visit(child, depth + 1)}</g>`;
+        const paint = paintOf(child, scope, []);
+        out += `<g${paintAttributes(paint)}>${visit(child, scope)}</g>`;
         continue;
       }
       const geometry = SHAPES.get(name);
@@ -368,22 +464,21 @@ export function importSvg(text: string, options: SvgImportOptions = {}): SvgImpo
           `<${name}> is not supported; Sumi draws basic shapes only.`,
           child.start,
         );
+        visit(child, scope);
         continue;
       }
-      if (childElements(child).some((c) => !SKIPPED_ELEMENTS.has(localName(c.name)))) {
-        // Shapes have no drawn children; animations inside are unsafe and reported here.
-        visit(child, depth + 1);
-      }
+      // Shapes draw no children; whatever is inside (e.g. an animation) is reported.
+      visit(child, scope);
       const attrs: string[] = [];
       for (const attrName of geometry) {
         const value = child.attributes.find((a) => a.name === attrName)?.value;
         if (value === undefined) continue;
         const ok =
-          attrName === "d"
+          (attrName === "d"
             ? PATH_DATA.test(value)
             : attrName === "points"
               ? numberList(value)
-              : LENGTH.test(value.trim());
+              : LENGTH.test(value.trim())) && finite(value);
         if (!ok) {
           issue(
             "unsupported",
@@ -394,7 +489,7 @@ export function importSvg(text: string, options: SvgImportOptions = {}): SvgImpo
         }
         attrs.push(` ${attrName}="${escapeAttribute(value.trim().replace(/\s+/g, " "))}"`);
       }
-      const paint = paintOf(child, geometry);
+      const paint = paintOf(child, scope, geometry);
       if (options.dropInvisible && paint.get("fill") === "none" && paint.get("stroke") === "none") {
         continue;
       }
@@ -403,8 +498,15 @@ export function importSvg(text: string, options: SvgImportOptions = {}): SvgImpo
     return out;
   };
 
-  const rootPaint = paintOf(root, ["width", "height", "viewBox", "x", "y", "preserveAspectRatio"]);
-  const body = visit(root, 1);
+  const rootPaint = paintOf(root, rootScope, [
+    "width",
+    "height",
+    "viewBox",
+    "x",
+    "y",
+    "preserveAspectRatio",
+  ]);
+  const body = visit(root, rootScope);
 
   const viewBoxText = root.attributes.find((a) => a.name === "viewBox")?.value;
   const width = rootLength(root.attributes.find((a) => a.name === "width")?.value);
@@ -424,7 +526,7 @@ export function importSvg(text: string, options: SvgImportOptions = {}): SvgImpo
     } else
       issue(
         "invalid",
-        `The root viewBox "${viewBoxText}" is not four numbers with a positive size.`,
+        `The root viewBox "${viewBoxText.slice(0, 60)}" is not four finite numbers with a positive size.`,
         root.start,
       );
   } else if (width !== undefined && height !== undefined) {
@@ -433,10 +535,13 @@ export function importSvg(text: string, options: SvgImportOptions = {}): SvgImpo
     issue("invalid", "The root <svg> has neither a viewBox nor a width and height.", root.start);
   }
   const preserve = root.attributes.find((a) => a.name === "preserveAspectRatio")?.value;
-  if (preserve !== undefined && !/^\s*xMidYMid(?:\s+meet)?\s*$/.test(preserve)) {
+  if (
+    preserve !== undefined &&
+    !/^xMidYMid(?: meet)?$/.test(preserve.trim().replace(/\s+/g, " "))
+  ) {
     issue(
       "unsupported",
-      `The root preserveAspectRatio "${preserve}" is not supported; Sumi fits the drawing by props.fit.`,
+      `The root preserveAspectRatio "${preserve.slice(0, 40)}" is not supported; Sumi fits the drawing by props.fit.`,
       root.start,
     );
   }
@@ -445,6 +550,10 @@ export function importSvg(text: string, options: SvgImportOptions = {}): SvgImpo
   // A root with only one of width / height keeps the viewBox's aspect ratio.
   const w = width ?? (height !== undefined ? (height * vw) / vh : vw);
   const h = height ?? (width !== undefined ? (width * vh) / vw : vh);
+  if (![w, h].every((n) => Number.isFinite(n) && n > 0)) {
+    issue("invalid", "The root <svg> has no finite positive size.", root.start);
+    return { ok: false, issues };
+  }
   return {
     ok: true,
     value: { viewBox, width: w, height: h, markup: `<g${paintAttributes(rootPaint)}>${body}</g>` },

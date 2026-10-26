@@ -15,15 +15,16 @@ export const IMAGE_MIME: Readonly<Record<ImageFormat, string>> = {
 
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 
-/** The format by content: PNG / JPEG signatures, else SVG if it looks like XML with an `<svg`; `undefined` otherwise. */
+/** The format by content: PNG / JPEG signatures, else SVG if it starts like XML or `<svg`; `undefined` otherwise. */
 export function sniffFormat(bytes: Uint8Array): ImageFormat | undefined {
   if (PNG_SIGNATURE.every((b, i) => bytes[i] === b)) return "png";
   if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "jpeg";
-  // SVG: UTF-8 text whose first markup is an XML declaration, comment, DOCTYPE or <svg.
-  const head = new TextDecoder("utf-8", { fatal: false }).decode(bytes.subarray(0, 4096));
+  // SVG: text whose first markup is an XML declaration, comment, DOCTYPE or
+  // <svg. The strict parser then decides whether the root really is <svg>
+  // (a long license comment may come before it).
+  const head = new TextDecoder("utf-8", { fatal: false }).decode(bytes.subarray(0, 256));
   const text = head.replace(/^﻿/, "").trimStart();
-  if (/^<(?:\?xml|!--|!DOCTYPE|svg[\s>/])/i.test(text) && /<svg[\s>/]/i.test(head)) return "svg";
-  return undefined;
+  return /^<(?:\?xml|!--|!DOCTYPE|svg[\s>/])/i.test(text) ? "svg" : undefined;
 }
 
 /** The format an extension names (`.png`, `.jpg` / `.jpeg`, `.svg`; any case). */
@@ -73,8 +74,13 @@ export function jpegSize(bytes: Uint8Array): PixelSize | string {
     if (marker === 0xd9 || marker === 0xda) break; // end of image / start of scan before a frame
     const length = ((bytes[at + 2] as number) << 8) | (bytes[at + 3] as number);
     if (length < 2) return "the JPEG has a malformed segment";
+    if (at + 2 + length > bytes.length) return "the JPEG is truncated";
     if (SOF.has(marker)) {
-      if (at + 9 > bytes.length) break;
+      // length, precision, height, width, component count, then 3 bytes per component.
+      const components = bytes[at + 9] ?? 0;
+      if (length < 8 || components === 0 || length !== 8 + 3 * components) {
+        return "the JPEG has a malformed frame header";
+      }
       const height = ((bytes[at + 5] as number) << 8) | (bytes[at + 6] as number);
       const width = ((bytes[at + 7] as number) << 8) | (bytes[at + 8] as number);
       if (width === 0 || height === 0) return "the JPEG has a zero width or height";

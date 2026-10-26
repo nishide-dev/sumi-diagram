@@ -27,10 +27,9 @@
  * carries the route and line width / dashes but no `stroke` (SVG's initial
  * value, `none`). At an arrowhead the wire stops at the arrowhead's base.
  *
- * Icons and images (#94) are drawn by `assetMarkup()` next to the node's
- * `g.shape`: an icon after it, as shapes under one transformed `g.sumi-icon`
- * (never a nested `<svg>`); an image before it (under the frame), as one
- * `image.sumi-image` with a `data:` URI.
+ * Icons and images (#94) are drawn by `assetMarkup()` right after the node's
+ * `g.shape`: an icon as shapes under one transformed `g.sumi-icon` (never a
+ * nested `<svg>`), an image as one `image.sumi-image` with a `data:` URI.
  *
  * Fonts: the `@font-face` of every font class the labels use is a TrueType
  * subset of the font set's file for it (`font-subset.ts`), with the
@@ -55,14 +54,10 @@ import { fontFileFor } from "../lint/geometry/measure";
 import { CYLINDER_ARC_UNITS, shapeOutline } from "../lint/geometry/shapes";
 import { drawNodeOutline } from "./compose";
 import { subsetFont } from "./font-subset";
+import { dashArray, n, paint, strokeAttributes } from "./stroke";
 import { escapeAttribute } from "./xml";
 
-/**
- * Formats a coordinate: at most 6 decimals (Layout IR coordinates have 3, and
- * centers / radii derived from them by halving 4, so shapes keep their exact
- * bounds), no exponent for the sizes used, never `-0`.
- */
-const n = (value: number): string => String(Number(value.toFixed(6)) || 0);
+export { dashArray };
 
 const ESCAPES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;" };
 // biome-ignore lint/suspicious/noControlCharactersInRegex: characters XML 1.0 cannot carry
@@ -75,30 +70,6 @@ const attr = (value: string): string => escapeAttribute(value.replace(NOT_XML, "
 /** `sumi-k-<key>`: the ElementKey with `:` → `--` and `#` → `_` (design doc §2.4, as in D2 output). */
 const elementClass = (key: ElementKey): string =>
   `sumi-k-${key.replace(":", "--").replace("#", "_")}`;
-
-/** `transparent` is written as `none` (every SVG consumer reads it). */
-const paint = (color: string): string => (color === "transparent" ? "none" : color);
-
-/**
- * D2's dash pattern for a dash level (`style.stroke-dash`, 0–10) at a stroke
- * width, so dashed lines look the same with both engines.
- */
-export function dashArray(strokeWidth: number, dash: number): [number, number] | undefined {
-  if (dash <= 0 || strokeWidth <= 0) return undefined;
-  const scale = Math.log10(-0.6 * strokeWidth + 10.6) * 0.5 + 0.5;
-  const dashSize = strokeWidth * dash;
-  return [dashSize, scale * dashSize];
-}
-
-/** Stroke attributes of a style (` stroke="…" stroke-width="…"` and dashes). */
-function strokeAttributes(style: CommonStyle, color = paint(style.stroke)): string {
-  const width = style.strokeWidth.units;
-  const dash = dashArray(width, style.strokeDash);
-  return (
-    ` stroke="${color}" stroke-width="${n(width)}"` +
-    (dash === undefined ? "" : ` stroke-dasharray="${n(dash[0])},${n(dash[1])}"`)
-  );
-}
 
 const opacity = (style: CommonStyle): string =>
   style.opacity < 1 ? ` opacity="${n(style.opacity)}"` : "";
@@ -184,7 +155,11 @@ function nodeShape(node: NodeIR, r: Rect): string {
   }
   switch (node.shape) {
     case "text":
-      return "";
+      // An icon on a label node (#94): an invisible box, so the inspection
+      // and the geometry lint see where the icon is drawn.
+      return node.icon === undefined
+        ? ""
+        : `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" fill="none" stroke="none"/>`;
     case "rectangle":
     case "square": {
       const radius = Math.min(style.radius.units, w / 2, h / 2);
@@ -258,10 +233,7 @@ function objectGroup(
   asset = "",
 ): string {
   const labelSvg = layout === undefined ? "" : label(layout, element.style.fontColor);
-  // An image goes under its (transparent) shape, so a frame is drawn over its edge; an icon over the shape's fill.
-  const image = element.kind === "node" && element.image !== undefined;
-  const shapeSvg = `<g class="shape">${shape}</g>`;
-  return `<g class="${elementClass(element.key)} sumi-kind-${element.kind}"${opacity(element.style)}>${image ? asset + shapeSvg : shapeSvg + asset}${labelSvg}</g>`;
+  return `<g class="${elementClass(element.key)} sumi-kind-${element.kind}"${opacity(element.style)}><g class="shape">${shape}</g>${asset}${labelSvg}</g>`;
 }
 
 const unit = (from: Point, to: Point): Point => {

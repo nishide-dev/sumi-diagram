@@ -45,7 +45,17 @@ function figureSubject(context: GeometryContext) {
   return { kind: "figure", id: context.ir.meta.id } as const;
 }
 
-const labelPath = (element: GeometryElement): DocPath => [...element.docPath, "label"];
+/** Where a label is written: `label`, or `icon` for a node that draws an icon in its place (#94). */
+const labelPath = (element: GeometryElement): DocPath => [
+  ...element.docPath,
+  hasIcon(element) ? "icon" : "label",
+];
+
+const hasIcon = (element: GeometryElement): boolean =>
+  element.ir.kind === "node" && element.ir.icon !== undefined;
+
+/** `label`, or `icon` for a node that draws an icon in place of its label (#94). */
+const contentNoun = (element: GeometryElement): string => (hasIcon(element) ? "icon" : "label");
 
 const capitalize = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
 
@@ -101,7 +111,10 @@ export const textTooSmall = defineGeometryRule({
     const findings: LintFinding[] = [];
     const min = context.profile.minFontSizePt;
     for (const element of context.elements) {
-      const sizes = element.labels.map((l) => unitsToPt(l.label.fontSizeUnits));
+      // An icon (#94, no font file) is not text.
+      const sizes = element.labels
+        .filter((l) => l.fontPath !== "")
+        .map((l) => unitsToPt(l.label.fontSizeUnits));
       const smallest = Math.min(...sizes);
       if (sizes.length === 0 || smallest >= min - PT_EPSILON) continue;
       findings.push({
@@ -149,7 +162,9 @@ export const labelOverflow = defineGeometryRule({
         ir.kind === "node" && !ir.autoSized && (ir.width !== undefined || ir.height !== undefined);
       const outside = box !== undefined && !rectsOverlap(box, bbox, 0);
       findings.push({
-        message: `The label of ${element.name} (${box === undefined ? "" : `${formatSize(box)}, `}measured with the theme's fonts) does not fit inside its ${shapeName(element)} shape (${formatSize(bbox)})${outside ? "; it is drawn outside the shape" : ""}.`,
+        message: hasIcon(element)
+          ? `The icon of ${element.name} (${box === undefined ? "" : `${formatSize(box)}, `}1 em) does not fit inside its ${shapeName(element)} shape (${formatSize(bbox)})${outside ? "; it is drawn outside the shape" : ""}.`
+          : `The label of ${element.name} (${box === undefined ? "" : `${formatSize(box)}, `}measured with the theme's fonts) does not fit inside its ${shapeName(element)} shape (${formatSize(bbox)})${outside ? "; it is drawn outside the shape" : ""}.`,
         path: explicit ? [...element.docPath, "props"] : labelPath(element),
         subject: element.subject,
         hint: explicit
@@ -243,7 +258,7 @@ export const labelCollision = defineGeometryRule({
       if (reported.has(pair)) return;
       reported.add(pair);
       findings.push({
-        message: `The label of ${a.name} overlaps ${what} of ${b.name}.`,
+        message: `The ${contentNoun(a)} of ${a.name} overlaps ${what} of ${b.name}.`,
         path: labelPath(a),
         subject: a.subject,
         hint: "Overlapping text is hard to read. Shorten the labels, or change the layout (direction, grouping, edge labels).",
@@ -255,7 +270,7 @@ export const labelCollision = defineGeometryRule({
       for (const b of labelled.slice(i + 1)) {
         const boxesB = lineBoxes(b);
         if (boxesA.some((ra) => boxesB.some((rb) => rectsOverlap(ra, rb, tolerance)))) {
-          report(a, b, "the label");
+          report(a, b, `the ${contentNoun(b)}`);
         }
       }
     }
@@ -293,7 +308,7 @@ export const edgeCrossesLabel = defineGeometryRule({
           .some((box) => polylinesCrossRect(route, box, GEOMETRY_TOLERANCE_UNITS));
         if (!crossed) continue;
         findings.push({
-          message: `${capitalize(edge.name)} crosses the label of ${other.name}.`,
+          message: `${capitalize(edge.name)} crosses the ${contentNoun(other)} of ${other.name}.`,
           path: edge.docPath,
           subject: edge.subject,
           hint:

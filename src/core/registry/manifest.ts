@@ -163,6 +163,35 @@ function enumValues(props: unknown, prop: string): string[] | undefined {
   return values.every((v) => typeof v === "string") ? (values as string[]) : undefined;
 }
 
+/** How an image fills its node's box (#94); the SVG `preserveAspectRatio` of each. */
+export const IMAGE_FITS = ["contain", "cover", "fill"] as const;
+
+/** A prop's schema without its `.optional()` / `.default()` wrappers. */
+function unwrapped(props: unknown, prop: string): unknown {
+  if (!(props instanceof z.ZodObject)) return undefined;
+  let schema: unknown = props.shape[prop];
+  while (schema instanceof z.ZodOptional || schema instanceof z.ZodDefault) {
+    schema = schema.unwrap();
+  }
+  return schema;
+}
+
+/**
+ * The props an image embed needs: `src` a string, `fit` (if any) a string
+ * enum of {@link IMAGE_FITS} values, and `width` / `height`.
+ */
+function imageProps(props: unknown): boolean {
+  const fit = unwrapped(props, "fit");
+  return (
+    unwrapped(props, "src") instanceof z.ZodString &&
+    (fit === undefined ||
+      (fit instanceof z.ZodEnum &&
+        (fit.options as unknown[]).every((v) => (IMAGE_FITS as readonly unknown[]).includes(v)))) &&
+    hasProp(props, "width") &&
+    hasProp(props, "height")
+  );
+}
+
 function sameSet(a: readonly string[], b: readonly string[]): boolean {
   const set = new Set(a);
   return set.size === a.length && a.length === b.length && b.every((v) => set.has(v));
@@ -205,12 +234,10 @@ export const NodeManifestSchema = z
       (m.shape === "rectangle" &&
         m.render === undefined &&
         m.mark === undefined &&
-        hasProp(m.props, "src") &&
-        hasProp(m.props, "width") &&
-        hasProp(m.props, "height")),
+        imageProps(m.props)),
     {
       error:
-        'an image embed requires shape "rectangle", no outline rendering or mark, and props src, width and height',
+        'an image embed requires shape "rectangle", no outline rendering or mark, a string prop src, props width and height, and an optional prop fit of contain / cover / fill',
       path: ["embed"],
     },
   )

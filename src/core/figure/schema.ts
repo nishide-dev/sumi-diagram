@@ -7,7 +7,7 @@
 
 import { validRange } from "semver";
 import { z } from "zod";
-import { ICON_REF_PATTERN } from "../../assets/icon-ref";
+import { ICON_REF_MAX_LENGTH, ICON_REF_PATTERN } from "../../assets/icon-ref";
 import { TONE_NAMES } from "../theme/tones";
 import { parseLength } from "../units";
 
@@ -239,6 +239,7 @@ export const NodeSchema = z.strictObject({
   label: Label,
   icon: z
     .string()
+    .max(ICON_REF_MAX_LENGTH)
     .regex(ICON_REF_PATTERN)
     .optional()
     .describe(

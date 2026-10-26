@@ -140,6 +140,56 @@ nodes:
     expect(parsed.ok).toBe(true);
   });
 
+  test("a tone is the background under an image; the frame is drawn over it", async () => {
+    const source = `version: 1
+figure: { id: toned, theme: color, layout: { arrange: { row: { items: [a] } } } }
+nodes:
+  - { id: a, component: image, variant: framed, tone: orange, props: { src: gradient.png, width: 40pt, height: 20pt } }
+`;
+    const result = await renderFigure(source, { assetBase: ASSETS_DIR });
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const node =
+      /<g class="sumi-k-n--a[^"]*">([\s\S]*?)<\/g><\/svg>/.exec(result.value.svg)?.[1] ?? "";
+    const order = ['<g class="shape">', '<image class="sumi-image"', "sumi-image-frame"].map((s) =>
+      node.indexOf(s),
+    );
+    expect(order.every((i) => i >= 0)).toBe(true);
+    expect([...order].sort((p, q) => p - q)).toEqual(order);
+    const fill = result.value.compiled.ir.nodes[0]?.style.fill;
+    expect(node).toContain(`fill="${fill}"`);
+    expect(node).toMatch(/sumi-image-frame"[^>]*fill="none"/);
+  });
+
+  test("icons are checked like labels by the geometry lint", async () => {
+    // Two icon-only label nodes attached to the same side overlap.
+    const overlap = `version: 1
+figure: { id: overlap, layout: { arrange: { row: { items: [box] } } } }
+nodes:
+  - { id: box, component: box, label: Box }
+  - { id: a, component: label, icon: tabler/flame, attach: { to: box, side: east } }
+  - { id: b, component: label, icon: tabler/flame, attach: { to: box, side: east } }
+`;
+    const first = await renderFigure(overlap);
+    if (!first.ok) throw new Error(JSON.stringify(first.diagnostics));
+    const collisions = lintGeometry(first.value, { source: overlap }).filter(
+      (d) => d.code === "geometry/label-collision",
+    );
+    expect(collisions.map((d) => [d.message, d.path])).toEqual([
+      ['The icon of node "a" overlaps the icon of node "b".', ["nodes", 1, "icon"]],
+    ]);
+    // An icon larger than an explicitly sized node overflows it.
+    const tiny = `version: 1
+figure: { id: tiny, layout: { arrange: { row: { items: [a] } } } }
+nodes:
+  - { id: a, component: box, icon: tabler/flame, props: { width: 4pt, height: 4pt } }
+`;
+    const second = await renderFigure(tiny);
+    if (!second.ok) throw new Error(JSON.stringify(second.diagnostics));
+    expect(lintGeometry(second.value, { source: tiny }).map((d) => d.code)).toContain(
+      "geometry/label-overflow",
+    );
+  });
+
   test("a figure without assets has no assets-sha256 or notice", async () => {
     const result = await renderFigure(
       "version: 1\nfigure: { id: plain, layout: { arrange: { row: { items: [a] } } } }\nnodes: [{ id: a, component: box, label: A }]\n",

@@ -4,9 +4,13 @@ import { describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { z } from "zod";
 import { buildFigureIR } from "../compiler/ir";
 import { ASSETS_DIR } from "../compiler/testing";
 import { checkFigure } from "../core/check";
+import { createBuiltinRegistry } from "../core/registry/builtins";
+import { SizeLength } from "../core/registry/length";
+import type { NodeManifest } from "../core/registry/manifest";
 import { iconNames, iconSets, iconSvg, TABLER_ARCHIVE_SHA256 } from "./icons";
 import { ASSET_LIMITS, loadFigureAssets } from "./load";
 import { srcProblem } from "./paths";
@@ -99,6 +103,47 @@ describe("importSvg", () => {
     );
   });
 
+  test("budgets hold while parsing, skipped metadata included", () => {
+    const many = svg(`<metadata>${"<x/>".repeat(20_001)}</metadata>`);
+    expect(issues(many)[0]?.message).toContain("more than 20000 elements");
+    const deep = svg(`<metadata>${"<g>".repeat(40)}${"</g>".repeat(40)}</metadata>`);
+    expect(issues(deep)[0]?.message).toContain("deeper than 32");
+  });
+
+  test("many problems stay cheap and are capped", () => {
+    const started = performance.now();
+    const found = issues(svg('<text x="1">t</text>\n'.repeat(19_000)));
+    expect(performance.now() - started).toBeLessThan(2000);
+    expect(found.length).toBeLessThanOrEqual(100);
+    expect(found.at(-1)?.line).toBe(100);
+  });
+
+  test("namespaces are told by their URI, not their prefix", () => {
+    // A prefix spelled like an editor's but bound to SVG is not skipped silently.
+    const rebound = svg(
+      '<inkscape:g xmlns:inkscape="http://www.w3.org/2000/svg"><rect width="5" height="5"/></inkscape:g>',
+    );
+    expect(issues(rebound)[0]?.kind).toBe("unsupported");
+    // Real editor metadata is skipped.
+    const editor = importSvg(
+      svg(
+        '<sodipodi:namedview xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"/><rect width="1" height="1" sodipodi:x="1"/>',
+        'viewBox="0 0 10 10" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"',
+      ),
+    );
+    expect(editor.ok).toBe(true);
+    // A default namespace that is not SVG is not drawn.
+    expect(
+      issues(svg('<g xmlns="http://example.com/"><rect width="1" height="1"/></g>'))[0]?.kind,
+    ).toBe("unsupported");
+  });
+
+  test("numbers must be finite", () => {
+    expect(issues(svg('<rect width="1e999" height="1"/>'))[0]?.kind).toBe("unsupported");
+    expect(issues(svg('<path d="M0 0 L1e400 1"/>'))[0]?.kind).toBe("unsupported");
+    expect(issues(svg("", 'viewBox="0 0 1e308 1e-308" height="1e308"'))[0]?.kind).toBe("invalid");
+  });
+
   test("malformed input is invalid", () => {
     expect(issues("<svg")[0]?.kind).toBe("invalid");
     expect(issues('<html xmlns="http://www.w3.org/1999/xhtml"/>')[0]?.kind).toBe("invalid");
@@ -175,6 +220,15 @@ describe("raster headers", () => {
     expect(jpegSize(jpeg)).toEqual({ width: 64, height: 48 });
     expect(typeof pngSize(png.subarray(0, 20))).toBe("string");
     expect(typeof jpegSize(jpeg.subarray(0, 4))).toBe("string");
+    // A frame header shorter than its fields, and a truncated segment.
+    expect(typeof jpegSize(new Uint8Array([0xff, 0xd8, 0xff, 0xc0, 0, 2, 8, 0, 1, 0, 1]))).toBe(
+      "string",
+    );
+    expect(typeof jpegSize(new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 16, 1, 2]))).toBe("string");
+    // A long license comment before <svg> is still SVG for the parser to judge.
+    const commented = `<!--${"x".repeat(5000)}-->${svg("")}`;
+    expect(sniffFormat(new TextEncoder().encode(commented))).toBe("svg");
+    expect(importSvg(commented).ok).toBe(true);
   });
 });
 
@@ -211,6 +265,10 @@ describe("the asset stage", () => {
     expect(checkCodes(figure("  - { id: a, component: box, icon: lucide/flame }"))).toEqual([
       ["asset/unknown-icon-set", "nodes.0.icon"],
     ]);
+    // Long names are refused by the schema (no costly typo search).
+    expect(
+      checkCodes(figure(`  - { id: a, component: box, icon: tabler/${"a".repeat(5000)} }`))[0]?.[0],
+    ).toMatch(/^schema\//);
     expect(checkCodes(figure("  - { id: a, component: box, icon: Tabler/Flame }"))[0]?.[0]).toBe(
       "schema/invalid-value",
     );
@@ -371,6 +429,13 @@ describe("loadFigureAssets", () => {
     ]);
   });
 
+  test("a FIFO is refused without waiting for a writer", () => {
+    const dir = mkdtempSync(join(tmpdir(), "sumi-assets-"));
+    const made = Bun.spawnSync(["mkfifo", join(dir, "pipe.png")]);
+    if (made.exitCode !== 0) return; // no mkfifo on this platform
+    expect(codes(load(image("src: pipe.png"), dir))[0]?.[0]).toBe("asset/not-found");
+  });
+
   test("a symbolic link out of the figure's directory is refused", () => {
     const outside = mkdtempSync(join(tmpdir(), "sumi-outside-"));
     const dir = mkdtempSync(join(tmpdir(), "sumi-assets-"));
@@ -404,5 +469,43 @@ describe("loadFigureAssets", () => {
         .join("\n"),
     );
     expect(codes(load(three, dir))).toEqual([["asset/too-large", "nodes.2.props.src"]]);
+  });
+});
+
+describe("image manifests from outside the built-ins", () => {
+  const manifest = (fit: z.ZodType | undefined): NodeManifest => ({
+    version: 1,
+    kind: "node",
+    namespace: "test",
+    name: "picture",
+    description: "A test image component.",
+    variants: ["default"],
+    since: "0.4.0",
+    props: z.strictObject({
+      src: z.string(),
+      ...(fit !== undefined && { fit }),
+      width: SizeLength.optional(),
+      height: SizeLength.optional(),
+    }),
+    shape: "rectangle",
+    sizing: "auto",
+    embed: "image",
+  });
+
+  test("without fit: contain", () => {
+    const registry = createBuiltinRegistry();
+    expect(registry.register(manifest(undefined)).ok).toBe(true);
+    const check = checkFigure(
+      figure("  - { id: a, component: test/picture, props: { src: a.png, width: 10pt } }"),
+      { registry },
+    );
+    expect(check.state.diagnostics).toEqual([]);
+    expect(buildFigureIR(check).nodes[0]?.image?.fit).toBe("contain");
+  });
+
+  test("a fit outside contain / cover / fill is refused at registration", () => {
+    const registry = createBuiltinRegistry();
+    expect(registry.register(manifest(z.enum(["contain", "stretch"]))).ok).toBe(false);
+    expect(registry.register(manifest(z.string())).ok).toBe(false);
   });
 });

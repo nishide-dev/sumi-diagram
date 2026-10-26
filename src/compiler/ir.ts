@@ -23,11 +23,12 @@ import type {
   Side,
 } from "../core/figure/schema";
 import { getProfile } from "../core/profile/builtin";
-import type { IMAGE_FITS } from "../core/registry/builtins";
+
 import {
   type Arrowhead,
   type ComponentId,
   type EdgeDirection,
+  IMAGE_FITS,
   markText,
   type NodeMark,
   type NodeShape,
@@ -520,9 +521,10 @@ function iconIR(ref: string): IconIR {
 }
 
 function imageIR(props: Record<string, unknown>, srcAt: SourceMapEntry): ImageIR {
-  const { src, sha256, fit } = props;
-  if (typeof src !== "string" || typeof fit !== "string") {
-    throw new Error("internal error: image props without src or fit");
+  const { src, sha256, fit = "contain" } = props;
+  // The registry checks src is a string prop and fit one of IMAGE_FITS (manifest `embed`).
+  if (typeof src !== "string" || !(IMAGE_FITS as readonly unknown[]).includes(fit)) {
+    throw new Error("internal error: image props without src or with an unknown fit");
   }
   return freeze({
     src,

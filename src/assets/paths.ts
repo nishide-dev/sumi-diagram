@@ -9,7 +9,15 @@
  * {@link readAssetFile} checks the file system and reads (at render time).
  */
 
-import { closeSync, constants, fstatSync, openSync, readSync, realpathSync } from "node:fs";
+import {
+  closeSync,
+  constants,
+  fstatSync,
+  openSync,
+  readSync,
+  realpathSync,
+  statSync,
+} from "node:fs";
 import { isAbsolute, join, posix, relative, sep } from "node:path";
 
 /**
@@ -74,7 +82,11 @@ export function readAssetFile(base: string, src: string, maxBytes: number): Read
   }
   let fd: number;
   try {
-    fd = openSync(real, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+    // O_NONBLOCK: opening a FIFO must not wait for a writer (it is rejected below).
+    fd = openSync(
+      real,
+      constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0),
+    );
   } catch {
     return { ok: false, reason: "not-found", message: "the file cannot be opened" };
   }
@@ -82,6 +94,31 @@ export function readAssetFile(base: string, src: string, maxBytes: number): Read
     const stat = fstatSync(fd);
     if (!stat.isFile()) {
       return { ok: false, reason: "not-found", message: "it is not a regular file" };
+    }
+    // O_NOFOLLOW guards only the last component: a directory on the way could
+    // have been swapped for a symbolic link between the check and the open.
+    // Resolve again and require the same file, still inside the base.
+    let again: string;
+    try {
+      again = realpathSync(join(realBase, ...src.split("/")));
+    } catch {
+      return { ok: false, reason: "not-found", message: "the file changed while it was opened" };
+    }
+    const now = relative(realBase, again);
+    const checked = statSync(again);
+    if (
+      now === "" ||
+      now === ".." ||
+      now.startsWith(`..${sep}`) ||
+      isAbsolute(now) ||
+      checked.dev !== stat.dev ||
+      checked.ino !== stat.ino
+    ) {
+      return {
+        ok: false,
+        reason: "outside-base",
+        message: "it changed to a file outside the figure's directory while it was opened",
+      };
     }
     if (stat.size > maxBytes) {
       return {

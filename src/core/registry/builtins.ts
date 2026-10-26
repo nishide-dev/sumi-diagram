@@ -11,6 +11,7 @@ import {
   type ComponentManifest,
   type EdgeManifest,
   type GroupManifest,
+  IMAGE_FITS,
   MANIFEST_VERSION,
   type NodeManifest,
   type NodeShape,
@@ -140,8 +141,7 @@ const junction: NodeManifest = {
   mark: { type: "point", size: 3 },
 };
 
-/** How an image fills its node's box (#94); the SVG `preserveAspectRatio` of each. */
-export const IMAGE_FITS = ["contain", "cover", "fill"] as const;
+export { IMAGE_FITS };
 
 const image: NodeManifest = {
   ...base,
