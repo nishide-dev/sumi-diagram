@@ -1,9 +1,27 @@
 # Layout tips
 
-Sumi lays figures out with D2 + ELK (layered layout). You control only the
-root `direction`, grouping, the order of elements and label length; there
-are no coordinates, ports or per-group directions. Measure, don't guess:
-`sumi render` prints the final size, and the preview shows the result.
+## Choose the engine first
+
+| The figure is… | Use |
+| --- | --- |
+| a flow: flowchart, pipeline, decision flow, state machine, dependency or call graph, an architecture overview where only the connections matter | **auto** (default): `figure.layout.direction` |
+| a paper block diagram: a network drawn as stacked layers, residual or skip connections, columns that must line up, blocks of equal width, notes beside a block (`N×`), operators (⊕) and split points, math labels | **structured**: `figure.layout.arrange` ([structured](structured.md)) |
+
+The figure is structured exactly when it has `figure.layout.arrange`. When
+unsure, start with auto: it needs no placement and suits most diagrams;
+switch when the user wants a particular arrangement or the figure
+reproduces a paper's block diagram. Structured figures need every element
+placed; their sizes come from the arrange tree, so the direction tables
+below do not apply (measure with `sumi render` as usual). The rest of this
+page is about **auto**.
+
+## Auto layout (D2 + ELK)
+
+Auto figures are laid out by D2 + ELK (layered layout). You control only
+the root `direction`, grouping, the order of elements and label length;
+there are no coordinates, anchors or per-group directions. Measure, don't
+guess: `sumi render` prints the final size, and the preview shows the
+result.
 
 ## Direction vs. target width
 

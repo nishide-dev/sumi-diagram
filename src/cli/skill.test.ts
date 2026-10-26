@@ -2,10 +2,13 @@
  * Keeps the Claude Code Skill (`skills/sumi`, #15, #45) honest: it is laid out
  * the way `npx skills add` discovers it, its metadata is well formed, its links resolve, every component, theme,
  * profile and diagnostic code it names exists, and every complete figure in
- * it passes `sumi lint` (or fails with exactly the documented errors).
- * Figures marked `# expect-render:` are also rendered with the pinned D2 when
- * it is installed (required in CI) and geometry-linted: `fits` means no
- * diagnostics, `too-wide` exactly `geometry/exceeds-page-width`.
+ * it passes `sumi lint` (or fails with exactly the documented errors), both
+ * through the library and through the CLI the skill runs (`scripts/sumi`).
+ * Figures marked `# expect-render:` are also rendered by the CLI (auto figures
+ * need the pinned D2, required in CI; structured ones do not): `fits` means no
+ * diagnostics, `too-wide` exactly `geometry/exceeds-page-width`, and a list of
+ * codes exactly those. Image `src` files resolve against copies of
+ * `tests/fixtures/assets/`.
  */
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
@@ -51,6 +54,7 @@ const STAGES = [
   "ref",
   "layout",
   "component",
+  "asset",
   "theme",
   "profile",
   "compile",
@@ -58,7 +62,12 @@ const STAGES = [
   "svg",
   "lint",
   "geometry",
+  "pdf",
+  "pptx",
 ];
+
+/** `${format}/<rule>` in the sources stands for both of these output formats. */
+const FORMAT_STAGES = ["pdf", "pptx"];
 
 function markdownFiles(): string[] {
   const references = join(SKILL_DIR, "references");
@@ -110,16 +119,25 @@ function marker(body: string, name: string): string | undefined {
 function knownCodes(): Set<string> {
   const codes = new Set<string>();
   const literal = new RegExp(`"((?:${STAGES.join("|")})/[a-z0-9-]+)"`, "g");
+  const formatTemplate = /`\$\{format\}\/([a-z0-9-]+)`/g;
   const walk = (dir: string) => {
     for (const entry of readdirSync(dir)) {
       const path = join(dir, entry);
       if (statSync(path).isDirectory()) walk(path);
       else if (path.endsWith(".ts") && !path.endsWith(".test.ts")) {
-        for (const match of readFileSync(path, "utf8").matchAll(literal)) codes.add(match[1] ?? "");
+        const source = readFileSync(path, "utf8");
+        for (const match of source.matchAll(literal)) codes.add(match[1] ?? "");
+        for (const match of source.matchAll(formatTemplate)) {
+          for (const format of FORMAT_STAGES) codes.add(`${format}/${match[1]}`);
+        }
       }
     }
   };
   walk(join(ROOT, "src"));
+  // `asset/${read.reason}` (src/assets/load.ts): the reasons of readAssetFile().
+  const paths = readFileSync(join(ROOT, "src", "assets", "paths.ts"), "utf8");
+  const reasons = /reason: ("[a-z-]+"(?: \| "[a-z-]+")*);/.exec(paths)?.[1] ?? "";
+  for (const match of reasons.matchAll(/"([a-z-]+)"/g)) codes.add(`asset/${match[1]}`);
   return codes;
 }
 
@@ -326,38 +344,105 @@ describe("skill references", () => {
   });
 });
 
+/** The diagnostic codes an `# expect-render:` marker stands for. */
+function expectedRenderCodes(value: string): string[] {
+  if (value === "fits") return [];
+  if (value === "too-wide") return ["geometry/exceeds-page-width"];
+  return value.split(/,\s*/);
+}
+
+/** Whether a figure uses the structured layout (renders without D2). */
+function isStructured(body: string): boolean {
+  const figure = (parseYaml(body) as { figure?: { layout?: { arrange?: unknown } } }).figure;
+  return figure?.layout?.arrange !== undefined;
+}
+
+const ASSET_FIXTURES = join(ROOT, "tests", "fixtures", "assets");
+
 describe("figures in the skill", () => {
-  test("there are complete figures, including failure examples", () => {
-    expect(figures.length).toBeGreaterThanOrEqual(4);
-    expect(figures.some((f) => marker(f.body, "expect-error") !== undefined)).toBe(true);
+  const labelled = figures.map((f) => [`${f.doc}:${f.line}`, f] as const);
+  const rendered = figures.filter((f) => marker(f.body, "expect-render") !== undefined);
+  let work = "";
+
+  beforeAll(async () => {
+    // Each figure as its own file next to copies of the asset fixtures, as a
+    // user would have it: image `src` paths are relative to the YAML.
+    work = await mkdtemp(join(tmpdir(), "sumi-skill-figures-"));
+    await cp(ASSET_FIXTURES, work, { recursive: true });
+    for (const [index, figure] of figures.entries()) {
+      await writeFile(join(work, `figure-${index}.sumi.yaml`), figure.body);
+    }
+  });
+  afterAll(async () => {
+    await rm(work, { recursive: true, force: true });
   });
 
-  test.each(figures.map((f) => [`${f.doc}:${f.line}`, f] as const))(
-    "%s lints as documented",
-    (_, figure) => {
-      const report = lintFigure(figure.body, { file: `${figure.doc}:${figure.line}` });
+  test("there are complete figures, including failure and structured examples", () => {
+    expect(figures.length).toBeGreaterThanOrEqual(4);
+    expect(figures.some((f) => marker(f.body, "expect-error") !== undefined)).toBe(true);
+    expect(rendered.some((f) => isStructured(f.body))).toBe(true);
+    expect(rendered.some((f) => !isStructured(f.body))).toBe(true);
+  });
+
+  test.each(labelled)("%s lints as documented", (_, figure) => {
+    const report = lintFigure(figure.body, { file: `${figure.doc}:${figure.line}` });
+    const expected = marker(figure.body, "expect-error");
+    if (expected === undefined) {
+      expect(report.diagnostics).toEqual([]);
+    } else {
+      const errors = report.diagnostics.filter((d) => d.severity === "error").map((d) => d.code);
+      expect(errors.sort()).toEqual(expected.split(/,\s*/).sort());
+    }
+  });
+
+  test("the CLI the skill runs lints every figure as documented", async () => {
+    const files = figures.map((_, index) => `figure-${index}.sumi.yaml`);
+    const run = await runScript("sumi", ["lint", "--json", ...files], {}, { cwd: work });
+    const report = JSON.parse(run.stdout) as {
+      results: { file: string; diagnostics: { code: string; severity: string }[] }[];
+    };
+    expect(report.results.map((r) => r.file)).toEqual(files);
+    for (const [index, figure] of figures.entries()) {
+      const where = `${figure.doc}:${figure.line}`;
+      const diagnostics = report.results[index]?.diagnostics ?? [];
       const expected = marker(figure.body, "expect-error");
       if (expected === undefined) {
-        expect(report.diagnostics).toEqual([]);
+        expect(diagnostics, where).toEqual([]);
       } else {
-        const errors = report.diagnostics.filter((d) => d.severity === "error").map((d) => d.code);
-        expect(errors.sort()).toEqual(expected.split(/,\s*/).sort());
+        const errors = diagnostics.filter((d) => d.severity === "error").map((d) => d.code);
+        expect(errors.sort(), where).toEqual(expected.split(/,\s*/).sort());
       }
-    },
-  );
+    }
+  });
 
-  const rendered = figures.filter((f) => marker(f.body, "expect-render") !== undefined);
-
-  test
-    .skipIf(!d2Available && !process.env.CI)
-    .each(rendered.map((f) => [`${f.doc}:${f.line}`, f] as const))(
-    "%s renders with the documented geometry",
+  test.each(rendered.map((f) => [`${f.doc}:${f.line}`, f] as const))(
+    "%s renders through the CLI with the documented diagnostics",
     async (_, figure) => {
-      const report = await lintRenderedFigure(figure.body);
-      expect(report.rendered).toBeDefined();
-      const codes = report.diagnostics.map((d) => d.code);
-      const expected = marker(figure.body, "expect-render");
-      expect(codes).toEqual(expected === "fits" ? [] : ["geometry/exceeds-page-width"]);
+      if (!isStructured(figure.body) && !d2Available && !process.env.CI) return;
+      const index = figures.indexOf(figure);
+      const output = `figure-${index}.svg`;
+      const run = await runScript(
+        "sumi",
+        ["render", "--json", `figure-${index}.sumi.yaml`, "-o", output],
+        {},
+        { cwd: work },
+      );
+      const report = JSON.parse(run.stdout) as {
+        diagnostics: { code: string; severity: string }[];
+        size: { fits: boolean } | null;
+      };
+      const expected = expectedRenderCodes(marker(figure.body, "expect-render") ?? "");
+      expect(report.diagnostics.map((d) => d.code)).toEqual(expected);
+      const failed = report.diagnostics.some((d) => d.severity === "error");
+      expect(run.exitCode).toBe(failed ? 1 : 0);
+      // Geometry errors still write the SVG; layout and asset errors do not.
+      const drawn = !report.diagnostics.some((d) => /^(layout|asset)\//.test(d.code));
+      expect(existsSync(join(work, output))).toBe(drawn);
+      if (drawn) {
+        // The library path gives the same result.
+        const library = await lintRenderedFigure(figure.body, { assetBase: work });
+        expect(library.diagnostics.map((d) => d.code)).toEqual(expected);
+      }
     },
   );
 });

@@ -4,8 +4,8 @@ Real runs of the workflow (outputs abbreviated). `sumi` is the skill's
 `scripts/sumi` wrapper. Every complete figure on this page is checked by the
 repository's tests (`src/cli/skill.test.ts`): a `# expect-error:` comment
 lists the errors `sumi lint` must report, `# expect-render: fits` means no
-geometry diagnostics after rendering, `too-wide` exactly
-`geometry/exceeds-page-width`.
+diagnostics after rendering, `too-wide` exactly
+`geometry/exceeds-page-width`, and a list of codes exactly those.
 
 ## 1. Success: a decision flow
 
@@ -253,3 +253,168 @@ exit 0
 Had `down` still been too wide (e.g. many parallel branches), the next
 step is to ask the user whether `paper-double` is acceptable — not to
 switch silently.
+
+## 4. Success: a structured block diagram
+
+Request: "For one paper column, draw a Transformer encoder layer the way
+papers do: inputs at the bottom, input embedding, positional encoding added
+with a ⊕, then N× [multi-head attention + add & norm, feed forward + add &
+norm] with residual connections; math labels for the inputs and outputs."
+
+Stacked layers, residuals and a side note are a structured figure
+([layout-tips](layout-tips.md#choose-the-engine-first)). Icon search:
+
+```sh
+$ sumi catalog --icons "wave sine"
+tabler/wave-sine
+```
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: encoder-block
+  theme: academic
+  profile: paper-single
+  layout:
+    arrange:
+      stack:
+        direction: up # first item at the bottom
+        gap: 4mm
+        items: [ inputs, embedding, add-pe, encoder, outputs ]
+
+groups:
+  - id: encoder
+    arrange:
+      stack:
+        direction: up
+        gap: 3mm
+        align: stretch # every block as wide as the widest
+        items:
+          - split1
+          - stack: { direction: up, gap: 0, items: [ attention, norm1 ] } # touching blocks
+          - split2
+          - stack: { direction: up, gap: 0, items: [ feed-forward, norm2 ] }
+
+nodes:
+  - { id: inputs, component: label, label: '$x_1,\,\ldots,\,x_n$' }
+  - { id: embedding, component: box, label: Input Embedding, tone: pink }
+  - { id: add-pe, component: operator, props: { symbol: plus } }
+  - { id: pe, component: circle, icon: tabler/wave-sine, attach: { to: add-pe, side: west, gap: 1mm } }
+  - { id: pe-label, component: label, label: "Positional\nEncoding", attach: { to: pe, side: west, gap: 0.5mm } }
+  - { id: split1, component: junction }
+  - { id: attention, component: box, label: "Multi-Head\nAttention", tone: orange }
+  - { id: norm1, component: box, label: Add & Norm, tone: yellow }
+  - { id: split2, component: junction }
+  - { id: feed-forward, component: box, label: Feed Forward, tone: blue }
+  - { id: norm2, component: box, label: Add & Norm, tone: yellow }
+  - { id: repeat, component: label, label: '$N \times$', attach: { to: encoder, side: east, gap: 2mm } }
+  - { id: outputs, component: label, label: '$h_1,\,\ldots,\,h_n$' }
+
+edges:
+  - { from: inputs, to: embedding }
+  - { from: embedding, to: add-pe }
+  - { from: pe, to: add-pe, component: line }
+  - { from: add-pe, to: split1, component: line }
+  # one junction fans out to Q, K, V and the residual
+  - { from: split1, to: attention, toAnchor: "south:0.2" }
+  - { from: split1, to: attention, toAnchor: "south:0.5" }
+  - { from: split1, to: attention, toAnchor: "south:0.8" }
+  - { from: split1, to: norm1, toAnchor: west } # residual
+  - { from: norm1, to: split2, component: line }
+  - { from: split2, to: feed-forward }
+  - { from: split2, to: norm2, toAnchor: west } # residual
+  - { from: norm2, to: outputs }
+```
+
+```sh
+$ sumi fmt encoder-block.sumi.yaml && sumi lint encoder-block.sumi.yaml
+0 errors, 0 warnings, 0 infos
+$ sumi render encoder-block.sumi.yaml
+Wrote encoder-block.svg: 51.68mm × 82.2mm (paper-single, max width 88mm; theme academic).
+```
+
+Points to note: every node and group appears once, in a tree or with
+`attach` (the positional encoding and its caption hang off the ⊕, `N×` off
+the group); the group's members come from its `arrange`, so no `group:`
+fields; `gap: 0` stacks join each block to its `Add & Norm` with no edge
+between them; edges into junctions are `line`s; math labels are
+single-quoted and use `\,` after commas. `academic` maps the tones to gray
+steps; with `theme: color` the same YAML is in color.
+
+## 5. Failure: no room for the arrows
+
+Request: "A pre-norm MLP block with a residual, in color, for one column."
+A first draft packed the stack tightly. `lint` is clean (routing happens
+at render time), but:
+
+```yaml
+# expect-render: layout/no-route, layout/no-route, layout/no-route, layout/no-route
+version: 1
+figure:
+  id: mlp-block
+  theme: color
+  profile: paper-single
+  layout:
+    arrange:
+      stack: { direction: up, gap: 1.5mm, align: stretch, items: [ x, split, norm, mlp, add, y ] }
+nodes:
+  - { id: x, component: label, label: $x$ }
+  - { id: split, component: junction }
+  - { id: norm, component: box, label: Layer Norm, tone: yellow }
+  - { id: mlp, component: box, label: MLP, tone: blue }
+  - { id: add, component: operator, props: { symbol: plus } }
+  - { id: y, component: label, label: $y$ }
+edges:
+  - { from: x, to: split, component: line }
+  - { from: split, to: norm }
+  - { from: norm, to: mlp }
+  - { from: mlp, to: add }
+  - { from: split, to: add, toAnchor: west } # residual
+  - { from: add, to: y }
+```
+
+```sh
+$ sumi render mlp-block.sumi.yaml; echo "exit $?"
+mlp-block.sumi.yaml:18:5 error layout/no-route No route was found for edge edges[1] from "split" to "norm": the ends are closer than its arrowhead at the target is long.
+  hint: Leave room around the elements it connects (…), connect other sides with fromAnchor / toAnchor, or use a different anchor for each end.
+…                                # the same for edges[2], edges[3] and edges[5]
+4 errors, 0 warnings, 0 infos
+exit 1
+```
+
+No SVG is written for a routing error. The arrowheads of `color` (2pt
+lines) are longer than 1.5mm; the `line` from `x` and the residual route
+fine. Fix: `gap: 3mm` (not `gap: 0`, which leaves no room at all):
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: mlp-block
+  theme: color
+  profile: paper-single
+  layout:
+    arrange:
+      stack: { direction: up, gap: 3mm, align: stretch, items: [ x, split, norm, mlp, add, y ] }
+nodes:
+  - { id: x, component: label, label: $x$ }
+  - { id: split, component: junction }
+  - { id: norm, component: box, label: Layer Norm, tone: yellow }
+  - { id: mlp, component: box, label: MLP, tone: blue }
+  - { id: add, component: operator, props: { symbol: plus } }
+  - { id: y, component: label, label: $y$ }
+edges:
+  - { from: x, to: split, component: line }
+  - { from: split, to: norm }
+  - { from: norm, to: mlp }
+  - { from: mlp, to: add }
+  - { from: split, to: add, toAnchor: west } # residual
+  - { from: add, to: y }
+```
+
+```sh
+$ sumi render mlp-block.sumi.yaml; echo "exit $?"
+Wrote mlp-block.svg: 27.52mm × 44.8mm (paper-single, max width 88mm; theme color).
+exit 0
+```
