@@ -24,6 +24,8 @@ export interface GlyphCoverage {
   glyph(codePoint: number): number;
   /** Number of mapped code points. */
   readonly size: number;
+  /** Every mapping, ascending by code point: code point → glyph ID. */
+  entries(): Generator<[codePoint: number, glyph: number]>;
 }
 
 const MAX_CODE_POINT = 0x10ffff;
@@ -82,6 +84,14 @@ class RangeBuilder {
       glyph(codePoint) {
         const i = find(codePoint);
         return i < 0 ? 0 : (glyphs[i] ?? 0) + (codePoint - (starts[i] ?? 0));
+      },
+      *entries() {
+        for (let i = 0; i < starts.length; i++) {
+          const start = starts[i] ?? 0;
+          for (let cp = start; cp <= (ends[i] ?? 0); cp++) {
+            yield [cp, (glyphs[i] ?? 0) + (cp - start)];
+          }
+        }
       },
     };
   }

@@ -14,6 +14,19 @@
  * SVGs of the structured writer (#91) name their families `sumi-<n>-font-<slot>`
  * the same way and are resolved alike, including the label-math classes
  * `math` / `math-italic` (#93), which are not D2 slots.
+ *
+ * A `<text>` whose runs use several fonts (label math) needs one more step
+ * (#112, design doc §6.24). usvg shapes a text chunk's *whole* text with each
+ * run's font and keeps that font's glyphs for the run's own characters. When
+ * that font lacks a character of *another* run (STIX Two Text Italic has no
+ * `∇`), usvg falls back, and if the fallback font has every character of the
+ * chunk (BIZ UDPGothic has `y∇x`) it replaces *all* glyphs with it: the run
+ * loses its font. {@link resolveSvgFonts} therefore hands the engine copies of
+ * such fonts whose `cmap` also maps those other runs' characters (to the
+ * space glyph, which is never drawn: those glyphs are discarded), so shaping
+ * a chunk with any of its fonts misses nothing and never falls back. A
+ * character a run's *own* font lacks is not added anywhere, so it still falls
+ * back as before (`lint/missing-glyph` warns about it).
  */
 
 import { readFileSync } from "node:fs";
@@ -21,10 +34,11 @@ import type { Diagnostic } from "../../core/diagnostics";
 import { MATH_FONT, MATH_ITALIC_FONT } from "../../core/label/runs";
 import type { Result } from "../../core/result";
 import { type FontSet, fontSetArgs } from "../../core/theme/fonts";
+import { type GlyphCoverage, parseGlyphCoverage } from "../../lint/cmap";
 import { fontFileFor } from "../../lint/geometry/measure";
 import { FontParseError, readTables } from "../../lint/sfnt";
-import { withoutTables } from "../font-subset";
-import { descendants, parseXml } from "../xml";
+import { withCodePoints, withoutTables } from "../font-subset";
+import { classList, descendants, parseXml, type XmlElement, type XmlNode } from "../xml";
 
 /** How a font file names itself: what usvg/fontdb match a CSS rule against. */
 export interface FontFace {
@@ -85,6 +99,9 @@ export interface ResolvedSvgFonts {
 const MATH_FONT_CLASSES = [MATH_FONT, MATH_ITALIC_FONT];
 
 const FONT_FACE_RULE = /@font-face\s*\{[^}]*\}\s*/g;
+const CSS_RULE = /([^{}]*)\{([^{}]*)\}/g;
+const FAMILY_SLOT = /font-family:\s*"?(?:d2|sumi)-\d+-font-([a-z-]+)"?\s*;/;
+const LAST_CLASS = /\.([A-Za-z0-9_-]+)\s*$/;
 const D2_FAMILY = /font-family:\s*"?(?:d2|sumi)-\d+-font-([a-z-]+)"?\s*;/g;
 const D2_FAMILY_ANYWHERE = /(?:d2|sumi)-\d+-font-[a-z-]+/;
 
@@ -143,6 +160,7 @@ export function resolveSvgFonts(
     if (problem !== undefined) return { ok: false, diagnostics: [problem] };
   }
   let loadProblem: Diagnostic | undefined;
+  const coverageOf = new Map<string, GlyphCoverage>();
 
   // Only CSS is rewritten: the content of each <style> element, located by
   // the strict XML parser's offsets and spliced into the original text. Text
@@ -155,6 +173,9 @@ export function resolveSvgFonts(
     };
   }
   const faces = new Map<string, FontFace>();
+  const fileOfSlot = new Map<string, string>();
+  const slotOfClass = new Map<string, { slot: string; order: number }>();
+  let order = 0;
   const unknown = new Set<string>();
   let leftover: string | undefined;
   const parts: string[] = [];
@@ -168,25 +189,33 @@ export function resolveSvgFonts(
     }
     if (element.name !== "style" || element.end === element.startTagEnd) continue;
     const contentEnd = svg.lastIndexOf("</", element.end);
-    const css = svg
-      .slice(element.startTagEnd, contentEnd)
-      .replace(FONT_FACE_RULE, "")
-      .replace(D2_FAMILY, (whole, slot: string) => {
-        let file = fileOf.get(slot);
-        const extra = optional.get(slot);
-        if (file === undefined && extra !== undefined) {
-          loadProblem ??= load(extra, false);
-          if (!files.includes(extra)) files.push(extra);
-          file = extra;
-        }
-        const face = file === undefined ? undefined : faceOfFile.get(file);
-        if (face === undefined) {
-          unknown.add(slot);
-          return whole;
-        }
-        faces.set(slot, face);
-        return `font-family: ${cssString(face.family)}; font-weight: ${face.weight}; font-style: ${face.italic ? "italic" : "normal"};`;
-      });
+    const rules = svg.slice(element.startTagEnd, contentEnd).replace(FONT_FACE_RULE, "");
+    for (const [, selectors, body] of rules.matchAll(CSS_RULE)) {
+      const slot = FAMILY_SLOT.exec(body ?? "")?.[1];
+      if (slot === undefined) continue;
+      for (const selector of (selectors ?? "").split(",")) {
+        const cls = LAST_CLASS.exec(selector.trim())?.[1];
+        // Later rules win, as in CSS (the selectors have equal specificity).
+        if (cls !== undefined) slotOfClass.set(cls, { slot, order: order++ });
+      }
+    }
+    const css = rules.replace(D2_FAMILY, (whole, slot: string) => {
+      let file = fileOf.get(slot);
+      const extra = optional.get(slot);
+      if (file === undefined && extra !== undefined) {
+        loadProblem ??= load(extra, false);
+        if (!files.includes(extra)) files.push(extra);
+        file = extra;
+      }
+      const face = file === undefined ? undefined : faceOfFile.get(file);
+      if (face === undefined) {
+        unknown.add(slot);
+        return whole;
+      }
+      faces.set(slot, face);
+      fileOfSlot.set(slot, file as string);
+      return `font-family: ${cssString(face.family)}; font-weight: ${face.weight}; font-style: ${face.italic ? "italic" : "normal"};`;
+    });
     leftover ??= D2_FAMILY_ANYWHERE.exec(css)?.[0];
     parts.push(svg.slice(copied, element.startTagEnd), css);
     copied = contentEnd;
@@ -208,6 +237,31 @@ export function resolveSvgFonts(
       ],
     };
   }
+  const fileOfClass = new Map(
+    [...slotOfClass].map(([cls, { slot, order }]) => [
+      cls,
+      { file: fileOfSlot.get(slot) as string, order },
+    ]),
+  );
+  const extra = foreignCodePoints(parsed.root, fileOfClass, fontSet.regular, (file) => {
+    let coverage = coverageOf.get(file);
+    if (coverage === undefined) {
+      coverage = parseGlyphCoverage(bytes.get(file) as Uint8Array);
+      coverageOf.set(file, coverage);
+    }
+    return coverage;
+  });
+  for (const [file, codePoints] of extra) {
+    const coverage = coverageOf.get(file) as GlyphCoverage;
+    const blank = coverage.glyph(0x20) || 1;
+    bytes.set(
+      file,
+      withCodePoints(
+        bytes.get(file) as Uint8Array,
+        new Map([...codePoints].map((cp) => [cp, blank])),
+      ),
+    );
+  }
   return {
     ok: true,
     value: {
@@ -217,4 +271,71 @@ export function resolveSvgFonts(
     },
     diagnostics: [],
   };
+}
+
+/**
+ * The code points each font file must also map so that no `<text>` with runs
+ * in several fonts falls back (see the module comment): per file, the
+ * characters of those texts that the file lacks, except characters some run's
+ * own font lacks anywhere in the SVG (those keep falling back as before).
+ * A run's font is the one of the nearest element (itself or an ancestor)
+ * with a class that a font rule selects; text without one uses `regular`
+ * (the engine's fallback family). Files that need nothing are left out.
+ */
+function foreignCodePoints(
+  root: XmlElement,
+  fileOfClass: ReadonlyMap<string, { file: string; order: number }>,
+  regular: string,
+  coverage: (file: string) => GlyphCoverage,
+): Map<string, Set<number>> {
+  const ownMissing = new Set<number>();
+  const texts: { files: Set<string>; codePoints: Set<number> }[] = [];
+  const fileOf = (element: XmlElement, inherited: string): string => {
+    let best: { file: string; order: number } | undefined;
+    for (const cls of classList(element)) {
+      const rule = fileOfClass.get(cls);
+      if (rule !== undefined && (best === undefined || rule.order > best.order)) best = rule;
+    }
+    return best?.file ?? inherited;
+  };
+  // Iterative: the parser bounds the depth, but a deep tree must not use the JS stack.
+  const stack: { node: XmlNode; file: string; text?: (typeof texts)[number] | undefined }[] = [
+    { node: root, file: regular },
+  ];
+  for (let item = stack.pop(); item !== undefined; item = stack.pop()) {
+    const { node, text } = item;
+    if (node.type === "text") {
+      if (text === undefined) continue;
+      text.files.add(item.file);
+      for (const char of node.text) {
+        const cp = char.codePointAt(0) as number;
+        text.codePoints.add(cp);
+        if (!coverage(item.file).has(cp)) ownMissing.add(cp);
+      }
+      continue;
+    }
+    const file = fileOf(node, item.file);
+    let current = text;
+    if (current === undefined && node.name === "text") {
+      current = { files: new Set(), codePoints: new Set() };
+      texts.push(current);
+    }
+    for (const child of node.children) stack.push({ node: child, file, text: current });
+  }
+  const extra = new Map<string, Set<number>>();
+  for (const { files, codePoints } of texts) {
+    if (files.size < 2) continue;
+    for (const file of files) {
+      for (const cp of codePoints) {
+        if (coverage(file).has(cp) || ownMissing.has(cp)) continue;
+        let set = extra.get(file);
+        if (set === undefined) {
+          set = new Set();
+          extra.set(file, set);
+        }
+        set.add(cp);
+      }
+    }
+  }
+  return extra;
 }

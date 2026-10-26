@@ -111,8 +111,22 @@ class Writer {
   }
 }
 
-/** A `cmap` table for `mapping` (code point → glyph ID, ascending by code point). */
-function cmapTable(mapping: readonly (readonly [number, number])[]): Uint8Array {
+/** A raw `cmap` subtable with its encoding record. */
+interface CmapSubtable {
+  platform: number;
+  encoding: number;
+  body: Uint8Array;
+}
+
+/**
+ * A `cmap` table for `mapping` (code point → glyph ID, ascending by code
+ * point), plus `kept` subtables copied as they are (e.g. format 14 variation
+ * sequences, whose offsets are relative to the subtable itself).
+ */
+function cmapTable(
+  mapping: readonly (readonly [number, number])[],
+  kept: readonly CmapSubtable[] = [],
+): Uint8Array {
   // Format 4 (BMP): runs of consecutive code points with consecutive glyph IDs.
   const runs: { start: number; end: number; delta: number }[] = [];
   for (const [cp, gid] of mapping) {
@@ -159,31 +173,19 @@ function cmapTable(mapping: readonly (readonly [number, number])[]): Uint8Array 
     .u32(0);
   format12.u32(groups.length);
   for (const group of groups) format12.u32(group.start).u32(group.end).u32(group.gid);
-  const f12 = format12.bytes();
+  const subtables: CmapSubtable[] = [...kept];
   // Format 4's length is 16 bits: with too many segments (some 8,000), only format 12 is written.
-  if (16 + runs.length * 8 > 0xffff) {
-    return concat([
-      new Writer()
-        .u16(0)
-        .u16(1)
-        .u16(3)
-        .u16(10)
-        .u32(4 + 8)
-        .bytes(),
-      f12,
-    ]);
+  if (16 + runs.length * 8 <= 0xffff)
+    subtables.push({ platform: 3, encoding: 1, body: format4.bytes() });
+  subtables.push({ platform: 3, encoding: 10, body: format12.bytes() });
+  subtables.sort((a, b) => a.platform - b.platform || a.encoding - b.encoding);
+  const header = new Writer().u16(0).u16(subtables.length);
+  let offset = 4 + subtables.length * 8;
+  for (const { platform, encoding, body } of subtables) {
+    header.u16(platform).u16(encoding).u32(offset);
+    offset += body.length;
   }
-  const f4 = format4.bytes();
-  const header = new Writer().u16(0).u16(2);
-  header
-    .u16(3)
-    .u16(1)
-    .u32(4 + 16);
-  header
-    .u16(3)
-    .u16(10)
-    .u32(4 + 16 + f4.length);
-  return concat([header.bytes(), f4, f12]);
+  return concat([header.bytes(), ...subtables.map((t) => t.body)]);
 }
 
 function concat(parts: readonly Uint8Array[]): Uint8Array {
@@ -255,6 +257,40 @@ function assemble(tables: Map<string, Uint8Array>): Uint8Array {
 export function withoutTables(bytes: Uint8Array, tags: readonly string[]): Uint8Array {
   const tables = rawTables(bytes);
   for (const tag of tags) tables.delete(tag);
+  return assemble(tables);
+}
+
+/**
+ * A copy of a TrueType font whose `cmap` also maps `extra` code points (to
+ * glyph IDs): its Unicode mapping is rewritten as format 4 (3/1) and format
+ * 12 (3/10) subtables, which every reader picks first; format 14 (variation
+ * sequences) subtables are kept, other subtables dropped. Code points the
+ * font already maps keep their glyph. Used by the PDF export (#112, see
+ * `pdf/fonts.ts`).
+ */
+export function withCodePoints(bytes: Uint8Array, extra: ReadonlyMap<number, number>): Uint8Array {
+  const tables = rawTables(bytes);
+  const coverage = parseGlyphCoverage(bytes);
+  const mapping = new Map(coverage.entries());
+  for (const [cp, gid] of extra) if (!mapping.has(cp)) mapping.set(cp, gid);
+  const sorted = [...mapping].sort((a, b) => a[0] - b[0]);
+  const cmap = tables.get("cmap") as Uint8Array;
+  const v = view(cmap);
+  const kept: CmapSubtable[] = [];
+  for (let i = 0; i < v.getUint16(2); i++) {
+    const record = 4 + i * 8;
+    const offset = v.getUint32(record + 4);
+    if (v.getUint16(offset) !== 14) continue;
+    const length = v.getUint32(offset + 2);
+    if (offset + length > cmap.length)
+      throw new FontParseError("cmap format 14 subtable is truncated");
+    kept.push({
+      platform: v.getUint16(record),
+      encoding: v.getUint16(record + 2),
+      body: cmap.subarray(offset, offset + length),
+    });
+  }
+  tables.set("cmap", cmapTable(sorted, kept));
   return assemble(tables);
 }
 

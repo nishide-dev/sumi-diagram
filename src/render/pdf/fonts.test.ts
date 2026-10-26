@@ -2,13 +2,31 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { DEFAULT_FONT_SET_ID, type FontSet, getFontSet } from "../../core/theme/fonts";
-import { FontParseError } from "../../lint/sfnt";
+import { type GlyphCoverage, parseGlyphCoverage } from "../../lint/cmap";
+import { FontParseError, readTables } from "../../lint/sfnt";
 import { readFontFace, resolveSvgFonts } from "./fonts";
 import { svgToPdf } from "./pdf";
 import { inspectPdf, textLines } from "./testing";
 
 const fontSet = getFontSet(DEFAULT_FONT_SET_ID) as FontSet;
 const bytes = (path: string) => new Uint8Array(readFileSync(path));
+
+/** A font's `cmap` subtables as `platform/encoding fFormat`. */
+function cmapSubtables(font: Uint8Array): string[] {
+  const cmap = readTables(font).require("cmap");
+  return Array.from({ length: cmap.u16(2) }, (_, i) => {
+    const record = 4 + i * 8;
+    return `${cmap.u16(record)}/${cmap.u16(record + 2)} f${cmap.u16(cmap.u32(record + 4))}`;
+  });
+}
+
+/** A font's table tags. */
+function tableTags(font: Uint8Array): string[] {
+  const view = new DataView(font.buffer, font.byteOffset, font.byteLength);
+  return Array.from({ length: view.getUint16(4) }, (_, i) =>
+    String.fromCharCode(...font.subarray(12 + i * 16, 16 + i * 16)),
+  );
+}
 
 /** The style block D2 v0.9.0 writes (WOFF data shortened). */
 const d2Svg = (slots: string[], extra = "", label = "A") => `<?xml version="1.0" encoding="utf-8"?>
@@ -72,6 +90,70 @@ describe("resolveSvgFonts", () => {
     expect(fonts.map((f) => f.length)).toEqual(
       [fontSet.regular, fontSet.bold, fontSet.mono as string].map((p) => bytes(p).length),
     );
+  });
+
+  test("fonts of texts drawn in one font each are handed over unchanged", () => {
+    const input = d2Svg(
+      ["regular", "bold", "math"],
+      "",
+      'A</text><text class="text-bold">∇ ∣</text><text class="text-math">y∇x',
+    );
+    const result = resolveSvgFonts(input, fontSet);
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    expect(result.value.fonts[0]).toEqual(bytes(fontSet.regular));
+    expect(result.value.fonts[1]).toEqual(bytes(fontSet.bold));
+  });
+
+  test("fonts of a text with runs in several fonts also map the other runs' characters (#112)", () => {
+    // Text (regular), math-italic and math runs in one <text>, like a label with math;
+    // U+1F600 is in no font, so no font may claim it (it keeps falling back as before).
+    const label =
+      '損失 <tspan class="text-math-italic">y</tspan><tspan class="text-math">∇∣</tspan>' +
+      '<tspan class="text-math-italic">x</tspan> \u{1F600}';
+    const result = resolveSvgFonts(d2Svg(["regular", "math", "math-italic"], "", label), fontSet);
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const files = [fontSet.regular, fontSet.math as string, fontSet.mathItalic as string];
+    const original = files.map((f) => parseGlyphCoverage(bytes(f)));
+    // Handed: the set's files (regular first), then the math files the SVG uses.
+    const { fonts } = result.value;
+    const handed = [0, fonts.length - 2, fonts.length - 1].map((i) =>
+      parseGlyphCoverage(fonts[i] as Uint8Array),
+    );
+    expect(handed).toHaveLength(3);
+    const chars = [..."損失 y∇∣x"].map((c) => c.codePointAt(0) as number);
+    for (const [i, coverage] of handed.entries()) {
+      for (const cp of chars)
+        expect(coverage.has(cp), `${files[i]} U+${cp.toString(16)}`).toBe(true);
+      expect(coverage.has(0x1f600)).toBe(false);
+      const before = original[i] as GlyphCoverage;
+      // Existing mappings keep their glyphs; added ones map to the space glyph.
+      expect([...before.entries()].filter(([cp, glyph]) => coverage.glyph(cp) !== glyph)).toEqual(
+        [],
+      );
+      for (const cp of chars.filter((c) => !before.has(c))) {
+        expect(coverage.glyph(cp)).toBe(before.glyph(0x20));
+      }
+      expect(coverage.size).toBe(before.size + chars.filter((c) => !before.has(c)).length);
+    }
+    // The italic font lacked ∇ and the CJK text: the case that lost the italic (#112).
+    expect(original[2]?.has(0x2207)).toBe(false);
+    expect(original[2]?.has(0x640d)).toBe(false);
+    // The math font is handed without GSUB / GPOS, as before.
+    expect(tableTags(fonts[fonts.length - 2] as Uint8Array)).not.toContain("GSUB");
+  });
+
+  test("a rewritten cmap keeps the font's variation sequences (format 14)", () => {
+    const gothic = bytes(fontSet.regular);
+    const result = resolveSvgFonts(
+      d2Svg(["regular", "math"], "", 'a<tspan class="text-math">\u{1D400}</tspan>'),
+      fontSet,
+    );
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const handed = result.value.fonts[0] as Uint8Array;
+    expect(handed).not.toEqual(gothic);
+    expect(cmapSubtables(gothic)).toContain("0/5 f14");
+    // Gothic's mapping needs too many format 4 segments: format 12 only.
+    expect(cmapSubtables(handed)).toEqual(["0/5 f14", "3/10 f12"]);
   });
 
   test("leaves the rest of the SVG untouched", () => {

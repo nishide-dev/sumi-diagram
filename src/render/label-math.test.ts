@@ -5,11 +5,12 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import { basename } from "node:path";
 import { checkFigure } from "../core/check";
 import { DEFAULT_FONT_SET_ID, getFontSet } from "../core/theme/fonts";
 import { lintFigure } from "../lint";
 import { lintGeometry } from "../lint/geometry";
-import { measureLabel } from "../lint/geometry/measure";
+import { fontFileFor, measureLabel } from "../lint/geometry/measure";
 import { inspectSvg } from "./inspect";
 import { svgToPdf } from "./pdf";
 import { inspectPdf, textLines } from "./pdf/testing";
@@ -193,12 +194,17 @@ describe("rendering", () => {
     const text = inspected.glyphs.map((g) => g.text).join("");
     expect(text).toContain("Scale, Shift γ1,β1");
     expect(text).toContain("α2");
+    // The emphasis label's text is bold. Before #112 its line `line two α₂` was
+    // drawn in STIX Two Math as a whole: the bold font lacks the `₂` (a math run),
+    // and the math font had every character of the line.
     expect(inspected.fonts.map((f) => f.baseFont.replace(/^[A-Z]{6}\+/, "")).sort()).toEqual([
+      "BIZUDPGothic-Bold",
       "BIZUDPGothic-Regular",
       "STIXTwoMath-Regular",
       "STIXTwoText-Italic",
     ]);
     expect(inspected.images).toBe(0);
+    await expectPdfMatchesMeasure(MATH);
   });
 
   test("the editable PPTX writes scripts as runs with a baseline offset", async () => {
@@ -229,6 +235,7 @@ async function expectPdfMatchesMeasure(source: string): Promise<void> {
         measured.runs?.flat() ??
         measured.texts.map((text, i) => ({
           text,
+          font: label.font,
           box: measured.lines[i] ?? { x: 0, width: 0 },
           baseline: label.anchor.y + i * label.lineHeightUnits,
         }));
@@ -245,6 +252,10 @@ async function expectPdfMatchesMeasure(source: string): Promise<void> {
         if (hit === undefined) continue;
         lines.delete(hit);
         expect(Math.abs(hit.x1 - hit.x0 - run.box.width * 0.5)).toBeLessThan(0.01);
+        // In the run's own font (#112): the bundled files are named by their PostScript names.
+        expect(hit.font.replace(/^[A-Z]{6}\+/, "")).toBe(
+          basename(fontFileFor(run.font, fonts as NonNullable<typeof fonts>), ".ttf"),
+        );
       }
     }
   }
