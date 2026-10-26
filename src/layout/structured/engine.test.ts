@@ -402,7 +402,7 @@ describe("output", () => {
         { from: "a", to: "b" },
       ],
     });
-    const layout = layoutOf(text);
+    const layout = layoutOf(text, { route: false });
     expect(layout.edges).toEqual([
       expect.objectContaining({
         key: "e:#0",
@@ -438,7 +438,7 @@ describe("output", () => {
 describe.each(["a-transformer", "b-adaln-panel"])("%s (bundled fonts)", (name) => {
   const text = readFileSync(`${fixtures}/figures/layout/${name}.sumi.yaml`, "utf8");
   const run = () => {
-    const result = layoutStructuredFigure(text);
+    const result = layoutStructuredFigure(text, { route: false });
     if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
     return result.value.layout;
   };

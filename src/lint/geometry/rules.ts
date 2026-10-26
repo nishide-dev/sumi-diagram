@@ -14,6 +14,7 @@ import { formatMm, formatPt } from "../../core/units";
 import { type Point, type Rect, unitsToPt } from "../../render/geometry";
 import { defineGeometryRule, type GeometryRule, type LintFinding } from "../rule";
 import type { GeometryContext, GeometryElement } from "./context";
+import { obstaclesCrossedByRoute, type RouteObstacle } from "./edges";
 import { unionOf } from "./measure";
 import { regionsOverlap } from "./outlines";
 import {
@@ -307,6 +308,42 @@ export const edgeCrossesLabel = defineGeometryRule({
   },
 });
 
+export const edgeThroughNode = defineGeometryRule({
+  id: "geometry/edge-through-node",
+  description: "An edge's route passes through the shape of a node that is not one of its ends.",
+  defaultSeverity: "warning",
+  fixable: false,
+  run(context) {
+    // The structured router (#90) avoids nodes by design; this re-checks it
+    // independently, and checks D2 / ELK routes (`auto`) the same way. Nodes
+    // without a drawn shape (`text`) are left to `edge-crosses-label`.
+    const obstacles: RouteObstacle[] = context.elements.flatMap((e) =>
+      e.kind === "node" && e.outline !== undefined ? [{ key: e.key, region: e.outline }] : [],
+    );
+    const findings: LintFinding[] = [];
+    for (const edge of context.elements) {
+      if (edge.route === undefined || edge.ir.kind !== "edge") continue;
+      const ends = new Set([edge.ir.from, edge.ir.to]);
+      for (const key of obstaclesCrossedByRoute(
+        edge.route,
+        obstacles,
+        ends,
+        GEOMETRY_TOLERANCE_UNITS,
+      )) {
+        const node = context.get(key) as GeometryElement;
+        findings.push({
+          message: `${capitalize(edge.name)} passes through the shape of ${node.name}.`,
+          path: edge.docPath,
+          subject: edge.subject,
+          hint: "An edge should go around the nodes it does not connect. In a structured figure, change its anchors (fromAnchor / toAnchor) or leave a free channel between the nodes; in an auto figure, change layout.direction or the grouping.",
+          related: [{ path: node.docPath, message: `${capitalize(node.name)} is defined here.` }],
+        });
+      }
+    }
+    return findings;
+  },
+});
+
 export const aspectDistorted = defineGeometryRule({
   id: "geometry/aspect-distorted",
   description:
@@ -502,6 +539,7 @@ export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
   nodeOverlap,
   labelCollision,
   edgeCrossesLabel,
+  edgeThroughNode,
   aspectDistorted,
   reversedEdge,
 ] as GeometryRule[]);

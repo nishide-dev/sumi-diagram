@@ -4,13 +4,14 @@
  * both can read. The research code depends on the product, never the other
  * way around, so the comparison lives here.
  *
- * Two sets of figures: the #88 / #89 adaptations in tests/fixtures/figures/layout/
- * (operator / junction / icon replaced by labeled circles, no tone or
- * caption), which the prototype reads as they are (a circle is 34 units in
- * both: the prototype's fixed icon circle; the engine's circle around a
- * one-glyph label, design doc §6.21); and the proposed figures in
- * figures/ideal/ themselves (see `ideal` below), with the prototype given the
- * product's operator / junction sizes.
+ * Two sets of figures: the adaptations in tests/fixtures/figures/layout/
+ * (since #90 with the real operator / junction / tone; `icon` replaced by a
+ * "~" circle, no caption or label math), which the prototype reads as they
+ * are (a "~" circle is 34 units in both: the prototype's fixed icon circle;
+ * the engine's circle around a one-glyph label, design doc §6.21); and the
+ * proposed figures in figures/ideal/ themselves (see `ideal` below). The
+ * prototype is given the product's operator / junction sizes. The engine's
+ * layout is compared before routing (#90 may grow the canvas for routes).
  */
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
@@ -56,7 +57,7 @@ describe.each([
   ["ideal a-transformer", ideal("a-transformer.sumi.yaml")],
   ["ideal b-adaln-panel", ideal("b-adaln-panel.sumi.yaml")],
 ])("%s", (_name, text) => {
-  const result = layoutStructuredFigure(text);
+  const result = layoutStructuredFigure(text, { route: false });
   if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
   const { ir, layout } = result.value;
   // The marks' sizes differ by design: #92 made the operator 2 em (32 units,

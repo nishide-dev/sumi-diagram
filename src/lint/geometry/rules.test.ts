@@ -443,6 +443,76 @@ describe("geometry/edge-crosses-label", () => {
   });
 });
 
+describe("geometry/edge-through-node", () => {
+  const code = "geometry/edge-through-node";
+  // a and b are the ends of edges[0]; c is a circle, d a diamond, t a label.
+  const shapes = {
+    "n:a": { bbox: { x: 0, y: 0, width: 40, height: 20 } },
+    "n:b": { bbox: { x: 0, y: 200, width: 40, height: 20 } },
+    "n:c": { bbox: { x: 100, y: 100, width: 40, height: 40 } },
+    "n:d": { bbox: { x: 200, y: 100, width: 40, height: 40 } },
+    "n:t": { bbox: { x: 300, y: 100, width: 40, height: 20 } },
+  };
+  const run = (path: { x: number; y: number }[]) =>
+    lintSpec(compiled, { elements: { ...shapes, "e:#0": { path } } }, { code, source: SOURCE });
+
+  test("a route through a circle is reported at the edge, with the node as related", () => {
+    const result = run([
+      { x: 20, y: 20 },
+      { x: 20, y: 120 },
+      { x: 160, y: 120 },
+      { x: 160, y: 200 },
+    ]);
+    expect(result.map((d) => [d.severity, d.message])).toEqual([
+      ["warning", 'Edge edges[0] passes through the shape of node "c".'],
+    ]);
+    expect(result[0]?.location?.line).toBe(16);
+    expect(result[0]?.related?.[0]?.location?.line).toBe(8);
+  });
+
+  test("the outline, not the bounding box: corners of a circle and a diamond are free", () => {
+    // Into the top-left corner of each bounding box, outside the shape.
+    for (const left of [100, 200]) {
+      expect(
+        run([
+          { x: left - 10, y: 102 },
+          { x: left + 4, y: 102 },
+          { x: left + 4, y: 90 },
+        ]),
+      ).toEqual([]);
+    }
+    // Through the diamond's middle.
+    expect(
+      run([
+        { x: 190, y: 120 },
+        { x: 250, y: 120 },
+      ]).map((d) => d.message),
+    ).toEqual(['Edge edges[0] passes through the shape of node "d".']);
+  });
+
+  test("the edge's own ends, label nodes and touching within the tolerance are fine", () => {
+    expect(
+      run([
+        { x: 20, y: 10 },
+        { x: 20, y: 210 },
+      ]),
+    ).toEqual([]);
+    expect(
+      run([
+        { x: 290, y: 110 },
+        { x: 350, y: 110 },
+      ]),
+    ).toEqual([]);
+    // Along the circle's left side, 0.5 unit inside.
+    expect(
+      run([
+        { x: 100.5, y: 90 },
+        { x: 100.5, y: 150 },
+      ]),
+    ).toEqual([]);
+  });
+});
+
 describe("geometry/aspect-distorted", () => {
   const code = "geometry/aspect-distorted";
   test("circles stretched by the layout", () => {

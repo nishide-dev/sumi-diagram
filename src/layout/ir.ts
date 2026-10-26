@@ -21,6 +21,7 @@
 
 import type { ElementKey } from "../core/check-state";
 import type { Anchor } from "../core/figure/layout";
+import type { Side } from "../core/figure/schema";
 import type { Point, Rect } from "../core/geometry";
 import type { NodeShape } from "../core/registry/manifest";
 
@@ -119,10 +120,40 @@ export interface GroupLayout {
 
 /** An edge's path, once routed (#90): absolute points, joined by straight segments. */
 export interface EdgeRoute {
-  /** First point on the source's outline, last on the target's; at least 2 points. */
+  /**
+   * First point on the source's outline, last on the target's; at least 2
+   * points. The structured router's routes are orthogonal, without repeated
+   * or collinear interior points; at a junction the end is its center.
+   */
   readonly points: readonly Point[];
   /** The edge's placed label; omitted when the edge has none. */
   readonly label?: TextLayout;
+  /** The edge's net: an index into {@link LayoutIR.nets} (#90). */
+  readonly net: number;
+  /** The side of the source the route leaves; omitted at a junction. */
+  readonly fromSide?: Side;
+  /** The side of the target the route enters; omitted at a junction. */
+  readonly toSide?: Side;
+}
+
+/**
+ * A net (#90): edges drawn as one connected wire. Edges that leave or enter
+ * the same port, or meet at a junction (transitively, through edges between
+ * junctions), share a net, and its routes may overlap (a shared trunk);
+ * the router keeps routes of different nets from overlapping, crossing or
+ * touching where it can (crossings are a cost, not forbidden).
+ */
+export interface RouteNet {
+  /** Its index in `LayoutIR.nets`: nets are numbered in the order of their first edge. */
+  readonly id: number;
+  /** The net's edges, in document order. */
+  readonly edges: readonly ElementKey[];
+  /**
+   * The union of the net's routes as maximal axis-parallel segments, so a
+   * shared trunk appears once. Horizontal segments first (by y, then x),
+   * then vertical (by x, then y); each from its smaller end.
+   */
+  readonly segments: readonly (readonly [Point, Point])[];
 }
 
 export interface EdgeLayout {
@@ -147,7 +178,7 @@ export interface LayoutIR {
   readonly canvas: { readonly width: number; readonly height: number };
   /** Space kept between the content and each canvas side (at least), in units. */
   readonly margin: number;
-  /** Bounding box of every node, group and label (edges excluded until routed). */
+  /** Bounding box of every node, group and label; once routed (#90), of the routes and edge labels too. */
   readonly content: Rect;
   /** Groups, parents before their children (pre-order of the group tree, each level in document order). */
   readonly groups: readonly GroupLayout[];
@@ -155,4 +186,6 @@ export interface LayoutIR {
   readonly nodes: readonly NodeLayout[];
   /** Edges in document order. */
   readonly edges: readonly EdgeLayout[];
+  /** The edges' nets (#90), by `id`; omitted until the edges are routed. */
+  readonly nets?: readonly RouteNet[];
 }
