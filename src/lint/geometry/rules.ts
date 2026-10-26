@@ -343,11 +343,23 @@ export const nodeOverlap = defineGeometryRule({
   },
 });
 
-/** Label collisions: label vs label of another element, and label vs another node's shape. */
+/** A group's border as a closed polyline. */
+const borderOf = ({ x, y, width, height }: Rect): Point[] => [
+  { x, y },
+  { x: x + width, y },
+  { x: x + width, y: y + height },
+  { x, y: y + height },
+  { x, y },
+];
+
+/**
+ * Label collisions: label vs label of another element, label vs another
+ * node's shape, and label across a group's border (#116).
+ */
 export const labelCollision = defineGeometryRule({
   id: "geometry/label-collision",
   description:
-    "A label (re-measured) overlaps a label of another element, or the shape of another node.",
+    "A label (re-measured) overlaps a label of another element, the shape of another node, or the border of a group.",
   defaultSeverity: "warning",
   fixable: false,
   run(context) {
@@ -356,7 +368,7 @@ export const labelCollision = defineGeometryRule({
     const labelled = context.elements.filter((e) => e.labels.length > 0);
     const lineBoxes = (e: GeometryElement) => e.labels.flatMap((l) => l.visibleLines);
     const reported = new Set<string>();
-    const report = (a: GeometryElement, b: GeometryElement, what: string) => {
+    const report = (a: GeometryElement, b: GeometryElement, what: string, hint?: string) => {
       const pair = [a.key, b.key].sort().join(" ");
       if (reported.has(pair)) return;
       reported.add(pair);
@@ -364,9 +376,11 @@ export const labelCollision = defineGeometryRule({
         message: `The ${contentNoun(a)} of ${a.name} overlaps ${what} of ${b.name}.`,
         path: labelPath(a),
         subject: a.subject,
-        hint: isStructured(context)
-          ? "Overlapping text is hard to read. Shorten the labels, or change the arrangement (gap, anchors, attach side, edge labels)."
-          : "Overlapping text is hard to read. Shorten the labels, or change the layout (direction, grouping, edge labels).",
+        hint:
+          hint ??
+          (isStructured(context)
+            ? "Overlapping text is hard to read. Shorten the labels, or change the arrangement (gap, anchors, attach side, edge labels)."
+            : "Overlapping text is hard to read. Shorten the labels, or change the layout (direction, grouping, edge labels)."),
         related: [{ path: b.docPath, message: `${capitalize(b.name)} is defined here.` }],
       });
     };
@@ -388,6 +402,38 @@ export const labelCollision = defineGeometryRule({
         const { outline } = b;
         if (boxesA.some((r) => regionIntersectsRect(outline, r, tolerance))) {
           report(a, b, "the shape");
+        }
+      }
+    }
+    // Labels on a group's border (#116): the border's stroke comes within the
+    // tolerance of the text's line box, so it runs through or along the text
+    // (and an edge label's background hides it there), e.g. an edge label
+    // where the edge crosses into a group. Inside or outside the group is
+    // fine; the group's own label is left out, and so are groups drawn
+    // without a border.
+    for (const a of labelled) {
+      const boxesA = lineBoxes(a);
+      for (const b of context.elements) {
+        if (b === a || b.kind !== "group" || b.bbox === undefined) continue;
+        const { style } = b.ir;
+        if (style.strokeWidth.units === 0 || style.stroke === "transparent") continue;
+        const border = [borderOf(b.bbox)];
+        const reach = b.strokeInset + tolerance;
+        const grown = (r: Rect): Rect => ({
+          x: r.x - reach,
+          y: r.y - reach,
+          width: r.width + 2 * reach,
+          height: r.height + 2 * reach,
+        });
+        if (boxesA.some((r) => polylinesCrossRect(border, grown(r), 0))) {
+          report(
+            a,
+            b,
+            "the border",
+            isStructured(context)
+              ? "A border through the text is hard to read. An edge label sits beside the arrowhead: widen the gap before the group so the label fits outside it, move the edge's ends (fromAnchor / toAnchor), or shorten the label."
+              : "A border through the text is hard to read. Shorten the label, or change the layout (direction, grouping) so the edge crosses the border elsewhere.",
+          );
         }
       }
     }

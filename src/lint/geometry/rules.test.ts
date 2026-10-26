@@ -651,6 +651,29 @@ describe("geometry/label-collision", () => {
       'The label of group "grp" overlaps the shape of node "a".',
     ]);
   });
+
+  test("an edge label on a group's border (#116); inside or outside it is fine", () => {
+    const grp = { bbox: { x: 0, y: 40, width: 200, height: 100 } };
+    const run = (baseline: number) =>
+      lintSpec(
+        compiled,
+        { elements: { "g:grp": grp, "e:#0": { labels: [label("漢漢", 100, baseline)] } } },
+        { code },
+      );
+    // The line box is 16 units tall, from 14 units above the baseline.
+    expect(run(centeredBaseline(40)).map((d) => [d.severity, d.message])).toEqual([
+      ["warning", 'The label of edge edges[0] overlaps the border of group "grp".'],
+    ]);
+    // The bottom border too.
+    expect(run(centeredBaseline(140)).map((d) => d.message)).toEqual([
+      'The label of edge edges[0] overlaps the border of group "grp".',
+    ]);
+    // Touching the border's stroke from outside is on it too (an edge label's
+    // background would hide the border there); clear of it, or well inside, is fine.
+    expect(run(centeredBaseline(40 - 8)).length).toBe(1);
+    expect(run(centeredBaseline(40 - 8 - 3))).toEqual([]);
+    expect(run(centeredBaseline(90))).toEqual([]);
+  });
 });
 
 describe("geometry/edge-crosses-label", () => {

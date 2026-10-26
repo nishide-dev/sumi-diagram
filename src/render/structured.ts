@@ -51,7 +51,7 @@ import type { Arrowhead } from "../core/registry/manifest";
 import type { FontSet } from "../core/theme/fonts";
 import type { CommonStyle } from "../core/theme/style";
 import type { LayoutIR, Point, Rect, TextLayout, TextRun } from "../layout/ir";
-import { arrowheadLength } from "../layout/route/router";
+import { arrowheadLength, WIRE_CORNER_RADIUS } from "../layout/route/router";
 import { fontFileFor } from "../lint/geometry/measure";
 import { CYLINDER_ARC_UNITS, shapeOutline } from "../lint/geometry/shapes";
 import { drawNodeOutline } from "./compose";
@@ -322,6 +322,16 @@ function trimEnd(points: readonly Point[], amount: number): Point[] {
   return out;
 }
 
+/**
+ * How much of the wire's end runs under the arrowhead `head` (from its base
+ * to its back): a rounded corner must not reach it (#116).
+ */
+function underArrowhead(head: Arrowhead, edge: EdgeIR): number {
+  if (head === "none") return 0;
+  const length = arrowheadLength(edge.style.strokeWidth.units);
+  return length - arrowheadInset(head, length);
+}
+
 /** The part of an edge's route its wire strokes: the route minus the arrowheads' insets. */
 function wirePoints(edge: EdgeIR, points: readonly Point[]): Point[] {
   const length = arrowheadLength(edge.style.strokeWidth.units);
@@ -387,11 +397,8 @@ export function mergeSegments(segments: readonly Segment[]): Segment[] {
 const lineKey = (style: EdgeIR["style"]): string =>
   `${paint(style.stroke)}|${style.strokeWidth.units}|${style.strokeDash}|${style.opacity}`;
 
-/**
- * The largest corner radius of a wire (#101), in units: 4pt, a little under
- * D2's 5pt for ELK routes, as structured figures pack blocks closer.
- */
-export const WIRE_CORNER_RADIUS = 8;
+/** The largest corner radius of a wire (#101); defined by the router, which keeps room for it (#116). */
+export { WIRE_CORNER_RADIUS };
 
 /** A point as SVG path coordinates. */
 const xy = (p: Point): string => `${n(p.x)} ${n(p.y)}`;
@@ -474,10 +481,14 @@ function wires(ir: FigureIR, layout: LayoutIR): string[] {
     const byStyle = new Map<string, { edge: EdgeIR; polylines: WirePolyline[] }>();
     for (const { edge, route, wire } of drawn) {
       const entry = byStyle.get(lineKey(edge.style)) ?? { edge, polylines: [] };
+      const keepStart = underArrowhead(edge.sourceArrowhead ?? "none", edge);
+      const keepEnd = underArrowhead(edge.targetArrowhead ?? "none", edge);
       entry.polylines.push({
         points: wire,
         ...(joined.has(route.from) ? { start: route.from } : {}),
         ...(joined.has(route.to) ? { end: route.to } : {}),
+        ...(keepStart > 0 && { keepStart }),
+        ...(keepEnd > 0 && { keepEnd }),
       });
       byStyle.set(lineKey(edge.style), entry);
     }

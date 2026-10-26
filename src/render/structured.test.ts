@@ -239,6 +239,40 @@ describe("geometry lint on structured SVGs", () => {
     expect(lintGeometry(await render(narrow), { source: narrow })).toEqual([]);
   });
 
+  // The reproduction (research/109-dogfood-v0.4, A9): an edge label beside
+  // the arrowhead, where the edge enters a group, sat on the group's border
+  // unnoticed. The label now moves off the border where it can (past it,
+  // outside the group); with no room there, the lint reports it.
+  test("an edge label on a group's border is a label-collision (#116)", async () => {
+    const source = `version: 1
+figure:
+  id: a9
+  theme: academic
+  layout:
+    arrange:
+      stack: { gap: 2mm, align: center, items: [a, grp] }
+groups:
+  - id: grp
+    arrange: { stack: { items: [b] } }
+nodes:
+  - { id: a, component: box, label: A }
+  - { id: b, component: box, label: B }
+edges:
+  - { from: a, to: b, label: gRPC }
+`;
+    const findings = lintGeometry(await render(source), { source });
+    expect(findings.map((d) => [d.code, d.message, d.location?.line])).toEqual([
+      [
+        "geometry/label-collision",
+        'The label of edge edges[0] overlaps the border of group "grp".',
+        15,
+      ],
+    ]);
+    // With room before the group, the label goes there.
+    const roomy = source.replace("gap: 2mm", "gap: 4mm");
+    expect(lintGeometry(await render(roomy), { source: roomy })).toEqual([]);
+  });
+
   test("every shape, mark, outline and arrowhead kind passes inspection and the lint", async () => {
     const rendered = await render(ALL_SHAPES);
     expect(lintGeometry(rendered, { source: ALL_SHAPES })).toEqual([]);

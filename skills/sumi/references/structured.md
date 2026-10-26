@@ -184,12 +184,17 @@ YAML order, greedily: edges declared first get the best routes.
   label. Arrows may end on it; a side input usually comes from an attached
   node through a `line`.
 - **Edge labels** sit on the last segment, just before the arrowhead (above
-  it if that segment is horizontal, right of it if vertical; a very short
-  final stub can put the label beside the arrowhead), or mid-line on a
-  `line`. Collisions are not avoided; keep them to a word or a math symbol
-  and check the preview.
+  it if that segment is horizontal, right of it if vertical), or mid-line on
+  a `line`. Where that spot would touch a line or a group border (a short
+  final segment, a trunk forking off right behind the arrowhead, the border
+  of the group the edge enters), the label moves to the other side or back
+  past the line or border. Other collisions are not avoided; keep labels to
+  a word or a math symbol and check the preview.
 - Line corners are drawn rounded (radius up to 4pt, smaller in tight spots);
   there is no option to make them sharp. Editable PPTX keeps sharp corners.
+  The router keeps a straight run of the arrowhead plus the radius before an
+  arrowhead where moving a bend gives it; in a group padding or gap too
+  tight for that, the arrowhead still comes right after the corner.
 - Trunks and side paths run close beside the blocks (about 3pt away); the
   lever to move them is the `gap` of the enclosing box, not a coordinate.
 
