@@ -3,8 +3,10 @@
 Sumi has two layout engines. **auto** (the default) hands the figure to
 D2 + ELK, which place everything along one `direction`. **structured** places
 elements exactly where you put them in nested stacks and rows and routes the
-edges itself (orthogonal lines, shared trunks). Introduced in 0.4.0; use it
-only when the installed CLI accepts `figure.layout.arrange`.
+edges itself (orthogonal lines, shared trunks). It is newer than the
+0.3 releases: if `sumi lint` reports `schema/unknown-field` for `arrange`
+(and `sumi catalog --kind node` lists no `operator` / `junction`), the
+installed CLI predates it — tell the user and use auto instead.
 
 ## Which engine
 
@@ -62,6 +64,9 @@ groups:
   `square`, `trapezoid`, `stack`, `operator`, `junction` and nodes with an
   explicit size on that axis are centered instead. Nested boxes of the
   same kind inherit `align`; other boxes start at `center`.
+- A side column next to a tall stack: put both in a `row` and pick the
+  row's `align` (`center` to center it vertically, `end` to line up the
+  bottoms).
 - **An item belongs to the owner of the tree**: items of `groups[].arrange`
   are members of that group, items of the root tree are at the root. Do not
   also write `group:` (if you do, it must match, else `layout/group-mismatch`).
@@ -114,9 +119,13 @@ YAML order, greedily: edges declared first get the best routes.
   `minus`, `times`, `dot`, `concat`): a small circle with a symbol, no
   label. Arrows may end on it; a side input usually comes from an attached
   node through a `line`.
-- **Edge labels** sit just before the arrowhead (above a horizontal line,
-  right of a vertical one), or mid-line on a `line`. Collisions are not
-  avoided; keep them to a word or a math symbol and check the preview.
+- **Edge labels** sit on the last segment, just before the arrowhead (above
+  it if that segment is horizontal, right of it if vertical; a very short
+  final stub can put the label beside the arrowhead), or mid-line on a
+  `line`. Collisions are not avoided; keep them to a word or a math symbol
+  and check the preview.
+- Trunks and side paths run close beside the blocks (about 3pt away); the
+  lever to move them is the `gap` of the enclosing box, not a coordinate.
 
 ## Spacing that routes
 

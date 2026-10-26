@@ -29,9 +29,15 @@ shows (`brain`, `database`, `photo`, `world`), not by the concept.
 - **The icon replaces the label**: writing both is `asset/icon-with-label`.
   To caption an icon, attach a `label` node beside it (structured) or put
   the text in a neighbouring node.
-- The icon is one text line tall (1 em) and the node is sized around it.
-  Its color is the node's text color, so variants and tones apply as to
-  a label.
+- The icon is one text line tall (1 em), with no size option; the node is
+  sized around it (a `circle` adds a ring of padding — use a bare `label`
+  node for a small inline icon). Its color is the node's text color, so
+  variants and tones apply as to a label.
+- **Icon and text on one block**: not possible in one node. In a structured
+  figure, keep the text block and `attach` a `label` node carrying the icon
+  to a side that has no edges (e.g. `{ id: cond-icon, component: label,
+  icon: tabler/clock, attach: { to: cond, side: south, gap: 1mm } }`); say
+  so in the report.
 - Not supported: icon and label together, icons on groups, emoji.
 
 ## Images

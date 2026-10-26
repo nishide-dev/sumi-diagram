@@ -212,12 +212,12 @@ Rasterize it and open the printed PNG path with the Read tool:
 <skill-dir>/scripts/preview figure.svg    # prints a temporary PNG path
 ```
 
-It uses Quick Look on macOS and `rsvg-convert` elsewhere (exit 1 if
-neither exists — then skip this step and say so in the report). Check:
-reading order follows `direction` (or the arrange tree); no label overlaps a line or a shape;
-edges do not cross group labels; nothing is unexpectedly huge or squashed;
-text is legible. Known D2/ELK layout quirks and their workarounds are in
-[layout-tips](references/layout-tips.md).
+It uses Quick Look on macOS (padded to a square: the blank space is not
+part of the figure), else `rsvg-convert`; exit 1 if neither exists — skip
+this step and say so in the report. Check: reading order follows
+`direction` (or the arrange tree); no label overlaps a line or a shape;
+edges do not cross group labels; nothing is huge or squashed; text is
+legible. Layout quirks and workarounds: [layout-tips](references/layout-tips.md).
 
 ### 8. Report
 

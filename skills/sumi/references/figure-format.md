@@ -115,7 +115,7 @@ subset drawn as real, searchable text in the bundled STIX Two math fonts:
   (`label: '$\alpha_1$'`). In a flow mapping (`{ … }`) a label containing
   `,` must be quoted, otherwise YAML splits it and Sumi reports
   `schema/unknown-field` for the rest (`Unknown field "\beta_1$"`):
-  `{ id: ss, …, label: '$\gamma_1,\beta_1$' }`. In double quotes `\` must be
+  `{ id: ss, …, label: '$\gamma_1,\,\beta_1$' }`. In double quotes `\` must be
   doubled.
 
 ## Groups
@@ -356,7 +356,7 @@ preserved by `sumi fmt`.
 | `component: box` on an edge | `component/wrong-kind` | `arrow`, `line` or `double-arrow` |
 | `variant: bold`, `variant: thick` | `component/unknown-variant` | a variant listed for that component |
 | `color:`, `style:`, `shape:` on a node | `schema/unknown-field` | remove; use a component, variant or `tone` |
-| `label: $\gamma_1,\beta_1$` inside `{ … }` | `schema/unknown-field` (`"\beta_1$"`) | single-quote it: `label: '$\gamma_1,\beta_1$'` |
+| `label: $\gamma_1,\beta_1$` inside `{ … }` | `schema/unknown-field` (`"\beta_1$"`) | single-quote it: `label: '$\gamma_1,\,\beta_1$'` |
 | `$...$` in a figure without `arrange` | `component/unsupported-in-auto` (warning) | use the structured layout, or plain text |
 | `label:` and `icon:` on one node | `asset/icon-with-label` | keep one; put the text in an attached `label` node |
 | `toAnchor: west` in a figure without `arrange` | `layout/structured-only` | remove it, or switch to the structured layout |
