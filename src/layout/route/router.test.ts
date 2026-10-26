@@ -5,6 +5,7 @@ import { type LayoutFigureOptions, layoutStructuredFigure } from "../index";
 import type { EdgeLayout, LayoutIR, Point, Rect } from "../ir";
 import type { TextMeasurer } from "../text";
 import { checkRoutes, type RouteCheckReport, routeProblemCount } from "./check";
+import { resolveEnds } from "./ports";
 import { arrowheadLength, mergeSegments, routeEdges, simplify } from "./router";
 
 const fixtures = `${import.meta.dir}/../../../tests/fixtures`;
@@ -317,6 +318,36 @@ describe("edges into and out of one port (#113)", () => {
     );
     const x = rectOf(value.layout, "x");
     expect((pointsOf(value.layout, 9).at(-1) as Point).x).toBe(x.x + x.width / 4);
+  });
+
+  test("a side with no free position left: layout/no-route says so, not 'anchored'", () => {
+    // Groups only (resolveEnds needs no nodes): x's north side holds an
+    // anchored edge leaving at 1/2 and at every k/1024 the fallback tries.
+    const offsets = [0.5];
+    for (let d = 4; d <= 1024; d *= 2) for (let k = 1; k < d; k += 2) offsets.push(k / d);
+    const edges = [
+      ...offsets.map((offset, i) => ({
+        key: `e:${i}`,
+        from: "g:x",
+        to: "g:b",
+        fromAnchor: { side: "north", offset },
+      })),
+      { key: "e:in", from: "g:a", to: "g:x" },
+    ];
+    const rect = (y: number) => ({ x: 100, y, width: 100, height: 20 });
+    const groups = [
+      { key: "g:a", rect: rect(0) },
+      { key: "g:x", rect: rect(100) },
+      { key: "g:b", rect: rect(200) },
+    ];
+    const ends = resolveEnds(
+      { nodes: [], edges } as unknown as Parameters<typeof resolveEnds>[0],
+      { nodes: [], groups } as unknown as Parameters<typeof resolveEnds>[1],
+    );
+    expect(ends.at(-1)).toEqual({
+      error:
+        "an edge leaving and an edge entering the same element would share a point of it, and no free position is left on that side",
+    });
   });
 
   test("checkRoutes: a group's side entered from outside and from inside is two ports", () => {
