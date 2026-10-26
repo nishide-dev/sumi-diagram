@@ -12,14 +12,18 @@
  * The engine sees only those files, never system fonts.
  *
  * SVGs of the structured writer (#91) name their families `sumi-<n>-font-<slot>`
- * the same way and are resolved alike.
+ * the same way and are resolved alike, including the label-math classes
+ * `math` / `math-italic` (#93), which are not D2 slots.
  */
 
 import { readFileSync } from "node:fs";
 import type { Diagnostic } from "../../core/diagnostics";
+import { MATH_FONT, MATH_ITALIC_FONT } from "../../core/label/runs";
 import type { Result } from "../../core/result";
 import { type FontSet, fontSetArgs } from "../../core/theme/fonts";
+import { fontFileFor } from "../../lint/geometry/measure";
 import { FontParseError, readTables } from "../../lint/sfnt";
+import { withoutTables } from "../font-subset";
 import { descendants, parseXml } from "../xml";
 
 /** How a font file names itself: what usvg/fontdb match a CSS rule against. */
@@ -77,6 +81,9 @@ export interface ResolvedSvgFonts {
   faces: ReadonlyMap<string, FontFace>;
 }
 
+/** Font classes of label math (#93): not D2 slots, resolved with `fontFileFor()`. */
+const MATH_FONT_CLASSES = [MATH_FONT, MATH_ITALIC_FONT];
+
 const FONT_FACE_RULE = /@font-face\s*\{[^}]*\}\s*/g;
 const D2_FAMILY = /font-family:\s*"?(?:d2|sumi)-\d+-font-([a-z-]+)"?\s*;/g;
 const D2_FAMILY_ANYWHERE = /(?:d2|sumi)-\d+-font-[a-z-]+/;
@@ -106,28 +113,36 @@ export function resolveSvgFonts(
   for (let i = 0; i + 1 < args.length; i += 2) {
     fileOf.set((args[i] ?? "").replace(/^--font-/, ""), args[i + 1] ?? "");
   }
+  // The label-math slots (#93) exist only in structured SVGs; their files are
+  // handed to the engine only when the SVG uses them, so D2 figures convert
+  // with exactly the files they always did.
+  const optional = new Map(MATH_FONT_CLASSES.map((slot) => [slot, fontFileFor(slot, fontSet)]));
   const files = [...new Set([fontSet.regular, ...fileOf.values()])];
   const bytes = new Map<string, Uint8Array>();
   const faceOfFile = new Map<string, FontFace>();
-  for (const file of files) {
+  const load = (file: string, shaping = true): Diagnostic | undefined => {
+    if (bytes.has(file)) return undefined;
     try {
-      const data = new Uint8Array(readFileSync(file));
+      const raw = new Uint8Array(readFileSync(file));
+      // The math fonts are drawn by their advance widths alone, as measured.
+      const data = shaping ? raw : withoutTables(raw, ["GSUB", "GPOS"]);
       faceOfFile.set(file, readFontFace(data));
       bytes.set(file, data);
+      return undefined;
     } catch (e) {
       const reason = e instanceof Error ? e.message : String(e);
-      return {
-        ok: false,
-        diagnostics: [
-          error(
-            `${format}/missing-font`,
-            `Cannot read the font ${file} of font set "${fontSet.id}": ${reason}.`,
-            "Run `sumi doctor` to check the bundled fonts.",
-          ),
-        ],
-      };
+      return error(
+        `${format}/missing-font`,
+        `Cannot read the font ${file} of font set "${fontSet.id}": ${reason}.`,
+        "Run `sumi doctor` to check the bundled fonts.",
+      );
     }
+  };
+  for (const file of files) {
+    const problem = load(file);
+    if (problem !== undefined) return { ok: false, diagnostics: [problem] };
   }
+  let loadProblem: Diagnostic | undefined;
 
   // Only CSS is rewritten: the content of each <style> element, located by
   // the strict XML parser's offsets and spliced into the original text. Text
@@ -157,7 +172,13 @@ export function resolveSvgFonts(
       .slice(element.startTagEnd, contentEnd)
       .replace(FONT_FACE_RULE, "")
       .replace(D2_FAMILY, (whole, slot: string) => {
-        const file = fileOf.get(slot);
+        let file = fileOf.get(slot);
+        const extra = optional.get(slot);
+        if (file === undefined && extra !== undefined) {
+          loadProblem ??= load(extra, false);
+          if (!files.includes(extra)) files.push(extra);
+          file = extra;
+        }
         const face = file === undefined ? undefined : faceOfFile.get(file);
         if (face === undefined) {
           unknown.add(slot);
@@ -171,6 +192,7 @@ export function resolveSvgFonts(
     copied = contentEnd;
   }
   parts.push(svg.slice(copied));
+  if (loadProblem !== undefined) return { ok: false, diagnostics: [loadProblem] };
   const rewritten = parts.join("");
   if (unknown.size > 0 || leftover !== undefined) {
     const what =

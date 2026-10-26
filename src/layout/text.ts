@@ -8,11 +8,12 @@
  * and widths, and glyph boxes inside the layout's line boxes.
  */
 
+import { labelRuns, scriptGeometry } from "../core/label/runs";
 import type { FontSet } from "../core/theme/fonts";
 import type { CommonStyle } from "../core/theme/style";
-import { fontFileFor, renderedLines } from "../lint/geometry/measure";
+import { fontFileFor } from "../lint/geometry/measure";
 import { loadFontMetrics } from "../lint/metrics";
-import type { TextMetrics } from "./ir";
+import type { TextMetrics, TextRun } from "./ir";
 
 /** Baseline-to-baseline distance as a multiple of the font size (the #86 prototype's value). */
 export const LINE_HEIGHT = 1.25;
@@ -23,6 +24,12 @@ export interface TextMeasurer {
   lineWidth(text: string, font: string, sizeUnits: number): number;
   /** Ascender and descender in units, both positive. */
   verticalMetrics(font: string, sizeUnits: number): { ascent: number; descent: number };
+  /**
+   * Whether a font class has a glyph for a code point (#93): label text the
+   * label's font lacks is drawn with the `math` font when that has it.
+   * Without it, nothing falls back.
+   */
+  covers?(font: string, codePoint: number): boolean;
 }
 
 /** A {@link TextMeasurer} reading the TTF files of a font set. */
@@ -37,6 +44,7 @@ export function fontSetMeasurer(fonts: FontSet): TextMeasurer {
         descent: (-metrics.hhea.descender / metrics.unitsPerEm) * sizeUnits,
       };
     },
+    covers: (font, codePoint) => metricsOf(font).coverage.has(codePoint),
   };
 }
 
@@ -60,10 +68,36 @@ export function measureText(
   if (label === "") return undefined;
   const font = fontClassOf(style);
   const size = style.fontSize.units;
-  const lines = renderedLines(label);
-  const lineWidths = lines.map((line) => measurer.lineWidth(line, font, size));
-  const { ascent, descent } = measurer.verticalMetrics(font, size);
-  const lineHeightUnits = size * LINE_HEIGHT;
+  const { lines, runs } = labelRuns(label, {
+    font,
+    ...(measurer.covers !== undefined && { covers: measurer.covers.bind(measurer) }),
+  });
+  let { ascent, descent } = measurer.verticalMetrics(font, size);
+  let measuredRuns: TextRun[][] | undefined;
+  let lineWidths: number[];
+  if (runs === undefined) {
+    lineWidths = lines.map((line) => measurer.lineWidth(line, font, size));
+  } else {
+    // Each run in its font and size; scripts move the line's extent up and down.
+    measuredRuns = runs.map((line) =>
+      line.map((run): TextRun => {
+        const { fontSize, shift } = scriptGeometry(run.script, size);
+        const v = measurer.verticalMetrics(run.font, fontSize);
+        ascent = Math.max(ascent, v.ascent - shift);
+        descent = Math.max(descent, v.descent + shift);
+        return {
+          text: run.text,
+          font: run.font,
+          fontSizeUnits: fontSize,
+          shiftUnits: shift,
+          width: measurer.lineWidth(run.text, run.font, fontSize),
+        };
+      }),
+    );
+    lineWidths = measuredRuns.map((line) => line.reduce((sum, run) => sum + run.width, 0));
+  }
+  const lineHeightUnits =
+    runs === undefined ? size * LINE_HEIGHT : Math.max(size * LINE_HEIGHT, ascent + descent);
   return {
     lines,
     lineWidths,
@@ -74,5 +108,6 @@ export function measureText(
     descentUnits: descent,
     width: Math.max(0, ...lineWidths),
     height: lines.length * lineHeightUnits,
+    ...(measuredRuns !== undefined && { runs: measuredRuns }),
   };
 }

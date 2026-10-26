@@ -62,13 +62,21 @@ nodes:
 ## Labels
 
 - Plain text. `\n` inside a double-quoted string breaks the line. No
-  Markdown, HTML or LaTeX.
+  Markdown or HTML.
+- Label math (structured layout only, i.e. figures with `figure.layout.arrange`):
+  `$...$` holds a small TeX subset drawn as real text — Greek letters
+  (`$\alpha_2$`), `_` / `^` (one level), symbols such as `\times`, `\leq`,
+  `\to`, `\oplus`, `\mathrm{…}`, `\text{…}`. Single-quote such labels in YAML
+  (`label: '$\gamma_1,\beta_1$'`). `\$` is a literal dollar sign. Anything
+  else (`\frac`, `\sqrt`, `$$`, an unclosed `$`) is `component/invalid-math`;
+  in `auto` figures math is drawn as written (`component/unsupported-in-auto`).
 - Quote labels that YAML could misread: `"yes"`, `"no"`, `"on"`, numbers
   (`"2024"`), anything with `: ` or ` #`, or starting with `[`, `{`, `*`, `&`, `!`, `%`, `@`.
 - Keep lines short: the `lint/long-label` rule warns above 40 columns per
   line (CJK characters count as 2) or more than 4 lines.
 - Japanese and other CJK text is supported by the bundled font; emoji and
-  rare characters are not (`lint/missing-glyph`).
+  rare characters are not (`lint/missing-glyph`). Structured figures also
+  draw characters such as `₂` or `∼` with the bundled math font.
 
 ## Groups
 
@@ -206,7 +214,7 @@ prints `{ "version": 1, "themes": [...], "profiles": [...] }` (plain
       "description": "Monochrome theme with clear outlines",
       "fonts": {
         "id": "sumi/biz-ud-gothic",
-        "description": "BIZ UDPGothic (regular, bold) and BIZ UDGothic (mono) v1.051: Latin and Japanese, OFL-1.1",
+        "description": "BIZ UDPGothic (regular, bold) and BIZ UDGothic (mono) v1.051: Latin and Japanese; STIX Two Math and STIX Two Text Italic v2.13 (math): label math; OFL-1.1",
         "styles": ["regular", "bold", "mono"]
       },
       "fontSizePt": { "min": 7, "max": 9, "base": { "node": 8, "group": 9, "edge": 7 } },

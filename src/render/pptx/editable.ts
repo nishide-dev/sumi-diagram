@@ -230,21 +230,40 @@ export function svgToEditablePptx(
   const objects = new Map<ElementKey, ObjectSite>();
   const faces = new Map<string, ReturnType<typeof readFontFace>>();
   try {
-    const textBody = (label: LabelGeometry, el: XmlElement, box: Rect, opacity: number) => {
-      const measured = measureLabel(label, fonts);
-      const file = fontFileFor(label.font, fonts);
+    const faceOf = (font: string) => {
+      const file = fontFileFor(font, fonts);
       let face = faces.get(file);
       if (!face) {
         face = readFontFace(readFileSync(file));
         faces.set(file, face);
       }
+      return face;
+    };
+    const textBody = (label: LabelGeometry, el: XmlElement, box: Rect, opacity: number) => {
+      const measured = measureLabel(label, fonts);
+      const fill = paint(property(el, "fill") ?? "#000000", opacity);
+      // A run in its own face; label math (#93) uses DrawingML's baseline
+      // offset for scripts (PowerPoint draws such runs smaller by itself, so
+      // they keep the label's size here).
+      const run = (text: string, font: string, shiftUnits = 0) => {
+        const face = faceOf(font);
+        const baseline =
+          shiftUnits === 0
+            ? ""
+            : ` baseline="${Math.round((-shiftUnits / label.fontSizeUnits) * 100000)}"`;
+        return `<a:r><a:rPr lang="ja-JP" sz="${Math.round(label.fontSizeUnits * 50)}"${face.weight >= 600 ? ' b="1"' : ""}${face.italic ? ' i="1"' : ""}${baseline}>${fill}<a:latin typeface="${escapeXml(face.family)}"/><a:ea typeface="${escapeXml(face.family)}"/></a:rPr><a:t xml:space="preserve">${escapeXml(text)}</a:t></a:r>`;
+      };
       const offset = label.anchor.x - (box.x + box.width / 2);
       const top = (measured.lines[0]?.y ?? box.y) - box.y;
       const paragraphs = measured.texts
-        .map(
-          (text) =>
-            `<a:p><a:pPr algn="ctr"><a:lnSpc><a:spcPts val="${Math.max(0, Math.round(label.lineHeightUnits * 50))}"/></a:lnSpc><a:spcBef><a:spcPts val="0"/></a:spcBef><a:spcAft><a:spcPts val="0"/></a:spcAft></a:pPr><a:r><a:rPr lang="ja-JP" sz="${Math.round(label.fontSizeUnits * 50)}"${face.weight >= 600 ? ' b="1"' : ""}${face.italic ? ' i="1"' : ""}>${paint(property(el, "fill") ?? "#000000", opacity)}<a:latin typeface="${escapeXml(face.family)}"/><a:ea typeface="${escapeXml(face.family)}"/></a:rPr><a:t xml:space="preserve">${escapeXml(text)}</a:t></a:r></a:p>`,
-        )
+        .map((text, i) => {
+          const runs = label.runs?.[i];
+          const content =
+            runs === undefined
+              ? run(text, label.font)
+              : runs.map((r) => run(r.text, r.font, r.shiftUnits)).join("");
+          return `<a:p><a:pPr algn="ctr"><a:lnSpc><a:spcPts val="${Math.max(0, Math.round(label.lineHeightUnits * 50))}"/></a:lnSpc><a:spcBef><a:spcPts val="0"/></a:spcBef><a:spcAft><a:spcPts val="0"/></a:spcAft></a:pPr>${content}</a:p>`;
+        })
         .join("");
       return `<p:txBody><a:bodyPr wrap="none" lIns="${emu(Math.max(0, 2 * offset))}" rIns="${emu(Math.max(0, -2 * offset))}" tIns="${emu(top)}" bIns="0" anchor="t"><a:noAutofit/></a:bodyPr><a:lstStyle/>${paragraphs}</p:txBody>`;
     };

@@ -246,6 +246,18 @@ function assemble(tables: Map<string, Uint8Array>): Uint8Array {
   return out;
 }
 
+/**
+ * A copy of a TrueType font without the given tables (rebuilt directory and
+ * checksums). The PDF export drops the label-math fonts' `GSUB` / `GPOS`
+ * (#93): their shaping (contextual `f` alternates, kerning) would change the
+ * advances that the layout and the SVG subsets (which have neither table) use.
+ */
+export function withoutTables(bytes: Uint8Array, tags: readonly string[]): Uint8Array {
+  const tables = rawTables(bytes);
+  for (const tag of tags) tables.delete(tag);
+  return assemble(tables);
+}
+
 const fontBytes = new Map<string, Uint8Array>();
 
 function readFont(path: string): Uint8Array {

@@ -172,7 +172,10 @@ describe.each(Object.entries(FIGURES))("%s", (_name, path) => {
       ...layout.nodes.map((n) => n.label),
       ...layout.edges.map((e) => e.route?.label),
     ]) {
-      if (t !== undefined) used.set(t.font, (used.get(t.font) ?? "") + t.lines.join(""));
+      if (t === undefined) continue;
+      for (const run of t.runs?.flat() ?? [{ font: t.font, text: t.lines.join("") }]) {
+        used.set(run.font, (used.get(run.font) ?? "") + run.text);
+      }
     }
     expect(faces.map((f) => f[2]).sort()).toEqual([...used.keys()].sort());
     for (const [, , font = "", base64 = ""] of faces) {

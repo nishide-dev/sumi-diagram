@@ -12,11 +12,15 @@
  * - Vertical: the first line's baseline is the anchor; later lines advance by
  *   the label's line height (the `<tspan>` `dy`). A line spans from the
  *   font's ascender above its baseline to its descender below (`hhea`).
+ * - Runs (#93): a line drawn as runs (`LabelGeometry.runs`) is as wide as the
+ *   sum of the runs' advances, each in its own font and size; each run spans
+ *   its font's ascender / descender at its size around its own baseline
+ *   (the line's, shifted for scripts), and the line's box is their union.
  */
 
 import type { FontSet } from "../../core/theme/fonts";
 import type { Rect } from "../../render/geometry";
-import type { LabelGeometry } from "../../render/inspect";
+import type { LabelGeometry, LabelRunGeometry } from "../../render/inspect";
 import { type FontMetrics, loadFontMetrics } from "../metrics";
 
 export interface MeasuredLabel {
@@ -35,15 +39,30 @@ export interface MeasuredLabel {
   visibleLines: Rect[];
   /** The union of {@link visibleLines}; undefined when nothing is drawn. */
   box?: Rect;
+  /** For a label with runs (#93): each line's runs with their boxes, in drawing order. */
+  runs?: MeasuredRun[][];
+}
+
+/** A measured run (#93): where its text is drawn. */
+export interface MeasuredRun {
+  text: string;
+  font: string;
+  fontSizeUnits: number;
+  /** The run's baseline (y), and its advance box (font ascender to descender at its size). */
+  baseline: number;
+  box: Rect;
 }
 
 /**
  * The font file for one of D2's font classes (`LabelGeometry.font`): `mono*`
- * → mono, `bold` / `semibold` → bold, `italic` → italic, anything else
- * regular. Missing optional slots fall back to regular, like the `--font-*`
+ * → mono, `bold` / `semibold` → bold, `italic` → italic, the label-math
+ * classes (#93) `math` → math and `math-italic` → mathItalic (then math),
+ * anything else regular. Missing optional slots fall back to regular, like the `--font-*`
  * arguments do (design doc §4.2).
  */
 export function fontFileFor(fontClass: string, fonts: FontSet): string {
+  if (fontClass === "math") return fonts.math ?? fonts.regular;
+  if (fontClass === "math-italic") return fonts.mathItalic ?? fonts.math ?? fonts.regular;
   if (fontClass.startsWith("mono")) return fonts.mono ?? fonts.regular;
   if (fontClass === "bold" || fontClass === "semibold") return fonts.bold;
   if (fontClass === "italic") return fonts.italic ?? fonts.regular;
@@ -94,11 +113,21 @@ export function renderedLines(text: string): string[] {
 /** Text that draws nothing: whitespace (`\s` includes U+00A0 and U+3000), controls, default-ignorables. */
 const INVISIBLE = /^[\s\p{Cc}\p{Default_Ignorable_Code_Point}]*$/u;
 
-/** Measures a label drawn with `metrics` (see the module comment). */
+/**
+ * Measures a label drawn with `metrics` (see the module comment). A label
+ * with runs needs the metrics of every run's font: pass a function from
+ * font class to metrics.
+ */
 export function measureLabelWith(
   label: LabelGeometry,
-  metrics: FontMetrics,
+  metrics: FontMetrics | ((font: string) => FontMetrics),
 ): Omit<MeasuredLabel, "fontPath"> {
+  const metricsOf = typeof metrics === "function" ? metrics : () => metrics;
+  if (label.runs !== undefined) return measureRuns(label, label.runs, metricsOf);
+  return measurePlain(label, metricsOf(label.font));
+}
+
+function measurePlain(label: LabelGeometry, metrics: FontMetrics): Omit<MeasuredLabel, "fontPath"> {
   const size = label.fontSizeUnits;
   const ascent = (metrics.hhea.ascender / metrics.unitsPerEm) * size;
   const descent = (-metrics.hhea.descender / metrics.unitsPerEm) * size;
@@ -118,6 +147,52 @@ export function measureLabelWith(
   return { label, texts, lines, visibleLines, ...(box !== undefined && { box }) };
 }
 
+function measureRuns(
+  label: LabelGeometry,
+  runs: readonly (readonly LabelRunGeometry[])[],
+  metricsOf: (font: string) => FontMetrics,
+): Omit<MeasuredLabel, "fontPath"> {
+  const texts = runs.map((line) => line.map((r) => r.text).join(""));
+  const measured = runs.map((line, i): MeasuredRun[] => {
+    const lineBaseline = label.anchor.y + i * label.lineHeightUnits;
+    const widths = line.map((run) => metricsOf(run.font).measureEm(run.text) * run.fontSizeUnits);
+    let x = label.anchor.x - widths.reduce((a, b) => a + b, 0) / 2;
+    return line.map((run, j) => {
+      const m = metricsOf(run.font);
+      const ascent = (m.hhea.ascender / m.unitsPerEm) * run.fontSizeUnits;
+      const descent = (-m.hhea.descender / m.unitsPerEm) * run.fontSizeUnits;
+      const baseline = lineBaseline + run.shiftUnits;
+      const width = widths[j] as number;
+      const box = { x, y: baseline - ascent, width, height: ascent + descent };
+      x += width;
+      return { text: run.text, font: run.font, fontSizeUnits: run.fontSizeUnits, baseline, box };
+    });
+  });
+  // A line without runs is an empty box at its baseline, like a blank plain line.
+  const lines = measured.map(
+    (line, i): Rect =>
+      unionOf(line.map((r) => r.box)) ?? {
+        x: label.anchor.x,
+        y: label.anchor.y + i * label.lineHeightUnits,
+        width: 0,
+        height: 0,
+      },
+  );
+  const visibleLines = measured.flatMap((line) => {
+    const box = unionOf(line.filter((r) => !INVISIBLE.test(r.text)).map((r) => r.box));
+    return box === undefined ? [] : [box];
+  });
+  const box = unionOf(visibleLines);
+  return {
+    label,
+    texts,
+    lines,
+    visibleLines,
+    ...(box !== undefined && { box }),
+    runs: measured,
+  };
+}
+
 /** The bounding box of rectangles, or `undefined` for none. */
 export function unionOf(rects: readonly Rect[]): Rect | undefined {
   if (rects.length === 0) return undefined;
@@ -128,8 +203,11 @@ export function unionOf(rects: readonly Rect[]): Rect | undefined {
   return { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
 }
 
-/** Measures a label with the font set's file for its font class. */
+/** Measures a label with the font set's file for each font class. */
 export function measureLabel(label: LabelGeometry, fonts: FontSet): MeasuredLabel {
   const fontPath = fontFileFor(label.font, fonts);
-  return { ...measureLabelWith(label, loadFontMetrics(fontPath)), fontPath };
+  return {
+    ...measureLabelWith(label, (font) => loadFontMetrics(fontFileFor(font, fonts))),
+    fontPath,
+  };
 }

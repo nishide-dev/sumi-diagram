@@ -58,6 +58,8 @@ Every stage reports problems as the same diagnostic object. In
 | `component/unknown-prop`, `component/invalid-prop` | prop not in the component's schema, or a bad value (e.g. `px`, not a multiple of 0.5pt) | remove it, or use the value the hint suggests |
 | `component/missing-label` | a text-only component (`label`) has no text | give it a label or use another component |
 | `component/unexpected-label` | `operator` or `junction` has a label (they draw a symbol / a dot) | remove the label; put a `label` node next to it if text is needed |
+| `component/invalid-math` | unsupported or malformed `$...$` label math in a structured figure (the message gives the label characters) | use the supported subset (Greek, `_`, `^`, symbols, `\mathrm`, `\text`), close the `$`, or write `\$` for a dollar sign |
+| `component/unsupported-in-auto` (warning) | `$...$` label math in an `auto` figure, which D2 draws as written | use the structured layout (`figure.layout.arrange`) or drop the `$...$` |
 | `component/tone-unsupported` | `tone` on a `junction` (drawn in the line color) | remove the tone |
 | `component/deprecated` (warning) | still works but is being replaced | switch to the replacement in the message |
 | `theme/unknown` | `figure.theme` is not built in | `minimal`, `academic`, `slides` or `color` (see hint) |

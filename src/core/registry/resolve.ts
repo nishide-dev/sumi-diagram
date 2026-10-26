@@ -9,6 +9,12 @@
  * (`component/unexpected-label`), and point marks no tone
  * (`component/tone-unsupported`).
  *
+ * Label math (`$...$`, #93) is parsed here: in structured figures invalid
+ * or unsupported math is `component/invalid-math` (error, located at the
+ * offending characters); in `auto` figures, where D2 draws labels as plain
+ * text, math syntax is `component/unsupported-in-auto` (warning: the label
+ * is drawn literally, as before label math existed).
+ *
  * Elements already invalid are skipped. Elements whose component fails are
  * marked invalid, and so are the elements depending on them (children of a
  * group, edges touching a node), without further diagnostics. Only valid
@@ -23,6 +29,7 @@ import {
 } from "../check-state";
 import type { Diagnostic, DiagnosticSubject, DocPath } from "../diagnostics";
 import type { Locator } from "../figure/yaml";
+import { hasLabelMarkup, looksLikeMath, parseLabel } from "../label/math";
 import { type ComponentKind, componentId, type ResolvedComponent } from "./manifest";
 import type { Registry } from "./registry";
 
@@ -116,7 +123,9 @@ export function resolveComponents(state: CheckState, registry: Registry, locate:
       };
       report([diagnostic], () => [...element.path, "tone"]);
     }
-    if (!usage.ok || missingLabel || unexpectedLabel || toneUnsupported) {
+    const mathErrors =
+      mark === undefined && !missingLabel ? checkLabelMath(state, element, locate) : false;
+    if (!usage.ok || missingLabel || unexpectedLabel || toneUnsupported || mathErrors) {
       state.invalid.add(element.key);
       continue;
     }
@@ -133,6 +142,51 @@ export function resolveComponents(state: CheckState, registry: Registry, locate:
   for (const key of components.keys()) {
     if (state.invalid.has(key)) components.delete(key);
   }
+}
+
+/**
+ * Reports the label math of an element (see the module comment). Returns
+ * whether it reported an error.
+ */
+function checkLabelMath(state: CheckState, element: Element, locate: Locator): boolean {
+  const { label } = element;
+  if (!hasLabelMarkup(label)) return false;
+  const engine = state.doc.figure?.layout?.engine;
+  const at = [...element.path, "label"];
+  if (engine !== "structured") {
+    // auto: D2 draws the label as text. Only spans that are clearly math (a
+    // command, _ or ^) are reported, so labels such as "$5 or $10" stay quiet.
+    if (!looksLikeMath(label)) return false;
+    const location = locate(at);
+    state.diagnostics.push({
+      code: "component/unsupported-in-auto",
+      severity: "warning",
+      message: `Label math ($...$) needs the structured layout engine; this auto figure draws the label of ${element.kind} "${element.subject.id}" as written.`,
+      path: at,
+      ...(location !== undefined && { location }),
+      subject: element.subject,
+      hint: "Lay the figure out with figure.layout.arrange (the structured engine), or write the label without $...$.",
+    });
+    return false;
+  }
+  const parsed = parseLabel(label);
+  if (parsed.ok) return false;
+  // Positions in messages count characters (code points), from 1.
+  const column = (offset: number) => [...label.slice(0, offset)].length;
+  for (const error of parsed.errors) {
+    const location = locate(at, { span: [error.start, error.end] });
+    const excerpt = label.slice(error.start, error.end);
+    state.diagnostics.push({
+      code: "component/invalid-math",
+      severity: "error",
+      message: `${error.message} (label characters ${column(error.start) + 1}–${column(error.end)}: "${excerpt}")`,
+      path: at,
+      ...(location !== undefined && { location }),
+      subject: element.subject,
+      ...(error.hint !== undefined && { hint: error.hint }),
+    });
+  }
+  return true;
 }
 
 function* elements(state: CheckState): Generator<Element> {

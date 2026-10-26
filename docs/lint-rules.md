@@ -31,6 +31,7 @@
 
 - フォントは要素の実効スタイルで選ぶ: `mono` なら mono slot、そうでなく `bold` なら bold、`italic` なら italic、それ以外は regular（mono・italic の slot がないフォントセットでは regular。§4.2）。
 - 各 TTF の `cmap`（format 12 を優先し、なければ format 4）を読んで判定する。読み取りは cmap テーブルとサブテーブルが宣言する範囲の中に限り、segment / group は昇順で重なりがないことを検査する（壊れたフォントは例外）。カバー範囲はソート済みの区間として持ち、ファイルごとにキャッシュする。
+- structured の図（#93）は、ラベルを描くときと同じ run（`$...$` の数式は math / mathItalic slot、ラベルのフォントにない文字は math slot へ代替）に分け、run ごとにそのフォントで判定する。メッセージは「regular and math fonts」のように両方を挙げる。`auto` の図は従来どおりラベル全体を 1 つのフォントで判定する。`lint/long-label` も structured では描く文字（数式を展開した後）で数える。
 - 空白（改行・タブ・全角スペースを含む）、制御文字、既定で無視される文字（異体字セレクタ、ZWJ など）は検査しない。
 - 同梱の `sumi/biz-ud-gothic` に含まれない文字の例: 絵文字（😀 U+1F600、✅ U+2705）、𠮷（U+20BB7）、龘（U+9F98）、タイ文字（ก U+0E01）。JIS X 0213 の拡張 B の文字（𠀋 U+2000B など）は含まれる。
 

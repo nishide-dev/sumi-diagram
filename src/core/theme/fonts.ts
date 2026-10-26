@@ -25,6 +25,15 @@ export interface FontSet {
   italic?: string;
   /** Absolute path of the monospace TTF (all mono weights). Without it, `mono: true` is an error. */
   mono?: string;
+  /**
+   * Absolute path of the upright math TTF (#93): digits, operators and
+   * symbols of label math (`$...$`), and characters the label's font lacks.
+   * Structured figures only; D2 never receives it. Without it, label math
+   * falls back to `regular`.
+   */
+  math?: string;
+  /** Absolute path of the italic math TTF (#93): math variables (Latin, lowercase Greek). Falls back to `math`. */
+  mathItalic?: string;
 }
 
 /**
@@ -34,6 +43,7 @@ export interface FontSet {
 export const FONT_ASSETS_DIR = fontAssetsDir();
 
 const bizUdGothic = join(FONT_ASSETS_DIR, "biz-ud-gothic");
+const stixTwo = join(FONT_ASSETS_DIR, "stix-two");
 
 /** ID of the font set used by the built-in themes. */
 export const DEFAULT_FONT_SET_ID: FontSetId = "sumi/biz-ud-gothic";
@@ -43,10 +53,12 @@ export const BUILTIN_FONT_SETS: ReadonlyMap<string, FontSet> = new Map(
     {
       id: DEFAULT_FONT_SET_ID,
       description:
-        "BIZ UDPGothic (regular, bold) and BIZ UDGothic (mono) v1.051: Latin and Japanese, OFL-1.1",
+        "BIZ UDPGothic (regular, bold) and BIZ UDGothic (mono) v1.051: Latin and Japanese; STIX Two Math and STIX Two Text Italic v2.13 (math): label math; OFL-1.1",
       regular: join(bizUdGothic, "BIZUDPGothic-Regular.ttf"),
       bold: join(bizUdGothic, "BIZUDPGothic-Bold.ttf"),
       mono: join(bizUdGothic, "BIZUDGothic-Regular.ttf"),
+      math: join(stixTwo, "STIXTwoMath-Regular.ttf"),
+      mathItalic: join(stixTwo, "STIXTwoText-Italic.ttf"),
     } satisfies FontSet,
   ].map((set) => [set.id, Object.freeze(set)]),
 );
@@ -68,7 +80,19 @@ export const BUNDLED_FONT_SHA256: ReadonlyMap<string, string> = new Map([
     join(bizUdGothic, "BIZUDGothic-Regular.ttf"),
     "031b7e944e42528927e141d097bff50b554de67c906513cb0737180e9ba0f2a9",
   ],
+  [
+    join(stixTwo, "STIXTwoMath-Regular.ttf"),
+    "2e0331951fd61efb60e4247db7e1b6b7f516f224987d6290c1d45437809a0977",
+  ],
+  [
+    join(stixTwo, "STIXTwoText-Italic.ttf"),
+    "e9775b729e127624153e8a9c4518b412afb1f732cb7c501f5122527550859771",
+  ],
 ]);
+
+/** The font slots of a font set, in a fixed order (for reports such as `sumi doctor`). */
+export const FONT_SLOTS = ["regular", "bold", "italic", "mono", "math", "mathItalic"] as const;
+export type FontSlot = (typeof FONT_SLOTS)[number];
 
 /** Returns the built-in font set with the given ID, if any. */
 export function getFontSet(id: string): FontSet | undefined {

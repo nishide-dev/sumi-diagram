@@ -1,0 +1,166 @@
+/**
+ * The runs a structured figure draws a label with (#93, design doc §6.24):
+ * the parsed markup (`math.ts`) with font classes resolved, characters the
+ * label's font lacks moved to the math font, and whitespace collapsed as an
+ * SVG `<text>` without `xml:space` draws it. Shared by the layout engine (to
+ * measure), the structural lint (`lint/missing-glyph`) and, through the
+ * Layout IR, the SVG writer, so all three see the same runs.
+ */
+
+import { type MarkupRun, parseLabel, type RunScript } from "./math";
+
+/** A run with its font class (`regular`, `bold`, …, `math`, `math-italic`). */
+export interface LabelRun {
+  readonly text: string;
+  /** Font class, as in `LabelGeometry.font`: selects the font set's file. */
+  readonly font: string;
+  readonly script: RunScript;
+}
+
+export interface LabelRunsOptions {
+  /** The label's own font class (`regular`, `bold`, `mono`, …), for text outside math. */
+  readonly font: string;
+  /**
+   * Whether a font class has a glyph for a code point. Text characters the
+   * label's font lacks but the `math` font has are drawn with the `math`
+   * font. Without it, nothing falls back.
+   */
+  readonly covers?: (font: string, codePoint: number) => boolean;
+}
+
+/**
+ * Script sizes and baseline shifts, as fractions of the label's font size:
+ * STIX Two Math's `MATH` constants (ScriptPercentScaleDown 70,
+ * SubscriptShiftDown 210, SuperscriptShiftUp 360 per 1000 units).
+ */
+export const SCRIPT_SCALE = 0.7;
+export const SUBSCRIPT_SHIFT = 0.21;
+export const SUPERSCRIPT_SHIFT = 0.36;
+
+/** A run's size and baseline offset (positive down) at a label font size. */
+export function scriptGeometry(
+  script: RunScript,
+  fontSize: number,
+): { fontSize: number; shift: number } {
+  if (script === "base") return { fontSize, shift: 0 };
+  return {
+    fontSize: fontSize * SCRIPT_SCALE,
+    shift: (script === "sub" ? SUBSCRIPT_SHIFT : -SUPERSCRIPT_SHIFT) * fontSize,
+  };
+}
+
+/** The math fonts' classes (SVG class `text-math`, `text-math-italic`). */
+export const MATH_FONT = "math";
+export const MATH_ITALIC_FONT = "math-italic";
+
+export interface LabelLayoutText {
+  /** The lines as drawn (whitespace collapsed, `\$` unescaped). */
+  readonly lines: string[];
+  /**
+   * The runs of each line; omitted when every line is one run in the
+   * label's own font (no math, nothing falls back), which keeps such labels
+   * on the plain one-font path.
+   */
+  readonly runs?: LabelRun[][];
+}
+
+/**
+ * The lines and runs of a label (see the module comment). Throws if the
+ * label's markup is invalid: the `component` stage reports that before
+ * anything is laid out.
+ */
+export function labelRuns(label: string, options: LabelRunsOptions): LabelLayoutText {
+  const parsed = parseLabel(label);
+  if (!parsed.ok) {
+    throw new Error(`internal error: invalid label markup: ${parsed.errors[0]?.message}`);
+  }
+  const { font, covers } = options;
+  const resolve = (run: MarkupRun): LabelRun => ({
+    text: run.text,
+    font: run.font === "text" ? font : run.font,
+    script: run.script,
+  });
+  let lines = parsed.value.lines.map((line) => line.map(resolve));
+  if (covers !== undefined) {
+    lines = lines.map((line) => line.flatMap((run) => fallback(run, font, covers)));
+  }
+  const runs = collapse(lines);
+  const plain = runs.every(
+    (line) => line.length <= 1 && line.every((r) => r.font === font && r.script === "base"),
+  );
+  return { lines: runLines(runs), ...(!plain && { runs }) };
+}
+
+/** Splits a text run where its font lacks a character the math font has. */
+function fallback(
+  run: LabelRun,
+  font: string,
+  covers: (font: string, codePoint: number) => boolean,
+): LabelRun[] {
+  if (run.font !== font) return [run];
+  const out: LabelRun[] = [];
+  for (const char of run.text) {
+    const codePoint = char.codePointAt(0) ?? 0;
+    const target = !covers(font, codePoint) && covers(MATH_FONT, codePoint) ? MATH_FONT : font;
+    const last = out.at(-1);
+    if (last !== undefined && last.font === target)
+      out[out.length - 1] = { ...last, text: last.text + char };
+    else out.push({ text: char, font: target, script: run.script });
+  }
+  return out;
+}
+
+/** Collapsible whitespace of CSS `white-space: normal` (as `renderedLines()` in the geometry lint). */
+const COLLAPSIBLE = /[ \t\n\r\f]/;
+
+/**
+ * Collapses whitespace across runs and lines like `renderedLines()`: runs of
+ * collapsible whitespace become one space, spaces at the start and end of
+ * the whole text are removed. Then drops empty runs and merges neighbors
+ * with the same font and script.
+ */
+function collapse(lines: readonly (readonly LabelRun[])[]): LabelRun[][] {
+  let afterSpace = true;
+  const out = lines.map((line) =>
+    line.map((run) => {
+      let kept = "";
+      for (const char of run.text) {
+        if (COLLAPSIBLE.test(char)) {
+          if (afterSpace) continue;
+          kept += " ";
+          afterSpace = true;
+        } else {
+          kept += char;
+          afterSpace = false;
+        }
+      }
+      return { ...run, text: kept };
+    }),
+  );
+  // The trailing space of the whole text: in the last run that kept anything.
+  outer: for (let i = out.length - 1; i >= 0; i--) {
+    const line = out[i] as LabelRun[];
+    for (let j = line.length - 1; j >= 0; j--) {
+      const run = line[j] as LabelRun;
+      if (run.text === "") continue;
+      if (run.text.endsWith(" ")) line[j] = { ...run, text: run.text.slice(0, -1) };
+      break outer;
+    }
+  }
+  return out.map((line) => {
+    const merged: LabelRun[] = [];
+    for (const run of line) {
+      if (run.text === "") continue;
+      const last = merged.at(-1);
+      if (last !== undefined && last.font === run.font && last.script === run.script) {
+        merged[merged.length - 1] = { ...last, text: last.text + run.text };
+      } else merged.push(run);
+    }
+    return merged;
+  });
+}
+
+/** The text of each line, as drawn (the runs' text joined). */
+export function runLines(lines: readonly (readonly LabelRun[])[]): string[] {
+  return lines.map((line) => line.map((r) => r.text).join(""));
+}

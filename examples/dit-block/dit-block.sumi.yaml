@@ -1,7 +1,8 @@
 # A DiT block with adaLN-Zero (Peebles & Xie 2023, figure 3), drawn with the
 # structured layout: a stretched stack of blocks with residual connections
 # through operators and junctions, and one conditioning MLP feeding four
-# blocks over a shared bus with labeled taps. Tones in the color theme.
+# blocks over a shared bus with taps labeled in label math ($\gamma_1$ …).
+# Tones in the color theme.
 version: 1
 figure:
   id: dit-block
@@ -63,7 +64,7 @@ edges:
   - { from: add2, to: out }
   - { from: conditioning, to: mlp, component: line }
   # one source port, four taps: one shared bus
-  - { from: mlp, fromAnchor: north, to: ss1, toAnchor: east, label: "γ1, β1" }
-  - { from: mlp, fromAnchor: north, to: scale1, toAnchor: east, label: α1 }
-  - { from: mlp, fromAnchor: north, to: ss2, toAnchor: east, label: "γ2, β2" }
-  - { from: mlp, fromAnchor: north, to: scale2, toAnchor: east, label: α2 }
+  - { from: mlp, fromAnchor: north, to: ss1, toAnchor: east, label: '$\gamma_1,\beta_1$' }
+  - { from: mlp, fromAnchor: north, to: scale1, toAnchor: east, label: $\alpha_1$ }
+  - { from: mlp, fromAnchor: north, to: ss2, toAnchor: east, label: '$\gamma_2,\beta_2$' }
+  - { from: mlp, fromAnchor: north, to: scale2, toAnchor: east, label: $\alpha_2$ }
