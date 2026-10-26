@@ -74,6 +74,38 @@ groups:
   are members of that group, items of the root tree are at the root. Do not
   also write `group:` (if you do, it must match, else `layout/group-mismatch`).
   A group is placed as one item in its parent's tree.
+- **A group's label sits at the top centre**, above its members. An edge
+  entering the group from above is routed around the label, so it detours
+  and its arrowhead ends just under the label (or crosses it when there is
+  no other way: `geometry/edge-crosses-label`). Workarounds: enter from
+  the side (`toAnchor: west`) or off-centre (`toAnchor: "north:0.2"`); place the members so the one
+  entered from above is not under the label; or leave out the group's
+  `label` and attach a `label` node beside the group instead (drawn in
+  the node label style, not the group's):
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: side-title
+  theme: academic
+  profile: paper-single
+  layout:
+    arrange:
+      stack: { gap: 4mm, items: [ batch, train ] }
+groups:
+  - id: train                  # no label: nothing at the top centre
+    arrange:
+      stack: { gap: 3mm, items: [ model, loss ] }
+nodes:
+  - { id: batch, component: box, label: Batch }
+  - { id: model, component: box, label: Model }
+  - { id: loss, component: box, label: Loss }
+  - { id: train-title, component: label, label: "Training\nstep", attach: { to: train, side: east, gap: 1mm } }
+edges:
+  - { from: batch, to: model }
+  - { from: model, to: loss }
+```
 
 ## Attach: side notes
 
@@ -89,6 +121,25 @@ groups:
 belongs to the same group as its target, and that group (or the canvas)
 grows to hold it. Use it for labels beside a block, `N×` beside a group, an
 input feeding an operator from the side.
+
+**An attached node takes no space in the tree**: its neighbours are placed
+as if it were not there. Attached into the `gap` between two items of a
+stack or row, it can overlap the next item (`geometry/node-overlap`,
+`geometry/label-collision`) or blocks the edges that need that gap
+(`layout/no-route`). For example
+`{ id: op, component: operator, props: { symbol: plus }, attach: { to: a, side: south, gap: 1mm } }`
+with `a` and `b` in a stack with `gap: 3mm` draws the ⊕ on top of `b`.
+This is the current behaviour. Instead:
+
+- put the element **in the tree**, between the two items
+  (`items: [ a, op, b ]`, edges `a → op → b`): it gets its own place and
+  the gaps on both sides route;
+- or widen that `gap` beyond the attach `gap` plus the attached node's
+  size, and further if an edge must pass beside it (the ⊕ above needs
+  `gap: 7mm`).
+
+Attach on a side where no other item is placed (beside a stack, above or
+below a row).
 
 ## Edges: anchors, junctions and trunks
 
@@ -164,10 +215,11 @@ where there is room.
 | `layout/group-mismatch` | `group:` disagrees with the tree that places the element: delete `group:` (the tree decides) or move the ID into that group's `arrange` |
 | `layout/group-cycle`, `layout/attach-cycle` | a group placed inside itself, or attachments in a loop: break the loop |
 | `layout/invalid-anchor` | write `north`, `east`, `south` or `west`, optionally `:` and a number from 0 to 1 |
-| `layout/no-route` (render) | the ends touch (`gap: 0`), are closer than the arrowhead, or are boxed in: widen that `gap` (see above; even a `line` needs a gap > 0), or anchor the edge on other sides |
+| `layout/no-route` (render) | the ends touch (`gap: 0`), are closer than the arrowhead, or are boxed in (also by a node attached into the gap, see [attach](#attach-side-notes)): widen that `gap` (see above; even a `line` needs a gap > 0), or anchor the edge on other sides |
 
 Geometry warnings after a structured render (`label-collision`,
-`edge-crosses-label`) usually come from edge labels or crossing nets: shorten the label, reorder the edges
-(earlier = straighter), or add `gap`.
+`edge-crosses-label`) usually come from edge labels, crossing nets or a
+group label in the way (see [arrange trees](#arrange-trees)): shorten the
+label, reorder the edges (earlier = straighter), or add `gap`.
 
 A complete structured figure is in [examples](examples.md#4-success-a-structured-block-diagram).

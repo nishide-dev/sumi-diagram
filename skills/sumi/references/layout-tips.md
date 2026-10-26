@@ -69,6 +69,54 @@ the profile never enlarges text, so pick the theme to match.
   then split the figure into several slides or drop trivial steps (ask the
   user); do not switch the theme or profile on your own.
 
+## Too wide with `right`, too tall with `down`
+
+When a long flow overflows both ways (on paper or slides), wrap it: switch
+the figure to **structured** and lay the steps out in two rows, one `row`
+per line inside a `stack`
+([structured](structured.md#arrange-trees)). With `direction: left` on the
+second row the flow snakes back under the end of the first, so the edge
+that turns is a short vertical one:
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: two-row-pipeline
+  theme: minimal
+  profile: paper-single
+  layout:
+    arrange:                     # structured: every node is placed here
+      stack:
+        gap: 6mm
+        align: end               # right-align the rows: batch sits above model
+        items:
+          - row: { gap: 4mm, items: [ load, clean, split, batch ] }
+          - row: { gap: 4mm, direction: left, items: [ model, loss, update, save ] }
+nodes:
+  - { id: load, component: box, label: Load }
+  - { id: clean, component: box, label: Clean }
+  - { id: split, component: box, label: Split }
+  - { id: batch, component: box, label: Batch }
+  - { id: model, component: box, label: Model }
+  - { id: loss, component: box, label: Loss }
+  - { id: update, component: box, label: Update }
+  - { id: save, component: box, label: Save }
+edges:
+  - { from: load, to: clean }
+  - { from: clean, to: split }
+  - { from: split, to: batch }
+  - { from: batch, to: model }
+  - { from: model, to: loss }
+  - { from: loss, to: update }
+  - { from: update, to: save }
+```
+
+Split where the content has a natural break (e.g. data preparation, then
+training). If the rows hold groups, each group's own `arrange` lays out its
+members; if two rows still do not fit, use three, or split the figure (ask
+the user).
+
 ## Labels
 
 - Short, noun-phrase labels lay out best. Break long ones with `\n`
