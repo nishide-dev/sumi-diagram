@@ -1,8 +1,9 @@
 /** Rounded corners of structured wires (#101). */
 
 import { describe, expect, test } from "bun:test";
+import type { NodeIR } from "../compiler/ir";
 import type { Point } from "../core/geometry";
-import { type Arc, type CornerOptions, clearRadius, roundCorners } from "./wire";
+import { type Arc, type CornerOptions, clearRadius, isHiddenJunction, roundCorners } from "./wire";
 
 const options = (overrides: Partial<CornerOptions> = {}): CornerOptions => ({
   radius: 8,
@@ -163,6 +164,27 @@ describe("hidden junctions", () => {
     expect(arcs.flat().map((a) => [a.from, a.to])).toEqual([[p(50, 50 - 0), p(44, 44)]]);
   });
 
+  test("a turn next to a junction leaves the part of the straight leg a branch arc attaches to", () => {
+    // In along y = 58, turning north 8 units below J; straight on to the north; a branch east.
+    const { pieces, arcs } = roundCorners(
+      [
+        { points: [p(0, 58), p(50, 58), J], end: "j" },
+        { points: [J, p(50, 0)], start: "j" },
+        { points: [J, p(100, 50)], start: "j" },
+      ],
+      options(),
+    );
+    // The branch arc starts 4 units below J, where the incoming turn's arc ends.
+    expect(arcs.flat().map((a) => [a.from, a.to])).toEqual([
+      [p(50, 54), p(54, 50)],
+      [p(46, 58), p(50, 54)],
+    ]);
+    expect(pieces[0]).toEqual([
+      [p(0, 58), p(46, 58)],
+      [p(50, 54), J],
+    ]);
+  });
+
   test("a junction that is only entered joins every perpendicular pair", () => {
     const { arcs } = roundCorners(
       [
@@ -179,4 +201,20 @@ describe("hidden junctions", () => {
     expect(pieces[0]).toEqual([[p(50, 100), J]]);
     expect(arcs.flat()).toEqual([]);
   });
+});
+
+test("only the hidden variant painted with nothing is a hidden junction", () => {
+  const junction = (variant: string, fill: string, stroke: string, width: number) =>
+    ({
+      mark: { type: "point", size: 3 },
+      variant,
+      style: { fill, stroke, strokeWidth: { pt: width / 2, units: width } },
+    }) as unknown as NodeIR;
+  expect(isHiddenJunction(junction("hidden", "transparent", "transparent", 0))).toBe(true);
+  expect(isHiddenJunction(junction("hidden", "transparent", "#000000", 0))).toBe(true);
+  // A hollow dot from a custom theme is still a visible mark.
+  expect(isHiddenJunction(junction("default", "transparent", "#000000", 1))).toBe(false);
+  expect(isHiddenJunction(junction("hidden", "transparent", "#000000", 1))).toBe(false);
+  // A theme without the variant falls back to the dot.
+  expect(isHiddenJunction(junction("hidden", "#000000", "#000000", 1))).toBe(false);
 });

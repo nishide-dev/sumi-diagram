@@ -15,6 +15,7 @@ import {
   rayHit,
   rectPoints,
 } from "./outline-geometry";
+import { isHiddenJunction } from "./wire";
 import {
   attribute,
   childElements,
@@ -299,10 +300,6 @@ export function composeOutlines(
     return { ok: false, diagnostics };
   }
 }
-
-/** A junction drawn without a dot (#101): a point mark whose fill is `transparent`. */
-export const isHiddenJunction = (node: NodeIR): boolean =>
-  node.mark?.type === "point" && node.style.fill === "transparent";
 
 /**
  * Hidden junctions in `auto` (#101): D2 ends a line short of a node's

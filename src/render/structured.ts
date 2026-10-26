@@ -57,7 +57,7 @@ import { CYLINDER_ARC_UNITS, shapeOutline } from "../lint/geometry/shapes";
 import { drawNodeOutline } from "./compose";
 import { subsetFont } from "./font-subset";
 import { dashArray, n, paint, strokeAttributes } from "./stroke";
-import { roundCorners, type WirePolyline } from "./wire";
+import { isHiddenJunction, roundCorners, type WirePolyline } from "./wire";
 import { escapeAttribute } from "./xml";
 
 export { dashArray };
@@ -399,8 +399,8 @@ const xy = (p: Point): string => `${n(p.x)} ${n(p.y)}`;
 /**
  * Wires: per net and line style, the union of the edges' wire segments (see
  * the module comment), with rounded turns (`wire.ts`, #101): each turn of a
- * route, and the joins at a hidden junction (a junction whose fill is
- * `transparent`) whose edges all share one line style and reach its center.
+ * route, and the joins at a hidden junction (`isHiddenJunction()`) whose
+ * edges all share one line style and reach its center.
  */
 function wires(ir: FigureIR, layout: LayoutIR): string[] {
   const edges = new Map(ir.edges.map((e) => [e.key, e]));
@@ -409,7 +409,7 @@ function wires(ir: FigureIR, layout: LayoutIR): string[] {
   const nets = layout.nets ?? layout.edges.map((e, id) => ({ id, edges: [e.key], segments: [] }));
   const hidden = (key: ElementKey): boolean => {
     const node = nodes.get(key);
-    return node?.mark?.type === "point" && node.style.fill === "transparent";
+    return node !== undefined && isHiddenJunction(node);
   };
   // What every arc keeps clear of: shapes and labels (not hidden junctions).
   const fixed: Rect[] = [

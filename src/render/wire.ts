@@ -29,7 +29,19 @@
  * corner lies inside the turn of the route, between its legs.
  */
 
+import type { NodeIR } from "../compiler/ir";
 import type { Point, Rect } from "../core/geometry";
+
+/**
+ * A junction drawn without a dot (#101): variant `hidden` of a point mark,
+ * resolved by the theme to no paint at all (a theme without the variant
+ * falls back to the default dot, which stays a dot).
+ */
+export const isHiddenJunction = (node: NodeIR): boolean =>
+  node.mark?.type === "point" &&
+  node.variant === "hidden" &&
+  node.style.fill === "transparent" &&
+  (node.style.stroke === "transparent" || node.style.strokeWidth.units === 0);
 
 /** A wire's polyline, and the hidden junction (by id) its first / last point is the center of. */
 export interface WirePolyline {
@@ -151,6 +163,10 @@ export function roundCorners(
     new Array<number>(Math.max(0, p.points.length - 1)).fill(0),
   );
   const cutEnd = polylines.map((p) => new Array<number>(Math.max(0, p.points.length - 1)).fill(0));
+  // How much of the first / last segment a hidden junction's arcs attach to
+  // (at least its cut): a turn at the segment's other end must leave it.
+  const reserveStart = polylines.map(() => 0);
+  const reserveEnd = polylines.map(() => 0);
   const arcs: Arc[][] = polylines.map(() => []);
 
   // Hidden junctions: the routes that meet at one, joined through its center.
@@ -202,6 +218,8 @@ export function roundCorners(
     // A route that one of its pairs continues straight through the junction is not cut.
     const continued = new Set(pairs.filter(([a, b]) => opposite(a.away, b.away)).flat());
     for (const e of turning) {
+      if (e.atStart) reserveStart[e.index] = r;
+      else reserveEnd[e.index] = r;
       if (continued.has(e)) continue;
       const points = polylines[e.index]?.points as readonly Point[];
       if (e.atStart) (cutStart[e.index] as number[])[0] = r;
@@ -217,9 +235,10 @@ export function roundCorners(
     }
   }
 
-  // Turns of one route. A leg ending at a hidden junction that is not cut
-  // there can take its whole length; any other leg half of it (the turn or
-  // junction at its other end may take the other half).
+  // Turns of one route. A leg ending at a hidden junction can take its whole
+  // length but what the junction's arcs use of it (none if the junction joins
+  // nothing there); any other leg half of it (the turn at its other end may
+  // take the other half).
   polylines.forEach(({ points, start, end }, index) => {
     const last = points.length - 2; // the last segment
     for (let i = 1; i + 1 < points.length; i++) {
@@ -232,12 +251,8 @@ export function roundCorners(
       const before = distance(prev, p);
       const after = distance(p, next);
       const room = Math.min(
-        i - 1 === 0 && start !== undefined
-          ? before - ((cutStart[index] as number[])[0] as number)
-          : before / 2,
-        i === last && end !== undefined
-          ? after - ((cutEnd[index] as number[])[last] as number)
-          : after / 2,
+        i - 1 === 0 && start !== undefined ? before - (reserveStart[index] as number) : before / 2,
+        i === last && end !== undefined ? after - (reserveEnd[index] as number) : after / 2,
       );
       const r = clearRadius(p, { x: -d1.x, y: -d1.y }, d2, Math.min(options.radius, room), options);
       if (r < options.minRadius) continue;

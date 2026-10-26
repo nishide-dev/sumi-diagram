@@ -10,7 +10,10 @@ import { createD2CliBackend } from "../backends/d2/backend";
 import { checkD2Version, findD2Binary } from "../backends/d2/binary";
 import type { ElementKey } from "../core/check-state";
 import { lintGeometry } from "../lint/geometry";
-import { renderFigure } from "./render";
+import { composeJunctionEnds, composeOutlines } from "./compose";
+import { finalizeSvg } from "./finalize";
+import { inspectSvg } from "./inspect";
+import { expectD2Rendered, renderFigure } from "./render";
 import { attribute, classList, descendants, parseXml } from "./xml";
 
 const binary = findD2Binary();
@@ -25,7 +28,7 @@ figure:
   layout:
     ${engine === "structured" ? "engine: structured\n    arrange: { stack: { direction: up, gap: 4mm, items: [input, split, block, add, out] } }" : "direction: up"}
 nodes:
-  - { id: input, component: box, label: Input }
+  - { id: input, component: ${engine === "auto" ? "trapezoid" : "box"}, label: Input }
   - { id: split, component: junction${variant === "hidden" ? ", variant: hidden" : ""} }
   - { id: block, component: box, label: Block }
   - { id: add, component: operator, props: { symbol: plus } }
@@ -116,6 +119,61 @@ describe.skipIf(!available)("auto (D2)", () => {
       const out = center("n:out");
       const tip = end("e:#4", "last");
       expect(Math.hypot(tip.x - out.x, tip.y - out.y)).toBeGreaterThan(0.4);
+    }
+  });
+
+  test("composition moves only the ends that meet at a hidden junction, after the outlines", async () => {
+    for (const variant of ["hidden", "default"] as const) {
+      const source = figure("auto", variant);
+      const rendered = expectD2Rendered(await render(source));
+      const { compiled } = rendered;
+      // Replay the pipeline up to the junction composition.
+      const finalized = finalizeSvg(rendered.artifact, compiled, { source });
+      if (!finalized.ok) throw new Error("finalize failed");
+      const first = inspectSvg(finalized.value.svg, compiled.ir);
+      if (!first.ok) throw new Error("inspect failed");
+      const outlined = composeOutlines(finalized.value.svg, compiled.ir, first.value);
+      if (!outlined.ok) throw new Error("outline composition failed");
+      const before = inspectSvg(outlined.value, compiled.ir);
+      if (!before.ok) throw new Error("inspect failed");
+      const joined = composeJunctionEnds(outlined.value, compiled.ir, before.value);
+      expect(joined.ok).toBe(true);
+      if (!joined.ok) return;
+      expect(joined.value).toBe(rendered.svg);
+      if (variant === "default") {
+        expect(joined.value).toBe(outlined.value);
+        continue;
+      }
+      const after = new Map(rendered.inspection.elements.map((e) => [e.key, e]));
+      const moved = new Map<ElementKey, ("first" | "last")[]>([
+        ["e:#0", ["last"]], // trapezoid → split (its source end was extended to the outline)
+        ["e:#1", ["first"]],
+        ["e:#2", ["first"]],
+      ]);
+      for (const element of before.value.elements.filter((e) => e.kind === "edge")) {
+        const old = element.path ?? [];
+        const now = after.get(element.key)?.path ?? [];
+        const ends = moved.get(element.key) ?? [];
+        expect(now.length).toBe(old.length);
+        now.forEach((segment, i) => {
+          const isEnd =
+            (i === 0 && ends.includes("first")) || (i === now.length - 1 && ends.includes("last"));
+          if (!isEnd) {
+            // Untouched apart from the control point next to a moved end.
+            if (!(i === 1 && ends.includes("first"))) {
+              expect(segment.to.x).toBeCloseTo(old[i]?.to.x ?? Number.NaN, 3);
+              expect(segment.to.y).toBeCloseTo(old[i]?.to.y ?? Number.NaN, 3);
+            }
+            return;
+          }
+          // The moved end lies on the line it travelled along, at the center's projection.
+          // Every moved end is at the split.
+          const box = after.get("n:split")?.bbox;
+          if (box === undefined) throw new Error("no junction box");
+          const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+          expect(Math.hypot(segment.to.x - center.x, segment.to.y - center.y)).toBeLessThan(1);
+        });
+      }
     }
   });
 });
