@@ -239,8 +239,10 @@ let shared: Registry | undefined;
 
 /**
  * The shared, sealed registry of the built-in components: built on first use
- * and reused afterwards (#106). It is read-only (see {@link Registry.seal}),
- * so sharing it across calls cannot leak state between them.
+ * and reused afterwards (#106). It is sealed (see {@link Registry.seal}):
+ * registering into it throws and its manifest data is frozen, so callers
+ * cannot change what later calls see. The `props` schemas are not frozen and
+ * must be treated as immutable.
  */
 export function builtinRegistry(): Registry {
   shared ??= createBuiltinRegistry().seal();

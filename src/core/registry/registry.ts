@@ -3,9 +3,10 @@
  * manifests, and validates how an element uses a component.
  *
  * All methods are synchronous; only `register` changes state, and only the
- * instance's own. A sealed registry (see {@link Registry.seal}) is read-only. Diagnostics carry paths relative to what was checked (the
- * manifest, or the element's `props` / `variant`); the `component` stage
- * prefixes them with the element's path.
+ * instance's own; a sealed registry (see {@link Registry.seal}) rejects it.
+ * Diagnostics carry paths relative to what was checked (the manifest, or the
+ * element's `props` / `variant`); the `component` stage prefixes them with
+ * the element's path.
  */
 
 import type { z } from "zod";
@@ -45,10 +46,12 @@ export class Registry {
   }
 
   /**
-   * Makes the registry read-only, so one instance can be shared safely: later
-   * `register` calls throw, and every registered manifest is deep-frozen
-   * except its `props` schema (a Zod schema, which is never mutated by Sumi
-   * and is left as it is). Returns the registry.
+   * Makes the registry read-only so one instance can be shared: later
+   * `register` calls throw, and the declarative data of every registered
+   * manifest is deep-frozen. The `props` Zod schema is not frozen (freezing
+   * Zod internals is unsafe); it is shared by reference with the source
+   * manifest and every other registry built from it, so callers must treat
+   * it as immutable, as they already had to. Returns the registry.
    */
   seal(): this {
     for (const manifest of this.#manifests.values()) freezeManifest(manifest);
@@ -208,15 +211,22 @@ export class Registry {
 
 /** Deep-freezes `manifest`, except its `props` schema. */
 function freezeManifest(manifest: ComponentManifest): void {
+  const seen = new WeakSet<object>();
   for (const [key, value] of Object.entries(manifest)) {
-    if (key !== "props") deepFreeze(value);
+    if (key !== "props") deepFreeze(value, seen);
   }
   Object.freeze(manifest);
 }
 
-function deepFreeze(value: unknown): void {
-  if (typeof value !== "object" || value === null || Object.isFrozen(value)) return;
-  for (const child of Object.values(value)) deepFreeze(child);
+/**
+ * Freezes `value` and everything reachable from it. Already-frozen objects are
+ * still traversed (shallow freezing elsewhere must not hide mutable children);
+ * `seen` guards against cycles.
+ */
+function deepFreeze(value: unknown, seen = new WeakSet<object>()): void {
+  if (typeof value !== "object" || value === null || seen.has(value)) return;
+  seen.add(value);
+  for (const child of Object.values(value)) deepFreeze(child, seen);
   Object.freeze(value);
 }
 

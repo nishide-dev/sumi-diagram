@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { z } from "zod";
-import { BUILTIN_MANIFESTS, builtinRegistry, createBuiltinRegistry } from "./builtins";
+import {
+  BUILTIN_MANIFESTS,
+  builtinRegistry,
+  createBuiltinRegistry,
+  OPERATOR_GLYPHS,
+} from "./builtins";
 import { buildCatalog } from "./catalog";
 import {
   type ComponentManifest,
@@ -92,10 +97,19 @@ describe("builtinRegistry", () => {
   test("its manifests are deep-frozen except the props schema", () => {
     const box = builtinRegistry().get("sumi/box");
     const operator = builtinRegistry().get("sumi/operator");
-    if (box === undefined || operator?.kind !== "node") throw new Error("missing built-ins");
+    const trapezoid = builtinRegistry().get("sumi/trapezoid");
+    if (box === undefined || operator?.kind !== "node" || trapezoid?.kind !== "node") {
+      throw new Error("missing built-ins");
+    }
+    if (operator.mark?.type !== "glyph" || trapezoid.render === undefined) {
+      throw new Error("built-ins lack the mark or render under test");
+    }
     expect(Object.isFrozen(box)).toBe(true);
     expect(Object.isFrozen(box.variants)).toBe(true);
     expect(Object.isFrozen(operator.mark)).toBe(true);
+    expect(Object.isFrozen(operator.mark.glyphs)).toBe(true);
+    expect(Object.isFrozen(trapezoid.render)).toBe(true);
+    expect(Object.isFrozen(trapezoid.render.params)).toBe(true);
     expect(Object.isFrozen(box.props)).toBe(false);
     expect(() => box.variants.push("extra")).toThrow();
     expect(() => {
@@ -108,8 +122,19 @@ describe("builtinRegistry", () => {
     builtinRegistry();
     const fresh = createBuiltinRegistry();
     expect(fresh.sealed).toBe(false);
-    expect(Object.isFrozen(fresh.get("sumi/box"))).toBe(false);
-    expect(BUILTIN_MANIFESTS.some((m) => Object.isFrozen(m))).toBe(false);
+    const box = fresh.get("sumi/box");
+    const operator = fresh.get("sumi/operator");
+    if (box === undefined || operator?.kind !== "node" || operator.mark?.type !== "glyph") {
+      throw new Error("missing built-ins");
+    }
+    expect(Object.isFrozen(box)).toBe(false);
+    expect(Object.isFrozen(box.variants)).toBe(false);
+    expect(Object.isFrozen(operator.mark.glyphs)).toBe(false);
+    expect(Object.isFrozen(OPERATOR_GLYPHS)).toBe(false);
+    for (const m of BUILTIN_MANIFESTS) {
+      expect(Object.isFrozen(m)).toBe(false);
+      expect(Object.isFrozen(m.variants)).toBe(false);
+    }
     expect(fresh.register(custom()).ok).toBe(true);
   });
 });
@@ -119,8 +144,28 @@ describe("seal", () => {
     const r = new Registry();
     r.register(custom());
     expect(r.seal()).toBe(r);
+    expect(r.sealed).toBe(true);
     expect(() => r.register(custom({ name: "gadget" }))).toThrow("sealed");
     expect(r.list().map(componentId)).toEqual(["acme/widget"]);
+  });
+
+  test("freezes a custom manifest's deprecation", () => {
+    const r = new Registry();
+    r.register(custom({ deprecated: { since: "0.2.0", replacement: "acme/gadget" } }));
+    r.seal();
+    expect(Object.isFrozen(r.get("acme/widget")?.deprecated)).toBe(true);
+  });
+
+  test("freezes children of objects that were already shallow-frozen", () => {
+    const r = createBuiltinRegistry();
+    const operator = r.get("sumi/operator");
+    if (operator?.kind !== "node" || operator.mark?.type !== "glyph") {
+      throw new Error("missing built-ins");
+    }
+    Object.freeze(operator.mark);
+    expect(Object.isFrozen(operator.mark.glyphs)).toBe(false);
+    r.seal();
+    expect(Object.isFrozen(operator.mark.glyphs)).toBe(true);
   });
 });
 
