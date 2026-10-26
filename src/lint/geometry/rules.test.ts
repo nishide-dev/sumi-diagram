@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { mmToPt } from "../../core/units";
 import { LintConfigError } from "../config";
-import { cycleClosingEdges } from "./rules";
+import { cycleClosingEdges, largerBuiltinProfiles } from "./rules";
 import { centeredBaseline, compile, label, lintSpec } from "./testing";
 
 // Line numbers matter for the location tests below.
@@ -40,7 +40,9 @@ describe("geometry/exceeds-page-width and exceeds-page-height", () => {
       'The figure is 88.02mm wide, more than the 88mm maximum width of profile "paper-single".',
     );
     expect(wide[0]?.subject).toEqual({ kind: "figure", id: "geo" });
-    expect(wide[0]?.hint).toContain("layout.direction: down");
+    expect(wide[0]?.hint).toBe(
+      "Sumi never shrinks a figure to fit. Lay it out top to bottom (layout.direction: down), shorten long labels, or use a wider profile (paper-double, 180mm).",
+    );
     expect(wide[0]?.location?.line).toBe(2);
     expect(
       lintSpec(compiled, { canvas: { x: 0, y: 0, width: 498, height: 100 }, elements: {} }),
@@ -59,6 +61,286 @@ describe("geometry/exceeds-page-width and exceeds-page-height", () => {
     expect(tall[0]?.message).toBe(
       'The figure is 352.78mm tall, more than the 120mm maximum height of profile "paper-single".',
     );
+  });
+});
+
+describe("engine- and profile-aware hints (#114)", () => {
+  // One figure per engine / direction: the hints depend only on the IR's
+  // meta and the profile, so the geometry is a bare canvas.
+  const variants = {
+    "auto right": compile(`version: 1
+figure: { id: h, layout: { direction: right } }
+nodes:
+  - { id: a, component: box, label: A }
+`),
+    "auto down": compile(`version: 1
+figure: { id: h, layout: { direction: down } }
+nodes:
+  - { id: a, component: box, label: A }
+`),
+    structured: compile(`version: 1
+figure: { id: h, layout: { engine: structured, arrange: { row: { items: [a] } } } }
+nodes:
+  - { id: a, component: box, label: A }
+`),
+  } as const;
+  const profiles = {
+    "paper-single": { id: "paper-single", maxWidthPt: mmToPt(88), maxHeightPt: mmToPt(220) },
+    "paper-double": { id: "paper-double", maxWidthPt: mmToPt(180), maxHeightPt: mmToPt(220) },
+    "presentation-16x9": {
+      id: "presentation-16x9",
+      maxWidthPt: mmToPt(338.7),
+      maxHeightPt: mmToPt(190.5),
+      minFontSizePt: 14,
+    },
+  } as const;
+  const hintOf = (
+    variant: keyof typeof variants,
+    profile: keyof typeof profiles,
+    code: string,
+    canvas: { width: number; height: number },
+  ) =>
+    lintSpec(
+      variants[variant],
+      { canvas: { x: 0, y: 0, ...canvas }, profile: profiles[profile], elements: {} },
+      { code },
+    )[0]?.hint;
+  /** Millimetres in SVG units (0.5pt). */
+  const mm = (v: number) => mmToPt(v) * 2;
+
+  test.each([
+    [
+      "auto right",
+      "paper-single",
+      100,
+      "Lay it out top to bottom (layout.direction: down), shorten long labels, or use a wider profile (paper-double, 180mm).",
+    ],
+    // Too wide for every paper profile: none is suggested.
+    [
+      "auto right",
+      "paper-single",
+      400,
+      "Lay it out top to bottom (layout.direction: down), or shorten long labels.",
+    ],
+    [
+      "auto right",
+      "paper-double",
+      200,
+      "Lay it out top to bottom (layout.direction: down), or shorten long labels.",
+    ],
+    [
+      "auto down",
+      "paper-single",
+      100,
+      "Place fewer nodes side by side (split a wide layer, or group its nodes), shorten long labels, or use a wider profile (paper-double, 180mm).",
+    ],
+    [
+      "auto down",
+      "paper-double",
+      200,
+      "Place fewer nodes side by side (split a wide layer, or group its nodes), or shorten long labels.",
+    ],
+    [
+      "structured",
+      "paper-single",
+      100,
+      "Turn the widest `row` into a `stack` (or split it into several rows), reduce its `gap`, shorten long labels, or use a wider profile (paper-double, 180mm).",
+    ],
+    [
+      "structured",
+      "paper-double",
+      200,
+      "Turn the widest `row` into a `stack` (or split it into several rows), reduce its `gap`, or shorten long labels.",
+    ],
+    // Nothing is wider than a slide, and a slide is never sent to a paper profile.
+    [
+      "structured",
+      "presentation-16x9",
+      400,
+      "Turn the widest `row` into a `stack` (or split it into several rows), reduce its `gap`, or shorten long labels.",
+    ],
+  ] as const)("exceeds-page-width: %s on %s, %dmm wide", (variant, profile, width, expected) => {
+    expect(
+      hintOf(variant, profile, "geometry/exceeds-page-width", { width: mm(width), height: 10 }),
+    ).toBe(`Sumi never shrinks a figure to fit. ${expected}`);
+  });
+
+  test.each([
+    [
+      "auto right",
+      "paper-single",
+      "Place fewer nodes on top of each other (split a tall layer, or group its nodes), or split it into several figures.",
+    ],
+    [
+      "auto down",
+      "paper-single",
+      "Lay it out left to right (layout.direction: right), or split it into several figures.",
+    ],
+    [
+      "auto down",
+      "paper-double",
+      "Lay it out left to right (layout.direction: right), or split it into several figures.",
+    ],
+    [
+      "structured",
+      "paper-double",
+      "Turn the tallest `stack` into a `row` (or split it into several columns), reduce its `gap`, or split it into several figures.",
+    ],
+    [
+      "structured",
+      "presentation-16x9",
+      "Turn the tallest `stack` into a `row` (or split it into several columns), reduce its `gap`, or split it into several figures.",
+    ],
+  ] as const)(
+    "exceeds-page-height: %s on %s (no built-in profile is taller)",
+    (variant, profile, expected) => {
+      expect(
+        hintOf(variant, profile, "geometry/exceeds-page-height", { width: 10, height: mm(250) }),
+      ).toBe(`Sumi never shrinks a figure to fit. ${expected}`);
+    },
+  );
+
+  test("exceeds-page-height suggests a built-in profile only if it is taller and the figure fits", () => {
+    const tall = (height: number) =>
+      lintSpec(
+        variants.structured,
+        {
+          canvas: { x: 0, y: 0, width: 10, height: mm(height) },
+          profile: { id: "custom", maxWidthPt: mmToPt(180), maxHeightPt: mmToPt(120) },
+          elements: {},
+        },
+        { code: "geometry/exceeds-page-height" },
+      )[0]?.hint;
+    expect(tall(150)).toEndWith(
+      "or use a taller profile (paper-double, 220mm; paper-single, 220mm).",
+    );
+    expect(tall(230)).toEndWith("or split it into several figures.");
+  });
+
+  test("largerBuiltinProfiles: larger, holds the figure, no larger minimum font size", () => {
+    const ids = (current: keyof typeof profiles, widthMm: number, heightMm = 10) =>
+      largerBuiltinProfiles({ minFontSizePt: 7, ...profiles[current] }, "width", {
+        widthPt: mmToPt(widthMm),
+        heightPt: mmToPt(heightMm),
+      }).map((p) => p.id);
+    expect(ids("paper-single", 100)).toEqual(["paper-double"]);
+    expect(ids("paper-single", 200)).toEqual([]);
+    expect(ids("paper-double", 200)).toEqual([]);
+    expect(ids("presentation-16x9", 400)).toEqual([]);
+    // The candidate must hold the other axis too.
+    expect(ids("paper-single", 100, 250)).toEqual([]);
+    const custom = (axis: "width" | "height", limits: object, widthMm: number, heightMm: number) =>
+      largerBuiltinProfiles({ id: "custom", minFontSizePt: 7, ...limits }, axis, {
+        widthPt: mmToPt(widthMm),
+        heightPt: mmToPt(heightMm),
+      }).map((p) => p.id);
+    // No maximum height: paper-double would add a height violation.
+    expect(custom("width", { maxWidthPt: mmToPt(88) }, 100, 250)).toEqual([]);
+    expect(custom("width", { maxWidthPt: mmToPt(88) }, 100, 200)).toEqual(["paper-double"]);
+    // Taller paper profiles are too narrow for a 250mm wide figure.
+    expect(
+      custom("height", { maxWidthPt: mmToPt(300), maxHeightPt: mmToPt(120) }, 250, 150),
+    ).toEqual([]);
+    expect(
+      custom("height", { maxWidthPt: mmToPt(300), maxHeightPt: mmToPt(120) }, 150, 150),
+    ).toEqual(["paper-double"]);
+  });
+
+  test("edge-crosses-label: structured group titles sit top-centre; no layout.direction", () => {
+    const source = (engine: string) => `version: 1
+figure:
+  id: h
+  layout: { engine: ${engine}${engine === "structured" ? ", arrange: { row: { items: [grp, b] } }" : ""} }
+groups:
+  - { id: grp, label: Group${engine === "structured" ? ", arrange: { row: { items: [a] } }" : ""} }
+nodes:
+  - { id: a, component: box, label: A, group: grp }
+  - { id: b, component: box, label: B }
+  - { id: t, component: label, label: T${engine === "structured" ? ", attach: { to: b, side: north }" : ""} }
+edges:
+  - { from: b, to: a }
+`;
+    const hints = (engine: string) =>
+      lintSpec(
+        compile(source(engine)),
+        {
+          elements: {
+            "g:grp": {
+              bbox: { x: 0, y: 0, width: 200, height: 100 },
+              labels: [label("Group", 100, 20)],
+            },
+            "n:t": { labels: [label("T", 100, 160)] },
+            "e:#0": {
+              path: [
+                { x: 100, y: -10 },
+                { x: 100, y: 200 },
+              ],
+            },
+          },
+        },
+        { code: "geometry/edge-crosses-label" },
+      ).map((d) => d.hint ?? "");
+    const [autoGroup, autoText] = hints("auto");
+    expect(autoGroup).toContain("top-left corner");
+    expect(autoGroup).toContain("layout.direction");
+    expect(autoText).toContain("direction");
+    const [group, text] = hints("structured");
+    expect(group).toContain("top centre");
+    expect(group).toContain("fromAnchor / toAnchor");
+    expect(group).not.toContain("direction");
+    expect(text).toContain("attach it to another side");
+    expect(text).not.toContain("direction");
+  });
+
+  test("node-overlap: an attached node gets attach advice", () => {
+    // research/109-dogfood-v0.4/repro/attach-in-gap.sumi.yaml
+    const attached = compile(`version: 1
+figure: { id: h, layout: { engine: structured, arrange: { stack: { gap: 3mm, items: [a, b] } } } }
+nodes:
+  - { id: a, component: box, label: A }
+  - { id: b, component: box, label: B }
+  - { id: op, component: operator, props: { symbol: plus }, attach: { to: a, side: south, gap: 1mm } }
+`);
+    const result = lintSpec(
+      attached,
+      {
+        elements: {
+          "n:a": { bbox: { x: 0, y: 0, width: 40, height: 20 } },
+          "n:b": { bbox: { x: 0, y: 30, width: 40, height: 20 } },
+          "n:op": { bbox: { x: 15, y: 22, width: 10, height: 10 } },
+        },
+      },
+      { code: "geometry/node-overlap" },
+    );
+    expect(result.map((d) => [d.message, d.hint])).toEqual([
+      [
+        'The shapes of node "b" and node "op" overlap.',
+        'Node "op" is attached to node "a", and an attached node takes no space in the arrange tree, so it can cover its neighbours. Put it in the arrange tree instead, attach it to a free side, or widen the `gap` next to node "a".',
+      ],
+    ]);
+  });
+
+  test("node-overlap: no attach advice without attach; structured does not suggest grouping", () => {
+    const source = (engine: string) => `version: 1
+figure: { id: h, layout: { engine: ${engine}${engine === "structured" ? ", arrange: { row: { items: [a, b] } }" : ""} } }
+nodes:
+  - { id: a, component: box, label: A }
+  - { id: b, component: box, label: B }
+`;
+    const hint = (engine: string) =>
+      lintSpec(
+        compile(source(engine)),
+        {
+          elements: {
+            "n:a": { bbox: { x: 0, y: 0, width: 40, height: 20 } },
+            "n:b": { bbox: { x: 20, y: 0, width: 40, height: 20 } },
+          },
+        },
+        { code: "geometry/node-overlap" },
+      )[0]?.hint;
+    expect(hint("auto")).toContain("put the nodes in the same group");
+    expect(hint("structured")).toContain("arrange tree");
+    expect(hint("structured")).not.toContain("attach");
   });
 });
 

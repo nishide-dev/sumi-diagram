@@ -236,6 +236,11 @@ class Router {
   /** Junction (index into #junctions) at a grid point, or -1. */
   #junctionAt = new Int32Array(0);
   #junctions: ElementKey[] = [];
+  /**
+   * Every node in layout order, for naming blockers (#114): routes go around
+   * nodes and may not enter junctions other than their own ends.
+   */
+  #obstacles: { key: ElementKey; rect: Rect }[] = [];
 
   // Occupancy.
   #stepsH!: Owners;
@@ -313,7 +318,15 @@ class Router {
       // First within a corridor around the ends, then on the whole grid.
       const cells = this.#search(edge, ROUTE.corridor) ?? this.#search(edge, Infinity);
       if (cells === undefined) {
-        this.#report(edge.ir, "every path is blocked by nodes or too narrow for its stubs");
+        const blockers = this.#blockers(edge);
+        const reason = "every path is blocked by nodes or too narrow for its stubs";
+        this.#report(
+          edge.ir,
+          blockers.length === 0
+            ? reason
+            : `${reason} (in the way: ${blockers.map((key) => `"${this.#id(key)}"`).join(", ")})`,
+          blockers,
+        );
         continue;
       }
       const points = this.#points(edge, cells);
@@ -331,13 +344,37 @@ class Router {
     return { layout: this.#result(routable, routes), diagnostics: this.#diagnostics };
   }
 
-  #report(edge: EdgeIR, reason: string): void {
+  #id(key: ElementKey): string {
+    const element = this.#ir.elements.get(key);
+    return element !== undefined && element.kind !== "edge" ? element.id : key;
+  }
+
+  /**
+   * `blockers`: the nodes most likely in the way (#114), as `related`
+   * locations; the hint explains `attach` if one of them is attached.
+   */
+  #report(edge: EdgeIR, reason: string, blockers: readonly ElementKey[] = []): void {
     const source = this.#ir.sourceMap.get(edge.key);
-    const id = (key: ElementKey) => {
-      const element = this.#ir.elements.get(key);
-      return element !== undefined && element.kind !== "edge" ? element.id : key;
-    };
+    const id = (key: ElementKey) => this.#id(key);
     const name = edge.id === undefined ? `edges[${edge.index}]` : `"${edge.id}"`;
+    const related = blockers.map((key) => {
+      const at = this.#ir.sourceMap.get(key);
+      return {
+        ...(at !== undefined && { path: at.path }),
+        ...(at?.location !== undefined && { location: at.location }),
+        message: `Node "${id(key)}" is in the way.`,
+      };
+    });
+    const attached = blockers.flatMap((key) => {
+      const element = this.#ir.elements.get(key);
+      return element?.kind === "node" && element.attach !== undefined
+        ? [`"${element.id}" is attached to "${id(element.attach.to)}"`]
+        : [];
+    });
+    const attachHint =
+      attached.length === 0
+        ? ""
+        : ` ${attached.join(", ")}: an attached node takes no space in the arrange tree, so attach it to another side, put it in the tree, or widen the gap it sits in.`;
     this.#diagnostics.push({
       code: "layout/no-route",
       severity: "error",
@@ -345,8 +382,54 @@ class Router {
       path: source?.path ?? ["edges", edge.index],
       ...(source?.location !== undefined && { location: source.location }),
       subject: { kind: "edge", id: edge.id ?? `edges[${edge.index}]` },
-      hint: "Leave room around the elements it connects (a gap of at least 2 × 3pt plus the arrowhead between facing sides), connect other sides with fromAnchor / toAnchor, or use a different anchor for each end.",
+      hint: `Leave room around the elements it connects (a gap of at least 2 × 3pt plus the arrowhead between facing sides), connect other sides with fromAnchor / toAnchor, or use a different anchor for each end.${attachHint}`,
+      ...(related.length > 0 && { related }),
     });
+  }
+
+  /**
+   * The nodes most likely blocking an edge without a route (#114), for the
+   * message: those on the stubs of its ends (the straight run out of or into
+   * a port, where no node may be), or else those in the box between the
+   * stubs' ends (where a straight or L-shaped route would run), nearest to an
+   * end first (ties in layout order). Junctions count: a route may not enter
+   * one that is not its own end. At most three; the edge's own ends are left
+   * out. It runs only when routing failed: a scan of the nodes and a sort of
+   * the matches.
+   */
+  #blockers(edge: Edge): ElementKey[] {
+    const own = new Set([edge.from.key, edge.to.key]);
+    const others = this.#obstacles.filter((n) => !own.has(n.key));
+    const tip = (end: End, lane: number): Point => {
+      if (end.dir < 0) return end.port;
+      const d = DIRS[end.dir] as Point;
+      return { x: end.port.x + d.x * lane, y: end.port.y + d.y * lane };
+    };
+    const box = (a: Point, b: Point): Rect => ({
+      x: Math.min(a.x, b.x),
+      y: Math.min(a.y, b.y),
+      width: Math.abs(a.x - b.x),
+      height: Math.abs(a.y - b.y),
+    });
+    /** Closed rectangles meet (touching counts: a route may not run along a node either). */
+    const meets = (r: Rect, s: Rect) =>
+      r.x <= rightOf(s) && s.x <= rightOf(r) && r.y <= bottomOf(s) && s.y <= bottomOf(r);
+    const fromTip = tip(edge.from, edge.fromLane);
+    const toTip = tip(edge.to, edge.toLane);
+    const stubs = [box(edge.from.port, fromTip), box(edge.to.port, toTip)];
+    let found = others.filter((n) => stubs.some((s) => meets(n.rect, s)));
+    if (found.length === 0) {
+      const between = box(fromTip, toTip);
+      found = others.filter((n) => meets(n.rect, between));
+    }
+    const distance = (r: Rect, p: Point) =>
+      Math.max(r.x - p.x, 0, p.x - rightOf(r)) + Math.max(r.y - p.y, 0, p.y - bottomOf(r));
+    const nearest = (r: Rect) => Math.min(distance(r, fromTip), distance(r, toTip));
+    return found
+      .map((n, order) => ({ key: n.key, d: nearest(n.rect), order }))
+      .sort((a, b) => a.d - b.d || a.order - b.order)
+      .slice(0, 3)
+      .map((n) => n.key);
   }
 
   // --- Nets --------------------------------------------------------------------
@@ -436,6 +519,7 @@ class Router {
       if (isJunction(nodeIR.get(node.key))) junctions.push(node);
       else solid.push(node.rect);
     }
+    this.#obstacles = layout.nodes.map((node) => ({ key: node.key, rect: node.rect }));
     const xs = new Set<number>();
     const ys = new Set<number>();
     const addRect = (r: Rect, inflate: number) => {

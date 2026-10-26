@@ -10,8 +10,10 @@
 import type { EdgeIR, FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type { DocPath } from "../../core/diagnostics";
+import { BUILTIN_PROFILES } from "../../core/profile/builtin";
 import { formatMm, formatPt } from "../../core/units";
 import { type Point, type Rect, unitsToPt } from "../../render/geometry";
+import type { ProfileLimits } from "../../render/inspect";
 import { defineGeometryRule, type GeometryRule, type LintFinding } from "../rule";
 import type { GeometryContext, GeometryElement } from "./context";
 import { obstaclesCrossedByRoute, type RouteObstacle } from "./edges";
@@ -59,6 +61,90 @@ const contentNoun = (element: GeometryElement): string => (hasIcon(element) ? "i
 
 const capitalize = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
 
+const isStructured = (context: GeometryContext): boolean => context.ir.meta.engine === "structured";
+
+/** `true` if the auto layout runs left / right, so the layers are side by side. */
+const isHorizontal = (context: GeometryContext): boolean =>
+  context.ir.meta.direction === "right" || context.ir.meta.direction === "left";
+
+/**
+ * The built-in profiles a figure that is too wide (too tall) could move to
+ * (#114): larger along `axis` than `current`, holding the figure as drawn on
+ * both axes (an omitted limit holds anything), with no larger minimum font
+ * size (a paper figure is not sent to a slide profile). Sorted by the page
+ * size along `axis`, then by ID.
+ */
+export function largerBuiltinProfiles(
+  current: ProfileLimits,
+  axis: "width" | "height",
+  size: { widthPt: number; heightPt: number },
+): { id: string; maxPt: number }[] {
+  const currentMax = axis === "width" ? current.maxWidthPt : current.maxHeightPt;
+  if (currentMax === undefined) return [];
+  const holds = (limit: { pt: number } | undefined, sizePt: number) =>
+    limit === undefined || limit.pt + PT_EPSILON >= sizePt;
+  return [...BUILTIN_PROFILES.values()]
+    .flatMap((profile) => {
+      const { maxWidth, maxHeight } = profile.page;
+      const max = axis === "width" ? maxWidth : maxHeight;
+      return profile.id !== current.id &&
+        (max === undefined || max.pt > currentMax + PT_EPSILON) &&
+        holds(maxWidth, size.widthPt) &&
+        holds(maxHeight, size.heightPt) &&
+        profile.typography.minFontSize.pt <= current.minFontSizePt + PT_EPSILON
+        ? [{ id: profile.id, maxPt: max?.pt ?? Number.POSITIVE_INFINITY }]
+        : [];
+    })
+    .sort((a, b) => a.maxPt - b.maxPt || a.id.localeCompare(b.id));
+}
+
+/** `use a wider profile (paper-double, 180mm)`, or nothing if no built-in profile fits. */
+function profileAdvice(context: GeometryContext, axis: "width" | "height"): string[] {
+  const { width, height } = context.inspection.canvas;
+  const larger = largerBuiltinProfiles(context.profile, axis, {
+    widthPt: width.pt,
+    heightPt: height.pt,
+  });
+  if (larger.length === 0) return [];
+  const list = larger
+    .map((p) => (Number.isFinite(p.maxPt) ? `${p.id}, ${formatMm(p.maxPt)}` : p.id))
+    .join("; ");
+  return [`use a ${axis === "width" ? "wider" : "taller"} profile (${list})`];
+}
+
+/** `a, b, or c` (capitalized). */
+const listOptions = (options: readonly string[]): string =>
+  capitalize(
+    options.length <= 1
+      ? options.join("")
+      : `${options.slice(0, -1).join(", ")}, or ${options[options.length - 1]}`,
+  );
+
+/** Hint of `exceeds-page-width`: what makes this figure narrower, by engine and profile (#114). */
+export function pageWidthHint(context: GeometryContext): string {
+  const layout = isStructured(context)
+    ? ["turn the widest `row` into a `stack` (or split it into several rows)", "reduce its `gap`"]
+    : isHorizontal(context)
+      ? ["lay it out top to bottom (layout.direction: down)"]
+      : ["place fewer nodes side by side (split a wide layer, or group its nodes)"];
+  const options = [...layout, "shorten long labels", ...profileAdvice(context, "width")];
+  return `Sumi never shrinks a figure to fit. ${listOptions(options)}.`;
+}
+
+/** Hint of `exceeds-page-height`: what makes this figure shorter, by engine and profile (#114). */
+export function pageHeightHint(context: GeometryContext): string {
+  const layout = isStructured(context)
+    ? [
+        "turn the tallest `stack` into a `row` (or split it into several columns)",
+        "reduce its `gap`",
+      ]
+    : isHorizontal(context)
+      ? ["place fewer nodes on top of each other (split a tall layer, or group its nodes)"]
+      : ["lay it out left to right (layout.direction: right)"];
+  const options = [...layout, "split it into several figures", ...profileAdvice(context, "height")];
+  return `Sumi never shrinks a figure to fit. ${listOptions(options)}.`;
+}
+
 export const exceedsPageWidth = defineGeometryRule({
   id: "geometry/exceeds-page-width",
   description:
@@ -74,7 +160,7 @@ export const exceedsPageWidth = defineGeometryRule({
         message: `The figure is ${formatMm(width)} wide, more than the ${formatMm(profile.maxWidthPt)} maximum width of profile "${profile.id}".`,
         path: figurePath,
         subject: figureSubject(context),
-        hint: "Sumi never shrinks a figure to fit. Lay it out top to bottom (layout.direction: down), shorten long labels, or use a wider profile (e.g. paper-double).",
+        hint: pageWidthHint(context),
       },
     ];
   },
@@ -95,7 +181,7 @@ export const exceedsPageHeight = defineGeometryRule({
         message: `The figure is ${formatMm(height)} tall, more than the ${formatMm(profile.maxHeightPt)} maximum height of profile "${profile.id}".`,
         path: figurePath,
         subject: figureSubject(context),
-        hint: "Sumi never shrinks a figure to fit. Lay it out left to right (layout.direction: right), split it into several figures, or use a taller profile.",
+        hint: pageHeightHint(context),
       },
     ];
   },
@@ -208,6 +294,23 @@ export const outOfCanvas = defineGeometryRule({
   },
 });
 
+/** Hint of `node-overlap`: an `attach`ed node takes no space in the arrange tree (#114). */
+export function nodeOverlapHint(
+  context: GeometryContext,
+  a: GeometryElement,
+  b: GeometryElement,
+): string {
+  const attached = [a, b].find((e) => e.ir.kind === "node" && e.ir.attach !== undefined);
+  if (attached !== undefined && attached.ir.kind === "node" && attached.ir.attach !== undefined) {
+    const target = context.get(attached.ir.attach.to);
+    const to = target === undefined ? "its target" : target.name;
+    return `${capitalize(attached.name)} is attached to ${to}, and an attached node takes no space in the arrange tree, so it can cover its neighbours. Put it in the arrange tree instead, attach it to a free side, or widen the \`gap\` next to ${to}.`;
+  }
+  return isStructured(context)
+    ? "Elements overlap only when one contains the other through `group`. Check explicit sizes (props.width / props.height) and the arrange tree."
+    : "Elements overlap only when one contains the other through `group`. Check explicit sizes, or put the nodes in the same group.";
+}
+
 export const nodeOverlap = defineGeometryRule({
   id: "geometry/node-overlap",
   description:
@@ -231,7 +334,7 @@ export const nodeOverlap = defineGeometryRule({
           message: `The shapes of ${a.name} and ${b.name} overlap.`,
           path: a.docPath,
           subject: a.subject,
-          hint: "Elements overlap only when one contains the other through `group`. Check explicit sizes, or put the nodes in the same group.",
+          hint: nodeOverlapHint(context, a, b),
           related: [{ path: b.docPath, message: `${capitalize(b.name)} is defined here.` }],
         });
       }
@@ -261,7 +364,9 @@ export const labelCollision = defineGeometryRule({
         message: `The ${contentNoun(a)} of ${a.name} overlaps ${what} of ${b.name}.`,
         path: labelPath(a),
         subject: a.subject,
-        hint: "Overlapping text is hard to read. Shorten the labels, or change the layout (direction, grouping, edge labels).",
+        hint: isStructured(context)
+          ? "Overlapping text is hard to read. Shorten the labels, or change the arrangement (gap, anchors, attach side, edge labels)."
+          : "Overlapping text is hard to read. Shorten the labels, or change the layout (direction, grouping, edge labels).",
         related: [{ path: b.docPath, message: `${capitalize(b.name)} is defined here.` }],
       });
     };
@@ -290,6 +395,18 @@ export const labelCollision = defineGeometryRule({
   },
 });
 
+/** Hint of `edge-crosses-label`, by engine: group titles and the means to move edges differ (#114). */
+export function edgeCrossesLabelHint(context: GeometryContext, other: GeometryElement): string {
+  if (isStructured(context)) {
+    return other.kind === "group"
+      ? "A group's title sits at the top centre of the group, so an edge that enters the group from above crosses it. Connect an element inside the group instead of the group, move the end with fromAnchor / toAnchor (e.g. north:0.85), reorder the arrange items so the edge comes from another side, or shorten the title."
+      : "Move the edge's ends with fromAnchor / toAnchor, move the label (attach it to another side, or reorder the arrange items), or shorten the label.";
+  }
+  return other.kind === "group"
+    ? "A container's label sits at its top-left corner, so edges that enter the container from above can cross it when the label is wide. Shorten the label, connect elements inside the container instead of the container itself, or change layout.direction."
+    : "Change the layout (direction or grouping) so the edge is routed around the label, or shorten the label.";
+}
+
 export const edgeCrossesLabel = defineGeometryRule({
   id: "geometry/edge-crosses-label",
   description:
@@ -311,10 +428,7 @@ export const edgeCrossesLabel = defineGeometryRule({
           message: `${capitalize(edge.name)} crosses the ${contentNoun(other)} of ${other.name}.`,
           path: edge.docPath,
           subject: edge.subject,
-          hint:
-            other.kind === "group"
-              ? "A container's label sits at its top-left corner, so edges that enter the container from above can cross it when the label is wide. Shorten the label, connect elements inside the container instead of the container itself, or change layout.direction."
-              : "Change the layout (direction or grouping) so the edge is routed around the label, or shorten the label.",
+          hint: edgeCrossesLabelHint(context, other),
           related: [{ path: labelPath(other), message: "The label is defined here." }],
         });
       }
