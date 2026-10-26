@@ -27,7 +27,7 @@ import { getFontSet } from "../core/theme/fonts";
 import type { LayoutIR } from "../layout/ir";
 import { routeEdges } from "../layout/route/router";
 import { layoutStructured } from "../layout/structured/engine";
-import { composeOutlines } from "./compose";
+import { composeJunctionEnds, composeOutlines } from "./compose";
 import { composeAssets, withImageSizes } from "./compose-assets";
 import { type FinalizedSvg, finalizeStructuredSvg, finalizeSvg } from "./finalize";
 import { inspectSvg, type SvgInspection } from "./inspect";
@@ -179,9 +179,18 @@ async function renderD2(
     diagnostics.push(...inspected.diagnostics);
     if (!inspected.ok) return fail();
   }
+  // Lines meeting at a hidden junction (#101) reach its center.
+  const joined = composeJunctionEnds(composed.value, effective.ir, inspected.value);
+  diagnostics.push(...joined.diagnostics);
+  if (!joined.ok) return fail();
+  if (joined.value !== composed.value) {
+    inspected = inspectSvg(joined.value, effective.ir);
+    diagnostics.push(...inspected.diagnostics);
+    if (!inspected.ok) return fail();
+  }
   // Icons and images go into the placeholders' boxes; the inspection does not
   // read them, so it stays valid.
-  let svg = composed.value;
+  let svg = joined.value;
   if (assets !== undefined) {
     const withAssets = composeAssets(svg, effective.ir, inspected.value, assets);
     diagnostics.push(...withAssets.diagnostics);

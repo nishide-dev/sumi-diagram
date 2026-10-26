@@ -2,7 +2,9 @@
 # structured layout: a stretched stack of blocks with residual connections
 # through operators and junctions, and one conditioning MLP feeding four
 # blocks over a shared bus with taps labeled in label math ($\gamma_1$ …).
-# Tones in the color theme.
+# Tones in the color theme. The junctions are hidden (#101): the residuals
+# leave the main line along rounded turns without a dot, as in the paper,
+# and the output arrow ends in open space at the hidden junction `out`.
 version: 1
 figure:
   id: dit-block
@@ -30,19 +32,19 @@ groups:
 
 nodes:
   - { id: tokens, component: box, label: Input Tokens, tone: gray }
-  - { id: split0, component: junction }
+  - { id: split0, component: junction, variant: hidden }
   - { id: ln1, component: box, label: Layer Norm, tone: yellow }
   - { id: ss1, component: box, label: "Scale, Shift", tone: blue }
   - { id: attn, component: box, label: "Multi-Head\nSelf-Attention", tone: orange }
   - { id: scale1, component: box, label: Scale, tone: blue }
   - { id: add1, component: operator, props: { symbol: plus } }
-  - { id: split1, component: junction }
+  - { id: split1, component: junction, variant: hidden }
   - { id: ln2, component: box, label: Layer Norm, tone: yellow }
   - { id: ss2, component: box, label: "Scale, Shift", tone: blue }
   - { id: ff, component: box, label: "Pointwise\nFeedforward", tone: green }
   - { id: scale2, component: box, label: Scale, tone: blue }
   - { id: add2, component: operator, props: { symbol: plus } }
-  - { id: out, component: junction }
+  - { id: out, component: junction, variant: hidden }
   - { id: conditioning, component: box, label: Conditioning, tone: purple }
   - { id: mlp, component: box, label: MLP, tone: purple }
 

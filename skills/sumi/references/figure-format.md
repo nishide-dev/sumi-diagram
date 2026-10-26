@@ -166,7 +166,10 @@ Always take these from `sumi catalog --json`. Each entry has `id`
   `minus`, `times`, `dot` or `concat`) and `junction` a small dot where lines
   branch or merge. Both take **no label** (`component/unexpected-label`) and no
   size props: the theme sizes them. `junction` takes no `tone`. Connect into a
-  junction with `line` (an arrowhead would cover the dot). Introduced in 0.4.0;
+  junction with `line` (an arrowhead would cover the dot). `variant: hidden`
+  draws no dot: lines meet smoothly there (use it only where no other line
+  crosses nearby, since the dot is what tells a join from a crossing), and an
+  arrow into a hidden junction ends in open space. Introduced in 0.4.0;
   use them only when the installed CLI lists them.
 
 ### Catalog render metadata

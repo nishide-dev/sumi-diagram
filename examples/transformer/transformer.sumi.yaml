@@ -2,6 +2,8 @@
 # with the structured layout (figure.layout.arrange): stacks and rows of
 # blocks, attached side notes, operators, junctions and shared trunks.
 # The positional encodings are circles with the bundled sine-wave icon (#94).
+# The junctions are hidden (#101): Q, K, V and the residual fork off the
+# main line along rounded turns without a dot, as in the paper.
 version: 1
 figure:
   id: transformer
@@ -53,10 +55,10 @@ nodes:
   - { id: enc-add, component: operator, props: { symbol: plus } }
   - { id: enc-pe, component: circle, icon: tabler/wave-sine, attach: { to: enc-add, side: west, gap: 1mm } }
   - { id: enc-pe-label, component: label, label: "Positional\nEncoding", attach: { to: enc-pe, side: west, gap: 0.5mm } }
-  - { id: enc-split1, component: junction }
+  - { id: enc-split1, component: junction, variant: hidden }
   - { id: enc-mha, component: box, label: "Multi-Head\nAttention", tone: orange }
   - { id: enc-norm1, component: box, label: "Add & Norm", tone: yellow }
-  - { id: enc-split2, component: junction }
+  - { id: enc-split2, component: junction, variant: hidden }
   - { id: enc-ff, component: box, label: "Feed\nForward", tone: blue }
   - { id: enc-norm2, component: box, label: "Add & Norm", tone: yellow }
   - { id: enc-n, component: label, label: "N×", attach: { to: encoder, side: west, gap: 2mm } }
@@ -66,13 +68,13 @@ nodes:
   - { id: dec-add, component: operator, props: { symbol: plus } }
   - { id: dec-pe, component: circle, icon: tabler/wave-sine, attach: { to: dec-add, side: east, gap: 1mm } }
   - { id: dec-pe-label, component: label, label: "Positional\nEncoding", attach: { to: dec-pe, side: east, gap: 0.5mm } }
-  - { id: dec-split1, component: junction }
+  - { id: dec-split1, component: junction, variant: hidden }
   - { id: dec-mmha, component: box, label: "Masked\nMulti-Head\nAttention", tone: orange }
   - { id: dec-norm1, component: box, label: "Add & Norm", tone: yellow }
-  - { id: dec-split2, component: junction }
+  - { id: dec-split2, component: junction, variant: hidden }
   - { id: dec-mha, component: box, label: "Multi-Head\nAttention", tone: orange }
   - { id: dec-norm2, component: box, label: "Add & Norm", tone: yellow }
-  - { id: dec-split3, component: junction }
+  - { id: dec-split3, component: junction, variant: hidden }
   - { id: dec-ff, component: box, label: "Feed\nForward", tone: blue }
   - { id: dec-norm3, component: box, label: "Add & Norm", tone: yellow }
   - { id: dec-n, component: label, label: "N×", attach: { to: decoder, side: east, gap: 2mm } }

@@ -555,7 +555,8 @@ describe("randomized containment", () => {
     let attachedInGroups = 0;
     let roomyWithAttached = 0;
     for (let seed = 1; seed <= 1000; seed++) {
-      const layout = layoutOf(randomFigure(seed));
+      // Placement only: routing is not under test here, and would dominate the time.
+      const layout = layoutOf(randomFigure(seed), { route: false });
       const groups = new Map(layout.groups.map((g) => [g.key, g]));
       const children: (NodeLayout | (typeof layout.groups)[number])[] = [
         ...layout.nodes,
