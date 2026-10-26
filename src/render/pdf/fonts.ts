@@ -23,6 +23,7 @@ import type { Result } from "../../core/result";
 import { type FontSet, fontSetArgs } from "../../core/theme/fonts";
 import { fontFileFor } from "../../lint/geometry/measure";
 import { FontParseError, readTables } from "../../lint/sfnt";
+import { withoutTables } from "../font-subset";
 import { descendants, parseXml } from "../xml";
 
 /** How a font file names itself: what usvg/fontdb match a CSS rule against. */
@@ -119,10 +120,12 @@ export function resolveSvgFonts(
   const files = [...new Set([fontSet.regular, ...fileOf.values()])];
   const bytes = new Map<string, Uint8Array>();
   const faceOfFile = new Map<string, FontFace>();
-  const load = (file: string): Diagnostic | undefined => {
+  const load = (file: string, shaping = true): Diagnostic | undefined => {
     if (bytes.has(file)) return undefined;
     try {
-      const data = new Uint8Array(readFileSync(file));
+      const raw = new Uint8Array(readFileSync(file));
+      // The math fonts are drawn by their advance widths alone, as measured.
+      const data = shaping ? raw : withoutTables(raw, ["GSUB", "GPOS"]);
       faceOfFile.set(file, readFontFace(data));
       bytes.set(file, data);
       return undefined;
@@ -172,7 +175,7 @@ export function resolveSvgFonts(
         let file = fileOf.get(slot);
         const extra = optional.get(slot);
         if (file === undefined && extra !== undefined) {
-          loadProblem ??= load(extra);
+          loadProblem ??= load(extra, false);
           if (!files.includes(extra)) files.push(extra);
           file = extra;
         }

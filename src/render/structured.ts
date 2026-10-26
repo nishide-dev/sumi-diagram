@@ -112,13 +112,14 @@ function label(layout: TextLayout, color: string): string {
 }
 
 /**
- * A label with runs (#93): every line is a `<tspan x dy>` (also a single
- * one), holding its runs in order. A run in the label's font, size and
- * baseline is plain text; others are a `<tspan>` with the font class, the
- * `font-size` and a `dy` from the previous baseline. A line's `dy` is the
- * line height from the previous line's baseline, minus where the previous
- * line's last run left the pen. `font-kerning: none`: the layout measures
- * advance widths without kerning (STIX Two has kerning; BIZ UD has none).
+ * A label with runs (#93): every line is a `<tspan x y>` (also a single
+ * one) at its absolute baseline, holding its runs in order. A run in the
+ * label's font, size and baseline is plain text; others are a `<tspan>` with
+ * the font class, the `font-size` and a `dy` from the previous run's
+ * baseline. Absolute line baselines keep later lines in place when a line is
+ * blank (renderers do not move the pen for an empty `<tspan>`) or ends in a
+ * script. `font-kerning: none`: the layout measures advance widths without
+ * kerning (STIX Two has kerning; BIZ UD has none).
  */
 function richLabel(
   layout: TextLayout,
@@ -127,10 +128,8 @@ function richLabel(
 ): string {
   const { anchor } = layout;
   const open = `<text x="${n(anchor.x)}" y="${n(anchor.y)}" fill="${paint(color)}" class="${textClass(layout.font)}" style="text-anchor:middle;font-size:${n(layout.fontSizeUnits)}px;font-kerning:none">`;
-  let pen = 0; // the current baseline offset from the line's baseline
   const spans = runs.map((line, i) => {
-    const dy = i === 0 ? 0 : layout.lineHeightUnits - pen;
-    pen = 0;
+    let pen = 0; // the current baseline offset from the line's baseline
     const content = line
       .map((run) => {
         const attributes =
@@ -143,7 +142,7 @@ function richLabel(
         return attributes === "" ? text(run.text) : `<tspan${attributes}>${text(run.text)}</tspan>`;
       })
       .join("");
-    return `<tspan x="${n(anchor.x)}" dy="${n(dy)}">${content}</tspan>`;
+    return `<tspan x="${n(anchor.x)}" y="${n(anchor.y + i * layout.lineHeightUnits)}">${content}</tspan>`;
   });
   return `${open}${spans.join("")}</text>`;
 }
@@ -494,6 +493,9 @@ export function writeStructuredSvg(ir: FigureIR, layout: LayoutIR, fonts: FontSe
   const used = new Map<string, string>();
   const useText = (t: TextLayout | undefined) => {
     if (t === undefined) return;
+    // The label's own font class is on its <text> even when every character
+    // is in a math run, so it always gets an @font-face (maybe of .notdef only).
+    used.set(t.font, used.get(t.font) ?? "");
     const runs = t.runs?.flat() ?? [{ font: t.font, text: t.lines.join("") }];
     for (const run of runs) used.set(run.font, (used.get(run.font) ?? "") + run.text);
   };

@@ -224,22 +224,32 @@ function readLabel(text: XmlElement): LabelGeometry | string {
   const font = fontClassOf(text) ?? "regular";
   const tspans = childElements(text).filter((c) => c.name === "tspan");
   // `pen` follows the baseline through every dy (lines and runs alike); a
-  // line's baseline is where its own dy puts the pen.
+  // line's baseline is where its own dy puts the pen, or its absolute `y`
+  // (#93: lines of labels with runs carry their baseline as `y`).
   let pen = 0;
   const baselines: number[] = [];
   const runs: LabelRunGeometry[][] = [];
   let rich = false;
   for (const [i, tspan] of tspans.entries()) {
     const dy = attribute(tspan, "dy");
-    const value = parseNumber(dy ?? "0");
-    if (value === undefined || (i === 0 && value !== 0)) {
-      return `<tspan> has an unsupported dy "${dy}"`;
-    }
+    const tspanY = attribute(tspan, "y");
     const tspanX = attribute(tspan, "x");
     if (tspanX !== undefined && parseNumber(tspanX) !== x) {
       return `<tspan> has x "${tspanX}" different from its <text>`;
     }
-    pen += value;
+    if (tspanY !== undefined) {
+      const absolute = parseNumber(tspanY);
+      if (absolute === undefined || dy !== undefined || (i === 0 && absolute !== y)) {
+        return `<tspan> has an unsupported y "${tspanY}"`;
+      }
+      pen = absolute - y;
+    } else {
+      const value = parseNumber(dy ?? "0");
+      if (value === undefined || (i === 0 && value !== 0)) {
+        return `<tspan> has an unsupported dy "${dy}"`;
+      }
+      pen += value;
+    }
     const baseline = pen;
     baselines.push(baseline);
     const line: LabelRunGeometry[] = [];
@@ -263,9 +273,7 @@ function readLabel(text: XmlElement): LabelGeometry | string {
   let lineHeightUnits = fontSizeUnits;
   for (let i = 1; i < baselines.length; i++) {
     const step = (baselines[i] as number) - (baselines[i - 1] as number);
-    if (step < 0) {
-      return `<tspan> has an unsupported dy "${attribute(tspans[i] as XmlElement, "dy")}"`;
-    }
+    if (step < 0) return "a label line <tspan> moves the baseline backwards (dy or y)";
     if (i === 1) lineHeightUnits = step;
     else if (Math.abs(step - lineHeightUnits) > 1e-6) return "<tspan>s have different line heights";
   }

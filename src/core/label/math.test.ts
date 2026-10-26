@@ -120,6 +120,14 @@ describe("parseLabel", () => {
     expect(errors("$\\a$ and $\\b$").map((e) => e.at)).toEqual(["\\a", "\\b"]);
   });
 
+  test("errors point at the cause: the open brace, the script marker, whole code points", () => {
+    expect(errors("$x_{i$")[0]).toMatchObject({ at: "{", start: 3 });
+    expect(errors("$x_  $")[0]).toMatchObject({ at: "_", start: 2 });
+    expect(errors("$\\😀$")[0]).toMatchObject({ at: "\\😀", start: 1 });
+    expect(errors("$\\mathrm{ab$")[0]).toMatchObject({ at: "{", start: 8 });
+    expect(errors("$\\text{ab$")[0]).toMatchObject({ at: "{", start: 6 });
+  });
+
   test("looksLikeMath finds math syntax, not dollar amounts", () => {
     expect(looksLikeMath("$5 or $10")).toBe(false);
     expect(looksLikeMath("costs $5")).toBe(false);

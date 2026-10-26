@@ -12,7 +12,7 @@ import { lintGeometry } from "../lint/geometry";
 import { measureLabel } from "../lint/geometry/measure";
 import { inspectSvg } from "./inspect";
 import { svgToPdf } from "./pdf";
-import { inspectPdf } from "./pdf/testing";
+import { inspectPdf, textLines } from "./pdf/testing";
 import { svgToEditablePptx } from "./pptx";
 import { readPptx } from "./pptx/testing";
 import { type RenderedStructuredFigure, renderFigure } from "./render";
@@ -209,6 +209,82 @@ describe("rendering", () => {
     expect(slide).toMatch(/baseline="-21000"[^>]*>.*?<a:latin typeface="STIX Two Math"\/>/);
     expect(slide).toMatch(/baseline="36000"/);
     expect(slide).toContain('<a:latin typeface="STIX Two Text"/>');
+  });
+});
+
+/** Every run of every label is drawn in the PDF where `measureLabel()` puts it (0.01pt). */
+async function expectPdfMatchesMeasure(source: string): Promise<void> {
+  const { svg, inspection } = await render(source);
+  const pdf = svgToPdf(svg);
+  if (!pdf.ok) throw new Error(JSON.stringify(pdf.diagnostics));
+  const inspected = inspectPdf(pdf.value);
+  const pageHeight = inspected.pages[0]?.mediaBox[3] ?? 0;
+  const vb = inspection.canvas.viewBox;
+  const lines = new Set(textLines(inspected.glyphs));
+  let runs = 0;
+  for (const element of inspection.elements) {
+    for (const label of element.labels) {
+      const measured = measureLabel(label, fonts as NonNullable<typeof fonts>);
+      const boxes =
+        measured.runs?.flat() ??
+        measured.texts.map((text, i) => ({
+          text,
+          box: measured.lines[i] ?? { x: 0, width: 0 },
+          baseline: label.anchor.y + i * label.lineHeightUnits,
+        }));
+      for (const run of boxes) {
+        if (run.text.trim() === "") continue;
+        runs++;
+        const x0 = (run.box.x - vb.x) * 0.5;
+        const baseline = pageHeight - (run.baseline - vb.y) * 0.5;
+        const hit = [...lines].find(
+          (l) =>
+            l.text === run.text && Math.abs(l.x0 - x0) < 0.01 && Math.abs(l.y - baseline) < 0.01,
+        );
+        expect(hit, `"${run.text}" at x ${x0}, baseline ${baseline}`).toBeDefined();
+        if (hit === undefined) continue;
+        lines.delete(hit);
+        expect(Math.abs(hit.x1 - hit.x0 - run.box.width * 0.5)).toBeLessThan(0.01);
+      }
+    }
+  }
+  expect(runs).toBeGreaterThan(0);
+  expect([...lines].map((l) => l.text)).toEqual([]);
+}
+
+describe("edge cases", () => {
+  test("a figure whose labels are only math or only fallback characters renders", async () => {
+    for (const label of ["'$x_1$'", '"₂"', "'$\\alpha$'"]) {
+      const source = figure(`  - { id: a, component: box, label: ${label} }`, "", "[a]");
+      const rendered = await render(source);
+      expect(lintGeometry(rendered, { source })).toEqual([]);
+      await expectPdfMatchesMeasure(source);
+    }
+  });
+
+  test("blank lines and lines ending in scripts keep every later line in place", async () => {
+    const source = figure(
+      `  - { id: a, component: box, label: "text $x^1$\\n\\n$x_2$\\nend" }
+  - { id: b, component: box, label: "$y_1$\\n\\n\\nlast $z^2$" }`,
+    );
+    const { svg } = await render(source);
+    expect(svg).toMatch(/<tspan x="[\d.]+" y="[\d.]+"><\/tspan>/);
+    await expectPdfMatchesMeasure(source);
+  });
+
+  test("the PDF draws math with measured advances (no contextual alternates or kerning)", async () => {
+    await expectPdfMatchesMeasure(
+      figure(`  - { id: a, component: box, label: 'text $ffiffiffiffi AV fl$' }`, "", "[a]"),
+    );
+  });
+
+  test("deeply nested groups are a diagnostic, not a crash", () => {
+    const label = `$${"{".repeat(20000)}x${"}".repeat(20000)}$`;
+    const diagnostics = checkFigure(
+      figure(`  - { id: a, component: box, label: '${label}' }`, "", "[a]"),
+    ).state.diagnostics;
+    expect(diagnostics.map((d) => d.code)).toEqual(["component/invalid-math"]);
+    expect(diagnostics[0]?.message).toContain("nests more than 32 groups");
   });
 });
 

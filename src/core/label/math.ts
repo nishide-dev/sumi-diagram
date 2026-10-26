@@ -193,8 +193,12 @@ const isLetter = (c: string) => /^[A-Za-z]$/.test(c);
 const isDigit = (c: string) => /^[0-9]$/.test(c);
 const isWhitespace = (c: string) => /^\s$/.test(c);
 
+/** Nested groups (`{…}`, font commands) a label may open: deeper input is an error, not a stack overflow. */
+const MAX_DEPTH = 32;
+
 class MathParser {
   #pos: number;
+  #depth = 0;
 
   constructor(
     readonly line: string,
@@ -223,15 +227,31 @@ class MathParser {
     while (this.#pos < this.end && isWhitespace(this.line[this.#pos] as string)) this.#pos++;
   }
 
-  /** A math list until `}` (inside a group) or the end of the span. */
-  #list(until: "top" | "group", script: boolean, font: FontStyle): Atom[] {
+  /**
+   * A group's list: `opened` is the offset of its `{`, which must be at the
+   * cursor. Consumes the closing `}`.
+   */
+  #group(script: boolean, font: FontStyle): Atom[] {
+    const opened = this.#pos;
+    if (++this.#depth > MAX_DEPTH) {
+      this.#error(opened, opened + 1, `Label math nests more than ${MAX_DEPTH} groups.`);
+    }
+    this.#pos++;
+    const atoms = this.#list("group", script, font, opened);
+    this.#pos++; // the closing }
+    this.#depth--;
+    return atoms;
+  }
+
+  /** A math list until `}` (inside a group opened at `opened`) or the end of the span. */
+  #list(until: "top" | "group", script: boolean, font: FontStyle, opened = -1): Atom[] {
     const atoms: Atom[] = [];
     for (;;) {
       this.#skipSpace();
       const c = this.#peek();
       if (c === undefined) {
         if (until === "group") {
-          this.#error(this.#pos - 1, this.#pos, 'A "{" in label math is not closed by "}".');
+          this.#error(opened, opened + 1, 'This "{" in label math is not closed by "}".');
         }
         return atoms;
       }
@@ -267,7 +287,7 @@ class MathParser {
         }
         this.#skipSpace();
         const argStart = this.#pos;
-        const arg = this.#argument(font);
+        const arg = this.#argument(font, start);
         const runs = emit(arg, false).map((r): MarkupRun => ({ ...r, script: kind }));
         if (!runs.some((r) => r.text.trim() !== "")) {
           this.#error(
@@ -286,15 +306,15 @@ class MathParser {
     }
   }
 
-  /** A script's argument: one character, one command or a `{group}`. */
-  #argument(font: FontStyle): Atom[] {
+  /** A script's argument (after the `_` / `^` at `marker`): one character, one command or a `{group}`. */
+  #argument(font: FontStyle, marker: number): Atom[] {
     const c = this.#peek();
     const start = this.#pos;
     if (c === undefined) {
       this.#error(
-        start - 1,
-        start,
-        'A subscript or superscript is missing after its "_" or "^".',
+        marker,
+        marker + 1,
+        `A subscript or superscript is missing after this "${this.line[marker]}".`,
         "Write a character, a command or {…} after it.",
       );
     }
@@ -306,12 +326,7 @@ class MathParser {
         "Write a character, a command or {…} after it.",
       );
     }
-    if (c === "{") {
-      this.#pos++;
-      const atoms = this.#list("group", true, font);
-      this.#pos++; // the closing }
-      return atoms;
-    }
+    if (c === "{") return this.#group(true, font);
     return this.#atom(font, true);
   }
 
@@ -322,12 +337,7 @@ class MathParser {
     const atom = (cls: Atom["cls"], runs: MarkupRun[]): Atom[] => [
       { cls, runs, hasSub: false, hasSup: false, start },
     ];
-    if (c === "{") {
-      this.#pos++;
-      const inner = this.#list("group", script, font);
-      this.#pos++;
-      return atom("ord", emit(inner, !script));
-    }
+    if (c === "{") return atom("ord", emit(this.#group(script, font), !script));
     if (c === "\\") return this.#command(font, script);
     this.#pos += c.length;
     if (c === "~") return atom("glue", [mathRun(" ", "math")]);
@@ -350,7 +360,11 @@ class MathParser {
     const start = this.#pos;
     this.#pos++; // the backslash
     const rest = this.line.slice(this.#pos, this.end);
-    const name = /^[A-Za-z]+/.exec(rest)?.[0] ?? rest[0];
+    // A control word, or one control symbol (a whole code point).
+    const symbolPoint = rest.codePointAt(0);
+    const name =
+      /^[A-Za-z]+/.exec(rest)?.[0] ??
+      (symbolPoint === undefined ? undefined : String.fromCodePoint(symbolPoint));
     if (name === undefined) {
       this.#error(
         start,
@@ -373,8 +387,8 @@ class MathParser {
       case "mathrm":
       case "mathit":
       case "operatorname": {
-        const inner = this.#braced(name, start, () =>
-          this.#list("group", script, name === "mathit" ? "it" : "rm"),
+        const inner = this.#braced(name, start, (opened) =>
+          this.#list("group", script, name === "mathit" ? "it" : "rm", opened),
         );
         return atom("ord", emit(inner, !script));
       }
@@ -394,17 +408,23 @@ class MathParser {
   }
 
   /** Runs `body` on the `{…}` argument of a command, which must be in braces. */
-  #braced<T>(name: string, start: number, body: () => T): T {
+  #braced<T>(name: string, start: number, body: (opened: number) => T): T {
+    const end = this.#pos;
     this.#skipSpace();
     if (this.#peek() !== "{") {
-      this.#error(start, this.#pos, `"\\${name}" needs its argument in braces, e.g. \\${name}{…}.`);
+      this.#error(start, end, `"\\${name}" needs its argument in braces, e.g. \\${name}{…}.`);
+    }
+    const opened = this.#pos;
+    if (++this.#depth > MAX_DEPTH) {
+      this.#error(opened, opened + 1, `Label math nests more than ${MAX_DEPTH} groups.`);
     }
     this.#pos++;
-    const value = body();
+    const value = body(opened);
     if (this.#peek() !== "}") {
-      this.#error(start, this.#pos, `The argument of "\\${name}" is not closed by "}".`);
+      this.#error(opened, opened + 1, `The argument of "\\${name}" is not closed by "}".`);
     }
     this.#pos++;
+    this.#depth--;
     return value;
   }
 
