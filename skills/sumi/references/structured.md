@@ -15,11 +15,14 @@ installed CLI predates it — tell the user and use auto instead.
 | Flowcharts, pipelines, decision flows, state or dependency graphs, architecture overviews whose positions do not matter | auto (`figure.layout.direction`) |
 | Paper block diagrams: stacked layers, residual connections, columns that must line up, blocks of equal width, side notes (`N×`), operators (⊕) on the main path | structured (`figure.layout.arrange`) |
 
-The engine follows from one field: **a figure with `figure.layout.arrange`
-is structured; without it, auto**. `engine: structured` may be written but
-is not needed. Under auto, the structured-only fields `groups[].arrange`,
-`nodes[].attach`, `edges[].fromAnchor` / `toAnchor` are errors
-(`layout/structured-only`): add the root `arrange` or remove the field.
+`figure.layout.engine` (`auto` | `structured`) picks the engine; leave it
+out and **a figure with `figure.layout.arrange` is structured, one without
+it auto** — so `engine` is not needed. An explicit `engine: auto` wins over
+`arrange`. Under auto, the structured-only fields (`figure.layout.arrange`,
+`groups[].arrange`, `nodes[].attach`, `edges[].fromAnchor` / `toAnchor`)
+are errors (`layout/structured-only`): remove the field, or switch the
+figure to structured (root `arrange`, no `engine: auto`, every element
+placed).
 `figure.layout.direction` is ignored by structured (each box has its own).
 
 What differs in practice:

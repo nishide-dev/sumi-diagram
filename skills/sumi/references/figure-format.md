@@ -80,9 +80,10 @@ nodes:
 
 ## Label math
 
-Structured figures only (with `figure.layout.arrange`; in auto figures the
-`$...$` is drawn as written, with a `component/unsupported-in-auto`
-warning). `$...$` inside any label (nodes, groups, edges) is a small TeX
+Structured figures only. Auto figures draw every label as written,
+dollar signs included; math with a command, `_` or `^` gets a
+`component/unsupported-in-auto` warning, but `$x$` lints clean and still
+shows its `$`. `$...$` inside any label (nodes, groups, edges) is a small TeX
 subset drawn as real, searchable text in the bundled STIX Two math fonts:
 
 - Letters and lowercase Greek are italic variables (`$x$`, `$\alpha$`, or
@@ -359,7 +360,7 @@ preserved by `sumi fmt`.
 | `label: $\gamma_1,\beta_1$` inside `{ … }` | `schema/unknown-field` (`"\beta_1$"`) | single-quote it: `label: '$\gamma_1,\,\beta_1$'` |
 | `$...$` in a figure without `arrange` | `component/unsupported-in-auto` (warning) | use the structured layout, or plain text |
 | `label:` and `icon:` on one node | `asset/icon-with-label` | keep one; put the text in an attached `label` node |
-| `toAnchor: west` in a figure without `arrange` | `layout/structured-only` | remove it, or switch to the structured layout |
+| `toAnchor: west` in an auto figure | `layout/structured-only` | remove it, or switch to the structured layout |
 | `props: { width: 10px }` | `component/invalid-prop` | `mm` / `cm` / `in` / `pt`, multiple of 0.5pt |
 | `children:` / `nodes:` inside a group | `schema/unknown-field` | put `group: <id>` on each child |
 | `label: 2024` | `schema/invalid-type` | `label: "2024"` |

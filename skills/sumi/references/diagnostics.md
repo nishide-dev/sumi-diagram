@@ -49,7 +49,7 @@ Every stage reports problems as the same diagnostic object. In
 | `ref/unknown-group` | `group:` names a group that does not exist | add the group under `groups:` or fix the ID |
 | `ref/duplicate-id` | two nodes/groups (or two edges) share an ID | rename one; nodes and groups share an ID space |
 | `ref/group-cycle` | groups contain each other | fix the `group:` chain |
-| `layout/structured-only` | `groups[].arrange`, `attach`, `fromAnchor` or `toAnchor` in an auto figure (no `figure.layout.arrange`) | remove the field, or make the figure structured by adding `figure.layout.arrange` and placing every element |
+| `layout/structured-only` | `arrange`, `attach`, `fromAnchor` or `toAnchor` in an auto figure (no `figure.layout.arrange`, or `engine: auto`) | remove the field, or make the figure structured: root `figure.layout.arrange`, no `engine: auto`, every element placed |
 | `layout/unplaced`, `layout/duplicate-placement`, `layout/unknown-item`, `layout/unknown-attach-target`, `layout/group-mismatch`, `layout/group-cycle`, `layout/attach-cycle`, `layout/invalid-anchor` | structured figures: every node and group must be placed exactly once, in an arrange tree or by `attach` | per code in [structured](structured.md#fixing-layout); follow the hint |
 | `layout/no-route` | `sumi render` of a structured figure: an edge cannot be routed (ends touching, closer than the arrowhead, or boxed in) | widen that `gap` (arrows need about 1.5mm in `academic`, 2.5mm in `minimal` / `color`, 4mm in `slides`), or anchor the edge on other sides ([structured](structured.md#spacing-that-routes)) |
 | `component/unknown` | component name not in the registry | choose one from `sumi catalog` (the hint lists the right kind) |
@@ -59,7 +59,7 @@ Every stage reports problems as the same diagnostic object. In
 | `component/missing-label` | a text-only component (`label`) has no text | give it a label or use another component |
 | `component/unexpected-label` | `operator`, `junction` or `image` has a label (they draw a symbol, a dot, a picture) | remove the label; put a `label` node next to it if text is needed |
 | `component/invalid-math` | unsupported or malformed `$...$` label math in a structured figure (the message gives the label characters) | use the supported subset (Greek, `_`, `^`, symbols, `\mathrm`, `\text`), close the `$`, or write `\$` for a dollar sign |
-| `component/unsupported-in-auto` (warning) | `$...$` label math in an `auto` figure, which D2 draws as written | use the structured layout (`figure.layout.arrange`) or drop the `$...$` |
+| `component/unsupported-in-auto` (warning) | `$...$` label math with a command, `_` or `^` in an `auto` figure, which D2 draws as written (`$x$` is drawn as written too, without a warning) | use the structured layout (`figure.layout.arrange`) or drop the `$...$` |
 | `component/tone-unsupported` | `tone` on a `junction` (drawn in the line color) | remove the tone |
 | `component/deprecated` (warning) | still works but is being replaced | switch to the replacement in the message |
 | `asset/*` | icons (`icon:`) and images (`component: image`): unknown icon, label next to an icon, a `src` that leaves the YAML's directory (lint); missing, unsupported, too large or unsafe files (render) | per code in [assets](assets.md#fixing-asset) |

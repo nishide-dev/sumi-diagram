@@ -359,6 +359,9 @@ function isStructured(body: string): boolean {
 
 const ASSET_FIXTURES = join(ROOT, "tests", "fixtures", "assets");
 
+/** Runs the CLI of this checkout, never a `SUMI_BIN` from the environment. */
+const OWN_CLI = { SUMI_BIN: undefined };
+
 describe("figures in the skill", () => {
   const labelled = figures.map((f) => [`${f.doc}:${f.line}`, f] as const);
   const rendered = figures.filter((f) => marker(f.body, "expect-render") !== undefined);
@@ -397,7 +400,9 @@ describe("figures in the skill", () => {
 
   test("the CLI the skill runs lints every figure as documented", async () => {
     const files = figures.map((_, index) => `figure-${index}.sumi.yaml`);
-    const run = await runScript("sumi", ["lint", "--json", ...files], {}, { cwd: work });
+    const run = await runScript("sumi", ["lint", "--json", ...files], OWN_CLI, { cwd: work });
+    // The batch holds the documented failures, so lint reports problems.
+    expect(run.exitCode).toBe(1);
     const report = JSON.parse(run.stdout) as {
       results: { file: string; diagnostics: { code: string; severity: string }[] }[];
     };
@@ -415,35 +420,44 @@ describe("figures in the skill", () => {
     }
   });
 
-  test.each(rendered.map((f) => [`${f.doc}:${f.line}`, f] as const))(
+  const renderCase = async (figure: CodeBlock) => {
+    const index = figures.indexOf(figure);
+    const output = `figure-${index}.svg`;
+    const run = await runScript(
+      "sumi",
+      ["render", "--json", `figure-${index}.sumi.yaml`, "-o", output],
+      OWN_CLI,
+      { cwd: work },
+    );
+    const report = JSON.parse(run.stdout) as {
+      diagnostics: { code: string; severity: string }[];
+      size: { fits: boolean } | null;
+    };
+    const expected = expectedRenderCodes(marker(figure.body, "expect-render") ?? "");
+    expect(report.diagnostics.map((d) => d.code)).toEqual(expected);
+    const failed = report.diagnostics.some((d) => d.severity === "error");
+    expect(run.exitCode).toBe(failed ? 1 : 0);
+    // Geometry errors still write the SVG; layout and asset errors do not.
+    const drawn = !report.diagnostics.some((d) => /^(layout|asset)\//.test(d.code));
+    expect(existsSync(join(work, output))).toBe(drawn);
+    if (drawn) {
+      // The library path gives the same result.
+      const library = await lintRenderedFigure(figure.body, { assetBase: work });
+      expect(library.diagnostics.map((d) => d.code)).toEqual(expected);
+    }
+  };
+  const cases = (structured: boolean) =>
+    rendered
+      .filter((f) => isStructured(f.body) === structured)
+      .map((f) => [`${f.doc}:${f.line}`, f] as const);
+
+  // Structured figures render without D2; auto ones need the pinned D2 (required in CI).
+  test.each(cases(true))("%s renders through the CLI with the documented diagnostics", (_, f) =>
+    renderCase(f),
+  );
+  test.skipIf(!d2Available && !process.env.CI).each(cases(false))(
     "%s renders through the CLI with the documented diagnostics",
-    async (_, figure) => {
-      if (!isStructured(figure.body) && !d2Available && !process.env.CI) return;
-      const index = figures.indexOf(figure);
-      const output = `figure-${index}.svg`;
-      const run = await runScript(
-        "sumi",
-        ["render", "--json", `figure-${index}.sumi.yaml`, "-o", output],
-        {},
-        { cwd: work },
-      );
-      const report = JSON.parse(run.stdout) as {
-        diagnostics: { code: string; severity: string }[];
-        size: { fits: boolean } | null;
-      };
-      const expected = expectedRenderCodes(marker(figure.body, "expect-render") ?? "");
-      expect(report.diagnostics.map((d) => d.code)).toEqual(expected);
-      const failed = report.diagnostics.some((d) => d.severity === "error");
-      expect(run.exitCode).toBe(failed ? 1 : 0);
-      // Geometry errors still write the SVG; layout and asset errors do not.
-      const drawn = !report.diagnostics.some((d) => /^(layout|asset)\//.test(d.code));
-      expect(existsSync(join(work, output))).toBe(drawn);
-      if (drawn) {
-        // The library path gives the same result.
-        const library = await lintRenderedFigure(figure.body, { assetBase: work });
-        expect(library.diagnostics.map((d) => d.code)).toEqual(expected);
-      }
-    },
+    (_, f) => renderCase(f),
   );
 });
 

@@ -7,7 +7,8 @@
 | a flow: flowchart, pipeline, decision flow, state machine, dependency or call graph, an architecture overview where only the connections matter | **auto** (default): `figure.layout.direction` |
 | a paper block diagram: a network drawn as stacked layers, residual or skip connections, columns that must line up, blocks of equal width, notes beside a block (`N×`), operators (⊕) and split points, math labels | **structured**: `figure.layout.arrange` ([structured](structured.md)) |
 
-The figure is structured exactly when it has `figure.layout.arrange`. When
+The figure is structured when it has `figure.layout.arrange` (and no
+`engine: auto`). When
 unsure, start with auto: it needs no placement and suits most diagrams;
 switch when the user wants a particular arrangement or the figure
 reproduces a paper's block diagram. Structured figures need every element

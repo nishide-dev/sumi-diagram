@@ -84,11 +84,11 @@ sumi doctor
 ```
 
 Exit 0 and `Ready to render.` means D2, the fonts and the geometry lint
-are in place. If a check fails, relay its `hint` and stop: for
-`d2` that is reinstalling the release tarball (D2 is bundled), running
-`bun run d2:install` in a source checkout, or setting `SUMI_D2_PATH` to a
-D2 v0.9.0 binary. `sumi lint` without `--geometry` and structured figures
-work without D2.
+are in place. If a check fails, relay its `hint` and stop — except that a
+`d2` failure alone does not block structured figures (they render without
+D2). For `d2`: reinstall the release tarball (D2 is bundled), run
+`bun run d2:install` in a source checkout, or set `SUMI_D2_PATH` to a D2
+v0.9.0 binary.
 
 ### 3. Discover components, themes and profiles
 

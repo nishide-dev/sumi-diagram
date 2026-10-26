@@ -383,8 +383,8 @@ mlp-block.sumi.yaml:18:5 error layout/no-route No route was found for edge edges
 exit 1
 ```
 
-No SVG is written for a routing error. The arrowheads of `color` (2pt
-lines) are longer than 1.5mm; the `line` from `x` and the residual route
+No SVG is written for a routing error. The default `color` arrows (1pt
+lines) have arrowheads about 2.1mm long, more than the 1.5mm gap; the `line` from `x` and the residual route
 fine. Fix: `gap: 3mm` (not `gap: 0`, which leaves no room at all):
 
 ```yaml

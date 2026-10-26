@@ -54,8 +54,8 @@ shows (`brain`, `database`, `photo`, `world`), not by the concept.
 
 - `src` is a path **relative to the directory of the `.sumi.yaml`**, with
   `/` separators, and must stay inside that directory (subdirectories are
-  fine; `..`, absolute paths and URLs are not; a symbolic link that leads
-  outside is refused when rendering). Copy the file next to the YAML if
+  fine; a path that leads out with `..`, absolute paths and URLs are not;
+  a symbolic link that leads outside is refused when rendering). Copy the file next to the YAML if
   needed — ask the user before copying their files.
 - `width` / `height`: give at least one (lengths with a unit, multiples of
   0.5pt); the other follows the image's aspect ratio. With both, `fit`
@@ -123,7 +123,7 @@ Fix: copy (with the user's consent) `logo.png` next to the figure and write
 | `asset/unknown-icon-set` | only `tabler/` exists |
 | `asset/icon-with-label` | remove the label, or move the text into a separate `label` node |
 | `asset/icon-unsupported` | put the icon on a `box`, `circle`, `label`, … |
-| `asset/invalid-path` | relative path without `..`, `\`, a scheme or a leading `/`, naming a file |
+| `asset/invalid-path` | a relative path with `/` (no `\`, scheme or leading `/`) that names a file and does not leave the directory through `..` |
 | `asset/outside-base` | the path (through a symbolic link) leaves the YAML's directory: copy the real file in |
 | `asset/not-found` | check the path; it is relative to the YAML file, not the current directory |
 | `asset/unsupported-format`, `asset/format-mismatch`, `asset/invalid-image` | convert to PNG / JPEG / SVG; make the extension match the content; re-export a broken file |
