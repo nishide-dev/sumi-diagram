@@ -23,8 +23,10 @@
  *   side and runs straight for at least the clearance (and the arrowhead's
  *   length at an end with an arrowhead) before it may bend. A junction is a
  *   point the route may leave or enter in any direction.
- * - **Nets**: edges that use the same port, or touch the same junction, form
- *   one net (union-find, so junctions joined by edges merge transitively). A
+ * - **Nets**: edges that leave the same port, enter the same port, or touch
+ *   the same junction form one net (union-find, so junctions joined by edges
+ *   merge transitively). Edges entering and leaving one port are different
+ *   nets; `resolveEnds` gives them different ports (#113). A
  *   step already used by the edge's own net costs nothing, which yields
  *   shared trunks, buses and fan-outs without a separate bundling step.
  * - **Occupancy**: every step of every route is recorded with all its nets,
@@ -193,6 +195,26 @@ interface Edge {
   readonly toLane: number;
   /** Union-find root of the edge's net. */
   net: number;
+  /** Index in the routable edges (as recorded in `Router.#edgesH` and the like). */
+  readonly index: number;
+  /**
+   * What it may share lines with (#113): the port it leaves and the port it
+   * enters (`undefined` at a junction), and its junctions' group (junctions
+   * joined by edges). Set by `#joinNets`.
+   */
+  leaving?: string;
+  entering?: string;
+  junctions?: string;
+}
+
+/** `a` and `b` may share lines: they leave one port, enter one port, or touch joined junctions. */
+function sharable(a: Edge, b: Edge): boolean {
+  return (
+    a === b ||
+    (a.leaving !== undefined && a.leaving === b.leaving) ||
+    (a.entering !== undefined && a.entering === b.entering) ||
+    (a.junctions !== undefined && a.junctions === b.junctions)
+  );
 }
 
 class Router {
@@ -230,6 +252,15 @@ class Router {
   #laneTo = new Int32Array(0);
   #generation = 0;
   readonly #heap = new PairHeap();
+  /**
+   * The routable edges, and the edges on each occupied step (horizontal,
+   * vertical) and point: within a net, only edges that may share lines
+   * (`sharable`) run on each other's steps for free (#113).
+   */
+  #edges: Edge[] = [];
+  readonly #edgesH = new Map<number, number[]>();
+  readonly #edgesV = new Map<number, number[]>();
+  readonly #edgesAtPoint = new Map<number, number[]>();
   /** The grid points each net occupies (with repeats), for the search's lower bound. */
   readonly #netPoints = new Map<number, number[]>();
 
@@ -266,9 +297,13 @@ class Router {
         fromLane: lane(ends.from, edge.sourceArrowhead !== undefined),
         toLane: lane(ends.to, edge.targetArrowhead !== undefined),
         net: index,
+        index: 0,
       };
     });
-    const routable = edges.filter((e): e is Edge => e !== undefined);
+    const routable = edges
+      .filter((e): e is Edge => e !== undefined)
+      .map((e, index) => ({ ...e, index }));
+    this.#edges = routable;
     this.#joinNets(routable);
     this.#buildGrid(routable);
     for (const edge of routable) this.#reserveStubs(edge);
@@ -290,7 +325,7 @@ class Router {
         this.#report(edge.ir, `the ends are closer than its arrowhead at the ${short} is long`);
         continue;
       }
-      this.#occupy(cells, edge.net);
+      this.#occupy(cells, edge);
       routes.set(edge.ir.key, points);
     }
     return { layout: this.#result(routable, routes), diagnostics: this.#diagnostics };
@@ -316,7 +351,14 @@ class Router {
 
   // --- Nets --------------------------------------------------------------------
 
-  /** Union-find over edges: same port (side, point and direction) or same junction. */
+  /**
+   * Union-find over edges: the same port (element, point and direction) used
+   * the same way (all leaving it, or all entering it), or the same junction.
+   * An edge entering a port and one leaving it are different nets (#113):
+   * joined, `a → x` and `x → b` would share a trunk and read as `a → b`.
+   * A junction is a shared point by definition, so the edges into and out of
+   * it are one net.
+   */
   #joinNets(edges: Edge[]): void {
     const parent = new Map<number, number>();
     const find = (a: number): number => {
@@ -340,18 +382,46 @@ class Router {
       else if (rb < ra) parent.set(ra, rb);
     };
     const terminals = new Map<string, number>();
-    const terminal = (end: End) =>
-      end.junction ? `j ${end.key}` : `p ${end.key} ${end.port.x} ${end.port.y} ${end.dir}`;
+    const terminal = (end: End, leaving: boolean) =>
+      end.junction
+        ? `j ${end.key}`
+        : `p ${end.key} ${end.port.x} ${end.port.y} ${end.dir} ${leaving ? "out" : "in"}`;
     for (const edge of edges) {
       parent.set(edge.net, edge.net);
-      for (const end of [edge.from, edge.to]) {
-        const id = terminal(end);
+      for (const [end, leaving] of [
+        [edge.from, true],
+        [edge.to, false],
+      ] as const) {
+        const id = terminal(end, leaving);
         const first = terminals.get(id);
         if (first === undefined) terminals.set(id, edge.net);
         else union(first, edge.net);
       }
     }
     for (const edge of edges) edge.net = find(edge.net);
+
+    // What each edge may share lines with: its ports (per direction) and
+    // its junctions' group (junctions joined by edges between them).
+    const group = new Map<ElementKey, ElementKey>();
+    const root = (key: ElementKey): ElementKey => {
+      let r = key;
+      while ((group.get(r) ?? r) !== r) r = group.get(r) as ElementKey;
+      return r;
+    };
+    for (const edge of edges) {
+      if (!edge.from.junction || !edge.to.junction) continue;
+      const a = root(edge.from.key);
+      const b = root(edge.to.key);
+      // The smaller key is the root: deterministic.
+      if (a < b) group.set(b, a);
+      else if (b < a) group.set(a, b);
+    }
+    for (const edge of edges) {
+      if (!edge.from.junction) edge.leaving = terminal(edge.from, true);
+      if (!edge.to.junction) edge.entering = terminal(edge.to, false);
+      const junction = edge.from.junction ? edge.from : edge.to.junction ? edge.to : undefined;
+      if (junction !== undefined) edge.junctions = root(junction.key);
+    }
   }
 
   // --- Grid --------------------------------------------------------------------
@@ -591,12 +661,19 @@ class Router {
       [edge.to, edge.toLane],
     ] as const) {
       const stub = this.#stub(end, lane);
-      this.#occupy(stub, edge.net);
+      this.#occupy(stub, edge);
     }
   }
 
-  /** Records the steps between consecutive points for `net`. */
-  #occupy(cells: readonly number[], net: number): void {
+  /** Records the steps between consecutive points for the edge (and its net). */
+  #occupy(cells: readonly number[], edge: Edge): void {
+    const net = edge.net;
+    for (const [k, p] of cells.entries()) {
+      this.#edgeAt(this.#edgesAtPoint, p, edge.index);
+      const q = cells[k + 1];
+      if (q === undefined) continue;
+      this.#edgeAt(Math.abs(p - q) === 1 ? this.#edgesH : this.#edgesV, Math.min(p, q), edge.index);
+    }
     let points = this.#netPoints.get(net);
     if (points === undefined) {
       points = [];
@@ -617,6 +694,23 @@ class Router {
         this.#pointsV.add(b, net);
       }
     }
+  }
+
+  #edgeAt(map: Map<number, number[]>, index: number, edge: number): void {
+    const list = map.get(index);
+    if (list === undefined) map.set(index, [edge]);
+    else if (!list.includes(edge)) list.push(edge);
+  }
+
+  /** Some edge recorded at `index` of `map` is in the edge's net but may not share lines with it. */
+  #unsharable(map: Map<number, number[]>, index: number, edge: Edge): boolean {
+    const list = map.get(index);
+    if (list === undefined) return false;
+    for (const other of list) {
+      const o = this.#edges[other] as Edge;
+      if (o.net === edge.net && !sharable(o, edge)) return true;
+    }
+    return false;
   }
 
   // --- Search ------------------------------------------------------------------
@@ -719,6 +813,9 @@ class Router {
     const costH = this.#costH;
     const costV = this.#costV;
     const junctionAt = this.#junctionAt;
+    const edgesH = this.#edgesH;
+    const edgesV = this.#edgesV;
+    const edgesAtPoint = this.#edgesAtPoint;
     const { bend, overlap, cross } = ROUTE;
     const ownerH = stepsH.first;
     const ownerV = stepsV.first;
@@ -773,19 +870,25 @@ class Router {
         const steps = horizontal ? stepsH : stepsV;
         const owner = (horizontal ? ownerH : ownerV)[step] as number;
         let cost: number;
-        if (owner === net || (owner === -2 && steps.has(step, net))) {
+        // A step of the edge's own net is free, unless an edge on it may not
+        // share lines with this one (#113): then it is an overlap.
+        const own = owner === net || (owner === -2 && steps.has(step, net));
+        if (own && !this.#unsharable(horizontal ? edgesH : edgesV, step, edge)) {
           cost = 0;
         } else {
           cost = (horizontal ? costH : costV)[step] as number;
           if (nd !== dir) cost += bend;
-          if (owner !== -1 && (owner !== -2 || steps.other(step, net))) cost += overlap;
-          // Arriving at a point where another net runs across (a crossing)
-          // or ends along this line (a touch).
+          if (own || (owner !== -1 && (owner !== -2 || steps.other(step, net)))) cost += overlap;
+          // Arriving at a point where another net (or an edge of this one
+          // that may not share lines with it) runs across (a crossing) or
+          // ends along this line (a touch).
           const v = atV[q] as number;
           const h = atH[q] as number;
           if (
             (v !== -1 && v !== net && (v !== -2 || pointsV.other(q, net))) ||
-            (h !== -1 && h !== net && (h !== -2 || pointsH.other(q, net)))
+            (h !== -1 && h !== net && (h !== -2 || pointsH.other(q, net))) ||
+            ((v === net || h === net || v === -2 || h === -2) &&
+              this.#unsharable(edgesAtPoint, q, edge))
           ) {
             cost += cross;
           }

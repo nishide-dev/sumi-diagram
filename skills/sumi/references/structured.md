@@ -124,7 +124,10 @@ YAML order, greedily: edges declared first get the best routes.
   (same side and position) share one line until they branch, e.g. one
   conditioning MLP feeding four blocks:
   `{ from: mlp, fromAnchor: north, to: ss1, toAnchor: east }`, … for each
-  target. Edges entering the same port merge the same way.
+  target. Edges entering the same port merge the same way. An edge entering
+  a port and one leaving it never share a line: the end without an anchor
+  moves along the side; if both are anchored at the same point, it is
+  `layout/no-route`, so anchor them at different positions.
 - **Operator** (`component: operator`, `props: { symbol: plus }`; also
   `minus`, `times`, `dot`, `concat`): a small circle with a symbol, no
   label. Arrows may end on it; a side input usually comes from an attached

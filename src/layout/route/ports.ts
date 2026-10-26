@@ -148,6 +148,186 @@ interface Element {
 
 const center = (r: Rect): Point => ({ x: r.x + r.width / 2, y: r.y + r.height / 2 });
 
+/**
+ * The side and position of a non-junction end, while it is being resolved.
+ * `anchored`: the position was written in the YAML (an anchor), so it is
+ * never moved.
+ */
+interface Choice {
+  side: Side;
+  offset?: number;
+  inward: boolean;
+  anchored: boolean;
+}
+
+/** The edges' ends as the side-sharing left them: `undefined` at a junction. */
+interface ChoicePair {
+  readonly from: ElementKey;
+  readonly to: ElementKey;
+  readonly fromChoice: Choice | undefined;
+  readonly toChoice: Choice | undefined;
+}
+
+/** Rounds of `separateDirections`: a split can only meet another port a few times. */
+const SEPARATION_ROUNDS = 8;
+
+/**
+ * Splits every port (element, side, point) that edges both leave and enter
+ * (#113, design doc §6.22). The router joins the edges at one port into a
+ * net per direction only (a net of edges leaving a port is a fan-out, of
+ * edges entering it a fan-in); an edge entering a port and one leaving it
+ * are different nets and must not share the port's stub, or `a → x` and
+ * `x → b` would read as `a → b`.
+ *
+ * One direction keeps the point and the other moves along the side, half way
+ * toward the side's end on the side of its other ends (`o / 2` or
+ * `(o + 1) / 2`; at a corner the other way). Only ends without an anchor
+ * move; if both directions have one there, the port is left and its edges
+ * are returned. When both may move, the one with fewer straight lines to
+ * the other end moves (then the one with fewer edges, then the edges
+ * leaving). A moved end whose edge was a straight line between facing sides
+ * takes its other end along (if that end has no anchor, is not shared and
+ * stays on its side), so the line stays straight.
+ *
+ * Mutates the choices' offsets; returns the indices of the edges that keep a
+ * shared port (the later direction in document order), for `layout/no-route`.
+ */
+function separateDirections(
+  pairs: readonly ChoicePair[],
+  rectOf: (key: ElementKey) => Rect,
+): Set<number> {
+  interface Slot {
+    readonly edge: number;
+    readonly key: ElementKey;
+    readonly choice: Choice;
+    /** The other end of the edge. */
+    readonly partner: ElementKey;
+    readonly partnerChoice: Choice | undefined;
+  }
+  interface Port {
+    readonly point: Point;
+    readonly side: Side;
+    readonly leaving: Slot[];
+    readonly entering: Slot[];
+  }
+  const portOf = (key: ElementKey, choice: Choice): Point =>
+    anchorPoint(rectOf(key), { side: choice.side, offset: choice.offset ?? 0.5 });
+  const pointOf = (key: ElementKey, choice: Choice | undefined): Point => {
+    if (choice !== undefined) return portOf(key, choice);
+    const c = center(rectOf(key));
+    return { x: roundUnits(c.x), y: roundUnits(c.y) };
+  };
+  const horizontalSide = (side: Side) => side === "north" || side === "south";
+  /** The coordinate along a side (x on north / south, y on east / west). */
+  const along = (side: Side, p: Point) => (horizontalSide(side) ? p.x : p.y);
+  const portId = (key: ElementKey, choice: Choice) => {
+    const p = portOf(key, choice);
+    return `${key} ${choice.side} ${choice.inward} ${p.x} ${p.y}`;
+  };
+  const collect = (): Map<string, Port> => {
+    const ports = new Map<string, Port>();
+    for (const [edge, pair] of pairs.entries()) {
+      for (const leaving of [true, false]) {
+        const choice = leaving ? pair.fromChoice : pair.toChoice;
+        if (choice === undefined) continue;
+        const key = leaving ? pair.from : pair.to;
+        const id = portId(key, choice);
+        let port = ports.get(id);
+        if (port === undefined) {
+          port = { point: portOf(key, choice), side: choice.side, leaving: [], entering: [] };
+          ports.set(id, port);
+        }
+        (leaving ? port.leaving : port.entering).push({
+          edge,
+          key,
+          choice,
+          partner: leaving ? pair.to : pair.from,
+          partnerChoice: leaving ? pair.toChoice : pair.fromChoice,
+        });
+      }
+    }
+    return ports;
+  };
+
+  for (let round = 0; round < SEPARATION_ROUNDS; round++) {
+    const ports = collect();
+    /** Choices changed in this round: their ports are stale until the next one. */
+    const touched = new Set<Choice>();
+    for (const port of ports.values()) {
+      const { leaving, entering, side, point } = port;
+      if (leaving.length === 0 || entering.length === 0) continue;
+      // An edge with both ends here is a `layout/no-route` of its own.
+      if (leaving.some((l) => entering.some((e) => e.edge === l.edge))) continue;
+      const all = [...leaving, ...entering];
+      if (all.some((s) => touched.has(s.choice))) continue;
+      const movable = (slots: Slot[]) => slots.every((s) => !s.choice.anchored);
+      const straight = (slots: Slot[]) =>
+        slots.filter((s) => along(side, pointOf(s.partner, s.partnerChoice)) === along(side, point))
+          .length;
+      let move: Slot[] | undefined;
+      if (movable(leaving) && movable(entering)) {
+        const order =
+          straight(leaving) - straight(entering) || leaving.length - entering.length || -1;
+        move = order < 0 ? leaving : entering;
+      } else if (movable(leaving)) {
+        move = leaving;
+      } else if (movable(entering)) {
+        move = entering;
+      }
+      if (move === undefined) continue;
+      const stay = move === leaving ? entering : leaving;
+      // Toward the moving edges' other ends, else away from the staying ones'.
+      const mean = (slots: Slot[]) =>
+        slots.reduce((sum, s) => sum + along(side, pointOf(s.partner, s.partnerChoice)), 0) /
+          slots.length -
+        along(side, point);
+      const sign = Math.sign(mean(move)) || -Math.sign(mean(stay)) || 1;
+      const offset = (move[0] as Slot).choice.offset ?? 0.5;
+      let next = sign > 0 ? (offset + 1) / 2 : offset / 2;
+      if (next === offset) next = sign > 0 ? offset / 2 : (offset + 1) / 2;
+      for (const slot of move) {
+        const before = pointOf(slot.partner, slot.partnerChoice);
+        slot.choice.offset = next;
+        touched.add(slot.choice);
+        // Keep a straight line between facing sides straight.
+        const partner = slot.partnerChoice;
+        if (
+          partner === undefined ||
+          partner.anchored ||
+          touched.has(partner) ||
+          partner.inward ||
+          slot.choice.inward ||
+          SIDE_DIR[partner.side] !== opposite(SIDE_DIR[side]) ||
+          along(side, before) !== along(side, point)
+        ) {
+          continue;
+        }
+        const id = portId(slot.partner, partner);
+        const users = ports.get(id);
+        if (users === undefined || users.leaving.length + users.entering.length !== 1) continue;
+        const rect = rectOf(slot.partner);
+        const target = along(side, portOf(slot.key, slot.choice));
+        const start = horizontalSide(side) ? rect.x : rect.y;
+        const length = horizontalSide(side) ? rect.width : rect.height;
+        const t = (target - start) / length;
+        if (!(t > 0 && t < 1)) continue;
+        partner.offset = t;
+        touched.add(partner);
+      }
+    }
+    if (touched.size === 0) break;
+  }
+
+  const kept = new Set<number>();
+  for (const { leaving, entering } of collect().values()) {
+    if (leaving.length === 0 || entering.length === 0) continue;
+    if (leaving.some((l) => entering.some((e) => e.edge === l.edge))) continue;
+    const first = (slots: Slot[]) => Math.min(...slots.map((s) => s.edge));
+    for (const slot of first(leaving) > first(entering) ? leaving : entering) kept.add(slot.edge);
+  }
+  return kept;
+}
+
 /** Default side: toward the other end, along the axis with the larger distance (vertical on ties). */
 function facingSide(from: Rect, to: Rect): Side {
   const a = center(from);
@@ -178,7 +358,9 @@ function nearestSide(group: Rect, inner: Rect): Side {
  * edges between the same two elements that use the same default side of an
  * element share it out evenly (offsets 1/(n+1) … n/(n+1)), so multi-edges
  * and two-way pairs are drawn as parallel lines rather than on top of each
- * other.
+ * other. Then a port used both by edges leaving it and by edges entering it
+ * is split (`separateDirections`, #113): the router joins edges into a net
+ * only per direction, and two nets cannot share a port.
  */
 export function resolveEnds(
   ir: FigureIR,
@@ -217,7 +399,6 @@ export function resolveEnds(
   };
 
   // The side of each end: the anchor's, or the default.
-  type Choice = { side: Side; offset?: number; inward: boolean };
   const choose = (
     edge: EdgeIR,
     self: Element,
@@ -228,20 +409,28 @@ export function resolveEnds(
     if (isJunction(self.node)) return undefined;
     // A group connected to an element inside it: the route runs inside the group.
     const inward = self.node === undefined && inside(other, self);
-    if (anchor !== undefined) return { side: anchor.side, offset: anchor.offset, inward };
+    if (anchor !== undefined) {
+      return { side: anchor.side, offset: anchor.offset, inward, anchored: true };
+    }
     if (edge.from === edge.to) {
       // A self-loop goes around a corner: east → north by default, or the
       // side next to the one given (clockwise from the source).
       const given = isSource ? edge.toAnchor?.side : edge.fromAnchor?.side;
-      if (given === undefined) return { side: isSource ? "east" : "north", inward };
+      if (given === undefined) {
+        return { side: isSource ? "east" : "north", inward, anchored: false };
+      }
       const index = CLOCKWISE.indexOf(given);
-      return { side: CLOCKWISE[(index + (isSource ? 1 : 3)) % 4] as Side, inward };
+      return {
+        side: CLOCKWISE[(index + (isSource ? 1 : 3)) % 4] as Side,
+        inward,
+        anchored: false,
+      };
     }
-    if (inward) return { side: nearestSide(self.rect, other.rect), inward };
+    if (inward) return { side: nearestSide(self.rect, other.rect), inward, anchored: false };
     if (other.node === undefined && inside(self, other)) {
-      return { side: nearestSide(other.rect, self.rect), inward: false };
+      return { side: nearestSide(other.rect, self.rect), inward: false, anchored: false };
     }
-    return { side: facingSide(self.rect, other.rect), inward: false };
+    return { side: facingSide(self.rect, other.rect), inward: false, anchored: false };
   };
 
   const choices = ir.edges.map((edge) => {
@@ -273,6 +462,16 @@ export function resolveEnds(
     for (const [k, choice] of list.entries()) choice.offset = (k + 1) / (list.length + 1);
   }
 
+  const shared = separateDirections(
+    choices.map(({ edge, from, to }) => ({
+      from: edge.from,
+      to: edge.to,
+      fromChoice: from,
+      toChoice: to,
+    })),
+    (key) => element(key).rect,
+  );
+
   const resolve = (key: ElementKey, choice: Choice | undefined): End => {
     const self = element(key);
     if (choice === undefined) {
@@ -300,7 +499,13 @@ export function resolveEnds(
     return { key, junction: false, side: choice.side, dir, port, outline };
   };
 
-  return choices.map(({ edge, from, to }) => {
+  return choices.map(({ edge, from, to }, index) => {
+    if (shared.has(index)) {
+      return {
+        error:
+          "an edge leaving and an edge entering the same element are anchored at the same point of it, so they would share a line",
+      };
+    }
     const a = resolve(edge.from, from);
     const b = resolve(edge.to, to);
     if (a.port.x === b.port.x && a.port.y === b.port.y) {
