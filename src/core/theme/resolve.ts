@@ -117,16 +117,19 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
 
 /**
  * Effective font sizes for the `profile` stage: one per styled element that
- * has a label, or draws a glyph mark (`sumi/operator`). Other unlabeled
- * elements draw no text, so their font size cannot violate a minimum.
+ * draws text: a label, or a glyph mark (`sumi/operator`). Point marks
+ * (`sumi/junction`) and unlabeled elements draw no text, so their font size
+ * cannot violate a minimum.
  */
 export function labelFontUsages(state: CheckState): FontUsage[] {
   const usages: FontUsage[] = [];
   for (const { key, element } of figureElements(state.doc)) {
     const style = state.styles?.get(key);
+    // A mark draws its glyph (or, for a point, nothing) instead of the label.
     const manifest = state.components?.get(key)?.manifest;
-    const glyph = manifest?.kind === "node" && manifest.mark?.type === "glyph";
-    if (style !== undefined && (element.label !== "" || glyph)) {
+    const mark = manifest?.kind === "node" ? manifest.mark : undefined;
+    const text = mark === undefined ? element.label !== "" : mark.type === "glyph";
+    if (style !== undefined && text) {
       usages.push({ key, fontSizePt: style.fontSize.pt });
     }
   }

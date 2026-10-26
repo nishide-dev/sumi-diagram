@@ -12,15 +12,16 @@ import { type DocPath, hasErrors, type SourceLocation } from "../core/diagnostic
 import type { FigureCheck } from "../core/figure/check";
 import type { FigureEdge, FigureGroup, FigureMeta, FigureNode } from "../core/figure/schema";
 import { getProfile } from "../core/profile/builtin";
-import type {
-  Arrowhead,
-  ComponentId,
-  EdgeDirection,
-  NodeMark,
-  NodeShape,
-  NodeSizing,
-  OutlineRender,
-  ResolvedComponent,
+import {
+  type Arrowhead,
+  type ComponentId,
+  type EdgeDirection,
+  markText,
+  type NodeMark,
+  type NodeShape,
+  type NodeSizing,
+  type OutlineRender,
+  type ResolvedComponent,
 } from "../core/registry/manifest";
 import { getTheme } from "../core/theme/builtin";
 import type { FontSetId } from "../core/theme/fonts";
@@ -385,10 +386,9 @@ export function markSizeOf(mark: NodeMark, style: NodeStyle): StyleLength {
 
 /** The text a mark draws: the glyph for the prop's value, or nothing for a point. */
 function markLabel(mark: NodeMark, props: Record<string, unknown>): string {
-  if (mark.type === "point") return "";
-  const glyph = mark.glyphs[String(props[mark.prop])];
-  if (glyph === undefined) throw new Error(`internal error: no glyph for props.${mark.prop}`);
-  return glyph;
+  const text = markText(mark, props);
+  if (text === undefined) throw new Error("internal error: the props select no glyph");
+  return text;
 }
 
 function freezeMark(mark: NodeMark): Readonly<NodeMark> {

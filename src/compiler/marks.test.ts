@@ -128,6 +128,44 @@ describe("mark usage", () => {
     expect(flagged).toContain("add");
     expect(flagged).not.toContain("split");
   });
+
+  test("a point draws no text even with a blank label", () => {
+    const source = (label: string) =>
+      `version: 1\nfigure: { id: f, profile: presentation-16x9 }\nnodes: [{ id: j, component: junction${label} }]\n`;
+    expect(checkFigure(source("")).state.diagnostics).toEqual([]);
+    expect(checkFigure(source(', label: " "')).state.diagnostics).toEqual([]);
+  });
+
+  test("lint/missing-glyph checks the glyph a mark draws, at its prop", () => {
+    const registry = createBuiltinRegistry();
+    const registered = registry.register({
+      version: 1,
+      kind: "node",
+      namespace: "test",
+      name: "mark",
+      description: "A glyph mark with a character the bundled fonts lack.",
+      variants: ["default"],
+      since: "0.4.0",
+      props: z.strictObject({ symbol: z.enum(["unicorn"]) }),
+      shape: "circle",
+      sizing: "fixed-aspect-1",
+      mark: { type: "glyph", prop: "symbol", glyphs: { unicorn: "\u{1f984}" }, size: 2 },
+    });
+    expect(registered.ok).toBe(true);
+    const source =
+      "version: 1\nfigure: { id: f }\nnodes: [{ id: m, component: test/mark, props: { symbol: unicorn } }]\n";
+    expect(
+      lintFigure(source, { registry }).diagnostics.map((d) => [d.code, d.path, d.message]),
+    ).toEqual([
+      [
+        "lint/missing-glyph",
+        ["nodes", 0, "props", "symbol"],
+        'The symbol of node "m" has a character missing from the regular font of font set sumi/biz-ud-gothic: "\u{1f984}" (U+1F984).',
+      ],
+    ]);
+    // The built-in operator's glyphs are all in the bundled font set.
+    expect(lintFigure(figure(CHAIN)).diagnostics).toEqual([]);
+  });
 });
 
 describe("mark IR and D2", () => {
@@ -158,12 +196,16 @@ describe("mark IR and D2", () => {
     }
   });
 
-  test("every symbol has its glyph", () => {
+  test("every symbol has its glyph, in the bundled fonts (regular and bold)", () => {
     for (const [symbol, glyph] of Object.entries(OPERATOR_GLYPHS)) {
-      const { ir } = compile(
-        figure(`nodes: [{ id: op, component: operator, props: { symbol: ${symbol} } }]\n`),
-      );
-      expect(ir.nodes[0]?.label).toBe(glyph);
+      for (const variant of ["default", "emphasis"]) {
+        const source = figure(
+          `nodes: [{ id: op, component: operator, variant: ${variant}, props: { symbol: ${symbol} } }]\n`,
+          "slides",
+        );
+        expect(compile(source).ir.nodes[0]?.label).toBe(glyph);
+        expect(lintFigure(source).diagnostics).toEqual([]);
+      }
     }
   });
 

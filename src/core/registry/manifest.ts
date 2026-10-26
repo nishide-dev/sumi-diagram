@@ -137,6 +137,18 @@ export const NodeMarkSchema = z.discriminatedUnion("type", [
 ]);
 export type NodeMark = z.output<typeof NodeMarkSchema>;
 
+/**
+ * The text a mark draws for validated props: the glyph of the prop's value,
+ * or `""` for a point. Shared by the IR and the text lint rules, so both see
+ * the same drawn text. `undefined` if the props select no glyph.
+ */
+export function markText(mark: NodeMark, props: Record<string, unknown>): string | undefined {
+  if (mark.type === "point") return "";
+  return Object.hasOwn(mark.glyphs, String(props[mark.prop]))
+    ? mark.glyphs[String(props[mark.prop])]
+    : undefined;
+}
+
 /** `true` if the props schema (when it is a Zod object) declares any of `names`. */
 function hasProp(props: unknown, ...names: string[]): boolean {
   return props instanceof z.ZodObject && names.some((name) => name in props.shape);

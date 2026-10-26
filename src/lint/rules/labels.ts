@@ -1,6 +1,7 @@
 /** Rules on element labels: presence, length and glyph coverage. */
 
 import { z } from "zod";
+import { markText } from "../../core/registry/manifest";
 import { isBlankForD2 } from "../../core/registry/resolve";
 import type { FontSet } from "../../core/theme/fonts";
 import type { ResolvedStyle } from "../../core/theme/style";
@@ -110,7 +111,15 @@ export const missingGlyph = defineRule({
     if (fonts === undefined) return [];
     const findings: LintFinding[] = [];
     for (const element of context.elements) {
-      const { label } = element.element;
+      // A mark (#92) draws its glyph instead of the label; check what is drawn.
+      const component = element.component;
+      const mark = component?.manifest.kind === "node" ? component.manifest.mark : undefined;
+      const label =
+        mark === undefined
+          ? element.element.label
+          : ((component && markText(mark, component.props)) ?? "");
+      const at =
+        mark?.type === "glyph" ? [...element.path, "props", mark.prop] : [...element.path, "label"];
       if (label === "" || element.style === undefined) continue;
       const font = labelFont(element.style, fonts);
       const coverage = loadGlyphCoverage(font.path);
@@ -122,8 +131,8 @@ export const missingGlyph = defineRule({
       if (missing.length > MAX_LISTED) listed.push(`and ${missing.length - MAX_LISTED} more`);
       const plural = missing.length === 1 ? "a character" : `${missing.length} characters`;
       findings.push({
-        message: `The label of ${describeElement(element)} has ${plural} missing from the ${font.slot} font of font set ${fonts.id}: ${listed.join(", ")}.`,
-        path: [...element.path, "label"],
+        message: `The ${mark === undefined ? "label" : "symbol"} of ${describeElement(element)} has ${plural} missing from the ${font.slot} font of font set ${fonts.id}: ${listed.join(", ")}.`,
+        path: at,
         subject: element.subject,
         hint: "Viewers draw missing characters with a fallback font or as empty boxes; replace them, or use a theme whose font set covers them.",
       });

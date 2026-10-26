@@ -289,7 +289,7 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
         surface: "#f6f8fa",
         accent: "#0969da",
       },
-      // Light fills: the text (fg) keeps a contrast of at least 12:1 on each.
+      // Light fills: the text (fg) keeps a contrast of at least 11:1 on each.
       tone: {
         gray: "#e6e6e6",
         red: "#f8d0cc",
