@@ -144,7 +144,7 @@ where there is room.
 
 | Code | Fix |
 | --- | --- |
-| `layout/structured-only` | the figure is auto: add `figure.layout.arrange` (and place everything), or delete the field |
+| `layout/structured-only` | the figure is auto: delete the field, or switch to structured (root `figure.layout.arrange`, remove `engine: auto`, place everything) |
 | `layout/unplaced` | add the ID to the tree named in the hint (the root tree, or its group's `arrange`), or `attach` it. In a structured figure every node and group needs a place |
 | `layout/duplicate-placement` | the element is in two trees, or in a tree and attached: keep one |
 | `layout/unknown-item` | an `items` entry is not a node or group ID (edges are never placed): use the hint's ID |

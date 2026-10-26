@@ -358,7 +358,7 @@ preserved by `sumi fmt`.
 | `variant: bold`, `variant: thick` | `component/unknown-variant` | a variant listed for that component |
 | `color:`, `style:`, `shape:` on a node | `schema/unknown-field` | remove; use a component, variant or `tone` |
 | `label: $\gamma_1,\beta_1$` inside `{ … }` | `schema/unknown-field` (`"\beta_1$"`) | single-quote it: `label: '$\gamma_1,\,\beta_1$'` |
-| `$...$` in a figure without `arrange` | `component/unsupported-in-auto` (warning) | use the structured layout, or plain text |
+| `$\alpha_1$` (math with a command, `_` or `^`) in an auto figure | `component/unsupported-in-auto` (warning; `$x$` gets none but is drawn with its `$`) | use the structured layout, or plain text |
 | `label:` and `icon:` on one node | `asset/icon-with-label` | keep one; put the text in an attached `label` node |
 | `toAnchor: west` in an auto figure | `layout/structured-only` | remove it, or switch to the structured layout |
 | `props: { width: 10px }` | `component/invalid-prop` | `mm` / `cm` / `in` / `pt`, multiple of 0.5pt |
