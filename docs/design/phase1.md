@@ -921,17 +921,19 @@ layout:
   - rectangle・page: `P`。text: `⌈w⌉ × ⌈h⌉`（試作の label と同じ）。square: `max(P)` の正方形。
   - circle: 直径 `⌈max(h + 2y, hypot(w + y, h + y))⌉`。1 行の箱と同じ高さ以上で、ラベルの箱を各辺 `y / 2` 広げたものが円に収まる。1 文字のラベル（`+`・`·`・`~`）では 34 unit で、試作の円（アイコン用に 34 固定）と一致する。
   - oval: `⌈P·√2⌉`。diamond: `2P`。hexagon: 高さ `P.h`、ラベルの上端の高さで斜辺の内側に収まる幅。parallelogram: 高さ `P.h`、D2 の斜辺（26 unit）をよける幅。cylinder: `P` の高さに蓋（D2 の 24 unit × 3）。document: 高さを波線より上の割合で割る。cylinder と document はラベルを label area の中央に置く（他は図形の中央）。
-  - 全形・数種のラベルで label area に収まることをテストする。新しい形（#92 の operator / junction など）は `naturalSize()` の網羅的な `switch` に追加が要る（型検査で漏れが分かる）。
+  - 全形・数種のラベルで label area に収まることをテストする。新しい形は `naturalSize()` の網羅的な `switch` に追加が要る（型検査で漏れが分かる）。#92 の operator / junction は circle の形で、mark（§6.20）の大きさが IR の `width` / `height` に入るので、固定比の明示サイズとしてそのまま使う（operator は 2 em = 32 unit、junction は線幅の 3 倍 = academic で 3 unit）。
 - **文字の計測**（`src/layout/text.ts`）: 幾何 lint（§6.5）と同じ TTF の reader（`loadFontMetrics`、`hmtx` の advance の和、kerning・shaping なし、`hhea` の ascender / descender）と同じ空白の畳み方（`renderedLines`）を使う。依存は追加していない（`bun build --compile` への影響なし）。`TextMeasurer` を差し替えられるので、テストは固定の字幅で厳密な座標を確かめる。
-- **試作との一致（受け入れ条件）**: 試作と製品の両方が読める図（`tests/fixtures/figures/layout/` の図 A と図 B の 1 パネル。operator / junction / icon を 1 文字のラベルの circle に、tone・キャプション・数式ラベルを除いた版）で、全 node・group の矩形を比べる（`research/86-paper-figures/proto/engine-parity.test.ts`。研究のコードが製品を参照し、逆はない）。
+- **試作との一致（受け入れ条件）**: 試作と製品の両方が読める図で、全 node・group の矩形を比べる。図は 2 組: (1) `tests/fixtures/figures/layout/` の図 A と図 B の 1 パネル（operator / junction / icon を 1 文字のラベルの circle に、tone・キャプション・数式ラベルを除いた版）、(2) 調査の理想の YAML（`figures/ideal/`）そのものから、後の Issue の範囲（`requires`、`icon`（#94。`~` のラベルにする）、`caption`（段階 B））だけをテストの中で除いたもの。(2) では operator / junction の大きさが設計上異なる（#92 は 32 / 3 unit、試作は 18 / 0）ため、試作に製品の大きさを渡して配置を比べる（`research/86-paper-figures/proto/engine-parity.test.ts`。研究のコードが製品を参照し、逆はない）。
 
   | 図 | 要素 | 最大の差 | キャンバス |
   | --- | --- | --- | --- |
   | A（Transformer） | node 30・group 2 | 0.001 unit | 513 × 898（一致） |
   | B の 1 パネル | node 16・group 1 | 0 | 387 × 718（一致） |
+  | 理想の A（operator / junction / tone あり） | node 30・group 2 | 0.01 以内 | 511 × 803（一致） |
+  | 理想の B パネル | node 16・group 1 | 0.01 以内 | 387 × 621（一致） |
 
   - 0.001 の差は丸め方の違い（試作は x と幅を別々に丸め、製品は辺を丸める）による。計測したラベルの幅・高さも一致する。
-  - 設計上の違い（fixture では差が出ない）: 試作の circle は 34 固定・operator 18・junction 0 で、製品の circle はラベルから大きさを決める（上記。operator / junction は #92 で比べる）。試作は group のラベルを無視し、キャプション（段階 B）を持つ。試作は空白を畳まない。試作は明示サイズを持たない。試作は margin を 11 に固定、製品は Profile から（paper 系で同じ 11）。
+  - 設計上の違い（fixture では差が出ない）: 試作の circle は 34 固定で、製品の circle はラベルから大きさを決める（上記）。operator / junction の大きさ（上記）。試作は group のラベルを無視し、キャプション（段階 B）を持つ。試作は空白を畳まない。試作は明示サイズを持たない。試作は margin を 11 に固定、製品は Profile から（paper 系で同じ 11）。
 - **決定性**: 図 A・B の Layout IR を JSON にした golden（`tests/fixtures/layout/*.layout.json`、`SUMI_UPDATE_GOLDEN=1` で更新）とバイト単位で比べ、2 回の実行の一致も確かめる。探索・反復・乱数・Map の走査順への依存はない（出力の並びは文書順と group の木の前順）。
 - **未確認（#91 と結合して確認）**: Layout IR から作った SVG で `exceeds-page-*` などの既存の幾何 lint が働くこと。SVG writer がないため、ここでは確かめていない。
 
