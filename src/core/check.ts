@@ -1,7 +1,7 @@
 import { checkAssets } from "../assets/check";
 import { type CheckFigureOptions, checkFigureSource, type FigureCheck } from "./figure/check";
 import { constrainFigure } from "./profile/constrain";
-import { createBuiltinRegistry } from "./registry/builtins";
+import { builtinRegistry } from "./registry/builtins";
 import type { Registry } from "./registry/registry";
 import { resolveComponents } from "./registry/resolve";
 import { labelFontUsages, styleFigure } from "./theme/resolve";
@@ -21,7 +21,7 @@ export interface CheckOptions extends CheckFigureOptions {
  * label (elements without a label draw no text).
  */
 export function checkFigure(text: string, options: CheckOptions = {}): FigureCheck {
-  const { registry = createBuiltinRegistry(), ...rest } = options;
+  const { registry = builtinRegistry(), ...rest } = options;
   const check = checkFigureSource(text, rest);
   resolveComponents(check.state, registry, check.locate);
   checkAssets(check.state, check.locate);

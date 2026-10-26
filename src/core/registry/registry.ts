@@ -3,7 +3,7 @@
  * manifests, and validates how an element uses a component.
  *
  * All methods are synchronous; only `register` changes state, and only the
- * instance's own. Diagnostics carry paths relative to what was checked (the
+ * instance's own. A sealed registry (see {@link Registry.seal}) is read-only. Diagnostics carry paths relative to what was checked (the
  * manifest, or the element's `props` / `variant`); the `component` stage
  * prefixes them with the element's path.
  */
@@ -37,13 +37,32 @@ export interface ValidatedUsage {
 
 export class Registry {
   readonly #manifests = new Map<ComponentId, ComponentManifest>();
+  #sealed = false;
+
+  /** Whether {@link Registry.seal} has been called. */
+  get sealed(): boolean {
+    return this.#sealed;
+  }
+
+  /**
+   * Makes the registry read-only, so one instance can be shared safely: later
+   * `register` calls throw, and every registered manifest is deep-frozen
+   * except its `props` schema (a Zod schema, which is never mutated by Sumi
+   * and is left as it is). Returns the registry.
+   */
+  seal(): this {
+    for (const manifest of this.#manifests.values()) freezeManifest(manifest);
+    this.#sealed = true;
+    return this;
+  }
 
   /**
    * Validates `manifest` and adds it. Fails with `component/invalid-manifest`
    * if it is malformed, or `component/duplicate-id` if its canonical ID is
-   * already registered.
+   * already registered. Throws if the registry is sealed.
    */
   register(manifest: ComponentManifest): Result<ComponentManifest> {
+    if (this.#sealed) throw new Error("internal error: cannot register into a sealed registry");
     const parsed = ComponentManifestSchema.safeParse(manifest);
     const name = describeManifest(manifest);
     if (!parsed.success) {
@@ -185,6 +204,20 @@ export class Registry {
   validateUsage(manifest: ComponentManifest, usage: ComponentUsage = {}): Result<ValidatedUsage> {
     return validateUsage(manifest, usage);
   }
+}
+
+/** Deep-freezes `manifest`, except its `props` schema. */
+function freezeManifest(manifest: ComponentManifest): void {
+  for (const [key, value] of Object.entries(manifest)) {
+    if (key !== "props") deepFreeze(value);
+  }
+  Object.freeze(manifest);
+}
+
+function deepFreeze(value: unknown): void {
+  if (typeof value !== "object" || value === null || Object.isFrozen(value)) return;
+  for (const child of Object.values(value)) deepFreeze(child);
+  Object.freeze(value);
 }
 
 /** Canonical ID for a reference (short names map to the built-in namespace). */

@@ -23,7 +23,7 @@ import {
 import { errorAt, relatedAt } from "../figure/report";
 import { ID_PATTERN } from "../figure/schema";
 import type { Locator } from "../figure/yaml";
-import { createBuiltinRegistry } from "../registry/builtins";
+import { builtinRegistry } from "../registry/builtins";
 import {
   COMPONENT_KINDS,
   type ComponentId,
@@ -136,7 +136,7 @@ export interface ValidateThemeOptions {
  */
 export function validateTheme(raw: unknown, options: ValidateThemeOptions = {}): Result<Theme> {
   const {
-    registry = createBuiltinRegistry(),
+    registry = builtinRegistry(),
     fontSets = BUILTIN_FONT_SETS,
     locate = () => undefined,
   } = options;

@@ -7,7 +7,7 @@
 
 import { BUILTIN_PROFILES } from "../profile/builtin";
 import type { Profile } from "../profile/schema";
-import { createBuiltinRegistry } from "../registry/builtins";
+import { builtinRegistry } from "../registry/builtins";
 import {
   COMPONENT_KINDS,
   type ComponentId,
@@ -78,7 +78,7 @@ export function themeCatalogEntry(
   theme: Theme,
   options: ThemeCatalogOptions = {},
 ): ThemeCatalogEntry {
-  const { registry = createBuiltinRegistry(), profiles = BUILTIN_PROFILES } = options;
+  const { registry = builtinRegistry(), profiles = BUILTIN_PROFILES } = options;
   const sizes: number[] = [];
   const missingVariants: Record<ComponentId, string[]> = {};
   for (const manifest of registry.list()) {
@@ -119,6 +119,6 @@ export function buildThemeCatalog(
   themes: ReadonlyMap<string, Theme> = BUILTIN_THEMES,
   options: ThemeCatalogOptions = {},
 ): ThemeCatalogEntry[] {
-  const registry = options.registry ?? createBuiltinRegistry();
+  const registry = options.registry ?? builtinRegistry();
   return [...themes.values()].map((theme) => themeCatalogEntry(theme, { ...options, registry }));
 }

@@ -218,7 +218,11 @@ export const BUILTIN_MANIFESTS: readonly ComponentManifest[] = [
   }),
 ];
 
-/** A new registry containing the built-in components. */
+/**
+ * A new, mutable registry containing the built-in components. Use it when
+ * custom components are registered on top; read-only callers should share
+ * {@link builtinRegistry} instead.
+ */
 export function createBuiltinRegistry(): Registry {
   const registry = new Registry();
   for (const manifest of BUILTIN_MANIFESTS) {
@@ -229,4 +233,16 @@ export function createBuiltinRegistry(): Registry {
     }
   }
   return registry;
+}
+
+let shared: Registry | undefined;
+
+/**
+ * The shared, sealed registry of the built-in components: built on first use
+ * and reused afterwards (#106). It is read-only (see {@link Registry.seal}),
+ * so sharing it across calls cannot leak state between them.
+ */
+export function builtinRegistry(): Registry {
+  shared ??= createBuiltinRegistry().seal();
+  return shared;
 }
