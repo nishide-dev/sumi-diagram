@@ -1,6 +1,7 @@
 /** Rules on the figure's structure: element counts and edges. */
 
 import type { DiagnosticSubject } from "../../core/diagnostics";
+import { parseAnchor } from "../../core/figure/layout";
 import { defineRule, type LintContext, type LintFinding, type ValidElement } from "../rule";
 
 function figureSubject(context: LintContext): DiagnosticSubject | undefined {
@@ -138,11 +139,17 @@ export const duplicateEdge = defineRule({
     for (const edge of edgesOf(context)) {
       const { component } = edge;
       if (component === undefined || component.manifest.kind !== "edge") continue;
-      const { from, to, label } = edge.element;
+      const { from, to, fromAnchor, toAnchor, label } = edge.element;
       // Edges without a direction or with both directions are symmetric.
       const { direction } = component.manifest;
       const symmetric = direction === "none" || direction === "both";
-      const ends = symmetric ? [from, to].sort() : [from, to];
+      // Edges to different anchors of the same nodes (structured layout) are distinct.
+      const end = (id: string, anchor: string | undefined) => {
+        const parsed = anchor === undefined ? undefined : parseAnchor(anchor);
+        return parsed === undefined ? id : `${id}@${parsed.side}:${parsed.offset}`;
+      };
+      const pair = [end(from, fromAnchor), end(to, toAnchor)];
+      const ends = symmetric ? pair.sort() : pair;
       const key = JSON.stringify([...ends, component.id, label]);
       const original = first.get(key);
       if (original === undefined) {

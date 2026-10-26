@@ -18,9 +18,10 @@ import {
   nodeKey,
   type PartialFigure,
 } from "../check-state";
-import { type DocPath, didYouMean, formatDocPath } from "../diagnostics";
+import { type Diagnostic, type DocPath, didYouMean, formatDocPath } from "../diagnostics";
 import { errorAt } from "./report";
 import {
+  ARRANGE_BOX_ISSUE,
   EdgeSchema,
   FIGURE_SCHEMA_VERSION,
   FigureDocumentSchema,
@@ -163,7 +164,7 @@ function parseElement<S extends z.ZodObject>(
   const strict = schema.safeParse(value);
   if (strict.success) return { ok: true, value: strict.data };
 
-  for (const issue of strict.error.issues) {
+  for (const issue of withoutRedundantIssues(strict.error.issues, value)) {
     state.diagnostics.push(...issueToDiagnostics(issue, schema, value, path, locate));
   }
   if (strict.error.issues.every((issue) => issue.code === "unrecognized_keys")) {
@@ -179,13 +180,44 @@ function issueToDiagnostics(
   root: unknown,
   basePath: DocPath,
   locate: Locator,
-) {
+): Diagnostic[] {
   const relative = issue.path.filter((s) => typeof s !== "symbol");
   const path = [...basePath, ...relative];
   const at = formatDocPath(path);
   const actual = valueAt(root, relative);
 
   switch (issue.code) {
+    case "invalid_union": {
+      // The only union is an arrange item: an ID or a box. Report the branch
+      // that matches the value's type (a string → ID, a mapping → box).
+      const matching = issue.errors.filter(
+        (branch) => !branch.some((i) => i.code === "invalid_type" && i.path.length === 0),
+      );
+      const [branch] = matching;
+      if (matching.length === 1 && branch !== undefined) {
+        const nested = schemaAt(schema, relative) ?? schema;
+        // Nested issue paths are relative to the union's value.
+        return withoutRedundantIssues(branch, actual).flatMap((i) =>
+          issueToDiagnostics(i, nested, actual, path, locate),
+        );
+      }
+      return [
+        errorAt(
+          locate,
+          "schema/invalid-type",
+          `Expected an element ID or a stack / row box at ${at}, got ${describe(actual)}.`,
+          path,
+        ),
+      ];
+    }
+    case "custom": {
+      const hint = (issue.params as { hint?: unknown } | undefined)?.hint;
+      return [
+        errorAt(locate, "schema/invalid-value", `Invalid value at ${at}: ${issue.message}`, path, {
+          hint: typeof hint === "string" ? hint : undefined,
+        }),
+      ];
+    }
     case "unrecognized_keys": {
       const known = objectKeysAt(schema, relative);
       return issue.keys.map((key) => errorAt(locate, ...unknownField(key, path, known)));
@@ -242,7 +274,7 @@ function issueToDiagnostics(
       ];
     }
     case "too_small":
-      if (issue.origin === "string") {
+      if (issue.origin === "string" || issue.origin === "array") {
         return [errorAt(locate, "schema/invalid-value", `${at} must not be empty.`, path)];
       }
       break;
@@ -267,20 +299,68 @@ function unknownField(key: string, path: DocPath, known: readonly string[]): Err
 
 /** Keys of the object schema at `path` inside `schema`, or `[]`. */
 function objectKeysAt(schema: z.ZodType, path: readonly PropertyKey[]): string[] {
+  const current = schemaAt(schema, path);
+  return current instanceof z.ZodObject ? Object.keys(current.shape) : [];
+}
+
+/**
+ * The schema of the value at `path` inside `schema`, looking through
+ * optional / default / prefault / pipe wrappers, list elements and the object
+ * branch of a union (an arrange item).
+ */
+function schemaAt(schema: z.ZodType, path: readonly PropertyKey[]): z.ZodType | undefined {
   let current: unknown = schema;
   for (const segment of [...path, undefined]) {
-    while (
-      current instanceof z.ZodOptional ||
-      current instanceof z.ZodDefault ||
-      current instanceof z.ZodPrefault
-    ) {
-      current = current.unwrap();
+    for (;;) {
+      if (
+        current instanceof z.ZodOptional ||
+        current instanceof z.ZodDefault ||
+        current instanceof z.ZodPrefault
+      ) {
+        current = current.unwrap();
+      } else if (current instanceof z.ZodPipe) {
+        current = current.in;
+      } else if (current instanceof z.ZodUnion) {
+        current = current.options.find((option) => option instanceof z.ZodObject);
+      } else {
+        break;
+      }
     }
-    if (!(current instanceof z.ZodObject)) return [];
-    if (segment === undefined) return Object.keys(current.shape);
-    current = current.shape[segment as string];
+    if (segment === undefined) return current instanceof z.ZodType ? current : undefined;
+    if (current instanceof z.ZodArray && typeof segment === "number") {
+      current = current.element;
+    } else if (current instanceof z.ZodObject) {
+      current = current.shape[segment as string];
+    } else {
+      return undefined;
+    }
   }
-  return [];
+  return undefined;
+}
+
+/**
+ * Drops the "exactly one of stack / row" issue of an arrange box that has
+ * neither but has unknown keys: a typo such as `stak` is reported once, as an
+ * unknown field with a suggestion. A box with both `stack` and `row` keeps it.
+ * `root` is the value the issue paths are relative to.
+ */
+function withoutRedundantIssues(
+  issues: readonly core.$ZodIssue[],
+  root: unknown,
+): core.$ZodIssue[] {
+  const unknownAt = new Set(
+    issues.filter((i) => i.code === "unrecognized_keys").map((i) => JSON.stringify(i.path)),
+  );
+  return issues.filter((i) => {
+    if (!isArrangeBoxIssue(i) || !unknownAt.has(JSON.stringify(i.path))) return true;
+    const box = valueAt(root, i.path);
+    return isRecord(box) && (box.stack !== undefined || box.row !== undefined);
+  });
+}
+
+function isArrangeBoxIssue(issue: core.$ZodIssue): boolean {
+  const params = (issue as { params?: Record<string, unknown> }).params;
+  return issue.code === "custom" && params?.[ARRANGE_BOX_ISSUE] === true;
 }
 
 /** Finds the first value that is not JSON-compatible. */

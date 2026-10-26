@@ -93,27 +93,35 @@ export function* figureElements(doc: PartialFigure): Generator<ElementEntry> {
 
 /**
  * Marks elements whose dependencies are invalid as invalid too, without
- * diagnostics: elements inside an invalid group (transitively) and edges with
+ * diagnostics: elements inside an invalid group, nodes attached to an invalid
+ * element (structured layout, `attach.to`), both transitively, and edges with
  * an invalid endpoint. Stages call this after adding their own errors.
  */
 export function invalidateDependents(state: CheckState): void {
   const { doc, invalid } = state;
-  const contained = [
+  const isInvalid = (id: string) => invalid.has(nodeKey(id)) || invalid.has(groupKey(id));
+  const dependents: (
+    | { key: ElementKey; parent?: string | undefined; attached?: string | undefined }
+    | undefined
+  )[] = [
     ...(doc.groups ?? []).map((g) => g && { key: groupKey(g.id), parent: g.group }),
-    ...(doc.nodes ?? []).map((n) => n && { key: nodeKey(n.id), parent: n.group }),
+    ...(doc.nodes ?? []).map(
+      (n) => n && { key: nodeKey(n.id), parent: n.group, attached: n.attach?.to },
+    ),
   ];
   let changed = true;
   while (changed) {
     changed = false;
-    for (const element of contained) {
-      if (!element || element.parent === undefined || invalid.has(element.key)) continue;
-      if (invalid.has(groupKey(element.parent))) {
+    for (const element of dependents) {
+      if (!element || invalid.has(element.key)) continue;
+      const parentInvalid = element.parent !== undefined && invalid.has(groupKey(element.parent));
+      const targetInvalid = element.attached !== undefined && isInvalid(element.attached);
+      if (parentInvalid || targetInvalid) {
         invalid.add(element.key);
         changed = true;
       }
     }
   }
-  const isInvalid = (id: string) => invalid.has(nodeKey(id)) || invalid.has(groupKey(id));
   for (const [index, edge] of (doc.edges ?? []).entries()) {
     if (edge && (isInvalid(edge.from) || isInvalid(edge.to))) invalid.add(edgeKey(edge.id, index));
   }

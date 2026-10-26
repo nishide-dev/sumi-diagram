@@ -14,7 +14,7 @@ function format(text: string, canonicalOrder = false): string {
 }
 
 const sources = [
-  ...["valid", "lint", "invalid"].flatMap((dir) =>
+  ...["valid", "lint", "invalid", "layout"].flatMap((dir) =>
     readdirSync(join(FIXTURES, dir)).map((name) => join(FIXTURES, dir, name)),
   ),
   join(ROOT, "examples", "pipeline", "pipeline.sumi.yaml"),
@@ -171,6 +171,51 @@ nodes:
     label: A # the label
     props: { width: 10mm, height: 5mm }
     custom: 1
+`);
+  });
+
+  test("puts structured layout fields in schema order with canonicalOrder", () => {
+    const input = `version: 1
+figure:
+  id: x
+  layout:
+    arrange:
+      row:
+        items:
+          - stack: { items: [a], align: stretch, gap: 0, direction: up }
+          - g
+        gap: 3mm
+    engine: structured
+groups:
+  - arrange: { stack: { items: [b], direction: down } }
+    id: g
+nodes:
+  - { id: a, component: box }
+  - { component: box, id: b }
+  - { attach: { gap: 1mm, side: west, to: a }, id: c, component: box }
+edges:
+  - { toAnchor: south, to: b, fromAnchor: "north:0.25", from: a }
+`;
+    expect(format(input, true)).toBe(`version: 1
+figure:
+  id: x
+  layout:
+    engine: structured
+    arrange:
+      row:
+        gap: 3mm
+        items:
+          - stack: { direction: up, gap: 0, align: stretch, items: [ a ] }
+          - g
+groups:
+  - id: g
+    arrange: { stack: { direction: down, items: [ b ] } }
+nodes:
+  - { id: a, component: box }
+  - { id: b, component: box }
+  - { id: c, component: box, attach: { to: a, side: west, gap: 1mm } }
+edges:
+  - { from: a, fromAnchor: "north:0.25", to: b, toAnchor: south }
 `);
   });
 

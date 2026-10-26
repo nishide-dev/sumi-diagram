@@ -35,6 +35,31 @@ export function compileFigure(text: string, options: CompileOptions = {}): Resul
   const { diagnostics } = check.state;
   if (hasErrors(diagnostics)) return { ok: false, diagnostics };
 
+  // The structured engine is checked (`sumi lint`) but not implemented yet
+  // (#89–#91): fail clearly instead of laying the figure out with D2.
+  const layout = check.state.doc.figure?.layout;
+  if (layout?.engine === "structured") {
+    const written = layout.arrange === undefined ? "engine" : "arrange";
+    const path = ["figure", "layout", written];
+    const location = check.locate(path, { key: true });
+    return {
+      ok: false,
+      diagnostics: [
+        ...diagnostics,
+        {
+          code: "layout/engine-unavailable",
+          severity: "error",
+          message:
+            "The structured layout engine is not available in this Sumi version yet; the figure can be checked but not rendered.",
+          path,
+          ...(location !== undefined && { location }),
+          subject: { kind: "figure", id: check.state.doc.figure?.id ?? "" },
+          hint: 'Use "sumi lint" to check it, or remove the structured layout fields to render with the auto engine.',
+        },
+      ],
+    };
+  }
+
   const ir = buildFigureIR(check);
   const theme = getTheme(ir.meta.themeId);
   const profile = getProfile(ir.meta.profileId);

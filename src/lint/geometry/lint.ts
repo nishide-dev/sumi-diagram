@@ -103,6 +103,13 @@ export function lintGeometry(
 /** Stages whose diagnostics `lintFigure()` already reports (`checkFigure()`). */
 const CHECK_STAGES = new Set(["yaml", "schema", "ref", "component", "theme", "profile"]);
 
+/**
+ * The `layout` stage reports both while checking (`lintFigure()`) and while
+ * rendering (e.g. `layout/engine-unavailable`), so its rendering diagnostics
+ * are kept unless `lintFigure()` already reported the same one.
+ */
+const MIXED_STAGES = new Set(["layout"]);
+
 export type LintRenderedOptions = LintOptions &
   Pick<RenderFigureOptions, "backend" | "sourceName"> & {
     /** Font set to measure labels with. Defaults to the figure theme's font set. */
@@ -135,9 +142,11 @@ export async function lintRenderedFigure(
   const structural = lintFigure(text, lintOptions);
   const diagnostics = [...structural.diagnostics];
   let rendered: RenderedFigure | undefined;
+  const stageOf = (d: Diagnostic) => d.code.split("/")[0] ?? "";
   const checkFailed = structural.diagnostics.some(
-    (d) => d.severity === "error" && CHECK_STAGES.has(d.code.split("/")[0] ?? ""),
+    (d) => d.severity === "error" && (CHECK_STAGES.has(stageOf(d)) || MIXED_STAGES.has(stageOf(d))),
   );
+  const reported = new Set(structural.diagnostics.map((d) => JSON.stringify(d)));
   if (!checkFailed) {
     const result = await renderFigure(text, {
       ...(lintOptions.file !== undefined && { file: lintOptions.file }),
@@ -146,7 +155,11 @@ export async function lintRenderedFigure(
       ...(sourceName !== undefined && { sourceName }),
     });
     diagnostics.push(
-      ...result.diagnostics.filter((d) => !CHECK_STAGES.has(d.code.split("/")[0] ?? "")),
+      ...result.diagnostics.filter(
+        (d) =>
+          !CHECK_STAGES.has(stageOf(d)) &&
+          !(MIXED_STAGES.has(stageOf(d)) && reported.has(JSON.stringify(d))),
+      ),
     );
     if (result.ok) {
       rendered = result.value;

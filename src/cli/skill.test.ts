@@ -49,6 +49,7 @@ const STAGES = [
   "yaml",
   "schema",
   "ref",
+  "layout",
   "component",
   "theme",
   "profile",

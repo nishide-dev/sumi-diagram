@@ -20,10 +20,10 @@
  * by the YAML library (e.g. `!!int 123`, `!!str "123"`).
  *
  * With `canonicalOrder`, the known keys of the root, `figure`,
- * `figure.layout`, groups, nodes and edges are put in Figure Schema field
- * order (unknown keys follow in their original order; `props` and `metadata`
- * are left alone). This is meaning-preserving but moves lines around, so it
- * is opt-in.
+ * `figure.layout`, groups, nodes, edges, `attach` and the stack / row boxes of
+ * arrange trees are put in Figure Schema field order (unknown keys follow in
+ * their original order; `props` and `metadata` are left alone). This is
+ * meaning-preserving but moves lines around, so it is opt-in.
  *
  * Safety: the result is re-parsed and must yield the same data (same key order
  * unless `canonicalOrder`), the same comments, no YAML errors, and format to
@@ -45,12 +45,14 @@ import {
 } from "yaml";
 import type { Diagnostic } from "../diagnostics";
 import {
+  AttachSchema,
   EdgeSchema,
   FigureDocumentSchema,
   FigureMetaSchema,
   GroupSchema,
-  LayoutSchema,
+  LayoutFieldsSchema,
   NodeSchema,
+  StackSchema,
 } from "./schema";
 import { parseYaml, YAML_PARSE_OPTIONS } from "./yaml";
 
@@ -82,10 +84,13 @@ const STRINGIFY_OPTIONS = Object.freeze({
 const KEY_ORDER = {
   root: Object.keys(FigureDocumentSchema.shape),
   figure: Object.keys(FigureMetaSchema.shape),
-  layout: Object.keys(LayoutSchema.shape),
+  layout: Object.keys(LayoutFieldsSchema.shape),
   group: Object.keys(GroupSchema.shape),
   node: Object.keys(NodeSchema.shape),
   edge: Object.keys(EdgeSchema.shape),
+  /** `stack` and `row` share the field order. */
+  box: Object.keys(StackSchema.shape),
+  attach: Object.keys(AttachSchema.shape),
 };
 
 /**
@@ -166,7 +171,10 @@ function reorderDocument(contents: unknown): void {
   if (isMap(figure)) {
     sortMap(figure, KEY_ORDER.figure);
     const layout = figure.get("layout", true);
-    if (isMap(layout)) sortMap(layout, KEY_ORDER.layout);
+    if (isMap(layout)) {
+      sortMap(layout, KEY_ORDER.layout);
+      reorderArrange(layout.get("arrange", true));
+    }
   }
   for (const [field, order] of [
     ["groups", KEY_ORDER.group],
@@ -175,7 +183,27 @@ function reorderDocument(contents: unknown): void {
   ] as const) {
     const list = contents.get(field, true);
     if (!isSeq(list)) continue;
-    for (const item of list.items) if (isMap(item)) sortMap(item, order);
+    for (const item of list.items) {
+      if (!isMap(item)) continue;
+      sortMap(item, order);
+      if (field === "groups") reorderArrange(item.get("arrange", true));
+      if (field === "nodes") {
+        const attach = item.get("attach", true);
+        if (isMap(attach)) sortMap(attach, KEY_ORDER.attach);
+      }
+    }
+  }
+}
+
+/** Puts the fields of every stack / row box of an arrange tree in schema order. */
+function reorderArrange(box: unknown): void {
+  if (!isMap(box)) return;
+  for (const kind of ["stack", "row"]) {
+    const spec = box.get(kind, true);
+    if (!isMap(spec)) continue;
+    sortMap(spec, KEY_ORDER.box);
+    const items = spec.get("items", true);
+    if (isSeq(items)) for (const item of items.items) reorderArrange(item);
   }
 }
 
