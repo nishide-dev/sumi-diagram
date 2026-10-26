@@ -874,7 +874,9 @@ class Router {
         // share lines with this one (#113): then it is an overlap.
         const own = owner === net || (owner === -2 && steps.has(step, net));
         if (own && !this.#unsharable(horizontal ? edgesH : edgesV, step, edge)) {
-          cost = 0;
+          // Free, but arriving where an edge of the net that may not share
+          // lines with this one runs is still a crossing or a touch.
+          cost = this.#unsharable(edgesAtPoint, q, edge) ? cross : 0;
         } else {
           cost = (horizontal ? costH : costV)[step] as number;
           if (nd !== dir) cost += bend;

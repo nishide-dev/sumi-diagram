@@ -320,11 +320,15 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
     const route = edge.route as NonNullable<EdgeLayout["route"]>;
     const first = route.points[0] as Point;
     const last = route.points[route.points.length - 1] as Point;
-    const port = (key: ElementKey, side: string | undefined, p: Point) =>
-      isJunction(nodeIR.get(key)) ? undefined : `${key} ${side} ${p.x},${p.y}`;
+    // A port: element, side, point and the direction the route runs from it
+    // (out of a group's side, or into it for an end inside the group).
+    const port = (key: ElementKey, side: string | undefined, p: Point, next: Point | undefined) =>
+      isJunction(nodeIR.get(key)) || next === undefined
+        ? undefined
+        : `${key} ${side} ${p.x},${p.y} ${Math.sign(next.x - p.x)},${Math.sign(next.y - p.y)}`;
     const junction = [edge.from, edge.to].find((key) => isJunction(nodeIR.get(key)));
-    const leaving = port(edge.from, route.fromSide, first);
-    const entering = port(edge.to, route.toSide, last);
+    const leaving = port(edge.from, route.fromSide, first, route.points[1]);
+    const entering = port(edge.to, route.toSide, last, route.points[route.points.length - 2]);
     joinsOf.set(edge.key, {
       ...(leaving !== undefined && { leaving }),
       ...(entering !== undefined && { entering }),

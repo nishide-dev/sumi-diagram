@@ -189,8 +189,12 @@ const SEPARATION_ROUNDS = 8;
  * takes its other end along (if that end has no anchor, is not shared and
  * stays on its side), so the line stays straight.
  *
+ * If the rounds run out (moves keep meeting other ports), a direction that
+ * may move takes the first unused position of 1/4, 3/4, 1/8, 3/8, … instead.
+ *
  * Mutates the choices' offsets; returns the indices of the edges that keep a
- * shared port (the later direction in document order), for `layout/no-route`.
+ * shared port (both directions anchored there; the later direction in
+ * document order), for `layout/no-route`.
  */
 function separateDirections(
   pairs: readonly ChoicePair[],
@@ -316,6 +320,28 @@ function separateDirections(
       }
     }
     if (touched.size === 0) break;
+  }
+
+  // Rounds used up (moves kept meeting other ports): a movable direction
+  // takes the first free position of 1/4, 3/4, 1/8, 3/8, … (1/1024 at most).
+  for (const port of collect().values()) {
+    const { leaving, entering } = port;
+    if (leaving.length === 0 || entering.length === 0) continue;
+    if (leaving.some((l) => entering.some((e) => e.edge === l.edge))) continue;
+    const move = [entering, leaving].find((slots) => slots.every((s) => !s.choice.anchored));
+    if (move === undefined) continue;
+    const first = move[0] as Slot;
+    const used = new Set(
+      [...collect().keys()].filter((id) => id.startsWith(`${first.key} ${port.side} `)),
+    );
+    let free: number | undefined;
+    for (let d = 4; d <= 1024 && free === undefined; d *= 2) {
+      for (let k = 1; k < d && free === undefined; k += 2) {
+        if (!used.has(portId(first.key, { ...first.choice, offset: k / d }))) free = k / d;
+      }
+    }
+    if (free === undefined) continue;
+    for (const slot of move) slot.choice.offset = free;
   }
 
   const kept = new Set<number>();

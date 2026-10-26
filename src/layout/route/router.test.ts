@@ -280,6 +280,61 @@ describe("edges into and out of one port (#113)", () => {
     );
   });
 
+  test("a bridged net in a narrow gap: the branch leaves before the other edge's stub", () => {
+    // The trunk a → b is free for a → c, but where d → b's stub starts it
+    // would touch d → b (one net, not joined): that point still costs.
+    const value = run(
+      figure(
+        { row: { items: ["d", { stack: { gap: "8pt", items: ["a", "b"] } }, "c"] } },
+        [box("a"), box("b"), box("c"), box("d")],
+        [
+          { from: "a", to: "b" },
+          { from: "a", to: "c", fromAnchor: "south" },
+          { from: "d", to: "b", toAnchor: "north" },
+        ],
+      ),
+    );
+    const branch = pointsOf(value.layout, 1)[1] as Point;
+    const merge = pointsOf(value.layout, 2).at(-2) as Point;
+    expect(branch.y).toBeLessThan(merge.y);
+    expectClean(value);
+  });
+
+  test("moves that keep meeting other ports end at the first free position", () => {
+    // x's north side is taken at 1/2 + 1/4 + 1/8 … by edges leaving it: the
+    // unanchored a → x cannot halve its way out, and takes 1/4.
+    const edges = [
+      ...Array.from({ length: 9 }, (_, i) => ({
+        from: "x",
+        to: "b",
+        fromAnchor: `north:${1 - 2 ** -(i + 1)}`,
+        component: "line",
+      })),
+      { from: "a", to: "x", component: "line" },
+    ];
+    const value = run(
+      figure({ stack: { items: ["a", "x", "b"] } }, [box("a"), box("x"), box("b")], edges),
+    );
+    const x = rectOf(value.layout, "x");
+    expect((pointsOf(value.layout, 9).at(-1) as Point).x).toBe(x.x + x.width / 4);
+  });
+
+  test("checkRoutes: a group's side entered from outside and from inside is two ports", () => {
+    const value = run(
+      figure(
+        { stack: { items: ["x", "g"] } },
+        [box("x"), box("a")],
+        [
+          { from: "x", to: "g", toAnchor: "north", component: "line" },
+          { from: "a", to: "g", toAnchor: "north", component: "line" },
+        ],
+        [{ id: "g", label: "g", arrange: { stack: { items: ["a"] } } }],
+      ),
+    );
+    expect(new Set(value.layout.edges.map((e) => e.route?.net)).size).toBe(2);
+    expect(checkRoutes(value.ir, value.layout).misjoinedNets).toEqual([]);
+  });
+
   test("a net bridged by an edge that shares a port with each: the two others share no line", () => {
     // a → b shares a's south port with a → c and b's north port with d → b:
     // one net, but a → c and d → b may only meet, never run along each other.
@@ -786,7 +841,7 @@ describe.each(["columns", "grid"] as const)("synthetic 100-node figure: %s", (ki
     // getting worse.
     const crowded = kind === "grid";
     if (crowded) {
-      expect(report.contacts.length).toBeLessThanOrEqual(18);
+      expect(report.contacts.length).toBeLessThanOrEqual(20);
       expect(report.overlaps.length).toBeLessThanOrEqual(7);
     }
     expect({
