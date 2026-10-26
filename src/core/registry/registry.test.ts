@@ -151,9 +151,14 @@ describe("seal", () => {
 
   test("freezes a custom manifest's deprecation", () => {
     const r = new Registry();
-    r.register(custom({ deprecated: { since: "0.2.0", replacement: "acme/gadget" } }));
+    const registered = r.register(
+      custom({ deprecated: { since: "0.2.0", replacement: "acme/gadget" } }),
+    );
+    expect(registered.ok).toBe(true);
     r.seal();
-    expect(Object.isFrozen(r.get("acme/widget")?.deprecated)).toBe(true);
+    const deprecated = r.get("acme/widget")?.deprecated;
+    expect(deprecated).toEqual({ since: "0.2.0", replacement: "acme/gadget" });
+    expect(Object.isFrozen(deprecated)).toBe(true);
   });
 
   test("freezes children of objects that were already shallow-frozen", () => {
