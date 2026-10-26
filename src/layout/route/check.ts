@@ -33,11 +33,23 @@ export interface RouteCheckReport {
    * the side, away from / into the element.
    */
   endpointMisses: string[];
+  /**
+   * Nets that are not the edges a shared port or junction joins (#113): one
+   * net holding edges that nothing joins, or edges that should be one net
+   * split over several. Edges are joined when they leave the same port
+   * (element, side and point), enter the same port, or touch junctions
+   * joined by edges; a net is a group of edges joined that way, transitively.
+   */
+  misjoinedNets: string[];
   /** Proper crossings between routes of different nets. */
   crossings: string[];
   /** A point (end or bend) of one net's route lying on another net's route. */
   contacts: string[];
-  /** Collinear overlaps between routes of different nets. */
+  /**
+   * Collinear overlaps between routes of different nets, or of one net but
+   * neither leaving a port together, entering one together nor joined by
+   * junctions (#113: `a → x` and `x → b` sharing a line read as `a → b`).
+   */
   overlaps: string[];
   /** A segment ending in an arrowhead that is shorter than the arrowhead. */
   shortArrowSegments: string[];
@@ -106,6 +118,7 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
     malformed: [],
     throughNode: [],
     endpointMisses: [],
+    misjoinedNets: [],
     crossings: [],
     contacts: [],
     overlaps: [],
@@ -280,21 +293,120 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
     }
   }
 
-  // Different nets: crossings, contacts and overlaps.
+  // Which routes may share lines (#113), from the Layout IR alone: edges
+  // leaving the same port, edges entering the same port, and edges touching
+  // junctions joined by edges. Not transitive through a port: `x → y` and
+  // `w → z` are not joined because `x → z` shares a port with each.
+  const junctionOf = new Map<ElementKey, ElementKey>();
+  const findJunction = (key: ElementKey): ElementKey => {
+    let root = key;
+    while ((junctionOf.get(root) ?? root) !== root) root = junctionOf.get(root) as ElementKey;
+    return root;
+  };
+  for (const edge of layout.edges) {
+    if (isJunction(nodeIR.get(edge.from)) && isJunction(nodeIR.get(edge.to))) {
+      const a = findJunction(edge.from);
+      const b = findJunction(edge.to);
+      if (a !== b) junctionOf.set(a < b ? b : a, a < b ? a : b);
+    }
+  }
+  interface Joins {
+    readonly leaving?: string;
+    readonly entering?: string;
+    readonly junction?: ElementKey;
+  }
+  const joinsOf = new Map<ElementKey, Joins>();
+  for (const edge of routed) {
+    const route = edge.route as NonNullable<EdgeLayout["route"]>;
+    const first = route.points[0] as Point;
+    const last = route.points[route.points.length - 1] as Point;
+    // A port: element, side, point and the direction the route runs from it
+    // (out of a group's side, or into it for an end inside the group).
+    const port = (key: ElementKey, side: string | undefined, p: Point, next: Point | undefined) =>
+      isJunction(nodeIR.get(key)) || next === undefined
+        ? undefined
+        : `${key} ${side} ${p.x},${p.y} ${Math.sign(next.x - p.x)},${Math.sign(next.y - p.y)}`;
+    const junction = [edge.from, edge.to].find((key) => isJunction(nodeIR.get(key)));
+    const leaving = port(edge.from, route.fromSide, first, route.points[1]);
+    const entering = port(edge.to, route.toSide, last, route.points[route.points.length - 2]);
+    joinsOf.set(edge.key, {
+      ...(leaving !== undefined && { leaving }),
+      ...(entering !== undefined && { entering }),
+      ...(junction !== undefined && { junction: findJunction(junction) }),
+    });
+  }
+  /** `p` and `q` may share lines: a port both leave or both enter, or joined junctions. */
+  const joined = (p: EdgeLayout, q: EdgeLayout) => {
+    const a = joinsOf.get(p.key) as Joins;
+    const b = joinsOf.get(q.key) as Joins;
+    return (
+      (a.leaving !== undefined && a.leaving === b.leaving) ||
+      (a.entering !== undefined && a.entering === b.entering) ||
+      (a.junction !== undefined && a.junction === b.junction)
+    );
+  };
+  // The nets the joins make (transitively), against the routes' nets.
+  const group = new Map<ElementKey, number>(routed.map((e, i) => [e.key, i]));
+  const findGroup = (key: ElementKey): number => {
+    let g = group.get(key) as number;
+    while (group.get((routed[g] as EdgeLayout).key) !== g) {
+      g = group.get((routed[g] as EdgeLayout).key) as number;
+    }
+    return g;
+  };
   for (const [i, p] of routed.entries()) {
     for (const q of routed.slice(i + 1)) {
-      if (netOf(p) === netOf(q)) continue;
+      if (!joined(p, q)) continue;
+      const a = findGroup(p.key);
+      const b = findGroup(q.key);
+      if (a !== b) group.set((routed[Math.max(a, b)] as EdgeLayout).key, Math.min(a, b));
+    }
+  }
+  const byNet = new Map<number, EdgeLayout[]>();
+  const byGroup = new Map<number, EdgeLayout[]>();
+  for (const e of routed) {
+    byNet.set(netOf(e), [...(byNet.get(netOf(e)) ?? []), e]);
+    byGroup.set(findGroup(e.key), [...(byGroup.get(findGroup(e.key)) ?? []), e]);
+  }
+  for (const [net, edges] of byNet) {
+    const groups = new Set(edges.map((e) => findGroup(e.key)));
+    if (groups.size > 1) {
+      report.misjoinedNets.push(
+        `net ${net} holds edges nothing joins: ${[...groups]
+          .map((g) => (byGroup.get(g) as EdgeLayout[]).map((e) => e.key).join(" "))
+          .join(" / ")}`,
+      );
+    }
+  }
+  for (const edges of byGroup.values()) {
+    const nets = new Set(edges.map(netOf));
+    if (nets.size > 1) {
+      report.misjoinedNets.push(
+        `${edges.map((e) => e.key).join(" ")} are joined but in nets ${[...nets].join(", ")}`,
+      );
+    }
+  }
+
+  // Routes that may not share lines: crossings, contacts and overlaps.
+  for (const [i, p] of routed.entries()) {
+    for (const q of routed.slice(i + 1)) {
+      if (joined(p, q)) continue;
+      // Two edges of one net that nothing joins directly (a net bridged by
+      // an edge that shares a port with each) meet at the net's branch
+      // points; only running along each other is a fault (#113).
+      const sameNet = netOf(p) === netOf(q);
       const sp = segmentsOf(pointsOf(p));
       const sq = segmentsOf(pointsOf(q));
-      for (const v of pointsOf(p)) {
+      for (const v of sameNet ? [] : pointsOf(p)) {
         if (sq.some((s) => onSegment(v, s))) report.contacts.push(`${p.key} point on ${q.key}`);
       }
-      for (const v of pointsOf(q)) {
+      for (const v of sameNet ? [] : pointsOf(q)) {
         if (sp.some((s) => onSegment(v, s))) report.contacts.push(`${q.key} point on ${p.key}`);
       }
       for (const a of sp) {
         for (const b of sq) {
           if (horizontal(a) !== horizontal(b)) {
+            if (sameNet) continue;
             const [h, v] = horizontal(a) ? [a, b] : [b, a];
             const x = v[0].x;
             const y = h[0].y;

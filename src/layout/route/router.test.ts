@@ -5,9 +5,12 @@ import { type LayoutFigureOptions, layoutStructuredFigure } from "../index";
 import type { EdgeLayout, LayoutIR, Point, Rect } from "../ir";
 import type { TextMeasurer } from "../text";
 import { checkRoutes, type RouteCheckReport, routeProblemCount } from "./check";
+import { resolveEnds } from "./ports";
 import { arrowheadLength, mergeSegments, routeEdges, simplify } from "./router";
 
 const fixtures = `${import.meta.dir}/../../../tests/fixtures`;
+/** #113's reproduction (research/109-dogfood-v0.4, A2): `api → worker` + `worker → store` at one port. */
+const sharedSegment = `${import.meta.dir}/../../../research/109-dogfood-v0.4/repro/shared-segment.sumi.yaml`;
 const goldens = `${fixtures}/layout`;
 // Set SUMI_UPDATE_GOLDEN=1 to rewrite the expected Layout IR JSON.
 const update = process.env.SUMI_UPDATE_GOLDEN === "1";
@@ -218,6 +221,166 @@ describe("nets", () => {
     );
     expect(pointsOf(value.layout, 0)).toHaveLength(2);
     expect(pointsOf(value.layout, 1).length).toBeGreaterThan(2);
+    expectClean(value);
+  });
+});
+
+describe("edges into and out of one port (#113)", () => {
+  test("the reproduction: two nets that share no line, one straight", () => {
+    const result = layoutStructuredFigure(readFileSync(sharedSegment, "utf8"));
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const value = result.value;
+    const { layout } = value;
+    expect(layout.nets?.map((n) => n.edges)).toEqual([["e:#0"], ["e:#1"]]);
+    const into = pointsOf(layout, 0);
+    const out = pointsOf(layout, 1);
+    const worker = rectOf(layout, "worker");
+    // `worker → store` keeps its anchor (west, the middle); `api → worker`
+    // has none, so it moves up (away from the store), and its end at api
+    // moves with it: still one straight line.
+    expect(out[0]).toEqual({ x: worker.x, y: worker.y + worker.height / 2 });
+    expect(into).toHaveLength(2);
+    expect((into[1] as Point).x).toBe(worker.x);
+    expect((into[1] as Point).y).toBe(worker.y + worker.height / 4);
+    expectClean(value);
+  });
+
+  test("edges leaving one port still share a trunk with each other, not with one entering it", () => {
+    const value = run(
+      figure(
+        { stack: { items: [{ row: { items: ["a", "x"] } }, { row: { items: ["b", "c"] } }] } },
+        [box("a"), box("x"), box("b"), box("c")],
+        [
+          { from: "a", to: "x" },
+          { from: "x", to: "b", fromAnchor: "west" },
+          { from: "x", to: "c", fromAnchor: "west" },
+        ],
+      ),
+    );
+    const { layout } = value;
+    expect(layout.nets?.map((n) => n.edges)).toEqual([["e:#0"], ["e:#1", "e:#2"]]);
+    expect(pointsOf(layout, 1).slice(0, 2)).toEqual(pointsOf(layout, 2).slice(0, 2));
+    expectClean(value);
+  });
+
+  test("both directions anchored at one point: layout/no-route for the later one", () => {
+    const text = figure(
+      { stack: { items: [{ row: { items: ["a", "x"] } }, "b"] } },
+      [box("a"), box("x"), box("b")],
+      [
+        { from: "a", to: "x", toAnchor: "west" },
+        { from: "x", to: "b", fromAnchor: "west" },
+      ],
+    );
+    const result = layoutStructuredFigure(text, { measurer: FAKE });
+    expect(result.diagnostics.map((d) => [d.code, d.path])).toEqual([
+      ["layout/no-route", ["edges", 1]],
+    ]);
+    expect(result.diagnostics[0]?.message).toBe(
+      'No route was found for edge edges[1] from "x" to "b": an edge leaving and an edge entering the same element are anchored at the same point of it, so they would share a line.',
+    );
+  });
+
+  test("a bridged net in a narrow gap: the branch leaves before the other edge's stub", () => {
+    // The trunk a → b is free for a → c, but where d → b's stub starts it
+    // would touch d → b (one net, not joined): that point still costs.
+    const value = run(
+      figure(
+        { row: { items: ["d", { stack: { gap: "8pt", items: ["a", "b"] } }, "c"] } },
+        [box("a"), box("b"), box("c"), box("d")],
+        [
+          { from: "a", to: "b" },
+          { from: "a", to: "c", fromAnchor: "south" },
+          { from: "d", to: "b", toAnchor: "north" },
+        ],
+      ),
+    );
+    const branch = pointsOf(value.layout, 1)[1] as Point;
+    const merge = pointsOf(value.layout, 2).at(-2) as Point;
+    expect(branch.y).toBeLessThan(merge.y);
+    expectClean(value);
+  });
+
+  test("moves that keep meeting other ports end at the first free position", () => {
+    // x's north side is taken at 1/2 + 1/4 + 1/8 … by edges leaving it: the
+    // unanchored a → x cannot halve its way out, and takes 1/4.
+    const edges = [
+      ...Array.from({ length: 9 }, (_, i) => ({
+        from: "x",
+        to: "b",
+        fromAnchor: `north:${1 - 2 ** -(i + 1)}`,
+        component: "line",
+      })),
+      { from: "a", to: "x", component: "line" },
+    ];
+    const value = run(
+      figure({ stack: { items: ["a", "x", "b"] } }, [box("a"), box("x"), box("b")], edges),
+    );
+    const x = rectOf(value.layout, "x");
+    expect((pointsOf(value.layout, 9).at(-1) as Point).x).toBe(x.x + x.width / 4);
+  });
+
+  test("a side with no free position left: layout/no-route says so, not 'anchored'", () => {
+    // Groups only (resolveEnds needs no nodes): x's north side holds an
+    // anchored edge leaving at 1/2 and at every k/1024 the fallback tries.
+    const offsets = [0.5];
+    for (let d = 4; d <= 1024; d *= 2) for (let k = 1; k < d; k += 2) offsets.push(k / d);
+    const edges = [
+      ...offsets.map((offset, i) => ({
+        key: `e:${i}`,
+        from: "g:x",
+        to: "g:b",
+        fromAnchor: { side: "north", offset },
+      })),
+      { key: "e:in", from: "g:a", to: "g:x" },
+    ];
+    const rect = (y: number) => ({ x: 100, y, width: 100, height: 20 });
+    const groups = [
+      { key: "g:a", rect: rect(0) },
+      { key: "g:x", rect: rect(100) },
+      { key: "g:b", rect: rect(200) },
+    ];
+    const ends = resolveEnds(
+      { nodes: [], edges } as unknown as Parameters<typeof resolveEnds>[0],
+      { nodes: [], groups } as unknown as Parameters<typeof resolveEnds>[1],
+    );
+    expect(ends.at(-1)).toEqual({
+      error:
+        "an edge leaving and an edge entering the same element would share a point of it, and no free position is left on that side",
+    });
+  });
+
+  test("checkRoutes: a group's side entered from outside and from inside is two ports", () => {
+    const value = run(
+      figure(
+        { stack: { items: ["x", "g"] } },
+        [box("x"), box("a")],
+        [
+          { from: "x", to: "g", toAnchor: "north", component: "line" },
+          { from: "a", to: "g", toAnchor: "north", component: "line" },
+        ],
+        [{ id: "g", label: "g", arrange: { stack: { items: ["a"] } } }],
+      ),
+    );
+    expect(new Set(value.layout.edges.map((e) => e.route?.net)).size).toBe(2);
+    expect(checkRoutes(value.ir, value.layout).misjoinedNets).toEqual([]);
+  });
+
+  test("a net bridged by an edge that shares a port with each: the two others share no line", () => {
+    // a → b shares a's south port with a → c and b's north port with d → b:
+    // one net, but a → c and d → b may only meet, never run along each other.
+    const value = run(
+      figure(
+        { row: { items: ["d", { stack: { gap: "12mm", items: ["a", "b"] } }, "c"] } },
+        [box("a"), box("b"), box("c"), box("d")],
+        [
+          { from: "a", to: "b" },
+          { from: "a", to: "c", fromAnchor: "south" },
+          { from: "d", to: "b", toAnchor: "north" },
+        ],
+      ),
+    );
+    expect(value.layout.nets?.map((n) => n.edges)).toEqual([["e:#0", "e:#1", "e:#2"]]);
     expectClean(value);
   });
 });
@@ -434,6 +597,10 @@ describe("the A* lower bound", () => {
       readFileSync(`${fixtures}/figures/layout/b-adaln-panel.sumi.yaml`, "utf8"),
       undefined,
     ],
+    // Nets per direction (#113): the bound still only counts the net's points.
+    ["#113's reproduction", readFileSync(sharedSegment, "utf8"), undefined],
+    ["synthetic columns (bridged nets)", synthetic("columns"), undefined],
+    ["synthetic grid", synthetic("grid"), undefined],
   ])("%s: the same routes as without it (Dijkstra)", (_name, text, measurer) => {
     const placed = layoutStructuredFigure(text, {
       route: false,
@@ -570,6 +737,7 @@ describe.each(["a-transformer", "b-adaln-panel"])("%s (bundled fonts)", (name) =
       malformed: [],
       throughNode: [],
       endpointMisses: [],
+      misjoinedNets: [],
       crossings: [],
       contacts: [],
       overlaps: [],
@@ -696,12 +864,28 @@ describe.each(["columns", "grid"] as const)("synthetic 100-node figure: %s", (ki
     );
     expect(result.diagnostics).toEqual([]);
     const report = checkRoutes(ir, result.layout);
-    expect({ ...report, crossings: [] }).toEqual({
+    // The grid (150 random edges among 100 boxes 6mm apart) is close to the
+    // worst case: its gutters are too crowded for a greedy router to keep
+    // every contact and overlap away. Until #113 it reported none only
+    // because edges into and out of one port were joined into one net, which
+    // hid 91 overlaps (design doc §6.22); the bound keeps it from
+    // getting worse.
+    const crowded = kind === "grid";
+    if (crowded) {
+      expect(report.contacts.length).toBeLessThanOrEqual(20);
+      expect(report.overlaps.length).toBeLessThanOrEqual(7);
+    }
+    expect({
+      ...report,
+      crossings: [],
+      ...(crowded && { contacts: [], overlaps: [] }),
+    }).toEqual({
       unrouted: [],
       nonOrthogonal: [],
       malformed: [],
       throughNode: [],
       endpointMisses: [],
+      misjoinedNets: [],
       crossings: [],
       contacts: [],
       overlaps: [],
