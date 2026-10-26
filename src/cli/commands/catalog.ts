@@ -23,7 +23,7 @@ import {
   type FullCatalog,
 } from "../../core/catalog";
 import type { ProfileCatalogEntry } from "../../core/profile/catalog";
-import { createBuiltinRegistry } from "../../core/registry/builtins";
+import { builtinRegistry } from "../../core/registry/builtins";
 import { CATALOG_VERSION, type CatalogEntry } from "../../core/registry/catalog";
 import type { ComponentKind } from "../../core/registry/manifest";
 import type { ThemeCatalogEntry } from "../../core/theme/catalog";
@@ -67,7 +67,7 @@ export function catalogCommand(options: CatalogCommandOptions, context: CliConte
   if (options.kind !== undefined && !sections.includes("components")) {
     throw new UsageError("--kind filters components; add --section components.");
   }
-  const catalog = buildFullCatalog(createBuiltinRegistry(), { sections, kind: options.kind });
+  const catalog = buildFullCatalog(builtinRegistry(), { sections, kind: options.kind });
   context.stdout.write(
     options.json ? `${JSON.stringify(catalog, null, 2)}\n` : formatCatalogText(catalog),
   );
