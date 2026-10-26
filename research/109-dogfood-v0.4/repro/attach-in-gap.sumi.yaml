@@ -1,0 +1,14 @@
+version: 1
+figure:
+  id: attach-in-gap
+  theme: academic
+  profile: paper-single
+  layout:
+    arrange:
+      stack: { gap: 3mm, items: [ a, b ] }
+nodes:
+  - { id: a, component: box, label: Block A }
+  - { id: b, component: box, label: Block B }
+  - { id: op, component: operator, props: { symbol: plus }, attach: { to: a, side: south, gap: 1mm } }
+edges:
+  - { from: a, to: op, component: line }

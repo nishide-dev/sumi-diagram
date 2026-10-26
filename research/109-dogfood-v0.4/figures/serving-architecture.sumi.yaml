@@ -1,0 +1,79 @@
+version: 1
+figure:
+  id: serving-architecture
+  theme: color
+  profile: paper-double
+  layout:
+    arrange:
+      row:
+        gap: 5mm
+        align: center
+        items: [ clients, { stack: { gap: 6mm, align: stretch, items: [ platform, storage ] } } ]
+groups:
+  - id: clients
+    label: Clients
+    arrange:
+      stack: { gap: 3mm, align: stretch, items: [ web, mobile, sdk ] }
+  - id: platform
+    label: ML platform
+    arrange:
+      stack: { gap: 6mm, align: center, items: [ { row: { gap: 8mm, align: center, items: [ api, queue ] } }, workers ] }
+  - id: api
+    label: API tier
+    arrange:
+      row:
+        gap: 6mm
+        align: center
+        items:
+          - gateway
+          - stack: { gap: 4mm, align: stretch, items: [ infer-api, train-api, auth ] }
+  - id: workers
+    label: Workers
+    arrange:
+      row:
+        gap: 5mm
+        align: end
+        items: [ gpu, prep-worker ]
+  - id: gpu
+    arrange:
+      row: { gap: 5mm, align: center, items: [ infer-worker, train-worker ] }
+  - id: storage
+    arrange:
+      row: { gap: 4mm, align: center, items: [ registry, features, objects, metadata ] }
+nodes:
+  - { id: web, component: box, label: Web app }
+  - { id: mobile, component: box, label: Mobile app }
+  - { id: sdk, component: box, label: Python SDK }
+  - { id: gateway, component: box, label: "API\ngateway", tone: blue }
+  - { id: auth, component: box, label: Auth, tone: blue }
+  - { id: infer-api, component: box, label: Inference API, tone: blue }
+  - { id: train-api, component: box, label: Training API, tone: blue }
+  - { id: queue, component: stack, label: "Job\nqueue" }
+  - { id: infer-worker, component: box, label: "Inference\nworkers", tone: purple }
+  - { id: train-worker, component: box, label: "Training\nworkers", tone: purple }
+  - { id: prep-worker, component: box, label: "Preprocess\nworkers", tone: orange }
+  - { id: registry, component: cylinder, label: Model registry }
+  - { id: features, component: cylinder, label: Feature store }
+  - { id: objects, component: cylinder, label: Object store }
+  - { id: metadata, component: cylinder, label: Metadata DB }
+  - { id: gpu-title, component: label, label: GPU pool, variant: muted, attach: { to: gpu, side: south, gap: 1mm } }
+  - { id: storage-title, component: label, label: Storage, attach: { to: storage, side: west, gap: 2mm } }
+edges:
+  - { from: web, to: gateway }
+  - { from: mobile, to: gateway }
+  - { from: sdk, to: gateway }
+  - { from: gateway, to: infer-api }
+  - { from: gateway, to: train-api }
+  - { from: gateway, to: auth }
+  - { from: infer-api, to: infer-worker, label: gRPC }
+  - { from: train-api, to: queue }
+  - { from: queue, to: train-worker }
+  - { from: queue, to: prep-worker }
+  - { from: infer-worker, fromAnchor: "south:0.3", to: registry, toAnchor: "north:0.35" }
+  - { from: train-worker, fromAnchor: "south:0.3", to: registry, toAnchor: "north:0.65" }
+  - { from: infer-worker, fromAnchor: "south:0.7", to: features, toAnchor: "north:0.25" }
+  - { from: train-worker, fromAnchor: "south:0.7", to: features, toAnchor: "north:0.5" }
+  - { from: prep-worker, fromAnchor: "south:0.3", to: features, toAnchor: "north:0.75" }
+  - { from: prep-worker, fromAnchor: "south:0.7", to: objects }
+  - { from: train-api, to: metadata }
+  - { from: auth, to: metadata }

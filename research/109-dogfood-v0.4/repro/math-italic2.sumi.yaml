@@ -1,0 +1,17 @@
+version: 1
+figure:
+  id: math-italic2
+  theme: academic
+  profile: paper-single
+  layout:
+    arrange:
+      stack: { gap: 3mm, items: [ a, b, c, d, e, f ] }
+nodes:
+  - { id: a, component: label, label: '$y \nabla x$' }
+  - { id: b, component: label, label: '$y \to x$' }
+  - { id: c, component: label, label: '$y \mid x$' }
+  - { id: d, component: label, label: '$y \leq x$' }
+  - { id: e, component: label, label: '$y \times x$' }
+  - { id: f, component: label, label: '$y \partial x$' }
+edges:
+  - { from: a, to: b, component: line }
