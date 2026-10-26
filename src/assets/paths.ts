@@ -119,6 +119,10 @@ export function readAssetFile(base: string, src: string, maxBytes: number): Read
     // writer in the figure's directory would have to swap it back and forth
     // between each step; see design doc §6.25).
     const opened = openedPath(fd);
+    if (opened === undefined && process.platform === "linux") {
+      // Fail closed where the descriptor's path should be known.
+      return { ok: false, reason: "not-found", message: "the opened file cannot be verified" };
+    }
     let again: string;
     try {
       again = opened ?? realpathSync(join(realBase, ...src.split("/")));
