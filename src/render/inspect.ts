@@ -48,6 +48,22 @@ export interface LabelGeometry {
    * e.g. `bold`, `italic`, `mono`, `mono-bold`. Selects the TTF to re-measure with (#13).
    */
   font: string;
+  /**
+   * The runs of each line, for labels drawn with nested `<tspan>`s (#93:
+   * label math in structured figures). Absent for labels whose lines are
+   * plain text in `font` (every D2 label).
+   */
+  runs?: LabelRunGeometry[][];
+}
+
+/** A run of a label line: text drawn in one font class, size and baseline. */
+export interface LabelRunGeometry {
+  text: string;
+  /** Font class, like `LabelGeometry.font` (`regular`, `math`, `math-italic`, …). */
+  font: string;
+  fontSizeUnits: number;
+  /** Baseline offset from the line's baseline in D2 units, positive down. */
+  shiftUnits: number;
 }
 
 export interface ElementGeometry {
@@ -180,6 +196,18 @@ function addShape(bounds: BoundsBuilder, shape: XmlElement, problems: string[]):
   }
 }
 
+const FONT_SIZE_PX = /(?:^|;)\s*font-size\s*:\s*([\d.]+)px\s*(?:;|$)/;
+
+/** The font class of an element without the `text` prefix, or `undefined` if it has none. */
+function fontClassOf(element: XmlElement): string | undefined {
+  const fontClass = classList(element).find((c) => c === "text" || c.startsWith("text-"));
+  return fontClass === undefined
+    ? undefined
+    : fontClass === "text"
+      ? "regular"
+      : fontClass.slice(5);
+}
+
 /** Reads a `<text>` label. Returns a problem description on failure. */
 function readLabel(text: XmlElement): LabelGeometry | string {
   if (attribute(text, "transform") !== undefined) return "<text> has a transform";
@@ -187,30 +215,59 @@ function readLabel(text: XmlElement): LabelGeometry | string {
   const y = parseNumber(attribute(text, "y"));
   if (x === undefined || y === undefined) return "<text> lacks a numeric x/y";
   const style = attribute(text, "style") ?? "";
-  const fontSize =
-    /(?:^|;)\s*font-size\s*:\s*([\d.]+)px\s*(?:;|$)/.exec(style)?.[1] ??
-    attribute(text, "font-size");
+  const fontSize = FONT_SIZE_PX.exec(style)?.[1] ?? attribute(text, "font-size");
   const fontSizeUnits = parseNumber(fontSize);
   if (fontSizeUnits === undefined) return "<text> has no font-size in px";
   if (!/(?:^|;)\s*text-anchor\s*:\s*middle\s*(?:;|$)/.test(style)) {
     return "<text> is not centered (text-anchor: middle)";
   }
-  const fontClass = classList(text).find((c) => c === "text" || c.startsWith("text-"));
+  const font = fontClassOf(text) ?? "regular";
   const tspans = childElements(text).filter((c) => c.name === "tspan");
-  let lineHeightUnits = fontSizeUnits;
+  // `pen` follows the baseline through every dy (lines and runs alike); a
+  // line's baseline is where its own dy puts the pen.
+  let pen = 0;
+  const baselines: number[] = [];
+  const runs: LabelRunGeometry[][] = [];
+  let rich = false;
   for (const [i, tspan] of tspans.entries()) {
     const dy = attribute(tspan, "dy");
     const value = parseNumber(dy ?? "0");
-    // Later lines may advance by 0 (D2 does so for labels of blank lines only), never backwards.
-    if (value === undefined || (i === 0 ? value !== 0 : value < 0)) {
+    if (value === undefined || (i === 0 && value !== 0)) {
       return `<tspan> has an unsupported dy "${dy}"`;
     }
     const tspanX = attribute(tspan, "x");
     if (tspanX !== undefined && parseNumber(tspanX) !== x) {
       return `<tspan> has x "${tspanX}" different from its <text>`;
     }
-    if (i === 1) lineHeightUnits = value;
-    else if (i > 1 && value !== lineHeightUnits) return "<tspan>s have different line heights";
+    pen += value;
+    const baseline = pen;
+    baselines.push(baseline);
+    const line: LabelRunGeometry[] = [];
+    for (const child of tspan.children) {
+      if (child.type === "text") {
+        if (child.text !== "") {
+          line.push({ text: child.text, font, fontSizeUnits, shiftUnits: pen - baseline });
+        }
+        continue;
+      }
+      rich = true;
+      const run = readRun(child, font, fontSizeUnits);
+      if (typeof run === "string") return run;
+      pen += run.dy;
+      line.push({ ...run.geometry, shiftUnits: pen - baseline });
+    }
+    runs.push(line);
+  }
+  // Lines advance by equal steps; later lines may advance by 0 (D2 does so
+  // for labels of blank lines only), never backwards.
+  let lineHeightUnits = fontSizeUnits;
+  for (let i = 1; i < baselines.length; i++) {
+    const step = (baselines[i] as number) - (baselines[i - 1] as number);
+    if (step < 0) {
+      return `<tspan> has an unsupported dy "${attribute(tspans[i] as XmlElement, "dy")}"`;
+    }
+    if (i === 1) lineHeightUnits = step;
+    else if (Math.abs(step - lineHeightUnits) > 1e-6) return "<tspan>s have different line heights";
   }
   return {
     text: tspans.length > 0 ? tspans.map(textContent).join("\n") : textContent(text),
@@ -218,7 +275,37 @@ function readLabel(text: XmlElement): LabelGeometry | string {
     fontSizeUnits,
     lines: Math.max(tspans.length, 1),
     lineHeightUnits,
-    font: fontClass === undefined || fontClass === "text" ? "regular" : fontClass.slice(5),
+    font,
+    ...(rich && { runs }),
+  };
+}
+
+/** Reads a run `<tspan>` inside a line (#93): text only, with optional font class, font-size and dy. */
+function readRun(
+  tspan: XmlElement,
+  font: string,
+  fontSizeUnits: number,
+): { geometry: Omit<LabelRunGeometry, "shiftUnits">; dy: number } | string {
+  if (tspan.name !== "tspan") return `<${tspan.name}> inside a label line`;
+  for (const { name } of tspan.attributes) {
+    if (!["class", "style", "dy"].includes(name)) return `a run <tspan> has the attribute ${name}`;
+  }
+  if (childElements(tspan).length > 0) return "a run <tspan> has nested elements";
+  const style = attribute(tspan, "style");
+  let size = fontSizeUnits;
+  if (style !== undefined) {
+    const px = parseNumber(FONT_SIZE_PX.exec(style)?.[1]);
+    if (px === undefined || style.replace(FONT_SIZE_PX, "").trim() !== "") {
+      return `a run <tspan> has an unsupported style "${style}"`;
+    }
+    size = px;
+  }
+  const dyText = attribute(tspan, "dy");
+  const dy = parseNumber(dyText ?? "0");
+  if (dy === undefined) return `a run <tspan> has an unsupported dy "${dyText}"`;
+  return {
+    geometry: { text: textContent(tspan), font: fontClassOf(tspan) ?? font, fontSizeUnits: size },
+    dy,
   };
 }
 

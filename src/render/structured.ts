@@ -42,7 +42,7 @@ import type { ElementKey } from "../core/check-state";
 import type { Arrowhead } from "../core/registry/manifest";
 import type { FontSet } from "../core/theme/fonts";
 import type { CommonStyle } from "../core/theme/style";
-import type { LayoutIR, Point, Rect, TextLayout } from "../layout/ir";
+import type { LayoutIR, Point, Rect, TextLayout, TextRun } from "../layout/ir";
 import { arrowheadLength } from "../layout/route/router";
 import { fontFileFor } from "../lint/geometry/measure";
 import { CYLINDER_ARC_UNITS, shapeOutline } from "../lint/geometry/shapes";
@@ -101,12 +101,50 @@ const textClass = (font: string): string => (font === "regular" ? "text" : `text
 
 function label(layout: TextLayout, color: string): string {
   const { anchor, lines } = layout;
+  if (layout.runs !== undefined) return richLabel(layout, layout.runs, color);
   const open = `<text x="${n(anchor.x)}" y="${n(anchor.y)}" fill="${paint(color)}" class="${textClass(layout.font)}" style="text-anchor:middle;font-size:${n(layout.fontSizeUnits)}px">`;
   if (lines.length === 1) return `${open}${text(lines[0] as string)}</text>`;
   const spans = lines.map(
     (line, i) =>
       `<tspan x="${n(anchor.x)}" dy="${i === 0 ? "0" : n(layout.lineHeightUnits)}">${text(line)}</tspan>`,
   );
+  return `${open}${spans.join("")}</text>`;
+}
+
+/**
+ * A label with runs (#93): every line is a `<tspan x dy>` (also a single
+ * one), holding its runs in order. A run in the label's font, size and
+ * baseline is plain text; others are a `<tspan>` with the font class, the
+ * `font-size` and a `dy` from the previous baseline. A line's `dy` is the
+ * line height from the previous line's baseline, minus where the previous
+ * line's last run left the pen. `font-kerning: none`: the layout measures
+ * advance widths without kerning (STIX Two has kerning; BIZ UD has none).
+ */
+function richLabel(
+  layout: TextLayout,
+  runs: readonly (readonly TextRun[])[],
+  color: string,
+): string {
+  const { anchor } = layout;
+  const open = `<text x="${n(anchor.x)}" y="${n(anchor.y)}" fill="${paint(color)}" class="${textClass(layout.font)}" style="text-anchor:middle;font-size:${n(layout.fontSizeUnits)}px;font-kerning:none">`;
+  let pen = 0; // the current baseline offset from the line's baseline
+  const spans = runs.map((line, i) => {
+    const dy = i === 0 ? 0 : layout.lineHeightUnits - pen;
+    pen = 0;
+    const content = line
+      .map((run) => {
+        const attributes =
+          (run.font === layout.font ? "" : ` class="${textClass(run.font)}"`) +
+          (run.fontSizeUnits === layout.fontSizeUnits
+            ? ""
+            : ` style="font-size:${n(run.fontSizeUnits)}px"`) +
+          (run.shiftUnits === pen ? "" : ` dy="${n(run.shiftUnits - pen)}"`);
+        pen = run.shiftUnits;
+        return attributes === "" ? text(run.text) : `<tspan${attributes}>${text(run.text)}</tspan>`;
+      })
+      .join("");
+    return `<tspan x="${n(anchor.x)}" dy="${n(dy)}">${content}</tspan>`;
+  });
   return `${open}${spans.join("")}</text>`;
 }
 
@@ -455,7 +493,9 @@ export function writeStructuredSvg(ir: FigureIR, layout: LayoutIR, fonts: FontSe
   const body: string[] = [];
   const used = new Map<string, string>();
   const useText = (t: TextLayout | undefined) => {
-    if (t !== undefined) used.set(t.font, (used.get(t.font) ?? "") + t.lines.join(""));
+    if (t === undefined) return;
+    const runs = t.runs?.flat() ?? [{ font: t.font, text: t.lines.join("") }];
+    for (const run of runs) used.set(run.font, (used.get(run.font) ?? "") + run.text);
   };
   for (const g of layout.groups) {
     const group = groups.get(g.key);

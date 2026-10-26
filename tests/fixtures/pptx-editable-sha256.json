@@ -1,8 +1,8 @@
 {
   "examples/decision-flow/decision-flow.freeform": "a390d91598684ed8f58afce4308ae7b727d6cff96a45eff3e94d740b7f8238e6",
   "examples/decision-flow/decision-flow.glued": "bcea77dfea7d05803029a8df834135efad8b38ca354ea451c829454101d9e4c4",
-  "examples/dit-block/dit-block.freeform": "854899ad5847afc94ead6c88c1e03dd1fe01fdd1993d46c7e417348fc6d28e5e",
-  "examples/dit-block/dit-block.glued": "589ffab0bd68020de728bc44ae9b4b88737210d6d84f86c72ffff92ad7e35467",
+  "examples/dit-block/dit-block.freeform": "b620ac4855d9cc0a902e7979741d03167b86b200f92030c01a81b9d4e35e6932",
+  "examples/dit-block/dit-block.glued": "22c4f800455be78f0f1d81b2363fd2e01e9887bbc8ae3d154e52d3d7543b9dde",
   "examples/grouped/grouped.freeform": "197d74b5ff9b07fa1a17550dacf8dc1574a75eea84d8a39af77fe97ef4533af9",
   "examples/grouped/grouped.glued": "8430a8cca673f719cbe34f74de1144b49fa5c262b167e41a36ba4383510e1a86",
   "examples/pipeline/pipeline.freeform": "e3a01664a8a9a38b445aee5eaa326a4740e5d66ce9baa6ddec3fe168d1479a99",

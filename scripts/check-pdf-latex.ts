@@ -47,7 +47,12 @@ function fonts(table: string): string[] {
         fields.slice(-5, -2).join(" ") === "yes yes yes",
         `Font is not embedded/subset/Unicode: ${row}`,
       );
-      check(/^[A-Z]{6}\+BIZUDP?Gothic-(Regular|Bold)$/.test(name), `Unexpected font: ${row}`);
+      check(
+        /^[A-Z]{6}\+(BIZUDP?Gothic-(Regular|Bold)|STIXTwoMath-Regular|STIXTwoText-Italic)$/.test(
+          name,
+        ),
+        `Unexpected font: ${row}`,
+      );
       return name.replace(/^[A-Z]{6}\+/, "");
     })
     .sort();

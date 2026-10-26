@@ -70,6 +70,26 @@ export interface TextMetrics {
   readonly width: number;
   /** `lines.length × lineHeightUnits`. */
   readonly height: number;
+  /**
+   * The runs of each line (#93): label math and characters drawn with the
+   * math font. Omitted for a label drawn in its one `font` (then each line
+   * is one run). With runs, `ascentUnits` / `descentUnits` cover every run
+   * (scripts reach above and below the font's line), and `lineHeightUnits`
+   * is at least their sum.
+   */
+  readonly runs?: readonly (readonly TextRun[])[];
+}
+
+/** A piece of a line drawn in one font, size and baseline (#93). */
+export interface TextRun {
+  readonly text: string;
+  /** Font class: the label's (`regular`, `bold`, …) or `math` / `math-italic`. */
+  readonly font: string;
+  readonly fontSizeUnits: number;
+  /** Baseline offset from the line's baseline in units, positive down (subscripts). */
+  readonly shiftUnits: number;
+  /** Advance width in units (not rounded). Runs follow one another without gaps. */
+  readonly width: number;
 }
 
 /** A placed label: metrics plus where it is drawn. */

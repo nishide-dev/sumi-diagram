@@ -18,6 +18,8 @@
  *    as text in embedded font subsets, no raster images, and the same bytes
  *    as the PDF engine produces from source for that SVG (so every target
  *    writes the same PDF); its sha256 is printed for comparison across targets
+ * 6b. a structured figure with label math (#93) renders to PDF with the bundled
+ *    STIX Two math fonts embedded and its math extractable as text
  *
  * Exits 1 on the first failure.
  */
@@ -69,6 +71,22 @@ edges:
   - from: parse
     to: output
 `;
+/** A structured figure with label math (#93): needs the math fonts from share/sumi/fonts. */
+const MATH_FIGURE = `version: 1
+figure:
+  id: math
+  theme: color
+  profile: paper-single
+  layout:
+    arrange:
+      stack: { gap: 8mm, items: [a, b] }
+nodes:
+  - { id: a, component: box, label: 'Scale $\\gamma_1,\\beta_1$' }
+  - { id: b, component: box, label: 'x₂ $32 \\times 32$' }
+edges:
+  - { from: a, to: b, label: $\\alpha_2$ }
+`;
+
 const EXPECTED_LABELS = ["入力データ", "構文解析", "出力 (SVG)", "読み込み", "処理系"];
 
 class SmokeFailure extends Error {}
@@ -126,6 +144,7 @@ async function smoke(tarballArg: string, keep: boolean): Promise<void> {
       "NOTICE",
       "licenses/d2/LICENSE.txt",
       "licenses/biz-ud-gothic/OFL.txt",
+      "licenses/stix-two/OFL.txt",
       "licenses/bun/LICENSE.md",
       "licenses/pdf-wasm/THIRD_PARTY.md",
       "licenses/pdf-wasm/krilla-0.8.2/NOTICE.md",
@@ -261,6 +280,22 @@ async function smoke(tarballArg: string, keep: boolean): Promise<void> {
         `${label}: sumi render wrote a ${widthPt} × ${heightPt}pt vector PDF with the labels as text (sha256 ${sha256Hex(pdf)})`,
       );
     }
+
+    // 6b. Label math draws with the bundled STIX Two fonts (#93).
+    await Bun.write(join(work, "math.sumi.yaml"), MATH_FIGURE);
+    await sumiAt(sumi, ["render", "math.sumi.yaml", "-o", "math.pdf"]);
+    const mathPdf = inspectPdf(new Uint8Array(await readFile(join(work, "math.pdf"))));
+    const mathFonts = mathPdf.fonts.map((f) => f.baseFont.replace(/^[A-Z]{6}\+/, "")).sort();
+    check(
+      mathFonts.includes("STIXTwoMath-Regular") && mathFonts.includes("STIXTwoText-Italic"),
+      `label math PDF lacks the STIX Two fonts: ${mathFonts.join(", ")}`,
+    );
+    const mathText = mathPdf.glyphs.map((g) => g.text).join("");
+    check(
+      ["γ1,β1", "α2", "x₂", "32\u2005×\u200532"].every((t) => mathText.includes(t)),
+      `label math PDF text is ${JSON.stringify(mathText)}`,
+    );
+    step(`label math: structured PDF with ${mathFonts.join(", ")}; text "γ1,β1" extracts`);
 
     // 7. Picture PPTX uses the same embedded WASM, without Bun/Node on PATH.
     const pptxSource = svgToPptx(svg);

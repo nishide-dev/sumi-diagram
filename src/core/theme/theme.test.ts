@@ -56,7 +56,13 @@ describe("font sets", () => {
     expect([...BUILTIN_FONT_SETS.keys()]).toEqual(["sumi/biz-ud-gothic"]);
     const set = defaultFontSet();
     expect(set.italic).toBeUndefined();
-    for (const file of [set.regular, set.bold, set.mono ?? ""]) {
+    for (const file of [
+      set.regular,
+      set.bold,
+      set.mono ?? "",
+      set.math ?? "",
+      set.mathItalic ?? "",
+    ]) {
       expect(isAbsolute(file)).toBe(true);
       expect(file.endsWith(".ttf")).toBe(true);
       expect(existsSync(file)).toBe(true);
@@ -65,10 +71,11 @@ describe("font sets", () => {
 
   test("every bundled font file has a checksum that matches the file and its README", async () => {
     const set = defaultFontSet();
-    const files = [set.regular, set.bold, set.mono ?? ""];
+    const files = [set.regular, set.bold, set.mono ?? "", set.math ?? "", set.mathItalic ?? ""];
     expect([...BUNDLED_FONT_SHA256.keys()].sort()).toEqual([...files].sort());
-    const readme = await Bun.file(join(dirname(set.regular), "README.md")).text();
     for (const [file, expected] of BUNDLED_FONT_SHA256) {
+      // Each font directory's README records its files.
+      const readme = await Bun.file(join(dirname(file), "README.md")).text();
       const bytes = await Bun.file(file).bytes();
       expect(new Bun.CryptoHasher("sha256").update(bytes).digest("hex")).toBe(expected);
       expect(readme).toContain(`\`${basename(file)}\` | ${bytes.length} | \`${expected}\``);

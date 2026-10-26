@@ -13,6 +13,7 @@
  *                              crate in the PDF engine embedded in bin/sumi (#59)
  *   licenses/d2/               D2's LICENSE.txt / THIRD_PARTY_NOTICES.txt
  *   licenses/biz-ud-gothic/    the fonts' OFL.txt
+ *   licenses/stix-two/         the math fonts' OFL.txt (#93)
  *   LICENSE                    Sumi's license (MIT)
  *   NOTICE  README.md  VERSION
  *   SHA256SUMS                 sha256 of every other file in the tree
@@ -176,6 +177,13 @@ ${npm}
    Copyright 2022 The BIZ UDGothic Project Authors.
    License: SIL Open Font License 1.1, see licenses/biz-ud-gothic/OFL.txt.
    Unmodified fonts from https://github.com/googlefonts/morisawa-biz-ud-gothic/releases/tag/v1.051
+
+4. STIX Two Math / STIX Two Text Italic 2.13 (share/sumi/fonts/stix-two)
+   Copyright 2001-2021 The STIX Fonts Project Authors; portions copyright
+   MicroPress, Inc. (Reserved Font Name TM Math), Elsevier, Inc. and Adobe
+   Systems Incorporated. STIX Fonts is a trademark of the IEEE.
+   License: SIL Open Font License 1.1, see licenses/stix-two/OFL.txt.
+   Unmodified fonts from https://github.com/stipub/stixfonts/tree/v2.13/fonts/static_ttf
 `;
 }
 
@@ -307,11 +315,10 @@ async function build(argv: string[]): Promise<void> {
       const staged = at(join(RELEASE_LAYOUT.fonts, relative(FONT_ASSETS_DIR, font)));
       if (!existsSync(staged)) throw new Error(`Bundled font missing from the stage: ${font}`);
     }
-    await mkdir(at("licenses/biz-ud-gothic"), { recursive: true });
-    await copyFile(
-      join(FONT_ASSETS_DIR, "biz-ud-gothic", "OFL.txt"),
-      at("licenses/biz-ud-gothic/OFL.txt"),
-    );
+    for (const dir of ["biz-ud-gothic", "stix-two"]) {
+      await mkdir(at(`licenses/${dir}`), { recursive: true });
+      await copyFile(join(FONT_ASSETS_DIR, dir, "OFL.txt"), at(`licenses/${dir}/OFL.txt`));
+    }
 
     // 4. Top-level documents.
     const license = join(ROOT, "LICENSE");

@@ -78,7 +78,9 @@ describe.each(EXAMPLES)("%s", (example) => {
     expect(inspected.fonts.length).toBeGreaterThan(0);
     for (const font of inspected.fonts) {
       expect(font).toMatchObject({ subtype: "CIDFontType2", embedded: true, subset: true });
-      expect(font.baseFont).toMatch(/^[A-Z]{6}\+BIZUDP?Gothic-(Regular|Bold)$/);
+      expect(font.baseFont).toMatch(
+        /^[A-Z]{6}\+(BIZUDP?Gothic-(Regular|Bold)|STIXTwoMath-Regular|STIXTwoText-Italic)$/,
+      );
     }
   });
 
@@ -110,28 +112,44 @@ describe.each(EXAMPLES)("%s", (example) => {
     const lines = textLines(inspected.glyphs);
     const unmatched = new Set(lines);
     let expected = 0;
+    const expectText = (
+      text: string,
+      box: { x: number; width: number },
+      y: number,
+      size: number,
+    ) => {
+      expected++;
+      const x0 = (box.x - vb.x) * 0.5;
+      const width = box.width * 0.5;
+      const baseline = pageHeight - (y - vb.y) * 0.5;
+      const hit = lines.find(
+        (l) =>
+          unmatched.has(l) &&
+          l.text === text &&
+          Math.abs(l.x0 - x0) < 0.01 &&
+          Math.abs(l.y - baseline) < 0.01,
+      );
+      expect(hit, `"${text}" at x ${x0}, baseline ${baseline}`).toBeDefined();
+      if (hit === undefined) return;
+      unmatched.delete(hit);
+      expect(Math.abs(hit.x1 - hit.x0 - width)).toBeLessThan(0.01);
+      expect(hit.size).toBeCloseTo(size * 0.5, 4);
+    };
     for (const element of inspection.value.elements) {
       for (const label of element.labels) {
         const measured = measureLabel(label, fontSet);
+        if (measured.runs !== undefined) {
+          // Label math (#93): every run is text in its font, size and baseline.
+          for (const run of measured.runs.flat()) {
+            if (run.text.trim() === "") continue;
+            expectText(run.text, run.box, run.baseline, run.fontSizeUnits);
+          }
+          continue;
+        }
         renderedLines(label.text).forEach((text, i) => {
           const box = measured.lines[i];
           if (box === undefined || text.trim() === "") return;
-          expected++;
-          const x0 = (box.x - vb.x) * 0.5;
-          const width = box.width * 0.5;
-          const baseline = pageHeight - (label.anchor.y + i * label.lineHeightUnits - vb.y) * 0.5;
-          const hit = lines.find(
-            (l) =>
-              unmatched.has(l) &&
-              l.text === text &&
-              Math.abs(l.x0 - x0) < 0.01 &&
-              Math.abs(l.y - baseline) < 0.01,
-          );
-          expect(hit, `"${text}" at x ${x0}, baseline ${baseline}`).toBeDefined();
-          if (hit === undefined) return;
-          unmatched.delete(hit);
-          expect(Math.abs(hit.x1 - hit.x0 - width)).toBeLessThan(0.01);
-          expect(hit.size).toBeCloseTo(label.fontSizeUnits * 0.5, 4);
+          expectText(text, box, label.anchor.y + i * label.lineHeightUnits, label.fontSizeUnits);
         });
       }
     }

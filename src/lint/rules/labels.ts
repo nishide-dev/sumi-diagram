@@ -1,12 +1,15 @@
 /** Rules on element labels: presence, length and glyph coverage. */
 
 import { z } from "zod";
+import { labelRuns } from "../../core/label/runs";
 import { markText } from "../../core/registry/manifest";
 import { isBlankForD2 } from "../../core/registry/resolve";
 import type { FontSet } from "../../core/theme/fonts";
 import type { ResolvedStyle } from "../../core/theme/style";
+import { fontClassOf } from "../../layout/text";
 import { loadGlyphCoverage } from "../cmap";
-import { defineRule, type LintFinding, type ValidElement } from "../rule";
+import { fontFileFor } from "../geometry/measure";
+import { defineRule, type LintContext, type LintFinding, type ValidElement } from "../rule";
 import { displayWidth, formatCodePoint, glyphCodePoints, labelLines } from "../text";
 
 /** `node "api"`, `group "backend"`, `edge "e1"` or `edge edges[2]`. */
@@ -66,7 +69,7 @@ export const longLabel = defineRule({
     for (const element of context.elements) {
       const { label } = element.element;
       if (label === "") continue;
-      const lines = labelLines(label);
+      const lines = drawnLines(context.state, element) ?? labelLines(label);
       const widest = Math.max(...lines.map(displayWidth));
       const problems: string[] = [];
       if (widest > maxLineWidth) {
@@ -84,6 +87,18 @@ export const longLabel = defineRule({
     return findings;
   },
 });
+
+/**
+ * The lines of a label as a structured figure draws them (#93: label math
+ * rendered, `\$` unescaped), or `undefined` in `auto` figures, where D2
+ * draws the label as written.
+ */
+function drawnLines(state: LintContext["state"], element: ValidElement): string[] | undefined {
+  if (state.doc.figure?.layout?.engine !== "structured" || element.style === undefined) {
+    return undefined;
+  }
+  return labelRuns(element.element.label, { font: fontClassOf(element.style) }).lines;
+}
 
 type FontSlot = "regular" | "bold" | "italic" | "mono";
 
@@ -122,8 +137,25 @@ export const missingGlyph = defineRule({
         mark?.type === "glyph" ? [...element.path, "props", mark.prop] : [...element.path, "label"];
       if (label === "" || element.style === undefined) continue;
       const font = labelFont(element.style, fonts);
-      const coverage = loadGlyphCoverage(font.path);
-      const missing = glyphCodePoints(label).filter((cp) => !coverage.has(cp));
+      let missing: number[];
+      let from = `the ${font.slot} font`;
+      if (mark === undefined && context.state.doc.figure?.layout?.engine === "structured") {
+        // Structured figures (#93) draw label math with the math fonts, and
+        // text the label's font lacks with the math font: check each run.
+        const covers = (f: string, cp: number) => loadGlyphCoverage(fontFileFor(f, fonts)).has(cp);
+        const fontClass = fontClassOf(element.style);
+        const drawn = labelRuns(label, { font: fontClass, covers });
+        const runs = drawn.runs?.flat() ?? [{ text: drawn.lines.join("\n"), font: fontClass }];
+        missing = [
+          ...new Set(
+            runs.flatMap((r) => glyphCodePoints(r.text).filter((cp) => !covers(r.font, cp))),
+          ),
+        ];
+        if (fonts.math !== undefined) from = `the ${font.slot} and math fonts`;
+      } else {
+        const coverage = loadGlyphCoverage(font.path);
+        missing = glyphCodePoints(label).filter((cp) => !coverage.has(cp));
+      }
       if (missing.length === 0) continue;
       const listed = missing
         .slice(0, MAX_LISTED)
@@ -131,7 +163,7 @@ export const missingGlyph = defineRule({
       if (missing.length > MAX_LISTED) listed.push(`and ${missing.length - MAX_LISTED} more`);
       const plural = missing.length === 1 ? "a character" : `${missing.length} characters`;
       findings.push({
-        message: `The ${mark === undefined ? "label" : "symbol"} of ${describeElement(element)} has ${plural} missing from the ${font.slot} font of font set ${fonts.id}: ${listed.join(", ")}.`,
+        message: `The ${mark === undefined ? "label" : "symbol"} of ${describeElement(element)} has ${plural} missing from ${from} of font set ${fonts.id}: ${listed.join(", ")}.`,
         path: at,
         subject: element.subject,
         hint: "Viewers draw missing characters with a fallback font or as empty boxes; replace them, or use a theme whose font set covers them.",

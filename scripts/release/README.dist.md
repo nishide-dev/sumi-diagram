@@ -10,7 +10,7 @@ Sumi は、事前定義されたコンポーネントとデザインシステム
 | --- | --- |
 | `bin/sumi` | Sumi 本体（単一実行ファイル） |
 | `libexec/sumi/d2` | レイアウトに使う D2 CLI v{{d2Version}}（MPL-2.0。`licenses/d2/`） |
-| `share/sumi/fonts/` | 同梱フォント BIZ UD ゴシック（SIL OFL 1.1。`licenses/biz-ud-gothic/`） |
+| `share/sumi/fonts/` | 同梱フォント BIZ UD ゴシック（SIL OFL 1.1。`licenses/biz-ud-gothic/`）と、ラベルの数式用の STIX Two Math・STIX Two Text Italic（SIL OFL 1.1。`licenses/stix-two/`） |
 | `LICENSE` | Sumi のライセンス（MIT） |
 | `licenses/bun/`・`licenses/npm/` | `bin/sumi` に含まれる Bun ランタイムと npm パッケージのライセンス |
 | `licenses/pdf-wasm/` | `bin/sumi` に含まれる PDF エンジン（krilla・krilla-svg と Rust の依存クレート。WebAssembly）のライセンスと一覧（`THIRD_PARTY.md`） |

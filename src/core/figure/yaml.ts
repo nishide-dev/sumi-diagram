@@ -14,6 +14,7 @@ import {
   type Node,
   type Pair,
   parseAllDocuments,
+  type Scalar,
 } from "yaml";
 import type { Diagnostic, DocPath, SourceLocation } from "../diagnostics";
 
@@ -21,9 +22,15 @@ import type { Diagnostic, DocPath, SourceLocation } from "../diagnostics";
  * Maps a document path to its source location. Resolves to the nearest
  * existing ancestor when the path does not exist (e.g. a missing field points
  * at its parent mapping). With `key: true`, a mapping entry resolves to its key
- * instead of its value.
+ * instead of its value. With `span` (UTF-16 offsets into a string value), a
+ * string scalar resolves to that part of its source when the value maps to
+ * the source character by character (single-line plain, single- or
+ * double-quoted scalars); otherwise to the whole scalar.
  */
-export type Locator = (path: DocPath, options?: { key?: boolean }) => SourceLocation | undefined;
+export type Locator = (
+  path: DocPath,
+  options?: { key?: boolean; span?: readonly [number, number] },
+) => SourceLocation | undefined;
 
 export interface YamlSource {
   /** The document as plain JS data (YAML 1.2 core schema). */
@@ -191,29 +198,112 @@ export function parseYaml(text: string, file?: string): ParseYamlResult {
   if (diagnostics.length > 0) return { diagnostics };
 
   const locate: Locator = (path, options = {}) => {
+    const located = locateNode(path, options);
+    const { node } = located;
+    if (options.span !== undefined && isScalar(node) && node.range) {
+      const start = scalarSourceOffset(text, node, options.span[0]);
+      const end = scalarSourceOffset(text, node, options.span[1]);
+      if (start !== undefined && end !== undefined) return toLocation(start, end);
+    }
+    return located.location;
+  };
+
+  const locateNode = (
+    path: DocPath,
+    options: { key?: boolean },
+  ): { node: Node | null; location: SourceLocation | undefined } => {
     let node: Node | null = doc.contents;
     let located = node ? nodeLocation(node) : undefined;
     for (const [i, segment] of path.entries()) {
       if (isMap(node)) {
         const pair = node.items.find((p) => isScalar(p.key) && p.key.value === segment);
-        if (!pair) break;
+        if (!pair) return { node: null, location: located };
         if (options.key && i === path.length - 1 && isScalar(pair.key)) {
-          return nodeLocation(pair.key) ?? located;
+          return { node: null, location: nodeLocation(pair.key) ?? located };
         }
         node = pair.value as Node | null;
       } else if (isSeq(node) && typeof segment === "number") {
         node = (node.items[segment] as Node | undefined) ?? null;
       } else {
-        break;
+        return { node: null, location: located };
       }
-      if (!node) break;
+      if (!node) return { node: null, location: located };
       located = nodeLocation(node) ?? located;
     }
-    return located;
+    return { node, location: located };
   };
 
   return { source: { value: doc.toJS(), locate }, diagnostics };
 }
+
+/**
+ * The source offset of UTF-16 offset `index` (0 … length) of a string
+ * scalar's value, when the value maps to its source character by character:
+ * a plain scalar on one line, or a single- / double-quoted scalar on one line
+ * (`''` and the escapes are decoded, so offsets after them stay exact).
+ * `undefined` otherwise (block scalars, folded lines, non-string values).
+ */
+export function scalarSourceOffset(text: string, node: Scalar, index: number): number | undefined {
+  const { range } = node;
+  const value = node.value;
+  if (!range || typeof value !== "string" || index < 0 || index > value.length) return undefined;
+  const source = text.slice(range[0], range[1]);
+  if (source.includes("\n") || source.includes("\r")) return undefined;
+  if (node.type === "PLAIN") return source === value ? range[0] + index : undefined;
+  if (node.type !== "QUOTE_SINGLE" && node.type !== "QUOTE_DOUBLE") return undefined;
+  const quote = node.type === "QUOTE_SINGLE" ? "'" : '"';
+  if (source[0] !== quote || source.at(-1) !== quote) return undefined;
+  // Decode the source, recording where each value unit starts.
+  const starts: number[] = [];
+  let decoded = "";
+  let i = 1;
+  while (i < source.length - 1) {
+    const c = source[i] as string;
+    let width = 1;
+    let unit = c;
+    if (quote === "'" && c === "'") {
+      width = 2; // ''
+    } else if (quote === '"' && c === "\\") {
+      const e = source[i + 1] ?? "";
+      const hex = { x: 2, u: 4, U: 8 }[e];
+      if (hex !== undefined) {
+        width = 2 + hex;
+        unit = String.fromCodePoint(Number.parseInt(source.slice(i + 2, i + 2 + hex), 16));
+      } else {
+        width = 2;
+        unit = DOUBLE_QUOTED_ESCAPES[e] ?? "";
+        if (unit === "") return undefined;
+      }
+    }
+    for (let k = 0; k < unit.length; k++) starts.push(range[0] + i);
+    decoded += unit;
+    i += width;
+  }
+  if (decoded !== value) return undefined;
+  return index === value.length ? range[0] + source.length - 1 : starts[index];
+}
+
+/** YAML 1.2 double-quoted escapes that stand for one character. */
+const DOUBLE_QUOTED_ESCAPES: Record<string, string> = {
+  "0": "\0",
+  a: "\x07",
+  b: "\b",
+  t: "\t",
+  "\t": "\t",
+  n: "\n",
+  v: "\v",
+  f: "\f",
+  r: "\r",
+  e: "\x1b",
+  " ": " ",
+  '"': '"',
+  "/": "/",
+  "\\": "\\",
+  N: "\u0085",
+  _: "\u00a0",
+  L: "\u2028",
+  P: "\u2029",
+};
 
 function firstLine(message: string): string {
   return message.split("\n", 1)[0] ?? message;

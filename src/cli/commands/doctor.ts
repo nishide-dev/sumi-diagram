@@ -14,7 +14,12 @@ import {
 import { D2_VERSION, d2ReleaseAsset } from "../../backends/d2/version";
 import { SUMI_VERSION } from "../../core/figure/validate";
 import { RUN_MODE, type RunMode } from "../../core/install-layout";
-import { BUILTIN_FONT_SETS, BUNDLED_FONT_SHA256, FONT_ASSETS_DIR } from "../../core/theme/fonts";
+import {
+  BUILTIN_FONT_SETS,
+  BUNDLED_FONT_SHA256,
+  FONT_ASSETS_DIR,
+  FONT_SLOTS,
+} from "../../core/theme/fonts";
 import { loadFontMetrics } from "../../lint/metrics";
 import { type CliContext, EXIT, type ExitCode } from "../io";
 
@@ -117,8 +122,8 @@ async function checkFonts(): Promise<DoctorCheck> {
     problem?: string;
   }[] = [];
   for (const set of BUILTIN_FONT_SETS.values()) {
-    const slots = { regular: set.regular, bold: set.bold, italic: set.italic, mono: set.mono };
-    for (const [slot, path] of Object.entries(slots)) {
+    for (const slot of FONT_SLOTS) {
+      const path = set[slot];
       if (path === undefined) continue;
       const shown = relative(FONT_ASSETS_DIR, path);
       const expected = BUNDLED_FONT_SHA256.get(path);
@@ -166,8 +171,8 @@ function geometryLintCheck(): DoctorCheck {
   const problems: string[] = [];
   const files: { fontSet: string; slot: string; path: string; unitsPerEm?: number }[] = [];
   for (const set of BUILTIN_FONT_SETS.values()) {
-    const slots = { regular: set.regular, bold: set.bold, italic: set.italic, mono: set.mono };
-    for (const [slot, path] of Object.entries(slots)) {
+    for (const slot of FONT_SLOTS) {
+      const path = set[slot];
       if (path === undefined) continue;
       const shown = relative(FONT_ASSETS_DIR, path);
       try {
