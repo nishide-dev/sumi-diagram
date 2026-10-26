@@ -411,6 +411,37 @@ describe("invalid elements and dependents", () => {
     expect([...state.invalid].sort()).toEqual(["e:#0", "n:a", "n:b"]);
   });
 
+  test("a mismatch is not repeated for nodes attached to the mismatched one", () => {
+    const text = figure(
+      [
+        "  layout:",
+        "    arrange: { row: { items: [g, a] } }",
+        "groups:",
+        "  - { id: g }",
+        "nodes:",
+        "  - { id: a, component: box, group: g }",
+        "  - { id: b, component: box, group: g, attach: { to: a, side: east } }",
+        "  - { id: c, component: box, group: g, attach: { to: b, side: east } }",
+        "",
+      ].join("\n"),
+    );
+    expect(codes(text)).toEqual([
+      ["layout/group-mismatch", ["figure", "layout", "arrange", "row", "items", 1]],
+    ]);
+    expect(invalidOf(text)).toEqual(["n:a", "n:b", "n:c"]);
+  });
+
+  test("every placement after the first is reported", () => {
+    const text = structured(
+      "nodes:\n  - { id: a, component: box }\n",
+      "{ row: { items: [a, a, a] } }",
+    );
+    expect(codes(text)).toEqual([
+      ["layout/duplicate-placement", ["figure", "layout", "arrange", "row", "items", 1]],
+      ["layout/duplicate-placement", ["figure", "layout", "arrange", "row", "items", 2]],
+    ]);
+  });
+
   test("an attach chain to an unknown target is reported once", () => {
     const text = structured(
       [
@@ -535,6 +566,10 @@ describe("schema of the structured fields", () => {
     expect(check(text("{ stack: { items: [a] }, row: { items: [a] } }"))).toEqual([
       ["schema/invalid-value", at, 5, 14],
     ]);
+    // Both boxes are an error of their own, even next to an unknown key.
+    expect(
+      check(text("{ stack: { items: [a] }, row: { items: [a] }, stak: {} }")).map((d) => d[0]),
+    ).toEqual(["schema/unknown-field", "schema/invalid-value"]);
     // A typo is one unknown-field error with a suggestion, not two errors,
     // at the root of a tree and inside it.
     expect(check(text("{ stak: { items: [a] } }"))).toEqual([

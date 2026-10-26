@@ -164,7 +164,7 @@ function parseElement<S extends z.ZodObject>(
   const strict = schema.safeParse(value);
   if (strict.success) return { ok: true, value: strict.data };
 
-  for (const issue of withoutRedundantIssues(strict.error.issues)) {
+  for (const issue of withoutRedundantIssues(strict.error.issues, value)) {
     state.diagnostics.push(...issueToDiagnostics(issue, schema, value, path, locate));
   }
   if (strict.error.issues.every((issue) => issue.code === "unrecognized_keys")) {
@@ -197,7 +197,7 @@ function issueToDiagnostics(
       if (matching.length === 1 && branch !== undefined) {
         const nested = schemaAt(schema, relative) ?? schema;
         // Nested issue paths are relative to the union's value.
-        return withoutRedundantIssues(branch).flatMap((i) =>
+        return withoutRedundantIssues(branch, actual).flatMap((i) =>
           issueToDiagnostics(i, nested, actual, path, locate),
         );
       }
@@ -339,15 +339,23 @@ function schemaAt(schema: z.ZodType, path: readonly PropertyKey[]): z.ZodType | 
 }
 
 /**
- * Drops the "exactly one of stack / row" issue of an arrange box that also
- * has unknown keys: a typo such as `stak` is reported once, as an unknown
- * field with a suggestion.
+ * Drops the "exactly one of stack / row" issue of an arrange box that has
+ * neither but has unknown keys: a typo such as `stak` is reported once, as an
+ * unknown field with a suggestion. A box with both `stack` and `row` keeps it.
+ * `root` is the value the issue paths are relative to.
  */
-function withoutRedundantIssues(issues: readonly core.$ZodIssue[]): core.$ZodIssue[] {
+function withoutRedundantIssues(
+  issues: readonly core.$ZodIssue[],
+  root: unknown,
+): core.$ZodIssue[] {
   const unknownAt = new Set(
     issues.filter((i) => i.code === "unrecognized_keys").map((i) => JSON.stringify(i.path)),
   );
-  return issues.filter((i) => !(isArrangeBoxIssue(i) && unknownAt.has(JSON.stringify(i.path))));
+  return issues.filter((i) => {
+    if (!isArrangeBoxIssue(i) || !unknownAt.has(JSON.stringify(i.path))) return true;
+    const box = valueAt(root, i.path);
+    return isRecord(box) && (box.stack !== undefined || box.row !== undefined);
+  });
 }
 
 function isArrangeBoxIssue(issue: core.$ZodIssue): boolean {

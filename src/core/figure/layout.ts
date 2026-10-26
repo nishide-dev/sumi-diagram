@@ -284,6 +284,9 @@ function checkStructured(state: CheckState, locate: Locator): void {
 
   // 2. Each element is placed once; the first occurrence in the file counts.
   const placement = new Map<string, Occurrence>();
+  // Elements invalid only because this loop reported them: later occurrences
+  // are reported too.
+  const placedTwice = new Set<string>();
   for (const occurrence of occurrences) {
     const first = placement.get(occurrence.id);
     if (first === undefined) {
@@ -292,7 +295,8 @@ function checkStructured(state: CheckState, locate: Locator): void {
     }
     const element = elements.get(occurrence.id);
     if (element === undefined) continue;
-    if (invalid.has(element.key) || first.silent || occurrence.silent) {
+    const alreadyInvalid = invalid.has(element.key) && !placedTwice.has(occurrence.id);
+    if (alreadyInvalid || first.silent || occurrence.silent) {
       // Already explained by an earlier error, but where it belongs is ambiguous.
       invalid.add(element.key);
       continue;
@@ -318,6 +322,7 @@ function checkStructured(state: CheckState, locate: Locator): void {
       ),
       element.key,
     );
+    placedTwice.add(occurrence.id);
   }
 
   // 3. Attach cycles of more than one node (self-attachment is reported above).
@@ -362,15 +367,20 @@ function checkStructured(state: CheckState, locate: Locator): void {
     parentOf.set(id, result);
     return result;
   };
-  for (const occurrence of placement.values()) {
+  const compare = (occurrence: Occurrence) => {
     const element = elements.get(occurrence.id);
-    if (element === undefined || invalid.has(element.key)) continue;
+    if (element === undefined || invalid.has(element.key)) return;
+    // An attached node whose target became invalid above depends on it.
+    if (occurrence.via === "attach" && isInvalidId(occurrence.target ?? "")) {
+      invalid.add(element.key);
+      return;
+    }
     const expected = parent(occurrence.id);
     const written = element.value.group;
-    if (written === undefined || written === expected) continue;
+    if (written === undefined || written === expected) return;
     if (occurrence.silent) {
       invalid.add(element.key);
-      continue;
+      return;
     }
     const where =
       occurrence.via === "arrange"
@@ -393,6 +403,21 @@ function checkStructured(state: CheckState, locate: Locator): void {
       ),
       element.key,
     );
+  };
+  for (const occurrence of placement.values()) {
+    if (occurrence.via === "arrange") compare(occurrence);
+  }
+  invalidateDependents(state);
+  const compared = new Set<string>();
+  const compareAttached = (occurrence: Occurrence, depth = 0) => {
+    if (compared.has(occurrence.id)) return;
+    compared.add(occurrence.id);
+    const target = occurrence.target === undefined ? undefined : placement.get(occurrence.target);
+    if (target?.via === "attach" && depth <= elements.size) compareAttached(target, depth + 1);
+    compare(occurrence);
+  };
+  for (const occurrence of placement.values()) {
+    if (occurrence.via === "attach") compareAttached(occurrence);
   }
 
   // 5. Fill in the membership the placement implies. An item of an invalid
