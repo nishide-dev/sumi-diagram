@@ -218,16 +218,32 @@ nodes:
   });
 
   test("largerBuiltinProfiles: larger, holds the figure, no larger minimum font size", () => {
-    const ids = (current: keyof typeof profiles, widthMm: number) =>
-      largerBuiltinProfiles(
-        { minFontSizePt: 7, ...profiles[current] },
-        "width",
-        mmToPt(widthMm),
-      ).map((p) => p.id);
+    const ids = (current: keyof typeof profiles, widthMm: number, heightMm = 10) =>
+      largerBuiltinProfiles({ minFontSizePt: 7, ...profiles[current] }, "width", {
+        widthPt: mmToPt(widthMm),
+        heightPt: mmToPt(heightMm),
+      }).map((p) => p.id);
     expect(ids("paper-single", 100)).toEqual(["paper-double"]);
     expect(ids("paper-single", 200)).toEqual([]);
     expect(ids("paper-double", 200)).toEqual([]);
     expect(ids("presentation-16x9", 400)).toEqual([]);
+    // The candidate must hold the other axis too.
+    expect(ids("paper-single", 100, 250)).toEqual([]);
+    const custom = (axis: "width" | "height", limits: object, widthMm: number, heightMm: number) =>
+      largerBuiltinProfiles({ id: "custom", minFontSizePt: 7, ...limits }, axis, {
+        widthPt: mmToPt(widthMm),
+        heightPt: mmToPt(heightMm),
+      }).map((p) => p.id);
+    // No maximum height: paper-double would add a height violation.
+    expect(custom("width", { maxWidthPt: mmToPt(88) }, 100, 250)).toEqual([]);
+    expect(custom("width", { maxWidthPt: mmToPt(88) }, 100, 200)).toEqual(["paper-double"]);
+    // Taller paper profiles are too narrow for a 250mm wide figure.
+    expect(
+      custom("height", { maxWidthPt: mmToPt(300), maxHeightPt: mmToPt(120) }, 250, 150),
+    ).toEqual([]);
+    expect(
+      custom("height", { maxWidthPt: mmToPt(300), maxHeightPt: mmToPt(120) }, 150, 150),
+    ).toEqual(["paper-double"]);
   });
 
   test("edge-crosses-label: structured group titles sit top-centre; no layout.direction", () => {

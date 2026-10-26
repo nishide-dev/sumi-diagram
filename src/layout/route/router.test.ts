@@ -491,6 +491,22 @@ describe("layout/no-route", () => {
     expect(diagnostic?.hint).toContain("takes no space in the arrange tree");
   });
 
+  test("a junction that is not an end blocks too, and is named", () => {
+    const text = figure(
+      { stack: { gap: "3mm", items: ["a", "b"] } },
+      [box("a"), box("b"), { ...junction("j"), attach: { to: "a", side: "south", gap: "0.5mm" } }],
+      [{ from: "a", to: "b", fromAnchor: "south", toAnchor: "north" }],
+    );
+    const result = layoutStructuredFigure(text, { measurer: FAKE });
+    const [diagnostic] = result.diagnostics;
+    expect(diagnostic?.code).toBe("layout/no-route");
+    expect(diagnostic?.message).toEndWith('(in the way: "j").');
+    expect(diagnostic?.related?.map((r) => [r.path, r.message])).toEqual([
+      [["nodes", 2], 'Node "j" is in the way.'],
+    ]);
+    expect(diagnostic?.hint).toContain('"j" is attached to "a"');
+  });
+
   test("blockers on both stubs, in layout order; no attach advice for nodes in the tree", () => {
     // a and b face each other east → west across x (touching a) and y (touching b).
     const text = figure(

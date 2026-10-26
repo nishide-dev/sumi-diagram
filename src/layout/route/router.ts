@@ -236,8 +236,11 @@ class Router {
   /** Junction (index into #junctions) at a grid point, or -1. */
   #junctionAt = new Int32Array(0);
   #junctions: ElementKey[] = [];
-  /** The nodes the routes go around (all but junctions), in layout order. */
-  #solid: { key: ElementKey; rect: Rect }[] = [];
+  /**
+   * Every node in layout order, for naming blockers (#114): routes go around
+   * nodes and may not enter junctions other than their own ends.
+   */
+  #obstacles: { key: ElementKey; rect: Rect }[] = [];
 
   // Occupancy.
   #stepsH!: Owners;
@@ -389,12 +392,14 @@ class Router {
    * message: those on the stubs of its ends (the straight run out of or into
    * a port, where no node may be), or else those in the box between the
    * stubs' ends (where a straight or L-shaped route would run), nearest to an
-   * end first. At most three; the edge's own ends are left out. It runs only
-   * when routing failed and is linear in the nodes; ties keep layout order.
+   * end first (ties in layout order). Junctions count: a route may not enter
+   * one that is not its own end. At most three; the edge's own ends are left
+   * out. It runs only when routing failed: a scan of the nodes and a sort of
+   * the matches.
    */
   #blockers(edge: Edge): ElementKey[] {
     const own = new Set([edge.from.key, edge.to.key]);
-    const others = this.#solid.filter((n) => !own.has(n.key));
+    const others = this.#obstacles.filter((n) => !own.has(n.key));
     const tip = (end: End, lane: number): Point => {
       if (end.dir < 0) return end.port;
       const d = DIRS[end.dir] as Point;
@@ -514,9 +519,7 @@ class Router {
       if (isJunction(nodeIR.get(node.key))) junctions.push(node);
       else solid.push(node.rect);
     }
-    this.#solid = layout.nodes
-      .filter((node) => !isJunction(nodeIR.get(node.key)))
-      .map((node) => ({ key: node.key, rect: node.rect }));
+    this.#obstacles = layout.nodes.map((node) => ({ key: node.key, rect: node.rect }));
     const xs = new Set<number>();
     const ys = new Set<number>();
     const addRect = (r: Rect, inflate: number) => {

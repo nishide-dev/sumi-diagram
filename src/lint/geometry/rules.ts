@@ -69,25 +69,28 @@ const isHorizontal = (context: GeometryContext): boolean =>
 
 /**
  * The built-in profiles a figure that is too wide (too tall) could move to
- * (#114): larger along `axis` than `current` and at least `size`, so the
- * figure as drawn would fit, with no larger minimum font size (a paper figure
- * is not sent to a slide profile). Sorted by that page size, then by ID.
+ * (#114): larger along `axis` than `current`, holding the figure as drawn on
+ * both axes (an omitted limit holds anything), with no larger minimum font
+ * size (a paper figure is not sent to a slide profile). Sorted by the page
+ * size along `axis`, then by ID.
  */
 export function largerBuiltinProfiles(
   current: ProfileLimits,
   axis: "width" | "height",
-  sizePt: number,
+  size: { widthPt: number; heightPt: number },
 ): { id: string; maxPt: number }[] {
-  const limitOf = (p: { maxWidthPt?: number; maxHeightPt?: number }) =>
-    axis === "width" ? p.maxWidthPt : p.maxHeightPt;
-  const currentMax = limitOf(current);
+  const currentMax = axis === "width" ? current.maxWidthPt : current.maxHeightPt;
   if (currentMax === undefined) return [];
+  const holds = (limit: { pt: number } | undefined, sizePt: number) =>
+    limit === undefined || limit.pt + PT_EPSILON >= sizePt;
   return [...BUILTIN_PROFILES.values()]
     .flatMap((profile) => {
-      const max = axis === "width" ? profile.page.maxWidth : profile.page.maxHeight;
+      const { maxWidth, maxHeight } = profile.page;
+      const max = axis === "width" ? maxWidth : maxHeight;
       return profile.id !== current.id &&
         (max === undefined || max.pt > currentMax + PT_EPSILON) &&
-        (max === undefined || max.pt + PT_EPSILON >= sizePt) &&
+        holds(maxWidth, size.widthPt) &&
+        holds(maxHeight, size.heightPt) &&
         profile.typography.minFontSize.pt <= current.minFontSizePt + PT_EPSILON
         ? [{ id: profile.id, maxPt: max?.pt ?? Number.POSITIVE_INFINITY }]
         : [];
@@ -96,12 +99,12 @@ export function largerBuiltinProfiles(
 }
 
 /** `use a wider profile (paper-double, 180mm)`, or nothing if no built-in profile fits. */
-function profileAdvice(
-  context: GeometryContext,
-  axis: "width" | "height",
-  sizePt: number,
-): string[] {
-  const larger = largerBuiltinProfiles(context.profile, axis, sizePt);
+function profileAdvice(context: GeometryContext, axis: "width" | "height"): string[] {
+  const { width, height } = context.inspection.canvas;
+  const larger = largerBuiltinProfiles(context.profile, axis, {
+    widthPt: width.pt,
+    heightPt: height.pt,
+  });
   if (larger.length === 0) return [];
   const list = larger
     .map((p) => (Number.isFinite(p.maxPt) ? `${p.id}, ${formatMm(p.maxPt)}` : p.id))
@@ -124,11 +127,7 @@ export function pageWidthHint(context: GeometryContext): string {
     : isHorizontal(context)
       ? ["lay it out top to bottom (layout.direction: down)"]
       : ["place fewer nodes side by side (split a wide layer, or group its nodes)"];
-  const options = [
-    ...layout,
-    "shorten long labels",
-    ...profileAdvice(context, "width", context.inspection.canvas.width.pt),
-  ];
+  const options = [...layout, "shorten long labels", ...profileAdvice(context, "width")];
   return `Sumi never shrinks a figure to fit. ${listOptions(options)}.`;
 }
 
@@ -142,11 +141,7 @@ export function pageHeightHint(context: GeometryContext): string {
     : isHorizontal(context)
       ? ["place fewer nodes on top of each other (split a tall layer, or group its nodes)"]
       : ["lay it out left to right (layout.direction: right)"];
-  const options = [
-    ...layout,
-    "split it into several figures",
-    ...profileAdvice(context, "height", context.inspection.canvas.height.pt),
-  ];
+  const options = [...layout, "split it into several figures", ...profileAdvice(context, "height")];
   return `Sumi never shrinks a figure to fit. ${listOptions(options)}.`;
 }
 
