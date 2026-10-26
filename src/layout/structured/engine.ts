@@ -468,7 +468,7 @@ function overhangOf(frame: Rect, rects: readonly Rect[]): Overhang {
 }
 
 /** Places measured text centered on `center`. */
-function placeText(metrics: TextMetrics, center: { x: number; y: number }): TextLayout {
+export function placeText(metrics: TextMetrics, center: { x: number; y: number }): TextLayout {
   const box: Rect = {
     x: center.x - metrics.width / 2,
     y: center.y - metrics.height / 2,
@@ -498,7 +498,7 @@ function groupPreOrder(ir: FigureIR): GroupIR[] {
   return out;
 }
 
-function deepFreeze<T>(value: T): T {
+export function deepFreeze<T>(value: T): T {
   if (typeof value === "object" && value !== null && !Object.isFrozen(value)) {
     for (const child of Object.values(value)) deepFreeze(child);
     Object.freeze(value);

@@ -119,6 +119,7 @@ exit code 1. Configure like structural rules
 | `geometry/node-overlap` | warning | review explicit sizes; put the nodes in the same group |
 | `geometry/label-collision` | warning | shorten labels; change `direction` or grouping |
 | `geometry/edge-crosses-label` | warning | connect elements inside the group rather than the group, change `direction`, shorten the label (see layout-tips) |
+| `geometry/edge-through-node` | warning | an edge is drawn across a node it does not connect: change `layout.direction` or the grouping so the layout has a free path |
 | `geometry/aspect-distorted` | warning | fewer edges on that `circle`/`square`, or use `ellipse`/`box` |
 | `geometry/reversed-edge` | warning | ELK reversed the wrong edge of a cycle (typically a loop inside a group): swap the order of the loop's nodes in `nodes`, or move the loop out of the group |
 

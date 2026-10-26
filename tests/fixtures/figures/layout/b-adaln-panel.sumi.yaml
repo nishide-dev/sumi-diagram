@@ -1,15 +1,12 @@
-# One panel of figure B of #86 (docs/research/86-paper-figures.md §2.3),
-# adapted for #89 like a-transformer.sumi.yaml: the structured layout fields
-# exactly as in research/86-paper-figures/figures/ideal/b-adaln-panel.sumi.yaml,
-# with the parts owned by later issues replaced by existing components:
+# One panel of figure B of #86 (docs/research/86-paper-figures.md §2.3): the
+# structured layout of research/86-paper-figures/figures/ideal/b-adaln-panel.sumi.yaml
+# with the real operator / junction components and tones (#92), adapted only
+# where a later issue owns the feature:
 #   - no `requires: ">=0.5.0"`;
-#   - operator (#92)  → circle with the label "+";
-#   - junction (#92)  → circle with the label "·";
-#   - tone (#92)      → removed;
 #   - caption (stage B) → removed;
 #   - label math (#93)  → plain text.
-# Both the #86 prototype and the structured engine read it; the layout test
-# compares their rectangles.
+# It exercises a shared bus (one source port, four taps) and edge labels next
+# to the arrowheads (#90).
 version: 1
 figure:
   id: dit-adaln-block
@@ -36,22 +33,22 @@ groups:
           - stack: { direction: up, gap: 6mm, items: [conditioning, mlp] }
 
 nodes:
-  - { id: tokens, component: box, label: Input Tokens }
-  - { id: split0, component: circle, label: "·" }
-  - { id: ln1, component: box, label: Layer Norm }
-  - { id: ss1, component: box, label: "Scale, Shift" }
-  - { id: attn, component: box, label: "Multi-Head\nSelf-Attention" }
-  - { id: scale1, component: box, label: Scale }
-  - { id: add1, component: circle, label: "+" }
-  - { id: split1, component: circle, label: "·" }
-  - { id: ln2, component: box, label: Layer Norm }
-  - { id: ss2, component: box, label: "Scale, Shift" }
-  - { id: ff, component: box, label: "Pointwise\nFeedforward" }
-  - { id: scale2, component: box, label: Scale }
-  - { id: add2, component: circle, label: "+" }
-  - { id: out, component: circle, label: "·" }
-  - { id: conditioning, component: box, label: Conditioning }
-  - { id: mlp, component: box, label: MLP }
+  - { id: tokens, component: box, label: Input Tokens, tone: gray }
+  - { id: split0, component: junction }
+  - { id: ln1, component: box, label: Layer Norm, tone: blue }
+  - { id: ss1, component: box, label: "Scale, Shift", tone: blue }
+  - { id: attn, component: box, label: "Multi-Head\nSelf-Attention", tone: orange }
+  - { id: scale1, component: box, label: Scale, tone: blue }
+  - { id: add1, component: operator, props: { symbol: plus } }
+  - { id: split1, component: junction }
+  - { id: ln2, component: box, label: Layer Norm, tone: blue }
+  - { id: ss2, component: box, label: "Scale, Shift", tone: blue }
+  - { id: ff, component: box, label: "Pointwise\nFeedforward", tone: green }
+  - { id: scale2, component: box, label: Scale, tone: blue }
+  - { id: add2, component: operator, props: { symbol: plus } }
+  - { id: out, component: junction }
+  - { id: conditioning, component: box, label: Conditioning, tone: blue }
+  - { id: mlp, component: box, label: MLP, tone: blue }
 
 edges:
   - { from: tokens, to: split0, component: line }

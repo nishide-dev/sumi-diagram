@@ -2,14 +2,14 @@
   "engine": "sumi-structured",
   "canvas": {
     "width": 387,
-    "height": 718
+    "height": 621
   },
   "margin": 11,
   "content": {
     "x": 11,
     "y": 11,
     "width": 364.016,
-    "height": 695.402
+    "height": 598.402
   },
   "groups": [
     {
@@ -19,13 +19,13 @@
         "x": 11,
         "y": 11,
         "width": 364.016,
-        "height": 695.402
+        "height": 598.402
       },
       "content": {
         "x": 27,
         "y": 27,
         "width": 332.016,
-        "height": 663.402
+        "height": 566.402
       }
     }
   ],
@@ -37,7 +37,7 @@
       "shape": "rectangle",
       "rect": {
         "x": 27,
-        "y": 656.402,
+        "y": 559.402,
         "width": 156,
         "height": 34
       },
@@ -58,13 +58,13 @@
         "height": 20,
         "box": {
           "x": 46.406,
-          "y": 663.402,
+          "y": 566.402,
           "width": 117.188,
           "height": 20
         },
         "anchor": {
           "x": 105,
-          "y": 679.48
+          "y": 582.48
         }
       }
     },
@@ -74,37 +74,12 @@
       "parent": "g:panel",
       "shape": "circle",
       "rect": {
-        "x": 88,
-        "y": 611.063,
-        "width": 34,
-        "height": 34
+        "x": 103.5,
+        "y": 545.063,
+        "width": 3,
+        "height": 3
       },
-      "placement": "arrange",
-      "label": {
-        "lines": [
-          "·"
-        ],
-        "lineWidths": [
-          6.3984375
-        ],
-        "font": "regular",
-        "fontSizeUnits": 16,
-        "lineHeightUnits": 20,
-        "ascentUnits": 14.078125,
-        "descentUnits": 1.921875,
-        "width": 6.3984375,
-        "height": 20,
-        "box": {
-          "x": 101.801,
-          "y": 618.063,
-          "width": 6.398,
-          "height": 20
-        },
-        "anchor": {
-          "x": 105,
-          "y": 634.141
-        }
-      }
+      "placement": "arrange"
     },
     {
       "key": "n:ln1",
@@ -113,7 +88,7 @@
       "shape": "rectangle",
       "rect": {
         "x": 27,
-        "y": 565.724,
+        "y": 499.724,
         "width": 156,
         "height": 34
       },
@@ -134,13 +109,13 @@
         "height": 20,
         "box": {
           "x": 55.211,
-          "y": 572.724,
+          "y": 506.724,
           "width": 99.578,
           "height": 20
         },
         "anchor": {
           "x": 105,
-          "y": 588.803
+          "y": 522.803
         }
       }
     },
@@ -151,7 +126,7 @@
       "shape": "rectangle",
       "rect": {
         "x": 27,
-        "y": 520.386,
+        "y": 454.386,
         "width": 156,
         "height": 34
       },
@@ -172,13 +147,13 @@
         "height": 20,
         "box": {
           "x": 54.09,
-          "y": 527.386,
+          "y": 461.386,
           "width": 101.82,
           "height": 20
         },
         "anchor": {
           "x": 105,
-          "y": 543.464
+          "y": 477.464
         }
       }
     },
@@ -189,7 +164,7 @@
       "shape": "rectangle",
       "rect": {
         "x": 27,
-        "y": 455.047,
+        "y": 389.047,
         "width": 156,
         "height": 54
       },
@@ -212,13 +187,13 @@
         "height": 40,
         "box": {
           "x": 41.234,
-          "y": 462.047,
+          "y": 396.047,
           "width": 127.532,
           "height": 40
         },
         "anchor": {
           "x": 105,
-          "y": 478.125
+          "y": 412.125
         }
       }
     },
@@ -229,7 +204,7 @@
       "shape": "rectangle",
       "rect": {
         "x": 27,
-        "y": 409.709,
+        "y": 343.709,
         "width": 156,
         "height": 34
       },
@@ -250,13 +225,13 @@
         "height": 20,
         "box": {
           "x": 80.84,
-          "y": 416.709,
+          "y": 350.709,
           "width": 48.32,
           "height": 20
         },
         "anchor": {
           "x": 105,
-          "y": 432.787
+          "y": 366.787
         }
       }
     },
@@ -266,10 +241,10 @@
       "parent": "g:panel",
       "shape": "circle",
       "rect": {
-        "x": 88,
-        "y": 364.37,
-        "width": 34,
-        "height": 34
+        "x": 89,
+        "y": 300.37,
+        "width": 32,
+        "height": 32
       },
       "placement": "arrange",
       "label": {
@@ -288,13 +263,13 @@
         "height": 20,
         "box": {
           "x": 98.281,
-          "y": 371.37,
+          "y": 306.37,
           "width": 13.438,
           "height": 20
         },
         "anchor": {
           "x": 105,
-          "y": 387.448
+          "y": 322.448
         }
       }
     },
@@ -304,37 +279,12 @@
       "parent": "g:panel",
       "shape": "circle",
       "rect": {
-        "x": 88,
-        "y": 319.031,
-        "width": 34,
-        "height": 34
+        "x": 103.5,
+        "y": 286.031,
+        "width": 3,
+        "height": 3
       },
-      "placement": "arrange",
-      "label": {
-        "lines": [
-          "·"
-        ],
-        "lineWidths": [
-          6.3984375
-        ],
-        "font": "regular",
-        "fontSizeUnits": 16,
-        "lineHeightUnits": 20,
-        "ascentUnits": 14.078125,
-        "descentUnits": 1.921875,
-        "width": 6.3984375,
-        "height": 20,
-        "box": {
-          "x": 101.801,
-          "y": 326.031,
-          "width": 6.398,
-          "height": 20
-        },
-        "anchor": {
-          "x": 105,
-          "y": 342.11
-        }
-      }
+      "placement": "arrange"
     },
     {
       "key": "n:ln2",
@@ -343,7 +293,7 @@
       "shape": "rectangle",
       "rect": {
         "x": 27,
-        "y": 273.693,
+        "y": 240.693,
         "width": 156,
         "height": 34
       },
@@ -364,13 +314,13 @@
         "height": 20,
         "box": {
           "x": 55.211,
-          "y": 280.693,
+          "y": 247.693,
           "width": 99.578,
           "height": 20
         },
         "anchor": {
           "x": 105,
-          "y": 296.771
+          "y": 263.771
         }
       }
     },
@@ -381,7 +331,7 @@
       "shape": "rectangle",
       "rect": {
         "x": 27,
-        "y": 228.354,
+        "y": 195.354,
         "width": 156,
         "height": 34
       },
@@ -402,13 +352,13 @@
         "height": 20,
         "box": {
           "x": 54.09,
-          "y": 235.354,
+          "y": 202.354,
           "width": 101.82,
           "height": 20
         },
         "anchor": {
           "x": 105,
-          "y": 251.432
+          "y": 218.432
         }
       }
     },
@@ -419,7 +369,7 @@
       "shape": "rectangle",
       "rect": {
         "x": 27,
-        "y": 163.016,
+        "y": 130.016,
         "width": 156,
         "height": 54
       },
@@ -442,13 +392,13 @@
         "height": 40,
         "box": {
           "x": 48.438,
-          "y": 170.016,
+          "y": 137.016,
           "width": 113.125,
           "height": 40
         },
         "anchor": {
           "x": 105,
-          "y": 186.094
+          "y": 153.094
         }
       }
     },
@@ -459,7 +409,7 @@
       "shape": "rectangle",
       "rect": {
         "x": 27,
-        "y": 117.677,
+        "y": 84.677,
         "width": 156,
         "height": 34
       },
@@ -480,13 +430,13 @@
         "height": 20,
         "box": {
           "x": 80.84,
-          "y": 124.677,
+          "y": 91.677,
           "width": 48.32,
           "height": 20
         },
         "anchor": {
           "x": 105,
-          "y": 140.755
+          "y": 107.755
         }
       }
     },
@@ -496,10 +446,10 @@
       "parent": "g:panel",
       "shape": "circle",
       "rect": {
-        "x": 88,
-        "y": 72.339,
-        "width": 34,
-        "height": 34
+        "x": 89,
+        "y": 41.339,
+        "width": 32,
+        "height": 32
       },
       "placement": "arrange",
       "label": {
@@ -518,13 +468,13 @@
         "height": 20,
         "box": {
           "x": 98.281,
-          "y": 79.339,
+          "y": 47.339,
           "width": 13.438,
           "height": 20
         },
         "anchor": {
           "x": 105,
-          "y": 95.417
+          "y": 63.417
         }
       }
     },
@@ -534,37 +484,12 @@
       "parent": "g:panel",
       "shape": "circle",
       "rect": {
-        "x": 88,
+        "x": 103.5,
         "y": 27,
-        "width": 34,
-        "height": 34
+        "width": 3,
+        "height": 3
       },
-      "placement": "arrange",
-      "label": {
-        "lines": [
-          "·"
-        ],
-        "lineWidths": [
-          6.3984375
-        ],
-        "font": "regular",
-        "fontSizeUnits": 16,
-        "lineHeightUnits": 20,
-        "ascentUnits": 14.078125,
-        "descentUnits": 1.921875,
-        "width": 6.3984375,
-        "height": 20,
-        "box": {
-          "x": 101.801,
-          "y": 34,
-          "width": 6.398,
-          "height": 20
-        },
-        "anchor": {
-          "x": 105,
-          "y": 50.078
-        }
-      }
+      "placement": "arrange"
     },
     {
       "key": "n:conditioning",
@@ -573,7 +498,7 @@
       "shape": "rectangle",
       "rect": {
         "x": 217.016,
-        "y": 656.402,
+        "y": 559.402,
         "width": 142,
         "height": 34
       },
@@ -594,13 +519,13 @@
         "height": 20,
         "box": {
           "x": 231.453,
-          "y": 663.402,
+          "y": 566.402,
           "width": 113.125,
           "height": 20
         },
         "anchor": {
           "x": 288.016,
-          "y": 679.48
+          "y": 582.48
         }
       }
     },
@@ -611,7 +536,7 @@
       "shape": "rectangle",
       "rect": {
         "x": 255.016,
-        "y": 588.386,
+        "y": 491.386,
         "width": 66,
         "height": 34
       },
@@ -632,13 +557,13 @@
         "height": 20,
         "box": {
           "x": 269.453,
-          "y": 595.386,
+          "y": 498.386,
           "width": 37.125,
           "height": 20
         },
         "anchor": {
           "x": 288.016,
-          "y": 611.464
+          "y": 514.464
         }
       }
     }

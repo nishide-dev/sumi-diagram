@@ -1,13 +1,11 @@
-# Figure A of #86 (docs/research/86-paper-figures.md §2.2), adapted for #88:
-# the structured layout fields exactly as in
-# research/86-paper-figures/figures/ideal/a-transformer.sumi.yaml, with the
-# parts owned by later issues replaced by existing components:
+# Figure A of #86 (docs/research/86-paper-figures.md §2.2): the structured
+# layout of research/86-paper-figures/figures/ideal/a-transformer.sumi.yaml
+# with the real operator / junction components and tones (#92), adapted only
+# where a later issue owns the feature:
 #   - no `requires: ">=0.4.0"` (this Sumi is older until the v0.4.0 release);
-#   - operator (#92)  → circle with the label "+";
-#   - junction (#92)  → circle with the label "·";
-#   - tone (#92)      → removed;
-#   - icon (#94)      → a circle with the label "~".
-# It must check with zero diagnostics; rendering needs the engine (#89–#91).
+#   - icon (#94) → a circle with the label "~".
+# It must check with zero diagnostics. Its layout (#89) and routes (#90) are
+# compared with the golden Layout IR in tests/fixtures/layout/.
 version: 1
 figure:
   id: transformer
@@ -20,11 +18,11 @@ figure:
         gap: 3mm
         align: end # bottom edges line up
         items:
-          - stack: { direction: up, gap: 4mm, items: [ inputs, input-embedding, enc-add, encoder ] }
+          - stack: { direction: up, gap: 4mm, items: [inputs, input-embedding, enc-add, encoder] }
           - stack:
               direction: up
               gap: 4mm
-              items: [ outputs, output-embedding, dec-add, decoder, linear, softmax, probabilities ]
+              items: [outputs, output-embedding, dec-add, decoder, linear, softmax, probabilities]
 
 groups:
   - id: encoder
@@ -35,9 +33,9 @@ groups:
         align: stretch # every block as wide as the widest
         items:
           - enc-split1
-          - stack: { direction: up, gap: 0, items: [ enc-mha, enc-norm1 ] }
+          - stack: { direction: up, gap: 0, items: [enc-mha, enc-norm1] }
           - enc-split2
-          - stack: { direction: up, gap: 0, items: [ enc-ff, enc-norm2 ] }
+          - stack: { direction: up, gap: 0, items: [enc-ff, enc-norm2] }
   - id: decoder
     arrange:
       stack:
@@ -46,44 +44,44 @@ groups:
         align: stretch
         items:
           - dec-split1
-          - stack: { direction: up, gap: 0, items: [ dec-mmha, dec-norm1 ] }
+          - stack: { direction: up, gap: 0, items: [dec-mmha, dec-norm1] }
           - dec-split2
-          - stack: { direction: up, gap: 0, items: [ dec-mha, dec-norm2 ] }
+          - stack: { direction: up, gap: 0, items: [dec-mha, dec-norm2] }
           - dec-split3
-          - stack: { direction: up, gap: 0, items: [ dec-ff, dec-norm3 ] }
+          - stack: { direction: up, gap: 0, items: [dec-ff, dec-norm3] }
 
 nodes:
   # encoder side
   - { id: inputs, component: label, label: Inputs }
-  - { id: input-embedding, component: box, label: "Input\nEmbedding" }
-  - { id: enc-add, component: circle, label: "+" }
+  - { id: input-embedding, component: box, label: "Input\nEmbedding", tone: pink }
+  - { id: enc-add, component: operator, props: { symbol: plus } }
   - { id: enc-pe, component: circle, label: "~", attach: { to: enc-add, side: west, gap: 1.5mm } }
   - { id: enc-pe-label, component: label, label: "Positional\nEncoding", attach: { to: enc-pe, side: west, gap: 1mm } }
-  - { id: enc-split1, component: circle, label: "·" }
-  - { id: enc-mha, component: box, label: "Multi-Head\nAttention" }
-  - { id: enc-norm1, component: box, label: "Add & Norm" }
-  - { id: enc-split2, component: circle, label: "·" }
-  - { id: enc-ff, component: box, label: "Feed\nForward" }
-  - { id: enc-norm2, component: box, label: "Add & Norm" }
+  - { id: enc-split1, component: junction }
+  - { id: enc-mha, component: box, label: "Multi-Head\nAttention", tone: orange }
+  - { id: enc-norm1, component: box, label: "Add & Norm", tone: yellow }
+  - { id: enc-split2, component: junction }
+  - { id: enc-ff, component: box, label: "Feed\nForward", tone: blue }
+  - { id: enc-norm2, component: box, label: "Add & Norm", tone: yellow }
   - { id: enc-n, component: label, label: "N×", attach: { to: encoder, side: west, gap: 2mm } }
   # decoder side
   - { id: outputs, component: label, label: "Outputs\n(shifted right)" }
-  - { id: output-embedding, component: box, label: "Output\nEmbedding" }
-  - { id: dec-add, component: circle, label: "+" }
+  - { id: output-embedding, component: box, label: "Output\nEmbedding", tone: pink }
+  - { id: dec-add, component: operator, props: { symbol: plus } }
   - { id: dec-pe, component: circle, label: "~", attach: { to: dec-add, side: east, gap: 1.5mm } }
   - { id: dec-pe-label, component: label, label: "Positional\nEncoding", attach: { to: dec-pe, side: east, gap: 1mm } }
-  - { id: dec-split1, component: circle, label: "·" }
-  - { id: dec-mmha, component: box, label: "Masked\nMulti-Head\nAttention" }
-  - { id: dec-norm1, component: box, label: "Add & Norm" }
-  - { id: dec-split2, component: circle, label: "·" }
-  - { id: dec-mha, component: box, label: "Multi-Head\nAttention" }
-  - { id: dec-norm2, component: box, label: "Add & Norm" }
-  - { id: dec-split3, component: circle, label: "·" }
-  - { id: dec-ff, component: box, label: "Feed\nForward" }
-  - { id: dec-norm3, component: box, label: "Add & Norm" }
+  - { id: dec-split1, component: junction }
+  - { id: dec-mmha, component: box, label: "Masked\nMulti-Head\nAttention", tone: orange }
+  - { id: dec-norm1, component: box, label: "Add & Norm", tone: yellow }
+  - { id: dec-split2, component: junction }
+  - { id: dec-mha, component: box, label: "Multi-Head\nAttention", tone: orange }
+  - { id: dec-norm2, component: box, label: "Add & Norm", tone: yellow }
+  - { id: dec-split3, component: junction }
+  - { id: dec-ff, component: box, label: "Feed\nForward", tone: blue }
+  - { id: dec-norm3, component: box, label: "Add & Norm", tone: yellow }
   - { id: dec-n, component: label, label: "N×", attach: { to: decoder, side: east, gap: 2mm } }
-  - { id: linear, component: box, label: Linear }
-  - { id: softmax, component: box, label: Softmax }
+  - { id: linear, component: box, label: Linear, tone: purple }
+  - { id: softmax, component: box, label: Softmax, tone: green }
   - { id: probabilities, component: label, label: "Output\nProbabilities" }
 
 edges:
