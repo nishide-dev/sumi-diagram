@@ -109,7 +109,9 @@ function slidePptx(
       ["SumiProfile", metadata.profile],
       ["SumiFontSet", metadata.fontSet],
       ["SumiInputSha256", metadata.inputSha256],
-      ["SumiD2Sha256", metadata.d2Sha256],
+      ...(metadata.d2Sha256 === undefined
+        ? []
+        : [["SumiD2Sha256", metadata.d2Sha256] as [string, string]]),
     );
   const entries: ZipEntry[] = [
     {

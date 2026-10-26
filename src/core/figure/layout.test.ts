@@ -608,25 +608,24 @@ describe("schema of the structured fields", () => {
 });
 
 describe("rendering", () => {
-  test("a structured figure is checked fully but not compiled", () => {
+  test("a structured figure compiles without D2 source and renders (#91)", async () => {
     const text = figure(
       "  layout:\n    arrange: { row: { items: [a] } }\nnodes:\n  - { id: a, component: box, label: A }\n",
     );
     expect(lintFigure(text).diagnostics).toEqual([]);
     const compiled = compileFigure(text);
-    expect(compiled.ok).toBe(false);
-    expect(summarize(compiled.diagnostics)).toEqual([
-      ["layout/engine-unavailable", ["figure", "layout", "arrange"], 5, 5],
-    ]);
+    if (!compiled.ok) throw new Error(JSON.stringify(compiled.diagnostics));
+    expect(compiled.value.engine).toBe("structured");
+    expect("d2Source" in compiled.value).toBe(false);
+    const rendered = await lintRenderedFigure(text);
+    expect(rendered.diagnostics).toEqual([]);
+    expect(rendered.rendered?.metadata.backend.name).toBe("sumi-structured");
   });
 
-  test("the rendered lint reports engine-unavailable once, and check errors once", async () => {
+  test("the rendered lint reports check errors once", async () => {
     const ok = figure(
       "  layout:\n    arrange: { row: { items: [a] } }\nnodes:\n  - { id: a, component: box, label: A }\n",
     );
-    const rendered = await lintRenderedFigure(ok);
-    expect(rendered.rendered).toBeUndefined();
-    expect(rendered.diagnostics.map((d) => d.code)).toEqual(["layout/engine-unavailable"]);
     const broken = await lintRenderedFigure(ok.replace("items: [a]", "items: [b]"));
     expect(broken.diagnostics.map((d) => d.code)).toEqual([
       "layout/unknown-item",
@@ -634,10 +633,11 @@ describe("rendering", () => {
     ]);
   });
 
-  test("engine-unavailable points at engine when there is no arrange", () => {
-    const compiled = compileFigure(figure("  layout:\n    engine: structured\n"));
-    expect(summarize(compiled.diagnostics)).toEqual([
-      ["layout/engine-unavailable", ["figure", "layout", "engine"], 5, 5],
+  test("a structured figure without elements is empty, like an auto one", async () => {
+    const rendered = await lintRenderedFigure(figure("  layout:\n    engine: structured\n"));
+    expect(rendered.diagnostics.map((d) => d.code).sort()).toEqual([
+      "lint/empty-figure",
+      "svg/empty-figure",
     ]);
   });
 });

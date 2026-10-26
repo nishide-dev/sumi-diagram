@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { performance } from "node:perf_hooks";
 import { stringify } from "yaml";
 import { createD2CliBackend } from "../../src/backends/d2/backend";
-import { compileFigure } from "../../src/compiler/compile";
+import { compileFigure, expectD2Figure } from "../../src/compiler/compile";
 import type { NodeIR } from "../../src/compiler/ir";
 import { getOutlineRenderer } from "../../src/core/outline";
 import { getTheme } from "../../src/core/theme/builtin";
@@ -127,7 +127,10 @@ async function render(text: string, mode: Mode) {
     rendered = requireOk(result);
     diagnostics = result.diagnostics;
   } else {
-    const compiled = estimateFigure(requireOk(compileFigure(text)), mode as Candidate);
+    const compiled = estimateFigure(
+      expectD2Figure(requireOk(compileFigure(text))),
+      mode as Candidate,
+    );
     const artifact = requireOk(
       await counted.render({
         d2Source: compiled.d2Source,
@@ -200,7 +203,7 @@ async function main() {
   })[] = [];
   for (const c of cases) {
     const text = source(c);
-    const compiled = requireOk(compileFigure(text));
+    const compiled = expectD2Figure(requireOk(compileFigure(text)));
     const node = compiled.ir.elements.get("n:subject") as NodeIR;
     const theme = getTheme(c.theme);
     if (!theme) throw new Error("missing theme");

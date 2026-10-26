@@ -1,8 +1,7 @@
 /**
  * Layout engines and the Layout IR (design doc §6.21), and the orthogonal
- * edge router (§6.22). The structured pipeline is exposed and tested here;
- * `compileFigure()` still stops structured figures with
- * `layout/engine-unavailable` until the SVG writer (#91) lands.
+ * edge router (§6.22). `renderFigure()` draws structured figures from them
+ * with the structured SVG writer (`src/render/structured.ts`, §6.23).
  */
 
 import { buildFigureIR, type FigureIR } from "../compiler/ir";

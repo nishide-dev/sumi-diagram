@@ -492,6 +492,9 @@ export const reversedEdge = defineGeometryRule({
   fixable: false,
   run(context) {
     const { ir } = context;
+    // `layout.direction` and ELK's cycle breaking belong to the auto engine: a
+    // structured figure places every element where its arrange tree says (#91).
+    if (ir.meta.engine === "structured") return [];
     const { direction } = ir.meta;
     // Self-loops have no direction, and edges between a group and its
     // descendants are lint/ancestor-edge's concern.

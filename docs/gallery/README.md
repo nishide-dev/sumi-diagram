@@ -1039,6 +1039,12 @@ The committed SVGs of <code>examples/</code>, rendered from their sources as wri
 
 <img src="../../examples/decision-flow/decision-flow.svg" alt="Generic decision flow">
 
+### examples/dit\-block/dit\-block\.sumi\.yaml
+
+[<code>examples/dit\-block/dit\-block\.sumi\.yaml</code>](../../examples/dit-block/dit-block.sumi.yaml) · [PDF](../../examples/dit-block/dit-block.pdf) · theme <code>color</code> · profile <code>paper\-single</code> · 68\.26mm × 129\.65mm \(max width 88mm, max height 220mm\)
+
+<img src="../../examples/dit-block/dit-block.svg" alt="examples/dit-block/dit-block.sumi.yaml">
+
 ### Nested groups
 
 [<code>examples/grouped/grouped\.sumi\.yaml</code>](../../examples/grouped/grouped.sumi.yaml) · [PDF](../../examples/grouped/grouped.pdf) · theme <code>minimal</code> · profile <code>paper\-double</code> · 167\.57mm × 65\.97mm \(max width 180mm, max height 220mm\)
@@ -1056,6 +1062,12 @@ The committed SVGs of <code>examples/</code>, rendered from their sources as wri
 [<code>examples/system\-architecture/system\-architecture\.sumi\.yaml</code>](../../examples/system-architecture/system-architecture.sumi.yaml) · [PDF](../../examples/system-architecture/system-architecture.pdf) · theme <code>academic</code> · profile <code>paper\-double</code> · 157\.34mm × 71\.97mm \(max width 180mm, max height 220mm\)
 
 <img src="../../examples/system-architecture/system-architecture.svg" alt="Generic three-tier system">
+
+### examples/transformer/transformer\.sumi\.yaml
+
+[<code>examples/transformer/transformer\.sumi\.yaml</code>](../../examples/transformer/transformer.sumi.yaml) · [PDF](../../examples/transformer/transformer.pdf) · theme <code>academic</code> · profile <code>paper\-single</code> · 87\.14mm × 141\.64mm \(max width 88mm, max height 220mm\)
+
+<img src="../../examples/transformer/transformer.svg" alt="examples/transformer/transformer.sumi.yaml">
 
 ## Themes and profiles
 

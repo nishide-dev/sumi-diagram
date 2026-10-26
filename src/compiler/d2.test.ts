@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { compileFigure } from "./compile";
+import { compileFigure, expectD2Figure } from "./compile";
 import { d2String, elementClass, generateD2 } from "./d2";
 import { extrasFigure, goldenCases } from "./testing";
 
@@ -39,7 +39,7 @@ describe("golden D2 sources", () => {
     test(name, async () => {
       const result = compileFigure(await Bun.file(input).text());
       if (!result.ok) throw new Error(JSON.stringify(result.diagnostics, null, 2));
-      const { d2Source } = result.value;
+      const { d2Source } = expectD2Figure(result.value);
       if (update) await Bun.write(expected, d2Source);
       expect(d2Source).toBe(await Bun.file(expected).text());
     });
@@ -53,8 +53,8 @@ describe("generateD2", () => {
       const first = compileFigure(text);
       const second = compileFigure(text);
       if (!first.ok || !second.ok) throw new Error("expected ok");
-      expect(second.value.d2Source).toBe(first.value.d2Source);
-      expect(generateD2(first.value.ir)).toBe(first.value.d2Source);
+      expect(expectD2Figure(second.value).d2Source).toBe(expectD2Figure(first.value).d2Source);
+      expect(generateD2(first.value.ir)).toBe(expectD2Figure(first.value).d2Source);
     }
   });
 
@@ -62,7 +62,7 @@ describe("generateD2", () => {
     for (const { input } of goldenCases()) {
       const result = compileFigure(await Bun.file(input).text());
       if (!result.ok) throw new Error("expected ok");
-      const { ir, d2Source } = result.value;
+      const { ir, d2Source } = expectD2Figure(result.value);
       for (const [key, element] of ir.elements) {
         const line = `class: ["${elementClass(key)}"; "sumi-kind-${element.kind}"]`;
         expect(d2Source.split(line).length - 1).toBe(1);
@@ -156,7 +156,7 @@ edges:
   - { from: b, to: a, label: x }
 `);
     if (!result.ok) throw new Error("expected ok");
-    const { d2Source } = result.value;
+    const { d2Source } = expectD2Figure(result.value);
     expect(d2Source).toContain(`"g_g": {
   label: "Group"
   class: ["sumi-k-g--g"; "sumi-kind-group"]
@@ -181,7 +181,7 @@ edges:
   - { from: a, to: a, component: line }
 `);
     if (!result.ok) throw new Error("expected ok");
-    const { d2Source } = result.value;
+    const { d2Source } = expectD2Figure(result.value);
     expect(d2Source).toContain(`"n_a": {\n  label: ""\n`);
     expect(d2Source).toContain(`"n_a" -- "n_a": {\n  label: ""\n`);
     expect(d2Source).not.toContain("arrowhead");

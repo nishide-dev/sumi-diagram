@@ -8,7 +8,7 @@ import { finalizeSvg } from "../render/finalize";
 import { containsRect, type Point, type Rect } from "../render/geometry";
 import { inspectSvg } from "../render/inspect";
 import { rayHit, rectPoints } from "../render/outline-geometry";
-import { renderFigure } from "../render/render";
+import { expectD2Rendered, renderFigure } from "../render/render";
 import { attribute, childElements, classList, descendants, parseXml } from "../render/xml";
 
 const binary = findD2Binary();
@@ -39,7 +39,7 @@ edges:
           const result = await renderFigure(source);
           if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
           expect([...result.diagnostics, ...lintGeometry(result.value, { source })]).toEqual([]);
-          const { compiled, artifact, inspection, svg } = result.value;
+          const { compiled, artifact, inspection, svg } = expectD2Rendered(result.value);
           const raw = finalizeSvg(artifact, compiled, { source });
           if (!raw.ok) throw new Error("finalize failed");
           const before = inspectSvg(raw.value.svg, compiled.ir);

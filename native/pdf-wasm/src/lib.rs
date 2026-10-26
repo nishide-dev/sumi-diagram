@@ -102,6 +102,62 @@ fn picture_assets(svg: &[u8], fonts: Vec<Vec<u8>>) -> Result<Vec<u8>, String> {
     Ok(result)
 }
 
+/// Subsets the one font added for the glyph IDs in `request` (u16 LE each)
+/// with subsetter (#91). Returns a u32 LE glyph count `n`, then `n` u16 LE old
+/// glyph IDs in new-ID order (`.notdef` first, then the requested glyphs in
+/// order, then composite components the closure added), then the subset font.
+/// The subset has no `cmap` / `OS/2`; the host adds them.
+fn subset_font(request: &[u8], fonts: Vec<Vec<u8>>) -> Result<Vec<u8>, String> {
+    let [font] = <[Vec<u8>; 1]>::try_from(fonts).map_err(|_| "expected one font".to_string())?;
+    if request.len() % 2 != 0 {
+        return Err("odd glyph list length".into());
+    }
+    let mut remapper = subsetter::GlyphRemapper::new();
+    for pair in request.chunks_exact(2) {
+        remapper.remap(u16::from_le_bytes([pair[0], pair[1]]));
+    }
+    // `subset` runs the composite-glyph closure on its own copy of the
+    // remapper. The host requests the closure itself, so the subset must hold
+    // exactly the remapper's glyphs; `subset_order` checks the count.
+    let data = subsetter::subset(&font, 0, &remapper).map_err(|e| e.to_string())?;
+    let glyphs = subset_order(&data, &remapper)?;
+    let mut result = Vec::with_capacity(4 + 2 * glyphs.len() + data.len());
+    result.extend_from_slice(&(glyphs.len() as u32).to_le_bytes());
+    for glyph in glyphs {
+        result.extend_from_slice(&glyph.to_le_bytes());
+    }
+    result.extend_from_slice(&data);
+    Ok(result)
+}
+
+/// The old glyph IDs of a subset in new-ID order: the remapper's glyphs, then
+/// the ones the closure appended (the subset's `maxp.numGlyphs` tells how
+/// many; their IDs are only known to subsetter, so a subset with any is
+/// rejected and the host must request composite components itself).
+fn subset_order(data: &[u8], remapper: &subsetter::GlyphRemapper) -> Result<Vec<u16>, String> {
+    let count = num_glyphs(data).ok_or_else(|| "subset has no maxp".to_string())?;
+    let requested: Vec<u16> = remapper.remapped_gids().collect();
+    if usize::from(count) != requested.len() {
+        return Err(format!(
+            "the subset has {count} glyphs for {} requested: composite components must be requested",
+            requested.len()
+        ));
+    }
+    Ok(requested)
+}
+
+fn num_glyphs(data: &[u8]) -> Option<u16> {
+    let tables = u16::from_be_bytes([*data.get(4)?, *data.get(5)?]);
+    for i in 0..usize::from(tables) {
+        let record = data.get(12 + 16 * i..28 + 16 * i)?;
+        if &record[0..4] == b"maxp" {
+            let offset = u32::from_be_bytes([record[8], record[9], record[10], record[11]]) as usize;
+            return Some(u16::from_be_bytes([*data.get(offset + 4)?, *data.get(offset + 5)?]));
+        }
+    }
+    None
+}
+
 thread_local! {
     static FONTS: RefCell<Vec<Vec<u8>>> = const { RefCell::new(Vec::new()) };
     static OUTPUT: RefCell<Vec<u8>> = const { RefCell::new(Vec::new()) };
@@ -143,6 +199,14 @@ pub unsafe extern "C" fn convert(ptr: *mut u8, len: usize) -> isize {
 #[no_mangle]
 pub unsafe extern "C" fn picture(ptr: *mut u8, len: usize) -> isize {
     transform(ptr, len, picture_assets)
+}
+
+/// Subsets a font for a structured SVG's `@font-face` (#91); see `subset_font`.
+/// # Safety
+/// `ptr` / `len` must come from `alloc(len)`, filled by the host.
+#[no_mangle]
+pub unsafe extern "C" fn subset(ptr: *mut u8, len: usize) -> isize {
+    transform(ptr, len, subset_font)
 }
 
 unsafe fn transform(

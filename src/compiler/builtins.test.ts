@@ -11,7 +11,7 @@ import { checkFigure } from "../core/check";
 import { BUILTIN_MANIFESTS } from "../core/registry/builtins";
 import { BUILTIN_THEME_DEFINITIONS } from "../core/theme/builtin";
 import { KIND_DEFAULTS } from "../core/theme/style";
-import { compileFigure } from "./compile";
+import { compileFigure, expectD2Figure } from "./compile";
 import type { FigureIR } from "./ir";
 import { primitivesFigure } from "./testing";
 
@@ -40,7 +40,7 @@ const LOWERING: Record<string, string> = {
 function compile(source: string) {
   const result = compileFigure(source);
   if (!result.ok) throw new Error(JSON.stringify(result.diagnostics, null, 2));
-  return result.value;
+  return expectD2Figure(result.value);
 }
 
 /** The lowering of each element of a compiled figure, by canonical component ID. */

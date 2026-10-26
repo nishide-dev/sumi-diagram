@@ -95,7 +95,7 @@ describe.each(EXAMPLES)("%s", (example) => {
       SumiProfile: m.profile,
       SumiFontSet: m.fontSet,
       SumiInputSha256: m.inputSha256,
-      SumiD2Sha256: m.d2Sha256,
+      ...(m.d2Sha256 !== undefined && { SumiD2Sha256: m.d2Sha256 }),
     });
   });
 

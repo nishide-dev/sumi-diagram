@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { compileFigure } from "../../compiler/compile";
+import { compileFigure, expectD2Figure } from "../../compiler/compile";
 import type { Point, Region } from "../../core/geometry";
 import { getOutlineRenderer } from "../../core/outline";
 import { withOutlineNodes } from "../../render/outline-sizing";
@@ -26,7 +26,7 @@ nodes:
 `;
 const result = compileFigure(SOURCE, { registry: outlineRegistry(), file: "outlines.sumi.yaml" });
 if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
-const compiled = result.value;
+const compiled = expectD2Figure(result.value);
 const bbox = { x: 0, y: 0, width: 100, height: 100 };
 
 test("monotone-chain hull removes concave/duplicate/collinear vertices without mutating input", () => {

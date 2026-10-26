@@ -17,7 +17,11 @@
 
 import { createHash } from "node:crypto";
 import type { RenderArtifact } from "../backends/types";
-import type { CompiledFigure } from "../compiler/compile";
+import type {
+  CompiledD2Figure,
+  CompiledFigure,
+  CompiledStructuredFigure,
+} from "../compiler/compile";
 import type { Diagnostic } from "../core/diagnostics";
 import { SUMI_VERSION } from "../core/figure/validate";
 import type { Result } from "../core/result";
@@ -52,9 +56,15 @@ export interface SumiSvgMetadata {
   fontSet: string;
   /** sha256 (hex) of the `*.sumi.yaml` source text (UTF-8). */
   inputSha256: string;
-  /** sha256 (hex) of the generated D2 source (UTF-8). */
-  d2Sha256: string;
+  /**
+   * sha256 (hex) of the generated D2 source (UTF-8). Omitted for a backend
+   * without D2 source (`sumi-structured`, design doc §6.23).
+   */
+  d2Sha256?: string;
 }
+
+/** The backend name of SVGs drawn by the structured SVG writer (#91); its version is Sumi's. */
+export const STRUCTURED_BACKEND = "sumi-structured";
 
 export interface FinalizeOptions {
   /** The `*.sumi.yaml` source text the figure was compiled from (hashed into the metadata). */
@@ -93,9 +103,10 @@ function formatNumber(n: number): string {
 
 /** Serializes the metadata as `<metadata><sumi:render …/></metadata>`. */
 export function serializeMetadata(metadata: SumiSvgMetadata): string {
-  const attributes = METADATA_ATTRIBUTES.map(
-    ([name, get]) => ` ${name}="${escapeAttribute(get(metadata))}"`,
-  ).join("");
+  const attributes = METADATA_ATTRIBUTES.map(([name, get]) => {
+    const value = get(metadata);
+    return value === undefined ? "" : ` ${name}="${escapeAttribute(value)}"`;
+  }).join("");
   return `<metadata><sumi:render xmlns:sumi="${SUMI_METADATA_NAMESPACE}"${attributes}/></metadata>`;
 }
 
@@ -121,7 +132,11 @@ export function readSvgMetadata(svg: string): Result<SumiSvgMetadata | undefined
     );
   if (element === undefined) return { ok: true, value: undefined, diagnostics: [] };
   const get = (name: string): string | undefined => attribute(element, name);
-  const missing = METADATA_ATTRIBUTES.map(([name]) => name).filter((n) => get(n) === undefined);
+  // Only a D2 backend has D2 source to hash (the structured writer has none).
+  const optional = (name: string) => name === "d2-sha256" && get("backend") === STRUCTURED_BACKEND;
+  const missing = METADATA_ATTRIBUTES.map(([name]) => name).filter(
+    (n) => get(n) === undefined && !optional(n),
+  );
   if (missing.length > 0) {
     const names = missing.map((name) => `"${name}"`).join(", ");
     return { ok: false, diagnostics: [invalid(`The Sumi metadata lacks ${names}.`)] };
@@ -144,7 +159,7 @@ export function readSvgMetadata(svg: string): Result<SumiSvgMetadata | undefined
       profile: value("profile"),
       fontSet: value("font-set"),
       inputSha256: value("input-sha256"),
-      d2Sha256: value("d2-sha256"),
+      ...(get("d2-sha256") !== undefined && { d2Sha256: value("d2-sha256") }),
     },
     diagnostics: [],
   };
@@ -207,7 +222,7 @@ export function checkEmbeddedFonts(drawing: XmlElement): Diagnostic[] {
  */
 export function finalizeSvg(
   artifact: RenderArtifact,
-  compiled: CompiledFigure,
+  compiled: CompiledD2Figure,
   options: FinalizeOptions,
 ): Result<FinalizedSvg> {
   const mismatch = (what: string): Result<FinalizedSvg> => ({
@@ -222,8 +237,48 @@ export function finalizeSvg(
   });
   if (artifact.d2Source !== compiled.d2Source) return mismatch("the D2 source");
   if (artifact.fontSetId !== compiled.fontSet.id) return mismatch("the font set");
+  return finalizeDocument(artifact.svg, {
+    ...metadataBase(compiled, options),
+    backend: { ...artifact.backend },
+    d2Sha256: sha256(compiled.d2Source),
+  });
+}
 
-  const read = readD2Svg(artifact.svg);
+/**
+ * Finalizes an SVG drawn by the structured SVG writer (#91, design doc
+ * §6.23) for `compiled`, exactly like D2's: the same checks, root size and
+ * metadata, with backend `sumi-structured` at Sumi's version and no D2 hash.
+ */
+export function finalizeStructuredSvg(
+  svg: string,
+  compiled: CompiledStructuredFigure,
+  options: FinalizeOptions,
+): Result<FinalizedSvg> {
+  return finalizeDocument(svg, {
+    ...metadataBase(compiled, options),
+    backend: { name: STRUCTURED_BACKEND, version: SUMI_VERSION },
+  });
+}
+
+function metadataBase(
+  compiled: CompiledFigure,
+  options: FinalizeOptions,
+): Omit<SumiSvgMetadata, "backend" | "d2Sha256"> {
+  const { ir } = compiled;
+  return {
+    format: METADATA_FORMAT,
+    sumiVersion: SUMI_VERSION,
+    figureId: ir.meta.id,
+    theme: ir.meta.themeId,
+    profile: ir.meta.profileId,
+    fontSet: compiled.fontSet.id,
+    inputSha256: sha256(options.source),
+  };
+}
+
+/** Checks a drawing and adds the root size and the metadata (shared by both backends). */
+function finalizeDocument(source: string, metadata: SumiSvgMetadata): Result<FinalizedSvg> {
+  const read = readD2Svg(source);
   if (!read.ok) return { ok: false, diagnostics: [read.diagnostic] };
   const { root, viewBox, drawing } = read.doc;
   for (const name of ["width", "height"]) {
@@ -239,18 +294,6 @@ export function finalizeSvg(
   const fontDiagnostics = checkEmbeddedFonts(drawing);
   if (fontDiagnostics.length > 0) return { ok: false, diagnostics: fontDiagnostics };
 
-  const { ir } = compiled;
-  const metadata: SumiSvgMetadata = {
-    format: METADATA_FORMAT,
-    sumiVersion: SUMI_VERSION,
-    backend: { ...artifact.backend },
-    figureId: ir.meta.id,
-    theme: ir.meta.themeId,
-    profile: ir.meta.profileId,
-    fontSet: compiled.fontSet.id,
-    inputSha256: sha256(options.source),
-    d2Sha256: sha256(compiled.d2Source),
-  };
   const widthPt = viewBox.width * PT_PER_D2_UNIT;
   const heightPt = viewBox.height * PT_PER_D2_UNIT;
   const rootAttributes = [
@@ -260,7 +303,6 @@ export function finalizeSvg(
   ]
     .map(({ name, value }) => ` ${name}="${escapeAttribute(value)}"`)
     .join("");
-  const source = artifact.svg;
   const svg =
     source.slice(0, root.start) +
     `<svg${rootAttributes}>` +

@@ -207,6 +207,14 @@ export async function renderCommand(
   };
 
   const text = await readTextFile(context, file);
+  if (d2Destination !== undefined) {
+    const compiled = compileFigure(text, { file, overrides });
+    if (compiled.ok && compiled.value.engine === "structured") {
+      throw new UsageError(
+        "--emit-d2 is not available for a structured figure: Sumi lays it out without D2, so it has no D2 source.",
+      );
+    }
+  }
   const sourceName = `${basename(file)}.d2`;
   const result = await renderFigure(text, {
     file,
@@ -217,12 +225,16 @@ export async function renderCommand(
 
   let d2Written: string | null = null;
   if (d2Destination !== undefined) {
-    const d2Source = result.ok
-      ? result.value.compiled.d2Source
-      : (() => {
-          const compiled = compileFigure(text, { file, overrides });
-          return compiled.ok ? compiled.value.d2Source : undefined;
-        })();
+    const compiled = result.ok ? result.value.compiled : undefined;
+    const d2Source =
+      compiled !== undefined
+        ? compiled.engine === "auto"
+          ? compiled.d2Source
+          : undefined
+        : (() => {
+            const again = compileFigure(text, { file, overrides });
+            return again.ok && again.value.engine === "auto" ? again.value.d2Source : undefined;
+          })();
     if (d2Source !== undefined) {
       await write(d2Destination, d2Source);
       d2Written = d2Destination.display;

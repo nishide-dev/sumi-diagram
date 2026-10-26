@@ -49,9 +49,9 @@ Every stage reports problems as the same diagnostic object. In
 | `ref/unknown-group` | `group:` names a group that does not exist | add the group under `groups:` or fix the ID |
 | `ref/duplicate-id` | two nodes/groups (or two edges) share an ID | rename one; nodes and groups share an ID space |
 | `ref/group-cycle` | groups contain each other | fix the `group:` chain |
-| `layout/structured-only` | `arrange`, `attach`, `fromAnchor` or `toAnchor` in a figure that uses the auto (D2) layout | remove the field; the structured layout (`figure.layout.arrange`) is not renderable yet, so do not switch to it |
+| `layout/structured-only` | `arrange`, `attach`, `fromAnchor` or `toAnchor` in a figure that uses the auto (D2) layout | remove the field (the structured layout needs `figure.layout.arrange`; prefer the auto layout unless the figure needs exact placement) |
 | `layout/unknown-item`, `layout/unknown-attach-target`, `layout/unplaced`, `layout/duplicate-placement`, `layout/group-mismatch`, `layout/group-cycle`, `layout/attach-cycle`, `layout/invalid-anchor` | problems in a structured layout (`figure.layout.arrange`, `groups[].arrange`, `attach`, anchors) | list every node and group exactly once in an arrange tree (or attach it); use the hint |
-| `layout/engine-unavailable` | `sumi render` of a structured figure: this Sumi checks the structured layout but cannot draw it yet | use the auto layout (no `arrange`) to render |
+| `layout/no-route` | `sumi render` of a structured figure: an edge cannot be routed (the ends touch, are enclosed, or are closer than the arrowhead) | widen the `gap` between the elements, or use `fromAnchor` / `toAnchor` on other sides; a `line` needs no arrowhead room |
 | `component/unknown` | component name not in the registry | choose one from `sumi catalog` (the hint lists the right kind) |
 | `component/wrong-kind` | a node component on an edge, etc. | use a component of the right kind |
 | `component/unknown-variant` | variant not listed for that component | use one from the hint / catalog |

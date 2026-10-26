@@ -105,7 +105,7 @@ const CHECK_STAGES = new Set(["yaml", "schema", "ref", "component", "theme", "pr
 
 /**
  * The `layout` stage reports both while checking (`lintFigure()`) and while
- * rendering (e.g. `layout/engine-unavailable`), so its rendering diagnostics
+ * rendering (e.g. `layout/no-route`), so its rendering diagnostics
  * are kept unless `lintFigure()` already reported the same one.
  */
 const MIXED_STAGES = new Set(["layout"]);
