@@ -681,16 +681,16 @@ edges:
 
 ### sumi/junction
 
-A point where lines branch or merge, drawn as a small dot; takes no label and no tone\.
+A point where lines branch or merge, drawn as a small dot \(variant hidden: no dot, for a smooth split or a line that ends in open space\); takes no label and no tone\.
 
-**kind**: <code>node</code> · **variants**: <code>default, muted</code> · **since**: <code>0\.4\.0</code> · **shape**: <code>circle</code> · **sizing**: <code>fixed\-aspect\-1</code> · **mark**: <code>\{&quot;type&quot;:&quot;point&quot;,&quot;size&quot;:3\}</code>
+**kind**: <code>node</code> · **variants**: <code>default, muted, hidden</code> · **since**: <code>0\.4\.0</code> · **shape**: <code>circle</code> · **sizing**: <code>fixed\-aspect\-1</code> · **mark**: <code>\{&quot;type&quot;:&quot;point&quot;,&quot;size&quot;:3\}</code>
 
 No props.
 
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> |
 | --- | --- | --- | --- |
 | <img src="components/sumi-junction.minimal.svg" alt="sumi/junction, theme minimal"> | <img src="components/sumi-junction.academic.svg" alt="sumi/junction, theme academic"> | <img src="components/sumi-junction.slides.svg" alt="sumi/junction, theme slides"> | <img src="components/sumi-junction.color.svg" alt="sumi/junction, theme color"> |
-| <code>sumi render sumi\-junction\.sumi\.yaml</code><br>51\.33mm × 57\.86mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-junction\.sumi\.yaml \-\-theme academic</code><br>50\.8mm × 57\.86mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-junction\.sumi\.yaml \-\-theme slides</code><br>66\.32mm × 69\.5mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-junction\.sumi\.yaml \-\-theme color</code><br>51\.33mm × 57\.86mm \(max width 180mm, max height 220mm\) |
+| <code>sumi render sumi\-junction\.sumi\.yaml</code><br>51\.33mm × 86\.43mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-junction\.sumi\.yaml \-\-theme academic</code><br>50\.8mm × 86\.43mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-junction\.sumi\.yaml \-\-theme slides</code><br>66\.32mm × 103\.72mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-junction\.sumi\.yaml \-\-theme color</code><br>51\.33mm × 86\.43mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-junction.sumi.yaml</code></summary>
@@ -730,6 +730,18 @@ nodes:
   - id: muted-b
     component: box
     label: B
+  - id: hidden
+    component: box
+    label: hidden
+  - id: hidden-junction
+    component: sumi/junction
+    variant: hidden
+  - id: hidden-a
+    component: box
+    label: A
+  - id: hidden-b
+    component: box
+    label: B
 
 edges:
   - from: default
@@ -746,6 +758,13 @@ edges:
     to: muted-a
   - from: muted-junction
     to: muted-b
+  - from: hidden
+    to: hidden-junction
+    component: line
+  - from: hidden-junction
+    to: hidden-a
+  - from: hidden-junction
+    to: hidden-b
 ```
 
 </details>
@@ -1115,7 +1134,7 @@ The committed SVGs of <code>examples/</code>, rendered from their sources as wri
 
 ### examples/dit\-block/dit\-block\.sumi\.yaml
 
-[<code>examples/dit\-block/dit\-block\.sumi\.yaml</code>](../../examples/dit-block/dit-block.sumi.yaml) · [PDF](../../examples/dit-block/dit-block.pdf) · theme <code>color</code> · profile <code>paper\-single</code> · 68\.26mm × 129\.65mm \(max width 88mm, max height 220mm\)
+[<code>examples/dit\-block/dit\-block\.sumi\.yaml</code>](../../examples/dit-block/dit-block.sumi.yaml) · [PDF](../../examples/dit-block/dit-block.pdf) · theme <code>color</code> · profile <code>paper\-single</code> · 68\.26mm × 127mm \(max width 88mm, max height 220mm\)
 
 <img src="../../examples/dit-block/dit-block.svg" alt="examples/dit-block/dit-block.sumi.yaml">
 
@@ -1139,7 +1158,7 @@ The committed SVGs of <code>examples/</code>, rendered from their sources as wri
 
 ### examples/transformer/transformer\.sumi\.yaml
 
-[<code>examples/transformer/transformer\.sumi\.yaml</code>](../../examples/transformer/transformer.sumi.yaml) · [PDF](../../examples/transformer/transformer.pdf) · theme <code>academic</code> · profile <code>paper\-single</code> · 86\.78mm × 141\.64mm \(max width 88mm, max height 220mm\)
+[<code>examples/transformer/transformer\.sumi\.yaml</code>](../../examples/transformer/transformer.sumi.yaml) · [PDF](../../examples/transformer/transformer.pdf) · theme <code>academic</code> · profile <code>paper\-single</code> · 86\.78mm × 140\.58mm \(max width 88mm, max height 220mm\)
 
 <img src="../../examples/transformer/transformer.svg" alt="examples/transformer/transformer.sumi.yaml">
 

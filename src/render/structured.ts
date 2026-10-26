@@ -26,6 +26,8 @@
  * is drawn in both, the later edge on top. The `path.connection` therefore
  * carries the route and line width / dashes but no `stroke` (SVG's initial
  * value, `none`). At an arrowhead the wire stops at the arrowhead's base.
+ * The wires' turns, and the joins at a junction drawn without a dot, are
+ * rounded (`wire.ts`, #101); the `path.connection` keeps the sharp route.
  *
  * Icons and images (#94) are drawn by `assetMarkup()` right after the node's
  * `g.shape`: an icon as shapes under one transformed `g.sumi-icon` (never a
@@ -55,6 +57,7 @@ import { CYLINDER_ARC_UNITS, shapeOutline } from "../lint/geometry/shapes";
 import { drawNodeOutline } from "./compose";
 import { subsetFont } from "./font-subset";
 import { dashArray, n, paint, strokeAttributes } from "./stroke";
+import { roundCorners, type WirePolyline } from "./wire";
 import { escapeAttribute } from "./xml";
 
 export { dashArray };
@@ -384,29 +387,119 @@ export function mergeSegments(segments: readonly Segment[]): Segment[] {
 const lineKey = (style: EdgeIR["style"]): string =>
   `${paint(style.stroke)}|${style.strokeWidth.units}|${style.strokeDash}|${style.opacity}`;
 
-/** Wires: per net and line style, the union of the edges' wire segments (see the module comment). */
+/**
+ * The largest corner radius of a wire (#101), in units: 4pt, a little under
+ * D2's 5pt for ELK routes, as structured figures pack blocks closer.
+ */
+export const WIRE_CORNER_RADIUS = 8;
+
+/** A point as SVG path coordinates. */
+const xy = (p: Point): string => `${n(p.x)} ${n(p.y)}`;
+
+/**
+ * Wires: per net and line style, the union of the edges' wire segments (see
+ * the module comment), with rounded turns (`wire.ts`, #101): each turn of a
+ * route, and the joins at a hidden junction (a junction whose fill is
+ * `transparent`) whose edges all share one line style and reach its center.
+ */
 function wires(ir: FigureIR, layout: LayoutIR): string[] {
   const edges = new Map(ir.edges.map((e) => [e.key, e]));
-  const routes = new Map(layout.edges.map((e) => [e.key, e.route?.points]));
+  const nodes = new Map(ir.nodes.map((node) => [node.key, node]));
+  const routes = new Map(layout.edges.map((e) => [e.key, e]));
   const nets = layout.nets ?? layout.edges.map((e, id) => ({ id, edges: [e.key], segments: [] }));
+  const hidden = (key: ElementKey): boolean => {
+    const node = nodes.get(key);
+    return node?.mark?.type === "point" && node.style.fill === "transparent";
+  };
+  // What every arc keeps clear of: shapes and labels (not hidden junctions).
+  const fixed: Rect[] = [
+    ...layout.nodes.filter((node) => !hidden(node.key)).map((node) => node.rect),
+    ...layout.groups.flatMap((group) => (group.label === undefined ? [] : [group.label.box])),
+    ...layout.edges.flatMap((edge) =>
+      edge.route?.label === undefined ? [] : [edge.route.label.box],
+    ),
+  ];
+  const segmentRect = ([a, b]: readonly [Point, Point]): Rect => ({
+    x: Math.min(a.x, b.x),
+    y: Math.min(a.y, b.y),
+    width: Math.abs(b.x - a.x),
+    height: Math.abs(b.y - a.y),
+  });
   const out: string[] = [];
   for (const net of nets) {
-    const byStyle = new Map<string, { edge: EdgeIR; segments: Segment[] }>();
+    const obstacles = [
+      ...fixed,
+      ...nets
+        .filter((other) => other.id !== net.id)
+        .flatMap((other) => other.segments.map(segmentRect)),
+    ];
+    const drawn: {
+      key: ElementKey;
+      edge: EdgeIR;
+      route: (typeof layout.edges)[number];
+      wire: Point[];
+    }[] = [];
     for (const key of net.edges) {
       const edge = edges.get(key);
-      const points = routes.get(key);
-      if (edge === undefined || points === undefined) continue;
-      const wire = wirePoints(edge, points);
-      const entry = byStyle.get(lineKey(edge.style)) ?? { edge, segments: [] };
-      for (let i = 1; i < wire.length; i++) {
-        entry.segments.push([wire[i - 1] as Point, wire[i] as Point]);
+      const route = routes.get(key);
+      const points = route?.route?.points;
+      if (edge === undefined || route === undefined || points === undefined) continue;
+      drawn.push({ key, edge, route, wire: wirePoints(edge, points) });
+    }
+    // A hidden junction joins its routes when they all reach its center in one line style.
+    const joined = new Set<ElementKey>();
+    for (const { route } of drawn) {
+      for (const junction of [route.from, route.to]) {
+        if (!hidden(junction) || joined.has(junction)) continue;
+        const touching = drawn.filter((d) => d.route.from === junction || d.route.to === junction);
+        const center = (d: (typeof drawn)[number]) =>
+          d.route.from === junction ? d.wire[0] : d.wire[d.wire.length - 1];
+        const reaches = (d: (typeof drawn)[number]) => {
+          const at = center(d);
+          const end =
+            d.route.from === junction ? d.route.route?.points[0] : d.route.route?.points.at(-1);
+          return (
+            d.wire.length >= 2 &&
+            at !== undefined &&
+            end !== undefined &&
+            at.x === end.x &&
+            at.y === end.y
+          );
+        };
+        const key0 = touching[0] === undefined ? "" : lineKey(touching[0].edge.style);
+        if (touching.every((d) => reaches(d) && lineKey(d.edge.style) === key0))
+          joined.add(junction);
       }
+    }
+    const byStyle = new Map<string, { edge: EdgeIR; polylines: WirePolyline[] }>();
+    for (const { edge, route, wire } of drawn) {
+      const entry = byStyle.get(lineKey(edge.style)) ?? { edge, polylines: [] };
+      entry.polylines.push({
+        points: wire,
+        ...(joined.has(route.from) ? { start: route.from } : {}),
+        ...(joined.has(route.to) ? { end: route.to } : {}),
+      });
       byStyle.set(lineKey(edge.style), entry);
     }
-    for (const { edge, segments } of byStyle.values()) {
-      const merged = mergeSegments(segments);
-      if (merged.length === 0) continue;
-      const d = merged.map(([a, b]) => pathData([a, b])).join(" ");
+    for (const { edge, polylines } of byStyle.values()) {
+      const width = edge.style.strokeWidth.units;
+      const rounded = roundCorners(polylines, {
+        radius: WIRE_CORNER_RADIUS,
+        minRadius: width,
+        clearance: width,
+        obstacles,
+      });
+      const merged = mergeSegments(rounded.pieces.flat());
+      const seen = new Set<string>();
+      const curves: string[] = [];
+      for (const a of rounded.arcs.flat()) {
+        const d = `M ${xy(a.from)} C ${xy(a.c1)} ${xy(a.c2)} ${xy(a.to)}`;
+        if (seen.has(d)) continue;
+        seen.add(d);
+        curves.push(d);
+      }
+      if (merged.length === 0 && curves.length === 0) continue;
+      const d = [...merged.map(([a, b]) => pathData([a, b])), ...curves].join(" ");
       out.push(
         `<path class="sumi-wire" d="${d}" fill="none"${strokeAttributes(edge.style)} stroke-linecap="round" stroke-linejoin="round"${opacity(edge.style)}/>`,
       );

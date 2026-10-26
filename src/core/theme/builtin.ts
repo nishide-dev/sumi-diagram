@@ -49,7 +49,7 @@ const EDGES = ["arrow", "line", "double-arrow"];
 interface VariantStyles {
   shape: { emphasis: StyleLayerInput; muted: StyleLayerInput };
   label: { default: StyleLayerInput; muted: StyleLayerInput };
-  junction: { default: StyleLayerInput; muted: StyleLayerInput };
+  junction: { default: StyleLayerInput; muted: StyleLayerInput; hidden: StyleLayerInput };
   container: { muted: StyleLayerInput };
   edge: { dashed: StyleLayerInput; emphasis: StyleLayerInput; muted: StyleLayerInput };
 }
@@ -91,10 +91,17 @@ function grayTones(light: string, middle: string, dark: string): Record<Tone, St
   ) as Record<Tone, StyleLayerInput>;
 }
 
-/** A junction is a dot in the line color. */
+/**
+ * A junction is a dot in the line color. A hidden junction (#101) draws
+ * nothing: its lines meet without a dot (structured figures round the turn
+ * through it), or a line ends there in open space. Its zero stroke width
+ * makes the point one unit (the mark's smallest size), so in `auto` the gap
+ * D2 leaves between lines ending on its outline is closed by their round caps.
+ */
 const junctionStyles = (line: string, muted: string): VariantStyles["junction"] => ({
   default: { fill: line, stroke: line },
   muted: { fill: muted, stroke: muted },
+  hidden: { fill: "transparent", stroke: "transparent", strokeWidth: "0pt" },
 });
 
 export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [

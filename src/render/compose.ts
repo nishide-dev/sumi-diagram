@@ -299,3 +299,121 @@ export function composeOutlines(
     return { ok: false, diagnostics };
   }
 }
+
+/** A junction drawn without a dot (#101): a point mark whose fill is `transparent`. */
+export const isHiddenJunction = (node: NodeIR): boolean =>
+  node.mark?.type === "point" && node.style.fill === "transparent";
+
+/**
+ * Hidden junctions in `auto` (#101): D2 ends a line short of a node's
+ * outline, so lines meeting at a junction without a dot would show a gap.
+ * Each end without an arrowhead at a hidden junction is extended along its
+ * own direction to the junction's center (its projection on that line), the
+ * way `composeOutlines()` extends ends to an outline: only the `d` of those
+ * edges' `path.connection` changes. Figures without hidden junctions are
+ * returned as they are; callers inspect the result again.
+ */
+export function composeJunctionEnds(
+  svg: string,
+  ir: FigureIR,
+  inspection: SvgInspection,
+): Result<string> {
+  const diagnostics: Diagnostic[] = [];
+  const hidden = new Set(ir.nodes.filter(isHiddenJunction).map((n) => n.key));
+  if (hidden.size === 0) return { ok: true, value: svg, diagnostics };
+  let current: ElementKey = [...hidden][0] as ElementKey;
+  try {
+    const parsed = parseXml(svg);
+    if (!parsed.ok) throw new Error(parsed.message);
+    const groups = new Map<ElementKey, XmlElement>();
+    for (const element of descendants(parsed.root)) {
+      if (element.name !== "g") continue;
+      for (const name of classList(element)) {
+        const key = decodeElementClass(name);
+        if (key) groups.set(key, element);
+      }
+    }
+    const geometry = new Map(inspection.elements.map((e) => [e.key, e]));
+    const edits: Edit[] = [];
+    for (const edge of ir.edges) {
+      const ends = (["source", "target"] as const).filter((end) => {
+        const key = end === "source" ? edge.from : edge.to;
+        const head = end === "source" ? edge.sourceArrowhead : edge.targetArrowhead;
+        return hidden.has(key) && (head === undefined || head === "none");
+      });
+      if (ends.length === 0) continue;
+      current = edge.key;
+      const original = geometry.get(edge.key)?.path;
+      const group = groups.get(edge.key);
+      const path =
+        group &&
+        childElements(group).find((c) => c.name === "path" && classList(c).includes("connection"));
+      if (!original || original.length < 2 || !path)
+        throw new Error(`${edge.key}: missing edge route.`);
+      const route = original.map((s) => structuredClone(s));
+      let changed = false;
+      for (const end of ends) {
+        const bbox = geometry.get(end === "source" ? edge.from : edge.to)?.bbox;
+        if (!bbox) throw new Error(`${edge.key}: missing junction geometry.`);
+        const center = { x: bbox.x + bbox.width / 2, y: bbox.y + bbox.height / 2 };
+        const index = end === "source" ? 0 : original.length - 1;
+        const segment = original[index] as PathSegment;
+        const point = segment.to;
+        const next = original[1] as PathSegment;
+        const neighbour =
+          end === "source"
+            ? next.command === "C"
+              ? next.c1
+              : next.to
+            : segment.command === "C"
+              ? segment.c2
+              : (original[index - 1] as PathSegment).to;
+        const length = Math.hypot(point.x - neighbour.x, point.y - neighbour.y);
+        if (length <= 1e-9) continue;
+        const direction = {
+          x: (point.x - neighbour.x) / length,
+          y: (point.y - neighbour.y) / length,
+        };
+        // How far along its own direction the end is from the center's projection.
+        const delta = (center.x - point.x) * direction.x + (center.y - point.y) * direction.y;
+        if (delta <= 1e-9) continue;
+        const shift = (p: Point): Point => ({
+          x: p.x + direction.x * delta,
+          y: p.y + direction.y * delta,
+        });
+        route[index] = { ...(route[index] as PathSegment), to: shift(point) };
+        if (end === "source" && route[1]?.command === "C")
+          route[1] = { ...route[1], c1: shift(route[1].c1) };
+        const last = route[index];
+        if (end === "target" && last?.command === "C")
+          route[index] = { ...last, c2: shift(last.c2) };
+        changed = true;
+      }
+      if (!changed) continue;
+      const tag = svg.slice(path.start, path.startTagEnd);
+      const pattern = /(\sd\s*=\s*)(?:"[^"]*"|'[^']*')/;
+      if (!pattern.test(tag)) throw new Error(`<${path.name}> lacks d.`);
+      edits.push({
+        start: path.start,
+        end: path.startTagEnd,
+        text: tag.replace(pattern, (_, prefix: string) => `${prefix}"${pathText(route)}"`),
+      });
+    }
+    let out = svg;
+    for (const edit of edits.sort((a, b) => b.start - a.start)) {
+      out = out.slice(0, edit.start) + edit.text + out.slice(edit.end);
+    }
+    return { ok: true, value: out, diagnostics };
+  } catch (cause) {
+    diagnostics.push(
+      outlineDiagnostic(
+        ir,
+        current,
+        "svg/unsupported-geometry",
+        "error",
+        cause instanceof Error ? cause.message : String(cause),
+      ),
+    );
+    return { ok: false, diagnostics };
+  }
+}

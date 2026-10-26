@@ -132,8 +132,8 @@ const junction: NodeManifest = {
   kind: "node",
   name: "junction",
   description:
-    "A point where lines branch or merge, drawn as a small dot; takes no label and no tone.",
-  variants: ["default", "muted"],
+    "A point where lines branch or merge, drawn as a small dot (variant hidden: no dot, for a smooth split or a line that ends in open space); takes no label and no tone.",
+  variants: ["default", "muted", "hidden"],
   props: noProps,
   shape: "circle",
   sizing: "fixed-aspect-1",
