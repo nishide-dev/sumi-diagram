@@ -306,6 +306,8 @@ export function withFamily(bytes: Uint8Array, family: string): Uint8Array {
   const name = tables.get("name");
   if (name === undefined) throw new FontParseError("the font has no name table");
   const v = view(name);
+  // Format 1 adds language-tag records that the records below may refer to.
+  if (v.getUint16(0) !== 0) throw new FontParseError("only name table format 0 is supported");
   const count = v.getUint16(2);
   const storage = v.getUint16(4);
   if (6 + count * 12 > name.length) throw new FontParseError("the name table is truncated");

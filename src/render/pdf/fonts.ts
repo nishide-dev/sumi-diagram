@@ -313,8 +313,11 @@ export function resolveSvgFonts(
  * characters of those texts that the file lacks, except characters some run's
  * own font lacks anywhere in the SVG (those keep falling back as before).
  * A run's font is the one of the nearest element (itself or an ancestor)
- * with a class that a font rule selects; text without one uses `regular`
- * (the engine's fallback family). Files that need nothing are left out.
+ * with a class that a font rule selects. Text without one is drawn with the
+ * engine's default family, the unchanged `regular` file, which no CSS rule
+ * can point at a copy: it is checked against `regular` but gets no copy, so
+ * such runs are not covered (Sumi's SVG writers give every `<text>` a font
+ * class). Files that need nothing are left out.
  */
 function foreignCodePoints(
   root: XmlElement,
@@ -322,6 +325,9 @@ function foreignCodePoints(
   regular: string,
   coverage: (file: string) => GlyphCoverage,
 ): Map<string, Set<number>> {
+  // Text without a font class: the engine's default family (see above).
+  const DEFAULT = "";
+  const covers = (file: string, cp: number) => coverage(file === DEFAULT ? regular : file).has(cp);
   const ownMissing = new Set<number>();
   const texts: { files: Set<string>; codePoints: Set<number> }[] = [];
   const fileOf = (element: XmlElement, inherited: string): string => {
@@ -334,7 +340,7 @@ function foreignCodePoints(
   };
   // Iterative: the parser bounds the depth, but a deep tree must not use the JS stack.
   const stack: { node: XmlNode; file: string; text?: (typeof texts)[number] | undefined }[] = [
-    { node: root, file: regular },
+    { node: root, file: DEFAULT },
   ];
   for (let item = stack.pop(); item !== undefined; item = stack.pop()) {
     const { node, text } = item;
@@ -344,7 +350,7 @@ function foreignCodePoints(
       for (const char of node.text) {
         const cp = char.codePointAt(0) as number;
         text.codePoints.add(cp);
-        if (!coverage(item.file).has(cp)) ownMissing.add(cp);
+        if (!covers(item.file, cp)) ownMissing.add(cp);
       }
       continue;
     }
@@ -360,8 +366,9 @@ function foreignCodePoints(
   for (const { files, codePoints } of texts) {
     if (files.size < 2) continue;
     for (const file of files) {
+      if (file === DEFAULT) continue;
       for (const cp of codePoints) {
-        if (coverage(file).has(cp) || ownMissing.has(cp)) continue;
+        if (covers(file, cp) || ownMissing.has(cp)) continue;
         let set = extra.get(file);
         if (set === undefined) {
           set = new Set();

@@ -247,6 +247,17 @@ describe("resolveSvgFonts", () => {
     expect(outlines(svg(mixed + own)).slice(-alone.length)).toEqual(alone);
   });
 
+  test("text without a font class (the engine's default family) gets no copy", () => {
+    // No CSS rule can select a copy for it, so it is not extended (Sumi's SVGs always set a class).
+    const plain = resolveSvgFonts(d2Svg(["regular", "math"], "", "a"), fontSet);
+    const unclassed = resolveSvgFonts(
+      d2Svg(["regular", "math"], "", 'a</text><text>a<tspan class="text-math">\u{1D400}</tspan>'),
+      fontSet,
+    );
+    if (!plain.ok || !unclassed.ok) throw new Error("failed");
+    expect(unclassed.value.fonts).toEqual(plain.value.fonts);
+  });
+
   test("a font whose character map cannot be read is pdf/missing-font, not a throw", () => {
     const dir = mkdtempSync(join(tmpdir(), "sumi-cmap-"));
     try {
