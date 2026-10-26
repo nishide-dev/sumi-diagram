@@ -19,6 +19,7 @@ v1 からの変更: D2 の実際の値域・フォント・ID・SVG 構造に合
   → style        (Theme: token → 実効スタイル)       stage: theme
   → constrain    (Profile: 単位・制約の事前検査)      stage: profile
   → Figure IR    (#8)
+  → Layout IR    (structured のみ。#89, §6.21。経路 #90・SVG #91 は未接続)
   → D2 source    (#8)                               stage: compile
   → render       (D2 CLI, #9)                       stage: backend
   → SVG artifact (#11)                              stage: svg
@@ -438,6 +439,10 @@ typography:
 layout:
   layerGap: 8mm         # ELK: nodeNodeBetweenLayers = layerGap、edgeNodeBetweenLayers = layerGap / 2
   containerPadding: 4mm # ELK: --elk-padding（上側はラベル分を D2 が強制する）
+  arrangeGap: 4mm       # structured のみ（§6.21）。省略可（paper 系の値）
+  groupPadding: 8pt
+  nodePaddingX: 7pt
+  nodePaddingY: 3.5pt
 ```
 - **Profile の値から D2 引数への変換**:
   - 長さはすべて「入力単位 → pt → D2 unit（= pt × 2）」の順に変換する。
@@ -876,6 +881,57 @@ layout:
 - **カタログ**: `sumi catalog --json` の Theme の項目に `tones`（その Theme が色を持つ tone 名。`TONE_NAMES` の順）を追加した（§6.10 の「同じ版ではフィールドの追加だけ」に従う）。部品の項目は mark のある部品だけ `mark` を持つ。
 - **ギャラリー**: operator は variant ごと・記号ごとに `box` から指す行、junction は variant ごとに `box` → 点 → 2 つの `box` を描く（mark はラベルを取らないため、サンプルの生成で分岐する）。全部品 × 全 Theme に `color` が加わり、tone は `docs/gallery/tones/`（全 tone と tone 付きの group・operator を全 Theme で）に描く。
 - **検証**: manifest の `mark` の検査、`unexpected-label`・`tone-unsupported`・`missing-tone`・`unknown-tone`・tone の色以外のプロパティ、解決順（variant の後）、IR の大きさとラベル、D2 の出力、既存 Theme の出力が tone なしでは変わらないことを単体テストで固定した。図 A の理想の YAML は、`requires` を外すと残る診断が `icon` の `schema/unknown-field`（#94）だけになる。
+
+### 6.21 #89 の構造的配置エンジンと Layout IR
+
+[#86 の調査](../research/86-paper-figures.md)（§3.2・§3.5・§9.1）の段階 A の 2 件目。§6.19 で検査した structured の図から、要素の矩形とラベルの箱を求める配置エンジンと、その結果の型 **Layout IR** を `src/layout/` に置く。経路（#90）と SVG 出力（#91）はまだないため、`compileFigure()` は §6.19 のとおり `layout/engine-unavailable` で止めたままとし、エンジンは単体のモジュールとしてテストする（`layoutStructured(ir, { profile?, measurer? })`、検査から配置までを通す `layoutStructuredFigure(text)`）。`auto` の経路（D2 ソース・SVG・PDF・PPTX）は変えていない。
+
+- **Figure IR への追加**: `meta.engine`（`auto` | `structured`）、root の配置の木 `arrange`、`GroupIR.arrange`、`NodeIR.attach`（`{ to: ElementKey, side, gapPt }`。gap 省略は 0）、`EdgeIR.fromAnchor` / `toAnchor`（`parseAnchor()` 済みの `{ side, offset }`）。配置の木の箱は `{ kind: stack|row, direction, gapPt?, align?, items: (ElementKey | 箱)[] }` で、`gapPt` と `align` は省略を保つ（既定値はエンジンが決める）。`gapPt` は §6.19 のとおり pt の数値で、量子化しない。
+- **Layout IR**（`src/layout/ir.ts`）: 計算方法によらない幾何の型。将来 ELK を直接使う backend（#57 §5）も同じ型を返す（ELK の node の x/y/width/height → `rect`、ポート → anchor、edge section → `route.points`）。
+
+  | 項目 | 内容 |
+  | --- | --- |
+  | 座標系 | SVG の user unit（1 unit = 0.5pt。D2・`inspectSvg()` と同じ）、y は下向き、原点はキャンバス左上（余白はキャンバスの内側） |
+  | 丸め | すべての座標を 1/1000 unit に丸める（`roundUnits`: 0 から遠い方へ、`-0` なし）。矩形は**辺**（左・上・右・下）を丸め、幅・高さはその差とする。丸める前に接していた矩形（`gap: 0` の積み重ね）は丸めた後も厳密に接する |
+  | `engine` | 結果を作ったもの（`sumi-structured`）。#91 で SVG の metadata の `backend` に書く（調査 §3.5） |
+  | `canvas` / `margin` / `content` | キャンバス（整数 unit）、内容と各辺の最小の余白、node・group・ラベルの外接矩形（エッジは経路が決まるまで含まない） |
+  | `groups` | `{ key, parent?, rect, content, label? }`。group の木の前順（親が先、同じ階層は文書順）。`content` は padding とラベルを除いた、子を置く領域 |
+  | `nodes` | `{ key, parent?, shape, rect, placement: arrange|attach, label? }`、文書順。`rect` は図形の外接矩形（stroke を含まない。inspect の `bbox` と同じ定義）。`shape: text`（`sumi/label`）は図形を描かない |
+  | `edges` | `{ key, from, to, fromAnchor?, toAnchor?, labelMetrics?, route? }`、文書順。配置エンジンは経路を作らず、`route` は省略。ラベルは計測だけして（`labelMetrics`）置かない |
+  | ラベル（`TextLayout`） | 描く行（改行で分割し、`xml:space` のない `<text>` と同じく空白を畳んだもの）、行ごとの幅、フォント class（inspect の `font` と同じ名前: `regular` / `bold` / `italic` / `mono` / `mono-bold` / `mono-italic`。bold と italic の両方なら bold）、`fontSizeUnits`、`lineHeightUnits`、`ascentUnits` / `descentUnits`、`box`（各行を中央揃えで積んだ箱）、`anchor`（x = 中心、y = 1 行目のベースライン。各行の行送りの中央に ascender〜descender を置く CSS の half-leading） |
+
+  - **#90（経路）への契約**: 入力は Layout IR。`route.points`（始点は source の輪郭上、終点は target の輪郭上、直交の折れ線）と、ラベルを置いた `route.label`（`TextLayout`）を埋めた Layout IR を返す。anchor のない端は経路側が辺を選ぶ。経路がキャンバスからはみ出す場合は、ルータが `content` と `canvas` を広げる（配置エンジンは経路を知らない）。`junction`（#92）は大きさ 0 の `rect` になりうる。
+  - **#91（SVG writer）への契約**: §6.3 の inspect 契約に合わせ、`groups`（前順）→ `nodes` → `edges` の順に描く。node・group の `g.shape` の図形の外接矩形が `rect` と一致するように描き、ラベルは `anchor` を `text-anchor: middle` の `<text>` の x / 1 行目の y とし、2 行目以降は `lineHeightUnits` ずつ下げる（`font-size` は `fontSizeUnits`、フォント class は `font`）。group のラベルは `rect` の上端に置かれている。`xml:space` は付けない（計測は畳んだ空白で行っている）。幾何 lint は同じ TTF で再計測するので、IR のラベルの箱と一致する。
+- **アルゴリズム**（`src/layout/structured/engine.ts`。試作 `proto/layout.ts` と同じ 1 パスの箱モデル）: 葉の大きさを計測し、箱を下から上へ計測し（stack は高さの和＋間隔、幅は最大。row は逆）、上から下へ置く。`direction: up / left` は項目の順を逆にする。`align` は交差軸の位置で、`stretch` は伸ばせる項目（入れ子の箱・group・`text` / `circle` / `square` 以外の形で、その軸の明示サイズがない node）を箱の幅（高さ）に伸ばし、伸ばせない項目は中央に置く。主軸に余りがある箱（伸ばされた箱）は項目を中央に寄せる。**揃えの継承は同じ軸の箱どうしだけ**（stack の中の stack）。軸の違う入れ子の箱・group の配置の木の根・root の木は `center` から始まる。最後に、内容の左上を余白の位置に移して丸め、キャンバスは内容＋両側の余白を整数 unit に切り上げる。
+- **attach と親の大きさ**: attach した node は対象の `side` の中央に、`gap` 離して置く（連鎖可。順序は文書順に、対象が置かれたものから）。node は対象と同じ親に属し（§6.19）、**親の内容は配置の木と attach した node の和**とする。group は attach した node を収めるまで大きくなり（例: 対象が group の西端にあれば、その分 group が左に広がる）、root ではキャンバスが広がる。はみ出し量は配置の木の自然な大きさでの配置で測る。group が親の `stretch` やラベルの幅で自然な大きさより広くなった場合、余りは配置の木に渡し、はみ出し量は変えない。余りは項目を中央に寄せる（両端から遠ざかる）、`start` / `end` の項目を端に保つ、すでに端まで届いている `stretch` の項目を広げる、のいずれかにしかならないので、対象の辺の中央に置く node が自然な配置より外に出ることはない。反復は不要（1,000 個の乱数の図で、attach した node を含むすべての子が親の `content` に収まることをテストで確かめる。種は固定）。
+- **既定値（判断）**: Profile の `layout` に structured 専用の値を追加した（`auto` の値は変えない。調査 §3.5）。Profile 定義で省略すると paper 系の値になる（既存の定義はそのまま通る）。カタログ（`sumi catalog`）の profile の項目は変えていない。
+
+  | 項目 | paper 系 | presentation-16x9 | 用途 |
+  | --- | --- | --- | --- |
+  | `layout.arrangeGap` | 4mm | 8mm | `gap` を省略した stack / row の間隔（試作の既定 4mm）。stack と row に共通なので、Issue 例の `stackGap` ではなくこの名前にした |
+  | `layout.groupPadding` | 8pt（16 unit） | 16pt | group の内側の余白（4 辺）。`auto` の `containerPadding`（ELK、4mm）とは別。試作の 16 unit |
+  | `layout.nodePaddingX` / `nodePaddingY` | 7pt / 3.5pt（14 / 7 unit） | 14pt / 7pt | ラベルと図形の間の余白（左右 / 上下）。試作の箱の余白 |
+
+  - 余白（キャンバスの縁）は Profile の `margin` を `auto` の `--pad` と同じく整数 unit に丸めた値（paper 系 2mm → 11 unit）。試作の 11 と同じ。
+  - 行送りはフォントサイズの 1.25 倍（試作と同じ。`LINE_HEIGHT`）。
+  - group のラベルは上端の padding の下に置き、ラベルの高さ（整数 unit に切り上げ）と padding の半分を内容の上に取る。group の幅はラベルの幅以上。試作は group のラベルを描かない（fixture の group にはラベルがない）。
+- **葉の大きさ**（`sizing.ts`）: ラベルの箱 `w × h` と、余白を足した `P = ⌈w + 2x⌉ × ⌈h + 2y⌉` から、形ごとに「余白込みのラベルが幾何 lint の label area（`lint/geometry/shapes.ts` の `labelArea()`）に収まる最小」を整数 unit で求める。明示の `width` / `height` が優先。
+  - rectangle・page（とアウトライン部品）: `P`。text: `⌈w⌉ × ⌈h⌉`（試作の label と同じ）。square: `max(P)` の正方形。
+  - circle: 直径 `⌈max(h + 2y, hypot(w + y, h + y))⌉`。1 行の箱と同じ高さ以上で、ラベルの箱を各辺 `y / 2` 広げたものが円に収まる。1 文字のラベル（`+`・`·`・`~`）では 34 unit で、試作の円（アイコン用に 34 固定）と一致する。
+  - oval: `⌈P·√2⌉`。diamond: `2P`。hexagon: 高さ `P.h`、ラベルの上端の高さで斜辺の内側に収まる幅。parallelogram: 高さ `P.h`、D2 の斜辺（26 unit）をよける幅。cylinder: `P` の高さに蓋（D2 の 24 unit × 3）。document: 高さを波線より上の割合で割る。cylinder と document はラベルを label area の中央に置く（他は図形の中央）。
+  - 全形・数種のラベルで label area に収まることをテストする。新しい形（#92 の operator / junction など）は `naturalSize()` の網羅的な `switch` に追加が要る（型検査で漏れが分かる）。
+- **文字の計測**（`src/layout/text.ts`）: 幾何 lint（§6.5）と同じ TTF の reader（`loadFontMetrics`、`hmtx` の advance の和、kerning・shaping なし、`hhea` の ascender / descender）と同じ空白の畳み方（`renderedLines`）を使う。依存は追加していない（`bun build --compile` への影響なし）。`TextMeasurer` を差し替えられるので、テストは固定の字幅で厳密な座標を確かめる。
+- **試作との一致（受け入れ条件）**: 試作と製品の両方が読める図（`tests/fixtures/figures/layout/` の図 A と図 B の 1 パネル。operator / junction / icon を 1 文字のラベルの circle に、tone・キャプション・数式ラベルを除いた版）で、全 node・group の矩形を比べる（`research/86-paper-figures/proto/engine-parity.test.ts`。研究のコードが製品を参照し、逆はない）。
+
+  | 図 | 要素 | 最大の差 | キャンバス |
+  | --- | --- | --- | --- |
+  | A（Transformer） | node 30・group 2 | 0.001 unit | 513 × 898（一致） |
+  | B の 1 パネル | node 16・group 1 | 0 | 387 × 718（一致） |
+
+  - 0.001 の差は丸め方の違い（試作は x と幅を別々に丸め、製品は辺を丸める）による。計測したラベルの幅・高さも一致する。
+  - 設計上の違い（fixture では差が出ない）: 試作の circle は 34 固定・operator 18・junction 0 で、製品の circle はラベルから大きさを決める（上記。operator / junction は #92 で比べる）。試作は group のラベルを無視し、キャプション（段階 B）を持つ。試作は空白を畳まない。試作は明示サイズを持たない。試作は margin を 11 に固定、製品は Profile から（paper 系で同じ 11）。
+- **決定性**: 図 A・B の Layout IR を JSON にした golden（`tests/fixtures/layout/*.layout.json`、`SUMI_UPDATE_GOLDEN=1` で更新）とバイト単位で比べ、2 回の実行の一致も確かめる。探索・反復・乱数・Map の走査順への依存はない（出力の並びは文書順と group の木の前順）。
+- **未確認（#91 と結合して確認）**: Layout IR から作った SVG で `exceeds-page-*` などの既存の幾何 lint が働くこと。SVG writer がないため、ここでは確かめていない。
 
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures

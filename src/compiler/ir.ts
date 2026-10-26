@@ -10,7 +10,17 @@
 import { type CheckState, type ElementKey, edgeKey, groupKey, nodeKey } from "../core/check-state";
 import { type DocPath, hasErrors, type SourceLocation } from "../core/diagnostics";
 import type { FigureCheck } from "../core/figure/check";
-import type { FigureEdge, FigureGroup, FigureMeta, FigureNode } from "../core/figure/schema";
+import { type Anchor, parseAnchor } from "../core/figure/layout";
+import type {
+  ArrangeAlign,
+  ArrangeBox,
+  FigureEdge,
+  FigureGroup,
+  FigureMeta,
+  FigureNode,
+  LayoutEngine,
+  Side,
+} from "../core/figure/schema";
 import { getProfile } from "../core/profile/builtin";
 import {
   type Arrowhead,
@@ -49,7 +59,36 @@ export interface FigureMetaIR {
   readonly themeId: string;
   readonly profileId: string;
   readonly direction: LayoutDirection;
+  /** Layout engine (design doc §6.19); `direction` applies to `auto` only. */
+  readonly engine: LayoutEngine;
   readonly fontSetId: FontSetId;
+}
+
+/**
+ * One box of a structured arrange tree (design doc §6.19), with element IDs
+ * resolved to keys. `gapPt` and `align` stay `undefined` when omitted: the
+ * layout engine supplies the defaults (§6.21).
+ */
+export interface ArrangeBoxIR {
+  readonly kind: "stack" | "row";
+  /** stack: `down` | `up`; row: `right` | `left`. */
+  readonly direction: "down" | "up" | "right" | "left";
+  /** Space between items in pt, as written; omitted means the profile default. */
+  readonly gapPt?: number;
+  /** Cross-axis alignment, as written; omitted inherits (same axis only). */
+  readonly align?: ArrangeAlign;
+  readonly items: readonly ArrangeItemIR[];
+}
+
+/** An item of an arrange box: a node or group, or a nested box. */
+export type ArrangeItemIR = ElementKey | ArrangeBoxIR;
+
+/** `nodes[].attach` with the target resolved to a key. */
+export interface AttachIR {
+  readonly to: ElementKey;
+  readonly side: Side;
+  /** Space between the target and the node in pt (0 when omitted). */
+  readonly gapPt: number;
 }
 
 interface ElementIRBase {
@@ -90,6 +129,8 @@ export interface NodeIR extends ObjectIRBase {
   /** Explicit height from props or a mark's size; omitted means sized to the label. */
   readonly height?: StyleLength;
   readonly style: NodeStyle;
+  /** Structured layout: placed beside another element instead of in an arrange tree. */
+  readonly attach?: AttachIR;
 }
 
 export interface GroupIR extends ObjectIRBase {
@@ -98,6 +139,8 @@ export interface GroupIR extends ObjectIRBase {
   /** Child groups, then child nodes, each in document order. */
   readonly children: readonly ElementKey[];
   readonly style: GroupStyle;
+  /** Structured layout: the arrange tree of the group's children. */
+  readonly arrange?: ArrangeBoxIR;
 }
 
 export interface EdgeIR extends ElementIRBase {
@@ -114,6 +157,10 @@ export interface EdgeIR extends ElementIRBase {
   /** Arrowhead at the target end; set exactly when `direction` is `forward` or `both`. */
   readonly targetArrowhead?: Arrowhead;
   readonly style: EdgeStyle;
+  /** Structured layout: where the edge leaves the source. */
+  readonly fromAnchor?: Anchor;
+  /** Structured layout: where the edge enters the target. */
+  readonly toAnchor?: Anchor;
 }
 
 export type ElementIR = NodeIR | GroupIR | EdgeIR;
@@ -125,6 +172,8 @@ export interface FigureIR {
   readonly edges: readonly EdgeIR[];
   /** Top-level groups, then top-level nodes, each in document order. */
   readonly roots: readonly ElementKey[];
+  /** Structured layout: the arrange tree of the root-level elements (`figure.layout.arrange`). */
+  readonly arrange?: ArrangeBoxIR;
   readonly elements: ReadonlyMap<ElementKey, ElementIR>;
   readonly sourceMap: SourceMap;
 }
@@ -164,6 +213,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
 
   const groupsById = new Map<string, FigureGroup>();
   for (const g of present(doc.groups)) groupsById.set(g.id, g);
+  const endpointKey = (id: string): ElementKey => (groupsById.has(id) ? groupKey(id) : nodeKey(id));
   const d2PathOf = (prefix: string, id: string, parent: string | undefined): string[] => {
     const ancestors: string[] = [];
     for (let p = parent; p !== undefined; p = groupsById.get(p)?.group) ancestors.unshift(`g_${p}`);
@@ -230,6 +280,13 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
         ...(typeof height === "number" && { height: lengthOf(height) }),
         ...(markSize !== undefined && { width: markSize, height: markSize }),
         style,
+        ...(n.attach !== undefined && {
+          attach: freeze({
+            to: endpointKey(n.attach.to),
+            side: n.attach.side,
+            gapPt: n.attach.gap ?? 0,
+          }),
+        }),
       }),
     );
     mapSource(key, ["nodes", index]);
@@ -245,10 +302,10 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
       shape: "rectangle",
       children: freeze(childrenOf.get(g.id) ?? []),
       style: styleOf(state, key, "group"),
+      ...(g.arrange !== undefined && { arrange: arrangeIR(g.arrange, endpointKey) }),
     });
   });
 
-  const endpointKey = (id: string): ElementKey => (groupsById.has(id) ? groupKey(id) : nodeKey(id));
   const edges: EdgeIR[] = [];
   for (const [index, e] of doc.edges.entries()) {
     if (e === undefined) continue;
@@ -265,12 +322,16 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
       themeId: theme.id,
       profileId: profile.id,
       direction: figure.layout.direction,
+      engine: figure.layout.engine,
       fontSetId: theme.fontSet.id,
     }),
     groups: freeze(groups),
     nodes: freeze(nodes),
     edges: freeze(edges),
     roots: freeze(childrenOf.get(undefined) ?? []),
+    ...(figure.layout.arrange !== undefined && {
+      arrange: arrangeIR(figure.layout.arrange, endpointKey),
+    }),
     elements,
     sourceMap: readonlyMap(sourceMap),
   });
@@ -354,6 +415,34 @@ function edgeIR(
     ...(source && { sourceArrowhead: manifest.tail ?? DEFAULT_ARROWHEAD }),
     ...(target && { targetArrowhead: manifest.head ?? DEFAULT_ARROWHEAD }),
     style: styleOf(state, key, "edge"),
+    ...anchorIR("fromAnchor", e.fromAnchor),
+    ...anchorIR("toAnchor", e.toAnchor),
+  });
+}
+
+function anchorIR<F extends "fromAnchor" | "toAnchor">(
+  field: F,
+  value: string | undefined,
+): Partial<Record<F, Anchor>> {
+  if (value === undefined) return {};
+  // The layout stage reports malformed anchors, so an error-free figure has none.
+  const anchor = parseAnchor(value);
+  if (anchor === undefined) throw new Error(`internal error: invalid anchor "${value}"`);
+  return { [field]: freeze(anchor) } as Partial<Record<F, Anchor>>;
+}
+
+/** Converts an arrange tree (checked by the layout stage) to its IR. */
+function arrangeIR(box: ArrangeBox, keyOf: (id: string) => ElementKey): ArrangeBoxIR {
+  const spec = box.stack ?? box.row;
+  if (spec === undefined) throw new Error("internal error: arrange box without stack or row");
+  return freeze({
+    kind: box.stack !== undefined ? "stack" : "row",
+    direction: spec.direction,
+    ...(spec.gap !== undefined && { gapPt: spec.gap }),
+    ...(spec.align !== undefined && { align: spec.align }),
+    items: freeze(
+      spec.items.map((item) => (typeof item === "string" ? keyOf(item) : arrangeIR(item, keyOf))),
+    ),
   });
 }
 

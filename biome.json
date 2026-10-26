@@ -14,6 +14,7 @@
       "!research/*/out",
       "!docs/gallery",
       "!tests/fixtures/lint-output",
+      "!tests/fixtures/layout",
       "!tests/fixtures/pptx-editable-japanese.svg",
       "!research/*/.tools",
       "!research/*/out",
