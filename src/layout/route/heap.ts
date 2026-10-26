@@ -1,27 +1,37 @@
 /**
- * A binary min-heap of (key, value) number pairs for Dijkstra. Ties on the
- * key are broken by the smaller value, so the pop order (and the search) is
- * fully determined by the inputs.
+ * A binary min-heap of (key, value) pairs for the router's search: float
+ * keys, non-negative integer values, in typed arrays that grow as needed
+ * and are reused across searches. Ties on the key are broken by the smaller
+ * value, so the pop order (and the search) is fully determined by the
+ * inputs.
  */
 export class PairHeap {
-  readonly #keys: number[] = [];
-  readonly #values: number[] = [];
+  #keys = new Float64Array(1024);
+  #values = new Int32Array(1024);
+  #size = 0;
+  /** The key of the pair the last {@link pop} removed. */
+  key = 0;
 
   get size(): number {
-    return this.#keys.length;
+    return this.#size;
   }
 
   clear(): void {
-    this.#keys.length = 0;
-    this.#values.length = 0;
+    this.#size = 0;
   }
 
   push(key: number, value: number): void {
+    if (this.#size === this.#keys.length) {
+      const keys = new Float64Array(this.#size * 2);
+      const values = new Int32Array(this.#size * 2);
+      keys.set(this.#keys);
+      values.set(this.#values);
+      this.#keys = keys;
+      this.#values = values;
+    }
     const keys = this.#keys;
     const values = this.#values;
-    let i = keys.length;
-    keys.push(key);
-    values.push(value);
+    let i = this.#size++;
     while (i > 0) {
       const parent = (i - 1) >> 1;
       const pk = keys[parent] as number;
@@ -35,15 +45,16 @@ export class PairHeap {
     values[i] = value;
   }
 
-  /** Removes the smallest pair; the heap must not be empty. Returns its key and value. */
-  pop(): [number, number] {
+  /** Removes the smallest pair; the heap must not be empty. Returns its value; its key is in `key`. */
+  pop(): number {
     const keys = this.#keys;
     const values = this.#values;
-    const top: [number, number] = [keys[0] as number, values[0] as number];
-    const lastKey = keys.pop() as number;
-    const lastValue = values.pop() as number;
-    const n = keys.length;
+    this.key = keys[0] as number;
+    const top = values[0] as number;
+    const n = --this.#size;
     if (n === 0) return top;
+    const lastKey = keys[n] as number;
+    const lastValue = values[n] as number;
     let i = 0;
     for (;;) {
       const left = 2 * i + 1;

@@ -5,11 +5,15 @@
  *
  * - **Grid**: a sparse ("Hanan") grid whose lines are the node borders, the
  *   borders inflated by the clearance, group borders and group-label
- *   borders, the ports and the ends of their stubs, junction centers, a ring
- *   around the content, and the midlines between neighbouring lines (to run
- *   in the middle of a gutter). Coordinates are rounded to 1/1000 unit and
- *   lines are integer-indexed.
- * - **Search**: per edge, Dijkstra over (grid point, direction) with costs
+ *   borders, a ring around the content and the midlines between those
+ *   neighbouring lines (to run in the middle of a gutter), plus the ports,
+ *   the ends of their stubs and junction centers. Coordinates are rounded
+ *   to 1/1000 unit and lines are integer-indexed. The grid and its step
+ *   costs are built once; occupancy is updated in place.
+ * - **Search**: per edge, A* (an admissible lower bound, so the same cost as
+ *   Dijkstra) over (grid point, direction), first within a corridor around
+ *   the ends (`ROUTE.corridor`) and on the whole grid if that finds nothing;
+ *   with costs
  *   for length, bends, crossing a group border, running through a group's
  *   label or a node's clearance zone, and crossing, touching or overlapping
  *   a route of another net. Steps along or inside a node (other than a
@@ -73,6 +77,12 @@ export const ROUTE = Object.freeze({
   cross: 300,
   /** Running along a route of another net. */
   overlap: 4000,
+  /**
+   * A route is first searched within the bounding box of its ends' stubs
+   * widened by this much (40pt), and on the whole grid only if none is
+   * found there.
+   */
+  corridor: 80,
 });
 
 /**
@@ -99,35 +109,36 @@ export function routeEdges(ir: FigureIR, layout: LayoutIR): RouteResult {
 
 /** Owners of grid steps or points: `-1` none, a net, or `-2` several (listed in `multi`). */
 class Owners {
-  readonly #first: Int32Array;
+  /** The owner, `-1` (none) or `-2` (several); read directly by the search's fast path. */
+  readonly first: Int32Array;
   readonly #multi = new Map<number, number[]>();
 
   constructor(size: number) {
-    this.#first = new Int32Array(size).fill(-1);
+    this.first = new Int32Array(size).fill(-1);
   }
 
   add(index: number, net: number): void {
-    const first = this.#first[index] as number;
+    const first = this.first[index] as number;
     if (first === -1) {
-      this.#first[index] = net;
+      this.first[index] = net;
     } else if (first === -2) {
       const list = this.#multi.get(index) as number[];
       if (!list.includes(net)) list.push(net);
     } else if (first !== net) {
-      this.#first[index] = -2;
+      this.first[index] = -2;
       this.#multi.set(index, [first, net]);
     }
   }
 
   has(index: number, net: number): boolean {
-    const first = this.#first[index] as number;
+    const first = this.first[index] as number;
     if (first === net) return true;
     return first === -2 && (this.#multi.get(index) as number[]).includes(net);
   }
 
   /** `true` if a net other than `net` owns it. */
   other(index: number, net: number): boolean {
-    const first = this.#first[index] as number;
+    const first = this.first[index] as number;
     if (first === -1 || first === net) return false;
     return first !== -2 || (this.#multi.get(index) as number[]).some((n) => n !== net);
   }
@@ -207,6 +218,8 @@ class Router {
   #laneTo = new Int32Array(0);
   #generation = 0;
   readonly #heap = new PairHeap();
+  /** The grid points each net occupies (with repeats), for the search's lower bound. */
+  readonly #netPoints = new Map<number, number[]>();
 
   constructor(ir: FigureIR, layout: LayoutIR) {
     this.#ir = ir;
@@ -247,7 +260,8 @@ class Router {
 
     const routes = new Map<ElementKey, Point[]>();
     for (const edge of routable) {
-      const cells = this.#search(edge);
+      // First within a corridor around the ends, then on the whole grid.
+      const cells = this.#search(edge, ROUTE.corridor) ?? this.#search(edge, Infinity);
       if (cells === undefined) {
         this.#report(edge.ir, "every path is blocked by nodes or too narrow for its stubs");
         continue;
@@ -358,6 +372,18 @@ class Router {
     }
     const content = layout.content;
     addRect(content, 2 * C);
+    // Midlines of the gutters between those lines (not between ports, which
+    // would only make the grid denser).
+    const withMidlines = (values: Set<number>) => {
+      const sorted = sortedUnique(values);
+      for (let i = 1; i < sorted.length; i++) {
+        const a = sorted[i - 1] as number;
+        const b = sorted[i] as number;
+        if (b - a > 2) values.add(roundUnits((a + b) / 2));
+      }
+    };
+    withMidlines(xs);
+    withMidlines(ys);
     for (const edge of edges) {
       for (const [end, lane] of [
         [edge.from, edge.fromLane],
@@ -372,17 +398,8 @@ class Router {
         }
       }
     }
-    const withMidlines = (values: Set<number>): number[] => {
-      const sorted = sortedUnique(values);
-      for (let i = 1; i < sorted.length; i++) {
-        const a = sorted[i - 1] as number;
-        const b = sorted[i] as number;
-        if (b - a > 2) values.add(roundUnits((a + b) / 2));
-      }
-      return sortedUnique(values);
-    };
-    const X = withMidlines(xs);
-    const Y = withMidlines(ys);
+    const X = sortedUnique(xs);
+    const Y = sortedUnique(ys);
     this.#X = X;
     this.#Y = Y;
     const NX = X.length;
@@ -565,6 +582,12 @@ class Router {
 
   /** Records the steps between consecutive points for `net`. */
   #occupy(cells: readonly number[], net: number): void {
+    let points = this.#netPoints.get(net);
+    if (points === undefined) {
+      points = [];
+      this.#netPoints.set(net, points);
+    }
+    for (const p of cells) points.push(p);
     for (let k = 1; k < cells.length; k++) {
       const a = cells[k - 1] as number;
       const b = cells[k] as number;
@@ -583,8 +606,21 @@ class Router {
 
   // --- Search ------------------------------------------------------------------
 
-  /** The cheapest route of `edge` as grid point indices from port to port, or `undefined`. */
-  #search(edge: Edge): number[] | undefined {
+  /**
+   * The cheapest route of `edge` as grid point indices from port to port,
+   * or `undefined`. A* over (point, direction) with a lower bound that
+   * stays admissible although steps on the edge's own net cost nothing:
+   * a path either uses no shared step outside the target's stub, and then
+   * costs at least its Manhattan distance to the target minus the stub,
+   * or it leaves the net last at some net point `q`, and then costs at
+   * least `|q t|` minus the stub. So
+   * `h(p) = max(0, min(|p t|, min_q |q t|) − stub)`. Every other step
+   * costs at least its length, so the bound never overestimates and the
+   * first time the goal is taken from the heap its route is the cheapest
+   * (the same cost as a plain Dijkstra; among routes of equal cost the
+   * pop order picks one deterministically).
+   */
+  #search(edge: Edge, margin: number): number[] | undefined {
     const generation = ++this.#generation;
     const { from, to, net } = edge;
     const dist = this.#dist;
@@ -592,6 +628,9 @@ class Router {
     const stamp = this.#stamp;
     const laneFrom = this.#laneFrom;
     const laneTo = this.#laneTo;
+    const X = this.#X;
+    const Y = this.#Y;
+    const NX = this.#NX;
     // A stub's points (but the last) may only be passed straight along the stub.
     const fromStub = this.#stub(from, edge.fromLane);
     for (const p of fromStub.slice(0, -1)) laneFrom[p] = generation;
@@ -601,9 +640,32 @@ class Router {
     const inDir = to.dir < 0 ? -1 : opposite(to.dir);
     const s = this.#pointIndex(from.port);
     const t = this.#pointIndex(to.port);
-    const ownJunction = (index: number) => {
-      const key = this.#junctions[index];
-      return key === from.key || key === to.key;
+    // The corridor, as grid index ranges (rows as offsets `j × NX`).
+    const ends = [s, t, ...fromStub, ...toStub];
+    const xs = ends.map((p) => X[p % NX] as number);
+    const ys = ends.map((p) => Y[(p / NX) | 0] as number);
+    const i0 = lowerBound(X, Math.min(...xs) - margin);
+    const i1 = upperBound(X, Math.max(...xs) + margin) - 1;
+    const j0 = lowerBound(Y, Math.min(...ys) - margin) * NX;
+    const j1 = (upperBound(Y, Math.max(...ys) + margin) - 1) * NX;
+    const fromJunction = this.#junctions.indexOf(from.key);
+    const toJunction = this.#junctions.indexOf(to.key);
+
+    // The lower bound (see above).
+    const tx = to.port.x;
+    const ty = to.port.y;
+    const stubLength = to.dir < 0 ? 0 : edge.toLane;
+    const inTargetStub = new Set(toStub);
+    let nearest = Number.POSITIVE_INFINITY;
+    for (const q of this.#netPoints.get(net) ?? []) {
+      if (inTargetStub.has(q)) continue;
+      const d = Math.abs((X[q % NX] as number) - tx) + Math.abs((Y[(q / NX) | 0] as number) - ty);
+      if (d < nearest) nearest = d;
+    }
+    const bound = (p: number): number => {
+      const d = Math.abs((X[p % NX] as number) - tx) + Math.abs((Y[(p / NX) | 0] as number) - ty);
+      const h = (d < nearest ? d : nearest) - stubLength;
+      return h > 0 ? h : 0;
     };
 
     const heap = this.#heap;
@@ -612,7 +674,7 @@ class Router {
       stamp[state] = generation;
       dist[state] = 0;
       prev[state] = -1;
-      heap.push(0, state);
+      heap.push(bound(s), state);
     };
     if (outDir < 0) for (let d = 0; d < 4; d++) seed(s * 4 + d);
     else seed(s * 4 + outDir);
@@ -621,49 +683,89 @@ class Router {
     const stepsV = this.#stepsV;
     const pointsH = this.#pointsH;
     const pointsV = this.#pointsV;
+    const blockH = this.#blockH;
+    const blockV = this.#blockV;
+    const costH = this.#costH;
+    const costV = this.#costV;
+    const junctionAt = this.#junctionAt;
+    const { bend, overlap, cross } = ROUTE;
+    const ownerH = stepsH.first;
+    const ownerV = stepsV.first;
+    const atH = pointsH.first;
+    const atV = pointsV.first;
     let goal = -1;
     while (heap.size > 0) {
-      const [d0, state] = heap.pop();
-      if (d0 > (dist[state] as number)) continue;
+      const state = heap.pop();
       const p = state >> 2;
+      const g = dist[state] as number;
+      // A stale entry: the state was reached more cheaply since.
+      if (heap.key > g + bound(p)) continue;
       const dir = state & 3;
-      if (p === t && (inDir < 0 || dir === inDir)) {
-        goal = state;
-        break;
+      if (p === t) {
+        if (inDir < 0 || dir === inDir) {
+          goal = state;
+          break;
+        }
+        // A route ends at its target; it never passes through it.
+        continue;
       }
-      // A route ends at its target; it never passes through it.
-      if (p === t) continue;
+      const i = p % NX;
+      const row = p - i;
       for (let nd = 0; nd < 4; nd++) {
-        if (nd === opposite(dir)) continue;
+        if (nd === ((dir + 2) & 3)) continue;
         if (laneFrom[p] === generation && nd !== outDir) continue;
         if (laneTo[p] === generation && nd !== inDir) continue;
-        const q = this.#neighbour(p, nd);
+        const q =
+          nd === 0
+            ? i < i1
+              ? p + 1
+              : -1
+            : nd === 1
+              ? row < j1
+                ? p + NX
+                : -1
+              : nd === 2
+                ? i > i0
+                  ? p - 1
+                  : -1
+                : row > j0
+                  ? p - NX
+                  : -1;
         if (q < 0) continue;
         if (laneTo[q] === generation && nd !== inDir) continue;
-        const horizontal = nd % 2 === 0;
-        const step = Math.min(p, q);
-        if ((horizontal ? this.#blockH : this.#blockV)[step] === 1) continue;
-        const junction = this.#junctionAt[q] as number;
-        if (junction >= 0 && !ownJunction(junction)) continue;
+        const horizontal = (nd & 1) === 0;
+        const step = p < q ? p : q;
+        if ((horizontal ? blockH : blockV)[step] === 1) continue;
+        const junction = junctionAt[q] as number;
+        if (junction >= 0 && junction !== fromJunction && junction !== toJunction) continue;
+        // The owners' fast path: -1 none, a net, or -2 several (then ask).
         const steps = horizontal ? stepsH : stepsV;
+        const owner = (horizontal ? ownerH : ownerV)[step] as number;
         let cost: number;
-        if (steps.has(step, net)) {
+        if (owner === net || (owner === -2 && steps.has(step, net))) {
           cost = 0;
         } else {
-          cost = (horizontal ? this.#costH : this.#costV)[step] as number;
-          if (nd !== dir) cost += ROUTE.bend;
-          if (steps.other(step, net)) cost += ROUTE.overlap;
+          cost = (horizontal ? costH : costV)[step] as number;
+          if (nd !== dir) cost += bend;
+          if (owner !== -1 && (owner !== -2 || steps.other(step, net))) cost += overlap;
           // Arriving at a point where another net runs across (a crossing)
           // or ends along this line (a touch).
-          if (pointsV.other(q, net) || pointsH.other(q, net)) cost += ROUTE.cross;
+          const v = atV[q] as number;
+          const h = atH[q] as number;
+          if (
+            (v !== -1 && v !== net && (v !== -2 || pointsV.other(q, net))) ||
+            (h !== -1 && h !== net && (h !== -2 || pointsH.other(q, net)))
+          ) {
+            cost += cross;
+          }
         }
         const next = q * 4 + nd;
-        const total = d0 + cost;
+        const total = g + cost;
         if (stamp[next] !== generation || total < (dist[next] as number)) {
           stamp[next] = generation;
           dist[next] = total;
           prev[next] = state;
-          heap.push(total, next);
+          heap.push(total + bound(q), next);
         }
       }
     }
