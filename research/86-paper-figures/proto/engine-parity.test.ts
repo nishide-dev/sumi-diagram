@@ -4,11 +4,13 @@
  * both can read. The research code depends on the product, never the other
  * way around, so the comparison lives here.
  *
- * The figures are the #88 / #89 adaptations in tests/fixtures/figures/layout/
+ * Two sets of figures: the #88 / #89 adaptations in tests/fixtures/figures/layout/
  * (operator / junction / icon replaced by labeled circles, no tone or
- * caption): the prototype reads them as they are, and a circle is 34 units
- * in both (the prototype's fixed icon circle; the engine's circle around a
- * one-glyph label, design doc §6.21).
+ * caption), which the prototype reads as they are (a circle is 34 units in
+ * both: the prototype's fixed icon circle; the engine's circle around a
+ * one-glyph label, design doc §6.21); and the proposed figures in
+ * figures/ideal/ themselves (see `ideal` below), with the prototype given the
+ * product's operator / junction sizes.
  */
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
