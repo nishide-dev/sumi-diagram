@@ -462,6 +462,54 @@ describe("layout/no-route", () => {
     expect(routed.layout.nets?.map((n) => n.edges)).toEqual([["e:#0"]]);
   });
 
+  test("names the nodes in the way, as related locations (#114)", () => {
+    // research/109-dogfood-v0.4 A5: a note attached under `a` fills the gap
+    // that a → b must leave through.
+    const text = figure(
+      { stack: { gap: "3mm", items: ["a", "b"] } },
+      [
+        box("a"),
+        box("b"),
+        { id: "note", component: "label", label: "n", attach: { to: "a", side: "south" } },
+      ],
+      [{ from: "a", to: "b", fromAnchor: "south", toAnchor: "north" }],
+    );
+    const result = layoutStructuredFigure(text, { measurer: FAKE });
+    expect(result.diagnostics.map((d) => d.code)).toEqual(["layout/no-route"]);
+    const [diagnostic] = result.diagnostics;
+    expect(diagnostic?.message).toBe(
+      'No route was found for edge edges[0] from "a" to "b": every path is blocked by nodes or too narrow for its stubs (in the way: "note").',
+    );
+    expect(diagnostic?.related).toEqual([
+      {
+        path: ["nodes", 2],
+        location: expect.objectContaining({ line: text.split("\n").indexOf("  - id: note") + 1 }),
+        message: 'Node "note" is in the way.',
+      },
+    ]);
+    expect(diagnostic?.hint).toContain('"note" is attached to "a"');
+    expect(diagnostic?.hint).toContain("takes no space in the arrange tree");
+  });
+
+  test("blockers on both stubs, in layout order; no attach advice for nodes in the tree", () => {
+    // a and b face each other east → west across x (touching a) and y (touching b).
+    const text = figure(
+      { row: { gap: 0, items: ["a", "x", "y", "b"] } },
+      [box("a"), box("x"), box("y"), box("b")],
+      [{ from: "a", to: "b", fromAnchor: "east", toAnchor: "west" }],
+    );
+    const result = layoutStructuredFigure(text, { measurer: FAKE });
+    const [diagnostic] = result.diagnostics;
+    expect(diagnostic?.message).toBe(
+      'No route was found for edge edges[0] from "a" to "b": every path is blocked by nodes or too narrow for its stubs (in the way: "x", "y").',
+    );
+    expect(diagnostic?.related?.map((r) => [r.path, r.message])).toEqual([
+      [["nodes", 1], 'Node "x" is in the way.'],
+      [["nodes", 2], 'Node "y" is in the way.'],
+    ]);
+    expect(diagnostic?.hint).not.toContain("attached");
+  });
+
   test("both ends at the same point", () => {
     const text = figure(
       { stack: { items: ["a"] } },
