@@ -1,5 +1,6 @@
 import type { CheckState, PartialFigure } from "../check-state";
 import { type Result, toResult } from "../result";
+import { checkLayout } from "./layout";
 import { linkFigure } from "./link";
 import type { FigureDocument } from "./schema";
 import { validateFigure } from "./validate";
@@ -32,7 +33,8 @@ export interface FigureCheck {
 
 /**
  * Runs the stages owned by the figure schema — `yaml` (parse), `schema`
- * (validate and normalize) and `ref` (link) — on a `*.sumi.yaml` source and
+ * (validate and normalize), `ref` (link) and `layout` (structured layout
+ * fields and the group membership they imply) — on a `*.sumi.yaml` source and
  * returns the {@link CheckState} for the following stages.
  *
  * YAML errors stop the pipeline (there is no document to check); later stages
@@ -49,6 +51,7 @@ export function checkFigureSource(text: string, options: CheckFigureOptions = {}
   const locate = overrideLocator(parsed.source.locate, options.overrides);
   applyOverrides(state.doc, options.overrides);
   linkFigure(state, locate);
+  checkLayout(state, locate);
   return { state, locate };
 }
 

@@ -27,7 +27,7 @@ describe("valid fixtures", () => {
       id: "request-pipeline",
       theme: "minimal",
       profile: "paper-single",
-      layout: { direction: "right" },
+      layout: { engine: "auto", direction: "right" },
     });
     expect(doc.groups).toEqual([
       { id: "backend", label: "Backend", component: "container", variant: "default" },
@@ -62,7 +62,7 @@ describe("valid fixtures", () => {
           id: "minimal",
           theme: "minimal",
           profile: "paper-single",
-          layout: { direction: "right" },
+          layout: { engine: "auto", direction: "right" },
         },
         groups: [],
         nodes: [],

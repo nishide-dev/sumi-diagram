@@ -37,9 +37,17 @@
           "default": {},
           "type": "object",
           "properties": {
+            "engine": {
+              "description": "auto: D2/ELK. structured: arrange trees and attach. Omitted means structured if arrange is given, else auto.",
+              "type": "string",
+              "enum": [
+                "auto",
+                "structured"
+              ]
+            },
             "direction": {
               "default": "right",
-              "description": "Flow direction of the root layout.",
+              "description": "Flow direction of the root layout (auto engine only).",
               "type": "string",
               "enum": [
                 "right",
@@ -47,6 +55,10 @@
                 "left",
                 "up"
               ]
+            },
+            "arrange": {
+              "description": "Structured layout: places the root-level nodes and groups.",
+              "$ref": "#/$defs/ArrangeBox"
             }
           },
           "additionalProperties": false
@@ -84,9 +96,13 @@
             "minLength": 1
           },
           "group": {
-            "description": "Parent group ID. Omitted means the root.",
+            "description": "Parent group ID. Omitted means the root (or, in structured layout, the group whose arrange lists it).",
             "type": "string",
             "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+          },
+          "arrange": {
+            "description": "Structured layout: places the group's children; listed elements become its children.",
+            "$ref": "#/$defs/ArrangeBox"
           }
         },
         "required": [
@@ -130,9 +146,47 @@
             "additionalProperties": {}
           },
           "group": {
-            "description": "Containing group ID. Omitted means the root.",
+            "description": "Containing group ID. Omitted means the root (or, in structured layout, the group whose arrange lists it).",
             "type": "string",
             "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+          },
+          "attach": {
+            "description": "Structured layout: place this node beside another element instead of in an arrange tree.",
+            "type": "object",
+            "properties": {
+              "to": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+                "description": "The node or group to place this node beside."
+              },
+              "side": {
+                "type": "string",
+                "enum": [
+                  "north",
+                  "east",
+                  "south",
+                  "west"
+                ],
+                "description": "The side of the target to place this node on."
+              },
+              "gap": {
+                "description": "Space between the target and this node. Omitted means 0.",
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^(0|\\d+(\\.\\d+)?(mm|cm|in|pt))$"
+                  },
+                  {
+                    "const": 0
+                  }
+                ]
+              }
+            },
+            "required": [
+              "to",
+              "side"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -158,10 +212,20 @@
             "pattern": "^[a-z][a-z0-9_-]{0,63}$",
             "description": "Source node or group ID."
           },
+          "fromAnchor": {
+            "description": "Where the edge leaves the source (structured layout only).",
+            "type": "string",
+            "pattern": "^(north|east|south|west)(?::(0(?:\\.\\d+)?|1(?:\\.0+)?))?$"
+          },
           "to": {
             "type": "string",
             "pattern": "^[a-z][a-z0-9_-]{0,63}$",
             "description": "Target node or group ID."
+          },
+          "toAnchor": {
+            "description": "Where the edge enters the target (structured layout only).",
+            "type": "string",
+            "pattern": "^(north|east|south|west)(?::(0(?:\\.\\d+)?|1(?:\\.0+)?))?$"
           },
           "label": {
             "default": "",
@@ -208,6 +272,125 @@
   "additionalProperties": false,
   "title": "Sumi figure (schema v1)",
   "$defs": {
+    "ArrangeBox": {
+      "type": "object",
+      "properties": {
+        "stack": {
+          "type": "object",
+          "properties": {
+            "direction": {
+              "default": "down",
+              "type": "string",
+              "enum": [
+                "down",
+                "up"
+              ]
+            },
+            "gap": {
+              "description": "Space between items. Omitted means the theme/profile default.",
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|\\d+(\\.\\d+)?(mm|cm|in|pt))$"
+                },
+                {
+                  "const": 0
+                }
+              ]
+            },
+            "align": {
+              "description": "Cross-axis alignment of the items. Omitted inherits from an enclosing box on the same axis.",
+              "type": "string",
+              "enum": [
+                "start",
+                "center",
+                "end",
+                "stretch"
+              ]
+            },
+            "items": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+                  },
+                  {
+                    "$ref": "#/$defs/ArrangeBox"
+                  }
+                ]
+              },
+              "description": "Node or group IDs, or nested stack / row boxes."
+            }
+          },
+          "required": [
+            "items"
+          ],
+          "additionalProperties": false
+        },
+        "row": {
+          "type": "object",
+          "properties": {
+            "direction": {
+              "default": "right",
+              "type": "string",
+              "enum": [
+                "right",
+                "left"
+              ]
+            },
+            "gap": {
+              "description": "Space between items. Omitted means the theme/profile default.",
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|\\d+(\\.\\d+)?(mm|cm|in|pt))$"
+                },
+                {
+                  "const": 0
+                }
+              ]
+            },
+            "align": {
+              "description": "Cross-axis alignment of the items. Omitted inherits from an enclosing box on the same axis.",
+              "type": "string",
+              "enum": [
+                "start",
+                "center",
+                "end",
+                "stretch"
+              ]
+            },
+            "items": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+                  },
+                  {
+                    "$ref": "#/$defs/ArrangeBox"
+                  }
+                ]
+              },
+              "description": "Node or group IDs, or nested stack / row boxes."
+            }
+          },
+          "required": [
+            "items"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false,
+      "description": "A stack (vertical) or row (horizontal) of items.",
+      "minProperties": 1,
+      "maxProperties": 1
+    },
     "JsonValue": {
       "$ref": "#/$defs/__schema0"
     },

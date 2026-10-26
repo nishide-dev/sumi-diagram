@@ -7,6 +7,7 @@
 
 import { validRange } from "semver";
 import { z } from "zod";
+import { parseLength } from "../units";
 
 /** Element ID: lowercase only, because D2 keys are case-insensitive. */
 export const ID_PATTERN = /^[a-z][a-z0-9_-]{0,63}$/;
@@ -34,12 +35,173 @@ export const SemverRange = z
 
 export const JsonValue = z.json().meta({ id: "JsonValue" });
 
-export const LayoutSchema = z.strictObject({
+/**
+ * Layout engines (design doc §6.19): `auto` lays the figure out with D2/ELK;
+ * `structured` places elements by the `arrange` trees and `attach` (#86).
+ */
+export const LAYOUT_ENGINES = ["auto", "structured"] as const;
+export type LayoutEngine = (typeof LAYOUT_ENGINES)[number];
+
+/** Sides of a node or group, for `attach.side` and edge anchors. */
+export const SIDES = ["north", "east", "south", "west"] as const;
+export type Side = (typeof SIDES)[number];
+
+/** Cross-axis alignment inside a stack or row. */
+export const ARRANGE_ALIGNS = ["start", "center", "end", "stretch"] as const;
+export type ArrangeAlign = (typeof ARRANGE_ALIGNS)[number];
+
+export const STACK_DIRECTIONS = ["down", "up"] as const;
+export const ROW_DIRECTIONS = ["right", "left"] as const;
+
+/**
+ * An edge anchor: a side, optionally with a position along it from 0 to 1
+ * (left to right on north/south, top to bottom on east/west; default 0.5).
+ * The schema accepts any string so the `layout` stage can report a malformed
+ * anchor as `layout/invalid-anchor`; the pattern is for editors.
+ */
+export const ANCHOR_PATTERN = /^(north|east|south|west)(?::(0(?:\.\d+)?|1(?:\.0+)?))?$/;
+
+/** A non-negative layout length such as `3mm` (or `0`), for the JSON Schema. */
+const LAYOUT_LENGTH_PATTERN = /^(0|\d+(\.\d+)?(mm|cm|in|pt))$/;
+
+/**
+ * A non-negative length with a unit (`"3mm"`, `"6pt"`), or `0` without one.
+ * Normalized to pt. Validation issues carry `params.hint`.
+ */
+const LayoutLength = z
+  .unknown()
+  .meta({
+    anyOf: [{ type: "string", pattern: LAYOUT_LENGTH_PATTERN.source }, { const: 0 }],
+    description: 'A length with a unit (mm, cm, in or pt), e.g. "3mm"; 0 needs no unit.',
+  })
+  .transform((input, ctx): number => {
+    if (input === 0 || input === "0") return 0;
+    const parsed = parseLength(input);
+    if (!parsed.ok) {
+      ctx.addIssue({
+        code: "custom",
+        message: parsed.message,
+        ...(parsed.hint !== undefined && { params: { hint: parsed.hint } }),
+      });
+      return z.NEVER;
+    }
+    if (parsed.length.exactPt.num < 0n) {
+      ctx.addIssue({
+        code: "custom",
+        message: `Length ${JSON.stringify(input)} must not be negative.`,
+      });
+      return z.NEVER;
+    }
+    return parsed.length.pt;
+  });
+
+const arrangeFields = {
+  gap: LayoutLength.optional().describe(
+    "Space between items. Omitted means the theme/profile default.",
+  ),
+  align: z
+    .enum(ARRANGE_ALIGNS)
+    .optional()
+    .describe(
+      "Cross-axis alignment of the items. Omitted inherits from an enclosing box on the same axis.",
+    ),
+};
+
+/** A vertical box: items top to bottom (`down`) or bottom to top (`up`). */
+export const StackSchema = z.strictObject({
+  direction: z.enum(STACK_DIRECTIONS).default("down"),
+  ...arrangeFields,
+  get items() {
+    return z
+      .array(ArrangeItemSchema)
+      .min(1)
+      .describe("Node or group IDs, or nested stack / row boxes.");
+  },
+});
+
+/** A horizontal box: items left to right (`right`) or right to left (`left`). */
+export const RowSchema = z.strictObject({
+  direction: z.enum(ROW_DIRECTIONS).default("right"),
+  ...arrangeFields,
+  get items() {
+    return z
+      .array(ArrangeItemSchema)
+      .min(1)
+      .describe("Node or group IDs, or nested stack / row boxes.");
+  },
+});
+
+/** Issue param marking the "exactly one of stack / row" check. */
+export const ARRANGE_BOX_ISSUE = "sumi-arrange-box";
+
+/** One box of an arrange tree: exactly one of `stack` or `row`. */
+export const ArrangeBoxSchema = z
+  .strictObject({
+    get stack() {
+      return StackSchema.optional();
+    },
+    get row() {
+      return RowSchema.optional();
+    },
+  })
+  .check((ctx) => {
+    const kinds = Object.values(ctx.value).filter((v) => v !== undefined).length;
+    if (kinds !== 1) {
+      ctx.issues.push({
+        code: "custom",
+        message: 'An arrange box must have exactly one of "stack" or "row".',
+        input: ctx.value,
+        params: { [ARRANGE_BOX_ISSUE]: true },
+      });
+    }
+  })
+  .meta({
+    id: "ArrangeBox",
+    description: "A stack (vertical) or row (horizontal) of items.",
+    minProperties: 1,
+    maxProperties: 1,
+  });
+
+/** An item of an arrange box: an element ID or a nested box. */
+export const ArrangeItemSchema = z.union([Id, ArrangeBoxSchema]);
+
+export const AttachSchema = z.strictObject({
+  to: Id.describe("The node or group to place this node beside."),
+  side: z.enum(SIDES).describe("The side of the target to place this node on."),
+  gap: LayoutLength.optional().describe("Space between the target and this node. Omitted means 0."),
+});
+
+const Anchor = z
+  .string()
+  .meta({ pattern: ANCHOR_PATTERN.source })
+  .describe('"<side>" or "<side>:<0..1>", e.g. "south" or "south:0.25" (structured layout only).');
+
+/** `figure.layout` as written; {@link LayoutSchema} adds the effective engine. */
+export const LayoutFieldsSchema = z.strictObject({
+  engine: z
+    .enum(LAYOUT_ENGINES)
+    .optional()
+    .describe(
+      "auto: D2/ELK. structured: arrange trees and attach. Omitted means structured if arrange is given, else auto.",
+    ),
   direction: z
     .enum(LAYOUT_DIRECTIONS)
     .default("right")
-    .describe("Flow direction of the root layout."),
+    .describe("Flow direction of the root layout (auto engine only)."),
+  arrange: ArrangeBoxSchema.optional().describe(
+    "Structured layout: places the root-level nodes and groups.",
+  ),
 });
+
+/**
+ * `figure.layout`, normalized: `engine` is always set. It is inferred from
+ * `figure.layout` alone (design doc §6.19), so later stages never guess.
+ */
+export const LayoutSchema = LayoutFieldsSchema.transform(({ engine, direction, arrange }) => ({
+  engine: engine ?? (arrange !== undefined ? "structured" : "auto"),
+  direction,
+  ...(arrange !== undefined && { arrange }),
+}));
 
 export const FigureMetaSchema = z.strictObject({
   id: Id,
@@ -54,7 +216,12 @@ export const GroupSchema = z.strictObject({
   label: Label,
   component: ComponentRef.default("container").describe("Component reference (kind: group)."),
   variant: Variant,
-  group: Id.optional().describe("Parent group ID. Omitted means the root."),
+  group: Id.optional().describe(
+    "Parent group ID. Omitted means the root (or, in structured layout, the group whose arrange lists it).",
+  ),
+  arrange: ArrangeBoxSchema.optional().describe(
+    "Structured layout: places the group's children; listed elements become its children.",
+  ),
 });
 
 export const NodeSchema = z.strictObject({
@@ -63,13 +230,24 @@ export const NodeSchema = z.strictObject({
   label: Label,
   variant: Variant,
   props: Props,
-  group: Id.optional().describe("Containing group ID. Omitted means the root."),
+  group: Id.optional().describe(
+    "Containing group ID. Omitted means the root (or, in structured layout, the group whose arrange lists it).",
+  ),
+  attach: AttachSchema.optional().describe(
+    "Structured layout: place this node beside another element instead of in an arrange tree.",
+  ),
 });
 
 export const EdgeSchema = z.strictObject({
   id: Id.optional().describe("Optional edge ID (separate ID space from nodes and groups)."),
   from: Id.describe("Source node or group ID."),
+  fromAnchor: Anchor.optional().describe(
+    "Where the edge leaves the source (structured layout only).",
+  ),
   to: Id.describe("Target node or group ID."),
+  toAnchor: Anchor.optional().describe(
+    "Where the edge enters the target (structured layout only).",
+  ),
   label: Label,
   component: ComponentRef.default("arrow").describe("Component reference (kind: edge)."),
   variant: Variant,
@@ -92,6 +270,12 @@ export const FigureDocumentSchema = z
 
 export type FigureDocument = z.output<typeof FigureDocumentSchema>;
 export type FigureMeta = z.output<typeof FigureMetaSchema>;
+export type FigureLayout = z.output<typeof LayoutSchema>;
+export type ArrangeBox = z.output<typeof ArrangeBoxSchema>;
+export type ArrangeItem = z.output<typeof ArrangeItemSchema>;
+export type StackBox = z.output<typeof StackSchema>;
+export type RowBox = z.output<typeof RowSchema>;
+export type Attach = z.output<typeof AttachSchema>;
 export type FigureGroup = z.output<typeof GroupSchema>;
 export type FigureNode = z.output<typeof NodeSchema>;
 export type FigureEdge = z.output<typeof EdgeSchema>;

@@ -93,6 +93,30 @@ describe("rules", () => {
     expect(first?.related?.[0]?.path).toEqual(["edges", 0]);
   });
 
+  test("duplicate-edge compares anchors in structured figures", () => {
+    const source = (anchors: [string, string, string]) =>
+      [
+        "version: 1",
+        "figure:",
+        "  id: f",
+        "  layout:",
+        "    arrange: { stack: { items: [a, b] } }",
+        "nodes:",
+        "  - { id: a, component: box, label: A }",
+        "  - { id: b, component: box, label: B }",
+        "edges:",
+        ...anchors.map((anchor) => `  - { from: a, to: b, toAnchor: "${anchor}" }`),
+        "",
+      ].join("\n");
+    const codes = (anchors: [string, string, string]) =>
+      lintFigure(source(anchors)).diagnostics.map((d) => [d.code, d.path]);
+    expect(codes(["north:0.25", "north", "north:0.75"])).toEqual([]);
+    // "north" and "north:0.5" are the same anchor.
+    expect(codes(["north:0.25", "north", "north:0.5"])).toEqual([
+      ["lint/duplicate-edge", ["edges", 2]],
+    ]);
+  });
+
   test("long-label reports width and line count, with configurable limits", () => {
     const messages = lint("lint/long-label.sumi.yaml").diagnostics.map((d) => d.message);
     expect(messages).toEqual([

@@ -1,0 +1,503 @@
+import { describe, expect, test } from "bun:test";
+import { join } from "node:path";
+import { compileFigure } from "../../compiler/compile";
+import { lintRenderedFigure } from "../../lint/geometry";
+import { lintFigure } from "../../lint/lint";
+import { checkFigure } from "../check";
+import type { Diagnostic, DocPath } from "../diagnostics";
+import { checkFigureSource, parseFigure } from "./check";
+import { parseAnchor } from "./layout";
+
+const ROOT = join(import.meta.dir, "..", "..", "..");
+
+type Summary = [code: string, path: DocPath | undefined, line: number, column: number];
+
+function summarize(diagnostics: readonly Diagnostic[]): Summary[] {
+  return diagnostics.map((d) => [d.code, d.path, d.location?.line ?? 0, d.location?.column ?? 0]);
+}
+
+/** Diagnostics of the yaml / schema / ref / layout stages. */
+function check(text: string): Summary[] {
+  return summarize(checkFigureSource(text).state.diagnostics);
+}
+
+function figure(body: string): string {
+  return `version: 1\nfigure:\n  id: f\n${body}`;
+}
+
+describe("engine", () => {
+  test("is auto without figure.layout.arrange, also when other fields are given", () => {
+    const parsed = parseFigure(figure("nodes:\n  - { id: a, component: box }\n"));
+    expect(parsed.ok && parsed.value.figure.layout).toEqual({ engine: "auto", direction: "right" });
+  });
+
+  test("is inferred as structured from figure.layout.arrange", () => {
+    const parsed = parseFigure(
+      figure(
+        "  layout:\n    arrange: { stack: { items: [a] } }\nnodes:\n  - { id: a, component: box }\n",
+      ),
+    );
+    expect(parsed.diagnostics).toEqual([]);
+    expect(parsed.ok && parsed.value.figure.layout).toEqual({
+      engine: "structured",
+      direction: "right",
+      arrange: { stack: { direction: "down", items: ["a"] } },
+    });
+  });
+
+  test("can be written explicitly", () => {
+    const parsed = parseFigure(
+      figure(
+        "  layout:\n    engine: structured\n    arrange: { row: { gap: 3mm, items: [a] } }\nnodes:\n  - { id: a, component: box }\n",
+      ),
+    );
+    expect(parsed.ok && parsed.value.figure.layout.engine).toBe("structured");
+    expect(parsed.ok && parsed.value.figure.layout.arrange?.row?.gap).toBeCloseTo(
+      (3 * 72) / 25.4,
+      9,
+    );
+  });
+
+  test("explicit structured without arrange leaves every root element unplaced", () => {
+    const text = figure(
+      "  layout:\n    engine: structured\nnodes:\n  - { id: a, component: box }\n",
+    );
+    expect(check(text)).toEqual([["layout/unplaced", ["nodes", 0, "id"], 7, 11]]);
+    const [d] = checkFigureSource(text).state.diagnostics;
+    expect(d?.hint).toBe(
+      'Add "a" to the items of figure.layout.arrange, or place it beside another element with attach.',
+    );
+  });
+});
+
+describe("layout/structured-only", () => {
+  test("explicit auto with figure.layout.arrange", () => {
+    const text = figure(
+      "  layout:\n    engine: auto\n    arrange: { stack: { items: [a] } }\nnodes:\n  - { id: a, component: box }\n",
+    );
+    expect(check(text)).toEqual([
+      ["layout/structured-only", ["figure", "layout", "arrange"], 6, 5],
+    ]);
+  });
+
+  test("structured-only fields of elements without figure.layout.arrange", () => {
+    const text = figure(
+      [
+        "groups:",
+        "  - { id: g, arrange: { stack: { items: [a] } } }",
+        "nodes:",
+        "  - { id: a, component: box, group: g }",
+        "  - { id: b, component: box, attach: { to: a, side: west } }",
+        "edges:",
+        "  - { from: a, fromAnchor: north, to: b, toAnchor: south }",
+        "",
+      ].join("\n"),
+    );
+    expect(check(text)).toEqual([
+      ["layout/structured-only", ["groups", 0, "arrange"], 5, 14],
+      ["layout/structured-only", ["nodes", 1, "attach"], 8, 30],
+      ["layout/structured-only", ["edges", 0, "fromAnchor"], 10, 16],
+      ["layout/structured-only", ["edges", 0, "toAnchor"], 10, 42],
+    ]);
+    const { state } = checkFigureSource(text);
+    expect(state.diagnostics[0]?.message).toBe(
+      '"arrange" needs the structured layout engine, but this figure uses the auto engine.',
+    );
+    // The element with the field is invalid, and so are its dependents.
+    expect([...state.invalid].sort()).toEqual(["e:#0", "g:g", "n:a", "n:b"]);
+  });
+});
+
+describe("placement", () => {
+  const base = (arrange: string, rest: string) =>
+    figure(`  layout:\n    arrange: ${arrange}\n${rest}`);
+
+  test("layout/unknown-item with a near match, or a note for edge IDs", () => {
+    const text = base(
+      "{ stack: { items: [alpha, alpah, link] } }",
+      "nodes:\n  - { id: alpha, component: box }\nedges:\n  - { id: link, from: alpha, to: alpha }\n",
+    );
+    expect(check(text)).toEqual([
+      ["layout/unknown-item", ["figure", "layout", "arrange", "stack", "items", 1], 5, 40],
+      ["layout/unknown-item", ["figure", "layout", "arrange", "stack", "items", 2], 5, 47],
+    ]);
+    const [typo, edge] = checkFigureSource(text).state.diagnostics;
+    expect(typo?.hint).toBe('Did you mean "alpha"?');
+    expect(typo?.subject).toEqual({ kind: "figure", id: "f" });
+    expect(edge?.hint).toBe('"link" is an edge; only nodes and groups are placed.');
+  });
+
+  test("layout/unknown-attach-target", () => {
+    const text = base(
+      "{ stack: { items: [a] } }",
+      "nodes:\n  - { id: a, component: box }\n  - { id: b, component: box, attach: { to: aa, side: east } }\n",
+    );
+    expect(check(text)).toEqual([
+      ["layout/unknown-attach-target", ["nodes", 1, "attach", "to"], 8, 44],
+    ]);
+  });
+
+  test("layout/duplicate-placement in two trees, and arranged and attached", () => {
+    const text = base(
+      "{ row: { items: [a, g, a] } }",
+      [
+        "groups:",
+        "  - { id: g, arrange: { stack: { items: [b, c] } } }",
+        "nodes:",
+        "  - { id: a, component: box }",
+        "  - { id: b, component: box }",
+        "  - { id: c, component: box, attach: { to: a, side: west } }",
+        "",
+      ].join("\n"),
+    );
+    expect(check(text)).toEqual([
+      ["layout/duplicate-placement", ["figure", "layout", "arrange", "row", "items", 2], 5, 37],
+      ["layout/duplicate-placement", ["nodes", 2, "attach"], 11, 30],
+    ]);
+    const [twice, attached] = checkFigureSource(text).state.diagnostics;
+    expect(twice?.message).toBe(
+      '"a" is placed more than once: in figure.layout.arrange and in figure.layout.arrange.',
+    );
+    expect(twice?.related?.[0]).toMatchObject({ message: "First placed here." });
+    expect(twice?.related?.[0]?.location).toMatchObject({ line: 5, column: 31 });
+    expect(attached?.message).toBe(
+      '"c" is placed more than once: in the arrange of group "g" and attached to "a".',
+    );
+  });
+
+  test("layout/unplaced for root elements and group children", () => {
+    const text = base(
+      "{ stack: { items: [g] } }",
+      [
+        "groups:",
+        "  - { id: g, arrange: { stack: { items: [a] } } }",
+        "  - { id: h, group: g }",
+        "nodes:",
+        "  - { id: a, component: box }",
+        "  - { id: b, component: box, group: g }",
+        "  - { id: c, component: box, group: h }",
+        "  - { id: d, component: box }",
+        "",
+      ].join("\n"),
+    );
+    expect(check(text)).toEqual([
+      ["layout/unplaced", ["groups", 1, "id"], 8, 11],
+      ["layout/unplaced", ["nodes", 1, "id"], 11, 11],
+      ["layout/unplaced", ["nodes", 3, "id"], 13, 11],
+    ]);
+    const hints = checkFigureSource(text).state.diagnostics.map((d) => d.hint);
+    expect(hints).toEqual([
+      'Add "h" to the items of the arrange of group "g".',
+      'Add "b" to the items of the arrange of group "g", or place it beside another element with attach.',
+      'Add "d" to the items of figure.layout.arrange, or place it beside another element with attach.',
+    ]);
+    // "c" is inside the unplaced group "h": invalid, but not reported again.
+    expect(checkFigureSource(text).state.invalid.has("n:c")).toBe(true);
+  });
+
+  test("layout/unplaced hint for a group without arrange", () => {
+    const text = base(
+      "{ stack: { items: [g] } }",
+      "groups:\n  - { id: g }\nnodes:\n  - { id: a, component: box, group: g }\n",
+    );
+    expect(check(text)).toEqual([["layout/unplaced", ["nodes", 0, "id"], 9, 11]]);
+    expect(checkFigureSource(text).state.diagnostics[0]?.hint).toBe(
+      'Group "g" has no arrange; add one that lists "a", or place it beside another element with attach.',
+    );
+  });
+
+  test("layout/group-mismatch between group: and the arrange tree or attach target", () => {
+    const text = base(
+      "{ row: { items: [g, h, x] } }",
+      [
+        "groups:",
+        "  - { id: g, arrange: { stack: { items: [a] } } }",
+        "  - { id: h, arrange: { stack: { items: [b] } } }",
+        "nodes:",
+        "  - { id: a, component: box, group: h }",
+        "  - { id: b, component: box, group: h }",
+        "  - { id: x, component: box, group: g }",
+        "  - { id: y, component: box, group: g, attach: { to: b, side: east } }",
+        "",
+      ].join("\n"),
+    );
+    expect(check(text)).toEqual([
+      ["layout/group-mismatch", ["figure", "layout", "arrange", "row", "items", 2], 5, 37],
+      ["layout/group-mismatch", ["groups", 0, "arrange", "stack", "items", 0], 7, 42],
+      ["layout/group-mismatch", ["nodes", 3, "attach", "to"], 13, 54],
+    ]);
+    const diagnostics = checkFigureSource(text).state.diagnostics;
+    expect(diagnostics.map((d) => d.message)).toEqual([
+      'Node "x" has group "g" but is listed in figure.layout.arrange.',
+      'Node "a" has group "h" but is listed in the arrange of group "g".',
+      'Node "y" has group "g" but is attached to "b", which is in group "h".',
+    ]);
+    expect(diagnostics[0]?.related?.[0]?.location).toMatchObject({ line: 12, column: 37 });
+  });
+
+  test("arrange items and attach imply group membership when group: is omitted", () => {
+    const parsed = parseFigure(
+      base(
+        "{ row: { items: [g, n] } }",
+        [
+          "groups:",
+          "  - { id: g, arrange: { stack: { items: [a, h] } } }",
+          "  - { id: h, arrange: { stack: { items: [b] } } }",
+          "nodes:",
+          "  - { id: a, component: box }",
+          "  - { id: b, component: box, group: h }",
+          "  - { id: c, component: label, label: C, attach: { to: b, side: east } }",
+          "  - { id: n, component: box }",
+          "  - { id: m, component: label, label: M, attach: { to: g, side: west, gap: 2mm } }",
+          "",
+        ].join("\n"),
+      ),
+    );
+    expect(parsed.diagnostics).toEqual([]);
+    if (!parsed.ok) throw new Error("expected ok");
+    const groupOf = (id: string) =>
+      [...parsed.value.groups, ...parsed.value.nodes].find((e) => e.id === id)?.group;
+    expect(["g", "h", "a", "b", "c", "n", "m"].map(groupOf)).toEqual([
+      undefined,
+      "g",
+      "g",
+      "h",
+      "h",
+      undefined,
+      undefined,
+    ]);
+  });
+
+  test("layout/group-cycle through arrange trees", () => {
+    const text = base(
+      "{ row: { items: [n] } }",
+      [
+        "groups:",
+        "  - { id: g, arrange: { stack: { items: [h] } } }",
+        "  - { id: h, arrange: { stack: { items: [g] } } }",
+        "nodes:",
+        "  - { id: n, component: box }",
+        "",
+      ].join("\n"),
+    );
+    expect(check(text)).toEqual([
+      ["layout/group-cycle", ["groups", 0, "arrange", "stack", "items", 0], 7, 42],
+    ]);
+    expect(checkFigureSource(text).state.diagnostics[0]?.message).toBe(
+      'Group "h" is nested inside itself through arrange: h → g → h.',
+    );
+  });
+
+  test("a group listed in its own arrange is a cycle", () => {
+    const text = base(
+      "{ row: { items: [n] } }",
+      "groups:\n  - { id: g, arrange: { stack: { items: [g] } } }\nnodes:\n  - { id: n, component: box }\n",
+    );
+    expect(check(text)).toEqual([
+      ["layout/group-cycle", ["groups", 0, "arrange", "stack", "items", 0], 7, 42],
+    ]);
+  });
+
+  test("layout/attach-cycle for self and longer cycles; dependents are invalid", () => {
+    const text = base(
+      "{ row: { items: [n] } }",
+      [
+        "nodes:",
+        "  - { id: n, component: box }",
+        "  - { id: s, component: box, attach: { to: s, side: east } }",
+        "  - { id: a, component: box, attach: { to: b, side: east } }",
+        "  - { id: b, component: box, attach: { to: a, side: west } }",
+        "  - { id: c, component: box, attach: { to: a, side: north } }",
+        "",
+      ].join("\n"),
+    );
+    expect(check(text)).toEqual([
+      ["layout/attach-cycle", ["nodes", 1, "attach", "to"], 8, 44],
+      ["layout/attach-cycle", ["nodes", 2, "attach", "to"], 9, 44],
+    ]);
+    const { state } = checkFigureSource(text);
+    expect(state.diagnostics[1]?.message).toBe('Node "a" is attached to itself through a → b → a.');
+    expect(state.diagnostics[1]?.related?.map((r) => r.location?.line)).toEqual([10]);
+    expect(["n:s", "n:a", "n:b", "n:c"].every((k) => state.invalid.has(k as never))).toBe(true);
+    expect(state.invalid.has("n:n")).toBe(false);
+  });
+});
+
+describe("anchors", () => {
+  test("parseAnchor accepts a side and an optional position from 0 to 1", () => {
+    expect(parseAnchor("south")).toEqual({ side: "south", offset: 0.5 });
+    expect(parseAnchor("north:0")).toEqual({ side: "north", offset: 0 });
+    expect(parseAnchor("west:0.15")).toEqual({ side: "west", offset: 0.15 });
+    expect(parseAnchor("east:1")).toEqual({ side: "east", offset: 1 });
+    expect(parseAnchor("east:1.0")).toEqual({ side: "east", offset: 1 });
+    for (const bad of [
+      "top",
+      "South",
+      "south:",
+      "south:1.5",
+      "south:.5",
+      "south:-0.1",
+      "south:2",
+    ]) {
+      expect(parseAnchor(bad)).toBeUndefined();
+    }
+  });
+
+  test("layout/invalid-anchor with a hint", () => {
+    const text = figure(
+      [
+        "  layout:",
+        "    arrange: { row: { items: [a, b] } }",
+        "nodes:",
+        "  - { id: a, component: box }",
+        "  - { id: b, component: box }",
+        "edges:",
+        '  - { from: a, fromAnchor: "east:1.5", to: b, toAnchor: sooth }',
+        "",
+      ].join("\n"),
+    );
+    expect(check(text)).toEqual([
+      ["layout/invalid-anchor", ["edges", 0, "fromAnchor"], 10, 28],
+      ["layout/invalid-anchor", ["edges", 0, "toAnchor"], 10, 57],
+    ]);
+    const [, sooth] = checkFigureSource(text).state.diagnostics;
+    expect(sooth?.hint).toBe(
+      'Did you mean "south"? Sides: north, east, south, west; the position is a number from 0 to 1 (default 0.5), e.g. "south:0.25".',
+    );
+  });
+});
+
+describe("schema of the structured fields", () => {
+  const nodes = "nodes:\n  - { id: a, component: box }\n";
+
+  test("lengths take a unit (0 needs none) and must not be negative", () => {
+    const text = (gap: string) =>
+      figure(`  layout:\n    arrange: { row: { gap: ${gap}, items: [a] } }\n${nodes}`);
+    expect(check(text("0"))).toEqual([]);
+    expect(check(text('"1.5mm"'))).toEqual([]);
+    const at = ["figure", "layout", "arrange", "row", "gap"];
+    expect(check(text("3"))).toEqual([["schema/invalid-value", at, 5, 28]]);
+    expect(check(text("3px"))).toEqual([["schema/invalid-value", at, 5, 28]]);
+    expect(check(text("-1mm"))).toEqual([["schema/invalid-value", at, 5, 28]]);
+    const [px] = checkFigureSource(text("3px")).state.diagnostics;
+    expect(px?.message).toBe(
+      'Invalid value at figure.layout.arrange.row.gap: Unsupported unit "px" in "3px"; pixel sizes depend on the display.',
+    );
+    expect(px?.hint).toContain("1px = 0.75pt");
+  });
+
+  test("an arrange box has exactly one of stack or row, with known fields", () => {
+    const text = (arrange: string) => figure(`  layout:\n    arrange: ${arrange}\n${nodes}`);
+    const at = ["figure", "layout", "arrange"];
+    expect(check(text("{}"))).toEqual([["schema/invalid-value", at, 5, 14]]);
+    expect(check(text("{ stack: { items: [a] }, row: { items: [a] } }"))).toEqual([
+      ["schema/invalid-value", at, 5, 14],
+    ]);
+    // A typo is one unknown-field error with a suggestion, not two errors.
+    expect(check(text("{ row: { items: [{ stak: { items: [a] } }] } }"))).toEqual([
+      ["schema/unknown-field", [...at, "row", "items", 0, "stak"], 5, 33],
+    ]);
+    expect(
+      checkFigureSource(text("{ row: { items: [{ stak: { items: [a] } }] } }")).state.diagnostics[0]
+        ?.hint,
+    ).toBe('Did you mean "stack"? If this field was added in a newer Sumi version, upgrade Sumi.');
+    expect(check(text("{ row: { direction: up, items: [a] } }"))).toEqual([
+      ["schema/invalid-value", [...at, "row", "direction"], 5, 34],
+    ]);
+    expect(check(text("{ stack: { items: [] } }"))).toEqual([
+      ["schema/invalid-value", [...at, "stack", "items"], 5, 32],
+    ]);
+    expect(check(text("{ stack: { items: [A] } }"))).toEqual([
+      ["schema/invalid-id", [...at, "stack", "items", 0], 5, 33],
+    ]);
+    expect(check(text("{ stack: { items: [1] } }"))).toEqual([
+      ["schema/invalid-type", [...at, "stack", "items", 0], 5, 33],
+    ]);
+    expect(checkFigureSource(text("{ stack: { items: [1] } }")).state.diagnostics[0]?.message).toBe(
+      "Expected an element ID or a stack / row box at figure.layout.arrange.stack.items[0], got the number 1.",
+    );
+  });
+
+  test("attach needs a known side", () => {
+    const text = figure(
+      `  layout:\n    arrange: { row: { items: [a] } }\n${nodes}  - { id: b, component: box, attach: { to: a, side: left } }\n`,
+    );
+    expect(check(text)).toEqual([["schema/invalid-value", ["nodes", 1, "attach", "side"], 8, 53]]);
+  });
+});
+
+describe("rendering", () => {
+  test("a structured figure is checked fully but not compiled", () => {
+    const text = figure(
+      "  layout:\n    arrange: { row: { items: [a] } }\nnodes:\n  - { id: a, component: box, label: A }\n",
+    );
+    expect(lintFigure(text).diagnostics).toEqual([]);
+    const compiled = compileFigure(text);
+    expect(compiled.ok).toBe(false);
+    expect(summarize(compiled.diagnostics)).toEqual([
+      ["layout/engine-unavailable", ["figure", "layout", "arrange"], 5, 5],
+    ]);
+  });
+
+  test("the rendered lint reports engine-unavailable once, and check errors once", async () => {
+    const ok = figure(
+      "  layout:\n    arrange: { row: { items: [a] } }\nnodes:\n  - { id: a, component: box, label: A }\n",
+    );
+    const rendered = await lintRenderedFigure(ok);
+    expect(rendered.rendered).toBeUndefined();
+    expect(rendered.diagnostics.map((d) => d.code)).toEqual(["layout/engine-unavailable"]);
+    const broken = await lintRenderedFigure(ok.replace("items: [a]", "items: [b]"));
+    expect(broken.diagnostics.map((d) => d.code)).toEqual([
+      "layout/unknown-item",
+      "layout/unplaced",
+    ]);
+  });
+
+  test("engine-unavailable points at engine when there is no arrange", () => {
+    const compiled = compileFigure(figure("  layout:\n    engine: structured\n"));
+    expect(summarize(compiled.diagnostics)).toEqual([
+      ["layout/engine-unavailable", ["figure", "layout", "engine"], 5, 5],
+    ]);
+  });
+});
+
+describe("figure A of #86", () => {
+  test("the adapted fixture checks and lints with zero diagnostics", async () => {
+    const text = await Bun.file(
+      join(ROOT, "tests/fixtures/figures/layout/a-transformer.sumi.yaml"),
+    ).text();
+    expect(lintFigure(text).diagnostics).toEqual([]);
+    const parsed = parseFigure(text);
+    if (!parsed.ok) throw new Error("expected ok");
+    expect(parsed.value.figure.layout.engine).toBe("structured");
+    const groupOf = new Map(parsed.value.nodes.map((n) => [n.id, n.group]));
+    expect(groupOf.get("enc-mha")).toBe("encoder");
+    expect(groupOf.get("dec-norm3")).toBe("decoder");
+    expect(groupOf.get("enc-n")).toBeUndefined(); // attached to the root-level group
+    expect(groupOf.get("enc-pe-label")).toBeUndefined();
+  });
+
+  test("the research YAML reports only features owned by later issues", async () => {
+    const text = await Bun.file(
+      join(ROOT, "research/86-paper-figures/figures/ideal/a-transformer.sumi.yaml"),
+    ).text();
+    // `requires: ">=0.4.0"` is satisfied once v0.4.0 is released.
+    const { state } = checkFigure(text.replace(/^requires: .*\n/m, ""));
+    const fields = new Set(
+      state.diagnostics
+        .filter((d) => d.code === "schema/unknown-field")
+        .map((d) => String(d.path?.at(-1))),
+    );
+    const components = new Set(
+      state.diagnostics
+        .filter((d) => d.code === "component/unknown")
+        .map((d) => /"([^"]+)"/.exec(d.message)?.[1]),
+    );
+    expect([...new Set(state.diagnostics.map((d) => d.code))].sort()).toEqual([
+      "component/unknown",
+      "schema/unknown-field",
+    ]);
+    expect([...fields].sort()).toEqual(["icon", "tone"]); // #92, #94
+    expect([...components].sort()).toEqual(["junction", "operator"]); // #92
+  });
+});

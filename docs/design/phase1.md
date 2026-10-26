@@ -14,6 +14,7 @@ v1 からの変更: D2 の実際の値域・フォント・ID・SVG 構造に合
   → parse        (yaml, 位置情報付き)              stage: yaml
   → validate     (Figure Schema, 構造のみ strict)   stage: schema
   → link         (ID 参照・グループ木)              stage: ref
+  → arrange      (structured の配置の木・所属, §6.19) stage: layout
   → resolve      (Registry: 部品・props・variant)   stage: component
   → style        (Theme: token → 実効スタイル)       stage: theme
   → constrain    (Profile: 単位・制約の事前検査)      stage: profile
@@ -143,19 +144,24 @@ edges:
 | figure | `theme` | | 組み込み Theme 名 | `minimal` |
 | figure | `profile` | | 組み込み Profile 名 | `paper-single` |
 | figure | `layout` | | object（strict） | `{}` |
-| figure.layout | `direction` | | `right`\|`down`\|`left`\|`up` | `right` |
+| figure.layout | `engine` | | `auto`\|`structured` | `arrange` があれば `structured`、なければ `auto`（§6.19） |
+| figure.layout | `direction` | | `right`\|`down`\|`left`\|`up` | `right`（`auto` のみ） |
+| figure.layout | `arrange` | | 配置の木（§6.19。structured のみ） | なし |
 | group | `id` | ✓ | ID | |
 | group | `label` | | string | `""` |
 | group | `component` | | 部品参照（kind=group） | `container` |
 | group | `variant` | | string | `default` |
-| group | `group` | | 親 group の ID | なし（root） |
+| group | `group` | | 親 group の ID | なし（root。structured では配置の木から補完, §6.19） |
+| group | `arrange` | | 配置の木（子を並べる。structured のみ） | なし |
 | node | `id` | ✓ | ID | |
 | node | `component` | ✓ | 部品参照（kind=node） | |
 | node | `label` | | string | `""` |
 | node | `variant` | | string | `default` |
 | node | `props` | | object | `{}`（manifest の既定値で補完） |
-| node | `group` | | group の ID | なし（root） |
+| node | `group` | | group の ID | なし（root。structured では配置の木から補完, §6.19） |
+| node | `attach` | | `{ to, side, gap? }`（structured のみ） | なし |
 | edge | `from` / `to` | ✓ | node または group の ID | |
+| edge | `fromAnchor` / `toAnchor` | | `"<side>"` か `"<side>:<0..1>"`（structured のみ） | なし |
 | edge | `id` | | ID | なし |
 | edge | `label` | | string | `""` |
 | edge | `component` | | 部品参照（kind=edge） | `arrow` |
@@ -174,7 +180,7 @@ edges:
 - **ID**: `^[a-z][a-z0-9_-]{0,63}$`。**小文字のみ**（D2 の key は大文字小文字を区別しないため、大小だけが違う ID を作らせない）。node と group は同じ ID 空間、edge は別の空間。
 - **edge の識別**: `id` は任意。省略した edge は文書上 `edges[<index>]` で識別する（自動 ID は生成しない）。内部 key は §2.4 で別に作るので、ユーザー ID と衝突しない。
 - **label**: プレーンテキスト。`\n`（YAML 上の改行）で改行する。Markdown・HTML は解釈しない。D2 向けのクォート・エスケープはコンパイラの責務。`""` と省略は同じ（ラベルなし）。node の label 省略時は**ラベルなし**とする（ID を表示しない。ID はデータで、表示文言ではないため）。
-- **グループ**: 所属は子側の `group:` で表す（単一の親、ネスト可）。循環は `ref/group-cycle`。存在しない親は `ref/unknown-group`。
+- **グループ**: 所属は子側の `group:` で表す（単一の親、ネスト可。structured では配置の木からも決まる。§6.19）。循環は `ref/group-cycle`。存在しない親は `ref/unknown-group`。
 - **接続の許容表**:
 
 | ケース | 扱い |
@@ -824,6 +830,28 @@ layout:
 - **延長不要の端**: 射線上で輪郭と footprint が一致する（|延長量| ≤ 1e-6）端は変更不要なので、角度によらず warning にしない。描画は D2 の矩形の端点のままで、組み込み部品と同じ見た目になる。
 - **後段との整合**: 幾何 lint は合成後の経路を inspect し直して使うので、斜めの延長区間もそのまま検査される（追加規則なし）。編集可能 PPTX の freeform は合成後の経路をそのまま書き、glued は端点に最も近い接続点へ接着する（経路の向きに依存しない）。軸に平行な端の処理・出力は変わらないため、ギャラリー・examples・PDF・PPTX の golden は変わらない。
 - **テスト**: 再現図（`tests/fixtures/outlines/nearly-aligned.sumi.yaml`）と、最大角度で台形の斜辺に入る図（`slanted-side.sumi.yaml`）を実際の D2 で描き、診断ゼロ（幾何 lint 込み）、輪郭までの距離が D2 の隙間と 0.01 unit 以内で一致、延長が射線方向であること、PPTX 両方式の生成を確認する。図が傾いた経路を作り続けていることもテストで確認する。合成単体では許容角度の境界（4.9° は延長、5.1° は warning）、急な角度、footprint 内の端点、延長不要の急な端を検査する。
+
+### 6.19 #88 の構造的配置のスキーマと検査
+
+[#86 の調査](../research/86-paper-figures.md)（§2.1・§3.5・§9.1）の段階 A の 1 件目。配置エンジン・経路・SVG 出力は #89〜#91 で、この節はスキーマ・正規化・検査だけを扱う。すべて Figure v1 への任意フィールドの追加で、既存の図の正規化結果に `figure.layout.engine: auto` が加わる以外、診断・IR・D2・SVG・PDF・PPTX は変わらない。
+
+- **フィールド**（すべて strict）:
+  - `figure.layout.engine`: `auto`（D2/ELK、従来）| `structured`。`figure.layout.arrange`: root の配置の木。`groups[].arrange`: group の子の配置の木。`nodes[].attach: { to, side, gap? }`: 配置の木の外で、`to`（node か group）の `side` 側に `gap` 離して置く。`edges[].fromAnchor` / `toAnchor`: `"<side>"` か `"<side>:<0..1>"`（north/south では左→右、east/west では上→下の位置。省略時 0.5）。
+  - 配置の木の箱は `stack`（縦。`direction: down|up`、既定 `down`）か `row`（横。`right|left`、既定 `right`）のちょうど 1 つ。`gap`（長さ）・`align`（`start|center|end|stretch`）・`items`（1 個以上。ID か入れ子の箱）。`gap` と `align` は省略を保ち、既定値（Theme / Profile の間隔、同じ軸の箱からの揃えの継承）は配置エンジン（#89）が決める。
+  - 長さは単位付き（`3mm`・`6pt` 等、§5.1 の単位パーサ）で、`0` だけは単位なしで書ける。負の値は不可。正規化後は pt の数値。辺は north/east/south/west（調査の試作と同じ語。図の上下左右と一致し、`direction` の up/down と混同しない）。
+- **engine の推定（判断）**: `engine` を省略した場合、**`figure.layout.arrange` があれば `structured`、なければ `auto`** とする。正規化は schema 段で行い、以降の段は常に具体的な engine を見る（推定は `figure.layout` だけで決まるので、要素を読む前に確定できる）。
+  - 理由: 利用者の判断（2026-10-26、扱いやすさを優先）に従い、structured の図に `engine:` を書かなくてよくする。structured の図には root の配置の木が必ず要る（root の要素を置く場所がほかにない）ため、`arrange` を書くこと自体が structured を選んだ明確な合図になる。
+  - 「structured 専用のフィールドがどれか 1 つでもあれば structured」とする案は採らなかった。`auto` の流れ図に `toAnchor` を 1 つ足しただけで図全体が structured になり、全要素の `layout/unplaced` が並ぶ。根の `arrange` だけで決めれば、同じ誤りは `toAnchor` の位置の `layout/structured-only` 1 件になり、直し方（`arrange` を足すか、フィールドを消す）がそのまま分かる。
+  - `auto`（明示・推定とも）で structured 専用フィールド（`figure.layout.arrange`・`groups[].arrange`・`nodes[].attach`・`fromAnchor` / `toAnchor`）を使うと、各フィールドのキーの位置に `layout/structured-only`（error）。黙って無視しない（#57 の方針）。`figure.layout.direction` は `auto` 専用で、structured では使わない（各箱が向きを持つ）。既定値があるため、書いてあっても診断は出さない。
+- **配置の規則（判断）**: structured では、すべての node と group が、**どれか 1 つの配置の木の項目として、または `attach` で、ちょうど 1 回**置かれる（調査 §2.1）。
+  - `figure.layout.arrange` は root の要素を、`groups[].arrange` はその group の子を置く。**配置の木の項目は、その木の持ち主の子になる**（group の木なら group の子、root の木なら root）。`attach` した node は**対象と同じ親**になる。`group:` を省略すると、この所属を正規化で補完する（以降の段・IR・lint は補完後の `group` を見る）。`group:` を書いてあって所属と食い違えば `layout/group-mismatch`（配置した位置に出し、related に `group:` の位置）。
+  - 判断: 所属を配置から決めるのは、調査 §2.1 の「`arrange.items` に入れた要素はその group の子」に従い、同じ情報を 2 か所に書かせないため。`attach` を対象の親に揃えるのは、図 A の `N×`（group の横の注記）や位置エンコーディングの記号のように、添える要素は対象と同じ階層に描くのが自然で、group の枠の内外が配置と食い違わないようにするため。
+  - 診断（stage `layout`、すべて error、YAML の位置付き）: 木の項目の未知の ID は `layout/unknown-item`（近い ID、edge の ID なら「edge は置かない」を hint に）、`attach.to` の未知の ID は `layout/unknown-attach-target`、2 回目以降の配置は `layout/duplicate-placement`（ファイル上で後の方に出し、related に最初の位置）、どこにも置かれない要素は `layout/unplaced`（要素の `id` の位置。置くべき木を hint に）、`attach` の循環（自分自身を含む）は `layout/attach-cycle`、配置の木を通した group の入れ子の循環は `layout/group-cycle`（`group:` だけの循環は従来どおり `ref/group-cycle`）、不正な anchor は `layout/invalid-anchor`（近い辺を hint に）。
+  - anchor の形式を schema 段の正規表現でなく layout 段で検査するのは、anchor の妥当性が端点に依存しうるため（段階 C のセル端点 `sequence.a5` 等）。JSON Schema には同じ pattern を載せ、エディタでの補助は保つ。長さ・箱の形（stack / row のちょうど 1 つ）・`side`・`align`・`direction` の誤りは schema 段の `schema/*`。
+  - 無効化: 誤りのある要素（重複して置かれた要素、食い違う要素、未知の対象に attach した node、不正な anchor の edge）を invalid にし、無効な要素に attach した node、無効な group の子も診断なしで invalid にする（§0 の規則）。配置の木の持ち主は invalid にしない（未知の項目が 1 つあっても、その group の他の子の検査を続けるため）。読めない group / node がある場合（schema 段の error）は、その木が読めないので `layout/unplaced` を出さない（誤検出を避ける）。
+- **描画（暫定）**: structured の図は `sumi lint` で上記をすべて検査できる。`sumi render`（`compileFigure()`）は、検査が通っても D2 には渡さず `layout/engine-unavailable`（error、`figure.layout.arrange` か `engine` の位置）で止める。#89〜#91 で structured のエンジンが入るときに外す。`lintRenderedFigure()` は、検査時と描画時の両方で出る stage `layout` の診断を、`lintFigure()` と同じものだけ重複として除く。
+- **その他**: `sumi fmt --canonical-order` は `figure.layout`（engine → direction → arrange）、group（… → group → arrange）、node（… → group → attach）、edge（id → from → fromAnchor → to → toAnchor → …）、`attach`（to → side → gap）と配置の木の箱（direction → gap → align → items、入れ子も）をスキーマ順にする。`lint/duplicate-edge` は structured の図で anchor も比較し、`south:0.15` と `south:0.85` に入る 2 本を重複としない（`south` と `south:0.5` は同じ）。
+- **検証**: 各診断のコード・パス・行・列、engine の推定と正規化、所属の補完、`auto` での拒否、`compileFigure()` での停止を単体テストで固定した。図 A の理想の YAML（調査の `figures/ideal/a-transformer.sumi.yaml`）は、`requires` を外すと残る診断が後続の Issue の範囲（`tone` / `icon` の `schema/unknown-field`、`operator` / `junction` の `component/unknown`。#92・#94）だけであることをテストで確かめる。それらを既存の部品に置き換えた `tests/fixtures/figures/layout/a-transformer.sumi.yaml` は、構造 lint を含めて診断ゼロ。
 
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
