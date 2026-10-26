@@ -14,6 +14,7 @@ import {
   constants,
   fstatSync,
   openSync,
+  readlinkSync,
   readSync,
   realpathSync,
   statSync,
@@ -41,6 +42,21 @@ export function srcProblem(src: string): string | undefined {
     return "it leaves the directory of the figure's YAML file";
   }
   return undefined;
+}
+
+/**
+ * The path of the file an open descriptor refers to, from the kernel
+ * (`/proc/self/fd/<fd>` on Linux); `undefined` where the system does not
+ * provide it.
+ */
+function openedPath(fd: number): string | undefined {
+  if (process.platform !== "linux") return undefined;
+  try {
+    const path = readlinkSync(`/proc/self/fd/${fd}`);
+    return isAbsolute(path) && !path.endsWith(" (deleted)") ? path : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export type ReadAsset =
@@ -97,15 +113,20 @@ export function readAssetFile(base: string, src: string, maxBytes: number): Read
     }
     // O_NOFOLLOW guards only the last component: a directory on the way could
     // have been swapped for a symbolic link between the check and the open.
-    // Resolve again and require the same file, still inside the base.
+    // Linux names the file a descriptor refers to (/proc/self/fd), which no
+    // later rename can change. Elsewhere, resolve the path again and require
+    // the same file, still inside the base (a narrower window: a concurrent
+    // writer in the figure's directory would have to swap it back and forth
+    // between each step; see design doc §6.25).
+    const opened = openedPath(fd);
     let again: string;
     try {
-      again = realpathSync(join(realBase, ...src.split("/")));
+      again = opened ?? realpathSync(join(realBase, ...src.split("/")));
     } catch {
       return { ok: false, reason: "not-found", message: "the file changed while it was opened" };
     }
     const now = relative(realBase, again);
-    const checked = statSync(again);
+    const checked = opened === undefined ? statSync(again) : stat;
     if (
       now === "" ||
       now === ".." ||

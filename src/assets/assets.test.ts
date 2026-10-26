@@ -507,5 +507,15 @@ describe("image manifests from outside the built-ins", () => {
     const registry = createBuiltinRegistry();
     expect(registry.register(manifest(z.enum(["contain", "stretch"]))).ok).toBe(false);
     expect(registry.register(manifest(z.string())).ok).toBe(false);
+    // An optional src would let a figure leave it out.
+    const optionalSrc = manifest(undefined);
+    const props = optionalSrc.props as z.ZodObject;
+    expect(
+      registry.register({
+        ...optionalSrc,
+        name: "picture2",
+        props: props.extend({ src: z.string().optional() }),
+      }).ok,
+    ).toBe(false);
   });
 });

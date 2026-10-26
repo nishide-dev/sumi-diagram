@@ -183,6 +183,9 @@ function unwrapped(props: unknown, prop: string): unknown {
 function imageProps(props: unknown): boolean {
   const fit = unwrapped(props, "fit");
   return (
+    // src must always be a string: not optional (a default is fine).
+    props instanceof z.ZodObject &&
+    !(props.shape.src instanceof z.ZodOptional) &&
     unwrapped(props, "src") instanceof z.ZodString &&
     (fit === undefined ||
       (fit instanceof z.ZodEnum &&
