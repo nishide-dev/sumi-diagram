@@ -382,6 +382,72 @@ describe("outlines", () => {
   );
 });
 
+describe("the A* lower bound", () => {
+  // Edges into one target port share a trunk: the bound must not count the
+  // target's stub as unreachable through the net (a reviewer's reproduction).
+  const fanIn = () => {
+    const xs = [3, 4, 1, 2, 3, 5, 3, 3, 1];
+    const nodes = xs
+      .map((_, i) => `n${i}`)
+      .map((id, i) => ({
+        id,
+        component: "box",
+        label: `${id}${"x".repeat(xs[i] as number)}`,
+      }));
+    const column = (k: number) => ({
+      stack: { gap: "6mm", items: [0, 1, 2].map((r) => `n${3 * k + r}`) },
+    });
+    const ends: [string, string][] = [
+      ["n8", "west"],
+      ["n8", "north"],
+      ["n7", "south"],
+      ["n1", "north"],
+      ["n6", "south"],
+      ["n6", "west"],
+    ];
+    return stringify({
+      version: 1,
+      figure: {
+        id: "t",
+        theme: "academic",
+        layout: { arrange: { row: { gap: "6mm", items: [0, 1, 2].map(column) } } },
+      },
+      nodes,
+      edges: ends.map(([from, side]) => ({
+        from,
+        fromAnchor: side,
+        to: "n5",
+        toAnchor: "south",
+      })),
+    });
+  };
+
+  test.each([
+    ["fan-in to one port", fanIn(), FAKE],
+    [
+      "figure A",
+      readFileSync(`${fixtures}/figures/layout/a-transformer.sumi.yaml`, "utf8"),
+      undefined,
+    ],
+    [
+      "figure B",
+      readFileSync(`${fixtures}/figures/layout/b-adaln-panel.sumi.yaml`, "utf8"),
+      undefined,
+    ],
+  ])("%s: the same routes as without it (Dijkstra)", (_name, text, measurer) => {
+    const placed = layoutStructuredFigure(text, {
+      route: false,
+      ...(measurer !== undefined && { measurer }),
+    });
+    if (!placed.ok) throw new Error(JSON.stringify(placed.diagnostics));
+    const { ir, layout } = placed.value;
+    const fast = routeEdges(ir, layout);
+    const exact = routeEdges(ir, layout, { lowerBound: false });
+    expect(fast.diagnostics).toEqual([]);
+    expect(JSON.stringify(fast.layout)).toBe(JSON.stringify(exact.layout));
+  });
+});
+
 describe("checkRoutes catches what the router must not do", () => {
   const text = figure(
     { row: { items: ["a", "b"] } },

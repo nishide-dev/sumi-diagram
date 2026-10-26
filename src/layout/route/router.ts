@@ -103,8 +103,20 @@ export interface RouteResult {
 }
 
 /** Routes the edges of a structured layout. `ir` is the Figure IR the layout was made from. */
-export function routeEdges(ir: FigureIR, layout: LayoutIR): RouteResult {
-  return new Router(ir, layout).run();
+export interface RouteOptions {
+  /**
+   * Use the A* lower bound (default). `false` searches with Dijkstra (the
+   * same costs, slower); tests compare the two.
+   */
+  lowerBound?: boolean;
+}
+
+export function routeEdges(
+  ir: FigureIR,
+  layout: LayoutIR,
+  options: RouteOptions = {},
+): RouteResult {
+  return new Router(ir, layout, options.lowerBound ?? true).run();
 }
 
 /** Owners of grid steps or points: `-1` none, a net, or `-2` several (listed in `multi`). */
@@ -221,9 +233,12 @@ class Router {
   /** The grid points each net occupies (with repeats), for the search's lower bound. */
   readonly #netPoints = new Map<number, number[]>();
 
-  constructor(ir: FigureIR, layout: LayoutIR) {
+  readonly #lowerBound: boolean;
+
+  constructor(ir: FigureIR, layout: LayoutIR, lowerBound: boolean) {
     this.#ir = ir;
     this.#layout = layout;
+    this.#lowerBound = lowerBound;
   }
 
   run(): RouteResult {
@@ -614,7 +629,10 @@ class Router {
    * costs at least its Manhattan distance to the target minus the stub,
    * or it leaves the net last at some net point `q`, and then costs at
    * least `|q t|` minus the stub. So
-   * `h(p) = max(0, min(|p t|, min_q |q t|) − stub)`. Every other step
+   * `h(p) = max(0, min(|p t|, min_q |q t|) − stub)`, `q` over the net's
+   * points outside the target's stub, and the stub points the net reaches
+   * from outside it (where a shared trunk joins the stub, `q` is the last
+   * point the route leaves a non-stub shared step at). Every other step
    * costs at least its length, so the bound never overestimates and the
    * first time the goal is taken from the heap its route is the cheapest
    * (the same cost as a plain Dijkstra; among routes of equal cost the
@@ -655,13 +673,26 @@ class Router {
     const tx = to.port.x;
     const ty = to.port.y;
     const stubLength = to.dir < 0 ? 0 : edge.toLane;
+    // The target stub's own points are left out (the bound subtracts the
+    // stub), unless the net also reaches one from outside the stub (a shared
+    // trunk into the same target): then the route may run on the net all the
+    // way to the target.
     const inTargetStub = new Set(toStub);
+    const reachedFromOutside = (q: number) => {
+      for (let nd = 0; nd < 4; nd++) {
+        const r = this.#neighbour(q, nd);
+        if (r < 0 || inTargetStub.has(r)) continue;
+        if ((nd % 2 === 0 ? this.#stepsH : this.#stepsV).has(Math.min(q, r), net)) return true;
+      }
+      return false;
+    };
     let nearest = Number.POSITIVE_INFINITY;
     for (const q of this.#netPoints.get(net) ?? []) {
-      if (inTargetStub.has(q)) continue;
+      if (inTargetStub.has(q) && !(this.#lowerBound && reachedFromOutside(q))) continue;
       const d = Math.abs((X[q % NX] as number) - tx) + Math.abs((Y[(q / NX) | 0] as number) - ty);
       if (d < nearest) nearest = d;
     }
+    if (!this.#lowerBound) nearest = Number.NEGATIVE_INFINITY;
     const bound = (p: number): number => {
       const d = Math.abs((X[p % NX] as number) - tx) + Math.abs((Y[(p / NX) | 0] as number) - ty);
       const h = (d < nearest ? d : nearest) - stubLength;
