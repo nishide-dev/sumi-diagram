@@ -159,8 +159,21 @@ function cmapTable(mapping: readonly (readonly [number, number])[]): Uint8Array 
     .u32(0);
   format12.u32(groups.length);
   for (const group of groups) format12.u32(group.start).u32(group.end).u32(group.gid);
-  const f4 = format4.bytes();
   const f12 = format12.bytes();
+  // Format 4's length is 16 bits: with too many segments (some 8,000), only format 12 is written.
+  if (16 + runs.length * 8 > 0xffff) {
+    return concat([
+      new Writer()
+        .u16(0)
+        .u16(1)
+        .u16(3)
+        .u16(10)
+        .u32(4 + 8)
+        .bytes(),
+      f12,
+    ]);
+  }
+  const f4 = format4.bytes();
   const header = new Writer().u16(0).u16(2);
   header
     .u16(3)
@@ -259,7 +272,8 @@ export function subsetFont(path: string, text: string): Uint8Array {
   const mapped = codePoints
     .map((cp) => [cp, coverage.glyph(cp)] as const)
     .filter(([, gid]) => gid !== 0);
-  const glyphs = [...compositeClosure(tables, new Set(mapped.map(([, gid]) => gid)))]
+  // `.notdef` is always in a subset (subsetter adds it), so its components are too.
+  const glyphs = [...compositeClosure(tables, new Set([0, ...mapped.map(([, gid]) => gid)]))]
     .filter((gid) => gid !== 0)
     .sort((a, b) => a - b);
   const request = new Uint8Array(glyphs.length * 2);

@@ -117,8 +117,8 @@ fn subset_font(request: &[u8], fonts: Vec<Vec<u8>>) -> Result<Vec<u8>, String> {
         remapper.remap(u16::from_le_bytes([pair[0], pair[1]]));
     }
     // `subset` runs the composite-glyph closure on its own copy of the
-    // remapper; repeat it here to learn the final order (same algorithm,
-    // deterministic): every glyph the subset holds, in new-ID order.
+    // remapper. The host requests the closure itself, so the subset must hold
+    // exactly the remapper's glyphs; `subset_order` checks the count.
     let data = subsetter::subset(&font, 0, &remapper).map_err(|e| e.to_string())?;
     let glyphs = subset_order(&data, &remapper)?;
     let mut result = Vec::with_capacity(4 + 2 * glyphs.len() + data.len());

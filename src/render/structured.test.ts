@@ -231,11 +231,57 @@ describe("geometry lint on structured SVGs", () => {
   test("every shape, mark, outline and arrowhead kind passes inspection and the lint", async () => {
     const rendered = await render(ALL_SHAPES);
     expect(lintGeometry(rendered, { source: ALL_SHAPES })).toEqual([]);
+    expectBoundsOfLayout(rendered);
     const { svg } = rendered;
     expect(svg).toContain("&lt;note&gt; &amp; more");
     expect(svg).toContain('stroke-dasharray="');
     expect(parseXml(svg).ok).toBe(true);
   });
+});
+
+/** Every shape's inspected bbox is its Layout IR rect (to float precision). */
+function expectBoundsOfLayout(rendered: RenderedStructuredFigure): void {
+  const boxes = new Map(rendered.inspection.elements.map((e) => [e.key, e.bbox]));
+  for (const placed of [...rendered.layout.groups, ...rendered.layout.nodes]) {
+    if (placed.kind === "node" && placed.shape === "text") continue;
+    const bbox = boxes.get(placed.key);
+    for (const side of ["x", "y", "width", "height"] as const) {
+      expect(
+        Math.abs((bbox?.[side] ?? Number.NaN) - placed.rect[side]),
+        `${placed.key} ${side}`,
+      ).toBeLessThan(1e-9);
+    }
+  }
+}
+
+test("shapes keep exact bounds at fractional sizes", async () => {
+  const source = `version: 1
+figure:
+  id: precision
+  theme: minimal
+  profile: paper-double
+  layout:
+    arrange:
+      row:
+        items:
+          - stack:
+              align: stretch
+              items: [oval, row: { gap: 0.0005pt, items: [b1, b2] }]
+          - doc
+          - doc2
+          - cyl
+nodes:
+  - { id: oval, component: ellipse, label: O }
+  - { id: b1, component: box, label: B, props: { width: 20pt } }
+  - { id: b2, component: box, label: B, props: { width: 20pt } }
+  - { id: doc, component: document, label: D, props: { height: 20pt } }
+  - { id: doc2, component: document, label: D, props: { height: 33.5pt } }
+  - { id: cyl, component: cylinder, label: C, props: { height: 41.5pt } }
+`;
+  const rendered = await render(source);
+  const oval = rendered.layout.nodes.find((n) => n.key === "n:oval");
+  expect(oval?.rect.width).toBe(80.001);
+  expectBoundsOfLayout(rendered);
 });
 
 describe("drawing helpers", () => {
@@ -294,6 +340,23 @@ describe("drawing helpers", () => {
       }
     }
     expect(drawArrowhead("none", tip, { x: 0, y: 1 }, edge as unknown as EdgeIR)).toBe("");
+  });
+});
+
+describe("font subsets (large)", () => {
+  test("too many BMP segments for format 4 write a valid format-12-only cmap", () => {
+    const original = parseGlyphCoverage(new Uint8Array(readFileSync(fonts.regular)));
+    let text = "";
+    for (let cp = 0x20; cp < 0xfffe; cp++) {
+      if ((cp < 0xd800 || cp > 0xdfff) && original.has(cp)) text += String.fromCodePoint(cp);
+    }
+    const bytes = subsetFont(fonts.regular, text);
+    const cmap = readTables(bytes).require("cmap");
+    expect(cmap.u16(2)).toBe(1); // one encoding record
+    expect([cmap.u16(4), cmap.u16(6), cmap.u16(cmap.u32(8))]).toEqual([3, 10, 12]);
+    expect(cmap.u32(cmap.u32(8) + 4)).toBe(cmap.length - cmap.u32(8));
+    const coverage = parseGlyphCoverage(bytes);
+    for (const char of text) expect(coverage.has(char.codePointAt(0) ?? 0)).toBe(true);
   });
 });
 

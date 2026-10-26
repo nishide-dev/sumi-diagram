@@ -50,8 +50,12 @@ import { drawNodeOutline } from "./compose";
 import { subsetFont } from "./font-subset";
 import { escapeAttribute } from "./xml";
 
-/** Formats a coordinate: at most 3 decimals, no exponent for the sizes used, never `-0`. */
-const n = (value: number): string => String(Number(value.toFixed(3)) || 0);
+/**
+ * Formats a coordinate: at most 6 decimals (Layout IR coordinates have 3, and
+ * centers / radii derived from them by halving 4, so shapes keep their exact
+ * bounds), no exponent for the sizes used, never `-0`.
+ */
+const n = (value: number): string => String(Number(value.toFixed(6)) || 0);
 
 const ESCAPES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;" };
 // biome-ignore lint/suspicious/noControlCharactersInRegex: characters XML 1.0 cannot carry
@@ -113,10 +117,8 @@ const pathData = (points: readonly Point[], closed = false): string =>
   points.map((p, i) => `${i === 0 ? "M" : "L"} ${n(p.x)} ${n(p.y)}`).join(" ") +
   (closed ? " Z" : "");
 
-/** D2 v0.9.0's document shape, in a unit box, with control points that make the wave's bottom the box's bottom. */
+/** D2 v0.9.0's document shape: where its wavy bottom edge meets the sides, as a fraction of the height. */
 const DOCUMENT_EDGE = 0.8586;
-const DOCUMENT_DIP = DOCUMENT_EDGE + (1 - DOCUMENT_EDGE) / 0.75;
-const DOCUMENT_CREST = 2 * DOCUMENT_EDGE - DOCUMENT_DIP;
 
 /** The drawing elements of a node's shape, whose bounding box is exactly `r`. */
 function nodeShape(node: NodeIR, r: Rect): string {
@@ -173,11 +175,17 @@ function nodeShape(node: NodeIR, r: Rect): string {
       return `<path d="${body}"${paints}/><path d="${rim}"${paints}/>`;
     }
     case "document": {
-      const at = (fx: number, fy: number) => `${n(x + fx * w)} ${n(y + fy * h)}`;
+      // A cubic from `edge` to `edge` with both handles at `edge + 4k` reaches
+      // `edge + 3k`: with `edge = bottom - 3k` (k on the 6-decimal grid), the
+      // trough is exactly the box's bottom, so the bbox is exactly `r`.
+      const k = Number(((h * (1 - DOCUMENT_EDGE)) / 3).toFixed(6));
+      const bottom = y + h;
+      const edge = bottom - 3 * k;
+      const at = (fx: number, py: number) => `${n(x + fx * w)} ${n(py)}`;
       const d =
-        `M ${at(0, DOCUMENT_EDGE)} L ${at(0, 0)} L ${at(1, 0)} L ${at(1, DOCUMENT_EDGE)} ` +
-        `C ${at(5 / 6, DOCUMENT_CREST)} ${at(4 / 6, DOCUMENT_CREST)} ${at(0.5, DOCUMENT_EDGE)} ` +
-        `C ${at(2 / 6, DOCUMENT_DIP)} ${at(1 / 6, DOCUMENT_DIP)} ${at(0, DOCUMENT_EDGE)} Z`;
+        `M ${at(0, edge)} L ${at(0, y)} L ${at(1, y)} L ${at(1, edge)} ` +
+        `C ${at(5 / 6, edge - 4 * k)} ${at(4 / 6, edge - 4 * k)} ${at(0.5, edge)} ` +
+        `C ${at(2 / 6, edge + 4 * k)} ${at(1 / 6, edge + 4 * k)} ${at(0, edge)} Z`;
       return `<path d="${d}"${paints}/>`;
     }
     case "page": {
