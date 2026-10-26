@@ -28,7 +28,7 @@ Every stage reports problems as the same diagnostic object. In
 ## Working through a report
 
 1. Fix all errors of the earliest stages first: `yaml` → `schema` → `ref` →
-   `layout` → `component` → `theme` → `profile` → `lint`. A broken element is skipped by
+   `layout` → `component` → `asset` → `theme` → `profile` → `lint`. A broken element is skipped by
    later stages, so its other problems show up only after the first fix.
 2. Fix every diagnostic you can in one edit, then run `fmt` and `lint` again.
 3. If a diagnostic's fix would change the content or needs a user decision,
@@ -49,19 +49,20 @@ Every stage reports problems as the same diagnostic object. In
 | `ref/unknown-group` | `group:` names a group that does not exist | add the group under `groups:` or fix the ID |
 | `ref/duplicate-id` | two nodes/groups (or two edges) share an ID | rename one; nodes and groups share an ID space |
 | `ref/group-cycle` | groups contain each other | fix the `group:` chain |
-| `layout/structured-only` | `arrange`, `attach`, `fromAnchor` or `toAnchor` in a figure that uses the auto (D2) layout | remove the field (the structured layout needs `figure.layout.arrange`; prefer the auto layout unless the figure needs exact placement) |
-| `layout/unknown-item`, `layout/unknown-attach-target`, `layout/unplaced`, `layout/duplicate-placement`, `layout/group-mismatch`, `layout/group-cycle`, `layout/attach-cycle`, `layout/invalid-anchor` | problems in a structured layout (`figure.layout.arrange`, `groups[].arrange`, `attach`, anchors) | list every node and group exactly once in an arrange tree (or attach it); use the hint |
-| `layout/no-route` | `sumi render` of a structured figure: an edge cannot be routed (the ends touch, are enclosed, or are closer than the arrowhead) | widen the `gap` between the elements, or use `fromAnchor` / `toAnchor` on other sides; a `line` needs no arrowhead room |
+| `layout/structured-only` | `arrange`, `attach`, `fromAnchor` or `toAnchor` in an auto figure (no `figure.layout.arrange`, or `engine: auto`) | remove the field, or make the figure structured: root `figure.layout.arrange`, no `engine: auto`, every element placed |
+| `layout/unplaced`, `layout/duplicate-placement`, `layout/unknown-item`, `layout/unknown-attach-target`, `layout/group-mismatch`, `layout/group-cycle`, `layout/attach-cycle`, `layout/invalid-anchor` | structured figures: every node and group must be placed exactly once, in an arrange tree or by `attach` | per code in [structured](structured.md#fixing-layout); follow the hint |
+| `layout/no-route` | `sumi render` of a structured figure: an edge cannot be routed (ends touching, closer than the arrowhead, or boxed in) | widen that `gap` (arrows need about 1.5mm in `academic`, 2.5mm in `minimal` / `color`, 4mm in `slides`), or anchor the edge on other sides ([structured](structured.md#spacing-that-routes)) |
 | `component/unknown` | component name not in the registry | choose one from `sumi catalog` (the hint lists the right kind) |
 | `component/wrong-kind` | a node component on an edge, etc. | use a component of the right kind |
 | `component/unknown-variant` | variant not listed for that component | use one from the hint / catalog |
-| `component/unknown-prop`, `component/invalid-prop` | prop not in the component's schema, or a bad value (e.g. `px`, not a multiple of 0.5pt) | remove it, or use the value the hint suggests |
+| `component/unknown-prop`, `component/invalid-prop` | prop not in the component's schema, or a bad value (e.g. `px`, not a multiple of 0.5pt; an `image` without `width` or `height`) | remove it, or use the value the hint suggests |
 | `component/missing-label` | a text-only component (`label`) has no text | give it a label or use another component |
-| `component/unexpected-label` | `operator` or `junction` has a label (they draw a symbol / a dot) | remove the label; put a `label` node next to it if text is needed |
+| `component/unexpected-label` | `operator`, `junction` or `image` has a label (they draw a symbol, a dot, a picture) | remove the label; put a `label` node next to it if text is needed |
 | `component/invalid-math` | unsupported or malformed `$...$` label math in a structured figure (the message gives the label characters) | use the supported subset (Greek, `_`, `^`, symbols, `\mathrm`, `\text`), close the `$`, or write `\$` for a dollar sign |
-| `component/unsupported-in-auto` (warning) | `$...$` label math in an `auto` figure, which D2 draws as written | use the structured layout (`figure.layout.arrange`) or drop the `$...$` |
+| `component/unsupported-in-auto` (warning) | `$...$` label math with a command, `_` or `^` in an `auto` figure, which D2 draws as written (`$x$` is drawn as written too, without a warning) | use the structured layout (`figure.layout.arrange`) or drop the `$...$` |
 | `component/tone-unsupported` | `tone` on a `junction` (drawn in the line color) | remove the tone |
 | `component/deprecated` (warning) | still works but is being replaced | switch to the replacement in the message |
+| `asset/*` | icons (`icon:`) and images (`component: image`): unknown icon, label next to an icon, a `src` that leaves the YAML's directory (lint); missing, unsupported, too large or unsafe files (render) | per code in [assets](assets.md#fixing-asset) |
 | `theme/unknown` | `figure.theme` is not built in | `minimal`, `academic`, `slides` or `color` (see hint) |
 | `theme/missing-variant` (warning) | the theme has no style for that variant | usually ignore; choose another variant if it matters |
 | `theme/missing-tone` (warning) | the theme has no color for that tone (built-in themes define every tone) | usually ignore; choose another tone if it matters |
@@ -92,7 +93,7 @@ is no per-figure suppression; mention kept warnings in your report instead.
 | --- | --- | --- |
 | `svg/empty-figure` | no nodes or groups to draw | add elements |
 | `backend/d2-not-found`, `backend/d2-version-mismatch` | D2 missing or not v0.9.0 | user reinstalls the release tarball (D2 is bundled), runs `bun run d2:install` in a source checkout, or sets `SUMI_D2_PATH`; stop |
-| `backend/d2-failed`, `backend/d2-timeout`, `backend/empty-output`, `backend/io-error`, `backend/invalid-args` | D2 itself failed | not a figure problem; report with the message (use `--emit-d2 out.d2` to keep the generated source) |
+| `backend/d2-failed`, `backend/d2-timeout`, `backend/empty-output`, `backend/io-error`, `backend/invalid-args` | D2 itself failed | not a figure problem; report with the message (use `--emit-d2 out.d2` to keep the generated source; structured figures do not use D2 and refuse `--emit-d2` with exit 2) |
 | `svg/outline-edge-miss` (warning) | an edge end could not be extended to its custom outline; that end is kept unchanged | inspect the gap and report the diagnostic; do not invent port coordinates |
 | `svg/outline-edge-crossing` (warning) | extended edge segments intersect near the same custom node | inspect the node named in the message and both edges (`related`); try another direction or grouping if appropriate |
 | `svg/outline-radius-ignored` (warning) | polygon outlines cannot apply the theme's rounded corners | report the limitation; changing the theme is a user decision |
@@ -100,6 +101,7 @@ is no per-figure suppression; mention kept warnings in your report instead.
 | `pdf/input-too-large`, `pdf/missing-font`, `pdf/unresolved-font`, `pdf/engine-unavailable`, `pdf/conversion-failed` | the PDF conversion (`-o x.pdf` / `--format pdf`) failed; no PDF is written | not a figure problem: `sumi doctor` for the fonts; otherwise report it with the message (the SVG renders without `--format pdf`) |
 | `pptx/unsupported-size` | a slide side exceeds 56 inches, or the SVG lacks valid pt dimensions | use a smaller profile only if the user agrees; report invalid finalized SVG dimensions as a bug |
 | `pptx/experimental-editable` (warning), `pptx/glued-routing` (warning) | explicit experimental editable export; glued routes become straight and labels stay fixed | report the boundaries; keep picture PPTX unless editable objects were requested |
+| `pptx/unsupported-asset` | the editable PPTX cannot carry icons or images; nothing is written | use the default picture PPTX (drop `--pptx-mode editable`), or ask whether the icons/images may go |
 | `pptx/unsupported-geometry` | the editable exporter cannot represent this SVG/arrowhead or glued self-loop | use the default freeform route mode for self-loops, or picture PPTX; report unexpected Sumi SVG structures |
 | `pptx/input-too-large`, `pptx/missing-font`, `pptx/unresolved-font`, `pptx/engine-unavailable`, `pptx/conversion-failed` | picture PPTX conversion failed; no PPTX is written | `sumi doctor` for fonts; otherwise report the message; inspect the SVG separately |
 

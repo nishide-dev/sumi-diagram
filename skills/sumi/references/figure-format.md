@@ -15,6 +15,7 @@ figure:                    # required
   profile: paper-single    # optional, default paper-single
   layout:
     direction: down        # optional: right (default) | down | left | up
+    # arrange: …           # optional: switches to the structured layout (structured.md)
 groups: []                 # optional
 nodes: []                  # optional (an empty figure gets a lint warning)
 edges: []                  # optional
@@ -23,14 +24,19 @@ metadata: {}               # optional, any JSON-compatible data; not drawn
 
 | Element | Fields (required in bold) | Defaults |
 | --- | --- | --- |
-| group | **`id`**, `label`, `component`, `variant`, `tone`, `group` | component `container`, variant `default`, no tone, no parent |
-| node | **`id`**, **`component`**, `label`, `variant`, `tone`, `props`, `group` | variant `default`, no label, no tone, no group |
-| edge | **`from`**, **`to`**, `id`, `label`, `component`, `variant`, `props` | component `arrow`, variant `default` |
+| group | **`id`**, `label`, `component`, `variant`, `tone`, `group`, `arrange`¹ | component `container`, variant `default`, no tone, no parent |
+| node | **`id`**, **`component`**, `label`, `variant`, `tone`, `icon`, `props`, `group`, `attach`¹ | variant `default`, no label, no tone, no group |
+| edge | **`from`**, **`to`**, `id`, `label`, `component`, `variant`, `props`, `fromAnchor`¹, `toAnchor`¹ | component `arrow`, variant `default` |
+
+¹ Structured layout only (a figure with `figure.layout.arrange`); see
+[structured](structured.md). `icon`: see [assets](assets.md).
 
 Every object is strict: an unknown key is an error (`schema/unknown-field`).
-There is no per-element style, color, font, size, position or port field —
-appearance is chosen with `variant` and `tone` (below), size with the
-`width` / `height` props of node components (see the catalog).
+There is no per-element style, color, font or coordinate field — appearance
+is chosen with `variant` and `tone` (below), size with the `width` /
+`height` props of node components (see the catalog), and position by the
+layout: `direction` in auto figures, arrange trees, `attach` and edge
+anchors in structured ones ([structured](structured.md)).
 
 ## Tones
 
@@ -63,13 +69,7 @@ nodes:
 
 - Plain text. `\n` inside a double-quoted string breaks the line. No
   Markdown or HTML.
-- Label math (structured layout only, i.e. figures with `figure.layout.arrange`):
-  `$...$` holds a small TeX subset drawn as real text — Greek letters
-  (`$\alpha_2$`), `_` / `^` (one level), symbols such as `\times`, `\leq`,
-  `\to`, `\oplus`, `\mathrm{…}`, `\text{…}`. Single-quote such labels in YAML
-  (`label: '$\gamma_1,\beta_1$'`). `\$` is a literal dollar sign. Anything
-  else (`\frac`, `\sqrt`, `$$`, an unclosed `$`) is `component/invalid-math`;
-  in `auto` figures math is drawn as written (`component/unsupported-in-auto`).
+- Label math: see [below](#label-math).
 - Quote labels that YAML could misread: `"yes"`, `"no"`, `"on"`, numbers
   (`"2024"`), anything with `: ` or ` #`, or starting with `[`, `{`, `*`, `&`, `!`, `%`, `@`.
 - Keep lines short: the `lint/long-label` rule warns above 40 columns per
@@ -78,6 +78,47 @@ nodes:
   rare characters are not (`lint/missing-glyph`). Structured figures also
   draw characters such as `₂` or `∼` with the bundled math font.
 
+## Label math
+
+Structured figures only. Auto figures draw every label as written,
+dollar signs included; math with a command, `_` or `^` gets a
+`component/unsupported-in-auto` warning, but `$x$` lints clean and still
+shows its `$`. `$...$` inside any label (nodes, groups, edges) is a small TeX
+subset drawn as real, searchable text in the bundled STIX Two math fonts:
+
+- Letters and lowercase Greek are italic variables (`$x$`, `$\alpha$`, or
+  `α` typed directly); digits, uppercase Greek and symbols are upright.
+- `_` / `^`: one level of subscript / superscript, one character or `{…}`
+  (`$W_{\mathrm{out}}$`, `$x_{ij}$`; not `$x_{i_j}$`). Scripts are 0.7×
+  the label size; a sub- and superscript on one base are drawn one after
+  the other, not stacked (`$x_i^2$`).
+- Commands: Greek (`\alpha` … `\omega`, `\Gamma` …), operators and
+  relations (`\times` `\cdot` `\pm` `\oplus` `\otimes` `\odot` `\leq`
+  `\geq` `\neq` `\approx` `\sim` `\equiv` `\in` `\to` `\Rightarrow`
+  `\mapsto` …), `\infty` `\partial` `\nabla` `\sum` `\prod` `\int` `\ldots`
+  `\cdots` `\langle` `\rangle`, functions (`\log` `\exp` `\sin` `\tanh` `\max`
+  …; others as `\operatorname{softmax}`; no space is added after a
+  function name: `$\tanh\,x$`), `\mathrm{…}`, `\mathit{…}`,
+  `\text{…}` (any text, Japanese too).
+- Spacing: spaces inside `$...$` are ignored; Sumi adds TeX's space around
+  binary operators and relations, but **none after a comma**: write
+  `$x_1,\,\ldots,\,x_n$` for spaced lists (`\,` `\:` `\;` `\quad` `~`).
+- Math is drawn in regular weight even in bold labels (`emphasis`).
+- `\$` (outside `$...$`) is a literal dollar sign; in auto figures it is
+  drawn as written.
+- Not supported (`component/invalid-math`): `\frac`, `\sqrt`, `\mathbf`,
+  `\mathbb`, matrices, `$$`, nested scripts, an unclosed `$` or `{`,
+  characters it does not know (`@`, `ℝ`, …). Rewrite with
+  the subset (`a/b`, `\mathrm{…}`), put text in `\text{…}`, or type a
+  special character outside the `$...$` (`'$x \in$ ℝ$^d$'`: structured
+  figures draw `ℝ`, `₂`, `∼`, `⋯` and similar with the math font).
+- **Quote math labels in single quotes**: backslashes stay literal
+  (`label: '$\alpha_1$'`). In a flow mapping (`{ … }`) a label containing
+  `,` must be quoted, otherwise YAML splits it and Sumi reports
+  `schema/unknown-field` for the rest (`Unknown field "\beta_1$"`):
+  `{ id: ss, …, label: '$\gamma_1,\,\beta_1$' }`. In double quotes `\` must be
+  doubled.
+
 ## Groups
 
 - A group is a container drawn around its members. Membership is declared
@@ -85,6 +126,8 @@ nodes:
   (nesting is allowed; cycles are `ref/group-cycle`).
 - A group's only group component is `container` (check the catalog).
 - Groups can be edge endpoints.
+- In structured figures, membership follows the group's `arrange` tree;
+  `group:` can be omitted ([structured](structured.md#arrange-trees)).
 
 ## Edges and the connection table
 
@@ -116,6 +159,9 @@ Always take these from `sumi catalog --json`. Each entry has `id`
   nodes are sized to their labels.
 - `label` components (`sumi/label`) draw text without a border and need a
   non-empty label.
+- `image` embeds a PNG, JPEG or SVG file (`props.src`, plus `width` or
+  `height`), and `icon: tabler/<name>` puts a bundled icon in a node in
+  place of its label: see [assets](assets.md).
 - `operator` draws a small circle with a symbol (`props.symbol`: `plus`,
   `minus`, `times`, `dot` or `concat`) and `junction` a small dot where lines
   branch or merge. Both take **no label** (`component/unexpected-label`) and no
@@ -287,7 +333,8 @@ Do not promise SVG support in every app; app verification is recorded in the
 repository's `docs/verification/61-pptx.md`.
 
 Only when the user requests experimental editable objects, use
-`--pptx-mode editable`. The default `--pptx-connectors freeform` preserves
+`--pptx-mode editable`; it refuses figures with icons or images
+(`pptx/unsupported-asset`). The default `--pptx-connectors freeform` preserves
 the initial route but does not glue edges. `--pptx-connectors glued` replaces
 routes with straight connectors; labels do not follow later edits. Fonts
 are referenced, not embedded, and may be substituted by the viewer. Do not
@@ -309,7 +356,11 @@ preserved by `sumi fmt`.
 | `component: server`, `component: database` | `component/unknown` | pick from the catalog (`box`, `cylinder`, …) |
 | `component: box` on an edge | `component/wrong-kind` | `arrow`, `line` or `double-arrow` |
 | `variant: bold`, `variant: thick` | `component/unknown-variant` | a variant listed for that component |
-| `color:`, `style:`, `shape:` on a node | `schema/unknown-field` | remove; use a component or variant |
+| `color:`, `style:`, `shape:` on a node | `schema/unknown-field` | remove; use a component, variant or `tone` |
+| `label: $\gamma_1,\beta_1$` inside `{ … }` | `schema/unknown-field` (`"\beta_1$"`) | single-quote it: `label: '$\gamma_1,\,\beta_1$'` |
+| `$\alpha_1$` (math with a command, `_` or `^`) in an auto figure | `component/unsupported-in-auto` (warning; `$x$` gets none but is drawn with its `$`) | use the structured layout, or plain text |
+| `label:` and `icon:` on one node | `asset/icon-with-label` | keep one; put the text in an attached `label` node |
+| `toAnchor: west` in an auto figure | `layout/structured-only` | remove it, or switch to the structured layout |
 | `props: { width: 10px }` | `component/invalid-prop` | `mm` / `cm` / `in` / `pt`, multiple of 0.5pt |
 | `children:` / `nodes:` inside a group | `schema/unknown-field` | put `group: <id>` on each child |
 | `label: 2024` | `schema/invalid-type` | `label: "2024"` |

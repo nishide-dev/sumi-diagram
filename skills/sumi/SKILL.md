@@ -17,9 +17,10 @@ it is clean — never to draw the SVG yourself, and never to edit generated
   and profiles come from `sumi catalog --json` (`components`, `themes`,
   `profiles`); fields from the Figure Schema
   ([references/figure-format.md](references/figure-format.md)). Never
-  invent a component, variant, prop, field, theme, profile or style. If the
-  diagram needs something Sumi lacks (icons, colors per node, ports, a
-  domain-specific shape), say so and use the closest generic component.
+  invent a component, variant, prop, field, theme, profile, style or icon
+  name. If the diagram needs something Sumi lacks (free colors or
+  coordinates, a domain-specific shape), say so and use the closest
+  generic component.
 - **Do not fabricate content.** Labels and relationships come from the user
   or from sources they point you to. Keep facts (what is connected to what,
   names, numbers) separate from presentation (layout, variants, grouping).
@@ -31,13 +32,11 @@ it is clean — never to draw the SVG yourself, and never to edit generated
 ## Prerequisites
 
 The skill drives the Sumi CLI but does not contain it. Install a release
-build (macOS / Linux) from
-[GitHub Releases](https://github.com/nishide-dev/sumi-diagram/releases):
-extract `sumi-<version>-<target>.tar.gz`, keep the directory intact and
-put its `bin/sumi` on `PATH`; D2 and the fonts are bundled. Check with
-`sumi doctor`. Optional: `SUMI_BIN` (a specific `sumi` executable),
-`SUMI_D2_PATH` (a specific D2 v0.9.0). In a Sumi source checkout, no
-release is needed (Bun + `bun run d2:install`).
+(macOS / Linux) from [GitHub Releases](https://github.com/nishide-dev/sumi-diagram/releases):
+extract `sumi-<version>-<target>.tar.gz` intact and put its `bin/sumi` on
+`PATH` (D2 and fonts are bundled); check with `sumi doctor`. Optional:
+`SUMI_BIN`, `SUMI_D2_PATH` (D2 v0.9.0). A source checkout needs only Bun +
+`bun run d2:install`.
 
 ## Running the CLI
 
@@ -69,6 +68,10 @@ Before writing YAML, make sure you know:
   lists them with the profiles each one suits) and the output
   path (default: the figure next to the user's other files, named
   `<figure-id>.sumi.yaml`).
+- **Layout** (your choice, not a question): flows and graphs use the
+  default **auto** layout; paper block diagrams (stacked layers, residuals,
+  aligned columns, ⊕ operators, math labels) use the **structured** layout.
+  See [layout-tips](references/layout-tips.md#choose-the-engine-first).
 
 Ask once, briefly, for what is missing. If the user says to go ahead
 without answering, use `paper-single` + `minimal` and state the assumption
@@ -81,10 +84,11 @@ sumi doctor
 ```
 
 Exit 0 and `Ready to render.` means D2, the fonts and the geometry lint
-are in place. If a check fails, relay its `hint` and stop: for
-`d2` that is reinstalling the release tarball (D2 is bundled), running
-`bun run d2:install` in a source checkout, or setting `SUMI_D2_PATH` to a
-D2 v0.9.0 binary. `sumi lint` without `--geometry` works without D2.
+are in place. If a check fails, relay its `hint` and stop — except that a
+`d2` failure alone does not block structured figures (they render without
+D2). For `d2`: reinstall the release tarball (D2 is bundled), run
+`bun run d2:install` in a source checkout, or set `SUMI_D2_PATH` to a D2
+v0.9.0 binary.
 
 ### 3. Discover components, themes and profiles
 
@@ -92,7 +96,8 @@ D2 v0.9.0 binary. `sumi lint` without `--geometry` works without D2.
 sumi catalog --json              # { version, components, themes, profiles }
 sumi catalog --json --section themes --section profiles   # only those sections
 sumi catalog --kind node         # human-readable table, one kind of component
-sumi catalog                     # human-readable tables of all three
+sumi catalog                     # human-readable tables
+sumi catalog --icons "wave sine" # bundled icons whose names contain all the words
 ```
 
 Pick each node, group and edge component from `components`, matching the
@@ -120,19 +125,11 @@ figure:
 groups:
   - id: backend
     label: Backend
-nodes:
-  - id: api
-    component: box
-    label: "API\nserver"   # plain text; \n breaks the line
-    group: backend         # membership is declared on the child
-  - id: db
-    component: cylinder
-    label: Database
-    group: backend
+nodes:                     # label: plain text, \n breaks the line; group: set on the child
+  - { id: api, component: box, label: "API\nserver", group: backend }
+  - { id: db, component: cylinder, label: Database, group: backend }
 edges:
-  - from: api
-    to: db
-    label: query
+  - { from: api, to: db, label: query }
 ```
 
 - Every node needs `component`; groups default to `container`, edges to `arrow`.
@@ -141,8 +138,12 @@ edges:
 - Choose `direction` for the target width: chains of four or more nodes
   laid out `right` do not fit `paper-single` — prefer `down`
   ([layout-tips](references/layout-tips.md)).
-- Editors can validate against `schema/figure.v1.schema.json` (in the Sumi
-  repository).
+- **Structured figures** add `figure.layout.arrange` (nested `stack` /
+  `row` boxes listing every node and group once), `attach`, and edge
+  anchors: read [references/structured.md](references/structured.md)
+  first. Label math (`'$\alpha_1$'`) works only there.
+- Icons (`icon: tabler/<name>`, in place of a label) and image files
+  (`component: image`): [references/assets.md](references/assets.md).
 
 ### 5. Format, lint, fix
 
@@ -152,22 +153,18 @@ sumi lint --json figure.sumi.yaml
 ```
 
 `lint` checks everything that does not need rendering: YAML, schema,
-references, components, theme, profile and the structural `lint/*` rules.
-Each diagnostic has `code`, `severity`, `message`, `path` (where in the
-YAML, e.g. `["nodes", 2, "variant"]`), `location` (line/column) and often a
-`hint` with the valid values or a near match. Fix the YAML at `path`
-following the `hint`, then run `fmt` and `lint` again. Errors on an element
-hide follow-up errors that depend on it, so new diagnostics can appear after
-a fix — that is progress. Per-code fixes:
-[references/diagnostics.md](references/diagnostics.md).
+references, layout, components, assets, theme, profile and the structural
+`lint/*` rules. Each diagnostic has `code`, `severity`, `message`, `path`
+(where in the YAML, e.g. `["nodes", 2, "variant"]`), `location` and often
+a `hint` with the valid values or a near match. Fix the YAML at `path`
+following the `hint`, then `fmt` and `lint` again. Errors on an element hide
+follow-up errors, so new diagnostics can appear after a fix — that is
+progress. Per-code fixes: [references/diagnostics.md](references/diagnostics.md).
 
-Exit codes (all commands): 0 clean (warnings allowed), 1 problems found,
-2 usage error (bad flag, unknown `--theme`/`--profile`, unreadable file) —
-fix the command, not the figure.
-
-Resolve every error. Fix warnings unless they are intended (e.g.
-`lint/no-edges` for a deliberate set of unconnected nodes) and mention the
-ones you keep.
+Exit codes: 0 clean (warnings allowed), 1 problems found, 2 usage error
+(bad flag, unknown `--theme`/`--profile`, unreadable file) — fix the command.
+Resolve every error. Fix warnings unless intended (e.g. `lint/no-edges` for
+deliberately unconnected nodes) and mention the ones you keep.
 
 ### 6. Render and check geometry
 
@@ -180,21 +177,17 @@ sumi lint --geometry --json figure.sumi.yaml   # lint + render in memory + geome
 sumi render figure.sumi.yaml -o figure.pdf     # vector PDF instead (or --format pdf); same checks
 ```
 
-Write a PDF only when the user asks for one (e.g. for LaTeX or print): the
-page is the figure's size in pt, text stays text in the bundled fonts. Inspect
-the SVG (step 7) either way; the PDF draws the same figure.
-
-Use `-o figure.pptx` only when requested: one picture, not editable shapes/text. Inspect its SVG too; see [output formats](references/figure-format.md#output-formats) for limits.
+Write a PDF (page = figure size, text stays text) or `-o figure.pptx` (one
+picture, not editable shapes) only when the user asks; inspect the SVG
+(step 7) either way. Limits: [output formats](references/figure-format.md#output-formats).
 
 `render` measures the drawn figure and reports `geometry/*` diagnostics
-(page width/height, label overflow, overlaps, labels crossed by edges).
-Geometry errors make it exit 1 but **the SVG is still written**, so you can
-look at the problem. The text mode also prints `Wrote figure.svg: <W>mm ×
-<H>mm (<profile>, max width <M>mm[, TOO WIDE]; theme <theme>)`. With
-`--json` (also `lint --geometry --json`, per file), read the size from
-`size`: `widthMm` / `heightMm` (and pt), the profile's `maxWidthMm` /
-`maxHeightMm` / `minFontSizePt`, and `fits` (within the page limits);
-`null` if nothing was rendered.
+(page size, label overflow, overlaps, labels crossed by edges). Geometry
+errors make it exit 1 but **the SVG is still written**, so you can look at
+the problem. It prints `Wrote figure.svg: <W>mm × <H>mm (<profile>, max
+width <M>mm[, TOO WIDE]; theme <theme>)`; with `--json`, read `size`
+(`widthMm`, `heightMm`, the profile's limits, `fits`; `null` if nothing
+was rendered).
 
 - `geometry/exceeds-page-width`: change the layout (usually
   `direction: down`) or shorten labels. The hint also mentions a wider
@@ -203,8 +196,12 @@ look at the problem. The text mode also prints `Wrote figure.svg: <W>mm ×
   readability problems D2/ELK does not always let you fix; try the
   workarounds in [layout-tips](references/layout-tips.md) once or twice,
   then keep them and mention them in the report.
-- Render errors (`svg/*`, `backend/*`) and every `geometry/*` code are in
-  [diagnostics](references/diagnostics.md).
+- Structured figures: `layout/no-route` (no SVG written) means an edge
+  has no room — widen that `gap`
+  ([structured](references/structured.md#spacing-that-routes));
+  `--emit-d2` is refused for them (they do not use D2).
+- Render errors (`svg/*`, `backend/*`, `asset/*`) and every `geometry/*`
+  code are in [diagnostics](references/diagnostics.md).
 
 ### 7. Inspect the result
 
@@ -215,12 +212,12 @@ Rasterize it and open the printed PNG path with the Read tool:
 <skill-dir>/scripts/preview figure.svg    # prints a temporary PNG path
 ```
 
-It uses Quick Look on macOS and `rsvg-convert` elsewhere (exit 1 if
-neither exists — then skip this step and say so in the report). Check:
-reading order follows `direction`; no label overlaps a line or a shape;
-edges do not cross group labels; nothing is unexpectedly huge or squashed;
-text is legible. Known D2/ELK layout quirks and their workarounds are in
-[layout-tips](references/layout-tips.md).
+It uses Quick Look on macOS (padded to a square: the blank space is not
+part of the figure), else `rsvg-convert`; exit 1 if neither exists — skip
+this step and say so in the report. Check: reading order follows
+`direction` (or the arrange tree); no label overlaps a line or a shape;
+edges do not cross group labels; nothing is huge or squashed; text is
+legible. Layout quirks and workarounds: [layout-tips](references/layout-tips.md).
 
 ### 8. Report
 
@@ -245,8 +242,11 @@ instead of guessing when:
 
 ## References
 
-[figure-format](references/figure-format.md) (fields, IDs, groups, edges,
-themes, profiles, common mistakes) · [diagnostics](references/diagnostics.md)
-(fixes by code) · [layout-tips](references/layout-tips.md) (direction, labels,
-groups, known layout issues) · [examples](references/examples.md) (one
-success, two failure-and-fix runs)
+[figure-format](references/figure-format.md) (fields, IDs, labels and math,
+groups, edges, tones, themes, profiles, common mistakes) ·
+[structured](references/structured.md) (arrange trees, attach, anchors,
+junctions, routing) · [assets](references/assets.md) (icons, images) ·
+[diagnostics](references/diagnostics.md) (fixes by code) ·
+[layout-tips](references/layout-tips.md) (choosing the engine, auto layout
+issues) · [examples](references/examples.md) (two successes, three
+failure-and-fix runs)
