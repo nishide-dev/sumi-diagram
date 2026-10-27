@@ -84,6 +84,18 @@
             "description": "Plain text; newlines break lines. Empty or omitted means no label.",
             "type": "string"
           },
+          "labelAt": {
+            "description": "Where the label sits inside the group's border. Omitted means top (top centre) in structured layout and top-left in auto layout.",
+            "type": "string",
+            "enum": [
+              "top-left",
+              "top",
+              "top-right",
+              "bottom-left",
+              "bottom",
+              "bottom-right"
+            ]
+          },
           "component": {
             "default": "container",
             "description": "Component reference (kind: group).",

@@ -384,6 +384,22 @@ describe("edge cases", () => {
     expect(summarize(state.diagnostics)).toEqual([["schema/invalid-value", ["requires"], 2, 11]]);
   });
 
+  test("groups[].labelAt is optional and closed (#127)", () => {
+    const parsed = parseFigure(
+      "version: 1\nfigure: { id: f }\ngroups:\n  - { id: g, label: G, labelAt: bottom-right }\n  - { id: h }\n",
+    );
+    expect(parsed.ok && parsed.value.groups.map((g) => g.labelAt)).toEqual([
+      "bottom-right",
+      undefined,
+    ]);
+    const { state } = checkFigureSource(
+      "version: 1\nfigure: { id: f }\ngroups:\n  - { id: g, label: G, labelAt: left }\n",
+    );
+    expect(summarize(state.diagnostics)).toEqual([
+      ["schema/invalid-value", ["groups", 0, "labelAt"], 4, 33],
+    ]);
+  });
+
   test("metadata is passed through untouched", () => {
     const result = parseFigure(
       "version: 1\nfigure: { id: f }\nmetadata: { date: 2024-01-01, tags: [a, 1, null] }\n",

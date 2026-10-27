@@ -285,12 +285,56 @@ edges:
     expect(autoGroup).toContain("top-left corner");
     expect(autoGroup).toContain("layout.direction");
     expect(autoText).toContain("direction");
+    expect(autoGroup).toContain("labelAt (e.g. top-right or bottom)");
     const [group, text] = hints("structured");
     expect(group).toContain("top centre");
+    expect(group).toContain("labelAt (e.g. top-left, top-right or bottom)");
     expect(group).toContain("fromAnchor / toAnchor");
     expect(group).not.toContain("direction");
     expect(text).toContain("attach it to another side");
     expect(text).not.toContain("direction");
+  });
+
+  test("edge-crosses-label: the group hint follows labelAt (#127)", () => {
+    const source = (engine: string, labelAt: string) => `version: 1
+figure:
+  id: h
+  layout: { engine: ${engine}${engine === "structured" ? ", arrange: { row: { items: [grp, b] } }" : ""} }
+groups:
+  - { id: grp, label: Group, labelAt: ${labelAt}${engine === "structured" ? ", arrange: { row: { items: [a] } }" : ""} }
+nodes:
+  - { id: a, component: box, label: A, group: grp }
+  - { id: b, component: box, label: B }
+edges:
+  - { from: b, to: a }
+`;
+    const hint = (engine: string, labelAt: string) =>
+      lintSpec(
+        compile(source(engine, labelAt)),
+        {
+          elements: {
+            "g:grp": {
+              bbox: { x: 0, y: 0, width: 200, height: 100 },
+              labels: [label("Group", 100, 80)],
+            },
+            "e:#0": {
+              path: [
+                { x: 100, y: 200 },
+                { x: 100, y: 50 },
+              ],
+            },
+          },
+        },
+        { code: "geometry/edge-crosses-label" },
+      ).map((d) => d.hint ?? "");
+    const [structured] = hint("structured", "bottom-right");
+    expect(structured).toContain("sits at the bottom-right corner of the group");
+    expect(structured).toContain("enters the group from below");
+    expect(structured).toContain("labelAt (e.g. bottom-left or top)");
+    expect(structured).toContain("south:0.85");
+    const [auto] = hint("auto", "bottom");
+    expect(auto).toContain("sits at its bottom centre");
+    expect(auto).toContain("labelAt (e.g. bottom-left, bottom-right or top)");
   });
 
   test("node-overlap: an attached node gets attach advice", () => {
@@ -651,6 +695,8 @@ describe("geometry/label-collision", () => {
     expect(covered.map((d) => d.message)).toEqual([
       'The label of group "grp" overlaps the shape of node "a".',
     ]);
+    // A group's title can move (#127): the hint says how.
+    expect(covered[0]?.hint).toContain("Move the group's title with labelAt");
   });
 
   test("an edge label on a group's border (#116); inside or outside it is fine", () => {

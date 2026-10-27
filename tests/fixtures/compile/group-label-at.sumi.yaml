@@ -1,0 +1,29 @@
+# groups[].labelAt (#127) in the auto engine: each value maps to D2's
+# label.near. The top row's titles are at the top, away from the edges that
+# leave the groups at the bottom; the bottom row's titles are at the bottom,
+# away from the edges that enter from above.
+version: 1
+figure:
+  id: group-label-at
+  theme: academic
+  profile: paper-double
+  layout:
+    direction: down
+groups:
+  - { id: tl, label: Top left, labelAt: top-left }
+  - { id: tc, label: Top, labelAt: top }
+  - { id: tr, label: Top right, labelAt: top-right }
+  - { id: bl, label: Bottom left, labelAt: bottom-left }
+  - { id: bc, label: Bottom, labelAt: bottom }
+  - { id: br, label: Bottom right, labelAt: bottom-right }
+nodes:
+  - { id: a1, component: box, label: First stage block, group: tl }
+  - { id: a2, component: box, label: Second stage block, group: tc }
+  - { id: a3, component: box, label: Third stage block, group: tr }
+  - { id: b1, component: box, label: First output block, group: bl }
+  - { id: b2, component: box, label: Second output block, group: bc }
+  - { id: b3, component: box, label: Third output block, group: br }
+edges:
+  - { from: a1, to: b1 }
+  - { from: a2, to: b2 }
+  - { from: a3, to: b3 }

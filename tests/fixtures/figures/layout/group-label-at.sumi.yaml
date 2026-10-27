@@ -1,0 +1,34 @@
+# groups[].labelAt (#127) in the structured engine: the title band is at the
+# top or bottom of the group, the title at its left, centre or right. The top
+# row's titles are away from the edges that leave the groups at the bottom;
+# the bottom row's titles are away from the edges that enter from above.
+version: 1
+figure:
+  id: group-label-at
+  theme: academic
+  profile: paper-double
+  layout:
+    arrange:
+      stack:
+        gap: 6mm
+        items:
+          - row: { gap: 4mm, items: [tl, tc, tr] }
+          - row: { gap: 4mm, items: [bl, bc, br] }
+groups:
+  - { id: tl, label: Top left, labelAt: top-left, arrange: { stack: { items: [a1] } } }
+  - { id: tc, label: Top, labelAt: top, arrange: { stack: { items: [a2] } } }
+  - { id: tr, label: Top right, labelAt: top-right, arrange: { stack: { items: [a3] } } }
+  - { id: bl, label: Bottom left, labelAt: bottom-left, arrange: { stack: { items: [b1] } } }
+  - { id: bc, label: Bottom, labelAt: bottom, arrange: { stack: { items: [b2] } } }
+  - { id: br, label: Bottom right, labelAt: bottom-right, arrange: { stack: { items: [b3] } } }
+nodes:
+  - { id: a1, component: box, label: First stage block }
+  - { id: a2, component: box, label: Second stage block }
+  - { id: a3, component: box, label: Third stage block }
+  - { id: b1, component: box, label: First output block }
+  - { id: b2, component: box, label: Second output block }
+  - { id: b3, component: box, label: Third output block }
+edges:
+  - { from: a1, to: b1 }
+  - { from: a2, to: b2 }
+  - { from: a3, to: b3 }

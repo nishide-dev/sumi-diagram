@@ -19,6 +19,7 @@ import type {
   FigureGroup,
   FigureMeta,
   FigureNode,
+  GroupLabelPosition,
   LayoutEngine,
   Side,
 } from "../core/figure/schema";
@@ -167,6 +168,11 @@ export interface GroupIR extends ObjectIRBase {
   readonly style: GroupStyle;
   /** Structured layout: the arrange tree of the group's children. */
   readonly arrange?: ArrangeBoxIR;
+  /**
+   * Where the label sits inside the border (#127). Absent when not written:
+   * each engine keeps its default (structured: top, auto: top-left).
+   */
+  readonly labelAt?: GroupLabelPosition;
 }
 
 export interface EdgeIR extends ElementIRBase {
@@ -331,6 +337,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
       children: freeze(childrenOf.get(g.id) ?? []),
       style: styleOf(state, key, "group"),
       ...(g.arrange !== undefined && { arrange: arrangeIR(g.arrange, endpointKey) }),
+      ...(g.labelAt !== undefined && { labelAt: g.labelAt }),
     });
   });
 

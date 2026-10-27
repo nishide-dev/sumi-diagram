@@ -1,0 +1,669 @@
+{
+  "engine": "sumi-structured",
+  "canvas": {
+    "width": 757,
+    "height": 245
+  },
+  "margin": 11,
+  "content": {
+    "x": 11,
+    "y": 11,
+    "width": 734.354,
+    "height": 222.016
+  },
+  "groups": [
+    {
+      "key": "g:tl",
+      "kind": "group",
+      "rect": {
+        "x": 27.5,
+        "y": 11,
+        "width": 208,
+        "height": 94
+      },
+      "content": {
+        "x": 43.5,
+        "y": 55,
+        "width": 176,
+        "height": 34
+      },
+      "label": {
+        "lines": [
+          "Top left"
+        ],
+        "lineWidths": [
+          72.21875
+        ],
+        "font": "bold",
+        "fontSizeUnits": 16,
+        "lineHeightUnits": 20,
+        "ascentUnits": 14.078125,
+        "descentUnits": 1.921875,
+        "width": 72.21875,
+        "height": 20,
+        "box": {
+          "x": 43.5,
+          "y": 27,
+          "width": 72.219,
+          "height": 20
+        },
+        "anchor": {
+          "x": 79.609,
+          "y": 43.078
+        }
+      }
+    },
+    {
+      "key": "g:tc",
+      "kind": "group",
+      "rect": {
+        "x": 258.177,
+        "y": 11,
+        "width": 234,
+        "height": 94
+      },
+      "content": {
+        "x": 274.177,
+        "y": 55,
+        "width": 202,
+        "height": 34
+      },
+      "label": {
+        "lines": [
+          "Top"
+        ],
+        "lineWidths": [
+          34.0859375
+        ],
+        "font": "bold",
+        "fontSizeUnits": 16,
+        "lineHeightUnits": 20,
+        "ascentUnits": 14.078125,
+        "descentUnits": 1.921875,
+        "width": 34.0859375,
+        "height": 20,
+        "box": {
+          "x": 358.134,
+          "y": 27,
+          "width": 34.086,
+          "height": 20
+        },
+        "anchor": {
+          "x": 375.177,
+          "y": 43.078
+        }
+      }
+    },
+    {
+      "key": "g:tr",
+      "kind": "group",
+      "rect": {
+        "x": 514.854,
+        "y": 11,
+        "width": 214,
+        "height": 94
+      },
+      "content": {
+        "x": 530.854,
+        "y": 55,
+        "width": 182,
+        "height": 34
+      },
+      "label": {
+        "lines": [
+          "Top right"
+        ],
+        "lineWidths": [
+          82.46875
+        ],
+        "font": "bold",
+        "fontSizeUnits": 16,
+        "lineHeightUnits": 20,
+        "ascentUnits": 14.078125,
+        "descentUnits": 1.921875,
+        "width": 82.46875,
+        "height": 20,
+        "box": {
+          "x": 630.386,
+          "y": 27,
+          "width": 82.468,
+          "height": 20
+        },
+        "anchor": {
+          "x": 671.62,
+          "y": 43.078
+        }
+      }
+    },
+    {
+      "key": "g:bl",
+      "kind": "group",
+      "rect": {
+        "x": 11,
+        "y": 139.016,
+        "width": 219,
+        "height": 94
+      },
+      "content": {
+        "x": 27,
+        "y": 155.016,
+        "width": 187,
+        "height": 34
+      },
+      "label": {
+        "lines": [
+          "Bottom left"
+        ],
+        "lineWidths": [
+          103.90625
+        ],
+        "font": "bold",
+        "fontSizeUnits": 16,
+        "lineHeightUnits": 20,
+        "ascentUnits": 14.078125,
+        "descentUnits": 1.921875,
+        "width": 103.90625,
+        "height": 20,
+        "box": {
+          "x": 27,
+          "y": 197.016,
+          "width": 103.906,
+          "height": 20
+        },
+        "anchor": {
+          "x": 78.953,
+          "y": 213.094
+        }
+      }
+    },
+    {
+      "key": "g:bc",
+      "kind": "group",
+      "rect": {
+        "x": 252.677,
+        "y": 139.016,
+        "width": 245,
+        "height": 94
+      },
+      "content": {
+        "x": 268.677,
+        "y": 155.016,
+        "width": 213,
+        "height": 34
+      },
+      "label": {
+        "lines": [
+          "Bottom"
+        ],
+        "lineWidths": [
+          65.7734375
+        ],
+        "font": "bold",
+        "fontSizeUnits": 16,
+        "lineHeightUnits": 20,
+        "ascentUnits": 14.078125,
+        "descentUnits": 1.921875,
+        "width": 65.7734375,
+        "height": 20,
+        "box": {
+          "x": 342.29,
+          "y": 197.016,
+          "width": 65.774,
+          "height": 20
+        },
+        "anchor": {
+          "x": 375.177,
+          "y": 213.094
+        }
+      }
+    },
+    {
+      "key": "g:br",
+      "kind": "group",
+      "rect": {
+        "x": 520.354,
+        "y": 139.016,
+        "width": 225,
+        "height": 94
+      },
+      "content": {
+        "x": 536.354,
+        "y": 155.016,
+        "width": 193,
+        "height": 34
+      },
+      "label": {
+        "lines": [
+          "Bottom right"
+        ],
+        "lineWidths": [
+          114.15625
+        ],
+        "font": "bold",
+        "fontSizeUnits": 16,
+        "lineHeightUnits": 20,
+        "ascentUnits": 14.078125,
+        "descentUnits": 1.921875,
+        "width": 114.15625,
+        "height": 20,
+        "box": {
+          "x": 615.198,
+          "y": 197.016,
+          "width": 114.156,
+          "height": 20
+        },
+        "anchor": {
+          "x": 672.276,
+          "y": 213.094
+        }
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "key": "n:a1",
+      "kind": "node",
+      "parent": "g:tl",
+      "shape": "rectangle",
+      "rect": {
+        "x": 43.5,
+        "y": 55,
+        "width": 176,
+        "height": 34
+      },
+      "placement": "arrange",
+      "label": {
+        "lines": [
+          "First stage block"
+        ],
+        "lineWidths": [
+          147.4765625
+        ],
+        "font": "regular",
+        "fontSizeUnits": 16,
+        "lineHeightUnits": 20,
+        "ascentUnits": 14.078125,
+        "descentUnits": 1.921875,
+        "width": 147.4765625,
+        "height": 20,
+        "box": {
+          "x": 57.762,
+          "y": 62,
+          "width": 147.476,
+          "height": 20
+        },
+        "anchor": {
+          "x": 131.5,
+          "y": 78.078
+        }
+      }
+    },
+    {
+      "key": "n:a2",
+      "kind": "node",
+      "parent": "g:tc",
+      "shape": "rectangle",
+      "rect": {
+        "x": 274.177,
+        "y": 55,
+        "width": 202,
+        "height": 34
+      },
+      "placement": "arrange",
+      "label": {
+        "lines": [
+          "Second stage block"
+        ],
+        "lineWidths": [
+          173.71875
+        ],
+        "font": "regular",
+        "fontSizeUnits": 16,
+        "lineHeightUnits": 20,
+        "ascentUnits": 14.078125,
+        "descentUnits": 1.921875,
+        "width": 173.71875,
+        "height": 20,
+        "box": {
+          "x": 288.318,
+          "y": 62,
+          "width": 173.719,
+          "height": 20
+        },
+        "anchor": {
+          "x": 375.177,
+          "y": 78.078
+        }
+      }
+    },
+    {
+      "key": "n:a3",
+      "kind": "node",
+      "parent": "g:tr",
+      "shape": "rectangle",
+      "rect": {
+        "x": 530.854,
+        "y": 55,
+        "width": 182,
+        "height": 34
+      },
+      "placement": "arrange",
+      "label": {
+        "lines": [
+          "Third stage block"
+        ],
+        "lineWidths": [
+          153.71875
+        ],
+        "font": "regular",
+        "fontSizeUnits": 16,
+        "lineHeightUnits": 20,
+        "ascentUnits": 14.078125,
+        "descentUnits": 1.921875,
+        "width": 153.71875,
+        "height": 20,
+        "box": {
+          "x": 544.995,
+          "y": 62,
+          "width": 153.719,
+          "height": 20
+        },
+        "anchor": {
+          "x": 621.854,
+          "y": 78.078
+        }
+      }
+    },
+    {
+      "key": "n:b1",
+      "kind": "node",
+      "parent": "g:bl",
+      "shape": "rectangle",
+      "rect": {
+        "x": 27,
+        "y": 155.016,
+        "width": 187,
+        "height": 34
+      },
+      "placement": "arrange",
+      "label": {
+        "lines": [
+          "First output block"
+        ],
+        "lineWidths": [
+          158.0546875
+        ],
+        "font": "regular",
+        "fontSizeUnits": 16,
+        "lineHeightUnits": 20,
+        "ascentUnits": 14.078125,
+        "descentUnits": 1.921875,
+        "width": 158.0546875,
+        "height": 20,
+        "box": {
+          "x": 41.473,
+          "y": 162.016,
+          "width": 158.054,
+          "height": 20
+        },
+        "anchor": {
+          "x": 120.5,
+          "y": 178.094
+        }
+      }
+    },
+    {
+      "key": "n:b2",
+      "kind": "node",
+      "parent": "g:bc",
+      "shape": "rectangle",
+      "rect": {
+        "x": 268.677,
+        "y": 155.016,
+        "width": 213,
+        "height": 34
+      },
+      "placement": "arrange",
+      "label": {
+        "lines": [
+          "Second output block"
+        ],
+        "lineWidths": [
+          184.296875
+        ],
+        "font": "regular",
+        "fontSizeUnits": 16,
+        "lineHeightUnits": 20,
+        "ascentUnits": 14.078125,
+        "descentUnits": 1.921875,
+        "width": 184.296875,
+        "height": 20,
+        "box": {
+          "x": 283.029,
+          "y": 162.016,
+          "width": 184.297,
+          "height": 20
+        },
+        "anchor": {
+          "x": 375.177,
+          "y": 178.094
+        }
+      }
+    },
+    {
+      "key": "n:b3",
+      "kind": "node",
+      "parent": "g:br",
+      "shape": "rectangle",
+      "rect": {
+        "x": 536.354,
+        "y": 155.016,
+        "width": 193,
+        "height": 34
+      },
+      "placement": "arrange",
+      "label": {
+        "lines": [
+          "Third output block"
+        ],
+        "lineWidths": [
+          164.296875
+        ],
+        "font": "regular",
+        "fontSizeUnits": 16,
+        "lineHeightUnits": 20,
+        "ascentUnits": 14.078125,
+        "descentUnits": 1.921875,
+        "width": 164.296875,
+        "height": 20,
+        "box": {
+          "x": 550.706,
+          "y": 162.016,
+          "width": 164.297,
+          "height": 20
+        },
+        "anchor": {
+          "x": 632.854,
+          "y": 178.094
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "key": "e:#0",
+      "kind": "edge",
+      "from": "n:a1",
+      "to": "n:b1",
+      "route": {
+        "points": [
+          {
+            "x": 131.5,
+            "y": 89
+          },
+          {
+            "x": 131.5,
+            "y": 122.008
+          },
+          {
+            "x": 120.5,
+            "y": 122.008
+          },
+          {
+            "x": 120.5,
+            "y": 155.016
+          }
+        ],
+        "net": 0,
+        "fromSide": "south",
+        "toSide": "north"
+      }
+    },
+    {
+      "key": "e:#1",
+      "kind": "edge",
+      "from": "n:a2",
+      "to": "n:b2",
+      "route": {
+        "points": [
+          {
+            "x": 375.177,
+            "y": 89
+          },
+          {
+            "x": 375.177,
+            "y": 155.016
+          }
+        ],
+        "net": 1,
+        "fromSide": "south",
+        "toSide": "north"
+      }
+    },
+    {
+      "key": "e:#2",
+      "kind": "edge",
+      "from": "n:a3",
+      "to": "n:b3",
+      "route": {
+        "points": [
+          {
+            "x": 621.854,
+            "y": 89
+          },
+          {
+            "x": 621.854,
+            "y": 122.008
+          },
+          {
+            "x": 632.854,
+            "y": 122.008
+          },
+          {
+            "x": 632.854,
+            "y": 155.016
+          }
+        ],
+        "net": 2,
+        "fromSide": "south",
+        "toSide": "north"
+      }
+    }
+  ],
+  "nets": [
+    {
+      "id": 0,
+      "edges": [
+        "e:#0"
+      ],
+      "segments": [
+        [
+          {
+            "x": 120.5,
+            "y": 122.008
+          },
+          {
+            "x": 131.5,
+            "y": 122.008
+          }
+        ],
+        [
+          {
+            "x": 120.5,
+            "y": 122.008
+          },
+          {
+            "x": 120.5,
+            "y": 155.016
+          }
+        ],
+        [
+          {
+            "x": 131.5,
+            "y": 89
+          },
+          {
+            "x": 131.5,
+            "y": 122.008
+          }
+        ]
+      ]
+    },
+    {
+      "id": 1,
+      "edges": [
+        "e:#1"
+      ],
+      "segments": [
+        [
+          {
+            "x": 375.177,
+            "y": 89
+          },
+          {
+            "x": 375.177,
+            "y": 155.016
+          }
+        ]
+      ]
+    },
+    {
+      "id": 2,
+      "edges": [
+        "e:#2"
+      ],
+      "segments": [
+        [
+          {
+            "x": 621.854,
+            "y": 122.008
+          },
+          {
+            "x": 632.854,
+            "y": 122.008
+          }
+        ],
+        [
+          {
+            "x": 621.854,
+            "y": 89
+          },
+          {
+            "x": 621.854,
+            "y": 122.008
+          }
+        ],
+        [
+          {
+            "x": 632.854,
+            "y": 122.008
+          },
+          {
+            "x": 632.854,
+            "y": 155.016
+          }
+        ]
+      ]
+    }
+  ]
+}

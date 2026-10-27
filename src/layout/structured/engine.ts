@@ -8,7 +8,7 @@
  *    (measured with the theme's TTF files) and the profile's node padding
  *    (`sizing.ts`). A stack / row is as long as its items plus the gaps and as
  *    wide as its widest item. A group is its content plus padding (and its
- *    label above the content).
+ *    label above the content, or below it for a bottom `labelAt`).
  * 2. Place top-down. Items follow each other along the main axis
  *    (`direction` reverses the order); `align` places them on the cross
  *    axis, and `stretch` widens resizable items to the box. A box given more
@@ -41,7 +41,7 @@
 import { iconBox } from "../../assets/draw";
 import type { ArrangeBoxIR, ArrangeItemIR, FigureIR, GroupIR, NodeIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
-import type { Side } from "../../core/figure/schema";
+import type { GroupLabelPosition, Side } from "../../core/figure/schema";
 import { getProfile } from "../../core/profile/builtin";
 import type { Profile } from "../../core/profile/schema";
 import { getFontSet } from "../../core/theme/fonts";
@@ -199,7 +199,10 @@ class StructuredLayout {
     };
   }
 
-  /** Height a group's label takes above its content: the label and half the padding below it. */
+  /**
+   * Height a group's label band takes above (or below) its content: the label
+   * and half the padding between it and the content.
+   */
   #labelSpace(label: TextMetrics | undefined): number {
     return label === undefined ? 0 : Math.ceil(label.height) + this.#groupPadding / 2;
   }
@@ -302,12 +305,14 @@ class StructuredLayout {
     const group = this.#groups.get(key);
     if (group === undefined) return;
     const p = this.#groupPadding;
-    const top = this.#labelSpace(this.#labels.get(key));
+    const band = this.#labelSpace(this.#labels.get(key));
+    // The label band is above the content, or below it for a bottom label (#127).
+    const top = labelAtBottom(group.labelAt) ? 0 : band;
     const content: Rect = {
       x: rect.x + p,
       y: rect.y + p + top,
       width: rect.width - 2 * p,
-      height: rect.height - 2 * p - top,
+      height: rect.height - 2 * p - band,
     };
     this.#contents.set(key, content);
     this.#placeContainer(key, group.arrange, content);
@@ -360,11 +365,7 @@ class StructuredLayout {
       const metrics = this.#labels.get(group.key);
       const rect = this.#rect(group.key);
       if (metrics !== undefined) {
-        const center = {
-          x: rect.x + rect.width / 2,
-          y: rect.y + this.#groupPadding + metrics.height / 2,
-        };
-        labels.set(group.key, placeText(metrics, center));
+        labels.set(group.key, placeText(metrics, this.#groupLabelCenter(group, rect, metrics)));
       }
     }
 
@@ -433,11 +434,35 @@ class StructuredLayout {
     });
   }
 
+  /**
+   * Where a group's label is centered: in the band at the top (or, for a
+   * bottom `labelAt`, the bottom) of the group, inside the padding, at the
+   * left, centre or right (#127). Omitted `labelAt` is top centre.
+   */
+  #groupLabelCenter(group: GroupIR, rect: Rect, metrics: TextMetrics): { x: number; y: number } {
+    const p = this.#groupPadding;
+    const at = group.labelAt ?? "top";
+    const x = at.endsWith("-left")
+      ? rect.x + p + metrics.width / 2
+      : at.endsWith("-right")
+        ? rect.x + rect.width - p - metrics.width / 2
+        : rect.x + rect.width / 2;
+    const y = labelAtBottom(at)
+      ? rect.y + rect.height - p - metrics.height / 2
+      : rect.y + p + metrics.height / 2;
+    return { x, y };
+  }
+
   #rect(key: ElementKey): Rect {
     const rect = this.#rects.get(key);
     if (rect === undefined) throw new Error(`internal error: ${key} was not placed`);
     return rect;
   }
+}
+
+/** Whether a group's label band is at the bottom of the group (#127). */
+function labelAtBottom(at: GroupLabelPosition | undefined): boolean {
+  return at === "bottom-left" || at === "bottom" || at === "bottom-right";
 }
 
 /** The rectangle of a node of `size` attached to `target` on `side`, `gap` away, centered on that side. */

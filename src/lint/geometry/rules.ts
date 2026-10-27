@@ -10,6 +10,7 @@
 import type { EdgeIR, FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type { DocPath } from "../../core/diagnostics";
+import type { GroupLabelPosition } from "../../core/figure/schema";
 import { BUILTIN_PROFILES } from "../../core/profile/builtin";
 import { formatMm, formatPt } from "../../core/units";
 import { type Point, type Rect, unitsToPt } from "../../render/geometry";
@@ -403,9 +404,11 @@ export const labelCollision = defineGeometryRule({
         subject: a.subject,
         hint:
           hint ??
-          (isStructured(context)
-            ? "Overlapping text is hard to read. Shorten the labels, or change the arrangement (gap, anchors, attach side, edge labels)."
-            : "Overlapping text is hard to read. Shorten the labels, or change the layout (direction, grouping, edge labels)."),
+          (a.kind === "group" || b.kind === "group"
+            ? `Overlapping text is hard to read. Move the group's title with labelAt (top-left, top, top-right, bottom-left, bottom or bottom-right), shorten the labels, or change the ${isStructured(context) ? "arrangement (gap, anchors, attach side, edge labels)" : "layout (direction, grouping, edge labels)"}.`
+            : isStructured(context)
+              ? "Overlapping text is hard to read. Shorten the labels, or change the arrangement (gap, anchors, attach side, edge labels)."
+              : "Overlapping text is hard to read. Shorten the labels, or change the layout (direction, grouping, edge labels)."),
         related: [{ path: b.docPath, message: `${capitalize(b.name)} is defined here.` }],
       });
     };
@@ -466,16 +469,39 @@ export const labelCollision = defineGeometryRule({
   },
 });
 
-/** Hint of `edge-crosses-label`, by engine: group titles and the means to move edges differ (#114). */
+/** Where a group's title is, in words, and other `labelAt` values to suggest (#127). */
+const GROUP_LABEL_WORDS: Readonly<Record<GroupLabelPosition, { at: string; others: string }>> = {
+  "top-left": { at: "top-left corner", others: "top-right or bottom" },
+  top: { at: "top centre", others: "top-left, top-right or bottom" },
+  "top-right": { at: "top-right corner", others: "top-left or bottom" },
+  "bottom-left": { at: "bottom-left corner", others: "bottom-right or top" },
+  bottom: { at: "bottom centre", others: "bottom-left, bottom-right or top" },
+  "bottom-right": { at: "bottom-right corner", others: "bottom-left or top" },
+};
+
+/** A group's effective `labelAt`: the engine's default when omitted (#127). */
+function groupLabelAt(context: GeometryContext, group: GeometryElement): GroupLabelPosition {
+  const written = group.ir.kind === "group" ? group.ir.labelAt : undefined;
+  return written ?? (isStructured(context) ? "top" : "top-left");
+}
+
+/**
+ * Hint of `edge-crosses-label`, by engine: group titles and the means to move
+ * edges differ (#114). A group's title is where its `labelAt` puts it (#127).
+ */
 export function edgeCrossesLabelHint(context: GeometryContext, other: GeometryElement): string {
+  const group =
+    other.kind === "group" ? GROUP_LABEL_WORDS[groupLabelAt(context, other)] : undefined;
   if (isStructured(context)) {
-    return other.kind === "group"
-      ? "A group's title sits at the top centre of the group, so an edge that enters the group from above crosses it. Connect an element inside the group instead of the group, move the end with fromAnchor / toAnchor (e.g. north:0.85), reorder the arrange items so the edge comes from another side, or shorten the title."
-      : "Move the edge's ends with fromAnchor / toAnchor, move the label (attach it to another side, or reorder the arrange items), or shorten the label.";
+    if (group === undefined)
+      return "Move the edge's ends with fromAnchor / toAnchor, move the label (attach it to another side, or reorder the arrange items), or shorten the label.";
+    const from = group.at.startsWith("bottom") ? "below" : "above";
+    return `A group's title sits at the ${group.at} of the group, so an edge that enters the group from ${from} crosses it. Move the title with labelAt (e.g. ${group.others}), connect an element inside the group instead of the group, move the end with fromAnchor / toAnchor (e.g. ${from === "above" ? "north" : "south"}:0.85), reorder the arrange items so the edge comes from another side, or shorten the title.`;
   }
-  return other.kind === "group"
-    ? "A container's label sits at its top-left corner, so edges that enter the container from above can cross it when the label is wide. Shorten the label, connect elements inside the container instead of the container itself, or change layout.direction."
-    : "Change the layout (direction or grouping) so the edge is routed around the label, or shorten the label.";
+  if (group === undefined)
+    return "Change the layout (direction or grouping) so the edge is routed around the label, or shorten the label.";
+  const from = group.at.startsWith("bottom") ? "below" : "above";
+  return `A container's label sits at its ${group.at}, so edges that enter the container from ${from} can cross it when the label is wide. Move the label with labelAt (e.g. ${group.others}), shorten the label, connect elements inside the container instead of the container itself, or change layout.direction.`;
 }
 
 export const edgeCrossesLabel = defineGeometryRule({
