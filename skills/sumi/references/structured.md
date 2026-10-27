@@ -6,7 +6,11 @@ elements exactly where you put them in nested stacks and rows and routes the
 edges itself (orthogonal lines, shared trunks). It is newer than the
 0.3 releases: if `sumi lint` reports `schema/unknown-field` for `arrange`
 (and `sumi catalog --kind node` lists no `operator` / `junction`), the
-installed CLI predates it — tell the user and use auto instead.
+installed CLI predates it — tell the user and use auto instead. Group
+`labelAt` and `caption`, edge `labelAt` / `labelSide`, `figure.layout.align`,
+`figure.layout.fanIn` and the `legend` component came later (0.5.0): if
+`lint` reports `schema/unknown-field` for them or `component/unknown` for
+`legend`, the CLI predates them — fall back to the older ways noted below.
 
 ## Which engine
 
@@ -19,10 +23,11 @@ installed CLI predates it — tell the user and use auto instead.
 out and **a figure with `figure.layout.arrange` is structured, one without
 it auto** — so `engine` is not needed. An explicit `engine: auto` wins over
 `arrange`. Under auto, the structured-only fields (`figure.layout.arrange`,
-`groups[].arrange`, `nodes[].attach`, `edges[].fromAnchor` / `toAnchor`)
-are errors (`layout/structured-only`): remove the field, or switch the
-figure to structured (root `arrange`, no `engine: auto`, every element
-placed).
+`align` and `fanIn`, `groups[].arrange`, `nodes[].attach`,
+`edges[].fromAnchor` / `toAnchor` / `labelAt` / `labelSide`) and the
+`legend` component are errors (`layout/structured-only`): remove them, or
+switch the figure to structured (root `arrange`, no `engine: auto`, every
+element placed). Group `labelAt` and `caption` work in both engines.
 `figure.layout.direction` is ignored by structured (each box has its own).
 
 What differs in practice:
@@ -74,38 +79,63 @@ groups:
   are members of that group, items of the root tree are at the root. Do not
   also write `group:` (if you do, it must match, else `layout/group-mismatch`).
   A group is placed as one item in its parent's tree.
-- **A group's label sits at the top centre**, above its members. An edge
-  entering the group from above is routed around the label, so it detours
-  and its arrowhead ends just under the label (or crosses it when there is
-  no other way: `geometry/edge-crosses-label`). Workarounds: enter from
-  the side (`toAnchor: west`) or off-centre (`toAnchor: "north:0.2"`); place the members so the one
-  entered from above is not under the label; or leave out the group's
-  `label` and attach a `label` node beside the group instead (drawn in
-  the node label style, not the group's):
+- To line up elements of **different** trees (a skip connection drawn
+  straight across two columns), use [`align`](#aligning-across-trees), not
+  `gap` tweaks.
+
+## Group titles and captions
+
+A group's `label` (its title) sits at the **top centre** inside the border,
+in a band above the members. An edge entering the group from above near
+the title is routed around it: it detours and its arrowhead ends just under
+the title (or crosses it, `geometry/edge-crosses-label`). Move the title
+with **`labelAt`**: `top-left`, `top` (default), `top-right`, `bottom-left`,
+`bottom` or `bottom-right` — always inside the border; at `bottom*` the
+band is below the members. Pick a place no edge enters: `bottom` for a
+group entered from above, the corner away from the entering edges
+otherwise. A corner helps only when the title is narrow: a title wider
+than about half the group still covers the centre, and the edge detours
+**without any diagnostic** — look at the preview. `labelAt` without a
+`label` gets `component/label-at-without-label` (warning).
+
+**`caption`** puts text centered **under** the group's border, outside it,
+like a sub-figure caption (`(a) …`): line breaks and label math as in a
+node label; the position is fixed. It is drawn as a label node with the
+reserved ID `<group>-caption` (a node or group of yours with that ID is
+`ref/reserved-id`); diagnostics about it point at `caption`. Edges cannot
+end on it; a node attached `south` of the group goes under the caption.
 
 ```yaml
 # expect-render: fits
 version: 1
 figure:
-  id: side-title
+  id: group-title
   theme: academic
   profile: paper-single
   layout:
     arrange:
       stack: { gap: 4mm, items: [ batch, train ] }
 groups:
-  - id: train                  # no label: nothing at the top centre
+  - id: train
+    label: Training step
+    labelAt: bottom              # the edge from batch enters at the top centre
+    caption: (b) one optimisation step
     arrange:
       stack: { gap: 3mm, items: [ model, loss ] }
 nodes:
   - { id: batch, component: box, label: Batch }
   - { id: model, component: box, label: Model }
   - { id: loss, component: box, label: Loss }
-  - { id: train-title, component: label, label: "Training\nstep", attach: { to: train, side: east, gap: 1mm } }
 edges:
   - { from: batch, to: model }
   - { from: model, to: loss }
 ```
+
+Both fields also work in auto figures (there the default title place is
+`top-left`; at `bottom*` D2 still leaves the title's space at the top, and
+edges leaving a group downwards cross its caption). With a CLI older than
+0.5.0, leave out the group's `label` and `attach` a `label` node beside
+the group instead.
 
 ## Attach: side notes
 
@@ -141,6 +171,97 @@ This is the current behaviour. Instead:
 Attach on a side where no other item is placed (beside a stack, above or
 below a row).
 
+## Aligning across trees
+
+Each box aligns only its own items. To put elements of different boxes on
+one line — a U-Net's concat ⊕ level with its encoder block so the skip
+runs straight, an encoder output level with the decoder block it feeds —
+list them in **`figure.layout.align`** instead of tuning `gap`s:
+
+```yaml
+figure:
+  layout:
+    arrange: { … }
+    align:
+      - { y: [ enc1, cat1 ] }            # same height: one horizontal line
+      - { x: [ head, legend ], at: start } # same left edge: one vertical line
+```
+
+- Each constraint is exactly one of `y: [ids]` (centres at one height;
+  `at: start` = tops, `at: end` = bottoms) or `x: [ids]` (centres on one
+  vertical; `start` = left edges, `end` = right edges), with at least two
+  node or group IDs (attached nodes too: they move with their target).
+- Sumi only **adds space** before or after items in a stack (for `y`) or
+  row (for `x`) that holds just one of them — never inside a `gap: 0` box,
+  so touching blocks stay touching. So it can align elements in different
+  branches — `y`
+  across stacks side by side in a row, `x` across rows in a stack — but
+  not two items of the same stack on `y`, nor of one stack on `x`. Two
+  items of one row on `y` (e.g. `at: start` to line up their tops) need a
+  stack around one of them: `items: [ a, { stack: { items: [ key ] } } ]`.
+  Put an element **in the tree** (not `attach`ed into a gap) when it
+  should take part.
+- A constraint it cannot meet is `layout/unsatisfied-align` (warning, from
+  `sumi render` / `lint --geometry`, not plain `lint`): the figure is drawn
+  with the closest placement; the message gives the distance left, the
+  hint whether the items cannot be moved apart (same box, `gap: 0`) or
+  another constraint pulls them away. `layout/align-search-limit`
+  (warning) means a figure with very many constraints stopped searching.
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: unet-skips
+  theme: academic
+  profile: paper-single
+  layout:
+    arrange:
+      stack:
+        gap: 5mm
+        items:
+          - row:
+              gap: 12mm
+              align: start
+              items:
+                - stack: { gap: 6mm, items: [ enc1, enc2 ] }
+                - stack: { gap: 3mm, items: [ y, dec1, cat1, dec2, cat2 ] }
+          - bottleneck
+          - key
+    align: # straight skips: each concat level with its encoder level
+      - { y: [ enc1, cat1 ] }
+      - { y: [ enc2, cat2 ] }
+nodes:
+  - { id: enc1, component: box, label: "Conv ×2\n64", tone: blue }
+  - { id: enc2, component: box, label: "Conv ×2\n128", tone: blue }
+  - { id: bottleneck, component: box, label: "Conv ×2\n256", variant: emphasis }
+  - { id: cat2, component: operator, props: { symbol: concat } }
+  - { id: dec2, component: box, label: "Conv ×2\n128", tone: green }
+  - { id: cat1, component: operator, props: { symbol: concat } }
+  - { id: dec1, component: box, label: "Conv ×2\n64", tone: green }
+  - { id: y, component: label, label: '$\hat{y}$' }
+  - id: key
+    component: legend
+    props:
+      entries:
+        - { edge: { variant: dashed }, label: skip connection }
+edges:
+  - { from: enc1, to: enc2, label: pool, labelSide: right }
+  - { from: enc2, to: bottleneck, fromAnchor: south, toAnchor: west, label: pool }
+  - { from: bottleneck, to: cat2, fromAnchor: east, toAnchor: south, label: up }
+  - { from: cat2, to: dec2 }
+  - { from: dec2, to: cat1 }
+  - { from: cat1, to: dec1 }
+  - { from: dec1, to: y }
+  - { from: enc2, to: cat2, variant: dashed }
+  - { from: enc1, to: cat1, variant: dashed }
+```
+
+The concat operators are items of the decoder stack (not attached), and
+the two `align` constraints push `enc1` and `enc2` down to their levels,
+so both dashed skips are single horizontal lines. The `key` legend is
+[below](#legends).
+
 ## Edges: anchors, junctions and trunks
 
 The router draws orthogonal lines around nodes (never through them) in
@@ -149,8 +270,15 @@ YAML order, greedily: edges declared first get the best routes.
 - **Anchors**: `fromAnchor` / `toAnchor` pick the side of an end: `west`,
   or `"south:0.2"` for a position along it (0..1: left → right on
   north/south, top → bottom on east/west; default 0.5). Quote values with a
-  `:`. Without an anchor the router uses the side facing the other end.
-  Several edges between the same two elements are spread out automatically.
+  `:`. Several edges between the same two elements are spread out
+  automatically.
+- **Default sides** (an end without an anchor) follow the arrange tree:
+  take the box where the two ends' branches part (their nearest common
+  box); in a stack the ends use north / south, in a row east / west,
+  towards the other end. An attached node counts as its target's place. If
+  the two ends overlap along that box's axis, or no box separates them (a
+  node and what it is attached to), the side facing the other end is used.
+  Write an anchor whenever you mean another side.
 - **Junction** (`component: junction`, a small dot): where a line splits
   or merges. Place it in the tree like any node, between the blocks it
   connects; connect into it with `component: line` (an arrowhead would hide
@@ -175,10 +303,26 @@ YAML order, greedily: edges declared first get the best routes.
   (same side and position) share one line until they branch, e.g. one
   conditioning MLP feeding four blocks:
   `{ from: mlp, fromAnchor: north, to: ss1, toAnchor: east }`, … for each
-  target. Edges entering the same port merge the same way. An edge entering
-  a port and one leaving it never share a line: the end without an anchor
-  moves along the side; if both are anchored at the same point, it is
-  `layout/no-route`, so anchor them at different positions.
+  target. An edge entering a port and one leaving it never share a line:
+  the end without an anchor moves along the side; if both are anchored at
+  the same point, it is `layout/no-route`, so anchor them at different
+  positions.
+- **Fan-in (`figure.layout.fanIn`)**: by default (`merge`), edges from
+  different elements entering the same side of an element without a
+  `toAnchor` meet at one port and merge into one trunk, like a bus. With
+  `fanIn: spread` (on `figure.layout`, next to `arrange`) they enter at
+  separate points spread along that side, ordered by where their sources
+  are, so they never share a line. Anchored ends and junction ends are not
+  moved; to merge on purpose under `spread`, route the edges through a
+  `junction`. Spread can add crossings (the separate lines cross others
+  one by one) and changes the routes of a figure written for `merge`.
+  **When to spread**: several sources feeding several targets (workers →
+  stores) where the merged trunks make lines wrap around blocks or make it
+  unclear which source reaches which target. Default sides send all edges
+  from one direction into the same side, so a merged trunk may detour;
+  `spread` removes such detours (in one measured architecture figure,
+  three detouring edges became none, crossings 3 → 6), or anchor the ends
+  on separate points (`toAnchor: "north:0.3"`, …) for full control.
 - **Operator** (`component: operator`, `props: { symbol: plus }`; also
   `minus`, `times`, `dot`, `concat`): a small circle with a symbol, no
   label. Arrows may end on it; a side input usually comes from an attached
@@ -190,6 +334,19 @@ YAML order, greedily: edges declared first get the best routes.
   of the group the edge enters), the label moves to the other side or back
   past the line or border. Other collisions are not avoided; keep labels to
   a word or a math symbol and check the preview.
+- **Placing an edge label**: `labelAt: start | middle | end` puts it on the
+  first segment (by the source), the longest one, or the last one (by the
+  target; the default spot); `labelSide: left | right` on that side **as
+  seen travelling from source to target** (left of a rightward line is
+  above it, left of a downward line is to its right — not compass sides,
+  since the router picks the direction). Either can be written alone. The
+  label slides along that segment to avoid lines, arrowheads, borders,
+  nodes and other labels, but never leaves the segment and side you
+  named: if nothing there is clear it stays and Sumi reports
+  `layout/edge-label-overlap` (warning; try the other side, another
+  `labelAt`, or remove both to let the router choose). Use them to say
+  which edge a label belongs to (`K,V` at the `start`, by its source) or
+  to keep it on the outer side of a bend.
 - Line corners are drawn rounded (radius up to 4pt, smaller in tight spots);
   there is no option to make them sharp. Editable PPTX keeps sharp corners.
   The router keeps a straight run of the arrowhead plus the radius before an
@@ -197,6 +354,89 @@ YAML order, greedily: edges declared first get the best routes.
   tight for that, the arrowhead still comes right after the corner.
 - Trunks and side paths run close beside the blocks (about 3pt away); the
   lever to move them is the `gap` of the enclosing box, not a coordinate.
+
+Three workers writing to one store, each line entering on its own (without
+`fanIn: spread` the three lines join above the store and enter as one
+arrow):
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: fan-in
+  theme: color
+  profile: paper-single
+  layout:
+    fanIn: spread
+    arrange:
+      stack:
+        gap: 6mm
+        items:
+          - row: { gap: 4mm, items: [ infer, train, prep ] }
+          - store
+nodes:
+  - { id: infer, component: box, label: Inference }
+  - { id: train, component: box, label: Training }
+  - { id: prep, component: box, label: Preprocess }
+  - { id: store, component: cylinder, label: Feature store }
+edges:
+  - { from: infer, to: store }
+  - { from: train, to: store }
+  - { from: prep, to: store }
+```
+
+### Crossings (`layout/edge-crossing`)
+
+The router does not forbid crossings, so dense figures keep some. `sumi
+render` (and `lint --geometry`) reports each point where two separate
+lines cross as `layout/edge-crossing`, an **info**: it does not fail the
+render or count as a warning. A shared trunk counts as one line, so one
+point is one diagnostic (at most 10, then one summary). The diagnostic
+sits on the edge written later (the one routed after the other), and the
+message names both edges and the point in mm from the top left. Fix the
+ones that hurt reading: move the edge you want straight **earlier** in
+`edges`, leave from or enter another side (`fromAnchor` / `toAnchor`), or
+change the arrangement (`gap`, item order, `align`). Some crossings
+cannot be avoided (two lines that swap sides); keep those and mention the
+count in the report. A figure whose expected result is drawn with
+crossings is still clean: errors and warnings are what must reach 0.
+
+## Legends
+
+A **`legend`** node (`component: legend`, structured only) draws a
+framed key: one row per entry, top to bottom, each a **sample** and its
+text. An entry has exactly one of `edge` (a sample line, with the edge
+fields `component` — default `arrow` — and `variant`) or `node` (a small
+sample box: `component` — default `box` —, `variant`, `tone`), plus
+`label` (math allowed). The samples are drawn by the same theme rules as
+real edges and nodes, so a `variant: dashed` sample has exactly the dash,
+arrowhead and width of the dashed edges. No colors are written. The
+legend's own `label` is its title; `variant: plain` drops the frame;
+`tone` colors the frame.
+
+```yaml
+- id: key
+  component: legend
+  props:
+    entries:
+      - { edge: { variant: dashed }, label: parameter update }
+      - { edge: { component: line }, label: data flow }
+      - { node: { tone: red }, label: loss terms }
+```
+
+- Place it in the tree like any node (a corner of the root stack or row);
+  `align` and edges can name it. It cannot be `attach`ed
+  (`layout/attached-legend`).
+- `lint/unused-legend-entry` (warning): no node or edge of the figure has
+  that entry's component, variant (and tone, for boxes). Fix the entry or
+  the elements it should explain; do not keep a key for styles not drawn.
+- The legend expands into nodes and edges named `<legend>-<n>-label`,
+  `-box`, `-line`, `-start`, `-end` (n = entry number): your own IDs must
+  not use these (`ref/reserved-id`). Up to 20 entries; a sample box cannot
+  be a `label`, `image`, `operator`, `junction` or another `legend`
+  (`component/invalid-prop`).
+- Auto figures have no legend: say what the variants mean in the caption
+  or the report.
 
 ## Spacing that routes
 
@@ -221,10 +461,18 @@ where there is room.
 | `layout/group-cycle`, `layout/attach-cycle` | a group placed inside itself, or attachments in a loop: break the loop |
 | `layout/invalid-anchor` | write `north`, `east`, `south` or `west`, optionally `:` and a number from 0 to 1 |
 | `layout/no-route` (render) | the ends touch (`gap: 0`), are closer than the arrowhead, or are boxed in (also by a node attached into the gap, see [attach](#attach-side-notes)): widen that `gap` (see above; even a `line` needs a gap > 0), or anchor the edge on other sides |
+| `layout/unknown-align-item`, `layout/duplicate-align-item`, `layout/invalid-align` | an `align` entry names no node or group (edges cannot be aligned), names one twice, or has fewer than two IDs: fix the list ([align](#aligning-across-trees)) |
+| `layout/unsatisfied-align` (render, warning) | the constraint cannot be met; follow the hint: put the items in different boxes, wrap one in its own `stack` / `row`, or drop a constraint that pulls the other way |
+| `layout/align-search-limit` (render, warning) | too many constraints to solve; remove ones that are already met by the boxes |
+| `layout/edge-label-overlap` (render, warning) | an edge label with `labelAt` / `labelSide` has no clear spot on that segment and side: the other `labelSide`, another `labelAt`, remove both, or make room (`gap`, anchors, a shorter label) |
+| `layout/edge-crossing` (render, info) | two lines cross; see [crossings](#crossings-layoutedge-crossing) |
+| `layout/attached-legend` | a legend cannot be attached: list it in an arrange tree |
 
 Geometry warnings after a structured render (`label-collision`,
 `edge-crosses-label`) usually come from edge labels, crossing nets or a
-group label in the way (see [arrange trees](#arrange-trees)): shorten the
-label, reorder the edges (earlier = straighter), or add `gap`.
+group title in the way: move the title (`labelAt`, see
+[group titles](#group-titles-and-captions)), place the edge label
+(`labelAt` / `labelSide`), reorder the edges (earlier = straighter),
+shorten the label, or add `gap`.
 
 A complete structured figure is in [examples](examples.md#4-success-a-structured-block-diagram).

@@ -23,7 +23,9 @@ Every stage reports problems as the same diagnostic object. In
 - `hint`, when present, lists the valid values or a near match (edit
   distance). Prefer it over your own guess.
 - `summary` has `errors` / `warnings` / `infos`; exit code 1 means errors
-  (or more warnings than `--max-warnings`).
+  (or more warnings than `--max-warnings`). Infos (`lint/self-loop`,
+  `layout/edge-crossing`) never fail a run: read them, fix what is easy,
+  and report the rest.
 
 ## Working through a report
 
@@ -49,17 +51,21 @@ Every stage reports problems as the same diagnostic object. In
 | `ref/unknown-group` | `group:` names a group that does not exist | add the group under `groups:` or fix the ID |
 | `ref/duplicate-id` | two nodes/groups (or two edges) share an ID | rename one; nodes and groups share an ID space |
 | `ref/group-cycle` | groups contain each other | fix the `group:` chain |
-| `layout/structured-only` | `arrange`, `attach`, `fromAnchor` or `toAnchor` in an auto figure (no `figure.layout.arrange`, or `engine: auto`) | remove the field, or make the figure structured: root `figure.layout.arrange`, no `engine: auto`, every element placed |
-| `layout/unplaced`, `layout/duplicate-placement`, `layout/unknown-item`, `layout/unknown-attach-target`, `layout/group-mismatch`, `layout/group-cycle`, `layout/attach-cycle`, `layout/invalid-anchor` | structured figures: every node and group must be placed exactly once, in an arrange tree or by `attach` | per code in [structured](structured.md#fixing-layout); follow the hint |
+| `ref/reserved-id` | an ID of yours is one Sumi generates: `<group>-caption` for a group's `caption`, `<legend>-<n>-label` / `-box` / `-line` / `-start` / `-end` for a legend's entries (`related` names which) | rename your element |
+| `layout/structured-only` | `arrange`, `attach`, `fromAnchor` / `toAnchor`, edge `labelAt` / `labelSide`, `figure.layout.align` / `fanIn`, or a `legend` in an auto figure (no `figure.layout.arrange`, or `engine: auto`) | remove the field, or make the figure structured: root `figure.layout.arrange`, no `engine: auto`, every element placed |
+| `layout/unplaced`, `layout/duplicate-placement`, `layout/unknown-item`, `layout/unknown-attach-target`, `layout/group-mismatch`, `layout/group-cycle`, `layout/attach-cycle`, `layout/invalid-anchor`, `layout/attached-legend` | structured figures: every node and group must be placed exactly once, in an arrange tree or by `attach` (a legend only in a tree) | per code in [structured](structured.md#fixing-layout); follow the hint |
 | `layout/no-route` | `sumi render` of a structured figure: an edge cannot be routed (ends touching, closer than the arrowhead, or boxed in; the message and `related` name the nodes in the way, often an `attach`ed one) | widen that `gap` (arrows need about 1.5mm in `academic`, 2.5mm in `minimal` / `color`, 4mm in `slides`), or anchor the edge on other sides ([structured](structured.md#spacing-that-routes)) |
+| `layout/unknown-align-item`, `layout/duplicate-align-item`, `layout/invalid-align` | a `figure.layout.align` constraint names an unknown or edge ID, the same ID twice, or fewer than two IDs | fix the list ([align](structured.md#aligning-across-trees)); an entry with both or neither of `x` / `y` is `schema/invalid-value` |
 | `component/unknown` | component name not in the registry | choose one from `sumi catalog` (the hint lists the right kind) |
 | `component/wrong-kind` | a node component on an edge, etc. | use a component of the right kind |
 | `component/unknown-variant` | variant not listed for that component | use one from the hint / catalog |
 | `component/unknown-prop`, `component/invalid-prop` | prop not in the component's schema, or a bad value (e.g. `px`, not a multiple of 0.5pt; an `image` without `width` or `height`) | remove it, or use the value the hint suggests |
 | `component/missing-label` | a text-only component (`label`) has no text | give it a label or use another component |
 | `component/unexpected-label` | `operator`, `junction` or `image` has a label (they draw a symbol, a dot, a picture) | remove the label; put a `label` node next to it if text is needed |
-| `component/invalid-math` | unsupported or malformed `$...$` label math in a structured figure (the message gives the label characters) | use the supported subset (Greek, `_`, `^`, symbols, `\mathrm`, `\text`), close the `$`, or write `\$` for a dollar sign |
+| `component/invalid-math` | unsupported or malformed `$...$` label math in a structured figure (the message gives the label characters) | use the supported subset (Greek, `_`, `^`, symbols, accents over one character such as `\hat{y}`, `\mathrm`, `\text`), close the `$`, or write `\$` for a dollar sign; wide accents (`\widehat`, `\overline`) and `\hat{xy}` are not supported ([label math](figure-format.md#label-math)) |
 | `component/unsupported-in-auto` (warning) | `$...$` label math with a command, `_` or `^` in an `auto` figure, which D2 draws as written (`$x$` is drawn as written too, without a warning) | use the structured layout (`figure.layout.arrange`) or drop the `$...$` |
+| `component/label-at-without-label` (warning) | a group has `labelAt` but no (or an empty) `label` | add the title, or remove `labelAt` |
+| `component/invalid-prop` on a legend entry | an entry with both or neither of `edge` / `node`, or a sample box that is a mark, text or picture (`operator`, `junction`, `label`, `image`, `legend`) | one of `edge` / `node` per entry; a shape such as `box` or `circle` for boxes |
 | `component/tone-unsupported` | `tone` on a `junction` (drawn in the line color) | remove the tone |
 | `component/deprecated` (warning) | still works but is being replaced | switch to the replacement in the message |
 | `asset/*` | icons (`icon:`) and images (`component: image`): unknown icon, label next to an icon, a `src` that leaves the YAML's directory (lint); missing, unsupported, too large or unsafe files (render) | per code in [assets](assets.md#fixing-asset) |
@@ -83,6 +89,7 @@ Every stage reports problems as the same diagnostic object. In
 | `lint/empty-label` | warning | add a label, or keep it for a deliberate blank shape |
 | `lint/long-label` | warning | shorten or break with `\n` (≤ 40 columns per line, CJK = 2, ≤ 4 lines) |
 | `lint/missing-glyph` | warning | replace the character (emoji and rare CJK are not in the font) |
+| `lint/unused-legend-entry` | warning | no edge / node has that legend entry's component and variant (and tone): fix the entry, or the elements it should explain ([legends](structured.md#legends)) |
 
 To silence a rule for one run: `sumi lint --rule lint/no-edges=off`. There
 is no per-figure suppression; mention kept warnings in your report instead.
@@ -92,6 +99,10 @@ is no per-figure suppression; mention kept warnings in your report instead.
 | Codes | Meaning | Fix |
 | --- | --- | --- |
 | `svg/empty-figure` | no nodes or groups to draw | add elements |
+| `layout/unsatisfied-align` (warning) | structured: an `align` constraint could not be met; drawn with the closest placement, the message gives the distance | follow the hint: the items share a box (put them in different boxes, or wrap one in its own `stack` / `row`) or another constraint pulls them apart ([align](structured.md#aligning-across-trees)) |
+| `layout/align-search-limit` (warning) | structured: so many `align` constraints that the search stopped | remove constraints the boxes already satisfy, or split the figure |
+| `layout/edge-label-overlap` (warning) | structured: an edge label with `labelAt` / `labelSide` found no clear spot on its segment and side, so it overlaps what the message names | the other `labelSide`, another `labelAt`, remove both, or make room (`gap`, anchors, shorter label) |
+| `layout/edge-crossing` (info) | structured: two separate lines cross (at most 10 listed, then a summary) | optional: move the edge to straighten earlier in `edges`, use anchors, or change the arrangement; keep unavoidable ones ([crossings](structured.md#crossings-layoutedge-crossing)) |
 | `backend/d2-not-found`, `backend/d2-version-mismatch` | D2 missing or not v0.9.0 | user reinstalls the release tarball (D2 is bundled), runs `bun run d2:install` in a source checkout, or sets `SUMI_D2_PATH`; stop |
 | `backend/d2-failed`, `backend/d2-timeout`, `backend/empty-output`, `backend/io-error`, `backend/invalid-args` | D2 itself failed | not a figure problem; report with the message (use `--emit-d2 out.d2` to keep the generated source; structured figures do not use D2 and refuse `--emit-d2` with exit 2) |
 | `svg/outline-edge-miss` (warning) | an edge end could not be extended to its custom outline; that end is kept unchanged | inspect the gap and report the diagnostic; do not invent port coordinates |
@@ -121,8 +132,8 @@ exit code 1. Configure like structural rules
 | `geometry/label-overflow` | error | remove or enlarge explicit `width`/`height` (the `path` points at `props` then), shorten or break the label, or use a shape with more room for text (`box`) |
 | `geometry/out-of-canvas` | error | shorten labels; if it persists, report it as a Sumi bug |
 | `geometry/node-overlap` | warning | review explicit sizes; auto: put the nodes in the same group; structured: an attached node in a `gap` overlaps its neighbour, put it in the tree, attach it to a free side, or widen the `gap` ([attach](structured.md#attach-side-notes)) |
-| `geometry/label-collision` | warning | a label overlaps another label, a node's shape or a group's border: shorten labels; auto: change `direction` or grouping; structured: change the `gap`, anchors or attach side (an edge label on a group's border: widen the `gap` before the group so the label fits outside it) |
-| `geometry/edge-crosses-label` | warning | auto: connect elements inside the group rather than the group, change `direction`, shorten the label (see layout-tips); structured: the group label is at the top centre, enter from the side or move the label ([arrange trees](structured.md#arrange-trees)) |
+| `geometry/label-collision` | warning | a label overlaps another label, a node's shape or a group's border: shorten labels; move a group title with `labelAt`; auto: change `direction` or grouping; structured: place the edge label (`labelAt` / `labelSide`), change the `gap`, anchors or attach side (an edge label on a group's border: widen the `gap` before the group so the label fits outside it) |
+| `geometry/edge-crosses-label` | warning | auto: connect elements inside the group rather than the group, change `direction`, shorten the label (see layout-tips); both: move the group's title away from the entering edge with `labelAt` (structured default: top centre; auto: top-left) ([group titles](structured.md#group-titles-and-captions)); structured: or enter from the side with an anchor |
 | `geometry/edge-through-node` | warning | an edge is drawn across a node it does not connect: change `layout.direction` or the grouping so the layout has a free path |
 | `geometry/aspect-distorted` | warning | fewer edges on that `circle`/`square`, or use `ellipse`/`box` |
 | `geometry/reversed-edge` | warning | ELK reversed the wrong edge of a cycle (typically a loop inside a group): swap the order of the loop's nodes in `nodes`, or move the loop out of the group |

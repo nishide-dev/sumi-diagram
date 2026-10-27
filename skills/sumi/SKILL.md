@@ -33,10 +33,9 @@ it is clean — never to draw the SVG yourself, and never to edit generated
 
 The skill drives the Sumi CLI but does not contain it. Install a release
 (macOS / Linux) from [GitHub Releases](https://github.com/nishide-dev/sumi-diagram/releases):
-extract `sumi-<version>-<target>.tar.gz` intact and put its `bin/sumi` on
-`PATH` (D2 and fonts are bundled); check with `sumi doctor`. Optional:
-`SUMI_BIN`, `SUMI_D2_PATH` (D2 v0.9.0). A source checkout needs only Bun +
-`bun run d2:install`.
+extract `sumi-<version>-<target>.tar.gz` intact, put its `bin/sumi` on `PATH`
+(D2 and fonts are bundled), check with `sumi doctor`. Optional: `SUMI_BIN`,
+`SUMI_D2_PATH` (D2 v0.9.0). A source checkout needs Bun + `bun run d2:install`.
 
 ## Running the CLI
 
@@ -46,9 +45,9 @@ extract `sumi-<version>-<target>.tar.gz` intact and put its `bin/sumi` on
 
 This wrapper runs `$SUMI_BIN`, else the Sumi source checkout it lives in,
 else `sumi` on `PATH`, else a checkout around the current directory;
-otherwise it exits 127 with install instructions — relay them to the user
-and stop (do not install anything without asking). Use the absolute path in every command (shell
-variables do not persist between Bash calls). Below, `sumi` means the wrapper.
+otherwise it exits 127 with install instructions — relay them and stop
+(install nothing without asking). Use the absolute path in every command
+(shell variables do not persist). Below, `sumi` means the wrapper.
 
 ## Workflow
 
@@ -60,22 +59,19 @@ Before writing YAML, make sure you know:
   between them and their exact labels; which elements belong together.
 - **Target**: one paper column (`paper-single`, max 88mm wide), a full-width
   paper figure (`paper-double`, 180mm) or a slide (`presentation-16x9`).
-  This is the user's decision — ask if it is not stated. See
-  [layout-tips](references/layout-tips.md) for what fits on
-  `presentation-16x9`.
-- **Theme** (`minimal`, `academic`, `slides` or `color`; default `minimal`; a slide
-  needs `slides` with `presentation-16x9`; `sumi catalog --section themes`
-  lists them with the profiles each one suits) and the output
-  path (default: the figure next to the user's other files, named
-  `<figure-id>.sumi.yaml`).
+  This is the user's decision — ask if it is not stated. What fits on a
+  slide: [layout-tips](references/layout-tips.md).
+- **Theme** (`minimal` (default), `academic`, `slides` or `color`; a slide
+  needs `slides`; `sumi catalog --section themes` lists the profiles each
+  suits) and the output path (default: next to the user's other files,
+  named `<figure-id>.sumi.yaml`).
 - **Layout** (your choice, not a question): flows and graphs use the
   default **auto** layout; paper block diagrams (stacked layers, residuals,
   aligned columns, ⊕ operators, math labels) use the **structured** layout.
   See [layout-tips](references/layout-tips.md#choose-the-engine-first).
 
-Ask once, briefly, for what is missing. If the user says to go ahead
-without answering, use `paper-single` + `minimal` and state the assumption
-in your report.
+Ask once, briefly, for what is missing. If the user says to go ahead, use
+`paper-single` + `minimal` and state the assumption in your report.
 
 ### 2. Check the environment (once per session)
 
@@ -85,9 +81,9 @@ sumi doctor
 
 Exit 0 and `Ready to render.` means D2, the fonts and the geometry lint
 are in place. If a check fails, relay its `hint` and stop — except that a
-`d2` failure alone does not block structured figures (they render without
-D2). For `d2`: reinstall the release tarball (D2 is bundled), run
-`bun run d2:install` in a source checkout, or set `SUMI_D2_PATH` (v0.9.0).
+`d2` failure alone does not block structured figures (no D2 needed). For
+`d2`: reinstall the release tarball, `bun run d2:install` in a checkout, or
+set `SUMI_D2_PATH` (v0.9.0).
 
 ### 3. Discover components, themes and profiles
 
@@ -100,11 +96,11 @@ sumi catalog --icons "wave sine" # bundled icons whose names contain all the wor
 
 Pick each node, group and edge component from `components`, matching the
 `description` to the element's role (e.g. `diamond` for a decision,
-`cylinder` for storage, `stack` for a collection of layers if available). Use a variant only if it is listed for that
-component, and props only if they are in its `props` schema. Check the
-chosen theme against the target: its `compatibleProfiles` must include the
-profile, otherwise labelled elements fail with `profile/font-too-small`.
-Page limits and spacing are in `profiles`
+`cylinder` for storage, `stack` for a collection of layers if available).
+Use only listed variants and props; `engines`, when present, lists the
+only layout engines a component works in. The theme's `compatibleProfiles`
+must include the profile, else labelled elements fail with
+`profile/font-too-small`. Page limits and spacing are in `profiles`
 ([figure-format](references/figure-format.md#discovering-themes-and-profiles)).
 
 ### 4. Write the figure
@@ -137,9 +133,11 @@ edges:
   laid out `right` do not fit `paper-single` — prefer `down`
   ([layout-tips](references/layout-tips.md)).
 - **Structured figures** add `figure.layout.arrange` (nested `stack` /
-  `row` boxes listing every node and group once), `attach`, and edge
-  anchors: read [references/structured.md](references/structured.md)
-  first. Label math (`'$\alpha_1$'`) works only there.
+  `row` boxes listing every node and group once), `attach`, edge anchors
+  and label placement, `align` across trees, `fanIn`, and `legend`: read
+  [references/structured.md](references/structured.md) first. Label math
+  (`'$\hat{y}_t$'`) works only there. Any group can take `labelAt` (title
+  position) and `caption`.
 - Icons (`icon: tabler/<name>`, in place of a label) and image files
   (`component: image`): [references/assets.md](references/assets.md).
 
@@ -182,10 +180,9 @@ picture, not editable shapes) only when the user asks; inspect the SVG
 `render` measures the drawn figure and reports `geometry/*` diagnostics
 (page size, label overflow, overlaps, labels crossed by edges). Geometry
 errors make it exit 1 but **the SVG is still written**, so you can look at
-the problem. It prints `Wrote figure.svg: <W>mm × <H>mm (<profile>, max
-width <M>mm[, TOO WIDE]; theme <theme>)`; with `--json`, read `size`
-(`widthMm`, `heightMm`, the profile's limits, `fits`; `null` if nothing
-was rendered).
+the problem. It prints `Wrote figure.svg: <W>mm × <H>mm (…)`; with
+`--json`, read `size` (`widthMm`, `heightMm`, limits, `fits`; `null` if
+nothing was rendered).
 
 - `geometry/exceeds-page-width` / `-height`: shorten labels, change the
   layout. Auto: the other `layout.direction`; if both overflow, see
@@ -199,7 +196,9 @@ was rendered).
   then keep them and mention them in the report.
 - Structured: `layout/no-route` (no SVG written) means an edge has no room:
   widen that `gap` or move an attached node out of it ([structured](references/structured.md#spacing-that-routes)).
-  `--emit-d2` is refused for structured figures (they do not use D2).
+  Render also reports `layout/unsatisfied-align`, `layout/edge-label-overlap`
+  (warnings) and `layout/edge-crossing` (info: fix if easy, else report the
+  count). `--emit-d2` is refused for structured figures (they do not use D2).
 - Render errors (`svg/*`, `backend/*`, `asset/*`) and every `geometry/*`
   code are in [diagnostics](references/diagnostics.md).
 
@@ -216,8 +215,8 @@ It uses Quick Look on macOS (padded to a square: the blank space is not
 part of the figure), else `rsvg-convert`; exit 1 if neither exists — skip
 this step and say so in the report. Check: reading order follows
 `direction` (or the arrange tree); no label overlaps a line or a shape;
-edges do not cross group labels; nothing is huge or squashed; text is
-legible. Layout quirks and workarounds: [layout-tips](references/layout-tips.md).
+no edge crosses or detours around a group title (move it: `labelAt`);
+nothing is huge or squashed; text is legible. Quirks: [layout-tips](references/layout-tips.md).
 
 ### 8. Report
 
@@ -242,11 +241,10 @@ instead of guessing when:
 
 ## References
 
-[figure-format](references/figure-format.md) (fields, IDs, labels and math,
-groups, edges, tones, themes, profiles, common mistakes) ·
-[structured](references/structured.md) (arrange trees, attach, anchors,
-junctions, routing) · [assets](references/assets.md) (icons, images) ·
-[diagnostics](references/diagnostics.md) (fixes by code) ·
-[layout-tips](references/layout-tips.md) (choosing the engine, auto layout
-issues) · [examples](references/examples.md) (two successes, three
-failure-and-fix runs)
+[figure-format](references/figure-format.md) (fields, IDs, labels, math and
+accents, groups, edges, tones, themes, profiles, common mistakes) ·
+[structured](references/structured.md) (arrange trees, group titles and
+captions, attach, align, anchors, fan-in, edge labels, crossings, legends) ·
+[assets](references/assets.md) (icons, images) · [diagnostics](references/diagnostics.md)
+(fixes by code) · [layout-tips](references/layout-tips.md) (choosing the
+engine, auto issues, 0.4 workarounds → 0.5 fields) · [examples](references/examples.md)

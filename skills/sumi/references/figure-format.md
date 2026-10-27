@@ -8,6 +8,7 @@ need to write a figure.
 
 ```yaml
 version: 1                 # required, always 1
+# requires: ">=0.5.0"      # optional: the oldest Sumi that can draw the figure
 figure:                    # required
   id: request-flow         # required ID
   title: Request handling  # optional, not drawn
@@ -16,6 +17,7 @@ figure:                    # required
   layout:
     direction: down        # optional: right (default) | down | left | up
     # arrange: …           # optional: switches to the structured layout (structured.md)
+    # align: […]¹, fanIn: merge | spread¹   (structured.md)
 groups: []                 # optional
 nodes: []                  # optional (an empty figure gets a lint warning)
 edges: []                  # optional
@@ -24,12 +26,19 @@ metadata: {}               # optional, any JSON-compatible data; not drawn
 
 | Element | Fields (required in bold) | Defaults |
 | --- | --- | --- |
-| group | **`id`**, `label`, `component`, `variant`, `tone`, `group`, `arrange`¹ | component `container`, variant `default`, no tone, no parent |
+| group | **`id`**, `label`, `labelAt`, `caption`, `component`, `variant`, `tone`, `group`, `arrange`¹ | component `container`, variant `default`, no tone, no parent |
 | node | **`id`**, **`component`**, `label`, `variant`, `tone`, `icon`, `props`, `group`, `attach`¹ | variant `default`, no label, no tone, no group |
-| edge | **`from`**, **`to`**, `id`, `label`, `component`, `variant`, `props`, `fromAnchor`¹, `toAnchor`¹ | component `arrow`, variant `default` |
+| edge | **`from`**, **`to`**, `id`, `label`, `labelAt`¹, `labelSide`¹, `component`, `variant`, `props`, `fromAnchor`¹, `toAnchor`¹ | component `arrow`, variant `default` |
 
 ¹ Structured layout only (a figure with `figure.layout.arrange`); see
-[structured](structured.md). `icon`: see [assets](assets.md).
+[structured](structured.md). `icon`: see [assets](assets.md). Group
+`labelAt` / `caption`: [groups](#groups). These, edge `labelAt` /
+`labelSide`, `figure.layout.align` / `fanIn`, label-math accents and the
+`legend` component are new in 0.5.0. When you use them and
+`sumi --version` prints 0.5.0 or later, you may add `requires: ">=0.5.0"`:
+an older Sumi then stops with one clear `schema/unsatisfied-requires`
+instead of a list of unknown fields. A CLI that prints an older version
+(e.g. a source checkout between releases) fails on it too: leave it out.
 
 Every object is strict: an unknown key is an error (`schema/unknown-field`).
 There is no per-element style, color, font or coordinate field — appearance
@@ -100,6 +109,12 @@ subset drawn as real, searchable text in the bundled STIX Two math fonts:
   …; others as `\operatorname{softmax}`; no space is added after a
   function name: `$\tanh\,x$`), `\mathrm{…}`, `\mathit{…}`,
   `\text{…}` (any text, Japanese too).
+- **Accents**: `\hat` `\tilde` `\bar` `\dot` `\ddot` `\vec` over **one**
+  character or command: `$\hat{y}$`, `$\hat y$`, `$\tilde{x}$`,
+  `$\bar\theta$`, `$\vec{W}$`, `$\hat{\nabla}$`. A script after the
+  accent belongs to the accented letter (`$\hat\theta_t$`); accents also
+  work inside scripts (`$x_{\hat i}$`) and `\mathrm{…}`. The accented
+  letter stays an italic variable.
 - Spacing: spaces inside `$...$` are ignored; Sumi adds TeX's space around
   binary operators and relations, but **none after a comma**: write
   `$x_1,\,\ldots,\,x_n$` for spaced lists (`\,` `\:` `\;` `\quad` `~`).
@@ -107,20 +122,19 @@ subset drawn as real, searchable text in the bundled STIX Two math fonts:
 - `\$` (outside `$...$`) is a literal dollar sign; in auto figures it is
   drawn as written.
 - Not supported (`component/invalid-math`): `\frac`, `\sqrt`, `\mathbf`,
-  `\mathbb`, accents (`\hat`, `\tilde`, `\bar`, `\vec`, `\dot`, …),
+  `\mathbb`, wide accents (`\widehat`, `\widetilde`, `\overline`,
+  `\overrightarrow`, …), an accent over several characters (`\hat{xy}`,
+  `\hat{x_t}`: write `\hat{x}_t`) or over another accent (`\hat\hat x`),
   matrices, `$$`, nested scripts, an unclosed `$` or `{`,
   characters it does not know (`@`, `ℝ`, `ŷ`, …). Rewrite with
-  the subset (`a/b`, `\mathrm{…}`), put text in `\text{…}`, or type a
-  special character outside the `$...$` (`'$x \in$ ℝ$^d$'`: structured
-  figures draw `ℝ`, `₂`, `∼`, `⋯` and similar with the math font).
-- **Accented variables** (ŷ, x̃, ȳ): type the accented letter outside the
-  `$...$`, with a script after it if needed (`'ŷ$_t$'`), or inside
-  `\text{…}` (`'$\text{ŷ} = f(x)$'`). It is drawn upright in the label
-  font, not as an italic variable. Use a precomposed character (`ŷ`, `ā`)
-  if `lint` accepts it; otherwise the letter followed by a combining
-  accent in a double-quoted label (`"x̃"` for x̃, `"ȳ"` for ȳ,
-  whose precomposed form gets `lint/missing-glyph`). Or change the
-  notation if the user agrees: `$y'$`, `$y^{*}$`.
+  the subset (`a/b`, `\mathrm{…}`, `\hat{y}` for `ŷ`), put text in
+  `\text{…}`, or type a special character outside the `$...$`
+  (`'$x \in$ ℝ$^d$'`: structured figures draw `ℝ`, `₂`, `∼`, `⋯` and
+  similar with the math font). For a bar over several letters
+  (`\overline{xy}`), ask whether another notation will do
+  (`$\bar{x}\bar{y}$`, `$z^{*}$`). Before 0.5.0 accents were errors too:
+  with an older CLI, type the accented letter outside the `$...$`
+  (`'ŷ$_t$'`) or write `$y'$`.
 - **Quote math labels in single quotes**: backslashes stay literal
   (`label: '$\alpha_1$'`). In a flow mapping (`{ … }`) a label containing
   `,` must be quoted, otherwise YAML splits it and Sumi reports
@@ -135,6 +149,14 @@ subset drawn as real, searchable text in the bundled STIX Two math fonts:
   (nesting is allowed; cycles are `ref/group-cycle`).
 - A group's only group component is `container` (check the catalog).
 - Groups can be edge endpoints.
+- `labelAt` places the group's `label` (its title) inside the border:
+  `top-left`, `top`, `top-right`, `bottom-left`, `bottom`, `bottom-right`.
+  Default: `top-left` in auto figures, `top` (centre) in structured ones.
+  Move it away from the side where edges enter.
+- `caption` adds a sub-figure caption centered under the border
+  (`caption: (a) data and augmentation`), outside the group. Both engines;
+  details and an example in
+  [structured](structured.md#group-titles-and-captions).
 - In structured figures, membership follows the group's `arrange` tree;
   `group:` can be omitted ([structured](structured.md#arrange-trees)).
 
@@ -180,6 +202,10 @@ Always take these from `sumi catalog --json`. Each entry has `id`
   crosses nearby, since the dot is what tells a join from a crossing), and an
   arrow into a hidden junction ends in open space. Introduced in 0.4.0;
   use them only when the installed CLI lists them.
+- `legend` (structured only, 0.5.0) draws a key of sample lines and boxes
+  with their meaning (`props.entries`); the catalog marks it with
+  `"engines": ["structured"]`. See [structured](structured.md#legends).
+  Components without `engines` work in both engines.
 
 ### Catalog render metadata
 
@@ -373,6 +399,11 @@ preserved by `sumi fmt`.
 | `$\alpha_1$` (math with a command, `_` or `^`) in an auto figure | `component/unsupported-in-auto` (warning; `$x$` gets none but is drawn with its `$`) | use the structured layout, or plain text |
 | `label:` and `icon:` on one node | `asset/icon-with-label` | keep one; put the text in an attached `label` node |
 | `toAnchor: west` in an auto figure | `layout/structured-only` | remove it, or switch to the structured layout |
+| edge `labelAt`, `align`, `fanIn` or a `legend` in an auto figure | `layout/structured-only` | remove it, or switch to the structured layout (group `labelAt` and `caption` are fine) |
+| `labelAt: top-center` on a group, `labelAt: end` on a group | `schema/invalid-value` | group: `top-left`, `top`, `top-right`, `bottom-left`, `bottom`, `bottom-right`; edge: `start`, `middle`, `end` |
+| `labelSide: above` / `north` on an edge | `schema/invalid-value` | `left` or `right`, relative to the direction of travel |
+| `'$\widehat{xy}$'`, `'$\hat{xy}$'` | `component/invalid-math` | one character per accent: `'$\hat{x}\hat{y}$'`, or another notation |
+| a node with ID `train-caption` when group `train` has a caption | `ref/reserved-id` | rename the node |
 | `props: { width: 10px }` | `component/invalid-prop` | `mm` / `cm` / `in` / `pt`, multiple of 0.5pt |
 | `children:` / `nodes:` inside a group | `schema/unknown-field` | put `group: <id>` on each child |
 | `label: 2024` | `schema/invalid-type` | `label: "2024"` |
