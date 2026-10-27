@@ -257,6 +257,13 @@ export const GroupSchema = z.strictObject({
     .describe(
       "Where the label sits inside the group's border. Omitted means top (top centre) in structured layout and top-left in auto layout.",
     ),
+  caption: z
+    .string()
+    .min(1)
+    .optional()
+    .describe(
+      'Text drawn centred below the group\'s border, e.g. "(a) encoder". Drawn as a label with the reserved ID <id>-caption.',
+    ),
   component: ComponentRef.default("container").describe("Component reference (kind: group)."),
   variant: Variant,
   tone: Tone,

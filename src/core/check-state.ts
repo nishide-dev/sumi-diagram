@@ -12,6 +12,7 @@
  */
 
 import type { Diagnostic, DiagnosticSubject, DocPath } from "./diagnostics";
+import type { CaptionOrigin } from "./figure/caption";
 import type { FigureEdge, FigureGroup, FigureMeta, FigureNode, JsonValue } from "./figure/schema";
 import type { ResolvedComponent } from "./registry/manifest";
 import type { ResolvedStyle } from "./theme/style";
@@ -43,6 +44,11 @@ export interface PartialFigure {
   nodes?: (FigureNode | undefined)[];
   edges?: (FigureEdge | undefined)[];
   metadata?: JsonValue;
+  /**
+   * Nodes expanded from `groups[].caption` (#130), by their index in `nodes`
+   * (after the written ones). Set by `expandCaptions()`.
+   */
+  captions?: ReadonlyMap<number, CaptionOrigin>;
 }
 
 export interface CheckState {
@@ -72,6 +78,8 @@ export type ElementEntry =
 /**
  * The readable elements of a document: groups, then nodes, then edges, each in
  * document order. Edges without an ID have the subject ID `edges[<index>]`.
+ * A node expanded from a group's caption (#130) has the path of the `caption`
+ * field and the group as its subject.
  */
 export function* figureElements(doc: PartialFigure): Generator<ElementEntry> {
   for (const [index, g] of (doc.groups ?? []).entries()) {
@@ -81,8 +89,12 @@ export function* figureElements(doc: PartialFigure): Generator<ElementEntry> {
   }
   for (const [index, n] of (doc.nodes ?? []).entries()) {
     if (n === undefined) continue;
-    const subject = { kind: "node", id: n.id } as const;
-    yield { kind: "node", key: nodeKey(n.id), path: ["nodes", index], subject, element: n };
+    const caption = doc.captions?.get(index);
+    const subject: DiagnosticSubject = caption
+      ? { kind: "group", id: caption.group }
+      : { kind: "node", id: n.id };
+    const path = caption ? [...caption.path] : ["nodes", index];
+    yield { kind: "node", key: nodeKey(n.id), path, subject, element: n };
   }
   for (const [index, e] of (doc.edges ?? []).entries()) {
     if (e === undefined) continue;

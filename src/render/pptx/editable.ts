@@ -348,7 +348,12 @@ export function svgToEditablePptx(
         geo = geometries.get(element.key),
         id = ids.get(element.key);
       if (!group || !geo || id === undefined) throw new Error(`Missing object ${element.key}`);
-      const container = childElements(group).find((e) => classList(e).includes("shape"));
+      // A caption (#130) is a text box: in D2 it is drawn as the label of a
+      // transparent container around its group, which is not part of it.
+      const caption = element.kind === "node" && element.captionOf !== undefined;
+      const container = caption
+        ? undefined
+        : childElements(group).find((e) => classList(e).includes("shape"));
       const primitives = container ? [...descendants(container)].filter((e) => e.name !== "g") : [];
       const label = geo.labels[0];
       const text = childElements(group).find((e) => e.name === "text");

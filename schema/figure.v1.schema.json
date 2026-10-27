@@ -96,6 +96,11 @@
               "bottom-right"
             ]
           },
+          "caption": {
+            "description": "Text drawn centred below the group's border, e.g. \"(a) encoder\". Drawn as a label with the reserved ID <id>-caption.",
+            "type": "string",
+            "minLength": 1
+          },
           "component": {
             "default": "container",
             "description": "Component reference (kind: group).",

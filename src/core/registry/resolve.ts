@@ -188,7 +188,12 @@ function checkLabelMath(state: CheckState, element: Element, locate: Locator): b
     state.diagnostics.push({
       code: "component/unsupported-in-auto",
       severity: "warning",
-      message: `Label math ($...$) needs the structured layout engine; this auto figure draws the label of ${element.kind} "${element.subject.id}" as written.`,
+      message: `Label math ($...$) needs the structured layout engine; this auto figure draws the label of ${
+        // A group's caption (#130) is a label node whose subject is its group.
+        element.kind === "node" && element.subject.kind === "group"
+          ? `the caption of group "${element.subject.id}"`
+          : `${element.kind} "${element.subject.id}"`
+      } as written.`,
       path: at,
       ...(location !== undefined && { location }),
       subject: element.subject,

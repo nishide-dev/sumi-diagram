@@ -15,6 +15,8 @@ import { displayWidth, formatCodePoint, glyphCodePoints, labelLines } from "../t
 /** `node "api"`, `group "backend"`, `edge "e1"` or `edge edges[2]`. */
 function describeElement(element: ValidElement): string {
   const { kind, subject } = element;
+  // A group's caption (#130): a label node whose subject is its group.
+  if (kind === "node" && subject.kind === "group") return `the caption of group "${subject.id}"`;
   const id = kind === "edge" && element.element.id === undefined ? subject.id : `"${subject.id}"`;
   return `${kind} ${id}`;
 }

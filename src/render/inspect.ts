@@ -115,7 +115,8 @@ export interface SvgInspection {
 }
 
 const ELEMENT_CLASS = /^sumi-k-([nge])--(.+)$/;
-const ID = /^[a-z][a-z0-9_-]{0,63}$/;
+/** An element ID (`ID_PATTERN`), or a caption's `<group>-caption` (#130): 8 characters longer. */
+const ID = /^[a-z][a-z0-9_-]{0,71}$/;
 
 /**
  * Decodes a `sumi-k-*` class back to its ElementKey (inverse of
@@ -514,8 +515,12 @@ export function inspectSvg(svg: string, ir: FigureIR): Result<SvgInspection> {
       const bbox = bounds.rect();
       if (bbox !== undefined && !Object.values(bbox).every(Number.isFinite)) {
         problems.push("the shape's extent is not finite");
-      } else if (bbox !== undefined) geometry.bbox = bbox;
-      else if (!(element.kind === "node" && element.shape === "text")) {
+      } else if (bbox !== undefined) {
+        // In D2, a group's caption (#130) is the label of a container drawn
+        // around the group: that shape is not the caption's. Like any `text`
+        // node, a caption has no bbox.
+        if (!(element.kind === "node" && element.captionOf !== undefined)) geometry.bbox = bbox;
+      } else if (!(element.kind === "node" && element.shape === "text")) {
         problems.push("the shape group draws nothing");
       }
     }

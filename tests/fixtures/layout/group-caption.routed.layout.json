@@ -1,0 +1,675 @@
+{
+  "engine": "sumi-structured",
+  "canvas": {
+    "width": 662,
+    "height": 312
+  },
+  "margin": 11,
+  "content": {
+    "x": 11,
+    "y": 11,
+    "width": 639.709,
+    "height": 289.354
+  },
+  "groups": [
+    {
+      "key": "g:enc",
+      "kind": "group",
+      "rect": {
+        "x": 11,
+        "y": 11,
+        "width": 269.016,
+        "height": 182
+      },
+      "content": {
+        "x": 27,
+        "y": 55,
+        "width": 237.016,
+        "height": 122
+      },
+      "label": {
+        "lines": [
+          "Encoder"
+        ],
+        "lineWidths": [
+          74.734375
+        ],
+        "font": "bold",
+        "fontSizeUnits": 16,
+        "lineHeightUnits": 20,
+        "ascentUnits": 14.078125,
+        "descentUnits": 1.921875,
+        "width": 74.734375,
+        "height": 20,
+        "box": {
+          "x": 108.141,
+          "y": 27,
+          "width": 74.734,
+          "height": 20
+        },
+        "anchor": {
+          "x": 145.508,
+          "y": 43.078
+        }
+      }
+    },
+    {
+      "key": "g:inner",
+      "kind": "group",
+      "parent": "g:enc",
+      "rect": {
+        "x": 147.016,
+        "y": 55,
+        "width": 108,
+        "height": 94
+      },
+      "content": {
+        "x": 163.016,
+        "y": 99,
+        "width": 76,
+        "height": 34
+      },
+      "label": {
+        "lines": [
+          "Block"
+        ],
+        "lineWidths": [
+          50.0859375
+        ],
+        "font": "bold",
+        "fontSizeUnits": 16,
+        "lineHeightUnits": 20,
+        "ascentUnits": 14.078125,
+        "descentUnits": 1.921875,
+        "width": 50.0859375,
+        "height": 20,
+        "box": {
+          "x": 175.973,
+          "y": 71,
+          "width": 50.086,
+          "height": 20
+        },
+        "anchor": {
+          "x": 201.016,
+          "y": 87.078
+        }
+      }
+    },
+    {
+      "key": "g:dec",
+      "kind": "group",
+      "rect": {
+        "x": 432.209,
+        "y": 11,
+        "width": 123,
+        "height": 94
+      },
+      "content": {
+        "x": 448.209,
+        "y": 27,
+        "width": 91,
+        "height": 34
+      },
+      "label": {
+        "lines": [
+          "Decoder"
+        ],
+        "lineWidths": [
+          76.6484375
+        ],
+        "font": "bold",
+        "fontSizeUnits": 16,
+        "lineHeightUnits": 20,
+        "ascentUnits": 14.078125,
+        "descentUnits": 1.921875,
+        "width": 76.6484375,
+        "height": 20,
+        "box": {
+          "x": 455.384,
+          "y": 69,
+          "width": 76.649,
+          "height": 20
+        },
+        "anchor": {
+          "x": 493.709,
+          "y": 85.078
+        }
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "key": "n:a",
+      "kind": "node",
+      "parent": "g:enc",
+      "shape": "rectangle",
+      "rect": {
+        "x": 27,
+        "y": 99,
+        "width": 77,
+        "height": 34
+      },
+      "placement": "arrange",
+      "label": {
+        "lines": [
+          "Input"
+        ],
+        "lineWidths": [
+          48.0078125
+        ],
+        "font": "regular",
+        "fontSizeUnits": 16,
+        "lineHeightUnits": 20,
+        "ascentUnits": 14.078125,
+        "descentUnits": 1.921875,
+        "width": 48.0078125,
+        "height": 20,
+        "box": {
+          "x": 41.496,
+          "y": 106,
+          "width": 48.008,
+          "height": 20
+        },
+        "anchor": {
+          "x": 65.5,
+          "y": 122.078
+        }
+      }
+    },
+    {
+      "key": "n:b",
+      "kind": "node",
+      "parent": "g:inner",
+      "shape": "rectangle",
+      "rect": {
+        "x": 163.016,
+        "y": 99,
+        "width": 76,
+        "height": 34
+      },
+      "placement": "arrange",
+      "label": {
+        "lines": [
+          "Layer"
+        ],
+        "lineWidths": [
+          48
+        ],
+        "font": "regular",
+        "fontSizeUnits": 16,
+        "lineHeightUnits": 20,
+        "ascentUnits": 14.078125,
+        "descentUnits": 1.921875,
+        "width": 48,
+        "height": 20,
+        "box": {
+          "x": 177.016,
+          "y": 106,
+          "width": 48,
+          "height": 20
+        },
+        "anchor": {
+          "x": 201.016,
+          "y": 122.078
+        }
+      }
+    },
+    {
+      "key": "n:c",
+      "kind": "node",
+      "parent": "g:dec",
+      "shape": "rectangle",
+      "rect": {
+        "x": 448.209,
+        "y": 27,
+        "width": 91,
+        "height": 34
+      },
+      "placement": "arrange",
+      "label": {
+        "lines": [
+          "Output"
+        ],
+        "lineWidths": [
+          62.5703125
+        ],
+        "font": "regular",
+        "fontSizeUnits": 16,
+        "lineHeightUnits": 20,
+        "ascentUnits": 14.078125,
+        "descentUnits": 1.921875,
+        "width": 62.5703125,
+        "height": 20,
+        "box": {
+          "x": 462.424,
+          "y": 34,
+          "width": 62.57,
+          "height": 20
+        },
+        "anchor": {
+          "x": 493.709,
+          "y": 50.078
+        }
+      }
+    },
+    {
+      "key": "n:out",
+      "kind": "node",
+      "shape": "rectangle",
+      "rect": {
+        "x": 296.854,
+        "y": 266.354,
+        "width": 68,
+        "height": 34
+      },
+      "placement": "arrange",
+      "label": {
+        "lines": [
+          "Loss"
+        ],
+        "lineWidths": [
+          39.359375
+        ],
+        "font": "regular",
+        "fontSizeUnits": 16,
+        "lineHeightUnits": 20,
+        "ascentUnits": 14.078125,
+        "descentUnits": 1.921875,
+        "width": 39.359375,
+        "height": 20,
+        "box": {
+          "x": 311.175,
+          "y": 273.354,
+          "width": 39.359,
+          "height": 20
+        },
+        "anchor": {
+          "x": 330.854,
+          "y": 289.432
+        }
+      }
+    },
+    {
+      "key": "n:note",
+      "kind": "node",
+      "shape": "text",
+      "rect": {
+        "x": 120.508,
+        "y": 226.669,
+        "width": 50,
+        "height": 20
+      },
+      "placement": "attach",
+      "label": {
+        "lines": [
+          "N = 6"
+        ],
+        "lineWidths": [
+          49.3828125
+        ],
+        "font": "regular",
+        "fontSizeUnits": 16,
+        "lineHeightUnits": 20,
+        "ascentUnits": 14.078125,
+        "descentUnits": 1.921875,
+        "width": 49.3828125,
+        "height": 20,
+        "box": {
+          "x": 120.816,
+          "y": 226.669,
+          "width": 49.383,
+          "height": 20
+        },
+        "anchor": {
+          "x": 145.508,
+          "y": 242.747
+        }
+      }
+    },
+    {
+      "key": "n:enc-caption",
+      "kind": "node",
+      "shape": "text",
+      "rect": {
+        "x": 93.008,
+        "y": 201,
+        "width": 105,
+        "height": 20
+      },
+      "placement": "arrange",
+      "label": {
+        "lines": [
+          "(a) encoder"
+        ],
+        "lineWidths": [
+          104.390625
+        ],
+        "font": "regular",
+        "fontSizeUnits": 16,
+        "lineHeightUnits": 20,
+        "ascentUnits": 14.078125,
+        "descentUnits": 1.921875,
+        "width": 104.390625,
+        "height": 20,
+        "box": {
+          "x": 93.313,
+          "y": 201,
+          "width": 104.39,
+          "height": 20
+        },
+        "anchor": {
+          "x": 145.508,
+          "y": 217.078
+        }
+      }
+    },
+    {
+      "key": "n:inner-caption",
+      "kind": "node",
+      "parent": "g:enc",
+      "shape": "text",
+      "rect": {
+        "x": 138.016,
+        "y": 157,
+        "width": 126,
+        "height": 20
+      },
+      "placement": "arrange",
+      "label": {
+        "lines": [
+          "(i) inner block"
+        ],
+        "lineWidths": [
+          125.0859375
+        ],
+        "font": "regular",
+        "fontSizeUnits": 16,
+        "lineHeightUnits": 20,
+        "ascentUnits": 14.078125,
+        "descentUnits": 1.921875,
+        "width": 125.0859375,
+        "height": 20,
+        "box": {
+          "x": 138.473,
+          "y": 157,
+          "width": 125.086,
+          "height": 20
+        },
+        "anchor": {
+          "x": 201.016,
+          "y": 173.078
+        }
+      }
+    },
+    {
+      "key": "n:dec-caption",
+      "kind": "node",
+      "shape": "text",
+      "rect": {
+        "x": 336.709,
+        "y": 113,
+        "width": 314,
+        "height": 20
+      },
+      "placement": "arrange",
+      "label": {
+        "lines": [
+          "(b) a decoder with a longer caption"
+        ],
+        "lineWidths": [
+          313.9609375
+        ],
+        "font": "regular",
+        "fontSizeUnits": 16,
+        "lineHeightUnits": 20,
+        "ascentUnits": 14.078125,
+        "descentUnits": 1.921875,
+        "width": 313.9609375,
+        "height": 20,
+        "box": {
+          "x": 336.728,
+          "y": 113,
+          "width": 313.961,
+          "height": 20
+        },
+        "anchor": {
+          "x": 493.709,
+          "y": 129.078
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "key": "e:#0",
+      "kind": "edge",
+      "from": "n:a",
+      "to": "n:b",
+      "route": {
+        "points": [
+          {
+            "x": 104,
+            "y": 116
+          },
+          {
+            "x": 163.016,
+            "y": 116
+          }
+        ],
+        "net": 0,
+        "fromSide": "east",
+        "toSide": "west"
+      }
+    },
+    {
+      "key": "e:#1",
+      "kind": "edge",
+      "from": "g:inner",
+      "to": "n:c",
+      "route": {
+        "points": [
+          {
+            "x": 255.016,
+            "y": 102
+          },
+          {
+            "x": 401.532,
+            "y": 102
+          },
+          {
+            "x": 401.532,
+            "y": 44
+          },
+          {
+            "x": 448.209,
+            "y": 44
+          }
+        ],
+        "net": 1,
+        "fromSide": "east",
+        "toSide": "west"
+      }
+    },
+    {
+      "key": "e:#2",
+      "kind": "edge",
+      "from": "n:c",
+      "to": "n:out",
+      "route": {
+        "points": [
+          {
+            "x": 493.709,
+            "y": 61
+          },
+          {
+            "x": 493.709,
+            "y": 67
+          },
+          {
+            "x": 437.209,
+            "y": 67
+          },
+          {
+            "x": 437.209,
+            "y": 107
+          },
+          {
+            "x": 330.709,
+            "y": 107
+          },
+          {
+            "x": 330.709,
+            "y": 250.354
+          },
+          {
+            "x": 330.854,
+            "y": 250.354
+          },
+          {
+            "x": 330.854,
+            "y": 266.354
+          }
+        ],
+        "net": 2,
+        "fromSide": "south",
+        "toSide": "north"
+      }
+    }
+  ],
+  "nets": [
+    {
+      "id": 0,
+      "edges": [
+        "e:#0"
+      ],
+      "segments": [
+        [
+          {
+            "x": 104,
+            "y": 116
+          },
+          {
+            "x": 163.016,
+            "y": 116
+          }
+        ]
+      ]
+    },
+    {
+      "id": 1,
+      "edges": [
+        "e:#1"
+      ],
+      "segments": [
+        [
+          {
+            "x": 401.532,
+            "y": 44
+          },
+          {
+            "x": 448.209,
+            "y": 44
+          }
+        ],
+        [
+          {
+            "x": 255.016,
+            "y": 102
+          },
+          {
+            "x": 401.532,
+            "y": 102
+          }
+        ],
+        [
+          {
+            "x": 401.532,
+            "y": 44
+          },
+          {
+            "x": 401.532,
+            "y": 102
+          }
+        ]
+      ]
+    },
+    {
+      "id": 2,
+      "edges": [
+        "e:#2"
+      ],
+      "segments": [
+        [
+          {
+            "x": 437.209,
+            "y": 67
+          },
+          {
+            "x": 493.709,
+            "y": 67
+          }
+        ],
+        [
+          {
+            "x": 330.709,
+            "y": 107
+          },
+          {
+            "x": 437.209,
+            "y": 107
+          }
+        ],
+        [
+          {
+            "x": 330.709,
+            "y": 250.354
+          },
+          {
+            "x": 330.854,
+            "y": 250.354
+          }
+        ],
+        [
+          {
+            "x": 330.709,
+            "y": 107
+          },
+          {
+            "x": 330.709,
+            "y": 250.354
+          }
+        ],
+        [
+          {
+            "x": 330.854,
+            "y": 250.354
+          },
+          {
+            "x": 330.854,
+            "y": 266.354
+          }
+        ],
+        [
+          {
+            "x": 437.209,
+            "y": 67
+          },
+          {
+            "x": 437.209,
+            "y": 107
+          }
+        ],
+        [
+          {
+            "x": 493.709,
+            "y": 61
+          },
+          {
+            "x": 493.709,
+            "y": 67
+          }
+        ]
+      ]
+    }
+  ]
+}

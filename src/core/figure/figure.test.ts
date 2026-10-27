@@ -417,6 +417,22 @@ describe("edge cases", () => {
     ]);
   });
 
+  test("groups[].caption is an optional non-empty string (#130)", () => {
+    const parsed = parseFigure(
+      "version: 1\nfigure: { id: f }\ngroups:\n  - { id: g, caption: (a) one }\n  - { id: h }\n",
+    );
+    expect(parsed.ok && parsed.value.groups.map((g) => g.caption)).toEqual(["(a) one", undefined]);
+    // Parsing alone (what fmt reads) does not expand the caption.
+    expect(parsed.ok && parsed.value.nodes).toEqual([]);
+    const { state } = checkFigureSource(
+      'version: 1\nfigure: { id: f }\ngroups:\n  - { id: g, caption: "" }\n  - { id: h, caption: 3 }\n',
+    );
+    expect(summarize(state.diagnostics)).toEqual([
+      ["schema/invalid-value", ["groups", 0, "caption"], 4, 23],
+      ["schema/invalid-type", ["groups", 1, "caption"], 5, 23],
+    ]);
+  });
+
   test("metadata is passed through untouched", () => {
     const result = parseFigure(
       "version: 1\nfigure: { id: f }\nmetadata: { date: 2024-01-01, tags: [a, 1, null] }\n",

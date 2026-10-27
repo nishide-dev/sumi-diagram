@@ -51,8 +51,16 @@ export interface GeometryContext {
   isAncestor(ancestor: ElementKey, key: ElementKey): boolean;
 }
 
+/** The ID of the group a caption node was expanded from (#130), if `element` is one. */
+function captionGroupId(element: ElementIR): string | undefined {
+  if (element.kind !== "node" || element.captionOf === undefined) return undefined;
+  return element.captionOf.slice("g:".length);
+}
+
 function subjectOf(element: ElementIR): DiagnosticSubject {
   if (element.kind === "edge") return { kind: "edge", id: element.id ?? `edges[${element.index}]` };
+  const captioned = captionGroupId(element);
+  if (captioned !== undefined) return { kind: "group", id: captioned };
   return { kind: element.kind, id: element.id };
 }
 
@@ -60,6 +68,8 @@ function nameOf(element: ElementIR): string {
   if (element.kind === "edge") {
     return element.id === undefined ? `edge edges[${element.index}]` : `edge "${element.id}"`;
   }
+  const captioned = captionGroupId(element);
+  if (captioned !== undefined) return `the caption of group "${captioned}"`;
   return `${element.kind} "${element.id}"`;
 }
 

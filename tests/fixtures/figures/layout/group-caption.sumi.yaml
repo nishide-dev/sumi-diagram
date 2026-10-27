@@ -1,0 +1,41 @@
+# groups[].caption (#130) in the structured engine: each caption is a label
+# centred below its group's border. "enc" has a nested captioned group and a
+# note attached below it (placed below the caption); "dec" has its title at
+# the bottom, inside the border, above its caption; "out" is below the row,
+# reached by an edge the router takes around the caption of "dec".
+version: 1
+figure:
+  id: group-caption
+  theme: academic
+  profile: paper-double
+  layout:
+    arrange:
+      stack:
+        gap: 8mm
+        items:
+          - row: { gap: 10mm, align: start, items: [enc, dec] }
+          - out
+groups:
+  - id: enc
+    label: Encoder
+    caption: (a) encoder
+    arrange: { row: { gap: 6mm, items: [a, inner] } }
+  - id: inner
+    label: Block
+    caption: (i) inner block
+    arrange: { stack: { items: [b] } }
+  - id: dec
+    label: Decoder
+    labelAt: bottom
+    caption: (b) a decoder with a longer caption
+    arrange: { stack: { items: [c] } }
+nodes:
+  - { id: a, component: box, label: Input }
+  - { id: b, component: box, label: Layer }
+  - { id: c, component: box, label: Output }
+  - { id: out, component: box, label: Loss }
+  - { id: note, component: label, label: "N = 6", attach: { to: enc, side: south, gap: 1mm } }
+edges:
+  - { from: a, to: b }
+  - { from: inner, to: c }
+  - { from: c, to: out }

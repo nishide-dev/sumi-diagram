@@ -15,9 +15,10 @@ export const emptyFigure = defineRule({
   defaultSeverity: "warning",
   fixable: false,
   run(context) {
-    const { nodes } = context.state.doc;
-    // `undefined` means `nodes` could not be read (already an error).
-    if (nodes === undefined || nodes.length > 0) return [];
+    const { nodes, captions } = context.state.doc;
+    // `undefined` means `nodes` could not be read (already an error). Group
+    // captions (#130) are expanded into nodes after the written ones.
+    if (nodes === undefined || nodes.length > (captions?.size ?? 0)) return [];
     const subject = figureSubject(context);
     return [
       {
@@ -39,8 +40,11 @@ export const noEdges = defineRule({
     // Any edge, even an invalid one, means the author did draw edges.
     const { edges } = context.state.doc;
     if (edges === undefined || edges.length > 0) return [];
-    // Invalid nodes already have errors; count only the valid ones.
-    const nodeCount = context.elements.filter((e) => e.kind === "node").length;
+    // Invalid nodes already have errors; count only the valid ones, and not
+    // the captions of groups (#130: label nodes whose subject is the group).
+    const nodeCount = context.elements.filter(
+      (e) => e.kind === "node" && e.subject.kind === "node",
+    ).length;
     if (nodeCount < 2) return [];
     const subject = figureSubject(context);
     return [
