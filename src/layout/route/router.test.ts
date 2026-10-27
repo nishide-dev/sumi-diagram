@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { stringify } from "yaml";
 import type { ElementKey } from "../../core/check-state";
 import { type LayoutFigureOptions, layoutStructuredFigure } from "../index";
-import type { EdgeLayout, LayoutIR, Point, Rect } from "../ir";
+import { type EdgeLayout, type LayoutIR, type Point, type Rect, roundUnits } from "../ir";
 import type { TextMeasurer } from "../text";
 import { checkRoutes, type RouteCheckReport, routeProblemCount } from "./check";
 import { MAX_REPORTED_CROSSINGS } from "./crossings";
@@ -545,6 +545,145 @@ describe("edges into and out of one port (#113)", () => {
     expect(value.layout.nets?.map((n) => n.edges)).toEqual([["e:#0", "e:#1", "e:#2"]]);
     expectClean(value);
   });
+});
+
+describe("parallel edges after the in/out split (#143)", () => {
+  /** 120pt × 60pt, a new object each time (the YAML writer would alias a shared one). */
+  const big = () => ({ width: "120pt", height: "60pt" });
+  const pairsOf = (list: string) =>
+    list.split(" ").map((p) => ({ from: p[0] as string, to: p[1] as string }));
+  /** The routed end points of edge `i`: first and last. */
+  const endsOf = (layout: LayoutIR, i: number) => {
+    const points = pointsOf(layout, i);
+    return [points[0], points.at(-1)].map((p) => JSON.stringify(p));
+  };
+
+  test("the reproduction: the two a → b edges keep their own points and nets", () => {
+    const text = figure(
+      { row: { gap: "30pt", items: ["a", "b", "c"] } },
+      [
+        box("a", big()),
+        box("b", big()),
+        box("c", big()),
+        { ...box("d", big()), attach: { to: "b", side: "south", gap: "60pt" } },
+        { ...box("e", big()), attach: { to: "c", side: "south", gap: "60pt" } },
+      ],
+      pairsOf("dc ae cd ca ab ae ac ae ab"),
+    );
+    const { layout } = run(text);
+    const [from4, to4] = endsOf(layout, 4);
+    const [from8, to8] = endsOf(layout, 8);
+    expect(from4).not.toBe(from8);
+    expect(to4).not.toBe(to8);
+    expect(edgeOf(layout, 4).route?.net).not.toBe(edgeOf(layout, 8).route?.net);
+    // Still one straight line each: the moved end took b's end along.
+    expect(pointsOf(layout, 4)).toHaveLength(2);
+    expect(pointsOf(layout, 8)).toHaveLength(2);
+    // Fan-out sharing is untouched: a → c leaves a's port with the second
+    // a → b (the multi-edge sharing put both at 2/3), one net as before.
+    expect(from8).toBe(endsOf(layout, 6)[0]);
+    expect(edgeOf(layout, 8).route?.net).toBe(edgeOf(layout, 6).route?.net);
+  });
+
+  test("a smaller case: the moved end takes the other half of the side", () => {
+    // On a's east side, c → a enters at 1/3 (shared with a → c at 2/3) where
+    // the first a → b leaves (shared with the second at 2/3). The split moves
+    // the leaving end half way toward the corner, (1/3 + 1) / 2 = 2/3: the
+    // second a → b's point. It takes 1/6 instead, and b's end follows.
+    const value = run(
+      figure(
+        { row: { items: ["a", "b", "c"] } },
+        [box("a"), box("b"), box("c")],
+        pairsOf("ca ac ab ab"),
+      ),
+    );
+    const { layout } = value;
+    const a = rectOf(layout, "a");
+    const b = rectOf(layout, "b");
+    const at = (fraction: number) => roundUnits(a.y + a.height * fraction);
+    expect(pointsOf(layout, 2)).toEqual([
+      { x: a.x + a.width, y: at(1 / 6) },
+      { x: b.x, y: at(1 / 6) },
+    ]);
+    expect(pointsOf(layout, 3)).toEqual([
+      { x: a.x + a.width, y: at(2 / 3) },
+      { x: b.x, y: at(2 / 3) },
+    ]);
+    expect(edgeOf(layout, 2).route?.net).not.toBe(edgeOf(layout, 3).route?.net);
+  });
+
+  test("random small figures: parallel edges never share an end after resolution", () => {
+    // Seeded search like #134's (§6.33): 3 boxes in a row, 2 attached, 4–11
+    // edges, both fan-in modes. Ends of parallel edges (same two elements,
+    // same direction) that the multi-edge sharing put apart stay apart.
+    let seed = 143;
+    const rand = () => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return seed / 2147483648;
+    };
+    const pick = <T>(list: readonly T[]) => list[Math.floor(rand() * list.length)] as T;
+    const sides = ["north", "east", "south", "west"] as const;
+    /** Figures (with each fan-in mode) that have parallel edges and lay out. */
+    let checked = 0;
+    for (let n = 0; n < 1500; n++) {
+      const nodes = [
+        box("a", big()),
+        box("b", big()),
+        box("c", big()),
+        {
+          ...box("d", big()),
+          attach: { to: pick(["a", "b", "c"]), side: pick(sides), gap: "60pt" },
+        },
+        {
+          ...box("e", big()),
+          attach: { to: pick(["a", "b", "c"]), side: pick(sides), gap: "60pt" },
+        },
+      ];
+      const ids = ["a", "b", "c", "d", "e"];
+      const edges: { from: string; to: string }[] = [];
+      const count = 4 + Math.floor(rand() * 8);
+      while (edges.length < count) {
+        const from = pick(ids);
+        const to = pick(ids);
+        if (from !== to) edges.push({ from, to });
+      }
+      const keys = edges.map((e) => `${e.from} ${e.to}`);
+      const parallel = new Set(keys).size < keys.length;
+      for (const fanIn of [undefined, "spread"]) {
+        const text = stringify({
+          version: 1,
+          figure: {
+            id: "t",
+            theme: "academic",
+            layout: { arrange: { row: { gap: "30pt", items: ["a", "b", "c"] } }, fanIn },
+          },
+          nodes,
+          edges,
+        });
+        const placed = layoutStructuredFigure(text, { measurer: FAKE, route: false });
+        // An attach onto a taken side is a layout error: not this test's concern.
+        if (!placed.ok) continue;
+        if (parallel) checked++;
+        const ends = resolveEnds(placed.value.ir, placed.value.layout);
+        for (const [i, p] of ends.entries()) {
+          for (const [j, q] of ends.entries()) {
+            if (j <= i || keys[i] !== keys[j]) continue;
+            // Other errors (an attached box over another one) are not the
+            // split's; the parallel-edge one is never needed here.
+            for (const pair of [p, q]) {
+              if ("error" in pair) expect(pair.error).not.toContain("parallel edge");
+            }
+            if ("error" in p || "error" in q) continue;
+            const at = (end: typeof p.from) => `${end.key} ${end.port.x} ${end.port.y}`;
+            if (at(p.from) === at(q.from) || at(p.to) === at(q.to)) {
+              throw new Error(`edges ${i} and ${j} share an end (fanIn ${fanIn}):\n${text}`);
+            }
+          }
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(1000);
+  }, 60_000);
 });
 
 describe("special ends", () => {

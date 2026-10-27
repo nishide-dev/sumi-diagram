@@ -503,10 +503,10 @@ describe("figure.layout.fanIn", () => {
       expect(JSON.stringify(spread.layout)).toBe(JSON.stringify(merged.layout));
     });
 
-    test("the re-review case: the two a → b edges are where merge mode puts them", () => {
-      // Merge mode (unchanged since #113) already joins the two a → b edges
-      // on one point of a (the split moves them onto it); the spread before
-      // the guard did too. The guard keeps the spread from doing worse.
+    test("the re-review case: the two a → b edges stay apart in both modes", () => {
+      // Until #143 the #113 split moved one a → b end onto the other's point
+      // in merge mode too (one line, one net); the guard only kept the spread
+      // from doing worse. Now neither mode joins them.
       const nodes = nodesWith({ to: "b", side: "south" }, { to: "c", side: "south" });
       const edges = edgesOf("dc ae cd ca ab ae ac ae ab");
       const spread = run(figure(arrange, nodes, edges, "spread"));
@@ -514,8 +514,8 @@ describe("figure.layout.fanIn", () => {
       expectNoNewCoincidence(spread, merged);
       const joined = (value: ReturnType<typeof run>) =>
         routeOf(value.layout, 4).net === routeOf(value.layout, 8).net;
-      expect(joined(merged)).toBe(true);
-      expect(joined(spread)).toBe(joined(merged));
+      expect(joined(merged)).toBe(false);
+      expect(joined(spread)).toBe(false);
     });
   });
 
