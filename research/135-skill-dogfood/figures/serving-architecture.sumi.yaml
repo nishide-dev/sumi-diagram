@@ -1,4 +1,5 @@
 version: 1
+requires: ">=0.5.0"
 figure:
   id: serving-architecture
   theme: color

@@ -8,9 +8,11 @@ edges itself (orthogonal lines, shared trunks). It is newer than the
 (and `sumi catalog --kind node` lists no `operator` / `junction`), the
 installed CLI predates it — tell the user and use auto instead. Group
 `labelAt` and `caption`, edge `labelAt` / `labelSide`, `figure.layout.align`,
-`figure.layout.fanIn` and the `legend` component came later (0.5.0): if
-`lint` reports `schema/unknown-field` for them or `component/unknown` for
-`legend`, the CLI predates them — fall back to the older ways noted below.
+`figure.layout.fanIn` and the `legend` component came later (0.5.0; the
+examples that use them say `requires: ">=0.5.0"`): if `lint` reports
+`schema/unsatisfied-requires`, `schema/unknown-field` for them or
+`component/unknown` for `legend`, the CLI predates them — drop `requires`
+and fall back to the older ways noted below.
 
 ## Which engine
 
@@ -108,6 +110,7 @@ end on it; a node attached `south` of the group goes under the caption.
 ```yaml
 # expect-render: fits
 version: 1
+requires: ">=0.5.0"
 figure:
   id: group-title
   theme: academic
@@ -211,6 +214,7 @@ figure:
 ```yaml
 # expect-render: fits
 version: 1
+requires: ">=0.5.0"
 figure:
   id: unet-skips
   theme: academic
@@ -374,6 +378,7 @@ arrow):
 ```yaml
 # expect-render: fits
 version: 1
+requires: ">=0.5.0"
 figure:
   id: fan-in
   theme: color

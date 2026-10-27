@@ -7,7 +7,7 @@
 - **使ったもの**: このブランチのソース（`skills/sumi/scripts/sumi`、`sumi --version` = 0.4.1。段階 B の機能はすべて main に入っている）。描く間に読んだのは、この PR で更新した Skill（`SKILL.md` と `references/*.md`）と CLI の診断・hint だけ。
 - **作業**: `lint → render（SVG）→ scripts/preview（Quick Look の PNG）` を回して直した。
 - **注意（偏り）**: 作業者は Skill を書いた本人で、#124 の草案も読んでいる。「Skill だけで再現できるか」の確認としては甘い。草案の構文をそのまま写すのではなく、#109 の図の内容から Skill の書き方で組み、違いは下に記録した。
-- **`requires`**: 各図は段階 B の構文を使うが、`requires: ">=0.5.0"` は書いていない。このチェックアウトの版は 0.4.1 のままで（版の更新はリリースの Issue）、書くと `schema/unsatisfied-requires` で止まるため。Skill（figure-format.md）にもそう書いた。
+- **`requires`**: 各図は段階 B の構文を使うが、`requires: ">=0.5.0"` は書いていない。このチェックアウトの版は 0.4.1 のままで（版の更新はリリースの Issue）、書くと `schema/unsatisfied-requires` で止まるため。Skill（figure-format.md）にもそう書いた。v0.5.0 のリリース（#146）で版が 0.5.0 になったので、4 図に `requires: ">=0.5.0"` を付けた（それ以外は変えていない）。
 - 画像 3 点（`sample.png`・`augmented.png`・`loss-curve.svg`）は #124 からの複製。
 
 再現: `cd research/135-skill-dogfood/figures && <repo>/skills/sumi/scripts/sumi render <file>.sumi.yaml -o /tmp/<file>.svg`。
