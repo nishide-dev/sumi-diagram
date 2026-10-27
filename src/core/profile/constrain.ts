@@ -107,6 +107,15 @@ function locateElement(
       ? (["group", "groups"] as const)
       : (["node", "nodes"] as const);
   const index = state.doc[collection]?.findIndex((element) => element?.id === id) ?? -1;
+  // A group's caption (#130) is written as the group's `caption` field.
+  const caption = collection === "nodes" ? state.doc.captions?.get(index) : undefined;
+  if (caption !== undefined) {
+    return {
+      subject: { kind: "group", id: caption.group },
+      path: [...caption.path],
+      name: `the caption of group "${caption.group}"`,
+    };
+  }
   return {
     subject: { kind, id },
     path: index >= 0 ? [collection, index] : [],

@@ -6,6 +6,7 @@
 import { type CheckOptions, checkFigure } from "../core/check";
 import type { Diagnostic } from "../core/diagnostics";
 import { formatDocPath } from "../core/diagnostics";
+import { clampCaptionPaths } from "../core/figure/caption";
 import type { FigureCheck } from "../core/figure/check";
 import { getTheme } from "../core/theme/builtin";
 import { type LintConfig, type ResolvedLintConfig, resolveLintConfig } from "./config";
@@ -55,11 +56,14 @@ export function runLintRules(check: FigureCheck, config: ResolvedLintConfig): Di
   const { state, locate } = check;
   const themeId = state.doc.figure?.theme;
   const context = createLintContext(state, themeId === undefined ? undefined : getTheme(themeId));
-  return config.rules.flatMap(({ rule, severity, options }) =>
+  const diagnostics = config.rules.flatMap(({ rule, severity, options }) =>
     !isStructuralRule(rule)
       ? []
       : rule.run(context, options).map((f) => toDiagnostic(f, rule.id, severity, locate)),
   );
+  // A finding about a caption's label points at the `caption` field (#130).
+  clampCaptionPaths(state.doc, diagnostics);
+  return diagnostics;
 }
 
 /**

@@ -475,7 +475,7 @@ class Router {
           edge.ir,
           blockers.length === 0
             ? reason
-            : `${reason} (in the way: ${blockers.map((key) => `"${this.#id(key)}"`).join(", ")})`,
+            : `${reason} (in the way: ${blockers.map((key) => (this.#isCaption(key) ? `the caption of "${this.#id(key)}"` : `"${this.#id(key)}"`)).join(", ")})`,
           blockers,
         );
         continue;
@@ -523,9 +523,18 @@ class Router {
     return room;
   }
 
+  /** An element's ID for messages; a caption (#130) is named by its group, as written. */
   #id(key: ElementKey): string {
     const element = this.#ir.elements.get(key);
+    if (element?.kind === "node" && element.captionOf !== undefined) {
+      return this.#id(element.captionOf);
+    }
     return element !== undefined && element.kind !== "edge" ? element.id : key;
+  }
+
+  #isCaption(key: ElementKey): boolean {
+    const element = this.#ir.elements.get(key);
+    return element?.kind === "node" && element.captionOf !== undefined;
   }
 
   /**
@@ -541,7 +550,9 @@ class Router {
       return {
         ...(at !== undefined && { path: at.path }),
         ...(at?.location !== undefined && { location: at.location }),
-        message: `Node "${id(key)}" is in the way.`,
+        message: this.#isCaption(key)
+          ? `The caption of group "${id(key)}" is in the way.`
+          : `Node "${id(key)}" is in the way.`,
       };
     });
     const attached = blockers.flatMap((key) => {

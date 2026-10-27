@@ -18,9 +18,9 @@ import { iconBox } from "../assets/draw";
 import type { ElementKey } from "../core/check-state";
 import type { GroupLabelPosition } from "../core/figure/schema";
 import { getProfile } from "../core/profile/builtin";
-import type { ResolvedStyle, StyleLength } from "../core/theme/style";
+import { KIND_DEFAULTS, type ResolvedStyle, type StyleLength } from "../core/theme/style";
 import { type NodePadding, nodeSize } from "../layout/structured/sizing";
-import type { EdgeIR, FigureIR, NodeIR } from "./ir";
+import type { EdgeIR, FigureIR, GroupIR, NodeIR } from "./ir";
 
 const INDENT = "  ";
 
@@ -70,6 +70,47 @@ export function generateD2(ir: FigureIR): string {
     if (element === undefined || element.kind === "edge") {
       throw new Error(`internal error: ${key} is not a node or group`);
     }
+    // A caption (#130) is written with its group, as the container around it.
+    if (element.kind === "node" && element.captionOf !== undefined) return;
+    if (element.kind === "group" && element.caption !== undefined) {
+      writeCaption(element.caption, depth, () => writeElement(element, depth + 1));
+      return;
+    }
+    writeElement(element, depth);
+  };
+
+  /**
+   * A group's caption (#130, design doc §6.32): a transparent container
+   * around the group whose label is the caption, at the bottom centre inside
+   * it, so in the container's padding below the group's border. Not
+   * `outside-bottom-center` (#124): with it, D2 v0.9.0 moves the container's
+   * contents up after the ELK layout but not the far ends of edges leaving
+   * the container, which then run askew. The caption node's own style gives
+   * the text; the container draws nothing.
+   */
+  const writeCaption = (key: ElementKey, depth: number, writeGroup: () => void) => {
+    const caption = ir.elements.get(key);
+    if (caption?.kind !== "node") throw new Error(`internal error: ${key} is not a caption node`);
+    out.push("");
+    write(depth, `${d2String(caption.d2Key)}: {`);
+    const body = depth + 1;
+    write(body, `label: ${d2String(caption.label)}`);
+    write(body, `class: ${classList(key, "node")}`);
+    write(body, "shape: rectangle");
+    write(body, "label.near: bottom-center");
+    // No fill (a container's default) and no border: only the text shows.
+    const none = { pt: 0, units: 0 };
+    writeStyle(
+      { ...caption.style, fill: KIND_DEFAULTS.group.fill, strokeWidth: none },
+      body,
+      write,
+    );
+    writeGroup();
+    write(depth, "}");
+  };
+
+  const writeElement = (element: NodeIR | GroupIR, depth: number) => {
+    const { key } = element;
     out.push("");
     write(depth, `${d2String(element.d2Key)}: {`);
     const body = depth + 1;

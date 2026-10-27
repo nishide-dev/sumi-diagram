@@ -1,0 +1,22 @@
+# groups[].caption (#130) in the auto engine: each captioned group is drawn
+# inside a transparent container whose label, at its bottom centre, is the
+# caption. "inner" is nested in "enc"; "dec" has its title at the bottom. The
+# layout runs right, so no edge leaves a group downwards through a caption.
+version: 1
+figure:
+  id: group-caption
+  theme: academic
+  profile: paper-double
+  layout:
+    direction: right
+groups:
+  - { id: enc, label: Encoder, caption: (a) encoder }
+  - { id: inner, label: Block, group: enc, caption: (i) inner block }
+  - { id: dec, label: Decoder, labelAt: bottom, caption: (b) a decoder with a longer caption }
+nodes:
+  - { id: a, component: box, label: Input, group: enc }
+  - { id: b, component: box, label: Layer, group: inner }
+  - { id: c, component: box, label: Output, group: dec }
+edges:
+  - { from: a, to: b }
+  - { from: inner, to: c }

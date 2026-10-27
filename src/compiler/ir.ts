@@ -15,6 +15,7 @@ import { type Anchor, parseAnchor } from "../core/figure/layout";
 import type {
   ArrangeAlign,
   ArrangeBox,
+  ArrangeItem,
   EdgeLabelPosition,
   EdgeLabelSide,
   FigureEdge,
@@ -143,6 +144,11 @@ export interface NodeIR extends ObjectIRBase {
   readonly icon?: IconIR;
   /** The image a `sumi/image` node embeds (#94); the node has no label. */
   readonly image?: ImageIR;
+  /**
+   * The group whose `caption` this label node was expanded from (#130). Its
+   * ID is `<group>-caption`; it has the group's parent.
+   */
+  readonly captionOf?: ElementKey;
 }
 
 /** `icon: <set>/<name>`, checked against the bundled sets. */
@@ -175,6 +181,8 @@ export interface GroupIR extends ObjectIRBase {
    * each engine keeps its default (structured: top, auto: top-left).
    */
   readonly labelAt?: GroupLabelPosition;
+  /** The label node expanded from the group's `caption` (#130). */
+  readonly caption?: ElementKey;
 }
 
 export interface EdgeIR extends ElementIRBase {
@@ -250,10 +258,25 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
   const groupsById = new Map<string, FigureGroup>();
   for (const g of present(doc.groups)) groupsById.set(g.id, g);
   const endpointKey = (id: string): ElementKey => (groupsById.has(id) ? groupKey(id) : nodeKey(id));
-  const d2PathOf = (prefix: string, id: string, parent: string | undefined): string[] => {
+  // Group ID → its caption node's ID (#130).
+  const captions = new Map<string, string>();
+  for (const [index, origin] of doc.captions ?? []) {
+    const node = doc.nodes[index];
+    if (node !== undefined) captions.set(origin.group, node.id);
+  }
+  const auto = figure.layout.engine === "auto";
+  // In D2, a captioned group is drawn inside a container that is its
+  // caption node (design doc §6.32): the caption's key comes before the group's.
+  const d2KeysOfGroup = (id: string): string[] => {
+    const caption = auto ? captions.get(id) : undefined;
+    return caption === undefined ? [`g_${id}`] : [`n_${caption}`, `g_${id}`];
+  };
+  const d2PathOf = (prefix: "n" | "g", id: string, parent: string | undefined): string[] => {
     const ancestors: string[] = [];
-    for (let p = parent; p !== undefined; p = groupsById.get(p)?.group) ancestors.unshift(`g_${p}`);
-    return [...ancestors, `${prefix}_${id}`];
+    for (let p = parent; p !== undefined; p = groupsById.get(p)?.group) {
+      ancestors.unshift(...d2KeysOfGroup(p));
+    }
+    return [...ancestors, ...(prefix === "g" ? d2KeysOfGroup(id) : [`n_${id}`])];
   };
   const objectBase = (
     key: ElementKey,
@@ -287,9 +310,18 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
   }
 
   const nodes: NodeIR[] = [];
+  const captionGapPt = profile.layout.groupPadding.pt / 2;
+  const attachTarget = (attach: NonNullable<FigureNode["attach"]>): ElementKey => {
+    // Below a captioned group is its caption: attach there instead (#130).
+    const caption = attach.side === "south" ? captions.get(attach.to) : undefined;
+    return caption === undefined ? endpointKey(attach.to) : nodeKey(caption);
+  };
+  const arrangeOf = (box: ArrangeBox) => arrangeIR(box, endpointKey, captions, captionGapPt);
+
   for (const [index, n] of doc.nodes.entries()) {
     if (n === undefined) continue;
     const key = nodeKey(n.id);
+    const caption = doc.captions?.get(index);
     const component = componentOf(state, key);
     if (component.manifest.kind !== "node") throw kindMismatch(key);
     const { width, height } = component.props;
@@ -318,7 +350,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
         style,
         ...(n.attach !== undefined && {
           attach: freeze({
-            to: endpointKey(n.attach.to),
+            to: attachTarget(n.attach),
             side: n.attach.side,
             gapPt: n.attach.gap ?? 0,
           }),
@@ -327,9 +359,10 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
         ...(component.manifest.embed === "image" && {
           image: imageIR(component.props, sourceEntry(["nodes", index, "props", "src"])),
         }),
+        ...(caption !== undefined && { captionOf: groupKey(caption.group) }),
       }),
     );
-    mapSource(key, ["nodes", index]);
+    mapSource(key, caption?.path ?? ["nodes", index]);
     addChild(n.group, key);
   }
 
@@ -342,8 +375,9 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
       shape: "rectangle",
       children: freeze(childrenOf.get(g.id) ?? []),
       style: styleOf(state, key, "group"),
-      ...(g.arrange !== undefined && { arrange: arrangeIR(g.arrange, endpointKey) }),
+      ...(g.arrange !== undefined && { arrange: arrangeOf(g.arrange) }),
       ...(g.labelAt !== undefined && { labelAt: g.labelAt }),
+      ...(captions.has(g.id) && { caption: nodeKey(captions.get(g.id) as string) }),
     });
   });
 
@@ -371,7 +405,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
     edges: freeze(edges),
     roots: freeze(childrenOf.get(undefined) ?? []),
     ...(figure.layout.arrange !== undefined && {
-      arrange: arrangeIR(figure.layout.arrange, endpointKey),
+      arrange: arrangeOf(figure.layout.arrange),
     }),
     elements,
     sourceMap: readonlyMap(sourceMap),
@@ -474,18 +508,47 @@ function anchorIR<F extends "fromAnchor" | "toAnchor">(
   return { [field]: freeze(anchor) } as Partial<Record<F, Anchor>>;
 }
 
-/** Converts an arrange tree (checked by the layout stage) to its IR. */
-function arrangeIR(box: ArrangeBox, keyOf: (id: string) => ElementKey): ArrangeBoxIR {
+/**
+ * Converts an arrange tree (checked by the layout stage) to its IR. A
+ * captioned group (#130, design doc §6.32) becomes a stack of the group and
+ * its caption node, `captionGapPt` apart. The stack centres the caption under
+ * the group; in a stack that stretches its items, it stretches too, so the
+ * group keeps the width it has without a caption. `inherited` is the
+ * alignment the layout engine gives a box that omits `align` (§6.21: only
+ * from a box on the same axis).
+ */
+function arrangeIR(
+  box: ArrangeBox,
+  keyOf: (id: string) => ElementKey,
+  captions: ReadonlyMap<string, string>,
+  captionGapPt: number,
+  inherited: ArrangeAlign = "center",
+): ArrangeBoxIR {
   const spec = box.stack ?? box.row;
   if (spec === undefined) throw new Error("internal error: arrange box without stack or row");
+  const kind = box.stack !== undefined ? "stack" : "row";
+  const align = spec.align ?? inherited;
+  const item = (item: ArrangeItem): ArrangeItemIR => {
+    if (typeof item !== "string") {
+      const nested = item.stack !== undefined ? "stack" : "row";
+      return arrangeIR(item, keyOf, captions, captionGapPt, nested === kind ? align : "center");
+    }
+    const caption = captions.get(item);
+    if (caption === undefined) return keyOf(item);
+    return freeze({
+      kind: "stack",
+      direction: "down",
+      gapPt: captionGapPt,
+      align: kind === "stack" && align === "stretch" ? "stretch" : "center",
+      items: freeze([keyOf(item), nodeKey(caption)]),
+    });
+  };
   return freeze({
-    kind: box.stack !== undefined ? "stack" : "row",
+    kind,
     direction: spec.direction,
     ...(spec.gap !== undefined && { gapPt: spec.gap }),
     ...(spec.align !== undefined && { align: spec.align }),
-    items: freeze(
-      spec.items.map((item) => (typeof item === "string" ? keyOf(item) : arrangeIR(item, keyOf))),
-    ),
+    items: freeze(spec.items.map(item)),
   });
 }
 

@@ -49,11 +49,15 @@ function figureSubject(context: GeometryContext) {
   return { kind: "figure", id: context.ir.meta.id } as const;
 }
 
-/** Where a label is written: `label`, or `icon` for a node that draws an icon in its place (#94). */
-const labelPath = (element: GeometryElement): DocPath => [
-  ...element.docPath,
-  hasIcon(element) ? "icon" : "label",
-];
+/**
+ * Where a label is written: `label`, or `icon` for a node that draws an icon
+ * in its place (#94). A caption's text is the `caption` field itself (#130).
+ */
+const labelPath = (element: GeometryElement): DocPath =>
+  isCaption(element) ? element.docPath : [...element.docPath, hasIcon(element) ? "icon" : "label"];
+
+const isCaption = (element: GeometryElement): boolean =>
+  element.ir.kind === "node" && element.ir.captionOf !== undefined;
 
 const hasIcon = (element: GeometryElement): boolean =>
   element.ir.kind === "node" && element.ir.icon !== undefined;
@@ -490,6 +494,13 @@ function groupLabelAt(context: GeometryContext, group: GeometryElement): GroupLa
  * edges differ (#114). A group's title is where its `labelAt` puts it (#127).
  */
 export function edgeCrossesLabelHint(context: GeometryContext, other: GeometryElement): string {
+  if (isCaption(other)) {
+    // The structured router goes around a caption (a node); D2/ELK does not
+    // know the caption is there (the label of a container around the group, #130).
+    return isStructured(context)
+      ? "A group's caption sits centred below the group. Move the edge's ends with fromAnchor / toAnchor (e.g. leave the group from a side), or change the arrangement so the edge does not pass below the group."
+      : "A group's caption sits centred below the group, and the auto layout does not route edges around it: an edge that leaves or passes the group downwards crosses it. Change layout.direction so the edge leaves the group sideways, connect elements beside the group, or use the structured layout, whose router goes around captions.";
+  }
   const group =
     other.kind === "group" ? GROUP_LABEL_WORDS[groupLabelAt(context, other)] : undefined;
   if (isStructured(context)) {

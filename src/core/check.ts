@@ -1,4 +1,5 @@
 import { checkAssets } from "../assets/check";
+import { captionLocator, clampCaptionPaths, expandCaptions } from "./figure/caption";
 import { type CheckFigureOptions, checkFigureSource, type FigureCheck } from "./figure/check";
 import { constrainFigure } from "./profile/constrain";
 import { builtinRegistry } from "./registry/builtins";
@@ -13,7 +14,8 @@ export interface CheckOptions extends CheckFigureOptions {
 
 /**
  * Runs every diagnostic-collecting stage on a `*.sumi.yaml` source: `yaml`,
- * `schema`, `ref` (see {@link checkFigureSource}), `component`, `asset`
+ * `schema`, `ref`, `layout` (see {@link checkFigureSource}), the expansion of
+ * group captions (`ref/reserved-id`, #130), `component`, `asset`
  * (icons and image paths, #94), `theme` and `profile`. The returned state has
  * `components` and `styles` set.
  *
@@ -22,10 +24,16 @@ export interface CheckOptions extends CheckFigureOptions {
  */
 export function checkFigure(text: string, options: CheckOptions = {}): FigureCheck {
   const { registry = builtinRegistry(), ...rest } = options;
-  const check = checkFigureSource(text, rest);
-  resolveComponents(check.state, registry, check.locate);
-  checkAssets(check.state, check.locate);
-  styleFigure(check.state, check.locate);
-  constrainFigure(check.state, check.locate, { fonts: labelFontUsages(check.state) });
+  const source = checkFigureSource(text, rest);
+  const { state } = source;
+  // Group captions (#130) become label nodes for the following stages; their
+  // diagnostics point at the `caption` field.
+  expandCaptions(state, source.locate);
+  const check: FigureCheck = { state, locate: captionLocator(state.doc, source.locate) };
+  resolveComponents(state, registry, check.locate);
+  checkAssets(state, check.locate);
+  styleFigure(state, check.locate);
+  constrainFigure(state, check.locate, { fonts: labelFontUsages(state) });
+  clampCaptionPaths(state.doc, state.diagnostics);
   return check;
 }
