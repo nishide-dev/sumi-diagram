@@ -16,6 +16,7 @@
 
 import { iconBox } from "../assets/draw";
 import type { ElementKey } from "../core/check-state";
+import type { GroupLabelPosition } from "../core/figure/schema";
 import { getProfile } from "../core/profile/builtin";
 import type { ResolvedStyle, StyleLength } from "../core/theme/style";
 import { type NodePadding, nodeSize } from "../layout/structured/sizing";
@@ -34,9 +35,20 @@ const EDGE_OPERATORS: Readonly<Record<EdgeIR["direction"], string>> = {
  * Where a group's label goes (#31). D2 centers it at the top by default, where
  * ELK routes edges entering the container from above (into the first child,
  * which ELK also centers); at the top-left corner it is out of their way in
- * most layouts. D2 still reserves the room for it above the children.
+ * most layouts. D2 still reserves the room for it above the children. This is
+ * the default; `labelAt` (#127) picks another position inside the border.
  */
 const GROUP_LABEL_NEAR = "top-left";
+
+/** D2's `label.near` for each `groups[].labelAt` (#127, verified with D2 v0.9.0 in #124). */
+const GROUP_LABEL_NEAR_AT: Readonly<Record<GroupLabelPosition, string>> = {
+  "top-left": "top-left",
+  top: "top-center",
+  "top-right": "top-right",
+  "bottom-left": "bottom-left",
+  bottom: "bottom-center",
+  "bottom-right": "bottom-right",
+};
 
 /** Generates the D2 source for a figure. */
 export function generateD2(ir: FigureIR): string {
@@ -68,7 +80,11 @@ export function generateD2(ir: FigureIR): string {
     const textIcon =
       element.kind === "node" && element.icon !== undefined && element.shape === "text";
     write(body, `shape: ${textIcon ? "rectangle" : element.shape}`);
-    if (element.kind === "group") write(body, `label.near: ${GROUP_LABEL_NEAR}`);
+    if (element.kind === "group") {
+      const near =
+        element.labelAt === undefined ? GROUP_LABEL_NEAR : GROUP_LABEL_NEAR_AT[element.labelAt];
+      write(body, `label.near: ${near}`);
+    }
     // D2 otherwise moves labels outside undersized explicit rectangles. Keep
     // outline labels centered so composition can translate into the safe area.
     if (element.kind === "node" && element.render !== undefined)

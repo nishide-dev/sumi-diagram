@@ -189,6 +189,88 @@ describe("groups", () => {
     expect(layout.nodes[0]?.parent).toBe("g:g");
   });
 
+  describe("labelAt (#127)", () => {
+    // A wide content (ABCDEFGH: 92 wide) so that left / centre / right differ.
+    const labelled = (labelAt?: string) =>
+      layoutOf(
+        figure(
+          { stack: { items: ["g"] } },
+          [box("a", "ABCDEFGH")],
+          [
+            {
+              id: "g",
+              label: "G",
+              ...(labelAt !== undefined && { labelAt }),
+              arrange: { stack: { items: ["a"] } },
+            },
+          ],
+        ),
+      );
+
+    test("a whitespace-only label keeps its blank band, which labelAt moves; no label has none", () => {
+      // component/label-at-without-label warns about both; the figure still lays out.
+      const layout = (label: string, labelAt: string) =>
+        layoutOf(
+          figure(
+            { stack: { items: ["g"] } },
+            [box("a")],
+            [{ id: "g", label, labelAt, arrange: { stack: { items: ["a"] } } }],
+          ),
+        ).groups[0];
+      const top = layout(" ", "top");
+      const bottom = layout(" ", "bottom");
+      if (top === undefined || bottom === undefined) throw new Error("no group");
+      // The band: 23 (the 22.5-unit line rounded up) + 8, above or below the child.
+      expect(top.rect.height).toBe(34 + 32 + 23 + 8);
+      expect(bottom.rect).toEqual(top.rect);
+      expect(top.content.y).toBe(top.rect.y + 16 + 23 + 8);
+      expect(bottom.content.y).toBe(bottom.rect.y + 16);
+      const none = layout("", "bottom");
+      expect(none?.label).toBeUndefined();
+      expect(none?.rect.height).toBe(34 + 32);
+      expect(none?.content.y).toBe((none?.rect.y ?? 0) + 16);
+    });
+
+    test("omitted is top (centre): the same Layout IR", () => {
+      expect(JSON.stringify(labelled("top"))).toBe(JSON.stringify(labelled()));
+    });
+
+    test.each([
+      ["top-left", "left", "top"],
+      ["top", "center", "top"],
+      ["top-right", "right", "top"],
+      ["bottom-left", "left", "bottom"],
+      ["bottom", "center", "bottom"],
+      ["bottom-right", "right", "bottom"],
+    ] as const)("%s: the band and the label sit at the %s / %s", (labelAt, x, y) => {
+      const layout = labelled(labelAt);
+      const group = layout.groups[0];
+      if (group?.label === undefined) throw new Error("no label");
+      const { rect, content } = group;
+      const label = group.label.box;
+      // The group's size does not depend on the position.
+      expect(rect).toEqual({ x: 11, y: 11, width: 92 + 32, height: 34 + 32 + 23 + 8 });
+      expect(inside(rect, label)).toBe(true);
+      // Inside the padding, on the requested side.
+      if (x === "left") close(label.x, rect.x + 16);
+      if (x === "right") close(label.x + label.width, rect.x + rect.width - 16);
+      if (x === "center") close(label.x + label.width / 2, rect.x + rect.width / 2);
+      if (y === "top") {
+        close(label.y, rect.y + 16);
+        // The band (label + half the padding, label height rounded up) is above the content.
+        expect(content.y).toBe(rect.y + 16 + 23 + 8);
+      } else {
+        close(label.y + label.height, rect.y + rect.height - 16);
+        expect(content.y).toBe(rect.y + 16);
+        expect(content.y + content.height).toBe(label.y + label.height - 22.5 - 8 - 0.5);
+      }
+      expect(content.height).toBe(34);
+      expect(rectOf(layout, "a")).toEqual(content);
+      // The anchor stays the label's horizontal centre (text-anchor: middle).
+      close(group.label.anchor.x, label.x + label.width / 2);
+    });
+  });
+
   test("an empty group is its padding; a wide label widens the group and centers the content", () => {
     const layout = layoutOf(
       figure(
@@ -435,42 +517,47 @@ describe("output", () => {
   });
 });
 
-describe.each(["a-transformer", "b-adaln-panel"])("%s (bundled fonts)", (name) => {
-  const text = readFileSync(`${fixtures}/figures/layout/${name}.sumi.yaml`, "utf8");
-  const run = () => {
-    const result = layoutStructuredFigure(text, { route: false });
-    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
-    return result.value.layout;
-  };
+describe.each(["a-transformer", "b-adaln-panel", "group-label-at"])(
+  "%s (bundled fonts)",
+  (name) => {
+    const text = readFileSync(`${fixtures}/figures/layout/${name}.sumi.yaml`, "utf8");
+    const run = () => {
+      const result = layoutStructuredFigure(text, { route: false });
+      if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+      return result.value.layout;
+    };
 
-  test("is byte-identical across runs and matches the golden Layout IR", () => {
-    const first = `${JSON.stringify(run(), null, 2)}\n`;
-    expect(`${JSON.stringify(run(), null, 2)}\n`).toBe(first);
-    const golden = `${goldens}/${name}.layout.json`;
-    if (update) {
-      mkdirSync(goldens, { recursive: true });
-      writeFileSync(golden, first);
-    }
-    expect(first).toBe(readFileSync(golden, "utf8"));
-  });
+    test("is byte-identical across runs and matches the golden Layout IR", () => {
+      const first = `${JSON.stringify(run(), null, 2)}\n`;
+      expect(`${JSON.stringify(run(), null, 2)}\n`).toBe(first);
+      const golden = `${goldens}/${name}.layout.json`;
+      if (update) {
+        mkdirSync(goldens, { recursive: true });
+        writeFileSync(golden, first);
+      }
+      expect(first).toBe(readFileSync(golden, "utf8"));
+    });
 
-  test("touching rectangles still touch after rounding; everything is inside the margins", () => {
-    const layout = run();
-    const all = [...layout.nodes, ...layout.groups];
-    for (const { rect } of all) {
-      expect(rect.x).toBeGreaterThanOrEqual(layout.margin);
-      expect(rect.y).toBeGreaterThanOrEqual(layout.margin);
-      expect(rect.x + rect.width).toBeLessThanOrEqual(layout.canvas.width - layout.margin + 1e-9);
-      expect(rect.y + rect.height).toBeLessThanOrEqual(layout.canvas.height - layout.margin + 1e-9);
-    }
-    if (name === "a-transformer") {
-      // A stack with gap 0 (direction up): norm1 sits exactly on mha.
-      const mha = rectOf(layout, "enc-mha");
-      const norm = rectOf(layout, "enc-norm1");
-      expect(norm.y + norm.height).toBe(mha.y);
-    }
-  });
-});
+    test("touching rectangles still touch after rounding; everything is inside the margins", () => {
+      const layout = run();
+      const all = [...layout.nodes, ...layout.groups];
+      for (const { rect } of all) {
+        expect(rect.x).toBeGreaterThanOrEqual(layout.margin);
+        expect(rect.y).toBeGreaterThanOrEqual(layout.margin);
+        expect(rect.x + rect.width).toBeLessThanOrEqual(layout.canvas.width - layout.margin + 1e-9);
+        expect(rect.y + rect.height).toBeLessThanOrEqual(
+          layout.canvas.height - layout.margin + 1e-9,
+        );
+      }
+      if (name === "a-transformer") {
+        // A stack with gap 0 (direction up): norm1 sits exactly on mha.
+        const mha = rectOf(layout, "enc-mha");
+        const norm = rectOf(layout, "enc-norm1");
+        expect(norm.y + norm.height).toBe(mha.y);
+      }
+    });
+  },
+);
 
 describe("randomized containment", () => {
   /** Park–Miller LCG: deterministic across runs and platforms. */

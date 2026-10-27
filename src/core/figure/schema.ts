@@ -54,6 +54,20 @@ export type LayoutEngine = (typeof LAYOUT_ENGINES)[number];
 export const SIDES = ["north", "east", "south", "west"] as const;
 export type Side = (typeof SIDES)[number];
 
+/**
+ * Where a group's label (title) sits inside the group's border (#127, design
+ * doc §6.27): along the top or bottom edge, at the left, centre or right.
+ */
+export const GROUP_LABEL_POSITIONS = [
+  "top-left",
+  "top",
+  "top-right",
+  "bottom-left",
+  "bottom",
+  "bottom-right",
+] as const;
+export type GroupLabelPosition = (typeof GROUP_LABEL_POSITIONS)[number];
+
 /** Cross-axis alignment inside a stack or row. */
 export const ARRANGE_ALIGNS = ["start", "center", "end", "stretch"] as const;
 export type ArrangeAlign = (typeof ARRANGE_ALIGNS)[number];
@@ -222,6 +236,12 @@ export const FigureMetaSchema = z.strictObject({
 export const GroupSchema = z.strictObject({
   id: Id,
   label: Label,
+  labelAt: z
+    .enum(GROUP_LABEL_POSITIONS)
+    .optional()
+    .describe(
+      "Where the label sits inside the group's border. Omitted means top (top centre) in structured layout and top-left in auto layout.",
+    ),
   component: ComponentRef.default("container").describe("Component reference (kind: group)."),
   variant: Variant,
   tone: Tone,

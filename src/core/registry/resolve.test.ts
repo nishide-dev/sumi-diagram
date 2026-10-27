@@ -108,6 +108,53 @@ describe("invalid fixtures", () => {
   });
 });
 
+describe("groups[].labelAt (#127)", () => {
+  test("without a visible label it warns at labelAt and keeps the group", () => {
+    const { state } = checkFigure(`version: 1
+figure: { id: f }
+groups:
+  - { id: omitted, labelAt: bottom }
+  - { id: empty, label: "", labelAt: top-left }
+  - { id: blank, label: " ", labelAt: top-right }
+  - { id: titled, label: Title, labelAt: bottom-right }
+nodes:
+  - { id: a, component: box, label: A, group: omitted }
+`);
+    expect(
+      state.diagnostics.map((d) => [d.code, d.severity, d.path, d.location?.line, d.hint]),
+    ).toEqual([
+      [
+        "component/label-at-without-label",
+        "warning",
+        ["groups", 0, "labelAt"],
+        4,
+        "Add a label, or remove labelAt.",
+      ],
+      [
+        "component/label-at-without-label",
+        "warning",
+        ["groups", 1, "labelAt"],
+        5,
+        "Add a label, or remove labelAt.",
+      ],
+      [
+        "component/label-at-without-label",
+        "warning",
+        ["groups", 2, "labelAt"],
+        6,
+        "Add a label, or remove labelAt.",
+      ],
+    ]);
+    expect(state.diagnostics[0]?.message).toContain(
+      "omitted or empty, so the group has no visible title and labelAt has no effect",
+    );
+    expect(state.diagnostics[2]?.message).toContain(
+      "only whitespace, so the group has no visible title; in structured layout labelAt only moves the blank space",
+    );
+    expect([...(state.components?.keys() ?? [])]).toContain("g:omitted");
+  });
+});
+
 describe("isBlankForD2", () => {
   // Matches D2 v0.9.0, which trims labels with Go's unicode.IsSpace.
   test.each([
