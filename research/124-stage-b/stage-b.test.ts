@@ -13,7 +13,7 @@ import { join } from "node:path";
 import semver from "semver";
 import { checkFigure } from "../../src/core/check";
 import { layoutStructured } from "../../src/layout/structured/engine";
-import { engineSource, loadEngineCopy, solveAlignment } from "./align/solve";
+import { converged, engineSource, loadEngineCopy, solveAlignment } from "./align/solve";
 import { lower } from "./lower";
 import { loadFile, loadText } from "./route/load";
 import { STRATEGIES } from "./route/strategies";
@@ -115,7 +115,14 @@ describe.if(enginePatched)("alignment by struts", () => {
     },
   );
 
-  test("stops on the largest residual, not the sum (many met constraints and one unmet)", async () => {
+  test("the stopping rule looks at the largest residual, not the sum", () => {
+    // 99 met constraints and one 0.5 unit off: the sum (0.5) is under
+    // 0.01 × 100, which the first version accepted; the largest is not.
+    expect(converged([0.5, ...Array.from({ length: 99 }, () => 0)])).toBe(false);
+    expect(converged([0.01, 0, 0.005])).toBe(true);
+  });
+
+  test("solves with many met constraints and the unmet ones", async () => {
     const lowered = lower(readFileSync(join(FIG, "unet-small.sumi.yaml"), "utf8"));
     const fig = loadText(lowered.text, FIG);
     const met = Array.from({ length: 100 }, () => ({

@@ -366,7 +366,7 @@ Sumi の出力は、SVG に埋め込むサブセットが `GSUB` / `GPOS` を持
 
 ## 5. Issue 分解（milestone「v0.5.0 — Paper figures stage B」）
 
-**目標**: #109 の 4 図の草案（`requires: ">=0.5.0"`）が、そのまま error・warning ゼロで描け、SVG / PDF / 画像方式 PPTX が出ること。info は Issue 7 の交差の報告だけを許し、図ごとの期待件数を受け入れテストで固定する（図 3 の anchor なしの経路は Issue 8 の判断による）。**診断の互換性**: 既存の structured の図に交差があれば、Issue 7 で info が増える（出力のバイトは変わらない）。**互換性**: すべて Figure v1 への任意フィールド・部品の追加。新しいフィールドを使わない図の診断・D2・SVG・PDF・PPTX はバイト単位で変わらない（Issue 8 を既定で採る場合を除く）。新しい部品と作例は CONTRIBUTING の手順で gallery・examples に**追加**する。各 Issue の受け入れ条件には「既存の生成物は不変、意図した追加をコミットしたうえで `bun run gallery:check` が通る」を含める。
+**目標**: #109 の 4 図の草案（`requires: ">=0.5.0"`）が、そのまま error・warning ゼロで描け、SVG / PDF / 画像方式 PPTX が出ること。info は Issue 7 の交差の報告だけを許し、図ごとの期待件数を受け入れテストで固定する（図 3 の anchor なしの経路は Issue 8 の判断による）。**診断の互換性**: 既存の structured の図に交差があれば、Issue 7 で info が増える（出力のバイトは変わらない）。**互換性**: すべて Figure v1 への任意フィールド・部品の追加。新しいフィールドを使わない図の D2・SVG・PDF・PPTX はバイト単位で変わらない（Issue 8 を既定で採る場合を除く）。診断も変わらない（上記の Issue 7 の info を除く）。新しい部品と作例は CONTRIBUTING の手順で gallery・examples に**追加**する。各 Issue の受け入れ条件には「既存の生成物は不変、意図した追加をコミットしたうえで `bun run gallery:check` が通る」を含める。
 
 並びは優先順（#109 の頻度 → 費用の小ささ → 依存）。
 
@@ -454,7 +454,7 @@ Sumi の出力は、SVG に埋め込むサブセットが `GSUB` / `GPOS` を持
 | `free` ボックス、色つきの文字範囲、`textAlign`、`labelRotation` | 4 図で不要（#86 の図 C 向け） |
 | 編集可能 PPTX の structured の改善（`p:pic`、角の丸め） | dogfooding で編集可能 PPTX を使っていない |
 | 制約ソルバ（kiwi） | strut の反復で 4 図の整列が解けた。不等式・等幅の強制が要るときに再評価 |
-| ルータの交渉・rip-up・費用の調整 | 効果が交差 1 点以下で、遠回りか時間が増える（§3.7） |
+| ルータの交渉・rip-up・費用の調整 | 単独の案では効果が交差 1 点以下で、遠回りか時間が増える。組み合わせの 2 点減は遠回り 4 本と引き換え（§3.7） |
 | 幅のあるアクセント・分数・根号 | 段階 C の MathJax の再評価 |
 
 ## 7. リスク

@@ -136,6 +136,11 @@ function paths(ir: FigureIR): Map<string, Step[]> {
 
 const EPS = 0.01;
 
+/** The stopping rule: every constraint's residual within 0.01 unit (the largest, not the sum). */
+export function converged(residuals: readonly number[]): boolean {
+  return Math.max(0, ...residuals) <= EPS;
+}
+
 export async function solveAlignment(
   ir: FigureIR,
   constraints: readonly AlignConstraint[],
@@ -211,7 +216,7 @@ export async function solveAlignment(
         return Math.max(...vs) - Math.min(...vs);
       }),
     );
-  while (rounds < maxRounds && worst(layout) > EPS) {
+  while (rounds < maxRounds && !converged([worst(layout)])) {
     rounds++;
     const before = total;
     for (const c of constraints) {
