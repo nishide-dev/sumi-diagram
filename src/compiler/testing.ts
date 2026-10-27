@@ -284,12 +284,37 @@ export function writtenComponentOf(
 }
 
 /**
- * How an edge's markup draws its line, independent of where it runs: the
- * line's width and dash, and each arrowhead's side lengths (rounded) and fill.
+ * How an edge is drawn, independent of where it runs: the visible line's
+ * color, width and dash (the structured writer draws it as a `sumi-wire` path
+ * that starts where the edge's `connection` path starts), and each
+ * arrowhead's side lengths (rounded) and fill. `chunk` is the edge's markup in
+ * `svg`.
  */
-export function edgeLook(chunk: string) {
+export function edgeLook(svg: string, chunk: string) {
   const path = /<path class="connection"[^>]*>/.exec(chunk)?.[0] ?? "";
-  const attr = (name: string) => new RegExp(`${name}="([^"]*)"`).exec(path)?.[1];
+  const pointsOf = (element: string) =>
+    [...(/ d="([^"]*)"/.exec(element)?.[1] ?? "").matchAll(/(-?[\d.]+) (-?[\d.]+)/g)].map(
+      (m) => [Number(m[1]), Number(m[2])] as const,
+    );
+  const route = pointsOf(path);
+  // The wire starts on the route (shortened for an arrowhead at the source).
+  const onRoute = ([x, y]: readonly [number, number]) =>
+    route.some(([ax, ay], i) => {
+      const [bx, by] = route[i + 1] ?? [ax, ay];
+      const within = (v: number, p: number, q: number) =>
+        v >= Math.min(p, q) - 0.01 && v <= Math.max(p, q) + 0.01;
+      const collinear = Math.abs((bx - ax) * (y - ay) - (by - ay) * (x - ax)) < 0.01;
+      return collinear && within(x, ax, bx) && within(y, ay, by);
+    });
+  const wire = [...svg.matchAll(/<path class="sumi-wire"[^>]*>/g)]
+    .map((m) => m[0])
+    .find((w) => {
+      const [first] = pointsOf(w);
+      return first !== undefined && onRoute(first);
+    });
+  const start = route[0]?.join(" ");
+  const attr = (element: string, name: string) =>
+    new RegExp(` ${name}="([^"]*)"`).exec(element)?.[1] ?? null;
   const heads = [...chunk.matchAll(/<polygon points="([^"]*)" fill="([^"]*)"/g)].map((m) => {
     const points = (m[1] ?? "").split(" ").map((p) => p.split(",").map(Number));
     const sides = points.map((p, i) => {
@@ -298,5 +323,11 @@ export function edgeLook(chunk: string) {
     });
     return { sides: sides.sort((a, b) => a - b), fill: m[2] };
   });
-  return { width: attr("stroke-width"), dash: attr("stroke-dasharray") ?? null, heads };
+  if (wire === undefined) throw new Error(`no drawn line for the edge at ${start}`);
+  return {
+    stroke: attr(wire, "stroke"),
+    width: attr(wire, "stroke-width"),
+    dash: attr(wire, "stroke-dasharray"),
+    heads,
+  };
 }

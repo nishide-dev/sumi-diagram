@@ -85,8 +85,8 @@ function expectLegend(rendered: RenderedFigure, id: string, texts: string[]): vo
         sample.sourceArrowhead,
         sample.targetArrowhead,
       ]);
-      expect(edgeLook(chunkOf(rendered.svg, sample.key))).toEqual(
-        edgeLook(chunkOf(rendered.svg, edge.key)),
+      expect(edgeLook(rendered.svg, chunkOf(rendered.svg, sample.key))).toEqual(
+        edgeLook(rendered.svg, chunkOf(rendered.svg, edge.key)),
       );
     }
   }
