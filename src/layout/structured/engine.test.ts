@@ -207,6 +207,30 @@ describe("groups", () => {
         ),
       );
 
+    test("a whitespace-only label keeps its blank band, which labelAt moves; no label has none", () => {
+      // component/label-at-without-label warns about both; the figure still lays out.
+      const layout = (label: string, labelAt: string) =>
+        layoutOf(
+          figure(
+            { stack: { items: ["g"] } },
+            [box("a")],
+            [{ id: "g", label, labelAt, arrange: { stack: { items: ["a"] } } }],
+          ),
+        ).groups[0];
+      const top = layout(" ", "top");
+      const bottom = layout(" ", "bottom");
+      if (top === undefined || bottom === undefined) throw new Error("no group");
+      // The band: 23 (the 22.5-unit line rounded up) + 8, above or below the child.
+      expect(top.rect.height).toBe(34 + 32 + 23 + 8);
+      expect(bottom.rect).toEqual(top.rect);
+      expect(top.content.y).toBe(top.rect.y + 16 + 23 + 8);
+      expect(bottom.content.y).toBe(bottom.rect.y + 16);
+      const none = layout("", "bottom");
+      expect(none?.label).toBeUndefined();
+      expect(none?.rect.height).toBe(34 + 32);
+      expect(none?.content.y).toBe((none?.rect.y ?? 0) + 16);
+    });
+
     test("omitted is top (centre): the same Layout IR", () => {
       expect(JSON.stringify(labelled("top"))).toBe(JSON.stringify(labelled()));
     });

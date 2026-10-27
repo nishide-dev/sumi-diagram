@@ -108,11 +108,16 @@ export function resolveComponents(state: CheckState, registry: Registry, locate:
       report([diagnostic], () => [...element.path, "label"]);
     }
     if (element.labelAt !== undefined && isBlankForD2(element.label)) {
-      // Not an error: the position of a title that is not drawn changes nothing.
+      // Not an error: there is no visible title to place. An omitted or empty
+      // label takes no room; a whitespace-only one still has its (blank)
+      // band in structured layout, which labelAt moves.
       const diagnostic: Diagnostic = {
         code: "component/label-at-without-label",
         severity: "warning",
-        message: `labelAt places the group's label, but the label is ${element.label === "" ? "omitted or empty" : "only whitespace"}, so it has no effect.`,
+        message:
+          element.label === ""
+            ? "labelAt places the group's label, but the label is omitted or empty, so the group has no visible title and labelAt has no effect."
+            : "labelAt places the group's label, but the label is only whitespace, so the group has no visible title; in structured layout labelAt only moves the blank space reserved for it.",
         hint: "Add a label, or remove labelAt.",
       };
       report([diagnostic], () => [...element.path, "labelAt"]);

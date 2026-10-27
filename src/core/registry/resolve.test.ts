@@ -145,8 +145,12 @@ nodes:
         "Add a label, or remove labelAt.",
       ],
     ]);
-    expect(state.diagnostics[0]?.message).toContain("omitted or empty");
-    expect(state.diagnostics[2]?.message).toContain("only whitespace");
+    expect(state.diagnostics[0]?.message).toContain(
+      "omitted or empty, so the group has no visible title and labelAt has no effect",
+    );
+    expect(state.diagnostics[2]?.message).toContain(
+      "only whitespace, so the group has no visible title; in structured layout labelAt only moves the blank space",
+    );
     expect([...(state.components?.keys() ?? [])]).toContain("g:omitted");
   });
 });
