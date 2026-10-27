@@ -1,0 +1,223 @@
+{
+ "slantFromItalicAngle": 0.2125565616700221,
+ "xHeightUnits": 467,
+ "facts": [
+  {
+   "font": "STIX Two Text Italic",
+   "gposFeatures": [
+    "kern",
+    "mark",
+    "mkmk"
+   ],
+   "math": false,
+   "italicAngle": -12,
+   "accents": [
+    {
+     "command": "\\hat",
+     "combining": "U+0302",
+     "combiningAdvanceEm": 0,
+     "spacing": "U+02C6",
+     "spacingAdvanceEm": 0.342
+    },
+    {
+     "command": "\\tilde",
+     "combining": "U+0303",
+     "combiningAdvanceEm": 0,
+     "spacing": "U+02DC",
+     "spacingAdvanceEm": 0.381
+    },
+    {
+     "command": "\\bar",
+     "combining": "U+0304",
+     "combiningAdvanceEm": 0,
+     "spacing": "U+00AF",
+     "spacingAdvanceEm": 0.35
+    },
+    {
+     "command": "\\dot",
+     "combining": "U+0307",
+     "combiningAdvanceEm": 0,
+     "spacing": "U+02D9",
+     "spacingAdvanceEm": 0.19
+    },
+    {
+     "command": "\\ddot",
+     "combining": "U+0308",
+     "combiningAdvanceEm": 0,
+     "spacing": "U+00A8",
+     "spacingAdvanceEm": 0.391
+    },
+    {
+     "command": "\\vec",
+     "combining": "U+20D7",
+     "combiningAdvanceEm": 0,
+     "spacing": null,
+     "spacingAdvanceEm": null
+    }
+   ],
+   "precomposed": {
+    "ŷ": true,
+    "ỹ": true,
+    "ȳ": false,
+    "ẏ": true,
+    "ÿ": true
+   },
+   "bases": {
+    "y": true,
+    "x": true,
+    "θ": true,
+    "W": true
+   }
+  },
+  {
+   "font": "STIX Two Math",
+   "gposFeatures": [
+    "kern"
+   ],
+   "math": true,
+   "italicAngle": 0,
+   "accents": [
+    {
+     "command": "\\hat",
+     "combining": "U+0302",
+     "combiningAdvanceEm": 0,
+     "spacing": "U+02C6",
+     "spacingAdvanceEm": 0.342
+    },
+    {
+     "command": "\\tilde",
+     "combining": "U+0303",
+     "combiningAdvanceEm": 0,
+     "spacing": "U+02DC",
+     "spacingAdvanceEm": 0.381
+    },
+    {
+     "command": "\\bar",
+     "combining": "U+0304",
+     "combiningAdvanceEm": 0,
+     "spacing": "U+00AF",
+     "spacingAdvanceEm": 0.35
+    },
+    {
+     "command": "\\dot",
+     "combining": "U+0307",
+     "combiningAdvanceEm": 0,
+     "spacing": "U+02D9",
+     "spacingAdvanceEm": 0.194
+    },
+    {
+     "command": "\\ddot",
+     "combining": "U+0308",
+     "combiningAdvanceEm": 0,
+     "spacing": "U+00A8",
+     "spacingAdvanceEm": 0.392
+    },
+    {
+     "command": "\\vec",
+     "combining": "U+20D7",
+     "combiningAdvanceEm": 0,
+     "spacing": null,
+     "spacingAdvanceEm": null
+    }
+   ],
+   "precomposed": {
+    "ŷ": true,
+    "ỹ": true,
+    "ȳ": false,
+    "ẏ": true,
+    "ÿ": true
+   },
+   "bases": {
+    "y": true,
+    "x": true,
+    "θ": true,
+    "W": true
+   }
+  },
+  {
+   "font": "BIZ UDPGothic",
+   "gposFeatures": [],
+   "math": false,
+   "italicAngle": 0,
+   "accents": [
+    {
+     "command": "\\hat",
+     "combining": "U+0302",
+     "combiningAdvanceEm": 0.5,
+     "spacing": "U+02C6",
+     "spacingAdvanceEm": 0.5
+    },
+    {
+     "command": "\\tilde",
+     "combining": "U+0303",
+     "combiningAdvanceEm": 0.5,
+     "spacing": "U+02DC",
+     "spacingAdvanceEm": 0.5
+    },
+    {
+     "command": "\\bar",
+     "combining": "U+0304",
+     "combiningAdvanceEm": 0.5,
+     "spacing": "U+00AF",
+     "spacingAdvanceEm": 0.5
+    },
+    {
+     "command": "\\dot",
+     "combining": "U+0307",
+     "combiningAdvanceEm": null,
+     "spacing": "U+02D9",
+     "spacingAdvanceEm": 0.5
+    },
+    {
+     "command": "\\ddot",
+     "combining": "U+0308",
+     "combiningAdvanceEm": 0.5,
+     "spacing": "U+00A8",
+     "spacingAdvanceEm": 0.5
+    },
+    {
+     "command": "\\vec",
+     "combining": "U+20D7",
+     "combiningAdvanceEm": null,
+     "spacing": null,
+     "spacingAdvanceEm": null
+    }
+   ],
+   "precomposed": {
+    "ŷ": true,
+    "ỹ": false,
+    "ȳ": false,
+    "ẏ": false,
+    "ÿ": true
+   },
+   "bases": {
+    "y": true,
+    "x": true,
+    "θ": true,
+    "W": true
+   }
+  }
+ ],
+ "renders": {
+  "A.engine": "out/accents/A.engine.png",
+  "A.chrome": "out/accents/A.chrome.png",
+  "B.engine": "out/accents/B.engine.png",
+  "B.chrome": "out/accents/B.chrome.png",
+  "C.engine": "out/accents/C.engine.png",
+  "C.chrome": "out/accents/C.chrome.png",
+  "D.engine": "out/accents/D.engine.png",
+  "D.chrome": "out/accents/D.chrome.png",
+  "E.engine": "out/accents/E.engine.png",
+  "E.pdftotext": [
+   "loss θ̂t = ỹ",
+   "∇̂f ≤ W ⃗",
+   "予測 ŷ と x̄"
+  ],
+  "E.pdftotextCodePoints": [
+   "U+006C U+006F U+0073 U+0073 U+0020 U+03B8 U+0302 U+0074 U+0020 U+003D U+0020 U+0079 U+0303",
+   "U+2207 U+0302 U+0066 U+0020 U+2264 U+0020 U+0057 U+0020 U+20D7",
+   "U+4E88 U+6E2C U+0020 U+0079 U+0302 U+0020 U+3068 U+0020 U+0078 U+0304"
+  ],
+  "E.chrome": "out/accents/E.chrome.png"
+ }
+}

@@ -1,0 +1,99 @@
+[
+ {
+  "draft": "unet-small",
+  "constraints": 3,
+  "dropped": [
+   "requires >=0.5.0",
+   "figure.layout.align (3, solved by the prototype)",
+   "legend key (expanded)",
+   "enc1 → enc2.labelSide (not prototyped)",
+   "enc2 → enc3.labelSide (not prototyped)"
+  ],
+  "before": {
+   "size": "57.7 × 108.7",
+   "noRoute": 0,
+   "unrouted": 0,
+   "crossings": 0,
+   "crossingPoints": 0,
+   "contacts": 0,
+   "overlaps": 0,
+   "labelCollisions": 0,
+   "otherProblems": 0,
+   "length": 266.6,
+   "bends": 10,
+   "excess": 0,
+   "detours": 0
+  },
+  "after": {
+   "size": "57.7 × 110.6",
+   "noRoute": 0,
+   "unrouted": 0,
+   "crossings": 0,
+   "crossingPoints": 0,
+   "contacts": 0,
+   "overlaps": 0,
+   "labelCollisions": 0,
+   "otherProblems": 0,
+   "length": 142.3,
+   "bends": 2,
+   "excess": 0,
+   "detours": 0
+  },
+  "rounds": 1,
+  "layouts": 7,
+  "residualUnits": 0,
+  "struts": {
+   "lead n:enc1": 148.024,
+   "lead n:enc2": 31.999,
+   "lead n:enc3": 32.001
+  },
+  "msLayoutOnce": 0.15,
+  "msSolve": 1.06
+ },
+ {
+  "draft": "seq2seq-attention.side-kv",
+  "constraints": 1,
+  "dropped": [
+   "requires >=0.5.0",
+   "figure.layout.align (1, solved by the prototype)"
+  ],
+  "before": {
+   "size": "83.4 × 122.2",
+   "noRoute": 0,
+   "unrouted": 0,
+   "crossings": 0,
+   "crossingPoints": 0,
+   "contacts": 0,
+   "overlaps": 0,
+   "labelCollisions": 1,
+   "otherProblems": 0,
+   "length": 300.6,
+   "bends": 29,
+   "excess": 27.7,
+   "detours": 1
+  },
+  "after": {
+   "size": "83.4 × 126.5",
+   "noRoute": 0,
+   "unrouted": 0,
+   "crossings": 0,
+   "crossingPoints": 0,
+   "contacts": 0,
+   "overlaps": 0,
+   "labelCollisions": 1,
+   "otherProblems": 0,
+   "length": 304.8,
+   "bends": 24,
+   "excess": 27.7,
+   "detours": 1
+  },
+  "rounds": 1,
+  "layouts": 3,
+  "residualUnits": 0,
+  "struts": {
+   "trail box#1": 24
+  },
+  "msLayoutOnce": 0.2,
+  "msSolve": 0.69
+ }
+]
