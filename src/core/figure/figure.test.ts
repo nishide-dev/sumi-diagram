@@ -400,6 +400,23 @@ describe("edge cases", () => {
     ]);
   });
 
+  test("edges[].labelAt and labelSide are optional and closed (#128)", () => {
+    const parsed = parseFigure(
+      "version: 1\nfigure: { id: f, layout: { arrange: { row: { items: [a, b] } } } }\nnodes: [{ id: a, component: box }, { id: b, component: box }]\nedges:\n  - { from: a, to: b, labelAt: start, labelSide: right }\n  - { from: a, to: b }\n",
+    );
+    expect(parsed.ok && parsed.value.edges.map((e) => [e.labelAt, e.labelSide])).toEqual([
+      ["start", "right"],
+      [undefined, undefined],
+    ]);
+    const { state } = checkFigureSource(
+      "version: 1\nfigure: { id: f }\nedges:\n  - { from: a, to: b, labelAt: center, labelSide: above }\n",
+    );
+    expect(summarize(state.diagnostics)).toEqual([
+      ["schema/invalid-value", ["edges", 0, "labelAt"], 4, 32],
+      ["schema/invalid-value", ["edges", 0, "labelSide"], 4, 51],
+    ]);
+  });
+
   test("metadata is passed through untouched", () => {
     const result = parseFigure(
       "version: 1\nfigure: { id: f }\nmetadata: { date: 2024-01-01, tags: [a, 1, null] }\n",

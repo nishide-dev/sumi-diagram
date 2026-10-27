@@ -68,6 +68,21 @@ export const GROUP_LABEL_POSITIONS = [
 ] as const;
 export type GroupLabelPosition = (typeof GROUP_LABEL_POSITIONS)[number];
 
+/**
+ * Where along its route an edge's label sits (#128, design doc §6.30): beside
+ * the first segment (near `from`), the longest segment, or the last segment
+ * (near `to`). Structured layout only.
+ */
+export const EDGE_LABEL_POSITIONS = ["start", "middle", "end"] as const;
+export type EdgeLabelPosition = (typeof EDGE_LABEL_POSITIONS)[number];
+
+/**
+ * Which side of its line an edge's label sits on, facing the way the edge
+ * runs from `from` to `to` (#128). Structured layout only.
+ */
+export const EDGE_LABEL_SIDES = ["left", "right"] as const;
+export type EdgeLabelSide = (typeof EDGE_LABEL_SIDES)[number];
+
 /** Cross-axis alignment inside a stack or row. */
 export const ARRANGE_ALIGNS = ["start", "center", "end", "stretch"] as const;
 export type ArrangeAlign = (typeof ARRANGE_ALIGNS)[number];
@@ -287,6 +302,18 @@ export const EdgeSchema = z.strictObject({
     "Where the edge enters the target (structured layout only).",
   ),
   label: Label,
+  labelAt: z
+    .enum(EDGE_LABEL_POSITIONS)
+    .optional()
+    .describe(
+      "Where along the route the label sits: beside the first segment (start), the longest segment (middle) or the last segment (end). Omitted means next to the arrowhead, or the middle of a line without arrowheads (structured layout only).",
+    ),
+  labelSide: z
+    .enum(EDGE_LABEL_SIDES)
+    .optional()
+    .describe(
+      "Which side of the line the label sits on, facing from the source to the target. Omitted means above a horizontal segment and right of a vertical one, or the other side when that is clear (structured layout only).",
+    ),
   component: ComponentRef.default("arrow").describe("Component reference (kind: edge)."),
   variant: Variant,
   props: Props,

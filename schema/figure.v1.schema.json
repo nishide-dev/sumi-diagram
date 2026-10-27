@@ -278,6 +278,23 @@
             "description": "Plain text; newlines break lines. Empty or omitted means no label.",
             "type": "string"
           },
+          "labelAt": {
+            "description": "Where along the route the label sits: beside the first segment (start), the longest segment (middle) or the last segment (end). Omitted means next to the arrowhead, or the middle of a line without arrowheads (structured layout only).",
+            "type": "string",
+            "enum": [
+              "start",
+              "middle",
+              "end"
+            ]
+          },
+          "labelSide": {
+            "description": "Which side of the line the label sits on, facing from the source to the target. Omitted means above a horizontal segment and right of a vertical one, or the other side when that is clear (structured layout only).",
+            "type": "string",
+            "enum": [
+              "left",
+              "right"
+            ]
+          },
           "component": {
             "default": "arrow",
             "description": "Component reference (kind: edge).",

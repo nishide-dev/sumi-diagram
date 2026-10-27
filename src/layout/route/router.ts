@@ -1309,20 +1309,24 @@ class Router {
         ? []
         : [group.rect];
     });
+    // Group titles and the edge labels placed so far (`labelAt` / `labelSide`, #128).
+    const labelBoxes = layout.groups.flatMap((group) =>
+      group.label === undefined ? [] : [group.label.box],
+    );
     for (const e of layout.edges) {
       const points = routes.get(e.key);
       const edge = irEdges.get(e.key);
       if (points === undefined || edge === undefined || e.labelMetrics === undefined) continue;
       const arrow = arrowheadLength(edge.style.strokeWidth.units);
       const others = [...routes].flatMap(([key, route]) => (key === e.key ? [] : [route]));
-      labels.set(
-        e.key,
-        placeEdgeLabel(e.labelMetrics, points, edge, arrow, {
-          routes: others,
-          nodes: nodeBoxes,
-          groups: groupBoxes,
-        }),
-      );
+      const label = placeEdgeLabel(e.labelMetrics, points, edge, arrow, {
+        routes: others,
+        nodes: nodeBoxes,
+        groups: groupBoxes,
+        labels: [...labelBoxes],
+      });
+      labels.set(e.key, label);
+      labelBoxes.push(label.box);
     }
 
     // Grow the content to hold the routes and edge labels; keep it at the margin.
