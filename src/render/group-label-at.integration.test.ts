@@ -15,10 +15,10 @@ import { GROUP_LABEL_POSITIONS, type GroupLabelPosition } from "../core/figure/s
 import { getFontSet } from "../core/theme/fonts";
 import { lintGeometry } from "../lint/geometry";
 import { measureLabel } from "../lint/geometry/measure";
-import type { Rect } from "./geometry";
+import type { Point, Rect } from "./geometry";
 import { svgToEditablePptx } from "./pptx";
 import { readPptx } from "./pptx/testing";
-import { type RenderedFigure, renderFigure } from "./render";
+import { type RenderedFigure, type RenderedStructuredFigure, renderFigure } from "./render";
 import { attribute, descendants, parseXml } from "./xml";
 
 const ROOT = join(import.meta.dir, "..", "..");
@@ -83,6 +83,62 @@ describe("structured", () => {
     expectTitlesAt(await render(source));
   });
 
+  test("the router goes around a moved title in the straight path of an edge", async () => {
+    // a → out: straight down from a would cross the bottom title of g1.
+    // top → c: straight down into c would cross the top-right title of g2.
+    const rendered = await render(`version: 1
+figure:
+  id: around
+  theme: academic
+  layout:
+    arrange:
+      row:
+        gap: 8mm
+        align: start
+        items:
+          - stack: { gap: 6mm, items: [g1, out] }
+          - stack: { gap: 6mm, align: end, items: [top, g2] }
+groups:
+  - { id: g1, label: Bottom title, labelAt: bottom, arrange: { stack: { items: [a] } } }
+  - { id: g2, label: Top right title, labelAt: top-right, arrange: { row: { items: [b, c] } } }
+nodes:
+  - { id: a, component: box, label: Inner }
+  - { id: out, component: box, label: Output }
+  - { id: top, component: box, label: Top }
+  - { id: b, component: box, label: Left }
+  - { id: c, component: box, label: Right }
+edges:
+  - { from: a, to: out }
+  - { from: top, to: c }
+`);
+    if (rendered.compiled.engine !== "structured") throw new Error("not structured");
+    const { layout } = rendered as RenderedStructuredFigure;
+    const crosses = (points: readonly Point[], r: Rect) =>
+      points.slice(1).some((q, i) => {
+        const p = points[i] as Point;
+        const x0 = Math.min(p.x, q.x);
+        const x1 = Math.max(p.x, q.x);
+        const y0 = Math.min(p.y, q.y);
+        const y1 = Math.max(p.y, q.y);
+        return x1 > r.x && x0 < r.x + r.width && y1 > r.y && y0 < r.y + r.height;
+      });
+    for (const [edge, group, end] of [
+      ["e:#0", "g:g1", "n:a"],
+      ["e:#1", "g:g2", "n:c"],
+    ] as const) {
+      const title = layout.groups.find((g) => g.key === group)?.label?.box;
+      const node = layout.nodes.find((n) => n.key === end)?.rect;
+      const route = layout.edges.find((e) => e.key === edge)?.route;
+      if (title === undefined || node === undefined || route === undefined)
+        throw new Error(`no ${edge}`);
+      // The node's vertical centre line runs through the title: a straight edge would cross it.
+      const cx = node.x + node.width / 2;
+      expect(cx).toBeGreaterThan(title.x);
+      expect(cx).toBeLessThan(title.x + title.width);
+      expect(crosses(route.points, title)).toBe(false);
+    }
+  });
+
   test("omitted labelAt and labelAt: top give the same SVG", async () => {
     const one = (labelAt: string) =>
       render(`version: 1
@@ -105,23 +161,35 @@ nodes:
     const parsed = parseXml(xml);
     if (!parsed.ok) throw new Error(parsed.message);
     const shapes = [...descendants(parsed.root)].filter((e) => e.name === "p:sp");
-    for (const [id, at] of Object.entries(GROUPS)) {
+    const fonts = getFontSet(rendered.compiled.ir.meta.fontSetId);
+    if (fonts === undefined) throw new Error("no font set");
+    const { viewBox } = rendered.inspection.canvas;
+    // One D2 unit is 0.5pt = 6350 EMU; the PPTX rounds each value to whole EMU.
+    const EMU = 6350;
+    const TOLERANCE = 2;
+    for (const id of Object.keys(GROUPS)) {
       const shape = shapes.find((s) =>
         [...descendants(s)].some((e) => e.name === "p:cNvPr" && attribute(e, "name") === `g:${id}`),
       );
-      const body = shape && [...descendants(shape)].find((e) => e.name === "a:bodyPr");
-      const ext = shape && [...descendants(shape)].find((e) => e.name === "a:ext");
-      if (body === undefined || ext === undefined) throw new Error(`no text of g:${id}`);
-      const inset = (name: string) => Number(attribute(body, name));
-      const height = Number(attribute(ext, "cy"));
-      // A centred paragraph between the insets: the left / right inset moves it.
-      if (at.endsWith("-left")) expect(inset("rIns")).toBeGreaterThan(0);
-      if (at.endsWith("-right")) expect(inset("lIns")).toBeGreaterThan(0);
-      if (at === "top" || at === "bottom") {
-        expect(Math.abs(inset("lIns") - inset("rIns"))).toBeLessThanOrEqual(12700);
-      }
-      if (at.startsWith("top")) expect(inset("tIns")).toBeLessThan(height / 3);
-      else expect(inset("tIns")).toBeGreaterThan(height / 2);
+      const find = (name: string) => shape && [...descendants(shape)].find((e) => e.name === name);
+      const [body, off, ext] = [find("a:bodyPr"), find("a:off"), find("a:ext")];
+      if (body === undefined || off === undefined || ext === undefined)
+        throw new Error(`no text of g:${id}`);
+      const n = (e: typeof body, name: string) => Number(attribute(e, name));
+      // The text area: the shape's extent less the insets. Its paragraphs are
+      // centred and start at the top inset.
+      const left = n(off, "x") + n(body, "lIns");
+      const right = n(off, "x") + n(ext, "cx") - n(body, "rIns");
+      const top = n(off, "y") + n(body, "tIns");
+      // The SVG as inspected: the anchor (horizontal centre) and the first line's top.
+      const group = rendered.inspection.elements.find((e) => e.key === `g:${id}`);
+      const label = group?.labels[0];
+      if (label === undefined) throw new Error(`no label of g:${id}`);
+      const firstLine = measureLabel(label, fonts).lines[0] as Rect;
+      expect(Math.abs((left + right) / 2 - (label.anchor.x - viewBox.x) * EMU)).toBeLessThanOrEqual(
+        TOLERANCE,
+      );
+      expect(Math.abs(top - (firstLine.y - viewBox.y) * EMU)).toBeLessThanOrEqual(TOLERANCE);
     }
   });
 });

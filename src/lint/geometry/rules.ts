@@ -495,13 +495,18 @@ export function edgeCrossesLabelHint(context: GeometryContext, other: GeometryEl
   if (isStructured(context)) {
     if (group === undefined)
       return "Move the edge's ends with fromAnchor / toAnchor, move the label (attach it to another side, or reorder the arrange items), or shorten the label.";
-    const from = group.at.startsWith("bottom") ? "below" : "above";
-    return `A group's title sits at the ${group.at} of the group, so an edge that enters the group from ${from} crosses it. Move the title with labelAt (e.g. ${group.others}), connect an element inside the group instead of the group, move the end with fromAnchor / toAnchor (e.g. ${from === "above" ? "north" : "south"}:0.85), reorder the arrange items so the edge comes from another side, or shorten the title.`;
+    const at = groupLabelAt(context, other);
+    const from = at.startsWith("bottom") ? "below" : "above";
+    // An anchor on the title's side, away from the title: the far end from a
+    // corner title, and off the centre (as before #127) for a centred one.
+    const fraction = at.endsWith("-right") ? "0.15" : "0.85";
+    const anchor = `${from === "above" ? "north" : "south"}:${fraction}`;
+    return `A group's title sits at the ${group.at} of the group: if an edge enters the group from ${from} near the title, it crosses the title. Move the title with labelAt (e.g. ${group.others}), connect an element inside the group instead of the group, move the end away from the title with fromAnchor / toAnchor (e.g. ${anchor}), reorder the arrange items so the edge comes from another side, or shorten the title.`;
   }
   if (group === undefined)
     return "Change the layout (direction or grouping) so the edge is routed around the label, or shorten the label.";
   const from = group.at.startsWith("bottom") ? "below" : "above";
-  return `A container's label sits at its ${group.at}, so edges that enter the container from ${from} can cross it when the label is wide. Move the label with labelAt (e.g. ${group.others}), shorten the label, connect elements inside the container instead of the container itself, or change layout.direction.`;
+  return `A container's label sits at its ${group.at}: if edges enter the container from ${from}, they can cross it when the label is wide. Move the label with labelAt (e.g. ${group.others}), shorten the label, connect elements inside the container instead of the container itself, or change layout.direction.`;
 }
 
 export const edgeCrossesLabel = defineGeometryRule({

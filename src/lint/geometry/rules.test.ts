@@ -329,9 +329,12 @@ edges:
       ).map((d) => d.hint ?? "");
     const [structured] = hint("structured", "bottom-right");
     expect(structured).toContain("sits at the bottom-right corner of the group");
-    expect(structured).toContain("enters the group from below");
+    expect(structured).toContain("if an edge enters the group from below near the title");
     expect(structured).toContain("labelAt (e.g. bottom-left or top)");
-    expect(structured).toContain("south:0.85");
+    expect(structured).toContain("(e.g. south:0.15)");
+    expect(hint("structured", "top-left")[0]).toContain("(e.g. north:0.85)");
+    expect(hint("structured", "top")[0]).toContain("(e.g. north:0.85)");
+    expect(hint("structured", "top-right")[0]).toContain("(e.g. north:0.15)");
     const [auto] = hint("auto", "bottom");
     expect(auto).toContain("sits at its bottom centre");
     expect(auto).toContain("labelAt (e.g. bottom-left, bottom-right or top)");
