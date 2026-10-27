@@ -621,7 +621,55 @@ export function resolveEnds(
     ...layout.groups.map((g) => [g.key, g.rect] as const),
   ]);
   const spread = spreadFanIn(ir.edges, ends, (key) => rects.get(key) as Rect);
-  return spread.size === 0 ? ends : resolveEndsWith(ir, layout, spread);
+  if (spread.size === 0) return ends;
+  const spreadEnds = resolveEndsWith(ir, layout, spread);
+  // Guard: the spread may only separate ends. If the second resolution
+  // (with the #113 split around the new positions) put ends together that
+  // merge mode kept apart, or failed an edge merge mode routed, the whole
+  // figure keeps merge mode's ends.
+  return addsCoincidence(ends, spreadEnds) ? ends : spreadEnds;
+}
+
+/**
+ * `true` if `spread` has two ends at one point of an element that `merged`
+ * had at different points, or an error on an edge `merged` resolved
+ * (junction ends, which meet by design, are left out).
+ */
+function addsCoincidence(
+  merged: readonly ({ from: End; to: End } | { error: string })[],
+  spread: readonly ({ from: End; to: End } | { error: string })[],
+): boolean {
+  /** End → the point it is at, by `edge from|to`. */
+  const points = (ends: typeof merged) => {
+    const byEnd = new Map<string, string>();
+    const byPoint = new Map<string, string[]>();
+    for (const [index, pair] of ends.entries()) {
+      if (pair === undefined || "error" in pair) continue;
+      for (const leaving of [true, false]) {
+        const end = leaving ? pair.from : pair.to;
+        if (end.junction) continue;
+        const point = `${end.key} ${end.port.x} ${end.port.y}`;
+        byEnd.set(endKey(index, leaving), point);
+        const list = byPoint.get(point) ?? [];
+        list.push(endKey(index, leaving));
+        byPoint.set(point, list);
+      }
+    }
+    return { byEnd, byPoint };
+  };
+  for (const [index, pair] of spread.entries()) {
+    const before = merged[index];
+    if (pair !== undefined && "error" in pair && before !== undefined && !("error" in before)) {
+      return true;
+    }
+  }
+  const before = points(merged).byEnd;
+  for (const members of points(spread).byPoint.values()) {
+    if (members.length < 2) continue;
+    const first = before.get(members[0] as string);
+    if (first === undefined || members.some((m) => before.get(m) !== first)) return true;
+  }
+  return false;
 }
 
 /** {@link resolveEnds}, with the ends in `spread` (keyed {@link endKey}) at that side and offset. */

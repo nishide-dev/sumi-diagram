@@ -421,6 +421,71 @@ describe("figure.layout.fanIn", () => {
     expectClean(value);
   });
 
+  describe("the guard: spreading never puts together ends that merge mode keeps apart", () => {
+    const big = { width: "120pt", height: "60pt" };
+    const arrange = { row: { gap: "30pt", items: ["a", "b", "c"] } };
+    const nodesWith = (d: object, e: object) => [
+      box("a", big),
+      box("b", big),
+      box("c", big),
+      { ...box("d", big), attach: { ...d, gap: "60pt" } },
+      { ...box("e", big), attach: { ...e, gap: "60pt" } },
+    ];
+    const edgesOf = (pairs: string) =>
+      pairs.split(" ").map((p) => ({ from: p[0] as string, to: p[1] as string }));
+    /** Each end of each routed edge: its element, side and drawn end point. */
+    const endPoints = (value: ReturnType<typeof run>) =>
+      value.layout.edges.flatMap((e, i) => {
+        const ir = value.ir.edges[i];
+        const points = e.route?.points ?? [];
+        return [
+          [`${i} from`, `${ir?.from} ${e.route?.fromSide} ${JSON.stringify(points[0])}`],
+          [`${i} to`, `${ir?.to} ${e.route?.toSide} ${JSON.stringify(points.at(-1))}`],
+        ] as [string, string][];
+      });
+    /** Every point two ends share with spreading, they share in merge mode. */
+    const expectNoNewCoincidence = (
+      spread: ReturnType<typeof run>,
+      merged: ReturnType<typeof run>,
+    ) => {
+      const before = new Map(endPoints(merged));
+      const groups = new Map<string, string[]>();
+      for (const [end, point] of endPoints(spread))
+        groups.set(point, [...(groups.get(point) ?? []), end]);
+      for (const members of groups.values()) {
+        expect(new Set(members.map((m) => before.get(m))).size).toBe(1);
+      }
+      expect(spread.diagnostics.filter((d) => d.severity !== "info")).toEqual([]);
+    };
+
+    test("a figure where the spread would join ends falls back to merge mode", () => {
+      // Found by a seeded random search: without the guard, the #113 split
+      // around the spread positions puts two ends of a on one point that
+      // merge mode keeps apart.
+      const nodes = nodesWith({ to: "a", side: "south" }, { to: "a", side: "north" });
+      const edges = edgesOf("ca ad eb ab db eb ea eb ea");
+      const spread = run(figure(arrange, nodes, edges, "spread"));
+      const merged = run(figure(arrange, nodes, edges));
+      expectNoNewCoincidence(spread, merged);
+      expect(JSON.stringify(spread.layout)).toBe(JSON.stringify(merged.layout));
+    });
+
+    test("the re-review case: the two a → b edges are where merge mode puts them", () => {
+      // Merge mode (unchanged since #113) already joins the two a → b edges
+      // on one point of a (the split moves them onto it); the spread before
+      // the guard did too. The guard keeps the spread from doing worse.
+      const nodes = nodesWith({ to: "b", side: "south" }, { to: "c", side: "south" });
+      const edges = edgesOf("dc ae cd ca ab ae ac ae ab");
+      const spread = run(figure(arrange, nodes, edges, "spread"));
+      const merged = run(figure(arrange, nodes, edges));
+      expectNoNewCoincidence(spread, merged);
+      const joined = (value: ReturnType<typeof run>) =>
+        routeOf(value.layout, 4).net === routeOf(value.layout, 8).net;
+      expect(joined(merged)).toBe(true);
+      expect(joined(spread)).toBe(joined(merged));
+    });
+  });
+
   test("on an east / west side the ends are ordered top to bottom", () => {
     const value = run(
       figure(
