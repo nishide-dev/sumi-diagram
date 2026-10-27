@@ -6,8 +6,8 @@
    "requires >=0.5.0",
    "figure.layout.align (3, solved by the prototype)",
    "legend key (expanded)",
-   "enc1 → enc2.labelSide",
-   "enc2 → enc3.labelSide"
+   "enc1 → enc2.labelSide (not prototyped)",
+   "enc2 → enc3.labelSide (not prototyped)"
   ],
   "before": {
    "size": "57.7 × 108.7",
@@ -48,17 +48,14 @@
    "lead n:enc3": 32.001
   },
   "msLayoutOnce": 0.15,
-  "msSolve": 1.15
+  "msSolve": 1.06
  },
  {
   "draft": "seq2seq-attention.side-kv",
   "constraints": 1,
   "dropped": [
    "requires >=0.5.0",
-   "figure.layout.align (1, solved by the prototype)",
-   "enc-norm2 → dec-cross.labelAt",
-   "encoder.labelAt",
-   "decoder.labelAt"
+   "figure.layout.align (1, solved by the prototype)"
   ],
   "before": {
    "size": "83.4 × 122.2",
@@ -96,7 +93,7 @@
   "struts": {
    "trail box#1": 24
   },
-  "msLayoutOnce": 0.22,
-  "msSolve": 0.66
+  "msLayoutOnce": 0.2,
+  "msSolve": 0.69
  }
 ]

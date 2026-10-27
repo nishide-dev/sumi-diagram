@@ -24,6 +24,10 @@
  *         a `dy` back to the baseline: only what Sumi's run model (#93)
  *         already writes (vertical shifts, no `dx`).
  *    Chrome is optional (skipped if not found).
+ * 3. Mode E: the representation proposed for the product (absolute-positioned
+ *    chunks inside one middle-anchored `<text>`, mixed fonts, a Math-font
+ *    base, a subscript after the accented base, Japanese), through both
+ *    renderers, and the PDF text extraction (Poppler `pdftotext -raw`).
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -32,7 +36,7 @@ import { getFontSet } from "../../../src/core/theme/fonts";
 import { parseGlyphCoverage } from "../../../src/lint/cmap";
 import { parseFontMetrics } from "../../../src/lint/metrics";
 import { readTables } from "../../../src/lint/sfnt";
-import { withoutTables } from "../../../src/render/font-subset";
+import { withCodePoints, withFamily, withoutTables } from "../../../src/render/font-subset";
 import { loadEngine, runEngine } from "../../../src/render/pdf/engine";
 
 const OUT = join(import.meta.dir, "../out/accents");
@@ -258,6 +262,197 @@ for (const mode of ["A", "B", "C", "D"] as const) {
     ]);
     renders[`${mode}.chrome`] =
       shot.exitCode === 0 ? `out/accents/${mode}.chrome.png` : "chrome failed";
+  }
+}
+
+// --- 3. Mode E: the representation proposed for the product (§3.6) -------------
+//
+// One middle-anchored `<text>` per label, like Sumi's writer: a line is split
+// into chunks, each an absolutely positioned `<tspan x y>` whose x is the
+// chunk's own centre (`text-anchor: middle` applies per chunk), with runs
+// inside as `<tspan class/style dy>`. The accent is its own chunk, centred
+// over its base (mode C's rule); the text after it is the next chunk. Labels
+// mix BIZ UDPGothic, STIX Two Text Italic (variables), STIX Two Math (a Math
+// base, ∇) and a subscript after the accented base.
+
+const labelMetrics = parseFontMetrics(label);
+const fontsE = {
+  regular: { bytes: label, metrics: labelMetrics, family: "Label", engine: "'BIZ UDPGothic'" },
+  italic: {
+    bytes: textItalic,
+    metrics: italicMetrics,
+    family: "SumiItalic",
+    engine: "'STIX Two Text';font-style:italic",
+  },
+  math: { bytes: math, metrics: mathMetrics, family: "SumiMath", engine: "'STIX Two Math'" },
+} as const;
+type FontKey = keyof typeof fontsE;
+interface Run {
+  text: string;
+  font: FontKey;
+  /** Accent over the run's (single) character. */
+  accent?: number;
+  sub?: boolean;
+}
+const SIZE_E = 40;
+const LABELS_E: Run[][] = [
+  [
+    { text: "loss ", font: "regular" },
+    { text: "θ", font: "italic", accent: 0x0302 },
+    { text: "t", font: "italic", sub: true },
+    { text: " = ", font: "regular" },
+    { text: "y", font: "italic", accent: 0x0303 },
+  ],
+  [
+    { text: "∇", font: "math", accent: 0x0302 },
+    { text: "f", font: "italic" },
+    { text: " ≤ ", font: "math" },
+    { text: "W", font: "italic", accent: 0x20d7 },
+  ],
+  [
+    { text: "予測 ", font: "regular" },
+    { text: "y", font: "italic", accent: 0x0302 },
+    { text: " と ", font: "regular" },
+    { text: "x", font: "italic", accent: 0x0304 },
+  ],
+];
+
+const widthOf = (r: Run) =>
+  fontsE[r.font].metrics.measureEm(r.text) * SIZE_E * (r.sub === true ? 0.7 : 1);
+
+function modeE(engineNames: boolean): string {
+  const fam = (k: FontKey) => (engineNames ? fontsE[k].engine : `'${fontsE[k].family}'`);
+  const texts: string[] = [];
+  LABELS_E.forEach((runs, i) => {
+    const total = runs.reduce((w, r) => w + widthOf(r), 0);
+    const cx = 300;
+    const y = 80 + i * 90;
+    let x = cx - total / 2;
+    // Chunks: text runs accumulate until an accented run closes a chunk; the
+    // accent is a chunk of its own.
+    const chunks: string[] = [];
+    let open: { start: number; parts: string[]; width: number } | undefined;
+    const flush = () => {
+      if (open === undefined) return;
+      chunks.push(
+        `<tspan x="${(open.start + open.width / 2).toFixed(2)}" y="${y}">${open.parts.join("")}</tspan>`,
+      );
+      open = undefined;
+    };
+    for (const r of runs) {
+      open ??= { start: x, parts: [], width: 0 };
+      const w = widthOf(r);
+      const style = `font-family:${fam(r.font)}${r.sub === true ? `;font-size:${SIZE_E * 0.7}px` : ""}`;
+      const dy = r.sub === true ? SIZE_E * 0.21 : 0;
+      open.parts.push(
+        dy === 0
+          ? `<tspan style="${style}">${r.text}</tspan>`
+          : `<tspan style="${style}" dy="${dy}">${r.text}</tspan><tspan dy="${-dy}"></tspan>`,
+      );
+      open.width += w;
+      if (r.accent !== undefined) {
+        flush();
+        const f = fontsE[r.font];
+        const cov = parseGlyphCoverage(f.bytes);
+        const box = glyphBox(f.bytes, cov.glyph(r.text.codePointAt(0) as number));
+        const markFont: FontKey = r.font === "math" ? "math" : "italic";
+        const mf = fontsE[markFont];
+        const mbox = glyphBox(mf.bytes, parseGlyphCoverage(mf.bytes).glyph(r.accent));
+        if (box !== undefined && mbox !== undefined) {
+          const s = SIZE_E / f.metrics.unitsPerEm;
+          const ms = SIZE_E / mf.metrics.unitsPerEm;
+          const sl = r.font === "italic" ? slant : 0;
+          const center =
+            x +
+            ((box.xMin + box.xMax) / 2) * s +
+            sl * (box.yMax * s - ((box.yMin + box.yMax) / 2) * s);
+          const ax = center - ((mbox.xMin + mbox.xMax) / 2) * ms;
+          const base = y - box.yMax * s - SIZE_E * 0.04 + mbox.yMin * ms;
+          // A zero-advance chunk: its anchor is its pen position.
+          chunks.push(
+            `<tspan x="${ax.toFixed(2)}" y="${base.toFixed(2)}" style="font-family:${fam(markFont)}">${String.fromCodePoint(r.accent)}</tspan>`,
+          );
+        }
+      }
+      x += w;
+    }
+    flush();
+    texts.push(
+      `<text x="${cx}" y="${y}" style="text-anchor:middle;font-kerning:none;font-family:${fam("regular")};font-size:${SIZE_E}px">${chunks.join("")}</text>`,
+    );
+  });
+  const faces = engineNames
+    ? ""
+    : (Object.keys(fontsE) as FontKey[])
+        .map((k) => face(fontsE[k].family, withoutTables(fontsE[k].bytes, ["GSUB", "GPOS"])))
+        .join("");
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="330" viewBox="0 0 600 330"><style>${faces}</style><rect width="100%" height="100%" fill="white"/>${texts.join("")}</svg>`;
+}
+
+{
+  // As the PDF export does since #112 (`resolveSvgFonts`): after the
+  // unchanged files, a renamed copy of each font that maps the other runs'
+  // characters to its space glyph, and the runs select the copies.
+  const stripped = (b: Uint8Array) => withoutTables(b, ["GSUB", "GPOS"]);
+  const chars = new Set<number>();
+  for (const runs of LABELS_E) {
+    for (const r of runs) {
+      for (const c of r.text) chars.add(c.codePointAt(0) as number);
+      if (r.accent !== undefined) chars.add(r.accent);
+    }
+  }
+  const copies: Uint8Array[] = [];
+  const copyFamily: Record<FontKey, string> = { regular: "", italic: "", math: "" };
+  for (const k of Object.keys(fontsE) as FontKey[]) {
+    const bytes = k === "regular" ? label : stripped(fontsE[k].bytes);
+    const cov = parseGlyphCoverage(bytes);
+    const blank = cov.glyph(0x20) || 1;
+    const added = new Map([...chars].filter((cp) => !cov.has(cp)).map((cp) => [cp, blank]));
+    copyFamily[k] = `Sumi Runs ${k}`;
+    copies.push(withFamily(withCodePoints(bytes, added), copyFamily[k]));
+  }
+  let engineSvg = modeE(true);
+  for (const k of Object.keys(fontsE) as FontKey[]) {
+    engineSvg = engineSvg.replaceAll(
+      `font-family:${fontsE[k].engine}`,
+      `font-family:'${copyFamily[k]}'${k === "italic" ? ";font-style:italic" : ""}`,
+    );
+  }
+  writeFileSync(join(OUT, "E.engine.svg"), engineSvg);
+  const pdf = runEngine(engine, new TextEncoder().encode(engineSvg), [
+    label,
+    stripped(textItalic),
+    stripped(math),
+    ...copies,
+  ]);
+  if (!pdf.ok) throw new Error(`engine (E): ${pdf.message}`);
+  const pdfPath = join(OUT, "E.pdf");
+  writeFileSync(pdfPath, pdf.pdf);
+  Bun.spawnSync(["pdftoppm", "-r", "72", "-png", "-singlefile", pdfPath, join(OUT, "E.engine")]);
+  renders["E.engine"] = "out/accents/E.engine.png";
+  const text = Bun.spawnSync(["pdftotext", "-raw", pdfPath, "-"]).stdout.toString().trim();
+  renders["E.pdftotext"] = text.split("\n");
+  renders["E.pdftotextCodePoints"] = text
+    .split("\n")
+    .map((l) =>
+      [...l]
+        .map((c) => `U+${(c.codePointAt(0) as number).toString(16).toUpperCase().padStart(4, "0")}`)
+        .join(" "),
+    );
+  const browserSvg = modeE(false);
+  const svgPath = join(OUT, "E.chrome.svg");
+  writeFileSync(svgPath, browserSvg);
+  if (existsSync(chrome)) {
+    const shot = Bun.spawnSync([
+      chrome,
+      "--headless=new",
+      "--disable-gpu",
+      "--hide-scrollbars",
+      `--screenshot=${join(OUT, "E.chrome.png")}`,
+      "--window-size=600,330",
+      `file://${svgPath}`,
+    ]);
+    renders["E.chrome"] = shot.exitCode === 0 ? "out/accents/E.chrome.png" : "chrome failed";
   }
 }
 

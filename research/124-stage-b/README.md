@@ -31,10 +31,10 @@
 | `route/same.ts` | 案ごとに、作例・fixture・#109 の図の経路がバイト単位で製品と同じかを調べる（golden の互換性） |
 | `align/solve.ts` | 箱をまたぐ整列: 製品の配置エンジンの改変コピー（項目の前後の詰め物 strut）と、それを解く固定点の反復 |
 | `align/run.ts` | 整列の草案（図 4、図 1 の別案）を解き、前後を比べる |
-| `measure/accents.ts` | 数式アクセントのフォントの事実（cmap・advance・GPOS・MATH）と 4 方式の描画（製品の PDF エンジンと Chrome） |
+| `measure/accents.ts` | 数式アクセントのフォントの事実（cmap・advance・GPOS・MATH）と 4 方式の描画（製品の PDF エンジンと Chrome）、提案の表現（方式 E: 1 つの `<text>` の中の絶対位置の chunk、#112 と同じフォントのコピー）の描画と PDF の抽出 |
 | `measure/d2-probes.ts` | 固定版 D2 の `label.near`（group・edge）、矢じりのラベル、凡例・キャプションの部品 |
-| `drafts.ts` | 草案ごとに、v0.4.1 の反応、下ろした図の診断・大きさ・経路、#109 の原図との比較 |
-| `stage-b.test.ts` | 試作の検査（ネットワーク・D2 不要）。改変コピーのパッチが当たらなくなった（製品が変わった）場合は、コピーを使う検査だけを skip する |
+| `drafts.ts` | 草案ごとに、v0.4.1 の反応、下ろした図の診断・大きさ・経路、試作が描いた図そのものの幾何 lint（製品の finalize・inspect を通す）、別の見出し・ラベル位置の衝突、#109 の原図との比較 |
+| `stage-b.test.ts` | 試作の検査（ネットワーク・D2 不要）。改変コピーのパッチ先が製品の変更で見つからなくなった場合だけ、コピーを使う検査を理由を出して skip する（ほかの例外は失敗）。草案が `requires` で止まる検査は、製品の版が 0.5.0 未満の間だけ行う |
 | `results/*.json` | 測定のスナップショット（`--record` で更新） |
 | `previews/*.png` | 調査メモで参照する描画の縮小版（`out/` の PNG を ImageMagick で縮小・減色したもの。各 70KB 未満） |
 

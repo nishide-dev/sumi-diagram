@@ -16,16 +16,23 @@
  *   of the lowered figure, the same without the label positions, and the
  *   label collisions of other positions tried (`ALTERNATIVES`),
  *   its size, and its route metrics; the product pipeline's render and
- *   geometry-lint diagnostics on the lowered text (no alignment);
+ *   geometry-lint diagnostics on the lowered text as v0.4.1 renders it
+ *   (`renderAndGeometry`: no alignment, default label positions), and the
+ *   geometry lint of each prototype drawing itself (`geometryLint`);
  * - the #109 original (v0.4.1) for comparison.
  */
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { compileFigure } from "../../src/compiler/compile";
+import type { FigureIR } from "../../src/compiler/ir";
 import { checkFigure } from "../../src/core/check";
 import type { LayoutIR } from "../../src/layout/ir";
 import { checkRoutes } from "../../src/layout/route/check";
 import { lintGeometry } from "../../src/lint/geometry/lint";
+import { withImageSizes } from "../../src/render/compose-assets";
+import { finalizeStructuredSvg } from "../../src/render/finalize";
+import { inspectSvg } from "../../src/render/inspect";
 import { svgToPdf } from "../../src/render/pdf/pdf";
 import { renderFigure } from "../../src/render/render";
 import { writeStructuredSvg } from "../../src/render/structured";
@@ -84,6 +91,32 @@ function png(fig: LoadedFigure, layout: LayoutIR, name: string) {
     join(OUT, `${name}.pdf`),
     join(OUT, name),
   ]);
+}
+
+/**
+ * The geometry lint of a prototype drawing itself (aligned, labels placed,
+ * the proposed router): its SVG goes through the product's finalize and
+ * inspect like a rendered figure, with the compiled figure of the lowered
+ * text (and the IR the routes were made for).
+ */
+function prototypeLint(text: string, ir: FigureIR, layout: LayoutIR, fig: LoadedFigure): string[] {
+  const compiled = compileFigure(text);
+  if (!compiled.ok || compiled.value.engine !== "structured") throw new Error("not structured");
+  const base =
+    fig.assets === undefined ? compiled.value : withImageSizes(compiled.value, fig.assets);
+  if (base.engine !== "structured") throw new Error("not structured");
+  const figure = { ...base, ir };
+  const svg = writeStructuredSvg(ir, layout, fig.fonts, fig.assets);
+  const finalized = finalizeStructuredSvg(svg, figure, {
+    source: text,
+    ...(fig.assets !== undefined && { assets: fig.assets }),
+  });
+  if (!finalized.ok) return finalized.diagnostics.map((d) => `${d.severity} ${d.code}`);
+  const inspected = inspectSvg(finalized.value.svg, ir);
+  if (!inspected.ok) return inspected.diagnostics.map((d) => `${d.severity} ${d.code}`);
+  return lintGeometry({ compiled: figure, inspection: inspected.value }, { source: text }).map(
+    (d) => `${d.severity} ${d.code}: ${d.message.slice(0, 160)}`,
+  );
 }
 
 /**
@@ -161,6 +194,7 @@ for (const [name, original] of DRAFTS) {
       renderAndGeometry: await productDiagnostics(lowered.text),
       productRouter: {
         size: size(product.layout),
+        geometryLint: prototypeLint(lowered.text, fig.ir, product.layout, fig),
         ...routeMetrics(fig.ir, product.layout),
       },
       withoutLabelPositions: {
@@ -170,6 +204,7 @@ for (const [name, original] of DRAFTS) {
       alternatives,
       proposedRouter: {
         size: size(proposed.layout),
+        geometryLint: prototypeLint(lowered.text, proposed.ir, proposed.layout, fig),
         ...routeMetrics(proposed.ir, proposed.layout),
       },
     },

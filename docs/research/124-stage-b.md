@@ -16,7 +16,7 @@
 | 4 | 長いフローの折り返しと grid（2） | **grid を採る（優先度は低い）**。auto の折り返しは採らない（D2 の grid の辺は中心を結ぶ直線、#86 §3.1） | structured | 9 |
 | 5 | 箱をまたぐ整列（2） | **採る**: `figure.layout.align`（`{ y: [a, b] }`）。**依存を足さない** strut（詰め物）の固定点反復。kiwi は採らない | structured | 6 |
 | 6 | 数式のアクセント（2） | **採る**: `\hat` `\tilde` `\bar` `\dot` `\ddot` `\vec`。アクセントの位置は Sumi が基底の字形の箱から決める（GPOS に頼らない） | structured（数式は structured のみ） | 3 |
-| 7 | 密な図の交差・遠回り（目視） | 費用の調整・辺の順序・rip-up・交渉は**採らない**（交差の減少は最大 1 点で、遠回りが増えるか 8 倍遅い）。**交差の報告（info）を採る**。fan-in の口の分散と配置の木による辺の選択は、遠回りを消すが交差の点が増えるので**利用者の判断**（§8） | structured | 7・8 |
+| 7 | 密な図の交差・遠回り（目視） | 費用の調整・辺の順序・rip-up・交渉は**採らない**（単独の案では交差の点の減少は最大 1 で、遠回りが増えるか 8 倍遅い。組み合わせで 2 点減らせたが遠回りが 1 → 4 に増えた）。**交差の報告（info）を採る**。fan-in の口の分散と配置の木による辺の選択は、遠回りを消すが交差の点が増えるので**利用者の判断**（§8） | structured | 7・8 |
 
 - すべて Figure v1 への任意フィールド・部品の追加で、`requires: ">=0.5.0"`。**既存の図・examples・golden は変わらない**（§3 の各項目で根拠を示す。項目 8 だけは採る場合に一部の利用者の structured の図の経路が変わる）。
 - 4 図を提案構文で書き直した（`research/124-stage-b/figures/`）。試作で描ける範囲（キャプション・凡例の展開、整列、上端左右の見出し、辺の `labelAt`、項目 8 の経路）を描いた結果は §4。図 4（U-Net）は整列で skip が水平になり、経路長 266.6 → 142.3mm・折れ 10 → 2。図 3 は anchor を 1 つも書かずに、#109 で手で付けた anchor と同等の「どのワーカーがどのストアへ行くか読める」経路になった（遠回り 1 → 0）。
@@ -146,7 +146,7 @@ nodes:
 - `caption`: group の親の木での位置を `stack { gap: 1mm, items: [group, <group>-caption] }` に置き換え、`label` ノードを足す。
 - `legend`: 同じ ID の group に、項目ごとの `row`（hidden junction 2 点を `row { gap: 6mm }` に置き、項目の `edge` フィールドを持つ辺でつなぐ見本の線、または項目の `node` フィールドを持つ小さな box、の後に `label`）を `stack` で並べる。
 
-図 2・4 の草案で、展開した図は `checkFigure` の診断 0・製品の描画と幾何 lint 0 件で描けた（`previews/draft-training-pipeline.png`、`align-unet-before-after.png` の右）。見本の線は製品のルータが直線で引き、破線の位相・矢じり・線幅は本物の辺と同じ描き方になる。
+図 2・4 の草案で、展開した図は `checkFigure` の診断 0 で、試作が描いた図そのもの（図 4 は整列後、図 2 は見出しの位置を適用後）を製品の finalize・inspect に通した幾何 lint も 0 件だった（`results/drafts.json` の `geometryLint`。`previews/draft-training-pipeline.png`、`align-unet-before-after.png` の右）。見本の線は製品のルータが直線で引き、破線の位相・矢じり・線幅は本物の辺と同じ描き方になる。
 
 **エンジン（実測）**: auto では次を確かめた。
 
@@ -214,13 +214,13 @@ figure:
 **試作（実測）**: 依存を足さない方式を試した（`align/solve.ts`）。
 
 - 製品の配置エンジンの改変コピーに、項目の前（`lead`）と後（`trail`）に主軸の詰め物（strut）を足す入力を 3 か所のパッチで加えた。strut なしでは製品と同じ出力（テストで確認）。
-- 固定点の反復: 制約ごとに、最も上（左）の項目の前に不足分の `lead`（その項目を下へ押す）と、最も下の項目の後に `trail`（終端揃えの箱の中で上へ押す）の 2 案を、その項目の経路上で「軸の向きの箱のうち、制約のほかの項目を含まない最も深いもの」に置いて配置し直し、全制約の残差の和が小さい方を採る。残差 0.01 unit 以下・改善なし・50 回で止める。
+- 固定点の反復: 制約ごとに、最も上（左）の項目の前に不足分の `lead`（その項目を下へ押す）と、最も下の項目の後に `trail`（終端揃えの箱の中で上へ押す）の 2 案を、その項目の経路上で「軸の向きの箱のうち、制約のほかの項目を含まない最も深いもの」に置いて配置し直し、全制約の残差の和が小さい方を採る。どの制約の残差も 0.01 unit 以下になる（和は 2 案の比較にだけ使う）か、改善がないか、50 回で止める。
 - 最初の版は、図 1 で `gap: 0` の stack（Add & Norm とブロックの一体）の中に strut を入れて、ブロックと Add & Norm を引き離した。**`gap: 0` の箱には入れない**規則を足した（受け入れ条件に入れる）。
 
 | 草案 | 制約 | 反復 / 配置の回数 | 残差 | strut | 解く時間（配置 1 回） | 大きさ（前 → 後） | 経路長・折れ（前 → 後） |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 図 4（U-Net） | 3（`y`） | 1 / 7 | 0 | `enc1` の前 148.0、`enc2` の前 32.0、`enc3` の前 32.0 unit | 1.15ms（0.15ms） | 57.7 × 108.7 → 57.7 × 110.6mm | 266.6 → 142.3mm、10 → 2 |
-| 図 1 の別案（K,V を横から） | 1（`y`） | 1 / 3 | 0 | Cross-Attention の組の後に 24 unit | 0.66ms（0.22ms） | 83.4 × 122.2 → 83.4 × 126.5mm | 300.6 → 304.8mm、29 → 24 |
+| 図 4（U-Net） | 3（`y`） | 1 / 7 | 0 | `enc1` の前 148.0、`enc2` の前 32.0、`enc3` の前 32.0 unit | 1.06ms（0.15ms） | 57.7 × 108.7 → 57.7 × 110.6mm | 266.6 → 142.3mm、10 → 2 |
+| 図 1 の別案（K,V を横から） | 1（`y`） | 1 / 3 | 0 | Cross-Attention の組の後に 24 unit | 0.69ms（0.20ms） | 83.4 × 122.2 → 83.4 × 126.5mm | 300.6 → 304.8mm、29 → 24 |
 
 （`results/align.json`。時間は 9 回の中央値。前は同じ草案を整列なしで配置した値。）
 
@@ -270,6 +270,12 @@ Sumi の出力は、SVG に埋め込むサブセットが `GSUB` / `GPOS` を持
 - **#112 の run の書体**: アクセントは Text Italic と Math の両方が持つので、基底と同じフォントの run にする（`withCodePoints()` の空白の割り当ての対象にならない）。#112 の `label-math-fonts.test.ts` の行列にアクセントを加える。
 - **編集可能 PPTX**: 基底と結合文字を同じ `<a:r>` に入れる（PowerPoint は自分で shaping する）。確認は実装 Issue（今回は未確認）。
 
+**提案の表現そのものの試作（方式 E、実測）**: C の比較は別々の `<text>` で描いたので、提案の表現（1 つの中央揃えの `<text>` の中に、絶対位置の chunk を並べ、run は `dy` だけ）でも描いた。ラベルは 3 つで、BIZ UDPGothic・Text Italic・Math の混在、Math の基底（`\hat\nabla`）、アクセントの後の下付き（`\hat\theta_t`）、日本語を含む。PDF 側は #112 と同じく、各フォントの後に「ほかの run の文字を空白の字形に割り当てて改名したコピー」を渡した（`previews/accents-E-engine-vs-chrome.png`）。
+
+- 3 つのうち 2 つは、製品の PDF エンジンと Chrome で同じ位置に描けた（目視）。
+- `予測 ŷ と x̄` は、PDF エンジンだけで ` と ` の先頭の空白が消え、後ろの `x` が左に詰まって、`x` の上のバーが右にずれた。**usvg は chunk の先頭の空白を畳み、Chrome は畳まない**ため。実装では chunk を空白で始めない（空白は前の chunk の末尾に付ける）ことを受け入れ条件にする。
+- PDF の抽出（`pdftotext -raw`）は `loss θ̂t = ỹ` / `∇̂f ≤ W ⃗` / `予測 ŷ と x̄` で、基底 → 結合文字の順。`W` と U+20D7 の間にだけ空白が入った（Poppler の抽出の判断）。
+
 **層**: label の構文（`src/core/label/math.ts`・`symbols.ts`）・run と計測（`runs.ts`、`text.ts`）・writer（アクセントの chunk）・inspect（行の中の絶対位置の chunk を読む。今は行の `<tspan>` の中に `class`・`style`・`dy` だけの run を想定）・幾何 lint（アクセントの箱）・PDF の検査（run ごとの書体と位置）・PPTX・Skill。
 
 **互換性**: 今エラーになる記法が通るようになるだけ。既存の図の出力は不変。
@@ -304,6 +310,7 @@ Sumi の出力は、SVG に埋め込むサブセットが `GSUB` / `GPOS` を持
 | 口の分散（fan-in と fan-out） | 7/7・32.3・1 | 7/7・31.0・1 | 29・2676 | 1705・16573（**経路なし 6**） |
 | 配置の木で辺を選ぶ | 9/4・18.4・1（**製品と同一**） | 8/3・51.7・3 | 24・**2536**（折れ 110 → 86） | 1169・**17016** |
 | 配置の木 ＋ 口の分散（fan-in） | 10/6・3.3・0 | 10/6・**1.1・0**（折れ 48 → 40） | 24・2536 | 1513・16894 |
+| 配置の木 ＋ 交差の費用 600 | 8/3・62.5・2 | **7/2**・95.8・**4** | 23・2563 | 1155・17519 |
 
 各案の内容:
 
@@ -314,18 +321,18 @@ Sumi の出力は、SVG に埋め込むサブセットが `GSUB` / `GPOS` を持
 - **口の分散**: anchor のない端で、同じ口（要素・辺・点・向き）に別の要素から入る辺（fan-in）を、相手の位置の順に辺に沿って 1/(n+1) … n/(n+1) に並べる（anchor を付けたのと同じ）。今は 1 本の線に合流する。
 - **配置の木で辺を選ぶ**: anchor のない端の辺を、2 つの要素を分ける配置の木の箱（共通の祖先の箱）の向きで決める（stack なら北 / 南、row なら東 / 西）。今は中心の差の大きい軸（`facingSide`）。
 
-**読み取り（実測）**:
+**読み取り**（数値は実測。「配置で決まる」「読みやすさ」は目視・推論による判断）:
 
-- 図 3 の交差は**配置で決まる部分が大きい**。4 点のうち、`infer-api → infer-worker` が gateway の分岐を横切る 2 点と、Training API・Auth から Metadata DB への線が queue の下りを横切る 1 点、infer / train → registry / features の入れ替わり 1 点（#109 の anchor の選び方による）。どの案も点を 3 未満にしなかった。
+- 図 3 の交差は**配置で決まる部分が大きい**。4 点のうち、`infer-api → infer-worker` が gateway の分岐を横切る 2 点と、Training API・Auth から Metadata DB への線が queue の下りを横切る 1 点、infer / train → registry / features の入れ替わり 1 点（#109 の anchor の選び方による）。単独の案は点を 3 未満にしなかった。組み合わせ（配置の木 ＋ 交差の費用 600）は anchor なしの図 3 で 2 点にしたが、excess が 16.2 → 95.8mm、遠回りが 1 → 4 に増えた。「交差の多くは配置で決まる」は、この結果と経路の目視からの推論（判断）で、下限を証明したものではない。
 - 費用を上げると点は 1 減るが、経路が 44mm 延び（遠回り 1 → 2）、**図 2 では交差が 2 → 4、ラベルの衝突が 0 → 3 に悪化**した。
 - 順序・rip-up は図によって良くも悪くもなり、一貫しない。交渉は組を 9 → 7 にするが点は 4 のまま、8 回引き直すので時間は約 8 倍（図 3 で 99.9ms、合成 grid で 4.1 秒）。
-- 口の分散は、Auth → Metadata DB の遠回りの原因（合流した幹線は費用 0 なので、Auth からの線が Training API の線に合流しに回り込む）を消し、excess が 16.2 → 1.1mm、遠回り 1 → 0。各ワーカーの線が別々にストアへ入るので、#109 で手で付けた anchor と同等の読みやすさになった（`previews/route-serving-draft-v041-vs-proposed.png`）。その代わり、合流していた線が別々に交差するので点は 4 → 6 に増える。fan-out まで分散すると合成 grid で経路のない辺が 6 本出た。
+- 口の分散は、Auth → Metadata DB の遠回りの原因（合流した幹線は費用 0 なので、Auth からの線が Training API の線に合流しに回り込む）を消し、excess が 16.2 → 1.1mm、遠回り 1 → 0。各ワーカーの線が別々にストアへ入る。#109 で手で付けた anchor と同等に読める、というのは目視の判断（`previews/route-serving-draft-v041-vs-proposed.png`）。その代わり、合流していた線が別々に交差するので点は 4 → 6 に増える。fan-out まで分散すると合成 grid で経路のない辺が 6 本出た。
 - 配置の木で辺を選ぶ案は、**作例 2・fixture 2・#109 の 4 図の計 8 図で経路がバイト単位で製品と同じ**（`route/same.ts`）。合成図では経路長が 6.1%（columns）・3.0%（grid）短くなった。anchor なしの図 3 単独では excess が増え（16.2 → 51.7）、口の分散と組み合わせると最良（1.1mm、折れ 40）になる。
 - 交差は描いた図からは数えにくい（hidden junction との区別、§6.26）が、今は幾何 lint にも診断にも出ない（`checkRoutes` はテストだけ。§6.22 の判断）。
 
 **判断**:
 
-- **採らない**: 費用の調整、順序の変更、rip-up、交渉。効果が 1 点以下で、遠回りが増えるか（図 2 の悪化）、時間が数倍になる。§6.22 の「交差の最小化は貪欲」のままにする。
+- **採らない**: 費用の調整、順序の変更、rip-up、交渉。単独では効果が 1 点以下で、遠回りが増えるか（図 2 の悪化）、時間が数倍になる。組み合わせ（配置の木 ＋ 費用）の 2 点減は、遠回り 4 本と引き換えなので採らない。§6.22 の「交差の最小化は貪欲」のままにする。
 - **採る（Issue 7）**: 交差の報告。structured の描画で、別のネットの交差を `layout/edge-crossing`（**info**、辺の位置付き、相手の辺を related に。1 図あたりの件数に上限）として出す。hint は「辺の順序（先に書いた辺がまっすぐ）、anchor、配置（`gap`・箱の順序・`align`）」。交差の多くは配置で決まるので、作者（LLM）が直せる情報を出す方が、ルータで点を 1 つ減らすより効く。info にするのは、構造上避けられない交差（入れ替わり）もあるため。
 - **利用者の判断（Issue 8、§8 Q1）**: fan-in の口の分散を既定にするか（Skill に書いた「同じ口に入る辺は合流する」を変える）。配置の木による辺の選択は、作例を変えず合成図で短くなるが、単独では図 3 を悪くするので、口の分散と一緒に入れる場合だけ採る。
 
@@ -341,12 +348,14 @@ Sumi の出力は、SVG に埋め込むサブセットが `GSUB` / `GPOS` を持
 
 草案は `research/124-stage-b/figures/`。下ろした図（`lower.ts`: キャプション・凡例を展開、整列を解き、上端左右の見出しと辺の `labelAt` を適用。`labelSide`・下端の見出し・アクセントは描画に出ない）を、製品のルータで描いた値（`results/drafts.json`）。
 
+「下ろした図の診断」は `checkFigure` と、**試作が描いた図そのもの**（整列・見出しと辺のラベルの位置を適用後、製品のルータ）の SVG を製品の finalize・inspect に通した幾何 lint（`geometryLint`）。
+
 | 図 | 草案で使った新しい構文 | v0.4.1 の反応（`requires` なし） | 下ろした図の診断 | 大きさ（#109 → 草案） | 経路（#109 → 草案） |
 | --- | --- | --- | --- | --- | --- |
 | 1 エンコーダ・デコーダ | 見出し `top-left` ×2、`K,V` に `labelAt: start` | unknown-field `labelAt` 3 | 0 | 83.4 × 117.3 → 83.4 × 122.2mm（見出しを戻した分） | 遠回り 0 → 0、交差 0 → 0。見出しを上端中央で戻すと遠回り 1 になる |
-| 1 の別案 | 上記＋`align: { y: [enc-norm2, dec-cross] }`、K,V を横から | unknown-field `labelAt` `align` 4（＋上記の engine の連鎖 5） | 0（製品の描画では `label-collision` 1: `labelAt: middle` を外した版） | → 83.4 × 126.5mm | 経路長 298.0 → 291.2mm、折れ 23 → 20、K,V は水平の 1 本 |
-| 2 学習パイプライン | 見出し `top-left` / `top-right`、`caption` ×2、`legend`、`labelSide`、`\tilde{x}` `\hat{y}` | unknown-field `caption` `labelAt` `labelSide` 6、unknown 部品 `legend` 1 | 0 | 109.4 × 77.8 → 156.6 × 87.0mm（凡例を右下に置いた分。paper-double に収まる） | 交差 2 → 2、ラベルの衝突 0 |
-| 3 システム構成図 | 見出し `top-left` ×5・`bottom`（GPU pool）、**anchor 0 個**（#109 は 6 本の辺に 11 個） | unknown-field `labelAt` 6 | 0（製品の描画では `label-collision` 1: GPU pool の見出しが上端中央のまま。`bottom` は試作していない） | 159.6 × 119.4 → 159.6 × 125.8mm（見出しを group に戻した分） | 製品のルータ: 交差 7 組 / 4 点・遠回り 1。§3.7 の口の分散＋配置の木: 8 組 / 6 点・**遠回り 0・excess 1.1mm**・折れ 38 |
+| 1 の別案 | 上記＋`align: { y: [enc-norm2, dec-cross] }`、K,V を横から | unknown-field `labelAt` `align` 4（＋上記の engine の連鎖 5） | 幾何 lint の `label-collision` 2: `K,V`（`labelAt: middle`）が 4mm の列の間で encoder と decoder の両方の枠に掛かる（`checkRoutes` は数えない）。列の `gap` を広げる必要がある | → 83.4 × 126.5mm | 経路長 298.0 → 291.2mm、折れ 23 → 20、K,V は水平の 1 本 |
+| 2 学習パイプライン | 見出し `top-left` / `top-right`、`caption` ×2、`legend`、`labelSide`、`\tilde{x}` `\hat{y}` | unknown-field `caption` `labelAt` `labelSide` 5、unknown 部品 `legend` 1 | 0 | 109.4 × 77.8 → 156.6 × 87.0mm（凡例を右下に置いた分。paper-double に収まる） | 交差 2 → 2、ラベルの衝突 0 |
+| 3 システム構成図 | 見出し `top-left` ×5・`bottom`（GPU pool）、**anchor 0 個**（#109 は 6 本の辺に 11 個） | unknown-field `labelAt` 6 | 幾何 lint 2: GPU pool の見出し（`bottom` は試作していないので上端中央のまま）と `gRPC` の `label-collision`、Storage の見出し（`top-left`）を Inference workers → Model registry が横切る `edge-crosses-label`。後者は Storage に `top-right` か `bottom` を選ぶ必要がある（§3.1 の「角は図による」） | 159.6 × 119.4 → 159.6 × 125.8mm（見出しを group に戻した分） | 製品のルータ: 交差 7 組 / 4 点・遠回り 1。§3.7 の口の分散＋配置の木: 8 組 / 6 点・**遠回り 0・excess 1.1mm**・折れ 38 |
 | 4 U-Net | `align` ×3、`legend`、`labelSide`、concat を木の中に | unknown-field `align` `labelSide` 3、unknown 部品 1 | 0 | 79.6 × 88.2 → 57.7 × 110.6mm（縦長になり、幅は 22mm 減） | 経路長 248.1 → 142.3mm、折れ 8 → 2、skip 3 本が水平 |
 
 読み取り（判断）:
@@ -357,7 +366,7 @@ Sumi の出力は、SVG に埋め込むサブセットが `GSUB` / `GPOS` を持
 
 ## 5. Issue 分解（milestone「v0.5.0 — Paper figures stage B」）
 
-**目標**: #109 の 4 図の草案（`requires: ">=0.5.0"`）が、そのまま診断ゼロで描け、SVG / PDF / 画像方式 PPTX が出ること（図 3 の anchor なしは Issue 8 の判断による）。**互換性**: すべて Figure v1 への任意フィールド・部品の追加。新しいフィールドを使わない図の診断・D2・SVG・PDF・PPTX はバイト単位で変わらない（Issue 8 を既定で採る場合を除く）。新しい部品と作例は CONTRIBUTING の手順で gallery・examples に**追加**する。各 Issue の受け入れ条件には「既存の生成物は不変、意図した追加をコミットしたうえで `bun run gallery:check` が通る」を含める。
+**目標**: #109 の 4 図の草案（`requires: ">=0.5.0"`）が、そのまま error・warning ゼロで描け、SVG / PDF / 画像方式 PPTX が出ること。info は Issue 7 の交差の報告だけを許し、図ごとの期待件数を受け入れテストで固定する（図 3 の anchor なしの経路は Issue 8 の判断による）。**診断の互換性**: 既存の structured の図に交差があれば、Issue 7 で info が増える（出力のバイトは変わらない）。**互換性**: すべて Figure v1 への任意フィールド・部品の追加。新しいフィールドを使わない図の診断・D2・SVG・PDF・PPTX はバイト単位で変わらない（Issue 8 を既定で採る場合を除く）。新しい部品と作例は CONTRIBUTING の手順で gallery・examples に**追加**する。各 Issue の受け入れ条件には「既存の生成物は不変、意図した追加をコミットしたうえで `bun run gallery:check` が通る」を含める。
 
 並びは優先順（#109 の頻度 → 費用の小ささ → 依存）。
 
@@ -393,13 +402,14 @@ Sumi の出力は、SVG に埋め込むサブセットが `GSUB` / `GPOS` を持
    - 部品 `legend`（`props.entries` の各項目が `edge` か `node` のフィールドと `label` を持つ）。structured で、見本の線（hidden junction 2 点と辺）・見本の箱と label の stack に展開する。使われていない項目を lint で警告する。auto では `layout/structured-only`。
    - 依存: なし。
    - 受け入れ条件: 図 2・4 の草案の凡例が描け、見本の線が本物の辺と同じ破線・矢じり・線幅／全 Theme × variant の gallery を追加／`lint/unused-legend-entry`（案）の検査／ID の衝突が位置付きの診断。
+   - 試験基盤の変更（範囲に含める）: 今の gallery の見本（`scripts/gallery/samples.ts`）と全部品の描画テスト（`src/compiler/testing.ts` の全 node 部品を auto の図に並べる fixture、`builtins-render.test.ts` は診断ゼロを要求）は、すべての部品を auto の普通の node として描く。structured 専用で `props.entries` が必須、しかも展開される `legend` をそのまま登録すると、これらが失敗する。engine を見て structured の図で見本を作る生成と、展開後の要素から元の部品・variant を見つける検査を足す（黙って除外しない）。大きさの見積もりはこの分を含めて M〜L。
    - 互換性: 新しい部品。gallery に追加。既存は不変。
    - 非対象: auto の凡例（D2 の `near` と grid で可能と確認済み。後回し）、行列の class の凡例（段階 C の `matrix`）。
 
 6. **Align elements across arrange trees**
    - `figure.layout.align`（`{ y: [...] }` / `{ x: [...] }`、`at: center | start | end`）。配置エンジンに項目の前後の strut を足し、固定点の反復で解く。`gap: 0` の箱には strut を入れない。解けない制約は `layout/unsatisfied-align`（案）。
    - 依存: なし（9 と独立）。
-   - 受け入れ条件: 図 4 と図 1 の別案で残差 0（golden）／矛盾する制約と動かせない制約が、残差と要素名付きの診断／`align` のない図の配置がバイト単位で不変／反復の上限と、乱数の制約での時間を記録。
+   - 受け入れ条件: 図 4 と図 1 の別案で残差 0（golden）／`gap: 0` の箱の項目が整列の後も接したまま（strut を祖先の箱に置く必要がある図 1 の別案で検査。試作のテストと同じ）／停止の判定は制約ごとの最大の残差（和ではない）／矛盾する制約と動かせない制約が、残差と要素名付きの診断／`align` のない図の配置がバイト単位で不変／反復の上限と、乱数の制約での時間を記録。
    - 互換性: 任意フィールド。既存の golden 不変。
    - 非対象: 不等式の制約・等幅の強制・制約ソルバ（kiwi）、auto での整列。
 

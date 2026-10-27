@@ -23,7 +23,8 @@
  *     start-aligned one, grows the box and moves nothing);
  *
  * lays out both and keeps the one with the smaller total residual over all
- * constraints (A on ties). It stops when every constraint is met, when a
+ * constraints (A on ties). It stops when every constraint is met (the
+ * largest single residual within 0.01 unit; the sum is only the objective), when a
  * round makes no progress, or after 50 rounds. Struts only grow, so a figure
  * whose constraints contradict the trees stops with a residual, which the
  * product would report as a diagnostic.
@@ -201,7 +202,16 @@ export async function solveAlignment(
   let layout = layoutWith(struts);
   let total = residualOf(layout);
   let rounds = 0;
-  while (rounds < maxRounds && total > EPS * constraints.length) {
+  /** The largest residual of one constraint (the stopping rule: every one within EPS). */
+  const worst = (l: LayoutIR) =>
+    Math.max(
+      0,
+      ...constraints.map((c) => {
+        const vs = coords(l, c).map((p) => p.v);
+        return Math.max(...vs) - Math.min(...vs);
+      }),
+    );
+  while (rounds < maxRounds && worst(layout) > EPS) {
     rounds++;
     const before = total;
     for (const c of constraints) {
@@ -235,11 +245,7 @@ export async function solveAlignment(
     }
     if (total >= before - 1e-9) break;
   }
-  let residual = 0;
-  for (const c of constraints) {
-    const vs = coords(layout, c).map((p) => p.v);
-    residual = Math.max(residual, Math.max(...vs) - Math.min(...vs));
-  }
+  const residual = worst(layout);
   const names = new Map<ArrangeItemIR, string>();
   const nameOf = (item: ArrangeItemIR) => {
     if (typeof item === "string") return item;

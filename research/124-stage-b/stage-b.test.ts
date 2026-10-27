@@ -10,6 +10,7 @@
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import semver from "semver";
 import { checkFigure } from "../../src/core/check";
 import { layoutStructured } from "../../src/layout/structured/engine";
 import { engineSource, loadEngineCopy, solveAlignment } from "./align/solve";
@@ -22,14 +23,32 @@ const FIG = join(import.meta.dir, "figures");
 const ROOT = join(import.meta.dir, "../..");
 const drafts = readdirSync(FIG).filter((f) => f.endsWith(".sumi.yaml"));
 
+/**
+ * Whether the patched copies can be built: `false` only when a patch target
+ * no longer matches the product source (expected drift after the pinned
+ * base); any other error is a bug in the prototype and fails the run.
+ */
 const applies = (build: () => unknown) => {
   try {
     build();
     return true;
-  } catch {
-    return false;
+  } catch (e) {
+    if (e instanceof Error && e.message.startsWith("patch target found")) {
+      console.warn(`#124 prototype tests skipped: ${e.message}`);
+      return false;
+    }
+    throw e;
   }
 };
+/**
+ * The drafts declare `requires: ">=0.5.0"`; while the product is older they
+ * must stop at that check. From 0.5.0 on the check is retired (the drafts
+ * then document the syntax as shipped or not, see the doc §5).
+ */
+const beforeStageB = semver.lt(
+  (JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as { version: string }).version,
+  "0.5.0",
+);
 const routerPatched = applies(variantSources);
 const enginePatched = applies(engineSource);
 
@@ -39,7 +58,7 @@ describe("stage-B drafts", () => {
     expect(checkFigure(lowered.text).state.diagnostics).toEqual([]);
   });
 
-  test.each(drafts)("%s as written stops at requires >=0.5.0", (file) => {
+  test.if(beforeStageB).each(drafts)("%s as written stops at requires >=0.5.0", (file) => {
     const codes = checkFigure(readFileSync(join(FIG, file), "utf8")).state.diagnostics.map(
       (d) => d.code,
     );
@@ -95,4 +114,31 @@ describe.if(enginePatched)("alignment by struts", () => {
       expect(solved.residual).toBe(0);
     },
   );
+
+  test("stops on the largest residual, not the sum (many met constraints and one unmet)", async () => {
+    const lowered = lower(readFileSync(join(FIG, "unet-small.sumi.yaml"), "utf8"));
+    const fig = loadText(lowered.text, FIG);
+    const met = Array.from({ length: 100 }, () => ({
+      axis: "y" as const,
+      items: ["enc1", "enc1"],
+    }));
+    const solved = await solveAlignment(fig.ir, [...met, ...lowered.align]);
+    expect(solved.residual).toBe(0);
+  });
+
+  test("never separates the items of a gap: 0 box", async () => {
+    const lowered = lower(readFileSync(join(FIG, "seq2seq-attention.side-kv.sumi.yaml"), "utf8"));
+    const fig = loadText(lowered.text, FIG);
+    const solved = await solveAlignment(fig.ir, lowered.align);
+    const rect = (id: string) => solved.layout.nodes.find((n) => n.key === `n:${id}`)?.rect;
+    for (const [lower_, upper] of [
+      ["dec-cross", "dec-norm2"],
+      ["dec-self", "dec-norm1"],
+      ["enc-ffn", "enc-norm2"],
+    ] as const) {
+      const a = rect(upper);
+      const b = rect(lower_);
+      expect(a && b && Math.abs(a.y + a.height - b.y)).toBeLessThan(0.001);
+    }
+  });
 });

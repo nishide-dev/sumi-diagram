@@ -17,6 +17,7 @@
    "renderAndGeometry": [],
    "productRouter": {
     "size": "83.4 × 122.2",
+    "geometryLint": [],
     "unrouted": 0,
     "crossings": 0,
     "crossingPoints": 0,
@@ -46,6 +47,7 @@
    "alternatives": [],
    "proposedRouter": {
     "size": "83.4 × 122.2",
+    "geometryLint": [],
     "unrouted": 0,
     "crossings": 0,
     "crossingPoints": 0,
@@ -97,6 +99,10 @@
    ],
    "productRouter": {
     "size": "83.4 × 126.5",
+    "geometryLint": [
+     "warning geometry/label-collision: The label of edge edges[22] overlaps the border of group \"decoder\".",
+     "warning geometry/label-collision: The label of edge edges[22] overlaps the border of group \"encoder\"."
+    ],
     "unrouted": 0,
     "crossings": 0,
     "crossingPoints": 0,
@@ -126,6 +132,10 @@
    "alternatives": [],
    "proposedRouter": {
     "size": "83.4 × 126.5",
+    "geometryLint": [
+     "warning geometry/label-collision: The label of edge edges[22] overlaps the border of group \"decoder\".",
+     "warning geometry/label-collision: The label of edge edges[22] overlaps the border of group \"encoder\"."
+    ],
     "unrouted": 0,
     "crossings": 0,
     "crossingPoints": 0,
@@ -179,6 +189,7 @@
    "renderAndGeometry": [],
    "productRouter": {
     "size": "156.6 × 87.0",
+    "geometryLint": [],
     "unrouted": 0,
     "crossings": 2,
     "crossingPoints": 2,
@@ -229,6 +240,7 @@
    ],
    "proposedRouter": {
     "size": "156.6 × 87.0",
+    "geometryLint": [],
     "unrouted": 0,
     "crossings": 2,
     "crossingPoints": 2,
@@ -278,6 +290,10 @@
    ],
    "productRouter": {
     "size": "159.6 × 125.8",
+    "geometryLint": [
+     "warning geometry/label-collision: The label of group \"gpu\" overlaps the label of edge edges[6].",
+     "warning geometry/edge-crosses-label: Edge edges[10] crosses the label of group \"storage\"."
+    ],
     "unrouted": 0,
     "crossings": 7,
     "crossingPoints": 4,
@@ -307,6 +323,10 @@
    "alternatives": [],
    "proposedRouter": {
     "size": "159.6 × 125.8",
+    "geometryLint": [
+     "warning geometry/label-collision: The label of group \"gpu\" overlaps the label of edge edges[6].",
+     "warning geometry/edge-crosses-label: Edge edges[10] crosses the label of group \"storage\"."
+    ],
     "unrouted": 0,
     "crossings": 8,
     "crossingPoints": 6,
@@ -360,6 +380,7 @@
    "renderAndGeometry": [],
    "productRouter": {
     "size": "57.7 × 110.6",
+    "geometryLint": [],
     "unrouted": 0,
     "crossings": 0,
     "crossingPoints": 0,
@@ -389,6 +410,7 @@
    "alternatives": [],
    "proposedRouter": {
     "size": "57.7 × 110.6",
+    "geometryLint": [],
     "unrouted": 0,
     "crossings": 0,
     "crossingPoints": 0,

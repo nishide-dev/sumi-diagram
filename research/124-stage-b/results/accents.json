@@ -206,6 +206,18 @@
   "C.engine": "out/accents/C.engine.png",
   "C.chrome": "out/accents/C.chrome.png",
   "D.engine": "out/accents/D.engine.png",
-  "D.chrome": "out/accents/D.chrome.png"
+  "D.chrome": "out/accents/D.chrome.png",
+  "E.engine": "out/accents/E.engine.png",
+  "E.pdftotext": [
+   "loss θ̂t = ỹ",
+   "∇̂f ≤ W ⃗",
+   "予測 ŷ と x̄"
+  ],
+  "E.pdftotextCodePoints": [
+   "U+006C U+006F U+0073 U+0073 U+0020 U+03B8 U+0302 U+0074 U+0020 U+003D U+0020 U+0079 U+0303",
+   "U+2207 U+0302 U+0066 U+0020 U+2264 U+0020 U+0057 U+0020 U+20D7",
+   "U+4E88 U+6E2C U+0020 U+0079 U+0302 U+0020 U+3068 U+0020 U+0078 U+0304"
+  ],
+  "E.chrome": "out/accents/E.chrome.png"
  }
 }
