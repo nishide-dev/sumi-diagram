@@ -189,13 +189,23 @@ const SEPARATION_ROUNDS = 8;
  * takes its other end along (if that end has no anchor, is not shared and
  * stays on its side), so the line stays straight.
  *
+ * Parallel edges (between the same two elements in the same direction) stay
+ * apart (#143): a move that would put an end on a parallel edge's end there
+ * takes the other half instead, else the first free position of the side
+ * (1/4, 3/4, 1/8, …) that is not one; the partner of a straight line does
+ * not follow onto one (the line bends). The multi-edge sharing put them
+ * apart, and joining them would draw two edges as one line and one net.
+ * Ends of different elements' edges may still share a port in one direction
+ * (a fan-out or fan-in, as before).
+ *
  * If the rounds run out (moves keep meeting other ports), a direction that
  * may move takes the first unused position of 1/4, 3/4, 1/8, 3/8, … instead.
  *
  * Mutates the choices' offsets; returns the indices of the edges that keep a
  * shared port (the later direction in document order) with the reason, for
  * `layout/no-route`: both directions anchored there, or (with over a
- * thousand ports on one side) no free position left.
+ * thousand ports on one side) no free position left, for a shared port or
+ * for parallel edges that would otherwise be joined.
  */
 function separateDirections(
   pairs: readonly ChoicePair[],
@@ -253,6 +263,81 @@ function separateDirections(
     }
     return ports;
   };
+  const choiceOf = (edge: number, leaving: boolean) => {
+    const pair = pairs[edge] as ChoicePair;
+    return leaving ? pair.fromChoice : pair.toChoice;
+  };
+  const pointKey = (p: Point) => `${p.x} ${p.y}`;
+  /** The edges between the same two elements in the same direction, by edge. */
+  const parallels = new Map<number, number[]>();
+  {
+    const byPair = new Map<string, number[]>();
+    for (const [edge, { from, to }] of pairs.entries()) {
+      const list = byPair.get(`${from} ${to}`) ?? [];
+      list.push(edge);
+      byPair.set(`${from} ${to}`, list);
+    }
+    for (const list of byPair.values()) {
+      if (list.length < 2) continue;
+      for (const edge of list) parallels.set(edge, list);
+    }
+  }
+  /**
+   * `true` if an end of a parallel edge (another edge between the same two
+   * elements in the same direction), other than `moving`, is on the same
+   * side at `point`: the end of `edge` there would join it.
+   */
+  const parallelEndAt = (
+    edge: number,
+    leaving: boolean,
+    choice: Choice,
+    point: Point,
+    moving: ReadonlySet<Choice>,
+  ): boolean => {
+    const { from, to } = pairs[edge] as ChoicePair;
+    const key = leaving ? from : to;
+    for (const other of parallels.get(edge) ?? []) {
+      if (other === edge) continue;
+      const end = choiceOf(other, leaving);
+      if (end === undefined || moving.has(end)) continue;
+      if (end.side !== choice.side || end.inward !== choice.inward) continue;
+      if (pointKey(portOf(key, end)) === pointKey(point)) return true;
+    }
+    return false;
+  };
+  /** The points of a side used by any end (either direction, outside or inside). */
+  const usedOn = (key: ElementKey, side: Side): Set<string> => {
+    const used = new Set<string>();
+    for (const pair of pairs) {
+      for (const [k, c] of [
+        [pair.from, pair.fromChoice],
+        [pair.to, pair.toChoice],
+      ] as const) {
+        if (k === key && c !== undefined && c.side === side) used.add(pointKey(portOf(k, c)));
+      }
+    }
+    return used;
+  };
+  /** `true` if the `leaving` (else entering) ends of edges `i` and `j` are on one point. */
+  const together = (i: number, j: number, leaving: boolean): boolean => {
+    const p = choiceOf(i, leaving);
+    const q = choiceOf(j, leaving);
+    if (p === undefined || q === undefined) return false;
+    const pair = pairs[i] as ChoicePair;
+    const key = leaving ? pair.from : pair.to;
+    return p.inward === q.inward && pointKey(portOf(key, p)) === pointKey(portOf(key, q));
+  };
+  // The ends of parallel edges that are apart before the split: it must not
+  // put them together (#143).
+  const apartBefore: [number, number, boolean][] = [];
+  for (const [i, list] of parallels) {
+    for (const j of list) {
+      if (j <= i) continue;
+      for (const leaving of [true, false]) {
+        if (!together(i, j, leaving)) apartBefore.push([i, j, leaving]);
+      }
+    }
+  }
 
   for (let round = 0; round < SEPARATION_ROUNDS; round++) {
     const ports = collect();
@@ -281,6 +366,15 @@ function separateDirections(
       }
       if (move === undefined) continue;
       const stay = move === leaving ? entering : leaving;
+      const moving = new Set(move.map((s) => s.choice));
+      const parallelAt = (slot: Slot, offset: number) =>
+        parallelEndAt(
+          slot.edge,
+          move === leaving,
+          slot.choice,
+          portOf(slot.key, { ...slot.choice, offset }),
+          moving,
+        );
       // Toward the moving edges' other ends, else away from the staying ones'.
       const mean = (slots: Slot[]) =>
         slots.reduce((sum, s) => sum + along(side, pointOf(s.partner, s.partnerChoice)), 0) /
@@ -290,6 +384,27 @@ function separateDirections(
       const offset = (move[0] as Slot).choice.offset ?? 0.5;
       let next = sign > 0 ? (offset + 1) / 2 : offset / 2;
       if (next === offset) next = sign > 0 ? offset / 2 : (offset + 1) / 2;
+      // #143: never onto the point of a parallel edge's end (same two
+      // elements, same direction), or the two would become one line and one
+      // net. Try the other half, then the free positions of the side.
+      if (move.some((slot) => parallelAt(slot, next))) {
+        const first = move[0] as Slot;
+        const other = next < offset ? (offset + 1) / 2 : offset / 2;
+        const used = usedOn(first.key, side);
+        const candidates = [other];
+        for (let d = 4; d <= 1024; d *= 2) {
+          for (let k = 1; k < d; k += 2) {
+            const point = portOf(first.key, { ...first.choice, offset: k / d });
+            if (!used.has(pointKey(point))) candidates.push(k / d);
+          }
+        }
+        const free = candidates.find(
+          (c) => c !== offset && c > 0 && c < 1 && !move.some((slot) => parallelAt(slot, c)),
+        );
+        // None left (over a thousand ends on one side): the collapse is
+        // reported below, never drawn silently.
+        if (free !== undefined) next = free;
+      }
       for (const slot of move) {
         const before = pointOf(slot.partner, slot.partnerChoice);
         slot.choice.offset = next;
@@ -316,6 +431,9 @@ function separateDirections(
         const length = horizontalSide(side) ? rect.width : rect.height;
         const t = (target - start) / length;
         if (!(t > 0 && t < 1)) continue;
+        // #143: the line bends rather than join a parallel edge's end.
+        const at = portOf(slot.partner, { ...partner, offset: t });
+        if (parallelEndAt(slot.edge, move !== leaving, partner, at, new Set([partner]))) continue;
         partner.offset = t;
         touched.add(partner);
       }
@@ -335,12 +453,7 @@ function separateDirections(
     const first = move[0] as Slot;
     // Any point of the side already used (in either direction, from outside
     // or inside a group).
-    const pointKey = (p: Point) => `${p.x} ${p.y}`;
-    const used = new Set<string>();
-    for (const other of collect().values()) {
-      const slot = (other.leaving[0] ?? other.entering[0]) as Slot;
-      if (slot.key === first.key && other.side === port.side) used.add(pointKey(other.point));
-    }
+    const used = usedOn(first.key, port.side);
     let free: number | undefined;
     for (let d = 4; d <= 1024 && free === undefined; d *= 2) {
       for (let k = 1; k < d && free === undefined; k += 2) {
@@ -363,6 +476,16 @@ function separateDirections(
       : "an edge leaving and an edge entering the same element would share a point of it, and no free position is left on that side";
     for (const slot of first(leaving) > first(entering) ? leaving : entering) {
       kept.set(slot.edge, reason);
+    }
+  }
+  // Parallel edges the split put on one point (only when no free position
+  // was left): the later one is reported rather than drawn as one line.
+  for (const [i, j, leaving] of apartBefore) {
+    if (together(i, j, leaving) && !kept.has(i) && !kept.has(j)) {
+      kept.set(
+        j,
+        "the edge would share a point with a parallel edge between the same elements, and no free position is left on that side",
+      );
     }
   }
   return kept;
