@@ -124,8 +124,8 @@ export function variantSources(): { ports: string; router: string } {
   // (`labelAt` prototype: an edge without arrowheads gets the mid-line label).
   src = patch(
     src,
-    "        placeEdgeLabel(e.labelMetrics, points, edge, arrow, {",
-    "        placeEdgeLabel(e.labelMetrics, points, HOOKS.labelEdge?.(edge) ?? edge, arrow, {",
+    "      const label = placeEdgeLabel(e.labelMetrics, points, edge, arrow, {",
+    "      const label = placeEdgeLabel(e.labelMetrics, points, HOOKS.labelEdge?.(edge) ?? edge, arrow, {",
   );
   return {
     ports: `import { HOOKS } from "./hooks";\n${ports}`,

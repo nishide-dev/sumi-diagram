@@ -3,8 +3,9 @@
  * design doc §6.19) and normalizes group membership.
  *
  * - With the `auto` engine, every structured-only field (`figure.layout.arrange`,
- *   `group.arrange`, `node.attach`, `edge.fromAnchor` / `toAnchor`) is an
- *   error: it would otherwise be ignored silently.
+ *   `group.arrange`, `node.attach`, `edge.fromAnchor` / `toAnchor`,
+ *   `edge.labelAt` / `labelSide` (#128)) is an error: it would otherwise be
+ *   ignored silently.
  * - With the `structured` engine, every node and group must be placed exactly
  *   once: as an item of one arrange tree (`figure.layout.arrange` for the root,
  *   `groups[].arrange` for a group's children) or by `attach`. An item of a
@@ -131,7 +132,7 @@ function checkAuto(state: CheckState, locate: Locator): void {
   for (const [index, edge] of (doc.edges ?? []).entries()) {
     if (edge === undefined || invalid.has(edgeKey(edge.id, index))) continue;
     const subject = { kind: "edge", id: edge.id ?? `edges[${index}]` } as const;
-    for (const field of ["fromAnchor", "toAnchor"] as const) {
+    for (const field of ["fromAnchor", "toAnchor", "labelAt", "labelSide"] as const) {
       if (edge[field] !== undefined) {
         report(field, ["edges", index, field], edgeKey(edge.id, index), subject);
       }

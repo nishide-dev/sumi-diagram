@@ -6,9 +6,15 @@
  * segment, past a trunk or corner, or beside the segment before. It keeps
  * off group borders and node boxes where it can; what remains is reported
  * by the checks (`geometry/label-collision`), not resolved.
+ *
+ * An edge with `labelAt` or `labelSide` (#128) gets its label beside the
+ * requested segment, on the requested side, instead (`placeRequestedLabel`):
+ * it moves only along that segment to keep clear of routes, group borders,
+ * nodes and labels.
  */
 
 import type { EdgeIR } from "../../compiler/ir";
+import type { EdgeLabelPosition, EdgeLabelSide } from "../../core/figure/schema";
 import type { Point, Rect, TextLayout, TextMetrics } from "../ir";
 import { placeText } from "../structured/engine";
 
@@ -82,7 +88,47 @@ export interface EdgeLabelSurroundings {
   readonly nodes?: readonly Rect[];
   /** Group boxes: a place the gap away from their borders is preferred. */
   readonly groups?: readonly Rect[];
+  /**
+   * Other labels (group titles, edge labels placed before): a place clear of
+   * them is preferred. Only `labelAt` / `labelSide` placements (#128) look at
+   * them; the default placement does not (its output is unchanged).
+   */
+  readonly labels?: readonly Rect[];
+  /**
+   * The arrowheads of the other edges (`arrowheadRects`): kept clear of like
+   * routes. Only `labelAt` / `labelSide` placements (#128) look at them.
+   */
+  readonly arrowheads?: readonly Rect[];
 }
+
+/**
+ * An edge's arrowheads as rectangles: `arrowhead` long and as wide, across
+ * the end segment, at the target and / or the source.
+ */
+export function arrowheadRects(points: readonly Point[], edge: EdgeIR, arrowhead: number): Rect[] {
+  const n = points.length;
+  if (n < 2) return [];
+  const headOf = (tip: Point, from: Point): Rect => {
+    const ux = Math.sign(tip.x - from.x);
+    const uy = Math.sign(tip.y - from.y);
+    const across = segmentRect({ x: tip.x - ux * arrowhead, y: tip.y - uy * arrowhead }, tip);
+    return ux !== 0
+      ? { ...across, y: across.y - arrowhead / 2, height: arrowhead }
+      : { ...across, x: across.x - arrowhead / 2, width: arrowhead };
+  };
+  const heads: Rect[] = [];
+  if (edge.targetArrowhead !== undefined) {
+    heads.push(headOf(points[n - 1] as Point, points[n - 2] as Point));
+  }
+  if (edge.sourceArrowhead !== undefined) {
+    heads.push(headOf(points[0] as Point, points[1] as Point));
+  }
+  return heads;
+}
+
+/** Whether an edge's label is placed by `labelAt` / `labelSide` (#128). */
+export const hasRequestedLabel = (edge: EdgeIR): boolean =>
+  edge.labelAt !== undefined || edge.labelSide !== undefined;
 
 /**
  * Places `metrics` beside the route:
@@ -100,6 +146,8 @@ export interface EdgeLabelSurroundings {
  *   label over a node hides more than one on a border), else any; if none
  *   is clear of the routes, the first place;
  * - without arrowheads, at the middle of the longest segment, on the same side.
+ *
+ * With `labelAt` or `labelSide` (#128): `placeRequestedLabel`.
  */
 export function placeEdgeLabel(
   metrics: TextMetrics,
@@ -108,6 +156,9 @@ export function placeEdgeLabel(
   arrowhead: number,
   surroundings: EdgeLabelSurroundings = {},
 ): TextLayout {
+  if (hasRequestedLabel(edge)) {
+    return placeRequestedLabel(metrics, points, edge, arrowhead, surroundings);
+  }
   const atSource = edge.targetArrowhead === undefined && edge.sourceArrowhead !== undefined;
   const line = atSource ? [...points].reverse() : points;
   const w = metrics.width;
@@ -203,5 +254,157 @@ export function placeEdgeLabel(
     clear.find(clearOfNodes) ??
     clear[0] ??
     first;
+  return placeText(metrics, chosen.center);
+}
+
+/** The label end of an edge without `labelAt`: the arrowhead's (target first), else the middle. */
+function defaultLabelAt(edge: EdgeIR): EdgeLabelPosition {
+  if (edge.targetArrowhead !== undefined) return "end";
+  return edge.sourceArrowhead !== undefined ? "start" : "middle";
+}
+
+/**
+ * The segment an edge's label goes beside under `labelAt` (#128), as the
+ * index `i` of the segment from `points[i - 1]` to `points[i]` (`points` from
+ * source to target): `start` the first, `end` the last, `middle` the longest
+ * (the first of equals). Without `labelAt`, the default end
+ * (`defaultLabelAt`).
+ */
+export function labelSegment(points: readonly Point[], edge: EdgeIR): number {
+  const at = edge.labelAt ?? defaultLabelAt(edge);
+  if (at === "start") return 1;
+  if (at === "end") return points.length - 1;
+  let best = 1;
+  let bestLength = -1;
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1] as Point;
+    const b = points[i] as Point;
+    const length = Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+    if (length > bestLength) {
+      best = i;
+      bestLength = length;
+    }
+  }
+  return best;
+}
+
+/**
+ * `labelSide` (#128) beside the segment from `a` to `b`, as `beside()`'s
+ * side (+1: above a horizontal segment / right of a vertical one). Facing
+ * right (+x) or down (+y, SVG coordinates), the left is above / right of
+ * the line.
+ */
+export function absoluteSide(a: Point, b: Point, labelSide: EdgeLabelSide): 1 | -1 {
+  const flat = Math.abs(a.y - b.y) < 1e-9;
+  const forward = flat ? b.x > a.x : b.y > a.y;
+  return forward === (labelSide === "left") ? 1 : -1;
+}
+
+/**
+ * `labelAt` / `labelSide` (#128): the label goes beside the requested
+ * segment (`labelSegment`) on the requested side (`absoluteSide`; without
+ * `labelSide`, either side, above / right first), `EDGE_LABEL_GAP` from it:
+ * - first place: `end` / `start` just behind the arrowhead at that end (the
+ *   gap from the end without one), as the default placement; `middle`
+ *   centred on the segment;
+ * - other places: slid along the segment to just past a route, arrowhead,
+ *   group border, node or label, with the label's center beside the segment
+ *   (between its ends); `end` / `start` only slide away from their end.
+ *   Nearest to the first place first (toward the target when equally near),
+ *   each on every allowed side.
+ * Of the places clear of the routes (and arrowheads), it takes the first
+ * also clear of borders, nodes and labels, else of nodes and labels, else
+ * any; if none is clear of the routes, the first place. It never leaves the
+ * requested segment or side: what remains is reported as
+ * `layout/edge-label-overlap` (`label-diagnostics.ts`).
+ */
+function placeRequestedLabel(
+  metrics: TextMetrics,
+  points: readonly Point[],
+  edge: EdgeIR,
+  arrowhead: number,
+  surroundings: EdgeLabelSurroundings,
+): TextLayout {
+  const g = EDGE_LABEL_GAP;
+  const w = metrics.width;
+  const h = metrics.height;
+  const n = points.length;
+  const at = edge.labelAt ?? defaultLabelAt(edge);
+  const index = labelSegment(points, edge);
+  const a = points[index - 1] as Point;
+  const b = points[index] as Point;
+  const flat = Math.abs(a.y - b.y) < 1e-9;
+  // Along the segment: the coordinate, the direction from a to b, the lengths.
+  const u = (p: Point) => (flat ? p.x : p.y);
+  const dir = Math.sign(u(b) - u(a)) || 1;
+  const length = Math.abs(u(b) - u(a));
+  const len = flat ? w : h;
+  // The label's center as a distance from `a` along the segment: the first
+  // place, and the range it may slide in.
+  let first: number;
+  let lo = 0;
+  let hi = length;
+  if (at === "end") {
+    const head = index === n - 1 && edge.targetArrowhead !== undefined ? arrowhead : 0;
+    first = length - head - g - len / 2;
+    hi = first;
+  } else if (at === "start") {
+    const head = index === 1 && edge.sourceArrowhead !== undefined ? arrowhead : 0;
+    first = head + g + len / 2;
+    lo = first;
+  } else {
+    first = length / 2;
+  }
+
+  const segments: Rect[] = [];
+  for (const route of [points, ...(surroundings.routes ?? [])]) {
+    for (let i = 1; i < route.length; i++) {
+      segments.push(segmentRect(route[i - 1] as Point, route[i] as Point));
+    }
+  }
+  const borders: Rect[] = (surroundings.groups ?? []).flatMap((r) => [
+    { x: r.x, y: r.y, width: r.width, height: 0 },
+    { x: r.x, y: r.y + r.height, width: r.width, height: 0 },
+    { x: r.x, y: r.y, width: 0, height: r.height },
+    { x: r.x + r.width, y: r.y, width: 0, height: r.height },
+  ]);
+  const boxes = [...(surroundings.nodes ?? []), ...(surroundings.labels ?? [])];
+  // Its own arrowheads and those of the other edges.
+  const heads = [...arrowheadRects(points, edge, arrowhead), ...(surroundings.arrowheads ?? [])];
+
+  // The first place, then just past (either way) each obstacle along the segment.
+  const offsets = new Set([first]);
+  for (const r of [...segments, ...borders, ...boxes, ...heads]) {
+    const near = flat ? r.x : r.y;
+    const far = near + (flat ? r.width : r.height);
+    for (const c of [far + g + len / 2, near - g - len / 2]) {
+      const t = (c - u(a)) * dir;
+      if (t >= lo - 1e-9 && t <= hi + 1e-9) offsets.add(t);
+    }
+  }
+  const sides: readonly (1 | -1)[] =
+    edge.labelSide === undefined ? [1, -1] : [absoluteSide(a, b, edge.labelSide)];
+  const centerAt = (t: number, side: 1 | -1): Point => {
+    const along = u(a) + dir * t;
+    return flat
+      ? { x: along, y: a.y + (side > 0 ? -(g + h / 2) : g + h / 2) }
+      : { x: a.x + (side > 0 ? g + w / 2 : -(g + w / 2)), y: along };
+  };
+  const candidates: Candidate[] = [...offsets]
+    .sort((p, q) => Math.abs(p - first) - Math.abs(q - first) || q - p)
+    .flatMap((t) => sides.map((side) => ({ center: centerAt(t, side) })));
+
+  const boxAt = (c: Candidate) => boxOf(c.center, w, h);
+  const near = (c: Candidate) => grow(boxAt(c), g - 1e-6);
+  const clearOfRoutes = (c: Candidate) =>
+    heads.every((r) => !overlaps(boxAt(c), r)) && segments.every((s) => !overlaps(near(c), s));
+  const clearOfBorders = (c: Candidate) => borders.every((s) => !overlaps(near(c), s));
+  const clearOfBoxes = (c: Candidate) => boxes.every((o) => !overlaps(boxAt(c), o));
+  const clear = candidates.filter(clearOfRoutes);
+  const chosen =
+    clear.find((c) => clearOfBorders(c) && clearOfBoxes(c)) ??
+    clear.find(clearOfBoxes) ??
+    clear[0] ??
+    (candidates[0] as Candidate);
   return placeText(metrics, chosen.center);
 }

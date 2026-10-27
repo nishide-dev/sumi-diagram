@@ -106,6 +106,29 @@ describe("layout/structured-only", () => {
     // The element with the field is invalid, and so are its dependents.
     expect([...state.invalid].sort()).toEqual(["e:#0", "g:g", "n:a", "n:b"]);
   });
+
+  test("edge labelAt and labelSide (#128)", () => {
+    const text = figure(
+      [
+        "nodes:",
+        "  - { id: a, component: box }",
+        "edges:",
+        "  - { from: a, to: a, label: x, labelAt: start, labelSide: left }",
+        "  - { from: a, to: a, label: y, labelSide: right }",
+        "",
+      ].join("\n"),
+    );
+    expect(check(text)).toEqual([
+      ["layout/structured-only", ["edges", 0, "labelAt"], 7, 33],
+      ["layout/structured-only", ["edges", 0, "labelSide"], 7, 49],
+      ["layout/structured-only", ["edges", 1, "labelSide"], 8, 33],
+    ]);
+    const { state } = checkFigureSource(text);
+    expect(state.diagnostics[0]?.message).toBe(
+      '"labelAt" needs the structured layout engine, but this figure uses the auto engine.',
+    );
+    expect([...state.invalid].sort()).toEqual(["e:#0", "e:#1"]);
+  });
 });
 
 describe("placement", () => {

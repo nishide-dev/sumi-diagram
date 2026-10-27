@@ -15,6 +15,8 @@ import { type Anchor, parseAnchor } from "../core/figure/layout";
 import type {
   ArrangeAlign,
   ArrangeBox,
+  EdgeLabelPosition,
+  EdgeLabelSide,
   FigureEdge,
   FigureGroup,
   FigureMeta,
@@ -193,6 +195,10 @@ export interface EdgeIR extends ElementIRBase {
   readonly fromAnchor?: Anchor;
   /** Structured layout: where the edge enters the target. */
   readonly toAnchor?: Anchor;
+  /** Structured layout: where along the route the label sits (#128). Absent when not written. */
+  readonly labelAt?: EdgeLabelPosition;
+  /** Structured layout: the side of the line, facing from source to target (#128). Absent when not written. */
+  readonly labelSide?: EdgeLabelSide;
 }
 
 export type ElementIR = NodeIR | GroupIR | EdgeIR;
@@ -452,6 +458,8 @@ function edgeIR(
     style: styleOf(state, key, "edge"),
     ...anchorIR("fromAnchor", e.fromAnchor),
     ...anchorIR("toAnchor", e.toAnchor),
+    ...(e.labelAt !== undefined && { labelAt: e.labelAt }),
+    ...(e.labelSide !== undefined && { labelSide: e.labelSide }),
   });
 }
 

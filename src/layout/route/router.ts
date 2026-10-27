@@ -73,7 +73,8 @@ import {
 import { deepFreeze } from "../structured/engine";
 import { crossingDiagnostics } from "./crossings";
 import { PairHeap } from "./heap";
-import { placeEdgeLabel } from "./labels";
+import { requestedLabelDiagnostics } from "./label-diagnostics";
+import { arrowheadRects, hasRequestedLabel, placeEdgeLabel } from "./labels";
 import { bottomOf, DIRS, type End, isJunction, opposite, resolveEnds, rightOf } from "./ports";
 
 /** Router parameters in units (0.5pt) and costs (in units of length). */
@@ -184,7 +185,9 @@ export function routeEdges(
  * place to turn, so if an edge has no route, route the figure again with
  * both lines and keep that if it routes more edges (rare, so the grid stays
  * small). Only then, and only if every edge has a route, the crossings
- * between nets are added (`layout/edge-crossing`, #133).
+ * between nets are added (`layout/edge-crossing`, #133), and the overlaps
+ * of labels placed by `labelAt` / `labelSide` (`layout/edge-label-overlap`,
+ * #128).
  */
 export function chooseRouting(
   ir: FigureIR,
@@ -198,7 +201,13 @@ export function chooseRouting(
   if (hasErrors(result.diagnostics)) return result;
   return {
     layout: result.layout,
-    diagnostics: [...result.diagnostics, ...crossingDiagnostics(ir, result.layout)],
+    diagnostics: [
+      ...result.diagnostics,
+      ...crossingDiagnostics(ir, result.layout),
+      ...requestedLabelDiagnostics(ir, result.layout, (edge) =>
+        arrowheadLength(edge.style.strokeWidth.units),
+      ),
+    ],
   };
 }
 
@@ -1309,20 +1318,39 @@ class Router {
         ? []
         : [group.rect];
     });
-    for (const e of layout.edges) {
-      const points = routes.get(e.key);
-      const edge = irEdges.get(e.key);
-      if (points === undefined || edge === undefined || e.labelMetrics === undefined) continue;
-      const arrow = arrowheadLength(edge.style.strokeWidth.units);
-      const others = [...routes].flatMap(([key, route]) => (key === e.key ? [] : [route]));
-      labels.set(
-        e.key,
-        placeEdgeLabel(e.labelMetrics, points, edge, arrow, {
+    // Labels in two passes (#128): the default placements first (they look at
+    // routes, nodes and borders only, so they are as before), then the
+    // `labelAt` / `labelSide` ones in document order, which also keep clear
+    // of group titles, every label placed before them and every arrowhead.
+    const labelBoxes = layout.groups.flatMap((group) =>
+      group.label === undefined ? [] : [group.label.box],
+    );
+    const heads = new Map<ElementKey, Rect[]>();
+    for (const [key, points] of routes) {
+      const edge = irEdges.get(key);
+      if (edge === undefined) continue;
+      heads.set(key, arrowheadRects(points, edge, arrowheadLength(edge.style.strokeWidth.units)));
+    }
+    for (const requested of [false, true]) {
+      for (const e of layout.edges) {
+        const points = routes.get(e.key);
+        const edge = irEdges.get(e.key);
+        if (points === undefined || edge === undefined || e.labelMetrics === undefined) continue;
+        if (hasRequestedLabel(edge) !== requested) continue;
+        const arrow = arrowheadLength(edge.style.strokeWidth.units);
+        const others = [...routes].flatMap(([key, route]) => (key === e.key ? [] : [route]));
+        const label = placeEdgeLabel(e.labelMetrics, points, edge, arrow, {
           routes: others,
           nodes: nodeBoxes,
           groups: groupBoxes,
-        }),
-      );
+          ...(requested && {
+            labels: [...labelBoxes],
+            arrowheads: [...heads].flatMap(([key, rects]) => (key === e.key ? [] : rects)),
+          }),
+        });
+        labels.set(e.key, label);
+        labelBoxes.push(label.box);
+      }
     }
 
     // Grow the content to hold the routes and edge labels; keep it at the margin.
