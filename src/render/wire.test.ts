@@ -53,6 +53,21 @@ describe("turns of one route", () => {
     ]);
   });
 
+  test("the part of an end leg under an arrowhead stays straight (#116)", () => {
+    // The wire stops at the arrowhead's base; the last 4 units run under its
+    // wings (an "arrow" head). Half the 10-unit leg would be 5.
+    const end = roundCorners([{ points: [p(0, 0), p(40, 0), p(40, 10)], keepEnd: 4 }], options());
+    expect(end.arcs[0]?.map((a) => [a.from, a.to])).toEqual([[p(35, 0), p(40, 5)]]);
+    const tight = roundCorners([{ points: [p(0, 0), p(40, 0), p(40, 6)], keepEnd: 4 }], options());
+    expect(tight.arcs[0]?.map((a) => [a.from, a.to])).toEqual([[p(38, 0), p(40, 2)]]);
+    // At the start too; a leg shorter than what it keeps stays sharp.
+    const start = roundCorners(
+      [{ points: [p(40, 4), p(40, 0), p(0, 0)], keepStart: 4.5 }],
+      options(),
+    );
+    expect(start.arcs[0]).toEqual([]);
+  });
+
   test("an obstacle inside the turn shrinks the radius; a turn that cannot take the minimum stays sharp", () => {
     // A node whose corner is 4 units inside the turn at (40, 0) (going east, then south).
     const node = { x: 20, y: 4, width: 16, height: 30 };

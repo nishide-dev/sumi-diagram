@@ -6,7 +6,14 @@ import type { EdgeLayout, LayoutIR, Point, Rect } from "../ir";
 import type { TextMeasurer } from "../text";
 import { checkRoutes, type RouteCheckReport, routeProblemCount } from "./check";
 import { resolveEnds } from "./ports";
-import { arrowheadLength, mergeSegments, routeEdges, simplify } from "./router";
+import {
+  arrowheadLength,
+  arrowRoom,
+  mergeSegments,
+  routeEdges,
+  simplify,
+  WIRE_CORNER_RADIUS,
+} from "./router";
 
 const fixtures = `${import.meta.dir}/../../../tests/fixtures`;
 /** #113's reproduction (research/109-dogfood-v0.4, A2): `api → worker` + `worker → store` at one port. */
@@ -134,6 +141,159 @@ describe("single edges", () => {
     const [p, q] = points.slice(-2) as [Point, Point];
     expect(q.x - p.x).toBeGreaterThanOrEqual(arrowheadLength(1));
     expectClean(value);
+  });
+});
+
+/** Length of an axis-parallel segment. */
+const span = (a: Point, b: Point) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+
+/**
+ * For every edge with a target arrowhead: the length of its last segment and
+ * the nearest point to its tip, on that segment, where another route of its
+ * net turns off it or onto it (a fork), as distances from the tip.
+ */
+function arrowApproaches(layout: LayoutIR): { last: number; fork: number }[] {
+  const routed = layout.edges.filter((e) => e.route !== undefined);
+  return routed.map((edge) => {
+    const points = edge.route?.points ?? [];
+    const tip = points.at(-1) as Point;
+    const corner = points.at(-2) as Point;
+    let fork = Number.POSITIVE_INFINITY;
+    for (const other of routed) {
+      if (other === edge || other.route?.net !== edge.route?.net) continue;
+      const theirs = other.route?.points ?? [];
+      const end = theirs.at(-1) as Point;
+      if (end.x === tip.x && end.y === tip.y) continue; // the same port
+      for (const p of theirs) {
+        const on =
+          (corner.x === tip.x &&
+            p.x === tip.x &&
+            span(p, tip) + span(p, corner) === span(corner, tip)) ||
+          (corner.y === tip.y &&
+            p.y === tip.y &&
+            span(p, tip) + span(p, corner) === span(corner, tip));
+        if (on) fork = Math.min(fork, span(p, tip));
+      }
+    }
+    return { last: span(corner, tip), fork };
+  });
+}
+
+describe("room before an arrowhead (#116)", () => {
+  test("after a turn: the arrowhead's length plus the corner radius", () => {
+    const value = run(
+      figure(
+        { row: { gap: "10mm", items: ["a", "b"] } },
+        [box("a"), box("b")],
+        [{ from: "a", to: "b", fromAnchor: "south", toAnchor: "west:0.2" }],
+      ),
+    );
+    const [p, q] = pointsOf(value.layout, 0).slice(-2) as [Point, Point];
+    expect(q.x - p.x).toBeGreaterThanOrEqual(arrowRoom(1));
+    expect(arrowRoom(1)).toBe(arrowheadLength(1) + WIRE_CORNER_RADIUS);
+    expectClean(value);
+  });
+
+  // The reproduction (research/109-dogfood-v0.4, A7): a gateway fanning out
+  // to three services. The branches used to leave the shared trunk right
+  // where the middle edge's arrowhead starts.
+  test("a fan-out forks off the trunk no closer to an arrowhead than the room", () => {
+    const value = run(
+      figure(
+        {
+          row: {
+            gap: "6mm",
+            align: "center",
+            items: ["gw", { stack: { gap: "4mm", items: ["x", "y", "z"] } }],
+          },
+        },
+        [box("gw"), box("x"), box("y"), box("z")],
+        [
+          { from: "gw", to: "x" },
+          { from: "gw", to: "y" },
+          { from: "gw", to: "z" },
+        ],
+      ),
+    );
+    const approaches = arrowApproaches(value.layout);
+    expect(approaches.map((a) => a.last >= arrowRoom(1))).toEqual([true, true, true]);
+    for (const { fork } of approaches) expect(fork).toBeGreaterThanOrEqual(arrowRoom(1));
+    expectClean(value);
+  });
+
+  test("a gap too narrow for the room still routes, with the arrowhead's stub", () => {
+    // 3mm = 17 units between the boxes: the source stub (6) and the room (16)
+    // do not fit, the stub (8) does.
+    const value = run(
+      figure(
+        { stack: { gap: "3mm", items: ["a", "b"] } },
+        [box("a"), box("b")],
+        [{ from: "a", to: "b", fromAnchor: "south:0.2", toAnchor: "north:0.8" }],
+      ),
+    );
+    const points = pointsOf(value.layout, 0);
+    const [p, q] = points.slice(-2) as [Point, Point];
+    expect(points).toHaveLength(4);
+    expect(q.y - p.y).toBeGreaterThanOrEqual(arrowheadLength(1));
+    expect(q.y - p.y).toBeLessThan(arrowRoom(1));
+    expectClean(value);
+  });
+
+  test("where only the stub's end is free to turn at, the edge still routes (review of #116)", () => {
+    // The grid has a line at the room's end, not the stub's. Here a wall
+    // ends 9 units before the target's port: the stub (8) fits, the room
+    // (16) does not, and no other line lies in between, so the figure is
+    // routed again with lines at the stubs' ends as well.
+    const placed = layoutStructuredFigure(
+      figure(
+        { row: { items: ["a", "b", "wall"] } },
+        [box("a"), box("b"), box("wall")],
+        [{ from: "a", to: "b", fromAnchor: "east", toAnchor: "west" }],
+      ),
+      { measurer: FAKE, route: false },
+    );
+    if (!placed.ok) throw new Error(JSON.stringify(placed.diagnostics));
+    const rects = [
+      { x: -60, y: 0, width: 20, height: 20 },
+      { x: 0, y: 40, width: 20, height: 20 },
+      { x: -29, y: 40, width: 20, height: 20 },
+    ];
+    const layout: LayoutIR = {
+      ...placed.value.layout,
+      // Labels dropped: they would be outside the moved boxes.
+      nodes: placed.value.layout.nodes.map(({ label: _label, ...n }, i) => ({
+        ...n,
+        rect: rects[i] as Rect,
+      })),
+      content: { x: -60, y: 0, width: 100, height: 80 },
+    };
+    const result = routeEdges(placed.value.ir, layout, { verifyLowerBound: true });
+    expect(result.diagnostics).toEqual([]);
+    const [p, q] = (result.layout.edges[0]?.route?.points ?? []).slice(-2) as [Point, Point];
+    expect(q.x - p.x).toBe(arrowheadLength(1));
+  });
+
+  test("inside a group too tight for the room, a route keeps to the group as before", () => {
+    // Figure A's residuals: the encoder's padding (16) is no wider than the
+    // room, and the route stays inside instead of going around the border.
+    const value = run(readFileSync(`${fixtures}/figures/layout/a-transformer.sumi.yaml`, "utf8"));
+    const encoder = rectOf(value.layout, "encoder");
+    const residual = value.layout.edges.find(
+      (e) => e.from === "n:enc-split1" && e.to === "n:enc-norm1",
+    );
+    for (const p of residual?.route?.points ?? []) {
+      expect(p.x).toBeGreaterThan(encoder.x);
+      expect(p.y).toBeLessThan(encoder.y + encoder.height);
+    }
+    // The attention inputs, which have the room, fork off with it.
+    const inputs = arrowApproaches(value.layout).filter(
+      (_, i) => value.layout.edges[i]?.to === "n:enc-mha",
+    );
+    expect(inputs.length).toBe(3);
+    for (const { last, fork } of inputs) {
+      expect(last).toBeGreaterThanOrEqual(arrowRoom(1));
+      expect(fork).toBeGreaterThanOrEqual(arrowRoom(1));
+    }
   });
 });
 
@@ -665,17 +825,18 @@ describe("the A* lower bound", () => {
     ["#113's reproduction", readFileSync(sharedSegment, "utf8"), undefined],
     ["synthetic columns (bridged nets)", synthetic("columns"), undefined],
     ["synthetic grid", synthetic("grid"), undefined],
-  ])("%s: the same routes as without it (Dijkstra)", (_name, text, measurer) => {
+  ])("%s: the same route costs as without it (Dijkstra)", (_name, text, measurer) => {
     const placed = layoutStructuredFigure(text, {
       route: false,
       ...(measurer !== undefined && { measurer }),
     });
     if (!placed.ok) throw new Error(JSON.stringify(placed.diagnostics));
     const { ir, layout } = placed.value;
-    const fast = routeEdges(ir, layout);
-    const exact = routeEdges(ir, layout, { lowerBound: false });
+    // Every edge costs the same with Dijkstra on the same occupancy (#116:
+    // routes of equal cost may differ, so whole layouts are not compared).
+    const fast = routeEdges(ir, layout, { verifyLowerBound: true });
     expect(fast.diagnostics).toEqual([]);
-    expect(JSON.stringify(fast.layout)).toBe(JSON.stringify(exact.layout));
+    expect(JSON.stringify(fast.layout)).toBe(JSON.stringify(routeEdges(ir, layout).layout));
   });
 });
 
@@ -741,6 +902,68 @@ describe("edge labels", () => {
     expect(label.box.y + label.box.height).toBeCloseTo(tip.y - 3, 3);
     expect(label.box.x + label.box.width).toBeCloseTo(tip.x - arrowheadLength(1) - 3, 3);
     expect(label.lines).toEqual(["x"]);
+    expectClean(value);
+  });
+
+  /** The label keeps the gap from every segment of every route. */
+  const expectLabelClear = (layout: LayoutIR, box: Rect) => {
+    for (const edge of layout.edges) {
+      for (const [a, b] of mergeSegments([edge.route?.points ?? []])) {
+        const apart =
+          Math.max(a.x, b.x) <= box.x - 3 + 1e-6 ||
+          Math.min(a.x, b.x) >= box.x + box.width + 3 - 1e-6 ||
+          Math.max(a.y, b.y) <= box.y - 3 + 1e-6 ||
+          Math.min(a.y, b.y) >= box.y + box.height + 3 - 1e-6;
+        expect(apart).toBe(true);
+      }
+    }
+  };
+
+  // The reproduction (research/109-dogfood-v0.4, A8): `update θ` from
+  // AdamW's south side to the model's. The last segment is shorter than the
+  // label, which covered the route's previous segment (a dashed stub that
+  // looked like a dot).
+  test("a short last segment: on the other side, clear of the route's own corner (#116)", () => {
+    const value = run(
+      figure(
+        { row: { gap: "10mm", items: ["model", "optimizer"] } },
+        [box("model"), box("optimizer")],
+        [
+          {
+            from: "optimizer",
+            to: "model",
+            fromAnchor: "south",
+            toAnchor: "south",
+            label: "update θ",
+          },
+        ],
+      ),
+    );
+    const route = edgeOf(value.layout, 0).route;
+    const label = route?.label;
+    if (label === undefined || route === undefined) throw new Error("no label");
+    const [corner, tip] = route.points.slice(-2) as [Point, Point];
+    // Up into the model; the segment before runs right, under the label's first place.
+    expect(corner.x).toBe(tip.x);
+    expect(corner.y - tip.y).toBeLessThan(label.box.height + arrowheadLength(1) + 3);
+    // Left of the last segment, behind the arrowhead.
+    expect(label.box.x + label.box.width).toBeCloseTo(tip.x - 3, 3);
+    expect(label.box.y).toBeCloseTo(tip.y + arrowheadLength(1) + 3, 3);
+    expectLabelClear(value.layout, label.box);
+    expectClean(value);
+  });
+
+  test("a trunk that forks off right behind the arrowhead: the label goes past it (#116)", () => {
+    // Figure B's bus: four taps from one port. Each tap's label sits beside
+    // its last segment, past the bus rather than across it.
+    const value = run(readFileSync(`${fixtures}/figures/layout/b-adaln-panel.sumi.yaml`, "utf8"));
+    const labelled = value.layout.edges.filter((e) => e.route?.label !== undefined);
+    expect(labelled.length).toBe(4);
+    for (const edge of labelled) {
+      const label = edge.route?.label;
+      if (label === undefined) throw new Error("no label");
+      expectLabelClear(value.layout, label.box);
+    }
     expectClean(value);
   });
 });

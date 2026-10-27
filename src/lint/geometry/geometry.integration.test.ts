@@ -42,7 +42,9 @@ describe.skipIf(!available && !inCI)("geometry lint with D2", () => {
     ["edge-crosses-label", ["geometry/edge-crosses-label"]],
     // #31: the regression fixtures of the readability fixes.
     ["exceeds-page-height", ["geometry/exceeds-page-height"]],
-    ["container-label", []],
+    // #116: the label "errors" sits on the group's bottom border (D2 puts it
+    // where the edge leaves the group).
+    ["container-label", ["geometry/label-collision"]],
     ["reversed-edge", ["geometry/reversed-edge"]],
     ["reversed-edge-reordered", []],
     ["reversed-edge-group", []],

@@ -21,8 +21,12 @@
  * The radius at a turn is the largest up to `radius` that keeps the arc (in
  * fact the square spanned by the cut legs, which holds it) clear of every
  * obstacle by `clearance`: nodes, labels and the lines of other nets. It is
- * also at most half of each leg, so the cuts of two turns never overlap. A
- * turn that cannot take `minRadius` stays sharp.
+ * also at most half of each leg, so the cuts of two turns never overlap, and
+ * it leaves the part of an end segment under an arrowhead straight
+ * (`keepStart` / `keepEnd`, #116). A turn that cannot take `minRadius` stays
+ * sharp. The router prefers to keep the segment before an arrowhead long
+ * enough for both (`arrowRoom()`), but not always (a tight gap, a group
+ * padding narrower than the room).
  *
  * The geometry the inspection, the geometry lint and the editable PPTX read
  * is the edge's `path.connection` (M / L, the route as it is): a rounded
@@ -50,6 +54,13 @@ export interface WirePolyline {
   readonly start?: string;
   /** The edge enters this hidden junction: the last point is its center. */
   readonly end?: string;
+  /**
+   * How much of the first / last segment must stay straight (#116): the part
+   * of an arrowhead the wire runs under (the wire stops at the arrowhead's
+   * base, which is not always its back). A turn there leaves it alone.
+   */
+  readonly keepStart?: number;
+  readonly keepEnd?: number;
 }
 
 export interface CornerOptions {
@@ -239,7 +250,7 @@ export function roundCorners(
   // length but what the junction's arcs use of it (none if the junction joins
   // nothing there); any other leg half of it (the turn at its other end may
   // take the other half).
-  polylines.forEach(({ points, start, end }, index) => {
+  polylines.forEach(({ points, start, end, keepStart = 0, keepEnd = 0 }, index) => {
     const last = points.length - 2; // the last segment
     for (let i = 1; i + 1 < points.length; i++) {
       const prev = points[i - 1] as Point;
@@ -253,6 +264,8 @@ export function roundCorners(
       const room = Math.min(
         i - 1 === 0 && start !== undefined ? before - (reserveStart[index] as number) : before / 2,
         i === last && end !== undefined ? after - (reserveEnd[index] as number) : after / 2,
+        i - 1 === 0 ? before - keepStart : before,
+        i === last ? after - keepEnd : after,
       );
       const r = clearRadius(p, { x: -d1.x, y: -d1.y }, d2, Math.min(options.radius, room), options);
       if (r < options.minRadius) continue;

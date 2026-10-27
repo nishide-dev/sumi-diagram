@@ -121,7 +121,7 @@ exit code 1. Configure like structural rules
 | `geometry/label-overflow` | error | remove or enlarge explicit `width`/`height` (the `path` points at `props` then), shorten or break the label, or use a shape with more room for text (`box`) |
 | `geometry/out-of-canvas` | error | shorten labels; if it persists, report it as a Sumi bug |
 | `geometry/node-overlap` | warning | review explicit sizes; auto: put the nodes in the same group; structured: an attached node in a `gap` overlaps its neighbour, put it in the tree, attach it to a free side, or widen the `gap` ([attach](structured.md#attach-side-notes)) |
-| `geometry/label-collision` | warning | shorten labels; auto: change `direction` or grouping; structured: change the `gap`, anchors or attach side |
+| `geometry/label-collision` | warning | a label overlaps another label, a node's shape or a group's border: shorten labels; auto: change `direction` or grouping; structured: change the `gap`, anchors or attach side (an edge label on a group's border: widen the `gap` before the group so the label fits outside it) |
 | `geometry/edge-crosses-label` | warning | auto: connect elements inside the group rather than the group, change `direction`, shorten the label (see layout-tips); structured: the group label is at the top centre, enter from the side or move the label ([arrange trees](structured.md#arrange-trees)) |
 | `geometry/edge-through-node` | warning | an edge is drawn across a node it does not connect: change `layout.direction` or the grouping so the layout has a free path |
 | `geometry/aspect-distorted` | warning | fewer edges on that `circle`/`square`, or use `ellipse`/`box` |

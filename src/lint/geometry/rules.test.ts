@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { mmToPt } from "../../core/units";
 import { LintConfigError } from "../config";
-import { cycleClosingEdges, largerBuiltinProfiles } from "./rules";
+import { borderOf, cycleClosingEdges, largerBuiltinProfiles } from "./rules";
+import { polylinesCrossRect } from "./shapes";
 import { centeredBaseline, compile, label, lintSpec } from "./testing";
 
 // Line numbers matter for the location tests below.
@@ -650,6 +651,43 @@ describe("geometry/label-collision", () => {
     expect(covered.map((d) => d.message)).toEqual([
       'The label of group "grp" overlaps the shape of node "a".',
     ]);
+  });
+
+  test("an edge label on a group's border (#116); inside or outside it is fine", () => {
+    const grp = { bbox: { x: 0, y: 40, width: 200, height: 100 } };
+    const run = (baseline: number) =>
+      lintSpec(
+        compiled,
+        { elements: { "g:grp": grp, "e:#0": { labels: [label("漢漢", 100, baseline)] } } },
+        { code },
+      );
+    // The line box is 16 units tall, from 14 units above the baseline.
+    expect(run(centeredBaseline(40)).map((d) => [d.severity, d.message])).toEqual([
+      ["warning", 'The label of edge edges[0] overlaps the border of group "grp".'],
+    ]);
+    // The bottom border too.
+    expect(run(centeredBaseline(140)).map((d) => d.message)).toEqual([
+      'The label of edge edges[0] overlaps the border of group "grp".',
+    ]);
+    // Touching the border's stroke from outside is on it too (an edge label's
+    // background would hide the border there); clear of it, or well inside, is fine.
+    expect(run(centeredBaseline(40 - 8)).length).toBe(1);
+    expect(run(centeredBaseline(40 - 8 - 3))).toEqual([]);
+    expect(run(centeredBaseline(90))).toEqual([]);
+  });
+
+  test("a rounded group's border follows its corners (review of #116)", () => {
+    const rect = { x: 0, y: 0, width: 100, height: 100 };
+    const crosses = (box: { x: number; y: number; width: number; height: number }, r: number) =>
+      polylinesCrossRect([borderOf(rect, r)], box, 0);
+    // In the square corner: on a sharp border, clear of a rounded one.
+    expect(crosses({ x: -2, y: -2, width: 4, height: 4 }, 0)).toBe(true);
+    expect(crosses({ x: -2, y: -2, width: 4, height: 4 }, 40)).toBe(false);
+    // Across the arc (it passes (11.716, 11.716)), away from the straight sides.
+    expect(crosses({ x: 10, y: 10, width: 4, height: 4 }, 40)).toBe(true);
+    expect(crosses({ x: 10, y: 10, width: 4, height: 4 }, 0)).toBe(false);
+    // The radius is clamped to half the sides, as drawn.
+    expect(borderOf(rect, 500)).toEqual(borderOf(rect, 50));
   });
 });
 

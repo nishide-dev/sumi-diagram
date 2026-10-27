@@ -23,6 +23,16 @@
  *   side and runs straight for at least the clearance (and the arrowhead's
  *   length at an end with an arrowhead) before it may bend. A junction is a
  *   point the route may leave or enter in any direction.
+ * - **Room before an arrowhead (#116)**: the arrowhead's length plus the
+ *   wire's corner radius (`arrowRoom()`), so a rounded corner before the
+ *   arrowhead ends where it starts. The stub is reserved up to the room's
+ *   end, and that end (not the stub's) is the grid line, so the grid does
+ *   not grow. Turning within the room, or another edge of the net forking
+ *   off or joining the line there (a shared trunk split right before the
+ *   arrowhead), costs `ROUTE.arrowRoom`: a route keeps the room unless that
+ *   costs a crossing or a detour, and a tight gap routes as before. An end whose
+ *   room would not fit, with the clearance, inside a group that holds both
+ *   ends has none (`#room`).
  * - **Nets**: edges that leave the same port, enter the same port, or touch
  *   the same junction form one net (union-find, so junctions joined by edges
  *   merge transitively). Edges entering and leaving one port are different
@@ -85,6 +95,13 @@ export const ROUTE = Object.freeze({
    * found there.
    */
   corridor: 80,
+  /**
+   * Turning, or forking off or joining another edge of the net, within the
+   * room before an arrowhead (`arrowRoom()`, #116): more than two bends,
+   * less than a crossing, so a route keeps the room where moving a bend or
+   * the trunk gives it, but not at the price of a crossing or a detour.
+   */
+  arrowRoom: 100,
 });
 
 /**
@@ -95,6 +112,25 @@ export const ROUTE = Object.freeze({
  */
 export function arrowheadLength(strokeUnits: number): number {
   return 4 + 4 * strokeUnits;
+}
+
+/**
+ * The largest corner radius of a structured wire (#101), in units: 4pt, a
+ * little under D2's 5pt for ELK routes, as structured figures pack blocks
+ * closer. The router prefers to keep this much more straight line before an
+ * arrowhead (#116), so the SVG writer (`src/render/wire.ts`) can round the corner
+ * before it without reaching the arrowhead.
+ */
+export const WIRE_CORNER_RADIUS = 8;
+
+/**
+ * The straight line a route keeps before an arrowhead where it can (#116):
+ * the arrowhead's length plus the corner radius, so that a rounded corner
+ * before it ends where the arrowhead starts. The stub itself (where a route
+ * may not turn at all) is only the arrowhead's length.
+ */
+export function arrowRoom(strokeUnits: number): number {
+  return arrowheadLength(strokeUnits) + WIRE_CORNER_RADIUS;
 }
 
 export interface RouteResult {
@@ -111,6 +147,13 @@ export interface RouteOptions {
    * same costs, slower); tests compare the two.
    */
   lowerBound?: boolean;
+  /**
+   * For tests: search every edge also with Dijkstra on the same occupancy
+   * and throw if the costs differ (the lower bound overestimated). Routes of
+   * equal cost may differ between the two (the pop order picks one), so a
+   * whole layout routed each way need not match once a tie appears.
+   */
+  verifyLowerBound?: boolean;
 }
 
 export function routeEdges(
@@ -118,7 +161,22 @@ export function routeEdges(
   layout: LayoutIR,
   options: RouteOptions = {},
 ): RouteResult {
-  return new Router(ir, layout, options.lowerBound ?? true).run();
+  const route = (stubLines: boolean) =>
+    new Router(
+      ir,
+      layout,
+      options.lowerBound ?? true,
+      options.verifyLowerBound ?? false,
+      stubLines,
+    ).run();
+  const result = route(false);
+  // The grid has a line at the end of the room before an arrowhead, not of
+  // the stub (#116). In a tight spot the stub's end can be the only place to
+  // turn, so if an edge has no route, route the figure again with both lines
+  // and keep that if it routes more edges (rare, so the grid stays small).
+  if (result.diagnostics.length === 0) return result;
+  const retried = route(true);
+  return retried.diagnostics.length < result.diagnostics.length ? retried : result;
 }
 
 /** Owners of grid steps or points: `-1` none, a net, or `-2` several (listed in `multi`). */
@@ -193,6 +251,9 @@ interface Edge {
   /** Straight length required after the source port / before the target port. */
   readonly fromLane: number;
   readonly toLane: number;
+  /** The room before an arrowhead at the source / target (`arrowRoom()`, #116); 0 without one. */
+  readonly fromRoom: number;
+  readonly toRoom: number;
   /** Union-find root of the edge's net. */
   net: number;
   /** Index in the routable edges (as recorded in `Router.#edgesH` and the like). */
@@ -205,6 +266,9 @@ interface Edge {
   leaving?: string;
   entering?: string;
   junctions?: string;
+  /** Indexes of `leaving` / `entering` in `Router.#terminalIds` (-1 at a junction). */
+  leavingId: number;
+  enteringId: number;
 }
 
 /** `a` and `b` may share lines: they leave one port, enter one port, or touch joined junctions. */
@@ -268,13 +332,58 @@ class Router {
   readonly #edgesAtPoint = new Map<number, number[]>();
   /** The grid points each net occupies (with repeats), for the search's lower bound. */
   readonly #netPoints = new Map<number, number[]>();
+  /** Every port, per direction (`Edge.leaving` / `Edge.entering`), numbered. */
+  readonly #terminalIds = new Map<string, number>();
+  /** The net of each terminal (by index): edges sharing a port are one net. */
+  #terminalNets: number[] = [];
+  /**
+   * Points in the room before an arrowhead (`arrowRoom()`, but its far end),
+   * by the terminal they belong to: `-1` none, a terminal index, or `-2`
+   * several (listed in `#arrowRoomsMulti`). Another edge of the net pays
+   * `ROUTE.arrowRoom` to step there (#116).
+   */
+  #arrowRooms = new Int32Array(0);
+  readonly #arrowRoomsMulti = new Map<number, number[]>();
+  /** Points where turning costs `ROUTE.arrowRoom`, per search (stamped with the generation). */
+  #roomFrom = new Int32Array(0);
+  #roomTo = new Int32Array(0);
 
-  readonly #lowerBound: boolean;
+  #lowerBound: boolean;
+  readonly #verify: boolean;
+  /** The cost of the route the last search found. */
+  #lastCost = 0;
 
-  constructor(ir: FigureIR, layout: LayoutIR, lowerBound: boolean) {
+  /** Also a grid line at the end of each stub that has a room beyond it (see `routeEdges`). */
+  readonly #stubLines: boolean;
+
+  constructor(
+    ir: FigureIR,
+    layout: LayoutIR,
+    lowerBound: boolean,
+    verify: boolean,
+    stubLines: boolean,
+  ) {
     this.#ir = ir;
     this.#layout = layout;
     this.#lowerBound = lowerBound;
+    this.#verify = verify;
+    this.#stubLines = stubLines;
+  }
+
+  /** Searches `edge` (see `#search`); with `#verify`, checks the cost against Dijkstra. */
+  #route(edge: Edge, margin: number): number[] | undefined {
+    const cells = this.#search(edge, margin);
+    if (!this.#verify || !this.#lowerBound) return cells;
+    const cost = this.#lastCost;
+    this.#lowerBound = false;
+    const exact = this.#search(edge, margin);
+    this.#lowerBound = true;
+    if ((cells === undefined) !== (exact === undefined) || Math.abs(cost - this.#lastCost) > 1e-6) {
+      throw new Error(
+        `internal error: edge ${edge.ir.key} costs ${cells === undefined ? "none" : cost} with the lower bound and ${exact === undefined ? "none" : this.#lastCost} without`,
+      );
+    }
+    return cells;
   }
 
   run(): RouteResult {
@@ -294,15 +403,25 @@ class Router {
       const arrow = arrowheadLength(edge.style.strokeWidth.units);
       const lane = (end: End, arrowhead: boolean) =>
         end.junction ? 0 : Math.max(ROUTE.clearance, arrowhead ? arrow : 0);
+      const room = (end: End, other: End, arrowhead: boolean) =>
+        end.junction || !arrowhead
+          ? 0
+          : this.#room(end, other, arrowRoom(edge.style.strokeWidth.units));
+      const source = edge.sourceArrowhead !== undefined;
+      const target = edge.targetArrowhead !== undefined;
       return {
         ir: edge,
         layout,
         from: ends.from,
         to: ends.to,
-        fromLane: lane(ends.from, edge.sourceArrowhead !== undefined),
-        toLane: lane(ends.to, edge.targetArrowhead !== undefined),
+        fromLane: lane(ends.from, source),
+        toLane: lane(ends.to, target),
+        fromRoom: room(ends.from, ends.to, source),
+        toRoom: room(ends.to, ends.from, target),
         net: index,
         index: 0,
+        leavingId: -1,
+        enteringId: -1,
       };
     });
     const routable = edges
@@ -316,7 +435,7 @@ class Router {
     const routes = new Map<ElementKey, Point[]>();
     for (const edge of routable) {
       // First within a corridor around the ends, then on the whole grid.
-      const cells = this.#search(edge, ROUTE.corridor) ?? this.#search(edge, Infinity);
+      const cells = this.#route(edge, ROUTE.corridor) ?? this.#route(edge, Infinity);
       if (cells === undefined) {
         const blockers = this.#blockers(edge);
         const reason = "every path is blocked by nodes or too narrow for its stubs";
@@ -342,6 +461,34 @@ class Router {
       routes.set(edge.ir.key, points);
     }
     return { layout: this.#result(routable, routes), diagnostics: this.#diagnostics };
+  }
+
+  /**
+   * The room before an arrowhead at `end` (#116): `room`, or 0 (none) where
+   * it would not fit, with the clearance to spare, inside a group that holds
+   * both ends. There the route has no reason to leave the group, so keeping
+   * the room would push it out across the border and back (a group's padding
+   * is often just a stub and a radius wide); it turns where it did before.
+   */
+  #room(end: End, other: End, room: number): number {
+    if (end.dir < 0) return 0;
+    const d = DIRS[end.dir] as Point;
+    const p = end.port;
+    const holds = (r: Rect, q: Point) =>
+      q.x >= r.x && q.x <= rightOf(r) && q.y >= r.y && q.y <= bottomOf(r);
+    for (const { rect } of this.#layout.groups) {
+      if (!holds(rect, p) || !holds(rect, other.port)) continue;
+      const free =
+        d.x > 0
+          ? rightOf(rect) - p.x
+          : d.x < 0
+            ? p.x - rect.x
+            : d.y > 0
+              ? bottomOf(rect) - p.y
+              : p.y - rect.y;
+      if (free < room + ROUTE.clearance) return 0;
+    }
+    return room;
   }
 
   #id(key: ElementKey): string {
@@ -499,9 +646,24 @@ class Router {
       if (a < b) group.set(b, a);
       else if (b < a) group.set(a, b);
     }
+    const id = (terminal: string, net: number): number => {
+      let index = this.#terminalIds.get(terminal);
+      if (index === undefined) {
+        index = this.#terminalIds.size;
+        this.#terminalIds.set(terminal, index);
+        this.#terminalNets.push(net);
+      }
+      return index;
+    };
     for (const edge of edges) {
-      if (!edge.from.junction) edge.leaving = terminal(edge.from, true);
-      if (!edge.to.junction) edge.entering = terminal(edge.to, false);
+      if (!edge.from.junction) {
+        edge.leaving = terminal(edge.from, true);
+        edge.leavingId = id(edge.leaving, edge.net);
+      }
+      if (!edge.to.junction) {
+        edge.entering = terminal(edge.to, false);
+        edge.enteringId = id(edge.entering, edge.net);
+      }
       const junction = edge.from.junction ? edge.from : edge.to.junction ? edge.to : undefined;
       if (junction !== undefined) edge.junctions = root(junction.key);
     }
@@ -554,16 +716,22 @@ class Router {
     withMidlines(xs);
     withMidlines(ys);
     for (const edge of edges) {
-      for (const [end, lane] of [
-        [edge.from, edge.fromLane],
-        [edge.to, edge.toLane],
+      // The end of the stub, or of the room before an arrowhead (#116): one
+      // line per end, as before, so the grid does not grow. Without the
+      // line at the stub's end, a route that cannot keep the room turns at
+      // the first line past the stub (with `#stubLines`, at the stub's end).
+      for (const [end, lane, room] of [
+        [edge.from, edge.fromLane, edge.fromRoom],
+        [edge.to, edge.toLane, edge.toRoom],
       ] as const) {
         xs.add(end.port.x);
         ys.add(end.port.y);
         if (end.dir >= 0) {
           const d = DIRS[end.dir] as Point;
-          xs.add(roundUnits(end.port.x + d.x * lane));
-          ys.add(roundUnits(end.port.y + d.y * lane));
+          for (const length of room === 0 ? [lane] : this.#stubLines ? [lane, room] : [room]) {
+            xs.add(roundUnits(end.port.x + d.x * length));
+            ys.add(roundUnits(end.port.y + d.y * length));
+          }
         }
       }
     }
@@ -698,6 +866,45 @@ class Router {
     this.#stamp = new Int32Array(NP * 4);
     this.#laneFrom = new Int32Array(NP);
     this.#laneTo = new Int32Array(NP);
+
+    this.#roomFrom = new Int32Array(NP);
+    this.#roomTo = new Int32Array(NP);
+    this.#arrowRooms = new Int32Array(NP).fill(-1);
+    for (const edge of edges) {
+      for (const [end, room, terminal] of [
+        [edge.from, edge.fromRoom, edge.leavingId],
+        [edge.to, edge.toRoom, edge.enteringId],
+      ] as const) {
+        if (room === 0 || terminal < 0) continue;
+        for (const p of this.#stubInside(end, room)) {
+          const first = this.#arrowRooms[p] as number;
+          if (first === -1) this.#arrowRooms[p] = terminal;
+          else if (first === -2) {
+            const list = this.#arrowRoomsMulti.get(p) as number[];
+            if (!list.includes(terminal)) list.push(terminal);
+          } else if (first !== terminal) {
+            this.#arrowRooms[p] = -2;
+            this.#arrowRoomsMulti.set(p, [first, terminal]);
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * `true` if `p` is in the room before an arrowhead at a port of the edge's
+   * net that the edge does not use (#116): stepping there forks off or joins
+   * the net's line right before that arrowhead. Other nets only pay the
+   * crossing cost there, as before.
+   */
+  #inOthersArrowRoom(p: number, edge: Edge): boolean {
+    const at = this.#arrowRooms[p] as number;
+    const foreign = (terminal: number) =>
+      terminal !== edge.leavingId &&
+      terminal !== edge.enteringId &&
+      this.#terminalNets[terminal] === edge.net;
+    if (at >= 0) return foreign(at);
+    return at === -2 && (this.#arrowRoomsMulti.get(p) as number[]).some(foreign);
   }
 
   #pointIndex(p: Point): number {
@@ -738,11 +945,28 @@ class Router {
     return points;
   }
 
+  /**
+   * The grid points of an end's stub closer than `lane` to the port: a route
+   * may only pass them straight along the stub. The point at `lane` (where it
+   * may turn) need not be on the grid (#116).
+   */
+  #stubInside(end: End, lane: number): number[] {
+    const X = this.#X;
+    const Y = this.#Y;
+    const NX = this.#NX;
+    return this.#stub(end, lane).filter(
+      (p) =>
+        Math.abs((X[p % NX] as number) - end.port.x) +
+          Math.abs((Y[Math.floor(p / NX)] as number) - end.port.y) <
+        lane - 1e-9,
+    );
+  }
+
   /** Records the stubs of an edge before any search, so earlier routes keep off them. */
   #reserveStubs(edge: Edge): void {
     for (const [end, lane] of [
-      [edge.from, edge.fromLane],
-      [edge.to, edge.toLane],
+      [edge.from, edge.fromRoom || edge.fromLane],
+      [edge.to, edge.toRoom || edge.toLane],
     ] as const) {
       const stub = this.#stub(end, lane);
       this.#occupy(stub, edge);
@@ -819,6 +1043,11 @@ class Router {
   #search(edge: Edge, margin: number): number[] | undefined {
     const generation = ++this.#generation;
     const { from, to, net } = edge;
+    const fromLane = edge.fromLane;
+    const toLane = edge.toLane;
+    const arrowRooms = this.#arrowRooms;
+    const roomFrom = this.#roomFrom;
+    const roomTo = this.#roomTo;
     const dist = this.#dist;
     const prev = this.#prev;
     const stamp = this.#stamp;
@@ -827,11 +1056,16 @@ class Router {
     const X = this.#X;
     const Y = this.#Y;
     const NX = this.#NX;
-    // A stub's points (but the last) may only be passed straight along the stub.
-    const fromStub = this.#stub(from, edge.fromLane);
-    for (const p of fromStub.slice(0, -1)) laneFrom[p] = generation;
-    const toStub = this.#stub(to, edge.toLane);
-    for (const p of toStub.slice(0, -1)) laneTo[p] = generation;
+    // The stubs as reserved (up to the room before an arrowhead, #116): free
+    // for the edge. Their points closer than the lane may only be passed
+    // straight along the stub.
+    const fromStub = this.#stub(from, edge.fromRoom || fromLane);
+    for (const p of this.#stubInside(from, fromLane)) laneFrom[p] = generation;
+    const toStub = this.#stub(to, edge.toRoom || toLane);
+    for (const p of this.#stubInside(to, toLane)) laneTo[p] = generation;
+    // Turning out of / into the stub before the room's end costs (#116).
+    for (const p of this.#stubInside(from, edge.fromRoom)) roomFrom[p] = generation;
+    for (const p of this.#stubInside(to, edge.toRoom)) roomTo[p] = generation;
     const outDir = from.dir;
     const inDir = to.dir < 0 ? -1 : opposite(to.dir);
     const s = this.#pointIndex(from.port);
@@ -850,7 +1084,7 @@ class Router {
     // The lower bound (see above).
     const tx = to.port.x;
     const ty = to.port.y;
-    const stubLength = to.dir < 0 ? 0 : edge.toLane;
+    const targetStub = to.dir < 0 ? 0 : edge.toRoom || toLane;
     // The target stub's own points are left out (the bound subtracts the
     // stub), unless the net also reaches one from outside the stub (a shared
     // trunk into the same target): then the route may run on the net all the
@@ -873,7 +1107,7 @@ class Router {
     if (!this.#lowerBound) nearest = Number.NEGATIVE_INFINITY;
     const bound = (p: number): number => {
       const d = Math.abs((X[p % NX] as number) - tx) + Math.abs((Y[(p / NX) | 0] as number) - ty);
-      const h = (d < nearest ? d : nearest) - stubLength;
+      const h = (d < nearest ? d : nearest) - targetStub;
       return h > 0 ? h : 0;
     };
 
@@ -900,7 +1134,7 @@ class Router {
     const edgesH = this.#edgesH;
     const edgesV = this.#edgesV;
     const edgesAtPoint = this.#edgesAtPoint;
-    const { bend, overlap, cross } = ROUTE;
+    const { bend, overlap, cross, arrowRoom } = ROUTE;
     const ownerH = stepsH.first;
     const ownerV = stepsV.first;
     const atH = pointsH.first;
@@ -979,6 +1213,17 @@ class Router {
             cost += cross;
           }
         }
+        // Turning into or out of the room before an arrowhead, even onto the
+        // edge's own stub (which is free), and forking off or joining another
+        // edge of the net in the room before its arrowhead (#116).
+        if (
+          (nd !== dir &&
+            ((roomTo[p] === generation && nd === inDir) ||
+              (roomFrom[p] === generation && dir === outDir))) ||
+          (arrowRooms[q] !== -1 && this.#inOthersArrowRoom(q, edge))
+        ) {
+          cost += arrowRoom;
+        }
         const next = q * 4 + nd;
         const total = g + cost;
         if (stamp[next] !== generation || total < (dist[next] as number)) {
@@ -990,6 +1235,7 @@ class Router {
       }
     }
     if (goal < 0) return undefined;
+    this.#lastCost = dist[goal] as number;
     const cells: number[] = [];
     for (let state = goal; state >= 0; state = prev[state] as number) {
       const p = state >> 2;
@@ -1031,12 +1277,29 @@ class Router {
     const byKey = new Map(edges.map((e) => [e.ir.key, e]));
     const irEdges = new Map(this.#ir.edges.map((e) => [e.key, e]));
     const labels = new Map<ElementKey, TextLayout>();
+    const nodeBoxes = layout.nodes.map((node) => node.rect);
+    // Groups drawn with a border (as `geometry/label-collision` checks them).
+    const groupBoxes = layout.groups.flatMap((group) => {
+      const element = this.#ir.elements.get(group.key);
+      const style = element?.kind === "group" ? element.style : undefined;
+      return style === undefined || style.strokeWidth.units === 0 || style.stroke === "transparent"
+        ? []
+        : [group.rect];
+    });
     for (const e of layout.edges) {
       const points = routes.get(e.key);
       const edge = irEdges.get(e.key);
       if (points === undefined || edge === undefined || e.labelMetrics === undefined) continue;
       const arrow = arrowheadLength(edge.style.strokeWidth.units);
-      labels.set(e.key, placeEdgeLabel(e.labelMetrics, points, edge, arrow));
+      const others = [...routes].flatMap(([key, route]) => (key === e.key ? [] : [route]));
+      labels.set(
+        e.key,
+        placeEdgeLabel(e.labelMetrics, points, edge, arrow, {
+          routes: others,
+          nodes: nodeBoxes,
+          groups: groupBoxes,
+        }),
+      );
     }
 
     // Grow the content to hold the routes and edge labels; keep it at the margin.
