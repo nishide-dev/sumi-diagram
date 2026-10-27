@@ -66,6 +66,14 @@
               "items": {
                 "$ref": "#/$defs/AlignConstraint"
               }
+            },
+            "fanIn": {
+              "description": "Edges from different elements entering the same point of an element without an anchor: merge joins them into one line, spread enters them side by side in the order of their other ends. Omitted means merge (structured layout only).",
+              "type": "string",
+              "enum": [
+                "merge",
+                "spread"
+              ]
             }
           },
           "additionalProperties": false

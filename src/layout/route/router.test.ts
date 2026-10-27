@@ -503,7 +503,7 @@ describe("edges into and out of one port (#113)", () => {
       { key: "g:b", rect: rect(200) },
     ];
     const ends = resolveEnds(
-      { nodes: [], edges } as unknown as Parameters<typeof resolveEnds>[0],
+      { meta: {}, groups: [], nodes: [], edges } as unknown as Parameters<typeof resolveEnds>[0],
       { nodes: [], groups } as unknown as Parameters<typeof resolveEnds>[1],
     );
     expect(ends.at(-1)).toEqual({
@@ -1161,7 +1161,8 @@ describe.each(["columns", "grid"] as const)("synthetic 100-node figure: %s", (ki
     // Only crossings (#133): 10 listed and a summary of the rest. The number
     // of crossing points is checked against checkRoutes' edge pairs (the
     // distinct net pairs and points among them).
-    const total = { columns: 23, grid: 1233 }[kind];
+    // #134: sides from the arrange tree changed these from 23 and 1233.
+    const total = { columns: 24, grid: 1169 }[kind];
     const netOf = new Map(result.layout.edges.map((e) => [e.key, e.route?.net]));
     const points = new Set(
       checkRoutes(ir, result.layout).crossings.map((c) => {
@@ -1193,6 +1194,48 @@ describe.each(["columns", "grid"] as const)("synthetic 100-node figure: %s", (ki
       ...report,
       crossings: [],
       ...(crowded && { contacts: [], overlaps: [] }),
+    }).toEqual({
+      unrouted: [],
+      nonOrthogonal: [],
+      malformed: [],
+      throughNode: [],
+      endpointMisses: [],
+      misjoinedNets: [],
+      crossings: [],
+      contacts: [],
+      overlaps: [],
+      shortArrowSegments: [],
+      labelCollisions: [],
+      outside: [],
+    });
+  }, 60_000);
+
+  test("fanIn: spread routes every edge as cleanly, deterministically (#134)", () => {
+    const text = synthetic(kind).replace("layout:\n", "layout:\n    fanIn: spread\n");
+    const placed = layoutStructuredFigure(text, { route: false });
+    if (!placed.ok) throw new Error(JSON.stringify(placed.diagnostics));
+    const { ir, layout } = placed.value;
+    expect(ir.meta.fanIn).toBe("spread");
+    const first = routeEdges(ir, layout);
+    const start = performance.now();
+    const result = routeEdges(ir, layout);
+    const time = performance.now() - start;
+    expect(JSON.stringify(result.layout)).toBe(JSON.stringify(first.layout));
+    console.log(
+      `router, synthetic ${kind}, fanIn: spread: ${layout.edges.length} edges, ${time.toFixed(0)}ms`,
+    );
+    expect(result.diagnostics.filter((d) => d.severity !== "info")).toEqual([]);
+    const report = checkRoutes(ir, result.layout);
+    // The crowded grid: 16 contacts and 3 overlaps with spreading (the more
+    // ports, the more lines in its gutters); the bound keeps it from getting worse.
+    if (kind === "grid") {
+      expect(report.contacts.length).toBeLessThanOrEqual(16);
+      expect(report.overlaps.length).toBeLessThanOrEqual(3);
+    }
+    expect({
+      ...report,
+      crossings: [],
+      ...(kind === "grid" && { contacts: [], overlaps: [] }),
     }).toEqual({
       unrouted: [],
       nonOrthogonal: [],

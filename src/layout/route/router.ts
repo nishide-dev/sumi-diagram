@@ -167,15 +167,26 @@ export function routeEdges(
   layout: LayoutIR,
   options: RouteOptions = {},
 ): RouteResult {
-  const route = (stubLines: boolean) =>
-    new Router(
-      ir,
-      layout,
-      options.lowerBound ?? true,
-      options.verifyLowerBound ?? false,
-      stubLines,
-    ).run();
-  return chooseRouting(ir, route);
+  const routeFigure = (figure: FigureIR) =>
+    chooseRouting(figure, (stubLines: boolean) =>
+      new Router(
+        figure,
+        layout,
+        options.lowerBound ?? true,
+        options.verifyLowerBound ?? false,
+        stubLines,
+      ).run(),
+    );
+  const result = routeFigure(ir);
+  if (ir.meta.fanIn !== "spread" || !hasErrors(result.diagnostics)) return result;
+  // Fan-in spreading must not lose an edge merge mode routes (#134, design
+  // doc §6.33): the spread ends can leave a stub no room (a box in the way)
+  // where the merged port had it. Only then, route in merge mode too and
+  // keep it for the whole figure if it has fewer errors.
+  const { fanIn: _, ...meta } = ir.meta;
+  const merged = routeFigure({ ...ir, meta });
+  const errors = (r: RouteResult) => r.diagnostics.filter((d) => d.severity === "error").length;
+  return errors(merged) < errors(result) ? merged : result;
 }
 
 /**

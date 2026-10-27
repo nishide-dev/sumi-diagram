@@ -4,7 +4,7 @@
  * shape's outline.
  */
 
-import type { EdgeIR, FigureIR, NodeIR } from "../../compiler/ir";
+import type { ArrangeBoxIR, EdgeIR, FigureIR, NodeIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type { Anchor } from "../../core/figure/layout";
 import type { Side } from "../../core/figure/schema";
@@ -368,6 +368,210 @@ function separateDirections(
   return kept;
 }
 
+/**
+ * Default side from the arrange tree (#134, design doc §6.33): the box that
+ * separates two elements (their nearest common arrange box, where their
+ * paths from the root first take different items) decides the axis, toward
+ * the other element: a stack north / south, a row east / west. A node placed
+ * by `attach` takes the place of its target. Returns `undefined` when no box
+ * separates the two (an element and a group around it, a node and the
+ * element it is attached to, a figure without arrange trees): the caller
+ * falls back to {@link facingSide}.
+ *
+ * `facingSide` compares the centers instead, so a box below and far to the
+ * side of the other leaves from its west or east side although the stack
+ * between them runs vertically.
+ */
+function arrangeSides(
+  ir: FigureIR,
+  rectOf: (key: ElementKey) => Rect,
+): (self: ElementKey, other: ElementKey) => Side | undefined {
+  interface Step {
+    readonly box: ArrangeBoxIR;
+    readonly index: number;
+  }
+  const paths = new Map<ElementKey, Step[]>();
+  const groups = new Map(ir.groups.map((g) => [g.key, g]));
+  const walk = (box: ArrangeBoxIR, prefix: readonly Step[]) => {
+    for (const [index, item] of box.items.entries()) {
+      const path = [...prefix, { box, index }];
+      if (typeof item === "string") {
+        paths.set(item, path);
+        const arrange = groups.get(item)?.arrange;
+        if (arrange !== undefined) walk(arrange, path);
+      } else {
+        walk(item, path);
+      }
+    }
+  };
+  if (ir.arrange !== undefined) walk(ir.arrange, []);
+  const nodes = new Map(ir.nodes.map((n) => [n.key, n]));
+  const pathOf = (key: ElementKey): Step[] | undefined => {
+    // `attach` chains are acyclic (the layout stage checks them); the bound is a guard.
+    let current = key;
+    for (let depth = 0; depth <= nodes.size; depth++) {
+      const own = paths.get(current);
+      if (own !== undefined) return own;
+      const to = nodes.get(current)?.attach?.to;
+      if (to === undefined) return undefined;
+      current = to;
+    }
+    return undefined;
+  };
+  return (self, other) => {
+    const a = pathOf(self);
+    const b = pathOf(other);
+    if (a === undefined || b === undefined) return undefined;
+    for (let k = 0; k < Math.min(a.length, b.length); k++) {
+      const sa = a[k] as Step;
+      const sb = b[k] as Step;
+      if (sa.box !== sb.box) return undefined;
+      if (sa.index === sb.index) continue;
+      const ra = rectOf(self);
+      const rb = rectOf(other);
+      const ca = center(ra);
+      const cb = center(rb);
+      // Only if the two do not overlap along the box's axis: an attached
+      // node can hang beside the next item (stack [a, b], x attached below
+      // something east of a, level with b), and then the box says nothing
+      // about where the other end is.
+      const apartY = bottomOf(ra) <= rb.y || bottomOf(rb) <= ra.y;
+      const apartX = rightOf(ra) <= rb.x || rightOf(rb) <= ra.x;
+      if (sa.box.kind === "stack") {
+        if (!apartY) return undefined;
+        return cb.y < ca.y ? "north" : "south";
+      }
+      if (!apartX) return undefined;
+      return cb.x < ca.x ? "west" : "east";
+    }
+    return undefined;
+  };
+}
+
+/** The key of an edge's end in the positions {@link spreadFanIn} returns. */
+const endKey = (edge: number, leaving: boolean) => `${edge} ${leaving ? "from" : "to"}`;
+
+/**
+ * Fan-in spreading (`figure.layout.fanIn: spread`, #134, design doc §6.33):
+ * the target ends without an anchor that `ends` (a first resolution) left
+ * two or more at one port (element, side, point, direction) are spread along
+ * the side, so the edges enter side by side instead of merging into one line.
+ *
+ * Positions are allocated per side (element, side, direction), knowing every
+ * other end on it: the side gets `N` = (spread ends) + (distinct other
+ * positions) evenly spaced slots k/(N+1); the other ends (anchored ends, the
+ * multi-edge positions, ends leaving the side, single ends) keep their
+ * positions and claim the slots nearest to them in order (least total
+ * distance, order kept); the spread ends take the free slots in the order of
+ * their other ends' ports along the side (then document order), which keeps
+ * them from crossing each other. If a free slot would still fall on another
+ * end's point, the side is left merged (never two nets on one point).
+ * Junction ends and anchored ends never move.
+ *
+ * Returns the side and offset of every end on a side that spreads, keyed
+ * {@link endKey}: the spread ends at their slots, and the other ends pinned
+ * where the first resolution put them. The pins matter: without them the
+ * second resolution would share the multi-edges whose other members became
+ * spread ends among the fewer ones left, moving them onto the slots given
+ * to the spread ends.
+ */
+function spreadFanIn(
+  edges: readonly EdgeIR[],
+  ends: readonly ({ from: End; to: End } | { error: string })[],
+  rectOf: (key: ElementKey) => Rect,
+): Map<string, { side: Side; offset: number }> {
+  const horizontal = (side: Side) => side === "north" || side === "south";
+  const along = (side: Side, p: Point) => (horizontal(side) ? p.x : p.y);
+  const sideId = (end: End) => `${end.key} ${end.side} ${end.dir}`;
+  const pointId = (end: End) => `${sideId(end)} ${end.port.x} ${end.port.y}`;
+
+  // Target ends that may spread, by port; every end, by side.
+  const ports = new Map<string, number[]>();
+  const sides = new Map<string, { end: End; edge: number; leaving: boolean }[]>();
+  for (const [index, edge] of edges.entries()) {
+    const pair = ends[index];
+    if (pair === undefined || "error" in pair) continue;
+    for (const leaving of [true, false]) {
+      const end = leaving ? pair.from : pair.to;
+      if (end.junction || end.side === undefined) continue;
+      const list = sides.get(sideId(end)) ?? [];
+      list.push({ end, edge: index, leaving });
+      sides.set(sideId(end), list);
+      if (!leaving && edge.toAnchor === undefined) {
+        const users = ports.get(pointId(end)) ?? [];
+        users.push(index);
+        ports.set(pointId(end), users);
+      }
+    }
+  }
+  const spreading = new Set<number>();
+  for (const users of ports.values())
+    if (users.length >= 2) for (const i of users) spreading.add(i);
+
+  const spread = new Map<string, { side: Side; offset: number }>();
+  for (const uses of sides.values()) {
+    const first = uses[0];
+    if (first === undefined) continue;
+    const side = first.end.side as Side;
+    const rect = rectOf(first.end.key);
+    const start = horizontal(side) ? rect.x : rect.y;
+    const length = horizontal(side) ? rect.width : rect.height;
+    const movers = uses
+      .filter((u) => !u.leaving && spreading.has(u.edge))
+      .map((u) => {
+        const pair = ends[u.edge] as { from: End; to: End };
+        return { edge: u.edge, along: along(side, pair.from.port) };
+      })
+      .sort((a, b) => a.along - b.along || a.edge - b.edge);
+    if (movers.length === 0 || length <= 0) continue;
+    const kept = new Map<string, number>();
+    for (const u of uses) {
+      if (!u.leaving && spreading.has(u.edge)) continue;
+      kept.set(`${u.end.port.x} ${u.end.port.y}`, (along(side, u.end.port) - start) / length);
+    }
+    const fixed = [...kept.values()].sort((a, b) => a - b);
+    const n = movers.length + fixed.length;
+    const slots = Array.from({ length: n }, (_, k) => (k + 1) / (n + 1));
+    // Order-kept assignment of the fixed positions to slots, least total distance.
+    const m = fixed.length;
+    const cost: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(Infinity));
+    for (let j = 0; j <= n; j++) (cost[0] as number[])[j] = 0;
+    for (let i = 1; i <= m; i++) {
+      for (let j = i; j <= n; j++) {
+        const skip = (cost[i] as number[])[j - 1] as number;
+        const take =
+          ((cost[i - 1] as number[])[j - 1] as number) +
+          Math.abs((fixed[i - 1] as number) - (slots[j - 1] as number));
+        (cost[i] as number[])[j] = Math.min(skip, take);
+      }
+    }
+    const taken = new Set<number>();
+    for (let i = m, j = n; i > 0; j--) {
+      const take =
+        ((cost[i - 1] as number[])[j - 1] as number) +
+        Math.abs((fixed[i - 1] as number) - (slots[j - 1] as number));
+      if ((cost[i] as number[])[j] === take) {
+        taken.add(j - 1);
+        i--;
+      }
+    }
+    const free = slots.filter((_, k) => !taken.has(k));
+    const pointOf = (offset: number) =>
+      anchorPoint(rect, { side, offset })[horizontal(side) ? "x" : "y"];
+    const occupied = new Set(fixed.map((offset) => pointOf(offset)));
+    if (free.some((offset) => occupied.has(pointOf(offset)))) continue;
+    for (const [k, mover] of movers.entries()) {
+      spread.set(endKey(mover.edge, false), { side, offset: free[k] as number });
+    }
+    for (const u of uses) {
+      if (!u.leaving && spreading.has(u.edge)) continue;
+      const offset = (along(side, u.end.port) - start) / length;
+      spread.set(endKey(u.edge, u.leaving), { side, offset });
+    }
+  }
+  return spread;
+}
+
 /** Default side: toward the other end, along the axis with the larger distance (vertical on ties). */
 function facingSide(from: Rect, to: Rect): Side {
   const a = center(from);
@@ -394,7 +598,8 @@ function nearestSide(group: Rect, inner: Rect): Side {
 
 /**
  * Resolves both ends of every edge (in document order), or a reason the
- * edge cannot be routed. Ends without an anchor take the default side; the
+ * edge cannot be routed. Ends without an anchor take the default side (from
+ * the arrange tree, else toward the other end's center); the
  * edges between the same two elements that use the same default side of an
  * element share it out evenly (offsets 1/(n+1) … n/(n+1)), so multi-edges
  * and two-way pairs are drawn as parallel lines rather than on top of each
@@ -405,6 +610,73 @@ function nearestSide(group: Rect, inner: Rect): Side {
 export function resolveEnds(
   ir: FigureIR,
   layout: LayoutIR,
+): ({ from: End; to: End } | { error: string })[] {
+  const ends = resolveEndsWith(ir, layout, new Map());
+  if (ir.meta.fanIn !== "spread") return ends;
+  // Fan-in spreading: resolve again with the target ends that met at one
+  // port placed side by side (the rest of the resolution, including the
+  // #113 split, runs as before around them).
+  const rects = new Map<ElementKey, Rect>([
+    ...layout.nodes.map((n) => [n.key, n.rect] as const),
+    ...layout.groups.map((g) => [g.key, g.rect] as const),
+  ]);
+  const spread = spreadFanIn(ir.edges, ends, (key) => rects.get(key) as Rect);
+  if (spread.size === 0) return ends;
+  const spreadEnds = resolveEndsWith(ir, layout, spread);
+  // Guard: the spread may only separate ends. If the second resolution
+  // (with the #113 split around the new positions) put ends together that
+  // merge mode kept apart, or failed an edge merge mode routed, the whole
+  // figure keeps merge mode's ends.
+  return addsCoincidence(ends, spreadEnds) ? ends : spreadEnds;
+}
+
+/**
+ * `true` if `spread` has two ends at one point of an element that `merged`
+ * had at different points, or an error on an edge `merged` resolved
+ * (junction ends, which meet by design, are left out).
+ */
+function addsCoincidence(
+  merged: readonly ({ from: End; to: End } | { error: string })[],
+  spread: readonly ({ from: End; to: End } | { error: string })[],
+): boolean {
+  /** End → the point it is at, by `edge from|to`. */
+  const points = (ends: typeof merged) => {
+    const byEnd = new Map<string, string>();
+    const byPoint = new Map<string, string[]>();
+    for (const [index, pair] of ends.entries()) {
+      if (pair === undefined || "error" in pair) continue;
+      for (const leaving of [true, false]) {
+        const end = leaving ? pair.from : pair.to;
+        if (end.junction) continue;
+        const point = `${end.key} ${end.port.x} ${end.port.y}`;
+        byEnd.set(endKey(index, leaving), point);
+        const list = byPoint.get(point) ?? [];
+        list.push(endKey(index, leaving));
+        byPoint.set(point, list);
+      }
+    }
+    return { byEnd, byPoint };
+  };
+  for (const [index, pair] of spread.entries()) {
+    const before = merged[index];
+    if (pair !== undefined && "error" in pair && before !== undefined && !("error" in before)) {
+      return true;
+    }
+  }
+  const before = points(merged).byEnd;
+  for (const members of points(spread).byPoint.values()) {
+    if (members.length < 2) continue;
+    const first = before.get(members[0] as string);
+    if (first === undefined || members.some((m) => before.get(m) !== first)) return true;
+  }
+  return false;
+}
+
+/** {@link resolveEnds}, with the ends in `spread` (keyed {@link endKey}) at that side and offset. */
+function resolveEndsWith(
+  ir: FigureIR,
+  layout: LayoutIR,
+  spread: ReadonlyMap<string, { side: Side; offset: number }>,
 ): ({ from: End; to: End } | { error: string })[] {
   const elements = new Map<ElementKey, Element>();
   const nodes = new Map(ir.nodes.map((n) => [n.key, n]));
@@ -445,12 +717,19 @@ export function resolveEnds(
     other: Element,
     anchor: Anchor | undefined,
     isSource: boolean,
+    spreadAt: { side: Side; offset: number } | undefined,
   ): Choice | undefined => {
     if (isJunction(self.node)) return undefined;
     // A group connected to an element inside it: the route runs inside the group.
     const inward = self.node === undefined && inside(other, self);
     if (anchor !== undefined) {
       return { side: anchor.side, offset: anchor.offset, inward, anchored: true };
+    }
+    // A spread fan-in end, or an end pinned beside them: its position is
+    // set, so the multi-edge sharing leaves it, but (unlike an anchor) the
+    // #113 split may still move it.
+    if (spreadAt !== undefined) {
+      return { side: spreadAt.side, offset: spreadAt.offset, inward, anchored: false };
     }
     if (edge.from === edge.to) {
       // A self-loop goes around a corner: east → north by default, or the
@@ -470,16 +749,21 @@ export function resolveEnds(
     if (other.node === undefined && inside(self, other)) {
       return { side: nearestSide(other.rect, self.rect), inward: false, anchored: false };
     }
-    return { side: facingSide(self.rect, other.rect), inward: false, anchored: false };
+    return {
+      side: treeSide(self.key, other.key) ?? facingSide(self.rect, other.rect),
+      inward: false,
+      anchored: false,
+    };
   };
+  const treeSide = arrangeSides(ir, (key) => element(key).rect);
 
-  const choices = ir.edges.map((edge) => {
+  const choices = ir.edges.map((edge, index) => {
     const from = element(edge.from);
     const to = element(edge.to);
     return {
       edge,
-      from: choose(edge, from, to, edge.fromAnchor, true),
-      to: choose(edge, to, from, edge.toAnchor, false),
+      from: choose(edge, from, to, edge.fromAnchor, true, spread.get(endKey(index, true))),
+      to: choose(edge, to, from, edge.toAnchor, false, spread.get(endKey(index, false))),
     };
   });
 

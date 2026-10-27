@@ -3,7 +3,8 @@
  * design doc §6.19) and normalizes group membership.
  *
  * - With the `auto` engine, every structured-only field (`figure.layout.arrange`,
- *   `figure.layout.align`, `group.arrange`, `node.attach`, `edge.fromAnchor` /
+ *   `figure.layout.align`, `figure.layout.fanIn` (#134),
+ *   `group.arrange`, `node.attach`, `edge.fromAnchor` /
  *   `toAnchor`, `edge.labelAt` / `labelSide` (#128)) is an error: it would
  *   otherwise be ignored silently.
  * - With the `structured` engine, every node and group must be placed exactly
@@ -124,6 +125,9 @@ function checkAuto(state: CheckState, locate: Locator): void {
   }
   if (doc.figure?.layout.align !== undefined) {
     report("align", ["figure", "layout", "align"]);
+  }
+  if (doc.figure?.layout.fanIn !== undefined) {
+    report("fanIn", ["figure", "layout", "fanIn"]);
   }
   for (const [index, group] of (doc.groups ?? []).entries()) {
     if (group?.arrange === undefined || invalid.has(groupKey(group.id))) continue;
