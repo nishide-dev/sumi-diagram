@@ -612,6 +612,98 @@ describe("parallel edges after the in/out split (#143)", () => {
     expect(edgeOf(layout, 2).route?.net).not.toBe(edgeOf(layout, 3).route?.net);
   });
 
+  /** Routed without an error or a problem other than crossings. */
+  const expectRouted = (text: string) => {
+    const result = layoutStructuredFigure(text, { measurer: FAKE });
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics, null, 2));
+    expect(result.diagnostics.filter((d) => d.severity !== "info")).toEqual([]);
+    const report = checkRoutes(result.value.ir, result.value.layout);
+    expect(
+      Object.entries(report).filter(([key, list]) => key !== "crossings" && list.length > 0),
+    ).toEqual([]);
+    return result.value.layout;
+  };
+  const stackOver = (items: string[], beside: string) => ({
+    row: { gap: "30pt", items: [{ stack: { gap: "60pt", items } }, beside] },
+  });
+  const wide = { width: "160pt", height: "40pt" };
+
+  test("both halves taken by parallel ends: the first free dyadic position; anchors stay", () => {
+    // Three a → x at x's 1/4, 1/2, 3/4; x → b leaves x anchored at 1/2 and
+    // 1/8. The middle a → x moves: 3/4 and 1/4 are the other a → x ends, 1/4,
+    // 3/4 and 1/8 are taken, so it takes 3/8, and a's end follows.
+    const layout = expectRouted(
+      figure(
+        stackOver(["a", "x"], "b"),
+        [box("a", { ...wide }), box("x", { ...wide }), box("b")],
+        [
+          ...pairsOf("ax ax ax"),
+          { from: "x", to: "b", fromAnchor: "north:0.5" },
+          { from: "x", to: "b", fromAnchor: "north:0.125" },
+        ],
+      ),
+    );
+    const a = rectOf(layout, "a");
+    const x = rectOf(layout, "x");
+    const along = (k: number) => x.x + x.width * k;
+    expect(pointsOf(layout, 1)).toEqual([
+      { x: along(3 / 8), y: a.y + a.height },
+      { x: along(3 / 8), y: x.y },
+    ]);
+    expect([0, 2].map((i) => (pointsOf(layout, i).at(-1) as Point).x)).toEqual([
+      along(1 / 4),
+      along(3 / 4),
+    ]);
+    // The anchored ends are where they were written.
+    expect([3, 4].map((i) => pointsOf(layout, i)[0])).toEqual([
+      { x: along(1 / 2), y: x.y },
+      { x: along(1 / 8), y: x.y },
+    ]);
+    expect(new Set([0, 1, 2].map((i) => edgeOf(layout, i).route?.net)).size).toBe(3);
+  });
+
+  test("the partner would land on a parallel end: it stays, and the line bends", () => {
+    // a → x leaves a's south at 1/2, where y → a enters (anchored): it moves
+    // to 1/4 (away from y). Its x end would follow to x's 1/4, the anchored
+    // end of the other a → x: it stays at 1/2 and the route bends.
+    const layout = expectRouted(
+      figure(
+        stackOver(["a", "x"], "y"),
+        [box("a", { ...wide }), box("x", { ...wide }), box("y")],
+        [
+          { from: "a", to: "x" },
+          { from: "a", to: "x", fromAnchor: "south:0.75", toAnchor: "north:0.25" },
+          { from: "y", to: "a", toAnchor: "south:0.5" },
+        ],
+      ),
+    );
+    const a = rectOf(layout, "a");
+    const x = rectOf(layout, "x");
+    const route = pointsOf(layout, 0);
+    expect(route[0]).toEqual({ x: a.x + a.width / 4, y: a.y + a.height });
+    expect(route.at(-1)).toEqual({ x: x.x + x.width / 2, y: x.y });
+    expect(route.length).toBeGreaterThan(2);
+    expect(pointsOf(layout, 1).at(-1)).toEqual({ x: x.x + x.width / 4, y: x.y });
+    expect(pointsOf(layout, 2).at(-1)).toEqual({ x: a.x + a.width / 2, y: a.y + a.height });
+    expect(edgeOf(layout, 0).route?.net).not.toBe(edgeOf(layout, 1).route?.net);
+  });
+
+  test("touching boxes (gap 0): the parallel edges stay apart and everything routes", () => {
+    // The smaller case with d right under a (no gap) and an edge from d.
+    const layout = expectRouted(
+      figure(
+        { row: { items: [{ stack: { gap: "0pt", items: ["a", "d"] } }, "b", "c"] } },
+        [box("a"), box("b"), box("c"), box("d")],
+        pairsOf("ca ac ab ab db"),
+      ),
+    );
+    const a = rectOf(layout, "a");
+    expect(rectOf(layout, "d").y).toBe(a.y + a.height);
+    expect(pointsOf(layout, 2)[0]).not.toEqual(pointsOf(layout, 3)[0]);
+    expect(pointsOf(layout, 2).at(-1)).not.toEqual(pointsOf(layout, 3).at(-1));
+    expect(edgeOf(layout, 2).route?.net).not.toBe(edgeOf(layout, 3).route?.net);
+  });
+
   test("random small figures: parallel edges never share an end after resolution", () => {
     // Seeded search like #134's (§6.33): 3 boxes in a row, 2 attached, 4–11
     // edges, both fan-in modes. Ends of parallel edges (same two elements,
@@ -623,7 +715,10 @@ describe("parallel edges after the in/out split (#143)", () => {
     };
     const pick = <T>(list: readonly T[]) => list[Math.floor(rand() * list.length)] as T;
     const sides = ["north", "east", "south", "west"] as const;
-    /** Figures (with each fan-in mode) that have parallel edges and lay out. */
+    /**
+     * Figures (with each fan-in mode) with parallel edges and no box over
+     * another, where every edge must resolve.
+     */
     let checked = 0;
     for (let n = 0; n < 1500; n++) {
       const nodes = [
@@ -663,13 +758,30 @@ describe("parallel edges after the in/out split (#143)", () => {
         const placed = layoutStructuredFigure(text, { measurer: FAKE, route: false });
         // An attach onto a taken side is a layout error: not this test's concern.
         if (!placed.ok) continue;
-        if (parallel) checked++;
         const ends = resolveEnds(placed.value.ir, placed.value.layout);
+        // An attached box can land over another one (an authoring error);
+        // its ends may then meet the other box's and fail on their own.
+        // Every other figure resolves every edge, as before #143 (the error
+        // count of such figures is 0 with and without the fix, measured over
+        // 12000 of them; design doc §6.35).
+        const rects = placed.value.layout.nodes.map((node) => node.rect);
+        const over = rects.some((r, i) =>
+          rects.some(
+            (q, j) =>
+              j > i &&
+              r.x < q.x + q.width &&
+              q.x < r.x + r.width &&
+              r.y < q.y + q.height &&
+              q.y < r.y + r.height,
+          ),
+        );
+        if (!over) {
+          expect(ends.filter((pair) => "error" in pair)).toEqual([]);
+          if (parallel) checked++;
+        }
         for (const [i, p] of ends.entries()) {
           for (const [j, q] of ends.entries()) {
             if (j <= i || keys[i] !== keys[j]) continue;
-            // Other errors (an attached box over another one) are not the
-            // split's; the parallel-edge one is never needed here.
             for (const pair of [p, q]) {
               if ("error" in pair) expect(pair.error).not.toContain("parallel edge");
             }
@@ -682,7 +794,8 @@ describe("parallel edges after the in/out split (#143)", () => {
         }
       }
     }
-    expect(checked).toBeGreaterThan(1000);
+    // 776 with this seed: the search is not vacuous.
+    expect(checked).toBeGreaterThan(700);
   }, 60_000);
 });
 
