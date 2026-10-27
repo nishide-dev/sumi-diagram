@@ -944,7 +944,7 @@ layout:
 [#86 の調査](../research/86-paper-figures.md)（§4）の段階 A の 3 件目。§6.21 の Layout IR を受け取り、全エッジの `route` と `nets` を埋める直交ルータを `src/layout/route/` に置く。`layoutStructuredFigure(text)` は検査 → Figure IR → 配置 → **経路**まで通す（`{ route: false }` で配置だけ）。単体の入口は `routeEdges(ir, layout)`（`{ layout, diagnostics }` を返し、経路のないエッジがあっても他のエッジの経路を持つ Layout IR を返す）。SVG writer（#91）がまだないため、`compileFigure()` は §6.19 のとおり `layout/engine-unavailable` で止めたまま。`auto` の出力（D2・SVG・PDF・PPTX・lint の golden・ギャラリー）は変えていない。
 
 - **端点（`ports.ts`）**:
-  - anchor があればその辺と位置。ない端は、相手の中心へ向かう向きのうち、差の大きい軸の辺（同じなら縦）。位置は 0.5。
+  - anchor があればその辺と位置。ない端は、相手の中心へ向かう向きのうち、差の大きい軸の辺（同じなら縦）。位置は 0.5。#134 から、2 つの要素を分ける配置の木の箱があればその向きの辺（stack なら北 / 南、row なら東 / 西。§6.33）、`figure.layout.fanIn: spread` では別の要素から同じ口に入る端を並べる（§6.33）。
   - **同じ 2 要素の間のエッジ**（多重辺・`a → b` と `b → a` の閉路）で、ある要素の同じ既定の辺を使う端は、文書順に位置 1/(n+1) … n/(n+1) に振り分ける。平行な別の線になり、重ならない（anchor を書いた端は動かさない）。
   - **入りと出が同じ口を使う場合（#113）**: 上の振り分けの後、同じ口（要素・辺・点・向き）から出る端と入る端が両方ある口は、片方の向きの端をまとめて辺に沿って動かす。下のネットは向きごとなので、動かさないと 2 つのネットが口の stub を共有し、`api → worker` と `worker → store` が `api → store` に読める（[調査 #109](../research/109-dogfood-v0.4/README.md) の A2）。
     - **動かす側（判断）**: anchor を書いた端は動かさない（上の振り分けと同じ契約。`checkRoutes` も anchor の位置を検査する）。両方の向きが動かせるなら、相手の端と一直線（辺に垂直な同じ線上）のエッジが少ない向き、次にエッジが少ない向き、次に出る向きを動かす。両方に anchor があれば動かさず、文書順で後の向きのエッジを `layout/no-route`（「出る辺と入る辺が同じ点に anchor されていて線を共有する」）にする。別のネットのまま重ねて描くと #113 の誤読そのもので、検査でも重なりになるため、黙って描かない。
@@ -1189,7 +1189,7 @@ layout:
 - **件数の上限（判断: 10 件 ＋ 要約 1 件）**: `MAX_REPORTED_CROSSINGS = 10` 件まで個別に出し、それより多ければ位置のない 1 件（`N more edge crossings are not listed (M in total).`、subject は figure）を足す。合成 grid（交差 1233 点）でも 11 件。10 件は、#109 の 4 図（最大 4 点）を全部示し、直す順に上から読める量として選んだ。上限を変える設定は足さない（需要が出たら lint の設定に寄せる）。
 - **severity は info（判断）**: 入れ替わり（2 本が互いの側へ渡る）のように構造上避けられない交差があり、warning にすると `--max-warnings` で CI を落とす。lint 規則（`--rule` で上げ下げできる規則）にはしていない（`layout/no-route` と同じく描画の段の診断）。
 - **時間**: 交差の判定はネットの組ごとに水平 × 垂直の線分を比べるだけ。合成 columns（129 辺・23 点）で 1.2ms、合成 grid（146 辺・1233 点）で 12.7ms（Apple M4 Pro、Bun 1.3.14、5 回の平均。経路探索の約 350ms に対して 4% 弱）。ネットの組ごとに H1·V2 + V1·H2 回（H・V はネットの水平・垂直の線分の数）の比較と、見つかった交差ごとに 2 つのネットのエッジの線分を走査する。
-- **テスト**: `crossings.test.ts` で、2 本の交差、両向きで交わる同じ点（2 通りの順序）、折れるだけのエッジを示さないこと、同じネット、T 字・L 字の接触、重なり、0.01 unit の境界、`chooseRouting` の再試行（全エッジが引けた再試行は交差を出す、no-route が残れば出さない、error が減らない再試行は採らない）。合成図の件数は `checkRoutes` の組から独立に数えた点の数（23・1233）と要約の文で固定する。
+- **テスト**: `crossings.test.ts` で、2 本の交差、両向きで交わる同じ点（2 通りの順序）、折れるだけのエッジを示さないこと、同じネット、T 字・L 字の接触、重なり、0.01 unit の境界、`chooseRouting` の再試行（全エッジが引けた再試行は交差を出す、no-route が残れば出さない、error が減らない再試行は採らない）。合成図の件数は `checkRoutes` の組から独立に数えた点の数（23・1233。#134 の配置の木による辺の選択で 24・1169、§6.33）と要約の文で固定する。
 - **結果**: 作例 2 つ・fixture（図 A・B のパネル・画像）・#113 の再現で 0 件（テストで固定）。#109 の図 3（v0.4.1）で 4 件、図 2 で 2 件。
 - **限界・引き継ぎ**: 交差の自動の削減はしない（#124 §3.7）。hidden junction（§6.26）の近くの交差かどうかは区別しない（交差の位置から作者が確かめる）。auto（D2/ELK）の図の交差は報告しない（D2 の経路のネットは Sumi が持たない）。Skill の読み方は #135。
 
@@ -1291,6 +1291,32 @@ layout:
 - **inspect・幾何 lint・編集可能 PPTX**: キャプションは `text` のノードとして読まれ、ほかの `text` のノードと同じく bbox を持たない（auto で D2 が描く container の矩形はキャプションの形ではないので、inspect が bbox にしない）。幾何 lint の label の path は `caption`。編集可能 PPTX はキャプションを塗りも線もない text box にする（auto の container の矩形を形にしない）。
 - **テスト**: `caption.test.ts`（展開・親・予約した ID（ノード・グループ）・無効な group・数式の誤りの位置・auto の数式の警告・フォントの下限・lint の長いラベルと数え方・IR の配置の木（stretch / row / start）・`attach`・auto の `d2Path` の入れ子）、`figure.test.ts`（任意・空・型）、`group-caption.integration.test.ts`（両エンジンの fixture でキャプションが枠の下・中央（structured は厳密、auto は 2.5 unit 以内）、診断（info を除く）0 件・幾何 lint 0 件、structured の間隔と `attach`・どの経路もキャプションを横切らない・下端の見出しとの位置、auto の辺が直交、編集可能 PPTX の text box、auto で下へ出る辺の警告の位置と hint、#124 の図 2 の草案（`requires`・凡例と、別の線と重なる `batch` の `labelSide` を外す）が 2 つのキャプション付きで幾何 lint 0 件）。golden: D2 ソース（`tests/fixtures/d2/group-caption.d2`）と Layout IR（`tests/fixtures/layout/group-caption.layout.json`・`.routed.layout.json`）。
 - **非対象・引き継ぎ**: キャプションの位置の指定・`(a)` の自動採番・図全体のキャプション・`component: panel`（#130 の非対象）。auto でキャプションを避ける経路（ELK に渡す手段がない）。Skill の説明は #135。
+### 6.33 #134 の配置の木による既定の辺と fan-in の口の分散（`figure.layout.fanIn`）
+
+[#124 の調査](../research/124-stage-b.md)（§3.7・§8 Q1）の Issue 8。anchor のない端の辺の選び方を配置の木から決め（既定）、別の要素から同じ口に入る辺を並べて入れる（opt-in）。どちらも `ports.ts` の `resolveEnds` の中で、§6.22 の多重辺の振り分けと #113 の口の分割はそのまま通る。
+
+- **配置の木で辺を選ぶ（既定、利用者の判断 2026-10-27）**: anchor のない端（junction・自己ループ・group とその内側の要素の場合を除く、§6.22 で `facingSide` を使っていた端）は、2 つの要素を分ける配置の木の箱（根からの道が最初に別の項目に分かれる、共通の祖先の箱）の向きで辺を決める。stack なら北 / 南、row なら東 / 西で、相手の中心の側（`up` / `left` の箱も中心で決まる）。`attach` で置いた node は対象の場所を使う（連鎖をたどる）。分ける箱がない場合（node とそれに attach した node、配置の木を持たない要素）は従来の `facingSide`（中心の差の大きい軸）。
+  - **理由**: `facingSide` は中心の差だけを見るので、stack の下の段で横に遠い箱が東西の辺から出て、相手の横に回り込む（#124 の図 3 の anchor なし版の Training workers → Model registry）。配置の木は作者が書いた流れの向きなので、それに沿う辺の方が経路が短い。
+  - **互換性（実測）**: 作例 2（transformer・dit-block）・fixture 2（a-transformer・b-adaln-panel）・#109 の 4 図で、経路（Layout IR の JSON）がバイト単位で v0.4.x と同じ（`CI=1 bun test` の golden と `bun run gallery:check` も無変更で通る）。これらの図では、中心の差の大きい軸がもともと配置の箱の向きと一致していた。合成図は経路長が columns 2700 → 2536mm（−6.1%）、grid 17547 → 17016mm（−3.0%）、折れが 110 → 86・866 → 836 になり、交差の点は 23 → 24・1233 → 1169（§6.28 のテストの期待値を更新）。#109 の図 3 の anchor なし版では、交差は 4 → 3 点に減るが、excess が 16.2 → 51.7mm・遠回り 1 → 3 に増える（下の分散と組み合わせると解消する。§3.7 の結果と同じ）。
+- **fan-in の口の分散（opt-in、`figure.layout.fanIn: spread`）**: 1 回目の解決の後、anchor のない target の端で同じ口（要素・辺・点・向き）に入るもの（2 本以上）を、相手の端の口の辺に沿った座標の順（同じなら文書順）に、位置 1/(n+1) … n/(n+1) に並べて解決し直す。別々の口になるので、ネット（§6.22、同じ口に入る端どうし）も別になり、合流しない。junction の端（合流を明示する部品）と anchor を書いた端は動かさない。合流させたい場合は junction を使う。
+  - **anchor ではない（判断）**: 試作（`research/124-stage-b/route/strategies.ts`）は並べた位置を anchor として書き込んでいたが、製品では「位置は決まっているが anchor ではない」端にした。多重辺の振り分けは位置の決まった端を扱わない（anchor と同じ）が、#113 の分割では動かせる。anchor として扱うと、並べた位置が出る端と重なったときに「両方 anchor」の `layout/no-route` になり得る。合成 grid では、試作の重なり 5・接触 28 に対して 2・16 になった（他の図は同じ数値）。
+  - **フィールド名（判断）**: Issue の案は `figure.layout.ports: spread`。分散するのは入る側（fan-in）だけで、出る側（fan-out）は合流のまま（非対象: 合成 grid で経路のない辺が出た）なので、`ports` では全部の口が分かれるように読める。`fanIn: merge | spread` は対象と既定を名前で示し、将来 fan-out を分ける場合も別のフィールド（`fanOut`）で意味を変えずに足せる。値の綴りは他の列挙（`labelAt` など）と同じ小文字の英単語。
+  - **既定を merge にした理由（利用者の判断）**: 図 3 の遠回りは解消するが、合流していた線が別々に他の線を横切るので交差の点が増え（下）、合流を前提にした既存の図の経路が変わる。
+  - **検査**: 値は Zod の列挙で、誤った値は位置付きの `schema/invalid-value`（値の一覧つき）。auto では `merge` も含めて `layout/structured-only`（§6.19。黙って無視しない）。`FigureMetaIR.fanIn` は書いた場合だけ持つ（省略時の IR は変わらない）。
+- **実測**（Apple M4 Pro・Bun 1.3.14。時間は経路探索の中央値、図は 9 回・合成図は 5 回。交差は #133 の `layout/edge-crossing` の点の数と、`checkRoutes` の組の数。excess は各辺の「経路長 − 両端のマンハッタン距離」の和、遠回りは excess が 10mm を超える辺）:
+
+  | 図 | v0.4.x 交差 点/組・excess・遠回り・時間 | 既定（配置の木） | `fanIn: spread` |
+  | --- | --- | --- | --- |
+  | #109 図 3（anchor 11 個） | 4/9・18.4mm・1・10ms | 同じ（バイト一致） | 6/10・3.3mm・0・15ms |
+  | 図 3（anchor なし） | 4/9・16.2mm・1・18ms | 3/8・51.7mm・3・8ms | **6/10・1.1mm・0**・12ms |
+  | 図 1・2・4、作例、fixture | — | 同じ（バイト一致） | 同じ（fan-in がない） |
+  | 合成 columns（129 辺） | 23/24・2700mm・49ms | 24/25・2536mm・31ms | 24/25・2536mm・31ms（経路のない辺 0） |
+  | 合成 grid（146 辺） | 1233/1945・17547mm・360ms | 1169/2030・17016mm・327ms | 1471/2032・16830mm・416ms（経路のない辺 0、重なり 2・接触 16） |
+
+  図 3 の anchor なし版は、受け入れ条件（遠回り 0・excess 2mm 以下）を満たす。分散の時間の増加は grid で +27%（端点の解決は 2 回になるが、増えた分の多くは口が増えて格子が大きくなるためと考えられる。推論）。
+- **テスト**: `port-sides.test.ts`（stack・row で中心の差と配置の箱の向きが食い違う場合に箱の向き、attach した node は対象の場所、分ける箱がなければ中心。merge は 1 つの口と 1 つのネット・省略と同じ出力、spread は文書順と違う相手の順に 1/4・2/4・3/4 で 3 つのネット、anchor の端は動かず数えない、junction は合流のまま、同じ辺から出る端とは #113 で分かれる。図 3 の anchor なし版で spread の遠回り 0・excess 2mm 以下・交差 6 点、merge は遠回り 3）、`router.test.ts`（合成 2 図の spread で全辺が引け、決定的で、時間をログに出す）、`layout.test.ts`（auto での `layout/structured-only` の位置、誤った値の位置、IR の値）。
+- **研究のコード**: `research/124-stage-b/route/variant.ts` は製品の `facingSide` の行に文字列のパッチを当てるので、この変更で当たらなくなり、`stage-b.test.ts` の該当テストは（設計どおり）スキップされる。試作の数値は `results/route.json` に残る。
+- **非対象・引き継ぎ**: fan-out の分散、交差の最小化（§6.28 の判断のまま）、auto での分散。Skill の説明（「同じ口に入る辺は合流する」の改訂と、`fanIn: spread`・合流させたい場合の junction）は #135。
 
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures

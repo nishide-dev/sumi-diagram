@@ -50,6 +50,15 @@ export const JsonValue = z.json().meta({ id: "JsonValue" });
 export const LAYOUT_ENGINES = ["auto", "structured"] as const;
 export type LayoutEngine = (typeof LAYOUT_ENGINES)[number];
 
+/**
+ * How edges from different elements that enter the same point of an element
+ * (a fan-in) are drawn in structured layout (#134, design doc §6.33): `merge`
+ * joins them into one line before the port (the default), `spread` places
+ * them side by side along the side, in the order of their other ends.
+ */
+export const FAN_IN_MODES = ["merge", "spread"] as const;
+export type FanInMode = (typeof FAN_IN_MODES)[number];
+
 /** Sides of a node or group, for `attach.side` and edge anchors. */
 export const SIDES = ["north", "east", "south", "west"] as const;
 export type Side = (typeof SIDES)[number];
@@ -282,6 +291,12 @@ export const LayoutFieldsSchema = z.strictObject({
     .describe(
       "Structured layout: elements of different arrange trees placed on one horizontal (y) or vertical (x) line.",
     ),
+  fanIn: z
+    .enum(FAN_IN_MODES)
+    .optional()
+    .describe(
+      "Edges from different elements entering the same point of an element without an anchor: merge joins them into one line, spread enters them side by side in the order of their other ends. Omitted means merge (structured layout only).",
+    ),
 });
 
 /**
@@ -289,11 +304,12 @@ export const LayoutFieldsSchema = z.strictObject({
  * `figure.layout` alone (design doc §6.19), so later stages never guess.
  */
 export const LayoutSchema = LayoutFieldsSchema.transform(
-  ({ engine, direction, arrange, align }) => ({
+  ({ engine, direction, arrange, align, fanIn }) => ({
     engine: engine ?? (arrange !== undefined ? "structured" : "auto"),
     direction,
     ...(arrange !== undefined && { arrange }),
     ...(align !== undefined && { align }),
+    ...(fanIn !== undefined && { fanIn }),
   }),
 );
 

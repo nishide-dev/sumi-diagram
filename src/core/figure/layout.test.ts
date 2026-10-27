@@ -129,6 +129,49 @@ describe("layout/structured-only", () => {
     );
     expect([...state.invalid].sort()).toEqual(["e:#0", "e:#1"]);
   });
+
+  test("figure.layout.fanIn (#134), with either value", () => {
+    for (const value of ["merge", "spread"]) {
+      const text = figure(
+        `  layout:\n    fanIn: ${value}\nnodes:\n  - { id: a, component: box }\n`,
+      );
+      expect(check(text)).toEqual([
+        ["layout/structured-only", ["figure", "layout", "fanIn"], 5, 5],
+      ]);
+      expect(checkFigureSource(text).state.diagnostics[0]?.message).toBe(
+        '"fanIn" needs the structured layout engine, but this figure uses the auto engine.',
+      );
+    }
+  });
+});
+
+describe("figure.layout.fanIn (#134)", () => {
+  const structured = (fanIn: string) =>
+    figure(
+      `  layout:\n    fanIn: ${fanIn}\n    arrange: { stack: { items: [a] } }\nnodes:\n  - { id: a, component: box }\n`,
+    );
+
+  test("is kept as written, and absent when omitted", () => {
+    const parsed = parseFigure(structured("spread"));
+    expect(parsed.diagnostics).toEqual([]);
+    expect(parsed.ok && parsed.value.figure.layout.fanIn).toBe("spread");
+    const omitted = parseFigure(
+      figure(
+        "  layout:\n    arrange: { stack: { items: [a] } }\nnodes:\n  - { id: a, component: box }\n",
+      ),
+    );
+    expect(omitted.ok && "fanIn" in omitted.value.figure.layout).toBe(false);
+    const compiled = compileFigure(structured("spread"));
+    expect(compiled.ok && compiled.value.ir.meta.fanIn).toBe("spread");
+  });
+
+  test("an unknown value is a positioned schema error naming the values", () => {
+    const text = structured("fan");
+    expect(check(text)).toEqual([["schema/invalid-value", ["figure", "layout", "fanIn"], 5, 12]]);
+    const [d] = checkFigureSource(text).state.diagnostics;
+    expect(d?.message).toContain('"merge"');
+    expect(d?.message).toContain('"spread"');
+  });
 });
 
 describe("placement", () => {

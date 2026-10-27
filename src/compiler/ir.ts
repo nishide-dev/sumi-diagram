@@ -20,6 +20,7 @@ import type {
   ArrangeItem,
   EdgeLabelPosition,
   EdgeLabelSide,
+  FanInMode,
   FigureEdge,
   FigureGroup,
   FigureMeta,
@@ -72,6 +73,8 @@ export interface FigureMetaIR {
   readonly direction: LayoutDirection;
   /** Layout engine (design doc §6.19); `direction` applies to `auto` only. */
   readonly engine: LayoutEngine;
+  /** Structured layout: `figure.layout.fanIn` (#134). Absent when not written (merge). */
+  readonly fanIn?: FanInMode;
   readonly fontSetId: FontSetId;
 }
 
@@ -424,6 +427,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
       profileId: profile.id,
       direction: figure.layout.direction,
       engine: figure.layout.engine,
+      ...(figure.layout.fanIn !== undefined && { fanIn: figure.layout.fanIn }),
       fontSetId: theme.fontSet.id,
     }),
     groups: freeze(groups),
