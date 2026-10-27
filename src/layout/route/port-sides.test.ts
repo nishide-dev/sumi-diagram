@@ -421,6 +421,39 @@ describe("figure.layout.fanIn", () => {
     expectClean(value);
   });
 
+  test("an edge merge mode routes but the spread cannot: the figure keeps merge mode (re-review case)", () => {
+    // o, narrower than t, sits right above t's left part: the spread end of
+    // a → t moves left, where o leaves its stub no room.
+    const big = { width: "120pt", height: "60pt" };
+    const nodes = [
+      box("a", big),
+      box("b", big),
+      box("o", { width: "45pt", height: "60pt" }),
+      box("t", big),
+    ];
+    const arrange = {
+      stack: {
+        align: "start",
+        gap: 0,
+        items: [{ row: { gap: "30pt", items: ["a", "b"] } }, "o", "t"],
+      },
+    };
+    const edges = [
+      { from: "a", to: "t" },
+      { from: "b", to: "t" },
+    ];
+    const merged = layoutStructuredFigure(figure(arrange, nodes, edges), { measurer: FAKE });
+    const spread = layoutStructuredFigure(figure(arrange, nodes, edges, "spread"), {
+      measurer: FAKE,
+    });
+    expect(merged.ok).toBe(true);
+    expect(spread.ok).toBe(true);
+    if (!merged.ok || !spread.ok) return;
+    expect(spread.value.ir.meta.fanIn).toBe("spread");
+    expect(JSON.stringify(spread.value.layout)).toBe(JSON.stringify(merged.value.layout));
+    expect(spread.diagnostics).toEqual(merged.diagnostics);
+  });
+
   describe("the guard: spreading never puts together ends that merge mode keeps apart", () => {
     const big = { width: "120pt", height: "60pt" };
     const arrange = { row: { gap: "30pt", items: ["a", "b", "c"] } };
