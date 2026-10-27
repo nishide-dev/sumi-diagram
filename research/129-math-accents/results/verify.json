@@ -1,0 +1,85 @@
+{
+ "chrome": "Google Chrome 156.0.8078.48",
+ "pdftotext": [
+  "ŷ + Ŵ θ̂t = ∇̂ と x̂",
+  "ỹ + W̃ θ̃t = ∇̃ と x̃",
+  "ȳ + W̄ θ̄t = ∇̄ と x̄",
+  "ẏ + Ẇ θ̇t = ∇̇ と ẋ",
+  "ÿ + Ẅ θ̈t = ∇̈ と ẍ",
+  "y⃗ + W ⃗ θ⃗t = ∇⃗ と x⃗",
+  "loss θ̂t = ỹ",
+  "予測 ŷ と x̄",
+  "xî ≤ v⃗k̄"
+ ],
+ "glyphs": 109,
+ "marks": 37,
+ "maxDistanceUnits": 0.0218,
+ "maxMarkDistanceUnits": 0.0078,
+ "worst": [
+  {
+   "text": "測",
+   "engine": {
+    "x": 49.2846,
+    "y": 248.2986
+   },
+   "chrome": {
+    "x": 49.2627,
+    "y": 248.2986
+   },
+   "distance": 0.0218
+  },
+  {
+   "text": "s",
+   "engine": {
+    "x": 56.9693,
+    "y": 227.713
+   },
+   "chrome": {
+    "x": 56.9483,
+    "y": 227.713
+   },
+   "distance": 0.021
+  },
+  {
+   "text": "x",
+   "engine": {
+    "x": 49.4832,
+    "y": 268.8842
+   },
+   "chrome": {
+    "x": 49.4665,
+    "y": 268.8842
+   },
+   "distance": 0.0167
+  },
+  {
+   "text": "=",
+   "engine": {
+    "x": 88.6323,
+    "y": 227.713
+   },
+   "chrome": {
+    "x": 88.6157,
+    "y": 227.713
+   },
+   "distance": 0.0166
+  },
+  {
+   "text": "=",
+   "engine": {
+    "x": 71.1813,
+    "y": 122.542
+   },
+   "chrome": {
+    "x": 71.1667,
+    "y": 122.542
+   },
+   "distance": 0.0146
+  }
+ ],
+ "previews": {
+  "engine": "out/engine.png",
+  "chrome": "out/chrome.png",
+  "sideBySide": "out/side-by-side.png"
+ }
+}

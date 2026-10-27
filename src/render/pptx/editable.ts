@@ -10,7 +10,12 @@ import { fontFileFor, measureLabel } from "../../lint/geometry/measure";
 import { FontParseError } from "../../lint/sfnt";
 import { readSvgMetadata } from "../finalize";
 import { BoundsBuilder, type PathSegment, type Point, parsePath, type Rect } from "../geometry";
-import { decodeElementClass, inspectSvg, type LabelGeometry } from "../inspect";
+import {
+  decodeElementClass,
+  inspectSvg,
+  type LabelGeometry,
+  type LabelRunGeometry,
+} from "../inspect";
 import { readFontFace } from "../pdf/fonts";
 import { exceedsPdfInputLimits } from "../pdf/pdf";
 import { readD2Svg } from "../svg";
@@ -26,6 +31,22 @@ const U = 6350; // one D2 unit = .5pt
 const emu = (n: number) => Math.round(n * U);
 const sites =
   '<a:cxnLst><a:cxn ang="3cd4"><a:pos x="hc" y="t"/></a:cxn><a:cxn ang="cd2"><a:pos x="l" y="vc"/></a:cxn><a:cxn ang="cd4"><a:pos x="hc" y="b"/></a:cxn><a:cxn ang="0"><a:pos x="r" y="vc"/></a:cxn></a:cxnLst>';
+/**
+ * A label line's runs for DrawingML: a math accent's mark (#129) joins its
+ * base's run (`y` U+0302 in one `<a:r>`), since PowerPoint places combining
+ * marks itself.
+ */
+function withAccentsOnBases(runs: readonly LabelRunGeometry[]): LabelRunGeometry[] {
+  const out: LabelRunGeometry[] = [];
+  for (const run of runs) {
+    const base = out.at(-1);
+    if (run.accent === true && base !== undefined) {
+      out[out.length - 1] = { ...base, text: base.text + run.text };
+    } else out.push(run);
+  }
+  return out;
+}
+
 function paint(color: string, opacity = 1): string {
   if (color === "none" || color === "transparent") return "<a:noFill/>";
   const hex = color.replace(/^#([0-9a-f])([0-9a-f])([0-9a-f])$/i, "#$1$1$2$2$3$3");
@@ -283,7 +304,9 @@ export function svgToEditablePptx(
           const content =
             runs === undefined
               ? run(text, label.font)
-              : runs.map((r) => run(r.text, r.font, r.shiftUnits)).join("");
+              : withAccentsOnBases(runs)
+                  .map((r) => run(r.text, r.font, r.shiftUnits))
+                  .join("");
           return `<a:p><a:pPr algn="ctr"><a:lnSpc><a:spcPts val="${Math.max(0, Math.round(label.lineHeightUnits * 50))}"/></a:lnSpc><a:spcBef><a:spcPts val="0"/></a:spcBef><a:spcAft><a:spcPts val="0"/></a:spcAft></a:pPr>${content}</a:p>`;
         })
         .join("");

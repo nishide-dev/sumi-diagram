@@ -7,7 +7,7 @@
  * Layout IR, the SVG writer, so all three see the same runs.
  */
 
-import { type MarkupRun, parseLabel, type RunScript } from "./math";
+import { type MarkupRun, mergeableRuns, parseLabel, type RunScript } from "./math";
 
 /** A run with its font class (`regular`, `bold`, …, `math`, `math-italic`). */
 export interface LabelRun {
@@ -15,6 +15,8 @@ export interface LabelRun {
   /** Font class, as in `LabelGeometry.font`: selects the font set's file. */
   readonly font: string;
   readonly script: RunScript;
+  /** A combining accent over the run's one character (#129), drawn in the run's font. */
+  readonly accent?: string;
 }
 
 export interface LabelRunsOptions {
@@ -79,6 +81,7 @@ export function labelRuns(label: string, options: LabelRunsOptions): LabelLayout
     text: run.text,
     font: run.font === "text" ? font : run.font,
     script: run.script,
+    ...(run.accent !== undefined && { accent: run.accent }),
   });
   let lines = parsed.value.lines.map((line) => line.map(resolve));
   if (covers !== undefined) {
@@ -152,15 +155,47 @@ function collapse(lines: readonly (readonly LabelRun[])[]): LabelRun[][] {
     for (const run of line) {
       if (run.text === "") continue;
       const last = merged.at(-1);
-      if (last !== undefined && last.font === run.font && last.script === run.script) {
+      if (last !== undefined && mergeableRuns(last, run)) {
         merged[merged.length - 1] = { ...last, text: last.text + run.text };
       } else merged.push(run);
     }
-    return merged;
+    // The text after an accent starts a new chunk in the SVG, which must not
+    // start with a space (#129): leading spaces are a run of their own, drawn
+    // at the end of the accent's chunk. Whitespace-only runs after an accent
+    // (`\hat y\,` then ` と`) stay in that chunk, so the split looks past them.
+    const out: LabelRun[] = [];
+    let afterAccent = false;
+    for (const run of merged) {
+      if (run.accent !== undefined) {
+        out.push(run);
+        afterAccent = true;
+        continue;
+      }
+      const space: string | undefined = afterAccent ? LEADING_SPACE.exec(run.text)?.[0] : undefined;
+      if (space === undefined || space === run.text) {
+        out.push(run);
+        afterAccent = afterAccent && space !== undefined;
+        continue;
+      }
+      out.push({ ...run, text: space }, { ...run, text: run.text.slice(space.length) });
+      afterAccent = false;
+    }
+    return out;
   });
 }
 
-/** The text of each line, as drawn (the runs' text joined). */
+const LEADING_SPACE = /^\s+/u;
+
+/** Whether a run draws only whitespace (spaces after an accent join the accent's chunk, #129). */
+export function isSpaceRun(run: { readonly text: string }): boolean {
+  return run.text !== "" && LEADING_SPACE.exec(run.text)?.[0] === run.text;
+}
+
+/**
+ * The text of each line, as drawn (the runs' text joined). An accent follows
+ * its base as the combining mark (`y` U+0302), which is also the order of the
+ * characters in the SVG and the PDF.
+ */
 export function runLines(lines: readonly (readonly LabelRun[])[]): string[] {
-  return lines.map((line) => line.map((r) => r.text).join(""));
+  return lines.map((line) => line.map((r) => r.text + (r.accent ?? "")).join(""));
 }

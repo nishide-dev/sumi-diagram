@@ -90,6 +90,24 @@ export interface TextRun {
   readonly shiftUnits: number;
   /** Advance width in units (not rounded). Runs follow one another without gaps. */
   readonly width: number;
+  /** A math accent over the run's one character (#129), placed by the layout. */
+  readonly accent?: TextAccent;
+}
+
+/**
+ * Where a math accent (#129) is drawn: its combining mark in the run's font
+ * and size, at a pen position of its own (the SVG draws it as a separate
+ * text chunk). Its advance does not add to the line's width.
+ */
+export interface TextAccent {
+  /** The combining mark (U+0302 …). */
+  readonly char: string;
+  /** The mark's pen position, from the start of its run, in units. */
+  readonly dxUnits: number;
+  /** The mark's baseline offset from the line's baseline in units, positive down. */
+  readonly shiftUnits: number;
+  /** The mark's advance width in units (0 in the STIX Two fonts). */
+  readonly width: number;
 }
 
 /** A placed label: metrics plus where it is drawn. */

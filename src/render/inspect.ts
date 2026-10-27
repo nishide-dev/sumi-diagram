@@ -32,7 +32,7 @@ export interface LabelGeometry {
   anchor: Point;
   /** Font size in D2 units (`font-size` in px of the SVG user space). */
   fontSizeUnits: number;
-  /** Number of lines (`<tspan>` count, or 1). */
+  /** Number of lines (`<tspan>` count, chunks of one line counted once, or 1). */
   lines: number;
   /**
    * Baseline-to-baseline distance in D2 units: the `dy` of the second and later
@@ -64,7 +64,19 @@ export interface LabelRunGeometry {
   fontSizeUnits: number;
   /** Baseline offset from the line's baseline in D2 units, positive down. */
   shiftUnits: number;
+  /**
+   * The run starts a text chunk of a line with math accents (#129): a
+   * `<tspan x y>` centered on this x (`text-anchor: middle` applies per
+   * chunk). In such a line every chunk's first run has it; later runs follow
+   * on from it.
+   */
+  chunkX?: number;
+  /** The run is a math accent's combining mark (#129), the first run of a chunk after its base. */
+  accent?: true;
 }
+
+/** Text of combining marks only: a math accent's chunk starts with one (#129). */
+export const COMBINING_MARKS = /^\p{M}+$/u;
 
 export interface ElementGeometry {
   key: ElementKey;
@@ -229,19 +241,46 @@ function readLabel(text: XmlElement): LabelGeometry | string {
   let pen = 0;
   const baselines: number[] = [];
   const runs: LabelRunGeometry[][] = [];
+  const texts: string[] = [];
   let rich = false;
+  // The chunks of the current line (#129): each `<tspan x y>` of a line with
+  // math accents, with its x and its runs.
+  let chunks: { x: number; runs: LabelRunGeometry[] }[] = [];
+  const endLine = (): string | undefined => {
+    const first = chunks[0];
+    if (first === undefined) return undefined;
+    if (chunks.length === 1) {
+      if (first.x !== x) return `<tspan> has x "${first.x}" different from its <text>`;
+      runs.push(first.runs);
+    } else {
+      // A line drawn as chunks: each chunk's first run carries the chunk's x.
+      const line: LabelRunGeometry[] = [];
+      for (const [k, chunk] of chunks.entries()) {
+        const [head, ...rest] = chunk.runs;
+        if (head === undefined) return "a label line chunk <tspan> is empty";
+        const accent = k > 0 && COMBINING_MARKS.test(head.text);
+        line.push({ ...head, chunkX: chunk.x, ...(accent && { accent: true }) }, ...rest);
+      }
+      runs.push(line);
+    }
+    texts.push(chunks.flatMap((c) => c.runs.map((r) => r.text)).join(""));
+    chunks = [];
+    return undefined;
+  };
   for (const [i, tspan] of tspans.entries()) {
     const dy = attribute(tspan, "dy");
     const tspanY = attribute(tspan, "y");
     const tspanX = attribute(tspan, "x");
-    if (tspanX !== undefined && parseNumber(tspanX) !== x) {
-      return `<tspan> has x "${tspanX}" different from its <text>`;
-    }
+    const chunkX = tspanX === undefined ? x : parseNumber(tspanX);
+    if (chunkX === undefined) return `<tspan> has an unsupported x "${tspanX}"`;
+    let continues = false;
     if (tspanY !== undefined) {
       const absolute = parseNumber(tspanY);
       if (absolute === undefined || dy !== undefined || (i === 0 && absolute !== y)) {
         return `<tspan> has an unsupported y "${tspanY}"`;
       }
+      // A chunk at the current line's baseline continues the line (#129).
+      continues = chunks.length > 0 && tspanX !== undefined && absolute - y === baselines.at(-1);
       pen = absolute - y;
     } else {
       const value = parseNumber(dy ?? "0");
@@ -250,8 +289,12 @@ function readLabel(text: XmlElement): LabelGeometry | string {
       }
       pen += value;
     }
-    const baseline = pen;
-    baselines.push(baseline);
+    if (!continues) {
+      const problem = endLine();
+      if (problem !== undefined) return problem;
+      baselines.push(pen);
+    }
+    const baseline = baselines.at(-1) ?? 0;
     const line: LabelRunGeometry[] = [];
     for (const child of tspan.children) {
       if (child.type === "text") {
@@ -266,8 +309,10 @@ function readLabel(text: XmlElement): LabelGeometry | string {
       pen += run.dy;
       line.push({ ...run.geometry, shiftUnits: pen - baseline });
     }
-    runs.push(line);
+    chunks.push({ x: chunkX, runs: line });
   }
+  const problem = endLine();
+  if (problem !== undefined) return problem;
   // Lines advance by equal steps; later lines may advance by 0 (D2 does so
   // for labels of blank lines only), never backwards.
   let lineHeightUnits = fontSizeUnits;
@@ -278,10 +323,10 @@ function readLabel(text: XmlElement): LabelGeometry | string {
     else if (Math.abs(step - lineHeightUnits) > 1e-6) return "<tspan>s have different line heights";
   }
   return {
-    text: tspans.length > 0 ? tspans.map(textContent).join("\n") : textContent(text),
+    text: tspans.length > 0 ? texts.join("\n") : textContent(text),
     anchor: { x, y },
     fontSizeUnits,
-    lines: Math.max(tspans.length, 1),
+    lines: Math.max(baselines.length, 1),
     lineHeightUnits,
     font,
     ...(rich && { runs }),
