@@ -11,7 +11,7 @@ import { type LayoutFigureOptions, layoutStructuredFigure } from "../index";
 import type { LayoutIR, Point, Rect } from "../ir";
 import type { TextMeasurer } from "../text";
 import { checkRoutes } from "./check";
-import { EDGE_LABEL_GAP } from "./labels";
+import { arrowheadRects, EDGE_LABEL_GAP } from "./labels";
 import { arrowheadLength } from "./router";
 
 /** Every character is half an em wide; ascender 0.8 em, descender 0.2 em. */
@@ -23,8 +23,17 @@ const FAKE: TextMeasurer = {
 function run(text: string, options: LayoutFigureOptions = {}) {
   const result = layoutStructuredFigure(text, { measurer: FAKE, ...options });
   if (!result.ok) throw new Error(JSON.stringify(result.diagnostics, null, 2));
-  return result.value;
+  return { ...result.value, diagnostics: result.diagnostics };
 }
+
+/** The `layout/edge-label-overlap` warnings, as [path, message]. */
+const overlapWarnings = (value: ReturnType<typeof run>) =>
+  value.diagnostics
+    .filter((d) => d.code === "layout/edge-label-overlap")
+    .map((d) => {
+      expect(d.severity).toBe("warning");
+      return [d.path, d.message] as const;
+    });
 
 function figure(arrange: unknown, nodes: unknown[], edges: unknown[]) {
   return stringify({
@@ -213,9 +222,12 @@ describe.each(SHAPES)("$name route", (shape) => {
       // The label of a short last segment may start beside it and run past its corner.
       const short = shape.short === true && at === "end";
       expectBeside(label.box, segment, side, { centerOnSegment: !short });
-      expect(checkRoutes(value.ir, value.layout).labelCollisions).toEqual([
-        ...(shape.collisions?.[`${at}/${side}`] ?? []),
-      ]);
+      const expected = shape.collisions?.[`${at}/${side}`] ?? [];
+      expect(checkRoutes(value.ir, value.layout).labelCollisions).toEqual([...expected]);
+      // What remains is reported to the author, at the edge.
+      expect(overlapWarnings(value).map(([path]) => path)).toEqual(
+        expected.length === 0 ? [] : [["edges", 0]],
+      );
     },
   );
 });
@@ -312,5 +324,81 @@ describe("avoidance within the requested segment", () => {
     expectBeside(labelBox(value.layout), requestedSegment(points, "end"), "right", {
       centerOnSegment: true,
     });
+  });
+});
+
+describe("other edges' arrowheads and labels", () => {
+  test("a shared trunk: the label keeps off the other edge's arrowhead; what remains is reported", () => {
+    // Two edges a → b on one line: a labelled `line` and an arrow. The 20pt
+    // gap is shorter than the label with the arrowhead's room.
+    const value = run(
+      figure(
+        { row: { gap: "20pt", items: ["a", "b"] } },
+        [box("a"), box("b")],
+        [
+          {
+            from: "a",
+            to: "b",
+            fromAnchor: "east",
+            toAnchor: "west",
+            component: "line",
+            label: "label",
+            labelAt: "middle",
+            labelSide: "left",
+          },
+          { from: "a", to: "b", fromAnchor: "east", toAnchor: "west" },
+        ],
+      ),
+    );
+    const arrow = value.layout.edges[1]?.route?.points ?? [];
+    const arrowEdge = value.ir.edges[1];
+    if (arrowEdge === undefined) throw new Error("no arrow");
+    const [head] = arrowheadRects(arrow, arrowEdge, arrowheadLength(1));
+    if (head === undefined) throw new Error("no arrowhead");
+    const label = labelBox(value.layout);
+    const overlap =
+      label.x < head.x + head.width &&
+      head.x < label.x + label.width &&
+      label.y < head.y + head.height &&
+      head.y < label.y + label.height;
+    expect(overlap).toBe(false);
+    const points = value.layout.edges[0]?.route?.points ?? [];
+    expectBeside(label, requestedSegment(points, "middle"), "left", { centerOnSegment: true });
+    // No clear place in the gap: it overlaps a node, and says so.
+    expect(checkRoutes(value.ir, value.layout).labelCollisions).toEqual(["e:#0 label / n:a"]);
+    const warnings = overlapWarnings(value);
+    expect(warnings.map(([path]) => path)).toEqual([["edges", 0]]);
+    expect(warnings[0]?.[1]).toContain('overlaps node "a"');
+  });
+
+  test("a requested label keeps clear of a default label written after it", () => {
+    // a → b's label below its line, next to the arrowhead, would meet c → d's
+    // label above the line below (the rows are 2pt apart). Default labels are
+    // placed first, so a → b's slides back along its segment instead.
+    const value = run(
+      figure(
+        {
+          stack: {
+            gap: "2pt",
+            items: [
+              { row: { gap: "30mm", items: ["a", "b"] } },
+              { row: { gap: "30mm", items: ["c", "d"] } },
+            ],
+          },
+        },
+        [box("a"), box("b"), box("c"), box("d")],
+        [
+          { from: "a", to: "b", label: "first", labelSide: "right" },
+          { from: "c", to: "d", label: "second" },
+        ],
+      ),
+    );
+    const [from, to] = (value.layout.edges[0]?.route?.points ?? []) as [Point, Point];
+    const label = labelBox(value.layout);
+    expectBeside(label, [from, to], "right", { centerOnSegment: true });
+    // Moved back from its first place, just behind the arrowhead.
+    expect(label.x + label.width).toBeLessThan(to.x - arrowheadLength(1) - g - 1);
+    expect(checkRoutes(value.ir, value.layout).labelCollisions).toEqual([]);
+    expect(overlapWarnings(value)).toEqual([]);
   });
 });

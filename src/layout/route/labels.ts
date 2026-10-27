@@ -94,7 +94,41 @@ export interface EdgeLabelSurroundings {
    * them; the default placement does not (its output is unchanged).
    */
   readonly labels?: readonly Rect[];
+  /**
+   * The arrowheads of the other edges (`arrowheadRects`): kept clear of like
+   * routes. Only `labelAt` / `labelSide` placements (#128) look at them.
+   */
+  readonly arrowheads?: readonly Rect[];
 }
+
+/**
+ * An edge's arrowheads as rectangles: `arrowhead` long and as wide, across
+ * the end segment, at the target and / or the source.
+ */
+export function arrowheadRects(points: readonly Point[], edge: EdgeIR, arrowhead: number): Rect[] {
+  const n = points.length;
+  if (n < 2) return [];
+  const headOf = (tip: Point, from: Point): Rect => {
+    const ux = Math.sign(tip.x - from.x);
+    const uy = Math.sign(tip.y - from.y);
+    const across = segmentRect({ x: tip.x - ux * arrowhead, y: tip.y - uy * arrowhead }, tip);
+    return ux !== 0
+      ? { ...across, y: across.y - arrowhead / 2, height: arrowhead }
+      : { ...across, x: across.x - arrowhead / 2, width: arrowhead };
+  };
+  const heads: Rect[] = [];
+  if (edge.targetArrowhead !== undefined) {
+    heads.push(headOf(points[n - 1] as Point, points[n - 2] as Point));
+  }
+  if (edge.sourceArrowhead !== undefined) {
+    heads.push(headOf(points[0] as Point, points[1] as Point));
+  }
+  return heads;
+}
+
+/** Whether an edge's label is placed by `labelAt` / `labelSide` (#128). */
+export const hasRequestedLabel = (edge: EdgeIR): boolean =>
+  edge.labelAt !== undefined || edge.labelSide !== undefined;
 
 /**
  * Places `metrics` beside the route:
@@ -122,7 +156,7 @@ export function placeEdgeLabel(
   arrowhead: number,
   surroundings: EdgeLabelSurroundings = {},
 ): TextLayout {
-  if (edge.labelAt !== undefined || edge.labelSide !== undefined) {
+  if (hasRequestedLabel(edge)) {
     return placeRequestedLabel(metrics, points, edge, arrowhead, surroundings);
   }
   const atSource = edge.targetArrowhead === undefined && edge.sourceArrowhead !== undefined;
@@ -281,7 +315,8 @@ export function absoluteSide(a: Point, b: Point, labelSide: EdgeLabelSide): 1 | 
  * Of the places clear of the routes (and arrowheads), it takes the first
  * also clear of borders, nodes and labels, else of nodes and labels, else
  * any; if none is clear of the routes, the first place. It never leaves the
- * requested segment or side: what remains is reported by the checks.
+ * requested segment or side: what remains is reported as
+ * `layout/edge-label-overlap` (`label-diagnostics.ts`).
  */
 function placeRequestedLabel(
   metrics: TextMetrics,
@@ -334,22 +369,8 @@ function placeRequestedLabel(
     { x: r.x + r.width, y: r.y, width: 0, height: r.height },
   ]);
   const boxes = [...(surroundings.nodes ?? []), ...(surroundings.labels ?? [])];
-  // The arrowheads: `arrowhead` long, as wide, across their segments.
-  const headOf = (tip: Point, from: Point): Rect => {
-    const ux = Math.sign(tip.x - from.x);
-    const uy = Math.sign(tip.y - from.y);
-    const across = segmentRect({ x: tip.x - ux * arrowhead, y: tip.y - uy * arrowhead }, tip);
-    return ux !== 0
-      ? { ...across, y: across.y - arrowhead / 2, height: arrowhead }
-      : { ...across, x: across.x - arrowhead / 2, width: arrowhead };
-  };
-  const heads: Rect[] = [];
-  if (edge.targetArrowhead !== undefined) {
-    heads.push(headOf(points[n - 1] as Point, points[n - 2] as Point));
-  }
-  if (edge.sourceArrowhead !== undefined) {
-    heads.push(headOf(points[0] as Point, points[1] as Point));
-  }
+  // Its own arrowheads and those of the other edges.
+  const heads = [...arrowheadRects(points, edge, arrowhead), ...(surroundings.arrowheads ?? [])];
 
   // The first place, then just past (either way) each obstacle along the segment.
   const offsets = new Set([first]);
