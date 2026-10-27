@@ -13,6 +13,8 @@ import { type DocPath, hasErrors, type SourceLocation } from "../core/diagnostic
 import type { FigureCheck } from "../core/figure/check";
 import { type Anchor, parseAnchor } from "../core/figure/layout";
 import type {
+  AlignConstraint,
+  AlignPosition,
   ArrangeAlign,
   ArrangeBox,
   ArrangeItem,
@@ -97,6 +99,22 @@ export interface ArrangeBoxIR {
 
 /** An item of an arrange box: a node or group, or a nested box. */
 export type ArrangeItemIR = ElementKey | ArrangeBoxIR;
+
+/**
+ * One constraint of `figure.layout.align` (#132, design doc §6.31), with the
+ * IDs resolved to keys: the structured engine places the items so that their
+ * `at` coordinate on `axis` is equal.
+ */
+export interface AlignIR {
+  /** `y`: one horizontal line (equal y); `x`: one vertical line. */
+  readonly axis: "x" | "y";
+  /** The coordinate made equal; omitted in the source means `center`. */
+  readonly at: AlignPosition;
+  /** Nodes or groups, as written (at least two, each once). */
+  readonly items: readonly ElementKey[];
+  /** Where the constraint is written (`figure.layout.align[i]`), for diagnostics. */
+  readonly srcAt: SourceMapEntry;
+}
 
 /** `nodes[].attach` with the target resolved to a key. */
 export interface AttachIR {
@@ -226,6 +244,8 @@ export interface FigureIR {
   readonly roots: readonly ElementKey[];
   /** Structured layout: the arrange tree of the root-level elements (`figure.layout.arrange`). */
   readonly arrange?: ArrangeBoxIR;
+  /** Structured layout: `figure.layout.align` (#132); absent when not written. */
+  readonly align?: readonly AlignIR[];
   readonly elements: ReadonlyMap<ElementKey, ElementIR>;
   readonly sourceMap: SourceMap;
 }
@@ -413,6 +433,13 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
     ...(figure.layout.arrange !== undefined && {
       arrange: arrangeOf(figure.layout.arrange),
     }),
+    ...(figure.layout.align !== undefined && {
+      align: freeze(
+        figure.layout.align.map((c, index) =>
+          alignIR(c, endpointKey, sourceEntry(["figure", "layout", "align", index])),
+        ),
+      ),
+    }),
     elements,
     sourceMap: readonlyMap(sourceMap),
   });
@@ -558,6 +585,21 @@ function arrangeIR(
     ...(spec.gap !== undefined && { gapPt: spec.gap }),
     ...(spec.align !== undefined && { align: spec.align }),
     items: freeze(spec.items.map(item)),
+  });
+}
+
+/** Converts an align constraint (checked by the layout stage) to its IR. */
+function alignIR(
+  constraint: AlignConstraint,
+  keyOf: (id: string) => ElementKey,
+  srcAt: SourceMapEntry,
+): AlignIR {
+  const axis = constraint.x !== undefined ? "x" : "y";
+  return freeze({
+    axis,
+    at: constraint.at ?? "center",
+    items: freeze((constraint[axis] ?? []).map(keyOf)),
+    srcAt,
   });
 }
 

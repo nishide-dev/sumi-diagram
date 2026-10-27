@@ -1009,7 +1009,7 @@ test("simplify and mergeSegments", () => {
   ]);
 });
 
-describe.each(["a-transformer", "b-adaln-panel", "group-label-at", "group-caption"])(
+describe.each(["a-transformer", "b-adaln-panel", "group-label-at", "group-caption", "align-unet", "align-side-kv"])(
   "%s (bundled fonts)",
   (name) => {
     const text = readFileSync(`${fixtures}/figures/layout/${name}.sumi.yaml`, "utf8");

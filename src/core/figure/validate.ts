@@ -21,7 +21,6 @@ import {
 import { type Diagnostic, type DocPath, didYouMean, formatDocPath } from "../diagnostics";
 import { errorAt } from "./report";
 import {
-  ARRANGE_BOX_ISSUE,
   EdgeSchema,
   FIGURE_SCHEMA_VERSION,
   FigureDocumentSchema,
@@ -30,6 +29,7 @@ import {
   ID_PATTERN,
   type JsonValue,
   NodeSchema,
+  ONE_OF_ISSUE,
 } from "./schema";
 import type { Locator } from "./yaml";
 
@@ -339,10 +339,11 @@ function schemaAt(schema: z.ZodType, path: readonly PropertyKey[]): z.ZodType | 
 }
 
 /**
- * Drops the "exactly one of stack / row" issue of an arrange box that has
- * neither but has unknown keys: a typo such as `stak` is reported once, as an
- * unknown field with a suggestion. A box with both `stack` and `row` keeps it.
- * `root` is the value the issue paths are relative to.
+ * Drops an "exactly one of" issue (an arrange box's `stack` / `row`, an
+ * align constraint's `x` / `y`) of an object that has none of the keys but
+ * has unknown keys: a typo such as `stak` is reported once, as an unknown
+ * field with a suggestion. An object with both keys keeps it. `root` is the
+ * value the issue paths are relative to.
  */
 function withoutRedundantIssues(
   issues: readonly core.$ZodIssue[],
@@ -352,15 +353,18 @@ function withoutRedundantIssues(
     issues.filter((i) => i.code === "unrecognized_keys").map((i) => JSON.stringify(i.path)),
   );
   return issues.filter((i) => {
-    if (!isArrangeBoxIssue(i) || !unknownAt.has(JSON.stringify(i.path))) return true;
-    const box = valueAt(root, i.path);
-    return isRecord(box) && (box.stack !== undefined || box.row !== undefined);
+    const keys = oneOfKeys(i);
+    if (keys === undefined || !unknownAt.has(JSON.stringify(i.path))) return true;
+    const value = valueAt(root, i.path);
+    return isRecord(value) && keys.some((key) => value[key] !== undefined);
   });
 }
 
-function isArrangeBoxIssue(issue: core.$ZodIssue): boolean {
+/** The keys of an "exactly one of" issue ({@link ONE_OF_ISSUE}), or `undefined`. */
+function oneOfKeys(issue: core.$ZodIssue): readonly string[] | undefined {
   const params = (issue as { params?: Record<string, unknown> }).params;
-  return issue.code === "custom" && params?.[ARRANGE_BOX_ISSUE] === true;
+  const keys = params?.[ONE_OF_ISSUE];
+  return issue.code === "custom" && Array.isArray(keys) ? (keys as string[]) : undefined;
 }
 
 /** Finds the first value that is not JSON-compatible. */
