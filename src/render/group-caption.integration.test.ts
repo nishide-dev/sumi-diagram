@@ -145,6 +145,40 @@ describe("structured", () => {
     expect(note.y).toBeGreaterThan(caption.y + caption.height);
   });
 
+  test("in a row that stretches its items, the group takes the extra height above its caption", async () => {
+    const figure = (caption: string) => `version: 1
+figure:
+  id: stretch
+  theme: academic
+  layout:
+    arrange: { row: { gap: 6mm, align: stretch, items: [g, b] } }
+groups:
+  - { id: g, label: Group${caption}, arrange: { stack: { items: [a] } } }
+nodes:
+  - { id: a, component: box, label: A }
+  - { id: b, component: box, label: "A tall\\nnode\\nof\\nseveral\\nlines\\nand\\nmore" }
+`;
+    const rectOf = (rendered: RenderedFigure, key: string) => {
+      const { layout } = rendered as RenderedStructuredFigure;
+      const rect = [...layout.groups, ...layout.nodes].find((e) => e.key === key)?.rect;
+      if (rect === undefined) throw new Error(`no ${key}`);
+      return rect;
+    };
+    const plain = await render(figure(""));
+    const b = rectOf(plain, "n:b");
+    // Without a caption the group is as tall as b.
+    expect(rectOf(plain, "g:g")).toMatchObject({ y: b.y, height: b.height });
+    const captioned = await render(figure(", caption: (a) one"));
+    const b2 = rectOf(captioned, "n:b");
+    const group = rectOf(captioned, "g:g");
+    const caption = rectOf(captioned, "n:g-caption");
+    // With one, the group starts at b's top and grows; its caption ends at b's bottom.
+    expect(group.y).toBe(b2.y);
+    expect(group.height).toBeGreaterThan(rectOf(plain, "n:a").height * 2);
+    expect(caption.y - (group.y + group.height)).toBeCloseTo(8, 3);
+    expect(caption.y + caption.height).toBeCloseTo(b2.y + b2.height, 3);
+  });
+
   test("no route crosses a caption", async () => {
     const { layout } = (await render(source)) as RenderedStructuredFigure;
     for (const id of CAPTIONED) {

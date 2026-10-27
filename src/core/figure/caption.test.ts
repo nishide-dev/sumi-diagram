@@ -185,6 +185,7 @@ nodes:
           gapPt: gap,
           align: "stretch",
           items: ["g:g", "n:g-caption"],
+          growFirst: true,
         },
         {
           kind: "row",
@@ -198,6 +199,7 @@ nodes:
               gapPt: gap,
               align: "center",
               items: ["g:h", "n:h-caption"],
+              growFirst: true,
             },
           ],
         },

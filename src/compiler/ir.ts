@@ -87,6 +87,12 @@ export interface ArrangeBoxIR {
   /** Cross-axis alignment, as written; omitted inherits (same axis only). */
   readonly align?: ArrangeAlign;
   readonly items: readonly ArrangeItemIR[];
+  /**
+   * Set only on the stack a group's caption is expanded into (#130): extra
+   * main-axis room (from a row that stretches its items) goes to the first
+   * item, the group, instead of centring the items.
+   */
+  readonly growFirst?: true;
 }
 
 /** An item of an arrange box: a node or group, or a nested box. */
@@ -513,7 +519,9 @@ function anchorIR<F extends "fromAnchor" | "toAnchor">(
  * captioned group (#130, design doc §6.32) becomes a stack of the group and
  * its caption node, `captionGapPt` apart. The stack centres the caption under
  * the group; in a stack that stretches its items, it stretches too, so the
- * group keeps the width it has without a caption. `inherited` is the
+ * group keeps the width it has without a caption; in a row that stretches
+ * its items, the extra height goes to the group (`growFirst`), so the group
+ * keeps that height too, its caption below. `inherited` is the
  * alignment the layout engine gives a box that omits `align` (§6.21: only
  * from a box on the same axis).
  */
@@ -541,6 +549,7 @@ function arrangeIR(
       gapPt: captionGapPt,
       align: kind === "stack" && align === "stretch" ? "stretch" : "center",
       items: freeze([keyOf(item), nodeKey(caption)]),
+      growFirst: true,
     });
   };
   return freeze({

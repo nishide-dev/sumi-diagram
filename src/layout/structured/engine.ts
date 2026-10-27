@@ -249,13 +249,18 @@ class StructuredLayout {
     const order = reversed ? [...box.items].reverse() : box.items;
     const natural = this.#boxSize(box);
     const gap = this.#gap(box);
-    // Extra main-axis room (from a stretching parent) centers the items.
-    let cursor = vertical
-      ? frame.y + (frame.height - natural.height) / 2
-      : frame.x + (frame.width - natural.width) / 2;
+    // Extra main-axis room (from a stretching parent) centers the items; a
+    // caption's stack (#130) gives it to its group instead (`growFirst`).
+    const extra = vertical ? frame.height - natural.height : frame.width - natural.width;
+    let grow = box.growFirst === true ? Math.max(0, extra) : 0;
+    let cursor = (vertical ? frame.y : frame.x) + (grow > 0 ? 0 : extra / 2);
     const crossAvailable = vertical ? frame.width : frame.height;
     for (const item of order) {
-      const size = this.#itemSize(item);
+      const itemNatural = this.#itemSize(item);
+      const size = vertical
+        ? { ...itemNatural, height: itemNatural.height + grow }
+        : { ...itemNatural, width: itemNatural.width + grow };
+      grow = 0;
       const crossNatural = vertical ? size.width : size.height;
       const cross =
         align === "stretch" && this.#stretchable(item, vertical) ? crossAvailable : crossNatural;
