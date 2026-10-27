@@ -261,14 +261,12 @@ describe("the stage-B draft of figure 2 (research/124-stage-b)", () => {
     const dir = join(ROOT, "research/124-stage-b/figures");
     const draft = parse(readFileSync(join(dir, "training-pipeline.sumi.yaml"), "utf8"));
     // Not part of #130: the version gate (this build may be older than the
-    // draft's >=0.5.0), the legend (#131), and the "batch" label's
-    // labelSide, which puts it where another line runs (a
-    // layout/edge-label-overlap warning, design doc §6.30).
+    // draft's >=0.5.0), and the "batch" label's labelSide, which puts it
+    // where another line runs (a layout/edge-label-overlap warning, design
+    // doc §6.30). The legend (#131) stays.
     delete draft.requires;
     for (const edge of draft.edges) delete edge.labelSide;
-    draft.nodes = draft.nodes.filter((n: { component: string }) => n.component !== "legend");
-    const row = draft.figure.layout.arrange.stack.items[1].row;
-    row.items = row.items.filter((item: string) => item !== "key");
+    expect(draft.nodes.some((n: { component: string }) => n.component === "legend")).toBe(true);
     expect(draft.groups.map((g: { caption?: string }) => g.caption)).toEqual([
       "(a) data and augmentation",
       "(b) one optimisation step",

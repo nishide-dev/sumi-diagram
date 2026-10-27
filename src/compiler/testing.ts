@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { z } from "zod";
 import type { ElementKey } from "../core/check-state";
 import { BUILTIN_MANIFESTS, createBuiltinRegistry } from "../core/registry/builtins";
-import type { EdgeManifest } from "../core/registry/manifest";
+import type { ComponentManifest, EdgeManifest } from "../core/registry/manifest";
 import type { ResolvedStyle } from "../core/theme/style";
 import { compileFigure } from "./compile";
 import { type ElementIR, type FigureIR, readonlyMap } from "./ir";
@@ -116,14 +116,30 @@ export function withStyles(
   return { ...ir, groups, nodes, edges, elements };
 }
 
+/** `true` if the auto (D2) engine can draw the component (manifest `engines`, #131). */
+export const drawnByAuto = (manifest: ComponentManifest): boolean =>
+  manifest.engines === undefined || manifest.engines.includes("auto");
+
 /**
- * A figure using every built-in component with every variant under the given
- * theme. Each element has the ID and label `<component>-<variant>`.
- * Default-variant nodes sit in the default container and muted ones in the
- * muted container; the edges chain the nodes in order.
+ * The built-in components {@link primitivesFigure} cannot hold because the
+ * auto engine cannot draw them (#131: `sumi/legend`);
+ * {@link structuredPrimitivesFigure} holds them instead.
+ */
+export const STRUCTURED_ONLY_MANIFESTS: readonly ComponentManifest[] = BUILTIN_MANIFESTS.filter(
+  (m) => !drawnByAuto(m),
+);
+
+/**
+ * A figure using every built-in component the auto engine can draw, with
+ * every variant, under the given theme. Each element has the ID and label
+ * `<component>-<variant>`. Default-variant nodes sit in the default container
+ * and muted ones in the muted container; the edges chain the nodes in order.
+ * The other components are in {@link structuredPrimitivesFigure}; together
+ * the two cover every built-in component and variant.
  */
 export function primitivesFigure(theme: string): string {
-  const ofKind = (kind: string) => BUILTIN_MANIFESTS.filter((m) => m.kind === kind);
+  const ofKind = (kind: string) =>
+    BUILTIN_MANIFESTS.filter((m) => m.kind === kind && drawnByAuto(m));
   const lines = [
     "version: 1",
     `figure: { id: primitives-${theme}, theme: ${theme}, profile: paper-double, layout: { direction: down } }`,
@@ -172,4 +188,146 @@ export function primitivesFigure(theme: string): string {
     }
   }
   return `${lines.join("\n")}\n`;
+}
+
+/**
+ * The entries of a legend in {@link structuredPrimitivesFigure}: every edge
+ * component once (its sample line), the dashed arrow, and a toned box and a
+ * circle (sample boxes), so that every sample kind is drawn.
+ */
+const LEGEND_ENTRIES = [
+  "{ edge: {}, label: arrow }",
+  "{ edge: { variant: dashed }, label: dashed }",
+  "{ edge: { component: line }, label: line }",
+  "{ edge: { component: double-arrow }, label: double-arrow }",
+  "{ node: { tone: blue }, label: blue box }",
+  "{ node: { component: circle, variant: emphasis }, label: circle }",
+];
+
+/**
+ * A structured figure using every built-in component the auto engine cannot
+ * draw (see {@link STRUCTURED_ONLY_MANIFESTS}), with every variant, under the
+ * given theme: each with the ID `<component>-<variant>`, in a row below the
+ * nodes and edges whose styles a legend's entries explain. Throws for a
+ * structured-only component it does not know how to fill in.
+ */
+export function structuredPrimitivesFigure(theme: string): string {
+  const legends: string[] = [];
+  const nodes = [
+    "  - { id: a, component: box, label: A, tone: blue }",
+    "  - { id: b, component: circle, label: B, variant: emphasis }",
+    "  - { id: c, component: box, label: C }",
+    "  - { id: d, component: box, label: D }",
+  ];
+  const edges = [
+    "  - { from: a, to: b }",
+    "  - { from: b, to: c, variant: dashed }",
+    "  - { from: c, to: d, component: line }",
+    "  - { from: a, to: d, component: double-arrow, fromAnchor: south, toAnchor: south }",
+  ];
+  for (const m of STRUCTURED_ONLY_MANIFESTS) {
+    const id = `${m.namespace}/${m.name}`;
+    if (id !== "sumi/legend") {
+      throw new Error(`internal error: no structured sample for ${id}`);
+    }
+    for (const variant of m.variants) {
+      const name = `${m.name}-${variant}`;
+      legends.push(name);
+      nodes.push(
+        `  - id: ${name}`,
+        `    component: ${m.name}`,
+        `    label: ${name}`,
+        `    variant: ${variant}`,
+        "    props:",
+        "      entries:",
+        ...LEGEND_ENTRIES.map((entry) => `        - ${entry}`),
+      );
+    }
+  }
+  return `${[
+    "version: 1",
+    "figure:",
+    `  id: structured-primitives-${theme}`,
+    `  theme: ${theme}`,
+    "  profile: paper-double",
+    "  layout:",
+    "    arrange:",
+    "      stack:",
+    "        gap: 8mm",
+    "        items:",
+    "          - row: { gap: 8mm, align: center, items: [a, b, c, d] }",
+    `          - row: { gap: 6mm, align: start, items: [${legends.join(", ")}] }`,
+    "nodes:",
+    ...nodes,
+    "edges:",
+    ...edges,
+  ].join("\n")}\n`;
+}
+
+/**
+ * The component and variant an element of a compiled figure stands for: the
+ * legend's own for the frame and the parts of a legend (#131, which the
+ * `check` stages expand into groups, nodes and edges of other components),
+ * otherwise the element's.
+ */
+export function writtenComponentOf(
+  ir: FigureIR,
+  element: ElementIR,
+): { component: string; variant: string } {
+  if (element.legend === undefined) {
+    return { component: element.component, variant: element.variant };
+  }
+  const frame = ir.elements.get(`g:${element.legend.id}`);
+  if (frame === undefined)
+    throw new Error(`internal error: legend ${element.legend.id} has no frame`);
+  return { component: frame.component, variant: frame.variant };
+}
+
+/**
+ * How an edge is drawn, independent of where it runs: the visible line's
+ * color, width and dash (the structured writer draws it as a `sumi-wire` path
+ * that starts where the edge's `connection` path starts), and each
+ * arrowhead's side lengths (rounded) and fill. `chunk` is the edge's markup in
+ * `svg`.
+ */
+export function edgeLook(svg: string, chunk: string) {
+  const path = /<path class="connection"[^>]*>/.exec(chunk)?.[0] ?? "";
+  const pointsOf = (element: string) =>
+    [...(/ d="([^"]*)"/.exec(element)?.[1] ?? "").matchAll(/(-?[\d.]+) (-?[\d.]+)/g)].map(
+      (m) => [Number(m[1]), Number(m[2])] as const,
+    );
+  const route = pointsOf(path);
+  // The wire starts on the route (shortened for an arrowhead at the source).
+  const onRoute = ([x, y]: readonly [number, number]) =>
+    route.some(([ax, ay], i) => {
+      const [bx, by] = route[i + 1] ?? [ax, ay];
+      const within = (v: number, p: number, q: number) =>
+        v >= Math.min(p, q) - 0.01 && v <= Math.max(p, q) + 0.01;
+      const collinear = Math.abs((bx - ax) * (y - ay) - (by - ay) * (x - ax)) < 0.01;
+      return collinear && within(x, ax, bx) && within(y, ay, by);
+    });
+  const wire = [...svg.matchAll(/<path class="sumi-wire"[^>]*>/g)]
+    .map((m) => m[0])
+    .find((w) => {
+      const [first] = pointsOf(w);
+      return first !== undefined && onRoute(first);
+    });
+  const start = route[0]?.join(" ");
+  const attr = (element: string, name: string) =>
+    new RegExp(` ${name}="([^"]*)"`).exec(element)?.[1] ?? null;
+  const heads = [...chunk.matchAll(/<polygon points="([^"]*)" fill="([^"]*)"/g)].map((m) => {
+    const points = (m[1] ?? "").split(" ").map((p) => p.split(",").map(Number));
+    const sides = points.map((p, i) => {
+      const q = points[(i + 1) % points.length] ?? p;
+      return Math.round(Math.hypot((q[0] ?? 0) - (p[0] ?? 0), (q[1] ?? 0) - (p[1] ?? 0)) * 100);
+    });
+    return { sides: sides.sort((a, b) => a - b), fill: m[2] };
+  });
+  if (wire === undefined) throw new Error(`no drawn line for the edge at ${start}`);
+  return {
+    stroke: attr(wire, "stroke"),
+    width: attr(wire, "stroke-width"),
+    dash: attr(wire, "stroke-dasharray"),
+    heads,
+  };
 }

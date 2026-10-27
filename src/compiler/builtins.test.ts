@@ -13,7 +13,12 @@ import { BUILTIN_THEME_DEFINITIONS } from "../core/theme/builtin";
 import { KIND_DEFAULTS } from "../core/theme/style";
 import { compileFigure, expectD2Figure } from "./compile";
 import type { FigureIR } from "./ir";
-import { primitivesFigure } from "./testing";
+import {
+  primitivesFigure,
+  STRUCTURED_ONLY_MANIFESTS,
+  structuredPrimitivesFigure,
+  writtenComponentOf,
+} from "./testing";
 
 /** Design doc §3: the D2 lowering of every built-in component. */
 const LOWERING: Record<string, string> = {
@@ -32,21 +37,30 @@ const LOWERING: Record<string, string> = {
   "sumi/operator": "circle",
   "sumi/junction": "circle",
   "sumi/image": "rectangle",
+  // Expanded into a frame group around its entries (#131, structured only).
+  "sumi/legend": "rectangle",
   "sumi/container": "rectangle",
   "sumi/arrow": "-> target:triangle",
   "sumi/line": "--",
   "sumi/double-arrow": "<-> source:triangle target:triangle",
 };
 
-function compile(source: string) {
+function compileAny(source: string) {
   const result = compileFigure(source);
   if (!result.ok) throw new Error(JSON.stringify(result.diagnostics, null, 2));
-  return expectD2Figure(result.value);
+  return result.value;
 }
 
-/** The lowering of each element of a compiled figure, by canonical component ID. */
-function lowerings(ir: FigureIR): Map<string, Set<string>> {
+const compile = (source: string) => expectD2Figure(compileAny(source));
+
+/** The lowering of each element of compiled figures, by canonical component ID. */
+function lowerings(...irs: FigureIR[]): Map<string, Set<string>> {
   const seen = new Map<string, Set<string>>();
+  for (const ir of irs) addLowerings(ir, seen);
+  return seen;
+}
+
+function addLowerings(ir: FigureIR, seen: Map<string, Set<string>>): void {
   const add = (id: string, value: string) => seen.set(id, (seen.get(id) ?? new Set()).add(value));
   for (const n of [...ir.nodes, ...ir.groups]) add(n.component, n.shape);
   const operators = { forward: "->", backward: "<-", both: "<->", none: "--" };
@@ -57,7 +71,6 @@ function lowerings(ir: FigureIR): Map<string, Set<string>> {
     ].filter(Boolean);
     add(e.component, [operators[e.direction], ...heads].join(" "));
   }
-  return seen;
 }
 
 describe("built-in components lower to standard D2 shapes", () => {
@@ -70,21 +83,34 @@ describe("built-in components lower to standard D2 shapes", () => {
   for (const { id: theme } of BUILTIN_THEME_DEFINITIONS) {
     test(`every component and variant (${theme})`, () => {
       const { ir, d2Source } = compile(primitivesFigure(theme));
-      const seen = lowerings(ir);
+      // The components the auto engine cannot draw (#131) are in a structured figure.
+      const structured = compileAny(structuredPrimitivesFigure(theme));
+      expect(structured.engine).toBe("structured");
+      const seen = lowerings(ir, structured.ir);
       expect(Object.fromEntries([...seen].map(([id, values]) => [id, [...values]]))).toEqual(
         Object.fromEntries(Object.entries(LOWERING).map(([id, value]) => [id, [value]])),
       );
       for (const shape of new Set(Object.values(LOWERING))) {
         if (!shape.includes("-")) expect(d2Source).toContain(`shape: ${shape}\n`);
       }
-      // Every component × variant is present, so no theme falls back to `default`.
+      // Every component × variant is present, so no theme falls back to
+      // `default`. A legend's parts are traced back to the legend (#131).
+      const written = [ir, structured.ir].flatMap((figure) =>
+        [...figure.elements.values()].map((e) => writtenComponentOf(figure, e)),
+      );
       for (const m of BUILTIN_MANIFESTS) {
         const id = `${m.namespace}/${m.name}`;
-        const variants = [...ir.elements.values()]
+        const variants = [...ir.elements.values(), ...structured.ir.elements.values()]
           .filter((e) => e.component === id)
           .map((e) => e.variant);
         expect(new Set(variants)).toEqual(new Set(m.variants));
+        const traced = written.filter((e) => e.component === id).map((e) => e.variant);
+        expect(new Set(traced)).toEqual(new Set(m.variants));
       }
+      // Only the components the auto engine cannot draw are left to the structured figure.
+      expect(STRUCTURED_ONLY_MANIFESTS.map((m) => m.name)).toEqual(["legend"]);
+      expect(ir.elements.size).toBeGreaterThan(0);
+      for (const e of ir.elements.values()) expect(e.component).not.toBe("sumi/legend");
     });
   }
 });
@@ -171,6 +197,11 @@ describe("the slides theme with the presentation profile (#36)", () => {
   test("every labeled component × variant passes the profile's font check", () => {
     const { state } = checkFigure(presentation("slides"));
     expect(state.diagnostics).toEqual([]);
+    const structured = structuredPrimitivesFigure("slides").replace(
+      "profile: paper-double",
+      "profile: presentation-16x9",
+    );
+    expect(checkFigure(structured).state.diagnostics).toEqual([]);
   });
 
   test("the paper themes are rejected with profile/font-too-small by design", () => {

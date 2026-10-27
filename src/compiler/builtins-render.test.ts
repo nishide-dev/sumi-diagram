@@ -24,7 +24,14 @@ import { renderFigure } from "../render";
 import { readSvgMetadata, sha256 } from "../render/finalize";
 import { compileFigure } from "./compile";
 import { elementClass } from "./d2";
-import { ASSETS_DIR, primitivesFigure } from "./testing";
+import type { FigureIR } from "./ir";
+import {
+  ASSETS_DIR,
+  edgeLook,
+  primitivesFigure,
+  structuredPrimitivesFigure,
+  writtenComponentOf,
+} from "./testing";
 
 const binary = findD2Binary();
 const available = binary.ok && (await checkD2Version(binary.value.path)).ok;
@@ -58,8 +65,86 @@ function elementMarkup(svg: string): Map<string, string[]> {
 
 const count = (text: string, pattern: RegExp) => text.match(pattern)?.length ?? 0;
 
+/** How a node's markup draws its shape: the attributes of its first shape element. */
+function shapeLook(chunk: string) {
+  const shape = /<g class="shape">(<(rect|circle|ellipse|path)[^>]*>)/.exec(chunk);
+  const attr = (name: string) => new RegExp(` ${name}="([^"]*)"`).exec(shape?.[1] ?? "")?.[1];
+  return {
+    element: shape?.[2],
+    fill: attr("fill"),
+    stroke: attr("stroke"),
+    width: attr("stroke-width"),
+  };
+}
+
+/** The elements the author wrote (not expanded from a legend), by component, variant and tone. */
+function writtenLike(ir: FigureIR, kind: "node" | "edge", component: string, variant: string) {
+  return [...ir.elements.values()].filter(
+    (e) =>
+      e.legend === undefined &&
+      e.kind === kind &&
+      e.component === component &&
+      e.variant === variant,
+  );
+}
+
 test("the pinned d2 is installed in CI", () => {
   if (inCI) expect(available).toBe(true);
+});
+
+// #131: the components the auto engine cannot draw, in a structured figure
+// (laid out by Sumi: no D2 needed, so never skipped). A legend's parts are
+// traced back to the legend, and its samples are drawn like the author's edges
+// and nodes with the same fields.
+describe("structured-only built-in components render", () => {
+  for (const theme of BUILTIN_THEMES.keys()) {
+    test(
+      `every structured-only component × variant (${theme})`,
+      async () => {
+        const rendered = await renderFigure(structuredPrimitivesFigure(theme));
+        if (!rendered.ok) throw new Error(JSON.stringify(rendered.diagnostics, null, 2));
+        expect(rendered.diagnostics).toEqual([]);
+        expect(lintGeometry(rendered.value, {})).toEqual([]);
+        const { ir } = rendered.value.compiled;
+        expect(ir.meta.engine).toBe("structured");
+        const markup = elementMarkup(rendered.value.svg);
+        const legends = new Set<string>();
+        for (const [key, element] of ir.elements) {
+          const chunks = markup.get(elementClass(key)) ?? [];
+          expect({ key, count: chunks.length }).toEqual({ key, count: 1 });
+          const written = writtenComponentOf(ir, element);
+          if (written.component === "sumi/legend") legends.add(written.variant);
+          if (element.legend === undefined || element.legend.id === element.key.slice(2)) continue;
+          const chunk = chunks[0] ?? "";
+          if (element.kind === "edge") {
+            const [real] = writtenLike(ir, "edge", element.component, element.variant);
+            if (real === undefined) throw new Error(`no edge like ${key}`);
+            const realChunk = markup.get(elementClass(real.key))?.[0] ?? "";
+            expect({ key, look: edgeLook(rendered.value.svg, chunk) }).toEqual({
+              key,
+              look: edgeLook(rendered.value.svg, realChunk),
+            });
+            expect(edgeLook(rendered.value.svg, chunk).heads.length).toBe(
+              (element.sourceArrowhead ? 1 : 0) + (element.targetArrowhead ? 1 : 0),
+            );
+          } else if (element.kind === "node" && element.component !== "sumi/label") {
+            if (element.component === "sumi/junction") {
+              expect(element.variant).toBe("hidden");
+              continue;
+            }
+            const real = writtenLike(ir, "node", element.component, element.variant).find(
+              (n) => JSON.stringify(n.style) === JSON.stringify(element.style),
+            );
+            if (real === undefined) throw new Error(`no node like ${key}`);
+            const realChunk = markup.get(elementClass(real.key))?.[0] ?? "";
+            expect({ key, look: shapeLook(chunk) }).toEqual({ key, look: shapeLook(realChunk) });
+          }
+        }
+        expect([...legends].sort()).toEqual(["default", "plain"]);
+      },
+      TIMEOUT_MS,
+    );
+  }
 });
 
 describe.skipIf(!available)("built-in primitives render with D2", () => {

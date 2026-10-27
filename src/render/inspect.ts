@@ -115,8 +115,12 @@ export interface SvgInspection {
 }
 
 const ELEMENT_CLASS = /^sumi-k-([nge])--(.+)$/;
-/** An element ID (`ID_PATTERN`), or a caption's `<group>-caption` (#130): 8 characters longer. */
-const ID = /^[a-z][a-z0-9_-]{0,71}$/;
+/**
+ * An element ID (`ID_PATTERN`, up to 64 characters), or a reserved ID that
+ * extends one: a caption's `<group>-caption` (#130, 8 more), a legend part's
+ * `<legend>-<n>-label` (#131, at most 9 more: up to 20 entries).
+ */
+const ID = /^[a-z][a-z0-9_-]{0,72}$/;
 
 /**
  * Decodes a `sumi-k-*` class back to its ElementKey (inverse of

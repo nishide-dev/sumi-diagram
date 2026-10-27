@@ -1,5 +1,6 @@
 /** Rules on the figure's structure: element counts and edges. */
 
+import { edgeKey, nodeKey } from "../../core/check-state";
 import type { DiagnosticSubject } from "../../core/diagnostics";
 import { parseAnchor } from "../../core/figure/layout";
 import { defineRule, type LintContext, type LintFinding, type ValidElement } from "../rule";
@@ -15,10 +16,12 @@ export const emptyFigure = defineRule({
   defaultSeverity: "warning",
   fixable: false,
   run(context) {
-    const { nodes, captions } = context.state.doc;
+    const { nodes, expanded } = context.state.doc;
     // `undefined` means `nodes` could not be read (already an error). Group
-    // captions (#130) are expanded into nodes after the written ones.
-    if (nodes === undefined || nodes.length > (captions?.size ?? 0)) return [];
+    // captions (#130) and the parts of legends (#131) are expanded into nodes
+    // after the written ones; a legend's own entry is left `undefined`.
+    if (nodes === undefined) return [];
+    if (nodes.some((n) => n === undefined || !expanded?.has(nodeKey(n.id)))) return [];
     const subject = figureSubject(context);
     return [
       {
@@ -37,13 +40,15 @@ export const noEdges = defineRule({
   defaultSeverity: "warning",
   fixable: false,
   run(context) {
-    // Any edge, even an invalid one, means the author did draw edges.
-    const { edges } = context.state.doc;
-    if (edges === undefined || edges.length > 0) return [];
+    // Any edge, even an invalid one, means the author did draw edges; the
+    // sample lines of a legend (#131) are not the author's.
+    const { edges, expanded } = context.state.doc;
+    if (edges === undefined) return [];
+    if (edges.some((e, i) => e === undefined || !expanded?.has(edgeKey(e.id, i)))) return [];
     // Invalid nodes already have errors; count only the valid ones, and not
-    // the captions of groups (#130: label nodes whose subject is the group).
+    // the captions of groups (#130) or the parts of legends (#131).
     const nodeCount = context.elements.filter(
-      (e) => e.kind === "node" && e.subject.kind === "node",
+      (e) => e.kind === "node" && e.origin === undefined,
     ).length;
     if (nodeCount < 2) return [];
     const subject = figureSubject(context);

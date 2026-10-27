@@ -62,15 +62,37 @@ interface Element {
   /** Groups only (#127). */
   labelAt: string | undefined;
   props: Record<string, unknown>;
+  /** How messages name the element (an expanded caption or legend part names its origin). */
+  name: string;
+}
+
+export interface ResolveOptions {
+  /**
+   * Resolve only these elements and keep the components resolved before
+   * (the parts a legend expands into, #131). Omitted means every element,
+   * starting afresh.
+   */
+  only?: ReadonlySet<ElementKey>;
 }
 
 /** Runs the `component` stage on `state.doc`. */
-export function resolveComponents(state: CheckState, registry: Registry, locate: Locator): void {
-  const components = new Map<ElementKey, ResolvedComponent>();
+export function resolveComponents(
+  state: CheckState,
+  registry: Registry,
+  locate: Locator,
+  options: ResolveOptions = {},
+): void {
+  const { only } = options;
+  const components =
+    only === undefined || state.components === undefined
+      ? new Map<ElementKey, ResolvedComponent>()
+      : state.components;
   state.components = components;
+  const engine = state.doc.figure?.layout?.engine;
 
   for (const element of elements(state)) {
     if (state.invalid.has(element.key)) continue;
+    if (only !== undefined && !only.has(element.key)) continue;
     const report = (diagnostics: Diagnostic[], path: (d: Diagnostic) => DocPath) => {
       for (const d of diagnostics) {
         const at = path(d);
@@ -93,6 +115,22 @@ export function resolveComponents(state: CheckState, registry: Registry, locate:
     const manifest = resolved.value;
     const usage = registry.validateUsage(manifest, element);
     report(usage.diagnostics, (d) => [...element.path, ...(d.path ?? [])]);
+    // A component drawn by some engines only (#131, e.g. sumi/legend).
+    const wrongEngine =
+      engine !== undefined && manifest.engines !== undefined && !manifest.engines.includes(engine);
+    if (wrongEngine) {
+      const needed = manifest.engines?.join(" or ") ?? "";
+      const diagnostic: Diagnostic = {
+        code: engine === "auto" ? "layout/structured-only" : "layout/auto-only",
+        severity: "error",
+        message: `${componentId(manifest)} needs the ${needed} layout engine, but this figure uses the ${engine} engine.`,
+        hint:
+          engine === "auto"
+            ? 'The structured layout is selected by figure.layout.arrange or "engine: structured"; otherwise remove this element.'
+            : "Lay the figure out with the auto engine, or remove this element.",
+      };
+      report([diagnostic], () => [...element.path, "component"]);
+    }
     const missingLabel =
       manifest.kind === "node" &&
       manifest.shape === "text" &&
@@ -152,7 +190,14 @@ export function resolveComponents(state: CheckState, registry: Registry, locate:
     }
     const mathErrors =
       mark === undefined && !missingLabel ? checkLabelMath(state, element, locate) : false;
-    if (!usage.ok || missingLabel || unexpectedLabel || toneUnsupported || mathErrors) {
+    if (
+      !usage.ok ||
+      wrongEngine ||
+      missingLabel ||
+      unexpectedLabel ||
+      toneUnsupported ||
+      mathErrors
+    ) {
       state.invalid.add(element.key);
       continue;
     }
@@ -188,12 +233,7 @@ function checkLabelMath(state: CheckState, element: Element, locate: Locator): b
     state.diagnostics.push({
       code: "component/unsupported-in-auto",
       severity: "warning",
-      message: `Label math ($...$) needs the structured layout engine; this auto figure draws the label of ${
-        // A group's caption (#130) is a label node whose subject is its group.
-        element.kind === "node" && element.subject.kind === "group"
-          ? `the caption of group "${element.subject.id}"`
-          : `${element.kind} "${element.subject.id}"`
-      } as written.`,
+      message: `Label math ($...$) needs the structured layout engine; this auto figure draws the label of ${element.name} as written.`,
       path: at,
       ...(location !== undefined && { location }),
       subject: element.subject,
@@ -223,8 +263,10 @@ function checkLabelMath(state: CheckState, element: Element, locate: Locator): b
 
 function* elements(state: CheckState): Generator<Element> {
   for (const entry of figureElements(state.doc)) {
-    const { kind, key, path, subject, element } = entry;
+    const { kind, key, path, subject, element, origin } = entry;
     yield {
+      // A group's caption (#130) is named by its group.
+      name: origin?.name ?? `${kind} "${subject.id}"`,
       kind,
       key,
       path,

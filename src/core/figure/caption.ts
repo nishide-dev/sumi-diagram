@@ -14,13 +14,15 @@
 
 import {
   type CheckState,
+  type ElementKey,
+  type ExpandedOrigin,
   groupKey,
   invalidateDependents,
   nodeKey,
   type PartialFigure,
 } from "../check-state";
 import type { Diagnostic, DocPath } from "../diagnostics";
-import { errorAt, relatedAt } from "./report";
+import { recordExpanded, reportReservedId, takenIds } from "./expand";
 import type { FigureNode } from "./schema";
 import type { Locator } from "./yaml";
 
@@ -50,35 +52,22 @@ export function expandCaptions(state: CheckState, locate: Locator): void {
   const { doc, invalid } = state;
   const { groups, nodes } = doc;
   if (groups === undefined || nodes === undefined) return;
-  const taken = new Map<string, DocPath>();
-  for (const [index, group] of groups.entries()) {
-    if (group !== undefined && !taken.has(group.id)) taken.set(group.id, ["groups", index]);
-  }
-  for (const [index, node] of nodes.entries()) {
-    if (node !== undefined && !taken.has(node.id)) taken.set(node.id, ["nodes", index]);
-  }
+  const taken = takenIds(doc);
   const captions = new Map<number, CaptionOrigin>();
+  const origins: [ElementKey, ExpandedOrigin][] = [];
   for (const [index, group] of groups.entries()) {
     if (group?.caption === undefined || invalid.has(groupKey(group.id))) continue;
     const id = captionId(group.id);
     const captionPath: DocPath = ["groups", index, "caption"];
+    const name = `the caption of group "${group.id}"`;
     const owner = taken.get(id);
     if (owner !== undefined) {
-      const kind = owner[0] === "groups" ? "group" : "node";
-      state.diagnostics.push(
-        errorAt(
-          locate,
-          "ref/reserved-id",
-          `The ID "${id}" is reserved for the caption of group "${group.id}".`,
-          [...owner, "id"],
-          {
-            subject: { kind, id },
-            hint: `Rename this ${kind}: Sumi draws the caption of group "${group.id}" as an element with this ID.`,
-            related: [relatedAt(locate, captionPath, "The caption is written here.")],
-          },
-        ),
-      );
-      invalid.add(kind === "group" ? groupKey(id) : nodeKey(id));
+      reportReservedId(state, locate, {
+        id,
+        owner,
+        reservedFor: name,
+        related: { path: captionPath, message: "The caption is written here." },
+      });
       continue;
     }
     // An unreadable element may hold the ID: its own error explains the figure.
@@ -92,9 +81,14 @@ export function expandCaptions(state: CheckState, locate: Locator): void {
       ...(group.group !== undefined && { group: group.group }),
     };
     captions.set(nodes.length, { group: group.id, path: captionPath });
+    origins.push([
+      nodeKey(id),
+      { from: "caption", path: captionPath, subject: { kind: "group", id: group.id }, name },
+    ]);
     nodes.push(node);
   }
   if (captions.size > 0) doc.captions = captions;
+  recordExpanded(doc, origins);
   invalidateDependents(state);
 }
 

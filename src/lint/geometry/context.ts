@@ -58,6 +58,8 @@ function captionGroupId(element: ElementIR): string | undefined {
 }
 
 function subjectOf(element: ElementIR): DiagnosticSubject {
+  // The frame and parts of a legend (#131) are written as the legend node.
+  if (element.legend !== undefined) return { kind: "node", id: element.legend.id };
   if (element.kind === "edge") return { kind: "edge", id: element.id ?? `edges[${element.index}]` };
   const captioned = captionGroupId(element);
   if (captioned !== undefined) return { kind: "group", id: captioned };
@@ -65,6 +67,7 @@ function subjectOf(element: ElementIR): DiagnosticSubject {
 }
 
 function nameOf(element: ElementIR): string {
+  if (element.legend !== undefined) return element.legend.name;
   if (element.kind === "edge") {
     return element.id === undefined ? `edge edges[${element.index}]` : `edge "${element.id}"`;
   }

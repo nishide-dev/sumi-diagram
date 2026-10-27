@@ -13,6 +13,7 @@
 
 import type { Diagnostic, DiagnosticSubject, DocPath } from "./diagnostics";
 import type { CaptionOrigin } from "./figure/caption";
+import type { LegendExpansion } from "./figure/legend";
 import type { FigureEdge, FigureGroup, FigureMeta, FigureNode, JsonValue } from "./figure/schema";
 import type { ResolvedComponent } from "./registry/manifest";
 import type { ResolvedStyle } from "./theme/style";
@@ -49,6 +50,30 @@ export interface PartialFigure {
    * (after the written ones). Set by `expandCaptions()`.
    */
   captions?: ReadonlyMap<number, CaptionOrigin>;
+  /**
+   * Legends expanded into a frame group and its parts (#131), in the order
+   * of the legend nodes. Set by `expandLegends()`.
+   */
+  legends?: readonly LegendExpansion[];
+  /**
+   * Every element a check stage added in place of a field of another
+   * element: the caption nodes (#130) and the parts of legends (#131), by
+   * key. Diagnostics about such an element carry the origin's path and
+   * subject (see {@link figureElements}).
+   */
+  expanded?: ReadonlyMap<ElementKey, ExpandedOrigin>;
+}
+
+/** Where an expanded element (see {@link PartialFigure.expanded}) is written. */
+export interface ExpandedOrigin {
+  /** What it was expanded from. */
+  from: "caption" | "legend";
+  /** The field it stands for, e.g. `["groups", 2, "caption"]` or a legend entry. */
+  path: DocPath;
+  /** Whom diagnostics about it name: the captioned group, or the legend node. */
+  subject: DiagnosticSubject;
+  /** How messages name it, e.g. `the caption of group "x"`. */
+  name: string;
 }
 
 export interface CheckState {
@@ -67,6 +92,8 @@ interface ElementEntryBase {
   /** Path of the element in the document, e.g. `["nodes", 2]`. */
   path: DocPath;
   subject: DiagnosticSubject;
+  /** Set when a check stage expanded the element from another one's field (#130, #131). */
+  origin?: ExpandedOrigin;
 }
 
 /** A readable element of the document with its key, path and diagnostic subject. */
@@ -78,28 +105,32 @@ export type ElementEntry =
 /**
  * The readable elements of a document: groups, then nodes, then edges, each in
  * document order. Edges without an ID have the subject ID `edges[<index>]`.
- * A node expanded from a group's caption (#130) has the path of the `caption`
- * field and the group as its subject.
+ * An element a check stage expanded from another one's field (a group's
+ * caption, #130; the parts of a legend, #131) has the path and subject of
+ * its origin (see {@link PartialFigure.expanded}).
  */
 export function* figureElements(doc: PartialFigure): Generator<ElementEntry> {
+  const at = (key: ElementKey, path: DocPath, subject: DiagnosticSubject): ElementEntryBase => {
+    const origin = doc.expanded?.get(key);
+    return origin === undefined
+      ? { key, path, subject }
+      : { key, path: [...origin.path], subject: { ...origin.subject }, origin };
+  };
   for (const [index, g] of (doc.groups ?? []).entries()) {
     if (g === undefined) continue;
-    const subject = { kind: "group", id: g.id } as const;
-    yield { kind: "group", key: groupKey(g.id), path: ["groups", index], subject, element: g };
+    const entry = at(groupKey(g.id), ["groups", index], { kind: "group", id: g.id });
+    yield { kind: "group", ...entry, element: g };
   }
   for (const [index, n] of (doc.nodes ?? []).entries()) {
     if (n === undefined) continue;
-    const caption = doc.captions?.get(index);
-    const subject: DiagnosticSubject = caption
-      ? { kind: "group", id: caption.group }
-      : { kind: "node", id: n.id };
-    const path = caption ? [...caption.path] : ["nodes", index];
-    yield { kind: "node", key: nodeKey(n.id), path, subject, element: n };
+    const entry = at(nodeKey(n.id), ["nodes", index], { kind: "node", id: n.id });
+    yield { kind: "node", ...entry, element: n };
   }
   for (const [index, e] of (doc.edges ?? []).entries()) {
     if (e === undefined) continue;
     const subject = { kind: "edge", id: e.id ?? `edges[${index}]` } as const;
-    yield { kind: "edge", key: edgeKey(e.id, index), path: ["edges", index], subject, element: e };
+    const entry = at(edgeKey(e.id, index), ["edges", index], subject);
+    yield { kind: "edge", ...entry, element: e };
   }
 }
 
