@@ -5,8 +5,8 @@ import { loadGlyphCoverage } from "../../lint/cmap";
 import { fontFileFor } from "../../lint/geometry/measure";
 import { DEFAULT_FONT_SET_ID, getFontSet } from "../theme/fonts";
 import { looksLikeMath, type MarkupRun, parseLabel } from "./math";
-import { labelRuns } from "./runs";
-import { ASCII_SYMBOLS, SPACE_COMMANDS, SYMBOL_COMMANDS } from "./symbols";
+import { isSpaceRun, labelRuns } from "./runs";
+import { ACCENT_COMMANDS, ASCII_SYMBOLS, SPACE_COMMANDS, SYMBOL_COMMANDS } from "./symbols";
 
 const fonts = getFontSet(DEFAULT_FONT_SET_ID);
 if (fonts === undefined) throw new Error("no default font set");
@@ -137,6 +137,89 @@ describe("parseLabel", () => {
     }
   });
 
+  test("accents go over one character or command (#129)", () => {
+    const a = (
+      text: string,
+      font: MarkupRun["font"],
+      accent: string,
+      script: MarkupRun["script"] = "base",
+    ) => ({
+      text,
+      font,
+      script,
+      accent,
+    });
+    expect(runs("$\\hat{y}$")).toEqual([[a("y", "math-italic", "̂")]]);
+    expect(runs("$\\hat y$")).toEqual(runs("$\\hat{y}$"));
+    expect(runs("$\\tilde x \\bar\\theta \\dot{W} \\ddot\\Omega \\vec{1}$")).toEqual([
+      [
+        a("x", "math-italic", "̃"),
+        a("θ", "math-italic", "̄"),
+        a("W", "math-italic", "̇"),
+        a("Ω", "math", "̈"),
+        a("1", "math", "⃗"),
+      ],
+    ]);
+    // A script after the accent is the accented atom's; accents are ordinary atoms.
+    expect(runs("$\\hat\\theta_t = \\hat{+}$")).toEqual([
+      [
+        a("θ", "math-italic", "̂"),
+        r("t", "math-italic", "sub"),
+        r(" = ", "math"),
+        a("+", "math", "̂"),
+      ],
+    ]);
+    // Inside scripts and font commands; never merged with neighbors.
+    expect(runs("$x_{\\hat i} \\mathrm{\\bar x}y$")).toEqual([
+      [
+        r("x", "math-italic"),
+        a("i", "math-italic", "̂", "sub"),
+        a("x", "math", "̄"),
+        r("y", "math-italic"),
+      ],
+    ]);
+  });
+
+  test("accents with more than one character, wide accents and nesting are errors (#129)", () => {
+    expect(errors("$\\hat{xy}$")).toEqual([
+      {
+        at: "{xy}",
+        start: 5,
+        message: '"\\hat" takes one character or one command, not "{xy}".',
+      },
+    ]);
+    expect(errors("a $\\widehat{xy}$")).toEqual([
+      {
+        at: "\\widehat",
+        start: 3,
+        message: 'The wide accent "\\widehat" is not supported in label math.',
+      },
+    ]);
+    expect(errors("$\\hat\\hat x$")[0]).toMatchObject({
+      at: "\\hat",
+      start: 5,
+      message: 'Nested accents are not supported in label math ("\\hat\\hat").',
+    });
+    expect(errors("$\\hat{\\tilde x}$")[0]?.message).toBe(
+      'Nested accents are not supported in label math ("\\hat{\\tilde x}").',
+    );
+    // Deep unbraced nesting is an error, not a stack overflow.
+    expect(errors(`$${"\\hat".repeat(10000)} x$`)[0]).toMatchObject({ at: "\\hat", start: 5 });
+    expect(errors(`$${"\\hat{".repeat(10000)}x${"}".repeat(10000)}$`)[0]?.message).toContain(
+      "nests more than 32 groups",
+    );
+    expect(errors("$\\hat$")[0]).toMatchObject({ at: "\\hat", start: 1 });
+    expect(errors("$\\hat}$")[0]).toMatchObject({ at: "\\hat", start: 1 });
+    expect(errors("$\\hat{}$")[0]).toMatchObject({ at: "{}", start: 5 });
+    expect(errors("$\\hat{x_t}$")[0]).toMatchObject({ at: "{x_t}" });
+    expect(errors("$\\hat\\log$")[0]).toMatchObject({ at: "\\log" });
+    expect(errors("$\\hat\\text{a}$")[0]).toMatchObject({ at: "\\text{a}" });
+    expect(errors("$\\hat\\,x$")[0]).toMatchObject({ at: "\\," });
+    for (const name of ["widetilde", "overline", "overrightarrow"]) {
+      expect(errors(`$\\${name}{x}$`)[0]?.message).toContain("wide accent");
+    }
+  });
+
   test("looksLikeMath finds math syntax, not dollar amounts", () => {
     expect(looksLikeMath("$5 or $10")).toBe(false);
     expect(looksLikeMath("costs $5")).toBe(false);
@@ -167,6 +250,28 @@ describe("labelRuns", () => {
     ]);
     expect(labelRuns("plain", { font: "regular", covers })).toEqual({ lines: ["plain"] });
   });
+
+  test("an accent follows its base in the lines; spaces after it are a run of their own (#129)", () => {
+    const drawn = labelRuns("予測 $\\hat y$ と $\\bar x = 1$", { font: "regular" });
+    expect(drawn.lines).toEqual(["予測 ŷ と x̄ = 1"]);
+    expect(drawn.runs).toEqual([
+      [
+        { text: "予測 ", font: "regular", script: "base" },
+        { text: "y", font: "math-italic", script: "base", accent: "̂" },
+        { text: " ", font: "regular", script: "base" },
+        { text: "と ", font: "regular", script: "base" },
+        { text: "x", font: "math-italic", script: "base", accent: "̄" },
+        { text: " ", font: "math", script: "base" },
+        { text: "= 1", font: "math", script: "base" },
+      ],
+    ]);
+    // Past a whitespace-only run in another font, too.
+    expect(
+      labelRuns("$\\hat y\\,$ と $x$", { font: "regular" }).runs?.[0]?.map((r) => r.text),
+    ).toEqual(["y", " ", " ", "と ", "x"]);
+    expect(isSpaceRun({ text: " " })).toBe(true);
+    expect(isSpaceRun({ text: " a" })).toBe(false);
+  });
 });
 
 describe("the bundled math fonts cover everything label math draws", () => {
@@ -183,11 +288,13 @@ describe("the bundled math fonts cover everything label math draws", () => {
       "$\\mathrm{abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ}$",
       "$\\mathit{0123456789 \\Gamma\\Delta\\Theta\\Lambda\\Xi\\Pi\\Sigma\\Upsilon\\Phi\\Psi\\Omega}$",
       "$\\mathrm{\\alpha\\beta\\gamma}$",
+      // Each accent's mark in both fonts (#129).
+      ...[...ACCENT_COMMANDS.keys()].map((name) => `$\\${name} x \\${name}\\Omega$`),
     ];
     for (const source of sources) {
       for (const run of runs(source).flat()) {
         if (run.font === "text") continue;
-        for (const char of run.text) {
+        for (const char of run.text + (run.accent ?? "")) {
           expect(coverage[run.font].has(char.codePointAt(0) ?? 0), `${source}: ${char}`).toBe(true);
         }
       }

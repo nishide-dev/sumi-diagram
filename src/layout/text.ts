@@ -13,7 +13,7 @@ import type { FontSet } from "../core/theme/fonts";
 import type { CommonStyle } from "../core/theme/style";
 import { fontFileFor } from "../lint/geometry/measure";
 import { loadFontMetrics } from "../lint/metrics";
-import type { TextMetrics, TextRun } from "./ir";
+import type { TextAccent, TextMetrics, TextRun } from "./ir";
 
 /** Baseline-to-baseline distance as a multiple of the font size (the #86 prototype's value). */
 export const LINE_HEIGHT = 1.25;
@@ -30,12 +30,42 @@ export interface TextMeasurer {
    * Without it, nothing falls back.
    */
   covers?(font: string, codePoint: number): boolean;
+  /**
+   * The outline box of a character's glyph in units at `sizeUnits`, y up
+   * from the baseline, or `undefined` if the font has none (#129: math
+   * accents are placed over their base's outline). Without it, accents are
+   * centered on their base's advance.
+   */
+  glyphBox?(font: string, char: string, sizeUnits: number): GlyphBox | undefined;
+  /** The font's slant: tan of its italic angle, positive leaning right (#129). */
+  slant?(font: string): number;
+}
+
+/** A glyph's outline box in units, y up from the baseline. */
+export interface GlyphBox {
+  readonly xMin: number;
+  readonly yMin: number;
+  readonly xMax: number;
+  readonly yMax: number;
 }
 
 /** A {@link TextMeasurer} reading the TTF files of a font set. */
 export function fontSetMeasurer(fonts: FontSet): TextMeasurer {
   const metricsOf = (font: string) => loadFontMetrics(fontFileFor(font, fonts));
   return {
+    glyphBox(font, char, sizeUnits) {
+      const metrics = metricsOf(font);
+      const bounds = metrics.glyphBounds(char.codePointAt(0) ?? 0);
+      if (bounds === undefined) return undefined;
+      const scale = sizeUnits / metrics.unitsPerEm;
+      return {
+        xMin: bounds.xMin * scale,
+        yMin: bounds.yMin * scale,
+        xMax: bounds.xMax * scale,
+        yMax: bounds.yMax * scale,
+      };
+    },
+    slant: (font) => Math.tan((-metricsOf(font).italicAngle * Math.PI) / 180),
     lineWidth: (text, font, sizeUnits) => metricsOf(font).measureEm(text) * sizeUnits,
     verticalMetrics(font, sizeUnits) {
       const metrics = metricsOf(font);
@@ -85,13 +115,19 @@ export function measureText(
         const v = measurer.verticalMetrics(run.font, fontSize);
         ascent = Math.max(ascent, v.ascent - shift);
         descent = Math.max(descent, v.descent + shift);
-        return {
+        const measured: TextRun = {
           text: run.text,
           font: run.font,
           fontSizeUnits: fontSize,
           shiftUnits: shift,
           width: measurer.lineWidth(run.text, run.font, fontSize),
         };
+        if (run.accent === undefined) return measured;
+        const { accent, top, bottom } = placeAccent(measured, run.accent, measurer);
+        // The mark's outline may reach above the fonts' ascender (tall bases).
+        ascent = Math.max(ascent, top);
+        descent = Math.max(descent, -bottom);
+        return { ...measured, accent };
       }),
     );
     lineWidths = measuredRuns.map((line) => line.reduce((sum, run) => sum + run.width, 0));
@@ -109,5 +145,52 @@ export function measureText(
     width: Math.max(0, ...lineWidths),
     height: lines.length * lineHeightUnits,
     ...(measuredRuns !== undefined && { runs: measuredRuns }),
+  };
+}
+
+/** The space between a base's outline and its accent's, as a fraction of the font size (#124 §3.6). */
+export const ACCENT_GAP = 0.04;
+
+/**
+ * Places a math accent (#129, design doc §6.29) over its run's one
+ * character. Sumi places it itself rather than the font's GPOS `mark`
+ * feature, which no output keeps (the SVG subsets and the PDF fonts drop
+ * GPOS): the mark's outline is centered over the base's outline, moved right
+ * by the font's slant over half the base's height (an italic letter's top is
+ * right of its middle), and its bottom is `ACCENT_GAP` above the base's top.
+ * Returns the placement and how far the mark's outline reaches above and
+ * below the line's baseline (`top`, `bottom`, y up).
+ */
+export function placeAccent(
+  run: TextRun,
+  mark: string,
+  measurer: TextMeasurer,
+): { accent: TextAccent; top: number; bottom: number } {
+  const size = run.fontSizeUnits;
+  const base = measurer.glyphBox?.(run.font, run.text, size) ?? {
+    // No outline (no glyph, or a measurer without outlines): the advance, half an em high.
+    xMin: 0,
+    yMin: 0,
+    xMax: run.width,
+    yMax: size / 2,
+  };
+  const slant = measurer.slant?.(run.font) ?? 0;
+  const center = (base.xMin + base.xMax) / 2 + (slant * (base.yMax - base.yMin)) / 2;
+  const width = measurer.lineWidth(mark, run.font, size);
+  const box = measurer.glyphBox?.(run.font, mark, size);
+  if (box === undefined) {
+    // A mark without an outline draws nothing to place: keep it on the run's baseline.
+    return {
+      accent: { char: mark, dxUnits: center, shiftUnits: run.shiftUnits, width },
+      top: -run.shiftUnits,
+      bottom: -run.shiftUnits,
+    };
+  }
+  const rise = base.yMax + ACCENT_GAP * size - box.yMin;
+  const shift = run.shiftUnits - rise;
+  return {
+    accent: { char: mark, dxUnits: center - (box.xMin + box.xMax) / 2, shiftUnits: shift, width },
+    top: box.yMax - shift,
+    bottom: box.yMin - shift,
   };
 }

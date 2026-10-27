@@ -11,6 +11,7 @@
 import { describe, expect, test } from "bun:test";
 import { basename } from "node:path";
 import {
+  ACCENT_COMMANDS,
   ASCII_SYMBOLS,
   FUNCTION_COMMANDS,
   SPACE_COMMANDS,
@@ -18,6 +19,7 @@ import {
 } from "../core/label/symbols";
 import { DEFAULT_FONT_SET_ID, getFontSet } from "../core/theme/fonts";
 import { fontFileFor, type MeasuredRun, measureLabel } from "../lint/geometry/measure";
+import { COMBINING_MARKS } from "./inspect";
 import { svgToPdf } from "./pdf";
 import { inspectPdf, textLines } from "./pdf/testing";
 import { svgToPptx } from "./pptx";
@@ -40,8 +42,20 @@ const SYMBOLS = [
   ...ASCII_SYMBOLS.keys(),
 ];
 
+/**
+ * Each accent (#129) over a lowercase, an uppercase, a Greek letter with a
+ * subscript and a Math-font symbol, next to math, text and CJK text.
+ */
+const ACCENTS = [...ACCENT_COMMANDS.keys()].flatMap((name) => [
+  `$\\${name} y = \\${name}{W}$`,
+  `損失 $\\${name}\\theta_t$ と $\\${name}\\nabla x$`,
+]);
+
 /** The labels: each symbol between math-italic letters, between text, and after CJK text. */
-const LABELS = SYMBOLS.flatMap((s) => [`$y ${s} x$`, `y $${s}$ x`, `損失 $${s} x$`]);
+const LABELS = [
+  ...SYMBOLS.flatMap((s) => [`$y ${s} x$`, `y $${s}$ x`, `損失 $${s} x$`]),
+  ...ACCENTS,
+];
 
 /** A structured figure with one `label` node per label, in columns of 40. */
 function figure(labels: readonly string[]): string {
@@ -125,12 +139,17 @@ describe("label math keeps each run's font (#112)", () => {
         // A whitespace-only run draws nothing; a run's own spaces may be dropped at its ends.
         const text = run.text.trim();
         const baseline = pageHeight - (run.baseline - vb.y) * 0.5;
+        // An accent's mark (#129) has no advance: it is drawn at its pen
+        // position (its box is its outline).
+        const accent = COMBINING_MARKS.test(text);
         const hit = [...lines].find(
           (l) =>
             l.text.trim() === text &&
             Math.abs(l.y - baseline) < 0.01 &&
-            l.x0 >= (run.box.x - vb.x) * 0.5 - 0.01 &&
-            l.x1 <= (run.box.x + run.box.width - vb.x) * 0.5 + 0.01,
+            (accent
+              ? Math.abs(l.x0 - (run.x - vb.x) * 0.5) < 0.01
+              : l.x0 >= (run.box.x - vb.x) * 0.5 - 0.01 &&
+                l.x1 <= (run.box.x + run.box.width - vb.x) * 0.5 + 0.01),
         );
         const expected = postScriptName(run.font);
         if (hit === undefined) {
@@ -172,7 +191,7 @@ describe("label math keeps each run's font (#112)", () => {
       const own = runs
         .map(
           (r) =>
-            `<text x="${r.box.x}" y="${r.baseline}" fill="${fill}" class="${r.font === "regular" ? "text" : `text-${r.font}`}" xml:space="preserve" style="text-anchor:start;font-size:${r.fontSizeUnits}px;font-kerning:none">${escapeText(r.text)}</text>`,
+            `<text x="${r.x}" y="${r.baseline}" fill="${fill}" class="${r.font === "regular" ? "text" : `text-${r.font}`}" xml:space="preserve" style="text-anchor:start;font-size:${r.fontSizeUnits}px;font-kerning:none">${escapeText(r.text)}</text>`,
         )
         .join("");
       alone += svg.slice(copied, element.start) + own;

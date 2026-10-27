@@ -223,6 +223,33 @@ export const SPACE_COMMANDS: ReadonlyMap<string, string> = new Map([
   ["qquad", "  "],
 ]);
 
+/**
+ * Accents over one character or command (#129, design doc §6.29): drawn as
+ * the combining mark, placed by Sumi over its base (not by the font's GPOS).
+ */
+export const ACCENT_COMMANDS: ReadonlyMap<string, string> = new Map([
+  ["hat", "̂"],
+  ["tilde", "̃"],
+  ["bar", "̄"],
+  ["dot", "̇"],
+  ["ddot", "̈"],
+  ["vec", "⃗"],
+]);
+
+/** Accents TeX stretches over their argument: not supported (a clearer error than an unknown command). */
+export const WIDE_ACCENT_COMMANDS: ReadonlySet<string> = new Set([
+  "widehat",
+  "widetilde",
+  "widecheck",
+  "overline",
+  "underline",
+  "overrightarrow",
+  "overleftarrow",
+  "overleftrightarrow",
+  "overbrace",
+  "underbrace",
+]);
+
 /** The automatic spaces around binary operators (medium) and relations (thick). */
 export const MEDIUM_SPACE = " ";
 export const THICK_SPACE = " ";

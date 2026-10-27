@@ -1,0 +1,19 @@
+version: 1
+figure:
+  id: math-accents
+  theme: minimal
+  profile: paper-double
+  layout:
+    arrange:
+      stack: { gap: 2mm, items: [hat, tilde, bar, dot, ddot, vec, mixed] }
+nodes:
+  - { id: hat, component: label, label: '$\hat y + \hat{W}\, \hat\theta_t = \hat\nabla$ と $\hat x$' }
+  - { id: tilde, component: label, label: '$\tilde y + \tilde{W}\, \tilde\theta_t = \tilde\nabla$ と $\tilde x$' }
+  - { id: bar, component: label, label: '$\bar y + \bar{W}\, \bar\theta_t = \bar\nabla$ と $\bar x$' }
+  - { id: dot, component: label, label: '$\dot y + \dot{W}\, \dot\theta_t = \dot\nabla$ と $\dot x$' }
+  - { id: ddot, component: label, label: '$\ddot y + \ddot{W}\, \ddot\theta_t = \ddot\nabla$ と $\ddot x$' }
+  - { id: vec, component: label, label: '$\vec y + \vec{W}\, \vec\theta_t = \vec\nabla$ と $\vec x$' }
+  - id: mixed
+    component: box
+    label: "loss $\\hat\\theta_t = \\tilde y$\n予測 $\\hat y$ と $\\bar x$\n$x_{\\hat i} \\leq \\vec{v}_{\\bar k}$"
+edges: []

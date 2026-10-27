@@ -16,6 +16,9 @@
  *   sum of the runs' advances, each in its own font and size; each run spans
  *   its font's ascender / descender at its size around its own baseline
  *   (the line's, shifted for scripts), and the line's box is their union.
+ * - Accents (#129): a line with math accents is drawn as text chunks, each
+ *   centered on its own x (`LabelRunGeometry.chunkX`); an accent's mark is
+ *   measured by its glyph outline (`glyf`), where the layout placed it.
  */
 
 import type { FontSet } from "../../core/theme/fonts";
@@ -48,7 +51,13 @@ export interface MeasuredRun {
   text: string;
   font: string;
   fontSizeUnits: number;
-  /** The run's baseline (y), and its advance box (font ascender to descender at its size). */
+  /** Where the run's pen starts (x), and its advance width. */
+  x: number;
+  width: number;
+  /**
+   * The run's baseline (y), and its advance box (font ascender to descender
+   * at its size; for a math accent's mark, #129, the mark's outline).
+   */
   baseline: number;
   box: Rect;
 }
@@ -156,16 +165,57 @@ function measureRuns(
   const measured = runs.map((line, i): MeasuredRun[] => {
     const lineBaseline = label.anchor.y + i * label.lineHeightUnits;
     const widths = line.map((run) => metricsOf(run.font).measureEm(run.text) * run.fontSizeUnits);
-    let x = label.anchor.x - widths.reduce((a, b) => a + b, 0) / 2;
+    // Each chunk (#129) is centered on its own x; a line without chunks on the anchor.
+    const starts: number[] = [];
+    let x = 0;
+    for (const [j, run] of line.entries()) {
+      if (j === 0 || run.chunkX !== undefined) {
+        let width = 0;
+        for (let k = j; k < line.length && (k === j || line[k]?.chunkX === undefined); k++) {
+          width += widths[k] as number;
+        }
+        x = (run.chunkX ?? label.anchor.x) - width / 2;
+      }
+      starts.push(x);
+      x += widths[j] as number;
+    }
     return line.map((run, j) => {
       const m = metricsOf(run.font);
-      const ascent = (m.hhea.ascender / m.unitsPerEm) * run.fontSizeUnits;
-      const descent = (-m.hhea.descender / m.unitsPerEm) * run.fontSizeUnits;
+      const scale = run.fontSizeUnits / m.unitsPerEm;
+      const ascent = m.hhea.ascender * scale;
+      const descent = -m.hhea.descender * scale;
       const baseline = lineBaseline + run.shiftUnits;
       const width = widths[j] as number;
-      const box = { x, y: baseline - ascent, width, height: ascent + descent };
-      x += width;
-      return { text: run.text, font: run.font, fontSizeUnits: run.fontSizeUnits, baseline, box };
+      const start = starts[j] as number;
+      let box: Rect = { x: start, y: baseline - ascent, width, height: ascent + descent };
+      if (run.accent === true) {
+        // A math accent's mark: its outline, which the layout placed over its base.
+        const outline = unionOf(
+          [...run.text].flatMap((char) => {
+            const b = m.glyphBounds(char.codePointAt(0) ?? 0);
+            return b === undefined
+              ? []
+              : [
+                  {
+                    x: start + b.xMin * scale,
+                    y: baseline - b.yMax * scale,
+                    width: (b.xMax - b.xMin) * scale,
+                    height: (b.yMax - b.yMin) * scale,
+                  },
+                ];
+          }),
+        );
+        box = outline ?? { x: start, y: baseline, width: 0, height: 0 };
+      }
+      return {
+        text: run.text,
+        font: run.font,
+        fontSizeUnits: run.fontSizeUnits,
+        x: start,
+        width,
+        baseline,
+        box,
+      };
     });
   });
   // A line without runs is an empty box at its baseline, like a blank plain line.

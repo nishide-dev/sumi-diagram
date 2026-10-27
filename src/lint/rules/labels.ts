@@ -148,10 +148,15 @@ export const missingGlyph = defineRule({
         const covers = (f: string, cp: number) => loadGlyphCoverage(fontFileFor(f, fonts)).has(cp);
         const fontClass = fontClassOf(element.style);
         const drawn = labelRuns(label, { font: fontClass, covers });
-        const runs = drawn.runs?.flat() ?? [{ text: drawn.lines.join("\n"), font: fontClass }];
+        const runs: { text: string; font: string; accent?: string }[] = drawn.runs?.flat() ?? [
+          { text: drawn.lines.join("\n"), font: fontClass },
+        ];
+        // An accent's mark (#129) is drawn in its base's font.
         missing = [
           ...new Set(
-            runs.flatMap((r) => glyphCodePoints(r.text).filter((cp) => !covers(r.font, cp))),
+            runs.flatMap((r) =>
+              glyphCodePoints(r.text + (r.accent ?? "")).filter((cp) => !covers(r.font, cp)),
+            ),
           ),
         ];
         if (fonts.math !== undefined) from = `the ${font.slot} and math fonts`;

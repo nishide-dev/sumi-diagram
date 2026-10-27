@@ -15,12 +15,16 @@
  *   `\,` `\:` `\;` `\ ` `\quad` `\qquad` and `~`.
  * - `\mathrm{…}`, `\mathit{…}`, `\operatorname{…}`, function names (`\log`,
  *   `\exp`, …), and `\text{…}` for text in the label's own font.
+ * - Accents `\hat` `\tilde` `\bar` `\dot` `\ddot` `\vec` over one character
+ *   or command (#129): the run of that one character carries the combining
+ *   mark, which the layout places over it.
  *
  * Anything else (`\frac`, `\sqrt`, environments, `$$`, a `$` not closed on
  * its line, …) is an error with its position in the label, not a guess.
  */
 
 import {
+  ACCENT_COMMANDS,
   ASCII_SYMBOLS,
   FUNCTION_COMMANDS,
   type MathClass,
@@ -30,6 +34,7 @@ import {
   SYMBOL_COMMANDS,
   THICK_SPACE,
   UNICODE_SYMBOLS,
+  WIDE_ACCENT_COMMANDS,
 } from "./symbols";
 
 /** The font a run is drawn in: the label's own font, or the font set's math fonts. */
@@ -41,6 +46,20 @@ export interface MarkupRun {
   readonly text: string;
   readonly font: RunFont;
   readonly script: RunScript;
+  /**
+   * A combining accent (U+0302 …) over the run's text, which is then one
+   * character (#129). Such a run is never merged with its neighbors.
+   */
+  readonly accent?: string;
+}
+
+type Mergeable = { readonly font: string; readonly script: RunScript; readonly accent?: string };
+
+/** Whether two runs can be drawn as one: same font and script, and neither has an accent. */
+export function mergeableRuns(a: Mergeable, b: Mergeable): boolean {
+  return (
+    a.font === b.font && a.script === b.script && a.accent === undefined && b.accent === undefined
+  );
 }
 
 /** A problem in a label's markup: `start` / `end` are UTF-16 offsets into the label. */
@@ -69,6 +88,8 @@ export function hasLabelMarkup(label: string): boolean {
 
 const SUPPORTED_HINT =
   "Label math supports letters, digits, Greek letters (\\alpha), _ and ^, symbols such as \\times, \\leq and \\to, \\mathrm{…}, \\mathit{…} and \\text{…}.";
+const ACCENT_HINT =
+  "Accents (\\hat, \\tilde, \\bar, \\dot, \\ddot, \\vec) go over one character or command, e.g. \\hat{y} or \\bar\\theta; wide accents such as \\widehat{xy} are not supported.";
 const DOLLAR_HINT = "Write \\$ for a literal dollar sign.";
 
 class MathError extends Error {
@@ -93,7 +114,7 @@ export function parseLabel(label: string): ParseLabelResult {
     const push = (run: MarkupRun) => {
       if (run.text === "") return;
       const last = runs.at(-1);
-      if (last !== undefined && last.font === run.font && last.script === run.script) {
+      if (last !== undefined && mergeableRuns(last, run)) {
         runs[runs.length - 1] = { ...last, text: last.text + run.text };
       } else runs.push(run);
     };
@@ -383,6 +404,18 @@ class MathParser {
     const symbol = SYMBOL_COMMANDS.get(name);
     if (symbol !== undefined) return atom(symbol.cls, [symbolRun(symbol, font)]);
     if (FUNCTION_COMMANDS.has(name)) return atom("ord", [mathRun(name, "math")]);
+    const accent = ACCENT_COMMANDS.get(name);
+    if (accent !== undefined) {
+      return atom("ord", [this.#accented(name, accent, start, font, script)]);
+    }
+    if (WIDE_ACCENT_COMMANDS.has(name)) {
+      this.#error(
+        start,
+        end,
+        `The wide accent "\\${name}" is not supported in label math.`,
+        ACCENT_HINT,
+      );
+    }
     switch (name) {
       case "mathrm":
       case "mathit":
@@ -405,6 +438,70 @@ class MathParser {
       `The command "\\${name}" is not supported in label math.`,
       SUPPORTED_HINT,
     );
+  }
+
+  /**
+   * The argument of the accent command `\name` at `start` (#129): one
+   * character or one command, maybe in braces, drawn as one character in a
+   * math font. Returns its run with the accent.
+   */
+  #accented(
+    name: string,
+    accent: string,
+    start: number,
+    font: FontStyle,
+    script: boolean,
+  ): MarkupRun {
+    const end = this.#pos;
+    this.#skipSpace();
+    const argStart = this.#pos;
+    const c = this.#peek();
+    if (c === undefined || c === "}" || c === "_" || c === "^") {
+      this.#error(
+        start,
+        end,
+        `"\\${name}" needs one character or command after it, e.g. \\${name}{y}.`,
+        ACCENT_HINT,
+      );
+    }
+    // A nested accent is rejected before descending: unbraced accents would
+    // otherwise recurse without the group depth limit.
+    const inner = /^\\([A-Za-z]+)/.exec(this.line.slice(argStart, this.end))?.[1];
+    if (inner !== undefined && ACCENT_COMMANDS.has(inner)) {
+      this.#error(
+        argStart,
+        argStart + inner.length + 1,
+        `Nested accents are not supported in label math ("\\${name}\\${inner}").`,
+        ACCENT_HINT,
+      );
+    }
+    const atoms = c === "{" ? this.#group(script, font) : this.#atom(font, script);
+    const runs = emit(atoms, false);
+    const run = runs[0];
+    const atom = atoms[0];
+    const single =
+      atoms.length === 1 &&
+      atom !== undefined &&
+      atom.cls !== "glue" &&
+      !atom.hasSub &&
+      !atom.hasSup &&
+      runs.length === 1 &&
+      run !== undefined &&
+      run.font !== "text" &&
+      [...run.text].length === 1 &&
+      run.text.trim() !== "";
+    if (!single || run.accent !== undefined) {
+      const written = this.line.slice(argStart, this.#pos);
+      this.#error(
+        argStart,
+        Math.max(this.#pos, argStart + 1),
+        single
+          ? `Nested accents are not supported in label math ("\\${name}${written}").`
+          : `"\\${name}" takes one character or one command, not "${written}".`,
+        ACCENT_HINT,
+      );
+    }
+    return { ...run, accent };
   }
 
   /** Runs `body` on the `{…}` argument of a command, which must be in braces. */

@@ -47,6 +47,7 @@ import { assetMarkup } from "../assets/draw";
 import type { FigureAssets } from "../assets/load";
 import type { EdgeIR, FigureIR, GroupIR, NodeIR } from "../compiler/ir";
 import type { ElementKey } from "../core/check-state";
+import { isSpaceRun } from "../core/label/runs";
 import type { Arrowhead } from "../core/registry/manifest";
 import type { FontSet } from "../core/theme/fonts";
 import type { CommonStyle } from "../core/theme/style";
@@ -110,22 +111,87 @@ function richLabel(
   const { anchor } = layout;
   const open = `<text x="${n(anchor.x)}" y="${n(anchor.y)}" fill="${paint(color)}" class="${textClass(layout.font)}" style="text-anchor:middle;font-size:${n(layout.fontSizeUnits)}px;font-kerning:none">`;
   const spans = runs.map((line, i) => {
-    let pen = 0; // the current baseline offset from the line's baseline
-    const content = line
-      .map((run) => {
-        const attributes =
-          (run.font === layout.font ? "" : ` class="${textClass(run.font)}"`) +
-          (run.fontSizeUnits === layout.fontSizeUnits
-            ? ""
-            : ` style="font-size:${n(run.fontSizeUnits)}px"`) +
-          (run.shiftUnits === pen ? "" : ` dy="${n(run.shiftUnits - pen)}"`);
-        pen = run.shiftUnits;
-        return attributes === "" ? text(run.text) : `<tspan${attributes}>${text(run.text)}</tspan>`;
-      })
+    const y = n(anchor.y + i * layout.lineHeightUnits);
+    if (!line.some((run) => run.accent !== undefined)) {
+      return `<tspan x="${n(anchor.x)}" y="${y}">${runContent(layout, line)}</tspan>`;
+    }
+    const width = line.reduce((sum, run) => sum + run.width, 0);
+    return accentChunks(line, anchor.x - width / 2)
+      .map(
+        (chunk) =>
+          `<tspan x="${n(chunk.start + chunk.width / 2)}" y="${y}">${runContent(layout, chunk.runs)}</tspan>`,
+      )
       .join("");
-    return `<tspan x="${n(anchor.x)}" y="${n(anchor.y + i * layout.lineHeightUnits)}">${content}</tspan>`;
   });
   return `${open}${spans.join("")}</text>`;
+}
+
+/**
+ * The runs of a line (or chunk) as text and `<tspan>`s: plain text for a run
+ * in the label's font, size and baseline, otherwise a `<tspan>` with the
+ * font class, `font-size` and a `dy` from the previous run's baseline.
+ */
+function runContent(layout: TextLayout, runs: readonly ChunkRun[]): string {
+  let pen = 0; // the current baseline offset from the line's baseline
+  return runs
+    .map((run) => {
+      const attributes =
+        (run.font === layout.font ? "" : ` class="${textClass(run.font)}"`) +
+        (run.fontSizeUnits === layout.fontSizeUnits
+          ? ""
+          : ` style="font-size:${n(run.fontSizeUnits)}px"`) +
+        (run.shiftUnits === pen ? "" : ` dy="${n(run.shiftUnits - pen)}"`);
+      pen = run.shiftUnits;
+      return attributes === "" ? text(run.text) : `<tspan${attributes}>${text(run.text)}</tspan>`;
+    })
+    .join("");
+}
+
+/** A run as a chunk draws it: an accent's mark is a run of its own. */
+type ChunkRun = Pick<TextRun, "text" | "font" | "fontSizeUnits" | "shiftUnits" | "width">;
+
+interface Chunk {
+  /** Where the chunk's pen starts (units). */
+  start: number;
+  width: number;
+  runs: ChunkRun[];
+}
+
+/**
+ * A line with math accents (#129, design doc §6.29) as absolutely positioned
+ * text chunks (`<tspan x y>`, each centered on its own x: `text-anchor`
+ * applies per chunk). An accented base ends its chunk; the mark is a chunk
+ * of its own at the position the layout chose, followed by the spaces after
+ * it (`labelRuns()` splits them off), so that no chunk starts with a space:
+ * usvg drops a chunk's leading space, browsers do not. The text after them
+ * is the next chunk, where the base's advance ends.
+ */
+export function accentChunks(line: readonly TextRun[], lineStart: number): Chunk[] {
+  const chunks: Chunk[] = [];
+  let x = lineStart;
+  let open: Chunk | undefined;
+  let afterAccent = false; // `open` is an accent's chunk
+  for (const run of line) {
+    if (afterAccent && !isSpaceRun(run)) {
+      open = undefined;
+      afterAccent = false;
+    }
+    if (open === undefined) {
+      open = { start: x, width: 0, runs: [] };
+      chunks.push(open);
+    }
+    open.runs.push(run);
+    open.width += run.width;
+    x += run.width;
+    if (run.accent !== undefined) {
+      const { char, dxUnits, shiftUnits, width } = run.accent;
+      const mark: ChunkRun = { ...run, text: char, shiftUnits, width };
+      open = { start: x - run.width + dxUnits, width, runs: [mark] };
+      chunks.push(open);
+      afterAccent = true;
+    }
+  }
+  return chunks;
 }
 
 const polygon = (points: readonly Point[], paintAttributes: string): string =>
@@ -589,7 +655,10 @@ export function writeStructuredSvg(
     // is in a math run, so it always gets an @font-face (maybe of .notdef only).
     used.set(t.font, used.get(t.font) ?? "");
     const runs = t.runs?.flat() ?? [{ font: t.font, text: t.lines.join("") }];
-    for (const run of runs) used.set(run.font, (used.get(run.font) ?? "") + run.text);
+    for (const run of runs) {
+      const accent = "accent" in run ? (run.accent?.char ?? "") : "";
+      used.set(run.font, (used.get(run.font) ?? "") + run.text + accent);
+    }
   };
   for (const g of layout.groups) {
     const group = groups.get(g.key);

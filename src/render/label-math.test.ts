@@ -5,13 +5,17 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import { basename } from "node:path";
 import { checkFigure } from "../core/check";
+import { ACCENT_COMMANDS } from "../core/label/symbols";
 import { DEFAULT_FONT_SET_ID, getFontSet } from "../core/theme/fonts";
 import { lintFigure } from "../lint";
+import { parseGlyphCoverage } from "../lint/cmap";
 import { lintGeometry } from "../lint/geometry";
 import { fontFileFor, measureLabel } from "../lint/geometry/measure";
-import { inspectSvg } from "./inspect";
+import { readTables } from "../lint/sfnt";
+import { COMBINING_MARKS, inspectSvg } from "./inspect";
 import { svgToPdf } from "./pdf";
 import { inspectPdf, textLines } from "./pdf/testing";
 import { svgToEditablePptx } from "./pptx";
@@ -231,27 +235,52 @@ async function expectPdfMatchesMeasure(source: string): Promise<void> {
   for (const element of inspection.elements) {
     for (const label of element.labels) {
       const measured = measureLabel(label, fonts as NonNullable<typeof fonts>);
-      const boxes =
+      const measuredRuns =
         measured.runs?.flat() ??
         measured.texts.map((text, i) => ({
           text,
           font: label.font,
-          box: measured.lines[i] ?? { x: 0, width: 0 },
+          fontSizeUnits: label.fontSizeUnits,
+          x: measured.lines[i]?.x ?? 0,
+          width: measured.lines[i]?.width ?? 0,
           baseline: label.anchor.y + i * label.lineHeightUnits,
         }));
-      for (const run of boxes) {
-        if (run.text.trim() === "") continue;
-        runs++;
-        const x0 = (run.box.x - vb.x) * 0.5;
+      // Expected runs that the PDF reader's `textLines()` joins into one line
+      // (same font and size, same baseline, the next starting where the last
+      // ends; #129: an accented base right after other math of its font) are
+      // compared as one: text, origin, advance and font.
+      const expected: typeof measuredRuns = [];
+      for (const run of measuredRuns) {
+        const last = expected.at(-1);
+        const sizePt = run.fontSizeUnits * 0.5;
+        if (
+          last !== undefined &&
+          last.font === run.font &&
+          last.fontSizeUnits === run.fontSizeUnits &&
+          Math.abs(last.baseline - run.baseline) * 0.5 < 0.01 &&
+          Math.abs(last.x + last.width - run.x) * 0.5 < Math.max(0.01, sizePt * 0.05)
+        ) {
+          expected[expected.length - 1] = {
+            ...last,
+            text: last.text + run.text,
+            width: run.x + run.width - last.x,
+          };
+        } else expected.push(run);
+      }
+      for (const run of expected) {
+        const x0 = (run.x - vb.x) * 0.5;
         const baseline = pageHeight - (run.baseline - vb.y) * 0.5;
         const hit = [...lines].find(
           (l) =>
             l.text === run.text && Math.abs(l.x0 - x0) < 0.01 && Math.abs(l.y - baseline) < 0.01,
         );
+        // Spaces alone (after an accent, #129, at a chunk's end): drawn, or not.
+        if (run.text.trim() === "" && hit === undefined) continue;
+        if (run.text.trim() !== "") runs++;
         expect(hit, `"${run.text}" at x ${x0}, baseline ${baseline}`).toBeDefined();
         if (hit === undefined) continue;
         lines.delete(hit);
-        expect(Math.abs(hit.x1 - hit.x0 - run.box.width * 0.5)).toBeLessThan(0.01);
+        expect(Math.abs(hit.x1 - hit.x0 - run.width * 0.5)).toBeLessThan(0.01);
         // In the run's own font (#112): the bundled files are named by their PostScript names.
         expect(hit.font.replace(/^[A-Z]{6}\+/, "")).toBe(
           basename(fontFileFor(run.font, fonts as NonNullable<typeof fonts>), ".ttf"),
@@ -262,6 +291,190 @@ async function expectPdfMatchesMeasure(source: string): Promise<void> {
   expect(runs).toBeGreaterThan(0);
   expect([...lines].map((l) => l.text)).toEqual([]);
 }
+
+/** A glyph's outline box and the font's italic angle, read here from `glyf` / `post` directly. */
+function outline(file: string, char: string) {
+  const bytes = new Uint8Array(readFileSync(file));
+  const tables = readTables(bytes);
+  const glyph = parseGlyphCoverage(bytes).glyph(char.codePointAt(0) ?? 0);
+  const long = tables.require("head").i16(50) === 1;
+  const loca = tables.require("loca");
+  const glyf = tables.require("glyf");
+  const at = long ? loca.u32(glyph * 4) : loca.u16(glyph * 2) * 2;
+  return {
+    unitsPerEm: tables.require("head").u16(18),
+    italicAngle: (tables.require("post").u32(4) | 0) / 65536,
+    xMin: glyf.i16(at + 2),
+    yMin: glyf.i16(at + 4),
+    xMax: glyf.i16(at + 6),
+    yMax: glyf.i16(at + 8),
+  };
+}
+
+/** The six accents over a lowercase, an uppercase, a Greek letter, a subscripted base and a Math symbol. */
+const ACCENTS = figure(
+  [...ACCENT_COMMANDS.keys()]
+    .map(
+      (name, i) =>
+        `  - { id: a${i}, component: box, label: '$\\${name} y + \\${name}{W}\\, \\${name}\\theta \\${name}\\theta_t = \\${name}\\nabla$ と $\\${name} x$' }`,
+    )
+    .join("\n"),
+  "",
+  `[${[...ACCENT_COMMANDS.keys()].map((_, i) => `a${i}`).join(", ")}]`,
+);
+
+describe("accents (#129)", () => {
+  test("each mark is centered over its base's outline, slanted, 0.04em above it", async () => {
+    const rendered = await render(ACCENTS);
+    const vb = rendered.inspection.canvas.viewBox;
+    let marks = 0;
+    for (const element of rendered.inspection.elements) {
+      const label = element.labels[0];
+      if (label === undefined) throw new Error("no label");
+      const runs = measureLabel(label, fonts).runs?.flat() ?? [];
+      for (const [j, run] of runs.entries()) {
+        if (!COMBINING_MARKS.test(run.text)) continue;
+        marks++;
+        const base = runs[j - 1];
+        if (base === undefined) throw new Error("no base");
+        expect(run.font).toBe(base.font);
+        expect(run.fontSizeUnits).toBe(base.fontSizeUnits);
+        const file = fontFileFor(base.font, fonts);
+        const b = outline(file, base.text);
+        const m = outline(file, run.text);
+        const s = base.fontSizeUnits / b.unitsPerEm;
+        const slant = Math.tan((-b.italicAngle * Math.PI) / 180);
+        const center = base.x + ((b.xMin + b.xMax) / 2 + (slant * (b.yMax - b.yMin)) / 2) * s;
+        expect(run.x).toBeCloseTo(center - ((m.xMin + m.xMax) / 2) * s, 5);
+        // The mark's bottom is 0.04em above the base's top.
+        const top = base.baseline - b.yMax * s;
+        expect(run.baseline - m.yMin * s).toBeCloseTo(top - 0.04 * base.fontSizeUnits, 5);
+        expect(run.box.y + run.box.height).toBeCloseTo(top - 0.04 * base.fontSizeUnits, 5);
+        expect(run.box.x).toBeGreaterThanOrEqual(vb.x);
+      }
+    }
+    // 6 accents × (y, W, θ, θ_t, ∇, x).
+    expect(marks).toBe(36);
+    expect(lintGeometry(rendered, { source: ACCENTS })).toEqual([]);
+    expect((await render(ACCENTS)).svg).toBe(rendered.svg);
+  });
+
+  test("only lines with accents are chunks, none starting with a space", async () => {
+    const source = figure(
+      `  - { id: a, component: box, label: "plain $x_1$\\n予測 $\\\\hat y$ と $\\\\bar x$\\nlast" }`,
+      "",
+      "[a]",
+    );
+    const { svg, layout, inspection } = await render(source);
+    // The inspection reads the chunks back as one line.
+    const label = inspection.elements[0]?.labels[0];
+    expect(label?.text).toBe(layout.nodes[0]?.label?.lines.join("\n"));
+    expect(label?.lines).toBe(3);
+    expect(label?.runs?.[1]?.map((r) => [r.text, r.chunkX !== undefined, r.accent])).toEqual([
+      ["予測 ", true, undefined],
+      ["y", false, undefined],
+      ["̂", true, true],
+      [" ", false, undefined],
+      ["と ", true, undefined],
+      ["x", false, undefined],
+      ["̄", true, true],
+    ]);
+    const text = /<text [^>]*>(.*?)<\/text>/.exec(svg)?.[1] ?? "";
+    const spans = [...text.matchAll(/<tspan x="([\d.]+)" y="([\d.]+)">/g)];
+    const anchor = layout.nodes[0]?.label?.anchor;
+    // Lines 1 and 3: one tspan at the anchor; line 2: four chunks.
+    expect(spans.map((s) => s[1] === String(anchor?.x))).toEqual([
+      true,
+      false,
+      false,
+      false,
+      false,
+      true,
+    ]);
+    const chunks = text.split(/<tspan x="[\d.]+" y="[\d.]+">/).slice(1);
+    for (const chunk of chunks) expect(chunk.replace(/<[^>]*>/g, "")).not.toMatch(/^\s/);
+    expect(chunks.map((c) => c.replace(/<[^>]*>/g, ""))).toEqual([
+      "plain x1",
+      "予測 y",
+      "̂ ",
+      "と x",
+      "̄",
+      "last",
+    ]);
+    // Whitespace-only runs after an accent (another font) do not let the next chunk start with a space.
+    const spaced = figure(
+      `  - { id: a, component: box, label: '$\\hat y\\,$ と $x$' }
+  - { id: b, component: box, label: '$\\hat\\nabla\\; = x$' }`,
+    );
+    const drawn = (await render(spaced)).svg;
+    const texts = [...drawn.matchAll(/<text [^>]*>(.*?)<\/text>/g)].map((m) =>
+      (m[1] ?? "")
+        .split(/<tspan x="[\d.]+" y="[\d.]+">/)
+        .slice(1)
+        .map((c) => c.replace(/<[^>]*>/g, "")),
+    );
+    expect(texts).toEqual([
+      ["y", "̂  ", "と x"],
+      ["∇", "̂  ", "= x"],
+    ]);
+    await expectPdfMatchesMeasure(spaced);
+  });
+
+  test("the PDF draws each mark where measured, after its base in reading order", async () => {
+    await expectPdfMatchesMeasure(ACCENTS);
+    const { svg } = await render(ACCENTS);
+    const pdf = svgToPdf(svg);
+    if (!pdf.ok) throw new Error(JSON.stringify(pdf.diagnostics));
+    const text = inspectPdf(pdf.value)
+      .glyphs.map((g) => g.text)
+      .join("");
+    // Decomposed: each base, then its combining mark.
+    for (const mark of ACCENT_COMMANDS.values()) {
+      expect(text).toContain(`y${mark} + W${mark} θ${mark}θ${mark}t = ∇${mark} と x${mark}`);
+    }
+  });
+
+  test("the editable PPTX keeps each mark with its base", async () => {
+    const { svg, compiled } = await render(ACCENTS);
+    const editable = svgToEditablePptx(svg, compiled.ir);
+    if (!editable.ok) throw new Error(JSON.stringify(editable.diagnostics));
+    const slide = new TextDecoder().decode(readPptx(editable.value).get("ppt/slides/slide1.xml"));
+    for (const mark of ACCENT_COMMANDS.values()) {
+      expect(slide).toContain(`<a:t xml:space="preserve">y${mark}</a:t>`);
+      expect(slide).toContain(`<a:t xml:space="preserve">∇${mark}</a:t>`);
+    }
+    // A mark is never a run of its own (nor raised by a baseline offset).
+    expect(slide).not.toMatch(/<a:t xml:space="preserve">\p{M}/u);
+  });
+
+  test("accents need math fonts that have them; lint/missing-glyph stays quiet", () => {
+    const result = lintFigure(ACCENTS);
+    expect(result.diagnostics.filter((d) => d.code === "lint/missing-glyph")).toEqual([]);
+  });
+
+  test("a multi-character argument or a wide accent is a positioned error", () => {
+    const source = figure(
+      `  - { id: a, component: box, label: '$\\hat{xy}$' }
+  - { id: b, component: box, label: '$\\widehat{y}$' }`,
+    );
+    const diagnostics = checkFigure(source).state.diagnostics;
+    expect(diagnostics.map((d) => d.code)).toEqual([
+      "component/invalid-math",
+      "component/invalid-math",
+    ]);
+    const lines = source.split("\n");
+    const row = lines.findIndex((l) => l.includes("{xy}"));
+    expect(diagnostics[0]?.location).toMatchObject({
+      line: row + 1,
+      column: (lines[row] ?? "").indexOf("{xy}") + 1,
+      endColumn: (lines[row] ?? "").indexOf("{xy}") + 5,
+    });
+    expect(diagnostics[1]?.location).toMatchObject({
+      line: row + 2,
+      column: (lines[row + 1] ?? "").indexOf("\\widehat") + 1,
+    });
+  });
+});
 
 describe("edge cases", () => {
   test("a figure whose labels are only math or only fallback characters renders", async () => {

@@ -47,6 +47,49 @@ export interface FontMetrics {
   advanceOf(codePoint: number): number;
   /** Sum of the advance widths of `text`'s code points, in em (multiply by the font size). */
   measureEm(text: string): number;
+  /** `post.italicAngle` in degrees (negative for a font leaning right); 0 without a `post` table. */
+  readonly italicAngle: number;
+  /**
+   * The outline's bounding box of a code point's nominal glyph in font units
+   * (`glyf`, y up), or `undefined` when the font does not map the code
+   * point, the glyph is empty, or the font has no TrueType outlines. Used
+   * to place math accents (#129).
+   */
+  glyphBounds(codePoint: number): GlyphBounds | undefined;
+}
+
+/** A glyph's outline bounding box in font units, y up (`glyf` header). */
+export interface GlyphBounds {
+  readonly xMin: number;
+  readonly yMin: number;
+  readonly xMax: number;
+  readonly yMax: number;
+}
+
+/**
+ * The bounding box of each glyph from `loca` / `glyf` (read lazily), or
+ * `undefined` for a font without TrueType outlines.
+ */
+function glyphBoundsReader(
+  tables: ReturnType<typeof readTables>,
+  numGlyphs: number,
+): ((glyph: number) => GlyphBounds | undefined) | undefined {
+  const loca = tables.get("loca");
+  const glyf = tables.get("glyf");
+  if (loca === undefined || glyf === undefined) return undefined;
+  const long = tables.require("head").i16(50) === 1;
+  const offset = (i: number) => (long ? loca.u32(i * 4) : loca.u16(i * 2) * 2);
+  return (glyph) => {
+    if (!Number.isInteger(glyph) || glyph < 0 || glyph >= numGlyphs) return undefined;
+    const start = offset(glyph);
+    if (offset(glyph + 1) <= start) return undefined;
+    return {
+      xMin: glyf.i16(start + 2),
+      yMin: glyf.i16(start + 4),
+      xMax: glyf.i16(start + 6),
+      yMax: glyf.i16(start + 8),
+    };
+  };
 }
 
 /** Parses the metrics of a font file's bytes. */
@@ -103,7 +146,18 @@ export function parseFontMetrics(bytes: Uint8Array): FontMetrics {
     return g < numberOfHMetrics ? (advances[g] ?? 0) : lastAdvance;
   };
   const advanceOf = (codePoint: number): number => advance(coverage.glyph(codePoint));
+  const post = tables.get("post");
+  // italicAngle is a Fixed (16.16) at offset 4.
+  const italicAngle = post === undefined ? 0 : (post.u32(4) | 0) / 65536;
+  let boundsOf: ((glyph: number) => GlyphBounds | undefined) | undefined | null = null;
+  const glyphBounds = (codePoint: number): GlyphBounds | undefined => {
+    if (!coverage.has(codePoint)) return undefined;
+    if (boundsOf === null) boundsOf = glyphBoundsReader(tables, numGlyphs);
+    return boundsOf?.(coverage.glyph(codePoint));
+  };
   return Object.freeze({
+    italicAngle,
+    glyphBounds,
     unitsPerEm,
     numGlyphs,
     hhea: Object.freeze(hheaMetrics),
