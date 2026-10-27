@@ -310,9 +310,14 @@ YAML order, greedily: edges declared first get the best routes.
 - **Fan-in (`figure.layout.fanIn`)**: by default (`merge`), edges from
   different elements entering the same side of an element without a
   `toAnchor` meet at one port and merge into one trunk, like a bus. With
-  `fanIn: spread` (on `figure.layout`, next to `arrange`) they enter at
-  separate points spread along that side, ordered by where their sources
-  are, so they never share a line. Anchored ends and junction ends are not
+  `fanIn: spread` (on `figure.layout`, next to `arrange`) Sumi **tries**
+  to bring them in at separate points spread along that side, ordered by
+  where their sources are. Spread is an attempt, not a guarantee: if it
+  would put two ends on one point that `merge` kept apart, or leave an edge
+  unrouted that `merge` routes, Sumi silently draws the **whole figure**
+  as `merge` (no diagnostic). If the preview still shows lines sharing an
+  entry point, the fallback happened: give those ends separate anchors
+  (`toAnchor: "north:0.3"`, …). Anchored ends and junction ends are not
   moved; to merge on purpose under `spread`, route the edges through a
   `junction`. Spread can add crossings (the separate lines cross others
   one by one) and changes the routes of a figure written for `merge`.
@@ -320,23 +325,27 @@ YAML order, greedily: edges declared first get the best routes.
   stores) where the merged trunks make lines wrap around blocks or make it
   unclear which source reaches which target. Default sides send all edges
   from one direction into the same side, so a merged trunk may detour;
-  `spread` removes such detours (in one measured architecture figure,
+  `spread` can remove such detours (in one measured architecture figure,
   three detouring edges became none, crossings 3 → 6), or anchor the ends
   on separate points (`toAnchor: "north:0.3"`, …) for full control.
 - **Operator** (`component: operator`, `props: { symbol: plus }`; also
   `minus`, `times`, `dot`, `concat`): a small circle with a symbol, no
   label. Arrows may end on it; a side input usually comes from an attached
   node through a `line`.
-- **Edge labels** sit on the last segment, just before the arrowhead (above
-  it if that segment is horizontal, right of it if vertical), or mid-line on
-  a `line`. Where that spot would touch a line or a group border (a short
+- **Edge labels** sit on the last segment, just before the target's
+  arrowhead (above it if that segment is horizontal, right of it if
+  vertical); on an edge with only a source arrowhead, by that arrowhead on
+  the first segment; on a `line` (no arrowhead), mid-way along the longest
+  segment. Where that spot would touch a line or a group border (a short
   final segment, a trunk forking off right behind the arrowhead, the border
   of the group the edge enters), the label moves to the other side or back
   past the line or border. Other collisions are not avoided; keep labels to
   a word or a math symbol and check the preview.
 - **Placing an edge label**: `labelAt: start | middle | end` puts it on the
   first segment (by the source), the longest one, or the last one (by the
-  target; the default spot); `labelSide: left | right` on that side **as
+  target). Without `labelAt` (e.g. `labelSide` alone) the segment is the
+  default one above: `end` with a target arrowhead, `start` with only a
+  source arrowhead, `middle` with none; `labelSide: left | right` on that side **as
   seen travelling from source to target** (left of a rightward line is
   above it, left of a downward line is to its right — not compass sides,
   since the router picks the direction). Either can be written alone. The
@@ -392,8 +401,10 @@ render` (and `lint --geometry`) reports each point where two separate
 lines cross as `layout/edge-crossing`, an **info**: it does not fail the
 render or count as a warning. A shared trunk counts as one line, so one
 point is one diagnostic (at most 10, then one summary). The diagnostic
-sits on the edge written later (the one routed after the other), and the
-message names both edges and the point in mm from the top left. Fix the
+sits on one edge of the line routed later (its first edge through that
+point, which need not be the edge you wrote last); the message names both
+sides and the point in mm from the top left, and `related` gives the YAML
+position of every other edge involved. Fix the
 ones that hurt reading: move the edge you want straight **earlier** in
 `edges`, leave from or enter another side (`fromAnchor` / `toAnchor`), or
 change the arrangement (`gap`, item order, `align`). Some crossings

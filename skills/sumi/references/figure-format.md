@@ -113,8 +113,9 @@ subset drawn as real, searchable text in the bundled STIX Two math fonts:
   character or command: `$\hat{y}$`, `$\hat y$`, `$\tilde{x}$`,
   `$\bar\theta$`, `$\vec{W}$`, `$\hat{\nabla}$`. A script after the
   accent belongs to the accented letter (`$\hat\theta_t$`); accents also
-  work inside scripts (`$x_{\hat i}$`) and `\mathrm{…}`. The accented
-  letter stays an italic variable.
+  work inside scripts (`$x_{\hat i}$`) and `\mathrm{…}`. The accent keeps
+  the font of what it covers: a letter stays an italic variable, while
+  `$\mathrm{\hat{y}}$` and `$\hat{\nabla}$` stay upright.
 - Spacing: spaces inside `$...$` are ignored; Sumi adds TeX's space around
   binary operators and relations, but **none after a comma**: write
   `$x_1,\,\ldots,\,x_n$` for spaced lists (`\,` `\:` `\;` `\quad` `~`).
