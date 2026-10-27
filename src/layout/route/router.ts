@@ -49,13 +49,14 @@
  *   or time dependence.
  *
  * An edge without a route gets `layout/no-route` (error), located at the
- * edge; the others are still routed. After routing, edge labels are placed
+ * edge; the others are still routed. If every edge is routed, each crossing
+ * between nets gets `layout/edge-crossing` (info, `crossings.ts`, #133). After routing, edge labels are placed
  * (`labels.ts`) and the content and canvas grow to hold the routes.
  */
 
 import type { EdgeIR, FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
-import type { Diagnostic } from "../../core/diagnostics";
+import { type Diagnostic, hasErrors } from "../../core/diagnostics";
 import {
   type EdgeLayout,
   type EdgeRoute,
@@ -70,6 +71,7 @@ import {
   type TextLayout,
 } from "../ir";
 import { deepFreeze } from "../structured/engine";
+import { crossingDiagnostics } from "./crossings";
 import { PairHeap } from "./heap";
 import { placeEdgeLabel } from "./labels";
 import { bottomOf, DIRS, type End, isJunction, opposite, resolveEnds, rightOf } from "./ports";
@@ -136,7 +138,10 @@ export function arrowRoom(strokeUnits: number): number {
 export interface RouteResult {
   /** The layout with `route` on every routable edge, `nets`, and the content / canvas grown to hold them. */
   readonly layout: LayoutIR;
-  /** `layout/no-route` for each edge without a route. */
+  /**
+   * `layout/no-route` for each edge without a route; if every edge has one,
+   * `layout/edge-crossing` (info) for the crossings between nets (#133).
+   */
   readonly diagnostics: Diagnostic[];
 }
 
@@ -169,14 +174,32 @@ export function routeEdges(
       options.verifyLowerBound ?? false,
       stubLines,
     ).run();
-  const result = route(false);
-  // The grid has a line at the end of the room before an arrowhead, not of
-  // the stub (#116). In a tight spot the stub's end can be the only place to
-  // turn, so if an edge has no route, route the figure again with both lines
-  // and keep that if it routes more edges (rare, so the grid stays small).
-  if (result.diagnostics.length === 0) return result;
-  const retried = route(true);
-  return retried.diagnostics.length < result.diagnostics.length ? retried : result;
+  return chooseRouting(ir, route);
+}
+
+/**
+ * The routing `routeEdges()` returns, from `route(stubLines)` (exported for
+ * tests). The grid has a line at the end of the room before an arrowhead,
+ * not of the stub (#116). In a tight spot the stub's end can be the only
+ * place to turn, so if an edge has no route, route the figure again with
+ * both lines and keep that if it routes more edges (rare, so the grid stays
+ * small). Only then, and only if every edge has a route, the crossings
+ * between nets are added (`layout/edge-crossing`, #133).
+ */
+export function chooseRouting(
+  ir: FigureIR,
+  route: (stubLines: boolean) => RouteResult,
+): RouteResult {
+  let result = route(false);
+  if (hasErrors(result.diagnostics)) {
+    const retried = route(true);
+    if (retried.diagnostics.length < result.diagnostics.length) result = retried;
+  }
+  if (hasErrors(result.diagnostics)) return result;
+  return {
+    layout: result.layout,
+    diagnostics: [...result.diagnostics, ...crossingDiagnostics(ir, result.layout)],
+  };
 }
 
 /** Owners of grid steps or points: `-1` none, a net, or `-2` several (listed in `multi`). */

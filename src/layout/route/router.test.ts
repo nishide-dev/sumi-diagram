@@ -1,10 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { stringify } from "yaml";
+import type { ElementKey } from "../../core/check-state";
 import { type LayoutFigureOptions, layoutStructuredFigure } from "../index";
 import type { EdgeLayout, LayoutIR, Point, Rect } from "../ir";
 import type { TextMeasurer } from "../text";
 import { checkRoutes, type RouteCheckReport, routeProblemCount } from "./check";
+import { MAX_REPORTED_CROSSINGS } from "./crossings";
 import { resolveEnds } from "./ports";
 import {
   arrowheadLength,
@@ -835,7 +837,7 @@ describe("the A* lower bound", () => {
     // Every edge costs the same with Dijkstra on the same occupancy (#116:
     // routes of equal cost may differ, so whole layouts are not compared).
     const fast = routeEdges(ir, layout, { verifyLowerBound: true });
-    expect(fast.diagnostics).toEqual([]);
+    expect(fast.diagnostics.filter((d) => d.code !== "layout/edge-crossing")).toEqual([]);
     expect(JSON.stringify(fast.layout)).toBe(JSON.stringify(routeEdges(ir, layout).layout));
   });
 });
@@ -1152,7 +1154,25 @@ describe.each(["columns", "grid"] as const)("synthetic 100-node figure: %s", (ki
     console.log(
       `router, synthetic ${kind}: ${layout.nodes.length} nodes, ${layout.edges.length} edges, ${time.toFixed(0)}ms`,
     );
-    expect(result.diagnostics).toEqual([]);
+    // Only crossings (#133): 10 listed and a summary of the rest. The number
+    // of crossing points is checked against checkRoutes' edge pairs (the
+    // distinct net pairs and points among them).
+    const total = { columns: 23, grid: 1233 }[kind];
+    const netOf = new Map(result.layout.edges.map((e) => [e.key, e.route?.net]));
+    const points = new Set(
+      checkRoutes(ir, result.layout).crossings.map((c) => {
+        const [, p, q, at] = c.match(/^(\S+) × (\S+) at (.+)$/) as RegExpMatchArray;
+        const nets = [netOf.get(p as ElementKey), netOf.get(q as ElementKey)].sort();
+        return `${nets.join(" ")} ${at}`;
+      }),
+    );
+    expect(points.size).toBe(total);
+    expect(result.diagnostics.map((d) => [d.code, d.severity])).toEqual(
+      Array.from({ length: MAX_REPORTED_CROSSINGS + 1 }, () => ["layout/edge-crossing", "info"]),
+    );
+    expect(result.diagnostics[MAX_REPORTED_CROSSINGS]?.message).toBe(
+      `${total - 10} more edge crossings are not listed (${total} in total).`,
+    );
     const report = checkRoutes(ir, result.layout);
     // The grid (150 random edges among 100 boxes 6mm apart) is close to the
     // worst case: its gutters are too crowded for a greedy router to keep
