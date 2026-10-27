@@ -59,6 +59,13 @@
             "arrange": {
               "description": "Structured layout: places the root-level nodes and groups.",
               "$ref": "#/$defs/ArrangeBox"
+            },
+            "align": {
+              "description": "Structured layout: elements of different arrange trees placed on one horizontal (y) or vertical (x) line.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/AlignConstraint"
+              }
             }
           },
           "additionalProperties": false
@@ -458,6 +465,50 @@
       "description": "A stack (vertical) or row (horizontal) of items.",
       "minProperties": 1,
       "maxProperties": 1
+    },
+    "AlignConstraint": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "description": "Node or group IDs whose x (center, left or right edge) is made equal.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+          }
+        },
+        "y": {
+          "description": "Node or group IDs whose y (center, top or bottom edge) is made equal.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+          }
+        },
+        "at": {
+          "description": "Which coordinate: center (default), start (top / left) or end (bottom / right).",
+          "type": "string",
+          "enum": [
+            "center",
+            "start",
+            "end"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "description": "Elements of any arrange trees placed on one line (structured layout only).",
+      "oneOf": [
+        {
+          "required": [
+            "x"
+          ]
+        },
+        {
+          "required": [
+            "y"
+          ]
+        }
+      ]
     },
     "JsonValue": {
       "$ref": "#/$defs/__schema0"

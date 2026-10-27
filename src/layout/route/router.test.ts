@@ -1009,48 +1009,52 @@ test("simplify and mergeSegments", () => {
   ]);
 });
 
-describe.each(["a-transformer", "b-adaln-panel", "group-label-at", "group-caption"])(
-  "%s (bundled fonts)",
-  (name) => {
-    const text = readFileSync(`${fixtures}/figures/layout/${name}.sumi.yaml`, "utf8");
-    const routed = () => {
-      const result = layoutStructuredFigure(text);
-      if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
-      return result.value;
-    };
+describe.each([
+  "a-transformer",
+  "b-adaln-panel",
+  "group-label-at",
+  "group-caption",
+  "align-unet",
+  "align-side-kv",
+])("%s (bundled fonts)", (name) => {
+  const text = readFileSync(`${fixtures}/figures/layout/${name}.sumi.yaml`, "utf8");
+  const routed = () => {
+    const result = layoutStructuredFigure(text);
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    return result.value;
+  };
 
-    test("no edge through a node, no misplaced end, no crossing, touch or overlap of nets", () => {
-      const value = routed();
-      const report = checkRoutes(value.ir, value.layout);
-      expect(report).toEqual({
-        unrouted: [],
-        nonOrthogonal: [],
-        malformed: [],
-        throughNode: [],
-        endpointMisses: [],
-        misjoinedNets: [],
-        crossings: [],
-        contacts: [],
-        overlaps: [],
-        shortArrowSegments: [],
-        labelCollisions: [],
-        outside: [],
-      });
-      expect(routeProblemCount(report)).toBe(0);
+  test("no edge through a node, no misplaced end, no crossing, touch or overlap of nets", () => {
+    const value = routed();
+    const report = checkRoutes(value.ir, value.layout);
+    expect(report).toEqual({
+      unrouted: [],
+      nonOrthogonal: [],
+      malformed: [],
+      throughNode: [],
+      endpointMisses: [],
+      misjoinedNets: [],
+      crossings: [],
+      contacts: [],
+      overlaps: [],
+      shortArrowSegments: [],
+      labelCollisions: [],
+      outside: [],
     });
+    expect(routeProblemCount(report)).toBe(0);
+  });
 
-    test("is byte-identical across runs and matches the golden routed Layout IR", () => {
-      const first = `${JSON.stringify(routed().layout, null, 2)}\n`;
-      expect(`${JSON.stringify(routed().layout, null, 2)}\n`).toBe(first);
-      const golden = `${goldens}/${name}.routed.layout.json`;
-      if (update) {
-        mkdirSync(goldens, { recursive: true });
-        writeFileSync(golden, first);
-      }
-      expect(first).toBe(readFileSync(golden, "utf8"));
-    });
-  },
-);
+  test("is byte-identical across runs and matches the golden routed Layout IR", () => {
+    const first = `${JSON.stringify(routed().layout, null, 2)}\n`;
+    expect(`${JSON.stringify(routed().layout, null, 2)}\n`).toBe(first);
+    const golden = `${goldens}/${name}.routed.layout.json`;
+    if (update) {
+      mkdirSync(goldens, { recursive: true });
+      writeFileSync(golden, first);
+    }
+    expect(first).toBe(readFileSync(golden, "utf8"));
+  });
+});
 
 test("figure A: the fan-outs and the shared trunk of the encoder output", () => {
   const { layout } = (() => {

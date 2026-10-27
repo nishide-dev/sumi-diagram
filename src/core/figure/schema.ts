@@ -168,8 +168,11 @@ export const RowSchema = z.strictObject({
   },
 });
 
-/** Issue param marking the "exactly one of stack / row" check. */
-export const ARRANGE_BOX_ISSUE = "sumi-arrange-box";
+/**
+ * Issue param marking an "exactly one of these keys" check (an arrange box's
+ * `stack` / `row`, an align constraint's `x` / `y`); its value lists the keys.
+ */
+export const ONE_OF_ISSUE = "sumi-one-of";
 
 /** One box of an arrange tree: exactly one of `stack` or `row`. */
 export const ArrangeBoxSchema = z
@@ -188,7 +191,7 @@ export const ArrangeBoxSchema = z
         code: "custom",
         message: 'An arrange box must have exactly one of "stack" or "row".',
         input: ctx.value,
-        params: { [ARRANGE_BOX_ISSUE]: true },
+        params: { [ONE_OF_ISSUE]: ["stack", "row"] },
       });
     }
   })
@@ -213,6 +216,51 @@ const Anchor = z
   .meta({ pattern: ANCHOR_PATTERN.source })
   .describe('"<side>" or "<side>:<0..1>", e.g. "south" or "south:0.25" (structured layout only).');
 
+/**
+ * Which coordinate of the items an align constraint makes equal (#132): the
+ * center (default), the start (top / left) or the end (bottom / right).
+ */
+export const ALIGN_POSITIONS = ["center", "start", "end"] as const;
+export type AlignPosition = (typeof ALIGN_POSITIONS)[number];
+
+/**
+ * One constraint of `figure.layout.align` (#132, design doc §6.31): exactly
+ * one of `x` (the items share an x: one vertical line) or `y` (one
+ * horizontal line). The layout stage checks the IDs (known, placed, listed
+ * once, at least two).
+ */
+export const AlignConstraintSchema = z
+  .strictObject({
+    x: z
+      .array(Id)
+      .optional()
+      .describe("Node or group IDs whose x (center, left or right edge) is made equal."),
+    y: z
+      .array(Id)
+      .optional()
+      .describe("Node or group IDs whose y (center, top or bottom edge) is made equal."),
+    at: z
+      .enum(ALIGN_POSITIONS)
+      .optional()
+      .describe("Which coordinate: center (default), start (top / left) or end (bottom / right)."),
+  })
+  .check((ctx) => {
+    const axes = [ctx.value.x, ctx.value.y].filter((v) => v !== undefined).length;
+    if (axes !== 1) {
+      ctx.issues.push({
+        code: "custom",
+        message: 'An align constraint must have exactly one of "x" or "y".',
+        input: ctx.value,
+        params: { [ONE_OF_ISSUE]: ["x", "y"] },
+      });
+    }
+  })
+  .meta({
+    id: "AlignConstraint",
+    description: "Elements of any arrange trees placed on one line (structured layout only).",
+    oneOf: [{ required: ["x"] }, { required: ["y"] }],
+  });
+
 /** `figure.layout` as written; {@link LayoutSchema} adds the effective engine. */
 export const LayoutFieldsSchema = z.strictObject({
   engine: z
@@ -228,17 +276,26 @@ export const LayoutFieldsSchema = z.strictObject({
   arrange: ArrangeBoxSchema.optional().describe(
     "Structured layout: places the root-level nodes and groups.",
   ),
+  align: z
+    .array(AlignConstraintSchema)
+    .optional()
+    .describe(
+      "Structured layout: elements of different arrange trees placed on one horizontal (y) or vertical (x) line.",
+    ),
 });
 
 /**
  * `figure.layout`, normalized: `engine` is always set. It is inferred from
  * `figure.layout` alone (design doc §6.19), so later stages never guess.
  */
-export const LayoutSchema = LayoutFieldsSchema.transform(({ engine, direction, arrange }) => ({
-  engine: engine ?? (arrange !== undefined ? "structured" : "auto"),
-  direction,
-  ...(arrange !== undefined && { arrange }),
-}));
+export const LayoutSchema = LayoutFieldsSchema.transform(
+  ({ engine, direction, arrange, align }) => ({
+    engine: engine ?? (arrange !== undefined ? "structured" : "auto"),
+    direction,
+    ...(arrange !== undefined && { arrange }),
+    ...(align !== undefined && { align }),
+  }),
+);
 
 export const FigureMetaSchema = z.strictObject({
   id: Id,
@@ -345,6 +402,7 @@ export type FigureMeta = z.output<typeof FigureMetaSchema>;
 export type FigureLayout = z.output<typeof LayoutSchema>;
 export type ArrangeBox = z.output<typeof ArrangeBoxSchema>;
 export type ArrangeItem = z.output<typeof ArrangeItemSchema>;
+export type AlignConstraint = z.output<typeof AlignConstraintSchema>;
 export type StackBox = z.output<typeof StackSchema>;
 export type RowBox = z.output<typeof RowSchema>;
 export type Attach = z.output<typeof AttachSchema>;

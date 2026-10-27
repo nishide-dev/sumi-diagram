@@ -691,3 +691,75 @@ describe("figure A of #86", () => {
     expect(state.diagnostics).toEqual([]);
   });
 });
+
+describe("figure.layout.align (#132)", () => {
+  const nodes = "nodes:\n  - { id: a, component: box }\n  - { id: b, component: box }\n";
+  const structured = (align: string) =>
+    figure(
+      `  layout:\n    arrange: { row: { items: [ { stack: { items: [a] } }, b ] } }\n    align:\n${align}${nodes}`,
+    );
+
+  test("is normalized with the layout; at stays omitted when not written", () => {
+    const parsed = parseFigure(
+      structured("      - { y: [a, b] }\n      - { x: [a, b], at: start }\n"),
+    );
+    expect(parsed.diagnostics).toEqual([]);
+    expect(parsed.ok && parsed.value.figure.layout.align).toEqual([
+      { y: ["a", "b"] },
+      { x: ["a", "b"], at: "start" },
+    ]);
+  });
+
+  test("valid constraints have no diagnostics", () => {
+    expect(check(structured("      - { y: [a, b], at: end }\n"))).toEqual([]);
+  });
+
+  test("needs the structured engine", () => {
+    const text = figure(`  layout:\n    align:\n      - { y: [a, b] }\n${nodes}`);
+    expect(check(text)).toEqual([["layout/structured-only", ["figure", "layout", "align"], 5, 5]]);
+  });
+
+  test("exactly one of x or y", () => {
+    expect(check(structured("      - { x: [a, b], y: [a, b] }\n"))).toEqual([
+      ["schema/invalid-value", ["figure", "layout", "align", 0], 7, 9],
+    ]);
+    expect(check(structured("      - { at: start }\n"))).toEqual([
+      ["schema/invalid-value", ["figure", "layout", "align", 0], 7, 9],
+    ]);
+    // A typo is one unknown field, not also "exactly one of".
+    expect(check(structured("      - { z: [a, b] }\n"))).toEqual([
+      ["schema/unknown-field", ["figure", "layout", "align", 0, "z"], 7, 11],
+    ]);
+  });
+
+  test("an invalid at is a schema error", () => {
+    expect(check(structured("      - { y: [a, b], at: middle }\n"))).toEqual([
+      ["schema/invalid-value", ["figure", "layout", "align", 0, "at"], 7, 26],
+    ]);
+  });
+
+  test("unknown, duplicated and too few items", () => {
+    const text = structured(
+      "      - { y: [a, c] }\n      - { y: [a, b, a] }\n      - { x: [a] }\n      - { x: [] }\n",
+    );
+    expect(check(text)).toEqual([
+      ["layout/unknown-align-item", ["figure", "layout", "align", 0, "y", 1], 7, 18],
+      ["layout/duplicate-align-item", ["figure", "layout", "align", 1, "y", 2], 8, 21],
+      ["layout/invalid-align", ["figure", "layout", "align", 2, "x"], 9, 11],
+      ["layout/invalid-align", ["figure", "layout", "align", 3, "x"], 10, 11],
+    ]);
+    const diagnostics = checkFigureSource(text).state.diagnostics;
+    expect(diagnostics[0]?.hint).toBe('Did you mean "a"?');
+    expect(diagnostics[1]?.related?.[0]?.location?.column).toBe(15);
+    expect(diagnostics[2]?.message).toBe(
+      'figure.layout.align[2] lists only "a"; an align constraint needs at least two.',
+    );
+  });
+
+  test("an edge ID is not an element", () => {
+    const text = `${structured("      - { y: [a, e] }\n")}edges:\n  - { id: e, from: a, to: b }\n`;
+    const [d] = checkFigureSource(text).state.diagnostics;
+    expect(d?.code).toBe("layout/unknown-align-item");
+    expect(d?.hint).toBe('"e" is an edge; only nodes and groups are placed.');
+  });
+});

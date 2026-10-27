@@ -517,47 +517,49 @@ describe("output", () => {
   });
 });
 
-describe.each(["a-transformer", "b-adaln-panel", "group-label-at", "group-caption"])(
-  "%s (bundled fonts)",
-  (name) => {
-    const text = readFileSync(`${fixtures}/figures/layout/${name}.sumi.yaml`, "utf8");
-    const run = () => {
-      const result = layoutStructuredFigure(text, { route: false });
-      if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
-      return result.value.layout;
-    };
+describe.each([
+  "a-transformer",
+  "b-adaln-panel",
+  "group-label-at",
+  "group-caption",
+  "align-unet",
+  "align-side-kv",
+])("%s (bundled fonts)", (name) => {
+  const text = readFileSync(`${fixtures}/figures/layout/${name}.sumi.yaml`, "utf8");
+  const run = () => {
+    const result = layoutStructuredFigure(text, { route: false });
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    return result.value.layout;
+  };
 
-    test("is byte-identical across runs and matches the golden Layout IR", () => {
-      const first = `${JSON.stringify(run(), null, 2)}\n`;
-      expect(`${JSON.stringify(run(), null, 2)}\n`).toBe(first);
-      const golden = `${goldens}/${name}.layout.json`;
-      if (update) {
-        mkdirSync(goldens, { recursive: true });
-        writeFileSync(golden, first);
-      }
-      expect(first).toBe(readFileSync(golden, "utf8"));
-    });
+  test("is byte-identical across runs and matches the golden Layout IR", () => {
+    const first = `${JSON.stringify(run(), null, 2)}\n`;
+    expect(`${JSON.stringify(run(), null, 2)}\n`).toBe(first);
+    const golden = `${goldens}/${name}.layout.json`;
+    if (update) {
+      mkdirSync(goldens, { recursive: true });
+      writeFileSync(golden, first);
+    }
+    expect(first).toBe(readFileSync(golden, "utf8"));
+  });
 
-    test("touching rectangles still touch after rounding; everything is inside the margins", () => {
-      const layout = run();
-      const all = [...layout.nodes, ...layout.groups];
-      for (const { rect } of all) {
-        expect(rect.x).toBeGreaterThanOrEqual(layout.margin);
-        expect(rect.y).toBeGreaterThanOrEqual(layout.margin);
-        expect(rect.x + rect.width).toBeLessThanOrEqual(layout.canvas.width - layout.margin + 1e-9);
-        expect(rect.y + rect.height).toBeLessThanOrEqual(
-          layout.canvas.height - layout.margin + 1e-9,
-        );
-      }
-      if (name === "a-transformer") {
-        // A stack with gap 0 (direction up): norm1 sits exactly on mha.
-        const mha = rectOf(layout, "enc-mha");
-        const norm = rectOf(layout, "enc-norm1");
-        expect(norm.y + norm.height).toBe(mha.y);
-      }
-    });
-  },
-);
+  test("touching rectangles still touch after rounding; everything is inside the margins", () => {
+    const layout = run();
+    const all = [...layout.nodes, ...layout.groups];
+    for (const { rect } of all) {
+      expect(rect.x).toBeGreaterThanOrEqual(layout.margin);
+      expect(rect.y).toBeGreaterThanOrEqual(layout.margin);
+      expect(rect.x + rect.width).toBeLessThanOrEqual(layout.canvas.width - layout.margin + 1e-9);
+      expect(rect.y + rect.height).toBeLessThanOrEqual(layout.canvas.height - layout.margin + 1e-9);
+    }
+    if (name === "a-transformer") {
+      // A stack with gap 0 (direction up): norm1 sits exactly on mha.
+      const mha = rectOf(layout, "enc-mha");
+      const norm = rectOf(layout, "enc-norm1");
+      expect(norm.y + norm.height).toBe(mha.y);
+    }
+  });
+});
 
 describe("randomized containment", () => {
   /** Park–Miller LCG: deterministic across runs and platforms. */

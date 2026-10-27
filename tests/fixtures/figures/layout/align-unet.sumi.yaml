@@ -1,0 +1,55 @@
+# #132: #109 figure 4 (small U-Net) from research/124-stage-b/figures/unet-small.sumi.yaml,
+# with figure.layout.align putting each concat operator on its encoder level, so
+# the dashed skip connections are straight. The draft's legend and the edges'
+# labelSide (other stage-B issues) are left out.
+version: 1
+figure:
+  id: unet-small
+  theme: academic
+  profile: paper-single
+  layout:
+    arrange:
+      stack:
+        gap: 5mm
+        items:
+          - row:
+              gap: 12mm
+              align: start
+              items:
+                - stack: { gap: 6mm, items: [ enc1, enc2, enc3 ] }
+                - stack: { gap: 3mm, items: [ y, head, dec1, cat1, dec2, cat2, dec3, cat3 ] }
+          - bottleneck
+    align:
+      - { y: [ enc1, cat1 ] }
+      - { y: [ enc2, cat2 ] }
+      - { y: [ enc3, cat3 ] }
+nodes:
+  - { id: x, component: label, label: '$x$', attach: { to: enc1, side: west, gap: 3mm } }
+  - { id: enc1, component: box, label: "Conv ×2\n64", tone: blue }
+  - { id: enc2, component: box, label: "Conv ×2\n128", tone: blue }
+  - { id: enc3, component: box, label: "Conv ×2\n256", tone: blue }
+  - { id: bottleneck, component: box, label: "Conv ×2\n512", variant: emphasis }
+  - { id: cat3, component: operator, props: { symbol: concat } }
+  - { id: dec3, component: box, label: "Conv ×2\n256", tone: green }
+  - { id: cat2, component: operator, props: { symbol: concat } }
+  - { id: dec2, component: box, label: "Conv ×2\n128", tone: green }
+  - { id: cat1, component: operator, props: { symbol: concat } }
+  - { id: dec1, component: box, label: "Conv ×2\n64", tone: green }
+  - { id: head, component: box, label: '$1{\times}1$ Conv' }
+  - { id: y, component: label, label: 'mask $y$' }
+edges:
+  - { from: x, to: enc1 }
+  - { from: enc1, to: enc2, label: pool }
+  - { from: enc2, to: enc3, label: pool }
+  - { from: enc3, to: bottleneck, fromAnchor: south, toAnchor: west, label: pool }
+  - { from: bottleneck, to: cat3, fromAnchor: east, toAnchor: south, label: up }
+  - { from: cat3, to: dec3 }
+  - { from: dec3, to: cat2 }
+  - { from: cat2, to: dec2 }
+  - { from: dec2, to: cat1 }
+  - { from: cat1, to: dec1 }
+  - { from: dec1, to: head }
+  - { from: head, to: y }
+  - { from: enc3, to: cat3, variant: dashed }
+  - { from: enc2, to: cat2, variant: dashed }
+  - { from: enc1, to: cat1, variant: dashed }

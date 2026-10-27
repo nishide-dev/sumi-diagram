@@ -1232,6 +1232,46 @@ layout:
 - **結果（図 2 の草案）**: #124 の草案（`requires`・キャプション・凡例は未実装のためテストの中で外す）の `update θ` に `labelAt: middle` を付けると、loss の下を通る破線の下側に、loss→curve の線を避けて置かれ、loss の箱にも経路にも当たらない（`update θ` についての診断・幾何 lint は 0 件）。同じ草案の `batch`（`labelSide: right`）は、指定の側を dataset→loss の線が通るため、範囲の外には動かさず `layout/edge-label-overlap` が 1 件出る（幾何 lint はこの重なりを見ない。上記）。
 - **非対象・引き継ぎ**: auto でのラベル位置、ラベルの回転、線の上に重ねるラベル（#128 の非対象）。幾何 lint の hint に `labelAt` / `labelSide` を挙げることと Skill の説明は #135。
 
+### 6.31 #132 の配置の木をまたぐ整列（`figure.layout.align`）
+
+[#124 の計画](../research/124-stage-b.md) §3.5・§5-6。#109 の 4 図中 2 図で、別の配置の木（箱）にある要素どうしを揃えたかった（U-Net の concat を encoder の段と同じ高さにして skip を水平にする、encoder の出力と decoder の Cross-Attention を揃えて K,V を 1 本の水平線にする）。Figure v1 への任意フィールドの追加で、**`align` を書かない図**の IR・Layout IR・D2・SVG・PDF・PPTX・診断はバイト単位で変わらない（既存の golden・作例・ギャラリーは無変更。`align` のない図は従来の 1 パスそのもので、strut の入力は空）。
+
+- **フィールド**: `figure.layout.align`: 制約のリスト。各制約は `{ y: [ids...] }`（項目の y が等しい＝1 本の水平線）か `{ x: [ids...] }`（x が等しい＝1 本の垂直線）のちょうど一方と、任意の `at: center | start | end`（中心・上端/左端・下端/右端。省略時 `center`）。ID は node か group。配置の木の外（`figure.layout`）に置くのは、木をまたぐ関係だから（#124 §2 の「配置は配置に書く」）。group の中だけの整列も同じ書き方で書ける。`x` と `y` の両方・どちらもなしは `schema/invalid-value`（`stack` / `row` と同じ「ちょうど 1 つ」の検査。`z` のような綴りの誤りは `schema/unknown-field` の 1 件だけにする。JSON Schema は `oneOf` の `required`）。正規化で `at` は埋めず、IR（`AlignIR`）で `center` にする。
+- **layout の段の検査（error、位置付き）**: auto の図で書くと `figure.layout.align` のキーの位置に `layout/structured-only`（§6.19 と同じ）。structured では、未知の ID は `layout/unknown-align-item`（その項目の位置。近い ID の提案、edge の ID なら「node と group だけ」）、同じ制約に同じ要素が 2 回なら `layout/duplicate-align-item`（2 回目の位置、1 回目を `related`）、項目が 2 個未満なら `layout/invalid-align`（`x` / `y` のキーの位置）。制約は図についての指定なので、要素を無効にしない。すでに無効な要素（自分の error がある）の ID は重ねて報告しない。**attach された node も項目にできる**（判断）: 対象と一緒に動く（strut は対象の経路に入る）。attach の対象と同じ制約に並べた場合など動かせない組は、下記の `layout/unsatisfied-align` で報告する（静的に禁止すると、`east` に付けた node と対象の y 揃えのように最初から満たされる制約まで拒むため）。
+- **IR**: `FigureIR.align?: AlignIR[]`（`{ axis, at, items: ElementKey[], srcAt }`。`srcAt` は `figure.layout.align[i]` の位置で、診断に使う）。書いたときだけ持つ。
+- **エンジン（`src/layout/structured/align.ts`、判断: strut の固定点反復。kiwi は採らない、#124 §3.5）**:
+  - 配置の 1 パス（§6.21）に入力 **strut** を足した: 箱の項目の前（`lead`）・後（`trail`）に主軸の余白を足す（見た目の順。`direction: up` / `left` でも「上 / 左」が前）。箱の大きさに含まれ、余分な主軸の余白の中央寄せ（§6.21）も strut 込みの大きさで行う。`StructuredLayout` は計測（ラベル・葉の大きさ）を 1 回だけ行い、`run(struts)` で配置だけをやり直す。strut が空なら従来の 1 パスと同じ（`align` のない図は反復に入らない）。
+  - 反復: 各回、文書順に、まだ揃っていない制約ごとに次の案を配置し、全制約の残差（各制約の項目の座標の幅）の**和**が最も小さい案を採る（同じなら先の案）。和が下がらなければ採らない。
+    - A: 最も上（左）の項目の前に不足分の `lead`（下 / 右へ押す）。B: 最も下（右）の項目の後に `trail`（終端揃えの箱の中で上 / 左へ押す。始端揃えでは箱が伸びるだけ）。
+    - 項目が 3 個以上なら、さらに C: 最も下（右）の項目に届かないすべての項目の前に、それぞれの不足分の `lead`、D: 最も上（左）の項目より先にあるすべての項目の後に、それぞれの超過分の `trail`。**端で並ぶ項目をまとめて動かす**ため（レビューでの指摘）: `[a]`・`[b]`・`[pad, c]` の 3 つの stack で `y: [a, b, c]` のとき、a と b が同じ高さで上にあり、a だけ（A）を下げても幅は変わらず、和の目的関数は部分的な進展を見られない。C は a と b を同時に c の高さへ下げる。2 項目の制約では C・D は A・B と同じなので試さない（試作・2 図の結果は変わらない）。
+  - strut を置く場所: その項目の経路（root から項目までの箱と、その箱の中の項目の列。attach された node は対象の経路）のうち、軸の向きの箱（`y` は stack、`x` は row）で、経路上の項目が制約のほかの項目を含まない最も深いもの。**`gap: 0` の箱には入れない**（ブロックと Add & Norm のように一体に描く箱。祖先の箱に置くので接したまま）。試作の最初の版は図 1 の別案でブロックと Add & Norm を引き離した（#124 §3.5）。
+  - **停止（判断）**: 全制約の残差がそれぞれ 0.01 unit 以下（`ALIGN_EPSILON`。**制約ごとの最大**で判定し、和では判定しない: 揃った 99 個の中の 1 個の 0.5 unit のずれを和は隠す）、1 回の反復で和が下がらない、50 回（`MAX_ALIGN_ROUNDS`）、または**配置の回数の予算**（`MAX_ALIGN_LAYOUTS` = 1,000 回。最初の配置・各案・診断の調べを含む）を使い切ったときに止める。strut は増えるだけなので、各回は和を真に減らすか止まる。結果は最後に採った配置（残差の和が最小のもの）。
+  - **予算（判断）**: 反復の上限だけでは、1 回の反復が「揃っていない制約 × 案」回の配置になり、制約の多い図で時間が決まらない（最初の版では 200 node・1,000 制約で 4.8s）。回数で数えるので決定的（時計を見ない）。反復か診断の調べ（下記）で使い切り、揃っていない制約が残れば `layout/align-search-limit`（warning、`figure.layout.align` のパス、位置なし。予算の回数と、何個の制約が残ったか）を、各制約の `layout/unsatisfied-align` の前に出す（調べの後で判定する。同じ不可能な制約 250 個で、調べだけが予算を使い切る場合もテストで固定）。1,000 回は、#109 の図（7 回）の 100 倍以上で、200 node の図で約 0.8s。
+  - 決定的（制約は文書順、Map は挿入順、丸めは配置エンジンと同じ）。
+- **解けない制約（判断: warning）**: 止まったときに残差が 0.01 unit を超える制約ごとに `layout/unsatisfied-align`（warning、`figure.layout.align[i]` の位置、subject は figure）。図は見つかった最良の配置で描く（error にすると、整列のずれ 1 つで描画全体が止まる。warning なので `--max-warnings` で CI では落とせる）。メッセージは制約の全項目の名前・軸と `at`・最も離れた 2 項目と、その距離（mm、小数 2 桁）。hint は 2 通り: 反復と同じ案（A〜D）のどれを足してもその制約の残差が変わらない場合（同じ stack の 2 項目、`gap: 0` の箱だけの経路、strut が後ろの項目ごと動かす）は「動かして離せない」理由と、別の箱に置く案。この調べの配置も予算と `layouts` に数える（予算を使い切っていれば、分からないので一般の hint）。変わる場合は、ほかの制約（矛盾し得る）か配置が引き離していること。項目を共有するほかの制約を `related` に挙げる。`renderFigure()`・`layoutStructuredFigure()`・`sumi render`・`sumi lint --geometry` に出る（配置の段の診断。`sumi lint` だけでは配置しないので出ない。`layout/no-route` と同じ）。
+  - **限界**: 1 つの制約の中の項目は C・D でまとめて動かすが、制約をまたいでは 1 回に 1 案しか試さない貪欲な反復なので、片方を揃えると他方が同じだけずれる 2 つの制約（図に解はあるが、別の制約の strut を同時に足す必要がある）は解けず、残差の診断になる（`align.test.ts` で固定）。不等式・等幅の強制・`auto` での整列は #132 の非対象（#124 §6）。
+- **入口**: `placeStructured(ir, options)`（`{ layout, diagnostics, align?: { rounds, layouts, residuals, struts } }`。`layouts` は最初の配置・各案・診断の調べを含む。`options.alignLimits` で上限と予算を下げられる（テスト用））。`layoutStructured()` は従来どおり Layout IR だけを返す（整列は解く）。描画（`renderStructured`）と `layoutStructuredFigure()` は `placeStructured()` を使い、診断を加える。ルータ・writer・inspect・lint は変更なし。
+- **結果**（Apple M4 Pro、Bun 1.3.14、9 回の中央値）:
+
+  | 図 | 制約 | 反復 / 配置の回数 | 残差 | strut | 解く時間（配置 1 回） |
+  | --- | --- | --- | --- | --- | --- |
+  | 図 4（U-Net、`align-unet`） | 3（`y`） | 1 / 7 | 0 | `enc1` の前 148.024、`enc2` の前 31.999、`enc3` の前 32.001 unit | 0.6ms（0.15ms） |
+  | 図 1 の別案（K,V を横から、`align-side-kv`） | 1（`y`） | 1 / 3 | 0 | Encoder の stack で、`gap: 0` の stack（Feed Forward と Add & Norm）の後（下）に 24 unit（下端揃えの row の中で Encoder の上側が上がる） | 0.4ms（0.23ms） |
+
+  試作（#124 `results/align.json`）と同じ strut・回数。skip の破線 3 本と K,V は 1 本の水平な線分になる（テストで経路の点が 2 個・同じ y）。
+- **乱数の制約**（3〜10 列の stack を並べ、`gap: 0` の組・終端揃えの列を含む合成図に、乱数の 2 項目の制約を `x` 3 割・`y` 7 割、`at` は一様に置く。同じ列の 2 項目など、多くは構造上解けない）:
+
+  | 図 | 制約 × 試行 | すべて満たした試行 / 満たした制約 | 反復（中央値 / 最大） | 配置の回数（中央値 / 最大） | 時間（中央値 / 最大） |
+  | --- | --- | --- | --- | --- | --- |
+  | 18 node | 2 × 1,000 | 97 / 822 of 2,000 | 2 / 4 | 9 / 17 | 0.47 / 2.1ms |
+  | 60 node | 10 × 100 | 0 / 289 of 1,000 | 2 / 5 | 46 / 90 | 7.2 / 14.0ms |
+  | 200 node | 100 × 10 | 0 / 63 of 1,000 | 3 / 4 | 695 / 871 | 342 / 440ms |
+  | 200 node | 1,000 × 1 | 0 / 20 of 1,000 | 1 | 1,000（予算） | 0.83s |
+
+  配置の回数は診断の調べを含む。反復の上限の 50 回には届かない（和が真に減る間だけ続くため）。時間は「反復 × 揃っていない制約 × 案」回の配置で決まり、予算で頭打ちになる（1,000 制約の行は予算で止まり `layout/align-search-limit`。予算を入れる前は 5,845 回・4.8s）。#109 の図の規模（数個の制約）では 1ms 前後。
+- **テスト**: `layout.test.ts`（正規化、auto の `layout/structured-only`、ちょうど 1 つ・綴りの誤り・`at` の値、未知・重複・2 個未満・edge の ID の位置と hint）、`align.test.ts`（停止の規則、`align` なし・空の `align` が従来の配置と一致、`y` の lead、`x` の `start` / `end`、group の中の node と group そのもの、attach された node、`gap: 0` の箱の祖先に置いて接したまま、置く祖先がなければ診断、揃った 100 個と揃わない 1 個、端で並ぶ 2 項目を含む 3 項目の制約（`y` と、転置した `x`）、予算を使い切ったときの最良の配置と `layout/align-search-limit`、決定性、同じ stack・矛盾・解けない組の診断と hint・`related`・診断の調べを含む `layouts`、2 図の残差 0・1 回・経路が水平、図 1 の別案の `gap: 0` の 5 組が接したまま、乱数の制約 40 試行で上限・診断の件数・`gap: 0` の接触）。golden: `tests/fixtures/layout/align-unet.*`・`align-side-kv.*`（配置と経路の Layout IR、`checkRoutes` の問題 0）。2 図は #124 の草案から、ほかの段階 B の Issue のフィールド（凡例・`labelSide`・辺の `labelAt`）と、それなしでは group の枠に重なる K,V のラベルを外したもの。
+- **引き継ぎ**: Skill の説明は #135。
+
 ### 6.32 #130 のグループのキャプション（`groups[].caption`）
 
 段階 B（[#124 の計画](../research/124-stage-b.md) §3.3・§5-4）。#109 の 4 図中 2 図で、パネルの下に「(a) …」のキャプションが要った。Figure v1 への任意フィールドの追加で、**`caption` を書かない図**の診断・IR・Layout IR・D2・SVG・PDF・PPTX はバイト単位で変わらない（既存の golden・作例・ギャラリーは無変更）。

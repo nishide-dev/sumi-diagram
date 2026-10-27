@@ -3,9 +3,9 @@
  * design doc §6.19) and normalizes group membership.
  *
  * - With the `auto` engine, every structured-only field (`figure.layout.arrange`,
- *   `group.arrange`, `node.attach`, `edge.fromAnchor` / `toAnchor`,
- *   `edge.labelAt` / `labelSide` (#128)) is an error: it would otherwise be
- *   ignored silently.
+ *   `figure.layout.align`, `group.arrange`, `node.attach`, `edge.fromAnchor` /
+ *   `toAnchor`, `edge.labelAt` / `labelSide` (#128)) is an error: it would
+ *   otherwise be ignored silently.
  * - With the `structured` engine, every node and group must be placed exactly
  *   once: as an item of one arrange tree (`figure.layout.arrange` for the root,
  *   `groups[].arrange` for a group's children) or by `attach`. An item of a
@@ -13,6 +13,9 @@
  *   parent of its target. When `group:` is omitted it is filled in from the
  *   placement, so later stages see the membership; when it is written and
  *   disagrees, that is an error.
+ * - The constraints of `figure.layout.align` (#132) list at least two known
+ *   nodes or groups, each once. Whether they can be met is up to the layout
+ *   engine (`layout/unsatisfied-align`).
  *
  * Like every check stage (see `check-state.ts`), elements that are already
  * invalid get no new diagnostics, and elements that depend on an invalid one
@@ -118,6 +121,9 @@ function checkAuto(state: CheckState, locate: Locator): void {
   };
   if (doc.figure?.layout.arrange !== undefined) {
     report("arrange", ["figure", "layout", "arrange"]);
+  }
+  if (doc.figure?.layout.align !== undefined) {
+    report("align", ["figure", "layout", "align"]);
   }
   for (const [index, group] of (doc.groups ?? []).entries()) {
     if (group?.arrange === undefined || invalid.has(groupKey(group.id))) continue;
@@ -493,6 +499,79 @@ function checkStructured(state: CheckState, locate: Locator): void {
           },
         ),
         edgeKey(edge.id, index),
+      );
+    }
+  }
+
+  // 9. Align constraints (#132): about the figure, so they invalidate nothing.
+  if (collectionsReadable) checkAlign(state, locate, elements, isInvalidId, unknownHint);
+}
+
+/**
+ * `figure.layout.align`: each constraint lists at least two nodes or groups,
+ * each known and listed once. An ID of an element that is invalid already is
+ * explained by its own error and not reported again.
+ */
+function checkAlign(
+  state: CheckState,
+  locate: Locator,
+  elements: Map<string, Element>,
+  isInvalidId: (id: string) => boolean,
+  unknownHint: (id: string) => string | undefined,
+): void {
+  const constraints = state.doc.figure?.layout.align ?? [];
+  const figureSubject = { kind: "figure", id: state.doc.figure?.id ?? "" } as const;
+  for (const [index, constraint] of constraints.entries()) {
+    const axis = constraint.x !== undefined ? "x" : "y";
+    const items = constraint[axis] ?? [];
+    const path: DocPath = ["figure", "layout", "align", index, axis];
+    if (items.length < 2) {
+      state.diagnostics.push(
+        errorAt(
+          locate,
+          "layout/invalid-align",
+          `figure.layout.align[${index}] lists ${items.length === 0 ? "no elements" : `only "${items[0]}"`}; an align constraint needs at least two.`,
+          path,
+          {
+            atKey: true,
+            subject: figureSubject,
+            hint: `List two or more node or group IDs in "${axis}", or remove the constraint.`,
+          },
+        ),
+      );
+    }
+    const first = new Map<string, number>();
+    for (const [i, id] of items.entries()) {
+      const itemPath = [...path, i];
+      if (!elements.has(id) && !isInvalidId(id)) {
+        state.diagnostics.push(
+          errorAt(
+            locate,
+            "layout/unknown-align-item",
+            `Unknown element "${id}" in figure.layout.align[${index}]; align lists node or group IDs.`,
+            itemPath,
+            { subject: figureSubject, hint: unknownHint(id) },
+          ),
+        );
+        continue;
+      }
+      const earlier = first.get(id);
+      if (earlier === undefined) {
+        first.set(id, i);
+        continue;
+      }
+      state.diagnostics.push(
+        errorAt(
+          locate,
+          "layout/duplicate-align-item",
+          `"${id}" is listed more than once in figure.layout.align[${index}].`,
+          itemPath,
+          {
+            subject: figureSubject,
+            hint: "List each element once in a constraint.",
+            related: [relatedAt(locate, [...path, earlier], "First listed here.")],
+          },
+        ),
       );
     }
   }

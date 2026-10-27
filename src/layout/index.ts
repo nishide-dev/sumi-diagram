@@ -10,10 +10,11 @@ import { hasErrors } from "../core/diagnostics";
 import type { Result } from "../core/result";
 import type { LayoutIR } from "./ir";
 import { routeEdges } from "./route/router";
-import { layoutStructured, type StructuredLayoutOptions } from "./structured/engine";
+import { placeStructured, type StructuredLayoutOptions } from "./structured/engine";
 
 export * from "./ir";
 export * from "./route";
+export * from "./structured/align";
 export * from "./structured/engine";
 export * from "./text";
 
@@ -25,24 +26,27 @@ export type LayoutFigureOptions = CheckOptions &
 
 /**
  * Checks a structured `*.sumi.yaml` source, lays it out and routes its
- * edges: every checking stage, then the Figure IR, {@link layoutStructured}
- * and {@link routeEdges}. Fails with the diagnostics if the check reports an
- * error, or if an edge has no route (`layout/no-route`). Throws for an
- * `auto` figure.
+ * edges: every checking stage, then the Figure IR, {@link placeStructured}
+ * (which solves `figure.layout.align`, #132) and {@link routeEdges}. Fails
+ * with the diagnostics if the check reports an error, or if an edge has no
+ * route (`layout/no-route`). Throws for an `auto` figure.
  */
 export function layoutStructuredFigure(
   text: string,
   options: LayoutFigureOptions = {},
 ): Result<{ ir: FigureIR; layout: LayoutIR }> {
-  const { profile, measurer, route = true, ...checkOptions } = options;
+  const { profile, measurer, alignLimits, route = true, ...checkOptions } = options;
   const check = checkFigure(text, checkOptions);
   const diagnostics = [...check.state.diagnostics];
   if (hasErrors(diagnostics)) return { ok: false, diagnostics };
   const ir = buildFigureIR(check);
-  const placed = layoutStructured(ir, {
+  const placement = placeStructured(ir, {
     ...(profile !== undefined && { profile }),
     ...(measurer !== undefined && { measurer }),
+    ...(alignLimits !== undefined && { alignLimits }),
   });
+  diagnostics.push(...placement.diagnostics);
+  const placed = placement.layout;
   if (!route) return { ok: true, value: { ir, layout: placed }, diagnostics };
   const routed = routeEdges(ir, placed);
   diagnostics.push(...routed.diagnostics);

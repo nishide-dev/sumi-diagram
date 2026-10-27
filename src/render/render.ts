@@ -26,7 +26,7 @@ import type { Result } from "../core/result";
 import { getFontSet } from "../core/theme/fonts";
 import type { LayoutIR } from "../layout/ir";
 import { routeEdges } from "../layout/route/router";
-import { layoutStructured } from "../layout/structured/engine";
+import { placeStructured } from "../layout/structured/engine";
 import { composeJunctionEnds, composeOutlines } from "./compose";
 import { composeAssets, withImageSizes } from "./compose-assets";
 import { type FinalizedSvg, finalizeStructuredSvg, finalizeSvg } from "./finalize";
@@ -227,7 +227,9 @@ function renderStructured(
   const fonts = getFontSet(compiled.fontSet.id);
   if (fonts === undefined)
     throw new Error(`internal error: unknown font set ${compiled.fontSet.id}`);
-  const routed = routeEdges(ir, layoutStructured(ir));
+  const placed = placeStructured(ir);
+  diagnostics.push(...placed.diagnostics);
+  const routed = routeEdges(ir, placed.layout);
   diagnostics.push(...routed.diagnostics);
   if (hasErrors(routed.diagnostics)) return fail();
   const layout = routed.layout;

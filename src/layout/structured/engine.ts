@@ -31,6 +31,11 @@
  *    coordinate to 1/1000 unit; the canvas is the content plus the margins,
  *    rounded up to whole units.
  *
+ * `figure.layout.align` (#132) wraps this pass in a fixed-point loop
+ * (`align.ts`): the pass takes struts, extra main-axis space before or after
+ * an item of a box, and the loop adds struts until the constraints are met.
+ * Without struts the pass is exactly the one above.
+ *
  * Alignment inherits only between boxes of the same axis (a stack inside a
  * stack); a box of the other axis, a group's arrange tree and the root start
  * from `center`. All of this matches the #86 prototype
@@ -41,6 +46,7 @@
 import { iconBox } from "../../assets/draw";
 import type { ArrangeBoxIR, ArrangeItemIR, FigureIR, GroupIR, NodeIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
+import type { Diagnostic } from "../../core/diagnostics";
 import type { GroupLabelPosition, Side } from "../../core/figure/schema";
 import { getProfile } from "../../core/profile/builtin";
 import type { Profile } from "../../core/profile/schema";
@@ -58,6 +64,7 @@ import {
   type TextMetrics,
 } from "../ir";
 import { fontSetMeasurer, measureText, type TextMeasurer } from "../text";
+import { type AlignLimits, type AlignStats, NO_STRUTS, type Struts, solveAlignment } from "./align";
 import { nodeLabelCenter, nodeSize, type Size, stretchableShape } from "./sizing";
 
 /** The engine name recorded in the Layout IR. */
@@ -68,6 +75,8 @@ export interface StructuredLayoutOptions {
   profile?: Profile;
   /** Defaults to the TTF files of the figure theme's font set. */
   measurer?: TextMeasurer;
+  /** Bounds of the `figure.layout.align` search (#132); for tests. */
+  alignLimits?: AlignLimits;
 }
 
 type Align = NonNullable<ArrangeBoxIR["align"]>;
@@ -91,6 +100,26 @@ type Container = ElementKey | typeof ROOT;
  * (or whose IR is inconsistent): callers check `ir.meta.engine` first.
  */
 export function layoutStructured(ir: FigureIR, options: StructuredLayoutOptions = {}): LayoutIR {
+  return placeStructured(ir, options).layout;
+}
+
+/** A structured layout and the diagnostics of placing it (`layout/unsatisfied-align`). */
+export interface PlacedStructured {
+  readonly layout: LayoutIR;
+  readonly diagnostics: readonly Diagnostic[];
+  /** Present when the figure has `figure.layout.align`: how the constraints were solved. */
+  readonly align?: AlignStats;
+}
+
+/**
+ * Lays out a structured figure like {@link layoutStructured}, solving its
+ * `figure.layout.align` constraints (#132) and reporting the ones it cannot
+ * meet as `layout/unsatisfied-align` (warning).
+ */
+export function placeStructured(
+  ir: FigureIR,
+  options: StructuredLayoutOptions = {},
+): PlacedStructured {
   if (ir.meta.engine !== "structured" || ir.arrange === undefined) {
     throw new Error("internal error: the structured layout needs a structured figure");
   }
@@ -104,7 +133,12 @@ export function layoutStructured(ir: FigureIR, options: StructuredLayoutOptions 
       throw new Error(`internal error: unknown font set ${ir.meta.fontSetId}`);
     measurer = fontSetMeasurer(fonts);
   }
-  return new StructuredLayout(ir, profile, measurer).run();
+  const engine = new StructuredLayout(ir, profile, measurer);
+  if (ir.align === undefined || ir.align.length === 0) {
+    return { layout: engine.run(), diagnostics: [] };
+  }
+  const solved = solveAlignment(ir, ir.align, (struts) => engine.run(struts), options.alignLimits);
+  return { layout: solved.layout, diagnostics: solved.diagnostics, align: solved.stats };
 }
 
 class StructuredLayout {
@@ -120,6 +154,8 @@ class StructuredLayout {
   readonly #groupPadding: number;
   readonly #margin: number;
 
+  // The state of one pass (`run`).
+  #struts: Struts = NO_STRUTS;
   readonly #overhangs = new Map<Container, Overhang>();
   readonly #itemSizes = new Map<ElementKey, Size>();
   readonly #rects = new Map<ElementKey, Rect>();
@@ -157,7 +193,13 @@ class StructuredLayout {
     }
   }
 
-  run(): LayoutIR {
+  /** One pass; `struts` add main-axis space around items (#132, `align.ts`). */
+  run(struts: Struts = NO_STRUTS): LayoutIR {
+    this.#struts = struts;
+    this.#overhangs.clear();
+    this.#itemSizes.clear();
+    this.#rects.clear();
+    this.#contents.clear();
     const root = this.#ir.arrange as ArrangeBoxIR;
     const size = this.#containerSize(ROOT, root);
     this.#placeContainer(ROOT, root, { x: 0, y: 0, width: size.width, height: size.height });
@@ -183,10 +225,22 @@ class StructuredLayout {
   #boxSize(box: ArrangeBoxIR): Size {
     const sizes = box.items.map((item) => this.#itemSize(item));
     const vertical = box.kind === "stack";
-    const main = sizes.reduce((sum, s) => sum + (vertical ? s.height : s.width), 0);
+    const main =
+      sizes.reduce((sum, s) => sum + (vertical ? s.height : s.width), 0) +
+      box.items.reduce((sum, item) => sum + this.#lead(item) + this.#trail(item), 0);
     const gaps = this.#gap(box) * (sizes.length - 1);
     const cross = Math.max(0, ...sizes.map((s) => (vertical ? s.width : s.height)));
     return vertical ? { width: cross, height: main + gaps } : { width: main + gaps, height: cross };
+  }
+
+  /** Strut before `item` along its box's main axis, in visual order (above / left of it). */
+  #lead(item: ArrangeItemIR): number {
+    return this.#struts.lead.get(item) ?? 0;
+  }
+
+  /** Strut after `item` (below / right of it). */
+  #trail(item: ArrangeItemIR): number {
+    return this.#struts.trail.get(item) ?? 0;
   }
 
   #groupSize(group: GroupIR): Size {
@@ -270,12 +324,13 @@ class StructuredLayout {
           : align === "end"
             ? crossAvailable - cross
             : (crossAvailable - cross) / 2;
+      cursor += this.#lead(item);
       const rect: Rect = vertical
         ? { x: frame.x + offset, y: cursor, width: cross, height: size.height }
         : { x: cursor, y: frame.y + offset, width: size.width, height: cross };
       if (typeof item === "string") visit(item, rect);
       else this.#placeBox(item, rect, item.kind === box.kind ? align : "center", visit);
-      cursor += (vertical ? size.height : size.width) + gap;
+      cursor += (vertical ? size.height : size.width) + gap + this.#trail(item);
     }
   }
 
