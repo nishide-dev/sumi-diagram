@@ -427,9 +427,21 @@ function arrangeSides(
       const sb = b[k] as Step;
       if (sa.box !== sb.box) return undefined;
       if (sa.index === sb.index) continue;
-      const ca = center(rectOf(self));
-      const cb = center(rectOf(other));
-      if (sa.box.kind === "stack") return cb.y < ca.y ? "north" : "south";
+      const ra = rectOf(self);
+      const rb = rectOf(other);
+      const ca = center(ra);
+      const cb = center(rb);
+      // Only if the two do not overlap along the box's axis: an attached
+      // node can hang beside the next item (stack [a, b], x attached below
+      // something east of a, level with b), and then the box says nothing
+      // about where the other end is.
+      const apartY = bottomOf(ra) <= rb.y || bottomOf(rb) <= ra.y;
+      const apartX = rightOf(ra) <= rb.x || rightOf(rb) <= ra.x;
+      if (sa.box.kind === "stack") {
+        if (!apartY) return undefined;
+        return cb.y < ca.y ? "north" : "south";
+      }
+      if (!apartX) return undefined;
       return cb.x < ca.x ? "west" : "east";
     }
     return undefined;
@@ -438,40 +450,109 @@ function arrangeSides(
 
 /**
  * Fan-in spreading (`figure.layout.fanIn: spread`, #134, design doc §6.33):
- * the target ends without an anchor that `ends` (a first resolution) left at
- * the same port (element, side, point, direction) are spread along the side
- * at 1/(n+1) … n/(n+1), in the order of their other ends' ports along the
- * side (then document order), so the edges enter side by side instead of
- * merging into one line, and in an order that does not make them cross each
- * other. Junction ends and anchored ends stay. Returns the target side and
+ * the target ends without an anchor that `ends` (a first resolution) left
+ * two or more at one port (element, side, point, direction) are spread along
+ * the side, so the edges enter side by side instead of merging into one line.
+ *
+ * Positions are allocated per side (element, side, direction), knowing every
+ * other end on it: the side gets `N` = (spread ends) + (distinct other
+ * positions) evenly spaced slots k/(N+1); the other ends (anchored ends, the
+ * multi-edge positions, ends leaving the side, single ends) keep their
+ * positions and claim the slots nearest to them in order (least total
+ * distance, order kept); the spread ends take the free slots in the order of
+ * their other ends' ports along the side (then document order), which keeps
+ * them from crossing each other. If a free slot would still fall on another
+ * end's point, the side is left merged (never two nets on one point).
+ * Junction ends and anchored ends never move. Returns the target side and
  * offset by edge index.
  */
 function spreadFanIn(
   edges: readonly EdgeIR[],
   ends: readonly ({ from: End; to: End } | { error: string })[],
+  rectOf: (key: ElementKey) => Rect,
 ): Map<number, { side: Side; offset: number }> {
-  const groups = new Map<string, { edge: number; side: Side; along: number }[]>();
+  const horizontal = (side: Side) => side === "north" || side === "south";
+  const along = (side: Side, p: Point) => (horizontal(side) ? p.x : p.y);
+  const sideId = (end: End) => `${end.key} ${end.side} ${end.dir}`;
+  const pointId = (end: End) => `${sideId(end)} ${end.port.x} ${end.port.y}`;
+
+  // Target ends that may spread, by port; every end, by side.
+  const ports = new Map<string, number[]>();
+  const sides = new Map<string, { end: End; edge: number; leaving: boolean }[]>();
   for (const [index, edge] of edges.entries()) {
     const pair = ends[index];
     if (pair === undefined || "error" in pair) continue;
-    const self = pair.to;
-    if (self.junction || self.side === undefined || edge.toAnchor !== undefined) continue;
-    const vertical = self.side === "north" || self.side === "south";
-    const id = `${self.key} ${self.side} ${self.dir} ${self.port.x} ${self.port.y}`;
-    const list = groups.get(id) ?? [];
-    list.push({
-      edge: index,
-      side: self.side,
-      along: vertical ? pair.from.port.x : pair.from.port.y,
-    });
-    groups.set(id, list);
+    for (const leaving of [true, false]) {
+      const end = leaving ? pair.from : pair.to;
+      if (end.junction || end.side === undefined) continue;
+      const list = sides.get(sideId(end)) ?? [];
+      list.push({ end, edge: index, leaving });
+      sides.set(sideId(end), list);
+      if (!leaving && edge.toAnchor === undefined) {
+        const users = ports.get(pointId(end)) ?? [];
+        users.push(index);
+        ports.set(pointId(end), users);
+      }
+    }
   }
+  const spreading = new Set<number>();
+  for (const users of ports.values())
+    if (users.length >= 2) for (const i of users) spreading.add(i);
+
   const spread = new Map<number, { side: Side; offset: number }>();
-  for (const uses of groups.values()) {
-    if (uses.length < 2) continue;
-    const sorted = [...uses].sort((a, b) => a.along - b.along || a.edge - b.edge);
-    for (const [k, use] of sorted.entries()) {
-      spread.set(use.edge, { side: use.side, offset: (k + 1) / (sorted.length + 1) });
+  for (const uses of sides.values()) {
+    const first = uses[0];
+    if (first === undefined) continue;
+    const side = first.end.side as Side;
+    const rect = rectOf(first.end.key);
+    const start = horizontal(side) ? rect.x : rect.y;
+    const length = horizontal(side) ? rect.width : rect.height;
+    const movers = uses
+      .filter((u) => !u.leaving && spreading.has(u.edge))
+      .map((u) => {
+        const pair = ends[u.edge] as { from: End; to: End };
+        return { edge: u.edge, along: along(side, pair.from.port) };
+      })
+      .sort((a, b) => a.along - b.along || a.edge - b.edge);
+    if (movers.length === 0 || length <= 0) continue;
+    const kept = new Map<string, number>();
+    for (const u of uses) {
+      if (!u.leaving && spreading.has(u.edge)) continue;
+      kept.set(`${u.end.port.x} ${u.end.port.y}`, (along(side, u.end.port) - start) / length);
+    }
+    const fixed = [...kept.values()].sort((a, b) => a - b);
+    const n = movers.length + fixed.length;
+    const slots = Array.from({ length: n }, (_, k) => (k + 1) / (n + 1));
+    // Order-kept assignment of the fixed positions to slots, least total distance.
+    const m = fixed.length;
+    const cost: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(Infinity));
+    for (let j = 0; j <= n; j++) (cost[0] as number[])[j] = 0;
+    for (let i = 1; i <= m; i++) {
+      for (let j = i; j <= n; j++) {
+        const skip = (cost[i] as number[])[j - 1] as number;
+        const take =
+          ((cost[i - 1] as number[])[j - 1] as number) +
+          Math.abs((fixed[i - 1] as number) - (slots[j - 1] as number));
+        (cost[i] as number[])[j] = Math.min(skip, take);
+      }
+    }
+    const taken = new Set<number>();
+    for (let i = m, j = n; i > 0; j--) {
+      const take =
+        ((cost[i - 1] as number[])[j - 1] as number) +
+        Math.abs((fixed[i - 1] as number) - (slots[j - 1] as number));
+      if ((cost[i] as number[])[j] === take) {
+        taken.add(j - 1);
+        i--;
+      }
+    }
+    const free = slots.filter((_, k) => !taken.has(k));
+    const pointOf = (offset: number) =>
+      anchorPoint(rect, { side, offset })[horizontal(side) ? "x" : "y"];
+    const occupied = new Set(fixed.map((offset) => pointOf(offset)));
+    if (free.some((offset) => occupied.has(pointOf(offset)))) continue;
+    for (const [k, mover] of movers.entries()) {
+      spread.set(mover.edge, { side, offset: free[k] as number });
     }
   }
   return spread;
@@ -521,7 +602,11 @@ export function resolveEnds(
   // Fan-in spreading: resolve again with the target ends that met at one
   // port placed side by side (the rest of the resolution, including the
   // #113 split, runs as before around them).
-  const spread = spreadFanIn(ir.edges, ends);
+  const rects = new Map<ElementKey, Rect>([
+    ...layout.nodes.map((n) => [n.key, n.rect] as const),
+    ...layout.groups.map((g) => [g.key, g.rect] as const),
+  ]);
+  const spread = spreadFanIn(ir.edges, ends, (key) => rects.get(key) as Rect);
   return spread.size === 0 ? ends : resolveEndsWith(ir, layout, spread);
 }
 

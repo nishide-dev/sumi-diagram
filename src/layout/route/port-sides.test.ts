@@ -25,7 +25,13 @@ function run(text: string) {
   return { ...result.value, diagnostics: result.diagnostics };
 }
 
-function figure(arrange: unknown, nodes: unknown[], edges: unknown[], fanIn?: string) {
+function figure(
+  arrange: unknown,
+  nodes: unknown[],
+  edges: unknown[],
+  fanIn?: string,
+  groups: unknown[] = [],
+) {
   return stringify({
     version: 1,
     figure: {
@@ -33,10 +39,27 @@ function figure(arrange: unknown, nodes: unknown[], edges: unknown[], fanIn?: st
       theme: "academic",
       layout: { arrange, ...(fanIn !== undefined && { fanIn }) },
     },
+    groups,
     nodes,
     edges,
   });
 }
+
+const centerOf = (r: Rect) => ({ x: r.x + r.width / 2, y: r.y + r.height / 2 });
+/** The side the centers alone pick (the rule before #134): the larger distance, vertical on ties. */
+const facing = (from: Rect, to: Rect) => {
+  const a = centerOf(from);
+  const b = centerOf(to);
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  if (Math.abs(dy) >= Math.abs(dx)) return dy < 0 ? "north" : "south";
+  return dx < 0 ? "west" : "east";
+};
+const groupRectOf = (layout: LayoutIR, id: string): Rect => {
+  const group = layout.groups.find((g) => g.key === `g:${id}`);
+  if (group === undefined) throw new Error(`no group ${id}`);
+  return group.rect;
+};
 
 const box = (id: string, props?: object) => ({
   id,
@@ -108,20 +131,155 @@ describe("default sides from the arrange tree", () => {
     expectClean(value);
   });
 
+  test("reversed boxes (stack up, row left) point the other way", () => {
+    const up = run(
+      figure(
+        {
+          stack: {
+            direction: "up",
+            items: [{ row: { items: ["a", "p", "q"] } }, { row: { items: ["r", "s", "b"] } }],
+          },
+        },
+        ["a", "p", "q", "r", "s", "b"].map((id) => box(id, wide)),
+        [{ from: "a", to: "b" }],
+      ),
+    );
+    const [ua, ub] = [rectOf(up.layout, "a"), rectOf(up.layout, "b")];
+    expect(ub.y).toBeLessThan(ua.y);
+    expect(facing(ua, ub)).toBe("east");
+    expect(routeOf(up.layout, 0)).toMatchObject({ fromSide: "north", toSide: "south" });
+    expectClean(up);
+
+    const left = run(
+      figure(
+        {
+          row: {
+            direction: "left",
+            items: [{ stack: { items: ["a", "p", "q"] } }, { stack: { items: ["r", "s", "b"] } }],
+          },
+        },
+        ["a", "p", "q", "r", "s", "b"].map((id) => box(id, tall)),
+        [{ from: "a", to: "b" }],
+      ),
+    );
+    const [la, lb] = [rectOf(left.layout, "a"), rectOf(left.layout, "b")];
+    expect(lb.x).toBeLessThan(la.x);
+    expect(facing(la, lb)).toBe("south");
+    expect(routeOf(left.layout, 0)).toMatchObject({ fromSide: "west", toSide: "east" });
+    expectClean(left);
+  });
+
   test("an attached node takes its target's place in the tree", () => {
-    // x hangs east of a; the stack between a and b decides: x leaves south.
+    // x hangs far east of a, b is below a: the centers say west, the stack south.
     const value = run(
       figure(
-        { stack: { items: ["a", { row: { items: ["p", "b"] } }] } },
+        { stack: { items: ["a", "b"] } },
+        [box("a"), { ...box("x"), attach: { to: "a", side: "east", gap: "150pt" } }, box("b")],
+        [{ from: "x", to: "b" }],
+      ),
+    );
+    const x = rectOf(value.layout, "x");
+    const b = rectOf(value.layout, "b");
+    expect(facing(x, b)).toBe("west");
+    expect(routeOf(value.layout, 0)).toMatchObject({ fromSide: "south", toSide: "north" });
+    expectClean(value);
+  });
+
+  test("so does a chain of attachments", () => {
+    // x → p → a: x uses a's place.
+    const value = run(
+      figure(
+        { stack: { items: ["a", "b"] } },
         [
           box("a"),
-          { ...box("x"), attach: { to: "a", side: "east", gap: "60pt" } },
-          box("p", wide),
+          { ...box("p"), attach: { to: "a", side: "east", gap: "120pt" } },
+          { ...box("x"), attach: { to: "p", side: "east", gap: "12pt" } },
           box("b"),
+        ],
+        [{ from: "b", to: "x" }],
+      ),
+    );
+    const x = rectOf(value.layout, "x");
+    const b = rectOf(value.layout, "b");
+    expect(facing(b, x)).toBe("east");
+    expect(routeOf(value.layout, 0)).toMatchObject({ fromSide: "north", toSide: "south" });
+    expectClean(value);
+  });
+
+  test("an attached node level with the other end: not apart along the box, the centers decide", () => {
+    // The review's case: stack [a, b]; p east of a, x below p, level with b.
+    // The stack separates a's place from b, but x overlaps b vertically.
+    const value = run(
+      figure(
+        { stack: { gap: "12pt", items: ["a", "b"] } },
+        [
+          box("a"),
+          box("b"),
+          { ...box("p"), attach: { to: "a", side: "east", gap: "60pt" } },
+          { ...box("x"), attach: { to: "p", side: "south", gap: "12pt" } },
         ],
         [{ from: "x", to: "b" }],
       ),
     );
+    const x = rectOf(value.layout, "x");
+    const b = rectOf(value.layout, "b");
+    expect(x.y < b.y + b.height && b.y < x.y + x.height).toBe(true);
+    expect(routeOf(value.layout, 0)).toMatchObject({ fromSide: "west", toSide: "east" });
+    // The reverse edge gets the same rule at both ends.
+    const reverse = run(
+      figure(
+        { stack: { gap: "12pt", items: ["a", "b"] } },
+        [
+          box("a"),
+          box("b"),
+          { ...box("p"), attach: { to: "a", side: "east", gap: "60pt" } },
+          { ...box("x"), attach: { to: "p", side: "south", gap: "12pt" } },
+        ],
+        [{ from: "b", to: "x" }],
+      ),
+    );
+    expect(routeOf(reverse.layout, 0)).toMatchObject({ fromSide: "east", toSide: "west" });
+    expectClean(value);
+    expectClean(reverse);
+  });
+
+  test("elements in different groups: the box that separates the groups decides", () => {
+    const value = run(
+      figure(
+        { row: { items: ["ga", "gb"] } },
+        ["a1", "a2", "a3", "b1", "b2", "b3"].map((id) => box(id, tall)),
+        [{ from: "a1", to: "b3" }],
+        undefined,
+        [
+          { id: "ga", arrange: { stack: { items: ["a1", "a2", "a3"] } } },
+          { id: "gb", arrange: { stack: { items: ["b1", "b2", "b3"] } } },
+        ],
+      ),
+    );
+    const a1 = rectOf(value.layout, "a1");
+    const b3 = rectOf(value.layout, "b3");
+    expect(facing(a1, b3)).toBe("south");
+    expect(routeOf(value.layout, 0)).toMatchObject({ fromSide: "east", toSide: "west" });
+    expectClean(value);
+  });
+
+  test("a group as an end: its place in the tree, like a node's", () => {
+    const value = run(
+      figure(
+        {
+          stack: {
+            items: [{ row: { items: ["g", "p", "q"] } }, { row: { items: ["r", "s", "b"] } }],
+          },
+        },
+        ["gi", "p", "q", "r", "s", "b"].map((id) => box(id, wide)),
+        [{ from: "g", to: "b" }],
+        undefined,
+        [{ id: "g", arrange: { stack: { items: ["gi"] } } }],
+      ),
+    );
+    const g = groupRectOf(value.layout, "g");
+    const b = rectOf(value.layout, "b");
+    expect(facing(g, b)).toBe("east");
     expect(routeOf(value.layout, 0)).toMatchObject({ fromSide: "south", toSide: "north" });
     expectClean(value);
   });
@@ -188,18 +346,99 @@ describe("figure.layout.fanIn", () => {
     expectClean(value);
   });
 
-  test("an anchored end stays where it is written and is not counted", () => {
+  test("an anchored end stays where it is written and keeps the slot nearest to it", () => {
     const value = fan("spread", {
       nodes: [box("d")],
       row: ["d"],
       edges: [{ from: "d", to: "t", toAnchor: "north:0.9" }],
     });
     const t = rectOf(value.layout, "t");
+    // Four slots (1/5 … 4/5): 0.9 claims 4/5, the spread ends take the rest.
     expect([1, 2, 0].map((i) => lastPoint(value.layout, i).x)).toEqual(
-      [1, 2, 3].map((k) => t.x + (t.width * k) / 4),
+      [1, 2, 3].map((k) => t.x + (t.width * k) / 5),
     );
     expect(lastPoint(value.layout, 3)).toEqual({ x: t.x + t.width * 0.9, y: t.y });
     expectClean(value);
+  });
+
+  test("an anchored end in the middle: no spread end lands on it", () => {
+    const value = fan("spread", {
+      nodes: [box("d")],
+      row: ["d"],
+      edges: [{ from: "d", to: "t", toAnchor: "north:0.5" }],
+    });
+    const t = rectOf(value.layout, "t");
+    const points = [0, 1, 2, 3].map((i) => lastPoint(value.layout, i));
+    expect(points[3]).toEqual({ x: t.x + t.width / 2, y: t.y });
+    expect(new Set(points.map((p) => `${p.x} ${p.y}`)).size).toBe(4);
+    expect(new Set([0, 1, 2, 3].map((i) => routeOf(value.layout, i).net)).size).toBe(4);
+    expectClean(value);
+  });
+
+  test("multi-edges keep their positions; the spread ends take other slots (review case)", () => {
+    // a → t twice share t's north side at 1/3 and 2/3; b, c would merge at 1/2.
+    const value = run(
+      figure(
+        { stack: { items: [{ row: { items: ["a", "b", "c"] } }, "t"] } },
+        [box("a"), box("b"), box("c"), box("t", { width: "120pt" })],
+        [
+          { from: "a", to: "t" },
+          { from: "a", to: "t" },
+          { from: "b", to: "t" },
+          { from: "c", to: "t" },
+        ],
+        "spread",
+      ),
+    );
+    const t = rectOf(value.layout, "t");
+    const xs = [0, 1, 2, 3].map((i) => lastPoint(value.layout, i).x);
+    expect(xs.slice(0, 2)).toEqual([t.x + t.width / 3, t.x + (t.width * 2) / 3]);
+    // Five slots would be uneven: four (1/5 … 4/5), the multi-edges claim 2/5 and 3/5.
+    expect(xs.slice(2)).toEqual([t.x + t.width / 5, t.x + (t.width * 4) / 5]);
+    expect(new Set([0, 1, 2, 3].map((i) => routeOf(value.layout, i).net)).size).toBe(4);
+    expectClean(value);
+  });
+
+  test("on an east / west side the ends are ordered top to bottom", () => {
+    const value = run(
+      figure(
+        { row: { items: [{ stack: { items: ["a", "b", "c"] } }, "t"] } },
+        [box("a"), box("b"), box("c"), box("t", { height: "120pt" })],
+        [
+          { from: "b", to: "t" },
+          { from: "c", to: "t" },
+          { from: "a", to: "t" },
+        ],
+        "spread",
+      ),
+    );
+    const t = rectOf(value.layout, "t");
+    expect([2, 0, 1].map((i) => lastPoint(value.layout, i))).toEqual(
+      [1, 2, 3].map((k) => ({ x: t.x, y: t.y + (t.height * k) / 4 })),
+    );
+    expect([0, 1, 2].map((i) => routeOf(value.layout, i).toSide)).toEqual(["west", "west", "west"]);
+    expectClean(value);
+  });
+
+  test("a tie in the other ends' places keeps the document order", () => {
+    // a and b both above t at the same x: written b first, b gets the left slot.
+    const value = run(
+      figure(
+        { stack: { items: ["a", "b", "t"] } },
+        [box("a"), box("b"), box("t", { width: "120pt" })],
+        [
+          { from: "b", to: "t" },
+          { from: "a", to: "t" },
+        ],
+        "spread",
+      ),
+    );
+    const t = rectOf(value.layout, "t");
+    expect([0, 1].map((i) => lastPoint(value.layout, i).x)).toEqual([
+      t.x + t.width / 3,
+      t.x + (t.width * 2) / 3,
+    ]);
+    expect(value.diagnostics.filter((d) => d.severity !== "info")).toEqual([]);
   });
 
   test("a junction keeps the edges meeting at it", () => {
