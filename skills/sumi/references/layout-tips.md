@@ -13,8 +13,9 @@ unsure, start with auto: it needs no placement and suits most diagrams;
 switch when the user wants a particular arrangement or the figure
 reproduces a paper's block diagram. Structured figures need every element
 placed; their sizes come from the arrange tree, so the direction tables
-below do not apply (measure with `sumi render` as usual). The rest of this
-page is about **auto**.
+below do not apply (measure with `sumi render` as usual). Most of this
+page is about **auto**; structured figures are summarised
+[at the end](#structured-from-workarounds-to-fields).
 
 ## Auto layout (D2 + ELK)
 
@@ -137,10 +138,17 @@ the user).
   decoration. One level of nesting is usually enough.
 - **Edges entering a group can cross its label**: the group label sits at
   the top-left corner, and an edge coming from outside (especially with
-  `down`) runs through it when the label is wider than about half the group. Mitigations: put the first node of a flow inside
-  the group (see `examples/pipeline` in the repository), keep the number of
-  edges crossing the border small, or accept it and mention it. `sumi render`
-  reports it as `geometry/edge-crosses-label` (warning).
+  `down`) runs through it when the label is wider than about half the group.
+  Mitigations: move the title with `labelAt` (`top-right`, or `bottom` for
+  a group entered from above; D2 still keeps the title's space at the
+  top), put the first node of a flow inside the group (see
+  `examples/pipeline` in the repository), keep the number of edges crossing
+  the border small, or accept it and mention it. `sumi render` reports it
+  as `geometry/edge-crosses-label` (warning).
+- `caption` puts a sub-figure caption under a group (both engines). In
+  auto figures an edge leaving the group downwards crosses the caption
+  (`geometry/edge-crosses-label`): leave sideways (`direction: right`) or
+  use the structured layout, whose router avoids it.
 - **Cycles inside a group may be reversed**: wrapping a loop (A → B → A) in
   a container can make ELK flip it so the flow reads backwards; `sumi render`
   reports it as `geometry/reversed-edge`. Swapping the order of the loop's
@@ -159,4 +167,27 @@ the user).
 - Use variants consistently: `emphasis` for the one or two elements the
   figure is about, `muted` for context or optional parts, `dashed` edges
   for optional or asynchronous flows. Say what they mean in the caption
-  or report; the figure has no legend.
+  or report: auto figures have no legend (structured ones can carry a
+  `legend` component, see [structured](structured.md#legends)).
+
+## Structured: from workarounds to fields
+
+Sumi 0.4 figures needed workarounds that now have a field (0.5.0). Use the
+field; fall back only when the CLI reports it as unknown.
+
+| Wanted | 0.4 workaround | Now |
+| --- | --- | --- |
+| a group title out of the way of edges | drop the group `label`, `attach` a `label` node beside the group | `labelAt` on the group ([titles](structured.md#group-titles-and-captions)) |
+| "(a) …" under a panel | a `label` node attached `south` | `caption` on the group |
+| separate entry points for edges into one block | a `toAnchor` per edge (`"north:0.2"`, `"north:0.5"`, …) | `figure.layout.fanIn: spread`; anchors still for exact positions ([fan-in](structured.md#edges-anchors-junctions-and-trunks)) |
+| two blocks of different columns on one line (straight skips) | nested stacks with tuned `gap`s | `figure.layout.align` ([align](structured.md#aligning-across-trees)) |
+| which edge a label belongs to, or the outer side of a bend | reordering edges, anchors | edge `labelAt` / `labelSide` |
+| `ŷ`, `x̃`, `θ̄` in math | `$y'$`, a typed `ŷ` outside `$...$` | `'$\hat{y}$'`, `'$\tilde{x}$'`, `'$\bar\theta$'` ([label math](figure-format.md#label-math)) |
+| "dashed = skip connection" | a sentence in the caption | a `legend` node ([legends](structured.md#legends)) |
+| knowing where lines cross | looking at the preview | `layout/edge-crossing` infos from `sumi render` |
+
+A structured figure 0.4 drew is drawn the same by 0.5 (it may gain
+`layout/edge-crossing` infos), except that an end without an anchor now
+takes its side from the arrange tree
+([default sides](structured.md#edges-anchors-junctions-and-trunks)), which
+can change some routes: anchor the ends whose side matters.

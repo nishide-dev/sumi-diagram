@@ -1,0 +1,53 @@
+version: 1
+figure:
+  id: training-pipeline
+  theme: color
+  profile: paper-double
+  layout:
+    arrange:
+      stack:
+        gap: 6mm
+        align: stretch
+        items: [ data-stage, { row: { gap: 6mm, align: end, items: [ train-step, key ] } } ]
+groups:
+  - id: data-stage
+    label: Data
+    labelAt: top-left
+    caption: (a) data and augmentation
+    arrange:
+      row: { gap: 6mm, align: center, items: [ dataset, sample, augment, augmented ] }
+  - id: train-step
+    label: Training step
+    labelAt: top-left
+    caption: (b) one optimisation step
+    arrange:
+      row: { gap: 10mm, align: center, direction: left, items: [ model, loss, optimizer ] }
+nodes:
+  - { id: dataset, component: cylinder, label: "ImageNet-1k\n1.28M images" }
+  - { id: sample, component: image, variant: framed, props: { src: sample.png, height: 34pt } }
+  - { id: sample-cap, component: label, label: 'input $x$', attach: { to: sample, side: south, gap: 1mm } }
+  - { id: augment, component: box, label: "RandAugment\n+ Mixup", tone: yellow }
+  - { id: augment-icon, component: label, icon: tabler/arrows-shuffle, attach: { to: augment, side: north, gap: 1mm } }
+  - { id: augmented, component: image, variant: framed, props: { src: augmented.png, height: 34pt } }
+  - { id: augmented-cap, component: label, label: 'augmented $\tilde{x}$', attach: { to: augmented, side: north, gap: 1mm } }
+  - { id: model, component: box, label: "ViT-B/16", variant: emphasis }
+  - { id: model-icon, component: label, icon: tabler/brain, attach: { to: model, side: east, gap: 1mm } }
+  - { id: loss, component: box, label: "Cross-entropy\nloss", tone: red }
+  - { id: optimizer, component: box, label: AdamW, tone: green }
+  - { id: curve, component: image, variant: framed, props: { src: loss-curve.svg, height: 28pt }, attach: { to: loss, side: south, gap: 4mm } }
+  - id: key
+    component: legend
+    props:
+      entries:
+        - { edge: { variant: dashed }, label: target / parameter update }
+        - { edge: {}, label: data flow }
+edges:
+  - { from: dataset, to: sample }
+  - { from: sample, to: augment }
+  - { from: augment, to: augmented }
+  - { from: augmented, to: model, fromAnchor: south, toAnchor: north, label: batch, labelSide: right }
+  - { from: model, to: loss, label: '$\hat{y}$' }
+  - { from: dataset, to: loss, fromAnchor: south, toAnchor: "north:0.85", label: '$y$', variant: dashed }
+  - { from: loss, to: optimizer, label: '$\nabla_\theta L$' }
+  - { from: optimizer, to: model, fromAnchor: south, toAnchor: south, label: 'update $\theta$', variant: dashed }
+  - { from: loss, to: curve, component: line, variant: dashed }

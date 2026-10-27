@@ -1,0 +1,103 @@
+version: 1
+figure:
+  id: seq2seq-attention
+  theme: academic
+  profile: paper-single
+  layout:
+    arrange:
+      row:
+        gap: 8mm
+        align: end
+        items:
+          - stack: { direction: up, gap: 3mm, items: [ src, src-embed, src-add, encoder ] }
+          - stack: { direction: up, gap: 3mm, items: [ tgt, tgt-embed, tgt-add, decoder, linear, softmax, probs ] }
+    align: # the encoder output level with the block it feeds: K,V runs straight across
+      - { y: [ enc-norm2, dec-cross ] }
+groups:
+  - id: encoder
+    label: Encoder
+    labelAt: top-left
+    arrange:
+      stack:
+        direction: up
+        gap: 3mm
+        align: stretch
+        items:
+          - enc-split1
+          - stack: { direction: up, gap: 0, items: [ enc-attn, enc-norm1 ] }
+          - enc-split2
+          - stack: { direction: up, gap: 0, items: [ enc-ffn, enc-norm2 ] }
+  - id: decoder
+    label: Decoder
+    labelAt: top-left
+    arrange:
+      stack:
+        direction: up
+        gap: 3mm
+        align: stretch
+        items:
+          - dec-split1
+          - stack: { direction: up, gap: 0, items: [ dec-self, dec-norm1 ] }
+          - dec-split2
+          - stack: { direction: up, gap: 0, items: [ dec-cross, dec-norm2 ] }
+          - dec-split3
+          - stack: { direction: up, gap: 0, items: [ dec-ffn, dec-norm3 ] }
+nodes:
+  - { id: src, component: label, label: '$x_1,\,\ldots,\,x_n$' }
+  - { id: src-embed, component: box, label: Embedding, tone: pink }
+  - { id: src-add, component: operator, props: { symbol: plus } }
+  - { id: src-pe, component: circle, icon: tabler/wave-sine, attach: { to: src-add, side: west, gap: 1mm } }
+  - { id: enc-split1, component: junction, variant: hidden }
+  - { id: enc-attn, component: box, label: "Self-\nAttention", tone: orange }
+  - { id: enc-norm1, component: box, label: Add & Norm, tone: yellow }
+  - { id: enc-split2, component: junction, variant: hidden }
+  - { id: enc-ffn, component: box, label: Feed Forward, tone: blue }
+  - { id: enc-norm2, component: box, label: Add & Norm, tone: yellow }
+  - { id: enc-n, component: label, label: '$N \times$', attach: { to: encoder, side: west, gap: 1mm } }
+  - { id: tgt, component: label, label: '$y_0,\,\ldots,\,y_{m-1}$' }
+  - { id: tgt-embed, component: box, label: Embedding, tone: pink }
+  - { id: tgt-add, component: operator, props: { symbol: plus } }
+  - { id: tgt-pe, component: circle, icon: tabler/wave-sine, attach: { to: tgt-add, side: east, gap: 1mm } }
+  - { id: dec-split1, component: junction, variant: hidden }
+  - { id: dec-self, component: box, label: "Masked\nSelf-Attention", tone: orange }
+  - { id: dec-norm1, component: box, label: Add & Norm, tone: yellow }
+  - { id: dec-split2, component: junction, variant: hidden }
+  - { id: dec-cross, component: box, label: "Cross-\nAttention", tone: purple }
+  - { id: dec-norm2, component: box, label: Add & Norm, tone: yellow }
+  - { id: dec-split3, component: junction, variant: hidden }
+  - { id: dec-ffn, component: box, label: Feed Forward, tone: blue }
+  - { id: dec-norm3, component: box, label: Add & Norm, tone: yellow }
+  - { id: dec-n, component: label, label: '$\times N$', attach: { to: decoder, side: east, gap: 1mm } }
+  - { id: linear, component: box, label: Linear, tone: gray }
+  - { id: softmax, component: box, label: Softmax, tone: green }
+  - { id: probs, component: label, label: '$p(y_t \mid y_{<t},\,x)$' }
+edges:
+  - { from: src, to: src-embed }
+  - { from: src-embed, to: src-add }
+  - { from: src-pe, to: src-add, component: line }
+  - { from: src-add, to: enc-split1, component: line }
+  - { from: enc-split1, to: enc-attn, toAnchor: "south:0.2" }
+  - { from: enc-split1, to: enc-attn, toAnchor: "south:0.5" }
+  - { from: enc-split1, to: enc-attn, toAnchor: "south:0.8" }
+  - { from: enc-split1, to: enc-norm1, toAnchor: west }
+  - { from: enc-norm1, to: enc-split2, component: line }
+  - { from: enc-split2, to: enc-ffn }
+  - { from: enc-split2, to: enc-norm2, toAnchor: west }
+  - { from: tgt, to: tgt-embed }
+  - { from: tgt-embed, to: tgt-add }
+  - { from: tgt-pe, to: tgt-add, component: line }
+  - { from: tgt-add, to: dec-split1, component: line }
+  - { from: dec-split1, to: dec-self, toAnchor: "south:0.2" }
+  - { from: dec-split1, to: dec-self, toAnchor: "south:0.5" }
+  - { from: dec-split1, to: dec-self, toAnchor: "south:0.8" }
+  - { from: dec-split1, to: dec-norm1, toAnchor: east }
+  - { from: dec-norm1, to: dec-split2, component: line }
+  - { from: dec-split2, to: dec-cross, toAnchor: "south:0.8" }
+  - { from: dec-split2, to: dec-norm2, toAnchor: east }
+  - { from: enc-norm2, fromAnchor: east, to: dec-cross, toAnchor: west, label: '$K,V$', labelAt: middle }
+  - { from: dec-norm2, to: dec-split3, component: line }
+  - { from: dec-split3, to: dec-ffn }
+  - { from: dec-split3, to: dec-norm3, toAnchor: east }
+  - { from: dec-norm3, to: linear }
+  - { from: linear, to: softmax }
+  - { from: softmax, to: probs }
