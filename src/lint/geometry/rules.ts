@@ -20,6 +20,7 @@ import { obstaclesCrossedByRoute, type RouteObstacle } from "./edges";
 import { unionOf } from "./measure";
 import { regionsOverlap } from "./outlines";
 import {
+  CUBIC_STEPS,
   overhang,
   polylinesCrossRect,
   rectDepthInside,
@@ -343,14 +344,38 @@ export const nodeOverlap = defineGeometryRule({
   },
 });
 
-/** A group's border as a closed polyline. */
-const borderOf = ({ x, y, width, height }: Rect): Point[] => [
-  { x, y },
-  { x: x + width, y },
-  { x: x + width, y: y + height },
-  { x, y: y + height },
-  { x, y },
-];
+/**
+ * A group's border as a closed polyline: its rectangle with the corners
+ * rounded by `radius` (clamped to half the sides, as the writers draw it),
+ * each corner flattened into {@link CUBIC_STEPS} chords.
+ */
+export function borderOf({ x, y, width, height }: Rect, radius = 0): Point[] {
+  const r = Math.max(0, Math.min(radius, width / 2, height / 2));
+  if (r === 0) {
+    return [
+      { x, y },
+      { x: x + width, y },
+      { x: x + width, y: y + height },
+      { x, y: y + height },
+      { x, y },
+    ];
+  }
+  const corners: [number, number, number][] = [
+    [x + width - r, y + r, -Math.PI / 2],
+    [x + width - r, y + height - r, 0],
+    [x + r, y + height - r, Math.PI / 2],
+    [x + r, y + r, Math.PI],
+  ];
+  const points: Point[] = [];
+  for (const [cx, cy, start] of corners) {
+    for (let i = 0; i <= CUBIC_STEPS; i++) {
+      const a = start + (i / CUBIC_STEPS) * (Math.PI / 2);
+      points.push({ x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) });
+    }
+  }
+  points.push(points[0] as Point);
+  return points;
+}
 
 /**
  * Label collisions: label vs label of another element, label vs another
@@ -414,10 +439,10 @@ export const labelCollision = defineGeometryRule({
     for (const a of labelled) {
       const boxesA = lineBoxes(a);
       for (const b of context.elements) {
-        if (b === a || b.kind !== "group" || b.bbox === undefined) continue;
+        if (b === a || b.ir.kind !== "group" || b.bbox === undefined) continue;
         const { style } = b.ir;
         if (style.strokeWidth.units === 0 || style.stroke === "transparent") continue;
-        const border = [borderOf(b.bbox)];
+        const border = [borderOf(b.bbox, style.radius.units)];
         const reach = b.strokeInset + tolerance;
         const grown = (r: Rect): Rect => ({
           x: r.x - reach,

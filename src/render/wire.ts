@@ -24,8 +24,9 @@
  * also at most half of each leg, so the cuts of two turns never overlap, and
  * it leaves the part of an end segment under an arrowhead straight
  * (`keepStart` / `keepEnd`, #116). A turn that cannot take `minRadius` stays
- * sharp. The router keeps the segment before an arrowhead long enough for
- * both (`stubLength()`).
+ * sharp. The router prefers to keep the segment before an arrowhead long
+ * enough for both (`arrowRoom()`), but not always (a tight gap, a group
+ * padding narrower than the room).
  *
  * The geometry the inspection, the geometry lint and the editable PPTX read
  * is the edge's `path.connection` (M / L, the route as it is): a rounded

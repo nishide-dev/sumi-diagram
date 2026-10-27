@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { mmToPt } from "../../core/units";
 import { LintConfigError } from "../config";
-import { cycleClosingEdges, largerBuiltinProfiles } from "./rules";
+import { borderOf, cycleClosingEdges, largerBuiltinProfiles } from "./rules";
+import { polylinesCrossRect } from "./shapes";
 import { centeredBaseline, compile, label, lintSpec } from "./testing";
 
 // Line numbers matter for the location tests below.
@@ -673,6 +674,20 @@ describe("geometry/label-collision", () => {
     expect(run(centeredBaseline(40 - 8)).length).toBe(1);
     expect(run(centeredBaseline(40 - 8 - 3))).toEqual([]);
     expect(run(centeredBaseline(90))).toEqual([]);
+  });
+
+  test("a rounded group's border follows its corners (review of #116)", () => {
+    const rect = { x: 0, y: 0, width: 100, height: 100 };
+    const crosses = (box: { x: number; y: number; width: number; height: number }, r: number) =>
+      polylinesCrossRect([borderOf(rect, r)], box, 0);
+    // In the square corner: on a sharp border, clear of a rounded one.
+    expect(crosses({ x: -2, y: -2, width: 4, height: 4 }, 0)).toBe(true);
+    expect(crosses({ x: -2, y: -2, width: 4, height: 4 }, 40)).toBe(false);
+    // Across the arc (it passes (11.716, 11.716)), away from the straight sides.
+    expect(crosses({ x: 10, y: 10, width: 4, height: 4 }, 40)).toBe(true);
+    expect(crosses({ x: 10, y: 10, width: 4, height: 4 }, 0)).toBe(false);
+    // The radius is clamped to half the sides, as drawn.
+    expect(borderOf(rect, 500)).toEqual(borderOf(rect, 50));
   });
 });
 

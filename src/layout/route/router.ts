@@ -161,12 +161,22 @@ export function routeEdges(
   layout: LayoutIR,
   options: RouteOptions = {},
 ): RouteResult {
-  return new Router(
-    ir,
-    layout,
-    options.lowerBound ?? true,
-    options.verifyLowerBound ?? false,
-  ).run();
+  const route = (stubLines: boolean) =>
+    new Router(
+      ir,
+      layout,
+      options.lowerBound ?? true,
+      options.verifyLowerBound ?? false,
+      stubLines,
+    ).run();
+  const result = route(false);
+  // The grid has a line at the end of the room before an arrowhead, not of
+  // the stub (#116). In a tight spot the stub's end can be the only place to
+  // turn, so if an edge has no route, route the figure again with both lines
+  // and keep that if it routes more edges (rare, so the grid stays small).
+  if (result.diagnostics.length === 0) return result;
+  const retried = route(true);
+  return retried.diagnostics.length < result.diagnostics.length ? retried : result;
 }
 
 /** Owners of grid steps or points: `-1` none, a net, or `-2` several (listed in `multi`). */
@@ -343,11 +353,21 @@ class Router {
   /** The cost of the route the last search found. */
   #lastCost = 0;
 
-  constructor(ir: FigureIR, layout: LayoutIR, lowerBound: boolean, verify: boolean) {
+  /** Also a grid line at the end of each stub that has a room beyond it (see `routeEdges`). */
+  readonly #stubLines: boolean;
+
+  constructor(
+    ir: FigureIR,
+    layout: LayoutIR,
+    lowerBound: boolean,
+    verify: boolean,
+    stubLines: boolean,
+  ) {
     this.#ir = ir;
     this.#layout = layout;
     this.#lowerBound = lowerBound;
     this.#verify = verify;
+    this.#stubLines = stubLines;
   }
 
   /** Searches `edge` (see `#search`); with `#verify`, checks the cost against Dijkstra. */
@@ -699,17 +719,19 @@ class Router {
       // The end of the stub, or of the room before an arrowhead (#116): one
       // line per end, as before, so the grid does not grow. Without the
       // line at the stub's end, a route that cannot keep the room turns at
-      // the first line past the stub.
-      for (const [end, lane] of [
-        [edge.from, edge.fromRoom || edge.fromLane],
-        [edge.to, edge.toRoom || edge.toLane],
+      // the first line past the stub (with `#stubLines`, at the stub's end).
+      for (const [end, lane, room] of [
+        [edge.from, edge.fromLane, edge.fromRoom],
+        [edge.to, edge.toLane, edge.toRoom],
       ] as const) {
         xs.add(end.port.x);
         ys.add(end.port.y);
         if (end.dir >= 0) {
           const d = DIRS[end.dir] as Point;
-          xs.add(roundUnits(end.port.x + d.x * lane));
-          ys.add(roundUnits(end.port.y + d.y * lane));
+          for (const length of room === 0 ? [lane] : this.#stubLines ? [lane, room] : [room]) {
+            xs.add(roundUnits(end.port.x + d.x * length));
+            ys.add(roundUnits(end.port.y + d.y * length));
+          }
         }
       }
     }
@@ -1256,7 +1278,14 @@ class Router {
     const irEdges = new Map(this.#ir.edges.map((e) => [e.key, e]));
     const labels = new Map<ElementKey, TextLayout>();
     const nodeBoxes = layout.nodes.map((node) => node.rect);
-    const groupBoxes = layout.groups.map((group) => group.rect);
+    // Groups drawn with a border (as `geometry/label-collision` checks them).
+    const groupBoxes = layout.groups.flatMap((group) => {
+      const element = this.#ir.elements.get(group.key);
+      const style = element?.kind === "group" ? element.style : undefined;
+      return style === undefined || style.strokeWidth.units === 0 || style.stroke === "transparent"
+        ? []
+        : [group.rect];
+    });
     for (const e of layout.edges) {
       const points = routes.get(e.key);
       const edge = irEdges.get(e.key);

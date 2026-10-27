@@ -239,6 +239,40 @@ describe("room before an arrowhead (#116)", () => {
     expectClean(value);
   });
 
+  test("where only the stub's end is free to turn at, the edge still routes (review of #116)", () => {
+    // The grid has a line at the room's end, not the stub's. Here a wall
+    // ends 9 units before the target's port: the stub (8) fits, the room
+    // (16) does not, and no other line lies in between, so the figure is
+    // routed again with lines at the stubs' ends as well.
+    const placed = layoutStructuredFigure(
+      figure(
+        { row: { items: ["a", "b", "wall"] } },
+        [box("a"), box("b"), box("wall")],
+        [{ from: "a", to: "b", fromAnchor: "east", toAnchor: "west" }],
+      ),
+      { measurer: FAKE, route: false },
+    );
+    if (!placed.ok) throw new Error(JSON.stringify(placed.diagnostics));
+    const rects = [
+      { x: -60, y: 0, width: 20, height: 20 },
+      { x: 0, y: 40, width: 20, height: 20 },
+      { x: -29, y: 40, width: 20, height: 20 },
+    ];
+    const layout: LayoutIR = {
+      ...placed.value.layout,
+      // Labels dropped: they would be outside the moved boxes.
+      nodes: placed.value.layout.nodes.map(({ label: _label, ...n }, i) => ({
+        ...n,
+        rect: rects[i] as Rect,
+      })),
+      content: { x: -60, y: 0, width: 100, height: 80 },
+    };
+    const result = routeEdges(placed.value.ir, layout, { verifyLowerBound: true });
+    expect(result.diagnostics).toEqual([]);
+    const [p, q] = (result.layout.edges[0]?.route?.points ?? []).slice(-2) as [Point, Point];
+    expect(q.x - p.x).toBe(arrowheadLength(1));
+  });
+
   test("inside a group too tight for the room, a route keeps to the group as before", () => {
     // Figure A's residuals: the encoder's padding (16) is no wider than the
     // room, and the route stays inside instead of going around the border.
