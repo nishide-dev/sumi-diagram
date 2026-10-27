@@ -448,6 +448,9 @@ function arrangeSides(
   };
 }
 
+/** The key of an edge's end in the positions {@link spreadFanIn} returns. */
+const endKey = (edge: number, leaving: boolean) => `${edge} ${leaving ? "from" : "to"}`;
+
 /**
  * Fan-in spreading (`figure.layout.fanIn: spread`, #134, design doc §6.33):
  * the target ends without an anchor that `ends` (a first resolution) left
@@ -463,14 +466,20 @@ function arrangeSides(
  * their other ends' ports along the side (then document order), which keeps
  * them from crossing each other. If a free slot would still fall on another
  * end's point, the side is left merged (never two nets on one point).
- * Junction ends and anchored ends never move. Returns the target side and
- * offset by edge index.
+ * Junction ends and anchored ends never move.
+ *
+ * Returns the side and offset of every end on a side that spreads, keyed
+ * {@link endKey}: the spread ends at their slots, and the other ends pinned
+ * where the first resolution put them. The pins matter: without them the
+ * second resolution would share the multi-edges whose other members became
+ * spread ends among the fewer ones left, moving them onto the slots given
+ * to the spread ends.
  */
 function spreadFanIn(
   edges: readonly EdgeIR[],
   ends: readonly ({ from: End; to: End } | { error: string })[],
   rectOf: (key: ElementKey) => Rect,
-): Map<number, { side: Side; offset: number }> {
+): Map<string, { side: Side; offset: number }> {
   const horizontal = (side: Side) => side === "north" || side === "south";
   const along = (side: Side, p: Point) => (horizontal(side) ? p.x : p.y);
   const sideId = (end: End) => `${end.key} ${end.side} ${end.dir}`;
@@ -499,7 +508,7 @@ function spreadFanIn(
   for (const users of ports.values())
     if (users.length >= 2) for (const i of users) spreading.add(i);
 
-  const spread = new Map<number, { side: Side; offset: number }>();
+  const spread = new Map<string, { side: Side; offset: number }>();
   for (const uses of sides.values()) {
     const first = uses[0];
     if (first === undefined) continue;
@@ -552,7 +561,12 @@ function spreadFanIn(
     const occupied = new Set(fixed.map((offset) => pointOf(offset)));
     if (free.some((offset) => occupied.has(pointOf(offset)))) continue;
     for (const [k, mover] of movers.entries()) {
-      spread.set(mover.edge, { side, offset: free[k] as number });
+      spread.set(endKey(mover.edge, false), { side, offset: free[k] as number });
+    }
+    for (const u of uses) {
+      if (!u.leaving && spreading.has(u.edge)) continue;
+      const offset = (along(side, u.end.port) - start) / length;
+      spread.set(endKey(u.edge, u.leaving), { side, offset });
     }
   }
   return spread;
@@ -610,11 +624,11 @@ export function resolveEnds(
   return spread.size === 0 ? ends : resolveEndsWith(ir, layout, spread);
 }
 
-/** {@link resolveEnds}, with the target ends in `spread` (by edge index) at that side and offset. */
+/** {@link resolveEnds}, with the ends in `spread` (keyed {@link endKey}) at that side and offset. */
 function resolveEndsWith(
   ir: FigureIR,
   layout: LayoutIR,
-  spread: ReadonlyMap<number, { side: Side; offset: number }>,
+  spread: ReadonlyMap<string, { side: Side; offset: number }>,
 ): ({ from: End; to: End } | { error: string })[] {
   const elements = new Map<ElementKey, Element>();
   const nodes = new Map(ir.nodes.map((n) => [n.key, n]));
@@ -663,8 +677,9 @@ function resolveEndsWith(
     if (anchor !== undefined) {
       return { side: anchor.side, offset: anchor.offset, inward, anchored: true };
     }
-    // A spread fan-in end: its position is set, so the multi-edge sharing
-    // leaves it, but (unlike an anchor) the #113 split may still move it.
+    // A spread fan-in end, or an end pinned beside them: its position is
+    // set, so the multi-edge sharing leaves it, but (unlike an anchor) the
+    // #113 split may still move it.
     if (spreadAt !== undefined) {
       return { side: spreadAt.side, offset: spreadAt.offset, inward, anchored: false };
     }
@@ -699,8 +714,8 @@ function resolveEndsWith(
     const to = element(edge.to);
     return {
       edge,
-      from: choose(edge, from, to, edge.fromAnchor, true, undefined),
-      to: choose(edge, to, from, edge.toAnchor, false, spread.get(index)),
+      from: choose(edge, from, to, edge.fromAnchor, true, spread.get(endKey(index, true))),
+      to: choose(edge, to, from, edge.toAnchor, false, spread.get(endKey(index, false))),
     };
   });
 

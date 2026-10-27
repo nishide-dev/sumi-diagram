@@ -399,6 +399,28 @@ describe("figure.layout.fanIn", () => {
     expectClean(value);
   });
 
+  test("multi-edges of different sizes: the ends that stay keep their reserved slots (re-review case)", () => {
+    // a → t twice (1/3, 2/3) and b → t five times (1/6 … 5/6): two of b's
+    // ends meet a's at 1/3 and 2/3 and spread; the other three must not be
+    // shared out again among themselves onto the spread ends' slots.
+    const value = run(
+      figure(
+        { stack: { items: [{ row: { items: ["a", "b"] } }, "t"] } },
+        [box("a", { width: "120pt" }), box("b", { width: "120pt" }), box("t", { width: "120pt" })],
+        [
+          ...Array.from({ length: 2 }, () => ({ from: "a", to: "t" })),
+          ...Array.from({ length: 5 }, () => ({ from: "b", to: "t" })),
+        ],
+        "spread",
+      ),
+    );
+    const indices = [0, 1, 2, 3, 4, 5, 6];
+    const points = indices.map((i) => lastPoint(value.layout, i));
+    expect(new Set(points.map((p) => `${p.x} ${p.y}`)).size).toBe(7);
+    expect(new Set(indices.map((i) => routeOf(value.layout, i).net)).size).toBe(7);
+    expectClean(value);
+  });
+
   test("on an east / west side the ends are ordered top to bottom", () => {
     const value = run(
       figure(

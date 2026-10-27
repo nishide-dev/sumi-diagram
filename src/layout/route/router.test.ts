@@ -1226,11 +1226,11 @@ describe.each(["columns", "grid"] as const)("synthetic 100-node figure: %s", (ki
     );
     expect(result.diagnostics.filter((d) => d.severity !== "info")).toEqual([]);
     const report = checkRoutes(ir, result.layout);
-    // The crowded grid: 24 contacts and 4 overlaps with spreading (the more
+    // The crowded grid: 16 contacts and 3 overlaps with spreading (the more
     // ports, the more lines in its gutters); the bound keeps it from getting worse.
     if (kind === "grid") {
-      expect(report.contacts.length).toBeLessThanOrEqual(24);
-      expect(report.overlaps.length).toBeLessThanOrEqual(4);
+      expect(report.contacts.length).toBeLessThanOrEqual(16);
+      expect(report.overlaps.length).toBeLessThanOrEqual(3);
     }
     expect({
       ...report,
