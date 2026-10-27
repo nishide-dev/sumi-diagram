@@ -1,0 +1,420 @@
+[
+ {
+  "draft": "seq2seq-attention",
+  "asWritten": {
+   "codes": {
+    "schema/unknown-field": 3
+   },
+   "unknownFields": [
+    "labelAt"
+   ]
+  },
+  "lowered": {
+   "dropped": [
+    "requires >=0.5.0"
+   ],
+   "checkDiagnostics": [],
+   "renderAndGeometry": [],
+   "productRouter": {
+    "size": "83.4 × 122.2",
+    "unrouted": 0,
+    "crossings": 0,
+    "crossingPoints": 0,
+    "contacts": 0,
+    "overlaps": 0,
+    "labelCollisions": 0,
+    "otherProblems": 0,
+    "length": 321.3,
+    "bends": 27,
+    "excess": 21.9,
+    "detours": 0
+   },
+   "withoutLabelPositions": {
+    "size": "83.4 × 122.2",
+    "unrouted": 0,
+    "crossings": 0,
+    "crossingPoints": 0,
+    "contacts": 0,
+    "overlaps": 0,
+    "labelCollisions": 0,
+    "otherProblems": 0,
+    "length": 334.8,
+    "bends": 31,
+    "excess": 35.5,
+    "detours": 1
+   },
+   "alternatives": [],
+   "proposedRouter": {
+    "size": "83.4 × 122.2",
+    "unrouted": 0,
+    "crossings": 0,
+    "crossingPoints": 0,
+    "contacts": 0,
+    "overlaps": 0,
+    "labelCollisions": 0,
+    "otherProblems": 0,
+    "length": 321.3,
+    "bends": 27,
+    "excess": 21.9,
+    "detours": 0
+   }
+  },
+  "original109": {
+   "size": "83.4 × 117.3",
+   "unrouted": 0,
+   "crossings": 0,
+   "crossingPoints": 0,
+   "contacts": 0,
+   "overlaps": 0,
+   "labelCollisions": 0,
+   "otherProblems": 0,
+   "length": 298,
+   "bends": 23,
+   "excess": 19.8,
+   "detours": 0
+  }
+ },
+ {
+  "draft": "seq2seq-attention.side-kv",
+  "asWritten": {
+   "codes": {
+    "schema/unknown-field": 4,
+    "component/unsupported-in-auto": 5
+   },
+   "unknownFields": [
+    "align",
+    "labelAt"
+   ]
+  },
+  "lowered": {
+   "dropped": [
+    "requires >=0.5.0",
+    "figure.layout.align (1, solved by the prototype)"
+   ],
+   "checkDiagnostics": [],
+   "renderAndGeometry": [
+    "warning geometry/label-collision"
+   ],
+   "productRouter": {
+    "size": "83.4 × 126.5",
+    "unrouted": 0,
+    "crossings": 0,
+    "crossingPoints": 0,
+    "contacts": 0,
+    "overlaps": 0,
+    "labelCollisions": 0,
+    "otherProblems": 0,
+    "length": 291.2,
+    "bends": 20,
+    "excess": 14.1,
+    "detours": 0
+   },
+   "withoutLabelPositions": {
+    "size": "83.4 × 126.5",
+    "unrouted": 0,
+    "crossings": 0,
+    "crossingPoints": 0,
+    "contacts": 0,
+    "overlaps": 0,
+    "labelCollisions": 1,
+    "otherProblems": 0,
+    "length": 304.8,
+    "bends": 24,
+    "excess": 27.7,
+    "detours": 1
+   },
+   "alternatives": [],
+   "proposedRouter": {
+    "size": "83.4 × 126.5",
+    "unrouted": 0,
+    "crossings": 0,
+    "crossingPoints": 0,
+    "contacts": 0,
+    "overlaps": 0,
+    "labelCollisions": 0,
+    "otherProblems": 0,
+    "length": 291.2,
+    "bends": 20,
+    "excess": 14.1,
+    "detours": 0
+   }
+  },
+  "original109": {
+   "size": "83.4 × 117.3",
+   "unrouted": 0,
+   "crossings": 0,
+   "crossingPoints": 0,
+   "contacts": 0,
+   "overlaps": 0,
+   "labelCollisions": 0,
+   "otherProblems": 0,
+   "length": 298,
+   "bends": 23,
+   "excess": 19.8,
+   "detours": 0
+  }
+ },
+ {
+  "draft": "training-pipeline",
+  "asWritten": {
+   "codes": {
+    "schema/unknown-field": 5,
+    "component/unknown": 1
+   },
+   "unknownFields": [
+    "caption",
+    "labelAt",
+    "labelSide"
+   ]
+  },
+  "lowered": {
+   "dropped": [
+    "requires >=0.5.0",
+    "legend key (expanded)",
+    "augmented → model.labelSide (not prototyped)",
+    "accent in augmented-cap",
+    "accent in model → loss"
+   ],
+   "checkDiagnostics": [],
+   "renderAndGeometry": [],
+   "productRouter": {
+    "size": "156.6 × 87.0",
+    "unrouted": 0,
+    "crossings": 2,
+    "crossingPoints": 2,
+    "contacts": 0,
+    "overlaps": 0,
+    "labelCollisions": 0,
+    "otherProblems": 0,
+    "length": 295.3,
+    "bends": 6,
+    "excess": 7.1,
+    "detours": 0
+   },
+   "withoutLabelPositions": {
+    "size": "156.6 × 87.0",
+    "unrouted": 0,
+    "crossings": 2,
+    "crossingPoints": 2,
+    "contacts": 0,
+    "overlaps": 0,
+    "labelCollisions": 0,
+    "otherProblems": 0,
+    "length": 295.3,
+    "bends": 6,
+    "excess": 7.1,
+    "detours": 0
+   },
+   "alternatives": [
+    {
+     "note": "Training step top-left (the draft: top-right)",
+     "groups": {
+      "g:train-step": "top-left"
+     },
+     "labelCollisions": [
+      "e:#3 label / g:train-step label"
+     ]
+    },
+    {
+     "note": "update θ labelAt: middle (the draft: default end)",
+     "edges": {
+      "e:#7": "middle"
+     },
+     "labelCollisions": [
+      "e:#7 label / n:loss",
+      "e:#7 label / n:loss label",
+      "e:#7 label / e:#8 route"
+     ]
+    }
+   ],
+   "proposedRouter": {
+    "size": "156.6 × 87.0",
+    "unrouted": 0,
+    "crossings": 2,
+    "crossingPoints": 2,
+    "contacts": 0,
+    "overlaps": 0,
+    "labelCollisions": 0,
+    "otherProblems": 0,
+    "length": 295.3,
+    "bends": 6,
+    "excess": 7.1,
+    "detours": 0
+   }
+  },
+  "original109": {
+   "size": "109.4 × 77.8",
+   "unrouted": 0,
+   "crossings": 2,
+   "crossingPoints": 2,
+   "contacts": 0,
+   "overlaps": 0,
+   "labelCollisions": 0,
+   "otherProblems": 0,
+   "length": 273.9,
+   "bends": 6,
+   "excess": 7.1,
+   "detours": 0
+  }
+ },
+ {
+  "draft": "serving-architecture",
+  "asWritten": {
+   "codes": {
+    "schema/unknown-field": 6
+   },
+   "unknownFields": [
+    "labelAt"
+   ]
+  },
+  "lowered": {
+   "dropped": [
+    "requires >=0.5.0",
+    "gpu.labelAt: bottom (only top-left / top-right are prototyped)"
+   ],
+   "checkDiagnostics": [],
+   "renderAndGeometry": [
+    "warning geometry/label-collision"
+   ],
+   "productRouter": {
+    "size": "159.6 × 125.8",
+    "unrouted": 0,
+    "crossings": 7,
+    "crossingPoints": 4,
+    "contacts": 0,
+    "overlaps": 0,
+    "labelCollisions": 1,
+    "otherProblems": 0,
+    "length": 908.9,
+    "bends": 46,
+    "excess": 16.2,
+    "detours": 1
+   },
+   "withoutLabelPositions": {
+    "size": "159.6 × 125.8",
+    "unrouted": 0,
+    "crossings": 9,
+    "crossingPoints": 4,
+    "contacts": 0,
+    "overlaps": 0,
+    "labelCollisions": 1,
+    "otherProblems": 0,
+    "length": 908.9,
+    "bends": 46,
+    "excess": 16.2,
+    "detours": 1
+   },
+   "alternatives": [],
+   "proposedRouter": {
+    "size": "159.6 × 125.8",
+    "unrouted": 0,
+    "crossings": 8,
+    "crossingPoints": 6,
+    "contacts": 0,
+    "overlaps": 0,
+    "labelCollisions": 1,
+    "otherProblems": 0,
+    "length": 899.5,
+    "bends": 38,
+    "excess": 1.1,
+    "detours": 0
+   }
+  },
+  "original109": {
+   "size": "159.6 × 119.4",
+   "unrouted": 0,
+   "crossings": 9,
+   "crossingPoints": 4,
+   "contacts": 0,
+   "overlaps": 0,
+   "labelCollisions": 0,
+   "otherProblems": 0,
+   "length": 864.1,
+   "bends": 48,
+   "excess": 18.4,
+   "detours": 1
+  }
+ },
+ {
+  "draft": "unet-small",
+  "asWritten": {
+   "codes": {
+    "schema/unknown-field": 3,
+    "component/unsupported-in-auto": 1,
+    "component/unknown": 1
+   },
+   "unknownFields": [
+    "align",
+    "labelSide"
+   ]
+  },
+  "lowered": {
+   "dropped": [
+    "requires >=0.5.0",
+    "figure.layout.align (3, solved by the prototype)",
+    "legend key (expanded)",
+    "enc1 → enc2.labelSide (not prototyped)",
+    "enc2 → enc3.labelSide (not prototyped)"
+   ],
+   "checkDiagnostics": [],
+   "renderAndGeometry": [],
+   "productRouter": {
+    "size": "57.7 × 110.6",
+    "unrouted": 0,
+    "crossings": 0,
+    "crossingPoints": 0,
+    "contacts": 0,
+    "overlaps": 0,
+    "labelCollisions": 0,
+    "otherProblems": 0,
+    "length": 142.3,
+    "bends": 2,
+    "excess": 0,
+    "detours": 0
+   },
+   "withoutLabelPositions": {
+    "size": "57.7 × 110.6",
+    "unrouted": 0,
+    "crossings": 0,
+    "crossingPoints": 0,
+    "contacts": 0,
+    "overlaps": 0,
+    "labelCollisions": 0,
+    "otherProblems": 0,
+    "length": 142.3,
+    "bends": 2,
+    "excess": 0,
+    "detours": 0
+   },
+   "alternatives": [],
+   "proposedRouter": {
+    "size": "57.7 × 110.6",
+    "unrouted": 0,
+    "crossings": 0,
+    "crossingPoints": 0,
+    "contacts": 0,
+    "overlaps": 0,
+    "labelCollisions": 0,
+    "otherProblems": 0,
+    "length": 142.3,
+    "bends": 2,
+    "excess": 0,
+    "detours": 0
+   }
+  },
+  "original109": {
+   "size": "79.6 × 88.2",
+   "unrouted": 0,
+   "crossings": 0,
+   "crossingPoints": 0,
+   "contacts": 0,
+   "overlaps": 0,
+   "labelCollisions": 0,
+   "otherProblems": 0,
+   "length": 248.1,
+   "bends": 8,
+   "excess": 0,
+   "detours": 0
+  }
+ }
+]

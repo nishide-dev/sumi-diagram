@@ -1,0 +1,374 @@
+{
+ "d2": "v0.9.0",
+ "results": [
+  {
+   "probe": "group-top-left",
+   "layout": "elk",
+   "accepted": true,
+   "text": {
+    "x": 53,
+    "y": 186
+   },
+   "relative": {
+    "dx": 41,
+    "dy": 33,
+    "width": 153,
+    "height": 302
+   }
+  },
+  {
+   "probe": "group-top-center",
+   "layout": "elk",
+   "accepted": true,
+   "text": {
+    "x": 88.5,
+    "y": 186
+   },
+   "relative": {
+    "dx": 76.5,
+    "dy": 33,
+    "width": 153,
+    "height": 302
+   }
+  },
+  {
+   "probe": "group-top-right",
+   "layout": "elk",
+   "accepted": true,
+   "text": {
+    "x": 124,
+    "y": 186
+   },
+   "relative": {
+    "dx": 112,
+    "dy": 33,
+    "width": 153,
+    "height": 302
+   }
+  },
+  {
+   "probe": "group-center-left",
+   "layout": "elk",
+   "accepted": true,
+   "text": {
+    "x": 53,
+    "y": 314
+   },
+   "relative": {
+    "dx": 41,
+    "dy": 161,
+    "width": 185,
+    "height": 302
+   }
+  },
+  {
+   "probe": "group-center-right",
+   "layout": "elk",
+   "accepted": true,
+   "text": {
+    "x": 156,
+    "y": 314
+   },
+   "relative": {
+    "dx": 144,
+    "dy": 161,
+    "width": 185,
+    "height": 302
+   }
+  },
+  {
+   "probe": "group-bottom-left",
+   "layout": "elk",
+   "accepted": true,
+   "text": {
+    "x": 53,
+    "y": 442
+   },
+   "relative": {
+    "dx": 41,
+    "dy": 289,
+    "width": 153,
+    "height": 302
+   }
+  },
+  {
+   "probe": "group-bottom-center",
+   "layout": "elk",
+   "accepted": true,
+   "text": {
+    "x": 88.5,
+    "y": 442
+   },
+   "relative": {
+    "dx": 76.5,
+    "dy": 289,
+    "width": 153,
+    "height": 302
+   }
+  },
+  {
+   "probe": "group-bottom-right",
+   "layout": "elk",
+   "accepted": true,
+   "text": {
+    "x": 124,
+    "y": 442
+   },
+   "relative": {
+    "dx": 112,
+    "dy": 289,
+    "width": 153,
+    "height": 302
+   }
+  },
+  {
+   "probe": "group-outside-top-left",
+   "layout": "elk",
+   "accepted": true,
+   "text": {
+    "x": 43,
+    "y": 181
+   },
+   "relative": {
+    "dx": 31,
+    "dy": -13,
+    "width": 153,
+    "height": 261
+   }
+  },
+  {
+   "probe": "group-outside-top-center",
+   "layout": "elk",
+   "accepted": true,
+   "text": {
+    "x": 88.5,
+    "y": 181
+   },
+   "relative": {
+    "dx": 76.5,
+    "dy": -13,
+    "width": 153,
+    "height": 261
+   }
+  },
+  {
+   "probe": "group-outside-bottom-center",
+   "layout": "elk",
+   "accepted": true,
+   "text": {
+    "x": 88.5,
+    "y": 447
+   },
+   "relative": {
+    "dx": 76.5,
+    "dy": 294,
+    "width": 153,
+    "height": 261
+   }
+  },
+  {
+   "probe": "group-outside-left-center",
+   "layout": "elk",
+   "accepted": true,
+   "text": {
+    "x": 48,
+    "y": 314
+   },
+   "relative": {
+    "dx": -41,
+    "dy": 161,
+    "width": 117,
+    "height": 302
+   }
+  },
+  {
+   "probe": "group-outside-right-center",
+   "layout": "elk",
+   "accepted": true,
+   "text": {
+    "x": 170,
+    "y": 314
+   },
+   "relative": {
+    "dx": 158,
+    "dy": 161,
+    "width": 117,
+    "height": 302
+   }
+  },
+  {
+   "probe": "edge-label-near-top-center",
+   "layout": "elk",
+   "accepted": true,
+   "text": {
+    "x": 38.5,
+    "y": 164
+   }
+  },
+  {
+   "probe": "edge-label-near-top-center",
+   "layout": "dagre",
+   "accepted": true,
+   "text": {
+    "x": 26.5,
+    "y": 132
+   }
+  },
+  {
+   "probe": "edge-label-near-bottom-center",
+   "layout": "elk",
+   "accepted": true,
+   "text": {
+    "x": 38.5,
+    "y": 164
+   }
+  },
+  {
+   "probe": "edge-label-near-bottom-center",
+   "layout": "dagre",
+   "accepted": true,
+   "text": {
+    "x": 26.5,
+    "y": 132
+   }
+  },
+  {
+   "probe": "edge-label-near-center-left",
+   "layout": "elk",
+   "accepted": true,
+   "text": {
+    "x": 38.5,
+    "y": 164
+   }
+  },
+  {
+   "probe": "edge-label-near-center-left",
+   "layout": "dagre",
+   "accepted": true,
+   "text": {
+    "x": 26.5,
+    "y": 132
+   }
+  },
+  {
+   "probe": "edge-label-near-outside-top-center",
+   "layout": "elk",
+   "accepted": true,
+   "text": {
+    "x": 38.5,
+    "y": 164
+   }
+  },
+  {
+   "probe": "edge-label-near-outside-top-center",
+   "layout": "dagre",
+   "accepted": true,
+   "text": {
+    "x": 26.5,
+    "y": 132
+   }
+  },
+  {
+   "probe": "legend-root-near-bottom-right",
+   "layout": "elk",
+   "accepted": true,
+   "text": {
+    "x": 243,
+    "y": 446
+   },
+   "relative": {
+    "dx": 158,
+    "dy": 76,
+    "width": 232,
+    "height": 141
+   }
+  },
+  {
+   "probe": "legend-child-near",
+   "layout": "elk",
+   "accepted": false,
+   "error": "<file>:3:19: constant near keys can only be set on root level shapes"
+  },
+  {
+   "probe": "caption-wrapper-outside-bottom",
+   "layout": "elk",
+   "accepted": true,
+   "text": {
+    "x": 138.5,
+    "y": 406
+   },
+   "relative": {
+    "dx": 126.5,
+    "dy": 394,
+    "width": 253,
+    "height": 361
+   }
+  },
+  {
+   "probe": "edge-label-default",
+   "layout": "elk",
+   "accepted": true,
+   "text": {
+    "x": 38.5,
+    "y": 164
+   }
+  },
+  {
+   "probe": "edge-label-default",
+   "layout": "dagre",
+   "accepted": true,
+   "text": {
+    "x": 26.5,
+    "y": 132
+   }
+  },
+  {
+   "probe": "edge-target-arrowhead-label",
+   "layout": "elk",
+   "accepted": true,
+   "text": {
+    "x": 55.5,
+    "y": 138
+   }
+  },
+  {
+   "probe": "edge-target-arrowhead-label",
+   "layout": "dagre",
+   "accepted": true,
+   "text": {
+    "x": 43.5,
+    "y": 156
+   }
+  },
+  {
+   "probe": "edge-source-arrowhead-label",
+   "layout": "elk",
+   "accepted": true,
+   "text": {
+    "x": 53.5,
+    "y": 99
+   }
+  },
+  {
+   "probe": "edge-source-arrowhead-label",
+   "layout": "dagre",
+   "accepted": true,
+   "text": {
+    "x": 41.5,
+    "y": 87
+   }
+  },
+  {
+   "probe": "edge-label-position-attr",
+   "layout": "elk",
+   "accepted": false,
+   "error": "<file>:3:3: unexpected field position"
+  },
+  {
+   "probe": "edge-label-position-attr",
+   "layout": "dagre",
+   "accepted": false,
+   "error": "<file>:3:3: unexpected field position"
+  }
+ ]
+}
