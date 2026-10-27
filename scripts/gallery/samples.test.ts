@@ -6,6 +6,7 @@
 
 import { describe, expect, test } from "bun:test";
 import { compileFigure } from "../../src/compiler/compile";
+import { writtenComponentOf } from "../../src/compiler/testing";
 import { createBuiltinRegistry } from "../../src/core/registry/builtins";
 import { buildCatalog } from "../../src/core/registry/catalog";
 import { comparison, componentSamples, PROFILES, THEMES } from "./samples";
@@ -27,9 +28,18 @@ describe("component samples", () => {
         if (!compiled.ok) throw new Error(JSON.stringify(compiled.diagnostics, null, 2));
         expect(compiled.diagnostics).toEqual([]);
         expect(compiled.value.ir.meta.themeId).toBe(rendering.theme);
-        // Every variant appears, and only elements of this component carry a variant.
+        // A component the auto engine cannot draw (#131) gets a structured sample.
+        const { engines } = sample.entry;
+        expect(compiled.value.engine).toBe(
+          engines === undefined || engines.includes("auto") ? "auto" : "structured",
+        );
+        // Every variant appears, and only elements of this component carry a
+        // variant. Elements a legend was expanded into (#131) count as the
+        // legend: each is traced back to it, and none is left untraced.
+        const { ir } = compiled.value;
         const used = new Set(
-          [...compiled.value.ir.elements.values()]
+          [...ir.elements.values()]
+            .map((e) => writtenComponentOf(ir, e))
             .filter((e) => e.component === sample.entry.id)
             .map((e) => e.variant),
         );

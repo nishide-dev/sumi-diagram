@@ -96,6 +96,12 @@ function locateElement(
   key: ElementKey,
 ): { subject: DiagnosticSubject; path: DocPath; name: string } {
   const id = key.slice(2);
+  // A group's caption (#130) and the parts of a legend (#131) are written as
+  // a field of another element.
+  const origin = state.doc.expanded?.get(key);
+  if (origin !== undefined) {
+    return { subject: { ...origin.subject }, path: [...origin.path], name: origin.name };
+  }
   if (key.startsWith("e:") && id.startsWith("#")) {
     const index = Number(id.slice(1));
     const subject = { kind: "edge", id: `edges[${index}]` } as const;
@@ -107,15 +113,6 @@ function locateElement(
       ? (["group", "groups"] as const)
       : (["node", "nodes"] as const);
   const index = state.doc[collection]?.findIndex((element) => element?.id === id) ?? -1;
-  // A group's caption (#130) is written as the group's `caption` field.
-  const caption = collection === "nodes" ? state.doc.captions?.get(index) : undefined;
-  if (caption !== undefined) {
-    return {
-      subject: { kind: "group", id: caption.group },
-      path: [...caption.path],
-      name: `the caption of group "${caption.group}"`,
-    };
-  }
   return {
     subject: { kind, id },
     path: index >= 0 ? [collection, index] : [],

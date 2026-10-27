@@ -5,6 +5,7 @@
  */
 
 import { z } from "zod";
+import { TONE_NAMES } from "../theme/tones";
 import { SizeLength } from "./length";
 import {
   BUILTIN_NAMESPACE,
@@ -188,6 +189,78 @@ const image: NodeManifest = {
   embed: "image",
 };
 
+/** Canonical ID of the legend (#131): the one component the `check` stages expand. */
+export const LEGEND_ID = "sumi/legend";
+
+/** Most entries a legend takes: keeps the reserved IDs of its parts short (`<id>-20-label`). */
+export const LEGEND_MAX_ENTRIES = 20;
+
+const ComponentField = z.string().min(1);
+const VariantField = z.string().min(1);
+
+const legendEntry = z
+  .strictObject({
+    edge: z
+      .strictObject({
+        component: ComponentField.optional().describe(
+          "The edge component of the sample line, as on an edge. Omitted means arrow.",
+        ),
+        variant: VariantField.optional().describe(
+          "The variant of the sample line, as on an edge. Omitted means default.",
+        ),
+      })
+      .optional()
+      .describe(
+        "Draws a sample line with these edge fields: the same dash, arrowheads and line width as the edges that use them.",
+      ),
+    node: z
+      .strictObject({
+        component: ComponentField.optional().describe(
+          "The node component of the sample box, as on a node; a shape such as box or circle. Omitted means box.",
+        ),
+        variant: VariantField.optional().describe(
+          "The variant of the sample box, as on a node. Omitted means default.",
+        ),
+        tone: z
+          .enum(TONE_NAMES)
+          .optional()
+          .describe("The tone of the sample box, as on a node. Omitted means none."),
+      })
+      .optional()
+      .describe(
+        "Draws a small sample box with these node fields: the same fill and outline as the nodes that use them.",
+      ),
+    label: z
+      .string()
+      .min(1)
+      .describe("What the sample means, drawn to its right (a label; math allowed)."),
+  })
+  .refine((entry) => (entry.edge === undefined) !== (entry.node === undefined), {
+    error: 'an entry needs exactly one of "edge" or "node"',
+  });
+
+const legend: NodeManifest = {
+  ...base,
+  since: "0.5.0",
+  kind: "node",
+  name: "legend",
+  description:
+    "A key that explains line and fill styles: one sample line or box per entry, drawn with the same fields as the edges or nodes it explains, followed by its text (structured layout only).",
+  variants: ["default", "plain"],
+  props: z.strictObject({
+    entries: z
+      .array(legendEntry)
+      .min(1)
+      .max(LEGEND_MAX_ENTRIES)
+      .describe(
+        "The entries, top to bottom. Each has edge (a sample line) or node (a sample box), and a label.",
+      ),
+  }),
+  shape: "rectangle",
+  sizing: "auto",
+  engines: ["structured"],
+};
+
 /** The built-in manifests, in catalog order. */
 export const BUILTIN_MANIFESTS: readonly ComponentManifest[] = [
   node("box", "rectangle", "A rectangle; the general-purpose node."),
@@ -205,6 +278,7 @@ export const BUILTIN_MANIFESTS: readonly ComponentManifest[] = [
   operator,
   junction,
   image,
+  legend,
   container,
   edge("arrow", "A line with an arrowhead at the target.", {
     direction: "forward",

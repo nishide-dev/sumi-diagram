@@ -15,8 +15,8 @@ import { displayWidth, formatCodePoint, glyphCodePoints, labelLines } from "../t
 /** `node "api"`, `group "backend"`, `edge "e1"` or `edge edges[2]`. */
 function describeElement(element: ValidElement): string {
   const { kind, subject } = element;
-  // A group's caption (#130): a label node whose subject is its group.
-  if (kind === "node" && subject.kind === "group") return `the caption of group "${subject.id}"`;
+  // A group's caption (#130) or a part of a legend (#131) is named by its origin.
+  if (element.origin !== undefined) return element.origin.name;
   const id = kind === "edge" && element.element.id === undefined ? subject.id : `"${subject.id}"`;
   return `${kind} ${id}`;
 }
@@ -39,7 +39,9 @@ export const emptyLabel = defineRule({
         manifest.shape === "text" ||
         manifest.mark !== undefined ||
         manifest.embed !== undefined ||
-        element.element.icon !== undefined
+        element.element.icon !== undefined ||
+        // A legend's sample box (#131) shows only its fill and outline.
+        element.origin?.from === "legend"
       ) {
         continue;
       }

@@ -51,8 +51,18 @@ interface VariantStyles {
   label: { default: StyleLayerInput; muted: StyleLayerInput };
   junction: { default: StyleLayerInput; muted: StyleLayerInput; hidden: StyleLayerInput };
   container: { muted: StyleLayerInput };
+  legend: { default: StyleLayerInput; plain: StyleLayerInput };
   edge: { dashed: StyleLayerInput; emphasis: StyleLayerInput; muted: StyleLayerInput };
 }
+
+/**
+ * A legend (#131) is drawn as a frame around its entries: on the page's
+ * background in the group's frame color, or without a frame (`plain`).
+ */
+const legendStyles = (paper: string, frame: string): VariantStyles["legend"] => ({
+  default: { fill: paper, stroke: frame },
+  plain: { fill: "transparent", strokeWidth: "0pt" },
+});
 
 /** Expands per-category variant styles to every built-in component. */
 function componentStyles(styles: VariantStyles): NonNullable<ThemeDefinition["components"]> {
@@ -66,6 +76,7 @@ function componentStyles(styles: VariantStyles): NonNullable<ThemeDefinition["co
       framed: { fill: "transparent", strokeWidth: "{line.regular}" },
     },
     container: styles.container,
+    legend: styles.legend,
     ...Object.fromEntries(EDGES.map((name) => [name, styles.edge])),
   };
 }
@@ -152,6 +163,7 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
       },
       junction: junctionStyles("{color.fg}", "{color.muted}"),
       container: { muted: { fill: "{color.bg}", fontColor: "{color.muted}", bold: false } },
+      legend: legendStyles("{color.bg}", "{color.muted}"),
       edge: {
         dashed: { strokeDash: "{dash.regular}" },
         emphasis: { strokeWidth: "{line.bold}" },
@@ -214,6 +226,7 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
       },
       junction: junctionStyles("{color.line}", "{color.muted}"),
       container: { muted: { strokeDash: "{dash.regular}", fontColor: "{color.muted}" } },
+      legend: legendStyles("{color.paper}", "{color.frame}"),
       edge: {
         dashed: { strokeDash: "{dash.regular}" },
         emphasis: { strokeWidth: "{line.bold}" },
@@ -279,6 +292,7 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
       },
       junction: junctionStyles("{color.fg}", "{color.muted}"),
       container: { muted: { fill: "{color.bg}", fontColor: "{color.muted}", bold: false } },
+      legend: legendStyles("{color.bg}", "{color.muted}"),
       edge: {
         dashed: { strokeDash: "{dash.regular}" },
         emphasis: { strokeWidth: "{line.bold}" },
@@ -352,6 +366,7 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
       },
       junction: junctionStyles("{color.fg}", "{color.muted}"),
       container: { muted: { fill: "{color.bg}", fontColor: "{color.muted}", bold: false } },
+      legend: legendStyles("{color.bg}", "{color.muted}"),
       edge: {
         dashed: { strokeDash: "{dash.regular}" },
         emphasis: { stroke: "{color.accent}", strokeWidth: "{line.bold}" },

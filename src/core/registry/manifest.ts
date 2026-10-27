@@ -10,6 +10,7 @@
 
 import { valid as validVersion } from "semver";
 import { z } from "zod";
+import { LAYOUT_ENGINES } from "../figure/schema";
 
 export const MANIFEST_VERSION = 1;
 
@@ -96,6 +97,18 @@ const ManifestBase = {
   }),
   /** Sumi version that introduced the component. */
   since: Version,
+  /**
+   * The layout engines the component can be drawn with (#131); omitted means
+   * every engine. Using it in a figure laid out by another engine is an error
+   * (`layout/structured-only` in an `auto` figure).
+   */
+  engines: z
+    .array(z.enum(LAYOUT_ENGINES))
+    .min(1)
+    .refine((engines) => new Set(engines).size === engines.length, {
+      error: "must not contain duplicates",
+    })
+    .optional(),
   deprecated: z
     .strictObject({
       since: Version,

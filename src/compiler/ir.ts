@@ -8,7 +8,14 @@
  */
 
 import { parseIconRef } from "../assets/icon-ref";
-import { type CheckState, type ElementKey, edgeKey, groupKey, nodeKey } from "../core/check-state";
+import {
+  type CheckState,
+  type ElementKey,
+  edgeKey,
+  groupKey,
+  nodeKey,
+  type PartialFigure,
+} from "../core/check-state";
 import { type DocPath, hasErrors, type SourceLocation } from "../core/diagnostics";
 import type { FigureCheck } from "../core/figure/check";
 import { type Anchor, parseAnchor } from "../core/figure/layout";
@@ -134,6 +141,19 @@ interface ElementIRBase {
   /** Canonical component ID. */
   readonly component: ComponentId;
   readonly variant: string;
+  /**
+   * Set on the frame group of a legend and on every part it was expanded
+   * into (#131, design doc §6.34): the legend node's ID, and how messages
+   * name this element (e.g. `the sample line of entry 1 of legend "key"`).
+   */
+  readonly legend?: LegendPartIR;
+}
+
+/** See {@link ElementIRBase.legend}. */
+export interface LegendPartIR {
+  /** The ID of the legend node (also its frame group's ID). */
+  readonly id: string;
+  readonly name: string;
 }
 
 /** A node or group: a D2 object addressed by its path through the group tree. */
@@ -282,7 +302,9 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
       ...(location !== undefined && { location: freeze({ ...location }) }),
     });
   };
-  const mapSource = (key: ElementKey, path: DocPath) => sourceMap.set(key, sourceEntry(path));
+  // An expanded element (a caption, #130; a legend's part, #131) maps to the field it stands for.
+  const mapSource = (key: ElementKey, path: DocPath) =>
+    sourceMap.set(key, sourceEntry(doc.expanded?.get(key)?.path ?? path));
 
   const groupsById = new Map<string, FigureGroup>();
   for (const g of present(doc.groups)) groupsById.set(g.id, g);
@@ -319,6 +341,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
       label: element.label,
       component: component.id,
       variant: component.variant,
+      ...legendPartOf(doc, key),
       ...(element.group !== undefined && { parent: groupKey(element.group) }),
       d2Key: `${prefix}_${element.id}`,
       d2Path: freeze(d2PathOf(prefix, element.id, element.group)),
@@ -391,7 +414,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
         ...(caption !== undefined && { captionOf: groupKey(caption.group) }),
       }),
     );
-    mapSource(key, caption?.path ?? ["nodes", index]);
+    mapSource(key, ["nodes", index]);
     addChild(n.group, key);
   }
 
@@ -413,7 +436,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
   const edges: EdgeIR[] = [];
   for (const [index, e] of doc.edges.entries()) {
     if (e === undefined) continue;
-    edges.push(edgeIR(state, e, index, endpointKey));
+    edges.push(edgeIR(state, e, index, endpointKey, legendPartOf(doc, edgeKey(e.id, index))));
     mapSource(edgeKey(e.id, index), ["edges", index]);
   }
 
@@ -505,6 +528,7 @@ function edgeIR(
   e: FigureEdge,
   index: number,
   endpointKey: (id: string) => ElementKey,
+  legend: { legend?: LegendPartIR },
 ): EdgeIR {
   const key = edgeKey(e.id, index);
   const component = componentOf(state, key);
@@ -521,6 +545,7 @@ function edgeIR(
     label: e.label,
     component: component.id,
     variant: component.variant,
+    ...legend,
     from: endpointKey(e.from),
     to: endpointKey(e.to),
     direction,
@@ -605,6 +630,13 @@ function alignIR(
     items: freeze((constraint[axis] ?? []).map(keyOf)),
     srcAt,
   });
+}
+
+/** `{ legend }` for the frame or a part of a legend (#131), otherwise `{}`. */
+function legendPartOf(doc: PartialFigure, key: ElementKey): { legend?: LegendPartIR } {
+  const origin = doc.expanded?.get(key);
+  if (origin?.from !== "legend") return {};
+  return { legend: freeze({ id: origin.subject.id, name: origin.name }) };
 }
 
 function componentOf(state: CheckState, key: ElementKey): ResolvedComponent {

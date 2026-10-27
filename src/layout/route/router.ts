@@ -534,12 +534,16 @@ class Router {
     return room;
   }
 
-  /** An element's ID for messages; a caption (#130) is named by its group, as written. */
+  /**
+   * An element's ID for messages; a caption (#130) is named by its group and
+   * a part of a legend (#131) by the legend, as written.
+   */
   #id(key: ElementKey): string {
     const element = this.#ir.elements.get(key);
     if (element?.kind === "node" && element.captionOf !== undefined) {
       return this.#id(element.captionOf);
     }
+    if (element?.legend !== undefined) return element.legend.id;
     return element !== undefined && element.kind !== "edge" ? element.id : key;
   }
 
@@ -563,7 +567,9 @@ class Router {
         ...(at?.location !== undefined && { location: at.location }),
         message: this.#isCaption(key)
           ? `The caption of group "${id(key)}" is in the way.`
-          : `Node "${id(key)}" is in the way.`,
+          : this.#ir.elements.get(key)?.legend !== undefined
+            ? `Legend "${id(key)}" is in the way.`
+            : `Node "${id(key)}" is in the way.`,
       };
     });
     const attached = blockers.flatMap((key) => {

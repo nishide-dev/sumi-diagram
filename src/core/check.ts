@@ -1,6 +1,7 @@
 import { checkAssets } from "../assets/check";
 import { captionLocator, clampCaptionPaths, expandCaptions } from "./figure/caption";
 import { type CheckFigureOptions, checkFigureSource, type FigureCheck } from "./figure/check";
+import { expandLegends } from "./figure/legend";
 import { constrainFigure } from "./profile/constrain";
 import { builtinRegistry } from "./registry/builtins";
 import type { Registry } from "./registry/registry";
@@ -15,7 +16,8 @@ export interface CheckOptions extends CheckFigureOptions {
 /**
  * Runs every diagnostic-collecting stage on a `*.sumi.yaml` source: `yaml`,
  * `schema`, `ref`, `layout` (see {@link checkFigureSource}), the expansion of
- * group captions (`ref/reserved-id`, #130), `component`, `asset`
+ * group captions (`ref/reserved-id`, #130), `component`, the expansion of
+ * legends (#131; its parts are resolved by the `component` stage), `asset`
  * (icons and image paths, #94), `theme` and `profile`. The returned state has
  * `components` and `styles` set.
  *
@@ -31,6 +33,8 @@ export function checkFigure(text: string, options: CheckOptions = {}): FigureChe
   expandCaptions(state, source.locate);
   const check: FigureCheck = { state, locate: captionLocator(state.doc, source.locate) };
   resolveComponents(state, registry, check.locate);
+  // Legends (#131) need their validated entries; their parts point at them.
+  expandLegends(state, registry, check.locate);
   checkAssets(state, check.locate);
   styleFigure(state, check.locate);
   constrainFigure(state, check.locate, { fonts: labelFontUsages(state) });
