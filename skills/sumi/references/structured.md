@@ -315,8 +315,11 @@ YAML order, greedily: edges declared first get the best routes.
   where their sources are. Spread is an attempt, not a guarantee: if it
   would put two ends on one point that `merge` kept apart, or leave an edge
   unrouted that `merge` routes, Sumi silently draws the **whole figure**
-  as `merge` (no diagnostic). If the preview still shows lines sharing an
-  entry point, the fallback happened: give those ends separate anchors
+  as `merge` (no diagnostic). Spread is also skipped for a single side
+  when a spread point would land on an end that is already there. If the
+  preview still shows lines sharing an entry point, spread was skipped for
+  that side or the whole figure fell back to `merge`: give those ends
+  separate anchors
   (`toAnchor: "north:0.3"`, …). Anchored ends and junction ends are not
   moved; to merge on purpose under `spread`, route the edges through a
   `junction`. Spread can add crossings (the separate lines cross others
