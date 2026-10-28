@@ -43,6 +43,8 @@ const LOWERING: Record<string, string> = {
   "sumi/arrow": "-> target:triangle",
   "sumi/line": "--",
   "sumi/double-arrow": "<-> source:triangle target:triangle",
+  // Two straight lines between corners (#176, structured only).
+  "sumi/zoom": "--",
 };
 
 function compileAny(source: string) {
@@ -108,9 +110,12 @@ describe("built-in components lower to standard D2 shapes", () => {
         expect(new Set(traced)).toEqual(new Set(m.variants));
       }
       // Only the components the auto engine cannot draw are left to the structured figure.
-      expect(STRUCTURED_ONLY_MANIFESTS.map((m) => m.name)).toEqual(["legend"]);
+      expect(STRUCTURED_ONLY_MANIFESTS.map((m) => m.name)).toEqual(["legend", "zoom"]);
       expect(ir.elements.size).toBeGreaterThan(0);
-      for (const e of ir.elements.values()) expect(e.component).not.toBe("sumi/legend");
+      for (const e of ir.elements.values()) {
+        expect(e.component).not.toBe("sumi/legend");
+        expect(e.component).not.toBe("sumi/zoom");
+      }
     });
   }
 });

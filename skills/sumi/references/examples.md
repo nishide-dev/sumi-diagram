@@ -188,7 +188,7 @@ edges:
 ```sh
 $ sumi render etl-pipeline.sumi.yaml; echo "exit $?"
 etl-pipeline.sumi.yaml:4:3 error geometry/exceeds-page-width The figure is 182.56mm wide, more than the 88mm maximum width of profile "paper-single".
-  hint: Sumi never shrinks a figure to fit. Lay it out top to bottom (layout.direction: down), shorten long labels, or use a wider profile (e.g. paper-double).
+  hint: Sumi never shrinks a figure on its own. Lay it out top to bottom (layout.direction: down), or shorten long labels. Or print it smaller as drawn with `figure.fit: scale` (its text must then print at 5pt or more).
 Wrote etl-pipeline.svg: 182.56mm × 32.46mm (paper-single, max width 88mm, TOO WIDE; theme academic).
 exit 1
 ```
@@ -196,7 +196,8 @@ exit 1
 The SVG is written despite the error, so it can be inspected.
 
 Fix: a six-step chain cannot fit 88mm side by side, so change the layout,
-not the target: `direction: down`.
+not the target: `direction: down`. (`fit: scale` would shrink it to 48%,
+its 8pt text to 3.9pt: an error.)
 
 ```yaml
 # expect-render: fits

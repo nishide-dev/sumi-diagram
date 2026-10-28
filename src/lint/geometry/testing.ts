@@ -56,6 +56,8 @@ export const centeredBaseline = (centerY: number): number => centerY + ASCENT_16
 export interface InspectionSpec {
   canvas?: Rect;
   profile?: Partial<ProfileLimits>;
+  /** `SvgInspection.scale`: the `figure.fit: scale` factor the SVG is printed at (#183). */
+  scale?: number;
   /** Per element: bbox / labels / path. Elements left out get no labels and no geometry. */
   elements: Partial<
     Record<ElementKey, { bbox?: Rect; labels?: LabelGeometry[]; path?: Point[] | PathSegment[] }>
@@ -91,7 +93,14 @@ export function inspection(compiled: CompiledFigure, spec: InspectionSpec): SvgI
   });
   return {
     canvas: { viewBox: canvas, width: toSize(canvas.width), height: toSize(canvas.height) },
-    profile: { id: "paper-single", maxWidthPt: mmToPt(88), minFontSizePt: 7, ...spec.profile },
+    profile: {
+      id: "paper-single",
+      maxWidthPt: mmToPt(88),
+      minFontSizePt: 7,
+      minScaledFontSizePt: 5,
+      ...spec.profile,
+    },
+    ...(spec.scale !== undefined && { scale: spec.scale }),
     elements,
     ...(spec.painted !== undefined && {
       painted: Object.entries(spec.painted).map(([key, lines]) => ({

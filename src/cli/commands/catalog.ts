@@ -125,7 +125,9 @@ export function formatProfileTable(entries: readonly ProfileCatalogEntry[]): str
       entry.id,
       entry.page.maxWidth?.written ?? "-",
       entry.page.maxHeight?.written ?? "-",
-      entry.typography.minFontSize.written,
+      entry.typography.minScaledFontSize === undefined
+        ? entry.typography.minFontSize.written
+        : `${entry.typography.minFontSize.written} (scaled ${entry.typography.minScaledFontSize.written})`,
       [entry.margin, entry.layout.layerGap, entry.layout.containerPadding]
         .map((length) => length.written)
         .join("/"),

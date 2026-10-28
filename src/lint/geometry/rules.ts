@@ -4,7 +4,9 @@
  * and limits are documented in design doc §6.5 and docs/lint-rules.md.
  *
  * None of these rules changes the figure: Sumi never shrinks text or the
- * canvas to make a problem go away (design doc §5).
+ * canvas to make a problem go away (design doc §5). A figure the author
+ * shrinks with `figure.fit: scale` (#183, §6.48) is checked at its printed
+ * size: the page limits and the text sizes are measured after the scale.
  */
 
 import type { EdgeIR, FigureIR } from "../../compiler/ir";
@@ -15,6 +17,7 @@ import { BUILTIN_PROFILES } from "../../core/profile/builtin";
 import { formatMm, formatPt, mmToPt, ptToD2Units } from "../../core/units";
 import { type Point, type Rect, unitsToMm, unitsToPt } from "../../render/geometry";
 import type { ProfileLimits } from "../../render/inspect";
+import { printedSize } from "../../render/size";
 import { defineGeometryRule, type GeometryRule, type LintFinding } from "../rule";
 import type { GeometryContext, GeometryElement } from "./context";
 import { obstaclesCrossedByRoute, type RouteObstacle } from "./edges";
@@ -50,8 +53,23 @@ export const GEOMETRY_TOLERANCE_UNITS = 1;
 /** Slack for comparing physical sizes in pt (floating point only; sizes are not quantized). */
 const PT_EPSILON = 1e-6;
 
-const formatSize = (rect: Rect): string =>
-  `${formatPt(unitsToPt(rect.width))} × ${formatPt(unitsToPt(rect.height))}`;
+/**
+ * Printed size ÷ drawn size (#183, `figure.fit: scale`; 1 otherwise). Element
+ * geometry stays in drawing units: containment and intersection are checked
+ * there as drawn, while physical thresholds (a gap in pt, a run in mm) are
+ * converted with {@link drawnUnits} and reported lengths with {@link printedUnits}.
+ */
+const printScale = (context: GeometryContext): number => context.inspection.scale ?? 1;
+
+/** A length given at printed size (in units of 0.5pt), in drawing units. */
+const drawnUnits = (context: GeometryContext, units: number): number => units / printScale(context);
+
+/** A drawn length in units, at its printed size (still in units of 0.5pt). */
+const printedUnits = (context: GeometryContext, units: number): number =>
+  units * printScale(context);
+
+const formatSize = (context: GeometryContext, rect: Rect): string =>
+  `${formatPt(unitsToPt(printedUnits(context, rect.width)))} × ${formatPt(unitsToPt(printedUnits(context, rect.height)))}`;
 
 const figurePath: DocPath = ["figure"];
 
@@ -116,11 +134,8 @@ export function largerBuiltinProfiles(
 
 /** `use a wider profile (paper-double, 180mm)`, or nothing if no built-in profile fits. */
 function profileAdvice(context: GeometryContext, axis: "width" | "height"): string[] {
-  const { width, height } = context.inspection.canvas;
-  const larger = largerBuiltinProfiles(context.profile, axis, {
-    widthPt: width.pt,
-    heightPt: height.pt,
-  });
+  const { widthPt, heightPt } = printedSize(context.inspection);
+  const larger = largerBuiltinProfiles(context.profile, axis, { widthPt, heightPt });
   if (larger.length === 0) return [];
   const list = larger
     .map((p) => (Number.isFinite(p.maxPt) ? `${p.id}, ${formatMm(p.maxPt)}` : p.id))
@@ -144,7 +159,8 @@ export function pageWidthHint(context: GeometryContext): string {
       ? ["lay it out top to bottom (layout.direction: down)"]
       : ["place fewer nodes side by side (split a wide layer, or group its nodes)"];
   const options = [...layout, "shorten long labels", ...profileAdvice(context, "width")];
-  return `Sumi never shrinks a figure to fit. ${listOptions(options)}.`;
+  const fit = `Or print it smaller as drawn with \`figure.fit: scale\` (its text must then print at ${formatPt(scaledMinFontSizePt(context.profile))} or more).`;
+  return `Sumi never shrinks a figure on its own. ${listOptions(options)}. ${fit}`;
 }
 
 /** Hint of `exceeds-page-height`: what makes this figure shorter, by engine and profile (#114). */
@@ -158,7 +174,20 @@ export function pageHeightHint(context: GeometryContext): string {
       ? ["place fewer nodes on top of each other (split a tall layer, or group its nodes)"]
       : ["lay it out left to right (layout.direction: right)"];
   const options = [...layout, "split it into several figures", ...profileAdvice(context, "height")];
-  return `Sumi never shrinks a figure to fit. ${listOptions(options)}.`;
+  return context.ir.meta.fit === "scale"
+    ? `\`figure.fit: scale\` shrinks a figure to the page width only. ${listOptions(options)}.`
+    : `Sumi never shrinks a figure to fit. ${listOptions(options)}.`;
+}
+
+/** The minimum printed font size of a figure shrunk by `figure.fit: scale` (#183). */
+export const scaledMinFontSizePt = (profile: ProfileLimits): number =>
+  profile.minScaledFontSizePt ?? profile.minFontSizePt;
+
+/** ` (7pt shrunk to 70% by figure.fit: scale)`, or nothing for a figure printed at its natural size. */
+function scaleNote(drawnPt: number, scale: number): string {
+  return scale === 1
+    ? ""
+    : ` (${formatPt(drawnPt)} shrunk to ${Math.round(scale * 1000) / 10}% by figure.fit: scale)`;
 }
 
 export const exceedsPageWidth = defineGeometryRule({
@@ -169,7 +198,7 @@ export const exceedsPageWidth = defineGeometryRule({
   fixable: false,
   run(context) {
     const { profile } = context;
-    const width = context.inspection.canvas.width.pt;
+    const width = printedSize(context.inspection).widthPt;
     if (profile.maxWidthPt === undefined || width <= profile.maxWidthPt + PT_EPSILON) return [];
     return [
       {
@@ -190,7 +219,7 @@ export const exceedsPageHeight = defineGeometryRule({
   fixable: false,
   run(context) {
     const { profile } = context;
-    const height = context.inspection.canvas.height.pt;
+    const height = printedSize(context.inspection).heightPt;
     if (profile.maxHeightPt === undefined || height <= profile.maxHeightPt + PT_EPSILON) return [];
     return [
       {
@@ -203,30 +232,105 @@ export const exceedsPageHeight = defineGeometryRule({
   },
 });
 
+/**
+ * The scale the figure is printed at and the minimum font size that applies:
+ * `minFontSize`, or for a figure shrunk by `figure.fit: scale` (#183) the
+ * profile's `minScaledFontSize`.
+ */
+function textLimits(context: GeometryContext): { scale: number; minPt: number; scaled: boolean } {
+  const { scale } = printedSize(context.inspection);
+  const scaled = scale < 1;
+  return {
+    scale,
+    scaled,
+    minPt: scaled ? scaledMinFontSizePt(context.profile) : context.profile.minFontSizePt,
+  };
+}
+
+const SCALED_TEXT_HINT =
+  "Make the figure narrower so `figure.fit: scale` shrinks it less (see the suggestions of geometry/exceeds-page-width without `fit`), or use a wider profile.";
+
 export const textTooSmall = defineGeometryRule({
   id: "geometry/text-too-small",
   description:
-    "A label is drawn with a font size below the profile's minimum (a safety net behind profile/font-too-small).",
+    "A label is printed with a font size below the profile's minimum (a safety net behind profile/font-too-small), or, in a figure shrunk by figure.fit: scale, below the profile's minimum for scaled figures.",
   defaultSeverity: "error",
   fixable: false,
   run(context) {
     const findings: LintFinding[] = [];
-    const min = context.profile.minFontSizePt;
+    const { scale, scaled, minPt: min } = textLimits(context);
     for (const element of context.elements) {
       // An icon (#94, no font file) is not text.
       const sizes = element.labels
         .filter((l) => l.fontPath !== "")
         .map((l) => unitsToPt(l.label.fontSizeUnits));
       const smallest = Math.min(...sizes);
-      if (sizes.length === 0 || smallest >= min - PT_EPSILON) continue;
+      if (sizes.length === 0 || smallest * scale >= min - PT_EPSILON) continue;
       findings.push({
-        message: `The label of ${element.name} is drawn at ${formatPt(smallest)}, below the ${formatPt(min)} minimum font size of profile "${context.profile.id}".`,
+        message: scaled
+          ? `The label of ${element.name} is printed at ${formatPt(smallest * scale)}${scaleNote(smallest, scale)}, below the ${formatPt(min)} minimum font size of profile "${context.profile.id}" for a scaled figure.`
+          : `The label of ${element.name} is drawn at ${formatPt(smallest)}, below the ${formatPt(min)} minimum font size of profile "${context.profile.id}".`,
         path: labelPath(element),
         subject: element.subject,
-        hint: "Use a theme or variant with a larger font size. Sumi does not shrink text below the profile's minimum.",
+        hint: scaled
+          ? SCALED_TEXT_HINT
+          : "Use a theme or variant with a larger font size. Sumi does not shrink text below the profile's minimum.",
       });
     }
     return findings;
+  },
+});
+
+/** How many labels `script-too-small` names before "and N more". */
+const SCRIPT_NAMES = 3;
+
+/**
+ * Subscripts and superscripts of label math (#93) are set at 0.7 of the
+ * label's size and are exempt from `text-too-small` (TeX's convention, design
+ * doc §6.24). Once `figure.fit: scale` shrinks the figure (#183, §6.48) they
+ * can become hard to read, so they are reported, as information, when they
+ * print below the scaled minimum. A figure at its natural size is not checked.
+ * One finding per figure (at `figure.fit`), naming the labels: a figure with
+ * math usually has many, and they all shrink by the same factor.
+ */
+export const scriptTooSmall = defineGeometryRule({
+  id: "geometry/script-too-small",
+  description:
+    "In a figure shrunk by figure.fit: scale, a subscript or superscript of label math prints below the profile's minimum font size for scaled figures.",
+  defaultSeverity: "info",
+  fixable: false,
+  run(context) {
+    const { scale, scaled, minPt: min } = textLimits(context);
+    if (!scaled) return [];
+    const small: { name: string; pt: number }[] = [];
+    for (const element of context.elements) {
+      const scripts = element.labels.flatMap(({ label }) =>
+        (label.runs ?? [])
+          .flat()
+          .filter((run) => run.fontSizeUnits < label.fontSizeUnits)
+          .map((run) => unitsToPt(run.fontSizeUnits)),
+      );
+      const smallest = Math.min(...scripts);
+      if (scripts.length > 0 && smallest * scale < min - PT_EPSILON)
+        small.push({ name: element.name, pt: smallest });
+    }
+    if (small.length === 0) return [];
+    const smallest = Math.min(...small.map((s) => s.pt));
+    const names = small.slice(0, SCRIPT_NAMES).map((s) => s.name);
+    const more = small.length - names.length;
+    const where =
+      more > 0
+        ? `${names.join(", ")} and ${more} more label${more === 1 ? "" : "s"}`
+        : names.length === 1
+          ? names.join("")
+          : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+    const finding: LintFinding = {
+      message: `Subscripts or superscripts of label math print at down to ${formatPt(smallest * scale)}${scaleNote(smallest, scale)}, below the ${formatPt(min)} minimum font size of profile "${context.profile.id}" for a scaled figure: in ${where}.`,
+      path: ["figure", "fit"],
+      subject: figureSubject(context),
+      hint: `Scripts are exempt from the minimum at the natural size, so this is information only. If they are too small to read, ${SCALED_TEXT_HINT.charAt(0).toLowerCase()}${SCALED_TEXT_HINT.slice(1)}`,
+    };
+    return [finding];
   },
 });
 
@@ -265,8 +369,8 @@ export const labelOverflow = defineGeometryRule({
       const outside = box !== undefined && !rectsOverlap(box, bbox, 0);
       findings.push({
         message: hasIcon(element)
-          ? `The icon of ${element.name} (${box === undefined ? "" : `${formatSize(box)}, `}1 em) does not fit inside its ${shapeName(element)} shape (${formatSize(bbox)})${outside ? "; it is drawn outside the shape" : ""}.`
-          : `The label of ${element.name} (${box === undefined ? "" : `${formatSize(box)}, `}measured with the theme's fonts) does not fit inside its ${shapeName(element)} shape (${formatSize(bbox)})${outside ? "; it is drawn outside the shape" : ""}.`,
+          ? `The icon of ${element.name} (${box === undefined ? "" : `${formatSize(context, box)}, `}1 em) does not fit inside its ${shapeName(element)} shape (${formatSize(context, bbox)})${outside ? "; it is drawn outside the shape" : ""}.`
+          : `The label of ${element.name} (${box === undefined ? "" : `${formatSize(context, box)}, `}measured with the theme's fonts) does not fit inside its ${shapeName(element)} shape (${formatSize(context, bbox)})${outside ? "; it is drawn outside the shape" : ""}.`,
         path: explicit ? [...element.docPath, "props"] : labelPath(element),
         subject: element.subject,
         hint: explicit
@@ -300,7 +404,7 @@ export const outOfCanvas = defineGeometryRule({
       if (outside.length === 0) continue;
       const by = Math.max(...outside.map((r) => overhang(canvas, r)));
       findings.push({
-        message: `${capitalize(element.name)} extends ${formatPt(unitsToPt(by))} outside the canvas, so part of it is clipped.`,
+        message: `${capitalize(element.name)} extends ${formatPt(unitsToPt(printedUnits(context, by)))} outside the canvas, so part of it is clipped.`,
         path: element.docPath,
         subject: element.subject,
         hint: "D2 normally sizes the canvas to its contents: shorten the label if it is a label that sticks out, and report the figure if the problem remains.",
@@ -503,6 +607,21 @@ function groupLabelAt(context: GeometryContext, group: GeometryElement): GroupLa
  * Hint of `edge-crosses-label`, by engine: group titles and the means to move
  * edges differ (#114). A group's title is where its `labelAt` puts it (#127).
  */
+/** `true` for a zoom edge (#176): straight lines between corners, not routed, no anchors. */
+const isZoom = (e: GeometryElement): boolean => e.ir.kind === "edge" && e.ir.routing === "zoom";
+
+/** What moves a zoom edge's lines (#176): its anchors do not. */
+const ZOOM_MOVES =
+  "A zoom edge's lines run straight between corners of its ends; fromAnchor / toAnchor do not move them. Move the source or the zoomed-in view (the order of the arrange items, a gap, another row or stack)";
+
+/** Hint of the label rules for a zoom edge. */
+const zoomLabelHint = (): string =>
+  `${ZOOM_MOVES} so the lines pass beside the label, or move the label away: a group title with labelAt, a caption or text node elsewhere in the tree, or a shorter label.`;
+
+/** Hint of the proximity rules for a zoom edge. */
+const zoomLineHint = (): string =>
+  `${ZOOM_MOVES} so the line does not run along the border or the other line.`;
+
 export function edgeCrossesLabelHint(context: GeometryContext, other: GeometryElement): string {
   if (isCaption(other)) {
     // The structured router goes around a caption (a node); D2/ELK does not
@@ -551,7 +670,7 @@ export const edgeCrossesLabel = defineGeometryRule({
           message: `${capitalize(edge.name)} crosses the ${contentNoun(other)} of ${other.name}.`,
           path: edge.docPath,
           subject: edge.subject,
-          hint: edgeCrossesLabelHint(context, other),
+          hint: isZoom(edge) ? zoomLabelHint() : edgeCrossesLabelHint(context, other),
           related: [{ path: labelPath(other), message: "The label is defined here." }],
         });
       }
@@ -575,6 +694,8 @@ export const edgeThroughNode = defineGeometryRule({
     const findings: LintFinding[] = [];
     for (const edge of context.elements) {
       if (edge.route === undefined || edge.ir.kind !== "edge") continue;
+      // A zoom edge's straight lines are not routed around nodes (#176): zoom-crosses-node.
+      if (edge.ir.routing === "zoom") continue;
       const ends = new Set([edge.ir.from, edge.ir.to]);
       for (const key of obstaclesCrossedByRoute(
         edge.route,
@@ -596,6 +717,44 @@ export const edgeThroughNode = defineGeometryRule({
   },
 });
 
+export const zoomCrossesNode = defineGeometryRule({
+  id: "geometry/zoom-crosses-node",
+  description:
+    "A line of a zoom edge (a straight line from a corner of the source to a corner of the target) passes through the shape of a node that is not one of its ends.",
+  defaultSeverity: "warning",
+  fixable: false,
+  run(context) {
+    // Zoom lines (#176, design doc §6.45) are straight on purpose: bent
+    // around a node, they would no longer read as a callout, so they are
+    // not routed and a node in the way is reported instead.
+    const obstacles: RouteObstacle[] = context.elements.flatMap((e) =>
+      e.kind === "node" && e.outline !== undefined ? [{ key: e.key, region: e.outline }] : [],
+    );
+    const findings: LintFinding[] = [];
+    for (const edge of context.elements) {
+      if (edge.route === undefined || edge.ir.kind !== "edge" || edge.ir.routing !== "zoom")
+        continue;
+      const ends = new Set([edge.ir.from, edge.ir.to]);
+      for (const key of obstaclesCrossedByRoute(
+        edge.route,
+        obstacles,
+        ends,
+        GEOMETRY_TOLERANCE_UNITS,
+      )) {
+        const node = context.get(key) as GeometryElement;
+        findings.push({
+          message: `A line of ${edge.name} passes through the shape of ${node.name}.`,
+          path: edge.docPath,
+          subject: edge.subject,
+          hint: "A zoom edge draws straight lines between corners of its ends and does not go around nodes. Move the node out of the way, or move the source or the zoomed-in view (the order of the arrange items, a gap, another row or stack) so the lines pass beside it.",
+          related: [{ path: node.docPath, message: `${capitalize(node.name)} is defined here.` }],
+        });
+      }
+    }
+    return findings;
+  },
+});
+
 /**
  * Two lines whose strokes come closer than this (edge to edge, in units:
  * 1.5pt ≈ 0.53mm) read as one line or as a double line in print (#156).
@@ -609,7 +768,9 @@ export const PROXIMITY_GAP_UNITS = 3;
  */
 export const PROXIMITY_MIN_RUN_UNITS = ptToD2Units(mmToPt(3));
 
-const mmText = (units: number, digits = 1): string => `${unitsToMm(units).toFixed(digits)}mm`;
+/** A drawn length in mm at its printed size (#183). */
+const mmText = (context: GeometryContext, units: number, digits = 1): string =>
+  `${unitsToMm(printedUnits(context, units)).toFixed(digits)}mm`;
 
 /** `true` if the element is painted at all (not fully transparent). */
 const isOpaque = (e: GeometryElement): boolean => e.ir.style.opacity > 0;
@@ -708,16 +869,18 @@ interface BorderRun {
 function borderRuns(context: GeometryContext): BorderRun[] {
   const { index, maxWidth } = proximityData(context);
   const runs = new Map<string, BorderRun>();
+  const gapUnits = drawnUnits(context, PROXIMITY_GAP_UNITS);
+  const minRun = drawnUnits(context, PROXIMITY_MIN_RUN_UNITS);
   for (const group of context.elements) {
     if (!isFramedGroup(group) || group.bbox === undefined || group.ir.kind !== "group") continue;
     const width = group.ir.style.strokeWidth.units;
-    const reach = PROXIMITY_GAP_UNITS + (maxWidth + width) / 2;
+    const reach = gapUnits + (maxWidth + width) / 2;
     for (const [side, line] of rectSides(group.bbox, group.ir.style.radius.units).entries()) {
       for (const bundle of index.near(line.axis, line.at, reach)) {
         const run = parallelRun(bundle, line);
-        if (run === undefined || run.to - run.from < PROXIMITY_MIN_RUN_UNITS) continue;
+        if (run === undefined || run.to - run.from < minRun) continue;
         const gap = run.distance - (bundle.width + width) / 2;
-        if (gap >= PROXIMITY_GAP_UNITS) continue;
+        if (gap >= gapUnits) continue;
         for (const edge of bundle.owners) {
           const key = `${edge.key}|${group.key}`;
           const seen = runs.get(key);
@@ -775,10 +938,10 @@ function borderFindings(
     const edge = sorted[0] as GeometryElement;
     const { group } = first;
     return {
-      message: `${capitalize(linesName(sorted))} ${verb} the border of ${group.name} for ${mmText(length)}${gap > 0 ? ` (${mmText(gap, 2)} between the lines)` : ""}, so it reads as part of the frame.`,
+      message: `${capitalize(linesName(sorted))} ${verb} the border of ${group.name} for ${mmText(context, length)}${gap > 0 ? ` (${mmText(context, gap, 2)} between the lines)` : ""}, so it reads as part of the frame.`,
       path: edge.docPath,
       subject: edge.subject,
-      hint: edgeBorderHint(context),
+      hint: isZoom(edge) ? zoomLineHint() : edgeBorderHint(context),
       related: [
         ...sharedRelated(sorted),
         { path: group.docPath, message: `${capitalize(group.name)} is defined here.` },
@@ -831,13 +994,15 @@ export const edgeNearEdge = defineGeometryRule({
     // Lines on the same coordinates (within COINCIDENT_UNITS) are a shared
     // trunk and never paired; each piece keeps its own edges and width.
     const pairs: LinePair[] = [];
+    const gapUnits = drawnUnits(context, PROXIMITY_GAP_UNITS);
+    const minRun = drawnUnits(context, PROXIMITY_MIN_RUN_UNITS);
     for (const { a, b, aOwners, bOwners, run } of index.pairs(
       COINCIDENT_UNITS,
-      PROXIMITY_GAP_UNITS + maxWidth,
+      gapUnits + maxWidth,
     )) {
-      if (run.to - run.from < PROXIMITY_MIN_RUN_UNITS) continue;
+      if (run.to - run.from < minRun) continue;
       const gap = run.distance - (a.width + b.width) / 2;
-      if (gap >= PROXIMITY_GAP_UNITS) continue;
+      if (gap >= gapUnits) continue;
       pairs.push({
         low: a,
         high: b,
@@ -906,12 +1071,14 @@ export const edgeNearEdge = defineGeometryRule({
     return [...best.values()].map(({ earlier, later, gap, length }) => {
       const edge = later[0] as GeometryElement;
       return {
-        message: `${capitalize(linesName(later))} runs beside ${linesName(earlier)} for ${mmText(length)}, ${gap > 0 ? `${mmText(gap, 2)} apart` : "their strokes overlapping"}, so the two read as one line.`,
+        message: `${capitalize(linesName(later))} runs beside ${linesName(earlier)} for ${mmText(context, length)}, ${gap > 0 ? `${mmText(context, gap, 2)} apart` : "their strokes overlapping"}, so the two read as one line.`,
         path: edge.docPath,
         subject: edge.subject,
-        hint: isStructured(context)
-          ? "Edges that should merge share one line only when they start or end at the same point; otherwise keep them apart. Move an end with fromAnchor / toAnchor, merge the edges into one trunk (the same anchor, or figure.layout.fanIn: merge), or change the arrangement (a `gap`, the order of a box's items) so they take different channels."
-          : "Change the layout (layout.direction, grouping) so the edges take different channels, or connect them through a shared node.",
+        hint: isZoom(edge)
+          ? zoomLineHint()
+          : isStructured(context)
+            ? "Edges that should merge share one line only when they start or end at the same point; otherwise keep them apart. Move an end with fromAnchor / toAnchor, merge the edges into one trunk (the same anchor, or figure.layout.fanIn: merge), or change the arrangement (a `gap`, the order of a box's items) so they take different channels."
+            : "Change the layout (layout.direction, grouping) so the edges take different channels, or connect them through a shared node.",
         related: [
           ...sharedRelated(later),
           ...earlier.map((e) => ({
@@ -957,12 +1124,12 @@ export const edgeTouchesLabel = defineGeometryRule({
           Math.min(
             ...other.labels.flatMap(inkLines).map((ink) => polylinesRectDistance(drawn, ink)),
           ) - edge.strokeInset;
-        if (gap >= PROXIMITY_GAP_UNITS) continue;
+        if (gap >= drawnUnits(context, PROXIMITY_GAP_UNITS)) continue;
         findings.push({
-          message: `${capitalize(edge.name)} touches the ${contentNoun(other)} of ${other.name} (${gap > 0 ? `${mmText(gap, 2)} from` : "touching"} the letters).`,
+          message: `${capitalize(edge.name)} touches the ${contentNoun(other)} of ${other.name} (${gap > 0 ? `${mmText(context, gap, 2)} from` : "touching"} the letters).`,
           path: edge.docPath,
           subject: edge.subject,
-          hint: edgeCrossesLabelHint(context, other),
+          hint: isZoom(edge) ? zoomLabelHint() : edgeCrossesLabelHint(context, other),
           related: [{ path: labelPath(other), message: "The label is defined here." }],
         });
       }
@@ -984,7 +1151,7 @@ export const aspectDistorted = defineGeometryRule({
       if (ir.kind !== "node" || ir.sizing !== "fixed-aspect-1" || bbox === undefined) continue;
       if (Math.abs(bbox.width - bbox.height) <= GEOMETRY_TOLERANCE_UNITS) continue;
       findings.push({
-        message: `The ${ir.shape} ${element.name} is drawn ${formatSize(bbox)}, not with equal width and height.`,
+        message: `The ${ir.shape} ${element.name} is drawn ${formatSize(context, bbox)}, not with equal width and height.`,
         path: element.docPath,
         subject: element.subject,
         hint: "The layout engine (ELK) enlarges nodes with many edges or a self-loop along one axis. Reduce the edges at the node, or use an ellipse or box if the aspect does not matter.",
@@ -1164,12 +1331,14 @@ export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
   exceedsPageWidth,
   exceedsPageHeight,
   textTooSmall,
+  scriptTooSmall,
   labelOverflow,
   outOfCanvas,
   nodeOverlap,
   labelCollision,
   edgeCrossesLabel,
   edgeThroughNode,
+  zoomCrossesNode,
   edgeOnBorder,
   edgeNearBorder,
   edgeNearEdge,

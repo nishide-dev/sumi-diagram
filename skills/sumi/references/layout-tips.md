@@ -118,6 +118,25 @@ training). If the rows hold groups, each group's own `arrange` lays out its
 members; if two rows still do not fit, use three, or split the figure (ask
 the user).
 
+## Shrinking to the page width (`figure.fit: scale`)
+
+A dense paper figure laid out as intended (several panels side by side) can
+stay too wide. `figure.fit: scale` (0.6.0, both engines) prints the whole
+figure smaller, at the profile's maximum width, without moving anything: the
+SVG keeps its coordinates and gets a smaller `width` / `height`, and the PDF
+page and the PPTX slide are that size. It never enlarges, and it does not fix
+the height (`geometry/exceeds-page-height` is still checked after shrinking).
+`sumi render` prints `scaled to 70%`; `--json` has `size.scale`.
+
+Text is then checked at its printed size: the 8pt / 7pt of the built-in
+themes must print at 5pt or more on the paper profiles
+(`geometry/text-too-small`), so a figure can shrink to about 70% (edge labels
+at 7pt reach 4.9pt just below that). Subscripts of label math print smaller
+and are reported once as information (`geometry/script-too-small`). Prefer
+re-arranging when it fits without shrinking; use `fit: scale` for figures
+modelled on published ones, whose text is often 5–6pt, and tell the user it
+is scaled.
+
 ## Labels
 
 - Short, noun-phrase labels lay out best. Break long ones with `\n`

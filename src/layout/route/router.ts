@@ -56,6 +56,9 @@
  *   broken by state index. Fully deterministic: no hashing order, randomness
  *   or time dependence.
  *
+ * Zoom edges (#176, `zoom.ts`) are not routed: `routeEdges` routes the
+ * others as if they were absent, then adds their straight lines.
+ *
  * An edge without a route gets `layout/no-route` (error), located at the
  * edge; the others are still routed. If every edge is routed, each crossing
  * between nets gets `layout/edge-crossing` (info, `crossings.ts`, #133). After routing, edge labels are placed
@@ -97,6 +100,7 @@ import {
   straightenable,
   straightPlacement,
 } from "./ports";
+import { addZoomRoutes, withoutZoomEdges, withoutZoomLayouts } from "./zoom";
 
 /** Router parameters in units (0.5pt) and costs (in units of length). */
 export const ROUTE = Object.freeze({
@@ -182,6 +186,18 @@ export function routeEdges(
   layout: LayoutIR,
   options: RouteOptions = {},
 ): RouteResult {
+  // Zoom edges (#176) are not routed: the other edges are routed without
+  // them, and their straight lines are added to the result (`zoom.ts`).
+  const routed = routeWithoutZoom(withoutZoomEdges(ir), withoutZoomLayouts(ir, layout), options);
+  if (routed.layout.edges.length === layout.edges.length) return routed;
+  const zoom = addZoomRoutes(ir, layout, routed.layout);
+  return {
+    layout: deepFreeze(zoom.layout),
+    diagnostics: [...routed.diagnostics, ...zoom.diagnostics],
+  };
+}
+
+function routeWithoutZoom(ir: FigureIR, layout: LayoutIR, options: RouteOptions): RouteResult {
   const routeFigure = (figure: FigureIR) =>
     chooseRouting(figure, (stubLines: boolean) =>
       new Router(

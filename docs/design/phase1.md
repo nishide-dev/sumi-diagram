@@ -461,6 +461,7 @@ layout:
 | `layout.containerPadding` | 4mm = 11.34pt | 22.68 → **23** | `--elk-padding "[top=23,left=23,bottom=23,right=23]"`（top はラベル分を D2 が拡張する） |
 | `page.maxWidth` | 88mm = 249.45pt | 量子化しない | 使わない（geometry lint で比較） |
 | `typography.minFontSize` | 7pt | 量子化しない | 使わない（profile 段で比較） |
+| `typography.minScaledFontSize`（任意、#183） | 5pt（paper 系） | 量子化しない | 使わない（`figure.fit: scale` で縮めた図の印刷される文字を幾何 lint で比較。省略は `minFontSize`。§6.48） |
 
   - 引数の型（いずれも整数、`--elk-padding` は `[top=N,left=N,bottom=N,right=N]` の文字列）は D2 v0.9.0 で確認済み（#9 のスパイク）。
 - **D2/ELK で実現できない項目は持たない**: 同じ層の中の間隔は D2 v0.9 では 20 unit（10pt）固定であり、設定できないことを Profile 仕様に明記する。
@@ -1620,6 +1621,34 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
   - `theme.test.ts`（フォントセットの一覧、組み込みの Theme はすべて既定のフォントセット、sha256 と README）、`cli.test.ts`（`sumi doctor` のファイル数）。
 - **非対象**: paper Theme（#173）、日本語のフォントの変更、利用者が任意のフォントを指定すること、欧文の italic（Inter Italic は同梱しない。BIZ UD に italic がないので `italic: true` は従来どおり `theme/missing-font`）。
 
+### 6.45 #176 の拡大の引き出し線（`component: zoom`）
+
+#167 の調査（`docs/research/167-stage-c.md` §4.3、図 B の B-4・図 C の C-10）。DiT（Fig. 3 の DiT Block → adaLN のパネル）と H3-World（(b) の Attention → (c)）は、ブロックからそれを拡大したパネルへ、対応する角どうしを結ぶ斜めの破線 2 本を引く。これまでは `fromAnchor: "east:0"` → `toAnchor: "west:0"` の `line` 2 本で代用し、直交の折れ線になっていた（下の 1 本はパネルの枠に重なる）。経路探索をしない部品として足す。
+
+- **構文（判断: edge の部品）**: `{ from: dit-block, to: adaln, component: zoom }`。`sumi/zoom`（edge、`since: 0.6.0`、props なし）。variant は `default`（破線）・`solid`（実線）・`muted`（破線・薄い色）。既存の `arrow` / `line` / `double-arrow` と同じく、線の描き方を部品で選ぶ。edge のフィールド（`zoom: true` など）にしなかったのは、Theme が部品ごとに線種を持て（既定を破線にできる）、`sumi catalog` とギャラリーにそのまま出て、Figure Schema（v1）を変えずに済むため。manifest には `routing: "zoom"` を足す（省略は経路探索する辺。カタログの JSON にも出る）。`routing: "zoom"` の manifest は `direction: "none"`（矢じりなし）かつ `engines: ["structured"]` でなければ登録できない（`component/invalid-manifest`）。
+- **角の組（規則）**: 送り元と拡大先の箱（node・group の `rect`）の位置関係で辺を決める。
+  - 右（拡大先の左端 ≥ 送り元の右端）: 送り元の右上 → 拡大先の左上、右下 → 左下。
+  - 左: 左上 → 右上、左下 → 右下。下（拡大先の上端 ≥ 送り元の下端）: 左下 → 左上、右下 → 右上。上: 左上 → 左下、右上 → 右下。
+  - 両方の軸で離れている（斜め）ときは、隙間の大きい軸で決める（同じなら横）。中心の向きではなく隙間で決めるのは、小さいブロックから大きなパネルへの拡大で、パネルが上下に大きくはみ出しても「右」になるため（中心の差では縦が勝ちうる）。
+  - 1 本目は上（左右のとき）か左（上下のとき）の線。junction（点）の端は 4 つの角がその中心。
+  - 両方の軸で重なる箱（要素とそれを含む group、自分自身）には辺がないので `layout/no-route`（error、他の辺の no-route と同じ形の文）。
+  - 選んだ角の線は、2 つの箱の間を単調に進むので、端の角を除いて両方の箱の外にある（自分の端の中は通らない）。
+  - 円・ひし形などの端も外接矩形の角を使う（角の丸めがある箱でも同じ）。図形の輪郭の上の点にはしない（拡大の対応は箱の範囲を示すため）。
+- **Layout IR**: `EdgeRoute.lines`（2 本の `[Point, Point]`）を足し、`points` は 1 本目とする。`net` を省略可にし、zoom の辺には付けない（どのネットにも属さない）。他の消費者が `points` だけを見ても壊れない形にした。
+- **ルータ（判断: 経路探索の前に外し、後で足す）**: `routeEdges()` は zoom の辺を Figure IR と Layout IR から外して今までどおり経路を探し、結果（ルータが内容を動かしたあとの箱）から zoom の線を足す。group の余白の矢じりの余地（§6.42、`arrowheadPaddingDeficits()`）も zoom の辺を外して端を決める。したがって **他の辺の経路・ネット・交差の報告（`layout/edge-crossing`）・ラベルの位置と `layout/edge-label-overlap` は、zoom の辺がない場合とまったく同じ**（テストで確かめる）。zoom の線は他の線と交差してよく、交差として報告しない（直交の線どうしの交差の規則は斜めの線に意味がない）。キャンバスは広げない（線は 2 つの箱の範囲に収まる）。`checkRoutes()`（テスト用の検査）は zoom の辺を直交・端・ネット・交差の検査から外し、2 本の線が上の規則の角を結ぶことだけを見る（`zoomMisses`）。
+- **描画**: SVG は §6.23 の約束どおり、辺ごとに 1 つの `path.connection`（2 本を 2 つの subpath `M … L … M … L …` で）に経路を持ち、線は zoom の辺ごとの `path.sumi-wire`（線の色・幅・破線は Theme の edge のスタイル）で描く。ネットの線より前（下）に描く。矢じり・ラベルはない。幾何 lint が測る「描いた線」（`SvgInspection.painted`、§6.39）は 2 本の線。PDF と画像方式の PPTX は SVG から作るのでそのまま描かれる。**編集可能 PPTX（判断: 対応）**: freeform では他の辺と同じく `path.connection` から custGeom（`moveTo` 2 つ）を書く。glued でも zoom の辺は freeform の図形にする（2 本の線は図形の接続点どうしを結ぶ 1 本のコネクタにならない。`p:cxnSp` にすると誤った線になる）。SVG と同じく経路探索した辺の下に描くため、zoom の図形は最初の経路探索した辺の図形の直前に書く（文書順で後にあっても）。
+- **診断**:
+  - auto の図では、manifest の `engines` から既存の `layout/structured-only`（error）。
+  - ラベルは `component/unexpected-label`（error。operator・junction・image と同じ）。
+  - `fromAnchor` / `toAnchor` は効かないので `component/anchor-on-zoom`（warning、§6.38 の `component/anchor-on-junction` と同じ形）。
+  - 幾何 lint に `geometry/zoom-crosses-node`（warning）を足す: zoom の線が、端でないノードの図形（`edge-through-node` と同じ凸の衝突領域・許容 1 unit）を通る。zoom の辺は `geometry/edge-through-node` の対象から外す（同じことを 2 度報告しない。hint も違う: 曲げずに、ノードか拡大元・拡大先を動かす）。研究メモの案の名前を採った。
+  - `edge-crosses-label`・`edge-touches-label`（文字との干渉）はそのまま掛かる。zoom の辺への指摘では、これらと近接の規則の hint は `fromAnchor` / `toAnchor` を勧めず（効かないため）、拡大元・拡大先の位置やラベル（group の見出しの `labelAt` など）を動かすよう勧める。平行な線の近接（`edge-on-border` / `edge-near-border` / `edge-near-edge`）は軸に平行な部分だけを測るので、斜めの線は対象にならない（角が横・縦に揃って軸に平行になった場合だけ測る）。
+- **非対象**: 曲線、auto（D2）、ラベル、角の組の手動指定（Issue の非対象。角の組は配置の木で拡大先を置く側を変えて選ぶ）。凡例の見本線（`legend` の `edge: { component: zoom }`）は、見本の 2 つの junction の中心どうしを結ぶので 2 本が重なった 1 本の破線になり、zoom の線種の説明に使える（禁止しない）。
+- **互換性**: 新しい部品だけで、既存の図の出力は変わらない。リポジトリの追跡済みの `*.sumi.yaml` 113 個を、図の Theme と組み込みの 4 Theme で、変更前（`d429e97`）と変更後のコードで描き（565 回。描画まで通った SVG 358・編集可能 PPTX 293、通らない 207 は同じ error code）、D2 ソース・SVG・PDF・画像方式の PPTX・編集可能 PPTX（freeform・glued）・診断の sha256 がすべて一致した。`bun run gallery:check`、PDF・PPTX の golden は既存の項目が変わらず、ギャラリーの `sumi-zoom` 4 図と、その PDF・画像方式 PPTX・編集可能 PPTX の golden を足した。診断の hint のうち、edge の部品を列挙する文（`component/wrong-kind` / `component/unknown`）には `zoom` が加わる。
+- **検証**: `research/176-zoom-edge/figures/` に、#167 の図 B（DiT）と図 C（H3-World）の写しを置き、代用の破線 2 本を `component: zoom` の 1 本に書き換えた（他は同じ。#167 の記録のファイルは変えない）。zoom の辺についての診断は 0 件で、図全体の診断（B: `geometry/exceeds-page-width` 1、C: それに `lint/empty-label` 90）は元の図と同じ（`src/render/zoom.integration.test.ts`）。
+- **テスト**: `src/layout/route/zoom.test.ts`（4 方向の角の組、接する箱、斜めの配置と同点、重なる箱、junction の端、Layout IR の線とネットなし、`checkRoutes` が空、zoom の辺がある図とない図で他の辺の経路・キャンバス・ノードが同じ、交差する zoom の線が `layout/edge-crossing` にならない、重なる端の `layout/no-route`、ラベルと anchor の診断、auto の `layout/structured-only`）、`src/render/zoom.integration.test.ts`（SVG の `path.connection` と破線の wire、`solid`、`geometry/zoom-crosses-node` と `edge-through-node` が出ないこと、PDF・画像方式 PPTX・編集可能 PPTX の両方式、research の 2 図）、`registry.test.ts`（manifest の制約）。全部品 × 全 variant × 全 Theme の描画テスト（`structuredPrimitivesFigure()`）にも zoom を足した。
+
+
 ### 6.46 #178 の ±90° 回転したラベル（`nodes[].labelRotation`）
 
 段階 C（[#167 の調査](../research/167-stage-c.md) §4.7、試作 P2）。H3-World の「Visual VAE Encoder」（縦長の箱）と「Query」（軸のラベル）は 90° 回転した文字。Figure v1 への任意フィールドの追加で、**`labelRotation` を書かない図**の診断・IR・Layout IR・D2・SVG・PDF・PPTX はバイト単位で変わらない。
@@ -1672,6 +1701,36 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
   試作（§5.1 の「straight（正確）」）と同じ。Refiner → A5 は A5 が狭く Refiner の中心が A5 の辺の外にあるので、試作と同じく広い側（送り元）に `fromAnchor: straight` を書く。
 - **テスト**: `straight.integration.test.ts`（P1 の 3 図の 21 本を YAML に `straight` を書いて描き、それぞれ点 2 つ・折れ 0・2 点の座標が完全一致、`straight-off-side` と `unaligned-ends` なし、`checkRoutes` 0 件、同じ配置で下限の検証（`verifyLowerBound`）。anchor を外すと同じ辺が折れること）、`straight.test.ts`（`straightPlacement()` の 4 方向・丸めない射影・余白の境界（6 unit ちょうど・その外・短い辺）・斜め・重なり・入れ子、送り先の 3 本が別の点・別のネットの直線（なしでは合流して折れる）、横の場合、Layout IR に `"straight"` が残ること、`fromAnchor` の広い送り元、分散した送り先の端に `fromAnchor` がついていくこと、`straight-off-side` の 3 つの理由・位置・文面と、経路が anchor なしと同じこと、自己ループの既定の角、junction の端は `anchor-on-junction` だけ、多重辺の平行な直線、往復、縦に並んだ 2 つの送り元の合流（merge・spread）、spread で他の端が `straight` の端を避けること、両端 `straight`、#113 の分割についていくこと、`checkRoutes` が別の辺の `straight` の端を報告すること）、`layout.test.ts`（`parseAnchor`、誤った形、`strait` の hint、メッセージ、auto の `layout/structured-only` の位置）。分割で相手についていく変更と振り分けへの参加を外すと、それぞれのテストが失敗することを確かめた。
 - **非対象・引き継ぎ**: 既定の端の規則の変更（`straight` を anchor のない端の既定にするか。§10 Q3 で opt-in に決まった）。斜めの配置で 1 回曲げて入る端。相手の中心ではなく相手の辺との重なりの中央に揃える規則（両端 `straight` の別案）。
+
+### 6.48 #183 の幅に合わせた縮小（`figure.fit: scale`）
+
+#167 の調査（[§4.6・§10 Q1](../research/167-stage-c.md)）で、論文の原図の文字は印刷時 5〜6pt 程度で、Sumi の B（DiT、幅 257mm）・C（H3-World、232mm）は 180mm に縮めると文字が原図と同程度になると分かった。利用者の判断（2026-10-28）: 縮小を正式に認め、縮小後の実効の文字の下限は 5pt とする。これまでは幅超過の error を無視して LaTeX の `\includegraphics` で縮めるしかなく、Sumi は縮小後の文字を検査しなかった。配置は変えない（密度を上げる compact は #167 の別項目）。
+
+- **構文（判断: `figure.fit`、`figure.layout.fit` ではない）**: `figure.fit: scale`。`figure.layout` は配置を決める欄（`engine`・`direction`・`arrange`・`align`・`fanIn`）で、そのうち 3 つは structured 専用。`fit` は配置を変えず、出力の物理的な大きさだけを変えるので、物理的な出力先を選ぶ `figure.profile` の隣に置く（両 engine 共通であることも、layout の下より伝わる）。値は列挙で今は `scale` だけ。省略は今までどおり自然な大きさ（0.5pt/unit）。任意フィールドの追加なので Figure v1 のまま（`requires: ">=0.6.0"` を書けば古い Sumi は `schema/unsatisfied-requires` で止まる）。
+- **縮小率（判断: 幅だけで決め、拡大しない）**: s = min(1, `maxWidth` ÷ 自然な幅)。`maxWidth` のない Profile では何もしない。高さは縮小後の大きさで `geometry/exceeds-page-height` を検査し、はみ出せば今までどおり error（受け入れ条件）。高さにも合わせる（幅と高さの比の小さい方）案は採らない: 論文の図は幅をそろえて載せるもので、高さの超過は分割・配置で直す問題であり、黙って縮めると文字が予想外に小さくなる。
+- **SVG（判断: 根の `width` / `height` だけを変える）**: viewBox と中の座標・文字の大きさはそのままで、根の `width` を `maxWidth`（paper-double なら `510.23622pt`）、`height` を同じ率で縮めた値にする（`finalizeSvg()` / `finalizeStructuredSvg()`、両 engine で共通の `finalizeDocument()`）。viewBox と `width` / `height` の比で縮めるのは SVG の標準の仕組みで、ブラウザ・LaTeX の取り込み・PDF エンジン（usvg）がそのまま扱う。包む `<g transform>` の案は採らない: inspect は根と描画の `<svg>` の transform を測れないものとして拒否する契約（§6）で、幾何 lint・編集可能 PPTX はすべて描画の座標で読む。縮小率を metadata に書く案も採らない: 根の `width` と viewBox の比で一意に分かり、属性を足すと metadata の形式が変わる。`fit` のない図と、`fit` があっても幅に収まる図は、根の属性も含めて今までとバイト単位で同じ（入力の sha256 だけが YAML の違いで変わる）。
+- **inspect と大きさ**: `inspectSvg()` が根の `width`（pt）と viewBox の自然な幅の比を `SvgInspection.scale` に入れる（`width` が自然な幅と 1e-6pt 以内なら省略 = 1。`width` は小数 6 桁で書くので、その丸めだけを除く。比で比べないのは、上限をわずかに超える図（249.4489pt を 249.448819pt に）の縮小が比では 3e-7 にしかならず、捨てられてしまうため。`width` がない D2 の生の SVG も 1）。要素の幾何は描画の単位のまま。印刷される大きさは `printedSize()`（`src/render/size.ts`）: canvas × scale。`outputSize()`（`--json` の `size`）・`sumi render` の表示（`scaled to 70%`）・`exceeds-page-width` / `-height`・その hint の Profile の提案はこれを使う。`size` には縮めたときだけ `scale`（0.0001 に丸め）を足す。
+- **PDF**: エンジン（usvg）は根の `width` / `height` でページを決め、viewBox を写すので、変更なしでページ幅が `maxWidth` になり、文字の大きさも縮む（B の 8pt のラベルは PDF で 5.6pt の glyph）。WASM は作り直さない。
+- **画像方式の PPTX**: 根の `width` / `height`（pt）からスライドと画像の大きさを決めるので変更なし（B で 6,480,000 EMU = 180mm）。PNG の代替画像はエンジンが印刷の大きさの 2 倍で描くので、画素数も小さくなる。
+- **編集可能 PPTX**: inspect の幾何（unit）から EMU を出すので、`scale` を掛ける: 位置と大きさ（`emuAt(scale)`、自由形状の経路を含む）・線幅・文字の大きさ（`sz`）・行送り・矢じりの大きさの選び方・スライドの大きさ。scale = 1 では式の結果が変わらず、既存の slide XML は同じ。DrawingML の文字の大きさ（`sz`、1/100pt）は 100（1pt）以上なので、強く縮めて 1pt 未満になる文字があれば、不正なパッケージを書いたり文字を勝手に大きくしたりせず `pptx/unsupported-size`（error）で書かない（画像方式の PPTX は文字を輪郭にするので書ける）。
+- **文字の下限（判断: Profile の `typography.minScaledFontSize`）**: Profile に任意の `minScaledFontSize` を足し、paper-single・paper-double を 5pt にする（利用者の判断。#167 §4.6 の (b) どおり Profile に持つ: 5pt は論文の版面での判断で、媒体ごとの値）。省略時は `minFontSize`（緩めない）。presentation-16x9 は省略し、縮めたスライドも 14pt。`sumi catalog --json` の `typography.minScaledFontSize`（ある Profile だけ）と、表の `MIN FONT`（`7pt (scaled 5pt)`）に出す。
+- **`geometry/text-too-small`（判断: 縮めた図は印刷される大きさで判定）**: scale < 1 の図では、ラベルの文字サイズ × scale を `minScaledFontSize` と比べる。メッセージは印刷される大きさと、縮小前の大きさ・率（`printed at 4.9pt (7pt shrunk to 70% by figure.fit: scale)`）。hint は縮小率を下げる方向（`fit` を外したときの `exceeds-page-width` の案で幅を詰める、幅の広い Profile）。縮めない図は今までどおり `minFontSize`。描画前の `profile/font-too-small`（Theme の文字と `minFontSize`）はそのまま: 縮小前の設計の大きさは 7pt を守り、縮小は図全体の比率を保ったまま小さくするだけにする。
+- **添字（判断: 縮めた図でだけ、情報として図全体で 1 件）**: ラベルの数式の添字（0.7 倍）は §6.24 で `text-too-small` の対象外。縮めた図ではそのままだと 3.4pt の添字が黙って通るので、新しい `geometry/script-too-small`（既定 info）で報告する。error にしない: B・C の添字は縮めるとすべて 5pt 未満で（§4.6 の 3.4〜3.8pt）、縮小を認めた判断と矛盾し、原図の添字も同程度に小さい。図全体で 1 件（`figure.fit` を指し、最小の印刷サイズと該当ラベルを 3 つまで挙げ、残りは件数）にする: 添字はすべて同じ率で縮むので、ラベルごとに出しても情報は増えない（C では 40 ラベル）。縮めない図では出さない（既存の図の lint 結果を変えない。§6.24 の判断のまま）。
+- **物理的なしきい値（判断: 印刷される大きさで判定し、包含と交差は描画の座標のまま）**: 幾何 lint のしきい値のうち物理的な長さ（線と線・枠・文字のあいだの 1.5pt、並んで走る長さ 3mm）は印刷される大きさの値なので、縮めた図では描画の単位に直して比べる（しきい値 ÷ scale。`edge-near-edge`・`edge-on-border` / `edge-near-border`・`edge-touches-label`）。メッセージの長さ（mm・pt。`label-overflow` と `aspect-distorted` の大きさ、`out-of-canvas` のはみ出し、近さの rule の距離と長さ）も印刷される大きさで示す。重なり・包含・交差（`node-overlap`・`label-overflow`・`out-of-canvas`・`edge-through-node` など）は縮めても変わらないので描画の座標で判定し、D2 の丸めの許容（`GEOMETRY_TOLERANCE_UNITS`・`COINCIDENT_UNITS`）と図形の定数も描画の単位のまま。B では、自然な大きさで枠から 2pt の辺 2 本が印刷では 1.39pt になり、`edge-near-border`（info）が 2 件出る。
+- **hint の変更**: `exceeds-page-width` の hint を「Sumi never shrinks a figure on its own. （配置の案）. Or print it smaller as drawn with `figure.fit: scale` (its text must then print at 5pt or more).」にした。縮小は配置の案の後に、条件（印刷される最小の文字）付きで示す。`fit` のある図の `exceeds-page-height` の hint は「`figure.fit: scale` shrinks a figure to the page width only.」で始める。
+- **実測**（fixture `tests/fixtures/figures/fit/`: #167 の B・C の複製に `fit: scale` の 1 行だけを足したもの。Theme `color`、paper-double）:
+
+  | 図 | 自然な大きさ | 縮小率 | 印刷される大きさ | ラベル（描画 → 印刷） | 添字（描画 → 印刷） | `fits` | 診断 |
+  | --- | --- | --- | --- | --- | --- | --- | --- |
+  | B（DiT） | 257 × 119.94mm | 0.7004 | 180 × 84.01mm | 8 → 5.60pt、7（辺）→ 4.90pt | 4.9 → 3.43pt | true | `text-too-small` error 4（辺のラベル γ₁β₁ などの 4 本、4.90pt）、`script-too-small` info 1、`edge-near-border` info 2（印刷で枠から 0.49mm） |
+  | C（H3-World） | 232.48 × 163.51mm | 0.7743 | 180 × 126.6mm | 9 → 6.97pt、8 → 6.19pt、7 → 5.42pt | 5.6 → 4.34pt | true | `script-too-small` info 1（40 ラベル） |
+
+  PDF のページは B 510.236 × 238.134pt、C 510.236 × 358.869pt（手元の `pdfinfo` で確認。自動テストは PDF の MediaBox を同じ値で検査する）。B の 7pt の辺のラベルは 5pt の下限を 0.1pt 下回る（#167 §4.6 の予測 4.9pt どおり）。B を error なしにするには縮小率を 0.714 以上にする（幅を 252mm 以下に詰める）か、辺の文字の大きい Theme が要る。下限は利用者の判断のまま変えない。
+- **変わった出力**: `fit` のない図の SVG・PDF・PPTX は変わらない（`bun run gallery:check`、PDF・PPTX・画像の golden、`CI=1 bun test`）。変わったのは: `exceeds-page-width` の hint の文、`sumi catalog` の paper 系の `minScaledFontSize`、`SvgInspection.profile` の `minScaledFontSizePt`。
+- **非対象**: 配置・余白の変更（compact、#167 の 10）、高さに合わせた縮小、拡大、`maxWidth` のない Profile での縮小。
+- **自動テスト**: `src/render/fit.integration.test.ts`（B・C: 180mm・`fits: true`・縮小率、`fit` のない版との SVG の差が根の大きさと入力の sha256 だけ、inspect の幾何が同じ、描画の文字サイズ、B・C の幾何 lint の結果。PDF のページ（B・C）と glyph の大きさ（B）、画像方式の PPTX のスライド幅（B・C）。編集可能 PPTX（B、freeform と glued）: `fit` のない版の slide XML と同じ図形の並びで、位置・大きさ・経路の点・線幅・余白（inset）・文字の大きさ・行送りの値がすべて自然な値 × 縮小率（丸めの差 1.5 EMU 以内）、矢じりの大きさの選択が大きくならない。1pt 未満の文字になる図は `pptx/unsupported-size`。幅に収まる図は縮めない（SVG が同じ）、auto（D2）の横に長い図）。`src/render/fit.test.ts`（上限をわずかに超える図の縮小を inspect が読む・幅に収まる図・6 桁に丸めた自然な幅は縮小と読まない）。`rules.test.ts`（縮めた図の `text-too-small` の境界と、`minScaledFontSize` を持たない Profile が `minFontSize` に戻ること、`script-too-small` の 1 件・縮めない図では出ない、縮小後の高さの超過、`out-of-canvas` のはみ出しの印刷サイズ、hint の文）。`proximity.test.ts`（縮めた図の `edge-near-edge` の間隔と長さ、`edge-near-border`、`edge-touches-label` を印刷される大きさで判定・表示）。CI の Open XML 検証（`scripts/check-pptx-editable.ts`）に縮めた B の編集可能 PPTX（freeform・glued）を加えた。
+- **手作業の確認**: B の PDF を PNG にして見た目（配置は変わらず全体が縮む）を目で確かめ、縮めた B の編集可能 PPTX 2 つを Open XML SDK の検証器で手元でも通した。PowerPoint・Keynote での表示は確かめていない。
+
 
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures

@@ -78,6 +78,13 @@ function componentStyles(styles: VariantStyles): NonNullable<ThemeDefinition["co
     container: styles.container,
     legend: styles.legend,
     ...Object.fromEntries(EDGES.map((name) => [name, styles.edge])),
+    // A zoom callout (#176) is dashed like a dashed edge; `solid` drops the
+    // dashes and `muted` takes the muted edge's color.
+    zoom: {
+      default: styles.edge.dashed,
+      solid: { strokeDash: 0 },
+      muted: styles.edge.muted,
+    },
   };
 }
 

@@ -29,6 +29,7 @@ import type {
   EdgeLabelSide,
   FanInMode,
   FigureEdge,
+  FigureFit,
   FigureGroup,
   FigureMeta,
   FigureNode,
@@ -43,6 +44,7 @@ import {
   type Arrowhead,
   type ComponentId,
   type EdgeDirection,
+  type EdgeRouting,
   IMAGE_FITS,
   markText,
   type NodeMark,
@@ -78,6 +80,8 @@ export interface FigureMetaIR {
   readonly title?: string;
   readonly themeId: string;
   readonly profileId: string;
+  /** `figure.fit` (#183): `scale` shrinks the output to the profile's width. Absent when not written. */
+  readonly fit?: FigureFit;
   readonly direction: LayoutDirection;
   /** Layout engine (design doc §6.19); `direction` applies to `auto` only. */
   readonly engine: LayoutEngine;
@@ -260,6 +264,11 @@ export interface EdgeIR extends ElementIRBase {
   readonly labelAt?: EdgeLabelPosition;
   /** Structured layout: the side of the line, facing from source to target (#128). Absent when not written. */
   readonly labelSide?: EdgeLabelSide;
+  /**
+   * The manifest's `routing` (#176): `zoom` joins corners of the two ends
+   * with straight lines instead of a routed path. Absent for a routed edge.
+   */
+  readonly routing?: EdgeRouting;
 }
 
 export type ElementIR = NodeIR | GroupIR | EdgeIR;
@@ -455,6 +464,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
       ...(figure.title !== undefined && { title: figure.title }),
       themeId: theme.id,
       profileId: profile.id,
+      ...(figure.fit !== undefined && { fit: figure.fit }),
       direction: figure.layout.direction,
       engine: figure.layout.engine,
       ...(figure.layout.fanIn !== undefined && { fanIn: figure.layout.fanIn }),
@@ -563,6 +573,7 @@ function edgeIR(
     ...anchorIR("toAnchor", e.toAnchor),
     ...(e.labelAt !== undefined && { labelAt: e.labelAt }),
     ...(e.labelSide !== undefined && { labelSide: e.labelSide }),
+    ...(manifest.routing !== undefined && { routing: manifest.routing }),
   });
 }
 

@@ -14,6 +14,7 @@ figure:                    # required
   title: Request handling  # optional, not drawn
   theme: minimal           # optional, default minimal
   profile: paper-single    # optional, default paper-single
+  # fit: scale             # optional (0.6.0): shrink a too-wide figure to the profile width (layout-tips)
   layout:
     direction: down        # optional: right (default) | down | left | up
     # arrange: …           # optional: switches to the structured layout (structured.md)
@@ -212,6 +213,9 @@ Both draw two lines: `Scale, Shift`, then γ and β with their subscripts
 
 Direction comes from the edge component, not from a field: `arrow` points
 `from` → `to`, `double-arrow` has heads at both ends, `line` has none.
+`zoom` (structured only) is not a connection but a callout: two dashed
+lines from the corners of `from` to those of `to` (see
+[structured](structured.md#zoom-callouts)).
 
 ## Components, variants and props
 
@@ -245,6 +249,8 @@ Always take these from `sumi catalog --json`. Each entry has `id`
   with their meaning (`props.entries`); the catalog marks it with
   `"engines": ["structured"]`. See [structured](structured.md#legends).
   Components without `engines` work in both engines.
+- `zoom` (edge, structured only, 0.6.0) joins an element to a view that
+  shows it enlarged: see [structured](structured.md#zoom-callouts).
 
 ### Catalog render metadata
 
@@ -319,6 +325,12 @@ bundled `sumi/biz-ud-gothic` font set (Latin and Japanese).
 `sumi render --theme <name> --profile <name>` overrides them for one render
 without editing the file.
 
+With `figure.fit: scale` (0.6.0) a figure wider than the profile is printed
+smaller, at the profile's width; text is then checked at its printed size
+against the profile's minimum for scaled figures (5pt for the paper profiles,
+`minScaledFontSize` in `sumi catalog --json`; see
+[layout-tips](layout-tips.md#shrinking-to-the-page-width-figurefit-scale)).
+
 ## Discovering themes and profiles
 
 ```sh
@@ -355,7 +367,10 @@ prints `{ "version": 1, "themes": [...], "profiles": [...] }` (plain
         "maxHeight": { "written": "220mm", "pt": 623.62, "mm": 220 }
       },
       "margin": { "written": "2mm", "pt": 5.67, "mm": 2, "d2Units": 11 },
-      "typography": { "minFontSize": { "written": "7pt", "pt": 7, "mm": 2.47 } },
+      "typography": {
+        "minFontSize": { "written": "7pt", "pt": 7, "mm": 2.47 },
+        "minScaledFontSize": { "written": "5pt", "pt": 5, "mm": 1.76 }
+      },
       "layout": {
         "layerGap": { "written": "8mm", "pt": 22.68, "mm": 8, "d2Units": 45 },
         "containerPadding": { "written": "4mm", "pt": 11.34, "mm": 4, "d2Units": 23 }
@@ -376,6 +391,9 @@ prints `{ "version": 1, "themes": [...], "profiles": [...] }` (plain
 - `page.maxWidth` / `maxHeight` (`null` = no limit) include the margin.
   `layerGap` is the space between layers; nodes in the same layer are always
   10pt apart.
+- `typography.minScaledFontSize` (paper profiles, 5pt): the minimum printed
+  font size once `figure.fit: scale` shrinks a figure; absent means
+  `minFontSize`.
 
 After rendering, `sumi render --json` (and each result of
 `sumi lint --geometry --json`) reports the output size against these limits
@@ -395,7 +413,8 @@ in `size` (`null` if nothing was rendered):
 ```
 
 `fits` covers width and height only; font sizes are reported as
-diagnostics.
+diagnostics. With `figure.fit: scale` the sizes are the printed ones and
+`"scale"` (e.g. `0.7004`) is added when the figure was shrunk.
 
 ## Output formats
 

@@ -30,6 +30,7 @@
 
 import {
   type CheckState,
+  type ElementEntry,
   type ElementKey,
   figureElements,
   invalidateDependents,
@@ -170,19 +171,23 @@ export function resolveComponents(
     }
     const mark = manifest.kind === "node" ? manifest.mark : undefined;
     const embed = manifest.kind === "node" ? manifest.embed : undefined;
+    const zoom = manifest.kind === "edge" && manifest.routing === "zoom";
     const unexpectedLabel =
-      (mark !== undefined || embed !== undefined) && !isBlankForD2(element.label);
+      (mark !== undefined || embed !== undefined || zoom) && !isBlankForD2(element.label);
     if (unexpectedLabel) {
       const diagnostic: Diagnostic = {
         code: "component/unexpected-label",
         severity: "error",
-        message:
-          mark === undefined
+        message: zoom
+          ? `${componentId(manifest)} draws two lines between corners of its ends, so it takes no label.`
+          : mark === undefined
             ? `${componentId(manifest)} draws the image file of props.src, so it takes no label.`
             : mark.type === "glyph"
               ? `${componentId(manifest)} draws the symbol chosen by props.${mark.prop}, so it takes no label.`
               : `${componentId(manifest)} is drawn as a point, so it takes no label.`,
-        hint: "Remove the label; put text next to it with a label node if needed.",
+        hint: zoom
+          ? "Remove the label; name the zoomed-in view with its group's label or caption instead."
+          : "Remove the label; put text next to it with a label node if needed.",
       };
       report([diagnostic], () => [...element.path, "label"]);
     }
@@ -276,6 +281,11 @@ function checkJunctionAnchors(
     if (entry.kind !== "edge" || !components.has(entry.key)) continue;
     if (only !== undefined && !only.has(entry.key)) continue;
     const edge = entry.element;
+    const own = components.get(entry.key)?.manifest;
+    if (own?.kind === "edge" && own.routing === "zoom") {
+      checkZoomAnchors(state, locate, entry, componentId(own));
+      continue;
+    }
     for (const [field, end] of [
       ["fromAnchor", edge.from],
       ["toAnchor", edge.to],
@@ -296,6 +306,33 @@ function checkJunctionAnchors(
         hint: `Remove ${field}. To change where the line runs, anchor the edge's other end, or move the junction in the arrange tree or with attach.`,
       });
     }
+  }
+}
+
+/**
+ * `component/anchor-on-zoom` (warning, #176): a `fromAnchor` / `toAnchor` on
+ * a zoom edge, whose lines always join the corners chosen from where the
+ * target lies relative to the source (design doc §6.45).
+ */
+function checkZoomAnchors(
+  state: CheckState,
+  locate: Locator,
+  entry: Extract<ElementEntry, { kind: "edge" }>,
+  id: string,
+): void {
+  for (const field of ["fromAnchor", "toAnchor"] as const) {
+    if (entry.element[field] === undefined) continue;
+    const at = [...entry.path, field];
+    const location = locate(at);
+    state.diagnostics.push({
+      code: "component/anchor-on-zoom",
+      severity: "warning",
+      message: `${field} has no effect: ${id} joins the corners of its ends chosen from where the target lies relative to the source.`,
+      path: at,
+      ...(location !== undefined && { location }),
+      subject: entry.subject,
+      hint: `Remove ${field}. To change which corners are joined, move the target to another side of the source in the arrange tree.`,
+    });
   }
 }
 
