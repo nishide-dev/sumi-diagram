@@ -1,0 +1,40 @@
+# A1: add1 → split2 (a straight line into a hidden junction right above it)
+# is drawn with an S-shaped detour into the junction from the west:
+#   M 82 168.693 L 82 159.346 L 74 159.346 L 74 154.02 L 82 154.02
+# Checked with the v0.5.1 binary by removing one element at a time: without
+# the legend `key`, or without the `mlp` node, or with `key` above `mlp`
+# (items: [ mlp, key ]), or without `ffn`, the line is straight. No edge
+# touches `key` or `mlp`; the legend's sample line is itself drawn as an edge
+# between two hidden junctions (`key-1-start` / `key-1-end`). A `node` entry
+# in place of the `edge` entry detours too.
+version: 1
+requires: ">=0.5.1"
+figure:
+  id: junction-detour
+  theme: color
+  profile: paper-single
+  layout:
+    arrange:
+      row:
+        gap: 8mm
+        align: center
+        items:
+          - stack: { direction: up, gap: 2.5mm, align: stretch, items: [ add1, split2, norm2, ffn, add2 ] }
+          - stack: { direction: up, gap: 6mm, items: [ key, mlp ] }
+nodes:
+  - { id: add1, component: operator, props: { symbol: plus } }
+  - { id: split2, component: junction, variant: hidden }
+  - { id: norm2, component: box, label: Layer Norm }
+  - { id: ffn, component: box, label: Feedforward }
+  - { id: add2, component: operator, props: { symbol: plus } }
+  - { id: mlp, component: box, label: MLP }
+  - id: key
+    component: legend
+    props:
+      entries:
+        - { edge: { variant: dashed }, label: from c }
+edges:
+  - { from: add1, to: split2, component: line }
+  - { from: split2, to: norm2 }
+  - { from: norm2, to: ffn }
+  - { from: ffn, to: add2 }

@@ -1,0 +1,49 @@
+# A2: y-aligning a hidden junction (alone in its stack) with the gateway
+# grows the figure from 90mm to 127mm tall: the solver compares candidates by
+# the remaining misalignment only and keeps the earlier one on a tie, so each
+# round adds space above "API tier" (the junction moves down too), and no
+# diagnostic says so. Without `align` the figure is 90mm tall.
+version: 1
+requires: ">=0.5.1"
+figure:
+  id: align-grows-figure
+  theme: color
+  profile: paper-double
+  layout:
+    align:
+      - { y: [ join, gateway ] }
+    arrange:
+      row:
+        gap: 5mm
+        align: center
+        items: [ clients, { stack: { items: [ join ] } }, { stack: { gap: 6mm, items: [ platform, storage ] } } ]
+groups:
+  - id: clients
+    label: Clients
+    arrange:
+      stack: { gap: 3mm, items: [ web, sdk ] }
+  - id: platform
+    label: ML platform
+    arrange:
+      stack: { gap: 6mm, items: [ api, worker ] }
+  - id: api
+    label: API tier
+    arrange:
+      row: { gap: 6mm, align: center, items: [ gateway, { stack: { gap: 4mm, items: [ s1, s2 ] } } ] }
+  - id: storage
+    label: Storage
+    arrange:
+      row: { gap: 4mm, items: [ db ] }
+nodes:
+  - { id: join, component: junction, variant: hidden }
+  - { id: web, component: box, label: Web app }
+  - { id: sdk, component: box, label: Python SDK }
+  - { id: gateway, component: box, label: Gateway }
+  - { id: s1, component: box, label: S1 }
+  - { id: s2, component: box, label: S2 }
+  - { id: worker, component: box, label: Worker }
+  - { id: db, component: cylinder, label: DB }
+edges:
+  - { from: web, to: join, component: line }
+  - { from: sdk, to: join, component: line }
+  - { from: join, to: gateway }

@@ -1,0 +1,15 @@
+# A4: math labels are single-quoted (Skill), but then `\n` stays literal and
+# is drawn as "\n" on one line, with no diagnostic. Double quotes need `\\`.
+version: 1
+figure:
+  id: single-quote-newline
+  theme: academic
+  profile: paper-single
+  layout:
+    arrange:
+      row: { gap: 4mm, items: [ a, b ] }
+nodes:
+  - { id: a, component: box, label: 'Scale, Shift\n$\gamma_1$' } # drawn as "Scale, Shift\nγ1" on one line, no diagnostic
+  - { id: b, component: box, label: "Scale, Shift\n$\\gamma_1$" } # two lines
+edges:
+  - { from: a, to: b }
