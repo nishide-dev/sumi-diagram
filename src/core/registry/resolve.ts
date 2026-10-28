@@ -9,7 +9,9 @@
  * `sumi/operator`) or embedding an image (manifest `embed`, `sumi/image`)
  * take no label (`component/unexpected-label`), and point marks no tone
  * (`component/tone-unsupported`). A group with `labelAt` but no visible
- * label gets `component/label-at-without-label` (warning, #127).
+ * label gets `component/label-at-without-label` (warning, #127), and an
+ * edge with `fromAnchor` / `toAnchor` on an end at a point mark (a junction,
+ * which ignores anchors) `component/anchor-on-junction` (warning, #154).
  *
  * Label math (`$...$`, #93) is parsed here: in structured figures invalid
  * or unsupported math is `component/invalid-math` (error, located at the
@@ -28,6 +30,7 @@ import {
   type ElementKey,
   figureElements,
   invalidateDependents,
+  nodeKey,
 } from "../check-state";
 import type { Diagnostic, DiagnosticSubject, DocPath } from "../diagnostics";
 import type { Locator } from "../figure/yaml";
@@ -213,6 +216,48 @@ export function resolveComponents(
   invalidateDependents(state);
   for (const key of components.keys()) {
     if (state.invalid.has(key)) components.delete(key);
+  }
+  checkJunctionAnchors(state, locate, only);
+}
+
+/**
+ * `component/anchor-on-junction` (warning, #154): a `fromAnchor` /
+ * `toAnchor` on an end at a node drawn as a point (`sumi/junction`), where
+ * every line meets the center from any side, so the anchor has no effect.
+ * Only resolved edges are checked: anchors in `auto` figures are already
+ * `layout/structured-only`, which leaves the edge invalid.
+ */
+function checkJunctionAnchors(
+  state: CheckState,
+  locate: Locator,
+  only: ReadonlySet<ElementKey> | undefined,
+): void {
+  const components = state.components;
+  if (components === undefined) return;
+  for (const entry of figureElements(state.doc)) {
+    if (entry.kind !== "edge" || !components.has(entry.key)) continue;
+    if (only !== undefined && !only.has(entry.key)) continue;
+    const edge = entry.element;
+    for (const [field, end] of [
+      ["fromAnchor", edge.from],
+      ["toAnchor", edge.to],
+    ] as const) {
+      if (edge[field] === undefined) continue;
+      const target = components.get(nodeKey(end));
+      const manifest = target?.manifest;
+      if (manifest?.kind !== "node" || manifest.mark?.type !== "point") continue;
+      const at = [...entry.path, field];
+      const location = locate(at);
+      state.diagnostics.push({
+        code: "component/anchor-on-junction",
+        severity: "warning",
+        message: `${field} has no effect: "${end}" is a ${componentId(manifest)}, drawn as a point where every line meets its center from any side.`,
+        path: at,
+        ...(location !== undefined && { location }),
+        subject: entry.subject,
+        hint: `Remove ${field}. To change where the line runs, anchor the edge's other end, or move the junction in the arrange tree or with attach.`,
+      });
+    }
   }
 }
 

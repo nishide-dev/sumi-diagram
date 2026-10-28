@@ -4,7 +4,7 @@ import { describe, expect, test } from "bun:test";
 import { loadGlyphCoverage } from "../../lint/cmap";
 import { fontFileFor } from "../../lint/geometry/measure";
 import { DEFAULT_FONT_SET_ID, getFontSet } from "../theme/fonts";
-import { looksLikeMath, type MarkupRun, parseLabel } from "./math";
+import { literalNewlines, looksLikeMath, type MarkupRun, parseLabel } from "./math";
 import { isSpaceRun, labelRuns } from "./runs";
 import { ACCENT_COMMANDS, ASCII_SYMBOLS, SPACE_COMMANDS, SYMBOL_COMMANDS } from "./symbols";
 
@@ -226,6 +226,47 @@ describe("parseLabel", () => {
     expect(looksLikeMath("$\\alpha$")).toBe(true);
     expect(looksLikeMath("$x_1$")).toBe(true);
     expect(looksLikeMath("\\$x_1\\$")).toBe(false);
+  });
+});
+
+describe("literalNewlines (#154)", () => {
+  test.each<[label: string, offsets: number[]]>([
+    // The #151 repro: single-quoted, so \n stays two characters.
+    ["Scale, Shift\\n$\\gamma_1$", [12]],
+    ["a\\nb\\nc", [1, 4]],
+    ["\\n", [0]],
+    // Real line breaks are not literal.
+    ["Scale, Shift\n$\\gamma_1$", []],
+    ["plain text", []],
+    // Math commands starting with n are inside $...$.
+    ["$\\nu$", []],
+    ["$\\nu \\neq \\nabla$", []],
+    ["$\\nu$\\n$\\neq$", [5]],
+    ["$a \\$ \\nu$", []],
+    // \$ is a literal dollar sign and opens no math.
+    ["\\$\\n", [2]],
+    ["\\$\\nu\\$", [2]],
+    ["cost \\$5 $\\nu$ and \\n", [19]],
+    ["\\$5 \\n \\$6", [4]],
+    // \$n is an escaped dollar followed by n.
+    ["\\$n", []],
+    // A backslash drawn as written before \n.
+    ["C:\\\\new", [3]],
+    // An unclosed $ is plain text after it.
+    ["$5 \\n", [3]],
+    // Spans are per line: a $ closed only on the next line is unclosed.
+    ["$\\n\n$", [1]],
+    ["a\n$\\nu$ \\n", [8]],
+  ])("%j", (label, offsets) => {
+    expect(literalNewlines(label)).toEqual(offsets);
+    for (const offset of offsets) expect(label.slice(offset, offset + 2)).toBe("\\n");
+  });
+
+  test("labels that parse as math agree with parseLabel's spans", () => {
+    // Every math run comes from inside a span: none holds a reported offset.
+    const label = "x\\n$\\nu_1$ \\$ y\\n$\\neq$";
+    expect(parseLabel(label).ok).toBe(true);
+    expect(literalNewlines(label)).toEqual([1, 15]);
   });
 });
 

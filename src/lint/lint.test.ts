@@ -71,6 +71,17 @@ describe("rules", () => {
         ["lint/missing-glyph", "warning", 22, 12],
       ],
     ],
+    [
+      "lint/literal-newline.sumi.yaml",
+      [
+        ["lint/literal-newline", "warning", 8, 31],
+        ["lint/literal-newline", "warning", 8, 50],
+        ["lint/literal-newline", "warning", 10, 54],
+        ["lint/literal-newline", "warning", 17, 35],
+        ["lint/literal-newline", "warning", 19, 41],
+        ["lint/literal-newline", "warning", 20, 41],
+      ],
+    ],
   ])("%s", (name, expected) => {
     expect(summarize(lint(name).diagnostics)).toEqual(expected);
   });
@@ -168,6 +179,73 @@ describe("rules", () => {
       'The label of node "happy" has a character missing from the regular font of font set sumi/biz-ud-gothic: "😀" (U+1F600).',
       'The label of node "rare" has 2 characters missing from the regular font of font set sumi/biz-ud-gothic: "龘" (U+9F98), "ก" (U+0E01).',
       'The label of edge edges[0] has a character missing from the regular font of font set sumi/biz-ud-gothic: "✅" (U+2705).',
+    ]);
+  });
+
+  test("literal-newline covers every label, outside math only (#154)", () => {
+    const diagnostics = lint("lint/literal-newline.sumi.yaml").diagnostics;
+    expect(diagnostics.map((d) => [d.path, d.subject?.id, d.message])).toEqual([
+      [
+        ["groups", 0, "label"],
+        "panel",
+        'The label of group "panel" has a literal "\\n" (a backslash and n) outside $...$ math; it is drawn as written, not as a line break.',
+      ],
+      [
+        ["groups", 0, "caption"],
+        "panel",
+        'The label of the caption of group "panel" has a literal "\\n" (a backslash and n) outside $...$ math; it is drawn as written, not as a line break.',
+      ],
+      [
+        ["nodes", 0, "label"],
+        "plain",
+        'The label of node "plain" has a literal "\\n" (a backslash and n) outside $...$ math; it is drawn as written, not as a line break.',
+      ],
+      [
+        ["nodes", 3, "props", "entries", 0, "label"],
+        "key",
+        'The label of the text of entry 1 of legend "key" has a literal "\\n" (a backslash and n) outside $...$ math; it is drawn as written, not as a line break.',
+      ],
+      [
+        ["edges", 0, "label"],
+        "edges[0]",
+        'The label of edge edges[0] has a literal "\\n" (a backslash and n) outside $...$ math (2 times); it is drawn as written, not as a line break.',
+      ],
+      [
+        ["edges", 1, "label"],
+        "edges[1]",
+        'The label of edge edges[1] has a literal "\\n" (a backslash and n) outside $...$ math; it is drawn as written, not as a line break.',
+      ],
+    ]);
+    // The hint spells out the label double-quoted, with math backslashes doubled.
+    expect(diagnostics[2]?.hint).toBe(
+      'In YAML, only a double-quoted string turns \\n into a line break, and every other backslash is doubled: "Scale, Shift\\n$\\\\gamma_1$". A block scalar (|) also breaks lines. If the backslash is meant to be drawn, turn off lint/literal-newline.',
+    );
+    expect(diagnostics[0]?.hint).toStartWith(
+      'In YAML, only a double-quoted string turns \\n into a line break: "Panel\\nA".',
+    );
+    // The suggested string, read back as YAML, is the label with line breaks.
+    const suggested = /: (".*")\. A block/.exec(diagnostics[2]?.hint ?? "")?.[1] ?? "";
+    expect(Bun.YAML.parse(`label: ${suggested}`)).toEqual({ label: "Scale, Shift\n$\\gamma_1$" });
+    const off = lint("lint/literal-newline.sumi.yaml", {
+      config: { rules: { "lint/literal-newline": "off" } },
+    });
+    expect(off.diagnostics).toEqual([]);
+  });
+
+  test("literal-newline: long labels get a short example; auto figures are checked too", () => {
+    const figure = (label: string, layout = "") =>
+      `version: 1\nfigure: { id: f${layout} }\nnodes:\n  - { id: a, component: box, label: '${label}' }\n`;
+    const long = `${"x".repeat(80)}\\n`;
+    const [d] = lintFigure(figure(long)).diagnostics.filter(
+      (x) => x.code === "lint/literal-newline",
+    );
+    expect(d?.hint).toContain('backslash is doubled: "first line\\n$\\\\gamma$".');
+    expect(d?.location?.column).toBe(38 + 80);
+    // auto: D2 draws the label as written, so the literal \n shows there too.
+    expect(codes(lintFigure(figure("a\\nb")).diagnostics)).toEqual(["lint/literal-newline"]);
+    // Math commands in $...$ are left to component/unsupported-in-auto.
+    expect(codes(lintFigure(figure("a $\\nu$")).diagnostics)).toEqual([
+      "component/unsupported-in-auto",
     ]);
   });
 

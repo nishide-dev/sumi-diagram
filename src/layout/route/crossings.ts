@@ -135,6 +135,15 @@ export function findCrossings(layout: LayoutIR): EdgeCrossing[] {
   return [...found.values()].sort((a, b) => compare(rank(a), rank(b)));
 }
 
+/** Whether `a` sorts before `b` by source position (no location first, as `compareDiagnostics()`). */
+function before(a: Diagnostic, b: Diagnostic): boolean {
+  const la = a.location;
+  const lb = b.location;
+  if (lb === undefined) return false;
+  if (la === undefined) return true;
+  return la.line < lb.line || (la.line === lb.line && la.column < lb.column);
+}
+
 /** 1 unit = 0.5pt. */
 const MM_PER_UNIT = 0.5 * (25.4 / 72);
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -145,7 +154,7 @@ const mm = (units: number) => `${(units * MM_PER_UNIT).toFixed(1)}mm`;
  * per crossing up to `limit`, located at the first of the later net's edges
  * there, with the other net's edges (and the rest of its own net's) as
  * `related`; then, if there are more, one without a location saying how
- * many were left out.
+ * many were left out. The shared hint is on one of them only (#154).
  */
 export function crossingDiagnostics(
   ir: FigureIR,
@@ -198,17 +207,23 @@ export function crossingDiagnostics(
         kind: "edge",
         id: edge?.id ?? `edges[${edge?.index ?? 0}]`,
       },
-      hint,
       related,
     } satisfies Diagnostic;
   });
+  // The hint is the same for every crossing: give it once (#154), to the
+  // crossing listed first in source order (as `sumi lint` / `render` sort).
+  const first = diagnostics.reduce<Diagnostic | undefined>(
+    (best, d) => (best === undefined || before(d, best) ? d : best),
+    undefined,
+  );
+  if (first !== undefined) first.hint = hint;
   if (crossings.length > limit) {
     diagnostics.push({
       code: "layout/edge-crossing",
       severity: "info",
       message: `${crossings.length - limit} more edge crossings are not listed (${crossings.length} in total).`,
       subject: { kind: "figure", id: ir.meta.id },
-      hint,
+      ...(first === undefined && { hint }),
     });
   }
   return diagnostics;

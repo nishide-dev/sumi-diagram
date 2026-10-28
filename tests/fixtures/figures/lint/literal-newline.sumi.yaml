@@ -1,0 +1,20 @@
+version: 1
+figure:
+  id: literal-newline
+  theme: academic
+  layout:
+    arrange: { row: { gap: 8mm, items: [panel, quoted, math, key] } }
+groups:
+  - { id: panel, label: 'Panel\nA', caption: '(a)\nleft', arrange: { stack: { items: [plain] } } }
+nodes:
+  - { id: plain, component: box, label: 'Scale, Shift\n$\gamma_1$', group: panel }
+  - { id: quoted, component: box, label: "Scale, Shift\n$\\gamma_1$" }
+  - { id: math, component: box, label: '$\nu \neq \nabla$, \$5 $\nu$' }
+  - id: key
+    component: legend
+    props:
+      entries:
+        - { edge: {}, label: 'flow\nrate' }
+edges:
+  - { from: plain, to: quoted, label: 'a\nb\nc' }
+  - { from: quoted, to: math, label: '\$\n' }

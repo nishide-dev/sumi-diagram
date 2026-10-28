@@ -68,6 +68,7 @@ Every stage reports problems as the same diagnostic object. In
 | `component/label-at-without-label` (warning) | a group has `labelAt` but no (or an empty) `label` | add the title, or remove `labelAt` |
 | `component/invalid-prop` on a legend entry | an entry with both or neither of `edge` / `node`, or a sample box that is a mark, text or picture (`operator`, `junction`, `label`, `image`, `legend`) | one of `edge` / `node` per entry; a shape such as `box` or `circle` for boxes |
 | `component/tone-unsupported` | `tone` on a `junction` (drawn in the line color) | remove the tone |
+| `component/anchor-on-junction` (warning) | `fromAnchor` / `toAnchor` on an edge end at a `junction`: every line meets the dot's center, so the anchor is ignored | remove the anchor; anchor the edge's other end, or move the junction (arrange tree, `attach`) |
 | `component/deprecated` (warning) | still works but is being replaced | switch to the replacement in the message |
 | `asset/*` | icons (`icon:`) and images (`component: image`): unknown icon, label next to an icon, a `src` that leaves the YAML's directory (lint); missing, unsupported, too large or unsafe files (render) | per code in [assets](assets.md#fixing-asset) |
 | `theme/unknown` | `figure.theme` is not built in | `minimal`, `academic`, `slides` or `color` (see hint) |
@@ -90,6 +91,7 @@ Every stage reports problems as the same diagnostic object. In
 | `lint/empty-label` | warning | add a label, or keep it for a deliberate blank shape |
 | `lint/long-label` | warning | shorten or break with `\n` (≤ 40 columns per line, CJK = 2, ≤ 4 lines) |
 | `lint/missing-glyph` | warning | replace the character (emoji and rare CJK are not in the font) |
+| `lint/literal-newline` | warning | a label has `\n` as two characters outside `$...$` (single-quoted or plain YAML), drawn as written: double-quote it and double math backslashes, as the hint shows (`"Scale, Shift\n$\\gamma_1$"`) |
 | `lint/unused-legend-entry` | warning | no edge / node has that legend entry's component and variant (and tone): fix the entry, or the elements it should explain ([legends](structured.md#legends)) |
 
 To silence a rule for one run: `sumi lint --rule lint/no-edges=off`. There
@@ -103,7 +105,7 @@ is no per-figure suppression; mention kept warnings in your report instead.
 | `layout/unsatisfied-align` (warning) | structured: an `align` constraint could not be met; drawn with the closest placement, the message gives the distance | follow the hint: the items share a box (put them in different boxes, or wrap one in its own `stack` / `row`) or another constraint pulls them apart ([align](structured.md#aligning-across-trees)) |
 | `layout/align-search-limit` (warning) | structured: so many `align` constraints that the search stopped | remove constraints the boxes already satisfy, or split the figure |
 | `layout/edge-label-overlap` (warning) | structured: an edge label with `labelAt` / `labelSide` found no clear spot on its segment and side, so it overlaps what the message names | the other `labelSide`, another `labelAt`, remove both, or make room (`gap`, anchors, shorter label) |
-| `layout/edge-crossing` (info) | structured: two separate lines cross (at most 10 listed, then a summary) | optional: move the edge to straighten earlier in `edges`, use anchors, or change the arrangement; keep unavoidable ones ([crossings](structured.md#crossings-layoutedge-crossing)) |
+| `layout/edge-crossing` (info) | structured: two separate lines cross (at most 10 listed, then a summary; the shared hint is on the first only) | optional: move the edge to straighten earlier in `edges`, use anchors, or change the arrangement; keep unavoidable ones ([crossings](structured.md#crossings-layoutedge-crossing)) |
 | `backend/d2-not-found`, `backend/d2-version-mismatch` | D2 missing or not v0.9.0 | user reinstalls the release tarball (D2 is bundled), runs `bun run d2:install` in a source checkout, or sets `SUMI_D2_PATH`; stop |
 | `backend/d2-failed`, `backend/d2-timeout`, `backend/empty-output`, `backend/io-error`, `backend/invalid-args` | D2 itself failed | not a figure problem; report with the message (use `--emit-d2 out.d2` to keep the generated source; structured figures do not use D2 and refuse `--emit-d2` with exit 2) |
 | `svg/outline-edge-miss` (warning) | an edge end could not be extended to its custom outline; that end is kept unchanged | inspect the gap and report the diagnostic; do not invent port coordinates |

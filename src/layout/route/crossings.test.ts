@@ -60,6 +60,25 @@ describe("layout/edge-crossing", () => {
     ]);
     expect(diagnostics[0]?.subject).toEqual({ kind: "edge", id: "edges[6]" });
     expect(diagnostics[0]?.hint).toContain("fromAnchor / toAnchor");
+    // The shared hint is given once (#154), on the crossing listed first.
+    expect(diagnostics.map((d) => d.hint !== undefined)).toEqual([true, false, false, false]);
+  });
+
+  test("the hint goes to the crossing first in source order (#154)", () => {
+    const { ir, layout } = load(serving).value;
+    // Move edges[12] above the others in the source: its crossing now sorts first.
+    const sourceMap = new Map(ir.sourceMap);
+    const key = ir.edges[12]?.key as ElementKey;
+    const at = sourceMap.get(key);
+    if (at?.location === undefined) throw new Error("no location");
+    sourceMap.set(key, { ...at, location: { ...at.location, line: 1 } });
+    const diagnostics = crossingDiagnostics({ ...ir, sourceMap }, layout);
+    expect(diagnostics.map((d) => [d.path, d.hint !== undefined])).toEqual([
+      [["edges", 6], false],
+      [["edges", 6], false],
+      [["edges", 12], true],
+      [["edges", 16], false],
+    ]);
   });
 
   test("the edge pairs at the points are checkRoutes' crossings", () => {
@@ -82,6 +101,11 @@ describe("layout/edge-crossing", () => {
       message: "3 more edge crossings are not listed (4 in total).",
       subject: { kind: "figure", id: "serving-architecture" },
     });
+    expect(diagnostics.map((d) => d.hint !== undefined)).toEqual([true, false]);
+    // With none listed, the summary carries the hint.
+    const [summary] = crossingDiagnostics(ir, layout, 0);
+    expect(summary?.message).toBe("4 more edge crossings are not listed (4 in total).");
+    expect(summary?.hint).toContain("fromAnchor / toAnchor");
     expect(MAX_REPORTED_CROSSINGS).toBe(10);
   });
 
