@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import type { ElementKey } from "../../core/check-state";
-import type { Diagnostic } from "../../core/diagnostics";
+import { compareDiagnostics, type Diagnostic } from "../../core/diagnostics";
 import { layoutStructuredFigure } from "../index";
 import type { LayoutIR, Point } from "../ir";
 import { checkRoutes } from "./check";
@@ -79,6 +79,33 @@ describe("layout/edge-crossing", () => {
       [["edges", 12], true],
       [["edges", 16], false],
     ]);
+  });
+
+  test("at the same location, the hint follows the full sort order (#154)", () => {
+    const { ir, layout } = load(serving).value;
+    // Every edge at one location: code, then path ("edges[12]" < "edges[6]"
+    // as strings) and message decide, as in compareDiagnostics().
+    const sourceMap = new Map(
+      [...ir.sourceMap].map(([key, at]) => [
+        key,
+        { ...at, location: { file: "f.sumi.yaml", line: 1, column: 1 } },
+      ]),
+    );
+    const diagnostics = crossingDiagnostics({ ...ir, sourceMap }, layout);
+    expect(diagnostics.map((d) => [d.path, d.hint !== undefined])).toEqual([
+      [["edges", 6], false],
+      [["edges", 6], false],
+      [["edges", 12], true],
+      [["edges", 16], false],
+    ]);
+    // Two crossings on one edge share a location: the message breaks the tie.
+    const sameEdge = crossingDiagnostics(ir, layout).slice(0, 2);
+    expect(sameEdge[0]?.location).toEqual(sameEdge[1]?.location);
+    for (const listed of [diagnostics, crossingDiagnostics(ir, layout)]) {
+      const sorted = [...listed].sort(compareDiagnostics);
+      expect(sorted[0]?.hint).toBeDefined();
+      expect(sorted.slice(1).every((d) => d.hint === undefined)).toBe(true);
+    }
   });
 
   test("the edge pairs at the points are checkRoutes' crossings", () => {

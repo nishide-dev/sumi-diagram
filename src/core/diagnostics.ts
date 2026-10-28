@@ -119,3 +119,25 @@ export function didYouMean(input: string, candidates: Iterable<string>): string 
   const match = closestMatch(input, candidates);
   return match === undefined ? undefined : `Did you mean "${match}"?`;
 }
+
+/**
+ * Deterministic diagnostic order: by file, then source position (diagnostics
+ * without a location first), then code, document path and message.
+ */
+export function compareDiagnostics(a: Diagnostic, b: Diagnostic): number {
+  const la = a.location;
+  const lb = b.location;
+  return (
+    compareStrings(la?.file ?? "", lb?.file ?? "") ||
+    (la?.line ?? 0) - (lb?.line ?? 0) ||
+    (la?.column ?? 0) - (lb?.column ?? 0) ||
+    compareStrings(a.code, b.code) ||
+    compareStrings(formatDocPath(a.path ?? []), formatDocPath(b.path ?? [])) ||
+    compareStrings(a.message, b.message)
+  );
+}
+
+/** Code-unit order, independent of the locale. */
+function compareStrings(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}

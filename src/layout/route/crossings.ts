@@ -17,7 +17,7 @@
 
 import type { FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
-import type { Diagnostic } from "../../core/diagnostics";
+import { compareDiagnostics, type Diagnostic } from "../../core/diagnostics";
 import type { LayoutIR, Point } from "../ir";
 
 const EPS = 0.01;
@@ -135,15 +135,6 @@ export function findCrossings(layout: LayoutIR): EdgeCrossing[] {
   return [...found.values()].sort((a, b) => compare(rank(a), rank(b)));
 }
 
-/** Whether `a` sorts before `b` by source position (no location first, as `compareDiagnostics()`). */
-function before(a: Diagnostic, b: Diagnostic): boolean {
-  const la = a.location;
-  const lb = b.location;
-  if (lb === undefined) return false;
-  if (la === undefined) return true;
-  return la.line < lb.line || (la.line === lb.line && la.column < lb.column);
-}
-
 /** 1 unit = 0.5pt. */
 const MM_PER_UNIT = 0.5 * (25.4 / 72);
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -211,9 +202,10 @@ export function crossingDiagnostics(
     } satisfies Diagnostic;
   });
   // The hint is the same for every crossing: give it once (#154), to the
-  // crossing listed first in source order (as `sumi lint` / `render` sort).
+  // crossing listed first (`sumi lint` / `render` sort with the same
+  // comparator; crossings on one edge share a location and tie on message).
   const first = diagnostics.reduce<Diagnostic | undefined>(
-    (best, d) => (best === undefined || before(d, best) ? d : best),
+    (best, d) => (best === undefined || compareDiagnostics(d, best) < 0 ? d : best),
     undefined,
   );
   if (first !== undefined) first.hint = hint;
