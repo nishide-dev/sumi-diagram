@@ -12,13 +12,16 @@
  * label gets `component/label-at-without-label` (warning, #127). A node
  * with `labelRotation` (#178) that draws an icon, a mark or an image gets
  * `component/label-rotation-unsupported`, and one without a visible label
- * `component/label-rotation-without-label` (warning). An
+ * `component/label-rotation-without-label` (warning). A node with a
+ * `sublabel` (#184) that draws an icon, a mark or an image gets
+ * `component/sublabel-unsupported`, and one without a visible label
+ * `component/sublabel-without-label` (both errors). An
  * edge with `fromAnchor` / `toAnchor` on an end at a point mark (a junction,
  * which ignores anchors) `component/anchor-on-junction` (warning, #154).
  *
- * Label math (`$...$`, #93) is parsed here: in structured figures invalid
- * or unsupported math is `component/invalid-math` (error, located at the
- * offending characters); in `auto` figures, where D2 draws labels as plain
+ * Label math (`$...$`, #93) is parsed here, in the label and the sublabel
+ * (#184): in structured figures invalid or unsupported math is
+ * `component/invalid-math` (error, located at the offending characters); in `auto` figures, where D2 draws labels as plain
  * text, math syntax is `component/unsupported-in-auto` (warning: the label
  * is drawn literally, as before label math existed).
  *
@@ -70,6 +73,8 @@ interface Element {
   labelAt: string | undefined;
   /** Nodes only (#178). */
   labelRotation: number | undefined;
+  /** Nodes only (#184). */
+  sublabel: string | undefined;
   props: Record<string, unknown>;
   /** How messages name the element (an expanded caption or legend part names its origin). */
   name: string;
@@ -223,6 +228,40 @@ export function resolveComponents(
       };
       report([diagnostic], () => [...element.path, "labelRotation"]);
     }
+    // sublabel (#184) draws a second, smaller text under the label: a node
+    // drawing an icon, a mark or an image has no label to put it under, and
+    // a node without a visible label should write its text as the label.
+    const sublabelUnsupported =
+      element.sublabel !== undefined &&
+      (mark !== undefined || embed !== undefined || element.icon !== undefined);
+    const sublabelWithoutLabel =
+      !sublabelUnsupported && element.sublabel !== undefined && isBlankForD2(element.label);
+    if (sublabelUnsupported) {
+      const drawn =
+        element.icon !== undefined
+          ? "an icon in place of its label"
+          : mark === undefined
+            ? "the image file of props.src"
+            : mark.type === "glyph"
+              ? `the symbol chosen by props.${mark.prop}`
+              : "a point";
+      const diagnostic: Diagnostic = {
+        code: "component/sublabel-unsupported",
+        severity: "error",
+        message: `sublabel draws a second, smaller line under a node's label, but ${componentId(manifest)} draws ${drawn} here, with no label to put it under.`,
+        hint: "Remove sublabel; put the text next to it with a label node if needed.",
+      };
+      report([diagnostic], () => [...element.path, "sublabel"]);
+    } else if (sublabelWithoutLabel) {
+      const diagnostic: Diagnostic = {
+        code: "component/sublabel-without-label",
+        severity: "error",
+        message:
+          "sublabel draws a second, smaller line under the node's label, but the label is omitted, empty or only whitespace.",
+        hint: "Add a label, or write the text as the label instead of the sublabel.",
+      };
+      report([diagnostic], () => [...element.path, "sublabel"]);
+    }
     const toneUnsupported = mark?.type === "point" && element.tone !== undefined;
     if (toneUnsupported) {
       const diagnostic: Diagnostic = {
@@ -233,14 +272,21 @@ export function resolveComponents(
       };
       report([diagnostic], () => [...element.path, "tone"]);
     }
-    const mathErrors =
-      mark === undefined && !missingLabel ? checkLabelMath(state, element, locate) : false;
+    const labelMathErrors =
+      mark === undefined && !missingLabel ? checkLabelMath(state, element, "label", locate) : false;
+    const sublabelMathErrors =
+      element.sublabel !== undefined && !sublabelUnsupported && !sublabelWithoutLabel
+        ? checkLabelMath(state, element, "sublabel", locate)
+        : false;
+    const mathErrors = labelMathErrors || sublabelMathErrors;
     if (
       !usage.ok ||
       wrongEngine ||
       missingLabel ||
       unexpectedLabel ||
       rotationUnsupported ||
+      sublabelUnsupported ||
+      sublabelWithoutLabel ||
       toneUnsupported ||
       mathErrors
     ) {
@@ -337,14 +383,19 @@ function checkZoomAnchors(
 }
 
 /**
- * Reports the label math of an element (see the module comment). Returns
- * whether it reported an error.
+ * Reports the label math of an element's label or sublabel (#184; see the
+ * module comment). Returns whether it reported an error.
  */
-function checkLabelMath(state: CheckState, element: Element, locate: Locator): boolean {
-  const { label } = element;
+function checkLabelMath(
+  state: CheckState,
+  element: Element,
+  field: "label" | "sublabel",
+  locate: Locator,
+): boolean {
+  const label = (field === "label" ? element.label : element.sublabel) ?? "";
   if (!hasLabelMarkup(label)) return false;
   const engine = state.doc.figure?.layout?.engine;
-  const at = [...element.path, "label"];
+  const at = [...element.path, field];
   if (engine !== "structured") {
     // auto: D2 draws the label as text. Only spans that are clearly math (a
     // command, _ or ^) are reported, so labels such as "$5 or $10" stay quiet.
@@ -371,7 +422,7 @@ function checkLabelMath(state: CheckState, element: Element, locate: Locator): b
     state.diagnostics.push({
       code: "component/invalid-math",
       severity: "error",
-      message: `${error.message} (label characters ${column(error.start) + 1}–${column(error.end)}: "${excerpt}")`,
+      message: `${error.message} (${field} characters ${column(error.start) + 1}–${column(error.end)}: "${excerpt}")`,
       path: at,
       ...(location !== undefined && { location }),
       subject: element.subject,
@@ -398,6 +449,7 @@ function* elements(state: CheckState): Generator<Element> {
       icon: entry.kind === "node" ? entry.element.icon : undefined,
       labelAt: entry.kind === "group" ? entry.element.labelAt : undefined,
       labelRotation: entry.kind === "node" ? entry.element.labelRotation : undefined,
+      sublabel: entry.kind === "node" ? entry.element.sublabel : undefined,
       props: entry.kind === "group" ? {} : entry.element.props,
     };
   }

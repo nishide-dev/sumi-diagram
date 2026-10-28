@@ -16,7 +16,7 @@ import type { FontUsage } from "../profile/constrain";
 import type { ComponentId, ComponentKind } from "../registry/manifest";
 import { resolveTheme } from "./builtin";
 import type { Theme } from "./schema";
-import { mergeStyle, type ResolvedStyle, type StyleOf } from "./style";
+import { mergeStyle, type ResolvedStyle, type StyleOf, sublabelFontSize } from "./style";
 import type { Tone } from "./tones";
 
 export interface StyleTarget<K extends ComponentKind = ComponentKind> {
@@ -119,7 +119,8 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
  * Effective font sizes for the `profile` stage: one per styled element that
  * draws text: a label, or a glyph mark (`sumi/operator`). Point marks
  * (`sumi/junction`) and unlabeled elements draw no text, so their font size
- * cannot violate a minimum.
+ * cannot violate a minimum. A node's sublabel (#184) adds its own, smaller
+ * size.
  */
 export function labelFontUsages(state: CheckState): FontUsage[] {
   const usages: FontUsage[] = [];
@@ -131,6 +132,11 @@ export function labelFontUsages(state: CheckState): FontUsage[] {
     const text = mark === undefined ? element.label !== "" : mark.type === "glyph";
     if (style !== undefined && text) {
       usages.push({ key, fontSizePt: style.fontSize.pt });
+    }
+    // A node's sublabel (#184) is drawn smaller than its label.
+    const sublabel = "sublabel" in element ? element.sublabel : undefined;
+    if (style !== undefined && mark === undefined && sublabel !== undefined) {
+      usages.push({ key, fontSizePt: sublabelFontSize(style.fontSize).pt, sublabel: true });
     }
   }
   return usages;

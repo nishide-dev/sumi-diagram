@@ -26,26 +26,33 @@ for (const item of editableCorpus())
       warnings: result.diagnostics.map((d) => d.code),
     });
   }
-// #183: a figure shrunk by `figure.fit: scale` (structured, so no D2 is
-// needed): every length, line width and text size is scaled.
-const fitDir = resolve(import.meta.dir, "../tests/fixtures/figures/fit");
-const fitted = await renderFigure(readFileSync(resolve(fitDir, "b-dit.sumi.yaml"), "utf8"), {
-  assetBase: fitDir,
-});
-if (!fitted.ok) throw new Error(JSON.stringify(fitted.diagnostics));
-if (fitted.value.inspection.scale === undefined) throw new Error("fit fixture is not scaled");
-for (const connectors of ["freeform", "glued"] as const) {
-  const result = svgToEditablePptx(fitted.value.svg, fitted.value.compiled.ir, { connectors });
-  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
-  const name = `fit_b-dit.${connectors}.pptx`;
-  writeFileSync(resolve(out, name), result.value);
-  report.push({
-    source: "tests/fixtures/figures/fit/b-dit",
-    connectors,
-    file: name,
-    sha256: new Bun.CryptoHasher("sha256").update(result.value).digest("hex"),
-    warnings: result.diagnostics.map((d) => d.code),
+// Structured figures (no D2 needed). #183: a figure shrunk by
+// `figure.fit: scale`, where every length, line width and text size is
+// scaled. #184: sublabels, a second run of smaller paragraphs with space
+// before them in a node's text.
+for (const fixture of ["fit", "sublabel"]) {
+  const dir = resolve(import.meta.dir, "../tests/fixtures/figures", fixture);
+  const rendered = await renderFigure(readFileSync(resolve(dir, "b-dit.sumi.yaml"), "utf8"), {
+    assetBase: dir,
   });
+  if (!rendered.ok) throw new Error(JSON.stringify(rendered.diagnostics));
+  if (fixture === "fit" && rendered.value.inspection.scale === undefined)
+    throw new Error("fit fixture is not scaled");
+  for (const connectors of ["freeform", "glued"] as const) {
+    const result = svgToEditablePptx(rendered.value.svg, rendered.value.compiled.ir, {
+      connectors,
+    });
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const name = `${fixture}_b-dit.${connectors}.pptx`;
+    writeFileSync(resolve(out, name), result.value);
+    report.push({
+      source: `tests/fixtures/figures/${fixture}/b-dit`,
+      connectors,
+      file: name,
+      sha256: new Bun.CryptoHasher("sha256").update(result.value).digest("hex"),
+      warnings: result.diagnostics.map((d) => d.code),
+    });
+  }
 }
 const xfrm = '<a:xfrm><a:off x="914400" y="457200"/><a:ext cx="914400" cy="1828800"/></a:xfrm>';
 const free =
@@ -79,5 +86,5 @@ writeFileSync(
   editablePptx(calibration, 288, 180, undefined, "control"),
 );
 console.log(
-  `Generated ${report.length} experimental editable PPTX (2 of them scaled by figure.fit) plus 4 controls in ${out}`,
+  `Generated ${report.length} experimental editable PPTX (2 of them scaled by figure.fit, 2 with sublabels) plus 4 controls in ${out}`,
 );

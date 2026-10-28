@@ -528,6 +528,9 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
     ...layout.nodes.flatMap((n) =>
       n.label === undefined ? [] : [[n.key, n.label.box] as [string, Rect]],
     ),
+    ...layout.nodes.flatMap((n) =>
+      n.sublabel === undefined ? [] : [[n.key, n.sublabel.box] as [string, Rect]],
+    ),
     ...layout.groups.flatMap((g) =>
       g.label === undefined ? [] : [[g.key, g.label.box] as [string, Rect]],
     ),

@@ -19,6 +19,7 @@ import {
   LATIN_FONT_SET_ID,
   resolveStyle,
   resolveTheme,
+  sublabelFontSize,
   type Theme,
   type ThemeDefinition,
   type ValidateThemeOptions,
@@ -611,6 +612,28 @@ describe("built-in themes", () => {
         'Did you mean "minimal"? Available themes: minimal, academic, slides, color.',
       ],
     ]);
+  });
+});
+
+describe("sublabelFontSize (#184)", () => {
+  test("is 7/8 of the label's size, rounded down to 0.5pt", () => {
+    const at = (pt: number) => sublabelFontSize({ pt, units: pt * 2 });
+    expect([8, 9, 16, 7, 4, 50].map((pt) => at(pt))).toEqual([
+      { pt: 7, units: 14 },
+      { pt: 7.5, units: 15 },
+      { pt: 14, units: 28 },
+      { pt: 6, units: 12 },
+      { pt: 3.5, units: 7 },
+      { pt: 43.5, units: 87 },
+    ]);
+  });
+
+  test("gives size.small from size.text in every built-in theme", () => {
+    for (const theme of BUILTIN_THEMES.values()) {
+      const node = resolveStyle(theme, { kind: "node", id: "sumi/box", variant: "default" });
+      const edge = resolveStyle(theme, { kind: "edge", id: "sumi/arrow", variant: "default" });
+      expect(sublabelFontSize(node.style.fontSize)).toEqual(edge.style.fontSize);
+    }
   });
 });
 

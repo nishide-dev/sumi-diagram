@@ -370,6 +370,13 @@ export const NodeSchema = z.strictObject({
   id: Id,
   component: ComponentRef.describe("Component reference (kind: node), e.g. `box` or `sumi/box`."),
   label: Label,
+  sublabel: z
+    .string()
+    .regex(/\S/, { message: "must not be empty or only whitespace" })
+    .optional()
+    .describe(
+      'Structured layout: a second, smaller text under the label, e.g. a size "32 × 32 × 4" under "Noise". Drawn at 7/8 of the label\'s font size (rounded down to 0.5pt); newlines break lines and label math is allowed. Needs a label.',
+    ),
   labelRotation: z
     .literal([90, -90])
     .optional()

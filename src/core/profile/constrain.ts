@@ -18,6 +18,8 @@ import type { Profile } from "./schema";
 export interface FontUsage {
   key: ElementKey;
   fontSizePt: number;
+  /** The size is the element's sublabel's (#184), not its label's. */
+  sublabel?: true;
 }
 
 export interface ConstrainInput {
@@ -67,9 +69,12 @@ export function checkFontSizes(
   locate: Locator,
 ): void {
   const min = profile.typography.minFontSize.pt;
-  for (const { key, fontSizePt } of fonts) {
+  for (const { key, fontSizePt, sublabel } of fonts) {
     if (state.invalid.has(key) || fontSizePt >= min) continue;
-    const { subject, path, name } = locateElement(state, key);
+    const element = locateElement(state, key);
+    const { subject } = element;
+    const path = sublabel ? [...element.path, "sublabel"] : element.path;
+    const name = sublabel ? `the sublabel of ${element.name}` : element.name;
     state.diagnostics.push(
       errorAt(
         locate,
@@ -78,7 +83,9 @@ export function checkFontSizes(
         path,
         {
           subject,
-          hint: "Use a variant or theme with a larger font size, or a profile with a smaller minimum.",
+          hint: sublabel
+            ? "A sublabel is drawn at 7/8 of its node's font size (rounded down to 0.5pt): use a variant or theme with a larger font size, a profile with a smaller minimum, or put the text into the label."
+            : "Use a variant or theme with a larger font size, or a profile with a smaller minimum.",
           related: [relatedAt(locate, PROFILE_PATH, `Profile "${profile.id}" is selected here.`)],
         },
       ),

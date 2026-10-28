@@ -325,8 +325,12 @@ function objectGroup(
   shape: string,
   layout: TextLayout | undefined,
   asset = "",
+  sublabel?: TextLayout,
 ): string {
-  const labelSvg = layout === undefined ? "" : label(layout, element.style.fontColor);
+  // A sublabel (#184) is a <text> of its own after the label's, at its own size.
+  const labelSvg = [layout, sublabel]
+    .map((text) => (text === undefined ? "" : label(text, element.style.fontColor)))
+    .join("");
   return `<g class="${elementClass(element.key)} sumi-kind-${element.kind}"${opacity(element.style)}><g class="shape">${shape}</g>${asset}${labelSvg}</g>`;
 }
 
@@ -842,8 +846,11 @@ export function writeStructuredSvg(
     if (node === undefined)
       throw new Error(`internal error: ${placed.key} is not a node of the figure`);
     const asset = assetMarkup(node, assets?.nodes.get(node.key), placed.rect);
-    body.push(objectGroup(node, nodeShape(node, placed.rect), placed.label, asset));
+    body.push(
+      objectGroup(node, nodeShape(node, placed.rect), placed.label, asset, placed.sublabel),
+    );
     useText(placed.label);
+    useText(placed.sublabel);
   }
   body.push(...wires(ir, layout).markup);
   for (const placed of layout.edges) {
