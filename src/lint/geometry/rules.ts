@@ -15,10 +15,12 @@ import type { DocPath } from "../../core/diagnostics";
 import type { GroupLabelPosition } from "../../core/figure/schema";
 import { BUILTIN_PROFILES } from "../../core/profile/builtin";
 import { formatMm, formatPt, mmToPt, ptToD2Units } from "../../core/units";
+import { arrowheadLength } from "../../layout/route/arrowhead";
 import { type Point, type Rect, unitsToMm, unitsToPt } from "../../render/geometry";
 import type { ProfileLimits } from "../../render/inspect";
 import { printedSize } from "../../render/size";
 import { defineGeometryRule, type GeometryRule, type LintFinding } from "../rule";
+import { arrowheadStraightRun } from "./arrowheads";
 import type { GeometryContext, GeometryElement } from "./context";
 import { obstaclesCrossedByRoute, type RouteObstacle } from "./edges";
 import { inkLines, unionOf } from "./measure";
@@ -794,6 +796,47 @@ const isDrawnEdge = (e: GeometryElement): boolean =>
   e.ir.style.stroke !== "transparent" &&
   isOpaque(e);
 
+export const arrowheadOnBend = defineGeometryRule({
+  id: "geometry/arrowhead-on-bend",
+  description: "An arrowhead is longer than the straight run at its end of the painted edge.",
+  defaultSeverity: "warning",
+  fixable: false,
+  run(context) {
+    const findings: LintFinding[] = [];
+    for (const edge of context.elements) {
+      if (!isDrawnEdge(edge) || edge.ir.kind !== "edge" || edge.route === undefined) continue;
+      const width = edge.ir.style.strokeWidth.units;
+      const structured = isStructured(context);
+      const length = structured ? arrowheadLength(width) : 4 + 3 * width;
+      for (const source of [true, false]) {
+        if ((source ? edge.ir.sourceArrowhead : edge.ir.targetArrowhead) === undefined) continue;
+        const route = source ? edge.route[0] : edge.route.at(-1);
+        if (route === undefined) continue;
+        // D2's triangle marker is 4 + 3w long, with its tip 1.5w beyond
+        // path.connection's endpoint (refX = 4 + 1.5w). Its nearly tangent
+        // cubic ends are quantized too, so use the usual geometry tolerance.
+        const head = source ? edge.ir.sourceArrowhead : edge.ir.targetArrowhead;
+        if (!structured && head !== "triangle") continue;
+        const run =
+          arrowheadStraightRun(
+            route,
+            edge.drawn ?? [],
+            source,
+            structured ? undefined : GEOMETRY_TOLERANCE_UNITS,
+          ) + (structured ? 0 : 1.5 * width);
+        if (run + GEOMETRY_TOLERANCE_UNITS >= length) continue;
+        findings.push({
+          message: `The ${source ? "source" : "target"} arrowhead of ${edge.name} is ${formatPt(unitsToPt(printedUnits(context, length)))} long, but its last straight run is only ${formatPt(unitsToPt(printedUnits(context, run)))}: the arrowhead sits on a bend.`,
+          path: edge.docPath,
+          subject: edge.subject,
+          hint: "Leave a straight segment at least as long as the arrowhead before its tip. Move the ends with fromAnchor / toAnchor, increase the gap, or change the arrangement so the edge can approach from another side.",
+        });
+      }
+    }
+    return findings;
+  },
+});
+
 /** `true` for a group drawn with a visible border. */
 const isFramedGroup = (e: GeometryElement): boolean =>
   e.ir.kind === "group" &&
@@ -1348,6 +1391,7 @@ export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
   labelCollision,
   edgeCrossesLabel,
   edgeThroughNode,
+  arrowheadOnBend,
   zoomCrossesNode,
   edgeOnBorder,
   edgeNearBorder,

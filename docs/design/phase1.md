@@ -2023,6 +2023,17 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **非対象・引き継ぎ**: 連続値のヒートマップ（Issue の非対象）、セルへの参照・セルのラベル、auto（D2）の行列、回転した軸の見出し（原図の Query / Key。`labelRotation` の `label` ノードを横に置けば書ける）、斜線以外の模様（`pattern` は列挙なので追加できる）、枠の余白なしで辺をセルの端まで届けること（辺は枠で止まる。書き下した版と同じ）、編集可能 PPTX でセルと斜線をグループにすること。
 
 
+### 6.57 #217 の矢じりの直前の曲がりの検査と junction 端の保証
+
+- **指摘された図の実測と再現の区別**: `research/185-acceptance/figures/c-h3world.sumi.yaml` の `out-proj → c-add-out` は、今回の開始時点のコード・paper では最後の線分が **16 unit、矢じりが 8 unit**。描かれた線も矢じりの底まで 8 unit まっすぐ残る。直前には 1.992 unit の縦線と 0.913 unit の横線の小さな段差があり、PNG では角のすぐ後に矢じりが見えるが、§6.22 の「先端まで矢じりの長さ以上の直線」という条件は満たしている。`toAnchor: south` はそのまま尊重し、この辺の出力は変えない（画像も PDF → `pdftoppm` → PNG で確認）。§6.37 の junction での余白の切り詰め・§6.40 の facing ends の整列・§6.42 のグループの余白・§6.47 の `straight` は、この辺の直線長不足の原因ではない。受け入れテストでこの長さを固定して再発を防ぐ。
+- **実際に再現した穴（原因）**: junction は方向が自由で stub がなく、さらに `shortArrowEnd()` が junction 端を明示的に検査から除いていた。通常のポートは探索の hard stub と最後の長さの検査の二重の保証があるが、junction の矢じりだけは両方を素通りした。最小 fixture `tests/fixtures/figures/layout/arrowhead-on-bend.sumi.yaml` は、同じ行の箱の `east:0.6` から hidden junction に入る青い矢印で、修正前は最後の縦線が **3.4 unit < 矢じり 8 unit**。writer の `trimEnd()` が前の線分まで切り詰め、矢じりが曲がり角をまたぐ。`wire.ts` の `keepStart` / `keepEnd` は既にある線の丸めを制限するだけで、不足する直線を作れない。幾何 lint にはこの検査自体がなかった。
+- **修正（判断: 問題のある経路だけ再探索）**: `shortArrowEnd()` は junction を含む両端を見る。自由な方向で引いた経路が短い場合だけ、矢じりのある junction の 4 方向を通常のポートと同じ hard stub（矢じりの長さ）で試し、妥当な経路のうち費用が最小のものを採る（同点は方向の順、両端 junction なら最大 16 通り）。通常の A*・費用・占有・格子を使い、アンカーや要素は動かさず、格子線も増やさない。候補がどれも引けない、または短いままなら `layout/no-route`（error）で黙って描かない。修正後の fixture の最終線分は **17.25 unit**。矢じりのない junction は従来どおり自由。最初から十分な直線のある図は再探索せず、既存の格子・経路・出力は同じ。
+- **新しい幾何 lint（判断: `geometry/arrowhead-on-bend`、warning）**: 先端から最後の曲がりまで（矢じりに隠れる部分を含む）の直線が矢じりより短く、不足が幾何 lint 共通の許容 **1 unit = 0.5pt** を超えると報告する。誤読につながる描画の不具合なので `edge-through-node`・`edge-on-border` と同じ warning。始点の矢じりと終点の矢じりは独立で、位置は辺、メッセージに端・矢じりの長さ・直線長（印刷時の pt）、hint に anchor・gap・配置の変更を示す。比べる両方の長さが同率で縮むため `fit: scale` で判定は変わらない。
+  - **描かれた幾何**: `GeometryElement.drawn`（§6.39、`paintedEdges()` の wire をエッジごとに持つ）で丸めた後の曲がりを測り、論理経路から先端を得る。別の辺の共有幹線は借りない。先端と triangle の底の間の「線を描かない部分」は曲がりではない。一直線上の中間点・重複点は無視する。透明な線、線幅 0、不透明度 0、凡例の見本は対象外。
+  - **D2 の違いと誤検出の調整**: structured の矢じりは `4 + 4w` unit だが、固定版 D2 の triangle marker は長さ `4 + 3w`、`refX = 4 + 1.5w` なので先端が connection の端より `1.5w` 先にある。これを無視した最初の検査は 8 図（decision-flow・grouped・pipeline・#86 の v1 Transformer・compile/builtins・compile/structure・container-label・reversed-edge）で誤検出した。すべて PDF から PNG にして確認し、marker の先端の offset と、D2 の接線付近の弧の量子化の許容（1 unit）を反映した。D2 の triangle 以外は marker の寸法の契約が異なるので検査しない（structured はすべての矢じりの種類を検査）。しきい値を図ごとに緩める例外は作らない。
+- **互換性と全図検査（実測）**: 変更前のリポジトリの YAML **138 図 ×（元の Theme + 組み込み 5 Theme）= 828 通り**を描画し、成功 562 通りの SVG を sha256 で変更後と比較した。**既存出力の変更は 0**、成功・失敗の組み合わせも同じ（失敗は既存の invalid fixture・古い構文・Theme と Profile の不適合など）。追加 fixture は 6 通りとも成功し、変更後は計 139 図・834 通り・成功 568 通りで新規規則の診断 **0 件**。既存の図はもともと直線長の条件を満たし、変わるのは新しい再現の不正な経路だけなので golden の書き換えは不要。`bun run gallery` は 155 ファイル中変更 0、新規診断 0。PDF・PPTX・画像の golden も指定の更新コマンドで変更 0。
+- **テスト**: 最小 fixture を全組み込み Theme で引き、最終線分 ≥ 矢じり長、始点側の junction の再探索、経路のない場合の error、候補探索の A* / Dijkstra の費用一致を確認。指摘された受け入れ図の辺の長さも検査する。lint は短い端（正例）、始点・終点、ちょうどの長さと許容の境界、縮小、丸めた描画が鋭角の論理経路より短い場合、triangle の底での切り詰め、重複・同一直線の中間点、D2 の marker offset、矢じりのない線・透明な線（負例）を検査する。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）
