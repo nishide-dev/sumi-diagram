@@ -38,6 +38,7 @@ import type {
   LayoutEngine,
   Side,
 } from "../core/figure/schema";
+import { nodeOrder } from "../core/figure/tokens";
 import { getProfile } from "../core/profile/builtin";
 
 import {
@@ -161,6 +162,27 @@ interface ElementIRBase {
    * name this element (e.g. `the sample line of entry 1 of legend "key"`).
    */
   readonly legend?: LegendPartIR;
+  /**
+   * Set on every node a tokens node was expanded into (#181, design doc
+   * §6.50): the tokens node's ID and variant, and how messages name this
+   * cell (e.g. `cell "a1" of tokens "seq"`).
+   */
+  readonly tokens?: TokensCellIR;
+}
+
+/** See {@link ElementIRBase.tokens}. */
+export interface TokensCellIR {
+  /** The ID of the tokens node (which names no element of its own). */
+  readonly id: string;
+  /** The tokens node's variant. */
+  readonly variant: string;
+  readonly name: string;
+  /**
+   * Where each field of the cell's node is written, by its path relative to
+   * the node (see `TokensCellExpansion.fields`), so that diagnostics about
+   * the cell point at the written field.
+   */
+  readonly fields: Readonly<Record<string, DocPath>>;
 }
 
 /** See {@link ElementIRBase.legend}. */
@@ -332,7 +354,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
       ...(location !== undefined && { location: freeze({ ...location }) }),
     });
   };
-  // An expanded element (a caption, #130; a legend's part, #131) maps to the field it stands for.
+  // An expanded element (a caption, #130; a legend's part, #131; a tokens cell, #181) maps to the field it stands for.
   const mapSource = (key: ElementKey, path: DocPath) =>
     sourceMap.set(key, sourceEntry(doc.expanded?.get(key)?.path ?? path));
 
@@ -372,6 +394,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
       component: component.id,
       variant: component.variant,
       ...legendPartOf(doc, key),
+      ...tokensCellOf(doc, key),
       ...(element.group !== undefined && { parent: groupKey(element.group) }),
       d2Key: `${prefix}_${element.id}`,
       d2Path: freeze(d2PathOf(prefix, element.id, element.group)),
@@ -400,7 +423,9 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
   };
   const arrangeOf = (box: ArrangeBox) => arrangeIR(box, endpointKey, captions, captionGapPt);
 
-  for (const [index, n] of doc.nodes.entries()) {
+  // Document order, with the cells of tokens nodes (#181) in their tokens node's place.
+  for (const index of nodeOrder(doc)) {
+    const n = doc.nodes[index];
     if (n === undefined) continue;
     const key = nodeKey(n.id);
     const caption = doc.captions?.get(index);
@@ -675,6 +700,17 @@ function legendPartOf(doc: PartialFigure, key: ElementKey): { legend?: LegendPar
   const origin = doc.expanded?.get(key);
   if (origin?.from !== "legend") return {};
   return { legend: freeze({ id: origin.subject.id, name: origin.name }) };
+}
+
+/** `{ tokens }` for a cell of a tokens node (#181), otherwise `{}`. */
+function tokensCellOf(doc: PartialFigure, key: ElementKey): { tokens?: TokensCellIR } {
+  const origin = doc.expanded?.get(key);
+  if (origin?.from !== "tokens") return {};
+  const id = origin.subject.id;
+  const expansion = doc.tokens?.find((t) => t.id === id);
+  const variant = expansion?.variant ?? "default";
+  const fields = expansion?.cells.find((c) => nodeKey(c.id) === key)?.fields ?? {};
+  return { tokens: freeze({ id, variant, name: origin.name, fields: freeze({ ...fields }) }) };
 }
 
 function componentOf(state: CheckState, key: ElementKey): ResolvedComponent {

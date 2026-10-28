@@ -19,8 +19,11 @@ export const unusedLegendEntry = defineRule({
   run(context) {
     const { legends } = context.state.doc;
     if (legends === undefined) return [];
-    // What the author drew: the elements that are not parts of a legend or captions.
-    const written = context.elements.filter((e) => e.origin === undefined);
+    // What the author drew: the elements that are not parts of a legend or
+    // captions (the cells of tokens nodes, #181, are the author's nodes).
+    const written = context.elements.filter(
+      (e) => e.origin === undefined || e.origin.from === "tokens",
+    );
     const toneOf = (e: ValidElement) => (e.kind === "edge" ? undefined : e.element.tone);
     const findings: LintFinding[] = [];
     for (const legend of legends) {

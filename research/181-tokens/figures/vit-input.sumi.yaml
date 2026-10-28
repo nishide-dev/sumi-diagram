@@ -1,0 +1,58 @@
+# #181: research/151-dogfood-v0.5/figures/vit-input.sumi.yaml (#151, ViT input)
+# with its token cells written as `component: tokens` by
+# research/181-tokens/rewrite.ts; nothing else is changed.
+version: 1
+requires: ">=0.5.1"
+figure:
+  id: vit-input
+  theme: color
+  profile: paper-single
+  layout:
+    arrange:
+      stack:
+        direction: up
+        gap: 5mm
+        align: stretch
+        items:
+          - row: { gap: 12mm, align: center, items: [ image, { row: { gap: 2mm, items: [ p1, p2, p3, p4 ] } } ] }
+          - projection
+          - row: { gap: 1.5mm, items: [ tok0, tok1, tok2, tok3, tok4 ] }
+          - encoder
+          - stack: { gap: 5mm, direction: up, align: center, items: [ head, cls-out ] }
+nodes:
+  - { id: image, component: image, variant: framed, props: { src: image.png, height: 40pt } }
+  - { id: p1, component: image, variant: framed, props: { src: patch-0.png, height: 16pt } }
+  - { id: p2, component: image, variant: framed, props: { src: patch-1.png, height: 16pt } }
+  - { id: p3, component: image, variant: framed, props: { src: patch-2.png, height: 16pt } }
+  - { id: p4, component: image, variant: framed, props: { src: patch-3.png, height: 16pt } }
+  - { id: projection, component: box, label: Linear Projection of Flattened Patches, tone: pink }
+  - { id: tok0, component: tokens, props: { gap: 0, cells: [ { id: pos, label: '0', tone: purple, width: 12pt }, { id: x, label: '$x_{\mathrm{cls}}$', tone: orange } ] } }
+  - { id: tok1, component: tokens, props: { gap: 0, cells: [ { id: pos, label: '1', tone: purple, width: 12pt }, { id: x, label: '$x_p^1 E$', tone: pink } ] } }
+  - { id: tok2, component: tokens, props: { gap: 0, cells: [ { id: pos, label: '2', tone: purple, width: 12pt }, { id: x, label: '$x_p^2 E$', tone: pink } ] } }
+  - { id: tok3, component: tokens, props: { gap: 0, cells: [ { id: pos, label: '3', tone: purple, width: 12pt }, { id: x, label: '$x_p^3 E$', tone: pink } ] } }
+  - { id: tok4, component: tokens, props: { gap: 0, cells: [ { id: pos, label: '4', tone: purple, width: 12pt }, { id: x, label: '$x_p^4 E$', tone: pink } ] } }
+  - { id: encoder, component: box, label: Transformer Encoder, tone: yellow }
+  - { id: repeat, component: label, label: '$L\times$', attach: { to: encoder, side: east, gap: 1mm } }
+  - { id: head, component: box, label: MLP Head, tone: green }
+  - { id: cls-out, component: label, label: Class }
+edges:
+  - { from: image, to: p1, label: split }
+  # The anchor fractions put each line straight above its source. They were
+  # read off the rendered SVG (node x / the wide block's width): Sumi has no
+  # "enter right above the source" option, and fanIn: spread spaces the ends
+  # evenly, so every line got a jog (see README, C1).
+  - { from: p1, to: projection, toAnchor: "south:0.521" }
+  - { from: p2, to: projection, toAnchor: "south:0.622" }
+  - { from: p3, to: projection, toAnchor: "south:0.7225" }
+  - { from: p4, to: projection, toAnchor: "south:0.823" }
+  - { from: projection, fromAnchor: "north:0.3093", to: tok1.x }
+  - { from: projection, fromAnchor: "north:0.5175", to: tok2.x }
+  - { from: projection, fromAnchor: "north:0.7256", to: tok3.x }
+  - { from: projection, fromAnchor: "north:0.9338", to: tok4.x }
+  - { from: tok0.x, to: encoder, toAnchor: "south:0.1116" }
+  - { from: tok1.x, to: encoder, toAnchor: "south:0.3093" }
+  - { from: tok2.x, to: encoder, toAnchor: "south:0.5175" }
+  - { from: tok3.x, to: encoder, toAnchor: "south:0.7256" }
+  - { from: tok4.x, to: encoder, toAnchor: "south:0.9338" }
+  - { from: encoder, to: head }
+  - { from: head, to: cls-out }

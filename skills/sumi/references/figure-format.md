@@ -263,6 +263,9 @@ Always take these from `sumi catalog --json`. Each entry has `id`
   Components without `engines` work in both engines.
 - `zoom` (edge, structured only, 0.6.0) joins an element to a view that
   shows it enlarged: see [structured](structured.md#zoom-callouts).
+- `tokens` (structured only) writes a row of cells (sequence tokens,
+  keys) as one node; edges name a cell as `<node>.<cell>`: see
+  [structured](structured.md#token-sequences).
 
 ### Catalog render metadata
 

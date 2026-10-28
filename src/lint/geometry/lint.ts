@@ -5,6 +5,7 @@
  */
 
 import { type Diagnostic, type DocPath, formatDocPath } from "../../core/diagnostics";
+import { type CellFields, cellFieldPath } from "../../core/figure/tokens";
 import { type Locator, parseYaml } from "../../core/figure/yaml";
 import { type FontSet, getFontSet } from "../../core/theme/fonts";
 import { type RenderedFigure, type RenderFigureOptions, renderFigure } from "../../render/render";
@@ -17,7 +18,7 @@ import {
   lintFigure,
   summarize,
 } from "../lint";
-import { isGeometryRule, toDiagnostic } from "../rule";
+import { isGeometryRule, type LintFinding, toDiagnostic } from "../rule";
 import { createGeometryContext, type GeometryContext } from "./context";
 
 /** The parts of a render the geometry lint needs (a {@link RenderedFigure} has them). */
@@ -78,9 +79,24 @@ export function runGeometryRules(
   config: ResolvedLintConfig,
   locate: Locator,
 ): Diagnostic[] {
+  // A cell of a tokens node (#181) is located at its cell; its fields are
+  // written in the cell or inherited from the tokens: point at those.
+  const cells: CellFields[] = context.elements.flatMap(({ ir, docPath }) =>
+    ir.tokens === undefined ? [] : [{ path: docPath, fields: ir.tokens.fields }],
+  );
+  const remap = (finding: LintFinding): LintFinding =>
+    cells.length === 0
+      ? finding
+      : {
+          ...finding,
+          path: cellFieldPath(cells, finding.path),
+          ...(finding.related !== undefined && {
+            related: finding.related.map((r) => ({ ...r, path: cellFieldPath(cells, r.path) })),
+          }),
+        };
   return config.rules.flatMap(({ rule, severity, options }) =>
     isGeometryRule(rule)
-      ? rule.run(context, options).map((f) => toDiagnostic(f, rule.id, severity, locate))
+      ? rule.run(context, options).map((f) => toDiagnostic(remap(f), rule.id, severity, locate))
       : [],
   );
 }

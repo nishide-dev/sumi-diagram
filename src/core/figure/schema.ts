@@ -18,7 +18,30 @@ export const FIGURE_SCHEMA_VERSION = 1;
 
 export const LAYOUT_DIRECTIONS = ["right", "down", "left", "up"] as const;
 
+/**
+ * A reference to a node or group: its ID, or a cell of a `tokens` node as
+ * `<node>.<cell>` (#181, design doc §6.50), where the cell is the cell's `id`
+ * or, for a cell without one, its 1-based position. Edge endpoints,
+ * `attach.to` and `figure.layout.align` items take references; the `tokens`
+ * expansion resolves cell references to the cells' reserved IDs.
+ */
+export const REF_PATTERN =
+  /^[a-z][a-z0-9_-]{0,63}(?:\.(?:[a-z][a-z0-9_-]{0,63}|[1-9][0-9]{0,3}))?$/;
+
+/** The element a reference names: the node of a cell reference, otherwise the reference. */
+export function refOwner(ref: string): string {
+  const dot = ref.indexOf(".");
+  return dot < 0 ? ref : ref.slice(0, dot);
+}
+
+/** The cell part of a cell reference `<node>.<cell>`, or `undefined` for a plain ID. */
+export function refCell(ref: string): string | undefined {
+  const dot = ref.indexOf(".");
+  return dot < 0 ? undefined : ref.slice(dot + 1);
+}
+
 const Id = z.string().regex(ID_PATTERN);
+const Ref = z.string().regex(REF_PATTERN);
 const ComponentRef = z.string().min(1);
 const Label = z
   .string()
@@ -124,7 +147,7 @@ const LAYOUT_LENGTH_PATTERN = /^(0|\d+(\.\d+)?(mm|cm|in|pt))$/;
  * A non-negative length with a unit (`"3mm"`, `"6pt"`), or `0` without one.
  * Normalized to pt. Validation issues carry `params.hint`.
  */
-const LayoutLength = z
+export const LayoutLength = z
   .unknown()
   .meta({
     anyOf: [{ type: "string", pattern: LAYOUT_LENGTH_PATTERN.source }, { const: 0 }],
@@ -225,7 +248,9 @@ export const ArrangeBoxSchema = z
 export const ArrangeItemSchema = z.union([Id, ArrangeBoxSchema]);
 
 export const AttachSchema = z.strictObject({
-  to: Id.describe("The node or group to place this node beside."),
+  to: Ref.describe(
+    "The node or group to place this node beside, or a cell of a tokens node as <node>.<cell>.",
+  ),
   side: z.enum(SIDES).describe("The side of the target to place this node on."),
   gap: LayoutLength.optional().describe("Space between the target and this node. Omitted means 0."),
 });
@@ -253,13 +278,17 @@ export type AlignPosition = (typeof ALIGN_POSITIONS)[number];
 export const AlignConstraintSchema = z
   .strictObject({
     x: z
-      .array(Id)
+      .array(Ref)
       .optional()
-      .describe("Node or group IDs whose x (center, left or right edge) is made equal."),
+      .describe(
+        "Node or group IDs (or tokens cells as <node>.<cell>) whose x (center, left or right edge) is made equal.",
+      ),
     y: z
-      .array(Id)
+      .array(Ref)
       .optional()
-      .describe("Node or group IDs whose y (center, top or bottom edge) is made equal."),
+      .describe(
+        "Node or group IDs (or tokens cells as <node>.<cell>) whose y (center, top or bottom edge) is made equal.",
+      ),
     at: z
       .enum(ALIGN_POSITIONS)
       .optional()
@@ -404,11 +433,11 @@ export const NodeSchema = z.strictObject({
 
 export const EdgeSchema = z.strictObject({
   id: Id.optional().describe("Optional edge ID (separate ID space from nodes and groups)."),
-  from: Id.describe("Source node or group ID."),
+  from: Ref.describe("Source node or group ID, or a cell of a tokens node as <node>.<cell>."),
   fromAnchor: Anchor.optional().describe(
     "Where the edge leaves the source (structured layout only).",
   ),
-  to: Id.describe("Target node or group ID."),
+  to: Ref.describe("Target node or group ID, or a cell of a tokens node as <node>.<cell>."),
   toAnchor: Anchor.optional().describe(
     "Where the edge enters the target (structured layout only).",
   ),

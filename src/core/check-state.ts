@@ -14,7 +14,15 @@
 import type { Diagnostic, DiagnosticSubject, DocPath } from "./diagnostics";
 import type { CaptionOrigin } from "./figure/caption";
 import type { LegendExpansion } from "./figure/legend";
-import type { FigureEdge, FigureGroup, FigureMeta, FigureNode, JsonValue } from "./figure/schema";
+import {
+  type FigureEdge,
+  type FigureGroup,
+  type FigureMeta,
+  type FigureNode,
+  type JsonValue,
+  refOwner,
+} from "./figure/schema";
+import type { TokensExpansion } from "./figure/tokens";
 import type { ResolvedComponent } from "./registry/manifest";
 import type { ResolvedStyle } from "./theme/style";
 
@@ -56,9 +64,14 @@ export interface PartialFigure {
    */
   legends?: readonly LegendExpansion[];
   /**
+   * Tokens nodes expanded into their cells (#181), in the order of the
+   * tokens nodes. Set by `expandTokens()`.
+   */
+  tokens?: readonly TokensExpansion[];
+  /**
    * Every element a check stage added in place of a field of another
-   * element: the caption nodes (#130) and the parts of legends (#131), by
-   * key. Diagnostics about such an element carry the origin's path and
+   * element: the caption nodes (#130), the parts of legends (#131) and the
+   * cells of tokens nodes (#181), by key. Diagnostics about such an element carry the origin's path and
    * subject (see {@link figureElements}).
    */
   expanded?: ReadonlyMap<ElementKey, ExpandedOrigin>;
@@ -67,10 +80,10 @@ export interface PartialFigure {
 /** Where an expanded element (see {@link PartialFigure.expanded}) is written. */
 export interface ExpandedOrigin {
   /** What it was expanded from. */
-  from: "caption" | "legend";
+  from: "caption" | "legend" | "tokens";
   /** The field it stands for, e.g. `["groups", 2, "caption"]` or a legend entry. */
   path: DocPath;
-  /** Whom diagnostics about it name: the captioned group, or the legend node. */
+  /** Whom diagnostics about it name: the captioned group, or the legend or tokens node. */
   subject: DiagnosticSubject;
   /** How messages name it, e.g. `the caption of group "x"`. */
   name: string;
@@ -142,7 +155,12 @@ export function* figureElements(doc: PartialFigure): Generator<ElementEntry> {
  */
 export function invalidateDependents(state: CheckState): void {
   const { doc, invalid } = state;
-  const isInvalid = (id: string) => invalid.has(nodeKey(id)) || invalid.has(groupKey(id));
+  // A cell reference `<node>.<cell>` (#181) depends on its node until the
+  // tokens expansion resolves it.
+  const isInvalid = (ref: string) => {
+    const id = refOwner(ref);
+    return invalid.has(nodeKey(id)) || invalid.has(groupKey(id));
+  };
   const dependents: (
     | { key: ElementKey; parent?: string | undefined; attached?: string | undefined }
     | undefined
