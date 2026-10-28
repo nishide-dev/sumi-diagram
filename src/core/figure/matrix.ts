@@ -326,7 +326,8 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
       const written = props.cells[r];
       const items: ArrangeItem[] = [];
       for (const [c, name] of row.entries()) {
-        const cls = props.classes[name] ?? {};
+        // Validated: every name is an own class (never one of Object.prototype's).
+        const cls = (Object.hasOwn(props.classes, name) && props.classes[name]) || {};
         const path: DocPath =
           typeof written === "string" ? [...propsPath, "cells", r] : [...propsPath, "cells", r, c];
         const id = ids.cell(node.id, r + 1, c + 1);

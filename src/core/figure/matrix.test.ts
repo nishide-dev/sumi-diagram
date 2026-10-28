@@ -504,6 +504,45 @@ describe("legend entries from classes (#180)", () => {
     ]);
   });
 
+  test("names of Object.prototype are no classes (review of #211)", () => {
+    for (const name of ["constructor", "toString", "__proto__", "hasOwnProperty"]) {
+      // As a legend entry's class.
+      const entry = checkFigure(
+        figure(PROPS, { key: `        - { class: m.${name}, label: Ghost }` }),
+      );
+      expect([
+        name,
+        codesOf(figure(PROPS, { key: `        - { class: m.${name}, label: Ghost }` })),
+      ]).toEqual([name, [["ref/unknown-class", ["nodes", 2, "props", "entries", 0, "class"]]]]);
+      expect(entry.state.doc.nodes?.some((n) => n?.id === "key-1-box")).toBe(false);
+      // As a cell's class.
+      const cells = figure(
+        PROPS.replace("cells: [oxx, xoo]", `cells: [[o, x, ${name}], [x, o, o]]`),
+      );
+      expect([name, codesOf(cells)]).toEqual([
+        name,
+        [["component/invalid-prop", ["nodes", 1, "props", "cells", 0, 2]]],
+      ]);
+    }
+  });
+
+  test("__proto__ cannot name a class: it is reported, not dropped", () => {
+    const source = figure(
+      PROPS.replace(
+        "o: { tone: green, label: Allowed }",
+        '"__proto__": { tone: green, label: Allowed }',
+      ),
+      { key: "        - { class: m.x }" },
+    );
+    const { state } = checkFigure(source);
+    expect(summarize(state.diagnostics).map(([code, path]) => [code, path])).toEqual([
+      ["component/invalid-prop", ["nodes", 1, "props", "classes", "__proto__"]],
+    ]);
+    expect(state.diagnostics[0]?.message).toBe(
+      'Invalid prop "classes.__proto__" for sumi/matrix: "__proto__" is reserved and cannot be used as a name.',
+    );
+  });
+
   test("unknown matrices and classes, a class without a label", () => {
     const entry = (key: string) => codesOf(figure(PROPS, { key }));
     expect(entry("        - { class: a.o }")).toEqual([

@@ -289,7 +289,8 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
         blocked = true;
         continue;
       }
-      const cls = matrix.classes[name];
+      // Own classes only: `constructor` or `toString` name no class (#180).
+      const cls = Object.hasOwn(matrix.classes, name) ? matrix.classes[name] : undefined;
       if (cls === undefined) {
         const names = Object.keys(matrix.classes);
         fail(
@@ -421,7 +422,7 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
       } else if (matrixClass !== undefined) {
         // The sample box of a matrix class (#180): a box as the class's cells.
         const { matrix, name } = matrixClass;
-        const cls = matrix.classes[name] ?? {};
+        const cls = (Object.hasOwn(matrix.classes, name) && matrix.classes[name]) || {};
         const box = partNode(ids.box, "box", cls.variant ?? matrix.cellVariant);
         const resolved = registry.resolve(box.component, "node");
         if (resolved.ok && resolved.value.kind === "node") {

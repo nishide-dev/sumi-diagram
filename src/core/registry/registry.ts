@@ -259,6 +259,21 @@ export function validateUsage(
     );
   }
 
+  // A `__proto__` key (#180, e.g. a matrix class name) would be dropped by
+  // the schema without a word: reject it where it is written.
+  const reserved = reservedKeyPaths(props);
+  for (const path of reserved) {
+    diagnostics.push(
+      error(
+        "component/invalid-prop",
+        `Invalid prop "${formatDocPath(path)}" for ${id}: "__proto__" is reserved and cannot be used as a name.`,
+        ["props", ...path],
+        { hint: "Use another name." },
+      ),
+    );
+  }
+  if (reserved.length > 0) return { ok: false, diagnostics };
+
   const parsed = manifest.props.safeParse(props);
   if (!parsed.success) {
     for (const issue of parsed.error.issues) diagnostics.push(...propIssue(manifest, issue));
@@ -266,6 +281,17 @@ export function validateUsage(
 
   if (!parsed.success || diagnostics.length > 0) return { ok: false, diagnostics };
   return { ok: true, value: { variant, props: parsed.data }, diagnostics };
+}
+
+/** The paths of every own `__proto__` key in written props (objects and lists, deeply). */
+function reservedKeyPaths(value: unknown, path: (string | number)[] = []): (string | number)[][] {
+  if (Array.isArray(value)) return value.flatMap((item, i) => reservedKeyPaths(item, [...path, i]));
+  if (value === null || typeof value !== "object") return [];
+  const found: (string | number)[][] = [];
+  if (Object.hasOwn(value, "__proto__")) found.push([...path, "__proto__"]);
+  for (const [key, child] of Object.entries(value))
+    found.push(...reservedKeyPaths(child, [...path, key]));
+  return found;
 }
 
 function propIssue(manifest: ComponentManifest, issue: z.core.$ZodIssue): Diagnostic[] {
