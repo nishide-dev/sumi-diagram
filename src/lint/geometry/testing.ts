@@ -60,6 +60,11 @@ export interface InspectionSpec {
   elements: Partial<
     Record<ElementKey, { bbox?: Rect; labels?: LabelGeometry[]; path?: Point[] | PathSegment[] }>
   >;
+  /**
+   * What a structured figure paints per edge (#156), as polylines: sets
+   * `SvgInspection.painted` (edges left out paint nothing).
+   */
+  painted?: Partial<Record<ElementKey, Point[][]>>;
 }
 
 const isPoints = (path: Point[] | PathSegment[]): path is Point[] =>
@@ -88,6 +93,14 @@ export function inspection(compiled: CompiledFigure, spec: InspectionSpec): SvgI
     canvas: { viewBox: canvas, width: toSize(canvas.width), height: toSize(canvas.height) },
     profile: { id: "paper-single", maxWidthPt: mmToPt(88), minFontSizePt: 7, ...spec.profile },
     elements,
+    ...(spec.painted !== undefined && {
+      painted: Object.entries(spec.painted).map(([key, lines]) => ({
+        key: key as ElementKey,
+        path: (lines ?? []).flatMap((line) =>
+          line.map((to, i): PathSegment => ({ command: i === 0 ? "M" : "L", to })),
+        ),
+      })),
+    }),
   };
 }
 

@@ -159,8 +159,10 @@ export class PieceIndex<Owner> {
   /**
    * Every pair of bundles on the same axis whose coordinates differ by more
    * than `apart` and at most `reach`, and that run side by side, each pair
-   * once, with the owners only one side has (an owner on both sides is a
-   * route doubling back beside itself, not two lines). A sweep over the
+   * once, with the owners of each side that have a partner other than
+   * themselves on the other side (an edge beside only itself is a route
+   * doubling back, not two lines; an edge on both sides beside another edge
+   * still counts). A sweep over the
    * sorted coordinates: bundles on the same line are skipped as a block.
    */
   pairs(
@@ -191,99 +193,15 @@ export class PieceIndex<Owner> {
           if (b.at - a.at > reach) break;
           const run = parallelRun(a, b);
           if (run === undefined) continue;
-          const aOwners = a.owners.filter((o) => !b.owners.includes(o));
-          const bOwners = b.owners.filter((o) => !a.owners.includes(o));
+          // Owners with a partner other than themselves on the other side.
+          const aOwners = a.owners.filter((o) => b.owners.some((other) => other !== o));
+          const bOwners = b.owners.filter((o) => a.owners.some((other) => other !== o));
           if (aOwners.length > 0 && bOwners.length > 0) found.push({ a, b, aOwners, bOwners, run });
         }
       }
     }
     return found;
   }
-}
-
-/** Points closer than this (in units) are the same point when matching painted wires to routes. */
-const SAME_POINT = 0.02;
-
-/** `true` if `p` lies on the segment `a`–`b` (within {@link SAME_POINT}). */
-function onSegment(p: Point, a: Point, b: Point): boolean {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const length2 = dx * dx + dy * dy;
-  const t =
-    length2 === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / length2));
-  return Math.hypot(a.x + t * dx - p.x, a.y + t * dy - p.y) <= SAME_POINT;
-}
-
-const onPolylines = (p: Point, polylines: readonly (readonly Point[])[]): boolean =>
-  polylines.some((line) => line.some((q, i) => i > 0 && onSegment(p, line[i - 1] as Point, q)));
-
-/**
- * What each edge paints, from the painted wires of a structured figure
- * (#156): a wire strokes several edges of a net at once with rounded turns,
- * stopping at arrowheads, while each edge's route keeps the sharp corners.
- * An edge owns the parts of the wires' straight pieces that lie on its
- * route, and the turns (arcs) whose both ends lie on its route.
- *
- * @param routes Each edge's sharp route.
- * @param wires The painted wires, flattened (a straight piece is a polyline of two points).
- */
-export function paintedRoutes<Key>(
-  routes: ReadonlyMap<Key, readonly (readonly Point[])[]>,
-  wires: readonly (readonly Point[])[],
-): Map<Key, Point[][]> {
-  const straight: AxisSegment[] = [];
-  const arcs: (readonly Point[])[] = [];
-  for (const line of wires) {
-    const pieces = axisSegments([line]);
-    if (line.length === 2 && pieces.length === 1) straight.push(pieces[0] as AxisSegment);
-    else if (line.length > 1) arcs.push(line);
-  }
-  const index = new PieceIndex(straight.map((s) => ({ ...s, owner: 0, width: 0 })));
-  // A turn rounds the corner where the lines through its ends meet.
-  const cornerKey = (p: Point) => `${Math.round(p.x * 100)},${Math.round(p.y * 100)}`;
-  const arcsAt = new Map<string, (readonly Point[])[]>();
-  for (const arc of arcs) {
-    const first = arc[0] as Point;
-    const last = arc[arc.length - 1] as Point;
-    const corners = new Set([
-      cornerKey({ x: first.x, y: last.y }),
-      cornerKey({ x: last.x, y: first.y }),
-    ]);
-    for (const key of corners) arcsAt.set(key, [...(arcsAt.get(key) ?? []), arc]);
-  }
-  const painted = new Map<Key, Point[][]>();
-  for (const [key, route] of routes) {
-    const own: Point[][] = [];
-    for (const segment of axisSegments(route)) {
-      for (const piece of index.near(segment.axis, segment.at, SAME_POINT)) {
-        const run = parallelRun(segment, piece);
-        if (run === undefined) continue;
-        own.push(
-          segment.axis === "h"
-            ? [
-                { x: run.from, y: segment.at },
-                { x: run.to, y: segment.at },
-              ]
-            : [
-                { x: segment.at, y: run.from },
-                { x: segment.at, y: run.to },
-              ],
-        );
-      }
-    }
-    const seen = new Set<readonly Point[]>();
-    for (const corner of route.flat()) {
-      for (const arc of arcsAt.get(cornerKey(corner)) ?? []) {
-        if (seen.has(arc)) continue;
-        seen.add(arc);
-        const first = arc[0] as Point;
-        const last = arc[arc.length - 1] as Point;
-        if (onPolylines(first, route) && onPolylines(last, route)) own.push([...arc]);
-      }
-    }
-    painted.set(key, own);
-  }
-  return painted;
 }
 
 /** The four straight sides of a rectangle whose corners are rounded by `radius`. */

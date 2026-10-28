@@ -4,7 +4,6 @@ import { inkLines, measureLabel } from "./measure";
 import {
   axisSegments,
   PieceIndex,
-  paintedRoutes,
   parallelRun,
   polylinesRectDistance,
   rectSides,
@@ -86,57 +85,16 @@ describe("proximity geometry", () => {
     expect(index.near("v", 51, 1.5).map((p) => p.owners)).toEqual([["a", "f"], ["e"], ["b"]]);
     const pairs = (apart: number) =>
       index.pairs(apart, 5).map(({ aOwners, bOwners, run }) => [aOwners, bOwners, run.distance]);
-    // {a, f} at 50 and a at 53: only f differs, and a alone is no pair.
+    // {a, f} at 50 and a at 53: f is beside a; a beside itself is no pair.
     expect(pairs(0)).toEqual([
       [["a", "f"], ["b"], 2],
+      [["f"], ["a"], 3],
       [["b"], ["a"], 1],
     ]);
-    expect(pairs(1)).toEqual([[["a", "f"], ["b"], 2]]);
-  });
-
-  test("paintedRoutes keeps what the wires paint of each route", () => {
-    // A U-turn routed sharp at y 1; painted with radius-8 turns, it leaves
-    // only 4 units straight at y 1 (#163 review).
-    const route = [
-      [
-        { x: 10, y: -100 },
-        { x: 10, y: 1 },
-        { x: 30, y: 1 },
-        { x: 30, y: -100 },
-      ],
-    ];
-    const arc = (from: { x: number; y: number }, to: { x: number; y: number }) => [
-      from,
-      { x: (from.x + to.x) / 2 - 1, y: (from.y + to.y) / 2 + 1 },
-      to,
-    ];
-    const painted = paintedRoutes(new Map([["e", route]]), [
-      [
-        { x: 10, y: -100 },
-        { x: 10, y: -7 },
-      ],
-      arc({ x: 10, y: -7 }, { x: 18, y: 1 }),
-      [
-        { x: 18, y: 1 },
-        { x: 22, y: 1 },
-      ],
-      arc({ x: 22, y: 1 }, { x: 30, y: -7 }),
-      [
-        { x: 30, y: -7 },
-        { x: 30, y: -100 },
-      ],
-      // Another net's wire crossing the route is not the edge's.
-      [
-        { x: 0, y: -50 },
-        { x: 40, y: -50 },
-      ],
-    ]).get("e");
-    expect(axisSegments(painted ?? [])).toEqual([
-      { axis: "v", at: 10, from: -100, to: -7 },
-      { axis: "h", at: 1, from: 18, to: 22 },
-      { axis: "v", at: 30, from: -100, to: -7 },
+    expect(pairs(1)).toEqual([
+      [["a", "f"], ["b"], 2],
+      [["f"], ["a"], 3],
     ]);
-    expect(painted?.filter((line) => line.length === 3)).toHaveLength(2);
   });
 
   test("rectSides leaves out rounded corners", () => {
@@ -580,5 +538,102 @@ describe("inkLines", () => {
     expect(inkLines(runs)).toEqual(runs.visibleLines);
     const icon = { ...measureLabel(label("A", 100, 50), set), fontPath: "" };
     expect(inkLines(icon)).toEqual(icon.visibleLines);
+  });
+});
+
+describe("re-review regressions (#163)", () => {
+  const vertical = (x: number, from = 0, to = 100) => ({
+    path: [
+      { x, y: from },
+      { x, y: to },
+    ],
+  });
+
+  test("an edge on a trunk it shares is compared with the other edge's branch", () => {
+    // A and B share x 50; B turns back up at x 53, beside A.
+    const result = lintSpec(
+      compiled,
+      {
+        elements: {
+          "e:#0": vertical(50),
+          "e:#1": {
+            path: [
+              { x: 50, y: 0 },
+              { x: 50, y: 100 },
+              { x: 53, y: 100 },
+              { x: 53, y: 0 },
+            ],
+          },
+        },
+      },
+      { code: "geometry/edge-near-edge" },
+    );
+    expect(result.map((d) => d.message)).toEqual([
+      "Edge edges[1] runs beside edge edges[0] for 17.6mm, 0.18mm apart, so the two read as one line.",
+    ]);
+  });
+
+  test("a structured edge is measured on what it paints itself, not on another edge's wire", () => {
+    // edges[0] is routed (0,1)→(20,1) along the group's top border but paints
+    // only x 0–8 (its arrowhead follows); edges[1] paints (0,1)→(100,1) on
+    // the same line. Only edges[1] runs on the border, for the 20 units
+    // (3.5mm) the border is long.
+    const result = lintSpec(
+      compiled,
+      {
+        elements: {
+          "g:grp": { bbox: { x: 0, y: 0, width: 20, height: 50 } },
+          "e:#0": {
+            path: [
+              { x: 0, y: 1 },
+              { x: 20, y: 1 },
+            ],
+          },
+          "e:#1": {
+            path: [
+              { x: 0, y: 1 },
+              { x: 100, y: 1 },
+            ],
+          },
+        },
+        painted: {
+          "e:#0": [
+            [
+              { x: 0, y: 1 },
+              { x: 8, y: 1 },
+            ],
+          ],
+          "e:#1": [
+            [
+              { x: 0, y: 1 },
+              { x: 100, y: 1 },
+            ],
+          ],
+        },
+      },
+      { code: "geometry/edge-on-border" },
+    );
+    expect(result.map((d) => d.message)).toEqual([
+      'Edge edges[1] runs on the border of group "grp" for 3.5mm, so it reads as part of the frame.',
+    ]);
+    // An edge that paints nothing (no entry) takes no part.
+    expect(
+      lintSpec(
+        compiled,
+        {
+          elements: {
+            "g:grp": { bbox: { x: 0, y: 0, width: 20, height: 50 } },
+            "e:#1": {
+              path: [
+                { x: 0, y: 1 },
+                { x: 100, y: 1 },
+              ],
+            },
+          },
+          painted: {},
+        },
+        { code: "geometry/edge-on-border" },
+      ),
+    ).toEqual([]);
   });
 });

@@ -24,7 +24,7 @@ describe("proximity rules on painted wires (structured)", async () => {
   const rendered = result.value;
 
   test("each edge's drawn lines lie on its route, short of every turn", () => {
-    expect(rendered.inspection.wires?.length).toBeGreaterThan(0);
+    expect(rendered.inspection.painted?.length).toBe(18);
     const context = geometryContextFor(rendered);
     const edges = context.elements.filter((e) => e.kind === "edge");
     expect(edges.length).toBe(18);
@@ -76,5 +76,34 @@ describe("proximity rules on painted wires (structured)", async () => {
       'geometry/edge-on-border: Edge edges[16] runs on the border of group "workers" for 31.8mm (0.16mm between the lines), so it reads as part of the frame.',
       "geometry/edge-near-edge: Edge edges[17] runs beside edge edges[16] for 40.8mm, 0.16mm apart, so the two read as one line.",
     ]);
+  });
+});
+
+describe("painted geometry per edge (structured)", () => {
+  test("a hidden junction's turn belongs to an edge that meets there", async () => {
+    // research/151 figure 2: the residual edges fork off hidden junctions.
+    const file = join(ROOT, "research/151-dogfood-v0.5/figures/dit-block.sumi.yaml");
+    const result = await renderFigure(await Bun.file(file).text());
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics, null, 2));
+    const context = geometryContextFor(result.value);
+    const within = (v: number, s: number, t: number) =>
+      v >= Math.min(s, t) - 0.02 && v <= Math.max(s, t) + 0.02;
+    const onRoute = (p: Point, route: readonly (readonly Point[])[]) =>
+      route.some((line) =>
+        line.some((q, i) => {
+          const a = line[i - 1];
+          return a !== undefined && within(p.x, a.x, q.x) && within(p.y, a.y, q.y);
+        }),
+      );
+    // A turn (arc) with an end off its own edge's route joins two routes at a junction.
+    const joins = context.elements.flatMap((e) =>
+      (e.drawn ?? []).filter(
+        (line) =>
+          line.length > 2 &&
+          e.route !== undefined &&
+          !(onRoute(line[0] as Point, e.route) && onRoute(line.at(-1) as Point, e.route)),
+      ),
+    );
+    expect(joins.length).toBeGreaterThan(0);
   });
 });

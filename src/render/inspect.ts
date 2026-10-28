@@ -23,14 +23,7 @@ import {
   toSize,
 } from "./geometry";
 import { invalid, parseNumber, readD2Svg } from "./svg";
-import {
-  attribute,
-  childElements,
-  classList,
-  descendants,
-  textContent,
-  type XmlElement,
-} from "./xml";
+import { attribute, childElements, classList, textContent, type XmlElement } from "./xml";
 
 export interface LabelGeometry {
   /** Text as drawn; lines of a multi-line label are joined with `\n`. */
@@ -120,13 +113,15 @@ export interface SvgInspection {
   /** One entry per IR element, in IR order (groups, nodes, edges). */
   elements: ElementGeometry[];
   /**
-   * The painted lines of a structured figure (#90, #156): every
-   * `path.sumi-wire` as absolute M/L/C segments, with its stroke width. A
-   * wire strokes the edges of one net and line style with rounded turns,
+   * What a structured figure paints for each edge (#90, #156), as absolute
+   * M/L/C segments: the wires (`path.sumi-wire`) stroke the edges of a net
+   * and line style together, with rounded turns and stopped at arrowheads,
    * while each edge's `path.connection` keeps the sharp, unstroked route.
-   * Absent for D2's output, which strokes `path.connection` itself.
+   * Set by `renderFigure()` from the layout (the merged wires in the SVG no
+   * longer say which edge drew what). Absent for D2's output, which strokes
+   * `path.connection` itself, and for an inspection of SVG text alone.
    */
-  wires?: { path: PathSegment[]; strokeWidth: number }[];
+  painted?: { key: ElementKey; path: PathSegment[] }[];
 }
 
 const ELEMENT_CLASS = /^sumi-k-([nge])--(.+)$/;
@@ -556,20 +551,6 @@ export function inspectSvg(svg: string, ir: FigureIR): Result<SvgInspection> {
     elements.push(geometry);
   }
 
-  const wires: { path: PathSegment[]; strokeWidth: number }[] = [];
-  for (const element of descendants(drawing)) {
-    if (element.name !== "path" || !classList(element).includes("sumi-wire")) continue;
-    const parsed = parsePath(attribute(element, "d") ?? "");
-    if (!parsed.ok) {
-      diagnostics.push(invalid(`A painted wire path: ${parsed.message}`));
-      continue;
-    }
-    wires.push({
-      path: parsed.segments,
-      strokeWidth: parseNumber(attribute(element, "stroke-width") ?? "1") ?? 1,
-    });
-  }
-
   if (diagnostics.length > 0) return { ok: false, diagnostics };
   const profile = getProfile(ir.meta.profileId);
   if (profile === undefined)
@@ -585,7 +566,6 @@ export function inspectSvg(svg: string, ir: FigureIR): Result<SvgInspection> {
         minFontSizePt: profile.typography.minFontSize.pt,
       },
       elements,
-      ...(wires.length > 0 && { wires }),
     },
     diagnostics: [],
   };
