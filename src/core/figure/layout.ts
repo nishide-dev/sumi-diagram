@@ -4,7 +4,7 @@
  *
  * - With the `auto` engine, every structured-only field (`figure.layout.arrange`,
  *   `figure.layout.align`, `figure.layout.fanIn` (#134),
- *   `group.arrange`, `node.attach`, `edge.fromAnchor` /
+ *   `group.arrange`, `node.attach`, `node.labelRotation` (#178), `edge.fromAnchor` /
  *   `toAnchor`, `edge.labelAt` / `labelSide` (#128)) is an error: it would
  *   otherwise be ignored silently.
  * - With the `structured` engine, every node and group must be placed exactly
@@ -135,9 +135,13 @@ function checkAuto(state: CheckState, locate: Locator): void {
     report("arrange", ["groups", index, "arrange"], groupKey(group.id), subject);
   }
   for (const [index, node] of (doc.nodes ?? []).entries()) {
-    if (node?.attach === undefined || invalid.has(nodeKey(node.id))) continue;
+    if (node === undefined || invalid.has(nodeKey(node.id))) continue;
     const subject = { kind: "node", id: node.id } as const;
-    report("attach", ["nodes", index, "attach"], nodeKey(node.id), subject);
+    for (const field of ["attach", "labelRotation"] as const) {
+      if (node[field] !== undefined) {
+        report(field, ["nodes", index, field], nodeKey(node.id), subject);
+      }
+    }
   }
   for (const [index, edge] of (doc.edges ?? []).entries()) {
     if (edge === undefined || invalid.has(edgeKey(edge.id, index))) continue;

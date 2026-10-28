@@ -81,10 +81,21 @@ const opacity = (style: CommonStyle): string =>
 /** The `text*` class of a font class (`regular` → `text`, `bold` → `text-bold`), as D2 names them. */
 const textClass = (font: string): string => (font === "regular" ? "text" : `text-${font}`);
 
+/**
+ * A turned label's `transform` (#178): `rotate(±90 cx cy)` about the center
+ * of its box, the one form `inspectSvg()` reads on a `<text>`. Empty for
+ * upright text, so its bytes do not change.
+ */
+function rotate(layout: TextLayout): string {
+  if (layout.rotation === undefined) return "";
+  const { box } = layout;
+  return ` transform="rotate(${layout.rotation} ${n(box.x + box.width / 2)} ${n(box.y + box.height / 2)})"`;
+}
+
 function label(layout: TextLayout, color: string): string {
   const { anchor, lines } = layout;
   if (layout.runs !== undefined) return richLabel(layout, layout.runs, color);
-  const open = `<text x="${n(anchor.x)}" y="${n(anchor.y)}" fill="${paint(color)}" class="${textClass(layout.font)}" style="text-anchor:middle;font-size:${n(layout.fontSizeUnits)}px">`;
+  const open = `<text x="${n(anchor.x)}" y="${n(anchor.y)}" fill="${paint(color)}" class="${textClass(layout.font)}" style="text-anchor:middle;font-size:${n(layout.fontSizeUnits)}px"${rotate(layout)}>`;
   if (lines.length === 1) return `${open}${text(lines[0] as string)}</text>`;
   const spans = lines.map(
     (line, i) =>
@@ -109,7 +120,7 @@ function richLabel(
   color: string,
 ): string {
   const { anchor } = layout;
-  const open = `<text x="${n(anchor.x)}" y="${n(anchor.y)}" fill="${paint(color)}" class="${textClass(layout.font)}" style="text-anchor:middle;font-size:${n(layout.fontSizeUnits)}px;font-kerning:none">`;
+  const open = `<text x="${n(anchor.x)}" y="${n(anchor.y)}" fill="${paint(color)}" class="${textClass(layout.font)}" style="text-anchor:middle;font-size:${n(layout.fontSizeUnits)}px;font-kerning:none"${rotate(layout)}>`;
   const spans = runs.map((line, i) => {
     const y = n(anchor.y + i * layout.lineHeightUnits);
     if (!line.some((run) => run.accent !== undefined)) {

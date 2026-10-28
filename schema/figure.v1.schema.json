@@ -177,6 +177,14 @@
             "description": "Plain text; newlines break lines. Empty or omitted means no label.",
             "type": "string"
           },
+          "labelRotation": {
+            "description": "Structured layout: draw the label turned by 90 (clockwise, reading top to bottom) or -90 degrees (counter-clockwise, reading bottom to top), e.g. a title along a tall box. The node is sized to the turned label.",
+            "type": "number",
+            "enum": [
+              90,
+              -90
+            ]
+          },
           "icon": {
             "description": "A bundled icon drawn in place of the label, as <set>/<name>, e.g. tabler/wave-sine. Drawn in the node's text color.",
             "type": "string",
