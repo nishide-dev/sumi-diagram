@@ -1,0 +1,61 @@
+# #167 repro (bug): panel 4 of figure B, pushed right by a 50mm gap. The
+# lines into and out of both operators loop around the ⊕ and cross the
+# residuals (four layout/edge-crossing infos). With a gap of 49mm, 50.5mm or
+# 51mm (or the panel alone) the same block routes straight; 170mm loops
+# again. The route depends on the absolute position. docs/research/167-stage-c.md §2.2.
+version: 1
+figure:
+  id: operator-loop
+  theme: color
+  profile: paper-double
+  layout:
+    arrange:
+      row: { gap: 50mm, items: [spacer, incontext] }
+groups:
+  - id: incontext
+    tone: gray
+    arrange:
+      stack:
+        direction: up
+        gap: 2.5mm
+        align: stretch
+        items:
+          - row: { gap: 3mm, items: [i-tokens, i-cond] }
+          - i-concat
+          - i-split0
+          - i-ln1
+          - i-attn
+          - i-add1
+          - i-split1
+          - i-ln2
+          - i-ff
+          - i-add2
+          - i-out
+nodes:
+  - { id: spacer, component: label, label: x }
+  - { id: i-tokens, component: label, label: Input Tokens }
+  - { id: i-cond, component: label, label: Conditioning }
+  - { id: i-concat, component: box, label: "Concatenate\non Sequence\nDimension", tone: purple }
+  - { id: i-split0, component: junction, variant: hidden }
+  - { id: i-ln1, component: box, label: Layer Norm, tone: yellow }
+  - { id: i-attn, component: box, label: "Multi-Head\nSelf-Attention", tone: orange }
+  - { id: i-add1, component: operator, props: { symbol: plus } }
+  - { id: i-split1, component: junction, variant: hidden }
+  - { id: i-ln2, component: box, label: Layer Norm, tone: yellow }
+  - { id: i-ff, component: box, label: "Pointwise\nFeedforward", tone: green }
+  - { id: i-add2, component: operator, props: { symbol: plus } }
+  - { id: i-out, component: junction, variant: hidden }
+edges:
+  - { from: i-tokens, to: i-concat, toAnchor: "south:0.3" }
+  - { from: i-cond, to: i-concat, toAnchor: "south:0.7" }
+  - { from: i-concat, to: i-split0, component: line }
+  - { from: i-split0, to: i-ln1 }
+  - { from: i-split0, to: i-add1, toAnchor: west }
+  - { from: i-ln1, to: i-attn, component: line }
+  - { from: i-attn, to: i-add1 }
+  - { from: i-add1, to: i-split1, component: line }
+  - { from: i-split1, to: i-ln2 }
+  - { from: i-split1, to: i-add2, toAnchor: west }
+  - { from: i-ln2, to: i-ff, component: line }
+  - { from: i-ff, to: i-add2 }
+  - { from: i-add2, to: i-out }
