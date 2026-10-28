@@ -1869,6 +1869,35 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **テスト**: `theme.test.ts`（組み込みの 5 Theme とフォントセット、`paper` の角丸を付ける部品と付けない部品、枠と辺の線幅、辺の線幅が `academic` と同じ、8 色の tone）、`catalog.test.ts`（`paper` の文字の大きさと `compatibleProfiles`、フォントセット）、`stage.test.ts`（`theme/unknown` の hint）。全部品 × variant を完全に解決できることは既存の組み込み Theme のテストが `paper` にも回る。
 - **非対象**: 既存 Theme の変更、利用者定義の Theme、矢じりの大きさ・数式の倍率のプロパティ。
 
+### 6.53 #175 の薄表示の継承（`groups[].dim`）
+
+[#167 の調査](../research/167-stage-c.md) §4.2（図 B の B-3）と [#86](../research/86-paper-figures.md) §8。DiT（Fig. 3）の 3・4 番目のパネルは、文字・線・矢じり・枠・キャプションが灰色で、tone の塗りも淡い（原図を見て確かめた）。今は `variant: muted` を node・辺・group の 53 か所に書いて近似し、それでも塗りは tone のまま濃く、キャプションは黒いままだった。group に 1 か所書けば、その group と中のすべてが薄くなるようにする。Figure v1 への任意フィールドと Theme の任意フィールドの追加で、**`dim` を書かない図**の診断・IR・Layout IR・D2・SVG・PDF・PPTX はバイト単位で変わらない（下記）。
+
+- **構文（判断: variant ではなくフィールド）**: `groups[].dim: true`（`tone` の直後。`fmt --canonical-order` でもこの位置）。#167 §4.2 の理想の YAML は `variant: dim` だったが、次の理由でフィールドにした。
+  - **variant は 1 要素に 1 つ**（§4.3、§6.49 の「`filled` と `muted` は両立しない」）。薄くしたいパネルにも自分の見た目（`dashed`・`plain`・`filled` の枠、凡例の `plain`）があり、`variant: dim` ではそれを捨てることになる。薄表示はその見た目を**変換**するもので、見た目の選択肢の 1 つではない。
+  - **variant は継承しない**。variant は部品ごとに manifest が持つ閉じた一覧で、Theme の `components.<id>.<variant>` が要素自身のスタイルを決める（§4.3）。`dim` は子孫すべてに及ぶので、性質が違う。`variant: dim` にすると、すべての group の部品（container・legend・利用者の部品）の manifest に `dim` を足し、Theme の全部品に同じ層を書かせることになる。
+  - `tone`（§6.20）と同じ「Theme が色を決める、部品をまたいだフィールド」の扱いで、スキーマの慣例に合う。
+  - 値は **`true` だけ**（`false` は `schema/invalid-value`）。薄表示は内側で取り消せない（下記）ので、`dim: false` を「内側で戻す」と読まれる書き方を許さない。薄くしないなら書かない。
+- **Theme の `dim`（判断: 透明度ではなく、Theme の色と白への寄せ方）**: Theme に任意の `dim: { fontColor, stroke, lighten }` を足した（3 つとも必須。token 参照可）。`fontColor` と `stroke` は色（`transparent` は `theme/invalid-value`: 薄くした文字と線も見えなければならない）、`lighten` は 0〜1 の数（範囲外は `theme/out-of-range`、数でなければ `theme/type-mismatch`）。#86 §8 のとおり `opacity` は使わない（PDF/X の透明、編集可能 PPTX の再現、下に重なる線が透ける問題を避ける）。解決結果は不透明な 16 進の色で（白へ寄せた塗りは `#rrggbb`。`dim.fontColor`・`dim.stroke` は Theme に書いた形のままで、`#rgb` もありうる）、どの出力でもただの色になる。
+  - **変換の規則**（`dimStyle()`、`src/core/theme/dim.ts`）: 解決したスタイル（§4.3 の全層と tone の後）の**色だけ**を変える。見える `stroke`（線・枠・矢じり）は `dim.stroke`、`fontColor`（ラベル・見出し・キャプション・sublabel・アイコン・operator の記号）は `dim.fontColor`、`fill` は白へ `lighten` の割合だけ寄せる（各チャンネル `c + (255 − c) × lighten` を四捨五入）。`transparent` は透明のまま。塗りが要素自身の線の色と同じもの（junction の点など「インク」）は線と同じ `dim.stroke` にする（寄せると点と輪郭が 2 色になる）。同じかどうかは `#rgb` を `#rrggbb` に展開して比べる（`#000` と `#000000` は同じインク）。大きさ・フォント・破線・不透明度は変えないので、配置・経路・診断は `dim` の有無で変わらない（下記のテスト）。
+  - **塗りを Theme の固定の色表にしなかった理由**: tone ごとの淡い色だけを持つと、tone 以外の塗り（group の surface、`emphasis` の highlight、`filled` の灰色、凡例の紙の色、tone を書いた group の塗り）の行き先がない。塗りを 1 色にまとめると、薄くした group の中の `filled` の箱が group の塗りと同じ色になり消える。白への寄せなら、どの塗りにも同じ規則が働き、濃淡の順序（group の塗りより中の箱が濃い、など）が保たれ、tone も色相のまま淡くなる。値を決めるのは Theme（割合と 2 色）で、利用者が色を書くことはない。
+  - **組み込み Theme の値**: `minimal`・`color` は文字・線 `#8c959f`（白に対して約 3:1。原図の灰色の文字・線に近い）と `lighten: 0.5`（`color` の blue `#cfe8f3` → `#e7f4f9`、orange `#fbe1c0` → `#fdf0e0`。原図の淡い塗りとほぼ同じ割合）。`academic` は無彩色の `#8c8c8c` と 0.5。`slides` は投影で淡い色が飛ぶので、濃い `#808080` と 0.4。`paper`（§6.52）は DiT の原図の薄いパネルを測った値: 文字・線 `#949494`、`lighten: 0.5`（原図の淡い青 `#e8effd`・緑 `#e8f3e4`・パネルの塗り `#f9f9fb` は、`paper` の tone と surface を白へほぼ半分寄せた色。surface `#f3f3f5` → `#f9f9fa`）。
+  - Theme が `dim` を持たない場合（今は組み込みのみなので起きない）は、`dim: true` の位置に `theme/missing-dim`（warning）を出し、薄くせずに描く（`theme/missing-tone` と同じ扱い）。
+- **どの要素を薄くするか（判断）**（`dimmedElements()`）:
+  - `dim: true` の group と、その中のすべての group・node（`group` を親へたどる。structured では `layout` 段が配置の木から `group` を補った後、`attach` した node は相手の group に入っている）。親の循環（`ref` 段が報告済み）では止まる。
+  - **展開した要素**も同じ規則で決まる: 凡例（§6.34）の枠・文字・見本の線と箱、tokens（§6.50）のセルは親をたどって中に入る。**キャプション**（§6.32）は枠の外に描くため、展開したノードの親は group の親になっている。キャプションは group の一部なので、`doc.captions` から**キャプションの group** の薄表示を引き継ぐ（原図のキャプションも灰色）。
+  - **辺は両端がともに薄い要素のとき**だけ薄くする。group に入る・出る辺（片端だけが中）は、薄いパネルと薄くない要素をつなぐもので、どちらにも属さないので書いたまま描く（薄くしたければ `variant: muted`）。端が薄い group そのもの（`to: cross`）なら、その端は中とみなす。セル参照（`<node>.<cell>`）は展開の段でセルの ID に置き換わっているので、セルで判定する。`zoom`（§6.45）も辺なので同じ規則で、外の node から薄いパネルへの拡大線は薄くしない。
+  - **入れ子**: 薄い group の中の `dim: true` は何も変えない（色は 1 回だけ変換する。2 回かけて更に淡くはしない）。内側で取り消す手段はない（取り消せると「薄いパネルの中の 1 つだけ濃い」を書けるが、需要が出てから別のフィールドとして検討する）。診断の参照は最も外側の `dim` を指す。
+- **描画**: 変換は `theme` 段で `state.styles` に入れる実効スタイルそのものなので、以降の IR・両エンジン・inspect・幾何 lint・PDF・PPTX は普通のスタイルとして扱い、描画側の変更はない。
+  - structured の辺のラベルの背景（§6.41）と中を塗らない矢じりの内側（§6.43）は、下に塗られている group の**解決後の塗り**から決まるので、薄くした group の上では薄い塗りになる（テストでラベルの背景を確かめた。中を塗らない矢じりは組み込み Theme では YAML から描かれない）。
+  - **auto（D2）**: D2 のスタイルは要素ごとなので、そのまま描ける（group・node・キャプションの container・辺の `stroke`・`font-color`・`fill`）。auto の辺のラベルの背景は従来どおり辺の `fill`（白）で、§6.41 と同じく対象外。
+  - 編集可能 PPTX は解決した色を `srgbClr` に書く。
+  - **画像（判断: 診断する）**: `component: image` は利用者の画像をそのまま描くので、色では薄くできない。薄い group の中の画像には `theme/undimmed-image`（warning、その node の位置）を出し、画像はそのまま、枠（`framed`）の線だけを薄くする。透明度で薄くすることはしない（上記の方針）。
+- **互換性**: `dim` を書かない図では `dimmedElements()` が空で、スタイルは前と同じオブジェクトになる。リポジトリの `*.sumi.yaml` 125 個（新しい fixture を除く）を、書かれた Theme と組み込みの 5 Theme（`paper` を含む）で描き、SVG 276・編集可能 PPTX の slide XML 171・描けなかった 474 件の診断を、変更の前（origin/main、#205 の後）と後で sha256 で比べ、すべて一致した。`bun run gallery:check`・PDF・PPTX・画像・D2・lint の golden も変わらない（golden の再生成で差分なし）。ギャラリーには薄表示の見本 5 枚（`docs/gallery/dim/`）と目次の節が**追加**された（既存の SVG は無変更）。スキーマには `groups[].dim` が加わった。
+- **DiT での確認**: `tests/fixtures/figures/dim/b-dit.sumi.yaml`（`research/167-stage-c/figures/b-dit.sumi.yaml` の写しで、53 か所の `variant: muted` を消し、2 つの group に `dim: true` を書いただけ。研究の記録は変えていない）を `color` と `paper` で PNG にして原図と並べ、3・4 番目のパネルの文字・線・矢じり・⊕ が灰色、tone の塗りが淡い版、枠が灰色で塗りがごく淡い灰色、キャプションが灰色になり、2 番目のパネルと左のパネルは変わらないことを確かめた。`paper`（§6.52）で描くと、薄いパネルの枠は角の丸い灰色の枠になり、原図にさらに近い（角の丸めは Theme の `radius` で、`dim` は変えない）。
+- **テスト**: `dim.test.ts`（白への寄せ・`#rgb`・透明、変換が色だけでインクの塗りは線の色、全組み込み Theme の `dim`、Theme の検査（token・欠けたフィールド・透明・型・範囲・未知のフィールド）、対象の決め方（group・入れ子の group・node・キャプション・両端が中の辺だけ・入る辺・出る辺・group への辺）、入れ子の `dim` が 1 回だけで最も外側を指すこと、内側だけの `dim`、`attach` した node（中の node に付けると中、薄い group 自身に付けると外の兄弟）、別々に薄くした 2 つの group の間の辺と `zoom` が薄いこと、`#000` と `#000000` を同じインクとみなすこと、全組み込み Theme で薄い要素だけが `dimStyle()` の結果になり他は同じ・group の破線と tone の淡い塗りが残ること、凡例・tokens のセル・セル間の辺が薄く外からの `zoom` は薄くないこと、`dim: false`、`theme/undimmed-image`、`theme/missing-dim`）、`dim.integration.test.ts`（DiT: 配置・経路・診断が `dim` なしと同じ、3・4 番目のパネルの要素の文字・線は dim の色・塗りは白へ寄せた色、ほかの要素の markup は同じ、パネル内の線（wire）だけが灰色、変わった辺（矢じり）は 9 本で dim の色だけ、編集可能 PPTX に dim の色、薄い group の上の辺のラベルの背景、auto の D2 のスタイルと D2 で描いた SVG の色）。
+- **非対象・引き継ぎ**: 透明度による薄表示（#175 の非対象）、内側での取り消し、node・辺単位の `dim`（node・辺には `variant: muted` がある）、画像を薄くすること。
+
 ### 6.55 #182 の詰めた間隔（`figure.layout.density: compact`）
 
 [#167 の調査](../research/167-stage-c.md) §4.6 の (c)。原図は Sumi より密で、DiT を原図と同じ 170mm 幅にそろえても Sumi の版は 17〜25% 高かった（`paper` の #173 の版では 33.5%）。余白を半分にしただけでは変わらず、効くのは間隔と 1 行の箱の高さ（§4.6）。利用者の判断（2026-10-28）: 縮小後の実効の文字の下限は原図並み（5pt。§6.48 の `minScaledFontSize`）とし、密度は間隔を詰めて原図に近づける。3 図の記録は [`research/182-compact/`](../../research/182-compact/README.md)。
@@ -1908,35 +1937,6 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **テスト**: `profile.test.ts`（paper 系・presentation の compact の値、定義で省略したときの既定値と通常の値で頭打ちになること、通常の値を超える compact の `profile/invalid-value`（等しい値は可）、`spacedProfile` が compact だけで 4 項目を差し替え、ページ・余白・文字・auto の値と D2 の引数が同じ）、`layout.test.ts`（書いた値の保持と省略、IR の `meta.density`、未知の値の schema error、auto の図での `layout/structured-only`）、`caption.test.ts`（compact のキャプションとの間が compact の group の余白の半分）、`engine.test.ts`（compact の間隔・上下の余白・group の余白、`normal` と省略が同じ配置、書いた `gap` が優先、presentation の 2 倍）、`compact.integration.test.ts`（研究の B・A の複製を fixture にし、同じ YAML の通常の間隔と比べて、B の縮小率が上がり高さ／幅が下がること・印刷される大きさ・1 行の箱が 26 unit（13pt）・診断が `script-too-small` の info だけ、A の大きさと診断なし）。
 - **非対象**: 自動の詰め・折り返し、書いた `gap` の縮小、auto（D2）の図の間隔、行送り・⊕ の大きさ・文字の大きさの変更、既存の Theme・Profile の値の変更。
 
-
-### 6.53 #175 の薄表示の継承（`groups[].dim`）
-
-[#167 の調査](../research/167-stage-c.md) §4.2（図 B の B-3）と [#86](../research/86-paper-figures.md) §8。DiT（Fig. 3）の 3・4 番目のパネルは、文字・線・矢じり・枠・キャプションが灰色で、tone の塗りも淡い（原図を見て確かめた）。今は `variant: muted` を node・辺・group の 53 か所に書いて近似し、それでも塗りは tone のまま濃く、キャプションは黒いままだった。group に 1 か所書けば、その group と中のすべてが薄くなるようにする。Figure v1 への任意フィールドと Theme の任意フィールドの追加で、**`dim` を書かない図**の診断・IR・Layout IR・D2・SVG・PDF・PPTX はバイト単位で変わらない（下記）。
-
-- **構文（判断: variant ではなくフィールド）**: `groups[].dim: true`（`tone` の直後。`fmt --canonical-order` でもこの位置）。#167 §4.2 の理想の YAML は `variant: dim` だったが、次の理由でフィールドにした。
-  - **variant は 1 要素に 1 つ**（§4.3、§6.49 の「`filled` と `muted` は両立しない」）。薄くしたいパネルにも自分の見た目（`dashed`・`plain`・`filled` の枠、凡例の `plain`）があり、`variant: dim` ではそれを捨てることになる。薄表示はその見た目を**変換**するもので、見た目の選択肢の 1 つではない。
-  - **variant は継承しない**。variant は部品ごとに manifest が持つ閉じた一覧で、Theme の `components.<id>.<variant>` が要素自身のスタイルを決める（§4.3）。`dim` は子孫すべてに及ぶので、性質が違う。`variant: dim` にすると、すべての group の部品（container・legend・利用者の部品）の manifest に `dim` を足し、Theme の全部品に同じ層を書かせることになる。
-  - `tone`（§6.20）と同じ「Theme が色を決める、部品をまたいだフィールド」の扱いで、スキーマの慣例に合う。
-  - 値は **`true` だけ**（`false` は `schema/invalid-value`）。薄表示は内側で取り消せない（下記）ので、`dim: false` を「内側で戻す」と読まれる書き方を許さない。薄くしないなら書かない。
-- **Theme の `dim`（判断: 透明度ではなく、Theme の色と白への寄せ方）**: Theme に任意の `dim: { fontColor, stroke, lighten }` を足した（3 つとも必須。token 参照可）。`fontColor` と `stroke` は色（`transparent` は `theme/invalid-value`: 薄くした文字と線も見えなければならない）、`lighten` は 0〜1 の数（範囲外は `theme/out-of-range`、数でなければ `theme/type-mismatch`）。#86 §8 のとおり `opacity` は使わない（PDF/X の透明、編集可能 PPTX の再現、下に重なる線が透ける問題を避ける）。解決結果は不透明な 16 進の色で（白へ寄せた塗りは `#rrggbb`。`dim.fontColor`・`dim.stroke` は Theme に書いた形のままで、`#rgb` もありうる）、どの出力でもただの色になる。
-  - **変換の規則**（`dimStyle()`、`src/core/theme/dim.ts`）: 解決したスタイル（§4.3 の全層と tone の後）の**色だけ**を変える。見える `stroke`（線・枠・矢じり）は `dim.stroke`、`fontColor`（ラベル・見出し・キャプション・sublabel・アイコン・operator の記号）は `dim.fontColor`、`fill` は白へ `lighten` の割合だけ寄せる（各チャンネル `c + (255 − c) × lighten` を四捨五入）。`transparent` は透明のまま。塗りが要素自身の線の色と同じもの（junction の点など「インク」）は線と同じ `dim.stroke` にする（寄せると点と輪郭が 2 色になる）。同じかどうかは `#rgb` を `#rrggbb` に展開して比べる（`#000` と `#000000` は同じインク）。大きさ・フォント・破線・不透明度は変えないので、配置・経路・診断は `dim` の有無で変わらない（下記のテスト）。
-  - **塗りを Theme の固定の色表にしなかった理由**: tone ごとの淡い色だけを持つと、tone 以外の塗り（group の surface、`emphasis` の highlight、`filled` の灰色、凡例の紙の色、tone を書いた group の塗り）の行き先がない。塗りを 1 色にまとめると、薄くした group の中の `filled` の箱が group の塗りと同じ色になり消える。白への寄せなら、どの塗りにも同じ規則が働き、濃淡の順序（group の塗りより中の箱が濃い、など）が保たれ、tone も色相のまま淡くなる。値を決めるのは Theme（割合と 2 色）で、利用者が色を書くことはない。
-  - **組み込み Theme の値**: `minimal`・`color` は文字・線 `#8c959f`（白に対して約 3:1。原図の灰色の文字・線に近い）と `lighten: 0.5`（`color` の blue `#cfe8f3` → `#e7f4f9`、orange `#fbe1c0` → `#fdf0e0`。原図の淡い塗りとほぼ同じ割合）。`academic` は無彩色の `#8c8c8c` と 0.5。`slides` は投影で淡い色が飛ぶので、濃い `#808080` と 0.4。`paper`（§6.52）は DiT の原図の薄いパネルを測った値: 文字・線 `#949494`、`lighten: 0.5`（原図の淡い青 `#e8effd`・緑 `#e8f3e4`・パネルの塗り `#f9f9fb` は、`paper` の tone と surface を白へほぼ半分寄せた色。surface `#f3f3f5` → `#f9f9fa`）。
-  - Theme が `dim` を持たない場合（今は組み込みのみなので起きない）は、`dim: true` の位置に `theme/missing-dim`（warning）を出し、薄くせずに描く（`theme/missing-tone` と同じ扱い）。
-- **どの要素を薄くするか（判断）**（`dimmedElements()`）:
-  - `dim: true` の group と、その中のすべての group・node（`group` を親へたどる。structured では `layout` 段が配置の木から `group` を補った後、`attach` した node は相手の group に入っている）。親の循環（`ref` 段が報告済み）では止まる。
-  - **展開した要素**も同じ規則で決まる: 凡例（§6.34）の枠・文字・見本の線と箱、tokens（§6.50）のセルは親をたどって中に入る。**キャプション**（§6.32）は枠の外に描くため、展開したノードの親は group の親になっている。キャプションは group の一部なので、`doc.captions` から**キャプションの group** の薄表示を引き継ぐ（原図のキャプションも灰色）。
-  - **辺は両端がともに薄い要素のとき**だけ薄くする。group に入る・出る辺（片端だけが中）は、薄いパネルと薄くない要素をつなぐもので、どちらにも属さないので書いたまま描く（薄くしたければ `variant: muted`）。端が薄い group そのもの（`to: cross`）なら、その端は中とみなす。セル参照（`<node>.<cell>`）は展開の段でセルの ID に置き換わっているので、セルで判定する。`zoom`（§6.45）も辺なので同じ規則で、外の node から薄いパネルへの拡大線は薄くしない。
-  - **入れ子**: 薄い group の中の `dim: true` は何も変えない（色は 1 回だけ変換する。2 回かけて更に淡くはしない）。内側で取り消す手段はない（取り消せると「薄いパネルの中の 1 つだけ濃い」を書けるが、需要が出てから別のフィールドとして検討する）。診断の参照は最も外側の `dim` を指す。
-- **描画**: 変換は `theme` 段で `state.styles` に入れる実効スタイルそのものなので、以降の IR・両エンジン・inspect・幾何 lint・PDF・PPTX は普通のスタイルとして扱い、描画側の変更はない。
-  - structured の辺のラベルの背景（§6.41）と中を塗らない矢じりの内側（§6.43）は、下に塗られている group の**解決後の塗り**から決まるので、薄くした group の上では薄い塗りになる（テストでラベルの背景を確かめた。中を塗らない矢じりは組み込み Theme では YAML から描かれない）。
-  - **auto（D2）**: D2 のスタイルは要素ごとなので、そのまま描ける（group・node・キャプションの container・辺の `stroke`・`font-color`・`fill`）。auto の辺のラベルの背景は従来どおり辺の `fill`（白）で、§6.41 と同じく対象外。
-  - 編集可能 PPTX は解決した色を `srgbClr` に書く。
-  - **画像（判断: 診断する）**: `component: image` は利用者の画像をそのまま描くので、色では薄くできない。薄い group の中の画像には `theme/undimmed-image`（warning、その node の位置）を出し、画像はそのまま、枠（`framed`）の線だけを薄くする。透明度で薄くすることはしない（上記の方針）。
-- **互換性**: `dim` を書かない図では `dimmedElements()` が空で、スタイルは前と同じオブジェクトになる。リポジトリの `*.sumi.yaml` 125 個（新しい fixture を除く）を、書かれた Theme と組み込みの 5 Theme（`paper` を含む）で描き、SVG 276・編集可能 PPTX の slide XML 171・描けなかった 474 件の診断を、変更の前（origin/main、#205 の後）と後で sha256 で比べ、すべて一致した。`bun run gallery:check`・PDF・PPTX・画像・D2・lint の golden も変わらない（golden の再生成で差分なし）。ギャラリーには薄表示の見本 5 枚（`docs/gallery/dim/`）と目次の節が**追加**された（既存の SVG は無変更）。スキーマには `groups[].dim` が加わった。
-- **DiT での確認**: `tests/fixtures/figures/dim/b-dit.sumi.yaml`（`research/167-stage-c/figures/b-dit.sumi.yaml` の写しで、53 か所の `variant: muted` を消し、2 つの group に `dim: true` を書いただけ。研究の記録は変えていない）を `color` と `paper` で PNG にして原図と並べ、3・4 番目のパネルの文字・線・矢じり・⊕ が灰色、tone の塗りが淡い版、枠が灰色で塗りがごく淡い灰色、キャプションが灰色になり、2 番目のパネルと左のパネルは変わらないことを確かめた。`paper`（§6.52）で描くと、薄いパネルの枠は角の丸い灰色の枠になり、原図にさらに近い（角の丸めは Theme の `radius` で、`dim` は変えない）。
-- **テスト**: `dim.test.ts`（白への寄せ・`#rgb`・透明、変換が色だけでインクの塗りは線の色、全組み込み Theme の `dim`、Theme の検査（token・欠けたフィールド・透明・型・範囲・未知のフィールド）、対象の決め方（group・入れ子の group・node・キャプション・両端が中の辺だけ・入る辺・出る辺・group への辺）、入れ子の `dim` が 1 回だけで最も外側を指すこと、内側だけの `dim`、`attach` した node（中の node に付けると中、薄い group 自身に付けると外の兄弟）、別々に薄くした 2 つの group の間の辺と `zoom` が薄いこと、`#000` と `#000000` を同じインクとみなすこと、全組み込み Theme で薄い要素だけが `dimStyle()` の結果になり他は同じ・group の破線と tone の淡い塗りが残ること、凡例・tokens のセル・セル間の辺が薄く外からの `zoom` は薄くないこと、`dim: false`、`theme/undimmed-image`、`theme/missing-dim`）、`dim.integration.test.ts`（DiT: 配置・経路・診断が `dim` なしと同じ、3・4 番目のパネルの要素の文字・線は dim の色・塗りは白へ寄せた色、ほかの要素の markup は同じ、パネル内の線（wire）だけが灰色、変わった辺（矢じり）は 9 本で dim の色だけ、編集可能 PPTX に dim の色、薄い group の上の辺のラベルの背景、auto の D2 のスタイルと D2 で描いた SVG の色）。
-- **非対象・引き継ぎ**: 透明度による薄表示（#175 の非対象）、内側での取り消し、node・辺単位の `dim`（node・辺には `variant: muted` がある）、画像を薄くすること。
 
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
