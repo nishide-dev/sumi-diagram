@@ -47,7 +47,7 @@ import { iconBox } from "../../assets/draw";
 import type { ArrangeBoxIR, ArrangeItemIR, FigureIR, GroupIR, NodeIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type { Diagnostic } from "../../core/diagnostics";
-import type { GroupLabelPosition, Side } from "../../core/figure/schema";
+import type { GroupLabelPosition, LabelRotation, Side } from "../../core/figure/schema";
 import { getProfile } from "../../core/profile/builtin";
 import type { Profile } from "../../core/profile/schema";
 import { getFontSet } from "../../core/theme/fonts";
@@ -219,8 +219,13 @@ class StructuredLayout {
       this.#nodes.set(node.key, node);
       const label = measureText(node.label, node.style, measurer);
       if (label !== undefined) this.#labels.set(node.key, label);
-      // An icon (#94) takes the place of the label: a square of 1 em.
-      this.#leafSizes.set(node.key, nodeSize(node, label ?? iconBox(node), padding));
+      // An icon (#94) takes the place of the label: a square of 1 em. A
+      // turned label (#178) takes its turned box.
+      const box =
+        label !== undefined && node.labelRotation !== undefined
+          ? { width: label.height, height: label.width }
+          : (label ?? iconBox(node));
+      this.#leafSizes.set(node.key, nodeSize(node, box, padding));
       if (node.attach !== undefined) {
         const container = node.parent ?? ROOT;
         const list = this.#attached.get(container) ?? [];
@@ -489,7 +494,7 @@ class StructuredLayout {
       const metrics = this.#labels.get(node.key);
       const rect = this.#rect(node.key);
       if (metrics !== undefined) {
-        labels.set(node.key, placeText(metrics, nodeLabelCenter(node, rect)));
+        labels.set(node.key, placeText(metrics, nodeLabelCenter(node, rect), node.labelRotation));
       }
     }
     for (const group of this.#ir.groups) {
@@ -625,8 +630,16 @@ function overhangOf(frame: Rect, rects: readonly Rect[]): Overhang {
   return overhang;
 }
 
-/** Places measured text centered on `center`. */
-export function placeText(metrics: TextMetrics, center: { x: number; y: number }): TextLayout {
+/**
+ * Places measured text centered on `center`, turned by `rotation` (#178)
+ * about it: the anchor stays in the label's own frame, the box is the
+ * turned one (width and height swapped).
+ */
+export function placeText(
+  metrics: TextMetrics,
+  center: { x: number; y: number },
+  rotation?: LabelRotation,
+): TextLayout {
   const box: Rect = {
     x: center.x - metrics.width / 2,
     y: center.y - metrics.height / 2,
@@ -634,7 +647,15 @@ export function placeText(metrics: TextMetrics, center: { x: number; y: number }
     height: metrics.height,
   };
   const halfLeading = (metrics.lineHeightUnits - (metrics.ascentUnits + metrics.descentUnits)) / 2;
-  return { ...metrics, box, anchor: { x: center.x, y: box.y + halfLeading + metrics.ascentUnits } };
+  const anchor = { x: center.x, y: box.y + halfLeading + metrics.ascentUnits };
+  if (rotation === undefined) return { ...metrics, box, anchor };
+  const turned: Rect = {
+    x: center.x - metrics.height / 2,
+    y: center.y - metrics.width / 2,
+    width: metrics.height,
+    height: metrics.width,
+  };
+  return { ...metrics, box: turned, anchor, rotation };
 }
 
 /** Groups in pre-order of the group tree: roots in document order, each followed by its subtree. */

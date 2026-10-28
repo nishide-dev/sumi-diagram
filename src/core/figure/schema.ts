@@ -352,6 +352,12 @@ export const NodeSchema = z.strictObject({
   id: Id,
   component: ComponentRef.describe("Component reference (kind: node), e.g. `box` or `sumi/box`."),
   label: Label,
+  labelRotation: z
+    .literal([90, -90])
+    .optional()
+    .describe(
+      "Structured layout: draw the label turned by 90 (clockwise, reading top to bottom) or -90 degrees (counter-clockwise, reading bottom to top), e.g. a title along a tall box. The node is sized to the turned label.",
+    ),
   icon: z
     .string()
     .max(ICON_REF_MAX_LENGTH)
@@ -424,5 +430,7 @@ export type RowBox = z.output<typeof RowSchema>;
 export type Attach = z.output<typeof AttachSchema>;
 export type FigureGroup = z.output<typeof GroupSchema>;
 export type FigureNode = z.output<typeof NodeSchema>;
+/** `nodes[].labelRotation` (#178): degrees, positive clockwise as in SVG's `rotate()`. */
+export type LabelRotation = NonNullable<FigureNode["labelRotation"]>;
 export type FigureEdge = z.output<typeof EdgeSchema>;
 export type JsonValue = z.output<typeof JsonValue>;

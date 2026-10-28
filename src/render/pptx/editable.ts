@@ -340,8 +340,49 @@ export function svgToEditablePptx(
       stroke: string,
       body = "",
       textOnly = false,
+      xfrmAttributes = "",
     ) =>
-      `<p:sp><p:nvSpPr><p:cNvPr id="${id}" name="${escapeXml(name)}"/><p:cNvSpPr${textOnly ? ' txBox="1"' : ""}/><p:nvPr/></p:nvSpPr><p:spPr>${xfrm(b)}${geom}${fill}${stroke}</p:spPr>${body}</p:sp>`;
+      `<p:sp><p:nvSpPr><p:cNvPr id="${id}" name="${escapeXml(name)}"/><p:cNvSpPr${textOnly ? ' txBox="1"' : ""}/><p:nvPr/></p:nvSpPr><p:spPr>${xfrm(b, xfrmAttributes)}${geom}${fill}${stroke}</p:spPr>${body}</p:sp>`;
+    /**
+     * A turned node label (#178) as a text box of its own, turned with
+     * DrawingML's `rot` (clockwise, 60000ths of a degree) about the box's
+     * center: the box is the label's upright box, centered on the SVG's
+     * rotation center so that turning it about its center matches the SVG.
+     * The node's shape keeps no text (rotating the shape would turn its
+     * geometry too).
+     */
+    const turnedLabel = (
+      key: ElementKey,
+      label: LabelGeometry,
+      el: XmlElement,
+      opacity: number,
+    ): string => {
+      const rotation = label.rotation;
+      if (rotation === undefined) return "";
+      const { rotation: _, ...upright } = label;
+      const m = measureLabel(upright, fonts).box;
+      if (m === undefined) return "";
+      const c = rotation.center;
+      const halfWidth = Math.max(c.x - m.x, m.x + m.width - c.x);
+      const halfHeight = Math.max(c.y - m.y, m.y + m.height - c.y);
+      const box = {
+        x: c.x - halfWidth,
+        y: c.y - halfHeight,
+        width: 2 * halfWidth,
+        height: 2 * halfHeight,
+      };
+      return shape(
+        next++,
+        `${key} label`,
+        box,
+        '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>',
+        "<a:noFill/>",
+        "<a:ln><a:noFill/></a:ln>",
+        textBody(upright, el, box, opacity),
+        true,
+        ` rot="${((rotation.degrees + 360) % 360) * 60000}"`,
+      );
+    };
     const objectXml = new Map<ElementKey, string>();
     for (const element of [...ir.groups, ...ir.nodes]) {
       const group = byKey.get(element.key),
@@ -372,6 +413,7 @@ export function svgToEditablePptx(
         ? paint(property(first, "fill") ?? element.style.fill, element.style.opacity)
         : "<a:noFill/>";
       const stroke = first ? line(first, element.style) : "<a:ln><a:noFill/></a:ln>";
+      const turned = label?.rotation !== undefined;
       objectXml.set(
         element.key,
         shape(
@@ -381,9 +423,12 @@ export function svgToEditablePptx(
           geom,
           fill,
           stroke,
-          label && text ? textBody(label, text, box, element.style.opacity) : "",
+          label && text && !turned ? textBody(label, text, box, element.style.opacity) : "",
           !first,
-        ),
+        ) +
+          (label && text && turned
+            ? turnedLabel(element.key, label, text, element.style.opacity)
+            : ""),
       );
       objects.set(element.key, { id, box, ellipse });
     }

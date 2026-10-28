@@ -155,6 +155,91 @@ nodes:
   });
 });
 
+describe("nodes[].labelRotation (#178)", () => {
+  const structured = (nodes: string) => `version: 1
+figure:
+  id: f
+  layout:
+    arrange: { stack: { items: [a, b, c, d, e] } }
+nodes:
+${nodes}`;
+
+  test("on a node that draws an icon, a mark or an image it is an error", () => {
+    const { state } = checkFigure(
+      structured(`  - { id: a, component: box, icon: tabler/wave-sine, labelRotation: 90 }
+  - { id: b, component: operator, props: { symbol: plus }, labelRotation: -90 }
+  - { id: c, component: junction, labelRotation: 90 }
+  - { id: d, component: image, props: { src: x.png }, labelRotation: 90 }
+  - { id: e, component: box, label: E, labelRotation: -90 }
+`),
+    );
+    const rotation = state.diagnostics.filter((d) => d.code.includes("label-rotation"));
+    expect(rotation.map((d) => [d.code, d.severity, d.path])).toEqual([
+      ["component/label-rotation-unsupported", "error", ["nodes", 0, "labelRotation"]],
+      ["component/label-rotation-unsupported", "error", ["nodes", 1, "labelRotation"]],
+      ["component/label-rotation-unsupported", "error", ["nodes", 2, "labelRotation"]],
+      ["component/label-rotation-unsupported", "error", ["nodes", 3, "labelRotation"]],
+    ]);
+    expect(rotation[0]?.message).toBe(
+      "labelRotation turns a node's label, but sumi/box draws an icon in place of its label here, which is not turned.",
+    );
+    expect(rotation[1]?.message).toBe(
+      "labelRotation turns a node's label, but sumi/operator draws the symbol chosen by props.symbol here, which is not turned.",
+    );
+    expect(rotation[2]?.message).toContain("draws a point here");
+    expect(rotation[3]?.message).toContain("draws the image file of props.src here");
+    for (const key of ["n:a", "n:b", "n:c", "n:d"])
+      expect(state.invalid.has(key as never)).toBe(true);
+    expect(state.components?.has("n:e")).toBe(true);
+  });
+
+  test("without a visible label it warns and keeps the node", () => {
+    const { state } = checkFigure(
+      structured(`  - { id: a, component: box, labelRotation: 90 }
+  - { id: b, component: box, label: " ", labelRotation: -90 }
+  - { id: c, component: box, label: C, labelRotation: 90 }
+  - { id: d, component: label, label: D, labelRotation: -90 }
+  - { id: e, component: circle, label: E }
+`),
+    );
+    expect(state.diagnostics.map((d) => [d.code, d.severity, d.path, d.hint])).toEqual([
+      [
+        "component/label-rotation-without-label",
+        "warning",
+        ["nodes", 0, "labelRotation"],
+        "Add a label, or remove labelRotation.",
+      ],
+      [
+        "component/label-rotation-without-label",
+        "warning",
+        ["nodes", 1, "labelRotation"],
+        "Add a label, or remove labelRotation.",
+      ],
+    ]);
+    expect(state.components?.size).toBe(5);
+  });
+
+  test("on a legend it is an error", () => {
+    const { state } = checkFigure(`version: 1
+figure:
+  id: f
+  layout:
+    arrange: { stack: { items: [key] } }
+nodes:
+  - id: key
+    component: legend
+    label: Legend
+    labelRotation: 90
+    props:
+      entries:
+        - { label: Data, edge: { component: arrow } }
+`);
+    expect(state.diagnostics.map((d) => [d.code, d.path])).toEqual([
+      ["component/label-rotation-unsupported", ["nodes", 0, "labelRotation"]],
+    ]);
+  });
+});
+
 describe("isBlankForD2", () => {
   // Matches D2 v0.9.0, which trims labels with Go's unicode.IsSpace.
   test.each([

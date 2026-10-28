@@ -33,6 +33,7 @@ import type {
   FigureMeta,
   FigureNode,
   GroupLabelPosition,
+  LabelRotation,
   LayoutEngine,
   Side,
 } from "../core/figure/schema";
@@ -188,6 +189,11 @@ export interface NodeIR extends ObjectIRBase {
   readonly style: NodeStyle;
   /** Structured layout: placed beside another element instead of in an arrange tree. */
   readonly attach?: AttachIR;
+  /**
+   * The label is drawn turned by this many degrees about its center (#178),
+   * positive clockwise as SVG's `rotate()`. Structured layout only.
+   */
+  readonly labelRotation?: LabelRotation;
   /** A bundled icon drawn in place of the label (#94); the node has no label. */
   readonly icon?: IconIR;
   /** The image a `sumi/image` node embeds (#94); the node has no label. */
@@ -413,6 +419,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
             gapPt: n.attach.gap ?? 0,
           }),
         }),
+        ...(n.labelRotation !== undefined && { labelRotation: n.labelRotation }),
         ...(n.icon !== undefined && { icon: iconIR(n.icon) }),
         ...(component.manifest.embed === "image" && {
           image: imageIR(component.props, sourceEntry(["nodes", index, "props", "src"])),
