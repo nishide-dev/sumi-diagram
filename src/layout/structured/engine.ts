@@ -65,7 +65,14 @@ import {
 } from "../ir";
 import { arrowheadPaddingDeficits, type SidePadding } from "../route/padding";
 import { fontSetMeasurer, measureText, type TextMeasurer } from "../text";
-import { type AlignLimits, type AlignStats, NO_STRUTS, type Struts, solveAlignment } from "./align";
+import {
+  type AlignLimits,
+  type AlignStats,
+  MAX_ALIGN_LAYOUTS,
+  NO_STRUTS,
+  type Struts,
+  solveAlignment,
+} from "./align";
 import { nodeLabelCenter, nodeSize, type Size, stretchableShape } from "./sizing";
 
 /** The engine name recorded in the Layout IR. */
@@ -135,24 +142,34 @@ export function placeStructured(
     measurer = fontSetMeasurer(fonts);
   }
   const engine = new StructuredLayout(ir, profile, measurer);
+  // The align budget (`MAX_ALIGN_LAYOUTS`) is the figure's, shared by the
+  // solves of the re-layouts below; the stats count them all.
+  const budget = options.alignLimits?.maxLayouts ?? MAX_ALIGN_LAYOUTS;
+  let spent = 0;
   const place = (): PlacedStructured => {
     if (ir.align === undefined || ir.align.length === 0) {
       return { layout: engine.run(), diagnostics: [] };
     }
-    const solved = solveAlignment(
-      ir,
-      ir.align,
-      (struts) => engine.run(struts),
-      options.alignLimits,
-    );
-    return { layout: solved.layout, diagnostics: solved.diagnostics, align: solved.stats };
+    const solved = solveAlignment(ir, ir.align, (struts) => engine.run(struts), {
+      ...options.alignLimits,
+      maxLayouts: budget - spent,
+    });
+    spent += solved.stats.layouts;
+    return {
+      layout: solved.layout,
+      diagnostics: solved.diagnostics,
+      align: { ...solved.stats, layouts: spent },
+    };
   };
   // Room before arrowheads in group padding (#171, design doc §6.42): widen
   // the sides of groups where an edge turns in the padding right before an
-  // arrowhead, and lay out again. Usually none, so one pass; widening moves
-  // ports only away from those borders, so a second round is rare.
+  // arrowhead, and lay out again (at most `ARROWHEAD_PADDING_RELAYOUTS`
+  // times, and only while the align budget lasts). Usually there is nothing
+  // to widen, so one layout; widening moves ports only away from those
+  // borders, so a second re-layout is rare.
   let placed = place();
-  for (let round = 0; round < ARROWHEAD_PADDING_ROUNDS; round++) {
+  for (let round = 0; round < ARROWHEAD_PADDING_RELAYOUTS; round++) {
+    if (ir.align !== undefined && ir.align.length > 0 && spent >= budget) break;
     const deficits = arrowheadPaddingDeficits(ir, placed.layout);
     if (deficits.size === 0) break;
     engine.growPadding(deficits);
@@ -161,8 +178,8 @@ export function placeStructured(
   return placed;
 }
 
-/** Rounds of widening group padding for arrowheads (#171); the first nearly always settles it. */
-const ARROWHEAD_PADDING_ROUNDS = 3;
+/** Re-layouts for the padding before arrowheads (#171); the first nearly always settles it. */
+const ARROWHEAD_PADDING_RELAYOUTS = 3;
 
 class StructuredLayout {
   readonly #ir: FigureIR;

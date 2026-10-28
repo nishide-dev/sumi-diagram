@@ -42,14 +42,24 @@ const DIR_SIDE: readonly Side[] = ["east", "south", "west", "north"];
  * the straight line the router keeps before the arrowhead (its stub: the
  * arrowhead's length, `arrowheadLength()` of the edge's stroke, and at
  * least the clearance) and the clearance beyond the bend. Only the
- * innermost such group (the nearest border) is grown; an enclosing group
- * grows with it.
+ * innermost such group (the nearest border; on a tie, the deepest, since
+ * nested groups can share a border) is grown; an enclosing group grows with
+ * it. The end's own element, and the groups inside it, are skipped: a port
+ * on a group's border stays on it however wide that group's padding is
+ * (a self-loop `g → g`), so growing them would not move the bend.
  */
 export function arrowheadPaddingDeficits(
   ir: FigureIR,
   layout: LayoutIR,
 ): Map<ElementKey, SidePadding> {
   const deficits = new Map<ElementKey, Record<Side, number>>();
+  const parents = new Map(layout.groups.map((g) => [g.key, g.parent] as const));
+  /** `key`'s ancestors, nearest first, and itself first. */
+  const lineage = (key: ElementKey): ElementKey[] => {
+    const out: ElementKey[] = [];
+    for (let k: ElementKey | undefined = key; k !== undefined; k = parents.get(k)) out.push(k);
+    return out;
+  };
   const resolved = resolveEnds(ir, layout);
   ir.edges.forEach((edge, index) => {
     const ends = resolved[index];
@@ -58,11 +68,21 @@ export function arrowheadPaddingDeficits(
     const need = stub + BORDER_CLEARANCE;
     const check = (end: End, other: End) => {
       if (end.junction || end.dir < 0) return;
-      let nearest: { key: ElementKey; free: number } | undefined;
+      let nearest: { key: ElementKey; free: number; depth: number } | undefined;
       for (const group of layout.groups) {
         if (!holds(group.rect, end.port) || !holds(group.rect, other.port)) continue;
+        const up = lineage(group.key);
+        // The end's own group, or a group inside it: growing it cannot help.
+        if (up.includes(end.key)) continue;
         const free = freeAhead(group.rect, end);
-        if (nearest === undefined || free < nearest.free) nearest = { key: group.key, free };
+        const depth = up.length;
+        if (
+          nearest === undefined ||
+          free < nearest.free ||
+          (free === nearest.free && depth > nearest.depth)
+        ) {
+          nearest = { key: group.key, free, depth };
+        }
       }
       if (nearest === undefined || nearest.free >= need) return;
       const side = DIR_SIDE[end.dir] as Side;

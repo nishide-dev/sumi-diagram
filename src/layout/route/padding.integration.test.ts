@@ -7,9 +7,16 @@
 
 import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
+import { buildFigureIR } from "../../compiler/ir";
+import { checkFigure } from "../../core/check";
+import { BUILTIN_PROFILE_DEFINITIONS } from "../../core/profile/builtin";
+import { type Profile, validateProfile } from "../../core/profile/schema";
 import { lintGeometry } from "../../lint/geometry/lint";
 import type { RenderedStructuredFigure } from "../../render/render";
 import { renderFigure } from "../../render/render";
+import { layoutStructuredFigure } from "../index";
+import { MAX_ALIGN_LAYOUTS } from "../structured/align";
+import { placeStructured } from "../structured/engine";
 import { arrowheadLength } from "./arrowhead";
 import { arrowheadPaddingDeficits, BORDER_CLEARANCE } from "./padding";
 import { ROUTE } from "./router";
@@ -82,4 +89,104 @@ describe("group padding before arrowheads (#171)", () => {
       expect(near).toEqual([]);
     });
   }
+});
+
+/** Lays out (and routes) a structured figure; returns its IR and layout. */
+function place(text: string, profile?: Profile) {
+  const result = layoutStructuredFigure(text, profile === undefined ? {} : { profile });
+  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics, null, 2));
+  return result.value;
+}
+
+function groupLayout(value: ReturnType<typeof place>, id: string) {
+  const key = value.ir.groups.find((g) => g.id === id)?.key;
+  const group = value.layout.groups.find((g) => g.key === key);
+  if (group === undefined) throw new Error(`no group ${id}`);
+  return group;
+}
+
+describe("group padding before arrowheads: edge cases (#171 review)", () => {
+  test("a group's self-loop does not grow the group (its port stays on its border)", () => {
+    const figure = (edges: string) => `version: 1
+figure:
+  id: self-loop
+  theme: color
+  profile: paper-double
+  layout:
+    arrange:
+      stack: { items: [ g ] }
+groups:
+  - id: g
+    arrange:
+      stack: { items: [ a ] }
+nodes:
+  - { id: a, component: box, label: A }
+${edges}`;
+    const plain = place(figure("edges: []"));
+    const looped = place(
+      figure("edges:\n  - { from: g, fromAnchor: east, to: g, toAnchor: north }"),
+    );
+    // Same size (the route around the group only shifts the whole figure).
+    const size = (v: ReturnType<typeof place>) => {
+      const { rect } = groupLayout(v, "g");
+      return { width: rect.width, height: rect.height };
+    };
+    expect(size(looped)).toEqual(size(plain));
+    expect(arrowheadPaddingDeficits(looped.ir, looped.layout).size).toBe(0);
+  });
+
+  test("the re-layouts share the figure's align budget, and the stats count them all", async () => {
+    const file = join(ROOT, "tests/fixtures/figures/layout/align-side-kv.sumi.yaml");
+    const text = (await Bun.file(file).text()).replace("theme: academic", "theme: color");
+    const ir = buildFigureIR(checkFigure(text));
+    const placed = placeStructured(ir);
+    expect(arrowheadPaddingDeficits(ir, placed.layout).size).toBe(0);
+    // Re-laid out once: two align solves of at least one layout each.
+    expect(placed.align?.layouts).toBeGreaterThanOrEqual(2);
+    expect(placed.align?.layouts).toBeLessThanOrEqual(MAX_ALIGN_LAYOUTS);
+    for (const maxLayouts of [1, 2, 5]) {
+      const limited = placeStructured(ir, { alignLimits: { maxLayouts } });
+      expect(limited.align?.layouts).toBeLessThanOrEqual(maxLayouts);
+    }
+  });
+
+  test("nested groups sharing a border: the innermost grows, in one re-layout", () => {
+    const base = BUILTIN_PROFILE_DEFINITIONS.find((p) => p.id === "paper-double");
+    if (base === undefined) throw new Error("no paper-double");
+    const validated = validateProfile({
+      ...base,
+      id: "zero-padding",
+      layout: { ...base.layout, groupPadding: "0pt" },
+    });
+    if (!validated.ok) throw new Error(JSON.stringify(validated.diagnostics));
+    const text = `version: 1
+figure:
+  id: nested
+  theme: color
+  profile: paper-double
+  layout:
+    arrange:
+      stack: { items: [ g1 ] }
+groups:
+  - { id: g1, arrange: { stack: { items: [ g2 ] } } }
+  - { id: g2, arrange: { stack: { items: [ g3 ] } } }
+  - { id: g3, arrange: { stack: { items: [ g4 ] } } }
+  - id: g4
+    arrange:
+      stack: { gap: 8mm, items: [ a, b ] }
+nodes:
+  - { id: a, component: box, label: A }
+  - { id: b, component: box, label: B }
+edges:
+  - { from: a, to: b, toAnchor: west }
+`;
+    const value = place(text, validated.value);
+    expect(arrowheadPaddingDeficits(value.ir, value.layout).size).toBe(0);
+    const west = (id: string) => {
+      const g = groupLayout(value, id);
+      return g.content.x - g.rect.x;
+    };
+    // stub (12) + clearance (6), all on the innermost group.
+    expect([west("g1"), west("g2"), west("g3"), west("g4")]).toEqual([0, 0, 0, 18]);
+  });
 });
