@@ -167,6 +167,95 @@ describe("a zoom edge in the SVG", () => {
   });
 });
 
+/**
+ * A row of `block`, `aside` and the view (a group holding one box), aligned
+ * by `align`, with explicit heights: the zoom edge "z" joins block → view.
+ */
+function rowFigure(
+  align: string,
+  heights: { block: string; aside: string; inner: string },
+  aside: Record<string, unknown> = { component: "box", label: "aside" },
+) {
+  return stringify({
+    version: 1,
+    figure: {
+      id: "zoom",
+      theme: "academic",
+      layout: { arrange: { row: { gap: "6mm", align, items: ["block", "aside", "view"] } } },
+    },
+    groups: [{ id: "view", label: "view", arrange: { stack: { items: ["a"] } } }],
+    nodes: [
+      { id: "block", component: "box", label: "block", props: { height: heights.block } },
+      {
+        id: "aside",
+        ...aside,
+        ...(aside.component === "box" && { props: { height: heights.aside } }),
+      },
+      { id: "a", component: "box", label: "a", props: { height: heights.inner } },
+    ],
+    edges: [{ id: "z", from: "block", to: "view", component: "zoom" }],
+  });
+}
+
+describe("which zoom lines cross a node", () => {
+  test("a node in the way of the second line only is found", async () => {
+    // Tops aligned: the first line runs along the top of aside (touching
+    // it), the second one, from block's bottom-right corner, through it.
+    const source = rowFigure("start", { block: "40pt", aside: "70pt", inner: "20pt" });
+    const rendered = await render(source);
+    const layout = "layout" in rendered ? rendered.layout : undefined;
+    const [first, second] = layout?.edges.find((e) => e.key === "e:z")?.route?.lines ?? [];
+    const aside = layout?.nodes.find((n) => n.key === "n:aside")?.rect;
+    if (first === undefined || second === undefined || aside === undefined)
+      throw new Error("no layout");
+    expect(first[0].y).toBe(aside.y);
+    expect(first[1].y).toBe(aside.y);
+    expect(second[0].y).toBeGreaterThan(aside.y);
+    expect(second[0].y).toBeLessThan(aside.y + aside.height);
+    const findings = lintGeometry(rendered, { source });
+    expect(findings.map((f) => [f.code, f.message])).toEqual([
+      [
+        "geometry/zoom-crosses-node",
+        'A line of edge "z" passes through the shape of node "aside".',
+      ],
+    ]);
+  });
+
+  test("a node between the two lines is not crossed", async () => {
+    // Centered: the lines run along block's top and bottom to the view's
+    // corners, above and below the smaller aside.
+    const source = rowFigure("center", { block: "60pt", aside: "20pt", inner: "36pt" });
+    const rendered = await render(source);
+    const layout = "layout" in rendered ? rendered.layout : undefined;
+    const lines = layout?.edges.find((e) => e.key === "e:z")?.route?.lines ?? [];
+    const aside = layout?.nodes.find((n) => n.key === "n:aside")?.rect;
+    if (lines.length !== 2 || aside === undefined) throw new Error("no layout");
+    // Both lines pass the aside's column outside its box: one above, one below.
+    const at = (line: (typeof lines)[number], x: number) =>
+      line[0].y + ((line[1].y - line[0].y) * (x - line[0].x)) / (line[1].x - line[0].x);
+    for (const x of [aside.x, aside.x + aside.width]) {
+      expect(at(lines[0] as (typeof lines)[number], x)).toBeLessThan(aside.y);
+      expect(at(lines[1] as (typeof lines)[number], x)).toBeGreaterThan(aside.y + aside.height);
+    }
+    expect(lintGeometry(rendered, { source })).toEqual([]);
+  });
+
+  test("a label in the way: zoom-specific advice, not anchors", async () => {
+    // A text node taller than block, between it and the view: both lines cross its text.
+    const source = rowFigure(
+      "center",
+      { block: "20pt", aside: "", inner: "20pt" },
+      { component: "label", label: "one\ntwo\nthree\nfour\nfive" },
+    );
+    const rendered = await render(source);
+    const findings = lintGeometry(rendered, { source });
+    expect(findings.map((f) => f.code)).toEqual(["geometry/edge-crosses-label"]);
+    expect(findings[0]?.hint).toContain("fromAnchor / toAnchor do not move them");
+    expect(findings[0]?.hint).toContain("labelAt");
+    expect(findings[0]?.hint).not.toContain("(e.g. north");
+  });
+});
+
 describe("zoom edges in PDF and PPTX", () => {
   test("the PDF, the picture PPTX and both editable modes take them", async () => {
     const rendered = await render(
@@ -185,6 +274,13 @@ describe("zoom edges in PDF and PPTX", () => {
       expect(shape).toBeDefined();
       expect(shape?.match(/<a:moveTo>/g)).toHaveLength(2);
       expect(shape).toContain("<a:custDash>");
+      // Painted under the routed edge a → b (e:#0), written before it, as
+      // in the SVG, although it comes after it in the document.
+      const zoomAt = slide.indexOf('name="e:z"');
+      const routedAt = slide.indexOf('name="e:#0"');
+      expect(zoomAt).toBeGreaterThan(0);
+      expect(routedAt).toBeGreaterThan(0);
+      expect(zoomAt).toBeLessThan(routedAt);
     }
   });
 });

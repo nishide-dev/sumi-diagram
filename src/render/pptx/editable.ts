@@ -429,6 +429,11 @@ export function svgToEditablePptx(
     };
     const output: string[] = [];
     const labels: string[] = [];
+    // Zoom edges (#176) are painted under the routed edges, as in the SVG
+    // (their wires come before the nets' wires): their shapes go right
+    // before the first routed edge's.
+    const zooms: string[] = [];
+    let firstRouted: number | undefined;
     for (const group of groups) {
       const key = classList(group)
         .map(decodeElementClass)
@@ -458,6 +463,7 @@ export function svgToEditablePptx(
         const src = objects.get(element.from),
           dst = objects.get(element.to);
         if (!src || !dst) throw new Error("Missing connector endpoint");
+        firstRouted ??= output.length;
         const a = site(src, first),
           b = site(dst, last);
         const box = {
@@ -473,7 +479,9 @@ export function svgToEditablePptx(
       } else {
         const bounds = new BoundsBuilder().addPath(geo.path).rect();
         if (!bounds) throw new Error(`Unbounded edge ${key}`);
-        output.push(
+        const zoom = element.routing === "zoom";
+        if (!zoom) firstRouted ??= output.length;
+        (zoom ? zooms : output).push(
           shape(
             id,
             key,
@@ -539,7 +547,12 @@ export function svgToEditablePptx(
     return {
       ok: true,
       value: editablePptx(
-        [...output, ...labels].join(""),
+        [
+          ...output.slice(0, firstRouted ?? output.length),
+          ...zooms,
+          ...output.slice(firstRouted ?? output.length),
+          ...labels,
+        ].join(""),
         canvas.width.pt,
         canvas.height.pt,
         metadata.value,
