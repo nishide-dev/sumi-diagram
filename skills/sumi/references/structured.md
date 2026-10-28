@@ -107,6 +107,48 @@ reserved ID `<group>-caption` (a node or group of yours with that ID is
 `ref/reserved-id`); diagnostics about it point at `caption`. Edges cannot
 end on it; a node attached `south` of the group goes under the caption.
 
+The router treats the caption as an obstacle, so **an edge between a
+member and an element below the group can detour around the caption**
+when the caption blocks its route (out to the side and back under the
+border) — an input entering from below (`direction: up`) as well as an
+output leaving downwards. No diagnostic names the caption (at most
+`geometry/edge-on-border` where the detour runs along the border): look
+at the preview. In a centred stack (member, caption and the other end on
+one vertical), a `toAnchor: west` on the member does not help. If it detours, put the caption on an outer group that
+also holds the other end (a panel around input, block and output, below;
+it draws its own border), or place the other end beside the group (a
+`row`) so the edge crosses a side.
+
+```yaml
+# expect-render: fits
+version: 1
+requires: ">=0.5.0"
+figure:
+  id: caption-panel
+  theme: academic
+  profile: paper-single
+  layout:
+    arrange:
+      stack: { items: [ panel ] }
+groups:
+  - id: panel                    # the caption sits under x, not between x and the block
+    caption: (a) one block
+    arrange:
+      stack: { direction: up, gap: 3mm, items: [ x, block, y ] }
+  - id: block
+    arrange:
+      stack: { direction: up, gap: 3mm, items: [ norm, attn ] }
+nodes:
+  - { id: x, component: label, label: $x$ }
+  - { id: norm, component: box, label: Layer Norm }
+  - { id: attn, component: box, label: Attention }
+  - { id: y, component: label, label: $y$ }
+edges:
+  - { from: x, to: norm }
+  - { from: norm, to: attn }
+  - { from: attn, to: y }
+```
+
 ```yaml
 # expect-render: fits
 version: 1
@@ -210,6 +252,15 @@ figure:
   hint whether the items cannot be moved apart (same box, `gap: 0`) or
   another constraint pulls them away. `layout/align-search-limit`
   (warning) means a figure with very many constraints stopped searching.
+- **`align` can enlarge the figure.** The added space also moves
+  everything after it and grows the enclosing boxes: aligning a small item
+  with one deep inside a tall branch can push that whole branch down and
+  leave a large empty band. When the figure grows by more than 5mm and
+  10% in width or height, render reports `layout/align-grew-figure`
+  (info) with the size before and after. If the growth is intended (a
+  U-Net level pushed down for a straight skip), keep it; otherwise align an
+  item that can move alone (wrap it in its own `stack` / `row`), bring the
+  two closer in the tree, or drop the constraint and use an anchor instead.
 
 ```yaml
 # expect-render: fits
@@ -293,7 +344,10 @@ YAML order, greedily: edges declared first get the best routes.
   **open end**: the arrow stops in empty space (e.g. a block's output at the
   top of a stack: `{ id: out, component: junction, variant: hidden }`, then
   `{ from: add, to: out }`). Put it straight in line, since an arrowhead
-  needs a straight stretch before its tip.
+  needs a straight stretch before its tip. Every line meets a junction at
+  its centre: `fromAnchor` / `toAnchor` on a junction end are ignored
+  (`component/anchor-on-junction`, warning). To change where a line
+  enters, anchor its other end or move the junction in the tree.
 
   ```yaml
   # residual connection: split before the block, re-enter at the side
@@ -483,6 +537,7 @@ where there is room.
 | `layout/unknown-align-item`, `layout/duplicate-align-item`, `layout/invalid-align` | an `align` entry names no node or group (edges cannot be aligned), names one twice, or has fewer than two IDs: fix the list ([align](#aligning-across-trees)) |
 | `layout/unsatisfied-align` (render, warning) | the constraint cannot be met; follow the hint: put the items in different boxes, wrap one in its own `stack` / `row`, or drop a constraint that pulls the other way |
 | `layout/align-search-limit` (render, warning) | too many constraints to solve; remove ones that are already met by the boxes |
+| `layout/align-grew-figure` (render, info) | `align` made the figure much larger; keep it if intended, else align an item that can move alone, or drop the constraint ([align](#aligning-across-trees)) |
 | `layout/edge-label-overlap` (render, warning) | an edge label with `labelAt` / `labelSide` has no clear spot on that segment and side: the other `labelSide`, another `labelAt`, remove both, or make room (`gap`, anchors, a shorter label) |
 | `layout/edge-crossing` (render, info) | two lines cross; see [crossings](#crossings-layoutedge-crossing) |
 | `layout/attached-legend` | a legend cannot be attached: list it in an arrange tree |
