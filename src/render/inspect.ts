@@ -11,6 +11,7 @@
 import type { ElementIR, FigureIR } from "../compiler/ir";
 import type { ElementKey } from "../core/check-state";
 import type { Diagnostic, DiagnosticSubject } from "../core/diagnostics";
+import type { LabelRotation } from "../core/figure/schema";
 import { getProfile } from "../core/profile/builtin";
 import type { Result } from "../core/result";
 import {
@@ -54,6 +55,12 @@ export interface LabelGeometry {
    * plain text in `font` (every D2 label).
    */
   runs?: LabelRunGeometry[][];
+  /**
+   * A label turned by ±90° (#178): the `<text>`'s `transform="rotate(a cx
+   * cy)"`, positive clockwise. Every other field is in the label's own frame,
+   * before the turn about `center`. Absent for upright text (every D2 label).
+   */
+  rotation?: { degrees: LabelRotation; center: Point };
 }
 
 /** A run of a label line: text drawn in one font class, size and baseline. */
@@ -235,9 +242,41 @@ function fontClassOf(element: XmlElement): string | undefined {
       : fontClass.slice(5);
 }
 
+/** SVG's whitespace (`wsp`: space, tab, CR, LF); not `\s`, which also matches e.g. U+00A0. */
+const WSP = "[ \\t\\r\\n]";
+/** A number as `parseNumber()` reads it: optional sign, digits with a point, optional exponent. */
+const NUMBER = "([+-]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][+-]?\\d+)?)";
+/** Between two numbers: whitespace, or a comma with optional whitespace around it (`comma-wsp`). */
+const SEP = `(?:${WSP}+,?${WSP}*|,${WSP}*)`;
+/** `rotate(a cx cy)`, as SVG's transform grammar writes one rotation about a point. */
+const ROTATE = new RegExp(
+  `^${WSP}*rotate${WSP}*\\(${WSP}*${NUMBER}${SEP}${NUMBER}${SEP}${NUMBER}${WSP}*\\)${WSP}*$`,
+);
+
+/**
+ * Reads a `<text>`'s `transform` (#178): exactly a turn by 90° or -90° about
+ * a point. Anything else (other angles, scaling, translation, several
+ * transforms) cannot be measured exactly and is a problem description.
+ */
+function readRotation(value: string): { degrees: LabelRotation; center: Point } | string {
+  const match = ROTATE.exec(value);
+  const [degrees, cx, cy] = (match?.slice(1) ?? []).map(parseNumber);
+  if (
+    degrees === undefined ||
+    cx === undefined ||
+    cy === undefined ||
+    (degrees !== 90 && degrees !== -90)
+  ) {
+    return `<text> has a transform other than rotate(90 cx cy) or rotate(-90 cx cy): "${value}"`;
+  }
+  return { degrees, center: { x: cx, y: cy } };
+}
+
 /** Reads a `<text>` label. Returns a problem description on failure. */
 function readLabel(text: XmlElement): LabelGeometry | string {
-  if (attribute(text, "transform") !== undefined) return "<text> has a transform";
+  const transform = attribute(text, "transform");
+  const rotation = transform === undefined ? undefined : readRotation(transform);
+  if (typeof rotation === "string") return rotation;
   const x = parseNumber(attribute(text, "x"));
   const y = parseNumber(attribute(text, "y"));
   if (x === undefined || y === undefined) return "<text> lacks a numeric x/y";
@@ -345,6 +384,7 @@ function readLabel(text: XmlElement): LabelGeometry | string {
     lineHeightUnits,
     font,
     ...(rich && { runs }),
+    ...(rotation !== undefined && { rotation }),
   };
 }
 
@@ -409,7 +449,8 @@ function findElementGroups(
  * `svg/missing-element` / `svg/duplicate-element` / `svg/unknown-element`
  * when the `sumi-k-*` classes do not match the IR one to one, and
  * `svg/unsupported-geometry` for drawing constructs that cannot be measured
- * exactly (arcs, transforms, unknown shape elements).
+ * exactly (arcs, transforms, unknown shape elements). The one transform read
+ * is a label's turn by ±90° (`<text transform="rotate(±90 cx cy)">`, #178).
  */
 export function inspectSvg(svg: string, ir: FigureIR): Result<SvgInspection> {
   const read = readD2Svg(svg);

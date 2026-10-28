@@ -130,6 +130,37 @@ describe("layout/structured-only", () => {
     expect([...state.invalid].sort()).toEqual(["e:#0", "e:#1"]);
   });
 
+  test("node labelRotation (#178)", () => {
+    const text = figure(
+      [
+        "nodes:",
+        "  - { id: a, component: box, label: Encoder, labelRotation: -90 }",
+        "  - { id: b, component: label, label: Query, labelRotation: 90 }",
+        "",
+      ].join("\n"),
+    );
+    expect(check(text)).toEqual([
+      ["layout/structured-only", ["nodes", 0, "labelRotation"], 5, 46],
+      ["layout/structured-only", ["nodes", 1, "labelRotation"], 6, 46],
+    ]);
+    const { state } = checkFigureSource(text);
+    expect(state.diagnostics[0]?.message).toBe(
+      '"labelRotation" needs the structured layout engine, but this figure uses the auto engine.',
+    );
+    expect([...state.invalid].sort()).toEqual(["n:a", "n:b"]);
+  });
+
+  test("labelRotation accepts only 90 and -90 (#178)", () => {
+    for (const value of ["45", "180", "0", '"90"']) {
+      const text = figure(
+        `  layout:\n    arrange: { stack: { items: [a] } }\nnodes:\n  - { id: a, component: box, label: A, labelRotation: ${value} }\n`,
+      );
+      expect(check(text).map(([code, path]) => [code, path])).toEqual([
+        ["schema/invalid-value", ["nodes", 0, "labelRotation"]],
+      ]);
+    }
+  });
+
   test("figure.layout.fanIn (#134), with either value", () => {
     for (const value of ["merge", "spread"]) {
       const text = figure(

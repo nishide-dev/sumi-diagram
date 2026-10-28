@@ -19,6 +19,9 @@
  * - Accents (#129): a line with math accents is drawn as text chunks, each
  *   centered on its own x (`LabelRunGeometry.chunkX`); an accent's mark is
  *   measured by its glyph outline (`glyf`), where the layout placed it.
+ * - Turned labels (#178): a label drawn turned by ±90° is measured in its own
+ *   frame as above, then every box is turned about the rotation's center
+ *   (exact: an axis-aligned box stays one, width and height swapped).
  */
 
 import type { FontSet } from "../../core/theme/fonts";
@@ -51,15 +54,40 @@ export interface MeasuredRun {
   text: string;
   font: string;
   fontSizeUnits: number;
-  /** Where the run's pen starts (x), and its advance width. */
+  /** Where the run's pen starts (x), and its advance width (in the label's own frame, #178). */
   x: number;
   width: number;
   /**
-   * The run's baseline (y), and its advance box (font ascender to descender
-   * at its size; for a math accent's mark, #129, the mark's outline).
+   * The run's baseline (y, in the label's own frame), and its advance box
+   * (font ascender to descender at its size; for a math accent's mark,
+   * #129, the mark's outline), turned with the label (#178).
    */
   baseline: number;
   box: Rect;
+}
+
+/**
+ * Turns an axis-aligned rectangle by ±90° about `center` (#178), as SVG's
+ * `rotate(degrees cx cy)` does (positive clockwise, y down): the result is
+ * the same rectangle, width and height swapped, about the turned center.
+ */
+export function turnRect(
+  rect: Rect,
+  rotation: { degrees: number; center: { x: number; y: number } },
+): Rect {
+  const { center } = rotation;
+  const dx = rect.x + rect.width / 2 - center.x;
+  const dy = rect.y + rect.height / 2 - center.y;
+  // rotate(90): (dx, dy) → (−dy, dx); rotate(−90): (dx, dy) → (dy, −dx).
+  const sign = rotation.degrees > 0 ? 1 : -1;
+  const cx = center.x - sign * dy;
+  const cy = center.y + sign * dx;
+  return {
+    x: cx - rect.height / 2,
+    y: cy - rect.width / 2,
+    width: rect.height,
+    height: rect.width,
+  };
 }
 
 /**
@@ -132,8 +160,25 @@ export function measureLabelWith(
   metrics: FontMetrics | ((font: string) => FontMetrics),
 ): Omit<MeasuredLabel, "fontPath"> {
   const metricsOf = typeof metrics === "function" ? metrics : () => metrics;
-  if (label.runs !== undefined) return measureRuns(label, label.runs, metricsOf);
-  return measurePlain(label, metricsOf(label.font));
+  const upright =
+    label.runs !== undefined
+      ? measureRuns(label, label.runs, metricsOf)
+      : measurePlain(label, metricsOf(label.font));
+  const { rotation } = label;
+  if (rotation === undefined) return upright;
+  // A turned label (#178): every box turned about the rotation's center.
+  const turn = (rect: Rect) => turnRect(rect, rotation);
+  const box = upright.box === undefined ? undefined : turn(upright.box);
+  return {
+    label,
+    texts: upright.texts,
+    lines: upright.lines.map(turn),
+    visibleLines: upright.visibleLines.map(turn),
+    ...(box !== undefined && { box }),
+    ...(upright.runs !== undefined && {
+      runs: upright.runs.map((line) => line.map((run) => ({ ...run, box: turn(run.box) }))),
+    }),
+  };
 }
 
 function measurePlain(label: LabelGeometry, metrics: FontMetrics): Omit<MeasuredLabel, "fontPath"> {
@@ -268,9 +313,15 @@ export function inkLines(measured: MeasuredLabel): Rect[] {
   const metrics = loadFontMetrics(measured.fontPath);
   const scale = measured.label.fontSizeUnits / metrics.unitsPerEm;
   const ascent = metrics.hhea.ascender * scale;
+  // A turned label (#178): the glyphs in the label's own frame, then turned.
+  const { rotation } = measured.label;
+  const back =
+    rotation === undefined ? undefined : { degrees: -rotation.degrees, center: rotation.center };
+  const lines =
+    back === undefined ? measured.lines : measured.lines.map((line) => turnRect(line, back));
   const ink: Rect[] = [];
   for (const [i, text] of measured.texts.entries()) {
-    const line = measured.lines[i];
+    const line = lines[i];
     if (line === undefined || INVISIBLE.test(text)) continue;
     const baseline = line.y + ascent;
     let pen = line.x;
@@ -297,7 +348,7 @@ export function inkLines(measured: MeasuredLabel): Rect[] {
     }
     ink.push((known ? unionOf(glyphs) : undefined) ?? line);
   }
-  return ink;
+  return rotation === undefined ? ink : ink.map((rect) => turnRect(rect, rotation));
 }
 
 /** Measures a label with the font set's file for each font class. */

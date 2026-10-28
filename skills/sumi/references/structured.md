@@ -25,7 +25,7 @@ and fall back to the older ways noted below.
 out and **a figure with `figure.layout.arrange` is structured, one without
 it auto** — so `engine` is not needed. An explicit `engine: auto` wins over
 `arrange`. Under auto, the structured-only fields (`figure.layout.arrange`,
-`align` and `fanIn`, `groups[].arrange`, `nodes[].attach`,
+`align` and `fanIn`, `groups[].arrange`, `nodes[].attach` / `labelRotation`,
 `edges[].fromAnchor` / `toAnchor` / `labelAt` / `labelSide`) and the
 `legend` component are errors (`layout/structured-only`): remove them, or
 switch the figure to structured (root `arrange`, no `engine: auto`, every
@@ -181,6 +181,37 @@ Both fields also work in auto figures (there the default title place is
 edges leaving a group downwards cross its caption). With a CLI older than
 0.5.0, leave out the group's `label` and `attach` a `label` node beside
 the group instead.
+
+## Turned labels
+
+**`labelRotation: -90`** on a node draws its label turned to read bottom to
+top (`90`: top to bottom), e.g. the title of a tall encoder box or a
+vertical axis label (`component: label`). Only `90` and `-90`; nodes only
+(not groups or edges). The node is sized around the turned text, so a
+`label` node becomes tall and narrow; with explicit `props.width` /
+`height`, `geometry/label-overflow` checks the turned text. Line breaks
+and label math turn with it. Structured only (`layout/structured-only`
+under auto); on an `icon`, `operator`, `junction`, `image` or `legend` it
+is `component/label-rotation-unsupported`, and without a label a warning
+(`component/label-rotation-without-label`). Added after 0.5.3: an older
+CLI reports `schema/unknown-field` — leave it out.
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: turned-labels
+  theme: academic
+  layout:
+    arrange: { row: { gap: 6mm, items: [query, vae, out] } }
+nodes:
+  - { id: query, component: label, label: Query, labelRotation: -90 }
+  - { id: vae, component: box, label: Visual VAE Encoder, labelRotation: -90 }
+  - { id: out, component: box, label: Latent }
+edges:
+  - { from: query, to: vae }
+  - { from: vae, to: out }
+```
 
 ## Attach: side notes
 
