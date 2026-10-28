@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { stringify } from "yaml";
+import { parse, stringify } from "yaml";
 import type { ElementKey } from "../../core/check-state";
 import { type LayoutFigureOptions, layoutStructuredFigure } from "../index";
 import { type EdgeLayout, type LayoutIR, type Point, type Rect, roundUnits } from "../ir";
@@ -20,6 +20,8 @@ import {
 const fixtures = `${import.meta.dir}/../../../tests/fixtures`;
 /** #113's reproduction (research/109-dogfood-v0.4, A2): `api → worker` + `worker → store` at one port. */
 const sharedSegment = `${import.meta.dir}/../../../research/109-dogfood-v0.4/repro/shared-segment.sumi.yaml`;
+/** #153's reproduction (research/151-dogfood-v0.5, A1): `add1 → split2`, a junction right above. */
+const junctionDetour = `${import.meta.dir}/../../../research/151-dogfood-v0.5/repro/junction-detour.sumi.yaml`;
 const goldens = `${fixtures}/layout`;
 // Set SUMI_UPDATE_GOLDEN=1 to rewrite the expected Layout IR JSON.
 const update = process.env.SUMI_UPDATE_GOLDEN === "1";
@@ -296,6 +298,53 @@ describe("room before an arrowhead (#116)", () => {
       expect(last).toBeGreaterThanOrEqual(arrowRoom(1));
       expect(fork).toBeGreaterThanOrEqual(arrowRoom(1));
     }
+  });
+});
+
+describe("a junction closer than the room (#153)", () => {
+  /** The repro routed, with the legend `key` kept or dropped. */
+  const routed = (legend: boolean) => {
+    const source = parse(readFileSync(junctionDetour, "utf8"));
+    if (!legend) {
+      source.nodes = source.nodes.filter((n: { id: string }) => n.id !== "key");
+      source.figure.layout.arrange.row.items[1].stack.items = ["mlp"];
+    }
+    const value = run(stringify(source));
+    expectClean(value);
+    return value;
+  };
+  const pointsBetween = (layout: LayoutIR, from: string, to: string) =>
+    layout.edges.find((e) => e.from === `n:${from}` && e.to === `n:${to}`)?.route?.points ?? [];
+
+  // The room before the arrowhead of `split2 → norm2` (20 units) used to
+  // reach past `split2` (15 units below Layer Norm), so `add1 → split2`, of
+  // the same net, paid `ROUTE.arrowRoom` at every grid point of it there,
+  // and the legend's grid lines made the straight line dearer than an
+  // S-shaped detour into the junction from the side.
+  test.each([
+    ["with the legend", true],
+    ["without the legend", false],
+  ])("%s, the line into the junction right above stays straight", (_, legend) => {
+    const { layout } = routed(legend);
+    const junction = rectOf(layout, "split2");
+    const x = junction.x + junction.width / 2;
+    expect(pointsBetween(layout, "add1", "split2")).toEqual([
+      { x, y: rectOf(layout, "add1").y },
+      { x, y: junction.y + junction.height / 2 },
+    ]);
+    // The edge out of the junction, with its arrowhead, is straight too.
+    const out = pointsBetween(layout, "split2", "norm2");
+    expect(out.map((p) => p.x)).toEqual([x, x]);
+  });
+
+  test("the lower bound stays admissible", () => {
+    const placed = layoutStructuredFigure(readFileSync(junctionDetour, "utf8"), {
+      measurer: FAKE,
+      route: false,
+    });
+    if (!placed.ok) throw new Error(JSON.stringify(placed.diagnostics));
+    const result = routeEdges(placed.value.ir, placed.value.layout, { verifyLowerBound: true });
+    expect(result.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
   });
 });
 

@@ -32,7 +32,8 @@
  *   arrowhead), costs `ROUTE.arrowRoom`: a route keeps the room unless that
  *   costs a crossing or a detour, and a tight gap routes as before. An end whose
  *   room would not fit, with the clearance, inside a group that holds both
- *   ends has none (`#room`).
+ *   ends has none, and a room never reaches past a junction straight ahead
+ *   at the edge's other end (#153; `#room`).
  * - **Nets**: edges that leave the same port, enter the same port, or touch
  *   the same junction form one net (union-find, so junctions joined by edges
  *   merge transitively). Edges entering and leaving one port are different
@@ -449,7 +450,7 @@ class Router {
       const room = (end: End, other: End, arrowhead: boolean) =>
         end.junction || !arrowhead
           ? 0
-          : this.#room(end, other, arrowRoom(edge.style.strokeWidth.units));
+          : this.#room(end, other, arrowRoom(edge.style.strokeWidth.units), lane(end, arrowhead));
       const source = edge.sourceArrowhead !== undefined;
       const target = edge.targetArrowhead !== undefined;
       return {
@@ -513,10 +514,21 @@ class Router {
    * the room would push it out across the border and back (a group's padding
    * is often just a stub and a radius wide); it turns where it did before.
    */
-  #room(end: End, other: End, room: number): number {
+  #room(end: End, other: End, room: number, lane: number): number {
     if (end.dir < 0) return 0;
     const d = DIRS[end.dir] as Point;
     const p = end.port;
+    // A junction straight ahead, closer than the room (#153): the route is
+    // the straight line to it, and a room past the junction would reach
+    // beyond the edge's own end, where the other edges of the junction's net
+    // run (they would pay `ROUTE.arrowRoom` at every grid point of it, and
+    // detour into the junction from the side). The room ends at the junction;
+    // if that is shorter than the stub, there is none.
+    if (other.junction) {
+      const ahead = (other.port.x - p.x) * d.x + (other.port.y - p.y) * d.y;
+      const aside = (other.port.x - p.x) * d.y - (other.port.y - p.y) * d.x;
+      if (Math.abs(aside) < 1e-9 && ahead > 0 && ahead < room) return ahead >= lane ? ahead : 0;
+    }
     const holds = (r: Rect, q: Point) =>
       q.x >= r.x && q.x <= rightOf(r) && q.y >= r.y && q.y <= bottomOf(r);
     for (const { rect } of this.#layout.groups) {
