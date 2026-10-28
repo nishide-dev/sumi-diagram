@@ -9,7 +9,10 @@
  * `sumi/operator`) or embedding an image (manifest `embed`, `sumi/image`)
  * take no label (`component/unexpected-label`), and point marks no tone
  * (`component/tone-unsupported`). A group with `labelAt` but no visible
- * label gets `component/label-at-without-label` (warning, #127), and an
+ * label gets `component/label-at-without-label` (warning, #127). A node
+ * with `labelRotation` (#178) that draws an icon, a mark or an image gets
+ * `component/label-rotation-unsupported`, and one without a visible label
+ * `component/label-rotation-without-label` (warning). An
  * edge with `fromAnchor` / `toAnchor` on an end at a point mark (a junction,
  * which ignores anchors) `component/anchor-on-junction` (warning, #154).
  *
@@ -64,6 +67,8 @@ interface Element {
   icon: string | undefined;
   /** Groups only (#127). */
   labelAt: string | undefined;
+  /** Nodes only (#178). */
+  labelRotation: number | undefined;
   props: Record<string, unknown>;
   /** How messages name the element (an expanded caption or legend part names its origin). */
   name: string;
@@ -181,6 +186,38 @@ export function resolveComponents(
       };
       report([diagnostic], () => [...element.path, "label"]);
     }
+    // labelRotation (#178) turns a label: a node drawing an icon, a mark or
+    // an image has none to turn.
+    const rotationUnsupported =
+      element.labelRotation !== undefined &&
+      (mark !== undefined || embed !== undefined || element.icon !== undefined);
+    if (rotationUnsupported) {
+      const drawn =
+        element.icon !== undefined
+          ? "an icon in place of its label"
+          : mark === undefined
+            ? "the image file of props.src"
+            : mark.type === "glyph"
+              ? `the symbol chosen by props.${mark.prop}`
+              : "a point";
+      const diagnostic: Diagnostic = {
+        code: "component/label-rotation-unsupported",
+        severity: "error",
+        message: `labelRotation turns a node's label, but ${componentId(manifest)} draws ${drawn} here, which is not turned.`,
+        hint: "Remove labelRotation; put turned text next to it with a label node if needed.",
+      };
+      report([diagnostic], () => [...element.path, "labelRotation"]);
+    } else if (element.labelRotation !== undefined && isBlankForD2(element.label)) {
+      // Not an error, like labelAt without a label: nothing visible to turn.
+      const diagnostic: Diagnostic = {
+        code: "component/label-rotation-without-label",
+        severity: "warning",
+        message:
+          "labelRotation turns the node's label, but the label is omitted, empty or only whitespace, so labelRotation has no visible effect.",
+        hint: "Add a label, or remove labelRotation.",
+      };
+      report([diagnostic], () => [...element.path, "labelRotation"]);
+    }
     const toneUnsupported = mark?.type === "point" && element.tone !== undefined;
     if (toneUnsupported) {
       const diagnostic: Diagnostic = {
@@ -198,6 +235,7 @@ export function resolveComponents(
       wrongEngine ||
       missingLabel ||
       unexpectedLabel ||
+      rotationUnsupported ||
       toneUnsupported ||
       mathErrors
     ) {
@@ -322,6 +360,7 @@ function* elements(state: CheckState): Generator<Element> {
       tone: entry.kind === "edge" ? undefined : entry.element.tone,
       icon: entry.kind === "node" ? entry.element.icon : undefined,
       labelAt: entry.kind === "group" ? entry.element.labelAt : undefined,
+      labelRotation: entry.kind === "node" ? entry.element.labelRotation : undefined,
       props: entry.kind === "group" ? {} : entry.element.props,
     };
   }

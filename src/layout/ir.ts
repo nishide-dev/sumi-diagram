@@ -21,7 +21,7 @@
 
 import type { ElementKey } from "../core/check-state";
 import type { Anchor } from "../core/figure/layout";
-import type { Side } from "../core/figure/schema";
+import type { LabelRotation, Side } from "../core/figure/schema";
 import type { Point, Rect } from "../core/geometry";
 import type { NodeShape } from "../core/registry/manifest";
 
@@ -119,15 +119,24 @@ export interface TextLayout extends TextMetrics {
    * the widest line, every line centered in it. A typographic box, not the
    * glyph bounds: the geometry lint's per-line ascender-to-descender boxes lie
    * inside it (blank lines take their height here; the lint skips them).
+   * For a turned label (`rotation`), the box as drawn: width and height
+   * swapped, about the same center.
    */
   readonly box: Rect;
   /**
    * Where an SVG `<text text-anchor="middle">` goes: x = the center of the
    * lines, y = the first line's baseline. Later lines are `lineHeightUnits`
    * further down. The baseline puts the font's ascender-to-descender span in
-   * the middle of each line's `lineHeightUnits` (CSS half-leading).
+   * the middle of each line's `lineHeightUnits` (CSS half-leading). For a
+   * turned label, in the label's own frame: before the turn about the
+   * center of `box`.
    */
   readonly anchor: Point;
+  /**
+   * A node's label drawn turned by ±90° about the center of `box` (#178),
+   * positive clockwise as SVG's `rotate()`; omitted for upright text.
+   */
+  readonly rotation?: LabelRotation;
 }
 
 /** How an element got its position. */
