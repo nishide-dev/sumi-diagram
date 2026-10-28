@@ -28,11 +28,11 @@ metadata: {}               # optional, any JSON-compatible data; not drawn
 | Element | Fields (required in bold) | Defaults |
 | --- | --- | --- |
 | group | **`id`**, `label`, `labelAt`, `caption`, `component`, `variant`, `tone`, `group`, `arrange`¹ | component `container`, variant `default`, no tone, no parent |
-| node | **`id`**, **`component`**, `label`, `variant`, `tone`, `icon`, `props`, `group`, `attach`¹ | variant `default`, no label, no tone, no group |
+| node | **`id`**, **`component`**, `label`, `labelRotation`¹, `variant`, `tone`, `icon`, `props`, `group`, `attach`¹ | variant `default`, no label, no tone, no group |
 | edge | **`from`**, **`to`**, `id`, `label`, `labelAt`¹, `labelSide`¹, `component`, `variant`, `props`, `fromAnchor`¹, `toAnchor`¹ | component `arrow`, variant `default` |
 
 ¹ Structured layout only (a figure with `figure.layout.arrange`); see
-[structured](structured.md). `icon`: see [assets](assets.md). Group
+[structured](structured.md); `labelRotation` (`90` / `-90`, newer than 0.5.3): [turned labels](structured.md#turned-labels). `icon`: see [assets](assets.md). Group
 `labelAt` / `caption`: [groups](#groups). These, edge `labelAt` /
 `labelSide`, `figure.layout.align` / `fanIn`, label-math accents and the
 `legend` component are new in 0.5.0. When you use them and
