@@ -19,6 +19,7 @@ import {
   type PartialFigure,
 } from "../check-state";
 import { type Diagnostic, type DocPath, didYouMean, formatDocPath } from "../diagnostics";
+import { RESERVED_KEY, reservedKeyMessage, reservedKeyPaths } from "../reserved-keys";
 import { errorAt } from "./report";
 import {
   EdgeSchema,
@@ -103,7 +104,18 @@ export function validateFigure(state: CheckState, raw: unknown, locate: Locator)
     }
   }
 
+  // A `__proto__` key would be dropped by the schemas without a word (#180).
+  for (const path of reservedKeyPaths(raw)) {
+    state.diagnostics.push(
+      errorAt(locate, "schema/reserved-key", reservedKeyMessage(path), path, {
+        atKey: true,
+        hint: "Use another name.",
+      }),
+    );
+  }
+
   for (const key of Object.keys(raw)) {
+    if (key === RESERVED_KEY) continue;
     if (!ROOT_KEYS.includes(key)) report(...unknownField(key, [], ROOT_KEYS));
   }
 

@@ -30,7 +30,8 @@ function writtenTexts(element: ValidElement): { field: "label" | "sublabel"; tex
 /** `node "api"`, `group "backend"`, `edge "e1"` or `edge edges[2]`. */
 function describeElement(element: ValidElement): string {
   const { kind, subject } = element;
-  // A group's caption (#130), a part of a legend (#131) or a tokens cell (#181) is named by its origin.
+  // A group's caption (#130), a part of a legend (#131), a tokens cell (#181)
+  // or a part of a matrix (#180) is named by its origin.
   if (element.origin !== undefined) return element.origin.name;
   const id = kind === "edge" && element.element.id === undefined ? subject.id : `"${subject.id}"`;
   return `${kind} ${id}`;
@@ -55,10 +56,12 @@ export const emptyLabel = defineRule({
         manifest.mark !== undefined ||
         manifest.embed !== undefined ||
         element.element.icon !== undefined ||
-        // A legend's sample box (#131) shows only its fill and outline, and
-        // a cell of a tokens node (#181) may be a blank token.
+        // A legend's sample box (#131) shows only its fill and outline, a
+        // cell of a tokens node (#181) may be a blank token, and a matrix's
+        // cells (#180) show their class by fill and pattern alone.
         element.origin?.from === "legend" ||
-        element.origin?.from === "tokens"
+        element.origin?.from === "tokens" ||
+        element.origin?.from === "matrix"
       ) {
         continue;
       }

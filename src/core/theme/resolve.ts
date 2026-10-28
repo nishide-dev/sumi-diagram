@@ -23,7 +23,13 @@ import type { ComponentId, ComponentKind } from "../registry/manifest";
 import { resolveTheme } from "./builtin";
 import { dimmedElements, dimStyle } from "./dim";
 import type { Theme } from "./schema";
-import { mergeStyle, type ResolvedStyle, type StyleOf, sublabelFontSize } from "./style";
+import {
+  mergeStyle,
+  type NodeStyle,
+  type ResolvedStyle,
+  type StyleOf,
+  sublabelFontSize,
+} from "./style";
 import type { Tone } from "./tones";
 
 /**
@@ -40,6 +46,11 @@ export interface StyleTarget<K extends ComponentKind = ComponentKind> {
   variant: string;
   /** The element's tone, if it sets one. */
   tone?: Tone | undefined;
+  /**
+   * Take the tone's line layer (`toneLines`) whatever the variant: the text
+   * of a matrix header with a tone (#180).
+   */
+  toneText?: boolean | undefined;
 }
 
 /** Which of a theme's tone layers an element takes: `tones` or `toneLines` (#177). */
@@ -64,7 +75,8 @@ export function resolveStyle<K extends ComponentKind>(
   const { kind, id, variant, tone } = target;
   const layers = theme.components.get(id);
   const variantLayer = variant === "default" ? undefined : layers?.get(variant);
-  const toneLayer = tone === undefined ? undefined : theme[toneField(kind, variant)].get(tone);
+  const field = target.toneText === true ? "toneLines" : toneField(kind, variant);
+  const toneLayer = tone === undefined ? undefined : theme[field].get(tone);
   return {
     style: mergeStyle(kind, [theme.base[kind], layers?.get("default"), variantLayer, toneLayer]),
     missingVariant: variant !== "default" && variantLayer === undefined,
@@ -96,12 +108,20 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
     if (state.invalid.has(key) || component === undefined) continue;
     const { id, manifest, variant } = component;
     const tone = entry.element.tone;
-    const { style, missingVariant, missingTone } = resolveStyle(theme, {
+    const paint = state.doc.paints?.get(key);
+    const resolution = resolveStyle(theme, {
       kind: manifest.kind,
       id,
       variant,
       tone,
+      ...(paint?.toneText === true && { toneText: true }),
     });
+    const { missingVariant, missingTone } = resolution;
+    // A hatched matrix cell or legend sample (#180): lines in the tone's line color, gray's without one.
+    const style =
+      paint?.hatch === true && resolution.style.kind === "node"
+        ? hatched(theme, resolution.style, tone)
+        : resolution.style;
     if (missingVariant) {
       const at = [...path, "variant"];
       const location = locate(at);
@@ -126,7 +146,7 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
         path: at,
         ...(location !== undefined && { location }),
         subject,
-        hint: `Add ${toneField(manifest.kind, variant)}.${tone} to the theme, or use another tone.`,
+        hint: `Add ${paint?.toneText === true ? "toneLines" : toneField(manifest.kind, variant)}.${tone} to the theme, or use another tone.`,
       };
       state.diagnostics.push(warning);
     }
@@ -134,6 +154,16 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
     styles.set(key, dim === undefined ? style : dimStyle(style, dim));
   }
   return theme;
+}
+
+/**
+ * The style of a hatched node (#180): its hatch lines take the stroke of
+ * the tone's line layer (`toneLines.<tone>`, gray's without a tone), or the
+ * node's own stroke if the theme has neither.
+ */
+function hatched(theme: Theme, style: NodeStyle, tone: Tone | undefined): NodeStyle {
+  const hatch = theme.toneLines.get(tone ?? "gray")?.stroke ?? style.stroke;
+  return Object.freeze({ ...style, hatch });
 }
 
 /**

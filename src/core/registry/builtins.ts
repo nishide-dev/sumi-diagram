@@ -5,6 +5,7 @@
  */
 
 import { z } from "zod";
+import { didYouMean } from "../diagnostics";
 import { ARRANGE_ALIGNS, ID_PATTERN, LayoutLength } from "../figure/schema";
 import { TONE_NAMES } from "../theme/tones";
 import { SizeLength } from "./length";
@@ -211,6 +212,12 @@ export const LEGEND_ID = "sumi/legend";
 export const LEGEND_MAX_ENTRIES = 20;
 
 const ComponentField = z.string().min(1);
+
+/**
+ * A legend entry's matrix class (#180): `<matrix>.<class>`, the matrix's ID
+ * and one of its class names (which may itself contain dots).
+ */
+export const LEGEND_CLASS_PATTERN = /^[a-z][a-z0-9_-]{0,63}\.\S{1,16}$/;
 const VariantField = z.string().min(1);
 
 const legendEntry = z
@@ -249,13 +256,38 @@ const legendEntry = z
       .describe(
         "Draws a small sample box with these node fields: the same fill, outline and text color as the nodes that use them.",
       ),
+    class: z
+      .string()
+      .regex(LEGEND_CLASS_PATTERN)
+      .optional()
+      .describe(
+        "Draws the sample box of a class of a matrix, as <matrix>.<class>, e.g. mask.o: the class's tone, variant and hatch pattern. The label defaults to the class's label.",
+      ),
     label: z
       .string()
       .min(1)
-      .describe("What the sample means, drawn to its right (a label; math allowed)."),
+      .optional()
+      .describe(
+        "What the sample means, drawn to its right (a label; math allowed). Required, except that a class entry defaults to its class's label.",
+      ),
   })
-  .refine((entry) => (entry.edge === undefined) !== (entry.node === undefined), {
-    error: 'an entry needs exactly one of "edge" or "node"',
+  .superRefine((entry, ctx) => {
+    if (entry.label === undefined && entry.class === undefined) {
+      // As the message of a missing required string, which label was before #180.
+      ctx.addIssue({
+        code: "custom",
+        path: ["label"],
+        message: "Invalid input: expected string, received undefined",
+      });
+      return;
+    }
+    const kinds = [entry.edge, entry.node, entry.class].filter((k) => k !== undefined).length;
+    if (kinds !== 1) {
+      ctx.addIssue({
+        code: "custom",
+        message: 'an entry needs exactly one of "edge", "node" or "class"',
+      });
+    }
   });
 
 const legend: NodeManifest = {
@@ -272,7 +304,7 @@ const legend: NodeManifest = {
       .min(1)
       .max(LEGEND_MAX_ENTRIES)
       .describe(
-        "The entries, top to bottom. Each has edge (a sample line) or node (a sample box), and a label.",
+        "The entries, top to bottom. Each has edge (a sample line), node (a sample box) or class (the sample box of a matrix class), and a label.",
       ),
   }),
   shape: "rectangle",
@@ -387,6 +419,211 @@ const tokens: NodeManifest = {
   engines: ["structured"],
 };
 
+/** Canonical ID of the matrix component (#180): expanded into a frame of header labels and cells. */
+export const MATRIX_ID = "sumi/matrix";
+
+/** Most rows or columns a matrix takes: keeps its reserved IDs short (`<id>-64-64`). */
+export const MATRIX_MAX_SIDE = 64;
+
+/** Where a matrix draws its row headers (#180). */
+export const MATRIX_ROW_HEADER_SIDES = ["left", "right"] as const;
+/** Where a matrix draws its column headers (#180). */
+export const MATRIX_COLUMN_HEADER_SIDES = ["top", "bottom"] as const;
+/** Fill patterns of a matrix class (#180): `hatch` draws diagonal lines over the fill. */
+export const MATRIX_PATTERNS = ["hatch"] as const;
+
+/** A class name of a matrix (#180): one to 16 characters without whitespace, e.g. `o`, `.` or `masked`. */
+export const MATRIX_CLASS_PATTERN = /^\S{1,16}$/;
+
+/**
+ * The class names of a row of a matrix's `cells` (#180): a list as written;
+ * a string split at whitespace, or, when every class name is one character
+ * long, its characters (whitespace ignored), e.g. `"o..L"`.
+ */
+export function matrixRowClasses(
+  row: string | readonly string[],
+  classes: readonly string[],
+): string[] {
+  if (typeof row !== "string") return [...row];
+  if (classes.length > 0 && classes.every((c) => Array.from(c).length === 1)) {
+    return Array.from(row.replace(/\s+/g, ""));
+  }
+  return row.split(/\s+/).filter((c) => c !== "");
+}
+
+const matrixHeader = z.union([
+  z.string().min(1).describe("A header with this text (math allowed)."),
+  z.strictObject({
+    label: z.string().min(1).describe("The header's text (math allowed)."),
+    tone: z
+      .enum(TONE_NAMES)
+      .optional()
+      .describe(
+        "Draws the text in the tone's line color (toneLines), e.g. to color a group of headers.",
+      ),
+  }),
+]);
+
+const matrixClass = z.strictObject({
+  tone: z
+    .enum(TONE_NAMES)
+    .optional()
+    .describe("The tone of the class's cells, as on a node. Omitted means none."),
+  variant: VariantField.optional().describe(
+    "The variant of the class's cells, as on a box (e.g. filled or outlined). Omitted means the matrix's variant.",
+  ),
+  pattern: z
+    .enum(MATRIX_PATTERNS)
+    .optional()
+    .describe(
+      "hatch: diagonal lines over the cell's fill, in the tone's line color (gray's without a tone), e.g. for masked entries. Omitted means the fill alone.",
+    ),
+  label: z
+    .string()
+    .min(1)
+    .optional()
+    .describe(
+      "What the class means, the text of a legend entry { class: <matrix>.<class> } (math allowed).",
+    ),
+});
+
+const matrix: NodeManifest = {
+  ...base,
+  since: "0.6.0",
+  kind: "node",
+  name: "matrix",
+  description:
+    "A grid of cells colored by class, e.g. an attention mask, with optional row and column headers; each class is a tone, a variant and a hatch pattern, and a legend explains it as { class: <matrix>.<class> } (structured layout only).",
+  variants: ["default"],
+  props: z
+    .strictObject({
+      cells: z
+        .array(z.union([z.string(), z.array(z.string().regex(MATRIX_CLASS_PATTERN)).min(1)]))
+        .min(1)
+        .max(MATRIX_MAX_SIDE)
+        .describe(
+          'The rows, top to bottom, each the class names of its cells from left to right: a list, or a string of names separated by spaces (when every class name is one character, the characters themselves, e.g. "o..L"). Every row has the same number of cells.',
+        ),
+      classes: z
+        .record(z.string().regex(MATRIX_CLASS_PATTERN), matrixClass)
+        .refine((classes) => Object.keys(classes).length > 0, {
+          error: "a matrix needs at least one class",
+        })
+        .describe(
+          "The classes by name (1 to 16 characters without spaces): each a tone, a variant and a pattern for its cells, and a label for a legend.",
+        ),
+      rows: z
+        .array(matrixHeader)
+        .optional()
+        .describe(
+          "The row headers, one per row: text, or { label, tone }. Omitted means no row headers.",
+        ),
+      columns: z
+        .array(matrixHeader)
+        .optional()
+        .describe(
+          "The column headers, one per column: text, or { label, tone }. Omitted means no column headers.",
+        ),
+      corner: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(
+          'Text in the corner between the row and the column headers, e.g. "Q / K" (needs both). Omitted means none.',
+        ),
+      rowsAt: z
+        .enum(MATRIX_ROW_HEADER_SIDES)
+        .default("left")
+        .describe("The side of the row headers: left or right."),
+      columnsAt: z
+        .enum(MATRIX_COLUMN_HEADER_SIDES)
+        .default("top")
+        .describe("The side of the column headers: top or bottom."),
+      cellWidth: SizeLength.optional().describe(
+        "The width of every cell (and column header). Omitted means 10pt.",
+      ),
+      cellHeight: SizeLength.optional().describe(
+        "The height of every cell. Omitted means the cell width.",
+      ),
+      gap: LayoutLength.optional().describe(
+        "Space between neighboring cells, across and down. Omitted means 0 (cells touch).",
+      ),
+      headerGap: LayoutLength.optional().describe(
+        "Space between the headers and the cells. Omitted means gap.",
+      ),
+      headerWidth: SizeLength.optional().describe(
+        "The width of every row header. Omitted means each is as wide as its text (aligned to the cells).",
+      ),
+      variant: VariantField.optional().describe(
+        "The variant of every cell, as on a box (a class's variant overrides it). Omitted means default.",
+      ),
+    })
+    .superRefine((props, ctx) => {
+      const issue = (path: (string | number)[], message: string, hint?: string) =>
+        ctx.addIssue({
+          code: "custom",
+          path,
+          message,
+          ...(hint !== undefined && { params: { hint } }),
+        });
+      const names = Object.keys(props.classes ?? {});
+      if (names.length === 0 || !Array.isArray(props.cells)) return;
+      let width: number | undefined;
+      for (const [r, row] of props.cells.entries()) {
+        const classes = matrixRowClasses(row, names);
+        for (const [c, name] of classes.entries()) {
+          if (names.includes(name)) continue;
+          issue(
+            typeof row === "string" ? ["cells", r] : ["cells", r, c],
+            `cell ${c + 1} of row ${r + 1} has the unknown class "${name}"`,
+            didYouMean(name, names) ?? `Classes of the matrix: ${names.join(", ")}.`,
+          );
+          break;
+        }
+        if (classes.length === 0) {
+          issue(["cells", r], `row ${r + 1} has no cells`);
+        } else if (classes.length > MATRIX_MAX_SIDE) {
+          issue(
+            ["cells", r],
+            `row ${r + 1} has ${classes.length} cells, more than ${MATRIX_MAX_SIDE}`,
+          );
+        } else if (width === undefined) {
+          width = classes.length;
+        } else if (classes.length !== width) {
+          issue(
+            ["cells", r],
+            `row ${r + 1} has ${classes.length} cells, but row 1 has ${width}`,
+            "Give every row of a matrix the same number of cells.",
+          );
+        }
+      }
+      if (props.rows !== undefined && props.rows.length !== props.cells.length) {
+        issue(
+          ["rows"],
+          `${props.rows.length} row headers for ${props.cells.length} rows`,
+          "Give one row header per row of cells.",
+        );
+      }
+      if (props.columns !== undefined && width !== undefined && props.columns.length !== width) {
+        issue(
+          ["columns"],
+          `${props.columns.length} column headers for ${width} columns`,
+          "Give one column header per cell of a row.",
+        );
+      }
+      if (props.corner !== undefined && (props.rows === undefined || props.columns === undefined)) {
+        issue(
+          ["corner"],
+          "a corner needs both row and column headers",
+          "Add rows and columns, or remove corner.",
+        );
+      }
+    }),
+  shape: "rectangle",
+  sizing: "auto",
+  engines: ["structured"],
+};
+
 /**
  * A zoom callout (#176, design doc §6.45): two straight lines from corners of
  * the source to the matching corners of the target, which shows the source
@@ -425,6 +662,7 @@ export const BUILTIN_MANIFESTS: readonly ComponentManifest[] = [
   image,
   legend,
   tokens,
+  matrix,
   container,
   edge("arrow", "A line with an arrowhead at the target.", {
     direction: "forward",

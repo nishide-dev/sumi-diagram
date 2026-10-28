@@ -458,6 +458,31 @@ export function svgToEditablePptx(
         ` rot="${((rotation.degrees + 360) % 360) * 60000}"`,
       );
     };
+    /**
+     * A hatched node's hatch lines (#180): the SVG's `path.sumi-hatch`
+     * segments as a line shape of their own over the node's box, so the
+     * slide draws the same lines as the SVG, PDF and picture PPTX (a
+     * DrawingML pattern fill would tile at its own scale and phase).
+     */
+    const hatchShape = (
+      key: ElementKey,
+      group: XmlElement,
+      box: Rect,
+      style: { stroke: string; strokeWidth: { units: number }; opacity: number },
+    ): string => {
+      const hatch = childElements(group).find(
+        (e) => e.name === "path" && classList(e).includes("sumi-hatch"),
+      );
+      if (hatch === undefined) return "";
+      return shape(
+        next++,
+        `${key} hatch`,
+        box,
+        geometry([shapePath(hatch)], box, emu),
+        "<a:noFill/>",
+        line(hatch, style),
+      );
+    };
     const objectXml = new Map<ElementKey, string>();
     for (const element of [...ir.groups, ...ir.nodes]) {
       const group = byKey.get(element.key),
@@ -560,7 +585,8 @@ export function svgToEditablePptx(
                     sublabel.el,
                     element.style.opacity,
                   ))
-            : ""),
+            : "") +
+          hatchShape(element.key, group, box, element.style),
       );
       objects.set(element.key, { id, box, ellipse });
     }

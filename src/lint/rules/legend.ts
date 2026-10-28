@@ -1,4 +1,4 @@
-/** Rules on legends (#131, design doc §6.34). */
+/** Rules on legends (#131, design doc §6.34) and the classes of matrices (#180, §6.56). */
 
 import type { ResolvedComponent } from "../../core/registry/manifest";
 import { defineRule, type LintFinding, type ValidElement } from "../rule";
@@ -20,14 +20,18 @@ export const unusedLegendEntry = defineRule({
     const { legends } = context.state.doc;
     if (legends === undefined) return [];
     // What the author drew: the elements that are not parts of a legend or
-    // captions (the cells of tokens nodes, #181, are the author's nodes).
+    // captions (the cells of tokens nodes, #181, and of matrices, #180, are
+    // the author's nodes).
     const written = context.elements.filter(
-      (e) => e.origin === undefined || e.origin.from === "tokens",
+      (e) => e.origin === undefined || e.origin.from === "tokens" || e.origin.from === "matrix",
     );
     const toneOf = (e: ValidElement) => e.element.tone;
     const findings: LintFinding[] = [];
     for (const legend of legends) {
       for (const [j, entry] of legend.entries.entries()) {
+        // A matrix class (#180) explains its cells: lint/unused-matrix-class
+        // reports a class without cells.
+        if (entry.class !== undefined) continue;
         const sample = context.elements.find((e) => e.key === entry.sample);
         const component = sample?.component;
         if (sample === undefined || component === undefined) continue;
@@ -46,6 +50,31 @@ export const unusedLegendEntry = defineRule({
           path: entry.path,
           subject: { kind: "node", id: legend.id },
           hint: `Remove the entry, or give its ${what} fields the component, variant and tone of the ${what}s it explains.`,
+        });
+      }
+    }
+    return findings;
+  },
+});
+
+export const unusedMatrixClass = defineRule({
+  id: "lint/unused-matrix-class",
+  description: "A class of a matrix is used by none of its cells.",
+  defaultSeverity: "warning",
+  fixable: false,
+  run(context) {
+    const { matrices } = context.state.doc;
+    if (matrices === undefined) return [];
+    const findings: LintFinding[] = [];
+    for (const matrix of matrices) {
+      const used = new Set(matrix.parts.map((p) => p.class));
+      for (const name of Object.keys(matrix.classes)) {
+        if (used.has(name)) continue;
+        findings.push({
+          message: `Class "${name}" of matrix "${matrix.id}" is used by none of its cells.`,
+          path: [...matrix.path, "props", "classes", name],
+          subject: { kind: "node", id: matrix.id },
+          hint: "Remove the class, or write its name in the cells it stands for.",
         });
       }
     }

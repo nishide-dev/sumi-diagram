@@ -38,6 +38,7 @@ import {
   componentId,
 } from "../registry/manifest";
 import type { Registry } from "../registry/registry";
+import { reservedKeyMessage, reservedKeyPaths } from "../reserved-keys";
 import type { Result } from "../result";
 import type { DimColors } from "./dim";
 import { BUILTIN_FONT_SETS, type FontSet } from "./fonts";
@@ -171,6 +172,19 @@ export function validateTheme(raw: unknown, options: ValidateThemeOptions = {}):
     fontSets = BUILTIN_FONT_SETS,
     locate = () => undefined,
   } = options;
+  // A `__proto__` key would be dropped without a word (#180).
+  const reserved = reservedKeyPaths(raw);
+  if (reserved.length > 0) {
+    return {
+      ok: false,
+      diagnostics: reserved.map((path) =>
+        errorAt(locate, "theme/reserved-key", reservedKeyMessage(path), path, {
+          atKey: true,
+          hint: "Use another name.",
+        }),
+      ),
+    };
+  }
   const parsed = ThemeSchema.safeParse(raw);
   if (!parsed.success) {
     return {

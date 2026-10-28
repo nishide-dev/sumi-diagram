@@ -81,9 +81,11 @@ export function runGeometryRules(
 ): Diagnostic[] {
   // A cell of a tokens node (#181) is located at its cell; its fields are
   // written in the cell or inherited from the tokens: point at those.
-  const cells: CellFields[] = context.elements.flatMap(({ ir, docPath }) =>
-    ir.tokens === undefined ? [] : [{ path: docPath, fields: ir.tokens.fields }],
-  );
+  // Likewise a part of a matrix (#180).
+  const cells: CellFields[] = context.elements.flatMap(({ ir, docPath }) => {
+    const part = ir.tokens ?? ir.matrix;
+    return part === undefined ? [] : [{ path: docPath, fields: part.fields }];
+  });
   const remap = (finding: LintFinding): LintFinding =>
     cells.length === 0
       ? finding

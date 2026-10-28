@@ -14,6 +14,7 @@
 import type { Diagnostic, DiagnosticSubject, DocPath } from "./diagnostics";
 import type { CaptionOrigin } from "./figure/caption";
 import type { LegendExpansion } from "./figure/legend";
+import type { MatrixExpansion } from "./figure/matrix";
 import {
   type FigureEdge,
   type FigureGroup,
@@ -69,21 +70,42 @@ export interface PartialFigure {
    */
   tokens?: readonly TokensExpansion[];
   /**
+   * Matrix nodes expanded into a frame group, header labels and cells
+   * (#180), in the order of the matrix nodes. Set by `expandMatrices()`.
+   */
+  matrices?: readonly MatrixExpansion[];
+  /**
+   * How the theme stage paints an expanded node beyond its component,
+   * variant and tone (#180): a matrix cell or a legend's sample box of a
+   * hatched class (`hatch`), a matrix header with a tone (`toneText`: the
+   * tone's line color for the text). Only set by expansions; no field of a
+   * written element maps here.
+   */
+  paints?: ReadonlyMap<ElementKey, ExpandedPaint>;
+  /**
    * Every element a check stage added in place of a field of another
    * element: the caption nodes (#130), the parts of legends (#131) and the
-   * cells of tokens nodes (#181), by key. Diagnostics about such an element carry the origin's path and
+   * cells of tokens nodes (#181) and the parts of matrices (#180), by key. Diagnostics about such an element carry the origin's path and
    * subject (see {@link figureElements}).
    */
   expanded?: ReadonlyMap<ElementKey, ExpandedOrigin>;
 }
 
+/** See {@link PartialFigure.paints}. */
+export interface ExpandedPaint {
+  /** Diagonal lines over the fill, in the tone's line color (#180). */
+  readonly hatch?: true;
+  /** The text in the tone's line color (`toneLines`) instead of the fill (#180). */
+  readonly toneText?: true;
+}
+
 /** Where an expanded element (see {@link PartialFigure.expanded}) is written. */
 export interface ExpandedOrigin {
   /** What it was expanded from. */
-  from: "caption" | "legend" | "tokens";
+  from: "caption" | "legend" | "tokens" | "matrix";
   /** The field it stands for, e.g. `["groups", 2, "caption"]` or a legend entry. */
   path: DocPath;
-  /** Whom diagnostics about it name: the captioned group, or the legend or tokens node. */
+  /** Whom diagnostics about it name: the captioned group, or the legend, tokens or matrix node. */
   subject: DiagnosticSubject;
   /** How messages name it, e.g. `the caption of group "x"`. */
   name: string;

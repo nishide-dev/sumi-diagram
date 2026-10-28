@@ -571,9 +571,10 @@ crossings is still clean: errors and warnings are what must reach 0.
 A **`legend`** node (`component: legend`, structured only) draws a
 framed key: one row per entry, top to bottom, each a **sample** and its
 text. An entry has exactly one of `edge` (a sample line, with the edge
-fields `component` — default `arrow` —, `variant` and `tone`) or `node` (a small
-sample box: `component` — default `box` —, `variant`, `tone`), plus
-`label` (math allowed). The samples are drawn by the same theme rules as
+fields `component` — default `arrow` —, `variant` and `tone`), `node` (a small
+sample box: `component` — default `box` —, `variant`, `tone`) or `class`
+(the sample box of a [matrix](#matrices) class, `<matrix>.<class>`), plus
+`label` (math allowed; a `class` entry defaults to the class's label). The samples are drawn by the same theme rules as
 real edges and nodes, so a `variant: dashed` sample has exactly the dash,
 arrowhead and width of the dashed edges. No colors are written. The
 legend's own `label` is its title; `variant: plain` drops the frame;
@@ -595,7 +596,8 @@ legend's own `label` is its title; `variant: plain` drops the frame;
   `align` and edges can name it. It cannot be `attach`ed
   (`layout/attached-legend`).
 - `lint/unused-legend-entry` (warning): no node or edge of the figure has
-  that entry's component, variant and tone. Fix the entry or
+  that entry's component, variant and tone (a `class` entry is never
+  reported: `lint/unused-matrix-class` covers a class without cells). Fix the entry or
   the elements it should explain; do not keep a key for styles not drawn.
 - The legend expands into nodes and edges named `<legend>-<n>-label`,
   `-box`, `-line`, `-start`, `-end` (n = entry number): your own IDs must
@@ -695,6 +697,73 @@ edges:
   an `operator`, `junction`, `image`, `legend` or `tokens`
   (`component/invalid-prop`). An older CLI reports `component/unknown`:
   write one node per cell instead.
+
+## Matrices
+
+A **`matrix`** node (`component: matrix`, structured only, added after
+0.5.3) draws a grid of cells colored by **class** — an attention mask, a
+pattern of allowed and blocked pairs — with optional row and column headers.
+`classes` names each class (1–16 characters, e.g. `o`, `.`) with a `tone`, a
+box `variant` (e.g. `filled`, `outlined`), `pattern: hatch` (diagonal lines
+over the fill, in the tone's line color) and a `label` for the legend.
+`cells` lists the rows top to bottom: a list of class names, or a string —
+names separated by spaces, or, when every class name is one character, the
+characters themselves (`"o..L"`). `rows` / `columns` are the headers (text,
+math allowed, or `{ label, tone }` to color the text); `corner` is text
+between them (needs both). `cellWidth` (default 10pt), `cellHeight` (default
+the width), `gap` (between cells, default 0), `headerGap` (default `gap`),
+`headerWidth`, `rowsAt: right`, `columnsAt: bottom` and `variant` (of every
+cell) tune it. A legend entry `{ class: <matrix>.<class> }` draws that
+class's sample box with its label: the key is made from the same data.
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: attention-mask
+  theme: paper
+  layout:
+    arrange: { row: { gap: 5mm, align: center, items: [qkv, mask, key] } }
+nodes:
+  - { id: qkv, component: box, label: QKV, tone: blue, variant: filled }
+  - id: mask
+    component: matrix
+    props:
+      corner: Q / K
+      rows: [S, { label: '$A_1$', tone: purple }, { label: '$V_1$', tone: orange }]
+      columns: [S, { label: '$A_1$', tone: purple }, { label: '$V_1$', tone: orange }]
+      cellWidth: 12pt
+      gap: 1.5pt
+      variant: filled
+      classes:
+        o: { tone: green, label: Allowed }
+        L: { tone: orange, label: "A↔V Link" }
+        .: { pattern: hatch, label: Masked }
+      cells: [o.o, ooL, oLo]
+  - id: key
+    component: legend
+    props:
+      entries: [{ class: mask.o }, { class: mask.L }, { class: mask.. }]
+edges:
+  - { from: qkv, to: mask }
+```
+
+- The matrix is drawn as a borderless frame with its ID (edges, `align`
+  and arrange trees name it; its `label` is a title above it) around
+  ordinary nodes: cells `<matrix>-<row>-<column>` (1-based), headers
+  `<matrix>-row-<r>`, `<matrix>-col-<c>`, `<matrix>-corner`. Your own IDs
+  must not use these (`ref/reserved-id`). Single cells cannot be edge
+  ends. Never `attach` a matrix (`layout/attached-matrix`).
+- Row headers are as high as a cell and column headers as wide, so the
+  grid stays even: text taller than `cellHeight + gap` (e.g. 16pt
+  `slides` text in 10pt cells) collides (`geometry/label-collision`) —
+  raise `cellHeight` or `gap`.
+- Every row must have as many cells as the first, every name must be a
+  class, and `rows` / `columns` must match the grid (`component/invalid-prop`
+  at the row or field). A class no cell uses is `lint/unused-matrix-class`
+  (warning); a legend `class` that names no class is `ref/unknown-class`.
+  Cells take no label (no `lint/empty-label`). An older CLI reports
+  `component/unknown`: write the cells as boxes in rows instead.
 
 ## Spacing that routes
 
