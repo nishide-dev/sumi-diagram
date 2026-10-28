@@ -319,9 +319,14 @@ They are built in; there is no way to define your own in a figure.
 `minimal`, `academic`, `slides` and `color` use the bundled
 `sumi/biz-ud-gothic` font set (Latin and Japanese). `paper` uses
 `sumi/inter-biz-ud-gothic`: in structured figures Latin text is drawn with
-Inter (narrower than BIZ UDPGothic, with a taller line box: give a node with
-explicit `width` / `height` about 1.4× its text size, e.g. 11pt for an 8pt
-key), Japanese with BIZ UDPGothic; auto (D2) figures stay all BIZ UDPGothic.
+Inter, Japanese with BIZ UDPGothic; auto (D2) figures stay all BIZ UDPGothic.
+Inter is narrower than BIZ UDPGothic but its line box is taller (1.21em
+against 1.00em), so a small node with explicit `width` / `height` can fail
+`geometry/label-overflow` under `paper`. For a one-character key or token
+in a square, make the side about 1.4× the text size (11pt for 8pt text);
+this is only for such single-character squares, not a rule for widths:
+longer labels need their measured width, so prefer leaving `width` /
+`height` out and letting the node size itself.
 
 | Profile | Max width | Max height | Min font size | Use |
 | --- | --- | --- | --- | --- |

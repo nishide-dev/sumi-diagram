@@ -58,7 +58,7 @@ tone の色は原図の画素を測った値（A: Input Embedding `#f7e1e1`、Mu
 
 ### C のキー（Inter の行の箱）
 
-C をそのまま `paper` にすると、8.5pt 四方のキー 45 個がすべて `geometry/label-overflow`（error）になった。幾何 lint は文字の行の箱を hhea の ascender＋descender で測り、Inter は 1.21em（0.969＋0.241）、BIZ UDPGothic は 1.00em（0.880＋0.120）。8pt の 1 文字が Inter では高さ 9.69pt になり、枠 1pt の 8.5pt 四方に収まらない。複製ではキーを 11pt 四方にした（8pt の文字には 9.69＋1 = 10.69pt 以上が要る）。キーの行は列の幅より狭いので図の幅は変わらない（`color` での縮小率は 8.5pt でも 11pt でも 0.7743）。幅・高さを明示した小さな node では paper で同じことが起きるので、Skill に「明示する大きさは文字の約 1.4 倍」と書いた。
+C をそのまま `paper` にすると、8.5pt 四方のキー 45 個がすべて `geometry/label-overflow`（error）になった。幾何 lint は文字の行の箱を hhea の ascender＋descender で測り、Inter は 1.21em（0.969＋0.241）、BIZ UDPGothic は 1.00em（0.880＋0.120）。8pt の 1 文字が Inter では高さ 9.69pt になり、枠 1pt の 8.5pt 四方に収まらない。複製ではキーを 11pt 四方にした（8pt の文字には 9.69＋1 = 10.69pt 以上が要る）。キーの行は列の幅より狭いので図の幅は変わらない（`color` での縮小率は 8.5pt でも 11pt でも 0.7743）。幅・高さを明示した小さな node では paper で同じことが起きるので、Skill に「1 文字のキー・トークンの正方形は一辺を文字の約 1.4 倍に（幅の一般則ではない。長いラベルは大きさを書かずに自動に任せる）」と書いた。
 
 ## 原図との比較（判断）
 
