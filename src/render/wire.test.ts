@@ -211,6 +211,83 @@ describe("hidden junctions", () => {
     expect(arcs.flat().map((a) => [a.from, a.to])).toEqual([[p(42, 50), p(50, 42)]]);
   });
 
+  describe("arrowheads next to the junction (#160)", () => {
+    /** The radius of the junction's one arc (the arc's reach along the x axis). */
+    const radius = (arcs: readonly Arc[][]): number => {
+      const [arc] = arcs.flat();
+      if (arc === undefined) throw new Error("expected an arc");
+      return Math.abs(arc.to.x - arc.from.x);
+    };
+
+    test("an arc leaves the part of a short branch under its arrowhead straight", () => {
+      // 10 units from J to the tip of an `arrow` head (8 long): the wire is
+      // trimmed by its inset (4.8) to 5.2 and runs 3.2 under the head. Half
+      // the leg (2.6) would reach into the head; 2 units are left before it.
+      const { pieces, arcs } = roundCorners(
+        [
+          { points: [p(50, 100), J], end: "j" },
+          { points: [J, p(55.2, 50)], start: "j", keepEnd: 3.2 },
+        ],
+        options(),
+      );
+      expect(radius(arcs)).toBeCloseTo(2, 9);
+      const [[from, to]] = pieces[1] as [[Point, Point]];
+      expect(to).toEqual(p(55.2, 50));
+      expect(to.x - from.x).toBeCloseTo(3.2, 9);
+    });
+
+    test("an arrowhead at the source of a route into the junction counts too", () => {
+      const { arcs } = roundCorners(
+        [
+          { points: [p(50, 60), J], end: "j", keepStart: 8 },
+          { points: [J, p(100, 50)], start: "j" },
+        ],
+        options(),
+      );
+      expect(radius(arcs)).toBe(2);
+    });
+
+    test("too little room for the smallest radius leaves the junction sharp", () => {
+      const { pieces, arcs } = roundCorners(
+        [
+          { points: [p(50, 100), J], end: "j" },
+          { points: [J, p(55.2, 50)], start: "j", keepEnd: 4.5 },
+        ],
+        options(),
+      );
+      expect(arcs.flat()).toEqual([]);
+      expect(pieces[0]).toEqual([[p(50, 100), J]]);
+      expect(pieces[1]).toEqual([[J, p(55.2, 50)]]);
+    });
+
+    test("a route that turns before its arrowhead leaves the junction to the leg's half", () => {
+      // The arrowhead is on the last segment, not the one at the junction.
+      const { arcs } = roundCorners(
+        [
+          { points: [p(50, 100), J], end: "j" },
+          { points: [J, p(56, 50), p(56, 0)], start: "j", keepEnd: 3.2 },
+        ],
+        options(),
+      );
+      expect(arcs.flat().map((a) => [a.from, a.to])).toEqual([
+        [p(50, 53), p(53, 50)],
+        [p(53, 50), p(56, 47)],
+      ]);
+    });
+
+    test("an arrowhead the wire runs under at the junction itself keeps it sharp", () => {
+      // A `cross` at the junction end: the wire reaches the center through it.
+      const { arcs } = roundCorners(
+        [
+          { points: [p(50, 100), J], end: "j", keepEnd: 8 },
+          { points: [J, p(100, 50)], start: "j" },
+        ],
+        options(),
+      );
+      expect(arcs.flat()).toEqual([]);
+    });
+  });
+
   test("a route ending at a junction alone (an open end) is left as it is", () => {
     const { pieces, arcs } = roundCorners([{ points: [p(50, 100), J], end: "j" }], options());
     expect(pieces[0]).toEqual([[p(50, 100), J]]);
