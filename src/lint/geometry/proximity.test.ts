@@ -1,5 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { axisSegments, polylinesRectDistance, rectSides, sideBySide, wiresOf } from "./proximity";
+import { getFontSet } from "../../core/theme/fonts";
+import { inkLines, measureLabel } from "./measure";
+import {
+  axisSegments,
+  PieceIndex,
+  paintedRoutes,
+  parallelRun,
+  polylinesRectDistance,
+  rectSides,
+} from "./proximity";
 import { PROXIMITY_MIN_RUN_UNITS } from "./rules";
 import { centeredBaseline, compile, label, lintSpec } from "./testing";
 
@@ -44,24 +53,90 @@ describe("proximity geometry", () => {
     ]);
   });
 
-  test("wiresOf merges a shared trunk into one wire with both edges", () => {
-    const wires = wiresOf([
-      { owner: "e1", segment: { axis: "v", at: 50, from: 0, to: 100 } },
-      { owner: "e2", segment: { axis: "v", at: 50, from: 60, to: 140 } },
-      { owner: "e3", segment: { axis: "v", at: 52, from: 0, to: 100 } },
-    ]);
-    expect(wires).toEqual([
-      { axis: "v", at: 50, spans: [[0, 140]], owners: ["e1", "e2"] },
-      { axis: "v", at: 52, spans: [[0, 100]], owners: ["e3"] },
-    ]);
+  test("parallelRun gives the common stretch of two parallel pieces", () => {
+    const a = { axis: "h" as const, at: 0, from: 0, to: 60 };
+    expect(parallelRun(a, { axis: "h", at: 3, from: 5, to: 100 })).toEqual({
+      distance: 3,
+      from: 5,
+      to: 60,
+    });
+    expect(parallelRun(a, { axis: "v", at: 3, from: 5, to: 100 })).toBeUndefined();
+    expect(parallelRun(a, { axis: "h", at: 3, from: 60, to: 100 })).toBeUndefined();
   });
 
-  test("sideBySide measures the longest common stretch", () => {
-    const a = { axis: "h" as const, at: 0, spans: [[0, 10] as const, [20, 60] as const] };
-    const b = { axis: "h" as const, at: 3, spans: [[5, 50] as const] };
-    expect(sideBySide(a, b)).toEqual({ distance: 3, overlap: 30, at: { x: 35, y: 0 } });
-    expect(sideBySide(a, { ...b, axis: "v" })).toBeUndefined();
-    expect(sideBySide(a, { ...b, spans: [[10, 20]] })).toBeUndefined();
+  test("PieceIndex finds pieces within reach, and pairs of different owners once", () => {
+    const piece = (owner: string, axis: "h" | "v", at: number, from = 0, to = 10) => ({
+      owner,
+      width: 2,
+      axis,
+      at,
+      from,
+      to,
+    });
+    const index = new PieceIndex([
+      piece("a", "v", 50),
+      piece("b", "v", 52),
+      piece("a", "v", 53),
+      piece("c", "v", 60),
+      piece("d", "h", 51),
+      piece("e", "v", 51, 20, 30),
+      // The same piece as a's: one bundle with both owners.
+      piece("f", "v", 50),
+    ]);
+    expect(index.near("v", 51, 1.5).map((p) => p.owners)).toEqual([["a", "f"], ["e"], ["b"]]);
+    const pairs = (apart: number) =>
+      index.pairs(apart, 5).map(({ aOwners, bOwners, run }) => [aOwners, bOwners, run.distance]);
+    // {a, f} at 50 and a at 53: only f differs, and a alone is no pair.
+    expect(pairs(0)).toEqual([
+      [["a", "f"], ["b"], 2],
+      [["b"], ["a"], 1],
+    ]);
+    expect(pairs(1)).toEqual([[["a", "f"], ["b"], 2]]);
+  });
+
+  test("paintedRoutes keeps what the wires paint of each route", () => {
+    // A U-turn routed sharp at y 1; painted with radius-8 turns, it leaves
+    // only 4 units straight at y 1 (#163 review).
+    const route = [
+      [
+        { x: 10, y: -100 },
+        { x: 10, y: 1 },
+        { x: 30, y: 1 },
+        { x: 30, y: -100 },
+      ],
+    ];
+    const arc = (from: { x: number; y: number }, to: { x: number; y: number }) => [
+      from,
+      { x: (from.x + to.x) / 2 - 1, y: (from.y + to.y) / 2 + 1 },
+      to,
+    ];
+    const painted = paintedRoutes(new Map([["e", route]]), [
+      [
+        { x: 10, y: -100 },
+        { x: 10, y: -7 },
+      ],
+      arc({ x: 10, y: -7 }, { x: 18, y: 1 }),
+      [
+        { x: 18, y: 1 },
+        { x: 22, y: 1 },
+      ],
+      arc({ x: 22, y: 1 }, { x: 30, y: -7 }),
+      [
+        { x: 30, y: -7 },
+        { x: 30, y: -100 },
+      ],
+      // Another net's wire crossing the route is not the edge's.
+      [
+        { x: 0, y: -50 },
+        { x: 40, y: -50 },
+      ],
+    ]).get("e");
+    expect(axisSegments(painted ?? [])).toEqual([
+      { axis: "v", at: 10, from: -100, to: -7 },
+      { axis: "h", at: 1, from: 18, to: 22 },
+      { axis: "v", at: 30, from: -100, to: -7 },
+    ]);
+    expect(painted?.filter((line) => line.length === 3)).toHaveLength(2);
   });
 
   test("rectSides leaves out rounded corners", () => {
@@ -347,5 +422,163 @@ describe("geometry/edge-touches-label", () => {
         { code },
       ).map((d) => d.message),
     ).toEqual(['Edge edges[1] touches the label of node "t" (0.22mm from the letters).']);
+  });
+});
+
+describe("review regressions (#163)", () => {
+  const MANY = `version: 1
+figure: { id: many }
+groups:
+  - { id: grp, label: Group }
+nodes:
+  - { id: a, component: box, label: A, group: grp }
+  - { id: b, component: box, label: B }
+edges:
+${Array.from({ length: 9 }, (_, i) => `  - { from: a, to: b${i === 0 ? ", variant: emphasis" : ""} }`).join("\n")}
+`;
+  const many = compile(MANY);
+  const vertical = (x: number, from = 0, to = 100) => ({
+    path: [
+      { x, y: from },
+      { x, y: to },
+    ],
+  });
+
+  test("a branch leaving a shared trunk is compared with the trunk's other edges", () => {
+    const result = lintSpec(
+      compiled,
+      {
+        elements: {
+          "e:#0": vertical(50),
+          "e:#1": {
+            path: [
+              { x: 50, y: 0 },
+              { x: 50, y: 50 },
+              { x: 53, y: 50 },
+              { x: 53, y: 100 },
+            ],
+          },
+        },
+      },
+      { code: "geometry/edge-near-edge" },
+    );
+    expect(result.map((d) => d.message)).toEqual([
+      "Edge edges[1] runs beside edge edges[0] for 8.8mm, 0.18mm apart, so the two read as one line.",
+    ]);
+  });
+
+  test("closely packed edges are not chained into one line", () => {
+    // edges[1..8] at x 50, 50.4, …, 52.8: each neighbour is within 0.5 units,
+    // but the outermost are 2.8 units apart.
+    const elements = Object.fromEntries(
+      Array.from({ length: 8 }, (_, i) => [`e:#${i + 1}`, vertical(50 + 0.4 * i)]),
+    );
+    const result = lintSpec(many, { elements }, { code: "geometry/edge-near-edge" });
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  test("each edge is measured with its own stroke, where it paints", () => {
+    // edges[0] (emphasis, 4 units) runs at y 5 only over x 0–10; edges[1]
+    // (2 units) shares that line and continues to x 100, along the group's
+    // top border (y 0, x 50–100): 3 units between the strokes, not reported.
+    const result = lintSpec(many, {
+      elements: {
+        "g:grp": { bbox: { x: 50, y: 0, width: 50, height: 50 } },
+        "e:#0": {
+          path: [
+            { x: 0, y: 5 },
+            { x: 10, y: 5 },
+          ],
+        },
+        "e:#1": {
+          path: [
+            { x: 5, y: 5 },
+            { x: 100, y: 5 },
+          ],
+        },
+      },
+    });
+    expect(result.filter((d) => d.code.startsWith("geometry/edge-"))).toEqual([]);
+  });
+
+  test("fully transparent edges, groups and labels take no part", () => {
+    const transparent = (keys: string[]) => {
+      const elements = new Map(
+        [...compiled.ir.elements].map(([key, element]) => [
+          key,
+          keys.includes(key) ? { ...element, style: { ...element.style, opacity: 0 } } : element,
+        ]),
+      );
+      return { ...compiled, ir: { ...compiled.ir, elements } } as typeof compiled;
+    };
+    const onBorder = { "g:grp": group, "e:#1": vertical(101, 80, 180) };
+    expect(
+      lintSpec(compiled, { elements: onBorder }, { code: "geometry/edge-on-border" }),
+    ).toHaveLength(1);
+    for (const key of ["e:#1", "g:grp"]) {
+      expect(
+        lintSpec(transparent([key]), { elements: onBorder }, { code: "geometry/edge-on-border" }),
+      ).toEqual([]);
+    }
+    const note = { labels: [label("Note", 200, centeredBaseline(250))] };
+    const touching = {
+      "n:t": note,
+      "e:#1": {
+        path: [
+          { x: 100, y: 250 },
+          { x: 178, y: 250 },
+        ],
+      },
+    };
+    const code = "geometry/edge-touches-label";
+    expect(lintSpec(compiled, { elements: touching }, { code })).toHaveLength(1);
+    expect(lintSpec(transparent(["n:t"]), { elements: touching }, { code })).toEqual([]);
+  });
+});
+
+describe("inkLines", () => {
+  const set = getFontSet("sumi/biz-ud-gothic");
+  if (set === undefined) throw new Error("bundled font set is missing");
+  const ink = (text: string, options: Parameters<typeof label>[3] = {}) =>
+    inkLines(measureLabel(label(text, 100, 50, options), set));
+
+  test("the letters lie within the line box, narrower and lower than it", () => {
+    const measured = measureLabel(label("Group", 100, 50), set);
+    const [box] = measured.visibleLines;
+    const [letters] = inkLines(measured);
+    if (box === undefined || letters === undefined) throw new Error("nothing measured");
+    expect(letters.x).toBeGreaterThan(box.x);
+    expect(letters.x + letters.width).toBeLessThan(box.x + box.width);
+    expect(letters.y).toBeGreaterThan(box.y);
+    expect(letters.y + letters.height).toBeLessThanOrEqual(box.y + box.height);
+  });
+
+  test("invisible characters neither draw nor advance, as in the measurement", () => {
+    expect(ink("G​roup")).toEqual(ink("Group"));
+    expect(ink("Gr\u0007oup")).toEqual(ink("Group"));
+  });
+
+  test("one box per drawn line; blank lines draw nothing", () => {
+    const lines = ink("Ab\n \nCd", { lineHeightUnits: 20 });
+    expect(lines).toHaveLength(2);
+    expect((lines[1] as { y: number }).y - (lines[0] as { y: number }).y).toBeCloseTo(40, 5);
+  });
+
+  test("the font class picks the outlines (bold is wider)", () => {
+    const [regular] = ink("Group");
+    const [bold] = ink("Group", { font: "bold" });
+    expect((bold as { width: number }).width).toBeGreaterThan((regular as { width: number }).width);
+  });
+
+  test("labels drawn as runs and icons fall back to the line boxes", () => {
+    const runs = measureLabel(
+      label("x", 100, 50, {
+        runs: [[{ text: "x", font: "math-italic", fontSizeUnits: 16, shiftUnits: 0 }]],
+      }),
+      set,
+    );
+    expect(inkLines(runs)).toEqual(runs.visibleLines);
+    const icon = { ...measureLabel(label("A", 100, 50), set), fontPath: "" };
+    expect(inkLines(icon)).toEqual(icon.visibleLines);
   });
 });

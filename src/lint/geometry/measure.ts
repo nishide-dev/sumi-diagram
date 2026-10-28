@@ -253,6 +253,9 @@ export function unionOf(rects: readonly Rect[]): Rect | undefined {
   return { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
 }
 
+/** Characters `measureEm()` skips when the font does not map them (see `metrics.ts`). */
+const SKIPPED = /[\p{Cc}\p{Default_Ignorable_Code_Point}]/u;
+
 /**
  * The ink of each visible line (#156): the union of its glyphs' outlines
  * (`glyf`) where the line draws them, so a rule can tell a line that touches
@@ -275,6 +278,9 @@ export function inkLines(measured: MeasuredLabel): Rect[] {
     let known = true;
     for (const char of text) {
       const codePoint = char.codePointAt(0) ?? 0;
+      // As `measureEm()`: renderers draw nothing for unmapped control and
+      // default-ignorable characters, and do not advance over them.
+      if (!metrics.coverage.has(codePoint) && SKIPPED.test(char)) continue;
       const bounds = metrics.glyphBounds(codePoint);
       if (bounds !== undefined) {
         glyphs.push({

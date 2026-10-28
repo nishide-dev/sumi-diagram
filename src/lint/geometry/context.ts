@@ -14,6 +14,7 @@ import type { Point, Rect } from "../../render/geometry";
 import type { ProfileLimits, SvgInspection } from "../../render/inspect";
 import { type MeasuredLabel, measureLabel } from "./measure";
 import { outlineRegions } from "./outlines";
+import { paintedRoutes } from "./proximity";
 import { type DrawnShape, flattenPath, labelArea, type Region, shapeOutline } from "./shapes";
 
 export interface GeometryElement {
@@ -36,6 +37,13 @@ export interface GeometryElement {
   labels: MeasuredLabel[];
   /** Edge: the route as polylines (cubics flattened). */
   route?: Point[][];
+  /**
+   * Edge: what is stroked for it (#156). D2 strokes the route itself; a
+   * structured figure paints its nets as wires with rounded turns that stop
+   * at arrowheads (`SvgInspection.wires`), so this is the edge's share of
+   * them, and the sharp `route` is the logical path.
+   */
+  drawn?: Point[][];
 }
 
 export interface GeometryContext {
@@ -149,6 +157,21 @@ export function createGeometryContext(
       ],
       ...(geometry.path !== undefined && { route: flattenPath(geometry.path) }),
     });
+  }
+  if (inspection.wires !== undefined) {
+    const routes = new Map(
+      elements.flatMap((e) => (e.route === undefined ? [] : [[e.key, e.route] as const])),
+    );
+    const painted = paintedRoutes(
+      routes,
+      inspection.wires.flatMap((wire) => flattenPath(wire.path)),
+    );
+    for (const element of elements) {
+      const drawn = painted.get(element.key);
+      if (drawn !== undefined) element.drawn = drawn;
+    }
+  } else {
+    for (const element of elements) if (element.route !== undefined) element.drawn = element.route;
   }
   const byKey = new Map(elements.map((e) => [e.key, e]));
   return {

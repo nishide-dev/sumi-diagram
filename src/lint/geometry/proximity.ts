@@ -83,100 +83,207 @@ export function axisSegments(polylines: readonly (readonly Point[])[]): AxisSegm
  */
 export const COINCIDENT_UNITS = 0.5;
 
-/** A straight line drawn by one or more edges (a shared trunk), with the parts they draw. */
-export interface Wire<Owner> {
-  axis: "h" | "v";
-  at: number;
-  /** Disjoint stretches `[from, to]`, sorted. */
-  spans: [number, number][];
-  /** The owners whose pieces make up the wire, in input order. */
-  owners: Owner[];
+/** A straight piece of one owner's (edge's) drawn line, with the owner's stroke width. */
+export interface Piece<Owner> extends AxisSegment {
+  owner: Owner;
+  width: number;
 }
 
-/**
- * Merges the pieces of several owners (edges) that lie on the same line and
- * overlap into wires: a shared trunk is one wire with all its edges.
- */
-export function wiresOf<Owner>(
-  pieces: readonly { owner: Owner; segment: AxisSegment }[],
-): Wire<Owner>[] {
-  const parent = pieces.map((_, i) => i);
-  const find = (i: number): number => {
-    while (parent[i] !== i) {
-      parent[i] = parent[parent[i] as number] as number;
-      i = parent[i] as number;
-    }
-    return i;
-  };
-  for (const [i, a] of pieces.entries()) {
-    for (let j = i + 1; j < pieces.length; j++) {
-      const b = pieces[j] as (typeof pieces)[number];
-      if (a.segment.axis !== b.segment.axis) continue;
-      if (Math.abs(a.segment.at - b.segment.at) > COINCIDENT_UNITS) continue;
-      if (Math.min(a.segment.to, b.segment.to) - Math.max(a.segment.from, b.segment.from) <= 0)
-        continue;
-      parent[find(j)] = find(i);
-    }
-  }
-  const byRoot = new Map<number, number[]>();
-  for (const i of pieces.keys()) {
-    const root = find(i);
-    byRoot.set(root, [...(byRoot.get(root) ?? []), i]);
-  }
-  return [...byRoot.values()].map((members) => {
-    const segments = members.map((i) => (pieces[i] as (typeof pieces)[number]).segment);
-    const sorted = [...segments].sort((a, b) => a.from - b.from);
-    const spans: [number, number][] = [];
-    for (const s of sorted) {
-      const last = spans[spans.length - 1];
-      if (last !== undefined && s.from <= last[1]) last[1] = Math.max(last[1], s.to);
-      else spans.push([s.from, s.to]);
-    }
-    const owners: Owner[] = [];
-    for (const i of members) {
-      const owner = (pieces[i] as (typeof pieces)[number]).owner;
-      if (!owners.includes(owner)) owners.push(owner);
-    }
-    const first = segments[0] as AxisSegment;
-    return { axis: first.axis, at: first.at, spans, owners };
-  });
-}
-
-/**
- * Where two parallel lines (given as stretches along the same axis) run side
- * by side: the longest stretch where they do.
- */
-export function sideBySide(
-  a: { axis: "h" | "v"; at: number; spans: readonly (readonly [number, number])[] },
-  b: { axis: "h" | "v"; at: number; spans: readonly (readonly [number, number])[] },
-): ParallelRun | undefined {
-  if (a.axis !== b.axis) return undefined;
-  let longest: [number, number] | undefined;
-  for (const [af, at] of a.spans) {
-    for (const [bf, bt] of b.spans) {
-      const from = Math.max(af, bf);
-      const to = Math.min(at, bt);
-      if (to <= from) continue;
-      if (longest === undefined || to - from > longest[1] - longest[0]) longest = [from, to];
-    }
-  }
-  if (longest === undefined) return undefined;
-  const mid = (longest[0] + longest[1]) / 2;
-  return {
-    distance: Math.abs(a.at - b.at),
-    overlap: longest[1] - longest[0],
-    at: a.axis === "h" ? { x: mid, y: a.at } : { x: a.at, y: mid },
-  };
-}
-
-/** Two parallel lines side by side: how far apart and over how long a stretch. */
+/** Two pieces side by side: how far apart, and the stretch where both run. */
 export interface ParallelRun {
   /** Distance between the two lines (centre to centre). */
   distance: number;
-  /** Length of the longest stretch where both run side by side. */
-  overlap: number;
-  /** The midpoint of that stretch on the first line. */
-  at: Point;
+  /** The common stretch `[from, to]` along the axis. */
+  from: number;
+  to: number;
+}
+
+/** The stretch where two parallel pieces run side by side, if they do. */
+export function parallelRun(a: AxisSegment, b: AxisSegment): ParallelRun | undefined {
+  if (a.axis !== b.axis) return undefined;
+  const from = Math.max(a.from, b.from);
+  const to = Math.min(a.to, b.to);
+  if (to <= from) return undefined;
+  return { distance: Math.abs(a.at - b.at), from, to };
+}
+
+/**
+ * Identical pieces of several owners (a trunk they share, drawn on the same
+ * coordinates over the same stretch with the same width), kept once.
+ */
+export interface Bundle<Owner> extends AxisSegment {
+  owners: Owner[];
+  width: number;
+}
+
+/**
+ * Pieces by axis, sorted by their coordinate, for sweeps: neighbours within
+ * a distance are found without comparing every pair (#156). Identical pieces
+ * are bundled, so a trunk many edges share is compared once.
+ */
+export class PieceIndex<Owner> {
+  readonly #byAxis: Record<"h" | "v", Bundle<Owner>[]>;
+
+  constructor(pieces: readonly Piece<Owner>[]) {
+    const bundles = new Map<string, Bundle<Owner>>();
+    for (const { owner, ...piece } of pieces) {
+      const key = `${piece.axis}|${piece.at}|${piece.from}|${piece.to}|${piece.width}`;
+      const bundle = bundles.get(key);
+      if (bundle === undefined) bundles.set(key, { ...piece, owners: [owner] });
+      else if (!bundle.owners.includes(owner)) bundle.owners.push(owner);
+    }
+    const sorted = [...bundles.values()].sort((a, b) => a.at - b.at || a.from - b.from);
+    this.#byAxis = {
+      h: sorted.filter((p) => p.axis === "h"),
+      v: sorted.filter((p) => p.axis === "v"),
+    };
+  }
+
+  /** Bundles along `axis` whose coordinate is within `reach` of `at`. */
+  near(axis: "h" | "v", at: number, reach: number): Bundle<Owner>[] {
+    const list = this.#byAxis[axis];
+    let lo = 0;
+    let hi = list.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if ((list[mid] as Bundle<Owner>).at < at - reach) lo = mid + 1;
+      else hi = mid;
+    }
+    const found: Bundle<Owner>[] = [];
+    for (let i = lo; i < list.length && (list[i] as Bundle<Owner>).at <= at + reach; i++) {
+      found.push(list[i] as Bundle<Owner>);
+    }
+    return found;
+  }
+
+  /**
+   * Every pair of bundles on the same axis whose coordinates differ by more
+   * than `apart` and at most `reach`, and that run side by side, each pair
+   * once, with the owners only one side has (an owner on both sides is a
+   * route doubling back beside itself, not two lines). A sweep over the
+   * sorted coordinates: bundles on the same line are skipped as a block.
+   */
+  pairs(
+    apart: number,
+    reach: number,
+  ): {
+    a: Bundle<Owner>;
+    b: Bundle<Owner>;
+    aOwners: Owner[];
+    bOwners: Owner[];
+    run: ParallelRun;
+  }[] {
+    const found: {
+      a: Bundle<Owner>;
+      b: Bundle<Owner>;
+      aOwners: Owner[];
+      bOwners: Owner[];
+      run: ParallelRun;
+    }[] = [];
+    for (const list of [this.#byAxis.h, this.#byAxis.v]) {
+      let start = 0;
+      for (let i = 0; i < list.length; i++) {
+        const a = list[i] as Bundle<Owner>;
+        if (start <= i) start = i + 1;
+        while (start < list.length && (list[start] as Bundle<Owner>).at - a.at <= apart) start++;
+        for (let j = start; j < list.length; j++) {
+          const b = list[j] as Bundle<Owner>;
+          if (b.at - a.at > reach) break;
+          const run = parallelRun(a, b);
+          if (run === undefined) continue;
+          const aOwners = a.owners.filter((o) => !b.owners.includes(o));
+          const bOwners = b.owners.filter((o) => !a.owners.includes(o));
+          if (aOwners.length > 0 && bOwners.length > 0) found.push({ a, b, aOwners, bOwners, run });
+        }
+      }
+    }
+    return found;
+  }
+}
+
+/** Points closer than this (in units) are the same point when matching painted wires to routes. */
+const SAME_POINT = 0.02;
+
+/** `true` if `p` lies on the segment `a`–`b` (within {@link SAME_POINT}). */
+function onSegment(p: Point, a: Point, b: Point): boolean {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const length2 = dx * dx + dy * dy;
+  const t =
+    length2 === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / length2));
+  return Math.hypot(a.x + t * dx - p.x, a.y + t * dy - p.y) <= SAME_POINT;
+}
+
+const onPolylines = (p: Point, polylines: readonly (readonly Point[])[]): boolean =>
+  polylines.some((line) => line.some((q, i) => i > 0 && onSegment(p, line[i - 1] as Point, q)));
+
+/**
+ * What each edge paints, from the painted wires of a structured figure
+ * (#156): a wire strokes several edges of a net at once with rounded turns,
+ * stopping at arrowheads, while each edge's route keeps the sharp corners.
+ * An edge owns the parts of the wires' straight pieces that lie on its
+ * route, and the turns (arcs) whose both ends lie on its route.
+ *
+ * @param routes Each edge's sharp route.
+ * @param wires The painted wires, flattened (a straight piece is a polyline of two points).
+ */
+export function paintedRoutes<Key>(
+  routes: ReadonlyMap<Key, readonly (readonly Point[])[]>,
+  wires: readonly (readonly Point[])[],
+): Map<Key, Point[][]> {
+  const straight: AxisSegment[] = [];
+  const arcs: (readonly Point[])[] = [];
+  for (const line of wires) {
+    const pieces = axisSegments([line]);
+    if (line.length === 2 && pieces.length === 1) straight.push(pieces[0] as AxisSegment);
+    else if (line.length > 1) arcs.push(line);
+  }
+  const index = new PieceIndex(straight.map((s) => ({ ...s, owner: 0, width: 0 })));
+  // A turn rounds the corner where the lines through its ends meet.
+  const cornerKey = (p: Point) => `${Math.round(p.x * 100)},${Math.round(p.y * 100)}`;
+  const arcsAt = new Map<string, (readonly Point[])[]>();
+  for (const arc of arcs) {
+    const first = arc[0] as Point;
+    const last = arc[arc.length - 1] as Point;
+    const corners = new Set([
+      cornerKey({ x: first.x, y: last.y }),
+      cornerKey({ x: last.x, y: first.y }),
+    ]);
+    for (const key of corners) arcsAt.set(key, [...(arcsAt.get(key) ?? []), arc]);
+  }
+  const painted = new Map<Key, Point[][]>();
+  for (const [key, route] of routes) {
+    const own: Point[][] = [];
+    for (const segment of axisSegments(route)) {
+      for (const piece of index.near(segment.axis, segment.at, SAME_POINT)) {
+        const run = parallelRun(segment, piece);
+        if (run === undefined) continue;
+        own.push(
+          segment.axis === "h"
+            ? [
+                { x: run.from, y: segment.at },
+                { x: run.to, y: segment.at },
+              ]
+            : [
+                { x: segment.at, y: run.from },
+                { x: segment.at, y: run.to },
+              ],
+        );
+      }
+    }
+    const seen = new Set<readonly Point[]>();
+    for (const corner of route.flat()) {
+      for (const arc of arcsAt.get(cornerKey(corner)) ?? []) {
+        if (seen.has(arc)) continue;
+        seen.add(arc);
+        const first = arc[0] as Point;
+        const last = arc[arc.length - 1] as Point;
+        if (onPolylines(first, route) && onPolylines(last, route)) own.push([...arc]);
+      }
+    }
+    painted.set(key, own);
+  }
+  return painted;
 }
 
 /** The four straight sides of a rectangle whose corners are rounded by `radius`. */
