@@ -253,3 +253,70 @@ describe("custom registries", () => {
     expect(state.components?.get("n:a")?.id).toBe("acme/widget");
   });
 });
+
+describe("anchors on junction ends (#154)", () => {
+  const figure = (edges: string) => `version: 1
+figure:
+  id: f
+  layout:
+    arrange:
+      row: { gap: 8mm, items: [a, j, g, h] }
+groups:
+  - { id: g, label: G, arrange: { stack: { items: [c] } } }
+nodes:
+  - { id: a, component: box, label: A }
+  - { id: j, component: junction }
+  - { id: h, component: junction, variant: hidden }
+  - { id: c, component: box, label: C, group: g }
+edges:
+${edges}`;
+
+  test("warns at the anchor on a junction end and keeps the edge", () => {
+    const { state } = checkFigure(
+      figure(`  - { from: a, to: j, toAnchor: south, fromAnchor: east }
+  - { id: split, from: j, to: h, fromAnchor: "north:0.25", toAnchor: west }
+  - { from: a, to: g, fromAnchor: south, toAnchor: west }
+`),
+    );
+    const edge0 = { kind: "edge", id: "edges[0]" } as const;
+    const split = { kind: "edge", id: "split" } as const;
+    expect(
+      state.diagnostics.map((d) => [d.code, d.severity, d.path, d.location?.line, d.subject]),
+    ).toEqual([
+      ["component/anchor-on-junction", "warning", ["edges", 0, "toAnchor"], 15, edge0],
+      ["component/anchor-on-junction", "warning", ["edges", 1, "fromAnchor"], 16, split],
+      ["component/anchor-on-junction", "warning", ["edges", 1, "toAnchor"], 16, split],
+    ]);
+    expect(state.diagnostics[0]?.message).toBe(
+      'toAnchor has no effect: "j" is a sumi/junction, drawn as a point where every line meets its center from any side.',
+    );
+    expect(state.diagnostics[0]?.hint).toBe(
+      "Remove toAnchor. To change where the line runs, anchor the edge's other end, or move the junction in the arrange tree or with attach.",
+    );
+    expect(state.diagnostics[0]?.location?.column).toBe(33);
+    expect(state.invalid.size).toBe(0);
+    expect(state.components?.has("e:split")).toBe(true);
+  });
+
+  test("auto figures report the anchor as structured-only, not twice", () => {
+    const { state } = checkFigure(`version: 1
+figure: { id: f }
+nodes:
+  - { id: a, component: box, label: A }
+  - { id: j, component: junction }
+edges:
+  - { from: a, to: j, toAnchor: south }
+`);
+    expect(state.diagnostics.map((d) => d.code)).toEqual(["layout/structured-only"]);
+  });
+
+  test("an invalid junction is not reported again", () => {
+    const { state } = checkFigure(
+      figure("  - { from: a, to: j, toAnchor: south }\n").replace(
+        "{ id: j, component: junction }",
+        "{ id: j, component: junction, tone: red }",
+      ),
+    );
+    expect(state.diagnostics.map((d) => d.code)).toEqual(["component/tone-unsupported"]);
+  });
+});

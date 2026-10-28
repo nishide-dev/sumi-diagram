@@ -17,7 +17,7 @@
 
 import type { FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
-import type { Diagnostic } from "../../core/diagnostics";
+import { compareDiagnostics, type Diagnostic } from "../../core/diagnostics";
 import type { LayoutIR, Point } from "../ir";
 
 const EPS = 0.01;
@@ -145,7 +145,7 @@ const mm = (units: number) => `${(units * MM_PER_UNIT).toFixed(1)}mm`;
  * per crossing up to `limit`, located at the first of the later net's edges
  * there, with the other net's edges (and the rest of its own net's) as
  * `related`; then, if there are more, one without a location saying how
- * many were left out.
+ * many were left out. The shared hint is on one of them only (#154).
  */
 export function crossingDiagnostics(
   ir: FigureIR,
@@ -198,17 +198,24 @@ export function crossingDiagnostics(
         kind: "edge",
         id: edge?.id ?? `edges[${edge?.index ?? 0}]`,
       },
-      hint,
       related,
     } satisfies Diagnostic;
   });
+  // The hint is the same for every crossing: give it once (#154), to the
+  // crossing listed first (`sumi lint` / `render` sort with the same
+  // comparator; crossings on one edge share a location and tie on message).
+  const first = diagnostics.reduce<Diagnostic | undefined>(
+    (best, d) => (best === undefined || compareDiagnostics(d, best) < 0 ? d : best),
+    undefined,
+  );
+  if (first !== undefined) first.hint = hint;
   if (crossings.length > limit) {
     diagnostics.push({
       code: "layout/edge-crossing",
       severity: "info",
       message: `${crossings.length - limit} more edge crossings are not listed (${crossings.length} in total).`,
       subject: { kind: "figure", id: ir.meta.id },
-      hint,
+      ...(first === undefined && { hint }),
     });
   }
   return diagnostics;

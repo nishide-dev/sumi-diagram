@@ -1,5 +1,5 @@
 import type { LintRule } from "../rule";
-import { emptyLabel, longLabel, missingGlyph } from "./labels";
+import { emptyLabel, literalNewline, longLabel, missingGlyph } from "./labels";
 import { unusedLegendEntry } from "./legend";
 import { ancestorEdge, duplicateEdge, emptyFigure, noEdges, selfLoop } from "./structure";
 
@@ -15,5 +15,6 @@ export const BUILTIN_LINT_RULES: readonly LintRule[] = Object.freeze([
   emptyLabel,
   longLabel,
   missingGlyph,
+  literalNewline,
   unusedLegendEntry,
 ] as LintRule[]);

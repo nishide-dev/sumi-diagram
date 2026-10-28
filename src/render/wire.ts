@@ -23,7 +23,7 @@
  * obstacle by `clearance`: nodes, labels and the lines of other nets. It is
  * also at most half of each leg, so the cuts of two turns never overlap, and
  * it leaves the part of an end segment under an arrowhead straight
- * (`keepStart` / `keepEnd`, #116). A turn that cannot take `minRadius` stays
+ * (`keepStart` / `keepEnd`, #116; at a hidden junction too, #160). A turn that cannot take `minRadius` stays
  * sharp. The router prefers to keep the segment before an arrowhead long
  * enough for both (`arrowRoom()`), but not always (a tight gap, a group
  * padding narrower than the room).
@@ -155,8 +155,13 @@ interface JunctionEnd {
   readonly atStart: boolean;
   /** Away from the junction, along the polyline's segment there. */
   readonly away: Direction;
-  /** The length of that segment. */
-  readonly length: number;
+  /**
+   * How far the junction's arcs may cut into that segment: half of it (a
+   * turn at its other end may take the other half), less the part under an
+   * arrowhead at its other end when that is the route's other end (#160);
+   * none when an arrowhead at the junction itself runs under it.
+   */
+  readonly room: number;
 }
 
 /**
@@ -183,16 +188,19 @@ export function roundCorners(
   // Hidden junctions: the routes that meet at one, joined through its center.
   const ends = new Map<string, JunctionEnd[]>();
   const centers = new Map<string, Point>();
-  polylines.forEach(({ points, start, end }, index) => {
+  polylines.forEach(({ points, start, end, keepStart = 0, keepEnd = 0 }, index) => {
     const n = points.length;
     if (n < 2) return;
     const add = (id: string, atStart: boolean, center: Point, other: Point) => {
       const list = ends.get(id) ?? [];
+      const length = distance(center, other);
+      const keepNear = atStart ? keepStart : keepEnd;
+      const keepFar = n === 2 ? (atStart ? keepEnd : keepStart) : 0;
       list.push({
         index,
         atStart,
         away: axis(direction(center, other)),
-        length: distance(center, other),
+        room: keepNear > 0 ? 0 : Math.min(length / 2, length - keepFar),
       });
       ends.set(id, list);
       centers.set(id, center);
@@ -216,13 +224,20 @@ export function roundCorners(
     }
     const turns = pairs.filter(([a, b]) => perpendicular(a.away, b.away));
     if (turns.length === 0) continue;
+    // An arc lies on the legs it joins, and every route along a leg shares it
+    // (including routes in no turn, such as one whose only partner is
+    // parallel): the leg's room is the least of theirs (#160).
+    const legKey = (d: Direction) => `${d.x},${d.y}`;
+    const legRoom = new Map<string, number>();
+    for (const e of list) {
+      const key = legKey(e.away);
+      legRoom.set(key, Math.min(legRoom.get(key) ?? e.room, e.room));
+    }
+    const room = (e: JunctionEnd) => legRoom.get(legKey(e.away)) as number;
     // One radius for the whole junction, so every cut meets its arcs.
     let r = options.radius;
     for (const [a, b] of turns) {
-      r = Math.min(
-        r,
-        clearRadius(center, a.away, b.away, Math.min(a.length, b.length) / 2, options),
-      );
+      r = Math.min(r, clearRadius(center, a.away, b.away, Math.min(room(a), room(b)), options));
     }
     if (r < options.minRadius) continue;
     const turning = new Set(turns.flat());

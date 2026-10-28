@@ -189,6 +189,37 @@ export function looksLikeMath(label: string): boolean {
   return false;
 }
 
+/**
+ * The UTF-16 offsets of each literal `\n` (a backslash followed by `n`, not
+ * a line break) in the plain-text part of a label (#154): outside the
+ * closed `$...$` spans that `parseLabel()` reads as math, with `\$` read as
+ * an escaped dollar sign. Such a `\n` is drawn as written, which is usually
+ * a YAML quoting slip (only double-quoted scalars turn `\n` into a line
+ * break). Math commands such as `\nu` or `\neq` are inside a span and are
+ * not reported; an unclosed `$` is an error in structured figures and plain
+ * text in `auto` ones, so the text after it counts as plain.
+ */
+export function literalNewlines(label: string): number[] {
+  const found: number[] = [];
+  let lineStart = 0;
+  for (const line of label.split("\n")) {
+    let i = 0;
+    while (i < line.length) {
+      const c = line[i];
+      if (c === "\\" && line[i + 1] === "$") i += 2;
+      else if (c === "\\" && line[i + 1] === "n") {
+        found.push(lineStart + i);
+        i += 2;
+      } else if (c === "$") {
+        const close = closingDollar(line, i + 1);
+        i = close === undefined ? i + 1 : close + 1;
+      } else i++;
+    }
+    lineStart += line.length + 1;
+  }
+  return found;
+}
+
 /** The index of the `$` closing a span that starts at `from`; `\` escapes the next character. */
 function closingDollar(line: string, from: number): number | undefined {
   for (let i = from; i < line.length; i++) {

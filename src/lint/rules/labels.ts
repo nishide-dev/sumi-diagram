@@ -1,6 +1,7 @@
-/** Rules on element labels: presence, length and glyph coverage. */
+/** Rules on element labels: presence, length, glyph coverage and literal `\n`. */
 
 import { z } from "zod";
+import { literalNewlines } from "../../core/label/math";
 import { labelRuns } from "../../core/label/runs";
 import { markText } from "../../core/registry/manifest";
 import { isBlankForD2 } from "../../core/registry/resolve";
@@ -179,6 +180,51 @@ export const missingGlyph = defineRule({
         path: at,
         subject: element.subject,
         hint: "Viewers draw missing characters with a fallback font or as empty boxes; replace them, or use a theme whose font set covers them.",
+      });
+    }
+    return findings;
+  },
+});
+
+/** Longest suggested double-quoted label the hint of `lint/literal-newline` spells out. */
+const MAX_SUGGESTED_LENGTH = 80;
+
+export const literalNewline = defineRule({
+  id: "lint/literal-newline",
+  description:
+    "A label has a literal \\n (a backslash and n) outside $...$ math, which is drawn as written rather than as a line break.",
+  defaultSeverity: "warning",
+  fixable: false,
+  run(context) {
+    const findings: LintFinding[] = [];
+    for (const element of context.elements) {
+      const { label } = element.element;
+      const found = literalNewlines(label);
+      const first = found[0];
+      if (first === undefined) continue;
+      const times = found.length === 1 ? "" : ` (${found.length} times)`;
+      // The label with each literal \n as a line break, as a YAML
+      // double-quoted string (JSON's escapes are valid YAML escapes).
+      let broken = "";
+      let from = 0;
+      for (const offset of found) {
+        broken += `${label.slice(from, offset)}\n`;
+        from = offset + 2;
+      }
+      broken += label.slice(from);
+      const quoted = JSON.stringify(broken);
+      const short = quoted.length <= MAX_SUGGESTED_LENGTH;
+      const example = short ? quoted : JSON.stringify("first line\n$\\gamma$");
+      // Math (or any other backslash) needs its backslashes doubled there.
+      const doubled = (short ? broken : "\\").includes("\\")
+        ? ", and every other backslash is doubled"
+        : "";
+      findings.push({
+        message: `The label of ${describeElement(element)} has a literal "\\n" (a backslash and n) outside $...$ math${times}; it is drawn as written, not as a line break.`,
+        path: [...element.path, "label"],
+        span: [first, first + 2],
+        subject: element.subject,
+        hint: `In YAML, only a double-quoted string turns \\n into a line break${doubled}: ${example}. A block scalar (|) also breaks lines. If the backslash is meant to be drawn, turn off lint/literal-newline.`,
       });
     }
     return findings;
