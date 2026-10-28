@@ -302,6 +302,14 @@ nodes:
     expect(state.diagnostics[0]?.message).toBe(
       'Invalid prop "entries[0].node.component" for sumi/legend: sumi/junction is drawn as a fixed mark, so it cannot be a sample box.',
     );
+    // Tokens (#181) are drawn as their cells: rejected where the component is written.
+    const tokens = checkFigure(figure("        - { node: { component: tokens }, label: T }")).state;
+    expect(summarize(tokens.diagnostics)).toEqual([
+      ["component/invalid-prop", ["nodes", 2, "props", "entries", 0, "node", "component"], 14, 32],
+    ]);
+    expect(tokens.diagnostics[0]?.message).toBe(
+      'Invalid prop "entries[0].node.component" for sumi/legend: sumi/tokens is drawn as its cells, so it cannot be a sample box.',
+    );
   });
 
   test("label math errors point into the entry's label", () => {

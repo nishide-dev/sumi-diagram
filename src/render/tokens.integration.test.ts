@@ -17,7 +17,7 @@ import type { ElementKey } from "../core/check-state";
 import type { Diagnostic } from "../core/diagnostics";
 import type { LayoutIR } from "../layout/ir";
 import { lintRenderedFigure } from "../lint/geometry/lint";
-import type { RenderedFigure } from "./render";
+import { type RenderedFigure, renderFigure } from "./render";
 
 const ROOT = join(import.meta.dir, "..", "..");
 
@@ -38,16 +38,38 @@ function layoutOf(rendered: RenderedFigure): LayoutIR {
   return rendered.layout;
 }
 
-/** The Layout IR with node keys renamed by `rename`, nodes in key order. */
-function normalized(layout: LayoutIR, rename: (id: string) => string): unknown {
+/**
+ * The Layout IR with node keys renamed by `rename`; nodes in key order when
+ * `sorted` (their document order is checked apart, see {@link paintPairs}).
+ */
+function normalized(layout: LayoutIR, rename: (id: string) => string, sorted: boolean): unknown {
   const key = (k: ElementKey): ElementKey => (k.startsWith("n:") ? `n:${rename(k.slice(2))}` : k);
+  const nodes = layout.nodes.map((n) => ({ ...n, key: key(n.key) }));
   return {
     ...layout,
-    nodes: layout.nodes
-      .map((n) => ({ ...n, key: key(n.key) }))
-      .sort((a, b) => a.key.localeCompare(b.key)),
+    nodes: sorted ? nodes.sort((a, b) => a.key.localeCompare(b.key)) : nodes,
     edges: layout.edges.map((e) => ({ ...e, from: key(e.from), to: key(e.to) })),
   };
+}
+
+/**
+ * For every two nodes whose rectangles meet, which one is painted later:
+ * what the paint order decides where they overlap.
+ */
+function paintPairs(layout: LayoutIR, rename: (id: string) => string): string[] {
+  const nodes = layout.nodes.map((n) => ({ id: rename(n.key.slice(2)), rect: n.rect }));
+  const pairs: string[] = [];
+  for (const [i, a] of nodes.entries()) {
+    for (const b of nodes.slice(i + 1)) {
+      const meet =
+        a.rect.x <= b.rect.x + b.rect.width &&
+        b.rect.x <= a.rect.x + a.rect.width &&
+        a.rect.y <= b.rect.y + b.rect.height &&
+        b.rect.y <= a.rect.y + a.rect.height;
+      if (meet) pairs.push([a.id, b.id].sort().join(" ") + (a.id < b.id ? " <" : " >"));
+    }
+  }
+  return pairs.sort();
 }
 
 const KEYS = { move: ["w", "a", "s", "d"], look: ["i", "f", "j", "k", "l"] } as const;
@@ -104,6 +126,8 @@ describe("tokens have the Layout IR of the hand-written cells (#181)", () => {
       rename: h3world,
       // The LoRA tokens' 9 unlabeled cells are blank tokens, not missing labels.
       emptyLabels: 9,
+      // The cells were written in the tokens' order, where the tokens are.
+      sameOrder: true,
     },
     {
       name: "ViT input (position and patch token pairs)",
@@ -111,14 +135,21 @@ describe("tokens have the Layout IR of the hand-written cells (#181)", () => {
       rewritten: "research/181-tokens/figures/vit-input.sumi.yaml",
       rename: vit,
       emptyLabels: 0,
+      // Written as e0…e4, then t0…t4; the tokens hold the pairs e0, t0, ….
+      sameOrder: false,
     },
   ];
   for (const c of cases) {
     test(c.name, async () => {
       const original = await render(c.original);
       const rewritten = await render(c.rewritten);
-      expect(normalized(layoutOf(rewritten.rendered), c.rename)).toEqual(
-        normalized(layoutOf(original.rendered), (id) => id),
+      const ordered = c.sameOrder;
+      expect(normalized(layoutOf(rewritten.rendered), c.rename, !ordered)).toEqual(
+        normalized(layoutOf(original.rendered), (id) => id, !ordered),
+      );
+      // Elements that touch or overlap are painted in the same order.
+      expect(paintPairs(layoutOf(rewritten.rendered), c.rename)).toEqual(
+        paintPairs(layoutOf(original.rendered), (id) => id),
       );
       // The same findings, but no lint/empty-label on the cells.
       const empty = (d: Diagnostic) => d.code === "lint/empty-label";
@@ -131,12 +162,55 @@ describe("tokens have the Layout IR of the hand-written cells (#181)", () => {
       for (const d of rewritten.diagnostics.filter(empty)) {
         expect(d.message).not.toMatch(/^Node "(seq|bt|ct|k\d|tok\d)-/);
       }
-      // Each element is drawn the same (the cells after the written nodes).
+      // Each element is drawn the same, in the same order when the cells
+      // were written in the tokens' order.
       const before = drawing(original.rendered.svg, (id) => id);
       const after = drawing(rewritten.rendered.svg, c.rename);
-      expect([...after.keys()].sort()).toEqual([...before.keys()].sort());
+      if (ordered) expect([...after.keys()]).toEqual([...before.keys()]);
+      else expect([...after.keys()].sort()).toEqual([...before.keys()].sort());
       for (const [key, chunk] of after)
         expect({ key, chunk }).toEqual({ key, chunk: before.get(key) ?? "" });
     });
   }
+});
+
+describe("cells are painted in the tokens node's place (#181)", () => {
+  // A note attached east of the first cell covers the second one; written
+  // after the tokens, it must be painted over the cells, as by hand.
+  const source = (nodes: string, item: string, target: string) => `version: 1
+figure:
+  id: order
+  theme: color
+  layout: { arrange: { row: { items: [${item}] } } }
+nodes:
+${nodes}
+  - { id: note, component: box, label: N, props: { width: 30pt, height: 20pt }, attach: { to: ${target}, side: east } }
+`;
+  const handWritten = source(
+    [
+      "  - { id: seq-1, component: box, label: A, props: { width: 30pt, height: 20pt } }",
+      "  - { id: seq-2, component: box, label: B, props: { width: 30pt, height: 20pt } }",
+    ].join("\n"),
+    "{ row: { gap: 0, items: [seq-1, seq-2] } }",
+    "seq-1",
+  );
+  const tokens = source(
+    "  - { id: seq, component: tokens, props: { gap: 0, width: 30pt, height: 20pt, cells: [A, B] } }",
+    "seq",
+    "seq.1",
+  );
+
+  test("an attached node written after the tokens is painted over the cells", async () => {
+    const order = async (text: string) => {
+      const result = await renderFigure(text);
+      if (!result.ok) throw new Error(JSON.stringify(result.diagnostics, null, 2));
+      return {
+        layout: layoutOf(result.value).nodes.map((n): string => n.key),
+        svg: [...result.value.svg.matchAll(/<g class="sumi-k-n--([^ "]+)/g)].map((m) => m[1]),
+      };
+    };
+    const expected = { layout: ["n:seq-1", "n:seq-2", "n:note"], svg: ["seq-1", "seq-2", "note"] };
+    expect(await order(handWritten)).toEqual(expected);
+    expect(await order(tokens)).toEqual(expected);
+  });
 });

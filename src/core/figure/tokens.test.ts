@@ -80,7 +80,9 @@ describe("expansion (#181)", () => {
     });
     // The edge's cell reference is the cell's ID now.
     expect(doc.edges?.[0]).toMatchObject({ from: "a", to: "seq-x" });
-    expect(doc.tokens).toEqual([
+    expect(
+      doc.tokens?.map((t) => ({ ...t, cells: t.cells.map(({ fields: _, ...c }) => c) })),
+    ).toEqual([
       {
         id: "seq",
         path: ["nodes", 1],
@@ -92,6 +94,21 @@ describe("expansion (#181)", () => {
         ],
       },
     ]);
+    // Where each field of a cell's node is written: its own, or the default it inherits.
+    const cells = (p: (string | number)[]) => ["nodes", 1, ...p];
+    expect(doc.tokens?.[0]?.cells[0]?.fields).toEqual({
+      label: cells(["props", "cells", 0, "label"]),
+      tone: cells(["props", "cells", 0, "tone"]),
+      component: cells(["props", "component"]),
+      variant: cells(["props", "variant"]),
+      "props.width": cells(["props", "cells", 0, "width"]),
+      "props.height": cells(["props", "height"]),
+    });
+    expect(doc.tokens?.[0]?.cells[1]?.fields).toMatchObject({
+      label: cells(["props", "cells", 1]),
+      tone: cells(["tone"]),
+      "props.width": cells(["props", "width"]),
+    });
     expect(doc.expanded?.get(nodeKey("seq-2"))).toEqual({
       from: "tokens",
       path: ["nodes", 1, "props", "cells", 1],
@@ -248,6 +265,33 @@ nodes:
     expect(codesOf(source)).toEqual([
       ["component/invalid-math", ["nodes", 1, "props", "cells", 1, "label"]],
       ["component/unknown-variant", ["nodes", 1, "props", "cells", 2, "variant"]],
+    ]);
+  });
+
+  test("size and variant problems point at the field they are written in, own or inherited", () => {
+    const at = (props: string) =>
+      summarize(
+        checkFigure(figure(props, { edges: "  - { from: a, to: seq.1 }" })).state.diagnostics,
+      );
+    // A square cell with its own width and height: the cell's height.
+    const [own] = at("      cells: [{ label: A, component: square, width: 20pt, height: 30pt }]");
+    expect(own?.slice(0, 2)).toEqual([
+      "component/invalid-prop",
+      ["nodes", 1, "props", "cells", 0, "height"],
+    ]);
+    expect(own?.slice(2)).toEqual([12, 67]);
+    // Inherited from the tokens: the tokens' props.height.
+    const [inherited] = at(
+      "      component: square\n      width: 20pt\n      height: 30pt\n      cells: [A]",
+    );
+    expect(inherited?.slice(0, 2)).toEqual([
+      "component/invalid-prop",
+      ["nodes", 1, "props", "height"],
+    ]);
+    expect(inherited?.slice(2)).toEqual([14, 15]);
+    // An unknown variant inherited from the tokens: the tokens' props.variant.
+    expect(at("      variant: nope\n      cells: [A]").map((d) => d.slice(0, 2))).toEqual([
+      ["component/unknown-variant", ["nodes", 1, "props", "variant"]],
     ]);
   });
 });

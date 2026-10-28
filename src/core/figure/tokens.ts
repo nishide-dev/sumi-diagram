@@ -34,8 +34,9 @@ import {
   groupKey,
   invalidateDependents,
   nodeKey,
+  type PartialFigure,
 } from "../check-state";
-import { type DocPath, didYouMean } from "../diagnostics";
+import { type Diagnostic, type DocPath, didYouMean } from "../diagnostics";
 import { LEGEND_ID, TOKENS_ID } from "../registry/builtins";
 import { componentId, type NodeManifest } from "../registry/manifest";
 import type { Registry } from "../registry/registry";
@@ -96,6 +97,13 @@ export interface TokensCellExpansion {
   id: string;
   /** `["nodes", i, "props", "cells", j]` or `[…, "lines", l, j]`. */
   path: DocPath;
+  /**
+   * Where each field of the cell's node is written, by its path relative
+   * to the node (`label`, `tone`, `component`, `variant`, `props.width`,
+   * `props.height`): the cell's own field, or the tokens' default it
+   * inherits. See {@link tokensCellPath}.
+   */
+  fields: Readonly<Record<string, DocPath>>;
 }
 
 /** A tokens node and what it was expanded into (`doc.tokens`). */
@@ -130,6 +138,8 @@ interface WrittenCell {
   path: DocPath;
   /** The index of its line (0 without lines). */
   line: number;
+  /** Written as a label string. */
+  short: boolean;
 }
 
 /**
@@ -225,7 +235,8 @@ export function expandTokens(state: CheckState, registry: Registry, locate: Loca
       for (const [j, cell] of line.entries()) {
         const path: DocPath =
           props.lines === undefined ? [...propsPath, "cells", j] : [...propsPath, "lines", l, j];
-        written.push({ cell: typeof cell === "string" ? { label: cell } : cell, path, line: l });
+        const short = typeof cell === "string";
+        written.push({ cell: short ? { label: cell } : cell, path, line: l, short });
       }
     }
 
@@ -313,8 +324,18 @@ export function expandTokens(state: CheckState, registry: Registry, locate: Loca
       cells: [],
     };
     const lineItems: ArrangeItem[][] = lines.map(() => []);
-    for (const [n, { cell, path, line }] of written.entries()) {
+    for (const [n, { cell, path, line, short }] of written.entries()) {
       const cellKey = keys[n] as string;
+      const own = (field: keyof typeof cell, inherited: DocPath): DocPath =>
+        cell[field] !== undefined ? [...path, field] : inherited;
+      const fields: Record<string, DocPath> = {
+        label: short ? path : [...path, "label"],
+        tone: own("tone", [...tokensPath, "tone"]),
+        component: own("component", [...propsPath, "component"]),
+        variant: own("variant", [...propsPath, "variant"]),
+        "props.width": own("width", [...propsPath, "width"]),
+        "props.height": own("height", [...propsPath, "height"]),
+      };
       const id = tokensCellId(node.id, cellKey);
       const width = cell.width ?? props.width;
       const height = cell.height ?? props.height;
@@ -346,7 +367,7 @@ export function expandTokens(state: CheckState, registry: Registry, locate: Loca
         },
       ]);
       taken.set(id, path);
-      expansion.cells.push({ key: cellKey, id, path });
+      expansion.cells.push({ key: cellKey, id, path, fields });
       lineItems[line]?.push(id);
     }
     items.set(node.id, cellsItem(props, lineItems));
@@ -559,4 +580,70 @@ function resolveCellRefs(
     return { ...constraint, [axis]: resolved };
   });
   if (changed) doc.figure = { ...figure, layout: { ...figure.layout, align: next } };
+}
+
+/**
+ * The indices of `doc.nodes` in document order: the cells of a tokens node
+ * (appended to `nodes`, so that every written node keeps its index and path)
+ * take the tokens node's place, so the figure IR, the Layout IR and the SVG's
+ * paint order are those of the cells written by hand.
+ */
+export function nodeOrder(doc: PartialFigure): number[] {
+  const nodes = doc.nodes ?? [];
+  const indices = nodes.map((_, i) => i);
+  if (doc.tokens === undefined || doc.tokens.length === 0) return indices;
+  const indexById = new Map<string, number>();
+  for (const [i, node] of nodes.entries()) if (node !== undefined) indexById.set(node.id, i);
+  const cellsAt = new Map<number, number[]>();
+  const moved = new Set<number>();
+  for (const expansion of doc.tokens) {
+    const at = expansion.path[1];
+    if (typeof at !== "number") continue;
+    const cells = expansion.cells.flatMap((c) => {
+      const i = indexById.get(c.id);
+      return i === undefined ? [] : [i];
+    });
+    cellsAt.set(at, cells);
+    for (const i of cells) moved.add(i);
+  }
+  return indices.flatMap((i) => (moved.has(i) ? [] : (cellsAt.get(i) ?? [i])));
+}
+
+/**
+ * The path a diagnostic about a field of a cell's node should carry (#181):
+ * a path into the cell (`…cells[j].props.height`, as the later stages build
+ * it from the cell's path) becomes the field where that value is written
+ * (`…cells[j].height`, or the tokens' `props.height` it inherits); any other
+ * path is returned unchanged.
+ */
+export function tokensCellPath(doc: PartialFigure, path: DocPath): DocPath {
+  for (const expansion of doc.tokens ?? []) {
+    for (const cell of expansion.cells) {
+      const n = cell.path.length;
+      if (path.length <= n || !cell.path.every((p, i) => path[i] === p)) continue;
+      const rest = path.slice(n);
+      const [first, second] = rest;
+      const props = first === "props" && typeof second === "string";
+      const field = props ? cell.fields[`props.${second}`] : cell.fields[String(first)];
+      if (field === undefined) return path;
+      return [...field, ...rest.slice(props ? 2 : 1)];
+    }
+  }
+  return path;
+}
+
+/** A locator that resolves paths into a cell's node to where the field is written (#181). */
+export function tokensLocator(doc: PartialFigure, locate: Locator): Locator {
+  return (path, options) => locate(tokensCellPath(doc, path), options);
+}
+
+/** Rewrites the paths of diagnostics (and their related entries) into cells' nodes, in place. */
+export function remapTokensPaths(doc: PartialFigure, diagnostics: Diagnostic[]): void {
+  if (doc.tokens === undefined) return;
+  for (const diagnostic of diagnostics) {
+    if (diagnostic.path !== undefined) diagnostic.path = tokensCellPath(doc, diagnostic.path);
+    for (const related of diagnostic.related ?? []) {
+      if (related.path !== undefined) related.path = tokensCellPath(doc, related.path);
+    }
+  }
 }

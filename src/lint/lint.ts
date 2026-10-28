@@ -7,6 +7,7 @@ import { type CheckOptions, checkFigure } from "../core/check";
 import { compareDiagnostics, type Diagnostic } from "../core/diagnostics";
 import { clampCaptionPaths } from "../core/figure/caption";
 import type { FigureCheck } from "../core/figure/check";
+import { remapTokensPaths } from "../core/figure/tokens";
 import { getTheme } from "../core/theme/builtin";
 import { type LintConfig, type ResolvedLintConfig, resolveLintConfig } from "./config";
 import { type AnyLintRule, createLintContext, isStructuralRule, toDiagnostic } from "./rule";
@@ -62,6 +63,7 @@ export function runLintRules(check: FigureCheck, config: ResolvedLintConfig): Di
   );
   // A finding about a caption's label points at the `caption` field (#130).
   clampCaptionPaths(state.doc, diagnostics);
+  remapTokensPaths(state.doc, diagnostics);
   return diagnostics;
 }
 

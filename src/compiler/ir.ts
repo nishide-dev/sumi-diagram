@@ -38,6 +38,7 @@ import type {
   LayoutEngine,
   Side,
 } from "../core/figure/schema";
+import { nodeOrder } from "../core/figure/tokens";
 import { getProfile } from "../core/profile/builtin";
 
 import {
@@ -401,7 +402,9 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
   };
   const arrangeOf = (box: ArrangeBox) => arrangeIR(box, endpointKey, captions, captionGapPt);
 
-  for (const [index, n] of doc.nodes.entries()) {
+  // Document order, with the cells of tokens nodes (#181) in their tokens node's place.
+  for (const index of nodeOrder(doc)) {
+    const n = doc.nodes[index];
     if (n === undefined) continue;
     const key = nodeKey(n.id);
     const caption = doc.captions?.get(index);
