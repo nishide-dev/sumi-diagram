@@ -69,6 +69,15 @@ shows (`brain`, `database`, `photo`, `world`), not by the concept.
   transform. Scripts, links, embedded images, `<style>`, `<text>`,
   gradients, filters, masks, `<defs>`/`<use>` are refused.
 - `sha256` (optional, 64 hex digits) pins the file's content.
+- `layers: { count: 4, offset: 3pt }` (optional) repeats the **same unchanged
+  image** behind the front one, diagonally up-right. `count` includes the
+  front (integer 1–16); `offset` is positive, a multiple of 0.5pt. Width and
+  height size **one copy**; layout, geometry lint and edge ports use the
+  whole stack: each side grows by `(count - 1) × offset`. Both engines and
+  all fit modes work. SVG stores the image once per stack with `defs`/`use`;
+  PDF reuses its embedded image. Editable PPTX refuses it with the existing
+  `pptx/unsupported-asset`; use the default picture PPTX. Invalid layer
+  values use `component/invalid-prop` / `component/unknown-prop`.
 - No label (`component/unexpected-label`): attach or place a `label` node
   next to it. A `tone` colors the background (visible around `contain`).
 

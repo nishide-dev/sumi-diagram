@@ -49,7 +49,7 @@
  * insertion order.
  */
 
-import { assetMarkup } from "../assets/draw";
+import { assetMarkup, imagePlaceholder } from "../assets/draw";
 import type { FigureAssets } from "../assets/load";
 import type { EdgeIR, FigureIR, GroupIR, NodeIR } from "../compiler/ir";
 import type { ElementKey } from "../core/check-state";
@@ -871,7 +871,13 @@ export function writeStructuredSvg(
     const asset =
       hatchMarkup(node, placed.rect) + assetMarkup(node, assets?.nodes.get(node.key), placed.rect);
     body.push(
-      objectGroup(node, nodeShape(node, placed.rect), placed.label, asset, placed.sublabel),
+      objectGroup(
+        node,
+        nodeShape(imagePlaceholder(node), placed.rect),
+        placed.label,
+        asset,
+        placed.sublabel,
+      ),
     );
     useText(placed.label);
     useText(placed.sublabel);

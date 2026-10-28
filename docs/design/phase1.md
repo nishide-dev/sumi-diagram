@@ -2023,6 +2023,31 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **非対象・引き継ぎ**: 連続値のヒートマップ（Issue の非対象）、セルへの参照・セルのラベル、auto（D2）の行列、回転した軸の見出し（原図の Query / Key。`labelRotation` の `label` ノードを横に置けば書ける）、斜線以外の模様（`pattern` は列挙なので追加できる）、枠の余白なしで辺をセルの端まで届けること（辺は枠で止まる。書き下した版と同じ）、編集可能 PPTX でセルと斜線をグループにすること。
 
 
+### 6.60 #187 の画像の重ね（`image.props.layers`）
+
+- `layers: { count: 4, offset: 3pt }` を image の省略可能な props とする。
+  `count` は最前面を含む整数 1〜16、`offset` は正の 0.5pt 単位の長さ。
+  右上方向に同じ画像を重ね、奥から手前の順で描く。各コピーの背景・枠は
+  theme / variant / tone を使う。画素の読み替え・加工は一切しない。
+- `width` / `height` と欠けた側のアスペクト比補完は **1 枚分**。
+  asset 読込後に各辺へ `(count - 1) × offset` を加えた union box を IR に戻す。
+  structured / D2 の双方がその足跡で配置・経路計算し、inspect・幾何 lint・
+  edge port も同じ矩形を使う。足跡の shape は計測用の透明矩形、画像・枠は
+  各コピーで描く。階段状の輪郭への接続ではなく、束全体の矩形への接続を契約とする。
+- SVG は束ごとに 1 個の `<defs><image>` と `count` 個の `<use>` を使う。
+  PNG / JPEG / SVG と contain / cover / fill に共通。既存の layers なしの
+  描画分岐はそのまま保持する。PDF は変換エンジンの画像再利用を使い、JPEG
+  4 枚の fixture が **Image XObject 1 個**であることを両 engine で検証する。
+  編集可能 PPTX は従来の `pptx/unsupported-asset` で拒否し、picture PPTX は保持する。
+- 上限は大量のコピーによる出力肥大化を抑えるため。単なる整数指定や theme
+  固定のずらしではなく、寸法を明示できる object にした。複数の別フレームを
+  選ぶ `srcs` は追加しない。不正値は既存の component 診断を使い、新規診断なし。
+- 実測: `research/187-image-layers/h3-world-frames.sumi.yaml` は先頭 1 枚と
+  4 枚の束 4 組（計 17 コピー）。1 枚 72 × 40.5pt、ずらし 3pt の束の足跡は
+  **81 × 49.5pt**。SVG の画像定義・PDF の Image XObject はそれぞれ **5 個**。
+  変更前の全 138 YAML × 元テーマ・組み込み 5 theme の SHA-256 比較も記録する。
+  詳細・再現方法・目視した PNG は同ディレクトリの README を参照。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）

@@ -204,9 +204,12 @@ Order of work: content and arrangement first (the arrange tree,
 then `density: compact`, and `fit: scale` last if it is still too wide.
 Check the preview against the original after each step. Not yet
 expressible (say so instead of approximating silently): colored text
-spans and left-aligned labels, stacked copies of an image, emoji badges, a
+spans and left-aligned labels, emoji badges, a
 bowtie shape, a font size of your own (a large `N×`), and white text on a
 saturated fill.
+
+For repeated video frames, use an image's `props.layers: { count: 4, offset: 3pt }`
+([images](assets.md#images)); the whole up-right stack participates in layout.
 
 ## Labels
 

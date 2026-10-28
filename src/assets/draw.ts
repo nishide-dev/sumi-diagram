@@ -8,7 +8,8 @@
  *   node's text color (Tabler icons stroke `currentColor`).
  * - An image is one `<image class="sumi-image">` filling the node's box with
  *   the `data:` URI, `preserveAspectRatio` from `props.fit`, and its frame
- *   drawn again over it (`framed`).
+ *   drawn again over it (`framed`). With `layers` (#187), one definition is
+ *   reused up-right and the measured box contains the whole stack.
  *
  * Both are children of the element's `<g>` right after its `g.shape` (over
  * the shape's fill, e.g. a tone behind an image), so the
@@ -78,6 +79,48 @@ function imageMarkup(
   return `${picture}<rect class="sumi-image-frame" x="${n(rect.x)}" y="${n(rect.y)}" width="${n(rect.width)}" height="${n(rect.height)}"${rx} fill="none"${strokeAttributes(style)}/>`;
 }
 
+/** Keep the union box measurable for layout/inspection, but paint each copy separately. */
+export function imagePlaceholder<T extends NodeIR>(node: T): T {
+  if (node.image?.layers === undefined) return node;
+  return {
+    ...node,
+    style: { ...node.style, fill: "transparent", stroke: "transparent" },
+  };
+}
+
+function layeredImageMarkup(
+  node: Pick<NodeIR, "key" | "image" | "style">,
+  image: LoadedImage,
+  rect: Rect,
+): string {
+  const layers = node.image?.layers;
+  if (layers === undefined || node.image === undefined) return "";
+  const step = layers.offset.units;
+  const spread = (layers.count - 1) * step;
+  const width = rect.width - spread;
+  const height = rect.height - spread;
+  const radius = Math.min(node.style.radius.units, width / 2, height / 2);
+  const rx = radius > 0 ? ` rx="${n(radius)}"` : "";
+  const id = `sumi-image-${node.key}`;
+  // A single image definition keeps the original bytes once, even for many copies.
+  const definition = `<defs><image id="${id}" class="sumi-image" xmlns:xlink="${XLINK}" width="${n(width)}" height="${n(height)}" preserveAspectRatio="${FIT[node.image.fit]}" xlink:href="${image.href}"/></defs>`;
+  const copies: string[] = [];
+  for (let i = layers.count - 1; i >= 0; i--) {
+    const x = rect.x + i * step;
+    const y = rect.y + spread - i * step;
+    const background = `<rect width="${n(width)}" height="${n(height)}"${rx} fill="${node.style.fill}"/>`;
+    const picture = `<use xmlns:xlink="${XLINK}" xlink:href="#${id}"/>`;
+    const frame =
+      node.style.strokeWidth.units > 0 && node.style.stroke !== "transparent"
+        ? `<rect class="sumi-image-frame" width="${n(width)}" height="${n(height)}"${rx} fill="none"${strokeAttributes(node.style)}/>`
+        : "";
+    copies.push(
+      `<g class="sumi-image-layer" transform="translate(${n(x)} ${n(y)})">${background}${picture}${frame}</g>`,
+    );
+  }
+  return definition + copies.join("");
+}
+
 /**
  * The markup of a node's asset in its box `rect` (the shape's bounding box),
  * or `""` if the node has none.
@@ -95,5 +138,6 @@ export function assetMarkup(
   }
   if (asset.kind === "icon") return iconMarkup(asset, iconRect(node, rect));
   if (node.image === undefined) throw new Error(`internal error: ${node.key} is not an image`);
+  if (node.image.layers !== undefined) return layeredImageMarkup(node, asset, rect);
   return imageMarkup(asset, node.image.fit, rect, node.style);
 }

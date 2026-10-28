@@ -13,6 +13,7 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { checkD2Version, findD2Binary } from "../backends/d2/binary";
+import { compileFigure } from "../compiler/compile";
 import { ASSETS_DIR } from "../compiler/testing";
 import { lintGeometry } from "../lint";
 import { assetProvenanceEntries, readSvgMetadata } from "./finalize";
@@ -197,5 +198,127 @@ nodes:
     if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
     expect(result.value.svg).not.toContain("assets-sha256");
     expect(result.value.svg).not.toContain("sumi:notice");
+  });
+});
+
+describe("image layers (#187)", () => {
+  for (const auto of [false, true]) {
+    test(`stack footprint and shared image (${auto ? "D2" : "structured"})`, async () => {
+      const original = readFileSync(join(ASSETS_DIR, "image-layers.sumi.yaml"), "utf8");
+      const source = auto
+        ? original.replace(
+            / {2}layout:\n {4}arrange:\n {6}row:[^\n]+/,
+            "  layout: { direction: right }",
+          )
+        : original;
+      const rendered = await renderFigure(source, { assetBase: ASSETS_DIR });
+      if (!rendered.ok) throw new Error(JSON.stringify(rendered.diagnostics));
+      const first = rendered.value;
+      expect(rendered.diagnostics).toEqual([]);
+      expect(lintGeometry(first, { source })).toEqual([]);
+      const node = first.compiled.ir.nodes.find((n) => n.id === "frames");
+      expect(node?.width?.pt).toBe(57);
+      expect(node?.height?.pt).toBe(36);
+      const box = first.inspection.elements.find((e) => e.key === node?.key)?.bbox;
+      expect(box?.width).toBe(114);
+      expect(box?.height).toBe(72);
+      if ("layout" in first) {
+        const rect = first.layout.nodes.find((n) => n.key === node?.key)?.rect;
+        const incoming = first.layout.edges[0]?.route?.points.at(-1);
+        const outgoing = first.layout.edges[1]?.route?.points[0];
+        expect(rect).toBeDefined();
+        expect(incoming?.x).toBe(rect?.x);
+        expect(outgoing?.x).toBe((rect?.x ?? 0) + (rect?.width ?? 0));
+      }
+      expect(first.svg.match(/data:image\/jpeg;base64,/g)?.length).toBe(1);
+      expect(first.svg.match(/class="sumi-image-layer"/g)?.length).toBe(4);
+      expect(first.svg.match(/<use\b/g)?.length).toBe(4);
+      const pdf = svgToPdf(first.svg);
+      if (!pdf.ok) throw new Error(JSON.stringify(pdf.diagnostics));
+      // Four painted copies, but exactly one embedded JPEG XObject.
+      expect(inspectPdf(pdf.value).images).toBe(1);
+      const pptx = svgToPptx(first.svg);
+      if (!pptx.ok) throw new Error(JSON.stringify(pptx.diagnostics));
+      const editable = svgToEditablePptx(first.svg, first.compiled.ir);
+      expect(editable.ok).toBe(false);
+      expect(editable.diagnostics.map((d) => [d.code, d.subject?.id])).toEqual([
+        ["pptx/unsupported-asset", "frames"],
+      ]);
+      const key = `image-layers${auto ? "-auto" : ""}`;
+      record(`${key}.svg`, first.svg);
+      record(`${key}.pdf`, pdf.value);
+      record(`${key}.pptx`, pptx.value);
+    }, 60_000);
+  }
+
+  test("aspect-ratio sizing and all fit modes retain per-copy dimensions", async () => {
+    for (const fit of ["contain", "cover", "fill"]) {
+      for (const size of ["width: 48pt", "height: 24pt"]) {
+        const source = `version: 1
+figure: { id: layers, layout: { arrange: { row: { items: [a] } } } }
+nodes:
+  - { id: a, component: image, props: { src: gradient.png, ${size}, fit: ${fit}, layers: { count: 3, offset: 2pt } } }
+`;
+        const result = await renderFigure(source, { assetBase: ASSETS_DIR });
+        if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+        const image = result.value.compiled.ir.nodes[0];
+        const width = size.startsWith("width") ? 48 : 32;
+        const height = size.startsWith("width") ? 36 : 24;
+        expect(image?.width?.pt).toBe(width + 4);
+        expect(image?.height?.pt).toBe(height + 4);
+        expect(result.value.svg).toContain(
+          `width="${width * 2}" height="${height * 2}" preserveAspectRatio=`,
+        );
+        expect(lintGeometry(result.value, { source })).toEqual([]);
+      }
+    }
+  });
+
+  test("layer validation uses component diagnostics and count one keeps a single-copy footprint", async () => {
+    const original = readFileSync(join(ASSETS_DIR, "image-layers.sumi.yaml"), "utf8");
+    for (const layers of [
+      "{ count: 0, offset: 3pt }",
+      "{ count: 17, offset: 3pt }",
+      "{ count: 2.5, offset: 3pt }",
+      "{ count: 4, offset: 0pt }",
+      "{ count: 4, offset: -3pt }",
+      "{ count: 4, offset: 0.1pt }",
+      "{ count: 4 }",
+      "{ count: 4, offset: 3pt, direction: left }",
+      "4",
+    ]) {
+      const compiled = compileFigure(original.replace("{ count: 4, offset: 3pt }", layers));
+      expect(compiled.ok).toBe(false);
+      expect(
+        compiled.diagnostics.some(
+          (d) => d.code.startsWith("component/") && d.path?.includes("layers"),
+        ),
+      ).toBe(true);
+    }
+    const result = await renderFigure(original.replace("count: 4", "count: 1"), {
+      assetBase: ASSETS_DIR,
+    });
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const node = result.value.compiled.ir.nodes.find((n) => n.id === "frames");
+    expect(node?.width?.pt).toBe(48);
+    expect(node?.height?.pt).toBe(27);
+    expect(result.value.svg.match(/class="sumi-image-layer"/g)?.length).toBe(1);
+  });
+
+  test("PNG stays a shared raster and SVG stays vector in a repeated stack", async () => {
+    const original = readFileSync(join(ASSETS_DIR, "image-layers.sumi.yaml"), "utf8");
+    for (const [file, rasterCount] of [
+      ["gradient.png", 1],
+      ["shapes.svg", 0],
+    ] as const) {
+      const source = original.replace("gradient.jpg", file);
+      const result = await renderFigure(source, { assetBase: ASSETS_DIR });
+      if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+      expect(result.value.svg.match(/<image\b/g)?.length).toBe(1);
+      const pdf = svgToPdf(result.value.svg);
+      if (!pdf.ok) throw new Error(JSON.stringify(pdf.diagnostics));
+      expect(inspectPdf(pdf.value).images).toBe(rasterCount);
+      expect(svgToPptx(result.value.svg).ok).toBe(true);
+    }
   });
 });
