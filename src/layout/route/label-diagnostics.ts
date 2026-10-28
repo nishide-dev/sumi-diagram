@@ -66,6 +66,9 @@ export function requestedLabelDiagnostics(
   });
   const otherLabels: (readonly [ElementKey, Rect])[] = [
     ...layout.nodes.flatMap((n) => (n.label === undefined ? [] : [[n.key, n.label.box] as const])),
+    ...layout.nodes.flatMap((n) =>
+      n.sublabel === undefined ? [] : [[n.key, n.sublabel.box] as const],
+    ),
     ...layout.groups.flatMap((g) => (g.label === undefined ? [] : [[g.key, g.label.box] as const])),
     ...routed.flatMap(({ layout: e }) =>
       e.route?.label === undefined ? [] : [[e.key, e.route.label.box] as const],

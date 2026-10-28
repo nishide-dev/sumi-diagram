@@ -126,7 +126,7 @@ edges:
 $ sumi lint --json web-service.sumi.yaml | jq -c '.results[0].diagnostics[] | {code,path,hint}'
 {"code":"component/unknown","path":["nodes",1,"component"],"hint":"Known node components: box, square, circle, ellipse, diamond, hexagon, parallelogram, cylinder, document, label."}
 $ sumi catalog --kind node | grep -i storage
-sumi/cylinder       node  default,emphasis,muted  A cylinder, e.g. for storage.
+sumi/cylinder       node  default,emphasis,muted,filled  A cylinder, e.g. for storage.
 ```
 
 Fix: `component: cylinder` at `nodes[1].component`, then `fmt` → `lint`

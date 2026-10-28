@@ -1,6 +1,9 @@
-# #173: a copy of research/167-stage-c/figures/b-dit.sumi.yaml with
-# `theme: paper` and `figure.fit: scale` (nothing else changed), to compare the
-# paper theme with the original figure (research/173-paper-theme/README.md).
+# #173: a copy of research/167-stage-c/figures/b-dit.sumi.yaml to compare the
+# paper theme with the original figure (research/173-paper-theme/README.md):
+# `theme: paper`, `figure.fit: scale`, and where the original has them,
+# borderless `filled` boxes (#174; not the dimmed panels, which keep
+# `variant: muted`), `sublabel` for the 32 × 32 × 4 sizes (#184) and the
+# adaLN panel without `tone: gray` (its light gray is the theme's panel fill).
 # #167 figure B: DiT (Peebles & Xie 2023, arXiv 2212.09748v2, Fig. 3), all
 # four panels, drawn with today's syntax (main after v0.5.2) and compared with
 # the published figure (docs/research/167-stage-c.md §1). Only generic block
@@ -44,7 +47,6 @@ figure:
 groups:
   - id: adaln
     caption: DiT Block with adaLN-Zero
-    tone: gray
     arrange:
       row:
         gap: 3mm
@@ -87,35 +89,35 @@ groups:
 
 nodes:
   # panel 1: latent diffusion transformer (lines without arrowheads, as in the original)
-  - { id: noised, component: box, label: "Noised\nLatent\n32 × 32 × 4", tone: gray }
-  - { id: patchify, component: box, label: Patchify, tone: gray }
-  - { id: embed, component: box, label: Embed, tone: blue }
-  - { id: timestep, component: box, label: Timestep $t$, tone: blue }
-  - { id: class-label, component: box, label: Label $y$, tone: blue }
+  - { id: noised, component: box, label: "Noised\nLatent", sublabel: 32 × 32 × 4, tone: gray, variant: filled }
+  - { id: patchify, component: box, label: Patchify, tone: gray, variant: filled }
+  - { id: embed, component: box, label: Embed, tone: blue, variant: filled }
+  - { id: timestep, component: box, label: Timestep $t$, tone: blue, variant: filled }
+  - { id: class-label, component: box, label: Label $y$, tone: blue, variant: filled }
   - { id: dit-block, component: box, label: DiT Block, props: { height: 34pt } }
   - { id: dit-n, component: label, label: N x, attach: { to: dit-block, side: west, gap: 1.5mm } }
-  - { id: layer-norm, component: box, label: Layer Norm, tone: blue }
-  - { id: linear, component: box, label: Linear and Reshape, tone: green }
-  - { id: noise, component: box, label: "Noise\n32 × 32 × 4", tone: gray }
-  - { id: sigma, component: box, label: "$\\Sigma$\n32 × 32 × 4", tone: gray }
+  - { id: layer-norm, component: box, label: Layer Norm, tone: blue, variant: filled }
+  - { id: linear, component: box, label: Linear and Reshape, tone: green, variant: filled }
+  - { id: noise, component: box, label: Noise, sublabel: 32 × 32 × 4, tone: gray, variant: filled }
+  - { id: sigma, component: box, label: "$\\Sigma$", sublabel: 32 × 32 × 4, tone: gray, variant: filled }
   - { id: ldt-caption, component: label, label: Latent Diffusion Transformer }
   # panel 2: adaLN-Zero
-  - { id: a-tokens, component: box, label: Input Tokens, tone: gray }
+  - { id: a-tokens, component: box, label: Input Tokens, tone: gray, variant: filled }
   - { id: a-split0, component: junction, variant: hidden }
-  - { id: a-ln1, component: box, label: Layer Norm, tone: blue }
-  - { id: a-ss1, component: box, label: "Scale, Shift", tone: blue }
-  - { id: a-attn, component: box, label: "Multi-Head\nSelf-Attention", tone: orange }
-  - { id: a-scale1, component: box, label: Scale, tone: blue }
+  - { id: a-ln1, component: box, label: Layer Norm, tone: blue, variant: filled }
+  - { id: a-ss1, component: box, label: "Scale, Shift", tone: blue, variant: filled }
+  - { id: a-attn, component: box, label: "Multi-Head\nSelf-Attention", tone: orange, variant: filled }
+  - { id: a-scale1, component: box, label: Scale, tone: blue, variant: filled }
   - { id: a-add1, component: operator, props: { symbol: plus } }
   - { id: a-split1, component: junction, variant: hidden }
-  - { id: a-ln2, component: box, label: Layer Norm, tone: blue }
-  - { id: a-ss2, component: box, label: "Scale, Shift", tone: blue }
-  - { id: a-ff, component: box, label: "Pointwise\nFeedforward", tone: green }
-  - { id: a-scale2, component: box, label: Scale, tone: blue }
+  - { id: a-ln2, component: box, label: Layer Norm, tone: blue, variant: filled }
+  - { id: a-ss2, component: box, label: "Scale, Shift", tone: blue, variant: filled }
+  - { id: a-ff, component: box, label: "Pointwise\nFeedforward", tone: green, variant: filled }
+  - { id: a-scale2, component: box, label: Scale, tone: blue, variant: filled }
   - { id: a-add2, component: operator, props: { symbol: plus } }
   - { id: a-out, component: junction, variant: hidden }
-  - { id: a-cond, component: box, label: Conditioning, tone: blue }
-  - { id: a-mlp, component: box, label: MLP, tone: blue }
+  - { id: a-cond, component: box, label: Conditioning, tone: blue, variant: filled }
+  - { id: a-mlp, component: box, label: MLP, tone: blue, variant: filled }
   # panel 3: cross-attention (dimmed)
   - { id: c-tokens, component: box, label: Input Tokens, tone: gray, variant: muted }
   - { id: c-split0, component: junction, variant: hidden }

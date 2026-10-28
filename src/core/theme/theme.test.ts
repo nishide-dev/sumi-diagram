@@ -19,6 +19,7 @@ import {
   LATIN_FONT_SET_ID,
   resolveStyle,
   resolveTheme,
+  sublabelFontSize,
   type Theme,
   type ThemeDefinition,
   type ValidateThemeOptions,
@@ -441,7 +442,7 @@ describe("validateTheme: structure and components", () => {
       [
         "theme/unknown-variant",
         ["components", "box", "loud"],
-        "Variants of sumi/box: default, emphasis, muted.",
+        "Variants of sumi/box: default, emphasis, muted, filled.",
       ],
       ["theme/duplicate-component", ["components", "sumi/box"], "Merge the two entries into one."],
       [
@@ -625,6 +626,18 @@ describe("built-in themes", () => {
     expect(radius(style("container"))).toBe(6);
     expect(radius(style("container", "muted"))).toBe(6);
     expect(radius(style("legend"))).toBe(3);
+    // #174's variants: borderless rounded fills and panels, a dashed rounded panel.
+    expect(style("box", "filled")).toMatchObject({ strokeWidth: { pt: 0 }, fill: "#dcdee6" });
+    expect(radius(style("box", "filled"))).toBe(2);
+    for (const variant of ["plain", "filled", "dashed"]) {
+      expect(radius(style("container", variant))).toBe(6);
+    }
+    expect(style("container", "filled")).toMatchObject({ strokeWidth: { pt: 0 }, fill: "#f3f3f5" });
+    expect(style("container", "plain")).toMatchObject({
+      strokeWidth: { pt: 0 },
+      fill: "transparent",
+    });
+    expect(style("container", "dashed")).toMatchObject({ strokeDash: 3, fill: "transparent" });
     // Black 1pt frames, 0.5pt edges: arrowheads as small as academic's.
     expect(style("box").strokeWidth.pt).toBe(1);
     expect(style("box").stroke).toBe("#000000");
@@ -658,4 +671,59 @@ describe("built-in themes", () => {
       ],
     ]);
   });
+});
+
+describe("sublabelFontSize (#184)", () => {
+  test("is 7/8 of the label's size, rounded down to 0.5pt", () => {
+    const at = (pt: number) => sublabelFontSize({ pt, units: pt * 2 });
+    expect([8, 9, 16, 7, 4, 50].map((pt) => at(pt))).toEqual([
+      { pt: 7, units: 14 },
+      { pt: 7.5, units: 15 },
+      { pt: 14, units: 28 },
+      { pt: 6, units: 12 },
+      { pt: 3.5, units: 7 },
+      { pt: 43.5, units: 87 },
+    ]);
+  });
+
+  test("gives size.small from size.text in every built-in theme", () => {
+    for (const theme of BUILTIN_THEMES.values()) {
+      const node = resolveStyle(theme, { kind: "node", id: "sumi/box", variant: "default" });
+      const edge = resolveStyle(theme, { kind: "edge", id: "sumi/arrow", variant: "default" });
+      expect(sublabelFontSize(node.style.fontSize)).toEqual(edge.style.fontSize);
+    }
+  });
+});
+
+describe("borderless and dashed variants (#174)", () => {
+  for (const [id, theme] of BUILTIN_THEMES) {
+    test(`${id}: filled nodes, plain / filled / dashed containers`, () => {
+      const node = (variant: string, tone?: "yellow") =>
+        resolveStyle(theme, { kind: "node", id: "sumi/box", variant, tone }).style;
+      const group = (variant: string, tone?: "yellow") =>
+        resolveStyle(theme, { kind: "group", id: "sumi/container", variant, tone }).style;
+      // A filled node: no outline, tone gray's fill unless a tone sets one.
+      expect(node("filled").strokeWidth.pt).toBe(0);
+      expect(node("filled").fill).toBe(theme.tones.get("gray")?.fill ?? "");
+      expect(node("filled", "yellow").fill).toBe(theme.tones.get("yellow")?.fill ?? "");
+      expect(node("filled").fontColor).toBe(node("default").fontColor);
+      // Containers: plain has neither border nor fill, filled a fill only,
+      // dashed a dashed border only; the title is the default one.
+      expect(group("plain")).toMatchObject({ fill: "transparent", strokeWidth: { pt: 0 } });
+      expect(group("filled").strokeWidth.pt).toBe(0);
+      expect(group("filled").fill).not.toBe("transparent");
+      expect(group("dashed")).toMatchObject({
+        fill: "transparent",
+        strokeWidth: group("default").strokeWidth,
+        stroke: group("default").stroke,
+      });
+      expect(group("dashed").strokeDash).toBeGreaterThan(0);
+      for (const variant of ["plain", "filled", "dashed"]) {
+        expect(group(variant).fontColor).toBe(group("default").fontColor);
+        expect(group(variant).bold).toBe(group("default").bold);
+        // A tone sets the fill of any of them.
+        expect(group(variant, "yellow").fill).toBe(theme.tones.get("yellow")?.fill ?? "");
+      }
+    });
+  }
 });

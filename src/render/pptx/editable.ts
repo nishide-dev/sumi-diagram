@@ -28,6 +28,11 @@ export interface EditablePptxOptions {
   fontSet?: FontSet;
 }
 const U = 6350; // one D2 unit = .5pt
+/**
+ * How far above its SVG position (units) a sublabel (#184) may start when
+ * joined to its node's text: rounding only (1/1000 unit coordinates).
+ */
+const SPACING_TOLERANCE = 0.002;
 /** The smallest DrawingML text size (`a:rPr/@sz`, in 1/100 pt): 1pt. */
 const MIN_TEXT_SIZE = 100;
 /**
@@ -313,7 +318,11 @@ export function svgToEditablePptx(
       }
       return face;
     };
-    const textBody = (label: LabelGeometry, el: XmlElement, box: Rect, opacity: number) => {
+    /**
+     * A label's paragraphs: one per line, in the label's size and line
+     * spacing; the first one `before` units below the previous paragraph.
+     */
+    const paragraphsOf = (label: LabelGeometry, el: XmlElement, opacity: number, before = 0) => {
       const measured = measureLabel(label, fonts);
       const fill = paint(property(el, "fill") ?? "#000000", opacity);
       // A run in its own face; label math (#93) uses DrawingML's baseline
@@ -327,9 +336,7 @@ export function svgToEditablePptx(
             : ` baseline="${Math.round((-shiftUnits / label.fontSizeUnits) * 100000)}"`;
         return `<a:r><a:rPr lang="ja-JP" sz="${Math.round(label.fontSizeUnits * 50 * scale)}"${face.weight >= 600 ? ' b="1"' : ""}${face.italic ? ' i="1"' : ""}${baseline}>${fill}<a:latin typeface="${escapeXml(face.family)}"/><a:ea typeface="${escapeXml(face.family)}"/></a:rPr><a:t xml:space="preserve">${escapeXml(text)}</a:t></a:r>`;
       };
-      const offset = label.anchor.x - (box.x + box.width / 2);
-      const top = (measured.lines[0]?.y ?? box.y) - box.y;
-      const paragraphs = measured.texts
+      return measured.texts
         .map((text, i) => {
           const runs = label.runs?.[i];
           const content =
@@ -338,9 +345,46 @@ export function svgToEditablePptx(
               : withAccentsOnBases(runs)
                   .map((r) => run(r.text, r.font, r.shiftUnits))
                   .join("");
-          return `<a:p><a:pPr algn="ctr"><a:lnSpc><a:spcPts val="${Math.max(0, Math.round(label.lineHeightUnits * 50 * scale))}"/></a:lnSpc><a:spcBef><a:spcPts val="0"/></a:spcBef><a:spcAft><a:spcPts val="0"/></a:spcAft></a:pPr>${content}</a:p>`;
+          return `<a:p><a:pPr algn="ctr"><a:lnSpc><a:spcPts val="${Math.max(0, Math.round(label.lineHeightUnits * 50 * scale))}"/></a:lnSpc><a:spcBef><a:spcPts val="${i === 0 ? Math.round(before * 50 * scale) : 0}"/></a:spcBef><a:spcAft><a:spcPts val="0"/></a:spcAft></a:pPr>${content}</a:p>`;
         })
         .join("");
+    };
+    /**
+     * The space (`spcBef`, in units) a node's sublabel (#184) needs before
+     * its first paragraph, written right after its label's paragraphs, so
+     * that its first line's top lands where the SVG has it: each line's top
+     * is the top inset plus the line spacings above it. Negative when the
+     * sublabel starts higher than the label's spacings reach, which
+     * DrawingML cannot write (no negative spacing).
+     */
+    const sublabelSpaceBefore = (label: LabelGeometry, sublabel: LabelGeometry): number => {
+      const m = measureLabel(label, fonts);
+      const s = measureLabel(sublabel, fonts);
+      const labelTop = m.lines[0]?.y ?? 0;
+      const sublabelTop = s.lines[0]?.y ?? 0;
+      return sublabelTop - (labelTop + m.texts.length * label.lineHeightUnits);
+    };
+    /**
+     * A text body holding `label`, then, when given, a node's sublabel
+     * (#184) as paragraphs in its smaller size after `before` units of space
+     * (see {@link sublabelSpaceBefore}; never negative here). Placed by the
+     * label: its first line's top is the top inset.
+     */
+    const textBody = (
+      label: LabelGeometry,
+      el: XmlElement,
+      box: Rect,
+      opacity: number,
+      sublabel?: { label: LabelGeometry; el: XmlElement; before: number },
+    ) => {
+      const measured = measureLabel(label, fonts);
+      const offset = label.anchor.x - (box.x + box.width / 2);
+      const top = (measured.lines[0]?.y ?? box.y) - box.y;
+      const paragraphs =
+        paragraphsOf(label, el, opacity) +
+        (sublabel === undefined
+          ? ""
+          : paragraphsOf(sublabel.label, sublabel.el, opacity, sublabel.before));
       return `<p:txBody><a:bodyPr wrap="none" lIns="${emu(Math.max(0, 2 * offset))}" rIns="${emu(Math.max(0, -2 * offset))}" tIns="${emu(top)}" bIns="0" anchor="t"><a:noAutofit/></a:bodyPr><a:lstStyle/>${paragraphs}</p:txBody>`;
     };
     const line = (
@@ -383,7 +427,7 @@ export function svgToEditablePptx(
      * geometry too).
      */
     const turnedLabel = (
-      key: ElementKey,
+      name: string,
       label: LabelGeometry,
       el: XmlElement,
       opacity: number,
@@ -404,7 +448,7 @@ export function svgToEditablePptx(
       };
       return shape(
         next++,
-        `${key} label`,
+        name,
         box,
         '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>',
         "<a:noFill/>",
@@ -428,8 +472,26 @@ export function svgToEditablePptx(
         : childElements(group).find((e) => classList(e).includes("shape"));
       const primitives = container ? [...descendants(container)].filter((e) => e.name !== "g") : [];
       const label = geo.labels[0];
-      const text = childElements(group).find((e) => e.name === "text");
-      const measured = label ? measureLabel(label, fonts).box : undefined;
+      const texts = childElements(group).filter((e) => e.name === "text");
+      const text = texts[0];
+      // A node's sublabel (#184) is its second <text>, under the label.
+      const sublabelLabel = geo.labels[1];
+      const sublabelText = texts[1];
+      const sublabel =
+        sublabelLabel !== undefined && sublabelText !== undefined
+          ? { label: sublabelLabel, el: sublabelText }
+          : undefined;
+      const measured = label
+        ? sublabel === undefined
+          ? measureLabel(label, fonts).box
+          : [label, sublabel.label]
+              .map((l) => measureLabel(l, fonts).box)
+              .reduce(
+                (bounds, rect) => (rect === undefined ? bounds : bounds.addRect(rect)),
+                new BoundsBuilder(),
+              )
+              .rect()
+        : undefined;
       const box = geo.bbox ??
         measured ?? { x: label?.anchor.x ?? vb.x, y: label?.anchor.y ?? vb.y, width: 1, height: 1 };
       const ellipse =
@@ -445,6 +507,26 @@ export function svgToEditablePptx(
         : "<a:noFill/>";
       const stroke = first ? line(first, element.style) : "<a:ln><a:noFill/></a:ln>";
       const turned = label?.rotation !== undefined;
+      // An upright sublabel (#184) joins the node's text when paragraph
+      // spacing can put it where the SVG draws it; otherwise (it would need
+      // negative spacing) it is a text box of its own at its SVG position.
+      const before =
+        label && sublabel && !turned ? sublabelSpaceBefore(label, sublabel.label) : undefined;
+      const joined = before !== undefined && before >= -SPACING_TOLERANCE;
+      const ownBox = (part: { label: LabelGeometry; el: XmlElement }) => {
+        const b = measureLabel(part.label, fonts).box;
+        if (b === undefined) return "";
+        return shape(
+          next++,
+          `${element.key} sublabel`,
+          b,
+          '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>',
+          "<a:noFill/>",
+          "<a:ln><a:noFill/></a:ln>",
+          textBody(part.label, part.el, b, element.style.opacity),
+          true,
+        );
+      };
       objectXml.set(
         element.key,
         shape(
@@ -454,11 +536,30 @@ export function svgToEditablePptx(
           geom,
           fill,
           stroke,
-          label && text && !turned ? textBody(label, text, box, element.style.opacity) : "",
+          label && text && !turned
+            ? textBody(
+                label,
+                text,
+                box,
+                element.style.opacity,
+                sublabel !== undefined && joined
+                  ? { ...sublabel, before: Math.max(0, before) }
+                  : undefined,
+              )
+            : "",
           !first,
         ) +
+          (sublabel !== undefined && before !== undefined && !joined ? ownBox(sublabel) : "") +
           (label && text && turned
-            ? turnedLabel(element.key, label, text, element.style.opacity)
+            ? turnedLabel(`${element.key} label`, label, text, element.style.opacity) +
+              (sublabel === undefined
+                ? ""
+                : turnedLabel(
+                    `${element.key} sublabel`,
+                    sublabel.label,
+                    sublabel.el,
+                    element.style.opacity,
+                  ))
             : ""),
       );
       objects.set(element.key, { id, box, ellipse });
