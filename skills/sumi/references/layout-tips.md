@@ -137,6 +137,41 @@ re-arranging when it fits without shrinking; use `fit: scale` for figures
 modelled on published ones, whose text is often 5–6pt, and tell the user it
 is scaled.
 
+## Compact spacing (`figure.layout.density: compact`)
+
+Published block diagrams pack their boxes more tightly than Sumi's default
+spacing. `figure.layout.density: compact` (0.6.0, structured only) lays the
+figure out with the profile's tighter set: on the paper profiles the default
+`gap` is 2.5mm instead of 4mm, group padding 6pt instead of 8pt, and the
+padding above and below a label 1.5pt instead of 3.5pt (a one-line box is
+13pt tall instead of 17pt for 8pt text); the padding left and right stays
+7pt. The page, the text sizes and the minimum font size do not change.
+
+```yaml
+figure:
+  theme: paper
+  profile: paper-double
+  fit: scale
+  layout:
+    density: compact
+    arrange: …
+```
+
+- It changes defaults only: a `gap` written in the figure stays as written.
+  To make a figure compact, add the line and **remove the gaps you wrote for
+  the normal spacing** (keep the deliberate ones: `gap: 0`, small gaps
+  between keys or tokens, room you added for an edge label or a badge).
+- Use it for dense paper figures, usually with `fit: scale`: a compact
+  figure is also narrower, so it shrinks less and its text prints larger.
+- Keep at least about 2.5mm between items joined by an arrow with themes
+  whose edges are 1pt (`minimal`, `color`: 6pt arrowheads); with 0.5pt edges
+  (`paper`, `academic`: 4pt arrowheads) gaps down to 1.5mm still route. An
+  edge that bends between two items (one block feeding two side by side)
+  needs more; `layout/no-route` names it — give that box its own `gap`.
+- If an edge label or an attached badge collides after removing gaps
+  (`geometry/label-collision`, `layout/edge-label-overlap`), write a larger
+  `gap` on that box only.
+
 ## Labels
 
 - Short, noun-phrase labels lay out best. Break long ones with `\n`

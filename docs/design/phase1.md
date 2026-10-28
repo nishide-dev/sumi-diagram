@@ -448,6 +448,11 @@ layout:
   groupPadding: 8pt
   nodePaddingX: 7pt
   nodePaddingY: 3.5pt
+  compact:              # figure.layout.density: compact の 4 項目（§6.55）。省略可（paper 系の値）
+    arrangeGap: 2.5mm
+    groupPadding: 6pt
+    nodePaddingX: 7pt
+    nodePaddingY: 1.5pt
 ```
 - **Profile の値から D2 引数への変換**:
   - 長さはすべて「入力単位 → pt → D2 unit（= pt × 2）」の順に変換する。
@@ -1864,7 +1869,6 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **テスト**: `theme.test.ts`（組み込みの 5 Theme とフォントセット、`paper` の角丸を付ける部品と付けない部品、枠と辺の線幅、辺の線幅が `academic` と同じ、8 色の tone）、`catalog.test.ts`（`paper` の文字の大きさと `compatibleProfiles`、フォントセット）、`stage.test.ts`（`theme/unknown` の hint）。全部品 × variant を完全に解決できることは既存の組み込み Theme のテストが `paper` にも回る。
 - **非対象**: 既存 Theme の変更、利用者定義の Theme、矢じりの大きさ・数式の倍率のプロパティ。
 
-
 ### 6.53 #175 の薄表示の継承（`groups[].dim`）
 
 [#167 の調査](../research/167-stage-c.md) §4.2（図 B の B-3）と [#86](../research/86-paper-figures.md) §8。DiT（Fig. 3）の 3・4 番目のパネルは、文字・線・矢じり・枠・キャプションが灰色で、tone の塗りも淡い（原図を見て確かめた）。今は `variant: muted` を node・辺・group の 53 か所に書いて近似し、それでも塗りは tone のまま濃く、キャプションは黒いままだった。group に 1 か所書けば、その group と中のすべてが薄くなるようにする。Figure v1 への任意フィールドと Theme の任意フィールドの追加で、**`dim` を書かない図**の診断・IR・Layout IR・D2・SVG・PDF・PPTX はバイト単位で変わらない（下記）。
@@ -1893,6 +1897,46 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **DiT での確認**: `tests/fixtures/figures/dim/b-dit.sumi.yaml`（`research/167-stage-c/figures/b-dit.sumi.yaml` の写しで、53 か所の `variant: muted` を消し、2 つの group に `dim: true` を書いただけ。研究の記録は変えていない）を `color` と `paper` で PNG にして原図と並べ、3・4 番目のパネルの文字・線・矢じり・⊕ が灰色、tone の塗りが淡い版、枠が灰色で塗りがごく淡い灰色、キャプションが灰色になり、2 番目のパネルと左のパネルは変わらないことを確かめた。`paper`（§6.52）で描くと、薄いパネルの枠は角の丸い灰色の枠になり、原図にさらに近い（角の丸めは Theme の `radius` で、`dim` は変えない）。
 - **テスト**: `dim.test.ts`（白への寄せ・`#rgb`・透明、変換が色だけでインクの塗りは線の色、全組み込み Theme の `dim`、Theme の検査（token・欠けたフィールド・透明・型・範囲・未知のフィールド）、対象の決め方（group・入れ子の group・node・キャプション・両端が中の辺だけ・入る辺・出る辺・group への辺）、入れ子の `dim` が 1 回だけで最も外側を指すこと、内側だけの `dim`、`attach` した node（中の node に付けると中、薄い group 自身に付けると外の兄弟）、別々に薄くした 2 つの group の間の辺と `zoom` が薄いこと、`#000` と `#000000` を同じインクとみなすこと、全組み込み Theme で薄い要素だけが `dimStyle()` の結果になり他は同じ・group の破線と tone の淡い塗りが残ること、凡例・tokens のセル・セル間の辺が薄く外からの `zoom` は薄くないこと、`dim: false`、`theme/undimmed-image`、`theme/missing-dim`）、`dim.integration.test.ts`（DiT: 配置・経路・診断が `dim` なしと同じ、3・4 番目のパネルの要素の文字・線は dim の色・塗りは白へ寄せた色、ほかの要素の markup は同じ、パネル内の線（wire）だけが灰色、変わった辺（矢じり）は 9 本で dim の色だけ、編集可能 PPTX に dim の色、薄い group の上の辺のラベルの背景、auto の D2 のスタイルと D2 で描いた SVG の色）。
 - **非対象・引き継ぎ**: 透明度による薄表示（#175 の非対象）、内側での取り消し、node・辺単位の `dim`（node・辺には `variant: muted` がある）、画像を薄くすること。
+
+### 6.55 #182 の詰めた間隔（`figure.layout.density: compact`）
+
+[#167 の調査](../research/167-stage-c.md) §4.6 の (c)。原図は Sumi より密で、DiT を原図と同じ 170mm 幅にそろえても Sumi の版は 17〜25% 高かった（`paper` の #173 の版では 33.5%）。余白を半分にしただけでは変わらず、効くのは間隔と 1 行の箱の高さ（§4.6）。利用者の判断（2026-10-28）: 縮小後の実効の文字の下限は原図並み（5pt。§6.48 の `minScaledFontSize`）とし、密度は間隔を詰めて原図に近づける。3 図の記録は [`research/182-compact/`](../../research/182-compact/README.md)。
+
+- **構文（判断: `figure.layout.density`）**: `figure.layout.density: compact`（値は `normal` | `compact`、省略は `normal`）。structured の図だけで、auto の図に書くと `fanIn` などと同じ `layout/structured-only`（error。`normal` でも。黙って無視しないため）。任意フィールドの追加なので Figure v1 のまま。`figure.fit`（§6.48）は配置を変えず出力の大きさだけを変えるので `figure` の直下に置いたが、`density` は配置そのものを変えるので、配置を決める欄（`arrange`・`align`・`fanIn`）の並びの `figure.layout` に置く。
+- **値の置き場所（判断: Profile が値を持ち、図が選ぶ）**: 間隔の値は §6.21 のとおり Profile の `layout`（`arrangeGap`・`groupPadding`・`nodePaddingX` / `nodePaddingY`）にある。Profile の `layout` に同じ 4 項目の組 `compact` を足し、図の `density: compact` がその組を選ぶ。配置エンジンは `spacedProfile(profile, density)`（`src/core/profile/schema.ts`）で 4 項目だけを差し替えた Profile で配置する（`placeStructured`、キャプションとの間の `groupPadding / 2` を決める `buildFigureIR`）。ページの上限・余白（margin）・文字の下限・auto の値（`layerGap`・`containerPadding`）は変えない。compact の各値は通常の値以下でなければならず（`validateProfile`。超えれば `layout.compact.<項目>` の位置に `profile/invalid-value`。等しいのは可）、compact が図を通常より広げることはない。定義で `compact` を省略すると paper 系の値（`COMPACT_DEFAULTS`）と通常の値の小さい方を項目ごとに取る（既存の定義はそのまま通り、通常の間隔が小さい Profile でも compact が広がらない）。他の案を採らなかった理由:
+  - **新しい Profile（`paper-double-compact` など）**: Profile はページ（物理的な出力先）を選ぶもので（§5）、同じページの Profile が密度ごとに増える（single / double × normal / compact）。組み込み Profile の一覧は `exceeds-page-width` の hint の「より広い Profile」（`largerBuiltinProfiles`、#114）と、Theme のカタログの `compatibleProfiles` に出るので、足すと**既存の図の lint の文面とカタログの出力が変わる**。
+  - **Theme（`paper` の密度の設定、または `paper-compact`）**: Theme は見た目（色・線・文字・角丸。§4.1）を持ち、間隔を持たない（§6.21 で Profile に置いた）。Theme に間隔を持たせると、Theme を差し替えたときに配置まで変わる。また `paper` の既定を変えると #173 の出力が変わる。
+  - 値を Profile に置くのは、間隔が文字の大きさとともに媒体で変わる値だから（presentation-16x9 は paper の 2 倍。compact も 2 倍にした）。
+- **値（判断。paper-single・paper-double）**:
+
+  | 項目 | 通常 | compact | 理由 |
+  | --- | --- | --- | --- |
+  | `arrangeGap` | 4mm | 2.5mm | 1pt の辺の Theme（`minimal`・`color`）の矢じりは 6pt（2.12mm、§6.42）で、2mm 以下では縦に並んだ 2 つの箱の間の矢印が `layout/no-route`（「端が矢じりより近い」）になる。2.5mm は、試した組み合わせ（研究の B と縦 3 段・分岐 1 つの小さな図を、paper 系の Profile で `paper`・`academic`・`minimal`・`color` に差し替えたもの）でまっすぐな矢印が通った、控えめな既定値であり、どの図でも通る下限ではない: 曲がる辺・途中の障害物・辺のラベルにはもっと要ることがある（研究の B の Linear → Noise・Σ は 2mm では `color` で通らず、C では 3 か所に `gap` を書き戻した）。`slides` は paper 系の Profile では通常の間隔でも `layout/no-route` になる図が多く（§6.42）、compact でも研究の A で 10 件・B で 2 件出る。0.5pt の辺（`paper`・`academic`、矢じり 4pt）なら 1.5mm でも通るので、図に `gap` を書けば詰められる（Skill） |
+  | `groupPadding` | 8pt | 6pt | 5pt では #167 の B の代用の引き出し線がパネルの枠に沿って走った（`edge-near-border`）。矢じりの前の余地（`paper` で 4 + 3 = 7pt、1pt の辺で 9pt。§6.42）が足りない側は配置エンジンが自動で広げる（`growPadding`）ので、6pt でも矢じりは枠に寄らない |
+  | `nodePaddingX` | 7pt | 7pt | 左右を詰めると図が狭くなり、`fit: scale` の縮小率が上がって、原図の幅にそろえた高さはかえって増える（B: 4pt で 85.6mm、7pt で 82.8mm）。原図の箱も文字に対して横に広い。§4.6 の「余白を半分にしても変わらない」の原因 |
+  | `nodePaddingY` | 3.5pt | 1.5pt | 1 行の箱が 17pt → 13pt（8pt の文字、行送り 10pt）。Inter の行の箱（ascender＋descender = 1.21em、§6.52）は行送り（1.25em）に収まり、字形の箱から箱の端まで 1.66pt（1pt の枠の内側の線まで 1.16pt）。1pt では 0.66pt で近すぎる |
+
+  presentation-16x9 の compact は 2 倍（5mm・12pt・14pt・3pt）。行送り（文字の 1.25 倍、§6.21）は変えない: Inter の 1.21em より小さくできず、詰めても 1 行で 0.3pt しか変わらない。
+- **書いた `gap` はそのまま（判断）**: `density` は既定値だけを変える。書いた `gap` を一律に縮める案は採らない: `gap: 0`・キーやトークンの間の小さな間隔・辺のラベルやバッジのために空けた間隔など、意図して書いた値を壊す。図を詰めるときは、通常の間隔のために書いた `gap` を外す（Skill）。研究の C では、外した後に足りなかった 3 か所（辺の経路・辺のラベル・バッジ）を書き戻した。
+- **ルータと診断**: ルータの clearance（3pt）・矢じりの長さ・幾何 lint のしきい値は変えない。詰めた結果、経路が通らない・ラベルが重なる場合は今までどおり `layout/no-route`・`layout/edge-label-overlap`・`geometry/label-collision` などで報告され、図の作者がその箱にだけ `gap` を書く。自動で間隔を広げ直すことはしない（Issue の非対象「自動の詰め・折り返し」と同じく、配置を勝手に変えない）。
+- **実測（`research/182-compact/`、Theme `paper`。原図の幅にそろえた高さ）**:
+
+  | 図 | 間隔 | 印刷される大きさ | 縮小率 | 原図の幅での高さ（原図） | 縮小後の文字（node / 辺・sublabel / 添字） | 診断 |
+  | --- | --- | --- | --- | --- | --- | --- |
+  | A（paper-single） | 通常 | 79.2 × 140.58mm | 1 | 137.0mm（113.7mm、×1.205） | 8 / 7 / 4.9pt | なし |
+  | A | compact | 76.02 × 114.83mm | 1 | 116.6mm（×1.026） | 8 / 7 / 4.9pt | なし |
+  | B（paper-double、`fit: scale`） | 通常 | 180 × 96.15mm | 0.8016 | 90.8mm（68mm、×1.335） | 6.41 / 5.61 / 3.93pt | info 1 |
+  | B | compact | 180 × 87.66mm | 0.8297 | 82.8mm（×1.217） | 6.64 / 5.81 / 4.07pt | info 1 |
+  | B | compact＋縦の stack に `gap: 1.5mm` | 180 × 76.83mm | 0.8297 | 72.6mm（×1.067） | 6.64 / 5.81 / 4.07pt | info 1 |
+  | C（paper-double、`fit: scale`） | 通常 | 180 × 129.14mm | 0.7814 | 縦横比 0.717（0.828） | 6.25 / 5.47 / 4.38pt | info 1 |
+  | C | compact | 180 × 124.78mm | 0.8462 | 縦横比 0.693 | 6.77 / 5.92 / 4.74pt | info 1 |
+
+  info はすべて `geometry/script-too-small`（§6.48）。warning・error は 0 で、縮小後の node・辺のラベル・sublabel の文字は 5pt 以上（数式の添字はそれより小さく、B で 4.07pt。§6.48 のとおり info）。compact の図は狭くなるので縮小率が上がり、文字は通常より大きく印刷される。A は原図並み、B は既定値だけで原図の 1.22 倍（通常は 1.34 倍）、図に 1.5mm を書けば 1.07 倍。B の残りは、長い縦の stack の junction（前後に間隔を 2 つ取る）と ⊕（`paper` で 16pt）で、間隔の値の範囲外。
+- **互換性（実測）**: `density` を書かない図は、Profile に `compact` の値が増えても使わないので、出力は変わらない。リポジトリの `*.sumi.yaml` 125 個（この PR で足した研究と fixture の 6 個を除く）を書かれた Theme と `minimal` / `academic` / `slides` / `color` / `paper` で SVG に、書かれた Theme で PDF に描き（875 通り、うち出力のある 587 件）、main（`c596da4`）と sha256 がすべて一致した。`CI=1 bun test`（D2・PDF・PPTX・画像の golden）と `bun run gallery:check` も無変更で通る。変わったのは JSON Schema（`figure.layout.density` の追加、`bun run schema:check`）だけ。`sumi catalog` は structured の間隔を出していないので、`compact` も出さない（変更なし）。
+- **Skill**: `layout-tips.md` に「Compact spacing」の節（使いどころ、書いた `gap` を外す、Theme ごとの矢印に要る間隔、衝突したらその箱だけ `gap` を書く）、`figure-format.md`・`structured.md`・`diagnostics.md` の structured 専用の欄の一覧に `density`、`SKILL.md` の structured の機能の一覧に `density: compact`。
+- **テスト**: `profile.test.ts`（paper 系・presentation の compact の値、定義で省略したときの既定値と通常の値で頭打ちになること、通常の値を超える compact の `profile/invalid-value`（等しい値は可）、`spacedProfile` が compact だけで 4 項目を差し替え、ページ・余白・文字・auto の値と D2 の引数が同じ）、`layout.test.ts`（書いた値の保持と省略、IR の `meta.density`、未知の値の schema error、auto の図での `layout/structured-only`）、`caption.test.ts`（compact のキャプションとの間が compact の group の余白の半分）、`engine.test.ts`（compact の間隔・上下の余白・group の余白、`normal` と省略が同じ配置、書いた `gap` が優先、presentation の 2 倍）、`compact.integration.test.ts`（研究の B・A の複製を fixture にし、同じ YAML の通常の間隔と比べて、B の縮小率が上がり高さ／幅が下がること・印刷される大きさ・1 行の箱が 26 unit（13pt）・診断が `script-too-small` の info だけ、A の大きさと診断なし）。
+- **非対象**: 自動の詰め・折り返し、書いた `gap` の縮小、auto（D2）の図の間隔、行送り・⊕ の大きさ・文字の大きさの変更、既存の Theme・Profile の値の変更。
+
 
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures

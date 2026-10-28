@@ -4,6 +4,7 @@
  *
  * - With the `auto` engine, every structured-only field (`figure.layout.arrange`,
  *   `figure.layout.align`, `figure.layout.fanIn` (#134),
+ *   `figure.layout.density` (#182),
  *   `group.arrange`, `node.attach`, `node.sublabel` (#184),
  *   `node.labelRotation` (#178), `edge.fromAnchor` / `toAnchor`,
  *   `edge.labelAt` / `labelSide` (#128)) is an error: it would otherwise be
@@ -150,6 +151,9 @@ function checkAuto(state: CheckState, locate: Locator): void {
   }
   if (doc.figure?.layout.fanIn !== undefined) {
     report("fanIn", ["figure", "layout", "fanIn"]);
+  }
+  if (doc.figure?.layout.density !== undefined) {
+    report("density", ["figure", "layout", "density"]);
   }
   for (const [index, group] of (doc.groups ?? []).entries()) {
     if (group?.arrange === undefined || invalid.has(groupKey(group.id))) continue;

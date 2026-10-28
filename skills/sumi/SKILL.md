@@ -134,7 +134,7 @@ edges:
   `right` does not fit `paper-single`; prefer `down` ([layout-tips](references/layout-tips.md)).
 - **Structured figures** add `figure.layout.arrange` (nested `stack` /
   `row` boxes listing every node and group once), `attach`, edge anchors
-  and label placement, `align` across trees, `fanIn`, `legend` and `tokens`: read
+  and label placement, `align` across trees, `fanIn`, `density: compact`, `legend` and `tokens`: read
   [references/structured.md](references/structured.md) first. Label math
   (`'$\hat{y}_t$'`) works only there; with a line break, double-quote it and
   double backslashes (`"A\n$\\gamma$"`). Any group takes `labelAt` and

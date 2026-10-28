@@ -156,7 +156,8 @@ ${edges}`;
     const validated = validateProfile({
       ...base,
       id: "zero-padding",
-      layout: { ...base.layout, groupPadding: "0pt" },
+      // Without the compact set, which may not exceed the normal spacing (#182).
+      layout: { ...base.layout, groupPadding: "0pt", compact: undefined },
     });
     if (!validated.ok) throw new Error(JSON.stringify(validated.diagnostics));
     const text = `version: 1
