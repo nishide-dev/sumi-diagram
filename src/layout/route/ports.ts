@@ -810,6 +810,31 @@ function addsCoincidence(
 export const STRAIGHTEN_TOLERANCE = 2;
 
 /**
+ * How two ends of an edge face each other: `dir`, the direction from the
+ * source toward the target; `ahead`, the distance along it; `aside`, the
+ * offset across it (signed). `undefined` unless the target is ahead of
+ * the source and either both are ports on opposite sides or one is a
+ * junction the port points at.
+ */
+export function facing(
+  from: End,
+  to: End,
+): { dir: number; ahead: number; aside: number } | undefined {
+  const dir = from.dir >= 0 ? from.dir : to.dir >= 0 ? opposite(to.dir) : -1;
+  if (dir < 0 || (from.dir >= 0 && to.dir >= 0 && to.dir !== opposite(from.dir))) return undefined;
+  const D = DIRS[dir] as Point;
+  const dx = to.port.x - from.port.x;
+  const dy = to.port.y - from.port.y;
+  const ahead = dx * D.x + dy * D.y;
+  if (ahead <= 0) return undefined;
+  return { dir, ahead, aside: dx * D.y - dy * D.x };
+}
+
+/** Facing ends out of line by more than 0 and at most {@link STRAIGHTEN_TOLERANCE}. */
+export const straightenable = (f: { aside: number }): boolean =>
+  f.aside !== 0 && Math.abs(f.aside) <= STRAIGHTEN_TOLERANCE + 1e-9;
+
+/**
  * Straightens edges whose ends face each other but are out of line by at
  * most {@link STRAIGHTEN_TOLERANCE} (#169, design doc §6.40): one end moves
  * along its side onto the other's line, so the route is a straight line.
@@ -848,14 +873,9 @@ function straighten(
     if ("error" in pair) continue;
     const { from: a, to: b } = pair;
     // The axis the ends face each other along.
-    const d = a.dir >= 0 ? a.dir : b.dir >= 0 ? opposite(b.dir) : -1;
-    if (d < 0 || (a.dir >= 0 && b.dir >= 0 && b.dir !== opposite(a.dir))) continue;
-    const D = DIRS[d] as Point;
-    const dx = b.port.x - a.port.x;
-    const dy = b.port.y - a.port.y;
-    const ahead = dx * D.x + dy * D.y;
-    const aside = Math.abs(dx * D.y - dy * D.x);
-    if (ahead <= 0 || aside === 0 || aside > STRAIGHTEN_TOLERANCE + 1e-9) continue;
+    const f = facing(a, b);
+    if (f === undefined || !straightenable(f)) continue;
+    const d = f.dir;
     const choice = choices[index] as { from: Choice | undefined; to: Choice | undefined };
     const candidates = (
       [

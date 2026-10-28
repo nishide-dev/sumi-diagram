@@ -590,29 +590,154 @@ describe("facing ends out of line by little, in a short gap (#169)", () => {
     expect(edgeOf(value.layout, 0).route?.net).toBe(edgeOf(value.layout, 1).route?.net);
   });
 
-  test("checkRoutes allows an anchored end up to the tolerance away, not more", () => {
-    // Both ends anchored: the target moves onto the source's line, 1.5 units.
-    const value = run(facing("stack", "down", 1.5, "south:0.5"));
-    expectClean(value);
-    const route = edgeOf(value.layout, 0).route as EdgeRoute;
-    const a = rectOf(value.layout, "a");
-    expect(route.points.map((p) => p.x)).toEqual([a.x + a.width / 2, a.x + a.width / 2]);
-    const moved = (dx: number): LayoutIR => ({
+  describe("checkRoutes allows a straightened anchor, nothing else", () => {
+    const withPoints = (value: ReturnType<typeof run>, points: Point[]): LayoutIR => ({
       ...value.layout,
       edges: [
         {
           ...edgeOf(value.layout, 0),
-          route: { ...route, points: route.points.map((p) => ({ x: p.x + dx, y: p.y })) },
+          route: { ...(edgeOf(value.layout, 0).route as EdgeRoute), points },
         },
       ],
     });
-    expect(checkRoutes(value.ir, moved(0)).endpointMisses).toEqual([]);
-    // 1 unit to the right: the source 1 off its anchor, the target 0.5.
-    expect(checkRoutes(value.ir, moved(1)).endpointMisses).toEqual([]);
-    // 1 unit to the left: the target 2.5 off its anchor.
-    expect(checkRoutes(value.ir, moved(-1)).endpointMisses).toEqual([
-      expect.stringContaining("e:#0 to n:b: not at the anchor north:"),
-    ]);
+    const shifted = (value: ReturnType<typeof run>, dx: number) =>
+      withPoints(
+        value,
+        pointsOf(value.layout, 0).map((p) => ({ x: p.x + dx, y: p.y })),
+      );
+
+    test("one end moved onto the other's line, 1.5 units: allowed", () => {
+      // Both ends anchored: the target moves onto the source's line.
+      const value = run(facing("stack", "down", 1.5, "south:0.5"));
+      expectClean(value);
+      const a = rectOf(value.layout, "a");
+      expect(pointsOf(value.layout, 0).map((p) => p.x)).toEqual([
+        a.x + a.width / 2,
+        a.x + a.width / 2,
+      ]);
+      // Shifted 1 unit sideways, both ends are off their anchors.
+      expect(checkRoutes(value.ir, shifted(value, 1)).endpointMisses).toHaveLength(2);
+    });
+
+    test("an aligned straight line shifted sideways at both ends: reported (review case)", () => {
+      const value = run(facing("stack", "down", 0, "south:0.5"));
+      expectClean(value);
+      expect(checkRoutes(value.ir, shifted(value, 1)).endpointMisses).toEqual([
+        expect.stringContaining("e:#0 from n:a: not at the anchor south:0.5"),
+        expect.stringContaining("e:#0 to n:b: not at the anchor north:"),
+      ]);
+    });
+
+    test("beyond the tolerance, or on a route that is not straight: reported", () => {
+      const value = run(facing("stack", "down", 2.5, "south:0.5"));
+      expectClean(value);
+      const points = pointsOf(value.layout, 0);
+      const first = points[0] as Point;
+      const last = points.at(-1) as Point;
+      // A straight line along the source's line: the target 2.5 off.
+      expect(
+        checkRoutes(value.ir, withPoints(value, [first, { x: first.x, y: last.y }])).endpointMisses,
+      ).toEqual([expect.stringContaining("e:#0 to n:b: not at the anchor north:")]);
+      // A jog that ends 1.5 off the target's anchor (within the tolerance).
+      const mid = (first.y + last.y) / 2;
+      const x = first.x + 1;
+      expect(
+        checkRoutes(
+          value.ir,
+          withPoints(value, [first, { x: first.x, y: mid }, { x, y: mid }, { x, y: last.y }]),
+        ).endpointMisses,
+      ).toEqual([expect.stringContaining("e:#0 to n:b: not at the anchor north:")]);
+    });
+  });
+
+  describe("both ends shared, so neither moves", () => {
+    /** a → b twice, both ends anchored to the same points: each point is shared. */
+    const twice = (delta: number, gap = "2mm") =>
+      figure(
+        { stack: { gap, items: ["a", "b"] } },
+        [box("a", { width: "60pt", height: "40pt" }), box("b", { width: "60pt", height: "40pt" })],
+        Array.from({ length: 2 }, () => ({
+          from: "a",
+          to: "b",
+          fromAnchor: "south:0.5",
+          toAnchor: `north:${0.5 + delta / W}`,
+        })),
+      );
+    const routed = (text: string, clean = true) => {
+      const result = layoutStructuredFigure(text, { measurer: FAKE });
+      if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+      if (clean) expectClean(result.value);
+      const placed = layoutStructuredFigure(text, { measurer: FAKE, route: false });
+      if (!placed.ok) throw new Error(JSON.stringify(placed.diagnostics));
+      routeEdges(placed.value.ir, placed.value.layout, { verifyLowerBound: true });
+      return result;
+    };
+    const unaligned = (result: { diagnostics: readonly { code: string }[] }) =>
+      result.diagnostics.filter((d) => d.code === "layout/unaligned-ends").length;
+
+    test("0.001 apart in a short gap: no S fits, the route goes around, and it is reported", () => {
+      const result = routed(twice(0.001));
+      expect(unaligned(result)).toBe(2);
+      const [d] = result.diagnostics.filter((x) => x.code === "layout/unaligned-ends");
+      expect(d).toMatchObject({ severity: "warning", path: ["edges", 0] });
+      expect(d?.message).toBe(
+        'The ends of edge edges[0] from "a" to "b" face each other 0.0005pt out of line, and neither can be moved into line: each shares its point with another edge (or the other\'s line misses its side), so the line goes around an end (the gap is shorter than its stubs, and the offset too small for an S between them).',
+      );
+    });
+
+    test.each([0.002, 0.01, 0.5, 2])(
+      "%p apart in a short gap: an S between the lines, checked clean, and reported",
+      (delta) => {
+        const result = routed(twice(delta));
+        expect(unaligned(result)).toBe(2);
+        if (!result.ok) throw new Error("unreachable");
+        expect(pointsOf(result.value.layout, 0)).toHaveLength(6);
+      },
+    );
+
+    test("2.5 apart: an S, not reported (beyond the tolerance)", () => {
+      const result = routed(twice(2.5));
+      expect(unaligned(result)).toBe(0);
+      if (!result.ok) throw new Error("unreachable");
+      expect(pointsOf(result.value.layout, 0)).toHaveLength(6);
+    });
+
+    test.each([0.001, 0.005])(
+      "%p apart in a wide gap: a jog that thin, checked clean, and reported",
+      (delta) => {
+        const result = routed(twice(delta, "10mm"));
+        expect(unaligned(result)).toBe(2);
+        if (!result.ok) throw new Error("unreachable");
+        expect(pointsOf(result.value.layout, 0)).toHaveLength(4);
+      },
+    );
+
+    test("shared with edges to other boxes (review case)", () => {
+      const result = routed(
+        figure(
+          { stack: { gap: "2mm", items: ["a", "b"] } },
+          [
+            box("a", { width: "60pt", height: "40pt" }),
+            box("b", { width: "60pt", height: "40pt" }),
+            { ...box("c"), attach: { to: "b", side: "east", gap: "30pt" } },
+            { ...box("d"), attach: { to: "a", side: "east", gap: "30pt" } },
+          ],
+          [
+            { from: "a", to: "b", fromAnchor: "south:0.5", toAnchor: `north:${0.5 + 0.001 / W}` },
+            { from: "a", to: "d", fromAnchor: "south:0.5" },
+            { from: "c", to: "b", toAnchor: `north:${0.5 + 0.001 / W}` },
+          ],
+        ),
+        // a → d and c → b are squeezed along each other between the boxes
+        // (an overlap of other edges, not of a → b).
+        false,
+      );
+      expect(unaligned(result)).toBe(1);
+      if (!result.ok) throw new Error("unreachable");
+      const report = checkRoutes(result.value.ir, result.value.layout);
+      expect(report.endpointMisses).toEqual([]);
+      expect(report.malformed).toEqual([]);
+    });
   });
 
   describe("tightJog", () => {

@@ -39,6 +39,8 @@
  *   the gap between two facing ports out of line is shorter than their two
  *   stubs, no plain jog fits; the grid gets the column and rows of an S
  *   between them (`tightJog`), so the route need not go around an end.
+ *   Ends within the tolerance that cannot be moved (both shared) get
+ *   `layout/unaligned-ends` (warning).
  * - **Nets**: edges that leave the same port, enter the same port, or touch
  *   the same junction form one net (union-find, so junctions joined by edges
  *   merge transitively). Edges entering and leaving one port are different
@@ -81,7 +83,17 @@ import { crossingDiagnostics } from "./crossings";
 import { PairHeap } from "./heap";
 import { requestedLabelDiagnostics } from "./label-diagnostics";
 import { arrowheadRects, hasRequestedLabel, placeEdgeLabel } from "./labels";
-import { bottomOf, DIRS, type End, isJunction, opposite, resolveEnds, rightOf } from "./ports";
+import {
+  bottomOf,
+  DIRS,
+  type End,
+  facing,
+  isJunction,
+  opposite,
+  resolveEnds,
+  rightOf,
+  straightenable,
+} from "./ports";
 
 /** Router parameters in units (0.5pt) and costs (in units of length). */
 export const ROUTE = Object.freeze({
@@ -481,6 +493,8 @@ class Router {
     this.#buildGrid(routable);
     for (const edge of routable) this.#reserveStubs(edge);
 
+    for (const edge of routable) this.#reportUnaligned(edge);
+
     const routes = new Map<ElementKey, Point[]>();
     for (const edge of routable) {
       // First within a corridor around the ends, then on the whole grid.
@@ -558,6 +572,34 @@ class Router {
   #isCaption(key: ElementKey): boolean {
     const element = this.#ir.elements.get(key);
     return element?.kind === "node" && element.captionOf !== undefined;
+  }
+
+  /**
+   * `layout/unaligned-ends` (warning, #169, design doc §6.40): the edge's
+   * ends face each other out of line by at most `STRAIGHTEN_TOLERANCE`,
+   * and `resolveEnds` could move neither onto the other's line (each shares
+   * its point with another edge, or the line misses its side, or another
+   * end is there). Such an offset is too small for a jog or an S that reads
+   * as one (0.001 unit apart, an S has no column between the lines), so the
+   * route jogs by a sliver or, in a gap shorter than the stubs, goes around
+   * an end. Said rather than drawn silently.
+   */
+  #reportUnaligned(edge: Edge): void {
+    const f = facing(edge.from, edge.to);
+    if (f === undefined || !straightenable(f)) return;
+    const ir = edge.ir;
+    const source = this.#ir.sourceMap.get(ir.key);
+    const name = ir.id === undefined ? `edges[${ir.index}]` : `"${ir.id}"`;
+    const pt = Number((Math.abs(f.aside) / 2).toFixed(4));
+    this.#diagnostics.push({
+      code: "layout/unaligned-ends",
+      severity: "warning",
+      message: `The ends of edge ${name} from "${this.#id(ir.from)}" to "${this.#id(ir.to)}" face each other ${pt}pt out of line, and neither can be moved into line: each shares its point with another edge (or the other's line misses its side), so the line ${f.ahead >= edge.fromLane + edge.toLane ? "jogs by that much" : tightJog(edge.from, edge.to, edge.fromLane, edge.toLane) === undefined ? "goes around an end (the gap is shorter than its stubs, and the offset too small for an S between them)" : "takes an S that narrow (the gap is shorter than its stubs)"}.`,
+      path: source?.path ?? ["edges", ir.index],
+      ...(source?.location !== undefined && { location: source.location }),
+      subject: { kind: "edge", id: ir.id ?? `edges[${ir.index}]` },
+      hint: "Put both ends at the same position (equal anchor offsets on sides of equal length, or no anchors), or give one end a point of its own (another anchor offset) so it can be moved into line.",
+    });
   }
 
   /**
@@ -1523,10 +1565,12 @@ export function clipRoomAtJunction(end: End, other: End, room: number, lane: num
  * are close (a gutter gets a midline only if it is wider than 2 units, and
  * the ports' lines get none), and then the only routes left go around a
  * node: the loop of #169. Ends out of line by at most
- * `STRAIGHTEN_TOLERANCE` are straightened before routing (`resolveEnds`);
- * for the others, this returns the column midway between the ports' lines
- * at the rows of the lanes' ends, which the grid adds (only for such
- * edges, so other figures keep their grid).
+ * `STRAIGHTEN_TOLERANCE` are straightened before routing (`resolveEnds`)
+ * where one of them can move; for the others, this returns the column
+ * midway between the ports' lines at the rows of the lanes' ends, which
+ * the grid adds (only for such edges, so other figures keep their grid).
+ * `undefined` too if no column lies strictly between the lines at 1/1000
+ * unit (ends 0.001 apart that could not be moved; `#reportUnaligned`).
  */
 export function tightJog(
   from: End,
@@ -1534,17 +1578,21 @@ export function tightJog(
   fromLane: number,
   toLane: number,
 ): [Point, Point] | undefined {
-  if (from.dir < 0 || to.dir !== opposite(from.dir)) return undefined;
-  const d = DIRS[from.dir] as Point;
-  const dx = to.port.x - from.port.x;
-  const dy = to.port.y - from.port.y;
-  const ahead = dx * d.x + dy * d.y;
-  const aside = dx * d.y - dy * d.x;
-  if (ahead <= 0 || aside === 0 || ahead >= fromLane + toLane) return undefined;
+  if (from.dir < 0 || to.dir < 0) return undefined;
+  const f = facing(from, to);
+  if (f === undefined || f.aside === 0 || f.ahead >= fromLane + toLane) return undefined;
+  const d = DIRS[f.dir] as Point;
   const column =
     d.x === 0
       ? roundUnits((from.port.x + to.port.x) / 2)
       : roundUnits((from.port.y + to.port.y) / 2);
+  // Ends left out of line by a sliver (both shared, so not straightened;
+  // `#reportUnaligned` warns): the column must lie strictly between the
+  // lines after rounding to 1/1000 unit. Ends 0.001 apart have none (the
+  // midpoint rounds onto a port's line), and the route goes around an end.
+  const a = d.x === 0 ? from.port.x : from.port.y;
+  const b = d.x === 0 ? to.port.x : to.port.y;
+  if (Math.min(Math.abs(column - a), Math.abs(b - column)) < 1e-9) return undefined;
   const out = { x: from.port.x + d.x * fromLane, y: from.port.y + d.y * fromLane };
   const back = { x: to.port.x - d.x * toLane, y: to.port.y - d.y * toLane };
   return d.x === 0
