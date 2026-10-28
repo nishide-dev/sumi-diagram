@@ -13,7 +13,8 @@
  *
  * SVGs of the structured writer (#91) name their families `sumi-<n>-font-<slot>`
  * the same way and are resolved alike, including the label-math classes
- * `math` / `math-italic` (#93), which are not D2 slots.
+ * `math` / `math-italic` (#93) and the Latin classes `latin` / `latin-bold`
+ * (#172), which are not D2 slots.
  *
  * A `<text>` whose runs use several fonts (label math) needs one more step
  * (#112, design doc §6.24). usvg shapes a text chunk's *whole* text with each
@@ -36,7 +37,7 @@
 
 import { readFileSync } from "node:fs";
 import type { Diagnostic } from "../../core/diagnostics";
-import { MATH_FONT, MATH_ITALIC_FONT } from "../../core/label/runs";
+import { LATIN_BOLD_FONT, LATIN_FONT, MATH_FONT, MATH_ITALIC_FONT } from "../../core/label/runs";
 import type { Result } from "../../core/result";
 import { type FontSet, fontSetArgs } from "../../core/theme/fonts";
 import { type GlyphCoverage, parseGlyphCoverage } from "../../lint/cmap";
@@ -103,8 +104,11 @@ export interface ResolvedSvgFonts {
   faces: ReadonlyMap<string, FontFace>;
 }
 
-/** Font classes of label math (#93): not D2 slots, resolved with `fontFileFor()`. */
-const MATH_FONT_CLASSES = [MATH_FONT, MATH_ITALIC_FONT];
+/**
+ * Font classes of label math (#93) and of Latin text (#172): not D2 slots,
+ * resolved with `fontFileFor()`.
+ */
+const RUN_FONT_CLASSES = [MATH_FONT, MATH_ITALIC_FONT, LATIN_FONT, LATIN_BOLD_FONT];
 
 const FONT_FACE_RULE = /@font-face\s*\{[^}]*\}\s*/g;
 const CSS_RULE = /([^{}]*)\{([^{}]*)\}/g;
@@ -139,10 +143,10 @@ export function resolveSvgFonts(
   for (let i = 0; i + 1 < args.length; i += 2) {
     fileOf.set((args[i] ?? "").replace(/^--font-/, ""), args[i + 1] ?? "");
   }
-  // The label-math slots (#93) exist only in structured SVGs; their files are
-  // handed to the engine only when the SVG uses them, so D2 figures convert
-  // with exactly the files they always did.
-  const optional = new Map(MATH_FONT_CLASSES.map((slot) => [slot, fontFileFor(slot, fontSet)]));
+  // The label-math (#93) and Latin (#172) slots exist only in structured
+  // SVGs; their files are handed to the engine only when the SVG uses them,
+  // so D2 figures convert with exactly the files they always did.
+  const optional = new Map(RUN_FONT_CLASSES.map((slot) => [slot, fontFileFor(slot, fontSet)]));
   const files = [...new Set([fontSet.regular, ...fileOf.values()])];
   const bytes = new Map<string, Uint8Array>();
   const faceOfFile = new Map<string, FontFace>();
@@ -150,7 +154,7 @@ export function resolveSvgFonts(
     if (bytes.has(file)) return undefined;
     try {
       const raw = new Uint8Array(readFileSync(file));
-      // The math fonts are drawn by their advance widths alone, as measured.
+      // The math and Latin fonts are drawn by their advance widths alone, as measured.
       const data = shaping ? raw : withoutTables(raw, ["GSUB", "GPOS"]);
       faceOfFile.set(file, readFontFace(data));
       bytes.set(file, data);

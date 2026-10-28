@@ -153,6 +153,7 @@ async function smoke(tarballArg: string, keep: boolean): Promise<void> {
       "licenses/d2/LICENSE.txt",
       "licenses/biz-ud-gothic/OFL.txt",
       "licenses/stix-two/OFL.txt",
+      "licenses/inter/OFL.txt",
       "licenses/bun/LICENSE.md",
       "licenses/pdf-wasm/THIRD_PARTY.md",
       "licenses/pdf-wasm/krilla-0.8.2/NOTICE.md",

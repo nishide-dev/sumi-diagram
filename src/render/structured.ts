@@ -133,16 +133,27 @@ function richLabel(
  */
 function runContent(layout: TextLayout, runs: readonly ChunkRun[]): string {
   let pen = 0; // the current baseline offset from the line's baseline
+  const attributes = runs.map((run) => {
+    const value =
+      (run.font === layout.font ? "" : ` class="${textClass(run.font)}"`) +
+      (run.fontSizeUnits === layout.fontSizeUnits
+        ? ""
+        : ` style="font-size:${n(run.fontSizeUnits)}px"`) +
+      (run.shiftUnits === pen ? "" : ` dy="${n(run.shiftUnits - pen)}"`);
+    pen = run.shiftUnits;
+    return value;
+  });
   return runs
-    .map((run) => {
-      const attributes =
-        (run.font === layout.font ? "" : ` class="${textClass(run.font)}"`) +
-        (run.fontSizeUnits === layout.fontSizeUnits
-          ? ""
-          : ` style="font-size:${n(run.fontSizeUnits)}px"`) +
-        (run.shiftUnits === pen ? "" : ` dy="${n(run.shiftUnits - pen)}"`);
-      pen = run.shiftUnits;
-      return attributes === "" ? text(run.text) : `<tspan${attributes}>${text(run.text)}</tspan>`;
+    .map((run, i) => {
+      const own = attributes[i] as string;
+      if (own !== "") return `<tspan${own}>${text(run.text)}</tspan>`;
+      // usvg (the PDF and picture PPTX engine) drops the leading space of a
+      // <tspan> right after a text node (#172: `入力` then a Latin run
+      // ` Embedding`); a bare <tspan> around the text node keeps it.
+      const next = runs[i + 1];
+      return next !== undefined && attributes[i + 1] !== "" && next.text.startsWith(" ")
+        ? `<tspan>${text(run.text)}</tspan>`
+        : text(run.text);
     })
     .join("");
 }

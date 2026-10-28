@@ -6,6 +6,10 @@
  * `mono` (optional). Rendering always passes all eight `--font-*` flags so
  * D2's own fonts (which lack CJK glyphs) are never used; a missing optional
  * slot is filled with the regular file.
+ *
+ * The optional slots `math` / `mathItalic` (#93) and `latin` / `latinBold`
+ * (#172, design doc §6.44) are used by the structured layout engine only:
+ * they draw runs of a label, which D2 cannot.
  */
 
 import { join } from "node:path";
@@ -34,6 +38,15 @@ export interface FontSet {
   math?: string;
   /** Absolute path of the italic math TTF (#93): math variables (Latin, lowercase Greek). Falls back to `math`. */
   mathItalic?: string;
+  /**
+   * Absolute path of the Latin TTF of regular text (#172): every character
+   * of regular label text that it has (Latin, Greek, digits, punctuation, …)
+   * is drawn with it, and the rest (Japanese) with `regular`. Structured
+   * figures only; D2 never receives it. Without it, `regular` draws all text.
+   */
+  latin?: string;
+  /** Absolute path of the Latin TTF of bold text (#172), as `latin` for `bold`. Without it, `bold` draws all bold text. */
+  latinBold?: string;
 }
 
 /**
@@ -44,9 +57,25 @@ export const FONT_ASSETS_DIR = fontAssetsDir();
 
 const bizUdGothic = join(FONT_ASSETS_DIR, "biz-ud-gothic");
 const stixTwo = join(FONT_ASSETS_DIR, "stix-two");
+const inter = join(FONT_ASSETS_DIR, "inter");
 
 /** ID of the font set used by the built-in themes. */
 export const DEFAULT_FONT_SET_ID: FontSetId = "sumi/biz-ud-gothic";
+
+/**
+ * ID of the font set with Latin glyphs from Inter (#172, design doc §6.44):
+ * the default set plus the `latin` / `latinBold` slots, for paper figures.
+ * No built-in theme uses it yet.
+ */
+export const LATIN_FONT_SET_ID: FontSetId = "sumi/inter-biz-ud-gothic";
+
+const defaultFiles = {
+  regular: join(bizUdGothic, "BIZUDPGothic-Regular.ttf"),
+  bold: join(bizUdGothic, "BIZUDPGothic-Bold.ttf"),
+  mono: join(bizUdGothic, "BIZUDGothic-Regular.ttf"),
+  math: join(stixTwo, "STIXTwoMath-Regular.ttf"),
+  mathItalic: join(stixTwo, "STIXTwoText-Italic.ttf"),
+};
 
 export const BUILTIN_FONT_SETS: ReadonlyMap<string, FontSet> = new Map(
   [
@@ -54,11 +83,15 @@ export const BUILTIN_FONT_SETS: ReadonlyMap<string, FontSet> = new Map(
       id: DEFAULT_FONT_SET_ID,
       description:
         "BIZ UDPGothic (regular, bold) and BIZ UDGothic (mono) v1.051: Latin and Japanese; STIX Two Math and STIX Two Text Italic v2.13 (math): label math; OFL-1.1",
-      regular: join(bizUdGothic, "BIZUDPGothic-Regular.ttf"),
-      bold: join(bizUdGothic, "BIZUDPGothic-Bold.ttf"),
-      mono: join(bizUdGothic, "BIZUDGothic-Regular.ttf"),
-      math: join(stixTwo, "STIXTwoMath-Regular.ttf"),
-      mathItalic: join(stixTwo, "STIXTwoText-Italic.ttf"),
+      ...defaultFiles,
+    } satisfies FontSet,
+    {
+      id: LATIN_FONT_SET_ID,
+      description:
+        "Inter v4.1 (latin, latinBold): Latin of regular and bold text in structured figures; BIZ UDPGothic and BIZ UDGothic v1.051: Japanese, mono and D2 figures; STIX Two v2.13: label math; OFL-1.1",
+      ...defaultFiles,
+      latin: join(inter, "Inter-Regular.ttf"),
+      latinBold: join(inter, "Inter-Bold.ttf"),
     } satisfies FontSet,
   ].map((set) => [set.id, Object.freeze(set)]),
 );
@@ -88,10 +121,27 @@ export const BUNDLED_FONT_SHA256: ReadonlyMap<string, string> = new Map([
     join(stixTwo, "STIXTwoText-Italic.ttf"),
     "e9775b729e127624153e8a9c4518b412afb1f732cb7c501f5122527550859771",
   ],
+  [
+    join(inter, "Inter-Regular.ttf"),
+    "40d692fce188e4471e2b3cba937be967878f631ad3ebbbdcd587687c7ebe0c82",
+  ],
+  [
+    join(inter, "Inter-Bold.ttf"),
+    "288316099b1e0a47a4716d159098005eef7c0066921f34e3200393dbdb01947f",
+  ],
 ]);
 
 /** The font slots of a font set, in a fixed order (for reports such as `sumi doctor`). */
-export const FONT_SLOTS = ["regular", "bold", "italic", "mono", "math", "mathItalic"] as const;
+export const FONT_SLOTS = [
+  "regular",
+  "bold",
+  "italic",
+  "mono",
+  "math",
+  "mathItalic",
+  "latin",
+  "latinBold",
+] as const;
 export type FontSlot = (typeof FONT_SLOTS)[number];
 
 /** Returns the built-in font set with the given ID, if any. */

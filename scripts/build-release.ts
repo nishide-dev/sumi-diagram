@@ -15,6 +15,7 @@
  *   licenses/d2/               D2's LICENSE.txt / THIRD_PARTY_NOTICES.txt
  *   licenses/biz-ud-gothic/    the fonts' OFL.txt
  *   licenses/stix-two/         the math fonts' OFL.txt (#93)
+ *   licenses/inter/            the Latin fonts' OFL.txt (#172)
  *   LICENSE                    Sumi's license (MIT)
  *   NOTICE  README.md  VERSION
  *   SHA256SUMS                 sha256 of every other file in the tree
@@ -193,6 +194,11 @@ ${npm}
    Systems Incorporated. STIX Fonts is a trademark of the IEEE.
    License: SIL Open Font License 1.1, see licenses/stix-two/OFL.txt.
    Unmodified fonts from https://github.com/stipub/stixfonts/tree/v2.13/fonts/static_ttf
+
+5. Inter 4.1 Regular / Bold (share/sumi/fonts/inter)
+   Copyright (c) 2016 The Inter Project Authors (https://github.com/rsms/inter).
+   License: SIL Open Font License 1.1, see licenses/inter/OFL.txt.
+   Unmodified fonts from https://github.com/rsms/inter/releases/tag/v4.1 (extras/ttf)
 `;
 }
 
@@ -337,7 +343,7 @@ async function build(argv: string[]): Promise<void> {
       const staged = at(join(RELEASE_LAYOUT.fonts, relative(FONT_ASSETS_DIR, font)));
       if (!existsSync(staged)) throw new Error(`Bundled font missing from the stage: ${font}`);
     }
-    for (const dir of ["biz-ud-gothic", "stix-two"]) {
+    for (const dir of ["biz-ud-gothic", "stix-two", "inter"]) {
       await mkdir(at(`licenses/${dir}`), { recursive: true });
       await copyFile(join(FONT_ASSETS_DIR, dir, "OFL.txt"), at(`licenses/${dir}/OFL.txt`));
     }
