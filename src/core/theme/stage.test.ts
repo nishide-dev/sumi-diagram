@@ -70,7 +70,7 @@ describe("theme stage", () => {
     });
     expect(summarize(state)).toEqual([["theme/unknown", "error", ["figure", "theme"], 4]]);
     expect(state.diagnostics[0]?.hint).toBe(
-      'Did you mean "academic"? Available themes: minimal, academic, slides, color.',
+      'Did you mean "academic"? Available themes: minimal, academic, slides, color, paper.',
     );
     expect(state.styles?.size).toBe(0);
   });

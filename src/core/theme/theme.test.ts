@@ -62,7 +62,10 @@ describe("font sets", () => {
     // The default set has no Latin slots (#172): built-in themes keep their glyphs.
     expect(set.latin).toBeUndefined();
     expect(set.latinBold).toBeUndefined();
-    for (const theme of BUILTIN_THEMES.values()) expect(theme.fontSet.id).toBe(DEFAULT_FONT_SET_ID);
+    // Only paper (#173) uses the Latin set.
+    for (const theme of BUILTIN_THEMES.values()) {
+      expect(theme.fontSet.id).toBe(theme.id === "paper" ? LATIN_FONT_SET_ID : DEFAULT_FONT_SET_ID);
+    }
     // The Latin set is the default set plus Inter for Latin text.
     const latin = getFontSet(LATIN_FONT_SET_ID);
     expect(latin).toMatchObject({ ...set, id: LATIN_FONT_SET_ID, description: latin?.description });
@@ -538,9 +541,11 @@ describe("resolveStyle", () => {
 describe("built-in themes", () => {
   const registry = createBuiltinRegistry();
 
-  test("minimal, academic, slides and color are registered and use the bundled font set", () => {
-    expect([...BUILTIN_THEMES.keys()]).toEqual(["minimal", "academic", "slides", "color"]);
-    for (const t of BUILTIN_THEMES.values()) expect(t.fontSet.id).toBe(DEFAULT_FONT_SET_ID);
+  test("minimal, academic, slides, color and paper are registered with their font sets", () => {
+    expect([...BUILTIN_THEMES.keys()]).toEqual(["minimal", "academic", "slides", "color", "paper"]);
+    for (const t of BUILTIN_THEMES.values()) {
+      expect(t.fontSet.id).toBe(t.id === "paper" ? LATIN_FONT_SET_ID : DEFAULT_FONT_SET_ID);
+    }
     for (const definition of BUILTIN_THEME_DEFINITIONS) {
       expect(validateTheme(definition).diagnostics).toEqual([]);
     }
@@ -601,6 +606,59 @@ describe("built-in themes", () => {
     }
   });
 
+  test("paper rounds boxes and groups, keeps edges thin and fills tones with pastels (#173)", () => {
+    const paper = BUILTIN_THEMES.get("paper");
+    if (paper === undefined) throw new Error("missing paper");
+    const style = (id: string, variant = "default") => {
+      const manifest = registry.get(`sumi/${id}`);
+      if (manifest === undefined) throw new Error(`missing ${id}`);
+      return resolveStyle(paper, { kind: manifest.kind, id: componentId(manifest), variant }).style;
+    };
+    const radius = (s: ReturnType<typeof style>) => ("radius" in s ? s.radius.pt : undefined);
+    // Rectangular nodes are rounded in every variant; other shapes are not.
+    for (const id of ["box", "square"]) {
+      for (const variant of ["default", "emphasis", "muted"])
+        expect(radius(style(id, variant))).toBe(2);
+    }
+    for (const id of ["circle", "diamond", "operator", "stack", "label", "image"]) {
+      expect(radius(style(id))).toBe(0);
+    }
+    expect(radius(style("container"))).toBe(6);
+    expect(radius(style("container", "muted"))).toBe(6);
+    expect(radius(style("legend"))).toBe(3);
+    // #174's variants: borderless rounded fills and panels, a dashed rounded panel.
+    expect(style("box", "filled")).toMatchObject({ strokeWidth: { pt: 0 }, fill: "#dcdee6" });
+    expect(radius(style("box", "filled"))).toBe(2);
+    for (const variant of ["plain", "filled", "dashed"]) {
+      expect(radius(style("container", variant))).toBe(6);
+    }
+    expect(style("container", "filled")).toMatchObject({ strokeWidth: { pt: 0 }, fill: "#f3f3f5" });
+    expect(style("container", "plain")).toMatchObject({
+      strokeWidth: { pt: 0 },
+      fill: "transparent",
+    });
+    expect(style("container", "dashed")).toMatchObject({ strokeDash: 3, fill: "transparent" });
+    // Black 1pt frames, 0.5pt edges: arrowheads as small as academic's.
+    expect(style("box").strokeWidth.pt).toBe(1);
+    expect(style("box").stroke).toBe("#000000");
+    expect(style("container").fill).toBe("#f3f3f5");
+    for (const id of ["arrow", "line", "double-arrow"]) {
+      expect(style(id).strokeWidth.pt).toBe(0.5);
+      expect(style(id, "emphasis").strokeWidth.pt).toBe(1);
+    }
+    const academic = BUILTIN_THEMES.get("academic");
+    if (academic === undefined) throw new Error("missing academic");
+    const academicArrow = resolveStyle(academic, {
+      kind: "edge",
+      id: "sumi/arrow",
+      variant: "default",
+    });
+    expect(style("arrow").strokeWidth).toEqual(academicArrow.style.strokeWidth);
+    // Eight distinct pastel tones.
+    const fills = [...paper.tones.values()].map((layer) => layer.fill);
+    expect(new Set(fills).size).toBe(8);
+  });
+
   test("resolveTheme suggests the closest theme name", () => {
     expect(resolveTheme("academic").ok).toBe(true);
     const result = resolveTheme("minimall");
@@ -609,7 +667,7 @@ describe("built-in themes", () => {
       [
         "theme/unknown",
         ["figure", "theme"],
-        'Did you mean "minimal"? Available themes: minimal, academic, slides, color.',
+        'Did you mean "minimal"? Available themes: minimal, academic, slides, color, paper.',
       ],
     ]);
   });
