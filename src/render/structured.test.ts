@@ -379,6 +379,7 @@ function redraw(
     /** Hollow (`false`) or filled arrowheads (#192): the built-in themes only fill them. */
     filled?: boolean;
     targetArrowhead?: Arrowhead;
+    sourceArrowhead?: Arrowhead;
   },
 ): { svg: string; ir: FigureIR } {
   const { compiled } = rendered;
@@ -392,6 +393,7 @@ function redraw(
     edges: compiled.ir.edges.map((e) => ({
       ...e,
       ...(changes.targetArrowhead !== undefined && { targetArrowhead: changes.targetArrowhead }),
+      ...(changes.sourceArrowhead !== undefined && { sourceArrowhead: changes.sourceArrowhead }),
       style: {
         ...e.style,
         fill: (changes.edgeFill ?? e.style.fill) as EdgeIR["style"]["fill"],
@@ -737,6 +739,63 @@ edges:
       const below = redraw(rendered, { ...changes, layout: at(cy + 0.001) });
       expect(svgHeadFills(below.svg).get(0)).toEqual([CANVAS_FILL]);
     }
+  });
+
+  // Source heads, and heads at a junction (whose end is its center, so the
+  // head may lie on the junction's dot): each takes the color beneath its
+  // own center. a (red group) -> j (junction, blue group) -> c (blue group),
+  // left to right, with heads at both ends.
+  test("source heads and heads at a junction, across contrasting groups", async () => {
+    const source = `version: 1
+figure:
+  id: hollow-ends
+  theme: minimal
+  layout:
+    arrange:
+      row: { gap: 10mm, items: [left, right] }
+groups:
+  - id: left
+    arrange: { stack: { items: [a] } }
+  - id: right
+    arrange: { row: { gap: 10mm, items: [j, c] } }
+nodes:
+  - { id: a, component: box, label: A }
+  - { id: j, component: junction }
+  - { id: c, component: box, label: C }
+edges:
+  - { from: a, to: j }
+  - { from: j, to: c }
+`;
+    const rendered = await render(source);
+    const route = (i: number) => rendered.layout.edges[i]?.route?.points ?? [];
+    const j = rendered.layout.nodes.find((node) => node.key === "n:j")?.rect;
+    if (j === undefined) throw new Error("no junction");
+    const center = { x: j.x + j.width / 2, y: j.y + j.height / 2 };
+    // Both run straight across, and meet at the junction's center.
+    for (const i of [0, 1]) expect(new Set(route(i).map((p) => p.y)).size).toBe(1);
+    expect(route(0).at(-1)).toEqual(center);
+    expect(route(1)[0]).toEqual(center);
+    const groupFill = { left: "#ff0000", right: "#0000ff" };
+    for (const head of HOLLOW) {
+      const { svg } = redraw(rendered, {
+        groupFill,
+        filled: false,
+        targetArrowhead: head,
+        sourceArrowhead: head,
+      });
+      const fills = svgHeadFills(svg);
+      // Target head first, then source head.
+      expect(fills.get(0)).toEqual(["#0000ff", "#ff0000"]);
+      expect(fills.get(1)).toEqual(["#0000ff", "#0000ff"]);
+    }
+    // The groups swapped: the colors follow them.
+    const swapped = redraw(rendered, {
+      groupFill: { left: "#0000ff", right: "#ff0000" },
+      filled: false,
+      targetArrowhead: "triangle",
+      sourceArrowhead: "circle",
+    });
+    expect(svgHeadFills(swapped.svg).get(0)).toEqual(["#ff0000", "#0000ff"]);
   });
 
   // DrawingML line ends have no interior: a hollow `arrow` is an open arrow,
