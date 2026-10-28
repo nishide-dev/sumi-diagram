@@ -33,6 +33,14 @@ import {
  */
 const PAPER_MAX_HEIGHT = "220mm";
 
+/**
+ * Smallest printed text of a paper figure shrunk with `figure.fit: scale`
+ * (#183, design doc §6.48): the user's decision (2026-10-28) to accept the
+ * sizes of published reference figures (#167 §4.6: about 4.8–6pt inside
+ * their blocks) rather than the 7pt of an unscaled figure.
+ */
+const PAPER_MIN_SCALED_FONT_SIZE = "5pt";
+
 const PAPER_SPACING = {
   margin: "2mm",
   layout: { layerGap: "8mm", containerPadding: "4mm", ...STRUCTURED_DEFAULTS },
@@ -45,7 +53,7 @@ export const BUILTIN_PROFILE_DEFINITIONS: readonly ProfileDefinition[] = [
     description: "Single-column figure in a two-column paper",
     page: { maxWidth: "88mm", maxHeight: PAPER_MAX_HEIGHT },
     ...PAPER_SPACING,
-    typography: { minFontSize: "7pt" },
+    typography: { minFontSize: "7pt", minScaledFontSize: PAPER_MIN_SCALED_FONT_SIZE },
   },
   {
     version: 1,
@@ -53,7 +61,7 @@ export const BUILTIN_PROFILE_DEFINITIONS: readonly ProfileDefinition[] = [
     description: "Full-width (double-column) figure in a two-column paper",
     page: { maxWidth: "180mm", maxHeight: PAPER_MAX_HEIGHT },
     ...PAPER_SPACING,
-    typography: { minFontSize: "7pt" },
+    typography: { minFontSize: "7pt", minScaledFontSize: PAPER_MIN_SCALED_FONT_SIZE },
   },
   {
     version: 1,

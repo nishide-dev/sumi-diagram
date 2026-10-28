@@ -29,7 +29,8 @@ export interface ProfileCatalogEntry {
   page: { maxWidth: CatalogLength | null; maxHeight: CatalogLength | null };
   /** Space around the content (D2 `--pad`). */
   margin: CatalogLayoutLength;
-  typography: { minFontSize: CatalogLength };
+  /** `minScaledFontSize` (#183): the minimum for a figure shrunk by `figure.fit: scale`, if the profile relaxes it. */
+  typography: { minFontSize: CatalogLength; minScaledFontSize?: CatalogLength };
   layout: {
     /** Gap between layers (ELK `nodeNodeBetweenLayers`; half of it between edges and nodes). */
     layerGap: CatalogLayoutLength;
@@ -61,7 +62,12 @@ export function profileCatalogEntry(profile: Profile): ProfileCatalogEntry {
         profile.page.maxHeight === undefined ? null : catalogLength(profile.page.maxHeight),
     },
     margin: layout(profile.margin, effective.pad.units),
-    typography: { minFontSize: catalogLength(profile.typography.minFontSize) },
+    typography: {
+      minFontSize: catalogLength(profile.typography.minFontSize),
+      ...(profile.typography.minScaledFontSize !== undefined && {
+        minScaledFontSize: catalogLength(profile.typography.minScaledFontSize),
+      }),
+    },
     layout: {
       layerGap: layout(profile.layout.layerGap, effective.nodeNodeBetweenLayers.units),
       containerPadding: layout(profile.layout.containerPadding, effective.padding.units),

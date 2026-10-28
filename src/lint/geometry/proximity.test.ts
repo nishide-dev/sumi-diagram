@@ -637,3 +637,75 @@ describe("re-review regressions (#163)", () => {
     ).toEqual([]);
   });
 });
+
+describe("physical thresholds at the printed size (#183, figure.fit: scale)", () => {
+  const vertical = (x: number, from = 0, to = 100) => ({
+    path: [
+      { x, y: from },
+      { x, y: to },
+    ],
+  });
+
+  test("edge-near-edge: a gap that prints below 1.5pt is reported, in printed mm", () => {
+    // 6 units apart: 4 units drawn between the strokes (2pt), 1pt printed at 50%.
+    const elements = { "e:#0": vertical(50), "e:#1": vertical(56) };
+    expect(lintSpec(compiled, { elements }, { code: "geometry/edge-near-edge" })).toEqual([]);
+    const scaled = lintSpec(
+      compiled,
+      { scale: 0.5, elements },
+      { code: "geometry/edge-near-edge" },
+    );
+    expect(scaled.map((d) => d.message)).toEqual([
+      "Edge edges[1] runs beside edge edges[0] for 8.8mm, 0.35mm apart, so the two read as one line.",
+    ]);
+  });
+
+  test("edge-near-edge: a run that prints shorter than 3mm is not", () => {
+    // 30 units = 5.3mm drawn, 2.6mm printed at 50%.
+    const elements = { "e:#0": vertical(50, 0, 30), "e:#1": vertical(53, 0, 30) };
+    expect(lintSpec(compiled, { elements }, { code: "geometry/edge-near-edge" })).toHaveLength(1);
+    expect(
+      lintSpec(compiled, { scale: 0.5, elements }, { code: "geometry/edge-near-edge" }),
+    ).toEqual([]);
+  });
+
+  test("edge-near-border: the gap and the run are printed sizes", () => {
+    const along = (x: number) => ({
+      path: [
+        { x, y: 80 },
+        { x, y: 180 },
+        { x: 150, y: 180 },
+      ],
+    });
+    // 6 units from the border: 4 units between the strokes, 1pt printed at 50%.
+    const elements = { "g:grp": group, "e:#1": along(94) };
+    expect(lintSpec(compiled, { elements }, { code: "geometry/edge-near-border" })).toEqual([]);
+    expect(
+      lintSpec(compiled, { scale: 0.5, elements }, { code: "geometry/edge-near-border" }).map(
+        (d) => d.message,
+      ),
+    ).toEqual([
+      'Edge edges[1] runs right beside the border of group "grp" for 7.1mm (0.35mm between the lines), so it reads as part of the frame.',
+    ]);
+  });
+
+  test("edge-touches-label: the clearance is a printed size", () => {
+    const titled = { ...group, labels: [label("Group", 200, centeredBaseline(118))] };
+    // 4.85 units to the letters, 1 of them the edge's half stroke: 3.85 units
+    // drawn (1.9pt, fine), 1.9 units printed at 50% (below 1.5pt).
+    const elements = {
+      "g:grp": titled,
+      "e:#1": {
+        path: [
+          { x: 169, y: 60 },
+          { x: 169, y: 150 },
+        ],
+      },
+    };
+    const code = "geometry/edge-touches-label";
+    expect(lintSpec(compiled, { elements }, { code })).toEqual([]);
+    expect(lintSpec(compiled, { scale: 0.5, elements }, { code }).map((d) => d.message)).toEqual([
+      'Edge edges[1] touches the label of group "grp" (0.34mm from the letters).',
+    ]);
+  });
+});

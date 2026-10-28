@@ -33,6 +33,13 @@
           "type": "string",
           "minLength": 1
         },
+        "fit": {
+          "description": "scale: shrink the whole figure (layout unchanged) to the profile's maximum width if it is wider; text is then checked at its printed size. Omitted means the figure is printed at its natural size.",
+          "type": "string",
+          "enum": [
+            "scale"
+          ]
+        },
         "layout": {
           "default": {},
           "type": "object",
@@ -289,7 +296,7 @@
           "fromAnchor": {
             "description": "Where the edge leaves the source (structured layout only).",
             "type": "string",
-            "pattern": "^(north|east|south|west)(?::(0(?:\\.\\d+)?|1(?:\\.0+)?))?$"
+            "pattern": "^(?:straight|(north|east|south|west)(?::(0(?:\\.\\d+)?|1(?:\\.0+)?))?)$"
           },
           "to": {
             "type": "string",
@@ -299,7 +306,7 @@
           "toAnchor": {
             "description": "Where the edge enters the target (structured layout only).",
             "type": "string",
-            "pattern": "^(north|east|south|west)(?::(0(?:\\.\\d+)?|1(?:\\.0+)?))?$"
+            "pattern": "^(?:straight|(north|east|south|west)(?::(0(?:\\.\\d+)?|1(?:\\.0+)?))?)$"
           },
           "label": {
             "default": "",

@@ -59,6 +59,14 @@ export type LayoutEngine = (typeof LAYOUT_ENGINES)[number];
 export const FAN_IN_MODES = ["merge", "spread"] as const;
 export type FanInMode = (typeof FAN_IN_MODES)[number];
 
+/**
+ * How a figure wider than its profile's maximum width is printed (#183,
+ * design doc §6.48): `scale` shrinks the whole output, layout unchanged, to
+ * that width; text is then checked at its printed size. Never enlarges.
+ */
+export const FIGURE_FITS = ["scale"] as const;
+export type FigureFit = (typeof FIGURE_FITS)[number];
+
 /** Sides of a node or group, for `attach.side` and edge anchors. */
 export const SIDES = ["north", "east", "south", "west"] as const;
 export type Side = (typeof SIDES)[number];
@@ -101,11 +109,13 @@ export const ROW_DIRECTIONS = ["right", "left"] as const;
 
 /**
  * An edge anchor: a side, optionally with a position along it from 0 to 1
- * (left to right on north/south, top to bottom on east/west; default 0.5).
+ * (left to right on north/south, top to bottom on east/west; default 0.5),
+ * or `straight` (#179): in line with the other end, on the side facing it.
  * The schema accepts any string so the `layout` stage can report a malformed
  * anchor as `layout/invalid-anchor`; the pattern is for editors.
  */
-export const ANCHOR_PATTERN = /^(north|east|south|west)(?::(0(?:\.\d+)?|1(?:\.0+)?))?$/;
+export const ANCHOR_PATTERN =
+  /^(?:straight|(north|east|south|west)(?::(0(?:\.\d+)?|1(?:\.0+)?))?)$/;
 
 /** A non-negative layout length such as `3mm` (or `0`), for the JSON Schema. */
 const LAYOUT_LENGTH_PATTERN = /^(0|\d+(\.\d+)?(mm|cm|in|pt))$/;
@@ -223,7 +233,9 @@ export const AttachSchema = z.strictObject({
 const Anchor = z
   .string()
   .meta({ pattern: ANCHOR_PATTERN.source })
-  .describe('"<side>" or "<side>:<0..1>", e.g. "south" or "south:0.25" (structured layout only).');
+  .describe(
+    '"<side>" or "<side>:<0..1>", e.g. "south" or "south:0.25"; or "straight": in line with the other end, on the side facing it (structured layout only).',
+  );
 
 /**
  * Which coordinate of the items an align constraint makes equal (#132): the
@@ -318,6 +330,12 @@ export const FigureMetaSchema = z.strictObject({
   title: z.string().optional(),
   theme: z.string().min(1).default("minimal").describe("Built-in theme name."),
   profile: z.string().min(1).default("paper-single").describe("Built-in output profile name."),
+  fit: z
+    .enum(FIGURE_FITS)
+    .optional()
+    .describe(
+      "scale: shrink the whole figure (layout unchanged) to the profile's maximum width if it is wider; text is then checked at its printed size. Omitted means the figure is printed at its natural size.",
+    ),
   layout: LayoutSchema.prefault({}),
 });
 

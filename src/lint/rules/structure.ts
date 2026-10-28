@@ -155,7 +155,10 @@ export const duplicateEdge = defineRule({
       // Edges to different anchors of the same nodes (structured layout) are distinct.
       const end = (id: string, anchor: string | undefined) => {
         const parsed = anchor === undefined ? undefined : parseAnchor(anchor);
-        return parsed === undefined ? id : `${id}@${parsed.side}:${parsed.offset}`;
+        if (parsed === undefined) return id;
+        return typeof parsed === "string"
+          ? `${id}@${parsed}`
+          : `${id}@${parsed.side}:${parsed.offset}`;
       };
       const pair = [end(from, fromAnchor), end(to, toAnchor)];
       const ends = symmetric ? pair.sort() : pair;

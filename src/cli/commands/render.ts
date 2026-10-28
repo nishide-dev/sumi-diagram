@@ -51,7 +51,7 @@ import {
   lintGeometry,
   summarize,
 } from "../../lint";
-import { type OutputSize, outputSize, renderFigure } from "../../render";
+import { type OutputSize, outputSize, printedSize, renderFigure } from "../../render";
 import { svgToPdf } from "../../render/pdf";
 import { type PptxConnectors, svgToEditablePptx, svgToPptx } from "../../render/pptx";
 import {
@@ -305,13 +305,15 @@ export async function renderCommand(
       );
     }
     if (result.ok && outputWritten !== null) {
-      const { canvas, profile } = result.value.inspection;
+      const { profile } = result.value.inspection;
+      const { widthPt, heightPt, scale } = printedSize(result.value.inspection);
       const limit =
         profile.maxWidthPt === undefined ? "" : `, max width ${formatMm(profile.maxWidthPt)}`;
-      const tooWide = profile.maxWidthPt !== undefined && canvas.width.pt > profile.maxWidthPt;
+      const tooWide = profile.maxWidthPt !== undefined && widthPt > profile.maxWidthPt + 1e-6;
+      const scaled = scale === 1 ? "" : `, scaled to ${Math.round(scale * 1000) / 10}%`;
       log.write(
-        `Wrote ${outputWritten}: ${formatMm(canvas.width.pt)} × ${formatMm(canvas.height.pt)} ` +
-          `(${profile.id}${limit}${tooWide ? ", TOO WIDE" : ""}; theme ${result.value.compiled.ir.meta.themeId}).\n`,
+        `Wrote ${outputWritten}: ${formatMm(widthPt)} × ${formatMm(heightPt)} ` +
+          `(${profile.id}${limit}${scaled}${tooWide ? ", TOO WIDE" : ""}; theme ${result.value.compiled.ir.meta.themeId}).\n`,
       );
     }
     if (d2Written !== null) log.write(`Wrote ${d2Written}.\n`);

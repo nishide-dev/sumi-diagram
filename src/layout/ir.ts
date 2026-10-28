@@ -20,7 +20,7 @@
  */
 
 import type { ElementKey } from "../core/check-state";
-import type { Anchor } from "../core/figure/layout";
+import type { EdgeAnchor } from "../core/figure/layout";
 import type { LabelRotation, Side } from "../core/figure/schema";
 import type { Point, Rect } from "../core/geometry";
 import type { NodeShape } from "../core/registry/manifest";
@@ -219,10 +219,10 @@ export interface EdgeLayout {
   readonly kind: "edge";
   readonly from: ElementKey;
   readonly to: ElementKey;
-  /** Where the edge must leave the source; omitted lets the router choose. */
-  readonly fromAnchor?: Anchor;
-  /** Where the edge must enter the target; omitted lets the router choose. */
-  readonly toAnchor?: Anchor;
+  /** Where the edge must leave the source (`straight`: in line with the target); omitted lets the router choose. */
+  readonly fromAnchor?: EdgeAnchor;
+  /** Where the edge must enter the target (`straight`: in line with the source); omitted lets the router choose. */
+  readonly toAnchor?: EdgeAnchor;
   /** The label measured but not placed (the router places it); omitted when the edge has none. */
   readonly labelMetrics?: TextMetrics;
   /** Omitted until the edges are routed. */

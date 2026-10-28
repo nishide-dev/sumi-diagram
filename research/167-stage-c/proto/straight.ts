@@ -26,7 +26,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { parse, stringify } from "yaml";
 import type { FigureIR } from "../../../src/compiler/ir";
-import type { Anchor } from "../../../src/core/figure/layout";
+import type { Anchor, EdgeAnchor } from "../../../src/core/figure/layout";
 import type { LayoutIR } from "../../../src/layout/ir";
 import { checkRoutes } from "../../../src/layout/route/check";
 import { routeEdges } from "../../../src/layout/route/router";
@@ -172,7 +172,9 @@ function measure(c: Case, v: Variant) {
       // Otherwise leave the source straight below the target's centre.
       if (to === undefined) injectedFrom.set(s.key, straightAnchor(b, a, round));
     }
-    const patch = <T extends { key: string; toAnchor?: Anchor; fromAnchor?: Anchor }>(e: T): T => {
+    const patch = <T extends { key: string; toAnchor?: EdgeAnchor; fromAnchor?: EdgeAnchor }>(
+      e: T,
+    ): T => {
       const to = injected.get(e.key);
       if (to !== undefined) return { ...e, toAnchor: to };
       const from = injectedFrom.get(e.key);

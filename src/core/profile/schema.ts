@@ -79,6 +79,11 @@ export const ProfileSchema = z.strictObject({
   typography: z.strictObject({
     /** Smallest effective font size allowed in a figure. Compared unquantized. */
     minFontSize: lengthField("positive"),
+    /**
+     * Smallest printed font size in a figure that `figure.fit: scale` shrinks
+     * (#183, design doc §6.48). Omitted means `minFontSize` (no relaxation).
+     */
+    minScaledFontSize: lengthField("positive").optional(),
   }),
   layout: z.strictObject({
     /** Gap between ELK layers: `nodeNodeBetweenLayers`, and half of it as `edgeNodeBetweenLayers`. */
