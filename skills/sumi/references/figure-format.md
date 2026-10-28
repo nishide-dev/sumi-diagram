@@ -52,12 +52,13 @@ anchors in structured ones ([structured](structured.md)).
 
 `tone` on a node or group picks a color category: `gray`, `red`, `orange`,
 `yellow`, `green`, `blue`, `purple` or `pink`. The theme decides the color:
-`color` fills each tone with its own pastel hue; `minimal`, `academic` and
+`color` and `paper` fill each tone with its own pastel hue; `minimal`, `academic` and
 `slides` stay monochrome and map the tones to three gray fills (tones in the
 same step look alike: yellow/green, gray/orange/blue, red/purple/pink). A tone
 changes only the fill, on top of the variant. Use tones to encode categories
 consistently (e.g. all attention blocks `orange`), not for decoration; when the
-user wants distinguishable colors, use theme `color`.
+user wants distinguishable colors, use theme `color` (or `paper` for a paper
+figure).
 
 ```yaml
 nodes:
@@ -191,7 +192,7 @@ Both draw two lines: `Scale, Shift`, then γ and β with their subscripts
   the caption when it blocks their route (see there).
 - `variant: muted` (container) quiets the group; how depends on the
   theme. `academic`: a **dashed** gray border, gray title, transparent
-  fill. `minimal`, `color`, `slides`: the same solid gray border, a white
+  fill. `minimal`, `color`, `slides`, `paper`: the same solid gray border, a white
   background instead of the shaded one (without `tone`; a `tone` sets the
   fill) and a gray, non-bold title. In `academic`, a muted group's dashed border reads like
   a dashed edge (a skip, an optional flow): avoid `muted` there when the
@@ -326,9 +327,20 @@ They are built in; there is no way to define your own in a figure.
 | `academic` | restrained, for papers: thin lines, black text, gray emphasis |
 | `slides` | for slides: 16pt text (14pt on edges, 18pt container labels), 2pt lines; use with `presentation-16x9` |
 | `color` | general purpose with color: like `minimal`, but tones are pastel fills and emphasis is blue (0.4.0) |
+| `paper` | for paper figures: rounded boxes (2pt) and groups (6pt), pastel tone fills, black 1pt frames, light gray groups, thin 0.5pt edges with small arrowheads, Inter for Latin text (0.6.0) |
 
-`minimal`, `academic` and `color` use 8pt text (7pt on edges). All four use the
-bundled `sumi/biz-ud-gothic` font set (Latin and Japanese).
+`minimal`, `academic`, `color` and `paper` use 8pt text (7pt on edges).
+`minimal`, `academic`, `slides` and `color` use the bundled
+`sumi/biz-ud-gothic` font set (Latin and Japanese). `paper` uses
+`sumi/inter-biz-ud-gothic`: in structured figures Latin text is drawn with
+Inter, Japanese with BIZ UDPGothic; auto (D2) figures stay all BIZ UDPGothic.
+Inter is narrower than BIZ UDPGothic but its line box is taller (1.21em
+against 1.00em), so a small node with explicit `width` / `height` can fail
+`geometry/label-overflow` under `paper`. For a one-character key or token
+in a square, make the side about 1.4× the text size (11pt for 8pt text);
+this is only for such single-character squares, not a rule for widths:
+longer labels need their measured width, so prefer leaving `width` /
+`height` out and letting the node size itself.
 
 | Profile | Max width | Max height | Min font size | Use |
 | --- | --- | --- | --- | --- |

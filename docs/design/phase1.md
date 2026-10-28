@@ -411,7 +411,7 @@ components:
 - variant の扱い: manifest にない variant は `component/unknown-variant`（error）。manifest にはあるが Theme に定義がない variant は `default` を使い、`theme/missing-variant`（warning）を出す。
 - **Figure 側からのスタイル直接指定は v1 では提供しない**（見た目は variant で選ぶ）。
 - 解決結果は全プロパティが確定した、immutable な `ResolvedStyle` とする。
-- 組み込み Theme: `minimal`（モノクロ）、`academic`（論文向け）、`slides`（スライド向け。#36 で追加、§6.9）、`color`（色を使う汎用。#92 で追加、§6.20）。分野固有のパレットは持たない。tone（色の分類の名前）の色は Theme の `tones` にだけ置く（§6.20）。
+- 組み込み Theme: `minimal`（モノクロ）、`academic`（論文向け）、`slides`（スライド向け。#36 で追加、§6.9）、`color`（色を使う汎用。#92 で追加、§6.20）、`paper`（論文の図の見た目: 角丸・パステルの tone・小さい矢じり・Inter。#173 で追加、§6.52）。分野固有のパレットは持たない。tone（色の分類の名前）の色は Theme の `tones` にだけ置く（§6.20）。
 
 ### 4.4 実装で確定した事項（#6）
 - **フォントセット**: `sumi/biz-ud-gothic` を同梱する（`assets/fonts/biz-ud-gothic/`。出典・版・sha256 は同ディレクトリの README）。Noto Sans JP は google/fonts では可変 TTF のみ、noto-cjk の公式配布は OTF / OTC（CFF）で、D2 が受け付ける静的 TTF の公式配布がないため、静的 TTF を公式リリースで配布している BIZ UD ゴシックを採用した。D2 v0.9.0 で 8 つの `--font-*` をすべて指定し、日本語＋英字のラベルが WOFF subset として `@font-face` に埋め込まれることを確認済み。フォントのパスはソースからの相対で解決する（`bun build --compile` での同梱は配布の Issue で扱う）。
@@ -1815,6 +1815,53 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **変わった出力: なし**（`sublabel` を書いた入力の診断を除く）。リポジトリの `*.sumi.yaml` 118 個を図の Theme と組み込みの 4 Theme で（590 通り、描けたもの 379）、変更の前（`origin/main` の `git archive`）と後で描き、D2・SVG・PDF・画像方式の PPTX・編集可能 PPTX（freeform・glued）の sha256 はすべて一致した。診断＋幾何 lint の sha256 が変わったのは、#86 の構文の草案 `research/86-paper-figures/figures/ideal/b-dit.sumi.yaml`（描けない草案。`component/unknown` 4 件で止まる）の 5 通りだけで、3 つの `sublabel` の `schema/unknown-field` が消えた（意図どおり）。`CI=1 bun test`（D2・Layout IR・PDF・PPTX の golden を含む）、`bun run gallery:check`、`bun run schema:check` も通る（JSON Schema は `sublabel` の追加だけ）。
 - **テスト**: `sublabel.integration.test.ts`（DiT の fixture: 幾何 lint が元の図と同じ、3 か所の `<text>` 2 つと大きさ 16・14 unit、sublabel の箱がラベルの箱の直下・同じ中心、再計測した行がラベルの下・ノードの中、ノードの高さが sublabel の分だけ増える、PDF の 7pt と 8pt の glyph、編集可能 PPTX の段落の `sz`、同じ text body か別の text box かと、`tIns`・行送り・`spcBef` から復元した各行の位置（4 Theme、複数行・数式の sublabel）、`labelRotation` との併用（±90°、ラベルと sublabel の位置関係、行がノードの中、PPTX の text box 2 つの `rot`）、`fit: scale` で `text-too-small` が sublabel を指す、auto の `layout/structured-only`）、`layout.test.ts`（auto の診断と位置、空・空白・文字列でない値）、`resolve.test.ts`（アイコン・`operator`・`junction`・`image`・`legend` の error、ラベルなしの error、sublabel の数式の error の位置、`profile/font-too-small` の sublabel の位置と組み込みの組で通ること）、`theme.test.ts`（`sublabelFontSize()` の値と、組み込み Theme で `size.small` になること）、`lint.test.ts`（3 つの構造の lint が sublabel を指す）。
 - **非対象・引き継ぎ**: 3 段以上の大きさ（#184 の非対象）、group・edge の sublabel、Theme での比率の変更、左揃え（`textAlign`、#167 §4.9）、編集可能 PPTX の PowerPoint 実機での確認。
+
+### 6.52 #173 の論文向けの Theme paper
+
+[#167 の調査](../research/167-stage-c.md) §4.1・§10 Q2 の利用者の判断（2026-10-28）: 3 図の原図（Transformer arXiv 1706.03762 Fig. 1、DiT arXiv 2212.09748 Fig. 3、利用者の H3-World）は角丸・tone の塗り・小さめの矢じり・欧文のサンセリフで描かれている。**新しい組み込みの Theme `paper` を足し、既存の `minimal`・`academic`・`slides`・`color` は変えない**。原図と並べた記録は [`research/173-paper-theme/`](../../research/173-paper-theme/README.md)。
+
+- **値（`src/core/theme/builtin.ts`）**:
+
+  | 項目 | 値 | 理由（判断） |
+  | --- | --- | --- |
+  | フォントセット | `sumi/inter-biz-ud-gothic`（§6.44） | 3 図とも欧文はサンセリフ（Helvetica 系）。structured の図の欧文は Inter、日本語は BIZ UDPGothic、数式は STIX Two。auto（D2）の図は §6.44 のとおり全部 BIZ UDPGothic |
+  | 文字 | node 8pt、group の見出し 9pt（太字）、辺 7pt | `color` と同じ。最小 7pt なので `compatibleProfiles` は paper-single・paper-double（presentation-16x9 は 14pt で不可）。辺 7pt で B が縮小後 5.52pt になり 5pt の下限を満たす（下の実測）。7.5pt は幅が増えて縮小率が下がるので採らない |
+  | 枠 | node・group 1pt の黒 | A のブロックとパネルの黒い太い枠（推定 約 1pt） |
+  | 辺 | 0.5pt の黒、emphasis 1pt | 下の「矢じり」 |
+  | emphasis（node） | 枠 1.5pt＋太字 | 黒い枠の Theme で塗りを tone に任せるため、線と太字で示す（`minimal` と同じ考え） |
+  | 角丸 | box・square 2pt、group 6pt、legend 3pt | 原図の箱の角は印刷時 0.5〜0.7mm（1.5〜2pt）、パネルは 1.5〜3mm。group は Profile の余白（8pt）より小さく、見出しにかからない 6pt |
+  | group の塗り | `#f3f3f5` | A のパネル（`#f3f3f4`）と B の 2 番目のパネル（`#f3f3f6`）の実測 |
+  | muted（node・辺） | `#737373` の線と文字 | 白地で 4.7:1（7pt の灰色の文字が読める下限の近く）。B の薄表示のパネルの灰色に近い |
+  | muted（container） | 白地・`#737373` の枠と細字の見出し | B の 3・4 番目のパネル（白に近い地・灰色の枠と見出し）。`academic` の破線は使わない（破線のパネルは `dashed`） |
+  | node の `filled`（#174、§6.49） | 線幅 0・2pt の角丸、塗りは tone gray（`#dcdee6`。tone があればその色） | B・C の枠線のない角丸の塗りの箱。他の Theme と同じく tone gray を既定の塗りにする |
+  | container の `plain` / `filled` / `dashed`（#174） | `plain`: 枠も塗りもなし。`filled`: `#f3f3f5` の塗りだけ（線幅 0）。`dashed`: 塗りなし・破線 3 の黒い 1pt の枠。どれも 6pt の角丸、見出しは黒の太字 | C の (a)(b) の枠線のない淡い塗りのパネル、(c) の角丸の破線の枠、B の左の枠のないパネル。`outlineVariants()`（§6.49）を `color` と同じく group の塗りの token で使う |
+  | `sublabel`（#184、§6.51） | node の 7/8（8pt → 7pt）。Theme の値ではなく node の文字から決まる | 最小 7pt のままなので `compatibleProfiles` は変わらない。B の縮小後 5.61pt |
+  | tone | gray `#dcdee6`、red `#f6dcdb`、orange `#f9e0bc`、yellow `#f1f4c6`、green `#d0e6cd`、blue `#cddff6`、purple `#dfdcef`、pink `#f6d8e5` | 原図の画素を測った色に寄せた（A: `#f7e1e1`・`#fae3c0`・`#f2f4c6`・`#c9e7f5`・`#dcdfee`・`#d1e6d1`、B: `#cadafb`・`#c9e2c0`・`#f2ce94`・`#d5d7e2`）。A（水色）と B（青紫）で違う blue は中間。黒い文字とのコントラストは 15:1 以上（`color` は 11:1 以上） |
+  | 破線 | 3 | `academic` と同じ（線が細い） |
+
+- **矢じり（判断: 辺を 0.5pt にして小さくする。新しいプロパティは足さない）**: 矢じりの長さは D2 の三角形と同じ `4 + 4 × 線幅`（unit、§6.42）で、Theme が持つのは線幅だけ。0.5pt の辺で長さ 4pt（1.41mm、`academic` と同じ）、1pt（`color`）では 6pt。原図は A が線 約 1pt・矢じり 約 1.2mm、B が線 約 0.5pt・矢じり 約 1.1mm（いずれも印刷時の推定）で、太い線と小さい矢じりの組（A）は今の契約では作れない。3 図のうち 2 図が細い線なので、小さい矢じりを優先して辺を 0.5pt にした（B の縮小後は 3.2pt = 1.1mm で原図と同程度）。矢じりの大きさを線幅と別に Theme で選ぶプロパティは、ルータ（stub と `arrowRoom()`）・writer・D2（D2 は矢じりの大きさを指定できない）・PPTX にまたがるので、この Issue では足さない。§6.42 の矢じりの前の余地も `academic` と同じ 8 unit で、余白を広げる配置し直しは起きない。
+- **角丸を付ける部品（判断）**: `radius` は box・square の各 variant と group（`base.group`）、legend だけに付ける（`roundedBoxes()`）。`base.node` には置かない: structured の writer は矩形（`rectangle` / `square`）にだけ `rx` を描き、D2 の `border-radius` を矩形以外の形に書いた場合の描画は確かめていない（書かなければ既存の出力と同じ道筋になる）。stack・document などの輪郭は部品の renderer が描くので角丸にならない（輪郭の角丸は対象外）。幾何 lint のラベルの領域は矩形のままで、2pt の角はラベルの余白（Profile の node padding）の中に収まる。group の枠と線の近さの検査（`edge-near-border`・`label-collision`）は以前から `radius` を見て角を丸めた輪郭で測る。一方、辺のラベルの背景の色（§6.41 の `labelBackground()`）は group を矩形として判定し、角丸の外の切り欠きの角も内側とみなす（§6.41 に書いた既知の制限）。`paper` の 6pt の角丸で切り欠きは大きくなるが、ラベルの中心がそこに来ることは配置上まずなく、来た場合は背景が group の塗りになる（tone のない group ならキャンバスの白との差は `#f3f3f5` の薄灰だけ）。
+- **数式の大きさ（判断: 変えない）**: Inter の x-height（0.546em）は STIX Two Text Italic（0.467em）より 17% 大きく、同じ大きさの数式の変数（γ・α・添字の A₁ など）は小さく見える（3 図で確認）。x-height を揃えるには数式を約 1.17 倍にするが、Theme の形式には数式の倍率がなく（数式の run はラベルの文字の大きさで描く）、計測・行の高さ・幾何 lint・PDF・PPTX にまたがる。今は変えず、必要なら別 Issue で「Theme の数式の倍率」として検討する。
+- **Inter の行の箱（実測、利用上の注意）**: 幾何 lint は文字の行の箱を hhea の ascender＋descender で測る（§6.24）。Inter は 1.21em、BIZ UDPGothic は 1.00em なので、幅・高さを明示した小さな node は `paper` で `geometry/label-overflow` になりやすい。#167 の C（8.5pt 四方のキーに 8pt の 1 文字）は 45 個すべてが error になり、11pt 四方で収まった（研究の複製だけを変えた）。配置の行の高さ（文字の大きさ × 1.25、§6.21）は書体によらないので、大きさを自動で決める node は変わらない。Skill に「1 文字のキー・トークンの正方形は一辺を文字の約 1.4 倍に（幅の一般則ではない。長いラベルは大きさを書かずに自動に任せる）」と書いた。
+- **auto（D2）の group の見出し**: D2 は group の見出しを枠の左上の内側に置く。`paper` では 6pt の角丸と黒い枠のため、ギャラリーの container の見出しが枠の角に近く見える（位置は `color` と同じ、lint の指摘なし）。structured の図は見出しを余白の中に置くので近くならない。
+- **実測（`research/173-paper-theme/`。同じ YAML を `paper` と `color` で）**:
+
+  | 図 | Theme | 自然な幅 | 縮小率 | 縮小後の文字（node / 辺 / 添字） | 診断（error / warning / info） |
+  | --- | --- | --- | --- | --- | --- |
+  | A | paper | 79.2mm | 1 | 8 / 7 / 4.9pt | 0 / 0 / 0 |
+  | A | color | 87.14mm | 1 | 8 / 7 / 4.9pt | 0 / 0 / 0 |
+  | B | paper | 224.5mm | 0.8016 | 6.41 / 5.61 / 3.93pt | 0 / 0 / 1 |
+  | B | color | 252.6mm | 0.7126 | 5.70 / 4.99 / 3.49pt | 7 / 0 / 3 |
+  | C | paper | 230.4mm | 0.7814 | 6.25 / 5.47 / 4.38pt | 0 / 0 / 1 |
+  | C | color | 232.5mm | 0.7743 | 6.19 / 5.42 / 4.34pt | 0 / 0 / 1 |
+
+  研究の B は原図に合わせて枠のない箱（`filled`）と寸法の `sublabel` を使い、C は (a)(b) を `filled`、(c) を `dashed` にした版（研究の README）。辺のラベルと sublabel はどちらも 7pt（表の「辺」）。Inter が BIZ UDPGothic より約 14% 狭いので、A は 9% 狭く、B は縮小率が 0.71 → 0.80 に上がり、同じ YAML の `color` で error になる辺のラベル 4 つと sublabel 3 つ（4.99pt）が 5.61pt で下限を満たす。info は `script-too-small`（B・C）と、`color` の B の `edge-near-border` 2。
+- **原図との比較（判断。詳細は研究の README）**: 角丸・パステルの塗り・小さい矢じり・サンセリフは 3 図とも原図に近づき、#174 の variant と #184 の sublabel で B・C の箱とパネルの描き方もほぼ原図どおりになった。残る主な差は、C の色の枠線で白地の箱と色つきの辺（tone の枠線、#167 §4.5）、B の薄表示の箱（`muted` と `filled` を同時に選べず、塗りも淡くならない。`dim` の継承、#167 §4.2）、数式の大きさ（上）、A の太い線（上の矢じり）、拡大線の代用（`zoom` で直せる）、C の行列・回転・絵文字など、A の縦の長さ（compact）。
+- **新しい variant との関係**: `paper` は #174 の variant を含む全部品 × 全 variant の値を持つ（`theme/missing-variant` なし、テストで確認）。#184 の sublabel は variant を足さない。#181（`tokens`）は main に入っており、`paper` でも見本を描く。今後 variant を足す PR は、その PR で `paper` にも値を足す。
+- **互換性（実測）**: 既存の 4 Theme の定義・フォントセットは変えていない。足したのは `paper` の定義と、それを作る `roundedBoxes()` だけ。リポジトリの `*.sumi.yaml` 120 個（`research/173-paper-theme/` を除く）を書かれた Theme と `minimal` / `academic` / `slides` / `color` で SVG に、書かれた Theme で PDF に描き（720 通り、うち出力のある 471 件）、main（#174・#184 を取り込んだ `3a25427`）と sha256 がすべて一致した。`CI=1 bun test`（PDF・画像 PPTX・編集可能 PPTX の golden）と `bun run gallery:check` は、golden とギャラリーへの `paper` の追加（ギャラリーの SVG 25、PDF・画像 PPTX の hash 各 22、編集可能 PPTX の hash と slide XML 各 42）だけで通る。既存の hash は 1 つも変わらない。
+- **カタログ・ギャラリー・Skill**: `sumi catalog` の Theme に `paper`（`fonts` は `sumi/inter-biz-ud-gothic`、`compatibleProfiles` は paper-single・paper-double）が自動で加わる。ギャラリーは全部品 × variant・tone・pipeline の比較に `paper` の列が加わる（auto の図なので欧文も BIZ UDPGothic）。Skill の Theme の選び方・表・tone・診断の表に `paper` を足した。
+- **テスト**: `theme.test.ts`（組み込みの 5 Theme とフォントセット、`paper` の角丸を付ける部品と付けない部品、枠と辺の線幅、辺の線幅が `academic` と同じ、8 色の tone）、`catalog.test.ts`（`paper` の文字の大きさと `compatibleProfiles`、フォントセット）、`stage.test.ts`（`theme/unknown` の hint）。全部品 × variant を完全に解決できることは既存の組み込み Theme のテストが `paper` にも回る。
+- **非対象**: 既存 Theme の変更、利用者定義の Theme、矢じりの大きさ・数式の倍率のプロパティ。
 
 
 ## 7. 実装順
