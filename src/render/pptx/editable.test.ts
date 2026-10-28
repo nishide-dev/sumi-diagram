@@ -52,8 +52,10 @@ for (const item of corpus)
         expect(shape).toBeDefined();
         if (!shape) continue;
         if (element.kind === "edge") {
-          expect(shape.name).toBe(connectors === "glued" ? "p:cxnSp" : "p:sp");
-          if (connectors === "glued") {
+          // A zoom edge (#176) is two lines between corners: a freeform shape in either mode.
+          const glued = connectors === "glued" && element.routing !== "zoom";
+          expect(shape.name).toBe(glued ? "p:cxnSp" : "p:sp");
+          if (glued) {
             const refs = [...descendants(shape)].filter((e) =>
               ["a:stCxn", "a:endCxn"].includes(e.name),
             );

@@ -564,6 +564,34 @@ legend's own `label` is its title; `variant: plain` drops the frame;
 - Auto figures have no legend: say what the variants mean in the caption
   or the report.
 
+## Zoom callouts
+
+A **`zoom`** edge (`component: zoom`, structured only, 0.6.0; the catalog
+marks it with `"engines": ["structured"]`) shows that a group (or node)
+is an enlarged view of another element: two straight lines, dashed by
+default (`variant: solid`, `muted`), from the source's corners to the
+matching corners of the target. Write it like any edge, without a label or
+anchors:
+
+```yaml
+edges:
+  - { from: dit-block, to: adaln-panel, component: zoom }
+```
+
+- The corners follow from where the target lies: to the right, the
+  source's top-right and bottom-right go to the target's top-left and
+  bottom-left (left, below and above likewise); apart on both axes, the
+  larger gap decides. Place the target beside, above or below the source
+  in the tree; ends that overlap (an element and its own group) are
+  `layout/no-route`.
+- It is not routed: other lines may cross it, it is left out of
+  `layout/edge-crossing`, and a node in its way is
+  `geometry/zoom-crosses-node` (warning): move the node, or the source or
+  view (item order, `gap`) so the lines pass beside it.
+- A label is `component/unexpected-label`; anchors have no effect
+  (`component/anchor-on-zoom`). Before 0.6.0 the CLI reports
+  `component/unknown`: draw two dashed `line` edges instead.
+
 ## Spacing that routes
 
 An arrow between two facing sides needs a gap longer than its arrowhead:
@@ -594,6 +622,7 @@ where there is room.
 | `layout/edge-label-overlap` (render, warning) | an edge label with `labelAt` / `labelSide` has no clear spot on that segment and side: the other `labelSide`, another `labelAt`, remove both, or make room (`gap`, anchors, a shorter label) |
 | `layout/edge-crossing` (render, info) | two lines cross; see [crossings](#crossings-layoutedge-crossing) |
 | `layout/attached-legend` | a legend cannot be attached: list it in an arrange tree |
+| `layout/no-route` on a `zoom` edge | its ends overlap: put the zoomed-in view beside, above or below the source, not around it ([zoom](#zoom-callouts)) |
 
 Geometry warnings after a structured render (`label-collision`,
 `edge-crosses-label`) usually come from edge labels, crossing nets or a

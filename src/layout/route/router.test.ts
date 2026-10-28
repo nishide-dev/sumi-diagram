@@ -1765,6 +1765,7 @@ describe.each([
       shortArrowSegments: [],
       labelCollisions: [],
       outside: [],
+      zoomMisses: [],
     });
     expect(routeProblemCount(report)).toBe(0);
   });
@@ -1932,6 +1933,7 @@ describe.each(["columns", "grid"] as const)("synthetic 100-node figure: %s", (ki
       shortArrowSegments: [],
       labelCollisions: [],
       outside: [],
+      zoomMisses: [],
     });
   }, 60_000);
 
@@ -1974,6 +1976,7 @@ describe.each(["columns", "grid"] as const)("synthetic 100-node figure: %s", (ki
       shortArrowSegments: [],
       labelCollisions: [],
       outside: [],
+      zoomMisses: [],
     });
   }, 60_000);
 });

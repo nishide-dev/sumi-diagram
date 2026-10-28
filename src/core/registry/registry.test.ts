@@ -57,6 +57,7 @@ describe("built-in components", () => {
       ["sumi/arrow", "edge"],
       ["sumi/line", "edge"],
       ["sumi/double-arrow", "edge"],
+      ["sumi/zoom", "edge"],
     ]);
   });
 
@@ -322,8 +323,41 @@ describe("list", () => {
       "arrow",
       "line",
       "double-arrow",
+      "zoom",
     ]);
     expect(registry.list()).toHaveLength(BUILTIN_MANIFESTS.length);
+  });
+});
+
+describe("zoom edges (#176)", () => {
+  const zoom = registry.get("sumi/zoom") as EdgeManifest;
+  const customZoom = (overrides: Partial<EdgeManifest> = {}): EdgeManifest => ({
+    ...zoom,
+    namespace: "acme",
+    ...overrides,
+  });
+
+  test("sumi/zoom has no arrows, is structured only and routed by corners", () => {
+    expect(zoom).toMatchObject({
+      kind: "edge",
+      direction: "none",
+      routing: "zoom",
+      engines: ["structured"],
+      variants: ["default", "solid", "muted"],
+    });
+    expect(new Registry().register(customZoom()).ok).toBe(true);
+  });
+
+  test("a zoom manifest needs direction none and the structured engine only", () => {
+    for (const overrides of [
+      { direction: "forward", head: "triangle" },
+      { engines: undefined },
+      { engines: ["structured", "auto"] },
+    ] as Partial<EdgeManifest>[]) {
+      const result = new Registry().register(customZoom(overrides));
+      expect(result.ok).toBe(false);
+      expect(codes(result)).toEqual(["component/invalid-manifest"]);
+    }
   });
 });
 

@@ -213,6 +213,9 @@ Both draw two lines: `Scale, Shift`, then γ and β with their subscripts
 
 Direction comes from the edge component, not from a field: `arrow` points
 `from` → `to`, `double-arrow` has heads at both ends, `line` has none.
+`zoom` (structured only) is not a connection but a callout: two dashed
+lines from the corners of `from` to those of `to` (see
+[structured](structured.md#zoom-callouts)).
 
 ## Components, variants and props
 
@@ -246,6 +249,8 @@ Always take these from `sumi catalog --json`. Each entry has `id`
   with their meaning (`props.entries`); the catalog marks it with
   `"engines": ["structured"]`. See [structured](structured.md#legends).
   Components without `engines` work in both engines.
+- `zoom` (edge, structured only, 0.6.0) joins an element to a view that
+  shows it enlarged: see [structured](structured.md#zoom-callouts).
 
 ### Catalog render metadata
 

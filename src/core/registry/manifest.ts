@@ -280,6 +280,15 @@ export const GroupManifestSchema = z.strictObject({
 });
 
 /**
+ * How an edge's line is found (#176). Omitted: routed (D2/ELK, or the
+ * structured orthogonal router). `zoom`: not routed; two straight lines join
+ * the corners of the source to the matching corners of the target (a callout
+ * to a zoomed-in view, design doc §6.45). Structured layout only, no arrows.
+ */
+export const EDGE_ROUTINGS = ["zoom"] as const;
+export type EdgeRouting = (typeof EDGE_ROUTINGS)[number];
+
+/**
  * `head` is the arrowhead at the target end and `tail` the one at the source
  * end; each may only be set on an end that `direction` gives an arrow.
  */
@@ -290,7 +299,17 @@ export const EdgeManifestSchema = z
     direction: z.enum(EDGE_DIRECTIONS),
     head: z.enum(ARROWHEADS).optional(),
     tail: z.enum(ARROWHEADS).optional(),
+    routing: z.enum(EDGE_ROUTINGS).optional(),
   })
+  .refine(
+    (m) =>
+      m.routing !== "zoom" ||
+      (m.direction === "none" && m.engines?.length === 1 && m.engines[0] === "structured"),
+    {
+      error: 'a zoom edge requires direction "none" and engines ["structured"]',
+      path: ["routing"],
+    },
+  )
   .refine((m) => m.head === undefined || m.direction === "forward" || m.direction === "both", {
     error: 'is only allowed when direction is "forward" or "both"',
     path: ["head"],

@@ -170,13 +170,24 @@ export interface EdgeRoute {
   /**
    * First point on the source's outline, last on the target's; at least 2
    * points. The structured router's routes are orthogonal, without repeated
-   * or collinear interior points; at a junction the end is its center.
+   * or collinear interior points; at a junction the end is its center. For a
+   * zoom edge (#176), its first line (`lines[0]`).
    */
   readonly points: readonly Point[];
+  /**
+   * A zoom edge's lines (#176, design doc §6.45): two straight lines, each
+   * from a corner of the source's box to the matching corner of the
+   * target's (a junction's corners are its center), not orthogonal in
+   * general. Omitted for a routed edge.
+   */
+  readonly lines?: readonly (readonly [Point, Point])[];
   /** The edge's placed label; omitted when the edge has none. */
   readonly label?: TextLayout;
-  /** The edge's net: an index into {@link LayoutIR.nets} (#90). */
-  readonly net: number;
+  /**
+   * The edge's net: an index into {@link LayoutIR.nets} (#90). Omitted for a
+   * zoom edge (#176), which belongs to no net.
+   */
+  readonly net?: number;
   /** The side of the source the route leaves; omitted at a junction. */
   readonly fromSide?: Side;
   /** The side of the target the route enters; omitted at a junction. */

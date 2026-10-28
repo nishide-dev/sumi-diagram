@@ -607,6 +607,21 @@ function groupLabelAt(context: GeometryContext, group: GeometryElement): GroupLa
  * Hint of `edge-crosses-label`, by engine: group titles and the means to move
  * edges differ (#114). A group's title is where its `labelAt` puts it (#127).
  */
+/** `true` for a zoom edge (#176): straight lines between corners, not routed, no anchors. */
+const isZoom = (e: GeometryElement): boolean => e.ir.kind === "edge" && e.ir.routing === "zoom";
+
+/** What moves a zoom edge's lines (#176): its anchors do not. */
+const ZOOM_MOVES =
+  "A zoom edge's lines run straight between corners of its ends; fromAnchor / toAnchor do not move them. Move the source or the zoomed-in view (the order of the arrange items, a gap, another row or stack)";
+
+/** Hint of the label rules for a zoom edge. */
+const zoomLabelHint = (): string =>
+  `${ZOOM_MOVES} so the lines pass beside the label, or move the label away: a group title with labelAt, a caption or text node elsewhere in the tree, or a shorter label.`;
+
+/** Hint of the proximity rules for a zoom edge. */
+const zoomLineHint = (): string =>
+  `${ZOOM_MOVES} so the line does not run along the border or the other line.`;
+
 export function edgeCrossesLabelHint(context: GeometryContext, other: GeometryElement): string {
   if (isCaption(other)) {
     // The structured router goes around a caption (a node); D2/ELK does not
@@ -655,7 +670,7 @@ export const edgeCrossesLabel = defineGeometryRule({
           message: `${capitalize(edge.name)} crosses the ${contentNoun(other)} of ${other.name}.`,
           path: edge.docPath,
           subject: edge.subject,
-          hint: edgeCrossesLabelHint(context, other),
+          hint: isZoom(edge) ? zoomLabelHint() : edgeCrossesLabelHint(context, other),
           related: [{ path: labelPath(other), message: "The label is defined here." }],
         });
       }
@@ -679,6 +694,8 @@ export const edgeThroughNode = defineGeometryRule({
     const findings: LintFinding[] = [];
     for (const edge of context.elements) {
       if (edge.route === undefined || edge.ir.kind !== "edge") continue;
+      // A zoom edge's straight lines are not routed around nodes (#176): zoom-crosses-node.
+      if (edge.ir.routing === "zoom") continue;
       const ends = new Set([edge.ir.from, edge.ir.to]);
       for (const key of obstaclesCrossedByRoute(
         edge.route,
@@ -692,6 +709,44 @@ export const edgeThroughNode = defineGeometryRule({
           path: edge.docPath,
           subject: edge.subject,
           hint: "An edge should go around the nodes it does not connect. In a structured figure, change its anchors (fromAnchor / toAnchor) or leave a free channel between the nodes; in an auto figure, change layout.direction or the grouping.",
+          related: [{ path: node.docPath, message: `${capitalize(node.name)} is defined here.` }],
+        });
+      }
+    }
+    return findings;
+  },
+});
+
+export const zoomCrossesNode = defineGeometryRule({
+  id: "geometry/zoom-crosses-node",
+  description:
+    "A line of a zoom edge (a straight line from a corner of the source to a corner of the target) passes through the shape of a node that is not one of its ends.",
+  defaultSeverity: "warning",
+  fixable: false,
+  run(context) {
+    // Zoom lines (#176, design doc §6.45) are straight on purpose: bent
+    // around a node, they would no longer read as a callout, so they are
+    // not routed and a node in the way is reported instead.
+    const obstacles: RouteObstacle[] = context.elements.flatMap((e) =>
+      e.kind === "node" && e.outline !== undefined ? [{ key: e.key, region: e.outline }] : [],
+    );
+    const findings: LintFinding[] = [];
+    for (const edge of context.elements) {
+      if (edge.route === undefined || edge.ir.kind !== "edge" || edge.ir.routing !== "zoom")
+        continue;
+      const ends = new Set([edge.ir.from, edge.ir.to]);
+      for (const key of obstaclesCrossedByRoute(
+        edge.route,
+        obstacles,
+        ends,
+        GEOMETRY_TOLERANCE_UNITS,
+      )) {
+        const node = context.get(key) as GeometryElement;
+        findings.push({
+          message: `A line of ${edge.name} passes through the shape of ${node.name}.`,
+          path: edge.docPath,
+          subject: edge.subject,
+          hint: "A zoom edge draws straight lines between corners of its ends and does not go around nodes. Move the node out of the way, or move the source or the zoomed-in view (the order of the arrange items, a gap, another row or stack) so the lines pass beside it.",
           related: [{ path: node.docPath, message: `${capitalize(node.name)} is defined here.` }],
         });
       }
@@ -886,7 +941,7 @@ function borderFindings(
       message: `${capitalize(linesName(sorted))} ${verb} the border of ${group.name} for ${mmText(context, length)}${gap > 0 ? ` (${mmText(context, gap, 2)} between the lines)` : ""}, so it reads as part of the frame.`,
       path: edge.docPath,
       subject: edge.subject,
-      hint: edgeBorderHint(context),
+      hint: isZoom(edge) ? zoomLineHint() : edgeBorderHint(context),
       related: [
         ...sharedRelated(sorted),
         { path: group.docPath, message: `${capitalize(group.name)} is defined here.` },
@@ -1019,9 +1074,11 @@ export const edgeNearEdge = defineGeometryRule({
         message: `${capitalize(linesName(later))} runs beside ${linesName(earlier)} for ${mmText(context, length)}, ${gap > 0 ? `${mmText(context, gap, 2)} apart` : "their strokes overlapping"}, so the two read as one line.`,
         path: edge.docPath,
         subject: edge.subject,
-        hint: isStructured(context)
-          ? "Edges that should merge share one line only when they start or end at the same point; otherwise keep them apart. Move an end with fromAnchor / toAnchor, merge the edges into one trunk (the same anchor, or figure.layout.fanIn: merge), or change the arrangement (a `gap`, the order of a box's items) so they take different channels."
-          : "Change the layout (layout.direction, grouping) so the edges take different channels, or connect them through a shared node.",
+        hint: isZoom(edge)
+          ? zoomLineHint()
+          : isStructured(context)
+            ? "Edges that should merge share one line only when they start or end at the same point; otherwise keep them apart. Move an end with fromAnchor / toAnchor, merge the edges into one trunk (the same anchor, or figure.layout.fanIn: merge), or change the arrangement (a `gap`, the order of a box's items) so they take different channels."
+            : "Change the layout (layout.direction, grouping) so the edges take different channels, or connect them through a shared node.",
         related: [
           ...sharedRelated(later),
           ...earlier.map((e) => ({
@@ -1072,7 +1129,7 @@ export const edgeTouchesLabel = defineGeometryRule({
           message: `${capitalize(edge.name)} touches the ${contentNoun(other)} of ${other.name} (${gap > 0 ? `${mmText(context, gap, 2)} from` : "touching"} the letters).`,
           path: edge.docPath,
           subject: edge.subject,
-          hint: edgeCrossesLabelHint(context, other),
+          hint: isZoom(edge) ? zoomLabelHint() : edgeCrossesLabelHint(context, other),
           related: [{ path: labelPath(other), message: "The label is defined here." }],
         });
       }
@@ -1281,6 +1338,7 @@ export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
   labelCollision,
   edgeCrossesLabel,
   edgeThroughNode,
+  zoomCrossesNode,
   edgeOnBorder,
   edgeNearBorder,
   edgeNearEdge,

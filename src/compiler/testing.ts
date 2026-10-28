@@ -208,8 +208,9 @@ const LEGEND_ENTRIES = [
  * A structured figure using every built-in component the auto engine cannot
  * draw (see {@link STRUCTURED_ONLY_MANIFESTS}), with every variant, under the
  * given theme: each with the ID `<component>-<variant>`, in a row below the
- * nodes and edges whose styles a legend's entries explain. Throws for a
- * structured-only component it does not know how to fill in.
+ * nodes and edges whose styles a legend's entries explain (a zoom edge, #176,
+ * runs from one of those nodes to a box of its own in a row between them).
+ * Throws for a structured-only component it does not know how to fill in.
  */
 export function structuredPrimitivesFigure(theme: string): string {
   const legends: string[] = [];
@@ -225,8 +226,22 @@ export function structuredPrimitivesFigure(theme: string): string {
     "  - { from: c, to: d, component: line }",
     "  - { from: a, to: d, component: double-arrow, fromAnchor: south, toAnchor: south }",
   ];
+  const zooms: string[] = [];
   for (const m of STRUCTURED_ONLY_MANIFESTS) {
     const id = `${m.namespace}/${m.name}`;
+    if (id === "sumi/zoom") {
+      // A callout from each node of the first row to a box below it (#176).
+      for (const [i, variant] of m.variants.entries()) {
+        const name = `${m.name}-${variant}`;
+        const from = ["a", "b", "c", "d"][i] ?? "a";
+        zooms.push(name);
+        nodes.push(`  - { id: ${name}, component: box, label: ${name} }`);
+        edges.push(
+          `  - { id: ${name}, from: ${from}, to: ${name}, component: ${m.name}, variant: ${variant} }`,
+        );
+      }
+      continue;
+    }
     if (id !== "sumi/legend") {
       throw new Error(`internal error: no structured sample for ${id}`);
     }
@@ -256,6 +271,7 @@ export function structuredPrimitivesFigure(theme: string): string {
     "        gap: 8mm",
     "        items:",
     "          - row: { gap: 8mm, align: center, items: [a, b, c, d] }",
+    `          - row: { gap: 8mm, align: center, items: [${zooms.join(", ")}] }`,
     `          - row: { gap: 6mm, align: start, items: [${legends.join(", ")}] }`,
     "nodes:",
     ...nodes,
