@@ -96,6 +96,60 @@ describe("compact structured spacing (#182)", () => {
     expect(spacing(result.value.layout.compact)).toEqual(["2.5mm", "6pt", "7pt", "1.5pt"]);
   });
 
+  test("an omitted compact set is capped at the profile's normal spacing", () => {
+    const result = validateProfile({
+      ...paper,
+      layout: { ...paper.layout, arrangeGap: "2mm", groupPadding: "4pt", nodePaddingY: "1pt" },
+    });
+    if (!result.ok) throw new Error("expected ok");
+    expect(spacing(result.value.layout.compact)).toEqual(["2mm", "4pt", "7pt", "1pt"]);
+  });
+
+  test("a compact value larger than its normal value is an error at that field", () => {
+    const result = validateProfile({
+      ...paper,
+      layout: {
+        ...paper.layout,
+        groupPadding: "4pt",
+        compact: {
+          arrangeGap: "2mm",
+          groupPadding: "6pt",
+          nodePaddingX: "7pt",
+          nodePaddingY: "4pt",
+        },
+      },
+    });
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics.map((d) => [d.code, d.path, d.message, d.hint])).toEqual([
+      [
+        "profile/invalid-value",
+        ["layout", "compact", "groupPadding"],
+        "layout.compact.groupPadding: 6pt is larger than layout.groupPadding (4pt); the compact spacing must not exceed the normal spacing.",
+        "Use at most 4pt, or omit layout.compact.",
+      ],
+      [
+        "profile/invalid-value",
+        ["layout", "compact", "nodePaddingY"],
+        "layout.compact.nodePaddingY: 4pt is larger than layout.nodePaddingY (3.5pt); the compact spacing must not exceed the normal spacing.",
+        "Use at most 3.5pt, or omit layout.compact.",
+      ],
+    ]);
+    // Equal values are allowed (a profile without a tighter set).
+    const equal = validateProfile({
+      ...paper,
+      layout: {
+        ...paper.layout,
+        compact: {
+          arrangeGap: "4mm",
+          groupPadding: "8pt",
+          nodePaddingX: "7pt",
+          nodePaddingY: "3.5pt",
+        },
+      },
+    });
+    expect(equal.ok).toBe(true);
+  });
+
   test("spacedProfile swaps in the compact set only for compact", () => {
     const profile = builtin("paper-double");
     expect(spacedProfile(profile, undefined)).toBe(profile);

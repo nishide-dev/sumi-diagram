@@ -51,7 +51,7 @@ const heightOf = (rendered: RenderedStructuredFigure, id: string): number => {
 };
 
 describe("DiT (paper, paper-double, fit: scale)", () => {
-  test("is shorter for its width than with the normal spacing, all text at 5pt or more", async () => {
+  test("is shorter for its width than with the normal spacing, label text at 5pt or more", async () => {
     expect(DIT).toContain("    density: compact\n");
     const compact = await render(DIT);
     const spaced = await render(normal(DIT));
@@ -64,7 +64,8 @@ describe("DiT (paper, paper-double, fit: scale)", () => {
     // Measured (§6.55): 87.66mm (82.8mm at the reference's 170mm; it is 68mm).
     expect(c.heightMm).toBeCloseTo(87.66, 1);
     expect(c.heightMm / c.widthMm).toBeLessThan(n.heightMm / n.widthMm);
-    // No text below 5pt after scaling, no warnings: only the scripts' info.
+    // No label, edge label or sublabel below 5pt after scaling, no warnings:
+    // only the info that label-math scripts print smaller (4.07pt).
     expect(diagnosticsOf(compact, DIT)).toEqual(["info geometry/script-too-small"]);
   });
 
