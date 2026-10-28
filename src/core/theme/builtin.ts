@@ -15,6 +15,9 @@
  * - `color` (#92): general purpose, with color. Outlines and text as
  *   `minimal`; tones are soft pastel fills and emphasis uses a blue accent.
  *
+ * Every built-in theme defines `dim` (#175): the gray text and lines and the
+ * paler fills of a group with `dim: true` and everything inside it.
+ *
  * Tones (#92, design doc §6.20) only change colors, and only of nodes and
  * groups that set `tone`. The monochrome themes map the eight tones to three
  * gray fills, so a toned figure still prints in grayscale; tones in the same
@@ -151,6 +154,17 @@ const junctionStyles = (line: string, muted: string): VariantStyles["junction"] 
   hidden: { fill: "transparent", stroke: "transparent", strokeWidth: "0pt" },
 });
 
+/**
+ * Dim colors (#175, design doc §6.53) of `minimal` and `color`: text and lines
+ * in a light gray (about 3:1 on white, like the dimmed panels of DiT's Fig. 3)
+ * and fills halfway to white, so a tone stays recognizable but pale.
+ */
+const DIM_GRAY: NonNullable<ThemeDefinition["dim"]> = {
+  fontColor: "#8c959f",
+  stroke: "#8c959f",
+  lighten: 0.5,
+};
+
 export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
   {
     version: 1,
@@ -211,6 +225,7 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
       },
     }),
     tones: grayTones("#f2f2f2", "#e3e3e3", "#d4d4d4"),
+    dim: DIM_GRAY,
   },
   {
     version: 1,
@@ -279,6 +294,7 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
       },
     }),
     tones: grayTones("#f2f2f2", "#e3e3e3", "#d4d4d4"),
+    dim: { fontColor: "#8c8c8c", stroke: "#8c8c8c", lighten: 0.5 },
   },
   {
     version: 1,
@@ -350,6 +366,8 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
     }),
     // Darker than minimal's steps: projectors wash out light grays.
     tones: grayTones("#ebebeb", "#d9d9d9", "#c7c7c7"),
+    // Projectors wash out light grays: a darker gray and fills kept nearer their tones.
+    dim: { fontColor: "#808080", stroke: "#808080", lighten: 0.4 },
   },
   {
     version: 1,
@@ -436,6 +454,7 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
       purple: { fill: "{tone.purple}" },
       pink: { fill: "{tone.pink}" },
     },
+    dim: DIM_GRAY,
   },
 ];
 

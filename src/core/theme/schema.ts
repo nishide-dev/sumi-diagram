@@ -10,6 +10,10 @@
  *
  * `tones` (#92) maps tone names ({@link TONE_NAMES}) to color-only layers
  * applied over the variant of a node or group that sets `tone`.
+ *
+ * `dim` (#175) gives the colors of a dimmed group and everything inside it:
+ * one text color, one line color and how far fills move toward white (see
+ * `dim.ts`).
  */
 
 import { z } from "zod";
@@ -32,7 +36,9 @@ import {
 } from "../registry/manifest";
 import type { Registry } from "../registry/registry";
 import type { Result } from "../result";
+import type { DimColors } from "./dim";
 import { BUILTIN_FONT_SETS, type FontSet } from "./fonts";
+import type { Color } from "./style";
 import {
   appliesTo,
   checkPropertyValue,
@@ -78,6 +84,8 @@ export interface ThemeDefinition {
   components?: Record<string, Record<string, StyleLayerInput>>;
   /** Tone name → colors (fill, stroke, fontColor) for nodes and groups with that tone. */
   tones?: Partial<Record<Tone, StyleLayerInput>>;
+  /** Colors of dimmed elements (#175): every text, every line, and how pale fills become. */
+  dim?: { fontColor: ValueInput; stroke: ValueInput; lighten: ValueInput };
 }
 
 /** A validated theme. All values are checked and resolved; component keys are canonical. */
@@ -91,6 +99,8 @@ export interface Theme {
   readonly components: ReadonlyMap<ComponentId, ReadonlyMap<string, StyleLayer>>;
   /** Color layers by tone; a tone the theme does not define is not here. */
   readonly tones: ReadonlyMap<Tone, StyleLayer>;
+  /** Colors of dimmed elements (#175); a theme without them draws `dim` groups as they are. */
+  readonly dim?: DimColors;
 }
 
 /** The style properties a tone may set: colors only, so tones never change sizes or fonts. */
@@ -119,6 +129,9 @@ export const ThemeSchema = z.strictObject({
     .optional(),
   components: z.record(z.string(), z.record(z.string(), StyleLayerSchema)).optional(),
   tones: z.record(z.string(), StyleLayerSchema).optional(),
+  dim: z
+    .strictObject({ fontColor: z.unknown(), stroke: z.unknown(), lighten: z.unknown() })
+    .optional(),
 });
 
 export interface ValidateThemeOptions {
@@ -273,6 +286,8 @@ class ThemeChecker {
       tones.set(name, this.#checkLayer(colors, "node", path));
     }
 
+    const dim = theme.dim === undefined ? undefined : this.#checkDim(theme.dim);
+
     this.#checkFontCombinations(base, components, refs);
 
     if (hasErrors(this.diagnostics) || this.#fontSet === undefined) {
@@ -290,6 +305,7 @@ class ThemeChecker {
         base,
         components,
         tones,
+        ...(dim !== undefined && { dim }),
       }),
       diagnostics: this.diagnostics,
     };
@@ -399,6 +415,49 @@ class ThemeChecker {
       { hint: reference ? 'A reference is the whole value, e.g. "{color.fg}".' : inferred.hint },
     );
     return null;
+  }
+
+  /**
+   * Checks `dim` (#175): two colors (not `transparent`: a dimmed line or
+   * text must stay visible) and `lighten`, a number from 0 to 1.
+   */
+  #checkDim(raw: NonNullable<ParsedTheme["dim"]>): DimColors | undefined {
+    const color = (property: "fontColor" | "stroke"): Color | undefined => {
+      const path = ["dim", property];
+      const value = this.#checkValue(property, raw[property], path);
+      if (value !== "transparent") return value;
+      this.error("theme/invalid-value", `dim.${property} must be a color, not transparent.`, path, {
+        hint: 'Dimmed text and lines stay visible; use a gray such as "#8c959f".',
+      });
+      return undefined;
+    };
+    const fontColor = color("fontColor");
+    const stroke = color("stroke");
+    const path = ["dim", "lighten"];
+    const target = tokenReference(raw.lighten);
+    let typed: TypedValue | null;
+    if (target === undefined) typed = this.#literal(raw.lighten, path);
+    else if (this.#tokens.has(target)) typed = this.#resolveToken(target, []);
+    else typed = this.#unknownToken(target, path);
+    let lighten: number | undefined;
+    if (typed !== null && typed.type !== "number") {
+      this.error(
+        "theme/type-mismatch",
+        `dim.lighten expects a number, but got ${article(typed.type)} ${typed.type}.`,
+        path,
+        { hint: "Write how far fills move toward white, from 0 to 1, e.g. 0.5." },
+      );
+    } else if (typed !== null && !(typed.value >= 0 && typed.value <= 1)) {
+      this.error(
+        "theme/out-of-range",
+        `dim.lighten must be between 0 and 1, got ${typed.value}.`,
+        path,
+      );
+    } else if (typed !== null) {
+      lighten = typed.value;
+    }
+    if (fontColor === undefined || stroke === undefined || lighten === undefined) return undefined;
+    return { fontColor, stroke, lighten };
   }
 
   /** Checks one partial style; invalid properties are reported and left out. */

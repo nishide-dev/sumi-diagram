@@ -81,6 +81,8 @@ Every stage reports problems as the same diagnostic object. In
 | `theme/unknown` | `figure.theme` is not built in | `minimal`, `academic`, `slides` or `color` (see hint) |
 | `theme/missing-variant` (warning) | the theme has no style for that variant | usually ignore; choose another variant if it matters |
 | `theme/missing-tone` (warning) | the theme has no color for that tone (built-in themes define every tone) | usually ignore; choose another tone if it matters |
+| `theme/undimmed-image` (warning) | a `component: image` inside a group with `dim: true` is drawn at full color (dimming is by color, not opacity) | move the image out of the dimmed group, or use a paler image file |
+| `theme/missing-dim` (warning) | the theme has no dim colors, so `dim: true` draws the group as it is (built-in themes define them) | usually ignore |
 | other `theme/*` | a problem in a theme definition | not fixable in the figure — report it |
 | `profile/unknown` | `figure.profile` is not built in | `paper-single`, `paper-double` or `presentation-16x9` (see hint) |
 | `profile/font-too-small` | text is smaller than the profile's minimum (a `sublabel` is 7/8 of its node's size) | a user decision: another profile or theme. For `presentation-16x9` (14pt minimum) use theme `slides`; `minimal`, `academic` and `color` fail it |
