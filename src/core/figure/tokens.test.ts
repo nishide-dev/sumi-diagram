@@ -103,6 +103,8 @@ describe("expansion (#181)", () => {
       variant: cells(["props", "variant"]),
       "props.width": cells(["props", "cells", 0, "width"]),
       "props.height": cells(["props", "height"]),
+      // The size as a whole: the cell, which has a width of its own.
+      props: cells(["props", "cells", 0]),
     });
     expect(doc.tokens?.[0]?.cells[1]?.fields).toMatchObject({
       label: cells(["props", "cells", 1]),
