@@ -53,8 +53,23 @@ export const GEOMETRY_TOLERANCE_UNITS = 1;
 /** Slack for comparing physical sizes in pt (floating point only; sizes are not quantized). */
 const PT_EPSILON = 1e-6;
 
-const formatSize = (rect: Rect): string =>
-  `${formatPt(unitsToPt(rect.width))} × ${formatPt(unitsToPt(rect.height))}`;
+/**
+ * Printed size ÷ drawn size (#183, `figure.fit: scale`; 1 otherwise). Element
+ * geometry stays in drawing units: containment and intersection are checked
+ * there as drawn, while physical thresholds (a gap in pt, a run in mm) are
+ * converted with {@link drawnUnits} and reported lengths with {@link printedUnits}.
+ */
+const printScale = (context: GeometryContext): number => context.inspection.scale ?? 1;
+
+/** A length given at printed size (in units of 0.5pt), in drawing units. */
+const drawnUnits = (context: GeometryContext, units: number): number => units / printScale(context);
+
+/** A drawn length in units, at its printed size (still in units of 0.5pt). */
+const printedUnits = (context: GeometryContext, units: number): number =>
+  units * printScale(context);
+
+const formatSize = (context: GeometryContext, rect: Rect): string =>
+  `${formatPt(unitsToPt(printedUnits(context, rect.width)))} × ${formatPt(unitsToPt(printedUnits(context, rect.height)))}`;
 
 const figurePath: DocPath = ["figure"];
 
@@ -354,8 +369,8 @@ export const labelOverflow = defineGeometryRule({
       const outside = box !== undefined && !rectsOverlap(box, bbox, 0);
       findings.push({
         message: hasIcon(element)
-          ? `The icon of ${element.name} (${box === undefined ? "" : `${formatSize(box)}, `}1 em) does not fit inside its ${shapeName(element)} shape (${formatSize(bbox)})${outside ? "; it is drawn outside the shape" : ""}.`
-          : `The label of ${element.name} (${box === undefined ? "" : `${formatSize(box)}, `}measured with the theme's fonts) does not fit inside its ${shapeName(element)} shape (${formatSize(bbox)})${outside ? "; it is drawn outside the shape" : ""}.`,
+          ? `The icon of ${element.name} (${box === undefined ? "" : `${formatSize(context, box)}, `}1 em) does not fit inside its ${shapeName(element)} shape (${formatSize(context, bbox)})${outside ? "; it is drawn outside the shape" : ""}.`
+          : `The label of ${element.name} (${box === undefined ? "" : `${formatSize(context, box)}, `}measured with the theme's fonts) does not fit inside its ${shapeName(element)} shape (${formatSize(context, bbox)})${outside ? "; it is drawn outside the shape" : ""}.`,
         path: explicit ? [...element.docPath, "props"] : labelPath(element),
         subject: element.subject,
         hint: explicit
@@ -389,7 +404,7 @@ export const outOfCanvas = defineGeometryRule({
       if (outside.length === 0) continue;
       const by = Math.max(...outside.map((r) => overhang(canvas, r)));
       findings.push({
-        message: `${capitalize(element.name)} extends ${formatPt(unitsToPt(by))} outside the canvas, so part of it is clipped.`,
+        message: `${capitalize(element.name)} extends ${formatPt(unitsToPt(printedUnits(context, by)))} outside the canvas, so part of it is clipped.`,
         path: element.docPath,
         subject: element.subject,
         hint: "D2 normally sizes the canvas to its contents: shorten the label if it is a label that sticks out, and report the figure if the problem remains.",
@@ -698,7 +713,9 @@ export const PROXIMITY_GAP_UNITS = 3;
  */
 export const PROXIMITY_MIN_RUN_UNITS = ptToD2Units(mmToPt(3));
 
-const mmText = (units: number, digits = 1): string => `${unitsToMm(units).toFixed(digits)}mm`;
+/** A drawn length in mm at its printed size (#183). */
+const mmText = (context: GeometryContext, units: number, digits = 1): string =>
+  `${unitsToMm(printedUnits(context, units)).toFixed(digits)}mm`;
 
 /** `true` if the element is painted at all (not fully transparent). */
 const isOpaque = (e: GeometryElement): boolean => e.ir.style.opacity > 0;
@@ -797,16 +814,18 @@ interface BorderRun {
 function borderRuns(context: GeometryContext): BorderRun[] {
   const { index, maxWidth } = proximityData(context);
   const runs = new Map<string, BorderRun>();
+  const gapUnits = drawnUnits(context, PROXIMITY_GAP_UNITS);
+  const minRun = drawnUnits(context, PROXIMITY_MIN_RUN_UNITS);
   for (const group of context.elements) {
     if (!isFramedGroup(group) || group.bbox === undefined || group.ir.kind !== "group") continue;
     const width = group.ir.style.strokeWidth.units;
-    const reach = PROXIMITY_GAP_UNITS + (maxWidth + width) / 2;
+    const reach = gapUnits + (maxWidth + width) / 2;
     for (const [side, line] of rectSides(group.bbox, group.ir.style.radius.units).entries()) {
       for (const bundle of index.near(line.axis, line.at, reach)) {
         const run = parallelRun(bundle, line);
-        if (run === undefined || run.to - run.from < PROXIMITY_MIN_RUN_UNITS) continue;
+        if (run === undefined || run.to - run.from < minRun) continue;
         const gap = run.distance - (bundle.width + width) / 2;
-        if (gap >= PROXIMITY_GAP_UNITS) continue;
+        if (gap >= gapUnits) continue;
         for (const edge of bundle.owners) {
           const key = `${edge.key}|${group.key}`;
           const seen = runs.get(key);
@@ -864,7 +883,7 @@ function borderFindings(
     const edge = sorted[0] as GeometryElement;
     const { group } = first;
     return {
-      message: `${capitalize(linesName(sorted))} ${verb} the border of ${group.name} for ${mmText(length)}${gap > 0 ? ` (${mmText(gap, 2)} between the lines)` : ""}, so it reads as part of the frame.`,
+      message: `${capitalize(linesName(sorted))} ${verb} the border of ${group.name} for ${mmText(context, length)}${gap > 0 ? ` (${mmText(context, gap, 2)} between the lines)` : ""}, so it reads as part of the frame.`,
       path: edge.docPath,
       subject: edge.subject,
       hint: edgeBorderHint(context),
@@ -920,13 +939,15 @@ export const edgeNearEdge = defineGeometryRule({
     // Lines on the same coordinates (within COINCIDENT_UNITS) are a shared
     // trunk and never paired; each piece keeps its own edges and width.
     const pairs: LinePair[] = [];
+    const gapUnits = drawnUnits(context, PROXIMITY_GAP_UNITS);
+    const minRun = drawnUnits(context, PROXIMITY_MIN_RUN_UNITS);
     for (const { a, b, aOwners, bOwners, run } of index.pairs(
       COINCIDENT_UNITS,
-      PROXIMITY_GAP_UNITS + maxWidth,
+      gapUnits + maxWidth,
     )) {
-      if (run.to - run.from < PROXIMITY_MIN_RUN_UNITS) continue;
+      if (run.to - run.from < minRun) continue;
       const gap = run.distance - (a.width + b.width) / 2;
-      if (gap >= PROXIMITY_GAP_UNITS) continue;
+      if (gap >= gapUnits) continue;
       pairs.push({
         low: a,
         high: b,
@@ -995,7 +1016,7 @@ export const edgeNearEdge = defineGeometryRule({
     return [...best.values()].map(({ earlier, later, gap, length }) => {
       const edge = later[0] as GeometryElement;
       return {
-        message: `${capitalize(linesName(later))} runs beside ${linesName(earlier)} for ${mmText(length)}, ${gap > 0 ? `${mmText(gap, 2)} apart` : "their strokes overlapping"}, so the two read as one line.`,
+        message: `${capitalize(linesName(later))} runs beside ${linesName(earlier)} for ${mmText(context, length)}, ${gap > 0 ? `${mmText(context, gap, 2)} apart` : "their strokes overlapping"}, so the two read as one line.`,
         path: edge.docPath,
         subject: edge.subject,
         hint: isStructured(context)
@@ -1046,9 +1067,9 @@ export const edgeTouchesLabel = defineGeometryRule({
           Math.min(
             ...other.labels.flatMap(inkLines).map((ink) => polylinesRectDistance(drawn, ink)),
           ) - edge.strokeInset;
-        if (gap >= PROXIMITY_GAP_UNITS) continue;
+        if (gap >= drawnUnits(context, PROXIMITY_GAP_UNITS)) continue;
         findings.push({
-          message: `${capitalize(edge.name)} touches the ${contentNoun(other)} of ${other.name} (${gap > 0 ? `${mmText(gap, 2)} from` : "touching"} the letters).`,
+          message: `${capitalize(edge.name)} touches the ${contentNoun(other)} of ${other.name} (${gap > 0 ? `${mmText(context, gap, 2)} from` : "touching"} the letters).`,
           path: edge.docPath,
           subject: edge.subject,
           hint: edgeCrossesLabelHint(context, other),
@@ -1073,7 +1094,7 @@ export const aspectDistorted = defineGeometryRule({
       if (ir.kind !== "node" || ir.sizing !== "fixed-aspect-1" || bbox === undefined) continue;
       if (Math.abs(bbox.width - bbox.height) <= GEOMETRY_TOLERANCE_UNITS) continue;
       findings.push({
-        message: `The ${ir.shape} ${element.name} is drawn ${formatSize(bbox)}, not with equal width and height.`,
+        message: `The ${ir.shape} ${element.name} is drawn ${formatSize(context, bbox)}, not with equal width and height.`,
         path: element.docPath,
         subject: element.subject,
         hint: "The layout engine (ELK) enlarges nodes with many edges or a self-loop along one axis. Reduce the edges at the node, or use an ellipse or box if the aspect does not matter.",

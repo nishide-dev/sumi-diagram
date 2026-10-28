@@ -1,8 +1,9 @@
 /** #62 native compatibility corpus, plus minimal Mac connector controls. */
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { svgToEditablePptx } from "../src/render/pptx/editable";
 import { editablePptx } from "../src/render/pptx/package";
+import { renderFigure } from "../src/render/render";
 import { editableCorpus } from "./pptx-validator/editable-corpus";
 
 const args = Bun.argv.slice(2);
@@ -25,6 +26,27 @@ for (const item of editableCorpus())
       warnings: result.diagnostics.map((d) => d.code),
     });
   }
+// #183: a figure shrunk by `figure.fit: scale` (structured, so no D2 is
+// needed): every length, line width and text size is scaled.
+const fitDir = resolve(import.meta.dir, "../tests/fixtures/figures/fit");
+const fitted = await renderFigure(readFileSync(resolve(fitDir, "b-dit.sumi.yaml"), "utf8"), {
+  assetBase: fitDir,
+});
+if (!fitted.ok) throw new Error(JSON.stringify(fitted.diagnostics));
+if (fitted.value.inspection.scale === undefined) throw new Error("fit fixture is not scaled");
+for (const connectors of ["freeform", "glued"] as const) {
+  const result = svgToEditablePptx(fitted.value.svg, fitted.value.compiled.ir, { connectors });
+  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+  const name = `fit_b-dit.${connectors}.pptx`;
+  writeFileSync(resolve(out, name), result.value);
+  report.push({
+    source: "tests/fixtures/figures/fit/b-dit",
+    connectors,
+    file: name,
+    sha256: new Bun.CryptoHasher("sha256").update(result.value).digest("hex"),
+    warnings: result.diagnostics.map((d) => d.code),
+  });
+}
 const xfrm = '<a:xfrm><a:off x="914400" y="457200"/><a:ext cx="914400" cy="1828800"/></a:xfrm>';
 const free =
   '<a:custGeom><a:avLst/><a:gdLst/><a:ahLst/><a:cxnLst/><a:rect l="0" t="0" r="r" b="b"/><a:pathLst><a:path w="914400" h="1828800" fill="none"><a:moveTo><a:pt x="0" y="0"/></a:moveTo><a:lnTo><a:pt x="0" y="914400"/></a:lnTo><a:lnTo><a:pt x="914400" y="914400"/></a:lnTo><a:lnTo><a:pt x="914400" y="1828800"/></a:lnTo></a:path></a:pathLst></a:custGeom>';
@@ -56,4 +78,6 @@ writeFileSync(
   resolve(out, "control.arrow-sizes.pptx"),
   editablePptx(calibration, 288, 180, undefined, "control"),
 );
-console.log(`Generated ${report.length} experimental editable PPTX plus 4 controls in ${out}`);
+console.log(
+  `Generated ${report.length} experimental editable PPTX (2 of them scaled by figure.fit) plus 4 controls in ${out}`,
+);

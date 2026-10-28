@@ -1,9 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { mmToPt } from "../../core/units";
 import { LintConfigError } from "../config";
+import { lintGeometry } from "./lint";
 import { borderOf, cycleClosingEdges, largerBuiltinProfiles } from "./rules";
 import { polylinesCrossRect } from "./shapes";
-import { centeredBaseline, compile, label, lintSpec } from "./testing";
+import { centeredBaseline, compile, inspection, label, lintSpec } from "./testing";
 
 // Line numbers matter for the location tests below.
 const SOURCE = `version: 1
@@ -449,15 +450,15 @@ describe("geometry/text-too-small", () => {
     // 8pt shrunk to 70% (5.6pt) is accepted, although below the 7pt of an unscaled figure.
     expect(at(16, 0.7)).toEqual([]);
     expect(at(14, 5 / 7)).toEqual([]);
-    // Without minScaledFontSize the scaled figure keeps the profile minimum.
-    const strict = lintSpec(
-      compiled,
-      {
-        scale: 0.9,
-        profile: { minScaledFontSizePt: 7 },
-        elements: { "e:#0": { labels: [label("x", 50, 50, { fontSizeUnits: 14 })] } },
-      },
-      { code },
+    // A profile without minScaledFontSize keeps its minFontSize for a scaled figure.
+    const given = inspection(compiled, {
+      scale: 0.9,
+      elements: { "e:#0": { labels: [label("x", 50, 50, { fontSizeUnits: 14 })] } },
+    });
+    const { minScaledFontSizePt: _omitted, ...profile } = given.profile;
+    expect(profile).not.toHaveProperty("minScaledFontSizePt");
+    const strict = lintGeometry({ compiled, inspection: { ...given, profile } }).filter(
+      (d) => d.code === code,
     );
     expect(strict.map((d) => d.message)).toEqual([
       'The label of edge edges[0] is printed at 6.3pt (7pt shrunk to 90% by figure.fit: scale), below the 7pt minimum font size of profile "paper-single" for a scaled figure.',
@@ -707,6 +708,17 @@ describe("geometry/out-of-canvas", () => {
       'Node "b" extends 2.5pt outside the canvas, so part of it is clipped.',
       'Node "t" extends 1.5pt outside the canvas, so part of it is clipped.',
       'Edge "e2" extends 5pt outside the canvas, so part of it is clipped.',
+    ]);
+  });
+
+  test("a scaled figure reports the overhang at its printed size (#183)", () => {
+    const result = lintSpec(
+      compiled,
+      { scale: 0.5, elements: { "n:b": { bbox: { x: -5, y: 10, width: 20, height: 20 } } } },
+      { code },
+    );
+    expect(result.map((d) => d.message)).toEqual([
+      'Node "b" extends 1.25pt outside the canvas, so part of it is clipped.',
     ]);
   });
 });

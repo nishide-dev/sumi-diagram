@@ -28,6 +28,8 @@ export interface EditablePptxOptions {
   fontSet?: FontSet;
 }
 const U = 6350; // one D2 unit = .5pt
+/** The smallest DrawingML text size (`a:rPr/@sz`, in 1/100 pt): 1pt. */
+const MIN_TEXT_SIZE = 100;
 /**
  * EMU of a length in D2 units at a print scale (#183, `figure.fit: scale`:
  * the SVG's printed size over its natural size; 1 otherwise).
@@ -255,6 +257,25 @@ export function svgToEditablePptx(
           code: "pptx/unsupported-size",
           severity: "error",
           message: "PPTX slide sides must not exceed 4032pt (56 inches).",
+        },
+      ],
+    };
+  // DrawingML sizes text in 1/100 pt from 100 (1pt): a figure shrunk hard by
+  // `figure.fit: scale` (#183) can print text below that. Refuse rather than
+  // write an invalid package or enlarge the text.
+  const textSizes = inspected.value.elements.flatMap((e) =>
+    e.labels.map((l) => Math.round(l.fontSizeUnits * 50 * scale)),
+  );
+  const smallestText = Math.min(...textSizes);
+  if (textSizes.length > 0 && smallestText < MIN_TEXT_SIZE)
+    return {
+      ok: false,
+      diagnostics: [
+        {
+          code: "pptx/unsupported-size",
+          severity: "error",
+          message: `The editable PPTX cannot write text smaller than 1pt; the figure, shrunk to ${Math.round(scale * 1000) / 10}% by figure.fit: scale, prints text at ${smallestText / 100}pt.`,
+          hint: "Use the picture PPTX (the default --pptx-mode), or make the figure narrower so it shrinks less.",
         },
       ],
     };

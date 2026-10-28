@@ -86,6 +86,7 @@ const diagnostics = lintGeometry(rendered, { config, source: text, file });
 - `lintRenderedFigure()` は、`checkFigure()` の段に error があれば描画しない（`rendered` なし、幾何の診断なし）。描画に失敗した場合は `compile` / `backend` / `svg` の診断を加える（check 段の診断は重複させない）。終了コードの規則は `lintFigure()` と同じ。
 - `lintGeometry()` に `source`（YAML の本文）を渡すと、診断は `props` や `label` の位置を指す。渡さない場合は、IR の source map から要素の位置を使う（図全体の診断には位置が付かない）。
 - 不正な設定は `LintConfigError`。
+- `figure.fit: scale`（#183、設計 §6.48）で縮めた図では、物理的なしきい値（1.5pt の間隔、3mm の長さ、最小の文字）とメッセージの長さは**印刷される大きさ**で扱う。重なり・包含・交差と D2 の丸めの許容（1 unit）は描画の座標のまま判定する。
 
 | code | 既定 | 内容 | 直し方 |
 |---|---|---|---|

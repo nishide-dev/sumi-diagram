@@ -587,8 +587,13 @@ export function inspectSvg(svg: string, ir: FigureIR): Result<SvgInspection> {
   };
 }
 
-/** Differences of the printed width from the natural one below this are rounding (6 decimals). */
-const SCALE_EPSILON = 1e-6;
+/**
+ * The root's `width` is written with at most 6 decimals (in pt), so a width
+ * within this many pt of the natural one is the natural width, rounded. A
+ * genuine shrink is compared in pt, not as a ratio: shrinking a 249.4489pt
+ * figure to 249.448819pt (88mm) changes the ratio by only 3e-7.
+ */
+const WIDTH_ROUNDING_PT = 1e-6;
 
 /**
  * The root's printed width (`width` in pt) over the viewBox's natural width
@@ -597,8 +602,10 @@ const SCALE_EPSILON = 1e-6;
 function printScale(root: XmlElement, viewBox: Rect): number | undefined {
   const match = /^(\d+(?:\.\d+)?)pt$/.exec(attribute(root, "width") ?? "");
   if (match === null) return undefined;
-  const scale = Number(match[1]) / (viewBox.width * PT_PER_D2_UNIT);
-  return Number.isFinite(scale) && scale > 0 && Math.abs(scale - 1) > SCALE_EPSILON
+  const printed = Number(match[1]);
+  const natural = viewBox.width * PT_PER_D2_UNIT;
+  const scale = printed / natural;
+  return Number.isFinite(scale) && scale > 0 && Math.abs(printed - natural) > WIDTH_ROUNDING_PT
     ? scale
     : undefined;
 }
