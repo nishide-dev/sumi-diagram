@@ -1583,10 +1583,10 @@ edges:
 
 A group with <code>dim: true</code> is drawn pale with everything inside it: its nested groups, nodes, caption and the edges whose two ends are inside\. Text and lines take the theme's dim gray and fills move toward white, so tones stay recognizable; sizes, dashes and the layout do not change\. The group keeps its own variant and tone\. The dashed line from the left panel ends inside the dimmed one and is drawn as written\.
 
-| <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> |
-| --- | --- | --- | --- |
-| <img src="dim/dim.minimal.svg" alt="a dimmed group, theme minimal"> | <img src="dim/dim.academic.svg" alt="a dimmed group, theme academic"> | <img src="dim/dim.slides.svg" alt="a dimmed group, theme slides"> | <img src="dim/dim.color.svg" alt="a dimmed group, theme color"> |
-| <code>sumi render dim\.sumi\.yaml</code><br>66\.67mm × 68\.79mm \(max width 180mm, max height 220mm\) | <code>sumi render dim\.sumi\.yaml \-\-theme academic</code><br>66\.67mm × 67\.73mm \(max width 180mm, max height 220mm\) | <code>sumi render dim\.sumi\.yaml \-\-theme slides</code><br>98\.25mm × 92\.78mm \(max width 180mm, max height 220mm\) | <code>sumi render dim\.sumi\.yaml \-\-theme color</code><br>66\.67mm × 68\.79mm \(max width 180mm, max height 220mm\) |
+| <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> |
+| --- | --- | --- | --- | --- |
+| <img src="dim/dim.minimal.svg" alt="a dimmed group, theme minimal"> | <img src="dim/dim.academic.svg" alt="a dimmed group, theme academic"> | <img src="dim/dim.slides.svg" alt="a dimmed group, theme slides"> | <img src="dim/dim.color.svg" alt="a dimmed group, theme color"> | <img src="dim/dim.paper.svg" alt="a dimmed group, theme paper"> |
+| <code>sumi render dim\.sumi\.yaml</code><br>66\.67mm × 68\.79mm \(max width 180mm, max height 220mm\) | <code>sumi render dim\.sumi\.yaml \-\-theme academic</code><br>66\.67mm × 67\.73mm \(max width 180mm, max height 220mm\) | <code>sumi render dim\.sumi\.yaml \-\-theme slides</code><br>98\.25mm × 92\.78mm \(max width 180mm, max height 220mm\) | <code>sumi render dim\.sumi\.yaml \-\-theme color</code><br>66\.67mm × 68\.79mm \(max width 180mm, max height 220mm\) | <code>sumi render dim\.sumi\.yaml \-\-theme paper</code><br>62\.79mm × 68\.79mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>dim.sumi.yaml</code></summary>

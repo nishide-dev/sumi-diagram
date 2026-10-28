@@ -106,6 +106,10 @@ describe("dim colors", () => {
     expect(Object.isFrozen(dimmed)).toBe(true);
     const junction = resolveStyle(theme, { kind: "node", id: "sumi/junction", variant: "default" });
     expect(dimStyle(junction.style, dim)).toMatchObject({ fill: "#888888", stroke: "#888888" });
+    // Ink is compared expanded: #000 and #000000 are the same color.
+    const short = { ...junction.style, fill: "#000", stroke: "#000000" };
+    expect(dimStyle(short, dim)).toMatchObject({ fill: "#888888", stroke: "#888888" });
+    expect(dimStyle({ ...short, fill: "#FFF" }, dim).fill).toBe("#ffffff");
     const hidden = resolveStyle(theme, { kind: "node", id: "sumi/junction", variant: "hidden" });
     expect(dimStyle(hidden.style, dim)).toMatchObject({
       fill: "transparent",
@@ -203,6 +207,71 @@ describe("which elements are dimmed", () => {
     );
     const inner = dimmedElements(checkFigure(innerOnly).state.doc);
     expect([...inner.keys()].sort()).toEqual([groupKey("inner"), nodeKey("b")].sort());
+  });
+
+  test("attached nodes: beside a member they are inside, beside the dimmed group outside", () => {
+    const source = `version: 1
+figure:
+  id: f
+  theme: color
+  layout:
+    arrange: { row: { items: [x, panel] } }
+groups:
+  - id: panel
+    dim: true
+    arrange: { stack: { items: [a] } }
+nodes:
+  - { id: x, component: box, label: X }
+  - { id: a, component: box, label: A }
+  - { id: note, component: label, label: note, attach: { to: a, side: east } }
+  - { id: tag, component: label, label: tag, attach: { to: panel, side: north } }
+edges:
+  - { from: a, to: note, component: line }
+  - { from: x, to: tag, component: line }
+`;
+    const { state } = checkFigure(source);
+    expect(state.diagnostics.filter((d) => d.severity !== "info")).toEqual([]);
+    const dimmed = dimmedElements(state.doc);
+    // Attached to a member: in the member's (dimmed) group.
+    expect(dimmed.has(nodeKey("note"))).toBe(true);
+    expect(dimmed.has(edgeKey(undefined, 0))).toBe(true);
+    // Attached to the dimmed group itself: its sibling, drawn as written.
+    expect(dimmed.has(nodeKey("tag"))).toBe(false);
+    expect(dimmed.has(edgeKey(undefined, 1))).toBe(false);
+  });
+
+  test("edges and zoom lines between two separately dimmed groups are dimmed", () => {
+    const source = `version: 1
+figure:
+  id: f
+  theme: color
+  layout:
+    arrange: { row: { items: [left, right] } }
+groups:
+  - id: left
+    dim: true
+    arrange: { stack: { items: [a] } }
+  - id: right
+    dim: true
+    arrange: { stack: { items: [b] } }
+nodes:
+  - { id: a, component: box, label: A }
+  - { id: b, component: box, label: B }
+edges:
+  - { from: a, to: b }
+  - { from: a, to: right, component: zoom }
+`;
+    const { state } = checkFigure(source);
+    expect(state.diagnostics.filter((d) => d.severity !== "info")).toEqual([]);
+    const dimmed = dimmedElements(state.doc);
+    expect(dimmed.get(edgeKey(undefined, 0))).toEqual(["groups", 0, "dim"]);
+    expect(dimmed.has(edgeKey(undefined, 1))).toBe(true);
+    const dim = builtin("color").dim;
+    for (const index of [0, 1]) {
+      expect(style(state.styles ?? new Map(), edgeKey(undefined, index)).stroke).toBe(
+        dim?.stroke ?? "",
+      );
+    }
   });
 
   test("a figure without dim has no dimmed elements and the same styles as before", () => {

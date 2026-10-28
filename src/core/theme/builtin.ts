@@ -590,6 +590,10 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
       purple: { fill: "{tone.purple}" },
       pink: { fill: "{tone.pink}" },
     },
+    // Measured from the dimmed panels of the DiT figure (#175): gray text and
+    // lines #949494, tone fills and the panel's surface halfway to white
+    // (blue #cddff6 → #e6effb, the surface #f3f3f5 → #f9f9fa).
+    dim: { fontColor: "#949494", stroke: "#949494", lighten: 0.5 },
   },
 ];
 

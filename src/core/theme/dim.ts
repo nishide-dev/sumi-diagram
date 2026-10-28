@@ -41,13 +41,17 @@ export interface DimColors {
 /** The color fills move toward: the page (the writers' canvas is white). */
 const PAPER = 0xff;
 
+/** `#rgb` / `#rrggbb` as lowercase `#rrggbb`; `transparent` as it is. */
+function expandColor(color: Color): Color {
+  if (color === "transparent") return color;
+  const hex = color.length === 4 ? [...color.slice(1)].map((c) => c + c).join("") : color.slice(1);
+  return `#${hex.toLowerCase()}`;
+}
+
 /** `#rgb` / `#rrggbb` mixed toward white by `amount`, as lowercase `#rrggbb`. */
 export function lightenColor(color: Color, amount: number): Color {
   if (color === "transparent") return color;
-  const hex =
-    color.length === 4
-      ? [...color.slice(1)].map((c) => c + c).join("")
-      : color.slice(1).toLowerCase();
+  const hex = expandColor(color).slice(1);
   const channels = [0, 2, 4].map((i) => Number.parseInt(hex.slice(i, i + 2), 16));
   const mixed = channels.map((c) => Math.round(c + (PAPER - c) * amount));
   return `#${mixed.map((c) => c.toString(16).padStart(2, "0")).join("")}`;
@@ -56,7 +60,8 @@ export function lightenColor(color: Color, amount: number): Color {
 /** The style of a dimmed element: colors from `dim`, everything else unchanged. */
 export function dimStyle<S extends ResolvedStyle>(style: S, dim: DimColors): S {
   const visible = (color: Color, to: Color) => (color === "transparent" ? color : to);
-  const ink = style.fill !== "transparent" && style.fill === style.stroke;
+  // Compared expanded, so `#000` and `#000000` are the same ink.
+  const ink = style.fill !== "transparent" && expandColor(style.fill) === expandColor(style.stroke);
   const dimmed: S = {
     ...style,
     stroke: visible(style.stroke, dim.stroke),
