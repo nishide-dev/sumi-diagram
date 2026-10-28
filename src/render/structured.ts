@@ -645,9 +645,10 @@ function over(top: string, alpha: number, bottom: string): string {
  * The color painted beneath an edge label (#170, design doc §6.41): the
  * groups whose rectangle holds the label box's center, painted in drawing
  * order (outer first) over the canvas. A `transparent` or fully translucent
- * group lets the color beneath it through, so the result is the first
- * painted background from the innermost group outward, else the canvas —
- * never `transparent`, since the background is there to hide what runs
+ * group lets the color beneath it through; a translucent one is blended
+ * over it, and of overlapping siblings the later is on top. For nested,
+ * opaque groups this is the first painted background from the innermost
+ * group outward, else the canvas. Never `transparent`, since the background is there to hide what runs
  * under the label. A box across a group border takes the color under its
  * center. Nodes are not looked at: labels are placed off node boxes, and
  * one left on a node is reported by `geometry/label-collision`.

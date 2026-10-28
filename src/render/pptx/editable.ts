@@ -486,9 +486,11 @@ export function svgToEditablePptx(
       const texts = children.filter((e) => e.name === "text");
       // The label's background is the `<rect>` the SVG draws right before its
       // text (#170, design doc §6.41): in structured SVG the color painted
-      // beneath the label, in D2's the edge's `fill`. Without one, D2 still
-      // hides the line under the label with a mask (white here, as before);
-      // structured SVG (an edge `fill` of `transparent`) draws nothing.
+      // beneath the label, in D2's the edge's `fill` (white in the built-in
+      // themes; any other color is kept, where this used to write white
+      // always). Without one, D2 still hides the line under the label with a
+      // mask: white here, as before. Structured SVG without one (an edge
+      // `fill` of `transparent`) draws nothing, so no fill.
       const before = children[children.indexOf(texts[0] as XmlElement) - 1];
       const masked = attribute(path, "mask") !== undefined;
       const background =
