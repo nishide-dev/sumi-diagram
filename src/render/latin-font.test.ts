@@ -360,19 +360,29 @@ nodes:
   });
 
   test("lint/missing-glyph checks a sublabel's runs with the same fonts (#184)", () => {
-    // Latin and Japanese text the two fonts cover is not reported; the emoji is.
+    // Latin and Japanese text the two fonts cover is not reported; the emoji
+    // is. `te\u0342st` tells the fonts apart: Inter has U+0342, so with
+    // the Latin font the cluster is drawn (and checked) in Inter; BIZ
+    // UDPGothic lacks it, so without the Latin font it is reported.
     const source = `version: 1
-figure: { id: glyphs, layout: { arrange: { stack: { items: [a] } } } }
+figure: { id: glyphs, layout: { arrange: { stack: { items: [a, b] } } } }
 nodes:
   - { id: a, component: box, label: Noise, sublabel: "32 \u00d7 32 \u00d7 4 \u6f5c\u5728 $x_t$ \ud83d\udd25" }
+  - { id: b, component: box, label: Test, sublabel: "te\\u0342st" }
 `;
     const check = checkFigure(source);
     const minimal = getTheme("minimal");
     if (minimal === undefined) throw new Error("no minimal theme");
-    const findings = missingGlyph.run(
-      createLintContext(check.state, { ...minimal, fontSet: latinSet }),
-      undefined,
-    );
+    const findingsWith = (fontSet: FontSet) =>
+      missingGlyph.run(createLintContext(check.state, { ...minimal, fontSet }), undefined);
+    const plain = findingsWith(fontSetOf(DEFAULT_FONT_SET_ID)).filter((f) => f.path?.[1] === 1);
+    expect(plain.map((f) => [f.path, f.message])).toEqual([
+      [
+        ["nodes", 1, "sublabel"],
+        `The sublabel of node "b" has a character missing from the regular and math fonts of font set ${DEFAULT_FONT_SET_ID}: "\u0342" (U+0342).`,
+      ],
+    ]);
+    const findings = findingsWith(latinSet);
     expect(findings.map((f) => [f.path, f.message])).toEqual([
       [
         ["nodes", 0, "sublabel"],
