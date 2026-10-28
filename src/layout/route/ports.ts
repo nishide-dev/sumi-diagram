@@ -6,7 +6,7 @@
 
 import type { ArrangeBoxIR, EdgeIR, FigureIR, NodeIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
-import type { Anchor } from "../../core/figure/layout";
+import { type Anchor, type EdgeAnchor, STRAIGHT_ANCHOR } from "../../core/figure/layout";
 import type { Side } from "../../core/figure/schema";
 import type { Region } from "../../core/geometry";
 import { getOutlineRenderer } from "../../core/outline";
@@ -152,14 +152,103 @@ const center = (r: Rect): Point => ({ x: r.x + r.width / 2, y: r.y + r.height / 
  * The side and position of a non-junction end, while it is being resolved.
  * `anchored`: the position was written in the YAML (an anchor), so it is
  * never moved, except onto a facing end's line within
- * {@link STRAIGHTEN_TOLERANCE} (#169).
+ * {@link STRAIGHTEN_TOLERANCE} (#169). `straight`: an anchored end written
+ * `straight` (#179) that resolved to a side; it is in line with the other
+ * end, and follows it when the #113 split moves that end.
  */
 interface Choice {
   side: Side;
   offset?: number;
   inward: boolean;
   anchored: boolean;
+  straight?: boolean;
 }
+
+/**
+ * How far from a side's corners a `straight` end (#179) must stay, in units
+ * (3pt, the router's clearance): the arrowhead and the line keep off the
+ * corner and the neighbouring side. On a side shorter than twice this, only
+ * its middle qualifies.
+ */
+export const STRAIGHT_MARGIN = 6;
+
+/** Where a `straight` end goes (#179): its side and position, or why it has none. */
+export type StraightPlacement =
+  | { readonly side: Side; readonly offset: number }
+  | {
+      /**
+       * `diagonal`: the two elements are apart along both axes; `overlap`:
+       * along neither (they overlap, one holds the other, or it is a
+       * self-loop); `beyond`: the other's centre is not in line with the
+       * facing side (at least {@link STRAIGHT_MARGIN} inside its corners).
+       */
+      readonly off: "diagonal" | "overlap" | "beyond";
+      /** The facing side, for `beyond`. */
+      readonly side?: Side;
+    };
+
+/**
+ * The offset on `side` of `rect` of the coordinate `at` along it (x on
+ * north / south, y on east / west), if it is at least
+ * {@link STRAIGHT_MARGIN} inside the side's corners (#179).
+ */
+export function straightOffset(rect: Rect, side: Side, at: number): number | undefined {
+  const vertical = side === "north" || side === "south";
+  const start = vertical ? rect.x : rect.y;
+  const length = vertical ? rect.width : rect.height;
+  if (!(length > 0)) return undefined;
+  const margin = Math.min(STRAIGHT_MARGIN, length / 2);
+  const EPS = 1e-9;
+  if (at < start + margin - EPS || at > start + length - margin + EPS) return undefined;
+  return (at - start) / length;
+}
+
+/**
+ * How far the coordinate `at` along `side` of `rect` lies outside the
+ * positions a `straight` end may take ({@link straightOffset}): 0 inside
+ * them, infinite on a side of no length.
+ */
+export function straightMarginDistance(rect: Rect, side: Side, at: number): number {
+  const vertical = side === "north" || side === "south";
+  const start = vertical ? rect.x : rect.y;
+  const length = vertical ? rect.width : rect.height;
+  if (!(length > 0)) return Number.POSITIVE_INFINITY;
+  const margin = Math.min(STRAIGHT_MARGIN, length / 2);
+  return Math.max(0, start + margin - at, at - (start + length - margin));
+}
+
+/**
+ * A `straight` end on `self` toward `other` (#179, design doc §6.47): the
+ * side of `self` that faces `other` along the one axis the two are apart
+ * on, at the projection of `other`'s centre (exact, not rounded) onto it.
+ * The router then puts the end in line with the other end's port
+ * (`resolveEndsWith`), which for an end at the middle of its side is the
+ * same point.
+ */
+export function straightPlacement(self: Rect, other: Rect): StraightPlacement {
+  const apartY = bottomOf(self) <= other.y || bottomOf(other) <= self.y;
+  const apartX = rightOf(self) <= other.x || rightOf(other) <= self.x;
+  if (apartX && apartY) return { off: "diagonal" };
+  if (!apartX && !apartY) return { off: "overlap" };
+  const c = center(other);
+  const side: Side = apartY
+    ? other.y < self.y
+      ? "north"
+      : "south"
+    : other.x < self.x
+      ? "west"
+      : "east";
+  const offset = straightOffset(self, side, apartY ? c.x : c.y);
+  return offset === undefined ? { off: "beyond", side } : { side, offset };
+}
+
+/** The side opposite `side`. */
+const OPPOSITE_SIDE: Readonly<Record<Side, Side>> = {
+  north: "south",
+  south: "north",
+  east: "west",
+  west: "east",
+};
 
 /** The edges' ends as the side-sharing left them: `undefined` at a junction. */
 interface ChoicePair {
@@ -414,7 +503,7 @@ function separateDirections(
         const partner = slot.partnerChoice;
         if (
           partner === undefined ||
-          partner.anchored ||
+          (partner.anchored && !partner.straight) ||
           touched.has(partner) ||
           partner.inward ||
           slot.choice.inward ||
@@ -430,8 +519,11 @@ function separateDirections(
         const target = along(side, portOf(slot.key, slot.choice));
         const start = horizontalSide(side) ? rect.x : rect.y;
         const length = horizontalSide(side) ? rect.width : rect.height;
-        const t = (target - start) / length;
-        if (!(t > 0 && t < 1)) continue;
+        // A straight end (#179) follows only as far as its corner margin.
+        const t = partner.straight
+          ? straightOffset(rect, partner.side, target)
+          : (target - start) / length;
+        if (t === undefined || !(t > 0 && t < 1)) continue;
         // #143: the line bends rather than join a parallel edge's end.
         const at = portOf(slot.partner, { ...partner, offset: t });
         if (parallelEndAt(slot.edge, move !== leaving, partner, at, new Set([partner]))) continue;
@@ -572,6 +664,16 @@ function arrangeSides(
   };
 }
 
+/**
+ * `true` if the edge's target end has a position of its own: an anchor, or
+ * `straight` (#179) where it resolves to a side. Such an end never spreads.
+ */
+function holdsPosition(edge: EdgeIR, rectOf: (key: ElementKey) => Rect): boolean {
+  if (edge.toAnchor === undefined) return false;
+  if (edge.toAnchor !== STRAIGHT_ANCHOR) return true;
+  return "offset" in straightPlacement(rectOf(edge.to), rectOf(edge.from));
+}
+
 /** The key of an edge's end in the positions {@link spreadFanIn} returns. */
 const endKey = (edge: number, leaving: boolean) => `${edge} ${leaving ? "from" : "to"}`;
 
@@ -621,7 +723,7 @@ function spreadFanIn(
       const list = sides.get(sideId(end)) ?? [];
       list.push({ end, edge: index, leaving });
       sides.set(sideId(end), list);
-      if (!leaving && edge.toAnchor === undefined) {
+      if (!leaving && !holdsPosition(edge, rectOf)) {
         const users = ports.get(pointId(end)) ?? [];
         users.push(index);
         ports.set(pointId(end), users);
@@ -949,13 +1051,22 @@ function resolveEndsWith(
     edge: EdgeIR,
     self: Element,
     other: Element,
-    anchor: Anchor | undefined,
+    written: EdgeAnchor | undefined,
     isSource: boolean,
     spreadAt: { side: Side; offset: number } | undefined,
   ): Choice | undefined => {
     if (isJunction(self.node)) return undefined;
     // A group connected to an element inside it: the route runs inside the group.
     const inward = self.node === undefined && inside(other, self);
+    // `straight` (#179): in line with the other end on the facing side; where
+    // there is none (`layout/straight-off-side`), the end is a default one.
+    if (written === STRAIGHT_ANCHOR) {
+      const at = straightPlacement(self.rect, other.rect);
+      if ("offset" in at) {
+        return { side: at.side, offset: at.offset, inward, anchored: true, straight: true };
+      }
+    }
+    const anchor: Anchor | undefined = written === STRAIGHT_ANCHOR ? undefined : written;
     if (anchor !== undefined) {
       return { side: anchor.side, offset: anchor.offset, inward, anchored: true };
     }
@@ -968,7 +1079,9 @@ function resolveEndsWith(
     if (edge.from === edge.to) {
       // A self-loop goes around a corner: east → north by default, or the
       // side next to the one given (clockwise from the source).
-      const given = isSource ? edge.toAnchor?.side : edge.fromAnchor?.side;
+      const written = isSource ? edge.toAnchor : edge.fromAnchor;
+      // `straight` never resolves on a self-loop (no side faces the element itself).
+      const given = typeof written === "object" ? written.side : undefined;
       if (given === undefined) {
         return { side: isSource ? "east" : "north", inward, anchored: false };
       }
@@ -978,6 +1091,13 @@ function resolveEndsWith(
         inward,
         anchored: false,
       };
+    }
+    // The other end of a `straight` end (#179) faces it, so the line can be
+    // straight whatever side the arrange tree would pick.
+    const facingStraight = isSource ? edge.toAnchor : edge.fromAnchor;
+    if (facingStraight === STRAIGHT_ANCHOR && !isJunction(other.node)) {
+      const at = straightPlacement(other.rect, self.rect);
+      if ("offset" in at) return { side: OPPOSITE_SIDE[at.side], inward: false, anchored: false };
     }
     if (inward) return { side: nearestSide(self.rect, other.rect), inward, anchored: false };
     if (other.node === undefined && inside(self, other)) {
@@ -1002,6 +1122,8 @@ function resolveEndsWith(
   });
 
   // Share out default sides among the edges between the same two elements.
+  // A `straight` end (#179) takes part, so the other edges between the pair
+  // keep their parallel positions; it is put in line just below.
   const sharing = new Map<string, Choice[]>();
   for (const { edge, from, to } of choices) {
     const pair = [edge.from, edge.to].sort().join(" ");
@@ -1009,15 +1131,53 @@ function resolveEndsWith(
       [edge.from, from],
       [edge.to, to],
     ] as const) {
-      if (choice === undefined || choice.offset !== undefined) continue;
+      if (choice === undefined || (choice.offset !== undefined && !choice.straight)) continue;
       const id = `${pair}|${key}|${choice.side}`;
       const list = sharing.get(id) ?? [];
       list.push(choice);
       sharing.set(id, list);
     }
   }
+  /** Ends shared out with other ends of the same side and pair (multi-edges). */
+  const sharedOut = new Set<Choice>();
   for (const list of sharing.values()) {
     for (const [k, choice] of list.entries()) choice.offset = (k + 1) / (list.length + 1);
+    if (list.length > 1) for (const choice of list) sharedOut.add(choice);
+  }
+
+  // `straight` ends (#179) in line with the other end's port, now that it is
+  // known (a shared-out multi-edge end, a spread end, an anchor, a junction's
+  // centre). Where that port is not on the facing side or is off this side's
+  // corner margin, the end takes the projection of the other's centre; or,
+  // if it was shared out with parallel edges, keeps its shared-out position,
+  // so the parallel edges keep separate points (the router reports that it is
+  // not in line, `layout/straight-off-side`). Target
+  // ends first: with `straight` at both ends, the target end lines up with
+  // the source end's (shared-out) position, and the source end stays there.
+  const portAt = (key: ElementKey, choice: Choice | undefined): Point => {
+    const rect = element(key).rect;
+    if (choice === undefined) {
+      const c = center(rect);
+      return { x: roundUnits(c.x), y: roundUnits(c.y) };
+    }
+    return anchorPoint(rect, { side: choice.side, offset: choice.offset ?? 0.5 });
+  };
+  for (const { edge, from, to } of choices) {
+    for (const [key, self, otherKey, other] of [
+      [edge.to, to, edge.from, from],
+      [edge.from, from, edge.to, to],
+    ] as const) {
+      if (self?.straight !== true) continue;
+      const rect = element(key).rect;
+      const vertical = self.side === "north" || self.side === "south";
+      const facingPort =
+        other === undefined || (other.side === OPPOSITE_SIDE[self.side] && !other.inward);
+      const p = portAt(otherKey, other);
+      const inLine = facingPort ? straightOffset(rect, self.side, vertical ? p.x : p.y) : undefined;
+      const centred = straightPlacement(rect, element(otherKey).rect);
+      if (inLine !== undefined) self.offset = inLine;
+      else if (!sharedOut.has(self)) self.offset = "offset" in centred ? centred.offset : 0.5;
+    }
   }
 
   const shared = separateDirections(

@@ -363,6 +363,23 @@ YAML order, greedily: edges declared first get the best routes.
   gives a straight drop. If both ends share their points with other edges
   and neither can move, `layout/unaligned-ends` (warning) says so: write
   the same position for both.
+- **`straight`** (`toAnchor: straight` / `fromAnchor: straight`): the end
+  sits in line with the other end, on the side facing it, so the line
+  enters (leaves) straight with no jog. Use it for narrow boxes in a row
+  feeding a wide one (patches into a projection, encoders into a
+  refiner) instead of computing `"south:0.3127"` by hand; put it on the
+  end at the **wide** box (`fromAnchor` when the wide box is the source).
+  The side is never written. The other end, if unanchored, takes the
+  facing side. Parallel edges (same two boxes) get separate points and
+  are straight when the other end's points are over this side; from a
+  wide box into a narrow one they cannot be, so they keep separate points,
+  bend, and get `layout/straight-off-side`: put `straight` on the wide
+  box's end instead. Two sources in line
+  with the same point merge there (also with `fanIn: spread`, which
+  spreads only the other ends). If the other element's centre is not over
+  the side (at least 3pt inside its corners), or the two are diagonal or
+  overlapping, `layout/straight-off-side` (warning) and the end acts as
+  if it had no anchor: line them up in the tree, or write a side anchor.
 - **Default sides** (an end without an anchor) follow the arrange tree:
   take the box where the two ends' branches part (their nearest common
   box); in a stack the ends use north / south, in a row east / west,
@@ -568,7 +585,7 @@ where there is room.
 | `layout/unknown-attach-target` | `attach.to` names no node or group: fix the ID |
 | `layout/group-mismatch` | `group:` disagrees with the tree that places the element: delete `group:` (the tree decides) or move the ID into that group's `arrange` |
 | `layout/group-cycle`, `layout/attach-cycle` | a group placed inside itself, or attachments in a loop: break the loop |
-| `layout/invalid-anchor` | write `north`, `east`, `south` or `west`, optionally `:` and a number from 0 to 1 |
+| `layout/invalid-anchor` | write `north`, `east`, `south` or `west`, optionally `:` and a number from 0 to 1; or `straight` (no side) |
 | `layout/no-route` (render) | the ends touch (`gap: 0`), are closer than the arrowhead, or are boxed in (also by a node attached into the gap, see [attach](#attach-side-notes)): widen that `gap` (see above; even a `line` needs a gap > 0), or anchor the edge on other sides |
 | `layout/unknown-align-item`, `layout/duplicate-align-item`, `layout/invalid-align` | an `align` entry names no node or group (edges cannot be aligned), names one twice, or has fewer than two IDs: fix the list ([align](#aligning-across-trees)) |
 | `layout/unsatisfied-align` (render, warning) | the constraint cannot be met; follow the hint: put the items in different boxes, wrap one in its own `stack` / `row`, or drop a constraint that pulls the other way |

@@ -47,6 +47,7 @@ import { iconBox } from "../../assets/draw";
 import type { ArrangeBoxIR, ArrangeItemIR, FigureIR, GroupIR, NodeIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type { Diagnostic } from "../../core/diagnostics";
+import type { EdgeAnchor } from "../../core/figure/layout";
 import type { GroupLabelPosition, LabelRotation, Side } from "../../core/figure/schema";
 import { getProfile } from "../../core/profile/builtin";
 import type { Profile } from "../../core/profile/schema";
@@ -550,8 +551,8 @@ class StructuredLayout {
         kind: "edge",
         from: edge.from,
         to: edge.to,
-        ...(edge.fromAnchor !== undefined && { fromAnchor: { ...edge.fromAnchor } }),
-        ...(edge.toAnchor !== undefined && { toAnchor: { ...edge.toAnchor } }),
+        ...(edge.fromAnchor !== undefined && { fromAnchor: copyAnchor(edge.fromAnchor) }),
+        ...(edge.toAnchor !== undefined && { toAnchor: copyAnchor(edge.toAnchor) }),
         ...(labelMetrics !== undefined && { labelMetrics }),
       };
     });
@@ -597,6 +598,10 @@ class StructuredLayout {
 }
 
 /** Whether a group's label band is at the bottom of the group (#127). */
+/** A copy of an edge anchor (`straight` is a string, copied as is). */
+const copyAnchor = (anchor: EdgeAnchor): EdgeAnchor =>
+  typeof anchor === "string" ? anchor : { ...anchor };
+
 function labelAtBottom(at: GroupLabelPosition | undefined): boolean {
   return at === "bottom-left" || at === "bottom" || at === "bottom-right";
 }

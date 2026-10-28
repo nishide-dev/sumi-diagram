@@ -18,7 +18,7 @@ import {
 } from "../core/check-state";
 import { type DocPath, hasErrors, type SourceLocation } from "../core/diagnostics";
 import type { FigureCheck } from "../core/figure/check";
-import { type Anchor, parseAnchor } from "../core/figure/layout";
+import { type EdgeAnchor, parseAnchor } from "../core/figure/layout";
 import type {
   AlignConstraint,
   AlignPosition,
@@ -255,10 +255,10 @@ export interface EdgeIR extends ElementIRBase {
   /** Arrowhead at the target end; set exactly when `direction` is `forward` or `both`. */
   readonly targetArrowhead?: Arrowhead;
   readonly style: EdgeStyle;
-  /** Structured layout: where the edge leaves the source. */
-  readonly fromAnchor?: Anchor;
-  /** Structured layout: where the edge enters the target. */
-  readonly toAnchor?: Anchor;
+  /** Structured layout: where the edge leaves the source (`straight`: in line with the target, #179). */
+  readonly fromAnchor?: EdgeAnchor;
+  /** Structured layout: where the edge enters the target (`straight`: in line with the source, #179). */
+  readonly toAnchor?: EdgeAnchor;
   /** Structured layout: where along the route the label sits (#128). Absent when not written. */
   readonly labelAt?: EdgeLabelPosition;
   /** Structured layout: the side of the line, facing from source to target (#128). Absent when not written. */
@@ -573,12 +573,14 @@ function edgeIR(
 function anchorIR<F extends "fromAnchor" | "toAnchor">(
   field: F,
   value: string | undefined,
-): Partial<Record<F, Anchor>> {
+): Partial<Record<F, EdgeAnchor>> {
   if (value === undefined) return {};
   // The layout stage reports malformed anchors, so an error-free figure has none.
   const anchor = parseAnchor(value);
   if (anchor === undefined) throw new Error(`internal error: invalid anchor "${value}"`);
-  return { [field]: freeze(anchor) } as Partial<Record<F, Anchor>>;
+  return { [field]: typeof anchor === "string" ? anchor : freeze(anchor) } as Partial<
+    Record<F, EdgeAnchor>
+  >;
 }
 
 /**

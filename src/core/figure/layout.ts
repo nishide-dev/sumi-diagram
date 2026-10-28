@@ -49,8 +49,22 @@ export interface Anchor {
   offset: number;
 }
 
-/** Parses `"south"` / `"south:0.25"`; `undefined` if malformed (see `ANCHOR_PATTERN`). */
-export function parseAnchor(value: string): Anchor | undefined {
+/**
+ * `straight` (#179, design doc §6.47): the end sits in line with the other
+ * end, on the side facing it, so the edge enters (or leaves) straight. The
+ * router works out the side and the position after placement.
+ */
+export const STRAIGHT_ANCHOR = "straight";
+
+/** An edge anchor as written: a side and position, or {@link STRAIGHT_ANCHOR}. */
+export type EdgeAnchor = Anchor | typeof STRAIGHT_ANCHOR;
+
+/**
+ * Parses `"south"` / `"south:0.25"` / `"straight"`; `undefined` if malformed
+ * (see `ANCHOR_PATTERN`).
+ */
+export function parseAnchor(value: string): EdgeAnchor | undefined {
+  if (value === STRAIGHT_ANCHOR) return STRAIGHT_ANCHOR;
   const match = /^([a-z]+)(?::(\d+(?:\.\d+)?))?$/.exec(value);
   if (match === null) return undefined;
   const side = match[1] as Side;
@@ -499,7 +513,7 @@ function checkStructured(state: CheckState, locate: Locator): void {
         errorAt(
           locate,
           "layout/invalid-anchor",
-          `Invalid anchor ${JSON.stringify(value)} at edges[${index}].${field}; expected "<side>" or "<side>:<position>".`,
+          `Invalid anchor ${JSON.stringify(value)} at edges[${index}].${field}; expected "<side>", "<side>:<position>" or "straight".`,
           ["edges", index, field],
           {
             subject: { kind: "edge", id: edge.id ?? `edges[${index}]` },
@@ -706,8 +720,9 @@ function unplacedHint(element: Element, elements: Map<string, Element>): string 
 
 function anchorHint(value: string): string {
   const side = /^([a-z]+)/.exec(value.toLowerCase())?.[1];
-  const suggestion = side === undefined ? undefined : closestMatch(side, SIDES);
-  const sides = `Sides: ${SIDES.join(", ")}; the position is a number from 0 to 1 (default 0.5), e.g. "south:0.25".`;
+  const suggestion =
+    side === undefined ? undefined : closestMatch(side, [...SIDES, STRAIGHT_ANCHOR]);
+  const sides = `Sides: ${SIDES.join(", ")}; the position is a number from 0 to 1 (default 0.5), e.g. "south:0.25". Or "straight": in line with the other end, on the side facing it.`;
   return suggestion !== undefined && suggestion !== side
     ? `Did you mean "${suggestion}"? ${sides}`
     : sides;
