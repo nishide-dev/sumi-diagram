@@ -1,0 +1,77 @@
+version: 1
+requires: ">=0.5.1"
+figure:
+  id: dit-block
+  theme: color
+  profile: paper-single
+  layout:
+    arrange:
+      stack: { items: [ panel ] }
+groups:
+  - id: panel
+    variant: muted
+    caption: DiT block with adaLN-Zero conditioning
+    arrange:
+      stack:
+        gap: 4mm
+        items:
+          - row:
+              gap: 8mm
+              align: center
+              items:
+                - stack: { direction: up, gap: 3mm, items: [ z-in, block, eps-out ] }
+                - stack: { direction: up, gap: 6mm, items: [ cond-in, embed, mlp ] }
+          - key
+  - id: block
+    arrange:
+      stack:
+        direction: up
+        gap: 2.5mm
+        align: stretch
+        items: [ split1, norm1, mod1, attn, gate1, add1, split2, norm2, mod2, ffn, gate2, add2 ]
+nodes:
+  - { id: z-in, component: label, label: '$z_t$ (noised latent tokens)' }
+  - { id: split1, component: junction, variant: hidden }
+  - { id: norm1, component: box, label: Layer Norm, tone: yellow }
+  - { id: mod1, component: box, label: "Scale, Shift\n$\\gamma_1,\\,\\beta_1$", tone: purple }
+  - { id: attn, component: box, label: "Multi-Head\nSelf-Attention", tone: orange }
+  - { id: gate1, component: box, label: 'Scale $\alpha_1$', tone: purple }
+  - { id: add1, component: operator, props: { symbol: plus } }
+  - { id: split2, component: junction, variant: hidden }
+  - { id: norm2, component: box, label: Layer Norm, tone: yellow }
+  - { id: mod2, component: box, label: "Scale, Shift\n$\\gamma_2,\\,\\beta_2$", tone: purple }
+  - { id: ffn, component: box, label: "Pointwise\nFeedforward", tone: blue }
+  - { id: gate2, component: box, label: 'Scale $\alpha_2$', tone: purple }
+  - { id: add2, component: operator, props: { symbol: plus } }
+  - { id: eps-out, component: label, label: '$\hat{\epsilon}_\theta,\ \Sigma_\theta$' }
+  - { id: cond-in, component: label, label: 'timestep $t$, label $y$' }
+  - { id: embed, component: box, label: Embed, tone: green }
+  - { id: mlp, component: box, label: MLP, tone: green }
+  - id: key
+    component: legend
+    props:
+      entries:
+        - { edge: { variant: dashed }, label: from $c$ }
+        - { edge: { component: arrow }, label: tokens }
+edges:
+  - { from: z-in, to: split1, component: line }
+  - { from: split1, to: norm1 }
+  - { from: norm1, to: mod1 }
+  - { from: mod1, to: attn }
+  - { from: attn, to: gate1 }
+  - { from: gate1, to: add1 }
+  - { from: split1, to: add1, toAnchor: west }
+  - { from: add1, to: split2, component: line }
+  - { from: split2, to: norm2 }
+  - { from: norm2, to: mod2 }
+  - { from: mod2, to: ffn }
+  - { from: ffn, to: gate2 }
+  - { from: gate2, to: add2 }
+  - { from: split2, to: add2, toAnchor: west }
+  - { from: add2, to: eps-out }
+  - { from: cond-in, to: embed }
+  - { from: embed, to: mlp, label: '$c$', labelSide: right }
+  - { from: mlp, fromAnchor: west, to: mod1, toAnchor: east, variant: dashed }
+  - { from: mlp, fromAnchor: west, to: gate1, toAnchor: east, variant: dashed }
+  - { from: mlp, fromAnchor: west, to: mod2, toAnchor: east, variant: dashed }
+  - { from: mlp, fromAnchor: west, to: gate2, toAnchor: east, variant: dashed }

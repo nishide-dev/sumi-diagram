@@ -1,0 +1,92 @@
+version: 1
+requires: ">=0.5.1"
+figure:
+  id: se-comparison
+  theme: academic
+  profile: paper-single
+  layout:
+    arrange:
+      stack:
+        gap: 4mm
+        items:
+          - row: { gap: 4mm, align: start, items: [ base, ours ] }
+          - key
+    align:
+      - { y: [ a-x, b-x ] }
+      - { y: [ a-add, b-add ] }
+groups:
+  - id: base
+    caption: (a) Residual block
+    arrange:
+      stack:
+        gap: 3mm
+        align: stretch
+        items: [ a-x, a-split, a-conv1, a-conv2, a-add, a-relu, a-y ]
+  - id: ours
+    caption: (b) SE-Residual block
+    arrange:
+      stack:
+        gap: 3mm
+        align: stretch
+        items:
+          - b-x
+          - b-split
+          - b-conv1
+          - b-conv2
+          - b-split2
+          - row:
+              gap: 3mm
+              align: center
+              items:
+                - b-scale
+                - stack: { gap: 2mm, align: stretch, items: [ b-pool, b-fc1, b-fc2 ] }
+          - b-add
+          - b-relu
+          - b-y
+nodes:
+  - { id: a-x, component: label, label: $x$ }
+  - { id: a-split, component: junction, variant: hidden }
+  - { id: a-conv1, component: box, label: "3×3 Conv\nBN, ReLU" }
+  - { id: a-conv2, component: box, label: "3×3 Conv, BN" }
+  - { id: a-add, component: operator, props: { symbol: plus } }
+  - { id: a-relu, component: box, label: ReLU }
+  - { id: a-y, component: label, label: $y$ }
+  - { id: b-x, component: label, label: $x$ }
+  - { id: b-split, component: junction, variant: hidden }
+  - { id: b-conv1, component: box, label: "3×3 Conv\nBN, ReLU" }
+  - { id: b-conv2, component: box, label: "3×3 Conv, BN" }
+  - { id: b-split2, component: junction }
+  - { id: b-pool, component: box, label: Global Pool, variant: emphasis }
+  - { id: b-fc1, component: box, label: FC + ReLU, variant: emphasis }
+  - { id: b-fc2, component: box, label: FC + Sigmoid, variant: emphasis }
+  - { id: b-scale, component: operator, props: { symbol: times } }
+  - { id: b-add, component: operator, props: { symbol: plus } }
+  - { id: b-relu, component: box, label: ReLU }
+  - { id: b-y, component: label, label: '$\tilde{y}$' }
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      entries:
+        - { node: { variant: emphasis }, label: SE branch (added in b) }
+edges:
+  - { from: a-x, to: a-split, component: line }
+  - { from: a-split, to: a-conv1 }
+  - { from: a-conv1, to: a-conv2 }
+  - { from: a-conv2, to: a-add }
+  - { from: a-split, to: a-add, toAnchor: east, label: identity, labelAt: middle, labelSide: right }
+  - { from: a-add, to: a-relu }
+  - { from: a-relu, to: a-y }
+  - { from: b-x, to: b-split, component: line }
+  - { from: b-split, to: b-conv1 }
+  - { from: b-conv1, to: b-conv2 }
+  - { from: b-conv2, to: b-split2, component: line }
+  - { from: b-split2, to: b-scale }
+  - { from: b-split2, to: b-pool }
+  - { from: b-pool, to: b-fc1 }
+  - { from: b-fc1, to: b-fc2 }
+  - { from: b-fc2, to: b-scale, toAnchor: east }
+  - { from: b-scale, to: b-add }
+  - { from: b-split, to: b-add, toAnchor: east }
+  - { from: b-add, to: b-relu }
+  - { from: b-relu, to: b-y }

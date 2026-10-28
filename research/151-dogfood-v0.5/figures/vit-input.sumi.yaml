@@ -1,0 +1,67 @@
+version: 1
+requires: ">=0.5.1"
+figure:
+  id: vit-input
+  theme: color
+  profile: paper-single
+  layout:
+    arrange:
+      stack:
+        direction: up
+        gap: 5mm
+        align: stretch
+        items:
+          - row: { gap: 12mm, align: center, items: [ image, { row: { gap: 2mm, items: [ p1, p2, p3, p4 ] } } ] }
+          - projection
+          - row:
+              gap: 1.5mm
+              items:
+                - row: { gap: 0, items: [ e0, t0 ] }
+                - row: { gap: 0, items: [ e1, t1 ] }
+                - row: { gap: 0, items: [ e2, t2 ] }
+                - row: { gap: 0, items: [ e3, t3 ] }
+                - row: { gap: 0, items: [ e4, t4 ] }
+          - encoder
+          - stack: { gap: 5mm, direction: up, align: center, items: [ head, cls-out ] }
+nodes:
+  - { id: image, component: image, variant: framed, props: { src: image.png, height: 40pt } }
+  - { id: p1, component: image, variant: framed, props: { src: patch-0.png, height: 16pt } }
+  - { id: p2, component: image, variant: framed, props: { src: patch-1.png, height: 16pt } }
+  - { id: p3, component: image, variant: framed, props: { src: patch-2.png, height: 16pt } }
+  - { id: p4, component: image, variant: framed, props: { src: patch-3.png, height: 16pt } }
+  - { id: projection, component: box, label: Linear Projection of Flattened Patches, tone: pink }
+  - { id: e0, component: box, label: "0", tone: purple, props: { width: 12pt } }
+  - { id: e1, component: box, label: "1", tone: purple, props: { width: 12pt } }
+  - { id: e2, component: box, label: "2", tone: purple, props: { width: 12pt } }
+  - { id: e3, component: box, label: "3", tone: purple, props: { width: 12pt } }
+  - { id: e4, component: box, label: "4", tone: purple, props: { width: 12pt } }
+  - { id: t0, component: box, label: '$x_{\mathrm{cls}}$', tone: orange }
+  - { id: t1, component: box, label: '$x_p^1 E$', tone: pink }
+  - { id: t2, component: box, label: '$x_p^2 E$', tone: pink }
+  - { id: t3, component: box, label: '$x_p^3 E$', tone: pink }
+  - { id: t4, component: box, label: '$x_p^4 E$', tone: pink }
+  - { id: encoder, component: box, label: Transformer Encoder, tone: yellow }
+  - { id: repeat, component: label, label: '$L\times$', attach: { to: encoder, side: east, gap: 1mm } }
+  - { id: head, component: box, label: MLP Head, tone: green }
+  - { id: cls-out, component: label, label: Class }
+edges:
+  - { from: image, to: p1, label: split }
+  # The anchor fractions put each line straight above its source. They were
+  # read off the rendered SVG (node x / the wide block's width): Sumi has no
+  # "enter right above the source" option, and fanIn: spread spaces the ends
+  # evenly, so every line got a jog (see README, C1).
+  - { from: p1, to: projection, toAnchor: "south:0.521" }
+  - { from: p2, to: projection, toAnchor: "south:0.622" }
+  - { from: p3, to: projection, toAnchor: "south:0.7225" }
+  - { from: p4, to: projection, toAnchor: "south:0.823" }
+  - { from: projection, fromAnchor: "north:0.3093", to: t1 }
+  - { from: projection, fromAnchor: "north:0.5175", to: t2 }
+  - { from: projection, fromAnchor: "north:0.7256", to: t3 }
+  - { from: projection, fromAnchor: "north:0.9338", to: t4 }
+  - { from: t0, to: encoder, toAnchor: "south:0.1116" }
+  - { from: t1, to: encoder, toAnchor: "south:0.3093" }
+  - { from: t2, to: encoder, toAnchor: "south:0.5175" }
+  - { from: t3, to: encoder, toAnchor: "south:0.7256" }
+  - { from: t4, to: encoder, toAnchor: "south:0.9338" }
+  - { from: encoder, to: head }
+  - { from: head, to: cls-out }

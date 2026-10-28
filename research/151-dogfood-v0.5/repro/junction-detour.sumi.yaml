@@ -1,0 +1,36 @@
+# A1: add1 → split2 (a straight line into a hidden junction right above it)
+# is drawn with an S-shaped detour into the junction from the west. Without
+# the legend, or without the mlp → norm2 edge, the line is straight.
+version: 1
+requires: ">=0.5.1"
+figure:
+  id: junction-detour
+  theme: color
+  profile: paper-single
+  layout:
+    arrange:
+      row:
+        gap: 8mm
+        align: center
+        items:
+          - stack: { direction: up, gap: 2.5mm, align: stretch, items: [ add1, split2, norm2, ffn, add2 ] }
+          - stack: { direction: up, gap: 6mm, items: [ key, mlp ] }
+nodes:
+  - { id: add1, component: operator, props: { symbol: plus } }
+  - { id: split2, component: junction, variant: hidden }
+  - { id: norm2, component: box, label: Layer Norm }
+  - { id: ffn, component: box, label: Feedforward }
+  - { id: add2, component: operator, props: { symbol: plus } }
+  - { id: mlp, component: box, label: MLP }
+  - id: key
+    component: legend
+    props:
+      entries:
+        - { edge: { variant: dashed }, label: from c }
+edges:
+  - { from: add1, to: split2, component: line }
+  - { from: split2, to: norm2 }
+  - { from: norm2, to: ffn }
+  - { from: ffn, to: add2 }
+  - { from: split2, to: add2, toAnchor: west }
+  - { from: mlp, fromAnchor: west, to: norm2, toAnchor: east, variant: dashed }
