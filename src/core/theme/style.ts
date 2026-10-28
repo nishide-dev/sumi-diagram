@@ -194,7 +194,10 @@ export const SUBLABEL_SCALE = 7 / 8;
 
 /**
  * The font size of a node's sublabel (#184): {@link SUBLABEL_SCALE} of the
- * label's, rounded down to whole D2 units (0.5pt), like every style length.
+ * label's, rounded down to whole D2 units (0.5pt). A theme length that is
+ * not a multiple of 0.5pt is an error, never rounded (§4.1); this size is
+ * derived, not written, so rounding it down is this rule's own choice (it
+ * keeps the size in whole units and never above 7/8).
  */
 export function sublabelFontSize(fontSize: StyleLength): StyleLength {
   const units = Math.floor(fontSize.units * SUBLABEL_SCALE);

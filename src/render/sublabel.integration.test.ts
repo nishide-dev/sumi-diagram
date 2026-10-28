@@ -57,6 +57,59 @@ const textOf = (element: XmlElement) =>
     .map((e) => e.children.map((c) => (c.type === "text" ? c.text : "")).join(""))
     .join("");
 
+/**
+ * A node's text rows in the editable PPTX: its own text body, then a
+ * sublabel's text box if it has one (`joined` is false then), each row with
+ * its size and its top in SVG units (the box's top inset plus the spacings
+ * above it).
+ */
+function pptxRows(
+  rendered: RenderedStructuredFigure,
+  key: string,
+): { rows: { text: string; sz: string; top: number }[]; joined: boolean } {
+  const editable = svgToEditablePptx(rendered.svg, rendered.compiled.ir);
+  if (!editable.ok) throw new Error(JSON.stringify(editable.diagnostics));
+  const xml = new TextDecoder().decode(readPptx(editable.value).get("ppt/slides/slide1.xml"));
+  const parsed = parseXml(xml);
+  if (!parsed.ok) throw new Error(parsed.message);
+  const shapes = [...descendants(parsed.root)].filter((e) => e.name === "p:sp");
+  const named = (name: string) =>
+    shapes.find((s) =>
+      [...descendants(s)].some((e) => e.name === "p:cNvPr" && attribute(e, "name") === name),
+    );
+  const EMU = 6350;
+  const { viewBox } = rendered.inspection.canvas;
+  // The slide may center a small figure: its offset is the node shape's
+  // position less the inspected box's.
+  const node = named(key);
+  if (node === undefined) throw new Error(`no shape of ${key}`);
+  const nodeOff = [...descendants(node)].find((e) => e.name === "a:off") as XmlElement;
+  const bbox = rendered.inspection.elements.find((e) => e.key === key)?.bbox;
+  if (bbox === undefined) throw new Error(`no box of ${key}`);
+  const dy = Number(attribute(nodeOff, "y")) / EMU - (bbox.y - viewBox.y);
+  const rowsOf = (shape: XmlElement) => {
+    const body = [...descendants(shape)].find((e) => e.name === "a:bodyPr") as XmlElement;
+    const off = [...descendants(shape)].find((e) => e.name === "a:off") as XmlElement;
+    let top =
+      Number(attribute(off, "y")) / EMU - dy + viewBox.y + Number(attribute(body, "tIns")) / EMU;
+    return [...descendants(shape)]
+      .filter((e) => e.name === "a:p")
+      .map((p) => {
+        const all = [...descendants(p)];
+        const sizes = all.filter((e) => e.name === "a:rPr").map((e) => attribute(e, "sz"));
+        const [spacing = 0, before = 0] = all
+          .filter((e) => e.name === "a:spcPts")
+          .map((e) => Number(attribute(e, "val")) / 50);
+        top += before;
+        const row = { text: textOf(p), sz: [...new Set(sizes)].join(","), top };
+        top += spacing;
+        return row;
+      });
+  };
+  const own = named(`${key} sublabel`);
+  return { rows: [...rowsOf(node), ...(own ? rowsOf(own) : [])], joined: own === undefined };
+}
+
 describe("sublabel (#184): DiT", () => {
   test("renders with the research figure's findings only (its width)", async () => {
     const rendered = await render(source);
@@ -137,57 +190,55 @@ nodes:
   test("the editable PPTX writes the sublabel as smaller paragraphs in the node's text", async () => {
     const rendered = await render(source);
     expect(svgToPptx(rendered.svg, { fontSet: fonts }).ok).toBe(true);
-    const editable = svgToEditablePptx(rendered.svg, rendered.compiled.ir);
-    if (!editable.ok) throw new Error(JSON.stringify(editable.diagnostics));
-    const xml = new TextDecoder().decode(readPptx(editable.value).get("ppt/slides/slide1.xml"));
-    const parsed = parseXml(xml);
-    if (!parsed.ok) throw new Error(parsed.message);
-    const shapes = [...descendants(parsed.root)].filter((e) => e.name === "p:sp");
-    const named = (name: string) =>
-      shapes.find((s) =>
-        [...descendants(s)].some((e) => e.name === "p:cNvPr" && attribute(e, "name") === name),
-      );
     for (const [key, [label, sublabel]] of Object.entries(SUBLABELED)) {
-      const shape = named(key);
-      if (shape === undefined) throw new Error(`no shape of ${key}`);
-      const paragraphs = [...descendants(shape)].filter((e) => e.name === "a:p");
-      const rows = paragraphs.map((p) => {
-        const all = [...descendants(p)];
-        const sizes = all.filter((e) => e.name === "a:rPr").map((e) => attribute(e, "sz"));
-        const [spacing, before] = all
-          .filter((e) => e.name === "a:spcPts")
-          .map((e) => Number(attribute(e, "val")) / 50);
-        return { text: textOf(p), sz: [...new Set(sizes)].join(","), spacing, before };
-      });
-      // The label's lines at 8pt, the sublabel's at 7pt.
+      const { rows, joined } = pptxRows(rendered, key);
+      // The label's lines at 8pt, the sublabel's at 7pt: in the node's text
+      // under a one-line label, in a box of its own under two lines (it
+      // starts 1/8pt higher than the label's line spacing reaches).
+      expect(joined).toBe(key !== "n:noised");
       expect(rows.map((r) => [r.text, r.sz])).toEqual([
         ...label.split("\n").map((line) => [line, "800"]),
         [sublabel, "700"],
       ]);
-      // Each line's top: the top inset plus the spacings above it. The
-      // sublabel's lands where the SVG draws it (within DrawingML's lack of
-      // negative spacing: the two sizes' half-leadings differ by 1/8 pt).
-      const body = [...descendants(shape)].find((e) => e.name === "a:bodyPr") as XmlElement;
-      const off = [...descendants(shape)].find((e) => e.name === "a:off") as XmlElement;
-      const EMU = 6350;
-      const { viewBox } = rendered.inspection.canvas;
-      const boxTop = Number(attribute(off, "y")) / EMU + viewBox.y;
-      let top = boxTop + Number(attribute(body, "tIns")) / EMU;
-      const tops: number[] = [];
-      for (const row of rows) {
-        top += row.before ?? 0;
-        tops.push(top);
-        top += row.spacing ?? 0;
-      }
-      const element = rendered.inspection.elements.find((e) => e.key === key);
-      const svgTops = (element?.labels ?? []).flatMap((l) =>
-        measureLabel(l, fonts).lines.map((r) => r.y),
-      );
-      expect(svgTops).toHaveLength(tops.length);
-      for (const [i, y] of svgTops.entries())
-        expect(Math.abs((tops[i] as number) - y)).toBeLessThan(0.3);
     }
   });
+
+  // Each PPTX line's top (a text box's top inset plus the spacing above the
+  // line) is where the SVG draws it, whether the sublabel joins the node's
+  // text or, where that would need negative spacing, gets a box of its own.
+  test.each([
+    ["color", "Noise", "32 × 32 × 4"],
+    ["color", "Noised\\nLatent", "32 × 32 × 4"],
+    ["slides", "Noise", "32 × 32 × 4"],
+    ["slides", "Two\\nlines", "a\\n$x_i$"],
+    ["academic", "Σ", "$x_t^2$\\nsize"],
+    ["minimal", "Encoder", "frozen\\n$W_q$, $W_k$"],
+  ])(
+    "the editable PPTX puts every line where the SVG does (%s, %j / %j)",
+    async (theme, label, sublabel) => {
+      const text = `version: 1
+figure: { id: f, theme: ${theme}, layout: { arrange: { stack: { items: [a] } } } }
+nodes:
+  - { id: a, component: box, label: "${label}", sublabel: "${sublabel}" }
+`;
+      const rendered = await render(text);
+      const { rows } = pptxRows(rendered, "n:a");
+      const element = rendered.inspection.elements.find((e) => e.key === "n:a");
+      // In the SVG: each text's first line's top, then its baselines, which
+      // advance by its line height (a later line's own top depends on its
+      // runs: math and scripts reach higher or lower, while PowerPoint's
+      // exact line spacing, like the SVG, keeps the baselines evenly spaced).
+      const want = (element?.labels ?? []).flatMap((l) => {
+        const first = measureLabel(l, fonts).lines[0]?.y as number;
+        return measureLabel(l, fonts).lines.map((_, k) => first + k * l.lineHeightUnits);
+      });
+      expect(rows).toHaveLength(want.length);
+      // Within the rounding of spacing to 1/100 pt (0.02 units) and of EMU.
+      for (const [i, y] of want.entries()) {
+        expect(Math.abs((rows[i]?.top as number) - y)).toBeLessThan(0.015);
+      }
+    },
+  );
 
   test("with labelRotation the block turns as a whole", async () => {
     const turned = `version: 1

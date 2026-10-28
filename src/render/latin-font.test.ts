@@ -358,6 +358,28 @@ nodes:
       `The label of node "c" has a character missing from the regular, Latin and math fonts of font set ${LATIN_FONT_SET_ID}: "\u0342" (U+0342).`,
     ]);
   });
+
+  test("lint/missing-glyph checks a sublabel's runs with the same fonts (#184)", () => {
+    // Latin and Japanese text the two fonts cover is not reported; the emoji is.
+    const source = `version: 1
+figure: { id: glyphs, layout: { arrange: { stack: { items: [a] } } } }
+nodes:
+  - { id: a, component: box, label: Noise, sublabel: "32 \u00d7 32 \u00d7 4 \u6f5c\u5728 $x_t$ \ud83d\udd25" }
+`;
+    const check = checkFigure(source);
+    const minimal = getTheme("minimal");
+    if (minimal === undefined) throw new Error("no minimal theme");
+    const findings = missingGlyph.run(
+      createLintContext(check.state, { ...minimal, fontSet: latinSet }),
+      undefined,
+    );
+    expect(findings.map((f) => [f.path, f.message])).toEqual([
+      [
+        ["nodes", 0, "sublabel"],
+        `The sublabel of node "a" has a character missing from the regular, Latin and math fonts of font set ${LATIN_FONT_SET_ID}: "\ud83d\udd25" (U+1F525).`,
+      ],
+    ]);
+  });
 });
 
 describe("a run after a text node that starts with a space (all font sets)", () => {
