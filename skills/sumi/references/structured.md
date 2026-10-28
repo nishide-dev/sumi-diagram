@@ -326,7 +326,12 @@ YAML order, greedily: edges declared first get the best routes.
   or `"south:0.2"` for a position along it (0..1: left → right on
   north/south, top → bottom on east/west; default 0.5). Quote values with a
   `:`. Several edges between the same two elements are spread out
-  automatically.
+  automatically. Two ends that face each other within 1pt of one line are
+  drawn as a straight line: one end (an anchored one too) moves along its
+  side by up to 1pt, so an anchor read off a render to 4 decimals still
+  gives a straight drop. If both ends share their points with other edges
+  and neither can move, `layout/unaligned-ends` (warning) says so: write
+  the same position for both.
 - **Default sides** (an end without an anchor) follow the arrange tree:
   take the box where the two ends' branches part (their nearest common
   box); in a stack the ends use north / south, in a row east / west,
