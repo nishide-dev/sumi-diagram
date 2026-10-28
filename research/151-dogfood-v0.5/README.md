@@ -129,16 +129,35 @@
 
 | # | 内容 | 頻度 | 種類 | 根拠（src 確認） |
 | --- | --- | --- | --- | --- |
-| A1 | **⊕ からすぐ上の hidden junction へのまっすぐな線が、S 字に迂回して junction に西から入る**。同じ図に `legend` と、別のノードへの破線（`fromAnchor` / `toAnchor` 付き）の両方があるときだけ起きる（どちらかを消すとまっすぐ）。凡例の位置を変えると消えることもある | 図 2（5〜7 回目） | 不具合 | `repro/junction-detour.sumi.yaml`、`previews/repro-junction-detour.png`。SVG の経路は `M 88 168.7 L 88 159.3 L 80 159.3 L 80 154.0 L 88 154.0`（同じ x への寄り道）。原因は未特定。junction の端は向きを持たない（`src/layout/route/ports.ts` 927 行 `junction: true, dir: -1`）ので、凡例の見本の辺が加わったときの経路探索の順序か、junction ネットの扱いが疑わしい |
-| A2 | **`figure.layout.align` が図を黙って大きくする**。単独の stack に入れた junction と、入れ子の group の中の gateway を `y` で揃えると、junction を動かさずに gateway の枝の上に空きを足し、図 4 では 125.8 → 188.4mm、再現では 90 → 126.8mm になった。制約は満たされるので診断は出ない | 図 4（4 回目） | 分かりにくい（挙動は設計どおり） | `repro/align-grows-figure.sumi.yaml`、`previews/repro-align-grows-figure.png`。`src/layout/structured/align.ts` 冒頭のコメント: 上にある項目の前に `lead` を足して押し下げ、候補は残差の合計だけで選ぶ（図の大きさは見ない）。中央寄せの box の中の単独項目は `trail` では上がらない。少なくとも「align で高さが X mm 増えた」という info と、Skill への注意書きが要る |
-| A3 | **下から入る辺が group の `caption` を避けて大きく回り込む**。キャプションは group の下に固定で、ルータはそれを障害物として扱う。診断なし | 図 2（1 回目） | 分かりにくい（挙動は設計どおり）・Skill の不足 | `repro/caption-blocks-input.sumi.yaml`、`previews/repro-caption-blocks-input.png`。`src/layout/route/router.ts` 489・569 行（キャプションを「in the way」として扱う）。Skill（structured.md）は「位置は固定」と書くが、下から入る辺がある group には付けるな、とは書いていない |
-| A4 | **単一引用符のラベルで `\n` が改行にならず「\n」と描かれる**。Skill は「数式は単一引用符で」「`\n` は二重引用符の中で」と別々に書いており、両方を使う（`Scale, Shift` の 2 行目に数式）と気付きにくい。診断なし | 図 2（2 回目） | 分かりにくい診断・Skill の不足 | `repro/single-quote-newline.sumi.yaml`、`previews/repro-single-quote-newline.png`。ラベルに文字どおりの `\n`（バックスラッシュ + n）があれば lint で警告し、hint で `"…\n$\\gamma$"` の書き方を示すのが安価 |
+| A1 | **⊕ からすぐ上の hidden junction へのまっすぐな線が、S 字に迂回して junction に西から入る**。v0.5.1 で要素を 1 つずつ消して確かめた（下の「A1 の切り分け」）。隣の列に `legend` があり、その上に別のノード（`MLP`）が並ぶときに起きる。凡例・`MLP`・`Feedforward` のどれかを消す、または凡例を `MLP` の上に置くとまっすぐになる。凡例と `MLP` に辺がなくても起き、MLP からの破線の辺（初版の記述）や残差の辺は条件ではない | 図 2（5〜7 回目） | 不具合 | `repro/junction-detour.sumi.yaml`（最小化した再現）、`previews/repro-junction-detour.png`。SVG の経路は `M 82 168.7 L 82 159.3 L 74 159.3 L 74 154.0 L 82 154.0`（同じ x への寄り道）。原因は未特定。凡例の見本の線は hidden junction 2 つ（`key-1-start` / `-end`）を結ぶ辺として描かれ、junction の端は向きを持たない（`src/layout/route/ports.ts` 927 行 `junction: true, dir: -1`）ので、凡例の junction と本文の junction の扱い（ネットの結合・経路探索の順序）が疑わしい |
+| A2 | **`figure.layout.align` が図を黙って大きくする**。単独の stack に入れた junction と、入れ子の group の中の gateway を `y` で揃えると、gateway の枝の上に空きを足して押し下げ、図 4 では 125.8 → 188.4mm、再現では 89.96 → 126.82mm になった（再現の SVG で、junction の中心 y は 254.854 → 359.363、gateway の上端 y は 133.339 → 342.357 units。junction も図の中央寄せで下がる）。制約は満たされるので診断は出ない | 図 4（4 回目） | 分かりにくい（挙動は設計どおり） | `repro/align-grows-figure.sumi.yaml`、`previews/repro-align-grows-figure.png`。src 確認: junction を上げる手段はある。`trail` の strut は入れ子の stack の自然な大きさに含まれる（`src/layout/structured/engine.ts` 304〜333 行付近）ので、中央寄せでも単独の項目は上がり、`align.ts` も `trail` の候補を評価している（174〜177 行）。ただし候補は残差の合計だけで比べ、同じ残差なら先の候補（上の項目の前の `lead`）を残す（209〜212 行）。中央寄せではどちらの候補も 1 回で差の半分しか縮まず残差が並ぶため、毎回 `lead` が選ばれて図が伸びる。原因は「残差だけの選択と同点の扱い」で、図の大きさを見ないこと。少なくとも「align で高さが X mm 増えた」という info と、Skill への注意書きが要る |
+| A3 | **下から入る辺が group の `caption` を避けて大きく回り込む**。キャプションは group の下に固定で、ルータはそれを障害物として扱う。診断なし | 図 2（1 回目） | 分かりにくい（挙動は設計どおり）・Skill の不足 | `repro/caption-blocks-input.sumi.yaml`、`previews/repro-caption-blocks-input.png`。src 確認: キャプションは `captionOf` を持つ label ノードに展開され（`src/compiler/ir.ts` 414 行）、ルータは配置済みのノードをすべて障害物にする（`src/layout/route/router.ts` 744 行 `#obstacles = layout.nodes…`）ので、キャプションも避ける対象になる。Skill（structured.md）は「位置は固定」と書くが、下から入る辺がある group には付けるな、とは書いていない |
+| A4 | **単一引用符のラベルで `\n` が改行にならず「\n」と描かれる**。Skill は「数式は単一引用符で」「`\n` は二重引用符の中で」と別々に書いており、両方を使う（`Scale, Shift` の 2 行目に数式）と気付きにくい。診断なし | 図 2（2 回目） | 分かりにくい診断・Skill の不足 | `repro/single-quote-newline.sumi.yaml`、`previews/repro-single-quote-newline.png`。数式の外（平文の部分）に文字どおりの `\n`（バックスラッシュ + n）があれば lint で警告し、hint で `"…\n$\\gamma$"` の書き方を示す。`$...$` の中の `\nu` `\neq` `\nabla` などのコマンドは対象外にする必要があり、数式の区切り（`\$` を含む）を正しく見分ける実装とテストが要る |
 | A5 | **junction への `toAnchor` / `fromAnchor` が黙って無視される** | 図 2（6 回目） | 分かりにくい診断 | `src/layout/route/ports.ts` 927 行: junction の端は anchor を見ずに中心を返す。警告（`layout/anchor-on-junction` など）が要る |
-| A6 | **線と枠・見出しの近接を幾何 lint が見ない**: (1) 線が group の枠線の上を走る（図 4 の Python SDK → gateway が API tier / Workers の左の枠に重なる）、(2) spread の 3 本が 1〜2px 間隔で並ぶ、(3) 見出しを避けた線が見出しの文字に接する（図 2 の「DiT」、図 4 の「GPU pool」）。(3) は Skill に「診断なしで迂回する」と書いてあるが、接触までは書いていない | 図 2・4 | lint の穴 | #109 A9（ラベルが枠線に乗る）と同じ系統。`src/lint/geometry/rules.ts` の規則は `edge-crosses-label`（交差）までで、線と枠線の重なり・近接の規則はない |
+| A6 | **線と枠・見出しの近接を幾何 lint が見ない**: (1) 線が group の枠線の上を走る（図 4 の Python SDK → gateway が API tier / Workers の左の枠に重なる）、(2) spread の 3 本が 1〜2px 間隔で並ぶ、(3) 見出しを避けた線が見出しの文字に接する（図 2 の「DiT」、図 4 の「GPU pool」）。(3) は Skill に「診断なしで迂回する」と書いてあるが、接触までは書いていない | 図 2・4 | lint の穴 | src 確認: ラベルと枠線の重なり（#109 A9）はすでに `geometry/label-collision` が見ている（`src/lint/geometry/rules.ts` 440〜469 行付近）。足りないのは**辺（線）と枠線**の重なり・近接、線どうしの近接、線と見出しの接触で、`edge-crosses-label` は交差しか見ない。既存の検査を線にも広げる形になる |
 | A7 | **`container` の `muted` が `academic` では破線の枠**になる（`color` では薄い枠）。Skill も catalog も見た目を書いていない。panel を目立たなくするつもりで使うと、破線の辺（skip など）と紛らわしい | 図 2・3 | Skill の不足 | catalog の説明は `default,muted` のみ |
 | A8 | 破線の共有幹線の T 字分岐が、角の丸めで「›」の印のように見える | 図 2 | 見た目（軽微） | `previews/dit-block.png` の MLP からの破線の分岐点 |
 | A9 | `labelAt: middle, labelSide: right` のラベルが、別の辺の矢じりの真上に置かれ、その辺のラベルに読める。重なってはいないので診断なし | 図 3（4 回目） | 見た目（軽微） | — |
 | A10 | `layout/edge-crossing`（info）が 1 件ごとに同じ長い hint を繰り返す（図 4 の初版で 6 件 × 約 400 字） | 図 4 | 診断の読みやすさ（軽微） | 2 件目以降は hint を省くか、要約に 1 回だけ |
+
+#### A1 の切り分け
+
+最初の再現（図 2 を縮めたもの: 上の列に MLP からの破線の辺と残差の辺あり）から、v0.5.1 で 1 つずつ消して ⊕ → junction の経路を見た。
+
+| 変更 | 経路 |
+| --- | --- |
+| そのまま | S 字 |
+| MLP からの破線の辺を消す | S 字 |
+| その辺の `dashed` / anchor を外す | S 字 |
+| 残差の辺（`split2 → add2`）を消す | S 字 |
+| 凡例を消す | まっすぐ |
+| `MLP` ノードを消す | まっすぐ |
+| `Feedforward` を消す | まっすぐ |
+| 上の 2 つの辺を両方消す（= `repro/junction-detour.sumi.yaml`） | S 字 |
+| その再現で凡例を `MLP` の上に置く（`[ mlp, key ]`） | まっすぐ |
+| その再現で凡例の見本を `node` にする | S 字 |
+
+初版の記録（「凡例と、別のノードへの破線の辺の両方があるとき」）は誤りだった。図 2 の 7 回目では凡例を上に置いても S 字が残ったので、位置の条件は図によって違う。
 
 ### (b) 段階 C の候補（欲しかった機能）
 
@@ -163,9 +182,9 @@
 ## 推奨する優先順位
 
 1. **A1（junction への S 字の迂回）**: 線の意味は変わらないが、論文図ではよく目に付く。再現があるので原因を特定して直す。
-2. **A4・A5（黙って起きる文字どおりの `\n`、junction の anchor の無視）**: 警告を足すだけで済み、安価。
+2. **A5・A4（junction の anchor の無視、文字どおりの `\n`）**: どちらも警告を足す。A5 は小さい。A4 は数式の中のコマンド（`\nu` `\neq` `\nabla`）を誤検出しないよう、平文の部分だけを見る実装とテストが要る。
 3. **A2・A3（`align` による拡大、キャプションを避ける迂回）**: まず info / 警告と Skill の注意書き（v0.5.x）。根本の解き方の変更は段階 C（C7）。
-4. **A6（線と枠線・見出しの近接の lint）**: #109 A9 とまとめて幾何 lint に 1 規則。
+4. **A6（線と枠線・見出しの近接の lint）**: ラベルと枠線は `geometry/label-collision` が見ているので、その検査を辺（線）と枠線・見出し、線どうしの近接に広げる。
 5. **A7〜A10**: Skill の追記と軽微な見た目・出力の調整。
 6. 段階 C は頻度と効果から **C1（真上で入る端）・C3（枠のない panel）**、次に **C5（見出しの自動配置）・C4（要素ごとの fanIn）・C2（トークン列・行列）**。
 
@@ -175,12 +194,12 @@
 
 | # | タイトル（案） | 分類 | 根拠 | マイルストーン（案） |
 | --- | --- | --- | --- | --- |
-| 1 | fix(route): straight edge into a hidden junction detours when a legend is present | すぐ直す（不具合） | A1、`repro/junction-detour.sumi.yaml` | v0.5.2 |
-| 2 | feat(lint): warn about a literal `\n` in a label (single-quoted math labels) | すぐ直す（診断） | A4、`repro/single-quote-newline.sumi.yaml` | v0.5.2 |
+| 1 | fix(route): straight edge into a hidden junction detours when a legend sits below another node in the next column | すぐ直す（不具合） | A1、`repro/junction-detour.sumi.yaml`（辺のない凡例と MLP ノードだけで起きる） | v0.5.2 |
+| 2 | feat(lint): warn about a literal `\n` in the plain-text part of a label | すぐ直す（診断） | A4、`repro/single-quote-newline.sumi.yaml`（`$...$` 内の `\nu` などは対象外） | v0.5.2 |
 | 3 | feat(layout): warn when fromAnchor / toAnchor is set on a junction end | すぐ直す（診断） | A5、図 2 の 6 回目 | v0.5.2 |
 | 4 | feat(layout): report how much `align` grew the figure | すぐ直す（診断） | A2、`repro/align-grows-figure.sumi.yaml` | v0.5.2 |
 | 5 | docs(skill): captions block edges from below; `muted` containers are dashed in academic; quoting math with line breaks | すぐ直す（Skill） | A3・A4・A7 | v0.5.2 |
-| 6 | feat(lint): detect edges running on group borders or touching titles | すぐ直す（lint の穴） | A6、#109 A9 | v0.5.2 または段階 C |
+| 6 | feat(lint): extend border and title checks from labels to edges (edge on or near a group border, edges nearly overlapping, edge touching a title) | すぐ直す（lint の穴） | A6（ラベルと枠線は `label-collision` が検査済み） | v0.5.2 または段階 C |
 | 7 | feat(route): enter a wide block straight above the source | 段階 C | C1、図 1・4 | 段階 C |
 | 8 | feat: frameless panels for sub-figures | 段階 C | C3、図 2・3 | 段階 C |
 | 9 | feat(route): per-element fan-in mode | 段階 C | C4、図 4 | 段階 C |
