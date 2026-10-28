@@ -9,7 +9,7 @@ import type { FontSet } from "../../core/theme/fonts";
 import type { ResolvedStyle } from "../../core/theme/style";
 import { fontClassOf } from "../../layout/text";
 import { loadGlyphCoverage } from "../cmap";
-import { fontFileFor } from "../geometry/measure";
+import { fontFileFor, latinFontOf } from "../geometry/measure";
 import { defineRule, type LintContext, type LintFinding, type ValidElement } from "../rule";
 import { displayWidth, formatCodePoint, glyphCodePoints, labelLines } from "../text";
 
@@ -148,13 +148,19 @@ export const missingGlyph = defineRule({
       let missing: number[];
       let from = `the ${font.slot} font`;
       if (mark === undefined && context.state.doc.figure?.layout?.engine === "structured") {
-        // Structured figures (#93) draw label math with the math fonts, and
-        // text the label's font lacks with the math font: check each run.
+        // Structured figures (#93) draw label math with the math fonts, text
+        // the Latin font has with it (#172), and text the label's font lacks
+        // with the math font: check each run.
         const covers = (f: string, cp: number) => loadGlyphCoverage(fontFileFor(f, fonts)).has(cp);
         const fontClass = fontClassOf(element.style);
-        const drawn = labelRuns(label, { font: fontClass, covers });
+        const latin = latinFontOf(fontClass, fonts);
+        const drawn = labelRuns(label, {
+          font: fontClass,
+          covers,
+          ...(latin !== undefined && { latin: () => latin }),
+        });
         const runs: { text: string; font: string; accent?: string }[] = drawn.runs?.flat() ?? [
-          { text: drawn.lines.join("\n"), font: fontClass },
+          { text: drawn.lines.join("\n"), font: drawn.font ?? fontClass },
         ];
         // An accent's mark (#129) is drawn in its base's font.
         missing = [
@@ -164,7 +170,9 @@ export const missingGlyph = defineRule({
             ),
           ),
         ];
-        if (fonts.math !== undefined) from = `the ${font.slot} and math fonts`;
+        if (fonts.math !== undefined) {
+          from = `the ${font.slot}${latin === undefined ? "" : ", Latin"} and math fonts`;
+        }
       } else {
         const coverage = loadGlyphCoverage(font.path);
         missing = glyphCodePoints(label).filter((cp) => !coverage.has(cp));

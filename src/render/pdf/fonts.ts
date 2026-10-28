@@ -13,7 +13,8 @@
  *
  * SVGs of the structured writer (#91) name their families `sumi-<n>-font-<slot>`
  * the same way and are resolved alike, including the label-math classes
- * `math` / `math-italic` (#93), which are not D2 slots.
+ * `math` / `math-italic` (#93) and the Latin classes `latin` / `latin-bold`
+ * (#172), which are not D2 slots.
  *
  * A `<text>` whose runs use several fonts (label math) needs one more step
  * (#112, design doc §6.24). usvg shapes a text chunk's *whole* text with each
@@ -36,7 +37,7 @@
 
 import { readFileSync } from "node:fs";
 import type { Diagnostic } from "../../core/diagnostics";
-import { MATH_FONT, MATH_ITALIC_FONT } from "../../core/label/runs";
+import { LATIN_BOLD_FONT, LATIN_FONT, MATH_FONT, MATH_ITALIC_FONT } from "../../core/label/runs";
 import type { Result } from "../../core/result";
 import { type FontSet, fontSetArgs } from "../../core/theme/fonts";
 import { type GlyphCoverage, parseGlyphCoverage } from "../../lint/cmap";
@@ -103,8 +104,17 @@ export interface ResolvedSvgFonts {
   faces: ReadonlyMap<string, FontFace>;
 }
 
-/** Font classes of label math (#93): not D2 slots, resolved with `fontFileFor()`. */
-const MATH_FONT_CLASSES = [MATH_FONT, MATH_ITALIC_FONT];
+/** Splits text into grapheme clusters, as usvg shapes and falls back for them. */
+const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+
+/** Characters that draw nothing and need no glyph (as in `labelRuns()`). */
+const IGNORABLE = /[\p{Cc}\p{Default_Ignorable_Code_Point}]/u;
+
+/**
+ * Font classes of label math (#93) and of Latin text (#172): not D2 slots,
+ * resolved with `fontFileFor()`.
+ */
+const RUN_FONT_CLASSES = [MATH_FONT, MATH_ITALIC_FONT, LATIN_FONT, LATIN_BOLD_FONT];
 
 const FONT_FACE_RULE = /@font-face\s*\{[^}]*\}\s*/g;
 const CSS_RULE = /([^{}]*)\{([^{}]*)\}/g;
@@ -139,10 +149,10 @@ export function resolveSvgFonts(
   for (let i = 0; i + 1 < args.length; i += 2) {
     fileOf.set((args[i] ?? "").replace(/^--font-/, ""), args[i + 1] ?? "");
   }
-  // The label-math slots (#93) exist only in structured SVGs; their files are
-  // handed to the engine only when the SVG uses them, so D2 figures convert
-  // with exactly the files they always did.
-  const optional = new Map(MATH_FONT_CLASSES.map((slot) => [slot, fontFileFor(slot, fontSet)]));
+  // The label-math (#93) and Latin (#172) slots exist only in structured
+  // SVGs; their files are handed to the engine only when the SVG uses them,
+  // so D2 figures convert with exactly the files they always did.
+  const optional = new Map(RUN_FONT_CLASSES.map((slot) => [slot, fontFileFor(slot, fontSet)]));
   const files = [...new Set([fontSet.regular, ...fileOf.values()])];
   const bytes = new Map<string, Uint8Array>();
   const faceOfFile = new Map<string, FontFace>();
@@ -150,7 +160,7 @@ export function resolveSvgFonts(
     if (bytes.has(file)) return undefined;
     try {
       const raw = new Uint8Array(readFileSync(file));
-      // The math fonts are drawn by their advance widths alone, as measured.
+      // The math and Latin fonts are drawn by their advance widths alone, as measured.
       const data = shaping ? raw : withoutTables(raw, ["GSUB", "GPOS"]);
       faceOfFile.set(file, readFontFace(data));
       bytes.set(file, data);
@@ -311,7 +321,8 @@ export function resolveSvgFonts(
  * The code points each font file must also map so that no `<text>` with runs
  * in several fonts falls back (see the module comment): per file, the
  * characters of those texts that the file lacks, except characters some run's
- * own font lacks anywhere in the SVG (those keep falling back as before).
+ * own font lacks anywhere in the SVG (those keep falling back as before),
+ * with every character of a grapheme cluster that has such a character.
  * A run's font is the one of the nearest element (itself or an ancestor)
  * with a class that a font rule selects. Text without one is drawn with the
  * engine's default family, the unchanged `regular` file, which no CSS rule
@@ -347,10 +358,21 @@ function foreignCodePoints(
     if (node.type === "text") {
       if (text === undefined) continue;
       text.files.add(item.file);
-      for (const char of node.text) {
-        const cp = char.codePointAt(0) as number;
-        text.codePoints.add(cp);
-        if (!covers(item.file, cp)) ownMissing.add(cp);
+      // A cluster (a base and its combining marks, #172) whose own font lacks
+      // a visible character falls back as a whole: no copy may map any
+      // character of it, or usvg would take the copy (with blank glyphs) for
+      // the cluster. Characters that draw nothing (controls,
+      // default-ignorables such as variation selectors) need no glyph, as in
+      // `labelRuns()` and lint/missing-glyph: alone, they stay missing from
+      // the copies as before, without taking their cluster along.
+      for (const { segment } of GRAPHEMES.segment(node.text)) {
+        const chars = [...segment];
+        const missing = chars.filter((char) => !covers(item.file, char.codePointAt(0) as number));
+        for (const char of chars) text.codePoints.add(char.codePointAt(0) as number);
+        for (const char of missing) ownMissing.add(char.codePointAt(0) as number);
+        if (missing.some((char) => !IGNORABLE.test(char))) {
+          for (const char of chars) ownMissing.add(char.codePointAt(0) as number);
+        }
       }
       continue;
     }

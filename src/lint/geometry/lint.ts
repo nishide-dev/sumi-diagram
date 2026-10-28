@@ -6,8 +6,7 @@
 
 import { type Diagnostic, type DocPath, formatDocPath } from "../../core/diagnostics";
 import { type Locator, parseYaml } from "../../core/figure/yaml";
-import { getTheme } from "../../core/theme/builtin";
-import type { FontSet } from "../../core/theme/fonts";
+import { type FontSet, getFontSet } from "../../core/theme/fonts";
 import { type RenderedFigure, type RenderFigureOptions, renderFigure } from "../../render/render";
 import { type LintConfig, type ResolvedLintConfig, resolveLintConfig } from "../config";
 import {
@@ -63,9 +62,12 @@ function geometryLocator(input: GeometryInput, source?: string, file?: string): 
 /** Builds the context geometry rules run on. */
 export function geometryContextFor(input: GeometryInput, fontSet?: FontSet): GeometryContext {
   const { ir } = input.compiled;
-  const fonts = fontSet ?? getTheme(ir.meta.themeId)?.fontSet;
+  // The font set the figure was laid out and drawn with (its theme's).
+  const fonts = fontSet ?? getFontSet(ir.meta.fontSetId);
   if (fonts === undefined) {
-    throw new Error(`internal error: theme "${ir.meta.themeId}" of a compiled figure is unknown`);
+    throw new Error(
+      `internal error: font set "${ir.meta.fontSetId}" of a compiled figure is unknown`,
+    );
   }
   return createGeometryContext(ir, input.inspection, fonts);
 }

@@ -700,7 +700,8 @@ describe("sumi doctor", () => {
     expect(json.checks[0]).toMatchObject({ id: "d2", status: "error", required: true });
     expect(json.checks[0].hint).toContain("d2:install");
     expect(json.checks[1]).toMatchObject({ id: "fonts", status: "ok", required: true });
-    expect(json.checks[1].details.files).toHaveLength(5);
+    // Each bundled file once, though font sets share files (#172).
+    expect(json.checks[1].details.files).toHaveLength(BUNDLED_FONT_SHA256.size);
     // The actual font hashes are recorded (CI prints them), matching the pinned table.
     const pinned = new Set(BUNDLED_FONT_SHA256.values());
     for (const file of json.checks[1].details.files) {
@@ -708,7 +709,7 @@ describe("sumi doctor", () => {
     }
     // Geometry lint needs only the bundled fonts' metrics (D2 is checked separately).
     expect(json.checks[2]).toMatchObject({ id: "geometry-lint", status: "ok", required: false });
-    expect(json.checks[2].details.files).toHaveLength(5);
+    expect(json.checks[2].details.files).toHaveLength(BUNDLED_FONT_SHA256.size);
   });
 
   test("text output names each check", async () => {
