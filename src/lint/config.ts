@@ -11,6 +11,7 @@
 
 import { z } from "zod";
 import { didYouMean, type Severity } from "../core/diagnostics";
+import { reservedKeyMessage, reservedKeyPaths } from "../core/reserved-keys";
 import { BUILTIN_GEOMETRY_RULES } from "./geometry/rules";
 import type { AnyLintRule } from "./rule";
 import { BUILTIN_LINT_RULES } from "./rules";
@@ -74,6 +75,11 @@ export function resolveLintConfig(
   config: unknown = {},
   rules: readonly AnyLintRule[] = ALL_LINT_RULES,
 ): ResolvedLintConfig {
+  // A `__proto__` key would be dropped without a word (#180).
+  const reserved = reservedKeyPaths(config);
+  if (reserved.length > 0) {
+    throw new LintConfigError(reserved.map(reservedKeyMessage));
+  }
   const parsed = LintConfigSchema.safeParse(config);
   if (!parsed.success) {
     throw new LintConfigError(

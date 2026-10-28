@@ -526,7 +526,7 @@ describe("legend entries from classes (#180)", () => {
     }
   });
 
-  test("__proto__ cannot name a class: it is reported, not dropped", () => {
+  test("__proto__ cannot name a class: it is reported at the key, not dropped", () => {
     const source = figure(
       PROPS.replace(
         "o: { tone: green, label: Allowed }",
@@ -535,11 +535,15 @@ describe("legend entries from classes (#180)", () => {
       { key: "        - { class: m.x }" },
     );
     const { state } = checkFigure(source);
-    expect(summarize(state.diagnostics).map(([code, path]) => [code, path])).toEqual([
-      ["component/invalid-prop", ["nodes", 1, "props", "classes", "__proto__"]],
+    // The key's own position (line 20, column 9), not its value's.
+    expect(summarize(state.diagnostics)[0]).toEqual([
+      "schema/reserved-key",
+      ["nodes", 1, "props", "classes", "__proto__"],
+      20,
+      9,
     ]);
     expect(state.diagnostics[0]?.message).toBe(
-      'Invalid prop "classes.__proto__" for sumi/matrix: "__proto__" is reserved and cannot be used as a name.',
+      'The key "__proto__" in nodes[1].props.classes is reserved and cannot be used: it would be dropped.',
     );
   });
 

@@ -43,6 +43,7 @@ Every stage reports problems as the same diagnostic object. In
 | `yaml/syntax` | not valid YAML (often an unquoted `:` or `#` in a label, or bad indentation) | quote the value / fix indentation at `location` |
 | `yaml/duplicate-key`, `yaml/alias-not-allowed`, `yaml/tag-not-allowed`, `yaml/multiple-documents`, `yaml/non-string-key` | YAML features Sumi does not accept | remove the duplicate / anchor / tag / extra document |
 | `schema/unknown-field` | a key the schema does not have (`color`, `style`, `children`, …) | delete it; express it with a component, variant or `group:` |
+| `schema/reserved-key` | a key named `__proto__` anywhere in the file (e.g. a matrix class); it would be dropped | rename it |
 | `schema/missing-field` | a required field is missing (`version`, `figure.id`, node `component`, edge `from`/`to`) | add it |
 | `schema/invalid-id` | ID does not match `^[a-z][a-z0-9_-]{0,63}$` | use the hint's lowercase form; update references to it |
 | `schema/invalid-type`, `schema/invalid-value` | wrong type or value (e.g. number as label, unknown `direction`) | quote strings; use an allowed value |
