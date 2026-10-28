@@ -79,6 +79,7 @@ import {
   type TextLayout,
 } from "../ir";
 import { deepFreeze } from "../structured/engine";
+import { arrowheadLength } from "./arrowhead";
 import { crossingDiagnostics } from "./crossings";
 import { PairHeap } from "./heap";
 import { requestedLabelDiagnostics } from "./label-diagnostics";
@@ -125,15 +126,9 @@ export const ROUTE = Object.freeze({
   arrowRoom: 100,
 });
 
-/**
- * The length an arrowhead takes along the line for an edge stroke of
- * `strokeUnits`: D2's triangle (4 + 4 × stroke width). The router keeps the
- * last segment before an arrowhead at least this long; the SVG writer (#91)
- * must not draw a longer one.
- */
-export function arrowheadLength(strokeUnits: number): number {
-  return 4 + 4 * strokeUnits;
-}
+// In its own module so the structured engine can size group padding by it
+// (#171, `padding.ts`) without importing the router.
+export { arrowheadLength };
 
 /**
  * The largest corner radius of a structured wire (#101), in units: 4pt, a
