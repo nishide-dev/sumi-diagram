@@ -403,6 +403,12 @@ export const GroupSchema = z.strictObject({
   component: ComponentRef.default("container").describe("Component reference (kind: group)."),
   variant: Variant,
   tone: Tone,
+  dim: z
+    .literal(true)
+    .optional()
+    .describe(
+      "Draw the group and everything inside it (nodes, edges between them, nested groups, the caption, legends) in the theme's pale dim colors: gray text and lines, paler fills. Keeps the group's variant and tone; inherited and cannot be turned off inside. Omit it to draw the group as it is.",
+    ),
   group: Id.optional().describe(
     "Parent group ID. Omitted means the root (or, in structured layout, the group whose arrange lists it).",
   ),

@@ -28,12 +28,13 @@ metadata: {}               # optional, any JSON-compatible data; not drawn
 
 | Element | Fields (required in bold) | Defaults |
 | --- | --- | --- |
-| group | **`id`**, `label`, `labelAt`, `caption`, `component`, `variant`, `tone`, `group`, `arrange`¹ | component `container`, variant `default`, no tone, no parent |
+| group | **`id`**, `label`, `labelAt`, `caption`, `component`, `variant`, `tone`, `dim`, `group`, `arrange`¹ | component `container`, variant `default`, no tone, not dimmed, no parent |
 | node | **`id`**, **`component`**, `label`, `sublabel`¹, `labelRotation`¹, `variant`, `tone`, `icon`, `props`, `group`, `attach`¹ | variant `default`, no label, no tone, no group |
 | edge | **`from`**, **`to`**, `id`, `label`, `labelAt`¹, `labelSide`¹, `component`, `variant`, `props`, `fromAnchor`¹, `toAnchor`¹ | component `arrow`, variant `default` |
 
 ¹ Structured layout only (a figure with `figure.layout.arrange`); see
 [structured](structured.md); `labelRotation` (`90` / `-90`, newer than 0.5.3): [turned labels](structured.md#turned-labels); `sublabel` (newer than 0.5.3): [sublabels](structured.md#sublabels). `icon`: see [assets](assets.md). Group
+`dim` (newer than 0.5.3, both engines): [dimmed groups](#dimmed-groups). Group
 `labelAt` / `caption`: [groups](#groups). These, edge `labelAt` /
 `labelSide`, `figure.layout.align` / `fanIn`, label-math accents and the
 `legend` component are new in 0.5.0. When you use them and
@@ -66,6 +67,30 @@ nodes:
   - { id: attention, component: box, label: Attention, tone: orange }
   - { id: norm, component: box, label: Norm, tone: yellow }
 ```
+
+## Dimmed groups
+
+`dim: true` on a group draws it pale together with everything inside it —
+nested groups, nodes (also legends and tokens cells), its caption, and the
+edges whose two ends are both inside — e.g. the panels of variants a paper
+compares against but does not use. Text and lines take the theme's dim gray
+and fills move toward white (a tone stays recognizable but pale); sizes,
+dashes, fonts and the layout do not change, and the group keeps its own
+`variant` and `tone`. Write it once on the group instead of `variant: muted`
+on every element.
+
+```yaml
+groups:
+  - { id: cross, caption: Block with cross-attention, dim: true, arrange: … }
+```
+
+- Only `true` is accepted (omit the field otherwise); it cannot be turned off
+  inside a dimmed group, and a nested `dim` changes nothing.
+- An edge with one end outside the group (into or out of it, a `zoom` from
+  outside) is drawn as written. To dim it too, move both ends inside or give
+  it `variant: muted`.
+- `component: image` inside a dimmed group is drawn as it is
+  (`theme/undimmed-image`, warning): Sumi dims by color, never by opacity.
 
 ## IDs
 
@@ -197,7 +222,9 @@ Both draw two lines: `Scale, Shift`, then γ and β with their subscripts
   background instead of the shaded one (without `tone`; a `tone` sets the
   fill) and a gray, non-bold title. In `academic`, a muted group's dashed border reads like
   a dashed edge (a skip, an optional flow): avoid `muted` there when the
-  figure has dashed edges, or say what each means (a `legend`).
+  figure has dashed edges, or say what each means (a `legend`). `muted`
+  quiets only the group's own frame and title; to make a whole panel pale
+  with its contents, use [`dim: true`](#dimmed-groups) instead.
 - Frame variants (container, every theme): `plain` draws neither border
   nor fill, only the title and caption (a panel of a multi-panel figure
   whose caption must line up with the framed panels' ones); `filled` a
@@ -239,7 +266,8 @@ Always take these from `sumi catalog --json`. Each entry has `id`
 - `variant: filled` (box-like shapes and `operator`, not `stack`) draws
   the fill without the outline: a borderless block, as in many paper
   figures. Give it a `tone`; without one it takes tone gray's fill. A
-  variant is one value, so a block cannot be both `filled` and `muted`.
+  variant is one value, so a block cannot be both `filled` and `muted`
+  (but a `filled` block inside a group with `dim: true` is drawn pale).
 - Node sizes (`props.width` / `props.height`) are lengths with a unit
   (`mm`, `cm`, `in`, `pt`) and must be a multiple of 0.5pt. Many mm values
   are not (`12mm` = 34.02pt); prefer `pt` (`34pt`). Omit sizes unless needed:

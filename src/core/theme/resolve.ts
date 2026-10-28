@@ -7,14 +7,18 @@
  * sets `tone`; colors only). A variant the manifest has but the theme does not
  * define falls back to `default` with a `theme/missing-variant` warning; a
  * tone the theme does not define is left out with `theme/missing-tone`.
+ *
+ * A dimmed element (#175: inside a group with `dim: true`, see `dim.ts`) then
+ * takes the theme's dim colors.
  */
 
-import { type CheckState, type ElementKey, figureElements } from "../check-state";
-import type { Diagnostic } from "../diagnostics";
+import { type CheckState, type ElementKey, figureElements, groupKey } from "../check-state";
+import type { Diagnostic, DocPath } from "../diagnostics";
 import type { Locator } from "../figure/yaml";
 import type { FontUsage } from "../profile/constrain";
 import type { ComponentId, ComponentKind } from "../registry/manifest";
 import { resolveTheme } from "./builtin";
+import { dimmedElements, dimStyle } from "./dim";
 import type { Theme } from "./schema";
 import { mergeStyle, type ResolvedStyle, type StyleOf, sublabelFontSize } from "./style";
 import type { Tone } from "./tones";
@@ -69,6 +73,8 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
   state.diagnostics.push(...resolved.diagnostics);
   if (!resolved.ok) return undefined;
   const theme = resolved.value;
+  const dimmed = dimmedElements(state.doc);
+  reportDim(state, locate, theme, dimmed);
 
   for (const entry of figureElements(state.doc)) {
     const { key, path, subject } = entry;
@@ -110,9 +116,59 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
       };
       state.diagnostics.push(warning);
     }
-    styles.set(key, style);
+    const dim = theme.dim !== undefined && dimmed.has(key) ? theme.dim : undefined;
+    styles.set(key, dim === undefined ? style : dimStyle(style, dim));
   }
   return theme;
+}
+
+/**
+ * Warnings about `dim` (#175): a theme without dim colors (`theme/missing-dim`
+ * at each `dim: true`; the groups are drawn as they are), and an image inside
+ * a dimmed group (`theme/undimmed-image`: an image is drawn as it is, since
+ * Sumi dims by color, not by opacity).
+ */
+export function reportDim(
+  state: CheckState,
+  locate: Locator,
+  theme: Theme,
+  dimmed: ReadonlyMap<ElementKey, DocPath>,
+): void {
+  const warn = (diagnostic: Omit<Diagnostic, "severity" | "location">) => {
+    const location = locate(diagnostic.path ?? []);
+    state.diagnostics.push({
+      ...diagnostic,
+      severity: "warning",
+      ...(location !== undefined && { location }),
+    });
+  };
+  if (theme.dim === undefined) {
+    for (const [index, g] of (state.doc.groups ?? []).entries()) {
+      if (g?.dim !== true || state.invalid.has(groupKey(g.id))) continue;
+      warn({
+        code: "theme/missing-dim",
+        message: `Theme "${theme.id}" defines no dim colors; group "${g.id}" is drawn as it is.`,
+        path: ["groups", index, "dim"],
+        subject: { kind: "group", id: g.id },
+        hint: "Add dim (fontColor, stroke, lighten) to the theme, or use a built-in theme.",
+      });
+    }
+    return;
+  }
+  for (const { key, path, subject, element } of figureElements(state.doc)) {
+    const from = dimmed.get(key);
+    if (from === undefined || state.invalid.has(key)) continue;
+    const manifest = state.components?.get(key)?.manifest;
+    if (manifest?.kind !== "node" || manifest.embed !== "image") continue;
+    const group = state.doc.groups?.[from[1] as number]?.id ?? "";
+    warn({
+      code: "theme/undimmed-image",
+      message: `Image "${element.id ?? subject.id}" is inside dimmed group "${group}" but is drawn as it is; Sumi dims colors, not images.`,
+      path: [...path],
+      subject,
+      hint: "Move the image out of the dimmed group, or use a paler image file.",
+    });
+  }
 }
 
 /**

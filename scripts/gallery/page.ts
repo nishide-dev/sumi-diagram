@@ -23,6 +23,8 @@ export interface GalleryModel {
   comparison: { source: string; outcomes: RenderOutcome[] };
   /** Every tone under every theme (#92). */
   tones: { sample: ToneSample; outcomes: RenderOutcome[] };
+  /** A dimmed group under every theme (#175). */
+  dim: { sample: ToneSample; outcomes: RenderOutcome[] };
 }
 
 const GENERATED_NOTE =
@@ -268,19 +270,53 @@ const TONES_NOTE =
   "The monochrome themes map the tones to three gray steps so a figure still prints in grayscale; " +
   "tones in the same step look alike there. A tone changes only colors, over the variant.";
 
-function htmlTones(tones: GalleryModel["tones"]): string {
+const DIM_NOTE =
+  "A group with `dim: true` is drawn pale with everything inside it: its nested groups, nodes, " +
+  "caption and the edges whose two ends are inside. Text and lines take the theme's dim gray and " +
+  "fills move toward white, so tones stay recognizable; sizes, dashes and the layout do not change. " +
+  "The group keeps its own variant and tone. The dashed line from the left panel ends inside the " +
+  "dimmed one and is drawn as written.";
+
+function htmlTones(tones: GalleryModel["tones"], note = TONES_NOTE, alt = "every tone"): string {
   const renders = tones.outcomes
     .map((o) =>
       htmlFigure(
         o,
         `theme <code>${escapeHtml(o.theme)}</code> · <code>${escapeHtml(renderCommand(tones.sample.fileName, o))}</code>`,
-        `every tone, theme ${o.theme}`,
+        `${alt}, theme ${o.theme}`,
       ),
     )
     .join("");
-  return `<p>${inlineCode(TONES_NOTE)}</p>
+  return `<p>${inlineCode(note)}</p>
 <div class="renders">${renders}</div>
 <details><summary>Source: <code>${escapeHtml(tones.sample.fileName)}</code></summary><pre>${escapeHtml(tones.sample.source)}</pre></details>`;
+}
+
+/** A figure under every theme (tones, a dimmed group) as a Markdown section. */
+function mdThemeSample(
+  title: string,
+  note: string,
+  { sample, outcomes }: GalleryModel["tones"],
+  alt: string,
+): string[] {
+  return [
+    `### ${title}`,
+    "",
+    mdInline(note),
+    "",
+    `| ${outcomes.map((o) => mdCode(o.theme)).join(" | ")} |`,
+    `| ${outcomes.map(() => "---").join(" | ")} |`,
+    `| ${outcomes.map((o) => mdImage(o, `${alt}, theme ${o.theme}`)).join(" | ")} |`,
+    `| ${outcomes.map((o) => `${mdCode(renderCommand(sample.fileName, o))}<br>${mdCaption(o)}`).join(" | ")} |`,
+    "",
+    "<details>",
+    `<summary>Source: <code>${escapeHtml(sample.fileName)}</code></summary>`,
+    "",
+    mdFence(sample.source, "yaml"),
+    "",
+    "</details>",
+    "",
+  ];
 }
 
 function htmlComparison(comparison: GalleryModel["comparison"]): string {
@@ -340,6 +376,8 @@ ${examples}
 ${themesTable()}
 <h3 style="margin-top:16px" id="tones">Tones</h3>
 ${htmlTones(model.tones)}
+<h3 style="margin-top:16px" id="dim">Dimmed groups</h3>
+${htmlTones(model.dim, DIM_NOTE, "a dimmed group")}
 <h3 style="margin-top:16px">Profiles</h3>
 ${profilesTable()}
 <h3 style="margin-top:16px">One figure, every theme × profile</h3>
@@ -490,22 +528,8 @@ export function galleryMarkdown(model: GalleryModel): string {
       (t) => `| ${mdCode(t.id)} | ${mdText(t.description ?? "")} | ${mdCode(t.fontSet.id)} |`,
     ),
     "",
-    "### Tones",
-    "",
-    mdInline(TONES_NOTE),
-    "",
-    `| ${model.tones.outcomes.map((o) => mdCode(o.theme)).join(" | ")} |`,
-    `| ${model.tones.outcomes.map(() => "---").join(" | ")} |`,
-    `| ${model.tones.outcomes.map((o) => mdImage(o, `every tone, theme ${o.theme}`)).join(" | ")} |`,
-    `| ${model.tones.outcomes.map((o) => `${mdCode(renderCommand(model.tones.sample.fileName, o))}<br>${mdCaption(o)}`).join(" | ")} |`,
-    "",
-    "<details>",
-    `<summary>Source: <code>${escapeHtml(model.tones.sample.fileName)}</code></summary>`,
-    "",
-    mdFence(model.tones.sample.source, "yaml"),
-    "",
-    "</details>",
-    "",
+    ...mdThemeSample("Tones", TONES_NOTE, model.tones, "every tone"),
+    ...mdThemeSample("Dimmed groups", DIM_NOTE, model.dim, "a dimmed group"),
     "### Profiles",
     "",
     `| ${PROFILE_HEADER.join(" | ")} |`,
