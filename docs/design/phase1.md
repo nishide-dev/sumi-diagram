@@ -1420,6 +1420,24 @@ layout:
 - **互換性（実測）**: リポジトリの structured の図（`*.sumi.yaml` のうち `layoutStructuredFigure` が受け付ける 70 図。作例・fixture・#109 / #151 の図を含む）の Layout IR と診断のうち、修正の前後で変わるのは再現の 1 図だけ（sha256 で比較）。golden（`CI=1 bun test`）と `bun run gallery:check` も無変更で通る。
 - **テスト**: `router.test.ts`（再現: 凡例ありでも `add1 → split2` が 2 点のまっすぐな線で、`split2 → norm2` も同じ x のまま。凡例を消した図も同じ。再現で A* の下界が Dijkstra と同じ費用。凡例ありの 1 つは修正前の `router.ts` では失敗する。`clipRoomAtJunction` を 4 方向それぞれで: stub より近い（余白なし）・stub ちょうど・stub と余白の間（junction で切る）・余白ちょうどとその先・横にずれた junction・後ろの junction・真正面の口（いずれも変えない）。4 方向（stack down / up・row right / left）× 矢じりが終点（`j → b`）か始点（`b → j` の double-arrow）で、junction に別の辺（`j → c`）もある図: junction を通る 2 本が直線で、全エッジで A* の下界と Dijkstra の費用が一致する。この 8 図は格子の線が足りず修正前でも直線になるので、回帰の検出は再現が担い、こちらは方向と端の組み合わせでの挙動と下界の確認）。
 
+### 6.38 #154 の文字どおりの `\n`・junction 端の anchor・交差の hint
+
+#151 の dogfooding（`research/151-dogfood-v0.5/README.md` の A4・A5・A10）で見つかった、診断の出ない書き方の誤りと、読みにくい診断の整理。描いた出力（SVG・PDF・PPTX・Layout IR・D2）は変わらず、診断だけが変わる。
+
+- **文字どおりの `\n`（A4。判断: `lint/literal-newline`、warning）**: 単一引用符・引用符なしの YAML のラベルでは `\n` が改行にならず、2 文字のまま描かれる（数式を単一引用符で書き、2 行目に数式を置くと気付きにくい）。ラベルの平文の部分に `\n`（バックスラッシュ + n）があれば警告する。
+  - **段（判断: 構造 lint）**: 文字どおりの `\n` を描く意図もありうる（`C:\new` のようなパス、コードの文字列）ので、`--rule lint/literal-newline=off` で止められる lint の規則にする。値は誤りではないので error・component の段にはしない。`sumi lint`（D2 不要）と `sumi render` の両方に出る。
+  - **平文の切り分け（判断: 数式の構文解析と同じ区切り）**: `literalNewlines()`（`src/core/label/math.ts`）が、`parseLabel()` と同じ規則で `$...$` を見分ける: `\$` は数式を開かない、数式の閉じの `$` は行の中で探し `\` は次の 1 文字を飛ばす（`closingDollar()` を共用）、閉じない `$` の後は平文。数式の中の `\nu` `\neq` `\nabla` は対象外。structured では閉じない `$` は `component/invalid-math` で要素が invalid になるので lint は見ない。auto でも同じ区切りで見る（D2 もバックスラッシュをエスケープして描くので、文字どおりの `\n` はそのまま描かれる。`$\nu$` は `component/unsupported-in-auto` の範囲）。`\\n`（バックスラッシュ 2 つ + n）も、描かれる文字に `\n` が現れるので報告する。
+  - **対象**: lint の要素すべて（node・group・edge のラベル、キャプション、凡例の項目のラベル）。ラベルを取らない印（junction・operator）はラベルが空なので出ない。報告はラベルごとに 1 件（複数あればメッセージに回数）。
+  - **位置**: 最初の `\n` の 2 文字。`LintFinding` に任意の `span`（値の UTF-16 offset）を足し、`toDiagnostic()` が `Locator` の `span`（§6.24）に渡す。1 行の引用符付き・引用符なしのスカラーでは正確な列、それ以外はラベル全体。
+  - **hint**: そのラベルの `\n` を改行にして二重引用符の YAML 文字列で書いた形（`JSON.stringify` の出力は YAML の二重引用符のスカラーとして読める）を示す。例: `'Scale, Shift\n$\gamma_1$'` → `"Scale, Shift\n$\\gamma_1$"`。他にバックスラッシュがあれば「他のバックスラッシュは 2 つに」と添える。80 文字を超える形は代わりに短い例を示す。ブロックスカラー（`|`）と、規則を無効にする方法も挙げる。
+  - **既存の図**: リポジトリの `*.sumi.yaml` 108 図のうち、出るのは #151 の再現と `tests/fixtures/compile/labels.sumi.yaml`（エスケープの検査のため意図して `'C:\path\n\t (literal backslashes)'` を描く。真の陽性で、lint を検査する fixture ではない）の 2 つだけ。作例・ギャラリーには出ない。
+- **junction 端の anchor（A5。判断: `component/anchor-on-junction`、warning）**: junction（manifest の `mark.type: point`）の端はルータが anchor を見ずに中心を使う（`ports.ts` の `resolveEnds()`）ので、`fromAnchor` / `toAnchor` は黙って無視されていた。
+  - **段（判断: component）**: junction かどうかは部品の解決後に分かる（`layout` の段の anchor の検査は部品の解決の前）。「junction はラベル・tone・anchor を取らない」という部品の約束の検査として、`component/tone-unsupported`・`component/label-at-without-label`（効かない設定の warning、§6.27）と同じ `component` の段に置く。描画の段（ルータ）に置くと `sumi lint` に出ないので採らなかった。#151 の調査が仮に挙げた `layout/anchor-on-junction` は、段と code の接頭辞を揃える規約（§1）に合わせて `component/` にした。
+  - **severity は warning（判断）**: anchor を外しても描かれる図は同じなので、要素は invalid にしない。位置は `edges[i].fromAnchor` / `toAnchor`。両端なら 2 件。hint: anchor を消す、線の向きを変えたいなら反対の端に anchor を付けるか、配置の木・`attach` で junction を動かす。
+  - **auto**: anchor は `layout/structured-only`（error）でエッジが invalid になるので、重ねて出さない。端の junction 自体が invalid（`component/tone-unsupported` など）でも、エッジが invalid になるので出ない。凡例の部分（§6.34）の解決（`only`）では、その部分のエッジだけを見る。
+- **交差の hint（A10。判断: 1 回だけ）**: `layout/edge-crossing`（§6.28）は 1 件ごとに同じ約 400 字の hint を付けていた。hint を、出力の並び（`sumi lint` / `render` と同じ `compareDiagnostics()`: ファイル・位置・code・path・メッセージの順。同じ辺の 2 つの交差は位置が同じなので、位置だけでは決まらない。比較関数は layout から使えるよう `src/core/diagnostics.ts` に移し、`src/lint/lint.ts` から再 export する）で最初になる 1 件だけに付ける。個別の交差がない（上限 0）ときだけ要約の 1 件に付ける。code・severity・メッセージ・位置・件数は変わらない。
+- **テスト**: `math.test.ts`（`literalNewlines()`: #151 の再現、改行と文字どおりの区別、`\nu` `\neq` `\nabla`、`\$` の前後、閉じない `$`、行をまたぐ `$`、`parseLabel()` と同じ区切り）、`lint.test.ts`（fixture `lint/literal-newline.sumi.yaml` で node・group・キャプション・凡例・edge と位置、hint の形が YAML として読み戻せること、長いラベル、auto、`off`）、`resolve.test.ts`（junction・hidden junction の両端、group の端は対象外、auto、invalid な junction）、`crossings.test.ts`（hint は 1 件だけ、並びで最初の 1 件（位置が同じなら path・メッセージで決まる）、上限 0 の要約）。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）
