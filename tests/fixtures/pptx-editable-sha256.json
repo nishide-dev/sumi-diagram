@@ -219,6 +219,16 @@
   "docs/gallery/components/sumi-zoom.color.glued": "5fc10d4a1e0e4bd62ea4b03754b8c2311dc704b86f8513b73655d8ba73e26d24",
   "docs/gallery/components/sumi-zoom.paper.freeform": "585cd77284bd7066f740b03cf26bffeb13246fd2bccadc8ea39f7751f95ae604",
   "docs/gallery/components/sumi-zoom.paper.glued": "68479188bcd6a04492008e2deb3f72c3beab87e4d529367f6c78f259119067f4",
+  "docs/gallery/tones/outlined.minimal.freeform": "2577ce384e6fb0ad1dae8b72d937e7a1049a2d7d9cdada5acdff6464a267db06",
+  "docs/gallery/tones/outlined.minimal.glued": "6343b38e379adcfab5722baa42a854e0a435c1ca7459c8c63fae85850cc57587",
+  "docs/gallery/tones/outlined.academic.freeform": "6f3c130cba27279f57089dd332d3cc7aae9dfe7e7acb676e66711c2e74727fb6",
+  "docs/gallery/tones/outlined.academic.glued": "0b65e8ea287fe3c9b1fcceb662523f7f873b0afe7fb48eb69b439c5e86761325",
+  "docs/gallery/tones/outlined.slides.freeform": "f3fdd171737289c83dffef622d7f3d631d0dc53e2d0a4cdc14fbd94d2ae004ee",
+  "docs/gallery/tones/outlined.slides.glued": "cf7473a8f43234d82f457c82c250d1618386495085b88b5ed64993af4e724e16",
+  "docs/gallery/tones/outlined.color.freeform": "ddc3edd0a8e875d13040cf368c67d311e58c9f89872fecf9da5dd0994b0968c4",
+  "docs/gallery/tones/outlined.color.glued": "c356f3b001c2c0f0667d3053308c57ae4d796707b3f360689bbbd28d98d47df3",
+  "docs/gallery/tones/outlined.paper.freeform": "723085cd8c8a5e8f449735310853b152cb1e95877d04667597378bfc461a5393",
+  "docs/gallery/tones/outlined.paper.glued": "c99d35034a438359821212200d221ebbe3d85f33d50dcfec8e976e53a9fb06c8",
   "japanese.freeform": "8f9bb7a334654872dd6a7d17e6be8307d506526db46e85e8b86b4468c6f3ddd0",
   "japanese.glued": "1656ecf242875a421f5b11c4a4fdd679af4108c7788174df35a0e2f8810fe819"
 }

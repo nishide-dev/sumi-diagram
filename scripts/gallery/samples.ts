@@ -616,7 +616,7 @@ export function outlinedToneSample(): ToneSample {
     "    component: legend",
     "    props:",
     "      entries:",
-    "        - { node: { variant: outlined }, label: outlined }",
+    "        - { node: { variant: outlined, tone: gray }, label: outlined (gray) }",
     "        - { node: { variant: outlined, tone: orange }, label: outlined (orange) }",
     "        - { node: { tone: orange }, label: default (orange) }",
     "        - { edge: { tone: orange }, label: edge (orange) }",

@@ -10,7 +10,10 @@ import { createD2CliBackend } from "../backends/d2/backend";
 import { checkD2Version, findD2Binary } from "../backends/d2/binary";
 import { BUILTIN_THEMES } from "../core/theme/builtin";
 import { lintGeometry } from "../lint/geometry";
-import { type RenderedFigure, renderFigure } from "./render";
+import { svgToEditablePptx } from "./pptx/editable";
+import { readPptx } from "./pptx/testing";
+import { type RenderedFigure, type RenderedStructuredFigure, renderFigure } from "./render";
+import { attribute, childElements, descendants, parseXml, type XmlElement } from "./xml";
 
 const binary = findD2Binary();
 const available = binary.ok && (await checkD2Version(binary.value.path)).ok;
@@ -66,6 +69,65 @@ describe("structured", () => {
       // The filled arrowhead and the label text are the line color too.
       expect(edge.match(new RegExp(`fill="${orange}"`, "g"))?.length).toBeGreaterThanOrEqual(2);
       expect(lintGeometry(rendered, { source })).toEqual([]);
+    });
+  }
+});
+
+/** The color of `element`'s own `a:solidFill`, e.g. of `p:spPr`, `a:ln` or `a:rPr`. */
+function solidFill(element: XmlElement | undefined): string | undefined {
+  const fill = element && childElements(element).find((e) => e.name === "a:solidFill");
+  const color = fill && childElements(fill).find((e) => e.name === "a:srgbClr");
+  return color && attribute(color, "val");
+}
+
+/** A shape of an editable PPTX slide by name: its fill, outline, text colors and arrowhead. */
+function pptxShape(root: XmlElement, name: string) {
+  const shape = [...descendants(root)].find(
+    (e) =>
+      ["p:sp", "p:cxnSp"].includes(e.name) &&
+      [...descendants(e)].some((n) => n.name === "p:cNvPr" && attribute(n, "name") === name),
+  );
+  if (shape === undefined) throw new Error(`no shape ${name}`);
+  const spPr = childElements(shape).find((e) => e.name === "p:spPr");
+  const ln = spPr && childElements(spPr).find((e) => e.name === "a:ln");
+  return {
+    element: shape.name,
+    fill: solidFill(spPr),
+    line: solidFill(ln),
+    text: [...descendants(shape)].filter((e) => e.name === "a:rPr").map(solidFill),
+    arrowhead: ln !== undefined && childElements(ln).some((e) => e.name === "a:tailEnd"),
+  };
+}
+
+describe("editable PPTX", () => {
+  for (const connectors of ["freeform", "glued"] as const) {
+    test(`${connectors}: outlined frames and text, a toned line, arrowhead and label`, async () => {
+      const rendered = (await render(figure("paper", "structured"))) as RenderedStructuredFigure;
+      const pptx = svgToEditablePptx(rendered.svg, rendered.compiled.ir, { connectors });
+      if (!pptx.ok) throw new Error(JSON.stringify(pptx.diagnostics));
+      const xml = new TextDecoder().decode(readPptx(pptx.value).get("ppt/slides/slide1.xml"));
+      const parsed = parseXml(xml);
+      if (!parsed.ok) throw new Error(parsed.message);
+      const hex = (color: string) => color.slice(1).toUpperCase();
+      const purple = hex(line("paper", "purple"));
+      const orange = hex(line("paper", "orange"));
+      expect(pptxShape(parsed.root, "n:enc")).toMatchObject({
+        fill: "FFFFFF",
+        line: purple,
+        text: [purple],
+      });
+      expect(pptxShape(parsed.root, "n:vae")).toMatchObject({
+        fill: "FFFFFF",
+        line: orange,
+        text: [orange],
+      });
+      // The arrowhead is the line's tail end, drawn in the line's color.
+      expect(pptxShape(parsed.root, "e:#0")).toMatchObject({
+        element: connectors === "glued" ? "p:cxnSp" : "p:sp",
+        line: orange,
+        arrowhead: true,
+      });
+      expect(pptxShape(parsed.root, "e:#0 label 0")).toMatchObject({ text: [orange] });
     });
   }
 });
