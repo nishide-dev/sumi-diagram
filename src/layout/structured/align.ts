@@ -39,7 +39,12 @@
  * `layout/align-search-limit`, warning). Struts only grow, so constraints that
  * contradict each other or the trees stop with a residual, reported per
  * constraint as `layout/unsatisfied-align` (warning; the figure is drawn with
- * the best layout found). Struts can grow the figure: when a side of the
+ * the best layout found). Centring can couple otherwise disjoint constraints:
+ * growing one branch moves its other items too. Even doubling a strut to
+ * compensate for its half-effect can worsen the total residual (#213,
+ * design doc §6.58). More rounds cannot escape this candidate-set minimum; a
+ * start-aligned parent can avoid this coupling for table headings.
+ * Struts can grow the figure: when a side of the
  * canvas grows by more than {@link ALIGN_GROWTH_MM} and
  * {@link ALIGN_GROWTH_RATIO} over the plain pass, `layout/align-grew-figure`
  * (info) says by how much (#155).

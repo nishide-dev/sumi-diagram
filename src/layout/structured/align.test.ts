@@ -12,6 +12,7 @@ import {
   ALIGN_GROWTH_RATIO,
   converged,
   grewFigure,
+  MAX_ALIGN_LAYOUTS,
   MAX_ALIGN_ROUNDS,
 } from "./align";
 import { layoutStructured, type PlacedStructured, placeStructured } from "./engine";
@@ -352,6 +353,62 @@ describe("solving", () => {
   test("is deterministic", () => {
     const text = readFileSync(`${fixtures}/figures/layout/align-unet.sumi.yaml`, "utf8");
     expect(JSON.stringify(place(text, false))).toBe(JSON.stringify(place(text, false)));
+  });
+});
+
+describe("centred, coupled constraints (#213)", () => {
+  const text = readFileSync(
+    `${import.meta.dir}/../../../research/185-acceptance/repro/align-residual.sumi.yaml`,
+    "utf8",
+  );
+  const ir = irOf(text);
+
+  test("reports the remaining gap when no candidate improves, before either search limit", () => {
+    const placed = placeStructured(ir);
+    expect(placed.align?.residuals).toEqual([0.007, 0.006, 0.077]);
+    expect(placed.align?.rounds).toBeLessThan(MAX_ALIGN_ROUNDS);
+    expect(placed.align?.layouts).toBeLessThan(MAX_ALIGN_LAYOUTS);
+    const warnings = placed.diagnostics.filter((d) => d.severity === "warning");
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toMatchObject({
+      code: "layout/unsatisfied-align",
+      path: ["figure", "layout", "align", 2],
+    });
+    expect(warnings[0]?.hint).toMatch(/^Other align constraints/);
+    // These constraints share no IDs, but centring couples their branches.
+    expect(warnings[0]?.related).toBeUndefined();
+    const residual = Math.abs(
+      centerY(rectOf(placed.layout, "h-text")) - centerY(rectOf(placed.layout, "p0")),
+    );
+    expect(residual).toBeGreaterThan(ALIGN_EPSILON);
+    expect(residual).toBeCloseTo(0.077, 3);
+    expect(placeStructured(ir)).toEqual(placed);
+    // More time does not help: this is the no-progress rule, not exhaustion.
+    expect(placeStructured(ir, { alignLimits: { maxRounds: 100, maxLayouts: 2000 } })).toEqual(
+      placed,
+    );
+  });
+
+  test("each constraint alone converges in the same centred arrangement", () => {
+    for (const constraint of ir.align ?? []) {
+      const placed = placeStructured({ ...ir, align: [constraint] });
+      expect(converged(placed.align?.residuals ?? [1])).toBe(true);
+      expect(placed.diagnostics.filter((d) => d.severity === "warning")).toEqual([]);
+    }
+  });
+
+  test("a start-aligned root solves all three constraints exactly", () => {
+    if (ir.arrange === undefined) throw new Error("missing root arrangement");
+    const placed = placeStructured({ ...ir, arrange: { ...ir.arrange, align: "start" } });
+    expect(placed.align?.residuals).toEqual([0, 0, 0]);
+    expect(placed.diagnostics.filter((d) => d.severity === "warning")).toEqual([]);
+    for (const [heading, cell] of [
+      ["h-visual", "f0"],
+      ["h-action", "k0-1"],
+      ["h-text", "p0"],
+    ] as const) {
+      expect(centerY(rectOf(placed.layout, heading))).toBe(centerY(rectOf(placed.layout, cell)));
+    }
   });
 });
 
