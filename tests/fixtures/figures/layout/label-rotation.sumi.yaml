@@ -1,6 +1,6 @@
 # labelRotation (#178): H3-World's "Query" axis label and its tall
 # "Visual VAE Encoder" box, turned -90°, and labels turned 90° with label math
-# and two lines.
+# (an accent and scripts) and two lines of different widths.
 version: 1
 figure:
   id: label-rotation
@@ -18,8 +18,8 @@ nodes:
   - { id: query, component: label, label: Query, labelRotation: -90 }
   - { id: vae, component: box, label: Visual VAE Encoder, labelRotation: -90, props: { height: 120pt } }
   - { id: a, component: box, label: Patch embed }
-  - { id: b, component: box, label: "Math $x_t^2$", labelRotation: 90 }
-  - { id: c, component: box, label: "Two\nlines", labelRotation: 90 }
+  - { id: b, component: box, label: "Math $\\hat{x}_t^2$", labelRotation: 90 }
+  - { id: c, component: box, label: "Two\nmuch longer lines", labelRotation: 90 }
   - { id: out, component: box, label: Output }
 edges:
   - { from: query, to: vae }

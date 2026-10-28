@@ -242,9 +242,16 @@ function fontClassOf(element: XmlElement): string | undefined {
       : fontClass.slice(5);
 }
 
-/** `rotate(±90 cx cy)`, numbers separated by whitespace and/or a comma (SVG's transform syntax). */
-const ROTATE =
-  /^\s*rotate\(\s*([+-]?[\d.]+)(?:\s*,\s*|\s+)([+-]?[\d.]+)(?:\s*,\s*|\s+)([+-]?[\d.]+)\s*\)\s*$/;
+/** SVG's whitespace (`wsp`: space, tab, CR, LF); not `\s`, which also matches e.g. U+00A0. */
+const WSP = "[ \\t\\r\\n]";
+/** A number as `parseNumber()` reads it: optional sign, digits with a point, optional exponent. */
+const NUMBER = "([+-]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][+-]?\\d+)?)";
+/** Between two numbers: whitespace, or a comma with optional whitespace around it (`comma-wsp`). */
+const SEP = `(?:${WSP}+,?${WSP}*|,${WSP}*)`;
+/** `rotate(a cx cy)`, as SVG's transform grammar writes one rotation about a point. */
+const ROTATE = new RegExp(
+  `^${WSP}*rotate${WSP}*\\(${WSP}*${NUMBER}${SEP}${NUMBER}${SEP}${NUMBER}${WSP}*\\)${WSP}*$`,
+);
 
 /**
  * Reads a `<text>`'s `transform` (#178): exactly a turn by 90° or -90° about

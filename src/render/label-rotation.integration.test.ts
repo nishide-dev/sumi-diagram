@@ -193,6 +193,108 @@ nodes:
     expect(textOf(named("n:a"))).toBe("Patch embed");
   });
 
+  test("the editable PPTX puts each turned line where the SVG draws it", async () => {
+    // Read back from the text box: the upright text's anchor (the centre of
+    // the text area between the insets) and each line's top (the top inset,
+    // then one line spacing per line), turn them with `rot` about the box's
+    // centre, and compare with the SVG's geometry as inspected.
+    const rendered = await render(source);
+    const editable = svgToEditablePptx(rendered.svg, rendered.compiled.ir);
+    if (!editable.ok) throw new Error(JSON.stringify(editable.diagnostics));
+    const xml = new TextDecoder().decode(readPptx(editable.value).get("ppt/slides/slide1.xml"));
+    const parsed = parseXml(xml);
+    if (!parsed.ok) throw new Error(parsed.message);
+    const EMU = 6350; // one unit = 0.5pt
+    const TOLERANCE = 0.002; // units: rounding to whole EMU is under 0.0002
+    const turn = (p: { x: number; y: number }, degrees: number, c: { x: number; y: number }) =>
+      degrees > 0
+        ? { x: c.x - (p.y - c.y), y: c.y + (p.x - c.x) }
+        : { x: c.x + (p.y - c.y), y: c.y - (p.x - c.x) };
+    const checked: string[] = [];
+    for (const key of Object.keys(TURNED)) {
+      const shape = [...descendants(parsed.root)].find(
+        (s) =>
+          s.name === "p:sp" &&
+          [...descendants(s)].some(
+            (e) => e.name === "p:cNvPr" && attribute(e, "name") === `${key} label`,
+          ),
+      );
+      if (shape === undefined) throw new Error(`no text box of ${key}`);
+      const all = [...descendants(shape)];
+      const one = (name: string) => {
+        const e = all.find((x) => x.name === name);
+        if (e === undefined) throw new Error(`${key}: no ${name}`);
+        return e;
+      };
+      const num = (name: string, a: string) => Number(attribute(one(name), a));
+      const label = rendered.inspection.elements.find((e) => e.key === key)?.labels[0];
+      const rotation = label?.rotation;
+      if (label === undefined || rotation === undefined) throw new Error(`no label of ${key}`);
+      const degrees = ((num("a:xfrm", "rot") / 60000 + 180) % 360) - 180;
+      expect(degrees).toBe(rotation.degrees);
+      const c = rotation.center;
+      // EMU offsets from the box's centre, which is the rotation's centre.
+      const [ox, oy, cx, cy] = [
+        num("a:off", "x"),
+        num("a:off", "y"),
+        num("a:ext", "cx"),
+        num("a:ext", "cy"),
+      ];
+      const [lIns, rIns, tIns] = ["lIns", "rIns", "tIns"].map((a) => num("a:bodyPr", a)) as [
+        number,
+        number,
+        number,
+      ];
+      const anchorX = c.x + (ox + lIns + (ox + cx - rIns) - 2 * (ox + cx / 2)) / 2 / EMU;
+      const firstTop = c.y + (oy + tIns - (oy + cy / 2)) / EMU;
+      const paragraphs = all.filter((e) => e.name === "a:p");
+      const spacing =
+        Number(attribute(all.find((e) => e.name === "a:spcPts") as never, "val")) / 50;
+      expect(spacing).toBeCloseTo(label.lineHeightUnits, 1);
+      // The SVG: the label's lines upright (its own frame) and as drawn (turned).
+      const { rotation: _, ...upright } = label;
+      const uprightLines = measureLabel(upright, fonts).lines;
+      const turnedLines = measureLabel(label, fonts).lines;
+      expect(paragraphs).toHaveLength(uprightLines.length);
+      for (const [i, line] of uprightLines.entries()) {
+        const top = firstTop + i * spacing;
+        // Upright: the anchor and the line's top as the SVG has them.
+        expect(Math.abs(anchorX - label.anchor.x)).toBeLessThan(TOLERANCE);
+        expect(Math.abs(top - line.y)).toBeLessThan(TOLERANCE);
+        // Turned: the point lands on the turned line box's edge, at its middle.
+        const p = turn({ x: anchorX, y: top }, degrees, c);
+        const want = turn({ x: label.anchor.x, y: line.y }, degrees, c);
+        expect(Math.abs(p.x - want.x) + Math.abs(p.y - want.y)).toBeLessThan(TOLERANCE);
+        const box = turnedLines[i] as Rect;
+        expect(p.x).toBeGreaterThan(box.x - TOLERANCE);
+        expect(p.x).toBeLessThan(box.x + box.width + TOLERANCE);
+        expect(p.y).toBeGreaterThan(box.y - TOLERANCE);
+        expect(p.y).toBeLessThan(box.y + box.height + TOLERANCE);
+        const onEdge =
+          Math.min(
+            Math.abs(p.x - box.x),
+            Math.abs(p.x - box.x - box.width),
+            Math.abs(p.y - box.y),
+            Math.abs(p.y - box.y - box.height),
+          ) < TOLERANCE;
+        expect(onEdge).toBe(true);
+      }
+      const texts = paragraphs.map((p) =>
+        [...descendants(p)]
+          .filter((e) => e.name === "a:t")
+          .map((e) => e.children.map((ch) => (ch.type === "text" ? ch.text : "")).join(""))
+          .join(""),
+      );
+      checked.push(`${key}: ${texts.join(" / ")}`);
+    }
+    expect(checked).toEqual([
+      "n:query: Query",
+      "n:vae: Visual VAE Encoder",
+      "n:b: Math x̂t2",
+      "n:c: Two / much longer lines",
+    ]);
+  });
+
   test("the auto engine refuses it (layout/structured-only)", () => {
     const auto = `version: 1
 figure: { id: f }

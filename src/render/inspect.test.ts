@@ -366,6 +366,13 @@ describe("inspectSvg", () => {
         ["rotate(-90 45 55)", -90],
         ["rotate(-90,45,55)", -90],
         [" rotate( 90 , 45 55 ) ", 90],
+        // SVG's whitespace (tab, LF, CR as character references) and comma-wsp.
+        ["rotate(90&#9;45&#10;55&#13;)", 90],
+        ["rotate(-90 ,45, 55)", -90],
+        // The number grammar of parseNumber(): signs, a trailing point, exponents.
+        ["rotate(+90 45. +55)", 90],
+        ["rotate(9e1 4.5e1 5.5E+1)", 90],
+        ["rotate(-900e-1 450e-1 .55e2)", -90],
       ] as const) {
         const svg = tinySvg([
           grp,
@@ -396,6 +403,21 @@ describe("inspectSvg", () => {
         "rotate(90 45 55) scale(2)",
         "translate(1 1) rotate(90 45 55)",
         "matrix(0 1 -1 0 100 10)",
+        // Not SVG's whitespace: no-break, ideographic and em spaces (form feed cannot be in XML).
+        "rotate(90 45 55)",
+        "rotate(90 45 55) ",
+        "　rotate(90 45 55)",
+        "rotate(90\u200345 55)",
+        // Not comma-wsp, not a number, or not exactly ±90.
+        "rotate(90,,45 55)",
+        "rotate(90 45 55,)",
+        "rotate(,90 45 55)",
+        "rotate(9e 45 55)",
+        "rotate(90 0x2D 55)",
+        "rotate(90 45 55px)",
+        "rotate(90deg 45 55)",
+        "rotate(90.0001 45 55)",
+        "rotate(-9e1.0 45 55)",
       ]) {
         const diagnostics = failure(
           tinySvg([
