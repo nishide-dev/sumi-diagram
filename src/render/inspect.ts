@@ -112,6 +112,16 @@ export interface SvgInspection {
   profile: ProfileLimits;
   /** One entry per IR element, in IR order (groups, nodes, edges). */
   elements: ElementGeometry[];
+  /**
+   * What a structured figure paints for each edge (#90, #156), as absolute
+   * M/L/C segments: the wires (`path.sumi-wire`) stroke the edges of a net
+   * and line style together, with rounded turns and stopped at arrowheads,
+   * while each edge's `path.connection` keeps the sharp, unstroked route.
+   * Set by `renderFigure()` from the layout (the merged wires in the SVG no
+   * longer say which edge drew what). Absent for D2's output, which strokes
+   * `path.connection` itself, and for an inspection of SVG text alone.
+   */
+  painted?: { key: ElementKey; path: PathSegment[] }[];
 }
 
 const ELEMENT_CLASS = /^sumi-k-([nge])--(.+)$/;

@@ -36,6 +36,13 @@ export interface GeometryElement {
   labels: MeasuredLabel[];
   /** Edge: the route as polylines (cubics flattened). */
   route?: Point[][];
+  /**
+   * Edge: what is stroked for it (#156). D2 strokes the route itself; a
+   * structured figure paints its nets as wires with rounded turns that stop
+   * at arrowheads (`SvgInspection.painted`, kept per edge), and the sharp
+   * `route` is the logical path.
+   */
+  drawn?: Point[][];
 }
 
 export interface GeometryContext {
@@ -149,6 +156,14 @@ export function createGeometryContext(
       ],
       ...(geometry.path !== undefined && { route: flattenPath(geometry.path) }),
     });
+  }
+  if (inspection.painted !== undefined) {
+    const painted = new Map(inspection.painted.map(({ key, path }) => [key, flattenPath(path)]));
+    for (const element of elements) {
+      if (element.route !== undefined) element.drawn = painted.get(element.key) ?? [];
+    }
+  } else {
+    for (const element of elements) if (element.route !== undefined) element.drawn = element.route;
   }
   const byKey = new Map(elements.map((e) => [e.key, e]));
   return {
