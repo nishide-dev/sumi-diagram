@@ -105,6 +105,15 @@ const NO_OVERHANG: Readonly<Overhang> = Object.freeze({ north: 0, east: 0, south
 const ROOT = "";
 type Container = ElementKey | typeof ROOT;
 
+interface GridTracks {
+  widths: number[];
+  heights: number[];
+  columnGap: number;
+  rowGap: number;
+  size: Size;
+  cells: { item: ArrangeItemIR; span: number; column: number; row: number; size: Size }[];
+}
+
 /**
  * Lays out a structured figure. Throws for a figure that is not structured
  * (or whose IR is inconsistent): callers check `ir.meta.engine` first.
@@ -207,6 +216,7 @@ class StructuredLayout {
   readonly #itemSizes = new Map<ElementKey, Size>();
   readonly #rects = new Map<ElementKey, Rect>();
   readonly #contents = new Map<ElementKey, Rect>();
+  readonly #grids = new Map<ArrangeBoxIR, GridTracks>();
 
   constructor(ir: FigureIR, profile: Profile, measurer: TextMeasurer) {
     this.#ir = ir;
@@ -291,6 +301,7 @@ class StructuredLayout {
     this.#itemSizes.clear();
     this.#rects.clear();
     this.#contents.clear();
+    this.#grids.clear();
     const root = this.#ir.arrange as ArrangeBoxIR;
     const size = this.#containerSize(ROOT, root);
     this.#placeContainer(ROOT, root, { x: 0, y: 0, width: size.width, height: size.height });
@@ -314,6 +325,7 @@ class StructuredLayout {
   }
 
   #boxSize(box: ArrangeBoxIR): Size {
+    if (box.kind === "grid") return this.#gridTracks(box).size;
     const sizes = box.items.map((item) => this.#itemSize(item));
     const vertical = box.kind === "stack";
     const main =
@@ -379,6 +391,76 @@ class StructuredLayout {
 
   // --- Placing ---------------------------------------------------------------
 
+  /** Single-column maxima first, then distribute spanning deficits in document order. */
+  #gridTracks(box: ArrangeBoxIR): GridTracks {
+    const cached = this.#grids.get(box);
+    if (cached !== undefined) return cached;
+    const columns = box.columns as number;
+    const widths: number[] = Array(columns).fill(0);
+    const heights: number[] = [];
+    const columnGap = box.columnGapPt === undefined ? this.#defaultGap : box.columnGapPt * 2;
+    const rowGap = box.rowGapPt === undefined ? this.#defaultGap : box.rowGapPt * 2;
+    let cursor = 0;
+    const cells = box.items.map((item, i) => {
+      const span = box.spans?.[i] ?? 1;
+      const column = cursor % columns;
+      const row = Math.floor(cursor / columns);
+      const size = this.#itemSize(item);
+      heights[row] = Math.max(heights[row] ?? 0, size.height);
+      if (span === 1) widths[column] = Math.max(widths[column] ?? 0, size.width);
+      cursor += span;
+      return { item, span, column, row, size };
+    });
+    for (const cell of cells) {
+      if (cell.span === 1) continue;
+      const available =
+        widths.slice(cell.column, cell.column + cell.span).reduce((a, b) => a + b, 0) +
+        columnGap * (cell.span - 1);
+      const extra = Math.max(0, cell.size.width - available) / cell.span;
+      for (let c = cell.column; c < cell.column + cell.span; c++)
+        widths[c] = (widths[c] ?? 0) + extra;
+    }
+    const tracks = {
+      widths,
+      heights,
+      columnGap,
+      rowGap,
+      cells,
+      size: {
+        width: widths.reduce((a, b) => a + b, 0) + columnGap * (columns - 1),
+        height: heights.reduce((a, b) => a + b, 0) + rowGap * (heights.length - 1),
+      },
+    };
+    this.#grids.set(box, tracks);
+    return tracks;
+  }
+
+  #placeGrid(box: ArrangeBoxIR, frame: Rect, visit: (key: ElementKey, rect: Rect) => void): void {
+    const tracks = this.#gridTracks(box);
+    const align = box.align ?? "center";
+    const xs = [frame.x + (frame.width - tracks.size.width) / 2];
+    const ys = [frame.y + (frame.height - tracks.size.height) / 2];
+    for (const w of tracks.widths) xs.push((xs.at(-1) as number) + w + tracks.columnGap);
+    for (const h of tracks.heights) ys.push((ys.at(-1) as number) + h + tracks.rowGap);
+    for (const cell of tracks.cells) {
+      const available =
+        tracks.widths.slice(cell.column, cell.column + cell.span).reduce((a, b) => a + b, 0) +
+        tracks.columnGap * (cell.span - 1);
+      const width =
+        align === "stretch" && this.#stretchable(cell.item, true) ? available : cell.size.width;
+      const offset =
+        align === "start" ? 0 : align === "end" ? available - width : (available - width) / 2;
+      const rect = {
+        x: (xs[cell.column] as number) + offset,
+        y: (ys[cell.row] as number) + ((tracks.heights[cell.row] as number) - cell.size.height) / 2,
+        width,
+        height: cell.size.height,
+      };
+      if (typeof cell.item === "string") visit(cell.item, rect);
+      else this.#placeBox(cell.item, rect, "center", visit);
+    }
+  }
+
   /**
    * Places a box's items in `frame`; calls `visit` for every node or group
    * item (nested boxes are placed recursively, groups are not entered).
@@ -389,6 +471,10 @@ class StructuredLayout {
     inherited: Align,
     visit: (key: ElementKey, rect: Rect) => void,
   ): void {
+    if (box.kind === "grid") {
+      this.#placeGrid(box, frame, visit);
+      return;
+    }
     const align = box.align ?? inherited;
     const vertical = box.kind === "stack";
     const reversed = box.direction === "up" || box.direction === "left";

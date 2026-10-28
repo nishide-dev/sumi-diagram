@@ -102,7 +102,12 @@ export interface FigureMetaIR {
  * layout engine supplies the defaults (§6.21).
  */
 export interface ArrangeBoxIR {
-  readonly kind: "stack" | "row";
+  readonly kind: "stack" | "row" | "grid";
+  /** Grid-only track count, spans (parallel to items), and gaps in pt. */
+  readonly columns?: number;
+  readonly spans?: readonly number[];
+  readonly rowGapPt?: number;
+  readonly columnGapPt?: number;
   /** stack: `down` | `up`; row: `right` | `left`. */
   readonly direction: "down" | "up" | "right" | "left";
   /** Space between items in pt, as written; omitted means the profile default. */
@@ -664,13 +669,13 @@ function arrangeIR(
   captionGapPt: number,
   inherited: ArrangeAlign = "center",
 ): ArrangeBoxIR {
-  const spec = box.stack ?? box.row;
-  if (spec === undefined) throw new Error("internal error: arrange box without stack or row");
-  const kind = box.stack !== undefined ? "stack" : "row";
-  const align = spec.align ?? inherited;
+  const spec = box.stack ?? box.row ?? box.grid;
+  if (spec === undefined) throw new Error("internal error: arrange box without stack, row or grid");
+  const kind = box.stack !== undefined ? "stack" : box.row !== undefined ? "row" : "grid";
+  const align = spec.align ?? (kind === "grid" ? "center" : inherited);
   const item = (item: ArrangeItem): ArrangeItemIR => {
     if (typeof item !== "string") {
-      const nested = item.stack !== undefined ? "stack" : "row";
+      const nested = item.stack !== undefined ? "stack" : item.row !== undefined ? "row" : "grid";
       return arrangeIR(item, keyOf, captions, captionGapPt, nested === kind ? align : "center");
     }
     const caption = captions.get(item);
@@ -679,17 +684,34 @@ function arrangeIR(
       kind: "stack",
       direction: "down",
       gapPt: captionGapPt,
-      align: kind === "stack" && align === "stretch" ? "stretch" : "center",
+      align: (kind === "stack" || kind === "grid") && align === "stretch" ? "stretch" : "center",
       items: freeze([keyOf(item), nodeKey(caption)]),
       growFirst: true,
     });
   };
+  if (box.grid !== undefined) {
+    const grid = box.grid;
+    return freeze({
+      kind: "grid",
+      direction: "right",
+      columns: grid.columns,
+      ...(grid.rowGap !== undefined && { rowGapPt: grid.rowGap }),
+      ...(grid.columnGap !== undefined && { columnGapPt: grid.columnGap }),
+      ...(grid.align !== undefined && { align: grid.align }),
+      spans: freeze(
+        grid.items.map((c) => (typeof c === "object" && "item" in c ? (c.span ?? 1) : 1)),
+      ),
+      items: freeze(grid.items.map((c) => item(typeof c === "object" && "item" in c ? c.item : c))),
+    });
+  }
+  const linear = box.stack ?? box.row;
+  if (linear === undefined) throw new Error("internal error: missing linear box");
   return freeze({
     kind,
-    direction: spec.direction,
-    ...(spec.gap !== undefined && { gapPt: spec.gap }),
+    direction: linear.direction,
+    ...(linear.gap !== undefined && { gapPt: linear.gap }),
     ...(spec.align !== undefined && { align: spec.align }),
-    items: freeze(spec.items.map(item)),
+    items: freeze(linear.items.map(item)),
   });
 }
 

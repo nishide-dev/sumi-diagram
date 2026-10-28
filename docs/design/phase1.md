@@ -2023,6 +2023,17 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **非対象・引き継ぎ**: 連続値のヒートマップ（Issue の非対象）、セルへの参照・セルのラベル、auto（D2）の行列、回転した軸の見出し（原図の Query / Key。`labelRotation` の `label` ノードを横に置けば書ける）、斜線以外の模様（`pattern` は列挙なので追加できる）、枠の余白なしで辺をセルの端まで届けること（辺は枠で止まる。書き下した版と同じ）、編集可能 PPTX でセルと斜線をグループにすること。
 
 
+### 6.59 #126 の配置の箱 `grid`
+
+[#124 §3.4](../research/124-stage-b.md) と #167 の H3-World (a) の表状の配置。Figure v1 の配置の木に任意の箱を追加する。新しい箱を使わない図の出力は不変。
+
+- **構文・順序**: `grid: { columns, rowGap?, columnGap?, align?, items }`。`columns` は正の整数。項目は ID・入れ子の箱（stack / row / grid）、または `{ item: IDか箱, span?: 正の整数 }`（省略は 1）。fmt の canonical order もこの順。常に左から右、上から下に埋め、`direction` は受け付けない（`schema/unknown-field`）。横の span だけを扱い、行をまたぐ span・自動折り返し・free は対象外。
+- **空のセルと個数（判断）**: 暗黙の穴・null・空文字・空の items は認めない（位置付き `schema/*`）。空けたいセルには `component: junction, variant: hidden` のノードを置く。全行をちょうど `columns` 列分で埋める。項目が行の残りを越えると `layout/grid-span-overflow`（error、wrapper の `span` の位置）、最後の行が未完なら `layout/grid-item-count`（error、`items` キーの位置）。途中で自動改行する案は採らない: 空の列が暗黙に増えると、作者が列を予測しにくい。所属・未知 ID・重複配置は既存の検査を wrapper の `item` の位置で実行する。auto は既存の `arrange` の `layout/structured-only`。
+- **1 パスの計測（判断）**: 子を下から計測し、span 1 の最大幅を列幅、各行の最大の高さを行高とする。次に span > 1 を文書順に見て、その列幅の和＋内部の columnGap が子の幅に足りないときだけ、不足をその span の各列に等分して足す（列幅は減らないので、それ以前の項目も収まる）。解の探索や整列 strut の反復は不要。計測結果は 1 回の配置 pass の間だけキャッシュし、align や padding の再配置では作り直す。既定の両 gap は Profile の `arrangeGap`（compact も含む）、明示値はそのまま。pt から unit への変換・最終の丸めは既存の規則。
+- **揃え（判断）**: `align` はセル内の横方向の start / center（既定）/ end / stretch。縦方向は行の中央。stretch は stack と同じ伸縮可否で幅だけを伸ばす（高さや明示サイズは変えない）。grid は軸を持たず外からの align を継承しない。子の箱も center から始める。親から余分な領域を渡された場合は grid 全体を中央に置き、track は広げない。span 1 の同じ列は同じセルの x を持つ（start なら node の左辺も一致）。grid の内部には整列 strut を挿入しないが、子の stack / row と祖先の箱は従来どおり使える。ルータの箱の軸による側の選択は grid では使わず、矩形から選ぶ。
+- **IR・展開**: Figure IR の箱に `kind: grid`・`columns`・項目と並行する `spans`・`rowGapPt?` / `columnGapPt?` を追加（内部の direction は right で固定）。Layout IR は従来の node / group の rect だけで十分で、新しい要素を足さない。tokens・matrix の置換と caption の wrapper も grid の項目の内側までたどる。既存の箱の IR のフィールドは変えない。
+- **受け入れ例**: `tests/fixtures/figures/layout/grid-training.sumi.yaml` は #109 図 2 の 4 列・2 行（optimizer は span 2）。`research/126-grid/c-h3world.sumi.yaml` は #185 の (a) の 5 本の column-stack を 5 列×4 行の grid に転置したもの。画像・キーの局所の並び、見出しの align、refiner と sequence を並べる外側の stack は保持。**全 node と group の矩形が元と完全一致**（小差なし）。`rewrite.ts` で元から再生成できる（画像も複製）。テストは実際の SVG・PDF・画像方式 PPTX、列の x と行の中心、span、compact、診断の位置、fmt を検証する。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）

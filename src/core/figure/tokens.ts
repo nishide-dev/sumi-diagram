@@ -439,6 +439,20 @@ function cellsItem(props: TokensProps, lines: ArrangeItem[][]): ArrangeItem {
 function replaceArrangeItems(state: CheckState, items: ReadonlyMap<string, ArrangeItem>): void {
   const { doc } = state;
   const replace = (box: ArrangeBox): ArrangeBox => {
+    if (box.grid !== undefined) {
+      const replaceItem = (item: ArrangeItem): ArrangeItem =>
+        typeof item === "string" ? (items.get(item) ?? item) : replace(item);
+      return {
+        grid: {
+          ...box.grid,
+          items: box.grid.items.map((cell) =>
+            typeof cell === "object" && "item" in cell
+              ? { ...cell, item: replaceItem(cell.item) }
+              : replaceItem(cell),
+          ),
+        },
+      };
+    }
     const kind = box.stack !== undefined ? "stack" : "row";
     const spec = box[kind];
     if (spec === undefined) return box;

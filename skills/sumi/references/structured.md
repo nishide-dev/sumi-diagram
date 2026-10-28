@@ -92,6 +92,38 @@ groups:
   straight across two columns), use [`align`](#aligning-across-trees), not
   `gap` tweaks.
 
+## Grids
+
+Use a grid for rows whose columns must line up (structured only):
+
+```yaml
+arrange:
+  grid:
+    columns: 4
+    rowGap: 6mm
+    columnGap: 4mm
+    align: start
+    items: [ dataset, sample, augment, augmented, model, loss, { item: optimizer, span: 2 } ]
+```
+
+Items fill left to right, then top to bottom; `direction` is not accepted.
+An item is an ID, a nested stack / row / grid, or `{ item: ID-or-box, span: N }`.
+Spans cover columns only (default 1). Every row must be complete: crossing a
+row boundary is `layout/grid-span-overflow`; an incomplete final row is
+`layout/grid-item-count`. Empty lists, nulls and empty strings are invalid;
+use a `junction` node with `variant: hidden` for a deliberate blank cell.
+
+Single-cell widths set column maxima; spanning deficits are shared equally
+among their columns in document order. Row heights are their tallest items.
+`align` controls horizontal start / center (default) / end / stretch inside
+each cell; items are vertically centered. Stretch changes resizable widths
+only, following stack's rules. Grid alignment is not inherited. Both omitted
+gaps use the profile's arrange gap, including compact density. Extra room
+centers the whole grid without changing tracks. Grid cells take no align
+struts; nested stack / row boxes and ancestor boxes still can.
+On an older CLI that rejects `grid`, use rows inside a stack and, if needed,
+cross-tree `align` constraints.
+
 ## Group titles and captions
 
 A group's `label` (its title) sits at the **top centre** inside the border,

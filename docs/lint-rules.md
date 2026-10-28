@@ -6,6 +6,8 @@
 
 ## 規則の一覧
 
+配置の `grid` は構造 lint より前の layout 段で検査する。行の残りより大きい span は `layout/grid-span-overflow`（error、`span` の位置）、未完の最終行は `layout/grid-item-count`（error、`items` のキー）。全行を埋め、空けたいセルには hidden junction を置く。null・空文字・空の items・不正な columns / span・direction は位置付きの `schema/*`。これらは `lint/*` の抑制設定では無効にできない（設計 §6.59）。
+
 いずれも自動修正には対応していない（`fixable: false`）。
 
 | code | 既定 | 内容 | 直し方 |

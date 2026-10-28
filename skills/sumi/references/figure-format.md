@@ -1,5 +1,9 @@
 # Figure format (`*.sumi.yaml`, Figure Schema v1)
 
+Structured arrange trees also accept `grid: { columns, rowGap?, columnGap?, align?, items }`;
+items may use `{ item: ID-or-box, span: N }` for column spans. See
+[grids](structured.md#grids) for complete-row and alignment rules.
+
 The authoritative definitions are `schema/figure.v1.schema.json` (generated)
 and `docs/design/phase1.md` §2 in the repository. This page is the subset you
 need to write a figure.
