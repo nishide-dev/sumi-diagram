@@ -12,7 +12,7 @@ Every stage reports problems as the same diagnostic object. In
   "path": ["nodes", 1, "variant"],
   "location": { "file": "f.sumi.yaml", "line": 13, "column": 14 },
   "subject": { "kind": "node", "id": "b" },
-  "hint": "Variants of sumi/box: default, emphasis, muted.",
+  "hint": "Variants of sumi/box: default, emphasis, muted, filled.",
   "related": [{ "message": "…", "location": { "line": 5, "column": 5 } }]
 }
 ```
