@@ -5,6 +5,7 @@
  */
 
 import { z } from "zod";
+import { ARRANGE_ALIGNS, ID_PATTERN, LayoutLength } from "../figure/schema";
 import { TONE_NAMES } from "../theme/tones";
 import { SizeLength } from "./length";
 import {
@@ -262,6 +263,113 @@ const legend: NodeManifest = {
   engines: ["structured"],
 };
 
+/** Canonical ID of the tokens component (#181): expanded into one node per cell. */
+export const TOKENS_ID = "sumi/tokens";
+
+/** Directions a tokens node lays its cells out in (#181): as a row or as a stack. */
+export const TOKENS_DIRECTIONS = ["right", "left", "down", "up"] as const;
+
+const tokenCellFields = {
+  component: ComponentField.optional().describe(
+    "The node component of the cell, e.g. box, square or label (a cell without a border, such as an ellipsis). Omitted means the tokens' component.",
+  ),
+  variant: VariantField.optional().describe(
+    "The variant of the cell, as on a node. Omitted means the tokens' variant.",
+  ),
+  width: SizeLength.optional().describe(
+    "The width of the cell, as a node's width prop. Omitted means the tokens' width.",
+  ),
+  height: SizeLength.optional().describe(
+    "The height of the cell, as a node's height prop. Omitted means the tokens' height.",
+  ),
+};
+
+const tokenCell = z.union([
+  z.string().describe("A cell with this label (math allowed); the other fields as the tokens'."),
+  z.strictObject({
+    id: z
+      .string()
+      .regex(ID_PATTERN)
+      .optional()
+      .describe(
+        "The cell's name: edges address it as <node>.<id>, and it is drawn as the node <node>-<id>. Omitted means its 1-based position (<node>.3, <node>-3).",
+      ),
+    label: z.string().optional().describe("The cell's text (math allowed). Omitted means none."),
+    tone: z
+      .enum(TONE_NAMES)
+      .optional()
+      .describe("The tone of the cell, as on a node. Omitted means the tokens node's tone."),
+    ...tokenCellFields,
+  }),
+]);
+
+const tokens: NodeManifest = {
+  ...base,
+  since: "0.6.0",
+  kind: "node",
+  name: "tokens",
+  description:
+    "A sequence of cells side by side, e.g. tokens or keys, each drawn as its own node that edges address as <node>.<cell> (structured layout only).",
+  variants: ["default"],
+  props: z
+    .strictObject({
+      cells: z
+        .array(tokenCell)
+        .min(1)
+        .optional()
+        .describe(
+          "The cells in order: labels, or objects with id, label, tone, component, variant, width and height.",
+        ),
+      lines: z
+        .array(z.array(tokenCell).min(1))
+        .min(1)
+        .optional()
+        .describe(
+          "Instead of cells: several lines of cells, each laid out in direction, the lines placed across it (below one another for right / left), e.g. keys [[W], [A, S, D]]. Cells are numbered across the lines.",
+        ),
+      direction: z
+        .enum(TOKENS_DIRECTIONS)
+        .default("right")
+        .describe("Where the cells run: right, left (a row), down or up (a stack)."),
+      gap: LayoutLength.optional().describe(
+        "Space between cells, as an arrange gap. Omitted means the layout default.",
+      ),
+      align: z
+        .enum(ARRANGE_ALIGNS)
+        .optional()
+        .describe(
+          "Cross-axis alignment of the cells, as in an arrange box. Omitted inherits from the enclosing box.",
+        ),
+      lineGap: LayoutLength.optional().describe(
+        "Space between lines (with lines). Omitted means gap.",
+      ),
+      lineAlign: z
+        .enum(ARRANGE_ALIGNS)
+        .optional()
+        .describe(
+          "Alignment of the lines across them, e.g. center to centre a short line (with lines). Omitted inherits from the enclosing box.",
+        ),
+      component: ComponentField.default("box").describe(
+        "The node component of every cell. Omitted means box.",
+      ),
+      variant: VariantField.optional().describe(
+        "The variant of every cell. Omitted means default.",
+      ),
+      width: SizeLength.optional().describe(
+        "The width of every cell. Omitted means sized to its label.",
+      ),
+      height: SizeLength.optional().describe(
+        "The height of every cell. Omitted means sized to its label.",
+      ),
+    })
+    .refine((props) => (props.cells === undefined) !== (props.lines === undefined), {
+      error: 'tokens need exactly one of "cells" or "lines"',
+    }),
+  shape: "rectangle",
+  sizing: "auto",
+  engines: ["structured"],
+};
+
 /**
  * A zoom callout (#176, design doc §6.45): two straight lines from corners of
  * the source to the matching corners of the target, which shows the source
@@ -299,6 +407,7 @@ export const BUILTIN_MANIFESTS: readonly ComponentManifest[] = [
   junction,
   image,
   legend,
+  tokens,
   container,
   edge("arrow", "A line with an arrowhead at the target.", {
     direction: "forward",

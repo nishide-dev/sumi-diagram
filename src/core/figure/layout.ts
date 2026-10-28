@@ -39,7 +39,14 @@ import {
 import type { Diagnostic, DiagnosticSubject, DocPath, SourceLocation } from "../diagnostics";
 import { closestMatch, didYouMean } from "../diagnostics";
 import { errorAt, relatedAt } from "./report";
-import { type ArrangeBox, type FigureGroup, type FigureNode, SIDES, type Side } from "./schema";
+import {
+  type ArrangeBox,
+  type FigureGroup,
+  type FigureNode,
+  refOwner,
+  SIDES,
+  type Side,
+} from "./schema";
 import type { Locator } from "./yaml";
 
 /** A parsed edge anchor. */
@@ -275,21 +282,23 @@ function checkStructured(state: CheckState, locate: Locator): void {
     if (attach === undefined) continue;
     const silent = invalid.has(node.key);
     const toPath = [...node.path, "attach", "to"];
-    if (!elements.has(attach.to) && !isInvalidId(attach.to)) {
+    // A cell of a tokens node (#181) is placed with its node: the node stands for it here.
+    const target = refOwner(attach.to);
+    if (!elements.has(target) && !isInvalidId(target)) {
       if (collectionsReadable && !silent) {
         push(
           errorAt(
             locate,
             "layout/unknown-attach-target",
-            `Unknown attach target "${attach.to}" in node "${node.value.id}"; attach to a node or group ID.`,
+            `Unknown attach target "${target}" in node "${node.value.id}"; attach to a node or group ID.`,
             toPath,
-            { subject: node.subject, hint: unknownHint(attach.to) },
+            { subject: node.subject, hint: unknownHint(target) },
           ),
         );
       }
       // Unknown, or unknowable (an unreadable collection): it cannot be placed.
       invalid.add(node.key);
-    } else if (attach.to === node.value.id && !silent) {
+    } else if (target === node.value.id && !silent) {
       push(
         errorAt(
           locate,
@@ -305,7 +314,7 @@ function checkStructured(state: CheckState, locate: Locator): void {
       id: node.value.id,
       path: [...node.path, "attach"],
       via: "attach",
-      target: attach.to,
+      target,
       silent,
     });
   }
@@ -565,14 +574,16 @@ function checkAlign(
     const first = new Map<string, number>();
     for (const [i, id] of items.entries()) {
       const itemPath = [...path, i];
-      if (!elements.has(id) && !isInvalidId(id)) {
+      // A cell of a tokens node (#181) is checked by the tokens expansion.
+      const owner = refOwner(id);
+      if (!elements.has(owner) && !isInvalidId(owner)) {
         state.diagnostics.push(
           errorAt(
             locate,
             "layout/unknown-align-item",
-            `Unknown element "${id}" in figure.layout.align[${index}]; align lists node or group IDs.`,
+            `Unknown element "${owner}" in figure.layout.align[${index}]; align lists node or group IDs.`,
             itemPath,
-            { subject: figureSubject, hint: unknownHint(id) },
+            { subject: figureSubject, hint: unknownHint(owner) },
           ),
         );
         continue;

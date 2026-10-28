@@ -9,7 +9,7 @@ import { type CheckState, type ElementKey, edgeKey, groupKey, nodeKey } from "..
 import type { Diagnostic, DiagnosticSubject, DocPath, SourceLocation } from "../diagnostics";
 import { didYouMean } from "../diagnostics";
 import { errorAt, relatedAt } from "./report";
-import type { FigureEdge, FigureGroup, FigureNode } from "./schema";
+import { type FigureEdge, type FigureGroup, type FigureNode, refOwner } from "./schema";
 import type { Locator } from "./yaml";
 
 interface Entry<T> {
@@ -135,7 +135,10 @@ export function linkFigure(state: CheckState, locate: Locator): void {
   for (const entry of edges) {
     if (invalid.has(entry.key)) continue;
     for (const end of ["from", "to"] as const) {
-      const id = entry.value[end];
+      // A cell reference `<node>.<cell>` (#181) needs its node here; the
+      // tokens expansion resolves the cell.
+      const ref = entry.value[end];
+      const id = refOwner(ref);
       if (
         doc.nodes === undefined ||
         doc.groups === undefined ||

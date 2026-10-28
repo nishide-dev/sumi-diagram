@@ -30,6 +30,7 @@ import {
   type JsonValue,
   NodeSchema,
   ONE_OF_ISSUE,
+  REF_PATTERN,
 } from "./schema";
 import type { Locator } from "./yaml";
 
@@ -243,7 +244,13 @@ function issueToDiagnostics(
         ),
       ];
     case "invalid_format":
-      if (issue.format === "regex" && issue.pattern === ID_PATTERN.toString()) {
+      // A reference without a dot (#181) is reported exactly like an ID.
+      if (
+        issue.format === "regex" &&
+        (issue.pattern === ID_PATTERN.toString() ||
+          (issue.pattern === REF_PATTERN.toString() &&
+            !(typeof actual === "string" && actual.includes("."))))
+      ) {
         const lower = typeof actual === "string" ? actual.toLowerCase() : "";
         return [
           errorAt(
@@ -255,6 +262,23 @@ function issueToDiagnostics(
               hint: ID_PATTERN.test(lower)
                 ? `IDs are lowercase only; use "${lower}".`
                 : "Start with a lowercase letter and use only a-z, 0-9, '_' and '-' (max 64 characters).",
+            },
+          ),
+        ];
+      }
+      if (issue.format === "regex" && issue.pattern === REF_PATTERN.toString()) {
+        // A cell reference (#181): <node>.<cell>.
+        const lower = typeof actual === "string" ? actual.toLowerCase() : "";
+        return [
+          errorAt(
+            locate,
+            "schema/invalid-id",
+            `Invalid reference ${JSON.stringify(actual)} at ${at}; expected an ID (${ID_PATTERN.source}) or a tokens cell as <node>.<cell>.`,
+            path,
+            {
+              hint: REF_PATTERN.test(lower)
+                ? `IDs are lowercase only; use "${lower}".`
+                : "IDs start with a lowercase letter and use only a-z, 0-9, '_' and '-' (max 64 characters); a cell of a tokens node is <node>.<cell id> or <node>.<position>, e.g. seq.a1 or seq.3.",
             },
           ),
         ];

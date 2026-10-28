@@ -209,7 +209,8 @@ const LEGEND_ENTRIES = [
  * draw (see {@link STRUCTURED_ONLY_MANIFESTS}), with every variant, under the
  * given theme: each with the ID `<component>-<variant>`, in a row below the
  * nodes and edges whose styles a legend's entries explain (a zoom edge, #176,
- * runs from one of those nodes to a box of its own in a row between them).
+ * runs from one of those nodes to a box of its own in a row between them),
+ * and a row of tokens (#181) with an edge from a cell to a box below.
  * Throws for a structured-only component it does not know how to fill in.
  */
 export function structuredPrimitivesFigure(theme: string): string {
@@ -227,8 +228,32 @@ export function structuredPrimitivesFigure(theme: string): string {
     "  - { from: a, to: d, component: double-arrow, fromAnchor: south, toAnchor: south }",
   ];
   const zooms: string[] = [];
+  const tokens: string[] = [];
   for (const m of STRUCTURED_ONLY_MANIFESTS) {
     const id = `${m.namespace}/${m.name}`;
+    if (id === "sumi/tokens") {
+      // A row of cells (#181): labeled, toned, math and a borderless one,
+      // with an edge into a cell.
+      for (const variant of m.variants) {
+        const name = `${m.name}-${variant}`;
+        tokens.push(`{ stack: { gap: 6mm, items: [${name}, ${name}-out] } }`);
+        nodes.push(
+          `  - id: ${name}`,
+          `    component: ${m.name}`,
+          `    variant: ${variant}`,
+          "    tone: purple",
+          "    props:",
+          "      gap: 1.5pt",
+          "      cells:",
+          "        - { id: first, label: First, tone: gray }",
+          "        - '$A_1$'",
+          "        - { label: '…', component: label }",
+        );
+        nodes.push(`  - { id: ${name}-out, component: box, label: out }`);
+        edges.push(`  - { from: ${name}.first, to: ${name}-out }`);
+      }
+      continue;
+    }
     if (id === "sumi/zoom") {
       // A callout from each node of the first row to a box below it (#176).
       for (const [i, variant] of m.variants.entries()) {
@@ -272,6 +297,7 @@ export function structuredPrimitivesFigure(theme: string): string {
     "        items:",
     "          - row: { gap: 8mm, align: center, items: [a, b, c, d] }",
     `          - row: { gap: 8mm, align: center, items: [${zooms.join(", ")}] }`,
+    `          - row: { gap: 8mm, align: center, items: [${tokens.join(", ")}] }`,
     `          - row: { gap: 6mm, align: start, items: [${legends.join(", ")}] }`,
     "nodes:",
     ...nodes,
@@ -284,12 +310,16 @@ export function structuredPrimitivesFigure(theme: string): string {
  * The component and variant an element of a compiled figure stands for: the
  * legend's own for the frame and the parts of a legend (#131, which the
  * `check` stages expand into groups, nodes and edges of other components),
- * otherwise the element's.
+ * the tokens node's for its cells (#181), otherwise the element's.
  */
 export function writtenComponentOf(
   ir: FigureIR,
   element: ElementIR,
 ): { component: string; variant: string } {
+  // A cell of a tokens node (#181): no element is left of the tokens node.
+  if (element.tokens !== undefined) {
+    return { component: "sumi/tokens", variant: element.tokens.variant };
+  }
   if (element.legend === undefined) {
     return { component: element.component, variant: element.variant };
   }
