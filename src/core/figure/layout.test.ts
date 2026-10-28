@@ -150,6 +150,31 @@ describe("layout/structured-only", () => {
     expect([...state.invalid].sort()).toEqual(["n:a", "n:b"]);
   });
 
+  test("node sublabel (#184)", () => {
+    const text = figure(
+      ["nodes:", '  - { id: a, component: box, label: Noise, sublabel: "32 × 32 × 4" }', ""].join(
+        "\n",
+      ),
+    );
+    expect(check(text)).toEqual([["layout/structured-only", ["nodes", 0, "sublabel"], 5, 44]]);
+    const { state } = checkFigureSource(text);
+    expect(state.diagnostics[0]?.message).toBe(
+      '"sublabel" needs the structured layout engine, but this figure uses the auto engine.',
+    );
+    expect([...state.invalid]).toEqual(["n:a"]);
+  });
+
+  test("sublabel must have visible text (#184)", () => {
+    for (const value of ['""', '"  "', "3", "[a]"]) {
+      const text = figure(
+        `  layout:\n    arrange: { stack: { items: [a] } }\nnodes:\n  - { id: a, component: box, label: A, sublabel: ${value} }\n`,
+      );
+      const found = check(text).map(([code, path]) => [code, path]);
+      expect(found).toHaveLength(1);
+      expect(found[0]?.[1]).toEqual(["nodes", 0, "sublabel"]);
+    }
+  });
+
   test("labelRotation accepts only 90 and -90 (#178)", () => {
     for (const value of ["45", "180", "0", '"90"']) {
       const text = figure(

@@ -151,6 +151,12 @@ export interface NodeLayout {
   readonly placement: Placement;
   /** The node's label; omitted when it has none. */
   readonly label?: TextLayout;
+  /**
+   * The node's sublabel (#184, design doc §6.51): a second text in a smaller
+   * size, right under `label` (both turned together with `rotation`);
+   * omitted when it has none.
+   */
+  readonly sublabel?: TextLayout;
 }
 
 export interface GroupLayout {

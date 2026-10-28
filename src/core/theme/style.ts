@@ -185,6 +185,23 @@ export const KIND_DEFAULTS: { readonly [K in ComponentKind]: StyleOf<K> } = deep
 });
 
 /**
+ * A node's sublabel (#184, design doc §6.51) is drawn at this fraction of
+ * the node's font size: 7/8, the ratio of the original DiT figure's sizes
+ * (7.35pt under 8.4pt), which also gives `size.small` from `size.text` in
+ * every built-in theme (8pt → 7pt, 16pt → 14pt).
+ */
+export const SUBLABEL_SCALE = 7 / 8;
+
+/**
+ * The font size of a node's sublabel (#184): {@link SUBLABEL_SCALE} of the
+ * label's, rounded down to whole D2 units (0.5pt), like every style length.
+ */
+export function sublabelFontSize(fontSize: StyleLength): StyleLength {
+  const units = Math.floor(fontSize.units * SUBLABEL_SCALE);
+  return { pt: units / 2, units };
+}
+
+/**
  * Merges layers over the kind defaults, property by property (later wins), and
  * freezes the result. Layers must only contain properties applicable to `kind`.
  */

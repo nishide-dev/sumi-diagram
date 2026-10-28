@@ -146,6 +146,39 @@ describe("rules", () => {
     );
   });
 
+  test("the label rules read a node's sublabel too (#184)", () => {
+    const text = `version: 1
+figure:
+  id: f
+  layout:
+    arrange: { stack: { items: [a, b] } }
+nodes:
+  - { id: a, component: box, label: Noise, sublabel: "32 × 32 × 4 😀" }
+  - id: b
+    component: box
+    label: Wide
+    sublabel: 'a sublabel that is much wider than forty columns\\nof text'
+`;
+    const found = lintFigure(text).diagnostics.filter((d) => d.code !== "lint/no-edges");
+    expect(found.map((d) => [d.code, d.path, d.message])).toEqual([
+      [
+        "lint/missing-glyph",
+        ["nodes", 0, "sublabel"],
+        'The sublabel of node "a" has a character missing from the regular and math fonts of font set sumi/biz-ud-gothic: "😀" (U+1F600).',
+      ],
+      [
+        "lint/long-label",
+        ["nodes", 1, "sublabel"],
+        'The sublabel of node "b" has a line 57 columns wide (limit 40).',
+      ],
+      [
+        "lint/literal-newline",
+        ["nodes", 1, "sublabel"],
+        'The sublabel of node "b" has a literal "\\n" (a backslash and n) outside $...$ math; it is drawn as written, not as a line break.',
+      ],
+    ]);
+  });
+
   test("long-label counts keycap emoji as 2 columns", () => {
     const keycaps = (n: number) => "1\ufe0f\u20e3".repeat(n);
     const figure = (label: string) =>

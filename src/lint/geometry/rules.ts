@@ -266,15 +266,25 @@ export const textTooSmall = defineGeometryRule({
         .map((l) => unitsToPt(l.label.fontSizeUnits));
       const smallest = Math.min(...sizes);
       if (sizes.length === 0 || smallest * scale >= min - PT_EPSILON) continue;
+      // A node's sublabel (#184) is its second <text>, smaller than the label:
+      // name it when only it is too small.
+      const sublabel =
+        element.ir.kind === "node" &&
+        element.ir.sublabel !== undefined &&
+        sizes.length === 2 &&
+        (sizes[0] as number) * scale >= min - PT_EPSILON;
+      const what = sublabel ? "sublabel" : "label";
       findings.push({
         message: scaled
-          ? `The label of ${element.name} is printed at ${formatPt(smallest * scale)}${scaleNote(smallest, scale)}, below the ${formatPt(min)} minimum font size of profile "${context.profile.id}" for a scaled figure.`
-          : `The label of ${element.name} is drawn at ${formatPt(smallest)}, below the ${formatPt(min)} minimum font size of profile "${context.profile.id}".`,
-        path: labelPath(element),
+          ? `The ${what} of ${element.name} is printed at ${formatPt(smallest * scale)}${scaleNote(smallest, scale)}, below the ${formatPt(min)} minimum font size of profile "${context.profile.id}" for a scaled figure.`
+          : `The ${what} of ${element.name} is drawn at ${formatPt(smallest)}, below the ${formatPt(min)} minimum font size of profile "${context.profile.id}".`,
+        path: sublabel ? [...element.docPath, "sublabel"] : labelPath(element),
         subject: element.subject,
-        hint: scaled
-          ? SCALED_TEXT_HINT
-          : "Use a theme or variant with a larger font size. Sumi does not shrink text below the profile's minimum.",
+        hint: sublabel
+          ? `A sublabel is drawn at 7/8 of its node's font size (rounded down to 0.5pt). ${scaled ? SCALED_TEXT_HINT : "Use a theme or variant with a larger font size."} Or write the text into the label, at the label's size.`
+          : scaled
+            ? SCALED_TEXT_HINT
+            : "Use a theme or variant with a larger font size. Sumi does not shrink text below the profile's minimum.",
       });
     }
     return findings;

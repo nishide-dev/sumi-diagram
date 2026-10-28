@@ -52,7 +52,7 @@ Every stage reports problems as the same diagnostic object. In
 | `ref/duplicate-id` | two nodes/groups (or two edges) share an ID | rename one; nodes and groups share an ID space |
 | `ref/group-cycle` | groups contain each other | fix the `group:` chain |
 | `ref/reserved-id` | an ID of yours is one Sumi generates: `<group>-caption` for a group's `caption`, `<legend>-<n>-label` / `-box` / `-line` / `-start` / `-end` for a legend's entries (`related` names which) | rename your element |
-| `layout/structured-only` | `arrange`, `attach`, node `labelRotation`, `fromAnchor` / `toAnchor`, edge `labelAt` / `labelSide`, `figure.layout.align` / `fanIn`, or a `legend` or `zoom` in an auto figure (no `figure.layout.arrange`, or `engine: auto`) | remove the field, or make the figure structured: root `figure.layout.arrange`, no `engine: auto`, every element placed |
+| `layout/structured-only` | `arrange`, `attach`, node `sublabel` / `labelRotation`, `fromAnchor` / `toAnchor`, edge `labelAt` / `labelSide`, `figure.layout.align` / `fanIn`, or a `legend` or `zoom` in an auto figure (no `figure.layout.arrange`, or `engine: auto`) | remove the field, or make the figure structured: root `figure.layout.arrange`, no `engine: auto`, every element placed |
 | `layout/unplaced`, `layout/duplicate-placement`, `layout/unknown-item`, `layout/unknown-attach-target`, `layout/group-mismatch`, `layout/group-cycle`, `layout/attach-cycle`, `layout/invalid-anchor`, `layout/attached-legend` | structured figures: every node and group must be placed exactly once, in an arrange tree or by `attach` (a legend only in a tree) | per code in [structured](structured.md#fixing-layout); follow the hint |
 | `layout/no-route` | `sumi render` of a structured figure: an edge cannot be routed (ends touching, closer than the arrowhead, or boxed in; the message and `related` name the nodes in the way, often an `attach`ed one), or a `zoom` edge's ends overlap (an element and its own group) | widen that `gap` (arrows need about 1.5mm in `academic`, 2.5mm in `minimal` / `color`, 4mm in `slides`), or anchor the edge on other sides ([structured](structured.md#spacing-that-routes)) |
 | `layout/unknown-align-item`, `layout/duplicate-align-item`, `layout/invalid-align` | a `figure.layout.align` constraint names an unknown or edge ID, the same ID twice, or fewer than two IDs | fix the list ([align](structured.md#aligning-across-trees)); an entry with both or neither of `x` / `y` is `schema/invalid-value` |
@@ -68,6 +68,8 @@ Every stage reports problems as the same diagnostic object. In
 | `component/label-at-without-label` (warning) | a group has `labelAt` but no (or an empty) `label` | add the title, or remove `labelAt` |
 | `component/label-rotation-unsupported` | `labelRotation` on a node that draws an icon, `operator`, `junction`, `image` or a `legend` | remove `labelRotation`; put a turned `label` node next to it if needed |
 | `component/label-rotation-without-label` (warning) | a node has `labelRotation` but no (or an empty) `label` | add the label, or remove `labelRotation` |
+| `component/sublabel-unsupported` | `sublabel` on a node that draws an icon, `operator`, `junction`, `image` or a `legend` | remove `sublabel`; put a `label` node next to it if needed |
+| `component/sublabel-without-label` | a node has `sublabel` but no (or an empty) `label` | add the label, or write the text as the `label` |
 | `component/invalid-prop` on a legend entry | an entry with both or neither of `edge` / `node`, or a sample box that is a mark, text or picture (`operator`, `junction`, `label`, `image`, `legend`) | one of `edge` / `node` per entry; a shape such as `box` or `circle` for boxes |
 | `component/tone-unsupported` | `tone` on a `junction` (drawn in the line color) | remove the tone |
 | `component/anchor-on-junction` (warning) | `fromAnchor` / `toAnchor` on an edge end at a `junction`: every line meets the dot's center, so the anchor is ignored | remove the anchor; anchor the edge's other end, or move the junction (arrange tree, `attach`) |
@@ -79,7 +81,7 @@ Every stage reports problems as the same diagnostic object. In
 | `theme/missing-tone` (warning) | the theme has no color for that tone (built-in themes define every tone) | usually ignore; choose another tone if it matters |
 | other `theme/*` | a problem in a theme definition | not fixable in the figure — report it |
 | `profile/unknown` | `figure.profile` is not built in | `paper-single`, `paper-double` or `presentation-16x9` (see hint) |
-| `profile/font-too-small` | text is smaller than the profile's minimum | a user decision: another profile or theme. For `presentation-16x9` (14pt minimum) use theme `slides`; `minimal`, `academic` and `color` fail it |
+| `profile/font-too-small` | text is smaller than the profile's minimum (a `sublabel` is 7/8 of its node's size) | a user decision: another profile or theme. For `presentation-16x9` (14pt minimum) use theme `slides`; `minimal`, `academic` and `color` fail it |
 | `lint/*` | structural warnings — see `docs/lint-rules.md` | below |
 
 ### Structural lint (`lint/*`)
@@ -137,7 +139,7 @@ exit code 1. Configure like structural rules
 | --- | --- | --- |
 | `geometry/exceeds-page-width` | error | shorter labels; auto: `direction: down`, fewer nodes side by side; structured: re-arrange the trees (a long row as two rows), smaller `gap`s; too wide and too tall: [two rows](layout-tips.md#too-wide-with-right-too-tall-with-down); a wider profile only if the user agrees and the figure is not already on `paper-double` |
 | `geometry/exceeds-page-height` | error | paper profiles 220mm, `presentation-16x9` 190.5mm (no profile allows more than 220mm): auto: `direction: right`, fewer layers; structured: re-arrange the trees (a long stack as a row of stacks), smaller `gap`s; or split the figure |
-| `geometry/text-too-small` | error | as `profile/font-too-small` (a safety net after rendering); with `figure.fit: scale`, a label printed below 5pt (paper profiles) after shrinking: make the figure narrower so it shrinks less |
+| `geometry/text-too-small` | error | as `profile/font-too-small` (a safety net after rendering); with `figure.fit: scale`, a label printed below 5pt (paper profiles) after shrinking — a 7pt `sublabel` already does at 71% (the message names the sublabel): make the figure narrower so it shrinks less, or write the text into the label |
 | `geometry/script-too-small` | info | with `figure.fit: scale`, subscripts / superscripts of label math print below 5pt after shrinking; one finding per figure; information only (scripts are exempt from the minimum) |
 | `geometry/label-overflow` | error | remove or enlarge explicit `width`/`height` (the `path` points at `props` then), shorten or break the label, or use a shape with more room for text (`box`) |
 | `geometry/out-of-canvas` | error | shorten labels; if it persists, report it as a Sumi bug |

@@ -236,6 +236,15 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
       );
       continue;
     }
+    if (node.sublabel !== undefined) {
+      fail(
+        "component/sublabel-unsupported",
+        `Legend "${node.id}" draws its label as a title above its entries, so it takes no sublabel.`,
+        [...legendPath, "sublabel"],
+        "Remove sublabel; put the text into the label (a newline breaks the line).",
+      );
+      continue;
+    }
 
     const entries = component.props.entries as LegendEntry[];
     const entriesPath: DocPath = [...legendPath, "props", "entries"];
