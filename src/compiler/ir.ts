@@ -29,6 +29,7 @@ import type {
   EdgeLabelSide,
   FanInMode,
   FigureEdge,
+  FigureFit,
   FigureGroup,
   FigureMeta,
   FigureNode,
@@ -77,6 +78,8 @@ export interface FigureMetaIR {
   readonly title?: string;
   readonly themeId: string;
   readonly profileId: string;
+  /** `figure.fit` (#183): `scale` shrinks the output to the profile's width. Absent when not written. */
+  readonly fit?: FigureFit;
   readonly direction: LayoutDirection;
   /** Layout engine (design doc §6.19); `direction` applies to `auto` only. */
   readonly engine: LayoutEngine;
@@ -448,6 +451,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
       ...(figure.title !== undefined && { title: figure.title }),
       themeId: theme.id,
       profileId: profile.id,
+      ...(figure.fit !== undefined && { fit: figure.fit }),
       direction: figure.layout.direction,
       engine: figure.layout.engine,
       ...(figure.layout.fanIn !== undefined && { fanIn: figure.layout.fanIn }),

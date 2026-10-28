@@ -4,7 +4,9 @@
  * and limits are documented in design doc §6.5 and docs/lint-rules.md.
  *
  * None of these rules changes the figure: Sumi never shrinks text or the
- * canvas to make a problem go away (design doc §5).
+ * canvas to make a problem go away (design doc §5). A figure the author
+ * shrinks with `figure.fit: scale` (#183, §6.48) is checked at its printed
+ * size: the page limits and the text sizes are measured after the scale.
  */
 
 import type { EdgeIR, FigureIR } from "../../compiler/ir";
@@ -15,6 +17,7 @@ import { BUILTIN_PROFILES } from "../../core/profile/builtin";
 import { formatMm, formatPt, mmToPt, ptToD2Units } from "../../core/units";
 import { type Point, type Rect, unitsToMm, unitsToPt } from "../../render/geometry";
 import type { ProfileLimits } from "../../render/inspect";
+import { printedSize } from "../../render/size";
 import { defineGeometryRule, type GeometryRule, type LintFinding } from "../rule";
 import type { GeometryContext, GeometryElement } from "./context";
 import { obstaclesCrossedByRoute, type RouteObstacle } from "./edges";
@@ -116,11 +119,8 @@ export function largerBuiltinProfiles(
 
 /** `use a wider profile (paper-double, 180mm)`, or nothing if no built-in profile fits. */
 function profileAdvice(context: GeometryContext, axis: "width" | "height"): string[] {
-  const { width, height } = context.inspection.canvas;
-  const larger = largerBuiltinProfiles(context.profile, axis, {
-    widthPt: width.pt,
-    heightPt: height.pt,
-  });
+  const { widthPt, heightPt } = printedSize(context.inspection);
+  const larger = largerBuiltinProfiles(context.profile, axis, { widthPt, heightPt });
   if (larger.length === 0) return [];
   const list = larger
     .map((p) => (Number.isFinite(p.maxPt) ? `${p.id}, ${formatMm(p.maxPt)}` : p.id))
@@ -144,7 +144,8 @@ export function pageWidthHint(context: GeometryContext): string {
       ? ["lay it out top to bottom (layout.direction: down)"]
       : ["place fewer nodes side by side (split a wide layer, or group its nodes)"];
   const options = [...layout, "shorten long labels", ...profileAdvice(context, "width")];
-  return `Sumi never shrinks a figure to fit. ${listOptions(options)}.`;
+  const fit = `Or print it smaller as drawn with \`figure.fit: scale\` (its text must then print at ${formatPt(scaledMinFontSizePt(context.profile))} or more).`;
+  return `Sumi never shrinks a figure on its own. ${listOptions(options)}. ${fit}`;
 }
 
 /** Hint of `exceeds-page-height`: what makes this figure shorter, by engine and profile (#114). */
@@ -158,7 +159,20 @@ export function pageHeightHint(context: GeometryContext): string {
       ? ["place fewer nodes on top of each other (split a tall layer, or group its nodes)"]
       : ["lay it out left to right (layout.direction: right)"];
   const options = [...layout, "split it into several figures", ...profileAdvice(context, "height")];
-  return `Sumi never shrinks a figure to fit. ${listOptions(options)}.`;
+  return context.ir.meta.fit === "scale"
+    ? `\`figure.fit: scale\` shrinks a figure to the page width only. ${listOptions(options)}.`
+    : `Sumi never shrinks a figure to fit. ${listOptions(options)}.`;
+}
+
+/** The minimum printed font size of a figure shrunk by `figure.fit: scale` (#183). */
+export const scaledMinFontSizePt = (profile: ProfileLimits): number =>
+  profile.minScaledFontSizePt ?? profile.minFontSizePt;
+
+/** ` (7pt shrunk to 70% by figure.fit: scale)`, or nothing for a figure printed at its natural size. */
+function scaleNote(drawnPt: number, scale: number): string {
+  return scale === 1
+    ? ""
+    : ` (${formatPt(drawnPt)} shrunk to ${Math.round(scale * 1000) / 10}% by figure.fit: scale)`;
 }
 
 export const exceedsPageWidth = defineGeometryRule({
@@ -169,7 +183,7 @@ export const exceedsPageWidth = defineGeometryRule({
   fixable: false,
   run(context) {
     const { profile } = context;
-    const width = context.inspection.canvas.width.pt;
+    const width = printedSize(context.inspection).widthPt;
     if (profile.maxWidthPt === undefined || width <= profile.maxWidthPt + PT_EPSILON) return [];
     return [
       {
@@ -190,7 +204,7 @@ export const exceedsPageHeight = defineGeometryRule({
   fixable: false,
   run(context) {
     const { profile } = context;
-    const height = context.inspection.canvas.height.pt;
+    const height = printedSize(context.inspection).heightPt;
     if (profile.maxHeightPt === undefined || height <= profile.maxHeightPt + PT_EPSILON) return [];
     return [
       {
@@ -203,30 +217,105 @@ export const exceedsPageHeight = defineGeometryRule({
   },
 });
 
+/**
+ * The scale the figure is printed at and the minimum font size that applies:
+ * `minFontSize`, or for a figure shrunk by `figure.fit: scale` (#183) the
+ * profile's `minScaledFontSize`.
+ */
+function textLimits(context: GeometryContext): { scale: number; minPt: number; scaled: boolean } {
+  const { scale } = printedSize(context.inspection);
+  const scaled = scale < 1;
+  return {
+    scale,
+    scaled,
+    minPt: scaled ? scaledMinFontSizePt(context.profile) : context.profile.minFontSizePt,
+  };
+}
+
+const SCALED_TEXT_HINT =
+  "Make the figure narrower so `figure.fit: scale` shrinks it less (see the suggestions of geometry/exceeds-page-width without `fit`), or use a wider profile.";
+
 export const textTooSmall = defineGeometryRule({
   id: "geometry/text-too-small",
   description:
-    "A label is drawn with a font size below the profile's minimum (a safety net behind profile/font-too-small).",
+    "A label is printed with a font size below the profile's minimum (a safety net behind profile/font-too-small), or, in a figure shrunk by figure.fit: scale, below the profile's minimum for scaled figures.",
   defaultSeverity: "error",
   fixable: false,
   run(context) {
     const findings: LintFinding[] = [];
-    const min = context.profile.minFontSizePt;
+    const { scale, scaled, minPt: min } = textLimits(context);
     for (const element of context.elements) {
       // An icon (#94, no font file) is not text.
       const sizes = element.labels
         .filter((l) => l.fontPath !== "")
         .map((l) => unitsToPt(l.label.fontSizeUnits));
       const smallest = Math.min(...sizes);
-      if (sizes.length === 0 || smallest >= min - PT_EPSILON) continue;
+      if (sizes.length === 0 || smallest * scale >= min - PT_EPSILON) continue;
       findings.push({
-        message: `The label of ${element.name} is drawn at ${formatPt(smallest)}, below the ${formatPt(min)} minimum font size of profile "${context.profile.id}".`,
+        message: scaled
+          ? `The label of ${element.name} is printed at ${formatPt(smallest * scale)}${scaleNote(smallest, scale)}, below the ${formatPt(min)} minimum font size of profile "${context.profile.id}" for a scaled figure.`
+          : `The label of ${element.name} is drawn at ${formatPt(smallest)}, below the ${formatPt(min)} minimum font size of profile "${context.profile.id}".`,
         path: labelPath(element),
         subject: element.subject,
-        hint: "Use a theme or variant with a larger font size. Sumi does not shrink text below the profile's minimum.",
+        hint: scaled
+          ? SCALED_TEXT_HINT
+          : "Use a theme or variant with a larger font size. Sumi does not shrink text below the profile's minimum.",
       });
     }
     return findings;
+  },
+});
+
+/** How many labels `script-too-small` names before "and N more". */
+const SCRIPT_NAMES = 3;
+
+/**
+ * Subscripts and superscripts of label math (#93) are set at 0.7 of the
+ * label's size and are exempt from `text-too-small` (TeX's convention, design
+ * doc §6.24). Once `figure.fit: scale` shrinks the figure (#183, §6.48) they
+ * can become hard to read, so they are reported, as information, when they
+ * print below the scaled minimum. A figure at its natural size is not checked.
+ * One finding per figure (at `figure.fit`), naming the labels: a figure with
+ * math usually has many, and they all shrink by the same factor.
+ */
+export const scriptTooSmall = defineGeometryRule({
+  id: "geometry/script-too-small",
+  description:
+    "In a figure shrunk by figure.fit: scale, a subscript or superscript of label math prints below the profile's minimum font size for scaled figures.",
+  defaultSeverity: "info",
+  fixable: false,
+  run(context) {
+    const { scale, scaled, minPt: min } = textLimits(context);
+    if (!scaled) return [];
+    const small: { name: string; pt: number }[] = [];
+    for (const element of context.elements) {
+      const scripts = element.labels.flatMap(({ label }) =>
+        (label.runs ?? [])
+          .flat()
+          .filter((run) => run.fontSizeUnits < label.fontSizeUnits)
+          .map((run) => unitsToPt(run.fontSizeUnits)),
+      );
+      const smallest = Math.min(...scripts);
+      if (scripts.length > 0 && smallest * scale < min - PT_EPSILON)
+        small.push({ name: element.name, pt: smallest });
+    }
+    if (small.length === 0) return [];
+    const smallest = Math.min(...small.map((s) => s.pt));
+    const names = small.slice(0, SCRIPT_NAMES).map((s) => s.name);
+    const more = small.length - names.length;
+    const where =
+      more > 0
+        ? `${names.join(", ")} and ${more} more label${more === 1 ? "" : "s"}`
+        : names.length === 1
+          ? names.join("")
+          : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+    const finding: LintFinding = {
+      message: `Subscripts or superscripts of label math print at down to ${formatPt(smallest * scale)}${scaleNote(smallest, scale)}, below the ${formatPt(min)} minimum font size of profile "${context.profile.id}" for a scaled figure: in ${where}.`,
+      path: ["figure", "fit"],
+      subject: figureSubject(context),
+      hint: `Scripts are exempt from the minimum at the natural size, so this is information only. If they are too small to read, ${SCALED_TEXT_HINT.charAt(0).toLowerCase()}${SCALED_TEXT_HINT.slice(1)}`,
+    };
+    return [finding];
   },
 });
 
@@ -1164,6 +1253,7 @@ export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
   exceedsPageWidth,
   exceedsPageHeight,
   textTooSmall,
+  scriptTooSmall,
   labelOverflow,
   outOfCanvas,
   nodeOverlap,

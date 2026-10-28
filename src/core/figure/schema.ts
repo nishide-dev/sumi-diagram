@@ -59,6 +59,14 @@ export type LayoutEngine = (typeof LAYOUT_ENGINES)[number];
 export const FAN_IN_MODES = ["merge", "spread"] as const;
 export type FanInMode = (typeof FAN_IN_MODES)[number];
 
+/**
+ * How a figure wider than its profile's maximum width is printed (#183,
+ * design doc §6.48): `scale` shrinks the whole output, layout unchanged, to
+ * that width; text is then checked at its printed size. Never enlarges.
+ */
+export const FIGURE_FITS = ["scale"] as const;
+export type FigureFit = (typeof FIGURE_FITS)[number];
+
 /** Sides of a node or group, for `attach.side` and edge anchors. */
 export const SIDES = ["north", "east", "south", "west"] as const;
 export type Side = (typeof SIDES)[number];
@@ -318,6 +326,12 @@ export const FigureMetaSchema = z.strictObject({
   title: z.string().optional(),
   theme: z.string().min(1).default("minimal").describe("Built-in theme name."),
   profile: z.string().min(1).default("paper-single").describe("Built-in output profile name."),
+  fit: z
+    .enum(FIGURE_FITS)
+    .optional()
+    .describe(
+      "scale: shrink the whole figure (layout unchanged) to the profile's maximum width if it is wider; text is then checked at its printed size. Omitted means the figure is printed at its natural size.",
+    ),
   layout: LayoutSchema.prefault({}),
 });
 

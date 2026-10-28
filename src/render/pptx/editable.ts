@@ -28,7 +28,11 @@ export interface EditablePptxOptions {
   fontSet?: FontSet;
 }
 const U = 6350; // one D2 unit = .5pt
-const emu = (n: number) => Math.round(n * U);
+/**
+ * EMU of a length in D2 units at a print scale (#183, `figure.fit: scale`:
+ * the SVG's printed size over its natural size; 1 otherwise).
+ */
+const emuAt = (scale: number) => (n: number) => Math.round(n * U * scale);
 const sites =
   '<a:cxnLst><a:cxn ang="3cd4"><a:pos x="hc" y="t"/></a:cxn><a:cxn ang="cd2"><a:pos x="l" y="vc"/></a:cxn><a:cxn ang="cd4"><a:pos x="hc" y="b"/></a:cxn><a:cxn ang="0"><a:pos x="r" y="vc"/></a:cxn></a:cxnLst>';
 /**
@@ -121,7 +125,11 @@ function shapePath(el: XmlElement): { segments: PathSegment[]; filled: boolean }
       el.name !== "polyline",
   };
 }
-function geometry(paths: { segments: PathSegment[]; filled: boolean }[], box: Rect): string {
+function geometry(
+  paths: { segments: PathSegment[]; filled: boolean }[],
+  box: Rect,
+  emu: (n: number) => number,
+): string {
   const point = (p: Point) => `<a:pt x="${emu(p.x - box.x)}" y="${emu(p.y - box.y)}"/>`;
   const body = paths
     .map(({ segments, filled }) => {
@@ -234,7 +242,12 @@ export function svgToEditablePptx(
   if (metadata.value && metadata.value.figureId !== ir.meta.id)
     return fail("The SVG and Figure IR do not match.");
   const canvas = inspected.value.canvas;
-  if (![canvas.width.pt, canvas.height.pt].every((v) => v > 0 && v <= 4032))
+  // A figure shrunk by `figure.fit: scale` (#183) is placed at its printed
+  // size: every length, line width and font size times the scale.
+  const scale = inspected.value.scale ?? 1;
+  const emu = emuAt(scale);
+  const slide = { width: canvas.width.pt * scale, height: canvas.height.pt * scale };
+  if (![slide.width, slide.height].every((v) => v > 0 && v <= 4032))
     return {
       ok: false,
       diagnostics: [
@@ -247,13 +260,10 @@ export function svgToEditablePptx(
     };
   const vb = canvas.viewBox;
   const dx = Math.floor(
-    (Math.max(914400, Math.round(canvas.width.pt * 12700)) - Math.round(canvas.width.pt * 12700)) /
-      2,
+    (Math.max(914400, Math.round(slide.width * 12700)) - Math.round(slide.width * 12700)) / 2,
   );
   const dy = Math.floor(
-    (Math.max(914400, Math.round(canvas.height.pt * 12700)) -
-      Math.round(canvas.height.pt * 12700)) /
-      2,
+    (Math.max(914400, Math.round(slide.height * 12700)) - Math.round(slide.height * 12700)) / 2,
   );
   const xfrm = (b: Rect, flip = "") =>
     `<a:xfrm${flip}><a:off x="${emu(b.x - vb.x) + dx}" y="${emu(b.y - vb.y) + dy}"/><a:ext cx="${Math.max(1, emu(b.width))}" cy="${Math.max(1, emu(b.height))}"/></a:xfrm>`;
@@ -294,7 +304,7 @@ export function svgToEditablePptx(
           shiftUnits === 0
             ? ""
             : ` baseline="${Math.round((-shiftUnits / label.fontSizeUnits) * 100000)}"`;
-        return `<a:r><a:rPr lang="ja-JP" sz="${Math.round(label.fontSizeUnits * 50)}"${face.weight >= 600 ? ' b="1"' : ""}${face.italic ? ' i="1"' : ""}${baseline}>${fill}<a:latin typeface="${escapeXml(face.family)}"/><a:ea typeface="${escapeXml(face.family)}"/></a:rPr><a:t xml:space="preserve">${escapeXml(text)}</a:t></a:r>`;
+        return `<a:r><a:rPr lang="ja-JP" sz="${Math.round(label.fontSizeUnits * 50 * scale)}"${face.weight >= 600 ? ' b="1"' : ""}${face.italic ? ' i="1"' : ""}${baseline}>${fill}<a:latin typeface="${escapeXml(face.family)}"/><a:ea typeface="${escapeXml(face.family)}"/></a:rPr><a:t xml:space="preserve">${escapeXml(text)}</a:t></a:r>`;
       };
       const offset = label.anchor.x - (box.x + box.width / 2);
       const top = (measured.lines[0]?.y ?? box.y) - box.y;
@@ -307,7 +317,7 @@ export function svgToEditablePptx(
               : withAccentsOnBases(runs)
                   .map((r) => run(r.text, r.font, r.shiftUnits))
                   .join("");
-          return `<a:p><a:pPr algn="ctr"><a:lnSpc><a:spcPts val="${Math.max(0, Math.round(label.lineHeightUnits * 50))}"/></a:lnSpc><a:spcBef><a:spcPts val="0"/></a:spcBef><a:spcAft><a:spcPts val="0"/></a:spcAft></a:pPr>${content}</a:p>`;
+          return `<a:p><a:pPr algn="ctr"><a:lnSpc><a:spcPts val="${Math.max(0, Math.round(label.lineHeightUnits * 50 * scale))}"/></a:lnSpc><a:spcBef><a:spcPts val="0"/></a:spcBef><a:spcAft><a:spcPts val="0"/></a:spcAft></a:pPr>${content}</a:p>`;
         })
         .join("");
       return `<p:txBody><a:bodyPr wrap="none" lIns="${emu(Math.max(0, 2 * offset))}" rIns="${emu(Math.max(0, -2 * offset))}" tIns="${emu(top)}" bIns="0" anchor="t"><a:noAutofit/></a:bodyPr><a:lstStyle/>${paragraphs}</p:txBody>`;
@@ -365,7 +375,7 @@ export function svgToEditablePptx(
       const geom = ellipse
         ? '<a:prstGeom prst="ellipse"><a:avLst/></a:prstGeom>'
         : primitives.length
-          ? geometry(primitives.map(shapePath), box)
+          ? geometry(primitives.map(shapePath), box, emu)
           : '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>';
       const first = primitives[0];
       const fill = first
@@ -412,7 +422,7 @@ export function svgToEditablePptx(
         // standard ends render at about 4/6/10pt, rather than scaling with
         // stroke width. Choose the nearest discrete size to the SVG marker.
         const size = (units: number) => {
-          const pt = units * 0.5;
+          const pt = units * 0.5 * scale;
           return (
             [
               ["med", 6],
@@ -476,7 +486,7 @@ export function svgToEditablePptx(
             id,
             key,
             bounds,
-            geometry([{ segments: geo.path, filled: false }], bounds),
+            geometry([{ segments: geo.path, filled: false }], bounds, emu),
             "<a:noFill/>",
             line(path, element.style, arrows),
           ),
@@ -538,8 +548,8 @@ export function svgToEditablePptx(
       ok: true,
       value: editablePptx(
         [...output, ...labels].join(""),
-        canvas.width.pt,
-        canvas.height.pt,
+        slide.width,
+        slide.height,
         metadata.value,
         connectors,
       ),

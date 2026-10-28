@@ -42,7 +42,7 @@ describe("geometry/exceeds-page-width and exceeds-page-height", () => {
     );
     expect(wide[0]?.subject).toEqual({ kind: "figure", id: "geo" });
     expect(wide[0]?.hint).toBe(
-      "Sumi never shrinks a figure to fit. Lay it out top to bottom (layout.direction: down), shorten long labels, or use a wider profile (paper-double, 180mm).",
+      "Sumi never shrinks a figure on its own. Lay it out top to bottom (layout.direction: down), shorten long labels, or use a wider profile (paper-double, 180mm). Or print it smaller as drawn with `figure.fit: scale` (its text must then print at 5pt or more).",
     );
     expect(wide[0]?.location?.line).toBe(2);
     expect(
@@ -86,13 +86,24 @@ nodes:
 `),
   } as const;
   const profiles = {
-    "paper-single": { id: "paper-single", maxWidthPt: mmToPt(88), maxHeightPt: mmToPt(220) },
-    "paper-double": { id: "paper-double", maxWidthPt: mmToPt(180), maxHeightPt: mmToPt(220) },
+    "paper-single": {
+      id: "paper-single",
+      maxWidthPt: mmToPt(88),
+      maxHeightPt: mmToPt(220),
+      minScaledFontSizePt: 5,
+    },
+    "paper-double": {
+      id: "paper-double",
+      maxWidthPt: mmToPt(180),
+      maxHeightPt: mmToPt(220),
+      minScaledFontSizePt: 5,
+    },
     "presentation-16x9": {
       id: "presentation-16x9",
       maxWidthPt: mmToPt(338.7),
       maxHeightPt: mmToPt(190.5),
       minFontSizePt: 14,
+      minScaledFontSizePt: 14,
     },
   } as const;
   const hintOf = (
@@ -163,7 +174,9 @@ nodes:
   ] as const)("exceeds-page-width: %s on %s, %dmm wide", (variant, profile, width, expected) => {
     expect(
       hintOf(variant, profile, "geometry/exceeds-page-width", { width: mm(width), height: 10 }),
-    ).toBe(`Sumi never shrinks a figure to fit. ${expected}`);
+    ).toBe(
+      `Sumi never shrinks a figure on its own. ${expected} Or print it smaller as drawn with \`figure.fit: scale\` (its text must then print at ${profile === "presentation-16x9" ? "14pt" : "5pt"} or more).`,
+    );
   });
 
   test.each([
@@ -413,6 +426,108 @@ describe("geometry/text-too-small", () => {
       { code },
     );
     expect(ok).toEqual([]);
+  });
+
+  test("a figure shrunk by figure.fit: scale is checked at its printed size (#183)", () => {
+    const at = (fontSizeUnits: number, scale?: number) =>
+      lintSpec(
+        compiled,
+        {
+          ...(scale !== undefined && { scale }),
+          elements: { "e:#0": { labels: [label("x", 50, 50, { fontSizeUnits })] } },
+        },
+        { code },
+      );
+    // 7pt shrunk to 70%: 4.9pt, below the 5pt minimum for scaled figures.
+    expect(at(14, 0.7).map((d) => [d.severity, d.message, d.hint])).toEqual([
+      [
+        "error",
+        'The label of edge edges[0] is printed at 4.9pt (7pt shrunk to 70% by figure.fit: scale), below the 5pt minimum font size of profile "paper-single" for a scaled figure.',
+        "Make the figure narrower so `figure.fit: scale` shrinks it less (see the suggestions of geometry/exceeds-page-width without `fit`), or use a wider profile.",
+      ],
+    ]);
+    // 8pt shrunk to 70% (5.6pt) is accepted, although below the 7pt of an unscaled figure.
+    expect(at(16, 0.7)).toEqual([]);
+    expect(at(14, 5 / 7)).toEqual([]);
+    // Without minScaledFontSize the scaled figure keeps the profile minimum.
+    const strict = lintSpec(
+      compiled,
+      {
+        scale: 0.9,
+        profile: { minScaledFontSizePt: 7 },
+        elements: { "e:#0": { labels: [label("x", 50, 50, { fontSizeUnits: 14 })] } },
+      },
+      { code },
+    );
+    expect(strict.map((d) => d.message)).toEqual([
+      'The label of edge edges[0] is printed at 6.3pt (7pt shrunk to 90% by figure.fit: scale), below the 7pt minimum font size of profile "paper-single" for a scaled figure.',
+    ]);
+  });
+});
+
+describe("geometry/script-too-small (#183)", () => {
+  const code = "geometry/script-too-small";
+  // An edge label of 7pt (14 units) with a subscript at 0.7 (9.8 units = 4.9pt).
+  const math = (text: string) =>
+    label(text, 50, 50, {
+      fontSizeUnits: 14,
+      runs: [
+        [
+          { text: "x", font: "math-italic", fontSizeUnits: 14, shiftUnits: 0 },
+          { text: "1", font: "math", fontSizeUnits: 9.8, shiftUnits: 2 },
+        ],
+      ],
+    });
+  const spec = (scale?: number) => ({
+    ...(scale !== undefined && { scale }),
+    elements: {
+      "e:#0": { labels: [math("x1")] },
+      "e:e2": { labels: [math("y1")] },
+    },
+  });
+
+  test("one info per figure when scripts print below the scaled minimum", () => {
+    const found = lintSpec(compiled, spec(0.9), { code, source: SOURCE });
+    expect(found.map((d) => [d.severity, d.message, d.path])).toEqual([
+      [
+        "info",
+        'Subscripts or superscripts of label math print at down to 4.41pt (4.9pt shrunk to 90% by figure.fit: scale), below the 5pt minimum font size of profile "paper-single" for a scaled figure: in edge edges[0] and edge "e2".',
+        ["figure", "fit"],
+      ],
+    ]);
+    expect(found[0]?.subject).toEqual({ kind: "figure", id: "geo" });
+  });
+
+  test("not reported at the natural size, nor when the scripts stay above the minimum", () => {
+    expect(lintSpec(compiled, spec(), { code })).toEqual([]);
+    expect(lintSpec(compiled, spec(0.5), { code: "geometry/text-too-small" })).toHaveLength(2);
+    expect(
+      lintSpec(compiled, { ...spec(0.9), profile: { minScaledFontSizePt: 4 } }, { code }),
+    ).toEqual([]);
+  });
+});
+
+describe("geometry/exceeds-page-* after figure.fit: scale (#183)", () => {
+  test("the printed size is compared: the width fits, a height that still overflows is reported", () => {
+    // 1000 units = 500pt wide, shrunk to 88mm (249.45pt); 1400 units = 700pt tall → 349.2pt.
+    const scale = mmToPt(88) / 500;
+    const canvas = { x: 0, y: 0, width: 1000, height: 1400 };
+    const profile = { maxHeightPt: 300 };
+    expect(codes(lintSpec(compiled, { canvas, scale, profile, elements: {} }))).toEqual([
+      "geometry/exceeds-page-height",
+    ]);
+    const tall = lintSpec(
+      compiled,
+      { canvas, scale, profile, elements: {} },
+      { code: "geometry/exceeds-page-height" },
+    );
+    expect(tall[0]?.message).toBe(
+      'The figure is 123.2mm tall, more than the 105.83mm maximum height of profile "paper-single".',
+    );
+    expect(codes(lintSpec(compiled, { canvas, profile, elements: {} })).sort()).toEqual([
+      "geometry/exceeds-page-height",
+      "geometry/exceeds-page-width",
+    ]);
   });
 });
 

@@ -133,7 +133,8 @@ exit code 1. Configure like structural rules
 | --- | --- | --- |
 | `geometry/exceeds-page-width` | error | shorter labels; auto: `direction: down`, fewer nodes side by side; structured: re-arrange the trees (a long row as two rows), smaller `gap`s; too wide and too tall: [two rows](layout-tips.md#too-wide-with-right-too-tall-with-down); a wider profile only if the user agrees and the figure is not already on `paper-double` |
 | `geometry/exceeds-page-height` | error | paper profiles 220mm, `presentation-16x9` 190.5mm (no profile allows more than 220mm): auto: `direction: right`, fewer layers; structured: re-arrange the trees (a long stack as a row of stacks), smaller `gap`s; or split the figure |
-| `geometry/text-too-small` | error | as `profile/font-too-small` (a safety net after rendering) |
+| `geometry/text-too-small` | error | as `profile/font-too-small` (a safety net after rendering); with `figure.fit: scale`, a label printed below 5pt (paper profiles) after shrinking: make the figure narrower so it shrinks less |
+| `geometry/script-too-small` | info | with `figure.fit: scale`, subscripts / superscripts of label math print below 5pt after shrinking; one finding per figure; information only (scripts are exempt from the minimum) |
 | `geometry/label-overflow` | error | remove or enlarge explicit `width`/`height` (the `path` points at `props` then), shorten or break the label, or use a shape with more room for text (`box`) |
 | `geometry/out-of-canvas` | error | shorten labels; if it persists, report it as a Sumi bug |
 | `geometry/node-overlap` | warning | review explicit sizes; auto: put the nodes in the same group; structured: an attached node in a `gap` overlaps its neighbour, put it in the tree, attach it to a free side, or widen the `gap` ([attach](structured.md#attach-side-notes)) |

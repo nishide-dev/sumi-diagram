@@ -162,7 +162,10 @@ describe("buildProfileCatalog", () => {
         maxHeight: { written: "220mm", pt: 623.62, mm: 220 },
       },
       margin: { written: "2mm", pt: 5.67, mm: 2, d2Units: 11 },
-      typography: { minFontSize: { written: "7pt", pt: 7, mm: 2.47 } },
+      typography: {
+        minFontSize: { written: "7pt", pt: 7, mm: 2.47 },
+        minScaledFontSize: { written: "5pt", pt: 5, mm: 1.76 },
+      },
       layout: {
         layerGap: { written: "8mm", pt: 22.68, mm: 8, d2Units: 45 },
         containerPadding: { written: "4mm", pt: 11.34, mm: 4, d2Units: 23 },

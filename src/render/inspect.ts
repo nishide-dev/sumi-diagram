@@ -13,6 +13,7 @@ import type { ElementKey } from "../core/check-state";
 import type { Diagnostic, DiagnosticSubject } from "../core/diagnostics";
 import { getProfile } from "../core/profile/builtin";
 import type { Result } from "../core/result";
+import { PT_PER_D2_UNIT } from "../core/units";
 import {
   BoundsBuilder,
   type PathSegment,
@@ -97,6 +98,8 @@ export interface ProfileLimits {
   maxWidthPt?: number;
   maxHeightPt?: number;
   minFontSizePt: number;
+  /** Minimum printed font size of a figure shrunk by `figure.fit: scale` (#183); absent = `minFontSizePt`. */
+  minScaledFontSizePt?: number;
 }
 
 export interface SvgInspection {
@@ -110,6 +113,14 @@ export interface SvgInspection {
     height: Size;
   };
   profile: ProfileLimits;
+  /**
+   * Printed size ÷ natural size (0.5pt per unit), when they differ: the root
+   * `<svg>`'s `width` in pt over the viewBox's (#183, `figure.fit: scale`,
+   * design doc §6.48). Absent means 1 (also for an SVG without `width`, such
+   * as D2's raw output). Element geometry stays in the drawing's units; the
+   * printed size of a length is `unitsToPt(units) × scale`.
+   */
+  scale?: number;
   /** One entry per IR element, in IR order (groups, nodes, edges). */
   elements: ElementGeometry[];
   /**
@@ -552,6 +563,7 @@ export function inspectSvg(svg: string, ir: FigureIR): Result<SvgInspection> {
   }
 
   if (diagnostics.length > 0) return { ok: false, diagnostics };
+  const scale = printScale(root, read.doc.viewBox);
   const profile = getProfile(ir.meta.profileId);
   if (profile === undefined)
     throw new Error(`internal error: unknown profile ${ir.meta.profileId}`);
@@ -564,9 +576,29 @@ export function inspectSvg(svg: string, ir: FigureIR): Result<SvgInspection> {
         ...(profile.page.maxWidth !== undefined && { maxWidthPt: profile.page.maxWidth.pt }),
         ...(profile.page.maxHeight !== undefined && { maxHeightPt: profile.page.maxHeight.pt }),
         minFontSizePt: profile.typography.minFontSize.pt,
+        ...(profile.typography.minScaledFontSize !== undefined && {
+          minScaledFontSizePt: profile.typography.minScaledFontSize.pt,
+        }),
       },
+      ...(scale !== undefined && { scale }),
       elements,
     },
     diagnostics: [],
   };
+}
+
+/** Differences of the printed width from the natural one below this are rounding (6 decimals). */
+const SCALE_EPSILON = 1e-6;
+
+/**
+ * The root's printed width (`width` in pt) over the viewBox's natural width
+ * (#183); `undefined` if there is no such `width` or it is the natural one.
+ */
+function printScale(root: XmlElement, viewBox: Rect): number | undefined {
+  const match = /^(\d+(?:\.\d+)?)pt$/.exec(attribute(root, "width") ?? "");
+  if (match === null) return undefined;
+  const scale = Number(match[1]) / (viewBox.width * PT_PER_D2_UNIT);
+  return Number.isFinite(scale) && scale > 0 && Math.abs(scale - 1) > SCALE_EPSILON
+    ? scale
+    : undefined;
 }

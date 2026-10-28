@@ -459,6 +459,7 @@ layout:
 | `layout.containerPadding` | 4mm = 11.34pt | 22.68 → **23** | `--elk-padding "[top=23,left=23,bottom=23,right=23]"`（top はラベル分を D2 が拡張する） |
 | `page.maxWidth` | 88mm = 249.45pt | 量子化しない | 使わない（geometry lint で比較） |
 | `typography.minFontSize` | 7pt | 量子化しない | 使わない（profile 段で比較） |
+| `typography.minScaledFontSize`（任意、#183） | 5pt（paper 系） | 量子化しない | 使わない（`figure.fit: scale` で縮めた図の印刷される文字を幾何 lint で比較。省略は `minFontSize`。§6.48） |
 
   - 引数の型（いずれも整数、`--elk-padding` は `[top=N,left=N,bottom=N,right=N]` の文字列）は D2 v0.9.0 で確認済み（#9 のスパイク）。
 - **D2/ELK で実現できない項目は持たない**: 同じ層の中の間隔は D2 v0.9 では 20 unit（10pt）固定であり、設定できないことを Profile 仕様に明記する。
@@ -1567,6 +1568,33 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **auto（D2）は対象外**: D2 の矢じりは D2 が `style.filled` から描く（§6.41 と同じく、#192 の非対象）。
 - **変わった出力: なし**。組み込みの Theme の edge はすべて `filled: true` で（Theme は今は組み込みのみ）、YAML から中を塗らない矢じりは描かれない（`src/compiler/testing.ts` の IR のような、スタイルを直接変えた場合だけ）。リポジトリの `*.sumi.yaml` 113 個（描画まで通った図の SVG 358・編集可能 PPTX 293）（structured と auto）を図の Theme と組み込みの 4 Theme で描いて、SVG と編集可能 PPTX の slide XML を変更の前後で sha256 で比べ、すべて一致した。`bun run gallery:check` と PDF・PPTX・画像の golden も変わらない。中を塗らない矢じりの見た目は、IR の `filled` と矢じりの種類を変えて描き直した図（`minimal` の surface、`academic` の tone のある group、キャンバス）を PNG にして、5 種類とも内側が下の塗りになり、group の外では白のままであることを確かめた。
 - **テスト**: `structured.test.ts` の「hollow arrowheads (#192)」: 中を塗らない 5 種類それぞれで、塗りのある group（`minimal` の surface）とその外のキャンバス、tone のある group、透明な内側と色のある外側、透明な group だけの入れ子（キャンバス）。境界をまたぐ矢じり（group の枠を矢じりの中心に動かして writer で描き直す。内側の色、0.001 unit 外ならキャンバス）。始点の矢じりと junction の端の矢じり（左右に並べた色の違う 2 つの group の間を横に走る辺。始点の矢じりは始点側の group、junction の中心に先端がある矢じりはその下の group の色。group の色を入れ替えると入れ替わる）。塗る矢じりは線の色のまま。編集可能 PPTX では中を塗らない `arrow` が開いた矢印の線端のまま。`backgroundAt()` の単体（枠の上、外、`labelBackground()` と一致）と、`drawArrowhead()` の色を取る点（中心が枠の上と 0.001 外）。描き直しの補助（`redraw()`）は、編集可能 PPTX が読む `elements` も変えた要素にするよう直した。
+
+### 6.48 #183 の幅に合わせた縮小（`figure.fit: scale`）
+
+#167 の調査（[§4.6・§10 Q1](../research/167-stage-c.md)）で、論文の原図の文字は印刷時 5〜6pt 程度で、Sumi の B（DiT、幅 257mm）・C（H3-World、232mm）は 180mm に縮めると文字が原図と同程度になると分かった。利用者の判断（2026-10-28）: 縮小を正式に認め、縮小後の実効の文字の下限は 5pt とする。これまでは幅超過の error を無視して LaTeX の `\includegraphics` で縮めるしかなく、Sumi は縮小後の文字を検査しなかった。配置は変えない（密度を上げる compact は #167 の別項目）。
+
+- **構文（判断: `figure.fit`、`figure.layout.fit` ではない）**: `figure.fit: scale`。`figure.layout` は配置を決める欄（`engine`・`direction`・`arrange`・`align`・`fanIn`）で、そのうち 3 つは structured 専用。`fit` は配置を変えず、出力の物理的な大きさだけを変えるので、物理的な出力先を選ぶ `figure.profile` の隣に置く（両 engine 共通であることも、layout の下より伝わる）。値は列挙で今は `scale` だけ。省略は今までどおり自然な大きさ（0.5pt/unit）。任意フィールドの追加なので Figure v1 のまま（`requires: ">=0.6.0"` を書けば古い Sumi は `schema/unsatisfied-requires` で止まる）。
+- **縮小率（判断: 幅だけで決め、拡大しない）**: s = min(1, `maxWidth` ÷ 自然な幅)。`maxWidth` のない Profile では何もしない。高さは縮小後の大きさで `geometry/exceeds-page-height` を検査し、はみ出せば今までどおり error（受け入れ条件）。高さにも合わせる（幅と高さの比の小さい方）案は採らない: 論文の図は幅をそろえて載せるもので、高さの超過は分割・配置で直す問題であり、黙って縮めると文字が予想外に小さくなる。
+- **SVG（判断: 根の `width` / `height` だけを変える）**: viewBox と中の座標・文字の大きさはそのままで、根の `width` を `maxWidth`（paper-double なら `510.23622pt`）、`height` を同じ率で縮めた値にする（`finalizeSvg()` / `finalizeStructuredSvg()`、両 engine で共通の `finalizeDocument()`）。viewBox と `width` / `height` の比で縮めるのは SVG の標準の仕組みで、ブラウザ・LaTeX の取り込み・PDF エンジン（usvg）がそのまま扱う。包む `<g transform>` の案は採らない: inspect は根と描画の `<svg>` の transform を測れないものとして拒否する契約（§6）で、幾何 lint・編集可能 PPTX はすべて描画の座標で読む。縮小率を metadata に書く案も採らない: 根の `width` と viewBox の比で一意に分かり、属性を足すと metadata の形式が変わる。`fit` のない図と、`fit` があっても幅に収まる図は、根の属性も含めて今までとバイト単位で同じ（入力の sha256 だけが YAML の違いで変わる）。
+- **inspect と大きさ**: `inspectSvg()` が根の `width`（pt）と viewBox の自然な幅の比を `SvgInspection.scale` に入れる（1 との差が 1e-6 以下、`width` がない D2 の生の SVG では省略 = 1）。要素の幾何は描画の単位のまま。印刷される大きさは `printedSize()`（`src/render/size.ts`）: canvas × scale。`outputSize()`（`--json` の `size`）・`sumi render` の表示（`scaled to 70%`）・`exceeds-page-width` / `-height`・その hint の Profile の提案はこれを使う。`size` には縮めたときだけ `scale`（0.0001 に丸め）を足す。
+- **PDF**: エンジン（usvg）は根の `width` / `height` でページを決め、viewBox を写すので、変更なしでページ幅が `maxWidth` になり、文字の大きさも縮む（B の 8pt のラベルは PDF で 5.6pt の glyph）。WASM は作り直さない。
+- **画像方式の PPTX**: 根の `width` / `height`（pt）からスライドと画像の大きさを決めるので変更なし（B で 6,480,000 EMU = 180mm）。PNG の代替画像はエンジンが印刷の大きさの 2 倍で描くので、画素数も小さくなる。
+- **編集可能 PPTX**: inspect の幾何（unit）から EMU を出すので、`scale` を掛ける: 位置と大きさ（`emuAt(scale)`、自由形状の経路を含む）・線幅・文字の大きさ（`sz`）・行送り・矢じりの大きさの選び方・スライドの大きさ。scale = 1 では式の結果が変わらず、既存の slide XML は同じ。
+- **文字の下限（判断: Profile の `typography.minScaledFontSize`）**: Profile に任意の `minScaledFontSize` を足し、paper-single・paper-double を 5pt にする（利用者の判断。#167 §4.6 の (b) どおり Profile に持つ: 5pt は論文の版面での判断で、媒体ごとの値）。省略時は `minFontSize`（緩めない）。presentation-16x9 は省略し、縮めたスライドも 14pt。`sumi catalog --json` の `typography.minScaledFontSize`（ある Profile だけ）と、表の `MIN FONT`（`7pt (scaled 5pt)`）に出す。
+- **`geometry/text-too-small`（判断: 縮めた図は印刷される大きさで判定）**: scale < 1 の図では、ラベルの文字サイズ × scale を `minScaledFontSize` と比べる。メッセージは印刷される大きさと、縮小前の大きさ・率（`printed at 4.9pt (7pt shrunk to 70% by figure.fit: scale)`）。hint は縮小率を下げる方向（`fit` を外したときの `exceeds-page-width` の案で幅を詰める、幅の広い Profile）。縮めない図は今までどおり `minFontSize`。描画前の `profile/font-too-small`（Theme の文字と `minFontSize`）はそのまま: 縮小前の設計の大きさは 7pt を守り、縮小は図全体の比率を保ったまま小さくするだけにする。
+- **添字（判断: 縮めた図でだけ、情報として図全体で 1 件）**: ラベルの数式の添字（0.7 倍）は §6.24 で `text-too-small` の対象外。縮めた図ではそのままだと 3.4pt の添字が黙って通るので、新しい `geometry/script-too-small`（既定 info）で報告する。error にしない: B・C の添字は縮めるとすべて 5pt 未満で（§4.6 の 3.4〜3.8pt）、縮小を認めた判断と矛盾し、原図の添字も同程度に小さい。図全体で 1 件（`figure.fit` を指し、最小の印刷サイズと該当ラベルを 3 つまで挙げ、残りは件数）にする: 添字はすべて同じ率で縮むので、ラベルごとに出しても情報は増えない（C では 40 ラベル）。縮めない図では出さない（既存の図の lint 結果を変えない。§6.24 の判断のまま）。
+- **hint の変更**: `exceeds-page-width` の hint を「Sumi never shrinks a figure on its own. （配置の案）. Or print it smaller as drawn with `figure.fit: scale` (its text must then print at 5pt or more).」にした。縮小は配置の案の後に、条件（印刷される最小の文字）付きで示す。`fit` のある図の `exceeds-page-height` の hint は「`figure.fit: scale` shrinks a figure to the page width only.」で始める。
+- **実測**（fixture `tests/fixtures/figures/fit/`: #167 の B・C の複製に `fit: scale` の 1 行だけを足したもの。Theme `color`、paper-double）:
+
+  | 図 | 自然な大きさ | 縮小率 | 印刷される大きさ | ラベル（描画 → 印刷） | 添字（描画 → 印刷） | `fits` | 診断 |
+  | --- | --- | --- | --- | --- | --- | --- | --- |
+  | B（DiT） | 257 × 119.94mm | 0.7004 | 180 × 84.01mm | 8 → 5.60pt、7（辺）→ 4.90pt | 4.9 → 3.43pt | true | `text-too-small` error 4（辺のラベル γ₁β₁ などの 4 本、4.90pt）、`script-too-small` info 1 |
+  | C（H3-World） | 232.48 × 163.51mm | 0.7743 | 180 × 126.6mm | 9 → 6.97pt、8 → 6.19pt、7 → 5.42pt | 5.6 → 4.34pt | true | `script-too-small` info 1（40 ラベル） |
+
+  PDF のページは B 510.236 × 238.134pt、C 510.236 × 358.869pt（`pdfinfo`）。B の 7pt の辺のラベルは 5pt の下限を 0.1pt 下回る（#167 §4.6 の予測 4.9pt どおり）。B を error なしにするには縮小率を 0.714 以上にする（幅を 252mm 以下に詰める）か、辺の文字の大きい Theme が要る。下限は利用者の判断のまま変えない。
+- **変わった出力**: `fit` のない図の SVG・PDF・PPTX は変わらない（`bun run gallery:check`、PDF・PPTX・画像の golden、`CI=1 bun test`）。変わったのは: `exceeds-page-width` の hint の文、`sumi catalog` の paper 系の `minScaledFontSize`、`SvgInspection.profile` の `minScaledFontSizePt`。
+- **非対象**: 配置・余白の変更（compact、#167 の 10）、高さに合わせた縮小、拡大、`maxWidth` のない Profile での縮小。
+- **テスト**: `src/render/fit.integration.test.ts`（B・C: 180mm・`fits: true`・縮小率、`fit` のない版との SVG の差が根の大きさと入力の sha256 だけ、inspect の幾何が同じ、描画の文字サイズ、B・C の幾何 lint の結果、PDF のページと glyph の大きさ、画像・編集可能 PPTX のスライド幅と `sz`、幅に収まる図は縮めない（SVG が同じ）、auto（D2）の横に長い図）。`rules.test.ts`（縮めた図の `text-too-small` の境界と `minScaledFontSize` のない Profile、`script-too-small` の 1 件・縮めない図では出ない、縮小後の高さの超過、hint の文）。
 
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
