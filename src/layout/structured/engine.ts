@@ -50,7 +50,7 @@ import type { Diagnostic } from "../../core/diagnostics";
 import type { EdgeAnchor } from "../../core/figure/layout";
 import type { GroupLabelPosition, LabelRotation, Side } from "../../core/figure/schema";
 import { getProfile } from "../../core/profile/builtin";
-import type { Profile } from "../../core/profile/schema";
+import { type Profile, spacedProfile } from "../../core/profile/schema";
 import { getFontSet } from "../../core/theme/fonts";
 import { roundToD2Units } from "../../core/units";
 import {
@@ -133,9 +133,10 @@ export function placeStructured(
   if (ir.meta.engine !== "structured" || ir.arrange === undefined) {
     throw new Error("internal error: the structured layout needs a structured figure");
   }
-  const profile = options.profile ?? getProfile(ir.meta.profileId);
-  if (profile === undefined)
-    throw new Error(`internal error: unknown profile ${ir.meta.profileId}`);
+  const base = options.profile ?? getProfile(ir.meta.profileId);
+  if (base === undefined) throw new Error(`internal error: unknown profile ${ir.meta.profileId}`);
+  // `figure.layout.density: compact` (#182) swaps in the profile's compact spacing.
+  const profile = spacedProfile(base, ir.meta.density);
   let measurer = options.measurer;
   if (measurer === undefined) {
     const fonts = getFontSet(ir.meta.fontSetId);

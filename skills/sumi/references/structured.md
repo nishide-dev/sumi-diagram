@@ -25,7 +25,7 @@ and fall back to the older ways noted below.
 out and **a figure with `figure.layout.arrange` is structured, one without
 it auto** — so `engine` is not needed. An explicit `engine: auto` wins over
 `arrange`. Under auto, the structured-only fields (`figure.layout.arrange`,
-`align` and `fanIn`, `groups[].arrange`, `nodes[].attach` / `sublabel` / `labelRotation`,
+`align`, `fanIn` and `density`, `groups[].arrange`, `nodes[].attach` / `sublabel` / `labelRotation`,
 `edges[].fromAnchor` / `toAnchor` / `labelAt` / `labelSide`) and the
 `legend` component are errors (`layout/structured-only`): remove them, or
 switch the figure to structured (root `arrange`, no `engine: auto`, every
@@ -49,7 +49,7 @@ figure:
   layout:
     arrange:                   # root tree: places the root elements
       row:                     # a box is exactly one of stack (vertical) or row (horizontal)
-        gap: 6mm               # space between items; default 4mm (8mm on slides)
+        gap: 6mm               # space between items; default 4mm (8mm on slides; 2.5mm with density: compact)
         align: end             # start | center | end | stretch (cross axis)
         items:                 # IDs of nodes / groups, or nested boxes
           - stack: { direction: up, items: [ a, b, c ] }

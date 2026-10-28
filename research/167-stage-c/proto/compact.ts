@@ -59,7 +59,7 @@ const compact = validateProfile({
   id: "paper-double-compact",
   typography: { minFontSize: "5pt" },
   layout: {
-    ...(structuredClone(double) as { layout: Record<string, string> }).layout,
+    ...(structuredClone(double) as unknown as { layout: Record<string, unknown> }).layout,
     groupPadding: "4pt",
     nodePaddingX: "3.5pt",
     nodePaddingY: "1.5pt",

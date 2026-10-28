@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { checkFigureSource } from "../figure/check";
-import { formatMm } from "../units";
+import { formatLength, formatMm } from "../units";
 import {
   BUILTIN_PROFILE_DEFINITIONS,
   BUILTIN_PROFILES,
@@ -8,6 +8,7 @@ import {
   getProfile,
   type Profile,
   resolveProfile,
+  spacedProfile,
   toD2LayoutArgs,
   validateProfile,
 } from ".";
@@ -64,6 +65,50 @@ describe("built-in profiles", () => {
       maxHeight: "190.5mm",
       minFontSize: 14,
     });
+  });
+});
+
+describe("compact structured spacing (#182)", () => {
+  const spacing = (layout: Profile["layout"] | Profile["layout"]["compact"]) =>
+    [layout.arrangeGap, layout.groupPadding, layout.nodePaddingX, layout.nodePaddingY].map((l) =>
+      formatLength(l),
+    );
+
+  test("paper profiles: tighter gap, group padding and vertical node padding (§6.55)", () => {
+    for (const id of ["paper-single", "paper-double"]) {
+      expect(spacing(builtin(id).layout)).toEqual(["4mm", "8pt", "7pt", "3.5pt"]);
+      expect(spacing(builtin(id).layout.compact)).toEqual(["2.5mm", "6pt", "7pt", "1.5pt"]);
+    }
+  });
+
+  test("presentation-16x9 doubles the paper values, as for the normal spacing", () => {
+    const presentation = builtin("presentation-16x9").layout;
+    expect(spacing(presentation.compact)).toEqual(["5mm", "12pt", "14pt", "3pt"]);
+    const paperCompact = builtin("paper-double").layout.compact;
+    for (const key of ["arrangeGap", "groupPadding", "nodePaddingX", "nodePaddingY"] as const) {
+      expect(presentation.compact[key].pt).toBeCloseTo(2 * paperCompact[key].pt, 9);
+    }
+  });
+
+  test("a definition without compact gets the paper values", () => {
+    const result = validateProfile(paper);
+    if (!result.ok) throw new Error("expected ok");
+    expect(spacing(result.value.layout.compact)).toEqual(["2.5mm", "6pt", "7pt", "1.5pt"]);
+  });
+
+  test("spacedProfile swaps in the compact set only for compact", () => {
+    const profile = builtin("paper-double");
+    expect(spacedProfile(profile, undefined)).toBe(profile);
+    expect(spacedProfile(profile, "normal")).toBe(profile);
+    const compact = spacedProfile(profile, "compact");
+    expect(spacing(compact.layout)).toEqual(["2.5mm", "6pt", "7pt", "1.5pt"]);
+    // Page, margin, typography and the auto engine's values are unchanged.
+    expect(compact.page).toBe(profile.page);
+    expect(compact.margin).toBe(profile.margin);
+    expect(compact.typography).toBe(profile.typography);
+    expect(compact.layout.layerGap).toBe(profile.layout.layerGap);
+    expect(compact.layout.containerPadding).toBe(profile.layout.containerPadding);
+    expect(toD2LayoutArgs(compact)).toEqual(toD2LayoutArgs(profile));
   });
 });
 

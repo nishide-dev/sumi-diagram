@@ -7,7 +7,8 @@
  *
  * The structured-layout spacing (design doc §6.21: arrange gap, group and
  * node padding) follows the same rule: paper values from the #86 prototype,
- * doubled for the presentation profile.
+ * doubled for the presentation profile. So is the compact set that
+ * `figure.layout.density: compact` selects (#182, design doc §6.55).
  *
  * The layer gap was 10mm (the design doc example) until #31: 6–7 layers then
  * came out about 165mm tall. 8mm shortens such figures by about 10% and still
@@ -19,6 +20,7 @@ import { errorAt } from "../figure/report";
 import type { Locator } from "../figure/yaml";
 import type { Result } from "../result";
 import {
+  COMPACT_DEFAULTS,
   type Profile,
   type ProfileDefinition,
   STRUCTURED_DEFAULTS,
@@ -43,7 +45,12 @@ const PAPER_MIN_SCALED_FONT_SIZE = "5pt";
 
 const PAPER_SPACING = {
   margin: "2mm",
-  layout: { layerGap: "8mm", containerPadding: "4mm", ...STRUCTURED_DEFAULTS },
+  layout: {
+    layerGap: "8mm",
+    containerPadding: "4mm",
+    ...STRUCTURED_DEFAULTS,
+    compact: COMPACT_DEFAULTS,
+  },
 } as const;
 
 export const BUILTIN_PROFILE_DEFINITIONS: readonly ProfileDefinition[] = [
@@ -77,6 +84,12 @@ export const BUILTIN_PROFILE_DEFINITIONS: readonly ProfileDefinition[] = [
       groupPadding: "16pt",
       nodePaddingX: "14pt",
       nodePaddingY: "7pt",
+      compact: {
+        arrangeGap: "5mm",
+        groupPadding: "12pt",
+        nodePaddingX: "14pt",
+        nodePaddingY: "3pt",
+      },
     },
   },
 ];

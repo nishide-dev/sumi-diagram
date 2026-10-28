@@ -12,7 +12,7 @@
 import { type core, z } from "zod";
 import { type Diagnostic, type DocPath, didYouMean, formatDocPath } from "../diagnostics";
 import { errorAt } from "../figure/report";
-import { ID_PATTERN } from "../figure/schema";
+import { ID_PATTERN, type LayoutDensity } from "../figure/schema";
 import type { Locator } from "../figure/yaml";
 import type { Result } from "../result";
 import { type Length, parseLength } from "../units";
@@ -62,6 +62,17 @@ export const STRUCTURED_DEFAULTS = {
   nodePaddingY: "3.5pt",
 } as const;
 
+/**
+ * Defaults of the compact structured spacing (#182, design doc §6.55): the
+ * paper profiles' values for `figure.layout.density: compact`.
+ */
+export const COMPACT_DEFAULTS = {
+  arrangeGap: "2.5mm",
+  groupPadding: "6pt",
+  nodePaddingX: "7pt",
+  nodePaddingY: "1.5pt",
+} as const;
+
 export const ProfileSchema = z.strictObject({
   version: z.literal(PROFILE_FORMAT_VERSION),
   id: z.string().regex(ID_PATTERN),
@@ -101,6 +112,18 @@ export const ProfileSchema = z.strictObject({
     nodePaddingX: lengthField("non-negative").prefault(STRUCTURED_DEFAULTS.nodePaddingX),
     /** Structured layout: space between a node's label and its shape, top and bottom. */
     nodePaddingY: lengthField("non-negative").prefault(STRUCTURED_DEFAULTS.nodePaddingY),
+    /**
+     * Structured layout: the four values above for a figure with
+     * `figure.layout.density: compact` (#182, design doc §6.55).
+     */
+    compact: z
+      .strictObject({
+        arrangeGap: lengthField("non-negative"),
+        groupPadding: lengthField("non-negative"),
+        nodePaddingX: lengthField("non-negative"),
+        nodePaddingY: lengthField("non-negative"),
+      })
+      .prefault(COMPACT_DEFAULTS),
   }),
 });
 
@@ -226,4 +249,16 @@ function valueAt(value: unknown, path: DocPath): unknown {
 function typeName(expected: string): string {
   if (expected === "object") return "a mapping";
   return `a ${expected}`;
+}
+
+/**
+ * The profile a structured figure is laid out with (#182, design doc §6.55):
+ * `profile` itself, or for `density: compact` a copy whose structured
+ * spacing (`arrangeGap`, `groupPadding`, `nodePaddingX` / `nodePaddingY`) is
+ * `layout.compact`. Page limits, margin, typography and the auto engine's
+ * values are unchanged.
+ */
+export function spacedProfile(profile: Profile, density: LayoutDensity | undefined): Profile {
+  if (density !== "compact") return profile;
+  return { ...profile, layout: { ...profile.layout, ...profile.layout.compact } };
 }

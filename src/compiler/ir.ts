@@ -35,11 +35,13 @@ import type {
   FigureNode,
   GroupLabelPosition,
   LabelRotation,
+  LayoutDensity,
   LayoutEngine,
   Side,
 } from "../core/figure/schema";
 import { nodeOrder } from "../core/figure/tokens";
 import { getProfile } from "../core/profile/builtin";
+import { spacedProfile } from "../core/profile/schema";
 
 import {
   type Arrowhead,
@@ -89,6 +91,8 @@ export interface FigureMetaIR {
   readonly engine: LayoutEngine;
   /** Structured layout: `figure.layout.fanIn` (#134). Absent when not written (merge). */
   readonly fanIn?: FanInMode;
+  /** Structured layout: `figure.layout.density` (#182). Absent when not written (normal). */
+  readonly density?: LayoutDensity;
   readonly fontSetId: FontSetId;
 }
 
@@ -415,7 +419,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
   }
 
   const nodes: NodeIR[] = [];
-  const captionGapPt = profile.layout.groupPadding.pt / 2;
+  const captionGapPt = spacedProfile(profile, figure.layout.density).layout.groupPadding.pt / 2;
   const attachTarget = (attach: NonNullable<FigureNode["attach"]>): ElementKey => {
     // Below a captioned group is its caption: attach there instead (#130).
     const caption = attach.side === "south" ? captions.get(attach.to) : undefined;
@@ -511,6 +515,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
       direction: figure.layout.direction,
       engine: figure.layout.engine,
       ...(figure.layout.fanIn !== undefined && { fanIn: figure.layout.fanIn }),
+      ...(figure.layout.density !== undefined && { density: figure.layout.density }),
       fontSetId: theme.fontSet.id,
     }),
     groups: freeze(groups),

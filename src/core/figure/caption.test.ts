@@ -219,6 +219,23 @@ nodes:
     expect((value.elements.get("n:m") as NodeIR).attach?.to).toBe("g:g");
   });
 
+  test("structured: density compact (#182) takes half the compact group padding", () => {
+    const value = ir(`version: 1
+figure:
+  id: f
+  layout:
+    density: compact
+    arrange: { stack: { items: [g] } }
+groups:
+  - { id: g, caption: (a) one, arrange: { stack: { items: [a] } } }
+nodes:
+  - { id: a, component: box, label: A }
+`);
+    const gap = (getProfile("paper-single")?.layout.compact.groupPadding.pt ?? 0) / 2;
+    expect(gap).toBe(3);
+    expect(value.arrange?.items[0]).toMatchObject({ kind: "stack", gapPt: gap });
+  });
+
   test("structured: in other boxes the caption is centred", () => {
     const value = ir(
       structured("  - { id: g, caption: (a) one, arrange: { stack: { items: [a] } } }").replace(

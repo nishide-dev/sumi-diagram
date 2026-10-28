@@ -90,6 +90,15 @@ export type FanInMode = (typeof FAN_IN_MODES)[number];
 export const FIGURE_FITS = ["scale"] as const;
 export type FigureFit = (typeof FIGURE_FITS)[number];
 
+/**
+ * Spacing of a structured figure (#182, design doc §6.55): `normal` takes the
+ * profile's structured spacing (`layout.arrangeGap`, `groupPadding`,
+ * `nodePaddingX` / `nodePaddingY`), `compact` its tighter set
+ * (`layout.compact`). Gaps written in the figure are kept as written.
+ */
+export const LAYOUT_DENSITIES = ["normal", "compact"] as const;
+export type LayoutDensity = (typeof LAYOUT_DENSITIES)[number];
+
 /** Sides of a node or group, for `attach.side` and edge anchors. */
 export const SIDES = ["north", "east", "south", "west"] as const;
 export type Side = (typeof SIDES)[number];
@@ -338,6 +347,12 @@ export const LayoutFieldsSchema = z.strictObject({
     .describe(
       "Edges from different elements entering the same point of an element without an anchor: merge joins them into one line, spread enters them side by side in the order of their other ends. Omitted means merge (structured layout only).",
     ),
+  density: z
+    .enum(LAYOUT_DENSITIES)
+    .optional()
+    .describe(
+      "compact: the profile's tighter default gap, group padding and node padding, for dense paper figures (usually with fit: scale); gaps written in the figure stay as written. Omitted means normal (structured layout only).",
+    ),
 });
 
 /**
@@ -345,12 +360,13 @@ export const LayoutFieldsSchema = z.strictObject({
  * `figure.layout` alone (design doc §6.19), so later stages never guess.
  */
 export const LayoutSchema = LayoutFieldsSchema.transform(
-  ({ engine, direction, arrange, align, fanIn }) => ({
+  ({ engine, direction, arrange, align, fanIn, density }) => ({
     engine: engine ?? (arrange !== undefined ? "structured" : "auto"),
     direction,
     ...(arrange !== undefined && { arrange }),
     ...(align !== undefined && { align }),
     ...(fanIn !== undefined && { fanIn }),
+    ...(density !== undefined && { density }),
   }),
 );
 
