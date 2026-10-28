@@ -29,16 +29,20 @@
  * target's path (it moves with the target).
  *
  * The candidates are laid out and the one with the smallest total residual
- * (the sum of every constraint's range) is kept (the earlier on ties), if it
- * is smaller than before. The loop stops when every constraint is met (the
- * largest single residual within {@link ALIGN_EPSILON}: the sum is only the
- * objective; many met constraints must not hide an unmet one), when a round
- * makes no progress, after {@link MAX_ALIGN_ROUNDS} rounds, or when
- * {@link MAX_ALIGN_LAYOUTS} layouts are spent (then with
+ * (the sum of every constraint's range) is kept if it is smaller than before;
+ * on a tie, the one with the smaller canvas (#155), then the earlier. The
+ * loop stops when every constraint is met (the largest single residual within
+ * {@link ALIGN_EPSILON}: the sum is only the objective; many met constraints
+ * must not hide an unmet one), when a round makes no progress, after
+ * {@link MAX_ALIGN_ROUNDS} rounds, or when {@link MAX_ALIGN_LAYOUTS} layouts
+ * are spent (then with
  * `layout/align-search-limit`, warning). Struts only grow, so constraints that
  * contradict each other or the trees stop with a residual, reported per
  * constraint as `layout/unsatisfied-align` (warning; the figure is drawn with
- * the best layout found).
+ * the best layout found). Struts can grow the figure: when a side of the
+ * canvas grows by more than {@link ALIGN_GROWTH_MM} and
+ * {@link ALIGN_GROWTH_RATIO} over the plain pass, `layout/align-grew-figure`
+ * (info) says by how much (#155).
  *
  * Deterministic: constraints in document order, Map iteration in insertion
  * order, the engine's own rounding.
@@ -59,6 +63,9 @@ export const NO_STRUTS: Struts = Object.freeze({ lead: new Map(), trail: new Map
 
 /** A constraint is met when its items' coordinates differ by at most this (units). */
 export const ALIGN_EPSILON = 0.01;
+
+/** Total residuals closer than this (units) tie: floating-point noise. */
+const TIE = 1e-9;
 
 /** The most rounds of the fixed-point loop. */
 export const MAX_ALIGN_ROUNDS = 50;
@@ -190,7 +197,8 @@ export function solveAlignment(
   };
 
   let struts: Struts = NO_STRUTS;
-  let layout = run(struts) as LayoutIR;
+  const plain = run(struts) as LayoutIR;
+  let layout = plain;
   let residuals = residualsOf(layout, constraints);
   let total = sum(residuals);
   let rounds = 0;
@@ -207,13 +215,11 @@ export function solveAlignment(
           break;
         }
         const r = residualsOf(l, constraints);
-        const t = sum(r);
-        if (best === undefined || t < best.total - 1e-9) {
-          best = { struts: candidate, layout: l, residuals: r, total: t };
-        }
+        const trial: Trial = { struts: candidate, layout: l, residuals: r, total: sum(r) };
+        if (best === undefined || better(trial, best)) best = trial;
       }
       const chosen = best as Trial | undefined;
-      if (chosen !== undefined && chosen.total < total - 1e-9) {
+      if (chosen !== undefined && chosen.total < total - TIE) {
         struts = chosen.struts;
         layout = chosen.layout;
         residuals = chosen.residuals;
@@ -221,7 +227,7 @@ export function solveAlignment(
       }
       if (exhausted) break;
     }
-    if (total >= before - 1e-9) break;
+    if (total >= before - TIE) break;
   }
 
   const unsatisfiedDiagnostics: Diagnostic[] = [];
@@ -261,6 +267,8 @@ export function solveAlignment(
     });
   }
   diagnostics.push(...unsatisfiedDiagnostics);
+  const growth = grewFigure(ir, plain, layout);
+  if (growth !== undefined) diagnostics.push(growth);
   const stats: AlignStats = {
     rounds,
     layouts,
@@ -307,6 +315,27 @@ function residualsOf(layout: LayoutIR, constraints: readonly AlignIR[]): number[
   return constraints.map((c) => residualOf(rects, c));
 }
 
+/**
+ * Whether candidate `a` beats `b`: a smaller total residual, or, on a tie, a
+ * smaller canvas (area); otherwise the earlier candidate stays. A tie is the
+ * same total up to floating-point noise ({@link TIE}), as the comparison was
+ * before #155: a candidate that is better by any real amount still wins, so
+ * figures that never tie keep their layout. Without the canvas rule the
+ * earlier candidate won every tie, and in a center-aligned box the `lead`
+ * before the upper item and the `trail` after the lower one tie each round
+ * (each closes half the shortfall), so the `lead` kept pushing the upper
+ * branch down and the figure grew (#155).
+ */
+function better(a: Trial, b: Trial): boolean {
+  if (a.total < b.total - TIE) return true;
+  if (a.total > b.total + TIE) return false;
+  return area(a.layout) < area(b.layout);
+}
+
+function area(layout: LayoutIR): number {
+  return layout.canvas.width * layout.canvas.height;
+}
+
 function sum(values: readonly number[]): number {
   return values.reduce((s, v) => s + v, 0);
 }
@@ -344,6 +373,49 @@ function paths(ir: FigureIR): Map<ElementKey, Step[]> {
 }
 
 const MM_PER_UNIT = 0.5 * (25.4 / 72);
+
+/**
+ * `layout/align-grew-figure` reports a side of the canvas that grew by more
+ * than this (mm) and by more than {@link ALIGN_GROWTH_RATIO} of its length
+ * without the struts. Aligning usually costs some space (a strut about a gap
+ * or half a box: 2–4mm in the U-Net and side-KV figures of #132); the
+ * runaway case of #155 grew the figure by 37–63mm (40–50%). Both bounds must
+ * be passed: a few mm are noise in a large figure, a large fraction of a tiny
+ * figure is still a small change on the page.
+ */
+export const ALIGN_GROWTH_MM = 5;
+
+/** See {@link ALIGN_GROWTH_MM}. */
+export const ALIGN_GROWTH_RATIO = 0.1;
+
+/** `layout/align-grew-figure` (info) when the struts grew `plain` into `layout` notably. */
+function grewFigure(ir: FigureIR, plain: LayoutIR, layout: LayoutIR): Diagnostic | undefined {
+  const sides: string[] = [];
+  for (const [side, word] of [
+    ["width", "wider"],
+    ["height", "taller"],
+  ] as const) {
+    const before = plain.canvas[side] * MM_PER_UNIT;
+    const after = layout.canvas[side] * MM_PER_UNIT;
+    const grown = after - before;
+    if (grown > ALIGN_GROWTH_MM && grown > ALIGN_GROWTH_RATIO * before) {
+      const percent = Math.round((grown / before) * 100);
+      const [b, a] = [before.toFixed(2), after.toFixed(2)];
+      // The difference of the printed sizes, so that the message adds up.
+      const d = (Number(a) - Number(b)).toFixed(2);
+      sides.push(`${d}mm ${word} (${side} ${b}mm → ${a}mm, +${percent}%)`);
+    }
+  }
+  if (sides.length === 0) return undefined;
+  return {
+    code: "layout/align-grew-figure",
+    severity: "info",
+    message: `figure.layout.align made the figure ${sides.join(" and ")} than the layout without it.`,
+    path: ["figure", "layout", "align"],
+    subject: { kind: "figure", id: ir.meta.id },
+    hint: "A strut only adds space, and the space it adds before an item moves the items after it and grows the boxes around it. If that space is not wanted, align an item that sits in a shorter branch (wrap it in a stack or row of its own so that it can move alone), put the items closer in the arrange trees, or drop the constraint.",
+  };
+}
 
 function strutRecord(struts: Struts): Record<string, number> {
   const names = new Map<ArrangeBoxIR, string>();
