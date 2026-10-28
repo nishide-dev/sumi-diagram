@@ -2031,9 +2031,16 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
   theme / variant / tone を使う。画素の読み替え・加工は一切しない。
 - `width` / `height` と欠けた側のアスペクト比補完は **1 枚分**。
   asset 読込後に各辺へ `(count - 1) × offset` を加えた union box を IR に戻す。
-  structured / D2 の双方がその足跡で配置・経路計算し、inspect・幾何 lint・
-  edge port も同じ矩形を使う。足跡の shape は計測用の透明矩形、画像・枠は
-  各コピーで描く。階段状の輪郭への接続ではなく、束全体の矩形への接続を契約とする。
+  structured / D2 の双方がその足跡で配置・障害物判定し、inspect・幾何 lint も
+  同じ矩形を使う。足跡の shape は計測用の透明矩形、画像・枠は各コピーで描く。
+  edge port は足跡上で選ぶが、描く端点はその進行方向で最初に接するコピーの
+  輪郭まで延ばす（D2 の矢じり・線幅のクリアランスは保持）。大きな spread でも
+  足跡の透明部分で止めない。コピーが離れ、その port から接触できない場合は
+  structured の `layout/no-route` / D2 の `svg/outline-edge-miss`（error）で拒否する。
+- ノードは最前面の画像ではなく **束全体**。image 自体の label / sublabel は
+  従来どおり禁止。`attach` した label は足跡の辺の中央に揃い、south の中央揃えは
+  最前面の画像の中央より右へ **spread / 2**（count 4・offset 3pt なら 4.5pt）
+  ずれる。囲む group の寸法・caption の配置にも足跡全体が含まれる。
 - SVG は束ごとに 1 個の `<defs><image>` と `count` 個の `<use>` を使う。
   PNG / JPEG / SVG と contain / cover / fill に共通。既存の layers なしの
   描画分岐はそのまま保持する。PDF は変換エンジンの画像再利用を使い、JPEG

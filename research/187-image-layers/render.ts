@@ -26,10 +26,12 @@ if (!pdf.ok || !pptx.ok) throw new Error("Export failed");
 const png = readPptx(pptx.value).get("ppt/media/figure.png");
 if (!png || png.length >= 150_000) throw new Error(`Preview too large: ${png?.length}`);
 const out = join(base, "out");
+const previews = join(base, "previews");
 mkdirSync(out, { recursive: true });
+mkdirSync(previews, { recursive: true });
 writeFileSync(join(out, "h3-world-frames.svg"), svg);
 writeFileSync(join(out, "h3-world-frames.pdf"), pdf.value);
-writeFileSync(join(out, "h3-world-frames.png"), png);
+writeFileSync(join(previews, "h3-world-frames.png"), png);
 console.log(
   JSON.stringify(
     {

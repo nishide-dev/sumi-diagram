@@ -21,6 +21,7 @@ import type { ImageFit, NodeIR } from "../compiler/ir";
 import type { Rect } from "../core/geometry";
 import { labelCenter } from "../layout/structured/sizing";
 import { n, strokeAttributes } from "../render/stroke";
+import { imageLayerRects } from "./layers";
 import type { LoadedAsset, LoadedIcon, LoadedImage } from "./load";
 
 const XLINK = "http://www.w3.org/1999/xlink";
@@ -95,19 +96,15 @@ function layeredImageMarkup(
 ): string {
   const layers = node.image?.layers;
   if (layers === undefined || node.image === undefined) return "";
-  const step = layers.offset.units;
-  const spread = (layers.count - 1) * step;
-  const width = rect.width - spread;
-  const height = rect.height - spread;
+  const boxes = imageLayerRects(node, rect);
+  const { width, height } = boxes[0] as Rect;
   const radius = Math.min(node.style.radius.units, width / 2, height / 2);
   const rx = radius > 0 ? ` rx="${n(radius)}"` : "";
   const id = `sumi-image-${node.key}`;
   // A single image definition keeps the original bytes once, even for many copies.
   const definition = `<defs><image id="${id}" class="sumi-image" xmlns:xlink="${XLINK}" width="${n(width)}" height="${n(height)}" preserveAspectRatio="${FIT[node.image.fit]}" xlink:href="${image.href}"/></defs>`;
   const copies: string[] = [];
-  for (let i = layers.count - 1; i >= 0; i--) {
-    const x = rect.x + i * step;
-    const y = rect.y + spread - i * step;
+  for (const { x, y } of [...boxes].reverse()) {
     const background = `<rect width="${n(width)}" height="${n(height)}"${rx} fill="${node.style.fill}"/>`;
     const picture = `<use xmlns:xlink="${XLINK}" xlink:href="#${id}"/>`;
     const frame =

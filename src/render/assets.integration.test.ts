@@ -19,11 +19,11 @@ import { lintGeometry } from "../lint";
 import { assetProvenanceEntries, readSvgMetadata } from "./finalize";
 import { inspectSvg } from "./inspect";
 import { svgToPdf } from "./pdf";
-import { inspectPdf } from "./pdf/testing";
+import { inspectPdf, parsePdf } from "./pdf/testing";
 import { svgToEditablePptx, svgToPptx } from "./pptx";
 import { readPptx } from "./pptx/testing";
 import { renderFigure } from "./render";
-import { parseXml } from "./xml";
+import { attribute, childElements, classList, descendants, parseXml } from "./xml";
 
 const binary = findD2Binary();
 const d2 = binary.ok && (await checkD2Version(binary.value.path)).ok;
@@ -203,53 +203,252 @@ nodes:
 
 describe("image layers (#187)", () => {
   for (const auto of [false, true]) {
-    test(`stack footprint and shared image (${auto ? "D2" : "structured"})`, async () => {
-      const original = readFileSync(join(ASSETS_DIR, "image-layers.sumi.yaml"), "utf8");
-      const source = auto
-        ? original.replace(
+    const needsD2 = auto;
+    describe.skipIf(needsD2 && !d2 && !inCI)(auto ? "D2" : "structured", () => {
+      test(`stack footprint and shared image (${auto ? "D2" : "structured"})`, async () => {
+        const original = readFileSync(join(ASSETS_DIR, "image-layers.sumi.yaml"), "utf8");
+        const source = auto
+          ? original.replace(
+              / {2}layout:\n {4}arrange:\n {6}row:[^\n]+/,
+              "  layout: { direction: right }",
+            )
+          : original;
+        const rendered = await renderFigure(source, { assetBase: ASSETS_DIR });
+        if (!rendered.ok) throw new Error(JSON.stringify(rendered.diagnostics));
+        const first = rendered.value;
+        expect(rendered.diagnostics).toEqual([]);
+        expect(lintGeometry(first, { source })).toEqual([]);
+        const node = first.compiled.ir.nodes.find((n) => n.id === "frames");
+        expect(node?.width?.pt).toBe(57);
+        expect(node?.height?.pt).toBe(36);
+        const box = first.inspection.elements.find((e) => e.key === node?.key)?.bbox;
+        expect(box?.width).toBe(114);
+        expect(box?.height).toBe(72);
+        if ("layout" in first) {
+          const rect = first.layout.nodes.find((n) => n.key === node?.key)?.rect;
+          const incoming = first.layout.edges[0]?.route?.points.at(-1);
+          const outgoing = first.layout.edges[1]?.route?.points[0];
+          expect(rect).toBeDefined();
+          expect(incoming?.x).toBe(rect?.x);
+          expect(outgoing?.x).toBe((rect?.x ?? 0) + (rect?.width ?? 0));
+        }
+        expect(first.svg.match(/data:image\/jpeg;base64,/g)?.length).toBe(1);
+        expect(first.svg.match(/class="sumi-image-layer"/g)?.length).toBe(4);
+        expect(first.svg.match(/<use\b/g)?.length).toBe(4);
+        const pdf = svgToPdf(first.svg);
+        if (!pdf.ok) throw new Error(JSON.stringify(pdf.diagnostics));
+        // Four painted copies, but exactly one embedded JPEG XObject.
+        expect(inspectPdf(pdf.value).images).toBe(1);
+        const pptx = svgToPptx(first.svg);
+        if (!pptx.ok) throw new Error(JSON.stringify(pptx.diagnostics));
+        const editable = svgToEditablePptx(first.svg, first.compiled.ir);
+        expect(editable.ok).toBe(false);
+        expect(editable.diagnostics.map((d) => [d.code, d.subject?.id])).toEqual([
+          ["pptx/unsupported-asset", "frames"],
+        ]);
+        const key = `image-layers${auto ? "-auto" : ""}`;
+        record(`${key}.svg`, first.svg);
+        record(`${key}.pdf`, pdf.value);
+        record(`${key}.pptx`, pptx.value);
+      }, 60_000);
+      test("large spreads connect to painted copies on both axes", async () => {
+        for (const vertical of [false, true]) {
+          let source = readFileSync(join(ASSETS_DIR, "image-layers.sumi.yaml"), "utf8")
+            .replace("count: 4", "count: 16")
+            .replaceAll("to: frames }", "to: frames, component: line }")
+            .replaceAll("to: output }", "to: output, component: line }");
+          if (vertical)
+            source = source
+              .replace("row:", "stack:")
+              .replace("width: 48pt", "width: 27pt")
+              .replace("height: 27pt", "height: 48pt");
+          if (auto)
+            source = source.replace(
+              / {2}layout:\n {4}arrange:\n {6}(?:row|stack):[^\n]+/,
+              `  layout: { direction: ${vertical ? "down" : "right"} }`,
+            );
+          const rendered = await renderFigure(source, { assetBase: ASSETS_DIR });
+          if (!rendered.ok) throw new Error(JSON.stringify(rendered.diagnostics));
+          expect(rendered.diagnostics).toEqual([]);
+          expect(lintGeometry(rendered.value, { source })).toEqual([]);
+          const { inspection, svg } = rendered.value;
+          const box = inspection.elements.find((e) => e.key === "n:frames")?.bbox;
+          expect(box).toMatchObject({ width: vertical ? 144 : 186, height: vertical ? 186 : 144 });
+          // Read painted copy rectangles from the SVG, independently of port/footprint helpers.
+          const parsed = parseXml(svg);
+          if (!parsed.ok) throw new Error(parsed.message);
+          const copies = [...descendants(parsed.root)]
+            .filter((e) => classList(e).includes("sumi-image-layer"))
+            .map((g) => {
+              const [x, y] = (attribute(g, "transform") ?? "").match(/[\d.-]+/g)?.map(Number) ?? [];
+              const rect = childElements(g)[0];
+              if (!rect || x === undefined || y === undefined)
+                throw new Error("missing painted copy");
+              return {
+                x,
+                y,
+                width: Number(attribute(rect, "width")),
+                height: Number(attribute(rect, "height")),
+              };
+            });
+          expect(copies).toHaveLength(16);
+          for (const [index, target] of [
+            [0, true],
+            [1, false],
+          ] as const) {
+            const edge = rendered.value.compiled.ir.edges[index];
+            const route = inspection.elements.find((e) => e.key === edge?.key)?.path;
+            const p = target ? route?.at(-1)?.to : route?.[0]?.to;
+            if (!p || !box) throw new Error("missing endpoint");
+            const distance = Math.min(
+              ...copies.map((r) => {
+                const across = vertical ? p.x : p.y;
+                const start = vertical ? r.x : r.y;
+                const size = vertical ? r.width : r.height;
+                if (across < start || across > start + size) return Infinity;
+                const side = vertical
+                  ? target
+                    ? r.y
+                    : r.y + r.height
+                  : target
+                    ? r.x
+                    : r.x + r.width;
+                return Math.abs((vertical ? p.y : p.x) - side);
+              }),
+            );
+            // D2 leaves its normal half-stroke clearance; the painted strokes meet.
+            expect(distance).toBeLessThanOrEqual(2);
+            const footprintSide = vertical
+              ? target
+                ? box.y
+                : box.y + box.height
+              : target
+                ? box.x
+                : box.x + box.width;
+            expect(Math.abs((vertical ? p.y : p.x) - footprintSide)).toBeGreaterThan(15);
+          }
+        }
+      });
+      test("a port facing a gap between disconnected copies is rejected", async () => {
+        let source = readFileSync(join(ASSETS_DIR, "image-layers.sumi.yaml"), "utf8").replace(
+          "{ count: 4, offset: 3pt }",
+          "{ count: 2, offset: 60pt }",
+        );
+        if (auto)
+          source = source.replace(
             / {2}layout:\n {4}arrange:\n {6}row:[^\n]+/,
             "  layout: { direction: right }",
-          )
-        : original;
+          );
+        const rendered = await renderFigure(source, { assetBase: ASSETS_DIR });
+        expect(rendered.ok).toBe(false);
+        expect(rendered.diagnostics).toContainEqual(
+          expect.objectContaining({
+            code: auto ? "svg/outline-edge-miss" : "layout/no-route",
+            severity: "error",
+          }),
+        );
+      });
+    });
+  }
+
+  test("south attachments center on the whole stack rather than the front image", async () => {
+    const source = `version: 1
+figure: { id: attached-layers, layout: { arrange: { row: { items: [a] } } } }
+nodes:
+  - { id: a, component: image, props: { src: gradient.jpg, width: 48pt, layers: { count: 4, offset: 3pt } } }
+  - { id: caption, component: label, label: Frames, attach: { to: a, side: south, gap: 2pt } }
+`;
+    const rendered = await renderFigure(source, { assetBase: ASSETS_DIR });
+    if (!rendered.ok) throw new Error(JSON.stringify(rendered.diagnostics));
+    expect(lintGeometry(rendered.value, { source })).toEqual([]);
+    const image = rendered.value.inspection.elements.find((e) => e.key === "n:a")?.bbox;
+    const label =
+      "layout" in rendered.value
+        ? rendered.value.layout.nodes.find((e) => e.key === "n:caption")?.rect
+        : undefined;
+    if (!image || !label) throw new Error("missing attachment geometry");
+    const center = label.x + label.width / 2;
+    expect(center).toBeCloseTo(image.x + image.width / 2, 3);
+    expect(
+      rendered.value.inspection.elements.find((e) => e.key === "n:caption")?.labels[0]?.anchor.x,
+    ).toBeCloseTo(center, 3);
+    expect(center - (image.x + 48)).toBeCloseTo(9, 3); // 4.5pt = spread / 2
+    expect(label.y).toBeGreaterThanOrEqual(image.y + image.height + 4);
+  });
+
+  test("mismatched aspect ratios preserve per-copy backgrounds and cover clipping", async () => {
+    for (const [fit, aspect] of [
+      ["contain", "xMidYMid meet"],
+      ["cover", "xMidYMid slice"],
+      ["fill", "none"],
+    ]) {
+      // The source is 4:3, while each viewport is 2:1.
+      const source = `version: 1
+figure: { id: fit-layers, theme: color, layout: { arrange: { row: { items: [a] } } } }
+nodes:
+  - { id: a, component: image, tone: orange, props: { src: gradient.png, width: 48pt, height: 24pt, fit: ${fit}, layers: { count: 3, offset: 3pt } } }
+`;
       const rendered = await renderFigure(source, { assetBase: ASSETS_DIR });
       if (!rendered.ok) throw new Error(JSON.stringify(rendered.diagnostics));
-      const first = rendered.value;
-      expect(rendered.diagnostics).toEqual([]);
-      expect(lintGeometry(first, { source })).toEqual([]);
-      const node = first.compiled.ir.nodes.find((n) => n.id === "frames");
-      expect(node?.width?.pt).toBe(57);
-      expect(node?.height?.pt).toBe(36);
-      const box = first.inspection.elements.find((e) => e.key === node?.key)?.bbox;
-      expect(box?.width).toBe(114);
-      expect(box?.height).toBe(72);
-      if ("layout" in first) {
-        const rect = first.layout.nodes.find((n) => n.key === node?.key)?.rect;
-        const incoming = first.layout.edges[0]?.route?.points.at(-1);
-        const outgoing = first.layout.edges[1]?.route?.points[0];
-        expect(rect).toBeDefined();
-        expect(incoming?.x).toBe(rect?.x);
-        expect(outgoing?.x).toBe((rect?.x ?? 0) + (rect?.width ?? 0));
+      expect(lintGeometry(rendered.value, { source })).toEqual([]);
+      expect(rendered.value.inspection.elements.find((e) => e.key === "n:a")?.bbox).toMatchObject({
+        width: 108,
+        height: 60,
+      });
+      const parsed = parseXml(rendered.value.svg);
+      if (!parsed.ok) throw new Error(parsed.message);
+      const elements = [...descendants(parsed.root)];
+      const definition = elements.find((e) => e.name === "image");
+      if (!definition) throw new Error("missing image definition");
+      expect([
+        attribute(definition, "width"),
+        attribute(definition, "height"),
+        attribute(definition, "preserveAspectRatio"),
+      ]).toEqual(["96", "48", aspect]);
+      const copies = elements.filter((e) => classList(e).includes("sumi-image-layer"));
+      expect(copies.map((e) => attribute(e, "transform"))).toHaveLength(3);
+      for (const copy of copies) {
+        const [background, use] = childElements(copy);
+        expect(background?.name).toBe("rect");
+        expect(
+          background && [
+            attribute(background, "width"),
+            attribute(background, "height"),
+            attribute(background, "fill"),
+          ],
+        ).toEqual(["96", "48", rendered.value.compiled.ir.nodes[0]?.style.fill]);
+        expect(use?.name).toBe("use");
       }
-      expect(first.svg.match(/data:image\/jpeg;base64,/g)?.length).toBe(1);
-      expect(first.svg.match(/class="sumi-image-layer"/g)?.length).toBe(4);
-      expect(first.svg.match(/<use\b/g)?.length).toBe(4);
-      const pdf = svgToPdf(first.svg);
+      const pdf = svgToPdf(rendered.value.svg);
       if (!pdf.ok) throw new Error(JSON.stringify(pdf.diagnostics));
-      // Four painted copies, but exactly one embedded JPEG XObject.
+      const streams = [...parsePdf(pdf.value).objects.values()]
+        .flatMap((o) => (o.stream ? [new TextDecoder().decode(o.stream)] : []))
+        .join("\n");
+      // Two canvas clips plus one slice viewport for each cover copy.
+      expect(streams.match(/\bW\s+n\b/g)?.length).toBe(fit === "cover" ? 5 : 2);
+      const placements = [
+        ...streams.matchAll(/([\d.-]+) 0 0 ([\d.-]+) ([\d.-]+) ([\d.-]+) cm\/x\d+ Do/g),
+      ];
+      expect(placements).toHaveLength(3);
+      const widthPt = fit === "contain" ? 32 : 48;
+      const heightPt = fit === "cover" ? 36 : 24;
+      for (const [i, placement] of placements.entries()) {
+        const copy = copies[i];
+        if (!copy) throw new Error("missing copy");
+        const [x, y] = (attribute(copy, "transform") ?? "").match(/[\d.-]+/g)?.map(Number) ?? [];
+        if (x === undefined || y === undefined) throw new Error("missing copy position");
+        expect(Number(placement[1])).toBeCloseTo(widthPt, 3);
+        expect(Number(placement[2])).toBeCloseTo(heightPt, 3);
+        // contain letterboxes each copy by 8pt horizontally; cover crops 6pt vertically.
+        expect(Number(placement[3])).toBeCloseTo(x / 2 + (48 - widthPt) / 2, 3);
+        expect(Number(placement[4])).toBeCloseTo(
+          (rendered.value.inspection.canvas.height.units - y) / 2 - 24 - (heightPt - 24) / 2,
+          3,
+        );
+      }
       expect(inspectPdf(pdf.value).images).toBe(1);
-      const pptx = svgToPptx(first.svg);
-      if (!pptx.ok) throw new Error(JSON.stringify(pptx.diagnostics));
-      const editable = svgToEditablePptx(first.svg, first.compiled.ir);
-      expect(editable.ok).toBe(false);
-      expect(editable.diagnostics.map((d) => [d.code, d.subject?.id])).toEqual([
-        ["pptx/unsupported-asset", "frames"],
-      ]);
-      const key = `image-layers${auto ? "-auto" : ""}`;
-      record(`${key}.svg`, first.svg);
-      record(`${key}.pdf`, pdf.value);
-      record(`${key}.pptx`, pptx.value);
-    }, 60_000);
-  }
+    }
+  });
 
   test("aspect-ratio sizing and all fit modes retain per-copy dimensions", async () => {
     for (const fit of ["contain", "cover", "fill"]) {

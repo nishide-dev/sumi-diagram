@@ -12,13 +12,14 @@ bun src/cli/index.ts lint --geometry --json research/187-image-layers/h3-world-f
 bun research/187-image-layers/render.ts
 ```
 
-SVG / PDF / PNG は `out/` に生成する。PNG は図全体を通常の picture PPTX の
+SVG / PDF は gitignore された `out/` に生成し、レビュー用 PNG だけを
+`previews/` に保存・コミットする。PNG は図全体を通常の picture PPTX の
 75% の寸法で rasterize した preview（画像ファイル自体の縮小処理ではない）。
 **98,473 bytes**（150KB 未満）。PNG を開いて、後続 4 区間それぞれの画像が
 右上へ 3 段見え、最前面が左下、枠線・ラベル・encoder と交差しないことを確認した。
 診断は構造 lint・幾何 lint を含め **0 件**。図は **471 × 187pt**、paper-double 内。
 
-![H3-World visual stream with layered frames](out/h3-world-frames.png)
+![H3-World visual stream with layered frames](previews/h3-world-frames.png)
 
 ## 寸法と埋め込み
 
@@ -33,7 +34,10 @@ width / height は 1 枚の大きさ。どちらかの省略時は先にアス�
 | H3-World 合計 | — | — | **17** | **5** | **5** |
 
 足跡は各辺に `(count - 1) × offset` を足した矩形。
-配置、inspect、幾何 lint、edge port はこの矩形を使う（階段状輪郭ではない）。
+配置、障害物、inspect、幾何 lint はこの矩形を使う。edge port は足跡で選び、
+描く端点はその進行方向で最初に接するコピーの輪郭へ延ばす。
+ノードは束全体を意味し、south の attached label は足跡の中央（最前面より
+spread / 2、この作例では 4.5pt 右）に揃う。group の caption も足跡を含めて配置する。
 SVG は束ごとに 1 個の image を定義し use で再利用し、奥から手前へ描く。
 PDF の JPEG 再利用は `inspectPdf().images` で計数。PNG も 1 個、SVG は
 vector のままで raster image 0 個であることをテストした。
@@ -46,6 +50,8 @@ picture PPTX は束を保持する。
 （minimal / academic / slides / color / paper）の **828** 組を実際に描画。
 実装後は同じファイル一覧で再実行し、成功した各出力の SHA-256 を比較した。
 作業時の生の記録は `.sumi/review/before.json` / `after.json` にある。
+レビュー修正後にも同じ 138 ファイル × 6 theme を再実行し、下表の全 hash が
+再び一致した（作業記録 `.sumi/review/review-1-fixes.json`）。
 
 | 出力 | 比較した SHA-256 | 変化 |
 | --- | --- | --- |
@@ -70,7 +76,13 @@ layers を使わない既存 fixture の golden は変わらない。設計判�
 ## 最終検証
 
 - `bun run check` / `bun run typecheck` / `bun run schema:check`: 成功
-- `CI=1 bun test`: **2,794 pass / 13 skip / 0 fail**（117 files）
+- `CI=1 bun test`: **2,800 pass / 13 skip / 0 fail**（117 files）
 - `bun run gallery:check`: **155 files** がバイト一致
+- D2 がないローカル実行を `SUMI_D2_PATH` に存在しないパスを指定して検査:
+  asset integration は **13 pass / 4 skip / 0 fail**（CI は無効）。
+- count 16・offset 3pt の水平接続と縦方向の対応例は両 engine とも描かれた
+  コピーの辺へ接触する。コピーの隙間へ向かう port は error で拒否する。
+- attached label の足跡中央への配置と、4:3 → 2:1 のコピーにおける
+  contain の余白・cover のコピーごとの PDF clip・fill の伸縮を回帰検査する。
 - golden 更新は `bun run gallery` および
   `SUMI_UPDATE_GOLDEN=1 CI=1 bun test src/render/pdf src/render/pptx src/render/assets.integration.test.ts` のみ
