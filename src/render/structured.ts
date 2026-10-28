@@ -327,9 +327,18 @@ function arrowheadInset(head: Arrowhead, length: number): number {
 
 /**
  * An arrowhead at `tip`, pointing along `u`, no longer than
- * `arrowheadLength()` (the room the router keeps for it).
+ * `arrowheadLength()` (the room the router keeps for it). A hollow one
+ * (`filled: false`) is painted inside with the color beneath its center,
+ * half its length behind the tip (#192, `backgroundAt()` over `groups`), so
+ * it hides the lines it covers without showing white on a filled group.
  */
-export function drawArrowhead(head: Arrowhead, tip: Point, u: Point, edge: EdgeIR): string {
+export function drawArrowhead(
+  head: Arrowhead,
+  tip: Point,
+  u: Point,
+  edge: EdgeIR,
+  groups: readonly PaintedGroup[] = [],
+): string {
   if (head === "none") return "";
   const { style } = edge;
   const length = arrowheadLength(style.strokeWidth.units);
@@ -338,7 +347,7 @@ export function drawArrowhead(head: Arrowhead, tip: Point, u: Point, edge: EdgeI
     y: tip.y - u.y * along + u.x * across,
   });
   const color = paint(style.stroke);
-  const fill = style.filled ? color : "#ffffff";
+  const fill = style.filled ? color : backgroundAt(at(length / 2, 0), groups);
   const outline = style.filled
     ? ` fill="${fill}" stroke="none"`
     : ` fill="${fill}" stroke="${color}" stroke-width="${n(style.strokeWidth.units)}" stroke-linejoin="miter"`;
@@ -618,7 +627,7 @@ function wires(
 /** The canvas the structured writer paints under everything (its first `<rect>`). */
 export const CANVAS_FILL = "#ffffff";
 
-/** A group as painted under an edge label: its rectangle and paint, in drawing order. */
+/** A group as painted under an edge label or arrowhead: its rectangle and paint, in drawing order. */
 export interface PaintedGroup {
   readonly rect: Rect;
   readonly fill: string;
@@ -643,19 +652,27 @@ function over(top: string, alpha: number, bottom: string): string {
 
 /**
  * The color painted beneath an edge label (#170, design doc §6.41): the
- * groups whose rectangle holds the label box's center, painted in drawing
+ * color beneath the label box's center (`backgroundAt()`).
+ */
+export function labelBackground(box: Rect, groups: readonly PaintedGroup[]): string {
+  return backgroundAt({ x: box.x + box.width / 2, y: box.y + box.height / 2 }, groups);
+}
+
+/**
+ * The color painted beneath `point` (#170, #192, design doc §6.41): the
+ * groups whose rectangle holds it (borders included), painted in drawing
  * order (outer first) over the canvas. A `transparent` or fully translucent
  * group lets the color beneath it through; a translucent one is blended
  * over it, and of overlapping siblings the later is on top. For nested,
  * opaque groups this is the first painted background from the innermost
  * group outward, else the canvas. Never `transparent`, since the
- * background is there to hide what runs under the label. A box across a
- * group border takes the color under its center. Nodes are not looked at: labels are placed off node boxes, and
- * one left on a node is reported by `geometry/label-collision`.
+ * background is there to hide what runs under a label or a hollow
+ * arrowhead. Something across a group border takes the color under the
+ * point it is sampled at (its center). Nodes are not looked at: labels are
+ * placed off node boxes, and one left on a node is reported by
+ * `geometry/label-collision`; an arrowhead lies outside the node it points at.
  */
-export function labelBackground(box: Rect, groups: readonly PaintedGroup[]): string {
-  const cx = box.x + box.width / 2;
-  const cy = box.y + box.height / 2;
+export function backgroundAt({ x: cx, y: cy }: Point, groups: readonly PaintedGroup[]): string {
   let color = CANVAS_FILL;
   for (const { rect, fill, opacity } of groups) {
     if (fill === "transparent" || opacity <= 0) continue;
@@ -684,7 +701,15 @@ function edgeGroup(
       last,
       unit(points[points.length - 2] as Point, last),
       edge,
-    ) + drawArrowhead(edge.sourceArrowhead ?? "none", first, unit(points[1] as Point, first), edge);
+      groups,
+    ) +
+    drawArrowhead(
+      edge.sourceArrowhead ?? "none",
+      first,
+      unit(points[1] as Point, first),
+      edge,
+      groups,
+    );
   let labelSvg = "";
   if (layoutLabel !== undefined) {
     // The label's background, 1 unit around its line box: the router keeps

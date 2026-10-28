@@ -9,6 +9,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { EdgeIR, FigureIR, GroupIR } from "../compiler/ir";
+import type { Arrowhead } from "../core/registry/manifest";
 import { DEFAULT_FONT_SET_ID, getFontSet } from "../core/theme/fonts";
 import type { LayoutIR } from "../layout/ir";
 import { arrowheadLength } from "../layout/route/router";
@@ -26,6 +27,7 @@ import { svgToEditablePptx, svgToPptx } from "./pptx";
 import { readPptx } from "./pptx/testing";
 import { type RenderedStructuredFigure, renderFigure } from "./render";
 import {
+  backgroundAt,
   CANVAS_FILL,
   dashArray,
   drawArrowhead,
@@ -370,11 +372,18 @@ function pptxLabelBackgrounds(svg: string, ir: FigureIR): Map<number, string | u
  */
 function redraw(
   rendered: RenderedStructuredFigure,
-  changes: { edgeFill?: string; groupFill?: Record<string, string>; layout?: LayoutIR },
+  changes: {
+    edgeFill?: string;
+    groupFill?: Record<string, string>;
+    layout?: LayoutIR;
+    /** Hollow (`false`) or filled arrowheads (#192): the built-in themes only fill them. */
+    filled?: boolean;
+    targetArrowhead?: Arrowhead;
+    sourceArrowhead?: Arrowhead;
+  },
 ): { svg: string; ir: FigureIR } {
   const { compiled } = rendered;
-  const ir: FigureIR = {
-    ...compiled.ir,
+  const changed: Pick<FigureIR, "groups" | "edges"> = {
     groups: compiled.ir.groups.map((g) => {
       const fill = changes.groupFill?.[g.id];
       return fill === undefined
@@ -383,8 +392,22 @@ function redraw(
     }),
     edges: compiled.ir.edges.map((e) => ({
       ...e,
-      style: { ...e.style, fill: (changes.edgeFill ?? e.style.fill) as EdgeIR["style"]["fill"] },
+      ...(changes.targetArrowhead !== undefined && { targetArrowhead: changes.targetArrowhead }),
+      ...(changes.sourceArrowhead !== undefined && { sourceArrowhead: changes.sourceArrowhead }),
+      style: {
+        ...e.style,
+        fill: (changes.edgeFill ?? e.style.fill) as EdgeIR["style"]["fill"],
+        filled: changes.filled ?? e.style.filled,
+      },
     })),
+  };
+  // `elements` (read by the editable PPTX) holds the changed elements too.
+  const ir: FigureIR = {
+    ...compiled.ir,
+    ...changed,
+    elements: new Map(
+      [...changed.groups, ...compiled.ir.nodes, ...changed.edges].map((e) => [e.key, e] as const),
+    ),
   };
   if (fonts === undefined) throw new Error("no default font set");
   const svg = writeStructuredSvg(ir, changes.layout ?? rendered.layout, fonts);
@@ -594,6 +617,215 @@ edges:
   });
 });
 
+/** The interior fill of each edge's arrowheads in the SVG, by edge index. */
+function svgHeadFills(svg: string): Map<number, string[]> {
+  const out = new Map<number, string[]>();
+  for (const [, index = "", body = ""] of svg.matchAll(
+    /<g class="sumi-k-e--_(\d+) sumi-kind-edge"[^>]*>(.*?)<\/g>/g,
+  )) {
+    out.set(
+      Number(index),
+      [...body.matchAll(/<(?:polygon|circle) [^>]*fill="([^"]*)"/g)].map(([, fill = ""]) => fill),
+    );
+  }
+  return out;
+}
+
+// #192 (design doc §6.41): a hollow arrowhead is painted inside with the
+// color beneath its center, as an edge label's background is (#170).
+describe("hollow arrowheads (#192)", () => {
+  // As in the #170 tests: a -> b inside `inner` (in `outer`), and
+  // top -> outer, whose head lies outside `outer`, on the canvas.
+  const nested = (theme: string, outer: string, inner: string) => `version: 1
+figure:
+  id: hollow-heads
+  theme: ${theme}
+  layout:
+    arrange:
+      row: { gap: 6mm, items: [top, outer] }
+groups:
+  - id: outer
+${outer}
+    arrange: { stack: { items: [inner] } }
+  - id: inner
+${inner}
+    arrange: { stack: { gap: 6mm, items: [a, b] } }
+nodes:
+  - { id: top, component: box, label: Top }
+  - { id: a, component: box, label: A }
+  - { id: b, component: box, label: B }
+edges:
+  - { from: a, to: b }
+  - { from: top, to: outer }
+`;
+  const HOLLOW = ["triangle", "arrow", "diamond", "circle", "box"] as const;
+
+  /** The head fills of edges 0 and 1, checked to be the same for every hollow head type. */
+  async function hollowFills(source: string) {
+    const rendered = await render(source);
+    const fills = HOLLOW.map((head) => {
+      const { svg } = redraw(rendered, { filled: false, targetArrowhead: head });
+      const all = svgHeadFills(svg);
+      expect(all.get(0)).toHaveLength(1);
+      expect(all.get(1)).toHaveLength(1);
+      return [all.get(0)?.[0], all.get(1)?.[0]];
+    });
+    for (const f of fills) expect(f).toEqual(fills[0] as (string | undefined)[]);
+    return { rendered, fills: fills[0] as (string | undefined)[] };
+  }
+
+  test("a filled group (minimal: surface), and the canvas outside it", async () => {
+    const { rendered, fills } = await hollowFills(nested("minimal", "", ""));
+    expect(groupFill(rendered, "inner")).toBe("#f6f8fa");
+    expect(fills).toEqual(["#f6f8fa", CANVAS_FILL]);
+  });
+
+  test("a toned group", async () => {
+    const { rendered, fills } = await hollowFills(nested("minimal", "", "    tone: yellow"));
+    const fill = groupFill(rendered, "inner");
+    expect(fill).not.toBe("#f6f8fa");
+    expect(fills[0]).toBe(fill);
+  });
+
+  test("a transparent inner group inside a colored outer one", async () => {
+    const { rendered, fills } = await hollowFills(nested("academic", "    tone: blue", ""));
+    expect(groupFill(rendered, "inner")).toBe("transparent");
+    const outer = groupFill(rendered, "outer");
+    expect(outer).not.toBe("transparent");
+    expect(fills).toEqual([outer, CANVAS_FILL]);
+  });
+
+  test("transparent groups only, as academic draws them by default: the canvas", async () => {
+    const { fills } = await hollowFills(nested("academic", "", ""));
+    expect(fills).toEqual([CANVAS_FILL, CANVAS_FILL]);
+  });
+
+  test("filled arrowheads keep the line color", async () => {
+    const rendered = await render(nested("minimal", "", ""));
+    const stroke = rendered.compiled.ir.edges[0]?.style.stroke;
+    for (const head of HOLLOW) {
+      const { svg } = redraw(rendered, { filled: true, targetArrowhead: head });
+      expect(svgHeadFills(svg).get(0)).toEqual([stroke as string]);
+    }
+  });
+
+  // A head across a group border takes the color under its center, half its
+  // length behind the tip; a center exactly on the border is inside.
+  test("a head across a group border takes the color under its center", async () => {
+    const rendered = await render(nested("minimal", "", ""));
+    const points = rendered.layout.edges[0]?.route?.points;
+    const edge = rendered.compiled.ir.edges[0];
+    if (points === undefined || edge === undefined) throw new Error("no route");
+    const tip = points[points.length - 1] as Point;
+    const prev = points[points.length - 2] as Point;
+    // a -> b runs down: the head's center is above the tip.
+    expect(prev.x).toBe(tip.x);
+    expect(prev.y).toBeLessThan(tip.y);
+    const cy = tip.y - arrowheadLength(edge.style.strokeWidth.units) / 2;
+    // The inner group's top border moved to run through the head's center.
+    const at = (y: number): LayoutIR => ({
+      ...rendered.layout,
+      groups: rendered.layout.groups.map((g) =>
+        g.key === "g:inner"
+          ? { ...g, rect: { ...g.rect, y, height: g.rect.height + g.rect.y - y } }
+          : g,
+      ),
+    });
+    const groupFill = { inner: "#ffee00", outer: "transparent" };
+    for (const head of HOLLOW) {
+      const changes = { groupFill, filled: false, targetArrowhead: head };
+      const on = redraw(rendered, { ...changes, layout: at(cy) });
+      expect(svgHeadFills(on.svg).get(0)).toEqual(["#ffee00"]);
+      const below = redraw(rendered, { ...changes, layout: at(cy + 0.001) });
+      expect(svgHeadFills(below.svg).get(0)).toEqual([CANVAS_FILL]);
+    }
+  });
+
+  // Source heads, and heads at a junction (whose end is its center, so the
+  // head may lie on the junction's dot): each takes the color beneath its
+  // own center. a (red group) -> j (junction, blue group) -> c (blue group),
+  // left to right, with heads at both ends.
+  test("source heads and heads at a junction, across contrasting groups", async () => {
+    const source = `version: 1
+figure:
+  id: hollow-ends
+  theme: minimal
+  layout:
+    arrange:
+      row: { gap: 10mm, items: [left, right] }
+groups:
+  - id: left
+    arrange: { stack: { items: [a] } }
+  - id: right
+    arrange: { row: { gap: 10mm, items: [j, c] } }
+nodes:
+  - { id: a, component: box, label: A }
+  - { id: j, component: junction }
+  - { id: c, component: box, label: C }
+edges:
+  - { from: a, to: j }
+  - { from: j, to: c }
+`;
+    const rendered = await render(source);
+    const route = (i: number) => rendered.layout.edges[i]?.route?.points ?? [];
+    const j = rendered.layout.nodes.find((node) => node.key === "n:j")?.rect;
+    if (j === undefined) throw new Error("no junction");
+    const center = { x: j.x + j.width / 2, y: j.y + j.height / 2 };
+    // Both run straight across, and meet at the junction's center.
+    for (const i of [0, 1]) expect(new Set(route(i).map((p) => p.y)).size).toBe(1);
+    expect(route(0).at(-1)).toEqual(center);
+    expect(route(1)[0]).toEqual(center);
+    const groupFill = { left: "#ff0000", right: "#0000ff" };
+    for (const head of HOLLOW) {
+      const { svg } = redraw(rendered, {
+        groupFill,
+        filled: false,
+        targetArrowhead: head,
+        sourceArrowhead: head,
+      });
+      const fills = svgHeadFills(svg);
+      // Target head first, then source head.
+      expect(fills.get(0)).toEqual(["#0000ff", "#ff0000"]);
+      expect(fills.get(1)).toEqual(["#0000ff", "#0000ff"]);
+    }
+    // The groups swapped: the colors follow them.
+    const swapped = redraw(rendered, {
+      groupFill: { left: "#0000ff", right: "#ff0000" },
+      filled: false,
+      targetArrowhead: "triangle",
+      sourceArrowhead: "circle",
+    });
+    expect(svgHeadFills(swapped.svg).get(0)).toEqual(["#ff0000", "#0000ff"]);
+  });
+
+  // DrawingML line ends have no interior: a hollow `arrow` is an open arrow,
+  // the other hollow heads are refused (editable-geometry.test.ts).
+  test("a hollow arrow head stays an open arrow line end in the editable PPTX", async () => {
+    const rendered = await render(nested("minimal", "", ""));
+    const { svg, ir } = redraw(rendered, { filled: false, targetArrowhead: "arrow" });
+    const editable = svgToEditablePptx(svg, ir);
+    if (!editable.ok) throw new Error(JSON.stringify(editable.diagnostics));
+    const slide = new TextDecoder().decode(readPptx(editable.value).get("ppt/slides/slide1.xml"));
+    expect([...slide.matchAll(/<a:tailEnd type="([a-z]+)"/g)].map(([, t]) => t)).toEqual([
+      "arrow",
+      "arrow",
+    ]);
+  });
+
+  test("backgroundAt() is labelBackground() at a point", () => {
+    const outer = { rect: { x: 0, y: 0, width: 100, height: 100 }, fill: "#336699", opacity: 1 };
+    const inner = { rect: { x: 10, y: 10, width: 40, height: 40 }, fill: "#eee", opacity: 1 };
+    expect(backgroundAt({ x: 20, y: 20 }, [])).toBe(CANVAS_FILL);
+    expect(backgroundAt({ x: 20, y: 20 }, [outer, inner])).toBe("#eee");
+    expect(backgroundAt({ x: 50, y: 20 }, [outer, inner])).toBe("#eee");
+    expect(backgroundAt({ x: 50.001, y: 20 }, [outer, inner])).toBe("#336699");
+    expect(backgroundAt({ x: 200, y: 20 }, [outer, inner])).toBe(CANVAS_FILL);
+    expect(backgroundAt({ x: 25, y: 22 }, [outer, inner])).toBe(
+      labelBackground({ x: 20, y: 20, width: 10, height: 4 }, [outer, inner]),
+    );
+  });
+});
+
 describe("drawing helpers", () => {
   test("dash arrays follow D2's formula", () => {
     expect(dashArray(1, 3)).toEqual([3, 3]);
@@ -650,6 +882,21 @@ describe("drawing helpers", () => {
       }
     }
     expect(drawArrowhead("none", tip, { x: 0, y: 1 }, edge as unknown as EdgeIR)).toBe("");
+    // A hollow head is painted with the color beneath its center (#192):
+    // half arrowheadLength() behind the tip.
+    const hollow = { ...edge, style: { ...edge.style, filled: false } } as unknown as EdgeIR;
+    const half = arrowheadLength(2) / 2;
+    const fill = (groups: Parameters<typeof drawArrowhead>[4]) =>
+      /fill="([^"]*)"/.exec(drawArrowhead("triangle", tip, { x: 0, y: 1 }, hollow, groups))?.[1];
+    // A group whose bottom border runs through the center, or just above it.
+    const group = (bottom: number) => ({
+      rect: { x: 0, y: bottom - 100, width: 200, height: 100 },
+      fill: "#123456",
+      opacity: 1,
+    });
+    expect(fill([group(tip.y - half)])).toBe("#123456");
+    expect(fill([group(tip.y - half - 0.001)])).toBe(CANVAS_FILL);
+    expect(fill(undefined)).toBe(CANVAS_FILL);
   });
 });
 
