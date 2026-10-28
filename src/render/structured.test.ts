@@ -24,7 +24,13 @@ import { svgToPdf } from "./pdf";
 import { svgToEditablePptx, svgToPptx } from "./pptx";
 import { readPptx } from "./pptx/testing";
 import { type RenderedStructuredFigure, renderFigure } from "./render";
-import { dashArray, drawArrowhead, mergeSegments } from "./structured";
+import {
+  CANVAS_FILL,
+  dashArray,
+  drawArrowhead,
+  labelBackground,
+  mergeSegments,
+} from "./structured";
 import { readD2Svg } from "./svg";
 import { parseXml } from "./xml";
 
@@ -327,6 +333,191 @@ nodes:
   const oval = rendered.layout.nodes.find((n) => n.key === "n:oval");
   expect(oval?.rect.width).toBe(80.001);
   expectBoundsOfLayout(rendered);
+});
+
+/** The fill of each labeled edge's label background in the SVG (`undefined`: none), by edge index. */
+function svgLabelBackgrounds(svg: string): Map<number, string | undefined> {
+  const out = new Map<number, string | undefined>();
+  for (const [, index = "", body = ""] of svg.matchAll(
+    /<g class="sumi-k-e--_(\d+) sumi-kind-edge"[^>]*>(.*?)<\/g>/g,
+  )) {
+    if (!body.includes("<text")) continue;
+    out.set(Number(index), /<rect [^>]*fill="([^"]*)"\/><text/.exec(body)?.[1]);
+  }
+  return out;
+}
+
+/** The fill of each edge label's shape in the editable PPTX (`undefined`: no fill), by edge index. */
+function pptxLabelBackgrounds(rendered: RenderedStructuredFigure): Map<number, string | undefined> {
+  const editable = svgToEditablePptx(rendered.svg, rendered.compiled.ir);
+  if (!editable.ok) throw new Error(JSON.stringify(editable.diagnostics));
+  const slide = new TextDecoder().decode(readPptx(editable.value).get("ppt/slides/slide1.xml"));
+  const out = new Map<number, string | undefined>();
+  for (const [, index = "", fill] of slide.matchAll(
+    /name="e:#(\d+) label 0"\/>.*?<\/a:prstGeom>(?:<a:noFill\/>|<a:solidFill><a:srgbClr val="([0-9A-F]{6})">)/g,
+  )) {
+    out.set(Number(index), fill === undefined ? undefined : `#${fill.toLowerCase()}`);
+  }
+  return out;
+}
+
+const groupFill = (rendered: RenderedStructuredFigure, id: string): string => {
+  const fill = rendered.compiled.ir.groups.find((g) => g.id === id)?.style.fill;
+  if (fill === undefined) throw new Error(`no group ${id}`);
+  return fill;
+};
+
+// #170 (design doc §6.41): an edge label's background is the color painted
+// beneath it, not the edge's `fill` (white), in the SVG and the editable PPTX.
+describe("edge label backgrounds (#170)", () => {
+  const nested = (theme: string, outer: string, inner: string) => `version: 1
+figure:
+  id: label-bg
+  theme: ${theme}
+  layout:
+    arrange:
+      row: { gap: 6mm, items: [top, outer] }
+groups:
+  - id: outer
+${outer}
+    arrange: { stack: { items: [inner] } }
+  - id: inner
+${inner}
+    arrange: { stack: { gap: 6mm, items: [a, b] } }
+nodes:
+  - { id: top, component: box, label: Top }
+  - { id: a, component: box, label: A }
+  - { id: b, component: box, label: B }
+edges:
+  - { from: a, to: b, label: inside }
+  - { from: top, to: outer, label: outside }
+`;
+
+  async function backgrounds(source: string) {
+    const rendered = await render(source);
+    const svg = svgLabelBackgrounds(rendered.svg);
+    // The editable PPTX paints the same color behind each label.
+    expect(pptxLabelBackgrounds(rendered)).toEqual(svg);
+    return { rendered, svg };
+  }
+
+  test("a filled group (minimal: surface)", async () => {
+    const { rendered, svg } = await backgrounds(nested("minimal", "", ""));
+    expect(groupFill(rendered, "inner")).toBe("#f6f8fa");
+    expect(svg).toEqual(
+      new Map([
+        [0, "#f6f8fa"],
+        [1, "#ffffff"],
+      ]),
+    );
+  });
+
+  test("a toned group", async () => {
+    const { rendered, svg } = await backgrounds(nested("minimal", "", "    tone: yellow"));
+    const fill = groupFill(rendered, "inner");
+    expect(fill).not.toBe("#f6f8fa");
+    expect(svg.get(0)).toBe(fill);
+  });
+
+  test("a transparent inner group inside a colored outer one", async () => {
+    const { rendered, svg } = await backgrounds(nested("academic", "    tone: blue", ""));
+    expect(groupFill(rendered, "inner")).toBe("transparent");
+    const outer = groupFill(rendered, "outer");
+    expect(outer).not.toBe("transparent");
+    expect(svg.get(0)).toBe(outer);
+    expect(svg.get(1)).toBe("#ffffff");
+  });
+
+  test("transparent groups only, as academic draws them by default: the canvas", async () => {
+    const { rendered, svg } = await backgrounds(nested("academic", "", ""));
+    expect(groupFill(rendered, "outer")).toBe("transparent");
+    expect(groupFill(rendered, "inner")).toBe("transparent");
+    expect(svg).toEqual(
+      new Map([
+        [0, "#ffffff"],
+        [1, "#ffffff"],
+      ]),
+    );
+  });
+
+  // The #116 reproduction: the label sits on the group's border (reported by
+  // geometry/label-collision). The color is the one under the box's center:
+  // here above the border, so the canvas, though its lower part is on the
+  // group (the other way round in the labelBackground() test below).
+  test("a box across a group border takes the color under its center", async () => {
+    const source = `version: 1
+figure:
+  id: a9
+  theme: minimal
+  layout:
+    arrange:
+      stack: { gap: 2mm, align: center, items: [a, grp] }
+groups:
+  - id: grp
+    arrange: { stack: { items: [b] } }
+nodes:
+  - { id: a, component: box, label: A }
+  - { id: b, component: box, label: B }
+edges:
+  - { from: a, to: b, label: gRPC }
+`;
+    const { rendered, svg } = await backgrounds(source);
+    const box = rendered.layout.edges[0]?.route?.label?.box;
+    const rect = rendered.layout.groups[0]?.rect;
+    if (box === undefined || rect === undefined) throw new Error("no label or group");
+    const cy = box.y + box.height / 2;
+    // It does straddle the border, with its center outside the group.
+    expect(box.y + box.height).toBeGreaterThan(rect.y);
+    expect(cy).toBeLessThan(rect.y);
+    expect(groupFill(rendered, "grp")).toBe("#f6f8fa");
+    expect(svg.get(0)).toBe(CANVAS_FILL);
+  });
+
+  test("an edge drawn without a background has none in the editable PPTX either", async () => {
+    const rendered = await render(nested("minimal", "", ""));
+    // As with a theme whose edge `fill` is `transparent`: no rect before the text.
+    const svg = rendered.svg.replace(/<rect [^>]*\/>(<text)/g, "$1");
+    expect(svgLabelBackgrounds(svg)).toEqual(
+      new Map([
+        [0, undefined],
+        [1, undefined],
+      ]),
+    );
+    expect(pptxLabelBackgrounds({ ...rendered, svg })).toEqual(
+      new Map([
+        [0, undefined],
+        [1, undefined],
+      ]),
+    );
+  });
+
+  test("labelBackground() paints the groups under the center over the canvas", () => {
+    const rect = (x: number, y: number, width: number, height: number) => ({
+      x,
+      y,
+      width,
+      height,
+    });
+    const outer = { rect: rect(0, 0, 100, 100), fill: "#336699", opacity: 1 };
+    const inner = { rect: rect(10, 10, 40, 40), fill: "transparent", opacity: 1 };
+    const label = rect(20, 20, 10, 4);
+    expect(labelBackground(label, [])).toBe(CANVAS_FILL);
+    expect(labelBackground(label, [outer, inner])).toBe("#336699");
+    expect(labelBackground(label, [outer, { ...inner, fill: "#eee" }])).toBe("#eee");
+    expect(labelBackground(label, [{ ...outer, fill: "transparent" }, inner])).toBe(CANVAS_FILL);
+    // Translucent groups are blended over what is beneath; invisible ones skipped.
+    expect(labelBackground(label, [{ ...outer, fill: "#000000", opacity: 0.5 }])).toBe("#808080");
+    expect(labelBackground(label, [outer, { ...inner, fill: "#ffffff", opacity: 0 }])).toBe(
+      "#336699",
+    );
+    // Across the inner group's border: the center decides.
+    expect(labelBackground(rect(46, 20, 10, 4), [outer, { ...inner, fill: "#eee" }])).toBe(
+      "#336699",
+    );
+    expect(labelBackground(rect(41, 20, 10, 4), [outer, { ...inner, fill: "#eee" }])).toBe("#eee");
+    // Outside every group: the canvas.
+    expect(labelBackground(rect(200, 200, 10, 4), [outer])).toBe(CANVAS_FILL);
+  });
 });
 
 describe("drawing helpers", () => {

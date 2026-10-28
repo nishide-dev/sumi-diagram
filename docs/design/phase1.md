@@ -342,7 +342,7 @@ Sumi が公開するスタイルプロパティは、D2 で表現できるもの
 
 - `shadow`、`3d`、`multiple`、`double-border` は公開しない（形状ごとの制約と固定オフセットがあるため）。
 - 対象外の kind に指定されたプロパティ（edge の `radius` 等）は Theme 読み込み時に error（`theme/inapplicable-property`）。
-- edge の `fill` は、D2 の connection の `style.fill` と同じく**ラベルの背景**になる。D2 はラベルのあるエッジにだけ、ラベルより少し大きい角丸の矩形（`rx=10`）を描く（§6.6）。`transparent` なら背景を描かない。
+- edge の `fill` は、D2 の connection の `style.fill` と同じく**ラベルの背景**になる。D2 はラベルのあるエッジにだけ、ラベルより少し大きい角丸の矩形（`rx=10`）を描く（§6.6）。`transparent` なら背景を描かない。structured では `fill` は背景を描くかどうかだけを決め、色はラベルの下に塗られている色になる（#170、§6.41）。
 - 色は `rgb()` を受け付けない（D2 が拒否する）。Theme 側で `#hex` に正規化する。
 
 ### 4.2 フォント
@@ -1041,7 +1041,7 @@ layout:
 - **mark（判断、#92 の引き継ぎ）**: junction（`point`）は Theme の `fill`（= 線の色）で塗った枠線なしの円。外接矩形がそのまま点の大きさになる。塗りが `transparent` なら見えないだけで、要素は残る。operator（`glyph`）の記号は**文字**で描く（線分にしない）: PDF で検索・抽出でき、`auto` の D2 の描画と同じで、幾何 lint の再計測・`lint/missing-glyph` もそのまま働く。同梱の BIZ UDPGothic（regular / bold）は `+ − × • ‖` をすべて収録している（cmap で確認）。
 - **矢じり**: 経路の端に、最後の線分の向きで描く多角形（`marker` は使わない。id が要らず、決定的）。長さは `arrowheadLength()`（ルータが空けた長さ）以下、幅はその半分ずつ。triangle・arrow（切り欠き付き）・diamond・circle・box は `filled` なら線の色で塗り、そうでなければ白で塗って線の色で縁取る。cross は線。線（下記）は矢じりの底で止める（cross と none は止めない）。矢じりの底から後ろ（arrow の切り欠きの奥、cross の全長）は線が通るが、角の弧はそこに入れない（`keepStart` / `keepEnd`、#116。§6.26）。
 - **線とネット（判断）**: 共有の幹線を 2 回描かないよう、線は edge ごとではなく**ネットごと・線のスタイル（色・太さ・破線・不透明度）ごと**に 1 本の path（`path.sumi-wire`、最大の軸平行な線分の和、丸い端）で描く。重ねて描くと、破線の幹線は位相のずれで実線のように見え、半透明の幹線は濃くなるため。線分の和は各 edge の折れ線から矢じりの分を除いて作る（`nets[].segments` は矢じりの下まで含むので、そのままは使わない）。**ネットの中でスタイルが混ざる場合**はスタイルごとに別の path にし、両方が通る区間は両方で描く（文書順で後の edge が上）。inspect のための edge ごとの `path.connection` は経路全体（M/L）を持ち、線幅と破線は書くが `stroke` は書かない（SVG の初期値 `none` なので見えない）。そのため幾何 lint・編集可能 PPTX は従来どおり edge ごとの経路を読む。
-- **エッジのラベル**: `route.label`（node のラベルと同じ描き方）。edge の `fill` が `transparent` でなければ、ラベルの行の箱を 1 unit 広げた矩形を背景に描く（#31。ルータはラベルを線から 3 unit 離すので、線は隠れない）。
+- **エッジのラベル**: `route.label`（node のラベルと同じ描き方）。edge の `fill` が `transparent` でなければ、ラベルの行の箱を 1 unit 広げた矩形を背景に描く（#31。ルータはラベルを線から 3 unit 離すので、線は隠れない）。背景の色はラベルの下に塗られている色（#170、§6.41）。
 - **フォント（判断）**: `@font-face` は、使ったフォント class ごとに、フォントセットのファイル（幾何 lint の `fontFileFor()` と同じ対応）から、描いた文字だけの **TrueType のサブセット**（`data:font/ttf;base64`）を埋め込む。family 名は `sumi-<n>-font-<class>`（`<n>` は描画部分の FNV-1a。同じページに複数の図を置いても衝突しない）。PDF・PPTX の `resolveSvgFonts()` は `d2-<n>-font-*` と同じく `sumi-<n>-font-*` を同梱 TTF の実名に書き換える。
   - サブセットは WASM エンジンの新しい export `subset`（krilla が PDF に使う subsetter 0.2.6 をそのまま呼ぶ）で作る。subsetter は PDF の CID フォント用で `cmap` と `OS/2` を落とすので、TS 側（`src/render/font-subset.ts`）が、元の `cmap` で文字を glyph に引き、複合 glyph の部品を推移的に加えて昇順に並べた glyph の列を渡し（新しい glyph ID が `.notdef` に続いてこの順になることを WASM 側でも確かめる）、新しい `cmap`（BMP は 3/1 の format 4、全体は 3/10 の format 12）と元の `OS/2` を加えてフォントを組み直す（tag 順、checksum、`head.checkSumAdjustment`）。フォントにない文字は `cmap` に入れない（閲覧側の代替。`lint/missing-glyph` が報告する）。format 4 の長さ（16 bit）に収まらないほど区間が多い場合（約 8,000 区間）は format 12 だけを書く。subsetter は `.notdef` を必ず含めるので、複合 glyph の部品の探索も `.notdef` から始める。
   - 検証: ヘッドレス Chrome で図 A の SVG の `@font-face` が `loaded` になり、`getComputedTextLength()` が Layout IR の行の幅と 0.05 unit（0.04%）以内で一致した（§6.5 のブラウザ確認と同じ丸めの差）。テストでは、埋め込んだフォントが描いた全文字を収録し、advance が元のフォントと一致することを確かめる。WOFF にはしない（圧縮を WASM か TS に足す必要があり、図 A で regular の TTF が約 11.6KB と十分小さいため）。
@@ -1478,6 +1478,21 @@ layout:
 - **時間**: 1 本の線分のエッジ 8000 本で 3 規則 4ms、3 本の幹線に 8000 本を重ねた図で 11ms（Apple M4 Pro、Bun 1.3.14）。座標は近いが範囲が互いに重ならない部分が多数並ぶ図（2 本の近い座標に交互に並ぶ短い部分）では、近い座標の組をすべて範囲で確かめるので、部分の数の 2 乗に近づく（レビューの測定で 8000 本 146ms）。実際の図では起きない形なので、区間の索引は足さない。
 - **テスト**: `proximity.test.ts`（直線の部分のまとめ、束と掃引、wire の割り当て（角を丸めた U 字で直線 4 unit だけ・他のネットの wire は割り当てない）、角の丸め、矩形との距離。各規則の境界: 枠の上・0.35mm・0.53mm、3mm 未満、横切る線、線とグループごとに最も近い 1 件、共有の幹線の 1 件と `related`、二重線と線の重なり、同じ線・0.22 unit・自分の折り返し、見出しの文字・横切る場合・端の `label` 部品。#163 のレビューの再現: 幹線から分かれた枝、0.4 unit 間隔で並ぶ 8 本、太い線が届かない範囲、不透明度 0。`inkLines()`: 見えない文字、複数行、字形の種類、runs・アイコンの代替）、`proximity.integration.test.ts`（structured の図 4 を描いて、各エッジの描かれた直線が経路の上にあり角を覆わないこと、診断の全文。図 2 で hidden junction の弧がエッジに割り当てられること）。再レビューの再現: 共有の幹線の上のエッジと、相手の折り返した枝の比較、矢じりで切り詰めたエッジに同じ線の別のエッジの wire を貸さないこと（`painted` を持つ検査）、`group-label-at.integration.test.ts`（実際の structured の経路で `edge-touches-label`）。
 - **破線（判断）**: 破線の間も描いた線として測る（長さも距離も中心線の連続した線）。破線の線が枠や別の線に沿って並ぶ見え方は実線とほぼ同じで、規則の対象とする。見出しとの距離は、線が文字の脇で切れている（破線の間）場合も接するとみなす（誤検出側。破線の位相までは追わない）。
+
+### 6.41 #170 の辺のラベルの背景をその下の塗りにする
+
+#167 の調査の R2（`docs/research/167-stage-c.md` §3.2、図 B の B-7）。structured の辺のラベルの背景は辺のスタイルの `fill`（#31、組み込みの Theme ではすべて白）で描いていたので、塗りのある group の上では白い四角になった（[`detail-label-halo.png`](../../research/167-stage-c/previews/detail-label-halo.png)）。背景を、ラベルの下に実際に塗られている色にする。
+
+- **色の決め方（判断）**: 図の背景（キャンバス。writer が最初に描く白の `<rect>`、`CANVAS_FILL`）から始め、ラベルの箱の中心を含む group を描く順（前順。外側が先）に重ねる（`labelBackground()`、`src/render/structured.ts`）。`transparent` の group と不透明度 0 の group は飛ばすので、結果は「内側から外側へたどって最初に塗られている色、なければキャンバス」になる。**`transparent` は返さない**: 背景は下を走るもの（線）を隠すためにあり（#31）、透明では目的を失う。
+- **不透明度**: group の `opacity` が 1 未満なら、その塗りを下の色に `opacity` で合成した色（`#rrggbb`）にする。SVG の `<g opacity>` が塗りを下に重ねるのと同じ結果になる。1 のときは Theme の色の文字列をそのまま使う（`#rgb` も変えない）。
+- **境界をまたぐ箱（判断: 中心で決める）**: ラベルの箱が group の枠をまたぐときは、箱の中心がある側の色にする（中心が枠の上ちょうどなら group の内側とみなす）。またぐこと自体は `geometry/label-collision`（#116）が報告し、ラベルは配置の段で枠を避けて置かれる（§6.22）ので、またぐのは避けられなかった場合だけ。面積の大きい側や、またぐ部分ごとに色を分ける案は採らなかった: 前者は中心とほぼ同じ結果で計算が増え、後者は背景が 2 色になり、どちらでも枠線は背景に隠れる（lint が報告する不具合のまま）。group の判定は矩形で、角の丸め（`radius`）の外の角は内側とみなす（角の丸めの範囲にラベルの中心が来ることは配置上まずない）。
+- **node は見ない（判断）**: 辺のラベルは配置の段で node の箱を避けて置かれ、避けられずに node に重なったラベルは `label-collision` が報告する。node の形（円・ひし形・アイコン・画像）ごとに下の色を決めても、重なりという不具合は直らないので、node の塗りは背景の色に使わない（重なったラベルは、その下の group かキャンバスの色の背景で読める）。
+- **edge の `fill` の意味**: structured では `transparent` かどうか（背景を描くか）だけを決め、色は使わない。組み込みの Theme の edge の `fill` はすべて白（= キャンバス）なので、group の外のラベルは今までと同じ。利用者の Theme で edge の `fill` を白以外にしていた場合は、その色が使われなくなる（ラベルを色のチップにする用途は想定しない。必要になれば別のプロパティとして検討する）。auto（D2）は対象外（D2 が `style.fill` で描く。#170 の非対象。D2 の塗りの扱いを確かめてから別 Issue）。
+- **編集可能 PPTX**: 辺のラベルの文字の箱の塗りを、SVG がそのラベルの `<text>` の直前に描く `<rect>` の `fill` から取る（`src/render/pptx/editable.ts`）。structured では上の色、D2 では辺の `fill` の角丸の矩形（今までどおり白）。`<rect>` がない場合、D2 は線をマスクで隠しているので今までどおり白、structured（`fill: transparent`）は何も描かないので塗りなし（`<a:noFill/>`。これまでは白で SVG と食い違っていた）。PDF・画像方式の PPTX は SVG を描くので、そのまま同じになる。
+- **変わった出力**: リポジトリの structured の図（`arrange` を持つ `*.sumi.yaml` 43 個のうち描画まで通る 41 個）を図の Theme と組み込みの 4 Theme で描いて（SVG 173、編集可能 PPTX 113。アイコン・画像のある図は編集可能 PPTX にならない）、変更の前後を sha256 で比べた。変わったのは、辺のラベルが塗りのある group の中にある図だけで、差はすべてラベルの背景の `fill` 属性（と、本文のハッシュから決まる図の id）だった。
+  - golden: `examples/dit-block`（`color` の `surface` の上の α・γ 4 つ: `#ffffff` → `#f6f8fa`）の SVG・PDF・画像方式 PPTX の hash・編集可能 PPTX の slide XML 2 つ。拡大して、白い四角が消え、ラベルが group の塗りの上に読めることを確かめた。他のギャラリー・作例（auto の図、structured の `transformer`）は変わらない。
+  - golden でない図: research の `serving-architecture`・`training-pipeline`・`seq2seq-attention`（#109・#124・#135・#151 の各版）、`b-dit`・`c-h3world`（#167）、`tests/fixtures/figures/lint/literal-newline.sumi.yaml` の `minimal`・`color`・`slides`（surface `#f6f8fa` / `#f2f2f2`、`b-dit` の灰色のパネルは `#e6e6e6` / `#e3e3e3`）。`academic` で変わったのは tone のある group を持つ `b-dit` だけで、既定の group（`transparent`）の中のラベルは白のまま。
+- **テスト**: `structured.test.ts` の「edge label backgrounds (#170)」: 塗りのある group（`minimal` の surface）、tone のある group、透明な内側と色のある外側（`academic` の外側に tone）、透明な group だけの入れ子（`academic` の既定。キャンバスの白）、境界をまたぐ箱（#116 の再現。中心は枠の外なのでキャンバスの色）、背景のない SVG から編集可能 PPTX が塗りなしになること。各図で、編集可能 PPTX のラベルの塗りが SVG と同じことも検査する。`labelBackground()` の単体: 半透明の合成、不透明度 0、中心による境界の判定（両側）、group の外。
 
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures

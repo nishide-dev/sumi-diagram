@@ -615,7 +615,62 @@ function wires(
   return { markup: out, painted };
 }
 
-function edgeGroup(edge: EdgeIR, points: readonly Point[], layoutLabel?: TextLayout): string {
+/** The canvas the structured writer paints under everything (its first `<rect>`). */
+export const CANVAS_FILL = "#ffffff";
+
+/** A group as painted under an edge label: its rectangle and paint, in drawing order. */
+export interface PaintedGroup {
+  readonly rect: Rect;
+  readonly fill: string;
+  readonly opacity: number;
+}
+
+function hexChannels(color: string): number[] | undefined {
+  const long = color.replace(/^#([0-9a-f])([0-9a-f])([0-9a-f])$/i, "#$1$1$2$2$3$3");
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(long);
+  return m === null ? undefined : [m[1], m[2], m[3]].map((c) => Number.parseInt(c as string, 16));
+}
+
+/** `top` at `alpha` over the opaque `bottom`, as `#rrggbb` (`top` itself at full opacity). */
+function over(top: string, alpha: number, bottom: string): string {
+  if (alpha >= 1) return top;
+  const a = hexChannels(top);
+  const b = hexChannels(bottom);
+  if (a === undefined || b === undefined) return top;
+  const mixed = a.map((c, i) => Math.round(c * alpha + (b[i] as number) * (1 - alpha)));
+  return `#${mixed.map((c) => c.toString(16).padStart(2, "0")).join("")}`;
+}
+
+/**
+ * The color painted beneath an edge label (#170, design doc §6.41): the
+ * groups whose rectangle holds the label box's center, painted in drawing
+ * order (outer first) over the canvas. A `transparent` or fully translucent
+ * group lets the color beneath it through, so the result is the first
+ * painted background from the innermost group outward, else the canvas —
+ * never `transparent`, since the background is there to hide what runs
+ * under the label. A box across a group border takes the color under its
+ * center. Nodes are not looked at: labels are placed off node boxes, and
+ * one left on a node is reported by `geometry/label-collision`.
+ */
+export function labelBackground(box: Rect, groups: readonly PaintedGroup[]): string {
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  let color = CANVAS_FILL;
+  for (const { rect, fill, opacity } of groups) {
+    if (fill === "transparent" || opacity <= 0) continue;
+    if (cx < rect.x || cx > rect.x + rect.width || cy < rect.y || cy > rect.y + rect.height)
+      continue;
+    color = over(fill, opacity, color);
+  }
+  return color;
+}
+
+function edgeGroup(
+  edge: EdgeIR,
+  points: readonly Point[],
+  layoutLabel: TextLayout | undefined,
+  groups: readonly PaintedGroup[],
+): string {
   const { style } = edge;
   const width = style.strokeWidth.units;
   const dash = dashArray(width, style.strokeDash);
@@ -631,13 +686,15 @@ function edgeGroup(edge: EdgeIR, points: readonly Point[], layoutLabel?: TextLay
     ) + drawArrowhead(edge.sourceArrowhead ?? "none", first, unit(points[1] as Point, first), edge);
   let labelSvg = "";
   if (layoutLabel !== undefined) {
-    // The label's background (the edge's `fill`, #31), 1 unit around its line box:
-    // the router keeps the box 3 units off the line, so the line stays visible.
+    // The label's background, 1 unit around its line box: the router keeps
+    // the box 3 units off the line, so the line stays visible. The edge's
+    // `fill` turns it on (#31; `transparent`: none); its color is what is
+    // painted beneath the label (#170, `labelBackground()`).
     const { box } = layoutLabel;
     const background =
       style.fill === "transparent"
         ? ""
-        : `<rect x="${n(box.x - 1)}" y="${n(box.y - 1)}" width="${n(box.width + 2)}" height="${n(box.height + 2)}" fill="${style.fill}"/>`;
+        : `<rect x="${n(box.x - 1)}" y="${n(box.y - 1)}" width="${n(box.width + 2)}" height="${n(box.height + 2)}" fill="${labelBackground(box, groups)}"/>`;
     labelSvg = background + label(layoutLabel, style.fontColor);
   }
   return `<g class="${elementClass(edge.key)} sumi-kind-edge"${opacity(style)}>${connection}${heads}${labelSvg}</g>`;
@@ -690,10 +747,12 @@ export function writeStructuredSvg(
       used.set(run.font, (used.get(run.font) ?? "") + run.text + accent);
     }
   };
+  const painted: PaintedGroup[] = [];
   for (const g of layout.groups) {
     const group = groups.get(g.key);
     if (group === undefined)
       throw new Error(`internal error: ${g.key} is not a group of the figure`);
+    painted.push({ rect: g.rect, fill: group.style.fill, opacity: group.style.opacity });
     const shape = nodeShape({ ...asNode(group), shape: "rectangle" }, g.rect);
     body.push(objectGroup(group, shape, g.label));
     useText(g.label);
@@ -713,7 +772,7 @@ export function writeStructuredSvg(
     if (edge === undefined || points === undefined || points.length < 2) {
       throw new Error(`internal error: edge ${placed.key} is unknown or not routed`);
     }
-    body.push(edgeGroup(edge, points, placed.route?.label));
+    body.push(edgeGroup(edge, points, placed.route?.label, painted));
     useText(placed.route?.label);
   }
   const drawing = body.join("");
@@ -730,7 +789,7 @@ export function writeStructuredSvg(
     '<?xml version="1.0" encoding="utf-8"?>' +
     `<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMin meet" viewBox="${viewBox}">` +
     `<svg class="${attr(id)} d2-svg" width="${width}" height="${height}" viewBox="${viewBox}">` +
-    `<rect x="0" y="0" width="${width}" height="${height}" fill="#ffffff"/>` +
+    `<rect x="0" y="0" width="${width}" height="${height}" fill="${CANVAS_FILL}"/>` +
     style +
     drawing +
     "</svg></svg>"
