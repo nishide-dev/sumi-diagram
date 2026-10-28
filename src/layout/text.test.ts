@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { getFontSet } from "../core/theme/fonts";
+import { getFontSet, LATIN_FONT_SET_ID } from "../core/theme/fonts";
 import { loadFontMetrics } from "../lint/metrics";
 import { fontClassOf, fontSetMeasurer, measureText, placeAccent, type TextMeasurer } from "./text";
 
@@ -99,5 +99,32 @@ describe("placeAccent (#129)", () => {
     expect(label?.runs?.[0]?.[0]?.accent?.char).toBe("̂");
     expect(label?.lines).toEqual(["Ŵ"]);
     expect(label?.width).toBe(8);
+  });
+});
+
+describe("fontSetMeasurer with Latin slots (#172)", () => {
+  const latinFonts = getFontSet(LATIN_FONT_SET_ID);
+  if (latinFonts === undefined) throw new Error("bundled Latin font set missing");
+  const latin = fontSetMeasurer(latinFonts);
+
+  test("only a font set with Latin slots moves text to them", () => {
+    expect(measurer.latin).toBeUndefined();
+    expect(latin.latin?.("regular")).toBe("latin");
+    expect(latin.latin?.("bold")).toBe("latin-bold");
+    expect(latin.latin?.("mono")).toBeUndefined();
+    expect(measureText("Encoder", style(), measurer)?.font).toBe("regular");
+  });
+
+  test("Latin text is measured in Inter with Inter's vertical metrics", () => {
+    const inter = loadFontMetrics(latinFonts.latin ?? "");
+    const metrics = measureText("Encoder", style(), latin);
+    expect(metrics?.font).toBe("latin");
+    expect(metrics?.runs).toBeUndefined();
+    expect(metrics?.width).toBeCloseTo(inter.measureEm("Encoder") * 16, 9);
+    expect(metrics?.ascentUnits).toBeCloseTo((inter.hhea.ascender / inter.unitsPerEm) * 16, 9);
+    expect(metrics?.lineHeightUnits).toBe(20);
+    const mixed = measureText("入力 Encoder", style({ bold: true }), latin);
+    expect(mixed?.font).toBe("bold");
+    expect(mixed?.runs?.[0]?.map((r) => r.font)).toEqual(["bold", "latin-bold"]);
   });
 });

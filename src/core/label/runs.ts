@@ -1,8 +1,9 @@
 /**
  * The runs a structured figure draws a label with (#93, design doc §6.24):
  * the parsed markup (`math.ts`) with font classes resolved, characters the
- * label's font lacks moved to the math font, and whitespace collapsed as an
- * SVG `<text>` without `xml:space` draws it. Shared by the layout engine (to
+ * Latin font has moved to it (#172, §6.44), characters the label's font lacks
+ * moved to the math font, and whitespace collapsed as an SVG `<text>` without
+ * `xml:space` draws it. Shared by the layout engine (to
  * measure), the structural lint (`lint/missing-glyph`) and, through the
  * Layout IR, the SVG writer, so all three see the same runs.
  */
@@ -28,6 +29,12 @@ export interface LabelRunsOptions {
    * font. Without it, nothing falls back.
    */
   readonly covers?: (font: string, codePoint: number) => boolean;
+  /**
+   * The Latin font class for a label font class, if the font set has one
+   * (#172: `regular` → `latin`, `bold` → `latin-bold`). Text characters that
+   * font has are drawn with it (before the math fallback). Needs `covers`.
+   */
+  readonly latin?: (font: string) => string | undefined;
 }
 
 /**
@@ -55,6 +62,10 @@ export function scriptGeometry(
 export const MATH_FONT = "math";
 export const MATH_ITALIC_FONT = "math-italic";
 
+/** The Latin fonts' classes (#172; SVG class `text-latin`, `text-latin-bold`). */
+export const LATIN_FONT = "latin";
+export const LATIN_BOLD_FONT = "latin-bold";
+
 export interface LabelLayoutText {
   /** The lines as drawn (whitespace collapsed, `\$` unescaped). */
   readonly lines: string[];
@@ -64,6 +75,12 @@ export interface LabelLayoutText {
    * on the plain one-font path.
    */
   readonly runs?: LabelRun[][];
+  /**
+   * The font class the whole label is drawn in, when it is not the label's
+   * own: a label whose every run is in the Latin font (#172) is drawn as
+   * plain text in that font.
+   */
+  readonly font?: string;
 }
 
 /**
@@ -77,6 +94,7 @@ export function labelRuns(label: string, options: LabelRunsOptions): LabelLayout
     throw new Error(`internal error: invalid label markup: ${parsed.errors[0]?.message}`);
   }
   const { font, covers } = options;
+  const latin = options.latin?.(font);
   const resolve = (run: MarkupRun): LabelRun => ({
     text: run.text,
     font: run.font === "text" ? font : run.font,
@@ -85,30 +103,61 @@ export function labelRuns(label: string, options: LabelRunsOptions): LabelLayout
   });
   let lines = parsed.value.lines.map((line) => line.map(resolve));
   if (covers !== undefined) {
-    lines = lines.map((line) => line.flatMap((run) => fallback(run, font, covers)));
+    lines = lines.map((line) => line.flatMap((run) => fallback(run, font, covers, latin)));
   }
   const runs = collapse(lines);
-  const plain = runs.every(
-    (line) => line.length <= 1 && line.every((r) => r.font === font && r.script === "base"),
-  );
-  return { lines: runLines(runs), ...(!plain && { runs }) };
+  const plainIn = (f: string) =>
+    runs.every(
+      (line) => line.length <= 1 && line.every((r) => r.font === f && r.script === "base"),
+    );
+  if (plainIn(font)) return { lines: runLines(runs) };
+  // A label wholly in the Latin font is plain text in that font (and has some text).
+  if (latin !== undefined && runs.some((line) => line.length > 0) && plainIn(latin)) {
+    return { lines: runLines(runs), font: latin };
+  }
+  return { lines: runLines(runs), runs };
 }
 
-/** Splits a text run where its font lacks a character the math font has. */
+/** Splits text into grapheme clusters (a base and its combining marks stay together). */
+const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+
+/** Characters renderers draw nothing for and fonts need not map (as `measureEm()` skips them). */
+const IGNORABLE = /[\p{Cc}\p{Default_Ignorable_Code_Point}]/u;
+
+/**
+ * Splits a text run by font, one grapheme cluster at a time (#172): a base
+ * and its combining marks are drawn with one font, as renderers shape them
+ * (a mark in another font than its base is lost in the PDF). A cluster goes
+ * to the Latin font (if any) when that font has all of it, else stays in
+ * the run's font when that has all of it, else goes to the math font when
+ * that has all of it, else stays in the run's font (`lint/missing-glyph`
+ * reports what it lacks). Characters that draw nothing (controls,
+ * default-ignorables) need no glyph. For a cluster of one character this is
+ * the per-character rule of #93.
+ */
 function fallback(
   run: LabelRun,
   font: string,
   covers: (font: string, codePoint: number) => boolean,
+  latin: string | undefined,
 ): LabelRun[] {
   if (run.font !== font) return [run];
   const out: LabelRun[] = [];
-  for (const char of run.text) {
-    const codePoint = char.codePointAt(0) ?? 0;
-    const target = !covers(font, codePoint) && covers(MATH_FONT, codePoint) ? MATH_FONT : font;
+  for (const { segment } of GRAPHEMES.segment(run.text)) {
+    const has = (f: string) =>
+      [...segment].every((c) => IGNORABLE.test(c) || covers(f, c.codePointAt(0) ?? 0));
+    const target =
+      latin !== undefined && has(latin)
+        ? latin
+        : has(font)
+          ? font
+          : has(MATH_FONT)
+            ? MATH_FONT
+            : font;
     const last = out.at(-1);
     if (last !== undefined && last.font === target)
-      out[out.length - 1] = { ...last, text: last.text + char };
-    else out.push({ text: char, font: target, script: run.script });
+      out[out.length - 1] = { ...last, text: last.text + segment };
+    else out.push({ text: segment, font: target, script: run.script });
   }
   return out;
 }
