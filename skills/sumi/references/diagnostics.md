@@ -74,12 +74,12 @@ Every stage reports problems as the same diagnostic object. In
 | `component/anchor-on-zoom` (warning) | `fromAnchor` / `toAnchor` on a `zoom` edge, whose corners follow from where the target lies | remove the anchor; to join other corners, place the target on another side of the source |
 | `component/deprecated` (warning) | still works but is being replaced | switch to the replacement in the message |
 | `asset/*` | icons (`icon:`) and images (`component: image`): unknown icon, label next to an icon, a `src` that leaves the YAML's directory (lint); missing, unsupported, too large or unsafe files (render) | per code in [assets](assets.md#fixing-asset) |
-| `theme/unknown` | `figure.theme` is not built in | `minimal`, `academic`, `slides` or `color` (see hint) |
+| `theme/unknown` | `figure.theme` is not built in | `minimal`, `academic`, `slides`, `color` or `paper` (see hint) |
 | `theme/missing-variant` (warning) | the theme has no style for that variant | usually ignore; choose another variant if it matters |
 | `theme/missing-tone` (warning) | the theme has no color for that tone (built-in themes define every tone) | usually ignore; choose another tone if it matters |
 | other `theme/*` | a problem in a theme definition | not fixable in the figure — report it |
 | `profile/unknown` | `figure.profile` is not built in | `paper-single`, `paper-double` or `presentation-16x9` (see hint) |
-| `profile/font-too-small` | text is smaller than the profile's minimum | a user decision: another profile or theme. For `presentation-16x9` (14pt minimum) use theme `slides`; `minimal`, `academic` and `color` fail it |
+| `profile/font-too-small` | text is smaller than the profile's minimum | a user decision: another profile or theme. For `presentation-16x9` (14pt minimum) use theme `slides`; `minimal`, `academic`, `color` and `paper` fail it |
 | `lint/*` | structural warnings — see `docs/lint-rules.md` | below |
 
 ### Structural lint (`lint/*`)

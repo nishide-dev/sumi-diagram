@@ -61,9 +61,10 @@ Before writing YAML, make sure you know:
   paper figure (`paper-double`, 180mm) or a slide (`presentation-16x9`).
   This is the user's decision — ask if it is not stated. What fits on a
   slide: [layout-tips](references/layout-tips.md).
-- **Theme** (`minimal` (default), `academic`, `slides` or `color`; a slide
-  needs `slides`; `sumi catalog --section themes` lists the profiles each
-  suits) and the output path (default: next to the user's other files,
+- **Theme** (`minimal` (default), `academic`, `slides`, `color` or `paper`;
+  a slide needs `slides`; a paper figure in the style of published ML
+  figures — rounded pastel boxes, small arrowheads, Inter — suits `paper`;
+  `sumi catalog --section themes` lists the profiles each suits) and the output path (default: next to the user's other files,
   named `<figure-id>.sumi.yaml`).
 - **Layout** (your choice, not a question): flows and graphs use the
   default **auto** layout; paper block diagrams (stacked layers, residuals,

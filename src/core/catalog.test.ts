@@ -15,6 +15,7 @@ import {
   BUILTIN_THEMES,
   buildThemeCatalog,
   DEFAULT_FONT_SET_ID,
+  LATIN_FONT_SET_ID,
   type Theme,
   themeCatalogEntry,
   validateTheme,
@@ -57,10 +58,19 @@ describe("buildThemeCatalog", () => {
     for (const entry of buildThemeCatalog()) {
       expect(entry.missingVariants).toEqual({});
       expect(entry.tones).toEqual([...TONE_NAMES]);
-      expect(entry.fonts.id).toBe(DEFAULT_FONT_SET_ID);
+      // paper (#173) uses the Latin font set (#172), the others the default.
+      expect(entry.fonts.id).toBe(entry.id === "paper" ? LATIN_FONT_SET_ID : DEFAULT_FONT_SET_ID);
       expect(entry.fonts.styles).toEqual(["regular", "bold", "mono"]);
       expect(entry.description).toEqual(expect.any(String));
     }
+  });
+
+  test("paper: font sizes and the profiles they satisfy (#173)", () => {
+    const paper = buildThemeCatalog().find((t) => t.id === "paper");
+    expect(paper).toMatchObject({
+      fontSizePt: { min: 7, max: 9, base: { node: 8, group: 9, edge: 7 } },
+      compatibleProfiles: ["paper-single", "paper-double"],
+    });
   });
 
   test("minimal: font sizes and the profiles they satisfy", () => {

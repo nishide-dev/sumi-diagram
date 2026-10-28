@@ -1,6 +1,6 @@
 /**
- * Built-in themes (design doc §4.3) and lookup by name. Both are
- * domain-neutral and use the bundled font set; every variant of every built-in
+ * Built-in themes (design doc §4.3) and lookup by name. They are
+ * domain-neutral and use the bundled font sets; every variant of every built-in
  * component is defined, so the built-in components never fall back with
  * `theme/missing-variant`.
  *
@@ -14,6 +14,12 @@
  *   light gray fill.
  * - `color` (#92): general purpose, with color. Outlines and text as
  *   `minimal`; tones are soft pastel fills and emphasis uses a blue accent.
+ * - `paper` (#173, design doc §6.52): for paper figures, after the reference
+ *   figures of #167 (Transformer, DiT, H3-World). Rounded boxes and groups,
+ *   pastel tone fills measured from those figures, black 1pt frames, light
+ *   gray panels, 0.5pt edges (so arrowheads are small: their size follows the
+ *   edge's line width) and Inter for Latin text in structured figures (font
+ *   set `sumi/inter-biz-ud-gothic`, #172).
  *
  * Tones (#92, design doc §6.20) only change colors, and only of nodes and
  * groups that set `tone`. The monochrome themes map the eight tones to three
@@ -25,7 +31,7 @@ import { type DocPath, didYouMean } from "../diagnostics";
 import { errorAt } from "../figure/report";
 import type { Locator } from "../figure/yaml";
 import type { Result } from "../result";
-import { DEFAULT_FONT_SET_ID } from "./fonts";
+import { DEFAULT_FONT_SET_ID, LATIN_FONT_SET_ID } from "./fonts";
 import { type StyleLayerInput, type Theme, type ThemeDefinition, validateTheme } from "./schema";
 import type { Tone } from "./tones";
 
@@ -86,6 +92,28 @@ function componentStyles(styles: VariantStyles): NonNullable<ThemeDefinition["co
       muted: styles.edge.muted,
     },
   };
+}
+
+/**
+ * Rounds the corners of the rectangular nodes (box, square) and of the
+ * legend's frame (#173). Other shapes have no corners to round (circles,
+ * diamonds, …) or draw their own outline (stack, document, …); groups take
+ * their radius from `base.group`.
+ */
+function roundedBoxes(
+  components: NonNullable<ThemeDefinition["components"]>,
+  node: string,
+  legend: string,
+): NonNullable<ThemeDefinition["components"]> {
+  const rounded = { ...components };
+  for (const name of ["box", "square"]) {
+    rounded[name] = { ...rounded[name], default: { ...rounded[name]?.default, radius: node } };
+  }
+  rounded.legend = {
+    ...rounded.legend,
+    default: { ...rounded.legend?.default, radius: legend },
+  };
+  return rounded;
 }
 
 /**
@@ -380,6 +408,108 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
         muted: { stroke: "{color.muted}", fontColor: "{color.muted}" },
       },
     }),
+    tones: {
+      gray: { fill: "{tone.gray}" },
+      red: { fill: "{tone.red}" },
+      orange: { fill: "{tone.orange}" },
+      yellow: { fill: "{tone.yellow}" },
+      green: { fill: "{tone.green}" },
+      blue: { fill: "{tone.blue}" },
+      purple: { fill: "{tone.purple}" },
+      pink: { fill: "{tone.pink}" },
+    },
+  },
+  {
+    version: 1,
+    id: "paper",
+    description:
+      "For paper figures: rounded corners, pastel tone fills, small arrowheads, Inter for Latin text",
+    fonts: LATIN_FONT_SET_ID,
+    tokens: {
+      color: {
+        text: "#000000",
+        line: "#000000",
+        paper: "#ffffff",
+        // Contrast 4.7:1 on white: muted text stays readable at 7pt.
+        muted: "#737373",
+        // The light gray of the panels in the Transformer and DiT figures.
+        surface: "#f3f3f5",
+      },
+      // Pastel fills measured from the reference figures (Transformer, DiT);
+      // the text (black) keeps a contrast of at least 15:1 on each.
+      tone: {
+        gray: "#dcdee6",
+        red: "#f6dcdb",
+        orange: "#f9e0bc",
+        yellow: "#f1f4c6",
+        green: "#d0e6cd",
+        blue: "#cddff6",
+        purple: "#dfdcef",
+        pink: "#f6d8e5",
+      },
+      size: { text: "8pt", small: "7pt", heading: "9pt" },
+      // Frames 1pt as in the Transformer figure; edges 0.5pt, which keeps
+      // the arrowhead small (its size follows the edge's line width).
+      line: { regular: "1pt", edge: "0.5pt", bold: "1.5pt" },
+      radius: { node: "2pt", group: "6pt", legend: "3pt" },
+      dash: { regular: 3 },
+    },
+    base: {
+      node: {
+        fill: "{color.paper}",
+        stroke: "{color.line}",
+        strokeWidth: "{line.regular}",
+        fontSize: "{size.text}",
+        fontColor: "{color.text}",
+      },
+      group: {
+        fill: "{color.surface}",
+        stroke: "{color.line}",
+        strokeWidth: "{line.regular}",
+        radius: "{radius.group}",
+        fontSize: "{size.heading}",
+        fontColor: "{color.text}",
+        bold: true,
+      },
+      edge: {
+        fill: "{color.paper}",
+        stroke: "{color.line}",
+        strokeWidth: "{line.edge}",
+        fontSize: "{size.small}",
+        fontColor: "{color.text}",
+        filled: true,
+      },
+    },
+    components: roundedBoxes(
+      componentStyles({
+        shape: {
+          emphasis: { strokeWidth: "{line.bold}", bold: true },
+          muted: { stroke: "{color.muted}", fontColor: "{color.muted}" },
+        },
+        label: {
+          default: { fill: "transparent", strokeWidth: "0pt" },
+          muted: { fontColor: "{color.muted}" },
+        },
+        junction: junctionStyles("{color.line}", "{color.muted}"),
+        container: {
+          // As the dimmed panels of the DiT figure: gray frame and title, white.
+          muted: {
+            fill: "{color.paper}",
+            stroke: "{color.muted}",
+            fontColor: "{color.muted}",
+            bold: false,
+          },
+        },
+        legend: legendStyles("{color.paper}", "{color.muted}"),
+        edge: {
+          dashed: { strokeDash: "{dash.regular}" },
+          emphasis: { strokeWidth: "{line.regular}" },
+          muted: { stroke: "{color.muted}", fontColor: "{color.muted}" },
+        },
+      }),
+      "{radius.node}",
+      "{radius.legend}",
+    ),
     tones: {
       gray: { fill: "{tone.gray}" },
       red: { fill: "{tone.red}" },
