@@ -15,6 +15,7 @@
  * - `examples/pipeline` under every theme × profile via overrides →
  *   docs/gallery/compare/
  * - every tone under every built-in theme (#92) → docs/gallery/tones/
+ * - a dimmed group under every built-in theme (#175) → docs/gallery/dim/
  *
  * and writes docs/gallery/index.html and docs/gallery/README.md. Component
  * samples and examples must render without any diagnostic; comparison cells
@@ -37,6 +38,7 @@ import {
   COMPARISON_EXAMPLE,
   comparison,
   componentSamples,
+  dimSample,
   GALLERY_DIR,
   toneSample,
 } from "./gallery/samples";
@@ -61,6 +63,7 @@ const exampleSources = [...new Bun.Glob("examples/*/*.sumi.yaml").scanSync(ROOT)
   .sort();
 const compare = comparison();
 const tones = toneSample();
+const dim = dimSample();
 
 const jobs: RenderJob[] = [];
 for (const sample of samples) {
@@ -97,6 +100,9 @@ for (const rendering of compare.renderings) {
 for (const rendering of tones.renderings) {
   jobs.push({ file: tones.fileName, source: tones.source, rendering });
 }
+for (const rendering of dim.renderings) {
+  jobs.push({ file: dim.fileName, source: dim.source, rendering });
+}
 
 const outcomes = await renderAll(jobs);
 let cursor = 0;
@@ -115,9 +121,10 @@ const model: GalleryModel = {
   }),
   comparison: { source: COMPARISON_EXAMPLE, outcomes: take(compare.renderings.length) },
   tones: { sample: tones, outcomes: take(tones.renderings.length) },
+  dim: { sample: dim, outcomes: take(dim.renderings.length) },
 };
 
-// Component and tone samples and examples must be clean.
+// Component, tone and dim samples and examples must be clean.
 const problems: string[] = [];
 const strict: [string, RenderOutcome][] = [
   ...model.components.flatMap(({ sample, outcomes }) =>
@@ -125,6 +132,7 @@ const strict: [string, RenderOutcome][] = [
   ),
   ...model.examples.map(({ source, outcome }): [string, RenderOutcome] => [source, outcome]),
   ...model.tones.outcomes.map((o): [string, RenderOutcome] => [`tones (${o.theme})`, o]),
+  ...model.dim.outcomes.map((o): [string, RenderOutcome] => [`dim (${o.theme})`, o]),
 ];
 for (const [name, outcome] of strict) {
   if (outcome.svg === undefined || outcome.diagnostics.length > 0) {
