@@ -3,7 +3,11 @@
  * turns D2's SVG into Sumi's output.
  *
  * - The root `<svg>` gets `width="{W·0.5}pt" height="{H·0.5}pt"` from its
- *   viewBox (design doc §5.1). The viewBox is kept; nothing is scaled down.
+ *   viewBox (design doc §5.1). The viewBox is kept; nothing is scaled down,
+ *   except for a figure with `figure.fit: scale` (#183, §6.48) wider than its
+ *   profile's maximum width: its `width` is that maximum and its `height`
+ *   shrinks by the same factor, so viewers, the PDF and the PPTX print it
+ *   smaller while every coordinate inside stays as drawn.
  * - A `<metadata>` element with Sumi's provenance is inserted as the first
  *   child of the root (namespaced, no timestamps, so output stays
  *   byte-deterministic for the same input). A figure with icons or images
@@ -27,6 +31,7 @@ import type {
 } from "../compiler/compile";
 import type { Diagnostic } from "../core/diagnostics";
 import { SUMI_VERSION } from "../core/figure/validate";
+import { getProfile } from "../core/profile/builtin";
 import type { Result } from "../core/result";
 import { PT_PER_D2_UNIT } from "../core/units";
 import { invalid, readD2Svg } from "./svg";
@@ -86,7 +91,10 @@ export interface FinalizeOptions {
 export interface FinalizedSvg {
   svg: string;
   metadata: SumiSvgMetadata;
-  /** Output size in pt (`viewBox × 0.5`), as written on the root element. */
+  /**
+   * Output size in pt as written on the root element: `viewBox × 0.5`, times
+   * the `figure.fit: scale` factor (#183) if the figure is shrunk.
+   */
   widthPt: number;
   heightPt: number;
 }
@@ -303,11 +311,15 @@ export function finalizeSvg(
   });
   if (artifact.d2Source !== compiled.d2Source) return mismatch("the D2 source");
   if (artifact.fontSetId !== compiled.fontSet.id) return mismatch("the font set");
-  return finalizeDocument(artifact.svg, {
-    ...metadataBase(compiled, options),
-    backend: { ...artifact.backend },
-    d2Sha256: sha256(compiled.d2Source),
-  });
+  return finalizeDocument(
+    artifact.svg,
+    {
+      ...metadataBase(compiled, options),
+      backend: { ...artifact.backend },
+      d2Sha256: sha256(compiled.d2Source),
+    },
+    fitWidthPt(compiled),
+  );
 }
 
 /**
@@ -320,10 +332,26 @@ export function finalizeStructuredSvg(
   compiled: CompiledStructuredFigure,
   options: FinalizeOptions,
 ): Result<FinalizedSvg> {
-  return finalizeDocument(svg, {
-    ...metadataBase(compiled, options),
-    backend: { name: STRUCTURED_BACKEND, version: SUMI_VERSION },
-  });
+  return finalizeDocument(
+    svg,
+    {
+      ...metadataBase(compiled, options),
+      backend: { name: STRUCTURED_BACKEND, version: SUMI_VERSION },
+    },
+    fitWidthPt(compiled),
+  );
+}
+
+/**
+ * The width a figure with `figure.fit: scale` (#183) is shrunk to: its
+ * profile's maximum width. `undefined` without `fit` or without a limit.
+ */
+function fitWidthPt(compiled: CompiledFigure): number | undefined {
+  const { meta } = compiled.ir;
+  if (meta.fit !== "scale") return undefined;
+  const profile = getProfile(meta.profileId);
+  if (profile === undefined) throw new Error(`internal error: unknown profile ${meta.profileId}`);
+  return profile.page.maxWidth?.pt;
 }
 
 function metadataBase(
@@ -345,8 +373,16 @@ function metadataBase(
   };
 }
 
-/** Checks a drawing and adds the root size and the metadata (shared by both backends). */
-function finalizeDocument(source: string, metadata: SumiSvgMetadata): Result<FinalizedSvg> {
+/**
+ * Checks a drawing and adds the root size and the metadata (shared by both
+ * backends). A drawing wider than `fitWidthPt` is printed at that width
+ * (`figure.fit: scale`, #183); a narrower one is never enlarged.
+ */
+function finalizeDocument(
+  source: string,
+  metadata: SumiSvgMetadata,
+  fitWidthPt?: number,
+): Result<FinalizedSvg> {
   const read = readD2Svg(source);
   if (!read.ok) return { ok: false, diagnostics: [read.diagnostic] };
   const { root, viewBox, drawing } = read.doc;
@@ -363,8 +399,11 @@ function finalizeDocument(source: string, metadata: SumiSvgMetadata): Result<Fin
   const fontDiagnostics = checkEmbeddedFonts(drawing);
   if (fontDiagnostics.length > 0) return { ok: false, diagnostics: fontDiagnostics };
 
-  const widthPt = viewBox.width * PT_PER_D2_UNIT;
-  const heightPt = viewBox.height * PT_PER_D2_UNIT;
+  const naturalWidthPt = viewBox.width * PT_PER_D2_UNIT;
+  const naturalHeightPt = viewBox.height * PT_PER_D2_UNIT;
+  const shrink = fitWidthPt !== undefined && naturalWidthPt > fitWidthPt;
+  const widthPt = shrink ? fitWidthPt : naturalWidthPt;
+  const heightPt = shrink ? naturalHeightPt * (fitWidthPt / naturalWidthPt) : naturalHeightPt;
   const rootAttributes = [
     ...root.attributes,
     { name: "width", value: `${formatNumber(widthPt)}pt` },

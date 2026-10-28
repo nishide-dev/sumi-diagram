@@ -58,7 +58,9 @@ describe("inspectSvg", () => {
       maxWidthPt: getProfile("paper-single")?.page.maxWidth?.pt as number,
       maxHeightPt: getProfile("paper-single")?.page.maxHeight?.pt as number,
       minFontSizePt: 7,
+      minScaledFontSizePt: 5,
     });
+    expect(inspection.scale).toBeUndefined();
     expect(inspection.elements.map((e) => e.key)).toEqual([
       "g:grp",
       "n:a",

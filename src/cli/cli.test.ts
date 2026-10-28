@@ -661,7 +661,9 @@ describe("sumi catalog", () => {
     for (const id of [...BUILTIN_THEMES.keys(), ...BUILTIN_PROFILES.keys()]) {
       expect(all.stdout).toMatch(new RegExp(`^${id} `, "m"));
     }
-    expect(all.stdout).toMatch(/^paper-single\s+88mm\s+220mm\s+7pt\s+2mm\/8mm\/4mm\s/m);
+    expect(all.stdout).toMatch(
+      /^paper-single\s+88mm\s+220mm\s+7pt \(scaled 5pt\)\s+2mm\/8mm\/4mm\s/m,
+    );
 
     const table = await sumi(["catalog", "--kind", "edge"]);
     expect(table.exitCode).toBe(0);

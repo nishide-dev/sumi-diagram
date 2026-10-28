@@ -118,7 +118,7 @@ is no per-figure suppression; mention kept warnings in your report instead.
 | `svg/outline-radius-ignored` (warning) | polygon outlines cannot apply the theme's rounded corners | report the limitation; changing the theme is a user decision |
 | other `svg/*` (`svg/invalid`, `svg/missing-element`, `svg/missing-font-face`, …) | the SVG did not pass Sumi's own checks | a Sumi bug, not a figure problem; report it |
 | `pdf/input-too-large`, `pdf/missing-font`, `pdf/unresolved-font`, `pdf/engine-unavailable`, `pdf/conversion-failed` | the PDF conversion (`-o x.pdf` / `--format pdf`) failed; no PDF is written | not a figure problem: `sumi doctor` for the fonts; otherwise report it with the message (the SVG renders without `--format pdf`) |
-| `pptx/unsupported-size` | a slide side exceeds 56 inches, or the SVG lacks valid pt dimensions | use a smaller profile only if the user agrees; report invalid finalized SVG dimensions as a bug |
+| `pptx/unsupported-size` | a slide side exceeds 56 inches, the SVG lacks valid pt dimensions, or (editable mode) `figure.fit: scale` shrinks text below 1pt | use a smaller profile only if the user agrees; report invalid finalized SVG dimensions as a bug; text below 1pt: use the picture PPTX or shrink less |
 | `pptx/experimental-editable` (warning), `pptx/glued-routing` (warning) | explicit experimental editable export; glued routes become straight and labels stay fixed | report the boundaries; keep picture PPTX unless editable objects were requested |
 | `pptx/unsupported-asset` | the editable PPTX cannot carry icons or images; nothing is written | use the default picture PPTX (drop `--pptx-mode editable`), or ask whether the icons/images may go |
 | `pptx/unsupported-geometry` | the editable exporter cannot represent this SVG/arrowhead or glued self-loop | use the default freeform route mode for self-loops, or picture PPTX; report unexpected Sumi SVG structures |
@@ -136,7 +136,8 @@ exit code 1. Configure like structural rules
 | --- | --- | --- |
 | `geometry/exceeds-page-width` | error | shorter labels; auto: `direction: down`, fewer nodes side by side; structured: re-arrange the trees (a long row as two rows), smaller `gap`s; too wide and too tall: [two rows](layout-tips.md#too-wide-with-right-too-tall-with-down); a wider profile only if the user agrees and the figure is not already on `paper-double` |
 | `geometry/exceeds-page-height` | error | paper profiles 220mm, `presentation-16x9` 190.5mm (no profile allows more than 220mm): auto: `direction: right`, fewer layers; structured: re-arrange the trees (a long stack as a row of stacks), smaller `gap`s; or split the figure |
-| `geometry/text-too-small` | error | as `profile/font-too-small` (a safety net after rendering) |
+| `geometry/text-too-small` | error | as `profile/font-too-small` (a safety net after rendering); with `figure.fit: scale`, a label printed below 5pt (paper profiles) after shrinking: make the figure narrower so it shrinks less |
+| `geometry/script-too-small` | info | with `figure.fit: scale`, subscripts / superscripts of label math print below 5pt after shrinking; one finding per figure; information only (scripts are exempt from the minimum) |
 | `geometry/label-overflow` | error | remove or enlarge explicit `width`/`height` (the `path` points at `props` then), shorten or break the label, or use a shape with more room for text (`box`) |
 | `geometry/out-of-canvas` | error | shorten labels; if it persists, report it as a Sumi bug |
 | `geometry/node-overlap` | warning | review explicit sizes; auto: put the nodes in the same group; structured: an attached node in a `gap` overlaps its neighbour, put it in the tree, attach it to a free side, or widen the `gap` ([attach](structured.md#attach-side-notes)) |
