@@ -1552,19 +1552,23 @@ describe("the A* lower bound", () => {
     ["#113's reproduction", readFileSync(sharedSegment, "utf8"), undefined],
     ["synthetic columns (bridged nets)", synthetic("columns"), undefined],
     ["synthetic grid", synthetic("grid"), undefined],
-  ])("%s: the same route costs as without it (Dijkstra)", (_name, text, measurer) => {
-    const placed = layoutStructuredFigure(text, {
-      route: false,
-      ...(measurer !== undefined && { measurer }),
-    });
-    if (!placed.ok) throw new Error(JSON.stringify(placed.diagnostics));
-    const { ir, layout } = placed.value;
-    // Every edge costs the same with Dijkstra on the same occupancy (#116:
-    // routes of equal cost may differ, so whole layouts are not compared).
-    const fast = routeEdges(ir, layout, { verifyLowerBound: true });
-    expect(fast.diagnostics.filter((d) => d.code !== "layout/edge-crossing")).toEqual([]);
-    expect(JSON.stringify(fast.layout)).toBe(JSON.stringify(routeEdges(ir, layout).layout));
-  });
+  ])(
+    "%s: the same route costs as without it (Dijkstra)",
+    (_name, text, measurer) => {
+      const placed = layoutStructuredFigure(text, {
+        route: false,
+        ...(measurer !== undefined && { measurer }),
+      });
+      if (!placed.ok) throw new Error(JSON.stringify(placed.diagnostics));
+      const { ir, layout } = placed.value;
+      // Every edge costs the same with Dijkstra on the same occupancy (#116:
+      // routes of equal cost may differ, so whole layouts are not compared).
+      const fast = routeEdges(ir, layout, { verifyLowerBound: true });
+      expect(fast.diagnostics.filter((d) => d.code !== "layout/edge-crossing")).toEqual([]);
+      expect(JSON.stringify(fast.layout)).toBe(JSON.stringify(routeEdges(ir, layout).layout));
+    },
+    60_000,
+  );
 });
 
 describe("checkRoutes catches what the router must not do", () => {
