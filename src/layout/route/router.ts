@@ -1563,6 +1563,7 @@ class Router {
       ...n,
       rect: rect(n.rect),
       ...(n.label !== undefined && { label: text(n.label) }),
+      ...(n.sublabel !== undefined && { sublabel: text(n.sublabel) }),
     }));
     const groups: GroupLayout[] = layout.groups.map((g) => ({
       ...g,

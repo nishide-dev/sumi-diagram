@@ -56,12 +56,13 @@ import {
 } from "../core/registry/manifest";
 import { getTheme } from "../core/theme/builtin";
 import type { FontSetId } from "../core/theme/fonts";
-import type {
-  EdgeStyle,
-  GroupStyle,
-  NodeStyle,
-  ResolvedStyle,
-  StyleLength,
+import {
+  type EdgeStyle,
+  type GroupStyle,
+  type NodeStyle,
+  type ResolvedStyle,
+  type StyleLength,
+  sublabelFontSize,
 } from "../core/theme/style";
 
 export type LayoutDirection = FigureMeta["layout"]["direction"];
@@ -130,6 +131,14 @@ export interface AlignIR {
   readonly items: readonly ElementKey[];
   /** Where the constraint is written (`figure.layout.align[i]`), for diagnostics. */
   readonly srcAt: SourceMapEntry;
+}
+
+/** `nodes[].sublabel` (#184): its text and the font size it is drawn at. */
+export interface SublabelIR {
+  /** As written: newlines break lines, label math is allowed. */
+  readonly text: string;
+  /** {@link sublabelFontSize} of the node's font size. */
+  readonly fontSize: StyleLength;
 }
 
 /** `nodes[].attach` with the target resolved to a key. */
@@ -219,6 +228,12 @@ export interface NodeIR extends ObjectIRBase {
    * positive clockwise as SVG's `rotate()`. Structured layout only.
    */
   readonly labelRotation?: LabelRotation;
+  /**
+   * A second, smaller text drawn under the label (#184, design doc §6.51),
+   * at `sublabelFontSize(style.fontSize)` in the label's font. Structured
+   * layout only.
+   */
+  readonly sublabel?: SublabelIR;
   /** A bundled icon drawn in place of the label (#94); the node has no label. */
   readonly icon?: IconIR;
   /** The image a `sumi/image` node embeds (#94); the node has no label. */
@@ -448,6 +463,9 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
           }),
         }),
         ...(n.labelRotation !== undefined && { labelRotation: n.labelRotation }),
+        ...(n.sublabel !== undefined && {
+          sublabel: freeze({ text: n.sublabel, fontSize: sublabelFontSize(style.fontSize) }),
+        }),
         ...(n.icon !== undefined && { icon: iconIR(n.icon) }),
         ...(component.manifest.embed === "image" && {
           image: imageIR(component.props, sourceEntry(["nodes", index, "props", "src"])),

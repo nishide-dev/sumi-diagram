@@ -28,11 +28,11 @@ metadata: {}               # optional, any JSON-compatible data; not drawn
 | Element | Fields (required in bold) | Defaults |
 | --- | --- | --- |
 | group | **`id`**, `label`, `labelAt`, `caption`, `component`, `variant`, `tone`, `group`, `arrange`¹ | component `container`, variant `default`, no tone, no parent |
-| node | **`id`**, **`component`**, `label`, `labelRotation`¹, `variant`, `tone`, `icon`, `props`, `group`, `attach`¹ | variant `default`, no label, no tone, no group |
+| node | **`id`**, **`component`**, `label`, `sublabel`¹, `labelRotation`¹, `variant`, `tone`, `icon`, `props`, `group`, `attach`¹ | variant `default`, no label, no tone, no group |
 | edge | **`from`**, **`to`**, `id`, `label`, `labelAt`¹, `labelSide`¹, `component`, `variant`, `props`, `fromAnchor`¹, `toAnchor`¹ | component `arrow`, variant `default` |
 
 ¹ Structured layout only (a figure with `figure.layout.arrange`); see
-[structured](structured.md); `labelRotation` (`90` / `-90`, newer than 0.5.3): [turned labels](structured.md#turned-labels). `icon`: see [assets](assets.md). Group
+[structured](structured.md); `labelRotation` (`90` / `-90`, newer than 0.5.3): [turned labels](structured.md#turned-labels); `sublabel` (newer than 0.5.3): [sublabels](structured.md#sublabels). `icon`: see [assets](assets.md). Group
 `labelAt` / `caption`: [groups](#groups). These, edge `labelAt` /
 `labelSide`, `figure.layout.align` / `fanIn`, label-math accents and the
 `legend` component are new in 0.5.0. When you use them and
@@ -195,8 +195,15 @@ Both draw two lines: `Scale, Shift`, then γ and β with their subscripts
   background instead of the shaded one (without `tone`; a `tone` sets the
   fill) and a gray, non-bold title. In `academic`, a muted group's dashed border reads like
   a dashed edge (a skip, an optional flow): avoid `muted` there when the
-  figure has dashed edges, or say what each means (a `legend`). No variant
-  removes the border: a group always draws one.
+  figure has dashed edges, or say what each means (a `legend`).
+- Frame variants (container, every theme): `plain` draws neither border
+  nor fill, only the title and caption (a panel of a multi-panel figure
+  whose caption must line up with the framed panels' ones); `filled` a
+  shaded fill without a border; `dashed` a dashed border without a fill.
+  A `tone` sets the fill of any of them (`plain` with a tone looks like
+  `filled`: use `filled`). A border that is not drawn is not reported by
+  the geometry lint (`edge-near-border`, a label over the border), and an
+  edge label inside a `plain` group gets the background beneath it.
 - In structured figures, membership follows the group's `arrange` tree;
   `group:` can be omitted ([structured](structured.md#arrange-trees)).
 
@@ -227,6 +234,10 @@ Always take these from `sumi catalog --json`. Each entry has `id`
 - Variants are a closed list per component (typically `default`, `emphasis`,
   `muted`; edges also `dashed`). Use them to encode meaning consistently
   (e.g. `muted` for secondary elements), not for decoration.
+- `variant: filled` (box-like shapes and `operator`, not `stack`) draws
+  the fill without the outline: a borderless block, as in many paper
+  figures. Give it a `tone`; without one it takes tone gray's fill. A
+  variant is one value, so a block cannot be both `filled` and `muted`.
 - Node sizes (`props.width` / `props.height`) are lengths with a unit
   (`mm`, `cm`, `in`, `pt`) and must be a multiple of 0.5pt. Many mm values
   are not (`12mm` = 34.02pt); prefer `pt` (`34pt`). Omit sizes unless needed:

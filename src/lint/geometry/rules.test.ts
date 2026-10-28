@@ -852,6 +852,34 @@ describe("geometry/label-collision", () => {
     expect(run(centeredBaseline(90))).toEqual([]);
   });
 
+  test("no border to overlap on a plain or filled group; a dashed one has one (#174)", () => {
+    const grp = { bbox: { x: 0, y: 40, width: 200, height: 100 } };
+    for (const theme of ["minimal", "academic", "slides", "color"]) {
+      for (const [variant, expected] of [
+        ["default", 1],
+        ["plain", 0],
+        ["filled", 0],
+        ["dashed", 1],
+      ] as const) {
+        const source = SOURCE.replace(
+          "figure: { id: geo }",
+          `figure: { id: geo, theme: ${theme} }`,
+        ).replace("{ id: grp, label: Group }", `{ id: grp, label: Group, variant: ${variant} }`);
+        const result = lintSpec(
+          compile(source),
+          {
+            elements: {
+              "g:grp": grp,
+              "e:#0": { labels: [label("漢漢", 100, centeredBaseline(40))] },
+            },
+          },
+          { code },
+        );
+        expect([theme, variant, result.length]).toEqual([theme, variant, expected]);
+      }
+    }
+  });
+
   test("a rounded group's border follows its corners (review of #116)", () => {
     const rect = { x: 0, y: 0, width: 100, height: 100 };
     const crosses = (box: { x: number; y: number; width: number; height: number }, r: number) =>

@@ -2,6 +2,10 @@ import { describe, expect, test } from "bun:test";
 import { z } from "zod";
 import { checkFigure } from "../check";
 import type { DocPath } from "../diagnostics";
+import { getProfile } from "../profile/builtin";
+import { checkFontSizes } from "../profile/constrain";
+import { labelFontUsages } from "../theme/resolve";
+import { parseLength } from "../units";
 import { createBuiltinRegistry } from "./builtins";
 import { Registry } from "./registry";
 import { isBlankForD2 } from "./resolve";
@@ -236,6 +240,146 @@ nodes:
 `);
     expect(state.diagnostics.map((d) => [d.code, d.path])).toEqual([
       ["component/label-rotation-unsupported", ["nodes", 0, "labelRotation"]],
+    ]);
+  });
+});
+
+describe("nodes[].sublabel (#184)", () => {
+  const structured = (nodes: string, theme = "") => `version: 1
+figure:
+  id: f${theme}
+  layout:
+    arrange: { stack: { items: [a, b, c, d, e] } }
+nodes:
+${nodes}`;
+
+  test("on a node that draws an icon, a mark or an image it is an error", () => {
+    const { state } = checkFigure(
+      structured(`  - { id: a, component: box, icon: tabler/wave-sine, sublabel: x }
+  - { id: b, component: operator, props: { symbol: plus }, sublabel: x }
+  - { id: c, component: junction, sublabel: x }
+  - { id: d, component: image, props: { src: x.png }, sublabel: x }
+  - { id: e, component: box, label: E, sublabel: x }
+`),
+    );
+    const found = state.diagnostics.filter((d) => d.code.includes("sublabel"));
+    expect(found.map((d) => [d.code, d.severity, d.path])).toEqual([
+      ["component/sublabel-unsupported", "error", ["nodes", 0, "sublabel"]],
+      ["component/sublabel-unsupported", "error", ["nodes", 1, "sublabel"]],
+      ["component/sublabel-unsupported", "error", ["nodes", 2, "sublabel"]],
+      ["component/sublabel-unsupported", "error", ["nodes", 3, "sublabel"]],
+    ]);
+    expect(found[0]?.message).toBe(
+      "sublabel draws a second, smaller line under a node's label, but sumi/box draws an icon in place of its label here, with no label to put it under.",
+    );
+    expect(found[1]?.message).toContain("draws the symbol chosen by props.symbol here");
+    expect(found[2]?.message).toContain("draws a point here");
+    expect(found[3]?.message).toContain("draws the image file of props.src here");
+    for (const key of ["n:a", "n:b", "n:c", "n:d"])
+      expect(state.invalid.has(key as never)).toBe(true);
+    expect(state.components?.has("n:e")).toBe(true);
+  });
+
+  test("without a visible label it is an error", () => {
+    const { state } = checkFigure(
+      structured(`  - { id: a, component: box, sublabel: x }
+  - { id: b, component: box, label: " ", sublabel: x }
+  - { id: c, component: box, label: C, sublabel: x }
+  - { id: d, component: label, label: D, sublabel: x }
+  - { id: e, component: circle, label: E, sublabel: "x\\ny" }
+`),
+    );
+    expect(state.diagnostics.map((d) => [d.code, d.severity, d.path, d.hint])).toEqual([
+      [
+        "component/sublabel-without-label",
+        "error",
+        ["nodes", 0, "sublabel"],
+        "Add a label, or write the text as the label instead of the sublabel.",
+      ],
+      [
+        "component/sublabel-without-label",
+        "error",
+        ["nodes", 1, "sublabel"],
+        "Add a label, or write the text as the label instead of the sublabel.",
+      ],
+    ]);
+    expect([...(state.components?.keys() ?? [])].sort()).toEqual(["n:c", "n:d", "n:e"]);
+  });
+
+  test("its math is checked like the label's, at the sublabel", () => {
+    const { state } = checkFigure(
+      structured(`  - { id: a, component: box, label: A, sublabel: "$\\\\frac{1}{2}$" }
+  - { id: b, component: box, label: B, sublabel: "$x_t$ and $\\\\Sigma$" }
+  - { id: c, component: box, label: C }
+  - { id: d, component: box, label: D }
+  - { id: e, component: box, label: E }
+`),
+    );
+    expect(state.diagnostics.map((d) => [d.code, d.path])).toEqual([
+      ["component/invalid-math", ["nodes", 0, "sublabel"]],
+    ]);
+    expect(state.diagnostics[0]?.message).toContain('(sublabel characters 2–6: "\\frac")');
+    expect(state.invalid.has("n:a" as never)).toBe(true);
+    expect(state.components?.has("n:b")).toBe(true);
+  });
+
+  test("a sublabel below the profile's minimum is profile/font-too-small", () => {
+    const nodes = `  - { id: a, component: box, label: A, sublabel: x }
+  - { id: b, component: box, label: B }
+  - { id: c, component: box, label: C }
+  - { id: d, component: box, label: D }
+  - { id: e, component: box, label: E }
+`;
+    // The built-in themes' sublabels meet the built-in profiles' minimums:
+    // slides 16pt text → 14pt = presentation-16x9's 14pt, academic 8pt → 7pt
+    // = paper-single's 7pt.
+    for (const [theme, profile] of [
+      ["slides", "presentation-16x9"],
+      ["academic", "paper-single"],
+    ]) {
+      const { state } = checkFigure(
+        structured(nodes, `\n  theme: ${theme}\n  profile: ${profile}`),
+      );
+      expect(state.diagnostics).toEqual([]);
+      expect(labelFontUsages(state).filter((u) => u.sublabel)).toEqual([
+        { key: "n:a", fontSizePt: theme === "slides" ? 14 : 7, sublabel: true },
+      ]);
+    }
+    // A stricter minimum (7.5pt) passes the 8pt label but not its 7pt sublabel.
+    const check = checkFigure(structured(nodes, "\n  theme: academic"));
+    const paper = getProfile("paper-single");
+    if (paper === undefined) throw new Error("no paper-single");
+    const min = parseLength("7.5pt");
+    if (!min.ok) throw new Error(min.message);
+    const strict = { ...paper, typography: { ...paper.typography, minFontSize: min.length } };
+    checkFontSizes(check.state, strict, labelFontUsages(check.state), check.locate);
+    expect(check.state.diagnostics.map((d) => [d.code, d.path, d.message])).toEqual([
+      [
+        "profile/font-too-small",
+        ["nodes", 0, "sublabel"],
+        'Font size 7pt of the sublabel of node "a" is below the minimum 7.5pt of profile "paper-single".',
+      ],
+    ]);
+    expect(check.state.diagnostics[0]?.hint).toContain("7/8 of its node's font size");
+  });
+
+  test("on a legend it is an error", () => {
+    const { state } = checkFigure(`version: 1
+figure:
+  id: f
+  layout:
+    arrange: { stack: { items: [key] } }
+nodes:
+  - id: key
+    component: legend
+    label: Legend
+    sublabel: x
+    props:
+      entries:
+        - { label: Data, edge: { component: arrow } }
+`);
+    expect(state.diagnostics.map((d) => [d.code, d.path])).toEqual([
+      ["component/sublabel-unsupported", ["nodes", 0, "sublabel"]],
     ]);
   });
 });

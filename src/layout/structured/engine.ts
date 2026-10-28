@@ -58,6 +58,7 @@ import {
   type GroupLayout,
   type LayoutIR,
   type NodeLayout,
+  type Point,
   type Rect,
   roundRect,
   roundUnits,
@@ -190,6 +191,8 @@ class StructuredLayout {
   /** Attached nodes by container (their target's parent), in document order. */
   readonly #attached = new Map<Container, NodeIR[]>();
   readonly #labels = new Map<ElementKey, TextMetrics>();
+  /** Nodes' sublabels (#184), measured at their own font size. */
+  readonly #sublabels = new Map<ElementKey, TextMetrics>();
   readonly #leafSizes = new Map<ElementKey, Size>();
   readonly #defaultGap: number;
   readonly #groupPadding: number;
@@ -220,12 +223,23 @@ class StructuredLayout {
       this.#nodes.set(node.key, node);
       const label = measureText(node.label, node.style, measurer);
       if (label !== undefined) this.#labels.set(node.key, label);
+      const sublabel =
+        node.sublabel === undefined
+          ? undefined
+          : measureText(
+              node.sublabel.text,
+              { ...node.style, fontSize: node.sublabel.fontSize },
+              measurer,
+            );
+      if (sublabel !== undefined) this.#sublabels.set(node.key, sublabel);
       // An icon (#94) takes the place of the label: a square of 1 em. A
-      // turned label (#178) takes its turned box.
+      // sublabel (#184) stacks under the label; a turned label (#178) takes
+      // its turned box.
+      const text = label === undefined ? undefined : textBlock(label, sublabel);
       const box =
-        label !== undefined && node.labelRotation !== undefined
-          ? { width: label.height, height: label.width }
-          : (label ?? iconBox(node));
+        text !== undefined && node.labelRotation !== undefined
+          ? { width: text.height, height: text.width }
+          : (text ?? iconBox(node));
       this.#leafSizes.set(node.key, nodeSize(node, box, padding));
       if (node.attach !== undefined) {
         const container = node.parent ?? ROOT;
@@ -491,12 +505,20 @@ class StructuredLayout {
 
   #result(): LayoutIR {
     const labels = new Map<ElementKey, TextLayout>();
+    const sublabels = new Map<ElementKey, TextLayout>();
     for (const node of this.#ir.nodes) {
       const metrics = this.#labels.get(node.key);
       const rect = this.#rect(node.key);
-      if (metrics !== undefined) {
-        labels.set(node.key, placeText(metrics, nodeLabelCenter(node, rect), node.labelRotation));
+      if (metrics === undefined) continue;
+      const center = nodeLabelCenter(node, rect);
+      const sublabel = this.#sublabels.get(node.key);
+      if (sublabel === undefined) {
+        labels.set(node.key, placeText(metrics, center, node.labelRotation));
+        continue;
       }
+      const placed = placeTextBlock(metrics, sublabel, center, node.labelRotation);
+      labels.set(node.key, placed.label);
+      sublabels.set(node.key, placed.sublabel);
     }
     for (const group of this.#ir.groups) {
       const metrics = this.#labels.get(group.key);
@@ -506,7 +528,10 @@ class StructuredLayout {
       }
     }
 
-    const all = [...this.#rects.values(), ...[...labels.values()].map((label) => label.box)];
+    const all = [
+      ...this.#rects.values(),
+      ...[...labels.values(), ...sublabels.values()].map((label) => label.box),
+    ];
     const minX = Math.min(...all.map((r) => r.x));
     const minY = Math.min(...all.map((r) => r.y));
     const maxX = Math.max(...all.map((r) => r.x + r.width));
@@ -523,6 +548,7 @@ class StructuredLayout {
 
     const nodes: NodeLayout[] = this.#ir.nodes.map((node) => {
       const label = labels.get(node.key);
+      const sublabel = sublabels.get(node.key);
       return {
         key: node.key,
         kind: "node",
@@ -531,6 +557,7 @@ class StructuredLayout {
         rect: shift(this.#rect(node.key)),
         placement: node.attach === undefined ? "arrange" : "attach",
         ...(label !== undefined && { label: shiftText(label) }),
+        ...(sublabel !== undefined && { sublabel: shiftText(sublabel) }),
       };
     });
     const groups: GroupLayout[] = groupPreOrder(this.#ir).map((group) => {
@@ -661,6 +688,51 @@ export function placeText(
     height: metrics.width,
   };
   return { ...metrics, box: turned, anchor, rotation };
+}
+
+/**
+ * The box of a label with its sublabel under it (#184): their line boxes
+ * stacked without a gap (like the lines of one label: each line's
+ * half-leading spaces them), as wide as the wider. Without a sublabel, the
+ * label's own size.
+ */
+export function textBlock(
+  label: TextMetrics,
+  sublabel: TextMetrics | undefined,
+): { width: number; height: number } {
+  if (sublabel === undefined) return { width: label.width, height: label.height };
+  return {
+    width: Math.max(label.width, sublabel.width),
+    height: label.height + sublabel.height,
+  };
+}
+
+/**
+ * Places a label and its sublabel (#184) as one block centered on `center`:
+ * the label on top, the sublabel right under it, both centered
+ * horizontally. A turned block (#178) turns about `center` as a whole: each
+ * text is placed at its turned center and turned about it, which is the
+ * same turn (`placeText()`), so `-90` puts the label on the left.
+ */
+export function placeTextBlock(
+  label: TextMetrics,
+  sublabel: TextMetrics,
+  center: Point,
+  rotation?: LabelRotation,
+): { label: TextLayout; sublabel: TextLayout } {
+  // Offsets of the two centers from the block's center, before the turn.
+  const labelDy = -sublabel.height / 2;
+  const sublabelDy = label.height / 2;
+  // SVG's rotate(a): (x, y) → (x cos a − y sin a, x sin a + y cos a); for
+  // (0, dy) and a = ±90°, (∓dy, 0).
+  const at = (dy: number): Point =>
+    rotation === undefined
+      ? { x: center.x, y: center.y + dy }
+      : { x: center.x - Math.sign(rotation) * dy, y: center.y };
+  return {
+    label: placeText(label, at(labelDy), rotation),
+    sublabel: placeText(sublabel, at(sublabelDy), rotation),
+  };
 }
 
 /** Groups in pre-order of the group tree: roots in document order, each followed by its subtree. */

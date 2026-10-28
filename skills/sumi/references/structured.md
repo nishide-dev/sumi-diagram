@@ -25,7 +25,7 @@ and fall back to the older ways noted below.
 out and **a figure with `figure.layout.arrange` is structured, one without
 it auto** — so `engine` is not needed. An explicit `engine: auto` wins over
 `arrange`. Under auto, the structured-only fields (`figure.layout.arrange`,
-`align` and `fanIn`, `groups[].arrange`, `nodes[].attach` / `labelRotation`,
+`align` and `fanIn`, `groups[].arrange`, `nodes[].attach` / `sublabel` / `labelRotation`,
 `edges[].fromAnchor` / `toAnchor` / `labelAt` / `labelSide`) and the
 `legend` component are errors (`layout/structured-only`): remove them, or
 switch the figure to structured (root `arrange`, no `engine: auto`, every
@@ -116,8 +116,13 @@ output leaving downwards. No diagnostic names the caption (at most
 at the preview. In a centred stack (member, caption and the other end on
 one vertical), a `toAnchor: west` on the member does not help. If it detours, put the caption on an outer group that
 also holds the other end (a panel around input, block and output, below;
-it draws its own border), or place the other end beside the group (a
+it draws its own border; `variant: plain` hides it), or place the other end beside the group (a
 `row`) so the edge crosses a side.
+
+For a panel drawn without a frame next to framed ones, make it a group
+with `variant: plain` and a `caption` rather than a stack with a `label`
+node under it: in a `row` with `align: stretch` the panels are equally
+tall, so every caption sits on the same line.
 
 ```yaml
 # expect-render: fits
@@ -181,6 +186,40 @@ Both fields also work in auto figures (there the default title place is
 edges leaving a group downwards cross its caption). With a CLI older than
 0.5.0, leave out the group's `label` and `attach` a `label` node beside
 the group instead.
+
+## Sublabels
+
+**`sublabel`** on a node draws a second, smaller text right under its label,
+e.g. a tensor size under its name (`label: Noise, sublabel: "32 × 32 × 4"`).
+It is drawn at 7/8 of the label's font size, rounded down to 0.5pt (7pt
+under 8pt; 14pt under 16pt in `slides`), centered under the label, and the
+node is sized around both. Line breaks and label math work as in labels.
+Use it for a secondary line that should read smaller; a plain second line
+of the same size is just `\n` in the label. Two sizes only. With
+`labelRotation`, label and sublabel turn together. Structured only
+(`layout/structured-only` under auto); it needs a label
+(`component/sublabel-without-label`), and an `icon`, `operator`,
+`junction`, `image` or `legend` takes none
+(`component/sublabel-unsupported`). The sublabel's size is checked like
+any text: `profile/font-too-small` and, in a figure shrunk by
+`figure.fit: scale`, `geometry/text-too-small` at its printed size (7pt
+shrunk to 70% prints at 4.9pt). Added after 0.5.3: an older CLI reports
+`schema/unknown-field` — write the text as a second label line instead.
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: sublabels
+  theme: color
+  layout:
+    arrange: { row: { gap: 6mm, items: [latent, noise] } }
+nodes:
+  - { id: latent, component: box, label: "Noised\nLatent", sublabel: "32 × 32 × 4", tone: gray }
+  - { id: noise, component: box, label: Noise, sublabel: "32 × 32 × 4", tone: gray }
+edges:
+  - { from: latent, to: noise }
+```
 
 ## Turned labels
 
