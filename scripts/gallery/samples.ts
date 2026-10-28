@@ -21,6 +21,26 @@ export const GALLERY_DIR = "docs/gallery";
 export const SAMPLE_PROFILE = "paper-double";
 
 /**
+ * Profile of a `slides` sample that shows more than three node or group
+ * variants side by side (#174): `slides` text and lines are twice as large,
+ * so such a row does not fit {@link SAMPLE_PROFILE}. It is the profile
+ * `slides` is meant for. Samples with marks, images or a structured layout
+ * keep {@link SAMPLE_PROFILE}.
+ */
+export const WIDE_SAMPLE_PROFILE = "presentation-16x9";
+
+/** The profile a component's sample is rendered with under `theme`. */
+export function sampleProfile(entry: CatalogEntry, theme: string): string {
+  const row =
+    (entry.kind === "group" ||
+      (entry.kind === "node" && entry.mark === undefined && entry.embed === undefined)) &&
+    entry.engines === undefined;
+  return theme === "slides" && row && entry.variants.length > 3
+    ? WIDE_SAMPLE_PROFILE
+    : SAMPLE_PROFILE;
+}
+
+/**
  * The directory the `sumi/image` sample's files are read from (#94), relative
  * to the repository root: the self-made test images.
  */
@@ -346,12 +366,18 @@ export function componentSamples(): ComponentSample[] {
     fileName: `${componentStem(entry)}.sumi.yaml`,
     source: sampleSource(entry, first),
     ...(entry.kind === "node" && entry.embed !== undefined && { assetBase: SAMPLE_ASSET_DIR }),
-    renderings: THEMES.map((theme) => ({
-      output: `${GALLERY_DIR}/components/${componentStem(entry)}.${theme}.svg`,
-      theme,
-      profile: SAMPLE_PROFILE,
-      overrides: theme === first ? {} : { theme },
-    })),
+    renderings: THEMES.map((theme) => {
+      const profile = sampleProfile(entry, theme);
+      return {
+        output: `${GALLERY_DIR}/components/${componentStem(entry)}.${theme}.svg`,
+        theme,
+        profile,
+        overrides: {
+          ...(theme !== first && { theme }),
+          ...(profile !== SAMPLE_PROFILE && { profile }),
+        },
+      };
+    }),
   }));
 }
 

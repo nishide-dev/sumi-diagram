@@ -116,8 +116,13 @@ output leaving downwards. No diagnostic names the caption (at most
 at the preview. In a centred stack (member, caption and the other end on
 one vertical), a `toAnchor: west` on the member does not help. If it detours, put the caption on an outer group that
 also holds the other end (a panel around input, block and output, below;
-it draws its own border), or place the other end beside the group (a
+it draws its own border; `variant: plain` hides it), or place the other end beside the group (a
 `row`) so the edge crosses a side.
+
+For a panel drawn without a frame next to framed ones, make it a group
+with `variant: plain` and a `caption` rather than a stack with a `label`
+node under it: in a `row` with `align: stretch` the panels are equally
+tall, so every caption sits on the same line.
 
 ```yaml
 # expect-render: fits

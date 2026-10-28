@@ -22,6 +22,12 @@ import { Registry } from "./registry";
 
 const SINCE = "0.1.0";
 const NODE_VARIANTS = ["default", "emphasis", "muted"];
+/**
+ * The variants of the shapes that read as a filled area (#174): `filled`
+ * draws the fill without the outline. `stack` is left out, since its
+ * outlines are what separate the overlapping rectangles.
+ */
+const FILLABLE_NODE_VARIANTS = [...NODE_VARIANTS, "filled"];
 const EDGE_VARIANTS = ["default", "dashed", "emphasis", "muted"];
 
 const sizeProps = z.strictObject({
@@ -49,7 +55,7 @@ function node(
   description: string,
   options: { sizing?: NodeSizing; variants?: string[] } = {},
 ): NodeManifest {
-  const { sizing = "auto", variants = NODE_VARIANTS } = options;
+  const { sizing = "auto", variants = FILLABLE_NODE_VARIANTS } = options;
   return {
     ...base,
     kind: "node",
@@ -83,15 +89,17 @@ const container: GroupManifest = {
   kind: "group",
   name: "container",
   description:
-    "A rectangular container that groups nodes and other groups, always with a border. Variant muted: a dashed border in academic (easy to confuse with dashed edges), a white background instead of the shaded fill (without a tone) and a gray title in the other themes.",
-  variants: ["default", "muted"],
+    "A rectangular container that groups nodes and other groups. Variant muted: a dashed border in academic (easy to confuse with dashed edges), a white background instead of the shaded fill (without a tone) and a gray title in the other themes. Variant plain: no border and no fill, only the title or caption; filled: a shaded fill without a border; dashed: a dashed border without a fill. A tone sets the fill of any variant.",
+  variants: ["default", "muted", "plain", "filled", "dashed"],
   props: noProps,
   shape: "rectangle",
 };
 
 function outline(name: "trapezoid" | "stack", description: string): NodeManifest {
   return {
-    ...node(name, "rectangle", description),
+    ...node(name, "rectangle", description, {
+      variants: name === "stack" ? NODE_VARIANTS : FILLABLE_NODE_VARIANTS,
+    }),
     since: "0.3.0",
     render: { type: "outline", renderer: `sumi/${name}` },
   };
@@ -113,7 +121,7 @@ const operator: NodeManifest = {
   name: "operator",
   description:
     "A small circle with an operator symbol, e.g. where inputs are added or combined; takes no label.",
-  variants: NODE_VARIANTS,
+  variants: FILLABLE_NODE_VARIANTS,
   props: z.strictObject({
     symbol: z
       .enum(Object.keys(OPERATOR_GLYPHS) as [keyof typeof OPERATOR_GLYPHS])
