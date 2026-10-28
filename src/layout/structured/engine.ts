@@ -63,6 +63,7 @@ import {
   type TextLayout,
   type TextMetrics,
 } from "../ir";
+import { arrowheadPaddingDeficits, type SidePadding } from "../route/padding";
 import { fontSetMeasurer, measureText, type TextMeasurer } from "../text";
 import { type AlignLimits, type AlignStats, NO_STRUTS, type Struts, solveAlignment } from "./align";
 import { nodeLabelCenter, nodeSize, type Size, stretchableShape } from "./sizing";
@@ -134,12 +135,34 @@ export function placeStructured(
     measurer = fontSetMeasurer(fonts);
   }
   const engine = new StructuredLayout(ir, profile, measurer);
-  if (ir.align === undefined || ir.align.length === 0) {
-    return { layout: engine.run(), diagnostics: [] };
+  const place = (): PlacedStructured => {
+    if (ir.align === undefined || ir.align.length === 0) {
+      return { layout: engine.run(), diagnostics: [] };
+    }
+    const solved = solveAlignment(
+      ir,
+      ir.align,
+      (struts) => engine.run(struts),
+      options.alignLimits,
+    );
+    return { layout: solved.layout, diagnostics: solved.diagnostics, align: solved.stats };
+  };
+  // Room before arrowheads in group padding (#171, design doc §6.42): widen
+  // the sides of groups where an edge turns in the padding right before an
+  // arrowhead, and lay out again. Usually none, so one pass; widening moves
+  // ports only away from those borders, so a second round is rare.
+  let placed = place();
+  for (let round = 0; round < ARROWHEAD_PADDING_ROUNDS; round++) {
+    const deficits = arrowheadPaddingDeficits(ir, placed.layout);
+    if (deficits.size === 0) break;
+    engine.growPadding(deficits);
+    placed = place();
   }
-  const solved = solveAlignment(ir, ir.align, (struts) => engine.run(struts), options.alignLimits);
-  return { layout: solved.layout, diagnostics: solved.diagnostics, align: solved.stats };
+  return placed;
 }
+
+/** Rounds of widening group padding for arrowheads (#171); the first nearly always settles it. */
+const ARROWHEAD_PADDING_ROUNDS = 3;
 
 class StructuredLayout {
   readonly #ir: FigureIR;
@@ -152,6 +175,8 @@ class StructuredLayout {
   readonly #leafSizes = new Map<ElementKey, Size>();
   readonly #defaultGap: number;
   readonly #groupPadding: number;
+  /** Padding added to sides of groups for the room before arrowheads (#171, `growPadding`). */
+  readonly #extraPadding = new Map<ElementKey, Overhang>();
   readonly #margin: number;
 
   // The state of one pass (`run`).
@@ -191,6 +216,34 @@ class StructuredLayout {
       const label = measureText(group.label, group.style, measurer);
       if (label !== undefined) this.#labels.set(group.key, label);
     }
+  }
+
+  /**
+   * Widens sides of groups by `extra` (units) for the passes that follow:
+   * the room an edge needs before an arrowhead in a group's padding (#171,
+   * `arrowheadPaddingDeficits`). Adds to what earlier calls added.
+   */
+  growPadding(extra: ReadonlyMap<ElementKey, SidePadding>): void {
+    for (const [key, sides] of extra) {
+      const current = this.#extraPadding.get(key) ?? { ...NO_OVERHANG };
+      current.north += sides.north;
+      current.east += sides.east;
+      current.south += sides.south;
+      current.west += sides.west;
+      this.#extraPadding.set(key, current);
+    }
+  }
+
+  /** A group's padding per side: the profile's, plus any `growPadding` added. */
+  #padding(key: ElementKey): Overhang {
+    const p = this.#groupPadding;
+    const extra = this.#extraPadding.get(key) ?? NO_OVERHANG;
+    return {
+      north: p + extra.north,
+      east: p + extra.east,
+      south: p + extra.south,
+      west: p + extra.west,
+    };
   }
 
   /** One pass; `struts` add main-axis space around items (#132, `align.ts`). */
@@ -246,10 +299,11 @@ class StructuredLayout {
   #groupSize(group: GroupIR): Size {
     const content = this.#containerSize(group.key, group.arrange);
     const label = this.#labels.get(group.key);
-    const p = this.#groupPadding;
+    const p = this.#padding(group.key);
     return {
-      width: Math.max(content.width, label === undefined ? 0 : Math.ceil(label.width)) + 2 * p,
-      height: content.height + 2 * p + this.#labelSpace(label),
+      width:
+        Math.max(content.width, label === undefined ? 0 : Math.ceil(label.width)) + p.west + p.east,
+      height: content.height + p.north + p.south + this.#labelSpace(label),
     };
   }
 
@@ -364,15 +418,15 @@ class StructuredLayout {
     this.#rects.set(key, rect);
     const group = this.#groups.get(key);
     if (group === undefined) return;
-    const p = this.#groupPadding;
+    const p = this.#padding(key);
     const band = this.#labelSpace(this.#labels.get(key));
     // The label band is above the content, or below it for a bottom label (#127).
     const top = labelAtBottom(group.labelAt) ? 0 : band;
     const content: Rect = {
-      x: rect.x + p,
-      y: rect.y + p + top,
-      width: rect.width - 2 * p,
-      height: rect.height - 2 * p - band,
+      x: rect.x + p.west,
+      y: rect.y + p.north + top,
+      width: rect.width - p.west - p.east,
+      height: rect.height - p.north - p.south - band,
     };
     this.#contents.set(key, content);
     this.#placeContainer(key, group.arrange, content);
