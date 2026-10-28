@@ -518,17 +518,8 @@ class Router {
     if (end.dir < 0) return 0;
     const d = DIRS[end.dir] as Point;
     const p = end.port;
-    // A junction straight ahead, closer than the room (#153): the route is
-    // the straight line to it, and a room past the junction would reach
-    // beyond the edge's own end, where the other edges of the junction's net
-    // run (they would pay `ROUTE.arrowRoom` at every grid point of it, and
-    // detour into the junction from the side). The room ends at the junction;
-    // if that is shorter than the stub, there is none.
-    if (other.junction) {
-      const ahead = (other.port.x - p.x) * d.x + (other.port.y - p.y) * d.y;
-      const aside = (other.port.x - p.x) * d.y - (other.port.y - p.y) * d.x;
-      if (Math.abs(aside) < 1e-9 && ahead > 0 && ahead < room) return ahead >= lane ? ahead : 0;
-    }
+    const clipped = clipRoomAtJunction(end, other, room, lane);
+    if (clipped !== room) return clipped;
     const holds = (r: Rect, q: Point) =>
       q.x >= r.x && q.x <= rightOf(r) && q.y >= r.y && q.y <= bottomOf(r);
     for (const { rect } of this.#layout.groups) {
@@ -1478,6 +1469,28 @@ class Router {
       nets,
     });
   }
+}
+
+/**
+ * The room before an arrowhead at `end` (`room` long, after a stub `lane`
+ * long), cut at a junction straight ahead at the edge's other end (#153,
+ * design doc §6.36). The route is then the straight line to the junction,
+ * and a room past it would reach beyond the edge's own end, where the
+ * other edges of the junction's net run: they would pay `ROUTE.arrowRoom`
+ * at every grid point of it, and detour into the junction from the side.
+ * So the room ends at the junction, or there is none if that is shorter
+ * than the stub. A junction aside or behind, a port, and a junction at or
+ * beyond the room's end leave `room` as it is.
+ */
+export function clipRoomAtJunction(end: End, other: End, room: number, lane: number): number {
+  if (end.dir < 0 || !other.junction) return room;
+  const d = DIRS[end.dir] as Point;
+  const dx = other.port.x - end.port.x;
+  const dy = other.port.y - end.port.y;
+  const ahead = dx * d.x + dy * d.y;
+  const aside = dx * d.y - dy * d.x;
+  if (Math.abs(aside) >= 1e-9 || ahead <= 0 || ahead >= room) return room;
+  return ahead >= lane ? ahead : 0;
 }
 
 /**

@@ -7,10 +7,11 @@ import { type EdgeLayout, type LayoutIR, type Point, type Rect, roundUnits } fro
 import type { TextMeasurer } from "../text";
 import { checkRoutes, type RouteCheckReport, routeProblemCount } from "./check";
 import { MAX_REPORTED_CROSSINGS } from "./crossings";
-import { resolveEnds } from "./ports";
+import { DIRS, type End, resolveEnds } from "./ports";
 import {
   arrowheadLength,
   arrowRoom,
+  clipRoomAtJunction,
   mergeSegments,
   routeEdges,
   simplify,
@@ -345,6 +346,91 @@ describe("a junction closer than the room (#153)", () => {
     if (!placed.ok) throw new Error(JSON.stringify(placed.diagnostics));
     const result = routeEdges(placed.value.ir, placed.value.layout, { verifyLowerBound: true });
     expect(result.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+  });
+
+  // `clipRoomAtJunction` in every direction: a room of 16 after a stub of 8,
+  // the other end `ahead` along the end's direction and `aside` across it.
+  const ROOM = 16;
+  const LANE = 8;
+  const endAt = (port: Point, dir: number, junction: boolean, key = "n:p"): End => ({
+    key: key as ElementKey,
+    junction,
+    dir: junction ? -1 : dir,
+    port,
+    outline: port,
+  });
+  describe.each([0, 1, 2, 3])("clipRoomAtJunction, direction %i", (dir) => {
+    const d = DIRS[dir] as Point;
+    const port = { x: 100, y: 200 };
+    const at = (ahead: number, aside: number): Point => ({
+      x: port.x + d.x * ahead + d.y * aside,
+      y: port.y + d.y * ahead - d.x * aside,
+    });
+    test.each([
+      ["below the stub: no room", 5, 0, true, 0],
+      ["at the stub's end: the stub", LANE, 0, true, LANE],
+      ["between the stub and the room: cut at the junction", 12.5, 0, true, 12.5],
+      ["at the room's end: kept", ROOM, 0, true, ROOM],
+      ["beyond the room: kept", 40, 0, true, ROOM],
+      ["aside: kept", 12.5, 3, true, ROOM],
+      ["behind: kept", -12.5, 0, true, ROOM],
+      ["a port straight ahead: kept", 12.5, 0, false, ROOM],
+    ] as const)("%s", (_, ahead, aside, junction, expected) => {
+      const end = endAt(port, dir, false);
+      const other = endAt(at(ahead, aside), (dir + 2) % 4, junction, "n:q");
+      expect(clipRoomAtJunction(end, other, ROOM, LANE)).toBe(expected);
+    });
+  });
+
+  // In every direction, with the arrowhead at the target (`j → b`) or at the
+  // source (`b → j`, a double arrow), and another edge at the junction
+  // (`j → c`, to a box beside the line): the lines along the junction stay
+  // straight, and the lower bound matches Dijkstra on every edge.
+  describe.each([
+    ["stack", "down"],
+    ["stack", "up"],
+    ["row", "right"],
+    ["row", "left"],
+  ] as const)("%s %s", (kind, direction) => {
+    const cross = kind === "stack" ? "row" : "stack";
+    test.each([
+      ["target", { from: "j", to: "b" }],
+      ["source", { from: "b", to: "j", component: "double-arrow" }],
+    ])("arrowhead at the %s", (_, edge) => {
+      const text = figure(
+        {
+          [cross]: {
+            gap: "8mm",
+            align: "center",
+            items: [{ [kind]: { direction, gap: "2.5mm", items: ["a", "j", "b"] } }, "c"],
+          },
+        },
+        [box("a"), junction("j"), box("b"), box("c")],
+        [{ from: "a", to: "j", component: "line" }, edge, { from: "j", to: "c" }],
+      );
+      const value = run(text);
+      expectClean(value);
+      const j = rectOf(value.layout, "j");
+      const center = { x: j.x + j.width / 2, y: j.y + j.height / 2 };
+      const vertical = kind === "stack";
+      for (const index of [0, 1]) {
+        const points = pointsOf(value.layout, index);
+        expect(points).toHaveLength(2);
+        for (const p of points) expect(vertical ? p.x : p.y).toBe(vertical ? center.x : center.y);
+      }
+      // The junction is closer to b than the room: the case of #153.
+      const b = rectOf(value.layout, "b");
+      const gapToB = vertical
+        ? Math.max(b.y - center.y, center.y - (b.y + b.height))
+        : Math.max(b.x - center.x, center.x - (b.x + b.width));
+      expect(gapToB).toBeLessThan(arrowRoom(1));
+      expect(gapToB).toBeGreaterThan(arrowheadLength(1));
+
+      const placed = layoutStructuredFigure(text, { measurer: FAKE, route: false });
+      if (!placed.ok) throw new Error(JSON.stringify(placed.diagnostics));
+      const result = routeEdges(placed.value.ir, placed.value.layout, { verifyLowerBound: true });
+      expect(result.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+    });
   });
 });
 
