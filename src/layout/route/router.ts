@@ -1474,7 +1474,7 @@ class Router {
 /**
  * The room before an arrowhead at `end` (`room` long, after a stub `lane`
  * long), cut at a junction straight ahead at the edge's other end (#153,
- * design doc §6.36). The route is then the straight line to the junction,
+ * design doc §6.37). The route is then the straight line to the junction,
  * and a room past it would reach beyond the edge's own end, where the
  * other edges of the junction's net run: they would pay `ROUTE.arrowRoom`
  * at every grid point of it, and detour into the junction from the side.
