@@ -28,6 +28,9 @@
  * value, `none`). At an arrowhead the wire stops at the arrowhead's base.
  * The wires' turns, and the joins at a junction drawn without a dot, are
  * rounded (`wire.ts`, #101); the `path.connection` keeps the sharp route.
+ * A zoom edge (#176) is in no net: its `path.connection` holds its two
+ * straight lines as two subpaths, and a `path.sumi-wire` of its own,
+ * before the nets' wires, strokes them.
  *
  * Icons and images (#94) are drawn by `assetMarkup()` right after the node's
  * `g.shape`: an icon as shapes under one transformed `g.sumi-icon` (never a
@@ -528,6 +531,20 @@ function wires(
   });
   const out: string[] = [];
   const painted = new Map<ElementKey, { pieces: [Point, Point][]; arcs: Arc[] }>();
+  // Zoom edges (#176): their own two straight lines, under the routed wires.
+  for (const placed of layout.edges) {
+    const edge = edges.get(placed.key);
+    const lines = placed.route?.lines;
+    if (edge === undefined || lines === undefined) continue;
+    const pieces = lines
+      .filter(([a, b]) => a.x !== b.x || a.y !== b.y)
+      .map(([a, b]): [Point, Point] => [a, b]);
+    painted.set(placed.key, { pieces, arcs: [] });
+    if (pieces.length === 0) continue;
+    out.push(
+      `<path class="sumi-wire" d="${pieces.map((piece) => pathData(piece)).join(" ")}" fill="none"${strokeAttributes(edge.style)} stroke-linecap="round" stroke-linejoin="round"${opacity(edge.style)}/>`,
+    );
+  }
   for (const net of nets) {
     const obstacles = [
       ...fixed,
@@ -546,6 +563,7 @@ function wires(
       const route = routes.get(key);
       const points = route?.route?.points;
       if (edge === undefined || route === undefined || points === undefined) continue;
+      if (route.route?.lines !== undefined) continue;
       drawn.push({ key, edge, route, wire: wirePoints(edge, points) });
     }
     // A hidden junction joins its routes when they all reach its center in one line style.
@@ -726,6 +744,20 @@ function edgeGroup(
   return `<g class="${elementClass(edge.key)} sumi-kind-edge"${opacity(style)}>${connection}${heads}${labelSvg}</g>`;
 }
 
+/**
+ * A zoom edge (#176): its `path.connection` holds both lines as two
+ * subpaths; it has no arrowheads and no label. The lines are stroked by
+ * `wires()`.
+ */
+function zoomGroup(edge: EdgeIR, lines: readonly (readonly [Point, Point])[]): string {
+  const { style } = edge;
+  const width = style.strokeWidth.units;
+  const dash = dashArray(width, style.strokeDash);
+  const d = lines.map((line) => pathData(line)).join(" ");
+  const connection = `<path class="connection" d="${d}" fill="none" stroke-width="${n(width)}"${dash === undefined ? "" : ` stroke-dasharray="${n(dash[0])},${n(dash[1])}"`}/>`;
+  return `<g class="${elementClass(edge.key)} sumi-kind-edge"${opacity(style)}>${connection}</g>`;
+}
+
 /** FNV-1a (32 bit) of a string, as a decimal: the per-figure id of class and font names. */
 function figureHash(value: string): string {
   let hash = 0x811c9dc5;
@@ -797,6 +829,11 @@ export function writeStructuredSvg(
     const points = placed.route?.points;
     if (edge === undefined || points === undefined || points.length < 2) {
       throw new Error(`internal error: edge ${placed.key} is unknown or not routed`);
+    }
+    const lines = placed.route?.lines;
+    if (lines !== undefined) {
+      body.push(zoomGroup(edge, lines));
+      continue;
     }
     body.push(edgeGroup(edge, points, placed.route?.label, painted));
     useText(placed.route?.label);

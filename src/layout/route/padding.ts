@@ -21,6 +21,7 @@ import type { Side } from "../../core/figure/schema";
 import type { LayoutIR, Rect } from "../ir";
 import { arrowheadLength } from "./arrowhead";
 import { bottomOf, type End, resolveEnds, rightOf } from "./ports";
+import { withoutZoomEdges } from "./zoom";
 
 /**
  * Space kept between the bend before an arrowhead and the group's border:
@@ -60,8 +61,10 @@ export function arrowheadPaddingDeficits(
     for (let k: ElementKey | undefined = key; k !== undefined; k = parents.get(k)) out.push(k);
     return out;
   };
-  const resolved = resolveEnds(ir, layout);
-  ir.edges.forEach((edge, index) => {
+  // As the router resolves them: without the zoom edges (#176), which have no ports.
+  const routed = withoutZoomEdges(ir);
+  const resolved = resolveEnds(routed, layout);
+  routed.edges.forEach((edge, index) => {
     const ends = resolved[index];
     if (ends === undefined || "error" in ends) return;
     const stub = Math.max(BORDER_CLEARANCE, arrowheadLength(edge.style.strokeWidth.units));

@@ -575,6 +575,8 @@ export const edgeThroughNode = defineGeometryRule({
     const findings: LintFinding[] = [];
     for (const edge of context.elements) {
       if (edge.route === undefined || edge.ir.kind !== "edge") continue;
+      // A zoom edge's straight lines are not routed around nodes (#176): zoom-crosses-node.
+      if (edge.ir.routing === "zoom") continue;
       const ends = new Set([edge.ir.from, edge.ir.to]);
       for (const key of obstaclesCrossedByRoute(
         edge.route,
@@ -588,6 +590,44 @@ export const edgeThroughNode = defineGeometryRule({
           path: edge.docPath,
           subject: edge.subject,
           hint: "An edge should go around the nodes it does not connect. In a structured figure, change its anchors (fromAnchor / toAnchor) or leave a free channel between the nodes; in an auto figure, change layout.direction or the grouping.",
+          related: [{ path: node.docPath, message: `${capitalize(node.name)} is defined here.` }],
+        });
+      }
+    }
+    return findings;
+  },
+});
+
+export const zoomCrossesNode = defineGeometryRule({
+  id: "geometry/zoom-crosses-node",
+  description:
+    "A line of a zoom edge (a straight line from a corner of the source to a corner of the target) passes through the shape of a node that is not one of its ends.",
+  defaultSeverity: "warning",
+  fixable: false,
+  run(context) {
+    // Zoom lines (#176, design doc §6.45) are straight on purpose: bent
+    // around a node, they would no longer read as a callout, so they are
+    // not routed and a node in the way is reported instead.
+    const obstacles: RouteObstacle[] = context.elements.flatMap((e) =>
+      e.kind === "node" && e.outline !== undefined ? [{ key: e.key, region: e.outline }] : [],
+    );
+    const findings: LintFinding[] = [];
+    for (const edge of context.elements) {
+      if (edge.route === undefined || edge.ir.kind !== "edge" || edge.ir.routing !== "zoom")
+        continue;
+      const ends = new Set([edge.ir.from, edge.ir.to]);
+      for (const key of obstaclesCrossedByRoute(
+        edge.route,
+        obstacles,
+        ends,
+        GEOMETRY_TOLERANCE_UNITS,
+      )) {
+        const node = context.get(key) as GeometryElement;
+        findings.push({
+          message: `A line of ${edge.name} passes through the shape of ${node.name}.`,
+          path: edge.docPath,
+          subject: edge.subject,
+          hint: "A zoom edge draws straight lines between corners of its ends and does not go around nodes. Move the node out of the way, or move the source or the zoomed-in view (the order of the arrange items, a gap, another row or stack) so the lines pass beside it.",
           related: [{ path: node.docPath, message: `${capitalize(node.name)} is defined here.` }],
         });
       }
@@ -1170,6 +1210,7 @@ export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
   labelCollision,
   edgeCrossesLabel,
   edgeThroughNode,
+  zoomCrossesNode,
   edgeOnBorder,
   edgeNearBorder,
   edgeNearEdge,

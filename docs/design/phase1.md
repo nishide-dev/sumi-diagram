@@ -1568,6 +1568,33 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **変わった出力: なし**。組み込みの Theme の edge はすべて `filled: true` で（Theme は今は組み込みのみ）、YAML から中を塗らない矢じりは描かれない（`src/compiler/testing.ts` の IR のような、スタイルを直接変えた場合だけ）。リポジトリの `*.sumi.yaml` 113 個（描画まで通った図の SVG 358・編集可能 PPTX 293）（structured と auto）を図の Theme と組み込みの 4 Theme で描いて、SVG と編集可能 PPTX の slide XML を変更の前後で sha256 で比べ、すべて一致した。`bun run gallery:check` と PDF・PPTX・画像の golden も変わらない。中を塗らない矢じりの見た目は、IR の `filled` と矢じりの種類を変えて描き直した図（`minimal` の surface、`academic` の tone のある group、キャンバス）を PNG にして、5 種類とも内側が下の塗りになり、group の外では白のままであることを確かめた。
 - **テスト**: `structured.test.ts` の「hollow arrowheads (#192)」: 中を塗らない 5 種類それぞれで、塗りのある group（`minimal` の surface）とその外のキャンバス、tone のある group、透明な内側と色のある外側、透明な group だけの入れ子（キャンバス）。境界をまたぐ矢じり（group の枠を矢じりの中心に動かして writer で描き直す。内側の色、0.001 unit 外ならキャンバス）。始点の矢じりと junction の端の矢じり（左右に並べた色の違う 2 つの group の間を横に走る辺。始点の矢じりは始点側の group、junction の中心に先端がある矢じりはその下の group の色。group の色を入れ替えると入れ替わる）。塗る矢じりは線の色のまま。編集可能 PPTX では中を塗らない `arrow` が開いた矢印の線端のまま。`backgroundAt()` の単体（枠の上、外、`labelBackground()` と一致）と、`drawArrowhead()` の色を取る点（中心が枠の上と 0.001 外）。描き直しの補助（`redraw()`）は、編集可能 PPTX が読む `elements` も変えた要素にするよう直した。
 
+### 6.45 #176 の拡大の引き出し線（`component: zoom`）
+
+#167 の調査（`docs/research/167-stage-c.md` §4.3、図 B の B-4・図 C の C-10）。DiT（Fig. 3 の DiT Block → adaLN のパネル）と H3-World（(b) の Attention → (c)）は、ブロックからそれを拡大したパネルへ、対応する角どうしを結ぶ斜めの破線 2 本を引く。これまでは `fromAnchor: "east:0"` → `toAnchor: "west:0"` の `line` 2 本で代用し、直交の折れ線になっていた（下の 1 本はパネルの枠に重なる）。経路探索をしない部品として足す。
+
+- **構文（判断: edge の部品）**: `{ from: dit-block, to: adaln, component: zoom }`。`sumi/zoom`（edge、`since: 0.6.0`、props なし）。variant は `default`（破線）・`solid`（実線）・`muted`（破線・薄い色）。既存の `arrow` / `line` / `double-arrow` と同じく、線の描き方を部品で選ぶ。edge のフィールド（`zoom: true` など）にしなかったのは、Theme が部品ごとに線種を持て（既定を破線にできる）、`sumi catalog` とギャラリーにそのまま出て、Figure Schema（v1）を変えずに済むため。manifest には `routing: "zoom"` を足す（省略は経路探索する辺。カタログの JSON にも出る）。`routing: "zoom"` の manifest は `direction: "none"`（矢じりなし）かつ `engines: ["structured"]` でなければ登録できない（`component/invalid-manifest`）。
+- **角の組（規則）**: 送り元と拡大先の箱（node・group の `rect`）の位置関係で辺を決める。
+  - 右（拡大先の左端 ≥ 送り元の右端）: 送り元の右上 → 拡大先の左上、右下 → 左下。
+  - 左: 左上 → 右上、左下 → 右下。下（拡大先の上端 ≥ 送り元の下端）: 左下 → 左上、右下 → 右上。上: 左上 → 左下、右上 → 右下。
+  - 両方の軸で離れている（斜め）ときは、隙間の大きい軸で決める（同じなら横）。中心の向きではなく隙間で決めるのは、小さいブロックから大きなパネルへの拡大で、パネルが上下に大きくはみ出しても「右」になるため（中心の差では縦が勝ちうる）。
+  - 1 本目は上（左右のとき）か左（上下のとき）の線。junction（点）の端は 4 つの角がその中心。
+  - 両方の軸で重なる箱（要素とそれを含む group、自分自身）には辺がないので `layout/no-route`（error、他の辺の no-route と同じ形の文）。
+  - 選んだ角の線は、2 つの箱の間を単調に進むので、端の角を除いて両方の箱の外にある（自分の端の中は通らない）。
+  - 円・ひし形などの端も外接矩形の角を使う（角の丸めがある箱でも同じ）。図形の輪郭の上の点にはしない（拡大の対応は箱の範囲を示すため）。
+- **Layout IR**: `EdgeRoute.lines`（2 本の `[Point, Point]`）を足し、`points` は 1 本目とする。`net` を省略可にし、zoom の辺には付けない（どのネットにも属さない）。他の消費者が `points` だけを見ても壊れない形にした。
+- **ルータ（判断: 経路探索の前に外し、後で足す）**: `routeEdges()` は zoom の辺を Figure IR と Layout IR から外して今までどおり経路を探し、結果（ルータが内容を動かしたあとの箱）から zoom の線を足す。group の余白の矢じりの余地（§6.42、`arrowheadPaddingDeficits()`）も zoom の辺を外して端を決める。したがって **他の辺の経路・ネット・交差の報告（`layout/edge-crossing`）・ラベルの位置と `layout/edge-label-overlap` は、zoom の辺がない場合とまったく同じ**（テストで確かめる）。zoom の線は他の線と交差してよく、交差として報告しない（直交の線どうしの交差の規則は斜めの線に意味がない）。キャンバスは広げない（線は 2 つの箱の範囲に収まる）。`checkRoutes()`（テスト用の検査）は zoom の辺を直交・端・ネット・交差の検査から外し、2 本の線が上の規則の角を結ぶことだけを見る（`zoomMisses`）。
+- **描画**: SVG は §6.23 の約束どおり、辺ごとに 1 つの `path.connection`（2 本を 2 つの subpath `M … L … M … L …` で）に経路を持ち、線は zoom の辺ごとの `path.sumi-wire`（線の色・幅・破線は Theme の edge のスタイル）で描く。ネットの線より前（下）に描く。矢じり・ラベルはない。幾何 lint が測る「描いた線」（`SvgInspection.painted`、§6.39）は 2 本の線。PDF と画像方式の PPTX は SVG から作るのでそのまま描かれる。**編集可能 PPTX（判断: 対応）**: freeform では他の辺と同じく `path.connection` から custGeom（`moveTo` 2 つ）を書く。glued でも zoom の辺は freeform の図形にする（2 本の線は図形の接続点どうしを結ぶ 1 本のコネクタにならない。`p:cxnSp` にすると誤った線になる）。
+- **診断**:
+  - auto の図では、manifest の `engines` から既存の `layout/structured-only`（error）。
+  - ラベルは `component/unexpected-label`（error。operator・junction・image と同じ）。
+  - `fromAnchor` / `toAnchor` は効かないので `component/anchor-on-zoom`（warning、§6.38 の `component/anchor-on-junction` と同じ形）。
+  - 幾何 lint に `geometry/zoom-crosses-node`（warning）を足す: zoom の線が、端でないノードの図形（`edge-through-node` と同じ凸の衝突領域・許容 1 unit）を通る。zoom の辺は `geometry/edge-through-node` の対象から外す（同じことを 2 度報告しない。hint も違う: 曲げずに、ノードか拡大元・拡大先を動かす）。研究メモの案の名前を採った。
+  - `edge-crosses-label`・`edge-touches-label`（文字との干渉）はそのまま掛かる。平行な線の近接（`edge-on-border` / `edge-near-border` / `edge-near-edge`）は軸に平行な部分だけを測るので、斜めの線は対象にならない（角が横・縦に揃って軸に平行になった場合だけ測る）。
+- **非対象**: 曲線、auto（D2）、ラベル、角の組の手動指定（Issue の非対象。角の組は配置の木で拡大先を置く側を変えて選ぶ）。凡例の見本線（`legend` の `edge: { component: zoom }`）は、見本の 2 つの junction の中心どうしを結ぶので 2 本が重なった 1 本の破線になり、zoom の線種の説明に使える（禁止しない）。
+- **互換性**: 新しい部品だけで、既存の図の出力は変わらない。リポジトリの追跡済みの `*.sumi.yaml` 113 個を、図の Theme と組み込みの 4 Theme で、変更前（`d429e97`）と変更後のコードで描き（565 回。描画まで通った SVG 358・編集可能 PPTX 293、通らない 207 は同じ error code）、D2 ソース・SVG・PDF・画像方式の PPTX・編集可能 PPTX（freeform・glued）・診断の sha256 がすべて一致した。`bun run gallery:check`、PDF・PPTX の golden は既存の項目が変わらず、ギャラリーの `sumi-zoom` 4 図と、その PDF・画像方式 PPTX・編集可能 PPTX の golden を足した。診断の hint のうち、edge の部品を列挙する文（`component/wrong-kind` / `component/unknown`）には `zoom` が加わる。
+- **検証**: `research/176-zoom-edge/figures/` に、#167 の図 B（DiT）と図 C（H3-World）の写しを置き、代用の破線 2 本を `component: zoom` の 1 本に書き換えた（他は同じ。#167 の記録のファイルは変えない）。zoom の辺についての診断は 0 件で、図全体の診断（B: `geometry/exceeds-page-width` 1、C: それに `lint/empty-label` 90）は元の図と同じ（`src/render/zoom.integration.test.ts`）。
+- **テスト**: `src/layout/route/zoom.test.ts`（4 方向の角の組、接する箱、斜めの配置と同点、重なる箱、junction の端、Layout IR の線とネットなし、`checkRoutes` が空、zoom の辺がある図とない図で他の辺の経路・キャンバス・ノードが同じ、交差する zoom の線が `layout/edge-crossing` にならない、重なる端の `layout/no-route`、ラベルと anchor の診断、auto の `layout/structured-only`）、`src/render/zoom.integration.test.ts`（SVG の `path.connection` と破線の wire、`solid`、`geometry/zoom-crosses-node` と `edge-through-node` が出ないこと、PDF・画像方式 PPTX・編集可能 PPTX の両方式、research の 2 図）、`registry.test.ts`（manifest の制約）。全部品 × 全 variant × 全 Theme の描画テスト（`structuredPrimitivesFigure()`）にも zoom を足した。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）

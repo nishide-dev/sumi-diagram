@@ -104,7 +104,7 @@ describe("invalid fixtures", () => {
     expect(d?.message).toBe('Unknown node component "rectangel".');
     const [edge] = (await check("invalid/component-wrong-kind.sumi.yaml")).diagnostics;
     expect(edge?.subject).toEqual({ kind: "edge", id: "edges[0]" });
-    expect(edge?.hint).toBe("Known edge components: arrow, line, double-arrow.");
+    expect(edge?.hint).toBe("Known edge components: arrow, line, double-arrow, zoom.");
   });
 });
 

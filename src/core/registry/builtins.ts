@@ -262,6 +262,25 @@ const legend: NodeManifest = {
   engines: ["structured"],
 };
 
+/**
+ * A zoom callout (#176, design doc §6.45): two straight lines from corners of
+ * the source to the matching corners of the target, which shows the source
+ * enlarged. Not routed; dashed by default in every theme.
+ */
+const zoom: EdgeManifest = {
+  ...base,
+  since: "0.6.0",
+  kind: "edge",
+  name: "zoom",
+  description:
+    "Two straight lines joining the corners of the source to the matching corners of the target, which shows the source zoomed in (structured layout only; no label, no arrowheads).",
+  variants: ["default", "solid", "muted"],
+  props: noProps,
+  direction: "none",
+  routing: "zoom",
+  engines: ["structured"],
+};
+
 /** The built-in manifests, in catalog order. */
 export const BUILTIN_MANIFESTS: readonly ComponentManifest[] = [
   node("box", "rectangle", "A rectangle; the general-purpose node."),
@@ -291,6 +310,7 @@ export const BUILTIN_MANIFESTS: readonly ComponentManifest[] = [
     head: "triangle",
     tail: "triangle",
   }),
+  zoom,
 ];
 
 /**

@@ -450,7 +450,9 @@ export function svgToEditablePptx(
         last = geo.path.at(-1)?.to;
       if (!first || !last) throw new Error(`Empty edge ${key}`);
       const arrows = ends(element, path);
-      if (connectors === "glued") {
+      // A zoom edge (#176) is two lines between corners, not a connector
+      // between sites: it stays a freeform shape in either mode.
+      if (connectors === "glued" && element.routing !== "zoom") {
         if (element.from === element.to)
           throw new Error("Glued self-loops are unsupported; use freeform connectors.");
         const src = objects.get(element.from),

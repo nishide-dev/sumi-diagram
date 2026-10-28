@@ -3,6 +3,10 @@
  * guarantee, verified independently of how it works. Tests run them on the
  * fixtures; the geometry lint re-checks the "through a node" part on the
  * SVG (`geometry/edge-through-node`, through the same `obstaclesCrossedByRoute`).
+ *
+ * Zoom edges (#176) are not routed: of them, only that they have their two
+ * lines between the corners `zoom.ts` chooses is checked (`zoomMisses`). They
+ * are left out of every other check, and other routes may cross them.
  */
 
 import type { FigureIR } from "../../compiler/ir";
@@ -13,6 +17,7 @@ import { rectPolygon, segmentCrossesRect } from "../../lint/geometry/shapes";
 import type { EdgeLayout, LayoutIR, Point, Rect } from "../ir";
 import { anchorPoint, DIRS, isJunction, nodeRegion, SIDE_DIR, STRAIGHTEN_TOLERANCE } from "./ports";
 import { arrowheadLength } from "./router";
+import { isZoomEdge, zoomLines, zoomSide } from "./zoom";
 
 /** Each list names the problems found; all empty is a clean routing. */
 export interface RouteCheckReport {
@@ -57,6 +62,8 @@ export interface RouteCheckReport {
   labelCollisions: string[];
   /** Route points or edge labels outside the canvas or the content box. */
   outside: string[];
+  /** Zoom edges (#176) without their two lines between the expected corners. */
+  zoomMisses: string[];
 }
 
 const EPS = 0.01;
@@ -133,6 +140,7 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
     shortArrowSegments: [],
     labelCollisions: [],
     outside: [],
+    zoomMisses: [],
   };
   const nodeIR = new Map(ir.nodes.map((n) => [n.key, n]));
   const edgeIR = new Map(ir.edges.map((e) => [e.key, e]));
@@ -163,10 +171,43 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
     return false;
   };
   const netOf = (e: EdgeLayout) => e.route?.net ?? -1;
-  const routed = layout.edges.filter((e) => e.route !== undefined);
+  const zoom = new Set(ir.edges.filter(isZoomEdge).map((e) => e.key));
+  const edges = layout.edges.filter((e) => !zoom.has(e.key));
+  const routed = edges.filter((e) => e.route !== undefined);
   const pointsOf = (e: EdgeLayout) => e.route?.points ?? [];
 
   for (const edge of layout.edges) {
+    if (!zoom.has(edge.key)) continue;
+    const from = rects.get(edge.from) as Rect;
+    const to = rects.get(edge.to) as Rect;
+    const side = zoomSide(from, to);
+    const route = edge.route;
+    if (side === undefined || route === undefined) {
+      if (route !== undefined)
+        report.zoomMisses.push(`${edge.key} routed between overlapping ends`);
+      else report.unrouted.push(edge.key);
+      continue;
+    }
+    const want = zoomLines(from, to, side, {
+      sourcePoint: isJunction(nodeIR.get(edge.from)),
+      targetPoint: isJunction(nodeIR.get(edge.to)),
+    });
+    const same = (a: Point, b: Point) => Math.abs(a.x - b.x) <= EPS && Math.abs(a.y - b.y) <= EPS;
+    const lines = route.lines ?? [];
+    const first = route.points;
+    if (
+      lines.length !== 2 ||
+      want.some(([a, b], i) => !same(a, lines[i]?.[0] ?? a) || !same(b, lines[i]?.[1] ?? a)) ||
+      first.length !== 2 ||
+      !same(first[0] as Point, want[0][0]) ||
+      !same(first[1] as Point, want[0][1]) ||
+      route.net !== undefined
+    ) {
+      report.zoomMisses.push(`${edge.key} not joining the ${side} corners`);
+    }
+  }
+
+  for (const edge of edges) {
     const route = edge.route;
     if (route === undefined) {
       report.unrouted.push(edge.key);
@@ -325,7 +366,7 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
     while ((junctionOf.get(root) ?? root) !== root) root = junctionOf.get(root) as ElementKey;
     return root;
   };
-  for (const edge of layout.edges) {
+  for (const edge of edges) {
     if (isJunction(nodeIR.get(edge.from)) && isJunction(nodeIR.get(edge.to))) {
       const a = findJunction(edge.from);
       const b = findJunction(edge.to);

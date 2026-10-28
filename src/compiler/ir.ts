@@ -42,6 +42,7 @@ import {
   type Arrowhead,
   type ComponentId,
   type EdgeDirection,
+  type EdgeRouting,
   IMAGE_FITS,
   markText,
   type NodeMark,
@@ -254,6 +255,11 @@ export interface EdgeIR extends ElementIRBase {
   readonly labelAt?: EdgeLabelPosition;
   /** Structured layout: the side of the line, facing from source to target (#128). Absent when not written. */
   readonly labelSide?: EdgeLabelSide;
+  /**
+   * The manifest's `routing` (#176): `zoom` joins corners of the two ends
+   * with straight lines instead of a routed path. Absent for a routed edge.
+   */
+  readonly routing?: EdgeRouting;
 }
 
 export type ElementIR = NodeIR | GroupIR | EdgeIR;
@@ -556,6 +562,7 @@ function edgeIR(
     ...anchorIR("toAnchor", e.toAnchor),
     ...(e.labelAt !== undefined && { labelAt: e.labelAt }),
     ...(e.labelSide !== undefined && { labelSide: e.labelSide }),
+    ...(manifest.routing !== undefined && { routing: manifest.routing }),
   });
 }
 

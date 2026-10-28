@@ -4,3 +4,4 @@ export * from "./crossings";
 export * from "./labels";
 export * from "./ports";
 export * from "./router";
+export * from "./zoom";
