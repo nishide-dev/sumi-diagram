@@ -76,8 +76,10 @@ nodes:
 
 ## Labels
 
-- Plain text. `\n` inside a double-quoted string breaks the line. No
-  Markdown or HTML.
+- Plain text. `\n` inside a double-quoted string breaks the line; in a
+  single-quoted or unquoted label it is drawn as the two characters `\n`
+  (`lint/literal-newline`). No Markdown or HTML. Math and line breaks in
+  one label: [below](#math-and-line-breaks-in-one-label).
 - Label math: see [below](#label-math).
 - Quote labels that YAML could misread: `"yes"`, `"no"`, `"on"`, numbers
   (`"2024"`), anything with `: ` or ` #`, or starting with `[`, `{`, `*`, `&`, `!`, `%`, `@`.
@@ -143,6 +145,32 @@ subset drawn as real, searchable text in the bundled STIX Two math fonts:
   `{ id: ss, …, label: '$\gamma_1,\,\beta_1$' }`. In double quotes `\` must be
   doubled.
 
+### Math and line breaks in one label
+
+Single quotes keep backslashes but never break the line:
+`'Scale, Shift\n$\gamma_1$'` is drawn on one line with a visible `\n`
+(`lint/literal-newline` warns). For a label with both, use one of:
+
+- **Double quotes, every math backslash doubled**: `\n` breaks the line,
+  `\\gamma` is `\gamma`, `\\,` is `\,`.
+- **A block scalar `|-`**: each line of the block is a line of the label
+  and backslashes stay literal. Use `|-`, not `|`: `|` keeps the final
+  newline, which adds an empty last line (no diagnostic).
+
+```yaml
+nodes:
+  - { id: ss1, component: box, label: "Scale, Shift\n$\\gamma_1,\\,\\beta_1$" }
+  - id: ss2
+    component: box
+    label: |-
+      Scale, Shift
+      $\gamma_2,\,\beta_2$
+```
+
+Both draw two lines: `Scale, Shift`, then γ and β with their subscripts
+(structured figures; math is drawn as written in auto ones). Inside `$...$`, `\nu`,
+`\neq` and `\nabla` are commands, not line breaks, and are not reported.
+
 ## Groups
 
 - A group is a container drawn around its members. Membership is declared
@@ -157,7 +185,16 @@ subset drawn as real, searchable text in the bundled STIX Two math fonts:
 - `caption` adds a sub-figure caption centered under the border
   (`caption: (a) data and augmentation`), outside the group. Both engines;
   details and an example in
-  [structured](structured.md#group-titles-and-captions).
+  [structured](structured.md#group-titles-and-captions). In structured
+  figures, do not caption a group with edges to elements below it: they
+  detour around the caption (see there).
+- `variant: muted` (container) quiets the group; how depends on the
+  theme. `academic`: a **dashed** gray border, gray title. `minimal`,
+  `color`, `slides`: the same solid gray border, but no fill and a gray,
+  non-bold title. In `academic`, a muted group's dashed border reads like
+  a dashed edge (a skip, an optional flow): avoid `muted` there when the
+  figure has dashed edges, or say what each means (a `legend`). No variant
+  removes the border: a group always draws one.
 - In structured figures, membership follows the group's `arrange` tree;
   `group:` can be omitted ([structured](structured.md#arrange-trees)).
 
@@ -397,6 +434,7 @@ preserved by `sumi fmt`.
 | `variant: bold`, `variant: thick` | `component/unknown-variant` | a variant listed for that component |
 | `color:`, `style:`, `shape:` on a node | `schema/unknown-field` | remove; use a component, variant or `tone` |
 | `label: $\gamma_1,\beta_1$` inside `{ … }` | `schema/unknown-field` (`"\beta_1$"`) | single-quote it: `label: '$\gamma_1,\,\beta_1$'` |
+| `label: 'Scale\n$\gamma$'` (single quotes and `\n`) | `lint/literal-newline` (warning; drawn on one line with `\n`) | `"Scale\n$\\gamma$"` or a `\|-` block ([math and line breaks](#math-and-line-breaks-in-one-label)) |
 | `$\alpha_1$` (math with a command, `_` or `^`) in an auto figure | `component/unsupported-in-auto` (warning; `$x$` gets none but is drawn with its `$`) | use the structured layout, or plain text |
 | `label:` and `icon:` on one node | `asset/icon-with-label` | keep one; put the text in an attached `label` node |
 | `toAnchor: west` in an auto figure | `layout/structured-only` | remove it, or switch to the structured layout |

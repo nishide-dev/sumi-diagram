@@ -82,7 +82,8 @@ const container: GroupManifest = {
   ...base,
   kind: "group",
   name: "container",
-  description: "A rectangular container that groups nodes and other groups.",
+  description:
+    "A rectangular container that groups nodes and other groups, always with a border. Variant muted: a dashed border in academic (easy to confuse with dashed edges), no fill and a gray title in the other themes.",
   variants: ["default", "muted"],
   props: noProps,
   shape: "rectangle",

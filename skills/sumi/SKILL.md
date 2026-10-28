@@ -129,15 +129,15 @@ edges:
 - Every node needs `component`; groups default to `container`, edges to `arrow`.
 - `from` / `to` reference node or group IDs; quote labels such as `"yes"`,
   `"no"` and anything containing `:` or `#`.
-- Choose `direction` for the target width: chains of four or more nodes
-  laid out `right` do not fit `paper-single` — prefer `down`
-  ([layout-tips](references/layout-tips.md)).
+- Choose `direction` for the target width: a chain of 4+ nodes laid out
+  `right` does not fit `paper-single`; prefer `down` ([layout-tips](references/layout-tips.md)).
 - **Structured figures** add `figure.layout.arrange` (nested `stack` /
   `row` boxes listing every node and group once), `attach`, edge anchors
   and label placement, `align` across trees, `fanIn`, and `legend`: read
   [references/structured.md](references/structured.md) first. Label math
-  (`'$\hat{y}_t$'`) works only there. Any group can take `labelAt` (title
-  position) and `caption`.
+  (`'$\hat{y}_t$'`) works only there; with a line break, double-quote it and
+  double backslashes (`"A\n$\\gamma$"`). Any group takes `labelAt` and
+  `caption` (not with edges to elements below it: they detour around it).
 - Icons (`icon: tabler/<name>`, in place of a label) and image files
   (`component: image`): [references/assets.md](references/assets.md).
 
@@ -197,8 +197,8 @@ nothing was rendered).
 - Structured: `layout/no-route` (no SVG written) means an edge has no room:
   widen that `gap` or move an attached node out of it ([structured](references/structured.md#spacing-that-routes)).
   Render also reports `layout/unsatisfied-align`, `layout/edge-label-overlap`
-  (warnings) and `layout/edge-crossing` (info: fix if easy, else report the
-  count). `--emit-d2` is refused for structured figures (they do not use D2).
+  (warnings), `layout/edge-crossing` (info: fix if easy, else report the
+  count) and `layout/align-grew-figure` (info: `align` enlarged the figure). `--emit-d2` is refused for structured figures (they do not use D2).
 - Render errors (`svg/*`, `backend/*`, `asset/*`) and every `geometry/*`
   code are in [diagnostics](references/diagnostics.md).
 
