@@ -118,9 +118,22 @@ export function labelRuns(label: string, options: LabelRunsOptions): LabelLayout
   return { lines: runLines(runs), runs };
 }
 
+/** Splits text into grapheme clusters (a base and its combining marks stay together). */
+const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+
+/** Characters renderers draw nothing for and fonts need not map (as `measureEm()` skips them). */
+const IGNORABLE = /[\p{Cc}\p{Default_Ignorable_Code_Point}]/u;
+
 /**
- * Splits a text run into the characters the Latin font has (if any) and,
- * of the rest, the ones its font lacks but the math font has.
+ * Splits a text run by font, one grapheme cluster at a time (#172): a base
+ * and its combining marks are drawn with one font, as renderers shape them
+ * (a mark in another font than its base is lost in the PDF). A cluster goes
+ * to the Latin font (if any) when that font has all of it, else stays in
+ * the run's font when that has all of it, else goes to the math font when
+ * that has all of it, else stays in the run's font (`lint/missing-glyph`
+ * reports what it lacks). Characters that draw nothing (controls,
+ * default-ignorables) need no glyph. For a cluster of one character this is
+ * the per-character rule of #93.
  */
 function fallback(
   run: LabelRun,
@@ -130,18 +143,21 @@ function fallback(
 ): LabelRun[] {
   if (run.font !== font) return [run];
   const out: LabelRun[] = [];
-  for (const char of run.text) {
-    const codePoint = char.codePointAt(0) ?? 0;
+  for (const { segment } of GRAPHEMES.segment(run.text)) {
+    const has = (f: string) =>
+      [...segment].every((c) => IGNORABLE.test(c) || covers(f, c.codePointAt(0) ?? 0));
     const target =
-      latin !== undefined && covers(latin, codePoint)
+      latin !== undefined && has(latin)
         ? latin
-        : !covers(font, codePoint) && covers(MATH_FONT, codePoint)
-          ? MATH_FONT
-          : font;
+        : has(font)
+          ? font
+          : has(MATH_FONT)
+            ? MATH_FONT
+            : font;
     const last = out.at(-1);
     if (last !== undefined && last.font === target)
-      out[out.length - 1] = { ...last, text: last.text + char };
-    else out.push({ text: char, font: target, script: run.script });
+      out[out.length - 1] = { ...last, text: last.text + segment };
+    else out.push({ text: segment, font: target, script: run.script });
   }
   return out;
 }

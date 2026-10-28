@@ -54,4 +54,25 @@ describe("labelRuns with a Latin font (#172)", () => {
       ["∼", MATH_FONT],
     ]);
   });
+
+  test("a base and its combining marks stay in one font (grapheme clusters)", () => {
+    // U+0301 is not in the (ASCII-only) Latin font: `e` stays with its mark.
+    expect(labelRuns("Cafe\u0301 au", { font: "regular", covers, latin }).runs).toEqual([
+      [
+        { text: "Caf", font: LATIN_FONT, script: "base" },
+        { text: "e\u0301", font: "regular", script: "base" },
+        { text: " au", font: LATIN_FONT, script: "base" },
+      ],
+    ]);
+    // A cluster only the math font has wholly goes there; one no font has
+    // wholly stays in the label's font (lint/missing-glyph reports it).
+    const onlyMath = (font: string, cp: number) =>
+      font === MATH_FONT ? cp === 0x78 || cp === 0x20d7 : cp !== 0x20d7;
+    expect(labelRuns("x\u20d7", { font: "regular", covers: onlyMath }).runs).toEqual([
+      [{ text: "x\u20d7", font: MATH_FONT, script: "base" }],
+    ]);
+    expect(labelRuns("y\u20d7", { font: "regular", covers: onlyMath })).toEqual({
+      lines: ["y\u20d7"],
+    });
+  });
 });

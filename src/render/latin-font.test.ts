@@ -40,7 +40,7 @@ figure:
   profile: paper-single
   layout:
     arrange:
-      stack: { gap: 6mm, items: [encoder, scale] }
+      stack: { gap: 6mm, items: [encoder, scale, marks] }
 groups:
   - id: encoder
     label: Encoder Block
@@ -49,6 +49,9 @@ nodes:
   - { id: attention, component: box, label: Multi-Head Attention, group: encoder }
   - { id: embedding, component: box, label: 入力 Embedding, group: encoder }
   - { id: scale, component: box, label: 'Scale $\\gamma_1$' }
+  # Combining marks (#172 review): a base Inter lacks with a mark only Inter
+  # has, and a base and mark both in Inter.
+  - { id: marks, component: box, label: "か\\u0342 te\\u0301st" }
 edges:
   - { from: embedding, to: attention, label: x2 }
 `;
@@ -175,7 +178,7 @@ describe("the Latin font slots (#172)", () => {
         compared++;
       }
     }
-    expect(compared).toBe(5);
+    expect(compared).toBe(6);
     expect(lintGeometry(figure, { source: SOURCE })).toEqual([]);
   });
 
@@ -231,6 +234,45 @@ describe("the Latin font slots (#172)", () => {
     expect(glyphX("E")).toBeCloseTo(((runs[1]?.x ?? 0) + space - vb.x) * scale, 2);
   });
 
+  test("a base and its combining marks stay in one font, in the layout and in the PDF", async () => {
+    const figure = await rendered();
+    const label = figure.inspection.elements
+      .flatMap((e) => e.labels)
+      .find((l) => l.text === "か͂ tést");
+    if (label === undefined) throw new Error("no label with marks");
+    // `か` + U+0342 (only Inter has the mark, Inter lacks `か`): the cluster
+    // stays in BIZ UDPGothic (lint/missing-glyph reports the mark); `é` as
+    // `e` + U+0301 is wholly in Inter.
+    const runs = measureLabel(label, latinSet).runs?.[0] ?? [];
+    expect(runs.map((r) => [r.text, r.font])).toEqual([
+      ["か͂", "regular"],
+      [" tést", "latin"],
+    ]);
+    const pdf = svgToPdf(figure.svg);
+    if (!pdf.ok) throw new Error(JSON.stringify(pdf.diagnostics));
+    const inspected = inspectPdf(pdf.value);
+    const vb = figure.inspection.canvas.viewBox;
+    const scale = (inspected.pages[0]?.mediaBox[2] ?? 0) / vb.width;
+    const baseline = (inspected.pages[0]?.mediaBox[3] ?? 0) - (label.anchor.y - vb.y) * scale;
+    const glyphs = inspected.glyphs.filter((g) => Math.abs(g.y - baseline) < 0.01);
+    const font = (g: { font: string } | undefined) => g?.font.replace(/^[A-Z]{6}\+/, "");
+    // The cluster `か` + U+0342 is drawn as one glyph cluster of BIZ UDPGothic
+    // (its missing mark as .notdef, which lint/missing-glyph reports; where a
+    // missing glyph is drawn is up to the renderer). No copy of Inter takes
+    // it over with blank glyphs (#112), which made the whole cluster vanish.
+    expect(font(glyphs[0])).toBe("BIZUDPGothic-Regular");
+    expect(glyphs[0]?.text.trim()).not.toBe("");
+    // `e` + U+0301 is drawn by Inter with its mark, at Inter's advances.
+    expect(glyphs.slice(1).map((g) => [g.text.normalize("NFC"), font(g)])).toEqual(
+      [..." t\u00e9st"].map((c) => [c, "Inter-Regular"]),
+    );
+    const last = glyphs.at(-1);
+    expect((last?.x ?? 0) + (last?.advance ?? 0) - (glyphs[1]?.x ?? 0)).toBeCloseTo(
+      (runs[1]?.width ?? 0) * scale,
+      2,
+    );
+  });
+
   test("picture and editable PPTX use the same fonts", async () => {
     const figure = await rendered();
     const picture = svgToPptx(figure.svg);
@@ -261,10 +303,11 @@ describe("the Latin font slots (#172)", () => {
 
   test("lint/missing-glyph checks Latin text against Inter and Japanese text against BIZ UDPGothic", () => {
     const source = `version: 1
-figure: { id: glyphs, layout: { arrange: { stack: { items: [a, b] } } } }
+figure: { id: glyphs, layout: { arrange: { stack: { items: [a, b, c] } } } }
 nodes:
   - { id: a, component: box, label: Attention 入力 → x₂ }
   - { id: b, component: box, label: Fire 🔥 }
+  - { id: c, component: box, label: "か\\u0342 te\\u0301st" }
 `;
     const check = checkFigure(source);
     const minimal = getTheme("minimal");
@@ -275,6 +318,40 @@ nodes:
     );
     expect(findings.map((f) => f.message)).toEqual([
       `The label of node "b" has a character missing from the regular, Latin and math fonts of font set ${LATIN_FONT_SET_ID}: "🔥" (U+1F525).`,
+      // The mark is in Inter, but its base \`か\` is not: the cluster stays in BIZ UDPGothic.
+      `The label of node "c" has a character missing from the regular, Latin and math fonts of font set ${LATIN_FONT_SET_ID}: "\u0342" (U+0342).`,
     ]);
+  });
+});
+
+describe("a run after a text node that starts with a space (all font sets)", () => {
+  test("the default font set keeps the space of `a$_\\text{ b}$` in the PDF", async () => {
+    // A subscript run in the label's font that starts with a space, right
+    // after the text `a`: usvg dropped that space when `a` was a bare text
+    // node, so the writer wraps `a` in a <tspan> of its own.
+    const source = `version: 1
+figure: { id: ws, theme: minimal, layout: { arrange: { stack: { items: [n] } } } }
+nodes:
+  - { id: n, component: box, label: 'a$_\\text{ b}$' }
+`;
+    const result = await renderFigure(source, { backend: noD2 });
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const { svg, inspection } = result.value;
+    expect(svg).toMatch(
+      /<tspan>a<\/tspan><tspan style="font-size:[\d.]+px" dy="[\d.]+"> b<\/tspan>/,
+    );
+    const label = inspection.elements.flatMap((e) => e.labels).find((l) => l.text === "a b");
+    if (label === undefined) throw new Error("no label");
+    const runs = measureLabel(label, fontSetOf(DEFAULT_FONT_SET_ID)).runs?.[0] ?? [];
+    expect(runs.map((r) => r.text)).toEqual(["a", " b"]);
+    const pdf = svgToPdf(svg);
+    if (!pdf.ok) throw new Error(JSON.stringify(pdf.diagnostics));
+    const inspected = inspectPdf(pdf.value);
+    const scale = (inspected.pages[0]?.mediaBox[2] ?? 0) / inspection.canvas.viewBox.width;
+    const b = inspected.glyphs.find((g) => g.text === "b");
+    // `b` starts after the space, where the lint measured it.
+    const regular = loadFontMetrics(fontSetOf(DEFAULT_FONT_SET_ID).regular);
+    const space = (regular.advanceOf(0x20) / regular.unitsPerEm) * (runs[1]?.fontSizeUnits ?? 0);
+    expect(b?.x).toBeCloseTo(((runs[1]?.x ?? 0) + space - inspection.canvas.viewBox.x) * scale, 2);
   });
 });

@@ -104,6 +104,9 @@ export interface ResolvedSvgFonts {
   faces: ReadonlyMap<string, FontFace>;
 }
 
+/** Splits text into grapheme clusters, as usvg shapes and falls back for them. */
+const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+
 /**
  * Font classes of label math (#93) and of Latin text (#172): not D2 slots,
  * resolved with `fontFileFor()`.
@@ -315,7 +318,8 @@ export function resolveSvgFonts(
  * The code points each font file must also map so that no `<text>` with runs
  * in several fonts falls back (see the module comment): per file, the
  * characters of those texts that the file lacks, except characters some run's
- * own font lacks anywhere in the SVG (those keep falling back as before).
+ * own font lacks anywhere in the SVG (those keep falling back as before),
+ * with every character of a grapheme cluster that has such a character.
  * A run's font is the one of the nearest element (itself or an ancestor)
  * with a class that a font rule selects. Text without one is drawn with the
  * engine's default family, the unchanged `regular` file, which no CSS rule
@@ -351,10 +355,15 @@ function foreignCodePoints(
     if (node.type === "text") {
       if (text === undefined) continue;
       text.files.add(item.file);
-      for (const char of node.text) {
-        const cp = char.codePointAt(0) as number;
-        text.codePoints.add(cp);
-        if (!covers(item.file, cp)) ownMissing.add(cp);
+      // A cluster (a base and its combining marks, #172) whose own font lacks
+      // a character falls back as a whole: no copy may map any character of
+      // it, or usvg would take the copy (with blank glyphs) for the cluster.
+      for (const { segment } of GRAPHEMES.segment(node.text)) {
+        const codePoints = [...segment].map((char) => char.codePointAt(0) as number);
+        for (const cp of codePoints) text.codePoints.add(cp);
+        if (codePoints.some((cp) => !covers(item.file, cp))) {
+          for (const cp of codePoints) ownMissing.add(cp);
+        }
       }
       continue;
     }
