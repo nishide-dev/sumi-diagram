@@ -11,6 +11,7 @@ import {
   ALIGN_GROWTH_MM,
   ALIGN_GROWTH_RATIO,
   converged,
+  grewFigure,
   MAX_ALIGN_ROUNDS,
 } from "./align";
 import { layoutStructured, type PlacedStructured, placeStructured } from "./engine";
@@ -475,6 +476,39 @@ describe("the figure's growth (#155)", () => {
     expect(grown).toBeLessThan(ALIGN_GROWTH_MM);
     expect(grown).toBeLessThan(ALIGN_GROWTH_RATIO * plain.canvas.height * MM);
     expect(placed.diagnostics).toEqual([]);
+  });
+
+  describe("the thresholds (canvases in units)", () => {
+    const ir = { meta: { id: "t" } } as FigureIR;
+    const canvas = (width: number, height: number) => ({ canvas: { width, height } }) as LayoutIR;
+    const grew = (from: [number, number], to: [number, number]) =>
+      grewFigure(ir, canvas(...from), canvas(...to));
+
+    test("both bounds must be passed", () => {
+      // Over 5mm but under 10%: 1000 → 1040 units is +7.06mm, +4%.
+      expect(40 * MM).toBeGreaterThan(ALIGN_GROWTH_MM);
+      expect(grew([200, 1000], [200, 1040])).toBeUndefined();
+      // Over 10% but under 5mm: 100 → 120 units is +3.53mm, +20%.
+      expect(20 * MM).toBeLessThan(ALIGN_GROWTH_MM);
+      expect(grew([200, 100], [200, 120])).toBeUndefined();
+      // The same sides, both bounds passed: reported.
+      expect(grew([200, 100], [200, 140])?.code).toBe("layout/align-grew-figure");
+    });
+
+    test("width growth", () => {
+      // 200 → 260 units: 35.28mm → 45.86mm.
+      const d = grew([200, 300], [260, 300]);
+      expect(d?.message).toBe(
+        "figure.layout.align made the figure 10.58mm wider (width 35.28mm → 45.86mm, +30%) than the layout without it.",
+      );
+    });
+
+    test("both sides in one info", () => {
+      const d = grew([200, 300], [260, 400]);
+      expect(d?.message).toBe(
+        "figure.layout.align made the figure 10.58mm wider (width 35.28mm → 45.86mm, +30%) and 17.64mm taller (height 52.92mm → 70.56mm, +33%) than the layout without it.",
+      );
+    });
   });
 });
 

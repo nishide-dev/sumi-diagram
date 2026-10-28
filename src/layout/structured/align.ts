@@ -389,7 +389,11 @@ export const ALIGN_GROWTH_MM = 5;
 export const ALIGN_GROWTH_RATIO = 0.1;
 
 /** `layout/align-grew-figure` (info) when the struts grew `plain` into `layout` notably. */
-function grewFigure(ir: FigureIR, plain: LayoutIR, layout: LayoutIR): Diagnostic | undefined {
+export function grewFigure(
+  ir: FigureIR,
+  plain: LayoutIR,
+  layout: LayoutIR,
+): Diagnostic | undefined {
   const sides: string[] = [];
   for (const [side, word] of [
     ["width", "wider"],
