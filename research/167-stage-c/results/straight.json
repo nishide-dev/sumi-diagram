@@ -1,0 +1,841 @@
+{
+  "c-h3world (encoders → refiner, refiner → A5, A3 → block)": {
+    "none": {
+      "errors": [],
+      "crossings": 0,
+      "straight": "1/7",
+      "bends": 23,
+      "loops": 0,
+      "edges": [
+        {
+          "edge": "enc0→refiner",
+          "bends": 4,
+          "excess": 7.654,
+          "jog": 14.173
+        },
+        {
+          "edge": "enc1→refiner",
+          "bends": 4,
+          "excess": 7.654,
+          "jog": 14.173
+        },
+        {
+          "edge": "enc2→refiner",
+          "bends": 0,
+          "excess": 0,
+          "jog": 0
+        },
+        {
+          "edge": "enc3→refiner",
+          "bends": 4,
+          "excess": 7.654,
+          "jog": 14.173
+        },
+        {
+          "edge": "enc4→refiner",
+          "bends": 4,
+          "excess": 7.654,
+          "jog": 14.173
+        },
+        {
+          "edge": "refiner→seq-a5",
+          "bends": 3,
+          "excess": 7.654,
+          "jog": 14.173
+        },
+        {
+          "edge": "bt-a3→b-block1",
+          "bends": 4,
+          "excess": 1.984,
+          "jog": 17.008
+        }
+      ]
+    },
+    "spread": {
+      "errors": [],
+      "crossings": 0,
+      "straight": "1/7",
+      "bends": 20,
+      "loops": 0,
+      "edges": [
+        {
+          "edge": "enc0→refiner",
+          "bends": 3,
+          "excess": 7.654,
+          "jog": 14.173
+        },
+        {
+          "edge": "enc1→refiner",
+          "bends": 4,
+          "excess": 7.654,
+          "jog": 14.173
+        },
+        {
+          "edge": "enc2→refiner",
+          "bends": 0,
+          "excess": 0,
+          "jog": 0
+        },
+        {
+          "edge": "enc3→refiner",
+          "bends": 3,
+          "excess": 7.654,
+          "jog": 14.173
+        },
+        {
+          "edge": "enc4→refiner",
+          "bends": 3,
+          "excess": 7.654,
+          "jog": 14.173
+        },
+        {
+          "edge": "refiner→seq-a5",
+          "bends": 3,
+          "excess": 7.654,
+          "jog": 14.173
+        },
+        {
+          "edge": "bt-a3→b-block1",
+          "bends": 4,
+          "excess": 1.984,
+          "jog": 17.008
+        }
+      ]
+    },
+    "written": {
+      "errors": [],
+      "crossings": 0,
+      "straight": "5/7",
+      "bends": 7,
+      "loops": 0,
+      "edges": [
+        {
+          "edge": "enc0→refiner",
+          "bends": 0,
+          "excess": 0,
+          "jog": 0
+        },
+        {
+          "edge": "enc1→refiner",
+          "bends": 0,
+          "excess": 0,
+          "jog": 0
+        },
+        {
+          "edge": "enc2→refiner",
+          "bends": 0,
+          "excess": 0,
+          "jog": 0
+        },
+        {
+          "edge": "enc3→refiner",
+          "bends": 0,
+          "excess": 0,
+          "jog": 0
+        },
+        {
+          "edge": "enc4→refiner",
+          "bends": 0,
+          "excess": 0,
+          "jog": 0
+        },
+        {
+          "edge": "refiner→seq-a5",
+          "bends": 3,
+          "excess": 7.654,
+          "jog": 14.173
+        },
+        {
+          "edge": "bt-a3→b-block1",
+          "bends": 4,
+          "excess": 1.984,
+          "jog": 17.008
+        }
+      ]
+    },
+    "straight": {
+      "errors": [],
+      "crossings": 0,
+      "straight": "7/7",
+      "bends": 0,
+      "loops": 0,
+      "edges": [
+        {
+          "edge": "enc0→refiner",
+          "anchor": "to north:0.09",
+          "bends": 0,
+          "excess": 0,
+          "jog": 0
+        },
+        {
+          "edge": "enc1→refiner",
+          "anchor": "to north:0.295",
+          "bends": 0,
+          "excess": 0,
+          "jog": 0
+        },
+        {
+          "edge": "enc2→refiner",
+          "anchor": "to north:0.49999999999999994",
+          "bends": 0,
+          "excess": 0,
+          "jog": 0
+        },
+        {
+          "edge": "enc3→refiner",
+          "anchor": "to north:0.705",
+          "bends": 0,
+          "excess": 0,
+          "jog": 0
+        },
+        {
+          "edge": "enc4→refiner",
+          "anchor": "to north:0.91",
+          "bends": 0,
+          "excess": 0,
+          "jog": 0
+        },
+        {
+          "edge": "refiner→seq-a5",
+          "anchor": "from south:0.44499999999999995",
+          "bends": 0,
+          "excess": 0,
+          "jog": 0
+        },
+        {
+          "edge": "bt-a3→b-block1",
+          "anchor": "to north:0.43209876543209874",
+          "bends": 0,
+          "excess": 0,
+          "jog": 0
+        }
+      ]
+    },
+    "4dp": {
+      "errors": [],
+      "crossings": 0,
+      "straight": "7/7",
+      "bends": 0,
+      "loops": 0,
+      "edges": [
+        {
+          "edge": "enc0→refiner",
+          "anchor": "to north:0.09",
+          "bends": 0,
+          "excess": 0,
+          "jog": 0
+        },
+        {
+          "edge": "enc1→refiner",
+          "anchor": "to north:0.295",
+          "bends": 0,
+          "excess": 0,
+          "jog": 0
+        },
+        {
+          "edge": "enc2→refiner",
+          "anchor": "to north:0.5",
+          "bends": 0,
+          "excess": 0,
+          "jog": 0
+        },
+        {
+          "edge": "enc3→refiner",
+          "anchor": "to north:0.705",
+          "bends": 0,
+          "excess": 0,
+          "jog": 0
+        },
+        {
+          "edge": "enc4→refiner",
+          "anchor": "to north:0.91",
+          "bends": 0,
+          "excess": 0,
+          "jog": 0
+        },
+        {
+          "edge": "refiner→seq-a5",
+          "anchor": "from south:0.445",
+          "bends": 0,
+          "excess": 0,
+          "jog": 0
+        },
+        {
+          "edge": "bt-a3→b-block1",
+          "anchor": "to north:0.4321",
+          "bends": 0,
+          "excess": 0,
+          "jog": 0
+        }
+      ]
+    }
+  },
+  "b-dit (panel 1 inputs, panel 4 inputs)": {
+    "none": {
+      "errors": [],
+      "crossings": 0,
+      "straight": "0/6",
+      "bends": 19,
+      "loops": 0,
+      "edges": [
+        {
+          "edge": "patchify→dit-block",
+          "bends": 3,
+          "excess": 17.984,
+          "jog": 17.008
+        },
+        {
+          "edge": "embed→dit-block",
+          "bends": 4,
+          "excess": 3.992,
+          "jog": 17.008
+        },
+        {
+          "edge": "timestep→embed",
+          "bends": 4,
+          "excess": 2.976,
+          "jog": 17.008
+        },
+        {
+          "edge": "class-label→embed",
+          "bends": 4,
+          "excess": 2.976,
+          "jog": 17.008
+        },
+        {
+          "edge": "i-tokens→i-concat",
+          "bends": 2,
+          "excess": 0,
+          "jog": 22.677
+        },
+        {
+          "edge": "i-cond→i-concat",
+          "bends": 2,
+          "excess": 0,
+          "jog": 22.677
+        }
+      ]
+    },
+    "spread": {
+      "errors": [],
+      "crossings": 0,
+      "straight": "0/6",
+      "bends": 18,
+      "loops": 0,
+      "edges": [
+        {
+          "edge": "patchify→dit-block",
+          "bends": 3,
+          "excess": 17.984,
+          "jog": 17.008
+        },
+        {
+          "edge": "embed→dit-block",
+          "bends": 3,
+          "excess": 3.992,
+          "jog": 17.008
+        },
+        {
+          "edge": "timestep→embed",
+          "bends": 4,
+          "excess": 2.976,
+          "jog": 13.585
+        },
+        {
+          "edge": "class-label→embed",
+          "bends": 4,
+          "excess": 17.984,
+          "jog": 17.008
+        },
+        {
+          "edge": "i-tokens→i-concat",
+          "bends": 2,
+          "excess": 0,
+          "jog": 22.113
+        },
+        {
+          "edge": "i-cond→i-concat",
+          "bends": 2,
+          "excess": 0,
+          "jog": 22.677
+        }
+      ]
+    },
+    "written": {
+      "errors": [],
+      "crossings": 0,
+      "straight": "0/6",
+      "bends": 20,
+      "loops": 0,
+      "edges": [
+        {
+          "edge": "patchify→dit-block",
+          "bends": 4,
+          "excess": 17.984,
+          "jog": 17.008
+        },
+        {
+          "edge": "embed→dit-block",
+          "bends": 4,
+          "excess": 3.992,
+          "jog": 17.008
+        },
+        {
+          "edge": "timestep→embed",
+          "bends": 4,
+          "excess": 2.976,
+          "jog": 10.652
+        },
+        {
+          "edge": "class-label→embed",
+          "bends": 4,
+          "excess": 17.984,
+          "jog": 17.008
+        },
+        {
+          "edge": "i-tokens→i-concat",
+          "bends": 2,
+          "excess": 0,
+          "jog": 14.001
+        },
+        {
+          "edge": "i-cond→i-concat",
+          "bends": 2,
+          "excess": 0,
+          "jog": 16.001
+        }
+      ]
+    },
+    "straight": {
+      "errors": [],
+      "crossings": 0,
+      "straight": "3/6",
+      "bends": 12,
+      "loops": 0,
+      "edges": [
+        {
+          "edge": "patchify→dit-block",
+          "bends": 4,
+          "excess": 17.984,
+          "jog": 17.008
+        },
+        {
+          "edge": "embed→dit-block",
+          "bends": 4,
+          "excess": 3.992,
+          "jog": 17.008
+        },
+        {
+          "edge": "timestep→embed",
+          "anchor": "to south:0.17895454545454567",
+          "bends": 0,
+          "excess": 0,
+          "jog": 0
+        },
+        {
+          "edge": "class-label→embed",
+          "bends": 4,
+          "excess": 17.984,
+          "jog": 17.008
+        },
+        {
+          "edge": "i-tokens→i-concat",
+          "anchor": "to south:0.24246110348568659",
+          "bends": 0,
+          "excess": 0,
+          "jog": 0
+        },
+        {
+          "edge": "i-cond→i-concat",
+          "anchor": "to south:0.7657579169714552",
+          "bends": 0,
+          "excess": 0,
+          "jog": 0
+        }
+      ]
+    },
+    "4dp": {
+      "errors": [],
+      "crossings": 0,
+      "straight": "0/6",
+      "bends": 22,
+      "loops": 1,
+      "edges": [
+        {
+          "edge": "patchify→dit-block",
+          "bends": 4,
+          "excess": 17.984,
+          "jog": 17.008
+        },
+        {
+          "edge": "embed→dit-block",
+          "bends": 4,
+          "excess": 3.992,
+          "jog": 17.008
+        },
+        {
+          "edge": "timestep→embed",
+          "anchor": "to south:0.179",
+          "bends": 8,
+          "excess": 285.472,
+          "jog": 0.004
+        },
+        {
+          "edge": "class-label→embed",
+          "bends": 4,
+          "excess": 17.984,
+          "jog": 17.008
+        },
+        {
+          "edge": "i-tokens→i-concat",
+          "anchor": "to south:0.2425",
+          "bends": 1,
+          "excess": 0,
+          "jog": 0.009
+        },
+        {
+          "edge": "i-cond→i-concat",
+          "anchor": "to south:0.7658",
+          "bends": 1,
+          "excess": 0,
+          "jog": 0.01
+        }
+      ]
+    }
+  },
+  "#151 vit-input (patches → projection, tokens → encoder)": {
+    "none": {
+      "errors": [],
+      "crossings": 0,
+      "straight": "0/9",
+      "bends": 28,
+      "loops": 0,
+      "edges": [
+        {
+          "edge": "p1→projection",
+          "bends": 2,
+          "excess": 0,
+          "jog": 9.008
+        },
+        {
+          "edge": "p2→projection",
+          "bends": 4,
+          "excess": 0,
+          "jog": 52.346
+        },
+        {
+          "edge": "p3→projection",
+          "bends": 4,
+          "excess": 0,
+          "jog": 52.346
+        },
+        {
+          "edge": "p4→projection",
+          "bends": 4,
+          "excess": 0,
+          "jog": 52.346
+        },
+        {
+          "edge": "t0→encoder",
+          "bends": 2,
+          "excess": 0,
+          "jog": 28.346
+        },
+        {
+          "edge": "t1→encoder",
+          "bends": 2,
+          "excess": 0,
+          "jog": 28.346
+        },
+        {
+          "edge": "t2→encoder",
+          "bends": 2,
+          "excess": 0,
+          "jog": 7.5
+        },
+        {
+          "edge": "t3→encoder",
+          "bends": 4,
+          "excess": 0,
+          "jog": 28.346
+        },
+        {
+          "edge": "t4→encoder",
+          "bends": 4,
+          "excess": 0,
+          "jog": 28.346
+        }
+      ]
+    },
+    "spread": {
+      "errors": [],
+      "crossings": 0,
+      "straight": "0/9",
+      "bends": 20,
+      "loops": 0,
+      "edges": [
+        {
+          "edge": "p1→projection",
+          "bends": 2,
+          "excess": 0,
+          "jog": 52.346
+        },
+        {
+          "edge": "p2→projection",
+          "bends": 4,
+          "excess": 0,
+          "jog": 52.346
+        },
+        {
+          "edge": "p3→projection",
+          "bends": 2,
+          "excess": 0,
+          "jog": 52.346
+        },
+        {
+          "edge": "p4→projection",
+          "bends": 2,
+          "excess": 0,
+          "jog": 10.018
+        },
+        {
+          "edge": "t0→encoder",
+          "bends": 2,
+          "excess": 0,
+          "jog": 23.669
+        },
+        {
+          "edge": "t1→encoder",
+          "bends": 2,
+          "excess": 0,
+          "jog": 10.335
+        },
+        {
+          "edge": "t2→encoder",
+          "bends": 2,
+          "excess": 0,
+          "jog": 7.5
+        },
+        {
+          "edge": "t3→encoder",
+          "bends": 2,
+          "excess": 0,
+          "jog": 25.335
+        },
+        {
+          "edge": "t4→encoder",
+          "bends": 2,
+          "excess": 0,
+          "jog": 28.346
+        }
+      ]
+    },
+    "written": {
+      "errors": [],
+      "crossings": 0,
+      "straight": "1/9",
+      "bends": 8,
+      "loops": 0,
+      "edges": [
+        {
+          "edge": "p1→projection",
+          "bends": 1,
+          "excess": 0,
+          "jog": 0.022
+        },
+        {
+          "edge": "p2→projection",
+          "bends": 1,
+          "excess": 0,
+          "jog": 0.116
+        },
+        {
+          "edge": "p3→projection",
+          "bends": 1,
+          "excess": 0,
+          "jog": 0.006
+        },
+        {
+          "edge": "p4→projection",
+          "bends": 1,
+          "excess": 0,
+          "jog": 0.128
+        },
+        {
+          "edge": "t0→encoder",
+          "bends": 1,
+          "excess": 0,
+          "jog": 0.01
+        },
+        {
+          "edge": "t1→encoder",
+          "bends": 0,
+          "excess": 0,
+          "jog": 0
+        },
+        {
+          "edge": "t2→encoder",
+          "bends": 1,
+          "excess": 0,
+          "jog": 0.025
+        },
+        {
+          "edge": "t3→encoder",
+          "bends": 1,
+          "excess": 0,
+          "jog": 0.008
+        },
+        {
+          "edge": "t4→encoder",
+          "bends": 1,
+          "excess": 0,
+          "jog": 0.033
+        }
+      ]
+    },
+    "straight": {
+      "errors": [],
+      "crossings": 0,
+      "straight": "9/9",
+      "bends": 0,
+      "loops": 0,
+      "edges": [
+        {
+          "edge": "p1→projection",
+          "anchor": "to south:0.5209480577466884",
+          "bends": 0,
+          "excess": 0,
+          "jog": 0
+        },
+        {
+          "edge": "p2→projection",
+          "anchor": "to south:0.6217303542193778",
+          "bends": 0,
+          "excess": 0,
+          "jog": 0
+        },
+        {
+          "edge": "p3→projection",
+          "anchor": "to south:0.7225149761869325",
+          "bends": 0,
+          "excess": 0,
+          "jog": 0
+        },
+        {
+          "edge": "p4→projection",
+          "anchor": "to south:0.8232972726596219",
+          "bends": 0,
+          "excess": 0,
+          "jog": 0
+        },
+        {
+          "edge": "t0→encoder",
+          "anchor": "to south:0.1116237535347522",
+          "bends": 0,
+          "excess": 0,
+          "jog": 0
+        },
+        {
+          "edge": "t1→encoder",
+          "anchor": "to south:0.3093001190653371",
+          "bends": 0,
+          "excess": 0,
+          "jog": 0
+        },
+        {
+          "edge": "t2→encoder",
+          "anchor": "to south:0.517441211489805",
+          "bends": 0,
+          "excess": 0,
+          "jog": 0
+        },
+        {
+          "edge": "t3→encoder",
+          "anchor": "to south:0.7255823039142729",
+          "bends": 0,
+          "excess": 0,
+          "jog": 0
+        },
+        {
+          "edge": "t4→encoder",
+          "anchor": "to south:0.9337233963387409",
+          "bends": 0,
+          "excess": 0,
+          "jog": 0
+        }
+      ]
+    },
+    "4dp": {
+      "errors": [],
+      "crossings": 0,
+      "straight": "1/9",
+      "bends": 8,
+      "loops": 0,
+      "edges": [
+        {
+          "edge": "p1→projection",
+          "anchor": "to south:0.5209",
+          "bends": 1,
+          "excess": 0,
+          "jog": 0.021
+        },
+        {
+          "edge": "p2→projection",
+          "anchor": "to south:0.6217",
+          "bends": 1,
+          "excess": 0,
+          "jog": 0.013
+        },
+        {
+          "edge": "p3→projection",
+          "anchor": "to south:0.7225",
+          "bends": 1,
+          "excess": 0,
+          "jog": 0.006
+        },
+        {
+          "edge": "p4→projection",
+          "anchor": "to south:0.8233",
+          "bends": 1,
+          "excess": 0,
+          "jog": 0.001
+        },
+        {
+          "edge": "t0→encoder",
+          "anchor": "to south:0.1116",
+          "bends": 1,
+          "excess": 0,
+          "jog": 0.01
+        },
+        {
+          "edge": "t1→encoder",
+          "anchor": "to south:0.3093",
+          "bends": 0,
+          "excess": 0,
+          "jog": 0
+        },
+        {
+          "edge": "t2→encoder",
+          "anchor": "to south:0.5174",
+          "bends": 1,
+          "excess": 0,
+          "jog": 0.018
+        },
+        {
+          "edge": "t3→encoder",
+          "anchor": "to south:0.7256",
+          "bends": 1,
+          "excess": 0,
+          "jog": 0.008
+        },
+        {
+          "edge": "t4→encoder",
+          "anchor": "to south:0.9337",
+          "bends": 1,
+          "excess": 0,
+          "jog": 0.01
+        }
+      ]
+    }
+  }
+}

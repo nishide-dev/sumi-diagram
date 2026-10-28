@@ -1,0 +1,8 @@
+{
+  "inspect": [
+    "svg/unsupported-geometry: Cannot read the geometry of node \"vae\": <text> has a transform."
+  ],
+  "pdfBytes": 59409,
+  "extracted": true,
+  "type3": false
+}
