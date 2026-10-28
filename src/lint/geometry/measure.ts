@@ -253,6 +253,47 @@ export function unionOf(rects: readonly Rect[]): Rect | undefined {
   return { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
 }
 
+/**
+ * The ink of each visible line (#156): the union of its glyphs' outlines
+ * (`glyf`) where the line draws them, so a rule can tell a line that touches
+ * the letters from one that only enters the space above a capital. Falls
+ * back to the line box where the outlines are not known: a label drawn as
+ * runs (#93), an icon (#94), a glyph without outline data.
+ */
+export function inkLines(measured: MeasuredLabel): Rect[] {
+  if (measured.runs !== undefined || measured.fontPath === "") return measured.visibleLines;
+  const metrics = loadFontMetrics(measured.fontPath);
+  const scale = measured.label.fontSizeUnits / metrics.unitsPerEm;
+  const ascent = metrics.hhea.ascender * scale;
+  const ink: Rect[] = [];
+  for (const [i, text] of measured.texts.entries()) {
+    const line = measured.lines[i];
+    if (line === undefined || INVISIBLE.test(text)) continue;
+    const baseline = line.y + ascent;
+    let pen = line.x;
+    const glyphs: Rect[] = [];
+    let known = true;
+    for (const char of text) {
+      const codePoint = char.codePointAt(0) ?? 0;
+      const bounds = metrics.glyphBounds(codePoint);
+      if (bounds !== undefined) {
+        glyphs.push({
+          x: pen + bounds.xMin * scale,
+          y: baseline - bounds.yMax * scale,
+          width: (bounds.xMax - bounds.xMin) * scale,
+          height: (bounds.yMax - bounds.yMin) * scale,
+        });
+      } else if (!INVISIBLE.test(char)) {
+        // A visible character without outline data: fall back to the line box.
+        known = false;
+      }
+      pen += metrics.advanceOf(codePoint) * scale;
+    }
+    ink.push((known ? unionOf(glyphs) : undefined) ?? line);
+  }
+  return ink;
+}
+
 /** Measures a label with the font set's file for each font class. */
 export function measureLabel(label: LabelGeometry, fonts: FontSet): MeasuredLabel {
   const fontPath = fontFileFor(label.font, fonts);

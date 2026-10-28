@@ -12,14 +12,24 @@ import type { ElementKey } from "../../core/check-state";
 import type { DocPath } from "../../core/diagnostics";
 import type { GroupLabelPosition } from "../../core/figure/schema";
 import { BUILTIN_PROFILES } from "../../core/profile/builtin";
-import { formatMm, formatPt } from "../../core/units";
-import { type Point, type Rect, unitsToPt } from "../../render/geometry";
+import { formatMm, formatPt, mmToPt, ptToD2Units } from "../../core/units";
+import { type Point, type Rect, unitsToMm, unitsToPt } from "../../render/geometry";
 import type { ProfileLimits } from "../../render/inspect";
 import { defineGeometryRule, type GeometryRule, type LintFinding } from "../rule";
 import type { GeometryContext, GeometryElement } from "./context";
 import { obstaclesCrossedByRoute, type RouteObstacle } from "./edges";
-import { unionOf } from "./measure";
+import { inkLines, unionOf } from "./measure";
 import { regionsOverlap } from "./outlines";
+import {
+  axisSegments,
+  COINCIDENT_UNITS,
+  type ParallelRun,
+  polylinesRectDistance,
+  rectSides,
+  sideBySide,
+  type Wire,
+  wiresOf,
+} from "./proximity";
 import {
   CUBIC_STEPS,
   overhang,
@@ -586,6 +596,263 @@ export const edgeThroughNode = defineGeometryRule({
   },
 });
 
+/**
+ * Two lines whose strokes come closer than this (edge to edge, in units:
+ * 1.5pt ≈ 0.53mm) read as one line or as a double line in print (#156).
+ */
+export const PROXIMITY_GAP_UNITS = 3;
+
+/**
+ * The shortest stretch two lines must run side by side to count (3mm, in
+ * units, #156): longer than an arrowhead and the stub before it, so an edge
+ * that only turns near a border or splits off near a node is not reported.
+ */
+export const PROXIMITY_MIN_RUN_UNITS = ptToD2Units(mmToPt(3));
+
+const mmText = (units: number, digits = 1): string => `${unitsToMm(units).toFixed(digits)}mm`;
+
+/** `true` for an edge drawn with a visible stroke, other than a legend's sample line. */
+const isDrawnEdge = (e: GeometryElement): boolean =>
+  e.ir.kind === "edge" &&
+  e.route !== undefined &&
+  e.ir.legend === undefined &&
+  e.ir.style.strokeWidth.units > 0 &&
+  e.ir.style.stroke !== "transparent";
+
+/** The straight lines of every drawn edge, shared trunks merged (one wire, several edges). */
+function edgeWires(context: GeometryContext): Wire<GeometryElement>[] {
+  return wiresOf(
+    context.elements
+      .filter(isDrawnEdge)
+      .flatMap((owner) => axisSegments(owner.route ?? []).map((segment) => ({ owner, segment }))),
+  );
+}
+
+/** Stroke width of a wire: the widest of its edges. */
+const wireWidth = (wire: Wire<GeometryElement>): number =>
+  Math.max(...wire.owners.map((e) => e.ir.style.strokeWidth.units));
+
+/** `edge "a"`, or `the line shared by edge "a" and edge edges[3]`. */
+function wireName(wire: Wire<GeometryElement>): string {
+  if (wire.owners.length === 1) return (wire.owners[0] as GeometryElement).name;
+  const names = wire.owners.map((e) => e.name);
+  return `the line shared by ${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+/** Related entries for the other edges on a shared line. */
+const sharedRelated = (wire: Wire<GeometryElement>) =>
+  wire.owners.slice(1).map((e) => ({
+    path: e.docPath,
+    message: `${capitalize(e.name)} runs on the same line.`,
+  }));
+
+interface BorderRun {
+  wire: Wire<GeometryElement>;
+  group: GeometryElement;
+  /** Space between the two strokes, in units (negative: they overlap). */
+  gap: number;
+  run: ParallelRun;
+}
+
+/**
+ * Every place where an edge's line runs along a straight side of a drawn
+ * group border closer than {@link PROXIMITY_GAP_UNITS} for at least
+ * {@link PROXIMITY_MIN_RUN_UNITS}: per set of edges on a line and group, the
+ * closest run (then the longest).
+ */
+function borderRuns(context: GeometryContext): BorderRun[] {
+  const groups = context.elements.filter(
+    (e) =>
+      e.ir.kind === "group" &&
+      e.bbox !== undefined &&
+      e.ir.style.strokeWidth.units > 0 &&
+      e.ir.style.stroke !== "transparent",
+  );
+  // One run per line (its set of edges) and group: the closest, then the longest.
+  const runs = new Map<string, BorderRun>();
+  for (const wire of edgeWires(context)) {
+    for (const group of groups) {
+      if (group.bbox === undefined || group.ir.kind !== "group") continue;
+      let best: BorderRun | undefined;
+      for (const side of rectSides(group.bbox, group.ir.style.radius.units)) {
+        const run = sideBySide(wire, {
+          axis: side.axis,
+          at: side.at,
+          spans: [[side.from, side.to]],
+        });
+        if (run === undefined || run.overlap < PROXIMITY_MIN_RUN_UNITS) continue;
+        const gap = run.distance - (wireWidth(wire) + group.ir.style.strokeWidth.units) / 2;
+        if (gap >= PROXIMITY_GAP_UNITS) continue;
+        if (best === undefined || gap < best.gap) best = { wire, group, gap, run };
+      }
+      if (best === undefined) continue;
+      const key = `${wire.owners.map((e) => e.key).join(",")}|${group.key}`;
+      const seen = runs.get(key);
+      if (
+        seen === undefined ||
+        best.gap < seen.gap ||
+        (best.gap === seen.gap && best.run.overlap > seen.run.overlap)
+      )
+        runs.set(key, best);
+    }
+  }
+  return [...runs.values()];
+}
+
+/** Hint of `edge-on-border` / `edge-near-border`, by engine. */
+function edgeBorderHint(context: GeometryContext): string {
+  return isStructured(context)
+    ? "A line on or right beside a group's border reads as part of the frame. Give the edge another way past the group: move its ends with fromAnchor / toAnchor, reorder the arrange items or change a `gap` so the edge does not pass along the group, or connect an element on the other side."
+    : "A line on or right beside a container's border reads as part of the frame. Change the layout (layout.direction, grouping) or connect elements inside the container instead of the container itself.";
+}
+
+function borderFindings(
+  context: GeometryContext,
+  keep: (gap: number) => boolean,
+  verb: string,
+): LintFinding[] {
+  return borderRuns(context)
+    .filter((r) => keep(r.gap))
+    .map(({ wire, group, gap, run }) => {
+      const edge = wire.owners[0] as GeometryElement;
+      return {
+        message: `${capitalize(wireName(wire))} ${verb} the border of ${group.name} for ${mmText(run.overlap)}${gap > 0 ? ` (${mmText(gap, 2)} between the lines)` : ""}, so it reads as part of the frame.`,
+        path: edge.docPath,
+        subject: edge.subject,
+        hint: edgeBorderHint(context),
+        related: [
+          ...sharedRelated(wire),
+          { path: group.docPath, message: `${capitalize(group.name)} is defined here.` },
+        ],
+      };
+    });
+}
+
+export const edgeOnBorder = defineGeometryRule({
+  id: "geometry/edge-on-border",
+  description:
+    "An edge runs on the border of a group for 3mm or more: the two strokes touch or overlap (at most 0.5pt apart), so the edge is drawn as part of the frame.",
+  defaultSeverity: "warning",
+  fixable: false,
+  run(context) {
+    return borderFindings(context, (gap) => gap <= GEOMETRY_TOLERANCE_UNITS, "runs on");
+  },
+});
+
+export const edgeNearBorder = defineGeometryRule({
+  id: "geometry/edge-near-border",
+  description:
+    "An edge runs right beside the border of a group for 3mm or more, less than 1.5pt from it (stroke to stroke) but not touching it.",
+  defaultSeverity: "info",
+  fixable: false,
+  run(context) {
+    return borderFindings(context, (gap) => gap > GEOMETRY_TOLERANCE_UNITS, "runs right beside");
+  },
+});
+
+export const edgeNearEdge = defineGeometryRule({
+  id: "geometry/edge-near-edge",
+  description:
+    "Two edges run side by side for 3mm or more less than 1.5pt apart (stroke to stroke) without coinciding, so they read as one blurred or doubled line. A trunk the edges share (drawn on exactly the same line) is not reported.",
+  defaultSeverity: "warning",
+  fixable: false,
+  run(context) {
+    const wires = edgeWires(context);
+    const order = new Map(context.elements.map((e, i) => [e.key, i]));
+    const first = (wire: Wire<GeometryElement>) =>
+      Math.min(...wire.owners.map((e) => order.get(e.key) ?? 0));
+    const best = new Map<
+      string,
+      {
+        later: Wire<GeometryElement>;
+        earlier: Wire<GeometryElement>;
+        gap: number;
+        run: ParallelRun;
+      }
+    >();
+    for (const [i, a] of wires.entries()) {
+      for (const b of wires.slice(i + 1)) {
+        // A route that doubles back beside itself is a detour, not two lines.
+        if (a.owners.some((e) => b.owners.includes(e))) continue;
+        const run = sideBySide(a, b);
+        if (run === undefined || run.distance <= COINCIDENT_UNITS) continue;
+        if (run.overlap < PROXIMITY_MIN_RUN_UNITS) continue;
+        const gap = run.distance - (wireWidth(a) + wireWidth(b)) / 2;
+        if (gap >= PROXIMITY_GAP_UNITS) continue;
+        const [earlier, later] = first(a) <= first(b) ? [a, b] : [b, a];
+        // One finding per pair of edge sets, at its longest stretch.
+        const key = `${later.owners.map((e) => e.key).join(",")}|${earlier.owners.map((e) => e.key).join(",")}`;
+        const seen = best.get(key);
+        if (seen === undefined || run.overlap > seen.run.overlap)
+          best.set(key, { later, earlier, gap, run });
+      }
+    }
+    return [...best.values()].map(({ later, earlier, gap, run }) => {
+      const edge = later.owners[0] as GeometryElement;
+      return {
+        message: `${capitalize(wireName(later))} runs beside ${wireName(earlier)} for ${mmText(run.overlap)}, ${gap > 0 ? `${mmText(gap, 2)} apart` : "their strokes overlapping"}, so the two read as one line.`,
+        path: edge.docPath,
+        subject: edge.subject,
+        hint: isStructured(context)
+          ? "Edges that should merge share one line only when they start or end at the same point; otherwise keep them apart. Move an end with fromAnchor / toAnchor, merge the edges into one trunk (the same anchor, or figure.layout.fanIn: merge), or change the arrangement (a `gap`, the order of a box's items) so they take different channels."
+          : "Change the layout (layout.direction, grouping) so the edges take different channels, or connect them through a shared node.",
+        related: [
+          ...sharedRelated(later),
+          ...earlier.owners.map((e) => ({
+            path: e.docPath,
+            message: `${capitalize(e.name)} runs alongside.`,
+          })),
+        ],
+      };
+    });
+  },
+});
+
+/** `true` for a label an edge should keep clear of: a group's title, a caption, a text node. */
+const isFreeText = (e: GeometryElement): boolean =>
+  e.ir.legend === undefined &&
+  (e.ir.kind === "group" || (e.ir.kind === "node" && (isCaption(e) || e.ir.shape === "text")));
+
+export const edgeTouchesLabel = defineGeometryRule({
+  id: "geometry/edge-touches-label",
+  description:
+    "An edge passes less than 1.5pt (stroke to outline) from the letters (re-measured glyph outlines) of a group's title, a caption or a text label that is not one of its ends, without crossing the label.",
+  defaultSeverity: "info",
+  fixable: false,
+  run(context) {
+    const findings: LintFinding[] = [];
+    for (const edge of context.elements) {
+      const { route } = edge;
+      if (route === undefined || !isDrawnEdge(edge) || edge.ir.kind !== "edge") continue;
+      const ends = new Set([edge.ir.from, edge.ir.to]);
+      for (const other of context.elements) {
+        if (!isFreeText(other) || ends.has(other.key)) continue;
+        const boxes = other.labels.flatMap((l) => l.visibleLines);
+        // Crossing the label is edge-crosses-label's.
+        if (
+          boxes.length === 0 ||
+          boxes.some((box) => polylinesCrossRect(route, box, GEOMETRY_TOLERANCE_UNITS))
+        )
+          continue;
+        // Room between the edge's stroke and the letters' outlines.
+        const gap =
+          Math.min(
+            ...other.labels.flatMap(inkLines).map((ink) => polylinesRectDistance(route, ink)),
+          ) - edge.strokeInset;
+        if (gap >= PROXIMITY_GAP_UNITS) continue;
+        findings.push({
+          message: `${capitalize(edge.name)} touches the ${contentNoun(other)} of ${other.name} (${gap > 0 ? `${mmText(gap, 2)} from` : "touching"} the letters).`,
+          path: edge.docPath,
+          subject: edge.subject,
+          hint: edgeCrossesLabelHint(context, other),
+          related: [{ path: labelPath(other), message: "The label is defined here." }],
+        });
+      }
+    }
+    return findings;
+  },
+});
+
 export const aspectDistorted = defineGeometryRule({
   id: "geometry/aspect-distorted",
   description:
@@ -785,6 +1052,10 @@ export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
   labelCollision,
   edgeCrossesLabel,
   edgeThroughNode,
+  edgeOnBorder,
+  edgeNearBorder,
+  edgeNearEdge,
+  edgeTouchesLabel,
   aspectDistorted,
   reversedEdge,
 ] as GeometryRule[]);
