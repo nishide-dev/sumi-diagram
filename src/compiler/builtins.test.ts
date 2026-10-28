@@ -47,6 +47,13 @@ const LOWERING: Record<string, string> = {
   "sumi/zoom": "--",
 };
 
+/**
+ * Components the `check` stages expand into elements of other components,
+ * leaving none of their own (#181: a tokens node becomes its cells). They
+ * are traced back through `writtenComponentOf()`.
+ */
+const EXPANDED_AWAY = ["sumi/tokens"];
+
 function compileAny(source: string) {
   const result = compileFigure(source);
   if (!result.ok) throw new Error(JSON.stringify(result.diagnostics, null, 2));
@@ -77,7 +84,7 @@ function addLowerings(ir: FigureIR, seen: Map<string, Set<string>>): void {
 
 describe("built-in components lower to standard D2 shapes", () => {
   test("the lowering table covers exactly the built-in components", () => {
-    expect(Object.keys(LOWERING).sort()).toEqual(
+    expect([...Object.keys(LOWERING), ...EXPANDED_AWAY].sort()).toEqual(
       BUILTIN_MANIFESTS.map((m) => `${m.namespace}/${m.name}`).sort(),
     );
   });
@@ -105,16 +112,17 @@ describe("built-in components lower to standard D2 shapes", () => {
         const variants = [...ir.elements.values(), ...structured.ir.elements.values()]
           .filter((e) => e.component === id)
           .map((e) => e.variant);
-        expect(new Set(variants)).toEqual(new Set(m.variants));
+        expect(new Set(variants)).toEqual(new Set(EXPANDED_AWAY.includes(id) ? [] : m.variants));
         const traced = written.filter((e) => e.component === id).map((e) => e.variant);
         expect(new Set(traced)).toEqual(new Set(m.variants));
       }
       // Only the components the auto engine cannot draw are left to the structured figure.
-      expect(STRUCTURED_ONLY_MANIFESTS.map((m) => m.name)).toEqual(["legend", "zoom"]);
+      expect(STRUCTURED_ONLY_MANIFESTS.map((m) => m.name)).toEqual(["legend", "tokens", "zoom"]);
       expect(ir.elements.size).toBeGreaterThan(0);
       for (const e of ir.elements.values()) {
         expect(e.component).not.toBe("sumi/legend");
         expect(e.component).not.toBe("sumi/zoom");
+        expect(e.component).not.toBe("sumi/tokens");
       }
     });
   }

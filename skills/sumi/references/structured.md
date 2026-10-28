@@ -631,6 +631,67 @@ edges:
   (`component/anchor-on-zoom`). Before 0.6.0 the CLI reports
   `component/unknown`: draw two dashed `line` edges instead.
 
+## Token sequences
+
+A **`tokens`** node (`component: tokens`, structured only, added after
+0.5.3) writes a row of cells — sequence tokens, patches, keys — as one
+node. Each cell is a label string or `{ id, label, tone, component,
+variant, width, height }`; `props.component` / `variant` / `width` /
+`height` and the node's `tone` are the defaults for every cell. `gap`
+and `align` are those of an arrange box; `direction: down` makes a
+column. `lines: [[W], [A, S, D]]` (instead of `cells`) stacks several
+rows, e.g. a key cluster (`lineGap`, `lineAlign: center`). An ellipsis
+cell is `{ label: '…', component: label }` or a math label such as
+`'$A_{\ldots}$'`. The tokens node has no label of its own (put a `label`
+node beside it).
+
+Edges, `attach.to` and `align` name a cell as **`<node>.<cell>`**: the
+cell's `id`, or its 1-based position when it has none (`keys.3`).
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: token-sequence
+  theme: color
+  layout:
+    arrange:
+      stack:
+        gap: 5mm
+        items:
+          - refiner
+          - row: { gap: 6mm, align: end, items: [seq, keys] }
+nodes:
+  - { id: refiner, component: box, label: Token Refiner, tone: gray }
+  - id: seq
+    component: tokens
+    tone: purple
+    props:
+      gap: 1.5pt
+      height: 14pt
+      cells:
+        - { id: static, label: Static, tone: gray }
+        - { id: a1, label: '$A_1$' }
+        - { id: a2, label: '$A_2$' }
+        - { label: '…', component: label }
+  - id: keys
+    component: tokens
+    props: { gap: 1pt, component: square, lineAlign: center, lines: [[W], [{ label: A, tone: orange }, S, D]] }
+edges:
+  - { from: refiner, to: seq.a2 }
+```
+
+- Each cell is drawn as an ordinary node `<node>-<cell>` (`seq-a2`,
+  `keys-2`): diagnostics name it so, and your own IDs must not use these
+  (`ref/reserved-id`). An unknown cell is `ref/unknown-cell`; the tokens
+  node's own ID as an endpoint, attach target or align item is
+  `ref/tokens-reference`. Place the tokens in an arrange tree, never with
+  `attach` (`layout/attached-tokens`).
+- Cells without a label are fine (no `lint/empty-label`). A cell cannot be
+  an `operator`, `junction`, `image`, `legend` or `tokens`
+  (`component/invalid-prop`). An older CLI reports `component/unknown`:
+  write one node per cell instead.
+
 ## Spacing that routes
 
 An arrow between two facing sides needs a gap longer than its arrowhead:

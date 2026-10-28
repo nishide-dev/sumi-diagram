@@ -29,7 +29,7 @@ import {
   nodeKey,
 } from "../check-state";
 import type { DocPath } from "../diagnostics";
-import { builtinRegistry, LEGEND_ID } from "../registry/builtins";
+import { builtinRegistry, LEGEND_ID, TOKENS_ID } from "../registry/builtins";
 import {
   componentId,
   type GroupManifest,
@@ -167,6 +167,8 @@ function sampleBoxProblem(manifest: NodeManifest): string | undefined {
   if (manifest.embed !== undefined) return "embeds an image file";
   if (manifest.shape === "text") return "draws only its label";
   if (componentId(manifest) === LEGEND_ID) return "is a legend";
+  // Tokens (#181) are expanded into cells, never drawn as one box.
+  if (componentId(manifest) === TOKENS_ID) return "is drawn as its cells";
   return undefined;
 }
 

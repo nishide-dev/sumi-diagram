@@ -46,9 +46,10 @@ export const noEdges = defineRule({
     if (edges === undefined) return [];
     if (edges.some((e, i) => e === undefined || !expanded?.has(edgeKey(e.id, i)))) return [];
     // Invalid nodes already have errors; count only the valid ones, and not
-    // the captions of groups (#130) or the parts of legends (#131).
+    // the captions of groups (#130) or the parts of legends (#131). The
+    // cells of tokens nodes (#181) are the author's nodes.
     const nodeCount = context.elements.filter(
-      (e) => e.kind === "node" && e.origin === undefined,
+      (e) => e.kind === "node" && (e.origin === undefined || e.origin.from === "tokens"),
     ).length;
     if (nodeCount < 2) return [];
     const subject = figureSubject(context);

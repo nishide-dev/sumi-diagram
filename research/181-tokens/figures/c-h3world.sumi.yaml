@@ -1,0 +1,337 @@
+# #181: research/167-stage-c/figures/c-h3world.sumi.yaml (#167 figure C, H3-World)
+# with its token cells written as `component: tokens` by
+# research/181-tokens/rewrite.ts; nothing else is changed.
+version: 1
+figure:
+  id: stage-c-h3world
+  theme: color
+  profile: paper-double
+  layout:
+    arrange:
+      stack:
+        gap: 3mm
+        align: stretch
+        items:
+          - build
+          - row: { gap: 3mm, align: stretch, items: [ adapt, lora ] }
+    align:
+      - { y: [ visual-heading, frame0 ] }
+      - { y: [ action-heading, k0-move.3 ] }
+      - { y: [ first-frame, prompt0 ] }
+      - { y: [ first-encoder, enc0 ] }
+      - { y: [ seq-heading, seq.static ] }
+
+groups:
+  - id: build
+    label: (a) Build the packed H3-World sequence
+    labelAt: top-left
+    arrange:
+      row:
+        gap: 6mm
+        align: start
+        items:
+          - stack: { gap: 2mm, align: center, items: [ visual-heading, action-heading, first-frame, first-encoder, seq-heading ] }
+          - stack:
+              gap: 2.5mm
+              align: stretch
+              items:
+                - row:
+                    gap: 10pt
+                    items:
+                      - stack: { gap: 3mm, items: [ { stack: { gap: 0.5mm, items: [ frame0, frame0-label ] } }, { row: { gap: 1.5mm, items: [ k0-move, k0-look ] } }, prompt0, enc0 ] }
+                      - stack: { gap: 3mm, items: [ { stack: { gap: 0.5mm, items: [ frame1, frame1-label ] } }, { row: { gap: 1.5mm, items: [ k1-move, k1-look ] } }, prompt1, enc1 ] }
+                      - stack: { gap: 3mm, items: [ { stack: { gap: 0.5mm, items: [ frame2, frame2-label ] } }, { row: { gap: 1.5mm, items: [ k2-move, k2-look ] } }, prompt2, enc2 ] }
+                      - stack: { gap: 3mm, items: [ { stack: { gap: 0.5mm, items: [ frame3, frame3-label ] } }, { row: { gap: 1.5mm, items: [ k3-move, k3-look ] } }, prompt3, enc3 ] }
+                      - stack: { gap: 3mm, items: [ { stack: { gap: 0.5mm, items: [ frame4, frame4-label ] } }, { row: { gap: 1.5mm, items: [ k4-move, k4-look ] } }, prompt4, enc4 ] }
+                - refiner
+                - seq
+          - vae
+  - id: adapt
+    label: (b) Adapt the H3 block
+    labelAt: top-left
+    arrange:
+      stack:
+        gap: 3mm
+        align: stretch
+        items:
+          - bt
+          - b-block1
+          - b-dots1
+          - b-inner
+          - b-dots2
+          - b-block2
+          - b-out
+  - id: b-inner
+    tone: blue
+    arrange:
+      stack: { gap: 2mm, align: stretch, items: [ b-attn, b-ffn ] }
+  - id: lora
+    label: (c) LoRA inside H3 self-attention
+    labelAt: top-left
+    variant: muted
+    arrange:
+      row:
+        gap: 4mm
+        align: center
+        items:
+          - ct
+          - stack: { gap: 6mm, items: [ lora-in, qkv ] }
+          - c-add-in
+          - stack: { gap: 1.5mm, items: [ mask, mask-title ] }
+          - stack: { gap: 6mm, items: [ lora-out, out-proj ] }
+          - c-add-out
+          - mask-key
+  - id: mask
+    arrange:
+      stack:
+        gap: 0
+        items:
+          - row: { gap: 0, items: [ mc-corner, mc-0, mc-1, mc-2, mc-3, mc-4, mc-5, mc-6, mc-7, mc-8 ] }
+          - row: { gap: 0, items: [ mr-0, m-0-0, m-0-1, m-0-2, m-0-3, m-0-4, m-0-5, m-0-6, m-0-7, m-0-8 ] }
+          - row: { gap: 0, items: [ mr-1, m-1-0, m-1-1, m-1-2, m-1-3, m-1-4, m-1-5, m-1-6, m-1-7, m-1-8 ] }
+          - row: { gap: 0, items: [ mr-2, m-2-0, m-2-1, m-2-2, m-2-3, m-2-4, m-2-5, m-2-6, m-2-7, m-2-8 ] }
+          - row: { gap: 0, items: [ mr-3, m-3-0, m-3-1, m-3-2, m-3-3, m-3-4, m-3-5, m-3-6, m-3-7, m-3-8 ] }
+          - row: { gap: 0, items: [ mr-4, m-4-0, m-4-1, m-4-2, m-4-3, m-4-4, m-4-5, m-4-6, m-4-7, m-4-8 ] }
+          - row: { gap: 0, items: [ mr-5, m-5-0, m-5-1, m-5-2, m-5-3, m-5-4, m-5-5, m-5-6, m-5-7, m-5-8 ] }
+          - row: { gap: 0, items: [ mr-6, m-6-0, m-6-1, m-6-2, m-6-3, m-6-4, m-6-5, m-6-6, m-6-7, m-6-8 ] }
+          - row: { gap: 0, items: [ mr-7, m-7-0, m-7-1, m-7-2, m-7-3, m-7-4, m-7-5, m-7-6, m-7-7, m-7-8 ] }
+          - row: { gap: 0, items: [ mr-8, m-8-0, m-8-1, m-8-2, m-8-3, m-8-4, m-8-5, m-8-6, m-8-7, m-8-8 ] }
+
+nodes:
+  - { id: k0-move, component: tokens, props: { gap: 0.5mm, component: square, width: 8.5pt, height: 8.5pt, lines: [ [W], [A, S, D] ] } }
+  - { id: k0-look, component: tokens, props: { gap: 0.5mm, component: square, width: 8.5pt, height: 8.5pt, lines: [ [I, F], [J, K, L] ] } }
+  - { id: frame0, component: image, variant: framed, props: { src: assets/frame-00.jpg, width: 72pt, height: 40.5pt, fit: cover } }
+  - { id: frame0-label, component: label, label: '$I_0$' }
+  - { id: prompt0, component: box, tone: gray, label: "Character\nstands still,\ncamera holds\nsteady", props: { width: 72pt } }
+  - { id: enc0, component: box, label: H3 Encoder, tone: purple, props: { width: 72pt } }
+  - { id: k1-move, component: tokens, props: { gap: 0.5mm, component: square, width: 8.5pt, height: 8.5pt, lines: [ [W], [{ label: A, tone: orange }, S, D] ] } }
+  - { id: k1-look, component: tokens, props: { gap: 0.5mm, component: square, width: 8.5pt, height: 8.5pt, lines: [ [I, F], [J, K, L] ] } }
+  - { id: frame1, component: image, variant: framed, props: { src: assets/frame-01.jpg, width: 72pt, height: 40.5pt, fit: cover } }
+  - { id: frame1-label, component: label, label: '$I_{1-4}$' }
+  - { id: prompt1, component: box, tone: gray, label: "Character\nstrafes left,\ncamera\nfollows him", props: { width: 72pt } }
+  - { id: enc1, component: box, label: H3 Encoder, tone: purple, props: { width: 72pt } }
+  - { id: k2-move, component: tokens, props: { gap: 0.5mm, component: square, width: 8.5pt, height: 8.5pt, lines: [ [W], [{ label: A, tone: orange }, { label: S, tone: orange }, D] ] } }
+  - { id: k2-look, component: tokens, props: { gap: 0.5mm, component: square, width: 8.5pt, height: 8.5pt, lines: [ [I, F], [J, K, { label: L, tone: blue }] ] } }
+  - { id: frame2, component: image, variant: framed, props: { src: assets/frame-05.jpg, width: 72pt, height: 40.5pt, fit: cover } }
+  - { id: frame2-label, component: label, label: '$I_{5-8}$' }
+  - { id: prompt2, component: box, tone: gray, label: "Walks back,\nstrafes left;\ncamera pans\nright slowly", props: { width: 72pt } }
+  - { id: enc2, component: box, label: H3 Encoder, tone: purple, props: { width: 72pt } }
+  - { id: k3-move, component: tokens, props: { gap: 0.5mm, component: square, width: 8.5pt, height: 8.5pt, lines: [ [W], [{ label: A, tone: orange }, { label: S, tone: orange }, D] ] } }
+  - { id: k3-look, component: tokens, props: { gap: 0.5mm, component: square, width: 8.5pt, height: 8.5pt, lines: [ [{ label: I, tone: blue }, F], [J, K, { label: L, tone: blue }] ] } }
+  - { id: frame3, component: image, variant: framed, props: { src: assets/frame-09.jpg, width: 72pt, height: 40.5pt, fit: cover } }
+  - { id: frame3-label, component: label, label: '$I_{9-12}$' }
+  - { id: prompt3, component: box, tone: gray, label: "Walks back,\nstrafes left;\npans right,\ntilts up", props: { width: 72pt } }
+  - { id: enc3, component: box, label: H3 Encoder, tone: purple, props: { width: 72pt } }
+  - { id: k4-move, component: tokens, props: { gap: 0.5mm, component: square, width: 8.5pt, height: 8.5pt, lines: [ [W], [{ label: A, tone: orange }, { label: S, tone: orange }, D] ] } }
+  - { id: k4-look, component: tokens, props: { gap: 0.5mm, component: square, width: 8.5pt, height: 8.5pt, lines: [ [I, { label: F, tone: blue }], [J, K, { label: L, tone: blue }] ] } }
+  - { id: frame4, component: image, variant: framed, props: { src: assets/frame-13.jpg, width: 72pt, height: 40.5pt, fit: cover } }
+  - { id: frame4-label, component: label, label: '$I_{13-16}$' }
+  - { id: prompt4, component: box, tone: gray, label: "Walks back,\nstrafes left;\ncamera pans\nright sharply", props: { width: 72pt } }
+  - { id: enc4, component: box, label: H3 Encoder, tone: purple, props: { width: 72pt } }
+  - { id: visual-heading, component: label, label: Visual Stream }
+  - { id: action-heading, component: label, label: Action Stream }
+  - { id: first-frame, component: image, variant: framed, props: { src: assets/frame-00.jpg, width: 40pt, height: 22.5pt, fit: cover } }
+  - { id: first-frame-label, component: label, label: '$I_0$', attach: { to: first-frame, side: west, gap: 0.5mm } }
+  - { id: first-encoder, component: box, label: H3 Encoder, tone: purple }
+  - { id: seq-heading, component: label, label: Sequence }
+  - { id: refiner, component: box, label: 2-Layer Token Refiner, tone: gray }
+  - { id: vae, component: box, label: "Visual\nVAE\nEncoder", tone: orange, props: { height: 120pt } }
+  - { id: frames-more, component: label, label: "…", attach: { to: frame4, side: east, gap: 0.5mm } }
+  - id: seq
+    component: tokens
+    props:
+      gap: 1.5pt
+      width: 20pt
+      height: 14pt
+      cells:
+        - { id: static, label: Static, width: 36pt }
+        - { id: a1, label: '$A_1$', tone: purple }
+        - { id: a2, label: '$A_2$', tone: purple }
+        - { id: a3, label: '$A_3$', tone: purple }
+        - { id: a4, label: '$A_4$', tone: purple }
+        - { id: a5, label: '$A_5$', tone: purple }
+        - { id: adots, label: '$A_{\ldots}$', tone: purple }
+        - { id: i0, label: '$I_0$' }
+        - { id: v1, label: '$V_1$', tone: orange }
+        - { id: v2, label: '$V_2$', tone: orange }
+        - { id: v3, label: '$V_3$', tone: orange }
+        - { id: v4, label: '$V_4$', tone: orange }
+        - { id: v5, label: '$V_5$', tone: orange }
+        - { id: vdots, label: '$V_{\ldots}$', tone: orange }
+  - id: bt
+    component: tokens
+    props:
+      gap: 1pt
+      width: 16pt
+      height: 14pt
+      cells:
+        - { id: static, label: Static, width: 30pt }
+        - { id: a1, label: '$A_1$', tone: purple }
+        - { id: a2, label: '$A_2$', tone: purple }
+        - { id: a3, label: '$A_3$', tone: purple }
+        - { id: i0, label: '$I_0$' }
+        - { id: v1, label: '$V_1$', tone: orange }
+        - { id: v2, label: '$V_2$', tone: orange }
+        - { id: v3, label: '$V_3$', tone: orange }
+        - { id: pad, label: Pad, width: 20pt }
+  - { id: b-block1, component: box, label: H3 Omni Transformer Block, tone: blue }
+  - { id: b-dots1, component: label, label: "⋮" }
+  - { id: b-attn, component: box, label: Single Stream Self-Attention, tone: orange }
+  - { id: b-ffn, component: box, label: Feed Forward Network, tone: gray }
+  - { id: b-dots2, component: label, label: "⋮" }
+  - { id: b-block2, component: box, label: H3 Omni Transformer Block, tone: blue }
+  - { id: b-out, component: junction, variant: hidden }
+  - { id: ct, component: tokens, props: { direction: down, gap: 1.5pt, width: 9pt, height: 7pt, cells: [ { tone: gray }, { tone: purple }, { tone: purple }, { tone: purple }, { tone: gray }, { tone: orange }, { tone: orange }, { tone: orange }, { tone: gray } ] } }
+  - { id: lora-in, component: trapezoid, label: LoRA, tone: pink }
+  - { id: qkv, component: box, label: "QKV\nProj.", tone: blue }
+  - { id: c-add-in, component: operator, props: { symbol: plus }, tone: orange }
+  - { id: lora-out, component: trapezoid, label: LoRA, tone: pink }
+  - { id: out-proj, component: box, label: "Out\nProj.", tone: blue }
+  - { id: c-add-out, component: operator, props: { symbol: plus }, tone: orange }
+  - { id: lora-in-badge, component: label, icon: tabler/flame, attach: { to: lora-in, side: north, gap: 0.5mm } }
+  - { id: qkv-badge, component: label, icon: tabler/snowflake, attach: { to: qkv, side: north, gap: 0.5mm } }
+  - { id: lora-out-badge, component: label, icon: tabler/flame, attach: { to: lora-out, side: north, gap: 0.5mm } }
+  - { id: out-proj-badge, component: label, icon: tabler/snowflake, attach: { to: out-proj, side: north, gap: 0.5mm } }
+  - { id: mc-0, component: label, label: 'S', props: { width: 12pt } }
+  - { id: mc-1, component: label, label: '$A_1$', props: { width: 12pt } }
+  - { id: mc-2, component: label, label: '$A_2$', props: { width: 12pt } }
+  - { id: mc-3, component: label, label: '$A_3$', props: { width: 12pt } }
+  - { id: mc-4, component: label, label: '$I_0$', props: { width: 12pt } }
+  - { id: mc-5, component: label, label: '$V_1$', props: { width: 12pt } }
+  - { id: mc-6, component: label, label: '$V_2$', props: { width: 12pt } }
+  - { id: mc-7, component: label, label: '$V_3$', props: { width: 12pt } }
+  - { id: mc-8, component: label, label: 'P', props: { width: 12pt } }
+  - { id: mc-corner, component: label, label: Q / K, props: { width: 22pt } }
+  - { id: mr-0, component: label, label: 'S', props: { width: 22pt } }
+  - { id: m-0-0, component: box, tone: green, props: { width: 12pt, height: 9pt } }
+  - { id: m-0-1, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: m-0-2, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: m-0-3, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: m-0-4, component: box, tone: green, props: { width: 12pt, height: 9pt } }
+  - { id: m-0-5, component: box, tone: green, props: { width: 12pt, height: 9pt } }
+  - { id: m-0-6, component: box, tone: green, props: { width: 12pt, height: 9pt } }
+  - { id: m-0-7, component: box, tone: green, props: { width: 12pt, height: 9pt } }
+  - { id: m-0-8, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: mr-1, component: label, label: '$A_1$', props: { width: 22pt } }
+  - { id: m-1-0, component: box, tone: green, props: { width: 12pt, height: 9pt } }
+  - { id: m-1-1, component: box, tone: green, props: { width: 12pt, height: 9pt } }
+  - { id: m-1-2, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: m-1-3, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: m-1-4, component: box, tone: green, props: { width: 12pt, height: 9pt } }
+  - { id: m-1-5, component: box, tone: orange, props: { width: 12pt, height: 9pt } }
+  - { id: m-1-6, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: m-1-7, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: m-1-8, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: mr-2, component: label, label: '$A_2$', props: { width: 22pt } }
+  - { id: m-2-0, component: box, tone: green, props: { width: 12pt, height: 9pt } }
+  - { id: m-2-1, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: m-2-2, component: box, tone: green, props: { width: 12pt, height: 9pt } }
+  - { id: m-2-3, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: m-2-4, component: box, tone: green, props: { width: 12pt, height: 9pt } }
+  - { id: m-2-5, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: m-2-6, component: box, tone: orange, props: { width: 12pt, height: 9pt } }
+  - { id: m-2-7, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: m-2-8, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: mr-3, component: label, label: '$A_3$', props: { width: 22pt } }
+  - { id: m-3-0, component: box, tone: green, props: { width: 12pt, height: 9pt } }
+  - { id: m-3-1, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: m-3-2, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: m-3-3, component: box, tone: green, props: { width: 12pt, height: 9pt } }
+  - { id: m-3-4, component: box, tone: green, props: { width: 12pt, height: 9pt } }
+  - { id: m-3-5, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: m-3-6, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: m-3-7, component: box, tone: orange, props: { width: 12pt, height: 9pt } }
+  - { id: m-3-8, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: mr-4, component: label, label: '$I_0$', props: { width: 22pt } }
+  - { id: m-4-0, component: box, tone: green, props: { width: 12pt, height: 9pt } }
+  - { id: m-4-1, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: m-4-2, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: m-4-3, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: m-4-4, component: box, tone: green, props: { width: 12pt, height: 9pt } }
+  - { id: m-4-5, component: box, tone: green, props: { width: 12pt, height: 9pt } }
+  - { id: m-4-6, component: box, tone: green, props: { width: 12pt, height: 9pt } }
+  - { id: m-4-7, component: box, tone: green, props: { width: 12pt, height: 9pt } }
+  - { id: m-4-8, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: mr-5, component: label, label: '$V_1$', props: { width: 22pt } }
+  - { id: m-5-0, component: box, tone: green, props: { width: 12pt, height: 9pt } }
+  - { id: m-5-1, component: box, tone: orange, props: { width: 12pt, height: 9pt } }
+  - { id: m-5-2, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: m-5-3, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: m-5-4, component: box, tone: green, props: { width: 12pt, height: 9pt } }
+  - { id: m-5-5, component: box, tone: green, props: { width: 12pt, height: 9pt } }
+  - { id: m-5-6, component: box, tone: green, props: { width: 12pt, height: 9pt } }
+  - { id: m-5-7, component: box, tone: green, props: { width: 12pt, height: 9pt } }
+  - { id: m-5-8, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: mr-6, component: label, label: '$V_2$', props: { width: 22pt } }
+  - { id: m-6-0, component: box, tone: green, props: { width: 12pt, height: 9pt } }
+  - { id: m-6-1, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: m-6-2, component: box, tone: orange, props: { width: 12pt, height: 9pt } }
+  - { id: m-6-3, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: m-6-4, component: box, tone: green, props: { width: 12pt, height: 9pt } }
+  - { id: m-6-5, component: box, tone: green, props: { width: 12pt, height: 9pt } }
+  - { id: m-6-6, component: box, tone: green, props: { width: 12pt, height: 9pt } }
+  - { id: m-6-7, component: box, tone: green, props: { width: 12pt, height: 9pt } }
+  - { id: m-6-8, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: mr-7, component: label, label: '$V_3$', props: { width: 22pt } }
+  - { id: m-7-0, component: box, tone: green, props: { width: 12pt, height: 9pt } }
+  - { id: m-7-1, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: m-7-2, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: m-7-3, component: box, tone: orange, props: { width: 12pt, height: 9pt } }
+  - { id: m-7-4, component: box, tone: green, props: { width: 12pt, height: 9pt } }
+  - { id: m-7-5, component: box, tone: green, props: { width: 12pt, height: 9pt } }
+  - { id: m-7-6, component: box, tone: green, props: { width: 12pt, height: 9pt } }
+  - { id: m-7-7, component: box, tone: green, props: { width: 12pt, height: 9pt } }
+  - { id: m-7-8, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: mr-8, component: label, label: 'P', props: { width: 22pt } }
+  - { id: m-8-0, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: m-8-1, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: m-8-2, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: m-8-3, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: m-8-4, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: m-8-5, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: m-8-6, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: m-8-7, component: box, props: { width: 12pt, height: 9pt } }
+  - { id: m-8-8, component: box, tone: green, props: { width: 12pt, height: 9pt } }
+  - { id: mask-title, component: label, label: Masked Attention }
+  - id: mask-key
+    component: legend
+    props:
+      entries:
+        - { node: { tone: green }, label: Allowed }
+        - { node: { tone: orange }, label: "A↔V Link" }
+        - { node: { component: box }, label: Masked }
+
+edges:
+  - { from: prompt0, to: enc0 }
+  - { from: prompt0, to: prompt1 }
+  - { from: prompt1, to: enc1 }
+  - { from: prompt1, to: prompt2 }
+  - { from: prompt2, to: enc2 }
+  - { from: prompt2, to: prompt3 }
+  - { from: prompt3, to: enc3 }
+  - { from: prompt3, to: prompt4 }
+  - { from: prompt4, to: enc4 }
+  - { from: first-frame, to: first-encoder }
+  - { from: first-encoder, to: refiner, toAnchor: west }
+  - { from: enc0, to: refiner, toAnchor: "north:0.09" }
+  - { from: enc1, to: refiner, toAnchor: "north:0.295" }
+  - { from: enc2, to: refiner, toAnchor: "north:0.5" }
+  - { from: enc3, to: refiner, toAnchor: "north:0.705" }
+  - { from: enc4, to: refiner, toAnchor: "north:0.91" }
+  - { from: refiner, to: seq.a5 }
+  - { from: frames-more, to: vae, toAnchor: "west:0.1" }
+  - { from: vae, to: seq.vdots, fromAnchor: south, toAnchor: east }
+  - { from: action-heading, to: prompt0, toAnchor: west, label: "scheduled\nprompt", labelAt: middle, variant: muted }
+  - { from: bt.a3, to: b-block1 }
+  - { from: b-block2, to: b-out }
+  - { from: b-attn, fromAnchor: "east:0", to: lora, toAnchor: "west:0", component: line, variant: dashed }
+  - { from: b-attn, fromAnchor: "east:1", to: lora, toAnchor: "west:1", component: line, variant: dashed }
+  - { from: ct.5, to: lora-in, fromAnchor: east }
+  - { from: ct.5, to: qkv, fromAnchor: east }
+  - { from: lora-in, to: c-add-in }
+  - { from: qkv, to: c-add-in }
+  - { from: c-add-in, to: mask }
+  - { from: mask, to: lora-out }
+  - { from: mask, to: out-proj }
+  - { from: lora-out, to: c-add-out }
+  - { from: out-proj, to: c-add-out }
