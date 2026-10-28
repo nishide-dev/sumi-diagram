@@ -227,6 +227,15 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
       );
       continue;
     }
+    if (node.labelRotation !== undefined) {
+      fail(
+        "component/label-rotation-unsupported",
+        `Legend "${node.id}" lays its title out above its entries, so its label cannot be turned.`,
+        [...legendPath, "labelRotation"],
+        "Remove labelRotation.",
+      );
+      continue;
+    }
 
     const entries = component.props.entries as LegendEntry[];
     const entriesPath: DocPath = [...legendPath, "props", "entries"];

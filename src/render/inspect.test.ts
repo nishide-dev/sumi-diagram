@@ -360,6 +360,59 @@ describe("inspectSvg", () => {
       );
     });
 
+    test("a label turned by exactly ±90° about a point is read (#178)", () => {
+      for (const [transform, degrees] of [
+        ["rotate(90 45 55)", 90],
+        ["rotate(-90 45 55)", -90],
+        ["rotate(-90,45,55)", -90],
+        [" rotate( 90 , 45 55 ) ", 90],
+      ] as const) {
+        const svg = tinySvg([
+          grp,
+          a.replace('<text x="45"', `<text transform="${transform}" x="45"`),
+          note,
+          edge0,
+          back,
+        ]);
+        const label = inspect(svg).elements.find((e) => e.key === "n:a")?.labels[0];
+        expect(label).toMatchObject({
+          text: "A",
+          anchor: { x: 45, y: 60 },
+          rotation: { degrees, center: { x: 45, y: 55 } },
+        });
+      }
+      // Upright labels carry no rotation.
+      expect(
+        inspect(tinySvg()).elements.find((e) => e.key === "n:a")?.labels[0],
+      ).not.toHaveProperty("rotation");
+    });
+
+    test("any other transform on a label is unsupported (#178)", () => {
+      for (const transform of [
+        "rotate(45 45 55)",
+        "rotate(180 45 55)",
+        "rotate(90)",
+        "rotate(90 45)",
+        "rotate(90 45 55) scale(2)",
+        "translate(1 1) rotate(90 45 55)",
+        "matrix(0 1 -1 0 100 10)",
+      ]) {
+        const diagnostics = failure(
+          tinySvg([
+            grp,
+            a.replace('<text x="45"', `<text transform="${transform}" x="45"`),
+            note,
+            edge0,
+            back,
+          ]),
+        );
+        expect(codes(diagnostics)).toEqual(["svg/unsupported-geometry"]);
+        expect(diagnostics[0]?.message).toContain(
+          "<text> has a transform other than rotate(90 cx cy) or rotate(-90 cx cy)",
+        );
+      }
+    });
+
     test("a node without exactly one shape group is invalid", () => {
       const extraShape = `<g class="shape" ><rect x="0" y="0" width="1" height="1" /></g>`;
       const twoShapes = a.replace("<text ", `${extraShape}<text `);
