@@ -482,7 +482,23 @@ export function svgToEditablePptx(
           ),
         );
       }
-      const texts = childElements(group).filter((e) => e.name === "text");
+      const children = childElements(group);
+      const texts = children.filter((e) => e.name === "text");
+      // The label's background is the `<rect>` the SVG draws right before its
+      // text (#170, design doc §6.41): in structured SVG the color painted
+      // beneath the label, in D2's the edge's `fill` (white in the built-in
+      // themes; any other color is kept, where this used to write white
+      // always). Without one, D2 still hides the line under the label with a
+      // mask: white here, as before. Structured SVG without one (an edge
+      // `fill` of `transparent`) draws nothing, so no fill.
+      const before = children[children.indexOf(texts[0] as XmlElement) - 1];
+      const masked = attribute(path, "mask") !== undefined;
+      const background =
+        before?.name === "rect"
+          ? paint(property(before, "fill") ?? "#ffffff")
+          : masked
+            ? paint("#ffffff")
+            : "<a:noFill/>";
       geo.labels.forEach((label, i) => {
         const el = texts[i];
         if (!el) throw new Error("Missing label text");
@@ -495,7 +511,7 @@ export function svgToEditablePptx(
             `${key} label ${i}`,
             box,
             '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>',
-            paint("#ffffff"),
+            background,
             "<a:ln><a:noFill/></a:ln>",
             textBody(label, el, box, element.style.opacity),
             true,
