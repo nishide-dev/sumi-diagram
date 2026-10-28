@@ -412,7 +412,7 @@ components:
 - **Figure 側からのスタイル直接指定は v1 では提供しない**（見た目は variant で選ぶ）。
 - **薄表示**（#175、§6.53）: `dim: true` の group とその中の要素は、上の解決の後で色だけを Theme の `dim` で変換する（文字と線は dim の色、塗りは白へ寄せる）。
 - 解決結果は全プロパティが確定した、immutable な `ResolvedStyle` とする。
-- 組み込み Theme: `minimal`（モノクロ）、`academic`（論文向け）、`slides`（スライド向け。#36 で追加、§6.9）、`color`（色を使う汎用。#92 で追加、§6.20）、`paper`（論文の図の見た目: 角丸・パステルの tone・小さい矢じり・Inter。#173 で追加、§6.52）。分野固有のパレットは持たない。tone（色の分類の名前）の色は Theme の `tones` にだけ置く（§6.20）。
+- 組み込み Theme: `minimal`（モノクロ）、`academic`（論文向け）、`slides`（スライド向け。#36 で追加、§6.9）、`color`（色を使う汎用。#92 で追加、§6.20）、`paper`（論文の図の見た目: 角丸・パステルの tone・小さい矢じり・Inter。#173 で追加、§6.52）。分野固有のパレットは持たない。tone（色の分類の名前）の色は Theme の `tones`（塗り）と `toneLines`（線と文字。#177、§6.54）にだけ置く（§6.20）。
 
 ### 4.4 実装で確定した事項（#6）
 - **フォントセット**: `sumi/biz-ud-gothic` を同梱する（`assets/fonts/biz-ud-gothic/`。出典・版・sha256 は同ディレクトリの README）。Noto Sans JP は google/fonts では可変 TTF のみ、noto-cjk の公式配布は OTF / OTC（CFF）で、D2 が受け付ける静的 TTF の公式配布がないため、静的 TTF を公式リリースで配布している BIZ UD ゴシックを採用した。D2 v0.9.0 で 8 つの `--font-*` をすべて指定し、日本語＋英字のラベルが WOFF subset として `@font-face` に埋め込まれることを確認済み。フォントのパスはソースからの相対で解決する（`bun build --compile` での同梱は配布の Issue で扱う）。
@@ -870,7 +870,7 @@ layout:
 [#86 の調査](../research/86-paper-figures.md)（§2.1・§9.1 の Issue 5）。すべて追加で、`tone` を書かず新しい部品も使わない図の診断・IR・D2・SVG・PDF は変わらない（既存の examples・ギャラリーの SVG はバイト単位で同じ）。
 
 - **`tone` はフィールド（props ではない）**: `nodes[].tone` と `groups[].tone`（任意）。値は Sumi が固定する 8 色名 `gray | red | orange | yellow | green | blue | purple | pink`（`src/core/theme/tones.ts`。スキーマの enum なので未知の名前は `schema/*`、エディタ補完が効く）。
-  - 理由: tone は `variant` と同じく「Theme が見た目を決める、部品をまたいだ選択」で、部品の意味（props）ではない。props にすると全 manifest に同じ prop を宣言させることになり、部品の契約と見た目が混ざる。調査の提案（node のフィールド）どおり。group にも同じ規則で付けられる（追加の費用がほぼない）。edge の tone（調査の段階 C）は対象外。
+  - 理由: tone は `variant` と同じく「Theme が見た目を決める、部品をまたいだ選択」で、部品の意味（props）ではない。props にすると全 manifest に同じ prop を宣言させることになり、部品の契約と見た目が混ざる。調査の提案（node のフィールド）どおり。group にも同じ規則で付けられる（追加の費用がほぼない）。edge の tone（調査の段階 C）は対象外（#177 で追加、§6.54）。
   - 名前の集合を閉じるのは、どの Theme でも同じ図が描けるようにするため（Theme ごとに名前が違うと、`--theme` の切り替えで図が壊れる）。名前は色相だけで、分野の意味を持たない。
 - **Theme の `tones`**: `tones.<tone>` は部分スタイルで、**色だけ**（`fill`・`stroke`・`fontColor`）を書ける。他のプロパティは `theme/inapplicable-property`、未知の tone 名は `theme/unknown-tone`。解決順は §4.3 の最後に足す: kind 既定 → `base` → `components.<id>.default` → `<variant>` → **`tones.<tone>`**（tone を書いた node / group だけ）。色だけなので、文字の大きさ・フォント・線幅は変えず、Profile の文字サイズ検査・カタログの文字サイズ・bold/italic の検査に影響しない。variant との組み合わせは「tone の色が後勝ち」（例: academic の emphasis は灰色の塗りと太線だが、tone を付けると塗りだけ tone の色になり、太線は残る）。Theme が定義しない tone は `theme/missing-tone`（warning、`tone` の位置）で、その tone なしで描く。組み込み Theme は 8 色すべてを定義する。
 - **既存 Theme の写像（判断）**: `minimal`・`academic`・`slides` は単色のまま（利用者の判断 2026-10-26: academic に色を入れない）。tone は 3 段の灰色の塗りに写す: 明 `yellow`・`green`、中 `gray`・`orange`・`blue`、暗 `red`・`purple`・`pink`（minimal / academic は `#f2f2f2`・`#e3e3e3`・`#d4d4d4`、slides は投影で薄い灰色が飛ぶので `#ebebeb`・`#d9d9d9`・`#c7c7c7`）。図 A のように隣り合いやすい組（orange / blue のブロックと yellow の Add & Norm、purple と green）が別の段になるよう割り当てた。同じ段の tone は単色 Theme では見分けられない（すべてを区別するなら `color`）。グレースケールで印刷できる方針は保つ。
@@ -1893,6 +1893,46 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **DiT での確認**: `tests/fixtures/figures/dim/b-dit.sumi.yaml`（`research/167-stage-c/figures/b-dit.sumi.yaml` の写しで、53 か所の `variant: muted` を消し、2 つの group に `dim: true` を書いただけ。研究の記録は変えていない）を `color` と `paper` で PNG にして原図と並べ、3・4 番目のパネルの文字・線・矢じり・⊕ が灰色、tone の塗りが淡い版、枠が灰色で塗りがごく淡い灰色、キャプションが灰色になり、2 番目のパネルと左のパネルは変わらないことを確かめた。`paper`（§6.52）で描くと、薄いパネルの枠は角の丸い灰色の枠になり、原図にさらに近い（角の丸めは Theme の `radius` で、`dim` は変えない）。
 - **テスト**: `dim.test.ts`（白への寄せ・`#rgb`・透明、変換が色だけでインクの塗りは線の色、全組み込み Theme の `dim`、Theme の検査（token・欠けたフィールド・透明・型・範囲・未知のフィールド）、対象の決め方（group・入れ子の group・node・キャプション・両端が中の辺だけ・入る辺・出る辺・group への辺）、入れ子の `dim` が 1 回だけで最も外側を指すこと、内側だけの `dim`、`attach` した node（中の node に付けると中、薄い group 自身に付けると外の兄弟）、別々に薄くした 2 つの group の間の辺と `zoom` が薄いこと、`#000` と `#000000` を同じインクとみなすこと、全組み込み Theme で薄い要素だけが `dimStyle()` の結果になり他は同じ・group の破線と tone の淡い塗りが残ること、凡例・tokens のセル・セル間の辺が薄く外からの `zoom` は薄くないこと、`dim: false`、`theme/undimmed-image`、`theme/missing-dim`）、`dim.integration.test.ts`（DiT: 配置・経路・診断が `dim` なしと同じ、3・4 番目のパネルの要素の文字・線は dim の色・塗りは白へ寄せた色、ほかの要素の markup は同じ、パネル内の線（wire）だけが灰色、変わった辺（矢じり）は 9 本で dim の色だけ、編集可能 PPTX に dim の色、薄い group の上の辺のラベルの背景、auto の D2 のスタイルと D2 で描いた SVG の色）。
 - **非対象・引き継ぎ**: 透明度による薄表示（#175 の非対象）、内側での取り消し、node・辺単位の `dim`（node・辺には `variant: muted` がある）、画像を薄くすること。
+
+### 6.54 #177 の tone の枠線（`variant: outlined`）と辺の `tone`
+
+[#167 の調査](../research/167-stage-c.md) §4.5（C-2・C-9）。H3-World（C）は、白地に色の枠線と色の文字の箱（H3 Encoder の紫、Visual VAE Encoder の橙、トークンの紫・橙・灰、キーの橙・青）と、色のついた辺（橙・ピンク・青）を多く使う。これまで tone は node と group の塗りだけを変え（§6.20）、辺には付けられなかった。Figure v1 への任意フィールド・variant と Theme の任意フィールドの追加で、**`outlined` も辺の `tone` も使わない図**の診断・IR・D2・SVG・PDF・PPTX はバイト単位で変わらない（下の実測）。原図と並べた記録は [`research/177-outlined-tones/`](../../research/177-outlined-tones/README.md)。
+
+- **構文（判断）**:
+  - node の **`variant: outlined`**: 白地（Theme の紙の色）で、枠線と文字を tone の色にする。`filled`（§6.49）と同じく manifest の variant で、box・square・circle・ellipse・diamond・hexagon・parallelogram・cylinder・document・trapezoid・operator に加え **stack にも付ける**（枠線が残るので重なりは分かれる）。label（枠がない）・junction（点）・image・legend・tokens・container には付けない。名前は #167 §4.5 の理想の YAML どおり。
+    - variant にした理由: 「tone を塗りに使うか、枠と文字に使うか」は見た目の選択肢の 1 つで、継承もしない（§6.53 の `dim` をフィールドにした理由の逆）。`toneOn: border` のような新しいフィールドにすると、tone のない要素で意味を持たず、`filled`（枠なし）との組み合わせ（枠なしで枠の色）も無意味になる。variant ならカタログ・ギャラリー・`theme/missing-variant` にそのまま乗る。
+    - variant は 1 つなので、`outlined` と `muted`・`emphasis`・`filled` は同時に選べない。原図の Encoder と A のセルは「淡い紫の塗り＋紫の枠＋紫の文字」だが、`outlined` は白地にした（V のセル・VAE・キーは白地で、白地の方が多い。塗りと色の枠を両方持つ variant は需要が出てから検討する）。
+  - edge の **`tone`**（`edges[].tone`、`variant` の直後）: 値は node と同じ 8 色。線・矢じり・ラベルの文字を tone の色にする。#92 で「edge の tone は段階 C」と後回しにした項目（§6.20）。props ではなくフィールドなのは node と同じ理由（部品をまたいだ、Theme が色を決める選択）。
+- **Theme の `toneLines`（判断: 塗りとは別の、tone ごとの線と文字の色）**: Theme に任意の `toneLines.<tone>`（部分スタイル、`stroke` と `fontColor` だけ）を足した。`tones.<tone>` の淡い塗りは線や文字には薄すぎる（白地で 1.1〜1.4:1）ので、同じ色相の濃い色を別に持つ（#167 §4.5 の「塗りの淡い色は線・文字には薄すぎるので別の値」）。
+  - **どちらの層を使うか**（`toneField()`、`src/core/theme/resolve.ts`）: node・group の variant が `outlined`（`OUTLINED_VARIANT`）なら `toneLines.<tone>`、辺は常に `toneLines.<tone>`、それ以外は従来どおり `tones.<tone>`。解決順の位置（variant の後、§4.3）は同じで、層が入れ替わるだけ。outlined の node には `tones`（塗り）を重ねない。`outlined` は Theme が別の層を選ぶ**予約された variant 名**になる（利用者の部品が `outlined` を持てば同じ規則が働く。今は組み込みのみ）。group の部品（container）には付けていないが、規則は kind によらない。
+  - `fill` を書けない（`theme/inapplicable-property`）: outlined の塗りは variant が決め（白地）、辺の `fill` はラベルの背景（§4.1）なので、tone で変えると意味が混ざる。未知の tone 名は `theme/unknown-tone`、未知のプロパティは `theme/unknown-property`（hint は `stroke, fontColor`）。
+  - Theme が `toneLines.<tone>` を持たなければ、従来の `theme/missing-tone`（warning）で、hint が `Add toneLines.<tone> to the theme` になる。組み込みの 5 Theme は 8 色すべてを持つ。
+  - **線と文字は同じ色**: 枠と文字を別の色にする原図はなく、1 色の方が Theme の値と検査が単純。層は `stroke` と `fontColor` の 2 つを持てるので、別にしたい Theme は書き分けられる。
+- **組み込み Theme の値（判断）**: どの色も**白地で 4.5:1 以上**（7pt の文字として読める。outlined の文字は白地に描く）。テストで全 Theme・全 tone を検査する。
+
+  | Theme | gray | red | orange | yellow | green | blue | purple | pink |
+  | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+  | `color`（token `ink.*`） | `#57606a` | `#cf222e` | `#bc4c00` | `#9a6700` | `#1a7f37` | `#0969da` | `#8250df` | `#bf3989` |
+  | `paper`（token `ink.*`） | `#6b6e78` | `#c0392b` | `#bd5410` | `#857500` | `#3f7d3a` | `#2f62b0` | `#7240a8` | `#b8336a` |
+  | `minimal`・`academic` | `#525252` | `#2e2e2e` | `#525252` | `#757575` | `#757575` | `#525252` | `#2e2e2e` | `#2e2e2e` |
+  | `slides` | `#474747` | `#262626` | `#474747` | `#666666` | `#666666` | `#474747` | `#262626` | `#262626` |
+
+  - `color` は GitHub Primer の各色相の前景色に近い値（blue は `accent` と同じ `#0969da`）で、コントラストは 4.87〜6.39:1。
+  - `paper` は H3-World の原図の色の枠・文字・辺の色相（紫・橙・青・ピンク）に寄せ、4.5:1 に届かない明るい色（原図の橙の文字は約 3:1、黄は 2:1 未満）は 4.5:1 まで暗くした（orange 4.73:1、yellow 4.62:1）。紫・青・ピンクは原図の色に近いまま 5.6〜7.0:1。
+  - 単色の Theme は塗りと同じ 3 段（§6.20: 明 yellow・green、中 gray・orange・blue、暗 red・purple・pink）に写し、**淡い塗りの tone ほど淡い線**にした（同じ段の tone は線も同じ。テストで検査）。minimal・academic は `#757575`（4.61:1）・`#525252`・`#2e2e2e`、slides は投影で薄い灰色が飛ぶので 1 段濃い `#666666`・`#474747`・`#262626`。暗い段は既定の線（`#1f2328` / `#000000`）とほとんど見分けられないが、灰色で印刷できる方針（§6.20）を優先した。
+- **outlined の見た目**: 塗りは Theme の紙の色（minimal・slides・color は `{color.bg}`、academic・paper は `{color.paper}`。すべて白）、枠と文字は tone の線の色。**tone がなければ tone gray の線**（`filled` が tone なしで tone gray の塗りになる §6.49 と同じ考え。既定の黒のままでは `default` と同じ見た目になる）。線幅・角丸（paper の 2pt）・文字の大きさと太さは `default` のまま。原図の Encoder・VAE の文字は太字だが、太字は `emphasis` の役割で、`outlined` に含めると V のセルやキーまで太字になるので含めない。tone gray の線は `muted` の灰色（paper `#737373`、color `#6e7781`）と近いので、tone のない `outlined` は `muted` に似て見える（ギャラリーの部品の見本）。用途は tone と組み合わせることで、Skill にもそう書いた。
+- **辺の tone の見た目（判断: 線・矢じり・ラベルの文字）**: 辺の `stroke`（線と矢じり。structured の writer は矢じりを線の色で描き、D2 も connection の `stroke` で矢じりを描く）と `fontColor`（ラベル）を変える。ラベルの背景（`fill`、§6.41）は変えない。ラベルも色にしたのは、色の線の横の黒い文字より、どの線のラベルかが分かりやすく、`toneLines` の色は文字として読める値にしてあるため。線幅・破線・矢じりの形は variant のまま（`variant: dashed` と `tone: orange` は橙の破線）。
+  - **合流（注意）**: `fanIn: merge`（§6.33）で同じ点に入る辺は経路を共有するが、structured の writer は線の色ごとに別の wire を描く（線の様式が違えば wire を分ける既存の規則）。色の違う 2 本が同じ点に入ると、共有した区間で 2 色の線が重なり、縞に見える（H3-World の ⊕ で確認）。原図どおり別の向き（`toAnchor: north` / `south`）から入れるか `fanIn: spread` にする。色ごとに合流を分ける変更はルータにまたがるので、この Issue ではしない（Skill に書いた）。
+- **legend（§6.34）**: 辺の見本に `edge.tone` を足した（node の見本は既に `variant`・`tone` を持つので、`node: { variant: outlined, tone: orange }` がそのまま outlined の見本になる）。`lint/unused-legend-entry` は辺でも tone を比べる（従来は辺に tone がなかった）。hint の文言を「component, variant and tone」に揃えた（golden への影響なし）。
+- **tokens（§6.50）**: セルは普通の node なので変更はない。`props.variant: outlined` で全セルを枠線にし、セルの `variant: filled` で押したキーなど 1 つだけ塗りにできる（H3-World のキー）。
+- **dim（§6.53）との関係**: `dim` は解決後のスタイルの色を変換するので、薄い group の中の outlined の node は枠と文字が dim の灰色、塗りは白のまま、両端が中の色の辺は線・矢じり・ラベルが dim の灰色になる（テストで確認）。片端が外の辺は従来どおり書いたまま（tone の色）。
+- **auto（D2）**: tone の層も解決後のスタイルなので、D2 には `stroke`・`font-color` として書くだけで、writer の変更はない。node の枠・文字、辺の線・矢じり・ラベルが同じ色になることを D2 v0.9.0 で確認した（`outlined-tones.integration.test.ts`）。全部品 × 全 variant × 全 Theme の描画テストが `outlined` を自動で含む。
+- **カタログ（§6.10 のフィールドの追加）**: Theme の項目に `toneLines`（線の色を持つ tone 名、`TONE_NAMES` の順）を足した。部品の `variants` に `outlined` が加わる。
+- **ギャラリー**: 部品の見本に `outlined` の列が加わる（12 部品 × 5 Theme の SVG と、それに伴う PDF・PPTX の golden。slides の stack は variant が 4 つになり、§6.49 の規則で presentation-16x9 で描く）。tone の節の後に **「Outlined tones and edge tones」**（`docs/gallery/tones/outlined.<theme>.svg`、5 Theme）を足した: 8 tone の outlined のセル（tokens）の列、同じ tone の塗り（`default`）の列、その間の 8 色の辺、outlined と辺の見本を含む凡例。既存の tone の見本（`tones.<theme>.svg`）は変えない。
+- **H3-World での確認**（`research/177-outlined-tones/`）: #173 の図を読み、Encoder・VAE を `outlined`、キーを塊の色の `outlined`（押したキーは `filled`）、(a)(b) のトークン列を `outlined` のセルの tokens、VAE の辺を橙、⊕ への辺をピンクと青にした写しを生成し、`paper` と `color` で描いた。原図と同じ位置に同じ色が出て、縮小率（0.7814 / 0.7743）と診断（info 1、warning 90）は #173 の図と同じ。残る差は Encoder と A のセルの淡い塗り、太字、押したキーの濃い塗りと白い文字、行列の見出しの色の文字、⊕ の塗り（研究の README）。
+- **互換性（実測）**: リポジトリの `*.sumi.yaml` 126 個（新しい fixture を除く）を、書かれた Theme と組み込みの 5 Theme で `sumi render --json`（756 通り、SVG が出たもの 503）し、SVG と診断（code と message）の sha256 を変更の前（origin/main `7aeb996`）と後で比べ、すべて一致した。`bun run gallery:check` は、意図した追加（部品の見本 60 枚、outlined の見本 5 枚、`README.md`・`index.html`）だけで通り、examples の SVG・PDF と既存の tone・dim の見本は変わらない。PDF・画像 PPTX・編集可能 PPTX の golden は部品の見本の分だけ変わり、examples・日本語の fixture の hash は変わらない。D2・lint の golden は変わらない。
+- **テスト**: `tone-lines.test.ts`（全組み込み Theme が 8 色の `toneLines` を `stroke`＝`fontColor` で持ち白地 4.5:1 以上、color・paper は 8 色、単色は塗りと同じ 3 段で淡い塗りほど淡い線、カタログ、`toneField()`、outlined が白地に線の色・tone なしは tone gray、辺の 4 variant で色だけが変わる、`toneLines` の欠けた tone、検証（token 参照・`fill` と他のプロパティ・未知の tone・未知のプロパティの hint）、figure の theme 段（outlined・辺・凡例の見本）、凡例の未使用の検査が辺の tone を比べる、薄い group の中で dim の色、辺の未知の tone の hint）、`tones.test.ts`（辺が tone の線の色を取る）、`outlined-tones.integration.test.ts`（structured の paper・color で枠・文字・wire・矢じり・ラベルの色と幾何 lint が空、D2 で同じ色）、`samples.test.ts`（slides の stack が presentation-16x9）、registry・catalog・CLI の既存テストの variant・項目の一覧。
+- **非対象・引き継ぎ**: 任意の色の値（#177 の非対象）、塗りと色の枠を同時に持つ variant・濃い塗りに白い文字の variant（押したキー）、container の `outlined`、label の色の文字（行列の見出し、#167 §4.9）、色ごとの合流の分離。
 
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures

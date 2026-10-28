@@ -571,7 +571,7 @@ crossings is still clean: errors and warnings are what must reach 0.
 A **`legend`** node (`component: legend`, structured only) draws a
 framed key: one row per entry, top to bottom, each a **sample** and its
 text. An entry has exactly one of `edge` (a sample line, with the edge
-fields `component` — default `arrow` — and `variant`) or `node` (a small
+fields `component` — default `arrow` —, `variant` and `tone`) or `node` (a small
 sample box: `component` — default `box` —, `variant`, `tone`), plus
 `label` (math allowed). The samples are drawn by the same theme rules as
 real edges and nodes, so a `variant: dashed` sample has exactly the dash,
@@ -587,13 +587,15 @@ legend's own `label` is its title; `variant: plain` drops the frame;
       - { edge: { variant: dashed }, label: parameter update }
       - { edge: { component: line }, label: data flow }
       - { node: { tone: red }, label: loss terms }
+      - { node: { variant: outlined, tone: purple }, label: encoders }
+      - { edge: { tone: orange }, label: latent path }
 ```
 
 - Place it in the tree like any node (a corner of the root stack or row);
   `align` and edges can name it. It cannot be `attach`ed
   (`layout/attached-legend`).
 - `lint/unused-legend-entry` (warning): no node or edge of the figure has
-  that entry's component, variant (and tone, for boxes). Fix the entry or
+  that entry's component, variant and tone. Fix the entry or
   the elements it should explain; do not keep a key for styles not drawn.
 - The legend expands into nodes and edges named `<legend>-<n>-label`,
   `-box`, `-line`, `-start`, `-end` (n = entry number): your own IDs must
@@ -643,7 +645,9 @@ column. `lines: [[W], [A, S, D]]` (instead of `cells`) stacks several
 rows, e.g. a key cluster (`lineGap`, `lineAlign: center`). An ellipsis
 cell is `{ label: '…', component: label }` or a math label such as
 `'$A_{\ldots}$'`. The tokens node has no label of its own (put a `label`
-node beside it).
+node beside it). `props.variant: outlined` gives every cell a colored frame
+and text in its tone (white cells, [tones](figure-format.md#tones)); a cell's
+own `variant: filled` marks one, e.g. a pressed key.
 
 Edges, `attach.to` and `align` name a cell as **`<node>.<cell>`**: the
 cell's `id`, or its 1-based position when it has none (`keys.3`).

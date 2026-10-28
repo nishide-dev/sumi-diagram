@@ -2,8 +2,8 @@
  * Legends (#131, design doc §6.34): a `sumi/legend` node is expanded into a
  * frame group with the legend's ID that stacks one row per entry: a sample
  * and its text. The sample of an `edge` entry is a real edge with the
- * entry's edge fields between two hidden junctions (so its dash, arrowheads
- * and line width are those of the edges it explains); the sample of a `node`
+ * entry's edge fields between two hidden junctions (so its dash, arrowheads,
+ * line width and color are those of the edges it explains); the sample of a `node`
  * entry is a small node with the entry's node fields. The text is a `label`
  * node.
  *
@@ -48,7 +48,7 @@ import type { Locator } from "./yaml";
 
 /** One entry of `props.entries`, as validated by the manifest. */
 export interface LegendEntry {
-  edge?: { component?: string; variant?: string };
+  edge?: { component?: string; variant?: string; tone?: Tone };
   node?: { component?: string; variant?: string; tone?: Tone };
   label: string;
 }
@@ -340,6 +340,7 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
           label: "",
           component: entry.edge.component ?? "arrow",
           variant: entry.edge.variant ?? "default",
+          ...(entry.edge.tone !== undefined && { tone: entry.edge.tone }),
           props: {},
         };
         edges.push(edge);

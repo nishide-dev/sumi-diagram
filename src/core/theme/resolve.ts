@@ -3,10 +3,13 @@
  *
  * Order, property by property with later layers winning: Sumi's built-in kind
  * defaults → theme `base.<kind>` → `components.<id>.default` →
- * `components.<id>.<variant>` → `tones.<tone>` (only for a node or group that
- * sets `tone`; colors only). A variant the manifest has but the theme does not
- * define falls back to `default` with a `theme/missing-variant` warning; a
- * tone the theme does not define is left out with `theme/missing-tone`.
+ * `components.<id>.<variant>` → the tone's layer (only for an element that
+ * sets `tone`; colors only). The tone's layer is `tones.<tone>` (the fill)
+ * for a node or group, and `toneLines.<tone>` (the line and text colors,
+ * #177) for a node or group in the {@link OUTLINED_VARIANT} variant and for
+ * an edge. A variant the manifest has but the theme does not define falls
+ * back to `default` with a `theme/missing-variant` warning; a tone the theme
+ * does not define is left out with `theme/missing-tone`.
  *
  * A dimmed element (#175: inside a group with `dim: true`, see `dim.ts`) then
  * takes the theme's dim colors.
@@ -23,13 +26,25 @@ import type { Theme } from "./schema";
 import { mergeStyle, type ResolvedStyle, type StyleOf, sublabelFontSize } from "./style";
 import type { Tone } from "./tones";
 
+/**
+ * The variant whose tone colors the outline and the text instead of the
+ * fill (#177, design doc §6.54): a node or group in it takes
+ * `toneLines.<tone>`, not `tones.<tone>`.
+ */
+export const OUTLINED_VARIANT = "outlined";
+
 export interface StyleTarget<K extends ComponentKind = ComponentKind> {
   kind: K;
   /** Canonical component ID. */
   id: ComponentId;
   variant: string;
-  /** The element's tone, if it sets one (nodes and groups only). */
+  /** The element's tone, if it sets one. */
   tone?: Tone | undefined;
+}
+
+/** Which of a theme's tone layers an element takes: `tones` or `toneLines` (#177). */
+export function toneField(kind: ComponentKind, variant: string): "tones" | "toneLines" {
+  return kind === "edge" || variant === OUTLINED_VARIANT ? "toneLines" : "tones";
 }
 
 export interface StyleResolution<K extends ComponentKind = ComponentKind> {
@@ -49,12 +64,11 @@ export function resolveStyle<K extends ComponentKind>(
   const { kind, id, variant, tone } = target;
   const layers = theme.components.get(id);
   const variantLayer = variant === "default" ? undefined : layers?.get(variant);
-  const toned = tone !== undefined && kind !== "edge";
-  const toneLayer = toned ? theme.tones.get(tone) : undefined;
+  const toneLayer = tone === undefined ? undefined : theme[toneField(kind, variant)].get(tone);
   return {
     style: mergeStyle(kind, [theme.base[kind], layers?.get("default"), variantLayer, toneLayer]),
     missingVariant: variant !== "default" && variantLayer === undefined,
-    missingTone: toned && toneLayer === undefined,
+    missingTone: tone !== undefined && toneLayer === undefined,
   };
 }
 
@@ -81,7 +95,7 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
     const component = state.components?.get(key);
     if (state.invalid.has(key) || component === undefined) continue;
     const { id, manifest, variant } = component;
-    const tone = entry.kind === "edge" ? undefined : entry.element.tone;
+    const tone = entry.element.tone;
     const { style, missingVariant, missingTone } = resolveStyle(theme, {
       kind: manifest.kind,
       id,
@@ -112,7 +126,7 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
         path: at,
         ...(location !== undefined && { location }),
         subject,
-        hint: `Add tones.${tone} to the theme, or use another tone.`,
+        hint: `Add ${toneField(manifest.kind, variant)}.${tone} to the theme, or use another tone.`,
       };
       state.diagnostics.push(warning);
     }

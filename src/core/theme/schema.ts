@@ -9,7 +9,10 @@
  * holds checked, quantized values.
  *
  * `tones` (#92) maps tone names ({@link TONE_NAMES}) to color-only layers
- * applied over the variant of a node or group that sets `tone`.
+ * applied over the variant of a node or group that sets `tone`. `toneLines`
+ * (#177, design doc §6.54) maps them to the line and text colors of a tone,
+ * applied instead of `tones` to a node or group in the `outlined` variant
+ * and to an edge that sets `tone`.
  *
  * `dim` (#175) gives the colors of a dimmed group and everything inside it:
  * one text color, one line color and how far fills move toward white (see
@@ -84,6 +87,11 @@ export interface ThemeDefinition {
   components?: Record<string, Record<string, StyleLayerInput>>;
   /** Tone name → colors (fill, stroke, fontColor) for nodes and groups with that tone. */
   tones?: Partial<Record<Tone, StyleLayerInput>>;
+  /**
+   * Tone name → line and text colors (stroke, fontColor) for outlined nodes
+   * and groups and for edges with that tone (#177).
+   */
+  toneLines?: Partial<Record<Tone, StyleLayerInput>>;
   /** Colors of dimmed elements (#175): every text, every line, and how pale fills become. */
   dim?: { fontColor: ValueInput; stroke: ValueInput; lighten: ValueInput };
 }
@@ -99,12 +107,21 @@ export interface Theme {
   readonly components: ReadonlyMap<ComponentId, ReadonlyMap<string, StyleLayer>>;
   /** Color layers by tone; a tone the theme does not define is not here. */
   readonly tones: ReadonlyMap<Tone, StyleLayer>;
+  /** Line and text color layers by tone (#177); a tone the theme does not define is not here. */
+  readonly toneLines: ReadonlyMap<Tone, StyleLayer>;
   /** Colors of dimmed elements (#175); a theme without them draws `dim` groups as they are. */
   readonly dim?: DimColors;
 }
 
 /** The style properties a tone may set: colors only, so tones never change sizes or fonts. */
 export const TONE_PROPERTIES: readonly StyleProperty[] = ["fill", "stroke", "fontColor"];
+
+/**
+ * The style properties a tone's line layer may set (#177): the line and the
+ * text, never the fill (an outlined shape keeps its variant's fill, and an
+ * edge's fill is its label's background).
+ */
+export const TONE_LINE_PROPERTIES: readonly StyleProperty[] = ["stroke", "fontColor"];
 
 // Property values are checked by `validateTheme` itself (typing needs tokens),
 // so the Zod schema only fixes the structure.
@@ -129,6 +146,7 @@ export const ThemeSchema = z.strictObject({
     .optional(),
   components: z.record(z.string(), z.record(z.string(), StyleLayerSchema)).optional(),
   tones: z.record(z.string(), StyleLayerSchema).optional(),
+  toneLines: z.record(z.string(), StyleLayerSchema).optional(),
   dim: z
     .strictObject({ fontColor: z.unknown(), stroke: z.unknown(), lighten: z.unknown() })
     .optional(),
@@ -259,32 +277,8 @@ class ThemeChecker {
       components.set(id, layers);
     }
 
-    const tones = new Map<Tone, StyleLayer>();
-    for (const [name, layer] of Object.entries(theme.tones ?? {})) {
-      const path = ["tones", name];
-      if (!isTone(name)) {
-        this.error("theme/unknown-tone", `Unknown tone "${name}".`, path, {
-          atKey: true,
-          hint: didYouMean(name, TONE_NAMES) ?? `Tones: ${TONE_NAMES.join(", ")}.`,
-        });
-        continue;
-      }
-      const colors: ParsedLayer = {};
-      for (const [property, value] of Object.entries(layer) as [StyleProperty, unknown][]) {
-        if (value === undefined) continue;
-        if (TONE_PROPERTIES.includes(property)) {
-          colors[property] = value;
-          continue;
-        }
-        this.error(
-          "theme/inapplicable-property",
-          `Property "${property}" does not apply to tones; a tone sets only ${TONE_PROPERTIES.join(", ")}.`,
-          [...path, property],
-          { atKey: true },
-        );
-      }
-      tones.set(name, this.#checkLayer(colors, "node", path));
-    }
+    const tones = this.#checkTones("tones", TONE_PROPERTIES);
+    const toneLines = this.#checkTones("toneLines", TONE_LINE_PROPERTIES);
 
     const dim = theme.dim === undefined ? undefined : this.#checkDim(theme.dim);
 
@@ -305,10 +299,47 @@ class ThemeChecker {
         base,
         components,
         tones,
+        toneLines,
         ...(dim !== undefined && { dim }),
       }),
       diagnostics: this.diagnostics,
     };
+  }
+
+  /** Checks `tones` or `toneLines`: known tone names, and only the given color properties. */
+  #checkTones(
+    field: "tones" | "toneLines",
+    allowed: readonly StyleProperty[],
+  ): Map<Tone, StyleLayer> {
+    const tones = new Map<Tone, StyleLayer>();
+    for (const [name, layer] of Object.entries(this.theme[field] ?? {})) {
+      const path = [field, name];
+      if (!isTone(name)) {
+        this.error("theme/unknown-tone", `Unknown tone "${name}".`, path, {
+          atKey: true,
+          hint: didYouMean(name, TONE_NAMES) ?? `Tones: ${TONE_NAMES.join(", ")}.`,
+        });
+        continue;
+      }
+      const colors: ParsedLayer = {};
+      for (const [property, value] of Object.entries(layer) as [StyleProperty, unknown][]) {
+        if (value === undefined) continue;
+        if (allowed.includes(property)) {
+          colors[property] = value;
+          continue;
+        }
+        const what = field === "tones" ? "tones" : "tone lines";
+        const which = field === "tones" ? "a tone" : "a tone line";
+        this.error(
+          "theme/inapplicable-property",
+          `Property "${property}" does not apply to ${what}; ${which} sets only ${allowed.join(", ")}.`,
+          [...path, property],
+          { atKey: true },
+        );
+      }
+      tones.set(name, this.#checkLayer(colors, "node", path));
+    }
+    return tones;
   }
 
   error(
@@ -617,7 +648,7 @@ function structuralDiagnostics(
       const isLayer =
         (path[0] === "base" && path.length === 2) ||
         (path[0] === "components" && path.length === 3) ||
-        (path[0] === "tones" && path.length === 2);
+        ((path[0] === "tones" || path[0] === "toneLines") && path.length === 2);
       return issue.keys.map((key) =>
         isLayer
           ? errorAt(
@@ -631,8 +662,11 @@ function structuralDiagnostics(
                   path[0] === "tones"
                     ? (didYouMean(key, TONE_PROPERTIES) ??
                       `A tone sets only ${TONE_PROPERTIES.join(", ")}.`)
-                    : (didYouMean(key, STYLE_PROPERTY_NAMES) ??
-                      `Style properties: ${STYLE_PROPERTY_NAMES.join(", ")}.`),
+                    : path[0] === "toneLines"
+                      ? (didYouMean(key, TONE_LINE_PROPERTIES) ??
+                        `A tone line sets only ${TONE_LINE_PROPERTIES.join(", ")}.`)
+                      : (didYouMean(key, STYLE_PROPERTY_NAMES) ??
+                        `Style properties: ${STYLE_PROPERTY_NAMES.join(", ")}.`),
               },
             )
           : errorAt(

@@ -81,6 +81,10 @@ const model: GalleryModel = {
     sample: { fileName: "dim.sumi.yaml", source: "# ``` fence\nversion: 1\n", renderings: [] },
     outcomes: [outcome({ diagnostics: [{ code: "x/y", severity: "warning", message: NASTY }] })],
   },
+  outlinedTones: {
+    sample: { fileName: "outlined.sumi.yaml", source: "# ``` fence\nversion: 1\n", renderings: [] },
+    outcomes: [outcome()],
+  },
 };
 
 describe("Markdown escaping", () => {

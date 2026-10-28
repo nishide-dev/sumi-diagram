@@ -135,7 +135,7 @@
             "minLength": 1
           },
           "tone": {
-            "description": "Color category from the theme's palette (e.g. a pastel fill in the color theme, a gray step in monochrome themes). Omitted means none.",
+            "description": "Color category from the theme's palette (e.g. a pastel fill in the color theme, a gray step in monochrome themes). With variant outlined it colors the outline and text instead of the fill. Omitted means none.",
             "type": "string",
             "enum": [
               "gray",
@@ -214,7 +214,7 @@
             "minLength": 1
           },
           "tone": {
-            "description": "Color category from the theme's palette (e.g. a pastel fill in the color theme, a gray step in monochrome themes). Omitted means none.",
+            "description": "Color category from the theme's palette (e.g. a pastel fill in the color theme, a gray step in monochrome themes). With variant outlined it colors the outline and text instead of the fill. Omitted means none.",
             "type": "string",
             "enum": [
               "gray",
@@ -350,6 +350,20 @@
             "default": "default",
             "type": "string",
             "minLength": 1
+          },
+          "tone": {
+            "description": "Color category from the theme's palette for the line, its arrowheads and its label (the tone's line color, e.g. a dark orange in the color theme, a gray step in monochrome themes). Omitted means none.",
+            "type": "string",
+            "enum": [
+              "gray",
+              "red",
+              "orange",
+              "yellow",
+              "green",
+              "blue",
+              "purple",
+              "pink"
+            ]
           },
           "props": {
             "description": "Component props, validated against the component manifest.",
