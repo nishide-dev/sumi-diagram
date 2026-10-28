@@ -107,6 +107,9 @@ export interface ResolvedSvgFonts {
 /** Splits text into grapheme clusters, as usvg shapes and falls back for them. */
 const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 
+/** Characters that draw nothing and need no glyph (as in `labelRuns()`). */
+const IGNORABLE = /[\p{Cc}\p{Default_Ignorable_Code_Point}]/u;
+
 /**
  * Font classes of label math (#93) and of Latin text (#172): not D2 slots,
  * resolved with `fontFileFor()`.
@@ -356,13 +359,19 @@ function foreignCodePoints(
       if (text === undefined) continue;
       text.files.add(item.file);
       // A cluster (a base and its combining marks, #172) whose own font lacks
-      // a character falls back as a whole: no copy may map any character of
-      // it, or usvg would take the copy (with blank glyphs) for the cluster.
+      // a visible character falls back as a whole: no copy may map any
+      // character of it, or usvg would take the copy (with blank glyphs) for
+      // the cluster. Characters that draw nothing (controls,
+      // default-ignorables such as variation selectors) need no glyph, as in
+      // `labelRuns()` and lint/missing-glyph: alone, they stay missing from
+      // the copies as before, without taking their cluster along.
       for (const { segment } of GRAPHEMES.segment(node.text)) {
-        const codePoints = [...segment].map((char) => char.codePointAt(0) as number);
-        for (const cp of codePoints) text.codePoints.add(cp);
-        if (codePoints.some((cp) => !covers(item.file, cp))) {
-          for (const cp of codePoints) ownMissing.add(cp);
+        const chars = [...segment];
+        const missing = chars.filter((char) => !covers(item.file, char.codePointAt(0) as number));
+        for (const char of chars) text.codePoints.add(char.codePointAt(0) as number);
+        for (const char of missing) ownMissing.add(char.codePointAt(0) as number);
+        if (missing.some((char) => !IGNORABLE.test(char))) {
+          for (const char of chars) ownMissing.add(char.codePointAt(0) as number);
         }
       }
       continue;

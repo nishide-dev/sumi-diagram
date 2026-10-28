@@ -71,8 +71,8 @@ const noD2: DiagramBackend = {
 };
 
 /** Renders {@link SOURCE} with the given built-in font set in place of its theme's. */
-async function renderWith(fontSet: FontSet): Promise<RenderedStructuredFigure> {
-  const compiled = compileFigure(SOURCE);
+async function renderWith(fontSet: FontSet, source = SOURCE): Promise<RenderedStructuredFigure> {
+  const compiled = compileFigure(source);
   if (!compiled.ok) throw new Error(JSON.stringify(compiled.diagnostics, null, 2));
   const { ir } = compiled.value;
   const swapped = {
@@ -81,7 +81,7 @@ async function renderWith(fontSet: FontSet): Promise<RenderedStructuredFigure> {
     fontSet: { id: fontSet.id, args: fontSetArgs(fontSet) },
   };
   const result = await renderCompiledFigure(
-    SOURCE,
+    source,
     { value: swapped, diagnostics: compiled.diagnostics },
     { backend: noD2 },
   );
@@ -269,6 +269,42 @@ describe("the Latin font slots (#172)", () => {
     const last = glyphs.at(-1);
     expect((last?.x ?? 0) + (last?.advance ?? 0) - (glyphs[1]?.x ?? 0)).toBeCloseTo(
       (runs[1]?.width ?? 0) * scale,
+      2,
+    );
+  });
+
+  test("a variation selector the font lacks keeps the PDF's fonts as laid out", async () => {
+    // `漢` + U+E0100 (a variation selector BIZ UDPGothic does not map, which
+    // draws nothing): the layout keeps `漢` in BIZ UDPGothic and " test" in
+    // Inter; the PDF used to treat the selector as a missing glyph and draw
+    // the whole label in BIZ UDPGothic.
+    const source = `version: 1
+figure: { id: vs, theme: minimal, layout: { arrange: { stack: { items: [n] } } } }
+nodes:
+  - { id: n, component: box, label: "漢\\U000E0100 test" }
+`;
+    const figure = await renderWith(latinSet, source);
+    const label = figure.inspection.elements.flatMap((e) => e.labels)[0];
+    if (label === undefined) throw new Error("no label");
+    const runs = measureLabel(label, latinSet).runs?.[0] ?? [];
+    expect(runs.map((r) => [r.text, r.font])).toEqual([
+      ["漢\u{E0100}", "regular"],
+      [" test", "latin"],
+    ]);
+    const pdf = svgToPdf(figure.svg);
+    if (!pdf.ok) throw new Error(JSON.stringify(pdf.diagnostics));
+    const inspected = inspectPdf(pdf.value);
+    const scale = (inspected.pages[0]?.mediaBox[2] ?? 0) / figure.inspection.canvas.viewBox.width;
+    const font = (char: string) =>
+      inspected.glyphs.find((g) => g.text.startsWith(char))?.font.replace(/^[A-Z]{6}\+/, "");
+    expect(font("漢")).toBe("BIZUDPGothic-Regular");
+    for (const char of "test") expect(font(char)).toBe("Inter-Regular");
+    // " test" is where the lint measured it (Inter's advances).
+    const t = inspected.glyphs.find((g) => g.text === "t");
+    const inter = loadFontMetrics(fontFileFor("latin", latinSet));
+    const space = (inter.advanceOf(0x20) / inter.unitsPerEm) * label.fontSizeUnits;
+    expect(t?.x).toBeCloseTo(
+      ((runs[1]?.x ?? 0) + space - figure.inspection.canvas.viewBox.x) * scale,
       2,
     );
   });
