@@ -11,7 +11,7 @@ import type { Region } from "../../core/geometry";
 import { obstaclesCrossedByRoute, type RouteObstacle } from "../../lint/geometry/edges";
 import { rectPolygon, segmentCrossesRect } from "../../lint/geometry/shapes";
 import type { EdgeLayout, LayoutIR, Point, Rect } from "../ir";
-import { anchorPoint, DIRS, isJunction, nodeRegion, SIDE_DIR } from "./ports";
+import { anchorPoint, DIRS, isJunction, nodeRegion, SIDE_DIR, STRAIGHTEN_TOLERANCE } from "./ports";
 import { arrowheadLength } from "./router";
 
 /** Each list names the problems found; all empty is a clean routing. */
@@ -249,7 +249,9 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
       if (anchor !== undefined) {
         const want = anchorPoint(rect, anchor);
         const off = vertical ? Math.abs(want.x - end.x) : Math.abs(want.y - end.y);
-        if (anchor.side !== side || off > EPS)
+        // An anchored end may move by up to the tolerance onto the line of
+        // the other end (#169, design doc §6.40).
+        if (anchor.side !== side || off > STRAIGHTEN_TOLERANCE + EPS)
           miss(`not at the anchor ${anchor.side}:${anchor.offset}`);
       }
     }

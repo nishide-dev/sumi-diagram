@@ -34,6 +34,11 @@
  *   room would not fit, with the clearance, inside a group that holds both
  *   ends has none, and a room never reaches past a junction straight ahead
  *   at the edge's other end (#153; `#room`).
+ * - **Facing ends out of line (#169)**: ends that face each other but miss
+ *   by at most `STRAIGHTEN_TOLERANCE` are put in line by `resolveEnds`. If
+ *   the gap between two facing ports out of line is shorter than their two
+ *   stubs, no plain jog fits; the grid gets the column and rows of an S
+ *   between them (`tightJog`), so the route need not go around an end.
  * - **Nets**: edges that leave the same port, enter the same port, or touch
  *   the same junction form one net (union-find, so junctions joined by edges
  *   merge transitively). Edges entering and leaving one port are different
@@ -797,6 +802,13 @@ class Router {
           }
         }
       }
+      const jog = tightJog(edge.from, edge.to, edge.fromLane, edge.toLane);
+      if (jog !== undefined) {
+        for (const p of jog) {
+          xs.add(p.x);
+          ys.add(p.y);
+        }
+      }
     }
     const X = sortedUnique(xs);
     const Y = sortedUnique(ys);
@@ -1491,6 +1503,59 @@ export function clipRoomAtJunction(end: End, other: End, room: number, lane: num
   const aside = dx * d.y - dy * d.x;
   if (Math.abs(aside) >= 1e-9 || ahead <= 0 || ahead >= room) return room;
   return ahead >= lane ? ahead : 0;
+}
+
+/**
+ * The grid points a jog needs between facing ends that are closer than
+ * their stubs (#169, design doc §6.40), or `undefined` if the ends do not
+ * face each other out of line, or a plain jog fits.
+ *
+ * Two ports on facing sides, out of line, are joined by a jog: straight
+ * out of one, across, straight into the other. Its crossing row must be at
+ * least the source's lane from the source and the target's lane from the
+ * target (the stubs: the clearance, and the arrowhead's length at an
+ * arrowhead), so where the gap is shorter than the two lanes there is no
+ * such row. The shortest route left runs past the row at the source lane's
+ * end, back to the row at the target lane's end and in: an S whose middle
+ * runs backwards along a column strictly between the two ports' lines (on
+ * either side of them, one leg would cross the other end's lane, where a
+ * route may not turn or cross). The grid has no such column when the ends
+ * are close (a gutter gets a midline only if it is wider than 2 units, and
+ * the ports' lines get none), and then the only routes left go around a
+ * node: the loop of #169. Ends out of line by at most
+ * `STRAIGHTEN_TOLERANCE` are straightened before routing (`resolveEnds`);
+ * for the others, this returns the column midway between the ports' lines
+ * at the rows of the lanes' ends, which the grid adds (only for such
+ * edges, so other figures keep their grid).
+ */
+export function tightJog(
+  from: End,
+  to: End,
+  fromLane: number,
+  toLane: number,
+): [Point, Point] | undefined {
+  if (from.dir < 0 || to.dir !== opposite(from.dir)) return undefined;
+  const d = DIRS[from.dir] as Point;
+  const dx = to.port.x - from.port.x;
+  const dy = to.port.y - from.port.y;
+  const ahead = dx * d.x + dy * d.y;
+  const aside = dx * d.y - dy * d.x;
+  if (ahead <= 0 || aside === 0 || ahead >= fromLane + toLane) return undefined;
+  const column =
+    d.x === 0
+      ? roundUnits((from.port.x + to.port.x) / 2)
+      : roundUnits((from.port.y + to.port.y) / 2);
+  const out = { x: from.port.x + d.x * fromLane, y: from.port.y + d.y * fromLane };
+  const back = { x: to.port.x - d.x * toLane, y: to.port.y - d.y * toLane };
+  return d.x === 0
+    ? [
+        { x: column, y: roundUnits(out.y) },
+        { x: column, y: roundUnits(back.y) },
+      ]
+    : [
+        { x: roundUnits(out.x), y: column },
+        { x: roundUnits(back.x), y: column },
+      ];
 }
 
 /**

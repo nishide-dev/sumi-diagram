@@ -151,7 +151,8 @@ const center = (r: Rect): Point => ({ x: r.x + r.width / 2, y: r.y + r.height / 
 /**
  * The side and position of a non-junction end, while it is being resolved.
  * `anchored`: the position was written in the YAML (an anchor), so it is
- * never moved.
+ * never moved, except onto a facing end's line within
+ * {@link STRAIGHTEN_TOLERANCE} (#169).
  */
 interface Choice {
   side: Side;
@@ -728,7 +729,9 @@ function nearestSide(group: Rect, inner: Rect): Side {
  * and two-way pairs are drawn as parallel lines rather than on top of each
  * other. Then a port used both by edges leaving it and by edges entering it
  * is split (`separateDirections`, #113): the router joins edges into a net
- * only per direction, and two nets cannot share a port.
+ * only per direction, and two nets cannot share a port. Last, facing ends
+ * out of line by at most {@link STRAIGHTEN_TOLERANCE} are put in line
+ * (`straighten`, #169).
  */
 export function resolveEnds(
   ir: FigureIR,
@@ -793,6 +796,94 @@ function addsCoincidence(
     if (first === undefined || members.some((m) => before.get(m) !== first)) return true;
   }
   return false;
+}
+
+/**
+ * The largest sideways offset between two facing ends that is straightened
+ * (#169, design doc §6.40), in units: 1pt, the default edge stroke. A jog
+ * no wider than the line itself does not read as a jog, only as a kink.
+ * Ends meant to be aligned miss by a few thousandths of a unit (positions
+ * are rounded to 1/1000 unit, and a stretched box's center and a centered
+ * node's center round differently), and anchors copied from a render to 4
+ * decimals or written as round fractions miss by up to about a unit.
+ */
+export const STRAIGHTEN_TOLERANCE = 2;
+
+/**
+ * Straightens edges whose ends face each other but are out of line by at
+ * most {@link STRAIGHTEN_TOLERANCE} (#169, design doc §6.40): one end moves
+ * along its side onto the other's line, so the route is a straight line.
+ * Without this, a sub-unit offset leaves the router a jog (two bends and a
+ * sliver of a segment), and where the gap is shorter than the stubs at both
+ * ends (the clearance and the arrowhead) not even that: the route detours
+ * around an end.
+ *
+ * Facing: a port end whose direction points at the other end's port, which
+ * either leaves the other way (two ports on facing sides) or is a junction
+ * (any direction). The end that moves: one whose point no other end of its
+ * element uses (a shared port keeps its net and its other edges' lines),
+ * whose new point no other end uses (#113 / #143: ends stay apart), and
+ * that stays on its side; an end without an anchor before one with an
+ * anchor (an anchor moves by at most the tolerance, which `checkRoutes`
+ * allows), then the target before the source. A junction never moves.
+ * Edges are taken in document order. Mutates `pairs`.
+ */
+function straighten(
+  pairs: ({ from: End; to: End } | { error: string })[],
+  choices: readonly { from: Choice | undefined; to: Choice | undefined }[],
+  reresolve: (end: End, choice: Choice, port: Point) => End,
+  element: (key: ElementKey) => Element,
+): void {
+  const pointKey = (key: ElementKey, p: Point) => `${key} ${p.x} ${p.y}`;
+  const users = new Map<string, number>();
+  for (const pair of pairs) {
+    if ("error" in pair) continue;
+    for (const end of [pair.from, pair.to]) {
+      if (end.junction) continue;
+      const k = pointKey(end.key, end.port);
+      users.set(k, (users.get(k) ?? 0) + 1);
+    }
+  }
+  for (const [index, pair] of pairs.entries()) {
+    if ("error" in pair) continue;
+    const { from: a, to: b } = pair;
+    // The axis the ends face each other along.
+    const d = a.dir >= 0 ? a.dir : b.dir >= 0 ? opposite(b.dir) : -1;
+    if (d < 0 || (a.dir >= 0 && b.dir >= 0 && b.dir !== opposite(a.dir))) continue;
+    const D = DIRS[d] as Point;
+    const dx = b.port.x - a.port.x;
+    const dy = b.port.y - a.port.y;
+    const ahead = dx * D.x + dy * D.y;
+    const aside = Math.abs(dx * D.y - dy * D.x);
+    if (ahead <= 0 || aside === 0 || aside > STRAIGHTEN_TOLERANCE + 1e-9) continue;
+    const choice = choices[index] as { from: Choice | undefined; to: Choice | undefined };
+    const candidates = (
+      [
+        ["to", b, a, choice.to],
+        ["from", a, b, choice.from],
+      ] as const
+    )
+      .filter((c): c is readonly ["to" | "from", End, End, Choice] => c[3] !== undefined)
+      .sort((p, q) => Number(p[3].anchored) - Number(q[3].anchored));
+    for (const [which, end, other, endChoice] of candidates) {
+      const vertical = d % 2 === 1;
+      const port = vertical
+        ? { x: other.port.x, y: end.port.y }
+        : { x: end.port.x, y: other.port.y };
+      const rect = element(end.key).rect;
+      const onSide = vertical
+        ? port.x >= rect.x && port.x <= rightOf(rect)
+        : port.y >= rect.y && port.y <= bottomOf(rect);
+      const here = pointKey(end.key, end.port);
+      const there = pointKey(end.key, port);
+      if (!onSide || users.get(here) !== 1 || (users.get(there) ?? 0) > 0) continue;
+      users.delete(here);
+      users.set(there, 1);
+      const moved = reresolve(end, endChoice, port);
+      pairs[index] = which === "to" ? { from: a, to: moved } : { from: moved, to: b };
+      break;
+    }
+  }
 }
 
 /** {@link resolveEnds}, with the ends in `spread` (keyed {@link endKey}) at that side and offset. */
@@ -919,14 +1010,15 @@ function resolveEndsWith(
     (key) => element(key).rect,
   );
 
-  const resolve = (key: ElementKey, choice: Choice | undefined): End => {
+  /** The end at `choice` (`at`: the port, for an end straightened by {@link straighten}). */
+  const resolve = (key: ElementKey, choice: Choice | undefined, at?: Point): End => {
     const self = element(key);
     if (choice === undefined) {
       const c = center(self.rect);
       const point = { x: roundUnits(c.x), y: roundUnits(c.y) };
       return { key, junction: true, dir: -1, port: point, outline: point };
     }
-    const port = anchorPoint(self.rect, { side: choice.side, offset: choice.offset ?? 0.5 });
+    const port = at ?? anchorPoint(self.rect, { side: choice.side, offset: choice.offset ?? 0.5 });
     const outward = SIDE_DIR[choice.side];
     const dir = choice.inward ? opposite(outward) : outward;
     let outline = port;
@@ -946,11 +1038,16 @@ function resolveEndsWith(
     return { key, junction: false, side: choice.side, dir, port, outline };
   };
 
-  return choices.map(({ edge, from, to }, index) => {
+  const resolved = choices.map(({ edge, from, to }, index) => {
     const reason = shared.get(index);
     if (reason !== undefined) return { error: reason };
-    const a = resolve(edge.from, from);
-    const b = resolve(edge.to, to);
+    return { from: resolve(edge.from, from), to: resolve(edge.to, to) };
+  });
+  straighten(resolved, choices, (end, choice, port) => resolve(end.key, choice, port), element);
+  return resolved.map((pair, index) => {
+    if ("error" in pair) return pair;
+    const edge = (choices[index] as (typeof choices)[number]).edge;
+    const { from: a, to: b } = pair;
     if (a.port.x === b.port.x && a.port.y === b.port.y) {
       return {
         error:
