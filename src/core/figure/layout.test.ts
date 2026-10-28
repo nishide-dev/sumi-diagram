@@ -569,7 +569,13 @@ describe("anchors", () => {
     expect(parseAnchor("west:0.15")).toEqual({ side: "west", offset: 0.15 });
     expect(parseAnchor("east:1")).toEqual({ side: "east", offset: 1 });
     expect(parseAnchor("east:1.0")).toEqual({ side: "east", offset: 1 });
+    // #179: in line with the other end; the side is not written.
+    expect(parseAnchor("straight")).toBe("straight");
     for (const bad of [
+      "Straight",
+      "south:straight",
+      "straight:0.5",
+      "straight:south",
       "top",
       "South",
       "south:",
@@ -599,10 +605,51 @@ describe("anchors", () => {
       ["layout/invalid-anchor", ["edges", 0, "fromAnchor"], 10, 28],
       ["layout/invalid-anchor", ["edges", 0, "toAnchor"], 10, 57],
     ]);
-    const [, sooth] = checkFigureSource(text).state.diagnostics;
-    expect(sooth?.hint).toBe(
-      'Did you mean "south"? Sides: north, east, south, west; the position is a number from 0 to 1 (default 0.5), e.g. "south:0.25".',
+    const [east, sooth] = checkFigureSource(text).state.diagnostics;
+    expect(east?.message).toBe(
+      'Invalid anchor "east:1.5" at edges[0].fromAnchor; expected "<side>", "<side>:<position>" or "straight".',
     );
+    expect(sooth?.hint).toBe(
+      'Did you mean "south"? Sides: north, east, south, west; the position is a number from 0 to 1 (default 0.5), e.g. "south:0.25". Or "straight": in line with the other end, on the side facing it.',
+    );
+  });
+});
+
+describe("straight anchors (#179)", () => {
+  const text = (anchor: string, engine = "") =>
+    figure(
+      [
+        "  layout:",
+        ...(engine === ""
+          ? ["    arrange: { stack: { items: [a, b] } }"]
+          : [`    engine: ${engine}`]),
+        "nodes:",
+        "  - { id: a, component: box }",
+        "  - { id: b, component: box }",
+        "edges:",
+        `  - { from: a, fromAnchor: ${anchor}, to: b, toAnchor: ${anchor} }`,
+        "",
+      ].join("\n"),
+    );
+
+  test("accepted in a structured figure", () => {
+    expect(check(text("straight"))).toEqual([]);
+  });
+
+  test("a near miss suggests it", () => {
+    const diagnostics = checkFigureSource(text("strait")).state.diagnostics;
+    expect(diagnostics.map((d) => d.code)).toEqual([
+      "layout/invalid-anchor",
+      "layout/invalid-anchor",
+    ]);
+    expect(diagnostics[0]?.hint).toMatch(/^Did you mean "straight"\?/);
+  });
+
+  test("auto: layout/structured-only, like any anchor", () => {
+    expect(check(text("straight", "auto"))).toEqual([
+      ["layout/structured-only", ["edges", 0, "fromAnchor"], 10, 16],
+      ["layout/structured-only", ["edges", 0, "toAnchor"], 10, 45],
+    ]);
   });
 });
 

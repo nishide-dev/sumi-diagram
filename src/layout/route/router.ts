@@ -93,7 +93,9 @@ import {
   opposite,
   resolveEnds,
   rightOf,
+  STRAIGHT_MARGIN,
   straightenable,
+  straightPlacement,
 } from "./ports";
 
 /** Router parameters in units (0.5pt) and costs (in units of length). */
@@ -446,6 +448,7 @@ class Router {
     const ir = this.#ir;
     const layoutEdges = new Map(this.#layout.edges.map((e) => [e.key, e]));
     const resolved = resolveEnds(ir, this.#layout);
+    for (const edge of ir.edges) this.#reportStraightOffSide(edge);
     const edges: (Edge | undefined)[] = ir.edges.map((edge, index) => {
       const ends = resolved[index];
       const layout = layoutEdges.get(edge.key);
@@ -595,6 +598,57 @@ class Router {
       subject: { kind: "edge", id: ir.id ?? `edges[${ir.index}]` },
       hint: "Put both ends at the same position (equal anchor offsets on sides of equal length, or no anchors), or give one end a point of its own (another anchor offset) so it can be moved into line.",
     });
+  }
+
+  /**
+   * `layout/straight-off-side` (warning, #179, design doc §6.47): an end
+   * written `straight` that has no side facing the other end in line with
+   * its centre (the two are apart diagonally or not at all, or the centre
+   * is beyond the side's corner margin), so `resolveEnds` treated it as an
+   * end without an anchor. Junction ends are left to
+   * `component/anchor-on-junction`.
+   */
+  #reportStraightOffSide(edge: EdgeIR): void {
+    const rectOf = (key: ElementKey): Rect | undefined =>
+      this.#layout.nodes.find((n) => n.key === key)?.rect ??
+      this.#layout.groups.find((g) => g.key === key)?.rect;
+    for (const field of ["fromAnchor", "toAnchor"] as const) {
+      if (edge[field] !== "straight") continue;
+      const leaving = field === "fromAnchor";
+      const selfKey = leaving ? edge.from : edge.to;
+      const otherKey = leaving ? edge.to : edge.from;
+      const self = this.#ir.elements.get(selfKey);
+      if (self?.kind === "node" && isJunction(self)) continue;
+      const selfRect = rectOf(selfKey);
+      const otherRect = rectOf(otherKey);
+      if (selfRect === undefined || otherRect === undefined) continue;
+      const at = straightPlacement(selfRect, otherRect);
+      if (!("off" in at)) continue;
+      const me = `"${this.#id(selfKey)}"`;
+      const them = `"${this.#id(otherKey)}"`;
+      const reason =
+        edge.from === edge.to
+          ? `the edge is a self-loop, so no side of ${me} faces its other end`
+          : at.off === "diagonal"
+            ? `${me} and ${them} are apart diagonally, so no side of ${me} faces ${them} in line`
+            : at.off === "overlap"
+              ? `${me} and ${them} overlap or one holds the other, so no side of ${me} faces ${them}`
+              : `the centre of ${them} is not in line with the ${at.side} side of ${me} (at least ${STRAIGHT_MARGIN / 2}pt inside its corners)`;
+      const name = edge.id === undefined ? `edges[${edge.index}]` : `"${edge.id}"`;
+      const source = this.#ir.sourceMap.get(edge.key);
+      this.#diagnostics.push({
+        code: "layout/straight-off-side",
+        severity: "warning",
+        message: `${field} "straight" of edge ${name} has no effect: ${reason}; the edge ${leaving ? "leaves" : "enters"} ${me} as if it had no anchor.`,
+        path: [...(source?.path ?? ["edges", edge.index]), field],
+        ...(source?.location !== undefined && { location: source.location }),
+        subject: { kind: "edge", id: edge.id ?? `edges[${edge.index}]` },
+        hint:
+          at.off === "beyond"
+            ? `Bring ${them} over ${me} (the order or align of the arrange box, or figure.layout.align), widen ${me}, or write a side anchor instead (e.g. "${at.side}:0.5").`
+            : `Put ${me} and ${them} in line (one above the other in a stack, or side by side in a row), or write a side anchor instead (e.g. "north:0.5").`,
+      });
+    }
   }
 
   /**

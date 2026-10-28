@@ -11,7 +11,16 @@ import type { Region } from "../../core/geometry";
 import { obstaclesCrossedByRoute, type RouteObstacle } from "../../lint/geometry/edges";
 import { rectPolygon, segmentCrossesRect } from "../../lint/geometry/shapes";
 import type { EdgeLayout, LayoutIR, Point, Rect } from "../ir";
-import { anchorPoint, DIRS, isJunction, nodeRegion, SIDE_DIR, STRAIGHTEN_TOLERANCE } from "./ports";
+import {
+  anchorPoint,
+  DIRS,
+  isJunction,
+  nodeRegion,
+  SIDE_DIR,
+  STRAIGHTEN_TOLERANCE,
+  straightOffset,
+  straightPlacement,
+} from "./ports";
 import { arrowheadLength } from "./router";
 
 /** Each list names the problems found; all empty is a clean routing. */
@@ -227,7 +236,7 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
     // How far each end lies from its anchor along its side: 0 without one,
     // infinite on another side.
     const anchorOffsets = ends.map(([, key, end, , side, anchor]) => {
-      if (anchor === undefined || end === undefined || side === undefined) return 0;
+      if (typeof anchor !== "object" || end === undefined || side === undefined) return 0;
       if (anchor.side !== side) return Number.POSITIVE_INFINITY;
       const want = anchorPoint(rects.get(key) as Rect, anchor);
       return SIDE_DIR[side] % 2 === 1 ? Math.abs(want.x - end.x) : Math.abs(want.y - end.y);
@@ -262,7 +271,17 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
       if ((next.x - end.x) * out.x + (next.y - end.y) * out.y <= 0) {
         miss(`not ${inward ? "into" : "away from"} the element`);
       }
-      if (anchor !== undefined) {
+      if (anchor === "straight") {
+        // `straight` (#179): on the side facing the other end, inside the
+        // corner margin (or straightened onto a one-segment line, #169);
+        // where it has no such side it is a default end.
+        const at = straightPlacement(rect, rects.get(other) as Rect);
+        if ("offset" in at) {
+          const along = SIDE_DIR[side] % 2 === 1 ? end.x : end.y;
+          const inside = straightOffset(rect, side, along) !== undefined || points.length === 2;
+          if (at.side !== side || !inside) miss(`not straight on the ${at.side} side`);
+        }
+      } else if (anchor !== undefined) {
         const off = anchorOffsets[k] as number;
         // An anchored end straightened onto the other end's line (#169,
         // design doc §6.40): the route is one straight segment, this end is

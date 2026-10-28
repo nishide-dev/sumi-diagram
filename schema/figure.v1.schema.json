@@ -281,7 +281,7 @@
           "fromAnchor": {
             "description": "Where the edge leaves the source (structured layout only).",
             "type": "string",
-            "pattern": "^(north|east|south|west)(?::(0(?:\\.\\d+)?|1(?:\\.0+)?))?$"
+            "pattern": "^(?:straight|(north|east|south|west)(?::(0(?:\\.\\d+)?|1(?:\\.0+)?))?)$"
           },
           "to": {
             "type": "string",
@@ -291,7 +291,7 @@
           "toAnchor": {
             "description": "Where the edge enters the target (structured layout only).",
             "type": "string",
-            "pattern": "^(north|east|south|west)(?::(0(?:\\.\\d+)?|1(?:\\.0+)?))?$"
+            "pattern": "^(?:straight|(north|east|south|west)(?::(0(?:\\.\\d+)?|1(?:\\.0+)?))?)$"
           },
           "label": {
             "default": "",

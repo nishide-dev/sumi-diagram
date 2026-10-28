@@ -1568,6 +1568,35 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **変わった出力: なし**。組み込みの Theme の edge はすべて `filled: true` で（Theme は今は組み込みのみ）、YAML から中を塗らない矢じりは描かれない（`src/compiler/testing.ts` の IR のような、スタイルを直接変えた場合だけ）。リポジトリの `*.sumi.yaml` 113 個（描画まで通った図の SVG 358・編集可能 PPTX 293）（structured と auto）を図の Theme と組み込みの 4 Theme で描いて、SVG と編集可能 PPTX の slide XML を変更の前後で sha256 で比べ、すべて一致した。`bun run gallery:check` と PDF・PPTX・画像の golden も変わらない。中を塗らない矢じりの見た目は、IR の `filled` と矢じりの種類を変えて描き直した図（`minimal` の surface、`academic` の tone のある group、キャンバス）を PNG にして、5 種類とも内側が下の塗りになり、group の外では白のままであることを確かめた。
 - **テスト**: `structured.test.ts` の「hollow arrowheads (#192)」: 中を塗らない 5 種類それぞれで、塗りのある group（`minimal` の surface）とその外のキャンバス、tone のある group、透明な内側と色のある外側、透明な group だけの入れ子（キャンバス）。境界をまたぐ矢じり（group の枠を矢じりの中心に動かして writer で描き直す。内側の色、0.001 unit 外ならキャンバス）。始点の矢じりと junction の端の矢じり（左右に並べた色の違う 2 つの group の間を横に走る辺。始点の矢じりは始点側の group、junction の中心に先端がある矢じりはその下の group の色。group の色を入れ替えると入れ替わる）。塗る矢じりは線の色のまま。編集可能 PPTX では中を塗らない `arrow` が開いた矢印の線端のまま。`backgroundAt()` の単体（枠の上、外、`labelBackground()` と一致）と、`drawArrowhead()` の色を取る点（中心が枠の上と 0.001 外）。描き直しの補助（`redraw()`）は、編集可能 PPTX が読む `elements` も変えた要素にするよう直した。
 
+### 6.47 #179 の相手の真上（真横）で入る端（`toAnchor: straight` / `fromAnchor: straight`）
+
+[#167 の調査](../research/167-stage-c.md) の §4.4（#151 C1）。幅の広い箱へ並んだ送り元から入る線は、既定では受け手の中心（merge）か分散した位置（`fanIn: spread`）に入り、段差ができる。作者が手で `"south:0.3127"` を計算して書くと 4 桁の丸めでずれる（§6.40 の R1）。相手の中心の射影を router が配置の後に計算して端にする値を足す。**opt-in の値**で、既定の端の規則は変えない（利用者の判断 2026-10-28、§10 Q3）。
+
+- **構文（判断: `straight` だけ、辺は書かない）**: `toAnchor: straight` / `fromAnchor: straight`。`south:straight` のように辺を書く形は採らない。まっすぐ入れる辺は、2 つの要素が離れている軸（1 つだけ）で決まり、向かい合う辺のほかにはない。辺を書くと、決まる辺と同じなら冗長、違えば矛盾（まっすぐにならない）で、検査する規則が増えるだけになる。既存の文法（`<side>` / `<side>:<0..1>`）と重ならない 1 語なので、`parseAnchor()` は `"straight"` を返し（`EdgeAnchor = Anchor | "straight"`）、`ANCHOR_PATTERN`（JSON Schema）にも加えた。大文字・`straight:0.5`・`south:straight` は `layout/invalid-anchor`。メッセージの期待する形と hint に `straight` を加え、`strait` などには `Did you mean "straight"?` が出る（誤った anchor の診断の文面だけが変わる。リポジトリの図・golden には出ない）。IR・Layout IR の `fromAnchor` / `toAnchor` は書いたとおり `"straight"` を持つ（解決した位置は経路の端の点にだけ現れる）。
+- **辺と位置（`straightPlacement()`、`ports.ts`）**: 2 つの要素の外接矩形が y だけで離れていれば北 / 南、x だけなら東 / 西の、相手に向かう辺。位置は相手の中心の、その辺への射影（丸めない値の比。端点は他の端と同じく `anchorPoint` で 1/1000 unit に丸まる）。射影が辺の角から `STRAIGHT_MARGIN`（6 unit = 3pt、router の clearance と同じ）以上内側にあるときだけ採る（矢じりと線が角や隣の辺に掛からない。辺が 12 unit より短ければ中央だけ）。試作 P1 と同じ規則。
+- **相手の端**: anchor のない相手の端（junction を除く）は、配置の木の辺（§6.33）ではなく `straight` の端に向かい合う辺を使う。配置の木の辺は多くの場合同じだが、`attach` などで別の辺になると、まっすぐの意味がなくなるため。相手の端の位置は従来どおり（中央、多重辺の振り分け、fan-in の分散）。
+- **相手の口に揃える（判断）**: 相手の中心の射影は、相手の端が辺の中央にあるときの相手の口と同じ点。多重辺の振り分け（1/3・2/3）・分散（`fanIn: spread`）・#113 の分割で相手の口が中央から動くと、中心の射影では段差が残る。そこで、`straight` の端は、多重辺の振り分けの後に**相手の口の座標**へ揃える（相手が向かい合う辺にあり、その座標が自分の辺の余白の内側にある場合。そうでなければ中心の射影のまま）。相手が junction ならその中心、相手に anchor があればその点。座標をそのまま写すので、丸めの差もなく直線になる（P1 の 21 本はすべて点 2 つで、2 点の x（y）が完全に一致する）。
+  - **多重辺**: `straight` の端も同じ 2 要素の間の振り分けに加える。`a → t` 2 本を両方 `straight` にすると、a の 1/3・2/3 の口の真下に 2 本の平行な直線（別のネット）になる。`a → t`（`straight`）と `t → a` の往復も、両方直線のまま並ぶ。
+  - **両端が `straight`**: 送り先の端が送り元の口（振り分けた位置。1 本なら送り元の中心）に揃い、送り元の端はそのまま。線は送り元の中心を通る（両端が解決できる場合）。片方だけ解決できなければ、解決した端が相手の既定の端に揃う。
+  - **#113 の分割**: `straight` の端は anchor と同じく分割で動かされない（`anchored`）。分割が相手の端を動かした場合は、§6.22 の「一直線を保つ」の規則で `straight` の端も相手について動く（anchor の端は動かないという例外を `straight` の端だけ外す。動く先は余白の内側に限る）。再現: `u → a` が a の南の中央に anchor され、`a → t`（`straight`）の a の端が 1/4 に動くと、t の端も 1/4 の線へ動いて直線のまま。
+- **同じ点に重なる 2 端（判断: anchor と同じ）**: 2 つの送り元の中心が受け手の辺の同じ座標にある（縦に並んだ 2 つの送り元）場合、2 つの端は同じ点・同じ向きの口になり、fan-in のネットとして合流する。同じ点に anchor を書いた 2 本と同じ扱いで、新しい規則は足さない。入りと出が同じ点になった場合は #113 の分割（`straight` の端は動かず、相手側が動く。両方が動かせなければ従来の `layout/no-route`）。
+- **`fanIn: spread` との併用（判断: `straight` の端は分散しない）**: `straight` の端は位置を持つ端として、anchor の端と同じく分散の対象にせず、同じ辺の他の端（anchor のない端）がそれを避けて残りの位置に並ぶ（§6.33 の割り当て）。`straight` の端どうしが同じ点に来る場合は spread でも合流のまま（分散すると直線でなくなる）。解決できなかった `straight` の端は anchor のない端として分散の対象になる。送り元の `fromAnchor: straight` の相手（送り先の端）が分散で動いた場合は、上の「相手の口に揃える」でついていく。
+- **#169 の `straighten()` との関係**: `straight` の端は anchor の端として扱い、ε（1pt）以内のずれは従来どおり直す。上のとおり座標を写すので、通常はずれが残らない。`checkRoutes` は `straight` の端について、解決できる場合に限り「向かい合う辺にあり、余白の内側にある（または `straighten()` が直した 1 本の直線）」を検査する（位置そのものは相手の口に依るので問わない）。
+- **診断 `layout/straight-off-side`（判断: warning）**: 向かい合う辺がない（斜めに離れている、重なる・一方が他方を含む、自己ループ）か、相手の中心の射影が辺の余白の外にある場合、その端は anchor のない端として解決し（既定の辺・振り分け・分散）、router が warning を出す（位置は `edges[i].toAnchor` / `fromAnchor`、メッセージは理由を区別、hint は「並べる（stack の上下・row の左右・`align`）、箱を広げる、辺の anchor を書く」）。図は描けて作者の意図と違うだけなので error にはしない（§6.38 の `component/anchor-on-junction` と同じ考え）。info にしないのは、作者が `straight` を書いて段差が残るのは見落としやすく、YAML で直せるため。junction の端は anchor を見ないので `component/anchor-on-junction` だけ（重ねて出さない）。射影は配置の後にしか分からないので、経路の段（router）の診断。
+- **auto**: 他の anchor と同じく `layout/structured-only`（error、§6.19）。値によらず anchor のフィールドを報告する既存の規則のまま。
+- **互換性（実測）**: リポジトリの `*.sumi.yaml` 113 個（structured 41・auto）を図の Theme と組み込みの 4 Theme で描いて（565 通り、描けたもの 358）、Layout IR・SVG・診断の sha256 を変更の前後で比べ、すべて一致した。`CI=1 bun test`（D2・PDF・PPTX の golden）と `bun run gallery:check` も無変更で通る。`straight` を書かない図の端の解決は、新しい分岐に入らない（`straight` の端・その相手の端だけが変わる）。
+- **結果（実測、P1 の 3 図・21 本）**:
+
+  | 図（辺の数） | anchor なし | `straight` |
+  | --- | --- | --- |
+  | #167 図 C（7。Refiner → A5 は `fromAnchor`、ほかは `toAnchor`） | 1/7 まっすぐ、折れ 24 | **7/7、折れ 0**、交差 0 |
+  | #167 図 B（5） | 3/5、折れ 4 | **5/5、折れ 0**、交差 0 |
+  | #151 ViT（9） | 0/9、折れ 28 | **9/9、折れ 0**、交差 0 |
+
+  試作（§5.1 の「straight（正確）」）と同じ。Refiner → A5 は A5 が狭く Refiner の中心が A5 の辺の外にあるので、試作と同じく広い側（送り元）に `fromAnchor: straight` を書く。
+- **テスト**: `straight.integration.test.ts`（P1 の 3 図の 21 本を YAML に `straight` を書いて描き、それぞれ点 2 つ・折れ 0・2 点の座標が完全一致、`straight-off-side` と `unaligned-ends` なし、`checkRoutes` 0 件、同じ配置で下限の検証（`verifyLowerBound`）。anchor を外すと同じ辺が折れること）、`straight.test.ts`（`straightPlacement()` の 4 方向・丸めない射影・余白の境界（6 unit ちょうど・その外・短い辺）・斜め・重なり・入れ子、送り先の 3 本が別の点・別のネットの直線（なしでは合流して折れる）、横の場合、Layout IR に `"straight"` が残ること、`fromAnchor` の広い送り元、分散した送り先の端に `fromAnchor` がついていくこと、`straight-off-side` の 3 つの理由・位置・文面と、経路が anchor なしと同じこと、自己ループの既定の角、junction の端は `anchor-on-junction` だけ、多重辺の平行な直線、往復、縦に並んだ 2 つの送り元の合流（merge・spread）、spread で他の端が `straight` の端を避けること、両端 `straight`、#113 の分割についていくこと、`checkRoutes` が別の辺の `straight` の端を報告すること）、`layout.test.ts`（`parseAnchor`、誤った形、`strait` の hint、メッセージ、auto の `layout/structured-only` の位置）。分割で相手についていく変更と振り分けへの参加を外すと、それぞれのテストが失敗することを確かめた。
+- **非対象・引き継ぎ**: 既定の端の規則の変更（`straight` を anchor のない端の既定にするか。§10 Q3 で opt-in に決まった）。斜めの配置で 1 回曲げて入る端。相手の中心ではなく相手の辺との重なりの中央に揃える規則（両端 `straight` の別案）。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）
