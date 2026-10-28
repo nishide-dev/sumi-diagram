@@ -11,7 +11,7 @@ import type { Region } from "../../core/geometry";
 import { obstaclesCrossedByRoute, type RouteObstacle } from "../../lint/geometry/edges";
 import { rectPolygon, segmentCrossesRect } from "../../lint/geometry/shapes";
 import type { EdgeLayout, LayoutIR, Point, Rect } from "../ir";
-import { anchorPoint, DIRS, isJunction, nodeRegion, SIDE_DIR } from "./ports";
+import { anchorPoint, DIRS, isJunction, nodeRegion, SIDE_DIR, STRAIGHTEN_TOLERANCE } from "./ports";
 import { arrowheadLength } from "./router";
 
 /** Each list names the problems found; all empty is a clean routing. */
@@ -60,6 +60,14 @@ export interface RouteCheckReport {
 }
 
 const EPS = 0.01;
+
+/**
+ * Points this close are one point (repeated, or three on one line): half
+ * the Layout IR's 1/1000 unit. Coarser, an S or jog between ends left
+ * 0.002 unit out of line (#169, design doc §6.40) would read as turning
+ * back, though the router drew it on distinct grid lines.
+ */
+const SAME = 0.0005;
 
 type Segment = readonly [Point, Point];
 
@@ -174,13 +182,13 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
     for (const [i, p] of points.entries()) {
       const q = points[i + 1];
       const r = points[i + 2];
-      if (q !== undefined && Math.abs(p.x - q.x) <= EPS && Math.abs(p.y - q.y) <= EPS) {
+      if (q !== undefined && Math.abs(p.x - q.x) <= SAME && Math.abs(p.y - q.y) <= SAME) {
         report.malformed.push(`${edge.key} repeats ${p.x},${p.y}`);
       }
       if (q !== undefined && r !== undefined) {
         const line =
-          (Math.abs(p.x - q.x) <= EPS && Math.abs(q.x - r.x) <= EPS) ||
-          (Math.abs(p.y - q.y) <= EPS && Math.abs(q.y - r.y) <= EPS);
+          (Math.abs(p.x - q.x) <= SAME && Math.abs(q.x - r.x) <= SAME) ||
+          (Math.abs(p.y - q.y) <= SAME && Math.abs(q.y - r.y) <= SAME);
         if (line) report.malformed.push(`${edge.key} straight or turning back at ${q.x},${q.y}`);
       }
     }
@@ -216,7 +224,15 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
         edge.toAnchor,
       ],
     ] as const;
-    for (const [which, key, end, next, side, anchor] of ends) {
+    // How far each end lies from its anchor along its side: 0 without one,
+    // infinite on another side.
+    const anchorOffsets = ends.map(([, key, end, , side, anchor]) => {
+      if (anchor === undefined || end === undefined || side === undefined) return 0;
+      if (anchor.side !== side) return Number.POSITIVE_INFINITY;
+      const want = anchorPoint(rects.get(key) as Rect, anchor);
+      return SIDE_DIR[side] % 2 === 1 ? Math.abs(want.x - end.x) : Math.abs(want.y - end.y);
+    });
+    for (const [k, [which, key, end, next, side, anchor]] of ends.entries()) {
       if (end === undefined || next === undefined) {
         report.endpointMisses.push(`${edge.key} ${which}: fewer than 2 points`);
         continue;
@@ -247,9 +263,15 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
         miss(`not ${inward ? "into" : "away from"} the element`);
       }
       if (anchor !== undefined) {
-        const want = anchorPoint(rect, anchor);
-        const off = vertical ? Math.abs(want.x - end.x) : Math.abs(want.y - end.y);
-        if (anchor.side !== side || off > EPS)
+        const off = anchorOffsets[k] as number;
+        // An anchored end straightened onto the other end's line (#169,
+        // design doc §6.40): the route is one straight segment, this end is
+        // at most the tolerance off its anchor and the other end at its own.
+        const straightened =
+          points.length === 2 &&
+          off <= STRAIGHTEN_TOLERANCE + EPS &&
+          (anchorOffsets[1 - k] as number) <= EPS;
+        if (anchor.side !== side || (off > EPS && !straightened))
           miss(`not at the anchor ${anchor.side}:${anchor.offset}`);
       }
     }

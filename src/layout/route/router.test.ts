@@ -3,7 +3,14 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { parse, stringify } from "yaml";
 import type { ElementKey } from "../../core/check-state";
 import { type LayoutFigureOptions, layoutStructuredFigure } from "../index";
-import { type EdgeLayout, type LayoutIR, type Point, type Rect, roundUnits } from "../ir";
+import {
+  type EdgeLayout,
+  type EdgeRoute,
+  type LayoutIR,
+  type Point,
+  type Rect,
+  roundUnits,
+} from "../ir";
 import type { TextMeasurer } from "../text";
 import { checkRoutes, type RouteCheckReport, routeProblemCount } from "./check";
 import { MAX_REPORTED_CROSSINGS } from "./crossings";
@@ -13,8 +20,10 @@ import {
   arrowRoom,
   clipRoomAtJunction,
   mergeSegments,
+  ROUTE,
   routeEdges,
   simplify,
+  tightJog,
   WIRE_CORNER_RADIUS,
 } from "./router";
 
@@ -23,6 +32,8 @@ const fixtures = `${import.meta.dir}/../../../tests/fixtures`;
 const sharedSegment = `${import.meta.dir}/../../../research/109-dogfood-v0.4/repro/shared-segment.sumi.yaml`;
 /** #153's reproduction (research/151-dogfood-v0.5, A1): `add1 → split2`, a junction right above. */
 const junctionDetour = `${import.meta.dir}/../../../research/151-dogfood-v0.5/repro/junction-detour.sumi.yaml`;
+/** #169's reproduction (research/167-stage-c, R1): lines loop around ⊕ at some root gaps. */
+const operatorLoop = `${import.meta.dir}/../../../research/167-stage-c/repro/operator-loop.sumi.yaml`;
 const goldens = `${fixtures}/layout`;
 // Set SUMI_UPDATE_GOLDEN=1 to rewrite the expected Layout IR JSON.
 const update = process.env.SUMI_UPDATE_GOLDEN === "1";
@@ -430,6 +441,333 @@ describe("a junction closer than the room (#153)", () => {
       if (!placed.ok) throw new Error(JSON.stringify(placed.diagnostics));
       const result = routeEdges(placed.value.ir, placed.value.layout, { verifyLowerBound: true });
       expect(result.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+    });
+  });
+});
+
+describe("facing ends out of line by little, in a short gap (#169)", () => {
+  const text = readFileSync(operatorLoop, "utf8");
+  const between = (layout: LayoutIR, from: string, to: string) =>
+    layout.edges.find((e) => e.from === `n:${from}` && e.to === `n:${to}`)?.route?.points ?? [];
+  const centerX = (r: Rect) => roundUnits(r.x + r.width / 2);
+
+  // The repro: the stretched boxes' centers and the centered operators'
+  // centers round differently, 0.001 unit apart at some positions (50mm,
+  // 170mm, …), and the gap (2.5mm, 14.173 units) is shorter than the stub
+  // out of Attention (6) plus the stub into ⊕ (12), so there was no row for
+  // a jog and no column for an S: the lines went around ⊕ and crossed the
+  // residuals.
+  test("the repro at root gaps of 40–200mm (0.5mm steps): straight lines, no crossing", () => {
+    let misaligned = 0;
+    for (let gap = 40; gap <= 200; gap += 0.5) {
+      const result = layoutStructuredFigure(text.replace("gap: 50mm", `gap: ${gap}mm`));
+      if (!result.ok) throw new Error(`${gap}mm: ${JSON.stringify(result.diagnostics)}`);
+      const { layout } = result.value;
+      expect(result.diagnostics.filter((d) => d.code === "layout/edge-crossing")).toEqual([]);
+      expect(
+        Object.entries(checkRoutes(result.value.ir, layout)).filter(([, l]) => l.length > 0),
+      ).toEqual([]);
+      if (centerX(rectOf(layout, "i-attn")) !== centerX(rectOf(layout, "i-add1"))) misaligned++;
+      for (const [from, to] of [
+        ["i-concat", "i-split0"],
+        ["i-split0", "i-ln1"],
+        ["i-attn", "i-add1"],
+        ["i-add1", "i-split1"],
+        ["i-ff", "i-add2"],
+        ["i-add2", "i-out"],
+      ] as const) {
+        const points = between(layout, from, to);
+        expect(points).toHaveLength(2);
+        expect((points[0] as Point).x).toBe((points[1] as Point).x);
+      }
+    }
+    // The positions where the bug showed are among them.
+    expect(misaligned).toBeGreaterThan(0);
+  });
+
+  test("the lower bound stays admissible on the repro", () => {
+    const placed = layoutStructuredFigure(text, { route: false });
+    if (!placed.ok) throw new Error(JSON.stringify(placed.diagnostics));
+    const result = routeEdges(placed.value.ir, placed.value.layout, { verifyLowerBound: true });
+    expect(result.diagnostics).toEqual([]);
+  });
+
+  // In every direction: a over b, 2mm apart (11.3 units, under the stubs'
+  // 6 + 8), b's side anchored `delta` off a's center line.
+  const W = 120;
+  const H = 80;
+  const SIDES = { down: "north", up: "south", right: "west", left: "east" } as const;
+  const facing = (
+    kind: "stack" | "row",
+    direction: keyof typeof SIDES,
+    delta: number,
+    fromAnchor?: string,
+  ) =>
+    figure(
+      { [kind]: { direction, gap: "2mm", align: "center", items: ["a", "b"] } },
+      [box("a", { width: "60pt", height: "40pt" }), box("b", { width: "60pt", height: "40pt" })],
+      [
+        {
+          from: "a",
+          to: "b",
+          ...(fromAnchor !== undefined && { fromAnchor }),
+          toAnchor: `${SIDES[direction]}:${(0.5 + delta / (kind === "stack" ? W : H)).toFixed(7)}`,
+        },
+      ],
+    );
+  describe.each([
+    ["stack", "down"],
+    ["stack", "up"],
+    ["row", "right"],
+    ["row", "left"],
+  ] as const)("%s %s", (kind, direction) => {
+    const vertical = kind === "stack";
+    const make = (delta: number) => facing(kind, direction, delta);
+    const across = (p: Point) => (vertical ? p.x : p.y);
+
+    test.each([0.001, 0.035, 0.8, 2])(
+      "off by %p: the unanchored source moves, straight",
+      (delta) => {
+        const value = run(make(delta));
+        expectClean(value);
+        const points = pointsOf(value.layout, 0);
+        expect(points).toHaveLength(2);
+        const a = rectOf(value.layout, "a");
+        const center = vertical ? a.x + a.width / 2 : a.y + a.height / 2;
+        // The source left its center for the anchor's line; the anchor stays.
+        expect(across(points[0] as Point)).toBeCloseTo(center + delta, 3);
+        expect(across(points[1] as Point)).toBe(across(points[0] as Point));
+      },
+    );
+
+    test.each([2.5, 3, 6, 20])("off by %p: an S between the ends, shorter than a loop", (delta) => {
+      const value = run(make(delta));
+      expectClean(value);
+      const points = pointsOf(value.layout, 0);
+      const length = points.slice(1).reduce((s, p, i) => s + span(points[i] as Point, p), 0);
+      const a = rectOf(value.layout, "a");
+      const b = rectOf(value.layout, "b");
+      const gap = vertical
+        ? Math.max(b.y - (a.y + a.height), a.y - (b.y + b.height))
+        : Math.max(b.x - (a.x + a.width), a.x - (b.x + b.width));
+      const lanes = ROUTE.clearance + arrowheadLength(1);
+      expect(gap).toBeLessThan(lanes);
+      // Out of a for its stub, across, back, across, into b for its stub.
+      expect(points).toHaveLength(6);
+      expect(length).toBeCloseTo(gap + 2 * (lanes - gap) + delta, 2);
+      const placed = layoutStructuredFigure(make(delta), { measurer: FAKE, route: false });
+      if (!placed.ok) throw new Error(JSON.stringify(placed.diagnostics));
+      const result = routeEdges(placed.value.ir, placed.value.layout, { verifyLowerBound: true });
+      expect(result.diagnostics).toEqual([]);
+    });
+  });
+
+  test("a port shared by a fan-in stays; the other end moves, even anchored", () => {
+    // a → t and c → t enter t's north side at its center (one net); a's
+    // anchor is 1 unit off that line.
+    const value = run(
+      figure(
+        { stack: { gap: "2mm", items: ["a", "t"] } },
+        [
+          box("a", { width: "60pt" }),
+          box("t", { width: "60pt" }),
+          { ...box("c"), attach: { to: "a", side: "east", gap: "30pt" } },
+        ],
+        [
+          { from: "a", to: "t", fromAnchor: `south:${(0.5 + 1 / W).toFixed(7)}` },
+          { from: "c", to: "t", toAnchor: "north" },
+        ],
+      ),
+    );
+    expectClean(value);
+    const t = rectOf(value.layout, "t");
+    const port = { x: t.x + t.width / 2, y: t.y };
+    const straight = pointsOf(value.layout, 0);
+    expect(straight).toHaveLength(2);
+    expect(straight[1]).toEqual(port);
+    expect((straight[0] as Point).x).toBe(port.x);
+    expect(pointsOf(value.layout, 1).at(-1)).toEqual(port);
+    expect(edgeOf(value.layout, 0).route?.net).toBe(edgeOf(value.layout, 1).route?.net);
+  });
+
+  describe("checkRoutes allows a straightened anchor, nothing else", () => {
+    const withPoints = (value: ReturnType<typeof run>, points: Point[]): LayoutIR => ({
+      ...value.layout,
+      edges: [
+        {
+          ...edgeOf(value.layout, 0),
+          route: { ...(edgeOf(value.layout, 0).route as EdgeRoute), points },
+        },
+      ],
+    });
+    const shifted = (value: ReturnType<typeof run>, dx: number) =>
+      withPoints(
+        value,
+        pointsOf(value.layout, 0).map((p) => ({ x: p.x + dx, y: p.y })),
+      );
+
+    test("one end moved onto the other's line, 1.5 units: allowed", () => {
+      // Both ends anchored: the target moves onto the source's line.
+      const value = run(facing("stack", "down", 1.5, "south:0.5"));
+      expectClean(value);
+      const a = rectOf(value.layout, "a");
+      expect(pointsOf(value.layout, 0).map((p) => p.x)).toEqual([
+        a.x + a.width / 2,
+        a.x + a.width / 2,
+      ]);
+      // Shifted 1 unit sideways, both ends are off their anchors.
+      expect(checkRoutes(value.ir, shifted(value, 1)).endpointMisses).toHaveLength(2);
+    });
+
+    test("an aligned straight line shifted sideways at both ends: reported (review case)", () => {
+      const value = run(facing("stack", "down", 0, "south:0.5"));
+      expectClean(value);
+      expect(checkRoutes(value.ir, shifted(value, 1)).endpointMisses).toEqual([
+        expect.stringContaining("e:#0 from n:a: not at the anchor south:0.5"),
+        expect.stringContaining("e:#0 to n:b: not at the anchor north:"),
+      ]);
+    });
+
+    test("beyond the tolerance, or on a route that is not straight: reported", () => {
+      const value = run(facing("stack", "down", 2.5, "south:0.5"));
+      expectClean(value);
+      const points = pointsOf(value.layout, 0);
+      const first = points[0] as Point;
+      const last = points.at(-1) as Point;
+      // A straight line along the source's line: the target 2.5 off.
+      expect(
+        checkRoutes(value.ir, withPoints(value, [first, { x: first.x, y: last.y }])).endpointMisses,
+      ).toEqual([expect.stringContaining("e:#0 to n:b: not at the anchor north:")]);
+      // A jog that ends 1.5 off the target's anchor (within the tolerance).
+      const mid = (first.y + last.y) / 2;
+      const x = first.x + 1;
+      expect(
+        checkRoutes(
+          value.ir,
+          withPoints(value, [first, { x: first.x, y: mid }, { x, y: mid }, { x, y: last.y }]),
+        ).endpointMisses,
+      ).toEqual([expect.stringContaining("e:#0 to n:b: not at the anchor north:")]);
+    });
+  });
+
+  describe("both ends shared, so neither moves", () => {
+    /** a → b twice, both ends anchored to the same points: each point is shared. */
+    const twice = (delta: number, gap = "2mm") =>
+      figure(
+        { stack: { gap, items: ["a", "b"] } },
+        [box("a", { width: "60pt", height: "40pt" }), box("b", { width: "60pt", height: "40pt" })],
+        Array.from({ length: 2 }, () => ({
+          from: "a",
+          to: "b",
+          fromAnchor: "south:0.5",
+          toAnchor: `north:${0.5 + delta / W}`,
+        })),
+      );
+    const routed = (text: string, clean = true) => {
+      const result = layoutStructuredFigure(text, { measurer: FAKE });
+      if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+      if (clean) expectClean(result.value);
+      const placed = layoutStructuredFigure(text, { measurer: FAKE, route: false });
+      if (!placed.ok) throw new Error(JSON.stringify(placed.diagnostics));
+      routeEdges(placed.value.ir, placed.value.layout, { verifyLowerBound: true });
+      return result;
+    };
+    const unaligned = (result: { diagnostics: readonly { code: string }[] }) =>
+      result.diagnostics.filter((d) => d.code === "layout/unaligned-ends").length;
+
+    test("0.001 apart in a short gap: no S fits, the route goes around, and it is reported", () => {
+      const result = routed(twice(0.001));
+      expect(unaligned(result)).toBe(2);
+      const [d] = result.diagnostics.filter((x) => x.code === "layout/unaligned-ends");
+      expect(d).toMatchObject({ severity: "warning", path: ["edges", 0] });
+      expect(d?.message).toBe(
+        'The ends of edge edges[0] from "a" to "b" face each other 0.0005pt out of line, and neither can be moved into line: each shares its point with another edge (or the other\'s line misses its side), so the line goes around an end (the gap is shorter than its stubs, and the offset too small for an S between them).',
+      );
+    });
+
+    test.each([0.002, 0.01, 0.5, 2])(
+      "%p apart in a short gap: an S between the lines, checked clean, and reported",
+      (delta) => {
+        const result = routed(twice(delta));
+        expect(unaligned(result)).toBe(2);
+        if (!result.ok) throw new Error("unreachable");
+        expect(pointsOf(result.value.layout, 0)).toHaveLength(6);
+      },
+    );
+
+    test("2.5 apart: an S, not reported (beyond the tolerance)", () => {
+      const result = routed(twice(2.5));
+      expect(unaligned(result)).toBe(0);
+      if (!result.ok) throw new Error("unreachable");
+      expect(pointsOf(result.value.layout, 0)).toHaveLength(6);
+    });
+
+    test.each([0.001, 0.005])(
+      "%p apart in a wide gap: a jog that thin, checked clean, and reported",
+      (delta) => {
+        const result = routed(twice(delta, "10mm"));
+        expect(unaligned(result)).toBe(2);
+        if (!result.ok) throw new Error("unreachable");
+        expect(pointsOf(result.value.layout, 0)).toHaveLength(4);
+      },
+    );
+
+    test("shared with edges to other boxes (review case)", () => {
+      const result = routed(
+        figure(
+          { stack: { gap: "2mm", items: ["a", "b"] } },
+          [
+            box("a", { width: "60pt", height: "40pt" }),
+            box("b", { width: "60pt", height: "40pt" }),
+            { ...box("c"), attach: { to: "b", side: "east", gap: "30pt" } },
+            { ...box("d"), attach: { to: "a", side: "east", gap: "30pt" } },
+          ],
+          [
+            { from: "a", to: "b", fromAnchor: "south:0.5", toAnchor: `north:${0.5 + 0.001 / W}` },
+            { from: "a", to: "d", fromAnchor: "south:0.5" },
+            { from: "c", to: "b", toAnchor: `north:${0.5 + 0.001 / W}` },
+          ],
+        ),
+        // a → d and c → b are squeezed along each other between the boxes
+        // (an overlap of other edges, not of a → b).
+        false,
+      );
+      expect(unaligned(result)).toBe(1);
+      if (!result.ok) throw new Error("unreachable");
+      const report = checkRoutes(result.value.ir, result.value.layout);
+      expect(report.endpointMisses).toEqual([]);
+      expect(report.malformed).toEqual([]);
+    });
+  });
+
+  describe("tightJog", () => {
+    const end = (x: number, y: number, dir: number, junction = false): End => ({
+      key: "n:p" as ElementKey,
+      junction,
+      dir: junction ? -1 : dir,
+      port: { x, y },
+      outline: { x, y },
+    });
+    test("a column midway at the rows of the lanes' ends", () => {
+      // Down from (100, 0) into (105, 10) from above; lanes 6 and 8.
+      expect(tightJog(end(100, 0, 1), end(105, 10, 3), 6, 8)).toEqual([
+        { x: 102.5, y: 6 },
+        { x: 102.5, y: 2 },
+      ]);
+      // Left from (0, 100) into (-10, 95) from the left side.
+      expect(tightJog(end(0, 100, 2), end(-10, 95, 0), 6, 8)).toEqual([
+        { x: -6, y: 97.5 },
+        { x: -2, y: 97.5 },
+      ]);
+    });
+    test.each([
+      ["in line", end(100, 0, 1), end(100, 10, 3)],
+      ["a plain jog fits", end(100, 0, 1), end(105, 14, 3)],
+      ["behind", end(100, 0, 1), end(105, -10, 3)],
+      ["not facing", end(100, 0, 1), end(105, 10, 0)],
+      ["a junction", end(100, 0, 1), end(105, 10, -1, true)],
+    ] as const)("none: %s", (_, from, to) => {
+      expect(tightJog(from, to, 6, 8)).toBeUndefined();
     });
   });
 });

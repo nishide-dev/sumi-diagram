@@ -9,7 +9,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { parse, stringify } from "yaml";
 import { layoutStructuredFigure } from "../index";
-import type { LayoutIR, Point, Rect } from "../ir";
+import { type LayoutIR, type Point, type Rect, roundUnits } from "../ir";
 import type { TextMeasurer } from "../text";
 import { checkRoutes } from "./check";
 
@@ -333,9 +333,21 @@ describe("figure.layout.fanIn", () => {
   test("spread: side by side at 1/4, 2/4, 3/4 in the order of the sources, each its own net", () => {
     const value = fan("spread");
     const t = rectOf(value.layout, "t");
-    // Edges 1, 2, 0 come from a, b, c (left to right).
+    // Edges 1, 2, 0 come from a, b, c (left to right). A slot within
+    // STRAIGHTEN_TOLERANCE of its source's center moves onto it: the edge
+    // is a straight line (#169; here a and c, 1.323 units off).
+    const slots = [1, 2, 3].map((k) => t.x + (t.width * k) / 4);
+    const centers = ["a", "b", "c"].map((id) => {
+      const r = rectOf(value.layout, id);
+      return roundUnits(r.x + r.width / 2);
+    });
+    expect(slots.map((x, k) => Math.abs(x - (centers[k] as number)))).toEqual([
+      expect.closeTo(1.323, 3),
+      0,
+      expect.closeTo(1.323, 3),
+    ]);
     expect([1, 2, 0].map((i) => lastPoint(value.layout, i))).toEqual(
-      [1, 2, 3].map((k) => ({ x: t.x + (t.width * k) / 4, y: t.y })),
+      centers.map((x) => ({ x, y: t.y })),
     );
     expect(new Set([0, 1, 2].map((i) => routeOf(value.layout, i).net)).size).toBe(3);
     expect([0, 1, 2].map((i) => routeOf(value.layout, i).toSide)).toEqual([
