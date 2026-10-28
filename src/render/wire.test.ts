@@ -275,6 +275,64 @@ describe("hidden junctions", () => {
       ]);
     });
 
+    test("a route in no turn still limits the arc on the leg it shares", () => {
+      // Route 0 comes in from the south; its only outgoing partner (route 2,
+      // also south) is parallel, so it is in no turn. The west → south turn
+      // puts its arc on the same south leg.
+      const shared = (keep: { keepStart?: number; keepEnd?: number }) =>
+        roundCorners(
+          [
+            { points: [p(50, 60), J], end: "j", ...keep },
+            { points: [p(0, 50), J], end: "j" },
+            { points: [J, p(50, 100)], start: "j" },
+          ],
+          options(),
+        ).arcs;
+      // A `cross` at J on that leg: no arc.
+      expect(shared({ keepEnd: 8 }).flat()).toEqual([]);
+      // An arrowhead at the leg's far end: 10 − 8 = 2 units are left.
+      expect(radius(shared({ keepStart: 8 }))).toBe(2);
+      expect(radius(shared({}))).toBe(5);
+    });
+
+    test("an arrowhead at the junction end wins over one at the far end", () => {
+      const { arcs } = roundCorners(
+        [
+          { points: [p(50, 100), J], end: "j" },
+          { points: [J, p(100, 50)], start: "j", keepStart: 3, keepEnd: 4 },
+        ],
+        options(),
+      );
+      expect(arcs.flat()).toEqual([]);
+    });
+
+    test("an arrowhead as long as the leg, or longer, leaves no arc", () => {
+      for (const keepEnd of [5, 7]) {
+        const { pieces, arcs } = roundCorners(
+          [
+            { points: [p(50, 100), J], end: "j" },
+            { points: [J, p(55, 50)], start: "j", keepEnd },
+          ],
+          options(),
+        );
+        expect(arcs.flat()).toEqual([]);
+        expect(pieces[1]).toEqual([[J, p(55, 50)]]);
+      }
+    });
+
+    test("the room is compared with the line width as the smallest radius", () => {
+      const at = (keepEnd: number) =>
+        roundCorners(
+          [
+            { points: [p(50, 100), J], end: "j" },
+            { points: [J, p(60, 50)], start: "j", keepEnd },
+          ],
+          options({ minRadius: 1.5 }),
+        ).arcs;
+      expect(radius(at(8.5))).toBe(1.5);
+      expect(at(8.6).flat()).toEqual([]);
+    });
+
     test("an arrowhead the wire runs under at the junction itself keeps it sharp", () => {
       // A `cross` at the junction end: the wire reaches the center through it.
       const { arcs } = roundCorners(

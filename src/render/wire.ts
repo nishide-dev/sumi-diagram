@@ -224,10 +224,20 @@ export function roundCorners(
     }
     const turns = pairs.filter(([a, b]) => perpendicular(a.away, b.away));
     if (turns.length === 0) continue;
+    // An arc lies on the legs it joins, and every route along a leg shares it
+    // (including routes in no turn, such as one whose only partner is
+    // parallel): the leg's room is the least of theirs (#160).
+    const legKey = (d: Direction) => `${d.x},${d.y}`;
+    const legRoom = new Map<string, number>();
+    for (const e of list) {
+      const key = legKey(e.away);
+      legRoom.set(key, Math.min(legRoom.get(key) ?? e.room, e.room));
+    }
+    const room = (e: JunctionEnd) => legRoom.get(legKey(e.away)) as number;
     // One radius for the whole junction, so every cut meets its arcs.
     let r = options.radius;
     for (const [a, b] of turns) {
-      r = Math.min(r, clearRadius(center, a.away, b.away, Math.min(a.room, b.room), options));
+      r = Math.min(r, clearRadius(center, a.away, b.away, Math.min(room(a), room(b)), options));
     }
     if (r < options.minRadius) continue;
     const turning = new Set(turns.flat());
