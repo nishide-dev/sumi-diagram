@@ -33,15 +33,22 @@ metadata: {}               # optional, any JSON-compatible data; not drawn
 | edge | **`from`**, **`to`**, `id`, `label`, `labelAt`¹, `labelSide`¹, `component`, `variant`, `tone`, `props`, `fromAnchor`¹, `toAnchor`¹ | component `arrow`, variant `default`, no tone |
 
 ¹ Structured layout only (a figure with `figure.layout.arrange`); see
-[structured](structured.md); `labelRotation` (`90` / `-90`, newer than 0.5.3): [turned labels](structured.md#turned-labels); `sublabel` (newer than 0.5.3): [sublabels](structured.md#sublabels). `icon`: see [assets](assets.md). Group
-`dim` (newer than 0.5.3, both engines): [dimmed groups](#dimmed-groups). Group
-`labelAt` / `caption`: [groups](#groups). These, edge `labelAt` /
-`labelSide`, `figure.layout.align` / `fanIn`, label-math accents and the
-`legend` component are new in 0.5.0. When you use them and
-`sumi --version` prints 0.5.0 or later, you may add `requires: ">=0.5.0"`:
-an older Sumi then stops with one clear `schema/unsatisfied-requires`
-instead of a list of unknown fields. A CLI that prints an older version
-(e.g. a source checkout between releases) fails on it too: leave it out.
+[structured](structured.md): `sublabel` ([sublabels](structured.md#sublabels)),
+`labelRotation` (`90` / `-90`, [turned labels](structured.md#turned-labels)).
+`icon`: [assets](assets.md). Group `labelAt` / `caption`: [groups](#groups);
+`dim` (both engines): [dimmed groups](#dimmed-groups).
+
+**Versions.** Group `labelAt` / `caption`, edge `labelAt` / `labelSide`,
+`figure.layout.align` / `fanIn`, label-math accents and the `legend`
+component are new in 0.5.0. The paper-figure features are new in 0.6.0:
+`figure.fit`, `figure.layout.density`, `sublabel`, `labelRotation`, group
+`dim`, edge `tone`, `straight` anchors, the `paper` theme, the `filled`,
+`outlined`, `plain` and `dashed` variants, and the `zoom`, `tokens` and
+`matrix` components. When you use them and `sumi --version` prints that
+version or later, you may add `requires: ">=0.5.0"` (or `">=0.6.0"`): an
+older Sumi then stops with one clear `schema/unsatisfied-requires` instead
+of a list of unknown fields. A CLI that prints an older version (e.g. a
+source checkout between releases) fails on it too: leave it out.
 
 Every object is strict: an unknown key is an error (`schema/unknown-field`).
 There is no per-element style, color, font or coordinate field — appearance
@@ -68,7 +75,7 @@ nodes:
   - { id: norm, component: box, label: Norm, tone: yellow }
 ```
 
-**Colored frames and lines** (newer than 0.5.3): with `variant: outlined`
+**Colored frames and lines** (0.6.0): with `variant: outlined`
 (box-like shapes, `operator`, `stack`) the tone colors the **outline and
 the text** of a white node instead of its fill — boxes with a colored
 border and colored text, as in many paper figures (an encoder, token
@@ -561,3 +568,5 @@ preserved by `sumi fmt`.
 | `label: Step 1: parse` | `yaml/syntax` | quote the label |
 | edge to a misspelled ID | `ref/unknown-endpoint` | use the ID from the hint |
 | `theme: dark`, `profile: a4` | `theme/unknown`, `profile/unknown` | a built-in name from the tables above |
+| `variant: muted` on every node and edge of a panel to make it pale | (none; the tone fills stay strong) | `dim: true` on the group |
+| `requires: ">=0.6.0"` with a CLI that prints 0.5.x | `schema/unsatisfied-requires` | upgrade, or leave `requires` out (and the 0.6.0 fields the CLI rejects) |

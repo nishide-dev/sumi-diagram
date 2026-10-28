@@ -1,0 +1,52 @@
+# #185 repro R-A: with the headings column centred in the root row (no
+# align: start), align can only push column 0 down (it adds space, never
+# removes it), which breaks the table rows (expected, see the Skill). The
+# third constraint align[2] (h-text / p0) then stays 0.077 layout units
+# (about 0.0136mm) apart, above the solver's 0.01-unit tolerance, so
+# layout/unsatisfied-align (warning) is a correct report ("0.01mm" is the
+# rounded message). With the root row at align: start the residuals are 0:
+# a possible convergence or search limit of the align solver when the
+# constrained items sit in a centred box, to be investigated.
+# Run: bun src/cli/index.ts lint --geometry research/185-acceptance/repro/align-residual.sumi.yaml
+version: 1
+figure:
+  id: stream-table
+  theme: paper
+  profile: paper-double
+  layout:
+    arrange:
+      row:
+        gap: 4mm
+        items:
+          - stack: { gap: 1mm, items: [ h-visual, h-action, h-text ] } # the row headings
+          - stack:
+              align: stretch
+              items:
+                - row: # one stack per column; equal widths keep the columns even
+                    items:
+                      - stack: { items: [ f0, k0, p0 ] }
+                      - stack: { items: [ f1, k1, p1 ] }
+                      - stack: { items: [ f2, k2, p2 ] }
+                - refiner # spans every column
+    align: # each heading level with its row
+      - { y: [ h-visual, f0 ] }
+      - { y: [ h-action, k0.1 ] }
+      - { y: [ h-text, p0 ] }
+nodes:
+  - { id: h-visual, component: label, label: Frames }
+  - { id: h-action, component: label, label: Keys }
+  - { id: h-text, component: label, label: Encoders }
+  - { id: f0, component: box, label: Frame 0, tone: gray, variant: filled, props: { width: 60pt } }
+  - { id: f1, component: box, label: Frame 1, tone: gray, variant: filled, props: { width: 60pt } }
+  - { id: f2, component: box, label: Frame 2, tone: gray, variant: filled, props: { width: 60pt } }
+  - { id: k0, component: tokens, tone: orange, props: { component: square, variant: outlined, gap: 1pt, width: 11pt, height: 11pt, cells: [ A, S, D ] } }
+  - { id: k1, component: tokens, tone: orange, props: { component: square, variant: outlined, gap: 1pt, width: 11pt, height: 11pt, cells: [ { label: A, variant: filled }, S, D ] } }
+  - { id: k2, component: tokens, tone: orange, props: { component: square, variant: outlined, gap: 1pt, width: 11pt, height: 11pt, cells: [ A, S, { label: D, variant: filled } ] } }
+  - { id: p0, component: box, label: Encoder, tone: purple, variant: outlined, props: { width: 60pt } }
+  - { id: p1, component: box, label: Encoder, tone: purple, variant: outlined, props: { width: 60pt } }
+  - { id: p2, component: box, label: Encoder, tone: purple, variant: outlined, props: { width: 60pt } }
+  - { id: refiner, component: box, label: Token Refiner, tone: gray, variant: filled }
+edges:
+  - { from: p0, to: refiner, toAnchor: straight }
+  - { from: p1, to: refiner, toAnchor: straight }
+  - { from: p2, to: refiner, toAnchor: straight }

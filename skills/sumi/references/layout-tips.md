@@ -172,6 +172,42 @@ figure:
   (`geometry/label-collision`, `layout/edge-label-overlap`), write a larger
   `gap` on that box only.
 
+## Paper figure recipe
+
+A figure modelled on a published paper figure (an architecture overview, a
+block and its variants side by side) is a **structured** figure; these
+0.6.0 fields reproduce the look of such figures. Start from
+[example 6](examples.md#6-success-a-paper-figure) and map what the original
+shows:
+
+| The original shows | Write |
+| --- | --- |
+| rounded pastel boxes, thin black lines, small arrowheads, sans-serif text | `figure.theme: paper` |
+| boxes without a border (a pastel fill only) | `variant: filled` + `tone` ([variants](figure-format.md#components-variants-and-props)) |
+| white boxes with a colored frame and text (encoders, tokens, keys) | `variant: outlined` + `tone` |
+| colored lines | `tone` on the edge ([tones](figure-format.md#tones)) |
+| a panel without a frame, a shaded panel, a dashed panel | group `variant: plain` / `filled` / `dashed`, with `caption: (a) …` |
+| panels of equal height with captions on one line | the panels in one `row` with `align: stretch` ([captions](structured.md#group-titles-and-captions)) |
+| a pale panel (a variant compared against) | `dim: true` on the group ([dimmed groups](figure-format.md#dimmed-groups)) |
+| dashed lines from a block to the panel that enlarges it | an edge `component: zoom` ([zoom](structured.md#zoom-callouts)) |
+| lines entering a wide block straight above each narrow one | `toAnchor: straight` / `fromAnchor: straight` on the wide end ([anchors](structured.md#edges-anchors-junctions-and-trunks)) |
+| a row of token cells, keys, patches | `component: tokens`; edges name a cell as `<node>.<cell>` ([tokens](structured.md#token-sequences)) |
+| an attention mask, a grid of classes with hatched cells | `component: matrix` + legend `{ class: … }` entries ([matrices](structured.md#matrices)) |
+| a size or shape in smaller text under a name | `sublabel` ([sublabels](structured.md#sublabels)) |
+| a vertical title (a tall encoder, an axis) | `labelRotation: -90` ([turned labels](structured.md#turned-labels)) |
+| rows and columns lined up like a table | column `stack`s in a `row` plus `align` ([tables](structured.md#tables-columns-of-stacks)) |
+| boxes packed tightly | `figure.layout.density: compact`, without your own `gap`s ([compact](#compact-spacing-figurelayoutdensity-compact)) |
+| a figure wider than the page at its natural size | `figure.fit: scale` ([shrinking](#shrinking-to-the-page-width-figurefit-scale)); say it is scaled |
+
+Order of work: content and arrangement first (the arrange tree,
+`align: stretch` panels), then the looks (`paper`, variants, tones, `dim`),
+then `density: compact`, and `fit: scale` last if it is still too wide.
+Check the preview against the original after each step. Not yet
+expressible (say so instead of approximating silently): colored text
+spans and left-aligned labels, stacked copies of an image, emoji badges, a
+bowtie shape, a font size of your own (a large `N×`), and white text on a
+saturated fill.
+
 ## Labels
 
 - Short, noun-phrase labels lay out best. Break long ones with `\n`
@@ -226,10 +262,11 @@ figure:
 
 ## Structured: from workarounds to fields
 
-Sumi 0.4 figures needed workarounds that now have a field (0.5.0). Use the
-field; fall back only when the CLI reports it as unknown.
+Older figures needed workarounds that now have a field (0.5.0 for the
+first rows, 0.6.0 for the rest). Use the field; fall back only when the CLI
+reports it as unknown.
 
-| Wanted | 0.4 workaround | Now |
+| Wanted | Workaround | Now |
 | --- | --- | --- |
 | a group title out of the way of edges | drop the group `label`, `attach` a `label` node beside the group | `labelAt` on the group ([titles](structured.md#group-titles-and-captions)) |
 | "(a) …" under a panel | a `label` node attached `south` | `caption` on the group |
@@ -239,6 +276,13 @@ field; fall back only when the CLI reports it as unknown.
 | `ŷ`, `x̃`, `θ̄` in math | `$y'$`, a typed `ŷ` outside `$...$` | `'$\hat{y}$'`, `'$\tilde{x}$'`, `'$\bar\theta$'` ([label math](figure-format.md#label-math)) |
 | "dashed = skip connection" | a sentence in the caption | a `legend` node ([legends](structured.md#legends)) |
 | knowing where lines cross | looking at the preview | `layout/edge-crossing` infos from `sumi render` |
+| a pale panel | `variant: muted` on every node and edge inside (fills stay strong) | `dim: true` on the group |
+| a frameless panel whose caption lines up | a stack with a `label` node under it | a group with `variant: plain` and `caption` |
+| an edge entering straight above its source | `toAnchor: "north:0.295"` computed from a render, or fixed column widths | `toAnchor: straight` |
+| dashed callout lines to an enlarged panel | two dashed `line`s with `"east:0"` / `"west:0"` anchors | `component: zoom` |
+| a row of tokens, keys or matrix cells | one node per cell (`lint/empty-label` on empty ones) | `tokens`, `matrix` |
+| a smaller second line | a second label line of the same size | `sublabel` |
+| a figure too wide for the page | ignore `exceeds-page-width` and shrink it in LaTeX | `figure.fit: scale` |
 
 A structured figure 0.4 drew is drawn the same by 0.5 (it may gain
 `layout/edge-crossing` infos), except that an end without an anchor now

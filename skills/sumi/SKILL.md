@@ -61,18 +61,18 @@ Before writing YAML, make sure you know:
   paper figure (`paper-double`, 180mm) or a slide (`presentation-16x9`).
   This is the user's decision — ask if it is not stated. What fits on a
   slide: [layout-tips](references/layout-tips.md).
-- **Theme** (`minimal` (default), `academic`, `slides`, `color` or `paper`;
-  a slide needs `slides`; a paper figure in the style of published ML
-  figures — rounded pastel boxes, small arrowheads, Inter — suits `paper`;
-  `sumi catalog --section themes` lists the profiles each suits) and the output path (default: next to the user's other files,
-  named `<figure-id>.sumi.yaml`).
+- **Theme**: `minimal` (default), `academic`, `color`, `slides` (needed
+  for a slide) or `paper` — **recommend `paper` for a paper figure** (rounded
+  pastel boxes, thin lines, Inter, as published ML figures; `academic` if it
+  must be monochrome). And the output path (default: next to the user's
+  other files, named `<figure-id>.sumi.yaml`).
 - **Layout** (your choice, not a question): flows and graphs use the
   default **auto** layout; paper block diagrams (stacked layers, residuals,
   aligned columns, ⊕ operators, math labels) use the **structured** layout.
   See [layout-tips](references/layout-tips.md#choose-the-engine-first).
 
 Ask once, briefly, for what is missing. If the user says to go ahead, use
-`paper-single` + `minimal` and state the assumption in your report.
+`paper-single` + `minimal` (`paper` for a paper figure) and say so in your report.
 
 ### 2. Check the environment (once per session)
 
@@ -133,9 +133,9 @@ edges:
 - Choose `direction` for the target width: a chain of 4+ nodes laid out
   `right` does not fit `paper-single`; prefer `down` ([layout-tips](references/layout-tips.md)).
 - **Structured figures** add `figure.layout.arrange` (nested `stack` /
-  `row` boxes listing every node and group once), `attach`, edge anchors
-  and label placement, `align` across trees, `fanIn`, `density: compact`, `legend`, `tokens` and `matrix`: read
-  [references/structured.md](references/structured.md) first. Label math
+  `row` boxes listing every node and group once), `attach`, anchors,
+  `align`, `legend`, `tokens`, `matrix`, `zoom`: read [references/structured.md](references/structured.md)
+  first; for a figure modelled on a published one, the [paper figure recipe](references/layout-tips.md#paper-figure-recipe). Label math
   (`'$\hat{y}_t$'`) works only there; with a line break, double-quote it and
   double backslashes (`"A\n$\\gamma$"`). Any group takes `labelAt` and
   `caption` (edges to elements below it can detour around the caption).
@@ -248,4 +248,4 @@ accents, groups, edges, tones, themes, profiles, common mistakes) ·
 captions, attach, align, anchors, fan-in, edge labels, crossings, legends, tokens, matrices) ·
 [assets](references/assets.md) (icons, images) · [diagnostics](references/diagnostics.md)
 (fixes by code) · [layout-tips](references/layout-tips.md) (choosing the
-engine, auto issues, 0.4 workarounds → 0.5 fields) · [examples](references/examples.md)
+engine, auto issues, paper figure recipe, workarounds → fields) · [examples](references/examples.md)
