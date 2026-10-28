@@ -12,7 +12,14 @@ installed CLI predates it — tell the user and use auto instead. Group
 examples that use them say `requires: ">=0.5.0"`): if `lint` reports
 `schema/unsatisfied-requires`, `schema/unknown-field` for them or
 `component/unknown` for `legend`, the CLI predates them — drop `requires`
-and fall back to the older ways noted below.
+and fall back to the older ways noted below. The paper-figure fields of
+0.6.0 — `sublabel`, `labelRotation`, `straight` anchors,
+`figure.layout.density`, and the `zoom`, `tokens` and `matrix` components
+(also `figure.fit`, `dim`, the `paper` theme and the `filled` / `outlined` /
+`plain` / `dashed` variants, which work in both engines) — likewise report
+`schema/unknown-field`, `component/unknown` or `component/unknown-variant`
+on an older CLI: each section below names the fallback. Write
+`requires: ">=0.6.0"` only when `sumi --version` prints 0.6.0 or later.
 
 ## Which engine
 
@@ -119,10 +126,17 @@ also holds the other end (a panel around input, block and output, below;
 it draws its own border; `variant: plain` hides it), or place the other end beside the group (a
 `row`) so the edge crosses a side.
 
-For a panel drawn without a frame next to framed ones, make it a group
-with `variant: plain` and a `caption` rather than a stack with a `label`
-node under it: in a `row` with `align: stretch` the panels are equally
-tall, so every caption sits on the same line.
+**Panels of equal height.** Put the panels (groups with captions) in one
+`row` with `align: stretch`: every group grows to the tallest, so the
+captions sit on one line. A panel drawn without a frame next to framed
+ones is a group with `variant: plain` and a `caption`, not a stack with a
+`label` node under it (a stack does not stretch, so its "caption" would
+not line up). A stretched group keeps its own tree at the top and leaves
+the extra height empty below it; to sit the content at the bottom (inputs
+on one line across panels), make the group's tree a `row` with
+`align: end` around the stack:
+`arrange: { row: { align: end, items: [ { stack: { direction: up, items: […] } } ] } }`
+([example 6](examples.md#6-success-a-paper-figure)).
 
 ```yaml
 # expect-render: fits
@@ -203,7 +217,7 @@ of the same size is just `\n` in the label. Two sizes only. With
 (`component/sublabel-unsupported`). The sublabel's size is checked like
 any text: `profile/font-too-small` and, in a figure shrunk by
 `figure.fit: scale`, `geometry/text-too-small` at its printed size (7pt
-shrunk to 70% prints at 4.9pt). Added after 0.5.3: an older CLI reports
+shrunk to 70% prints at 4.9pt). New in 0.6.0: an older CLI reports
 `schema/unknown-field` — write the text as a second label line instead.
 
 ```yaml
@@ -232,8 +246,8 @@ vertical axis label (`component: label`). Only `90` and `-90`; nodes only
 and label math turn with it. Structured only (`layout/structured-only`
 under auto); on an `icon`, `operator`, `junction`, `image` or `legend` it
 is `component/label-rotation-unsupported`, and without a label a warning
-(`component/label-rotation-without-label`). Added after 0.5.3: an older
-CLI reports `schema/unknown-field` — leave it out.
+(`component/label-rotation-without-label`). New in 0.6.0: an older CLI
+reports `schema/unknown-field` — leave it out.
 
 ```yaml
 # expect-render: fits
@@ -387,6 +401,68 @@ the two `align` constraints push `enc1` and `enc2` down to their levels,
 so both dashed skips are single horizontal lines. The `key` legend is
 [below](#legends).
 
+### Tables: columns of stacks
+
+There is no grid box yet. A table-like block — the same kinds of element
+in rows (frames, keys, prompts, encoders) repeated in columns, with row
+headings on the left — is a `row` of **column stacks**, one per column,
+each listing that column's elements top to bottom; equal widths
+(`props.width`, or `align: stretch` in each column) keep the columns
+even, and an element below the row (a refiner spanning every column) goes
+in a stack around it. The headings are a stack of their own, lined up
+with the first column by `align`, one `y` constraint per heading. Put the
+root row at **`align: start`**: `align` only adds space, so the headings
+must start above their rows to be pushed down; centred, Sumi pushes the
+first column down instead and the table's rows no longer line up. A
+tokens node takes part through one of its cells (`k0.1`).
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: stream-table
+  theme: paper
+  profile: paper-double
+  layout:
+    arrange:
+      row:
+        gap: 4mm
+        align: start # headings start at the top: align only adds space, so it pushes them down
+        items:
+          - stack: { gap: 1mm, items: [ h-visual, h-action, h-text ] } # the row headings
+          - stack:
+              align: stretch
+              items:
+                - row: # one stack per column; equal widths keep the columns even
+                    items:
+                      - stack: { items: [ f0, k0, p0 ] }
+                      - stack: { items: [ f1, k1, p1 ] }
+                      - stack: { items: [ f2, k2, p2 ] }
+                - refiner # spans every column
+    align: # each heading level with its row
+      - { y: [ h-visual, f0 ] }
+      - { y: [ h-action, k0.1 ] }
+      - { y: [ h-text, p0 ] }
+nodes:
+  - { id: h-visual, component: label, label: Frames }
+  - { id: h-action, component: label, label: Keys }
+  - { id: h-text, component: label, label: Encoders }
+  - { id: f0, component: box, label: Frame 0, tone: gray, variant: filled, props: { width: 60pt } }
+  - { id: f1, component: box, label: Frame 1, tone: gray, variant: filled, props: { width: 60pt } }
+  - { id: f2, component: box, label: Frame 2, tone: gray, variant: filled, props: { width: 60pt } }
+  - { id: k0, component: tokens, tone: orange, props: { component: square, variant: outlined, gap: 1pt, width: 11pt, height: 11pt, cells: [ A, S, D ] } }
+  - { id: k1, component: tokens, tone: orange, props: { component: square, variant: outlined, gap: 1pt, width: 11pt, height: 11pt, cells: [ { label: A, variant: filled }, S, D ] } }
+  - { id: k2, component: tokens, tone: orange, props: { component: square, variant: outlined, gap: 1pt, width: 11pt, height: 11pt, cells: [ A, S, { label: D, variant: filled } ] } }
+  - { id: p0, component: box, label: Encoder, tone: purple, variant: outlined, props: { width: 60pt } }
+  - { id: p1, component: box, label: Encoder, tone: purple, variant: outlined, props: { width: 60pt } }
+  - { id: p2, component: box, label: Encoder, tone: purple, variant: outlined, props: { width: 60pt } }
+  - { id: refiner, component: box, label: Token Refiner, tone: gray, variant: filled }
+edges:
+  - { from: p0, to: refiner, toAnchor: straight }
+  - { from: p1, to: refiner, toAnchor: straight }
+  - { from: p2, to: refiner, toAnchor: straight }
+```
+
 ## Edges: anchors, junctions and trunks
 
 The router draws orthogonal lines around nodes (never through them) in
@@ -419,6 +495,14 @@ YAML order, greedily: edges declared first get the best routes.
   the side (at least 3pt inside its corners), or the two are diagonal or
   overlapping, `layout/straight-off-side` (warning) and the end acts as
   if it had no anchor: line them up in the tree, or write a side anchor.
+- **Encoder output into a decoder block** (a Transformer's K and V): two
+  edges from the encoder's top block to the decoder's cross-attention,
+  `fromAnchor: north` on both so they share one trunk, entering at
+  `toAnchor: "south:0.2"` (K) and `"south:0.4"` (V), with Q from the
+  decoder's own split junction at `"south:0.8"`. Entering left of the
+  centre keeps the trunk off the decoder's own line: with the default
+  `"south:0.5"` positions the trunk ends next to the split point and the
+  two lines tangle (no diagnostic names it; look at the preview).
 - **Default sides** (an end without an anchor) follow the arrange tree:
   take the box where the two ends' branches part (their nearest common
   box); in a stack the ends use north / south, in a row east / west,
@@ -637,8 +721,7 @@ edges:
 
 ## Token sequences
 
-A **`tokens`** node (`component: tokens`, structured only, added after
-0.5.3) writes a row of cells — sequence tokens, patches, keys — as one
+A **`tokens`** node (`component: tokens`, structured only, 0.6.0) writes a row of cells — sequence tokens, patches, keys — as one
 node. Each cell is a label string or `{ id, label, tone, component,
 variant, width, height }`; `props.component` / `variant` / `width` /
 `height` and the node's `tone` are the defaults for every cell. `gap`
@@ -700,8 +783,7 @@ edges:
 
 ## Matrices
 
-A **`matrix`** node (`component: matrix`, structured only, added after
-0.5.3) draws a grid of cells colored by **class** — an attention mask, a
+A **`matrix`** node (`component: matrix`, structured only, 0.6.0) draws a grid of cells colored by **class** — an attention mask, a
 pattern of allowed and blocked pairs — with optional row and column headers.
 `classes` names each class (1–16 characters, e.g. `o`, `.`) with a `tone`, a
 box `variant` (e.g. `filled`, `outlined`), `pattern: hatch` (diagonal lines
@@ -768,8 +850,9 @@ edges:
 ## Spacing that routes
 
 An arrow between two facing sides needs a gap longer than its arrowhead:
-about **1.5mm in `academic`, 2.5mm in `minimal` / `color`, 4mm in `slides`**.
-3mm (academic: 2mm) between connected blocks is a good start; `gap: 0` only
+about **1.5mm in `academic` and `paper`, 2.5mm in `minimal` / `color`, 4mm
+in `slides`**. 3mm (academic, paper: 2mm) between connected blocks is a
+good start, or no `gap` at all under `density: compact` (2.5mm); `gap: 0` only
 for blocks that touch with no edge between them. Paths that turn (residuals)
 run in the gap left beside the blocks: if they look cramped, add `gap` to
 the enclosing row or put the turning edge's target side (`toAnchor: west`)

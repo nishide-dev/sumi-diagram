@@ -421,3 +421,112 @@ $ sumi render mlp-block.sumi.yaml; echo "exit $?"
 Wrote mlp-block.svg: 27.52mm × 44.8mm (paper-single, max width 88mm; theme color).
 exit 0
 ```
+
+## 6. Success: a paper figure
+
+Request: "For a full-width figure in our paper, in the style of the DiT
+paper: (a) the model — four patches into the encoder, layer norm, a linear
+head with two 32×32×4 outputs, noise and variance; (b) the encoder block
+enlarged — input tokens, layer norm, self-attention, a residual add; (c)
+the cross-attention variant we compared against, drawn pale."
+
+A figure modelled on a published one: structured, theme `paper`, and the
+[paper figure recipe](layout-tips.md#paper-figure-recipe). The target
+(`paper-double`) is given; nothing to ask.
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: paper-recipe
+  theme: paper # rounded boxes, pastel tones, thin edges, Inter
+  profile: paper-double
+  fit: scale # only acts if still too wide: printed smaller (text must reach 5pt)
+  layout:
+    density: compact # tighter default gaps and padding; write no gaps of your own
+    arrange:
+      row:
+        align: stretch # panels equally tall, so the captions share a line
+        items: [ model, block, cross ]
+groups:
+  - id: model
+    caption: (a) Model
+    variant: plain # a panel without a frame
+    arrange:
+      stack:
+        direction: up
+        align: stretch
+        items: [ patches, encoder, norm, head, { row: { items: [ noise, sigma ] } } ]
+  - id: block # the paper container: light gray, rounded
+    caption: (b) Encoder block
+    arrange: # a stretched group keeps its tree at the top: a row with align: end moves it down
+      row: { align: end, items: [ { stack: { direction: up, align: stretch, items: [ b-in, b-norm, b-attn, b-add, b-out ] } } ] }
+  - id: cross
+    caption: (c) Cross-attention variant
+    dim: true # the compared variant: pale, with everything inside
+    arrange:
+      row: { align: end, items: [ { stack: { direction: up, align: stretch, items: [ c-in, c-norm, c-attn, c-add, c-out ] } } ] }
+nodes:
+  - id: patches
+    component: tokens # one node for a row of cells; edges name a cell
+    tone: purple
+    props: { variant: outlined, gap: 1.5pt, cells: [ P1, P2, P3, P4 ] }
+  - { id: encoder, component: box, label: Encoder, props: { height: 28pt } }
+  - { id: norm, component: box, label: Layer Norm, tone: blue, variant: filled }
+  - { id: head, component: box, label: Linear, tone: green, variant: filled }
+  - { id: noise, component: box, label: Noise, sublabel: 32 × 32 × 4, tone: gray, variant: filled }
+  - { id: sigma, component: box, label: Variance, sublabel: 32 × 32 × 4, tone: gray, variant: filled }
+  - { id: b-in, component: box, label: Input Tokens, tone: gray, variant: filled }
+  - { id: b-norm, component: box, label: Layer Norm, tone: blue, variant: filled }
+  - { id: b-attn, component: box, label: Self-Attention, tone: orange, variant: filled }
+  - { id: b-add, component: operator, props: { symbol: plus } }
+  - { id: b-out, component: junction, variant: hidden }
+  - { id: c-in, component: box, label: Input Tokens, tone: gray, variant: filled }
+  - { id: c-norm, component: box, label: Layer Norm, tone: blue, variant: filled }
+  - { id: c-attn, component: box, label: Cross-Attention, tone: red, variant: filled }
+  - { id: c-add, component: operator, props: { symbol: plus } }
+  - { id: c-out, component: junction, variant: hidden }
+edges:
+  - { from: patches.1, to: encoder, toAnchor: straight } # each cell straight up
+  - { from: patches.2, to: encoder, toAnchor: straight }
+  - { from: patches.3, to: encoder, toAnchor: straight }
+  - { from: patches.4, to: encoder, toAnchor: straight }
+  - { from: encoder, to: norm, component: line }
+  - { from: norm, to: head, component: line }
+  - { from: head, fromAnchor: straight, to: noise } # leaves the wide box in line
+  - { from: head, fromAnchor: straight, to: sigma }
+  - { from: encoder, to: block, component: zoom } # dashed corner-to-corner callout
+  - { from: b-in, to: b-norm, component: line }
+  - { from: b-norm, to: b-attn, component: line }
+  - { from: b-attn, to: b-add, component: line }
+  - { from: b-in, to: b-add, toAnchor: west, tone: blue } # residual, colored
+  - { from: b-add, to: b-out }
+  - { from: c-in, to: c-norm, component: line }
+  - { from: c-norm, to: c-attn, component: line }
+  - { from: c-attn, to: c-add, component: line }
+  - { from: c-in, to: c-add, toAnchor: west }
+  - { from: c-add, to: c-out }
+```
+
+```sh
+$ sumi fmt paper-recipe.sumi.yaml && sumi lint paper-recipe.sumi.yaml
+0 errors, 0 warnings, 0 infos
+$ sumi render paper-recipe.sumi.yaml
+Wrote paper-recipe.svg: 116.24mm × 54.15mm (paper-double, max width 180mm; theme paper).
+```
+
+Points to note: the three panels are groups in one `row` with
+`align: stretch`, so the captions share a line — (a) is `variant: plain`
+(no frame) rather than a stack with a label under it; (b) and (c) put
+their stack in a `row` with `align: end` so the inputs sit at the bottom
+of the stretched panels. `filled` boxes have no border, the `outlined`
+tokens a purple frame and text, the residual a blue line. `dim: true`
+pales the whole of (c), caption included, with one field. The four patch
+edges and the two outputs use `straight` on the wide box's end, so every
+line is vertical with no jog. The `zoom` edge draws the dashed callout
+from the encoder's corners to panel (b). `density: compact` sets the
+spacing, so no `gap` is written. `fit: scale` changes nothing here (the
+figure fits); had it been wider than 180mm it would be printed at 180mm
+and `render` would print `scaled to …%` — tell the user. A matrix
+(attention mask) would be one more node: see
+[matrices](structured.md#matrices).
