@@ -10,11 +10,13 @@ import {
   BUILTIN_THEMES,
   BUNDLED_FONT_SHA256,
   DEFAULT_FONT_SET_ID,
+  FONT_SLOTS,
   type FontSet,
   fontSetArgs,
   getFontSet,
   inferValue,
   KIND_DEFAULTS,
+  LATIN_FONT_SET_ID,
   resolveStyle,
   resolveTheme,
   type Theme,
@@ -52,16 +54,27 @@ const first = (definition: unknown, options?: ValidateThemeOptions) => {
 };
 
 describe("font sets", () => {
-  test("the built-in font set is registered by ID with existing absolute TTF paths", () => {
-    expect([...BUILTIN_FONT_SETS.keys()]).toEqual(["sumi/biz-ud-gothic"]);
+  test("the built-in font sets are registered by ID with existing absolute TTF paths", () => {
+    expect([...BUILTIN_FONT_SETS.keys()]).toEqual(["sumi/biz-ud-gothic", LATIN_FONT_SET_ID]);
     const set = defaultFontSet();
     expect(set.italic).toBeUndefined();
+    // The default set has no Latin slots (#172): built-in themes keep their glyphs.
+    expect(set.latin).toBeUndefined();
+    expect(set.latinBold).toBeUndefined();
+    for (const theme of BUILTIN_THEMES.values()) expect(theme.fontSet.id).toBe(DEFAULT_FONT_SET_ID);
+    // The Latin set is the default set plus Inter for Latin text.
+    const latin = getFontSet(LATIN_FONT_SET_ID);
+    expect(latin).toMatchObject({ ...set, id: LATIN_FONT_SET_ID, description: latin?.description });
+    expect(basename(latin?.latin ?? "")).toBe("Inter-Regular.ttf");
+    expect(basename(latin?.latinBold ?? "")).toBe("Inter-Bold.ttf");
     for (const file of [
       set.regular,
       set.bold,
       set.mono ?? "",
       set.math ?? "",
       set.mathItalic ?? "",
+      latin?.latin ?? "",
+      latin?.latinBold ?? "",
     ]) {
       expect(isAbsolute(file)).toBe(true);
       expect(file.endsWith(".ttf")).toBe(true);
@@ -70,8 +83,12 @@ describe("font sets", () => {
   });
 
   test("every bundled font file has a checksum that matches the file and its README", async () => {
-    const set = defaultFontSet();
-    const files = [set.regular, set.bold, set.mono ?? "", set.math ?? "", set.mathItalic ?? ""];
+    const files = new Set(
+      [...BUILTIN_FONT_SETS.values()].flatMap((set) =>
+        FONT_SLOTS.flatMap((slot) => set[slot] ?? []),
+      ),
+    );
+    expect(files.size).toBe(7);
     expect([...BUNDLED_FONT_SHA256.keys()].sort()).toEqual([...files].sort());
     for (const [file, expected] of BUNDLED_FONT_SHA256) {
       // Each font directory's README records its files.

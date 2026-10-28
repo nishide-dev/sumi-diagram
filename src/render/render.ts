@@ -96,6 +96,24 @@ export async function renderFigure(
   const { backend, sourceName, assetBase, ...compileOptions } = options;
   const compiled = compileFigure(text, compileOptions);
   if (!compiled.ok) return compiled;
+  return renderCompiledFigure(text, compiled, {
+    ...(backend !== undefined && { backend }),
+    ...(sourceName !== undefined && { sourceName }),
+    ...(assetBase !== undefined && { assetBase }),
+  });
+}
+
+/**
+ * Renders a figure compiled from `text` ({@link renderFigure} after
+ * compiling). Tests use it to render a compiled figure with another built-in
+ * font set (#172: `ir.meta.fontSetId` and `fontSet`).
+ */
+export async function renderCompiledFigure(
+  text: string,
+  compiled: { value: CompiledFigure; diagnostics: readonly Diagnostic[] },
+  options: Pick<RenderFigureOptions, "backend" | "sourceName" | "assetBase"> = {},
+): Promise<Result<RenderedFigure>> {
+  const { backend, sourceName, assetBase } = options;
   const diagnostics: Diagnostic[] = [...compiled.diagnostics];
 
   const { ir } = compiled.value;

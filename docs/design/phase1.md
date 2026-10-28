@@ -357,6 +357,8 @@ Sumi が公開するスタイルプロパティは、D2 で表現できるもの
 | `mono` | | `--font-mono`、`--font-mono-bold`、`--font-mono-italic`、`--font-mono-semibold` | `regular` のファイルを渡す。ただし Theme で `mono: true` を使えば error（`theme/missing-font`） |
 | `math` | | 渡さない（structured のラベルの数式だけ。§6.25） | `regular` で描く |
 | `mathItalic` | | 渡さない（同上） | `math`、それもなければ `regular` で描く |
+| `latin` | | 渡さない（structured の regular の文字のうち、このフォントが持つもの。§6.44） | `regular` で描く |
+| `latinBold` | | 渡さない（同上。bold の文字） | `bold` で描く |
 
 - `bold` と `italic` を同時に true にする組み合わせは、D2 に bold-italic のフラグがないため error（`theme/unsupported-font-combination`）とする。
 - **字形の不足**: ラベルの文字がフォントセットに含まれない場合は `lint/missing-glyph`（warning）を出す。TTF の cmap を読んで判定する。描画前に検査できるため、構造 lint（#12）の範囲とする。
@@ -1569,6 +1571,56 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **変わった出力: なし**。組み込みの Theme の edge はすべて `filled: true` で（Theme は今は組み込みのみ）、YAML から中を塗らない矢じりは描かれない（`src/compiler/testing.ts` の IR のような、スタイルを直接変えた場合だけ）。リポジトリの `*.sumi.yaml` 113 個（描画まで通った図の SVG 358・編集可能 PPTX 293）（structured と auto）を図の Theme と組み込みの 4 Theme で描いて、SVG と編集可能 PPTX の slide XML を変更の前後で sha256 で比べ、すべて一致した。`bun run gallery:check` と PDF・PPTX・画像の golden も変わらない。中を塗らない矢じりの見た目は、IR の `filled` と矢じりの種類を変えて描き直した図（`minimal` の surface、`academic` の tone のある group、キャンバス）を PNG にして、5 種類とも内側が下の塗りになり、group の外では白のままであることを確かめた。
 - **テスト**: `structured.test.ts` の「hollow arrowheads (#192)」: 中を塗らない 5 種類それぞれで、塗りのある group（`minimal` の surface）とその外のキャンバス、tone のある group、透明な内側と色のある外側、透明な group だけの入れ子（キャンバス）。境界をまたぐ矢じり（group の枠を矢じりの中心に動かして writer で描き直す。内側の色、0.001 unit 外ならキャンバス）。始点の矢じりと junction の端の矢じり（左右に並べた色の違う 2 つの group の間を横に走る辺。始点の矢じりは始点側の group、junction の中心に先端がある矢じりはその下の group の色。group の色を入れ替えると入れ替わる）。塗る矢じりは線の色のまま。編集可能 PPTX では中を塗らない `arrow` が開いた矢印の線端のまま。`backgroundAt()` の単体（枠の上、外、`labelBackground()` と一致）と、`drawArrowhead()` の色を取る点（中心が枠の上と 0.001 外）。描き直しの補助（`redraw()`）は、編集可能 PPTX が読む `elements` も変えた要素にするよう直した。
 
+### 6.44 #172 の欧文のサンセリフ（フォントセットの `latin` / `latinBold`）
+
+[#167 の調査](../research/167-stage-c.md) §10 Q6 の利用者の判断（2026-10-28）: 3 図の原図は欧文がサンセリフ（Helvetica 系・Arial・Avenir）で、今の Sumi は欧文も BIZ UDPGothic で描く。欧文用の OFL のサンセリフを同梱し、論文向けの Theme（#173）で使う。この Issue では同梱とフォントセットの slot までで、**既存の Theme・フォントセットの字形は変えない**（paper Theme は #173）。
+
+- **候補の比較（実測。製品の cmap / hmtx reader で各 Regular を読んだ）**: 幅は「The quick brown fox jumps over the lazy dog」の advance の和（em）。記号は → ↑ ↔ − × ≤ ≥ ≈ … – — ‘ ’ “ ” • 等 18 字のうち持つ数。大きさは Regular + Bold の静的 TTF。
+
+  | 書体（版） | 系統 | x-height | 幅（em） | 記号 | RFN | 大きさ（bytes） |
+  | --- | --- | --- | --- | --- | --- | --- |
+  | （参考）Arial | グロテスク | 0.519 | 19.79 | 18/18 | — | — |
+  | **Inter 4.1** | ネオグロテスク（Helvetica 系） | 0.546 | 21.36 | 18/18 | なし | 832,068 |
+  | Source Sans 3（3.052） | ヒューマニスト | 0.486 | 18.54 | 18/18 | "Source" | 859,372 |
+  | IBM Plex Sans（1.1.0） | グロテスク（癖のある字形） | 0.516 | 19.87 | 18/18 | "Plex" | 401,372 |
+  | Noto Sans（2.015、unhinted） | ヒューマニスト | 0.536 | 21.01 | 10/18 | なし | 862,740 |
+  | Liberation Sans（2.1.5） | Arial と同じ幅のグロテスク | 0.528 | 19.79 | 18/18 | "Liberation" ほか | 825,168 |
+  | （参考）BIZ UDPGothic | — | 0.541 | 24.77 | 18/18 | — | — |
+  | （参考）STIX Two Text Italic | セリフ（数式の変数） | 0.467 | 18.15 | 10/18 | — | — |
+
+  いずれも Latin-1・Latin Extended-A・ギリシャ文字を持ち、かなと漢字は持たない（Inter は U+00AD と U+0149 だけ欠ける）。
+
+- **選んだもの（判断）: Inter 4.1 の静的 TTF（`extras/ttf/` の Inter-Regular / Inter-Bold）**。
+  - 字形: 原図の Helvetica・Arial に最も近い系統（ネオグロテスク）。Source Sans 3・Noto Sans はヒューマニストで、論文の図の Helvetica の印象から離れる。IBM Plex Sans は `a` `t` `r` などの字形に癖がある。Liberation Sans は Arial と同じ幅で字形も最も近いが、下の RFN の問題がある。
+  - 幅: Arial より 5〜10% 広く（`Encoder`・`Self-Attention`・数字など 6 つの見本で）、BIZ UDPGothic より約 14% 狭い。Sumi は計測した幅で箱を決める（§6.21）ので、幅は箱の大きさに効くだけで、はみ出しは起きない。
+  - **RFN（Reserved Font Name）がない**: Sumi は SVG に `name` を保ったサブセットを埋め込み、PDF ではファミリー名を変えたコピー（`<family> Sumi Runs <n>`、§6.24 の #112）をエンジンに渡す。RFN のある書体（Liberation・Source Sans 3・IBM Plex Sans）では、名前を変えたコピーが RFN を含む名前になり、OFL の「改変版に RFN を使わない」との関係を議論しなければならない。Inter と Noto Sans にはその問題がない。Noto Sans は矢印・≤ ≥ 等を持たず（10/18）、それらが BIZ UDPGothic に戻って字形が混ざる。
+  - STIX Two との並び: サンセリフの本文とセリフ（Times 系）の数式を並べるのは論文の図の慣習（Helvetica と Times / Computer Modern）と同じ。Inter の x-height（0.546）は STIX Two Text Italic（0.467）より大きく、数式の変数は相対的に小さく見える（Arial でも同じ傾向）。数式の大きさはこの Issue では変えない（paper Theme で必要なら #173 で検討する）。
+  - 静的か可変か: 可変の `InterVariable.ttf`（879,708 bytes）は 1 本で Regular と Bold を兼ねるが、計測（`hmtx`）・SVG のサブセット（subsetter）・PDF（krilla）は既定のインスタンス（Regular）しか扱わず、Bold には `gvar` / `HVAR` の適用が要る。静的 2 本にした。光学サイズの `InterDisplay` は大きな見出し用なので、本文用の `Inter` を選んだ。
+  - カーニング: Inter は `GPOS` のカーニングに頼る設計だが、Sumi の計測はカーニングなし（§6.5）。SVG のサブセットは `GSUB` / `GPOS` を落とし、PDF / 画像 PPTX には数式のフォントと同じく `GSUB` / `GPOS` を除いたコピーを渡す（`resolveSvgFonts()`）ので、どの出力も計測どおりの位置に描く。`AV` `To` の詰めがない分の見た目は、PDF を PNG にして確かめ、図のラベルの大きさでは許容できると判断した。
+
+- **入手と固定**: <https://github.com/rsms/inter/releases/tag/v4.1>（タグのコミット `e3a3d4c57d5ecc01453a575621882a384c1995a3`）の `Inter-4.1.zip`（sha256 `9883fdd4…6b11e`）から `extras/ttf/Inter-Regular.ttf`・`Inter-Bold.ttf` と `LICENSE.txt`（`OFL.txt` として）を無改変で `assets/fonts/inter/` に置いた。ファイルの sha256 は `BUNDLED_FONT_SHA256` と `assets/fonts/inter/README.md` で固定し、`sumi doctor` と `release:build` が検査する（既存のフォントと同じ）。
+
+- **slot（`src/core/theme/fonts.ts`）**: `FontSet` に任意の `latin`（regular の文字）と `latinBold`（bold の文字）を足した（`FONT_SLOTS` にも追加）。フォント class は `latin` / `latin-bold`（SVG の class は `text-latin` / `text-latin-bold`）で、`fontFileFor()` が `latin` → `latin`（なければ `regular`）、`latin-bold` → `latinBold`（なければ `bold`）を返す。計測・SVG のサブセット・幾何 lint・PDF・編集可能 PPTX はどれもフォント class から `fontFileFor()` でファイルを引くので、同じファイルを使う。
+  - **新しいフォントセット `sumi/inter-biz-ud-gothic`**: 既定の `sumi/biz-ud-gothic` の全 slot に `latin` / `latinBold`（Inter）を足したもの。**既定のフォントセットには足さない**: 足すと組み込みの 4 Theme の図がすべて変わる（Issue の受け入れ条件）。組み込みの Theme は既定のフォントセットのまま（テストで確認）。paper Theme（#173）が `fonts: sumi/inter-biz-ud-gothic` を選ぶ。フォントセットの ID は SVG のメタデータ（`font-set`）に入り、PDF / PPTX はそこからフォントセットを引く。
+  - **どの文字を Inter で描くか（判断: cmap だけで決める）**: structured の図で、regular / bold のラベルの文字（`$...$` の外と `\text{…}`）のうち、Inter の cmap にある文字はすべて Inter、ない文字（かな・漢字・全角の記号）はラベルのフォント（BIZ UDPGothic）で描く。数式の run（`math` / `math-italic`）は変えない。§6.24 の代替（ラベルのフォントになく `math` にある文字）はその後で、残った文字に効く。Unicode の範囲表は持たない（フォントが持つかどうかだけで決まり、字形の混ざりが最も少ない）。**判定は書記素クラスタ（基底文字と結合文字）ごと**（レビューで指摘）: レンダラはクラスタを 1 つのフォントで shaping するので、基底と結合文字を別のフォントにすると PDF で結合文字が消えた（`か` + U+0342 は `か` を BIZ、U+0342 を Inter にしていた）。クラスタ全体を Inter が持てば Inter、ラベルのフォントが持てばそれ、`math` が持てば `math`、どれも持たなければラベルのフォントのまま（`lint/missing-glyph` が欠ける文字を報告する）。制御文字と default-ignorable は字形が要らないので判定から除く。1 文字のクラスタでは §6.24 の文字ごとの規則と同じ。PDF のフォントのコピー（§6.24 の #112）も、自分のフォントにない（見える）文字を含むクラスタの文字はどのコピーにも足さない（足すと usvg がクラスタごとコピーの空白の字形で描き、クラスタが消えた）。字形の要らない文字（制御文字・異体字セレクタなどの default-ignorable）は run や lint と同じくこの判定から除く（除かないと、`漢` + U+E0100 のラベル全体が PDF で BIZ UDPGothic になった。再レビューで指摘）。空白・数字・句読点・ギリシャ文字・矢印・× も Inter になり、日本語の文の中の `“”` `…` `—` も Inter の（全角でない）字形になる。mono（BIZ UDGothic）と italic は対象外（`latinFontOf()` が `undefined`）。
+  - **run（`labelRuns()`、`src/core/label/runs.ts`）**: `latin`（ラベルのフォント class → Latin の class）を受け取り、書記素クラスタごとに cmap を引いて run を分ける（上の規則）。**全部が Latin の 1 run のラベルは、そのフォントの普通のラベル**（`TextMetrics.font` が `latin`、`runs` なし。`<text class="text-latin">`）にする。日本語と混ざるラベルは run（`<tspan class="text-latin">`）になる。`latin` を渡さない（既定のフォントセットの）場合、1 文字のクラスタだけのラベルの結果は今までと同じで、変わるのは複数のコード ポイントからなるクラスタの一部をラベルのフォントが持たないラベルだけ（下の互換性）。
+  - **D2（`auto`）には渡さない**: D2 はラベルを 1 つの書体で描くので、`latin` を持つフォントセットでも `auto` の図は今までどおり BIZ UDPGothic で描く（8 つの `--font-*` は変えない）。`lint/missing-glyph` も `auto` では従来どおり。
+  - **lint**: `lint/missing-glyph` は structured では描く run ごとに判定し、Latin の slot があればメッセージが「the regular, Latin and math fonts」になる。幾何 lint の既定のフォントセットを、Theme からではなく図の IR の `meta.fontSetId` から引くようにした（組み込みの Theme では同じもの。テストでフォントセットを差し替えた図も、描いたフォントで再計測する）。
+  - **`sumi doctor`**: フォントセット間で同じファイルを共有するので、フォントの検査と幾何 lint の検査はファイルごとに 1 回にした（`details.files` は 7 件。`fontSet` / `slot` はそのファイルを最初に使うフォントセットと slot）。
+- **usvg の空白の不具合の修正（`src/render/structured.ts` の `runContent()`。どのフォントセットにも効く）**: PDF にして確かめたところ、usvg（PDF・画像 PPTX のエンジン）は、テキストノードの直後の `<tspan>` の先頭の空白を落とす（`入力<tspan class="text-latin"> Embedding</tspan>` で、ブラウザでは空白があるが、PDF では「入力Embedding」になった。同じフォントの `<tspan>` でも、数式のフォントでも同じ。前の部分も `<tspan>` なら落とさない）。ラベルのフォントの run を書くとき、次の run が空白で始まる `<tspan>` なら、その run を属性のない `<tspan>` で包むようにした。Latin の run では普通に起きるが、**既定のフォントセットでも起きうる**（レビューで指摘: `a$_\text{ b}$` の添字の run は空白で始まる）ので、既存の Theme でもそのようなラベルの SVG のバイトは変わる（`a` がテキストノードから `<tspan>a</tspan>` になり、PDF で空白が描かれる）。下の比較の範囲の図にはこの形がなかった。
+- **配布**: release の `share/sumi/fonts/inter/`、`licenses/inter/OFL.txt`、`NOTICE` の 5 項（著作権者・入手先）、配布物の `README.md` に追加し、smoke はライセンスの存在と `sumi doctor`（7 ファイルの sha256）を確かめる。SVG に埋め込むのは他のフォントと同じく `name` テーブルを保った TrueType のサブセットで、配布するフォントファイル自体は無改変。
+- **大きさ（実測。darwin-arm64、`release:build`、`SOURCE_DATE_EPOCH` を揃えて main（d429e97）と比較）**: フォント 2 本で 832,068 bytes（gzip -9 で 398,677 bytes）。**tarball 52,710,136 → 53,119,861 bytes（+409,725、+0.39 MiB）、`bin/sumi` 69,126,242 → 69,126,242 bytes（±0。フォントはバイナリに埋め込まない）、展開後 +843,629 bytes**。main から作った tarball は v0.5.3 のリリースの tarball と同じ大きさだった。
+- **互換性（実測。リポジトリの図の範囲）**: 既定のフォントセットでも出力が変わりうるのは、上の 2 つの修正に当たるラベルだけ（空白で始まる添字などの run がテキストノードの後に続くラベルと、複数のコード ポイントからなるクラスタの一部をラベルのフォントが持たないラベル）。`CI=1 bun test`（PDF・画像 PPTX・編集可能 PPTX・画像の golden を含む）、`bun run gallery:check` は無変更で通る。リポジトリの `*.sumi.yaml` 114 個を図の Theme と組み込みの 4 Theme で描き、SVG・PDF・編集可能 PPTX の sha256 を main と比べてすべて一致した（描画まで通った SVG 363・PDF 363・編集可能 PPTX 298。570 通り。#178・#179 を取り込んだ main と比較）。release の smoke が書く PDF・PPTX の sha256 も main の tarball と同じ。
+- **テスト**:
+  - `src/core/label/runs.test.ts`: 全部が Latin のラベルは Latin の class の普通のラベル（regular と bold）、日本語と混ざるラベルの run、Latin のない文字・mono・`latin` なしでは今までどおり、数式の run と §6.24 の代替はそのまま、書記素クラスタを分けないこと（Latin のフォントにない結合文字、`math` だけが持つクラスタ、どれも持たないクラスタ）。
+  - 書記素クラスタの PDF の回帰（`latin-font.test.ts`）: `か` + U+0342（結合文字は Inter だけが持ち、基底は Inter にない）は BIZ UDPGothic の 1 クラスタで描かれ（空白の字形にならない）、`lint/missing-glyph` が U+0342 を報告する。`e` + U+0301 は Inter で、計測どおりの幅。
+  - 異体字セレクタの回帰（`latin-font.test.ts`）: `漢` + U+E0100（BIZ UDPGothic が持たないセレクタ）と ` test` のラベルで、PDF の `漢` は BIZ UDPGothic、` test` は Inter で計測どおりの位置。
+  - 空白の回帰（既定のフォントセット）: `a$_\text{ b}$` の SVG が `<tspan>a</tspan>` になり、PDF で `b` が空白の後の計測どおりの位置に描かれる。
+  - `src/layout/text.test.ts`: 既定のフォントセットの計測器は Latin の class を持たず、`sumi/inter-biz-ud-gothic` では Inter の幅と縦の寸法で計測する。
+  - `src/render/latin-font.test.ts`（端から端まで。#173 の Theme がないので、コンパイルした図のフォントセットだけを差し替えて `renderCompiledFigure()` で描く）: 計測（Inter の幅、group の見出しは Inter Bold、混ざるラベルの run、数式）、SVG の `@font-face` が Inter のサブセット、幾何 lint の再計測が配置と一致し指摘なし、PDF のフォントが Inter-Regular / Inter-Bold / BIZ UDPGothic / STIX Two で、各文字列の幅と、混ざるラベルの各字の位置（空白を含む）が計測どおり、画像方式と編集可能 PPTX（`typeface="Inter"`）、`lint/missing-glyph`、既定のフォントセットでは Inter を使わず Theme で描いた図とバイト単位で同じ。
+  - `theme.test.ts`（フォントセットの一覧、組み込みの Theme はすべて既定のフォントセット、sha256 と README）、`cli.test.ts`（`sumi doctor` のファイル数）。
+- **非対象**: paper Theme（#173）、日本語のフォントの変更、利用者が任意のフォントを指定すること、欧文の italic（Inter Italic は同梱しない。BIZ UD に italic がないので `italic: true` は従来どおり `theme/missing-font`）。
+
 ### 6.45 #176 の拡大の引き出し線（`component: zoom`）
 
 #167 の調査（`docs/research/167-stage-c.md` §4.3、図 B の B-4・図 C の C-10）。DiT（Fig. 3 の DiT Block → adaLN のパネル）と H3-World（(b) の Attention → (c)）は、ブロックからそれを拡大したパネルへ、対応する角どうしを結ぶ斜めの破線 2 本を引く。これまでは `fromAnchor: "east:0"` → `toAnchor: "west:0"` の `line` 2 本で代用し、直交の折れ線になっていた（下の 1 本はパネルの枠に重なる）。経路探索をしない部品として足す。
@@ -1595,6 +1647,7 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **互換性**: 新しい部品だけで、既存の図の出力は変わらない。リポジトリの追跡済みの `*.sumi.yaml` 113 個を、図の Theme と組み込みの 4 Theme で、変更前（`d429e97`）と変更後のコードで描き（565 回。描画まで通った SVG 358・編集可能 PPTX 293、通らない 207 は同じ error code）、D2 ソース・SVG・PDF・画像方式の PPTX・編集可能 PPTX（freeform・glued）・診断の sha256 がすべて一致した。`bun run gallery:check`、PDF・PPTX の golden は既存の項目が変わらず、ギャラリーの `sumi-zoom` 4 図と、その PDF・画像方式 PPTX・編集可能 PPTX の golden を足した。診断の hint のうち、edge の部品を列挙する文（`component/wrong-kind` / `component/unknown`）には `zoom` が加わる。
 - **検証**: `research/176-zoom-edge/figures/` に、#167 の図 B（DiT）と図 C（H3-World）の写しを置き、代用の破線 2 本を `component: zoom` の 1 本に書き換えた（他は同じ。#167 の記録のファイルは変えない）。zoom の辺についての診断は 0 件で、図全体の診断（B: `geometry/exceeds-page-width` 1、C: それに `lint/empty-label` 90）は元の図と同じ（`src/render/zoom.integration.test.ts`）。
 - **テスト**: `src/layout/route/zoom.test.ts`（4 方向の角の組、接する箱、斜めの配置と同点、重なる箱、junction の端、Layout IR の線とネットなし、`checkRoutes` が空、zoom の辺がある図とない図で他の辺の経路・キャンバス・ノードが同じ、交差する zoom の線が `layout/edge-crossing` にならない、重なる端の `layout/no-route`、ラベルと anchor の診断、auto の `layout/structured-only`）、`src/render/zoom.integration.test.ts`（SVG の `path.connection` と破線の wire、`solid`、`geometry/zoom-crosses-node` と `edge-through-node` が出ないこと、PDF・画像方式 PPTX・編集可能 PPTX の両方式、research の 2 図）、`registry.test.ts`（manifest の制約）。全部品 × 全 variant × 全 Theme の描画テスト（`structuredPrimitivesFigure()`）にも zoom を足した。
+
 
 ### 6.46 #178 の ±90° 回転したラベル（`nodes[].labelRotation`）
 

@@ -19,6 +19,7 @@ import {
   BUNDLED_FONT_SHA256,
   FONT_ASSETS_DIR,
   FONT_SLOTS,
+  type FontSlot,
 } from "../../core/theme/fonts";
 import { loadFontMetrics } from "../../lint/metrics";
 import { type CliContext, EXIT, type ExitCode } from "../io";
@@ -111,6 +112,21 @@ async function checkD2(context: CliContext): Promise<DoctorCheck> {
 /** Where the bundled fonts live, for hints: the release layout or the source tree. */
 const FONTS_LOCATION = RUN_MODE === "compiled" ? FONT_ASSETS_DIR : "assets/fonts";
 
+/**
+ * Every font file of the built-in font sets, once (font sets share files,
+ * #172), with the first font set and slot that uses it.
+ */
+function bundledFontFiles(): { fontSet: string; slot: FontSlot; path: string }[] {
+  const seen = new Map<string, { fontSet: string; slot: FontSlot; path: string }>();
+  for (const set of BUILTIN_FONT_SETS.values()) {
+    for (const slot of FONT_SLOTS) {
+      const path = set[slot];
+      if (path !== undefined && !seen.has(path)) seen.set(path, { fontSet: set.id, slot, path });
+    }
+  }
+  return [...seen.values()];
+}
+
 async function checkFonts(): Promise<DoctorCheck> {
   const files: {
     fontSet: string;
@@ -121,30 +137,26 @@ async function checkFonts(): Promise<DoctorCheck> {
     ok: boolean;
     problem?: string;
   }[] = [];
-  for (const set of BUILTIN_FONT_SETS.values()) {
-    for (const slot of FONT_SLOTS) {
-      const path = set[slot];
-      if (path === undefined) continue;
-      const shown = relative(FONT_ASSETS_DIR, path);
-      const expected = BUNDLED_FONT_SHA256.get(path);
-      let problem: string | undefined;
-      let actual: string | null = null;
-      try {
-        actual = new Bun.CryptoHasher("sha256").update(await readFile(path)).digest("hex");
-        if (expected === undefined) problem = "no recorded checksum";
-        else if (actual !== expected) problem = `sha256 ${actual} does not match ${expected}`;
-      } catch {
-        problem = "missing or unreadable";
-      }
-      files.push({
-        fontSet: set.id,
-        slot,
-        path: shown,
-        sha256: actual,
-        ok: problem === undefined,
-        ...(problem !== undefined && { problem }),
-      });
+  for (const { fontSet, slot, path } of bundledFontFiles()) {
+    const shown = relative(FONT_ASSETS_DIR, path);
+    const expected = BUNDLED_FONT_SHA256.get(path);
+    let problem: string | undefined;
+    let actual: string | null = null;
+    try {
+      actual = new Bun.CryptoHasher("sha256").update(await readFile(path)).digest("hex");
+      if (expected === undefined) problem = "no recorded checksum";
+      else if (actual !== expected) problem = `sha256 ${actual} does not match ${expected}`;
+    } catch {
+      problem = "missing or unreadable";
     }
+    files.push({
+      fontSet,
+      slot,
+      path: shown,
+      sha256: actual,
+      ok: problem === undefined,
+      ...(problem !== undefined && { problem }),
+    });
   }
   const bad = files.filter((f) => !f.ok);
   return {
@@ -170,18 +182,14 @@ async function checkFonts(): Promise<DoctorCheck> {
 function geometryLintCheck(): DoctorCheck {
   const problems: string[] = [];
   const files: { fontSet: string; slot: string; path: string; unitsPerEm?: number }[] = [];
-  for (const set of BUILTIN_FONT_SETS.values()) {
-    for (const slot of FONT_SLOTS) {
-      const path = set[slot];
-      if (path === undefined) continue;
-      const shown = relative(FONT_ASSETS_DIR, path);
-      try {
-        const metrics = loadFontMetrics(path);
-        files.push({ fontSet: set.id, slot, path: shown, unitsPerEm: metrics.unitsPerEm });
-      } catch (error) {
-        problems.push(`${shown} (${error instanceof Error ? error.message : String(error)})`);
-        files.push({ fontSet: set.id, slot, path: shown });
-      }
+  for (const { fontSet, slot, path } of bundledFontFiles()) {
+    const shown = relative(FONT_ASSETS_DIR, path);
+    try {
+      const metrics = loadFontMetrics(path);
+      files.push({ fontSet, slot, path: shown, unitsPerEm: metrics.unitsPerEm });
+    } catch (error) {
+      problems.push(`${shown} (${error instanceof Error ? error.message : String(error)})`);
+      files.push({ fontSet, slot, path: shown });
     }
   }
   return {

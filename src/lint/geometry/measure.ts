@@ -24,6 +24,7 @@
  *   (exact: an axis-aligned box stays one, width and height swapped).
  */
 
+import { LATIN_BOLD_FONT, LATIN_FONT } from "../../core/label/runs";
 import type { FontSet } from "../../core/theme/fonts";
 import type { Rect } from "../../render/geometry";
 import type { LabelGeometry, LabelRunGeometry } from "../../render/inspect";
@@ -94,16 +95,30 @@ export function turnRect(
  * The font file for one of D2's font classes (`LabelGeometry.font`): `mono*`
  * → mono, `bold` / `semibold` → bold, `italic` → italic, the label-math
  * classes (#93) `math` → math and `math-italic` → mathItalic (then math),
- * anything else regular. Missing optional slots fall back to regular, like the `--font-*`
- * arguments do (design doc §4.2).
+ * the Latin classes (#172) `latin` → latin and `latin-bold` → latinBold
+ * (then regular and bold), anything else regular. Missing optional slots
+ * fall back to regular, like the `--font-*` arguments do (design doc §4.2).
  */
 export function fontFileFor(fontClass: string, fonts: FontSet): string {
   if (fontClass === "math") return fonts.math ?? fonts.regular;
   if (fontClass === "math-italic") return fonts.mathItalic ?? fonts.math ?? fonts.regular;
+  if (fontClass === LATIN_FONT) return fonts.latin ?? fonts.regular;
+  if (fontClass === LATIN_BOLD_FONT) return fonts.latinBold ?? fonts.bold;
   if (fontClass.startsWith("mono")) return fonts.mono ?? fonts.regular;
   if (fontClass === "bold" || fontClass === "semibold") return fonts.bold;
   if (fontClass === "italic") return fonts.italic ?? fonts.regular;
   return fonts.regular;
+}
+
+/**
+ * The Latin font class of a label font class (#172, design doc §6.44):
+ * `latin` for `regular` and `latin-bold` for `bold` when the font set has
+ * that slot, otherwise `undefined` (mono and italic text keep their font).
+ */
+export function latinFontOf(fontClass: string, fonts: FontSet): string | undefined {
+  if (fontClass === "regular" && fonts.latin !== undefined) return LATIN_FONT;
+  if (fontClass === "bold" && fonts.latinBold !== undefined) return LATIN_BOLD_FONT;
+  return undefined;
 }
 
 /** Collapsible whitespace of CSS `white-space: normal`: space, tab, line breaks (not U+00A0 or U+3000). */

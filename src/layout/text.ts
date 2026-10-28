@@ -11,7 +11,7 @@
 import { labelRuns, scriptGeometry } from "../core/label/runs";
 import type { FontSet } from "../core/theme/fonts";
 import type { CommonStyle } from "../core/theme/style";
-import { fontFileFor } from "../lint/geometry/measure";
+import { fontFileFor, latinFontOf } from "../lint/geometry/measure";
 import { loadFontMetrics } from "../lint/metrics";
 import type { TextAccent, TextMetrics, TextRun } from "./ir";
 
@@ -30,6 +30,11 @@ export interface TextMeasurer {
    * Without it, nothing falls back.
    */
   covers?(font: string, codePoint: number): boolean;
+  /**
+   * The Latin font class of a label font class, if the font set has one
+   * (#172): text characters that font has are drawn with it. Needs `covers`.
+   */
+  latin?(font: string): string | undefined;
   /**
    * The outline box of a character's glyph in units at `sizeUnits`, y up
    * from the baseline, or `undefined` if the font has none (#129: math
@@ -75,6 +80,9 @@ export function fontSetMeasurer(fonts: FontSet): TextMeasurer {
       };
     },
     covers: (font, codePoint) => metricsOf(font).coverage.has(codePoint),
+    ...((fonts.latin !== undefined || fonts.latinBold !== undefined) && {
+      latin: (font: string) => latinFontOf(font, fonts),
+    }),
   };
 }
 
@@ -96,12 +104,15 @@ export function measureText(
   measurer: TextMeasurer,
 ): TextMetrics | undefined {
   if (label === "") return undefined;
-  const font = fontClassOf(style);
   const size = style.fontSize.units;
-  const { lines, runs } = labelRuns(label, {
-    font,
+  const drawn = labelRuns(label, {
+    font: fontClassOf(style),
     ...(measurer.covers !== undefined && { covers: measurer.covers.bind(measurer) }),
+    ...(measurer.latin !== undefined && { latin: measurer.latin.bind(measurer) }),
   });
+  const { lines, runs } = drawn;
+  // A label wholly in the Latin font (#172) is plain text in it.
+  const font = drawn.font ?? fontClassOf(style);
   let { ascent, descent } = measurer.verticalMetrics(font, size);
   let measuredRuns: TextRun[][] | undefined;
   let lineWidths: number[];
