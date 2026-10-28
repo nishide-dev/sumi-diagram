@@ -52,7 +52,7 @@ const Tone = z
   .enum(TONE_NAMES)
   .optional()
   .describe(
-    "Color category from the theme's palette (e.g. a pastel fill in the color theme, a gray step in monochrome themes). Omitted means none.",
+    "Color category from the theme's palette (e.g. a pastel fill in the color theme, a gray step in monochrome themes). With variant outlined it colors the outline and text instead of the fill. Omitted means none.",
   );
 const Props = z
   .record(z.string(), z.unknown())
@@ -478,6 +478,12 @@ export const EdgeSchema = z.strictObject({
     ),
   component: ComponentRef.default("arrow").describe("Component reference (kind: edge)."),
   variant: Variant,
+  tone: z
+    .enum(TONE_NAMES)
+    .optional()
+    .describe(
+      "Color category from the theme's palette for the line, its arrowheads and its label (the tone's line color, e.g. a dark orange in the color theme, a gray step in monochrome themes). Omitted means none.",
+    ),
   props: Props,
 });
 

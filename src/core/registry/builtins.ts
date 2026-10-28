@@ -22,13 +22,18 @@ import {
 import { Registry } from "./registry";
 
 const SINCE = "0.1.0";
-const NODE_VARIANTS = ["default", "emphasis", "muted"];
+/**
+ * The variants of every shape node. `outlined` (#177, design doc §6.54)
+ * draws the page's background with the outline and text in a tone's line
+ * color, so a tone colors the frame and text instead of the fill.
+ */
+const NODE_VARIANTS = ["default", "emphasis", "muted", "outlined"];
 /**
  * The variants of the shapes that read as a filled area (#174): `filled`
  * draws the fill without the outline. `stack` is left out, since its
  * outlines are what separate the overlapping rectangles.
  */
-const FILLABLE_NODE_VARIANTS = [...NODE_VARIANTS, "filled"];
+const FILLABLE_NODE_VARIANTS = ["default", "emphasis", "muted", "filled", "outlined"];
 const EDGE_VARIANTS = ["default", "dashed", "emphasis", "muted"];
 
 const sizeProps = z.strictObject({
@@ -218,10 +223,14 @@ const legendEntry = z
         variant: VariantField.optional().describe(
           "The variant of the sample line, as on an edge. Omitted means default.",
         ),
+        tone: z
+          .enum(TONE_NAMES)
+          .optional()
+          .describe("The tone of the sample line, as on an edge. Omitted means none."),
       })
       .optional()
       .describe(
-        "Draws a sample line with these edge fields: the same dash, arrowheads and line width as the edges that use them.",
+        "Draws a sample line with these edge fields: the same dash, arrowheads, line width and color as the edges that use them.",
       ),
     node: z
       .strictObject({
@@ -238,7 +247,7 @@ const legendEntry = z
       })
       .optional()
       .describe(
-        "Draws a small sample box with these node fields: the same fill and outline as the nodes that use them.",
+        "Draws a small sample box with these node fields: the same fill, outline and text color as the nodes that use them.",
       ),
     label: z
       .string()

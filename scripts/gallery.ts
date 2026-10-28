@@ -14,7 +14,8 @@
  *   #59) → the PDF next to it
  * - `examples/pipeline` under every theme × profile via overrides →
  *   docs/gallery/compare/
- * - every tone under every built-in theme (#92) → docs/gallery/tones/
+ * - every tone under every built-in theme (#92) → docs/gallery/tones/, and
+ *   every tone as an outline and on edges (#177) → docs/gallery/tones/outlined.*
  * - a dimmed group under every built-in theme (#175) → docs/gallery/dim/
  *
  * and writes docs/gallery/index.html and docs/gallery/README.md. Component
@@ -40,6 +41,7 @@ import {
   componentSamples,
   dimSample,
   GALLERY_DIR,
+  outlinedToneSample,
   toneSample,
 } from "./gallery/samples";
 
@@ -64,6 +66,7 @@ const exampleSources = [...new Bun.Glob("examples/*/*.sumi.yaml").scanSync(ROOT)
 const compare = comparison();
 const tones = toneSample();
 const dim = dimSample();
+const outlinedTones = outlinedToneSample();
 
 const jobs: RenderJob[] = [];
 for (const sample of samples) {
@@ -103,6 +106,9 @@ for (const rendering of tones.renderings) {
 for (const rendering of dim.renderings) {
   jobs.push({ file: dim.fileName, source: dim.source, rendering });
 }
+for (const rendering of outlinedTones.renderings) {
+  jobs.push({ file: outlinedTones.fileName, source: outlinedTones.source, rendering });
+}
 
 const outcomes = await renderAll(jobs);
 let cursor = 0;
@@ -122,6 +128,7 @@ const model: GalleryModel = {
   comparison: { source: COMPARISON_EXAMPLE, outcomes: take(compare.renderings.length) },
   tones: { sample: tones, outcomes: take(tones.renderings.length) },
   dim: { sample: dim, outcomes: take(dim.renderings.length) },
+  outlinedTones: { sample: outlinedTones, outcomes: take(outlinedTones.renderings.length) },
 };
 
 // Component, tone and dim samples and examples must be clean.
@@ -133,6 +140,10 @@ const strict: [string, RenderOutcome][] = [
   ...model.examples.map(({ source, outcome }): [string, RenderOutcome] => [source, outcome]),
   ...model.tones.outcomes.map((o): [string, RenderOutcome] => [`tones (${o.theme})`, o]),
   ...model.dim.outcomes.map((o): [string, RenderOutcome] => [`dim (${o.theme})`, o]),
+  ...model.outlinedTones.outcomes.map((o): [string, RenderOutcome] => [
+    `outlined tones (${o.theme})`,
+    o,
+  ]),
 ];
 for (const [name, outcome] of strict) {
   if (outcome.svg === undefined || outcome.diagnostics.length > 0) {

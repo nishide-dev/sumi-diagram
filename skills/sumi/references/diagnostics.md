@@ -12,7 +12,7 @@ Every stage reports problems as the same diagnostic object. In
   "path": ["nodes", 1, "variant"],
   "location": { "file": "f.sumi.yaml", "line": 13, "column": 14 },
   "subject": { "kind": "node", "id": "b" },
-  "hint": "Variants of sumi/box: default, emphasis, muted, filled.",
+  "hint": "Variants of sumi/box: default, emphasis, muted, filled, outlined.",
   "related": [{ "message": "…", "location": { "line": 5, "column": 5 } }]
 }
 ```
@@ -101,7 +101,7 @@ Every stage reports problems as the same diagnostic object. In
 | `lint/long-label` | warning | shorten or break with `\n` (≤ 40 columns per line, CJK = 2, ≤ 4 lines) |
 | `lint/missing-glyph` | warning | replace the character (emoji and rare CJK are not in the font) |
 | `lint/literal-newline` | warning | a label has `\n` as two characters outside `$...$` (single-quoted or plain YAML), drawn as written: double-quote it and double math backslashes, as the hint shows (`"Scale, Shift\n$\\gamma_1$"`), or use a `\|-` block ([math and line breaks](figure-format.md#math-and-line-breaks-in-one-label)) |
-| `lint/unused-legend-entry` | warning | no edge / node has that legend entry's component and variant (and tone): fix the entry, or the elements it should explain ([legends](structured.md#legends)) |
+| `lint/unused-legend-entry` | warning | no edge / node has that legend entry's component, variant and tone: fix the entry, or the elements it should explain ([legends](structured.md#legends)) |
 
 To silence a rule for one run: `sumi lint --rule lint/no-edges=off`. There
 is no per-figure suppression; mention kept warnings in your report instead.

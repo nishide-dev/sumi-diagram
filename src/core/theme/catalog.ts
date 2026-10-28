@@ -51,6 +51,11 @@ export interface ThemeCatalogEntry {
    */
   tones: Tone[];
   /**
+   * Tone names the theme gives line and text colors (#177): for outlined
+   * nodes and groups and for edges, in the order of `TONE_NAMES`.
+   */
+  toneLines: Tone[];
+  /**
    * Profiles whose minimum font size every component and variant of the theme
    * meets, so the theme never causes `profile/font-too-small` with them.
    */
@@ -108,6 +113,7 @@ export function themeCatalogEntry(
     fontSizePt: { min, max, base },
     missingVariants,
     tones: TONE_NAMES.filter((tone) => theme.tones.has(tone)),
+    toneLines: TONE_NAMES.filter((tone) => theme.toneLines.has(tone)),
     compatibleProfiles: [...profiles.values()]
       .filter((profile) => profile.typography.minFontSize.pt <= min)
       .map((profile) => profile.id),

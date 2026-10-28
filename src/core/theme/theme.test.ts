@@ -442,7 +442,7 @@ describe("validateTheme: structure and components", () => {
       [
         "theme/unknown-variant",
         ["components", "box", "loud"],
-        "Variants of sumi/box: default, emphasis, muted, filled.",
+        "Variants of sumi/box: default, emphasis, muted, filled, outlined.",
       ],
       ["theme/duplicate-component", ["components", "sumi/box"], "Merge the two entries into one."],
       [

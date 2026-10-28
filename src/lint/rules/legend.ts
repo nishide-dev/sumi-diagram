@@ -24,7 +24,7 @@ export const unusedLegendEntry = defineRule({
     const written = context.elements.filter(
       (e) => e.origin === undefined || e.origin.from === "tokens",
     );
-    const toneOf = (e: ValidElement) => (e.kind === "edge" ? undefined : e.element.tone);
+    const toneOf = (e: ValidElement) => e.element.tone;
     const findings: LintFinding[] = [];
     for (const legend of legends) {
       for (const [j, entry] of legend.entries.entries()) {
@@ -45,7 +45,7 @@ export const unusedLegendEntry = defineRule({
           message: `Entry ${j + 1} of legend "${legend.id}" ("${entry.label}") explains no ${what}: no ${what} of the figure has ${describeFields(component, tone)}.`,
           path: entry.path,
           subject: { kind: "node", id: legend.id },
-          hint: `Remove the entry, or give its ${what} fields the ${entry.kind === "node" ? "component, variant and tone" : "component and variant"} of the ${what}s it explains.`,
+          hint: `Remove the entry, or give its ${what} fields the component, variant and tone of the ${what}s it explains.`,
         });
       }
     }

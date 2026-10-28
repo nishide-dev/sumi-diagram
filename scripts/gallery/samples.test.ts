@@ -9,12 +9,16 @@ import { compileFigure } from "../../src/compiler/compile";
 import { writtenComponentOf } from "../../src/compiler/testing";
 import { createBuiltinRegistry } from "../../src/core/registry/builtins";
 import { buildCatalog } from "../../src/core/registry/catalog";
+import { lintFigure } from "../../src/lint/lint";
 import {
   comparison,
   componentSamples,
+  dimSample,
+  outlinedToneSample,
   PROFILES,
   SAMPLE_PROFILE,
   THEMES,
+  toneSample,
   WIDE_SAMPLE_PROFILE,
 } from "./samples";
 
@@ -71,6 +75,8 @@ test("only slides rows of more than three node or group variants use the wide pr
     "sumi/cylinder",
     "sumi/document",
     "sumi/trapezoid",
+    // Four variants since `outlined` (#177).
+    "sumi/stack",
     "sumi/container",
   ]);
   for (const sample of samples) {
@@ -87,4 +93,35 @@ test("the comparison covers every theme × profile through overrides", () => {
   expect(renderings).toHaveLength(THEMES.length * PROFILES.length);
   for (const r of renderings) expect(r.overrides).toEqual({ theme: r.theme, profile: r.profile });
   expect(new Set(renderings.map((r) => r.output)).size).toBe(renderings.length);
+});
+
+test("every theme-wide sample passes structural lint under every theme (#177)", () => {
+  // Rendering in the gallery checks diagnostics and geometry only; the
+  // structural rules (e.g. lint/unused-legend-entry) run here.
+  for (const sample of [toneSample(), outlinedToneSample(), dimSample()]) {
+    for (const theme of THEMES) {
+      const source = sample.source.replace(/^ {2}theme: .*$/m, `  theme: ${theme}`);
+      const report = lintFigure(source);
+      expect([sample.fileName, theme, report.diagnostics.map((d) => [d.code, d.message])]).toEqual([
+        sample.fileName,
+        theme,
+        [],
+      ]);
+    }
+  }
+});
+
+test("component samples have no structural lint warnings or errors (#177)", () => {
+  // A node sample shows its variants side by side without edges, so
+  // lint/no-edges is expected there; nothing else is.
+  for (const sample of componentSamples()) {
+    const report = lintFigure(sample.source, { file: sample.fileName });
+    const problems = report.diagnostics.filter(
+      (d) => d.severity !== "info" && d.code !== "lint/no-edges",
+    );
+    expect([sample.entry.id, problems.map((d) => [d.code, d.message])]).toEqual([
+      sample.entry.id,
+      [],
+    ]);
+  }
 });

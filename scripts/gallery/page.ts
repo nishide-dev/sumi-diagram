@@ -25,6 +25,8 @@ export interface GalleryModel {
   tones: { sample: ToneSample; outcomes: RenderOutcome[] };
   /** A dimmed group under every theme (#175). */
   dim: { sample: ToneSample; outcomes: RenderOutcome[] };
+  /** Every tone as an outline and on edges under every theme (#177). */
+  outlinedTones: { sample: ToneSample; outcomes: RenderOutcome[] };
 }
 
 const GENERATED_NOTE =
@@ -277,6 +279,13 @@ const DIM_NOTE =
   "The group keeps its own variant and tone. The dashed line from the left panel ends inside the " +
   "dimmed one and is drawn as written.";
 
+const OUTLINED_TONES_NOTE =
+  "With `variant: outlined` a tone colors the outline and the text of a node instead of its fill " +
+  "(left column; without a tone, tone gray's). An edge's `tone` colors its line, arrowheads and " +
+  "label. Both use the tone's line color: a dark shade of the hue in `color` and `paper`, readable " +
+  "as text (at least 4.5:1 on white), and one of three gray steps in the monochrome themes. " +
+  "The right column shows the same tones as fills (default variant) for comparison.";
+
 function htmlTones(tones: GalleryModel["tones"], note = TONES_NOTE, alt = "every tone"): string {
   const renders = tones.outcomes
     .map((o) =>
@@ -378,6 +387,8 @@ ${themesTable()}
 ${htmlTones(model.tones)}
 <h3 style="margin-top:16px" id="dim">Dimmed groups</h3>
 ${htmlTones(model.dim, DIM_NOTE, "a dimmed group")}
+<h3 style="margin-top:16px" id="outlined-tones">Outlined tones and edge tones</h3>
+${htmlTones(model.outlinedTones, OUTLINED_TONES_NOTE, "every tone outlined and on edges")}
 <h3 style="margin-top:16px">Profiles</h3>
 ${profilesTable()}
 <h3 style="margin-top:16px">One figure, every theme × profile</h3>
@@ -529,6 +540,12 @@ export function galleryMarkdown(model: GalleryModel): string {
     ),
     "",
     ...mdThemeSample("Tones", TONES_NOTE, model.tones, "every tone"),
+    ...mdThemeSample(
+      "Outlined tones and edge tones",
+      OUTLINED_TONES_NOTE,
+      model.outlinedTones,
+      "every tone outlined and on edges",
+    ),
     ...mdThemeSample("Dimmed groups", DIM_NOTE, model.dim, "a dimmed group"),
     "### Profiles",
     "",

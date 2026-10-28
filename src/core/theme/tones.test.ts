@@ -131,12 +131,16 @@ describe("tone resolution", () => {
     expect(toned.style.strokeWidth).toEqual(emphasis.strokeWidth);
   });
 
-  test("groups take tones; edges ignore them", () => {
+  test("groups take tones; edges take the tone's line color (#177)", () => {
     const color = builtin("color");
     const group = resolveStyle(color, target("container", "default", "blue")).style;
     expect(group.fill).toBe(color.tones.get("blue")?.fill ?? "");
     const edge = resolveStyle(color, target("arrow", "default", "blue"));
-    expect(edge).toEqual({ ...resolveStyle(color, target("arrow", "default")) });
+    const plain = resolveStyle(color, target("arrow", "default"));
+    expect(edge).toEqual({
+      ...plain,
+      style: { ...plain.style, ...color.toneLines.get("blue") },
+    });
   });
 
   test("a tone the theme does not define is left out and reported", () => {

@@ -24,10 +24,16 @@
  * Every built-in theme defines `dim` (#175): the gray text and lines and the
  * paler fills of a group with `dim: true` and everything inside it.
  *
- * Tones (#92, design doc §6.20) only change colors, and only of nodes and
- * groups that set `tone`. The monochrome themes map the eight tones to three
- * gray fills, so a toned figure still prints in grayscale; tones in the same
- * step look alike there (use `color` to tell all of them apart).
+ * Tones (#92, design doc §6.20) only change colors, and only of elements
+ * that set `tone`. The monochrome themes map the eight tones to three gray
+ * fills, so a toned figure still prints in grayscale; tones in the same step
+ * look alike there (use `color` to tell all of them apart).
+ *
+ * Each tone also has a line color (`toneLines`, #177, design doc §6.54): a
+ * dark shade of the hue for the outline and text of an `outlined` node and
+ * for the line, arrowheads and label of an edge. Every line color has a
+ * contrast of at least 4.5:1 on white, so it stays readable as text. The
+ * monochrome themes map the tones to three gray steps, as their fills.
  */
 
 import { type DocPath, didYouMean } from "../diagnostics";
@@ -36,7 +42,7 @@ import type { Locator } from "../figure/yaml";
 import type { Result } from "../result";
 import { DEFAULT_FONT_SET_ID, LATIN_FONT_SET_ID } from "./fonts";
 import { type StyleLayerInput, type Theme, type ThemeDefinition, validateTheme } from "./schema";
-import type { Tone } from "./tones";
+import { TONE_NAMES, type Tone } from "./tones";
 
 /**
  * Node components with the variants default, emphasis and muted, and (all
@@ -59,7 +65,12 @@ const SHAPE_NODES = [
 const EDGES = ["arrow", "line", "double-arrow"];
 
 interface VariantStyles {
-  shape: { emphasis: StyleLayerInput; muted: StyleLayerInput; filled: StyleLayerInput };
+  shape: {
+    emphasis: StyleLayerInput;
+    muted: StyleLayerInput;
+    filled: StyleLayerInput;
+    outlined: StyleLayerInput;
+  };
   label: { default: StyleLayerInput; muted: StyleLayerInput };
   junction: { default: StyleLayerInput; muted: StyleLayerInput; hidden: StyleLayerInput };
   container: {
@@ -93,6 +104,17 @@ const legendStyles = (paper: string, frame: string): VariantStyles["legend"] => 
  *   without a fill. A tone sets the fill of any of them.
  */
 const filledNode = (fill: string): StyleLayerInput => ({ fill, strokeWidth: "0pt" });
+
+/**
+ * Node `outlined` (#177, design doc §6.54): the page's background with the
+ * outline and text in a tone's line color, tone gray's unless the node sets
+ * a tone (then `toneLines.<tone>` replaces both).
+ */
+const outlinedNode = (paper: string, line: string): StyleLayerInput => ({
+  fill: paper,
+  stroke: line,
+  fontColor: line,
+});
 const outlineVariants = (shaded: string): Omit<VariantStyles["container"], "muted"> => ({
   plain: { fill: "transparent", strokeWidth: "0pt" },
   filled: { fill: shaded, strokeWidth: "0pt" },
@@ -154,7 +176,29 @@ function roundedBoxes(
  * steps, e.g. orange or blue blocks beside yellow ones.
  */
 function grayTones(light: string, middle: string, dark: string): Record<Tone, StyleLayerInput> {
-  const steps: Record<Tone, string> = {
+  return Object.fromEntries(
+    Object.entries(graySteps(light, middle, dark)).map(([tone, fill]) => [tone, { fill }]),
+  ) as Record<Tone, StyleLayerInput>;
+}
+
+/**
+ * Gray line colors of the tones in a monochrome theme (#177), in the same
+ * three steps as {@link grayTones}: a light fill has the lightest line.
+ */
+function grayToneLines(light: string, middle: string, dark: string): Record<Tone, StyleLayerInput> {
+  return toneLines(graySteps(light, middle, dark));
+}
+
+/** Line and text colors (#177) from one color per tone. */
+function toneLines(colors: Record<Tone, string>): Record<Tone, StyleLayerInput> {
+  return Object.fromEntries(
+    Object.entries(colors).map(([tone, color]) => [tone, { stroke: color, fontColor: color }]),
+  ) as Record<Tone, StyleLayerInput>;
+}
+
+/** The three gray steps of the tones (see {@link grayTones}). */
+function graySteps(light: string, middle: string, dark: string): Record<Tone, string> {
+  return {
     gray: middle,
     red: dark,
     orange: middle,
@@ -164,9 +208,14 @@ function grayTones(light: string, middle: string, dark: string): Record<Tone, St
     purple: dark,
     pink: dark,
   };
-  return Object.fromEntries(
-    Object.entries(steps).map(([tone, fill]) => [tone, { fill }]),
-  ) as Record<Tone, StyleLayerInput>;
+}
+
+/** References to the eight tokens `<group>.<tone>`, e.g. `{line.orange}`. */
+function toneTokens(group: string): Record<Tone, string> {
+  return Object.fromEntries(TONE_NAMES.map((tone) => [tone, `{${group}.${tone}}`])) as Record<
+    Tone,
+    string
+  >;
 }
 
 /**
@@ -235,6 +284,7 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
         emphasis: { strokeWidth: "{line.bold}", bold: true },
         muted: { stroke: "{color.muted}", fontColor: "{color.muted}" },
         filled: filledNode("#e3e3e3"), // tone gray (theme.test.ts checks it)
+        outlined: outlinedNode("{color.bg}", "#525252"), // tone gray's line
       },
       label: {
         default: { fill: "transparent", strokeWidth: "0pt" },
@@ -253,6 +303,7 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
       },
     }),
     tones: grayTones("#f2f2f2", "#e3e3e3", "#d4d4d4"),
+    toneLines: grayToneLines("#757575", "#525252", "#2e2e2e"),
     dim: DIM_GRAY,
   },
   {
@@ -304,6 +355,7 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
         emphasis: { fill: "{color.highlight}", strokeWidth: "{line.bold}" },
         muted: { stroke: "{color.muted}", fontColor: "{color.muted}" },
         filled: filledNode("#e3e3e3"), // tone gray (theme.test.ts checks it)
+        outlined: outlinedNode("{color.paper}", "#525252"), // tone gray's line
       },
       label: {
         default: { fill: "transparent", strokeWidth: "0pt" },
@@ -322,6 +374,7 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
       },
     }),
     tones: grayTones("#f2f2f2", "#e3e3e3", "#d4d4d4"),
+    toneLines: grayToneLines("#757575", "#525252", "#2e2e2e"),
     dim: { fontColor: "#8c8c8c", stroke: "#8c8c8c", lighten: 0.5 },
   },
   {
@@ -375,6 +428,7 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
         emphasis: { fill: "{color.highlight}", strokeWidth: "{line.bold}", bold: true },
         muted: { stroke: "{color.muted}", fontColor: "{color.muted}" },
         filled: filledNode("#d9d9d9"), // tone gray (theme.test.ts checks it)
+        outlined: outlinedNode("{color.bg}", "#474747"), // tone gray's line
       },
       label: {
         default: { fill: "transparent", strokeWidth: "0pt" },
@@ -394,6 +448,8 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
     }),
     // Darker than minimal's steps: projectors wash out light grays.
     tones: grayTones("#ebebeb", "#d9d9d9", "#c7c7c7"),
+    // Darker than minimal's line colors, as the fills.
+    toneLines: grayToneLines("#666666", "#474747", "#262626"),
     // Projectors wash out light grays: a darker gray and fills kept nearer their tones.
     dim: { fontColor: "#808080", stroke: "#808080", lighten: 0.4 },
   },
@@ -420,6 +476,18 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
         blue: "#cfe8f3",
         purple: "#e0dcf2",
         pink: "#f9dbe8",
+      },
+      // Line and text colors of the tones (#177): dark shades of the same
+      // hues, each with a contrast of at least 4.8:1 on white.
+      ink: {
+        gray: "#57606a",
+        red: "#cf222e",
+        orange: "#bc4c00",
+        yellow: "#9a6700",
+        green: "#1a7f37",
+        blue: "#0969da",
+        purple: "#8250df",
+        pink: "#bf3989",
       },
       size: { text: "8pt", small: "7pt", heading: "9pt" },
       line: { regular: "1pt", bold: "2pt" },
@@ -455,6 +523,7 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
         emphasis: { stroke: "{color.accent}", strokeWidth: "{line.bold}", bold: true },
         muted: { stroke: "{color.muted}", fontColor: "{color.muted}" },
         filled: filledNode("{tone.gray}"),
+        outlined: outlinedNode("{color.bg}", "{ink.gray}"),
       },
       label: {
         default: { fill: "transparent", strokeWidth: "0pt" },
@@ -482,6 +551,7 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
       purple: { fill: "{tone.purple}" },
       pink: { fill: "{tone.pink}" },
     },
+    toneLines: toneLines(toneTokens("ink")),
     dim: DIM_GRAY,
   },
   {
@@ -511,6 +581,19 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
         blue: "#cddff6",
         purple: "#dfdcef",
         pink: "#f6d8e5",
+      },
+      // Line and text colors of the tones (#177): the hues of H3-World's
+      // colored frames, text and edges, darkened where needed to a contrast
+      // of at least 4.5:1 on white.
+      ink: {
+        gray: "#6b6e78",
+        red: "#c0392b",
+        orange: "#bd5410",
+        yellow: "#857500",
+        green: "#3f7d3a",
+        blue: "#2f62b0",
+        purple: "#7240a8",
+        pink: "#b8336a",
       },
       size: { text: "8pt", small: "7pt", heading: "9pt" },
       // Frames 1pt as in the Transformer figure; edges 0.5pt, which keeps
@@ -552,6 +635,8 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
           muted: { stroke: "{color.muted}", fontColor: "{color.muted}" },
           // The borderless rounded fills of the DiT and H3-World figures (#174).
           filled: filledNode("{tone.gray}"),
+          // White with a colored frame and text: H3-World's encoders, tokens and keys (#177).
+          outlined: outlinedNode("{color.paper}", "{ink.gray}"),
         },
         label: {
           default: { fill: "transparent", strokeWidth: "0pt" },
@@ -590,6 +675,7 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
       purple: { fill: "{tone.purple}" },
       pink: { fill: "{tone.pink}" },
     },
+    toneLines: toneLines(toneTokens("ink")),
     // Measured from the dimmed panels of the DiT figure (#175): gray text and
     // lines #949494, tone fills and the panel's surface halfway to white
     // (blue #cddff6 → #e6effb, the surface #f3f3f5 → #f9f9fa).

@@ -71,7 +71,13 @@ describe("built-in components", () => {
     expect(get("sumi/arrow")).toMatchObject({ direction: "forward", head: "triangle" });
     expect(get("sumi/line")).toMatchObject({ direction: "none" });
     expect(get("sumi/double-arrow")).toMatchObject({ direction: "both", tail: "triangle" });
-    expect(get("sumi/box")?.variants).toEqual(["default", "emphasis", "muted", "filled"]);
+    expect(get("sumi/box")?.variants).toEqual([
+      "default",
+      "emphasis",
+      "muted",
+      "filled",
+      "outlined",
+    ]);
     expect(get("sumi/arrow")?.variants).toEqual(["default", "dashed", "emphasis", "muted"]);
   });
 
@@ -123,6 +129,7 @@ describe("builtinRegistry", () => {
       "emphasis",
       "muted",
       "filled",
+      "outlined",
     ]);
   });
 
@@ -415,7 +422,7 @@ describe("validateUsage", () => {
       hint: 'Did you mean "muted"?',
     });
     expect(registry.validateUsage(box, { variant: "loud" }).diagnostics[0]?.hint).toBe(
-      "Variants of sumi/box: default, emphasis, muted, filled.",
+      "Variants of sumi/box: default, emphasis, muted, filled, outlined.",
     );
   });
 
@@ -514,7 +521,7 @@ describe("catalog", () => {
       namespace: "sumi",
       name: "box",
       description: "A rectangle; the general-purpose node.",
-      variants: ["default", "emphasis", "muted", "filled"],
+      variants: ["default", "emphasis", "muted", "filled", "outlined"],
       since: "0.1.0",
       shape: "rectangle",
       sizing: "auto",

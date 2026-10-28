@@ -30,7 +30,7 @@ metadata: {}               # optional, any JSON-compatible data; not drawn
 | --- | --- | --- |
 | group | **`id`**, `label`, `labelAt`, `caption`, `component`, `variant`, `tone`, `dim`, `group`, `arrange`¹ | component `container`, variant `default`, no tone, not dimmed, no parent |
 | node | **`id`**, **`component`**, `label`, `sublabel`¹, `labelRotation`¹, `variant`, `tone`, `icon`, `props`, `group`, `attach`¹ | variant `default`, no label, no tone, no group |
-| edge | **`from`**, **`to`**, `id`, `label`, `labelAt`¹, `labelSide`¹, `component`, `variant`, `props`, `fromAnchor`¹, `toAnchor`¹ | component `arrow`, variant `default` |
+| edge | **`from`**, **`to`**, `id`, `label`, `labelAt`¹, `labelSide`¹, `component`, `variant`, `tone`, `props`, `fromAnchor`¹, `toAnchor`¹ | component `arrow`, variant `default`, no tone |
 
 ¹ Structured layout only (a figure with `figure.layout.arrange`); see
 [structured](structured.md); `labelRotation` (`90` / `-90`, newer than 0.5.3): [turned labels](structured.md#turned-labels); `sublabel` (newer than 0.5.3): [sublabels](structured.md#sublabels). `icon`: see [assets](assets.md). Group
@@ -67,6 +67,35 @@ nodes:
   - { id: attention, component: box, label: Attention, tone: orange }
   - { id: norm, component: box, label: Norm, tone: yellow }
 ```
+
+**Colored frames and lines** (newer than 0.5.3): with `variant: outlined`
+(box-like shapes, `operator`, `stack`) the tone colors the **outline and
+the text** of a white node instead of its fill — boxes with a colored
+border and colored text, as in many paper figures (an encoder, token
+cells, keys). Without a tone an outlined node takes tone gray's line. On
+an **edge**, `tone` colors the line, its arrowheads and its label. Both
+use the tone's line color: a dark shade of the hue in `color` and `paper`
+(readable as text), one of three grays in the monochrome themes.
+
+```yaml
+nodes:
+  - { id: encoder, component: box, label: H3 Encoder, tone: purple, variant: outlined }
+  - { id: vae, component: box, label: VAE Encoder, tone: orange, variant: outlined }
+edges:
+  - { from: encoder, to: vae, tone: orange }
+```
+
+- A tone is one color category: an outlined node cannot have a pastel fill
+  *and* a colored frame. Pick `outlined` (white, colored frame and text),
+  the default variant (pastel fill, black frame) or `filled` (pastel fill,
+  no frame), e.g. outlined keys with the pressed ones `filled`.
+- Two edges of different tones that enter the same point of a node overlap
+  (the shared entry, [fan-in](structured.md)): give them different
+  `toAnchor`s (e.g. `north` and `south`) or `fanIn: spread`.
+- Inside a group with `dim: true` ([dimmed groups](#dimmed-groups)), an
+  outlined frame and a toned edge take the dim gray like everything else.
+- An older CLI reports `component/unknown-variant` for `outlined` and
+  `schema/unknown-field` for an edge's `tone`: leave them out.
 
 ## Dimmed groups
 
@@ -268,6 +297,9 @@ Always take these from `sumi catalog --json`. Each entry has `id`
   figures. Give it a `tone`; without one it takes tone gray's fill. A
   variant is one value, so a block cannot be both `filled` and `muted`
   (but a `filled` block inside a group with `dim: true` is drawn pale).
+- `variant: outlined` (box-like shapes, `operator` and `stack`) draws a
+  white node whose outline and text take the tone's line color
+  ([tones](#tones)).
 - Node sizes (`props.width` / `props.height`) are lengths with a unit
   (`mm`, `cm`, `in`, `pt`) and must be a multiple of 0.5pt. Many mm values
   are not (`12mm` = 34.02pt); prefer `pt` (`34pt`). Omit sizes unless needed:
@@ -410,6 +442,7 @@ prints `{ "version": 1, "themes": [...], "profiles": [...] }` (plain
       "fontSizePt": { "min": 7, "max": 9, "base": { "node": 8, "group": 9, "edge": 7 } },
       "missingVariants": {},
       "tones": ["gray", "red", "orange", "yellow", "green", "blue", "purple", "pink"],
+      "toneLines": ["gray", "red", "orange", "yellow", "green", "blue", "purple", "pink"],
       "compatibleProfiles": ["paper-single", "paper-double"]
     }
   ],

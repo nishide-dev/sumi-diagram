@@ -445,7 +445,7 @@ function* elements(state: CheckState): Generator<Element> {
       component: element.component,
       label: element.label,
       variant: element.variant,
-      tone: entry.kind === "edge" ? undefined : entry.element.tone,
+      tone: entry.element.tone,
       icon: entry.kind === "node" ? entry.element.icon : undefined,
       labelAt: entry.kind === "group" ? entry.element.labelAt : undefined,
       labelRotation: entry.kind === "node" ? entry.element.labelRotation : undefined,
