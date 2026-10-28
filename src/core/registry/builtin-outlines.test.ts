@@ -16,7 +16,8 @@ for (const [name, params] of [
       shape: "rectangle",
       sizing: "auto",
       since: "0.3.0",
-      variants: ["default", "emphasis", "muted"],
+      // A stack has no `filled` (#174): without outlines its rectangles merge.
+      variants: ["default", "emphasis", "muted", ...(name === "stack" ? [] : ["filled"])],
       render: { type: "outline", renderer: `sumi/${name}`, params },
     });
     const entry = buildCatalog(registry).components.find((e) => e.id === `sumi/${name}`);

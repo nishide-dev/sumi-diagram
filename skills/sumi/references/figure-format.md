@@ -195,8 +195,15 @@ Both draw two lines: `Scale, Shift`, then γ and β with their subscripts
   background instead of the shaded one (without `tone`; a `tone` sets the
   fill) and a gray, non-bold title. In `academic`, a muted group's dashed border reads like
   a dashed edge (a skip, an optional flow): avoid `muted` there when the
-  figure has dashed edges, or say what each means (a `legend`). No variant
-  removes the border: a group always draws one.
+  figure has dashed edges, or say what each means (a `legend`).
+- Frame variants (container, every theme): `plain` draws neither border
+  nor fill, only the title and caption (a panel of a multi-panel figure
+  whose caption must line up with the framed panels' ones); `filled` a
+  shaded fill without a border; `dashed` a dashed border without a fill.
+  A `tone` sets the fill of any of them (`plain` with a tone looks like
+  `filled`: use `filled`). A border that is not drawn is not reported by
+  the geometry lint (`edge-near-border`, a label over the border), and an
+  edge label inside a `plain` group gets the background beneath it.
 - In structured figures, membership follows the group's `arrange` tree;
   `group:` can be omitted ([structured](structured.md#arrange-trees)).
 
@@ -227,6 +234,10 @@ Always take these from `sumi catalog --json`. Each entry has `id`
 - Variants are a closed list per component (typically `default`, `emphasis`,
   `muted`; edges also `dashed`). Use them to encode meaning consistently
   (e.g. `muted` for secondary elements), not for decoration.
+- `variant: filled` (box-like shapes and `operator`, not `stack`) draws
+  the fill without the outline: a borderless block, as in many paper
+  figures. Give it a `tone`; without one it takes tone gray's fill. A
+  variant is one value, so a block cannot be both `filled` and `muted`.
 - Node sizes (`props.width` / `props.height`) are lengths with a unit
   (`mm`, `cm`, `in`, `pt`) and must be a multiple of 0.5pt. Many mm values
   are not (`12mm` = 34.02pt); prefer `pt` (`34pt`). Omit sizes unless needed:

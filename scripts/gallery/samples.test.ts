@@ -9,7 +9,14 @@ import { compileFigure } from "../../src/compiler/compile";
 import { writtenComponentOf } from "../../src/compiler/testing";
 import { createBuiltinRegistry } from "../../src/core/registry/builtins";
 import { buildCatalog } from "../../src/core/registry/catalog";
-import { comparison, componentSamples, PROFILES, THEMES } from "./samples";
+import {
+  comparison,
+  componentSamples,
+  PROFILES,
+  SAMPLE_PROFILE,
+  THEMES,
+  WIDE_SAMPLE_PROFILE,
+} from "./samples";
 
 const samples = componentSamples();
 
@@ -46,6 +53,32 @@ describe("component samples", () => {
         expect([...used].sort()).toEqual([...sample.entry.variants].sort());
       }
     });
+  }
+});
+
+test("only slides rows of more than three node or group variants use the wide profile (#174)", () => {
+  const wide = samples
+    .filter((s) => s.renderings.some((r) => r.profile !== SAMPLE_PROFILE))
+    .map((s) => s.entry.id);
+  expect(wide).toEqual([
+    "sumi/box",
+    "sumi/square",
+    "sumi/circle",
+    "sumi/ellipse",
+    "sumi/diamond",
+    "sumi/hexagon",
+    "sumi/parallelogram",
+    "sumi/cylinder",
+    "sumi/document",
+    "sumi/trapezoid",
+    "sumi/container",
+  ]);
+  for (const sample of samples) {
+    for (const r of sample.renderings) {
+      const wideRendering = r.profile === WIDE_SAMPLE_PROFILE;
+      expect(wideRendering ? r.theme : "").toBe(wideRendering ? "slides" : "");
+      expect(r.overrides.profile).toBe(wideRendering ? WIDE_SAMPLE_PROFILE : undefined);
+    }
   }
 });
 

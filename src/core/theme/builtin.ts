@@ -29,7 +29,10 @@ import { DEFAULT_FONT_SET_ID } from "./fonts";
 import { type StyleLayerInput, type Theme, type ThemeDefinition, validateTheme } from "./schema";
 import type { Tone } from "./tones";
 
-/** Node components with the variants default, emphasis and muted. */
+/**
+ * Node components with the variants default, emphasis and muted, and (all
+ * but `stack`) filled (#174).
+ */
 const SHAPE_NODES = [
   "box",
   "square",
@@ -47,10 +50,15 @@ const SHAPE_NODES = [
 const EDGES = ["arrow", "line", "double-arrow"];
 
 interface VariantStyles {
-  shape: { emphasis: StyleLayerInput; muted: StyleLayerInput };
+  shape: { emphasis: StyleLayerInput; muted: StyleLayerInput; filled: StyleLayerInput };
   label: { default: StyleLayerInput; muted: StyleLayerInput };
   junction: { default: StyleLayerInput; muted: StyleLayerInput; hidden: StyleLayerInput };
-  container: { muted: StyleLayerInput };
+  container: {
+    muted: StyleLayerInput;
+    plain: StyleLayerInput;
+    filled: StyleLayerInput;
+    dashed: StyleLayerInput;
+  };
   legend: { default: StyleLayerInput; plain: StyleLayerInput };
   edge: { dashed: StyleLayerInput; emphasis: StyleLayerInput; muted: StyleLayerInput };
 }
@@ -64,10 +72,31 @@ const legendStyles = (paper: string, frame: string): VariantStyles["legend"] => 
   plain: { fill: "transparent", strokeWidth: "0pt" },
 });
 
+/**
+ * Borderless and dashed variants (#174, design doc §6.49). "No border" is a
+ * zero stroke width, so the geometry rules see no border while the shape
+ * keeps its rectangle (inspect, captions, `labelAt`).
+ *
+ * - node `filled`: the fill without the outline; tone gray's fill unless the
+ *   node sets a tone.
+ * - container `plain`: neither border nor fill, only the title or caption;
+ *   `filled`: a shaded fill without a border; `dashed`: a dashed border
+ *   without a fill. A tone sets the fill of any of them.
+ */
+const filledNode = (fill: string): StyleLayerInput => ({ fill, strokeWidth: "0pt" });
+const outlineVariants = (shaded: string): Omit<VariantStyles["container"], "muted"> => ({
+  plain: { fill: "transparent", strokeWidth: "0pt" },
+  filled: { fill: shaded, strokeWidth: "0pt" },
+  dashed: { fill: "transparent", strokeDash: "{dash.regular}" },
+});
+
 /** Expands per-category variant styles to every built-in component. */
 function componentStyles(styles: VariantStyles): NonNullable<ThemeDefinition["components"]> {
+  const { filled: _, ...stack } = styles.shape;
   return {
     ...Object.fromEntries(SHAPE_NODES.map((name) => [name, styles.shape])),
+    // Without outlines a stack's rectangles merge into one shape (#174).
+    stack,
     label: styles.label,
     junction: styles.junction,
     // An image (#94) is drawn as it is: no background, and a frame only when asked for.
@@ -163,13 +192,17 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
       shape: {
         emphasis: { strokeWidth: "{line.bold}", bold: true },
         muted: { stroke: "{color.muted}", fontColor: "{color.muted}" },
+        filled: filledNode("#e3e3e3"), // tone gray (theme.test.ts checks it)
       },
       label: {
         default: { fill: "transparent", strokeWidth: "0pt" },
         muted: { fontColor: "{color.muted}" },
       },
       junction: junctionStyles("{color.fg}", "{color.muted}"),
-      container: { muted: { fill: "{color.bg}", fontColor: "{color.muted}", bold: false } },
+      container: {
+        muted: { fill: "{color.bg}", fontColor: "{color.muted}", bold: false },
+        ...outlineVariants("{color.surface}"),
+      },
       legend: legendStyles("{color.bg}", "{color.muted}"),
       edge: {
         dashed: { strokeDash: "{dash.regular}" },
@@ -191,6 +224,7 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
         paper: "#ffffff",
         muted: "#595959",
         highlight: "#e6e6e6",
+        surface: "#f2f2f2",
         frame: "#808080",
       },
       size: { text: "8pt", small: "7pt", heading: "8pt" },
@@ -226,13 +260,17 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
       shape: {
         emphasis: { fill: "{color.highlight}", strokeWidth: "{line.bold}" },
         muted: { stroke: "{color.muted}", fontColor: "{color.muted}" },
+        filled: filledNode("#e3e3e3"), // tone gray (theme.test.ts checks it)
       },
       label: {
         default: { fill: "transparent", strokeWidth: "0pt" },
         muted: { fontColor: "{color.muted}" },
       },
       junction: junctionStyles("{color.line}", "{color.muted}"),
-      container: { muted: { strokeDash: "{dash.regular}", fontColor: "{color.muted}" } },
+      container: {
+        muted: { strokeDash: "{dash.regular}", fontColor: "{color.muted}" },
+        ...outlineVariants("{color.surface}"),
+      },
       legend: legendStyles("{color.paper}", "{color.frame}"),
       edge: {
         dashed: { strokeDash: "{dash.regular}" },
@@ -292,13 +330,17 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
       shape: {
         emphasis: { fill: "{color.highlight}", strokeWidth: "{line.bold}", bold: true },
         muted: { stroke: "{color.muted}", fontColor: "{color.muted}" },
+        filled: filledNode("#d9d9d9"), // tone gray (theme.test.ts checks it)
       },
       label: {
         default: { fill: "transparent", strokeWidth: "0pt" },
         muted: { fontColor: "{color.muted}" },
       },
       junction: junctionStyles("{color.fg}", "{color.muted}"),
-      container: { muted: { fill: "{color.bg}", fontColor: "{color.muted}", bold: false } },
+      container: {
+        muted: { fill: "{color.bg}", fontColor: "{color.muted}", bold: false },
+        ...outlineVariants("{color.surface}"),
+      },
       legend: legendStyles("{color.bg}", "{color.muted}"),
       edge: {
         dashed: { strokeDash: "{dash.regular}" },
@@ -366,13 +408,17 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
       shape: {
         emphasis: { stroke: "{color.accent}", strokeWidth: "{line.bold}", bold: true },
         muted: { stroke: "{color.muted}", fontColor: "{color.muted}" },
+        filled: filledNode("{tone.gray}"),
       },
       label: {
         default: { fill: "transparent", strokeWidth: "0pt" },
         muted: { fontColor: "{color.muted}" },
       },
       junction: junctionStyles("{color.fg}", "{color.muted}"),
-      container: { muted: { fill: "{color.bg}", fontColor: "{color.muted}", bold: false } },
+      container: {
+        muted: { fill: "{color.bg}", fontColor: "{color.muted}", bold: false },
+        ...outlineVariants("{color.surface}"),
+      },
       legend: legendStyles("{color.bg}", "{color.muted}"),
       edge: {
         dashed: { strokeDash: "{dash.regular}" },

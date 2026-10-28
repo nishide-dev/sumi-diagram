@@ -70,7 +70,7 @@ describe("built-in components", () => {
     expect(get("sumi/arrow")).toMatchObject({ direction: "forward", head: "triangle" });
     expect(get("sumi/line")).toMatchObject({ direction: "none" });
     expect(get("sumi/double-arrow")).toMatchObject({ direction: "both", tail: "triangle" });
-    expect(get("sumi/box")?.variants).toEqual(["default", "emphasis", "muted"]);
+    expect(get("sumi/box")?.variants).toEqual(["default", "emphasis", "muted", "filled"]);
     expect(get("sumi/arrow")?.variants).toEqual(["default", "dashed", "emphasis", "muted"]);
   });
 
@@ -117,7 +117,12 @@ describe("builtinRegistry", () => {
     expect(() => {
       (box as { description: string }).description = "changed";
     }).toThrow();
-    expect(builtinRegistry().get("sumi/box")?.variants).toEqual(["default", "emphasis", "muted"]);
+    expect(builtinRegistry().get("sumi/box")?.variants).toEqual([
+      "default",
+      "emphasis",
+      "muted",
+      "filled",
+    ]);
   });
 
   test("does not freeze fresh registries or the source manifests", () => {
@@ -409,7 +414,7 @@ describe("validateUsage", () => {
       hint: 'Did you mean "muted"?',
     });
     expect(registry.validateUsage(box, { variant: "loud" }).diagnostics[0]?.hint).toBe(
-      "Variants of sumi/box: default, emphasis, muted.",
+      "Variants of sumi/box: default, emphasis, muted, filled.",
     );
   });
 
@@ -508,7 +513,7 @@ describe("catalog", () => {
       namespace: "sumi",
       name: "box",
       description: "A rectangle; the general-purpose node.",
-      variants: ["default", "emphasis", "muted"],
+      variants: ["default", "emphasis", "muted", "filled"],
       since: "0.1.0",
       shape: "rectangle",
       sizing: "auto",

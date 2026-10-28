@@ -35,7 +35,7 @@ Every built\-in component with every variant, under every built\-in theme \(prof
 
 A rectangle; the general\-purpose node\.
 
-**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>rectangle</code> · **sizing**: <code>auto</code>
+**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, filled</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>rectangle</code> · **sizing**: <code>auto</code>
 
 | prop | type | required | description |
 | --- | --- | --- | --- |
@@ -45,7 +45,7 @@ A rectangle; the general\-purpose node\.
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> |
 | --- | --- | --- | --- |
 | <img src="components/sumi-box.minimal.svg" alt="sumi/box, theme minimal"> | <img src="components/sumi-box.academic.svg" alt="sumi/box, theme academic"> | <img src="components/sumi-box.slides.svg" alt="sumi/box, theme slides"> | <img src="components/sumi-box.color.svg" alt="sumi/box, theme color"> |
-| <code>sumi render sumi\-box\.sumi\.yaml</code><br>71\.61mm × 15\.35mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-box\.sumi\.yaml \-\-theme academic</code><br>71\.61mm × 14\.99mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-box\.sumi\.yaml \-\-theme slides</code><br>107\.77mm × 18\.87mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-box\.sumi\.yaml \-\-theme color</code><br>71\.61mm × 15\.35mm \(max width 180mm, max height 220mm\) |
+| <code>sumi render sumi\-box\.sumi\.yaml</code><br>91\.19mm × 15\.35mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-box\.sumi\.yaml \-\-theme academic</code><br>91\.19mm × 14\.99mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-box\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>139\.52mm × 23\.11mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-box\.sumi\.yaml \-\-theme color</code><br>91\.19mm × 15\.35mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-box.sumi.yaml</code></summary>
@@ -73,6 +73,10 @@ nodes:
     component: sumi/box
     label: muted
     variant: muted
+  - id: filled
+    component: sumi/box
+    label: filled
+    variant: filled
 ```
 
 </details>
@@ -81,7 +85,7 @@ nodes:
 
 A square\.
 
-**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>square</code> · **sizing**: <code>fixed\-aspect\-1</code>
+**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, filled</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>square</code> · **sizing**: <code>fixed\-aspect\-1</code>
 
 | prop | type | required | description |
 | --- | --- | --- | --- |
@@ -91,7 +95,7 @@ A square\.
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> |
 | --- | --- | --- | --- |
 | <img src="components/sumi-square.minimal.svg" alt="sumi/square, theme minimal"> | <img src="components/sumi-square.academic.svg" alt="sumi/square, theme academic"> | <img src="components/sumi-square.slides.svg" alt="sumi/square, theme slides"> | <img src="components/sumi-square.color.svg" alt="sumi/square, theme color"> |
-| <code>sumi render sumi\-square\.sumi\.yaml</code><br>71\.61mm × 27\.34mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-square\.sumi\.yaml \-\-theme academic</code><br>71\.61mm × 26\.99mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-square\.sumi\.yaml \-\-theme slides</code><br>107\.77mm × 42\.69mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-square\.sumi\.yaml \-\-theme color</code><br>71\.61mm × 27\.34mm \(max width 180mm, max height 220mm\) |
+| <code>sumi render sumi\-square\.sumi\.yaml</code><br>91\.19mm × 27\.34mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-square\.sumi\.yaml \-\-theme academic</code><br>91\.19mm × 26\.99mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-square\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>139\.52mm × 46\.92mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-square\.sumi\.yaml \-\-theme color</code><br>91\.19mm × 27\.34mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-square.sumi.yaml</code></summary>
@@ -119,6 +123,10 @@ nodes:
     component: sumi/square
     label: muted
     variant: muted
+  - id: filled
+    component: sumi/square
+    label: filled
+    variant: filled
 ```
 
 </details>
@@ -127,7 +135,7 @@ nodes:
 
 A circle\.
 
-**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>circle</code> · **sizing**: <code>fixed\-aspect\-1</code>
+**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, filled</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>circle</code> · **sizing**: <code>fixed\-aspect\-1</code>
 
 | prop | type | required | description |
 | --- | --- | --- | --- |
@@ -137,7 +145,7 @@ A circle\.
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> |
 | --- | --- | --- | --- |
 | <img src="components/sumi-circle.minimal.svg" alt="sumi/circle, theme minimal"> | <img src="components/sumi-circle.academic.svg" alt="sumi/circle, theme academic"> | <img src="components/sumi-circle.slides.svg" alt="sumi/circle, theme slides"> | <img src="components/sumi-circle.color.svg" alt="sumi/circle, theme color"> |
-| <code>sumi render sumi\-circle\.sumi\.yaml</code><br>88\.02mm × 33\.87mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-circle\.sumi\.yaml \-\-theme academic</code><br>88\.02mm × 33\.51mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-circle\.sumi\.yaml \-\-theme slides</code><br>139\.17mm × 55\.39mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-circle\.sumi\.yaml \-\-theme color</code><br>88\.02mm × 33\.87mm \(max width 180mm, max height 220mm\) |
+| <code>sumi render sumi\-circle\.sumi\.yaml</code><br>111\.48mm × 33\.87mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-circle\.sumi\.yaml \-\-theme academic</code><br>111\.48mm × 33\.51mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-circle\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>178\.15mm × 59\.62mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-circle\.sumi\.yaml \-\-theme color</code><br>111\.48mm × 33\.87mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-circle.sumi.yaml</code></summary>
@@ -165,6 +173,10 @@ nodes:
     component: sumi/circle
     label: muted
     variant: muted
+  - id: filled
+    component: sumi/circle
+    label: filled
+    variant: filled
 ```
 
 </details>
@@ -173,7 +185,7 @@ nodes:
 
 An ellipse\.
 
-**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>oval</code> · **sizing**: <code>auto</code>
+**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, filled</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>oval</code> · **sizing**: <code>auto</code>
 
 | prop | type | required | description |
 | --- | --- | --- | --- |
@@ -183,7 +195,7 @@ An ellipse\.
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> |
 | --- | --- | --- | --- |
 | <img src="components/sumi-ellipse.minimal.svg" alt="sumi/ellipse, theme minimal"> | <img src="components/sumi-ellipse.academic.svg" alt="sumi/ellipse, theme academic"> | <img src="components/sumi-ellipse.slides.svg" alt="sumi/ellipse, theme slides"> | <img src="components/sumi-ellipse.color.svg" alt="sumi/ellipse, theme color"> |
-| <code>sumi render sumi\-ellipse\.sumi\.yaml</code><br>95\.6mm × 15\.17mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-ellipse\.sumi\.yaml \-\-theme academic</code><br>95\.6mm × 14\.82mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-ellipse\.sumi\.yaml \-\-theme slides</code><br>146\.76mm × 22\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-ellipse\.sumi\.yaml \-\-theme color</code><br>95\.6mm × 15\.17mm \(max width 180mm, max height 220mm\) |
+| <code>sumi render sumi\-ellipse\.sumi\.yaml</code><br>121\.18mm × 15\.17mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-ellipse\.sumi\.yaml \-\-theme academic</code><br>121\.18mm × 14\.82mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-ellipse\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>188\.03mm × 27\.16mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-ellipse\.sumi\.yaml \-\-theme color</code><br>121\.18mm × 15\.17mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-ellipse.sumi.yaml</code></summary>
@@ -211,6 +223,10 @@ nodes:
     component: sumi/ellipse
     label: muted
     variant: muted
+  - id: filled
+    component: sumi/ellipse
+    label: filled
+    variant: filled
 ```
 
 </details>
@@ -219,7 +235,7 @@ nodes:
 
 A diamond, e\.g\. for decisions\.
 
-**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>diamond</code> · **sizing**: <code>auto</code>
+**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, filled</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>diamond</code> · **sizing**: <code>auto</code>
 
 | prop | type | required | description |
 | --- | --- | --- | --- |
@@ -229,7 +245,7 @@ A diamond, e\.g\. for decisions\.
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> |
 | --- | --- | --- | --- |
 | <img src="components/sumi-diamond.minimal.svg" alt="sumi/diamond, theme minimal"> | <img src="components/sumi-diamond.academic.svg" alt="sumi/diamond, theme academic"> | <img src="components/sumi-diamond.slides.svg" alt="sumi/diamond, theme slides"> | <img src="components/sumi-diamond.color.svg" alt="sumi/diamond, theme color"> |
-| <code>sumi render sumi\-diamond\.sumi\.yaml</code><br>100\.19mm × 19\.05mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-diamond\.sumi\.yaml \-\-theme academic</code><br>100\.19mm × 18\.7mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-diamond\.sumi\.yaml \-\-theme slides</code><br>172\.16mm × 25\.4mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-diamond\.sumi\.yaml \-\-theme color</code><br>100\.19mm × 19\.05mm \(max width 180mm, max height 220mm\) |
+| <code>sumi render sumi\-diamond\.sumi\.yaml</code><br>125\.41mm × 19\.05mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-diamond\.sumi\.yaml \-\-theme academic</code><br>125\.41mm × 18\.7mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-diamond\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>217\.66mm × 29\.63mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-diamond\.sumi\.yaml \-\-theme color</code><br>125\.41mm × 19\.05mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-diamond.sumi.yaml</code></summary>
@@ -257,6 +273,10 @@ nodes:
     component: sumi/diamond
     label: muted
     variant: muted
+  - id: filled
+    component: sumi/diamond
+    label: filled
+    variant: filled
 ```
 
 </details>
@@ -265,7 +285,7 @@ nodes:
 
 A hexagon\.
 
-**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>hexagon</code> · **sizing**: <code>auto</code>
+**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, filled</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>hexagon</code> · **sizing**: <code>auto</code>
 
 | prop | type | required | description |
 | --- | --- | --- | --- |
@@ -275,7 +295,7 @@ A hexagon\.
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> |
 | --- | --- | --- | --- |
 | <img src="components/sumi-hexagon.minimal.svg" alt="sumi/hexagon, theme minimal"> | <img src="components/sumi-hexagon.academic.svg" alt="sumi/hexagon, theme academic"> | <img src="components/sumi-hexagon.slides.svg" alt="sumi/hexagon, theme slides"> | <img src="components/sumi-hexagon.color.svg" alt="sumi/hexagon, theme color"> |
-| <code>sumi render sumi\-hexagon\.sumi\.yaml</code><br>86\.08mm × 15\.52mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-hexagon\.sumi\.yaml \-\-theme academic</code><br>86\.08mm × 15\.17mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-hexagon\.sumi\.yaml \-\-theme slides</code><br>140\.05mm × 20\.46mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-hexagon\.sumi\.yaml \-\-theme color</code><br>86\.08mm × 15\.52mm \(max width 180mm, max height 220mm\) |
+| <code>sumi render sumi\-hexagon\.sumi\.yaml</code><br>108\.48mm × 15\.52mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-hexagon\.sumi\.yaml \-\-theme academic</code><br>108\.48mm × 15\.17mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-hexagon\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>178\.68mm × 24\.69mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-hexagon\.sumi\.yaml \-\-theme color</code><br>108\.48mm × 15\.52mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-hexagon.sumi.yaml</code></summary>
@@ -303,6 +323,10 @@ nodes:
     component: sumi/hexagon
     label: muted
     variant: muted
+  - id: filled
+    component: sumi/hexagon
+    label: filled
+    variant: filled
 ```
 
 </details>
@@ -311,7 +335,7 @@ nodes:
 
 A parallelogram, e\.g\. for input or output\.
 
-**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>parallelogram</code> · **sizing**: <code>auto</code>
+**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, filled</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>parallelogram</code> · **sizing**: <code>auto</code>
 
 | prop | type | required | description |
 | --- | --- | --- | --- |
@@ -321,7 +345,7 @@ A parallelogram, e\.g\. for input or output\.
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> |
 | --- | --- | --- | --- |
 | <img src="components/sumi-parallelogram.minimal.svg" alt="sumi/parallelogram, theme minimal"> | <img src="components/sumi-parallelogram.academic.svg" alt="sumi/parallelogram, theme academic"> | <img src="components/sumi-parallelogram.slides.svg" alt="sumi/parallelogram, theme slides"> | <img src="components/sumi-parallelogram.color.svg" alt="sumi/parallelogram, theme color"> |
-| <code>sumi render sumi\-parallelogram\.sumi\.yaml</code><br>99\.13mm × 15\.35mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-parallelogram\.sumi\.yaml \-\-theme academic</code><br>99\.13mm × 14\.99mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-parallelogram\.sumi\.yaml \-\-theme slides</code><br>135\.29mm × 18\.87mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-parallelogram\.sumi\.yaml \-\-theme color</code><br>99\.13mm × 15\.35mm \(max width 180mm, max height 220mm\) |
+| <code>sumi render sumi\-parallelogram\.sumi\.yaml</code><br>127\.88mm × 15\.35mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-parallelogram\.sumi\.yaml \-\-theme academic</code><br>127\.88mm × 14\.99mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-parallelogram\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>176\.21mm × 23\.11mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-parallelogram\.sumi\.yaml \-\-theme color</code><br>127\.88mm × 15\.35mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-parallelogram.sumi.yaml</code></summary>
@@ -349,6 +373,10 @@ nodes:
     component: sumi/parallelogram
     label: muted
     variant: muted
+  - id: filled
+    component: sumi/parallelogram
+    label: filled
+    variant: filled
 ```
 
 </details>
@@ -357,7 +385,7 @@ nodes:
 
 A cylinder, e\.g\. for storage\.
 
-**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>cylinder</code> · **sizing**: <code>auto</code>
+**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, filled</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>cylinder</code> · **sizing**: <code>auto</code>
 
 | prop | type | required | description |
 | --- | --- | --- | --- |
@@ -367,7 +395,7 @@ A cylinder, e\.g\. for storage\.
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> |
 | --- | --- | --- | --- |
 | <img src="components/sumi-cylinder.minimal.svg" alt="sumi/cylinder, theme minimal"> | <img src="components/sumi-cylinder.academic.svg" alt="sumi/cylinder, theme academic"> | <img src="components/sumi-cylinder.slides.svg" alt="sumi/cylinder, theme slides"> | <img src="components/sumi-cylinder.color.svg" alt="sumi/cylinder, theme color"> |
-| <code>sumi render sumi\-cylinder\.sumi\.yaml</code><br>71\.61mm × 24\.52mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-cylinder\.sumi\.yaml \-\-theme academic</code><br>71\.61mm × 24\.17mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-cylinder\.sumi\.yaml \-\-theme slides</code><br>107\.77mm × 28\.05mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-cylinder\.sumi\.yaml \-\-theme color</code><br>71\.61mm × 24\.52mm \(max width 180mm, max height 220mm\) |
+| <code>sumi render sumi\-cylinder\.sumi\.yaml</code><br>91\.19mm × 24\.52mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-cylinder\.sumi\.yaml \-\-theme academic</code><br>91\.19mm × 24\.17mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-cylinder\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>139\.52mm × 32\.28mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-cylinder\.sumi\.yaml \-\-theme color</code><br>91\.19mm × 24\.52mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-cylinder.sumi.yaml</code></summary>
@@ -395,6 +423,10 @@ nodes:
     component: sumi/cylinder
     label: muted
     variant: muted
+  - id: filled
+    component: sumi/cylinder
+    label: filled
+    variant: filled
 ```
 
 </details>
@@ -403,7 +435,7 @@ nodes:
 
 A page with a wavy bottom edge, e\.g\. for documents\.
 
-**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>document</code> · **sizing**: <code>auto</code>
+**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, filled</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>document</code> · **sizing**: <code>auto</code>
 
 | prop | type | required | description |
 | --- | --- | --- | --- |
@@ -413,7 +445,7 @@ A page with a wavy bottom edge, e\.g\. for documents\.
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> |
 | --- | --- | --- | --- |
 | <img src="components/sumi-document.minimal.svg" alt="sumi/document, theme minimal"> | <img src="components/sumi-document.academic.svg" alt="sumi/document, theme academic"> | <img src="components/sumi-document.slides.svg" alt="sumi/document, theme slides"> | <img src="components/sumi-document.color.svg" alt="sumi/document, theme color"> |
-| <code>sumi render sumi\-document\.sumi\.yaml</code><br>71\.61mm × 16\.76mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-document\.sumi\.yaml \-\-theme academic</code><br>71\.61mm × 16\.4mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-document\.sumi\.yaml \-\-theme slides</code><br>107\.77mm × 21\.34mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-document\.sumi\.yaml \-\-theme color</code><br>71\.61mm × 16\.76mm \(max width 180mm, max height 220mm\) |
+| <code>sumi render sumi\-document\.sumi\.yaml</code><br>91\.19mm × 16\.76mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-document\.sumi\.yaml \-\-theme academic</code><br>91\.19mm × 16\.4mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-document\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>139\.52mm × 25\.58mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-document\.sumi\.yaml \-\-theme color</code><br>91\.19mm × 16\.76mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-document.sumi.yaml</code></summary>
@@ -441,6 +473,10 @@ nodes:
     component: sumi/document
     label: muted
     variant: muted
+  - id: filled
+    component: sumi/document
+    label: filled
+    variant: filled
 ```
 
 </details>
@@ -449,7 +485,7 @@ nodes:
 
 A trapezoid with a wider top and a narrower bottom\.
 
-**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted</code> · **since**: <code>0\.3\.0</code> · **shape**: <code>rectangle</code> · **sizing**: <code>auto</code> · **render**: <code>\{&quot;type&quot;:&quot;outline&quot;,&quot;renderer&quot;:&quot;sumi/trapezoid&quot;,&quot;params&quot;:\{&quot;slant&quot;:0\.4\}\}</code>
+**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, filled</code> · **since**: <code>0\.3\.0</code> · **shape**: <code>rectangle</code> · **sizing**: <code>auto</code> · **render**: <code>\{&quot;type&quot;:&quot;outline&quot;,&quot;renderer&quot;:&quot;sumi/trapezoid&quot;,&quot;params&quot;:\{&quot;slant&quot;:0\.4\}\}</code>
 
 | prop | type | required | description |
 | --- | --- | --- | --- |
@@ -459,7 +495,7 @@ A trapezoid with a wider top and a narrower bottom\.
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> |
 | --- | --- | --- | --- |
 | <img src="components/sumi-trapezoid.minimal.svg" alt="sumi/trapezoid, theme minimal"> | <img src="components/sumi-trapezoid.academic.svg" alt="sumi/trapezoid, theme academic"> | <img src="components/sumi-trapezoid.slides.svg" alt="sumi/trapezoid, theme slides"> | <img src="components/sumi-trapezoid.color.svg" alt="sumi/trapezoid, theme color"> |
-| <code>sumi render sumi\-trapezoid\.sumi\.yaml</code><br>97\.54mm × 15\.35mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-trapezoid\.sumi\.yaml \-\-theme academic</code><br>97\.54mm × 14\.99mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-trapezoid\.sumi\.yaml \-\-theme slides</code><br>140\.58mm × 18\.87mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-trapezoid\.sumi\.yaml \-\-theme color</code><br>97\.54mm × 15\.35mm \(max width 180mm, max height 220mm\) |
+| <code>sumi render sumi\-trapezoid\.sumi\.yaml</code><br>125\.77mm × 15\.35mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-trapezoid\.sumi\.yaml \-\-theme academic</code><br>125\.77mm × 14\.99mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-trapezoid\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>183\.27mm × 23\.11mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-trapezoid\.sumi\.yaml \-\-theme color</code><br>125\.77mm × 15\.35mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-trapezoid.sumi.yaml</code></summary>
@@ -487,6 +523,10 @@ nodes:
     component: sumi/trapezoid
     label: muted
     variant: muted
+  - id: filled
+    component: sumi/trapezoid
+    label: filled
+    variant: filled
 ```
 
 </details>
@@ -583,7 +623,7 @@ nodes:
 
 A small circle with an operator symbol, e\.g\. where inputs are added or combined; takes no label\.
 
-**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted</code> · **since**: <code>0\.4\.0</code> · **shape**: <code>circle</code> · **sizing**: <code>fixed\-aspect\-1</code> · **mark**: <code>\{&quot;type&quot;:&quot;glyph&quot;,&quot;prop&quot;:&quot;symbol&quot;,&quot;glyphs&quot;:\{&quot;plus&quot;:&quot;\+&quot;,&quot;minus&quot;:&quot;−&quot;,&quot;times&quot;:&quot;×&quot;,&quot;dot&quot;:&quot;•&quot;,&quot;concat&quot;:&quot;‖&quot;\},&quot;size&quot;:2\}</code>
+**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, filled</code> · **since**: <code>0\.4\.0</code> · **shape**: <code>circle</code> · **sizing**: <code>fixed\-aspect\-1</code> · **mark**: <code>\{&quot;type&quot;:&quot;glyph&quot;,&quot;prop&quot;:&quot;symbol&quot;,&quot;glyphs&quot;:\{&quot;plus&quot;:&quot;\+&quot;,&quot;minus&quot;:&quot;−&quot;,&quot;times&quot;:&quot;×&quot;,&quot;dot&quot;:&quot;•&quot;,&quot;concat&quot;:&quot;‖&quot;\},&quot;size&quot;:2\}</code>
 
 | prop | type | required | description |
 | --- | --- | --- | --- |
@@ -592,7 +632,7 @@ A small circle with an operator symbol, e\.g\. where inputs are added or combine
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> |
 | --- | --- | --- | --- |
 | <img src="components/sumi-operator.minimal.svg" alt="sumi/operator, theme minimal"> | <img src="components/sumi-operator.academic.svg" alt="sumi/operator, theme academic"> | <img src="components/sumi-operator.slides.svg" alt="sumi/operator, theme slides"> | <img src="components/sumi-operator.color.svg" alt="sumi/operator, theme color"> |
-| <code>sumi render sumi\-operator\.sumi\.yaml</code><br>40\.75mm × 115\.01mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-operator\.sumi\.yaml \-\-theme academic</code><br>40\.57mm × 115\.01mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-operator\.sumi\.yaml \-\-theme slides</code><br>61\.56mm × 137\.94mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-operator\.sumi\.yaml \-\-theme color</code><br>40\.75mm × 115\.01mm \(max width 180mm, max height 220mm\) |
+| <code>sumi render sumi\-operator\.sumi\.yaml</code><br>40\.75mm × 129\.29mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-operator\.sumi\.yaml \-\-theme academic</code><br>40\.57mm × 129\.29mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-operator\.sumi\.yaml \-\-theme slides</code><br>61\.56mm × 155\.05mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-operator\.sumi\.yaml \-\-theme color</code><br>40\.75mm × 129\.29mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-operator.sumi.yaml</code></summary>
@@ -628,6 +668,13 @@ nodes:
   - id: muted-operator
     component: sumi/operator
     variant: muted
+    props: { symbol: plus }
+  - id: filled
+    component: box
+    label: filled
+  - id: filled-operator
+    component: sumi/operator
+    variant: filled
     props: { symbol: plus }
   - id: plus
     component: box
@@ -667,6 +714,8 @@ edges:
     to: emphasis-operator
   - from: muted
     to: muted-operator
+  - from: filled
+    to: filled-operator
   - from: plus
     to: plus-operator
   - from: minus
@@ -923,16 +972,16 @@ edges:
 
 ### sumi/container
 
-A rectangular container that groups nodes and other groups, always with a border\. Variant muted: a dashed border in academic \(easy to confuse with dashed edges\), a white background instead of the shaded fill \(without a tone\) and a gray title in the other themes\.
+A rectangular container that groups nodes and other groups\. Variant muted: a dashed border in academic \(easy to confuse with dashed edges\), a white background instead of the shaded fill \(without a tone\) and a gray title in the other themes\. Variant plain: no border and no fill, only the title or caption; filled: a shaded fill without a border; dashed: a dashed border without a fill\. A tone sets the fill of any variant\.
 
-**kind**: <code>group</code> · **variants**: <code>default, muted</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>rectangle</code>
+**kind**: <code>group</code> · **variants**: <code>default, muted, plain, filled, dashed</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>rectangle</code>
 
 No props.
 
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> |
 | --- | --- | --- | --- |
 | <img src="components/sumi-container.minimal.svg" alt="sumi/container, theme minimal"> | <img src="components/sumi-container.academic.svg" alt="sumi/container, theme academic"> | <img src="components/sumi-container.slides.svg" alt="sumi/container, theme slides"> | <img src="components/sumi-container.color.svg" alt="sumi/container, theme color"> |
-| <code>sumi render sumi\-container\.sumi\.yaml</code><br>65\.26mm × 24\.17mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-container\.sumi\.yaml \-\-theme academic</code><br>65\.26mm × 23\.64mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-container\.sumi\.yaml \-\-theme slides</code><br>90\.66mm × 30\.52mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-container\.sumi\.yaml \-\-theme color</code><br>65\.26mm × 24\.17mm \(max width 180mm, max height 220mm\) |
+| <code>sumi render sumi\-container\.sumi\.yaml</code><br>162\.1mm × 24\.17mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-container\.sumi\.yaml \-\-theme academic</code><br>162\.1mm × 23\.64mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-container\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>268\.11mm × 38\.63mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-container\.sumi\.yaml \-\-theme color</code><br>162\.1mm × 24\.17mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-container.sumi.yaml</code></summary>
@@ -956,6 +1005,18 @@ groups:
     component: sumi/container
     label: muted
     variant: muted
+  - id: plain
+    component: sumi/container
+    label: plain
+    variant: plain
+  - id: filled
+    component: sumi/container
+    label: filled
+    variant: filled
+  - id: dashed
+    component: sumi/container
+    label: dashed
+    variant: dashed
 
 nodes:
   - id: default-member
@@ -966,6 +1027,18 @@ nodes:
     component: box
     label: member
     group: muted
+  - id: plain-member
+    component: box
+    label: member
+    group: plain
+  - id: filled-member
+    component: box
+    label: member
+    group: filled
+  - id: dashed-member
+    component: box
+    label: member
+    group: dashed
 ```
 
 </details>

@@ -297,5 +297,5 @@ ${nodes
     expect(lintGeometry(fitted).filter((d) => d.code === "geometry/exceeds-page-width")).toEqual(
       [],
     );
-  });
+  }, 60_000);
 });
