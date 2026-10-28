@@ -153,6 +153,22 @@ edges:
       expect(lintGeometry(rendered, { source: source(theme) })).toEqual([]);
       // Inspect reads the plain group's rectangle.
       expect(rendered.inspection.elements.find((e) => e.key === "g:p")?.bbox).toBeDefined();
+      // D2 draws each shape's primitive with the variant's border: none for
+      // plain / filled groups and filled nodes, a dashed one for dashed.
+      const shapeStyle = (cls: string) => {
+        const match = new RegExp(
+          `<g class="[^"]*\\b${cls}\\b[^"]*"><g class="shape" ><(?:rect|path)\\b([^>]*)/>`,
+        ).exec(rendered.svg);
+        if (match === null) throw new Error(`no shape of ${cls} in ${theme}`);
+        return /style="([^"]*)"/.exec(match[1] ?? "")?.[1] ?? "";
+      };
+      const width = (style: string) => Number(/stroke-width:([\d.]+)/.exec(style)?.[1]);
+      for (const cls of ["sumi-k-g--p", "sumi-k-g--f", "sumi-k-n--a", "sumi-k-n--b"]) {
+        expect([theme, cls, width(shapeStyle(cls))]).toEqual([theme, cls, 0]);
+      }
+      expect(width(shapeStyle("sumi-k-g--d"))).toBeGreaterThan(0);
+      expect(shapeStyle("sumi-k-g--d")).toContain("stroke-dasharray");
+      expect(width(shapeStyle("sumi-k-n--c"))).toBeGreaterThan(0);
     }
   });
 });
