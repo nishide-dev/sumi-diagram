@@ -103,3 +103,35 @@ test("unsupported native input is a diagnostic, not a damaged package", () => {
   });
   expect(missing.diagnostics[0]?.code).toBe("pptx/missing-font");
 });
+
+// #170 (design doc §6.41): an edge label's box takes the fill of the <rect>
+// the SVG draws before the label. In D2's SVG that is the edge's `fill`
+// (white in the built-in themes, but any color is kept); without one, D2
+// masks the line under the label, so the box stays white; with neither
+// (structured SVG, edge `fill: transparent`), it has no fill.
+test("D2 edge labels: the SVG's label rect, else white under a mask, else no fill", () => {
+  const item = corpus.find((c) => c.id === "examples/decision-flow/decision-flow");
+  if (!item) throw new Error("missing decision-flow");
+  const fills = (svg: string) => {
+    const result = svgToEditablePptx(svg, item.ir);
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const slide = new TextDecoder().decode(readPptx(result.value).get("ppt/slides/slide1.xml"));
+    return [
+      ...slide.matchAll(
+        /name="e:#\d+ label 0"\/>.*?<\/a:prstGeom>(<a:noFill\/>|<a:solidFill><a:srgbClr val="([0-9A-F]{6})">)/g,
+      ),
+    ].map((m) => m[2] ?? "none");
+  };
+  const rect =
+    /<rect x="[^"]*" y="[^"]*" width="[^"]*" height="[^"]*" rx="10" fill="#ffffff" \/>(?=<text)/g;
+  const count = item.svg.match(rect)?.length ?? 0;
+  expect(count).toBeGreaterThan(0);
+  expect(fills(item.svg)).toEqual(Array(count).fill("FFFFFF"));
+  expect(fills(item.svg.replace(rect, (r) => r.replace("#ffffff", "#ff0000")))).toEqual(
+    Array(count).fill("FF0000"),
+  );
+  const unboxed = item.svg.replace(rect, "");
+  expect(unboxed).toContain('mask="url(#');
+  expect(fills(unboxed)).toEqual(Array(count).fill("FFFFFF"));
+  expect(fills(unboxed.replace(/ mask="url\(#[^"]*\)"/g, ""))).toEqual(Array(count).fill("none"));
+});

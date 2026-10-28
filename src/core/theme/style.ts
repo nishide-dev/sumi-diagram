@@ -59,6 +59,8 @@ export interface EdgeStyle extends CommonStyle {
   /**
    * Background of the edge's label (D2 `style.fill` on a connection, #31). D2
    * draws it as a padded box behind the label; `transparent` draws nothing.
+   * The structured writer only uses it as a switch: its box takes the color
+   * painted beneath the label (#170).
    */
   readonly fill: Color;
   /** Whether arrowheads are filled. */
