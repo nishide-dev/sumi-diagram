@@ -12,10 +12,10 @@
 import { type core, z } from "zod";
 import { type Diagnostic, type DocPath, didYouMean, formatDocPath } from "../diagnostics";
 import { errorAt } from "../figure/report";
-import { ID_PATTERN } from "../figure/schema";
+import { ID_PATTERN, type LayoutDensity } from "../figure/schema";
 import type { Locator } from "../figure/yaml";
 import type { Result } from "../result";
-import { type Length, parseLength } from "../units";
+import { formatLength, type Length, parseLength } from "../units";
 
 export const PROFILE_FORMAT_VERSION = 1;
 
@@ -62,6 +62,17 @@ export const STRUCTURED_DEFAULTS = {
   nodePaddingY: "3.5pt",
 } as const;
 
+/**
+ * Defaults of the compact structured spacing (#182, design doc §6.55): the
+ * paper profiles' values for `figure.layout.density: compact`.
+ */
+export const COMPACT_DEFAULTS = {
+  arrangeGap: "2.5mm",
+  groupPadding: "6pt",
+  nodePaddingX: "7pt",
+  nodePaddingY: "1.5pt",
+} as const;
+
 export const ProfileSchema = z.strictObject({
   version: z.literal(PROFILE_FORMAT_VERSION),
   id: z.string().regex(ID_PATTERN),
@@ -101,11 +112,44 @@ export const ProfileSchema = z.strictObject({
     nodePaddingX: lengthField("non-negative").prefault(STRUCTURED_DEFAULTS.nodePaddingX),
     /** Structured layout: space between a node's label and its shape, top and bottom. */
     nodePaddingY: lengthField("non-negative").prefault(STRUCTURED_DEFAULTS.nodePaddingY),
+    /**
+     * Structured layout: the four values above for a figure with
+     * `figure.layout.density: compact` (#182, design doc §6.55). Each must be
+     * at most its normal value; omitted means {@link COMPACT_DEFAULTS}, each
+     * capped at its normal value.
+     */
+    compact: z
+      .strictObject({
+        arrangeGap: lengthField("non-negative"),
+        groupPadding: lengthField("non-negative"),
+        nodePaddingX: lengthField("non-negative"),
+        nodePaddingY: lengthField("non-negative"),
+      })
+      .optional(),
   }),
 });
 
+type ParsedProfile = z.output<typeof ProfileSchema>;
+
+/** The structured spacing that `figure.layout.density: compact` selects. */
+export type CompactSpacing = NonNullable<ParsedProfile["layout"]["compact"]>;
+
 /** A validated profile with every length normalized to pt. */
-export type Profile = z.output<typeof ProfileSchema>;
+export type Profile = Omit<ParsedProfile, "layout"> & {
+  layout: Omit<ParsedProfile["layout"], "compact"> & { compact: CompactSpacing };
+};
+
+const COMPACT_KEYS = ["arrangeGap", "groupPadding", "nodePaddingX", "nodePaddingY"] as const;
+
+/** `a <= b`, compared exactly (as the written decimals). */
+const atMost = (a: Length, b: Length): boolean =>
+  a.exactPt.num * b.exactPt.den <= b.exactPt.num * a.exactPt.den;
+
+function defaultLength(text: string): Length {
+  const parsed = parseLength(text);
+  if (!parsed.ok) throw new Error(`internal error: invalid default length ${text}`);
+  return parsed.length;
+}
 
 /** A profile definition as written (lengths as strings such as `"88mm"`). */
 export type ProfileDefinition = z.input<typeof ProfileSchema>;
@@ -125,12 +169,43 @@ export function validateProfile(
 ): Result<Profile> {
   const locate = options.locate ?? (() => undefined);
   const parsed = ProfileSchema.safeParse(raw);
-  if (parsed.success) return { ok: true, value: parsed.data, diagnostics: [] };
+  if (parsed.success) return withCompact(parsed.data, locate);
   // Every issue maps to an error, so the result always fails.
   return {
     ok: false,
     diagnostics: parsed.error.issues.flatMap((i) => toDiagnostics(i, raw, locate)),
   };
+}
+
+/**
+ * Completes `layout.compact` (#182, design doc §6.55): a written value larger
+ * than its normal value is `profile/invalid-value` (compact never spaces a
+ * figure out more); an omitted set is {@link COMPACT_DEFAULTS}, each capped
+ * at the profile's normal value.
+ */
+function withCompact(parsed: ParsedProfile, locate: Locator): Result<Profile> {
+  const { layout } = parsed;
+  if (layout.compact === undefined) {
+    const compact = Object.fromEntries(
+      COMPACT_KEYS.map((key) => {
+        const fallback = defaultLength(COMPACT_DEFAULTS[key]);
+        return [key, atMost(fallback, layout[key]) ? fallback : layout[key]];
+      }),
+    ) as CompactSpacing;
+    return { ok: true, value: { ...parsed, layout: { ...layout, compact } }, diagnostics: [] };
+  }
+  const { compact } = layout;
+  const diagnostics = COMPACT_KEYS.filter((key) => !atMost(compact[key], layout[key])).map((key) =>
+    errorAt(
+      locate,
+      "profile/invalid-value",
+      `layout.compact.${key}: ${formatLength(compact[key])} is larger than layout.${key} (${formatLength(layout[key])}); the compact spacing must not exceed the normal spacing.`,
+      ["layout", "compact", key],
+      { hint: `Use at most ${formatLength(layout[key])}, or omit layout.compact.` },
+    ),
+  );
+  if (diagnostics.length > 0) return { ok: false, diagnostics };
+  return { ok: true, value: { ...parsed, layout: { ...layout, compact } }, diagnostics: [] };
 }
 
 function toDiagnostics(issue: core.$ZodIssue, raw: unknown, locate: Locator): Diagnostic[] {
@@ -226,4 +301,16 @@ function valueAt(value: unknown, path: DocPath): unknown {
 function typeName(expected: string): string {
   if (expected === "object") return "a mapping";
   return `a ${expected}`;
+}
+
+/**
+ * The profile a structured figure is laid out with (#182, design doc §6.55):
+ * `profile` itself, or for `density: compact` a copy whose structured
+ * spacing (`arrangeGap`, `groupPadding`, `nodePaddingX` / `nodePaddingY`) is
+ * `layout.compact`. Page limits, margin, typography and the auto engine's
+ * values are unchanged.
+ */
+export function spacedProfile(profile: Profile, density: LayoutDensity | undefined): Profile {
+  if (density !== "compact") return profile;
+  return { ...profile, layout: { ...profile.layout, ...profile.layout.compact } };
 }

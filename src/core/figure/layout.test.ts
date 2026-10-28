@@ -230,6 +230,48 @@ describe("figure.layout.fanIn (#134)", () => {
   });
 });
 
+describe("figure.layout.density (#182)", () => {
+  const structured = (density: string) =>
+    figure(
+      `  layout:\n    density: ${density}\n    arrange: { stack: { items: [a] } }\nnodes:\n  - { id: a, component: box }\n`,
+    );
+
+  test("is kept as written, and absent when omitted", () => {
+    const parsed = parseFigure(structured("compact"));
+    expect(parsed.diagnostics).toEqual([]);
+    expect(parsed.ok && parsed.value.figure.layout.density).toBe("compact");
+    const omitted = parseFigure(
+      figure(
+        "  layout:\n    arrange: { stack: { items: [a] } }\nnodes:\n  - { id: a, component: box }\n",
+      ),
+    );
+    expect(omitted.ok && "density" in omitted.value.figure.layout).toBe(false);
+    const compiled = compileFigure(structured("compact"));
+    expect(compiled.ok && compiled.value.ir.meta.density).toBe("compact");
+    const normal = compileFigure(structured("normal"));
+    expect(normal.ok && normal.value.ir.meta.density).toBe("normal");
+  });
+
+  test("an unknown value is a positioned schema error naming the values", () => {
+    const text = structured("tight");
+    expect(check(text)).toEqual([["schema/invalid-value", ["figure", "layout", "density"], 5, 14]]);
+    const [d] = checkFigureSource(text).state.diagnostics;
+    expect(d?.message).toContain('"normal"');
+    expect(d?.message).toContain('"compact"');
+  });
+
+  test("needs the structured engine, with either value", () => {
+    for (const value of ["normal", "compact"]) {
+      const text = figure(
+        `  layout:\n    density: ${value}\nnodes:\n  - { id: a, component: box }\n`,
+      );
+      expect(check(text)).toEqual([
+        ["layout/structured-only", ["figure", "layout", "density"], 5, 5],
+      ]);
+    }
+  });
+});
+
 describe("placement", () => {
   const base = (arrange: string, rest: string) =>
     figure(`  layout:\n    arrange: ${arrange}\n${rest}`);

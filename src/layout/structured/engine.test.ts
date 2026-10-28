@@ -104,6 +104,59 @@ describe("stack and row", () => {
     expect(rectOf(layout, "a").width).toBe(64);
   });
 
+  describe("figure.layout.density: compact (#182)", () => {
+    /** 2.5mm (the paper profiles' compact arrange gap) in units. */
+    const COMPACT_GAP = (2.5 / 25.4) * 72 * 2;
+    const dense = (density: "compact" | "normal", arrange: unknown, groups: unknown[] = []) =>
+      stringify({
+        version: 1,
+        figure: { id: "t", layout: { density, arrange } },
+        groups,
+        nodes: [box("a"), box("b", "ABCD")],
+      });
+
+    test("takes the profile's compact gap, node padding and group padding", () => {
+      // "A": 8 × 20 label; padding 7pt (14 units) left and right as before,
+      // 1.5pt (3 units) above and below instead of 3.5pt → 36 × 26.
+      const layout = layoutOf(dense("compact", { stack: { items: ["a", "b"] } }));
+      expect(rectOf(layout, "a")).toEqual({ x: 23, y: 11, width: 36, height: 26 });
+      const b = rectOf(layout, "b");
+      expect(b).toMatchObject({ x: 11, width: 60, height: 26 });
+      close(b.y, 11 + 26 + COMPACT_GAP);
+      // A group's padding is 6pt (12 units) on every side instead of 8pt.
+      const grouped = layoutOf(
+        dense("compact", { stack: { items: ["g"] } }, [
+          { id: "g", arrange: { row: { gap: 0, items: ["a", "b"] } } },
+        ]),
+      );
+      expect(rectOf(grouped, "g")).toEqual({ x: 11, y: 11, width: 96 + 24, height: 26 + 24 });
+    });
+
+    test("normal is the same as omitting it, and a written gap wins", () => {
+      const arrange = { stack: { items: ["a", "b"] } };
+      const omitted = layoutOf(
+        stringify({
+          version: 1,
+          figure: { id: "t", layout: { arrange } },
+          nodes: [box("a"), box("b", "ABCD")],
+        }),
+      );
+      expect(layoutOf(dense("normal", arrange))).toEqual(omitted);
+      const written = layoutOf(dense("compact", { stack: { gap: "4mm", items: ["a", "b"] } }));
+      close(rectOf(written, "b").y, 11 + 26 + GAP);
+    });
+
+    test("the presentation profile's compact set is the paper set doubled", () => {
+      const profile = getProfile("presentation-16x9");
+      const layout = layoutOf(
+        dense("compact", { row: { items: ["a", "b"] } }),
+        profile === undefined ? {} : { profile },
+      );
+      close(rectOf(layout, "b").x - rectOf(layout, "a").x, 64 + 2 * COMPACT_GAP);
+      expect(rectOf(layout, "a")).toMatchObject({ width: 64, height: 32 });
+    });
+  });
+
   test.each([
     ["start", 11],
     ["center", 21],

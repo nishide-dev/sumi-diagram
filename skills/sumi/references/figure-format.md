@@ -19,6 +19,7 @@ figure:                    # required
     direction: down        # optional: right (default) | down | left | up
     # arrange: …           # optional: switches to the structured layout (structured.md)
     # align: […]¹, fanIn: merge | spread¹   (structured.md)
+    # density: compact¹    # optional (0.6.0): tighter default gaps and padding (layout-tips)
 groups: []                 # optional
 nodes: []                  # optional (an empty figure gets a lint warning)
 edges: []                  # optional
@@ -545,7 +546,7 @@ preserved by `sumi fmt`.
 | `$\alpha_1$` (math with a command, `_` or `^`) in an auto figure | `component/unsupported-in-auto` (warning; `$x$` gets none but is drawn with its `$`) | use the structured layout, or plain text |
 | `label:` and `icon:` on one node | `asset/icon-with-label` | keep one; put the text in an attached `label` node |
 | `toAnchor: west` in an auto figure | `layout/structured-only` | remove it, or switch to the structured layout |
-| edge `labelAt`, `align`, `fanIn` or a `legend` in an auto figure | `layout/structured-only` | remove it, or switch to the structured layout (group `labelAt` and `caption` are fine) |
+| edge `labelAt`, `align`, `fanIn`, `density` or a `legend` in an auto figure | `layout/structured-only` | remove it, or switch to the structured layout (group `labelAt` and `caption` are fine) |
 | `labelAt: top-center` on a group, `labelAt: end` on a group | `schema/invalid-value` | group: `top-left`, `top`, `top-right`, `bottom-left`, `bottom`, `bottom-right`; edge: `start`, `middle`, `end` |
 | `labelSide: above` / `north` on an edge | `schema/invalid-value` | `left` or `right`, relative to the direction of travel |
 | `'$\widehat{xy}$'`, `'$\hat{xy}$'` | `component/invalid-math` | one character per accent: `'$\hat{x}\hat{y}$'`, or another notation |

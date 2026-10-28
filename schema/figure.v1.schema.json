@@ -81,6 +81,14 @@
                 "merge",
                 "spread"
               ]
+            },
+            "density": {
+              "description": "compact: the profile's tighter default gap, group padding and node padding, for dense paper figures (usually with fit: scale); gaps written in the figure stay as written. Omitted means normal (structured layout only).",
+              "type": "string",
+              "enum": [
+                "normal",
+                "compact"
+              ]
             }
           },
           "additionalProperties": false
