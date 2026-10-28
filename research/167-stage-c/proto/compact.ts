@@ -52,19 +52,38 @@ const low = validateProfile({
 });
 if (!low.ok) throw new Error(JSON.stringify(low.diagnostics));
 (BUILTIN_PROFILES as Map<string, Profile>).set("paper-double-lowmin", low.value);
+// Compact spacing: half the node and group padding (the references pack
+// one-line boxes with little air; DiT's blocks are about 2.2× their text height).
+const compact = validateProfile({
+  ...structuredClone(double),
+  id: "paper-double-compact",
+  typography: { minFontSize: "5pt" },
+  layout: {
+    ...(structuredClone(double) as { layout: Record<string, string> }).layout,
+    groupPadding: "4pt",
+    nodePaddingX: "3.5pt",
+    nodePaddingY: "1.5pt",
+  },
+});
+if (!compact.ok) throw new Error(JSON.stringify(compact.diagnostics));
+(BUILTIN_PROFILES as Map<string, Profile>).set("paper-double-compact", compact.value);
+const CASES = [
+  ...SIZES.map((s) => ({ ...s, profile: "paper-double-lowmin" })),
+  { ...SIZES[2], profile: "paper-double-compact" },
+];
 
 const results: Record<string, unknown> = {};
 for (const name of ["b-dit", "c-h3world"]) {
   const file = join(HERE, "figures", `${name}.sumi.yaml`);
   const text = readFileSync(file, "utf8");
   const rows: unknown[] = [];
-  for (const s of SIZES) {
+  for (const s of CASES) {
     const variant = text
       .replace(/theme: color\b/, `theme: ${s.id}`)
-      .replace(/profile: paper-double\b/, "profile: paper-double-lowmin");
+      .replace(/profile: paper-double\b/, `profile: ${s.profile}`);
     const r = await renderFigure(variant, { assetBase: dirname(file) });
     if (!r.ok) {
-      rows.push({ theme: s.id, error: r.diagnostics.map((d) => d.code) });
+      rows.push({ theme: s.id, profile: s.profile, error: r.diagnostics.map((d) => d.code) });
       continue;
     }
     const m = /width="([\d.]+)pt" height="([\d.]+)pt"/.exec(r.value.svg);
@@ -73,11 +92,13 @@ for (const name of ["b-dit", "c-h3world"]) {
     const scale = Math.min(1, 180 / widthMm);
     rows.push({
       theme: s.id,
+      profile: s.profile,
       text: s.text,
       edgeText: s.small,
       widthMm: Math.round(widthMm * 10) / 10,
       heightMm: Math.round(heightMm * 10) / 10,
       fits180: widthMm <= 180,
+      heightAfterScaleMm: Math.round(heightMm * scale * 10) / 10,
       scaleToFit: Math.round(scale * 1000) / 1000,
       textAfterScalePt: Math.round(Number.parseFloat(s.text) * scale * 10) / 10,
       edgeTextAfterScalePt: Math.round(Number.parseFloat(s.small) * scale * 10) / 10,

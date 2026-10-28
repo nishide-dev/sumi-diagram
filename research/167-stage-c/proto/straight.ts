@@ -58,15 +58,14 @@ const CASES: readonly Case[] = [
     ],
   },
   {
-    name: "b-dit (panel 1 inputs, panel 4 inputs)",
+    name: "b-dit (panel 1 inputs, panel 4 tokens)",
     file: join(HERE, "figures/b-dit.sumi.yaml"),
     pairs: [
       ["patchify", "dit-block"],
       ["embed", "dit-block"],
       ["timestep", "embed"],
-      ["class-label", "embed"],
+      ["noised", "patchify"],
       ["i-tokens", "i-concat"],
-      ["i-cond", "i-concat"],
     ],
   },
   {

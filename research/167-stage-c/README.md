@@ -2,7 +2,9 @@
 
 [調査メモ](../../docs/research/167-stage-c.md)、[Issue #167](https://github.com/nishide-dev/sumi-diagram/issues/167)。関連: #80（ロードマップ）、#86（[論文図の調査](../../docs/research/86-paper-figures.md)）、#124（[段階 B](../../docs/research/124-stage-b.md)）、#151（[v0.5 の dogfooding](../151-dogfood-v0.5/README.md)）。
 
-製品の `src/`・schema・examples・golden・テストは変更しない。ここのコードは製品の `src/` を読むだけ（import）で、製品のコードはこのディレクトリを参照しない。元の論文の図そのもの（画素・文章）はリポジトリに入れていない。
+製品の `src/`・schema・examples・golden・テストは変更しない。ここのコードは製品の `src/` を読むだけ（import）で、製品のコードはこのディレクトリを参照しない。
+
+基準の図（Transformer: arXiv 1706.03762v7 Fig. 1、DiT: arXiv 2212.09748v2 Fig. 3、H3-World: 利用者自身の未公開の図）は、手元で描いた PNG と並べて比べたが、原図そのもの・切り出し・文言はリポジトリに入れていない。
 
 ## 固定した基点
 
@@ -20,17 +22,17 @@ D2 は使わない（3 図とも structured）。環境: macOS 26.2 / arm64。
 
 | パス | 内容 |
 | --- | --- |
-| `figures/a-transformer.sumi.yaml` | 図 A: Transformer（Vaswani et al. 2017, Fig. 1）を今の構文で、原図にできるだけ近く描いたもの。`color`、`paper-single` |
-| `figures/b-dit.sumi.yaml` | 図 B: DiT（Peebles & Xie 2023, Fig. 3）の 4 パネル全体（adaLN-Zero の拡大を含む）。`color`、`paper-double` |
-| `figures/c-h3world.sumi.yaml` | 図 C: H3-World 系の概要図（#86 の草案 `ideal/c-h3world.sumi.yaml` の構造）。**`gen-c.ts` が生成**（キー・トークン列・行列をノードで書き下すため） |
-| `figures/assets/` | この調査のために作った仮の画像（ImageMagick の plasma / noise。各 4KB 未満）。原論文の画素ではない |
+| `figures/a-transformer.sumi.yaml` | 図 A: Transformer を今の構文で、原図にできるだけ近く描いたもの。`color`、`paper-single` |
+| `figures/b-dit.sumi.yaml` | 図 B: DiT の 4 パネル全体（拡大線の代用、3・4 番目の薄表示を `variant: muted` で近似）。`color`、`paper-double` |
+| `figures/c-h3world.sumi.yaml` | 図 C: H3-World の概要図（#86 の草案から始め、利用者の図に合わせた）。**`gen-c.ts` が生成**（キー・トークン列・行列をノードで書き下すため） |
+| `figures/assets/` | この調査のために作った仮のフレーム画像 5 点（ImageMagick の plasma。各 2KB 未満）。原図の画素ではない |
 | `gen-c.ts` | 図 C の生成スクリプト。部品がないためにノードを何個書くかを測る目的も兼ねる |
 | `render.sh` | 1 回分の手順: `fmt → lint --geometry → render（SVG・PDF）→ pdftoppm → 64 色に減色した previews/*.png` |
 | `bisect.ts` | 構造的な図の根の項目を一部だけ残す（不具合の切り分け用） |
 | `repro/operator-loop.sumi.yaml` | 不具合 R1 の最小再現（50mm ずらすと ⊕ の周りを線が一周する。49mm・51mm では起きない） |
 | `proto/straight.ts` | 試作 P1: 送り元の真上（真横）で入る端（#151 C1）と、端の小さなずれ（R1）の影響。結果は `results/straight.json` |
 | `proto/rotate.ts` | 試作 P2: 回転した文字（`labelRotation`）が inspect・PDF・抽出でどうなるか。結果は `results/rotate.json` |
-| `proto/compact.ts` | 試作 P3: B・C が 180mm に収まる文字の大きさと、縮小（scale-to-fit）した場合の実効の文字の大きさ。結果は `results/compact.json` |
+| `proto/compact.ts` | 試作 P3: 文字の大きさ・余白（compact）を変えたときの B・C の大きさと、180mm に縮小した場合の高さ・実効の文字の大きさ。結果は `results/compact.json` |
 | `previews/*.png` | 3 図の最終版（200dpi、64 色）、再現・試作・細部の切り出し。各 150KB 未満 |
 
 ## 再現
