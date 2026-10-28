@@ -6,7 +6,14 @@ import { checkFigure } from "../../core/check";
 import { layoutStructuredFigure } from "../index";
 import type { LayoutIR, Rect } from "../ir";
 import type { TextMeasurer } from "../text";
-import { ALIGN_EPSILON, converged, MAX_ALIGN_ROUNDS } from "./align";
+import {
+  ALIGN_EPSILON,
+  ALIGN_GROWTH_MM,
+  ALIGN_GROWTH_RATIO,
+  converged,
+  grewFigure,
+  MAX_ALIGN_ROUNDS,
+} from "./align";
 import { layoutStructured, type PlacedStructured, placeStructured } from "./engine";
 
 const fixtures = `${import.meta.dir}/../../../tests/fixtures`;
@@ -149,7 +156,8 @@ describe("solving", () => {
         ],
       ),
     );
-    expect(placed.diagnostics).toEqual([]);
+    // Moving left down grows the figure; that is the info, not a warning.
+    expect(placed.diagnostics.filter((d) => d.severity !== "info")).toEqual([]);
     expect(placed.align?.residuals).toEqual([0]);
     expect(Object.keys(placed.align?.struts ?? {})).toEqual([strut]);
   });
@@ -347,6 +355,163 @@ describe("solving", () => {
   });
 });
 
+describe("the figure's growth (#155)", () => {
+  const MM = 0.5 * (25.4 / 72);
+
+  test("on a tie, the candidate that keeps the canvas smaller wins", () => {
+    // #151 A2: a junction alone in its stack, y-aligned with a gateway deep in
+    // a taller branch of a center-aligned row. A lead above the gateway's
+    // branch and a trail after the junction close half the shortfall each, so
+    // the totals tie every round; the lead grows the branch (and the figure),
+    // the trail only grows the junction's short stack.
+    const text = figure(
+      {
+        align: [{ y: ["join", "gateway"] }],
+        arrange: {
+          row: {
+            gap: "5mm",
+            align: "center",
+            items: [
+              "clients",
+              { stack: { items: ["join"] } },
+              { stack: { gap: "6mm", items: ["platform", "storage"] } },
+            ],
+          },
+        },
+      },
+      [
+        { id: "join", component: "junction", variant: "hidden" },
+        box("web", "Web app"),
+        box("sdk", "Python SDK"),
+        box("gateway", "Gateway"),
+        box("s1", "S1"),
+        box("s2", "S2"),
+        box("worker", "Worker"),
+        box("db", "DB"),
+      ],
+      [
+        {
+          id: "clients",
+          label: "Clients",
+          arrange: { stack: { gap: "3mm", items: ["web", "sdk"] } },
+        },
+        {
+          id: "platform",
+          label: "ML platform",
+          arrange: { stack: { gap: "6mm", items: ["api", "worker"] } },
+        },
+        {
+          id: "api",
+          label: "API tier",
+          arrange: {
+            row: {
+              gap: "6mm",
+              align: "center",
+              items: ["gateway", { stack: { gap: "4mm", items: ["s1", "s2"] } }],
+            },
+          },
+        },
+        { id: "storage", label: "Storage", arrange: { row: { items: ["db"] } } },
+      ],
+    );
+    const placed = place(text);
+    const plain = layoutStructured({ ...irOf(text), align: [] }, { measurer: FAKE });
+    expect(placed.diagnostics).toEqual([]);
+    expect(converged(placed.align?.residuals ?? [1])).toBe(true);
+    // The junction's stack took the space (a lead within a canvas unit may
+    // tie on the whole-unit canvas): the figure is as large as without align.
+    const struts = placed.align?.struts ?? {};
+    expect(struts["trail n:join"]).toBeGreaterThan(100);
+    expect(struts["lead g:api"] ?? 0).toBeLessThan(1);
+    expect(placed.layout.canvas).toEqual(plain.canvas);
+    expect(
+      Math.abs(centerY(rectOf(placed.layout, "join")) - centerY(rectOf(placed.layout, "gateway"))),
+    ).toBeLessThanOrEqual(ALIGN_EPSILON);
+  });
+
+  test("a notable growth is an info with the sizes before and after", () => {
+    // c is at the top of its stack and b far down the other: only a lead
+    // before c meets the constraint, and it pushes c and d down.
+    const text = figure(
+      {
+        arrange: {
+          row: {
+            align: "start",
+            items: [
+              { stack: { gap: "30mm", items: ["a", "b"] } },
+              { stack: { gap: "30mm", items: ["c", "d"] } },
+            ],
+          },
+        },
+        align: [{ y: ["b", "c"] }],
+      },
+      ["a", "b", "c", "d"].map((id) => box(id)),
+    );
+    const placed = place(text);
+    const plain = layoutStructured({ ...irOf(text), align: [] }, { measurer: FAKE });
+    expect(placed.align?.residuals).toEqual([0]);
+    expect(placed.diagnostics).toHaveLength(1);
+    const [d] = placed.diagnostics;
+    expect(d?.code).toBe("layout/align-grew-figure");
+    expect(d?.severity).toBe("info");
+    expect(d?.path).toEqual(["figure", "layout", "align"]);
+    expect(d?.subject).toEqual({ kind: "figure", id: "t" });
+    const before = (plain.canvas.height * MM).toFixed(2);
+    const after = (placed.layout.canvas.height * MM).toFixed(2);
+    const grown = (Number(after) - Number(before)).toFixed(2);
+    expect(d?.message).toMatch(/^figure\.layout\.align made the figure /);
+    expect(d?.message).toContain(`${grown}mm taller (height ${before}mm → ${after}mm, +`);
+    expect(d?.message).not.toContain("wider");
+    expect(Number(grown)).toBeGreaterThan(ALIGN_GROWTH_MM);
+    expect(d?.hint).toMatch(/^A strut only adds space/);
+  });
+
+  test("a small growth is not reported", () => {
+    // The side-KV fixture grows by about 4mm (3%): the usual cost of aligning.
+    const text = readFileSync(`${fixtures}/figures/layout/align-side-kv.sumi.yaml`, "utf8");
+    const placed = place(text, false);
+    const plain = layoutStructured({ ...irOf(text), align: [] });
+    const grown = (placed.layout.canvas.height - plain.canvas.height) * MM;
+    expect(grown).toBeGreaterThan(1);
+    expect(grown).toBeLessThan(ALIGN_GROWTH_MM);
+    expect(grown).toBeLessThan(ALIGN_GROWTH_RATIO * plain.canvas.height * MM);
+    expect(placed.diagnostics).toEqual([]);
+  });
+
+  describe("the thresholds (canvases in units)", () => {
+    const ir = { meta: { id: "t" } } as FigureIR;
+    const canvas = (width: number, height: number) => ({ canvas: { width, height } }) as LayoutIR;
+    const grew = (from: [number, number], to: [number, number]) =>
+      grewFigure(ir, canvas(...from), canvas(...to));
+
+    test("both bounds must be passed", () => {
+      // Over 5mm but under 10%: 1000 → 1040 units is +7.06mm, +4%.
+      expect(40 * MM).toBeGreaterThan(ALIGN_GROWTH_MM);
+      expect(grew([200, 1000], [200, 1040])).toBeUndefined();
+      // Over 10% but under 5mm: 100 → 120 units is +3.53mm, +20%.
+      expect(20 * MM).toBeLessThan(ALIGN_GROWTH_MM);
+      expect(grew([200, 100], [200, 120])).toBeUndefined();
+      // The same sides, both bounds passed: reported.
+      expect(grew([200, 100], [200, 140])?.code).toBe("layout/align-grew-figure");
+    });
+
+    test("width growth", () => {
+      // 200 → 260 units: 35.28mm → 45.86mm.
+      const d = grew([200, 300], [260, 300]);
+      expect(d?.message).toBe(
+        "figure.layout.align made the figure 10.58mm wider (width 35.28mm → 45.86mm, +30%) than the layout without it.",
+      );
+    });
+
+    test("both sides in one info", () => {
+      const d = grew([200, 300], [260, 400]);
+      expect(d?.message).toBe(
+        "figure.layout.align made the figure 10.58mm wider (width 35.28mm → 45.86mm, +30%) and 17.64mm taller (height 52.92mm → 70.56mm, +33%) than the layout without it.",
+      );
+    });
+  });
+});
+
 describe("layout/unsatisfied-align", () => {
   const nodes = ["a", "b", "c", "d"].map((id) => box(id));
 
@@ -495,7 +660,9 @@ describe("random constraints", () => {
       const stats = placed.align;
       expect(stats?.rounds).toBeLessThanOrEqual(MAX_ALIGN_ROUNDS);
       const unmet = (stats?.residuals ?? []).filter((r) => r > ALIGN_EPSILON).length;
-      expect(placed.diagnostics).toHaveLength(unmet);
+      expect(placed.diagnostics.filter((d) => d.code !== "layout/align-grew-figure")).toHaveLength(
+        unmet,
+      );
       for (const i of [0, 2, 4]) {
         const top = rectOf(placed.layout, middle[i] as string);
         const bottom = rectOf(placed.layout, middle[i + 1] as string);
