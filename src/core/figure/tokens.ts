@@ -100,8 +100,8 @@ export interface TokensCellExpansion {
   /**
    * Where each field of the cell's node is written, by its path relative
    * to the node (`label`, `tone`, `component`, `variant`, `props.width`,
-   * `props.height`): the cell's own field, or the tokens' default it
-   * inherits. See {@link tokensCellPath}.
+   * `props.height`, and `props` for the size as a whole): the cell's own
+   * field, or the tokens' default it inherits. See {@link tokensCellPath}.
    */
   fields: Readonly<Record<string, DocPath>>;
 }
@@ -335,6 +335,16 @@ export function expandTokens(state: CheckState, registry: Registry, locate: Loca
         variant: own("variant", [...propsPath, "variant"]),
         "props.width": own("width", [...propsPath, "width"]),
         "props.height": own("height", [...propsPath, "height"]),
+        // The size as a whole (e.g. a label that overflows it): the cell when
+        // it gives a size of its own, otherwise the size it inherits.
+        props:
+          cell.width !== undefined || cell.height !== undefined
+            ? path
+            : props.width !== undefined
+              ? [...propsPath, "width"]
+              : props.height !== undefined
+                ? [...propsPath, "height"]
+                : path,
       };
       const id = tokensCellId(node.id, cellKey);
       const width = cell.width ?? props.width;
@@ -617,17 +627,32 @@ export function nodeOrder(doc: PartialFigure): number[] {
  * path is returned unchanged.
  */
 export function tokensCellPath(doc: PartialFigure, path: DocPath): DocPath {
-  for (const expansion of doc.tokens ?? []) {
-    for (const cell of expansion.cells) {
-      const n = cell.path.length;
-      if (path.length <= n || !cell.path.every((p, i) => path[i] === p)) continue;
-      const rest = path.slice(n);
-      const [first, second] = rest;
-      const props = first === "props" && typeof second === "string";
-      const field = props ? cell.fields[`props.${second}`] : cell.fields[String(first)];
-      if (field === undefined) return path;
-      return [...field, ...rest.slice(props ? 2 : 1)];
-    }
+  return cellFieldPath(
+    (doc.tokens ?? []).flatMap((t) => t.cells),
+    path,
+  );
+}
+
+/** Where a cell is written and where each field of its node is (see {@link TokensCellExpansion}). */
+export interface CellFields {
+  readonly path: DocPath;
+  readonly fields: Readonly<Record<string, DocPath>>;
+}
+
+/**
+ * {@link tokensCellPath} over the given cells: also used by the geometry
+ * lint, which has the cells' fields from the figure IR.
+ */
+export function cellFieldPath(cells: Iterable<CellFields>, path: DocPath): DocPath {
+  for (const cell of cells) {
+    const n = cell.path.length;
+    if (path.length <= n || !cell.path.every((p, i) => path[i] === p)) continue;
+    const rest = path.slice(n);
+    const [first, second] = rest;
+    const props = first === "props" && typeof second === "string";
+    const field = props ? cell.fields[`props.${second}`] : cell.fields[String(first)];
+    if (field === undefined) return path;
+    return [...field, ...rest.slice(props ? 2 : 1)];
   }
   return path;
 }

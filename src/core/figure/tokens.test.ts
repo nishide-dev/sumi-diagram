@@ -235,7 +235,7 @@ describe("the figure IR and lint (#181)", () => {
     expect(check.state.diagnostics).toEqual([]);
     const ir = buildFigureIR(check);
     const cell = ir.elements.get(nodeKey("seq-x")) as NodeIR;
-    expect(cell.tokens).toEqual({
+    expect(cell.tokens).toMatchObject({
       id: "seq",
       variant: "default",
       name: 'cell "x" of tokens "seq"',

@@ -214,3 +214,39 @@ ${nodes}
     expect(await order(tokens)).toEqual(expected);
   });
 });
+
+describe("geometry findings about a cell point at its written fields (#181)", () => {
+  const findings = async (props: string) => {
+    const text = `version: 1
+figure:
+  id: overflow
+  layout: { arrange: { row: { items: [seq] } } }
+nodes:
+  - { id: seq, component: tokens, props: ${props} }
+`;
+    const report = await lintRenderedFigure(text, {});
+    return report.diagnostics
+      .filter((d) => d.code === "geometry/label-overflow")
+      .map((d) => ({
+        path: d.path,
+        line: d.location?.line,
+        column: d.location?.column,
+        related: d.related?.map((r) => r.path),
+      }));
+  };
+
+  test("an inherited size: the tokens' width; a string cell's label: the string", async () => {
+    const [finding] = await findings("{ width: 10pt, height: 10pt, cells: [ABCDEFGHIJK] }");
+    expect(finding?.path).toEqual(["nodes", 0, "props", "width"]);
+    expect(finding?.line).toBe(6);
+    expect(finding?.related).toEqual([["nodes", 0, "props", "cells", 0]]);
+  });
+
+  test("a size of the cell's own: the cell", async () => {
+    const [finding] = await findings(
+      "{ cells: [{ label: ABCDEFGHIJK, width: 10pt, height: 10pt }] }",
+    );
+    expect(finding?.path).toEqual(["nodes", 0, "props", "cells", 0]);
+    expect(finding?.related).toEqual([["nodes", 0, "props", "cells", 0, "label"]]);
+  });
+});

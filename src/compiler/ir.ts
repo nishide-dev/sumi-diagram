@@ -168,6 +168,12 @@ export interface TokensCellIR {
   /** The tokens node's variant. */
   readonly variant: string;
   readonly name: string;
+  /**
+   * Where each field of the cell's node is written, by its path relative to
+   * the node (see `TokensCellExpansion.fields`), so that diagnostics about
+   * the cell point at the written field.
+   */
+  readonly fields: Readonly<Record<string, DocPath>>;
 }
 
 /** See {@link ElementIRBase.legend}. */
@@ -683,8 +689,10 @@ function tokensCellOf(doc: PartialFigure, key: ElementKey): { tokens?: TokensCel
   const origin = doc.expanded?.get(key);
   if (origin?.from !== "tokens") return {};
   const id = origin.subject.id;
-  const variant = doc.tokens?.find((t) => t.id === id)?.variant ?? "default";
-  return { tokens: freeze({ id, variant, name: origin.name }) };
+  const expansion = doc.tokens?.find((t) => t.id === id);
+  const variant = expansion?.variant ?? "default";
+  const fields = expansion?.cells.find((c) => nodeKey(c.id) === key)?.fields ?? {};
+  return { tokens: freeze({ id, variant, name: origin.name, fields: freeze({ ...fields }) }) };
 }
 
 function componentOf(state: CheckState, key: ElementKey): ResolvedComponent {
