@@ -70,9 +70,9 @@ function diagnosticsOf(stdout: string): Diagnostic[] {
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
 mkdirSync(previews, { recursive: true });
-// The copy that is rendered: the same files, `requires` removed only if this Sumi predates it.
+// Only a Sumi older than 0.6.0 needs a copy (the same files, `requires` removed); it is
+// made on the first figure that stops at the version gate.
 const copy = join(out, "figures");
-cpSync(join(here, "figures"), copy, { recursive: true });
 
 let failed = false;
 for (const name of FIGURES) {
@@ -88,6 +88,7 @@ for (const name of FIGURES) {
     if (lintDiagnostics.length !== 1) {
       throw new Error(`${name}: lint reports more than the version gate:\n${lint.stdout}`);
     }
+    if (!existsSync(copy)) cpSync(join(here, "figures"), copy, { recursive: true });
     target = join(copy, `${name}.sumi.yaml`);
     writeFileSync(target, source.replace(/^requires: .*\n/m, ""));
     console.log(

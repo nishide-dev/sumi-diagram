@@ -130,11 +130,13 @@ it draws its own border; `variant: plain` hides it), or place the other end besi
 `row` with `align: stretch`: every group grows to the tallest, so the
 captions sit on one line. A panel drawn without a frame next to framed
 ones is a group with `variant: plain` and a `caption`, not a stack with a
-`label` node under it (a stack does not stretch, so its "caption" would
-not line up). A stretched group keeps its own tree at the top and leaves
-the extra height empty below it; to sit the content at the bottom (inputs
-on one line across panels), make the group's tree a `row` with
-`align: end` around the stack:
+`label` node under it (the stack grows too, but its items, the label
+included, are centred in the extra height, so that "caption" does not
+line up with the others). Inside a stretched group the tree is likewise
+**centred vertically**: the extra height is split above and below the
+content. To sit the content at the bottom (inputs on one line across
+panels), make the group's tree a `row` with `align: end` around the stack
+(the row grows to the group's height and puts the stack at its bottom):
 `arrange: { row: { align: end, items: [ { stack: { direction: up, items: […] } } ] } }`
 ([example 6](examples.md#6-success-a-paper-figure)).
 

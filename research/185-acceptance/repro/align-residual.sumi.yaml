@@ -1,10 +1,12 @@
-# #185 repro R-A: figure.layout.align leaves a 0.01mm residue and reports it as
-# layout/unsatisfied-align (warning) for align[2] (h-text / p0). The headings
-# column is centred in the root row (no align: start), so align can only push
-# column 0 down (it adds space, never removes it), which also breaks the table
-# rows (expected, see the Skill); but the third constraint ends 0.01mm short,
-# which looks like a rounding residue rather than a real conflict. The same
-# figure with the root row at align: start meets all three exactly.
+# #185 repro R-A: with the headings column centred in the root row (no
+# align: start), align can only push column 0 down (it adds space, never
+# removes it), which breaks the table rows (expected, see the Skill). The
+# third constraint align[2] (h-text / p0) then stays 0.077 layout units
+# (about 0.0136mm) apart, above the solver's 0.01-unit tolerance, so
+# layout/unsatisfied-align (warning) is a correct report ("0.01mm" is the
+# rounded message). With the root row at align: start the residuals are 0:
+# a possible convergence or search limit of the align solver when the
+# constrained items sit in a centred box, to be investigated.
 # Run: bun src/cli/index.ts lint --geometry research/185-acceptance/repro/align-residual.sumi.yaml
 version: 1
 figure:

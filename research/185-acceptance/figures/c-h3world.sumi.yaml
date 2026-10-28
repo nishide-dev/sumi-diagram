@@ -1,6 +1,6 @@
 # #185 acceptance: figure C of #167, the H3-World overview (the user's own
-# figure "Figure 3. Overview of H3-World"; not committed, its wording is not
-# quoted). Redrawn with the v0.6.0 syntax, edited by hand from
+# unpublished figure; not committed, its title and caption are not quoted).
+# Redrawn with the v0.6.0 syntax, edited by hand from
 # research/180-matrix/figures/c-h3world.sumi.yaml (no longer generated).
 # Changed: `density: compact` (#182) with the normal gaps removed (kept: the
 # small gaps between keys, tokens and frames, and the room the VAE edge and

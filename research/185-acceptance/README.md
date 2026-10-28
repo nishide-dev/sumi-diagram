@@ -2,7 +2,7 @@
 
 [Issue #185](https://github.com/nishide-dev/sumi-diagram/issues/185)。調査 [#167](../../docs/research/167-stage-c.md)（§7.2 の 18）、関連: #80（ロードマップ）、#172〜#184（v0.6.0 の各機能）。
 
-#167 の基準の 3 図を、v0.6.0 の構文（`requires: ">=0.6.0"`、`theme: paper`）で描き直し、原図と並べて比べた記録。原図そのもの・切り出し・文言はリポジトリに入れていない（Transformer: arXiv 1706.03762v7 Fig. 1、DiT: arXiv 2212.09748v2 Fig. 3、H3-World: 利用者自身の未公開の図。H3-World は見た目の特徴だけを書き、文言は引用しない）。比較は手元の原図と `previews/*.png` を並べて目で行った。
+#167 の基準の 3 図を、v0.6.0 の構文（`requires: ">=0.6.0"`、`theme: paper`）で描き直し、原図と並べて比べた記録。原図そのもの・切り出し・文言はリポジトリに入れていない（Transformer: arXiv 1706.03762v7 Fig. 1、DiT: arXiv 2212.09748v2 Fig. 3、H3-World: 利用者自身の未公開の図。H3-World は見た目の特徴だけを書き、題・キャプションは引用しない。図の中の短いラベル（Encoder の名前・パネルの題など）は #167 の版と同じく図に描いている）。比較は手元の原図と `previews/*.png` を並べて目で行った。
 
 製品の `src/`・schema・examples・golden は変更しない。
 
@@ -28,7 +28,7 @@ bun src/cli/index.ts lint --geometry research/185-acceptance/repro/align-residua
 
 環境: macOS 26.2 / arm64、Bun 1.3.14、基点 main `5dbd65f`（#172〜#184 をすべて含む）、Poppler 26.04.0、ImageMagick 7.1.2。`out/` は無視される。
 
-**`requires` について**: main の `package.json` はまだ 0.5.3（v0.6.0 のリリースの版上げは別の作業）なので、`requires: ">=0.6.0"` の図は今の CLI では `schema/unsatisfied-requires` の error 1 件で止まる。`render.ts` は、`sumi lint` の診断が**その 1 件だけ**であることを確かめたうえで、`requires` の行だけを除いた写しを `out/figures/` に作って描く。版が 0.6.0 になれば図をそのまま描く（写しは作らない）。
+**`requires` について**: main の `package.json` はまだ 0.5.3（v0.6.0 のリリースの版上げは別の作業）なので、`requires: ">=0.6.0"` の図は今の CLI では `schema/unsatisfied-requires` の error 1 件で止まる。`render.ts` は、`sumi lint` の診断が**その 1 件だけ**であることを確かめたうえで、`requires` の行だけを除いた写しを `out/figures/` に作って描く。版が 0.6.0 以上なら図をそのまま描き、写しは作らない（写しは最初に版の検査で止まった図のときだけ作る）。
 
 ## 結果
 
@@ -38,7 +38,7 @@ bun src/cli/index.ts lint --geometry research/185-acceptance/repro/align-residua
 | B | 180 × 85.98mm（170mm 幅で 81.2mm。原図 約 170 × 68mm、×1.19） | 0.8138 | 0 / 0 / 1 | 207 行、ノード 54・group 4・辺 59（`variant: muted` 52 → 0、`dim` 2） |
 | C | 180 × 122.24mm（縦横比 0.679。原図 0.828） | 0.829 | 0 / 0 / 1 | 261 行、ノード 64・group 4・辺 32（#180 の版は 311 行・ノード 97） |
 
-info は B・C とも `geometry/script-too-small`（数式の添字が縮小後に 5pt を下回る。`fit: scale` の図には必ず出る情報、#183）だけ:
+info は B・C とも `geometry/script-too-small`（数式の添字が縮小後に 5pt を下回る、#183）だけ。この info は `fit: scale` で図が実際に縮小され、かつ添字が縮小後の下限を下回るときにだけ出る（Skill の作例 6 は `fit: scale` を書いているが縮小されないので出ない）:
 
 - B: 辺のラベル γ₁,β₁・α₁・γ₂,β₂・α₂ の添字が 3.99pt（4.9pt を 81.4% に縮小）。
 - C: フレームの添字（I₀ …）、トークン・行列の見出しの添字など 40 か所が 4.64pt（5.6pt を 82.9% に縮小）。
@@ -102,15 +102,17 @@ info は B・C とも `geometry/script-too-small`（数式の添字が縮小後�
 
 ## 見つけた不具合
 
-### R-A: `align` が 0.01mm 残して `layout/unsatisfied-align` を出す
+### R-A: 根の row が中央揃えのとき、`align` の探索が満たせる制約を満たしきれない（要調査）
 
-[`repro/align-residual.sumi.yaml`](repro/align-residual.sumi.yaml)。Skill の「表」の作例を作る途中で見つけた。見出しの列（stack）が根の `row` の中央に置かれると、`align` は空きを足すことしかできないので、見出しではなく 1 列目の stack を押し下げる（これは仕様どおりで、表の行が崩れる。Skill には「根の row を `align: start` に」と書いた）。そのとき 3 本目の制約 `{ y: [ h-text, p0 ] }` だけが「0.01mm 離れたまま」と warning になる。他の 2 本は満たされ、`align: start` にした同じ図では 3 本とも正確に満たされるので、丸めの残差を許容誤差の外として報告していると考えられる（原因は未調査）。期待: 診断なし、または残差が許容誤差以下。製品のコードはこの PR では直さない。
+[`repro/align-residual.sumi.yaml`](repro/align-residual.sumi.yaml)。Skill の「表」の作例を作る途中で見つけた。見出しの列（stack）が根の `row` の中央に置かれると、`align` は空きを足すことしかできないので、見出しではなく 1 列目の stack を押し下げる（これは仕様どおりで、表の行が崩れる。Skill には「根の row を `align: start` に」と書いた）。そのとき 3 本目の制約 `{ y: [ h-text, p0 ] }` が `layout/unsatisfied-align`（warning）になる。
+
+3 本の制約の残差は [0.007, 0.006, 0.077] layout unit で、3 本目の 0.077 unit（約 0.0136mm）は許容誤差 0.01 unit（約 0.00176mm、`src/layout/structured/align.ts`）を超えているので、**warning は文書どおりの正しい報告**である（メッセージの「0.01mm」は表示の丸め）。一方、`align: start` にした同じ図では残差が [0, 0, 0] になる。中央揃えでは、押し下げた列の高さが変わるたびに中央に置かれた要素の位置も動くため、探索が収束しきらない（または探索の上限で止まる）可能性がある。原因は未調査。製品のコードはこの PR では直さない。
 
 ## 提案する Issue（未作成）
 
 | # | 題（案） | 根拠 |
 | --- | --- | --- |
-| R-A | fix(layout): do not report a 0.01mm residue as an unsatisfied align | 上の不具合 |
+| R-A | Investigate align convergence when constrained items sit in a centred box | 上の不具合（warning を消すのではなく、中央揃えでの探索の収束・上限を調べる） |
 | P-1 | Add a strong tone fill with white text, and a tinted fill for outlined nodes | C-8・C-9（押したキー、⊕、Encoder・A のセル）。#177 の記録で「残る差」とした項目 |
 | P-2 | Draw a smaller operator in the paper theme | A-2（3 図とも原図の ⊕ が小さい）。#182 の記録の「残る差」 |
 | P-3 | Add a separator cell (dotted line) to tokens | C-10。#167 §4.5 の案の `{ separator: dotted }`（軽微） |
@@ -119,6 +121,6 @@ info は B・C とも `geometry/script-too-small`（数式の添字が縮小後�
 
 - `SKILL.md`: テーマの選び方で、論文の図には `paper` を勧める。構造的な図の項目から「論文図のレシピ」へ。
 - `references/layout-tips.md`: 「Paper figure recipe」（原図の見た目 → 書くフィールドの表、作業の順序、まだ描けないもの）、0.5 → 0.6 の代用 → フィールドの表。
-- `references/structured.md`: 0.6.0 のフィールドの版の説明を 1 か所にまとめた、同じ高さのパネルとキャプション付きの group（伸びた group の中身は上に残るので `row` の `align: end` で下へ）、表（列の `stack` と `align`、根の row を `align: start`、作例）、K・V の anchor、`paper` の矢印に要る間隔。
+- `references/structured.md`: 0.6.0 のフィールドの版の説明を 1 か所にまとめた、同じ高さのパネルとキャプション付きの group（伸びた group の中身は上下の中央に置かれるので、下に揃えるには `row` の `align: end` で囲む）、表（列の `stack` と `align`、根の row を `align: start`、作例）、K・V の anchor、`paper` の矢印に要る間隔。
 - `references/figure-format.md`: 版の説明（0.5.0 と 0.6.0）、よくある誤り 2 件。
 - `references/examples.md`: 「6. Success: a paper figure」（paper・plain / dim のパネル・filled / outlined・tokens・straight・zoom・sublabel・compact・fit を 1 図で）。

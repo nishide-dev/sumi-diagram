@@ -459,7 +459,7 @@ groups:
         items: [ patches, encoder, norm, head, { row: { items: [ noise, sigma ] } } ]
   - id: block # the paper container: light gray, rounded
     caption: (b) Encoder block
-    arrange: # a stretched group keeps its tree at the top: a row with align: end moves it down
+    arrange: # a stretched group centres its tree vertically: a row with align: end moves it to the bottom
       row: { align: end, items: [ { stack: { direction: up, align: stretch, items: [ b-in, b-norm, b-attn, b-add, b-out ] } } ] }
   - id: cross
     caption: (c) Cross-attention variant
