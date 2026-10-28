@@ -3,5 +3,6 @@ export * from "./context";
 export * from "./edges";
 export * from "./lint";
 export * from "./measure";
+export * from "./proximity";
 export * from "./rules";
 export * from "./shapes";

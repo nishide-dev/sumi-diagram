@@ -37,11 +37,20 @@ const GROUPS: Readonly<Record<string, GroupLabelPosition>> = {
   br: "bottom-right",
 };
 
-async function render(source: string): Promise<RenderedFigure> {
+/**
+ * Renders `source` and checks it has no diagnostics, or exactly the geometry
+ * findings `expected` (`code` and message).
+ */
+async function render(
+  source: string,
+  expected: { code: string; message: string }[] = [],
+): Promise<RenderedFigure> {
   const result = await renderFigure(source, { backend: createD2CliBackend() });
   if (!result.ok) throw new Error(JSON.stringify(result.diagnostics, null, 2));
   expect(result.diagnostics).toEqual([]);
-  expect(lintGeometry(result.value, { source })).toEqual([]);
+  expect(
+    lintGeometry(result.value, { source }).map(({ code, message }) => ({ code, message })),
+  ).toEqual(expected);
   return result.value;
 }
 
@@ -86,7 +95,10 @@ describe("structured", () => {
   test("the router goes around a moved title in the straight path of an edge", async () => {
     // a → out: straight down from a would cross the bottom title of g1.
     // top → c: straight down into c would cross the top-right title of g2.
-    const rendered = await render(`version: 1
+    // The router keeps top → c off the title, but not clear of its letters
+    // (#156): it runs along the title's right end and just below it.
+    const rendered = await render(
+      `version: 1
 figure:
   id: around
   theme: academic
@@ -110,7 +122,14 @@ nodes:
 edges:
   - { from: a, to: out }
   - { from: top, to: c }
-`);
+`,
+      [
+        {
+          code: "geometry/edge-touches-label",
+          message: 'Edge edges[1] touches the label of group "g2" (0.27mm from the letters).',
+        },
+      ],
+    );
     if (rendered.compiled.engine !== "structured") throw new Error("not structured");
     const { layout } = rendered as RenderedStructuredFigure;
     const crosses = (points: readonly Point[], r: Rect) =>
@@ -214,7 +233,14 @@ describe("the stage-B draft of figure 1 (research/124-stage-b)", () => {
       "top-left",
       "top-left",
     ]);
-    const rendered = await render(stringify(draft));
+    // The edge from the decoder's last norm to Linear leaves the group past
+    // the end of its title, touching the "r" (#156).
+    const rendered = await render(stringify(draft), [
+      {
+        code: "geometry/edge-touches-label",
+        message: 'Edge edges[26] touches the label of group "decoder" (0.19mm from the letters).',
+      },
+    ]);
     for (const id of ["encoder", "decoder"]) {
       const group = rendered.inspection.elements.find((e) => e.key === `g:${id}`);
       expect(group?.labels[0]?.text).toBe(id === "encoder" ? "Encoder" : "Decoder");

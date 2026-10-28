@@ -58,7 +58,7 @@ import { CYLINDER_ARC_UNITS, shapeOutline } from "../lint/geometry/shapes";
 import { drawNodeOutline } from "./compose";
 import { subsetFont } from "./font-subset";
 import { dashArray, n, paint, strokeAttributes } from "./stroke";
-import { isHiddenJunction, roundCorners, type WirePolyline } from "./wire";
+import { type Arc, isHiddenJunction, roundCorners, type WirePolyline } from "./wire";
 import { escapeAttribute } from "./xml";
 
 export { dashArray };
@@ -475,7 +475,26 @@ const xy = (p: Point): string => `${n(p.x)} ${n(p.y)}`;
  * route, and the joins at a hidden junction (`isHiddenJunction()`) whose
  * edges all share one line style and reach its center.
  */
-function wires(ir: FigureIR, layout: LayoutIR): string[] {
+/** What the wires paint for one edge (#156): its straight pieces and arcs, after rounding and trimming. */
+export interface PaintedEdge {
+  readonly pieces: readonly (readonly [Point, Point])[];
+  readonly arcs: readonly Arc[];
+}
+
+/**
+ * What the wires paint for each edge (#156): the same rounding and trimming
+ * as the writer, with each piece and arc kept with the edge it was cut from
+ * (a hidden junction's arcs go to the edge that enters it, as in
+ * `roundCorners()`). The geometry lint measures edges on this.
+ */
+export function paintedEdges(ir: FigureIR, layout: LayoutIR): Map<ElementKey, PaintedEdge> {
+  return wires(ir, layout).painted;
+}
+
+function wires(
+  ir: FigureIR,
+  layout: LayoutIR,
+): { markup: string[]; painted: Map<ElementKey, PaintedEdge> } {
   const edges = new Map(ir.edges.map((e) => [e.key, e]));
   const nodes = new Map(ir.nodes.map((node) => [node.key, node]));
   const routes = new Map(layout.edges.map((e) => [e.key, e]));
@@ -499,6 +518,7 @@ function wires(ir: FigureIR, layout: LayoutIR): string[] {
     height: Math.abs(b.y - a.y),
   });
   const out: string[] = [];
+  const painted = new Map<ElementKey, { pieces: [Point, Point][]; arcs: Arc[] }>();
   for (const net of nets) {
     const obstacles = [
       ...fixed,
@@ -544,9 +564,13 @@ function wires(ir: FigureIR, layout: LayoutIR): string[] {
           joined.add(junction);
       }
     }
-    const byStyle = new Map<string, { edge: EdgeIR; polylines: WirePolyline[] }>();
-    for (const { edge, route, wire } of drawn) {
-      const entry = byStyle.get(lineKey(edge.style)) ?? { edge, polylines: [] };
+    const byStyle = new Map<
+      string,
+      { edge: EdgeIR; polylines: WirePolyline[]; keys: ElementKey[] }
+    >();
+    for (const { key, edge, route, wire } of drawn) {
+      const entry = byStyle.get(lineKey(edge.style)) ?? { edge, polylines: [], keys: [] };
+      entry.keys.push(key);
       const keepStart = underArrowhead(edge.sourceArrowhead ?? "none", edge);
       const keepEnd = underArrowhead(edge.targetArrowhead ?? "none", edge);
       entry.polylines.push({
@@ -558,7 +582,7 @@ function wires(ir: FigureIR, layout: LayoutIR): string[] {
       });
       byStyle.set(lineKey(edge.style), entry);
     }
-    for (const { edge, polylines } of byStyle.values()) {
+    for (const { edge, polylines, keys } of byStyle.values()) {
       const width = edge.style.strokeWidth.units;
       const rounded = roundCorners(polylines, {
         radius: WIRE_CORNER_RADIUS,
@@ -566,6 +590,12 @@ function wires(ir: FigureIR, layout: LayoutIR): string[] {
         clearance: width,
         obstacles,
       });
+      for (const [i, key] of keys.entries()) {
+        const own = painted.get(key) ?? { pieces: [], arcs: [] };
+        own.pieces.push(...(rounded.pieces[i] ?? []).map(([a, b]): [Point, Point] => [a, b]));
+        own.arcs.push(...(rounded.arcs[i] ?? []));
+        painted.set(key, own);
+      }
       const merged = mergeSegments(rounded.pieces.flat());
       const seen = new Set<string>();
       const curves: string[] = [];
@@ -582,7 +612,7 @@ function wires(ir: FigureIR, layout: LayoutIR): string[] {
       );
     }
   }
-  return out;
+  return { markup: out, painted };
 }
 
 function edgeGroup(edge: EdgeIR, points: readonly Point[], layoutLabel?: TextLayout): string {
@@ -676,7 +706,7 @@ export function writeStructuredSvg(
     body.push(objectGroup(node, nodeShape(node, placed.rect), placed.label, asset));
     useText(placed.label);
   }
-  body.push(...wires(ir, layout));
+  body.push(...wires(ir, layout).markup);
   for (const placed of layout.edges) {
     const edge = edges.get(placed.key);
     const points = placed.route?.points;

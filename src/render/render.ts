@@ -30,9 +30,10 @@ import { placeStructured } from "../layout/structured/engine";
 import { composeJunctionEnds, composeOutlines } from "./compose";
 import { composeAssets, withImageSizes } from "./compose-assets";
 import { type FinalizedSvg, finalizeStructuredSvg, finalizeSvg } from "./finalize";
+import type { PathSegment } from "./geometry";
 import { inspectSvg, type SvgInspection } from "./inspect";
 import { needsOutlineSizing, outlineMeasurementFigure, sizeOutlineNodes } from "./outline-sizing";
-import { writeStructuredSvg } from "./structured";
+import { paintedEdges, writeStructuredSvg } from "./structured";
 
 export interface RenderFigureOptions extends CompileOptions {
   /** Backend to render `auto` figures with. Defaults to a new D2 CLI backend. Structured figures do not use it. */
@@ -256,12 +257,26 @@ function renderStructured(
   const inspected = inspectSvg(finalized.value.svg, ir);
   diagnostics.push(...inspected.diagnostics);
   if (!inspected.ok) return fail();
+  // What each edge paints (#156), which the merged wires in the SVG lose.
+  const painted = [...paintedEdges(ir, layout)].map(([key, { pieces, arcs }]) => ({
+    key,
+    path: [
+      ...pieces.flatMap(([from, to]): PathSegment[] => [
+        { command: "M", to: from },
+        { command: "L", to },
+      ]),
+      ...arcs.flatMap(({ from, c1, c2, to }): PathSegment[] => [
+        { command: "M", to: from },
+        { command: "C", c1, c2, to },
+      ]),
+    ],
+  }));
   return {
     ok: true,
     value: {
       svg: finalized.value.svg,
       metadata: finalized.value.metadata,
-      inspection: inspected.value,
+      inspection: { ...inspected.value, painted },
       compiled,
       layout,
     },
