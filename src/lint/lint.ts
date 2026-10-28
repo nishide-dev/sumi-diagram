@@ -4,8 +4,7 @@
  */
 
 import { type CheckOptions, checkFigure } from "../core/check";
-import type { Diagnostic } from "../core/diagnostics";
-import { formatDocPath } from "../core/diagnostics";
+import { compareDiagnostics, type Diagnostic } from "../core/diagnostics";
 import { clampCaptionPaths } from "../core/figure/caption";
 import type { FigureCheck } from "../core/figure/check";
 import { getTheme } from "../core/theme/builtin";
@@ -100,24 +99,5 @@ export function summarize(diagnostics: readonly Diagnostic[]): LintSummary {
   return summary;
 }
 
-/**
- * Deterministic diagnostic order: by file, then source position (diagnostics
- * without a location first), then code, document path and message.
- */
-export function compareDiagnostics(a: Diagnostic, b: Diagnostic): number {
-  const la = a.location;
-  const lb = b.location;
-  return (
-    compareStrings(la?.file ?? "", lb?.file ?? "") ||
-    (la?.line ?? 0) - (lb?.line ?? 0) ||
-    (la?.column ?? 0) - (lb?.column ?? 0) ||
-    compareStrings(a.code, b.code) ||
-    compareStrings(formatDocPath(a.path ?? []), formatDocPath(b.path ?? [])) ||
-    compareStrings(a.message, b.message)
-  );
-}
-
-/** Code-unit order, independent of the locale. */
-function compareStrings(a: string, b: string): number {
-  return a < b ? -1 : a > b ? 1 : 0;
-}
+/** Deterministic diagnostic order (moved to `core/diagnostics`, re-exported for callers). */
+export { compareDiagnostics };

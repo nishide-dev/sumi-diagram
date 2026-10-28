@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import type { ElementKey } from "../../core/check-state";
-import type { Diagnostic } from "../../core/diagnostics";
+import { compareDiagnostics, type Diagnostic } from "../../core/diagnostics";
 import { layoutStructuredFigure } from "../index";
 import type { LayoutIR, Point } from "../ir";
 import { checkRoutes } from "./check";
@@ -60,6 +60,52 @@ describe("layout/edge-crossing", () => {
     ]);
     expect(diagnostics[0]?.subject).toEqual({ kind: "edge", id: "edges[6]" });
     expect(diagnostics[0]?.hint).toContain("fromAnchor / toAnchor");
+    // The shared hint is given once (#154), on the crossing listed first.
+    expect(diagnostics.map((d) => d.hint !== undefined)).toEqual([true, false, false, false]);
+  });
+
+  test("the hint goes to the crossing first in source order (#154)", () => {
+    const { ir, layout } = load(serving).value;
+    // Move edges[12] above the others in the source: its crossing now sorts first.
+    const sourceMap = new Map(ir.sourceMap);
+    const key = ir.edges[12]?.key as ElementKey;
+    const at = sourceMap.get(key);
+    if (at?.location === undefined) throw new Error("no location");
+    sourceMap.set(key, { ...at, location: { ...at.location, line: 1 } });
+    const diagnostics = crossingDiagnostics({ ...ir, sourceMap }, layout);
+    expect(diagnostics.map((d) => [d.path, d.hint !== undefined])).toEqual([
+      [["edges", 6], false],
+      [["edges", 6], false],
+      [["edges", 12], true],
+      [["edges", 16], false],
+    ]);
+  });
+
+  test("at the same location, the hint follows the full sort order (#154)", () => {
+    const { ir, layout } = load(serving).value;
+    // Every edge at one location: code, then path ("edges[12]" < "edges[6]"
+    // as strings) and message decide, as in compareDiagnostics().
+    const sourceMap = new Map(
+      [...ir.sourceMap].map(([key, at]) => [
+        key,
+        { ...at, location: { file: "f.sumi.yaml", line: 1, column: 1 } },
+      ]),
+    );
+    const diagnostics = crossingDiagnostics({ ...ir, sourceMap }, layout);
+    expect(diagnostics.map((d) => [d.path, d.hint !== undefined])).toEqual([
+      [["edges", 6], false],
+      [["edges", 6], false],
+      [["edges", 12], true],
+      [["edges", 16], false],
+    ]);
+    // Two crossings on one edge share a location: the message breaks the tie.
+    const sameEdge = crossingDiagnostics(ir, layout).slice(0, 2);
+    expect(sameEdge[0]?.location).toEqual(sameEdge[1]?.location);
+    for (const listed of [diagnostics, crossingDiagnostics(ir, layout)]) {
+      const sorted = [...listed].sort(compareDiagnostics);
+      expect(sorted[0]?.hint).toBeDefined();
+      expect(sorted.slice(1).every((d) => d.hint === undefined)).toBe(true);
+    }
   });
 
   test("the edge pairs at the points are checkRoutes' crossings", () => {
@@ -82,6 +128,11 @@ describe("layout/edge-crossing", () => {
       message: "3 more edge crossings are not listed (4 in total).",
       subject: { kind: "figure", id: "serving-architecture" },
     });
+    expect(diagnostics.map((d) => d.hint !== undefined)).toEqual([true, false]);
+    // With none listed, the summary carries the hint.
+    const [summary] = crossingDiagnostics(ir, layout, 0);
+    expect(summary?.message).toBe("4 more edge crossings are not listed (4 in total).");
+    expect(summary?.hint).toContain("fromAnchor / toAnchor");
     expect(MAX_REPORTED_CROSSINGS).toBe(10);
   });
 

@@ -34,6 +34,11 @@ export type LintCode = StructuralLintCode | GeometryLintCode;
 export interface LintFinding {
   message: string;
   path: DocPath;
+  /**
+   * UTF-16 offsets into the string value at `path`: the location then points
+   * at those characters where the source maps to the value one to one.
+   */
+  span?: readonly [number, number];
   subject?: Diagnostic["subject"];
   hint?: string;
   related?: { path: DocPath; message: string }[];
@@ -127,7 +132,10 @@ export function toDiagnostic(
   severity: Severity,
   locate: Locator,
 ): Diagnostic {
-  const location = locate(finding.path);
+  const location = locate(
+    finding.path,
+    finding.span === undefined ? undefined : { span: finding.span },
+  );
   const related = finding.related?.map((r) => {
     const at = locate(r.path);
     return { path: r.path, ...(at !== undefined && { location: at }), message: r.message };

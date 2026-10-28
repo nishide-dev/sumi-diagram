@@ -1242,7 +1242,7 @@ layout:
 - **IR**: `FigureIR.align?: AlignIR[]`（`{ axis, at, items: ElementKey[], srcAt }`。`srcAt` は `figure.layout.align[i]` の位置で、診断に使う）。書いたときだけ持つ。
 - **エンジン（`src/layout/structured/align.ts`、判断: strut の固定点反復。kiwi は採らない、#124 §3.5）**:
   - 配置の 1 パス（§6.21）に入力 **strut** を足した: 箱の項目の前（`lead`）・後（`trail`）に主軸の余白を足す（見た目の順。`direction: up` / `left` でも「上 / 左」が前）。箱の大きさに含まれ、余分な主軸の余白の中央寄せ（§6.21）も strut 込みの大きさで行う。`StructuredLayout` は計測（ラベル・葉の大きさ）を 1 回だけ行い、`run(struts)` で配置だけをやり直す。strut が空なら従来の 1 パスと同じ（`align` のない図は反復に入らない）。
-  - 反復: 各回、文書順に、まだ揃っていない制約ごとに次の案を配置し、全制約の残差（各制約の項目の座標の幅）の**和**が最も小さい案を採る（同じなら先の案）。和が下がらなければ採らない。
+  - 反復: 各回、文書順に、まだ揃っていない制約ごとに次の案を配置し、全制約の残差（各制約の項目の座標の幅）の**和**が最も小さい案を採る（同じなら先の案。#155 で、同じなら canvas の小さい案、それでも同じなら先の案に変えた。§6.36）。和が下がらなければ採らない。
     - A: 最も上（左）の項目の前に不足分の `lead`（下 / 右へ押す）。B: 最も下（右）の項目の後に `trail`（終端揃えの箱の中で上 / 左へ押す。始端揃えでは箱が伸びるだけ）。
     - 項目が 3 個以上なら、さらに C: 最も下（右）の項目に届かないすべての項目の前に、それぞれの不足分の `lead`、D: 最も上（左）の項目より先にあるすべての項目の後に、それぞれの超過分の `trail`。**端で並ぶ項目をまとめて動かす**ため（レビューでの指摘）: `[a]`・`[b]`・`[pad, c]` の 3 つの stack で `y: [a, b, c]` のとき、a と b が同じ高さで上にあり、a だけ（A）を下げても幅は変わらず、和の目的関数は部分的な進展を見られない。C は a と b を同時に c の高さへ下げる。2 項目の制約では C・D は A・B と同じなので試さない（試作・2 図の結果は変わらない）。
   - strut を置く場所: その項目の経路（root から項目までの箱と、その箱の中の項目の列。attach された node は対象の経路）のうち、軸の向きの箱（`y` は stack、`x` は row）で、経路上の項目が制約のほかの項目を含まない最も深いもの。**`gap: 0` の箱には入れない**（ブロックと Add & Norm のように一体に描く箱。祖先の箱に置くので接したまま）。試作の最初の版は図 1 の別案でブロックと Add & Norm を引き離した（#124 §3.5）。
@@ -1381,6 +1381,63 @@ layout:
 
   候補を探すのは平行な辺の端に重なる場合だけで、平行な辺の索引は 1 回だけ作るので、時間の差は測定のぶれの範囲。
 - **テスト**: `router.test.ts`（再現: edges[4] と [8] が別の端点・別のネットで、それぞれ直線のまま。`a → c` と 2 本目の `a → b` の fan-out の共有は残る。小さな例: row [a, b, c] に `c→a a→c a→b a→b` で、1 本目の `a → b` が 1/6 に動き b の端も追う。両方の半分が平行な辺の端: 3 本の `a → x` の真ん中が、anchor の 1/8 と他の端を避けて 3/8 に動き、a の端も追い、anchor の端は動かない。相手の端の先が平行な辺の端: 相手は動かず線が曲がる。接する箱（`gap: 0`）を含む図: 平行な辺が別のネットで、全辺が引ける。乱数の図: §6.33 と同じ形（3 個の row と attach の 2 個、4〜11 本の辺）を 1500 個、merge と spread で、平行な辺が同じ端点を持たず、平行な辺の報告も出ない。箱が重ならない図（776 個）では全辺の端が解決する。6 つとも修正前の `ports.ts` では失敗する）、`port-sides.test.ts`（§6.33 の再レビューの例: `a → b` 2 本が merge・spread とも別のネット）。
+
+### 6.36 #155 の `align` による図の拡大の報告と、同点の案の選び方
+
+#151 の A2。`figure.layout.align`（§6.31）が制約を満たすために図を大きく伸ばしても何も言わなかった（#151 の図 4 の 4 回目で高さ 125.77 → 188.38mm、再現 `research/151-dogfood-v0.5/repro/align-grows-figure.sumi.yaml` で 89.96 → 126.82mm）。
+
+- **原因**: 案は残差の和だけで比べ、同じなら先の案を残していた。中央寄せの row で、単独の stack にある項目（隠れた junction）と、背の高い枝の奥の項目（gateway）を `y` で揃えると、A（上の項目の枝の前の `lead`）も B（下の項目の後の `trail`）も 1 回で不足分の半分しか縮めず（中央寄せで箱ごと半分動く）、和が毎回ぴったり並ぶ。先の A が選ばれ続け、gateway の枝の上に空きを足して押し下げた（junction も図の中央寄せで下がる）。B は junction の短い stack を伸ばすだけで図は伸びない。
+- **選び方の変更（判断: 同点のときだけ canvas の面積を見る）**: 和が小さい案を採るのは従来どおり。和が同じ（差が浮動小数の誤差 1e-9 unit 以内。従来の比較と同じ幅）なら canvas の面積（幅 × 高さ、unit）が小さい案、それでも同じなら先の案。
+  - **同点の幅を `ALIGN_EPSILON`（0.01 unit）にしない（判断）**: 最初は「満たしたとみなす幅より小さい差は区別しない」として 0.01 にしたが、#151 の図 4 の最終版（`x` の制約 1 つ）の 1 回目で、和が 0.001 unit だけ小さい B を A と同点に扱い、面積も同じなので先の A を採り、大きさは同じまま API tier と Workers の位置と経路が変わった（見た目は悪くなった: Training API → Metadata DB が Workers の枠の中を通る）。和に実際の差がある案の選び方は変えず、出力が変わる図を「ぴったり同点で面積が違う」図に限る。
+  - **面積（判断）**: 幅と高さの和でもよいが、面積は紙の上での図の大きさに近く、伸びる向きを問わない。canvas は整数 unit に丸めるので、配置の差が丸めた後の canvas の幅・高さを変えなければ面積は同じで、先の案が残る。
+  - **根本の見直しではない**: 1 回ごとの貪欲な選び方の同点を破るだけで、和に差があれば図が伸びる案も採る。図の大きさを目的関数に入れる解き方は段階 C（#151 の C7）。
+- **報告（判断: info `layout/align-grew-figure`）**: 解いた後、最初の配置（strut なし。反復の最初に必ず計算するので配置の回数は増えない）と最後の配置の canvas を比べ、幅か高さが **5mm を超え、かつ元の 10% を超えて**伸びたら 1 件（`figure.layout.align` のパス、位置なし、subject は figure）。メッセージは伸びた辺ごとに増分と前後の大きさ（mm、小数 2 桁）と割合（例: `figure.layout.align made the figure 36.86mm taller (height 89.96mm → 126.82mm, +41%) than the layout without it.`）。hint は「strut は空きを足すだけで、後ろの項目と囲む箱も動かす。不要なら単独で動ける項目（自分の stack / row に包む）を揃える、木の中で近づける、制約をやめる」。
+  - **info にする**: 制約は満たされており、伸びが意図どおりのこともある（U-Net の skip を水平にするために encoder の段を下げる）。警告にすると、`--max-warnings 0` の CI で正しい図を落とす。
+  - **閾値**: 揃えるための通常の費用は gap か箱の半分ほど（`align-unet` で高さ +1.94mm（2%）、`align-side-kv` で +4.23mm（3.5%））、暴走した例は +36.9mm（41%）・+62.6mm（50%）。両方を超えたときだけ出すのは、大きな図の数 mm は目立たず、小さな図の大きな割合も紙の上では数 mm だから。閾値は `ALIGN_GROWTH_MM`・`ALIGN_GROWTH_RATIO`（`align.ts`）。
+  - 比べるのは配置の段の canvas（経路を引く前）。経路やラベルで最後の SVG の大きさは変わり得るが、strut の有無で同じ条件の比較になる。
+- **互換性（実測）**: `align` を書いた図はリポジトリに 7 つ（作例・ギャラリーにはない。`tests/fixtures/figures/layout/align-unet`・`align-side-kv`、#124 の 2 図、#151 の図 3・図 4・再現）。変更の前後で SVG を比べ、変わったのは再現だけ（意図した変更）。golden（`CI=1 bun test`）と `bun run gallery:check` は無変更で通る。`align` のない図は反復に入らないので変わらない。
+- **結果**:
+
+  | 図 | 変更前 | 変更後 | 反復 / 配置の回数（後） |
+  | --- | --- | --- | --- |
+  | 再現（`align-grows-figure`） | 88.19 × 126.82mm（strut なしは 89.96mm） | 88.19 × 89.96mm（伸びない。junction が上がり gateway と同じ高さ） | 14 / 29 |
+  | #151 の図 4 の 4 回目（junction を stack に包み `y: [client-join, gateway]` を足したもの） | 165.28 × 188.38mm（なしは 164.75 × 125.77mm） | 164.75 × 125.77mm（ML platform の上の約 60mm の空白がなくなる） | 15 / 59 |
+
+  変更前の 2 図では info が出る（再現は高さ +36.86mm・+41%、図 4 は高さ +62.61mm・+50%）。変更後は伸びないので出ない。
+- **テスト**: `align.test.ts`（再現と同じ形の図で、junction の `trail` が空きを受け持ち canvas が strut なしと同じになる（変更前の選び方では失敗する）、`lead` しか解けない図で info の code・severity・パス・前後の大きさ、`align-side-kv` の約 4mm の伸びは出さない、片方の閾値だけを超える伸びは出さない、幅の伸びと幅・高さの両方を 1 件で報告する）。既存のテストのうち、group を下げて揃える例（高さ +7.58mm・+15%）と乱数の制約の件数の検査は info を除いて数える。
+- **Skill**: `references/diagnostics.md` の表に 1 行。
+
+### 6.37 #153 の矢じりの前の余白を junction の先まで伸ばさない
+
+§6.22 の矢じりの前の余白（#116）の不具合の修正。[調査 #151](../research/151-dogfood-v0.5/README.md) の A1。
+
+- **不具合**: ⊕ からすぐ上の hidden junction への線（`add1 → split2`）が、まっすぐ引けるのに S 字に迂回し、junction に西から入った（再現 `research/151-dogfood-v0.5/repro/junction-detour.sumi.yaml`）。
+- **原因**: junction から出て矢じりで入る辺（`split2 → norm2`）の余白（`arrowRoom()` = 20 unit）が、junction と Layer Norm の距離（約 14.7 unit）より長く、余白（とその stub の予約）が自分の始点の junction を越えて、反対側（⊕ の側）まで伸びていた。`add1 → split2` は junction を通じて同じネットなので、その余白の中の格子点に踏み込むたびに「同じネットの別のエッジが余白の中で合流する」費用 `ROUTE.arrowRoom`（100）を払う。費用は格子点ごとなので、格子の密度で変わる。凡例（とその上の MLP）が加える格子の線（junction の真下の 159.274・155.854）で、まっすぐの経路は 3 点分（300）、西に出て横から junction に入る経路は junction の 1 点分（100）と曲がり 3 回（120）になり、S 字が安くなった。凡例・MLP・Feedforward のどれかを消すと線の位置が変わってまっすぐに戻るのはこのため（Issue の疑いだった、凡例の見本の junction の扱いやネットの結合は関係しない。凡例の見本を `node` にしても起きたのは、格子の線を加えるのが凡例の箱だから）。A8（破線の共有幹線の T 字の分岐が「›」に見える）は経路ではなく、分岐点で各経路が自分の角を丸める描画（`src/render/wire.ts`）によるもので、原因が違うのでこの修正の対象外（経路は修正の前後で同じ）。
+- **修正（判断: 余白を真正面の junction で止める）**: `Router.#room` で、もう一方の端が junction で、余白の向きの真正面（同じ線の上、前方）に余白より近くにあれば、余白をその距離までにする。その距離が stub（矢じりの長さ以上）より短ければ余白なし（従来の stub だけ）。その経路は junction までのまっすぐな線で、junction の先の余白は自分の辺の外になり、そこを走るのは同じ junction のネットの他の辺だけなので、守る意味がない。余白の終わりは junction の中心で、そこは元から格子の線なので格子は増えない。判定は `clipRoomAtJunction`（`router.ts`）。
+  - **余白が短くなることの影響（範囲を限って記録）**: 余白は、矢じりの手前の角を丸めても矢じりに届かないように経路の側で長さを取っておく仕組み（#116）で、丸めそのものを保証するのは SVG writer（`src/render/wire.ts`）。この修正で余白が junction までに縮むのは、junction から矢じりの口までが 1 本の直線になる場合で、その線の上には曲がり角がないので、経路の側で守るべき角はない。ただし、junction で他の辺が曲がるときの丸め（`wire.ts` の junction の角の半径。設定の最大値・障害物との間隔・線分の長さの半分で制限し、矢じりの側の残す長さ `keepStart` / `keepEnd` を見ない）は、矢じりの手前の余白を考慮しない既存の挙動で、この修正の前からある（半径は経路の点と周りの障害物で決まり、この修正で経路が変わったリポジトリの図は再現の 1 図だけ）。この PR では変えず、別に扱う（#160）。
+  - **障害物で直線にならない場合**: 余白を縮めた端で経路が曲がると、縮めた余白の外（stub の先）での曲がりは `ROUTE.arrowRoom` を払わない。真正面の junction との間に node は置けない（間隔は余白より短い）ので、実際にこうなるのは他のネットの経路を避ける場合だけで、#116 の「狭い隙間は従来どおり」と同じ扱いになる。
+  - **junction に限る（判断）**: 端が box の口なら、真正面でも余白を止めない。向かい合う口の間の短い直線は §6.22 の「狭い隙間は従来どおり」で扱っていて、出力を変える理由がない。横にずれた junction も対象外（余白の中で曲がるか、余白を保って回り込むかは #116 の費用の比べ方のまま）。
+  - **格子点ごとの費用は変えない（判断）**: 費用が格子の密度で変わるのは #116 の設計の性質だが、正しく余白を置けば、余白の中に同じネットの辺が入るのは本当に矢じりの直前での分岐・合流だけになる。費用の数え方を変えると #116 の全図の出力に及ぶので、今回は原因（余白の伸びすぎ）だけを直す。
+- **互換性（実測）**: リポジトリの structured の図（`*.sumi.yaml` のうち `layoutStructuredFigure` が受け付ける 70 図。作例・fixture・#109 / #151 の図を含む）の Layout IR と診断のうち、修正の前後で変わるのは再現の 1 図だけ（sha256 で比較）。golden（`CI=1 bun test`）と `bun run gallery:check` も無変更で通る。
+- **テスト**: `router.test.ts`（再現: 凡例ありでも `add1 → split2` が 2 点のまっすぐな線で、`split2 → norm2` も同じ x のまま。凡例を消した図も同じ。再現で A* の下界が Dijkstra と同じ費用。凡例ありの 1 つは修正前の `router.ts` では失敗する。`clipRoomAtJunction` を 4 方向それぞれで: stub より近い（余白なし）・stub ちょうど・stub と余白の間（junction で切る）・余白ちょうどとその先・横にずれた junction・後ろの junction・真正面の口（いずれも変えない）。4 方向（stack down / up・row right / left）× 矢じりが終点（`j → b`）か始点（`b → j` の double-arrow）で、junction に別の辺（`j → c`）もある図: junction を通る 2 本が直線で、全エッジで A* の下界と Dijkstra の費用が一致する。この 8 図は格子の線が足りず修正前でも直線になるので、回帰の検出は再現が担い、こちらは方向と端の組み合わせでの挙動と下界の確認）。
+
+### 6.38 #154 の文字どおりの `\n`・junction 端の anchor・交差の hint
+
+#151 の dogfooding（`research/151-dogfood-v0.5/README.md` の A4・A5・A10）で見つかった、診断の出ない書き方の誤りと、読みにくい診断の整理。描いた出力（SVG・PDF・PPTX・Layout IR・D2）は変わらず、診断だけが変わる。
+
+- **文字どおりの `\n`（A4。判断: `lint/literal-newline`、warning）**: 単一引用符・引用符なしの YAML のラベルでは `\n` が改行にならず、2 文字のまま描かれる（数式を単一引用符で書き、2 行目に数式を置くと気付きにくい）。ラベルの平文の部分に `\n`（バックスラッシュ + n）があれば警告する。
+  - **段（判断: 構造 lint）**: 文字どおりの `\n` を描く意図もありうる（`C:\new` のようなパス、コードの文字列）ので、`--rule lint/literal-newline=off` で止められる lint の規則にする。値は誤りではないので error・component の段にはしない。`sumi lint`（D2 不要）と `sumi render` の両方に出る。
+  - **平文の切り分け（判断: 数式の構文解析と同じ区切り）**: `literalNewlines()`（`src/core/label/math.ts`）が、`parseLabel()` と同じ規則で `$...$` を見分ける: `\$` は数式を開かない、数式の閉じの `$` は行の中で探し `\` は次の 1 文字を飛ばす（`closingDollar()` を共用）、閉じない `$` の後は平文。数式の中の `\nu` `\neq` `\nabla` は対象外。structured では閉じない `$` は `component/invalid-math` で要素が invalid になるので lint は見ない。auto でも同じ区切りで見る（D2 もバックスラッシュをエスケープして描くので、文字どおりの `\n` はそのまま描かれる。`$\nu$` は `component/unsupported-in-auto` の範囲）。`\\n`（バックスラッシュ 2 つ + n）も、描かれる文字に `\n` が現れるので報告する。
+  - **対象**: lint の要素すべて（node・group・edge のラベル、キャプション、凡例の項目のラベル）。ラベルを取らない印（junction・operator）はラベルが空なので出ない。報告はラベルごとに 1 件（複数あればメッセージに回数）。
+  - **位置**: 最初の `\n` の 2 文字。`LintFinding` に任意の `span`（値の UTF-16 offset）を足し、`toDiagnostic()` が `Locator` の `span`（§6.24）に渡す。1 行の引用符付き・引用符なしのスカラーでは正確な列、それ以外はラベル全体。
+  - **hint**: そのラベルの `\n` を改行にして二重引用符の YAML 文字列で書いた形（`JSON.stringify` の出力は YAML の二重引用符のスカラーとして読める）を示す。例: `'Scale, Shift\n$\gamma_1$'` → `"Scale, Shift\n$\\gamma_1$"`。他にバックスラッシュがあれば「他のバックスラッシュは 2 つに」と添える。80 文字を超える形は代わりに短い例を示す。ブロックスカラー（`|`）と、規則を無効にする方法も挙げる。
+  - **既存の図**: リポジトリの `*.sumi.yaml` 108 図のうち、出るのは #151 の再現と `tests/fixtures/compile/labels.sumi.yaml`（エスケープの検査のため意図して `'C:\path\n\t (literal backslashes)'` を描く。真の陽性で、lint を検査する fixture ではない）の 2 つだけ。作例・ギャラリーには出ない。
+- **junction 端の anchor（A5。判断: `component/anchor-on-junction`、warning）**: junction（manifest の `mark.type: point`）の端はルータが anchor を見ずに中心を使う（`ports.ts` の `resolveEnds()`）ので、`fromAnchor` / `toAnchor` は黙って無視されていた。
+  - **段（判断: component）**: junction かどうかは部品の解決後に分かる（`layout` の段の anchor の検査は部品の解決の前）。「junction はラベル・tone・anchor を取らない」という部品の約束の検査として、`component/tone-unsupported`・`component/label-at-without-label`（効かない設定の warning、§6.27）と同じ `component` の段に置く。描画の段（ルータ）に置くと `sumi lint` に出ないので採らなかった。#151 の調査が仮に挙げた `layout/anchor-on-junction` は、段と code の接頭辞を揃える規約（§1）に合わせて `component/` にした。
+  - **severity は warning（判断）**: anchor を外しても描かれる図は同じなので、要素は invalid にしない。位置は `edges[i].fromAnchor` / `toAnchor`。両端なら 2 件。hint: anchor を消す、線の向きを変えたいなら反対の端に anchor を付けるか、配置の木・`attach` で junction を動かす。
+  - **auto**: anchor は `layout/structured-only`（error）でエッジが invalid になるので、重ねて出さない。端の junction 自体が invalid（`component/tone-unsupported` など）でも、エッジが invalid になるので出ない。凡例の部分（§6.34）の解決（`only`）では、その部分のエッジだけを見る。
+- **交差の hint（A10。判断: 1 回だけ）**: `layout/edge-crossing`（§6.28）は 1 件ごとに同じ約 400 字の hint を付けていた。hint を、出力の並び（`sumi lint` / `render` と同じ `compareDiagnostics()`: ファイル・位置・code・path・メッセージの順。同じ辺の 2 つの交差は位置が同じなので、位置だけでは決まらない。比較関数は layout から使えるよう `src/core/diagnostics.ts` に移し、`src/lint/lint.ts` から再 export する）で最初になる 1 件だけに付ける。個別の交差がない（上限 0）ときだけ要約の 1 件に付ける。code・severity・メッセージ・位置・件数は変わらない。
+- **テスト**: `math.test.ts`（`literalNewlines()`: #151 の再現、改行と文字どおりの区別、`\nu` `\neq` `\nabla`、`\$` の前後、閉じない `$`、行をまたぐ `$`、`parseLabel()` と同じ区切り）、`lint.test.ts`（fixture `lint/literal-newline.sumi.yaml` で node・group・キャプション・凡例・edge と位置、hint の形が YAML として読み戻せること、長いラベル、auto、`off`）、`resolve.test.ts`（junction・hidden junction の両端、group の端は対象外、auto、invalid な junction）、`crossings.test.ts`（hint は 1 件だけ、並びで最初の 1 件（位置が同じなら path・メッセージで決まる）、上限 0 の要約）。
 
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
