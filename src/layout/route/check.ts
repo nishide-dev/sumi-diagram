@@ -273,12 +273,18 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
       }
       if (anchor === "straight") {
         // `straight` (#179): on the side facing the other end, inside the
-        // corner margin (or straightened onto a one-segment line, #169);
-        // where it has no such side it is a default end.
+        // corner margin, or at most the tolerance outside it on a
+        // one-segment line (moved there by `straighten()`, #169); where it
+        // has no such side it is a default end.
         const at = straightPlacement(rect, rects.get(other) as Rect);
         if ("offset" in at) {
           const along = SIDE_DIR[side] % 2 === 1 ? end.x : end.y;
-          const inside = straightOffset(rect, side, along) !== undefined || points.length === 2;
+          const reach = STRAIGHTEN_TOLERANCE + EPS;
+          const inside =
+            straightOffset(rect, side, along) !== undefined ||
+            (points.length === 2 &&
+              (straightOffset(rect, side, along - reach) !== undefined ||
+                straightOffset(rect, side, along + reach) !== undefined));
           if (at.side !== side || !inside) miss(`not straight on the ${at.side} side`);
         }
       } else if (anchor !== undefined) {

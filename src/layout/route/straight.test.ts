@@ -483,4 +483,71 @@ describe("ends at one point and other rules", () => {
     const report = checkRoutes(value.ir, { ...value.layout, edges });
     expect(report.endpointMisses).toContain("e:#0 to n:t: not straight on the north side");
   });
+
+  test("checkRoutes allows a one-segment line past the margin only as far as straighten() moves", () => {
+    const value = layout(
+      figure(
+        { stack: { gap: "20pt", items: ["a", "t"] } },
+        [box("a", "100pt"), box("t", "100pt")],
+        [{ from: "a", to: "t", toAnchor: "straight" }],
+      ),
+    );
+    const t = rectOf(value.layout, "t");
+    const misses = (inset: number) => {
+      const edges = value.layout.edges.map((e) => {
+        const points = e.route?.points;
+        if (e.route === undefined || points === undefined) return e;
+        const x = roundUnits(t.x + inset);
+        return { ...e, route: { ...e.route, points: points.map((p) => ({ ...p, x })) } };
+      });
+      return checkRoutes(value.ir, { ...value.layout, edges }).endpointMisses;
+    };
+    const miss = "e:#0 to n:t: not straight on the north side";
+    expect(misses(6)).toEqual([]); // on the margin
+    expect(misses(4)).toEqual([]); // 2 units past it: a straighten() move
+    expect(misses(3.9)).toEqual([miss]);
+    expect(misses(1)).toEqual([miss]);
+  });
+});
+
+describe("parallel edges whose other ends are beyond the side (review of #197)", () => {
+  // A wide source over a narrow target: the source's shared-out ends (1/3,
+  // 2/3 of 200pt) are past the target's side, so the target ends cannot be
+  // in line. They keep separate points, not one centre point.
+  const text = figure(
+    { stack: { gap: "20pt", items: ["a", "t"] } },
+    [box("a", "200pt"), box("t", "20pt")],
+    [
+      { from: "a", to: "t", toAnchor: "straight" },
+      { from: "a", to: "t", toAnchor: "straight" },
+    ],
+  );
+
+  test("two points, two nets, each reported as not in line", () => {
+    const value = layout(text);
+    const l = value.layout;
+    expect(pointsOf(l, 0).at(-1)).not.toEqual(pointsOf(l, 1).at(-1));
+    expect(netOf(l, 0)).not.toBe(netOf(l, 1));
+    const offSide = value.diagnostics.filter((d) => d.code === "layout/straight-off-side");
+    expect(offSide.map((d) => d.path)).toEqual([
+      ["edges", 0, "toAnchor"],
+      ["edges", 1, "toAnchor"],
+    ]);
+    expect(offSide[0]?.message).toBe(
+      'toAnchor "straight" of edge edges[0] could not be put in line: the other end\'s point on "a" is not over the north side of "t" (at least 3pt inside its corners): parallel edges between the two keep separate points, or another edge\'s end moved it; so the edge enters "t" at a point of its own and is not straight.',
+    );
+    expectClean(value);
+  });
+
+  test("a single edge is in line and not reported", () => {
+    const value = layout(
+      figure(
+        { stack: { gap: "20pt", items: ["a", "t"] } },
+        [box("a", "200pt"), box("t", "20pt")],
+        [{ from: "a", to: "t", toAnchor: "straight" }],
+      ),
+    );
+    expectVertical(pointsOf(value.layout, 0), centreX(rectOf(value.layout, "t")));
+    expect(codes(value.diagnostics)).toEqual([]);
+  });
 });

@@ -448,7 +448,9 @@ class Router {
     const ir = this.#ir;
     const layoutEdges = new Map(this.#layout.edges.map((e) => [e.key, e]));
     const resolved = resolveEnds(ir, this.#layout);
-    for (const edge of ir.edges) this.#reportStraightOffSide(edge);
+    for (const [index, edge] of ir.edges.entries()) {
+      this.#reportStraightOffSide(edge, resolved[index]);
+    }
     const edges: (Edge | undefined)[] = ir.edges.map((edge, index) => {
       const ends = resolved[index];
       const layout = layoutEdges.get(edge.key);
@@ -608,7 +610,10 @@ class Router {
    * end without an anchor. Junction ends are left to
    * `component/anchor-on-junction`.
    */
-  #reportStraightOffSide(edge: EdgeIR): void {
+  #reportStraightOffSide(
+    edge: EdgeIR,
+    ends: { from: End; to: End } | { error: string } | undefined,
+  ): void {
     const rectOf = (key: ElementKey): Rect | undefined =>
       this.#layout.nodes.find((n) => n.key === key)?.rect ??
       this.#layout.groups.find((g) => g.key === key)?.rect;
@@ -623,9 +628,28 @@ class Router {
       const otherRect = rectOf(otherKey);
       if (selfRect === undefined || otherRect === undefined) continue;
       const at = straightPlacement(selfRect, otherRect);
-      if (!("off" in at)) continue;
       const me = `"${this.#id(selfKey)}"`;
       const them = `"${this.#id(otherKey)}"`;
+      const name = edge.id === undefined ? `edges[${edge.index}]` : `"${edge.id}"`;
+      const source = this.#ir.sourceMap.get(edge.key);
+      if (!("off" in at)) {
+        // Resolved, but not in line with the other end: the other end's
+        // point is beyond this side's margin and the end, shared out with
+        // parallel edges, kept a point of its own (or another rule moved it).
+        if (ends === undefined || "error" in ends) continue;
+        const f = facing(ends.from, ends.to);
+        if (f !== undefined && f.aside === 0) continue;
+        this.#diagnostics.push({
+          code: "layout/straight-off-side",
+          severity: "warning",
+          message: `${field} "straight" of edge ${name} could not be put in line: the other end's point on ${them} is not over the ${at.side} side of ${me} (at least ${STRAIGHT_MARGIN / 2}pt inside its corners): parallel edges between the two keep separate points, or another edge's end moved it; so the edge ${leaving ? "leaves" : "enters"} ${me} at a point of its own and is not straight.`,
+          path: [...(source?.path ?? ["edges", edge.index]), field],
+          ...(source?.location !== undefined && { location: source.location }),
+          subject: { kind: "edge", id: edge.id ?? `edges[${edge.index}]` },
+          hint: `Write "straight" on the other end instead (the end at the wider element), widen ${me}, or anchor the parallel edges' ends yourself.`,
+        });
+        continue;
+      }
       const reason =
         edge.from === edge.to
           ? `the edge is a self-loop, so no side of ${me} faces its other end`
@@ -634,8 +658,6 @@ class Router {
             : at.off === "overlap"
               ? `${me} and ${them} overlap or one holds the other, so no side of ${me} faces ${them}`
               : `the centre of ${them} is not in line with the ${at.side} side of ${me} (at least ${STRAIGHT_MARGIN / 2}pt inside its corners)`;
-      const name = edge.id === undefined ? `edges[${edge.index}]` : `"${edge.id}"`;
-      const source = this.#ir.sourceMap.get(edge.key);
       this.#diagnostics.push({
         code: "layout/straight-off-side",
         severity: "warning",

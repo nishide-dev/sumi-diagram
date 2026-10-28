@@ -1124,14 +1124,20 @@ function resolveEndsWith(
       sharing.set(id, list);
     }
   }
+  /** Ends shared out with other ends of the same side and pair (multi-edges). */
+  const sharedOut = new Set<Choice>();
   for (const list of sharing.values()) {
     for (const [k, choice] of list.entries()) choice.offset = (k + 1) / (list.length + 1);
+    if (list.length > 1) for (const choice of list) sharedOut.add(choice);
   }
 
   // `straight` ends (#179) in line with the other end's port, now that it is
   // known (a shared-out multi-edge end, a spread end, an anchor, a junction's
   // centre). Where that port is not on the facing side or is off this side's
-  // corner margin, the end takes the projection of the other's centre. Target
+  // corner margin, the end takes the projection of the other's centre; or,
+  // if it was shared out with parallel edges, keeps its shared-out position,
+  // so the parallel edges keep separate points (the router reports that it is
+  // not in line, `layout/straight-off-side`). Target
   // ends first: with `straight` at both ends, the target end lines up with
   // the source end's (shared-out) position, and the source end stays there.
   const portAt = (key: ElementKey, choice: Choice | undefined): Point => {
@@ -1155,7 +1161,8 @@ function resolveEndsWith(
       const p = portAt(otherKey, other);
       const inLine = facingPort ? straightOffset(rect, self.side, vertical ? p.x : p.y) : undefined;
       const centred = straightPlacement(rect, element(otherKey).rect);
-      self.offset = inLine ?? ("offset" in centred ? centred.offset : 0.5);
+      if (inLine !== undefined) self.offset = inLine;
+      else if (!sharedOut.has(self)) self.offset = "offset" in centred ? centred.offset : 0.5;
     }
   }
 
