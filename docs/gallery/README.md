@@ -922,7 +922,7 @@ edges:
 
 ### sumi/container
 
-A rectangular container that groups nodes and other groups, always with a border\. Variant muted: a dashed border in academic \(easy to confuse with dashed edges\), no fill and a gray title in the other themes\.
+A rectangular container that groups nodes and other groups, always with a border\. Variant muted: a dashed border in academic \(easy to confuse with dashed edges\), a white background instead of the shaded fill \(without a tone\) and a gray title in the other themes\.
 
 **kind**: <code>group</code> · **variants**: <code>default, muted</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>rectangle</code>
 

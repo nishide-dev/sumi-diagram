@@ -137,7 +137,7 @@ edges:
   [references/structured.md](references/structured.md) first. Label math
   (`'$\hat{y}_t$'`) works only there; with a line break, double-quote it and
   double backslashes (`"A\n$\\gamma$"`). Any group takes `labelAt` and
-  `caption` (not with edges to elements below it: they detour around it).
+  `caption` (edges to elements below it can detour around the caption).
 - Icons (`icon: tabler/<name>`, in place of a label) and image files
   (`component: image`): [references/assets.md](references/assets.md).
 

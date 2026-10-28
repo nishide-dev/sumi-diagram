@@ -186,12 +186,13 @@ Both draw two lines: `Scale, Shift`, then γ and β with their subscripts
   (`caption: (a) data and augmentation`), outside the group. Both engines;
   details and an example in
   [structured](structured.md#group-titles-and-captions). In structured
-  figures, do not caption a group with edges to elements below it: they
-  detour around the caption (see there).
+  figures, edges to elements below a captioned group can detour around
+  the caption when it blocks their route (see there).
 - `variant: muted` (container) quiets the group; how depends on the
-  theme. `academic`: a **dashed** gray border, gray title. `minimal`,
-  `color`, `slides`: the same solid gray border, but no fill and a gray,
-  non-bold title. In `academic`, a muted group's dashed border reads like
+  theme. `academic`: a **dashed** gray border, gray title, transparent
+  fill. `minimal`, `color`, `slides`: the same solid gray border, a white
+  background instead of the shaded one (without `tone`; a `tone` sets the
+  fill) and a gray, non-bold title. In `academic`, a muted group's dashed border reads like
   a dashed edge (a skip, an optional flow): avoid `muted` there when the
   figure has dashed edges, or say what each means (a `legend`). No variant
   removes the border: a group always draws one.

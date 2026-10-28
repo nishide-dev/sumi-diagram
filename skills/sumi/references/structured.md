@@ -108,14 +108,16 @@ reserved ID `<group>-caption` (a node or group of yours with that ID is
 end on it; a node attached `south` of the group goes under the caption.
 
 The router treats the caption as an obstacle, so **an edge between a
-member and an element below the group detours around the caption** (out
-to the side and back under the border), **without any diagnostic** — an
-input entering from below (`direction: up`) as well as an output leaving
-downwards. A `toAnchor: west` on the member does not help while the
-other end is below. Do not caption such a group; instead put the caption
-on an outer group that also holds the other end (a panel around input,
-block and output, below; it draws its own border), or place the other end
-beside the group (a `row`) so the edge crosses a side.
+member and an element below the group can detour around the caption**
+when the caption blocks its route (out to the side and back under the
+border) — an input entering from below (`direction: up`) as well as an
+output leaving downwards. No diagnostic names the caption (at most
+`geometry/edge-on-border` where the detour runs along the border): look
+at the preview. In a centred stack (member, caption and the other end on
+one vertical), a `toAnchor: west` on the member does not help. If it detours, put the caption on an outer group that
+also holds the other end (a panel around input, block and output, below;
+it draws its own border), or place the other end beside the group (a
+`row`) so the edge crosses a side.
 
 ```yaml
 # expect-render: fits
