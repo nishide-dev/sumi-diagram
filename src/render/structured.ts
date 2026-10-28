@@ -648,9 +648,9 @@ function over(top: string, alpha: number, bottom: string): string {
  * group lets the color beneath it through; a translucent one is blended
  * over it, and of overlapping siblings the later is on top. For nested,
  * opaque groups this is the first painted background from the innermost
- * group outward, else the canvas. Never `transparent`, since the background is there to hide what runs
- * under the label. A box across a group border takes the color under its
- * center. Nodes are not looked at: labels are placed off node boxes, and
+ * group outward, else the canvas. Never `transparent`, since the
+ * background is there to hide what runs under the label. A box across a
+ * group border takes the color under its center. Nodes are not looked at: labels are placed off node boxes, and
  * one left on a node is reported by `geometry/label-collision`.
  */
 export function labelBackground(box: Rect, groups: readonly PaintedGroup[]): string {
