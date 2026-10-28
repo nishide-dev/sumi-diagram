@@ -172,13 +172,20 @@ interface ElementIRBase {
    * cell (e.g. `cell "a1" of tokens "seq"`).
    */
   readonly tokens?: TokensCellIR;
+  /**
+   * Set on the frame group of a matrix and on every part it was expanded
+   * into (#180, design doc §6.56): the matrix node's ID and variant, how
+   * messages name this element (e.g. `cell 2, 3 (class "o") of matrix
+   * "mask"`) and, for a part, where its fields are written.
+   */
+  readonly matrix?: TokensCellIR;
 }
 
-/** See {@link ElementIRBase.tokens}. */
+/** See {@link ElementIRBase.tokens} and {@link ElementIRBase.matrix}. */
 export interface TokensCellIR {
-  /** The ID of the tokens node (which names no element of its own). */
+  /** The ID of the tokens node (which names no element of its own), or of the matrix. */
   readonly id: string;
-  /** The tokens node's variant. */
+  /** The tokens or matrix node's variant. */
   readonly variant: string;
   readonly name: string;
   /**
@@ -399,6 +406,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
       variant: component.variant,
       ...legendPartOf(doc, key),
       ...tokensCellOf(doc, key),
+      ...matrixPartOf(doc, key),
       ...(element.group !== undefined && { parent: groupKey(element.group) }),
       d2Key: `${prefix}_${element.id}`,
       d2Path: freeze(d2PathOf(prefix, element.id, element.group)),
@@ -716,6 +724,17 @@ function tokensCellOf(doc: PartialFigure, key: ElementKey): { tokens?: TokensCel
   const variant = expansion?.variant ?? "default";
   const fields = expansion?.cells.find((c) => nodeKey(c.id) === key)?.fields ?? {};
   return { tokens: freeze({ id, variant, name: origin.name, fields: freeze({ ...fields }) }) };
+}
+
+/** `{ matrix }` for the frame or a part of a matrix (#180), otherwise `{}`. */
+function matrixPartOf(doc: PartialFigure, key: ElementKey): { matrix?: TokensCellIR } {
+  const origin = doc.expanded?.get(key);
+  if (origin?.from !== "matrix") return {};
+  const id = origin.subject.id;
+  const expansion = doc.matrices?.find((m) => m.id === id);
+  const variant = expansion?.variant ?? "default";
+  const fields = expansion?.parts.find((p) => nodeKey(p.id) === key)?.fields ?? {};
+  return { matrix: freeze({ id, variant, name: origin.name, fields: freeze({ ...fields }) }) };
 }
 
 function componentOf(state: CheckState, key: ElementKey): ResolvedComponent {

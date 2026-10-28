@@ -32,6 +32,9 @@
  * straight lines as two subpaths, and a `path.sumi-wire` of its own,
  * before the nets' wires, strokes them.
  *
+ * A hatched matrix cell or legend sample box (#180) draws its hatch lines
+ * as one `path.sumi-hatch` right after its `g.shape` (`hatch.ts`).
+ *
  * Icons and images (#94) are drawn by `assetMarkup()` right after the node's
  * `g.shape`: an icon as shapes under one transformed `g.sumi-icon` (never a
  * nested `<svg>`), an image as one `image.sumi-image` with a `data:` URI.
@@ -60,6 +63,7 @@ import { fontFileFor } from "../lint/geometry/measure";
 import { CYLINDER_ARC_UNITS, shapeOutline } from "../lint/geometry/shapes";
 import { drawNodeOutline } from "./compose";
 import { subsetFont } from "./font-subset";
+import { HATCH, hatchSegments } from "./hatch";
 import { dashArray, n, paint, strokeAttributes } from "./stroke";
 import { type Arc, isHiddenJunction, roundCorners, type WirePolyline } from "./wire";
 import { escapeAttribute } from "./xml";
@@ -318,6 +322,25 @@ function nodeShape(node: NodeIR, r: Rect): string {
       return `<path d="${pathData(outline, true)}"${paints}/><path d="${pathData(crease)}" fill="none"${strokeAttributes(style)}/>`;
     }
   }
+}
+
+/**
+ * A hatched node's hatch lines (#180, `hatch.ts`): one `path.sumi-hatch`
+ * after its `g.shape`, of segments clipped to the inside of the outline.
+ * Empty for any other node, so its bytes do not change.
+ */
+function hatchMarkup(node: NodeIR, r: Rect): string {
+  const { style } = node;
+  if (style.hatch === undefined || (node.shape !== "rectangle" && node.shape !== "square")) {
+    return "";
+  }
+  const outlined = style.stroke !== "transparent" && style.strokeWidth.units > 0;
+  const inset = (outlined ? style.strokeWidth.units / 2 : 0) + HATCH.width / 2;
+  const radius = Math.min(style.radius.units, r.width / 2, r.height / 2);
+  const segments = hatchSegments(r, radius, inset);
+  if (segments.length === 0) return "";
+  const d = segments.map(([a, b]) => `M ${xy(a)} L ${xy(b)}`).join(" ");
+  return `<path class="sumi-hatch" d="${d}" fill="none" stroke="${paint(style.hatch)}" stroke-width="${n(HATCH.width)}" stroke-linecap="round"/>`;
 }
 
 function objectGroup(
@@ -845,7 +868,8 @@ export function writeStructuredSvg(
     const node = nodes.get(placed.key);
     if (node === undefined)
       throw new Error(`internal error: ${placed.key} is not a node of the figure`);
-    const asset = assetMarkup(node, assets?.nodes.get(node.key), placed.rect);
+    const asset =
+      hatchMarkup(node, placed.rect) + assetMarkup(node, assets?.nodes.get(node.key), placed.rect);
     body.push(
       objectGroup(node, nodeShape(node, placed.rect), placed.label, asset, placed.sublabel),
     );

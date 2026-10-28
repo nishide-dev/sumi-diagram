@@ -210,7 +210,8 @@ const LEGEND_ENTRIES = [
  * given theme: each with the ID `<component>-<variant>`, in a row below the
  * nodes and edges whose styles a legend's entries explain (a zoom edge, #176,
  * runs from one of those nodes to a box of its own in a row between them),
- * and a row of tokens (#181) with an edge from a cell to a box below.
+ * and a row of tokens (#181) with an edge from a cell to a box below, and
+ * of matrices (#180) with an edge from a box above.
  * Throws for a structured-only component it does not know how to fill in.
  */
 export function structuredPrimitivesFigure(theme: string): string {
@@ -251,6 +252,31 @@ export function structuredPrimitivesFigure(theme: string): string {
         );
         nodes.push(`  - { id: ${name}-out, component: box, label: out }`);
         edges.push(`  - { from: ${name}.first, to: ${name}-out }`);
+      }
+      continue;
+    }
+    if (id === "sumi/matrix") {
+      // A matrix (#180) with headers, a toned header and a hatched class,
+      // an edge into it, and a legend entry made from a class.
+      for (const variant of m.variants) {
+        const name = `${m.name}-${variant}`;
+        tokens.push(`{ stack: { gap: 6mm, items: [${name}-in, ${name}] } }`);
+        nodes.push(
+          `  - { id: ${name}-in, component: box, label: in }`,
+          `  - id: ${name}`,
+          `    component: ${m.name}`,
+          `    variant: ${variant}`,
+          "    props:",
+          "      rows: [a, { label: '$B_1$', tone: purple }]",
+          "      columns: [a, b]",
+          "      cellWidth: 22pt",
+          "      gap: 2pt",
+          "      classes:",
+          "        o: { tone: green, label: on }",
+          "        x: { pattern: hatch, label: off }",
+          "      cells: [ox, xo]",
+        );
+        edges.push(`  - { from: ${name}-in, to: ${name} }`);
       }
       continue;
     }
@@ -310,7 +336,8 @@ export function structuredPrimitivesFigure(theme: string): string {
  * The component and variant an element of a compiled figure stands for: the
  * legend's own for the frame and the parts of a legend (#131, which the
  * `check` stages expand into groups, nodes and edges of other components),
- * the tokens node's for its cells (#181), otherwise the element's.
+ * the tokens node's for its cells (#181), the matrix's for its frame and
+ * parts (#180), otherwise the element's.
  */
 export function writtenComponentOf(
   ir: FigureIR,
@@ -319,6 +346,10 @@ export function writtenComponentOf(
   // A cell of a tokens node (#181): no element is left of the tokens node.
   if (element.tokens !== undefined) {
     return { component: "sumi/tokens", variant: element.tokens.variant };
+  }
+  // The frame or a part of a matrix (#180): the matrix node is gone.
+  if (element.matrix !== undefined) {
+    return { component: "sumi/matrix", variant: element.matrix.variant };
   }
   if (element.legend === undefined) {
     return { component: element.component, variant: element.variant };

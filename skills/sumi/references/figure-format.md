@@ -327,6 +327,10 @@ Always take these from `sumi catalog --json`. Each entry has `id`
 - `tokens` (structured only) writes a row of cells (sequence tokens,
   keys) as one node; edges name a cell as `<node>.<cell>`: see
   [structured](structured.md#token-sequences).
+- `matrix` (structured only) draws a grid of cells colored by class
+  (tone, variant, `pattern: hatch`) with row and column headers, e.g. an
+  attention mask; a legend entry `{ class: <matrix>.<class> }` explains a
+  class: see [structured](structured.md#matrices).
 
 ### Catalog render metadata
 

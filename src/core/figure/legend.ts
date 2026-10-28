@@ -4,8 +4,10 @@
  * and its text. The sample of an `edge` entry is a real edge with the
  * entry's edge fields between two hidden junctions (so its dash, arrowheads,
  * line width and color are those of the edges it explains); the sample of a `node`
- * entry is a small node with the entry's node fields. The text is a `label`
- * node.
+ * entry is a small node with the entry's node fields. The sample of a
+ * `class` entry (#180) is a box drawn as the cells of that class of a matrix
+ * (its tone, variant and hatch; matrices are expanded first), and its text
+ * defaults to the class's label. The text is a `label` node.
  *
  * The expansion runs after the `component` stage (it needs the legend's
  * validated `props.entries`) and resolves the parts it adds through the same
@@ -23,13 +25,14 @@ import {
   type CheckState,
   type ElementKey,
   type ExpandedOrigin,
+  type ExpandedPaint,
   edgeKey,
   groupKey,
   invalidateDependents,
   nodeKey,
 } from "../check-state";
-import type { DocPath } from "../diagnostics";
-import { builtinRegistry, LEGEND_ID, TOKENS_ID } from "../registry/builtins";
+import { type DocPath, didYouMean } from "../diagnostics";
+import { builtinRegistry, LEGEND_ID, MATRIX_ID, TOKENS_ID } from "../registry/builtins";
 import {
   componentId,
   type GroupManifest,
@@ -42,6 +45,7 @@ import { getTheme } from "../theme/builtin";
 import { resolveStyle } from "../theme/resolve";
 import type { Tone } from "../theme/tones";
 import { recordExpanded, reportReservedId, takenIds } from "./expand";
+import type { MatrixExpansion } from "./matrix";
 import { errorAt } from "./report";
 import type { ArrangeBox, ArrangeItem, FigureEdge, FigureGroup, FigureNode } from "./schema";
 import type { Locator } from "./yaml";
@@ -50,7 +54,10 @@ import type { Locator } from "./yaml";
 export interface LegendEntry {
   edge?: { component?: string; variant?: string; tone?: Tone };
   node?: { component?: string; variant?: string; tone?: Tone };
-  label: string;
+  /** A matrix class (#180): `<matrix>.<class>`. */
+  class?: string;
+  /** Required unless `class` is given (then the class's label is the default). */
+  label?: string;
 }
 
 /** One expanded entry of a legend. */
@@ -62,6 +69,8 @@ export interface LegendEntryExpansion {
   /** `["nodes", i, "props", "entries", j]`. */
   path: DocPath;
   label: string;
+  /** The matrix class a `class` entry explains (#180). */
+  class?: { matrix: string; name: string };
 }
 
 /** A legend node and what it was expanded into (`doc.legends`). */
@@ -169,6 +178,8 @@ function sampleBoxProblem(manifest: NodeManifest): string | undefined {
   if (componentId(manifest) === LEGEND_ID) return "is a legend";
   // Tokens (#181) are expanded into cells, never drawn as one box.
   if (componentId(manifest) === TOKENS_ID) return "is drawn as its cells";
+  // So is a matrix (#180): a class entry draws the box of one of its classes.
+  if (componentId(manifest) === MATRIX_ID) return "is drawn as its cells";
   return undefined;
 }
 
@@ -178,8 +189,10 @@ function sampleBoxProblem(manifest: NodeManifest): string | undefined {
  * `layout/attached-legend` for a legend placed by `attach`,
  * `asset/icon-unsupported` for a legend with an icon and
  * `component/invalid-prop` for a sample box of a component that cannot draw
- * one (a mark, image, text or legend). A legend with an error is not
- * expanded and becomes invalid.
+ * one (a mark, image, text or legend) or a class entry without a label
+ * (#180), and `ref/unknown-class` for a class entry that names no class of
+ * a matrix. A legend with an error, or with a class entry of a matrix that
+ * has an error of its own, is not expanded and becomes invalid.
  */
 export function expandLegends(state: CheckState, registry: Registry, locate: Locator): void {
   const { doc, invalid } = state;
@@ -197,6 +210,7 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
   const added = new Set<ElementKey>();
   let sizes: LegendSizes | undefined;
   const origins: [ElementKey, ExpandedOrigin][] = [];
+  const paints = new Map<ElementKey, ExpandedPaint>(doc.paints ?? []);
   const legends: LegendExpansion[] = [];
 
   for (const [index, node] of nodes.entries()) {
@@ -250,8 +264,57 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
 
     const entries = component.props.entries as LegendEntry[];
     const entriesPath: DocPath = [...legendPath, "props", "entries"];
-    // 1. Every reserved ID must be free.
     let blocked = false;
+    // 0. Every class entry (#180) must name a class of a matrix, and have a label.
+    const classes = new Map<number, { matrix: MatrixExpansion; name: string; label: string }>();
+    for (const [j, entry] of entries.entries()) {
+      if (entry.class === undefined) continue;
+      const at: DocPath = [...entriesPath, j, "class"];
+      const dot = entry.class.indexOf(".");
+      const owner = entry.class.slice(0, dot);
+      const name = entry.class.slice(dot + 1);
+      const matrix = doc.matrices?.find((m) => m.id === owner);
+      if (matrix === undefined) {
+        // A matrix with an error of its own (not expanded) explains the figure.
+        if (invalid.has(nodeKey(owner)) || invalid.has(groupKey(owner))) {
+          blocked = true;
+          continue;
+        }
+        fail(
+          "ref/unknown-class",
+          `Entry ${j + 1} of legend "${node.id}" names a class of "${owner}", which is not a matrix.`,
+          at,
+          "A class entry names a class of a matrix as <matrix>.<class>, e.g. mask.o.",
+        );
+        blocked = true;
+        continue;
+      }
+      const cls = matrix.classes[name];
+      if (cls === undefined) {
+        const names = Object.keys(matrix.classes);
+        fail(
+          "ref/unknown-class",
+          `Unknown class "${name}" of matrix "${owner}" in entry ${j + 1} of legend "${node.id}".`,
+          at,
+          didYouMean(name, names) ?? `Classes of matrix "${owner}": ${names.join(", ")}.`,
+        );
+        blocked = true;
+        continue;
+      }
+      const label = entry.label ?? cls.label;
+      if (label === undefined) {
+        fail(
+          "component/invalid-prop",
+          `Invalid prop "entries[${j}]" for ${LEGEND_ID}: class "${name}" of matrix "${owner}" has no label, so the entry needs one.`,
+          [...entriesPath, j],
+          `Give the entry a label, or give the class one (props.classes.${name}.label of the matrix).`,
+        );
+        blocked = true;
+        continue;
+      }
+      classes.set(j, { matrix, name, label });
+    }
+    // 1. Every reserved ID must be free.
     for (const [j, entry] of entries.entries()) {
       const ids = legendPartIds(node.id, j + 1);
       const parts =
@@ -324,8 +387,10 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
       const ids = legendPartIds(node.id, n);
       const entryPath: DocPath = [...entriesPath, j];
       const of = `of entry ${n} of ${legendName}`;
+      const matrixClass = classes.get(j);
+      const label = matrixClass?.label ?? entry.label ?? "";
       addNode(
-        { ...partNode(ids.label, "sumi/label", "default"), label: entry.label },
+        { ...partNode(ids.label, "sumi/label", "default"), label },
         entryPath,
         `the text ${of}`,
       );
@@ -351,8 +416,28 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
           { from: "legend", path: linePath, subject, name: `the sample line ${of}` },
         ]);
         takenEdges.set(ids.line, linePath);
-        expansion.entries.push({ kind: "edge", sample, path: entryPath, label: entry.label });
+        expansion.entries.push({ kind: "edge", sample, path: entryPath, label });
         rows.push(row(sizes.textGap, [row(sizes.line, [ids.start, ids.end]), ids.label]));
+      } else if (matrixClass !== undefined) {
+        // The sample box of a matrix class (#180): a box as the class's cells.
+        const { matrix, name } = matrixClass;
+        const cls = matrix.classes[name] ?? {};
+        const box = partNode(ids.box, "box", cls.variant ?? matrix.cellVariant);
+        const resolved = registry.resolve(box.component, "node");
+        if (resolved.ok && resolved.value.kind === "node") {
+          box.props = sampleBoxSize(resolved.value, sizes);
+        }
+        if (cls.tone !== undefined) box.tone = cls.tone;
+        addNode(box, [...entryPath, "class"], `the sample box ${of}`);
+        if (cls.pattern === "hatch") paints.set(nodeKey(ids.box), { hatch: true });
+        expansion.entries.push({
+          kind: "node",
+          sample: nodeKey(ids.box),
+          path: entryPath,
+          label,
+          class: { matrix: matrix.id, name },
+        });
+        rows.push(row(sizes.textGap, [ids.box, ids.label]));
       } else {
         const fields = entry.node ?? {};
         const boxPath: DocPath = [...entryPath, "node"];
@@ -367,7 +452,7 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
           kind: "node",
           sample: nodeKey(ids.box),
           path: entryPath,
-          label: entry.label,
+          label,
         });
         rows.push(row(sizes.textGap, [ids.box, ids.label]));
       }
@@ -401,6 +486,7 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
     return;
   }
   doc.legends = legends;
+  if (paints.size > 0) doc.paints = paints;
   recordExpanded(doc, origins);
   resolveComponents(state, registry, locate, { only: added });
 }

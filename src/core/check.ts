@@ -2,6 +2,7 @@ import { checkAssets } from "../assets/check";
 import { captionLocator, clampCaptionPaths, expandCaptions } from "./figure/caption";
 import { type CheckFigureOptions, checkFigureSource, type FigureCheck } from "./figure/check";
 import { expandLegends } from "./figure/legend";
+import { expandMatrices } from "./figure/matrix";
 import { expandTokens, remapTokensPaths, tokensLocator } from "./figure/tokens";
 import { constrainFigure } from "./profile/constrain";
 import { builtinRegistry } from "./registry/builtins";
@@ -34,12 +35,15 @@ export function checkFigure(text: string, options: CheckOptions = {}): FigureChe
   // Group captions (#130) become label nodes for the following stages; their
   // diagnostics point at the `caption` field.
   expandCaptions(state, source.locate);
-  // Cells of tokens (#181) point at the fields they are written in.
+  // Cells of tokens (#181) and parts of matrices (#180) point at the fields they are written in.
   const check: FigureCheck = {
     state,
     locate: tokensLocator(state.doc, captionLocator(state.doc, source.locate)),
   };
   resolveComponents(state, registry, check.locate);
+  // Matrices (#180) become a frame of headers and cells, before the legends
+  // that explain their classes.
+  expandMatrices(state, registry, check.locate);
   // Legends (#131) need their validated entries; their parts point at them.
   expandLegends(state, registry, check.locate);
   // Tokens (#181) become one node per cell; cell references become their IDs.

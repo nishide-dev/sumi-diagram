@@ -67,6 +67,8 @@ export function dimStyle<S extends ResolvedStyle>(style: S, dim: DimColors): S {
     stroke: visible(style.stroke, dim.stroke),
     fontColor: visible(style.fontColor, dim.fontColor),
     fill: ink ? dim.stroke : lightenColor(style.fill, dim.lighten),
+    // Hatch lines (#180) are lines.
+    ...("hatch" in style && style.hatch !== undefined && { hatch: dim.stroke }),
   };
   return Object.freeze(dimmed);
 }

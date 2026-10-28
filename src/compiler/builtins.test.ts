@@ -49,10 +49,11 @@ const LOWERING: Record<string, string> = {
 
 /**
  * Components the `check` stages expand into elements of other components,
- * leaving none of their own (#181: a tokens node becomes its cells). They
+ * leaving none of their own (#181: a tokens node becomes its cells; #180: a
+ * matrix becomes a plain container of labels and boxes). They
  * are traced back through `writtenComponentOf()`.
  */
-const EXPANDED_AWAY = ["sumi/tokens"];
+const EXPANDED_AWAY = ["sumi/tokens", "sumi/matrix"];
 
 function compileAny(source: string) {
   const result = compileFigure(source);
@@ -117,12 +118,18 @@ describe("built-in components lower to standard D2 shapes", () => {
         expect(new Set(traced)).toEqual(new Set(m.variants));
       }
       // Only the components the auto engine cannot draw are left to the structured figure.
-      expect(STRUCTURED_ONLY_MANIFESTS.map((m) => m.name)).toEqual(["legend", "tokens", "zoom"]);
+      expect(STRUCTURED_ONLY_MANIFESTS.map((m) => m.name)).toEqual([
+        "legend",
+        "tokens",
+        "matrix",
+        "zoom",
+      ]);
       expect(ir.elements.size).toBeGreaterThan(0);
       for (const e of ir.elements.values()) {
         expect(e.component).not.toBe("sumi/legend");
         expect(e.component).not.toBe("sumi/zoom");
         expect(e.component).not.toBe("sumi/tokens");
+        expect(e.component).not.toBe("sumi/matrix");
       }
     });
   }

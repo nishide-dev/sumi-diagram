@@ -275,7 +275,7 @@ nodes:
       ["component/invalid-prop", ["nodes", 2, "props", "entries", 2, "label"], 16, 11],
     ]);
     expect(state.diagnostics[0]?.message).toBe(
-      'Invalid prop "entries[0]" for sumi/legend: an entry needs exactly one of "edge" or "node".',
+      'Invalid prop "entries[0]" for sumi/legend: an entry needs exactly one of "edge", "node" or "class".',
     );
   });
 

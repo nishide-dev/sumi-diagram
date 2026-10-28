@@ -37,7 +37,7 @@ import {
   type PartialFigure,
 } from "../check-state";
 import { type Diagnostic, type DocPath, didYouMean } from "../diagnostics";
-import { LEGEND_ID, TOKENS_ID } from "../registry/builtins";
+import { LEGEND_ID, MATRIX_ID, TOKENS_ID } from "../registry/builtins";
 import { componentId, type NodeManifest } from "../registry/manifest";
 import type { Registry } from "../registry/registry";
 import { isBlankForD2, resolveComponents } from "../registry/resolve";
@@ -129,6 +129,7 @@ function cellProblem(manifest: NodeManifest): string | undefined {
   const id = componentId(manifest);
   if (id === LEGEND_ID) return "is a legend";
   if (id === TOKENS_ID) return "is a tokens node itself";
+  if (id === MATRIX_ID) return "is a matrix";
   return undefined;
 }
 
@@ -601,12 +602,17 @@ function resolveCellRefs(
 export function nodeOrder(doc: PartialFigure): number[] {
   const nodes = doc.nodes ?? [];
   const indices = nodes.map((_, i) => i);
-  if (doc.tokens === undefined || doc.tokens.length === 0) return indices;
+  // The parts of a matrix (#180) likewise take the matrix node's place.
+  const expansions = [
+    ...(doc.tokens ?? []),
+    ...(doc.matrices ?? []).map((m) => ({ path: m.path, cells: m.parts })),
+  ];
+  if (expansions.length === 0) return indices;
   const indexById = new Map<string, number>();
   for (const [i, node] of nodes.entries()) if (node !== undefined) indexById.set(node.id, i);
   const cellsAt = new Map<number, number[]>();
   const moved = new Set<number>();
-  for (const expansion of doc.tokens) {
+  for (const expansion of expansions) {
     const at = expansion.path[1];
     if (typeof at !== "number") continue;
     const cells = expansion.cells.flatMap((c) => {
@@ -628,7 +634,11 @@ export function nodeOrder(doc: PartialFigure): number[] {
  */
 export function tokensCellPath(doc: PartialFigure, path: DocPath): DocPath {
   return cellFieldPath(
-    (doc.tokens ?? []).flatMap((t) => t.cells),
+    [
+      ...(doc.tokens ?? []).flatMap((t) => t.cells),
+      // The parts of matrices (#180) are written the same way.
+      ...(doc.matrices ?? []).flatMap((m) => m.parts),
+    ],
     path,
   );
 }
@@ -664,7 +674,7 @@ export function tokensLocator(doc: PartialFigure, locate: Locator): Locator {
 
 /** Rewrites the paths of diagnostics (and their related entries) into cells' nodes, in place. */
 export function remapTokensPaths(doc: PartialFigure, diagnostics: Diagnostic[]): void {
-  if (doc.tokens === undefined) return;
+  if (doc.tokens === undefined && doc.matrices === undefined) return;
   for (const diagnostic of diagnostics) {
     if (diagnostic.path !== undefined) diagnostic.path = tokensCellPath(doc, diagnostic.path);
     for (const related of diagnostic.related ?? []) {

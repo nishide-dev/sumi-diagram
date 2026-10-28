@@ -46,6 +46,12 @@ export interface NodeStyle extends CommonStyle {
   readonly kind: "node";
   readonly fill: Color;
   readonly radius: StyleLength;
+  /**
+   * The color of the diagonal lines drawn over the fill (#180): set only on
+   * a hatched matrix cell or legend sample box (structured layout), never by
+   * a theme layer.
+   */
+  readonly hatch?: Color;
 }
 
 export interface GroupStyle extends CommonStyle {

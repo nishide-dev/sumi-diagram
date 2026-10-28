@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { editableCorpus } from "../../../scripts/pptx-validator/editable-corpus";
+import { parseLabel } from "../../core/label/math";
 import { DEFAULT_FONT_SET_ID, getFontSet } from "../../core/theme/fonts";
 import { attribute, childElements, descendants, parseXml, textContent } from "../xml";
 import { svgToEditablePptx } from "./editable";
@@ -67,7 +68,12 @@ for (const item of corpus)
         } else if (element.label.trim()) {
           const tx = childElements(shape).find((e) => e.name === "p:txBody");
           expect(tx).toBeDefined();
-          expect(tx && textContent(tx).replace(/\s/g, "")).toBe(element.label.replace(/\s/g, ""));
+          // Label math (#93) is written as its characters (a matrix's headers, #180).
+          const parsed = parseLabel(element.label);
+          const text = parsed.ok
+            ? parsed.value.lines.flatMap((line) => line.map((run) => run.text)).join("")
+            : element.label;
+          expect(tx && textContent(tx).replace(/\s/g, "")).toBe(text.replace(/\s/g, ""));
         }
       }
       const golden = resolve(goldenDir, `${item.id.replaceAll("/", "_")}.${connectors}.xml`);
