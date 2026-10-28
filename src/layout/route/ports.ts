@@ -204,6 +204,20 @@ export function straightOffset(rect: Rect, side: Side, at: number): number | und
 }
 
 /**
+ * How far the coordinate `at` along `side` of `rect` lies outside the
+ * positions a `straight` end may take ({@link straightOffset}): 0 inside
+ * them, infinite on a side of no length.
+ */
+export function straightMarginDistance(rect: Rect, side: Side, at: number): number {
+  const vertical = side === "north" || side === "south";
+  const start = vertical ? rect.x : rect.y;
+  const length = vertical ? rect.width : rect.height;
+  if (!(length > 0)) return Number.POSITIVE_INFINITY;
+  const margin = Math.min(STRAIGHT_MARGIN, length / 2);
+  return Math.max(0, start + margin - at, at - (start + length - margin));
+}
+
+/**
  * A `straight` end on `self` toward `other` (#179, design doc §6.47): the
  * side of `self` that faces `other` along the one axis the two are apart
  * on, at the projection of `other`'s centre (exact, not rounded) onto it.

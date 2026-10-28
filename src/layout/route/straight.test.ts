@@ -12,7 +12,12 @@ import { type LayoutIR, type Point, type Rect, roundUnits } from "../ir";
 import { placeStructured } from "../structured/engine";
 import type { TextMeasurer } from "../text";
 import { checkRoutes } from "./check";
-import { STRAIGHT_MARGIN, straightOffset, straightPlacement } from "./ports";
+import {
+  STRAIGHT_MARGIN,
+  straightMarginDistance,
+  straightOffset,
+  straightPlacement,
+} from "./ports";
 import { routeEdges } from "./router";
 
 /** Every character is half an em wide; ascender 0.8 em, descender 0.2 em. */
@@ -507,6 +512,34 @@ describe("ends at one point and other rules", () => {
     expect(misses(4)).toEqual([]); // 2 units past it: a straighten() move
     expect(misses(3.9)).toEqual([miss]);
     expect(misses(1)).toEqual([miss]);
+  });
+});
+
+describe("a short side narrower than the tolerance (re-review of #197)", () => {
+  for (const width of ["4pt", "6.5pt"]) {
+    test(`${width}: straighten() moves the end just past the margin, and checkRoutes accepts it`, () => {
+      const node = (id: string) => ({ id, component: "box", props: { width, height: "10pt" } });
+      const value = layout(
+        figure(
+          { stack: { gap: "20pt", items: ["a", "t"] } },
+          [node("a"), node("t")],
+          [{ from: "a", to: "t", fromAnchor: "south:0.375", toAnchor: "straight" }],
+        ),
+      );
+      const a = rectOf(value.layout, "a");
+      expectVertical(pointsOf(value.layout, 0), roundUnits(a.x + a.width * 0.375));
+      expect(codes(value.diagnostics)).toEqual([]);
+      expectClean(value);
+    });
+  }
+
+  test("straightMarginDistance", () => {
+    const rect = { x: 0, y: 0, width: 8, height: 8 };
+    expect(straightMarginDistance(rect, "north", 4)).toBe(0);
+    expect(straightMarginDistance(rect, "north", 3)).toBe(1);
+    expect(straightMarginDistance(rect, "west", 6.5)).toBe(2.5);
+    expect(straightMarginDistance({ ...rect, width: 100 }, "south", 50)).toBe(0);
+    expect(straightMarginDistance({ ...rect, width: 100 }, "south", 95)).toBe(1);
   });
 });
 

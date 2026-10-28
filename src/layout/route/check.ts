@@ -18,7 +18,7 @@ import {
   nodeRegion,
   SIDE_DIR,
   STRAIGHTEN_TOLERANCE,
-  straightOffset,
+  straightMarginDistance,
   straightPlacement,
 } from "./ports";
 import { arrowheadLength } from "./router";
@@ -279,12 +279,9 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
         const at = straightPlacement(rect, rects.get(other) as Rect);
         if ("offset" in at) {
           const along = SIDE_DIR[side] % 2 === 1 ? end.x : end.y;
-          const reach = STRAIGHTEN_TOLERANCE + EPS;
+          const outside = straightMarginDistance(rect, side, along);
           const inside =
-            straightOffset(rect, side, along) !== undefined ||
-            (points.length === 2 &&
-              (straightOffset(rect, side, along - reach) !== undefined ||
-                straightOffset(rect, side, along + reach) !== undefined));
+            outside <= 1e-9 || (points.length === 2 && outside <= STRAIGHTEN_TOLERANCE + EPS);
           if (at.side !== side || !inside) miss(`not straight on the ${at.side} side`);
         }
       } else if (anchor !== undefined) {

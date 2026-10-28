@@ -339,7 +339,11 @@ YAML order, greedily: edges declared first get the best routes.
   refiner) instead of computing `"south:0.3127"` by hand; put it on the
   end at the **wide** box (`fromAnchor` when the wide box is the source).
   The side is never written. The other end, if unanchored, takes the
-  facing side; parallel edges stay parallel lines. Two sources in line
+  facing side. Parallel edges (same two boxes) get separate points and
+  are straight when the other end's points are over this side; from a
+  wide box into a narrow one they cannot be, so they keep separate points,
+  bend, and get `layout/straight-off-side`: put `straight` on the wide
+  box's end instead. Two sources in line
   with the same point merge there (also with `fanIn: spread`, which
   spreads only the other ends). If the other element's centre is not over
   the side (at least 3pt inside its corners), or the two are diagonal or
