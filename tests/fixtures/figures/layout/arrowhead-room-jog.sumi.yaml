@@ -1,0 +1,14 @@
+# #217: 14 units fit the 8-unit head but not its preferred 16-unit room.
+# Paying for two extra bends to buy the room creates a tiny S-shaped step.
+version: 1
+figure:
+  id: arrowhead-room-jog
+  theme: paper
+  layout:
+    arrange:
+      row: { gap: 20pt, items: [source, target] }
+nodes:
+  - { id: source, component: box, label: Source, props: { height: 28pt } }
+  - { id: target, component: circle, label: "+", props: { width: 14pt, height: 14pt } }
+edges:
+  - { id: approach, from: source, to: target, fromAnchor: "east:1", toAnchor: south, tone: blue }
