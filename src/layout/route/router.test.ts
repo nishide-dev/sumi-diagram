@@ -196,6 +196,60 @@ function arrowApproaches(layout: LayoutIR): { last: number; fork: number }[] {
 }
 
 describe("room before an arrowhead (#116)", () => {
+  test("#217: entering another terminal's room is charged once despite grid subdivision", () => {
+    const placed = layoutStructuredFigure(
+      figure(
+        { row: { items: ["a", "b", "c", "grid", "wall"] } },
+        [box("a"), box("b"), box("c"), box("grid"), box("wall")],
+        [
+          { from: "a", to: "b", fromAnchor: "east", toAnchor: "west" },
+          { from: "a", to: "c", fromAnchor: "east", toAnchor: "north" },
+        ],
+      ),
+      { measurer: FAKE, route: false },
+    );
+    if (!placed.ok) throw new Error(JSON.stringify(placed.diagnostics));
+    const routes = [];
+    for (const gridX of [200, 86]) {
+      const rects = [
+        { x: 0, y: 0, width: 20, height: 20 },
+        { x: 100, y: 0, width: 20, height: 20 },
+        { x: 81, y: 40, width: 20, height: 20 },
+        // A distant, disconnected box subdivides the room's horizontal run
+        // without obstructing either route or changing the shared terminals.
+        { x: gridX, y: 200, width: 2, height: 2 },
+        { x: 26, y: 18, width: 59, height: 10 },
+      ];
+      const layout: LayoutIR = {
+        ...placed.value.layout,
+        nodes: placed.value.layout.nodes.map(({ label: _label, ...node }, i) => ({
+          ...node,
+          rect: rects[i] as Rect,
+        })),
+        content: { x: 0, y: 0, width: 220, height: 220 },
+      };
+      const result = routeEdges(placed.value.ir, layout, { verifyLowerBound: true });
+      expect(result.diagnostics).toEqual([]);
+      routes.push(result.layout.edges.map((edge) => edge.route?.points));
+    }
+    expect(routes[1]).toEqual(routes[0]);
+    // The second edge follows the first into b's 16-unit room (x > 84),
+    // then forks at x=91. Coordinates below include the 11-unit canvas shift.
+    // This exercises another terminal's entry charge,
+    // not merely the turn charge in the current edge's own room.
+    expect(routes[0]).toEqual([
+      [
+        { x: 31, y: 21 },
+        { x: 111, y: 21 },
+      ],
+      [
+        { x: 31, y: 21 },
+        { x: 102, y: 21 },
+        { x: 102, y: 51 },
+      ],
+    ]);
+  });
+
   test("after a turn: the arrowhead's length plus the corner radius", () => {
     const value = run(
       figure(

@@ -4,6 +4,7 @@
  * shape's outline.
  */
 
+import { imageLayerRects } from "../../assets/layers";
 import type { ArrangeBoxIR, EdgeIR, FigureIR, NodeIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import { type Anchor, type EdgeAnchor, STRAIGHT_ANCHOR } from "../../core/figure/layout";
@@ -1207,7 +1208,14 @@ function resolveEndsWith(
       const depth = outward % 2 === 0 ? self.rect.width : self.rect.height;
       const d = DIRS[opposite(outward)] as Point;
       const far = { x: port.x + d.x * depth, y: port.y + d.y * depth };
-      const t = boundaryEntry(port, far, nodeRegion(self.node, self.rect));
+      const regions = self.node.image?.layers
+        ? imageLayerRects(self.node, self.rect).map(rectPolygon)
+        : [nodeRegion(self.node, self.rect)];
+      const hits = regions.flatMap((region) => {
+        const t = boundaryEntry(port, far, region);
+        return t === undefined ? [] : [t];
+      });
+      const t = hits.length > 0 ? Math.min(...hits) : undefined;
       if (t !== undefined && t > 0) {
         outline = {
           x: roundUnits(port.x + d.x * depth * t),
@@ -1228,6 +1236,14 @@ function resolveEndsWith(
     if ("error" in pair) return pair;
     const edge = (choices[index] as (typeof choices)[number]).edge;
     const { from: a, to: b } = pair;
+    for (const end of [a, b]) {
+      const self = element(end.key);
+      if (self.node?.image?.layers === undefined) continue;
+      const touches = imageLayerRects(self.node, self.rect).some(
+        (r) => boundaryEntry(end.outline, end.outline, rectPolygon(r)) === 0,
+      );
+      if (!touches) return { error: "the edge cannot contact a painted image layer at this port" };
+    }
     if (a.port.x === b.port.x && a.port.y === b.port.y) {
       return {
         error:

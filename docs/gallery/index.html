@@ -683,11 +683,11 @@ edges:
 </section>
 <section class="card" id="sumi-image">
 <header><h3>sumi/image</h3><span class="kind">node</span></header>
-<p>A PNG, JPEG or SVG file embedded as it is and scaled to the node&#39;s box; takes no label.</p>
+<p>A PNG, JPEG or SVG file embedded as it is, optionally stacked with up-right copies; takes no label.</p>
 <ul class="chips" aria-label="variants"><li>default</li><li>framed</li></ul>
 <dl class="meta"><dt>since</dt><dd><code>0.4.0</code></dd><dt>shape</dt><dd><code>rectangle</code></dd><dt>sizing</dt><dd><code>auto</code></dd><dt>embed</dt><dd><code>image</code></dd></dl>
-<table><thead><tr><th>prop</th><th>type</th><th>required</th><th>description</th></tr></thead><tbody><tr><td><code>src</code></td><td><code>string</code></td><td>yes</td><td>Path of the image file relative to the figure&#39;s YAML file, with &quot;/&quot; between directories, e.g. &quot;img/photo.png&quot;. Absolute paths, URLs and paths outside that directory are not allowed.</td></tr><tr><td><code>sha256</code></td><td><code>string</code></td><td>no</td><td>Expected sha256 of the file in hex. Rendering fails if the file has changed. Omitted means not checked.</td></tr><tr><td><code>fit</code></td><td><code>&quot;contain&quot; | &quot;cover&quot; | &quot;fill&quot;</code></td><td>no</td><td>contain: the whole image, centered, keeping its aspect ratio (the default). cover: fills the box, keeping the aspect ratio and clipping the overflow. fill: stretched to the box.</td></tr><tr><td><code>width</code></td><td><code>string</code></td><td>no</td><td>Width as a length such as &quot;30mm&quot; (a multiple of 0.5pt). Omitted means from the height and the image&#39;s aspect ratio.</td></tr><tr><td><code>height</code></td><td><code>string</code></td><td>no</td><td>Height as a length such as &quot;20mm&quot; (a multiple of 0.5pt). Omitted means from the width and the image&#39;s aspect ratio.</td></tr></tbody></table>
-<div class="renders"><figure><img src="components/sumi-image.minimal.svg" alt="sumi/image, every variant, theme minimal" loading="lazy"><figcaption>theme <code>minimal</code> · <code>sumi render sumi-image.sumi.yaml</code><br>48.68mm × 57.86mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-image.academic.svg" alt="sumi/image, every variant, theme academic" loading="lazy"><figcaption>theme <code>academic</code> · <code>sumi render sumi-image.sumi.yaml --theme academic</code><br>48.68mm × 57.86mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-image.slides.svg" alt="sumi/image, every variant, theme slides" loading="lazy"><figcaption>theme <code>slides</code> · <code>sumi render sumi-image.sumi.yaml --theme slides</code><br>60.33mm × 69.5mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-image.color.svg" alt="sumi/image, every variant, theme color" loading="lazy"><figcaption>theme <code>color</code> · <code>sumi render sumi-image.sumi.yaml --theme color</code><br>48.68mm × 57.86mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-image.paper.svg" alt="sumi/image, every variant, theme paper" loading="lazy"><figcaption>theme <code>paper</code> · <code>sumi render sumi-image.sumi.yaml --theme paper</code><br>48.68mm × 57.86mm (max width 180mm, max height 220mm)</figcaption></figure></div>
+<table><thead><tr><th>prop</th><th>type</th><th>required</th><th>description</th></tr></thead><tbody><tr><td><code>src</code></td><td><code>string</code></td><td>yes</td><td>Path of the image file relative to the figure&#39;s YAML file, with &quot;/&quot; between directories, e.g. &quot;img/photo.png&quot;. Absolute paths, URLs and paths outside that directory are not allowed.</td></tr><tr><td><code>sha256</code></td><td><code>string</code></td><td>no</td><td>Expected sha256 of the file in hex. Rendering fails if the file has changed. Omitted means not checked.</td></tr><tr><td><code>fit</code></td><td><code>&quot;contain&quot; | &quot;cover&quot; | &quot;fill&quot;</code></td><td>no</td><td>contain: the whole image, centered, keeping its aspect ratio (the default). cover: fills the box, keeping the aspect ratio and clipping the overflow. fill: stretched to the box.</td></tr><tr><td><code>width</code></td><td><code>string</code></td><td>no</td><td>Width as a length such as &quot;30mm&quot; (a multiple of 0.5pt). Omitted means from the height and the image&#39;s aspect ratio.</td></tr><tr><td><code>height</code></td><td><code>string</code></td><td>no</td><td>Height as a length such as &quot;20mm&quot; (a multiple of 0.5pt). Omitted means from the width and the image&#39;s aspect ratio.</td></tr><tr><td><code>layers</code></td><td><code>object</code></td><td>no</td><td>Repeat the unchanged image behind the front one, offset up-right. Width and height size each copy; the node footprint includes the whole stack.</td></tr></tbody></table>
+<div class="renders"><figure><img src="components/sumi-image.minimal.svg" alt="sumi/image, every variant, theme minimal" loading="lazy"><figcaption>theme <code>minimal</code> · <code>sumi render sumi-image.sumi.yaml</code><br>48.68mm × 72.5mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-image.academic.svg" alt="sumi/image, every variant, theme academic" loading="lazy"><figcaption>theme <code>academic</code> · <code>sumi render sumi-image.sumi.yaml --theme academic</code><br>48.68mm × 72.5mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-image.slides.svg" alt="sumi/image, every variant, theme slides" loading="lazy"><figcaption>theme <code>slides</code> · <code>sumi render sumi-image.sumi.yaml --theme slides</code><br>60.33mm × 86.61mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-image.color.svg" alt="sumi/image, every variant, theme color" loading="lazy"><figcaption>theme <code>color</code> · <code>sumi render sumi-image.sumi.yaml --theme color</code><br>48.68mm × 72.5mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-image.paper.svg" alt="sumi/image, every variant, theme paper" loading="lazy"><figcaption>theme <code>paper</code> · <code>sumi render sumi-image.sumi.yaml --theme paper</code><br>48.68mm × 72.5mm (max width 180mm, max height 220mm)</figcaption></figure></div>
 <details><summary>Source: <code>sumi-image.sumi.yaml</code></summary><pre># sumi/image: every variant. Generated by `bun run gallery` (#17).
 version: 1
 figure:
@@ -724,6 +724,13 @@ nodes:
   - id: svg-image
     component: sumi/image
     props: { src: shapes.svg, height: 24pt }
+  - id: layers
+    component: box
+    label: layers
+  - id: layers-image
+    component: sumi/image
+    variant: framed
+    props: { src: gradient.png, height: 24pt, layers: { count: 4, offset: 3pt } }
 
 edges:
   - from: default
@@ -734,6 +741,8 @@ edges:
     to: cover-image
   - from: svg
     to: svg-image
+  - from: layers
+    to: layers-image
 </pre></details>
 </section>
 <section class="card" id="sumi-legend">

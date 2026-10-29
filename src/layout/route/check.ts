@@ -345,22 +345,10 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
       const length = ([a, b]: Segment) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
       const first = segments[0];
       const last = segments[segments.length - 1];
-      // Junction ends have no stub (design doc §6.22).
-      const free = (key: ElementKey) => isJunction(nodeIR.get(key));
-      if (
-        ir.sourceArrowhead !== undefined &&
-        !free(edge.from) &&
-        first !== undefined &&
-        length(first) < arrow - EPS
-      ) {
+      if (ir.sourceArrowhead !== undefined && first !== undefined && length(first) < arrow - EPS) {
         report.shortArrowSegments.push(`${edge.key} source`);
       }
-      if (
-        ir.targetArrowhead !== undefined &&
-        !free(edge.to) &&
-        last !== undefined &&
-        length(last) < arrow - EPS
-      ) {
+      if (ir.targetArrowhead !== undefined && last !== undefined && length(last) < arrow - EPS) {
         report.shortArrowSegments.push(`${edge.key} target`);
       }
     }
