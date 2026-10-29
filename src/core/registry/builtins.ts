@@ -27,14 +27,24 @@ const SINCE = "0.1.0";
  * The variants of every shape node. `outlined` (#177, design doc §6.54)
  * draws the page's background with the outline and text in a tone's line
  * color, so a tone colors the frame and text instead of the fill.
+ * `solid` adds an ink fill with white text; `tinted` combines a pastel fill
+ * with matching ink for the border and text (#214, design doc §6.63).
  */
-const NODE_VARIANTS = ["default", "emphasis", "muted", "outlined"];
+const NODE_VARIANTS = ["default", "emphasis", "muted", "outlined", "solid", "tinted"];
 /**
  * The variants of the shapes that read as a filled area (#174): `filled`
  * draws the fill without the outline. `stack` is left out, since its
  * outlines are what separate the overlapping rectangles.
  */
-const FILLABLE_NODE_VARIANTS = ["default", "emphasis", "muted", "filled", "outlined"];
+const FILLABLE_NODE_VARIANTS = [
+  "default",
+  "emphasis",
+  "muted",
+  "filled",
+  "outlined",
+  "solid",
+  "tinted",
+];
 const EDGE_VARIANTS = ["default", "dashed", "emphasis", "muted"];
 
 const sizeProps = z.strictObject({

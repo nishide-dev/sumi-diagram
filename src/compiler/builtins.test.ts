@@ -9,7 +9,8 @@ import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
 import { checkFigure } from "../core/check";
 import { BUILTIN_MANIFESTS } from "../core/registry/builtins";
-import { BUILTIN_THEME_DEFINITIONS } from "../core/theme/builtin";
+import { BUILTIN_THEME_DEFINITIONS, getTheme } from "../core/theme/builtin";
+import { filledToneNode } from "../core/theme/node-variants";
 import { KIND_DEFAULTS } from "../core/theme/style";
 import { compileFigure, expectD2Figure } from "./compile";
 import type { FigureIR } from "./ir";
@@ -160,7 +161,7 @@ describe("colors come only from themes", () => {
     });
   }
 
-  test("every color in the D2 source is a theme token or a kind default", () => {
+  test("every color in the D2 source is a theme token, derived tone ink or a kind default", () => {
     const defaults = Object.values(KIND_DEFAULTS).flatMap((style) => Object.values(style));
     for (const definition of BUILTIN_THEME_DEFINITIONS) {
       const allowed = new Set(
@@ -168,6 +169,17 @@ describe("colors come only from themes", () => {
           (m) => (m[1] ?? "").toLowerCase(),
         ),
       );
+      const theme = getTheme(definition.id);
+      if (!theme) throw new Error(definition.id);
+      // New tinted variants derive ink in the theme layer, never in the compiler (#214).
+      for (const [tone, layer] of theme.tones) {
+        const ink = theme.toneLines.get(tone)?.stroke;
+        if (layer.fill !== undefined && ink !== undefined) {
+          for (const color of Object.values(filledToneNode("tinted", layer.fill, ink))) {
+            if (typeof color === "string") allowed.add(color);
+          }
+        }
+      }
       const { d2Source } = compile(primitivesFigure(definition.id));
       const used = [...d2Source.matchAll(/(?:fill|stroke|font-color): "([^"]*)"/g)].map(
         (m) => m[1],

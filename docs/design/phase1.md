@@ -2106,6 +2106,15 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
   変更前の全 138 YAML × 元テーマ・組み込み 5 theme の SHA-256 比較も記録する。
   詳細・再現方法・目視した PNG は同ディレクトリの README を参照。
 
+### 6.63 #214 の濃い塗りと色付き淡色面（`solid` / `tinted`）
+
+- **構文と対象**: shape node の variant に `solid` と `tinted` を追加する。box・square・circle・ellipse・diamond・hexagon・parallelogram・cylinder・document・trapezoid・stack・operator の 12 部品が対象。tokens の共通 `props.variant` とセルごとの `variant`、legend の `node.variant` は既存の Registry 検証・展開を通るので同じ名前が使える。tone 未指定時は gray。新しい YAML field・診断は増やさない。
+- **色の組み合わせ**: `solid` は `toneLines.<tone>.stroke` を塗りと枠に使い、文字は白。例外として solid stack の枠は白にする。同色の塗りと枠では重なった矩形の境界が消えるため、白い区切りで全層を区別する（文字と同じ 4.5:1 以上）。`tinted` は `tones.<tone>.fill` を面に使い、同じ tone の line 色を枠と文字に使う。全 Theme の components に両 variant の gray の基本値を定義し、解決時に palette を合成する。線幅は既存の通常線幅を使い、`filled` と同じ線幅 0 にはしない。
+- **4.5:1 と互換性の両立**: 既存の line 色は白地で 4.5:1 以上だが、淡色面では不足する tone がある。既存の `tones` / `toneLines` は変更しない。tinted に限り、line 色の RGB を黒へ 1% 刻みで混ぜ、量子化後の相対輝度で文字と面の比が 4.5:1 以上となる最初の色を枠・文字に採用する。これにより元の淡色面と色相を保つ。solid は既存 line 色と白で条件を満たす。全 12 部品 × 全 5 Theme × 全 8 tone と tone 未指定を実測する。dim は意図した薄表示なのでこのコントラスト条件の対象外。
+- **§6.53 の dim**: palette 合成後に dim pass を 1 回適用する。文字と枠は dim gray、面は white へ lighten。solid は fill と stroke が等しくても junction の点のような「ink」ではなく面として扱う。面と文字がほぼ同じ輝度になる tone があるため、solid の文字は dim gray を黒へ 1% 刻みで混ぜ、量子化後の文字 / 面のコントラストが **3:1 以上**となる最初の色を使う。薄表示を保ちつつ最低限の可読性を確保し、既存 palette と lighten は変えない。dimmed solid stack の枠はこの文字色を使い、層の境界にも 3:1 以上を保証する。既存の点・矢じり・他 variant の判定は同じ。Skill の 4.5:1 の説明は非 dim ノードに限定する。
+- **発見性と作例**: catalog の全 shape manifest、全 Theme × 全 variant の部品 gallery、全 Theme × 8 tone の solid/tinted gallery（tokens と legend）を更新する。7 variant の横一列は paper-double の幅を超えるため、shape の部品見本だけ structured の 2 行にする。D2 の全 variant × 全 Theme 描画テストも維持する。`research/214-solid-tinted/figures/c-h3world.sumi.yaml` は #185 の写しで、押したキーと ⊕ を solid、全 Encoder と A のセルを tinted にする。placeholder の frame は描画スクリプトが #185 から ignored directory に複製し、SVG/PDF は out/、コミットする画像は previews/ の PNG 1 枚（150KB 未満）。
+- **出力検査**: 変更前の 140 YAML ×（元 Theme + 5 Theme）= 840 通りを再描画。成功した 574 通りの SVG / PDF / PPTX と auto の D2 の sha256 はすべて一致。失敗例も同じ失敗で、unknown-variant の候補が増える既存 fixture 1 枚 × 6 通りだけ診断文が変わる。gallery の変更は新 variant を示す部品 SVG 60 枚・新 tone SVG 5 枚と索引 2 枚。全変更 gallery と受け入れ図を PNG で確認する。詳細は [検証記録](../../research/214-solid-tinted/README.md)。
+
 ### 6.64 #215 の paper operator の縮小
 
 - **判断: Theme の値だけで対応**。operator の既存契約は円の直径が glyph の fontSize の 2 倍（§6.20）。`paper` の operator にだけ default スタイルを追加し、fontSize を既存の `{size.small}`（7pt）、strokeWidth を `{line.edge}`（0.5pt）とした。記号 8 → 7pt、円 16 → 14pt（12.5% 縮小）。6pt / 12pt の試作は `profile/font-too-small`（紙の下限 7pt）になり不採用。小さい記号と 0.5pt の辺に釣り合う細い円とする。emphasis は既存の 1.5pt と bold を保って意図した強調を残し、filled は枠なし、muted / outlined の色と tone / dim は既存の解決順を使う。props・variant・schema・診断は増やさず、サイズの自由指定や lint の例外も追加しない。
@@ -2113,6 +2122,7 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **実測（mm）**: Transformer **76.02 × 114.83 → 75.32 × 114.12**、DiT **180 × 85.98 → 180 × 84.69**、H3-World **180 × 122.24 → 180 × 123.04**。DiT は **170mm 幅で 81.2041 → 79.9841mm（−1.2200mm、−1.50%）**。#185 の原図約 68mm に対して ×1.194 → ×1.176。§6.55 の compact だけで残る縦長さを少し改善するが、間隔や文字の大きさの差は残る。§6.55 の旧 fixture は 180mm 幅で 87.66 → 86.34mm（170mm 幅で 82.79 → 81.54mm）。H3-World は自然幅が小さくなって fit の縮小が弱まり（0.829 → 0.8344）、固定された 180mm 幅での高さは逆に増える。3 図の warning / error は 0。DiT と H3-World の既存の添字の info のみ継続。
 - **互換性（実測）**: 追跡済み YAML **140 個 ×（own + 組み込み 5 Theme）= 840 通り**の変更前後を描画し、実際の SVG / PDF / 画像方式 PPTX と D2 ソースの SHA-256 を比較。成功 **574 通り**、失敗 **266 通り**は不変、D2 **234 件すべて同一**。**45 ファイル・59 通りの SVG / PDF / PPTX（177 出力）だけ**が変化し、すべて paper で operator を使う図。own の変更も paper の図だけ。残る Theme と operator のない paper はバイト一致。失敗の診断も同一。全変更を PDF → PNG の一覧で確認し、既存の再現図の重なりを含む意図した差分を [一覧](../../research/215-paper-operator/changed-outputs.md) に記録した。
 - **golden とテスト**: `bun run gallery` で operator / tones / dim の paper SVG と目次を更新、指定の `SUMI_UPDATE_GOLDEN=1 CI=1 bun test src/render/pdf src/render/pptx src/render/assets.integration.test.ts` で PDF / PPTX corpus と operator の編集可能 slide XML を再生成（hash の手編集なし）。3 ギャラリーの PNG で全 symbol・variant・tone・dim を確認。`marks.test.ts` で全 symbol × variant の直径・文字・線幅・profile 下限を検査、既存の全部品 × variant × Theme の実 D2 描画も通る。compact の実測期待値と #217 の受け入れ経路の座標を新しい大きさに更新（曲がり 1 回と矢じりの直線長の保証は保持）。Skill にサイズの説明を追記。`check` / `typecheck` / `CI=1 bun test`（2811 pass・13 skip・0 fail）/ `gallery:check` / `schema:check` を確認。
+
 
 
 ## 7. 実装順
