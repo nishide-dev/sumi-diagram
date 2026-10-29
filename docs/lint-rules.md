@@ -6,7 +6,7 @@
 
 ## 規則の一覧
 
-配置の `grid` は構造 lint より前の layout 段で検査する。行の残りより大きい span は `layout/grid-span-overflow`（error、`span` の位置）、未完の最終行は `layout/grid-item-count`（error、`items` のキー）。全行を埋め、空けたいセルには hidden junction を置く。null・空文字・空の items・不正な columns / span・direction は位置付きの `schema/*`。これらは `lint/*` の抑制設定では無効にできない（設計 §6.59）。
+配置の `grid` は構造 lint より前の layout 段で検査する。行の残りより大きい span は `layout/grid-span-overflow`（error、`span` の位置）、未完の最終行は `layout/grid-item-count`（error、`items` のキー）。全行を埋める。空けたいセルは `null`（`~`）、複数列は `{ item: null, span: N }` で書く（ノードも経路の障害物も作らない）。空文字・空の items・不正な columns / span・direction は位置付きの `schema/*`。これらは `lint/*` の抑制設定では無効にできない（設計 §6.59）。
 
 `geometry/badge-collision`（既定 warning、#188）は、1 em の角バッジの
 足跡がキャンバス外に出る場合、他ノード・ラベル・バッジ・辺、または自身の
