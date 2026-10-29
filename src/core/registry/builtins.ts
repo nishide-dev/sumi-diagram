@@ -357,6 +357,26 @@ const tokenCellFields = {
 const tokenCell = z.union([
   z.string().describe("A cell with this label (math allowed); the other fields as the tokens'."),
   z.strictObject({
+    separator: z
+      .literal("dotted")
+      .describe("A dotted divider perpendicular to the token direction."),
+    id: z
+      .string()
+      .regex(ID_PATTERN)
+      .optional()
+      .describe("The separator cell's name, as for other cells."),
+    tone: z
+      .enum(TONE_NAMES)
+      .optional()
+      .describe("The divider's line tone. Omitted inherits the tokens' tone."),
+    width: SizeLength.optional().describe(
+      "Reserved cell width. Defaults to 6pt for a row, or the tokens' width (14pt if omitted) for a stack.",
+    ),
+    height: SizeLength.optional().describe(
+      "Reserved cell height. Defaults to the tokens' height (14pt if omitted) for a row, or 6pt for a stack.",
+    ),
+  }),
+  z.strictObject({
     id: z
       .string()
       .regex(ID_PATTERN)
@@ -388,7 +408,7 @@ const tokens: NodeManifest = {
         .min(1)
         .optional()
         .describe(
-          "The cells in order: labels, or objects with id, label, tone, component, variant, width and height.",
+          "The cells in order: labels, objects with id, label, tone, component, variant, width and height, or { separator: dotted, id?, tone?, width?, height? } divider cells (since 0.7.0). Dividers count in positional cell references.",
         ),
       lines: z
         .array(z.array(tokenCell).min(1))

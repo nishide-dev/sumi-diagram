@@ -355,6 +355,7 @@ function tokensSample(entry: CatalogEntry, theme: string): string {
       "        - t1",
       "        - t2",
       "        - t3",
+      "        - { separator: dotted, tone: gray, height: 24pt }",
       "        - { label: '…', component: label }",
       `  - id: ${v}-keys`,
       `    component: ${entry.id}`,

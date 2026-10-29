@@ -2125,6 +2125,19 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 
 
 
+### 6.65 #216 のトークン列の点線の区切り
+
+- **構文の判断**: `tokens`（§6.50）の `cells` / `lines` に `{ separator: dotted }` というセルを追加する。任意の `id`・`tone`・`width`・`height` を持てるが、ラベル・部品・variant は持たない。別の `separators` 配列では、位置・行・参照との対応を二重に管理することになるため、既存の並びの中に書くセルにした。通常のセルと同じく位置番号に数え、`<tokens>.<id>` / `<tokens>.<番号>` で参照でき、予約 ID・重複 ID・診断の由来も既存の仕組みを使う。挿入で番号が変わるため安定した参照には `id` を勧める。
+- **大きさと方向**: `right` / `left` は縦線で、予約幅の既定は **6pt**、高さは tokens の `height`（なければ **14pt**）。`down` / `up` は横線で、予約高さが **6pt**、幅は tokens の `width`（なければ **14pt**）。セル自身のサイズが優先し、`gap` は両側に効く。行をまたいだ境界線ではなく、そのセルの箱の中央に引く短い区切り。周辺セルを測って高さを決める後処理を加えず、明示サイズ・配置・stretch の通常の規則に従う。
+- **テーマと描画**: `box` の `outlined` に展開して全組み込みテーマの線幅と `toneLines` の色を使う（tone はセル → tokens の順）。通常セルの `component` / `variant` は引き継がない。展開記録と Figure IR の `tokens.separator` に向きを持たせる。SVG の `g.shape` は無色の矩形で予約箱を表し、その直後に `path.sumi-token-separator` を描く。線幅と同じ長さの dash・線幅の 2 倍の間隔・丸い線端。線端を線幅の半分だけ箱の内側に入れ、幅は箱の短辺以下に制限する。線幅 0 は描かない。薄表示や全体の縮小は既存のスタイル・変換に従う。
+- **端点・inspect・幾何 lint**: 名前・番号のどちらの参照でも区切りを辺の端点にできる。anchor は点線の中心線ではなく**不可視の予約矩形**を指し、編集可能 PPTX の接続先もこの矩形。予約箱を既存のノードとして扱うため、配置・ルーティング・inspect の bbox・衝突検査が同じ箱を共有する。`geometry/edge-through-node` も予約箱への侵入を検査する。一方、`g.shape` の外にある点線パスは斜線と同じ装飾で、inspect はパスを公開・検査せず、辺同士の近接規則も点線 stroke までの距離を検査しない。重なりは `geometry/node-overlap` で書かれた区切りセルを指す。空ラベルの警告は他の tokens セルと同じく出さない。新しい診断コードは追加しない。
+- **出力形式**: PDF と画像方式 PPTX は同じ SVG パスを変換する。編集可能 PPTX は行列の斜線（§6.56）と同様に、予約箱に重ねた独立の線図形（`<key> separator`、`custGeom`、丸い線端、`custDash`）にする。`freeform` / `glued` の両方を検査する。線と予約箱はグループ化しない（行列の斜線と同じ制約）。
+- **受け入れ図と目視**: `research/185-acceptance/figures/c-h3world.sumi.yaml` の写しを `research/216-token-separator/` に置き、(a) の `seq` の `adots` と `i0`、(b) の `bt` の `a3` と `i0` の間に `id: av` の点線セルを挿入した。原図は参照できないため Issue の説明を根拠とし、フレームは既存のプレースホルダーのまま。PDF から PNG にして両方の点線と既存の接続を確認した。**180 × 120.87mm**、scale **0.8197**、error / warning **0**、既存の `geometry/script-too-small`（info）1 件。コミットするプレビューは **74,629 bytes** の 1 枚だけで、SVG / PDF / PPTX とフルサイズ PNG は `out/` に生成して gitignore する。
+- **ギャラリーと golden の意図した変更**: `tokensSample()` に区切りを 1 つ加え、全 variant（default）× 全テーマの見本で機能を見せる。変わる既存の図は `docs/gallery/components/sumi-tokens.{minimal,academic,slides,color,paper}.svg` の **5 枚**のみで、すべて PDF → PNG にして確認した。通常セルのサイズは維持するが、予約幅の追加で後ろの省略記号とキー群が移動し、広がった行の中央に揃う model も移動する。paper では model が 7.5 unit 動き、出る辺の始点 x も 195.508 → 203.008 になる。これは見本の入力を変えた結果で、端点が不変という意味ではない。目次の 2 ファイルはカタログの説明の更新。対応する PDF / 画像方式 PPTX の corpus hash 各 5 エントリ、編集可能 PPTX の hash と slide XML は 5 テーマ × 2 方式の 10 件を指定の生成コマンドで更新した。既存 YAML の図の出力変更とは区別する。
+- **テスト**: 区切りの strict props、4 方向の線分座標、明示サイズ・既定サイズ、`lines`、名前・番号の参照と描画した予約矩形への接続（glued PPTX の接続先を含む）、由来と IR、全 5 テーマの inspect bbox と診断ゼロ、衝突の書いた位置、装飾パスを除いても予約箱を横切る無関係な辺の診断、tone 継承、H3-World の順序、縦・横 × 通常・dim の SVG / PDF の線分と dash、画像方式 PPTX の色・dash、編集可能 PPTX 両方式の線図形・色・dash を検査する。部品 props は Figure JSON Schema の外なのでスキーマ本体は変えない。
+- **レビュー対応後の検証**: `bun run check`・`bun run typecheck`・`CI=1 bun test`（**2861 pass / 13 skip / 0 fail、90164 assertions**）・`bun run gallery:check`（**155 ファイルがバイト一致**）・`bun run schema:check` が成功した。既存の D2・lint・画像・PDF・画像方式 / 編集可能 PPTX の golden も更新なしで通る。今回のレビュー対応ではギャラリー・サンプル・golden の変更は **0**。下記の 840 通りの比較は最初の実装時の記録で、今回の追加検証とは区別する。
+- **互換性（実測）**: 既存 `*.sumi.yaml` **140 図 ×（元のテーマ + 組み込み 5 テーマ）= 840 通り**を変更前後に描いた。成功する **574 通り**の SVG・PDF・画像方式 PPTX 各 574 件と、auto の D2 ソース **222 件**は sha256 がすべて一致した。既存の失敗 **266 通り**は失敗のまま。診断の差分は、既に `{ separator: dotted }` が提案構文として書かれていた `research/86-paper-figures/figures/ideal/c-h3world.sumi.yaml` の 6 テーマ分で `component/unknown-prop` が 1 件減ったことだけ（他の未対応構文により出力は引き続きない）。成功・失敗の変化、既存出力の変更は **0**。全チェックは `bun run check`・`bun run typecheck`・`CI=1 bun test`（**2854 pass / 13 skip / 0 fail**）・`bun run gallery:check`（155 ファイル）・`bun run schema:check` が成功した。skip は既存の prototype / 任意環境のテスト。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）

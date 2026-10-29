@@ -39,6 +39,68 @@ const summarize = (
 const codesOf = (source: string) =>
   summarize(checkFigure(source).state.diagnostics).map(([code, path]) => [code, path]);
 
+describe("separator cells (#216)", () => {
+  for (const direction of ["right", "left", "down", "up"] as const) {
+    test(`${direction}: size defaults, origin, tone and positional references`, () => {
+      const source = figure(
+        `      direction: ${direction}
+      component: square
+      variant: filled
+      width: 18pt
+      height: 18pt
+      cells: [{ id: x, label: A }, { separator: dotted, tone: gray }, B]`,
+        {
+          edges: "  - { from: a, to: seq.2 }",
+        },
+      );
+      const check = checkFigure(source);
+      const { state } = check;
+      expect(state.diagnostics).toEqual([]);
+      const vertical = direction === "right" || direction === "left";
+      expect(state.doc.nodes?.find((n) => n?.id === "seq-2")).toMatchObject({
+        component: "box",
+        variant: "outlined",
+        label: "",
+        tone: "gray",
+        props: { width: vertical ? "6pt" : "18pt", height: vertical ? "18pt" : "6pt" },
+      });
+      expect(state.doc.edges?.[0]?.to).toBe("seq-2");
+      const ir = buildFigureIR(check);
+      expect(ir.nodes.find((n) => n.id === "seq-2")?.tokens).toMatchObject({
+        separator: vertical ? "vertical" : "horizontal",
+      });
+    });
+  }
+  for (const cell of [
+    "{ separator: dashed }",
+    "{ separator: dotted, label: nope }",
+    "{ separator: dotted, component: label }",
+    "{ separator: dotted, width: 0pt }",
+  ]) {
+    test(`rejects ${cell}`, () => {
+      expect(
+        codesOf(figure(`      cells: [{ id: x, label: A }, ${cell}]`)).some(
+          ([c]) => c === "component/invalid-prop" || c === "component/unknown-prop",
+        ),
+      ).toBe(true);
+    });
+  }
+  test("lines, named references and explicit separator size", () => {
+    const { state } = checkFigure(
+      figure(
+        `      lines: [[{ id: x, label: A }, { id: cut, separator: dotted, width: 8pt, height: 24pt }, B], [C]]`,
+        { edges: "  - { from: a, to: seq.cut }" },
+      ),
+    );
+    expect(state.diagnostics).toEqual([]);
+    expect(state.doc.nodes?.find((n) => n?.id === "seq-cut")?.props).toEqual({
+      width: "8pt",
+      height: "24pt",
+    });
+    expect(state.doc.edges?.[0]?.to).toBe("seq-cut");
+  });
+});
+
 describe("expansion (#181)", () => {
   test("each cell becomes a node; the tokens' arrange item becomes a row of them", () => {
     const { state } = checkFigure(figure(CELLS, { seq: "\n    tone: purple" }));

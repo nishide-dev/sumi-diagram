@@ -188,6 +188,8 @@ interface ElementIRBase {
 
 /** See {@link ElementIRBase.tokens} and {@link ElementIRBase.matrix}. */
 export interface TokensCellIR {
+  /** A dotted separator cell (#216), drawn within its reserved box. */
+  readonly separator?: "vertical" | "horizontal";
   /** The ID of the tokens node (which names no element of its own), or of the matrix. */
   readonly id: string;
   /** The tokens or matrix node's variant. */
@@ -753,8 +755,17 @@ function tokensCellOf(doc: PartialFigure, key: ElementKey): { tokens?: TokensCel
   const id = origin.subject.id;
   const expansion = doc.tokens?.find((t) => t.id === id);
   const variant = expansion?.variant ?? "default";
-  const fields = expansion?.cells.find((c) => nodeKey(c.id) === key)?.fields ?? {};
-  return { tokens: freeze({ id, variant, name: origin.name, fields: freeze({ ...fields }) }) };
+  const cell = expansion?.cells.find((c) => nodeKey(c.id) === key);
+  const fields = cell?.fields ?? {};
+  return {
+    tokens: freeze({
+      id,
+      variant,
+      name: origin.name,
+      fields: freeze({ ...fields }),
+      ...(cell?.separator !== undefined && { separator: cell.separator }),
+    }),
+  };
 }
 
 /** `{ matrix }` for the frame or a part of a matrix (#180), otherwise `{}`. */

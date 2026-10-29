@@ -7,7 +7,9 @@
  * lines. Nothing is drawn for the tokens node itself, so the expanded figure
  * is exactly the figure an author would write by hand with one node per
  * cell (same arrange boxes, same props), and the later stages (asset, theme,
- * profile, lint, IR, layout, routing) see only ordinary nodes.
+ * profile, lint, IR, layout, routing) see only ordinary nodes. A dotted
+ * separator cell (#216) reserves an ordinary box; its expansion metadata
+ * tells the SVG writer to paint a divider instead of that box's border.
  *
  * Each cell has a key: its `id`, or its 1-based position (across the lines)
  * when it has none. It is drawn as the node with the reserved ID
@@ -68,6 +70,8 @@ export type TokenCell =
       width?: number;
       /** pt */
       height?: number;
+      /** A divider cell has no label, component or variant. */
+      separator?: "dotted";
     };
 
 /** The props of a tokens node, as validated by the manifest. */
@@ -104,6 +108,8 @@ export interface TokensCellExpansion {
    * field, or the tokens' default it inherits. See {@link tokensCellPath}.
    */
   fields: Readonly<Record<string, DocPath>>;
+  /** Divider orientation, perpendicular to the token direction (#216). */
+  separator?: "vertical" | "horizontal";
 }
 
 /** A tokens node and what it was expanded into (`doc.tokens`). */
@@ -289,6 +295,7 @@ export function expandTokens(state: CheckState, registry: Registry, locate: Loca
     }
     // 3. Every cell's component must be a shape or text.
     for (const { cell, path } of written) {
+      if (cell.separator !== undefined) continue;
       const at: DocPath =
         cell.component !== undefined ? [...path, "component"] : [...propsPath, "component"];
       const resolved = registry.resolve(cell.component ?? props.component, "node");
@@ -348,8 +355,32 @@ export function expandTokens(state: CheckState, registry: Registry, locate: Loca
                 : path,
       };
       const id = tokensCellId(node.id, cellKey);
-      const width = cell.width ?? props.width;
-      const height = cell.height ?? props.height;
+      const separator =
+        cell.separator === undefined
+          ? undefined
+          : props.direction === "right" || props.direction === "left"
+            ? "vertical"
+            : "horizontal";
+      const width =
+        cell.width ??
+        (separator === "vertical" ? 6 : (props.width ?? (separator ? 14 : undefined)));
+      const height =
+        cell.height ??
+        (separator === "horizontal" ? 6 : (props.height ?? (separator ? 14 : undefined)));
+      if (separator !== undefined) {
+        fields.component = [...path, "separator"];
+        fields.variant = [...path, "separator"];
+        fields.props = path;
+        if (cell.width === undefined && (separator === "vertical" || props.width === undefined)) {
+          fields["props.width"] = path;
+        }
+        if (
+          cell.height === undefined &&
+          (separator === "horizontal" || props.height === undefined)
+        ) {
+          fields["props.height"] = path;
+        }
+      }
       const tone = cell.tone ?? node.tone;
       // Written as in a figure: the component stage validates them like any props.
       const cellProps: Record<string, unknown> = {
@@ -358,9 +389,10 @@ export function expandTokens(state: CheckState, registry: Registry, locate: Loca
       };
       const part: FigureNode = {
         id,
-        component: cell.component ?? props.component,
+        component: separator !== undefined ? "box" : (cell.component ?? props.component),
         label: cell.label ?? "",
-        variant: cell.variant ?? props.variant ?? "default",
+        variant:
+          separator !== undefined ? "outlined" : (cell.variant ?? props.variant ?? "default"),
         ...(tone !== undefined && { tone }),
         props: cellProps,
         ...(node.group !== undefined && { group: node.group }),
@@ -378,7 +410,13 @@ export function expandTokens(state: CheckState, registry: Registry, locate: Loca
         },
       ]);
       taken.set(id, path);
-      expansion.cells.push({ key: cellKey, id, path, fields });
+      expansion.cells.push({
+        key: cellKey,
+        id,
+        path,
+        fields,
+        ...(separator !== undefined && { separator }),
+      });
       lineItems[line]?.push(id);
     }
     items.set(node.id, cellsItem(props, lineItems));

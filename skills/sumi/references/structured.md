@@ -790,6 +790,24 @@ own `variant: solid` marks a pressed key with a strong fill and white text.
 Use `variant: tinted` for pastel action cells with colored borders and text;
 both also work in legend `node` samples.
 
+Since 0.7.0, a divider cell is **`{ separator: dotted }`**, optionally with
+`id`, `tone`, `width`, `height` (no label, component or variant). For example,
+`cells: ['$A_1$', { separator: dotted }, '$I_0$', '$V_1$']` separates action
+and video tokens. It draws a vertical dotted line for `right` / `left`, a
+horizontal line for `down` / `up`, centered inside its reserved cell box.
+In a row it reserves 6pt of width and inherits `props.height` (14pt if absent);
+in a column it reserves 6pt of height and inherits `props.width` (14pt if absent).
+Its own sizes override these defaults; `gap` applies on both sides. The line
+uses the theme's outlined tone and line width, inheriting the tokens' tone.
+Dividers also work in `lines` and count as cells for positional references;
+prefer explicit IDs for stable references when inserting them. A divider can
+be an edge endpoint, by name or position: anchors target the invisible reserved
+rectangle, **not the dotted centerline**. Editable PPTX connectors bind to that
+rectangle too. Inspect and geometry lint use the reserved box (including
+edge-through-node checks). The dotted path is decoration: inspect does not
+expose it, and edge proximity rules do not measure distance to its stroke.
+PDF and both PPTX modes preserve the line.
+
 Edges, `attach.to` and `align` name a cell as **`<node>.<cell>`**: the
 cell's `id`, or its 1-based position when it has none (`keys.3`).
 
