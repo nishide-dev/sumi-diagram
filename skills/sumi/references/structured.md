@@ -736,6 +736,19 @@ node beside it). `props.variant: outlined` gives every cell a colored frame
 and text in its tone (white cells, [tones](figure-format.md#tones)); a cell's
 own `variant: filled` marks one, e.g. a pressed key.
 
+Since 0.7.0, a divider cell is **`{ separator: dotted }`**, optionally with
+`id`, `tone`, `width`, `height` (no label, component or variant). For example,
+`cells: ['$A_1$', { separator: dotted }, '$I_0$', '$V_1$']` separates action
+and video tokens. It draws a vertical dotted line for `right` / `left`, a
+horizontal line for `down` / `up`, centered inside its reserved cell box.
+In a row it reserves 6pt of width and inherits `props.height` (14pt if absent);
+in a column it reserves 6pt of height and inherits `props.width` (14pt if absent).
+Its own sizes override these defaults; `gap` applies on both sides. The line
+uses the theme's outlined tone and line width, inheriting the tokens' tone.
+Dividers also work in `lines` and count as cells for positional references;
+prefer explicit IDs for stable references when inserting them. Inspect and
+geometry lint use the reserved box; PDF and both PPTX modes preserve the line.
+
 Edges, `attach.to` and `align` name a cell as **`<node>.<cell>`**: the
 cell's `id`, or its 1-based position when it has none (`keys.3`).
 

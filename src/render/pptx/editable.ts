@@ -459,7 +459,8 @@ export function svgToEditablePptx(
       );
     };
     /**
-     * A hatched node's hatch lines (#180): the SVG's `path.sumi-hatch`
+     * A node's line decoration: matrix hatches (#180, `path.sumi-hatch`)
+     * or a token divider (#216, `path.sumi-token-separator`). Export the
      * segments as a line shape of their own over the node's box, so the
      * slide draws the same lines as the SVG, PDF and picture PPTX (a
      * DrawingML pattern fill would tile at its own scale and phase).
@@ -471,12 +472,14 @@ export function svgToEditablePptx(
       style: { stroke: string; strokeWidth: { units: number }; opacity: number },
     ): string => {
       const hatch = childElements(group).find(
-        (e) => e.name === "path" && classList(e).includes("sumi-hatch"),
+        (e) =>
+          e.name === "path" &&
+          (classList(e).includes("sumi-hatch") || classList(e).includes("sumi-token-separator")),
       );
       if (hatch === undefined) return "";
       return shape(
         next++,
-        `${key} hatch`,
+        `${key} ${classList(hatch).includes("sumi-token-separator") ? "separator" : "hatch"}`,
         box,
         geometry([shapePath(hatch)], box, emu),
         "<a:noFill/>",
