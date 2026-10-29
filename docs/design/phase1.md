@@ -1256,11 +1256,12 @@ layout:
     - A: 最も上（左）の項目の前に不足分の `lead`（下 / 右へ押す）。B: 最も下（右）の項目の後に `trail`（終端揃えの箱の中で上 / 左へ押す。始端揃えでは箱が伸びるだけ）。
     - 項目が 3 個以上なら、さらに C: 最も下（右）の項目に届かないすべての項目の前に、それぞれの不足分の `lead`、D: 最も上（左）の項目より先にあるすべての項目の後に、それぞれの超過分の `trail`。**端で並ぶ項目をまとめて動かす**ため（レビューでの指摘）: `[a]`・`[b]`・`[pad, c]` の 3 つの stack で `y: [a, b, c]` のとき、a と b が同じ高さで上にあり、a だけ（A）を下げても幅は変わらず、和の目的関数は部分的な進展を見られない。C は a と b を同時に c の高さへ下げる。2 項目の制約では C・D は A・B と同じなので試さない（試作・2 図の結果は変わらない）。
   - strut を置く場所: その項目の経路（root から項目までの箱と、その箱の中の項目の列。attach された node は対象の経路）のうち、軸の向きの箱（`y` は stack、`x` は row）で、経路上の項目が制約のほかの項目を含まない最も深いもの。**`gap: 0` の箱には入れない**（ブロックと Add & Norm のように一体に描く箱。祖先の箱に置くので接したまま）。試作の最初の版は図 1 の別案でブロックと Add & Norm を引き離した（#124 §3.5）。
-  - **停止（判断）**: 全制約の残差がそれぞれ 0.01 unit 以下（`ALIGN_EPSILON`。**制約ごとの最大**で判定し、和では判定しない: 揃った 99 個の中の 1 個の 0.5 unit のずれを和は隠す）、1 回の反復で和が下がらない、50 回（`MAX_ALIGN_ROUNDS`）、または**配置の回数の予算**（`MAX_ALIGN_LAYOUTS` = 1,000 回。最初の配置・各案・診断の調べを含む）を使い切ったときに止める。strut は増えるだけなので、各回は和を真に減らすか止まる。結果は最後に採った配置（残差の和が最小のもの）。
-  - **予算（判断）**: 反復の上限だけでは、1 回の反復が「揃っていない制約 × 案」回の配置になり、制約の多い図で時間が決まらない（最初の版では 200 node・1,000 制約で 4.8s）。回数で数えるので決定的（時計を見ない）。反復か診断の調べ（下記）で使い切り、揃っていない制約が残れば `layout/align-search-limit`（warning、`figure.layout.align` のパス、位置なし。予算の回数と、何個の制約が残ったか）を、各制約の `layout/unsatisfied-align` の前に出す（調べの後で判定する。同じ不可能な制約 250 個で、調べだけが予算を使い切る場合もテストで固定）。1,000 回は、#109 の図（7 回）の 100 倍以上で、200 node の図で約 0.8s。
+  - **2 手先の補助探索（#213、§6.58）**: 通常の貪欲な 1 巡で和が下がらなければ、その時点の案を文書順に配置し、その試行の座標と strut から全制約の 2 手目の案を作る。1 手目で悪化しても採用せず、2 手を合わせた和が元の採用済み状態より厳密に小さい組だけを、和・canvas 面積・先着順で比べて採る。1 手目で崩れた、元は揃っていた制約も 2 手目の対象になる。すべての試行を既存の配置予算に数え、予算が途中で尽きても、完成した改善組があればその最良を返す。
+  - **停止（判断）**: 全制約の残差がそれぞれ 0.01 unit 以下（`ALIGN_EPSILON`。**制約ごとの最大**で判定し、和では判定しない: 揃った 99 個の中の 1 個の 0.5 unit のずれを和は隠す）、貪欲探索と補助探索の両方で和が下がらない、50 回（`MAX_ALIGN_ROUNDS`）、または**配置の回数の予算**（`MAX_ALIGN_LAYOUTS` = 1,000 回。最初の配置・各案・補助探索の両手・診断の調べを含む）を使い切ったときに止める。strut は増えるだけなので、各回は和を真に減らすか止まる。結果は最後に採った配置（残差の和が最小のもの）。
+  - **予算（判断）**: 反復の上限だけでは、1 回の反復が「揃っていない制約 × 案」回の配置になり、制約の多い図で時間が決まらない（最初の版では 200 node・1,000 制約で 4.8s）。回数で数えるので決定的（時計を見ない）。反復か診断の調べ（下記）で使い切り、揃っていない制約が残れば `layout/align-search-limit`（warning、`figure.layout.align` のパス、位置なし。予算の回数と、何個の制約が残ったか）を、各制約の `layout/unsatisfied-align` の前に出す（調べの後で判定する。同じ不可能な制約 250 個では、#213 の先読み（§6.58）が予算を使い切る場合をテストで固定）。1,000 回は、#109 の図（7 回）の 100 倍以上で、200 node の図で約 0.8s。
   - 決定的（制約は文書順、Map は挿入順、丸めは配置エンジンと同じ）。
 - **解けない制約（判断: warning）**: 止まったときに残差が 0.01 unit を超える制約ごとに `layout/unsatisfied-align`（warning、`figure.layout.align[i]` の位置、subject は figure）。図は見つかった最良の配置で描く（error にすると、整列のずれ 1 つで描画全体が止まる。warning なので `--max-warnings` で CI では落とせる）。メッセージは制約の全項目の名前・軸と `at`・最も離れた 2 項目と、その距離（mm、小数 2 桁）。hint は 2 通り: 反復と同じ案（A〜D）のどれを足してもその制約の残差が変わらない場合（同じ stack の 2 項目、`gap: 0` の箱だけの経路、strut が後ろの項目ごと動かす）は「動かして離せない」理由と、別の箱に置く案。この調べの配置も予算と `layouts` に数える（予算を使い切っていれば、分からないので一般の hint）。変わる場合は、ほかの制約（矛盾し得る）か配置が引き離していること。項目を共有するほかの制約を `related` に挙げる。`renderFigure()`・`layoutStructuredFigure()`・`sumi render`・`sumi lint --geometry` に出る（配置の段の診断。`sumi lint` だけでは配置しないので出ない。`layout/no-route` と同じ）。
-  - **限界**: 1 つの制約の中の項目は C・D でまとめて動かすが、制約をまたいでは 1 回に 1 案しか試さない貪欲な反復なので、片方を揃えると他方が同じだけずれる 2 つの制約（図に解はあるが、別の制約の strut を同時に足す必要がある）は解けず、残差の診断になる（`align.test.ts` で固定）。不等式・等幅の強制・`auto` での整列は #132 の非対象（#124 §6）。
+  - **限界**: 中央寄せでは、strut が箱の大きさを変えてほかの項目も動かすため、**ID を共有しない制約どうしも結合する**（#213、§6.58）。不足分の半分しか動かないだけでなく、1 つの残差を減らす案がほかの残差の和をそれ以上に増やす。2 手先の補助探索でこの局所的な停止を抜けられる場合があるが、3 手以上や別の候補が必要な場合・矛盾する制約・同じ箱の動かせない項目など、一般の収束は保証しない。補助探索でも解けない表の行見出しは、親の row を **`align: start`**（転置した表は親の stack）にして、見出しを上 / 左から独立に押せる配置にする。`layout/unsatisfied-align` は許容値を超える実際の残差を報告する。不等式・等幅の強制・`auto` での整列は #132 の非対象（#124 §6）。
 - **入口**: `placeStructured(ir, options)`（`{ layout, diagnostics, align?: { rounds, layouts, residuals, struts } }`。`layouts` は最初の配置・各案・診断の調べを含む。`options.alignLimits` で上限と予算を下げられる（テスト用））。`layoutStructured()` は従来どおり Layout IR だけを返す（整列は解く）。描画（`renderStructured`）と `layoutStructuredFigure()` は `placeStructured()` を使い、診断を加える。ルータ・writer・inspect・lint は変更なし。
 - **結果**（Apple M4 Pro、Bun 1.3.14、9 回の中央値）:
 
@@ -2038,6 +2039,73 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **互換性と全図検査（実測）**: 費用修正前の **139 図 ×（元の Theme + 組み込み 5 Theme）= 834 通り**を描画し、成功 **568 通り**を比較。成功・失敗は変わらず、**50 出力**が変化し、すべて段差の除去か幹線の単純化だった。全変更と残った lint の所見を PDF → `pdftoppm` → PNG で確認した。`edge-jog` は **171 → 55 件**（残るのは 34 通りの実際の小さな段差、誤検出 0）、`arrowhead-on-bend` は 0。受け入れ図の own Theme は段差 2 件 → 0。最小再現追加後は **140 図・840 通り・成功 574 通り**で、既存 834 通りの出力と診断が再検査でも一致。gallery は **155 ファイル変更 0・新規診断 0**、PDF・PPTX・画像の golden も指定の更新コマンドで変更 0。全変更一覧と残る所見は [検証記録](../verification/217-arrowhead-jogs.md) に記載。
 - **テスト**: 受け入れ図の正確な 3 点（曲がり 1 回）と 14 unit の最小 fixture、junction の全組み込み Theme・始点側・経路なし error・A* / Dijkstra の費用一致を検査する。lint は矢じりの短い端、始点・終点、境界・縮小・丸めた描画・D2 offset と、段差の正例・負例・印刷時の閾値・量子化・分割された描画・重複・同一直線・曲線・切れ目・分岐・透明な線を検査する。既存の fit と caption の統合テストは新たに可視化された実際の段差を辺 ID 付きで明示的に期待する。
 
+### 6.58 #213 の中央寄せの箱にある `align` の収束と 2 手先の補助探索
+
+再現は `research/185-acceptance/repro/align-residual.sumi.yaml`（#185）。原因は**中央寄せによる制約間の結合と、1 手だけで残差の和を減らす貪欲探索の局所的な停止**。レビューで示された、停止時だけの決定的な **2 手先の補助探索**を実装した。目的関数・採用状態の単調改善・許容値・上限・§6.36 の同点の規則を維持し、再現は 12 回 / 73 配置、残差 `[0.008, 0.006, 0]`、診断なしで収束する。
+
+- **修正前の停止の原因**: 組み込みフォント・書かれた `paper` では、10 回 / 56 配置（診断の調べ込み）で残差 `[0.007, 0.006, 0.077]` unit、和 0.090。50 回 / 1,000 配置には達しない。最初の 2 制約は許容値以下なので案を作らず、最後の制約の案はいずれも和を増やす。予算を 100 回 / 2,000 配置にしても同じ結果になる。
+- **中央寄せの作用**: 親から与えられる高さが変わらない範囲では、主軸の strut が枝の高さを s 増すと、中央寄せの原点が −s/2 動く。lead の後の項目は差し引き +s/2、ほかの項目は −s/2 動く。相手の枝や祖先の計測にも作用するので、常に「不足分を 2 倍すればよい」とはならない。再現の 3 制約は ID を共有しないが、同じ見出しの stack と、中央寄せされた列を介して結合する。
+- **打ち切り時の実測**（配置エンジンの 0.001 unit の丸め後。候補を一時的に計測）:
+
+  | 最後の制約への追加 | 残差 3 個（unit） | 和 |
+  | --- | --- | --- |
+  | なし（採用済み） | 0.007 / 0.006 / 0.077 | 0.090 |
+  | 通常の lead（不足分 0.077） | 0.046 / 0.033 / 0.039 | 0.118 |
+  | 通常の trail（不足分 0.077） | 0.031 / 0.045 / 0.039 | 0.115 |
+  | lead を倍増（0.154） | 0.084 / 0.071 / 0 | 0.155 |
+  | trail を倍増（0.154） | 0.070 / 0.083 / 0 | 0.153 |
+
+  通常案は最後の残差をほぼ半減するので、丸めで動かなくなったのではない。どちらも和が厳密に増え、同点でもないので #155 の canvas の比較は原因ではない。小さい刻みも調べた: 1/8 の lead は和を 0.085 まで減らすが、候補を 2、1、1/2、…、1/64 倍に広げた試行も最終的に `[0.014, 0, 0]` で止まり、許容値を満たさなかった（元の停止位置からの追加探索）。単純な倍率・刻みの調整は一般の収束を保証しない。
+- **修正**: 通常の 1 巡で和が下がらないときだけ、現在の各候補を配置し、そこから全制約の 2 手目の候補を再生成する。元は揃っていた制約も、中間配置で崩れれば修復の候補を出す。中間配置を採用せず、完成した組の和が元の和より厳密に小さい場合だけ採用する。同点は canvas 面積、さらに同じなら文書順・候補順で先の組。再現では制約 2 の trail で `[0.031, 0.045, 0.039]`（和 0.115）になった後、制約 1 を直す組が和を 0.090 → 0.047 に減らし、通常探索が再開して収束する。1 手目・2 手目の配置はすべて同じ `run()` を通り、`MAX_ALIGN_LAYOUTS = 1000` に数える。予算途中なら完成した改善組の最良だけを返し、未完の中間状態は返さない。反復上限 50 と診断の予算も維持する。
+- **代替案と選択理由**: レビュアーの実験では、最大残差を目的関数にする変更だけ、または倍増だけでは解けなかったが、**最大残差の採用規則と倍率付き候補の組み合わせ**は 2 回 / 97 配置、`[0.001, 0, 0]` に収束した。単独の変更の失敗は組み合わせの失敗を意味しない。一方、目的関数を変えると通常の探索から既存の案の順位が変わる。2 手先の探索は既存の和の規則と単調改善を保ち、既に収束する図の経路には介入せず、既存予算で打ち切れるため採用した。一般の収束を保証する変更ではなく、解けなければ従来どおり `layout/unsatisfied-align`、予算を使い切れば `layout/align-search-limit` も出す。
+- **回避策と回帰テスト**: 再現の root row の `align: start` は引き続き `[0, 0, 0]`。中央寄せでも制約を単独で解けば収束する。`align.test.ts` は残差を固定する旧テストを収束の回帰に置き換え、3 組の実座標・診断なし・12 回 / 73 配置・繰り返しと上限変更での決定性・補助探索の両手での予算切れ・未完の中間状態を返さないことを検査する。不可能な制約では callback の実呼び出し数と統計を独立に比較し、最初・貪欲探索・2 手先・診断の調べを含む 11 配置すべてと、各位置での予算切れを確かめる。Skill の回避策は補助探索でも解けない場合に限定した。
+- **互換性と時間（実測）**: 138 ファイル × 書かれた Theme と組み込み 5 Theme = 828 ケースを修正前後に描画。成功 562 件のうち **556 件の SVG sha256 が一致**。変わるのは上記再現の 6 設定だけで、すべて以前 `layout/unsatisfied-align` があったものが収束した。失敗 266 件の診断コード・severity・path も一致。align-unet / side-kv の時間は 0.533 → 0.559ms / 0.545 → 0.521ms、再現は 4.201 → 5.524ms。停止する合成ケースには補助探索の費用がかかる（250 個の不可能な制約は 48.859 → 69.732ms、両方 1,000 配置以内）。全変更の hash と測定方法・合成ケースの数値は [検証記録](../verification/213-align-convergence.md)。生成物と golden の更新は不要。
+
+### 6.59 #126 の配置の箱 `grid`
+
+[#124 §3.4](../research/124-stage-b.md) と #167 の H3-World (a) の表状の配置。Figure v1 の配置の木に任意の箱を追加する。新しい箱を使わない図の出力は不変。
+
+- **構文・順序**: `grid: { columns, rowGap?, columnGap?, align?, items }`。`columns` は正の整数。項目は ID・入れ子の箱（stack / row / grid）、または `{ item: IDか箱, span?: 正の整数 }`（省略は 1）。fmt の canonical order もこの順。常に左から右、上から下に埋め、`direction` は受け付けない（`schema/unknown-field`）。横の span だけを扱い、行をまたぐ span・自動折り返し・free は対象外。
+- **空のセルと個数（判断）**: 空けたいセルには明示的な YAML `null` / `~`、複数列には `{ item: null, span: N }` を使う。自然サイズは幅・高さとも 0 で、列を消費するだけでノード・経路の障害物・net の端点を作らない。hidden junction は障害物と接続の意味を持つため、空セルの代用にしない。暗黙の穴・空文字・空の items は認めない（位置付き `schema/*`）。全行をちょうど `columns` 列分で埋める。項目が行の残りを越えると `layout/grid-span-overflow`（error、wrapper の `span` の位置）、最後の行が未完なら `layout/grid-item-count`（error、`items` キーの位置）。途中で自動改行する案は採らない: 空の列が暗黙に増えると、作者が列を予測しにくい。所属・未知 ID・重複配置は既存の検査を wrapper の `item` の位置で実行する。auto は既存の `arrange` の `layout/structured-only`。
+- **1 パスの計測（判断）**: 子を下から計測し、span 1 の最大幅を列幅、各行の最大の高さを行高とする。次に span > 1 を文書順に見て、その列幅の和＋内部の columnGap が子の幅に足りないときだけ、不足をその span の各列に等分して足す（列幅は減らないので、それ以前の項目も収まる）。解の探索や整列 strut の反復は不要。計測結果は 1 回の配置 pass の間だけキャッシュし、align や padding の再配置では作り直す。既定の両 gap は Profile の `arrangeGap`（compact も含む）、明示値はそのまま。pt から unit への変換・最終の丸めは既存の規則。
+- **揃え（判断）**: `align` はセル内の横方向の start / center（既定）/ end / stretch。縦方向は行の中央。stretch は stack と同じ伸縮可否で幅だけを伸ばす（高さや明示サイズは変えない）。grid は軸を持たず外からの align を継承しない。子の箱も center から始める。親から余分な領域を渡された場合は grid 全体を中央に置き、track は広げない。span 1 の同じ列は同じセルの x を持つ（start なら node の左辺も一致）。grid の内部には整列 strut を挿入しないが、子の stack / row と祖先の箱は従来どおり使える。ルータの箱の軸による側の選択は grid では使わず、矩形から選ぶ。
+- **IR・展開**: Figure IR の箱に `kind: grid`・`columns`・項目と並行する `spans`・`rowGapPt?` / `columnGapPt?` を追加（内部の direction は right で固定）。Layout IR は従来の node / group の rect だけで十分で、新しい要素を足さない。tokens・matrix の置換と caption の wrapper も grid の項目の内側までたどる。既存の箱の IR のフィールドは変えない。
+- **縦揃えの制限**: `align: start/end/stretch` でもセルの縦位置は常に中央。grid の直接のセルは strut を取れないため、`figure.layout.align` で上辺・下辺を揃えることもできず、満たせない制約は位置付き `layout/unsatisfied-align` になる。縦揃えが必要なら入れ子の線形の箱（stack / row）で包み、その内部または祖先で strut を使う。独立した縦揃えオプションは今回は追加しない。
+- **空セルの fmt・IR**: canonical order では `~` も `null` に統一し、wrapper は `{ item: null, span: N }` の順にする。Figure IR も空セルを `null` として保持し、span と列位置を維持するが、配置・参照・経路の木をたどる際は端点として扱わない。
+- **受け入れ例**: `tests/fixtures/figures/layout/grid-training.sumi.yaml` は #109 図 2 の 4 列・2 行（optimizer は span 2）。`research/126-grid/c-h3world.sumi.yaml` は #185 の (a) の 5 本の column-stack を 5 列×4 行の grid に転置したもの。画像・キーの局所の並び、見出しの align、refiner と sequence を並べる外側の stack は保持。**全 node と group の矩形が元と完全一致**（小差なし）。`rewrite.ts` で元から再生成できる（画像も複製）。テストは実際の SVG・PDF・画像方式 PPTX、列の x と行の中心、span、compact、診断の位置、fmt を検証する。
+
+### 6.60 #187 の画像の重ね（`image.props.layers`）
+
+- `layers: { count: 4, offset: 3pt }` を image の省略可能な props とする。
+  `count` は最前面を含む整数 1〜16、`offset` は正の 0.5pt 単位の長さ。
+  右上方向に同じ画像を重ね、奥から手前の順で描く。各コピーの背景・枠は
+  theme / variant / tone を使う。画素の読み替え・加工は一切しない。
+- `width` / `height` と欠けた側のアスペクト比補完は **1 枚分**。
+  asset 読込後に各辺へ `(count - 1) × offset` を加えた union box を IR に戻す。
+  structured / D2 の双方がその足跡で配置・障害物判定し、inspect・幾何 lint も
+  同じ矩形を使う。足跡の shape は計測用の透明矩形、画像・枠は各コピーで描く。
+  edge port は足跡上で選ぶが、描く端点はその進行方向で最初に接するコピーの
+  輪郭まで延ばす（D2 の矢じり・線幅のクリアランスは保持）。大きな spread でも
+  足跡の透明部分で止めない。コピーが離れ、その port から接触できない場合は
+  structured の `layout/no-route` / D2 の `svg/outline-edge-miss`（error）で拒否する。
+- ノードは最前面の画像ではなく **束全体**。image 自体の label / sublabel は
+  従来どおり禁止。`attach` した label は足跡の辺の中央に揃い、south の中央揃えは
+  最前面の画像の中央より右へ **spread / 2**（count 4・offset 3pt なら 4.5pt）
+  ずれる。囲む group の寸法・caption の配置にも足跡全体が含まれる。
+- SVG は束ごとに 1 個の `<defs><image>` と `count` 個の `<use>` を使う。
+  PNG / JPEG / SVG と contain / cover / fill に共通。既存の layers なしの
+  描画分岐はそのまま保持する。PDF は変換エンジンの画像再利用を使い、JPEG
+  4 枚の fixture が **Image XObject 1 個**であることを両 engine で検証する。
+  編集可能 PPTX は従来の `pptx/unsupported-asset` で拒否し、picture PPTX は保持する。
+- 上限は大量のコピーによる出力肥大化を抑えるため。単なる整数指定や theme
+  固定のずらしではなく、寸法を明示できる object にした。複数の別フレームを
+  選ぶ `srcs` は追加しない。不正値は既存の component 診断を使い、新規診断なし。
+- 実測: `research/187-image-layers/h3-world-frames.sumi.yaml` は先頭 1 枚と
+  4 枚の束 4 組（計 17 コピー）。1 枚 72 × 40.5pt、ずらし 3pt の束の足跡は
+  **81 × 49.5pt**。SVG の画像定義・PDF の Image XObject はそれぞれ **5 個**。
+  変更前の全 138 YAML × 元テーマ・組み込み 5 theme の SHA-256 比較も記録する。
+  詳細・再現方法・目視した PNG は同ディレクトリの README を参照。
+
 ### 6.62 #188 の多色絵文字・角バッジ・角への attach・bowtie
 
 - **判断（2026-10-29 review 対応）**: 利用者の「多色絵文字セットを同梱する」判断に従い、
@@ -2107,6 +2175,37 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
   hash がすべて一致。既存 golden は更新なし。`check` / `typecheck` / `CI=1 bun test`
   （2,873 pass / 13 skip / 0 fail）/ `gallery:check`（160 files）/ `schema:check` /
   `emoji:check` が成功した。
+
+### 6.63 #214 の濃い塗りと色付き淡色面（`solid` / `tinted`）
+
+- **構文と対象**: shape node の variant に `solid` と `tinted` を追加する。box・square・circle・ellipse・diamond・hexagon・parallelogram・cylinder・document・trapezoid・stack・operator の 12 部品が対象。tokens の共通 `props.variant` とセルごとの `variant`、legend の `node.variant` は既存の Registry 検証・展開を通るので同じ名前が使える。tone 未指定時は gray。新しい YAML field・診断は増やさない。
+- **色の組み合わせ**: `solid` は `toneLines.<tone>.stroke` を塗りと枠に使い、文字は白。例外として solid stack の枠は白にする。同色の塗りと枠では重なった矩形の境界が消えるため、白い区切りで全層を区別する（文字と同じ 4.5:1 以上）。`tinted` は `tones.<tone>.fill` を面に使い、同じ tone の line 色を枠と文字に使う。全 Theme の components に両 variant の gray の基本値を定義し、解決時に palette を合成する。線幅は既存の通常線幅を使い、`filled` と同じ線幅 0 にはしない。
+- **4.5:1 と互換性の両立**: 既存の line 色は白地で 4.5:1 以上だが、淡色面では不足する tone がある。既存の `tones` / `toneLines` は変更しない。tinted に限り、line 色の RGB を黒へ 1% 刻みで混ぜ、量子化後の相対輝度で文字と面の比が 4.5:1 以上となる最初の色を枠・文字に採用する。これにより元の淡色面と色相を保つ。solid は既存 line 色と白で条件を満たす。全 12 部品 × 全 5 Theme × 全 8 tone と tone 未指定を実測する。dim は意図した薄表示なのでこのコントラスト条件の対象外。
+- **§6.53 の dim**: palette 合成後に dim pass を 1 回適用する。文字と枠は dim gray、面は white へ lighten。solid は fill と stroke が等しくても junction の点のような「ink」ではなく面として扱う。面と文字がほぼ同じ輝度になる tone があるため、solid の文字は dim gray を黒へ 1% 刻みで混ぜ、量子化後の文字 / 面のコントラストが **3:1 以上**となる最初の色を使う。薄表示を保ちつつ最低限の可読性を確保し、既存 palette と lighten は変えない。dimmed solid stack の枠はこの文字色を使い、層の境界にも 3:1 以上を保証する。既存の点・矢じり・他 variant の判定は同じ。Skill の 4.5:1 の説明は非 dim ノードに限定する。
+- **発見性と作例**: catalog の全 shape manifest、全 Theme × 全 variant の部品 gallery、全 Theme × 8 tone の solid/tinted gallery（tokens と legend）を更新する。7 variant の横一列は paper-double の幅を超えるため、shape の部品見本だけ structured の 2 行にする。D2 の全 variant × 全 Theme 描画テストも維持する。`research/214-solid-tinted/figures/c-h3world.sumi.yaml` は #185 の写しで、押したキーと ⊕ を solid、全 Encoder と A のセルを tinted にする。placeholder の frame は描画スクリプトが #185 から ignored directory に複製し、SVG/PDF は out/、コミットする画像は previews/ の PNG 1 枚（150KB 未満）。
+- **出力検査**: 変更前の 140 YAML ×（元 Theme + 5 Theme）= 840 通りを再描画。成功した 574 通りの SVG / PDF / PPTX と auto の D2 の sha256 はすべて一致。失敗例も同じ失敗で、unknown-variant の候補が増える既存 fixture 1 枚 × 6 通りだけ診断文が変わる。gallery の変更は新 variant を示す部品 SVG 60 枚・新 tone SVG 5 枚と索引 2 枚。全変更 gallery と受け入れ図を PNG で確認する。詳細は [検証記録](../../research/214-solid-tinted/README.md)。
+
+### 6.64 #215 の paper operator の縮小
+
+- **判断: Theme の値だけで対応**。operator の既存契約は円の直径が glyph の fontSize の 2 倍（§6.20）。`paper` の operator にだけ default スタイルを追加し、fontSize を既存の `{size.small}`（7pt）、strokeWidth を `{line.edge}`（0.5pt）とした。記号 8 → 7pt、円 16 → 14pt（12.5% 縮小）。6pt / 12pt の試作は `profile/font-too-small`（紙の下限 7pt）になり不採用。小さい記号と 0.5pt の辺に釣り合う細い円とする。emphasis は既存の 1.5pt と bold を保って意図した強調を残し、filled は枠なし、muted / outlined の色と tone / dim は既存の解決順を使う。props・variant・schema・診断は増やさず、サイズの自由指定や lint の例外も追加しない。
+- **目視と受け入れ**: `research/185-acceptance/render.ts` で 3 図を再描画し、変更前後の PDF を 200dpi PNG にして比較。円と記号の余白を保ち、Transformer・DiT の加算が箱より目立ちすぎず、H3-World の橙の円にも細い枠と ＋ が残る。operator が原図より大きいという #185 / #215 の記録に対応する方向の変更であり、未公開の H3-World 原図の直接比較はしていない。`research/215-paper-operator/out/figures/` に受け入れ図・相対参照する代用画像の完全な写しを生成して描画する。成果物は gitignore、同ディレクトリの `previews/c-h3world.png` は 74,384 bytes（150KB 未満）。既存の受け入れ図の preview 3 件も更新。
+- **実測（mm）**: Transformer **76.02 × 114.83 → 75.32 × 114.12**、DiT **180 × 85.98 → 180 × 84.69**、H3-World **180 × 122.24 → 180 × 123.04**。DiT は **170mm 幅で 81.2041 → 79.9841mm（−1.2200mm、−1.50%）**。#185 の原図約 68mm に対して ×1.194 → ×1.176。§6.55 の compact だけで残る縦長さを少し改善するが、間隔や文字の大きさの差は残る。§6.55 の旧 fixture は 180mm 幅で 87.66 → 86.34mm（170mm 幅で 82.79 → 81.54mm）。H3-World は自然幅が小さくなって fit の縮小が弱まり（0.829 → 0.8344）、固定された 180mm 幅での高さは逆に増える。3 図の warning / error は 0。DiT と H3-World の既存の添字の info のみ継続。
+- **互換性（実測）**: 追跡済み YAML **140 個 ×（own + 組み込み 5 Theme）= 840 通り**の変更前後を描画し、実際の SVG / PDF / 画像方式 PPTX と D2 ソースの SHA-256 を比較。成功 **574 通り**、失敗 **266 通り**は不変、D2 **234 件すべて同一**。**45 ファイル・59 通りの SVG / PDF / PPTX（177 出力）だけ**が変化し、すべて paper で operator を使う図。own の変更も paper の図だけ。残る Theme と operator のない paper はバイト一致。失敗の診断も同一。全変更を PDF → PNG の一覧で確認し、既存の再現図の重なりを含む意図した差分を [一覧](../../research/215-paper-operator/changed-outputs.md) に記録した。
+- **golden とテスト**: `bun run gallery` で operator / tones / dim の paper SVG と目次を更新、指定の `SUMI_UPDATE_GOLDEN=1 CI=1 bun test src/render/pdf src/render/pptx src/render/assets.integration.test.ts` で PDF / PPTX corpus と operator の編集可能 slide XML を再生成（hash の手編集なし）。3 ギャラリーの PNG で全 symbol・variant・tone・dim を確認。`marks.test.ts` で全 symbol × variant の直径・文字・線幅・profile 下限を検査、既存の全部品 × variant × Theme の実 D2 描画も通る。compact の実測期待値と #217 の受け入れ経路の座標を新しい大きさに更新（曲がり 1 回と矢じりの直線長の保証は保持）。Skill にサイズの説明を追記。`check` / `typecheck` / `CI=1 bun test`（2811 pass・13 skip・0 fail）/ `gallery:check` / `schema:check` を確認。
+
+### 6.65 #216 のトークン列の点線の区切り
+
+- **構文の判断**: `tokens`（§6.50）の `cells` / `lines` に `{ separator: dotted }` というセルを追加する。任意の `id`・`tone`・`width`・`height` を持てるが、ラベル・部品・variant は持たない。別の `separators` 配列では、位置・行・参照との対応を二重に管理することになるため、既存の並びの中に書くセルにした。通常のセルと同じく位置番号に数え、`<tokens>.<id>` / `<tokens>.<番号>` で参照でき、予約 ID・重複 ID・診断の由来も既存の仕組みを使う。挿入で番号が変わるため安定した参照には `id` を勧める。
+- **大きさと方向**: `right` / `left` は縦線で、予約幅の既定は **6pt**、高さは tokens の `height`（なければ **14pt**）。`down` / `up` は横線で、予約高さが **6pt**、幅は tokens の `width`（なければ **14pt**）。セル自身のサイズが優先し、`gap` は両側に効く。行をまたいだ境界線ではなく、そのセルの箱の中央に引く短い区切り。周辺セルを測って高さを決める後処理を加えず、明示サイズ・配置・stretch の通常の規則に従う。
+- **テーマと描画**: `box` の `outlined` に展開して全組み込みテーマの線幅と `toneLines` の色を使う（tone はセル → tokens の順）。通常セルの `component` / `variant` は引き継がない。展開記録と Figure IR の `tokens.separator` に向きを持たせる。SVG の `g.shape` は無色の矩形で予約箱を表し、その直後に `path.sumi-token-separator` を描く。線幅と同じ長さの dash・線幅の 2 倍の間隔・丸い線端。線端を線幅の半分だけ箱の内側に入れ、幅は箱の短辺以下に制限する。線幅 0 は描かない。薄表示や全体の縮小は既存のスタイル・変換に従う。
+- **端点・inspect・幾何 lint**: 名前・番号のどちらの参照でも区切りを辺の端点にできる。anchor は点線の中心線ではなく**不可視の予約矩形**を指し、編集可能 PPTX の接続先もこの矩形。予約箱を既存のノードとして扱うため、配置・ルーティング・inspect の bbox・衝突検査が同じ箱を共有する。`geometry/edge-through-node` も予約箱への侵入を検査する。一方、`g.shape` の外にある点線パスは斜線と同じ装飾で、inspect はパスを公開・検査せず、辺同士の近接規則も点線 stroke までの距離を検査しない。重なりは `geometry/node-overlap` で書かれた区切りセルを指す。空ラベルの警告は他の tokens セルと同じく出さない。新しい診断コードは追加しない。
+- **出力形式**: PDF と画像方式 PPTX は同じ SVG パスを変換する。編集可能 PPTX は行列の斜線（§6.56）と同様に、予約箱に重ねた独立の線図形（`<key> separator`、`custGeom`、丸い線端、`custDash`）にする。`freeform` / `glued` の両方を検査する。線と予約箱はグループ化しない（行列の斜線と同じ制約）。
+- **受け入れ図と目視**: `research/185-acceptance/figures/c-h3world.sumi.yaml` の写しを `research/216-token-separator/` に置き、(a) の `seq` の `adots` と `i0`、(b) の `bt` の `a3` と `i0` の間に `id: av` の点線セルを挿入した。原図は参照できないため Issue の説明を根拠とし、フレームは既存のプレースホルダーのまま。PDF から PNG にして両方の点線と既存の接続を確認した。**180 × 120.87mm**、scale **0.8197**、error / warning **0**、既存の `geometry/script-too-small`（info）1 件。コミットするプレビューは **74,629 bytes** の 1 枚だけで、SVG / PDF / PPTX とフルサイズ PNG は `out/` に生成して gitignore する。
+- **ギャラリーと golden の意図した変更**: `tokensSample()` に区切りを 1 つ加え、全 variant（default）× 全テーマの見本で機能を見せる。変わる既存の図は `docs/gallery/components/sumi-tokens.{minimal,academic,slides,color,paper}.svg` の **5 枚**のみで、すべて PDF → PNG にして確認した。通常セルのサイズは維持するが、予約幅の追加で後ろの省略記号とキー群が移動し、広がった行の中央に揃う model も移動する。paper では model が 7.5 unit 動き、出る辺の始点 x も 195.508 → 203.008 になる。これは見本の入力を変えた結果で、端点が不変という意味ではない。目次の 2 ファイルはカタログの説明の更新。対応する PDF / 画像方式 PPTX の corpus hash 各 5 エントリ、編集可能 PPTX の hash と slide XML は 5 テーマ × 2 方式の 10 件を指定の生成コマンドで更新した。既存 YAML の図の出力変更とは区別する。
+- **テスト**: 区切りの strict props、4 方向の線分座標、明示サイズ・既定サイズ、`lines`、名前・番号の参照と描画した予約矩形への接続（glued PPTX の接続先を含む）、由来と IR、全 5 テーマの inspect bbox と診断ゼロ、衝突の書いた位置、装飾パスを除いても予約箱を横切る無関係な辺の診断、tone 継承、H3-World の順序、縦・横 × 通常・dim の SVG / PDF の線分と dash、画像方式 PPTX の色・dash、編集可能 PPTX 両方式の線図形・色・dash を検査する。部品 props は Figure JSON Schema の外なのでスキーマ本体は変えない。
+- **レビュー対応後の検証**: `bun run check`・`bun run typecheck`・`CI=1 bun test`（**2861 pass / 13 skip / 0 fail、90164 assertions**）・`bun run gallery:check`（**155 ファイルがバイト一致**）・`bun run schema:check` が成功した。既存の D2・lint・画像・PDF・画像方式 / 編集可能 PPTX の golden も更新なしで通る。今回のレビュー対応ではギャラリー・サンプル・golden の変更は **0**。下記の 840 通りの比較は最初の実装時の記録で、今回の追加検証とは区別する。
+- **互換性（実測）**: 既存 `*.sumi.yaml` **140 図 ×（元のテーマ + 組み込み 5 テーマ）= 840 通り**を変更前後に描いた。成功する **574 通り**の SVG・PDF・画像方式 PPTX 各 574 件と、auto の D2 ソース **222 件**は sha256 がすべて一致した。既存の失敗 **266 通り**は失敗のまま。診断の差分は、既に `{ separator: dotted }` が提案構文として書かれていた `research/86-paper-figures/figures/ideal/c-h3world.sumi.yaml` の 6 テーマ分で `component/unknown-prop` が 1 件減ったことだけ（他の未対応構文により出力は引き続きない）。成功・失敗の変化、既存出力の変更は **0**。全チェックは `bun run check`・`bun run typecheck`・`CI=1 bun test`（**2854 pass / 13 skip / 0 fail**）・`bun run gallery:check`（155 ファイル）・`bun run schema:check` が成功した。skip は既存の prototype / 任意環境のテスト。
+
 
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures

@@ -1,0 +1,53 @@
+# H3-World visual-stream detail: I_0 is single, the following ranges are stacks.
+# Unchanged placeholder JPEGs from research/185-acceptance/figures/assets/.
+version: 1
+figure:
+  id: h3-world-image-layers
+  theme: paper
+  profile: paper-double
+  fit: scale
+  layout:
+    density: compact
+    arrange:
+      stack:
+        gap: 16pt
+        align: stretch
+        items:
+          - heading
+          - row:
+              gap: 16pt
+              align: end
+              items:
+                - stack: { gap: 6pt, align: center, items: [ frame0, label0, enc0 ] }
+                - stack: { gap: 6pt, align: center, items: [ frame1, label1, enc1 ] }
+                - stack: { gap: 6pt, align: center, items: [ frame2, label2, enc2 ] }
+                - stack: { gap: 6pt, align: center, items: [ frame3, label3, enc3 ] }
+                - stack: { gap: 6pt, align: center, items: [ frame4, label4, enc4 ] }
+          - refiner
+          - sequence
+nodes:
+  - { id: heading, component: label, label: H3-World · Visual Stream }
+  - { id: frame0, component: image, variant: framed, props: { src: assets/frame-00.jpg, width: 72pt, height: 40.5pt, fit: cover } }
+  - { id: frame1, component: image, variant: framed, props: { src: assets/frame-01.jpg, width: 72pt, height: 40.5pt, fit: cover, layers: { count: 4, offset: 3pt } } }
+  - { id: frame2, component: image, variant: framed, props: { src: assets/frame-05.jpg, width: 72pt, height: 40.5pt, fit: cover, layers: { count: 4, offset: 3pt } } }
+  - { id: frame3, component: image, variant: framed, props: { src: assets/frame-09.jpg, width: 72pt, height: 40.5pt, fit: cover, layers: { count: 4, offset: 3pt } } }
+  - { id: frame4, component: image, variant: framed, props: { src: assets/frame-13.jpg, width: 72pt, height: 40.5pt, fit: cover, layers: { count: 4, offset: 3pt } } }
+  - { id: label0, component: label, label: '$I_0$' }
+  - { id: label1, component: label, label: '$I_{1-4}$' }
+  - { id: label2, component: label, label: '$I_{5-8}$' }
+  - { id: label3, component: label, label: '$I_{9-12}$' }
+  - { id: label4, component: label, label: '$I_{13-16}$' }
+  - { id: enc0, component: box, label: H3 Encoder, variant: outlined, tone: purple }
+  - { id: enc1, component: box, label: H3 Encoder, variant: outlined, tone: purple }
+  - { id: enc2, component: box, label: H3 Encoder, variant: outlined, tone: purple }
+  - { id: enc3, component: box, label: H3 Encoder, variant: outlined, tone: purple }
+  - { id: enc4, component: box, label: H3 Encoder, variant: outlined, tone: purple }
+  - { id: refiner, component: box, label: 2-Layer Token Refiner, variant: filled, tone: gray }
+  - { id: sequence, component: tokens, props: { gap: 3pt, height: 20pt, variant: outlined, cells: [ { label: Static, tone: gray }, { label: '$V_1$', tone: orange }, { label: '$V_2$', tone: orange }, { label: '$V_3$', tone: orange }, { label: '$V_4$', tone: orange } ] } }
+edges:
+  - { from: enc0, to: refiner, toAnchor: straight }
+  - { from: enc1, to: refiner, toAnchor: straight }
+  - { from: enc2, to: refiner, toAnchor: straight }
+  - { from: enc3, to: refiner, toAnchor: straight }
+  - { from: enc4, to: refiner, toAnchor: straight }
+  - { from: refiner, to: sequence.1 }

@@ -30,17 +30,22 @@ export function withImageSizes(compiled: CompiledFigure, assets: FigureAssets): 
   let changed = false;
   const nodes = compiled.ir.nodes.map((node) => {
     const asset = assets.nodes.get(node.key);
-    if (asset?.kind !== "image" || (node.width !== undefined && node.height !== undefined)) {
+    if (
+      asset?.kind !== "image" ||
+      (node.image?.layers === undefined && node.width !== undefined && node.height !== undefined)
+    ) {
       return node;
     }
     const size = asset.size;
     if (size === undefined) throw new Error(`internal error: ${node.key} has no image size`);
     const length = (units: number): StyleLength => Object.freeze({ units, pt: units / 2 });
+    const layers = node.image?.layers;
+    const spread = layers === undefined ? 0 : (layers.count - 1) * layers.offset.units;
     changed = true;
     return Object.freeze({
       ...node,
-      width: node.width ?? length(size.width),
-      height: node.height ?? length(size.height),
+      width: spread > 0 ? length(size.width + spread) : (node.width ?? length(size.width)),
+      height: spread > 0 ? length(size.height + spread) : (node.height ?? length(size.height)),
     });
   });
   if (!changed) return compiled;

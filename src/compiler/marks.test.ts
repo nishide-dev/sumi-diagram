@@ -169,6 +169,34 @@ describe("mark usage", () => {
 });
 
 describe("mark IR and D2", () => {
+  test("paper shrinks every operator variant while preserving its symbol and profile checks (#215)", () => {
+    for (const variant of ["default", "emphasis", "muted", "filled", "outlined"]) {
+      for (const symbol of Object.keys(OPERATOR_GLYPHS)) {
+        const source = figure(
+          `nodes: [{ id: op, component: operator, variant: ${variant}, props: { symbol: ${symbol} } }]`,
+          "paper",
+        );
+        const { ir } = compile(source);
+        const op = ir.nodes[0];
+        expect(op?.width?.pt).toBe(14);
+        expect(op?.height?.pt).toBe(14);
+        expect(op?.style.fontSize.pt).toBe(7);
+        expect(op?.style.strokeWidth.pt).toBe(
+          variant === "filled" ? 0 : variant === "emphasis" ? 1.5 : 0.5,
+        );
+        expect(checkFigure(source).state.diagnostics).toEqual([]);
+      }
+    }
+    // A smaller theme value cannot bypass the existing minimum-size guard.
+    expect(
+      checkFigure(
+        figure(CHAIN, "paper").replace("layout:", "profile: presentation-16x9, layout:"),
+      ).state.diagnostics.some(
+        (d) => d.code === "profile/font-too-small" && d.subject?.id === "add",
+      ),
+    ).toBe(true);
+  });
+
   test("glyph marks draw the symbol; points draw nothing; sizes follow the theme", () => {
     for (const themeId of ["minimal", "academic", "slides", "color"]) {
       const { ir, d2Source } = compile(figure(CHAIN, themeId));

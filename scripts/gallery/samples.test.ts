@@ -14,6 +14,7 @@ import {
   comparison,
   componentSamples,
   dimSample,
+  filledToneSample,
   outlinedToneSample,
   PROFILES,
   SAMPLE_PROFILE,
@@ -42,7 +43,15 @@ describe("component samples", () => {
         // A component the auto engine cannot draw (#131) gets a structured sample.
         const { engines } = sample.entry;
         expect(compiled.value.engine).toBe(
-          engines === undefined || engines.includes("auto") ? "auto" : "structured",
+          (engines === undefined || engines.includes("auto")) &&
+            !(
+              sample.entry.kind === "node" &&
+              sample.entry.mark === undefined &&
+              sample.entry.embed === undefined &&
+              sample.entry.variants.includes("solid")
+            )
+            ? "auto"
+            : "structured",
         );
         // Every variant appears, and only elements of this component carry a
         // variant. Elements a legend was expanded into (#131) count as the
@@ -76,7 +85,7 @@ test("only slides rows of more than three node or group variants use the wide pr
     "sumi/document",
     "sumi/trapezoid",
     "sumi/bowtie",
-    // Four variants since `outlined` (#177).
+    // Six variants with solid and tinted (#214).
     "sumi/stack",
     "sumi/container",
   ]);
@@ -99,7 +108,7 @@ test("the comparison covers every theme × profile through overrides", () => {
 test("every theme-wide sample passes structural lint under every theme (#177)", () => {
   // Rendering in the gallery checks diagnostics and geometry only; the
   // structural rules (e.g. lint/unused-legend-entry) run here.
-  for (const sample of [toneSample(), outlinedToneSample(), dimSample()]) {
+  for (const sample of [toneSample(), outlinedToneSample(), filledToneSample(), dimSample()]) {
     for (const theme of THEMES) {
       const source = sample.source.replace(/^ {2}theme: .*$/m, `  theme: ${theme}`);
       const report = lintFigure(source);

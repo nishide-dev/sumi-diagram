@@ -49,7 +49,7 @@
  * insertion order.
  */
 
-import { assetMarkup, badgeMarkup } from "../assets/draw";
+import { assetMarkup, badgeMarkup, imagePlaceholder } from "../assets/draw";
 import type { FigureAssets } from "../assets/load";
 import type { EdgeIR, FigureIR, GroupIR, NodeIR } from "../compiler/ir";
 import type { ElementKey } from "../core/check-state";
@@ -238,6 +238,9 @@ function nodeShape(node: NodeIR, r: Rect): string {
   const { style } = node;
   const paints = ` fill="${paint(style.fill)}"${strokeAttributes(style)}`;
   const { x, y, width: w, height: h } = r;
+  if (node.tokens?.separator !== undefined) {
+    return `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" fill="none" stroke="none"/>`;
+  }
   if (node.mark?.type === "point") {
     // A junction (#92): a dot in the line color, no outline, as big as its rect.
     return `<circle cx="${n(x + w / 2)}" cy="${n(y + h / 2)}" r="${n(w / 2)}" fill="${paint(style.fill)}" stroke="none"/>`;
@@ -322,6 +325,19 @@ function nodeShape(node: NodeIR, r: Rect): string {
       return `<path d="${pathData(outline, true)}"${paints}/><path d="${pathData(crease)}" fill="none"${strokeAttributes(style)}/>`;
     }
   }
+}
+
+/** The divider is paint over a reserved cell box, like a matrix hatch. */
+function tokenSeparatorMarkup(node: NodeIR, r: Rect): string {
+  if (node.tokens?.separator === undefined) return "";
+  const { x, y, width: w, height: h } = r;
+  const vertical = node.tokens.separator === "vertical";
+  const sw = Math.min(node.style.strokeWidth.units, w, h);
+  if (sw <= 0) return "";
+  const a = vertical ? { x: x + w / 2, y: y + sw / 2 } : { x: x + sw / 2, y: y + h / 2 };
+  const b = vertical ? { x: a.x, y: y + h - sw / 2 } : { x: x + w - sw / 2, y: a.y };
+  // Positive dash lengths preserve the pattern in editable DrawingML too.
+  return `<path class="sumi-token-separator" d="${pathData([a, b])}" fill="none" stroke="${paint(node.style.stroke)}" stroke-width="${n(sw)}" stroke-dasharray="${n(sw)} ${n(2 * sw)}" stroke-linecap="round"/>`;
 }
 
 /**
@@ -870,11 +886,13 @@ export function writeStructuredSvg(
     if (node === undefined)
       throw new Error(`internal error: ${placed.key} is not a node of the figure`);
     const asset =
-      hatchMarkup(node, placed.rect) + assetMarkup(node, assets?.nodes.get(node.key), placed.rect);
+      hatchMarkup(node, placed.rect) +
+      tokenSeparatorMarkup(node, placed.rect) +
+      assetMarkup(node, assets?.nodes.get(node.key), placed.rect);
     body.push(
       objectGroup(
         node,
-        nodeShape(node, placed.rect),
+        nodeShape(imagePlaceholder(node), placed.rect),
         placed.label,
         asset,
         placed.sublabel,

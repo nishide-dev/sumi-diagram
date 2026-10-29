@@ -24,6 +24,8 @@ for (const [name, params] of [
         "muted",
         ...(name === "stack" ? [] : ["filled"]),
         "outlined",
+        "solid",
+        "tinted",
       ],
       render: { type: "outline", renderer: `sumi/${name}`, params },
     });

@@ -79,6 +79,8 @@ describe("built-in components", () => {
       "muted",
       "filled",
       "outlined",
+      "solid",
+      "tinted",
     ]);
     expect(get("sumi/arrow")?.variants).toEqual(["default", "dashed", "emphasis", "muted"]);
   });
@@ -132,6 +134,8 @@ describe("builtinRegistry", () => {
       "muted",
       "filled",
       "outlined",
+      "solid",
+      "tinted",
     ]);
   });
 
@@ -424,7 +428,7 @@ describe("validateUsage", () => {
       hint: 'Did you mean "muted"?',
     });
     expect(registry.validateUsage(box, { variant: "loud" }).diagnostics[0]?.hint).toBe(
-      "Variants of sumi/box: default, emphasis, muted, filled, outlined.",
+      "Variants of sumi/box: default, emphasis, muted, filled, outlined, solid, tinted.",
     );
   });
 
@@ -523,7 +527,7 @@ describe("catalog", () => {
       namespace: "sumi",
       name: "box",
       description: "A rectangle; the general-purpose node.",
-      variants: ["default", "emphasis", "muted", "filled", "outlined"],
+      variants: ["default", "emphasis", "muted", "filled", "outlined", "solid", "tinted"],
       since: "0.1.0",
       shape: "rectangle",
       sizing: "auto",

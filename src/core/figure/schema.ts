@@ -228,7 +228,29 @@ export const RowSchema = z.strictObject({
  */
 export const ONE_OF_ISSUE = "sumi-one-of";
 
-/** One box of an arrange tree: exactly one of `stack` or `row`. */
+/** A grid item with an optional horizontal span. */
+export const GridCellSchema = z.strictObject({
+  get item() {
+    return ArrangeItemSchema.nullable();
+  },
+  span: z.int().positive().optional().describe("Number of columns occupied (default 1)."),
+});
+
+/** Row-major grid. Rows must be complete; null reserves a blank cell. */
+export const GridSchema = z.strictObject({
+  columns: z
+    .int()
+    .positive()
+    .describe("Number of columns; items fill left to right, top to bottom."),
+  rowGap: LayoutLength.optional(),
+  columnGap: LayoutLength.optional(),
+  align: z.enum(ARRANGE_ALIGNS).optional(),
+  get items() {
+    return z.array(z.union([ArrangeItemSchema, GridCellSchema, z.null()])).min(1);
+  },
+});
+
+/** One box of an arrange tree: exactly one of stack, row or grid. */
 export const ArrangeBoxSchema = z
   .strictObject({
     get stack() {
@@ -237,21 +259,24 @@ export const ArrangeBoxSchema = z
     get row() {
       return RowSchema.optional();
     },
+    get grid() {
+      return GridSchema.optional();
+    },
   })
   .check((ctx) => {
     const kinds = Object.values(ctx.value).filter((v) => v !== undefined).length;
     if (kinds !== 1) {
       ctx.issues.push({
         code: "custom",
-        message: 'An arrange box must have exactly one of "stack" or "row".',
+        message: 'An arrange box must have exactly one of "stack", "row" or "grid".',
         input: ctx.value,
-        params: { [ONE_OF_ISSUE]: ["stack", "row"] },
+        params: { [ONE_OF_ISSUE]: ["stack", "row", "grid"] },
       });
     }
   })
   .meta({
     id: "ArrangeBox",
-    description: "A stack (vertical) or row (horizontal) of items.",
+    description: "A stack (vertical), row (horizontal), or row-major grid of items.",
     minProperties: 1,
     maxProperties: 1,
   });

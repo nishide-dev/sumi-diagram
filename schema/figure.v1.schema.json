@@ -545,10 +545,114 @@
             "items"
           ],
           "additionalProperties": false
+        },
+        "grid": {
+          "type": "object",
+          "properties": {
+            "columns": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "description": "Number of columns; items fill left to right, top to bottom."
+            },
+            "rowGap": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|\\d+(\\.\\d+)?(mm|cm|in|pt))$"
+                },
+                {
+                  "const": 0
+                }
+              ],
+              "description": "A length with a unit (mm, cm, in or pt), e.g. \"3mm\"; 0 needs no unit."
+            },
+            "columnGap": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|\\d+(\\.\\d+)?(mm|cm|in|pt))$"
+                },
+                {
+                  "const": 0
+                }
+              ],
+              "description": "A length with a unit (mm, cm, in or pt), e.g. \"3mm\"; 0 needs no unit."
+            },
+            "align": {
+              "type": "string",
+              "enum": [
+                "start",
+                "center",
+                "end",
+                "stretch"
+              ]
+            },
+            "items": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+                      },
+                      {
+                        "$ref": "#/$defs/ArrangeBox"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "item": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+                              },
+                              {
+                                "$ref": "#/$defs/ArrangeBox"
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "span": {
+                        "description": "Number of columns occupied (default 1).",
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "item"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          },
+          "required": [
+            "columns",
+            "items"
+          ],
+          "additionalProperties": false
         }
       },
       "additionalProperties": false,
-      "description": "A stack (vertical) or row (horizontal) of items.",
+      "description": "A stack (vertical), row (horizontal), or row-major grid of items.",
       "minProperties": 1,
       "maxProperties": 1
     },
