@@ -1,5 +1,9 @@
 # Figure format (`*.sumi.yaml`, Figure Schema v1)
 
+Structured arrange trees also accept `grid: { columns, rowGap?, columnGap?, align?, items }`;
+items may use `{ item: ID-or-box, span: N }` for column spans. See
+[grids](structured.md#grids) for complete-row and alignment rules.
+
 The authoritative definitions are `schema/figure.v1.schema.json` (generated)
 and `docs/design/phase1.md` §2 in the repository. This page is the subset you
 need to write a figure.
@@ -92,10 +96,19 @@ edges:
   - { from: encoder, to: vae, tone: orange }
 ```
 
-- A tone is one color category: an outlined node cannot have a pastel fill
-  *and* a colored frame. Pick `outlined` (white, colored frame and text),
-  the default variant (pastel fill, black frame) or `filled` (pastel fill,
-  no frame), e.g. outlined keys with the pressed ones `filled`.
+- `solid` gives a shape a strong tone fill and white text (pressed keys,
+  operators); `tinted` gives it a pastel fill, matching colored border and
+  colored text (encoders, action cells). Both default to gray without `tone`,
+  work on box-like shapes, `operator` and `stack`, and can be selected in
+  tokens cells and legend node samples. For non-dimmed nodes, all built-in
+  themes meet 4.5:1 text contrast; tinted ink darkens just enough to contrast
+  with its pastel fill. Solid stacks use white separators to distinguish layers.
+  Example: `{ id: encoder, component: box, label: Encoder, tone: purple, variant: tinted }`.
+  Inside `dim: true`, text and borders take dim gray and fills lighten;
+  solid fills remain areas, and their dim gray text darkens as needed to keep
+  at least 3:1 contrast. Dimmed solid stacks use that text gray for separators.
+- Pick `outlined` for white with colored frame and text, the default variant
+  for pastel with a black frame, or `filled` for pastel without a frame.
 - Two edges of different tones that enter the same point of a node overlap
   (the shared entry, [fan-in](structured.md)): give them different
   `toAnchor`s (e.g. `north` and `south`) or `fanIn: spread`.
@@ -320,7 +333,10 @@ Always take these from `sumi catalog --json`. Each entry has `id`
 - `operator` draws a small circle with a symbol (`props.symbol`: `plus`,
   `minus`, `times`, `dot` or `concat`) and `junction` a small dot where lines
   branch or merge. Both take **no label** (`component/unexpected-label`) and no
-  size props: the theme sizes them. `junction` takes no `tone`. Connect into a
+  size props: the theme sizes them. In `paper`, an operator has a 7pt symbol
+  in a 14pt circle with a 0.5pt outline (emphasis: 1.5pt; filled: no outline).
+  These are sizes before `fit: scale`; other themes keep their own sizes.
+  `junction` takes no `tone`. Connect into a
   junction with `line` (an arrowhead would cover the dot). `variant: hidden`
   draws no dot: lines meet smoothly there (use it only where no other line
   crosses nearby, since the dot is what tells a join from a crossing), and an

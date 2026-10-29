@@ -12,7 +12,9 @@ import {
   ALIGN_GROWTH_RATIO,
   converged,
   grewFigure,
+  MAX_ALIGN_LAYOUTS,
   MAX_ALIGN_ROUNDS,
+  solveAlignment,
 } from "./align";
 import { layoutStructured, type PlacedStructured, placeStructured } from "./engine";
 
@@ -317,8 +319,8 @@ describe("solving", () => {
   });
 
   test("probes for the hints that spend the budget also give the budget warning", () => {
-    // 250 copies of an impossible constraint: the loop gives up after one
-    // round (no progress), and the probes for the hints use up the rest.
+    // 250 copies of an impossible constraint: the stalled pass and its
+    // lookahead spend the budget; hints still report every unmet constraint.
     const align = Array.from({ length: 250 }, () => ({ y: ["a", "b"] }));
     const placed = place(
       figure({ arrange: { stack: { items: ["a", "b"] } }, align }, [box("a"), box("b")]),
@@ -352,6 +354,80 @@ describe("solving", () => {
   test("is deterministic", () => {
     const text = readFileSync(`${fixtures}/figures/layout/align-unet.sumi.yaml`, "utf8");
     expect(JSON.stringify(place(text, false))).toBe(JSON.stringify(place(text, false)));
+  });
+});
+
+describe("centred, coupled constraints (#213)", () => {
+  const text = readFileSync(
+    `${import.meta.dir}/../../../research/185-acceptance/repro/align-residual.sumi.yaml`,
+    "utf8",
+  );
+  const ir = irOf(text);
+
+  test("lookahead escapes the greedy minimum and converges before either search limit", () => {
+    const placed = placeStructured(ir);
+    expect(placed.align?.residuals).toEqual([0.008, 0.006, 0]);
+    expect(placed.align?.rounds).toBe(12);
+    expect(placed.align?.layouts).toBe(73);
+    expect(placed.align?.rounds).toBeLessThan(MAX_ALIGN_ROUNDS);
+    expect(placed.align?.layouts).toBeLessThan(MAX_ALIGN_LAYOUTS);
+    expect(placed.diagnostics).toEqual([]);
+    for (const [heading, cell] of [
+      ["h-visual", "f0"],
+      ["h-action", "k0-1"],
+      ["h-text", "p0"],
+    ] as const) {
+      expect(
+        Math.abs(centerY(rectOf(placed.layout, heading)) - centerY(rectOf(placed.layout, cell))),
+      ).toBeLessThanOrEqual(ALIGN_EPSILON);
+    }
+  });
+
+  test("the fallback is deterministic, including with larger search limits", () => {
+    const placed = placeStructured(ir);
+    for (let run = 0; run < 3; run++) expect(placeStructured(ir)).toEqual(placed);
+    expect(placeStructured(ir, { alignLimits: { maxRounds: 100, maxLayouts: 2000 } })).toEqual(
+      placed,
+    );
+  });
+
+  test("budget exhaustion during either lookahead step keeps only a complete improving pair", () => {
+    // 55 ends after the first trial, 56 after a non-improving pair, 57 after
+    // an improving pair. A worse intermediate state must never be returned.
+    for (const maxLayouts of [55, 56, 57, 58, 66, 72]) {
+      const placed = placeStructured(ir, { alignLimits: { maxLayouts } });
+      expect(placed.align?.layouts).toBe(maxLayouts);
+      expect(placed.diagnostics[0]?.code).toBe("layout/align-search-limit");
+      expect(placed.diagnostics.some((d) => d.code === "layout/unsatisfied-align")).toBe(true);
+      const residuals = placed.align?.residuals ?? [];
+      expect(residuals.reduce((s, r) => s + r, 0)).toBeLessThanOrEqual(0.09);
+      if (maxLayouts <= 56) expect(residuals).toEqual([0.007, 0.006, 0.077]);
+      if (maxLayouts === 57) expect(residuals).toEqual([0.023, 0.01, 0.016]);
+      expect(placeStructured(ir, { alignLimits: { maxLayouts } })).toEqual(placed);
+    }
+    expect(placeStructured(ir, { alignLimits: { maxLayouts: 73 } }).diagnostics).toEqual([]);
+  });
+
+  test("each constraint alone converges in the same centred arrangement", () => {
+    for (const constraint of ir.align ?? []) {
+      const placed = placeStructured({ ...ir, align: [constraint] });
+      expect(converged(placed.align?.residuals ?? [1])).toBe(true);
+      expect(placed.diagnostics.filter((d) => d.severity === "warning")).toEqual([]);
+    }
+  });
+
+  test("a start-aligned root solves all three constraints exactly", () => {
+    if (ir.arrange === undefined) throw new Error("missing root arrangement");
+    const placed = placeStructured({ ...ir, arrange: { ...ir.arrange, align: "start" } });
+    expect(placed.align?.residuals).toEqual([0, 0, 0]);
+    expect(placed.diagnostics.filter((d) => d.severity === "warning")).toEqual([]);
+    for (const [heading, cell] of [
+      ["h-visual", "f0"],
+      ["h-action", "k0-1"],
+      ["h-text", "p0"],
+    ] as const) {
+      expect(centerY(rectOf(placed.layout, heading))).toBe(centerY(rectOf(placed.layout, cell)));
+    }
   });
 });
 
@@ -533,9 +609,33 @@ describe("layout/unsatisfied-align", () => {
     expect(d?.hint).toMatch(/^"a" and "b" cannot be moved apart/);
     // The best layout found is still returned (the plain one here).
     expect(placed.align?.rounds).toBeLessThanOrEqual(1);
-    // The first layout, the two candidates of round 1, and the two probes
-    // for the hint: every layout is counted.
-    expect(placed.align?.layouts).toBe(5);
+    // Initial + 2 greedy + 2 × (1 first + 2 second) lookahead + 2 probes.
+    expect(placed.align?.layouts).toBe(11);
+
+    // Count actual callback invocations independently of the solver's stats,
+    // including exhaustion in either lookahead step and in diagnostic probes.
+    const ir = irOf(text);
+    const plain = layoutStructured({ ...ir, align: [] }, { measurer: FAKE });
+    for (let maxLayouts = 1; maxLayouts <= 12; maxLayouts++) {
+      let calls = 0;
+      const solved = solveAlignment(
+        ir,
+        ir.align ?? [],
+        () => {
+          calls++;
+          return plain;
+        },
+        { maxLayouts },
+      );
+      expect(calls).toBe(Math.min(maxLayouts, 11));
+      expect(solved.stats.layouts).toBe(calls);
+      expect(solved.layout).toEqual(plain);
+      expect(solved.diagnostics.map((d) => d.code)).toEqual(
+        maxLayouts < 11
+          ? ["layout/align-search-limit", "layout/unsatisfied-align"]
+          : ["layout/unsatisfied-align"],
+      );
+    }
   });
 
   test("contradicting constraints: a warning that points at the other constraint", () => {
