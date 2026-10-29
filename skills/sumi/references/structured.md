@@ -734,7 +734,9 @@ cell is `{ label: '…', component: label }` or a math label such as
 `'$A_{\ldots}$'`. The tokens node has no label of its own (put a `label`
 node beside it). `props.variant: outlined` gives every cell a colored frame
 and text in its tone (white cells, [tones](figure-format.md#tones)); a cell's
-own `variant: filled` marks one, e.g. a pressed key.
+own `variant: solid` marks a pressed key with a strong fill and white text.
+Use `variant: tinted` for pastel action cells with colored borders and text;
+both also work in legend `node` samples.
 
 Edges, `attach.to` and `align` name a cell as **`<node>.<cell>`**: the
 cell's `id`, or its 1-based position when it has none (`keys.3`).

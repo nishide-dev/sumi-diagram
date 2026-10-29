@@ -144,7 +144,13 @@ describe("buildThemeCatalog", () => {
     const registry = createBuiltinRegistry();
     const box = registry.list().find((m) => m.name === "box");
     if (box === undefined) throw new Error("no box");
-    expect(entry.missingVariants[componentId(box)]).toEqual(["muted", "filled", "outlined"]);
+    expect(entry.missingVariants[componentId(box)]).toEqual([
+      "muted",
+      "filled",
+      "outlined",
+      "solid",
+      "tinted",
+    ]);
     // Every non-default variant of every other component is missing.
     const expected = registry
       .list()

@@ -1,0 +1,6 @@
+out/
+figures/assets/
+figures/*.svg
+figures/*.pdf
+figures/*.pptx
+figures/*.d2

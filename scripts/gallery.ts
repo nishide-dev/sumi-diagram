@@ -40,6 +40,7 @@ import {
   comparison,
   componentSamples,
   dimSample,
+  filledToneSample,
   GALLERY_DIR,
   outlinedToneSample,
   toneSample,
@@ -67,6 +68,7 @@ const compare = comparison();
 const tones = toneSample();
 const dim = dimSample();
 const outlinedTones = outlinedToneSample();
+const filledTones = filledToneSample();
 
 const jobs: RenderJob[] = [];
 for (const sample of samples) {
@@ -109,6 +111,9 @@ for (const rendering of dim.renderings) {
 for (const rendering of outlinedTones.renderings) {
   jobs.push({ file: outlinedTones.fileName, source: outlinedTones.source, rendering });
 }
+for (const rendering of filledTones.renderings) {
+  jobs.push({ file: filledTones.fileName, source: filledTones.source, rendering });
+}
 
 const outcomes = await renderAll(jobs);
 let cursor = 0;
@@ -129,6 +134,7 @@ const model: GalleryModel = {
   tones: { sample: tones, outcomes: take(tones.renderings.length) },
   dim: { sample: dim, outcomes: take(dim.renderings.length) },
   outlinedTones: { sample: outlinedTones, outcomes: take(outlinedTones.renderings.length) },
+  filledTones: { sample: filledTones, outcomes: take(filledTones.renderings.length) },
 };
 
 // Component, tone and dim samples and examples must be clean.
@@ -140,6 +146,10 @@ const strict: [string, RenderOutcome][] = [
   ...model.examples.map(({ source, outcome }): [string, RenderOutcome] => [source, outcome]),
   ...model.tones.outcomes.map((o): [string, RenderOutcome] => [`tones (${o.theme})`, o]),
   ...model.dim.outcomes.map((o): [string, RenderOutcome] => [`dim (${o.theme})`, o]),
+  ...model.filledTones.outcomes.map((o): [string, RenderOutcome] => [
+    `filled tones (${o.theme})`,
+    o,
+  ]),
   ...model.outlinedTones.outcomes.map((o): [string, RenderOutcome] => [
     `outlined tones (${o.theme})`,
     o,

@@ -57,11 +57,14 @@ export function lightenColor(color: Color, amount: number): Color {
   return `#${mixed.map((c) => c.toString(16).padStart(2, "0")).join("")}`;
 }
 
-/** The style of a dimmed element: colors from `dim`, everything else unchanged. */
-export function dimStyle<S extends ResolvedStyle>(style: S, dim: DimColors): S {
+/** Colors from `dim`; solid node areas lighten even though fill equals stroke (#214). */
+export function dimStyle<S extends ResolvedStyle>(style: S, dim: DimColors, areaFill = false): S {
   const visible = (color: Color, to: Color) => (color === "transparent" ? color : to);
   // Compared expanded, so `#000` and `#000000` are the same ink.
-  const ink = style.fill !== "transparent" && expandColor(style.fill) === expandColor(style.stroke);
+  const ink =
+    !areaFill &&
+    style.fill !== "transparent" &&
+    expandColor(style.fill) === expandColor(style.stroke);
   const dimmed: S = {
     ...style,
     stroke: visible(style.stroke, dim.stroke),

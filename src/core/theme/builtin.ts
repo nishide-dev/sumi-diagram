@@ -123,9 +123,18 @@ const outlineVariants = (shaded: string): Omit<VariantStyles["container"], "mute
 
 /** Expands per-category variant styles to every built-in component. */
 function componentStyles(styles: VariantStyles): NonNullable<ThemeDefinition["components"]> {
-  const { filled: _, ...stack } = styles.shape;
+  const shape = {
+    ...styles.shape,
+    solid: {
+      fill: styles.shape.outlined.stroke ?? "#000000",
+      stroke: styles.shape.outlined.stroke ?? "#000000",
+      fontColor: "#ffffff",
+    },
+    tinted: { ...styles.shape.outlined, fill: styles.shape.filled.fill ?? "#ffffff" },
+  };
+  const { filled: _, ...stack } = shape;
   return {
-    ...Object.fromEntries(SHAPE_NODES.map((name) => [name, styles.shape])),
+    ...Object.fromEntries(SHAPE_NODES.map((name) => [name, shape])),
     // Without outlines a stack's rectangles merge into one shape (#174).
     stack,
     label: styles.label,

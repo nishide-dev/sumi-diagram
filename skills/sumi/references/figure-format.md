@@ -92,10 +92,17 @@ edges:
   - { from: encoder, to: vae, tone: orange }
 ```
 
-- A tone is one color category: an outlined node cannot have a pastel fill
-  *and* a colored frame. Pick `outlined` (white, colored frame and text),
-  the default variant (pastel fill, black frame) or `filled` (pastel fill,
-  no frame), e.g. outlined keys with the pressed ones `filled`.
+- `solid` gives a shape a strong tone fill and white text (pressed keys,
+  operators); `tinted` gives it a pastel fill, matching colored border and
+  colored text (encoders, action cells). Both default to gray without `tone`,
+  work on box-like shapes, `operator` and `stack`, and can be selected in
+  tokens cells and legend node samples. All built-in themes meet 4.5:1 text
+  contrast; tinted ink darkens just enough to contrast with its pastel fill.
+  Example: `{ id: encoder, component: box, label: Encoder, tone: purple, variant: tinted }`.
+  Inside `dim: true`, text and borders take dim gray and fills lighten;
+  solid fills remain areas (they do not become the same gray as the text).
+- Pick `outlined` for white with colored frame and text, the default variant
+  for pastel with a black frame, or `filled` for pastel without a frame.
 - Two edges of different tones that enter the same point of a node overlap
   (the shared entry, [fan-in](structured.md)): give them different
   `toAnchor`s (e.g. `north` and `south`) or `fanIn: spread`.

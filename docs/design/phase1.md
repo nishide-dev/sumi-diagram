@@ -2038,6 +2038,15 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **互換性と全図検査（実測）**: 費用修正前の **139 図 ×（元の Theme + 組み込み 5 Theme）= 834 通り**を描画し、成功 **568 通り**を比較。成功・失敗は変わらず、**50 出力**が変化し、すべて段差の除去か幹線の単純化だった。全変更と残った lint の所見を PDF → `pdftoppm` → PNG で確認した。`edge-jog` は **171 → 55 件**（残るのは 34 通りの実際の小さな段差、誤検出 0）、`arrowhead-on-bend` は 0。受け入れ図の own Theme は段差 2 件 → 0。最小再現追加後は **140 図・840 通り・成功 574 通り**で、既存 834 通りの出力と診断が再検査でも一致。gallery は **155 ファイル変更 0・新規診断 0**、PDF・PPTX・画像の golden も指定の更新コマンドで変更 0。全変更一覧と残る所見は [検証記録](../verification/217-arrowhead-jogs.md) に記載。
 - **テスト**: 受け入れ図の正確な 3 点（曲がり 1 回）と 14 unit の最小 fixture、junction の全組み込み Theme・始点側・経路なし error・A* / Dijkstra の費用一致を検査する。lint は矢じりの短い端、始点・終点、境界・縮小・丸めた描画・D2 offset と、段差の正例・負例・印刷時の閾値・量子化・分割された描画・重複・同一直線・曲線・切れ目・分岐・透明な線を検査する。既存の fit と caption の統合テストは新たに可視化された実際の段差を辺 ID 付きで明示的に期待する。
 
+### 6.63 #214 の濃い塗りと色付き淡色面（`solid` / `tinted`）
+
+- **構文と対象**: shape node の variant に `solid` と `tinted` を追加する。box・square・circle・ellipse・diamond・hexagon・parallelogram・cylinder・document・trapezoid・stack・operator の 12 部品が対象。tokens の共通 `props.variant` とセルごとの `variant`、legend の `node.variant` は既存の Registry 検証・展開を通るので同じ名前が使える。tone 未指定時は gray。新しい YAML field・診断は増やさない。
+- **色の組み合わせ**: `solid` は `toneLines.<tone>.stroke` を塗りと枠に使い、文字は白。`tinted` は `tones.<tone>.fill` を面に使い、同じ tone の line 色を枠と文字に使う。全 Theme の components に両 variant の gray の基本値を定義し、解決時に palette を合成する。境界は既存の通常線幅のまま残すので stack の層も区別できる。`filled` と同じ線幅 0 にはしない。
+- **4.5:1 と互換性の両立**: 既存の line 色は白地で 4.5:1 以上だが、淡色面では不足する tone がある。既存の `tones` / `toneLines` は変更しない。tinted に限り、line 色の RGB を黒へ 1% 刻みで混ぜ、量子化後の相対輝度で文字と面の比が 4.5:1 以上となる最初の色を枠・文字に採用する。これにより元の淡色面と色相を保つ。solid は既存 line 色と白で条件を満たす。全 12 部品 × 全 5 Theme × 全 8 tone と tone 未指定を実測する。dim は意図した薄表示なのでこのコントラスト条件の対象外。
+- **§6.53 の dim**: palette 合成後に従来の dim pass を 1 回適用する。文字と枠は dim gray、面は white へ lighten。solid は fill と stroke が等しくても junction の点のような「ink」ではなく面として扱う。そうしないと面と文字が同じ gray になり文字が消えるため、dimStyle に面の指定を渡す。既存の点・矢じり・他 variant の判定は同じ。
+- **発見性と作例**: catalog の全 shape manifest、全 Theme × 全 variant の部品 gallery、全 Theme × 8 tone の solid/tinted gallery（tokens と legend）を更新する。7 variant の横一列は paper-double の幅を超えるため、shape の部品見本だけ structured の 2 行にする。D2 の全 variant × 全 Theme 描画テストも維持する。`research/214-solid-tinted/figures/c-h3world.sumi.yaml` は #185 の写しで、押したキーと ⊕ を solid、全 Encoder と A のセルを tinted にする。placeholder の frame は描画スクリプトが #185 から ignored directory に複製し、SVG/PDF は out/、コミットする画像は previews/ の PNG 1 枚（150KB 未満）。
+- **出力検査**: 変更前の 140 YAML ×（元 Theme + 5 Theme）= 840 通りを再描画。成功した 574 通りの SVG / PDF / PPTX と auto の D2 の sha256 はすべて一致。失敗例も同じ失敗で、unknown-variant の候補が増える既存 fixture 1 枚 × 6 通りだけ診断文が変わる。gallery の変更は新 variant を示す部品 SVG 60 枚・新 tone SVG 5 枚と索引 2 枚。全変更 gallery と受け入れ図を PNG で確認する。詳細は [検証記録](../../research/214-solid-tinted/README.md)。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）

@@ -10,6 +10,8 @@
  * an edge. A variant the manifest has but the theme does not define falls
  * back to `default` with a `theme/missing-variant` warning; a tone the theme
  * does not define is left out with `theme/missing-tone`.
+ * Node `solid` and `tinted` (#214) compose `tones` and `toneLines` instead;
+ * their neutral default is gray. Tinted ink is darkened for text contrast.
  *
  * A dimmed element (#175: inside a group with `dim: true`, see `dim.ts`) then
  * takes the theme's dim colors.
@@ -22,6 +24,7 @@ import type { FontUsage } from "../profile/constrain";
 import type { ComponentId, ComponentKind } from "../registry/manifest";
 import { resolveTheme } from "./builtin";
 import { dimmedElements, dimStyle } from "./dim";
+import { filledToneNode } from "./node-variants";
 import type { Theme } from "./schema";
 import {
   mergeStyle,
@@ -77,6 +80,26 @@ export function resolveStyle<K extends ComponentKind>(
   const variantLayer = variant === "default" ? undefined : layers?.get(variant);
   const field = target.toneText === true ? "toneLines" : toneField(kind, variant);
   const toneLayer = tone === undefined ? undefined : theme[field].get(tone);
+  // Compose both palettes only for the new node variants. Gray is their neutral default.
+  if (
+    kind === "node" &&
+    variantLayer !== undefined &&
+    (variant === "solid" || variant === "tinted") &&
+    target.toneText !== true
+  ) {
+    const fill = theme.tones.get(tone ?? "gray")?.fill;
+    const ink = theme.toneLines.get(tone ?? "gray")?.stroke;
+    const paint =
+      ink !== undefined && (variant === "solid" || fill !== undefined)
+        ? filledToneNode(variant, fill ?? "#ffffff", ink)
+        : undefined;
+    return {
+      style: mergeStyle(kind, [theme.base[kind], layers?.get("default"), variantLayer, paint]),
+      missingVariant: false,
+      missingTone:
+        tone !== undefined && (ink === undefined || (variant === "tinted" && fill === undefined)),
+    };
+  }
   return {
     style: mergeStyle(kind, [theme.base[kind], layers?.get("default"), variantLayer, toneLayer]),
     missingVariant: variant !== "default" && variantLayer === undefined,
@@ -146,12 +169,17 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
         path: at,
         ...(location !== undefined && { location }),
         subject,
-        hint: `Add ${paint?.toneText === true ? "toneLines" : toneField(manifest.kind, variant)}.${tone} to the theme, or use another tone.`,
+        hint: `Add ${manifest.kind === "node" && (variant === "solid" || variant === "tinted") ? (variant === "solid" ? "toneLines" : "tones and toneLines") : paint?.toneText === true ? "toneLines" : toneField(manifest.kind, variant)}.${tone} to the theme, or use another tone.`,
       };
       state.diagnostics.push(warning);
     }
     const dim = theme.dim !== undefined && dimmed.has(key) ? theme.dim : undefined;
-    styles.set(key, dim === undefined ? style : dimStyle(style, dim));
+    styles.set(
+      key,
+      dim === undefined
+        ? style
+        : dimStyle(style, dim, manifest.kind === "node" && variant === "solid"),
+    );
   }
   return theme;
 }

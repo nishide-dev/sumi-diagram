@@ -185,6 +185,8 @@ shows:
 | rounded pastel boxes, thin black lines, small arrowheads, sans-serif text | `figure.theme: paper` |
 | boxes without a border (a pastel fill only) | `variant: filled` + `tone` ([variants](figure-format.md#components-variants-and-props)) |
 | white boxes with a colored frame and text (encoders, tokens, keys) | `variant: outlined` + `tone` |
+| strong colored keys or operators with white text | `variant: solid` + `tone` |
+| pastel encoders or token cells with matching colored border and text | `variant: tinted` + `tone` |
 | colored lines | `tone` on the edge ([tones](figure-format.md#tones)) |
 | a panel without a frame, a shaded panel, a dashed panel | group `variant: plain` / `filled` / `dashed`, with `caption: (a) …` |
 | panels of equal height with captions on one line | the panels in one `row` with `align: stretch` ([captions](structured.md#group-titles-and-captions)) |
