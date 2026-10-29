@@ -2106,6 +2106,14 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
   変更前の全 138 YAML × 元テーマ・組み込み 5 theme の SHA-256 比較も記録する。
   詳細・再現方法・目視した PNG は同ディレクトリの README を参照。
 
+### 6.64 #215 の paper operator の縮小
+
+- **判断: Theme の値だけで対応**。operator の既存契約は円の直径が glyph の fontSize の 2 倍（§6.20）。`paper` の operator にだけ default スタイルを追加し、fontSize を既存の `{size.small}`（7pt）、strokeWidth を `{line.edge}`（0.5pt）とした。記号 8 → 7pt、円 16 → 14pt（12.5% 縮小）。6pt / 12pt の試作は `profile/font-too-small`（紙の下限 7pt）になり不採用。小さい記号と 0.5pt の辺に釣り合う細い円とする。emphasis は既存の 1.5pt と bold を保って意図した強調を残し、filled は枠なし、muted / outlined の色と tone / dim は既存の解決順を使う。props・variant・schema・診断は増やさず、サイズの自由指定や lint の例外も追加しない。
+- **目視と受け入れ**: `research/185-acceptance/render.ts` で 3 図を再描画し、変更前後の PDF を 200dpi PNG にして比較。円と記号の余白を保ち、Transformer・DiT の加算が箱より目立ちすぎず、H3-World の橙の円にも細い枠と ＋ が残る。operator が原図より大きいという #185 / #215 の記録に対応する方向の変更であり、未公開の H3-World 原図の直接比較はしていない。`research/215-paper-operator/out/figures/` に受け入れ図・相対参照する代用画像の完全な写しを生成して描画する。成果物は gitignore、同ディレクトリの `previews/c-h3world.png` は 74,384 bytes（150KB 未満）。既存の受け入れ図の preview 3 件も更新。
+- **実測（mm）**: Transformer **76.02 × 114.83 → 75.32 × 114.12**、DiT **180 × 85.98 → 180 × 84.69**、H3-World **180 × 122.24 → 180 × 123.04**。DiT は **170mm 幅で 81.2041 → 79.9841mm（−1.2200mm、−1.50%）**。#185 の原図約 68mm に対して ×1.194 → ×1.176。§6.55 の compact だけで残る縦長さを少し改善するが、間隔や文字の大きさの差は残る。§6.55 の旧 fixture は 180mm 幅で 87.66 → 86.34mm（170mm 幅で 82.79 → 81.54mm）。H3-World は自然幅が小さくなって fit の縮小が弱まり（0.829 → 0.8344）、固定された 180mm 幅での高さは逆に増える。3 図の warning / error は 0。DiT と H3-World の既存の添字の info のみ継続。
+- **互換性（実測）**: 追跡済み YAML **140 個 ×（own + 組み込み 5 Theme）= 840 通り**の変更前後を描画し、実際の SVG / PDF / 画像方式 PPTX と D2 ソースの SHA-256 を比較。成功 **574 通り**、失敗 **266 通り**は不変、D2 **234 件すべて同一**。**45 ファイル・59 通りの SVG / PDF / PPTX（177 出力）だけ**が変化し、すべて paper で operator を使う図。own の変更も paper の図だけ。残る Theme と operator のない paper はバイト一致。失敗の診断も同一。全変更を PDF → PNG の一覧で確認し、既存の再現図の重なりを含む意図した差分を [一覧](../../research/215-paper-operator/changed-outputs.md) に記録した。
+- **golden とテスト**: `bun run gallery` で operator / tones / dim の paper SVG と目次を更新、指定の `SUMI_UPDATE_GOLDEN=1 CI=1 bun test src/render/pdf src/render/pptx src/render/assets.integration.test.ts` で PDF / PPTX corpus と operator の編集可能 slide XML を再生成（hash の手編集なし）。3 ギャラリーの PNG で全 symbol・variant・tone・dim を確認。`marks.test.ts` で全 symbol × variant の直径・文字・線幅・profile 下限を検査、既存の全部品 × variant × Theme の実 D2 描画も通る。compact の実測期待値と #217 の受け入れ経路の座標を新しい大きさに更新（曲がり 1 回と矢じりの直線長の保証は保持）。Skill にサイズの説明を追記。`check` / `typecheck` / `CI=1 bun test`（2811 pass・13 skip・0 fail）/ `gallery:check` / `schema:check` を確認。
+
 
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
