@@ -79,34 +79,6 @@ const style = (map: Map<ElementKey, ResolvedStyle>, key: ElementKey): ResolvedSt
 };
 
 describe("dim colors", () => {
-  test("solid-area dimming keeps text at least 3:1 against every built-in tone fill (#214)", () => {
-    // Independent WCAG calculation, not the implementation's color helper.
-    const luminance = (hex: string) => {
-      const channels = [1, 3, 5].map((i) => {
-        const c = Number.parseInt(hex.slice(i, i + 2), 16) / 255;
-        return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-      });
-      return (
-        0.2126 * (channels[0] ?? 0) + 0.7152 * (channels[1] ?? 0) + 0.0722 * (channels[2] ?? 0)
-      );
-    };
-    for (const theme of BUILTIN_THEMES.values()) {
-      if (!theme.dim) throw new Error("missing dim");
-      const base = resolveStyle(theme, { kind: "node", id: "sumi/box", variant: "default" }).style;
-      for (const tone of theme.toneLines.values()) {
-        const ink = tone.stroke;
-        if (!ink) throw new Error("missing tone ink");
-        const style = { ...base, fill: ink, stroke: ink, fontColor: "#ffffff" };
-        const dimmed = dimStyle(style, theme.dim, true);
-        expect(dimmed.fill).toBe(lightenColor(ink, theme.dim.lighten));
-        expect(dimmed.stroke).toBe(theme.dim.stroke);
-        const a = luminance(dimmed.fontColor);
-        const b = luminance(dimmed.fill);
-        expect((Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)).toBeGreaterThanOrEqual(3);
-      }
-    }
-  });
-
   test("lightenColor mixes toward white and writes #rrggbb", () => {
     expect(lightenColor("#000000", 0.5)).toBe("#808080");
     expect(lightenColor("#cfe8f3", 0.5)).toBe("#e7f4f9");

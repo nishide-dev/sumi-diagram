@@ -57,59 +57,16 @@ export function lightenColor(color: Color, amount: number): Color {
   return `#${mixed.map((c) => c.toString(16).padStart(2, "0")).join("")}`;
 }
 
-/** WCAG relative luminance, accepting the same short/long hex colors as styles. */
-function luminance(color: Color): number {
-  const hex = expandColor(color).slice(1);
-  const channels = [0, 2, 4].map((i) => {
-    const c = Number.parseInt(hex.slice(i, i + 2), 16) / 255;
-    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-  });
-  return 0.2126 * (channels[0] ?? 0) + 0.7152 * (channels[1] ?? 0) + 0.0722 * (channels[2] ?? 0);
-}
-
-/** Keep dimmed solid-area text readable without changing the theme's other dim colors. */
-function readableAreaText(text: Color, fill: Color): Color {
-  if (text === "transparent" || fill === "transparent") return text;
-  const background = luminance(fill);
-  const contrast = (color: Color) => {
-    const foreground = luminance(color);
-    return (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05);
-  };
-  if (contrast(text) >= 3) return text;
-  // Mix toward the higher-contrast pole in 1% steps; preserve the first readable color.
-  const pole = background > 0.179 ? 0 : 255;
-  const hex = expandColor(text).slice(1);
-  const channels = [0, 2, 4].map((i) => Number.parseInt(hex.slice(i, i + 2), 16));
-  for (let step = 1; step <= 100; step++) {
-    const candidate: Color = `#${channels
-      .map((c) =>
-        Math.round(c + ((pole - c) * step) / 100)
-          .toString(16)
-          .padStart(2, "0"),
-      )
-      .join("")}`;
-    if (contrast(candidate) >= 3) return candidate;
-  }
-  return pole === 0 ? "#000000" : "#ffffff";
-}
-
-/** Colors from `dim`; opt-in solid areas (#214) lighten and retain ≥3:1 text contrast. */
-export function dimStyle<S extends ResolvedStyle>(style: S, dim: DimColors, areaFill = false): S {
+/** The style of a dimmed element: colors from `dim`, everything else unchanged. */
+export function dimStyle<S extends ResolvedStyle>(style: S, dim: DimColors): S {
   const visible = (color: Color, to: Color) => (color === "transparent" ? color : to);
   // Compared expanded, so `#000` and `#000000` are the same ink.
-  const ink =
-    !areaFill &&
-    style.fill !== "transparent" &&
-    expandColor(style.fill) === expandColor(style.stroke);
-  const fill = ink ? dim.stroke : lightenColor(style.fill, dim.lighten);
+  const ink = style.fill !== "transparent" && expandColor(style.fill) === expandColor(style.stroke);
   const dimmed: S = {
     ...style,
     stroke: visible(style.stroke, dim.stroke),
-    fontColor: visible(
-      style.fontColor,
-      areaFill ? readableAreaText(dim.fontColor, fill) : dim.fontColor,
-    ),
-    fill,
+    fontColor: visible(style.fontColor, dim.fontColor),
+    fill: ink ? dim.stroke : lightenColor(style.fill, dim.lighten),
     // Hatch lines (#180) are lines.
     ...("hatch" in style && style.hatch !== undefined && { hatch: dim.stroke }),
   };
