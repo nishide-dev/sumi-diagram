@@ -55,6 +55,7 @@ import type { EdgeIR, FigureIR, GroupIR, NodeIR } from "../compiler/ir";
 import type { ElementKey } from "../core/check-state";
 import { isSpaceRun } from "../core/label/runs";
 import type { Arrowhead } from "../core/registry/manifest";
+import { getTheme } from "../core/theme/builtin";
 import type { FontSet } from "../core/theme/fonts";
 import type { CommonStyle } from "../core/theme/style";
 import type { LayoutIR, Point, Rect, TextLayout, TextRun } from "../layout/ir";
@@ -99,10 +100,15 @@ function rotate(layout: TextLayout): string {
   return ` transform="rotate(${layout.rotation} ${n(box.x + box.width / 2)} ${n(box.y + box.height / 2)})"`;
 }
 
+const anchorName = (layout: TextLayout) =>
+  layout.textAlign === "left" ? "start" : layout.textAlign === "right" ? "end" : "middle";
+const anchorFraction = (layout: TextLayout) =>
+  layout.textAlign === "left" ? 0 : layout.textAlign === "right" ? 1 : 0.5;
+
 function label(layout: TextLayout, color: string): string {
   const { anchor, lines } = layout;
   if (layout.runs !== undefined) return richLabel(layout, layout.runs, color);
-  const open = `<text x="${n(anchor.x)}" y="${n(anchor.y)}" fill="${paint(color)}" class="${textClass(layout.font)}" style="text-anchor:middle;font-size:${n(layout.fontSizeUnits)}px"${rotate(layout)}>`;
+  const open = `<text x="${n(anchor.x)}" y="${n(anchor.y)}" fill="${paint(color)}" class="${textClass(layout.font)}" style="text-anchor:${anchorName(layout)};font-size:${n(layout.fontSizeUnits)}px"${rotate(layout)}>`;
   if (lines.length === 1) return `${open}${text(lines[0] as string)}</text>`;
   const spans = lines.map(
     (line, i) =>
@@ -127,17 +133,17 @@ function richLabel(
   color: string,
 ): string {
   const { anchor } = layout;
-  const open = `<text x="${n(anchor.x)}" y="${n(anchor.y)}" fill="${paint(color)}" class="${textClass(layout.font)}" style="text-anchor:middle;font-size:${n(layout.fontSizeUnits)}px;font-kerning:none"${rotate(layout)}>`;
+  const open = `<text x="${n(anchor.x)}" y="${n(anchor.y)}" fill="${paint(color)}" class="${textClass(layout.font)}" style="text-anchor:${anchorName(layout)};font-size:${n(layout.fontSizeUnits)}px;font-kerning:none"${rotate(layout)}>`;
   const spans = runs.map((line, i) => {
     const y = n(anchor.y + i * layout.lineHeightUnits);
     if (!line.some((run) => run.accent !== undefined)) {
       return `<tspan x="${n(anchor.x)}" y="${y}">${runContent(layout, line)}</tspan>`;
     }
     const width = line.reduce((sum, run) => sum + run.width, 0);
-    return accentChunks(line, anchor.x - width / 2)
+    return accentChunks(line, anchor.x - width * anchorFraction(layout))
       .map(
         (chunk) =>
-          `<tspan x="${n(chunk.start + chunk.width / 2)}" y="${y}">${runContent(layout, chunk.runs)}</tspan>`,
+          `<tspan x="${n(chunk.start + chunk.width * anchorFraction(layout))}" y="${y}">${runContent(layout, chunk.runs)}</tspan>`,
       )
       .join("");
   });
@@ -153,6 +159,7 @@ function runContent(layout: TextLayout, runs: readonly ChunkRun[]): string {
   let pen = 0; // the current baseline offset from the line's baseline
   const attributes = runs.map((run) => {
     const value =
+      (run.fill === undefined ? "" : ` fill="${paint(run.fill)}"`) +
       (run.font === layout.font ? "" : ` class="${textClass(run.font)}"`) +
       (run.fontSizeUnits === layout.fontSizeUnits
         ? ""
@@ -177,7 +184,7 @@ function runContent(layout: TextLayout, runs: readonly ChunkRun[]): string {
 }
 
 /** A run as a chunk draws it: an accent's mark is a run of its own. */
-type ChunkRun = Pick<TextRun, "text" | "font" | "fontSizeUnits" | "shiftUnits" | "width">;
+type ChunkRun = Pick<TextRun, "text" | "font" | "fontSizeUnits" | "shiftUnits" | "width" | "fill">;
 
 interface Chunk {
   /** Where the chunk's pen starts (units). */
@@ -839,6 +846,34 @@ export function writeStructuredSvg(
   assets?: FigureAssets,
 ): string {
   const groups = new Map(ir.groups.map((g) => [g.key, g]));
+  const theme = getTheme(ir.meta.themeId);
+  const colored = (
+    layout: TextLayout | undefined,
+    element: NodeIR | GroupIR | EdgeIR,
+  ): TextLayout | undefined => {
+    if (
+      layout?.runs === undefined ||
+      !layout.runs.some((line) => line.some((run) => run.tone !== undefined))
+    )
+      return layout;
+    const color = element.style.fontColor;
+    return {
+      ...layout,
+      runs: layout.runs.map((line) =>
+        line.map((run) =>
+          run.tone === undefined
+            ? run
+            : {
+                ...run,
+                fill:
+                  theme?.dim !== undefined && ir.dimmed?.includes(element.key)
+                    ? color
+                    : (theme?.toneLines.get(run.tone)?.fontColor ?? color),
+              },
+        ),
+      ),
+    };
+  };
   const nodes = new Map(ir.nodes.map((n) => [n.key, n]));
   const edges = new Map(ir.edges.map((e) => [e.key, e]));
   const body: string[] = [];
@@ -861,7 +896,7 @@ export function writeStructuredSvg(
       throw new Error(`internal error: ${g.key} is not a group of the figure`);
     painted.push({ rect: g.rect, fill: group.style.fill, opacity: group.style.opacity });
     const shape = nodeShape({ ...asNode(group), shape: "rectangle" }, g.rect);
-    body.push(objectGroup(group, shape, g.label));
+    body.push(objectGroup(group, shape, colored(g.label, group)));
     useText(g.label);
   }
   for (const placed of layout.nodes) {
@@ -871,7 +906,13 @@ export function writeStructuredSvg(
     const asset =
       hatchMarkup(node, placed.rect) + assetMarkup(node, assets?.nodes.get(node.key), placed.rect);
     body.push(
-      objectGroup(node, nodeShape(node, placed.rect), placed.label, asset, placed.sublabel),
+      objectGroup(
+        node,
+        nodeShape(node, placed.rect),
+        colored(placed.label, node),
+        asset,
+        colored(placed.sublabel, node),
+      ),
     );
     useText(placed.label);
     useText(placed.sublabel);
@@ -888,7 +929,7 @@ export function writeStructuredSvg(
       body.push(zoomGroup(edge, lines));
       continue;
     }
-    body.push(edgeGroup(edge, points, placed.route?.label, painted));
+    body.push(edgeGroup(edge, points, colored(placed.route?.label, edge), painted));
     useText(placed.route?.label);
   }
   const drawing = body.join("");

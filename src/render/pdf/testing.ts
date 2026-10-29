@@ -317,6 +317,8 @@ export interface PdfFont {
 }
 
 export interface PdfGlyph {
+  /** Non-stroking RGB paint at the glyph (DeviceRGB or the engine's sRGB ICC space). */
+  color?: readonly number[];
   /** The Unicode text of the glyph (from ToUnicode). */
   text: string;
   /** Origin on the baseline, page space (pt, y up). */
@@ -502,11 +504,18 @@ export function inspectPdf(bytes: Uint8Array): PdfInspection {
   };
 
   const glyphs: PdfGlyph[] = [];
-  const run = (content: Uint8Array, resources: PdfDict, start: Matrix, depth: number) => {
+  const run = (
+    content: Uint8Array,
+    resources: PdfDict,
+    start: Matrix,
+    depth: number,
+    initialColor: readonly number[] = [0, 0, 0],
+  ) => {
     if (depth > 16) throw new Error("form XObjects nested too deeply");
     const parser = new Parser(latin1.decode(content));
     const operands: PdfValue[] = [];
-    const stack: Matrix[] = [];
+    const stack: { ctm: Matrix; color: readonly number[] }[] = [];
+    let color = initialColor;
     let ctm = start;
     let tm: Matrix = IDENTITY;
     let tlm: Matrix = IDENTITY;
@@ -527,6 +536,7 @@ export function inspectPdf(bytes: Uint8Array): PdfInspection {
           advance: Math.hypot(ax - x, ay - y),
           size: Math.hypot(trm[0], trm[1]),
           font: font.name,
+          color,
         });
         tm = multiply([1, 0, 0, 1, w * size, 0], tm);
       }
@@ -541,10 +551,18 @@ export function inspectPdf(bytes: Uint8Array): PdfInspection {
       const nums = operands.map(Number) as Matrix;
       switch (v.value) {
         case "q":
-          stack.push(ctm);
+          stack.push({ ctm, color });
           break;
         case "Q":
-          ctm = stack.pop() ?? IDENTITY;
+          ({ ctm, color } = stack.pop() ?? { ctm: IDENTITY, color: initialColor });
+          break;
+        case "rg":
+        case "sc":
+        case "scn":
+          if (operands.length === 3) color = operands.map(Number);
+          break;
+        case "g":
+          color = [Number(operands[0]), Number(operands[0]), Number(operands[0])];
           break;
         case "cm":
           ctm = multiply(nums, ctm);
@@ -587,6 +605,7 @@ export function inspectPdf(bytes: Uint8Array): PdfInspection {
               asDict(resolve(dict.Resources)) ?? resources,
               multiply(matrix ?? IDENTITY, ctm),
               depth + 1,
+              color,
             );
           }
           break;

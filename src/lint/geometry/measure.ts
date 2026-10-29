@@ -205,7 +205,9 @@ function measurePlain(label: LabelGeometry, metrics: FontMetrics): Omit<Measured
     const width = metrics.measureEm(text) * size;
     const baseline = label.anchor.y + i * label.lineHeightUnits;
     return {
-      x: label.anchor.x - width / 2,
+      x:
+        label.anchor.x -
+        width * (label.textAlign === "left" ? 0 : label.textAlign === "right" ? 1 : 0.5),
       y: baseline - ascent,
       width,
       height: ascent + descent,
@@ -234,7 +236,9 @@ function measureRuns(
         for (let k = j; k < line.length && (k === j || line[k]?.chunkX === undefined); k++) {
           width += widths[k] as number;
         }
-        x = (run.chunkX ?? label.anchor.x) - width / 2;
+        x =
+          (run.chunkX ?? label.anchor.x) -
+          width * (label.textAlign === "left" ? 0 : label.textAlign === "right" ? 1 : 0.5);
       }
       starts.push(x);
       x += widths[j] as number;

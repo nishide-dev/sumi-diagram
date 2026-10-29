@@ -202,6 +202,15 @@
             "type": "string",
             "pattern": "\\S"
           },
+          "textAlign": {
+            "description": "Horizontal alignment of the node's label and sublabel within their shared text block (structured only). Omitted means center.",
+            "type": "string",
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
           "labelRotation": {
             "description": "Structured layout: draw the label turned by 90 (clockwise, reading top to bottom) or -90 degrees (counter-clockwise, reading bottom to top), e.g. a title along a tall box. The node is sized to the turned label.",
             "type": "number",

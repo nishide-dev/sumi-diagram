@@ -84,6 +84,8 @@ export interface TextMetrics {
 
 /** A piece of a line drawn in one font, size and baseline (#93). */
 export interface TextRun {
+  readonly tone?: import("../core/theme/tones").Tone;
+  readonly fill?: string;
   readonly text: string;
   /** Font class: the label's (`regular`, `bold`, …), `math` / `math-italic`, or `latin` / `latin-bold` (#172). */
   readonly font: string;
@@ -114,9 +116,10 @@ export interface TextAccent {
 
 /** A placed label: metrics plus where it is drawn. */
 export interface TextLayout extends TextMetrics {
+  readonly textAlign?: "left" | "center" | "right";
   /**
    * The label's line box: `lines.length × lineHeightUnits` high, as wide as
-   * the widest line, every line centered in it. A typographic box, not the
+   * the widest line, with lines aligned by textAlign (center by default). A typographic box, not the
    * glyph bounds: the geometry lint's per-line ascender-to-descender boxes lie
    * inside it (blank lines take their height here; the lint skips them).
    * For a turned label (`rotation`), the box as drawn: width and height
