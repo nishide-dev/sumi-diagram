@@ -65,3 +65,12 @@
 ギャラリーの変更: `docs/gallery/components/sumi-operator.paper.svg`（全 symbol・variant）、`docs/gallery/tones/tones.paper.svg`（tone）、`docs/gallery/dim/dim.paper.svg`（薄表示）。後二者はラベルなし mark のため、PDF/PPTX corpus の対象外。目次 README / HTML はサイズ表示のみ。PDF corpus 1 件、画像方式 PPTX corpus 1 件、編集可能 PPTX corpus は operator の freeform / glued 各 1 件（slide XML も各 1 件）を指定の更新手順で再生成した。
 
 受け入れ図の PNG 3 件と `research/215-paper-operator/previews/c-h3world.png` は同じ変更のプレビュー。その他の Theme、operator を含まない paper、既存の D2 はバイト一致。
+
+## 新しく出る info
+
+`geometry/edge-touches-label`（info）が、次の 4 図の `edges[26]` に新しく出る（線がデコーダの見出しから 0.49mm を通る。小さくなった ⊕ で経路がずれたため）。どれも研究用の図と fixture で、warning・error は増えない。
+
+- `research/124-stage-b/figures/seq2seq-attention.side-kv.sumi.yaml`
+- `research/124-stage-b/figures/seq2seq-attention.sumi.yaml`
+- `research/135-skill-dogfood/figures/seq2seq-attention.sumi.yaml`
+- `tests/fixtures/figures/layout/align-side-kv.sumi.yaml`
