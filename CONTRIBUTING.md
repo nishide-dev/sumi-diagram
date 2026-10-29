@@ -1,6 +1,6 @@
 # Contributing to Sumi
 
-Sumi への貢献ガイドです。Issue・ブランチ・コミット・PR の形式を揃え、履歴と議論を追いやすく保つことを目的とします。現行ロードマップは [#80](https://github.com/nishide-dev/sumi-diagram/issues/80)、完了したMVPと初期アーキテクチャの記録は [#1](https://github.com/nishide-dev/sumi-diagram/issues/1) を参照してください。
+Sumi への貢献ガイドです。Issue・ブランチ・コミット・PR の形式を揃え、履歴と議論を追いやすく保つことを目的とします。現行ロードマップは [#236](https://github.com/nishide-dev/sumi-diagram/issues/236)、完了したMVPと初期アーキテクチャの記録は [#1](https://github.com/nishide-dev/sumi-diagram/issues/1) を参照してください。
 
 ## 言語の使い分け
 
@@ -19,6 +19,20 @@ Sumi への貢献ガイドです。Issue・ブランチ・コミット・PR の�
 4. PR を作成し、関連 Issue と検証方法を記載する。
 5. レビュー後、**squash merge** で `main` に取り込む。
 
+## 開発環境のセットアップ
+
+Bun のバージョンは [`.bun-version`](.bun-version) で固定しています（現在 1.3.14）。
+
+```sh
+bun install --frozen-lockfile
+bun run d2:install
+bun src/cli/index.ts doctor
+```
+
+`d2:install` は公式リリースから現在のプラットフォーム（macOS / Linux の arm64・amd64）向け D2 v0.9.0 を取得し、[`src/backends/d2/version.ts`](src/backends/d2/version.ts) の sha256 で検証して `.sumi/bin/d2`（git 管理外）に配置します。既に固定版があれば何もしません（`--force` で再インストール）。別の場所の固定版には `SUMI_D2_PATH=/path/to/d2` を設定します。探索順と版の制約は [利用ガイド](docs/usage-ja.md#d2-のインストール) を参照してください。
+
+CLI は `bun src/cli/index.ts <command>`、または `bun link` 後に `sumi <command>` として実行します。
+
 ## 開発コマンド
 
 ```sh
@@ -30,6 +44,35 @@ bun test            # テスト
 ```
 
 PR を出す前に `bun run check`、`bun run typecheck`、`bun test` がすべて通ることを確認してください。CI でも同じ検査を実行します。
+
+| コマンド | 内容 |
+| --- | --- |
+| `bun run schema:gen` / `schema:check` | JSON Schema の再生成 / 差分検査 |
+| `bun run d2:install` | 固定版 D2 を導入 |
+| `bun run pdf:wasm` | PDF/PPTX 共通エンジンを再ビルド（rustup が必要。下記手順） |
+| `bun run pdf:latex` | LaTeX 取り込み検証（TeX Live・Poppler・D2 が必要） |
+| `bun src/cli/index.ts --help` | CLI をソースから実行 |
+| `bun run example:render <file> [out.svg]` | `sumi render` の別名 |
+| `bun run release:build --target <target>` | tarball を `dist/release/` に作成 |
+| `bun run release:smoke <tarball>` | 展開し、Bun・Node.js のない PATH で version・doctor・SVG/PDF/PPTX 描画とインストーラーを検証 |
+| `bun run gallery` / `gallery:check` | ギャラリーと examples の SVG/PDF を再生成 / 差分検査 |
+| `shellcheck --shell=sh install.sh` | POSIX インストーラーの静的検査 |
+
+### ディレクトリ構成
+
+| パス | 役割 |
+| --- | --- |
+| `src/cli` | CLI エントリポイントとコマンド定義 |
+| `src/core` | スキーマ・IR・共通ユーティリティ |
+| `src/backends` | レイアウトバックエンド（D2 / ELK） |
+| `src/render` | SVG・PDF・PPTX 出力 |
+| `native/pdf-wasm` | krilla・krilla-svg・resvg の Rust エンジン。WASM 生成物は `assets/wasm/` |
+| `src/lint` | 構造・視覚 lint |
+| `schema` | 生成された JSON Schema（手で編集しない） |
+| `tests/fixtures` | テスト用入力 |
+| `examples` | YAML と生成した SVG/PDF |
+| `docs/gallery` | 生成されたギャラリー（手で編集しない） |
+| `skills/sumi` | 配布する Skill。`.claude/skills/sumi` はここへのシンボリックリンク |
 
 ### テストをすべて実行する
 
@@ -67,7 +110,7 @@ SVG は D2 のバージョンとフォントが同じなら OS によらずバ�
 | CI | PDF engine reproducible build（Linux） | `bun run pdf:wasm` で PDF エンジンをソースから再ビルドし、コミット済みの `.wasm`・sha256・ライセンス一覧と一致するか（`git diff`） |
 | CI | PDF LaTeX inclusion（Linux） | `bun run pdf:latex` で pdfLaTeX / LuaLaTeX に実際に取り込み、文字・位置・フォント埋め込み・ベクター・表示を検査する（TeX / Poppler はこのジョブのみで導入） |
 | CI | PPTX Open XML validation（Linux） | 画像方式の通常版＋PNG対照版、編集可能方式の両mode＋接続対照を固定版 Open XML SDK で独立検証。各方式の確認用artifactを残す（.NET は検証専用） |
-| CI | Release smoke（linux-x64） | `release:build` と `release:smoke`（SVG と PDF の描画を含む） |
+| CI | Release smoke（linux-x64） | `release:build` と `release:smoke`（SVG/PDF/PPTX 描画、ローカル HTTP の tarball による install.sh の導入・再導入・checksum 不一致拒否） |
 | PR title | Conventional Commit title | PR タイトルが下記の[コミットメッセージ](#コミットメッセージ)の規則に従うか |
 
 PR タイトルの検査は手元でも実行できます: `bun run commitlint --title "feat(cli): add doctor"`。コミットを検査する場合は `bun run commitlint origin/main..HEAD` です。検査する規則と、誤検出を避けるため検査しないこと（英語として自然か、命令形か、長さなど）は `scripts/commitlint/rules.ts` の先頭に書いてあります。
@@ -219,6 +262,7 @@ Skill の正は [`skills/sumi/`](skills/sumi/SKILL.md) です（`npx skills add 
 配布物は GitHub Release の tarball（ターゲットごとに `sumi` の単一バイナリ・D2 v0.9.0・同梱フォント・ライセンス・チェックサム）です。構成と判断は [設計 §6.8](docs/design/phase1.md) を参照してください。npm には公開しません。
 
 1. **バージョンを上げる PR を出す**: `package.json` の `version` を上げ（バイナリの `sumi --version` と SVG のメタデータはこの値です）、リリースノート `docs/releases/v<version>.md`（日本語。利用者向けの変更点・互換性・既知の制約）を追加する。PR タイトルは `build: release v<version>` とする。
+   README のインストール例の `version=` を更新する必要はありません。製品 README はインストーラーで最新版を解決し、tarball の README は `scripts/release/README.dist.md` のプレースホルダーからビルド時に生成します。
 2. **手元で確認する（任意）**: 現在のプラットフォームの tarball を作り、smoke test を通す。
    ```sh
    bun run release:build --target darwin-arm64 --version <version>
@@ -241,7 +285,7 @@ Skill の正は [`skills/sumi/`](skills/sumi/SKILL.md) です（`npx skills add 
 
 - 設計上の判断・代替案・トレードオフは、**関連 Issue のコメント**に記録する。PR だけで議論を完結させない
 - API や後方互換性に影響する変更は、その影響を Issue と PR の双方に明記する
-- 計画やフェーズ構成が変わった場合は、現行ロードマップ [#80](https://github.com/nishide-dev/sumi-diagram/issues/80) を更新する。完了済みの #1 は履歴として残す
+- 計画やフェーズ構成が変わった場合は、現行ロードマップ [#236](https://github.com/nishide-dev/sumi-diagram/issues/236) を更新する（前の計画 #80 は v0.7.0 までの記録として閉じた）。完了済みの #1 は履歴として残す
 - Issue に書かれた詳細仕様は実装前の初期提案であり、検証結果に応じて見直してよい
 
 ## リポジトリ上の約束事

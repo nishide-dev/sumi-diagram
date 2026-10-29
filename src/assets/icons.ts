@@ -46,14 +46,17 @@ export class IconArchiveError extends Error {}
 interface Archive {
   icons: ReadonlyMap<string, string>;
   names: readonly string[];
+  excluded?: Readonly<Record<string, string>>;
 }
 
 let loaded: Archive | undefined;
 let emojiLoaded: Archive | undefined;
 
 export const EMOJI_VERSION = "1.2.6";
+/** Written by emoji:build; catalog metadata does not inflate the artwork. */
+export const EMOJI_COUNT = 3124;
 export const EMOJI_ARCHIVE_SHA256 =
-  "b57f5a82566da119cb40a1e5dde43a50f9d145caecbd2780ffbe69b2c2fba633";
+  "d7300be1ea3d4d5787239efc360451773efd455999a37ef120a9921866ae929c";
 
 function emojiArchive(): Archive {
   if (emojiLoaded !== undefined) return emojiLoaded;
@@ -69,10 +72,15 @@ function emojiArchive(): Archive {
   const json = JSON.parse(new TextDecoder().decode(Bun.gunzipSync(bytes))) as {
     format: number;
     icons: Record<string, string>;
+    excluded?: Record<string, string>;
   };
   if (json.format !== 1) throw new IconArchiveError("unsupported emoji archive format");
   const names = Object.keys(json.icons).sort();
-  emojiLoaded = { names, icons: new Map(names.map((n) => [n, json.icons[n] as string])) };
+  emojiLoaded = {
+    names,
+    icons: new Map(names.map((n) => [n, json.icons[n] as string])),
+    excluded: json.excluded ?? {},
+  };
   return emojiLoaded;
 }
 
@@ -112,7 +120,7 @@ export function iconSets(): IconSetInfo[] {
       license: "MIT",
       source: "https://github.com/tabler/tabler-icons",
       contents: "outline icons, without the Brand category",
-      count: archive().names.length,
+      count: 4808,
     },
     {
       id: "emoji",
@@ -120,8 +128,8 @@ export function iconSets(): IconSetInfo[] {
       version: EMOJI_VERSION,
       license: "MIT",
       source: "https://github.com/microsoft/fluentui-emoji",
-      contents: `curated multicolour Flat subset via Iconify JSON: ${emojiArchive().names.join(", ")}`,
-      count: emojiArchive().names.length,
+      contents: "all Flat icons supported by the SVG importer, via Iconify JSON",
+      count: EMOJI_COUNT,
     },
   ];
 }
@@ -143,6 +151,12 @@ export function iconSvg(set: string, name: string): string | undefined {
     : set === TABLER_SET
       ? archive().icons.get(name)
       : undefined;
+}
+
+/** Why an upstream icon was excluded, distinct from a misspelled name. */
+export function iconExclusion(set: string, name: string): string | undefined {
+  const excluded = set === "emoji" ? emojiArchive().excluded : undefined;
+  return excluded !== undefined && Object.hasOwn(excluded, name) ? excluded[name] : undefined;
 }
 
 /** The license text of a set (shipped with the binary). */

@@ -47,76 +47,52 @@ try {
         `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${icon.width ?? data.width} ${icon.height ?? data.height}">${icon.body}</svg>`,
       ]),
   );
-  const names = [
-    "check-mark-button",
-    "check-box-with-check",
-    "cross-mark",
-    "cross-mark-button",
-    "warning",
-    "information",
-    "red-question-mark",
-    "red-exclamation-mark",
-    "light-bulb",
-    "rocket",
-    "gear",
-    "hammer-and-wrench",
-    "wrench",
-    "locked",
-    "unlocked",
-    "key",
-    "page-facing-up",
-    "memo",
-    "file-folder",
-    "clipboard",
-    "package",
-    "books",
-    "bar-chart",
-    "chart-increasing",
-    "chart-decreasing",
-    "stopwatch",
-    "hourglass-not-done",
-    "alarm-clock",
-    "cloud",
-    "globe-with-meridians",
-    "satellite-antenna",
-    "floppy-disk",
-    "desktop-computer",
-    "mobile-phone",
-    "electric-plug",
-    "battery",
-    "robot",
-    "brain",
-    "bust-in-silhouette",
-    "busts-in-silhouette",
-    "speech-balloon",
-    "thought-balloon",
-    "star",
-    "glowing-star",
-    "bullseye",
-    "fire",
-    "snowflake",
-  ].sort();
-  const selected = Object.fromEntries(
-    names.map((name) => {
-      const svg = icons[name];
-      if (svg === undefined || !importSvg(svg, { dropInvisible: true }).ok)
-        throw new Error(`emoji ${name} is missing or unsupported by the SVG importer`);
-      return [name, svg];
-    }),
-  );
-  const json = JSON.stringify({ format: 1, icons: selected });
+  const selected: Record<string, string> = {};
+  const excluded: Record<string, string> = {};
+  for (const name of Object.keys(icons).sort()) {
+    const svg = icons[name] as string;
+    const result = importSvg(svg, { dropInvisible: true });
+    if (result.ok) selected[name] = svg;
+    else {
+      // Retain the reason, not unsupported artwork. Local SVG references need
+      // a scoped resource resolver and cannot safely be dropped or flattened.
+      excluded[name] = [...new Set(result.issues.map((issue) => issue.message))].join(" ");
+    }
+  }
+  const json = JSON.stringify({ format: 1, icons: selected, excluded });
   const archive = Bun.gzipSync(json, { level: 9 });
   const path = "assets/icons/fluent-emoji-flat.json.gz";
+  const sourcePath = "src/assets/icons.ts";
+  const source = await Bun.file(sourcePath).text();
+  const hash = (data: Uint8Array) => new Bun.CryptoHasher("sha256").update(data).digest("hex");
+  const hashPattern = /(export const EMOJI_ARCHIVE_SHA256 =\s*")([0-9a-f]{64})(";)/;
+  const countPattern = /(export const EMOJI_COUNT = )(\d+)(;)/;
+  if (!hashPattern.test(source) || !countPattern.test(source))
+    throw new Error("emoji archive metadata is missing");
   if (process.argv.includes("--check")) {
     // Compare the decompressed JSON: gzip bytes differ between zlib builds
     // (macOS and Linux), while the content Sumi reads is what must match.
-    const committed = new TextDecoder().decode(Bun.gunzipSync(await Bun.file(path).bytes()));
+    const committedBytes = await Bun.file(path).bytes();
+    const committed = new TextDecoder().decode(Bun.gunzipSync(committedBytes));
     if (committed !== json) throw new Error("emoji archive is stale");
-  } else await Bun.write(path, archive);
+    if (hashPattern.exec(source)?.[2] !== hash(committedBytes))
+      throw new Error("EMOJI_ARCHIVE_SHA256 is stale");
+    if (Number(countPattern.exec(source)?.[2]) !== Object.keys(selected).length)
+      throw new Error("EMOJI_COUNT is stale");
+  } else {
+    await Bun.write(path, archive);
+    await Bun.write(
+      sourcePath,
+      source
+        .replace(hashPattern, `$1${hash(archive)}$3`)
+        .replace(countPattern, `$1${Object.keys(selected).length}$3`),
+    );
+  }
   console.log(
     JSON.stringify({
       upstreamCount: Object.keys(icons).length,
       count: Object.keys(selected).length,
+      excludedCount: Object.keys(excluded).length,
       npmTarballBytes: bytes.length,
       fullArchiveBytes: Bun.gzipSync(JSON.stringify({ format: 1, icons }), { level: 9 }).length,
       archiveBytes: archive.length,

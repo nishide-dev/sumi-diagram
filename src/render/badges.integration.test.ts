@@ -1,6 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { badgeRect } from "../assets/draw";
-import { iconLicense, iconNames, iconSvg } from "../assets/icons";
+import {
+  EMOJI_COUNT,
+  iconExclusion,
+  iconLicense,
+  iconNames,
+  iconSets,
+  iconSvg,
+} from "../assets/icons";
 import { importSvg } from "../assets/svg-import";
 import { compileFigure } from "../compiler/compile";
 import { CORNERS } from "../core/figure/schema";
@@ -14,7 +21,8 @@ import { readPptx } from "./pptx/testing";
 import { renderFigure } from "./render";
 
 test("the entire bundled colour subset passes the shared SVG importer", () => {
-  expect(iconNames("emoji")).toHaveLength(47);
+  expect(iconNames("emoji")).toHaveLength(3124);
+  expect(iconSets().find((s) => s.id === "emoji")?.count).toBe(iconNames("emoji").length);
   expect(iconLicense("emoji")).toContain("Copyright (c) Microsoft Corporation.");
   for (const name of iconNames("emoji")) {
     const svg = iconSvg("emoji", name);
@@ -23,6 +31,31 @@ test("the entire bundled colour subset passes the shared SVG importer", () => {
     expect({ name, ok: imported.ok }).toEqual({ name, ok: true });
   }
 });
+
+test.each(["airplane-arrival", "butter", "eleven-oclock", "phoenix-bird", "teacher", "violin"])(
+  "excluded emoji %s reports the importer reason on icons and badges",
+  (name) => {
+    expect(iconSvg("emoji", name)).toBeUndefined();
+    expect(iconExclusion("emoji", name)).toBeString();
+    for (const field of [
+      `icon: emoji/${name}`,
+      `badge: { icon: emoji/${name}, corner: north-east }`,
+    ]) {
+      const result = compileFigure(
+        `version: 1\nfigure: { id: excluded }\nnodes: [{ id: a, component: box, ${field} }]\n`,
+      );
+      expect(result.ok).toBe(false);
+      expect(result.diagnostics).toContainEqual(
+        expect.objectContaining({
+          code: "asset/unsupported-icon",
+          message: expect.stringContaining("exists upstream but is excluded"),
+          path: field.startsWith("badge") ? ["nodes", 0, "badge", "icon"] : ["nodes", 0, "icon"],
+        }),
+      );
+    }
+    expect(iconExclusion("emoji", "constructor")).toBeUndefined();
+  },
+);
 
 for (const corner of CORNERS) {
   test(`${corner}: badges reserve space, keep body size, attach outside the corner`, async () => {
@@ -67,14 +100,16 @@ nodes:
 }
 
 describe("colour assets and output notices", () => {
-  for (const engine of ["auto", "structured"] as const) {
-    test(`${engine}: LoRA and projection badges survive SVG, vector PDF and picture PPTX`, async () => {
+  for (const [engine, theme] of ["minimal", "academic", "slides", "color", "paper"].flatMap(
+    (theme) => ["auto", "structured"].map((engine) => [engine, theme] as const),
+  )) {
+    test(`${engine}/${theme}: LoRA and projection badges survive SVG, vector PDF and picture PPTX`, async () => {
       const source = `version: 1
-figure: { id: badges, theme: paper, ${engine === "structured" ? "layout: { arrange: { row: { items: [lora, qkv, out] } } }" : ""} }
+figure: { id: badges, theme: ${theme}, ${theme === "slides" ? "profile: presentation-16x9," : ""} ${engine === "structured" ? "layout: { arrange: { row: { gap: 8mm, items: [lora, qkv, out] } } }" : ""} }
 nodes:
-  - { id: lora, component: bowtie, label: LoRA, tone: pink, badge: { icon: emoji/fire, corner: north-east } }
-  - { id: qkv, component: box, label: QKV, badge: { icon: emoji/snowflake, corner: north-east } }
-  - { id: out, component: box, icon: emoji/fire }
+  - { id: lora, component: bowtie, label: LoRA, tone: pink, props: { width: 60pt, height: 40pt }, badge: { icon: emoji/fire, corner: north-east } }
+  - { id: qkv, component: box, label: QKV, props: { width: 60pt, height: 40pt }, badge: { icon: emoji/snowflake, corner: north-east } }
+  - { id: out, component: box, icon: emoji/artist-dark }
 `;
       const rendered = await renderFigure(source);
       if (!rendered.ok) throw new Error(JSON.stringify(rendered.diagnostics));
@@ -172,9 +207,16 @@ nodes:
   ]);
 });
 
+// Preserve the original 47-icon output-path coverage and include both importer
+// fixes and a newly bundled face, without a thousands-of-nodes layout benchmark.
+const legacyNames =
+  "alarm-clock bar-chart battery books brain bullseye bust-in-silhouette busts-in-silhouette chart-decreasing chart-increasing check-box-with-check check-mark-button clipboard cloud cross-mark cross-mark-button desktop-computer electric-plug file-folder fire floppy-disk gear globe-with-meridians glowing-star hammer-and-wrench hourglass-not-done information key light-bulb locked memo mobile-phone package page-facing-up red-exclamation-mark red-question-mark robot rocket satellite-antenna snowflake speech-balloon star stopwatch thought-balloon unlocked warning wrench".split(
+    " ",
+  );
 for (const engine of ["auto", "structured"] as const) {
-  test(`${engine}: every curated emoji survives replacement and badge output paths`, async () => {
-    const names = iconNames("emoji");
+  test(`${engine}: legacy emoji and newly supported artwork survive replacement and badge output paths`, async () => {
+    const names = [...legacyNames, "anchor", "artist-dark", "hyacinth", "smiling-face"];
+    expect(EMOJI_COUNT).toBe(3124);
     const source = `version: 1
 figure: { id: all-emoji, ${engine === "structured" ? `layout: { arrange: { stack: { items: [${names.map((_, i) => `a${i}`).join(",")}] } } }` : ""} }
 nodes:
@@ -183,8 +225,8 @@ ${names.map((name, i) => `  - { id: a${i}, component: box, icon: emoji/${name}, 
     const result = await renderFigure(source);
     if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
     const { svg, compiled } = result.value;
-    expect(svg.match(/class="sumi-badge"/g)).toHaveLength(47);
-    expect(svg.match(/class="sumi-icon"/g)).toHaveLength(94);
+    expect(svg.match(/class="sumi-badge"/g)).toHaveLength(names.length);
+    expect(svg.match(/class="sumi-icon"/g)).toHaveLength(names.length * 2);
     for (const name of names) {
       const imported = importSvg(iconSvg("emoji", name) as string, { dropInvisible: true });
       if (!imported.ok) throw new Error(name);

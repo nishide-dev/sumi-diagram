@@ -1,7 +1,7 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Roadmap (#80)
-    url: https://github.com/nishide-dev/sumi-diagram/issues/80
+  - name: Roadmap (#236)
+    url: https://github.com/nishide-dev/sumi-diagram/issues/236
     about: "現行ロードマップはこちら（完了したMVPの履歴は #1）"
   - name: Contributing guide
     url: https://github.com/nishide-dev/sumi-diagram/blob/main/CONTRIBUTING.md

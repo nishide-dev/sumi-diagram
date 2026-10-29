@@ -2240,6 +2240,35 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **発見・検証**: catalog の props 説明、全 5 Theme × 全 variant の gap 付き bowtie と 4 方向の台形 gallery、微小・極端サイズの oracle、各側の 0.25/0.5/0.75 port、gap の迂回、D2 の上下左右、inspect・幾何 lint・PDF・editable PPTX 両接続方式を検査する。既存の 149 個の `*.sumi.yaml` を変更前後で自テーマ＋全組み込み Theme で処理し、生成できた SVG/PDF/picture PPTX/editable PPTX/D2 の sha256 と生成できない fixture の診断コードを比較する。
 - **受け入れ図**: `research/188-badges-emoji-bowtie/c-h3world.sumi.yaml` を `research/233-lora/` にコピーし、2 個の LoRA に `gap: 8` を設定。画像は #185 の同じ assets をコピーする。内容と接続は維持し、PNG preview を 150KB 未満にして目視確認する。再現手順・診断と互換性の集計は同ディレクトリの README に記録する。
 
+### 6.67 #234 の Fluent Emoji Flat セット拡大
+
+- **同梱範囲の判断**: §6.62 の汎用 47 点の選別をやめ、固定済みの `@iconify-json/fluent-emoji-flat@1.2.6`（3,174 点）のうち、共有 SVG importer を通る **3,124 点すべて**を同梱する。元の 47 名と元 SVG はそのまま。全件を名前順に判定し、受理した元 SVG と除外した名前・理由を同じ gzip JSON に記録する。非対応の絵を黙って簡略化しない。依存・上流バージョン・npm SHA-512 integrity・MIT 原文の固定先は変更しない。
+- **importer の調査と小修正**: 変更前は 2,747 点が成功し、427 点が失敗した。`finite()` が色の `#4e3233` / `#4E3233` を指数表記 `4e3233` と誤認していたため、検証済みの十六進色だけ数値の有限性検査から外す（数値属性・rgb 値の検査は維持）。もう一つは `clip-rule` で、`nonzero|evenodd` のみを許可し、再シリアライズ時に保持する。これだけで **377 点**を追加で受理する。残る **50 点**は `<defs>` / `<use>`、clipping、gradient、filter 等を必要とする（該当する名前の数は use 29・clipping 18・gradient 3・filter 6、重複あり）。参照の安全な解決・ID のスコープ管理・全出力エンジンの対応が必要で、小修正ではないため今回は除外する。
+- **診断と発見性**: 存在するが除外した名前（例: `emoji/airplane-arrival`、`butter`、`eleven-oclock`、`phoenix-bird`、`teacher`、`violin`）は `asset/unsupported-icon` と具体的な importer の理由を返す。通常の置換 icon と `badge.icon` の両方で、書かれた位置を指す。誤記は従来の `asset/unknown-icon` と近い名前の hint のまま。`sumi catalog --section icons` は count、`sumi catalog --icons "<words>"` は Tabler と同じ検索、`--icons "" --json` は全対応名を返す。Skill の assets reference に検索・JSON から `emoji/` を選ぶ方法と除外診断を記載した。
+- **再現性と大きさ**: `emoji:build` が count と archive SHA-256 を `src/assets/icons.ts` に自動反映し、`emoji:check` は展開した JSON・コミット済み gzip 自身の SHA-256・count・MIT 原文を検査する。gzip の OS 差を受け入れる既存方針は維持する。Bun 1.3.14 / darwin-arm64 の実測:
+
+  | 対象 | 変更前 | 変更後 | 増分（bytes） |
+  | --- | ---: | ---: | ---: |
+  | 同梱 emoji gzip JSON | 13,971 | 1,128,359 | +1,114,388 |
+  | `release:build --target darwin-arm64` の tarball | 53,171,890 | 54,287,631 | +1,115,741（約 1.06 MiB） |
+  | 展開した `bin/sumi` | 69,291,362 | 70,414,178 | +1,122,816 |
+
+  同じ環境・バージョン 0.7.0・コミット時刻で前後をビルドした。npm tarball は 1,172,438 bytes、非対応も含む全 3,174 SVG の JSON gzip は 1,154,399 bytes。配布物の増分は実際の tarball の差で、gzip の推定値ではない。
+- **遅延ロードと費用**: `iconSets()` の説明から巨大な名前列を除き、count を生成済みメタデータにする。Tabler の既知の count（4,808）も同じ扱いにし、通常の catalog はどちらの gzip も読まない。`iconNames()` / `iconSvg()` で使ったセットだけを初回に read → SHA-256 → gunzip → JSON parse し、以後はキャッシュする。別プロセスでファイル読み込みを拒否しても metadata を取得できることをテストする。上記 2 つの実リリースバイナリを交互に起動し、各 1 回 warm-up 後の **20 回の中央値**を比較した（stdout は pipe、ローカル環境の参考値）:
+
+  | コマンド | 変更前 ms | 変更後 ms | stdout bytes（前 → 後） |
+  | --- | ---: | ---: | ---: |
+  | `--version` | 71.04 | 71.68 | 6 → 6 |
+  | `catalog --section components --json` | 73.01 | 72.80 | 49,418 → 49,418 |
+  | `catalog --section icons --json` | 77.88 | 70.21 | 1,179 → 579 |
+  | `catalog --icons "" --json` | 77.92 | 95.68 | 133,107 → 232,664 |
+
+  別の新規 Bun プロセス内で metadata 呼び出しは 0.027ms、emoji 名一覧の初回ロードは 16.09ms、キャッシュ済み呼び出しは 0.005ms。起動や emoji のない描画に全 SVG の展開費用を加えず、名前の検索や利用時にだけ支払う。
+- **ライセンス・告知**: `fluent-emoji-LICENSE.txt` と配布物の `licenses/fluent-emoji/LICENSE` は前後バイト一致（SHA-256 `c2cfccb8…15383`）。MIT・著作者 Microsoft Corporation・上流 URL・図の full notice は維持。配布物の NOTICE / README は同梱範囲の記述（47 → 3,124）と archive hash だけ追従させる。SVG / vector PDF / picture PPTX の notice を両 engine × 全 5 Theme で検査し、元の 47 点に加えて importer 修正を使う `anchor` / `artist-dark` / `hyacinth` と新しい face の各出力も検査する。実リリースの smoke も新しい `artist-dark`、全対応名の件数・非対応名の非掲載を確認する。
+- **互換性の実測**: リポジトリの既存 `*.sumi.yaml` **149 個 ×（書かれた Theme + 組み込み 5 Theme）= 894 通り**を変更前後に `renderFigure()` で描画し、SVG / PDF / 画像方式 PPTX と auto の D2 ソースの SHA-256 を比較。成功 **613 通り**の 3 形式各 613 出力、D2 **222 件**はすべてバイト一致。失敗 **281 通り**の診断も一致した。元の 47 点は元 SVG と importer の戻り値も変更前と全件一致。`bun run gallery` は全 variant × 全 Theme を含む **165 ファイルに差分 0**、golden の更新も不要。
+- **最終検証**: `bun run check`・`bun run typecheck`・`CI=1 bun test`（**2,988 pass / 13 skip / 0 fail**）・`bun run gallery:check`（165 ファイル）・`bun run schema:check`・`bun run emoji:check` が成功。darwin-arm64 の `release:build` と拡大セットを使う `release:smoke` も成功した。
+
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）
