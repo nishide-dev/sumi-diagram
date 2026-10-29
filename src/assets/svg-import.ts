@@ -125,6 +125,7 @@ const PAINT: ReadonlyMap<string, Check> = new Map<string, Check>([
   ["stroke-dashoffset", LENGTH],
   ["opacity", OPACITY],
   ["transform", transformList],
+  ["clip-rule", /^(?:nonzero|evenodd)$/],
 ]);
 
 /** Elements that could run code, load something or embed foreign content. */
@@ -351,7 +352,9 @@ export function importSvg(text: string, options: SvgImportOptions = {}): SvgImpo
         return;
       }
       const trimmed = value.trim();
-      if (!passes(pattern, trimmed) || !finite(trimmed)) {
+      // Hex colours such as #4e3233 are not numbers (4e3233 would overflow).
+      const hexColor = pattern === COLOR && trimmed.startsWith("#");
+      if (!passes(pattern, trimmed) || (!hexColor && !finite(trimmed))) {
         issue(
           "unsupported",
           `<${element.name}> has an unsupported ${name} "${value.slice(0, 40)}".`,

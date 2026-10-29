@@ -566,7 +566,7 @@ describe("sumi catalog", () => {
     // #94: the bundled icon set, without the (long) list of names.
     expect(json.icons).toEqual([
       expect.objectContaining({ id: "tabler", version: "3.49.0", license: "MIT", count: 4808 }),
-      expect.objectContaining({ id: "emoji", version: "1.2.6", license: "MIT", count: 47 }),
+      expect.objectContaining({ id: "emoji", version: "1.2.6", license: "MIT", count: 3124 }),
     ]);
     expect(json.version).toBe(1);
     // The version 1 contract of #14 is unchanged: the components are buildCatalog()'s.
@@ -612,6 +612,14 @@ describe("sumi catalog", () => {
     ).toBe(true);
     // The Brand category is not bundled.
     expect((await sumi(["catalog", "--icons", "brand-github"])).stdout).toBe("");
+    const all = JSON.parse((await sumi(["catalog", "--icons", "", "--json"])).stdout);
+    expect(all.icons.filter((ref: string) => ref.startsWith("emoji/"))).toHaveLength(3124);
+    expect(all.icons).toContain("emoji/artist-dark");
+    expect(all.icons).toContain("emoji/anchor");
+    expect(all.icons).not.toContain("emoji/teacher");
+    expect((await sumi(["catalog", "--icons", "ARTIST DARK"])).stdout).toContain(
+      "emoji/artist-dark\n",
+    );
     const usage = await sumi(["catalog", "--icons", "x", "--section", "themes"]);
     expect(usage.exitCode).toBe(2);
   });
