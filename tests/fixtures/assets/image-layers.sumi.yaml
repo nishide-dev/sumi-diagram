@@ -1,0 +1,24 @@
+# #187: the explicit dimensions describe each copy, not the union footprint.
+version: 1
+figure:
+  id: image-layers
+  theme: paper
+  profile: paper-double
+  layout:
+    arrange:
+      row: { gap: 18pt, align: center, items: [input, frames, output] }
+nodes:
+  - { id: input, component: box, label: Input }
+  - id: frames
+    component: image
+    variant: framed
+    props:
+      src: gradient.jpg
+      width: 48pt
+      height: 27pt
+      fit: cover
+      layers: { count: 4, offset: 3pt }
+  - { id: output, component: box, label: Output }
+edges:
+  - { from: input, to: frames }
+  - { from: frames, to: output }

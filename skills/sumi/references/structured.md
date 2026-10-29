@@ -378,6 +378,18 @@ figure:
   hint whether the items cannot be moved apart (same box, `gap: 0`) or
   another constraint pulls them away. `layout/align-search-limit`
   (warning) means a figure with very many constraints stopped searching.
+- **Centring can couple constraints even when they share no IDs.** Adding
+  space to a centred branch shifts its other items too: closing one gap can
+  reopen two others. When the greedy search stalls, Sumi tries a bounded,
+  deterministic two-step lookahead: a pair is kept only if its combined
+  result reduces the original total residual. Both steps use the same search
+  budget. If this fallback still leaves a gap above the 0.01-layout-unit
+  tolerance, doubling the space or allowing more rounds does not necessarily
+  help. For table headings that the fallback cannot align, use `align: start`
+  on the parent `row` (for transposed tables, the parent `stack`) so the
+  headings can move down/right independently.
+  Check `lint --geometry` again; the warning still describes a real gap,
+  even if its distance rounds to `0.01mm`.
 - **`align` can enlarge the figure.** The added space also moves
   everything after it and grows the enclosing boxes: aligning a small item
   with one deep inside a tall branch can push that whole branch down and

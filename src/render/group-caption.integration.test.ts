@@ -1,6 +1,6 @@
 /**
  * `groups[].caption` (#130) in both engines: each caption is drawn centred
- * below its group's border, the geometry lint finds nothing, and the editable
+ * below its group's border, the geometry lint checks its output, and the editable
  * PPTX keeps the caption where the SVG draws it. The structured fixture runs
  * without D2; the auto fixtures need it. The stage-B draft of figure 2 renders
  * with its two captions.
@@ -34,14 +34,22 @@ const CAPTIONED = ["enc", "inner", "dec"];
 const notInfo = (diagnostics: readonly Diagnostic[]) =>
   diagnostics.filter((d) => d.severity !== "info");
 
-async function render(source: string, assetBase?: string): Promise<RenderedFigure> {
+async function render(
+  source: string,
+  assetBase?: string,
+  jogEdges: readonly string[] = [],
+): Promise<RenderedFigure> {
   const result = await renderFigure(source, {
     backend: createD2CliBackend(),
     ...(assetBase !== undefined && { assetBase }),
   });
   if (!result.ok) throw new Error(JSON.stringify(result.diagnostics, null, 2));
   expect(notInfo(result.diagnostics)).toEqual([]);
-  expect(lintGeometry(result.value, { source })).toEqual([]);
+  // #217 exposes an existing 0.145-unit step before Loss in the structured
+  // fixture: the two vertical legs have different fixed port columns.
+  expect(
+    lintGeometry(result.value, { source }).map((d) => [d.code, d.severity, d.subject?.id]),
+  ).toEqual(jogEdges.map((id) => ["geometry/edge-jog", "info", id]));
   return result.value;
 }
 
@@ -125,7 +133,7 @@ describe("structured", () => {
   const source = readFileSync(join(FIXTURES, "figures/layout/group-caption.sumi.yaml"), "utf8");
 
   test("each caption is centred below its group, half the group padding away", async () => {
-    const rendered = (await render(source)) as RenderedStructuredFigure;
+    const rendered = (await render(source, undefined, ["edges[2]"])) as RenderedStructuredFigure;
     // The label's line box adds its half-leading to the 8-unit gap.
     expectCaptionsBelow(rendered, 12, 0.01);
     const { layout } = rendered;
@@ -180,7 +188,7 @@ nodes:
   });
 
   test("no route crosses a caption", async () => {
-    const { layout } = (await render(source)) as RenderedStructuredFigure;
+    const { layout } = (await render(source, undefined, ["edges[2]"])) as RenderedStructuredFigure;
     for (const id of CAPTIONED) {
       const box = layout.nodes.find((n) => n.key === `n:${id}-caption`)?.label?.box;
       if (box === undefined) throw new Error(`no caption of ${id}`);
@@ -191,7 +199,7 @@ nodes:
   });
 
   test("a caption's title at the bottom stays inside the border, above the caption", async () => {
-    const { layout } = (await render(source)) as RenderedStructuredFigure;
+    const { layout } = (await render(source, undefined, ["edges[2]"])) as RenderedStructuredFigure;
     const group = layout.groups.find((g) => g.key === "g:dec");
     const caption = layout.nodes.find((n) => n.key === "n:dec-caption")?.label?.box;
     if (group?.label === undefined || caption === undefined) throw new Error("no dec");
@@ -202,7 +210,7 @@ nodes:
   });
 
   test("the editable PPTX keeps each caption where the SVG draws it", async () => {
-    expectPptxCaptions(await render(source));
+    expectPptxCaptions(await render(source, undefined, ["edges[2]"]));
   });
 });
 

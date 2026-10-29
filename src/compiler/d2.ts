@@ -14,7 +14,7 @@
  *   as `\t`. Other control characters become U+FFFD, as D2 renders them.
  */
 
-import { iconBox } from "../assets/draw";
+import { iconBox, imagePlaceholder } from "../assets/draw";
 import type { ElementKey } from "../core/check-state";
 import type { GroupLabelPosition } from "../core/figure/schema";
 import { getProfile } from "../core/profile/builtin";
@@ -131,7 +131,11 @@ export function generateD2(ir: FigureIR): string {
     if (element.kind === "node" && element.render !== undefined)
       write(body, "label.near: center-center");
     if (element.kind === "node") writeSize(element, body, write, padding);
-    writeStyle(element.style, body, write);
+    writeStyle(
+      element.kind === "node" ? imagePlaceholder(element).style : element.style,
+      body,
+      write,
+    );
     if (element.kind === "group") for (const child of element.children) writeObject(child, body);
     write(depth, "}");
   };

@@ -319,7 +319,8 @@ Always take these from `sumi catalog --json`. Each entry has `id`
   non-empty label.
 - `image` embeds a PNG, JPEG or SVG file (`props.src`, plus `width` or
   `height`), and `icon: tabler/<name>` puts a bundled icon in a node in
-  place of its label: see [assets](assets.md).
+  place of its label. `props.layers: { count: 4, offset: 3pt }` stacks unchanged
+  copies up-right, with a footprint that includes them: see [assets](assets.md).
 - `operator` draws a small circle with a symbol (`props.symbol`: `plus`,
   `minus`, `times`, `dot` or `concat`) and `junction` a small dot where lines
   branch or merge. Both take **no label** (`component/unexpected-label`) and no

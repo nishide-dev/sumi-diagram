@@ -22,7 +22,8 @@
  * - **Ports and stubs**: an end leaves (enters) its port perpendicular to the
  *   side and runs straight for at least the clearance (and the arrowhead's
  *   length at an end with an arrowhead) before it may bend. A junction is a
- *   point the route may leave or enter in any direction.
+ *   point the route may leave or enter in any direction, but an arrowhead
+ *   there still needs its length straight (#217; `#arrowApproaches`).
  * - **Room before an arrowhead (#116)**: the arrowhead's length plus the
  *   wire's corner radius (`arrowRoom()`), so a rounded corner before the
  *   arrowhead ends where it starts. The stub is reserved up to the room's
@@ -125,11 +126,15 @@ export const ROUTE = Object.freeze({
   corridor: 80,
   /**
    * Turning, or forking off or joining another edge of the net, within the
-   * room before an arrowhead (`arrowRoom()`, #116): more than two bends,
-   * less than a crossing, so a route keeps the room where moving a bend or
-   * the trunk gives it, but not at the price of a crossing or a detour.
+   * room before an arrowhead (`arrowRoom()`, #116): more than one bend but
+   * less than two. This discourages buying room with an extra S-jog (#217),
+   * but is not a guarantee: shared net steps may skip bend charges and
+   * multiple room-entry/turn charges can accumulate.
+   * This is a once-per-entry preference, not a per-grid-point
+   * toll: subdividing the visibility grid must not multiply its cost.
+   * The arrowhead-length stub remains a hard constraint.
    */
-  arrowRoom: 100,
+  arrowRoom: 60,
 });
 
 // In its own module so the structured engine can size group padding by it
@@ -414,7 +419,7 @@ class Router {
    * Points in the room before an arrowhead (`arrowRoom()`, but its far end),
    * by the terminal they belong to: `-1` none, a terminal index, or `-2`
    * several (listed in `#arrowRoomsMulti`). Another edge of the net pays
-   * `ROUTE.arrowRoom` to step there (#116).
+   * `ROUTE.arrowRoom` on entry, independent of grid subdivision (#116, #217).
    */
   #arrowRooms = new Int32Array(0);
   readonly #arrowRoomsMulti = new Map<number, number[]>();
@@ -479,7 +484,7 @@ class Router {
       }
       const arrow = arrowheadLength(edge.style.strokeWidth.units);
       const lane = (end: End, arrowhead: boolean) =>
-        end.junction ? 0 : Math.max(ROUTE.clearance, arrowhead ? arrow : 0);
+        end.junction ? (arrowhead ? arrow : 0) : Math.max(ROUTE.clearance, arrowhead ? arrow : 0);
       const room = (end: End, other: End, arrowhead: boolean) =>
         end.junction || !arrowhead
           ? 0
@@ -514,7 +519,7 @@ class Router {
     const routes = new Map<ElementKey, Point[]>();
     for (const edge of routable) {
       // First within a corridor around the ends, then on the whole grid.
-      const cells = this.#route(edge, ROUTE.corridor) ?? this.#route(edge, Infinity);
+      let cells = this.#route(edge, ROUTE.corridor) ?? this.#route(edge, Infinity);
       if (cells === undefined) {
         const blockers = this.#blockers(edge);
         const reason = "every path is blocked by nodes or too narrow for its stubs";
@@ -527,19 +532,60 @@ class Router {
         );
         continue;
       }
-      const points = this.#points(edge, cells);
-      // The stubs keep bends away from the ends, so a short segment at an
-      // arrowhead can only be a straight route between ends closer than
-      // the arrowhead is long: there is no room to draw it.
+      let points = this.#points(edge, cells);
+      // Junctions have no prescribed direction, but an arrowhead there still
+      // needs a straight run. Retry the possible approach directions only
+      // when the unconstrained route violates that requirement (#217).
+      if (shortArrowEnd(edge.ir, edge.from, edge.to, points) !== undefined) {
+        const retry = this.#arrowApproaches(edge);
+        if (retry !== undefined) {
+          cells = retry;
+          points = this.#points(edge, cells);
+        }
+      }
       const short = shortArrowEnd(edge.ir, edge.from, edge.to, points);
       if (short !== undefined) {
-        this.#report(edge.ir, `the ends are closer than its arrowhead at the ${short} is long`);
+        this.#report(
+          edge.ir,
+          points.length === 2
+            ? `the ends are closer than its arrowhead at the ${short} is long`
+            : `the straight segment at the ${short} is shorter than its arrowhead`,
+        );
         continue;
       }
       this.#occupy(cells, edge);
       routes.set(edge.ir.key, points);
     }
     return { layout: this.#result(routable, routes), diagnostics: this.#diagnostics };
+  }
+
+  /** Try all directions at arrowed junctions, with the same hard stub as a port. */
+  #arrowApproaches(edge: Edge): number[] | undefined {
+    const choices = (end: End, arrow: boolean): End[] =>
+      end.junction && arrow ? DIRS.map((_, dir) => ({ ...end, dir })) : [end];
+    if (
+      !(edge.from.junction && edge.ir.sourceArrowhead !== undefined) &&
+      !(edge.to.junction && edge.ir.targetArrowhead !== undefined)
+    )
+      return undefined;
+    let best: number[] | undefined;
+    let cost = Infinity;
+    for (const from of choices(edge.from, edge.ir.sourceArrowhead !== undefined)) {
+      for (const to of choices(edge.to, edge.ir.targetArrowhead !== undefined)) {
+        const candidate = { ...edge, from, to };
+        const cells = this.#route(candidate, ROUTE.corridor) ?? this.#route(candidate, Infinity);
+        if (
+          cells === undefined ||
+          shortArrowEnd(edge.ir, from, to, this.#points(edge, cells)) !== undefined
+        )
+          continue;
+        if (this.#lastCost < cost) {
+          best = cells;
+          cost = this.#lastCost;
+        }
+      }
+    }
+    return best;
   }
 
   /**
@@ -1424,7 +1470,9 @@ class Router {
           (nd !== dir &&
             ((roomTo[p] === generation && nd === inDir) ||
               (roomFrom[p] === generation && dir === outDir))) ||
-          (arrowRooms[q] !== -1 && this.#inOthersArrowRoom(q, edge))
+          (arrowRooms[q] !== -1 &&
+            this.#inOthersArrowRoom(q, edge) &&
+            !this.#inOthersArrowRoom(p, edge))
         ) {
           cost += arrowRoom;
         }
@@ -1696,13 +1744,13 @@ export function tightJog(
 
 /**
  * The end (`source` / `target`) whose arrowhead is longer than the route's
- * segment there, if any. Junction ends are not checked (they have no stub;
- * design doc §6.22).
+ * segment there, if any. A junction's free direction does not exempt an
+ * arrowhead from needing room (#217).
  */
 export function shortArrowEnd(
   edge: EdgeIR,
-  from: End,
-  to: End,
+  _from: End,
+  _to: End,
   points: readonly Point[],
 ): "source" | "target" | undefined {
   const arrow = arrowheadLength(edge.style.strokeWidth.units);
@@ -1710,14 +1758,12 @@ export function shortArrowEnd(
   const n = points.length;
   if (
     edge.sourceArrowhead !== undefined &&
-    !from.junction &&
     length(points[0] as Point, points[1] as Point) < arrow - 1e-9
   ) {
     return "source";
   }
   if (
     edge.targetArrowhead !== undefined &&
-    !to.junction &&
     length(points[n - 2] as Point, points[n - 1] as Point) < arrow - 1e-9
   ) {
     return "target";

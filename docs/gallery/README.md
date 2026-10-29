@@ -877,7 +877,7 @@ edges:
 
 ### sumi/image
 
-A PNG, JPEG or SVG file embedded as it is and scaled to the node's box; takes no label\.
+A PNG, JPEG or SVG file embedded as it is, optionally stacked with up\-right copies; takes no label\.
 
 **kind**: <code>node</code> · **variants**: <code>default, framed</code> · **since**: <code>0\.4\.0</code> · **shape**: <code>rectangle</code> · **sizing**: <code>auto</code> · **embed**: <code>image</code>
 
@@ -888,11 +888,12 @@ A PNG, JPEG or SVG file embedded as it is and scaled to the node's box; takes no
 | <code>fit</code> | <code>&quot;contain&quot; &#124; &quot;cover&quot; &#124; &quot;fill&quot;</code> | no | contain: the whole image, centered, keeping its aspect ratio \(the default\)\. cover: fills the box, keeping the aspect ratio and clipping the overflow\. fill: stretched to the box\. |
 | <code>width</code> | <code>string</code> | no | Width as a length such as &quot;30mm&quot; \(a multiple of 0\.5pt\)\. Omitted means from the height and the image's aspect ratio\. |
 | <code>height</code> | <code>string</code> | no | Height as a length such as &quot;20mm&quot; \(a multiple of 0\.5pt\)\. Omitted means from the width and the image's aspect ratio\. |
+| <code>layers</code> | <code>object</code> | no | Repeat the unchanged image behind the front one, offset up\-right\. Width and height size each copy; the node footprint includes the whole stack\. |
 
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> |
 | --- | --- | --- | --- | --- |
 | <img src="components/sumi-image.minimal.svg" alt="sumi/image, theme minimal"> | <img src="components/sumi-image.academic.svg" alt="sumi/image, theme academic"> | <img src="components/sumi-image.slides.svg" alt="sumi/image, theme slides"> | <img src="components/sumi-image.color.svg" alt="sumi/image, theme color"> | <img src="components/sumi-image.paper.svg" alt="sumi/image, theme paper"> |
-| <code>sumi render sumi\-image\.sumi\.yaml</code><br>48\.68mm × 57\.86mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-image\.sumi\.yaml \-\-theme academic</code><br>48\.68mm × 57\.86mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-image\.sumi\.yaml \-\-theme slides</code><br>60\.33mm × 69\.5mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-image\.sumi\.yaml \-\-theme color</code><br>48\.68mm × 57\.86mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-image\.sumi\.yaml \-\-theme paper</code><br>48\.68mm × 57\.86mm \(max width 180mm, max height 220mm\) |
+| <code>sumi render sumi\-image\.sumi\.yaml</code><br>48\.68mm × 72\.5mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-image\.sumi\.yaml \-\-theme academic</code><br>48\.68mm × 72\.5mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-image\.sumi\.yaml \-\-theme slides</code><br>60\.33mm × 86\.61mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-image\.sumi\.yaml \-\-theme color</code><br>48\.68mm × 72\.5mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-image\.sumi\.yaml \-\-theme paper</code><br>48\.68mm × 72\.5mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-image.sumi.yaml</code></summary>
@@ -934,6 +935,13 @@ nodes:
   - id: svg-image
     component: sumi/image
     props: { src: shapes.svg, height: 24pt }
+  - id: layers
+    component: box
+    label: layers
+  - id: layers-image
+    component: sumi/image
+    variant: framed
+    props: { src: gradient.png, height: 24pt, layers: { count: 4, offset: 3pt } }
 
 edges:
   - from: default
@@ -944,6 +952,8 @@ edges:
     to: cover-image
   - from: svg
     to: svg-image
+  - from: layers
+    to: layers-image
 ```
 
 </details>

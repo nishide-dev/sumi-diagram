@@ -426,6 +426,11 @@ function imageSample(entry: MarkedEntry): string[] {
       props: "{ src: gradient.png, width: 48pt, height: 18pt, fit: cover }",
     },
     { id: "svg", variant: "default", props: "{ src: shapes.svg, height: 24pt }" },
+    {
+      id: "layers",
+      variant: "framed",
+      props: "{ src: gradient.png, height: 24pt, layers: { count: 4, offset: 3pt } }",
+    },
   ];
   const nodes: string[] = [];
   const edges: string[] = [];
