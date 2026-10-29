@@ -269,6 +269,8 @@ export interface ImageIR {
   /** Lowercase hex, if written. */
   readonly sha256?: string;
   readonly fit: ImageFit;
+  /** Total copies and the up-right step; dimensions size one copy, not the stack. */
+  readonly layers?: { readonly count: number; readonly offset: StyleLength };
   /** Where `props.src` is written, for diagnostics about the file. */
   readonly srcAt: SourceMapEntry;
 }
@@ -785,6 +787,7 @@ function iconIR(ref: string): IconIR {
 
 function imageIR(props: Record<string, unknown>, srcAt: SourceMapEntry): ImageIR {
   const { src, sha256, fit = "contain" } = props;
+  const layers = props.layers as { count: number; offset: number } | undefined;
   // The registry checks src is a string prop and fit one of IMAGE_FITS (manifest `embed`).
   if (typeof src !== "string" || !(IMAGE_FITS as readonly unknown[]).includes(fit)) {
     throw new Error("internal error: image props without src or with an unknown fit");
@@ -793,6 +796,9 @@ function imageIR(props: Record<string, unknown>, srcAt: SourceMapEntry): ImageIR
     src,
     ...(typeof sha256 === "string" && { sha256: sha256.toLowerCase() }),
     fit: fit as ImageFit,
+    ...(layers !== undefined && {
+      layers: freeze({ count: layers.count, offset: lengthOf(layers.offset) }),
+    }),
     srcAt,
   });
 }

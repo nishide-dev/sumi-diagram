@@ -2038,6 +2038,39 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **互換性と全図検査（実測）**: 費用修正前の **139 図 ×（元の Theme + 組み込み 5 Theme）= 834 通り**を描画し、成功 **568 通り**を比較。成功・失敗は変わらず、**50 出力**が変化し、すべて段差の除去か幹線の単純化だった。全変更と残った lint の所見を PDF → `pdftoppm` → PNG で確認した。`edge-jog` は **171 → 55 件**（残るのは 34 通りの実際の小さな段差、誤検出 0）、`arrowhead-on-bend` は 0。受け入れ図の own Theme は段差 2 件 → 0。最小再現追加後は **140 図・840 通り・成功 574 通り**で、既存 834 通りの出力と診断が再検査でも一致。gallery は **155 ファイル変更 0・新規診断 0**、PDF・PPTX・画像の golden も指定の更新コマンドで変更 0。全変更一覧と残る所見は [検証記録](../verification/217-arrowhead-jogs.md) に記載。
 - **テスト**: 受け入れ図の正確な 3 点（曲がり 1 回）と 14 unit の最小 fixture、junction の全組み込み Theme・始点側・経路なし error・A* / Dijkstra の費用一致を検査する。lint は矢じりの短い端、始点・終点、境界・縮小・丸めた描画・D2 offset と、段差の正例・負例・印刷時の閾値・量子化・分割された描画・重複・同一直線・曲線・切れ目・分岐・透明な線を検査する。既存の fit と caption の統合テストは新たに可視化された実際の段差を辺 ID 付きで明示的に期待する。
 
+### 6.60 #187 の画像の重ね（`image.props.layers`）
+
+- `layers: { count: 4, offset: 3pt }` を image の省略可能な props とする。
+  `count` は最前面を含む整数 1〜16、`offset` は正の 0.5pt 単位の長さ。
+  右上方向に同じ画像を重ね、奥から手前の順で描く。各コピーの背景・枠は
+  theme / variant / tone を使う。画素の読み替え・加工は一切しない。
+- `width` / `height` と欠けた側のアスペクト比補完は **1 枚分**。
+  asset 読込後に各辺へ `(count - 1) × offset` を加えた union box を IR に戻す。
+  structured / D2 の双方がその足跡で配置・障害物判定し、inspect・幾何 lint も
+  同じ矩形を使う。足跡の shape は計測用の透明矩形、画像・枠は各コピーで描く。
+  edge port は足跡上で選ぶが、描く端点はその進行方向で最初に接するコピーの
+  輪郭まで延ばす（D2 の矢じり・線幅のクリアランスは保持）。大きな spread でも
+  足跡の透明部分で止めない。コピーが離れ、その port から接触できない場合は
+  structured の `layout/no-route` / D2 の `svg/outline-edge-miss`（error）で拒否する。
+- ノードは最前面の画像ではなく **束全体**。image 自体の label / sublabel は
+  従来どおり禁止。`attach` した label は足跡の辺の中央に揃い、south の中央揃えは
+  最前面の画像の中央より右へ **spread / 2**（count 4・offset 3pt なら 4.5pt）
+  ずれる。囲む group の寸法・caption の配置にも足跡全体が含まれる。
+- SVG は束ごとに 1 個の `<defs><image>` と `count` 個の `<use>` を使う。
+  PNG / JPEG / SVG と contain / cover / fill に共通。既存の layers なしの
+  描画分岐はそのまま保持する。PDF は変換エンジンの画像再利用を使い、JPEG
+  4 枚の fixture が **Image XObject 1 個**であることを両 engine で検証する。
+  編集可能 PPTX は従来の `pptx/unsupported-asset` で拒否し、picture PPTX は保持する。
+- 上限は大量のコピーによる出力肥大化を抑えるため。単なる整数指定や theme
+  固定のずらしではなく、寸法を明示できる object にした。複数の別フレームを
+  選ぶ `srcs` は追加しない。不正値は既存の component 診断を使い、新規診断なし。
+- 実測: `research/187-image-layers/h3-world-frames.sumi.yaml` は先頭 1 枚と
+  4 枚の束 4 組（計 17 コピー）。1 枚 72 × 40.5pt、ずらし 3pt の束の足跡は
+  **81 × 49.5pt**。SVG の画像定義・PDF の Image XObject はそれぞれ **5 個**。
+  変更前の全 138 YAML × 元テーマ・組み込み 5 theme の SHA-256 比較も記録する。
+  詳細・再現方法・目視した PNG は同ディレクトリの README を参照。
+
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）
