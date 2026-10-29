@@ -49,6 +49,8 @@ import {
   EdgeSchema,
   FigureDocumentSchema,
   FigureMetaSchema,
+  GridCellSchema,
+  GridSchema,
   GroupSchema,
   LayoutFieldsSchema,
   NodeSchema,
@@ -90,6 +92,8 @@ const KEY_ORDER = {
   edge: Object.keys(EdgeSchema.shape),
   /** `stack` and `row` share the field order. */
   box: Object.keys(StackSchema.shape),
+  grid: Object.keys(GridSchema.shape),
+  cell: Object.keys(GridCellSchema.shape),
   attach: Object.keys(AttachSchema.shape),
 };
 
@@ -195,15 +199,24 @@ function reorderDocument(contents: unknown): void {
   }
 }
 
-/** Puts the fields of every stack / row box of an arrange tree in schema order. */
+/** Puts every arrange box and grid cell wrapper in schema order. */
 function reorderArrange(box: unknown): void {
   if (!isMap(box)) return;
-  for (const kind of ["stack", "row"]) {
+  for (const kind of ["stack", "row", "grid"]) {
     const spec = box.get(kind, true);
     if (!isMap(spec)) continue;
-    sortMap(spec, KEY_ORDER.box);
+    sortMap(spec, kind === "grid" ? KEY_ORDER.grid : KEY_ORDER.box);
     const items = spec.get("items", true);
-    if (isSeq(items)) for (const item of items.items) reorderArrange(item);
+    if (isSeq(items))
+      for (const item of items.items) {
+        if (kind === "grid" && isScalar(item) && item.value === null) item.source = "null";
+        if (kind === "grid" && isMap(item) && item.has("item")) {
+          sortMap(item, KEY_ORDER.cell);
+          const value = item.get("item", true);
+          if (isScalar(value) && value.value === null) value.source = "null";
+          reorderArrange(value);
+        } else reorderArrange(item);
+      }
   }
 }
 

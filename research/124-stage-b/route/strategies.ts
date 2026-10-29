@@ -260,6 +260,7 @@ export function treeSides(ir: FigureIR, placed: LayoutIR) {
   const groups = new Map(ir.groups.map((g) => [g.key, g]));
   const walk = (box: ArrangeBoxIR, prefix: Step[]) => {
     box.items.forEach((item, index) => {
+      if (item === null) return;
       const path = [...prefix, { box, index }];
       if (typeof item === "string") {
         paths.set(item, path);
