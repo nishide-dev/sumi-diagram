@@ -38,7 +38,7 @@ shows (`brain`, `database`, `photo`, `world`), not by the concept.
   to a side that has no edges (e.g. `{ id: cond-icon, component: label,
   icon: tabler/clock, attach: { to: cond, side: south, gap: 1mm } }`); say
   so in the report.
-- `emoji/<name>` (0.7.0) uses the bundled Fluent Emoji Flat subset
+- `emoji/<name>` (0.7.0; expanded in #234) uses 3,124 bundled Fluent Emoji Flat
   SVGs (Microsoft, MIT). They keep their original multicolour palette in
   every theme and in SVG, PDF and picture PPTX. **Colour emoji deliberately
   retain their palette inside `dim: true` groups**, for both replacement icons
@@ -46,19 +46,22 @@ shows (`brain`, `database`, `photo`, `world`), not by the concept.
   follows dimmed text colour. Unicode emoji in labels still have missing-glyph lint.
 - Not supported: replacement icon and label together, icons on groups.
 
-The 47 supported names (prefix each with `emoji/`):
+Find emoji by English name, just like Tabler. Searches include both sets;
+use the returned `emoji/…` reference verbatim. The catalog's icon section
+reports each set's count; the empty search lists all supported names (JSON
+clients can select entries beginning with `emoji/`).
 
-```text
-alarm-clock, bar-chart, battery, books, brain, bullseye,
-bust-in-silhouette, busts-in-silhouette, chart-decreasing, chart-increasing,
-check-box-with-check, check-mark-button, clipboard, cloud, cross-mark,
-cross-mark-button, desktop-computer, electric-plug, file-folder, fire,
-floppy-disk, gear, globe-with-meridians, glowing-star, hammer-and-wrench,
-hourglass-not-done, information, key, light-bulb, locked, memo, mobile-phone,
-package, page-facing-up, red-exclamation-mark, red-question-mark, robot,
-rocket, satellite-antenna, snowflake, speech-balloon, star, stopwatch,
-thought-balloon, unlocked, warning, wrench
+```sh
+sumi catalog --section icons
+sumi catalog --icons "smiling face"
+sumi catalog --icons "artist dark" --json
+sumi catalog --icons "" --json
 ```
+
+All original 47 names, including `emoji/fire` and `emoji/snowflake`, remain
+available. Fifty upstream icons need SVG references, clipping, gradients or
+filters and are excluded; using one (for example `emoji/teacher`) reports
+`asset/unsupported-icon` with the importer reason, rather than a spelling hint.
 
 ## Corner badges (0.7.0)
 
@@ -180,7 +183,8 @@ Fix: copy (with the user's consent) `logo.png` next to the figure and write
 | Code | Fix |
 | --- | --- |
 | `asset/unknown-icon` | use the hint's name, or search with `sumi catalog --icons "<word>"` |
-| `asset/unknown-icon-set` | only `tabler/` exists |
+| `asset/unsupported-icon` | the name exists upstream but needs unsupported SVG features; choose a supported name from `sumi catalog --icons "<word>"` (also applies to badges) |
+| `asset/unknown-icon-set` | use `tabler/` or `emoji/` |
 | `asset/icon-with-label` | remove the label, or move the text into a separate `label` node |
 | `asset/icon-unsupported` | put the icon on a `box`, `circle`, `label`, … |
 | `asset/invalid-path` | a relative path with `/` (no `\`, scheme or leading `/`) that names a file and does not leave the directory through `..` |

@@ -144,6 +144,21 @@ describe("importSvg", () => {
     expect(issues(svg("", 'viewBox="0 0 1e308 1e-308" height="1e308"'))[0]?.kind).toBe("invalid");
   });
 
+  test("hex colours are not parsed as exponents, and clip-rule is validated and retained", () => {
+    const imported = importSvg(
+      svg(
+        '<g clip-rule="evenodd"><path d="M0 0h1v1z" fill="#4e3233" stroke="#4E3233" clip-rule="nonzero"/></g>',
+      ),
+    );
+    if (!imported.ok) throw new Error(JSON.stringify(imported.issues));
+    expect(imported.value.markup).toBe(
+      '<g><g clip-rule="evenodd"><path d="M0 0h1v1z" fill="#4e3233" stroke="#4E3233" clip-rule="nonzero"/></g></g>',
+    );
+    expect(issues(svg('<path clip-rule="inherit"/>'))[0]?.kind).toBe("unsupported");
+    expect(issues(svg('<path clip-rule="url(#x)"/>'))[0]?.kind).toBe("unsafe");
+    expect(issues(svg('<path opacity="1e999"/>'))[0]?.kind).toBe("unsupported");
+  });
+
   test("malformed input is invalid", () => {
     expect(issues("<svg")[0]?.kind).toBe("invalid");
     expect(issues('<html xmlns="http://www.w3.org/1999/xhtml"/>')[0]?.kind).toBe("invalid");
@@ -167,10 +182,26 @@ describe("importSvg", () => {
 });
 
 describe("the bundled Tabler icons", () => {
+  test("catalog metadata does not read or decompress either artwork archive", () => {
+    const process = Bun.spawnSync([
+      "bun",
+      "-e",
+      `
+      import { mock } from "bun:test";
+      mock.module("node:fs", () => ({ readFileSync() { throw new Error("unexpected archive read"); } }));
+      const { iconSets } = await import(${JSON.stringify(join(import.meta.dir, "icons.ts"))});
+      console.log(JSON.stringify(iconSets().map(s => s.count)));
+      `,
+    ]);
+    expect(process.exitCode).toBe(0);
+    expect(JSON.parse(process.stdout.toString())).toEqual([4808, 3124]);
+  });
+
   test("every icon but the Brand category, at the pinned version", () => {
     const [set] = iconSets();
     expect(set).toMatchObject({ id: "tabler", version: "3.49.0", license: "MIT", count: 4808 });
     const names = iconNames("tabler");
+    expect(names).toHaveLength(set?.count ?? 0);
     expect(names).toContain("wave-sine");
     expect(names).toContain("flame");
     expect(names.some((n) => n.startsWith("brand-"))).toBe(false);
