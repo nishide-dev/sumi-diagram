@@ -49,7 +49,7 @@
  * insertion order.
  */
 
-import { assetMarkup } from "../assets/draw";
+import { assetMarkup, badgeMarkup } from "../assets/draw";
 import type { FigureAssets } from "../assets/load";
 import type { EdgeIR, FigureIR, GroupIR, NodeIR } from "../compiler/ir";
 import type { ElementKey } from "../core/check-state";
@@ -349,12 +349,13 @@ function objectGroup(
   layout: TextLayout | undefined,
   asset = "",
   sublabel?: TextLayout,
+  overlay = "",
 ): string {
   // A sublabel (#184) is a <text> of its own after the label's, at its own size.
   const labelSvg = [layout, sublabel]
     .map((text) => (text === undefined ? "" : label(text, element.style.fontColor)))
     .join("");
-  return `<g class="${elementClass(element.key)} sumi-kind-${element.kind}"${opacity(element.style)}><g class="shape">${shape}</g>${asset}${labelSvg}</g>`;
+  return `<g class="${elementClass(element.key)} sumi-kind-${element.kind}"${opacity(element.style)}><g class="shape">${shape}</g>${asset}${labelSvg}${overlay}</g>`;
 }
 
 const unit = (from: Point, to: Point): Point => {
@@ -871,7 +872,14 @@ export function writeStructuredSvg(
     const asset =
       hatchMarkup(node, placed.rect) + assetMarkup(node, assets?.nodes.get(node.key), placed.rect);
     body.push(
-      objectGroup(node, nodeShape(node, placed.rect), placed.label, asset, placed.sublabel),
+      objectGroup(
+        node,
+        nodeShape(node, placed.rect),
+        placed.label,
+        asset,
+        placed.sublabel,
+        badgeMarkup(node, assets?.badges?.get(node.key), placed.rect),
+      ),
     );
     useText(placed.label);
     useText(placed.sublabel);

@@ -163,6 +163,7 @@ async function smoke(tarballArg: string, keep: boolean): Promise<void> {
       "licenses/pdf-wasm/resvg-0.47.0/LICENSE-MIT",
       "licenses/pdf-wasm/resvg-0.47.0/LICENSE-APACHE",
       "licenses/tabler-icons/LICENSE",
+      "licenses/fluent-emoji/LICENSE",
     ]) {
       check(inner.has(required), `the tarball lacks ${required}`);
     }
@@ -266,6 +267,23 @@ async function smoke(tarballArg: string, keep: boolean): Promise<void> {
     check(/assets-sha256="[0-9a-f]{64}"/.test(iconSvg), "the SVG lacks assets-sha256");
     check(iconSvg.includes('name="Tabler Icons"'), "the SVG lacks the Tabler notice");
     step("sumi render drew a bundled icon and embedded an image");
+    await Bun.write(
+      join(work, "emoji.sumi.yaml"),
+      `version: 1
+figure: { id: emoji-smoke, layout: { arrange: { row: { items: [lora, qkv] } } } }
+nodes:
+  - { id: lora, component: bowtie, label: LoRA, badge: { icon: emoji/fire, corner: north-east } }
+  - { id: qkv, component: box, label: QKV, badge: { icon: emoji/snowflake, corner: north-east } }
+`,
+    );
+    await sumiAt(sumi, ["render", "emoji.sumi.yaml", "-o", join(work, "emoji.svg")]);
+    const emojiSvg = await readFile(join(work, "emoji.svg"), "utf8");
+    check(emojiSvg.includes('class="sumi-badge"'), "the emoji badge was not drawn");
+    check(emojiSvg.includes('name="Fluent Emoji Flat"'), "the Fluent Emoji notice is missing");
+    check(emojiSvg.includes("Microsoft Corporation"), "the emoji copyright is missing");
+    await sumiAt(sumi, ["render", "emoji.sumi.yaml", "-o", join(work, "emoji.pdf")]);
+    await sumiAt(sumi, ["render", "emoji.sumi.yaml", "-o", join(work, "emoji.pptx")]);
+    step("bundled multicolour emoji badges and bowtie render to SVG/PDF/PPTX with notices");
 
     // 6. The same figure as PDF.
     const svg = await readFile(join(work, "出力-direct.svg"), "utf8");

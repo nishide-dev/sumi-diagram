@@ -38,7 +38,31 @@ shows (`brain`, `database`, `photo`, `world`), not by the concept.
   to a side that has no edges (e.g. `{ id: cond-icon, component: label,
   icon: tabler/clock, attach: { to: cond, side: south, gap: 1mm } }`); say
   so in the report.
-- Not supported: icon and label together, icons on groups, emoji.
+- `emoji/fire` and `emoji/snowflake` (0.7.0) are bundled Fluent Emoji Flat
+  SVGs (Microsoft, MIT). They keep their original multicolour palette in
+  every theme and in SVG, PDF and picture PPTX. Only these two names are
+  bundled; Unicode emoji in labels are still subject to missing-glyph lint.
+- Not supported: replacement icon and label together, icons on groups.
+
+## Corner badges (0.7.0)
+
+```yaml
+- { id: lora, component: bowtie, label: LoRA, tone: pink, badge: { icon: emoji/fire, corner: north-east } }
+- { id: qkv, component: box, label: QKV, badge: { icon: emoji/snowflake, corner: north-east } }
+```
+
+`badge` is independent of `label` and replacement `icon`. Its one-em square
+is centered on the bounding-box corner (`north-east`, `south-east`,
+`south-west`, `north-west`), including on an outline or image node. It
+accepts bundled Tabler references too. Structured layout reserves the
+overhang in rows/stacks, groups and the canvas; auto composes it after D2
+placement, so use geometry lint to check surrounding room.
+`geometry/badge-collision` warns about foreign bodies/labels/badges/edges,
+its own label or canvas clipping; overlap with its own body is intentional.
+`legend`, `tokens`, `matrix` and point junctions cannot carry badges
+(`component/badge-unsupported`); put the badge on an ordinary node.
+Editable PPTX rejects badges (`pptx/unsupported-asset`); picture PPTX keeps
+their colour SVG and PNG fallback. All exports retain the MIT notice.
 
 ## Images
 

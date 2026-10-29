@@ -160,7 +160,7 @@ describe("outline manifests", () => {
     expect(r.register(original)).toEqual({ ok: true, value: original, diagnostics: [] });
     expect(buildCatalog(r).components[0]).not.toHaveProperty("render");
     for (const entry of buildCatalog(createBuiltinRegistry()).components) {
-      if (entry.id !== "sumi/trapezoid" && entry.id !== "sumi/stack")
+      if (entry.id !== "sumi/trapezoid" && entry.id !== "sumi/stack" && entry.id !== "sumi/bowtie")
         expect(entry).not.toHaveProperty("render");
     }
   });

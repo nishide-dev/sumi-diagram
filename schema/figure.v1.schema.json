@@ -211,10 +211,37 @@
             ]
           },
           "icon": {
-            "description": "A bundled icon drawn in place of the label, as <set>/<name>, e.g. tabler/wave-sine. Drawn in the node's text color.",
+            "description": "A bundled icon drawn in place of the label, e.g. tabler/wave-sine (text color) or emoji/fire (original multicolour palette).",
             "type": "string",
             "maxLength": 80,
             "pattern": "^([a-z][a-z0-9]*)\\/([a-z0-9]+(?:-[a-z0-9]+)*)$"
+          },
+          "badge": {
+            "description": "A one-em corner badge, independent of the node label; its overhang reserves layout space.",
+            "type": "object",
+            "properties": {
+              "icon": {
+                "type": "string",
+                "maxLength": 80,
+                "pattern": "^([a-z][a-z0-9]*)\\/([a-z0-9]+(?:-[a-z0-9]+)*)$",
+                "description": "Bundled icon, e.g. emoji/fire or emoji/snowflake."
+              },
+              "corner": {
+                "type": "string",
+                "enum": [
+                  "north-east",
+                  "south-east",
+                  "south-west",
+                  "north-west"
+                ],
+                "description": "Corner of the node's bounding box on which the badge is centered."
+              }
+            },
+            "required": [
+              "icon",
+              "corner"
+            ],
+            "additionalProperties": false
           },
           "variant": {
             "default": "default",
@@ -264,9 +291,13 @@
                   "north",
                   "east",
                   "south",
-                  "west"
+                  "west",
+                  "north-east",
+                  "south-east",
+                  "south-west",
+                  "north-west"
                 ],
-                "description": "The side of the target to place this node on."
+                "description": "The side or corner of the target to place this node on; a corner separates the boxes by gap on both axes."
               },
               "gap": {
                 "description": "Space between the target and this node. Omitted means 0.",

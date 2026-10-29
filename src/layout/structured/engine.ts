@@ -43,12 +43,12 @@
  * in the design doc.
  */
 
-import { iconBox } from "../../assets/draw";
+import { badgeRect, iconBox } from "../../assets/draw";
 import type { ArrangeBoxIR, ArrangeItemIR, FigureIR, GroupIR, NodeIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type { Diagnostic } from "../../core/diagnostics";
 import type { EdgeAnchor } from "../../core/figure/layout";
-import type { GroupLabelPosition, LabelRotation, Side } from "../../core/figure/schema";
+import type { AttachSide, GroupLabelPosition, LabelRotation } from "../../core/figure/schema";
 import { getProfile } from "../../core/profile/builtin";
 import { type Profile, spacedProfile } from "../../core/profile/schema";
 import { getFontSet } from "../../core/theme/fonts";
@@ -241,7 +241,9 @@ class StructuredLayout {
         text !== undefined && node.labelRotation !== undefined
           ? { width: text.height, height: text.width }
           : (text ?? iconBox(node));
-      this.#leafSizes.set(node.key, nodeSize(node, box, padding));
+      const size = nodeSize(node, box, padding);
+      const extra = node.badge === undefined ? 0 : node.style.fontSize.units / 2;
+      this.#leafSizes.set(node.key, { width: size.width + extra, height: size.height + extra });
       if (node.attach !== undefined) {
         const container = node.parent ?? ROOT;
         const list = this.#attached.get(container) ?? [];
@@ -420,7 +422,7 @@ class StructuredLayout {
       const rect: Rect = vertical
         ? { x: frame.x + offset, y: cursor, width: cross, height: size.height }
         : { x: cursor, y: frame.y + offset, width: size.width, height: cross };
-      if (typeof item === "string") visit(item, rect);
+      if (typeof item === "string") visit(item, this.#bodyRect(item, rect));
       else this.#placeBox(item, rect, item.kind === box.kind ? align : "center", visit);
       cursor += (vertical ? size.height : size.width) + gap + this.#trail(item);
     }
@@ -434,7 +436,25 @@ class StructuredLayout {
     const explicit = vertical ? node.width : node.height;
     // Outline components keep their footprint: stretching changes the
     // renderer's safe area (e.g. a taller trapezoid has deeper slants).
-    return explicit === undefined && node.render === undefined && stretchableShape(node.shape);
+    return (
+      explicit === undefined &&
+      node.render === undefined &&
+      node.badge === undefined &&
+      stretchableShape(node.shape)
+    );
+  }
+
+  /** Convert the reserved badge footprint to the body's own box. */
+  #bodyRect(key: ElementKey, rect: Rect): Rect {
+    const node = this.#nodes.get(key);
+    if (node?.badge === undefined) return rect;
+    const half = node.style.fontSize.units / 2;
+    return {
+      x: rect.x + (node.badge.corner.endsWith("west") ? half : 0),
+      y: rect.y + (node.badge.corner.startsWith("north") ? half : 0),
+      width: rect.width - half,
+      height: rect.height - half,
+    };
   }
 
   /** Places a container's arrange tree and attached nodes in its content area. */
@@ -484,14 +504,18 @@ class StructuredLayout {
       pending.splice(index, 1);
       const { to, side, gapPt } = node.attach;
       const target = rects.get(to) as Rect;
-      rects.set(node.key, attachedRect(target, this.#itemSize(node.key), side, gapPt * 2));
+      rects.set(
+        node.key,
+        this.#bodyRect(node.key, attachedRect(target, this.#itemSize(node.key), side, gapPt * 2)),
+      );
     }
   }
 
   #attachedRects(container: Container, rects: Map<ElementKey, Rect>): Rect[] {
     return (this.#attached.get(container) ?? []).flatMap((node) => {
       const rect = rects.get(node.key);
-      return rect === undefined ? [] : [rect];
+      const badge = rect === undefined ? undefined : badgeRect(node, rect);
+      return rect === undefined ? [] : [rect, ...(badge === undefined ? [] : [badge])];
     });
   }
 
@@ -531,6 +555,10 @@ class StructuredLayout {
 
     const all = [
       ...this.#rects.values(),
+      ...this.#ir.nodes.flatMap((node) => {
+        const box = badgeRect(node, this.#rect(node.key));
+        return box === undefined ? [] : [box];
+      }),
       ...[...labels.values(), ...sublabels.values()].map((label) => label.box),
     ];
     const minX = Math.min(...all.map((r) => r.x));
@@ -635,7 +663,7 @@ function labelAtBottom(at: GroupLabelPosition | undefined): boolean {
 }
 
 /** The rectangle of a node of `size` attached to `target` on `side`, `gap` away, centered on that side. */
-function attachedRect(target: Rect, size: Size, side: Side, gap: number): Rect {
+function attachedRect(target: Rect, size: Size, side: AttachSide, gap: number): Rect {
   const { width, height } = size;
   const cx = target.x + (target.width - width) / 2;
   const cy = target.y + (target.height - height) / 2;
@@ -648,6 +676,13 @@ function attachedRect(target: Rect, size: Size, side: Side, gap: number): Rect {
       return { x: cx, y: target.y - gap - height, width, height };
     case "south":
       return { x: cx, y: target.y + target.height + gap, width, height };
+    default:
+      return {
+        x: side.endsWith("east") ? target.x + target.width + gap : target.x - gap - width,
+        y: side.startsWith("north") ? target.y - gap - height : target.y + target.height + gap,
+        width,
+        height,
+      };
   }
 }
 

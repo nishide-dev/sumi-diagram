@@ -566,6 +566,7 @@ describe("sumi catalog", () => {
     // #94: the bundled icon set, without the (long) list of names.
     expect(json.icons).toEqual([
       expect.objectContaining({ id: "tabler", version: "3.49.0", license: "MIT", count: 4808 }),
+      expect.objectContaining({ id: "emoji", version: "1.2.6", license: "MIT", count: 2 }),
     ]);
     expect(json.version).toBe(1);
     // The version 1 contract of #14 is unchanged: the components are buildCatalog()'s.
@@ -607,7 +608,7 @@ describe("sumi catalog", () => {
     expect(json.query).toBe("WAVE");
     expect(json.icons).toContain("tabler/wave-sine");
     expect(
-      json.icons.every((ref: string) => ref.startsWith("tabler/") && ref.includes("wave")),
+      json.icons.every((ref: string) => /^(tabler|emoji)\//.test(ref) && ref.includes("wave")),
     ).toBe(true);
     // The Brand category is not bundled.
     expect((await sumi(["catalog", "--icons", "brand-github"])).stdout).toBe("");

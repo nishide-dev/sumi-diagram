@@ -69,6 +69,7 @@ interface Element {
   variant: string;
   tone: string | undefined;
   icon: string | undefined;
+  badge: boolean;
   /** Groups only (#127). */
   labelAt: string | undefined;
   /** Nodes only (#178). */
@@ -176,6 +177,22 @@ export function resolveComponents(
     }
     const mark = manifest.kind === "node" ? manifest.mark : undefined;
     const embed = manifest.kind === "node" ? manifest.embed : undefined;
+    const badgeUnsupported =
+      element.badge &&
+      (["sumi/legend", "sumi/tokens", "sumi/matrix"].includes(componentId(manifest)) ||
+        mark?.type === "point");
+    if (badgeUnsupported)
+      report(
+        [
+          {
+            code: "component/badge-unsupported",
+            severity: "error",
+            message: `${componentId(manifest)} has no standalone node body for a corner badge.`,
+            hint: "Put the badge on an ordinary shape, image or outline node instead.",
+          },
+        ],
+        () => [...element.path, "badge"],
+      );
     const zoom = manifest.kind === "edge" && manifest.routing === "zoom";
     const unexpectedLabel =
       (mark !== undefined || embed !== undefined || zoom) && !isBlankForD2(element.label);
@@ -282,6 +299,7 @@ export function resolveComponents(
     if (
       !usage.ok ||
       wrongEngine ||
+      badgeUnsupported ||
       missingLabel ||
       unexpectedLabel ||
       rotationUnsupported ||
@@ -450,6 +468,7 @@ function* elements(state: CheckState): Generator<Element> {
       labelAt: entry.kind === "group" ? entry.element.labelAt : undefined,
       labelRotation: entry.kind === "node" ? entry.element.labelRotation : undefined,
       sublabel: entry.kind === "node" ? entry.element.sublabel : undefined,
+      badge: entry.kind === "node" && entry.element.badge !== undefined,
       props: entry.kind === "group" ? {} : entry.element.props,
     };
   }

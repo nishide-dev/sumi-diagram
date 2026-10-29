@@ -2038,6 +2038,59 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **互換性と全図検査（実測）**: 費用修正前の **139 図 ×（元の Theme + 組み込み 5 Theme）= 834 通り**を描画し、成功 **568 通り**を比較。成功・失敗は変わらず、**50 出力**が変化し、すべて段差の除去か幹線の単純化だった。全変更と残った lint の所見を PDF → `pdftoppm` → PNG で確認した。`edge-jog` は **171 → 55 件**（残るのは 34 通りの実際の小さな段差、誤検出 0）、`arrowhead-on-bend` は 0。受け入れ図の own Theme は段差 2 件 → 0。最小再現追加後は **140 図・840 通り・成功 574 通り**で、既存 834 通りの出力と診断が再検査でも一致。gallery は **155 ファイル変更 0・新規診断 0**、PDF・PPTX・画像の golden も指定の更新コマンドで変更 0。全変更一覧と残る所見は [検証記録](../verification/217-arrowhead-jogs.md) に記載。
 - **テスト**: 受け入れ図の正確な 3 点（曲がり 1 回）と 14 unit の最小 fixture、junction の全組み込み Theme・始点側・経路なし error・A* / Dijkstra の費用一致を検査する。lint は矢じりの短い端、始点・終点、境界・縮小・丸めた描画・D2 offset と、段差の正例・負例・印刷時の閾値・量子化・分割された描画・重複・同一直線・曲線・切れ目・分岐・透明な線を検査する。既存の fit と caption の統合テストは新たに可視化された実際の段差を辺 ID 付きで明示的に期待する。
 
+### 6.62 #188 の多色絵文字・角バッジ・角への attach・bowtie
+
+- **判断（2026-10-28 の利用者判断を実装）**: Microsoft の **Fluent Emoji Flat**
+  の `fire` / `snowflake` 2 点を同梱する。MIT 原文は upstream commit
+  `1ffb34c752ecf5d402f04cfb4b392c77f57c54bc` の LICENSE と SHA-256 で照合した
+  （`c2cfccb8…e15383`、1,141 bytes）。Iconify JSON
+  `@iconify-json/fluent-emoji-flat@1.2.6` の tarball を SHA-512 integrity で固定し、
+  path・色を保った SVG に包む。`bun run emoji:build` / `emoji:check` で再現・照合する。
+  フォントや OS の絵文字描画には依存しない。
+- **サイズの実測と範囲**: upstream の npm tarball は **1,172,438 bytes**、
+  全 3,174 named entries を Sumi の SVG JSON gzip にすると **1,154,399 bytes**。
+  2 点の subset は **1,016 bytes**（SHA-256 `b2f29426…415fed`）。全セットも検証したが、
+  `airplane-arrival` 等は `clipPath` / `defs` / `url(#…)` を持ち、既存の基本図形限定
+  importer（§6.25）が拒否した。必要な 2 点で受け入れ条件を満たせるので、今回は subset
+  を選んだ。全セットのために SVG resource model を広げない。追加する場合も importer と
+  SVG/PDF/PPTX の経路を通して検証する。`catalog --icons` と `catalog --json` が実際の範囲を示す。
+- **構文**: `icon: emoji/fire` / `emoji/snowflake` はラベルを置き換える（Tabler と同じ）。
+  `badge: { icon: emoji/fire, corner: north-east }` はラベルから独立した 1 em の正方形。
+  `north-east` / `south-east` / `south-west` / `north-west` の bbox の角を中心に重ねる。
+  Tabler の badge も可能。多色は theme / tone で単色化せず、Tabler だけが文字色に従う。
+  `legend` / `tokens` / `matrix` と point junction は単独の本体を持たないため
+  `component/badge-unsupported`（error）。画像・outline には使える。
+- **足跡と描画**: structured は本体サイズを保ち、角の方向へ 0.5 em ずつ張り出す足跡を
+  arrange の item、attach、group、canvas に含める。ルーティングの端点は本体のまま。
+  auto は既存の asset composition で D2 の配置後に重ねる（周囲の余白は幾何 lint で確認）。
+  `geometry/badge-collision`（warning）が他の本体・文字・バッジ・辺、自身の文字、canvas 外
+  を検査する。本体との意図した重なりと祖先 group は除く。診断位置は `nodes[].badge`。
+- **角の attach**: `attach: { to: frame, side: south-east, gap: 1mm }` など。
+  通常の attach と同じ親・依存順・循環検査で、双方の軸で gap だけ外側に置く。
+  badge の「角の中央」とは異なる。edge anchor の四辺の契約は変えない。
+- **bowtie**: `component: bowtie` は #52 の outline renderer。左右の太い端から中央の
+  waist に絞る、自己交差しない 6 頂点の汎用輪郭。中央の高さ 1/2 を safeArea とし、
+  label fitting は高さを 2 倍にして確保する。全 5 themes × 5 variants
+  （default / emphasis / muted / filled / outlined）を catalog と gallery に含めた。
+  極端な縦横比・safeArea・単調な fitting は既存の outline oracle で検査する。
+- **出力と告知**: 圧縮 archive と MIT 原文を単一 binary に埋め込む。図には使った SVG のみを
+  埋め込み、SVG metadata / PDF properties / PPTX custom properties に原文を保持する。
+  release は `licenses/fluent-emoji/LICENSE`、`NOTICE`、`README.dist` を保持し、smoke で
+  コンパイル済み binary の bowtie と多色 badge の SVG/PDF/PPTX を確認する。
+  PDF は vector paths、picture PPTX は同じ色の outlined SVG と PNG fallback。
+  editable PPTX は既存の `pptx/unsupported-asset` で badge を明示的に拒否する。
+- **受け入れと互換性**: `research/188-badges-emoji-bowtie/` に #185 の C をコピーし、
+  LoRA 2 個を bowtie + fire、QKV / Out Proj を snowflake badge にした。
+  SVG と PDF raster、PPTX の PNG fallback を目視し、136,568-byte preview を保持。
+  180 × 124.88 mm、fit 84.7%、error / warning は 0（縮小した script の info 1）。
+  変更前の全 140 YAML × 自分の theme + 5 built-ins = 840 cases を実行した。
+  描画可能な 574 cases の SVG/PDF/PPTX と 222 D2 sources はすべて SHA-256 が一致。
+  既に無効な `research/86-paper-figures/figures/ideal/c-h3world.sumi.yaml` は badge が認識され
+  6 theme 選択で schema error が減るが、変更前後とも出力はない。既存の描画出力の変更は 0。
+  追加 golden は bowtie gallery と emoji-badges fixture。診断の golden は既知の部品一覧に
+  bowtie が増えるだけ。wrapper のテストは TMPDIR が checkout 内でもインストール先の
+  隔離を模擬できるよう、fixture の dirname に境界を設けた（製品 wrapper は変更なし）。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）

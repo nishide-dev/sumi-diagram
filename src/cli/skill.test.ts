@@ -529,6 +529,23 @@ describe("scripts/sumi", () => {
     const toolBin = join(work, "tool bin");
     await mkdir(toolBin);
     await symlink(process.execPath, join(toolBin, "bun"));
+    // Emulate the filesystem boundary of an installed skill even when a
+    // sandbox keeps TMPDIR inside the checkout. Source-checkout tests still
+    // traverse the real repository; only temporary fixtures stop here.
+    if (tmpdir().startsWith(`${ROOT}/`)) {
+      await writeFile(
+        join(toolBin, "dirname"),
+        `#!/bin/sh
+if [ "$1" = "--" ]; then shift; fi
+if [ "$1" = "${tmpdir()}" ]; then
+  printf '/\\n'
+else
+  exec /usr/bin/dirname "$@"
+fi
+`,
+        { mode: 0o755 },
+      );
+    }
     cleanPath = `${toolBin}:/usr/bin:/bin`;
     fakeBin = join(work, "path bin");
     await fakeSumi(fakeBin, "path-sumi");

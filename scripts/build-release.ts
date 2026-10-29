@@ -35,7 +35,12 @@ import { chmod, copyFile, mkdir, mkdtemp, readdir, readFile, rm, stat } from "no
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import pkg from "../package.json";
-import { TABLER_ARCHIVE_SHA256, TABLER_VERSION } from "../src/assets/icons";
+import {
+  EMOJI_ARCHIVE_SHA256,
+  EMOJI_VERSION,
+  TABLER_ARCHIVE_SHA256,
+  TABLER_VERSION,
+} from "../src/assets/icons";
 import { downloadD2Release } from "../src/backends/d2/install";
 import { D2_RELEASE_ASSETS, D2_TARBALL_BINARY, D2_VERSION } from "../src/backends/d2/version";
 import { RELEASE_LAYOUT } from "../src/core/install-layout";
@@ -176,6 +181,12 @@ ${npm}
        License: MIT License, see licenses/tabler-icons/LICENSE. Figures that
        use an icon carry this notice in their metadata.
 
+    e. Fluent Emoji Flat (https://github.com/microsoft/fluentui-emoji):
+       curated Flat subset (fire, snowflake) via @iconify-json/fluent-emoji-flat@${EMOJI_VERSION}.
+       Copyright (c) Microsoft Corporation. MIT License, see
+       licenses/fluent-emoji/LICENSE. Archive sha256: ${EMOJI_ARCHIVE_SHA256}.
+       Figures embed only used emoji and retain the full license in metadata.
+
 2. D2 ${D2_VERSION} (libexec/sumi/d2)
    License: Mozilla Public License 2.0, see licenses/d2/LICENSE.txt and
    licenses/d2/THIRD_PARTY_NOTICES.txt.
@@ -308,6 +319,16 @@ async function build(argv: string[]): Promise<void> {
     await copyFile(
       join(ROOT, "assets", "icons", "tabler-LICENSE.txt"),
       at("licenses/tabler-icons/LICENSE"),
+    );
+    if (
+      sha256Hex(await readFile(join(ROOT, "assets/icons/fluent-emoji-flat.json.gz"))) !==
+      EMOJI_ARCHIVE_SHA256
+    )
+      throw new Error("Emoji archive checksum mismatch");
+    await mkdir(at("licenses/fluent-emoji"), { recursive: true });
+    await copyFile(
+      join(ROOT, "assets/icons/fluent-emoji-LICENSE.txt"),
+      at("licenses/fluent-emoji/LICENSE"),
     );
 
     // 2. D2 and its license files, from the checksum-verified release tarball.

@@ -102,6 +102,9 @@ export type LayoutDensity = (typeof LAYOUT_DENSITIES)[number];
 /** Sides of a node or group, for `attach.side` and edge anchors. */
 export const SIDES = ["north", "east", "south", "west"] as const;
 export type Side = (typeof SIDES)[number];
+export const CORNERS = ["north-east", "south-east", "south-west", "north-west"] as const;
+export type Corner = (typeof CORNERS)[number];
+export type AttachSide = Side | Corner;
 
 /**
  * Where a group's label (title) sits inside the group's border (#127, design
@@ -260,7 +263,11 @@ export const AttachSchema = z.strictObject({
   to: Ref.describe(
     "The node or group to place this node beside, or a cell of a tokens node as <node>.<cell>.",
   ),
-  side: z.enum(SIDES).describe("The side of the target to place this node on."),
+  side: z
+    .enum([...SIDES, ...CORNERS])
+    .describe(
+      "The side or corner of the target to place this node on; a corner separates the boxes by gap on both axes.",
+    ),
   gap: LayoutLength.optional().describe("Space between the target and this node. Omitted means 0."),
 });
 
@@ -440,7 +447,22 @@ export const NodeSchema = z.strictObject({
     .regex(ICON_REF_PATTERN)
     .optional()
     .describe(
-      "A bundled icon drawn in place of the label, as <set>/<name>, e.g. tabler/wave-sine. Drawn in the node's text color.",
+      "A bundled icon drawn in place of the label, e.g. tabler/wave-sine (text color) or emoji/fire (original multicolour palette).",
+    ),
+  badge: z
+    .strictObject({
+      icon: z
+        .string()
+        .max(ICON_REF_MAX_LENGTH)
+        .regex(ICON_REF_PATTERN)
+        .describe("Bundled icon, e.g. emoji/fire or emoji/snowflake."),
+      corner: z
+        .enum(CORNERS)
+        .describe("Corner of the node's bounding box on which the badge is centered."),
+    })
+    .optional()
+    .describe(
+      "A one-em corner badge, independent of the node label; its overhang reserves layout space.",
     ),
   variant: Variant,
   tone: Tone,

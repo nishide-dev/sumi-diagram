@@ -14,6 +14,8 @@
  */
 
 import { readFileSync } from "node:fs";
+import emojiArchivePath from "../../assets/icons/fluent-emoji-flat.json.gz" with { type: "file" };
+import emojiLicensePath from "../../assets/icons/fluent-emoji-LICENSE.txt" with { type: "file" };
 import licensePath from "../../assets/icons/tabler-LICENSE.txt" with { type: "file" };
 import archivePath from "../../assets/icons/tabler-outline.json.gz" with { type: "file" };
 
@@ -47,6 +49,32 @@ interface Archive {
 }
 
 let loaded: Archive | undefined;
+let emojiLoaded: Archive | undefined;
+
+export const EMOJI_VERSION = "1.2.6";
+export const EMOJI_ARCHIVE_SHA256 =
+  "b2f2942692bc9dc1349fd5c816f7fae5225b0903bee97e61c656fb3a43415fed";
+
+function emojiArchive(): Archive {
+  if (emojiLoaded !== undefined) return emojiLoaded;
+  let bytes: Uint8Array<ArrayBuffer>;
+  try {
+    bytes = new Uint8Array(readFileSync(emojiArchivePath));
+  } catch (error) {
+    throw new IconArchiveError(`the bundled emoji archive cannot be read: ${String(error)}`);
+  }
+  if (new Bun.CryptoHasher("sha256").update(bytes).digest("hex") !== EMOJI_ARCHIVE_SHA256) {
+    throw new IconArchiveError("the bundled emoji archive has an unexpected sha256");
+  }
+  const json = JSON.parse(new TextDecoder().decode(Bun.gunzipSync(bytes))) as {
+    format: number;
+    icons: Record<string, string>;
+  };
+  if (json.format !== 1) throw new IconArchiveError("unsupported emoji archive format");
+  const names = Object.keys(json.icons).sort();
+  emojiLoaded = { names, icons: new Map(names.map((n) => [n, json.icons[n] as string])) };
+  return emojiLoaded;
+}
 
 function archive(): Archive {
   if (loaded !== undefined) return loaded;
@@ -74,7 +102,7 @@ function archive(): Archive {
   return loaded;
 }
 
-/** The bundled sets (one: Tabler). */
+/** The bundled Tabler outline and Fluent Emoji Flat sets. */
 export function iconSets(): IconSetInfo[] {
   return [
     {
@@ -86,6 +114,15 @@ export function iconSets(): IconSetInfo[] {
       contents: "outline icons, without the Brand category",
       count: archive().names.length,
     },
+    {
+      id: "emoji",
+      name: "Fluent Emoji Flat",
+      version: EMOJI_VERSION,
+      license: "MIT",
+      source: "https://github.com/microsoft/fluentui-emoji",
+      contents: "curated multicolour Flat subset: fire, snowflake; via Iconify JSON",
+      count: emojiArchive().names.length,
+    },
   ];
 }
 
@@ -96,17 +133,25 @@ export function iconSet(id: string): IconSetInfo | undefined {
 
 /** Names of the icons of a set, sorted; empty for an unknown set. */
 export function iconNames(set: string): readonly string[] {
-  return set === TABLER_SET ? archive().names : [];
+  return set === "emoji" ? emojiArchive().names : set === TABLER_SET ? archive().names : [];
 }
 
 /** The original SVG of an icon, or `undefined` if the set or name is unknown. */
 export function iconSvg(set: string, name: string): string | undefined {
-  return set === TABLER_SET ? archive().icons.get(name) : undefined;
+  return set === "emoji"
+    ? emojiArchive().icons.get(name)
+    : set === TABLER_SET
+      ? archive().icons.get(name)
+      : undefined;
 }
 
 /** The license text of a set (shipped with the binary). */
 export function iconLicense(set: string): string | undefined {
-  return set === TABLER_SET ? readFileSync(licensePath, "utf8") : undefined;
+  return set === "emoji"
+    ? readFileSync(emojiLicensePath, "utf8")
+    : set === TABLER_SET
+      ? readFileSync(licensePath, "utf8")
+      : undefined;
 }
 
 export { ICON_REF_PATTERN, parseIconRef } from "./icon-ref";

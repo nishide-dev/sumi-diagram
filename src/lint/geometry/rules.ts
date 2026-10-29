@@ -1407,7 +1407,55 @@ export const reversedEdge = defineGeometryRule({
 });
 
 /** The built-in geometry rules, all enabled by default. */
+export const badgeCollision = defineGeometryRule({
+  id: "geometry/badge-collision",
+  description:
+    "A corner badge is outside the canvas or collides with another element, label, badge or edge.",
+  defaultSeverity: "warning",
+  fixable: false,
+  run(context) {
+    const findings: LintFinding[] = [];
+    for (const element of context.elements) {
+      const badge = element.badge;
+      if (badge === undefined) continue;
+      const collisions = context.elements.filter((other) => {
+        if (other.key === element.key || context.isAncestor(other.key, element.key)) return false;
+        return (
+          (other.bbox !== undefined && rectsOverlap(badge, other.bbox, GEOMETRY_TOLERANCE_UNITS)) ||
+          (other.badge !== undefined &&
+            rectsOverlap(badge, other.badge, GEOMETRY_TOLERANCE_UNITS)) ||
+          other.labels.some((label) =>
+            label.visibleLines.some((line) => rectsOverlap(badge, line, GEOMETRY_TOLERANCE_UNITS)),
+          ) ||
+          (other.drawn !== undefined &&
+            polylinesCrossRect(other.drawn, badge, GEOMETRY_TOLERANCE_UNITS))
+        );
+      });
+      const ownLabel = element.labels.some((label) =>
+        label.visibleLines.some((line) => rectsOverlap(badge, line, GEOMETRY_TOLERANCE_UNITS)),
+      );
+      if (
+        collisions.length > 0 ||
+        ownLabel ||
+        !rectInside(context.canvas, badge, GEOMETRY_TOLERANCE_UNITS)
+      )
+        findings.push({
+          message: `The badge of ${element.name} ${collisions.length > 0 || ownLabel ? "collides with a label or another element" : "extends outside the canvas"}.`,
+          path: [...element.docPath, "badge"],
+          subject: element.subject,
+          hint: "Choose another corner or increase the layout gap or margin.",
+          related: collisions.map((other) => ({
+            path: other.docPath,
+            message: `${capitalize(other.name)} is here.`,
+          })),
+        });
+    }
+    return findings;
+  },
+});
+
 export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
+  badgeCollision,
   exceedsPageWidth,
   exceedsPageHeight,
   textTooSmall,

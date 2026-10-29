@@ -47,6 +47,21 @@ const record = (key: string, bytes: string | Uint8Array) => {
   if (!update) expect(`${key} ${hash}`).toBe(`${key} ${golden[key] ?? "(no golden)"}`);
 };
 
+test("colour emoji badges retain their vector paths and MIT notice in each output", async () => {
+  const file = "emoji-badges.sumi.yaml";
+  const result = await render(file);
+  expect(lintGeometry(result, { source: result.source })).toEqual([]);
+  record(`${file}.svg`, result.svg);
+  const pdf = svgToPdf(result.svg);
+  if (!pdf.ok) throw new Error(JSON.stringify(pdf.diagnostics));
+  expect(inspectPdf(pdf.value).images).toBe(0);
+  expect(inspectPdf(pdf.value).info.SumiThirdPartyNotice).toContain("Microsoft Corporation");
+  record(`${file}.pdf`, pdf.value);
+  const pptx = svgToPptx(result.svg);
+  if (!pptx.ok) throw new Error(JSON.stringify(pptx.diagnostics));
+  record(`${file}.pptx`, pptx.value);
+});
+
 async function render(file: string) {
   const source = readFileSync(join(ASSETS_DIR, file), "utf8");
   const result = await renderFigure(source, { file, assetBase: ASSETS_DIR });

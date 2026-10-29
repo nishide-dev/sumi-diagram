@@ -12,6 +12,7 @@
       "!assets/fonts",
       "!examples/**/*.svg",
       "!research/*/out",
+      "!research/188-badges-emoji-bowtie/*.svg",
       "!docs/gallery",
       "!tests/fixtures/lint-output",
       "!tests/fixtures/layout",

@@ -29,13 +29,15 @@ metadata: {}               # optional, any JSON-compatible data; not drawn
 | Element | Fields (required in bold) | Defaults |
 | --- | --- | --- |
 | group | **`id`**, `label`, `labelAt`, `caption`, `component`, `variant`, `tone`, `dim`, `group`, `arrange`¹ | component `container`, variant `default`, no tone, not dimmed, no parent |
-| node | **`id`**, **`component`**, `label`, `sublabel`¹, `labelRotation`¹, `variant`, `tone`, `icon`, `props`, `group`, `attach`¹ | variant `default`, no label, no tone, no group |
+| node | **`id`**, **`component`**, `label`, `sublabel`¹, `labelRotation`¹, `variant`, `tone`, `icon`, `badge`, `props`, `group`, `attach`¹ | variant `default`, no label, no tone, no group |
 | edge | **`from`**, **`to`**, `id`, `label`, `labelAt`¹, `labelSide`¹, `component`, `variant`, `tone`, `props`, `fromAnchor`¹, `toAnchor`¹ | component `arrow`, variant `default`, no tone |
 
 ¹ Structured layout only (a figure with `figure.layout.arrange`); see
 [structured](structured.md): `sublabel` ([sublabels](structured.md#sublabels)),
 `labelRotation` (`90` / `-90`, [turned labels](structured.md#turned-labels)).
-`icon`: [assets](assets.md). Group `labelAt` / `caption`: [groups](#groups);
+`icon` / `badge`: [assets](assets.md). The `bowtie` outline component,
+corner badges and corner `attach.side` values are new in 0.7.0.
+Group `labelAt` / `caption`: [groups](#groups);
 `dim` (both engines): [dimmed groups](#dimmed-groups).
 
 **Versions.** Group `labelAt` / `caption`, edge `labelAt` / `labelSide`,

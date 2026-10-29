@@ -23,6 +23,12 @@ on an older CLI: each section below names the fallback. Write
 
 ## Which engine
 
+Corner attachments (0.7.0) use `attach: { to: frame, side: south-east,
+gap: 1mm }`. The other corners are `north-east`, `south-west`, `north-west`.
+The attached node lies outside both sides, with the specified gap on each
+axis; this differs from a [badge](assets.md#corner-badges-070), which is
+centered on the corner. Edge anchors still accept only the four sides.
+
 | Figure | Engine |
 | --- | --- |
 | Flowcharts, pipelines, decision flows, state or dependency graphs, architecture overviews whose positions do not matter | auto (`figure.layout.direction`) |

@@ -32,6 +32,7 @@ const LOWERING: Record<string, string> = {
   "sumi/cylinder": "cylinder",
   "sumi/document": "document",
   "sumi/trapezoid": "rectangle",
+  "sumi/bowtie": "rectangle",
   "sumi/stack": "rectangle",
   "sumi/label": "text",
   "sumi/operator": "circle",

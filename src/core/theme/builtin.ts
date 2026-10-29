@@ -59,6 +59,7 @@ const SHAPE_NODES = [
   "cylinder",
   "document",
   "trapezoid",
+  "bowtie",
   "stack",
   "operator",
 ];

@@ -52,12 +52,31 @@ export function iconRect(node: Pick<NodeIR, "shape" | "style">, rect: Rect): Rec
   return { x: center.x - side / 2, y: center.y - side / 2, width: side, height: side };
 }
 
-function iconMarkup(icon: LoadedIcon, box: Rect): string {
+export function iconMarkup(icon: LoadedIcon, box: Rect): string {
   const [minX, minY, vw, vh] = icon.svg.viewBox;
   const scale = Math.min(box.width / vw, box.height / vh);
   const tx = box.x + (box.width - vw * scale) / 2 - minX * scale;
   const ty = box.y + (box.height - vh * scale) / 2 - minY * scale;
   return `<g class="sumi-icon" transform="translate(${n(tx)} ${n(ty)}) scale(${n(scale)})">${icon.svg.markup}</g>`;
+}
+
+/** A badge's full footprint: one em centered on the selected bounding-box corner. */
+export function badgeRect(node: Pick<NodeIR, "badge" | "style">, rect: Rect): Rect | undefined {
+  if (node.badge === undefined) return undefined;
+  const side = iconSize(node);
+  return {
+    x: rect.x + (node.badge.corner.endsWith("east") ? rect.width : 0) - side / 2,
+    y: rect.y + (node.badge.corner.startsWith("south") ? rect.height : 0) - side / 2,
+    width: side,
+    height: side,
+  };
+}
+
+export function badgeMarkup(node: NodeIR, icon: LoadedIcon | undefined, rect: Rect): string {
+  const box = badgeRect(node, rect);
+  if (box === undefined) return "";
+  if (icon === undefined) throw new Error(`internal error: badge of ${node.key} was not loaded`);
+  return `<g class="sumi-badge">${iconMarkup(icon, box)}</g>`;
 }
 
 /**
