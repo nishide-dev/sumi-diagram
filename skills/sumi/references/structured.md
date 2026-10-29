@@ -340,11 +340,14 @@ figure:
   (warning) means a figure with very many constraints stopped searching.
 - **Centring can couple constraints even when they share no IDs.** Adding
   space to a centred branch shifts its other items too: closing one gap can
-  reopen two others. The greedy search can stop with a small residual above
-  its 0.01-layout-unit tolerance, before reaching its search limit; doubling
-  the space to compensate for centring does not necessarily help. For table
-  headings, use `align: start` on the parent `row` (for transposed tables,
-  the parent `stack`) so the headings can move down/right independently.
+  reopen two others. When the greedy search stalls, Sumi tries a bounded,
+  deterministic two-step lookahead: a pair is kept only if its combined
+  result reduces the original total residual. Both steps use the same search
+  budget. If this fallback still leaves a gap above the 0.01-layout-unit
+  tolerance, doubling the space or allowing more rounds does not necessarily
+  help. For table headings that the fallback cannot align, use `align: start`
+  on the parent `row` (for transposed tables, the parent `stack`) so the
+  headings can move down/right independently.
   Check `lint --geometry` again; the warning still describes a real gap,
   even if its distance rounds to `0.01mm`.
 - **`align` can enlarge the figure.** The added space also moves
