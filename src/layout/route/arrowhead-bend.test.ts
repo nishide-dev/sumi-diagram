@@ -112,10 +112,11 @@ test("#217: acceptance out-proj → c-add-out has one bend, without a room-buyin
   const edge = ir.edges.find((e) => e.from === "n:out-proj" && e.to === "n:c-add-out");
   if (edge === undefined) throw new Error("no acceptance edge");
   const points = layout.edges.find((e) => e.key === edge.key)?.route?.points;
+  // #215's smaller paper operators shift the endpoints, retaining one bend.
   expect(points).toEqual([
-    { x: 982.535, y: 694.327 },
-    { x: 1025.709, y: 694.327 },
-    { x: 1025.709, y: 680.319 },
+    { x: 978.535, y: 694.327 },
+    { x: 1019.709, y: 694.327 },
+    { x: 1019.709, y: 678.319 },
   ]);
   const a = points?.at(-2);
   const b = points?.at(-1);

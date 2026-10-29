@@ -30,16 +30,26 @@
  *
  * The candidates are laid out and the one with the smallest total residual
  * (the sum of every constraint's range) is kept if it is smaller than before;
- * on a tie, the one with the smaller canvas (#155), then the earlier. The
- * loop stops when every constraint is met (the largest single residual within
+ * on a tie, the one with the smaller canvas (#155), then the earlier. When the
+ * greedy pass stalls, a two-step lookahead tries each current candidate and
+ * generates second-step candidates from its trial layout. Only a pair whose
+ * total strictly improves the original state is accepted, ranked by the same
+ * residual / canvas rule. Every trial shares the layout budget. The loop
+ * stops when every constraint is met (the largest single residual within
  * {@link ALIGN_EPSILON}: the sum is only the objective; many met constraints
- * must not hide an unmet one), when a round makes no progress, after
+ * must not hide an unmet one), when neither search makes progress, after
  * {@link MAX_ALIGN_ROUNDS} rounds, or when {@link MAX_ALIGN_LAYOUTS} layouts
  * are spent (then with
  * `layout/align-search-limit`, warning). Struts only grow, so constraints that
  * contradict each other or the trees stop with a residual, reported per
  * constraint as `layout/unsatisfied-align` (warning; the figure is drawn with
- * the best layout found). Struts can grow the figure: when a side of the
+ * the best layout found). Centring can couple otherwise disjoint constraints:
+ * growing one branch moves its other items too. Even doubling a strut to
+ * compensate for its half-effect can worsen the total residual (#213,
+ * design doc §6.58). Lookahead can escape this single-step minimum, but does
+ * not guarantee convergence; a start-aligned parent can avoid this coupling
+ * for table headings when the fallback cannot solve it.
+ * Struts can grow the figure: when a side of the
  * canvas grows by more than {@link ALIGN_GROWTH_MM} and
  * {@link ALIGN_GROWTH_RATIO} over the plain pass, `layout/align-grew-figure`
  * (info) says by how much (#155).
@@ -227,7 +237,42 @@ export function solveAlignment(
       }
       if (exhausted) break;
     }
-    if (total >= before - TIE) break;
+    if (total < before - TIE) continue;
+    if (exhausted) break;
+
+    // Keep the original state until a whole pair improves it. The first
+    // step may reopen a met constraint, so generate the second steps from
+    // that trial, including constraints that had no candidates before it.
+    let best: Trial | undefined;
+    lookahead: for (const c of constraints) {
+      for (const first of candidatesFor(layout, c, struts)) {
+        const intermediate = run(first);
+        if (intermediate === undefined) {
+          exhausted = true;
+          break lookahead;
+        }
+        for (const next of constraints) {
+          for (const second of candidatesFor(intermediate, next, first)) {
+            const l = run(second);
+            if (l === undefined) {
+              exhausted = true;
+              break lookahead;
+            }
+            const r = residualsOf(l, constraints);
+            const trial: Trial = { struts: second, layout: l, residuals: r, total: sum(r) };
+            if (trial.total < total - TIE && (best === undefined || better(trial, best))) {
+              best = trial;
+            }
+          }
+        }
+      }
+    }
+    const chosen = best as Trial | undefined;
+    if (chosen === undefined) break;
+    struts = chosen.struts;
+    layout = chosen.layout;
+    residuals = chosen.residuals;
+    total = chosen.total;
   }
 
   const unsatisfiedDiagnostics: Diagnostic[] = [];
@@ -346,6 +391,7 @@ function paths(ir: FigureIR): Map<ElementKey, Step[]> {
   const groups = new Map(ir.groups.map((g) => [g.key, g]));
   const walk = (box: ArrangeBoxIR, prefix: Step[]) => {
     for (const item of box.items) {
+      if (item === null) continue;
       const path = [...prefix, { box, item }];
       if (typeof item === "string") {
         out.set(item, path);
@@ -424,6 +470,7 @@ export function grewFigure(
 function strutRecord(struts: Struts): Record<string, number> {
   const names = new Map<ArrangeBoxIR, string>();
   const nameOf = (item: ArrangeItemIR) => {
+    if (item === null) return "blank";
     if (typeof item === "string") return item;
     let name = names.get(item);
     if (name === undefined) {

@@ -61,8 +61,8 @@ describe("DiT (paper, paper-double, fit: scale)", () => {
     expect(c.widthMm).toBe(180);
     expect(n.widthMm).toBe(180);
     expect(c.scale ?? 1).toBeGreaterThan(n.scale ?? 1);
-    // Measured (§6.55): 87.66mm (82.8mm at the reference's 170mm; it is 68mm).
-    expect(c.heightMm).toBeCloseTo(87.66, 1);
+    // §6.55's fixture after #215: 86.34mm (81.54mm at 170mm width).
+    expect(c.heightMm).toBeCloseTo(86.34, 1);
     expect(c.heightMm / c.widthMm).toBeLessThan(n.heightMm / n.widthMm);
     // No label, edge label or sublabel below 5pt after scaling, no warnings:
     // only the info that label-math scripts print smaller (4.07pt).
@@ -84,9 +84,9 @@ describe("Transformer (paper, paper-single)", () => {
     const c = outputSize(compact.inspection);
     const n = outputSize(spaced.inspection);
     expect(c.scale).toBeUndefined();
-    // Measured (§6.55): 76.02 × 114.83mm; the original is 77.2 × 113.7mm.
-    expect(c.widthMm).toBeCloseTo(76.02, 1);
-    expect(c.heightMm).toBeCloseTo(114.83, 1);
+    // §6.55's fixture after #215: smaller paper operators; original 77.2 × 113.7mm.
+    expect(c.widthMm).toBeCloseTo(75.32, 1);
+    expect(c.heightMm).toBeCloseTo(114.12, 1);
     expect(c.heightMm).toBeLessThan(n.heightMm * 0.85);
     expect(diagnosticsOf(compact, TRANSFORMER)).toEqual([]);
   });

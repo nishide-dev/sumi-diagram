@@ -27,6 +27,7 @@ export interface GalleryModel {
   dim: { sample: ToneSample; outcomes: RenderOutcome[] };
   /** Every tone as an outline and on edges under every theme (#177). */
   outlinedTones: { sample: ToneSample; outcomes: RenderOutcome[] };
+  filledTones: { sample: ToneSample; outcomes: RenderOutcome[] };
 }
 
 const GENERATED_NOTE =
@@ -286,6 +287,10 @@ const OUTLINED_TONES_NOTE =
   "as text (at least 4.5:1 on white), and one of three gray steps in the monochrome themes. " +
   "The right column shows the same tones as fills (default variant) for comparison.";
 
+const FILLED_TONES_NOTE =
+  "`solid` uses tone ink with white text; `tinted` uses a pastel fill with matching border and text, " +
+  "darkening the ink as needed for 4.5:1 contrast. Both default to gray and work in tokens and legends.";
+
 function htmlTones(tones: GalleryModel["tones"], note = TONES_NOTE, alt = "every tone"): string {
   const renders = tones.outcomes
     .map((o) =>
@@ -389,6 +394,8 @@ ${htmlTones(model.tones)}
 ${htmlTones(model.dim, DIM_NOTE, "a dimmed group")}
 <h3 style="margin-top:16px" id="outlined-tones">Outlined tones and edge tones</h3>
 ${htmlTones(model.outlinedTones, OUTLINED_TONES_NOTE, "every tone outlined and on edges")}
+<h3 style="margin-top:16px" id="filled-tones">Solid and tinted tones</h3>
+${htmlTones(model.filledTones, FILLED_TONES_NOTE, "every tone solid and tinted")}
 <h3 style="margin-top:16px">Profiles</h3>
 ${profilesTable()}
 <h3 style="margin-top:16px">One figure, every theme × profile</h3>
@@ -540,6 +547,12 @@ export function galleryMarkdown(model: GalleryModel): string {
     ),
     "",
     ...mdThemeSample("Tones", TONES_NOTE, model.tones, "every tone"),
+    ...mdThemeSample(
+      "Solid and tinted tones",
+      FILLED_TONES_NOTE,
+      model.filledTones,
+      "every tone solid and tinted",
+    ),
     ...mdThemeSample(
       "Outlined tones and edge tones",
       OUTLINED_TONES_NOTE,

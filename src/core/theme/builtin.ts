@@ -65,6 +65,7 @@ const SHAPE_NODES = [
 const EDGES = ["arrow", "line", "double-arrow"];
 
 interface VariantStyles {
+  operator?: { default: StyleLayerInput };
   shape: {
     emphasis: StyleLayerInput;
     muted: StyleLayerInput;
@@ -123,11 +124,21 @@ const outlineVariants = (shaded: string): Omit<VariantStyles["container"], "mute
 
 /** Expands per-category variant styles to every built-in component. */
 function componentStyles(styles: VariantStyles): NonNullable<ThemeDefinition["components"]> {
-  const { filled: _, ...stack } = styles.shape;
+  const shape = {
+    ...styles.shape,
+    solid: {
+      fill: styles.shape.outlined.stroke ?? "#000000",
+      stroke: styles.shape.outlined.stroke ?? "#000000",
+      fontColor: "#ffffff",
+    },
+    tinted: { ...styles.shape.outlined, fill: styles.shape.filled.fill ?? "#ffffff" },
+  };
+  const { filled: _, ...stack } = shape;
   return {
-    ...Object.fromEntries(SHAPE_NODES.map((name) => [name, styles.shape])),
+    ...Object.fromEntries(SHAPE_NODES.map((name) => [name, shape])),
+    ...(styles.operator && { operator: { ...shape, ...styles.operator } }),
     // Without outlines a stack's rectangles merge into one shape (#174).
-    stack,
+    stack: { ...stack, solid: { ...stack.solid, stroke: "#ffffff" } },
     label: styles.label,
     junction: styles.junction,
     // An image (#94) is drawn as it is: no background, and a frame only when asked for.
@@ -638,6 +649,10 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
           // White with a colored frame and text: H3-World's encoders, tokens and keys (#177).
           outlined: outlinedNode("{color.paper}", "{ink.gray}"),
         },
+        // The circle is twice the glyph's font size: 14pt rather than 16pt
+        // (#215). A 0.5pt frame balances the smaller regular-weight symbol
+        // with paper's edges; emphasis retains its existing bold frame.
+        operator: { default: { fontSize: "{size.small}", strokeWidth: "{line.edge}" } },
         label: {
           default: { fill: "transparent", strokeWidth: "0pt" },
           muted: { fontColor: "{color.muted}" },

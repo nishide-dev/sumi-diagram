@@ -15,7 +15,9 @@ function format(text: string, canonicalOrder = false): string {
 
 const sources = [
   ...["valid", "lint", "invalid", "layout"].flatMap((dir) =>
-    readdirSync(join(FIXTURES, dir)).map((name) => join(FIXTURES, dir, name)),
+    readdirSync(join(FIXTURES, dir))
+      .filter((name) => name.endsWith(".sumi.yaml"))
+      .map((name) => join(FIXTURES, dir, name)),
   ),
   join(ROOT, "examples", "pipeline", "pipeline.sumi.yaml"),
   join(ROOT, "examples", "decision-flow", "decision-flow.sumi.yaml"),

@@ -185,6 +185,8 @@ shows:
 | rounded pastel boxes, thin black lines, small arrowheads, sans-serif text | `figure.theme: paper` |
 | boxes without a border (a pastel fill only) | `variant: filled` + `tone` ([variants](figure-format.md#components-variants-and-props)) |
 | white boxes with a colored frame and text (encoders, tokens, keys) | `variant: outlined` + `tone` |
+| strong colored keys or operators with white text | `variant: solid` + `tone` |
+| pastel encoders or token cells with matching colored border and text | `variant: tinted` + `tone` |
 | colored lines | `tone` on the edge ([tones](figure-format.md#tones)) |
 | a panel without a frame, a shaded panel, a dashed panel | group `variant: plain` / `filled` / `dashed`, with `caption: (a) …` |
 | panels of equal height with captions on one line | the panels in one `row` with `align: stretch` ([captions](structured.md#group-titles-and-captions)) |
@@ -204,9 +206,12 @@ Order of work: content and arrangement first (the arrange tree,
 then `density: compact`, and `fit: scale` last if it is still too wide.
 Check the preview against the original after each step. Not yet
 expressible (say so instead of approximating silently): colored text
-spans and left-aligned labels, stacked copies of an image, emoji badges, a
+spans and left-aligned labels, emoji badges, a
 bowtie shape, a font size of your own (a large `N×`), and white text on a
 saturated fill.
+
+For repeated video frames, use an image's `props.layers: { count: 4, offset: 3pt }`
+([images](assets.md#images)); the whole up-right stack participates in layout.
 
 ## Labels
 

@@ -27,14 +27,24 @@ const SINCE = "0.1.0";
  * The variants of every shape node. `outlined` (#177, design doc §6.54)
  * draws the page's background with the outline and text in a tone's line
  * color, so a tone colors the frame and text instead of the fill.
+ * `solid` adds an ink fill with white text; `tinted` combines a pastel fill
+ * with matching ink for the border and text (#214, design doc §6.63).
  */
-const NODE_VARIANTS = ["default", "emphasis", "muted", "outlined"];
+const NODE_VARIANTS = ["default", "emphasis", "muted", "outlined", "solid", "tinted"];
 /**
  * The variants of the shapes that read as a filled area (#174): `filled`
  * draws the fill without the outline. `stack` is left out, since its
  * outlines are what separate the overlapping rectangles.
  */
-const FILLABLE_NODE_VARIANTS = ["default", "emphasis", "muted", "filled", "outlined"];
+const FILLABLE_NODE_VARIANTS = [
+  "default",
+  "emphasis",
+  "muted",
+  "filled",
+  "outlined",
+  "solid",
+  "tinted",
+];
 const EDGE_VARIANTS = ["default", "dashed", "emphasis", "muted"];
 
 const sizeProps = z.strictObject({
@@ -166,7 +176,7 @@ const image: NodeManifest = {
   kind: "node",
   name: "image",
   description:
-    "A PNG, JPEG or SVG file embedded as it is and scaled to the node's box; takes no label.",
+    "A PNG, JPEG or SVG file embedded as it is, optionally stacked with up-right copies; takes no label.",
   variants: ["default", "framed"],
   props: z
     .strictObject({
@@ -195,6 +205,17 @@ const image: NodeManifest = {
       height: SizeLength.optional().describe(
         'Height as a length such as "20mm" (a multiple of 0.5pt). Omitted means from the width and the image\'s aspect ratio.',
       ),
+      layers: z
+        .strictObject({
+          count: z.int().min(1).max(16).describe("Total images, including the front image (1–16)."),
+          offset: SizeLength.describe(
+            'Positive distance up and right between copies, e.g. "3pt" (a multiple of 0.5pt).',
+          ),
+        })
+        .optional()
+        .describe(
+          "Repeat the unchanged image behind the front one, offset up-right. Width and height size each copy; the node footprint includes the whole stack.",
+        ),
     })
     .refine(({ width, height }) => width !== undefined || height !== undefined, {
       error: "an image needs a width or a height (or both)",
@@ -336,6 +357,26 @@ const tokenCellFields = {
 const tokenCell = z.union([
   z.string().describe("A cell with this label (math allowed); the other fields as the tokens'."),
   z.strictObject({
+    separator: z
+      .literal("dotted")
+      .describe("A dotted divider perpendicular to the token direction."),
+    id: z
+      .string()
+      .regex(ID_PATTERN)
+      .optional()
+      .describe("The separator cell's name, as for other cells."),
+    tone: z
+      .enum(TONE_NAMES)
+      .optional()
+      .describe("The divider's line tone. Omitted inherits the tokens' tone."),
+    width: SizeLength.optional().describe(
+      "Reserved cell width. Defaults to 6pt for a row, or the tokens' width (14pt if omitted) for a stack.",
+    ),
+    height: SizeLength.optional().describe(
+      "Reserved cell height. Defaults to the tokens' height (14pt if omitted) for a row, or 6pt for a stack.",
+    ),
+  }),
+  z.strictObject({
     id: z
       .string()
       .regex(ID_PATTERN)
@@ -367,7 +408,7 @@ const tokens: NodeManifest = {
         .min(1)
         .optional()
         .describe(
-          "The cells in order: labels, or objects with id, label, tone, component, variant, width and height.",
+          "The cells in order: labels, objects with id, label, tone, component, variant, width and height, or { separator: dotted, id?, tone?, width?, height? } divider cells (since 0.7.0). Dividers count in positional cell references.",
         ),
       lines: z
         .array(z.array(tokenCell).min(1))

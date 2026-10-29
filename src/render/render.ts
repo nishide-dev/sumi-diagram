@@ -193,7 +193,7 @@ async function renderD2(
   const composed = composeOutlines(finalized.value.svg, effective.ir, inspected.value);
   diagnostics.push(...composed.diagnostics);
   if (!composed.ok) return fail();
-  if (effective.ir.nodes.some((n) => n.render !== undefined)) {
+  if (effective.ir.nodes.some((n) => n.render !== undefined || n.image?.layers !== undefined)) {
     inspected = inspectSvg(composed.value, effective.ir);
     diagnostics.push(...inspected.diagnostics);
     if (!inspected.ok) return fail();

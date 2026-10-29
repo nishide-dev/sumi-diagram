@@ -7,7 +7,8 @@
  * except for colors, which the theme's `dim` gives (no opacity):
  *
  * - every visible stroke (lines, borders, arrowheads, junction dots) and every
- *   text take `dim.stroke` and `dim.fontColor`;
+ *   text take `dim.stroke` and `dim.fontColor` (solid node text darkens as
+ *   needed for 3:1 contrast; solid stack separators follow that text color);
  * - every fill moves toward white by `dim.lighten` (0 = unchanged, 1 =
  *   white), so tone fills become their pale versions and lighter / darker
  *   fills keep their order. A fill painted in the element's own stroke color
@@ -26,6 +27,7 @@
 import type { ElementKey, PartialFigure } from "../check-state";
 import { edgeKey, groupKey, nodeKey } from "../check-state";
 import type { DocPath } from "../diagnostics";
+import { readableInk } from "./node-variants";
 import type { Color, ResolvedStyle } from "./style";
 
 /** A theme's colors for dimmed elements (`dim` in the theme). */
@@ -57,16 +59,23 @@ export function lightenColor(color: Color, amount: number): Color {
   return `#${mixed.map((c) => c.toString(16).padStart(2, "0")).join("")}`;
 }
 
-/** The style of a dimmed element: colors from `dim`, everything else unchanged. */
-export function dimStyle<S extends ResolvedStyle>(style: S, dim: DimColors): S {
+/** Solid areas lighten and keep at least 3:1 text contrast (#214). */
+export function dimStyle<S extends ResolvedStyle>(style: S, dim: DimColors, areaFill = false): S {
   const visible = (color: Color, to: Color) => (color === "transparent" ? color : to);
   // Compared expanded, so `#000` and `#000000` are the same ink.
-  const ink = style.fill !== "transparent" && expandColor(style.fill) === expandColor(style.stroke);
+  const ink =
+    !areaFill &&
+    style.fill !== "transparent" &&
+    expandColor(style.fill) === expandColor(style.stroke);
+  const fill = ink ? dim.stroke : lightenColor(style.fill, dim.lighten);
   const dimmed: S = {
     ...style,
     stroke: visible(style.stroke, dim.stroke),
-    fontColor: visible(style.fontColor, dim.fontColor),
-    fill: ink ? dim.stroke : lightenColor(style.fill, dim.lighten),
+    fontColor: visible(
+      style.fontColor,
+      areaFill ? readableInk(expandColor(fill), expandColor(dim.fontColor), 3) : dim.fontColor,
+    ),
+    fill,
     // Hatch lines (#180) are lines.
     ...("hatch" in style && style.hatch !== undefined && { hatch: dim.stroke }),
   };
