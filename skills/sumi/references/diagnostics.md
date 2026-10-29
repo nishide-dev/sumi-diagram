@@ -1,5 +1,16 @@
 # Reading and fixing diagnostics
 
+## Corner badges (0.7.0)
+
+- `component/badge-unsupported`: the node expands into parts (`legend`,
+  `tokens`, `matrix`) or is a point junction. Put the badge on an ordinary
+  shape, outline or image instead.
+- `geometry/badge-collision` (warning): change the corner or increase gaps /
+  margin; the badge must avoid labels, other bodies/badges/edges and the
+  canvas boundary. Its own body may overlap.
+- Invalid badge icon names use `asset/unknown-icon` or
+  `asset/unknown-icon-set` at `badge.icon`; search `sumi catalog --icons`.
+
 Every stage reports problems as the same diagnostic object. In
 `sumi lint --json` they are under `results[i].diagnostics`; in
 `sumi render --json` under `diagnostics`:

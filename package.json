@@ -20,6 +20,8 @@
     "pdf:latex": "bun scripts/check-pdf-latex.ts",
     "icons:build": "bun scripts/build-icons.ts",
     "icons:check": "bun scripts/build-icons.ts --check",
+    "emoji:build": "bun scripts/build-emoji.ts",
+    "emoji:check": "bun scripts/build-emoji.ts --check",
     "example:render": "bun scripts/render-example.ts",
     "gallery": "bun scripts/gallery.ts",
     "gallery:check": "bun scripts/gallery.ts --check",

@@ -34,7 +34,7 @@ function contrast(a: string, b: string): number {
 
 describe("solid and tinted nodes", () => {
   test("every shape, theme and tone has both variants and at least 4.5:1 text contrast", () => {
-    expect(shapes).toHaveLength(12);
+    expect(shapes).toHaveLength(13);
     for (const theme of BUILTIN_THEMES.values()) {
       for (const shape of shapes) {
         for (const variant of ["solid", "tinted"] as const) {

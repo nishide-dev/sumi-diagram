@@ -38,7 +38,49 @@ shows (`brain`, `database`, `photo`, `world`), not by the concept.
   to a side that has no edges (e.g. `{ id: cond-icon, component: label,
   icon: tabler/clock, attach: { to: cond, side: south, gap: 1mm } }`); say
   so in the report.
-- Not supported: icon and label together, icons on groups, emoji.
+- `emoji/<name>` (0.7.0) uses the bundled Fluent Emoji Flat subset
+  SVGs (Microsoft, MIT). They keep their original multicolour palette in
+  every theme and in SVG, PDF and picture PPTX. **Colour emoji deliberately
+  retain their palette inside `dim: true` groups**, for both replacement icons
+  and badges, without `theme/undimmed-image`; choose Tabler for an icon that
+  follows dimmed text colour. Unicode emoji in labels still have missing-glyph lint.
+- Not supported: replacement icon and label together, icons on groups.
+
+The 47 supported names (prefix each with `emoji/`):
+
+```text
+alarm-clock, bar-chart, battery, books, brain, bullseye,
+bust-in-silhouette, busts-in-silhouette, chart-decreasing, chart-increasing,
+check-box-with-check, check-mark-button, clipboard, cloud, cross-mark,
+cross-mark-button, desktop-computer, electric-plug, file-folder, fire,
+floppy-disk, gear, globe-with-meridians, glowing-star, hammer-and-wrench,
+hourglass-not-done, information, key, light-bulb, locked, memo, mobile-phone,
+package, page-facing-up, red-exclamation-mark, red-question-mark, robot,
+rocket, satellite-antenna, snowflake, speech-balloon, star, stopwatch,
+thought-balloon, unlocked, warning, wrench
+```
+
+## Corner badges (0.7.0)
+
+```yaml
+- { id: lora, component: bowtie, label: LoRA, tone: pink, badge: { icon: emoji/fire, corner: north-east } }
+- { id: qkv, component: box, label: QKV, badge: { icon: emoji/snowflake, corner: north-east } }
+```
+
+`badge` is independent of `label` and replacement `icon`. Its one-em square
+is centered on the bounding-box corner (`north-east`, `south-east`,
+`south-west`, `north-west`), including on an outline or image node. It
+accepts bundled Tabler references too. Structured layout reserves the
+actual union of body and badge in rows/stacks, attachments, groups and the canvas
+(including bodies smaller than half an em); auto composes it after D2
+placement, so use geometry lint to check surrounding room.
+`geometry/badge-collision` warns about foreign bodies/labels/badges/edges,
+its own label/sublabel or canvas clipping. Overlap with its own body and
+ancestor-group bodies is intentional; ancestor titles are still checked.
+`legend`, `tokens`, `matrix` and point junctions cannot carry badges
+(`component/badge-unsupported`); put the badge on an ordinary node.
+Editable PPTX rejects badges (`pptx/unsupported-asset`); picture PPTX keeps
+their colour SVG and PNG fallback. All exports retain the MIT notice.
 
 ## Images
 

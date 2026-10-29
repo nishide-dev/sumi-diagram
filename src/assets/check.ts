@@ -47,10 +47,18 @@ export function checkAssets(state: CheckState, locate: Locator): void {
       failed = true;
     };
 
-    if (node.icon !== undefined) {
-      const ref = parseIconRef(node.icon);
-      if (ref === undefined) throw new Error(`internal error: malformed icon "${node.icon}"`);
-      if (manifest.mark !== undefined || manifest.render !== undefined || manifest.embed) {
+    for (const [field, value] of [
+      ["badge", node.badge?.icon],
+      ["icon", node.icon],
+    ] as const) {
+      if (value === undefined) continue;
+      const path = field === "badge" ? ["badge", "icon"] : ["icon"];
+      const ref = parseIconRef(value);
+      if (ref === undefined) throw new Error(`internal error: malformed icon "${value}"`);
+      if (
+        field === "icon" &&
+        (manifest.mark !== undefined || manifest.render !== undefined || manifest.embed)
+      ) {
         fail(
           "asset/icon-unsupported",
           `${componentId(manifest)} cannot draw an icon; icons go on plain shapes such as box, circle or label.`,
@@ -59,7 +67,7 @@ export function checkAssets(state: CheckState, locate: Locator): void {
         );
         continue;
       }
-      if (!isBlankForD2(node.label)) {
+      if (field === "icon" && !isBlankForD2(node.label)) {
         fail(
           "asset/icon-with-label",
           `Node "${node.id}" has both an icon and a label; the icon is drawn in place of the label.`,
@@ -73,9 +81,11 @@ export function checkAssets(state: CheckState, locate: Locator): void {
         known = iconSvg(ref.set, ref.name) !== undefined;
       } catch (error) {
         if (!(error instanceof IconArchiveError)) throw error;
-        fail("asset/icons-unavailable", `The bundled icons cannot be used: ${error.message}.`, [
-          "icon",
-        ]);
+        fail(
+          "asset/icons-unavailable",
+          `The bundled icons cannot be used: ${error.message}.`,
+          path,
+        );
         continue;
       }
       if (!known) {
@@ -83,7 +93,7 @@ export function checkAssets(state: CheckState, locate: Locator): void {
           fail(
             "asset/unknown-icon-set",
             `Unknown icon set "${ref.set}".`,
-            ["icon"],
+            path,
             `Bundled sets: ${iconSets()
               .map((s) => s.id)
               .join(", ")}.`,
@@ -93,14 +103,13 @@ export function checkAssets(state: CheckState, locate: Locator): void {
           fail(
             "asset/unknown-icon",
             `The icon set "${ref.set}" has no icon "${ref.name}".`,
-            ["icon"],
+            path,
             near === undefined
               ? "List the icons with `sumi catalog --icons <word>`."
               : `Did you mean "${ref.set}/${near}"?`,
           );
         }
       }
-      continue;
     }
 
     if (manifest.embed === "image") {

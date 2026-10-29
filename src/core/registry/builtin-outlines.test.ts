@@ -6,6 +6,7 @@ const registry = createBuiltinRegistry();
 for (const [name, params] of [
   ["trapezoid", { slant: 0.4 }],
   ["stack", { layers: 3, offset: 8 }],
+  ["bowtie", {}],
 ] as const) {
   test(`${name}: manifest, catalog and short-name resolution describe the public component`, () => {
     const resolved = registry.resolve(name, "node");
@@ -15,7 +16,7 @@ for (const [name, params] of [
       kind: "node",
       shape: "rectangle",
       sizing: "auto",
-      since: "0.3.0",
+      since: name === "bowtie" ? "0.7.0" : "0.3.0",
       // A stack has no `filled` (#174): without outlines its rectangles merge.
       variants: [
         "default",

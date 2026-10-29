@@ -50,6 +50,8 @@ jobs:
       # without the Brand category (downloads the package and checks its integrity).
       - name: Icon archive matches the pinned Tabler Icons
         run: bun run icons:check
+      - name: Verify bundled emoji
+        run: bun run emoji:check
 
   # The full suite with the pinned D2 on Linux and macOS: unit tests, the D2
   # integration tests (required here because CI is set) and the byte-for-byte

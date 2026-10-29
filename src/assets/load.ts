@@ -89,6 +89,7 @@ export interface ThirdPartyNotice {
 export interface FigureAssets {
   /** The asset of each icon or image node. */
   nodes: ReadonlyMap<ElementKey, LoadedAsset>;
+  badges?: ReadonlyMap<ElementKey, LoadedIcon>;
   /** sha256 of the asset lines (see the module comment); `undefined` for a figure without assets. */
   sha256?: string;
   notices: readonly ThirdPartyNotice[];
@@ -101,7 +102,9 @@ export interface LoadAssetsOptions {
 
 /** `true` if the figure has icon or image nodes (anything to load). */
 export function hasAssets(ir: FigureIR): boolean {
-  return ir.nodes.some((n) => n.icon !== undefined || n.image !== undefined);
+  return ir.nodes.some(
+    (n) => n.icon !== undefined || n.image !== undefined || n.badge !== undefined,
+  );
 }
 
 const sha256 = (bytes: Uint8Array | string) => createHash("sha256").update(bytes).digest("hex");
@@ -113,13 +116,18 @@ export function loadFigureAssets(
 ): Result<FigureAssets> {
   const diagnostics: Diagnostic[] = [];
   const nodes = new Map<ElementKey, LoadedAsset>();
+  const badges = new Map<ElementKey, LoadedIcon>();
   const lines: string[] = [];
   const notices = new Map<string, ThirdPartyNotice>();
   let total = 0;
 
   for (const node of ir.nodes) {
-    if (node.icon !== undefined) {
-      const { set, name } = node.icon;
+    for (const [role, ref] of [
+      ["badge", node.badge?.icon],
+      ["icon", node.icon],
+    ] as const) {
+      if (ref === undefined) continue;
+      const { set, name } = ref;
       const info = iconSet(set);
       const original = iconSvg(set, name);
       if (info === undefined || original === undefined) {
@@ -130,8 +138,10 @@ export function loadFigureAssets(
         dropInvisible: true,
       });
       if (!imported.ok) throw new Error(`internal error: bundled icon ${set}/${name} is rejected`);
-      nodes.set(node.key, { kind: "icon", set, name, svg: imported.value });
-      lines.push(`icon ${set}/${name}@${info.version} ${sha256(original)}\n`);
+      const icon: LoadedIcon = { kind: "icon", set, name, svg: imported.value };
+      if (role === "badge") badges.set(node.key, icon);
+      else nodes.set(node.key, icon);
+      lines.push(`${role} ${set}/${name}@${info.version} ${sha256(original)}\n`);
       if (!notices.has(set)) {
         notices.set(set, {
           name: info.name,
@@ -141,7 +151,6 @@ export function loadFigureAssets(
           text: iconLicense(set) ?? "",
         });
       }
-      continue;
     }
     const image = node.image;
     if (image === undefined) continue;
@@ -194,6 +203,7 @@ export function loadFigureAssets(
     ok: true,
     value: {
       nodes,
+      ...(badges.size > 0 && { badges }),
       ...(lines.length > 0 && { sha256: sha256(lines.join("")) }),
       notices: [...notices.values()],
     },

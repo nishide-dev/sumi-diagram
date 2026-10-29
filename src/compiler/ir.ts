@@ -25,6 +25,8 @@ import type {
   ArrangeAlign,
   ArrangeBox,
   ArrangeItem,
+  AttachSide,
+  Corner,
   EdgeLabelPosition,
   EdgeLabelSide,
   FanInMode,
@@ -37,7 +39,6 @@ import type {
   LabelRotation,
   LayoutDensity,
   LayoutEngine,
-  Side,
 } from "../core/figure/schema";
 import { nodeOrder } from "../core/figure/tokens";
 import { getProfile } from "../core/profile/builtin";
@@ -154,7 +155,7 @@ export interface SublabelIR {
 /** `nodes[].attach` with the target resolved to a key. */
 export interface AttachIR {
   readonly to: ElementKey;
-  readonly side: Side;
+  readonly side: AttachSide;
   /** Space between the target and the node in pt (0 when omitted). */
   readonly gapPt: number;
 }
@@ -256,6 +257,7 @@ export interface NodeIR extends ObjectIRBase {
   readonly sublabel?: SublabelIR;
   /** A bundled icon drawn in place of the label (#94); the node has no label. */
   readonly icon?: IconIR;
+  readonly badge?: { readonly icon: IconIR; readonly corner: Corner };
   /** The image a `sumi/image` node embeds (#94); the node has no label. */
   readonly image?: ImageIR;
   /**
@@ -493,6 +495,9 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
           sublabel: freeze({ text: n.sublabel, fontSize: sublabelFontSize(style.fontSize) }),
         }),
         ...(n.icon !== undefined && { icon: iconIR(n.icon) }),
+        ...(n.badge !== undefined && {
+          badge: freeze({ icon: iconIR(n.badge.icon), corner: n.badge.corner }),
+        }),
         ...(component.manifest.embed === "image" && {
           image: imageIR(component.props, sourceEntry(["nodes", index, "props", "src"])),
         }),

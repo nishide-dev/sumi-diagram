@@ -8,6 +8,12 @@
 
 配置の `grid` は構造 lint より前の layout 段で検査する。行の残りより大きい span は `layout/grid-span-overflow`（error、`span` の位置）、未完の最終行は `layout/grid-item-count`（error、`items` のキー）。全行を埋め、空けたいセルには hidden junction を置く。null・空文字・空の items・不正な columns / span・direction は位置付きの `schema/*`。これらは `lint/*` の抑制設定では無効にできない（設計 §6.59）。
 
+`geometry/badge-collision`（既定 warning、#188）は、1 em の角バッジの
+足跡がキャンバス外に出る場合、他ノード・ラベル・バッジ・辺、または自身の
+ラベルに重なる場合を `nodes[].badge` に報告する。本体との意図した重なりと
+祖先グループの本体は除外する（祖先グループの見出しは検査する）。`corner` を変えるか、間隔・余白を広げる。
+structured は足跡の張り出しを配置に含め、auto は D2 配置後に合成する。
+
 いずれも自動修正には対応していない（`fixable: false`）。
 
 | code | 既定 | 内容 | 直し方 |

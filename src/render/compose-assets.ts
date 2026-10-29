@@ -8,7 +8,7 @@
  * finalized SVG by XML offsets and leaves every other byte as D2 wrote it.
  */
 
-import { assetMarkup } from "../assets/draw";
+import { assetMarkup, badgeMarkup } from "../assets/draw";
 import type { FigureAssets } from "../assets/load";
 import type { CompiledFigure } from "../compiler/compile";
 import { generateD2 } from "../compiler/d2";
@@ -68,7 +68,9 @@ export function composeAssets(
   inspection: SvgInspection,
   assets: FigureAssets,
 ): Result<string> {
-  const nodes = ir.nodes.filter((n) => n.icon !== undefined || n.image !== undefined);
+  const nodes = ir.nodes.filter(
+    (n) => n.icon !== undefined || n.image !== undefined || n.badge !== undefined,
+  );
   if (nodes.length === 0) return { ok: true, value: svg, diagnostics: [] };
   const parsed = parseXml(svg);
   if (!parsed.ok)
@@ -103,6 +105,11 @@ export function composeAssets(
       };
     }
     inserts.push({ at: shape.end, text: assetMarkup(node, assets.nodes.get(node.key), box) });
+    if (node.badge !== undefined && group !== undefined)
+      inserts.push({
+        at: group.end - 4,
+        text: badgeMarkup(node, assets.badges?.get(node.key), box),
+      });
   }
   let out = svg;
   for (const { at, text } of inserts.sort((a, b) => b.at - a.at)) {

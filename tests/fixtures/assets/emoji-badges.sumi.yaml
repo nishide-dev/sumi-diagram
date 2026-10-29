@@ -1,0 +1,14 @@
+version: 1
+figure:
+  id: emoji-badges
+  theme: paper
+  profile: paper-double
+  layout:
+    arrange:
+      row:
+        items: [lora-in, qkv, lora-out, out-proj]
+nodes:
+  - { id: lora-in, component: bowtie, label: LoRA, tone: pink, variant: filled, badge: { icon: emoji/fire, corner: north-east } }
+  - { id: qkv, component: box, label: QKV, tone: blue, badge: { icon: emoji/snowflake, corner: north-east } }
+  - { id: lora-out, component: bowtie, label: LoRA, tone: pink, variant: filled, badge: { icon: emoji/fire, corner: north-east } }
+  - { id: out-proj, component: box, label: Out Proj., tone: blue, badge: { icon: emoji/snowflake, corner: north-east } }

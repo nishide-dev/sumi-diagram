@@ -112,12 +112,12 @@ const container: GroupManifest = {
   shape: "rectangle",
 };
 
-function outline(name: "trapezoid" | "stack", description: string): NodeManifest {
+function outline(name: "trapezoid" | "stack" | "bowtie", description: string): NodeManifest {
   return {
     ...node(name, "rectangle", description, {
       variants: name === "stack" ? NODE_VARIANTS : FILLABLE_NODE_VARIANTS,
     }),
-    since: "0.3.0",
+    since: name === "bowtie" ? "0.7.0" : "0.3.0",
     render: { type: "outline", renderer: `sumi/${name}` },
   };
 }
@@ -696,6 +696,7 @@ export const BUILTIN_MANIFESTS: readonly ComponentManifest[] = [
   node("cylinder", "cylinder", "A cylinder, e.g. for storage."),
   node("document", "document", "A page with a wavy bottom edge, e.g. for documents."),
   outline("trapezoid", "A trapezoid with a wider top and a narrower bottom."),
+  outline("bowtie", "A bowtie silhouette with two opposing tapered halves and a central waist."),
   outline("stack", "Three overlapping rectangles, e.g. for a collection of documents or layers."),
   node("label", "text", "Text without a border.", { variants: ["default", "muted"] }),
   operator,

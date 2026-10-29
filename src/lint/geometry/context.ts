@@ -4,7 +4,7 @@
  * edge route, plus the canvas and the profile's physical limits.
  */
 
-import { iconRect } from "../../assets/draw";
+import { badgeRect, iconRect } from "../../assets/draw";
 import type { ElementIR, FigureIR, NodeIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type { DiagnosticSubject, DocPath } from "../../core/diagnostics";
@@ -34,6 +34,8 @@ export interface GeometryElement {
   /** Half the stroke width in units: the part of the border drawn inside the outline. */
   strokeInset: number;
   labels: MeasuredLabel[];
+  /** Full badge footprint, allowed to overlap only its own body. */
+  badge?: Rect;
   /** Edge: the route as polylines (cubics flattened). */
   route?: Point[][];
   /**
@@ -152,6 +154,9 @@ export function createGeometryContext(
           ...regions,
         }),
       strokeInset: element.style.strokeWidth.units / 2,
+      ...(element.kind === "node" &&
+        element.badge !== undefined &&
+        geometry.bbox !== undefined && { badge: badgeRect(element, geometry.bbox) as Rect }),
       labels: [
         ...geometry.labels.map((label) => measureLabel(label, fonts)),
         // An icon (#94) is drawn in place of the label: the rules that keep

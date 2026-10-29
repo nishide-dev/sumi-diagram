@@ -46,6 +46,31 @@ const stackParams = z.strictObject({
   offset: z.number().positive().max(64).default(8),
 });
 
+/** A non-self-intersecting hourglass silhouette with a usable central waist. */
+const bowtie: OutlineRenderer = {
+  id: "sumi/bowtie",
+  version: 1,
+  params: z.strictObject({}),
+  footprint({ width, height }) {
+    return { width, height: height * 2 };
+  },
+  draw({ x, y, width, height }) {
+    const outline = [
+      { x, y },
+      { x: x + width / 2, y: y + height / 4 },
+      { x: x + width, y },
+      { x: x + width, y: y + height },
+      { x: x + width / 2, y: y + (height * 3) / 4 },
+      { x, y: y + height },
+    ];
+    return {
+      layers: [body(outline)],
+      outline,
+      safeArea: { x, y: y + height / 4, width, height: height / 2 },
+    };
+  },
+};
+
 const stack: OutlineRenderer<z.output<typeof stackParams>> = {
   id: "sumi/stack",
   version: 1,
@@ -91,7 +116,7 @@ const stack: OutlineRenderer<z.output<typeof stackParams>> = {
 
 /** Closed set of renderers bundled with Sumi; no external code loading. */
 export const BUILTIN_OUTLINE_RENDERERS: ReadonlyMap<string, OutlineRenderer> = new Map(
-  [trapezoid, stack].map((renderer) => [renderer.id, Object.freeze(renderer)]),
+  [trapezoid, stack, bowtie].map((renderer) => [renderer.id, Object.freeze(renderer)]),
 );
 
 export function getOutlineRenderer(id: string): OutlineRenderer | undefined {

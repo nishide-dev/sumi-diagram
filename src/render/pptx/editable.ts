@@ -205,7 +205,9 @@ export function svgToEditablePptx(
   });
   // Icons and images (#94) have no editable DrawingML form yet (research #86
   // §6.2: a separate `p:pic` is stage B). Refuse rather than drop them.
-  const withAssets = ir.nodes.filter((n) => n.icon !== undefined || n.image !== undefined);
+  const withAssets = ir.nodes.filter(
+    (n) => n.icon !== undefined || n.image !== undefined || n.badge !== undefined,
+  );
   if (withAssets.length > 0) {
     return {
       ok: false,
@@ -214,9 +216,12 @@ export function svgToEditablePptx(
         return {
           code: "pptx/unsupported-asset",
           severity: "error",
-          message: `The editable PPTX cannot carry the ${node.icon !== undefined ? "icon" : "image"} of node "${node.id}" yet.`,
+          message: `The editable PPTX cannot carry the ${node.badge !== undefined ? "badge" : node.icon !== undefined ? "icon" : "image"} of node "${node.id}" yet.`,
           ...(source !== undefined && {
-            path: [...source.path, node.icon !== undefined ? "icon" : "component"],
+            path: [
+              ...source.path,
+              node.badge !== undefined ? "badge" : node.icon !== undefined ? "icon" : "component",
+            ],
           }),
           ...(source?.location !== undefined && { location: source.location }),
           subject: { kind: "node", id: node.id },

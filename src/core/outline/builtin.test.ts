@@ -14,10 +14,15 @@ const sizes = [
 const params: Record<string, OutlineParams[]> = {
   "sumi/trapezoid": [{}, { slant: 0 }, { slant: 0.05 }, { slant: 1 }],
   "sumi/stack": [{}, { layers: 1 }, { layers: 2, offset: 0.01 }, { layers: 8, offset: 64 }],
+  "sumi/bowtie": [{}],
 };
 
 test("renderer registry contains only the bundled geometry implementations", () => {
-  expect([...BUILTIN_OUTLINE_RENDERERS.keys()]).toEqual(["sumi/trapezoid", "sumi/stack"]);
+  expect([...BUILTIN_OUTLINE_RENDERERS.keys()]).toEqual([
+    "sumi/trapezoid",
+    "sumi/stack",
+    "sumi/bowtie",
+  ]);
   expect(getOutlineRenderer("trapezoid")).toBeUndefined();
   expect(getOutlineRenderer("other/stack")).toBeUndefined();
 });

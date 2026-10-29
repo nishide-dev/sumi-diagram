@@ -2128,11 +2128,82 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **受け入れ図**: [research/186-color-spans](../../research/186-color-spans/) は #185 の再構成をコピーし、5 つのプロンプトに色と左揃えを付けたもの。元の私有図は参照せず、既存の仮画像を使用する。句の波括弧も文字として保つ。PNG を開いて、色・行頭・箱からのはみ出しがないことを確認した。生成 SVG は gitignore、コミットするプレビューは 150KB 未満。6 行のプロンプトによる `lint/long-label` 5 件と、既存の縮小添字の info は意図した所見として記録する。
 - **検証**: 色境界、入れ子・数式・accent・日本語／Latin fallback、全 Theme の SVG・PDF glyph の色と文字列・編集可能 PPTX の色、literal と auto、不正な文法、左右揃えの測定・sublabel・±90°、dim の継承を統合テストで検査する。label / sublabel のどちらが広い場合も、全行の共有端と ±90° の明示座標を照合し、編集可能 PPTX の段落揃え・左右／上 inset・回転・回転中心を読み戻して検証する。新しい部品・variant は追加しない。
 
+### 6.62 #188 の多色絵文字・角バッジ・角への attach・bowtie
+
+- **判断（2026-10-29 review 対応）**: 利用者の「多色絵文字セットを同梱する」判断に従い、
+  Microsoft の **Fluent Emoji Flat** の汎用 47 点を同梱する。状態記号・警告/情報・電球・
+  rocket・工具・鍵・文書/package・図表・時計・cloud/network/device・robot/brain・人・
+  吹き出し・星・的と fire / snowflake を含む。全名は catalog と Skill assets reference に列挙。
+  MIT 原文は upstream commit
+  `1ffb34c752ecf5d402f04cfb4b392c77f57c54bc` の LICENSE と SHA-256 で照合した
+  （`c2cfccb8…e15383`、1,141 bytes）。Iconify JSON
+  `@iconify-json/fluent-emoji-flat@1.2.6` の tarball を SHA-512 integrity で固定し、
+  path・色を保った SVG に包む。`bun run emoji:build` / `emoji:check` で再現・照合する。
+  フォントや OS の絵文字描画には依存しない。
+- **サイズの実測と範囲**: upstream の npm tarball は **1,172,438 bytes**、
+  全 3,174 named entries を Sumi の SVG JSON gzip にすると **1,154,399 bytes**。
+  47 点の subset は **13,971 bytes**（SHA-256 `b57f5a82…fba633`、license/code は別）。
+  旧 2 点は 1,016 bytes、review の候補 47 点は 14,246 bytes。本採用は同じ汎用カテゴリを
+  満たす 47 点で、全件を importer と両 engine の各出力で検査する。全セットのうち
+  importer が受け入れるのは 2,747 / 3,174 点で、
+  `airplane-arrival` 等は `clipPath` / `defs` / `url(#…)` を持ち、既存の基本図形限定
+  importer（§6.25）が拒否する。全セットには追加の importer 対応が必要なため、
+  汎用 subset を採用する。追加する場合も importer と
+  SVG/PDF/PPTX の経路を通して検証する。`catalog --icons` と `catalog --json` が実際の範囲を示す。
+- **構文**: `icon: emoji/fire` / `emoji/snowflake` はラベルを置き換える（Tabler と同じ）。
+  `badge: { icon: emoji/fire, corner: north-east }` はラベルから独立した 1 em の正方形。
+  `north-east` / `south-east` / `south-west` / `north-west` の bbox の角を中心に重ねる。
+  Tabler の badge も可能。多色は theme / tone で単色化せず、Tabler だけが文字色に従う。
+  **dim の例外**: dim group 内の多色 emoji（icon/badge）は元の色を維持し、
+  `theme/undimmed-image` は出さない。dim と連動する記号には Tabler を使う。回帰テストあり。
+  `legend` / `tokens` / `matrix` と point junction は単独の本体を持たないため
+  `component/badge-unsupported`（error）。画像・outline には使える。
+- **足跡と描画**: structured は本体サイズを保ち、**本体と badge の実際の union** の
+  東西南北の張り出しを個別に保持し、arrange の item、attach の両端、group、canvas に
+  含める。0.5 em 未満の本体では角の反対側にも張り出す。ルーティングの端点は本体のまま。
+  auto は既存の asset composition で D2 の配置後に重ねる（周囲の余白は幾何 lint で確認）。
+  `geometry/badge-collision`（warning）が他の本体・文字・バッジ・辺、自身の文字、canvas 外
+  を検査する。自身の本体と祖先 group の本体包含だけを除き、祖先のタイトルは検査する。
+  診断位置は `nodes[].badge`。tiny body・逆順・attach chain・nested group・辺横断・
+  自身の label/sublabel・実際の fit 縮小を回帰テストに含める。
+- **角の attach**: `attach: { to: frame, side: south-east, gap: 1mm }` など。
+  通常の attach と同じ親・依存順・循環検査で、双方の軸で gap だけ外側に置く。
+  badge の「角の中央」とは異なる。edge anchor の四辺の契約は変えない。
+- **bowtie**: `component: bowtie` は #52 の outline renderer。左右の太い端から中央の
+  waist に絞る、自己交差しない 6 頂点の汎用輪郭。中央の高さ 1/2 を safeArea とし、
+  label fitting は高さを 2 倍にして確保する。全 5 themes × 7 variants
+  （default / emphasis / muted / filled / outlined / solid / tinted。後の 2 つは #214 から）を catalog と gallery に含めた。
+  極端な縦横比・safeArea・単調な fitting は既存の outline oracle で検査する。
+  衝突判定は保守的な凸包、port は順序付きの実輪郭との最初の交点を使い分ける。
+  north/south の中央と 1/4・3/4 anchor が空白で終わらないことを routing 回帰で検査。
+- **出力と告知**: 圧縮 archive と MIT 原文を単一 binary に埋め込む。図には使った SVG のみを
+  埋め込み、SVG metadata / PDF properties / PPTX custom properties に原文を保持する。
+  release は `licenses/fluent-emoji/LICENSE`、`NOTICE`、`README.dist` を保持し、smoke で
+  コンパイル済み binary の bowtie と多色 badge の SVG/PDF/PPTX を確認する。
+  PDF は vector paths、picture PPTX は同じ色の outlined SVG と PNG fallback。
+  editable PPTX は既存の `pptx/unsupported-asset` で badge を明示的に拒否する。
+- **受け入れと互換性**: `research/188-badges-emoji-bowtie/` に #185 の C をコピーし、
+  LoRA 2 個を bowtie + fire、QKV / Out Proj を snowflake badge にした。
+  SVG と PDF raster、PPTX の PNG fallback を目視し、136,568-byte preview を保持。
+  180 × 124.88 mm、fit 84.7%、error / warning は 0（縮小した script の info 1）。
+  変更前の全 140 YAML × 自分の theme + 5 built-ins = 840 cases を実行した。
+  描画可能な 574 cases の SVG/PDF/PPTX と 222 D2 sources はすべて SHA-256 が一致。
+  既に無効な `research/86-paper-figures/figures/ideal/c-h3world.sumi.yaml` は badge が認識され
+  6 theme 選択で schema error が減るが、変更前後とも出力はない。既存の描画出力の変更は 0。
+  追加 golden は bowtie gallery と emoji-badges fixture。診断の golden は既知の部品一覧に
+  bowtie が増えるだけ。wrapper のテストは TMPDIR が checkout 内でもインストール先の
+  隔離を模擬できるよう、fixture の dirname に境界を設けた（製品 wrapper は変更なし）。
+  review 修正後にも同じ 840 cases を再実行し、574 cases の SVG/PDF/PPTX と 222 D2 の
+  hash がすべて一致。既存 golden は更新なし。`check` / `typecheck` / `CI=1 bun test`
+  （2,873 pass / 13 skip / 0 fail）/ `gallery:check`（160 files）/ `schema:check` /
+  `emoji:check` が成功した。
+
+
 ### 6.63 #214 の濃い塗りと色付き淡色面（`solid` / `tinted`）
 
-- **構文と対象**: shape node の variant に `solid` と `tinted` を追加する。box・square・circle・ellipse・diamond・hexagon・parallelogram・cylinder・document・trapezoid・stack・operator の 12 部品が対象。tokens の共通 `props.variant` とセルごとの `variant`、legend の `node.variant` は既存の Registry 検証・展開を通るので同じ名前が使える。tone 未指定時は gray。新しい YAML field・診断は増やさない。
+- **構文と対象**: shape node の variant に `solid` と `tinted` を追加する。box・square・circle・ellipse・diamond・hexagon・parallelogram・cylinder・document・trapezoid・stack・operator の 12 部品が対象（#188 の bowtie を加えて 13 部品）。tokens の共通 `props.variant` とセルごとの `variant`、legend の `node.variant` は既存の Registry 検証・展開を通るので同じ名前が使える。tone 未指定時は gray。新しい YAML field・診断は増やさない。
 - **色の組み合わせ**: `solid` は `toneLines.<tone>.stroke` を塗りと枠に使い、文字は白。例外として solid stack の枠は白にする。同色の塗りと枠では重なった矩形の境界が消えるため、白い区切りで全層を区別する（文字と同じ 4.5:1 以上）。`tinted` は `tones.<tone>.fill` を面に使い、同じ tone の line 色を枠と文字に使う。全 Theme の components に両 variant の gray の基本値を定義し、解決時に palette を合成する。線幅は既存の通常線幅を使い、`filled` と同じ線幅 0 にはしない。
-- **4.5:1 と互換性の両立**: 既存の line 色は白地で 4.5:1 以上だが、淡色面では不足する tone がある。既存の `tones` / `toneLines` は変更しない。tinted に限り、line 色の RGB を黒へ 1% 刻みで混ぜ、量子化後の相対輝度で文字と面の比が 4.5:1 以上となる最初の色を枠・文字に採用する。これにより元の淡色面と色相を保つ。solid は既存 line 色と白で条件を満たす。全 12 部品 × 全 5 Theme × 全 8 tone と tone 未指定を実測する。dim は意図した薄表示なのでこのコントラスト条件の対象外。
+- **4.5:1 と互換性の両立**: 既存の line 色は白地で 4.5:1 以上だが、淡色面では不足する tone がある。既存の `tones` / `toneLines` は変更しない。tinted に限り、line 色の RGB を黒へ 1% 刻みで混ぜ、量子化後の相対輝度で文字と面の比が 4.5:1 以上となる最初の色を枠・文字に採用する。これにより元の淡色面と色相を保つ。solid は既存 line 色と白で条件を満たす。全 12 部品（#188 の後は bowtie を含む 13 部品）× 全 5 Theme × 全 8 tone と tone 未指定を実測する。dim は意図した薄表示なのでこのコントラスト条件の対象外。
 - **§6.53 の dim**: palette 合成後に dim pass を 1 回適用する。文字と枠は dim gray、面は white へ lighten。solid は fill と stroke が等しくても junction の点のような「ink」ではなく面として扱う。面と文字がほぼ同じ輝度になる tone があるため、solid の文字は dim gray を黒へ 1% 刻みで混ぜ、量子化後の文字 / 面のコントラストが **3:1 以上**となる最初の色を使う。薄表示を保ちつつ最低限の可読性を確保し、既存 palette と lighten は変えない。dimmed solid stack の枠はこの文字色を使い、層の境界にも 3:1 以上を保証する。既存の点・矢じり・他 variant の判定は同じ。Skill の 4.5:1 の説明は非 dim ノードに限定する。
 - **発見性と作例**: catalog の全 shape manifest、全 Theme × 全 variant の部品 gallery、全 Theme × 8 tone の solid/tinted gallery（tokens と legend）を更新する。7 variant の横一列は paper-double の幅を超えるため、shape の部品見本だけ structured の 2 行にする。D2 の全 variant × 全 Theme 描画テストも維持する。`research/214-solid-tinted/figures/c-h3world.sumi.yaml` は #185 の写しで、押したキーと ⊕ を solid、全 Encoder と A のセルを tinted にする。placeholder の frame は描画スクリプトが #185 から ignored directory に複製し、SVG/PDF は out/、コミットする画像は previews/ の PNG 1 枚（150KB 未満）。
 - **出力検査**: 変更前の 140 YAML ×（元 Theme + 5 Theme）= 840 通りを再描画。成功した 574 通りの SVG / PDF / PPTX と auto の D2 の sha256 はすべて一致。失敗例も同じ失敗で、unknown-variant の候補が増える既存 fixture 1 枚 × 6 通りだけ診断文が変わる。gallery の変更は新 variant を示す部品 SVG 60 枚・新 tone SVG 5 枚と索引 2 枚。全変更 gallery と受け入れ図を PNG で確認する。詳細は [検証記録](../../research/214-solid-tinted/README.md)。

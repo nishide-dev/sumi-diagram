@@ -62,6 +62,32 @@ export function nodeRegion(node: NodeIR, rect: Rect): Region {
   return node.shape === "text" ? rectPolygon(rect) : shapeOutline(node.shape, rect);
 }
 
+/** First intersection with the ordered, possibly concave port silhouette.
+ * Collision checks deliberately keep using the conservative convex region.
+ */
+function nodeBoundaryEntry(a: Point, b: Point, node: NodeIR, rect: Rect): number | undefined {
+  if (node.render === undefined) return boundaryEntry(a, b, nodeRegion(node, rect));
+  const renderer = getOutlineRenderer(node.render.renderer);
+  if (!renderer)
+    throw new Error(`internal error: unknown outline renderer ${node.render.renderer}`);
+  const points = renderer.draw(rect, renderer.params.parse(node.render.params ?? {})).outline;
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  let first: number | undefined;
+  for (const [i, p] of points.entries()) {
+    const q = points[(i + 1) % points.length] as Point;
+    const ex = q.x - p.x;
+    const ey = q.y - p.y;
+    const cross = dx * ey - dy * ex;
+    if (Math.abs(cross) < 1e-9) continue;
+    const t = ((p.x - a.x) * ey - (p.y - a.y) * ex) / cross;
+    const u = ((p.x - a.x) * dy - (p.y - a.y) * dx) / cross;
+    if (t >= -1e-9 && t <= 1 + 1e-9 && u >= -1e-9 && u <= 1 + 1e-9)
+      first = Math.min(first ?? 1, Math.max(0, t));
+  }
+  return first;
+}
+
 /**
  * The first `t ∈ [0, 1]` where `a + t (b - a)` meets the closed `region`,
  * touching included (a ray along a polygon side, or tangent to an ellipse,
@@ -1210,13 +1236,15 @@ function resolveEndsWith(
       const depth = outward % 2 === 0 ? self.rect.width : self.rect.height;
       const d = DIRS[opposite(outward)] as Point;
       const far = { x: port.x + d.x * depth, y: port.y + d.y * depth };
-      const regions = self.node.image?.layers
-        ? imageLayerRects(self.node, self.rect).map(rectPolygon)
-        : [nodeRegion(self.node, self.rect)];
-      const hits = regions.flatMap((region) => {
-        const t = boundaryEntry(port, far, region);
-        return t === undefined ? [] : [t];
-      });
+      const hits = self.node.image?.layers
+        ? imageLayerRects(self.node, self.rect).flatMap((r) => {
+            const hit = boundaryEntry(port, far, rectPolygon(r));
+            return hit === undefined ? [] : [hit];
+          })
+        : (() => {
+            const hit = nodeBoundaryEntry(port, far, self.node, self.rect);
+            return hit === undefined ? [] : [hit];
+          })();
       const t = hits.length > 0 ? Math.min(...hits) : undefined;
       if (t !== undefined && t > 0) {
         outline = {

@@ -103,6 +103,7 @@ only layout engines a component works in. The theme's `compatibleProfiles`
 must include the profile, else labelled elements fail with
 `profile/font-too-small`. Page limits and spacing are in `profiles`
 ([figure-format](references/figure-format.md#discovering-themes-and-profiles)).
+Colour symbols: 47 bundled `emoji/` names ([assets](references/assets.md#icons), catalog) keep their palette even in dimmed groups; Tabler follows text colour.
 
 ### 4. Write the figure
 

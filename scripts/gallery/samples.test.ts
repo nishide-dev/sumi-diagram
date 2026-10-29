@@ -84,6 +84,7 @@ test("only slides rows of more than three node or group variants use the wide pr
     "sumi/cylinder",
     "sumi/document",
     "sumi/trapezoid",
+    "sumi/bowtie",
     // Six variants with solid and tinted (#214).
     "sumi/stack",
     "sumi/container",
