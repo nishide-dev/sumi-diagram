@@ -65,6 +65,7 @@ const SHAPE_NODES = [
 const EDGES = ["arrow", "line", "double-arrow"];
 
 interface VariantStyles {
+  operator?: { default: StyleLayerInput };
   shape: {
     emphasis: StyleLayerInput;
     muted: StyleLayerInput;
@@ -135,6 +136,7 @@ function componentStyles(styles: VariantStyles): NonNullable<ThemeDefinition["co
   const { filled: _, ...stack } = shape;
   return {
     ...Object.fromEntries(SHAPE_NODES.map((name) => [name, shape])),
+    ...(styles.operator && { operator: { ...shape, ...styles.operator } }),
     // Without outlines a stack's rectangles merge into one shape (#174).
     stack: { ...stack, solid: { ...stack.solid, stroke: "#ffffff" } },
     label: styles.label,
@@ -647,6 +649,10 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
           // White with a colored frame and text: H3-World's encoders, tokens and keys (#177).
           outlined: outlinedNode("{color.paper}", "{ink.gray}"),
         },
+        // The circle is twice the glyph's font size: 14pt rather than 16pt
+        // (#215). A 0.5pt frame balances the smaller regular-weight symbol
+        // with paper's edges; emphasis retains its existing bold frame.
+        operator: { default: { fontSize: "{size.small}", strokeWidth: "{line.edge}" } },
         label: {
           default: { fill: "transparent", strokeWidth: "0pt" },
           muted: { fontColor: "{color.muted}" },

@@ -333,7 +333,10 @@ Always take these from `sumi catalog --json`. Each entry has `id`
 - `operator` draws a small circle with a symbol (`props.symbol`: `plus`,
   `minus`, `times`, `dot` or `concat`) and `junction` a small dot where lines
   branch or merge. Both take **no label** (`component/unexpected-label`) and no
-  size props: the theme sizes them. `junction` takes no `tone`. Connect into a
+  size props: the theme sizes them. In `paper`, an operator has a 7pt symbol
+  in a 14pt circle with a 0.5pt outline (emphasis: 1.5pt; filled: no outline).
+  These are sizes before `fit: scale`; other themes keep their own sizes.
+  `junction` takes no `tone`. Connect into a
   junction with `line` (an arrowhead would cover the dot). `variant: hidden`
   draws no dot: lines meet smoothly there (use it only where no other line
   crosses nearby, since the dot is what tells a join from a crossing), and an
