@@ -611,6 +611,7 @@ function arrangeSides(
   const groups = new Map(ir.groups.map((g) => [g.key, g]));
   const walk = (box: ArrangeBoxIR, prefix: readonly Step[]) => {
     for (const [index, item] of box.items.entries()) {
+      if (item === null) continue;
       const path = [...prefix, { box, index }];
       if (typeof item === "string") {
         paths.set(item, path);
@@ -644,6 +645,7 @@ function arrangeSides(
       const sb = b[k] as Step;
       if (sa.box !== sb.box) return undefined;
       if (sa.index === sb.index) continue;
+      if (sa.box.kind === "grid") return undefined;
       const ra = rectOf(self);
       const rb = rectOf(other);
       const ca = center(ra);
