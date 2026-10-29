@@ -12,9 +12,19 @@ const sizes = [
   { width: 160, height: 80 },
 ];
 const params: Record<string, OutlineParams[]> = {
-  "sumi/trapezoid": [{}, { slant: 0 }, { slant: 0.05 }, { slant: 1 }],
+  "sumi/trapezoid": [
+    {},
+    { slant: 0 },
+    { slant: 0.05 },
+    { slant: 1 },
+    ...["north", "east", "west"].flatMap((narrow) => [
+      { narrow },
+      { narrow, slant: 0 },
+      { narrow, slant: 1 },
+    ]),
+  ],
   "sumi/stack": [{}, { layers: 1 }, { layers: 2, offset: 0.01 }, { layers: 8, offset: 64 }],
-  "sumi/bowtie": [{}],
+  "sumi/bowtie": [{}, { gap: 0 }, { gap: 8 }, { gap: 64 }],
 };
 
 test("renderer registry contains only the bundled geometry implementations", () => {

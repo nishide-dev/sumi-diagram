@@ -113,7 +113,12 @@ export function composeOutlines(
     };
     const drawings = new Map<
       ElementKey,
-      { bbox: Rect; outlines: readonly (readonly Point[])[]; image?: boolean }
+      {
+        bbox: Rect;
+        outlines: readonly (readonly Point[])[];
+        image?: boolean;
+        disconnected?: boolean;
+      }
     >();
     for (const node of nodes) {
       current = node.key;
@@ -137,7 +142,11 @@ export function composeOutlines(
       if (shapes.length !== 1 || !shape || children?.length !== 1 || rect?.name !== "rect")
         throw new Error(`${node.key}: expected exactly one g.shape > rect placeholder.`);
       const drawing = drawNodeOutline(node, bbox);
-      drawings.set(node.key, { bbox, outlines: [drawing.outline] });
+      drawings.set(node.key, {
+        bbox,
+        outlines: drawing.boundaries ?? [drawing.outline],
+        ...(drawing.boundaries && { disconnected: true }),
+      });
       const paint = rect.attributes.filter((a) => !PATH_GEOMETRY.has(a.name));
       const layers = drawing.layers
         .map((layer) => {
@@ -202,7 +211,7 @@ export function composeOutlines(
         if (!custom) continue;
         const index = end === "source" ? 0 : original.length - 1;
         const segment = original[index] as PathSegment;
-        const point = segment.to;
+        let point = segment.to;
         const adjacent = end === "source" ? (original[1] as PathSegment) : segment;
         const neighbour =
           end === "source"
@@ -217,6 +226,24 @@ export function composeOutlines(
           x: (point.x - neighbour.x) / length,
           y: (point.y - neighbour.y) / length,
         };
+        let lateral = 0;
+        // A vertical approach through a disconnected bowtie's gap must end on
+        // a painted lip. Translate the endpoint ray, retaining its tangent.
+        if (custom.disconnected && Math.abs(direction.x) < 1e-9) {
+          const spans = custom.outlines.map((points) => ({
+            min: Math.min(...points.map((p) => p.x)),
+            max: Math.max(...points.map((p) => p.x)),
+          }));
+          if (!spans.some((span) => point.x >= span.min && point.x <= span.max)) {
+            const nearest = spans
+              .flatMap((span) => [span.min, span.max])
+              .sort((a, b) => Math.abs(a - point.x) - Math.abs(b - point.x) || a - b)[0];
+            if (nearest !== undefined) {
+              lateral = nearest - point.x;
+              point = { ...point, x: nearest };
+            }
+          }
+        }
         const usable = length > 1e-9 && !insideRect(custom.bbox, point);
         const rectDistance = usable ? rayHit(rectPoints(custom.bbox), point, direction) : undefined;
         const hits = usable
@@ -253,12 +280,12 @@ export function composeOutlines(
           continue;
         }
         // Ends that are not normal reach this point only when flush.
-        if (delta <= 1e-9 || !normal) continue;
+        if ((delta <= 1e-9 && lateral === 0) || !normal) continue;
         const shift = (p: Point): Point => ({
-          x: p.x + direction.x * delta,
+          x: p.x + direction.x * delta + lateral,
           y: p.y + direction.y * delta,
         });
-        const moved = shift(point);
+        const moved = shift(segment.to);
         route[index] = { ...(route[index] as PathSegment), to: moved };
         if (end === "source" && route[1]?.command === "C")
           route[1] = { ...route[1], c1: shift(route[1].c1) };

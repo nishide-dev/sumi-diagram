@@ -638,11 +638,12 @@ A trapezoid with a wider top and a narrower bottom\.
 | --- | --- | --- | --- |
 | <code>width</code> | <code>string</code> | no | Explicit width as a length such as &quot;30mm&quot; or &quot;40pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
 | <code>height</code> | <code>string</code> | no | Explicit height as a length such as &quot;10mm&quot; or &quot;20pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
+| <code>narrow</code> | <code>&quot;south&quot; &#124; &quot;north&quot; &#124; &quot;east&quot; &#124; &quot;west&quot;</code> | no | Side with the narrow parallel edge; omitted means south \(wide top\)\. |
 
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> |
 | --- | --- | --- | --- | --- |
 | <img src="components/sumi-trapezoid.minimal.svg" alt="sumi/trapezoid, theme minimal"> | <img src="components/sumi-trapezoid.academic.svg" alt="sumi/trapezoid, theme academic"> | <img src="components/sumi-trapezoid.slides.svg" alt="sumi/trapezoid, theme slides"> | <img src="components/sumi-trapezoid.color.svg" alt="sumi/trapezoid, theme color"> | <img src="components/sumi-trapezoid.paper.svg" alt="sumi/trapezoid, theme paper"> |
-| <code>sumi render sumi\-trapezoid\.sumi\.yaml</code><br>100\.37mm × 19\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-trapezoid\.sumi\.yaml \-\-theme academic</code><br>100\.19mm × 19\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-trapezoid\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>199\.67mm × 40\.22mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-trapezoid\.sumi\.yaml \-\-theme color</code><br>100\.37mm × 19\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-trapezoid\.sumi\.yaml \-\-theme paper</code><br>93\.31mm × 19\.93mm \(max width 180mm, max height 220mm\) |
+| <code>sumi render sumi\-trapezoid\.sumi\.yaml</code><br>143\.05mm × 137\.05mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-trapezoid\.sumi\.yaml \-\-theme academic</code><br>143\.05mm × 137\.05mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-trapezoid\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>199\.67mm × 181\.33mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-trapezoid\.sumi\.yaml \-\-theme color</code><br>143\.05mm × 137\.05mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-trapezoid\.sumi\.yaml \-\-theme paper</code><br>143\.05mm × 137\.05mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-trapezoid.sumi.yaml</code></summary>
@@ -661,6 +662,12 @@ figure:
         items:
           - row: { items: [default, emphasis, muted, filled] }
           - row: { items: [outlined, solid, tinted] }
+          - row: { items: [north-default, north-emphasis, north-muted, north-filled] }
+          - row: { items: [north-outlined, north-solid, north-tinted] }
+          - row: { items: [east-default, east-emphasis, east-muted, east-filled] }
+          - row: { items: [east-outlined, east-solid, east-tinted] }
+          - row: { items: [west-default, west-emphasis, west-muted, west-filled] }
+          - row: { items: [west-outlined, west-solid, west-tinted] }
 
 nodes:
   - id: default
@@ -690,6 +697,27 @@ nodes:
     component: sumi/trapezoid
     label: tinted
     variant: tinted
+  - { id: north-default, component: trapezoid, label: "north", variant: default, props: { narrow: north, width: 90pt, height: 44pt } }
+  - { id: north-emphasis, component: trapezoid, label: "north", variant: emphasis, props: { narrow: north, width: 90pt, height: 44pt } }
+  - { id: north-muted, component: trapezoid, label: "north", variant: muted, props: { narrow: north, width: 90pt, height: 44pt } }
+  - { id: north-filled, component: trapezoid, label: "north", variant: filled, props: { narrow: north, width: 90pt, height: 44pt } }
+  - { id: north-outlined, component: trapezoid, label: "north", variant: outlined, props: { narrow: north, width: 90pt, height: 44pt } }
+  - { id: north-solid, component: trapezoid, label: "north", variant: solid, props: { narrow: north, width: 90pt, height: 44pt } }
+  - { id: north-tinted, component: trapezoid, label: "north", variant: tinted, props: { narrow: north, width: 90pt, height: 44pt } }
+  - { id: east-default, component: trapezoid, label: "east", variant: default, props: { narrow: east, width: 90pt, height: 44pt } }
+  - { id: east-emphasis, component: trapezoid, label: "east", variant: emphasis, props: { narrow: east, width: 90pt, height: 44pt } }
+  - { id: east-muted, component: trapezoid, label: "east", variant: muted, props: { narrow: east, width: 90pt, height: 44pt } }
+  - { id: east-filled, component: trapezoid, label: "east", variant: filled, props: { narrow: east, width: 90pt, height: 44pt } }
+  - { id: east-outlined, component: trapezoid, label: "east", variant: outlined, props: { narrow: east, width: 90pt, height: 44pt } }
+  - { id: east-solid, component: trapezoid, label: "east", variant: solid, props: { narrow: east, width: 90pt, height: 44pt } }
+  - { id: east-tinted, component: trapezoid, label: "east", variant: tinted, props: { narrow: east, width: 90pt, height: 44pt } }
+  - { id: west-default, component: trapezoid, label: "west", variant: default, props: { narrow: west, width: 90pt, height: 44pt } }
+  - { id: west-emphasis, component: trapezoid, label: "west", variant: emphasis, props: { narrow: west, width: 90pt, height: 44pt } }
+  - { id: west-muted, component: trapezoid, label: "west", variant: muted, props: { narrow: west, width: 90pt, height: 44pt } }
+  - { id: west-filled, component: trapezoid, label: "west", variant: filled, props: { narrow: west, width: 90pt, height: 44pt } }
+  - { id: west-outlined, component: trapezoid, label: "west", variant: outlined, props: { narrow: west, width: 90pt, height: 44pt } }
+  - { id: west-solid, component: trapezoid, label: "west", variant: solid, props: { narrow: west, width: 90pt, height: 44pt } }
+  - { id: west-tinted, component: trapezoid, label: "west", variant: tinted, props: { narrow: west, width: 90pt, height: 44pt } }
 ```
 
 </details>
@@ -704,11 +732,12 @@ A bowtie silhouette with two opposing tapered halves and a central waist\.
 | --- | --- | --- | --- |
 | <code>width</code> | <code>string</code> | no | Explicit width as a length such as &quot;30mm&quot; or &quot;40pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
 | <code>height</code> | <code>string</code> | no | Explicit height as a length such as &quot;10mm&quot; or &quot;20pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
+| <code>gap</code> | <code>number</code> | no | Horizontal separation of the two tapered halves in D2 units \(0\.5pt each\), from 0 to 64; omitted or 0 keeps the joined silhouette\. Clamped to half the drawn width for small explicit sizes\. |
 
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> |
 | --- | --- | --- | --- | --- |
 | <img src="components/sumi-bowtie.minimal.svg" alt="sumi/bowtie, theme minimal"> | <img src="components/sumi-bowtie.academic.svg" alt="sumi/bowtie, theme academic"> | <img src="components/sumi-bowtie.slides.svg" alt="sumi/bowtie, theme slides"> | <img src="components/sumi-bowtie.color.svg" alt="sumi/bowtie, theme color"> | <img src="components/sumi-bowtie.paper.svg" alt="sumi/bowtie, theme paper"> |
-| <code>sumi render sumi\-bowtie\.sumi\.yaml</code><br>80\.61mm × 31\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-bowtie\.sumi\.yaml \-\-theme academic</code><br>80\.43mm × 31\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-bowtie\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>160\.87mm × 64\.21mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-bowtie\.sumi\.yaml \-\-theme color</code><br>80\.61mm × 31\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-bowtie\.sumi\.yaml \-\-theme paper</code><br>73\.55mm × 31\.93mm \(max width 180mm, max height 220mm\) |
+| <code>sumi render sumi\-bowtie\.sumi\.yaml</code><br>80\.61mm × 64\.03mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-bowtie\.sumi\.yaml \-\-theme academic</code><br>80\.43mm × 64\.03mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-bowtie\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>160\.87mm × 128\.23mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-bowtie\.sumi\.yaml \-\-theme color</code><br>80\.61mm × 64\.03mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-bowtie\.sumi\.yaml \-\-theme paper</code><br>73\.55mm × 64\.03mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-bowtie.sumi.yaml</code></summary>
@@ -727,6 +756,8 @@ figure:
         items:
           - row: { items: [default, emphasis, muted, filled] }
           - row: { items: [outlined, solid, tinted] }
+          - row: { items: [split-default, split-emphasis, split-muted, split-filled] }
+          - row: { items: [split-outlined, split-solid, split-tinted] }
 
 nodes:
   - id: default
@@ -756,6 +787,13 @@ nodes:
     component: sumi/bowtie
     label: tinted
     variant: tinted
+  - { id: split-default, component: bowtie, label: "default", variant: default, props: { gap: 8 } }
+  - { id: split-emphasis, component: bowtie, label: "emphasis", variant: emphasis, props: { gap: 8 } }
+  - { id: split-muted, component: bowtie, label: "muted", variant: muted, props: { gap: 8 } }
+  - { id: split-filled, component: bowtie, label: "filled", variant: filled, props: { gap: 8 } }
+  - { id: split-outlined, component: bowtie, label: "outlined", variant: outlined, props: { gap: 8 } }
+  - { id: split-solid, component: bowtie, label: "solid", variant: solid, props: { gap: 8 } }
+  - { id: split-tinted, component: bowtie, label: "tinted", variant: tinted, props: { gap: 8 } }
 ```
 
 </details>

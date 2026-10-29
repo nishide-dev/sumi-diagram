@@ -32,8 +32,15 @@ for (const [name, params] of [
     const entry = buildCatalog(registry).components.find((e) => e.id === `sumi/${name}`);
     expect(entry?.description.length).toBeGreaterThan(20);
     expect(entry?.kind === "node" && entry.render).toEqual(resolved.value.render);
-    expect(Object.keys(entry?.props.properties ?? {}).sort()).toEqual(["height", "width"]);
-    for (const prop of Object.values(entry?.props.properties ?? {})) {
+    expect(Object.keys(entry?.props.properties ?? {}).sort()).toEqual(
+      [
+        "height",
+        "width",
+        ...(name === "bowtie" ? ["gap"] : name === "trapezoid" ? ["narrow"] : []),
+      ].sort(),
+    );
+    for (const key of ["height", "width"]) {
+      const prop = entry?.props.properties?.[key];
       expect(prop).toMatchObject({
         type: "string",
         description: expect.stringContaining("Explicit"),

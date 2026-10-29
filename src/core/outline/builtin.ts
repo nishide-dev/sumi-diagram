@@ -16,16 +16,41 @@ const body = (points: readonly Point[]): OutlineDrawing["layers"][number] => ({
 
 const trapezoidParams = z.strictObject({
   slant: z.number().min(0).max(1).default(0.4),
+  narrow: z.enum(["south", "north", "east", "west"]).optional(),
 });
 
 const trapezoid: OutlineRenderer<z.output<typeof trapezoidParams>> = {
   id: "sumi/trapezoid",
   version: 1,
   params: trapezoidParams,
-  footprint({ width, height }, { slant }) {
+  footprint({ width, height }, { slant, narrow = "south" }) {
+    if (narrow === "east" || narrow === "west")
+      return { width, height: height + 2 * slant * width };
     return { width: width + 2 * slant * height, height };
   },
-  draw({ x, y, width, height }, { slant }) {
+  draw({ x, y, width, height }, { slant, narrow = "south" }) {
+    if (narrow === "east" || narrow === "west") {
+      const inset = Math.min(slant * width, height / 4);
+      const outline =
+        narrow === "east"
+          ? [
+              { x, y },
+              { x: x + width, y: y + inset },
+              { x: x + width, y: y + height - inset },
+              { x, y: y + height },
+            ]
+          : [
+              { x, y: y + inset },
+              { x: x + width, y },
+              { x: x + width, y: y + height },
+              { x, y: y + height - inset },
+            ];
+      return {
+        layers: [body(outline)],
+        outline,
+        safeArea: { x, y: y + inset, width, height: height - 2 * inset },
+      };
+    }
     const inset = Math.min(slant * height, width / 4);
     const outline = [
       { x, y },
@@ -33,6 +58,12 @@ const trapezoid: OutlineRenderer<z.output<typeof trapezoidParams>> = {
       { x: x + width - inset, y: y + height },
       { x: x + inset, y: y + height },
     ];
+    if (narrow === "north") {
+      outline[0] = { x: x + inset, y };
+      outline[1] = { x: x + width - inset, y };
+      outline[2] = { x: x + width, y: y + height };
+      outline[3] = { x, y: y + height };
+    }
     return {
       layers: [body(outline)],
       outline,
@@ -50,11 +81,36 @@ const stackParams = z.strictObject({
 const bowtie: OutlineRenderer = {
   id: "sumi/bowtie",
   version: 1,
-  params: z.strictObject({}),
+  params: z.strictObject({ gap: z.number().finite().min(0).max(64).optional() }),
   footprint({ width, height }) {
     return { width, height: height * 2 };
   },
-  draw({ x, y, width, height }) {
+  draw({ x, y, width, height }, { gap = 0 }) {
+    if (typeof gap === "number" && gap > 0) {
+      const separation = Math.min(gap, width / 2);
+      const left = x + (width - separation) / 2;
+      const right = left + separation;
+      const boundaries = [
+        [
+          { x, y },
+          { x: left, y: y + height / 4 },
+          { x: left, y: y + (height * 3) / 4 },
+          { x, y: y + height },
+        ],
+        [
+          { x: right, y: y + height / 4 },
+          { x: x + width, y },
+          { x: x + width, y: y + height },
+          { x: right, y: y + (height * 3) / 4 },
+        ],
+      ];
+      return {
+        layers: boundaries.map(body),
+        boundaries,
+        outline: rectangle({ x, y, width, height }),
+        safeArea: { x, y: y + height / 4, width, height: height / 2 },
+      };
+    }
     const outline = [
       { x, y },
       { x: x + width / 2, y: y + height / 4 },

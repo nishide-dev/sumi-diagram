@@ -137,6 +137,30 @@ export function sampleSource(entry: CatalogEntry, theme: string): string {
       "        items:",
       `          - row: { items: [${variants.slice(0, 4).join(", ")}] }`,
       `          - row: { items: [${variants.slice(4).join(", ")}] }`,
+      ...(entry.id === "sumi/bowtie"
+        ? [
+            `          - row: { items: [${variants
+              .slice(0, 4)
+              .map((v) => `split-${v}`)
+              .join(", ")}] }`,
+            `          - row: { items: [${variants
+              .slice(4)
+              .map((v) => `split-${v}`)
+              .join(", ")}] }`,
+          ]
+        : []),
+      ...(entry.id === "sumi/trapezoid"
+        ? ["north", "east", "west"].flatMap((side) => [
+            `          - row: { items: [${variants
+              .slice(0, 4)
+              .map((v) => `${side}-${v}`)
+              .join(", ")}] }`,
+            `          - row: { items: [${variants
+              .slice(4)
+              .map((v) => `${side}-${v}`)
+              .join(", ")}] }`,
+          ])
+        : []),
     );
   }
   if (entry.kind === "node" && entry.embed !== undefined) {
@@ -153,6 +177,19 @@ export function sampleSource(entry: CatalogEntry, theme: string): string {
       for (const v of variants) {
         lines.push(`  - id: ${v}`, `    component: ${entry.id}`, `    label: ${v}`);
         if (v !== "default") lines.push(`    variant: ${v}`);
+      }
+      if (entry.id === "sumi/bowtie") {
+        for (const v of variants)
+          lines.push(
+            `  - { id: split-${v}, component: bowtie, label: "${v}", variant: ${v}, props: { gap: 8 } }`,
+          );
+      }
+      if (entry.id === "sumi/trapezoid") {
+        for (const narrow of ["north", "east", "west"])
+          for (const v of variants)
+            lines.push(
+              `  - { id: ${narrow}-${v}, component: trapezoid, label: "${narrow}", variant: ${v}, props: { narrow: ${narrow}, width: 90pt, height: 44pt } }`,
+            );
       }
       break;
     case "group":

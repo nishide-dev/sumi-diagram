@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import type { EdgeIR, FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type { Diagnostic } from "../../core/diagnostics";
+import { getOutlineRenderer } from "../../core/outline";
 import type { Result } from "../../core/result";
 import { type FontSet, getFontSet } from "../../core/theme/fonts";
 import { fontFileFor, measureLabel } from "../../lint/geometry/measure";
@@ -136,6 +137,7 @@ function geometry(
   paths: { segments: PathSegment[]; filled: boolean }[],
   box: Rect,
   emu: (n: number) => number,
+  connectionPoints?: readonly Point[],
 ): string {
   const point = (p: Point) => `<a:pt x="${emu(p.x - box.x)}" y="${emu(p.y - box.y)}"/>`;
   const body = paths
@@ -157,14 +159,23 @@ function geometry(
       return `<a:path w="${Math.max(1, emu(box.width))}" h="${Math.max(1, emu(box.height))}"${filled ? "" : ' fill="none"'}>${commands}</a:path>`;
     })
     .join("");
-  return `<a:custGeom><a:avLst/><a:gdLst/><a:ahLst/>${sites}<a:rect l="0" t="0" r="r" b="b"/><a:pathLst>${body}</a:pathLst></a:custGeom>`;
+  const connections = connectionPoints?.length
+    ? `<a:cxnLst>${connectionPoints.map((p) => `<a:cxn ang="0"><a:pos x="${emu(p.x - box.x)}" y="${emu(p.y - box.y)}"/></a:cxn>`).join("")}</a:cxnLst>`
+    : sites;
+  return `<a:custGeom><a:avLst/><a:gdLst/><a:ahLst/>${connections}<a:rect l="0" t="0" r="r" b="b"/><a:pathLst>${body}</a:pathLst></a:custGeom>`;
 }
 interface ObjectSite {
   id: number;
   box: Rect;
   ellipse: boolean;
+  connectionPoints?: readonly Point[];
 }
 function site(shape: ObjectSite, p: Point) {
+  if (shape.connectionPoints?.length) {
+    const distances = shape.connectionPoints.map((q) => Math.hypot(q.x - p.x, q.y - p.y));
+    const index = distances.indexOf(Math.min(...distances));
+    return { index, point: shape.connectionPoints[index] as Point };
+  }
   const b = shape.box;
   const distances = [
     Math.abs(p.y - b.y),
@@ -541,10 +552,36 @@ export function svgToEditablePptx(
         measured ?? { x: label?.anchor.x ?? vb.x, y: label?.anchor.y ?? vb.y, width: 1, height: 1 };
       const ellipse =
         primitives.length === 1 && ["circle", "ellipse"].includes(primitives[0]?.name ?? "");
+      // New directional / disconnected outlines need their painted contacts,
+      // not the legacy bounding-box sites (which may be in the empty gap).
+      const preciseSites =
+        element.kind === "node" &&
+        element.render !== undefined &&
+        ((element.render.renderer === "sumi/bowtie" &&
+          typeof element.render.params?.gap === "number" &&
+          element.render.params.gap > 0) ||
+          (element.render.renderer === "sumi/trapezoid" &&
+            element.render.params?.narrow !== undefined));
+      const connectionPoints = preciseSites
+        ? ir.edges.flatMap((edge) => {
+            const path = inspected.value.elements.find((e) => e.key === edge.key)?.path;
+            return [
+              ...(edge.from === element.key && path?.[0] ? [path[0].to] : []),
+              ...(edge.to === element.key && path?.at(-1) ? [path.at(-1)?.to as Point] : []),
+            ];
+          })
+        : undefined;
+      if (connectionPoints !== undefined && element.kind === "node" && element.render) {
+        const renderer = getOutlineRenderer(element.render.renderer);
+        if (!renderer) throw new Error(`Missing renderer ${element.render.renderer}`);
+        const drawing = renderer.draw(box, renderer.params.parse(element.render.params));
+        // Also offer painted sites on an unconnected shape when edited later.
+        connectionPoints.push(...(drawing.boundaries ?? [drawing.outline]).flat());
+      }
       const geom = ellipse
         ? '<a:prstGeom prst="ellipse"><a:avLst/></a:prstGeom>'
         : primitives.length
-          ? geometry(primitives.map(shapePath), box, emu)
+          ? geometry(primitives.map(shapePath), box, emu, connectionPoints)
           : '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>';
       const first = primitives[0];
       const fill = first
@@ -608,7 +645,7 @@ export function svgToEditablePptx(
             : "") +
           hatchShape(element.key, group, box, element.style),
       );
-      objects.set(element.key, { id, box, ellipse });
+      objects.set(element.key, { id, box, ellipse, ...(connectionPoints && { connectionPoints }) });
     }
     const markers = new Map(
       [...descendants(read.doc.drawing)]

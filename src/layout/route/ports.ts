@@ -70,20 +70,22 @@ function nodeBoundaryEntry(a: Point, b: Point, node: NodeIR, rect: Rect): number
   const renderer = getOutlineRenderer(node.render.renderer);
   if (!renderer)
     throw new Error(`internal error: unknown outline renderer ${node.render.renderer}`);
-  const points = renderer.draw(rect, renderer.params.parse(node.render.params ?? {})).outline;
+  const drawing = renderer.draw(rect, renderer.params.parse(node.render.params ?? {}));
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   let first: number | undefined;
-  for (const [i, p] of points.entries()) {
-    const q = points[(i + 1) % points.length] as Point;
-    const ex = q.x - p.x;
-    const ey = q.y - p.y;
-    const cross = dx * ey - dy * ex;
-    if (Math.abs(cross) < 1e-9) continue;
-    const t = ((p.x - a.x) * ey - (p.y - a.y) * ex) / cross;
-    const u = ((p.x - a.x) * dy - (p.y - a.y) * dx) / cross;
-    if (t >= -1e-9 && t <= 1 + 1e-9 && u >= -1e-9 && u <= 1 + 1e-9)
-      first = Math.min(first ?? 1, Math.max(0, t));
+  for (const points of drawing.boundaries ?? [drawing.outline]) {
+    for (const [i, p] of points.entries()) {
+      const q = points[(i + 1) % points.length] as Point;
+      const ex = q.x - p.x;
+      const ey = q.y - p.y;
+      const cross = dx * ey - dy * ex;
+      if (Math.abs(cross) < 1e-9) continue;
+      const t = ((p.x - a.x) * ey - (p.y - a.y) * ex) / cross;
+      const u = ((p.x - a.x) * dy - (p.y - a.y) * dx) / cross;
+      if (t >= -1e-9 && t <= 1 + 1e-9 && u >= -1e-9 && u <= 1 + 1e-9)
+        first = Math.min(first ?? 1, Math.max(0, t));
+    }
   }
   return first;
 }
@@ -1227,7 +1229,36 @@ function resolveEndsWith(
       const point = { x: roundUnits(c.x), y: roundUnits(c.y) };
       return { key, junction: true, dir: -1, port: point, outline: point };
     }
-    const port = at ?? anchorPoint(self.rect, { side: choice.side, offset: choice.offset ?? 0.5 });
+    let port = at ?? anchorPoint(self.rect, { side: choice.side, offset: choice.offset ?? 0.5 });
+    // A normal through a disconnected body's gap has no painted contact. Move
+    // it to the nearest lip (left on ties) before intersecting the boundaries.
+    if (self.node?.render !== undefined) {
+      const renderer = getOutlineRenderer(self.node.render.renderer);
+      const drawing = renderer?.draw(
+        self.rect,
+        renderer.params.parse(self.node.render.params ?? {}),
+      );
+      if (drawing?.boundaries && (choice.side === "north" || choice.side === "south")) {
+        const spans = drawing.boundaries.map((points) => ({
+          min: Math.min(...points.map((p) => p.x)),
+          max: Math.max(...points.map((p) => p.x)),
+        }));
+        if (!spans.some((span) => port.x >= span.min && port.x <= span.max)) {
+          const nearest = spans
+            .flatMap((span) => [span.min, span.max])
+            .sort((a, b) => Math.abs(a - port.x) - Math.abs(b - port.x) || a - b)[0];
+          if (nearest !== undefined)
+            port = {
+              ...port,
+              // Round toward the painted half, never into the empty gap.
+              x:
+                nearest < port.x
+                  ? Math.floor(nearest * 1000) / 1000
+                  : Math.ceil(nearest * 1000) / 1000,
+            };
+        }
+      }
+    }
     const outward = SIDE_DIR[choice.side];
     const dir = choice.inward ? opposite(outward) : outward;
     let outline = port;

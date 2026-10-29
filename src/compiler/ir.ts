@@ -473,7 +473,15 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
           render: freeze({
             ...component.manifest.render,
             ...(component.manifest.render.params !== undefined && {
-              params: freeze({ ...component.manifest.render.params }),
+              params: freeze({
+                ...component.manifest.render.params,
+                ...(component.manifest.render.renderer === "sumi/bowtie" &&
+                  typeof component.props.gap === "number" &&
+                  component.props.gap > 0 && { gap: component.props.gap }),
+                ...(component.manifest.render.renderer === "sumi/trapezoid" &&
+                  typeof component.props.narrow === "string" &&
+                  component.props.narrow !== "south" && { narrow: component.props.narrow }),
+              }),
             }),
           }),
         }),
