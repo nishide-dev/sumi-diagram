@@ -5,8 +5,8 @@ LoRA 2 個を bowtie + fire badge、QKV / Out Proj を snowflake badge に置き
 原図（非公開）は参照していない。preview は PPTX の PNG fallback と同じ resvg 経路で
 縮小したもの（136,568 bytes）。PDF の Poppler raster も比較し、多色・輪郭・位置を目視した。
 
-再現時は `research/185-acceptance/figures/assets/` をこのディレクトリの `assets/` に
-コピーしてから、次を実行する（assets と生成物は gitignore）。
+画像は #185 と同じ合成の仮画像を `assets/` にコミットしてある（#235）。次を実行する
+（生成物は gitignore）。
 
 ```sh
 bun src/cli/index.ts fmt research/188-badges-emoji-bowtie/c-h3world.sumi.yaml
