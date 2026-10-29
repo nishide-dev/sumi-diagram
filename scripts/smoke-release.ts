@@ -386,7 +386,7 @@ async function smoke(tarballArg: string, keep: boolean): Promise<void> {
 figure: { id: emoji-smoke, layout: { arrange: { row: { items: [lora, qkv] } } } }
 nodes:
   - { id: lora, component: bowtie, label: LoRA, badge: { icon: emoji/fire, corner: north-east } }
-  - { id: qkv, component: box, label: QKV, badge: { icon: emoji/snowflake, corner: north-east } }
+  - { id: qkv, component: box, label: QKV, badge: { icon: emoji/artist-dark, corner: north-east } }
 `,
     );
     await sumiAt(sumi, ["render", "emoji.sumi.yaml", "-o", join(work, "emoji.svg")]);
@@ -394,6 +394,14 @@ nodes:
     check(emojiSvg.includes('class="sumi-badge"'), "the emoji badge was not drawn");
     check(emojiSvg.includes('name="Fluent Emoji Flat"'), "the Fluent Emoji notice is missing");
     check(emojiSvg.includes("Microsoft Corporation"), "the emoji copyright is missing");
+    const emojiCatalog = JSON.parse(await sumiAt(sumi, ["catalog", "--icons", "", "--json"])) as {
+      icons: string[];
+    };
+    check(
+      emojiCatalog.icons.filter((name) => name.startsWith("emoji/")).length === 3124,
+      "the expanded emoji names are missing",
+    );
+    check(!emojiCatalog.icons.includes("emoji/teacher"), "unsupported emoji was listed");
     await sumiAt(sumi, ["render", "emoji.sumi.yaml", "-o", join(work, "emoji.pdf")]);
     await sumiAt(sumi, ["render", "emoji.sumi.yaml", "-o", join(work, "emoji.pptx")]);
     step("bundled multicolour emoji badges and bowtie render to SVG/PDF/PPTX with notices");

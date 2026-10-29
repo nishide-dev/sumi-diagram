@@ -23,7 +23,7 @@ import type { Locator } from "../core/figure/yaml";
 import { componentId } from "../core/registry/manifest";
 import { isBlankForD2 } from "../core/registry/resolve";
 import { parseIconRef } from "./icon-ref";
-import { IconArchiveError, iconNames, iconSet, iconSets, iconSvg } from "./icons";
+import { IconArchiveError, iconExclusion, iconNames, iconSet, iconSets, iconSvg } from "./icons";
 import { srcProblem } from "./paths";
 
 /** Runs the `asset` stage. */
@@ -89,6 +89,16 @@ export function checkAssets(state: CheckState, locate: Locator): void {
         continue;
       }
       if (!known) {
+        const exclusion = iconExclusion(ref.set, ref.name);
+        if (exclusion !== undefined) {
+          fail(
+            "asset/unsupported-icon",
+            `The icon "${ref.set}/${ref.name}" exists upstream but is excluded from Sumi: ${exclusion}`,
+            path,
+            "Choose a supported name with `sumi catalog --icons <word>`; clipping, references, gradients and filters are not supported.",
+          );
+          continue;
+        }
         if (iconSet(ref.set) === undefined) {
           fail(
             "asset/unknown-icon-set",
