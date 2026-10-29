@@ -104,11 +104,14 @@ try {
       return [name, svg];
     }),
   );
-  const archive = Bun.gzipSync(JSON.stringify({ format: 1, icons: selected }), { level: 9 });
+  const json = JSON.stringify({ format: 1, icons: selected });
+  const archive = Bun.gzipSync(json, { level: 9 });
   const path = "assets/icons/fluent-emoji-flat.json.gz";
   if (process.argv.includes("--check")) {
-    if (!Buffer.from(archive).equals(Buffer.from(await Bun.file(path).arrayBuffer())))
-      throw new Error("emoji archive is stale");
+    // Compare the decompressed JSON: gzip bytes differ between zlib builds
+    // (macOS and Linux), while the content Sumi reads is what must match.
+    const committed = new TextDecoder().decode(Bun.gunzipSync(await Bun.file(path).bytes()));
+    if (committed !== json) throw new Error("emoji archive is stale");
   } else await Bun.write(path, archive);
   console.log(
     JSON.stringify({
