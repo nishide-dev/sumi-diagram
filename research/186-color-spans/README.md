@@ -28,3 +28,7 @@ bun src/cli/index.ts render research/186-color-spans/c-h3world.sumi.yaml -o rese
 auto の D2 の SHA-256 はすべて実装後と同じ。gallery 155 ファイルと PDF / PPTX / assets の
 golden の再生成も差分 0。もともと `textAlign` を含む未対応の ideal 図だけは、
 今回受理するようになった unknown-field の診断が 5 件減る。
+
+## 既知の警告
+
+プロンプトのラベルは原図に合わせて 6 行あるため、`lint/long-label`（warning、上限 4 行）が 5 件出る。図の描き方の確認用の記録なので、行数は減らさない（#235）。

@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Guidance for AI agents working in this repository. Conventions for branches, commits, PRs, and issues live in [CONTRIBUTING.md](CONTRIBUTING.md) — read it and follow it; this file does not repeat it. The current roadmap is issue #80; the completed MVP and architecture plan is archived in issue #1.
+Guidance for AI agents working in this repository. Conventions for branches, commits, PRs, and issues live in [CONTRIBUTING.md](CONTRIBUTING.md) — read it and follow it; this file does not repeat it. The current roadmap is issue #236; the completed MVP and architecture plan is archived in issue #1.
 
 ## Project
 
@@ -37,4 +37,4 @@ Run `bun run check`, `bun run typecheck`, and `bun test` before committing.
 - Work on a branch named `<type>/<issue>-<desc>`; never commit directly to `main`
 - Commit messages and PR titles: English Conventional Commits. Issue/PR bodies: Japanese, following the templates in `.github/`
 - In the PR body, use `Closes #<number>` only when the PR fully resolves the issue; use `Refs #<number>` for partial or related work. PRs are squash-merged
-- Record design decisions and trade-offs in the related issue; update #80 when the plan changes
+- Record design decisions and trade-offs in the related issue; update #236 when the plan changes
