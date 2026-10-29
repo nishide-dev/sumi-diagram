@@ -12,6 +12,7 @@ import { type MarkupRun, mergeableRuns, parseLabel, type RunScript } from "./mat
 
 /** A run with its font class (`regular`, `bold`, …, `math`, `math-italic`). */
 export interface LabelRun {
+  readonly tone?: NonNullable<MarkupRun["tone"]>;
   readonly text: string;
   /** Font class, as in `LabelGeometry.font`: selects the font set's file. */
   readonly font: string;
@@ -100,6 +101,7 @@ export function labelRuns(label: string, options: LabelRunsOptions): LabelLayout
     font: run.font === "text" ? font : run.font,
     script: run.script,
     ...(run.accent !== undefined && { accent: run.accent }),
+    ...(run.tone !== undefined && { tone: run.tone }),
   });
   let lines = parsed.value.lines.map((line) => line.map(resolve));
   if (covers !== undefined) {
@@ -108,7 +110,9 @@ export function labelRuns(label: string, options: LabelRunsOptions): LabelLayout
   const runs = collapse(lines);
   const plainIn = (f: string) =>
     runs.every(
-      (line) => line.length <= 1 && line.every((r) => r.font === f && r.script === "base"),
+      (line) =>
+        line.length <= 1 &&
+        line.every((r) => r.font === f && r.script === "base" && r.tone === undefined),
     );
   if (plainIn(font)) return { lines: runLines(runs) };
   // A label wholly in the Latin font is plain text in that font (and has some text).
@@ -157,7 +161,7 @@ function fallback(
     const last = out.at(-1);
     if (last !== undefined && last.font === target)
       out[out.length - 1] = { ...last, text: last.text + segment };
-    else out.push({ text: segment, font: target, script: run.script });
+    else out.push({ ...run, text: segment, font: target });
   }
   return out;
 }

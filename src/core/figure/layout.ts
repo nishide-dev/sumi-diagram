@@ -163,7 +163,7 @@ function checkAuto(state: CheckState, locate: Locator): void {
   for (const [index, node] of (doc.nodes ?? []).entries()) {
     if (node === undefined || invalid.has(nodeKey(node.id))) continue;
     const subject = { kind: "node", id: node.id } as const;
-    for (const field of ["attach", "sublabel", "labelRotation"] as const) {
+    for (const field of ["attach", "sublabel", "labelRotation", "textAlign"] as const) {
       if (node[field] !== undefined) {
         report(field, ["nodes", index, field], nodeKey(node.id), subject);
       }

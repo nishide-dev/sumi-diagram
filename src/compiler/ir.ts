@@ -58,6 +58,7 @@ import {
   type ResolvedComponent,
 } from "../core/registry/manifest";
 import { getTheme } from "../core/theme/builtin";
+import { dimmedElements } from "../core/theme/dim";
 import type { FontSetId } from "../core/theme/fonts";
 import {
   type EdgeStyle,
@@ -247,6 +248,7 @@ export interface NodeIR extends ObjectIRBase {
    * positive clockwise as SVG's `rotate()`. Structured layout only.
    */
   readonly labelRotation?: LabelRotation;
+  readonly textAlign?: "left" | "center" | "right";
   /**
    * A second, smaller text drawn under the label (#184, design doc §6.51),
    * at `sublabelFontSize(style.fontSize)` in the label's font. Structured
@@ -333,6 +335,8 @@ export interface EdgeIR extends ElementIRBase {
 export type ElementIR = NodeIR | GroupIR | EdgeIR;
 
 export interface FigureIR {
+  /** Elements whose text colors are overridden by inherited dimming. */
+  readonly dimmed?: readonly ElementKey[];
   readonly meta: FigureMetaIR;
   readonly groups: readonly GroupIR[];
   readonly nodes: readonly NodeIR[];
@@ -486,6 +490,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
           }),
         }),
         ...(n.labelRotation !== undefined && { labelRotation: n.labelRotation }),
+        ...(n.textAlign !== undefined && { textAlign: n.textAlign }),
         ...(n.sublabel !== undefined && {
           sublabel: freeze({ text: n.sublabel, fontSize: sublabelFontSize(style.fontSize) }),
         }),
@@ -526,6 +531,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
   }
 
   const elements = readonlyMap([...groups, ...nodes, ...edges].map((e) => [e.key, e] as const));
+  const dimmed = [...dimmedElements(doc).keys()];
 
   return freeze({
     meta: freeze({
@@ -555,6 +561,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
       ),
     }),
     elements,
+    ...(dimmed.length > 0 && { dimmed: freeze(dimmed) }),
     sourceMap: readonlyMap(sourceMap),
   });
 }

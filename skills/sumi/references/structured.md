@@ -38,7 +38,7 @@ centered on the corner. Edge anchors still accept only the four sides.
 out and **a figure with `figure.layout.arrange` is structured, one without
 it auto** — so `engine` is not needed. An explicit `engine: auto` wins over
 `arrange`. Under auto, the structured-only fields (`figure.layout.arrange`,
-`align`, `fanIn` and `density`, `groups[].arrange`, `nodes[].attach` / `sublabel` / `labelRotation`,
+`align`, `fanIn` and `density`, `groups[].arrange`, `nodes[].attach` / `sublabel` / `labelRotation` / `textAlign`,
 `edges[].fromAnchor` / `toAnchor` / `labelAt` / `labelSide`) and the
 `legend` component are errors (`layout/structured-only`): remove them, or
 switch the figure to structured (root `arrange`, no `engine: auto`, every

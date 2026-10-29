@@ -333,13 +333,13 @@ export function svgToEditablePptx(
       // A run in its own face; label math (#93) uses DrawingML's baseline
       // offset for scripts (PowerPoint draws such runs smaller by itself, so
       // they keep the label's size here).
-      const run = (text: string, font: string, shiftUnits = 0) => {
+      const run = (text: string, font: string, shiftUnits = 0, color?: string) => {
         const face = faceOf(font);
         const baseline =
           shiftUnits === 0
             ? ""
             : ` baseline="${Math.round((-shiftUnits / label.fontSizeUnits) * 100000)}"`;
-        return `<a:r><a:rPr lang="ja-JP" sz="${Math.round(label.fontSizeUnits * 50 * scale)}"${face.weight >= 600 ? ' b="1"' : ""}${face.italic ? ' i="1"' : ""}${baseline}>${fill}<a:latin typeface="${escapeXml(face.family)}"/><a:ea typeface="${escapeXml(face.family)}"/></a:rPr><a:t xml:space="preserve">${escapeXml(text)}</a:t></a:r>`;
+        return `<a:r><a:rPr lang="ja-JP" sz="${Math.round(label.fontSizeUnits * 50 * scale)}"${face.weight >= 600 ? ' b="1"' : ""}${face.italic ? ' i="1"' : ""}${baseline}>${color === undefined ? fill : paint(color, opacity)}<a:latin typeface="${escapeXml(face.family)}"/><a:ea typeface="${escapeXml(face.family)}"/></a:rPr><a:t xml:space="preserve">${escapeXml(text)}</a:t></a:r>`;
       };
       return measured.texts
         .map((text, i) => {
@@ -348,9 +348,9 @@ export function svgToEditablePptx(
             runs === undefined
               ? run(text, label.font)
               : withAccentsOnBases(runs)
-                  .map((r) => run(r.text, r.font, r.shiftUnits))
+                  .map((r) => run(r.text, r.font, r.shiftUnits, r.fill))
                   .join("");
-          return `<a:p><a:pPr algn="ctr"><a:lnSpc><a:spcPts val="${Math.max(0, Math.round(label.lineHeightUnits * 50 * scale))}"/></a:lnSpc><a:spcBef><a:spcPts val="${i === 0 ? Math.round(before * 50 * scale) : 0}"/></a:spcBef><a:spcAft><a:spcPts val="0"/></a:spcAft></a:pPr>${content}</a:p>`;
+          return `<a:p><a:pPr algn="${label.textAlign === "left" ? "l" : label.textAlign === "right" ? "r" : "ctr"}"><a:lnSpc><a:spcPts val="${Math.max(0, Math.round(label.lineHeightUnits * 50 * scale))}"/></a:lnSpc><a:spcBef><a:spcPts val="${i === 0 ? Math.round(before * 50 * scale) : 0}"/></a:spcBef><a:spcAft><a:spcPts val="0"/></a:spcAft></a:pPr>${content}</a:p>`;
         })
         .join("");
     };
@@ -384,13 +384,25 @@ export function svgToEditablePptx(
     ) => {
       const measured = measureLabel(label, fonts);
       const offset = label.anchor.x - (box.x + box.width / 2);
+      const left =
+        label.textAlign === "left"
+          ? label.anchor.x - box.x
+          : label.textAlign === "right"
+            ? 0
+            : Math.max(0, 2 * offset);
+      const right =
+        label.textAlign === "right"
+          ? box.x + box.width - label.anchor.x
+          : label.textAlign === "left"
+            ? 0
+            : Math.max(0, -2 * offset);
       const top = (measured.lines[0]?.y ?? box.y) - box.y;
       const paragraphs =
         paragraphsOf(label, el, opacity) +
         (sublabel === undefined
           ? ""
           : paragraphsOf(sublabel.label, sublabel.el, opacity, sublabel.before));
-      return `<p:txBody><a:bodyPr wrap="none" lIns="${emu(Math.max(0, 2 * offset))}" rIns="${emu(Math.max(0, -2 * offset))}" tIns="${emu(top)}" bIns="0" anchor="t"><a:noAutofit/></a:bodyPr><a:lstStyle/>${paragraphs}</p:txBody>`;
+      return `<p:txBody><a:bodyPr wrap="none" lIns="${emu(Math.max(0, left))}" rIns="${emu(Math.max(0, right))}" tIns="${emu(top)}" bIns="0" anchor="t"><a:noAutofit/></a:bodyPr><a:lstStyle/>${paragraphs}</p:txBody>`;
     };
     const line = (
       el: XmlElement,

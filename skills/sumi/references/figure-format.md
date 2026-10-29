@@ -33,7 +33,7 @@ metadata: {}               # optional, any JSON-compatible data; not drawn
 | Element | Fields (required in bold) | Defaults |
 | --- | --- | --- |
 | group | **`id`**, `label`, `labelAt`, `caption`, `component`, `variant`, `tone`, `dim`, `group`, `arrange`¹ | component `container`, variant `default`, no tone, not dimmed, no parent |
-| node | **`id`**, **`component`**, `label`, `sublabel`¹, `labelRotation`¹, `variant`, `tone`, `icon`, `badge`, `props`, `group`, `attach`¹ | variant `default`, no label, no tone, no group |
+| node | **`id`**, **`component`**, `label`, `sublabel`¹, `labelRotation`¹, `textAlign`¹, `variant`, `tone`, `icon`, `badge`, `props`, `group`, `attach`¹ | variant `default`, no label, no tone, no group |
 | edge | **`from`**, **`to`**, `id`, `label`, `labelAt`¹, `labelSide`¹, `component`, `variant`, `tone`, `props`, `fromAnchor`¹, `toAnchor`¹ | component `arrow`, variant `default`, no tone |
 
 ¹ Structured layout only (a figure with `figure.layout.arrange`); see
@@ -160,6 +160,23 @@ groups:
   (`lint/literal-newline`). No Markdown or HTML. Math and line breaks in
   one label: [below](#math-and-line-breaks-in-one-label).
 - Label math: see [below](#label-math).
+- Structured labels support `\textcolor{<tone>}{…}` inside `$…$` only:
+  `label: 'The character $\textcolor{orange}{\text{\{stands still\}}}$, camera $\textcolor{blue}{\text{\{holds steady\}}}$'`.
+  Wrap words in `\text{…}`; escape visible braces as `\{` / `\}`. Use a tone
+  name (the eight names above), never a raw color. The theme's tone-line text
+  color is used in SVG, PDF and PPTX; inherited `dim` overrides it.
+  Outside math it stays literal; inside `\text{…}` the existing escape rules
+  apply. Auto math stays literal with its usual warning.
+  Tone-line text colors guarantee contrast against white, not against toned
+  fills; span colors do not adapt to the background. For example, a paper
+  node with `tone: orange` and
+  `label: '$\textcolor{orange}{\text{Highlight}}$'` uses text `#bd5410` on fill
+  `#f9e0bc` (about 3.70:1). Prefer a white fill for colored phrases when you
+  need the tone-line contrast guarantee.
+- `textAlign: left | center | right` on a node (structured only) aligns its
+  label and sublabel lines within their shared, widest-line text block.
+  Omit it for the existing centered output. It does not wrap text or change
+  node padding. Add line breaks explicitly for narrow prompt boxes.
 - Quote labels that YAML could misread: `"yes"`, `"no"`, `"on"`, numbers
   (`"2024"`), anything with `: ` or ` #`, or starting with `[`, `{`, `*`, `&`, `!`, `%`, `@`.
 - Keep lines short: the `lint/long-label` rule warns above 40 columns per
