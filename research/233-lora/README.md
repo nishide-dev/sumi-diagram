@@ -7,11 +7,10 @@
 
 ## 再現
 
-#188 の README と同じく、画像は #185 の同一 assets をコピーする
-（画像と SVG/PDF/PPTX は gitignore）。PNG の縮小には ImageMagick が必要。
+画像は #185 と同じ合成の仮画像を `assets/` にコミットしてある（#235）。
+SVG/PDF/PPTX は gitignore。PNG の縮小には ImageMagick が必要。
 
 ```sh
-cp -R research/185-acceptance/figures/assets research/233-lora/assets
 bun src/cli/index.ts fmt research/233-lora/c-h3world.sumi.yaml
 bun src/cli/index.ts lint research/233-lora/c-h3world.sumi.yaml
 bun src/cli/index.ts render research/233-lora/c-h3world.sumi.yaml

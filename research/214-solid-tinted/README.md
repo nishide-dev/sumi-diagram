@@ -23,7 +23,7 @@ dim gray から必要最小限 darken して 3:1 以上を確保。dimmed solid 
 - 押したキーと ⊕ を solid、H3 / Visual VAE Encoder と A の tokens セルを tinted に変更。
   配置、辺、placeholder frame は元の図と同じ。
 - 再現: `bun research/214-solid-tinted/render.ts`（pdftoppm と ImageMagick が必要）。
-  #185 の placeholder を ignored `figures/assets/` に複製して fmt → lint → render。
+  #185 と同じ placeholder を `figures/assets/` にコミット済み（#235）。fmt → lint → render。
   生成 SVG / PDF / 中間 PNG は ignored `out/` に出す。
 - [previews/c-h3world.png](previews/c-h3world.png) を目視確認。180 × 122.24mm、scale 0.829。
   PNG は **113,800 bytes**（150KB 未満）。濃色の押したキーと白文字、紫の淡色 Encoder / A セル、
