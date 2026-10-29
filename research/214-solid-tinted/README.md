@@ -13,7 +13,8 @@ nodes:
 tokens の `props.variant` / セルの `variant` と legend の `node.variant` も同じ構文。
 solid は toneLines の濃色と白文字、tinted は tones の淡色面と同じ色相の枠・文字。
 既存 palette を変えず、tinted に限り line 色を黒へ 1% 刻みで混ぜて 4.5:1 を満たす。
-dim は既存の gray 文字・枠と lighten を使うが、solid の面は junction の点と区別する。
+solid stack は白い枠で層を区別する。dim は lighten した面を保ち、solid の文字を
+dim gray から必要最小限 darken して 3:1 以上を確保。dimmed solid stack の枠も同じ文字色。
 設計の詳細は [§6.63](../../docs/design/phase1.md#663-214-の濃い塗りと色付き淡色面solid--tinted)。
 
 ## H3-World の受け入れ図
@@ -91,11 +92,31 @@ dim は既存の gray 文字・枠と lighten を使うが、solid の面は jun
 
 - `bun run check`: pass
 - `bun run typecheck`: pass
-- `CI=1 bun test`: **2816 pass / 13 skip / 0 fail**（121 files、230.92s）
+- `CI=1 bun test`: レビュー修正後 **2826 pass / 13 skip / 0 fail**（121 files、235.56s）
 - `bun run gallery:check`: pass（160 files）
 - `bun run schema:check`: pass（schema 変更なし）
 - 指定 golden 更新テスト: **562 pass / 0 fail**
 - 独立した WCAG 計算で 12 shape × 5 Theme × 9 tone 指定（8 tone + 未指定）× 2 variant の
-  文字 / 面の contrast ≥ 4.5:1 を検査。
+  非 dim の文字 / 面の contrast ≥ 4.5:1 を検査。
   tokens 共通指定とセル override、legend、operator、dim 内外を structured で実描画。
   既存の D2 統合テストも全 component × variant × Theme を描画する。
+
+## review-1 の対応と再検証
+
+- **BLOCKING（stack の層）**: 同色の fill / stroke を通常線幅で描くだけでは境界は見えない。
+  solid stack の stroke を白にし、非 dim で面との contrast ≥ 4.5:1 を確保。
+  dimmed solid stack は下記の文字色を区切りにも使い、contrast ≥ 3:1 とする。
+  全 5 Theme × 全 8 tone × dim 内外を D2 / structured で実描画し、3 層すべての SVG path の
+  fill / stroke の相対輝度比を独立計算して検査する。
+- **NON-BLOCKING（dim の可読性・Skill）**: dimmed solid の面と文字が異なるだけの検査を廃止。
+  dim gray の RGB を黒へ 1% 刻みで混ぜ、面との contrast ≥ 3:1 を満たす最初の文字色を使う。
+  全 12 shape × 全 5 Theme × 全 8 tone と tone 未指定で実際の theme stage の結果を検査。
+  Skill の 4.5:1 は非 dim ノードに限定し、dimmed solid の 3:1 を明記。
+- `bun run check` / `bun run typecheck` / `CI=1 bun test` / `bun run gallery:check` /
+  `bun run schema:check` はすべて pass。golden 更新テストも 562 pass。
+- 同じ 140 YAML × 6 設定を再描画。840 件の記録はレビュー前ブランチの記録と完全一致し、
+  成功 574 件の SVG / PDF / picture PPTX と 222 件の D2 はバイト一致。
+  `.sumi/compat-214-review1.json` と `.sumi/review/verify-review1.ts` に結果と照合手順を保存。
+- `bun run gallery` が変更したのは stack 見本の全 5 Theme の SVG のみ。
+  対応する PDF / picture PPTX の hash 各 5 件、editable PPTX の hash / slide XML 各 10 件を
+  指定の golden 更新コマンドで更新。他の gallery・examples・受け入れ PNG は HEAD とバイト一致。

@@ -9,8 +9,8 @@ function luminance(color: string): number {
   return 0.2126 * (rgb[0] ?? 0) + 0.7152 * (rgb[1] ?? 0) + 0.0722 * (rgb[2] ?? 0);
 }
 
-/** Keep the pastel; darken its ink by whole percent steps until normal text meets WCAG AA. */
-function tintedInk(fill: string, ink: string): string {
+/** Keep the fill; darken ink by whole percent steps to the requested contrast. */
+export function readableInk(fill: string, ink: string, minimum = 4.5): string {
   if (!/^#[0-9a-f]{6}$/i.test(fill) || !/^#[0-9a-f]{6}$/i.test(ink)) return ink;
   const background = luminance(fill);
   for (let percent = 0; percent <= 100; percent++) {
@@ -21,14 +21,21 @@ function tintedInk(fill: string, ink: string): string {
           .padStart(2, "0"),
       )
       .join("")}`;
-    if ((background + 0.05) / (luminance(color) + 0.05) >= 4.5) return color;
+    if ((background + 0.05) / (luminance(color) + 0.05) >= minimum) return color;
   }
   return "#000000";
 }
 
-/** A visible, tone-colored border also keeps stack's layers distinct. */
-export function filledToneNode(variant: "solid" | "tinted", fill: string, ink: string): StyleLayer {
-  if (variant === "solid") return { fill: ink, stroke: ink, fontColor: "#ffffff" };
-  const line = tintedInk(fill, ink);
+/** Solid stacks need white separators between overlapping tone-colored layers. */
+export function filledToneNode(
+  variant: "solid" | "tinted",
+  fill: string,
+  ink: string,
+  stack = false,
+): StyleLayer {
+  if (variant === "solid") {
+    return { fill: ink, stroke: stack ? "#ffffff" : ink, fontColor: "#ffffff" };
+  }
+  const line = readableInk(fill, ink);
   return { fill, stroke: line, fontColor: line };
 }

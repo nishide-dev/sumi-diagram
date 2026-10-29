@@ -91,7 +91,7 @@ export function resolveStyle<K extends ComponentKind>(
     const ink = theme.toneLines.get(tone ?? "gray")?.stroke;
     const paint =
       ink !== undefined && (variant === "solid" || fill !== undefined)
-        ? filledToneNode(variant, fill ?? "#ffffff", ink)
+        ? filledToneNode(variant, fill ?? "#ffffff", ink, id === "sumi/stack")
         : undefined;
     return {
       style: mergeStyle(kind, [theme.base[kind], layers?.get("default"), variantLayer, paint]),
@@ -174,11 +174,15 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
       state.diagnostics.push(warning);
     }
     const dim = theme.dim !== undefined && dimmed.has(key) ? theme.dim : undefined;
-    styles.set(
-      key,
+    const dimmedStyle =
       dim === undefined
         ? style
-        : dimStyle(style, dim, manifest.kind === "node" && variant === "solid"),
+        : dimStyle(style, dim, manifest.kind === "node" && variant === "solid");
+    styles.set(
+      key,
+      dim !== undefined && id === "sumi/stack" && variant === "solid"
+        ? Object.freeze({ ...dimmedStyle, stroke: dimmedStyle.fontColor })
+        : dimmedStyle,
     );
   }
   return theme;

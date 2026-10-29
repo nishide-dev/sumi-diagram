@@ -136,7 +136,7 @@ function componentStyles(styles: VariantStyles): NonNullable<ThemeDefinition["co
   return {
     ...Object.fromEntries(SHAPE_NODES.map((name) => [name, shape])),
     // Without outlines a stack's rectangles merge into one shape (#174).
-    stack,
+    stack: { ...stack, solid: { ...stack.solid, stroke: "#ffffff" } },
     label: styles.label,
     junction: styles.junction,
     // An image (#94) is drawn as it is: no background, and a frame only when asked for.

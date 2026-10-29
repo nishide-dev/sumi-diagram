@@ -96,11 +96,13 @@ edges:
   operators); `tinted` gives it a pastel fill, matching colored border and
   colored text (encoders, action cells). Both default to gray without `tone`,
   work on box-like shapes, `operator` and `stack`, and can be selected in
-  tokens cells and legend node samples. All built-in themes meet 4.5:1 text
-  contrast; tinted ink darkens just enough to contrast with its pastel fill.
+  tokens cells and legend node samples. For non-dimmed nodes, all built-in
+  themes meet 4.5:1 text contrast; tinted ink darkens just enough to contrast
+  with its pastel fill. Solid stacks use white separators to distinguish layers.
   Example: `{ id: encoder, component: box, label: Encoder, tone: purple, variant: tinted }`.
   Inside `dim: true`, text and borders take dim gray and fills lighten;
-  solid fills remain areas (they do not become the same gray as the text).
+  solid fills remain areas, and their dim gray text darkens as needed to keep
+  at least 3:1 contrast. Dimmed solid stacks use that text gray for separators.
 - Pick `outlined` for white with colored frame and text, the default variant
   for pastel with a black frame, or `filled` for pastel without a frame.
 - Two edges of different tones that enter the same point of a node overlap

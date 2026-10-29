@@ -1,10 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { renderFigure } from "../../render";
+import { attribute, descendants, parseXml } from "../../render/xml";
 import { checkFigure } from "../check";
 import { createBuiltinRegistry } from "../registry/builtins";
 import { buildCatalog } from "../registry/catalog";
 import { BUILTIN_THEMES } from "./builtin";
-import { lightenColor } from "./dim";
+import { dimStyle, lightenColor } from "./dim";
 import { resolveStyle } from "./resolve";
 import { TONE_NAMES } from "./tones";
 
@@ -25,6 +26,12 @@ const shapes = buildCatalog(createBuiltinRegistry()).components.filter((entry) =
   entry.variants.includes("tinted"),
 );
 
+function contrast(a: string, b: string): number {
+  const x = luminance(a);
+  const y = luminance(b);
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+}
+
 describe("solid and tinted nodes", () => {
   test("every shape, theme and tone has both variants and at least 4.5:1 text contrast", () => {
     expect(shapes).toHaveLength(12);
@@ -43,7 +50,11 @@ describe("solid and tinted nodes", () => {
             if (variant === "solid") {
               expect(fontColor).toBe("#ffffff");
               expect(fill).toBe(theme.toneLines.get(tone ?? "gray")?.stroke ?? "");
-              expect(stroke).toBe(fill);
+              if (shape.id === "sumi/stack") {
+                expect(contrast(fill, stroke)).toBeGreaterThanOrEqual(4.5);
+              } else {
+                expect(stroke).toBe(fill);
+              }
             } else {
               expect(fill).toBe(theme.tones.get(tone ?? "gray")?.fill ?? "");
               expect(fontColor).toBe(stroke);
@@ -74,6 +85,58 @@ nodes:
 `;
 
   for (const theme of BUILTIN_THEMES.values()) {
+    test(`${theme.id}: every dimmed solid shape and tone keeps at least 3:1 text contrast`, () => {
+      const nodes = shapes.flatMap((shape, i) =>
+        [undefined, ...TONE_NAMES].map(
+          (tone, j) =>
+            `  - { id: n${i}_${j}, component: ${shape.id}, variant: solid, group: g${tone ? `, tone: ${tone}` : ""}${shape.id === "sumi/operator" ? ", props: { symbol: plus }" : ""} }`,
+        ),
+      );
+      const checked = checkFigure(`version: 1
+figure: { id: dim-contrast, theme: ${theme.id}, profile: paper-double }
+groups: [{ id: g, dim: true }]
+nodes:
+${nodes.join("\n")}
+`);
+      expect(checked.state.diagnostics).toEqual([]);
+      for (const [key, style] of checked.state.styles ?? []) {
+        if (!key.startsWith("n:")) continue;
+        expect(contrast(style.fill, style.fontColor)).toBeGreaterThanOrEqual(3);
+      }
+    });
+
+    test(`${theme.id}: solid stack separators remain visible in both renderers, including dim`, async () => {
+      for (const structured of [false, true]) {
+        for (const dim of [false, true]) {
+          const ids = TONE_NAMES.map((_, i) => `n${i}`);
+          const rendered = await renderFigure(`version: 1
+figure:
+  id: solid-stack-separators
+  theme: ${theme.id}
+  profile: paper-double
+${structured ? `  layout: { arrange: { row: { items: [g] } } }` : ""}
+groups:
+  - { id: g, ${dim ? "dim: true," : ""} ${structured ? `arrange: { row: { items: [${ids.join(", ")}] } }` : ""} }
+nodes:
+${TONE_NAMES.map((tone, i) => `  - { id: n${i}, component: stack, label: A, group: g, variant: solid, tone: ${tone} }`).join("\n")}
+`);
+          if (!rendered.ok) throw new Error(JSON.stringify(rendered.diagnostics));
+          const parsed = parseXml(rendered.value.svg);
+          if (!parsed.ok) throw new Error(parsed.message);
+          const layers = [...descendants(parsed.root)].filter(
+            (element) => element.name === "path" && attribute(element, "fill")?.startsWith("#"),
+          );
+          expect(layers).toHaveLength(3 * TONE_NAMES.length);
+          for (const layer of layers) {
+            const fill = attribute(layer, "fill");
+            const stroke = attribute(layer, "stroke");
+            if (!fill || !stroke) throw new Error("missing stack paint");
+            expect(contrast(fill, stroke)).toBeGreaterThanOrEqual(dim ? 3 : 4.5);
+          }
+        }
+      }
+    }, 30_000);
+
     test(`${theme.id}: tokens, legends and operators share colors; dim lightens solid areas instead of erasing text`, async () => {
       const text = source(theme.id);
       const checked = checkFigure(text);
@@ -100,10 +163,11 @@ nodes:
       const dim = theme.dim;
       if (!dim) throw new Error("missing dim");
       const pale = lightenColor(solid.fill, dim.lighten);
-      expect(pale).not.toBe(dim.fontColor);
+      const faded = dimStyle(solid, dim, true);
+      expect(contrast(pale, faded.fontColor)).toBeGreaterThanOrEqual(3);
       expect(
         styles.filter(
-          (s) => s.fill === pale && s.fontColor === dim.fontColor && s.stroke === dim.stroke,
+          (s) => s.fill === pale && s.fontColor === faded.fontColor && s.stroke === dim.stroke,
         ).length,
       ).toBeGreaterThanOrEqual(3);
       const rendered = await renderFigure(text);
