@@ -2045,6 +2045,8 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **文法と互換性**: structured の `$…$` 内だけで `\textcolor{<tone>}{…}` を認識する。平文は `\text{…}` で包む。tone は既存の 8 色名だけ（任意の RGB・CSS は不可）。以前は `component/invalid-math` だった場所だけを拡張する。数式の外は文字どおり、`\text{…}` の中は従来のエスケープ規則のまま（`\\textcolor` は文字列、エスケープなしのコマンドは error）。auto の数式は `component/unsupported-in-auto` の warning と文字どおりの描画を維持する。不正な色名・欠けた引数・閉じない波括弧には既存の `component/invalid-math` を使い、新しい診断コードは追加しない。
 - **run の契約**: parser → フォント fallback → 測定の run に任意の `tone` を保ち、隣接 run は tone も一致するときだけ統合する。色だけの単一 run も plain-text 経路へ省略しない。入れ子は内側の色が優先し、添字・accent にも適用する。色は幅やフォントに影響しない。writer でテーマの **`toneLines.fontColor`** に解決し、`<tspan fill>` を描く。`dim` の継承が優先するため、IR は dimmed な要素の key を任意リストで保持する（色の値から薄表示を推測しない）。
 - **横揃え**: `nodes[].textAlign: left | center | right`。省略は従来の中央揃え。structured 専用で auto では既存の `layout/structured-only`。ラベルと sublabel の共有文字ブロック（最長行の幅）をノードの中央に置き、その左端・中央・右端に各行を揃える。ノードの幅・padding や文字の折り返しは変えない。±90° は揃えたブロック全体を回す。
+- **色と数式の空白**: `\textcolor` は内部の atom の class・添字を保持したまま周囲のリストに展開し、自動空白の挿入は周囲の文脈が揃ってから行う。色境界で二項演算子を単項に再分類したり、関係演算子を ordinary atom に潰したりしない。色つきの `+` / `=` / `\leq`、範囲の先頭・末尾、隣接・入れ子、単項・明示空白・添字について、無着色時と文字列・フォント・添字・ノード寸法・測定幅を照合する。
+- **塗り背景の制約**: `toneLines.fontColor` のコントラスト保証は白背景に対するもの。色つき span は背景に応じた色の再選択をしない。例えば paper の `tone: orange` の箱に `label: '$\textcolor{orange}{\text{Highlight}}$'` を置くと、文字 `#bd5410` / 背景 `#f9e0bc` で約 **3.70:1** となる。この filled-node 例を描画テストに含め、保証を必要とする句は白背景を推奨する。既定の tone 対応は変更しない。
 - **inspect・各出力**: `<text>` の `text-anchor: start / middle / end` と run の `fill` を読み、幾何測定はアンカーに応じて行・accent の chunk の左端を復元する。PDF と画像方式 PPTX は同じ SVG を変換する。編集可能 PPTX は run の色を DrawingML の `solidFill`、左右揃えを `algn=l/r` と本文の inset に写し、中央揃えの既存バイト列を保つ。PDF のテスト用 reader でも glyph の RGB を読んで全テーマの句の色を独立に照合する。
 - **使用例**:
 
@@ -2054,8 +2056,9 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
   ```
 
 - **互換性検査**: 変更前の全 `*.sumi.yaml` **140 図 ×（元の Theme + 組み込み 5 Theme）= 840 通り**を前後で描画し、成功 **574 通り**の SVG・PDF・画像方式 PPTX・編集可能 PPTX と auto の D2 の SHA-256 がすべて一致した。既存の描画出力の変更は **0**。失敗する ideal の `research/86-paper-figures/figures/ideal/c-h3world.sumi.yaml` は元々新フィールド `textAlign` を含むため、その unknown-field 5 件だけが全 6 Theme 条件で消える。他の失敗の診断は不変。gallery（155 ファイル）と指定コマンドで再生成した PDF・PPTX・画像の golden も変更 0。
+- **レビュー修正後の再検証**: 上記の既存 140 図を修正前後で再描画し、840 条件中成功 574 条件の全出力 hash と失敗条件の診断が一致した。`bun run check`・`bun run typecheck`・`CI=1 bun test`（2819 pass / 13 skip / 0 fail）・`bun run gallery:check`（155 ファイル一致）・`bun run schema:check` がすべて成功。色と揃えの統合テストは 9 件で、既存 golden の変更はない。
 - **受け入れ図**: [research/186-color-spans](../../research/186-color-spans/) は #185 の再構成をコピーし、5 つのプロンプトに色と左揃えを付けたもの。元の私有図は参照せず、既存の仮画像を使用する。句の波括弧も文字として保つ。PNG を開いて、色・行頭・箱からのはみ出しがないことを確認した。生成 SVG は gitignore、コミットするプレビューは 150KB 未満。6 行のプロンプトによる `lint/long-label` 5 件と、既存の縮小添字の info は意図した所見として記録する。
-- **検証**: 色境界、入れ子・数式・accent・日本語／Latin fallback、全 Theme の SVG・PDF glyph の色と文字列・編集可能 PPTX の色、literal と auto、不正な文法、左右揃えの測定・sublabel・±90°、dim の継承を統合テストで検査する。新しい部品・variant は追加しない。
+- **検証**: 色境界、入れ子・数式・accent・日本語／Latin fallback、全 Theme の SVG・PDF glyph の色と文字列・編集可能 PPTX の色、literal と auto、不正な文法、左右揃えの測定・sublabel・±90°、dim の継承を統合テストで検査する。label / sublabel のどちらが広い場合も、全行の共有端と ±90° の明示座標を照合し、編集可能 PPTX の段落揃え・左右／上 inset・回転・回転中心を読み戻して検証する。新しい部品・variant は追加しない。
 
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures

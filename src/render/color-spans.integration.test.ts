@@ -9,6 +9,7 @@ import { inspectPdf } from "./pdf/testing";
 import { svgToEditablePptx, svgToPptx } from "./pptx";
 import { readPptx } from "./pptx/testing";
 import { type RenderedStructuredFigure, renderFigure } from "./render";
+import { attribute, descendants, parseXml } from "./xml";
 
 const source = (label: string, fields = "", theme = "paper") => `version: 1
 figure:
@@ -105,6 +106,16 @@ describe("structured text colors (#186)", () => {
     }
   });
 
+  test("filled nodes use the same tone-line text color without background adaptation", async () => {
+    const rendered = await render(
+      source(String.raw`$\textcolor{orange}{\text{Highlight}}$`, "tone: orange"),
+    );
+    expect(rendered.svg).toContain('fill="#f9e0bc"');
+    expect(rendered.inspection.elements[0]?.labels[0]?.runs?.flat().map((r) => r.fill)).toEqual([
+      "#bd5410",
+    ]);
+  });
+
   test("literal text and auto math retain their existing behavior", () => {
     expect(parseLabel(String.raw`literal \textcolor{orange}{text}`)).toEqual({
       ok: true,
@@ -124,6 +135,49 @@ describe("structured text colors (#186)", () => {
     expect(checkFigure(auto).state.diagnostics.map((d) => [d.code, d.severity])).toEqual([
       ["component/unsupported-in-auto", "warning"],
     ]);
+  });
+
+  test("color preserves atom spacing and widths across span boundaries", async () => {
+    for (const [plain, colored] of [
+      ["x+y", String.raw`x\textcolor{orange}{+}y`],
+      ["x=y", String.raw`x\textcolor{orange}{=}y`],
+      [String.raw`x\leq y`, String.raw`x\textcolor{blue}{\leq}y`],
+      ["x+y", String.raw`\textcolor{orange}{x+}y`],
+      ["x+y", String.raw`x\textcolor{orange}{+y}`],
+      ["x+y", String.raw`\textcolor{orange}{x}\textcolor{blue}{+y}`],
+      ["x+y=z", String.raw`x\textcolor{orange}{+\textcolor{blue}{y=}}z`],
+      ["-x+y", String.raw`\textcolor{orange}{-x+}y`],
+      ["x+-y", String.raw`x+\textcolor{orange}{-y}`],
+      ["x+=y", String.raw`x\textcolor{orange}{+}=y`],
+      ["x+", String.raw`x\textcolor{orange}{+}`],
+      ["(x+y)", String.raw`\textcolor{orange}{(}x+\textcolor{blue}{y)}`],
+      [String.raw`x\,+y`, String.raw`x\textcolor{orange}{\,+}y`],
+      ["x_i+y^2", String.raw`\textcolor{orange}{x_i+}y^2`],
+      ["x_i+y", String.raw`\textcolor{orange}{x}_i+y`],
+      ["x_{i+j}", String.raw`x_{i\textcolor{orange}{+}j}`],
+    ]) {
+      const uncolored = parseLabel(`$${plain}$`);
+      const parsed = parseLabel(`$${colored}$`);
+      if (!uncolored.ok || !parsed.ok) throw new Error(`invalid pair: ${plain}, ${colored}`);
+      // Compare per-character font/script as well as the exact spacing text;
+      // run boundaries alone may differ when a tone changes.
+      const characters = (runs: typeof parsed.value.lines) =>
+        runs.flatMap((line) =>
+          line.flatMap((r) => [...r.text].map((c) => [c, r.font, r.script, r.accent])),
+        );
+      expect(characters(parsed.value.lines)).toEqual(characters(uncolored.value.lines));
+      const before = await render(source(`$${plain}$`));
+      const after = await render(source(`$${colored}$`));
+      expect(after.layout.nodes[0]?.rect).toEqual(before.layout.nodes[0]?.rect);
+      const fonts = getFontSet(before.compiled.fontSet.id);
+      const a = before.inspection.elements[0]?.labels[0];
+      const b = after.inspection.elements[0]?.labels[0];
+      if (!fonts || !a || !b) throw new Error("missing measured label");
+      expect(measureLabel(b, fonts).box?.width).toBeCloseTo(
+        measureLabel(a, fonts).box?.width ?? -1,
+        4,
+      );
+    }
   });
 
   test("malformed colors use invalid-math and alignment is structured-only", () => {
@@ -151,33 +205,143 @@ describe("structured text colors (#186)", () => {
 
   test("left/right alignment, with sublabels and turned accent chunks, measures correctly", async () => {
     for (const align of ["left", "right"] as const) {
-      for (const rotation of [undefined, 90, -90]) {
-        for (const label of [
-          "A long first line\nshort",
-          String.raw`$\textcolor{orange}{\hat x_i}+y$`,
-        ]) {
+      for (const rotation of [undefined, 90, -90] as const) {
+        for (const [label, sublabel] of [
+          ["A long first line\nshort", "small"],
+          [String.raw`$\textcolor{orange}{\hat x_i}+y$`, "A much wider sublabel\nsmall"],
+        ] as const) {
           const rendered = await render(
             source(
               label,
-              `textAlign: ${align}\n    sublabel: 'small'${rotation === undefined ? "" : `\n    labelRotation: ${rotation}`}`,
+              `textAlign: ${align}\n    sublabel: ${JSON.stringify(sublabel)}${rotation === undefined ? "" : `\n    labelRotation: ${rotation}`}`,
             ),
           );
           const fonts = getFontSet(rendered.compiled.fontSet.id);
           if (!fonts) throw new Error("missing fonts");
-          for (const inspected of rendered.inspection.elements[0]?.labels ?? []) {
+          const labels = rendered.inspection.elements[0]?.labels ?? [];
+          expect(labels).toHaveLength(2);
+          const reference =
+            rotation === undefined
+              ? rendered
+              : await render(
+                  source(label, `textAlign: ${align}\n    sublabel: ${JSON.stringify(sublabel)}`),
+                );
+          const originalBox = reference.layout.nodes[0]?.rect;
+          const turnedBox = rendered.layout.nodes[0]?.rect;
+          if (!originalBox || !turnedBox) throw new Error("missing node bounds");
+          const originalCenter = {
+            x: originalBox.x + originalBox.width / 2,
+            y: originalBox.y + originalBox.height / 2,
+          };
+          const turnedCenter = {
+            x: turnedBox.x + turnedBox.width / 2,
+            y: turnedBox.y + turnedBox.height / 2,
+          };
+          const sharedEdges: number[] = [];
+          for (const [index, inspected] of labels.entries()) {
             expect(inspected.textAlign).toBe(align);
             const measured = measureLabel(inspected, fonts);
             expect(measured.box).toBeDefined();
-            if (rotation === undefined) {
-              for (const line of measured.lines) {
-                expect(align === "left" ? line.x : line.x + line.width).toBeCloseTo(
-                  inspected.anchor.x,
-                  4,
-                );
+            const turn = inspected.rotation;
+            const originalLabel = reference.inspection.elements[0]?.labels[index];
+            if (!originalLabel) throw new Error("missing reference label");
+            const ownLines = measureLabel(originalLabel, fonts).lines;
+            expect(turn?.degrees).toBe(rotation);
+            for (const [i, line] of measured.lines.entries()) {
+              const own = ownLines[i];
+              if (!own) throw new Error("missing upright line");
+              if (turn === undefined) {
+                sharedEdges.push(align === "left" ? line.x : line.x + line.width);
+              } else {
+                const { x: cx, y: cy } = originalCenter;
+                const sign = rotation === 90 ? 1 : -1;
+                // Rotate the independently rendered upright block about the
+                // node center, then translate to the turned node's center.
+                const expectedX =
+                  turnedCenter.x + (rotation === 90 ? -(own.y + own.height - cy) : own.y - cy);
+                const expectedY =
+                  turnedCenter.y + (rotation === 90 ? own.x - cx : -(own.x + own.width - cx));
+                expect(line.x).toBeCloseTo(expectedX, 3);
+                expect(line.y).toBeCloseTo(expectedY, 3);
+                expect(line.width).toBeCloseTo(own.height, 4);
+                expect(line.height).toBeCloseTo(own.width, 4);
+                const atTop = (align === "left") === (sign === 1);
+                sharedEdges.push(atTop ? line.y : line.y + line.height);
               }
             }
           }
-          expect(svgToEditablePptx(rendered.svg, rendered.compiled.ir).ok).toBe(true);
+          // Both blocks and every line share one edge, even when the sublabel
+          // is wider. Separate per-label anchors cannot satisfy this assertion.
+          for (const edge of sharedEdges) expect(edge).toBeCloseTo(sharedEdges[0] ?? NaN, 3);
+
+          const pptx = svgToEditablePptx(rendered.svg, rendered.compiled.ir);
+          if (!pptx.ok) throw new Error(JSON.stringify(pptx.diagnostics));
+          const parsed = parseXml(
+            new TextDecoder().decode(readPptx(pptx.value).get("ppt/slides/slide1.xml")),
+          );
+          if (!parsed.ok) throw new Error(parsed.message);
+          const all = [...descendants(parsed.root)];
+          const emu = 6350 * (rendered.inspection.scale ?? 1);
+          const slidePadding = (pt: number) =>
+            Math.floor(
+              Math.max(0, 914400 - Math.round(pt * 12700 * (rendered.inspection.scale ?? 1))) / 2,
+            ) / emu;
+          for (const [index, inspected] of labels.entries()) {
+            const name =
+              rotation === undefined ? "n:a" : `n:a ${index === 0 ? "label" : "sublabel"}`;
+            const shape = all.find(
+              (s) =>
+                s.name === "p:sp" &&
+                [...descendants(s)].some(
+                  (e) => e.name === "p:cNvPr" && attribute(e, "name") === name,
+                ),
+            );
+            if (!shape) throw new Error(`missing ${name}`);
+            const parts = [...descendants(shape)];
+            const prop = (tag: string, key: string) => {
+              const e = parts.find((p) => p.name === tag);
+              if (!e) throw new Error(`missing ${tag}`);
+              return attribute(e, key);
+            };
+            expect(prop("a:xfrm", "rot")).toBe(
+              rotation === undefined ? undefined : String(((rotation + 360) % 360) * 60000),
+            );
+            expect(
+              parts
+                .filter((p) => p.name === "a:pPr")
+                .every((p) => attribute(p, "algn") === (align === "left" ? "l" : "r")),
+            ).toBe(true);
+            const x =
+              Number(prop("a:off", "x")) / emu +
+              rendered.inspection.canvas.viewBox.x -
+              slidePadding(rendered.inspection.canvas.width.pt);
+            const y =
+              Number(prop("a:off", "y")) / emu +
+              rendered.inspection.canvas.viewBox.y -
+              slidePadding(rendered.inspection.canvas.height.pt);
+            const width = Number(prop("a:ext", "cx")) / emu;
+            const height = Number(prop("a:ext", "cy")) / emu;
+            const left = Number(prop("a:bodyPr", "lIns")) / emu;
+            const right = Number(prop("a:bodyPr", "rIns")) / emu;
+            expect(align === "left" ? right : left).toBe(0);
+            expect(align === "left" ? x + left : x + width - right).toBeCloseTo(
+              inspected.anchor.x,
+              3,
+            );
+            if (inspected.rotation) {
+              expect(x + width / 2).toBeCloseTo(inspected.rotation.center.x, 3);
+              expect(y + height / 2).toBeCloseTo(inspected.rotation.center.y, 3);
+            }
+            // Upright label+sublabel share a body; its top inset belongs to
+            // the main label. Rotated texts each have their own body/inset.
+            if (rotation !== undefined || index === 0) {
+              const { rotation: _, ...upright } = inspected;
+              expect(y + Number(prop("a:bodyPr", "tIns")) / emu).toBeCloseTo(
+                measureLabel(upright, fonts).lines[0]?.y ?? NaN,
+                3,
+              );
+            }
+          }
         }
       }
     }

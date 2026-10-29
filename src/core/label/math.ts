@@ -474,10 +474,13 @@ class MathParser {
         const inner = this.#braced(name, start, (opened) =>
           this.#list("group", script, font, opened),
         );
-        return atom(
-          "ord",
-          emit(inner, !script).map((run) => ({ ...run, tone: run.tone ?? (tone as Tone) })),
-        );
+        // Color is transparent to the math list: defer spacing until the
+        // surrounding atoms are known (including binary/unary operators at
+        // either boundary), and retain script ownership on each atom.
+        return inner.map((innerAtom) => ({
+          ...innerAtom,
+          runs: innerAtom.runs.map((run) => ({ ...run, tone: run.tone ?? (tone as Tone) })),
+        }));
       }
       case "mathrm":
       case "mathit":

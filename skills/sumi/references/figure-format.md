@@ -152,6 +152,12 @@ groups:
   color is used in SVG, PDF and PPTX; inherited `dim` overrides it.
   Outside math it stays literal; inside `\text{…}` the existing escape rules
   apply. Auto math stays literal with its usual warning.
+  Tone-line text colors guarantee contrast against white, not against toned
+  fills; span colors do not adapt to the background. For example, a paper
+  node with `tone: orange` and
+  `label: '$\textcolor{orange}{\text{Highlight}}$'` uses text `#bd5410` on fill
+  `#f9e0bc` (about 3.70:1). Prefer a white fill for colored phrases when you
+  need the tone-line contrast guarantee.
 - `textAlign: left | center | right` on a node (structured only) aligns its
   label and sublabel lines within their shared, widest-line text block.
   Omit it for the existing centered output. It does not wrap text or change
