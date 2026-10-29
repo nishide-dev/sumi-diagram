@@ -746,8 +746,13 @@ in a column it reserves 6pt of height and inherits `props.width` (14pt if absent
 Its own sizes override these defaults; `gap` applies on both sides. The line
 uses the theme's outlined tone and line width, inheriting the tokens' tone.
 Dividers also work in `lines` and count as cells for positional references;
-prefer explicit IDs for stable references when inserting them. Inspect and
-geometry lint use the reserved box; PDF and both PPTX modes preserve the line.
+prefer explicit IDs for stable references when inserting them. A divider can
+be an edge endpoint, by name or position: anchors target the invisible reserved
+rectangle, **not the dotted centerline**. Editable PPTX connectors bind to that
+rectangle too. Inspect and geometry lint use the reserved box (including
+edge-through-node checks). The dotted path is decoration: inspect does not
+expose it, and edge proximity rules do not measure distance to its stroke.
+PDF and both PPTX modes preserve the line.
 
 Edges, `attach.to` and `align` name a cell as **`<node>.<cell>`**: the
 cell's `id`, or its 1-based position when it has none (`keys.3`).

@@ -82,7 +82,9 @@ border and colored text, as in many paper figures (an encoder, token
 cells, keys). Without a tone an outlined node takes tone gray's line. On
 an **edge**, `tone` colors the line, its arrowheads and its label. Both
 use the tone's line color: a dark shade of the hue in `color` and `paper`
-(readable as text), one of three grays in the monochrome themes.
+(readable as text), one of three grays in the monochrome themes. Built-in
+outlined text has at least 4.5:1 contrast on white **on non-dimmed nodes**;
+`dim: true` replaces the tone ink, so that 4.5:1 claim does not apply there.
 
 ```yaml
 nodes:
