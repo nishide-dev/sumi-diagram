@@ -38,7 +38,7 @@ shows (`brain`, `database`, `photo`, `world`), not by the concept.
   to a side that has no edges (e.g. `{ id: cond-icon, component: label,
   icon: tabler/clock, attach: { to: cond, side: south, gap: 1mm } }`); say
   so in the report.
-- `emoji/<name>` (0.7.0; expanded in #234) uses 3,124 bundled Fluent Emoji Flat
+- `emoji/<name>` (0.7.0; expanded in 0.8.0) uses 3,124 bundled Fluent Emoji Flat
   SVGs (Microsoft, MIT). They keep their original multicolour palette in
   every theme and in SVG, PDF and picture PPTX. **Colour emoji deliberately
   retain their palette inside `dim: true` groups**, for both replacement icons
