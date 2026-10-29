@@ -25,7 +25,17 @@
  */
 
 import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, readdir, readFile, realpath, rm, symlink } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  open,
+  readdir,
+  readFile,
+  realpath,
+  rm,
+  stat,
+  symlink,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import pkg from "../package.json";
@@ -229,6 +239,109 @@ async function smoke(tarballArg: string, keep: boolean): Promise<void> {
     await mkdir(linkDir);
     await symlink(sumi, join(linkDir, "sumi"));
     await doctor(join(linkDir, "sumi"), "symlink");
+
+    // Install the real archive through a local HTTP release mirror. This also
+    // exercises wget on hosts where it cannot read file:// URLs.
+    let corrupt = false;
+    const server = Bun.serve({
+      hostname: "127.0.0.1",
+      port: 0,
+      fetch(request) {
+        const path = new URL(request.url).pathname;
+        if (path === `/${basename(tarball)}`) return new Response(Bun.file(tarball));
+        if (path === "/SHA256SUMS") {
+          return new Response(
+            `${corrupt ? "0".repeat(64) : sha256Hex(bytes)}  ${basename(tarball)}\n`,
+          );
+        }
+        return new Response("Not found", { status: 404 });
+      },
+    });
+    try {
+      const installer = resolve(import.meta.dir, "..", "install.sh");
+      const installHome = join(home, ".local", "share", "sumi");
+      const installBin = join(home, ".local", "bin");
+      const installEnv = {
+        ...env,
+        SUMI_VERSION: `v${version}`,
+        SUMI_DOWNLOAD_BASE: `http://127.0.0.1:${server.port}`,
+      };
+      const latest = join(root, "latest release.json");
+      await Bun.write(latest, JSON.stringify({ tag_name: `v${version}` }));
+      const installed = await runCommand(["sh", installer], {
+        cwd: work,
+        // No SUMI_VERSION: resolve the latest tag without contacting GitHub.
+        env: { ...env, SUMI_DOWNLOAD_BASE: installEnv.SUMI_DOWNLOAD_BASE, SUMI_LATEST_URL: latest },
+        timeoutMs: 120_000,
+      });
+      check(installed.exitCode === 0, `installer failed: ${installed.stderr}${installed.stdout}`);
+      check(installed.stdout.includes("export PATH="), "installer omitted the PATH hint");
+      check(
+        (await realpath(join(installBin, "sumi"))) ===
+          (await realpath(join(installHome, name, RELEASE_LAYOUT.sumi))),
+        "installer symlink does not point into the intact release layout",
+      );
+      const installedDoctor = JSON.parse(
+        await sumiAt(join(installBin, "sumi"), ["doctor", "--json"]),
+      );
+      check(installedDoctor.ok, "installed binary failed doctor");
+      step(
+        "installer: offline latest-tag resolution, checksum, default paths, symlink, doctor, and PATH hint",
+      );
+
+      // Reinstall into custom paths, as used for upgrades and isolated installs.
+      const customEnv = {
+        ...installEnv,
+        SUMI_HOME: join(root, "custom release home"),
+        SUMI_BIN_DIR: join(root, "custom bin"),
+      };
+      const customInstall = await runCommand(["sh", installer], { cwd: work, env: customEnv });
+      check(customInstall.exitCode === 0, `custom install failed: ${customInstall.stderr}`);
+      const releaseDir = join(customEnv.SUMI_HOME, name);
+      const executable = join(releaseDir, RELEASE_LAYOUT.sumi);
+      const stale = join(releaseDir, "stale-file");
+      await Bun.write(stale, "must disappear on reinstall");
+      // Keep the old inode alive so inode reuse cannot hide an in-place overwrite.
+      const oldExecutable = await open(executable, "r");
+      try {
+        const before = await oldExecutable.stat();
+        const reinstall = await runCommand(["sh", installer], { cwd: work, env: customEnv });
+        check(reinstall.exitCode === 0, `custom reinstall failed: ${reinstall.stderr}`);
+        check(
+          (await stat(executable)).ino !== before.ino,
+          "reinstall overwrote the old executable in place",
+        );
+        check(!existsSync(stale), "reinstall retained stale files in the old release directory");
+        check(
+          (await readdir(customEnv.SUMI_HOME)).every((entry) => !entry.startsWith(`.${name}.tmp.`)),
+          "reinstall left a staging directory behind",
+        );
+      } finally {
+        await oldExecutable.close();
+      }
+      check(
+        (await sumiAt(join(customEnv.SUMI_BIN_DIR, "sumi"), ["--version"])).trim() === version,
+        "custom install reports the wrong version",
+      );
+      step(
+        "installer: custom directories with spaces and staged replacement of an existing release",
+      );
+
+      corrupt = true;
+      const rejectedHome = join(root, "rejected home");
+      const rejected = await runCommand(["sh", installer], {
+        cwd: work,
+        env: { ...installEnv, SUMI_HOME: rejectedHome },
+      });
+      check(
+        rejected.exitCode !== 0 && rejected.stderr.includes("Checksum mismatch"),
+        `installer did not clearly reject a checksum mismatch: ${rejected.stderr}`,
+      );
+      check(!existsSync(rejectedHome), "checksum mismatch modified the installation directory");
+      step("installer: checksum mismatch rejected before installation");
+    } finally {
+      await server.stop(true);
+    }
 
     // 4. Render a figure with Japanese labels.
     await Bun.write(join(work, "図.sumi.yaml"), FIGURE);

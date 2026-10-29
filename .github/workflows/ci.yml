@@ -40,6 +40,9 @@ jobs:
       - name: Biome check
         run: bun run check
 
+      - name: Installer shell lint
+        run: shellcheck --shell=sh install.sh
+
       - name: Typecheck
         run: bun run typecheck
 
