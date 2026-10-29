@@ -53,7 +53,7 @@ let emojiLoaded: Archive | undefined;
 
 export const EMOJI_VERSION = "1.2.6";
 export const EMOJI_ARCHIVE_SHA256 =
-  "b2f2942692bc9dc1349fd5c816f7fae5225b0903bee97e61c656fb3a43415fed";
+  "b57f5a82566da119cb40a1e5dde43a50f9d145caecbd2780ffbe69b2c2fba633";
 
 function emojiArchive(): Archive {
   if (emojiLoaded !== undefined) return emojiLoaded;
@@ -120,7 +120,7 @@ export function iconSets(): IconSetInfo[] {
       version: EMOJI_VERSION,
       license: "MIT",
       source: "https://github.com/microsoft/fluentui-emoji",
-      contents: "curated multicolour Flat subset: fire, snowflake; via Iconify JSON",
+      contents: `curated multicolour Flat subset via Iconify JSON: ${emojiArchive().names.join(", ")}`,
       count: emojiArchive().names.length,
     },
   ];

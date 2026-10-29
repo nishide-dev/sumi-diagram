@@ -2040,8 +2040,11 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 
 ### 6.62 #188 の多色絵文字・角バッジ・角への attach・bowtie
 
-- **判断（2026-10-28 の利用者判断を実装）**: Microsoft の **Fluent Emoji Flat**
-  の `fire` / `snowflake` 2 点を同梱する。MIT 原文は upstream commit
+- **判断（2026-10-29 review 対応）**: 利用者の「多色絵文字セットを同梱する」判断に従い、
+  Microsoft の **Fluent Emoji Flat** の汎用 47 点を同梱する。状態記号・警告/情報・電球・
+  rocket・工具・鍵・文書/package・図表・時計・cloud/network/device・robot/brain・人・
+  吹き出し・星・的と fire / snowflake を含む。全名は catalog と Skill assets reference に列挙。
+  MIT 原文は upstream commit
   `1ffb34c752ecf5d402f04cfb4b392c77f57c54bc` の LICENSE と SHA-256 で照合した
   （`c2cfccb8…e15383`、1,141 bytes）。Iconify JSON
   `@iconify-json/fluent-emoji-flat@1.2.6` の tarball を SHA-512 integrity で固定し、
@@ -2049,22 +2052,30 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
   フォントや OS の絵文字描画には依存しない。
 - **サイズの実測と範囲**: upstream の npm tarball は **1,172,438 bytes**、
   全 3,174 named entries を Sumi の SVG JSON gzip にすると **1,154,399 bytes**。
-  2 点の subset は **1,016 bytes**（SHA-256 `b2f29426…415fed`）。全セットも検証したが、
+  47 点の subset は **13,971 bytes**（SHA-256 `b57f5a82…fba633`、license/code は別）。
+  旧 2 点は 1,016 bytes、review の候補 47 点は 14,246 bytes。本採用は同じ汎用カテゴリを
+  満たす 47 点で、全件を importer と両 engine の各出力で検査する。全セットのうち
+  importer が受け入れるのは 2,747 / 3,174 点で、
   `airplane-arrival` 等は `clipPath` / `defs` / `url(#…)` を持ち、既存の基本図形限定
-  importer（§6.25）が拒否した。必要な 2 点で受け入れ条件を満たせるので、今回は subset
-  を選んだ。全セットのために SVG resource model を広げない。追加する場合も importer と
+  importer（§6.25）が拒否する。全セットには追加の importer 対応が必要なため、
+  汎用 subset を採用する。追加する場合も importer と
   SVG/PDF/PPTX の経路を通して検証する。`catalog --icons` と `catalog --json` が実際の範囲を示す。
 - **構文**: `icon: emoji/fire` / `emoji/snowflake` はラベルを置き換える（Tabler と同じ）。
   `badge: { icon: emoji/fire, corner: north-east }` はラベルから独立した 1 em の正方形。
   `north-east` / `south-east` / `south-west` / `north-west` の bbox の角を中心に重ねる。
   Tabler の badge も可能。多色は theme / tone で単色化せず、Tabler だけが文字色に従う。
+  **dim の例外**: dim group 内の多色 emoji（icon/badge）は元の色を維持し、
+  `theme/undimmed-image` は出さない。dim と連動する記号には Tabler を使う。回帰テストあり。
   `legend` / `tokens` / `matrix` と point junction は単独の本体を持たないため
   `component/badge-unsupported`（error）。画像・outline には使える。
-- **足跡と描画**: structured は本体サイズを保ち、角の方向へ 0.5 em ずつ張り出す足跡を
-  arrange の item、attach、group、canvas に含める。ルーティングの端点は本体のまま。
+- **足跡と描画**: structured は本体サイズを保ち、**本体と badge の実際の union** の
+  東西南北の張り出しを個別に保持し、arrange の item、attach の両端、group、canvas に
+  含める。0.5 em 未満の本体では角の反対側にも張り出す。ルーティングの端点は本体のまま。
   auto は既存の asset composition で D2 の配置後に重ねる（周囲の余白は幾何 lint で確認）。
   `geometry/badge-collision`（warning）が他の本体・文字・バッジ・辺、自身の文字、canvas 外
-  を検査する。本体との意図した重なりと祖先 group は除く。診断位置は `nodes[].badge`。
+  を検査する。自身の本体と祖先 group の本体包含だけを除き、祖先のタイトルは検査する。
+  診断位置は `nodes[].badge`。tiny body・逆順・attach chain・nested group・辺横断・
+  自身の label/sublabel・実際の fit 縮小を回帰テストに含める。
 - **角の attach**: `attach: { to: frame, side: south-east, gap: 1mm }` など。
   通常の attach と同じ親・依存順・循環検査で、双方の軸で gap だけ外側に置く。
   badge の「角の中央」とは異なる。edge anchor の四辺の契約は変えない。
@@ -2073,6 +2084,8 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
   label fitting は高さを 2 倍にして確保する。全 5 themes × 5 variants
   （default / emphasis / muted / filled / outlined）を catalog と gallery に含めた。
   極端な縦横比・safeArea・単調な fitting は既存の outline oracle で検査する。
+  衝突判定は保守的な凸包、port は順序付きの実輪郭との最初の交点を使い分ける。
+  north/south の中央と 1/4・3/4 anchor が空白で終わらないことを routing 回帰で検査。
 - **出力と告知**: 圧縮 archive と MIT 原文を単一 binary に埋め込む。図には使った SVG のみを
   埋め込み、SVG metadata / PDF properties / PPTX custom properties に原文を保持する。
   release は `licenses/fluent-emoji/LICENSE`、`NOTICE`、`README.dist` を保持し、smoke で
@@ -2090,6 +2103,10 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
   追加 golden は bowtie gallery と emoji-badges fixture。診断の golden は既知の部品一覧に
   bowtie が増えるだけ。wrapper のテストは TMPDIR が checkout 内でもインストール先の
   隔離を模擬できるよう、fixture の dirname に境界を設けた（製品 wrapper は変更なし）。
+  review 修正後にも同じ 840 cases を再実行し、574 cases の SVG/PDF/PPTX と 222 D2 の
+  hash がすべて一致。既存 golden は更新なし。`check` / `typecheck` / `CI=1 bun test`
+  （2,873 pass / 13 skip / 0 fail）/ `gallery:check`（160 files）/ `schema:check` /
+  `emoji:check` が成功した。
 
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures

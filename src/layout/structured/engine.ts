@@ -195,6 +195,7 @@ class StructuredLayout {
   /** Nodes' sublabels (#184), measured at their own font size. */
   readonly #sublabels = new Map<ElementKey, TextMetrics>();
   readonly #leafSizes = new Map<ElementKey, Size>();
+  readonly #badgeOverhangs = new Map<ElementKey, Overhang>();
   readonly #defaultGap: number;
   readonly #groupPadding: number;
   /** Padding added to sides of groups for the room before arrowheads (#171, `growPadding`). */
@@ -242,8 +243,14 @@ class StructuredLayout {
           ? { width: text.height, height: text.width }
           : (text ?? iconBox(node));
       const size = nodeSize(node, box, padding);
-      const extra = node.badge === undefined ? 0 : node.style.fontSize.units / 2;
-      this.#leafSizes.set(node.key, { width: size.width + extra, height: size.height + extra });
+      const body = { x: 0, y: 0, ...size };
+      const badge = badgeRect(node, body);
+      const extra = overhangOf(body, badge === undefined ? [] : [badge]);
+      this.#badgeOverhangs.set(node.key, extra);
+      this.#leafSizes.set(node.key, {
+        width: size.width + extra.west + extra.east,
+        height: size.height + extra.north + extra.south,
+      });
       if (node.attach !== undefined) {
         const container = node.parent ?? ROOT;
         const list = this.#attached.get(container) ?? [];
@@ -446,14 +453,13 @@ class StructuredLayout {
 
   /** Convert the reserved badge footprint to the body's own box. */
   #bodyRect(key: ElementKey, rect: Rect): Rect {
-    const node = this.#nodes.get(key);
-    if (node?.badge === undefined) return rect;
-    const half = node.style.fontSize.units / 2;
+    const extra = this.#badgeOverhangs.get(key);
+    if (extra === undefined) return rect;
     return {
-      x: rect.x + (node.badge.corner.endsWith("west") ? half : 0),
-      y: rect.y + (node.badge.corner.startsWith("north") ? half : 0),
-      width: rect.width - half,
-      height: rect.height - half,
+      x: rect.x + extra.west,
+      y: rect.y + extra.north,
+      width: rect.width - extra.west - extra.east,
+      height: rect.height - extra.north - extra.south,
     };
   }
 
@@ -503,7 +509,14 @@ class StructuredLayout {
         throw new Error("internal error: an attach target is never placed");
       pending.splice(index, 1);
       const { to, side, gapPt } = node.attach;
-      const target = rects.get(to) as Rect;
+      const targetBody = rects.get(to) as Rect;
+      const extra = this.#badgeOverhangs.get(to) ?? NO_OVERHANG;
+      const target = {
+        x: targetBody.x - extra.west,
+        y: targetBody.y - extra.north,
+        width: targetBody.width + extra.west + extra.east,
+        height: targetBody.height + extra.north + extra.south,
+      };
       rects.set(
         node.key,
         this.#bodyRect(node.key, attachedRect(target, this.#itemSize(node.key), side, gapPt * 2)),

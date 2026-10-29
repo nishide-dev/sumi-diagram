@@ -1,6 +1,7 @@
 /** Reproducible Fluent Emoji Flat archive; no runtime dependency or network. */
 import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
+import { importSvg } from "../src/assets/svg-import";
 
 const version = "1.2.6";
 const license = new Uint8Array(
@@ -46,7 +47,63 @@ try {
         `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${icon.width ?? data.width} ${icon.height ?? data.height}">${icon.body}</svg>`,
       ]),
   );
-  const selected = { fire: icons.fire, snowflake: icons.snowflake };
+  const names = [
+    "check-mark-button",
+    "check-box-with-check",
+    "cross-mark",
+    "cross-mark-button",
+    "warning",
+    "information",
+    "red-question-mark",
+    "red-exclamation-mark",
+    "light-bulb",
+    "rocket",
+    "gear",
+    "hammer-and-wrench",
+    "wrench",
+    "locked",
+    "unlocked",
+    "key",
+    "page-facing-up",
+    "memo",
+    "file-folder",
+    "clipboard",
+    "package",
+    "books",
+    "bar-chart",
+    "chart-increasing",
+    "chart-decreasing",
+    "stopwatch",
+    "hourglass-not-done",
+    "alarm-clock",
+    "cloud",
+    "globe-with-meridians",
+    "satellite-antenna",
+    "floppy-disk",
+    "desktop-computer",
+    "mobile-phone",
+    "electric-plug",
+    "battery",
+    "robot",
+    "brain",
+    "bust-in-silhouette",
+    "busts-in-silhouette",
+    "speech-balloon",
+    "thought-balloon",
+    "star",
+    "glowing-star",
+    "bullseye",
+    "fire",
+    "snowflake",
+  ].sort();
+  const selected = Object.fromEntries(
+    names.map((name) => {
+      const svg = icons[name];
+      if (svg === undefined || !importSvg(svg, { dropInvisible: true }).ok)
+        throw new Error(`emoji ${name} is missing or unsupported by the SVG importer`);
+      return [name, svg];
+    }),
+  );
   const archive = Bun.gzipSync(JSON.stringify({ format: 1, icons: selected }), { level: 9 });
   const path = "assets/icons/fluent-emoji-flat.json.gz";
   if (process.argv.includes("--check")) {

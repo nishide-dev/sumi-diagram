@@ -182,7 +182,7 @@ ${npm}
        use an icon carry this notice in their metadata.
 
     e. Fluent Emoji Flat (https://github.com/microsoft/fluentui-emoji):
-       curated Flat subset (fire, snowflake) via @iconify-json/fluent-emoji-flat@${EMOJI_VERSION}.
+       curated general-purpose 47-icon Flat subset via @iconify-json/fluent-emoji-flat@${EMOJI_VERSION}.
        Copyright (c) Microsoft Corporation. MIT License, see
        licenses/fluent-emoji/LICENSE. Archive sha256: ${EMOJI_ARCHIVE_SHA256}.
        Figures embed only used emoji and retain the full license in metadata.

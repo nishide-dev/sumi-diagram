@@ -566,7 +566,7 @@ describe("sumi catalog", () => {
     // #94: the bundled icon set, without the (long) list of names.
     expect(json.icons).toEqual([
       expect.objectContaining({ id: "tabler", version: "3.49.0", license: "MIT", count: 4808 }),
-      expect.objectContaining({ id: "emoji", version: "1.2.6", license: "MIT", count: 2 }),
+      expect.objectContaining({ id: "emoji", version: "1.2.6", license: "MIT", count: 47 }),
     ]);
     expect(json.version).toBe(1);
     // The version 1 contract of #14 is unchanged: the components are buildCatalog()'s.

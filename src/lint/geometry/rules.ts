@@ -1419,9 +1419,11 @@ export const badgeCollision = defineGeometryRule({
       const badge = element.badge;
       if (badge === undefined) continue;
       const collisions = context.elements.filter((other) => {
-        if (other.key === element.key || context.isAncestor(other.key, element.key)) return false;
+        if (other.key === element.key) return false;
         return (
-          (other.bbox !== undefined && rectsOverlap(badge, other.bbox, GEOMETRY_TOLERANCE_UNITS)) ||
+          (!context.isAncestor(other.key, element.key) &&
+            other.bbox !== undefined &&
+            rectsOverlap(badge, other.bbox, GEOMETRY_TOLERANCE_UNITS)) ||
           (other.badge !== undefined &&
             rectsOverlap(badge, other.badge, GEOMETRY_TOLERANCE_UNITS)) ||
           other.labels.some((label) =>
