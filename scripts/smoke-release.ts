@@ -230,6 +230,82 @@ async function smoke(tarballArg: string, keep: boolean): Promise<void> {
     await symlink(sumi, join(linkDir, "sumi"));
     await doctor(join(linkDir, "sumi"), "symlink");
 
+    // Install the real archive through a local HTTP release mirror. This also
+    // exercises wget on hosts where it cannot read file:// URLs.
+    let corrupt = false;
+    const server = Bun.serve({
+      hostname: "127.0.0.1",
+      port: 0,
+      fetch(request) {
+        const path = new URL(request.url).pathname;
+        if (path === `/${basename(tarball)}`) return new Response(Bun.file(tarball));
+        if (path === "/SHA256SUMS") {
+          return new Response(
+            `${corrupt ? "0".repeat(64) : sha256Hex(bytes)}  ${basename(tarball)}\n`,
+          );
+        }
+        return new Response("Not found", { status: 404 });
+      },
+    });
+    try {
+      const installer = resolve(import.meta.dir, "..", "install.sh");
+      const installHome = join(home, ".local", "share", "sumi");
+      const installBin = join(home, ".local", "bin");
+      const installEnv = {
+        ...env,
+        SUMI_VERSION: `v${version}`,
+        SUMI_DOWNLOAD_BASE: `http://127.0.0.1:${server.port}`,
+      };
+      const installed = await runCommand(["sh", installer], {
+        cwd: work,
+        env: installEnv,
+        timeoutMs: 120_000,
+      });
+      check(installed.exitCode === 0, `installer failed: ${installed.stderr}${installed.stdout}`);
+      check(installed.stdout.includes("export PATH="), "installer omitted the PATH hint");
+      check(
+        (await realpath(join(installBin, "sumi"))) ===
+          (await realpath(join(installHome, name, RELEASE_LAYOUT.sumi))),
+        "installer symlink does not point into the intact release layout",
+      );
+      const installedDoctor = JSON.parse(
+        await sumiAt(join(installBin, "sumi"), ["doctor", "--json"]),
+      );
+      check(installedDoctor.ok, "installed binary failed doctor");
+      step("installer: local release, checksum, default paths, symlink, doctor, and PATH hint");
+
+      // Reinstall into custom paths, as used for upgrades and isolated installs.
+      const customEnv = {
+        ...installEnv,
+        SUMI_HOME: join(root, "custom release home"),
+        SUMI_BIN_DIR: join(root, "custom bin"),
+      };
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const result = await runCommand(["sh", installer], { cwd: work, env: customEnv });
+        check(result.exitCode === 0, `custom install/reinstall failed: ${result.stderr}`);
+      }
+      check(
+        (await sumiAt(join(customEnv.SUMI_BIN_DIR, "sumi"), ["--version"])).trim() === version,
+        "custom install reports the wrong version",
+      );
+      step("installer: custom directories with spaces and repeat installation");
+
+      corrupt = true;
+      const rejectedHome = join(root, "rejected home");
+      const rejected = await runCommand(["sh", installer], {
+        cwd: work,
+        env: { ...installEnv, SUMI_HOME: rejectedHome },
+      });
+      check(
+        rejected.exitCode !== 0 && rejected.stderr.includes("Checksum mismatch"),
+        `installer did not clearly reject a checksum mismatch: ${rejected.stderr}`,
+      );
+      check(!existsSync(rejectedHome), "checksum mismatch modified the installation directory");
+      step("installer: checksum mismatch rejected before installation");
+    } finally {
+      await server.stop(true);
+    }
+
     // 4. Render a figure with Japanese labels.
     await Bun.write(join(work, "図.sumi.yaml"), FIGURE);
     for (const [path, label] of [
