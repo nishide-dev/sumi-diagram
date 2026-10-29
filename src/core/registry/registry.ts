@@ -125,7 +125,11 @@ export class Registry {
           }),
         };
       }
-      value.render = { ...value.render, params: params.data };
+      const defined: Record<string, number | boolean | string> = {};
+      for (const [key, param] of Object.entries(params.data)) {
+        if (param !== undefined) defined[key] = param;
+      }
+      value.render = { ...value.render, params: defined };
     }
     const id = componentId(value);
     if (this.#manifests.has(id)) {

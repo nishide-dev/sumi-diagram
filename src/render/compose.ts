@@ -5,7 +5,7 @@ import type { ElementKey } from "../core/check-state";
 import type { Diagnostic } from "../core/diagnostics";
 import { getOutlineRenderer, type OutlineDrawing } from "../core/outline";
 import type { Result } from "../core/result";
-import type { PathSegment, Point, Rect } from "./geometry";
+import { type PathSegment, type Point, parsePath, type Rect } from "./geometry";
 import { decodeElementClass, type SvgInspection } from "./inspect";
 import {
   ENDPOINT_ANGLE_TOLERANCE_DEG,
@@ -16,6 +16,7 @@ import {
   rayHit,
   rectPoints,
 } from "./outline-geometry";
+import { correctedOutlineRouteIsSafe } from "./outline-route";
 import { isHiddenJunction } from "./wire";
 import {
   attribute,
@@ -113,7 +114,12 @@ export function composeOutlines(
     };
     const drawings = new Map<
       ElementKey,
-      { bbox: Rect; outlines: readonly (readonly Point[])[]; image?: boolean }
+      {
+        bbox: Rect;
+        outlines: readonly (readonly Point[])[];
+        image?: boolean;
+        disconnected?: boolean;
+      }
     >();
     for (const node of nodes) {
       current = node.key;
@@ -137,7 +143,11 @@ export function composeOutlines(
       if (shapes.length !== 1 || !shape || children?.length !== 1 || rect?.name !== "rect")
         throw new Error(`${node.key}: expected exactly one g.shape > rect placeholder.`);
       const drawing = drawNodeOutline(node, bbox);
-      drawings.set(node.key, { bbox, outlines: [drawing.outline] });
+      drawings.set(node.key, {
+        bbox,
+        outlines: drawing.boundaries ?? [drawing.outline],
+        ...(drawing.boundaries && { disconnected: true }),
+      });
       const paint = rect.attributes.filter((a) => !PATH_GEOMETRY.has(a.name));
       const layers = drawing.layers
         .map((layer) => {
@@ -195,14 +205,18 @@ export function composeOutlines(
       if (!original || original.length < 2 || !path)
         throw new Error(`${edge.key}: missing edge route.`);
       const route = original.map((s) => structuredClone(s));
+      const bends: { index: number; point: Point }[] = [];
+      const pendingExtensions: Extension[] = [];
+      const correctedEnds: ("source" | "target")[] = [];
       let changed = false;
+      let failed = false;
       for (const end of ["source", "target"] as const) {
         const key = end === "source" ? edge.from : edge.to;
         const custom = drawings.get(key);
         if (!custom) continue;
         const index = end === "source" ? 0 : original.length - 1;
         const segment = original[index] as PathSegment;
-        const point = segment.to;
+        let point = segment.to;
         const adjacent = end === "source" ? (original[1] as PathSegment) : segment;
         const neighbour =
           end === "source"
@@ -217,6 +231,35 @@ export function composeOutlines(
           x: (point.x - neighbour.x) / length,
           y: (point.y - neighbour.y) / length,
         };
+        let lateral = 0;
+        // A near-normal approach through a disconnected bowtie's gap must end on
+        // a painted lip. Translate the endpoint ray, retaining its tangent.
+        if (
+          custom.disconnected &&
+          Math.abs(direction.x) <= Math.sin((ENDPOINT_ANGLE_TOLERANCE_DEG * Math.PI) / 180)
+        ) {
+          const spans = custom.outlines.map((points) => ({
+            min: Math.min(...points.map((p) => p.x)),
+            max: Math.max(...points.map((p) => p.x)),
+          }));
+          if (!custom.outlines.some((outline) => rayHit(outline, point, direction) !== undefined)) {
+            const nearest = custom.outlines
+              .flat()
+              .filter((p) => spans.some((span) => p.x === span.min || p.x === span.max))
+              .sort((a, b) => {
+                const distance = Math.abs(a.x - point.x) - Math.abs(b.x - point.x);
+                return Math.abs(distance) > 1e-6
+                  ? distance
+                  : a.x - b.x || (a.y - b.y) * direction.y;
+              })[0];
+            if (nearest !== undefined) {
+              // Aim the translated ray at the lip, rather than putting only
+              // its origin on the lip's x (which can still miss when slanted).
+              lateral = nearest.x - point.x - (direction.x / direction.y) * (nearest.y - point.y);
+              point = { ...point, x: point.x + lateral };
+            }
+          }
+        }
         const usable = length > 1e-9 && !insideRect(custom.bbox, point);
         const rectDistance = usable ? rayHit(rectPoints(custom.bbox), point, direction) : undefined;
         const hits = usable
@@ -250,15 +293,16 @@ export function composeOutlines(
               `The ${end} end of ${edge.id ?? `edges[${edge.index}]`} could not be extended to ${key}'s outline.`,
             ),
           );
-          continue;
+          failed = true;
+          break;
         }
         // Ends that are not normal reach this point only when flush.
-        if (delta <= 1e-9 || !normal) continue;
+        if ((delta <= 1e-9 && lateral === 0) || !normal) continue;
         const shift = (p: Point): Point => ({
-          x: p.x + direction.x * delta,
+          x: p.x + direction.x * delta + lateral,
           y: p.y + direction.y * delta,
         });
-        const moved = shift(point);
+        const moved = shift(segment.to);
         route[index] = { ...(route[index] as PathSegment), to: moved };
         if (end === "source" && route[1]?.command === "C")
           route[1] = { ...route[1], c1: shift(route[1].c1) };
@@ -266,10 +310,79 @@ export function composeOutlines(
           const last = route[index];
           if (last?.command === "C") route[index] = { ...last, c2: shift(last.c2) };
         }
-        extensions.push({ node: key, edge: edge.key, start: point, end: moved });
+        if (lateral !== 0 && adjacent.command !== "C") {
+          // Retain the straight end's tangent too. Join its translated origin
+          // to the old route outside the footprint, instead of making a diagonal
+          // from the unchanged neighbour through the empty gap.
+          bends.push({
+            index: end === "source" ? 1 : index,
+            point,
+          });
+        }
+        pendingExtensions.push({ node: key, edge: edge.key, start: point, end: moved });
+        correctedEnds.push(end);
         changed = true;
       }
-      if (changed) editTag(path, { d: pathText(route) });
+      // Endpoint corrections are atomic: never publish the other end's edit
+      // (or its crossing checks) when any end could not be corrected.
+      if (failed) continue;
+      // At equal indices insert the target first, so the source bend ends up
+      // before it in travel order (a two-point route has both at index 1).
+      for (const bend of bends.reverse().sort((a, b) => b.index - a.index))
+        route.splice(bend.index, 0, { command: "L", to: bend.point });
+      if (changed) {
+        const d = pathText(route);
+        const split = drawings.get(edge.from)?.disconnected || drawings.get(edge.to)?.disconnected;
+        const rounded = parsePath(d);
+        // Rounding can turn a corner contact into a ray through the gap.
+        // Re-cast each corrected end using the serialized endpoint/tangent
+        // and the same rounded boundaries that are painted in the SVG.
+        const reachesPaint =
+          rounded.ok &&
+          correctedEnds.every((end) => {
+            const segments = rounded.segments;
+            const index = end === "source" ? 0 : segments.length - 1;
+            const point = (segments[index] as PathSegment).to;
+            const adjacent = segments[end === "source" ? 1 : index] as PathSegment;
+            const neighbour =
+              adjacent.command === "C"
+                ? end === "source"
+                  ? adjacent.c1
+                  : adjacent.c2
+                : (segments[end === "source" ? 1 : index - 1] as PathSegment).to;
+            const direction = { x: point.x - neighbour.x, y: point.y - neighbour.y };
+            const custom = drawings.get(end === "source" ? edge.from : edge.to);
+            return custom?.outlines.some(
+              (outline) =>
+                rayHit(
+                  outline.map((p) => ({ x: Number(fmt(p.x)), y: Number(fmt(p.y)) })),
+                  point,
+                  direction,
+                ) !== undefined,
+            );
+          });
+        const obstacles = inspection.elements.flatMap((e) =>
+          e.kind !== "edge" && e.key !== edge.from && e.key !== edge.to && e.bbox ? [e.bbox] : [],
+        );
+        if (
+          !rounded.ok ||
+          !reachesPaint ||
+          (split && !correctedOutlineRouteIsSafe(rounded.segments, original, obstacles))
+        ) {
+          diagnostics.push(
+            outlineDiagnostic(
+              ir,
+              edge.key,
+              "svg/outline-edge-miss",
+              "warning",
+              `The corrected route of ${edge.id ?? `edges[${edge.index}]`} could not be validated for painted contact, degeneracy, overlap or obstacle clearance; D2's original path was kept. Adjust the layout.`,
+            ),
+          );
+          continue;
+        }
+        extensions.push(...pendingExtensions);
+        editTag(path, { d });
+      }
     }
     for (const [i, a] of extensions.entries()) {
       for (const b of extensions.slice(i + 1)) {

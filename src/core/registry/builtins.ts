@@ -118,6 +118,27 @@ function outline(name: "trapezoid" | "stack" | "bowtie", description: string): N
       variants: name === "stack" ? NODE_VARIANTS : FILLABLE_NODE_VARIANTS,
     }),
     since: name === "bowtie" ? "0.7.0" : "0.3.0",
+    props:
+      name === "bowtie"
+        ? sizeProps.extend({
+            gap: z
+              .number()
+              .finite()
+              .min(0)
+              .max(64)
+              .optional()
+              .describe(
+                "Horizontal separation of the two tapered halves in D2 units (0.5pt each), from 0 to 64; omitted or 0 keeps the joined silhouette. Clamped to half the drawn width for small explicit sizes.",
+              ),
+          })
+        : name === "trapezoid"
+          ? sizeProps.extend({
+              narrow: z
+                .enum(["south", "north", "east", "west"])
+                .optional()
+                .describe("Side with the narrow parallel edge; omitted means south (wide top)."),
+            })
+          : sizeProps,
     render: { type: "outline", renderer: `sumi/${name}` },
   };
 }

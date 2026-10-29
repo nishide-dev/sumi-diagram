@@ -2230,6 +2230,16 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **互換性（実測）**: 既存 `*.sumi.yaml` **140 図 ×（元のテーマ + 組み込み 5 テーマ）= 840 通り**を変更前後に描いた。成功する **574 通り**の SVG・PDF・画像方式 PPTX 各 574 件と、auto の D2 ソース **222 件**は sha256 がすべて一致した。既存の失敗 **266 通り**は失敗のまま。診断の差分は、既に `{ separator: dotted }` が提案構文として書かれていた `research/86-paper-figures/figures/ideal/c-h3world.sumi.yaml` の 6 テーマ分で `component/unknown-prop` が 1 件減ったことだけ（他の未対応構文により出力は引き続きない）。成功・失敗の変化、既存出力の変更は **0**。全チェックは `bun run check`・`bun run typecheck`・`CI=1 bun test`（**2854 pass / 13 skip / 0 fail**）・`bun run gallery:check`（155 ファイル）・`bun run schema:check` が成功した。skip は既存の prototype / 任意環境のテスト。
 
 
+### 6.66 #233 の離れた 2 台形の bowtie と台形の向き
+
+- **目的・API**: H3-World の LoRA は中央で接合した砂時計ではなく、横向きの台形を 2 枚、間隔を空けて向かい合わせる。汎用部品 `sumi/bowtie` に `props.gap`（有限の数、0–64、D2 単位＝0.5pt）を追加し、未指定・0 は従来の輪郭をそのまま使う。明示した小さい幅でも半分が潰れないよう、描画する間隔は幅の半分以下に制限する。`sumi/trapezoid` には `props.narrow: south|north|east|west` を追加し、狭い平行辺の側を選ぶ。未指定・south は従来の上が広い台形。slant は引き続き renderer の固定パラメータで、利用側には公開しない。
+- **幾何契約**: `OutlineDrawing.boundaries` を任意で追加し、離れた body の実輪郭を返す。既存 renderer の単一 `outline` は変更しない。離れた bowtie の `outline` は全体の外接矩形、`boundaries` は左右それぞれの四角形とする。safeArea は中央の高さ半分で 1 個のラベルが左右・gap をまたぐ。幾何 oracle は body union と boundaries の一致を検査し、safeArea は enclosing silhouette 内で検査する。衝突・inspect/lint は従来どおり保守的な凸領域を使い、gap を通路にしない。
+- **辺・バッジ**: structured の `nodeBoundaryEntry` は boundaries の全辺に対する最初の交点を使う。north/south の法線が gap 内なら最寄りの台形の口へ port を移す（距離差 1e-6 単位以内は同距離として左を選び、浮動小数点誤差で左右を変えない）。auto の compose も左右の輪郭を使い、上下の法線から 5° 以内で gap に向かう D2 の端は、接線方向の ray が口に当たるよう平行移動してから延長し、D2 の clearance を保つ。直線端は footprint 外の隣接点に平行移動した approach と折れ点を加え、端だけを動かして gap を横切る斜線にしない。曲線端は対応する制御点も移す。D2/ELK に渡す footprint は 1 個の矩形のままで、gap に無関係な辺を通さない。バッジは左右を別 node に分けず、全体の従来の角に付く。
+- **PPTX**: 2 枚の body は 1 個の native custom geometry の 2 個の path、ラベルは同じオブジェクトの編集可能テキストとする。新機能を使った輪郭では SVG の辺端から接線方向へ実輪郭との最初の交点を求めて DrawingML の接続点として列挙する。auto の clearance 付き辺端をそのまま登録せず、丸め等で ray が交差しなければ最寄りの実輪郭上の点へ射影する。glued でも外接矩形の中央（gap 内）や輪郭外の clearance 位置に戻さない。従来図の接続点はバイト互換のため従来のまま。#188 の既存制約どおり、絵文字バッジ付きは picture PPTX を使う。
+- **auto の gap 判定・安全な fallback（#241 再レビュー）**: gap の補正要否は最終 approach の前方 ray を左右両方の**塗られた台形**に当てて判定する。端点の x が body の外接 span に入るかでは判定しない。ray がどちらの body にも届かず gap を抜ける場合だけ口へ平行移動する。source/target 両端の補正と折れ点をまず完成させ、同じ挿入 index でも source の折れ点が target より先になる経路順を守る。SVG に書く 3 桁丸め後の全経路に、ゼロ長・退化・逆行・自己交差・自己重複がないことを検査し、さらに新しい区間が、composition の inspection から得られる他の node/group の shape footprint（保守的な bbox、当該 edge 自身の source/target は除く）の内部を横切らないことを検査する。既存区間の既存衝突は新設区間の衝突として扱わない。曲線は制御点の単調射影と制御点 bounds / 隣接 hull の分離で保守的に証明し、標本点だけで安全とみなさない。証明できない場合は**両端を含む D2 の元 path 属性をバイト単位で維持**し、共有 `Diagnostic` の `svg/outline-edge-miss`（warning、edge の sourceMap/subject 付き）で layout の調整を促す。採用しない延長は延長同士の交差検査にも登録しない。この検証は split outline の補正に限定し、structured と gap/narrow 未使用図の出力はバイト互換を保つ。
+- **発見・検証**: catalog の props 説明、全 5 Theme × 全 variant の gap 付き bowtie と 4 方向の台形 gallery、微小・極端サイズの oracle、各側の 0.25/0.5/0.75 port、gap の迂回、D2 の上下左右、inspect・幾何 lint・PDF・editable PPTX 両接続方式を検査する。既存の 149 個の `*.sumi.yaml` を変更前後で自テーマ＋全組み込み Theme で処理し、生成できた SVG/PDF/picture PPTX/editable PPTX/D2 の sha256 と生成できない fixture の診断コードを比較する。
+- **受け入れ図**: `research/188-badges-emoji-bowtie/c-h3world.sumi.yaml` を `research/233-lora/` にコピーし、2 個の LoRA に `gap: 8` を設定。画像は #185 の同じ assets をコピーする。内容と接続は維持し、PNG preview を 150KB 未満にして目視確認する。再現手順・診断と互換性の集計は同ディレクトリの README に記録する。
+
 ### 6.67 #234 の Fluent Emoji Flat セット拡大
 
 - **同梱範囲の判断**: §6.62 の汎用 47 点の選別をやめ、固定済みの `@iconify-json/fluent-emoji-flat@1.2.6`（3,174 点）のうち、共有 SVG importer を通る **3,124 点すべて**を同梱する。元の 47 名と元 SVG はそのまま。全件を名前順に判定し、受理した元 SVG と除外した名前・理由を同じ gzip JSON に記録する。非対応の絵を黙って簡略化しない。依存・上流バージョン・npm SHA-512 integrity・MIT 原文の固定先は変更しない。
@@ -2257,6 +2267,7 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **ライセンス・告知**: `fluent-emoji-LICENSE.txt` と配布物の `licenses/fluent-emoji/LICENSE` は前後バイト一致（SHA-256 `c2cfccb8…15383`）。MIT・著作者 Microsoft Corporation・上流 URL・図の full notice は維持。配布物の NOTICE / README は同梱範囲の記述（47 → 3,124）と archive hash だけ追従させる。SVG / vector PDF / picture PPTX の notice を両 engine × 全 5 Theme で検査し、元の 47 点に加えて importer 修正を使う `anchor` / `artist-dark` / `hyacinth` と新しい face の各出力も検査する。実リリースの smoke も新しい `artist-dark`、全対応名の件数・非対応名の非掲載を確認する。
 - **互換性の実測**: リポジトリの既存 `*.sumi.yaml` **149 個 ×（書かれた Theme + 組み込み 5 Theme）= 894 通り**を変更前後に `renderFigure()` で描画し、SVG / PDF / 画像方式 PPTX と auto の D2 ソースの SHA-256 を比較。成功 **613 通り**の 3 形式各 613 出力、D2 **222 件**はすべてバイト一致。失敗 **281 通り**の診断も一致した。元の 47 点は元 SVG と importer の戻り値も変更前と全件一致。`bun run gallery` は全 variant × 全 Theme を含む **165 ファイルに差分 0**、golden の更新も不要。
 - **最終検証**: `bun run check`・`bun run typecheck`・`CI=1 bun test`（**2,988 pass / 13 skip / 0 fail**）・`bun run gallery:check`（165 ファイル）・`bun run schema:check`・`bun run emoji:check` が成功。darwin-arm64 の `release:build` と拡大セットを使う `release:smoke` も成功した。
+
 
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures

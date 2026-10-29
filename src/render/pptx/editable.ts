@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import type { EdgeIR, FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type { Diagnostic } from "../../core/diagnostics";
+import { getOutlineRenderer } from "../../core/outline";
 import type { Result } from "../../core/result";
 import { type FontSet, getFontSet } from "../../core/theme/fonts";
 import { fontFileFor, measureLabel } from "../../lint/geometry/measure";
@@ -16,6 +17,7 @@ import {
   type LabelGeometry,
   type LabelRunGeometry,
 } from "../inspect";
+import { rayHit } from "../outline-geometry";
 import { readFontFace } from "../pdf/fonts";
 import { exceedsPdfInputLimits } from "../pdf/pdf";
 import { readD2Svg } from "../svg";
@@ -136,6 +138,7 @@ function geometry(
   paths: { segments: PathSegment[]; filled: boolean }[],
   box: Rect,
   emu: (n: number) => number,
+  connectionPoints?: readonly Point[],
 ): string {
   const point = (p: Point) => `<a:pt x="${emu(p.x - box.x)}" y="${emu(p.y - box.y)}"/>`;
   const body = paths
@@ -157,14 +160,23 @@ function geometry(
       return `<a:path w="${Math.max(1, emu(box.width))}" h="${Math.max(1, emu(box.height))}"${filled ? "" : ' fill="none"'}>${commands}</a:path>`;
     })
     .join("");
-  return `<a:custGeom><a:avLst/><a:gdLst/><a:ahLst/>${sites}<a:rect l="0" t="0" r="r" b="b"/><a:pathLst>${body}</a:pathLst></a:custGeom>`;
+  const connections = connectionPoints?.length
+    ? `<a:cxnLst>${connectionPoints.map((p) => `<a:cxn ang="0"><a:pos x="${emu(p.x - box.x)}" y="${emu(p.y - box.y)}"/></a:cxn>`).join("")}</a:cxnLst>`
+    : sites;
+  return `<a:custGeom><a:avLst/><a:gdLst/><a:ahLst/>${connections}<a:rect l="0" t="0" r="r" b="b"/><a:pathLst>${body}</a:pathLst></a:custGeom>`;
 }
 interface ObjectSite {
   id: number;
   box: Rect;
   ellipse: boolean;
+  connectionPoints?: readonly Point[];
 }
 function site(shape: ObjectSite, p: Point) {
+  if (shape.connectionPoints?.length) {
+    const distances = shape.connectionPoints.map((q) => Math.hypot(q.x - p.x, q.y - p.y));
+    const index = distances.indexOf(Math.min(...distances));
+    return { index, point: shape.connectionPoints[index] as Point };
+  }
   const b = shape.box;
   const distances = [
     Math.abs(p.y - b.y),
@@ -541,10 +553,95 @@ export function svgToEditablePptx(
         measured ?? { x: label?.anchor.x ?? vb.x, y: label?.anchor.y ?? vb.y, width: 1, height: 1 };
       const ellipse =
         primitives.length === 1 && ["circle", "ellipse"].includes(primitives[0]?.name ?? "");
+      // New directional / disconnected outlines need their painted contacts,
+      // not the legacy bounding-box sites (which may be in the empty gap).
+      const preciseSites =
+        element.kind === "node" &&
+        element.render !== undefined &&
+        ((element.render.renderer === "sumi/bowtie" &&
+          typeof element.render.params?.gap === "number" &&
+          element.render.params.gap > 0) ||
+          (element.render.renderer === "sumi/trapezoid" &&
+            element.render.params?.narrow !== undefined));
+      const connectionEnds = preciseSites
+        ? ir.edges.flatMap((edge) => {
+            const path = inspected.value.elements.find((e) => e.key === edge.key)?.path;
+            if (!path || path.length < 2) return [];
+            const first = path[0] as PathSegment;
+            const second = path[1] as PathSegment;
+            const last = path.at(-1) as PathSegment;
+            const before = path.at(-2) as PathSegment;
+            return [
+              ...(edge.from === element.key
+                ? [{ point: first.to, neighbour: second.command === "C" ? second.c1 : second.to }]
+                : []),
+              ...(edge.to === element.key
+                ? [{ point: last.to, neighbour: last.command === "C" ? last.c2 : before.to }]
+                : []),
+            ];
+          })
+        : undefined;
+      const connectionPoints = connectionEnds?.map(({ point }) => point);
+      if (connectionPoints !== undefined && element.kind === "node" && element.render) {
+        const renderer = getOutlineRenderer(element.render.renderer);
+        if (!renderer) throw new Error(`Missing renderer ${element.render.renderer}`);
+        const drawing = renderer.draw(box, renderer.params.parse(element.render.params));
+        const boundaries = drawing.boundaries ?? [drawing.outline];
+        // Auto routes retain D2's clearance. A glued site must instead lie on
+        // the painted boundary, including at the corner of a split body's lip.
+        for (const [index, point] of connectionPoints.entries()) {
+          const neighbour = connectionEnds?.[index]?.neighbour;
+          let contact: Point | undefined;
+          if (neighbour !== undefined) {
+            const direction = { x: point.x - neighbour.x, y: point.y - neighbour.y };
+            const hits = boundaries.flatMap((boundary) => {
+              const hit = rayHit(boundary, point, direction);
+              return hit === undefined ? [] : [hit];
+            });
+            if (hits.length > 0) {
+              const distance = Math.min(...hits);
+              contact = {
+                x: point.x + direction.x * distance,
+                y: point.y + direction.y * distance,
+              };
+            }
+          }
+          // A rounded or degenerate tangent may miss a polygon corner. Fall
+          // back to its closest painted point, never a clearance coordinate.
+          let nearest = point;
+          let distance = Number.POSITIVE_INFINITY;
+          for (const boundary of boundaries) {
+            for (const [i, a] of boundary.entries()) {
+              const b = boundary[(i + 1) % boundary.length] as Point;
+              const dx = b.x - a.x;
+              const dy = b.y - a.y;
+              const lengthSquared = dx * dx + dy * dy;
+              const t =
+                lengthSquared === 0
+                  ? 0
+                  : Math.max(
+                      0,
+                      Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / lengthSquared),
+                    );
+              const projected = { x: a.x + t * dx, y: a.y + t * dy };
+              const d = Math.hypot(projected.x - point.x, projected.y - point.y);
+              if (d < distance) {
+                nearest = projected;
+                distance = d;
+              }
+            }
+          }
+          // Structured SVG rounds contacts to 1/1000 unit. If that puts an
+          // end just inside the body, its forward ray sees the far side.
+          connectionPoints[index] = distance <= 0.002 ? nearest : (contact ?? nearest);
+        }
+        // Also offer painted sites on an unconnected shape when edited later.
+        connectionPoints.push(...boundaries.flat());
+      }
       const geom = ellipse
         ? '<a:prstGeom prst="ellipse"><a:avLst/></a:prstGeom>'
         : primitives.length
-          ? geometry(primitives.map(shapePath), box, emu)
+          ? geometry(primitives.map(shapePath), box, emu, connectionPoints)
           : '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>';
       const first = primitives[0];
       const fill = first
@@ -608,7 +705,7 @@ export function svgToEditablePptx(
             : "") +
           hatchShape(element.key, group, box, element.style),
       );
-      objects.set(element.key, { id, box, ellipse });
+      objects.set(element.key, { id, box, ellipse, ...(connectionPoints && { connectionPoints }) });
     }
     const markers = new Map(
       [...descendants(read.doc.drawing)]

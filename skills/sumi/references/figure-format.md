@@ -41,6 +41,15 @@ metadata: {}               # optional, any JSON-compatible data; not drawn
 `labelRotation` (`90` / `-90`, [turned labels](structured.md#turned-labels)).
 `icon` / `badge`: [assets](assets.md). The `bowtie` outline component,
 corner badges and corner `attach.side` values are new in 0.7.0.
+`bowtie` takes `props.gap: 8` to draw two separate opposing trapezoids
+with one shared label (0 or omitted keeps the joined shape). Gap is a number
+from 0–64 in D2 units (each 0.5pt), clamped to half the width for a small
+explicit size. The whole node, including the gap, blocks other edges; a
+north/south port aimed into the gap moves to the nearest painted lip (left
+on a tie). `trapezoid` takes `props.narrow: south|north|east|west` to choose
+the narrow edge; the default `south` keeps the wide top. Both work in auto
+and structured layouts and as native editable PPTX shapes; badges remain
+picture-PPTX only.
 Group `labelAt` / `caption`: [groups](#groups);
 `dim` (both engines): [dimmed groups](#dimmed-groups).
 

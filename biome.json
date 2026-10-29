@@ -13,6 +13,7 @@
       "!examples/**/*.svg",
       "!research/*/out",
       "!research/188-badges-emoji-bowtie/*.svg",
+      "!research/233-lora/*.svg",
       "!docs/gallery",
       "!tests/fixtures/lint-output",
       "!tests/fixtures/layout",

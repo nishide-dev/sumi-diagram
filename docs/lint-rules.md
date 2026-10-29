@@ -144,6 +144,7 @@ const diagnostics = lintGeometry(rendered, { config, source: text, file });
 - 衝突は両方の領域を許容誤差の半分（0.5 unit）ずつ内側へ縮めて判定する。凸多角形は辺の半平面を移動し、楕円は半径を縮める近似を使う。多角形同士は分離軸、多角形と楕円は楕円を単位円へ変換した線分距離、楕円同士は support mapping（GJK、最大64反復）で検査する。境界で触れるだけは報告しない。
 - 凹んだ輪郭を凸包で近似するため、stack の細かい段差の空白などで保守的な衝突警告が出る場合がある。safeArea も実際の輪郭より保守的な矩形であり、「斜辺の一部にはまだ空きがある」場合でも安全領域からのはみ出しは error とする。
 - エッジの輪郭への延長失敗は、#53 の `svg/outline-edge-miss` で描画時にすでに報告する。同じ内容の geometry 規則は追加しない。延長区間同士の交差は `svg/outline-edge-crossing`。両方とも `lint --geometry` の報告に含まれるが `--rule` で severity は変更できない。
+- `svg/outline-edge-miss` は、auto の離れた bowtie の補正経路に退化・逆行・自己交差/重複がある、または新しい区間が他の shape footprint の内部を横切るなど、安全性を確認できない場合も warning で報告する。その場合は両端とも D2 の元経路を維持するため、layout を調整する。曲線の制御点 bounds を使う保守的検査で安全を証明できない場合も同様（設計 §6.66）。画像への延長失敗の既存 error severity は従来どおり。
 
 ### 閉路を閉じる辺（`geometry/reversed-edge`）
 

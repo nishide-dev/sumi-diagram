@@ -118,6 +118,8 @@ export function assertOutlineDrawing(drawing: OutlineDrawing, footprint: Rect): 
     p.y >= footprint.y - EPS &&
     p.y <= footprint.y + footprint.height + EPS;
   polygon(drawing.outline);
+  const boundaries = drawing.boundaries ?? [drawing.outline];
+  for (const boundary of boundaries) polygon(boundary);
   const collision = drawing.collision;
   if (collision?.kind === "polygon") {
     polygon(collision.points);
@@ -185,7 +187,7 @@ export function assertOutlineDrawing(drawing: OutlineDrawing, footprint: Rect): 
       "safe area outside footprint",
     );
 
-  const xs = events([...bodies, drawing.outline, safePolygon]);
+  const xs = events([...bodies, ...boundaries, drawing.outline, safePolygon]);
   for (let i = 1; i < xs.length; i++) {
     const left = xs[i - 1] as number;
     const right = xs[i] as number;
@@ -194,7 +196,16 @@ export function assertOutlineDrawing(drawing: OutlineDrawing, footprint: Rect): 
     // point therefore check the whole slab, including holes and concavities.
     for (const x of [left, mid, right]) {
       const actual = union(bodies.flatMap((body) => section(body, mid, x)));
-      const expected = union(section(drawing.outline, mid, x));
+      const expected = union(boundaries.flatMap((boundary) => section(boundary, mid, x)));
+      if (drawing.boundaries) {
+        const enclosing = union(section(drawing.outline, mid, x));
+        assert(
+          actual.every(([low, high]) =>
+            enclosing.some(([a, b]) => a <= low + EPS && b >= high - EPS),
+          ),
+          "body outside enclosing silhouette",
+        );
+      }
       assert(
         actual.length === expected.length &&
           actual.every(
@@ -205,7 +216,9 @@ export function assertOutlineDrawing(drawing: OutlineDrawing, footprint: Rect): 
       );
       if (safe.x < mid && mid < safe.x + safe.width) {
         assert(
-          actual.some(([a, b]) => a <= safe.y + EPS && b >= safe.y + safe.height - EPS),
+          (drawing.boundaries ? section(drawing.outline, mid, x) : actual).some(
+            ([a, b]) => a <= safe.y + EPS && b >= safe.y + safe.height - EPS,
+          ),
           "safe area outside body union",
         );
       }

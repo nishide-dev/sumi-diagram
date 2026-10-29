@@ -2,7 +2,7 @@
 import type { z } from "zod";
 import type { Point, Rect, Region } from "../geometry";
 
-export type OutlineParams = Record<string, number | boolean | string>;
+export type OutlineParams = Record<string, number | boolean | string | undefined>;
 
 export interface OutlineSize {
   width: number;
@@ -18,9 +18,11 @@ export interface OutlinePath {
 export interface OutlineDrawing {
   /** Back to front. Bodies are closed, filled polygons; lines are unfilled. */
   readonly layers: readonly { readonly role: "body" | "line"; readonly path: OutlinePath }[];
-  /** Simple polygon equal to the boundary of the union of the body layers. */
+  /** Ordered enclosing silhouette; equals the body union unless boundaries is supplied. */
   readonly outline: readonly Point[];
-  /** Label rectangle contained in the body union; its center is the label anchor. */
+  /** Disconnected painted boundaries, when present. Ports contact these, never the gap. */
+  readonly boundaries?: readonly (readonly Point[])[];
+  /** Label rectangle inside the silhouette; may span gaps between disconnected bodies. */
   readonly safeArea: Rect;
   /** Convex collision region, containing the outline; omitted means its convex hull. */
   readonly collision?: Region;
