@@ -35,4 +35,4 @@ body:
     attributes:
       label: 関連
       description: 親 Issue・依存する Issue など
-      placeholder: "親 Issue: #80"
+      placeholder: "親 Issue: #236"
