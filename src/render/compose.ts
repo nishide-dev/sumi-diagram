@@ -207,7 +207,9 @@ export function composeOutlines(
       const route = original.map((s) => structuredClone(s));
       const bends: { index: number; point: Point }[] = [];
       const pendingExtensions: Extension[] = [];
+      const correctedEnds: ("source" | "target")[] = [];
       let changed = false;
+      let failed = false;
       for (const end of ["source", "target"] as const) {
         const key = end === "source" ? edge.from : edge.to;
         const custom = drawings.get(key);
@@ -291,7 +293,8 @@ export function composeOutlines(
               `The ${end} end of ${edge.id ?? `edges[${edge.index}]`} could not be extended to ${key}'s outline.`,
             ),
           );
-          continue;
+          failed = true;
+          break;
         }
         // Ends that are not normal reach this point only when flush.
         if ((delta <= 1e-9 && lateral === 0) || !normal) continue;
@@ -317,8 +320,12 @@ export function composeOutlines(
           });
         }
         pendingExtensions.push({ node: key, edge: edge.key, start: point, end: moved });
+        correctedEnds.push(end);
         changed = true;
       }
+      // Endpoint corrections are atomic: never publish the other end's edit
+      // (or its crossing checks) when any end could not be corrected.
+      if (failed) continue;
       // At equal indices insert the target first, so the source bend ends up
       // before it in travel order (a two-point route has both at index 1).
       for (const bend of bends.reverse().sort((a, b) => b.index - a.index))
@@ -326,23 +333,52 @@ export function composeOutlines(
       if (changed) {
         const d = pathText(route);
         const split = drawings.get(edge.from)?.disconnected || drawings.get(edge.to)?.disconnected;
-        if (split) {
-          const rounded = parsePath(d);
-          const obstacles = inspection.elements.flatMap((e) =>
-            e.kind !== "edge" && e.key !== edge.from && e.key !== edge.to && e.bbox ? [e.bbox] : [],
-          );
-          if (!rounded.ok || !correctedOutlineRouteIsSafe(rounded.segments, original, obstacles)) {
-            diagnostics.push(
-              outlineDiagnostic(
-                ir,
-                edge.key,
-                "svg/outline-edge-miss",
-                "warning",
-                `The corrected route of ${edge.id ?? `edges[${edge.index}]`} could not be validated for degeneracy, overlap or obstacle clearance; D2's original path was kept. Adjust the layout.`,
-              ),
+        const rounded = parsePath(d);
+        // Rounding can turn a corner contact into a ray through the gap.
+        // Re-cast each corrected end using the serialized endpoint/tangent
+        // and the same rounded boundaries that are painted in the SVG.
+        const reachesPaint =
+          rounded.ok &&
+          correctedEnds.every((end) => {
+            const segments = rounded.segments;
+            const index = end === "source" ? 0 : segments.length - 1;
+            const point = (segments[index] as PathSegment).to;
+            const adjacent = segments[end === "source" ? 1 : index] as PathSegment;
+            const neighbour =
+              adjacent.command === "C"
+                ? end === "source"
+                  ? adjacent.c1
+                  : adjacent.c2
+                : (segments[end === "source" ? 1 : index - 1] as PathSegment).to;
+            const direction = { x: point.x - neighbour.x, y: point.y - neighbour.y };
+            const custom = drawings.get(end === "source" ? edge.from : edge.to);
+            return custom?.outlines.some(
+              (outline) =>
+                rayHit(
+                  outline.map((p) => ({ x: Number(fmt(p.x)), y: Number(fmt(p.y)) })),
+                  point,
+                  direction,
+                ) !== undefined,
             );
-            continue;
-          }
+          });
+        const obstacles = inspection.elements.flatMap((e) =>
+          e.kind !== "edge" && e.key !== edge.from && e.key !== edge.to && e.bbox ? [e.bbox] : [],
+        );
+        if (
+          !rounded.ok ||
+          !reachesPaint ||
+          (split && !correctedOutlineRouteIsSafe(rounded.segments, original, obstacles))
+        ) {
+          diagnostics.push(
+            outlineDiagnostic(
+              ir,
+              edge.key,
+              "svg/outline-edge-miss",
+              "warning",
+              `The corrected route of ${edge.id ?? `edges[${edge.index}]`} could not be validated for painted contact, degeneracy, overlap or obstacle clearance; D2's original path was kept. Adjust the layout.`,
+            ),
+          );
+          continue;
         }
         extensions.push(...pendingExtensions);
         editTag(path, { d });

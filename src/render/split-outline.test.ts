@@ -88,6 +88,20 @@ test("both shifted ends insert bends in travel order without backtracking", () =
   ]);
 });
 
+test("a rounded endpoint ray that misses both painted bodies keeps D2's exact path", () => {
+  compose("M 49.663 -18 L 50 -2", false, undefined, { warning: true });
+});
+
+test("a failed target correction rolls back a successful source correction", () => {
+  const path = "M 50 -18 L 50 -10 L 55 -2";
+  const { route } = compose(path, false, undefined, { both: true, warning: true });
+  expect(route.map((s) => s.to)).toEqual([
+    { x: 50, y: -18 },
+    { x: 50, y: -10 },
+    { x: 55, y: -2 },
+  ]);
+});
+
 for (const reverse of [false, true]) {
   test(`a shifted ${reverse ? "source" : "target"} join crossing another footprint keeps D2's exact path`, () => {
     const path = reverse ? "M 50 -2 L 50 -18" : "M 50 -18 L 50 -2";
