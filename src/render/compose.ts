@@ -1,4 +1,5 @@
 /** Non-destructive outline composition (#53): shapes, label positions and edge ends only. */
+import { imageLayerRects } from "../assets/layers";
 import type { FigureIR, NodeIR } from "../compiler/ir";
 import type { ElementKey } from "../core/check-state";
 import type { Diagnostic } from "../core/diagnostics";
@@ -85,7 +86,7 @@ export function composeOutlines(
   inspection: SvgInspection,
 ): Result<string> {
   const diagnostics: Diagnostic[] = [];
-  const nodes = ir.nodes.filter((n) => n.render !== undefined);
+  const nodes = ir.nodes.filter((n) => n.render !== undefined || n.image?.layers !== undefined);
   if (nodes.length === 0) return { ok: true, value: svg, diagnostics };
   let current: ElementKey = nodes[0]?.key as ElementKey;
   try {
@@ -110,12 +111,23 @@ export function composeOutlines(
       }
       edits.push({ start: element.start, end: element.startTagEnd, text: tag });
     };
-    const drawings = new Map<ElementKey, { bbox: Rect; drawing: OutlineDrawing }>();
+    const drawings = new Map<
+      ElementKey,
+      { bbox: Rect; outlines: readonly (readonly Point[])[]; image?: boolean }
+    >();
     for (const node of nodes) {
       current = node.key;
       const group = groups.get(node.key);
       const bbox = geometry.get(node.key)?.bbox;
       if (!group || !bbox) throw new Error(`Missing outline placeholder ${node.key}.`);
+      if (node.image?.layers !== undefined) {
+        drawings.set(node.key, {
+          bbox,
+          outlines: imageLayerRects(node, bbox).map(rectPoints),
+          image: true,
+        });
+        continue;
+      }
       const shapes = childElements(group).filter(
         (c) => c.name === "g" && classList(c).includes("shape"),
       );
@@ -125,7 +137,7 @@ export function composeOutlines(
       if (shapes.length !== 1 || !shape || children?.length !== 1 || rect?.name !== "rect")
         throw new Error(`${node.key}: expected exactly one g.shape > rect placeholder.`);
       const drawing = drawNodeOutline(node, bbox);
-      drawings.set(node.key, { bbox, drawing });
+      drawings.set(node.key, { bbox, outlines: [drawing.outline] });
       const paint = rect.attributes.filter((a) => !PATH_GEOMETRY.has(a.name));
       const layers = drawing.layers
         .map((layer) => {
@@ -207,9 +219,13 @@ export function composeOutlines(
         };
         const usable = length > 1e-9 && !insideRect(custom.bbox, point);
         const rectDistance = usable ? rayHit(rectPoints(custom.bbox), point, direction) : undefined;
-        const outlineDistance = usable
-          ? rayHit(custom.drawing.outline, point, direction)
-          : undefined;
+        const hits = usable
+          ? custom.outlines.flatMap((outline) => {
+              const hit = rayHit(outline, point, direction);
+              return hit === undefined ? [] : [hit];
+            })
+          : [];
+        const outlineDistance = hits.length > 0 ? Math.min(...hits) : undefined;
         // D2 endpoints approach their declared footprint from outside and enter
         // it approximately normally (within ENDPOINT_ANGLE_TOLERANCE_DEG, #82).
         // Extend along the end's own travel direction; never guess a different
@@ -230,7 +246,7 @@ export function composeOutlines(
               ir,
               edge.key,
               "svg/outline-edge-miss",
-              "warning",
+              custom.image ? "error" : "warning",
               `The ${end} end of ${edge.id ?? `edges[${edge.index}]`} could not be extended to ${key}'s outline.`,
             ),
           );
@@ -286,7 +302,9 @@ export function composeOutlines(
       out = out.slice(0, edit.start) + edit.text + out.slice(edit.end);
       limit = edit.start;
     }
-    return { ok: true, value: out, diagnostics };
+    return diagnostics.some((d) => d.severity === "error")
+      ? { ok: false, diagnostics }
+      : { ok: true, value: out, diagnostics };
   } catch (cause) {
     diagnostics.push(
       outlineDiagnostic(

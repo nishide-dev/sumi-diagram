@@ -92,6 +92,46 @@ groups:
   straight across two columns), use [`align`](#aligning-across-trees), not
   `gap` tweaks.
 
+## Grids
+
+Use a grid for rows whose columns must line up (structured only):
+
+```yaml
+arrange:
+  grid:
+    columns: 4
+    rowGap: 6mm
+    columnGap: 4mm
+    align: start
+    items: [ dataset, sample, augment, augmented, model, loss, { item: optimizer, span: 2 } ]
+```
+
+Items fill left to right, then top to bottom; `direction` is not accepted.
+An item is an ID, a nested stack / row / grid, `null` (also YAML `~`), or
+`{ item: ID-or-box-or-null, span: N }`.
+Spans cover columns only (default 1). Every row must be complete: crossing a
+row boundary is `layout/grid-span-overflow`; an incomplete final row is
+`layout/grid-item-count`. Empty lists and empty strings are invalid.
+Use explicit `null` for a deliberate blank cell, or `{ item: null, span: N }`
+for several columns. Blanks have zero natural size and produce no node,
+routing obstacle or net endpoint; edges can pass through them. A hidden
+junction has routing/net semantics and is not an empty cell.
+`fmt --canonical-order` writes blank cells as `null`, including inside wrappers.
+
+Single-cell widths set column maxima; spanning deficits are shared equally
+among their columns in document order. Row heights are their tallest items.
+`align` controls horizontal start / center (default) / end / stretch inside
+each cell; items are vertically centered. Stretch changes resizable widths
+only, following stack's rules. Grid alignment is not inherited. Both omitted
+gaps use the profile's arrange gap, including compact density. Extra room
+centers the whole grid without changing tracks. Grid cells take no align
+struts; nested stack / row boxes and ancestor boxes still can.
+Cells are always vertically centered, including with `align: start/end/stretch`.
+Direct grid cells cannot be top/bottom aligned via `figure.layout.align`;
+use nested linear (stack / row) wrappers when vertical alignment needs struts.
+On an older CLI that rejects `grid`, use rows inside a stack and, if needed,
+cross-tree `align` constraints.
+
 ## Group titles and captions
 
 A group's `label` (its title) sits at the **top centre** inside the border,
@@ -338,6 +378,18 @@ figure:
   hint whether the items cannot be moved apart (same box, `gap: 0`) or
   another constraint pulls them away. `layout/align-search-limit`
   (warning) means a figure with very many constraints stopped searching.
+- **Centring can couple constraints even when they share no IDs.** Adding
+  space to a centred branch shifts its other items too: closing one gap can
+  reopen two others. When the greedy search stalls, Sumi tries a bounded,
+  deterministic two-step lookahead: a pair is kept only if its combined
+  result reduces the original total residual. Both steps use the same search
+  budget. If this fallback still leaves a gap above the 0.01-layout-unit
+  tolerance, doubling the space or allowing more rounds does not necessarily
+  help. For table headings that the fallback cannot align, use `align: start`
+  on the parent `row` (for transposed tables, the parent `stack`) so the
+  headings can move down/right independently.
+  Check `lint --geometry` again; the warning still describes a real gap,
+  even if its distance rounds to `0.01mm`.
 - **`align` can enlarge the figure.** The added space also moves
   everything after it and grows the enclosing boxes: aligning a small item
   with one deep inside a tall branch can push that whole branch down and

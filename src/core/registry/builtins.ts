@@ -176,7 +176,7 @@ const image: NodeManifest = {
   kind: "node",
   name: "image",
   description:
-    "A PNG, JPEG or SVG file embedded as it is and scaled to the node's box; takes no label.",
+    "A PNG, JPEG or SVG file embedded as it is, optionally stacked with up-right copies; takes no label.",
   variants: ["default", "framed"],
   props: z
     .strictObject({
@@ -205,6 +205,17 @@ const image: NodeManifest = {
       height: SizeLength.optional().describe(
         'Height as a length such as "20mm" (a multiple of 0.5pt). Omitted means from the width and the image\'s aspect ratio.',
       ),
+      layers: z
+        .strictObject({
+          count: z.int().min(1).max(16).describe("Total images, including the front image (1–16)."),
+          offset: SizeLength.describe(
+            'Positive distance up and right between copies, e.g. "3pt" (a multiple of 0.5pt).',
+          ),
+        })
+        .optional()
+        .describe(
+          "Repeat the unchanged image behind the front one, offset up-right. Width and height size each copy; the node footprint includes the whole stack.",
+        ),
     })
     .refine(({ width, height }) => width !== undefined || height !== undefined, {
       error: "an image needs a width or a height (or both)",

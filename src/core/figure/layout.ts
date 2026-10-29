@@ -244,11 +244,34 @@ function checkStructured(state: CheckState, locate: Locator): void {
     ownerSubject: DiagnosticSubject,
     silent: boolean,
   ) => {
-    for (const kind of ["stack", "row"] as const) {
+    for (const kind of ["stack", "row", "grid"] as const) {
       const spec = box[kind];
       if (spec === undefined) continue;
-      for (const [index, item] of spec.items.entries()) {
-        const itemPath = [...path, kind, "items", index];
+      let column = 0;
+      for (const [index, cell] of spec.items.entries()) {
+        let itemPath = [...path, kind, "items", index];
+        const wrapped = cell !== null && typeof cell === "object" && "item" in cell;
+        const item = wrapped ? cell.item : cell;
+        if (kind === "grid" && box.grid !== undefined) {
+          const span = wrapped ? (cell.span ?? 1) : 1;
+          if (column + span > box.grid.columns && !silent) {
+            push(
+              errorAt(
+                locate,
+                "layout/grid-span-overflow",
+                `Grid item spans ${span} columns at column ${column + 1}, exceeding ${box.grid.columns} columns.`,
+                wrapped ? [...itemPath, "span"] : itemPath,
+                {
+                  subject: ownerSubject,
+                  hint: "Reduce span or complete the current row before starting another.",
+                },
+              ),
+            );
+          }
+          column = (column + span) % box.grid.columns;
+        }
+        if (wrapped) itemPath = [...itemPath, "item"];
+        if (item === null) continue;
         if (typeof item !== "string") {
           walk(item, itemPath, owner, ownerSubject, silent);
           continue;
@@ -268,6 +291,21 @@ function checkStructured(state: CheckState, locate: Locator): void {
           continue;
         }
         add({ id: item, path: itemPath, via: "arrange", owner, silent });
+      }
+      if (kind === "grid" && column !== 0 && !silent) {
+        push(
+          errorAt(
+            locate,
+            "layout/grid-item-count",
+            `The final grid row has ${column} of ${box.grid?.columns} columns filled.`,
+            [...path, kind, "items"],
+            {
+              atKey: true,
+              subject: ownerSubject,
+              hint: "Complete every row with items or spans; use null for an intentionally empty cell.",
+            },
+          ),
+        );
       }
     }
   };
