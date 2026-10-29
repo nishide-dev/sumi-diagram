@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { getFontSet } from "../../core/theme/fonts";
 import { createGeometryContext } from "./context";
 import { microJogLengths } from "./jogs";
+import { lintRenderedFigure } from "./lint";
 import { edgeJog } from "./rules";
 import { compile, inspection, lintSpec } from "./testing";
 
@@ -19,7 +20,7 @@ const code = "geometry/edge-jog";
 const jog = (length: number) => [p(0, 0), p(40, 0), p(40, length), p(80, length)];
 
 describe(code, () => {
-  test("warns on a painted step with the edge's subject and source path", () => {
+  test("reports a painted step as info with the edge's subject and source path", () => {
     const findings = lintSpec(
       compiled,
       { elements: { "e:e": { path: jog(0.913) } } },
@@ -28,11 +29,39 @@ describe(code, () => {
     expect(findings).toHaveLength(1);
     expect(findings[0]).toMatchObject({
       code,
-      severity: "warning",
+      severity: "info",
       path: ["edges", 0],
       subject: { kind: "edge", id: "e" },
     });
     expect(findings[0]?.message).toContain("0.46pt");
+  });
+
+  test("allows promoting the informational finding to warning or disabling it", () => {
+    for (const level of ["info", "warning", "off"] as const) {
+      const findings = lintSpec(
+        compiled,
+        { elements: { "e:e": { path: jog(0.913) } } },
+        { code, config: { rules: { [code]: level }, maxWarnings: 0 } },
+      );
+      expect(findings.map((d) => d.severity)).toEqual(level === "off" ? [] : [level]);
+    }
+  });
+
+  test("existing fixed-port jogs preserve a zero-warning budget unless promoted", async () => {
+    const text = await Bun.file(
+      `${import.meta.dir}/../../../tests/fixtures/figures/layout/group-caption.sumi.yaml`,
+    ).text();
+    const options = { rules: [edgeJog], config: { maxWarnings: 0 } };
+    const informational = await lintRenderedFigure(text, options);
+    expect(informational.diagnostics.filter((d) => d.code === code)).toHaveLength(1);
+    expect(informational.summary.warnings).toBe(0);
+    expect(informational.exitCode).toBe(0);
+    const promoted = await lintRenderedFigure(text, {
+      ...options,
+      config: { maxWarnings: 0, rules: { [code]: "warning" } },
+    });
+    expect(promoted.summary.warnings).toBe(1);
+    expect(promoted.exitCode).toBe(1);
   });
 
   test("uses a printed 1pt threshold with SVG quantization slack", () => {

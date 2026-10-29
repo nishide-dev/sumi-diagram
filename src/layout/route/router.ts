@@ -127,8 +127,10 @@ export const ROUTE = Object.freeze({
   /**
    * Turning, or forking off or joining another edge of the net, within the
    * room before an arrowhead (`arrowRoom()`, #116): more than one bend but
-   * less than two. Moving a bend/trunk can buy room, but adding an S-jog
-   * cannot (#217). This is a once-per-entry preference, not a per-grid-point
+   * less than two. This discourages buying room with an extra S-jog (#217),
+   * but is not a guarantee: shared net steps may skip bend charges and
+   * multiple room-entry/turn charges can accumulate.
+   * This is a once-per-entry preference, not a per-grid-point
    * toll: subdividing the visibility grid must not multiply its cost.
    * The arrowhead-length stub remains a hard constraint.
    */

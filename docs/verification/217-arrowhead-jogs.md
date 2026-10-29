@@ -67,3 +67,12 @@ SUMI_UPDATE_GOLDEN=1 CI=1 bun test src/render/pdf src/render/pptx src/render/ass
 ```
 
 `bun run check`、`bun run typecheck`、`CI=1 bun test`（2,806 pass / 13 skip / 0 fail）、`bun run gallery:check`、`bun run schema:check` はすべて成功。skip は既存の研究用 prototype 等。
+
+## PR #223 レビュー 1 の追補
+
+- **patch release の互換性**: `geometry/edge-jog` の既定を **info** に変更。固定された口や共有幹線で残る既存の 55 件を warning budget に数えず、`--max-warnings 0` の既存ワークフローを維持する。所見の検出・閾値は同じ。rule 設定 `{"rules":{"geometry/edge-jog":"warning"}}` で warning に昇格でき、`off` も使える。caption fixture を実際に描画して、既定では `maxWarnings: 0` で終了 0、昇格すると終了 1 になることをテストした。
+- **room は好みであって禁止ではない**: `40 < 60 < 80` は孤立した再現の費用を説明する。共有ネットの格子辺では曲がりの費用を省く場合があり、room への進入・room 内の曲がりの費用も複数回累積しうるため、S 字を常に排除する保証ではない。`router.ts` と §6.57 を修正し、§6.22 に旧 100・格子点ごとの課金・junction stub の説明を置き換える注記を追加。writer の `keepStart` / `keepEnd` の参照を **§6.26** に訂正した。
+- **共有ネットの回帰**: `router.test.ts` の新しい合成図は `a → c` が `a → b` の幹線を通り、**別の端 b の room（x > 84）に進入して x=91 で分岐**する。離れた非接続 node を移動して room 内の格子を分割しても、2 辺の経路は一致する。両方の格子で A* / Dijkstra の費用を照合。進入条件から `!inOthersArrowRoom(p)` を一時的に外して旧来の格子点ごとの課金に戻すと、このテストは余分な段差を検出して失敗することも確認（変更は戻した）。
+- **独立 checker**: `checkRoutes().shortArrowSegments` の junction 除外を削除。全 Theme の正常な接近を検査し、始点・終点の junction の直線を意図的に 1 unit に短縮した場合は、それぞれ `source` / `target` の不足を報告する回帰を追加。
+- **直前コミットとの出力一致**: `41152a4` の既存監査 `.sumi/review/jog-final.json` と、再描画した `.sumi/review/review-1-final.json` を比較。**140 図・840 通り・成功 574 通り**で成功・失敗、SVG sha256、全論理経路、error code がすべて一致し、**出力変更 0・経路変更 0**。2 種の新 lint の所見も、55 件の `edge-jog` の severity が warning → info になる点だけが変化。比較スクリプトは `.sumi/review/compare-review-1.ts`。
+- **最終検査**: `bun run check`、`bun run typecheck`、`CI=1 bun test`（**2,810 pass / 13 skip / 0 fail**）、`bun run gallery:check`（**155 ファイル変更 0**）、`bun run schema:check` はすべて成功。生成物・golden の変更はない。

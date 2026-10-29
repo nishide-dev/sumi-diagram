@@ -125,8 +125,8 @@ describe("structured: #167 figures B and C on paper-double", () => {
     const diagnostics = lintGeometry(c);
     expect(diagnostics.map((d) => [d.code, d.severity, d.subject?.id])).toEqual([
       ["geometry/script-too-small", "info", "stage-c-h3world"],
-      ["geometry/edge-jog", "warning", "edges[17]"],
-      ["geometry/edge-jog", "warning", "edges[20]"],
+      ["geometry/edge-jog", "info", "edges[17]"],
+      ["geometry/edge-jog", "info", "edges[20]"],
     ]);
     expect(diagnostics[0]?.message).toContain("down to 4.34pt (5.6pt shrunk to 77.4%");
   });

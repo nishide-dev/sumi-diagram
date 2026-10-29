@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { BUILTIN_THEMES } from "../../core/theme/builtin";
 import { layoutStructuredFigure } from "../index";
+import { checkRoutes } from "./check";
 import { arrowheadLength, routeEdges } from "./router";
 
 const root = `${import.meta.dir}/../../..`;
@@ -24,6 +25,7 @@ test("#217: a junction's free direction still needs room for its arrowhead", asy
       arrowheadLength(ir.edges[0].style.strokeWidth.units),
     );
     expect(routeEdges(ir, layout, { verifyLowerBound: true }).diagnostics).toEqual([]);
+    expect(checkRoutes(ir, layout).shortArrowSegments).toEqual([]);
   }
 });
 
@@ -46,6 +48,42 @@ test("#217: source arrowheads at junctions use the same constrained retry", asyn
     arrowheadLength(ir.edges[0].style.strokeWidth.units),
   );
   expect(routeEdges(ir, layout, { verifyLowerBound: true }).diagnostics).toEqual([]);
+});
+
+test("#217: the independent checker detects shortened junction approaches at either end", async () => {
+  const source = await Bun.file(
+    `${root}/tests/fixtures/figures/layout/arrowhead-on-bend.sumi.yaml`,
+  ).text();
+  for (const end of ["source", "target"] as const) {
+    const text =
+      end === "target"
+        ? source
+        : source.replace(
+            "from: source, to: target, fromAnchor:",
+            "component: double-arrow, from: target, to: source, toAnchor:",
+          );
+    const result = layoutStructuredFigure(text);
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const { ir, layout } = result.value;
+    expect(checkRoutes(ir, layout).shortArrowSegments).toEqual([]);
+    const edge = layout.edges[0];
+    if (!edge?.route) throw new Error("no route");
+    const points = [...edge.route.points];
+    const tip = points[end === "source" ? 0 : points.length - 1];
+    const index = end === "source" ? 1 : points.length - 2;
+    const bend = points[index];
+    if (!tip || !bend) throw new Error("no approach");
+    // Preserve the tip and shorten its adjacent run to one unit.
+    points[index] = {
+      x: tip.x + Math.sign(bend.x - tip.x),
+      y: tip.y + Math.sign(bend.y - tip.y),
+    };
+    const altered = {
+      ...layout,
+      edges: [{ ...edge, route: { ...edge.route, points } }, ...layout.edges.slice(1)],
+    };
+    expect(checkRoutes(ir, altered).shortArrowSegments).toEqual([`${edge.key} ${end}`]);
+  }
 });
 
 test("#217: an arrowhead with no valid approach gets layout/no-route", async () => {

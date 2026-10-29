@@ -803,7 +803,7 @@ export const EDGE_JOG_MIN_UNITS = ptToD2Units(1);
 export const edgeJog = defineGeometryRule({
   id: "geometry/edge-jog",
   description: "A painted edge has a sub-1pt orthogonal step between two bends.",
-  defaultSeverity: "warning",
+  defaultSeverity: "info",
   fixable: false,
   run(context) {
     return context.elements.flatMap((edge): LintFinding[] => {
