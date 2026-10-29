@@ -65,7 +65,7 @@ test("#217: an arrowhead with no valid approach gets layout/no-route", async () 
   );
 });
 
-test("#217: acceptance out-proj → c-add-out keeps a full arrowhead-length straight run", async () => {
+test("#217: acceptance out-proj → c-add-out has one bend, without a room-buying jog", async () => {
   const text = await Bun.file(`${root}/research/185-acceptance/figures/c-h3world.sumi.yaml`).text();
   const result = layoutStructuredFigure(text);
   expect(result.ok).toBe(true);
@@ -74,10 +74,33 @@ test("#217: acceptance out-proj → c-add-out keeps a full arrowhead-length stra
   const edge = ir.edges.find((e) => e.from === "n:out-proj" && e.to === "n:c-add-out");
   if (edge === undefined) throw new Error("no acceptance edge");
   const points = layout.edges.find((e) => e.key === edge.key)?.route?.points;
+  expect(points).toEqual([
+    { x: 982.535, y: 694.327 },
+    { x: 1025.709, y: 694.327 },
+    { x: 1025.709, y: 680.319 },
+  ]);
   const a = points?.at(-2);
   const b = points?.at(-1);
   if (a === undefined || b === undefined) throw new Error("no acceptance route");
   expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThanOrEqual(
     arrowheadLength(edge.style.strokeWidth.units),
   );
+});
+
+test("#217: a 14-unit approach prefers one bend to buying the preferred room", async () => {
+  const text = await Bun.file(
+    `${root}/tests/fixtures/figures/layout/arrowhead-room-jog.sumi.yaml`,
+  ).text();
+  const result = layoutStructuredFigure(text);
+  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+  const points = result.value.layout.edges[0]?.route?.points;
+  expect(points).toHaveLength(3);
+  const a = points?.at(-2);
+  const b = points?.at(-1);
+  if (!a || !b) throw new Error("no approach");
+  expect(a.x).toBe(b.x);
+  expect(a.y - b.y).toBe(14);
+  expect(
+    routeEdges(result.value.ir, result.value.layout, { verifyLowerBound: true }).diagnostics,
+  ).toEqual([]);
 });

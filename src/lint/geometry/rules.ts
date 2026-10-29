@@ -23,6 +23,7 @@ import { defineGeometryRule, type GeometryRule, type LintFinding } from "../rule
 import { arrowheadStraightRun } from "./arrowheads";
 import type { GeometryContext, GeometryElement } from "./context";
 import { obstaclesCrossedByRoute, type RouteObstacle } from "./edges";
+import { microJogLengths } from "./jogs";
 import { inkLines, unionOf } from "./measure";
 import { regionsOverlap } from "./outlines";
 import {
@@ -796,6 +797,32 @@ const isDrawnEdge = (e: GeometryElement): boolean =>
   e.ir.style.stroke !== "transparent" &&
   isOpaque(e);
 
+/** One printed point, matching the physical-size convention of geometry lint. */
+export const EDGE_JOG_MIN_UNITS = ptToD2Units(1);
+
+export const edgeJog = defineGeometryRule({
+  id: "geometry/edge-jog",
+  description: "A painted edge has a sub-1pt orthogonal step between two bends.",
+  defaultSeverity: "warning",
+  fixable: false,
+  run(context) {
+    return context.elements.flatMap((edge): LintFinding[] => {
+      if (!isDrawnEdge(edge)) return [];
+      const lengths = microJogLengths(edge.drawn ?? []).map((n) => printedUnits(context, n));
+      const shortest = Math.min(...lengths);
+      if (shortest >= EDGE_JOG_MIN_UNITS - 0.002) return [];
+      return [
+        {
+          message: `${capitalize(edge.name)} has a ${formatPt(unitsToPt(shortest))} segment between two bends (less than 1pt): a micro-jog.`,
+          path: edge.docPath,
+          subject: edge.subject,
+          hint: "Align the approach with fromAnchor / toAnchor, increase the gap, or change the arrangement to remove the tiny step.",
+        },
+      ];
+    });
+  },
+});
+
 export const arrowheadOnBend = defineGeometryRule({
   id: "geometry/arrowhead-on-bend",
   description: "An arrowhead is longer than the straight run at its end of the painted edge.",
@@ -1392,6 +1419,7 @@ export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
   edgeCrossesLabel,
   edgeThroughNode,
   arrowheadOnBend,
+  edgeJog,
   zoomCrossesNode,
   edgeOnBorder,
   edgeNearBorder,

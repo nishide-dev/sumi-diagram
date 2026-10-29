@@ -126,11 +126,13 @@ export const ROUTE = Object.freeze({
   corridor: 80,
   /**
    * Turning, or forking off or joining another edge of the net, within the
-   * room before an arrowhead (`arrowRoom()`, #116): more than two bends,
-   * less than a crossing, so a route keeps the room where moving a bend or
-   * the trunk gives it, but not at the price of a crossing or a detour.
+   * room before an arrowhead (`arrowRoom()`, #116): more than one bend but
+   * less than two. Moving a bend/trunk can buy room, but adding an S-jog
+   * cannot (#217). This is a once-per-entry preference, not a per-grid-point
+   * toll: subdividing the visibility grid must not multiply its cost.
+   * The arrowhead-length stub remains a hard constraint.
    */
-  arrowRoom: 100,
+  arrowRoom: 60,
 });
 
 // In its own module so the structured engine can size group padding by it
@@ -415,7 +417,7 @@ class Router {
    * Points in the room before an arrowhead (`arrowRoom()`, but its far end),
    * by the terminal they belong to: `-1` none, a terminal index, or `-2`
    * several (listed in `#arrowRoomsMulti`). Another edge of the net pays
-   * `ROUTE.arrowRoom` to step there (#116).
+   * `ROUTE.arrowRoom` on entry, independent of grid subdivision (#116, #217).
    */
   #arrowRooms = new Int32Array(0);
   readonly #arrowRoomsMulti = new Map<number, number[]>();
@@ -1466,7 +1468,9 @@ class Router {
           (nd !== dir &&
             ((roomTo[p] === generation && nd === inDir) ||
               (roomFrom[p] === generation && dir === outDir))) ||
-          (arrowRooms[q] !== -1 && this.#inOthersArrowRoom(q, edge))
+          (arrowRooms[q] !== -1 &&
+            this.#inOthersArrowRoom(q, edge) &&
+            !this.#inOthersArrowRoom(p, edge))
         ) {
           cost += arrowRoom;
         }
