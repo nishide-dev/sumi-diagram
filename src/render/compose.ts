@@ -5,7 +5,7 @@ import type { ElementKey } from "../core/check-state";
 import type { Diagnostic } from "../core/diagnostics";
 import { getOutlineRenderer, type OutlineDrawing } from "../core/outline";
 import type { Result } from "../core/result";
-import type { PathSegment, Point, Rect } from "./geometry";
+import { type PathSegment, type Point, parsePath, type Rect } from "./geometry";
 import { decodeElementClass, type SvgInspection } from "./inspect";
 import {
   ENDPOINT_ANGLE_TOLERANCE_DEG,
@@ -16,6 +16,7 @@ import {
   rayHit,
   rectPoints,
 } from "./outline-geometry";
+import { correctedOutlineRouteIsSafe } from "./outline-route";
 import { isHiddenJunction } from "./wire";
 import {
   attribute,
@@ -205,6 +206,7 @@ export function composeOutlines(
         throw new Error(`${edge.key}: missing edge route.`);
       const route = original.map((s) => structuredClone(s));
       const bends: { index: number; point: Point }[] = [];
+      const pendingExtensions: Extension[] = [];
       let changed = false;
       for (const end of ["source", "target"] as const) {
         const key = end === "source" ? edge.from : edge.to;
@@ -238,7 +240,7 @@ export function composeOutlines(
             min: Math.min(...points.map((p) => p.x)),
             max: Math.max(...points.map((p) => p.x)),
           }));
-          if (!spans.some((span) => point.x >= span.min && point.x <= span.max)) {
+          if (!custom.outlines.some((outline) => rayHit(outline, point, direction) !== undefined)) {
             const nearest = custom.outlines
               .flat()
               .filter((p) => spans.some((span) => p.x === span.min || p.x === span.max))
@@ -314,12 +316,37 @@ export function composeOutlines(
             point,
           });
         }
-        extensions.push({ node: key, edge: edge.key, start: point, end: moved });
+        pendingExtensions.push({ node: key, edge: edge.key, start: point, end: moved });
         changed = true;
       }
-      for (const bend of bends.sort((a, b) => b.index - a.index))
+      // At equal indices insert the target first, so the source bend ends up
+      // before it in travel order (a two-point route has both at index 1).
+      for (const bend of bends.reverse().sort((a, b) => b.index - a.index))
         route.splice(bend.index, 0, { command: "L", to: bend.point });
-      if (changed) editTag(path, { d: pathText(route) });
+      if (changed) {
+        const d = pathText(route);
+        const split = drawings.get(edge.from)?.disconnected || drawings.get(edge.to)?.disconnected;
+        if (split) {
+          const rounded = parsePath(d);
+          const obstacles = inspection.elements.flatMap((e) =>
+            e.kind !== "edge" && e.key !== edge.from && e.key !== edge.to && e.bbox ? [e.bbox] : [],
+          );
+          if (!rounded.ok || !correctedOutlineRouteIsSafe(rounded.segments, original, obstacles)) {
+            diagnostics.push(
+              outlineDiagnostic(
+                ir,
+                edge.key,
+                "svg/outline-edge-miss",
+                "warning",
+                `The corrected route of ${edge.id ?? `edges[${edge.index}]`} could not be validated for degeneracy, overlap or obstacle clearance; D2's original path was kept. Adjust the layout.`,
+              ),
+            );
+            continue;
+          }
+        }
+        extensions.push(...pendingExtensions);
+        editTag(path, { d });
+      }
     }
     for (const [i, a] of extensions.entries()) {
       for (const b of extensions.slice(i + 1)) {

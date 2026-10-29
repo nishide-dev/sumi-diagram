@@ -5,9 +5,10 @@ import { layoutStructuredFigure } from "../layout";
 import { resolveEnds } from "../layout/route/ports";
 import { composeOutlines } from "./compose";
 import { finalizeSvg } from "./finalize";
-import type { Point, Rect } from "./geometry";
+import { type Point, parsePath, type Rect } from "./geometry";
 import { inspectSvg } from "./inspect";
 import { rayHit } from "./outline-geometry";
+import { correctedOutlineRouteIsSafe } from "./outline-route";
 import { svgToEditablePptx } from "./pptx";
 import { readPptx } from "./pptx/testing";
 import { artifactFor, tinySvg } from "./testing";
@@ -20,31 +21,142 @@ nodes:
 edges: [{ id: edge, from: ${reverse ? "b" : "a"}, to: ${reverse ? "a" : "b"} }]
 `;
 
-function compose(path: string, reverse = false, rect = { x: 0, y: 0, width: 100, height: 100 }) {
-  const compiled = compileFigure(source(reverse));
+function compose(
+  path: string,
+  reverse = false,
+  rect = { x: 0, y: 0, width: 100, height: 100 },
+  options: { both?: boolean; obstacle?: Rect; warning?: boolean } = {},
+) {
+  const input = source(reverse)
+    .replace(
+      "id: a, component: box",
+      options.both ? "id: a, component: bowtie, props: { gap: 64 }" : "id: a, component: box",
+    )
+    .replace(
+      "edges:",
+      options.obstacle ? "  - { id: obstacle, component: box }\nedges:" : "edges:",
+    );
+  const compiled = compileFigure(input);
   if (!compiled.ok) throw new Error(JSON.stringify(compiled.diagnostics));
   const figure = expectD2Figure(compiled.value);
   const svg = tinySvg(
     [
-      '<g class="sumi-k-n--a sumi-kind-node"><g class="shape"><rect x="20" y="-60" width="60" height="40" fill="#ffffff" stroke="#000000"/></g></g>',
+      options.both
+        ? '<g class="sumi-k-n--a sumi-kind-node"><g class="shape"><rect x="0" y="-120" width="100" height="100" fill="#ffffff" stroke="#000000"/></g></g>'
+        : '<g class="sumi-k-n--a sumi-kind-node"><g class="shape"><rect x="20" y="-60" width="60" height="40" fill="#ffffff" stroke="#000000"/></g></g>',
       `<g class="sumi-k-n--b sumi-kind-node"><g class="shape"><rect x="${rect.x}" y="${rect.y}" width="${rect.width}" height="${rect.height}" fill="#ffffff" stroke="#000000"/></g></g>`,
+      ...(options.obstacle
+        ? [
+            `<g class="sumi-k-n--obstacle sumi-kind-node"><g class="shape"><rect x="${options.obstacle.x}" y="${options.obstacle.y}" width="${options.obstacle.width}" height="${options.obstacle.height}" fill="#ffffff" stroke="#000000"/></g></g>`,
+          ]
+        : []),
       `<g class="sumi-k-e--edge sumi-kind-edge"><path class="connection" d="${path}" fill="none" stroke="#000000"/></g>`,
     ],
     { fonts: false, viewBox: "-100 -100 300 300" },
   );
-  const finalized = finalizeSvg(artifactFor(figure, svg), figure, { source: source(reverse) });
+  const finalized = finalizeSvg(artifactFor(figure, svg), figure, { source: input });
   if (!finalized.ok) throw new Error(JSON.stringify(finalized.diagnostics));
   const before = inspectSvg(finalized.value.svg, figure.ir);
   if (!before.ok) throw new Error(JSON.stringify(before.diagnostics));
   const result = composeOutlines(finalized.value.svg, figure.ir, before.value);
   if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
-  expect(result.diagnostics).toEqual([]);
+  if (options.warning) {
+    expect(result.diagnostics).toEqual([
+      expect.objectContaining({
+        code: "svg/outline-edge-miss",
+        severity: "warning",
+        path: ["edges", 0],
+        subject: { kind: "edge", id: "edge" },
+      }),
+    ]);
+    expect(result.value).toContain(`d="${path}"`);
+  } else expect(result.diagnostics).toEqual([]);
   const after = inspectSvg(result.value, figure.ir);
   if (!after.ok) throw new Error(JSON.stringify(after.diagnostics));
   const route = after.value.elements.find((e) => e.key === "e:edge")?.path;
   if (!route) throw new Error("Missing route");
-  return { svg: result.value, ir: figure.ir, route };
+  return { svg: result.value, ir: figure.ir, route, diagnostics: result.diagnostics };
 }
+
+test("both shifted ends insert bends in travel order without backtracking", () => {
+  const { route } = compose("M 50 -18 L 50 -2", false, undefined, { both: true });
+  expect(route.map((s) => s.to)).toEqual([
+    { x: 25, y: -43 },
+    { x: 25, y: -18 },
+    { x: 25, y: -2 },
+    { x: 25, y: 23 },
+  ]);
+});
+
+for (const reverse of [false, true]) {
+  test(`a shifted ${reverse ? "source" : "target"} join crossing another footprint keeps D2's exact path`, () => {
+    const path = reverse ? "M 50 -2 L 50 -18" : "M 50 -18 L 50 -2";
+    const { route } = compose(path, reverse, undefined, {
+      obstacle: { x: 30, y: -14, width: 10, height: 8 },
+      warning: true,
+    });
+    expect(route.map((s) => s.to)).toEqual(
+      reverse
+        ? [
+            { x: 50, y: -2 },
+            { x: 50, y: -18 },
+          ]
+        : [
+            { x: 50, y: -18 },
+            { x: 50, y: -2 },
+          ],
+    );
+  });
+
+  test(`near-vertical ${reverse ? "source" : "target"} ray misses paint despite its x lying in a body span`, () => {
+    const path = reverse ? "M 24.99 -2 L 24.67 -18" : "M 24.67 -18 L 24.99 -2";
+    const { route } = compose(path, reverse);
+    const points = [
+      { x: 24.67, y: -18 },
+      { x: 24.46, y: -2 },
+      { x: 24.96, y: 23 },
+    ];
+    expect(route.map((s) => s.to)).toEqual(reverse ? points.reverse() : points);
+  });
+}
+
+test("an overlapping corrected approach falls back instead of adding a backtracking segment", () => {
+  const path = "M 25 10 L 50 -18 L 50 -2";
+  const { route } = compose(path, false, undefined, { warning: true });
+  expect(route.map((s) => s.to)).toEqual([
+    { x: 25, y: 10 },
+    { x: 50, y: -18 },
+    { x: 50, y: -2 },
+  ]);
+});
+
+test("a degenerate approach keeps D2's path with a warning", () => {
+  compose("M 50 -2 L 50 -2", false, undefined, { warning: true });
+});
+
+test("corrected route validation rejects collapsed, overlapping and self-touching routes", () => {
+  const original = parsePath("M 50 -18 L 50 -2");
+  if (!original.ok) throw new Error(original.message);
+  for (const d of [
+    "M 25 -43 L 25 -18 L 25 -18 L 25 23",
+    "M 25 -43 L 25 -2 L 25 -18 L 25 23",
+    "M 0 0 L 10 10 L 0 10 L 10 0",
+    "M 0 0 L 10 0 L 10 10 L 5 0",
+    "M 50 -18 C 50 30 25 -30 25 23",
+  ]) {
+    const route = parsePath(d);
+    if (!route.ok) throw new Error(route.message);
+    expect(correctedOutlineRouteIsSafe(route.segments, original.segments, [])).toBe(false);
+  }
+});
+
+test("curved corrections conservatively reject an obstacle inside their control bounds", () => {
+  const path = "M 50 -18 C 50 -12 50 -8 50 -2";
+  compose(path, false, undefined, {
+    obstacle: { x: 30, y: -14, width: 10, height: 8 },
+    warning: true,
+  });
+});
 
 function boundaries(rect: Rect) {
   const renderer = getOutlineRenderer("sumi/bowtie");
