@@ -228,12 +228,12 @@ export const ONE_OF_ISSUE = "sumi-one-of";
 /** A grid item with an optional horizontal span. */
 export const GridCellSchema = z.strictObject({
   get item() {
-    return ArrangeItemSchema;
+    return ArrangeItemSchema.nullable();
   },
   span: z.int().positive().optional().describe("Number of columns occupied (default 1)."),
 });
 
-/** Row-major grid. Rows must be complete; use a hidden junction for a blank cell. */
+/** Row-major grid. Rows must be complete; null reserves a blank cell. */
 export const GridSchema = z.strictObject({
   columns: z
     .int()
@@ -243,7 +243,7 @@ export const GridSchema = z.strictObject({
   columnGap: LayoutLength.optional(),
   align: z.enum(ARRANGE_ALIGNS).optional(),
   get items() {
-    return z.array(z.union([ArrangeItemSchema, GridCellSchema])).min(1);
+    return z.array(z.union([ArrangeItemSchema, GridCellSchema, z.null()])).min(1);
   },
 });
 

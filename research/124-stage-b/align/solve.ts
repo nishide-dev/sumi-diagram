@@ -109,6 +109,7 @@ function paths(ir: FigureIR): Map<string, Step[]> {
   const groups = new Map(ir.groups.map((g) => [g.key as string, g]));
   const walk = (box: ArrangeBoxIR, prefix: Step[]) => {
     for (const item of box.items) {
+      if (item === null) continue;
       const path = [...prefix, { box, item }];
       if (typeof item === "string") {
         out.set(item, path);

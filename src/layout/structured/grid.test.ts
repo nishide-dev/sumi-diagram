@@ -5,6 +5,7 @@ import { checkFigure } from "../../core/check";
 import { formatFigureSource } from "../../core/figure/format";
 import { layoutStructuredFigure } from "../index";
 import type { Rect } from "../ir";
+import { placeStructured } from "./engine";
 
 function source(grid: object, extra: object = {}) {
   return stringify({
@@ -75,9 +76,9 @@ test("grid diagnostics locate overflow and incomplete final rows", () => {
   }
 });
 
-test("grid rejects empty cells, zero columns/spans and direction with schema locations", () => {
+test("grid rejects empty strings/lists, zero columns/spans and direction with schema locations", () => {
   for (const grid of [
-    { columns: 2, items: ["a", null, "b", "c", "d"] },
+    { columns: 2, items: ["a", "", "b", "c", "d"] },
     { columns: 0, items: ["a", "b", "c", "d"] },
     { columns: 2, items: [{ item: "a", span: 0 }, "b", "c", "d"] },
     { columns: 2, direction: "left", items: ["a", "b", "c", "d"] },
@@ -91,28 +92,27 @@ test("grid rejects empty cells, zero columns/spans and direction with schema loc
   }
 });
 
-test("empty-cell diagnostics point to the written cell; hidden junctions reserve blank cells", () => {
-  for (const empty of [null, ""]) {
-    const text = source({ columns: 2, items: ["a", empty, "b", "c", "d"] });
-    const diagnostics = checkFigure(text).state.diagnostics;
-    expect(
-      diagnostics.some(
-        (d) =>
-          JSON.stringify(d.path) ===
-            JSON.stringify(["figure", "layout", "arrange", "grid", "items", 1]) &&
-          d.location !== undefined,
-      ),
-    ).toBe(true);
-  }
+test("null and YAML ~ cells reserve columns without nodes or routing obstacles", () => {
   const text = stringify({
     version: 1,
-    figure: { id: "blank", layout: { arrange: { grid: { columns: 2, items: ["blank", "a"] } } } },
+    figure: { id: "blank", layout: { arrange: { grid: { columns: 3, items: ["a", null, "b"] } } } },
     nodes: [
-      { id: "blank", component: "junction", variant: "hidden" },
       { id: "a", component: "box", label: "A" },
+      { id: "b", component: "box", label: "B" },
     ],
+    edges: [{ id: "ab", from: "a", to: "b" }],
   });
-  expect(layout(text).nodes.map((n) => n.key)).toEqual(["n:blank", "n:a"]);
+  for (const cell of ["null", "~", "{ item: null, span: 1 }"]) {
+    const placed = layout(text.replace("null", cell));
+    expect(placed.nodes.map((n) => n.key)).toEqual(["n:a", "n:b"]);
+    const points = placed.edges[0]?.route?.points;
+    expect(points).toHaveLength(2);
+    expect(points?.[0]?.y).toBe(points?.[1]?.y);
+  }
+  const spanning = source({ columns: 3, items: ["a", { item: null, span: 2 }, "b", "c", "d"] });
+  expect(layout(spanning).nodes).toHaveLength(4);
+  const incomplete = checkFigure(source({ columns: 3, items: ["a", null, "b", "c", "d"] }));
+  expect(incomplete.state.diagnostics.map((d) => d.code)).toContain("layout/grid-item-count");
 });
 
 test("auto reports structured-only and wrapped items retain placement diagnostics", () => {
@@ -141,6 +141,18 @@ test("canonical order descends through spanning items and nested grids", () => {
       "{ item: { grid: { columns: 1, align: start, items: [ a ] } }, span: 2 }",
     );
   }
+});
+
+test("canonical blanks use null, including spanning cells, and format idempotently", () => {
+  const input =
+    "version: 1\nfigure:\n  id: t\n  layout:\n    arrange:\n      grid: { items: [~, { span: 2, item: ~ }], columns: 3 }\n";
+  const result = formatFigureSource(input, { canonicalOrder: true });
+  expect(result.ok).toBe(true);
+  if (!result.ok) return;
+  expect(result.text).toContain("items: [ null, { item: null, span: 2 } ]");
+  expect(formatFigureSource(result.text, { canonicalOrder: true })).toMatchObject({
+    changed: false,
+  });
 });
 
 test("spanning deficits grow tracks evenly and include internal column gaps", () => {
@@ -192,8 +204,8 @@ test("tokens inside wrapped nested grids expand without changing spans", () => {
       layout: {
         arrange: {
           grid: {
-            columns: 2,
-            items: [{ item: { grid: { columns: 1, items: ["seq"] } }, span: 2 }],
+            columns: 3,
+            items: [null, { item: { grid: { columns: 1, items: ["seq"] } }, span: 2 }],
           },
         },
       },
@@ -236,7 +248,7 @@ test("grid groups infer membership, captions stretch, attached nodes stay contai
   expect(group?.rect.width).toBe(placed.nodes.find((n) => n.key === "n:wide")?.rect.width);
 });
 
-test("align constraints may use nested linear boxes but cannot split grid tracks", () => {
+test("align constraints may use nested linear boxes", () => {
   const text = stringify({
     version: 1,
     figure: {
@@ -262,4 +274,94 @@ test("align constraints may use nested linear boxes but cannot split grid tracks
   const b = placed.nodes.find((n) => n.key === "n:b");
   const d = placed.nodes.find((n) => n.key === "n:d");
   expect(Math.abs((b?.rect.y ?? 0) - (d?.rect.y ?? 0))).toBeLessThanOrEqual(0.01);
+});
+
+test("direct-grid top/bottom constraints report source-located unsatisfied-align", () => {
+  for (const at of ["start", "end"]) {
+    const text = source({ columns: 2, items: ["a", "b", "c", "d"] }).replace(
+      "arrange:",
+      `align: [{ y: [a, b], at: ${at} }]\n    arrange:`,
+    );
+    const result = layoutStructuredFigure(text, { file: "grid.sumi.yaml" });
+    expect(result.ok).toBe(true);
+    const diagnostic = result.diagnostics.find((d) => d.code === "layout/unsatisfied-align");
+    expect(diagnostic?.path).toEqual(["figure", "layout", "align", 0]);
+    expect(diagnostic?.location?.file).toBe("grid.sumi.yaml");
+    expect(diagnostic?.location?.line).toBeGreaterThan(0);
+    expect(diagnostic?.location?.column).toBeGreaterThan(0);
+  }
+});
+
+test("ancestor struts move a whole grid without changing relative cell rectangles", () => {
+  const grid = { grid: { columns: 2, items: ["a", "b"] } };
+  const doc = (align: object[]) =>
+    stringify({
+      version: 1,
+      figure: {
+        id: "ancestor",
+        layout: {
+          arrange: {
+            row: {
+              align: "start",
+              items: [{ stack: { items: [grid] } }, { stack: { items: ["c", "d"] } }],
+            },
+          },
+          align,
+        },
+      },
+      nodes: ["a", "b", "c", "d"].map((id) => ({ id, component: "box", label: id })),
+    });
+  const before = layout(doc([]));
+  const result = layoutStructuredFigure(doc([{ y: ["a", "d"] }]));
+  expect(result.ok).toBe(true);
+  if (!result.ok) return;
+  expect(result.diagnostics.filter((d) => d.code === "layout/unsatisfied-align")).toEqual([]);
+  const [a, b, , d] = result.value.layout.nodes.map((n) => n.rect) as [Rect, Rect, Rect, Rect];
+  const [oldA, oldB] = before.nodes.map((n) => n.rect) as [Rect, Rect];
+  expect(a.y).toBe(d.y);
+  expect(a.y).toBeGreaterThan(oldA.y);
+  expect(b.y - oldB.y).toBe(a.y - oldA.y);
+  expect(b.x - a.x).toBe(oldB.x - oldA.x);
+});
+
+test("align passes recompute grid tracks after nested sizes change", () => {
+  const text = stringify({
+    version: 1,
+    figure: {
+      id: "passes",
+      layout: {
+        arrange: {
+          row: {
+            align: "start",
+            items: [
+              {
+                grid: { columns: 1, rowGap: "5pt", items: [{ stack: { items: ["a", "b"] } }, "f"] },
+              },
+              { stack: { items: ["c", "d", "e", "g"] } },
+            ],
+          },
+        },
+        align: [{ y: ["b", "g"] }],
+      },
+    },
+    nodes: ["a", "b", "c", "d", "e", "f", "g"].map((id) => ({ id, component: "box", label: id })),
+  });
+  const compiled = compileFigure(text);
+  expect(compiled.ok).toBe(true);
+  if (!compiled.ok) return;
+  const ir = compiled.value.ir;
+  const before = placeStructured({ ...ir, align: [] });
+  const after = placeStructured(ir);
+  expect(after.align?.layouts).toBeGreaterThan(1);
+  expect(after.align?.rounds).toBe(1);
+  expect(after.align?.residuals[0]).toBeLessThanOrEqual(0.01);
+  const rect = (placed: typeof after, id: string) =>
+    placed.layout.nodes.find((n) => n.key === `n:${id}`)?.rect as Rect;
+  // Growing the nested stack must grow the first track and move the second
+  // row, rather than overlap it using the first pass's cached cell size.
+  expect(rect(after, "f").y).toBe(rect(after, "b").y + rect(after, "b").height + 10);
+  expect(rect(after, "f").y).toBeGreaterThan(rect(before, "f").y);
+  expect(rect(after, "b").y).toBeGreaterThan(rect(before, "b").y);
+  expect(rect(after, "a").y).toBe(rect(after, "c").y);
+  expect(placeStructured(ir)).toEqual(after);
 });

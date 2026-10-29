@@ -209,9 +209,12 @@ function reorderArrange(box: unknown): void {
     const items = spec.get("items", true);
     if (isSeq(items))
       for (const item of items.items) {
+        if (kind === "grid" && isScalar(item) && item.value === null) item.source = "null";
         if (kind === "grid" && isMap(item) && item.has("item")) {
           sortMap(item, KEY_ORDER.cell);
-          reorderArrange(item.get("item", true));
+          const value = item.get("item", true);
+          if (isScalar(value) && value.value === null) value.source = "null";
+          reorderArrange(value);
         } else reorderArrange(item);
       }
   }

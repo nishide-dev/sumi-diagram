@@ -579,11 +579,18 @@
                       "item": {
                         "anyOf": [
                           {
-                            "type": "string",
-                            "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+                              },
+                              {
+                                "$ref": "#/$defs/ArrangeBox"
+                              }
+                            ]
                           },
                           {
-                            "$ref": "#/$defs/ArrangeBox"
+                            "type": "null"
                           }
                         ]
                       },
@@ -598,6 +605,9 @@
                       "item"
                     ],
                     "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
                   }
                 ]
               }

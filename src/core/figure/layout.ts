@@ -250,7 +250,7 @@ function checkStructured(state: CheckState, locate: Locator): void {
       let column = 0;
       for (const [index, cell] of spec.items.entries()) {
         let itemPath = [...path, kind, "items", index];
-        const wrapped = typeof cell === "object" && "item" in cell;
+        const wrapped = cell !== null && typeof cell === "object" && "item" in cell;
         const item = wrapped ? cell.item : cell;
         if (kind === "grid" && box.grid !== undefined) {
           const span = wrapped ? (cell.span ?? 1) : 1;
@@ -271,6 +271,7 @@ function checkStructured(state: CheckState, locate: Locator): void {
           column = (column + span) % box.grid.columns;
         }
         if (wrapped) itemPath = [...itemPath, "item"];
+        if (item === null) continue;
         if (typeof item !== "string") {
           walk(item, itemPath, owner, ownerSubject, silent);
           continue;
@@ -301,7 +302,7 @@ function checkStructured(state: CheckState, locate: Locator): void {
             {
               atKey: true,
               subject: ownerSubject,
-              hint: "Complete every row with items or spans; use a hidden junction for an intentionally empty cell.",
+              hint: "Complete every row with items or spans; use null for an intentionally empty cell.",
             },
           ),
         );

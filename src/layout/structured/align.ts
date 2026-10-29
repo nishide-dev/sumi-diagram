@@ -346,6 +346,7 @@ function paths(ir: FigureIR): Map<ElementKey, Step[]> {
   const groups = new Map(ir.groups.map((g) => [g.key, g]));
   const walk = (box: ArrangeBoxIR, prefix: Step[]) => {
     for (const item of box.items) {
+      if (item === null) continue;
       const path = [...prefix, { box, item }];
       if (typeof item === "string") {
         out.set(item, path);
@@ -424,6 +425,7 @@ export function grewFigure(
 function strutRecord(struts: Struts): Record<string, number> {
   const names = new Map<ArrangeBoxIR, string>();
   const nameOf = (item: ArrangeItemIR) => {
+    if (item === null) return "blank";
     if (typeof item === "string") return item;
     let name = names.get(item);
     if (name === undefined) {

@@ -610,6 +610,7 @@ function arrangeSides(
   const groups = new Map(ir.groups.map((g) => [g.key, g]));
   const walk = (box: ArrangeBoxIR, prefix: readonly Step[]) => {
     for (const [index, item] of box.items.entries()) {
+      if (item === null) continue;
       const path = [...prefix, { box, index }];
       if (typeof item === "string") {
         paths.set(item, path);

@@ -315,6 +315,7 @@ class StructuredLayout {
   }
 
   #itemSize(item: ArrangeItemIR): Size {
+    if (item === null) return { width: 0, height: 0 };
     if (typeof item !== "string") return this.#boxSize(item);
     const cached = this.#itemSizes.get(item);
     if (cached !== undefined) return cached;
@@ -443,6 +444,7 @@ class StructuredLayout {
     for (const w of tracks.widths) xs.push((xs.at(-1) as number) + w + tracks.columnGap);
     for (const h of tracks.heights) ys.push((ys.at(-1) as number) + h + tracks.rowGap);
     for (const cell of tracks.cells) {
+      if (cell.item === null) continue;
       const available =
         tracks.widths.slice(cell.column, cell.column + cell.span).reduce((a, b) => a + b, 0) +
         tracks.columnGap * (cell.span - 1);
@@ -488,6 +490,7 @@ class StructuredLayout {
     let cursor = (vertical ? frame.y : frame.x) + (grow > 0 ? 0 : extra / 2);
     const crossAvailable = vertical ? frame.width : frame.height;
     for (const item of order) {
+      if (item === null) continue;
       const itemNatural = this.#itemSize(item);
       const size = vertical
         ? { ...itemNatural, height: itemNatural.height + grow }

@@ -29,3 +29,5 @@ H3-World は元と書き換えの両方を実際に描き、**全 node・group �
 ## 設計
 
 構文・空のセル・span の診断・sizing・align の規則は `docs/design/phase1.md` §6.59。grid は structured 専用で、auto では `layout/structured-only`。新しい間隔の既定値は足さず、Profile の arrangeGap（compact を含む）を使う。
+
+レビュー後、空セルは明示的な `null` / `~`（複数列なら `{ item: null, span: N }`）にした。ノード・障害物・net 端点を作らず、辺が直進できることを検証。上記 2 図に junction の空セルはない（H3-World の `b-out` は辺が接続する実際の端点なので保持）。縦位置は常に中央で、直接のセルを `figure.layout.align` で上辺・下辺に揃えることはできない。必要な場合は入れ子の線形の箱を使う。直接のセルの位置付き診断・祖先の strut による grid 全体の移動・反復で子のサイズが変わったときの track 再計測も回帰テストに追加した。

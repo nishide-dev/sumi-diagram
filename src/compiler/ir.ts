@@ -123,8 +123,8 @@ export interface ArrangeBoxIR {
   readonly growFirst?: true;
 }
 
-/** An item of an arrange box: a node or group, or a nested box. */
-export type ArrangeItemIR = ElementKey | ArrangeBoxIR;
+/** An item of an arrange box: a node or group, a nested box, or a blank grid cell. */
+export type ArrangeItemIR = ElementKey | ArrangeBoxIR | null;
 
 /**
  * One constraint of `figure.layout.align` (#132, design doc §6.31), with the
@@ -673,7 +673,8 @@ function arrangeIR(
   if (spec === undefined) throw new Error("internal error: arrange box without stack, row or grid");
   const kind = box.stack !== undefined ? "stack" : box.row !== undefined ? "row" : "grid";
   const align = spec.align ?? (kind === "grid" ? "center" : inherited);
-  const item = (item: ArrangeItem): ArrangeItemIR => {
+  const item = (item: ArrangeItem | null): ArrangeItemIR => {
+    if (item === null) return null;
     if (typeof item !== "string") {
       const nested = item.stack !== undefined ? "stack" : item.row !== undefined ? "row" : "grid";
       return arrangeIR(item, keyOf, captions, captionGapPt, nested === kind ? align : "center");
@@ -699,9 +700,15 @@ function arrangeIR(
       ...(grid.columnGap !== undefined && { columnGapPt: grid.columnGap }),
       ...(grid.align !== undefined && { align: grid.align }),
       spans: freeze(
-        grid.items.map((c) => (typeof c === "object" && "item" in c ? (c.span ?? 1) : 1)),
+        grid.items.map((c) =>
+          c !== null && typeof c === "object" && "item" in c ? (c.span ?? 1) : 1,
+        ),
       ),
-      items: freeze(grid.items.map((c) => item(typeof c === "object" && "item" in c ? c.item : c))),
+      items: freeze(
+        grid.items.map((c) =>
+          item(c !== null && typeof c === "object" && "item" in c ? c.item : c),
+        ),
+      ),
     });
   }
   const linear = box.stack ?? box.row;

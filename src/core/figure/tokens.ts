@@ -440,13 +440,13 @@ function replaceArrangeItems(state: CheckState, items: ReadonlyMap<string, Arran
   const { doc } = state;
   const replace = (box: ArrangeBox): ArrangeBox => {
     if (box.grid !== undefined) {
-      const replaceItem = (item: ArrangeItem): ArrangeItem =>
-        typeof item === "string" ? (items.get(item) ?? item) : replace(item);
+      const replaceItem = (item: ArrangeItem | null): ArrangeItem | null =>
+        item === null ? null : typeof item === "string" ? (items.get(item) ?? item) : replace(item);
       return {
         grid: {
           ...box.grid,
           items: box.grid.items.map((cell) =>
-            typeof cell === "object" && "item" in cell
+            cell !== null && typeof cell === "object" && "item" in cell
               ? { ...cell, item: replaceItem(cell.item) }
               : replaceItem(cell),
           ),
