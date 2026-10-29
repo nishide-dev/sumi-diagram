@@ -204,6 +204,7 @@ export function composeOutlines(
       if (!original || original.length < 2 || !path)
         throw new Error(`${edge.key}: missing edge route.`);
       const route = original.map((s) => structuredClone(s));
+      const bends: { index: number; point: Point }[] = [];
       let changed = false;
       for (const end of ["source", "target"] as const) {
         const key = end === "source" ? edge.from : edge.to;
@@ -227,20 +228,31 @@ export function composeOutlines(
           y: (point.y - neighbour.y) / length,
         };
         let lateral = 0;
-        // A vertical approach through a disconnected bowtie's gap must end on
+        // A near-normal approach through a disconnected bowtie's gap must end on
         // a painted lip. Translate the endpoint ray, retaining its tangent.
-        if (custom.disconnected && Math.abs(direction.x) < 1e-9) {
+        if (
+          custom.disconnected &&
+          Math.abs(direction.x) <= Math.sin((ENDPOINT_ANGLE_TOLERANCE_DEG * Math.PI) / 180)
+        ) {
           const spans = custom.outlines.map((points) => ({
             min: Math.min(...points.map((p) => p.x)),
             max: Math.max(...points.map((p) => p.x)),
           }));
           if (!spans.some((span) => point.x >= span.min && point.x <= span.max)) {
-            const nearest = spans
-              .flatMap((span) => [span.min, span.max])
-              .sort((a, b) => Math.abs(a - point.x) - Math.abs(b - point.x) || a - b)[0];
+            const nearest = custom.outlines
+              .flat()
+              .filter((p) => spans.some((span) => p.x === span.min || p.x === span.max))
+              .sort((a, b) => {
+                const distance = Math.abs(a.x - point.x) - Math.abs(b.x - point.x);
+                return Math.abs(distance) > 1e-6
+                  ? distance
+                  : a.x - b.x || (a.y - b.y) * direction.y;
+              })[0];
             if (nearest !== undefined) {
-              lateral = nearest - point.x;
-              point = { ...point, x: nearest };
+              // Aim the translated ray at the lip, rather than putting only
+              // its origin on the lip's x (which can still miss when slanted).
+              lateral = nearest.x - point.x - (direction.x / direction.y) * (nearest.y - point.y);
+              point = { ...point, x: point.x + lateral };
             }
           }
         }
@@ -293,9 +305,20 @@ export function composeOutlines(
           const last = route[index];
           if (last?.command === "C") route[index] = { ...last, c2: shift(last.c2) };
         }
+        if (lateral !== 0 && adjacent.command !== "C") {
+          // Retain the straight end's tangent too. Join its translated origin
+          // to the old route outside the footprint, instead of making a diagonal
+          // from the unchanged neighbour through the empty gap.
+          bends.push({
+            index: end === "source" ? 1 : index,
+            point,
+          });
+        }
         extensions.push({ node: key, edge: edge.key, start: point, end: moved });
         changed = true;
       }
+      for (const bend of bends.sort((a, b) => b.index - a.index))
+        route.splice(bend.index, 0, { command: "L", to: bend.point });
       if (changed) editTag(path, { d: pathText(route) });
     }
     for (const [i, a] of extensions.entries()) {

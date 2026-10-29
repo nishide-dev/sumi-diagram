@@ -17,6 +17,7 @@ import {
   type LabelGeometry,
   type LabelRunGeometry,
 } from "../inspect";
+import { rayHit } from "../outline-geometry";
 import { readFontFace } from "../pdf/fonts";
 import { exceedsPdfInputLimits } from "../pdf/pdf";
 import { readD2Svg } from "../svg";
@@ -562,21 +563,80 @@ export function svgToEditablePptx(
           element.render.params.gap > 0) ||
           (element.render.renderer === "sumi/trapezoid" &&
             element.render.params?.narrow !== undefined));
-      const connectionPoints = preciseSites
+      const connectionEnds = preciseSites
         ? ir.edges.flatMap((edge) => {
             const path = inspected.value.elements.find((e) => e.key === edge.key)?.path;
+            if (!path || path.length < 2) return [];
+            const first = path[0] as PathSegment;
+            const second = path[1] as PathSegment;
+            const last = path.at(-1) as PathSegment;
+            const before = path.at(-2) as PathSegment;
             return [
-              ...(edge.from === element.key && path?.[0] ? [path[0].to] : []),
-              ...(edge.to === element.key && path?.at(-1) ? [path.at(-1)?.to as Point] : []),
+              ...(edge.from === element.key
+                ? [{ point: first.to, neighbour: second.command === "C" ? second.c1 : second.to }]
+                : []),
+              ...(edge.to === element.key
+                ? [{ point: last.to, neighbour: last.command === "C" ? last.c2 : before.to }]
+                : []),
             ];
           })
         : undefined;
+      const connectionPoints = connectionEnds?.map(({ point }) => point);
       if (connectionPoints !== undefined && element.kind === "node" && element.render) {
         const renderer = getOutlineRenderer(element.render.renderer);
         if (!renderer) throw new Error(`Missing renderer ${element.render.renderer}`);
         const drawing = renderer.draw(box, renderer.params.parse(element.render.params));
+        const boundaries = drawing.boundaries ?? [drawing.outline];
+        // Auto routes retain D2's clearance. A glued site must instead lie on
+        // the painted boundary, including at the corner of a split body's lip.
+        for (const [index, point] of connectionPoints.entries()) {
+          const neighbour = connectionEnds?.[index]?.neighbour;
+          let contact: Point | undefined;
+          if (neighbour !== undefined) {
+            const direction = { x: point.x - neighbour.x, y: point.y - neighbour.y };
+            const hits = boundaries.flatMap((boundary) => {
+              const hit = rayHit(boundary, point, direction);
+              return hit === undefined ? [] : [hit];
+            });
+            if (hits.length > 0) {
+              const distance = Math.min(...hits);
+              contact = {
+                x: point.x + direction.x * distance,
+                y: point.y + direction.y * distance,
+              };
+            }
+          }
+          // A rounded or degenerate tangent may miss a polygon corner. Fall
+          // back to its closest painted point, never a clearance coordinate.
+          let nearest = point;
+          let distance = Number.POSITIVE_INFINITY;
+          for (const boundary of boundaries) {
+            for (const [i, a] of boundary.entries()) {
+              const b = boundary[(i + 1) % boundary.length] as Point;
+              const dx = b.x - a.x;
+              const dy = b.y - a.y;
+              const lengthSquared = dx * dx + dy * dy;
+              const t =
+                lengthSquared === 0
+                  ? 0
+                  : Math.max(
+                      0,
+                      Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / lengthSquared),
+                    );
+              const projected = { x: a.x + t * dx, y: a.y + t * dy };
+              const d = Math.hypot(projected.x - point.x, projected.y - point.y);
+              if (d < distance) {
+                nearest = projected;
+                distance = d;
+              }
+            }
+          }
+          // Structured SVG rounds contacts to 1/1000 unit. If that puts an
+          // end just inside the body, its forward ray sees the far side.
+          connectionPoints[index] = distance <= 0.002 ? nearest : (contact ?? nearest);
+        }
         // Also offer painted sites on an unconnected shape when edited later.
-        connectionPoints.push(...(drawing.boundaries ?? [drawing.outline]).flat());
+        connectionPoints.push(...boundaries.flat());
       }
       const geom = ellipse
         ? '<a:prstGeom prst="ellipse"><a:avLst/></a:prstGeom>'

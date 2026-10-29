@@ -1246,15 +1246,18 @@ function resolveEndsWith(
         if (!spans.some((span) => port.x >= span.min && port.x <= span.max)) {
           const nearest = spans
             .flatMap((span) => [span.min, span.max])
-            .sort((a, b) => Math.abs(a - port.x) - Math.abs(b - port.x) || a - b)[0];
+            .sort((a, b) => {
+              const distance = Math.abs(a - port.x) - Math.abs(b - port.x);
+              return Math.abs(distance) > 1e-6 ? distance : a - b;
+            })[0];
           if (nearest !== undefined)
             port = {
               ...port,
               // Round toward the painted half, never into the empty gap.
               x:
                 nearest < port.x
-                  ? Math.floor(nearest * 1000) / 1000
-                  : Math.ceil(nearest * 1000) / 1000,
+                  ? Math.floor(nearest * 1000 + 1e-6) / 1000
+                  : Math.ceil(nearest * 1000 - 1e-6) / 1000,
             };
         }
       }
