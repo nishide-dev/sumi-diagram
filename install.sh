@@ -33,7 +33,8 @@ fi
 command -v tar >/dev/null 2>&1 || fail 'Install tar first.'
 
 work=$(mktemp -d "${TMPDIR:-/tmp}/sumi-install.XXXXXXXX")
-trap 'rm -rf "$work"' 0
+stage=
+trap 'rm -rf "$work"; if [ -n "$stage" ]; then rm -rf "$stage"; fi' 0
 trap 'exit 1' HUP INT TERM
 download() {
   # A plain directory is useful for offline installation and release tests.
@@ -51,7 +52,7 @@ download() {
 
 version=${SUMI_VERSION:-}
 if [ -z "$version" ]; then
-  download 'https://api.github.com/repos/nishide-dev/sumi-diagram/releases/latest' "$work/latest.json"
+  download "${SUMI_LATEST_URL:-https://api.github.com/repos/nishide-dev/sumi-diagram/releases/latest}" "$work/latest.json"
   # GitHub's tag_name is a simple string; no jq/runtime dependency required.
   version=$(sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$work/latest.json")
   [ -n "$version" ] || fail 'Could not resolve the latest release tag. Set SUMI_VERSION explicitly.'
@@ -93,9 +94,14 @@ home=$(cd "$home" && pwd -P)
 bin=$(cd "$bin" && pwd -P)
 tar -xzf "$work/$archive" -C "$work" || fail "Could not extract $archive"
 [ -x "$work/$name/bin/sumi" ] || fail "Archive lacks $name/bin/sumi"
-mkdir -p "$home/$name"
-cp -R "$work/$name/." "$home/$name/" || fail 'Could not copy the release files.'
 [ ! -d "$bin/sumi" ] || fail "$bin/sumi is a directory; choose another SUMI_BIN_DIR."
+stage=$home/.$name.tmp.$$
+mkdir "$stage" || fail 'Could not create the release staging directory.'
+cp -R "$work/$name/." "$stage/" || fail 'Could not copy the release files.'
+# Never overwrite an active executable; stage on the destination filesystem.
+rm -rf "${home:?}/$name"
+mv "$stage" "$home/$name" || fail 'Could not move the staged release into place.'
+stage=
 ln -sf "$home/$name/bin/sumi" "$bin/sumi"
 "$bin/sumi" doctor || fail "sumi doctor failed. Check the diagnostics above ($bin/sumi)."
 printf 'Installed %s\n' "$bin/sumi"

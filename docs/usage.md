@@ -36,6 +36,8 @@ Keep the extracted layout intact. Sumi resolves symlinks and finds D2 and fonts 
 
 Installer options: `SUMI_VERSION` accepts a version with or without `v`; otherwise the GitHub latest-release API is used. `SUMI_HOME` defaults to `~/.local/share/sumi`, and `SUMI_BIN_DIR` to `~/.local/bin`. `SUMI_DOWNLOAD_BASE` overrides the directory containing the tarball and `SHA256SUMS` (HTTP(S), curl's `file://`, or an absolute local directory). Rerun to upgrade; old version directories remain. Remove the symlink and installation home to uninstall.
 
+For mirrors and offline installation, `SUMI_LATEST_URL` overrides the latest-release API endpoint with an HTTP(S) URL, curl's `file://` URL, or an absolute local JSON file path containing `tag_name`. Reinstalling the same version stages a fresh copy inside the installation home, then replaces that version's directory.
+
 ## CLI commands
 
 Use `sumi --help` and `sumi <command> --help`. For source development, use `bun src/cli/index.ts <command>` or `bun link`; see [Contributing](../CONTRIBUTING.md).
@@ -54,11 +56,11 @@ sumi catalog --json --section themes --section profiles
 
 | Command | Behavior and options |
 | --- | --- |
-| `render <file>` | Compile and render SVG/PDF/PPTX; run geometry lint by default. `-o, --out`, `--format svg\|pdf\|pptx`, `--emit-d2`, `--theme`, `--profile`, `--no-geometry`, `--json`. SVG only supports `-o -` (stdout). |
+| `render <file>` | Compile and render SVG/PDF/PPTX; run geometry lint by default. `-o, --out`, `--format svg\|pdf\|pptx`, `--pptx-mode picture\|editable` (editable is experimental), `--pptx-connectors freeform\|glued` (editable only), `--emit-d2`, `--theme`, `--profile`, `--no-geometry`, `--json`. Only SVG supports `-o -` (stdout). |
 | `lint <files...>` | Validate schema, references, components, assets, themes/profiles, and structural rules without drawing. `--geometry` also renders in memory and checks geometry without writing files. `--json`, `--config <lint.json>`, repeated `--rule <id>=<level>` (including `geometry/*`), `--max-warnings <n>` across all input files. See [lint rules](lint-rules.md). |
 | `fmt <files...>` | Format YAML without changing meaning; preserve comments, quotes, and key order. Invalid YAML is not rewritten. `--check` lists unformatted files without writing; `--stdout` prints YAML; `--canonical-order` sorts known keys into schema order. |
 | `doctor` | Check Sumi/runtime versions, D2, bundled font hashes and geometry metrics. `--json`. |
-| `catalog` | List components, themes, and profiles. `--json`; repeated `--section components\|themes\|profiles`; `--kind node\|group\|edge` (without a section, returns only components); `--icons <words>` searches bundled icons. |
+| `catalog` | List components, themes, and profiles. `--json`; repeated `--section components\|themes\|profiles`; `--kind node\|group\|edge` (without a section, returns only components); `--icons <words>` searches bundled icons, `--icons ""` lists all icon names. |
 
 Format selection is explicit `--format`, otherwise a recognized `-o` extension, otherwise SVG. Conflicting format and extension is a usage error. The default output replaces the input YAML extension with the selected format. Files are written via temporary files. Geometry errors leave the rendered output available and return 1; conversion failures do not write output. `render` does not run structural `lint/*` rules, so run `lint` first.
 
@@ -140,7 +142,7 @@ Experimental `editable` mode creates separate DrawingML shapes/text. Only indivi
 
 ## Themes and profiles
 
-`figure.theme` selects appearance; `figure.profile` selects page limits, minimum text size and spacing. They are independent. A profile never scales the diagram or its text.
+`figure.theme` selects appearance; `figure.profile` selects page limits, minimum text size and spacing. They are independent. A profile never scales the diagram or its text. There are five built-in themes:
 
 | Theme | Appearance |
 | --- | --- |
