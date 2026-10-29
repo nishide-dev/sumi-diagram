@@ -127,6 +127,7 @@ export function measureText(
         ascent = Math.max(ascent, v.ascent - shift);
         descent = Math.max(descent, v.descent + shift);
         const measured: TextRun = {
+          ...(run.tone !== undefined && { tone: run.tone }),
           text: run.text,
           font: run.font,
           fontSizeUnits: fontSize,

@@ -2106,6 +2106,28 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
   変更前の全 138 YAML × 元テーマ・組み込み 5 theme の SHA-256 比較も記録する。
   詳細・再現方法・目視した PNG は同ディレクトリの README を参照。
 
+### 6.61 #186 の色つき文字範囲とラベルの左右揃え
+
+段階 C（[#167 の調査](../research/167-stage-c.md) §4.9）。H3-World のプロンプトの動作・カメラの句を orange / blue で区別し、複数行を左揃えで描く。
+
+- **文法と互換性**: structured の `$…$` 内だけで `\textcolor{<tone>}{…}` を認識する。平文は `\text{…}` で包む。tone は既存の 8 色名だけ（任意の RGB・CSS は不可）。以前は `component/invalid-math` だった場所だけを拡張する。数式の外は文字どおり、`\text{…}` の中は従来のエスケープ規則のまま（`\\textcolor` は文字列、エスケープなしのコマンドは error）。auto の数式は `component/unsupported-in-auto` の warning と文字どおりの描画を維持する。不正な色名・欠けた引数・閉じない波括弧には既存の `component/invalid-math` を使い、新しい診断コードは追加しない。
+- **run の契約**: parser → フォント fallback → 測定の run に任意の `tone` を保ち、隣接 run は tone も一致するときだけ統合する。色だけの単一 run も plain-text 経路へ省略しない。入れ子は内側の色が優先し、添字・accent にも適用する。色は幅やフォントに影響しない。writer でテーマの **`toneLines.fontColor`** に解決し、`<tspan fill>` を描く。`dim` の継承が優先するため、IR は dimmed な要素の key を任意リストで保持する（色の値から薄表示を推測しない）。
+- **横揃え**: `nodes[].textAlign: left | center | right`。省略は従来の中央揃え。structured 専用で auto では既存の `layout/structured-only`。ラベルと sublabel の共有文字ブロック（最長行の幅）をノードの中央に置き、その左端・中央・右端に各行を揃える。ノードの幅・padding や文字の折り返しは変えない。±90° は揃えたブロック全体を回す。
+- **色と数式の空白**: `\textcolor` は内部の atom の class・添字を保持したまま周囲のリストに展開し、自動空白の挿入は周囲の文脈が揃ってから行う。色境界で二項演算子を単項に再分類したり、関係演算子を ordinary atom に潰したりしない。色つきの `+` / `=` / `\leq`、範囲の先頭・末尾、隣接・入れ子、単項・明示空白・添字について、無着色時と文字列・フォント・添字・ノード寸法・測定幅を照合する。
+- **塗り背景の制約**: `toneLines.fontColor` のコントラスト保証は白背景に対するもの。色つき span は背景に応じた色の再選択をしない。例えば paper の `tone: orange` の箱に `label: '$\textcolor{orange}{\text{Highlight}}$'` を置くと、文字 `#bd5410` / 背景 `#f9e0bc` で約 **3.70:1** となる。この filled-node 例を描画テストに含め、保証を必要とする句は白背景を推奨する。既定の tone 対応は変更しない。
+- **inspect・各出力**: `<text>` の `text-anchor: start / middle / end` と run の `fill` を読み、幾何測定はアンカーに応じて行・accent の chunk の左端を復元する。PDF と画像方式 PPTX は同じ SVG を変換する。編集可能 PPTX は run の色を DrawingML の `solidFill`、左右揃えを `algn=l/r` と本文の inset に写し、中央揃えの既存バイト列を保つ。PDF のテスト用 reader でも glyph の RGB を読んで全テーマの句の色を独立に照合する。
+- **使用例**:
+
+  ```yaml
+  label: 'The character $\textcolor{orange}{\text{\{stands still\}}}$, camera $\textcolor{blue}{\text{\{holds steady\}}}$'
+  textAlign: left
+  ```
+
+- **互換性検査**: 変更前の全 `*.sumi.yaml` **140 図 ×（元の Theme + 組み込み 5 Theme）= 840 通り**を前後で描画し、成功 **574 通り**の SVG・PDF・画像方式 PPTX・編集可能 PPTX と auto の D2 の SHA-256 がすべて一致した。既存の描画出力の変更は **0**。失敗する ideal の `research/86-paper-figures/figures/ideal/c-h3world.sumi.yaml` は元々新フィールド `textAlign` を含むため、その unknown-field 5 件だけが全 6 Theme 条件で消える。他の失敗の診断は不変。gallery（155 ファイル）と指定コマンドで再生成した PDF・PPTX・画像の golden も変更 0。
+- **レビュー修正後の再検証**: 上記の既存 140 図を修正前後で再描画し、840 条件中成功 574 条件の全出力 hash と失敗条件の診断が一致した。`bun run check`・`bun run typecheck`・`CI=1 bun test`（2819 pass / 13 skip / 0 fail）・`bun run gallery:check`（155 ファイル一致）・`bun run schema:check` がすべて成功。色と揃えの統合テストは 9 件で、既存 golden の変更はない。
+- **受け入れ図**: [research/186-color-spans](../../research/186-color-spans/) は #185 の再構成をコピーし、5 つのプロンプトに色と左揃えを付けたもの。元の私有図は参照せず、既存の仮画像を使用する。句の波括弧も文字として保つ。PNG を開いて、色・行頭・箱からのはみ出しがないことを確認した。生成 SVG は gitignore、コミットするプレビューは 150KB 未満。6 行のプロンプトによる `lint/long-label` 5 件と、既存の縮小添字の info は意図した所見として記録する。
+- **検証**: 色境界、入れ子・数式・accent・日本語／Latin fallback、全 Theme の SVG・PDF glyph の色と文字列・編集可能 PPTX の色、literal と auto、不正な文法、左右揃えの測定・sublabel・±90°、dim の継承を統合テストで検査する。label / sublabel のどちらが広い場合も、全行の共有端と ±90° の明示座標を照合し、編集可能 PPTX の段落揃え・左右／上 inset・回転・回転中心を読み戻して検証する。新しい部品・variant は追加しない。
+
 ### 6.63 #214 の濃い塗りと色付き淡色面（`solid` / `tinted`）
 
 - **構文と対象**: shape node の variant に `solid` と `tinted` を追加する。box・square・circle・ellipse・diamond・hexagon・parallelogram・cylinder・document・trapezoid・stack・operator の 12 部品が対象。tokens の共通 `props.variant` とセルごとの `variant`、legend の `node.variant` は既存の Registry 検証・展開を通るので同じ名前が使える。tone 未指定時は gray。新しい YAML field・診断は増やさない。
@@ -2123,8 +2145,6 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **互換性（実測）**: 追跡済み YAML **140 個 ×（own + 組み込み 5 Theme）= 840 通り**の変更前後を描画し、実際の SVG / PDF / 画像方式 PPTX と D2 ソースの SHA-256 を比較。成功 **574 通り**、失敗 **266 通り**は不変、D2 **234 件すべて同一**。**45 ファイル・59 通りの SVG / PDF / PPTX（177 出力）だけ**が変化し、すべて paper で operator を使う図。own の変更も paper の図だけ。残る Theme と operator のない paper はバイト一致。失敗の診断も同一。全変更を PDF → PNG の一覧で確認し、既存の再現図の重なりを含む意図した差分を [一覧](../../research/215-paper-operator/changed-outputs.md) に記録した。
 - **golden とテスト**: `bun run gallery` で operator / tones / dim の paper SVG と目次を更新、指定の `SUMI_UPDATE_GOLDEN=1 CI=1 bun test src/render/pdf src/render/pptx src/render/assets.integration.test.ts` で PDF / PPTX corpus と operator の編集可能 slide XML を再生成（hash の手編集なし）。3 ギャラリーの PNG で全 symbol・variant・tone・dim を確認。`marks.test.ts` で全 symbol × variant の直径・文字・線幅・profile 下限を検査、既存の全部品 × variant × Theme の実 D2 描画も通る。compact の実測期待値と #217 の受け入れ経路の座標を新しい大きさに更新（曲がり 1 回と矢じりの直線長の保証は保持）。Skill にサイズの説明を追記。`check` / `typecheck` / `CI=1 bun test`（2811 pass・13 skip・0 fail）/ `gallery:check` / `schema:check` を確認。
 
-
-
 ### 6.65 #216 のトークン列の点線の区切り
 
 - **構文の判断**: `tokens`（§6.50）の `cells` / `lines` に `{ separator: dotted }` というセルを追加する。任意の `id`・`tone`・`width`・`height` を持てるが、ラベル・部品・variant は持たない。別の `separators` 配列では、位置・行・参照との対応を二重に管理することになるため、既存の並びの中に書くセルにした。通常のセルと同じく位置番号に数え、`<tokens>.<id>` / `<tokens>.<番号>` で参照でき、予約 ID・重複 ID・診断の由来も既存の仕組みを使う。挿入で番号が変わるため安定した参照には `id` を勧める。
@@ -2137,6 +2157,7 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **テスト**: 区切りの strict props、4 方向の線分座標、明示サイズ・既定サイズ、`lines`、名前・番号の参照と描画した予約矩形への接続（glued PPTX の接続先を含む）、由来と IR、全 5 テーマの inspect bbox と診断ゼロ、衝突の書いた位置、装飾パスを除いても予約箱を横切る無関係な辺の診断、tone 継承、H3-World の順序、縦・横 × 通常・dim の SVG / PDF の線分と dash、画像方式 PPTX の色・dash、編集可能 PPTX 両方式の線図形・色・dash を検査する。部品 props は Figure JSON Schema の外なのでスキーマ本体は変えない。
 - **レビュー対応後の検証**: `bun run check`・`bun run typecheck`・`CI=1 bun test`（**2861 pass / 13 skip / 0 fail、90164 assertions**）・`bun run gallery:check`（**155 ファイルがバイト一致**）・`bun run schema:check` が成功した。既存の D2・lint・画像・PDF・画像方式 / 編集可能 PPTX の golden も更新なしで通る。今回のレビュー対応ではギャラリー・サンプル・golden の変更は **0**。下記の 840 通りの比較は最初の実装時の記録で、今回の追加検証とは区別する。
 - **互換性（実測）**: 既存 `*.sumi.yaml` **140 図 ×（元のテーマ + 組み込み 5 テーマ）= 840 通り**を変更前後に描いた。成功する **574 通り**の SVG・PDF・画像方式 PPTX 各 574 件と、auto の D2 ソース **222 件**は sha256 がすべて一致した。既存の失敗 **266 通り**は失敗のまま。診断の差分は、既に `{ separator: dotted }` が提案構文として書かれていた `research/86-paper-figures/figures/ideal/c-h3world.sumi.yaml` の 6 テーマ分で `component/unknown-prop` が 1 件減ったことだけ（他の未対応構文により出力は引き続きない）。成功・失敗の変化、既存出力の変更は **0**。全チェックは `bun run check`・`bun run typecheck`・`CI=1 bun test`（**2854 pass / 13 skip / 0 fail**）・`bun run gallery:check`（155 ファイル）・`bun run schema:check` が成功した。skip は既存の prototype / 任意環境のテスト。
+
 
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures

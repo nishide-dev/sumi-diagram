@@ -255,7 +255,7 @@ describe("inspectSvg", () => {
       ],
       [
         "a label that is not centered",
-        [grp, a.replace("text-anchor:middle", "text-anchor:start"), note, edge0, back],
+        [grp, a.replace("text-anchor:middle", "text-anchor:unsupported"), note, edge0, back],
         "text-anchor",
       ],
       [

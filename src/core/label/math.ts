@@ -15,6 +15,8 @@
  *   `\,` `\:` `\;` `\ ` `\quad` `\qquad` and `~`.
  * - `\mathrm{…}`, `\mathit{…}`, `\operatorname{…}`, function names (`\log`,
  *   `\exp`, …), and `\text{…}` for text in the label's own font.
+ * - `\textcolor{<tone>}{…}` (#186) applies a theme tone to math or text runs;
+ *   nested colors override the outer color. Literal text is not interpreted.
  * - Accents `\hat` `\tilde` `\bar` `\dot` `\ddot` `\vec` over one character
  *   or command (#129): the run of that one character carries the combining
  *   mark, which the layout places over it.
@@ -23,6 +25,7 @@
  * its line, …) is an error with its position in the label, not a guess.
  */
 
+import { TONE_NAMES, type Tone } from "../theme/tones";
 import {
   ACCENT_COMMANDS,
   ASCII_SYMBOLS,
@@ -43,6 +46,7 @@ export type RunScript = "base" | "sub" | "sup";
 
 /** A piece of a label line drawn in one font at one script level. */
 export interface MarkupRun {
+  readonly tone?: Tone;
   readonly text: string;
   readonly font: RunFont;
   readonly script: RunScript;
@@ -53,12 +57,21 @@ export interface MarkupRun {
   readonly accent?: string;
 }
 
-type Mergeable = { readonly font: string; readonly script: RunScript; readonly accent?: string };
+type Mergeable = {
+  readonly font: string;
+  readonly script: RunScript;
+  readonly accent?: string;
+  readonly tone?: Tone;
+};
 
 /** Whether two runs can be drawn as one: same font and script, and neither has an accent. */
 export function mergeableRuns(a: Mergeable, b: Mergeable): boolean {
   return (
-    a.font === b.font && a.script === b.script && a.accent === undefined && b.accent === undefined
+    a.font === b.font &&
+    a.script === b.script &&
+    a.tone === b.tone &&
+    a.accent === undefined &&
+    b.accent === undefined
   );
 }
 
@@ -448,6 +461,27 @@ class MathParser {
       );
     }
     switch (name) {
+      case "textcolor": {
+        const tone = this.#braced(name, start, () => this.#text());
+        if (!(TONE_NAMES as readonly string[]).includes(tone)) {
+          this.#error(
+            start,
+            this.#pos,
+            `Unknown text color tone "${tone}".`,
+            `Use a theme tone: ${TONE_NAMES.join(", ")}.`,
+          );
+        }
+        const inner = this.#braced(name, start, (opened) =>
+          this.#list("group", script, font, opened),
+        );
+        // Color is transparent to the math list: defer spacing until the
+        // surrounding atoms are known (including binary/unary operators at
+        // either boundary), and retain script ownership on each atom.
+        return inner.map((innerAtom) => ({
+          ...innerAtom,
+          runs: innerAtom.runs.map((run) => ({ ...run, tone: run.tone ?? (tone as Tone) })),
+        }));
+      }
       case "mathrm":
       case "mathit":
       case "operatorname": {

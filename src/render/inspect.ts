@@ -28,9 +28,10 @@ import { invalid, parseNumber, readD2Svg } from "./svg";
 import { attribute, childElements, classList, textContent, type XmlElement } from "./xml";
 
 export interface LabelGeometry {
+  textAlign?: "left" | "right";
   /** Text as drawn; lines of a multi-line label are joined with `\n`. */
   text: string;
-  /** `x` = horizontal center (`text-anchor: middle`), `y` = baseline of the first line. */
+  /** `x` follows textAlign (center when omitted); `y` is the first line's baseline. */
   anchor: Point;
   /** Font size in D2 units (`font-size` in px of the SVG user space). */
   fontSizeUnits: number;
@@ -66,6 +67,7 @@ export interface LabelGeometry {
 
 /** A run of a label line: text drawn in one font class, size and baseline. */
 export interface LabelRunGeometry {
+  fill?: string;
   text: string;
   /** Font class, like `LabelGeometry.font` (`regular`, `math`, `math-italic`, …). */
   font: string;
@@ -295,9 +297,8 @@ function readLabel(text: XmlElement): LabelGeometry | string {
   const fontSize = FONT_SIZE_PX.exec(style)?.[1] ?? attribute(text, "font-size");
   const fontSizeUnits = parseNumber(fontSize);
   if (fontSizeUnits === undefined) return "<text> has no font-size in px";
-  if (!/(?:^|;)\s*text-anchor\s*:\s*middle\s*(?:;|$)/.test(style)) {
-    return "<text> is not centered (text-anchor: middle)";
-  }
+  const textAnchor = /(?:^|;)\s*text-anchor\s*:\s*(middle|start|end)\s*(?:;|$)/.exec(style)?.[1];
+  if (textAnchor === undefined) return "<text> has an unsupported text-anchor";
   const font = fontClassOf(text) ?? "regular";
   const tspans = childElements(text).filter((c) => c.name === "tspan");
   // `pen` follows the baseline through every dy (lines and runs alike); a
@@ -396,6 +397,7 @@ function readLabel(text: XmlElement): LabelGeometry | string {
     font,
     ...(rich && { runs }),
     ...(rotation !== undefined && { rotation }),
+    ...(textAnchor !== "middle" && { textAlign: textAnchor === "start" ? "left" : "right" }),
   };
 }
 
@@ -407,7 +409,8 @@ function readRun(
 ): { geometry: Omit<LabelRunGeometry, "shiftUnits">; dy: number } | string {
   if (tspan.name !== "tspan") return `<${tspan.name}> inside a label line`;
   for (const { name } of tspan.attributes) {
-    if (!["class", "style", "dy"].includes(name)) return `a run <tspan> has the attribute ${name}`;
+    if (!["class", "style", "dy", "fill"].includes(name))
+      return `a run <tspan> has the attribute ${name}`;
   }
   if (childElements(tspan).length > 0) return "a run <tspan> has nested elements";
   const style = attribute(tspan, "style");
@@ -423,7 +426,12 @@ function readRun(
   const dy = parseNumber(dyText ?? "0");
   if (dy === undefined) return `a run <tspan> has an unsupported dy "${dyText}"`;
   return {
-    geometry: { text: textContent(tspan), font: fontClassOf(tspan) ?? font, fontSizeUnits: size },
+    geometry: {
+      text: textContent(tspan),
+      font: fontClassOf(tspan) ?? font,
+      fontSizeUnits: size,
+      ...(attribute(tspan, "fill") !== undefined && { fill: attribute(tspan, "fill") as string }),
+    },
     dy,
   };
 }

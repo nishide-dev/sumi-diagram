@@ -453,6 +453,12 @@ export const NodeSchema = z.strictObject({
     .describe(
       'Structured layout: a second, smaller text under the label, e.g. a size "32 × 32 × 4" under "Noise". Drawn at 7/8 of the label\'s font size (rounded down to 0.5pt); newlines break lines and label math is allowed. Needs a label.',
     ),
+  textAlign: z
+    .enum(["left", "center", "right"])
+    .optional()
+    .describe(
+      "Horizontal alignment of the node's label and sublabel within their shared text block (structured only). Omitted means center.",
+    ),
   labelRotation: z
     .literal([90, -90])
     .optional()

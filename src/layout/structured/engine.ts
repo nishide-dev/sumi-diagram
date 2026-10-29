@@ -603,10 +603,10 @@ class StructuredLayout {
       const center = nodeLabelCenter(node, rect);
       const sublabel = this.#sublabels.get(node.key);
       if (sublabel === undefined) {
-        labels.set(node.key, placeText(metrics, center, node.labelRotation));
+        labels.set(node.key, placeText(metrics, center, node.labelRotation, node.textAlign));
         continue;
       }
-      const placed = placeTextBlock(metrics, sublabel, center, node.labelRotation);
+      const placed = placeTextBlock(metrics, sublabel, center, node.labelRotation, node.textAlign);
       labels.set(node.key, placed.label);
       sublabels.set(node.key, placed.sublabel);
     }
@@ -761,6 +761,7 @@ export function placeText(
   metrics: TextMetrics,
   center: { x: number; y: number },
   rotation?: LabelRotation,
+  textAlign?: "left" | "center" | "right",
 ): TextLayout {
   const box: Rect = {
     x: center.x - metrics.width / 2,
@@ -769,15 +770,21 @@ export function placeText(
     height: metrics.height,
   };
   const halfLeading = (metrics.lineHeightUnits - (metrics.ascentUnits + metrics.descentUnits)) / 2;
-  const anchor = { x: center.x, y: box.y + halfLeading + metrics.ascentUnits };
-  if (rotation === undefined) return { ...metrics, box, anchor };
+  const anchor = {
+    x:
+      center.x +
+      (textAlign === "left" ? -metrics.width / 2 : textAlign === "right" ? metrics.width / 2 : 0),
+    y: box.y + halfLeading + metrics.ascentUnits,
+  };
+  const align = textAlign === undefined || textAlign === "center" ? {} : { textAlign };
+  if (rotation === undefined) return { ...metrics, box, anchor, ...align };
   const turned: Rect = {
     x: center.x - metrics.height / 2,
     y: center.y - metrics.width / 2,
     width: metrics.height,
     height: metrics.width,
   };
-  return { ...metrics, box: turned, anchor, rotation };
+  return { ...metrics, box: turned, anchor, rotation, ...align };
 }
 
 /**
@@ -809,6 +816,7 @@ export function placeTextBlock(
   sublabel: TextMetrics,
   center: Point,
   rotation?: LabelRotation,
+  textAlign?: "left" | "center" | "right",
 ): { label: TextLayout; sublabel: TextLayout } {
   // Offsets of the two centers from the block's center, before the turn.
   const labelDy = -sublabel.height / 2;
@@ -820,8 +828,22 @@ export function placeTextBlock(
       ? { x: center.x, y: center.y + dy }
       : { x: center.x - Math.sign(rotation) * dy, y: center.y };
   return {
-    label: placeText(label, at(labelDy), rotation),
-    sublabel: placeText(sublabel, at(sublabelDy), rotation),
+    label: placeText(
+      textAlign === undefined || textAlign === "center"
+        ? label
+        : { ...label, width: Math.max(label.width, sublabel.width) },
+      at(labelDy),
+      rotation,
+      textAlign,
+    ),
+    sublabel: placeText(
+      textAlign === undefined || textAlign === "center"
+        ? sublabel
+        : { ...sublabel, width: Math.max(label.width, sublabel.width) },
+      at(sublabelDy),
+      rotation,
+      textAlign,
+    ),
   };
 }
 
