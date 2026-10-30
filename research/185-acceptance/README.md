@@ -45,6 +45,8 @@ info は B・C とも `geometry/script-too-small`（数式の添字が縮小後�
 
 `lint --geometry`（`lint/*` を含む）の warning・error は 3 図とも 0。node・辺のラベル・sublabel の文字は縮小後も 5pt 以上（B の node 6.5pt、C の node 6.6pt）。
 
+**#247 の後の更新（v0.9.0）**: グループの中で横から入る矢じりの前に 2pt の直線を取り、余白を左右対称に広げるようになったため、`previews/a-transformer.png` を main `36bf9e9` で描き直した。A は 77.08 × 114.12mm（幅 +1.06mm）、診断 0 / 0 / 0。Add & Norm に入る残差の矢じりの前に直線が見え、Linear・⊕ への線はまっすぐ。B・C のプレビューは変わらない（B・C には `geometry/arrowhead-cramped` などの info が増えるが、描画は同じ）。上の表は当時の記録のまま。
+
 ## 原図との比較（判断）
 
 ### A: Transformer（[`previews/a-transformer.png`](previews/a-transformer.png)）
