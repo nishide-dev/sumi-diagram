@@ -127,6 +127,23 @@ test("safe area containment checks concavities, not just the four corners", () =
   );
 });
 
+test("split safe areas must stay in the painted bodies, not just the enclosing outline", () => {
+  const renderer = getOutlineRenderer("sumi/bowtie");
+  if (!renderer) throw new Error("missing bowtie");
+  const footprint = { x: 0, y: 0, width: 200, height: 100 };
+  const drawing = renderer.draw(footprint, renderer.params.parse({ gap: 8 }));
+  expect(drawing.boundaries).toHaveLength(2);
+  assertOutlineDrawing(drawing, footprint);
+  // This rectangle fits the enclosing silhouette but crosses both inner
+  // outlines and the unpainted gap, reproducing the original unsafe area.
+  expect(() =>
+    assertOutlineDrawing(
+      { ...drawing, safeArea: { x: 0, y: 25, width: 200, height: 50 } },
+      footprint,
+    ),
+  ).toThrow("safe area outside body union");
+});
+
 test("body-union equality detects an internal hole even when the outer bbox matches", () => {
   const box = ({ x, y, width, height }: Rect): Point[] => [
     { x, y },

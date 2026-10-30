@@ -2,14 +2,17 @@ import { expect, test } from "bun:test";
 import { compileFigure } from "../compiler/compile";
 import { getOutlineRenderer } from "../core/outline";
 import { BUILTIN_THEMES } from "../core/theme/builtin";
+import { getFontSet } from "../core/theme/fonts";
 import { resolveEnds } from "../layout/route/ports";
 import { lintGeometry } from "../lint";
 import { geometryContextFor } from "../lint/geometry/lint";
+import { measureLabel } from "../lint/geometry/measure";
 import { polylinesCrossRect } from "../lint/geometry/shapes";
 import { svgToPdf } from "./pdf";
 import { svgToEditablePptx } from "./pptx";
 import { readPptx } from "./pptx/testing";
 import { renderFigure } from "./render";
+import { attribute, descendants, parseXml } from "./xml";
 
 const featureProps = [
   ["bowtie", "gap: 8"],
@@ -60,6 +63,84 @@ edges: [{ from: a, to: b }]
         expect(slide).not.toContain("<a:blip");
       }
     });
+  }
+}
+
+const splitLabels = [
+  { label: "LoRA\nUnequal length\nX", size: "" },
+  { label: "Long Latin label for a split bowtie", size: "" },
+  { label: "分離された図形の長い日本語ラベル", size: "" },
+  { label: "Width only\nX", size: ", width: 400pt" },
+  { label: "高さのみ\n短", size: ", height: 100pt" },
+];
+
+for (const theme of BUILTIN_THEMES.keys()) {
+  for (const engine of ["auto", "structured"]) {
+    for (const { label, size } of splitLabels) {
+      test(`${theme}/${engine}: split label ${JSON.stringify(label)}${size} stays clear and exports at the SVG position`, async () => {
+        const result = await renderFigure(`version: 1
+figure: { id: labels, theme: ${theme}, profile: ${theme === "slides" ? "presentation-16x9" : "paper-double"}, layout: ${engine === "auto" ? "{ direction: right }" : "{ arrange: { row: { items: [a] } } }"} }
+nodes:
+  - { id: a, component: bowtie, label: ${JSON.stringify(label)}, props: { gap: 8${size} } }
+`);
+        if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+        expect(result.diagnostics).toEqual([]);
+        expect(lintGeometry(result.value)).toEqual([]);
+        const geometry = geometryContextFor(result.value).get("n:a");
+        if (!geometry?.bbox || !geometry.labelBoundaries) throw new Error("missing boundaries");
+        const lines = geometry.labels.flatMap((l) => l.visibleLines);
+        expect(lines).toHaveLength(label.split("\n").length);
+        for (const line of lines) {
+          expect(polylinesCrossRect(geometry.labelBoundaries, line, 0)).toBe(false);
+          expect(line.x + line.width).toBeLessThan(geometry.bbox.x + geometry.bbox.width / 2);
+        }
+        const svgLabel = result.value.inspection.elements.find((e) => e.key === "n:a")?.labels[0];
+        const fonts = getFontSet(result.value.compiled.ir.meta.fontSetId);
+        if (!svgLabel || !fonts) throw new Error("missing label or fonts");
+        expect(svgLabel.text).toBe(label);
+        const firstLine = measureLabel(svgLabel, fonts).lines[0];
+        if (!firstLine) throw new Error("missing first line");
+        const { viewBox, width, height } = result.value.inspection.canvas;
+        // PPTX centres canvases smaller than its one-inch minimum slide size.
+        const dx = Math.floor(Math.max(0, 914400 - Math.round(width.pt * 12700)) / 2);
+        const dy = Math.floor(Math.max(0, 914400 - Math.round(height.pt * 12700)) / 2);
+        for (const connectors of ["freeform", "glued"] as const) {
+          const pptx = svgToEditablePptx(result.value.svg, result.value.compiled.ir, {
+            connectors,
+          });
+          if (!pptx.ok) throw new Error(JSON.stringify(pptx.diagnostics));
+          const xml = new TextDecoder().decode(readPptx(pptx.value).get("ppt/slides/slide1.xml"));
+          const parsed = parseXml(xml);
+          if (!parsed.ok) throw new Error(parsed.message);
+          const shape = [...descendants(parsed.root)].find(
+            (e) =>
+              e.name === "p:sp" &&
+              [...descendants(e)].some(
+                (child) => child.name === "p:cNvPr" && attribute(child, "name") === "n:a",
+              ),
+          );
+          if (!shape) throw new Error("missing split shape");
+          const elements = [...descendants(shape)];
+          const number = (tag: string, name: string) => {
+            const element = elements.find((e) => e.name === tag);
+            if (!element) throw new Error(`missing ${tag}`);
+            const value = attribute(element, name);
+            if (value === undefined) throw new Error(`missing ${name}`);
+            return Number(value);
+          };
+          expect(xml.match(/<a:t\b/g)).toHaveLength(label.split("\n").length);
+          expect(elements.filter((e) => e.name === "a:path")).toHaveLength(2);
+          const left = number("a:off", "x") + number("a:bodyPr", "lIns");
+          const right = number("a:off", "x") + number("a:ext", "cx") - number("a:bodyPr", "rIns");
+          const top = number("a:off", "y") + number("a:bodyPr", "tIns");
+          // One SVG unit is 6350 EMU; each DrawingML value rounds to an integer.
+          expect(
+            Math.abs((left + right) / 2 - dx - (svgLabel.anchor.x - viewBox.x) * 6350),
+          ).toBeLessThanOrEqual(2);
+          expect(Math.abs(top - dy - (firstLine.y - viewBox.y) * 6350)).toBeLessThanOrEqual(2);
+        }
+      });
+    }
   }
 }
 
@@ -122,25 +203,27 @@ edges: [{ from: a, to: b }]
 }
 
 for (const layout of ["{ direction: right }", "{ arrange: { row: { items: [a] } } }"]) {
-  test(`${layout}: explicit small split bowtie reports label/outline overlap`, async () => {
-    const source = `version: 1
+  for (const size of ["width: 30pt, height: 30pt", "width: 30pt", "height: 5pt"]) {
+    test(`${layout}/${size}: explicit small split bowtie reports label/outline overlap`, async () => {
+      const source = `version: 1
 figure: { id: small, theme: paper, layout: ${layout} }
 nodes:
-  - { id: a, component: bowtie, label: LoRA, props: { gap: 8, width: 30pt, height: 30pt } }
+  - { id: a, component: bowtie, label: LoRA, props: { gap: 8, ${size} } }
 `;
-    const result = await renderFigure(source);
-    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
-    const geometry = geometryContextFor(result.value).get("n:a");
-    if (!geometry?.bbox || !geometry.labelBoundaries) throw new Error("missing geometry");
-    const line = geometry.labels[0]?.visibleLines[0];
-    if (!line) throw new Error("missing label");
-    expect(polylinesCrossRect(geometry.labelBoundaries, line, 0)).toBe(true);
-    expect(
-      lintGeometry(result.value, { source }).filter((d) => d.code === "geometry/label-overflow"),
-    ).toMatchObject([
-      { severity: "error", path: ["nodes", 0, "props"], subject: { kind: "node", id: "a" } },
-    ]);
-  });
+      const result = await renderFigure(source);
+      if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+      const geometry = geometryContextFor(result.value).get("n:a");
+      if (!geometry?.bbox || !geometry.labelBoundaries) throw new Error("missing geometry");
+      const line = geometry.labels[0]?.visibleLines[0];
+      if (!line) throw new Error("missing label");
+      expect(polylinesCrossRect(geometry.labelBoundaries, line, 0)).toBe(true);
+      expect(
+        lintGeometry(result.value, { source }).filter((d) => d.code === "geometry/label-overflow"),
+      ).toMatchObject([
+        { severity: "error", path: ["nodes", 0, "props"], subject: { kind: "node", id: "a" } },
+      ]);
+    });
+  }
 }
 
 test("props validate at the public boundary and default geometry stays identical", () => {
