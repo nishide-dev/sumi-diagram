@@ -104,15 +104,21 @@ describe("split bowtie straight ends (#246)", () => {
 
   test("an anchor may still follow a lip within #169's original 2-unit tolerance", () => {
     const { ir, layout: placed, diagnostics } = layout(source("stack", 4, true));
+    const [a, b, c] = placed.nodes.map((n) => n.rect);
+    if (!a || !b || !c) throw new Error("missing nodes");
+    // Split-label bounds can translate the layout; the lip stays 2 units off the anchors.
+    const lip = roundUnits(b.x + b.width / 2 - 2);
+    expect(roundUnits(a.x + a.width / 2 - lip)).toBe(2);
+    expect(roundUnits(c.x + c.width / 2 - lip)).toBe(2);
     expect(diagnostics).toEqual([]);
     expect(placed.edges.map((e) => e.route?.points)).toEqual([
       [
-        { x: 49, y: 51 },
-        { x: 49, y: 111 },
+        { x: lip, y: roundUnits(a.y + a.height) },
+        { x: lip, y: roundUnits(b.y + b.height / 4) },
       ],
       [
-        { x: 49, y: 151 },
-        { x: 49, y: 211 },
+        { x: lip, y: roundUnits(b.y + (3 * b.height) / 4) },
+        { x: lip, y: c.y },
       ],
     ]);
     expect(Object.values(checkRoutes(ir, placed)).flat()).toEqual([]);
@@ -120,18 +126,24 @@ describe("split bowtie straight ends (#246)", () => {
 
   test("a lip outside the neighbour's side reports an unaligned end", () => {
     const { ir, layout: placed } = layout(source("stack", 64));
+    const b = placed.nodes[1]?.rect;
+    if (!b) throw new Error("missing bowtie");
+    const center = roundUnits(b.x + b.width / 2);
+    const lip = roundUnits(center - Math.min(64, b.width / 2) / 2);
+    // Keep the narrow neighbours centered on the gap, independent of label-bound translation.
+    expect(lip).toBeLessThan(center - 2);
     const nodes = placed.nodes.map((n, index) =>
       index === 1
         ? n
         : {
             ...n,
-            rect: { ...n.rect, x: 49, width: 4 },
+            rect: { ...n.rect, x: roundUnits(center - 2), width: 4 },
           },
     );
     const routed = routeEdges(ir, { ...placed, nodes });
     expect(routed.diagnostics.filter((d) => d.code === "layout/unaligned-ends")).toHaveLength(2);
-    expect(routed.layout.edges[0]?.route?.points[0]?.x).toBe(51);
-    expect(routed.layout.edges[0]?.route?.points.at(-1)?.x).toBe(31);
+    expect(routed.layout.edges[0]?.route?.points[0]?.x).toBe(center);
+    expect(routed.layout.edges[0]?.route?.points.at(-1)?.x).toBe(lip);
   });
 
   test("the checker rejects a contact in the empty gap", () => {
