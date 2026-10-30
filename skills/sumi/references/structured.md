@@ -538,6 +538,11 @@ YAML order, greedily: edges declared first get the best routes.
   gives a straight drop. If both ends share their points with other edges
   and neither can move, `layout/unaligned-ends` (warning) says so: write
   the same position for both.
+  With a split `bowtie` (`props.gap`), a north/south port in the empty gap
+  moves to a painted lip. If the ends were aligned before that move, an
+  unshared, unanchored neighbour follows the lip's line. If a shared port,
+  anchor or short side prevents alignment, `layout/unaligned-ends` reports
+  the remaining step, even when the gap displacement exceeds 1pt.
 - **`straight`** (`toAnchor: straight` / `fromAnchor: straight`): the end
   sits in line with the other end, on the side facing it, so the line
   enters (leaves) straight with no jog. Use it for narrow boxes in a row
