@@ -89,8 +89,8 @@ describe("Transformer (paper, paper-single)", () => {
     const c = outputSize(compact.inspection);
     const n = outputSize(spaced.inspection);
     expect(c.scale).toBeUndefined();
-    // §6.55's fixture after #215: smaller paper operators; original 77.2 × 113.7mm.
-    expect(c.widthMm).toBeCloseTo(77.08, 1);
+    // §6.55's fixture after #215: smaller paper operators; original 77.2 × 113.7mm; +1.41mm for corner room before the stems (#260).
+    expect(c.widthMm).toBeCloseTo(78.49, 1);
     expect(c.heightMm).toBeCloseTo(114.12, 1);
     expect(c.heightMm).toBeLessThan(n.heightMm * 0.85);
     expect(diagnosticsOf(compact, TRANSFORMER)).toEqual([]);

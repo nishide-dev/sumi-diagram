@@ -21,7 +21,7 @@ import { paintedEdges } from "../../render/structured";
 import { layoutStructuredFigure } from "../index";
 import { MAX_ALIGN_LAYOUTS } from "../structured/align";
 import { placeStructured } from "../structured/engine";
-import { ARROWHEAD_STEM_UNITS, arrowheadLength } from "./arrowhead";
+import { ARROWHEAD_STEM_UNITS, arrowheadLength, GROUP_STEM_CORNER_UNITS } from "./arrowhead";
 import { arrowheadPaddingDeficits, BORDER_CLEARANCE } from "./padding";
 import { ROUTE } from "./router";
 
@@ -60,10 +60,10 @@ describe("group padding before arrowheads (#171)", () => {
   });
 
   for (const [theme, stroke, grown] of [
-    ["color", 2, 6],
-    ["academic", 1, 2],
-    ["paper", 1, 2],
-    ["minimal", 2, 6],
+    ["color", 2, 10],
+    ["academic", 1, 6],
+    ["paper", 1, 6],
+    ["minimal", 2, 10],
   ] as const) {
     test(`${theme}: the residual lines run in the padding, clear of the border`, async () => {
       const { source, rendered } = await render(theme);
@@ -88,8 +88,10 @@ describe("group padding before arrowheads (#171)", () => {
       const tip = residual.at(-1);
       if (bend === undefined || tip === undefined) throw new Error("short route");
       expect(bend.y).toBeCloseTo(tip.y, 6);
+      // The end segment holds the arrowhead, the visible stem and a small
+      // corner radius (#260).
       expect(tip.x - bend.x).toBeGreaterThanOrEqual(
-        arrowheadLength(stroke) + ARROWHEAD_STEM_UNITS - 1e-6,
+        arrowheadLength(stroke) + ARROWHEAD_STEM_UNITS + GROUP_STEM_CORNER_UNITS - 1e-6,
       );
       expect(bend.x - encoder.rect.x).toBeGreaterThanOrEqual(BORDER_CLEARANCE - 1e-6);
 
@@ -111,6 +113,20 @@ describe("group padding before arrowheads (#171)", () => {
       expect(
         lintGeometry(rendered, { source }).filter((d) => d.code === "geometry/arrowhead-cramped"),
       ).toEqual([]);
+
+      // The turn before the stem is rounded, with the small radius (#260), and
+      // the arc ends before the stem and the arrowhead.
+      const painted = paintedEdges(ir, rendered.layout).get(residualIR.key);
+      if (painted === undefined) throw new Error("missing painted residual");
+      const arc = painted.arcs.find((a) => Math.abs(a.to.y - tip.y) < 1e-6);
+      if (arc === undefined) throw new Error("the corner before the arrowhead is sharp");
+      expect(Math.abs(arc.from.y - arc.to.y)).toBeGreaterThanOrEqual(
+        GROUP_STEM_CORNER_UNITS - 1e-6,
+      );
+      expect(Math.abs(arc.from.y - arc.to.y)).toBeLessThanOrEqual(GROUP_STEM_CORNER_UNITS + 1e-6);
+      expect(tip.x - arc.to.x).toBeGreaterThanOrEqual(
+        arrowheadLength(stroke) + ARROWHEAD_STEM_UNITS - 1e-6,
+      );
     });
   }
 });
@@ -249,7 +265,7 @@ edges:
       const g = groupLayout(value, id);
       return g.content.x - g.rect.x;
     };
-    // Arrowhead (12) + visible stem (4) + clearance (6), all on the innermost group.
-    expect([west("g1"), west("g2"), west("g3"), west("g4")]).toEqual([0, 0, 0, 22]);
+    // Arrowhead (12) + visible stem (4) + corner (4, #260) + clearance (6), all on the innermost group.
+    expect([west("g1"), west("g2"), west("g3"), west("g4")]).toEqual([0, 0, 0, 26]);
   });
 });

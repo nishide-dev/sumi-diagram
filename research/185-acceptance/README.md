@@ -51,6 +51,8 @@ info は B・C とも `geometry/script-too-small`（数式の添字が縮小後�
 
 ### A: Transformer（[`previews/a-transformer.png`](previews/a-transformer.png)）
 
+**#260 の更新（v0.9.0）**: グループの中で横から入る矢じりの手前の角を、半径 2pt で丸めるようにした（余白に 4 unit を足した）。`previews/a-transformer.png` を描き直し、A は 78.49 × 114.12mm（幅 +1.41mm）、診断 0 / 0 / 0。Add & Norm に入る残差は、丸い角、短い直線、矢じりの順になる。B・C のプレビューは変わらない。
+
 構造・線の取り回し・色の系統・密度は原図とほぼ同じ。原図の高さとの差は +1%（幅を揃えると）。
 
 | 原図 | Sumi | 差 |

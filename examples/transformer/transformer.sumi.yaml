@@ -13,7 +13,7 @@ figure:
     engine: structured
     arrange:
       row:
-        gap: 2mm
+        gap: 1mm
         align: end # bottom edges line up
         items:
           - stack: { direction: up, gap: 4mm, items: [inputs, input-embedding, enc-add, encoder] }
