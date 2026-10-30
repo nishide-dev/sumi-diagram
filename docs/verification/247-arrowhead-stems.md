@@ -76,3 +76,28 @@
 `origin/main` 自体で `src/layout/route/split-bowtie.test.ts` の 3 件（bent anchored routes / parallel / trapezoids）が失敗する（本ブランチと無関係。グループのない fixture）。図全体の x 起点が 11 → 12.988 unit に動いた（split bowtie の寸法・ラベルの変更。#245 / #249 のいずれか）のに、#251 の期待値が絶対座標のままだったため。本ブランチでは期待値を積み段の左端（`placed.nodes[0].rect.x`）からの相対値にして、意図（口の位置・折れ方）を変えずに直した。
 
 部品 manifest・画像 / emoji の importer・archive は変更していない。カタログ・JSON Schema に新フィールドはなく、Skill の診断・structured 配置の説明だけを更新した。
+
+## #260 矢じり手前の角の半径
+
+設計は [§6.73](../design/phase1.md)。作業ブランチは `fix/260-rounded-stem-corner`。グループ内で横から入る矢じりの手前の角が直角だったため（弧に使える長さが 0 unit）、余白に半径 4 unit（2pt）の分を足した。
+
+### 比較
+
+`origin/main`（`919eddd`）を `git archive` で展開し（`node_modules` と `.sumi/bin` は本 worktree へのリンク）、既存 `*.sumi.yaml` **151 個** ×（自テーマ + 組み込み 5 Theme の `--theme X --profile paper-double`）= **906 通り**を CLI で描き、SVG の SHA-256 を比較した。
+
+- 変更は #247 と同じ **13 図 × 5 通り = 65 通り**（`slides` は前後とも描画失敗）。他の 841 通りはバイト一致。13 図は上の一覧と同じ（Transformer 系と seq2seq 系、`align-side-kv`）。
+- `geometry/arrowhead-cramped`: 824 → 824 件、`geometry/edge-jog`: 73 → 73 件。
+- `geometry/exceeds-page-width`: **増加 1 件・解消 0 件**（この比較の件数は 232 → 233。`--profile paper-double` を付けた比較なので #247 の件数とは別）。増えたのは `examples/transformer`（own = academic）で 87.49 → 88.90mm。例の row の `gap` を 2mm から 1mm にして **87.84mm** に収めた（比較は変更前の例のままの値）。
+- `geometry/edge-touches-label`（info）: 7 → 15 件。`research/124-stage-b` の seq2seq 2 図、`research/135-skill-dogfood` の seq2seq、`tests/fixtures/figures/layout/align-side-kv` の color / minimal の 8 通りで 1 件ずつ増えた（解消はなし）。枠の幅が変わったためで、info のまま記録する。
+
+### 幅の変化
+
+受け入れ図 A（paper）は **77.08 → 78.49mm × 114.12mm**（+1.41mm。左右 4 unit ずつ）。`examples/transformer` は 87.49mm → 87.84mm（`gap` を 1mm にした後。academic）。
+
+### 視覚確認
+
+`rsvg-convert -z 12` の拡大 PNG で、受け入れ図の Add & Norm に入る残差（encoder 左・decoder 右）を確認した。角が丸く曲がり、短い直線、矢じりの順になる。Linear・⊕ の幹は直線で、枠には触れない。`examples/transformer` も同様。
+
+### 再生成
+
+`bun run gallery`（8 ファイル）と `SUMI_UPDATE_GOLDEN=1 CI=1 bun test src/render/pdf src/render/pptx src/render/assets.integration.test.ts` で再生成。`research/185-acceptance/previews` は `a-transformer.png` だけが変わる。hash ファイルの手編集は行っていない。

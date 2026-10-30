@@ -2297,6 +2297,7 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **lint（判断: 新しい `geometry/arrowhead-cramped`、info）**: structured の自身の painted wire から、先端までの直線 − 矢じり長を測り、印刷時 2pt 未満を端ごとに報告（許容 0.002 unit）。曲がりのない短い辺、不可視の辺、凡例の見本は除外する。`arrowhead-on-bend` の warning 対象は重複報告しない。既存の overlap warning と違い、丸めや縮小で短くなった小さな直線は可読性の所見なので info。対称化後の全図で 824 件（多くはグループの余白でない狭い接近や `fit` 後の直線）という件数からも、warning の閾値を一律に上げない（件数は `docs/verification/247-arrowhead-stems.md`）。`--max-warnings 0` は維持し、設定で warning に昇格できる。初期対象は Sumi が矢じり寸法・painted wire を一貫して所有する structured。D2 の marker・接線の別契約は従来の `arrowhead-on-bend` のままとし、cramped は対象外。
 - **互換性（実測）**: `origin/main`（`42cb386`）を展開した作業ツリーと本ブランチで、既存 **151 YAML ×（own + 組み込み 5 Theme）= 906 通り**の SVG を比較した。変更は Transformer / seq2seq の **13 図 × 5 通り = 65 通り**だけ（全一覧は [検証記録](../verification/247-arrowhead-stems.md)）で、他の 841 通りは SVG がバイト一致。対象外の図の PDF / PPTX / D2 は SVG・D2 ソースから決まるため同じ。変更 13 図は全て、グループ内に側から入る矢じりを持つ。
 - **見た目と代償**: 受け入れ図 A は **75.32 → 77.08mm × 114.12mm**（高さは維持）。残差 5 本の曲がり前の直線は 8 → 12 unit、見える部分は **0 → 4 unit（2pt）**。encoder 左・decoder 右の短い直線と枠までの余地、Linear → decoder と ⊕ → decoder の辺が直線であることを、拡大 PNG で確認した。左右対称に広げるので幅は片側だけの版（76.02mm）より 1.06mm 増える。`edge-jog` は受け入れ図で 0 件（片側版は 4 件）、全図で 75 → 73 件、`edge-touches-label` は 19 → 7 件。#135 の seq2seq（own / academic）、Transformer（minimal / color）、#167・#173 の a-transformer が幅上限を新たに超える（`exceeds-page-width` 126 → 135 件）。これらを隠さず記録し、短い直線と中心線の一致を優先する。
+- **#260 による更新（§6.73）**: 横から入る矢じりの手前の角に半径 4 unit の分も余白に取る（academic / paper 22 unit、minimal / color 26 unit）。上の 18 / 22 unit と 77.08mm は #247 時点の値。
 - **生成と回帰**: `bun run gallery` に対象 2 fixture の配置 / 経路 snapshot 4 個も含め、図の SVG と一緒に正規のコマンドで更新する。部品 manifest の変更はなく、全 variant × 全 Theme の gallery は同じ検査を通す。padding の方向・枠との距離・実際に描いた直線・始点と終点・入れ子・自己ループ・align 予算、lint の 2pt 境界・丸め・縮小・短い直線辺・D2 の除外をテストする。
 
 ### 6.71 #248 のパネル内の空きと主軸の fill
@@ -2318,6 +2319,14 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **回帰**: bowtie 側の明示 anchor の入出力、gap 1/8/64 と幅 clamp、中央の左口と右寄り anchor の右口、隣接端も anchor 付きで折れる経路、`fanIn: spread`、同じ側の平行辺、`narrow: south/north` の実台形の隣接端を route points で検査する。反対の口・異なる side・折れた経路の通常 anchor のずれを拒否する。catalog・props・全 Theme × variant の契約は既存のままで、gallery 再生成と描画テストで確認する。
 - **互換性の実測**: 全 150 YAML ×（自テーマ＋組み込み 5 Theme）= 900 組を変更前後で描画。SVG / PDF / picture PPTX 各 628 件、editable PPTX freeform 428 件・glued 416 件、D2 234 件の SHA-256 はすべて一致し、描画不能 272 組の診断コードも一致した。gap 使用図も含め出力の変更はなく、golden 更新は不要。
 - **最終検証**: `bun run check`・`bun run typecheck`・`CI=1 bun test`（3230 pass / 13 skip / 0 fail）・`bun run gallery`・`bun run gallery:check`（165 ファイル差分なし）・`bun run schema:check` が成功。
+
+### 6.73 #260 の矢じり手前の角に小さい半径（4 unit）を取る
+
+- **原因**: §6.70 は横から入る矢じりの手前を「矢じり + 見える直線 4 unit」しか確保しない。writer は `keepEnd`（矢じり下 + 直線）を直線のまま残し、弧に使えるのは区間の長さから `keepEnd` を引いた残りだけなので、区間がちょうどその長さだと 0 unit になり、`minRadius` を取れずに角が直角に残る（他の角は最大 8 unit = 4pt で丸い）。
+- **判断（ユーザー決定 2026-10-31）**: グループの内側で横から入る矢じり（§6.70 と同じ選択。始点側も同様）に限り、**小さい半径 4 unit（2pt）の分も余白に取る**。必要な余白は `max(clearance, 矢じり長 + 4) + 4（GROUP_STEM_CORNER_UNITS）+ clearance`。academic / paper は 22 unit、minimal / color は 26 unit。左右（北南）の大きい方に揃えて両側を広げるのは §6.70 のまま。全幅（8 unit）の半径を取る案、弧に直線を使わせる案は採らない。
+- **経路と描画**: ルータの hard stub（矢じり + 直線）と `keepEnd` は変えない。末端の区間は余白の拡張で「矢じり + 直線 + 4 unit」になり、writer の `room = 区間 − keepEnd` が 4 unit になるので、角は半径 4 unit（`min(radius, room)`）で丸まり、その先に見える直線と矢じりが残る。`groupArrowheadStems()` の選択（狭い接近の判定）は変えない。
+- **代償**: 受け入れ図 A は **77.08 → 78.49mm × 114.12mm**（幅 +1.41mm = 左右 4 unit ずつ）。幅上限を超えるようになったのは `examples/transformer`（academic, 87.49 → 88.90mm）だけで、例の row の `gap` を 2mm から 1mm にして 87.84mm に収めた。比較は [検証記録](../verification/247-arrowhead-stems.md#260-矢じり手前の角の半径)。
+- **回帰**: 余白の量（4 テーマ）、末端の区間が矢じり + 直線 + 4 unit 以上であること、描画の弧の半径が 4 unit で直線の前に終わること、入れ子の余白（26 unit）、Transformer の幅（78.49mm）をテストする。
 
 
 ## 7. 実装順
