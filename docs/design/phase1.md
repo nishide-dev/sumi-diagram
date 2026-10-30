@@ -2289,6 +2289,15 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 
 - **互換性の実測**: `61e6c20` の renderer を worktree 内の `.sumi/248-base/` へ展開し、既存150 YAML × 自テーマ＋全5 theme の900通りを変更前後で描画（CLI と同じ `overrides.theme` を使用）。成功628通りのSVG / PDF / picture PPTX、autoのD2 222通りのsha256と、生成不可272通りのerror codeが全件一致した。両manifestのsha256は `b935f1789c3ce83c220f7c536faefb401df8f4778fe27363d7bda0c55ab1fc43`（[`compatibility.json`](../../research/248-fill/compatibility.json)）。全theme×variantのgalleryは165 files変更0。指定のPDF/PPTX/assets golden再生成も594 pass・変更0。既存図の診断が増えた箇所だけテストの期待を更新し、出力のgoldenは変更しない。
 
+### 6.72 #251 の明示 anchor と split bowtie の口補正の独立検査
+
+- **原因**: §6.66 の north/south の gap 内 port は、明示した `fromAnchor` / `toAnchor` でも最寄りの塗られた口へ必ず移る。経路は正しいが、`checkRoutes` は外接矩形上の元 anchor からの距離を §6.40 の直線化許容差と比較し、gap 8 の 4 unit の移動や折れた経路を誤って拒否していた。
+- **判断**: 独立検査では `sumi/bowtie` の実 `boundaries` がある north/south の端だけ、元 anchor の法線が body の x 範囲を外れる場合に、最寄りの口（距離差 1e-6 以下は左）を期待位置とする。1/1000 unit の丸めは塗られた側へ向ける。ルータの `resolveEnds` や直線化済みの位置を正解として使わず、描画の実輪郭から独立に求める。gap 未指定・0、gap の外の anchor、east/west、他の部品・group の anchor は従来の比較のまま。
+- **§6.40 との分離**: 必須補正後の期待位置からの残差だけを従来の直線化判定に渡す。必須補正そのものは移動量・経路の折れ数に依存しない。追加の移動は従来どおり「点 2 個の直線・片端だけ許容差 2 unit 以下・相手の残差はゼロ」の場合に限る。side・実輪郭上の接触・出入りの向き・衝突の検査も維持する。
+- **回帰**: bowtie 側の明示 anchor の入出力、gap 1/8/64 と幅 clamp、中央の左口と右寄り anchor の右口、隣接端も anchor 付きで折れる経路、`fanIn: spread`、同じ側の平行辺、`narrow: south/north` の実台形の隣接端を route points で検査する。反対の口・異なる side・折れた経路の通常 anchor のずれを拒否する。catalog・props・全 Theme × variant の契約は既存のままで、gallery 再生成と描画テストで確認する。
+- **互換性の実測**: 全 150 YAML ×（自テーマ＋組み込み 5 Theme）= 900 組を変更前後で描画。SVG / PDF / picture PPTX 各 628 件、editable PPTX freeform 428 件・glued 416 件、D2 234 件の SHA-256 はすべて一致し、描画不能 272 組の診断コードも一致した。gap 使用図も含め出力の変更はなく、golden 更新は不要。
+- **最終検証**: `bun run check`・`bun run typecheck`・`CI=1 bun test`（3230 pass / 13 skip / 0 fail）・`bun run gallery`・`bun run gallery:check`（165 ファイル差分なし）・`bun run schema:check` が成功。
+
 
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
