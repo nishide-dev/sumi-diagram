@@ -1,5 +1,16 @@
 # Reading and fixing diagnostics
 
+`geometry/group-empty-area` (info, render / `lint --geometry` only): at
+least 75% of a group's frame lies outside its title and direct children's
+bounding boxes, with overlaps counted once and edges excluded. This is an
+occupancy estimate, not empty pixels; nested groups occupy their whole
+footprint and generated tokens/matrix/legend frames are skipped. Consider
+`align: stretch` with inner `justify: stretch`, or `justify: space-between`
+for fixed-size items; reduce gaps or avoid stretching a panel for tighter
+title/caption spacing. Intentional whitespace needs no change; this does
+not consume `maxWarnings`. The conservative threshold need not report
+every panel worth improving.
+
 ## Corner badges (0.7.0)
 
 - `component/badge-unsupported`: the node expands into parts (`legend`,

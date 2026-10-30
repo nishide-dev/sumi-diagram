@@ -116,6 +116,8 @@ export interface ArrangeBoxIR {
   readonly gapPt?: number;
   /** Cross-axis alignment, as written; omitted inherits (same axis only). */
   readonly align?: ArrangeAlign;
+  /** Opt-in allocation of extra main-axis space; never inherited. */
+  readonly justify?: "center" | "stretch" | "space-between";
   readonly items: readonly ArrangeItemIR[];
   /**
    * Set only on the stack a group's caption is expanded into (#130): extra
@@ -741,6 +743,7 @@ function arrangeIR(
     kind,
     direction: linear.direction,
     ...(linear.gap !== undefined && { gapPt: linear.gap }),
+    ...(linear.justify !== undefined && { justify: linear.justify }),
     ...(spec.align !== undefined && { align: spec.align }),
     items: freeze(linear.items.map(item)),
   });

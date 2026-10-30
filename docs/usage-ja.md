@@ -13,6 +13,31 @@
 
 どちらも `bun run gallery` で再生成します（CI の `bun run gallery:check` で、ソースと SVG・PDF が一致していることを検査します）。
 
+### 高い兄弟に合わせて列を埋める（structured）
+
+行列の横の短い列は、外側の `row` に `align: stretch`、内側の `stack` に
+`justify: stretch` を指定すると、余った高さを伸縮可能な項目に等分して足せます。
+横方向なら外側が `stack`、内側が `row` です。
+
+```yaml
+arrange:
+  row:
+    align: stretch
+    items:
+      - stack: { gap: 6mm, justify: stretch, items: [projection1, projection2] }
+      - matrix
+```
+
+`justify` は `center`（省略時）/ `stretch` / `space-between`。継承せず、自然な
+大きさを超えた領域だけを使います。`stretch` は gap と明示サイズを保ち、
+box・group・入れ子の配置箱を伸ばします。固定アスペクト比・文字・custom outline
+（bowtie など）は伸ばしません。badge 付きの box は伸ばせます。
+`space-between` は項目を大きくせず間隔を均等に広げます（1項目なら中央）。
+grid には指定できません。見出し／キャプションの帯が広い場合はパネル自体を
+隣の高さに伸ばさず `align: start` にし、内側だけを stretch してください。
+`geometry/group-empty-area` は大きな空きを info で示しますが、意図した余白は
+そのままで構いません（[しきい値と計測の意味](lint-rules.md#グループの空き面積248)）。
+
 ## インストール（リリース版）
 
 通常は [README のワンラインインストール](README-ja.md#インストール) を使ってください。`SUMI_VERSION`（先頭の `v` は任意）で版を指定でき、省略すると GitHub API で最新リリースを解決します。`SUMI_HOME` は `~/.local/share/sumi`、`SUMI_BIN_DIR` は `~/.local/bin` が既定です。`SUMI_DOWNLOAD_BASE` には tarball と `SHA256SUMS` のある HTTP(S) URL、curl 用の `file://` URL、または絶対ディレクトリパスを指定できます。再実行で更新し、旧版ディレクトリは必要に応じて削除します。アンインストールはリンクと導入先を削除します。以下は手動で導入する場合です。

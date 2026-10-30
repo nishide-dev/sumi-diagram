@@ -45,7 +45,9 @@ async function renderDraft(name: string): Promise<{ source: string; rendered: Re
   if (!result.ok) throw new Error(JSON.stringify(result.diagnostics, null, 2));
   // Info only: figure 2 has two edge crossings (layout/edge-crossing, #133).
   expect(result.diagnostics.filter((d) => d.severity !== "info")).toEqual([]);
-  expect(lintGeometry(result.value, { source })).toEqual([]);
+  const geometry = lintGeometry(result.value, { source });
+  expect(geometry.filter((d) => d.code !== "geometry/group-empty-area")).toEqual([]);
+  expect(geometry.every((d) => d.severity === "info")).toBe(true);
   expect(lintFigure(source).diagnostics).toEqual([]);
   return { source, rendered: result.value };
 }

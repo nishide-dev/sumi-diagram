@@ -90,6 +90,19 @@ groups:
 - A side column next to a tall stack: put both in a `row` and pick the
   row's `align` (`center` to center it vertically, `end` to line up the
   bottoms).
+- To fill a short column beside a matrix, set the enclosing row's `align:
+  stretch` and the column stack's `justify: stretch`. Extra height is added
+  equally to resizable items, keeping the written `gap`. In a wide row
+  inside a stretching stack, it grows widths. `justify` does **not** inherit
+  and has no effect at natural size; omitted or `center` keeps the old
+  centred placement. Explicit sizes on the growing axis, fixed-aspect
+  shapes, text and custom outlines (including bowtie) stay fixed. Badged
+  boxes can grow; choose a suitable explicit size for a custom outline.
+  `justify: space-between` instead leaves sizes unchanged and spreads extra
+  room between items (one item stays centred). Neither option is accepted
+  on `grid`. For tighter title/caption spacing, avoid stretching the panel
+  to an unrelated sibling: use `align: start` there and stretch only its
+  inner columns. Axis labels can attach above/below the matrix outside the body row.
 - **An item belongs to the owner of the tree**: items of `groups[].arrange`
   are members of that group, items of the root tree are at the root. Do not
   also write `group:` (if you do, it must match, else `layout/group-mismatch`).
