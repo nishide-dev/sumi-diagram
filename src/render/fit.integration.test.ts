@@ -104,7 +104,11 @@ describe("structured: #167 figures B and C on paper-double", () => {
 
   test("text is checked at its printed size: B's 7pt edge labels print at 4.9pt", async () => {
     const b = await render(readFileSync(join(FIT, "b-dit.sumi.yaml"), "utf8"));
-    const diagnostics = lintGeometry(b);
+    const all = lintGeometry(b);
+    expect(
+      all.filter((d) => d.code === "geometry/arrowhead-cramped").map((d) => d.subject?.id),
+    ).toEqual(["edges[6]", "edges[7]", "edges[27]", "edges[28]", "edges[29]"]);
+    const diagnostics = all.filter((d) => d.code !== "geometry/arrowhead-cramped");
     expect(diagnostics.map((d) => [d.code, d.severity, d.subject?.id])).toEqual([
       ["geometry/script-too-small", "info", "stage-c-dit"],
       ["geometry/group-empty-area", "info", "incontext"],
@@ -123,7 +127,23 @@ describe("structured: #167 figures B and C on paper-double", () => {
 
   test("C reports its existing micro-jogs and reports its scripts once, as information", async () => {
     const c = await render(readFileSync(join(FIT, "c-h3world.sumi.yaml"), "utf8"));
-    const diagnostics = lintGeometry(c);
+    const all = lintGeometry(c);
+    expect(
+      all.filter((d) => d.code === "geometry/arrowhead-cramped").map((d) => d.subject?.id),
+    ).toEqual([
+      "edges[10]",
+      "edges[16]",
+      "edges[19]",
+      "edges[20]",
+      "edges[25]",
+      "edges[26]",
+      "edges[27]",
+      "edges[28]",
+      "edges[30]",
+      "edges[31]",
+      "edges[32]",
+    ]);
+    const diagnostics = all.filter((d) => d.code !== "geometry/arrowhead-cramped");
     expect(diagnostics.map((d) => [d.code, d.severity, d.subject?.id])).toEqual([
       ["geometry/script-too-small", "info", "stage-c-h3world"],
       ["geometry/edge-jog", "info", "edges[17]"],

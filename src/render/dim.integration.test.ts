@@ -79,7 +79,12 @@ describe("DiT with panels 3 and 4 dimmed (structured)", () => {
       const result = await rendering(source);
       return [...result.diagnostics, ...lintGeometry(result.value, { source })].map((d) => d.code);
     };
-    expect(await codes(DIT)).toEqual(["geometry/exceeds-page-width", "geometry/group-empty-area"]);
+    expect(await codes(DIT)).toEqual([
+      "geometry/exceeds-page-width",
+      "geometry/group-empty-area",
+      "geometry/arrowhead-cramped",
+      "geometry/arrowhead-cramped",
+    ]);
     expect(await codes(DIT)).toEqual(await codes(UNDIMMED));
   });
 

@@ -118,10 +118,14 @@ describe("sublabel (#184): DiT", () => {
     expect(codes(rendered, source)).toEqual([
       "geometry/exceeds-page-width",
       "geometry/group-empty-area",
+      "geometry/arrowhead-cramped",
+      "geometry/arrowhead-cramped",
     ]);
     expect(codes(await render(research), research)).toEqual([
       "geometry/exceeds-page-width",
       "geometry/group-empty-area",
+      "geometry/arrowhead-cramped",
+      "geometry/arrowhead-cramped",
     ]);
   });
 

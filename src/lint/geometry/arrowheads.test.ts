@@ -17,6 +17,60 @@ const compiled = compile(source);
 const p = (x: number, y: number) => ({ x, y });
 const code = "geometry/arrowhead-on-bend";
 
+describe("geometry/arrowhead-cramped", () => {
+  const code = "geometry/arrowhead-cramped";
+  test("reports a zero stem, but does not duplicate overlap warnings", () => {
+    for (const [run, count] of [
+      [3, 0],
+      [8, 1],
+      [11.99, 1],
+      [12, 0],
+      [20, 0],
+    ]) {
+      const findings = lintSpec(
+        compiled,
+        {
+          elements: { "e:e": { path: [p(0, 0), p(40, 0), p(40, run as number)] } },
+        },
+        { code, source },
+      );
+      expect(findings).toHaveLength(count as number);
+      if (count)
+        expect(findings[0]).toMatchObject({
+          severity: "info",
+          path: ["edges", 0],
+          subject: { kind: "edge", id: "e" },
+        });
+    }
+  });
+
+  test("uses painted geometry, source heads, and the printed stem after fit", () => {
+    const spec = { elements: { "e:e": { path: [p(0, 0), p(0, 16), p(40, 16)] } } };
+    expect(lintSpec(compiled, spec, { code })).toEqual([]);
+    expect(lintSpec(compiled, { ...spec, scale: 0.4 }, { code })).toHaveLength(1);
+    const painted = [[p(0, 8), p(0, 10), p(2, 14), p(6, 16), p(32, 16)]];
+    const findings = lintSpec(compiled, { ...spec, painted: { "e:e": painted } }, { code });
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.message).toContain("source arrowhead");
+  });
+
+  test("straight short edges, headless edges, and D2 are exempt", () => {
+    for (const text of [
+      source,
+      source.replace("double-arrow", "line"),
+      source.replace(", layout: { arrange: { row: { items: [a, b] } } }", ""),
+    ]) {
+      expect(
+        lintSpec(compile(text), { elements: { "e:e": { path: [p(0, 0), p(10, 0)] } } }, { code }),
+      ).toEqual([]);
+    }
+    const auto = compile(source.replace(", layout: { arrange: { row: { items: [a, b] } } }", ""));
+    expect(
+      lintSpec(auto, { elements: { "e:e": { path: [p(0, 0), p(40, 0), p(40, 8)] } } }, { code }),
+    ).toEqual([]);
+  });
+});
+
 describe(code, () => {
   test("reports a short target run with the edge's source path and warning severity", () => {
     const findings = lintSpec(

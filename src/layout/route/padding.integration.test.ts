@@ -11,13 +11,17 @@ import { buildFigureIR } from "../../compiler/ir";
 import { checkFigure } from "../../core/check";
 import { BUILTIN_PROFILE_DEFINITIONS } from "../../core/profile/builtin";
 import { type Profile, validateProfile } from "../../core/profile/schema";
+import { getFontSet } from "../../core/theme/fonts";
+import { arrowheadStraightRun } from "../../lint/geometry/arrowheads";
+import { createGeometryContext } from "../../lint/geometry/context";
 import { lintGeometry } from "../../lint/geometry/lint";
 import type { RenderedStructuredFigure } from "../../render/render";
 import { renderFigure } from "../../render/render";
+import { paintedEdges } from "../../render/structured";
 import { layoutStructuredFigure } from "../index";
 import { MAX_ALIGN_LAYOUTS } from "../structured/align";
 import { placeStructured } from "../structured/engine";
-import { arrowheadLength } from "./arrowhead";
+import { ARROWHEAD_STEM_UNITS, arrowheadLength } from "./arrowhead";
 import { arrowheadPaddingDeficits, BORDER_CLEARANCE } from "./padding";
 import { ROUTE } from "./router";
 
@@ -56,19 +60,23 @@ describe("group padding before arrowheads (#171)", () => {
   });
 
   for (const [theme, stroke, grown] of [
-    ["color", 2, 2],
-    ["academic", 1, 0],
+    ["color", 2, 6],
+    ["academic", 1, 2],
+    ["paper", 1, 2],
+    ["minimal", 2, 6],
   ] as const) {
     test(`${theme}: the residual lines run in the padding, clear of the border`, async () => {
       const { source, rendered } = await render(theme);
       const ir = rendered.compiled.ir;
-      // The side the residuals enter from grows by what it lacked, and only that side.
+      // The side the residuals enter from grows by what it lacked, and the
+      // opposite side by the same, so content and border share a centre line
+      // and the trunk outside the group stays straight with it (#247).
       const encoder = padding(rendered, "encoder");
       const decoder = padding(rendered, "decoder");
-      expect(encoder.west).toBeCloseTo(16 + grown, 6);
-      expect(encoder.east).toBeCloseTo(16, 6);
-      expect(decoder.east).toBeCloseTo(16 + grown, 6);
-      expect(decoder.west).toBeCloseTo(16, 6);
+      for (const group of [encoder, decoder]) {
+        expect(group.west).toBeCloseTo(16 + grown, 6);
+        expect(group.east).toBeCloseTo(16 + grown, 6);
+      }
       // Settled: the final layout lacks nothing.
       expect(arrowheadPaddingDeficits(ir, rendered.layout).size).toBe(0);
 
@@ -80,13 +88,29 @@ describe("group padding before arrowheads (#171)", () => {
       const tip = residual.at(-1);
       if (bend === undefined || tip === undefined) throw new Error("short route");
       expect(bend.y).toBeCloseTo(tip.y, 6);
-      expect(tip.x - bend.x).toBeGreaterThanOrEqual(arrowheadLength(stroke) - 1e-6);
+      expect(tip.x - bend.x).toBeGreaterThanOrEqual(
+        arrowheadLength(stroke) + ARROWHEAD_STEM_UNITS - 1e-6,
+      );
       expect(bend.x - encoder.rect.x).toBeGreaterThanOrEqual(BORDER_CLEARANCE - 1e-6);
 
       const near = lintGeometry(rendered, { source }).filter((d) =>
         /^geometry\/edge-(on|near)-border$/.test(d.code),
       );
       expect(near).toEqual([]);
+      const fonts = getFontSet(ir.meta.fontSetId);
+      if (!fonts) throw new Error("missing fonts");
+      const context = createGeometryContext(ir, rendered.inspection, fonts);
+      const residualIR = ir.edges[7];
+      if (!residualIR) throw new Error("missing residual");
+      const edge = context.get(residualIR.key);
+      const route = edge?.route?.[0];
+      if (!edge || !route) throw new Error("missing painted residual");
+      expect(
+        arrowheadStraightRun(route, edge.drawn ?? [], false) - arrowheadLength(stroke),
+      ).toBeGreaterThanOrEqual(ARROWHEAD_STEM_UNITS - 0.002);
+      expect(
+        lintGeometry(rendered, { source }).filter((d) => d.code === "geometry/arrowhead-cramped"),
+      ).toEqual([]);
     });
   }
 });
@@ -106,6 +130,44 @@ function groupLayout(value: ReturnType<typeof place>, id: string) {
 }
 
 describe("group padding before arrowheads: edge cases (#171 review)", () => {
+  test("both source and target heads keep a painted stem in nested group padding (#247)", () => {
+    const source = `version: 1
+figure: { id: source-stem, theme: paper, layout: { arrange: { stack: { items: [outer] } } } }
+groups:
+  - { id: outer, arrange: { stack: { items: [inner] } } }
+  - { id: inner, arrange: { stack: { gap: 10mm, items: [a, b] } } }
+nodes:
+  - { id: a, component: box, label: A }
+  - { id: b, component: box, label: B }
+edges:
+  - { id: both, component: double-arrow, from: a, fromAnchor: west, to: b, toAnchor: west }
+`;
+    const base = BUILTIN_PROFILE_DEFINITIONS.find((p) => p.id === "paper-single");
+    if (!base) throw new Error("missing profile");
+    // Growing a narrow side and preserving a stem in already-wide padding
+    // must use the same end selection (B is slightly narrower than A).
+    for (const width of [8, 10, 16]) {
+      const profile = validateProfile({
+        ...base,
+        id: "stem-padding",
+        layout: { ...base.layout, groupPadding: `${width}pt`, compact: undefined },
+      });
+      if (!profile.ok) throw new Error(JSON.stringify(profile.diagnostics));
+      const { ir, layout } = place(source, profile.value);
+      expect(arrowheadPaddingDeficits(ir, layout).size).toBe(0);
+      const painted = paintedEdges(ir, layout).get("e:both");
+      const route = layout.edges.find((e) => e.key === "e:both")?.route?.points;
+      if (!painted || !route) throw new Error("missing painted edge");
+      // Arc endpoints are the exact tangency points used for the straight run.
+      const drawn = [...painted.pieces, ...painted.arcs.map((a) => [a.from, a.to])];
+      for (const source of [true, false]) {
+        expect(
+          arrowheadStraightRun(route, drawn, source) - arrowheadLength(1),
+        ).toBeGreaterThanOrEqual(ARROWHEAD_STEM_UNITS - 0.002);
+      }
+    }
+  });
+
   test("a group's self-loop does not grow the group (its port stays on its border)", () => {
     const figure = (edges: string) => `version: 1
 figure:
@@ -187,7 +249,7 @@ edges:
       const g = groupLayout(value, id);
       return g.content.x - g.rect.x;
     };
-    // stub (12) + clearance (6), all on the innermost group.
-    expect([west("g1"), west("g2"), west("g3"), west("g4")]).toEqual([0, 0, 0, 18]);
+    // Arrowhead (12) + visible stem (4) + clearance (6), all on the innermost group.
+    expect([west("g1"), west("g2"), west("g3"), west("g4")]).toEqual([0, 0, 0, 22]);
   });
 });

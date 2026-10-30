@@ -85,11 +85,12 @@ import {
   type TextLayout,
 } from "../ir";
 import { deepFreeze } from "../structured/engine";
-import { arrowheadLength } from "./arrowhead";
+import { arrowheadLength, WIRE_CORNER_RADIUS } from "./arrowhead";
 import { crossingDiagnostics } from "./crossings";
 import { PairHeap } from "./heap";
 import { requestedLabelDiagnostics } from "./label-diagnostics";
 import { arrowheadRects, hasRequestedLabel, placeEdgeLabel } from "./labels";
+import { groupArrowheadStems } from "./padding";
 import {
   bottomOf,
   DIRS,
@@ -141,22 +142,14 @@ export const ROUTE = Object.freeze({
 
 // In its own module so the structured engine can size group padding by it
 // (#171, `padding.ts`) without importing the router.
-export { arrowheadLength };
-
-/**
- * The largest corner radius of a structured wire (#101), in units: 4pt, a
- * little under D2's 5pt for ELK routes, as structured figures pack blocks
- * closer. The router prefers to keep this much more straight line before an
- * arrowhead (#116), so the SVG writer (`src/render/wire.ts`) can round the corner
- * before it without reaching the arrowhead.
- */
-export const WIRE_CORNER_RADIUS = 8;
+export { arrowheadLength, WIRE_CORNER_RADIUS };
 
 /**
  * The straight line a route keeps before an arrowhead where it can (#116):
  * the arrowhead's length plus the corner radius, so that a rounded corner
  * before it ends where the arrowhead starts. The stub itself (where a route
- * may not turn at all) is only the arrowhead's length.
+ * may not turn at all) is only the arrowhead's length, except for group
+ * padding approaches that also reserve a visible stem (#247).
  */
 export function arrowRoom(strokeUnits: number): number {
   return arrowheadLength(strokeUnits) + WIRE_CORNER_RADIUS;
@@ -471,6 +464,7 @@ class Router {
     const ir = this.#ir;
     const layoutEdges = new Map(this.#layout.edges.map((e) => [e.key, e]));
     const resolved = resolveEnds(ir, this.#layout);
+    const stems = groupArrowheadStems(ir, this.#layout);
     for (const [index, edge] of ir.edges.entries()) {
       this.#reportStraightOffSide(edge, resolved[index]);
     }
@@ -486,7 +480,19 @@ class Router {
       }
       const arrow = arrowheadLength(edge.style.strokeWidth.units);
       const lane = (end: End, arrowhead: boolean) =>
-        end.junction ? (arrowhead ? arrow : 0) : Math.max(ROUTE.clearance, arrowhead ? arrow : 0);
+        end.junction
+          ? arrowhead
+            ? arrow
+            : 0
+          : Math.max(
+              ROUTE.clearance,
+              arrowhead
+                ? arrow +
+                    (end === ends.from
+                      ? (stems.get(edge.key)?.source ?? 0)
+                      : (stems.get(edge.key)?.target ?? 0))
+                : 0,
+            );
       const room = (end: End, other: End, arrowhead: boolean) =>
         end.junction || !arrowhead
           ? 0
