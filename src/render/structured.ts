@@ -59,6 +59,7 @@ import { getTheme } from "../core/theme/builtin";
 import type { FontSet } from "../core/theme/fonts";
 import type { CommonStyle } from "../core/theme/style";
 import type { LayoutIR, Point, Rect, TextLayout, TextRun } from "../layout/ir";
+import { groupArrowheadStems } from "../layout/route/padding";
 import { arrowheadLength, WIRE_CORNER_RADIUS } from "../layout/route/router";
 import { fontFileFor } from "../lint/geometry/measure";
 import { CYLINDER_ARC_UNITS, shapeOutline } from "../lint/geometry/shapes";
@@ -581,6 +582,7 @@ function wires(
   layout: LayoutIR,
 ): { markup: string[]; painted: Map<ElementKey, PaintedEdge> } {
   const edges = new Map(ir.edges.map((e) => [e.key, e]));
+  const stems = groupArrowheadStems(ir, layout);
   const nodes = new Map(ir.nodes.map((node) => [node.key, node]));
   const routes = new Map(layout.edges.map((e) => [e.key, e]));
   const nets = layout.nets ?? layout.edges.map((e, id) => ({ id, edges: [e.key], segments: [] }));
@@ -671,8 +673,10 @@ function wires(
     for (const { key, edge, route, wire } of drawn) {
       const entry = byStyle.get(lineKey(edge.style)) ?? { edge, polylines: [], keys: [] };
       entry.keys.push(key);
-      const keepStart = underArrowhead(edge.sourceArrowhead ?? "none", edge);
-      const keepEnd = underArrowhead(edge.targetArrowhead ?? "none", edge);
+      const keepStart =
+        underArrowhead(edge.sourceArrowhead ?? "none", edge) + (stems.get(key)?.source ?? 0);
+      const keepEnd =
+        underArrowhead(edge.targetArrowhead ?? "none", edge) + (stems.get(key)?.target ?? 0);
       entry.polylines.push({
         points: wire,
         ...(joined.has(route.from) ? { start: route.from } : {}),

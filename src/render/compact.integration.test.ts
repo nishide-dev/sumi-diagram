@@ -65,11 +65,12 @@ describe("DiT (paper, paper-double, fit: scale)", () => {
     expect(c.heightMm).toBeCloseTo(86.34, 1);
     expect(c.heightMm / c.widthMm).toBeLessThan(n.heightMm / n.widthMm);
     // No label, edge label or sublabel below 5pt after scaling, no warnings:
-    // Small scripts (4.07pt) and two sparse panels are informational only.
+    // Small scripts (4.07pt), cramped arrowhead stems and two sparse panels are informational only.
     expect(diagnosticsOf(compact, DIT)).toEqual([
       "info geometry/script-too-small",
       "info geometry/group-empty-area",
       "info geometry/group-empty-area",
+      ...Array(5).fill("info geometry/arrowhead-cramped"),
     ]);
   });
 
@@ -89,7 +90,7 @@ describe("Transformer (paper, paper-single)", () => {
     const n = outputSize(spaced.inspection);
     expect(c.scale).toBeUndefined();
     // §6.55's fixture after #215: smaller paper operators; original 77.2 × 113.7mm.
-    expect(c.widthMm).toBeCloseTo(75.32, 1);
+    expect(c.widthMm).toBeCloseTo(77.08, 1);
     expect(c.heightMm).toBeCloseTo(114.12, 1);
     expect(c.heightMm).toBeLessThan(n.heightMm * 0.85);
     expect(diagnosticsOf(compact, TRANSFORMER)).toEqual([]);

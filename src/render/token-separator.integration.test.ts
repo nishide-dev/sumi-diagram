@@ -89,6 +89,7 @@ describe("dotted token separators (#216)", () => {
     });
     expect(report.diagnostics.map((d) => [d.severity, d.code])).toEqual([
       ["info", "geometry/script-too-small"],
+      ...Array(7).fill(["info", "geometry/arrowhead-cramped"]),
     ]);
     const rendered = report.rendered;
     if (!rendered || !("layout" in rendered)) throw new Error("missing H3-World layout");

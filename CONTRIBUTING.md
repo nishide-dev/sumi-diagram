@@ -95,6 +95,7 @@ bun run gallery:check    # examples/*/*.{svg,pdf} と docs/gallery/ が最新か
 | D2 ソース（`tests/fixtures/d2/*.d2`） | `SUMI_UPDATE_GOLDEN=1 bun test src/compiler/d2.test.ts` |
 | lint の出力（`tests/fixtures/lint-output/`） | `SUMI_UPDATE_GOLDEN=1 bun test src/lint/lint.test.ts` |
 | SVG（`examples/*/*.svg`・`docs/gallery/`） | `bun run gallery` |
+| Transformer の配置・経路（`tests/fixtures/layout/{a-transformer,align-side-kv}*.json`） | `bun run gallery`（例のレイアウト変更と一緒に再生成） |
 | PDF（`examples/*/*.pdf`） | `bun run gallery`（または `SUMI_UPDATE_GOLDEN=1 bun test src/render/pdf`。同じバイトを書く） |
 | 画像・アイコンの fixture（`tests/fixtures/assets/outputs-sha256.json`、#94） | `SUMI_UPDATE_GOLDEN=1 bun test src/render/assets.integration.test.ts` |
 | 編集可能PPTX（slide XML / package hash） | `SUMI_UPDATE_GOLDEN=1 bun test src/render/pptx/editable.test.ts`。日本語fixtureのYAMLを変えたら先にSVGを通常のrenderで更新する（[再現手順](docs/verification/62-editable-pptx.md)） |

@@ -1,25 +1,25 @@
 /**
- * Group padding the router needs before an arrowhead (#171, design doc
- * §6.42). An edge whose ends are both inside a group and which enters (or
+ * Group padding the router needs before an arrowhead (#171 / #247, design
+ * §§6.42, 6.70). An edge whose ends are both inside a group and which enters (or
  * leaves, with a source arrowhead) a member through the side facing the
  * group's border turns in that group's padding: the route runs straight for
- * the arrowhead's length from the port, then bends along the border. The
- * padding must hold the arrowhead and the router's clearance (3pt) between
+ * the arrowhead's length plus a visible 2pt stem from the port, then bends
+ * along the border. The padding holds both and the clearance (3pt) between
  * the bend and the border: with the `color` theme's 1pt lines (an arrowhead
  * of 12 units) in the paper padding (8pt = 16 units), the line ran 4 units
  * from the border, 0.35mm stroke to stroke (`geometry/edge-near-border`).
  *
  * The structured engine (`placeStructured`) asks for these sides after a
  * first layout and lays the figure out again with them widened by what they
- * lack. `academic` (0.5pt lines: an arrowhead of 8 units, 14 with the
- * clearance) needs nothing in the paper padding.
+ * lack. `academic` (0.5pt lines) needs 8 + 4 + 6 = 18 units;
+ * `color` (1pt lines) needs 12 + 4 + 6 = 22 units.
  */
 
 import type { FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type { Side } from "../../core/figure/schema";
 import type { LayoutIR, Rect } from "../ir";
-import { arrowheadLength } from "./arrowhead";
+import { ARROWHEAD_STEM_UNITS, arrowheadLength, WIRE_CORNER_RADIUS } from "./arrowhead";
 import { bottomOf, type End, resolveEnds, rightOf } from "./ports";
 import { withoutZoomEdges } from "./zoom";
 
@@ -41,7 +41,7 @@ const DIR_SIDE: readonly Side[] = ["east", "south", "west", "north"];
  * arrowhead at a node or group whose other end lies in the same group, the
  * distance from its port to that group's border straight ahead must hold
  * the straight line the router keeps before the arrowhead (its stub: the
- * arrowhead's length, `arrowheadLength()` of the edge's stroke, and at
+ * arrowhead's length plus the visible stem, and at
  * least the clearance) and the clearance beyond the bend. Only the
  * innermost such group (the nearest border; on a tie, the deepest, since
  * nested groups can share a border) is grown; an enclosing group grows with
@@ -67,7 +67,10 @@ export function arrowheadPaddingDeficits(
   routed.edges.forEach((edge, index) => {
     const ends = resolved[index];
     if (ends === undefined || "error" in ends) return;
-    const stub = Math.max(BORDER_CLEARANCE, arrowheadLength(edge.style.strokeWidth.units));
+    const stub = Math.max(
+      BORDER_CLEARANCE,
+      arrowheadLength(edge.style.strokeWidth.units) + ARROWHEAD_STEM_UNITS,
+    );
     const need = stub + BORDER_CLEARANCE;
     const check = (end: End, other: End) => {
       if (end.junction || end.dir < 0) return;
@@ -96,11 +99,67 @@ export function arrowheadPaddingDeficits(
     if (edge.sourceArrowhead !== undefined) check(ends.from, ends.to);
     if (edge.targetArrowhead !== undefined) check(ends.to, ends.from);
   });
+  // Grow both sides of the axis equally (#247): the group's border and its
+  // content then share a centre line, so outer items that the arrangement
+  // centres on the group (a column's trunk above and below it) stay straight
+  // with the members inside instead of jogging by half the difference.
+  for (const sides of deficits.values()) {
+    sides.west = sides.east = Math.max(sides.west, sides.east);
+    sides.north = sides.south = Math.max(sides.north, sides.south);
+  }
   return deficits;
 }
 
 const holds = (r: Rect, q: { x: number; y: number }) =>
   q.x >= r.x && q.x <= rightOf(r) && q.y >= r.y && q.y <= bottomOf(r);
+
+/**
+ * Ends approaching through tight group padding (#247). Share this selection
+ * between the router's hard stub and the writer's rounding reserve. Ports
+ * facing the content boundary retain a stem even with already-wide padding;
+ * interior approaches outside the padding budget keep their old behavior.
+ * Growing an end's own group cannot help, so use the same exclusion as the
+ * padding pass. The tight budget includes the preferred rounding radius:
+ * smaller members can sit slightly inward from the content boundary.
+ */
+export function groupArrowheadStems(ir: FigureIR, layout: LayoutIR) {
+  const stems = new Map<ElementKey, { source: number; target: number }>();
+  const parents = new Map(layout.groups.map((g) => [g.key, g.parent] as const));
+  const routed = withoutZoomEdges(ir);
+  const resolved = resolveEnds(routed, layout);
+  routed.edges.forEach((edge, index) => {
+    const ends = resolved[index];
+    if (ends === undefined || "error" in ends) return;
+    const need =
+      Math.max(
+        BORDER_CLEARANCE,
+        arrowheadLength(edge.style.strokeWidth.units) + ARROWHEAD_STEM_UNITS,
+      ) + BORDER_CLEARANCE;
+    const stem = (end: End, other: End) => {
+      if (end.junction || end.dir < 0) return 0;
+      return layout.groups.some((group) => {
+        if (!holds(group.rect, end.port) || !holds(group.rect, other.port)) return false;
+        for (
+          let key: ElementKey | undefined = group.key;
+          key !== undefined;
+          key = parents.get(key)
+        ) {
+          if (key === end.key) return false;
+        }
+        return (
+          freeAhead(group.rect, end) <= need + WIRE_CORNER_RADIUS + 0.002 ||
+          freeAhead(group.content, end) <= 0.002
+        );
+      })
+        ? ARROWHEAD_STEM_UNITS
+        : 0;
+    };
+    const source = edge.sourceArrowhead === undefined ? 0 : stem(ends.from, ends.to);
+    const target = edge.targetArrowhead === undefined ? 0 : stem(ends.to, ends.from);
+    if (source || target) stems.set(edge.key, { source, target });
+  });
+  return stems;
+}
 
 /** The distance from an end's port to the border of `rect` along the end's direction. */
 function freeAhead(rect: Rect, end: End): number {

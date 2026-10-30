@@ -125,6 +125,11 @@ edges:
 `,
       [
         {
+          code: "geometry/arrowhead-cramped",
+          message:
+            "The target arrowhead of edge edges[1] has only 0pt of visible straight stem before a bend (less than 2pt).",
+        },
+        {
           code: "geometry/edge-touches-label",
           message: 'Edge edges[1] touches the label of group "g2" (0.27mm from the letters).',
         },
@@ -233,14 +238,10 @@ describe("the stage-B draft of figure 1 (research/124-stage-b)", () => {
       "top-left",
       "top-left",
     ]);
-    // The edge from the decoder's last norm to Linear leaves the group past
-    // the end of its title, touching the "r" (#156).
-    const rendered = await render(stringify(draft), [
-      {
-        code: "geometry/edge-touches-label",
-        message: 'Edge edges[26] touches the label of group "decoder" (0.19mm from the letters).',
-      },
-    ]);
+    // The edge from the decoder's last norm to Linear used to leave the group
+    // past the end of its title, touching the "r" (#156). #247's symmetric
+    // padding moves the trunk 3 units clear of it.
+    const rendered = await render(stringify(draft));
     for (const id of ["encoder", "decoder"]) {
       const group = rendered.inspection.elements.find((e) => e.key === `g:${id}`);
       expect(group?.labels[0]?.text).toBe(id === "encoder" ? "Encoder" : "Decoder");

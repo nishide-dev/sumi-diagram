@@ -304,7 +304,10 @@ describe("research/176-zoom-edge: the DiT and H3-World zoom callouts", () => {
         zoomed.diagnostics.filter((d) => d.subject?.kind === "edge" && ids.has(d.subject.id)),
       ).toEqual([]);
       const summary = (diagnostics: typeof zoomed.diagnostics) =>
-        diagnostics.map((d) => `${d.severity} ${d.code} ${d.message}`).sort();
+        // Inserting the zoom edge shifts unnamed edge indices.
+        diagnostics
+          .map((d) => `${d.severity} ${d.code} ${d.message}`.replace(/edges\[\d+\]/g, "edge"))
+          .sort();
       expect(summary(zoomed.diagnostics)).toEqual(summary(original.diagnostics));
     });
   }
