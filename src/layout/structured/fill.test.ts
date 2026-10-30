@@ -113,6 +113,26 @@ describe("opt-in main-axis fill", () => {
     );
   });
 
+  test("operators and images keep both dimensions under main-axis fill", () => {
+    for (const axis of ["stack", "row"]) {
+      for (const component of [
+        "operator, props: { symbol: plus }",
+        "image, props: { src: image.png, width: 20pt, height: 10pt }",
+      ]) {
+        const source = figure("stretch", axis, axis === "stack" ? "down" : "right").replace(
+          "component: box, label: A",
+          `component: ${component}`,
+        );
+        const filled = layout(source);
+        const natural = layout(source.replace("justify: stretch,", ""));
+        expect(rect(filled, 1).width).toBe(rect(natural, 1).width);
+        expect(rect(filled, 1).height).toBe(rect(natural, 1).height);
+        const size = axis === "stack" ? "height" : "width";
+        expect(rect(filled, 2)[size]).toBeGreaterThan(rect(natural, 2)[size]);
+      }
+    }
+  });
+
   test("justify does not inherit; a column with no resizable items stays centred", () => {
     const nested = figure("stretch").replace(
       "items: [a, b]",
