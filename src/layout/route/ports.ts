@@ -166,6 +166,8 @@ export interface End {
   readonly port: Point;
   /** Where the drawn route ends: the port moved inward onto the shape's outline. */
   readonly outline: Point;
+  /** Bounding-box port before a split body's gap displaced it to a painted lip (#246). */
+  readonly beforeGap?: Point;
 }
 
 interface Element {
@@ -952,7 +954,7 @@ export const STRAIGHTEN_TOLERANCE = 2;
 export function facing(
   from: End,
   to: End,
-): { dir: number; ahead: number; aside: number } | undefined {
+): { dir: number; ahead: number; aside: number; gapAside?: number } | undefined {
   const dir = from.dir >= 0 ? from.dir : to.dir >= 0 ? opposite(to.dir) : -1;
   if (dir < 0 || (from.dir >= 0 && to.dir >= 0 && to.dir !== opposite(from.dir))) return undefined;
   const D = DIRS[dir] as Point;
@@ -960,12 +962,23 @@ export function facing(
   const dy = to.port.y - from.port.y;
   const ahead = dx * D.x + dy * D.y;
   if (ahead <= 0) return undefined;
-  return { dir, ahead, aside: dx * D.y - dy * D.x };
+  const a = from.beforeGap ?? from.port;
+  const b = to.beforeGap ?? to.port;
+  return {
+    dir,
+    ahead,
+    aside: dx * D.y - dy * D.x,
+    ...((from.beforeGap !== undefined || to.beforeGap !== undefined) && {
+      gapAside: (b.x - a.x) * D.y - (b.y - a.y) * D.x,
+    }),
+  };
 }
 
-/** Facing ends out of line by more than 0 and at most {@link STRAIGHTEN_TOLERANCE}. */
-export const straightenable = (f: { aside: number }): boolean =>
-  f.aside !== 0 && Math.abs(f.aside) <= STRAIGHTEN_TOLERANCE + 1e-9;
+/** Near-aligned ends, including alignment before a split-body lip displacement (#246). */
+export const straightenable = (f: { aside: number; gapAside?: number }): boolean =>
+  f.aside !== 0 &&
+  (Math.abs(f.aside) <= STRAIGHTEN_TOLERANCE + 1e-9 ||
+    (f.gapAside !== undefined && Math.abs(f.gapAside) <= STRAIGHTEN_TOLERANCE + 1e-9));
 
 /**
  * Straightens edges whose ends face each other but are out of line by at
@@ -984,7 +997,11 @@ export const straightenable = (f: { aside: number }): boolean =>
  * that stays on its side; an end without an anchor before one with an
  * anchor (an anchor moves by at most the tolerance, which `checkRoutes`
  * allows), then the target before the source. A junction never moves.
- * Edges are taken in document order. Mutates `pairs`.
+ * Split-body lip displacements (#246) also qualify when the original ports
+ * were within the tolerance: a default neighbour can follow the lip farther,
+ * but an anchor still moves by at most the tolerance. A candidate snapped
+ * back to a lip by `reresolve` is rejected. Edges are taken in document
+ * order. Mutates `pairs`.
  */
 function straighten(
   pairs: ({ from: End; to: End } | { error: string })[],
@@ -1019,6 +1036,9 @@ function straighten(
       .filter((c): c is readonly ["to" | "from", End, End, Choice] => c[3] !== undefined)
       .sort((p, q) => Number(p[3].anchored) - Number(q[3].anchored));
     for (const [which, end, other, endChoice] of candidates) {
+      // A gap may displace a default port farther than #169's tolerance;
+      // explicit anchors still only move within that original tolerance.
+      if (endChoice.anchored && Math.abs(f.aside) > STRAIGHTEN_TOLERANCE + 1e-9) continue;
       const vertical = d % 2 === 1;
       const port = vertical
         ? { x: other.port.x, y: end.port.y }
@@ -1030,9 +1050,12 @@ function straighten(
       const here = pointKey(end.key, end.port);
       const there = pointKey(end.key, port);
       if (!onSide || users.get(here) !== 1 || (users.get(there) ?? 0) > 0) continue;
+      const moved = reresolve(end, endChoice, port);
+      // Resolving a point inside the gap snaps back to a lip: that is not
+      // a successful move. Try the neighbour instead, without changing users.
+      if (moved.port.x !== port.x || moved.port.y !== port.y) continue;
       users.delete(here);
       users.set(there, 1);
-      const moved = reresolve(end, endChoice, port);
       pairs[index] = which === "to" ? { from: a, to: moved } : { from: moved, to: b };
       break;
     }
@@ -1230,6 +1253,7 @@ function resolveEndsWith(
       return { key, junction: true, dir: -1, port: point, outline: point };
     }
     let port = at ?? anchorPoint(self.rect, { side: choice.side, offset: choice.offset ?? 0.5 });
+    const beforeGap = port;
     // A normal through a disconnected body's gap has no painted contact. Move
     // it to the nearest lip (left on ties) before intersecting the boundaries.
     if (self.node?.render !== undefined) {
@@ -1287,7 +1311,15 @@ function resolveEndsWith(
         };
       }
     }
-    return { key, junction: false, side: choice.side, dir, port, outline };
+    return {
+      key,
+      junction: false,
+      side: choice.side,
+      dir,
+      port,
+      outline,
+      ...(port !== beforeGap && { beforeGap }),
+    };
   };
 
   const resolved = choices.map(({ edge, from, to }, index) => {

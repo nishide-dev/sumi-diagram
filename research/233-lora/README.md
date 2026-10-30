@@ -49,6 +49,19 @@ golden は `bun run gallery` と
 （3145 pass / 13 skip / 0 fail）、`bun run gallery:check`、
 `bun run schema:check`、`bun run emoji:check` がすべて通過した。
 
+## #246 の再確認
+
+structured の gap 補正前に揃った端を口へ直線化する修正後、上記の lint・render・
+preview を再実行。左右の LoRA は east/west の外側の口へ接続するため SVG と
+100,542 bytes の PNG は変更なし。プレビューを開き、2 枚の台形・ラベル・バッジ・
+隣接する辺端を確認した。render は既存の `geometry/script-too-small` info 1 件のみ。
+修正した north/south の口への直線接続と移動不能時の warning は
+`src/layout/route/split-bowtie.test.ts` で route points を回帰検査する。
+リポジトリ全 150 YAML × 6 Theme 指定（自テーマを含む）= 900 組の互換性比較でも、
+生成可能な SVG/PDF/picture PPTX 各 628 件・editable PPTX 428 件・D2 222 件の
+sha256 と描画不能時の診断コードがすべて一致した。結果は
+`.sumi/compat-246-{before,after}.json` に保存した。
+
 ## #245 の再確認（§6.68）
 
 split bowtie のラベルを左台形内へ移し、片側に padding 済み文字幅を確保する

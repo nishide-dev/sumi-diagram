@@ -47,7 +47,9 @@ keep text clear of painted outlines and the gap (0 or omitted keeps the joined s
 from 0–64 in D2 units (each 0.5pt), clamped to half the width for a small
 explicit size. The whole node, including the gap, blocks other edges; a
 north/south port aimed into the gap moves to the nearest painted lip (left
-on a tie). `trapezoid` takes `props.narrow: south|north|east|west` to choose
+on a tie). Structured layout aligns a movable neighbour with that lip when
+the original ports were aligned; otherwise an unavoidable lip step is
+reported as `layout/unaligned-ends`. `trapezoid` takes `props.narrow: south|north|east|west` to choose
 the narrow edge; the default `south` keeps the wide top. Both work in auto
 and structured layouts and as native editable PPTX shapes; badges remain
 picture-PPTX only.
