@@ -121,7 +121,12 @@ describe("sublabel (#184): DiT", () => {
       "geometry/arrowhead-cramped",
       "geometry/arrowhead-cramped",
     ]);
-    expect(codes(await render(research), research)).toEqual(codes(rendered, source));
+    expect(codes(await render(research), research)).toEqual([
+      "geometry/exceeds-page-width",
+      "geometry/group-empty-area",
+      "geometry/arrowhead-cramped",
+      "geometry/arrowhead-cramped",
+    ]);
   });
 
   test("each node draws its label and a smaller sublabel <text> under it", async () => {
