@@ -1,0 +1,30 @@
+[
+  {
+    "file": "research/233-lora/c-h3world.sumi.yaml",
+    "empty": 0.6062587852481656,
+    "printedPt": {
+      "panelHeight": 148.86,
+      "matrixHeight": 99.75,
+      "projectionColumn": 59.68,
+      "qkvHeight": 19.61,
+      "loraHeight": 22.17,
+      "tokensHeight": 63.94,
+      "titleToKey": 3.88,
+      "captionToBorder": 6.22
+    }
+  },
+  {
+    "file": "research/248-fill/c-h3world.sumi.yaml",
+    "empty": 0.547654738074425,
+    "printedPt": {
+      "panelHeight": 144.22,
+      "matrixHeight": 99.75,
+      "projectionColumn": 96.34,
+      "qkvHeight": 54.55,
+      "loraHeight": 23.87,
+      "tokensHeight": 99.75,
+      "titleToKey": 2.77,
+      "captionToBorder": 5.12
+    }
+  }
+]

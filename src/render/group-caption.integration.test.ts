@@ -47,8 +47,16 @@ async function render(
   expect(notInfo(result.diagnostics)).toEqual([]);
   // #217 exposes an existing 0.145-unit step before Loss in the structured
   // fixture: the two vertical legs have different fixed port columns.
+  const geometry = lintGeometry(result.value, { source });
   expect(
-    lintGeometry(result.value, { source }).map((d) => [d.code, d.severity, d.subject?.id]),
+    geometry
+      .filter((d) => d.code === "geometry/group-empty-area")
+      .every((d) => d.severity === "info"),
+  ).toBe(true);
+  expect(
+    geometry
+      .filter((d) => d.code !== "geometry/group-empty-area")
+      .map((d) => [d.code, d.severity, d.subject?.id]),
   ).toEqual(jogEdges.map((id) => ["geometry/edge-jog", "info", id]));
   return result.value;
 }

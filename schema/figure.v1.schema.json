@@ -478,6 +478,15 @@
                 "stretch"
               ]
             },
+            "justify": {
+              "description": "Extra main-axis space: center (default), stretch resizable items equally, or space-between items. Does not inherit; explicit sizes and fixed-aspect shapes are preserved.",
+              "type": "string",
+              "enum": [
+                "center",
+                "stretch",
+                "space-between"
+              ]
+            },
             "items": {
               "minItems": 1,
               "type": "array",
@@ -531,6 +540,15 @@
                 "center",
                 "end",
                 "stretch"
+              ]
+            },
+            "justify": {
+              "description": "Extra main-axis space: center (default), stretch resizable items equally, or space-between items. Does not inherit; explicit sizes and fixed-aspect shapes are preserved.",
+              "type": "string",
+              "enum": [
+                "center",
+                "stretch",
+                "space-between"
               ]
             },
             "items": {
