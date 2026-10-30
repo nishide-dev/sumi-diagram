@@ -2269,6 +2269,15 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **最終検証**: `bun run check`・`bun run typecheck`・`CI=1 bun test`（**2,988 pass / 13 skip / 0 fail**）・`bun run gallery:check`（165 ファイル）・`bun run schema:check`・`bun run emoji:check` が成功。darwin-arm64 の `release:build` と拡大セットを使う `release:smoke` も成功した。
 
 
+### 6.69 #246 の split bowtie の口と隣接端の直線化
+
+- **原因**: structured の通常の横 `row [box, bowtie(gap: 8), box]` は左右の外側の口で既に直線になる。一方、north/south の接続は §6.66 が gap 中央の port を左の口へ 4 unit 移すため、§6.40 の許容差 2 unit を超え、段差も `layout/unaligned-ends` の検査も対象外になっていた。gap が小さい場合も、直線化の候補を再解決すると gap から同じ口へ戻るのに「移動成功」と扱い、隣の端を試さず終了していた。
+- **解決**: port に gap 補正前の位置を内部情報として保持する。向かい合う端の実際のずれが従来の許容差内、または **gap 補正前なら許容差内**の場合だけ直線化を試す。候補の再解決後に要求した座標と一致することを確認してから使用点を更新し、gap に戻される候補は不採用として隣の端を試す。口は塗られた輪郭上に残し、既定の隣接端をその口の線へ移す。アンカーを許容差以上動かさず、共有 port を動かしたり別の端と合流したりせず、side 外にも移さない。ルータの障害物・探索費用・gap を通路にしない契約は維持する。
+- **診断・検査**: 同じ適格条件を `layout/unaligned-ends`（warning）にも使い、共有端・アンカー・狭い side のため移動不能なら gap と口のずれを明示する。経路の独立検査 `checkRoutes` は split body の端点だけ `boundaries` の実輪郭で確認し、衝突検査には従来の enclosing region を使う。空の gap 内への接続を正しい端点として認めない。
+- **回帰・互換性**: 全 5 Theme で横 row の両辺、縦 stack の入出力と gap 1/4/8/64（幅による clamp を含む）の route points を検査する。アンカー・共有 net・口が隣の side 外にある場合の残る段差と診断、gap 内に改変した端点の拒否も検査する。新 API・部品・variant・Theme は追加せず、catalog と全 Theme × variant の gallery は既存の契約を維持する。変更を許すのは `bowtie.props.gap` 使用図のみとし、全 YAML の自テーマ＋全組み込み Theme の SVG/PDF/PPTX/D2 の sha256 を変更前後で比較する。
+- **受け入れ図**: `research/233-lora/c-h3world.sumi.yaml` を lint・render し、PNG preview を再生成して目視する。同図の LoRA は左右の口を使うため出力は変わらず、既存の添字サイズ info 1 件のみ。プレビューも同じ 100,542 bytes。
+- **実測結果**: 全 150 YAML ×（自テーマ＋5 Theme）= 900 組を変更前後に実行。成功 628 組の SVG/PDF/picture PPTX 各 628 件、editable PPTX 428 件、auto の D2 222 件はすべて sha256 一致。描画不能 272 組と editable 非対応の診断コードも一致した。互換性例外に該当する YAML は上記 `research/233-lora/c-h3world.sumi.yaml` のみで、実際に変化した既存図は 0。gallery は全 Theme × variant を再生成・目視し 165 ファイル差分なし。`bun run check`・`bun run typecheck`・`CI=1 bun test`（3219 pass / 13 skip / 0 fail）・`bun run gallery:check`・`bun run schema:check` が成功。
+
 ### 6.71 #248 のパネル内の空きと主軸の fill
 
 - **分類（`research/233-lora/c-h3world.sumi.yaml` の (c)）**: (1) 縦の兄弟合わせは既に row の `align: stretch` で可能だが、この図は `center`。さらに stretch された stack は余った高さを中央寄せするだけで子を大きくできない。(2) LoRA / QKV の間の明示 `6mm` は辺と badge の通路で、単に gap を削っても列全体は伸びない。(3) token のセルには `height: 7pt` があり、明示サイズを守る配置では自動拡大できない。(4) パネル自体を (b) と同じ高さに stretch すること、軸・caption を body と同じ stack に含めることが見出し・下端の帯を作る。Profile の padding やフォントだけの問題ではない。
@@ -2279,6 +2288,7 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **描き直し・目視**: #233 の YAML とコミット済み assets をコピー（`.gitignore` は生成形式だけを除外、assets は追跡）。(b)/(c) の row は `align: start`、(c) 内は `align: stretch`、投影列と明示9 box の token 列は `justify: stretch`。LoRA は outline の制約を守って高さ28ptを明示し、余りは QKV / Out Proj. に渡す。Key / Masked Attention を matrix の北／南に1mmで attach し、凡例は中央の stack に包んで伸ばさない。印刷 pt で matrix **99.75 → 99.75**、投影列の body の全高 **59.68 → 96.34**（badge の予約を含めると matrix に一致）、QKV **19.61 → 54.55**、token 列 **63.94 → 99.75**。見出し→Key の空き **3.88 → 2.77pt**、caption→枠 **6.22 → 5.12pt**、(c) の高さ **148.86 → 144.22pt**。全体180 ×125.71mmは (a)/(b) が決めるため不変。空き比率 **60.63 → 54.77%**。`previews/c-h3world.png` **101,820 bytes** を元と見比べ、短い青い箱と token が縦方向を埋めること、凡例と軸文字が引き伸ばされないことを確認。render は既存の添字の info 1件のみ、構造 lint の9件の empty-label は意図した無文字の token box。
 
 - **互換性の実測**: `61e6c20` の renderer を worktree 内の `.sumi/248-base/` へ展開し、既存150 YAML × 自テーマ＋全5 theme の900通りを変更前後で描画（CLI と同じ `overrides.theme` を使用）。成功628通りのSVG / PDF / picture PPTX、autoのD2 222通りのsha256と、生成不可272通りのerror codeが全件一致した。両manifestのsha256は `b935f1789c3ce83c220f7c536faefb401df8f4778fe27363d7bda0c55ab1fc43`（[`compatibility.json`](../../research/248-fill/compatibility.json)）。全theme×variantのgalleryは165 files変更0。指定のPDF/PPTX/assets golden再生成も594 pass・変更0。既存図の診断が増えた箇所だけテストの期待を更新し、出力のgoldenは変更しない。
+
 
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures

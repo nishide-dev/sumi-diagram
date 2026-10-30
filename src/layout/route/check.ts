@@ -12,6 +12,7 @@
 import type { FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type { Region } from "../../core/geometry";
+import { getOutlineRenderer } from "../../core/outline";
 import { obstaclesCrossedByRoute, type RouteObstacle } from "../../lint/geometry/edges";
 import { rectPolygon, segmentCrossesRect } from "../../lint/geometry/shapes";
 import type { EdgeLayout, LayoutIR, Point, Rect } from "../ir";
@@ -154,11 +155,22 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
   const nodeIR = new Map(ir.nodes.map((n) => [n.key, n]));
   const edgeIR = new Map(ir.edges.map((e) => [e.key, e]));
   const regions = new Map<ElementKey, Region>();
+  const painted = new Map<ElementKey, readonly Region[]>();
   const rects = new Map<ElementKey, Rect>();
   for (const node of layout.nodes) {
     const n = nodeIR.get(node.key);
     if (n === undefined) throw new Error(`internal error: ${node.key} is not in the IR`);
     regions.set(node.key, nodeRegion(n, node.rect));
+    if (n.render !== undefined) {
+      const renderer = getOutlineRenderer(n.render.renderer);
+      const drawing = renderer?.draw(node.rect, renderer.params.parse(n.render.params ?? {}));
+      if (drawing?.boundaries) {
+        painted.set(
+          node.key,
+          drawing.boundaries.map((points) => ({ kind: "polygon", points })),
+        );
+      }
+    }
     rects.set(node.key, node.rect);
   }
   for (const group of layout.groups) {
@@ -300,7 +312,8 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
         miss("no side");
         continue;
       }
-      if (!onOutline(regions.get(key) as Region, end)) miss(`${end.x},${end.y} not on the outline`);
+      if (!(painted.get(key) ?? [regions.get(key) as Region]).some((r) => onOutline(r, end)))
+        miss(`${end.x},${end.y} not on the outline`);
       const vertical = SIDE_DIR[side] % 2 === 1;
       if (vertical ? Math.abs(end.x - next.x) > EPS : Math.abs(end.y - next.y) > EPS) {
         miss(`not perpendicular to the ${side} side`);
