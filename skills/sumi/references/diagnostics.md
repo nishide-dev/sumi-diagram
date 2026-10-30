@@ -1,5 +1,16 @@
 # Reading and fixing diagnostics
 
+`geometry/group-empty-area` (info, render / `lint --geometry` only): at
+least 75% of a group's frame lies outside its title and direct children's
+bounding boxes, with overlaps counted once and edges excluded. This is an
+occupancy estimate, not empty pixels; nested groups occupy their whole
+footprint and generated tokens/matrix/legend frames are skipped. Consider
+`align: stretch` with inner `justify: stretch`, or `justify: space-between`
+for fixed-size items; reduce gaps or avoid stretching a panel for tighter
+title/caption spacing. Intentional whitespace needs no change; this does
+not consume `maxWarnings`. The conservative threshold need not report
+every panel worth improving.
+
 ## Corner badges (0.7.0)
 
 - `component/badge-unsupported`: the node expands into parts (`legend`,
@@ -131,7 +142,7 @@ is no per-figure suppression; mention kept warnings in your report instead.
 | `layout/align-grew-figure` (info) | structured: the `align` struts made the figure wider / taller than without `align` (by more than 5mm and 10%); the message gives the sizes before and after | look at the render: if the added space is unwanted, align an item that can move alone (wrap it in its own `stack` / `row`), or drop the constraint ([align](structured.md#aligning-across-trees)) |
 | `layout/edge-label-overlap` (warning) | structured: an edge label with `labelAt` / `labelSide` found no clear spot on its segment and side, so it overlaps what the message names | the other `labelSide`, another `labelAt`, remove both, or make room (`gap`, anchors, shorter label) |
 | `layout/straight-off-side` (warning) | structured: an end written `straight` has no side facing the other end in line with its centre (the centre is past the side's corner margin of 3pt, the two are diagonal, or they overlap / one holds the other / a self-loop), so it was drawn as an end without an anchor; or it resolved but could not be put in line (parallel edges from a wide element into a narrow one keep separate points) | put the two in line (one above the other in a stack, side by side in a row; `align`), widen the box, write `straight` on the wide element's end instead, or write a side anchor (`"north:0.3"`) ([anchors](structured.md#edges-anchors-junctions-and-trunks)) |
-| `layout/unaligned-ends` (warning) | structured: an edge's ends face each other out of line by more than 0 and at most 1pt, and neither could be moved into line (both share their points with other edges), so the line jogs by a sliver or goes around an end | write the same position for both ends (equal anchor offsets on sides of equal length, or no anchors), or give one end a point of its own |
+| `layout/unaligned-ends` (warning) | structured: facing ends are within 1pt of alignment (or were before a split bowtie gap moved a port to a painted lip), but shared ports, anchors or side limits prevent straightening | align with the painted lip, remove the neighbour's anchor, or give one end an unshared point with room to move |
 | `layout/edge-crossing` (info) | structured: two separate lines cross (at most 10 listed, then a summary; the shared hint is on the first only) | optional: move the edge to straighten earlier in `edges`, use anchors, or change the arrangement; keep unavoidable ones ([crossings](structured.md#crossings-layoutedge-crossing)) |
 | `backend/d2-not-found`, `backend/d2-version-mismatch` | D2 missing or not v0.9.0 | user reinstalls the release tarball (D2 is bundled), runs `bun run d2:install` in a source checkout, or sets `SUMI_D2_PATH`; stop |
 | `backend/d2-failed`, `backend/d2-timeout`, `backend/empty-output`, `backend/io-error`, `backend/invalid-args` | D2 itself failed | not a figure problem; report with the message (use `--emit-d2 out.d2` to keep the generated source; structured figures do not use D2 and refuse `--emit-d2` with exit 2) |
@@ -178,7 +189,8 @@ exit code 1. Configure like structural rules
 | `geometry/reversed-edge` | warning | ELK reversed the wrong edge of a cycle (typically a loop inside a group): swap the order of the loop's nodes in `nodes`, or move the loop out of the group |
 
 For custom outline components, `geometry/label-overflow` checks the renderer's
-safe label rectangle, and shape collisions use its convex collision region
+safe label rectangle and overlap with painted boundary segments (including
+the inner edges of a split bowtie); shape collisions use its convex collision region
 (or the outline's convex hull). A label may fit the layout rectangle and still
 overflow its safe area. Automatically generated dimensions do not count as
 explicit `props`: those findings point at `label`. Partial or fully explicit

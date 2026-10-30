@@ -12,6 +12,7 @@
 import type { FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type { Region } from "../../core/geometry";
+import { getOutlineRenderer } from "../../core/outline";
 import { obstaclesCrossedByRoute, type RouteObstacle } from "../../lint/geometry/edges";
 import { rectPolygon, segmentCrossesRect } from "../../lint/geometry/shapes";
 import type { EdgeLayout, LayoutIR, Point, Rect } from "../ir";
@@ -154,11 +155,22 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
   const nodeIR = new Map(ir.nodes.map((n) => [n.key, n]));
   const edgeIR = new Map(ir.edges.map((e) => [e.key, e]));
   const regions = new Map<ElementKey, Region>();
+  const painted = new Map<ElementKey, readonly Region[]>();
   const rects = new Map<ElementKey, Rect>();
   for (const node of layout.nodes) {
     const n = nodeIR.get(node.key);
     if (n === undefined) throw new Error(`internal error: ${node.key} is not in the IR`);
     regions.set(node.key, nodeRegion(n, node.rect));
+    if (n.render !== undefined) {
+      const renderer = getOutlineRenderer(n.render.renderer);
+      const drawing = renderer?.draw(node.rect, renderer.params.parse(n.render.params ?? {}));
+      if (drawing?.boundaries) {
+        painted.set(
+          node.key,
+          drawing.boundaries.map((points) => ({ kind: "polygon", points })),
+        );
+      }
+    }
     rects.set(node.key, node.rect);
   }
   for (const group of layout.groups) {
@@ -275,11 +287,40 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
       ],
     ] as const;
     // How far each end lies from its anchor along its side: 0 without one,
-    // infinite on another side.
+    // infinite on another side. A split bowtie's mandatory gap correction
+    // defines the anchor's baseline, independently of #169 straightening.
     const anchorOffsets = ends.map(([, key, end, , side, anchor]) => {
       if (typeof anchor !== "object" || end === undefined || side === undefined) return 0;
       if (anchor.side !== side) return Number.POSITIVE_INFINITY;
       const want = anchorPoint(rects.get(key) as Rect, anchor);
+      if (
+        nodeIR.get(key)?.render?.renderer === "sumi/bowtie" &&
+        (side === "north" || side === "south")
+      ) {
+        const spans = painted.get(key)?.flatMap((region) =>
+          region.kind === "polygon"
+            ? [
+                {
+                  min: Math.min(...region.points.map((p) => p.x)),
+                  max: Math.max(...region.points.map((p) => p.x)),
+                },
+              ]
+            : [],
+        );
+        if (spans?.length && !spans.some(({ min, max }) => want.x >= min && want.x <= max)) {
+          // Nearest painted lip, left on ties; round toward the painted body.
+          const lip = spans
+            .flatMap(({ min, max }) => [min, max])
+            .reduce((best, x) => {
+              const delta = Math.abs(x - want.x) - Math.abs(best - want.x);
+              return delta < -1e-6 || (Math.abs(delta) <= 1e-6 && x < best) ? x : best;
+            });
+          want.x =
+            lip < want.x
+              ? Math.floor(lip * 1000 + 1e-6) / 1000
+              : Math.ceil(lip * 1000 - 1e-6) / 1000;
+        }
+      }
       return SIDE_DIR[side] % 2 === 1 ? Math.abs(want.x - end.x) : Math.abs(want.y - end.y);
     });
     for (const [k, [which, key, end, next, side, anchor]] of ends.entries()) {
@@ -300,7 +341,8 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
         miss("no side");
         continue;
       }
-      if (!onOutline(regions.get(key) as Region, end)) miss(`${end.x},${end.y} not on the outline`);
+      if (!(painted.get(key) ?? [regions.get(key) as Region]).some((r) => onOutline(r, end)))
+        miss(`${end.x},${end.y} not on the outline`);
       const vertical = SIDE_DIR[side] % 2 === 1;
       if (vertical ? Math.abs(end.x - next.x) > EPS : Math.abs(end.y - next.y) > EPS) {
         miss(`not perpendicular to the ${side} side`);

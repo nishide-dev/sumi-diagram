@@ -1,0 +1,1139 @@
+{
+  "summary": {
+    "figures": 150,
+    "rendered": 114,
+    "groups": 225,
+    "p50": 0.5681236151402255,
+    "p75": 0.6927784348045922,
+    "p90": 0.7524552370296027,
+    "p95": 0.7655978202834482,
+    "max": 0.9319
+  },
+  "groups": [
+    {
+      "file": "research/109-dogfood-v0.4/figures/serving-architecture.sumi.yaml",
+      "id": "g:storage",
+      "empty": 0.3433972734864674
+    },
+    {
+      "file": "research/151-dogfood-v0.5/figures/serving-architecture.sumi.yaml",
+      "id": "g:platform",
+      "empty": 0.3618677674403705
+    },
+    {
+      "file": "research/182-compact/figures/c-h3world.sumi.yaml",
+      "id": "g:mask",
+      "empty": 0.38622871263991543
+    },
+    {
+      "file": "examples/grouped/grouped.sumi.yaml",
+      "id": "g:system",
+      "empty": 0.3916919322363658
+    },
+    {
+      "file": "tests/fixtures/compile/builtins.sumi.yaml",
+      "id": "g:quiet",
+      "empty": 0.4043680154948025
+    },
+    {
+      "file": "research/182-compact/figures/a-transformer.sumi.yaml",
+      "id": "g:decoder",
+      "empty": 0.4189490673356032
+    },
+    {
+      "file": "research/185-acceptance/figures/a-transformer.sumi.yaml",
+      "id": "g:decoder",
+      "empty": 0.4189490673356032
+    },
+    {
+      "file": "tests/fixtures/figures/compact/a-transformer.sumi.yaml",
+      "id": "g:decoder",
+      "empty": 0.4189490673356032
+    },
+    {
+      "file": "research/173-paper-theme/figures/c-h3world.sumi.yaml",
+      "id": "g:mask",
+      "empty": 0.42294288553679726
+    },
+    {
+      "file": "research/177-outlined-tones/figures/c-h3world.sumi.yaml",
+      "id": "g:mask",
+      "empty": 0.42294288553679726
+    },
+    {
+      "file": "research/167-stage-c/figures/c-h3world.sumi.yaml",
+      "id": "g:mask",
+      "empty": 0.42383930107305934
+    },
+    {
+      "file": "research/176-zoom-edge/figures/c-h3world.sumi.yaml",
+      "id": "g:mask",
+      "empty": 0.42383930107305934
+    },
+    {
+      "file": "research/181-tokens/figures/c-h3world.sumi.yaml",
+      "id": "g:mask",
+      "empty": 0.42383930107305934
+    },
+    {
+      "file": "tests/fixtures/figures/fit/c-h3world.sumi.yaml",
+      "id": "g:mask",
+      "empty": 0.42383930107305934
+    },
+    {
+      "file": "examples/transformer/transformer.sumi.yaml",
+      "id": "g:decoder",
+      "empty": 0.431742395814252
+    },
+    {
+      "file": "research/167-stage-c/figures/a-transformer.sumi.yaml",
+      "id": "g:decoder",
+      "empty": 0.43846733787562187
+    },
+    {
+      "file": "research/86-paper-figures/figures/ideal/a-transformer.sumi.yaml",
+      "id": "g:decoder",
+      "empty": 0.4397070652373918
+    },
+    {
+      "file": "tests/fixtures/figures/layout/a-transformer.sumi.yaml",
+      "id": "g:decoder",
+      "empty": 0.4397070652373918
+    },
+    {
+      "file": "research/182-compact/figures/a-transformer.sumi.yaml",
+      "id": "g:encoder",
+      "empty": 0.4430177723804881
+    },
+    {
+      "file": "research/185-acceptance/figures/a-transformer.sumi.yaml",
+      "id": "g:encoder",
+      "empty": 0.4430177723804881
+    },
+    {
+      "file": "tests/fixtures/figures/compact/a-transformer.sumi.yaml",
+      "id": "g:encoder",
+      "empty": 0.4430177723804881
+    },
+    {
+      "file": "research/109-dogfood-v0.4/figures/seq2seq-attention.sumi.yaml",
+      "id": "g:decoder",
+      "empty": 0.4437847523117262
+    },
+    {
+      "file": "research/173-paper-theme/figures/a-transformer.sumi.yaml",
+      "id": "g:decoder",
+      "empty": 0.44502954371375436
+    },
+    {
+      "file": "research/167-stage-c/figures/c-h3world.sumi.yaml",
+      "id": "g:b-inner",
+      "empty": 0.446729777793745
+    },
+    {
+      "file": "research/173-paper-theme/figures/c-h3world.sumi.yaml",
+      "id": "g:b-inner",
+      "empty": 0.446729777793745
+    },
+    {
+      "file": "research/176-zoom-edge/figures/c-h3world.sumi.yaml",
+      "id": "g:b-inner",
+      "empty": 0.446729777793745
+    },
+    {
+      "file": "research/177-outlined-tones/figures/c-h3world.sumi.yaml",
+      "id": "g:b-inner",
+      "empty": 0.446729777793745
+    },
+    {
+      "file": "research/180-matrix/figures/c-h3world.sumi.yaml",
+      "id": "g:b-inner",
+      "empty": 0.446729777793745
+    },
+    {
+      "file": "research/181-tokens/figures/c-h3world.sumi.yaml",
+      "id": "g:b-inner",
+      "empty": 0.446729777793745
+    },
+    {
+      "file": "tests/fixtures/figures/fit/c-h3world.sumi.yaml",
+      "id": "g:b-inner",
+      "empty": 0.446729777793745
+    },
+    {
+      "file": "examples/pipeline/pipeline.sumi.yaml",
+      "id": "g:storage",
+      "empty": 0.45089306670422
+    },
+    {
+      "file": "research/124-stage-b/figures/serving-architecture.sumi.yaml",
+      "id": "g:storage",
+      "empty": 0.45151133252431463
+    },
+    {
+      "file": "research/135-skill-dogfood/figures/serving-architecture.sumi.yaml",
+      "id": "g:storage",
+      "empty": 0.45151133252431463
+    },
+    {
+      "file": "research/151-dogfood-v0.5/figures/serving-architecture.sumi.yaml",
+      "id": "g:storage",
+      "empty": 0.45151133252431463
+    },
+    {
+      "file": "examples/transformer/transformer.sumi.yaml",
+      "id": "g:encoder",
+      "empty": 0.45488757681400716
+    },
+    {
+      "file": "research/151-dogfood-v0.5/repro/align-grows-figure.sumi.yaml",
+      "id": "g:platform",
+      "empty": 0.4553156855160695
+    },
+    {
+      "file": "research/167-stage-c/figures/a-transformer.sumi.yaml",
+      "id": "g:encoder",
+      "empty": 0.4613386114079242
+    },
+    {
+      "file": "research/216-token-separator/c-h3world.sumi.yaml",
+      "id": "g:b-inner",
+      "empty": 0.46243289339292415
+    },
+    {
+      "file": "research/86-paper-figures/figures/ideal/a-transformer.sumi.yaml",
+      "id": "g:encoder",
+      "empty": 0.4627534354136451
+    },
+    {
+      "file": "tests/fixtures/figures/layout/a-transformer.sumi.yaml",
+      "id": "g:encoder",
+      "empty": 0.4627534354136451
+    },
+    {
+      "file": "research/126-grid/c-h3world.sumi.yaml",
+      "id": "g:b-inner",
+      "empty": 0.4640427200223358
+    },
+    {
+      "file": "research/182-compact/figures/c-h3world.sumi.yaml",
+      "id": "g:b-inner",
+      "empty": 0.4640427200223358
+    },
+    {
+      "file": "research/185-acceptance/figures/c-h3world.sumi.yaml",
+      "id": "g:b-inner",
+      "empty": 0.4640427200223358
+    },
+    {
+      "file": "research/186-color-spans/c-h3world.sumi.yaml",
+      "id": "g:b-inner",
+      "empty": 0.4640427200223358
+    },
+    {
+      "file": "research/188-badges-emoji-bowtie/c-h3world.sumi.yaml",
+      "id": "g:b-inner",
+      "empty": 0.4640427200223358
+    },
+    {
+      "file": "research/214-solid-tinted/figures/c-h3world.sumi.yaml",
+      "id": "g:b-inner",
+      "empty": 0.4640427200223358
+    },
+    {
+      "file": "research/233-lora/c-h3world.sumi.yaml",
+      "id": "g:b-inner",
+      "empty": 0.4640427200223358
+    },
+    {
+      "file": "research/109-dogfood-v0.4/figures/seq2seq-attention.sumi.yaml",
+      "id": "g:encoder",
+      "empty": 0.46651612460826497
+    },
+    {
+      "file": "research/124-stage-b/figures/seq2seq-attention.sumi.yaml",
+      "id": "g:decoder",
+      "empty": 0.4668711178485119
+    },
+    {
+      "file": "research/173-paper-theme/figures/a-transformer.sumi.yaml",
+      "id": "g:encoder",
+      "empty": 0.46763314363510833
+    },
+    {
+      "file": "research/151-dogfood-v0.5/figures/serving-architecture.sumi.yaml",
+      "id": "g:workers",
+      "empty": 0.4753756463183092
+    },
+    {
+      "file": "tests/fixtures/compile/group-label-at.sumi.yaml",
+      "id": "g:br",
+      "empty": 0.47957157784743987
+    },
+    {
+      "file": "examples/system-architecture/system-architecture.sumi.yaml",
+      "id": "g:services",
+      "empty": 0.4798720126522962
+    },
+    {
+      "file": "tests/fixtures/pdf-latex/japanese.sumi.yaml",
+      "id": "g:system",
+      "empty": 0.4802410590792333
+    },
+    {
+      "file": "tests/fixtures/compile/structure.sumi.yaml",
+      "id": "g:middle",
+      "empty": 0.4856115107913669
+    },
+    {
+      "file": "tests/fixtures/compile/group-label-at.sumi.yaml",
+      "id": "g:bl",
+      "empty": 0.4863815318539728
+    },
+    {
+      "file": "examples/grouped/grouped.sumi.yaml",
+      "id": "g:module-b",
+      "empty": 0.4906218640462461
+    },
+    {
+      "file": "research/124-stage-b/figures/seq2seq-attention.side-kv.sumi.yaml",
+      "id": "g:encoder",
+      "empty": 0.497619273642974
+    },
+    {
+      "file": "research/135-skill-dogfood/figures/seq2seq-attention.sumi.yaml",
+      "id": "g:encoder",
+      "empty": 0.497619273642974
+    },
+    {
+      "file": "tests/fixtures/figures/layout/align-side-kv.sumi.yaml",
+      "id": "g:encoder",
+      "empty": 0.497619273642974
+    },
+    {
+      "file": "research/124-stage-b/figures/seq2seq-attention.sumi.yaml",
+      "id": "g:encoder",
+      "empty": 0.4976192736429742
+    },
+    {
+      "file": "research/124-stage-b/figures/seq2seq-attention.side-kv.sumi.yaml",
+      "id": "g:decoder",
+      "empty": 0.4976256701179762
+    },
+    {
+      "file": "tests/fixtures/figures/layout/align-side-kv.sumi.yaml",
+      "id": "g:decoder",
+      "empty": 0.4976256701179762
+    },
+    {
+      "file": "research/135-skill-dogfood/figures/seq2seq-attention.sumi.yaml",
+      "id": "g:decoder",
+      "empty": 0.4976256701179763
+    },
+    {
+      "file": "research/151-dogfood-v0.5/figures/dit-block.sumi.yaml",
+      "id": "g:block",
+      "empty": 0.4977766854865957
+    },
+    {
+      "file": "tests/fixtures/compile/group-label-at.sumi.yaml",
+      "id": "g:tr",
+      "empty": 0.49972617743702086
+    },
+    {
+      "file": "tests/fixtures/compile/group-label-at.sumi.yaml",
+      "id": "g:bc",
+      "empty": 0.502187803299903
+    },
+    {
+      "file": "tests/fixtures/compile/group-label-at.sumi.yaml",
+      "id": "g:tl",
+      "empty": 0.5074567993989482
+    },
+    {
+      "file": "research/109-dogfood-v0.4/figures/serving-architecture.sumi.yaml",
+      "id": "g:gpu",
+      "empty": 0.5087154170116448
+    },
+    {
+      "file": "tests/fixtures/figures/geometry/containment.sumi.yaml",
+      "id": "g:system",
+      "empty": 0.5093722126319109
+    },
+    {
+      "file": "examples/system-architecture/system-architecture.sumi.yaml",
+      "id": "g:clients",
+      "empty": 0.5098367066785852
+    },
+    {
+      "file": "research/126-grid/c-h3world.sumi.yaml",
+      "id": "g:adapt",
+      "empty": 0.5124899946991319
+    },
+    {
+      "file": "research/182-compact/figures/c-h3world.sumi.yaml",
+      "id": "g:adapt",
+      "empty": 0.5124899946991319
+    },
+    {
+      "file": "research/185-acceptance/figures/c-h3world.sumi.yaml",
+      "id": "g:adapt",
+      "empty": 0.5124899946991319
+    },
+    {
+      "file": "research/188-badges-emoji-bowtie/c-h3world.sumi.yaml",
+      "id": "g:adapt",
+      "empty": 0.5124899946991319
+    },
+    {
+      "file": "research/214-solid-tinted/figures/c-h3world.sumi.yaml",
+      "id": "g:adapt",
+      "empty": 0.5124899946991319
+    },
+    {
+      "file": "research/233-lora/c-h3world.sumi.yaml",
+      "id": "g:adapt",
+      "empty": 0.5124899946991319
+    },
+    {
+      "file": "research/186-color-spans/c-h3world.sumi.yaml",
+      "id": "g:adapt",
+      "empty": 0.512489994699132
+    },
+    {
+      "file": "research/124-stage-b/figures/serving-architecture.sumi.yaml",
+      "id": "g:workers",
+      "empty": 0.5125716086697674
+    },
+    {
+      "file": "research/135-skill-dogfood/figures/serving-architecture.sumi.yaml",
+      "id": "g:workers",
+      "empty": 0.5125716086697674
+    },
+    {
+      "file": "research/216-token-separator/c-h3world.sumi.yaml",
+      "id": "g:adapt",
+      "empty": 0.5129216908619559
+    },
+    {
+      "file": "research/173-paper-theme/figures/c-h3world.sumi.yaml",
+      "id": "g:adapt",
+      "empty": 0.5148595451762539
+    },
+    {
+      "file": "research/177-outlined-tones/figures/c-h3world.sumi.yaml",
+      "id": "g:adapt",
+      "empty": 0.5148595451762539
+    },
+    {
+      "file": "research/180-matrix/figures/c-h3world.sumi.yaml",
+      "id": "g:adapt",
+      "empty": 0.5148595451762539
+    },
+    {
+      "file": "research/167-stage-c/figures/c-h3world.sumi.yaml",
+      "id": "g:adapt",
+      "empty": 0.515249132809996
+    },
+    {
+      "file": "research/176-zoom-edge/figures/c-h3world.sumi.yaml",
+      "id": "g:adapt",
+      "empty": 0.515249132809996
+    },
+    {
+      "file": "research/181-tokens/figures/c-h3world.sumi.yaml",
+      "id": "g:adapt",
+      "empty": 0.515249132809996
+    },
+    {
+      "file": "tests/fixtures/figures/fit/c-h3world.sumi.yaml",
+      "id": "g:adapt",
+      "empty": 0.515249132809996
+    },
+    {
+      "file": "examples/system-architecture/system-architecture.sumi.yaml",
+      "id": "g:data",
+      "empty": 0.5168933028694969
+    },
+    {
+      "file": "tests/fixtures/compile/group-label-at.sumi.yaml",
+      "id": "g:tc",
+      "empty": 0.5218528218992903
+    },
+    {
+      "file": "research/124-stage-b/figures/serving-architecture.sumi.yaml",
+      "id": "g:platform",
+      "empty": 0.5224767666433909
+    },
+    {
+      "file": "research/135-skill-dogfood/figures/serving-architecture.sumi.yaml",
+      "id": "g:platform",
+      "empty": 0.5224767666433909
+    },
+    {
+      "file": "research/109-dogfood-v0.4/figures/serving-architecture.sumi.yaml",
+      "id": "g:platform",
+      "empty": 0.5246702882353119
+    },
+    {
+      "file": "research/167-stage-c/repro/operator-loop.sumi.yaml",
+      "id": "g:incontext",
+      "empty": 0.5262813741847017
+    },
+    {
+      "file": "tests/fixtures/compile/group-caption.sumi.yaml",
+      "id": "g:dec",
+      "empty": 0.5375072843822843
+    },
+    {
+      "file": "research/182-compact/figures/c-h3world.sumi.yaml",
+      "id": "g:build",
+      "empty": 0.5391780208983696
+    },
+    {
+      "file": "tests/fixtures/compile/structure.sumi.yaml",
+      "id": "g:inner",
+      "empty": 0.5426002440002211
+    },
+    {
+      "file": "research/109-dogfood-v0.4/figures/serving-architecture.sumi.yaml",
+      "id": "g:clients",
+      "empty": 0.5476048730337821
+    },
+    {
+      "file": "research/124-stage-b/figures/serving-architecture.sumi.yaml",
+      "id": "g:clients",
+      "empty": 0.5476071461933624
+    },
+    {
+      "file": "research/135-skill-dogfood/figures/serving-architecture.sumi.yaml",
+      "id": "g:clients",
+      "empty": 0.5476071461933624
+    },
+    {
+      "file": "research/151-dogfood-v0.5/figures/serving-architecture.sumi.yaml",
+      "id": "g:clients",
+      "empty": 0.5476071461933624
+    },
+    {
+      "file": "tests/fixtures/figures/lint/missing-glyph.sumi.yaml",
+      "id": "g:family",
+      "empty": 0.5508478766005833
+    },
+    {
+      "file": "research/186-color-spans/c-h3world.sumi.yaml",
+      "id": "g:build",
+      "empty": 0.5544363013519626
+    },
+    {
+      "file": "examples/grouped/grouped.sumi.yaml",
+      "id": "g:submodule",
+      "empty": 0.5574888931032357
+    },
+    {
+      "file": "research/188-badges-emoji-bowtie/c-h3world.sumi.yaml",
+      "id": "g:build",
+      "empty": 0.5585662417134862
+    },
+    {
+      "file": "research/233-lora/c-h3world.sumi.yaml",
+      "id": "g:build",
+      "empty": 0.5585662417134862
+    },
+    {
+      "file": "tests/fixtures/figures/lint/ancestor-edge.sumi.yaml",
+      "id": "g:inner",
+      "empty": 0.5595209911616161
+    },
+    {
+      "file": "research/151-dogfood-v0.5/repro/caption-blocks-input.sumi.yaml",
+      "id": "g:block",
+      "empty": 0.5623162518802132
+    },
+    {
+      "file": "tests/fixtures/compile/structure.sumi.yaml",
+      "id": "g:outer",
+      "empty": 0.5650954691195661
+    },
+    {
+      "file": "examples/grouped/grouped.sumi.yaml",
+      "id": "g:module-a",
+      "empty": 0.5657495545929478
+    },
+    {
+      "file": "research/126-grid/c-h3world.sumi.yaml",
+      "id": "g:build",
+      "empty": 0.5681236151402255
+    },
+    {
+      "file": "research/185-acceptance/figures/c-h3world.sumi.yaml",
+      "id": "g:build",
+      "empty": 0.5681236151402255
+    },
+    {
+      "file": "research/214-solid-tinted/figures/c-h3world.sumi.yaml",
+      "id": "g:build",
+      "empty": 0.5681236151402255
+    },
+    {
+      "file": "research/216-token-separator/c-h3world.sumi.yaml",
+      "id": "g:build",
+      "empty": 0.5724859049979019
+    },
+    {
+      "file": "tests/fixtures/figures/geometry/reversed-edge-group.sumi.yaml",
+      "id": "g:g",
+      "empty": 0.5727949251314608
+    },
+    {
+      "file": "research/173-paper-theme/figures/c-h3world.sumi.yaml",
+      "id": "g:build",
+      "empty": 0.574028851783296
+    },
+    {
+      "file": "research/177-outlined-tones/figures/c-h3world.sumi.yaml",
+      "id": "g:build",
+      "empty": 0.574028851783296
+    },
+    {
+      "file": "tests/fixtures/compile/group-caption.sumi.yaml",
+      "id": "g:inner",
+      "empty": 0.575625
+    },
+    {
+      "file": "tests/fixtures/figures/geometry/edge-crosses-label.sumi.yaml",
+      "id": "g:stages",
+      "empty": 0.5765098878890185
+    },
+    {
+      "file": "tests/fixtures/compile/structure.sumi.yaml",
+      "id": "g:side",
+      "empty": 0.5777300939899197
+    },
+    {
+      "file": "research/180-matrix/figures/c-h3world.sumi.yaml",
+      "id": "g:build",
+      "empty": 0.5809307839402156
+    },
+    {
+      "file": "research/167-stage-c/figures/c-h3world.sumi.yaml",
+      "id": "g:build",
+      "empty": 0.5839493770580946
+    },
+    {
+      "file": "research/176-zoom-edge/figures/c-h3world.sumi.yaml",
+      "id": "g:build",
+      "empty": 0.5839493770580946
+    },
+    {
+      "file": "research/181-tokens/figures/c-h3world.sumi.yaml",
+      "id": "g:build",
+      "empty": 0.5839493770580946
+    },
+    {
+      "file": "tests/fixtures/figures/fit/c-h3world.sumi.yaml",
+      "id": "g:build",
+      "empty": 0.5839493770580946
+    },
+    {
+      "file": "research/109-dogfood-v0.4/figures/serving-architecture.sumi.yaml",
+      "id": "g:workers",
+      "empty": 0.5871732530588896
+    },
+    {
+      "file": "research/124-stage-b/figures/serving-architecture.sumi.yaml",
+      "id": "g:gpu",
+      "empty": 0.5874253405840193
+    },
+    {
+      "file": "research/135-skill-dogfood/figures/serving-architecture.sumi.yaml",
+      "id": "g:gpu",
+      "empty": 0.5874253405840193
+    },
+    {
+      "file": "tests/fixtures/figures/lint/clean.sumi.yaml",
+      "id": "g:backend",
+      "empty": 0.5889065008922728
+    },
+    {
+      "file": "tests/fixtures/figures/layout/group-label-at.sumi.yaml",
+      "id": "g:br",
+      "empty": 0.6033806146572104
+    },
+    {
+      "file": "research/188-badges-emoji-bowtie/c-h3world.sumi.yaml",
+      "id": "g:lora",
+      "empty": 0.6062587852481656
+    },
+    {
+      "file": "research/233-lora/c-h3world.sumi.yaml",
+      "id": "g:lora",
+      "empty": 0.6062587852481656
+    },
+    {
+      "file": "tests/fixtures/figures/layout/group-label-at.sumi.yaml",
+      "id": "g:bl",
+      "empty": 0.610390556689012
+    },
+    {
+      "file": "tests/fixtures/figures/geometry/containment.sumi.yaml",
+      "id": "g:core",
+      "empty": 0.611351961897902
+    },
+    {
+      "file": "research/151-dogfood-v0.5/repro/align-grows-figure.sumi.yaml",
+      "id": "g:clients",
+      "empty": 0.6158473959689732
+    },
+    {
+      "file": "tests/fixtures/figures/lint/literal-newline.sumi.yaml",
+      "id": "g:panel",
+      "empty": 0.6203171390013495
+    },
+    {
+      "file": "research/151-dogfood-v0.5/figures/dit-block.sumi.yaml",
+      "id": "g:panel",
+      "empty": 0.6215316862275712
+    },
+    {
+      "file": "research/151-dogfood-v0.5/repro/align-grows-figure.sumi.yaml",
+      "id": "g:storage",
+      "empty": 0.6217489879411454
+    },
+    {
+      "file": "research/182-compact/figures/c-h3world.sumi.yaml",
+      "id": "g:lora",
+      "empty": 0.6242977176485506
+    },
+    {
+      "file": "research/126-grid/c-h3world.sumi.yaml",
+      "id": "g:lora",
+      "empty": 0.6263178906662858
+    },
+    {
+      "file": "research/185-acceptance/figures/c-h3world.sumi.yaml",
+      "id": "g:lora",
+      "empty": 0.6263178906662858
+    },
+    {
+      "file": "research/214-solid-tinted/figures/c-h3world.sumi.yaml",
+      "id": "g:lora",
+      "empty": 0.6263178906662858
+    },
+    {
+      "file": "research/216-token-separator/c-h3world.sumi.yaml",
+      "id": "g:lora",
+      "empty": 0.6263178906662858
+    },
+    {
+      "file": "research/186-color-spans/c-h3world.sumi.yaml",
+      "id": "g:lora",
+      "empty": 0.626317890666286
+    },
+    {
+      "file": "tests/fixtures/figures/layout/group-caption.sumi.yaml",
+      "id": "g:dec",
+      "empty": 0.6263297872340425
+    },
+    {
+      "file": "tests/fixtures/figures/layout/group-label-at.sumi.yaml",
+      "id": "g:tr",
+      "empty": 0.6267896202028236
+    },
+    {
+      "file": "research/151-dogfood-v0.5/figures/se-comparison.sumi.yaml",
+      "id": "g:ours",
+      "empty": 0.6322224502207152
+    },
+    {
+      "file": "tests/fixtures/figures/layout/group-label-at.sumi.yaml",
+      "id": "g:tl",
+      "empty": 0.6348455400981996
+    },
+    {
+      "file": "research/109-dogfood-v0.4/figures/training-pipeline.sumi.yaml",
+      "id": "g:data-stage",
+      "empty": 0.6392214021393327
+    },
+    {
+      "file": "tests/fixtures/figures/valid/full.sumi.yaml",
+      "id": "g:backend",
+      "empty": 0.6396113314474912
+    },
+    {
+      "file": "tests/fixtures/figures/layout/group-label-at.sumi.yaml",
+      "id": "g:bc",
+      "empty": 0.6398447676943118
+    },
+    {
+      "file": "tests/fixtures/figures/variants/b-dit-plain.sumi.yaml",
+      "id": "g:ldt",
+      "empty": 0.6516167835882412
+    },
+    {
+      "file": "tests/fixtures/figures/geometry/reversed-edge-reordered.sumi.yaml",
+      "id": "g:retry",
+      "empty": 0.6554451210145422
+    },
+    {
+      "file": "research/185-acceptance/figures/b-dit.sumi.yaml",
+      "id": "g:ldt",
+      "empty": 0.6562207168490697
+    },
+    {
+      "file": "research/86-paper-figures/figures/v1/a-transformer.sumi.yaml",
+      "id": "g:encoder",
+      "empty": 0.6617213480064452
+    },
+    {
+      "file": "tests/fixtures/figures/layout/group-label-at.sumi.yaml",
+      "id": "g:tc",
+      "empty": 0.6629671303873432
+    },
+    {
+      "file": "tests/fixtures/figures/layout/group-caption.sumi.yaml",
+      "id": "g:inner",
+      "empty": 0.6665312253743105
+    },
+    {
+      "file": "research/109-dogfood-v0.4/figures/serving-architecture.sumi.yaml",
+      "id": "g:api",
+      "empty": 0.6671515058480173
+    },
+    {
+      "file": "research/124-stage-b/figures/serving-architecture.sumi.yaml",
+      "id": "g:api",
+      "empty": 0.6671515058480173
+    },
+    {
+      "file": "research/135-skill-dogfood/figures/serving-architecture.sumi.yaml",
+      "id": "g:api",
+      "empty": 0.6671515058480173
+    },
+    {
+      "file": "tests/fixtures/figures/layout/group-caption.sumi.yaml",
+      "id": "g:enc",
+      "empty": 0.673880155663767
+    },
+    {
+      "file": "research/180-matrix/figures/c-h3world.sumi.yaml",
+      "id": "g:lora",
+      "empty": 0.6816109182261629
+    },
+    {
+      "file": "tests/fixtures/compile/labels.sumi.yaml",
+      "id": "g:g",
+      "empty": 0.6845310827165666
+    },
+    {
+      "file": "research/182-compact/figures/b-dit-tight.sumi.yaml",
+      "id": "g:adaln",
+      "empty": 0.6885896479925813
+    },
+    {
+      "file": "research/173-paper-theme/figures/c-h3world.sumi.yaml",
+      "id": "g:lora",
+      "empty": 0.689533771735082
+    },
+    {
+      "file": "research/177-outlined-tones/figures/c-h3world.sumi.yaml",
+      "id": "g:lora",
+      "empty": 0.689533771735082
+    },
+    {
+      "file": "tests/fixtures/figures/layout/label-rotation.sumi.yaml",
+      "id": "g:stack",
+      "empty": 0.6899165432576555
+    },
+    {
+      "file": "research/19-pdf-pptx/figures/ja-review.sumi.yaml",
+      "id": "g:editor",
+      "empty": 0.6913855434275326
+    },
+    {
+      "file": "research/167-stage-c/figures/c-h3world.sumi.yaml",
+      "id": "g:lora",
+      "empty": 0.6927784348045922
+    },
+    {
+      "file": "research/176-zoom-edge/figures/c-h3world.sumi.yaml",
+      "id": "g:lora",
+      "empty": 0.6927784348045922
+    },
+    {
+      "file": "research/181-tokens/figures/c-h3world.sumi.yaml",
+      "id": "g:lora",
+      "empty": 0.6927784348045922
+    },
+    {
+      "file": "tests/fixtures/figures/fit/c-h3world.sumi.yaml",
+      "id": "g:lora",
+      "empty": 0.6927784348045922
+    },
+    {
+      "file": "tests/fixtures/figures/geometry/container-label.sumi.yaml",
+      "id": "g:stages",
+      "empty": 0.6943347018441244
+    },
+    {
+      "file": "tests/fixtures/compile/group-caption.sumi.yaml",
+      "id": "g:enc",
+      "empty": 0.6969771789902603
+    },
+    {
+      "file": "examples/pipeline/pipeline.sumi.yaml",
+      "id": "g:stages",
+      "empty": 0.6974007891016087
+    },
+    {
+      "file": "tests/fixtures/figures/export/editable.sumi.yaml",
+      "id": "g:pipeline",
+      "empty": 0.702435982096999
+    },
+    {
+      "file": "tests/fixtures/compile/builtins.sumi.yaml",
+      "id": "g:plain",
+      "empty": 0.7026141826923077
+    },
+    {
+      "file": "research/86-paper-figures/figures/ideal/b-adaln-panel.sumi.yaml",
+      "id": "g:panel",
+      "empty": 0.7102161876635373
+    },
+    {
+      "file": "tests/fixtures/figures/layout/b-adaln-panel.sumi.yaml",
+      "id": "g:panel",
+      "empty": 0.7102161876635373
+    },
+    {
+      "file": "tests/fixtures/figures/sublabel/b-dit.sumi.yaml",
+      "id": "g:adaln",
+      "empty": 0.7110262560237833
+    },
+    {
+      "file": "research/167-stage-c/figures/b-dit.sumi.yaml",
+      "id": "g:adaln",
+      "empty": 0.7110262560237834
+    },
+    {
+      "file": "research/176-zoom-edge/figures/b-dit.sumi.yaml",
+      "id": "g:adaln",
+      "empty": 0.7110262560237834
+    },
+    {
+      "file": "tests/fixtures/figures/dim/b-dit.sumi.yaml",
+      "id": "g:adaln",
+      "empty": 0.7110262560237834
+    },
+    {
+      "file": "tests/fixtures/figures/fit/b-dit.sumi.yaml",
+      "id": "g:adaln",
+      "empty": 0.7110262560237834
+    },
+    {
+      "file": "tests/fixtures/figures/variants/b-dit-plain.sumi.yaml",
+      "id": "g:adaln",
+      "empty": 0.7110262560237834
+    },
+    {
+      "file": "research/182-compact/figures/b-dit-tight.sumi.yaml",
+      "id": "g:cross",
+      "empty": 0.7145530562006348
+    },
+    {
+      "file": "research/173-paper-theme/figures/b-dit.sumi.yaml",
+      "id": "g:adaln",
+      "empty": 0.715518327162783
+    },
+    {
+      "file": "research/151-dogfood-v0.5/figures/serving-architecture.sumi.yaml",
+      "id": "g:gpu",
+      "empty": 0.7236148370670571
+    },
+    {
+      "file": "research/182-compact/figures/b-dit.sumi.yaml",
+      "id": "g:adaln",
+      "empty": 0.730993656390331
+    },
+    {
+      "file": "research/185-acceptance/figures/b-dit.sumi.yaml",
+      "id": "g:adaln",
+      "empty": 0.730993656390331
+    },
+    {
+      "file": "tests/fixtures/figures/compact/b-dit.sumi.yaml",
+      "id": "g:adaln",
+      "empty": 0.730993656390331
+    },
+    {
+      "file": "examples/dit-block/dit-block.sumi.yaml",
+      "id": "g:block",
+      "empty": 0.7321349176916165
+    },
+    {
+      "file": "research/182-compact/figures/b-dit-tight.sumi.yaml",
+      "id": "g:incontext",
+      "empty": 0.7370022120502242
+    },
+    {
+      "file": "research/167-stage-c/figures/b-dit.sumi.yaml",
+      "id": "g:cross",
+      "empty": 0.7421962078266794
+    },
+    {
+      "file": "research/176-zoom-edge/figures/b-dit.sumi.yaml",
+      "id": "g:cross",
+      "empty": 0.7421962078266794
+    },
+    {
+      "file": "tests/fixtures/figures/dim/b-dit.sumi.yaml",
+      "id": "g:cross",
+      "empty": 0.7421962078266794
+    },
+    {
+      "file": "tests/fixtures/figures/fit/b-dit.sumi.yaml",
+      "id": "g:cross",
+      "empty": 0.7421962078266794
+    },
+    {
+      "file": "tests/fixtures/figures/sublabel/b-dit.sumi.yaml",
+      "id": "g:cross",
+      "empty": 0.7421962078266794
+    },
+    {
+      "file": "tests/fixtures/figures/variants/b-dit-plain.sumi.yaml",
+      "id": "g:cross",
+      "empty": 0.7421962078266794
+    },
+    {
+      "file": "research/86-paper-figures/figures/v1/a-transformer.sumi.yaml",
+      "id": "g:decoder",
+      "empty": 0.7428715182408301
+    },
+    {
+      "file": "research/173-paper-theme/figures/b-dit.sumi.yaml",
+      "id": "g:cross",
+      "empty": 0.7458918047061571
+    },
+    {
+      "file": "research/124-stage-b/figures/training-pipeline.sumi.yaml",
+      "id": "g:data-stage",
+      "empty": 0.7524552370296027
+    },
+    {
+      "file": "research/135-skill-dogfood/figures/training-pipeline.sumi.yaml",
+      "id": "g:data-stage",
+      "empty": 0.7524552370296027
+    },
+    {
+      "file": "research/182-compact/figures/b-dit.sumi.yaml",
+      "id": "g:cross",
+      "empty": 0.7534216889353997
+    },
+    {
+      "file": "research/185-acceptance/figures/b-dit.sumi.yaml",
+      "id": "g:cross",
+      "empty": 0.7534216889353997
+    },
+    {
+      "file": "tests/fixtures/figures/compact/b-dit.sumi.yaml",
+      "id": "g:cross",
+      "empty": 0.7534216889353997
+    },
+    {
+      "file": "tests/fixtures/figures/lint/ancestor-edge.sumi.yaml",
+      "id": "g:outer",
+      "empty": 0.7537074998397983
+    },
+    {
+      "file": "research/151-dogfood-v0.5/repro/align-grows-figure.sumi.yaml",
+      "id": "g:api",
+      "empty": 0.7539642160780834
+    },
+    {
+      "file": "tests/fixtures/figures/geometry/reversed-edge.sumi.yaml",
+      "id": "g:retry",
+      "empty": 0.7580218971758726
+    },
+    {
+      "file": "research/167-stage-c/figures/b-dit.sumi.yaml",
+      "id": "g:incontext",
+      "empty": 0.7655978202834482
+    },
+    {
+      "file": "research/176-zoom-edge/figures/b-dit.sumi.yaml",
+      "id": "g:incontext",
+      "empty": 0.7655978202834482
+    },
+    {
+      "file": "tests/fixtures/figures/dim/b-dit.sumi.yaml",
+      "id": "g:incontext",
+      "empty": 0.7655978202834482
+    },
+    {
+      "file": "tests/fixtures/figures/fit/b-dit.sumi.yaml",
+      "id": "g:incontext",
+      "empty": 0.7655978202834482
+    },
+    {
+      "file": "tests/fixtures/figures/sublabel/b-dit.sumi.yaml",
+      "id": "g:incontext",
+      "empty": 0.7655978202834482
+    },
+    {
+      "file": "tests/fixtures/figures/variants/b-dit-plain.sumi.yaml",
+      "id": "g:incontext",
+      "empty": 0.7655978202834482
+    },
+    {
+      "file": "research/151-dogfood-v0.5/figures/serving-architecture.sumi.yaml",
+      "id": "g:api",
+      "empty": 0.7675279278020111
+    },
+    {
+      "file": "research/173-paper-theme/figures/b-dit.sumi.yaml",
+      "id": "g:incontext",
+      "empty": 0.7701297483882471
+    },
+    {
+      "file": "research/182-compact/figures/b-dit.sumi.yaml",
+      "id": "g:incontext",
+      "empty": 0.7728139965234204
+    },
+    {
+      "file": "research/185-acceptance/figures/b-dit.sumi.yaml",
+      "id": "g:incontext",
+      "empty": 0.7728139965234204
+    },
+    {
+      "file": "tests/fixtures/figures/compact/b-dit.sumi.yaml",
+      "id": "g:incontext",
+      "empty": 0.7728139965234204
+    },
+    {
+      "file": "research/124-stage-b/figures/training-pipeline.sumi.yaml",
+      "id": "g:train-step",
+      "empty": 0.7793663673725022
+    },
+    {
+      "file": "research/135-skill-dogfood/figures/training-pipeline.sumi.yaml",
+      "id": "g:train-step",
+      "empty": 0.7793663673725022
+    },
+    {
+      "file": "research/151-dogfood-v0.5/figures/se-comparison.sumi.yaml",
+      "id": "g:base",
+      "empty": 0.7808913537735249
+    },
+    {
+      "file": "research/109-dogfood-v0.4/figures/training-pipeline.sumi.yaml",
+      "id": "g:train-step",
+      "empty": 0.8072404495690744
+    },
+    {
+      "file": "tests/fixtures/figures/valid/components.sumi.yaml",
+      "id": "g:stage",
+      "empty": 0.9319
+    }
+  ]
+}

@@ -6,6 +6,7 @@ import { withOutlineNodes } from "../../render/outline-sizing";
 import { outlineRegistry } from "../../render/outline-testing";
 import { geometryContextFor } from "./lint";
 import { convexHull, outlineRegions, regionsOverlap } from "./outlines";
+import { labelOverflow } from "./rules";
 import { rectPolygon } from "./shapes";
 import { centeredBaseline, inspection, label, lintSpec } from "./testing";
 
@@ -28,6 +29,46 @@ const result = compileFigure(SOURCE, { registry: outlineRegistry(), file: "outli
 if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
 const compiled = expectD2Figure(result.value);
 const bbox = { x: 0, y: 0, width: 100, height: 100 };
+
+test("painted boundaries are checked independently of a permissive safeArea", () => {
+  const context = geometryContextFor({
+    compiled,
+    inspection: inspection(compiled, {
+      elements: {
+        "n:trap": { bbox, labels: [label("漢漢", 50, centeredBaseline(50))] },
+      },
+    }),
+  });
+  const element = context.get("n:trap");
+  if (!element) throw new Error("missing element");
+  const permissive = { ...element, labelArea: rectPolygon(bbox) };
+  const run = (boundary: readonly Point[]) =>
+    labelOverflow.run(
+      {
+        ...context,
+        elements: [{ ...permissive, labelBoundaries: [boundary] }],
+      },
+      undefined,
+    );
+  expect(
+    run([
+      { x: 50, y: 0 },
+      { x: 50, y: 100 },
+    ]),
+  ).toHaveLength(1);
+  expect(
+    run([
+      { x: 0, y: 0 },
+      { x: 100, y: 100 },
+    ]),
+  ).toHaveLength(1);
+  expect(
+    run([
+      { x: 0, y: 0 },
+      { x: 0, y: 100 },
+    ]),
+  ).toEqual([]);
+});
 
 test("monotone-chain hull removes concave/duplicate/collinear vertices without mutating input", () => {
   const points: Point[] = [

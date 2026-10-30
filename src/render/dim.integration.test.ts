@@ -74,13 +74,14 @@ describe("DiT with panels 3 and 4 dimmed (structured)", () => {
     expect(JSON.stringify(dimmed.layout.edges.map((e) => e.route))).toBe(
       JSON.stringify(plain.layout.edges.map((e) => e.route)),
     );
-    // The research copy is too wide for paper-double; nothing else is reported.
+    // The research copy is too wide and has a sparse panel (#248).
     const codes = async (source: string) => {
       const result = await rendering(source);
       return [...result.diagnostics, ...lintGeometry(result.value, { source })].map((d) => d.code);
     };
     expect(await codes(DIT)).toEqual([
       "geometry/exceeds-page-width",
+      "geometry/group-empty-area",
       "geometry/arrowhead-cramped",
       "geometry/arrowhead-cramped",
     ]);

@@ -2271,6 +2271,23 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **最終検証**: `bun run check`・`bun run typecheck`・`CI=1 bun test`（**2,988 pass / 13 skip / 0 fail**）・`bun run gallery:check`（165 ファイル）・`bun run schema:check`・`bun run emoji:check` が成功。darwin-arm64 の `release:build` と拡大セットを使う `release:smoke` も成功した。
 
 
+### 6.68 #245 の split bowtie のラベル安全領域と輪郭重なり検出
+
+- **問題**: §6.66 の safeArea は左右の台形と gap をまたぎ、内側の垂直な輪郭線まで通っていた。中央ラベルのまま全幅に gap を足すだけでは、内側の線は文字を横切り続ける。衝突用の外接矩形を検査するだけでは検出できない。
+- **比較と判断**: (1) 中央配置のまま拡幅する案は内側の線との交差を解消しない。(2) gap 自体を文字幅まで拡大する案は指定した gap の意味を変える。(3) 外付けラベルは高さ・接続・バッジとの関係を変える。(4) 左台形内へ 1 個のラベルを置く案を採用する。対称な外形と指定 gap を保ち、片側への意味付けは増やさない。従来の「左右にまたがる」見た目より、輪郭に文字が重ならないことを優先する。
+- **幾何**: `gap > 0` の footprint は、padding 済みラベル幅 W・高さ H に対して `2W + gap` × `2H`。safeArea は左台形の幅と中央の高さ半分で、auto の compose と structured の既存経路が同じ中心を使う。明示サイズは保持し、gap を全幅の半分以下に制限する従来の退化対策も維持する。`gap` なし・0 の footprint / safeArea / 出力は変えない。
+- **lint**: `geometry/label-overflow`（既存の error、共有 Diagnostic）を拡張し、safeArea への包含に加えて、描画境界 `boundaries ?? [outline]` の閉じた線分とラベル各行の箱との交差を独立に検査する。stroke の内側半分と既存の 1 単位（0.5pt）の許容差を適用する。凸包・collision は辺や要素の障害物用であり、ラベル境界として代用しない。1 要素につき診断 1 件、明示サイズは `props` を指す。
+- **互換性・検証**: 出力変更を許可するのは `bowtie.props.gap > 0` を使う図だけ。全追跡 YAML を自テーマ＋全組み込みテーマで変更前後に描画し、SVG / PDF / picture・editable PPTX / D2 の sha256 を比較する。全テーマの auto / structured、明示サイズ、safeArea だけでは分からない線分交差を回帰検査する。カタログ・全テーマ×variant の gallery・Skill を更新し、`research/233-lora/c-h3world.sumi.yaml` の PNG も再生成して確認する。
+
+### 6.69 #246 の split bowtie の口と隣接端の直線化
+
+- **原因**: structured の通常の横 `row [box, bowtie(gap: 8), box]` は左右の外側の口で既に直線になる。一方、north/south の接続は §6.66 が gap 中央の port を左の口へ 4 unit 移すため、§6.40 の許容差 2 unit を超え、段差も `layout/unaligned-ends` の検査も対象外になっていた。gap が小さい場合も、直線化の候補を再解決すると gap から同じ口へ戻るのに「移動成功」と扱い、隣の端を試さず終了していた。
+- **解決**: port に gap 補正前の位置を内部情報として保持する。向かい合う端の実際のずれが従来の許容差内、または **gap 補正前なら許容差内**の場合だけ直線化を試す。候補の再解決後に要求した座標と一致することを確認してから使用点を更新し、gap に戻される候補は不採用として隣の端を試す。口は塗られた輪郭上に残し、既定の隣接端をその口の線へ移す。アンカーを許容差以上動かさず、共有 port を動かしたり別の端と合流したりせず、side 外にも移さない。ルータの障害物・探索費用・gap を通路にしない契約は維持する。
+- **診断・検査**: 同じ適格条件を `layout/unaligned-ends`（warning）にも使い、共有端・アンカー・狭い side のため移動不能なら gap と口のずれを明示する。経路の独立検査 `checkRoutes` は split body の端点だけ `boundaries` の実輪郭で確認し、衝突検査には従来の enclosing region を使う。空の gap 内への接続を正しい端点として認めない。
+- **回帰・互換性**: 全 5 Theme で横 row の両辺、縦 stack の入出力と gap 1/4/8/64（幅による clamp を含む）の route points を検査する。アンカー・共有 net・口が隣の side 外にある場合の残る段差と診断、gap 内に改変した端点の拒否も検査する。新 API・部品・variant・Theme は追加せず、catalog と全 Theme × variant の gallery は既存の契約を維持する。変更を許すのは `bowtie.props.gap` 使用図のみとし、全 YAML の自テーマ＋全組み込み Theme の SVG/PDF/PPTX/D2 の sha256 を変更前後で比較する。
+- **受け入れ図**: `research/233-lora/c-h3world.sumi.yaml` を lint・render し、PNG preview を再生成して目視する。同図の LoRA は左右の口を使うため出力は変わらず、既存の添字サイズ info 1 件のみ。プレビューも同じ 100,542 bytes。
+- **実測結果**: 全 150 YAML ×（自テーマ＋5 Theme）= 900 組を変更前後に実行。成功 628 組の SVG/PDF/picture PPTX 各 628 件、editable PPTX 428 件、auto の D2 222 件はすべて sha256 一致。描画不能 272 組と editable 非対応の診断コードも一致した。互換性例外に該当する YAML は上記 `research/233-lora/c-h3world.sumi.yaml` のみで、実際に変化した既存図は 0。gallery は全 Theme × variant を再生成・目視し 165 ファイル差分なし。`bun run check`・`bun run typecheck`・`CI=1 bun test`（3219 pass / 13 skip / 0 fail）・`bun run gallery:check`・`bun run schema:check` が成功。
+
 ### 6.70 #247 のグループ内の矢じりの前に見える直線を残す
 
 - **旧判断の変更**: Issue が §6.24 と呼ぶ「グループの中の余白」は、現在の本文では §6.22（#116）の項目。そこにある「矢じりは角の直後のまま」と §6.42（#171）の「矢じり長 + clearance だけまで広げる」を、この節で更新する。§6.24 の数式ラベルの契約は別のもの。
@@ -2281,6 +2298,27 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **互換性（実測）**: 既存 **150 YAML ×（own + 組み込み 5 Theme）= 900 通り**。成功 628、失敗 272 は前後同じ。SVG / PDF / 画像 PPTX 各 628、編集可能 PPTX 428、auto の D2 222 の SHA-256 を比較。変更は Transformer / seq2seq の **13 図 × 5 通り = 65 通り**だけ（全一覧・例外・生成ファイルは [検証記録](../verification/247-arrowhead-stems.md)）。そのうち編集可能 PPTX の変更は 5、D2 は全件一致。他の成功 563 通りは SVG / PDF / PPTX がすべてバイト一致。対象外の図の出力を変えない。
 - **見た目と代償**: 受け入れ図 A は **75.32 → 76.02mm × 114.12mm**、高さは維持。残差 5 本の曲がり前の直線は 8 → 12 unit、見える部分は **0 → 4 unit（2pt）**。原図と生成 SVG の拡大 PNG を見比べ、encoder 左・decoder 右の短い直線と枠までの余地を確認した。非対称な余白拡張で外側のノードとの中心が少しずれ、受け入れ図では `edge-jog` info が 0 → 4（各 0.66pt）。全体ではこの既存規則が 79 → 113 件。#135 の seq2seq の own / academic が幅上限を新たに超える（従来から minimal / color は超えていた）。これらを隠さず記録し、今回の余地の確保を優先する。
 - **生成と回帰**: `bun run gallery` に対象 2 fixture の配置 / 経路 snapshot 4 個も含め、図の SVG と一緒に正規のコマンドで更新する。部品 manifest の変更はなく、全 variant × 全 Theme の gallery は同じ検査を通す。padding の方向・枠との距離・実際に描いた直線・始点と終点・入れ子・自己ループ・align 予算、lint の 2pt 境界・丸め・縮小・短い直線辺・D2 の除外をテストする。
+
+### 6.71 #248 のパネル内の空きと主軸の fill
+
+- **分類（`research/233-lora/c-h3world.sumi.yaml` の (c)）**: (1) 縦の兄弟合わせは既に row の `align: stretch` で可能だが、この図は `center`。さらに stretch された stack は余った高さを中央寄せするだけで子を大きくできない。(2) LoRA / QKV の間の明示 `6mm` は辺と badge の通路で、単に gap を削っても列全体は伸びない。(3) token のセルには `height: 7pt` があり、明示サイズを守る配置では自動拡大できない。(4) パネル自体を (b) と同じ高さに stretch すること、軸・caption を body と同じ stack に含めることが見出し・下端の帯を作る。Profile の padding やフォントだけの問題ではない。
+- **構文・最小化（判断）**: row / stack に任意の `justify: center | stretch | space-between`。既存の交差軸の `align: stretch` を再利用し、新しい item wrapper / grow weight / group の size は足さない。`justify` は主軸（stack は高さ、row は幅）に渡された自然サイズ以上の領域だけを使い、継承しない。省略と `center` は従来どおり中央。`stretch` は余りを伸縮可能な子に等分して**加算**（最終サイズを同じにする意味ではない）し、gap・整列 strut は維持する。`space-between` はサイズを保ち、余りを gap に等分加算する。1項目、または伸ばせる子がない場合は中央。grid は主軸を持たず受け付けない。方向 up / left は従来どおり視覚順を反転し、自然サイズの計測・最後の丸めは変えない。
+- **伸縮対象（判断）**: 入れ子の配置箱、group、主軸の明示サイズがない通常の伸縮可能な形。circle / square 等の固定アスペクト比・text・custom outline は固定。custom outline の footprint が単調でも一方の軸だけを伸ばした safeArea の単調性は保証されないため（§6.21）、bowtie も自動では伸ばさない。badge 付きの通常の box は新しい justify のときだけ伸ばせる（badge の予約 footprint は維持）。既存の align の伸縮可否は変えない。caption の内部 `growFirst` は優先し、caption を押し離す代わりに group に余りを渡す従来の約束を保つ。Figure IR の `justify?` を渡すだけで Layout IR・writer・PDF/PPTX に新しい形式は要らない。部品 manifest / props / theme / catalog は変更不要。
+- **補助の info（判断）**: `geometry/group-empty-area`、render / `lint --geometry` のみ。group の外接矩形から、見出しと直接の子の外接矩形（ラベル・badge を含む）の union を引いた割合。矩形を親に clip し、重複面積は一度だけ数える。辺は占有面積としない。入れ子の group は footprint 全体を占有とし、その内側は別に計測する。空の group と展開でできる tokens / matrix / legend の内部枠は除外。ピクセルの空きや最大空き矩形の推定ではなく、形状の中の余白や辺の通路を悪いと断定しない。hint は `align: stretch` と内側の `justify: stretch` / `space-between`、gap、パネル自体の stretch を外す方法。`maxWarnings` に数えず、通常 lint・出力は変えない。
+- **しきい値の実測**: 変更前の全150 YAML を各自の theme で描画し、成功114図の225 group を計測（失敗36図は不正 fixture・追加 registry・旧研究図の経路や素材の制約等のため除外）。中央値 **56.81%**、p75 **69.28%**、p90 **75.25%**、p95 **76.56%**、最大 **93.19%**（nearest rank、研究のコピーも1図として数える）。上位約1割だけを候補にするため p90 を丸めた **75%以上**（24/225 group）を採用。閾値は実行時にコーパスを読まず固定する。元の (c) は **60.63%** で対象外: 一部の列が短い問題を全体の比率だけで必ず検出するものではなく、配置機能を主にするという合意を優先し、特定の図が鳴るまでしきい値を下げない。生データ・再現手順は [`research/248-fill/`](../../research/248-fill/README.md)。
+- **描き直し・目視**: #233 の YAML とコミット済み assets をコピー（`.gitignore` は生成形式だけを除外、assets は追跡）。(b)/(c) の row は `align: start`、(c) 内は `align: stretch`、投影列と明示9 box の token 列は `justify: stretch`。LoRA は outline の制約を守って高さ28ptを明示し、余りは QKV / Out Proj. に渡す。Key / Masked Attention を matrix の北／南に1mmで attach し、凡例は中央の stack に包んで伸ばさない。印刷 pt で matrix **99.75 → 99.75**、投影列の body の全高 **59.68 → 96.34**（badge の予約を含めると matrix に一致）、QKV **19.61 → 54.55**、token 列 **63.94 → 99.75**。見出し→Key の空き **3.88 → 2.77pt**、caption→枠 **6.22 → 5.12pt**、(c) の高さ **148.86 → 144.22pt**。全体180 ×125.71mmは (a)/(b) が決めるため不変。空き比率 **60.63 → 54.77%**。`previews/c-h3world.png` **101,820 bytes** を元と見比べ、短い青い箱と token が縦方向を埋めること、凡例と軸文字が引き伸ばされないことを確認。render は既存の添字の info 1件のみ、構造 lint の9件の empty-label は意図した無文字の token box。
+
+- **互換性の実測**: `61e6c20` の renderer を worktree 内の `.sumi/248-base/` へ展開し、既存150 YAML × 自テーマ＋全5 theme の900通りを変更前後で描画（CLI と同じ `overrides.theme` を使用）。成功628通りのSVG / PDF / picture PPTX、autoのD2 222通りのsha256と、生成不可272通りのerror codeが全件一致した。両manifestのsha256は `b935f1789c3ce83c220f7c536faefb401df8f4778fe27363d7bda0c55ab1fc43`（[`compatibility.json`](../../research/248-fill/compatibility.json)）。全theme×variantのgalleryは165 files変更0。指定のPDF/PPTX/assets golden再生成も594 pass・変更0。既存図の診断が増えた箇所だけテストの期待を更新し、出力のgoldenは変更しない。
+
+### 6.72 #251 の明示 anchor と split bowtie の口補正の独立検査
+
+- **原因**: §6.66 の north/south の gap 内 port は、明示した `fromAnchor` / `toAnchor` でも最寄りの塗られた口へ必ず移る。経路は正しいが、`checkRoutes` は外接矩形上の元 anchor からの距離を §6.40 の直線化許容差と比較し、gap 8 の 4 unit の移動や折れた経路を誤って拒否していた。
+- **判断**: 独立検査では `sumi/bowtie` の実 `boundaries` がある north/south の端だけ、元 anchor の法線が body の x 範囲を外れる場合に、最寄りの口（距離差 1e-6 以下は左）を期待位置とする。1/1000 unit の丸めは塗られた側へ向ける。ルータの `resolveEnds` や直線化済みの位置を正解として使わず、描画の実輪郭から独立に求める。gap 未指定・0、gap の外の anchor、east/west、他の部品・group の anchor は従来の比較のまま。
+- **§6.40 との分離**: 必須補正後の期待位置からの残差だけを従来の直線化判定に渡す。必須補正そのものは移動量・経路の折れ数に依存しない。追加の移動は従来どおり「点 2 個の直線・片端だけ許容差 2 unit 以下・相手の残差はゼロ」の場合に限る。side・実輪郭上の接触・出入りの向き・衝突の検査も維持する。
+- **回帰**: bowtie 側の明示 anchor の入出力、gap 1/8/64 と幅 clamp、中央の左口と右寄り anchor の右口、隣接端も anchor 付きで折れる経路、`fanIn: spread`、同じ側の平行辺、`narrow: south/north` の実台形の隣接端を route points で検査する。反対の口・異なる side・折れた経路の通常 anchor のずれを拒否する。catalog・props・全 Theme × variant の契約は既存のままで、gallery 再生成と描画テストで確認する。
+- **互換性の実測**: 全 150 YAML ×（自テーマ＋組み込み 5 Theme）= 900 組を変更前後で描画。SVG / PDF / picture PPTX 各 628 件、editable PPTX freeform 428 件・glued 416 件、D2 234 件の SHA-256 はすべて一致し、描画不能 272 組の診断コードも一致した。gap 使用図も含め出力の変更はなく、golden 更新は不要。
+- **最終検証**: `bun run check`・`bun run typecheck`・`CI=1 bun test`（3230 pass / 13 skip / 0 fail）・`bun run gallery`・`bun run gallery:check`（165 ファイル差分なし）・`bun run schema:check` が成功。
+
 
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures

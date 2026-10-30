@@ -11,8 +11,8 @@
  *    label above the content, or below it for a bottom `labelAt`).
  * 2. Place top-down. Items follow each other along the main axis
  *    (`direction` reverses the order); `align` places them on the cross
- *    axis, and `stretch` widens resizable items to the box. A box given more
- *    main-axis room than it needs centers its items.
+ *    axis, and `stretch` resizes items to the box. Extra main-axis room
+ *    centers items by default; opt-in `justify` grows items or their gaps.
  * 3. Attach: an attached node is centered on the `side` of its target, `gap`
  *    away. It belongs to the target's parent, and that parent's content is
  *    the union of its arrange tree and its attached nodes: a group grows to
@@ -491,19 +491,28 @@ class StructuredLayout {
     const reversed = box.direction === "up" || box.direction === "left";
     const order = reversed ? [...box.items].reverse() : box.items;
     const natural = this.#boxSize(box);
-    const gap = this.#gap(box);
+    let gap = this.#gap(box);
     // Extra main-axis room (from a stretching parent) centers the items; a
     // caption's stack (#130) gives it to its group instead (`growFirst`).
     const extra = vertical ? frame.height - natural.height : frame.width - natural.width;
     let grow = box.growFirst === true ? Math.max(0, extra) : 0;
-    let cursor = (vertical ? frame.y : frame.x) + (grow > 0 ? 0 : extra / 2);
+    const growers =
+      box.justify === "stretch" && grow === 0
+        ? order.filter((item) => this.#growable(item, vertical))
+        : [];
+    const share = growers.length > 0 ? Math.max(0, extra) / growers.length : 0;
+    const between = box.justify === "space-between" && order.length > 1 && grow === 0;
+    if (between) gap += Math.max(0, extra) / (order.length - 1);
+    let cursor =
+      (vertical ? frame.y : frame.x) + (grow > 0 || share > 0 || between ? 0 : extra / 2);
     const crossAvailable = vertical ? frame.width : frame.height;
     for (const item of order) {
       if (item === null) continue;
       const itemNatural = this.#itemSize(item);
+      const added = grow + (growers.includes(item) ? share : 0);
       const size = vertical
-        ? { ...itemNatural, height: itemNatural.height + grow }
-        : { ...itemNatural, width: itemNatural.width + grow };
+        ? { ...itemNatural, height: itemNatural.height + added }
+        : { ...itemNatural, width: itemNatural.width + added };
       grow = 0;
       const crossNatural = vertical ? size.width : size.height;
       const cross =
@@ -522,6 +531,20 @@ class StructuredLayout {
       else this.#placeBox(item, rect, item.kind === box.kind ? align : "center", visit);
       cursor += (vertical ? size.height : size.width) + gap + this.#trail(item);
     }
+  }
+
+  /** Main-axis growth is opt-in; badged boxes retain their reserved footprint. */
+  #growable(item: ArrangeItemIR, vertical: boolean): boolean {
+    if (item === null) return false;
+    if (typeof item !== "string") return true;
+    const node = this.#nodes.get(item);
+    if (node === undefined) return true;
+    if ((vertical ? node.height : node.width) !== undefined || node.sizing === "fixed-aspect-1")
+      return false;
+    // Custom renderer contracts guarantee monotone footprints, but not safe areas
+    // when only one dimension changes. Keep them fixed; nested boxes can still
+    // distribute space around them with space-between.
+    return node.render === undefined && stretchableShape(node.shape);
   }
 
   /** Whether `stretch` resizes an item on the cross axis of a stack (`vertical`) or row. */

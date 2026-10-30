@@ -40,7 +40,9 @@
  *   the gap between two facing ports out of line is shorter than their two
  *   stubs, no plain jog fits; the grid gets the column and rows of an S
  *   between them (`tightJog`), so the route need not go around an end.
- *   Ends within the tolerance that cannot be moved (both shared) get
+ *   Split-body ports also qualify if aligned before moving to a painted
+ *   lip (#246). A movable neighbour follows that lip; anchors still move
+ *   only within the original tolerance. Ends that cannot be moved get
  *   `layout/unaligned-ends` (warning).
  * - **Nets**: edges that leave the same port, enter the same port, or touch
  *   the same junction form one net (union-find, so junctions joined by edges
@@ -644,13 +646,15 @@ class Router {
 
   /**
    * `layout/unaligned-ends` (warning, #169, design doc §6.40): the edge's
-   * ends face each other out of line by at most `STRAIGHTEN_TOLERANCE`,
+   * ends face each other out of line by at most `STRAIGHTEN_TOLERANCE`
+   * (or did before a split-body lip displacement, #246),
    * and `resolveEnds` could move neither onto the other's line (each shares
    * its point with another edge, or the line misses its side, or another
-   * end is there). Such an offset is too small for a jog or an S that reads
+   * end is there). An ordinary near-aligned offset is too small for a jog or an S that reads
    * as one (0.001 unit apart, an S has no column between the lines), so the
    * route jogs by a sliver or, in a gap shorter than the stubs, goes around
-   * an end. Said rather than drawn silently.
+   * an end. A split-body lip step can be larger but is equally unintended
+   * when the original ports were aligned. Said rather than drawn silently.
    */
   #reportUnaligned(edge: Edge): void {
     const f = facing(edge.from, edge.to);
@@ -662,11 +666,14 @@ class Router {
     this.#diagnostics.push({
       code: "layout/unaligned-ends",
       severity: "warning",
-      message: `The ends of edge ${name} from "${this.#id(ir.from)}" to "${this.#id(ir.to)}" face each other ${pt}pt out of line, and neither can be moved into line: each shares its point with another edge (or the other's line misses its side), so the line ${f.ahead >= edge.fromLane + edge.toLane ? "jogs by that much" : tightJog(edge.from, edge.to, edge.fromLane, edge.toLane) === undefined ? "goes around an end (the gap is shorter than its stubs, and the offset too small for an S between them)" : "takes an S that narrow (the gap is shorter than its stubs)"}.`,
+      message: `The ends of edge ${name} from "${this.#id(ir.from)}" to "${this.#id(ir.to)}" face each other ${pt}pt out of line, and neither can be moved into line: ${f.gapAside !== undefined ? "a split body's gap displaces its port to a painted lip, and moving either end would leave its painted side, move an anchor too far, or join or move a shared port" : "each shares its point with another edge (or the other's line misses its side)"}, so the line ${f.ahead >= edge.fromLane + edge.toLane ? "jogs by that much" : tightJog(edge.from, edge.to, edge.fromLane, edge.toLane) === undefined ? "goes around an end (the gap is shorter than its stubs, and the offset too small for an S between them)" : "takes an S that narrow (the gap is shorter than its stubs)"}.`,
       path: source?.path ?? ["edges", ir.index],
       ...(source?.location !== undefined && { location: source.location }),
       subject: { kind: "edge", id: ir.id ?? `edges[${ir.index}]` },
-      hint: "Put both ends at the same position (equal anchor offsets on sides of equal length, or no anchors), or give one end a point of its own (another anchor offset) so it can be moved into line.",
+      hint:
+        f.gapAside !== undefined
+          ? "Align the neighbour with the painted lip (not the empty gap), remove its anchor, or give it an unshared port with room to move along its side."
+          : "Put both ends at the same position (equal anchor offsets on sides of equal length, or no anchors), or give one end a point of its own (another anchor offset) so it can be moved into line.",
     });
   }
 

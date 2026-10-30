@@ -22,7 +22,7 @@ export interface OutlineDrawing {
   readonly outline: readonly Point[];
   /** Disconnected painted boundaries, when present. Ports contact these, never the gap. */
   readonly boundaries?: readonly (readonly Point[])[];
-  /** Label rectangle inside the silhouette; may span gaps between disconnected bodies. */
+  /** Label rectangle clear of painted boundaries and gaps between disconnected bodies. */
   readonly safeArea: Rect;
   /** Convex collision region, containing the outline; omitted means its convex hull. */
   readonly collision?: Region;

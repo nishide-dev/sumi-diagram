@@ -48,3 +48,35 @@ golden は `bun run gallery` と
 最終結果: `bun run check`、`bun run typecheck`、`CI=1 bun test`
 （3145 pass / 13 skip / 0 fail）、`bun run gallery:check`、
 `bun run schema:check`、`bun run emoji:check` がすべて通過した。
+
+## #246 の再確認
+
+structured の gap 補正前に揃った端を口へ直線化する修正後、上記の lint・render・
+preview を再実行。左右の LoRA は east/west の外側の口へ接続するため SVG と
+100,542 bytes の PNG は変更なし。プレビューを開き、2 枚の台形・ラベル・バッジ・
+隣接する辺端を確認した。render は既存の `geometry/script-too-small` info 1 件のみ。
+修正した north/south の口への直線接続と移動不能時の warning は
+`src/layout/route/split-bowtie.test.ts` で route points を回帰検査する。
+リポジトリ全 150 YAML × 6 Theme 指定（自テーマを含む）= 900 組の互換性比較でも、
+生成可能な SVG/PDF/picture PPTX 各 628 件・editable PPTX 428 件・D2 222 件の
+sha256 と描画不能時の診断コードがすべて一致した。結果は
+`.sumi/compat-246-{before,after}.json` に保存した。
+
+## #245 の再確認（§6.68）
+
+split bowtie のラベルを左台形内へ移し、片側に padding 済み文字幅を確保する
+自動サイズで再描画した。YAML の変更は不要。上記の #233 時点の寸法に対して、
+現在は 180 × 111.55mm、75.6% scale、0 errors / 0 warnings / 1 info
+（既存の縮小された添字）。PNG は同じスクリプトで再生成し 89,732 bytes。
+実際に画像を開き、左右の LoRA が各 1 ラベルを左台形内に持ち、gap・輪郭と
+重ならず、火のバッジ・辺端・行列・凡例・周辺ラベルも保たれることを確認した。
+全 5 Theme × 全 variant の bowtie gallery も PNG 化して確認した。
+
+互換性検査は既存 150 YAML ×（自テーマ＋全 5 Theme）= 900 組を変更前後で実行。
+628 組で SVG / PDF / picture PPTX、428 組で editable freeform、416 組で
+editable glued、234 組で D2 を sha256 比較した。変更はこの
+`research/233-lora/c-h3world.sumi.yaml` のみ（自テーマ・minimal・academic・color・paper の
+SVG / PDF / picture PPTX）。この図の slides は以前から描画不可。
+残りの 149 YAML の出力と、描画できない入力の診断コードは一致した。
+比較データは `.sumi/compat-{before,after}.json`。golden は指定コマンドのみで更新し、
+bowtie gallery とその一覧・対応する PDF/PPTX golden 以外は変わらなかった。

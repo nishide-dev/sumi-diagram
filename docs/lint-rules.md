@@ -1,5 +1,19 @@
 # Lint ルール
 
+## グループの空き面積（#248）
+
+`geometry/group-empty-area` は **info**（render / `lint --geometry` のみ）。
+group の外接矩形に対して、見出しと直接の子の外接矩形（ラベル・badge を含む）の
+union を引いた空き面積が **75%以上**なら報告する。重なりは一度だけ数え、
+枠外を clip する。辺は面積を埋めず、入れ子の group はその footprint 全体を
+占有と見なす。空の group と展開された tokens / matrix / legend の内部枠は対象外。
+ピクセルの白さや最大空き矩形ではないので、余白の良否は作者が判断する。
+hint は structured の `align: stretch` と内側の `justify: stretch` /
+`justify: space-between`、gap、パネル自体を伸ばさない方法を示す。
+しきい値は既存150図・描画成功114図の225 group の p90 = 75.25% を丸めたもの
+（中央値56.81%、p75 69.28%、p95 76.56%、最大93.19%。設計 §6.71）。
+`maxWarnings` の件数を増やさず、通常の lint と出力バイトは変えない。
+
 `sumi lint`（API: `lintFigure()`、`src/lint`）は、診断を集める段（`yaml` → `schema` → `ref` → `layout` → `component` → `theme` → `profile`）と、**構造 lint**（stage `lint`）を実行する。構造 lint は描画前の文書だけを検査し、D2 を必要としない。描画後の SVG を検査する幾何 lint（stage `geometry`、#13）は別の段で、`lintRenderedFigure()` / `lintGeometry()` が実行する（下記の「幾何 lint」）。
 
 構造 lint の規則は、前段で error になった要素（`CheckState.invalid` に含まれる要素と、その要素に依存する要素）を検査しない。そのため、1 つの誤りから lint の警告が連鎖して出ることはない。
@@ -120,6 +134,8 @@ const diagnostics = lintGeometry(rendered, { config, source: text, file });
 | `geometry/edge-jog` | info | エッジ自身の描かれた線に、2 つの直角の間の **印刷時 1pt 未満**の短い線分（微小な S 字・段差）がある。連続する subpath と同一直線の中間点をまとめ、丸めた曲線の短い chord・端の stub・線の切れ目・分岐は段差と数えない。SVG の量子化に 0.002 unit の許容。透明・線幅 0・不透明度 0・凡例の見本は対象外。`fit: scale` の縮小を反映する（設計 §6.57）。固定された口・共有幹線による既存の段差で `--max-warnings 0` を壊さないため、patch release の既定は info。 | `fromAnchor` / `toAnchor` で口を揃える、`gap` を広げる、配置を変えて短い段差を除く。厳しく検査する場合は rule 設定 `{"rules":{"geometry/edge-jog":"warning"}}` で昇格できる。 |
 
 ### 文字を置ける範囲（`geometry/label-overflow`）
+
+outline 部品では safeArea への包含に加え、各行の箱と実際の描画境界（`boundaries`、なければ `outline`）の閉じた線分との重なりも検査する。衝突用凸包には現れない split bowtie の内側の辺も対象。同じ stroke inset と 0.5pt の許容差を適用し、既存の error を 1 要素につき 1 件返す。`bowtie.props.gap > 0` のラベルは gap を除いた左台形の中央帯に置き、自動サイズはその片側に文字と padding を収める。小さすぎる明示サイズには `props.width` / `height` を大きくするか外す。
 
 図形の外接矩形（stroke を含まない）から、D2 v0.9.0 の固定の比率で図形を復元する。ラベルは**行ごと**の矩形の 4 隅が範囲内にあれば収まっている（範囲は凸なので 4 隅で判定できる）。行ごとに判定するため、短い行と長い行がある複数行のラベルも菱形・楕円で正しく扱える。
 
