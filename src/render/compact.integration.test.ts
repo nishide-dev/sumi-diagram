@@ -90,9 +90,9 @@ describe("Transformer (paper, paper-single)", () => {
     const n = outputSize(spaced.inspection);
     expect(c.scale).toBeUndefined();
     // §6.55's fixture after #215: smaller paper operators; original 77.2 × 113.7mm.
-    expect(c.widthMm).toBeCloseTo(76.02, 1);
+    expect(c.widthMm).toBeCloseTo(77.08, 1);
     expect(c.heightMm).toBeCloseTo(114.12, 1);
     expect(c.heightMm).toBeLessThan(n.heightMm * 0.85);
-    expect(diagnosticsOf(compact, TRANSFORMER)).toEqual(Array(4).fill("info geometry/edge-jog"));
+    expect(diagnosticsOf(compact, TRANSFORMER)).toEqual([]);
   });
 });

@@ -68,13 +68,15 @@ describe("group padding before arrowheads (#171)", () => {
     test(`${theme}: the residual lines run in the padding, clear of the border`, async () => {
       const { source, rendered } = await render(theme);
       const ir = rendered.compiled.ir;
-      // The side the residuals enter from grows by what it lacked, and only that side.
+      // The side the residuals enter from grows by what it lacked, and the
+      // opposite side by the same, so content and border share a centre line
+      // and the trunk outside the group stays straight with it (#247).
       const encoder = padding(rendered, "encoder");
       const decoder = padding(rendered, "decoder");
-      expect(encoder.west).toBeCloseTo(16 + grown, 6);
-      expect(encoder.east).toBeCloseTo(16, 6);
-      expect(decoder.east).toBeCloseTo(16 + grown, 6);
-      expect(decoder.west).toBeCloseTo(16, 6);
+      for (const group of [encoder, decoder]) {
+        expect(group.west).toBeCloseTo(16 + grown, 6);
+        expect(group.east).toBeCloseTo(16 + grown, 6);
+      }
       // Settled: the final layout lacks nothing.
       expect(arrowheadPaddingDeficits(ir, rendered.layout).size).toBe(0);
 

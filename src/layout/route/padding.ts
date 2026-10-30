@@ -99,6 +99,14 @@ export function arrowheadPaddingDeficits(
     if (edge.sourceArrowhead !== undefined) check(ends.from, ends.to);
     if (edge.targetArrowhead !== undefined) check(ends.to, ends.from);
   });
+  // Grow both sides of the axis equally (#247): the group's border and its
+  // content then share a centre line, so outer items that the arrangement
+  // centres on the group (a column's trunk above and below it) stay straight
+  // with the members inside instead of jogging by half the difference.
+  for (const sides of deficits.values()) {
+    sides.west = sides.east = Math.max(sides.west, sides.east);
+    sides.north = sides.south = Math.max(sides.north, sides.south);
+  }
   return deficits;
 }
 

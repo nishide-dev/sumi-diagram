@@ -4,21 +4,17 @@
 
 ## 比較方法と結果
 
-リポジトリの既存 `*.sumi.yaml` 150 個を列挙し、それぞれの元の Theme と組み込みの `minimal` / `academic` / `slides` / `color` / `paper` で `renderFigure()`。画像の基準ディレクトリは各 YAML のディレクトリ。計 900 通りを変更前後に描き、成功した SVG と、そこから変換した PDF・画像方式 PPTX・編集可能 PPTX、auto の D2 ソースを SHA-256 で比較した。検証用スクリプト・hash は作業用の `.sumi/review/247-corpus.ts` と `before.json` / `before-count.json` / `final.json` に保存した。
+`origin/main`（`42cb386`）を `git archive` で一時ディレクトリに展開し（`node_modules` と `.sumi/bin` は本 worktree へのリンク）、リポジトリの既存 `*.sumi.yaml` **151 個**を、それぞれの元の Theme と組み込みの `minimal` / `academic` / `slides` / `color` / `paper` で `renderFigure()` し、計 **906 通り**の SVG の SHA-256（描画失敗は診断コード）を変更前後で比較した。画像の基準ディレクトリは各 YAML のディレクトリ。PDF・PPTX・auto の D2 は SVG / D2 ソースから決まり、D2 は structured の変更の影響を受けない。
 
-| 対象 | 成功 | バイト変更 | 一致 |
+| 対象 | 通り | バイト変更 | 一致 |
 | --- | ---: | ---: | ---: |
-| SVG | 628 | 65 | 563 |
-| PDF | 628 | 65 | 563 |
-| 画像方式 PPTX | 628 | 65 | 563 |
-| 編集可能 PPTX | 428 | 5 | 423 |
-| D2 | 222 | 0 | 222 |
+| SVG（成功・失敗の診断を含む） | 906 | 65 | 841 |
 
-描画成功 628 / 失敗 272 は前後一致。編集可能 PPTX の非対応による失敗も同じ。新しい API / YAML のフィールドはなく、グループ内の狭い矢じり接近を持たない図はバイト一致した。
+新しい API / YAML のフィールドはなく、グループ内に側から入る矢じりを持たない図はバイト一致した。
 
 ## 変更する YAML の全一覧
 
-以下の **13 図すべてで `own`, `minimal`, `academic`, `color`, `paper` の 5 通り**が変わる（65 通り）。`slides` は前後とも描画に失敗する。理由は全件共通で、encoder 西・decoder 東の矢じりの直線を確保する padding 拡張と、その側での stub / 丸めの変更。幅と横方向の中心・それに伴う接続が動く。
+以下の **13 図すべてで `own`, `minimal`, `academic`, `color`, `paper` の 5 通り**が変わる（65 通り）。`slides` は前後とも描画に失敗する。理由は全件共通で、encoder 西・decoder 東の矢じりの直線を確保する padding 拡張（内容と枠の中心線を揃えるため反対側も同量広げる）と、その側での stub / 丸めの変更。幅と横方向の位置が動く。
 
 1. `examples/transformer/transformer.sumi.yaml`
 2. `research/109-dogfood-v0.4/figures/seq2seq-attention.sumi.yaml`
@@ -34,7 +30,7 @@
 12. `tests/fixtures/figures/layout/a-transformer.sumi.yaml`
 13. `tests/fixtures/figures/layout/align-side-kv.sumi.yaml`
 
-編集可能 PPTX が変わるのは 12 の 5 通り。他の変更図は以前から編集可能形式の非対応要素を持ち、その失敗は変わらない。
+`tests/fixtures/pptx-sha256.json` の更新は Transformer の画像方式 PPTX 1 件。
 
 ## 生成ファイルの全変更
 
@@ -58,26 +54,25 @@
 
 ## lint の判断と観察
 
-- 新規 `geometry/arrowhead-cramped`: **1,124 → 799 件、222 → 163 通り**。修正前の図にも同じ新 rule を適用して集計し、そのときの SVG hash が元の baseline と全件一致することを確かめた。多くはグループの余白でない狭い接近や `fit` 後の直線であるため、既存 warning の閾値を引き上げず info にした。
-- `geometry/arrowhead-on-bend`: 前後とも 0 件。
-- `geometry/edge-jog`: **79 → 113 件**。余白の非対称拡張で、外のノードとグループ内のノードの横の中心に短い差ができる。受け入れ Transformer own は 0 → 4 件、各 0.66pt。これは新しい rule の誤検出ではなく描かれた小さな段差なので、そのまま報告する。
-- `geometry/edge-touches-label`: 19 → 15 件。
-- `geometry/exceeds-page-width`: 126 → 128 件。増えたのは `research/135-skill-dogfood/figures/seq2seq-attention.sumi.yaml` の own / academic。必要な直線のために幅が増え、上限を越えた。minimal / color の既存の幅超過も維持する。
-- 上記以外の既存幾何 rule の件数は同じ。
+全 906 通りの描画成功分に geometry lint を適用した件数（変更前 → 後）。
+
+- 新規 `geometry/arrowhead-cramped`: 後で **824 件**（変更前は規則がないため 0）。多くはグループの余白でない狭い接近や `fit` 後の直線のため info にした。以前の記録の 1,124 → 799 件は対称化前・旧コーパスでの値で、再計測していない。
+- `geometry/edge-jog`: **75 → 73 件**。受け入れ Transformer は 0 件のまま（片側だけ広げる中間版では 0.66pt の段差が 4 件出た。原因と対策は設計 §6.70）。
+- `geometry/edge-touches-label`: **19 → 7 件**（seq2seq 系 3 図と align-side-kv の own / academic / paper の 12 通りで 1 件ずつ解消）。
+- `geometry/exceeds-page-width`: **126 → 135 件**。増えたのは `examples/transformer` の minimal / color、`research/135-skill-dogfood/figures/seq2seq-attention.sumi.yaml` の own / academic、`research/167-stage-c/figures/a-transformer.sumi.yaml` の own / minimal / color、`research/173-paper-theme/figures/a-transformer.sumi.yaml` の minimal / color。必要な直線と対称な余白のために幅が増え、上限を越えた。
+- 上記以外の既存幾何 rule の件数は同じ。`geometry/arrowhead-on-bend` は前後とも 0 件。
 
 ## 視覚確認
 
-受け入れ図を `.sumi/review/247-transformer.svg` に CLI で描き、`rsvg-convert --zoom 4` の PNG を開いて確認した。原論文の Figure 1 の PNG と比較し、短い直線が矢じりの背後に見えること、枠から 3pt の clearance が残ること、encoder / decoder の残差のまとまりが保たれることを確認した。原図では直線と矢じりが同じ桁の長さで、2pt の stem / 4pt の矢じりはその比率を小さい紙面の中で控えめに再現する。
-
-受け入れ図は **75.32 → 76.02mm × 114.12mm**。5 本の残差の端は **8 → 12 unit** の直線になり、見える stem は **0 → 4 unit**。丸めはこの stem を使い切らず、必要なら角の半径を減らす。拡大画像では上記の小さな段差も確認できる。原図の厳密な形・全寸法を再現する変更ではない。
+受け入れ図を CLI で描き、`rsvg-convert -z 3` の PNG を開いて確認した。短い直線が矢じりの背後に見えること、枠から 3pt の clearance が残ること、Linear → decoder と ⊕ → decoder の辺・encoder の ⊕ → 内部の辺が直線であること、encoder / decoder の残差のまとまりが保たれることを確認した。`examples/transformer`（academic）も同様。受け入れ図は **75.32 → 77.08mm × 114.12mm**（片側だけ広げる中間版は 76.02mm）。5 本の残差の端は 8 → 12 unit の直線になり、見える stem は 0 → 4 unit。丸めはこの stem を使い切らず、必要なら角の半径を減らす。原図の厳密な形・全寸法を再現する変更ではない。
 
 ## 最終検証
 
-- `bun run check`: 成功（警告なし）。
-- `bun run typecheck`: 成功。
-- `CI=1 bun test`: **3,195 pass / 13 skip / 0 fail**。
-- `bun run gallery:check`: **169 ファイル**一致（全 variant × 全 Theme を含む）。
-- `bun run schema:check`: 一致。
-- 指定の PDF / PPTX / assets golden 更新: **594 pass / 0 fail**。
+- `bun run check` / `bun run typecheck` / `CI=1 bun test` / `bun run gallery:check` / `bun run schema:check`: 成功（`CI=1 bun test` は 3,318 pass / 0 fail、gallery は 169 ファイル一致）。
+- `SUMI_UPDATE_GOLDEN=1 CI=1 bun test src/render/pdf src/render/pptx src/render/assets.integration.test.ts`: 594 pass / 0 fail。hash ファイルの手編集は行っていない。
+
+## main 取り込み後の #246 / #251 の 3 テスト
+
+`origin/main` 自体で `src/layout/route/split-bowtie.test.ts` の 3 件（bent anchored routes / parallel / trapezoids）が失敗する（本ブランチと無関係。グループのない fixture）。図全体の x 起点が 11 → 12.988 unit に動いた（split bowtie の寸法・ラベルの変更。#245 / #249 のいずれか）のに、#251 の期待値が絶対座標のままだったため。本ブランチでは期待値を積み段の左端（`placed.nodes[0].rect.x`）からの相対値にして、意図（口の位置・折れ方）を変えずに直した。
 
 部品 manifest・画像 / emoji の importer・archive は変更していない。カタログ・JSON Schema に新フィールドはなく、Skill の診断・structured 配置の説明だけを更新した。

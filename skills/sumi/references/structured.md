@@ -679,7 +679,9 @@ YAML order, greedily: edges declared first get the best routes.
   The router keeps a straight run of the arrowhead plus the radius before an
   arrowhead where moving a bend gives it. Tight group-padding approaches
   automatically grow that side's padding for the arrowhead plus a visible
-  2pt stem and 3pt border clearance; rounding preserves that stem. A tight
+  2pt stem and 3pt border clearance (the opposite side grows by the same
+  amount, keeping the content on the group's centre line); rounding
+  preserves that stem. A tight
   gap elsewhere can still leave the arrowhead right after the corner:
   `geometry/arrowhead-cramped` (info) reports a structured edge with less
   than 2pt of painted straight stem before a bend, including after `fit`.

@@ -57,19 +57,13 @@ describe("split bowtie straight ends (#246)", () => {
       .replace('fromAnchor: "south:0.5"', 'fromAnchor: "south:0.5", toAnchor: "north:0.5"')
       .replace("{from: b, to: c,", '{from: b, to: c, fromAnchor: "south:0.5",');
     const { ir, layout: placed } = layout(text);
+    // Offsets are relative to the stack's left edge: the figure's x origin
+    // follows the split bowtie's label sizing (#245), not these routes.
+    const dx = placed.nodes[0]?.rect.x ?? Number.NaN;
+    const at = (x: number, y: number) => ({ x: roundUnits(dx + x), y });
     expect(placed.edges.map((e) => e.route?.points)).toEqual([
-      [
-        { x: 51, y: 51 },
-        { x: 51, y: 75 },
-        { x: 47, y: 75 },
-        { x: 47, y: 111 },
-      ],
-      [
-        { x: 47, y: 151 },
-        { x: 47, y: 195 },
-        { x: 51, y: 195 },
-        { x: 51, y: 211 },
-      ],
+      [at(40, 51), at(40, 75), at(36, 75), at(36, 111)],
+      [at(36, 151), at(36, 195), at(40, 195), at(40, 211)],
     ]);
     expect(Object.values(checkRoutes(ir, placed)).flat()).toEqual([]);
   });
@@ -90,6 +84,11 @@ describe("split bowtie straight ends (#246)", () => {
           .replace("width: 40pt, height: 20pt}", "width: 40pt, height: 20pt, narrow: south}")
           .replace("width: 40pt, height: 20pt}", "width: 40pt, height: 20pt, narrow: north}");
       const { ir, layout: placed } = layout(text);
+      // The stack kinds are relative to the stack's left edge (the figure's x
+      // origin follows the split bowtie's label sizing, #245); spread's row
+      // coordinates are absolute.
+      const left = placed.nodes[0]?.rect.x ?? Number.NaN;
+      const at = (x: number, y: number) => ({ x: roundUnits(left + x), y });
       const expected = {
         spread: [
           [
@@ -106,28 +105,13 @@ describe("split bowtie straight ends (#246)", () => {
           ],
         ],
         parallel: [
-          [
-            { x: 37.667, y: 51 },
-            { x: 37.667, y: 105.815 },
-          ],
-          [
-            { x: 47, y: 151 },
-            { x: 47, y: 211 },
-          ],
-          [
-            { x: 64.333, y: 51 },
-            { x: 64.333, y: 105.815 },
-          ],
+          [at(26.667, 51), at(26.667, 105.815)],
+          [at(36, 151), at(36, 211)],
+          [at(53.333, 51), at(53.333, 105.815)],
         ],
         trapezoids: [
-          [
-            { x: 47, y: 51 },
-            { x: 47, y: 111 },
-          ],
-          [
-            { x: 47, y: 151 },
-            { x: 47, y: 211 },
-          ],
+          [at(36, 51), at(36, 111)],
+          [at(36, 151), at(36, 211)],
         ],
       };
       expect(placed.edges.map((e) => e.route?.points)).toEqual(expected[kind]);

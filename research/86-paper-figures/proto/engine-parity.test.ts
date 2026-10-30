@@ -72,8 +72,10 @@ describe.each([
   const proto = layoutModel(parseModel(text));
   Object.assign(STYLE, saved);
   // #247 intentionally supersedes the prototype's flush arrowheads: the
-  // academic Transformer gains 2 units on encoder west / decoder east.
-  // Preserve parity for every other coordinate and dimension.
+  // academic Transformer gains 2 units on both sides of the encoder and the
+  // decoder (symmetric, so the group's content stays on its centre line and
+  // the trunk outside it stays straight). Preserve parity for every other
+  // coordinate and dimension.
   if (_name.includes("a-transformer")) {
     const decoderX = proto.groups.get("decoder")?.x;
     if (decoderX === undefined) throw new Error("missing decoder");
@@ -82,26 +84,26 @@ describe.each([
       if (!rect) continue;
       const dx =
         node.id === "enc-n"
-          ? -1
+          ? -2
           : node.id === "dec-n"
-            ? 3
-            : node.parent === "g:encoder" || node.parent === "g:decoder"
-              ? 1
-              : rect.x >= decoderX
-                ? 2
+            ? 6
+            : node.parent === "g:encoder"
+              ? 0
+              : node.parent === "g:decoder" || rect.x >= decoderX
+                ? 4
                 : 0;
       rect.x += dx;
     }
     for (const [id, dx] of [
-      ["encoder", -1],
-      ["decoder", 1],
+      ["encoder", -2],
+      ["decoder", 2],
     ] as const) {
       const rect = proto.groups.get(id);
       if (!rect) throw new Error(`missing ${id}`);
       rect.x += dx;
-      rect.w += 2;
+      rect.w += 4;
     }
-    proto.width += 2;
+    proto.width += 4;
   }
   const marked = new Set(ir.nodes.filter((n) => n.mark !== undefined).map((n) => n.key));
 
