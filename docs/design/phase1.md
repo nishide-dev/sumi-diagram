@@ -2269,6 +2269,14 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **最終検証**: `bun run check`・`bun run typecheck`・`CI=1 bun test`（**2,988 pass / 13 skip / 0 fail**）・`bun run gallery:check`（165 ファイル）・`bun run schema:check`・`bun run emoji:check` が成功。darwin-arm64 の `release:build` と拡大セットを使う `release:smoke` も成功した。
 
 
+### 6.68 #245 の split bowtie のラベル安全領域と輪郭重なり検出
+
+- **問題**: §6.66 の safeArea は左右の台形と gap をまたぎ、内側の垂直な輪郭線まで通っていた。中央ラベルのまま全幅に gap を足すだけでは、内側の線は文字を横切り続ける。衝突用の外接矩形を検査するだけでは検出できない。
+- **比較と判断**: (1) 中央配置のまま拡幅する案は内側の線との交差を解消しない。(2) gap 自体を文字幅まで拡大する案は指定した gap の意味を変える。(3) 外付けラベルは高さ・接続・バッジとの関係を変える。(4) 左台形内へ 1 個のラベルを置く案を採用する。対称な外形と指定 gap を保ち、片側への意味付けは増やさない。従来の「左右にまたがる」見た目より、輪郭に文字が重ならないことを優先する。
+- **幾何**: `gap > 0` の footprint は、padding 済みラベル幅 W・高さ H に対して `2W + gap` × `2H`。safeArea は左台形の幅と中央の高さ半分で、auto の compose と structured の既存経路が同じ中心を使う。明示サイズは保持し、gap を全幅の半分以下に制限する従来の退化対策も維持する。`gap` なし・0 の footprint / safeArea / 出力は変えない。
+- **lint**: `geometry/label-overflow`（既存の error、共有 Diagnostic）を拡張し、safeArea への包含に加えて、描画境界 `boundaries ?? [outline]` の閉じた線分とラベル各行の箱との交差を独立に検査する。stroke の内側半分と既存の 1 単位（0.5pt）の許容差を適用する。凸包・collision は辺や要素の障害物用であり、ラベル境界として代用しない。1 要素につき診断 1 件、明示サイズは `props` を指す。
+- **互換性・検証**: 出力変更を許可するのは `bowtie.props.gap > 0` を使う図だけ。全追跡 YAML を自テーマ＋全組み込みテーマで変更前後に描画し、SVG / PDF / picture・editable PPTX / D2 の sha256 を比較する。全テーマの auto / structured、明示サイズ、safeArea だけでは分からない線分交差を回帰検査する。カタログ・全テーマ×variant の gallery・Skill を更新し、`research/233-lora/c-h3world.sumi.yaml` の PNG も再生成して確認する。
+
 ### 6.69 #246 の split bowtie の口と隣接端の直線化
 
 - **原因**: structured の通常の横 `row [box, bowtie(gap: 8), box]` は左右の外側の口で既に直線になる。一方、north/south の接続は §6.66 が gap 中央の port を左の口へ 4 unit 移すため、§6.40 の許容差 2 unit を超え、段差も `layout/unaligned-ends` の検査も対象外になっていた。gap が小さい場合も、直線化の候補を再解決すると gap から同じ口へ戻るのに「移動成功」と扱い、隣の端を試さず終了していた。

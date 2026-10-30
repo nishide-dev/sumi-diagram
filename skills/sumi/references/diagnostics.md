@@ -188,7 +188,8 @@ exit code 1. Configure like structural rules
 | `geometry/reversed-edge` | warning | ELK reversed the wrong edge of a cycle (typically a loop inside a group): swap the order of the loop's nodes in `nodes`, or move the loop out of the group |
 
 For custom outline components, `geometry/label-overflow` checks the renderer's
-safe label rectangle, and shape collisions use its convex collision region
+safe label rectangle and overlap with painted boundary segments (including
+the inner edges of a split bowtie); shape collisions use its convex collision region
 (or the outline's convex hull). A label may fit the layout rectangle and still
 overflow its safe area. Automatically generated dimensions do not count as
 explicit `props`: those findings point at `label`. Partial or fully explicit
