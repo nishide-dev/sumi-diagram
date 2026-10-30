@@ -8,13 +8,16 @@
 
 Sumi-rendered recreations of public reference figures: the Transformer architecture and a DiT block.
 
-| Transformer | DiT block |
-| --- | --- |
-| ![Transformer architecture rendered by Sumi](research/185-acceptance/previews/a-transformer.png) | ![DiT block rendered by Sumi](research/185-acceptance/previews/b-dit.png) |
-
-An everyday pipeline, built from the same reusable components:
-
-![Pipeline example rendered by Sumi](examples/pipeline/pipeline.svg)
+<table>
+  <tr>
+    <th>Transformer</th>
+    <th>DiT block</th>
+  </tr>
+  <tr>
+    <td><img src="research/185-acceptance/previews/a-transformer.png" alt="Transformer architecture rendered by Sumi" height="280"></td>
+    <td><img src="research/185-acceptance/previews/b-dit.png" alt="DiT block rendered by Sumi" height="280"></td>
+  </tr>
+</table>
 
 Browse the [component gallery](docs/gallery/README.md) and [examples with YAML sources](examples/README.md).
 
