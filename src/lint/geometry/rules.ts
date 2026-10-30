@@ -373,7 +373,12 @@ export const labelOverflow = defineGeometryRule({
       // The label must stay clear of the border's inner half.
       const margin = element.strokeInset - GEOMETRY_TOLERANCE_UNITS;
       const lines = element.labels.flatMap((l) => l.visibleLines);
-      const overflows = lines.some((line) => rectDepthInside(labelArea, line) < margin);
+      const overflows = lines.some(
+        (line) =>
+          rectDepthInside(labelArea, line) < margin ||
+          (element.labelBoundaries !== undefined &&
+            polylinesCrossRect(element.labelBoundaries, line, -margin)),
+      );
       if (!overflows) continue;
       const box = unionOf(element.labels.flatMap((l) => (l.box === undefined ? [] : [l.box])));
       const { ir } = element;

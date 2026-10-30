@@ -4,6 +4,8 @@ import { getOutlineRenderer } from "../core/outline";
 import { BUILTIN_THEMES } from "../core/theme/builtin";
 import { resolveEnds } from "../layout/route/ports";
 import { lintGeometry } from "../lint";
+import { geometryContextFor } from "../lint/geometry/lint";
+import { polylinesCrossRect } from "../lint/geometry/shapes";
 import { svgToPdf } from "./pdf";
 import { svgToEditablePptx } from "./pptx";
 import { readPptx } from "./pptx/testing";
@@ -28,6 +30,12 @@ edges: [{ from: a, to: b }]
       if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
       expect(result.diagnostics).toEqual([]);
       expect(lintGeometry(result.value)).toEqual([]);
+      const geometry = geometryContextFor(result.value).get("n:a");
+      if (!geometry?.bbox || !geometry.labelBoundaries) throw new Error("missing boundaries");
+      for (const line of geometry.labels.flatMap((label) => label.visibleLines)) {
+        expect(polylinesCrossRect(geometry.labelBoundaries, line, 0)).toBe(false);
+        expect(line.x + line.width).toBeLessThan(geometry.bbox.x + geometry.bbox.width / 2);
+      }
       const a = result.value.inspection.elements.find((e) => e.key === "n:a");
       expect(a?.labels.map((l) => l.text)).toEqual(["LoRA"]);
       expect(result.value.svg).toContain('class="sumi-badge"');
@@ -110,6 +118,28 @@ edges: [{ from: a, to: b }]
     if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
     expect(result.diagnostics).toEqual([]);
     expect(lintGeometry(result.value)).toEqual([]);
+  });
+}
+
+for (const layout of ["{ direction: right }", "{ arrange: { row: { items: [a] } } }"]) {
+  test(`${layout}: explicit small split bowtie reports label/outline overlap`, async () => {
+    const source = `version: 1
+figure: { id: small, theme: paper, layout: ${layout} }
+nodes:
+  - { id: a, component: bowtie, label: LoRA, props: { gap: 8, width: 30pt, height: 30pt } }
+`;
+    const result = await renderFigure(source);
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const geometry = geometryContextFor(result.value).get("n:a");
+    if (!geometry?.bbox || !geometry.labelBoundaries) throw new Error("missing geometry");
+    const line = geometry.labels[0]?.visibleLines[0];
+    if (!line) throw new Error("missing label");
+    expect(polylinesCrossRect(geometry.labelBoundaries, line, 0)).toBe(true);
+    expect(
+      lintGeometry(result.value, { source }).filter((d) => d.code === "geometry/label-overflow"),
+    ).toMatchObject([
+      { severity: "error", path: ["nodes", 0, "props"], subject: { kind: "node", id: "a" } },
+    ]);
   });
 }
 

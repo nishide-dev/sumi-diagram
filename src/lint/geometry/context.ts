@@ -31,6 +31,8 @@ export interface GeometryElement {
   outline?: Region;
   /** Custom renderer safeArea or the ordinary shape's labelArea; set with bbox. */
   labelArea?: Region;
+  /** Closed painted boundary polylines, distinct from the convex collision hull. */
+  labelBoundaries?: readonly (readonly Point[])[];
   /** Half the stroke width in units: the part of the border drawn inside the outline. */
   strokeInset: number;
   labels: MeasuredLabel[];
@@ -130,15 +132,20 @@ export function createGeometryContext(
     const shape: DrawnShape | undefined =
       element.kind === "edge" || element.shape === "text" ? undefined : element.shape;
     const bbox = shape === undefined ? undefined : geometry.bbox;
-    let regions: { outline: Region; labelArea: Region } | undefined;
+    let regions: Pick<GeometryElement, "outline" | "labelArea" | "labelBoundaries"> | undefined;
     if (shape !== undefined && bbox !== undefined) {
       if (element.kind === "node" && element.render !== undefined) {
         const renderer = getOutlineRenderer(element.render.renderer);
         if (!renderer)
           throw new Error(`internal error: unknown outline renderer ${element.render.renderer}`);
-        regions = outlineRegions(
-          renderer.draw(bbox, renderer.params.parse(element.render.params ?? {})),
-        );
+        const drawing = renderer.draw(bbox, renderer.params.parse(element.render.params ?? {}));
+        regions = {
+          ...outlineRegions(drawing),
+          labelBoundaries: (drawing.boundaries ?? [drawing.outline]).map((points) => [
+            ...points,
+            points[0] as Point,
+          ]),
+        };
       } else regions = { outline: shapeOutline(shape, bbox), labelArea: labelArea(shape, bbox) };
     }
     elements.push({
