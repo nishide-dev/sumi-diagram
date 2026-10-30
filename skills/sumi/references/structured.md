@@ -656,8 +656,12 @@ YAML order, greedily: edges declared first get the best routes.
 - Line corners are drawn rounded (radius up to 4pt, smaller in tight spots);
   there is no option to make them sharp. Editable PPTX keeps sharp corners.
   The router keeps a straight run of the arrowhead plus the radius before an
-  arrowhead where moving a bend gives it; in a group padding or gap too
-  tight for that, the arrowhead still comes right after the corner.
+  arrowhead where moving a bend gives it. Tight group-padding approaches
+  automatically grow that side's padding for the arrowhead plus a visible
+  2pt stem and 3pt border clearance; rounding preserves that stem. A tight
+  gap elsewhere can still leave the arrowhead right after the corner:
+  `geometry/arrowhead-cramped` (info) reports a structured edge with less
+  than 2pt of painted straight stem before a bend, including after `fit`.
 - Trunks and side paths run close beside the blocks (about 3pt away); the
   lever to move them is the `gap` of the enclosing box, not a coordinate.
 

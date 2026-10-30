@@ -115,8 +115,12 @@ describe("sublabel (#184): DiT", () => {
     const rendered = await render(source);
     const codes = (r: RenderedStructuredFigure, text: string) =>
       lintGeometry(r, { source: text }).map((d) => d.code);
-    expect(codes(rendered, source)).toEqual(["geometry/exceeds-page-width"]);
-    expect(codes(await render(research), research)).toEqual(["geometry/exceeds-page-width"]);
+    expect(codes(rendered, source)).toEqual([
+      "geometry/exceeds-page-width",
+      "geometry/arrowhead-cramped",
+      "geometry/arrowhead-cramped",
+    ]);
+    expect(codes(await render(research), research)).toEqual(codes(rendered, source));
   });
 
   test("each node draws its label and a smaller sublabel <text> under it", async () => {

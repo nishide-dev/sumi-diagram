@@ -71,6 +71,38 @@ describe.each([
   STYLE.junctionSize = markSize("junction") ?? STYLE.junctionSize;
   const proto = layoutModel(parseModel(text));
   Object.assign(STYLE, saved);
+  // #247 intentionally supersedes the prototype's flush arrowheads: the
+  // academic Transformer gains 2 units on encoder west / decoder east.
+  // Preserve parity for every other coordinate and dimension.
+  if (_name.includes("a-transformer")) {
+    const decoderX = proto.groups.get("decoder")?.x;
+    if (decoderX === undefined) throw new Error("missing decoder");
+    for (const node of ir.nodes) {
+      const rect = proto.nodes.get(node.id);
+      if (!rect) continue;
+      const dx =
+        node.id === "enc-n"
+          ? -1
+          : node.id === "dec-n"
+            ? 3
+            : node.parent === "g:encoder" || node.parent === "g:decoder"
+              ? 1
+              : rect.x >= decoderX
+                ? 2
+                : 0;
+      rect.x += dx;
+    }
+    for (const [id, dx] of [
+      ["encoder", -1],
+      ["decoder", 1],
+    ] as const) {
+      const rect = proto.groups.get(id);
+      if (!rect) throw new Error(`missing ${id}`);
+      rect.x += dx;
+      rect.w += 2;
+    }
+    proto.width += 2;
+  }
   const marked = new Set(ir.nodes.filter((n) => n.mark !== undefined).map((n) => n.key));
 
   test("every node and group rectangle matches the prototype within 0.01 unit", () => {

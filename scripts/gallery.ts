@@ -32,6 +32,7 @@
 import { mkdir, readdir, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { parse } from "yaml";
+import { layoutStructuredFigure } from "../src/layout";
 import { svgToPdf } from "../src/render/pdf";
 import { type GalleryModel, galleryHtml, galleryMarkdown } from "./gallery/page";
 import { type RenderJob, type RenderOutcome, renderAll } from "./gallery/render";
@@ -172,6 +173,19 @@ if (problems.length > 0) {
 
 // Everything the generator owns, by path relative to the repository root.
 const files = new Map<string, string | Uint8Array>();
+// Keep the placement/routing snapshots affected by the Transformer gallery
+// in the same canonical regeneration path as its SVG and export goldens.
+for (const name of ["a-transformer", "align-side-kv"]) {
+  const source = await read(`tests/fixtures/figures/layout/${name}.sumi.yaml`);
+  for (const route of [false, true]) {
+    const placed = layoutStructuredFigure(source, { route });
+    if (!placed.ok) throw new Error(JSON.stringify(placed.diagnostics));
+    files.set(
+      `tests/fixtures/layout/${name}${route ? ".routed" : ""}.layout.json`,
+      `${JSON.stringify(placed.value.layout, null, 2)}\n`,
+    );
+  }
+}
 for (const outcome of outcomes) {
   if (outcome.svg !== undefined) files.set(outcome.rendering.output, outcome.svg);
 }

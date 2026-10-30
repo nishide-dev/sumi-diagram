@@ -1873,7 +1873,7 @@ The committed SVGs of <code>examples/</code>, rendered from their sources as wri
 
 ### examples/transformer/transformer\.sumi\.yaml
 
-[<code>examples/transformer/transformer\.sumi\.yaml</code>](../../examples/transformer/transformer.sumi.yaml) · [PDF](../../examples/transformer/transformer.pdf) · theme <code>academic</code> · profile <code>paper\-single</code> · 86\.78mm × 140\.58mm \(max width 88mm, max height 220mm\)
+[<code>examples/transformer/transformer\.sumi\.yaml</code>](../../examples/transformer/transformer.sumi.yaml) · [PDF](../../examples/transformer/transformer.pdf) · theme <code>academic</code> · profile <code>paper\-single</code> · 87\.14mm × 140\.58mm \(max width 88mm, max height 220mm\)
 
 <img src="../../examples/transformer/transformer.svg" alt="examples/transformer/transformer.sumi.yaml">
 

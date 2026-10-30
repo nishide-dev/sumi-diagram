@@ -125,6 +125,11 @@ edges:
 `,
       [
         {
+          code: "geometry/arrowhead-cramped",
+          message:
+            "The target arrowhead of edge edges[1] has only 0pt of visible straight stem before a bend (less than 2pt).",
+        },
+        {
           code: "geometry/edge-touches-label",
           message: 'Edge edges[1] touches the label of group "g2" (0.27mm from the letters).',
         },

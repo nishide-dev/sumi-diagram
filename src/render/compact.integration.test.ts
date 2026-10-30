@@ -66,7 +66,10 @@ describe("DiT (paper, paper-double, fit: scale)", () => {
     expect(c.heightMm / c.widthMm).toBeLessThan(n.heightMm / n.widthMm);
     // No label, edge label or sublabel below 5pt after scaling, no warnings:
     // only the info that label-math scripts print smaller (4.07pt).
-    expect(diagnosticsOf(compact, DIT)).toEqual(["info geometry/script-too-small"]);
+    expect(diagnosticsOf(compact, DIT)).toEqual([
+      "info geometry/script-too-small",
+      ...Array(5).fill("info geometry/arrowhead-cramped"),
+    ]);
   });
 
   test("a one-line box is 13pt tall (8pt text: 10pt line + 2 × 1.5pt) instead of 17pt", async () => {
@@ -85,9 +88,9 @@ describe("Transformer (paper, paper-single)", () => {
     const n = outputSize(spaced.inspection);
     expect(c.scale).toBeUndefined();
     // §6.55's fixture after #215: smaller paper operators; original 77.2 × 113.7mm.
-    expect(c.widthMm).toBeCloseTo(75.32, 1);
+    expect(c.widthMm).toBeCloseTo(76.02, 1);
     expect(c.heightMm).toBeCloseTo(114.12, 1);
     expect(c.heightMm).toBeLessThan(n.heightMm * 0.85);
-    expect(diagnosticsOf(compact, TRANSFORMER)).toEqual([]);
+    expect(diagnosticsOf(compact, TRANSFORMER)).toEqual(Array(4).fill("info geometry/edge-jog"));
   });
 });

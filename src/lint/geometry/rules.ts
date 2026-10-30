@@ -15,7 +15,7 @@ import type { DocPath } from "../../core/diagnostics";
 import type { GroupLabelPosition } from "../../core/figure/schema";
 import { BUILTIN_PROFILES } from "../../core/profile/builtin";
 import { formatMm, formatPt, mmToPt, ptToD2Units } from "../../core/units";
-import { arrowheadLength } from "../../layout/route/arrowhead";
+import { ARROWHEAD_STEM_UNITS, arrowheadLength } from "../../layout/route/arrowhead";
 import { type Point, type Rect, unitsToMm, unitsToPt } from "../../render/geometry";
 import type { ProfileLimits } from "../../render/inspect";
 import { printedSize } from "../../render/size";
@@ -864,6 +864,44 @@ export const arrowheadOnBend = defineGeometryRule({
   },
 });
 
+export const arrowheadCramped = defineGeometryRule({
+  id: "geometry/arrowhead-cramped",
+  description: "A structured arrowhead has less than 2pt of visible straight stem before a bend.",
+  defaultSeverity: "info",
+  fixable: false,
+  run(context) {
+    if (!isStructured(context)) return [];
+    const findings: LintFinding[] = [];
+    for (const edge of context.elements) {
+      if (!isDrawnEdge(edge) || edge.ir.kind !== "edge" || edge.route === undefined) continue;
+      const length = arrowheadLength(edge.ir.style.strokeWidth.units);
+      for (const source of [true, false]) {
+        if ((source ? edge.ir.sourceArrowhead : edge.ir.targetArrowhead) === undefined) continue;
+        const route = source ? edge.route[0] : edge.route.at(-1);
+        if (route === undefined) continue;
+        const run = arrowheadStraightRun(route, edge.drawn ?? [], source);
+        const total = route
+          .slice(1)
+          .reduce(
+            (sum, p, i) => sum + Math.hypot(p.x - (route[i]?.x ?? p.x), p.y - (route[i]?.y ?? p.y)),
+            0,
+          );
+        // Straight edges have no preceding bend. Overlap already has a warning.
+        if (run >= total - 0.002 || run + GEOMETRY_TOLERANCE_UNITS < length) continue;
+        const stem = Math.max(0, printedUnits(context, run - length));
+        if (stem >= ARROWHEAD_STEM_UNITS - 0.002) continue;
+        findings.push({
+          message: `The ${source ? "source" : "target"} arrowhead of ${edge.name} has only ${formatPt(unitsToPt(stem))} of visible straight stem before a bend (less than 2pt).`,
+          path: edge.docPath,
+          subject: edge.subject,
+          hint: "Leave the arrowhead length plus 2pt of straight approach after rounding. Increase the gap or change fromAnchor / toAnchor; a fitted figure may need more room before scaling.",
+        });
+      }
+    }
+    return findings;
+  },
+});
+
 /** `true` for a group drawn with a visible border. */
 const isFramedGroup = (e: GeometryElement): boolean =>
   e.ir.kind === "group" &&
@@ -1469,6 +1507,7 @@ export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
   edgeCrossesLabel,
   edgeThroughNode,
   arrowheadOnBend,
+  arrowheadCramped,
   edgeJog,
   zoomCrossesNode,
   edgeOnBorder,
