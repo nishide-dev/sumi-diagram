@@ -539,7 +539,10 @@ YAML order, greedily: edges declared first get the best routes.
   and neither can move, `layout/unaligned-ends` (warning) says so: write
   the same position for both.
   With a split `bowtie` (`props.gap`), a north/south port in the empty gap
-  moves to a painted lip. If the ends were aligned before that move, an
+  moves to the nearest painted lip (left on ties), including explicit
+  `fromAnchor` / `toAnchor` positions. This mandatory correction is separate
+  from the 1pt straightening allowance and also applies to bent routes.
+  If the ends were aligned before that move, an
   unshared, unanchored neighbour follows the lip's line. If a shared port,
   anchor or short side prevents alignment, `layout/unaligned-ends` reports
   the remaining step, even when the gap displacement exceeds 1pt.

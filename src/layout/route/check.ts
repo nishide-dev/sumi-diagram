@@ -287,11 +287,40 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
       ],
     ] as const;
     // How far each end lies from its anchor along its side: 0 without one,
-    // infinite on another side.
+    // infinite on another side. A split bowtie's mandatory gap correction
+    // defines the anchor's baseline, independently of #169 straightening.
     const anchorOffsets = ends.map(([, key, end, , side, anchor]) => {
       if (typeof anchor !== "object" || end === undefined || side === undefined) return 0;
       if (anchor.side !== side) return Number.POSITIVE_INFINITY;
       const want = anchorPoint(rects.get(key) as Rect, anchor);
+      if (
+        nodeIR.get(key)?.render?.renderer === "sumi/bowtie" &&
+        (side === "north" || side === "south")
+      ) {
+        const spans = painted.get(key)?.flatMap((region) =>
+          region.kind === "polygon"
+            ? [
+                {
+                  min: Math.min(...region.points.map((p) => p.x)),
+                  max: Math.max(...region.points.map((p) => p.x)),
+                },
+              ]
+            : [],
+        );
+        if (spans?.length && !spans.some(({ min, max }) => want.x >= min && want.x <= max)) {
+          // Nearest painted lip, left on ties; round toward the painted body.
+          const lip = spans
+            .flatMap(({ min, max }) => [min, max])
+            .reduce((best, x) => {
+              const delta = Math.abs(x - want.x) - Math.abs(best - want.x);
+              return delta < -1e-6 || (Math.abs(delta) <= 1e-6 && x < best) ? x : best;
+            });
+          want.x =
+            lip < want.x
+              ? Math.floor(lip * 1000 + 1e-6) / 1000
+              : Math.ceil(lip * 1000 - 1e-6) / 1000;
+        }
+      }
       return SIDE_DIR[side] % 2 === 1 ? Math.abs(want.x - end.x) : Math.abs(want.y - end.y);
     });
     for (const [k, [which, key, end, next, side, anchor]] of ends.entries()) {
