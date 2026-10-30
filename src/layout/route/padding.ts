@@ -3,8 +3,8 @@
  * §§6.42, 6.70). An edge whose ends are both inside a group and which enters (or
  * leaves, with a source arrowhead) a member through the side facing the
  * group's border turns in that group's padding: the route runs straight for
- * the arrowhead's length plus a visible 2pt stem from the port (and room for a 2pt corner radius, #260), then bends
- * along the border. The padding holds both and the clearance (3pt) between
+ * the arrowhead's length plus a visible 2pt stem from the port (and room for
+ * a 2pt corner radius, #260), then bends along the border. The padding holds both and the clearance (3pt) between
  * the bend and the border: with the `color` theme's 1pt lines (an arrowhead
  * of 12 units) in the paper padding (8pt = 16 units), the line ran 4 units
  * from the border, 0.35mm stroke to stroke (`geometry/edge-near-border`).
