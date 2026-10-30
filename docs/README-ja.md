@@ -8,13 +8,16 @@
 
 公開されている参照図を Sumi で再現した Transformer アーキテクチャと DiT ブロックです。
 
-| Transformer | DiT ブロック |
-| --- | --- |
-| ![Sumi で描画した Transformer](../research/185-acceptance/previews/a-transformer.png) | ![Sumi で描画した DiT ブロック](../research/185-acceptance/previews/b-dit.png) |
-
-同じ再利用可能な部品で、普段使いのパイプラインも描けます。
-
-![Sumi で描画したパイプライン](../examples/pipeline/pipeline.svg)
+<table>
+  <tr>
+    <th>Transformer</th>
+    <th>DiT ブロック</th>
+  </tr>
+  <tr>
+    <td><img src="../research/185-acceptance/previews/a-transformer.png" alt="Sumi で描画した Transformer" height="280"></td>
+    <td><img src="../research/185-acceptance/previews/b-dit.png" alt="Sumi で描画した DiT ブロック" height="280"></td>
+  </tr>
+</table>
 
 [コンポーネントギャラリー](gallery/README.md)と [YAML 付きの作例](../examples/README.md)をご覧ください。
 
