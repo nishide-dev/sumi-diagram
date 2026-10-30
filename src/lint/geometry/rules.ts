@@ -23,6 +23,7 @@ import { defineGeometryRule, type GeometryRule, type LintFinding } from "../rule
 import { arrowheadStraightRun } from "./arrowheads";
 import type { GeometryContext, GeometryElement } from "./context";
 import { obstaclesCrossedByRoute, type RouteObstacle } from "./edges";
+import { groupEmptySpace } from "./empty-space";
 import { microJogLengths } from "./jogs";
 import { inkLines, unionOf } from "./measure";
 import { regionsOverlap } from "./outlines";
@@ -1456,7 +1457,35 @@ export const badgeCollision = defineGeometryRule({
   },
 });
 
+/** Rounded repository p90 (75.25%); see design §6.71 and research/248-fill. */
+export const GROUP_EMPTY_SPACE_THRESHOLD = 0.75;
+
+export const groupEmptyArea = defineGeometryRule({
+  id: "geometry/group-empty-area",
+  description:
+    "At least 75% of a group's frame is outside its title and direct children's bounding boxes (edges excluded).",
+  defaultSeverity: "info",
+  fixable: false,
+  run(context) {
+    return context.elements.flatMap((group): LintFinding[] => {
+      const empty = groupEmptySpace(context, group);
+      if (empty === undefined || empty < GROUP_EMPTY_SPACE_THRESHOLD) return [];
+      return [
+        {
+          message: `${capitalize(group.name)} has ${(empty * 100).toFixed(1)}% empty bounding-box area (threshold 75%; edges excluded).`,
+          path: group.docPath,
+          subject: group.subject,
+          hint: isStructured(context)
+            ? "If unintended, use align: stretch on the enclosing row/stack and justify: stretch inside the stretched column/row, or justify: space-between for fixed-size items. Reduce explicit gaps or avoid stretching the panel itself to tighten title/caption spacing. Whitespace can be intentional; this is information only."
+            : "Whitespace can be intentional. If needed, use structured row/stack layout with align: stretch and justify: stretch (or space-between), or adjust grouping and gaps.",
+        },
+      ];
+    });
+  },
+});
+
 export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
+  groupEmptyArea,
   badgeCollision,
   exceedsPageWidth,
   exceedsPageHeight,

@@ -111,12 +111,18 @@ function pptxRows(
 }
 
 describe("sublabel (#184): DiT", () => {
-  test("renders with the research figure's findings only (its width)", async () => {
+  test("renders with the research figure's findings (width and sparse panel)", async () => {
     const rendered = await render(source);
     const codes = (r: RenderedStructuredFigure, text: string) =>
       lintGeometry(r, { source: text }).map((d) => d.code);
-    expect(codes(rendered, source)).toEqual(["geometry/exceeds-page-width"]);
-    expect(codes(await render(research), research)).toEqual(["geometry/exceeds-page-width"]);
+    expect(codes(rendered, source)).toEqual([
+      "geometry/exceeds-page-width",
+      "geometry/group-empty-area",
+    ]);
+    expect(codes(await render(research), research)).toEqual([
+      "geometry/exceeds-page-width",
+      "geometry/group-empty-area",
+    ]);
   });
 
   test("each node draws its label and a smaller sublabel <text> under it", async () => {
