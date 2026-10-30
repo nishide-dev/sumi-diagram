@@ -1,0 +1,14 @@
+{
+  "baseCommit": "61e6c20f2bcf318826962eb7ef50be2d6ae114c9",
+  "figures": 150,
+  "themes": ["own", "minimal", "academic", "slides", "color", "paper"],
+  "cases": 900,
+  "svg": 628,
+  "pdf": 628,
+  "picturePptx": 628,
+  "d2": 222,
+  "notRendered": 272,
+  "beforeSha256": "b935f1789c3ce83c220f7c536faefb401df8f4778fe27363d7bda0c55ab1fc43",
+  "afterSha256": "b935f1789c3ce83c220f7c536faefb401df8f4778fe27363d7bda0c55ab1fc43",
+  "changed": []
+}

@@ -14,6 +14,7 @@
       "!research/*/out",
       "!research/188-badges-emoji-bowtie/*.svg",
       "!research/233-lora/*.svg",
+      "!research/248-fill/*.svg",
       "!docs/gallery",
       "!tests/fixtures/lint-output",
       "!tests/fixtures/layout",

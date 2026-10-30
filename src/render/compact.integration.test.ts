@@ -65,8 +65,12 @@ describe("DiT (paper, paper-double, fit: scale)", () => {
     expect(c.heightMm).toBeCloseTo(86.34, 1);
     expect(c.heightMm / c.widthMm).toBeLessThan(n.heightMm / n.widthMm);
     // No label, edge label or sublabel below 5pt after scaling, no warnings:
-    // only the info that label-math scripts print smaller (4.07pt).
-    expect(diagnosticsOf(compact, DIT)).toEqual(["info geometry/script-too-small"]);
+    // Small scripts (4.07pt) and two sparse panels are informational only.
+    expect(diagnosticsOf(compact, DIT)).toEqual([
+      "info geometry/script-too-small",
+      "info geometry/group-empty-area",
+      "info geometry/group-empty-area",
+    ]);
   });
 
   test("a one-line box is 13pt tall (8pt text: 10pt line + 2 × 1.5pt) instead of 17pt", async () => {

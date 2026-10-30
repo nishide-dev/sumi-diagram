@@ -45,7 +45,7 @@ describe.skipIf(!available && !inCI)("geometry lint with D2", () => {
     // #116: the label "errors" sits on the group's bottom border (D2 puts it
     // where the edge leaves the group).
     ["container-label", ["geometry/label-collision"]],
-    ["reversed-edge", ["geometry/reversed-edge"]],
+    ["reversed-edge", ["geometry/group-empty-area", "geometry/reversed-edge"]],
     ["reversed-edge-reordered", []],
     ["reversed-edge-group", []],
     ["containment", []],
@@ -95,8 +95,9 @@ describe.skipIf(!available && !inCI)("geometry lint with D2", () => {
 
   test("reversed-edge names the edge and where its target is drawn (#31)", async () => {
     const { geometry } = await lintFile(join(FIXTURES, "geometry", "reversed-edge.sumi.yaml"));
-    expect(geometry[0]?.path).toEqual(["edges", 1]);
-    expect(geometry[0]?.message).toBe(
+    const reversed = geometry.find((d) => d.code === "geometry/reversed-edge");
+    expect(reversed?.path).toEqual(["edges", 1]);
+    expect(reversed?.message).toBe(
       'Edge edges[1] points against layout.direction (down): node "done" is drawn above node "process", although the edge does not close a cycle in declaration order.',
     );
   });

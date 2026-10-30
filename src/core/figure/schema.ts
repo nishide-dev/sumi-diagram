@@ -196,6 +196,12 @@ const arrangeFields = {
     .describe(
       "Cross-axis alignment of the items. Omitted inherits from an enclosing box on the same axis.",
     ),
+  justify: z
+    .enum(["center", "stretch", "space-between"])
+    .optional()
+    .describe(
+      "Extra main-axis space: center (default), stretch resizable items equally, or space-between items. Does not inherit; explicit sizes and fixed-aspect shapes are preserved.",
+    ),
 };
 
 /** A vertical box: items top to bottom (`down`) or bottom to top (`up`). */
