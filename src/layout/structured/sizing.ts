@@ -181,7 +181,9 @@ export function nodeSize(
   const outline = outlineOf(node);
   if (outline !== undefined) {
     // Footprints need a positive label box.
-    const box = { width: Math.max(natural.width, 1), height: Math.max(natural.height, 1) };
+    const box = outline.renderer.labelless
+      ? { width: 1, height: 1 }
+      : { width: Math.max(natural.width, 1), height: Math.max(natural.height, 1) };
     const footprint = outline.renderer.footprint(box, outline.params);
     natural = { width: Math.ceil(footprint.width), height: Math.ceil(footprint.height) };
   }

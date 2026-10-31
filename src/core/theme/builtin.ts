@@ -141,6 +141,12 @@ function componentStyles(styles: VariantStyles): NonNullable<ThemeDefinition["co
   return {
     ...Object.fromEntries(SHAPE_NODES.map((name) => [name, shape])),
     ...(styles.operator && { operator: { ...shape, ...styles.operator } }),
+    // A bracket (#281) is one line: no fill to vary.
+    bracket: {
+      emphasis: shape.emphasis,
+      muted: shape.muted,
+      outlined: shape.outlined,
+    },
     // Without outlines a stack's rectangles merge into one shape (#174).
     stack: { ...stack, solid: { ...stack.solid, stroke: "#ffffff" } },
     label: styles.label,

@@ -39,7 +39,7 @@ groups:
         rowGap: 42pt
         columnGap: 9pt
         items:
-          - row: { gap: 15pt, items: [ labels, prompt, class-text ] }
+          - row: { gap: 18pt, items: [ labels, prompt, class-text ] }
           - null
           - null
           - stack: { gap: 0, items: [ class-tokens, scores ] }
@@ -55,11 +55,6 @@ nodes:
   - { id: image-bus-two, component: junction, variant: hidden, attach: { to: image-tokens.2, side: west, gap: 14pt } }
   - { id: image-bus-dots, component: junction, variant: hidden, attach: { to: image-tokens.4, side: west, gap: 14pt } }
   - { id: image-bus-n, component: junction, variant: hidden, attach: { to: image-tokens.5, side: west, gap: 14pt } }
-  - { id: label-bus, component: junction, variant: hidden, attach: { to: labels.3, side: east, gap: 7pt } }
-  - { id: label-bus-one, component: junction, variant: hidden, attach: { to: labels.1, side: east, gap: 7pt } }
-  - { id: label-bus-two, component: junction, variant: hidden, attach: { to: labels.2, side: east, gap: 7pt } }
-  - { id: label-bus-dots, component: junction, variant: hidden, attach: { to: labels.4, side: east, gap: 7pt } }
-  - { id: label-bus-n, component: junction, variant: hidden, attach: { to: labels.5, side: east, gap: 7pt } }
   - { id: class-bus, component: junction, variant: hidden, attach: { to: class-tokens.1, side: north, gap: 14pt } }
   - { id: class-bus-two, component: junction, variant: hidden, attach: { to: class-tokens.2, side: north, gap: 14pt } }
   - { id: class-bus-three, component: junction, variant: hidden, attach: { to: class-tokens.3, side: north, gap: 14pt } }
@@ -142,6 +137,7 @@ nodes:
       height: 16pt
       variant: outlined
       cells: [ plane, car, dog, '⋮', bird ]
+  - { id: label-brace, component: bracket, attach: { to: labels, side: east, gap: 3pt }, props: { form: curly } }
   - id: prompt
     component: box
     label: 'A photo of a $\textcolor{blue}{\text{\{object\}}}$.'
@@ -217,16 +213,7 @@ edges:
   - { from: image-bus, to: image-tokens.3, toAnchor: west }
   - { from: image-bus-dots, to: image-tokens.4, toAnchor: west }
   - { from: image-bus-n, to: image-tokens.5, toAnchor: west }
-  - { from: label-bus-one, to: label-bus-two, component: line }
-  - { from: label-bus-two, to: label-bus, component: line }
-  - { from: label-bus, to: label-bus-dots, component: line }
-  - { from: label-bus-dots, to: label-bus-n, component: line }
-  - { from: labels.1, to: label-bus-one, component: line, fromAnchor: east }
-  - { from: labels.2, to: label-bus-two, component: line, fromAnchor: east }
-  - { from: labels.3, to: label-bus, component: line, fromAnchor: east }
-  - { from: labels.4, to: label-bus-dots, component: line, fromAnchor: east }
-  - { from: labels.5, to: label-bus-n, component: line, fromAnchor: east }
-  - { from: label-bus, to: prompt, toAnchor: west }
+  - { from: label-brace, to: prompt, fromAnchor: east, toAnchor: west }
   - { from: prompt, to: class-text }
   - { from: class-text, to: class-bus, component: line, fromAnchor: east }
   - { from: class-bus, to: class-bus-two, component: line }

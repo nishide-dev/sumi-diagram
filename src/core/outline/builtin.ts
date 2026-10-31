@@ -146,6 +146,81 @@ const bowtie: OutlineRenderer = {
   },
 };
 
+const bracketParams = z.strictObject({
+  form: z.enum(["square", "curly"]).default("square"),
+  points: z.enum(["east", "west", "north", "south"]).default("east"),
+});
+
+/** Depth (across the spine) and length (along it) of a bracket drawn without a size, in D2 units. */
+export const BRACKET_DEPTH = 12;
+export const BRACKET_LENGTH = 48;
+/** Segments of each quarter ellipse of a curly brace. */
+const BRACE_STEPS = 10;
+
+/**
+ * A square bracket or curly brace as one open line (#281). `points` is the
+ * side the spine (square) or the tip (curly) is on: where an edge leaves, so
+ * `east` gathers the elements to its west. Its fixed port keeps edges at the
+ * spine's middle (the tip of a curly brace), even for off-axis destinations.
+ */
+const bracket: OutlineRenderer<z.output<typeof bracketParams>> = {
+  id: "sumi/bracket",
+  version: 1,
+  labelless: true,
+  params: bracketParams,
+  footprint({ width, height }, { points }) {
+    return points === "east" || points === "west"
+      ? { width: Math.max(width, BRACKET_DEPTH), height: Math.max(height, BRACKET_LENGTH) }
+      : { width: Math.max(width, BRACKET_LENGTH), height: Math.max(height, BRACKET_DEPTH) };
+  },
+  draw({ x, y, width, height }, { form, points }) {
+    const horizontal = points === "east" || points === "west";
+    // In the frame of an east-pointing bracket: `u` runs toward the spine
+    // over `depth`, `v` along it over `length`.
+    const depth = horizontal ? width : height;
+    const length = horizontal ? height : width;
+    const local: Point[] = [];
+    if (form === "square") {
+      local.push({ x: 0, y: 0 }, { x: depth, y: 0 }, { x: depth, y: length }, { x: 0, y: length });
+    } else {
+      const rx = depth / 2;
+      const ry = Math.min(length / 4, depth);
+      // A quarter of the ellipse with radii (rx, ry) around (cx, cy), from angle `from` to `to`
+      // (without its first point when it continues the previous arc).
+      const arc = (cx: number, cy: number, from: number, to: number, joined = false) => {
+        for (let i = joined ? 1 : 0; i <= BRACE_STEPS; i++) {
+          const t = from + ((to - from) * i) / BRACE_STEPS;
+          local.push({ x: cx + rx * Math.cos(t), y: cy + ry * Math.sin(t) });
+        }
+      };
+      // The upper arm's tip, down the spine, out to the point, and mirrored back.
+      arc(0, ry, -Math.PI / 2, 0);
+      arc(depth, length / 2 - ry, Math.PI, Math.PI / 2);
+      arc(depth, length / 2 + ry, -Math.PI / 2, -Math.PI, true);
+      arc(0, length - ry, 0, Math.PI / 2);
+    }
+    const place = ({ x: u, y: v }: Point): Point => {
+      switch (points) {
+        case "east":
+          return { x: x + u, y: y + v };
+        case "west":
+          return { x: x + depth - u, y: y + v };
+        case "south":
+          return { x: x + v, y: y + u };
+        case "north":
+          return { x: x + v, y: y + depth - u };
+      }
+    };
+    const rect = { x, y, width, height };
+    return {
+      layers: [{ role: "line", path: { points: local.map(place), closed: false } }],
+      fixedPort: { side: points, offset: 0.5 },
+      outline: rectangle(rect),
+      safeArea: rect,
+    };
+  },
+};
+
 const stack: OutlineRenderer<z.output<typeof stackParams>> = {
   id: "sumi/stack",
   version: 1,
@@ -191,7 +266,7 @@ const stack: OutlineRenderer<z.output<typeof stackParams>> = {
 
 /** Closed set of renderers bundled with Sumi; no external code loading. */
 export const BUILTIN_OUTLINE_RENDERERS: ReadonlyMap<string, OutlineRenderer> = new Map(
-  [trapezoid, stack, bowtie].map((renderer) => [renderer.id, Object.freeze(renderer)]),
+  [trapezoid, stack, bowtie, bracket].map((renderer) => [renderer.id, Object.freeze(renderer)]),
 );
 
 export function getOutlineRenderer(id: string): OutlineRenderer | undefined {

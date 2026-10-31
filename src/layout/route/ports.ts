@@ -189,6 +189,7 @@ const center = (r: Rect): Point => ({ x: r.x + r.width / 2, y: r.y + r.height / 
  */
 interface Choice {
   side: Side;
+  fixed?: boolean;
   offset?: number;
   inward: boolean;
   anchored: boolean;
@@ -1036,6 +1037,7 @@ function straighten(
       .filter((c): c is readonly ["to" | "from", End, End, Choice] => c[3] !== undefined)
       .sort((p, q) => Number(p[3].anchored) - Number(q[3].anchored));
     for (const [which, end, other, endChoice] of candidates) {
+      if (endChoice.fixed) continue;
       // A gap may displace a default port farther than #169's tolerance;
       // explicit anchors still only move within that original tolerance.
       if (endChoice.anchored && Math.abs(f.aside) > STRAIGHTEN_TOLERANCE + 1e-9) continue;
@@ -1110,6 +1112,14 @@ function resolveEndsWith(
     spreadAt: { side: Side; offset: number } | undefined,
   ): Choice | undefined => {
     if (isJunction(self.node)) return undefined;
+    const render = self.node?.render;
+    if (render !== undefined) {
+      const renderer = getOutlineRenderer(render.renderer);
+      const port = renderer?.draw(self.rect, renderer.params.parse(render.params ?? {})).fixedPort;
+      if (port !== undefined) {
+        return { ...port, inward: false, anchored: true, fixed: true };
+      }
+    }
     // A group connected to an element inside it: the route runs inside the group.
     const inward = self.node === undefined && inside(other, self);
     // `straight` (#179): in line with the other end on the facing side; where

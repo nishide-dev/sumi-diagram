@@ -383,21 +383,78 @@ describe("errors (#181)", () => {
     );
   });
 
-  test("the tokens node itself as an endpoint, attach target or align item", () => {
-    const found = codesOf(
+  test("the tokens node itself as an endpoint, attach target or align item is its frame group (#281)", () => {
+    const check = checkFigure(
       figure(CELLS, {
         nodes: "  - { id: note, component: label, label: n, attach: { to: seq, side: south } }\n",
         layout: "    align: [{ x: [a, seq] }]\n",
         edges: "  - { from: a, to: seq }",
       }),
     );
-    expect(found).toHaveLength(3);
-    expect(found).toContainEqual([
-      "ref/tokens-reference",
-      ["figure", "layout", "align", 0, "x", 1],
+    const { state } = check;
+    expect(state.diagnostics).toEqual([]);
+    const { doc } = state;
+    // The reference stays as it is: it names a plain group of the tokens' ID.
+    expect(doc.edges?.[0]?.to).toBe("seq");
+    expect(doc.nodes?.find((n) => n?.id === "note")?.attach?.to).toBe("seq");
+    const frame = doc.groups?.find((g) => g?.id === "seq");
+    expect(frame).toMatchObject({
+      label: "",
+      component: "sumi/container",
+      variant: "plain",
+      arrange: { row: { direction: "right", gap: 1.5, items: ["seq-x", "seq-2", "seq-3"] } },
+    });
+    // The cells belong to the frame, which is where the tokens node was.
+    expect(doc.nodes?.filter((n) => n?.id.startsWith("seq-")).map((n) => n?.group)).toEqual([
+      "seq",
+      "seq",
+      "seq",
     ]);
-    expect(found).toContainEqual(["ref/tokens-reference", ["nodes", 2, "attach", "to"]]);
-    expect(found).toContainEqual(["ref/tokens-reference", ["edges", 0, "to"]]);
+    expect(doc.figure?.layout.arrange).toEqual({
+      stack: { direction: "down", items: ["a", "seq"] },
+    });
+    const ir = buildFigureIR(check);
+    expect(ir.groups.map((g) => g.id)).toEqual(["seq"]);
+    expect(ir.groups[0]?.tokens).toMatchObject({ id: "seq", name: 'tokens "seq"' });
+    expect(ir.edges[0]?.to).toBe("g:seq");
+    expect(ir.nodes.find((n) => n.id === "note")?.attach?.to).toBe("g:seq");
+  });
+
+  test("tokens that nothing names as a whole get no frame and keep their expansion (#281)", () => {
+    const { state } = checkFigure(figure(CELLS));
+    expect(state.diagnostics).toEqual([]);
+    expect(state.doc.groups).toEqual([]);
+    expect(state.doc.nodes?.filter((n) => n?.id.startsWith("seq-")).map((n) => n?.group)).toEqual([
+      undefined,
+      undefined,
+      undefined,
+    ]);
+  });
+
+  test("a one-cell sequence and a sequence inside a group have a frame too (#281)", () => {
+    const source = `version: 1
+figure:
+  id: f
+  theme: color
+  layout:
+    arrange: { row: { items: [a, panel] } }
+groups:
+  - id: panel
+    label: P
+    arrange: { stack: { items: [seq] } }
+nodes:
+  - { id: a, component: box, label: A }
+  - { id: seq, component: tokens, group: panel, props: { cells: [only] } }
+edges:
+  - { from: a, to: seq }
+`;
+    const check = checkFigure(source);
+    expect(check.state.diagnostics).toEqual([]);
+    const frame = check.state.doc.groups?.find((g) => g?.id === "seq");
+    expect(frame).toMatchObject({ group: "panel", arrange: { row: { items: ["seq-1"] } } });
+    const ir = buildFigureIR(check);
+    expect(ir.groups.find((g) => g.id === "seq")?.parent).toBe("g:panel");
+    expect(ir.nodes.find((n) => n.id === "seq-1")?.parent).toBe("g:seq");
   });
 
   test("an element that uses a cell's ID, and two tokens that make the same ID", () => {
