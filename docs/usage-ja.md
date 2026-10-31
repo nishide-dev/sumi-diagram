@@ -30,8 +30,11 @@ arrange:
 
 `justify` は `center`（省略時）/ `stretch` / `space-between`。継承せず、自然な
 大きさを超えた領域だけを使います。`stretch` は gap と明示サイズを保ち、
-box・group・入れ子の配置箱を伸ばします。固定アスペクト比・文字・custom outline
-（bowtie など）は伸ばしません。badge 付きの box は伸ばせます。
+box・group・入れ子の配置箱と、bowtie（gap 付きも含む）・全方向のtrapezoidを伸ばします。
+固定アスペクト比・文字・その他のcustom outlineは伸ばしません。badge付きも伸ばせます。
+任意の `nodes[].grow`（正の数、最大1000、既定1）で余りの配分に重みを付けられます。
+例えば `grow: 0.6` は既定の兄弟の60%の加算量を受け取り、最終サイズの比率を指定する
+ものではありません。主軸の明示サイズは引き続き固定で、grow はその制約を変えません。
 `space-between` は項目を大きくせず間隔を均等に広げます（1項目なら中央）。
 grid には指定できません。見出し／キャプションの帯が広い場合はパネル自体を
 隣の高さに伸ばさず `align: start` にし、内側だけを stretch してください。

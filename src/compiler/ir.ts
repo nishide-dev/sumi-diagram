@@ -69,6 +69,7 @@ import {
   type StyleLength,
   sublabelFontSize,
 } from "../core/theme/style";
+import { withStretchOutlines } from "./stretch-outlines";
 
 export type LayoutDirection = FigureMeta["layout"]["direction"];
 
@@ -230,6 +231,8 @@ export interface NodeIR extends ObjectIRBase {
   readonly kind: "node";
   readonly shape: NodeShape;
   readonly sizing: NodeSizing;
+  /** Relative share of opt-in main-axis growth; omitted means 1. */
+  readonly grow?: number;
   /** Fixed, validated outline metadata; omitted for ordinary D2 shapes. */
   readonly render?: Readonly<OutlineRender>;
   /**
@@ -472,6 +475,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
         kind: "node",
         shape: component.manifest.shape,
         sizing: component.manifest.sizing,
+        ...(n.grow !== undefined && { grow: n.grow }),
         ...(component.manifest.render !== undefined && {
           render: freeze({
             ...component.manifest.render,
@@ -550,37 +554,39 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
   const elements = readonlyMap([...groups, ...nodes, ...edges].map((e) => [e.key, e] as const));
   const dimmed = [...dimmedElements(doc).keys()];
 
-  return freeze({
-    meta: freeze({
-      id: figure.id,
-      ...(figure.title !== undefined && { title: figure.title }),
-      themeId: theme.id,
-      profileId: profile.id,
-      ...(figure.fit !== undefined && { fit: figure.fit }),
-      direction: figure.layout.direction,
-      engine: figure.layout.engine,
-      ...(figure.layout.fanIn !== undefined && { fanIn: figure.layout.fanIn }),
-      ...(figure.layout.density !== undefined && { density: figure.layout.density }),
-      fontSetId: theme.fontSet.id,
-    }),
-    groups: freeze(groups),
-    nodes: freeze(nodes),
-    edges: freeze(edges),
-    roots: freeze(childrenOf.get(undefined) ?? []),
-    ...(figure.layout.arrange !== undefined && {
-      arrange: arrangeOf(figure.layout.arrange),
-    }),
-    ...(figure.layout.align !== undefined && {
-      align: freeze(
-        figure.layout.align.map((c, index) =>
-          alignIR(c, endpointKey, sourceEntry(["figure", "layout", "align", index])),
+  return withStretchOutlines(
+    freeze({
+      meta: freeze({
+        id: figure.id,
+        ...(figure.title !== undefined && { title: figure.title }),
+        themeId: theme.id,
+        profileId: profile.id,
+        ...(figure.fit !== undefined && { fit: figure.fit }),
+        direction: figure.layout.direction,
+        engine: figure.layout.engine,
+        ...(figure.layout.fanIn !== undefined && { fanIn: figure.layout.fanIn }),
+        ...(figure.layout.density !== undefined && { density: figure.layout.density }),
+        fontSetId: theme.fontSet.id,
+      }),
+      groups: freeze(groups),
+      nodes: freeze(nodes),
+      edges: freeze(edges),
+      roots: freeze(childrenOf.get(undefined) ?? []),
+      ...(figure.layout.arrange !== undefined && {
+        arrange: arrangeOf(figure.layout.arrange),
+      }),
+      ...(figure.layout.align !== undefined && {
+        align: freeze(
+          figure.layout.align.map((c, index) =>
+            alignIR(c, endpointKey, sourceEntry(["figure", "layout", "align", index])),
+          ),
         ),
-      ),
+      }),
+      elements,
+      ...(dimmed.length > 0 && { dimmed: freeze(dimmed) }),
+      sourceMap: readonlyMap(sourceMap),
     }),
-    elements,
-    ...(dimmed.length > 0 && { dimmed: freeze(dimmed) }),
-    sourceMap: readonlyMap(sourceMap),
-  });
+  );
 }
 
 /**

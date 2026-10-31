@@ -187,6 +187,12 @@
             "type": "string",
             "pattern": "^[a-z][a-z0-9_-]{0,63}$"
           },
+          "grow": {
+            "description": "Structured layout: relative share of extra main-axis space under the immediate row/stack's justify: stretch (default 1, maximum 1000). Does not override explicit sizes or make fixed shapes stretch; has no effect under other justification modes.",
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 1000
+          },
           "component": {
             "type": "string",
             "minLength": 1,

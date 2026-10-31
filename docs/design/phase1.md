@@ -2340,6 +2340,17 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **実測結果**: 全151 YAML ×6通り＝906組のうち成功633組のSVG / PDF / picture PPTXは上記2図×5テーマの各10出力だけ変更。残り149 YAMLの出力・診断は全件一致し、D2 234件・editable freeform 428件・glued 416件も全件一致。H3-World両図は0 errors / 0 warnings、PNGを開いて中央配置を確認した。`CI=1 bun test` は3351 pass / 13 skip / 0 fail。詳細・manifest hashは [検証記録](../verification/269-centered-bowtie.md)。
 - **レビュー対応の検証**: 全7 variant ×全5 Theme × auto / structured で、`solid` の文字箱が塗装された左body内にあり、他6 variantが中央にあることを確認。輪郭交差は固定期待値（`filled` だけ0件、他6 variantは1件）を使い、配置例外とは独立に検証した。全5 ThemeのgalleryをPNGで開き、白い `S` が左台形上で見えることを確認。research両図のSVG / previewは再描画後も変更なし。最終 `CI=1 bun test` は3478 pass / 13 skip / 0 fail、check / typecheck / gallery:check（203 files）/ schema:checkも成功。
 
+### 6.75 #270 の独自輪郭の主軸 stretch と配分
+
+- **対象**: §6.71 の `justify: stretch` に限り、`sumi/bowtie`（一体形・`props.gap` の分離形）と `sumi/trapezoid`（全 `narrow` 方向）を伸ばす。主軸の明示サイズ、固定アスペクト比、text、他の custom outline は保持する。交差軸の `align: stretch` の対象は変えず、justify の省略・center・space-between は従来どおり。badge の予約 footprint は既存のまま差し引き、body の増分を配る。
+- **輪郭と文字領域**: bowtie の中央の高さ半分と、分離形の左body用 safeArea は一軸の拡大で縮まない。gap は絶対値のまま幅半分で clamp し、north/south の口は拡大後の幅・高さから求める。台形は `min(slant × 高さ, 幅 / 4)`（east/west は軸交換）のままだと、高さだけの拡大で文字領域を狭める。このため justify の直接の子の台形だけ、自然 footprint の inset を内部 IR parameter `maxInset` に記録し、描画時の上限にする。輪郭・safeArea・ports・lint・editable PPTX は同じ renderer を参照する。公開 prop は追加しない。通常の図には parameter 自体を加えない。
+- **配分の判断（実測に基づく最小追加）**: 等分加算だけでも一個の box への集中は直るが、LoRA は一行でも bowtie の自然高さが二倍になり、二行の QKV より少し高い。gap 4mm・明示高さなしで **42.91 : 40.35pt ≈ 1.06 : 1** となり、目標 0.8 : 1 には足りなかった。そこで任意の `nodes[].grow`（正の数、上限1000、既定1）を追加する。伸縮可能な直接の子への**余りの加算量**を相対重みで配り、最終サイズの比率を固定するものではない。明示サイズ・非伸縮形の制約は上書きしない。group と配置箱は既定の重み1のまま、新しい item wrapper・継承・縮小・最小寸法 API は足さない。auto では既存の `layout/structured-only` で拒否する。
+- **H3-World の描き直し**: `research/248-fill/c-h3world.sumi.yaml` の LoRA の height 28pt を外し、`grow: 0.6` と gap 4mm を採用。印刷時の LoRA **37.72pt**、QKV / Out **45.54pt**、比率 **0.828 : 1**。手動の44pt案を85.3%に縮小した37.53ptに近く、自動伸縮を維持する。matrix 99.75pt、投影列body全体96.34pt、パネル144.22pt、ページ180 ×125.71mmは保持。99,736 bytes の PNG を開き、左右の LoRA と青い投影箱が高さを分け、文字・badge・辺が読めることを確認した。render は0 errors / 0 warnings、添字と矢じりの情報診断6件。
+- **回帰**: 全5 Theme × row/stackで、一体・分離bowtie（solid含む）と全方向の台形について一軸の成長、文字領域、painted outline 上の入出力、split bowtie の口を検査する。explicit main size、重み、既定1、center/space-between、autoの拒否も検査する。PR #273 の積み残しは、実 YAML の pink tone と dim group による solid の中央復帰・non-solid の左移動、および incident edges を持つ solid split bowtie で補う。経路の独立検査は一体bowtieの凹みを convex hull と混同しないよう、実 renderer outline を接触判定に使う（障害物の包絡は従来どおり）。catalog の props・variants・全 Theme の定義は既存のまま、全 Theme × variant の gallery とPDF/PPTX/assets goldenを指定コマンドで再生成する。
+- **互換性**: 変更前後の全153 YAML ×（自テーマ＋組み込み5 Theme）=918組を描画。成功638組の SVG / PDF / picture PPTX、autoのD2 222件と生成不可280組のerror codeをsha256で比較した。変更は `research/248-fill/c-h3world.sumi.yaml` の自テーマ・minimal・academic・color・paperの5組だけ（slidesは元から生成不可）。残る152 YAMLは全件一致し、justify未使用の既定出力も不変。gallery 203 files と指定goldenは差分なし。再現スクリプトは `research/248-fill/verify-270.ts`。before manifest sha256: `2c63e4bdca27ddc335d059b35bb0599f45ec95e59ed43b8791e74267801c84d8`、after: `069593c34896d7164450f6b93e122c7771745699c58b904e1b40d4ea21dd6585`。
+
+- **最終検証**: `bun run check`・`bun run typecheck`・`CI=1 bun test`（3593 pass / 13 skip / 0 fail）・`bun run gallery:check`（203 files）・`bun run schema:check` が成功。全 Theme × variant のbowtie / trapezoid galleryをPNG化して開き、文字・塗り・輪郭を確認した。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）

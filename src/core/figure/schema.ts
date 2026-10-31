@@ -457,6 +457,14 @@ export const GroupSchema = z.strictObject({
 
 export const NodeSchema = z.strictObject({
   id: Id,
+  grow: z
+    .number()
+    .positive()
+    .max(1000)
+    .optional()
+    .describe(
+      "Structured layout: relative share of extra main-axis space under the immediate row/stack's justify: stretch (default 1, maximum 1000). Does not override explicit sizes or make fixed shapes stretch; has no effect under other justification modes.",
+    ),
   component: ComponentRef.describe("Component reference (kind: node), e.g. `box` or `sumi/box`."),
   label: Label,
   sublabel: z

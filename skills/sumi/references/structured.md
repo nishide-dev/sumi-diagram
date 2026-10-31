@@ -96,8 +96,13 @@ groups:
   inside a stretching stack, it grows widths. `justify` does **not** inherit
   and has no effect at natural size; omitted or `center` keeps the old
   centred placement. Explicit sizes on the growing axis, fixed-aspect
-  shapes, text and custom outlines (including bowtie) stay fixed. Badged
-  boxes can grow; choose a suitable explicit size for a custom outline.
+  shapes, text and other custom outlines stay fixed. Bowtie (including
+  `props.gap`), trapezoid (every `narrow` direction), and badged boxes can grow;
+  trapezoids preserve their natural slant inset to keep labels clear. An explicit
+  main-axis size still prevents growth. Optional `nodes[].grow` (positive number,
+  at most 1000; default 1) weights **extra** space under the immediate box's
+  `justify: stretch`, not final sizes; e.g. `grow: 0.6` receives 60% of the extra
+  space of an unweighted sibling. It does not inherit or override fixed sizes.
   `justify: space-between` instead leaves sizes unchanged and spreads extra
   room between items (one item stays centred). Neither option is accepted
   on `grid`. For tighter title/caption spacing, avoid stretching the panel

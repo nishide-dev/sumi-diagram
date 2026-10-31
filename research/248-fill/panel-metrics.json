@@ -15,13 +15,13 @@
   },
   {
     "file": "research/248-fill/c-h3world.sumi.yaml",
-    "empty": 0.547654738074425,
+    "empty": 0.5411489732167785,
     "printedPt": {
       "panelHeight": 144.22,
       "matrixHeight": 99.75,
       "projectionColumn": 96.34,
-      "qkvHeight": 54.55,
-      "loraHeight": 23.87,
+      "qkvHeight": 45.54,
+      "loraHeight": 37.72,
       "tokensHeight": 99.75,
       "titleToKey": 2.77,
       "captionToBorder": 5.12

@@ -36,6 +36,46 @@ function rect(value: ReturnType<typeof layout>, index: number) {
 }
 
 describe("opt-in main-axis fill", () => {
+  test("grow weights divide extra space only; defaults and other modes retain their behavior", () => {
+    for (const axis of ["stack", "row"]) {
+      const source = figure("stretch", axis, axis === "stack" ? "down" : "right");
+      const weighted = source.replace("id: a,", "id: a, grow: 0.5,");
+      const natural = layout(source.replace("justify: stretch,", ""));
+      const filled = layout(weighted);
+      const main = axis === "stack" ? "height" : "width";
+      expect(2 * (rect(filled, 1)[main] - rect(natural, 1)[main])).toBeCloseTo(
+        rect(filled, 2)[main] - rect(natural, 2)[main],
+        2,
+      );
+      expect(layout(source.replace("id: a,", "id: a, grow: 1,"))).toEqual(layout(source));
+      expect(
+        layout(source.replaceAll("component: box, label:", "component: box, grow: 5e-324, label:")),
+      ).toEqual(layout(source));
+      for (const mode of ["center", "space-between"]) {
+        expect(layout(weighted.replace("justify: stretch", `justify: ${mode}`))).toEqual(
+          layout(source.replace("justify: stretch", `justify: ${mode}`)),
+        );
+      }
+      const fixed = weighted.replace("label: A", `props: { ${main}: 40pt }, label: A`);
+      expect(rect(layout(fixed), 1)[main]).toBe(80);
+    }
+    for (const grow of ["0", "-1", "1001", "foo"]) {
+      expect(
+        checkFigure(
+          figure("stretch").replace("id: a,", `id: a, grow: ${grow},`),
+        ).state.diagnostics.some((d) => d.severity === "error" && d.path?.at(-1) === "grow"),
+      ).toBe(true);
+    }
+    expect(
+      checkFigure(
+        figure("stretch")
+          .replace("id: a,", "id: a, grow: 0.5,")
+          .replace("  layout:", "  layout:\n    engine: auto"),
+      ).state.diagnostics.some(
+        (d) => d.code === "layout/structured-only" && d.path?.at(-1) === "grow",
+      ),
+    ).toBe(true);
+  });
   for (const [axis, direction] of [
     ["stack", "down"],
     ["stack", "up"],
@@ -87,13 +127,13 @@ describe("opt-in main-axis fill", () => {
     );
   });
 
-  test("explicit main-axis sizes, circles and custom outlines remain fixed; badges grow with boxes", () => {
+  test("explicit main-axis sizes and circles remain fixed; badges grow with boxes", () => {
     const source = figure("stretch").replace(
       "component: box, label: A",
       "component: box, label: A, props: { height: 20pt }",
     );
     expect(rect(layout(source), 1).height).toBe(40);
-    for (const component of ["circle", "bowtie"]) {
+    for (const component of ["circle", "stack"]) {
       const source = figure("stretch").replace(
         "component: box, label: A",
         `component: ${component}, label: A`,
@@ -132,6 +172,37 @@ describe("opt-in main-axis fill", () => {
       }
     }
   });
+
+  for (const axis of ["stack", "row"]) {
+    for (const [component, props] of [
+      ["bowtie", ""],
+      ["bowtie", "gap: 8"],
+      ["bowtie", "gap: 64"],
+      ...["south", "north", "east", "west"].map((narrow) => ["trapezoid", `narrow: ${narrow}`]),
+    ]) {
+      test(`${axis}/${component}/${props}: outlines share growth and explicit main sizes opt out`, () => {
+        const source = figure("stretch", axis, axis === "stack" ? "down" : "right").replace(
+          "component: box, label: A",
+          `component: ${component}, label: A, props: { ${props} }`,
+        );
+        const filled = layout(source);
+        const natural = layout(source.replace("justify: stretch,", ""));
+        const main = axis === "stack" ? "height" : "width";
+        const cross = axis === "stack" ? "width" : "height";
+        expect(rect(filled, 1)[main]).toBeGreaterThan(rect(natural, 1)[main]);
+        expect(rect(filled, 1)[main] - rect(natural, 1)[main]).toBeCloseTo(
+          rect(filled, 2)[main] - rect(natural, 2)[main],
+          2,
+        );
+        expect(rect(filled, 1)[cross]).toBe(rect(natural, 1)[cross]);
+        const fixed = source.replace(
+          `props: { ${props} }`,
+          `props: { ${props ? `${props},` : ""} ${main}: 40pt }`,
+        );
+        expect(rect(layout(fixed), 1)[main]).toBe(80);
+      });
+    }
+  }
 
   test("justify does not inherit; a column with no resizable items stays centred", () => {
     const nested = figure("stretch").replace(
