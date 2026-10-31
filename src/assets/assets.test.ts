@@ -534,6 +534,47 @@ describe("image manifests from outside the built-ins", () => {
     expect(buildFigureIR(check).nodes[0]?.image?.fit).toBe("contain");
   });
 
+  test.each([
+    ["neither source", "width: 10pt"],
+    ["both sources", `width: 10pt, src: a.png, svg: '${svg("")}'`],
+  ])("custom image with %s reports a located diagnostic", (_name, props) => {
+    const registry = createBuiltinRegistry();
+    const custom = manifest(undefined);
+    expect(
+      registry.register({
+        ...custom,
+        props: custom.props.extend({ src: z.string().optional(), svg: z.string().optional() }),
+      }).ok,
+    ).toBe(true);
+    const { state } = checkFigure(
+      figure(`  - { id: a, component: test/picture, props: { ${props} } }`),
+      { registry },
+    );
+    expect(state.diagnostics).toEqual([
+      expect.objectContaining({
+        code: "asset/invalid-image",
+        severity: "error",
+        message: "An image needs exactly one of props.src or props.svg.",
+        path: ["nodes", 0, "props"],
+        location: expect.objectContaining({ line: 4 }),
+        subject: { kind: "node", id: "a" },
+      }),
+    ]);
+    expect(state.invalid.has("n:a")).toBe(true);
+    expect(state.components?.has("n:a")).toBe(false);
+  });
+
+  test("a non-string svg is refused at registration", () => {
+    const registry = createBuiltinRegistry();
+    const custom = manifest(undefined);
+    expect(
+      registry.register({
+        ...custom,
+        props: custom.props.extend({ svg: z.number().optional() }),
+      }).ok,
+    ).toBe(false);
+  });
+
   test("a fit outside contain / cover / fill is refused at registration", () => {
     const registry = createBuiltinRegistry();
     expect(registry.register(manifest(z.enum(["contain", "stretch"]))).ok).toBe(false);

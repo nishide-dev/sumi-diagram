@@ -127,7 +127,18 @@ export function checkAssets(state: CheckState, locate: Locator): void {
     }
 
     if (manifest.embed === "image") {
+      const src = component.props.src;
       const svg = component.props.svg;
+      // Custom manifests need not enforce source exclusivity in their props schema.
+      if ((typeof src === "string") === (typeof svg === "string")) {
+        fail(
+          "asset/invalid-image",
+          "An image needs exactly one of props.src or props.svg.",
+          ["props"],
+          "Provide either a relative image path in src or inline SVG in svg.",
+        );
+        continue;
+      }
       if (typeof svg === "string") {
         const path = ["nodes", index, "props", "svg"];
         if (Buffer.byteLength(svg, "utf8") > ASSET_LIMITS.maxFileBytes) {
@@ -163,8 +174,7 @@ export function checkAssets(state: CheckState, locate: Locator): void {
         }
         continue;
       }
-      const src = component.props.src;
-      if (typeof src !== "string") throw new Error("internal error: image without props.src");
+      if (typeof src !== "string") continue;
       const problem = srcProblem(src);
       if (problem !== undefined) {
         fail(
