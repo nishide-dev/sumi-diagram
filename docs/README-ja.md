@@ -35,7 +35,7 @@ curl -fsSL https://raw.githubusercontent.com/nishide-dev/sumi-diagram/main/insta
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/nishide-dev/sumi-diagram/main/install.sh | \
-  SUMI_VERSION=0.8.0 SUMI_HOME="$HOME/.local/share/sumi" SUMI_BIN_DIR="$HOME/.local/bin" sh
+  SUMI_VERSION=0.9.0 SUMI_HOME="$HOME/.local/share/sumi" SUMI_BIN_DIR="$HOME/.local/bin" sh
 ```
 
 **更新:** 同じインストーラーを再実行します。旧版のディレクトリは残るので、不要になったら削除できます。既定のパスでの**アンインストール**:
