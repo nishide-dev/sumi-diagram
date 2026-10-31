@@ -308,8 +308,11 @@ export function svgToEditablePptx(
   const dy = Math.floor(
     (Math.max(914400, Math.round(slide.height * 12700)) - Math.round(slide.height * 12700)) / 2,
   );
-  const xfrm = (b: Rect, flip = "") =>
-    `<a:xfrm${flip}><a:off x="${emu(b.x - vb.x) + dx}" y="${emu(b.y - vb.y) + dy}"/><a:ext cx="${Math.max(1, emu(b.width))}" cy="${Math.max(1, emu(b.height))}"/></a:xfrm>`;
+  const xfrm = (b: Rect, flip = "", grouped = false) => {
+    const off = `x="${emu(b.x - vb.x) + dx}" y="${emu(b.y - vb.y) + dy}"`;
+    const ext = `cx="${Math.max(1, emu(b.width))}" cy="${Math.max(1, emu(b.height))}"`;
+    return `<a:xfrm${flip}><a:off ${off}/><a:ext ${ext}/>${grouped ? `<a:chOff ${off}/><a:chExt ${ext}/>` : ""}</a:xfrm>`;
+  };
   const geometries = new Map(inspected.value.elements.map((e) => [e.key, e]));
   const groups = [...descendants(read.doc.drawing)].filter(
     (e) => e.name === "g" && classList(e).some((c) => c.startsWith("sumi-k-")),
@@ -679,38 +682,43 @@ export function svgToEditablePptx(
           true,
         );
       };
+      let body = shape(
+        id,
+        element.key,
+        box,
+        geom,
+        fill,
+        stroke,
+        label && text && !turned
+          ? textBody(
+              label,
+              text,
+              box,
+              element.style.opacity,
+              sublabel !== undefined && joined
+                ? { ...sublabel, before: Math.max(0, before) }
+                : undefined,
+            )
+          : "",
+        !first,
+      );
+      if (signalPrimitives[0] !== undefined) {
+        body += shape(
+          next++,
+          `${element.key} signal`,
+          box,
+          geometry(signalPrimitives.map(shapePath), box, emu),
+          "<a:noFill/>",
+          line(signalPrimitives[0], element.style),
+        );
+        // Keep the frame's connection id and the signal's paint order inside
+        // one editable object. Equal parent/child transforms preserve the
+        // children's slide coordinates while moving/scaling them together.
+        body = `<p:grpSp><p:nvGrpSpPr><p:cNvPr id="${next++}" name="${escapeXml(`${element.key} waveform`)}"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr>${xfrm(box, "", true)}</p:grpSpPr>${body}</p:grpSp>`;
+      }
       objectXml.set(
         element.key,
-        shape(
-          id,
-          element.key,
-          box,
-          geom,
-          fill,
-          stroke,
-          label && text && !turned
-            ? textBody(
-                label,
-                text,
-                box,
-                element.style.opacity,
-                sublabel !== undefined && joined
-                  ? { ...sublabel, before: Math.max(0, before) }
-                  : undefined,
-              )
-            : "",
-          !first,
-        ) +
-          (signalPrimitives[0] === undefined
-            ? ""
-            : shape(
-                next++,
-                `${element.key} signal`,
-                box,
-                geometry(signalPrimitives.map(shapePath), box, emu),
-                "<a:noFill/>",
-                line(signalPrimitives[0], element.style),
-              )) +
+        body +
           (sublabel !== undefined && before !== undefined && !joined ? ownBox(sublabel) : "") +
           (label && text && turned
             ? turnedLabel(`${element.key} label`, label, text, element.style.opacity) +

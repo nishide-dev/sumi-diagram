@@ -247,9 +247,24 @@ edges:
   expect(nodes.filter((e) => e.kind === "edge" && e.path !== undefined)).toHaveLength(2);
   expect(signalPaths(result.value.svg)).toHaveLength(1);
   for (const connectors of ["freeform", "glued"] as const) {
-    expect(svgToEditablePptx(result.value.svg, result.value.compiled.ir, { connectors }).ok).toBe(
-      true,
+    const pptx = svgToEditablePptx(result.value.svg, result.value.compiled.ir, { connectors });
+    if (!pptx.ok) throw new Error(JSON.stringify(pptx.diagnostics));
+    const all = elements(
+      new TextDecoder().decode(readPptx(pptx.value).get("ppt/slides/slide1.xml")),
     );
+    const frameId = attribute(
+      required(all.find((e) => e.name === "p:cNvPr" && attribute(e, "name") === "n:signal")),
+      "id",
+    );
+    const group = required(all.find((e) => e.name === "p:grpSp"));
+    expect(
+      [...descendants(group)].some((e) => e.name === "p:cNvPr" && attribute(e, "id") === frameId),
+    ).toBe(true);
+    for (const endpoint of ["a:stCxn", "a:endCxn"]) {
+      expect(all.filter((e) => e.name === endpoint && attribute(e, "id") === frameId)).toHaveLength(
+        connectors === "glued" ? 1 : 0,
+      );
+    }
   }
 }, 30_000);
 
