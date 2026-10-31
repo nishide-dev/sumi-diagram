@@ -6,6 +6,81 @@ import { svgToPdf } from "./pdf";
 import { svgToEditablePptx, svgToPptx } from "./pptx";
 import { renderFigure } from "./render";
 
+for (const form of ["square", "curly"]) {
+  for (const points of ["east", "west", "north", "south"]) {
+    for (const destination of ["east", "west", "north", "south"]) {
+      for (const incoming of [false, true]) {
+        test(`${form}/${points}/${destination}/${incoming ? "incoming" : "outgoing"}: fixed painted contact for off-axis and behind endpoints`, async () => {
+          const horizontal = destination === "east" || destination === "west";
+          const items = ["west", "north"].includes(destination) ? "out, br" : "br, out";
+          const result = await renderFigure(`version: 1
+figure: { id: off-axis, theme: paper, layout: { arrange: { ${horizontal ? "row" : "stack"}: { gap: 20mm, items: [${items}] } } } }
+nodes:
+  - { id: br, component: bracket, props: { form: ${form}, points: ${points} } }
+  - { id: out, component: box, label: out }
+edges:
+  - { from: ${incoming ? "out" : "br"}, to: ${incoming ? "br" : "out"} }
+`);
+          if (!result.ok || !("layout" in result.value)) throw new Error(JSON.stringify(result));
+          const { compiled, layout } = result.value;
+          expect(result.diagnostics.filter((d) => d.severity !== "info")).toEqual([]);
+          expect(Object.values(checkRoutes(compiled.ir, layout)).flat()).toEqual([]);
+          const br = layout.nodes.find((n) => n.key === "n:br")?.rect;
+          const route = layout.edges[0]?.route?.points;
+          if (br === undefined || route === undefined) throw new Error("missing layout");
+          const contact = incoming ? route.at(-1) : route[0];
+          const next = incoming ? route.at(-2) : route[1];
+          const expected = {
+            east: { x: br.x + br.width, y: br.y + br.height / 2 },
+            west: { x: br.x, y: br.y + br.height / 2 },
+            north: { x: br.x + br.width / 2, y: br.y },
+            south: { x: br.x + br.width / 2, y: br.y + br.height },
+          }[points];
+          if (!contact || !next || !expected) throw new Error("missing contact");
+          expect(contact.x).toBeCloseTo(expected.x, 2);
+          expect(contact.y).toBeCloseTo(expected.y, 2);
+          if (points === "east" || points === "west") {
+            expect(next.y).toBe(contact.y);
+            expect((next.x - contact.x) * (points === "east" ? 1 : -1)).toBeGreaterThan(0);
+          } else {
+            expect(next.x).toBe(contact.x);
+            expect((next.y - contact.y) * (points === "south" ? 1 : -1)).toBeGreaterThan(0);
+          }
+        });
+      }
+    }
+  }
+}
+
+for (const nested of [false, true]) {
+  test(`whole-sequence frame reparents cell attachments and reverse-declared chains (${nested ? "nested" : "root"})`, async () => {
+    const result = await renderFigure(`version: 1
+figure: { id: attached-cells, theme: paper, layout: { arrange: { row: { gap: 20mm, items: [${nested ? "panel" : "seq"}, out] } } } }
+${nested ? "groups:\n  - { id: panel, arrange: { row: { items: [seq] } } }" : ""}
+nodes:
+  - { id: seq, component: tokens, props: { cells: [a, b] } }
+  - { id: chain, component: label, label: chain, attach: { to: note, side: south, gap: 2pt } }
+  - { id: note, component: label, label: note, attach: { to: seq.1, side: south, gap: 2pt } }
+  - { id: out, component: box, label: out }
+edges:
+  - { from: seq, to: out }
+`);
+    if (!result.ok || !("layout" in result.value)) throw new Error(JSON.stringify(result));
+    expect(result.diagnostics.filter((d) => d.severity !== "info")).toEqual([]);
+    const { layout } = result.value;
+    for (const id of ["seq-1", "seq-2", "note", "chain"]) {
+      expect(layout.nodes.find((n) => n.key === `n:${id}`)?.parent).toBe("g:seq");
+    }
+    expect(layout.groups.find((g) => g.key === "g:seq")?.parent).toBe(
+      nested ? "g:panel" : undefined,
+    );
+    const note = layout.nodes.find((n) => n.key === "n:note")?.rect;
+    const chain = layout.nodes.find((n) => n.key === "n:chain")?.rect;
+    if (!note || !chain) throw new Error("missing attachments");
+    expect(chain.y).toBeGreaterThan(note.y + note.height);
+  });
+}
+
 /** A whole token column with a bracket attached to it (#281) and an edge from the bracket to a box. */
 const source = (theme: string, form: string, points: string) => {
   const side = points;

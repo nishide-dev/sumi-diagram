@@ -160,8 +160,8 @@ const BRACE_STEPS = 10;
 /**
  * A square bracket or curly brace as one open line (#281). `points` is the
  * side the spine (square) or the tip (curly) is on: where an edge leaves, so
- * `east` gathers the elements to its west. Its outline is the footprint, so
- * edges meet the spine's middle, which is the tip of a curly brace.
+ * `east` gathers the elements to its west. Its fixed port keeps edges at the
+ * spine's middle (the tip of a curly brace), even for off-axis destinations.
  */
 const bracket: OutlineRenderer<z.output<typeof bracketParams>> = {
   id: "sumi/bracket",
@@ -214,6 +214,7 @@ const bracket: OutlineRenderer<z.output<typeof bracketParams>> = {
     const rect = { x, y, width, height };
     return {
       layers: [{ role: "line", path: { points: local.map(place), closed: false } }],
+      fixedPort: { side: points, offset: 0.5 },
       outline: rectangle(rect),
       safeArea: rect,
     };

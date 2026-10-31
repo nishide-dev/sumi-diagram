@@ -1,5 +1,6 @@
 /** Outline renderer contract (#52, design §3.1). Geometry only; no SVG or theme. */
 import type { z } from "zod";
+import type { Anchor } from "../figure/layout";
 import type { Point, Rect, Region } from "../geometry";
 
 export type OutlineParams = Record<string, number | boolean | string | undefined>;
@@ -22,6 +23,8 @@ export interface OutlineDrawing {
   readonly outline: readonly Point[];
   /** Disconnected painted boundaries, when present. Ports contact these, never the gap. */
   readonly boundaries?: readonly (readonly Point[])[];
+  /** The only painted contact for incoming and outgoing edges, independent of the other end. */
+  readonly fixedPort?: Anchor;
   /** Label rectangle; disconnected bodies may share text across their enclosing silhouette. */
   readonly safeArea: Rect;
   /** Convex collision region, containing the outline; omitted means its convex hull. */

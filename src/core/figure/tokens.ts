@@ -462,6 +462,25 @@ export function expandTokens(state: CheckState, registry: Registry, locate: Loca
     recordExpanded(doc, origins);
   }
   resolveCellRefs(state, locate, expansions, tokensIds);
+  // Frame creation changes the cells' parent after layout validation inferred
+  // attach membership. Move their attached nodes too, transitively, regardless
+  // of declaration order. Attachments to the whole frame keep its outer parent.
+  const reparented = new Map<string, string>();
+  for (const expansion of expansions) {
+    if (!wholeRefs.has(expansion.id)) continue;
+    for (const cell of expansion.cells) reparented.set(cell.id, expansion.id);
+  }
+  for (let changed = true; changed; ) {
+    changed = false;
+    for (const node of nodes) {
+      if (node?.attach === undefined || reparented.has(node.id)) continue;
+      const group = reparented.get(node.attach.to);
+      if (group === undefined) continue;
+      node.group = group;
+      reparented.set(node.id, group);
+      changed = true;
+    }
+  }
   invalidateDependents(state);
   if (added.size > 0) resolveComponents(state, registry, locate, { only: added });
 }

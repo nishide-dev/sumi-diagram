@@ -818,6 +818,53 @@ edges:
   (`component/anchor-on-zoom`). Before 0.6.0 the CLI reports
   `component/unknown`: draw two dashed `line` edges instead.
 
+## Brackets
+
+A **`bracket`** node (structured only, 0.10.0) gathers a row or column into
+one edge. `props.form` is `square` (default) or `curly`.
+**`props.points`** is `east` (default), `west`, `north` or `south`: the side
+of the square bracket's spine or the curly brace's tip. An east-pointing
+bracket gathers elements to its west. Incoming and outgoing edges always
+meet the spine's middle / brace tip on that side, even when the other end
+is off-axis or behind it; the route bends after leaving the port.
+
+- Attach it to a group, matrix or [whole token sequence](#token-sequences).
+  An `east` / `west` attachment automatically matches the target's height;
+  a `north` / `south` attachment matches its width. `points` is independent
+  of `attach.side`: set both explicitly to the intended direction.
+- Explicit `props.width` / `props.height` take precedence over automatic
+  sizing on the corresponding axis. The natural size is 6pt deep × 24pt
+  long (24pt × 6pt for north / south). Corner attachments such as
+  `north-east` retain that natural size instead of spanning the target.
+- Reserve room in the arrange `gap` for the bracket depth, `attach.gap`,
+  and the outgoing arrow. For example, a 6pt-deep bracket with a 2pt attach
+  gap in a row with `gap: 18mm` leaves space for a readable arrow. For
+  off-axis routes, allow room beside the fixed port for the first bend.
+- It takes no label, `labelRotation`, `sublabel` or `badge`. Attach a
+  separate `label` if needed. Variants: `default`, `emphasis`, `muted`,
+  `outlined` (the latter uses the node's tone for its line).
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: bracketed-sequence
+  theme: paper
+  layout:
+    arrange: { row: { gap: 18mm, items: [seq, out] } }
+nodes:
+  - id: seq
+    component: tokens
+    props: { direction: down, gap: 0, width: 40pt, height: 22pt, cells: [a, b, c] }
+  - id: br
+    component: bracket
+    attach: { to: seq, side: east, gap: 2pt }
+    props: { form: curly, points: east }
+  - { id: out, component: box, label: Output }
+edges:
+  - { from: br, to: out }
+```
+
 ## Token sequences
 
 A **`tokens`** node (`component: tokens`, structured only, 0.6.0) writes a row of cells — sequence tokens, patches, keys — as one
