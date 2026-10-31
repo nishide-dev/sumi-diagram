@@ -215,8 +215,9 @@ export function assertOutlineDrawing(drawing: OutlineDrawing, footprint: Rect): 
         "body union differs from outline",
       );
       if (safe.x < mid && mid < safe.x + safe.width) {
+        const labelSpans = drawing.boundaries ? section(drawing.outline, mid, x) : actual;
         assert(
-          actual.some(([a, b]) => a <= safe.y + EPS && b >= safe.y + safe.height - EPS),
+          labelSpans.some(([a, b]) => a <= safe.y + EPS && b >= safe.y + safe.height - EPS),
           "safe area outside body union",
         );
       }

@@ -25,7 +25,7 @@ for (const theme of BUILTIN_THEMES.keys()) {
       const source = `version: 1
 figure: { id: features, theme: ${theme}, profile: ${theme === "slides" ? "presentation-16x9" : "paper-double"}, layout: ${engine === "auto" ? "{ direction: right }" : "{ arrange: { row: { items: [a, b] } } }"} }
 nodes:
-  - { id: a, component: bowtie, label: LoRA, props: { gap: 8 }, badge: { icon: emoji/fire, corner: north-east } }
+  - { id: a, component: bowtie, variant: filled, label: LoRA, props: { gap: 8 }, badge: { icon: emoji/fire, corner: north-east } }
   - { id: b, component: trapezoid, label: Up, props: { narrow: west } }
 edges: [{ from: a, to: b }]
 `;
@@ -36,8 +36,7 @@ edges: [{ from: a, to: b }]
       const geometry = geometryContextFor(result.value).get("n:a");
       if (!geometry?.bbox || !geometry.labelBoundaries) throw new Error("missing boundaries");
       for (const line of geometry.labels.flatMap((label) => label.visibleLines)) {
-        expect(polylinesCrossRect(geometry.labelBoundaries, line, 0)).toBe(false);
-        expect(line.x + line.width).toBeLessThan(geometry.bbox.x + geometry.bbox.width / 2);
+        expect(line.x + line.width / 2).toBeCloseTo(geometry.bbox.x + geometry.bbox.width / 2, 2);
       }
       const a = result.value.inspection.elements.find((e) => e.key === "n:a");
       expect(a?.labels.map((l) => l.text)).toEqual(["LoRA"]);
@@ -76,12 +75,37 @@ const splitLabels = [
 
 for (const theme of BUILTIN_THEMES.keys()) {
   for (const engine of ["auto", "structured"]) {
+    for (const variant of ["default", "filled", "outlined"]) {
+      test(`${theme}/${engine}/${variant}: only stroked split outlines reject centered body overlays`, async () => {
+        const source = `version: 1
+figure: { id: crossing, theme: ${theme}, profile: ${theme === "slides" ? "presentation-16x9" : "paper-double"}, layout: ${engine === "auto" ? "{ direction: right }" : "{ arrange: { row: { items: [a] } } }"} }
+nodes:
+  - { id: a, component: bowtie, variant: ${variant}, label: LoRA, props: { gap: 8 } }
+`;
+        const result = await renderFigure(source);
+        if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+        const geometry = geometryContextFor(result.value).get("n:a");
+        const line = geometry?.labels[0]?.visibleLines[0];
+        if (!geometry?.labelBoundaries || !line) throw new Error("missing geometry");
+        expect(polylinesCrossRect(geometry.labelBoundaries, line, 0)).toBe(true);
+        const stroked =
+          geometry.ir.style.stroke !== "transparent" && geometry.ir.style.strokeWidth.units > 0;
+        expect(
+          lintGeometry(result.value).filter((d) => d.code === "geometry/label-overflow"),
+        ).toHaveLength(stroked ? 1 : 0);
+      });
+    }
+  }
+}
+
+for (const theme of BUILTIN_THEMES.keys()) {
+  for (const engine of ["auto", "structured"]) {
     for (const { label, size } of splitLabels) {
       test(`${theme}/${engine}: split label ${JSON.stringify(label)}${size} stays clear and exports at the SVG position`, async () => {
         const result = await renderFigure(`version: 1
 figure: { id: labels, theme: ${theme}, profile: ${theme === "slides" ? "presentation-16x9" : "paper-double"}, layout: ${engine === "auto" ? "{ direction: right }" : "{ arrange: { row: { items: [a] } } }"} }
 nodes:
-  - { id: a, component: bowtie, label: ${JSON.stringify(label)}, props: { gap: 8${size} } }
+  - { id: a, component: bowtie, variant: filled, label: ${JSON.stringify(label)}, props: { gap: 8${size} } }
 `);
         if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
         expect(result.diagnostics).toEqual([]);
@@ -91,8 +115,7 @@ nodes:
         const lines = geometry.labels.flatMap((l) => l.visibleLines);
         expect(lines).toHaveLength(label.split("\n").length);
         for (const line of lines) {
-          expect(polylinesCrossRect(geometry.labelBoundaries, line, 0)).toBe(false);
-          expect(line.x + line.width).toBeLessThan(geometry.bbox.x + geometry.bbox.width / 2);
+          expect(line.x + line.width / 2).toBeCloseTo(geometry.bbox.x + geometry.bbox.width / 2, 2);
         }
         const svgLabel = result.value.inspection.elements.find((e) => e.key === "n:a")?.labels[0];
         const fonts = getFontSet(result.value.compiled.ir.meta.fontSetId);
@@ -192,8 +215,8 @@ for (const direction of ["down", "up", "left", "right"]) {
     const result = await renderFigure(`version: 1
 figure: { id: auto, layout: { direction: ${direction} } }
 nodes:
-  - { id: a, component: bowtie, label: LoRA, props: { gap: 8 } }
-  - { id: b, component: bowtie, label: LoRA, props: { gap: 8 } }
+  - { id: a, component: bowtie, variant: filled, label: LoRA, props: { gap: 8 } }
+  - { id: b, component: bowtie, variant: filled, label: LoRA, props: { gap: 8 } }
 edges: [{ from: a, to: b }]
 `);
     if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));

@@ -84,7 +84,7 @@ const bowtie: OutlineRenderer = {
   params: z.strictObject({ gap: z.number().finite().min(0).max(64).optional() }),
   footprint({ width, height }, { gap = 0 }) {
     return {
-      width: typeof gap === "number" && gap > 0 ? 2 * width + gap : width,
+      width: typeof gap === "number" && gap > 0 ? Math.max(width, 2 * gap) : width,
       height: height * 2,
     };
   },
@@ -111,7 +111,7 @@ const bowtie: OutlineRenderer = {
         layers: boundaries.map(body),
         boundaries,
         outline: rectangle({ x, y, width, height }),
-        safeArea: { x, y: y + height / 4, width: left - x, height: height / 2 },
+        safeArea: { x, y: y + height / 4, width, height: height / 2 },
       };
     }
     const outline = [

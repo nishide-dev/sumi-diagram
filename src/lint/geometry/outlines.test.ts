@@ -40,7 +40,8 @@ test("painted boundaries are checked independently of a permissive safeArea", ()
     }),
   });
   const element = context.get("n:trap");
-  if (!element) throw new Error("missing element");
+  if (element?.ir.kind !== "node") throw new Error("missing node");
+  const node = element.ir;
   const permissive = { ...element, labelArea: rectPolygon(bbox) };
   const run = (boundary: readonly Point[]) =>
     labelOverflow.run(
@@ -68,6 +69,28 @@ test("painted boundaries are checked independently of a permissive safeArea", ()
       { x: 0, y: 100 },
     ]),
   ).toEqual([]);
+  for (const paint of [{ stroke: "transparent" }, { strokeWidth: { pt: 0, units: 0 } }]) {
+    expect(
+      labelOverflow.run(
+        {
+          ...context,
+          elements: [
+            {
+              ...permissive,
+              ir: { ...node, style: { ...node.style, ...paint } },
+              labelBoundaries: [
+                [
+                  { x: 50, y: 0 },
+                  { x: 50, y: 100 },
+                ],
+              ],
+            },
+          ],
+        },
+        undefined,
+      ),
+    ).toEqual([]);
+  }
 });
 
 test("monotone-chain hull removes concave/duplicate/collinear vertices without mutating input", () => {

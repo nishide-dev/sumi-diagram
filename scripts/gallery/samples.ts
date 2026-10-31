@@ -190,7 +190,7 @@ export function sampleSource(entry: CatalogEntry, theme: string): string {
       if (entry.id === "sumi/bowtie") {
         for (const v of variants)
           lines.push(
-            `  - { id: split-${v}, component: bowtie, label: "${v}", variant: ${v}, props: { gap: 8 } }`,
+            `  - { id: split-${v}, component: bowtie, label: "${v === "filled" ? "filled" : "S"}", variant: ${v}, props: { gap: ${v === "filled" ? 8 : 64} } }`,
           );
       }
       if (entry.id === "sumi/trapezoid") {
