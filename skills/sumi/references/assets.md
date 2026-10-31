@@ -228,7 +228,7 @@ Fix: copy (with the user's consent) `logo.png` next to the figure and write
 | `asset/invalid-path` | a relative path with `/` (no `\`, scheme or leading `/`) that names a file and does not leave the directory through `..` |
 | `asset/outside-base` | the path (through a symbolic link) leaves the YAML's directory: copy the real file in |
 | `asset/not-found` | check the path; it is relative to the YAML file, not the current directory |
-| `asset/unsupported-format`, `asset/format-mismatch`, `asset/invalid-image` | convert to PNG / JPEG / SVG; make the extension match the content; re-export a broken file |
+| `asset/unsupported-format`, `asset/format-mismatch`, `asset/invalid-image` | convert to PNG / JPEG / SVG; make the extension match the content; re-export a broken file; give exactly one of `props.src` or `props.svg` |
 | `asset/too-large`, `asset/too-many-pixels` | resize or recompress the file (Sumi will not) |
 | `asset/sha256-mismatch` | the file changed: confirm with the user, then update `sha256` (the message gives the actual value) |
 | `asset/unsafe-svg`, `asset/unsupported-svg` | the message and `related` give the SVG line and column; re-export it as plain shapes (text to outlines, no embedded images or styles), or use a PNG |

@@ -35,7 +35,7 @@ To pin a version or choose directories (environment variables apply to `sh`):
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/nishide-dev/sumi-diagram/main/install.sh | \
-  SUMI_VERSION=0.9.0 SUMI_HOME="$HOME/.local/share/sumi" SUMI_BIN_DIR="$HOME/.local/bin" sh
+  SUMI_VERSION=0.10.0 SUMI_HOME="$HOME/.local/share/sumi" SUMI_BIN_DIR="$HOME/.local/bin" sh
 ```
 
 **Upgrade:** rerun the installer. Older version directories stay available; remove them when no longer needed. **Uninstall** with the default paths:
