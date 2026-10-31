@@ -69,11 +69,32 @@ for (const item of corpus)
           const tx = childElements(shape).find((e) => e.name === "p:txBody");
           expect(tx).toBeDefined();
           // Label math (#93) is written as its characters (a matrix's headers, #180).
-          const parsed = parseLabel(element.label);
-          const text = parsed.ok
-            ? parsed.value.lines.flatMap((line) => line.map((run) => run.text)).join("")
-            : element.label;
-          expect(tx && textContent(tx).replace(/\s/g, "")).toBe(text.replace(/\s/g, ""));
+          // A node's sublabel (#184) follows its label in the same text body, or,
+          // when paragraph spacing cannot place it, is a text box of its own.
+          const plain = (source: string) => {
+            const parsed = parseLabel(source);
+            return parsed.ok
+              ? parsed.value.lines.flatMap((line) => line.map((run) => run.text)).join("")
+              : source;
+          };
+          const squeeze = (source: string) => source.replace(/\s/g, "");
+          const sublabel = "sublabel" in element ? element.sublabel : undefined;
+          const label = squeeze(plain(element.label));
+          const own = squeeze(sublabel ? plain(sublabel.text) : "");
+          const received = tx ? squeeze(textContent(tx)) : undefined;
+          if (sublabel && received === label) {
+            const box = all.find(
+              (e) =>
+                e.name === "p:sp" &&
+                [...descendants(e)].some(
+                  (n) => n.name === "p:cNvPr" && attribute(n, "name") === `${element.key} sublabel`,
+                ),
+            );
+            const boxText = box && childElements(box).find((e) => e.name === "p:txBody");
+            expect(boxText && squeeze(textContent(boxText))).toBe(own);
+          } else {
+            expect(received).toBe(label + own);
+          }
         }
       }
       const golden = resolve(goldenDir, `${item.id.replaceAll("/", "_")}.${connectors}.xml`);

@@ -14,8 +14,8 @@ Sumi-rendered recreations of public reference figures: the Transformer architect
     <th>DiT block</th>
   </tr>
   <tr>
-    <td><img src="research/185-acceptance/previews/a-transformer.png" alt="Transformer architecture rendered by Sumi" height="280"></td>
-    <td><img src="research/185-acceptance/previews/b-dit.png" alt="DiT block rendered by Sumi" height="280"></td>
+    <td><img src="examples/transformer/transformer.svg" alt="Transformer architecture rendered by Sumi" height="280"></td>
+    <td><img src="examples/dit-block/dit-block.svg" alt="DiT block rendered by Sumi" height="280"></td>
   </tr>
 </table>
 

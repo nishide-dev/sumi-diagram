@@ -11,8 +11,8 @@ vector PDF (#59).
 | [`decision-flow/`](decision-flow/decision-flow.sumi.yaml) | `minimal` / `paper-single` | ellipse terminals, parallelogram input, diamond decisions, a retry loop, a `label` note attached with a `line`, emphasis / muted / dashed variants |
 | [`system-architecture/`](system-architecture/system-architecture.sumi.yaml) | `academic` / `paper-double` | three tiers as groups (default and muted), hexagon entry point, cylinders and a document in the data tier, `double-arrow` reads/writes, a dashed path |
 | [`grouped/`](grouped/grouped.sumi.yaml) | `minimal` / `paper-double` | nested groups (three levels, one muted), two parallel paths crossing group boundaries at every level, ellipse and document outside the groups |
-| [`transformer/`](transformer/transformer.sumi.yaml) | `academic` / `paper-single` | the structured layout (`figure.layout.arrange`, design doc §6.23): stacks and rows, `align: stretch`, attached notes, operators and hidden junctions (smooth forks, #101), anchored edges and shared trunks (the Transformer architecture) |
-| [`dit-block/`](dit-block/dit-block.sumi.yaml) | `color` / `paper-single` | the structured layout with tones, a labeled group, residual connections through hidden junctions, an arrow into open space, and one source feeding four labeled taps over a shared bus (a DiT block) |
+| [`transformer/`](transformer/transformer.sumi.yaml) | `paper` / `paper-single` | the structured layout (`figure.layout.arrange`, design doc §6.23) with `density: compact`: stacks and rows, `align: stretch`, attached notes, operators and hidden junctions (smooth forks), anchored edges and shared trunks (the Transformer architecture, 78mm wide) |
+| [`dit-block/`](dit-block/dit-block.sumi.yaml) | `paper` / `paper-double` | the structured layout with `fit: scale`: four panels in a row, filled tones with sublabels, a plain (frameless) group, dimmed groups, a `zoom` callout, label math, and one source feeding four labeled taps over a shared bus (DiT block variants, 180mm wide) |
 
 `pipeline` and `decision-flow` use `direction: down`: four or more nodes in a
 row to the right are already wider than `paper-single` (88mm).
@@ -22,7 +22,9 @@ labels, `geometry/edge-crosses-label`), which makes them wider than one paper
 column: they use `paper-double` (180mm).
 
 All six pass `sumi lint --geometry` without errors or warnings. The two
-structured figures are laid out and routed by Sumi itself, without D2.
+structured figures use the `paper` theme (the color, ML-paper style) and are laid out and routed by Sumi
+itself, without D2. `transformer` fits one column; `dit-block` is wider than
+`paper-double` and is scaled down to it (`fit: scale`).
 
 The [component gallery](../docs/gallery/README.md) shows every example next to
 every built-in component, and compares one figure across themes and profiles.

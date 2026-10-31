@@ -1847,11 +1847,11 @@ The committed SVGs of <code>examples/</code>, rendered from their sources as wri
 
 <img src="../../examples/decision-flow/decision-flow.svg" alt="Generic decision flow">
 
-### examples/dit\-block/dit\-block\.sumi\.yaml
+### DiT block variants \(structured layout, paper theme\)
 
-[<code>examples/dit\-block/dit\-block\.sumi\.yaml</code>](../../examples/dit-block/dit-block.sumi.yaml) · [PDF](../../examples/dit-block/dit-block.pdf) · theme <code>color</code> · profile <code>paper\-single</code> · 68\.26mm × 127mm \(max width 88mm, max height 220mm\)
+[<code>examples/dit\-block/dit\-block\.sumi\.yaml</code>](../../examples/dit-block/dit-block.sumi.yaml) · [PDF](../../examples/dit-block/dit-block.pdf) · theme <code>paper</code> · profile <code>paper\-double</code> · 164\.92mm × 104\.07mm \(max width 180mm, max height 220mm\)
 
-<img src="../../examples/dit-block/dit-block.svg" alt="examples/dit-block/dit-block.sumi.yaml">
+<img src="../../examples/dit-block/dit-block.svg" alt="DiT block variants (structured layout, paper theme)">
 
 ### Nested groups
 
@@ -1871,11 +1871,11 @@ The committed SVGs of <code>examples/</code>, rendered from their sources as wri
 
 <img src="../../examples/system-architecture/system-architecture.svg" alt="Generic three-tier system">
 
-### examples/transformer/transformer\.sumi\.yaml
+### Transformer \(structured layout, paper theme\)
 
-[<code>examples/transformer/transformer\.sumi\.yaml</code>](../../examples/transformer/transformer.sumi.yaml) · [PDF](../../examples/transformer/transformer.pdf) · theme <code>academic</code> · profile <code>paper\-single</code> · 87\.84mm × 140\.58mm \(max width 88mm, max height 220mm\)
+[<code>examples/transformer/transformer\.sumi\.yaml</code>](../../examples/transformer/transformer.sumi.yaml) · [PDF](../../examples/transformer/transformer.pdf) · theme <code>paper</code> · profile <code>paper\-single</code> · 78\.49mm × 114\.12mm \(max width 88mm, max height 220mm\)
 
-<img src="../../examples/transformer/transformer.svg" alt="examples/transformer/transformer.sumi.yaml">
+<img src="../../examples/transformer/transformer.svg" alt="Transformer (structured layout, paper theme)">
 
 ## Themes and profiles
 

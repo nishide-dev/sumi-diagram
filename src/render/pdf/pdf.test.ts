@@ -15,7 +15,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { compileFigure } from "../../compiler/compile";
-import { DEFAULT_FONT_SET_ID, getFontSet } from "../../core/theme/fonts";
+import { getFontSet } from "../../core/theme/fonts";
 import { measureLabel, renderedLines } from "../../lint/geometry/measure";
 import { assetProvenanceEntries, readSvgMetadata } from "../finalize";
 import { inspectSvg } from "../inspect";
@@ -33,9 +33,6 @@ const EXAMPLES = [...new Bun.Glob("examples/*/*.sumi.yaml").scanSync(ROOT)]
       .replace(/\.sumi\.yaml$/, ""),
   )
   .sort();
-const fontSet = getFontSet(DEFAULT_FONT_SET_ID);
-if (fontSet === undefined) throw new Error("no default font set");
-
 const sha256 = (bytes: Uint8Array) => new Bun.CryptoHasher("sha256").update(bytes).digest("hex");
 
 test("the engine module matches its pinned sha256", () => {
@@ -79,7 +76,7 @@ describe.each(EXAMPLES)("%s", (example) => {
     for (const font of inspected.fonts) {
       expect(font).toMatchObject({ subtype: "CIDFontType2", embedded: true, subset: true });
       expect(font.baseFont).toMatch(
-        /^[A-Z]{6}\+(BIZUDP?Gothic-(Regular|Bold)|STIXTwoMath-Regular|STIXTwoText-Italic)$/,
+        /^[A-Z]{6}\+(BIZUDP?Gothic-(Regular|Bold)|Inter-(Regular|Bold)|STIXTwoMath-Regular|STIXTwoText-Italic)$/,
       );
     }
   });
@@ -107,6 +104,9 @@ describe.each(EXAMPLES)("%s", (example) => {
     const source = readFileSync(join(ROOT, `${example}.sumi.yaml`), "utf8");
     const compiled = compileFigure(source);
     if (!compiled.ok) throw new Error("compile failed");
+    // The figure's own font set: `paper` examples are set in Inter.
+    const fontSet = getFontSet(compiled.value.fontSet.id);
+    if (fontSet === undefined) throw new Error("no font set");
     const inspection = inspectSvg(svg, compiled.value.ir);
     if (!inspection.ok) throw new Error("inspect failed");
     const vb = inspection.value.canvas.viewBox;

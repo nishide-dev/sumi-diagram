@@ -14,8 +14,8 @@
     <th>DiT ブロック</th>
   </tr>
   <tr>
-    <td><img src="../research/185-acceptance/previews/a-transformer.png" alt="Sumi で描画した Transformer" height="280"></td>
-    <td><img src="../research/185-acceptance/previews/b-dit.png" alt="Sumi で描画した DiT ブロック" height="280"></td>
+    <td><img src="../examples/transformer/transformer.svg" alt="Sumi で描画した Transformer" height="280"></td>
+    <td><img src="../examples/dit-block/dit-block.svg" alt="Sumi で描画した DiT ブロック" height="280"></td>
   </tr>
 </table>
 
