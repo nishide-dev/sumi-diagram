@@ -1,0 +1,283 @@
+version: 1
+figure:
+  id: clip-overview
+  title: CLIP — Summary of our approach
+  theme: paper
+  profile: paper-double
+  fit: scale
+  layout:
+    density: compact
+    arrange:
+      row:
+        gap: 10pt
+        align: start
+        items:
+          - training
+          - inference
+groups:
+  - id: training
+    variant: plain
+    label: (1) Contrastive pre-training
+    labelAt: top-left
+    arrange:
+      grid:
+        columns: 2
+        rowGap: 0
+        columnGap: 0
+        items:
+          - null
+          - text-tokens
+          - image-tokens
+          - stack: { gap: 0, items: [ sim1, sim2, sim3, simdots, simn ] }
+  - id: inference
+    variant: plain
+    label: "(2) Create dataset classifier\nfrom label text"
+    labelAt: top-left
+    arrange:
+      grid:
+        columns: 2
+        rowGap: 42pt
+        columnGap: 9pt
+        items:
+          - row: { gap: 15pt, items: [ labels, prompt, class-text ] }
+          - null
+          - null
+          - stack: { gap: 0, items: [ class-tokens, scores ] }
+nodes:
+  # Hidden junctions make continuous nets, with an arrow into every token.
+  - { id: text-bus, component: junction, variant: hidden, attach: { to: text-tokens.1, side: north, gap: 16pt } }
+  - { id: text-bus-two, component: junction, variant: hidden, attach: { to: text-tokens.2, side: north, gap: 16pt } }
+  - { id: text-bus-three, component: junction, variant: hidden, attach: { to: text-tokens.3, side: north, gap: 16pt } }
+  - { id: text-bus-dots, component: junction, variant: hidden, attach: { to: text-tokens.4, side: north, gap: 16pt } }
+  - { id: text-bus-n, component: junction, variant: hidden, attach: { to: text-tokens.5, side: north, gap: 16pt } }
+  - { id: image-bus, component: junction, variant: hidden, attach: { to: image-tokens.3, side: west, gap: 14pt } }
+  - { id: image-bus-one, component: junction, variant: hidden, attach: { to: image-tokens.1, side: west, gap: 14pt } }
+  - { id: image-bus-two, component: junction, variant: hidden, attach: { to: image-tokens.2, side: west, gap: 14pt } }
+  - { id: image-bus-dots, component: junction, variant: hidden, attach: { to: image-tokens.4, side: west, gap: 14pt } }
+  - { id: image-bus-n, component: junction, variant: hidden, attach: { to: image-tokens.5, side: west, gap: 14pt } }
+  - { id: label-bus, component: junction, variant: hidden, attach: { to: labels.3, side: east, gap: 7pt } }
+  - { id: label-bus-one, component: junction, variant: hidden, attach: { to: labels.1, side: east, gap: 7pt } }
+  - { id: label-bus-two, component: junction, variant: hidden, attach: { to: labels.2, side: east, gap: 7pt } }
+  - { id: label-bus-dots, component: junction, variant: hidden, attach: { to: labels.4, side: east, gap: 7pt } }
+  - { id: label-bus-n, component: junction, variant: hidden, attach: { to: labels.5, side: east, gap: 7pt } }
+  - { id: class-bus, component: junction, variant: hidden, attach: { to: class-tokens.1, side: north, gap: 14pt } }
+  - { id: class-bus-two, component: junction, variant: hidden, attach: { to: class-tokens.2, side: north, gap: 14pt } }
+  - { id: class-bus-three, component: junction, variant: hidden, attach: { to: class-tokens.3, side: north, gap: 14pt } }
+  - { id: class-bus-dots, component: junction, variant: hidden, attach: { to: class-tokens.4, side: north, gap: 14pt } }
+  - { id: class-bus-n, component: junction, variant: hidden, attach: { to: class-tokens.5, side: north, gap: 14pt } }
+  - id: prediction-title
+    component: label
+    label: (3) Use for zero-shot prediction
+    attach: { to: predict-image, side: north, gap: 12pt }
+  - id: captions
+    component: stack
+    label: "Pepper the\naussie pup"
+    attach: { to: train-text, side: west, gap: 9pt }
+    props: { width: 78pt, height: 38pt }
+  - id: train-text
+    component: trapezoid
+    label: "Text\nEncoder"
+    tone: purple
+    attach: { to: text-bus, side: west, gap: 14pt }
+    props: { width: 76pt, height: 48pt, narrow: east }
+  - id: photos
+    component: image
+    variant: framed
+    attach: { to: train-image, side: west, gap: 9pt }
+    props:
+      src: assets/synthetic-dog.png
+      width: 40pt
+      height: 30pt
+      layers: { count: 3, offset: 3pt }
+  - id: train-image
+    component: trapezoid
+    label: "Image\nEncoder"
+    tone: green
+    attach: { to: image-bus, side: west, gap: 9pt }
+    props: { width: 58pt, height: 48pt, narrow: east }
+  - id: text-tokens
+    component: tokens
+    tone: purple
+    props:
+      gap: 0
+      width: 33pt
+      height: 18pt
+      cells: [ '$T_1$', '$T_2$', '$T_3$', { label: '…', component: label }, '$T_N$' ]
+  - id: image-tokens
+    component: tokens
+    tone: green
+    props:
+      direction: down
+      gap: 0
+      width: 18pt
+      height: 23pt
+      cells: [ '$I_1$', '$I_2$', '$I_3$', { label: '⋮', component: label }, '$I_N$' ]
+  # Native matrix cells cannot contain formulas. Token rows keep both labels
+  # and diagonal highlights, including an explicit omitted row and column.
+  - id: sim1
+    component: tokens
+    props:
+      gap: 0
+      width: 33pt
+      height: 23pt
+      variant: outlined
+      cells:
+        - { label: '$I_1\cdot T_1$', tone: blue, variant: tinted }
+        - '$I_1\cdot T_2$'
+        - '$I_1\cdot T_3$'
+        - { label: '…', component: label, variant: default }
+        - '$I_1\cdot T_N$'
+  - id: sim2
+    component: tokens
+    props:
+      gap: 0
+      width: 33pt
+      height: 23pt
+      variant: outlined
+      cells:
+        - '$I_2\cdot T_1$'
+        - { label: '$I_2\cdot T_2$', tone: blue, variant: tinted }
+        - '$I_2\cdot T_3$'
+        - { label: '…', component: label, variant: default }
+        - '$I_2\cdot T_N$'
+  - id: sim3
+    component: tokens
+    props:
+      gap: 0
+      width: 33pt
+      height: 23pt
+      variant: outlined
+      cells:
+        - '$I_3\cdot T_1$'
+        - '$I_3\cdot T_2$'
+        - { label: '$I_3\cdot T_3$', tone: blue, variant: tinted }
+        - { label: '…', component: label, variant: default }
+        - '$I_3\cdot T_N$'
+  - id: simdots
+    component: tokens
+    props:
+      gap: 0
+      width: 33pt
+      height: 23pt
+      component: label
+      cells: [ '⋮', '⋮', '⋮', '⋱', '⋮' ]
+  - id: simn
+    component: tokens
+    props:
+      gap: 0
+      width: 33pt
+      height: 23pt
+      variant: outlined
+      cells:
+        - '$I_N\cdot T_1$'
+        - '$I_N\cdot T_2$'
+        - '$I_N\cdot T_3$'
+        - { label: '…', component: label, variant: default }
+        - { label: '$I_N\cdot T_N$', tone: blue, variant: tinted }
+  - id: labels
+    component: tokens
+    props:
+      direction: down
+      gap: 0
+      width: 32pt
+      height: 16pt
+      variant: outlined
+      cells: [ plane, car, dog, '⋮', bird ]
+  - id: prompt
+    component: box
+    label: 'A photo of a $\textcolor{blue}{\text{\{object\}}}$.'
+  - id: class-text
+    component: trapezoid
+    label: "Text\nEncoder"
+    tone: purple
+    props: { width: 80pt, height: 48pt, narrow: east }
+  - id: class-tokens
+    component: tokens
+    tone: purple
+    props:
+      gap: 0
+      width: 37pt
+      height: 18pt
+      cells: [ '$T_1$', '$T_2$', '$T_3$', { label: '…', component: label }, '$T_N$' ]
+  - id: photo
+    component: image
+    variant: framed
+    attach: { to: predict-image, side: west, gap: 9pt }
+    props: { src: assets/synthetic-dog.png, width: 48pt, height: 36pt }
+  - id: predict-image
+    component: trapezoid
+    label: "Image\nEncoder"
+    tone: green
+    attach: { to: image-one, side: west, gap: 9pt }
+    props: { width: 80pt, height: 48pt, narrow: east }
+  - id: image-one
+    component: box
+    label: '$I_1$'
+    tone: green
+    attach: { to: scores.1, side: west, gap: 9pt }
+    props: { width: 20pt, height: 20pt }
+  - id: scores
+    component: tokens
+    props:
+      gap: 0
+      width: 37pt
+      height: 23pt
+      variant: outlined
+      cells:
+        - '$I_1\cdot T_1$'
+        - '$I_1\cdot T_2$'
+        - { id: dog, label: '$I_1\cdot T_3$', tone: blue, variant: tinted }
+        - { label: '…', component: label, variant: default }
+        - '$I_1\cdot T_N$'
+  - id: answer
+    component: label
+    label: 'A photo of a $\textcolor{blue}{\text{dog}}$.'
+    attach: { to: scores.dog, side: south, gap: 14pt }
+edges:
+  - { from: captions, to: train-text }
+  - { from: train-text, to: text-bus, component: line, fromAnchor: east }
+  - { from: text-bus, to: text-bus-two, component: line }
+  - { from: text-bus-two, to: text-bus-three, component: line }
+  - { from: text-bus-three, to: text-bus-dots, component: line }
+  - { from: text-bus-dots, to: text-bus-n, component: line }
+  - { from: text-bus, to: text-tokens.1, toAnchor: north }
+  - { from: text-bus-two, to: text-tokens.2, toAnchor: north }
+  - { from: text-bus-three, to: text-tokens.3, toAnchor: north }
+  - { from: text-bus-dots, to: text-tokens.4, toAnchor: north }
+  - { from: text-bus-n, to: text-tokens.5, toAnchor: north }
+  - { from: photos, to: train-image }
+  - { from: train-image, to: image-bus, component: line, fromAnchor: east }
+  - { from: image-bus-one, to: image-bus-two, component: line }
+  - { from: image-bus-two, to: image-bus, component: line }
+  - { from: image-bus, to: image-bus-dots, component: line }
+  - { from: image-bus-dots, to: image-bus-n, component: line }
+  - { from: image-bus-one, to: image-tokens.1, toAnchor: west }
+  - { from: image-bus-two, to: image-tokens.2, toAnchor: west }
+  - { from: image-bus, to: image-tokens.3, toAnchor: west }
+  - { from: image-bus-dots, to: image-tokens.4, toAnchor: west }
+  - { from: image-bus-n, to: image-tokens.5, toAnchor: west }
+  - { from: label-bus-one, to: label-bus-two, component: line }
+  - { from: label-bus-two, to: label-bus, component: line }
+  - { from: label-bus, to: label-bus-dots, component: line }
+  - { from: label-bus-dots, to: label-bus-n, component: line }
+  - { from: labels.1, to: label-bus-one, component: line, fromAnchor: east }
+  - { from: labels.2, to: label-bus-two, component: line, fromAnchor: east }
+  - { from: labels.3, to: label-bus, component: line, fromAnchor: east }
+  - { from: labels.4, to: label-bus-dots, component: line, fromAnchor: east }
+  - { from: labels.5, to: label-bus-n, component: line, fromAnchor: east }
+  - { from: label-bus, to: prompt, toAnchor: west }
+  - { from: prompt, to: class-text }
+  - { from: class-text, to: class-bus, component: line, fromAnchor: east }
+  - { from: class-bus, to: class-bus-two, component: line }
+  - { from: class-bus-two, to: class-bus-three, component: line }
+  - { from: class-bus-three, to: class-bus-dots, component: line }
+  - { from: class-bus-dots, to: class-bus-n, component: line }
+  - { from: class-bus, to: class-tokens.1, toAnchor: north }
+  - { from: class-bus-two, to: class-tokens.2, toAnchor: north }
+  - { from: class-bus-three, to: class-tokens.3, toAnchor: north }
+  - { from: class-bus-dots, to: class-tokens.4, toAnchor: north }
+  - { from: class-bus-n, to: class-tokens.5, toAnchor: north }
+  - { from: photo, to: predict-image }
+  - { from: predict-image, to: image-one }
+  - { from: image-one, to: scores.1, fromAnchor: east, toAnchor: west }
+  - { from: scores.dog, to: answer, fromAnchor: south, toAnchor: north }
