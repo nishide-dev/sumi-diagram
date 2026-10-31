@@ -499,7 +499,7 @@ with the first column by `align`, one `y` constraint per heading. Put the
 root row at **`align: start`**: `align` only adds space, so the headings
 must start above their rows to be pushed down; centred, Sumi pushes the
 first column down instead and the table's rows no longer line up. A
-tokens node takes part through one of its cells (`k0.1`).
+tokens node takes part through one of its cells (`k0.1`) or as a whole (`k0`).
 
 ```yaml
 # expect-render: fits
@@ -818,6 +818,53 @@ edges:
   (`component/anchor-on-zoom`). Before 0.6.0 the CLI reports
   `component/unknown`: draw two dashed `line` edges instead.
 
+## Brackets
+
+A **`bracket`** node (structured only, 0.10.0) gathers a row or column into
+one edge. `props.form` is `square` (default) or `curly`.
+**`props.points`** is `east` (default), `west`, `north` or `south`: the side
+of the square bracket's spine or the curly brace's tip. An east-pointing
+bracket gathers elements to its west. Incoming and outgoing edges always
+meet the spine's middle / brace tip on that side, even when the other end
+is off-axis or behind it; the route bends after leaving the port.
+
+- Attach it to a group, matrix or [whole token sequence](#token-sequences).
+  An `east` / `west` attachment automatically matches the target's height;
+  a `north` / `south` attachment matches its width. `points` is independent
+  of `attach.side`: set both explicitly to the intended direction.
+- Explicit `props.width` / `props.height` take precedence over automatic
+  sizing on the corresponding axis. The natural size is 6pt deep × 24pt
+  long (24pt × 6pt for north / south). Corner attachments such as
+  `north-east` retain that natural size instead of spanning the target.
+- Reserve room in the arrange `gap` for the bracket depth, `attach.gap`,
+  and the outgoing arrow. For example, a 6pt-deep bracket with a 2pt attach
+  gap in a row with `gap: 18mm` leaves space for a readable arrow. For
+  off-axis routes, allow room beside the fixed port for the first bend.
+- It takes no label, `labelRotation`, `sublabel` or `badge`. Attach a
+  separate `label` if needed. Variants: `default`, `emphasis`, `muted`,
+  `outlined` (the latter uses the node's tone for its line).
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: bracketed-sequence
+  theme: paper
+  layout:
+    arrange: { row: { gap: 18mm, items: [seq, out] } }
+nodes:
+  - id: seq
+    component: tokens
+    props: { direction: down, gap: 0, width: 40pt, height: 22pt, cells: [a, b, c] }
+  - id: br
+    component: bracket
+    attach: { to: seq, side: east, gap: 2pt }
+    props: { form: curly, points: east }
+  - { id: out, component: box, label: Output }
+edges:
+  - { from: br, to: out }
+```
+
 ## Token sequences
 
 A **`tokens`** node (`component: tokens`, structured only, 0.6.0) writes a row of cells — sequence tokens, patches, keys — as one
@@ -854,7 +901,12 @@ expose it, and edge proximity rules do not measure distance to its stroke.
 PDF and both PPTX modes preserve the line.
 
 Edges, `attach.to` and `align` name a cell as **`<node>.<cell>`**: the
-cell's `id`, or its 1-based position when it has none (`keys.3`).
+cell's `id`, or its 1-based position when it has none (`keys.3`). Since
+0.10.0 the tokens node's own ID names the **whole sequence**: one edge
+meets the row or column as a unit (`{ from: encoder, to: seq }`), and an
+[attached bracket](#brackets) gathers it. Sumi lays the cells out in a
+frame group with that ID (no border, fill or padding, so the frame is
+exactly the cells); tokens that nothing names as a whole get no frame.
 
 ```yaml
 # expect-render: fits
@@ -891,10 +943,8 @@ edges:
 
 - Each cell is drawn as an ordinary node `<node>-<cell>` (`seq-a2`,
   `keys-2`): diagnostics name it so, and your own IDs must not use these
-  (`ref/reserved-id`). An unknown cell is `ref/unknown-cell`; the tokens
-  node's own ID as an endpoint, attach target or align item is
-  `ref/tokens-reference`. Place the tokens in an arrange tree, never with
-  `attach` (`layout/attached-tokens`).
+  (`ref/reserved-id`). An unknown cell is `ref/unknown-cell`. Place the
+  tokens in an arrange tree, never with `attach` (`layout/attached-tokens`).
 - Cells without a label are fine (no `lint/empty-label`). A cell cannot be
   an `operator`, `junction`, `image`, `legend` or `tokens`
   (`component/invalid-prop`). An older CLI reports `component/unknown`:
@@ -916,6 +966,45 @@ the width), `gap` (between cells, default 0), `headerGap` (default `gap`),
 `headerWidth`, `rowsAt: right`, `columnsAt: bottom` and `variant` (of every
 cell) tune it. A legend entry `{ class: <matrix>.<class> }` draws that
 class's sample box with its label: the key is made from the same data.
+
+**Text and ellipsis cells (since 0.10.0).** In a list row a cell may also be
+`{ class, text }` (the text, math allowed, is drawn in the cell, which keeps
+its class's tone, variant and hatch) or `{ ellipsis: "…" | "⋮" | "⋱" }`.
+`ellipsisRows: [4]` and `ellipsisColumns: [4]` (1-based) turn whole rows and
+columns into ellipsis slots: `⋮` in a row, `…` in a column, `⋱` where they
+cross. An ellipsis slot keeps the cell's size (the grid stays regular) and draws
+only the symbol, with **no border, fill or hatch**; the neighboring cells keep
+their own borders. Class-only cells and string rows are unchanged. `flush: true`
+removes the frame's group padding so a header row or column of other nodes can
+touch the matrix (needs a matrix without a `label`). The cells' IDs are not
+addressable, so attach or connect to the matrix as a whole.
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: similarity
+  theme: paper
+  layout:
+    arrange: { row: { gap: 5mm, align: center, items: [sim] } }
+nodes:
+  - id: sim
+    component: matrix
+    props:
+      cellWidth: 30pt
+      cellHeight: 18pt
+      variant: outlined
+      classes:
+        d: { tone: blue, variant: tinted }
+        o: {}
+      ellipsisRows: [3]
+      ellipsisColumns: [3]
+      cells:
+        - [{ class: d, text: '$I_1\cdot T_1$' }, { class: o, text: '$I_1\cdot T_2$' }, o, { class: o, text: '$I_1\cdot T_N$' }]
+        - [{ class: o, text: '$I_2\cdot T_1$' }, { class: d, text: '$I_2\cdot T_2$' }, o, { class: o, text: '$I_2\cdot T_N$' }]
+        - [o, o, o, o]
+        - [{ class: o, text: '$I_N\cdot T_1$' }, { class: o, text: '$I_N\cdot T_2$' }, o, { class: d, text: '$I_N\cdot T_N$' }]
+```
 
 ```yaml
 # expect-render: fits

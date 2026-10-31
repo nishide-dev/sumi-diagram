@@ -283,6 +283,25 @@ export function structuredPrimitivesFigure(theme: string): string {
       }
       continue;
     }
+    if (id === "sumi/bracket") {
+      // A bracket (#281) attached to the east side of a whole token sequence
+      // (so it is as long as the column), with an edge from its tip.
+      const brackets: string[] = [];
+      for (const [i, variant] of m.variants.entries()) {
+        const name = `${m.name}-${variant}`;
+        brackets.push(`{ row: { gap: 12mm, items: [${name}-set, ${name}-out] } }`);
+        nodes.push(
+          `  - { id: ${name}-set, component: tokens, props: { direction: down, gap: 1.5pt, cells: [x, y] } }`,
+          `  - { id: ${name}, component: ${m.name}, variant: ${variant}, attach: { to: ${name}-set, side: east, gap: 2mm }, props: { form: ${i % 2 === 0 ? "curly" : "square"} } }`,
+          `  - { id: ${name}-out, component: box, label: out }`,
+        );
+        edges.push(`  - { from: ${name}, to: ${name}-out }`);
+      }
+      tokens.push(
+        `{ grid: { columns: 2, rowGap: 3mm, columnGap: 6mm, items: [${brackets.join(", ")}] } }`,
+      );
+      continue;
+    }
     if (id === "sumi/zoom") {
       // A callout from each node of the first row to a box below it (#176).
       for (const [i, variant] of m.variants.entries()) {

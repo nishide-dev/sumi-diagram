@@ -25,6 +25,14 @@ const params: Record<string, OutlineParams[]> = {
     ]),
   ],
   "sumi/stack": [{}, { layers: 1 }, { layers: 2, offset: 0.01 }, { layers: 8, offset: 64 }],
+  "sumi/bracket": [
+    {},
+    ...["east", "west", "north", "south"].flatMap((points) => [
+      { points },
+      { points, form: "curly" },
+      { points, form: "square" },
+    ]),
+  ],
   "sumi/bowtie": [
     {},
     { gap: 0 },
@@ -40,6 +48,7 @@ test("renderer registry contains only the bundled geometry implementations", () 
     "sumi/trapezoid",
     "sumi/stack",
     "sumi/bowtie",
+    "sumi/bracket",
     "sumi/waveform",
   ]);
   expect(getOutlineRenderer("trapezoid")).toBeUndefined();

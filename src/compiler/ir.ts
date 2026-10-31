@@ -200,6 +200,8 @@ export interface TokensCellIR {
   readonly id: string;
   /** The tokens or matrix node's variant. */
   readonly variant: string;
+  /** Set on the frame of a `flush` matrix (#280): no group padding. */
+  readonly flush?: true;
   readonly name: string;
   /**
    * Where each field of the cell's node is written, by its path relative to
@@ -279,16 +281,18 @@ export interface IconIR {
   readonly name: string;
 }
 
-/** An image node's props.src, sha256 and fit, as written (the file is read when rendering). */
+/** An image node's file or inline source, sha256 and fit (assets load when rendering). */
 export interface ImageIR {
   /** Relative to the figure's directory, `/`-separated (checked by the `asset` stage). */
-  readonly src: string;
+  readonly src?: string;
+  /** Original inline SVG source, never interpolated or rewritten before importing. */
+  readonly svg?: string;
   /** Lowercase hex, if written. */
   readonly sha256?: string;
   readonly fit: ImageFit;
   /** Total copies and the up-right step; dimensions size one copy, not the stack. */
   readonly layers?: { readonly count: number; readonly offset: StyleLength };
-  /** Where `props.src` is written, for diagnostics about the file. */
+  /** Where `props.src` or `props.svg` is written, for asset diagnostics. */
   readonly srcAt: SourceMapEntry;
 }
 
@@ -495,6 +499,12 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
                       labelOnLeft: true,
                     }),
                   }),
+                ...(component.manifest.render.renderer === "sumi/bracket" && {
+                  ...(typeof component.props.form === "string" && { form: component.props.form }),
+                  ...(typeof component.props.points === "string" && {
+                    points: component.props.points,
+                  }),
+                }),
                 ...(component.manifest.render.renderer === "sumi/trapezoid" &&
                   typeof component.props.narrow === "string" &&
                   component.props.narrow !== "south" && { narrow: component.props.narrow }),
@@ -524,7 +534,15 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
           badge: freeze({ icon: iconIR(n.badge.icon), corner: n.badge.corner }),
         }),
         ...(component.manifest.embed === "image" && {
-          image: imageIR(component.props, sourceEntry(["nodes", index, "props", "src"])),
+          image: imageIR(
+            component.props,
+            sourceEntry([
+              "nodes",
+              index,
+              "props",
+              typeof component.props.svg === "string" ? "svg" : "src",
+            ]),
+          ),
         }),
         ...(caption !== undefined && { captionOf: groupKey(caption.group) }),
       }),
@@ -816,7 +834,16 @@ function matrixPartOf(doc: PartialFigure, key: ElementKey): { matrix?: TokensCel
   const expansion = doc.matrices?.find((m) => m.id === id);
   const variant = expansion?.variant ?? "default";
   const fields = expansion?.parts.find((p) => nodeKey(p.id) === key)?.fields ?? {};
-  return { matrix: freeze({ id, variant, name: origin.name, fields: freeze({ ...fields }) }) };
+  const flush = expansion?.flush === true && key === groupKey(id);
+  return {
+    matrix: freeze({
+      id,
+      variant,
+      ...(flush && { flush: true as const }),
+      name: origin.name,
+      fields: freeze({ ...fields }),
+    }),
+  };
 }
 
 function componentOf(state: CheckState, key: ElementKey): ResolvedComponent {
@@ -866,14 +893,18 @@ function iconIR(ref: string): IconIR {
 }
 
 function imageIR(props: Record<string, unknown>, srcAt: SourceMapEntry): ImageIR {
-  const { src, sha256, fit = "contain" } = props;
+  const { src, svg, sha256, fit = "contain" } = props;
   const layers = props.layers as { count: number; offset: number } | undefined;
-  // The registry checks src is a string prop and fit one of IMAGE_FITS (manifest `embed`).
-  if (typeof src !== "string" || !(IMAGE_FITS as readonly unknown[]).includes(fit)) {
+  // The component checks a source string and fit in IMAGE_FITS (manifest `embed`).
+  if (
+    (typeof src !== "string" && typeof svg !== "string") ||
+    !(IMAGE_FITS as readonly unknown[]).includes(fit)
+  ) {
     throw new Error("internal error: image props without src or with an unknown fit");
   }
   return freeze({
-    src,
+    ...(typeof src === "string" && { src }),
+    ...(typeof svg === "string" && { svg }),
     ...(typeof sha256 === "string" && { sha256: sha256.toLowerCase() }),
     fit: fit as ImageFit,
     ...(layers !== undefined && {

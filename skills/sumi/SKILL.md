@@ -135,7 +135,7 @@ edges:
   `right` does not fit `paper-single`; prefer `down` ([layout-tips](references/layout-tips.md)).
 - **Structured figures** add `figure.layout.arrange` (nested `stack` /
   `row` boxes listing every node and group once), `attach`, anchors,
-  `align`, `legend`, `tokens`, `matrix`, `zoom`: read [references/structured.md](references/structured.md)
+  `align`, `legend`, `tokens`, `bracket`, `matrix`, `zoom`: read [references/structured.md](references/structured.md)
   first; for a figure modelled on a published one, the [paper figure recipe](references/layout-tips.md#paper-figure-recipe). Label math
   (`'$\hat{y}_t$'`) works only there; with a line break, double-quote it and
   double backslashes (`"A\n$\\gamma$"`). Any group takes `labelAt` and
@@ -246,7 +246,7 @@ instead of guessing when:
 [figure-format](references/figure-format.md) (fields, IDs, labels, math and
 accents, groups, edges, tones, themes, profiles, common mistakes) ·
 [structured](references/structured.md) (arrange trees, group titles and
-captions, attach, align, anchors, fan-in, edge labels, crossings, legends, tokens, matrices) ·
+captions, attach, align, anchors, fan-in, edge labels, crossings, legends, tokens, brackets, matrices) ·
 [assets](references/assets.md) (icons, images) · [diagnostics](references/diagnostics.md)
 (fixes by code) · [layout-tips](references/layout-tips.md) (choosing the
 engine, auto issues, paper figure recipe, workarounds → fields) · [examples](references/examples.md)

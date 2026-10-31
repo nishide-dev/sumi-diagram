@@ -61,7 +61,7 @@ metadata: {}               # optional, any JSON-compatible data; not drawn
 | Element | Fields (required in bold) | Defaults |
 | --- | --- | --- |
 | group | **`id`**, `label`, `labelAt`, `caption`, `component`, `variant`, `tone`, `dim`, `group`, `arrange`¹ | component `container`, variant `default`, no tone, not dimmed, no parent |
-| node | **`id`**, **`component`**, `label`, `sublabel`¹, `labelRotation`¹, `textAlign`¹, `grow`¹, `variant`, `tone`, `icon`, `badge`, `props`, `group`, `attach`¹ | variant `default`, no label, no tone, no group, grow `1` |
+| node | **`id`**, **`component`**, `label`, `sublabel`¹, `labelRotation`¹, `textAlign`¹, `grow`¹, `variant`, `tone`, `mono`, `icon`, `badge`, `props`, `group`, `attach`¹ | variant `default`, no label, no tone, no group, grow `1` |
 | edge | **`from`**, **`to`**, `id`, `label`, `labelAt`¹, `labelSide`¹, `component`, `variant`, `tone`, `props`, `fromAnchor`¹, `toAnchor`¹ | component `arrow`, variant `default`, no tone |
 
 ¹ Structured layout only (a figure with `figure.layout.arrange`); see
@@ -159,6 +159,13 @@ edges:
   Inside `dim: true`, text and borders take dim gray and fills lighten;
   solid fills remain areas, and their dim gray text darkens as needed to keep
   at least 3:1 contrast. Dimmed solid stacks use that text gray for separators.
+- `mono: true` on a node draws its label and sublabel in the theme's
+  monospace font (BIZ UDGothic in every built-in theme), e.g. class names,
+  code, prompts. `mono: false` turns off a variant's monospace text. Math
+  between `$...$` keeps the math fonts, and `\textcolor` spans keep their
+  colors, so `A photo of a $\textcolor{blue}{\text{\{object\}}}$.` works.
+  On a tokens node `mono` is the default of its cells; a cell can set its own.
+  It is a field of nodes (and tokens cells), not of groups or edges.
 - Pick `outlined` for white with colored frame and text, the default variant
   for pastel with a black frame, or `filled` for pastel without a frame.
 - Two edges of different tones that enter the same point of a node overlap
@@ -418,12 +425,19 @@ Always take these from `sumi catalog --json`. Each entry has `id`
 - `zoom` (edge, structured only, 0.6.0) joins an element to a view that
   shows it enlarged: see [structured](structured.md#zoom-callouts).
 - `tokens` (structured only) writes a row of cells (sequence tokens,
-  keys) as one node; edges name a cell as `<node>.<cell>`: see
+  keys) as one node; edges name a cell as `<node>.<cell>`, or the whole
+  sequence as `<node>` (0.10.0): see
   [structured](structured.md#token-sequences).
+- `bracket` (structured only, 0.10.0) is a square bracket or curly brace
+  that gathers the elements it is `attach`ed to (a whole `tokens` node, a
+  group, a matrix); edges leave from its spine: see
+  [structured](structured.md#brackets).
 - `matrix` (structured only) draws a grid of cells colored by class
   (tone, variant, `pattern: hatch`) with row and column headers, e.g. an
-  attention mask; a legend entry `{ class: <matrix>.<class> }` explains a
-  class: see [structured](structured.md#matrices).
+  attention mask; cells may hold text (`{ class, text }`) and ellipsis
+  slots (`ellipsisRows` / `ellipsisColumns`, `{ ellipsis: "…" }`); a legend
+  entry `{ class: <matrix>.<class> }` explains a class: see
+  [structured](structured.md#matrices).
 
 ### Catalog render metadata
 

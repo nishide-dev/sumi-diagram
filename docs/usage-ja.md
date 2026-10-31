@@ -307,6 +307,19 @@ nodes:
 
 ### アイコンと画像
 
+v0.10.0 から、`component: image` の `props.svg: |` に SVG を直接書けます。
+`src` と `svg` は厳密に片方だけです。完全な `<svg viewBox="0 0 120 40">…</svg>`
+（または正の width/height）を渡し、配置サイズは従来どおり `props.width` / `height` で指定します。
+文字は必ず path に輪郭化するか図形で表してください。`text` / `tspan` は未対応で、
+HTML / `foreignObject`、script、イベント、外部・内部参照、埋め込み画像、DTD / entity、
+style 要素、defs、clipPath、mask、gradient、filter は拒否します。
+許可範囲はファイル SVG と同じで、入力を既存 importer で検査・再直列化して data URI にします。
+SVG / PDF / 画像方式 PPTX に対応し、編集可能 PPTX は `pptx/unsupported-asset` です。
+原文 UTF-8 の hash を metadata に記録します。1 資産 16 MiB / 図全体 32 MiB はファイルと共有し、
+20,000 要素・深さ 32 の制限も適用します。画像内の文字サイズや図形のはみ出しは幾何 lint の対象外です。
+書き方は [Skill の inline SVG](../skills/sumi/references/assets.md#inline-svg-0100) を参照してください。
+HTML/CSS の入口は後続の #283 で扱います。
+
 node の `icon: tabler/<name>` で、同梱の [Tabler Icons](https://github.com/tabler/tabler-icons)（MIT。outline から Brand カテゴリを除いた 4,808 個）のアイコンをラベルの代わりに描けます。色は node の文字色に従います。名前は `sumi catalog --icons <語>` で探せます。自分の画像は `component: image` と `props.src`（YAML ファイルからの相対パス。PNG / JPEG / SVG）・`width` か `height` で埋め込みます。Sumi は画像を加工せずそのまま埋め込み、SVG は許可した図形だけを取り込みます（スクリプトや外部への参照は位置付きのエラー）。編集可能 PPTX では使えません（[設計 §6.25](design/phase1.md#625-94-のユーザー画像と同梱アイコン)）。
 
 `emoji/<name>` は同梱の Fluent Emoji Flat 47 点（MIT）の多色アイコンです。薄表示のグループでも元の色を保ちます。`sumi catalog --icons ""` で全名前を確認できます。アイコンを角に置く badge も使えます。[アセットの参照](../skills/sumi/references/assets.md)を参照してください。

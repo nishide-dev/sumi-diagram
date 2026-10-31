@@ -170,6 +170,8 @@ export function assertOutlineDrawing(drawing: OutlineDrawing, footprint: Rect): 
       bodies.push(layer.path.points);
     }
   }
+  // A drawing of lines only (a bracket, #281) paints no area: its outline is its footprint.
+  if (bodies.length === 0 && drawing.layers.length > 0) bodies.push(drawing.outline);
   assert(bodies.length > 0, "no body");
   for (const p of drawing.outline) assert(inside(p), "outline outside footprint");
   const safe = drawing.safeArea;

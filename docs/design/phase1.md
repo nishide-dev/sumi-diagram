@@ -2355,6 +2355,74 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 
 - **最終検証**: `bun run check`・`bun run typecheck`・`CI=1 bun test`（3593 pass / 13 skip / 0 fail）・`bun run gallery:check`（203 files）・`bun run schema:check` が成功。全 Theme × variant のbowtie / trapezoid galleryをPNG化して開き、文字・塗り・輪郭を確認した。
 
+### 6.76 #279 のノードの等幅ラベル
+
+- **目的**: CLIP の図（#271）の `plane / car / dog` やプロンプト「A photo of a {object}.」を等幅で書く。ノード単位の等幅の選択がなく、カタログのフォントセットに mono があるのに使えなかった。
+- **判断: 新しいフォントは同梱しない**。組み込みの 2 つのフォントセット（`sumi/biz-ud-gothic`、`sumi/inter-biz-ud-gothic`）はどちらも `mono` スロットに BIZ UDGothic Regular（OFL-1.1、v1.051）を持つ。既存のライセンス・NOTICE・リリースサイズは変わらない。BIZ UDGothic の Latin は半角幅で、文字幅は一定。
+- **構文**: ノードの任意の `mono: boolean`。`true` はそのノードのラベルと sublabel を Theme のフォントセットの mono で描き、`false` は variant が mono を指定していても止める。省略は従来どおり（variant / Theme の `mono`）。解決順は §4.3 の最後に足した: …→ tone → **ノードの `mono`**（dim の前）。groups・edges には足さない（需要が出てから）。tokens は `mono` をノードの既定として各セルが継承し、セルの `mono` で上書きできる（`label` / `tone` と同じ規則で、ノードの `mono` を展開した葉へ渡す）。
+- **一貫性（新しい経路は作らない）**: スタイルの `mono` は既存のプロパティ（§4.1）で、`fontClassOf()` が `mono` / `mono-bold` のフォント class を作る。計測（`measureText()`）、SVG の `text-mono`、幾何 lint の再計測（`fontFileFor()`）、PDF の埋め込み（BIZ UDGothic のサブセット）、編集可能 PPTX の `typeface="BIZ UDGothic"` はすべてこのフォント class から同じファイルを引く。D2 の auto でも `font: mono` になる。
+- **Latin・数式・色付き範囲**: mono は Inter への置換（§6.44）の対象外のまま、ラベル全体が BIZ UDGothic。数式の run（`math` / `math-italic`）は STIX Two のままで、`$I_1\cdot T_2$` のような記号は数式フォントで描く。`$\textcolor{blue}{\text{\{object\}}}$`（§6.61, #186）は `\text` が label のフォント（mono）になり、色の範囲は run の境界として残る。
+- **診断**: フォントセットに mono がなければ `theme/missing-font`（error、`mono` の位置）。組み込みのフォントセットはすべて mono を持つので、この経路は将来のカスタムのフォントセット用。`mono` が boolean でなければ従来の schema 診断。
+- **互換性**: 変更前後の全153 YAML ×（自テーマ＋組み込み5 Theme）の SVG と D2、自テーマの PDF / picture PPTX（計1458ファイル）の sha256 は全件一致。`mono` を使わない図の出力は変わらない。gallery は tokens の説明文だけ変わり（203 files中2）、描画は不変。golden は再生成しても差分なし。
+- **#271 の再現**: `research/271-clip/clip.sumi.yaml` の labels（tokens）・prompt・answer に `mono: true`。180 × 52.4mm（旧 52.82mm: ラベルのフォント変更による行高の差）、errors 0 / warnings 0 / infos 2（変更なし）、プレビュー 39,810 bytes を開いて、plane / car / dog / bird と文が等幅で、`{object}` と dog が青のまま、矢印・箱への収まりが崩れていないことを確認した。
+- **テスト**: `src/render/mono-labels.integration.test.ts` — 全 Theme で `iiiiiiii` と `WWWWWWWW` が同じ幅（proportional では異なる）、`mono` なし / `mono: false` の出力が従来と同じ、sublabel と色付き数式つきの計測、数式の記号が mono にならないこと、PDF の BIZ UDGothic と一定の glyph advance、編集可能 PPTX のフォント名、tokens セルの継承と上書き、boolean 以外の拒否。
+
+### 6.77 #280 の matrix のセル文字・省略セル・flush
+
+- **目的**: CLIP の図（#271）の I·T 行列は、セルに式（`$I_1\cdot T_2$`）を書き、省略の行・列（…・⋮・⋱）を置き、対角を強調する。#180 の matrix は class だけのセルで、tokens 5 行の stack で代用していた。1 個の `matrix` で書けるようにする。
+- **前提の確認**: matrix は展開後に通常の `box` と `label` のノードになる（§6.56）。セルのラベルは今まで空文字だったので、文字・数式は既存のラベル描画（寸法・数式・lint・SVG/PDF/PPTX）をそのまま使える。新しい描画経路は作らない。
+- **セルの書き方（判断: class だけの書き方は不変、明示オブジェクトを足す）**: `cells` の行は従来どおり class の文字列（`"o..L"`・空白区切り）か class 名の配列。配列のセルに `{ class, text }`（文字つきのセル。`text` は数式可。塗り・variant・斜線は class のまま）と `{ ellipsis: "…" | "⋮" | "⋱" }`（記号だけのセル。class は省略可）を書ける。文字列の行にはセルごとの文字を持たせない（1 文字の class を連ねる書式と衝突するため）。`class` も `ellipsis` もない、`text` と `ellipsis` の併記は `component/invalid-prop`（そのセルの位置）。未知の class は `…cells[r][c].class` を指す（文字列・配列の class 名の位置は従来どおり）。
+- **省略の行・列（判断: 1 始まりの選択子）**: `ellipsisRows: [4]`・`ellipsisColumns: [4]` で行・列全体を省略にする。記号は行が `⋮`、列が `…`、交点が `⋱`。選択子の範囲外・重複は `component/invalid-prop`（`ellipsisRows[i]` の位置）。選択された行・列に `text` を書くと error（`cells[r][c].text`）。選択された位置のセルは class を書いたままでよい（行の長さをそろえるため）。その class は表示に使わないが、`lint/unused-matrix-class` では使用に数える（省略スロットだけで使う class を誤って警告しない）。
+- **罫線の扱い（判断）**: 省略のスロットは**セルの大きさを保ち、記号だけを描く**。部品は枠・塗りのない `sumi/label`（`variant: default`、tone なし）で、斜線の印（`doc.paints`）も付けない。隣のセルは自分の枠を保つので、省略の行・列は枠のない空白に記号が浮く形になる（原図と同じ。CLIP の再現（#271）の tokens の `component: label` の … ⋮ ⋱ と同じ見た目）。省略スロットを小さく詰める案（大きさを保たない）は、行・列の間隔と対角が崩れるため採らない。枠を描く案（点線の枠）も採らない。
+- **flush（判断: 枠の余白を外す opt-in）**: matrix の枠は plain の group で、profile の `groupPadding` を持つ。このため上の見出し行（T）と左の見出し列（I）を gap 0 で接触させる図ができなかった。`props.flush: true` の matrix は枠の余白を 0 にする。matrix の frame group の figure IR の `matrix` に `flush: true` を付け（frame だけ。部品には付けない）、structured エンジンの `#padding()` が 0 を返す。既定（`flush` なし）は IR・配置とも変わらない。`flush` の matrix は見出し（title）の場所がないので `label` があれば `component/invalid-prop`（`props.flush`）。
+- **セルの参照（非対象）**: セルは枠の group の子なので、`attach` の対象にも辺の端点にもできない（attach は同じ container の中だけ。ID の検査は展開前）。matrix 全体を端点・attach にする。CLIP の (3) は、行が 1 行で dog が中央のセルなので、matrix 全体の南が dog の真下になり位置が変わらない。セルの参照（`<matrix>.r1c3` など）は engine の container 制約の拡張が要るため別 Issue とする。
+- **IR・診断**: 部品の名前は `ellipsis cell 2, 3 of matrix "m"`、文字つきのセルは従来の `cell 1, 1 (class "o") of matrix "m"`。診断の位置の表（`fields`）は、文字つきセルのラベルが `…cells[r][c].text`、省略セルが `…[c].ellipsis` か選択子（`ellipsisRows` / `ellipsisColumns`）を指す。`lint/empty-label` は matrix の部品を従来どおり除外。
+- **CLIP の描き直し（受け入れ条件）**: `research/271-clip/clip.sumi.yaml` の (1) の I·T 行列（tokens 5 行 sim1..simn）を `sim`（`cellWidth: 33pt`、`cellHeight: 23pt`、`flush: true`、`variant: outlined`、class `d`（blue / tinted の対角）と `o`、`ellipsisRows: [4]`、`ellipsisColumns: [4]`）の matrix 1 個に、(3) の I₁·T 行（tokens）を 1 行の matrix `scores`（`ellipsisColumns: [4]`）に書き換えた。生成した `preview.png` は開いて確かめ、**変更前と画素まで同一**（sha256 一致）で、180 × 52.82mm・63.6% 縮小・0 errors / 0 warnings（添字の info 1 件）も同じ。省略の記号と対角の青が従来どおり並ぶ。
+- **互換性（実測）**: 変更前後で、追跡済みの全 153 の `*.sumi.yaml` を自テーマと組み込み 5 Theme の 918 組で描き、SVG・PDF・picture PPTX・D2（emit-d2）の sha256 を比べた。描画まで通った 638 組と D2（auto）234 件のうち、変わったのは書き換えた `research/271-clip/clip.sumi.yaml` の 5 組（自テーマ・paper・minimal・academic・color。ID・要素の構成が変わるため SVG / PDF / PPTX の hash が違う）だけで、残りの 152 YAML の出力は全件一致した。matrix を使う既存の図（`research/180-matrix`、`research/248-fill`、ギャラリー以外の例）も変わらない。JSON Schema は変わらない（部品の props は Figure のスキーマの外）。
+- **テスト**: `matrix.test.ts`（文字つきセルの box とラベル・省略セルの label と大きさ・選択子の記号と交点・IR の名前・診断の位置と文・`flush` の IR と見出しとの併用 error）、`matrix.integration.test.ts`（`flush` の matrix が見出し行に接し、省略の行・列がセルの大きさを保つこと、`flush` なしでは余白が入ること、記号が描かれること）。ギャラリーの matrix のサンプルに文字・省略・対角・`flush` の 2 つ目の matrix を足した（全 Theme の `sumi-matrix` が更新）。Skill の `structured.md` に「Text and ellipsis cells」と作例（`skill.test.ts` が描く）、`figure-format.md` に 1 文。
+
+### 6.78 #281 の括弧（`bracket`）とトークン列全体の端点
+
+- **目的**: CLIP の図（#271）の (2) のように、ラベルの列を括弧でまとめて 1 本の矢印につなぐこと、トークン列（tokens）全体へ 1 本の辺をつなぐことを、junction の共有幹なしで書けるようにする。#271 の再現では全ラベルに hidden junction を attach して縦の幹で括弧状に見せ、T 行・I 列には各セルへ junction から分岐させていた。
+- **`sumi/bracket`（判断: outline 部品）**: 角括弧（`form: square`、既定）と波括弧（`form: curly`、尖った先端）。`props.points`（`east` 既定 / `west` / `north` / `south`）は背骨（波括弧では先端）の側で、辺が出る側。`east` は西側の要素をまとめる。tone ごとの塗りがない 1 本の線なので、variant は `default` / `emphasis` / `muted` / `outlined`（`outlined` だけ tone の線色。`default` 等の tone は塗りなので効かない）。`filled` / `solid` / `tinted` は塗る面がないため持たない。ラベル・`labelRotation`・`sublabel`・`badge` は取らず（`component/unexpected-label` ほか）、`lint/empty-label` の対象外。structured 専用（`engines: [structured]`、auto は `layout/structured-only`）。D2 の形状・attach・長さの決定が structured の仕組みであり、auto の 2 パス寸法では長さを決められないため。mark（junction・operator）にしない理由は、辺の端点計算・PDF・editable PPTX・geometry lint が outline 経路ですでに揃っているため。
+- **描画と端点**: 輪郭 renderer `sumi/bracket`（`labelless`: footprint はラベルに依らず、呼び出し側は 1×1 の箱を渡す）。描くのは `role: "line"` の開いた折れ線 1 本（波括弧は 1/4 楕円 4 つを各 10 分割。`rx = 深さ/2`、`ry = min(長さ/4, 深さ)`）。`outline` と `safeArea` は footprint の矩形で、辺は背骨の中央（波括弧では先端）に当たる。`line` role は既存の SVG（structured・D2 compose）・PDF・PPTX の経路がすでに fill なしで扱う。renderer の契約テスト（`assertOutlineDrawing`）は、線だけの drawing では outline を本体として検査する。
+- **大きさ（判断）**: 自然サイズは深さ 6pt（12 unit）× 長さ 24pt（48 unit）。明示 `width` / `height` が優先。attach 先の辺 `east` / `west` に付けると長さ（高さ）、`north` / `south` に付けると長さ（幅）が**その辺の長さ**になる（角の `north-east` などは自然サイズ）。attach 先は group・matrix・tokens 全体のどれでもよい。engine は attach の配置時（`#attachedSize`）に target の矩形から決めるので、overhang の計算（局所配置）と本配置で同じ値になる。`points` を attach の辺から自動で決める案は、明示的な向きと IR の依存が増えるため採らず、`points` は利用者が書く。括弧の深さと `attach.gap` は隣の要素に空ける余白として利用者が見込む（Skill に目安）。
+- **tokens 全体の端点（判断: 枠 group）**: tokens の ID を辺の端点・`attach.to`・align の項目に書くと、cells を `plain` の `sumi/container`（ID は tokens と同じ、ラベル・tone なし）に入れる。matrix（§6.56）と legend の枠と同じ仕組みで、group は既に辺・attach の端点になれる。違いは**余白 0**: engine の group の padding を、`tokens` の印を持つ枠だけ 0 にする（`#padding()`）。枠は cells の外接矩形そのもので、辺は列の境界に当たり、gap 0 の密着も保たれる。**参照されない tokens には枠を作らない**（展開は従来どおり配置箱で、出力は不変）。判定は展開前に edges の from/to・`attach.to`・align の「`.<cell>` なしの参照」を走査する。`ref/tokens-reference` は廃止（Skill の diagnostics 表と tests も更新）。`layout/attached-tokens`（tokens 自体の attach）は維持。1 セルの tokens は 1 項目の row の枠。`group` を持つ tokens は枠が同じ親を引き継ぎ、cells の親が枠になる。
+- **matrix の行・列（非対象）**: matrix は元から枠 group なので全体が端点になる。行・列を端点にするには行 / 列ごとの枠を足す必要があり、枠の密着・padding・ヘッダーとの関係が増えるため、今回の `Closes` には入れない。必要なら tokens で書く（#271 の sim 行は tokens）か、後続 Issue とする。
+- **レビュー修正（#286）**: 矩形 outline だけでは off-axis の相手へ辺を出すと未描画の辺から離れるため、drawing に `fixedPort`（`points` 側中央の anchor）を追加し、router の側選択・multi-edge 配分・fan-in spread・微小な直線化で動かさない。両形状・全4方向で入出力の相手が横・背面にあっても、その位置から外向きに出入りする。tokens の枠作成は layout validation 後なので、cell reference 解決後にセルへ attach したノードとその添付チェーンも枠の子へ移す。枠自体への attach は枠の外の親を維持する。回帰は root / group 内の逆順宣言チェーンと、両形状 × 4向き × 相手の4方位 × 入出力で検査する。
+- **#271 の描き直し**: `research/271-clip/clip.sumi.yaml` では、(2) のラベル列の hidden junction 5 個とその共有幹だけを、列に attach した波括弧（`bracket`）に置換し、先端から「A photo of a {object}.」へつなぐ。(1) の Text Encoder → 各 T、Image Encoder → 各 I、(2)/(3) 共通の Text Encoder → 各 T は、原図の per-cell fan-out を優先して hidden junction 15 個と `line` の共有幹を保持する。エンコーダ出力を全体端点への矢印に置換する箇所はなく、全体端点は gallery で例示する。分類器生成の row gap は20pt。`figure.fit: scale` は 63.6% から 62.8%（本文 5.02pt、最低 5pt を維持）、最終サイズは 180 ×52.17mm。0 errors / 0 warnings / 2 infos（添字 3.52pt、右パネルの空き 75.9%）。
+- **互換性**: 変更前後の全153 YAML ×（自テーマ＋組み込み5 Theme）=918組を描画し、成功638組の SVG / PDF / picture PPTX、autoのD2 222件、生成不可280組のerror codeをsha256で比較した。変更は `research/271-clip/clip.sumi.yaml` の6組だけ。残る152 YAMLは全件一致。出力が変わる gallery は `sumi-tokens`（カタログの説明と、全体端点の辺を足した作例）と新しい `sumi-bracket` だけで、`bun run gallery` の差分もこの2部品に限られる。pdf / pptx / editable PPTX の golden も `sumi-tokens` の作例の分だけ指定コマンドで再生成した。
+- **テスト**: `outline/builtin.test.ts`（renderer の契約を 4 向き × 2 形 × 4 サイズで）、`registry/bracket.test.ts`（manifest・catalog・props・ラベル等の error・auto の `layout/structured-only`・`empty-label` なし）、`figure/tokens.test.ts`（枠 group・参照の維持・枠なしの従来展開・1 セル・group 内）、`structured/engine.test.ts`（4 辺の長さ・明示長・角・group への attach・枠の padding 0）、`render/bracket.integration.test.ts`（全 5 Theme × 2 形 × 4 向きで、辺が背骨の中央から出ること・開いた線 1 本・geometry lint・経路検査・PDF・picture / editable PPTX（freeform・glued）、tokens 全体の端点が枠に当たること）、`compiler/testing.ts` と `scripts/gallery/samples.ts` の作例、`skill.test.ts`（Skill の作例）。
+- **検証**: `bun run check`・`bun run typecheck`・`CI=1 bun test`（3834 pass / 13 skip / 0 fail）・`bun run gallery:check`・`bun run schema:check` が成功。gallery（全 Theme）と #271 の preview.png を実際に開き、波括弧・角括弧・4 向き・先端からの辺・列全体への矢印を目視した。
+
+### 6.79 #277 の安全な inline SVG 入力
+
+ユーザー決定（2026-11-01）: v0.10.0 は既存 importer を使う最小の inline SVG 入口を出す。
+ブラウザなし HTML/CSS の調査結果は #283 に記録されており、HTML は v0.11.0 の別契約にする。
+
+- **記法**: `image` の `props.svg: |`。`src` / `svg` は厳密に片方。完全な SVG document と
+  `viewBox` または正の width/height を要求し、fragment や HTML を自動補完しない。
+  `width` / `height` / `fit` / 枠 / tone / layers は画像配置と共有する。`sha256` はファイル bytes
+  または YAML が復号した inline 原文の UTF-8 bytes を固定する。
+- **信頼境界**: 原文を補間せず既存 `importSvg()` に渡す。allow-list は拡大せず、検査値だけを再直列化する。
+  script / events / foreignObject / href / url / DTD / entity / style 要素等は unsafe、
+  text / tspan / defs / gradients / filters 等は unsupported。文字は輪郭 path / 図形にする。
+  輪郭化した文字は検索・編集できない。`currentColor` は従来のファイル SVG と同じ扱いでテーマへ置換しない。
+- **予算と診断**: UTF-8 原文に 16 MiB/資産、ファイルと合わせ 32 MiB/図。
+  importer の 20,000 要素 / 深さ 32 を維持する。asset 検査で shared Diagnostic を返し、literal block と
+  単一行の plain/quoted scalar は locator の span から YAML 上の位置へ戻す。
+  folded / 複数行 quoted は無理に対応付けず scalar 全体へ戻す。関連する path は `props.svg`。
+- **出力**: importer の正規化済み SVG を従来と同じ data URI / image IR で両 writer へ渡す。
+  SVG / PDF / picture PPTX に共通経路で届き、editable PPTX は既存 `pptx/unsupported-asset` のまま。
+  直接 g を合成する案は viewport clipping を変えてしまうため採用しない。
+  外側の layout / routing / lint の障害物は画像枠。内部の幾何・最小線幅・文字サイズは検査しない。
+- **provenance**: 文書順の既存資産 hash 行に `inline-svg <node id> <原文 sha256>\n` を追加する。
+  仮ファイル名や絶対パスは作らず、空白だけの変更も原文 hash に反映する。
+  新機能を使わない入力の hash 行・SVG / PDF / PPTX / D2 bytes は維持する。
+- **見本と検証**: image gallery に全テーマ × 全 variant の波形、および図形だけの模式コード窓を追加する。
+  原文保持・排他・位置診断・危険入力・予算・hash・両 engine と export のテストを置き、既存全 YAML の
+  own + 全組み込みテーマで全出力 SHA-256 を変更前後比較する。
+
 ### 6.80 #278 のサンプル駆動 waveform
 
 **決定:** `sumi/waveform` は数値データを描く汎用 node とする。#272・#277 の調査に従い HTML・画像生成器・音声 decoder は追加しない。`props.samples` は必須の有限数配列（2〜2,048 個、各値 -1〜1）。`mode: bars`（既定）は絶対値の上下対称な縦線、`mode: line` は符号を保った折れ線。等間隔で全点を使い、間引き・補間曲線・自動正規化をしない。seed / envelope は今回導入せず、模式波形も作者が明示データとして渡す。乱数・時刻・外部実行に依存しない。
@@ -2365,6 +2433,7 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **Theme:** 全組み込みテーマで `default` / `emphasis` / `muted` / `outlined` を定義。線幅・色・背景は theme を使用。tone は通常 variant の背景、`outlined` では波形線と枠・文字の色を変える。線が消える `filled` や背景と同色になる `solid` は公開しない。
 - **出力:** SVG / PDF / picture PPTX に対応。editable PPTX は既存の native freeform lowering を使用し、外枠と信号の各 path を保持する。画像化・黙った欠落はしない。freeform / glued の両コネクタモードに対応するが、波形自体はどちらも自由形状（音声や PowerPoint のデータ系列ではない）。実 Office の新規確認はしていない。
 - **検証と互換性:** 全テーマ×variant の gallery、両モード×両 layout×全テーマの再描画・幾何 lint・PDF / picture / editable PPTX テスト、位置付き負例と2,048個の上限を検査。機能追加前からある153個の YAML を自身のテーマ＋5テーマで比較し、918ケース中638件の描画成功について SVG / PDF / picture PPTX / D2 の SHA-256 がすべて一致。残る280件は既存の不正 fixture・旧研究構文などで描画できず、そのうち42件は既知 component 一覧に waveform が増える診断文のみ変化した。詳細は [検証記録](../verification/278-waveform.md)。
+
 
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures

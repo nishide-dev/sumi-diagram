@@ -20,7 +20,7 @@ every panel worth improving.
 ## Corner badges (0.7.0)
 
 - `component/badge-unsupported`: the node expands into parts (`legend`,
-  `tokens`, `matrix`) or is a point junction. Put the badge on an ordinary
+  `tokens`, `matrix`), is a point junction or a `bracket`. Put the badge on an ordinary
   shape, outline or image instead.
 - `geometry/badge-collision` (warning): change the corner or increase gaps /
   margin; the badge must avoid labels, other bodies/badges/edges and the
@@ -83,7 +83,6 @@ Every stage reports problems as the same diagnostic object. In
 | `ref/reserved-id` | an ID of yours is one Sumi generates: `<group>-caption` for a group's `caption`, `<legend>-<n>-label` / `-box` / `-line` / `-start` / `-end` for a legend's entries, `<tokens>-<cell>` for a cell of a `tokens` node, `<matrix>-<r>-<c>` / `-row-<r>` / `-col-<c>` / `-corner` for the parts of a `matrix` (`related` names which) | rename your element |
 | `ref/unknown-cell` | `<node>.<cell>` names no cell: the node is not a `tokens` node, or has no cell with that `id` (cells without one are numbered from 1) | use the hint's cell, or the plain ID for an element that is not tokens ([tokens](structured.md#token-sequences)) |
 | `ref/unknown-class` | a legend entry's `class` (`<matrix>.<class>`) names no matrix, or no class of it | use the hint's class, or the matrix's ID ([matrices](structured.md#matrices)) |
-| `ref/tokens-reference` | an edge end, `attach.to` or `align` item names a `tokens` node itself, which is drawn only as its cells | name a cell: `<node>.<cell>` |
 | `layout/structured-only` | `arrange`, `attach`, node `sublabel` / `labelRotation`, `fromAnchor` / `toAnchor`, edge `labelAt` / `labelSide`, `figure.layout.align` / `fanIn` / `density`, or a `legend`, `tokens`, `matrix` or `zoom` in an auto figure (no `figure.layout.arrange`, or `engine: auto`) | remove the field, or make the figure structured: root `figure.layout.arrange`, no `engine: auto`, every element placed |
 | `layout/unplaced`, `layout/duplicate-placement`, `layout/unknown-item`, `layout/unknown-attach-target`, `layout/group-mismatch`, `layout/group-cycle`, `layout/attach-cycle`, `layout/invalid-anchor`, `layout/attached-legend`, `layout/attached-tokens`, `layout/attached-matrix` | structured figures: every node and group must be placed exactly once, in an arrange tree or by `attach` (a legend, tokens or matrix only in a tree) | per code in [structured](structured.md#fixing-layout); follow the hint |
 | `layout/no-route` | `sumi render` of a structured figure: an edge cannot be routed (ends touching, closer than the arrowhead, or boxed in; the message and `related` name the nodes in the way, often an `attach`ed one), or a `zoom` edge's ends overlap (an element and its own group) | widen that `gap` (arrows need about 1.5mm in `academic`, 2.5mm in `minimal` / `color`, 4mm in `slides`), or anchor the edge on other sides ([structured](structured.md#spacing-that-routes)) |
@@ -95,13 +94,13 @@ Every stage reports problems as the same diagnostic object. In
 | `component/unknown-variant` | variant not listed for that component | use one from the hint / catalog |
 | `component/unknown-prop`, `component/invalid-prop` | prop not in the component's schema, or a bad value (e.g. `px`, not a multiple of 0.5pt; an `image` without `width` or `height`) | remove it, or use the value the hint suggests |
 | `component/missing-label` | a text-only component (`label`) has no text | give it a label or use another component |
-| `component/unexpected-label` | `operator`, `junction`, `image` or a `zoom` edge has a label (they draw a symbol, a dot, a picture, two lines) | remove the label; put a `label` node next to it if text is needed (for `zoom`, title the zoomed-in group) |
+| `component/unexpected-label` | `operator`, `junction`, `image`, `bracket` or a `zoom` edge has a label (they draw a symbol, a dot, a picture, a line, two lines) | remove the label; put a `label` node next to it if text is needed (for `zoom`, title the zoomed-in group) |
 | `component/invalid-math` | unsupported or malformed `$...$` label math in a structured figure (the message gives the label characters) | use the supported subset (Greek, `_`, `^`, symbols, accents over one character such as `\hat{y}`, `\mathrm`, `\text`), close the `$`, or write `\$` for a dollar sign; wide accents (`\widehat`, `\overline`) and `\hat{xy}` are not supported ([label math](figure-format.md#label-math)) |
 | `component/unsupported-in-auto` (warning) | `$...$` label math with a command, `_` or `^` in an `auto` figure, which D2 draws as written (`$x$` is drawn as written too, without a warning) | use the structured layout (`figure.layout.arrange`) or drop the `$...$` |
 | `component/label-at-without-label` (warning) | a group has `labelAt` but no (or an empty) `label` | add the title, or remove `labelAt` |
-| `component/label-rotation-unsupported` | `labelRotation` on a node that draws an icon, `operator`, `junction`, `image` or a `legend` | remove `labelRotation`; put a turned `label` node next to it if needed |
+| `component/label-rotation-unsupported` | `labelRotation` on a node that draws an icon, `operator`, `junction`, `image`, `bracket` or a `legend` | remove `labelRotation`; put a turned `label` node next to it if needed |
 | `component/label-rotation-without-label` (warning) | a node has `labelRotation` but no (or an empty) `label` | add the label, or remove `labelRotation` |
-| `component/sublabel-unsupported` | `sublabel` on a node that draws an icon, `operator`, `junction`, `image` or a `legend` | remove `sublabel`; put a `label` node next to it if needed |
+| `component/sublabel-unsupported` | `sublabel` on a node that draws an icon, `operator`, `junction`, `image`, `bracket` or a `legend` | remove `sublabel`; put a `label` node next to it if needed |
 | `component/sublabel-without-label` | a node has `sublabel` but no (or an empty) `label` | add the label, or write the text as the `label` |
 | `component/invalid-prop` on a legend entry | an entry with both or neither of `edge` / `node`, or a sample box that is a mark, text or picture (`operator`, `junction`, `label`, `image`, `legend`) | one of `edge` / `node` per entry; a shape such as `box` or `circle` for boxes |
 | `component/tone-unsupported` | `tone` on a `junction` (drawn in the line color) | remove the tone |
