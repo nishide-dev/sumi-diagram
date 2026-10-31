@@ -42,6 +42,8 @@ structured は足跡の張り出しを配置に含め、auto は D2 配置後に
 | `lint/missing-glyph` | warning | ラベルに、Theme のフォントセットが字形を持たない文字がある。メッセージに文字と `U+XXXX` を列挙する（最大 10 文字）。node の `sublabel`（#184）も同じ規則で検査する。 | 文字を置き換えるか、その文字を含むフォントセットの Theme を使う。 |
 | `lint/literal-newline` | warning | ラベルの平文の部分（`$...$` の数式の外。`\$` は数式を開かない）に、改行ではない文字どおりの `\n`（バックスラッシュ + n）がある（#154）。単一引用符・引用符なしの YAML では `\n` が改行にならず、そのまま描かれる。数式の中の `\nu` `\neq` などは対象外。node・group・edge・キャプション・凡例の項目のラベルと node の `sublabel`（#184）が対象で、structured と auto の両方で検査する。位置は最初の `\n`。 | 二重引用符で書き、数式などのバックスラッシュを 2 つにする（hint にそのラベルを二重引用符で書いた形を示す。例: `"Scale, Shift\n$\\gamma_1$"`）。ブロックスカラー（`|`）でもよい。バックスラッシュを描くつもりなら無効にする。 |
 
+`grow`（#270、`justify: stretch` の余りの重み）は、展開される部品（`tokens`・`matrix`・`legend`）に書くと `component/grow-unsupported`（error、stage `component`、`grow` の位置）になる。展開後の個々の要素に重みを配れないため。`grow` を外すか、通常の node に書く。
+
 部品の非推奨は、名前解決と同じ場所で `component/deprecated`（warning、stage `component`）として報告する。重複を避けるため、lint には同じ規則を置かない。
 
 ### 表示幅の数え方（`lint/long-label`）
