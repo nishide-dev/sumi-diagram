@@ -920,11 +920,11 @@ edges:
 </section>
 <section class="card" id="sumi-image">
 <header><h3>sumi/image</h3><span class="kind">node</span></header>
-<p>A PNG, JPEG or SVG file embedded as it is, optionally stacked with up-right copies; takes no label.</p>
+<p>A PNG, JPEG or SVG file or safe inline SVG drawing, optionally stacked with up-right copies; takes no label.</p>
 <ul class="chips" aria-label="variants"><li>default</li><li>framed</li></ul>
 <dl class="meta"><dt>since</dt><dd><code>0.4.0</code></dd><dt>shape</dt><dd><code>rectangle</code></dd><dt>sizing</dt><dd><code>auto</code></dd><dt>embed</dt><dd><code>image</code></dd></dl>
-<table><thead><tr><th>prop</th><th>type</th><th>required</th><th>description</th></tr></thead><tbody><tr><td><code>src</code></td><td><code>string</code></td><td>yes</td><td>Path of the image file relative to the figure&#39;s YAML file, with &quot;/&quot; between directories, e.g. &quot;img/photo.png&quot;. Absolute paths, URLs and paths outside that directory are not allowed.</td></tr><tr><td><code>sha256</code></td><td><code>string</code></td><td>no</td><td>Expected sha256 of the file in hex. Rendering fails if the file has changed. Omitted means not checked.</td></tr><tr><td><code>fit</code></td><td><code>&quot;contain&quot; | &quot;cover&quot; | &quot;fill&quot;</code></td><td>no</td><td>contain: the whole image, centered, keeping its aspect ratio (the default). cover: fills the box, keeping the aspect ratio and clipping the overflow. fill: stretched to the box.</td></tr><tr><td><code>width</code></td><td><code>string</code></td><td>no</td><td>Width as a length such as &quot;30mm&quot; (a multiple of 0.5pt). Omitted means from the height and the image&#39;s aspect ratio.</td></tr><tr><td><code>height</code></td><td><code>string</code></td><td>no</td><td>Height as a length such as &quot;20mm&quot; (a multiple of 0.5pt). Omitted means from the width and the image&#39;s aspect ratio.</td></tr><tr><td><code>layers</code></td><td><code>object</code></td><td>no</td><td>Repeat the unchanged image behind the front one, offset up-right. Width and height size each copy; the node footprint includes the whole stack.</td></tr></tbody></table>
-<div class="renders"><figure><img src="components/sumi-image.minimal.svg" alt="sumi/image, every variant, theme minimal" loading="lazy"><figcaption>theme <code>minimal</code> · <code>sumi render sumi-image.sumi.yaml</code><br>48.68mm × 72.5mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-image.academic.svg" alt="sumi/image, every variant, theme academic" loading="lazy"><figcaption>theme <code>academic</code> · <code>sumi render sumi-image.sumi.yaml --theme academic</code><br>48.68mm × 72.5mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-image.slides.svg" alt="sumi/image, every variant, theme slides" loading="lazy"><figcaption>theme <code>slides</code> · <code>sumi render sumi-image.sumi.yaml --theme slides</code><br>60.33mm × 86.61mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-image.color.svg" alt="sumi/image, every variant, theme color" loading="lazy"><figcaption>theme <code>color</code> · <code>sumi render sumi-image.sumi.yaml --theme color</code><br>48.68mm × 72.5mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-image.paper.svg" alt="sumi/image, every variant, theme paper" loading="lazy"><figcaption>theme <code>paper</code> · <code>sumi render sumi-image.sumi.yaml --theme paper</code><br>48.68mm × 72.5mm (max width 180mm, max height 220mm)</figcaption></figure></div>
+<table><thead><tr><th>prop</th><th>type</th><th>required</th><th>description</th></tr></thead><tbody><tr><td><code>src</code></td><td><code>string</code></td><td>no</td><td>Path of the image file relative to the figure&#39;s YAML file, with &quot;/&quot; between directories, e.g. &quot;img/photo.png&quot;. Absolute paths, URLs and paths outside that directory are not allowed.</td></tr><tr><td><code>svg</code></td><td><code>string</code></td><td>no</td><td>Inline SVG document (since 0.10.0), preferably a YAML block scalar with a viewBox. Exactly one of src or svg is required. Basic shapes only; outline text as paths. Scripts, events, external references, foreignObject, text, defs, gradients and filters are rejected.</td></tr><tr><td><code>sha256</code></td><td><code>string</code></td><td>no</td><td>Expected sha256 of the file bytes or UTF-8 inline SVG source in hex. Rendering fails if the input has changed. Omitted means not checked.</td></tr><tr><td><code>fit</code></td><td><code>&quot;contain&quot; | &quot;cover&quot; | &quot;fill&quot;</code></td><td>no</td><td>contain: the whole image, centered, keeping its aspect ratio (the default). cover: fills the box, keeping the aspect ratio and clipping the overflow. fill: stretched to the box.</td></tr><tr><td><code>width</code></td><td><code>string</code></td><td>no</td><td>Width as a length such as &quot;30mm&quot; (a multiple of 0.5pt). Omitted means from the height and the image&#39;s aspect ratio.</td></tr><tr><td><code>height</code></td><td><code>string</code></td><td>no</td><td>Height as a length such as &quot;20mm&quot; (a multiple of 0.5pt). Omitted means from the width and the image&#39;s aspect ratio.</td></tr><tr><td><code>layers</code></td><td><code>object</code></td><td>no</td><td>Repeat the unchanged image behind the front one, offset up-right. Width and height size each copy; the node footprint includes the whole stack.</td></tr></tbody></table>
+<div class="renders"><figure><img src="components/sumi-image.minimal.svg" alt="sumi/image, every variant, theme minimal" loading="lazy"><figcaption>theme <code>minimal</code> · <code>sumi render sumi-image.sumi.yaml</code><br>58.91mm × 115.01mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-image.academic.svg" alt="sumi/image, every variant, theme academic" loading="lazy"><figcaption>theme <code>academic</code> · <code>sumi render sumi-image.sumi.yaml --theme academic</code><br>58.91mm × 115.01mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-image.slides.svg" alt="sumi/image, every variant, theme slides" loading="lazy"><figcaption>theme <code>slides</code> · <code>sumi render sumi-image.sumi.yaml --theme slides</code><br>80.79mm × 137.94mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-image.color.svg" alt="sumi/image, every variant, theme color" loading="lazy"><figcaption>theme <code>color</code> · <code>sumi render sumi-image.sumi.yaml --theme color</code><br>58.91mm × 115.01mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-image.paper.svg" alt="sumi/image, every variant, theme paper" loading="lazy"><figcaption>theme <code>paper</code> · <code>sumi render sumi-image.sumi.yaml --theme paper</code><br>58.91mm × 115.01mm (max width 180mm, max height 220mm)</figcaption></figure></div>
 <details><summary>Source: <code>sumi-image.sumi.yaml</code></summary><pre># sumi/image: every variant. Generated by `bun run gallery` (#17).
 version: 1
 figure:
@@ -968,6 +968,25 @@ nodes:
     component: sumi/image
     variant: framed
     props: { src: gradient.png, height: 24pt, layers: { count: 4, offset: 3pt } }
+  - id: inline-default
+    component: box
+    label: inline-default
+  - id: inline-default-image
+    component: sumi/image
+    props: { height: 24pt, svg: &#39;&lt;svg viewBox=&quot;0 0 120 60&quot;&gt;&lt;path d=&quot;M10 30H20M25 15V45M35 5V55M45 20V40M55 10V50M65 22V38M75 15V45M85 25V35M95 30H110&quot; fill=&quot;none&quot; stroke=&quot;#c04050&quot; stroke-width=&quot;3&quot;/&gt;&lt;/svg&gt;&#39; }
+  - id: inline-framed
+    component: box
+    label: inline-framed
+  - id: inline-framed-image
+    component: sumi/image
+    variant: framed
+    props: { height: 24pt, svg: &#39;&lt;svg viewBox=&quot;0 0 120 60&quot;&gt;&lt;path d=&quot;M10 30H20M25 15V45M35 5V55M45 20V40M55 10V50M65 22V38M75 15V45M85 25V35M95 30H110&quot; fill=&quot;none&quot; stroke=&quot;#c04050&quot; stroke-width=&quot;3&quot;/&gt;&lt;/svg&gt;&#39; }
+  - id: code-window
+    component: box
+    label: code-window
+  - id: code-window-image
+    component: sumi/image
+    props: { height: 24pt, svg: &#39;&lt;svg viewBox=&quot;0 0 120 60&quot;&gt;&lt;rect width=&quot;120&quot; height=&quot;60&quot; rx=&quot;4&quot; fill=&quot;#202938&quot;/&gt;&lt;circle cx=&quot;10&quot; cy=&quot;9&quot; r=&quot;3&quot; fill=&quot;#ef7070&quot;/&gt;&lt;circle cx=&quot;20&quot; cy=&quot;9&quot; r=&quot;3&quot; fill=&quot;#e9c46a&quot;/&gt;&lt;circle cx=&quot;30&quot; cy=&quot;9&quot; r=&quot;3&quot; fill=&quot;#74c69d&quot;/&gt;&lt;path d=&quot;M10 25H30M10 43H22&quot; stroke=&quot;#c4a7e7&quot; stroke-width=&quot;3&quot;/&gt;&lt;path d=&quot;M35 25H75M20 34H55&quot; stroke=&quot;#89b4fa&quot; stroke-width=&quot;3&quot;/&gt;&lt;path d=&quot;M60 34H100M27 43H55&quot; stroke=&quot;#a6e3a1&quot; stroke-width=&quot;3&quot;/&gt;&lt;/svg&gt;&#39; }
 
 edges:
   - from: default
@@ -980,6 +999,12 @@ edges:
     to: svg-image
   - from: layers
     to: layers-image
+  - from: inline-default
+    to: inline-default-image
+  - from: inline-framed
+    to: inline-framed-image
+  - from: code-window
+    to: code-window-image
 </pre></details>
 </section>
 <section class="card" id="sumi-legend">

@@ -13,5 +13,8 @@
   "images-auto.sumi.yaml.svg": "8c20bb0a56c4f8599165ef5e4b492eb7dd36bc1a5cbda7e7db0c127e24c34dbf",
   "images.sumi.yaml.pdf": "6e4a7ce54bae75dd09364e5e46f4cb7fb6258fcadcd806d821094086a2a36d86",
   "images.sumi.yaml.pptx": "29133300bd7077c613f65e108be5581be15933e04af955b5cd736d2678c8ffbb",
-  "images.sumi.yaml.svg": "19e258f4b2414d9143fb3c882eb7f34680d5e184bbfb8d93bec35c646f58e3e6"
+  "images.sumi.yaml.svg": "19e258f4b2414d9143fb3c882eb7f34680d5e184bbfb8d93bec35c646f58e3e6",
+  "inline-svg.sumi.yaml.pdf": "83bb25d5d3ab55518937d97fc9a62ba5609ed574313aa3ec6e3616afc28c333e",
+  "inline-svg.sumi.yaml.pptx": "62f2b5b3e3ac14b241ef23a111541fe7dc2e63f942d73c0ae05f010ee7762ddc",
+  "inline-svg.sumi.yaml.svg": "5f578316fecc7f2da4fbd5827ba68b41113836e6147333fbd56a4b8ab16e53f2"
 }

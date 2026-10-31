@@ -3,8 +3,8 @@
 Sumi embeds two kinds of pictures, in both layout engines (introduced in
 0.4.0): icons from the bundled Tabler Icons set, and the user's own PNG,
 JPEG or SVG files. It checks and embeds them; it never draws, edits or
-resizes the pixels. Do not draw a picture with shapes, and do not invent an
-image file: use an icon, or ask the user for the file.
+resizes the pixels. Prefer existing components and icons. For a small custom
+drawing, use inline SVG (0.10.0) below; for photos, ask the user for the file.
 
 ## Icons
 
@@ -86,6 +86,44 @@ Editable PPTX rejects badges (`pptx/unsupported-asset`); picture PPTX keeps
 their colour SVG and PNG fallback. All exports retain the MIT notice.
 
 ## Images
+
+### Inline SVG (0.10.0)
+
+Use exactly one of `props.src` and `props.svg`. Write a complete SVG document
+with a `viewBox` (or positive width/height); a literal block is easiest:
+
+```yaml
+- id: waveform
+  component: image
+  props:
+    width: 48pt
+    svg: |
+      <svg viewBox="0 0 120 40">
+        <path d="M10 20H20M30 10V30M40 5V35M50 15V25M60 8V32M70 15V25M80 20H110" fill="none" stroke="#c04050" stroke-width="2"/>
+      </svg>
+```
+
+The same allow-list importer as file SVG is used, without interpolation.
+**Text must be outlined as paths or represented by shapes**; `<text>` and
+`<tspan>` are unsupported, and outlined text is not searchable in PDF.
+HTML/`foreignObject`, scripts, events, external/internal references (`href`,
+`use`, `url(...)`), embedded images, DTD/entities, `<style>`, `defs`, clipping,
+masks, gradients and filters are rejected. Use native Sumi labels outside
+the image for readable/searchable text. HTML is planned separately (#283).
+
+`width`, `height`, `fit`, frames, tones and layers work as for files. Internal
+colors stay as written (`currentColor` is not a theme variable). SVG, PDF and
+picture PPTX are supported; editable PPTX reports `pptx/unsupported-asset`.
+The image viewport clips drawing overflow; geometry lint checks the outer
+placement, not the drawing's internal text/line size or containment.
+
+The UTF-8 source counts toward the shared 16 MiB/asset and 32 MiB/figure
+budgets; the importer allows at most 20,000 elements and 32 levels. Raw decoded
+source bytes (including whitespace) are hashed into `assets-sha256`; optional
+`sha256` pins those bytes. Diagnostics point into literal blocks and single-line
+quoted scalars; folded/multiline quoted scalars fall back to the whole scalar.
+
+### File images
 
 ```yaml
 - id: sample

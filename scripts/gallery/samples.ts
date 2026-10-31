@@ -496,6 +496,16 @@ function imageSample(entry: MarkedEntry): string[] {
       variant: "framed",
       props: "{ src: gradient.png, height: 24pt, layers: { count: 4, offset: 3pt } }",
     },
+    ...entry.variants.map((variant) => ({
+      id: `inline-${variant}`,
+      variant,
+      props: `{ height: 24pt, svg: '<svg viewBox="0 0 120 60"><path d="M10 30H20M25 15V45M35 5V55M45 20V40M55 10V50M65 22V38M75 15V45M85 25V35M95 30H110" fill="none" stroke="#c04050" stroke-width="3"/></svg>' }`,
+    })),
+    {
+      id: "code-window",
+      variant: "default",
+      props: `{ height: 24pt, svg: '<svg viewBox="0 0 120 60"><rect width="120" height="60" rx="4" fill="#202938"/><circle cx="10" cy="9" r="3" fill="#ef7070"/><circle cx="20" cy="9" r="3" fill="#e9c46a"/><circle cx="30" cy="9" r="3" fill="#74c69d"/><path d="M10 25H30M10 43H22" stroke="#c4a7e7" stroke-width="3"/><path d="M35 25H75M20 34H55" stroke="#89b4fa" stroke-width="3"/><path d="M60 34H100M27 43H55" stroke="#a6e3a1" stroke-width="3"/></svg>' }`,
+    },
   ];
   const nodes: string[] = [];
   const edges: string[] = [];

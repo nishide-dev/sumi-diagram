@@ -2355,6 +2355,34 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 
 - **最終検証**: `bun run check`・`bun run typecheck`・`CI=1 bun test`（3593 pass / 13 skip / 0 fail）・`bun run gallery:check`（203 files）・`bun run schema:check` が成功。全 Theme × variant のbowtie / trapezoid galleryをPNG化して開き、文字・塗り・輪郭を確認した。
 
+### 6.79 #277 の安全な inline SVG 入力
+
+ユーザー決定（2026-11-01）: v0.10.0 は既存 importer を使う最小の inline SVG 入口を出す。
+ブラウザなし HTML/CSS の調査結果は #283 に記録されており、HTML は v0.11.0 の別契約にする。
+
+- **記法**: `image` の `props.svg: |`。`src` / `svg` は厳密に片方。完全な SVG document と
+  `viewBox` または正の width/height を要求し、fragment や HTML を自動補完しない。
+  `width` / `height` / `fit` / 枠 / tone / layers は画像配置と共有する。`sha256` はファイル bytes
+  または YAML が復号した inline 原文の UTF-8 bytes を固定する。
+- **信頼境界**: 原文を補間せず既存 `importSvg()` に渡す。allow-list は拡大せず、検査値だけを再直列化する。
+  script / events / foreignObject / href / url / DTD / entity / style 要素等は unsafe、
+  text / tspan / defs / gradients / filters 等は unsupported。文字は輪郭 path / 図形にする。
+  輪郭化した文字は検索・編集できない。`currentColor` は従来のファイル SVG と同じ扱いでテーマへ置換しない。
+- **予算と診断**: UTF-8 原文に 16 MiB/資産、ファイルと合わせ 32 MiB/図。
+  importer の 20,000 要素 / 深さ 32 を維持する。asset 検査で shared Diagnostic を返し、literal block と
+  単一行の plain/quoted scalar は locator の span から YAML 上の位置へ戻す。
+  folded / 複数行 quoted は無理に対応付けず scalar 全体へ戻す。関連する path は `props.svg`。
+- **出力**: importer の正規化済み SVG を従来と同じ data URI / image IR で両 writer へ渡す。
+  SVG / PDF / picture PPTX に共通経路で届き、editable PPTX は既存 `pptx/unsupported-asset` のまま。
+  直接 g を合成する案は viewport clipping を変えてしまうため採用しない。
+  外側の layout / routing / lint の障害物は画像枠。内部の幾何・最小線幅・文字サイズは検査しない。
+- **provenance**: 文書順の既存資産 hash 行に `inline-svg <node id> <原文 sha256>\n` を追加する。
+  仮ファイル名や絶対パスは作らず、空白だけの変更も原文 hash に反映する。
+  新機能を使わない入力の hash 行・SVG / PDF / PPTX / D2 bytes は維持する。
+- **見本と検証**: image gallery に全テーマ × 全 variant の波形、および図形だけの模式コード窓を追加する。
+  原文保持・排他・位置診断・危険入力・予算・hash・両 engine と export のテストを置き、既存全 YAML の
+  own + 全組み込みテーマで全出力 SHA-256 を変更前後比較する。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）

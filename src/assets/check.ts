@@ -12,6 +12,8 @@
  *   figure's directory (`asset/invalid-path`). Whether the file exists, its
  *   format, size and sha256 are checked when the figure is rendered
  *   (`loadFigureAssets()`).
+ * - Inline `props.svg` uses the same allow-list importer, with the byte,
+ *   element and depth budgets and diagnostics mapped into the YAML scalar.
  *
  * Nodes with an error are marked invalid (and so are their dependents).
  */
@@ -24,7 +26,9 @@ import { componentId } from "../core/registry/manifest";
 import { isBlankForD2 } from "../core/registry/resolve";
 import { parseIconRef } from "./icon-ref";
 import { IconArchiveError, iconExclusion, iconNames, iconSet, iconSets, iconSvg } from "./icons";
+import { ASSET_LIMITS } from "./load";
 import { srcProblem } from "./paths";
+import { importSvg } from "./svg-import";
 
 /** Runs the `asset` stage. */
 export function checkAssets(state: CheckState, locate: Locator): void {
@@ -123,6 +127,42 @@ export function checkAssets(state: CheckState, locate: Locator): void {
     }
 
     if (manifest.embed === "image") {
+      const svg = component.props.svg;
+      if (typeof svg === "string") {
+        const path = ["nodes", index, "props", "svg"];
+        if (Buffer.byteLength(svg, "utf8") > ASSET_LIMITS.maxFileBytes) {
+          fail("asset/too-large", "Inline SVG exceeds the 16 MiB asset limit.", ["props", "svg"]);
+          continue;
+        }
+        const imported = importSvg(svg);
+        if (!imported.ok) {
+          const lines = svg.split("\n");
+          for (const issue of imported.issues.slice(0, 20)) {
+            const offset =
+              lines.slice(0, issue.line - 1).reduce((n, s) => n + s.length + 1, 0) +
+              issue.column -
+              1;
+            const location = locate(path, { span: [offset, offset], literalBlock: true });
+            state.diagnostics.push({
+              code:
+                issue.kind === "unsafe"
+                  ? "asset/unsafe-svg"
+                  : issue.kind === "unsupported"
+                    ? "asset/unsupported-svg"
+                    : "asset/invalid-image",
+              severity: "error",
+              message: issue.message,
+              path,
+              ...(location !== undefined && { location }),
+              subject,
+              hint: "Use plain shapes only; text must be outlined as paths. HTML, references, scripts, events, defs, gradients and filters are not supported.",
+            });
+          }
+          state.invalid.add(key);
+          failed = true;
+        }
+        continue;
+      }
       const src = component.props.src;
       if (typeof src !== "string") throw new Error("internal error: image without props.src");
       const problem = srcProblem(src);
