@@ -200,6 +200,8 @@ export interface TokensCellIR {
   readonly id: string;
   /** The tokens or matrix node's variant. */
   readonly variant: string;
+  /** Set on the frame of a `flush` matrix (#280): no group padding. */
+  readonly flush?: true;
   readonly name: string;
   /**
    * Where each field of the cell's node is written, by its path relative to
@@ -493,6 +495,12 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
                       labelOnLeft: true,
                     }),
                   }),
+                ...(component.manifest.render.renderer === "sumi/bracket" && {
+                  ...(typeof component.props.form === "string" && { form: component.props.form }),
+                  ...(typeof component.props.points === "string" && {
+                    points: component.props.points,
+                  }),
+                }),
                 ...(component.manifest.render.renderer === "sumi/trapezoid" &&
                   typeof component.props.narrow === "string" &&
                   component.props.narrow !== "south" && { narrow: component.props.narrow }),
@@ -822,7 +830,16 @@ function matrixPartOf(doc: PartialFigure, key: ElementKey): { matrix?: TokensCel
   const expansion = doc.matrices?.find((m) => m.id === id);
   const variant = expansion?.variant ?? "default";
   const fields = expansion?.parts.find((p) => nodeKey(p.id) === key)?.fields ?? {};
-  return { matrix: freeze({ id, variant, name: origin.name, fields: freeze({ ...fields }) }) };
+  const flush = expansion?.flush === true && key === groupKey(id);
+  return {
+    matrix: freeze({
+      id,
+      variant,
+      ...(flush && { flush: true as const }),
+      name: origin.name,
+      fields: freeze({ ...fields }),
+    }),
+  };
 }
 
 function componentOf(state: CheckState, key: ElementKey): ResolvedComponent {

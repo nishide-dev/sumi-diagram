@@ -42,9 +42,9 @@ import {
   nodeKey,
 } from "../check-state";
 import { type DocPath, didYouMean } from "../diagnostics";
-import { MATRIX_ID, matrixRowClasses } from "../registry/builtins";
+import { MATRIX_ID, type MatrixEntry, matrixRowEntries } from "../registry/builtins";
 import type { Registry } from "../registry/registry";
-import { resolveComponents } from "../registry/resolve";
+import { isBlankForD2, resolveComponents } from "../registry/resolve";
 import type { Tone } from "../theme/tones";
 import { recordExpanded, reportReservedId, takenIds } from "./expand";
 import { errorAt } from "./report";
@@ -71,7 +71,10 @@ export type MatrixHeader = string | { label: string; tone?: Tone };
 
 /** The props of a matrix node, as validated by the manifest. */
 export interface MatrixProps {
-  cells: (string | string[])[];
+  cells: (string | (string | MatrixEntry)[])[];
+  /** 1-based rows / columns drawn as ellipsis (#280). */
+  ellipsisRows?: number[];
+  ellipsisColumns?: number[];
   classes: Record<string, MatrixClass>;
   rows?: MatrixHeader[];
   columns?: MatrixHeader[];
@@ -89,6 +92,8 @@ export interface MatrixProps {
   /** pt */
   headerWidth?: number;
   variant?: string;
+  /** No group padding around the cells (#280). */
+  flush?: boolean;
 }
 
 /** The component of a matrix's cells. */
@@ -102,8 +107,10 @@ export interface MatrixPartExpansion extends CellFields {
   /** The ID of the node it was expanded into. */
   readonly id: string;
   readonly kind: "cell" | "row" | "column" | "corner";
-  /** A cell's class name. */
+  /** A cell's class name (an ellipsis cell has one only when it was written). */
   readonly class?: string;
+  /** The symbol of an ellipsis cell (#280). */
+  readonly ellipsis?: string;
 }
 
 /** A matrix node and what it was expanded into (`doc.matrices`). */
@@ -120,6 +127,8 @@ export interface MatrixExpansion {
   readonly cellVariant: string;
   /** Where the cells' variant is written (`props.variant`), if it is. */
   readonly cellVariantPath?: DocPath;
+  /** The frame has no padding (`props.flush`, #280). */
+  readonly flush?: true;
   /** The parts: the cells row by row, then the row headers, column headers and corner. */
   readonly parts: readonly MatrixPartExpansion[];
 }
@@ -214,8 +223,17 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
 
     const props = component.props as unknown as MatrixProps;
     const propsPath: DocPath = [...matrixPath, "props"];
+    if (props.flush === true && !isBlankForD2(node.label)) {
+      fail(
+        "component/invalid-prop",
+        `Invalid prop "flush" for ${MATRIX_ID}: a flush matrix has no padding, so it cannot draw its label as a title.`,
+        [...propsPath, "flush"],
+        "Remove flush, or remove the matrix's label and put a title next to it with a label node.",
+      );
+      continue;
+    }
     const names = Object.keys(props.classes);
-    const grid = props.cells.map((row) => matrixRowClasses(row, names));
+    const grid = props.cells.map((row) => matrixRowEntries(row, names));
     const ids = matrixPartIds;
 
     // 1. The cells' variants must be box variants: checked once here, where
@@ -325,18 +343,65 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
     for (const [r, row] of grid.entries()) {
       const written = props.cells[r];
       const items: ArrangeItem[] = [];
-      for (const [c, name] of row.entries()) {
+      for (const [c, entry] of row.entries()) {
+        const name = entry.class;
         // Validated: every name is an own class (never one of Object.prototype's).
-        const cls = (Object.hasOwn(props.classes, name) && props.classes[name]) || {};
+        const cls =
+          (name !== undefined && Object.hasOwn(props.classes, name) && props.classes[name]) || {};
         const path: DocPath =
           typeof written === "string" ? [...propsPath, "cells", r] : [...propsPath, "cells", r, c];
         const id = ids.cell(node.id, r + 1, c + 1);
-        const variant = classField(propsPath, name, cls, "variant") ?? variantPath ?? path;
+        const rowEllipsis = props.ellipsisRows?.includes(r + 1) === true;
+        const columnEllipsis = props.ellipsisColumns?.includes(c + 1) === true;
+        const selected = rowEllipsis || columnEllipsis;
+        const symbol = selected
+          ? rowEllipsis && columnEllipsis
+            ? "⋱"
+            : rowEllipsis
+              ? "⋮"
+              : "…"
+          : entry.ellipsis;
+        if (symbol !== undefined) {
+          // An ellipsis slot keeps the cell's size and draws only the symbol:
+          // a borderless label, so neighbors keep their own borders (#280).
+          const at: DocPath = selected
+            ? [...propsPath, rowEllipsis ? "ellipsisRows" : "ellipsisColumns"]
+            : [...path, "ellipsis"];
+          addPart(
+            {
+              id,
+              component: "sumi/label",
+              label: symbol,
+              variant: "default",
+              props: size(cellWidth, cellHeight),
+              group: node.id,
+            },
+            {
+              kind: "cell",
+              ...(name !== undefined && { class: name }),
+              ellipsis: symbol,
+              path,
+              fields: {
+                label: at,
+                component: at,
+                tone: at,
+                variant: at,
+                "props.width": widthPath,
+                "props.height": heightPath,
+                props: widthPath,
+              },
+            },
+            `ellipsis cell ${r + 1}, ${c + 1} ${of}`,
+          );
+          items.push(id);
+          continue;
+        }
+        const variant = classField(propsPath, name ?? "", cls, "variant") ?? variantPath ?? path;
         addPart(
           {
             id,
             component: CELL_COMPONENT,
-            label: "",
+            label: entry.text ?? "",
             variant: cls.variant ?? props.variant ?? "default",
             ...(cls.tone !== undefined && { tone: cls.tone }),
             props: size(cellWidth, cellHeight),
@@ -344,12 +409,12 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
           },
           {
             kind: "cell",
-            class: name,
+            class: name as string,
             path,
             fields: {
-              label: path,
+              label: entry.text !== undefined ? [...path, "text"] : path,
               component: path,
-              tone: classField(propsPath, name, cls, "tone") ?? path,
+              tone: classField(propsPath, name ?? "", cls, "tone") ?? path,
               variant,
               "props.width": widthPath,
               "props.height": heightPath,
@@ -461,6 +526,7 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
     nodes[index] = undefined;
     components.delete(key);
     const frameKey = groupKey(node.id);
+    if (node.mono !== undefined) paints.set(frameKey, { mono: node.mono });
     added.add(frameKey);
     origins.push([
       frameKey,
@@ -471,6 +537,7 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
       path: matrixPath,
       variant: component.variant,
       classes: props.classes,
+      ...(props.flush === true && { flush: true as const }),
       cellVariant: props.variant ?? "default",
       ...(variantPath !== undefined && { cellVariantPath: variantPath }),
       parts,

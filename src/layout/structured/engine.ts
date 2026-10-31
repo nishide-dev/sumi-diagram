@@ -293,7 +293,10 @@ class StructuredLayout {
 
   /** A group's padding per side: the profile's, plus any `growPadding` added. */
   #padding(key: ElementKey): Overhang {
-    const p = this.#groupPadding;
+    // The frame of a tokens node (#281) is exactly its cells, and a flush
+    // matrix's frame (#280) has no padding of its own either.
+    const group = this.#groups.get(key);
+    const p = group?.tokens !== undefined || group?.matrix?.flush === true ? 0 : this.#groupPadding;
     const extra = this.#extraPadding.get(key) ?? NO_OVERHANG;
     return {
       north: p + extra.north,
@@ -648,9 +651,29 @@ class StructuredLayout {
       };
       rects.set(
         node.key,
-        this.#bodyRect(node.key, attachedRect(target, this.#itemSize(node.key), side, gapPt * 2)),
+        this.#bodyRect(
+          node.key,
+          attachedRect(target, this.#attachedSize(node, target, side), side, gapPt * 2),
+        ),
       );
     }
+  }
+
+  /**
+   * The size of an attached node. A bracket (#281) gathers its target, so
+   * unless it has an explicit length it is as long as the target's side it is
+   * attached to (its depth stays its own).
+   */
+  #attachedSize(node: NodeIR, target: Rect, side: AttachSide): Size {
+    const size = this.#itemSize(node.key);
+    if (node.render?.renderer !== "sumi/bracket") return size;
+    if (side === "east" || side === "west") {
+      return { width: size.width, height: node.height?.units ?? target.height };
+    }
+    if (side === "north" || side === "south") {
+      return { width: node.width?.units ?? target.width, height: size.height };
+    }
+    return size;
   }
 
   #attachedRects(container: Container, rects: Map<ElementKey, Rect>): Rect[] {

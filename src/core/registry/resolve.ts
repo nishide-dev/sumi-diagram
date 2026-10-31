@@ -42,6 +42,7 @@ import {
 import type { Diagnostic, DiagnosticSubject, DocPath } from "../diagnostics";
 import type { Locator } from "../figure/yaml";
 import { hasLabelMarkup, looksLikeMath, parseLabel } from "../label/math";
+import { BRACKET_ID } from "./builtins";
 import { type ComponentKind, componentId, type ResolvedComponent } from "./manifest";
 import type { Registry } from "./registry";
 
@@ -193,9 +194,11 @@ export function resolveComponents(
     }
     const mark = manifest.kind === "node" ? manifest.mark : undefined;
     const embed = manifest.kind === "node" ? manifest.embed : undefined;
+    // A bracket (#281) is a line with no label, label turn or sublabel.
+    const bracket = componentId(manifest) === BRACKET_ID;
     const badgeUnsupported =
       element.badge &&
-      (["sumi/legend", "sumi/tokens", "sumi/matrix"].includes(componentId(manifest)) ||
+      (["sumi/legend", "sumi/tokens", "sumi/matrix", BRACKET_ID].includes(componentId(manifest)) ||
         mark?.type === "point");
     if (badgeUnsupported)
       report(
@@ -211,18 +214,21 @@ export function resolveComponents(
       );
     const zoom = manifest.kind === "edge" && manifest.routing === "zoom";
     const unexpectedLabel =
-      (mark !== undefined || embed !== undefined || zoom) && !isBlankForD2(element.label);
+      (mark !== undefined || embed !== undefined || bracket || zoom) &&
+      !isBlankForD2(element.label);
     if (unexpectedLabel) {
       const diagnostic: Diagnostic = {
         code: "component/unexpected-label",
         severity: "error",
         message: zoom
           ? `${componentId(manifest)} draws two lines between corners of its ends, so it takes no label.`
-          : mark === undefined
-            ? `${componentId(manifest)} draws the image file of props.src, so it takes no label.`
-            : mark.type === "glyph"
-              ? `${componentId(manifest)} draws the symbol chosen by props.${mark.prop}, so it takes no label.`
-              : `${componentId(manifest)} is drawn as a point, so it takes no label.`,
+          : bracket
+            ? `${componentId(manifest)} draws only a line, so it takes no label.`
+            : mark === undefined
+              ? `${componentId(manifest)} draws the image file of props.src, so it takes no label.`
+              : mark.type === "glyph"
+                ? `${componentId(manifest)} draws the symbol chosen by props.${mark.prop}, so it takes no label.`
+                : `${componentId(manifest)} is drawn as a point, so it takes no label.`,
         hint: zoom
           ? "Remove the label; name the zoomed-in view with its group's label or caption instead."
           : "Remove the label; put text next to it with a label node if needed.",
@@ -233,16 +239,18 @@ export function resolveComponents(
     // an image has none to turn.
     const rotationUnsupported =
       element.labelRotation !== undefined &&
-      (mark !== undefined || embed !== undefined || element.icon !== undefined);
+      (mark !== undefined || embed !== undefined || bracket || element.icon !== undefined);
     if (rotationUnsupported) {
       const drawn =
         element.icon !== undefined
           ? "an icon in place of its label"
-          : mark === undefined
-            ? "the image file of props.src"
-            : mark.type === "glyph"
-              ? `the symbol chosen by props.${mark.prop}`
-              : "a point";
+          : bracket
+            ? "only a line"
+            : mark === undefined
+              ? "the image file of props.src"
+              : mark.type === "glyph"
+                ? `the symbol chosen by props.${mark.prop}`
+                : "a point";
       const diagnostic: Diagnostic = {
         code: "component/label-rotation-unsupported",
         severity: "error",
@@ -266,18 +274,20 @@ export function resolveComponents(
     // a node without a visible label should write its text as the label.
     const sublabelUnsupported =
       element.sublabel !== undefined &&
-      (mark !== undefined || embed !== undefined || element.icon !== undefined);
+      (mark !== undefined || embed !== undefined || bracket || element.icon !== undefined);
     const sublabelWithoutLabel =
       !sublabelUnsupported && element.sublabel !== undefined && isBlankForD2(element.label);
     if (sublabelUnsupported) {
       const drawn =
         element.icon !== undefined
           ? "an icon in place of its label"
-          : mark === undefined
-            ? "the image file of props.src"
-            : mark.type === "glyph"
-              ? `the symbol chosen by props.${mark.prop}`
-              : "a point";
+          : bracket
+            ? "only a line"
+            : mark === undefined
+              ? "the image file of props.src"
+              : mark.type === "glyph"
+                ? `the symbol chosen by props.${mark.prop}`
+                : "a point";
       const diagnostic: Diagnostic = {
         code: "component/sublabel-unsupported",
         severity: "error",
