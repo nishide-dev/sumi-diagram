@@ -3,6 +3,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runCommand } from "./subprocess";
+import { withReadyTimeout } from "./subprocess-test-helpers";
 
 const bun = process.execPath;
 
@@ -106,21 +107,29 @@ describe("runCommand", () => {
   test("waits for graceful shutdown even when SIGTERM exits successfully", async () => {
     const dir = await mkdtemp(join(tmpdir(), "sumi-subprocess-shutdown-"));
     const marker = join(dir, "exited");
+    const ready = join(dir, "ready");
     try {
-      const result = await runCommand(
-        [
-          bun,
-          "-e",
-          `process.on("SIGTERM", () => {
+      const result = await withReadyTimeout(
+        500,
+        () => Bun.file(ready).exists(),
+        () =>
+          runCommand(
+            [
+              bun,
+              "-e",
+              `process.on("SIGTERM", () => {
             setTimeout(() => {
               require("node:fs").writeFileSync(process.argv[1], "shutdown complete");
               process.exit(0);
             }, 100);
           });
+          require("node:fs").writeFileSync(process.argv[2], "ready");
           setInterval(() => {}, 1_000);`,
-          marker,
-        ],
-        { timeoutMs: 500 },
+              marker,
+              ready,
+            ],
+            { timeoutMs: 500 },
+          ),
       );
       expect(result).toMatchObject({ timedOut: true, exitCode: 0, signal: null });
       // Callers may safely remove the working directory only after this returns.

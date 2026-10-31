@@ -40,10 +40,10 @@ DiT を **170mm 幅に揃えると高さ 81.2041 → 79.9841mm（−1.2200mm、�
 
 ```sh
 bun run gallery
-SUMI_UPDATE_GOLDEN=1 CI=1 bun test src/render/pdf src/render/pptx src/render/assets.integration.test.ts
+SUMI_UPDATE_GOLDEN=1 CI=1 bun run test src/render/pdf src/render/pptx src/render/assets.integration.test.ts
 bun run check
 bun run typecheck
-CI=1 bun test
+CI=1 bun run test
 bun run gallery:check
 bun run schema:check
 ```

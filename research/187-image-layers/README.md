@@ -85,4 +85,4 @@ layers を使わない既存 fixture の golden は変わらない。設計判�
 - attached label の足跡中央への配置と、4:3 → 2:1 のコピーにおける
   contain の余白・cover のコピーごとの PDF clip・fill の伸縮を回帰検査する。
 - golden 更新は `bun run gallery` および
-  `SUMI_UPDATE_GOLDEN=1 CI=1 bun test src/render/pdf src/render/pptx src/render/assets.integration.test.ts` のみ
+  `SUMI_UPDATE_GOLDEN=1 CI=1 bun run test src/render/pdf src/render/pptx src/render/assets.integration.test.ts` のみ

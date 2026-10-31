@@ -484,7 +484,7 @@ bun research/124-stage-b/align/run.ts --record
 bun research/124-stage-b/measure/accents.ts --record
 bun research/124-stage-b/measure/d2-probes.ts --record
 bun research/124-stage-b/drafts.ts --record
-bun test research/124-stage-b
+bun run test research/124-stage-b
 ```
 
 詳細は [研究ディレクトリの README](../../research/124-stage-b/README.md)。

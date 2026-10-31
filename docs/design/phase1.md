@@ -624,7 +624,7 @@ layout:
 - examples の SVG はこれらの変更で再生成した（ラベルの位置・背景・高さが変わる）。`builtins-render.test.ts` は、examples が Profile の幅と高さに収まり、`sumi render` の幾何 lint が何も出さないことを検査する。
 
 ### 6.7 #16 のテスト戦略と CI
-- **テストは `bun test` 1 本**。単体テストは各モジュールの隣（`*.test.ts`）、実際の D2 を使う統合テストは `*.integration.test.ts` と `src/compiler/*-render.test.ts`・`src/cli/cli.test.ts` の描画部分。統合テストは、ローカルでは固定版の D2 がなければスキップ（警告を出す）し、`CI` が設定されていれば必須（D2 がなければ失敗）とする。
+- **テストは `bun run test` 1 本**。単体テストは各モジュールの隣（`*.test.ts`）、実際の D2 を使う統合テストは `*.integration.test.ts` と `src/compiler/*-render.test.ts`・`src/cli/cli.test.ts` の描画部分。統合テストは、ローカルでは固定版の D2 がなければスキップ（警告を出す）し、`CI` が設定されていれば必須（D2 がなければ失敗）とする。
 - **層ごとの主なテスト**:
 
   | 層 | 単体 | 統合（D2） / E2E |
@@ -640,8 +640,8 @@ layout:
   | PR タイトル | `scripts/commitlint/rules.test.ts` | — |
 
 - **ゴールデン**は 3 種類で、いずれもバイト一致で比較する。
-  1. D2 ソース `tests/fixtures/d2/*.d2`（D2 を使わない）。更新: `SUMI_UPDATE_GOLDEN=1 bun test src/compiler/d2.test.ts`
-  2. lint の出力 `tests/fixtures/lint-output/*`。更新: `SUMI_UPDATE_GOLDEN=1 bun test src/lint/lint.test.ts`
+  1. D2 ソース `tests/fixtures/d2/*.d2`（D2 を使わない）。更新: `SUMI_UPDATE_GOLDEN=1 bun run test src/compiler/d2.test.ts`
+  2. lint の出力 `tests/fixtures/lint-output/*`。更新: `SUMI_UPDATE_GOLDEN=1 bun run test src/lint/lint.test.ts`
   3. SVG: `examples/*/*.svg` と `docs/gallery/`。更新: `bun run gallery`、検査: `bun run gallery:check`。サンプルと例は診断ゼロ（幾何 lint を含む）でなければ生成自体が失敗する。
 
   SVG のキーは §6 のとおり（D2 ソース、D2 のバージョン、フォントセットの hash、CLI 引数）。OS は含めない: CI は Linux（x64）と macOS（arm64）の両方で `gallery:check` を実行し、同じバイト列になることを検査する。
@@ -653,12 +653,12 @@ layout:
   - 再検討する条件: 出力が決定的でないバックエンド（D2.js など）を加える場合、または PNG / PDF 出力を提供する場合。
 - **D2・フォントを更新するときの手順**（1 つの PR で行う）:
   1. D2: `src/backends/d2/version.ts` の `D2_VERSION` と全プラットフォームの sha256（リリースの `SHA256SUMS`）を更新し、`bun run d2:install`。フォント: `assets/fonts/<set>/` のファイル、`src/core/theme/fonts.ts` の `BUNDLED_FONT_SHA256`、同ディレクトリの README の表（テストで一致を検査）を更新する
-  2. `SUMI_UPDATE_GOLDEN=1 bun test` → `bun test` が通るまで、D2 の挙動に依存する箇所（幾何 lint の比率など）を直す
+  2. `SUMI_UPDATE_GOLDEN=1 bun run test` → `bun run test` が通るまで、D2 の挙動に依存する箇所（幾何 lint の比率など）を直す
   3. `bun run gallery` でギャラリーと例を再生成し、ギャラリーで見た目を確認して差分をコミットする
   4. CI の両 OS で `gallery:check` が通ることを確認する（D2 のキャッシュは `version.ts` の hash で自動的に入れ替わる）
 - **環境の記録と唯一の出典**: Bun は `.bun-version`（CI の setup-bun が読む）、D2 は `src/backends/d2/version.ts`（インストーラ・backend・CI のキャッシュキーが参照）、フォントは `src/core/theme/fonts.ts` の sha256 表。CI のテストジョブは最初に OS（`uname -a`、macOS は `sw_vers`）と `sumi doctor`（text と `--json`: Bun・OS・アーキテクチャ・D2 のパスと版・各フォントの sha256）を出力する。doctor が失敗すればその時点でジョブを止める。
-- **CI の構成**（`.github/workflows/ci.yml`）: `static`（ubuntu: Biome・tsc・`schema:check`）と `test`（ubuntu-latest / macos-latest の matrix: D2 の導入、環境の記録、`bun test`、`gallery:check`）。サードパーティの action はコミット SHA で固定し、`permissions: contents: read`、PR では新しい push が古い実行を取り消す（`concurrency`）、各ジョブにタイムアウトを設ける。D2 と Bun のパッケージはキャッシュする。
-- **カバレッジ**: Linux のジョブで `bun test --coverage` の表をログに出す（参考情報。閾値は設けない）。CLI は子プロセスで E2E テストしているため `src/cli/commands/*` の数値は実態より低く出る。#16 で数値を手がかりに見直し、未検査だったエラー経路（スキーマの `version` / `figure` 欠落・入れ子の未知フィールド・空の部品参照、inspect の数値でない属性・不正な points・shape group の数・描画の viewBox 不一致、検査後に消えた D2 バイナリ）にテストを追加した。
+- **CI の構成**（`.github/workflows/ci.yml`）: `static`（ubuntu: Biome・tsc・`schema:check`）と `test`（ubuntu-latest / macos-latest の matrix: D2 の導入、環境の記録、`bun run test`、`gallery:check`）。サードパーティの action はコミット SHA で固定し、`permissions: contents: read`、PR では新しい push が古い実行を取り消す（`concurrency`）、各ジョブにタイムアウトを設ける。D2 と Bun のパッケージはキャッシュする。
+- **カバレッジ**: Linux のジョブで `bun run test --coverage` の表をログに出す（参考情報。閾値は設けない）。CLI は子プロセスで E2E テストしているため `src/cli/commands/*` の数値は実態より低く出る。#16 で数値を手がかりに見直し、未検査だったエラー経路（スキーマの `version` / `figure` 欠落・入れ子の未知フィールド・空の部品参照、inspect の数値でない属性・不正な points・shape group の数・描画の viewBox 不一致、検査後に消えた D2 バイナリ）にテストを追加した。
 - **PR タイトルの検査**（`.github/workflows/pr-title.yml`、`scripts/commitlint.ts`）: タイトルは squash merge のコミットになるため、CONTRIBUTING.md の規則を検査する。検査する: `<type>(<scope>)!: <summary>` の形、type の語彙（`style` は不可）、空でない小文字の scope、コロンの後の空白 1 つ、空でない summary、summary が大文字の単語（`Add`）で始まらないこと・末尾のピリオドがないこと、日本語（かな・漢字・全角）を含まないこと。検査しない（誤検出を避ける）: 英語としての正しさや命令形か、長さ、先頭の略語・コード（`SVG`、`` `sumi fmt` ``）、アクセント付きの文字や記号（`→`、`×`）。同じ検査はコミットにも使える（`bun run commitlint origin/main..HEAD`）が、コミットは squash されるため CI では検査しない。
 
 ### 6.8 #20 での配布の判断
@@ -780,7 +780,7 @@ layout:
 6. **決定性とメタデータ**: パッチ後の svg2pdf は時刻も乱数も使わない。エンジンは 1 つの WASM なので、OS・CPU によらず同じ SVG から同じバイトが出る（ネイティブ版とはサブセットのタグだけが違うことが #19 で分かっているが、ネイティブ版は使わない）。svg2pdf は文書情報辞書に `/Producer (svg2pdf)` だけを書くので、`setDocumentInfo()` がその辞書を、ファイルの構造から見つけて（末尾の `startxref` → xref 表 → trailer の `/Info` の参照 → xref 表のその offset。固定の範囲は仮定しない。xref 表が 64 KiB を超える PDF でも動く）、xref 表の直前の最後のオブジェクトであることと内容が `/Producer (svg2pdf)` であることを確かめたうえで、SVG のメタデータ（§6.3）と同じ内容に置き換え、`startxref` をずらす: `/Title`（figure の id）、`/Creator`（`Sumi <版>`）、`/Producer`（`Sumi <版> (svg2pdf 0.13.0)`）、`/SumiBackend`・`/SumiTheme`・`/SumiProfile`・`/SumiFontSet`・`/SumiInputSha256`・`/SumiD2Sha256`。日時（`/CreationDate`）は入れない。XMP のメタデータストリームは書かない（PDF/A の要件でもなく、決定的に作る手間に見合わない）。想定と違えば（svg2pdf が変わったら）`pdf/conversion-failed` で止める。Rust 側で設定しなかったのは、svg2pdf 0.13 の `to_pdf` がこの辞書をクレート内部の状態（`Context`・`tree_to_stream`）から書くため、パッチを大きくする（または `to_pdf` を作り直す）必要があり、項目を変えるたびに WASM の基準ビルドの更新も要るため。バイト列の置き換えは svg2pdf の出力に対して厳密に検査し、golden でも固定している。
 7. **CLI**（§6.4 の拡張）: `sumi render` は `--format svg|pdf`、なければ `-o` の拡張子（`.svg` / `.pdf`、大文字小文字を区別しない）、どちらもなければ SVG。明示の `--format` が拡張子と矛盾する場合（`--format svg -o x.pdf`）と未知の形式は使い方の誤り（exit 2。何も書かない）。それ以外の拡張子は従来どおり（SVG）。既定の出力先は入力の `.sumi.yaml` を `.pdf` に替えたパス。`-o -`（stdout）は SVG だけとし、PDF では使い方の誤りにした（バイナリを stdout に流す要望が出てから検討する）。書き込みは SVG と同じ一時ファイル＋rename で、入力・`--emit-d2` との同一ファイルの検査（シンボリックリンク・dev/ino・大文字小文字）も同じ。PDF の変換に失敗したら何も書かず、`pdf/*` の診断で exit 1。幾何 lint の error があっても PDF は書く（SVG と同じ）。`--json` の封筒には最後に `format`（`svg` / `pdf`）を加えた（§6.10 の方針どおり追加のみで `version: 1` のまま。既存のキーの順も変えない）。
 8. **テスト**:
-   - **golden**: `examples/<name>/<name>.pdf` をバイト一致の golden にした。`src/render/pdf/pdf.test.ts` がコミット済みの SVG から変換して比べる（D2 不要なので CI の Linux と macOS の `test` ジョブの両方で同じバイトを検査する）。`bun run gallery` も同じ PDF を書き、`gallery:check` が古い PDF を検出する。更新は `bun run gallery` か `SUMI_UPDATE_GOLDEN=1 bun test src/render/pdf`。ギャラリーの例には PDF へのリンクを付けた。
+   - **golden**: `examples/<name>/<name>.pdf` をバイト一致の golden にした。`src/render/pdf/pdf.test.ts` がコミット済みの SVG から変換して比べる（D2 不要なので CI の Linux と macOS の `test` ジョブの両方で同じバイトを検査する）。`bun run gallery` も同じ PDF を書き、`gallery:check` が古い PDF を検出する。更新は `bun run gallery` か `SUMI_UPDATE_GOLDEN=1 bun run test src/render/pdf`。ギャラリーの例には PDF へのリンクを付けた。
    - **構造の検査**（外部ツールなし）: `src/render/pdf/testing.ts` に最小の PDF reader（xref 表を読み、各エントリが正しいオブジェクトを指すことを確かめる。FlateDecode、フォント、画像、文書情報、内容ストリームの q/Q/cm・BT/Tm/Td/Tf/Tj/TJ・form XObject の Do を解釈し、ToUnicode と `/W` から各 glyph の位置と送り幅を得る）を置いた。poppler に頼らないので CI でスキップされない。各例について、ページ = SVG の pt サイズ、フォントはすべて埋め込みの BIZ UD のサブセット、画像 0、文書情報 = SVG のメタデータ、**全ラベルの全行が、幾何 lint の再計測（`measureLabel()`）と左端・ベースライン・幅とも 0.01pt 以内**で文字として描かれていることを検査する。
    - 単体: family 名の書き換え（`fonts.test.ts`。D2 の family 名や CSS に見えるラベルが PDF にそのまま描かれること、属性の検査を含む）、文書情報の置き換えと xref の整合（`info.test.ts`、xref 表が 64 KiB を超える PDF は `limits.test.ts`）、trap が失敗の結果になり次の変換は新しいインスタンスで成功すること・入力の上限（入れ子・要素数・サイズ）（`limits.test.ts`）、各 `pdf/*` の診断。CLI の E2E: `-o x.pdf`、`--format pdf`（既定の出力先）、矛盾・未知の形式・`-o -` の誤り、`--json` の `format`、幾何 lint の error でも PDF を書くこと。
    - **リリース**: `release:smoke` が、同梱バイナリ（直接とシンボリックリンク経由）で日本語の図を PDF にし、ページの大きさ・埋め込みサブセット・画像 0・ラベルの文字を検査し、**ソースから同じ SVG を変換したバイトと一致する**ことを確かめ、sha256 を出力する。release.yml は 4 ターゲットでこれを実行するので、各ターゲットのバイナリがソースと同じ（したがって互いに同じ）PDF を出すことが確かめられる。

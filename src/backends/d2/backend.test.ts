@@ -3,6 +3,7 @@ import { chmod, mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { getProfile, toD2LayoutArgs } from "../../core/profile";
+import { withReadyTimeout } from "../../core/subprocess-test-helpers";
 import type { RenderInput } from "../types";
 import {
   buildD2Args,
@@ -228,10 +229,16 @@ describe("createD2CliBackend", () => {
       { timeoutMs: 500 },
     );
     const fast = await setup({ svg: SVG });
-    const [timedOut, concurrent] = await Promise.all([
-      slow.backend.render(input),
-      fast.backend.render({ ...input, d2Source: "concurrent\n" }),
-    ]);
+    const [timedOut, concurrent] = await withReadyTimeout(
+      500,
+      async () => (await slow.fake.calls()).length === 1,
+      () =>
+        Promise.all([
+          slow.backend.render(input),
+          fast.backend.render({ ...input, d2Source: "concurrent\n" }),
+        ]),
+    );
+    expect(await Bun.file(slow.fake.shutdownFile).text()).toBe("shutdown complete");
     expect(timedOut.diagnostics.map((d) => d.code)).toEqual(["backend/d2-timeout"]);
     expect(concurrent.ok && concurrent.value.svg).toBe(SVG);
     const subsequent = await fast.backend.render({ ...input, d2Source: "subsequent\n" });
@@ -255,6 +262,8 @@ describe("createD2CliBackend", () => {
     const result = await backend.render(input);
     expect(result.ok).toBe(false);
     expect(result.diagnostics[0]?.code).toBe("backend/empty-output");
+    expect(result.diagnostics[0]?.hint).toContain("external cancellation");
+    expect(result.diagnostics[0]?.hint).toContain("test timeout");
     expect(await readdir(renderTmp)).toEqual([]);
   });
 

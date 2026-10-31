@@ -19,7 +19,7 @@ bun run d2:install                     # 固定版の D2 v0.9.0
 bun research/18-custom-svg/run.ts      # out/ に SVG とレポートを書く
 bun research/18-custom-svg/run.ts --png  # PNG も書く（ヘッドレス Chrome。なければ省略）
 bun research/18-custom-svg/probe-d2.ts # メモが根拠にした D2 の挙動の観察（out/probe-*）
-bun test research                      # 形状の幾何の smoke test（D2 不要）
+bun run test research                  # 形状の幾何の smoke test（D2 不要）
 ```
 
 出力はバイト単位で決定的です（SVG を 2 回生成して sha1 が一致することを確認済み。PNG は Chrome に依存するので対象外）。

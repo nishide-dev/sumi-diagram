@@ -80,7 +80,7 @@ bun research/271-clip/render.ts
 
 bun run check
 bun run typecheck
-bun test
+bun run test
 ```
 
 `render.ts` は CLI の JSON summary に errors / warnings があれば失敗し、

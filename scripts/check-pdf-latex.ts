@@ -1,6 +1,6 @@
 /**
  * Real pdfLaTeX / LuaLaTeX inclusion checks (#63), deliberately separate from
- * `bun test`: requires TeX Live (graphicx + geometry), Poppler and pinned D2.
+ * `bun run test`: requires TeX Live (graphicx + geometry), Poppler and pinned D2.
  * Generates fresh PDFs via the CLI, includes them at native size, and checks
  * fonts, text, images and rasterized appearance after inclusion. Artifacts and
  * a machine-readable report remain in .sumi/pdf-latex (or --out <directory>).

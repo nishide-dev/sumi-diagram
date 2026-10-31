@@ -86,7 +86,7 @@ bun run schema:check     # schema/figure.v1.schema.json が最新か
 bun run gallery:check    # examples/*/*.{svg,pdf} と docs/gallery/ が最新か（バイト一致）
 ```
 
-テストの既定タイムアウトは、低速な macOS runner での D2 描画を考慮して **60,000ms** に揃えています。Bun 1.3.14 は `bunfig.toml` の `[test] timeout` を読み込まないため、`package.json` の `test` と CI / release workflow は `bun test --timeout 60000` を使います。ファイル指定でも `bun run test src/render/lora.integration.test.ts`（または `bun test --timeout 60000 <file>`）を使ってください。新しい D2 テストに個別の 60 秒指定は不要です。別の制限を意図した明示タイムアウトは維持します。
+テストの既定タイムアウトは、低速な macOS runner での D2 描画を考慮して **60,000ms** に揃えています。Bun 1.3.14 は `bunfig.toml` の `[test] timeout` を読み込まないため、`package.json` の `test` に `--timeout 60000` を設定し、CI / release workflow も `bun run test` を使います。ファイル指定でも `bun run test src/render/lora.integration.test.ts` を使ってください。新しい D2 テストに個別の 60 秒指定は不要です。別の制限を意図した明示タイムアウトは維持します。
 
 Bun のテストタイムアウトは実行中の子プロセスに SIGTERM を送ります。D2 は SIGTERM を処理して出力なしで正常終了することがあり、打ち切られたテストの継続処理に `backend/empty-output` が出ても、次の描画との一時パス衝突とは限りません（調査: [#289](https://github.com/nishide-dev/sumi-diagram/issues/289)）。バックエンド自身の制限では終了コードにかかわらず `backend/d2-timeout` を返し、子の終了後に呼び出し固有の一時ディレクトリを削除します。
 
@@ -96,13 +96,13 @@ Bun のテストタイムアウトは実行中の子プロセスに SIGTERM を�
 
 | 対象 | 更新コマンド |
 | --- | --- |
-| D2 ソース（`tests/fixtures/d2/*.d2`） | `SUMI_UPDATE_GOLDEN=1 bun test src/compiler/d2.test.ts` |
-| lint の出力（`tests/fixtures/lint-output/`） | `SUMI_UPDATE_GOLDEN=1 bun test src/lint/lint.test.ts` |
+| D2 ソース（`tests/fixtures/d2/*.d2`） | `SUMI_UPDATE_GOLDEN=1 bun run test src/compiler/d2.test.ts` |
+| lint の出力（`tests/fixtures/lint-output/`） | `SUMI_UPDATE_GOLDEN=1 bun run test src/lint/lint.test.ts` |
 | SVG（`examples/*/*.svg`・`docs/gallery/`） | `bun run gallery` |
 | Transformer の配置・経路（`tests/fixtures/layout/{a-transformer,align-side-kv}*.json`） | `bun run gallery`（例のレイアウト変更と一緒に再生成） |
-| PDF（`examples/*/*.pdf`） | `bun run gallery`（または `SUMI_UPDATE_GOLDEN=1 bun test src/render/pdf`。同じバイトを書く） |
-| 画像・アイコンの fixture（`tests/fixtures/assets/outputs-sha256.json`、#94） | `SUMI_UPDATE_GOLDEN=1 bun test src/render/assets.integration.test.ts` |
-| 編集可能PPTX（slide XML / package hash） | `SUMI_UPDATE_GOLDEN=1 bun test src/render/pptx/editable.test.ts`。日本語fixtureのYAMLを変えたら先にSVGを通常のrenderで更新する（[再現手順](docs/verification/62-editable-pptx.md)） |
+| PDF（`examples/*/*.pdf`） | `bun run gallery`（または `SUMI_UPDATE_GOLDEN=1 bun run test src/render/pdf`。同じバイトを書く） |
+| 画像・アイコンの fixture（`tests/fixtures/assets/outputs-sha256.json`、#94） | `SUMI_UPDATE_GOLDEN=1 bun run test src/render/assets.integration.test.ts` |
+| 編集可能PPTX（slide XML / package hash） | `SUMI_UPDATE_GOLDEN=1 bun run test src/render/pptx/editable.test.ts`。日本語fixtureのYAMLを変えたら先にSVGを通常のrenderで更新する（[再現手順](docs/verification/62-editable-pptx.md)） |
 
 SVG は D2 のバージョンとフォントが同じなら OS によらずバイト単位で一致します。D2 やフォントを更新する手順と、画像（ラスタ）比較を使わない理由は [設計 §6.7](docs/design/phase1.md#67-16-のテスト戦略と-ci) を参照してください。
 
@@ -111,7 +111,7 @@ SVG は D2 のバージョンとフォントが同じなら OS によらずバ�
 | ワークフロー | ジョブ | 内容 |
 | --- | --- | --- |
 | CI | Static checks（Linux） | `bun run check`・`bun run typecheck`・`bun run schema:check`・`bun run icons:check`（同梱アイコンのアーカイブが固定版の Tabler Icons と一致するか。npm から取得する） |
-| CI | Test（Linux / macOS） | D2 の導入、環境の記録（OS・`sumi doctor`: Bun・D2・フォントの sha256）、`bun test --timeout 60000`（Linux ではカバレッジの表も出力。閾値なし。PDF の golden もここで両 OS のバイト一致を検査）、`bun run gallery:check` |
+| CI | Test（Linux / macOS） | D2 の導入、環境の記録（OS・`sumi doctor`: Bun・D2・フォントの sha256）、`bun run test`（Linux ではカバレッジの表も出力。閾値なし。PDF の golden もここで両 OS のバイト一致を検査）、`bun run gallery:check` |
 | CI | PDF engine reproducible build（Linux） | `bun run pdf:wasm` で PDF エンジンをソースから再ビルドし、コミット済みの `.wasm`・sha256・ライセンス一覧と一致するか（`git diff`） |
 | CI | PDF LaTeX inclusion（Linux） | `bun run pdf:latex` で pdfLaTeX / LuaLaTeX に実際に取り込み、文字・位置・フォント埋め込み・ベクター・表示を検査する（TeX / Poppler はこのジョブのみで導入） |
 | CI | PPTX Open XML validation（Linux） | 画像方式の通常版＋PNG対照版、編集可能方式の両mode＋接続対照を固定版 Open XML SDK で独立検証。各方式の確認用artifactを残す（.NET は検証専用） |
@@ -120,7 +120,7 @@ SVG は D2 のバージョンとフォントが同じなら OS によらずバ�
 
 PR タイトルの検査は手元でも実行できます: `bun run commitlint --title "feat(cli): add doctor"`。コミットを検査する場合は `bun run commitlint origin/main..HEAD` です。検査する規則と、誤検出を避けるため検査しないこと（英語として自然か、命令形か、長さなど）は `scripts/commitlint/rules.ts` の先頭に書いてあります。
 
-PDF の LaTeX 取り込み検証（#63）は、TeX Live と Poppler がある環境で `bun run pdf:latex` を実行します。通常の `bun test` とは独立しています。検証環境・導入パッケージ・検査内容・結果の読み方は [検証記録](docs/verification/63-pdf-latex.md) を参照してください。
+PDF の LaTeX 取り込み検証（#63）は、TeX Live と Poppler がある環境で `bun run pdf:latex` を実行します。通常の `bun run test` とは独立しています。検証環境・導入パッケージ・検査内容・結果の読み方は [検証記録](docs/verification/63-pdf-latex.md) を参照してください。
 
 ### 同梱アイコンの更新
 
@@ -130,7 +130,7 @@ PDF の LaTeX 取り込み検証（#63）は、TeX Live と Poppler がある環
 
 PDF 出力（#59、#74）は、`native/pdf-wasm/` の Rust クレート（krilla 0.8.2 + krilla-svg 0.8.1、upstream パッチなし）を `wasm32-unknown-unknown` にビルドした `assets/wasm/sumi-pdf.wasm` を使います。生成物はコミットしてあり、通常の開発・テスト・リリースに Rust は不要です。クレート・依存の版・ツールチェーンを変えたときだけ再ビルドします。
 
-#61 の PPTX は同じ WASM に resvg 0.47.0 の outlined SVG / PNG 生成を追加して使います。#91 の structured の SVG は、同じ WASM の `subset`（krilla の依存の subsetter 0.2.6）で `@font-face` のフォントのサブセットを作ります。既存の `pdf:wasm` コマンドでまとめて再ビルドします。PPTX の golden は `SUMI_UPDATE_GOLDEN=1 bun test src/render/pptx` で更新し、実アプリ確認の手順・制約は [検証記録](docs/verification/61-pptx.md) を参照してください。
+#61 の PPTX は同じ WASM に resvg 0.47.0 の outlined SVG / PNG 生成を追加して使います。#91 の structured の SVG は、同じ WASM の `subset`（krilla の依存の subsetter 0.2.6）で `@font-face` のフォントのサブセットを作ります。既存の `pdf:wasm` コマンドでまとめて再ビルドします。PPTX の golden は `SUMI_UPDATE_GOLDEN=1 bun run test src/render/pptx` で更新し、実アプリ確認の手順・制約は [検証記録](docs/verification/61-pptx.md) を参照してください。
 
 ```sh
 bun run pdf:wasm   # rustup が必要。rust-toolchain.toml の版と wasm32 target は自動で導入される
@@ -144,7 +144,7 @@ bun run pdf:wasm   # rustup が必要。rust-toolchain.toml の版と wasm32 tar
 2. ライセンス一覧などの差分と一緒に push する。CI の `PDF engine reproducible build` は `.wasm` の違いで失敗し、Linux で作った `.wasm` を artifact `sumi-pdf-wasm-linux` に残す。
 3. `gh run download <run-id> -n sumi-pdf-wasm-linux -D /tmp/wasm` で取得し、`bun run pdf:wasm --adopt /tmp/wasm/sumi-pdf.wasm` で置き換える（ビルドせずにコピーし、`PDF_WASM_SHA256` を更新する）。
 
-PDF の出力が変わる変更なら、続けて `SUMI_UPDATE_GOLDEN=1 bun test src/render/pdf` で examples の PDF と `tests/fixtures/pdf/corpus-sha256.json` を更新します。後者はギャラリー 48 図と日本語マスクの hash です。通常 CI の両 OS と release workflow の全 4 ターゲットで同じ値を検査します。
+PDF の出力が変わる変更なら、続けて `SUMI_UPDATE_GOLDEN=1 bun run test src/render/pdf` で examples の PDF と `tests/fixtures/pdf/corpus-sha256.json` を更新します。後者はギャラリー 48 図と日本語マスクの hash です。通常 CI の両 OS と release workflow の全 4 ターゲットで同じ値を検査します。
 
 - macOS の rustup では `rust-lld` が `libLLVM.dylib` を見つけられないことがあります。スクリプトはツールチェーンの `lib/` を `DYLD_FALLBACK_LIBRARY_PATH` に入れて回避します（Linux では影響しません）。
 - 依存（Cargo.lock）を変えた場合は、`THIRD_PARTY.md` のライセンスと NOTICE を確認します。krilla の NOTICE は `content_draw_path` の一部を MPL-2.0 としており、原文と対応ソースの入手先も同梱します。リリースの tarball は `licenses/pdf-wasm/` にこれらをそのまま入れます。
@@ -249,7 +249,7 @@ Closes #4
 - [ ] すべての組み込みテーマで、すべての variant を定義した
 - [ ] `bun run gallery` で再生成し、ギャラリーで見た目を確認した
 - [ ] 単体テストと D2 描画テストを追加・更新した
-- [ ] `bun run check`・`bun run typecheck`・`bun test`・`bun run gallery:check` が通る
+- [ ] `bun run check`・`bun run typecheck`・`bun run test`・`bun run gallery:check` が通る
 
 ## Claude Code Skill
 

@@ -34,6 +34,8 @@ export interface RecordedCall {
 
 export interface FakeD2 {
   path: string;
+  /** Written only after the SIGTERM handler completes its graceful path. */
+  shutdownFile: string;
   /** Render invocations so far, in order. */
   calls(): Promise<RecordedCall[]>;
 }
@@ -43,7 +45,8 @@ export async function createFakeD2(dir: string, behavior: FakeD2Behavior = {}): 
   await mkdir(dir, { recursive: true });
   const path = join(dir, "d2");
   const log = join(dir, "calls.jsonl");
-  const config = JSON.stringify({ version: "v0.9.0", ...behavior, log });
+  const shutdownFile = join(dir, "shutdown");
+  const config = JSON.stringify({ version: "v0.9.0", ...behavior, log, shutdownFile });
   await Bun.write(
     path,
     `#!${process.execPath}
@@ -59,6 +62,7 @@ if (cfg.shutdownDelayMs !== undefined) {
   process.on("SIGTERM", () => {
     setTimeout(() => {
       process.stderr.write("graceful shutdown\\n");
+      fs.writeFileSync(cfg.shutdownFile, "shutdown complete");
       process.exit(0);
     }, cfg.shutdownDelayMs);
   });
@@ -80,6 +84,7 @@ setTimeout(() => {
   await chmod(path, 0o755);
   return {
     path,
+    shutdownFile,
     async calls() {
       const text = await readFile(log, "utf8").catch(() => "");
       return text

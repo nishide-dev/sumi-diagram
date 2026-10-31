@@ -17,10 +17,10 @@ bun install         # install dependencies
 bun run check       # Biome format + lint check
 bun run check:fix   # apply Biome fixes
 bun run typecheck   # tsc
-bun test            # tests
+bun run test        # tests (default timeout: 60 seconds)
 ```
 
-Run `bun run check`, `bun run typecheck`, and `bun test` before committing.
+Run `bun run check`, `bun run typecheck`, and `bun run test` before committing.
 
 ## Architecture principles
 

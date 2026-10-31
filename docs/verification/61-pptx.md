@@ -14,7 +14,7 @@
 ## 自動検証
 
 ```sh
-bun test src/render/pptx
+bun run test src/render/pptx
 bun scripts/check-pptx.ts
 # 独立した Open XML SDK 3.3.0（検証専用、.NET 8 SDK が必要）
 dotnet build scripts/pptx-validator/Validator.csproj --configuration Release \

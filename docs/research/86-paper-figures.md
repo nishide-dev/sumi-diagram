@@ -472,7 +472,7 @@ Sumi は画像を生成・加工しない（切り抜き・色調整・ラスタ
 bun install --frozen-lockfile
 bun run d2:install
 bun research/86-paper-figures/run.ts          # 全測定（out/ に SVG・PDF・PNG）
-bun test research/86-paper-figures            # 試作の検査（ネットワーク・D2 不要）
+bun run test research/86-paper-figures        # 試作の検査（ネットワーク・D2 不要）
 ```
 
 詳細は [研究ディレクトリの README](../../research/86-paper-figures/README.md)。

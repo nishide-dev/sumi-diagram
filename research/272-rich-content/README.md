@@ -67,7 +67,7 @@ pdftoppm -scale-to 1400 -png -singlefile research/272-rich-content/out/image.pdf
 pdftoppm -scale-to 1400 -png -singlefile research/272-rich-content/out/inline.pdf research/272-rich-content/previews/inline-pdf
 bun run check
 bun run typecheck
-bun test
+bun run test
 ```
 
 初回は YAML が既に fmt 済み。YAML を変更した場合は fmt を先に実行してから prototype を再生成する。`results.json` の Biome 整形は byte 表現だけを整え、hash の値は変更しない。出力 SVG/PDF/PPTX と入力の外部資産は gitignore の `out/` に生成する。レビュー用 PNG と測定 JSON は保存する。

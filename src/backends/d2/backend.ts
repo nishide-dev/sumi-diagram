@@ -266,6 +266,7 @@ export function createD2CliBackend(options: D2CliBackendOptions = {}): DiagramBa
           svg.trim() === ""
             ? "D2 exited successfully but produced no SVG."
             : "D2 exited successfully but its output is not a complete SVG document.",
+        hint: "Check for external cancellation (for example, a test timeout) or another cause of incomplete D2 output.",
       });
     }
 
