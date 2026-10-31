@@ -190,16 +190,20 @@ function unwrapped(props: unknown, prop: string): unknown {
 }
 
 /**
- * The props an image embed needs: `src` a string, `fit` (if any) a string
- * enum of {@link IMAGE_FITS} values, and `width` / `height`.
+ * The props an image embed needs: a string `src` (optional only when a string
+ * `svg` is exposed too), `fit` (if any) an enum of {@link IMAGE_FITS}, and
+ * `width` / `height`. The asset stage defensively enforces source exclusivity.
  */
 function imageProps(props: unknown): boolean {
   const fit = unwrapped(props, "fit");
+  const svg = unwrapped(props, "svg");
   return (
-    // src must always be a string: not optional (a default is fine).
+    // File-only manifests require src; inline-capable manifests expose both strings.
     props instanceof z.ZodObject &&
-    !(props.shape.src instanceof z.ZodOptional) &&
+    (!(props.shape.src instanceof z.ZodOptional) ||
+      unwrapped(props, "svg") instanceof z.ZodString) &&
     unwrapped(props, "src") instanceof z.ZodString &&
+    (svg === undefined || svg instanceof z.ZodString) &&
     (fit === undefined ||
       (fit instanceof z.ZodEnum &&
         (fit.options as unknown[]).every((v) => (IMAGE_FITS as readonly unknown[]).includes(v)))) &&

@@ -23,13 +23,13 @@ import type { Diagnostic, DocPath, SourceLocation } from "../diagnostics";
  * existing ancestor when the path does not exist (e.g. a missing field points
  * at its parent mapping). With `key: true`, a mapping entry resolves to its key
  * instead of its value. With `span` (UTF-16 offsets into a string value), a
- * string scalar resolves to that part of its source when the value maps to
- * the source character by character (single-line plain, single- or
- * double-quoted scalars); otherwise to the whole scalar.
+ * string scalar resolves to that part of its source for single-line plain or
+ * quoted scalars (including escapes); `literalBlock` opts into mapping literal
+ * block content too. Otherwise it resolves to the whole scalar.
  */
 export type Locator = (
   path: DocPath,
-  options?: { key?: boolean; span?: readonly [number, number] },
+  options?: { key?: boolean; span?: readonly [number, number]; literalBlock?: boolean },
 ) => SourceLocation | undefined;
 
 export interface YamlSource {
@@ -201,8 +201,8 @@ export function parseYaml(text: string, file?: string): ParseYamlResult {
     const located = locateNode(path, options);
     const { node } = located;
     if (options.span !== undefined && isScalar(node) && node.range) {
-      const start = scalarSourceOffset(text, node, options.span[0]);
-      const end = scalarSourceOffset(text, node, options.span[1]);
+      const start = scalarSourceOffset(text, node, options.span[0], options.literalBlock);
+      const end = scalarSourceOffset(text, node, options.span[1], options.literalBlock);
       if (start !== undefined && end !== undefined) return toLocation(start, end);
     }
     return located.location;
@@ -241,13 +241,45 @@ export function parseYaml(text: string, file?: string): ParseYamlResult {
  * scalar's value, when the value maps to its source character by character:
  * a plain scalar on one line, or a single- / double-quoted scalar on one line
  * (`''` and the escapes are decoded, so offsets after them stay exact).
- * `undefined` otherwise (block scalars, folded lines, non-string values).
+ * Literal blocks are mapped only with `literalBlock`; folded lines and
+ * non-string values return `undefined`.
  */
-export function scalarSourceOffset(text: string, node: Scalar, index: number): number | undefined {
+export function scalarSourceOffset(
+  text: string,
+  node: Scalar,
+  index: number,
+  literalBlock = false,
+): number | undefined {
   const { range } = node;
   const value = node.value;
   if (!range || typeof value !== "string" || index < 0 || index > value.length) return undefined;
   const source = text.slice(range[0], range[1]);
+  if (literalBlock && node.type === "BLOCK_LITERAL") {
+    const newline = source.indexOf("\n");
+    if (newline < 0) return undefined;
+    const body = source.slice(newline + 1);
+    const writtenIndent = body.match(/^( *)\S/m)?.[1]?.length;
+    const valueIndent = value.match(/^( *)\S/m)?.[1]?.length;
+    if (writtenIndent === undefined || valueIndent === undefined) return undefined;
+    const indent = writtenIndent - valueIndent;
+    if (indent < 0) return undefined;
+    let decoded = "";
+    let mapped: number | undefined;
+    let at = range[0] + newline + 1;
+    for (const line of body.split(/(?<=\n)/)) {
+      const skip = Math.min(indent, line.match(/^ */)?.[0].length ?? 0);
+      const content = line.slice(skip).replace(/\r\n$/, "\n");
+      if (index >= decoded.length && index < decoded.length + content.length) {
+        const within = index - decoded.length;
+        mapped =
+          at + skip + within + (line.endsWith("\r\n") && within === content.length - 1 ? 1 : 0);
+      }
+      decoded += content;
+      at += line.length;
+    }
+    if (decoded.slice(0, value.length) !== value) return undefined;
+    return mapped ?? (index === value.length ? at : undefined);
+  }
   if (source.includes("\n") || source.includes("\r")) return undefined;
   if (node.type === "PLAIN") return source === value ? range[0] + index : undefined;
   if (node.type !== "QUOTE_SINGLE" && node.type !== "QUOTE_DOUBLE") return undefined;

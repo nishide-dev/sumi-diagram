@@ -71,9 +71,38 @@ async function render(file: string) {
   return { source, ...result.value };
 }
 
+test.skipIf(!d2 && !inCI)(
+  "inline SVG shares file-image placement, fit and layers in both engines",
+  async () => {
+    const svg = readFileSync(join(ASSETS_DIR, "shapes.svg"), "utf8");
+    for (const engine of ["auto", "structured"]) {
+      for (const fit of ["contain", "cover", "fill"]) {
+        const source = (input: { src: string } | { svg: string }) => `version: 1
+figure: { id: parity, layout: ${engine === "auto" ? "{ direction: right }" : "{ arrange: { row: { items: [drawing] } } }"} }
+nodes:
+  - id: drawing
+    component: image
+    variant: framed
+    props: ${JSON.stringify({ ...input, width: "60pt", height: "24pt", fit, layers: { count: 3, offset: "3pt" } })}
+`;
+        const file = await renderFigure(source({ src: "shapes.svg" }), { assetBase: ASSETS_DIR });
+        const inline = await renderFigure(source({ svg }));
+        if (!file.ok || !inline.ok)
+          throw new Error(JSON.stringify([file.diagnostics, inline.diagnostics]));
+        // Only provenance changes: the normalized image URI and every painted element match.
+        const drawing = (s: string) => s.replace(/<metadata>[\s\S]*?<\/metadata>/, "");
+        expect(drawing(inline.value.svg)).toBe(drawing(file.value.svg));
+        expect(lintGeometry(inline.value, { source: source({ svg }) })).toEqual([]);
+      }
+    }
+  },
+  60_000,
+);
+
 for (const [file, needsD2] of [
   ["images.sumi.yaml", false],
   ["images-auto.sumi.yaml", true],
+  ["inline-svg.sumi.yaml", false],
 ] as const) {
   describe.skipIf(needsD2 && !d2 && !inCI)(file, () => {
     test("renders deterministically to SVG, PDF and picture PPTX", async () => {
@@ -87,7 +116,7 @@ for (const [file, needsD2] of [
       const images = ir.nodes.filter((n) => n.image !== undefined).length;
       const icons = ir.nodes.filter((n) => n.icon !== undefined).length;
       expect(first.svg.match(/<image class="sumi-image"/g)?.length).toBe(images);
-      expect(first.svg.match(/<g class="sumi-icon"/g)?.length).toBe(icons);
+      expect(first.svg.match(/<g class="sumi-icon"/g)?.length ?? 0).toBe(icons);
       expect(first.svg.match(/<svg\b/g)?.length).toBe(2); // the root and svg.d2-svg
       expect(first.svg).not.toMatch(/href="(?!data:)/);
       expect(inspectSvg(first.svg, ir).ok).toBe(true);
@@ -96,9 +125,11 @@ for (const [file, needsD2] of [
       const metadata = readSvgMetadata(first.svg);
       if (!metadata.ok || metadata.value === undefined) throw new Error("no metadata");
       expect(metadata.value.assetsSha256).toMatch(/^[0-9a-f]{64}$/);
-      expect(metadata.value.notices).toEqual([
-        expect.objectContaining({ name: "Tabler Icons", version: "3.49.0", license: "MIT" }),
-      ]);
+      expect(metadata.value.notices ?? []).toEqual(
+        file === "inline-svg.sumi.yaml"
+          ? []
+          : [expect.objectContaining({ name: "Tabler Icons", version: "3.49.0", license: "MIT" })],
+      );
       record(`${file}.svg`, first.svg);
 
       const pdf = svgToPdf(first.svg);
@@ -107,7 +138,8 @@ for (const [file, needsD2] of [
       expect(again.ok && sha256(again.value)).toBe(sha256(pdf.value));
       const inspected = inspectPdf(pdf.value);
       // The PNG and the JPEG are PDF images; the SVG image and the icons stay vector.
-      expect(inspected.images).toBeGreaterThanOrEqual(2);
+      if (file === "inline-svg.sumi.yaml") expect(inspected.images).toBe(0);
+      else expect(inspected.images).toBeGreaterThanOrEqual(2);
       expect(inspected.info).toMatchObject(
         Object.fromEntries(assetProvenanceEntries(metadata.value)),
       );
@@ -116,9 +148,15 @@ for (const [file, needsD2] of [
       const pptx = svgToPptx(first.svg);
       if (!pptx.ok) throw new Error(JSON.stringify(pptx.diagnostics));
       const parts = readPptx(pptx.value);
+      expect(
+        [...parts.keys()].some((name) => name.startsWith("ppt/media/") && name.endsWith(".svg")),
+      ).toBe(true);
+      expect(
+        [...parts.keys()].some((name) => name.startsWith("ppt/media/") && name.endsWith(".png")),
+      ).toBe(true);
       const custom = new TextDecoder().decode(parts.get("docProps/custom.xml"));
       expect(custom).toContain("SumiAssetsSha256");
-      expect(custom).toContain("SumiThirdPartyNotice");
+      if (file !== "inline-svg.sumi.yaml") expect(custom).toContain("SumiThirdPartyNotice");
       record(`${file}.pptx`, pptx.value);
 
       // The editable PPTX refuses icons and images rather than dropping them.
