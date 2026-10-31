@@ -256,10 +256,12 @@ sumi render figure.sumi.yaml -o glued.pptx --pptx-mode editable --pptx-connector
 | テーマ | 内容 |
 | --- | --- |
 | `minimal`（既定） | モノクロ、はっきりした線。文字 8pt（エッジ 7pt） |
-| `academic` | 論文向け。細い線・黒い文字・灰色の強調。文字 8pt（エッジ 7pt） |
+| `academic` | 白黒（グレースケール）で印刷できるジャーナル調。0.5pt の黒い線・角の四角い箱・灰色の tone と強調で、色は使いません。文字 8pt（エッジ 7pt） |
 | `slides` | スライド向け。文字 16pt（エッジ 14pt、コンテナ 18pt）、線 2pt。`presentation-16x9` と組み合わせる |
 | `color` | 色を使う汎用テーマ。`minimal` と同じ線・文字で、tone は淡い色の塗り、強調は青。文字 8pt（エッジ 7pt） |
-| `paper` | 論文の図の見た目。角丸の箱とグループ、パステルの tone、黒い 1pt の枠、0.5pt のエッジと小さい矢じり、structured の図の欧文は Inter（フォントセット `sumi/inter-biz-ud-gothic`）。文字 8pt（エッジ 7pt）（[設計 §6.52](design/phase1.md#652-173-の論文向けの-theme-paper)） |
+| `paper` | カラーの ML 論文風。パステルの tone、角丸の箱とグループ、黒い 1pt の枠、薄い灰色のパネル、0.5pt のエッジと小さい矢じり、structured の図の欧文は Inter（フォントセット `sumi/inter-biz-ud-gothic`）。文字 8pt（エッジ 7pt）（[設計 §6.52](design/phase1.md#652-173-の論文向けの-theme-paper)） |
+
+`academic` と `paper` はどちらも論文向けです。白黒で印刷するなら `academic`、カラーの ML 論文なら `paper` です。比較表と同じ図の描き比べは[テーマの説明](themes-ja.md)を参照してください。
 
 node と group の `tone`（`gray` / `red` / `orange` / `yellow` / `green` / `blue` / `purple` / `pink`）で色の分類を指定できます。色の値はテーマが決めます。`color` と `paper` では色ごとに別の淡い塗りになり、`minimal` / `academic` / `slides` ではグレースケールで印刷できるよう 3 段階の灰色になります（[設計 §6.20](design/phase1.md#620-92-の-operatorjunctiontone-と-color-テーマ)、[ギャラリー](gallery/README.md)）。
 

@@ -147,10 +147,12 @@ Experimental `editable` mode creates separate DrawingML shapes/text. Only indivi
 | Theme | Appearance |
 | --- | --- |
 | `minimal` (default) | Monochrome, clear lines; nodes/groups 8pt, edges 7pt |
-| `academic` | Thin lines, black text, gray emphasis; 8pt/7pt |
+| `academic` | Grayscale, print-friendly journal style: 0.5pt black lines, square corners, gray tones and emphasis; 8pt/7pt |
 | `slides` | Nodes 16pt, groups 18pt, edges 14pt, lines 2pt; pair with `presentation-16x9` |
 | `color` | Minimal's typography/lines with pastel tones and blue emphasis; 8pt/7pt |
-| `paper` | Rounded boxes/groups, pastel tones, black 1pt outlines, 0.5pt edges and small arrows; Inter Latin text in structured layout (`sumi/inter-biz-ud-gothic`); 8pt/7pt |
+| `paper` | Color ML-paper style: pastel tones, rounded boxes/groups, black 1pt outlines, light gray panels, 0.5pt edges and small arrows; Inter Latin text in structured layout (`sumi/inter-biz-ud-gothic`); 8pt/7pt |
+
+`academic` and `paper` are both for papers: `academic` is grayscale for black-and-white print, `paper` is the color ML-paper style. See the [theme overview](themes.md) for a comparison table and the same figures under every theme.
 
 Nodes/groups accept `tone`: `gray`, `red`, `orange`, `yellow`, `green`, `blue`, `purple`, `pink`. Themes determine the actual colors: color/paper use distinct pale fills, minimal/academic/slides use three gray levels for grayscale printing.
 

@@ -62,9 +62,9 @@ Before writing YAML, make sure you know:
   This is the user's decision — ask if it is not stated. What fits on a
   slide: [layout-tips](references/layout-tips.md).
 - **Theme**: `minimal` (default), `academic`, `color`, `slides` (needed
-  for a slide) or `paper` — **recommend `paper` for a paper figure** (rounded
-  pastel boxes, thin lines, Inter, as published ML figures; `academic` if it
-  must be monochrome). And the output path (default: next to the user's
+  for a slide) or `paper` — **recommend `paper` for a color paper figure**
+  (pastel tones, rounded corners, thin lines, Inter, as published ML figures;
+  `academic` if it must be grayscale for black-and-white print). And the output path (default: next to the user's
   other files, named `<figure-id>.sumi.yaml`).
 - **Layout** (your choice, not a question): flows and graphs use the
   default **auto** layout; paper block diagrams (stacked layers, residuals,

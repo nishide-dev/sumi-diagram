@@ -5,10 +5,10 @@
 | theme | description | font set |
 | --- | --- | --- |
 | <code>minimal</code> | Monochrome theme with clear outlines | <code>sumi/biz\-ud\-gothic</code> |
-| <code>academic</code> | Restrained theme for papers: thin lines, black text, gray emphasis | <code>sumi/biz\-ud\-gothic</code> |
+| <code>academic</code> | Grayscale, print\-friendly journal style: thin black lines, square corners, gray tones and emphasis | <code>sumi/biz\-ud\-gothic</code> |
 | <code>slides</code> | Large text and thick lines for slides \(use with presentation\-16x9\) | <code>sumi/biz\-ud\-gothic</code> |
 | <code>color</code> | General\-purpose theme with color: pastel tone fills, blue accent for emphasis | <code>sumi/biz\-ud\-gothic</code> |
-| <code>paper</code> | For paper figures: rounded corners, pastel tone fills, small arrowheads, Inter for Latin text | <code>sumi/inter\-biz\-ud\-gothic</code> |
+| <code>paper</code> | Color ML\-paper style: pastel tones, rounded corners, 1pt frames and 0\.5pt edges, light gray panels, Inter for Latin text | <code>sumi/inter\-biz\-ud\-gothic</code> |
 
 ## The structured Transformer under every theme
 

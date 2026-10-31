@@ -182,7 +182,7 @@ shows:
 
 | The original shows | Write |
 | --- | --- |
-| rounded pastel boxes, thin black lines, small arrowheads, sans-serif text | `figure.theme: paper` |
+| rounded pastel boxes, thin black lines, small arrowheads, sans-serif text | `figure.theme: paper` (`academic` for a grayscale, square-cornered figure) |
 | boxes without a border (a pastel fill only) | `variant: filled` + `tone` ([variants](figure-format.md#components-variants-and-props)) |
 | white boxes with a colored frame and text (encoders, tokens, keys) | `variant: outlined` + `tone` |
 | strong colored keys or operators with white text | `variant: solid` + `tone` |

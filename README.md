@@ -84,7 +84,7 @@ Render reports the measured size and whether it fits the output profile. Open `h
 | Capability | What it gives you |
 | --- | --- |
 | [Auto and structured layout](skills/sumi/references/structured.md) | Auto layout for flows and graphs; nested rows/stacks, anchors, alignment, and routed residual connections for precise block diagrams. |
-| [Themes and profiles](docs/usage.md#themes-and-profiles) | `minimal`, `academic`, `color`, `slides`, and `paper`; independent page-size and minimum-type constraints for papers and presentations. |
+| [Themes and profiles](docs/themes.md) | `minimal`, `academic` (grayscale, print-friendly), `color`, `slides`, and `paper` (color ML-paper style); independent page-size and minimum-type constraints for papers and presentations. |
 | [Math labels](skills/sumi/references/figure-format.md) | Inline math with bundled STIX Two fonts in structured figures. |
 | [Icons, emoji, and images](skills/sumi/references/assets.md) | Bundled Tabler icons, multicolor Fluent emoji, and local PNG/JPEG/SVG assets. |
 | [PDF and PPTX](docs/usage.md#export-formats) | Vector PDF with embedded fonts, picture-based PPTX, and experimental editable PowerPoint objects. |
@@ -105,7 +105,7 @@ Ask Claude Code: **“Use Sumi to draw this pipeline as a single-column paper fi
 ## Documentation
 
 - [User guide](docs/usage.md) · [日本語利用ガイド](docs/usage-ja.md): commands, diagnostics, exports, installation, and environment options
-- [Component gallery](docs/gallery/README.md) · [Examples](examples/README.md)
+- [Themes](docs/themes.md) · [Component gallery](docs/gallery/README.md) · [Examples](examples/README.md)
 - [Figure format](skills/sumi/references/figure-format.md) · [Structured layout](skills/sumi/references/structured.md) · [Layout recipes](skills/sumi/references/layout-tips.md)
 - [JSON Schema for editor completion](schema/figure.v1.schema.json)
 - [Contributing](CONTRIBUTING.md)

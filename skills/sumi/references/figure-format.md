@@ -444,12 +444,18 @@ They are built in; there is no way to define your own in a figure.
 | Theme | Look |
 | --- | --- |
 | `minimal` | monochrome with clear outlines (default) |
-| `academic` | restrained, for papers: thin lines, black text, gray emphasis |
+| `academic` | grayscale, print-friendly journal style: 0.5pt black lines, square corners, groups without fill, tones as gray steps, gray emphasis; no color |
 | `slides` | for slides: 16pt text (14pt on edges, 18pt container labels), 2pt lines; use with `presentation-16x9` |
 | `color` | general purpose with color: like `minimal`, but tones are pastel fills and emphasis is blue (0.4.0) |
-| `paper` | for paper figures: rounded boxes (2pt) and groups (6pt), pastel tone fills, black 1pt frames, light gray groups, thin 0.5pt edges with small arrowheads, Inter for Latin text (0.6.0) |
+| `paper` | color ML-paper style: pastel tone fills, rounded boxes (2pt) and groups (6pt), black 1pt frames, light gray groups, thin 0.5pt edges with small arrowheads, Inter for Latin text (0.6.0) |
 
 `minimal`, `academic`, `color` and `paper` use 8pt text (7pt on edges).
+
+Choosing between the two paper themes: `academic` is for a journal that
+prints in black and white (nothing in it is colored, tones become gray steps);
+`paper` is for the colored figures of ML papers (pastel tones, rounded
+corners). Both fit `paper-single` / `paper-double`. A figure's look is the
+theme alone: the same YAML renders under either with `--theme`.
 `minimal`, `academic`, `slides` and `color` use the bundled
 `sumi/biz-ud-gothic` font set (Latin and Japanese). `paper` uses
 `sumi/inter-biz-ud-gothic`: in structured figures Latin text is drawn with
