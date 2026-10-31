@@ -161,6 +161,7 @@ describe("expansion (#181)", () => {
     expect(doc.tokens?.[0]?.cells[0]?.fields).toEqual({
       label: cells(["props", "cells", 0, "label"]),
       tone: cells(["props", "cells", 0, "tone"]),
+      mono: cells(["mono"]),
       component: cells(["props", "component"]),
       variant: cells(["props", "variant"]),
       "props.width": cells(["props", "cells", 0, "width"]),

@@ -200,6 +200,8 @@ export interface TokensCellIR {
   readonly id: string;
   /** The tokens or matrix node's variant. */
   readonly variant: string;
+  /** Set on the frame of a `flush` matrix (#280): no group padding. */
+  readonly flush?: true;
   readonly name: string;
   /**
    * Where each field of the cell's node is written, by its path relative to
@@ -818,7 +820,16 @@ function matrixPartOf(doc: PartialFigure, key: ElementKey): { matrix?: TokensCel
   const expansion = doc.matrices?.find((m) => m.id === id);
   const variant = expansion?.variant ?? "default";
   const fields = expansion?.parts.find((p) => nodeKey(p.id) === key)?.fields ?? {};
-  return { matrix: freeze({ id, variant, name: origin.name, fields: freeze({ ...fields }) }) };
+  const flush = expansion?.flush === true && key === groupKey(id);
+  return {
+    matrix: freeze({
+      id,
+      variant,
+      ...(flush && { flush: true as const }),
+      name: origin.name,
+      fields: freeze({ ...fields }),
+    }),
+  };
 }
 
 function componentOf(state: CheckState, key: ElementKey): ResolvedComponent {

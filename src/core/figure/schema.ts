@@ -511,6 +511,12 @@ export const NodeSchema = z.strictObject({
     ),
   variant: Variant,
   tone: Tone,
+  mono: z
+    .boolean()
+    .optional()
+    .describe(
+      "Draw the node's label and sublabel in the theme's monospace font (e.g. a class name or a prompt). false turns off a variant's monospace text. Math stays in the math fonts; \\textcolor spans keep their colors. On a tokens node it is the default of its cells. Omitted means the variant's own setting (normally proportional text).",
+    ),
   props: Props,
   group: Id.optional().describe(
     "Containing group ID. Omitted means the root (or, in structured layout, the group whose arrange lists it).",

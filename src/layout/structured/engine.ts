@@ -293,8 +293,10 @@ class StructuredLayout {
 
   /** A group's padding per side: the profile's, plus any `growPadding` added. */
   #padding(key: ElementKey): Overhang {
-    // The frame of a tokens node (#281) is exactly its cells: no padding of its own.
-    const p = this.#groups.get(key)?.tokens !== undefined ? 0 : this.#groupPadding;
+    // The frame of a tokens node (#281) is exactly its cells, and a flush
+    // matrix's frame (#280) has no padding of its own either.
+    const group = this.#groups.get(key);
+    const p = group?.tokens !== undefined || group?.matrix?.flush === true ? 0 : this.#groupPadding;
     const extra = this.#extraPadding.get(key) ?? NO_OVERHANG;
     return {
       north: p + extra.north,

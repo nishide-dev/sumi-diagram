@@ -8,7 +8,7 @@ A sequence of cells side by side, e\.g\. tokens or keys, each drawn as its own n
 
 | prop | type | required | description |
 | --- | --- | --- | --- |
-| <code>cells</code> | <code>array</code> | no | The cells in order: labels, objects with id, label, tone, component, variant, width and height, or \{ separator: dotted, id?, tone?, width?, height? \} divider cells \(since 0\.7\.0\)\. Dividers count in positional cell references\. |
+| <code>cells</code> | <code>array</code> | no | The cells in order: labels, objects with id, label, tone, mono, component, variant, width and height, or \{ separator: dotted, id?, tone?, width?, height? \} divider cells \(since 0\.7\.0\)\. Dividers count in positional cell references\. |
 | <code>lines</code> | <code>array</code> | no | Instead of cells: several lines of cells, each laid out in direction, the lines placed across it \(below one another for right / left\), e\.g\. keys \[\[W\], \[A, S, D\]\]\. Cells are numbered across the lines\. |
 | <code>direction</code> | <code>&quot;right&quot; &#124; &quot;left&quot; &#124; &quot;down&quot; &#124; &quot;up&quot;</code> | no | Where the cells run: right, left \(a row\), down or up \(a stack\)\. |
 | <code>gap</code> | <code>any</code> | no | Space between cells, as an arrange gap\. Omitted means the layout default\. |

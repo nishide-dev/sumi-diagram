@@ -503,7 +503,8 @@ function matrixSample(entry: CatalogEntry, theme: string): string {
     "        gap: 6mm",
     "        items:",
     ...entry.variants.map(
-      (v) => `          - row: { gap: 6mm, align: center, items: [${v}-input, ${v}, ${v}-key] }`,
+      (v) =>
+        `          - stack: { gap: 3mm, align: start, items: [{ row: { gap: 6mm, align: center, items: [${v}-input, ${v}, ${v}-key] } }, ${v}-sim] }`,
     ),
     "",
     "nodes:",
@@ -533,6 +534,24 @@ function matrixSample(entry: CatalogEntry, theme: string): string {
       "    component: legend",
       "    props:",
       `      entries: [{ class: ${v}.o }, { class: ${v}.L }, { class: ${v}.x }]`,
+      // Text cells, a highlighted diagonal and an ellipsis row and column (#280).
+      `  - id: ${v}-sim`,
+      `    component: ${entry.id}`,
+      "    props:",
+      "      cellWidth: 38pt",
+      "      cellHeight: 26pt",
+      "      variant: outlined",
+      "      flush: true",
+      "      classes:",
+      "        d: { tone: blue, variant: tinted }",
+      "        n: {}",
+      "      ellipsisRows: [3]",
+      "      ellipsisColumns: [3]",
+      "      cells:",
+      "        - [{ class: d, text: '$I_1 T_1$' }, { class: n, text: '$I_1 T_2$' }, n, { class: n, text: '$I_1 T_N$' }]",
+      "        - [{ class: n, text: '$I_2 T_1$' }, { class: d, text: '$I_2 T_2$' }, n, { class: n, text: '$I_2 T_N$' }]",
+      "        - [n, n, n, n]",
+      "        - [{ class: n, text: '$I_N T_1$' }, { class: n, text: '$I_N T_2$' }, n, { class: d, text: '$I_N T_N$' }]",
     );
   }
   lines.push("", "edges:");

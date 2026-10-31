@@ -71,6 +71,7 @@ export type TokenCell =
       id?: string;
       label?: string;
       tone?: Tone;
+      mono?: boolean;
       component?: string;
       variant?: string;
       /** pt */
@@ -347,6 +348,7 @@ export function expandTokens(state: CheckState, registry: Registry, locate: Loca
       const fields: Record<string, DocPath> = {
         label: short ? path : [...path, "label"],
         tone: own("tone", [...tokensPath, "tone"]),
+        mono: own("mono", [...tokensPath, "mono"]),
         component: own("component", [...propsPath, "component"]),
         variant: own("variant", [...propsPath, "variant"]),
         "props.width": own("width", [...propsPath, "width"]),
@@ -390,6 +392,7 @@ export function expandTokens(state: CheckState, registry: Registry, locate: Loca
         }
       }
       const tone = cell.tone ?? node.tone;
+      const mono = cell.mono ?? node.mono;
       // Written as in a figure: the component stage validates them like any props.
       const cellProps: Record<string, unknown> = {
         ...(width !== undefined && { width: `${width}pt` }),
@@ -402,6 +405,7 @@ export function expandTokens(state: CheckState, registry: Registry, locate: Loca
         variant:
           separator !== undefined ? "outlined" : (cell.variant ?? props.variant ?? "default"),
         ...(tone !== undefined && { tone }),
+        ...(mono !== undefined && { mono }),
         props: cellProps,
         ...(wholeRefs.has(node.id)
           ? { group: node.id }

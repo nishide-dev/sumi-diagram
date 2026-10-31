@@ -472,6 +472,7 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
     nodes[index] = undefined;
     components.delete(key);
     const frameKey = groupKey(node.id);
+    if (node.mono !== undefined) paints.set(frameKey, { mono: node.mono });
     const frameComponent: ResolvedComponent = {
       id: LEGEND_ID,
       manifest: frameManifest(component.manifest),
