@@ -39,11 +39,27 @@ groups:
         rowGap: 42pt
         columnGap: 9pt
         items:
-          - row: { gap: 28pt, items: [ labels, prompt, class-text ] }
+          - row: { gap: 20pt, items: [ labels, prompt, class-text ] }
           - null
           - null
           - stack: { gap: 0, items: [ class-tokens, scores ] }
 nodes:
+  # Hidden junctions make continuous nets, with an arrow into every token.
+  - { id: text-bus, component: junction, variant: hidden, attach: { to: text-tokens.1, side: north, gap: 16pt } }
+  - { id: text-bus-two, component: junction, variant: hidden, attach: { to: text-tokens.2, side: north, gap: 16pt } }
+  - { id: text-bus-three, component: junction, variant: hidden, attach: { to: text-tokens.3, side: north, gap: 16pt } }
+  - { id: text-bus-dots, component: junction, variant: hidden, attach: { to: text-tokens.4, side: north, gap: 16pt } }
+  - { id: text-bus-n, component: junction, variant: hidden, attach: { to: text-tokens.5, side: north, gap: 16pt } }
+  - { id: image-bus, component: junction, variant: hidden, attach: { to: image-tokens.3, side: west, gap: 14pt } }
+  - { id: image-bus-one, component: junction, variant: hidden, attach: { to: image-tokens.1, side: west, gap: 14pt } }
+  - { id: image-bus-two, component: junction, variant: hidden, attach: { to: image-tokens.2, side: west, gap: 14pt } }
+  - { id: image-bus-dots, component: junction, variant: hidden, attach: { to: image-tokens.4, side: west, gap: 14pt } }
+  - { id: image-bus-n, component: junction, variant: hidden, attach: { to: image-tokens.5, side: west, gap: 14pt } }
+  - { id: class-bus, component: junction, variant: hidden, attach: { to: class-tokens.1, side: north, gap: 14pt } }
+  - { id: class-bus-two, component: junction, variant: hidden, attach: { to: class-tokens.2, side: north, gap: 14pt } }
+  - { id: class-bus-three, component: junction, variant: hidden, attach: { to: class-tokens.3, side: north, gap: 14pt } }
+  - { id: class-bus-dots, component: junction, variant: hidden, attach: { to: class-tokens.4, side: north, gap: 14pt } }
+  - { id: class-bus-n, component: junction, variant: hidden, attach: { to: class-tokens.5, side: north, gap: 14pt } }
   - id: prediction-title
     component: label
     label: (3) Use for zero-shot prediction
@@ -57,7 +73,7 @@ nodes:
     component: trapezoid
     label: "Text\nEncoder"
     tone: purple
-    attach: { to: text-tokens, side: north, gap: 16pt }
+    attach: { to: text-bus, side: west, gap: 14pt }
     props: { width: 76pt, height: 48pt, narrow: east }
   - id: photos
     component: image
@@ -72,7 +88,7 @@ nodes:
     component: trapezoid
     label: "Image\nEncoder"
     tone: green
-    attach: { to: image-tokens, side: west, gap: 14pt }
+    attach: { to: image-bus, side: west, gap: 9pt }
     props: { width: 58pt, height: 48pt, narrow: east }
   - id: text-tokens
     component: tokens
@@ -215,12 +231,39 @@ nodes:
     attach: { to: scores.dog, side: south, gap: 14pt }
 edges:
   - { from: captions, to: train-text }
-  - { from: train-text, to: text-tokens, fromAnchor: south, toAnchor: north }
+  - { from: train-text, to: text-bus, component: line, fromAnchor: east }
+  - { from: text-bus, to: text-bus-two, component: line }
+  - { from: text-bus-two, to: text-bus-three, component: line }
+  - { from: text-bus-three, to: text-bus-dots, component: line }
+  - { from: text-bus-dots, to: text-bus-n, component: line }
+  - { from: text-bus, to: text-tokens.1, toAnchor: north }
+  - { from: text-bus-two, to: text-tokens.2, toAnchor: north }
+  - { from: text-bus-three, to: text-tokens.3, toAnchor: north }
+  - { from: text-bus-dots, to: text-tokens.4, toAnchor: north }
+  - { from: text-bus-n, to: text-tokens.5, toAnchor: north }
   - { from: photos, to: train-image }
-  - { from: train-image, to: image-tokens, fromAnchor: east, toAnchor: west }
+  - { from: train-image, to: image-bus, component: line, fromAnchor: east }
+  - { from: image-bus-one, to: image-bus-two, component: line }
+  - { from: image-bus-two, to: image-bus, component: line }
+  - { from: image-bus, to: image-bus-dots, component: line }
+  - { from: image-bus-dots, to: image-bus-n, component: line }
+  - { from: image-bus-one, to: image-tokens.1, toAnchor: west }
+  - { from: image-bus-two, to: image-tokens.2, toAnchor: west }
+  - { from: image-bus, to: image-tokens.3, toAnchor: west }
+  - { from: image-bus-dots, to: image-tokens.4, toAnchor: west }
+  - { from: image-bus-n, to: image-tokens.5, toAnchor: west }
   - { from: label-brace, to: prompt, fromAnchor: east, toAnchor: west }
   - { from: prompt, to: class-text }
-  - { from: class-text, to: class-tokens, fromAnchor: east, toAnchor: north }
+  - { from: class-text, to: class-bus, component: line, fromAnchor: east }
+  - { from: class-bus, to: class-bus-two, component: line }
+  - { from: class-bus-two, to: class-bus-three, component: line }
+  - { from: class-bus-three, to: class-bus-dots, component: line }
+  - { from: class-bus-dots, to: class-bus-n, component: line }
+  - { from: class-bus, to: class-tokens.1, toAnchor: north }
+  - { from: class-bus-two, to: class-tokens.2, toAnchor: north }
+  - { from: class-bus-three, to: class-tokens.3, toAnchor: north }
+  - { from: class-bus-dots, to: class-tokens.4, toAnchor: north }
+  - { from: class-bus-n, to: class-tokens.5, toAnchor: north }
   - { from: photo, to: predict-image }
   - { from: predict-image, to: image-one }
   - { from: image-one, to: scores.1, fromAnchor: east, toAnchor: west }

@@ -1,6 +1,6 @@
 # CLIP Figure 1 の再現実験（#271）
 
-Sumi 0.9.0 / Bun 1.3.14 の既存機能だけで、CLIP 論文の Figure 1
+Sumi 0.9.0 + #281 の `bracket` / Bun 1.3.14 で、CLIP 論文の Figure 1
 「Summary of our approach」を再構成した。`src/` の変更や SVG の後加工はない。
 一次ソースは [clip.sumi.yaml](clip.sumi.yaml)。
 
@@ -28,8 +28,10 @@ Sumi 0.9.0 / Bun 1.3.14 の既存機能だけで、CLIP 論文の Figure 1
 `paper-double`（180mm）を論文の全幅図として選び、structured の
 grid / row / stack で左に事前学習、右上に分類器生成、右下に予測を配置した。
 右側は同じ plain グループにまとめ、(2)/(3) 共通の T 行とスコア行を直接接触させた。
-エンコーダからの辺は tokens 全体を端点に 1 本で結び（#281）、ラベル列は `bracket`
-（波括弧）で括ってプロンプトへつなぐ。junction の共有幹は使わない。
+`attach` で各セルに hidden junction を配置し、`line` で結んだ共有幹から
+(1) の各 T / I と (2)/(3) 共通の各 T へ分岐する。ラベル列は `bracket`
+（波括弧、#281）で括り、先端からプロンプトへ 1 本の矢印をつなぐ。
+分類器生成の row gap は20ptにして、括弧と矢印の余白を確保しつつ縮小後の本文を5pt以上に保つ。
 `fit: scale` により約62.8%に縮小し、最終サイズは **180 × 52.17mm**。
 任意の色・座標・フォント設定は追加していない。
 
@@ -37,8 +39,8 @@ grid / row / stack で左に事前学習、右上に分類器生成、右下に�
 
 | パネル | 原図の構造 | 今回再現したもの | 残る差分と理由 |
 | --- | --- | --- | --- |
-| (1) 対比事前学習 | 左のキャプション → 横向き Text Encoder → T 行への下向き分岐。画像 → Image Encoder → I 列への右向き分岐。N×N 表と青い対角 | 両台形を `narrow: east` に統一。Text Encoder を T 行の真上に置き、T 行全体へ真下の 1 本の矢印、Image Encoder から I 列全体へ 1 本の矢印（tokens 全体が端点）。T 行33pt幅 / I 列23pt高を式セルに合わせ、grid と tokens の gap 0 で接触。対角4セルと … / ⋮ / ⋱ を保持 | 合成犬画像、同じ文のカード、罫線なしの省略セルは YAML / 素材の選択。テーマの角丸・色・台形の固定傾斜は原図の厳密なトレースではない |
-| (2) 分類器生成 | plane / car / dog / ⋮ / bird の箱を括ってプロンプトへ → 横向き Text Encoder → 共通 T 行への下向き分岐 | 全ラベルを箱にし、ラベル列へ attach した波括弧 `bracket`（列の高さに自動で合わせる）の先端から「A photo of a {object}.」へ矢印。紫の横向き台形から共通 T 行全体へ 1 本の矢印 | 等幅だけは未対応（ノード単位の mono 選択なし）なので通常の Inter。括弧は `bracket` 部品。分類器から T 行への縦区間は YAML の行間隔による |
+| (1) 対比事前学習 | 左のキャプション → 横向き Text Encoder → T 行への下向き分岐。画像 → Image Encoder → I 列への右向き分岐。N×N 表と青い対角 | 両台形を `narrow: east` に統一。T 行の真上の水平幹、I 列の左の垂直幹から1,2,3,…,Nの各セルへ矢印。hidden junction と `line` で原図の fan-out を復元。T 行33pt幅 / I 列23pt高を式セルに合わせ、grid と tokens の gap 0 で接触。対角4セルと … / ⋮ / ⋱ を保持 | 合成犬画像、同じ文のカード、罫線なしの省略セルは YAML / 素材の選択。テーマの角丸・色・台形の固定傾斜は原図の厳密なトレースではない |
+| (2) 分類器生成 | plane / car / dog / ⋮ / bird の箱を括ってプロンプトへ → 横向き Text Encoder → 共通 T 行への下向き分岐 | 全ラベルを箱にし、ラベル列へ attach した波括弧 `bracket`（列の高さに自動で合わせる）の先端から「A photo of a {object}.」へ矢印。紫の横向き台形から共有の水平幹を経て各 T へ矢印 | 等幅だけは未対応（ノード単位の mono 選択なし）なので通常の Inter。括弧は `bracket` 部品。分類器から T 行への縦区間は YAML の行間隔による |
 | (3) ゼロショット予測 | 写真 → Image Encoder → I₁ → T 行直下の I₁·T 行、T₃ を選んで犬の文へ | I₁から第1スコア左端へ短い直線。共通 T 行とスコア行の全列を37ptで揃え、gap 0 で上下に接触。青い I₁·T₃ から結果文へ真下に矢印。旧末尾セル間の長い迂回線を削除 | 写真は仮画像。行の高さ・列幅・結果文の色と文字密度はテーマ / YAML の選択。T とスコアの接触自体が対応を示し、セル間に追加の矢印は描かない |
 
 ここで N は任意のバッチ数 / クラス数を表す記号であり、5クラスに固定した実験結果ではない。
@@ -60,10 +62,10 @@ grid / row / stack で左に事前学習、右上に分類器生成、右下に�
 | 行列の対角強調と接触グリッド | 対応済み。tokens 5行、gap 0 の stack / grid で式と青の `tinted` 対角、密着した見出しを共存 | ネイティブ matrix のセルラベルは未対応だが、今回の見た目の実現を妨げない。案: `Support labeled matrix cells and diagonal selectors` は記述の簡略化 |
 | 省略セル | tokens は対応済み。`component: label` の … / ⋮ / ⋱ を配置できる | ネイティブ matrix は省略専用セルを持たない。今回の省略行・列は罫線を描かない。案: `Support ellipsis rows and columns in matrices` |
 | ラベル列の括弧 | 対応済み（#281）。`bracket`（波括弧 / 角括弧）をラベル列へ attach すると列の長さに合わせて描かれ、先端が辺の端点になる | 以前の junction の縦幹は廃止。1 本の辺でプロンプトへ進む |
-| トークン集合への接続 | 対応済み（#281）。tokens の ID を端点に書くと列全体（枠の group）に 1 本の辺がつながる | 原図の各セルへの分岐ではなく、列全体への 1 本の矢印で表した。セルごとの fan-out が要る場合は `<node>.<cell>` で個別に書く |
+| トークン集合への接続 | 対応済み（#281）。tokens の ID を端点に書くと列全体（枠の group）に 1 本の辺がつながる | 原図の fan-out を保つため、この図のエンコーダ出力は共有幹から `<node>.<cell>` へ個別に接続。全体端点の機能は [tokens ギャラリー](../../docs/gallery/components/sumi-tokens.md) で例示している |
 | 原図の線・配色・文字密度 | テーマのパレット、角丸、線幅、フォント、表の大きさが原図と異なる | 厳密なトレースではなく意味の一致を優先。案: `Add compact paper table styling presets` |
-| 縮小後の読みやすさ | 本文約5.09pt、添字約3.56pt。PNG では読めるが印刷時の添字は小さい | 横向きフロー全体を180mmへ収める YAML の選択。info として記録。案: `Add fit-aware math script sizing for paper figures` |
-| 矢印の曲がり | junction チェーンを廃止し、tokens 全体と括弧先端を端点にした 1 本の辺で直線部を確保 | 丸い角は既存 router の固定仕様。分類器から共通 T 行への縦区間の長さは YAML の42pt行間隔による。旧 Tₙ→スコア末尾の迂回接続はない |
+| 縮小後の読みやすさ | 本文約5.02pt、添字約3.52pt。PNG では読めるが印刷時の添字は小さい | 横向きフロー全体を180mmへ収める YAML の選択。info として記録。案: `Add fit-aware math script sizing for paper figures` |
+| 矢印の曲がり | 明示的な hidden junction チェーンで水平 / 垂直幹と各セルへの直線部を確保。括弧先端からプロンプトへは 1 本の辺 | 丸い角は既存 router の固定仕様。分類器から共通 T 行への縦区間の長さは YAML の42pt行間隔による。旧 Tₙ→スコア末尾の迂回接続はない |
 
 ## 再現手順
 
@@ -79,7 +81,8 @@ bun research/271-clip/render.ts
 
 bun run check
 bun run typecheck
-bun test
+CI=1 bun test
+bun run gallery:check
 ```
 
 `render.ts` は CLI の JSON summary に errors / warnings があれば失敗し、
@@ -93,7 +96,7 @@ SVG のレイアウト・テキスト・画像は変更しない。
 | `assets/synthetic-dog.png` | ImageMagick で生成した仮画像（コミット対象） |
 | `generate-assets.sh` | 外部入力なしの仮画像生成手順 |
 | `render.ts` | 描画・診断・プレビュー生成手順 |
-| `preview.png` | 目視したプレビュー、40,277 bytes（150KB未満） |
+| `preview.png` | 目視したプレビュー、39,320 bytes（150KB未満） |
 | `out/clip.svg` | 再生成可能な SVG、git 管理外 |
 | `out/lint.json`, `out/render.json` | 絶対パスを含むローカル診断、git 管理外 |
 
@@ -104,16 +107,18 @@ SVG のレイアウト・テキスト・画像は変更しない。
 
 - Sumi の `doctor`: フォント・geometry lint・D2 がすべて正常。
 - `lint --geometry --json` と `render --json`: **errors 0 / warnings 0 / infos 2**。
-- info 内訳: `geometry/script-too-small` 1件（添字3.56pt）、
-  `geometry/group-empty-area` 1件（右の共通グループ、空白75.9%、線は面積に含まない）。
-  空白は分類器生成と予測を分けるための YAML の選択。
-- 最終 `preview.png` を実際に開いて目視: 横向きの両エンコーダ、T 行・I 列全体への 1 本の矢印、
+- info 内訳: `geometry/script-too-small` 1件（添字3.52pt）、
+  `geometry/group-empty-area` 1件（右の共通グループ、空白75.6%、線は面積に含まない）。
+  空白は分類器生成と予測を分け、共有幹を通すための YAML の選択。
+- 最終 `preview.png` を実際に開いて目視: 横向きの両エンコーダ、(1) の全 T / I と (2)/(3) 共通の全 T への共有幹からの矢印、
   見出しと表の接触、青い対角4セル、ラベル列の波括弧からプロンプトへの矢印、
   共通 T 行に密着するスコア行、青い第3スコアから dog 文への下向き矢印を確認。
-- `bun run check`: 423ファイル、指摘なし。`bun run typecheck`: 成功。
-- `bun test`: **3321 pass / 13 skip / 0 fail**（133ファイル、約277秒、今回再実行）。
+- `bun run check`: 430ファイル、指摘なし。`bun run typecheck`: 成功。
+- `CI=1 bun test`: **3834 pass / 13 skip / 0 fail**（136ファイル、約402秒、今回再実行）。
   既存の #124 prototype のスキップ通知も出たが、失敗はない。
+- `bun run gallery:check`: 209ファイル、最新の生成物と一致。
 
-括弧と列全体への接続は #281 の `bracket` と tokens 全体の端点で再現した（共有幹の junction は廃止）。
+括弧は #281 の `bracket`、原図の各セルへの分岐は hidden junction / `line` の共有幹で再現した。
+この図では列全体への矢印に置き換える箇所はなく、全体端点の機能はギャラリーで示す。
 残る等幅指定などの不足機能と、画像・間隔などの YAML / 素材選択を分けて記録し、
 原図の厳密なトレースではないため、関連付けは引き続き `Refs #271` とする。
