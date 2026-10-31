@@ -9,7 +9,7 @@ Sumi keeps `*.sumi.yaml` as the primary source. Components, themes and profiles 
 The [one-line installer](../README.md#install) is the simplest option. Alternatively, download a tarball from [GitHub Releases](https://github.com/nishide-dev/sumi-diagram/releases). Supported targets are `darwin-arm64`, `darwin-x64`, `linux-x64`, and `linux-arm64`; Windows is not supported. Bun and Node.js are unnecessary, and Sumi is not published to npm.
 
 ```sh
-version=0.8.0 target=darwin-arm64
+version=0.9.0 target=darwin-arm64
 base=https://github.com/nishide-dev/sumi-diagram/releases/download/v$version
 curl -fLO "$base/sumi-$version-$target.tar.gz"
 curl -fLO "$base/SHA256SUMS"
