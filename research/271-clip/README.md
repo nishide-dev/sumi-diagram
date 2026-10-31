@@ -1,7 +1,8 @@
 # CLIP Figure 1 の再現実験（#271）
 
 Sumi 0.9.0 / Bun 1.3.14 の既存機能だけで、CLIP 論文の Figure 1
-「Summary of our approach」を再構成した。`src/` の変更や SVG の後加工はない。
+「Summary of our approach」を再構成した（当初）。その後 #280 で `matrix` がセルの文字・省略・`flush` を
+持ったため、I·T 行列だけをそれで描き直した（preview.png は画素まで同一）。SVG の後加工はない。
 一次ソースは [clip.sumi.yaml](clip.sumi.yaml)。
 
 ![CLIP の3パネル構成の再現](preview.png)
@@ -37,7 +38,7 @@ grid / row / stack で左に事前学習、右上に分類器生成、右下に�
 
 | パネル | 原図の構造 | 今回再現したもの | 残る差分と理由 |
 | --- | --- | --- | --- |
-| (1) 対比事前学習 | 左のキャプション → 横向き Text Encoder → T 行への下向き分岐。画像 → Image Encoder → I 列への右向き分岐。N×N 表と青い対角 | 両台形を `narrow: east` に統一。T 行の真上の水平幹、I 列の左の垂直幹から1,2,3,…,Nの各セルへ矢印。T 行33pt幅 / I 列23pt高を式セルに合わせ、grid と tokens の gap 0 で接触。対角4セルと … / ⋮ / ⋱ を保持 | 合成犬画像、同じ文のカード、罫線なしの省略セルは YAML / 素材の選択。テーマの角丸・色・台形の固定傾斜は原図の厳密なトレースではない |
+| (1) 対比事前学習 | 左のキャプション → 横向き Text Encoder → T 行への下向き分岐。画像 → Image Encoder → I 列への右向き分岐。N×N 表と青い対角 | 両台形を `narrow: east` に統一。T 行の真上の水平幹、I 列の左の垂直幹から1,2,3,…,Nの各セルへ矢印。T 行33pt幅 / I 列23pt高を式セルに合わせ、grid と tokens の gap 0 で接触。対角4セルと … / ⋮ / ⋱ を保持（`matrix` 1個、#280） | 合成犬画像、同じ文のカード、罫線なしの省略セルは YAML / 素材の選択。テーマの角丸・色・台形の固定傾斜は原図の厳密なトレースではない |
 | (2) 分類器生成 | plane / car / dog / ⋮ / bird の箱を括ってプロンプトへ → 横向き Text Encoder → 共通 T 行への下向き分岐 | 全ラベルを箱にし、各行から共有の縦幹へ `line` で接続。括弧状の幹から「A photo of a {object}.」へ矢印。紫の横向き台形から水平幹を経て各 T へ矢印 | 等幅だけは未対応（ノード単位の mono 選択なし）なので通常の Inter。専用括弧そのものではなく、既存の junction / line による括弧状の接続。幹の位置と縦方向の長さは YAML の配置選択 |
 | (3) ゼロショット予測 | 写真 → Image Encoder → I₁ → T 行直下の I₁·T 行、T₃ を選んで犬の文へ | I₁から第1スコア左端へ短い直線。共通 T 行とスコア行の全列を37ptで揃え、gap 0 で上下に接触。青い I₁·T₃ から結果文へ真下に矢印。旧末尾セル間の長い迂回線を削除 | 写真は仮画像。行の高さ・列幅・結果文の色と文字密度はテーマ / YAML の選択。T とスコアの接触自体が対応を示し、セル間に追加の矢印は描かない |
 
@@ -57,8 +58,8 @@ grid / row / stack で左に事前学習、右上に分類器生成、右下に�
 | 重なった写真 | 対応済み。`image.props.layers` で3枚を上右にずらせる | すべて同じ合成画像のコピー。異なる写真のバッチは単一ノードで表せない。案: `Support distinct assets in image layers` |
 | 等幅ラベル | 未対応。カタログに mono フォントはあるが Figure Schema にノードの mono 選択がない | 今回は通常の Inter。案: `Expose monospace text styling in figure labels` |
 | 色付き文字列 | 対応済み。数式内の `\textcolor{blue}{\text{…}}` で `{object}` と dog を着色 | プレーンテキストの任意 span ではない。現方式を使用し、使い勝手の改善案: `Add semantic colored spans to plain text labels` |
-| 行列の対角強調と接触グリッド | 対応済み。tokens 5行、gap 0 の stack / grid で式と青の `tinted` 対角、密着した見出しを共存 | ネイティブ matrix のセルラベルは未対応だが、今回の見た目の実現を妨げない。案: `Support labeled matrix cells and diagonal selectors` は記述の簡略化 |
-| 省略セル | tokens は対応済み。`component: label` の … / ⋮ / ⋱ を配置できる | ネイティブ matrix は省略専用セルを持たない。今回の省略行・列は罫線を描かない。案: `Support ellipsis rows and columns in matrices` |
+| 行列の対角強調と接触グリッド | 対応済み（#280）。(1) の I·T 行列も (3) の I₁·T 行も `matrix` 1 個で、セルの数式（`{ class, text }`）と青い対角の class を併用。`flush: true` で枠の余白をなくし、上の T 行・左の I 列と gap 0 で接する | 以前は tokens 5行を gap 0 の stack で重ねていた。セル単体は辺の端点・attach にできないため、(3) は行列全体を端点にしている（中央セルの dog の真下なので位置は同じ） |
+| 省略セル | 対応済み（#280）。`ellipsisRows: [4]` / `ellipsisColumns: [4]` で … / ⋮ / ⋱ を自動配置（交点は ⋱）。省略のスロットはセルの大きさを保ち、記号だけを描く（枠・塗り・斜線なし。隣のセルは枠を保つ） | tokens の `component: label` の代用は不要になった |
 | ラベル列の括弧状の幹 | 既存機能で対応済み。各行に attach した hidden junction を縦につなぐ | 全ラベルの線が1本の幹に合流してプロンプトへ進む。専用括弧部品はこの再現には不要 |
 | トークン集合への接続 | 既存機能で対応済み。hidden junction の共有幹から全セルへ fan-out | 代表セルへの接続は廃止。tokens 自体に集合ポートがない点は今回の図の不足ではなく、YAML の記述量にだけ影響 |
 | 原図の線・配色・文字密度 | テーマのパレット、角丸、線幅、フォント、表の大きさが原図と異なる | 厳密なトレースではなく意味の一致を優先。案: `Add compact paper table styling presets` |
