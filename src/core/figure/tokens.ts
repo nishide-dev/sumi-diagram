@@ -17,9 +17,15 @@
  * address it as `<node>.<key>` (a cell reference; the earlier stages check
  * only its node). The expansion rewrites every cell reference to the cell's
  * ID. A cell reference whose node is not a tokens node, or whose cell is
- * unknown, is `ref/unknown-cell`; the ID of a tokens node itself names no
- * element, so using it as an endpoint, attach target or align item is
- * `ref/tokens-reference`.
+ * unknown, is `ref/unknown-cell`.
+ *
+ * The ID of a tokens node itself names the whole sequence (#281, design doc
+ * §6.78) when an edge endpoint, `attach.to` or align item uses it: the cells
+ * are then laid out inside a frame group with the tokens node's ID (a
+ * `sumi/container` in the `plain` variant without padding, like the frame of
+ * a matrix), so an edge or an attached bracket meets the sequence as a
+ * whole. Without such a reference there is no frame and the figure is
+ * exactly the one an author would write with one node per cell.
  *
  * Like a legend (#131), the expansion runs after the `component` stage (it
  * needs the validated props), resolves the cells through the same stage,
@@ -50,6 +56,7 @@ import {
   type ArrangeAlign,
   type ArrangeBox,
   type ArrangeItem,
+  type FigureGroup,
   type FigureNode,
   ID_PATTERN,
   refCell,
@@ -170,6 +177,7 @@ export function expandTokens(state: CheckState, registry: Registry, locate: Loca
   const structured = doc.figure?.layout.engine === "structured";
 
   const taken = takenIds(doc);
+  const wholeRefs = wholeReferences(doc);
   // A reserved ID held by an expanded element is reported where that element is written.
   const ownerPath = (path: DocPath): DocPath => {
     if (path[0] !== "nodes" || typeof path[1] !== "number") return path;
@@ -395,7 +403,9 @@ export function expandTokens(state: CheckState, registry: Registry, locate: Loca
           separator !== undefined ? "outlined" : (cell.variant ?? props.variant ?? "default"),
         ...(tone !== undefined && { tone }),
         props: cellProps,
-        ...(node.group !== undefined && { group: node.group }),
+        ...(wholeRefs.has(node.id)
+          ? { group: node.id }
+          : node.group !== undefined && { group: node.group }),
       };
       nodes.push(part);
       const partKey = nodeKey(id);
@@ -419,20 +429,64 @@ export function expandTokens(state: CheckState, registry: Registry, locate: Loca
       });
       lineItems[line]?.push(id);
     }
-    items.set(node.id, cellsItem(props, lineItems));
+    const cells = cellsItem(props, lineItems);
+    if (wholeRefs.has(node.id)) {
+      // The frame takes the tokens node's place: its ID, parent and position.
+      const frame: FigureGroup = {
+        id: node.id,
+        label: "",
+        component: "sumi/container",
+        variant: "plain",
+        ...(node.group !== undefined && { group: node.group }),
+        arrange:
+          typeof cells === "string" ? { row: { direction: "right", items: [cells] } } : cells,
+      };
+      groups.push(frame);
+      const frameKey = groupKey(node.id);
+      added.add(frameKey);
+      origins.push([
+        frameKey,
+        { from: "tokens", path: tokensPath, subject, name: `tokens "${node.id}"` },
+      ]);
+    } else {
+      items.set(node.id, cells);
+    }
     nodes[index] = undefined;
     components.delete(key);
     expansions.push(expansion);
   }
 
   if (expansions.length > 0) {
-    replaceArrangeItems(state, items);
+    if (items.size > 0) replaceArrangeItems(state, items);
     doc.tokens = expansions;
     recordExpanded(doc, origins);
   }
   resolveCellRefs(state, locate, expansions, tokensIds);
   invalidateDependents(state);
   if (added.size > 0) resolveComponents(state, registry, locate, { only: added });
+}
+
+/**
+ * The IDs named as a whole (without `.<cell>`) by an edge end, an attach
+ * target or an align item: the ones that can be tokens nodes (#281).
+ */
+function wholeReferences(doc: PartialFigure): Set<string> {
+  const refs = new Set<string>();
+  const add = (ref: string) => {
+    if (refCell(ref) === undefined) refs.add(ref);
+  };
+  for (const edge of doc.edges ?? []) {
+    if (edge === undefined) continue;
+    add(edge.from);
+    add(edge.to);
+  }
+  for (const node of doc.nodes ?? []) {
+    if (node?.attach !== undefined) add(node.attach.to);
+  }
+  for (const constraint of doc.figure?.layout.align ?? []) {
+    for (const ref of [...(constraint.x ?? []), ...(constraint.y ?? [])]) add(ref);
+  }
+  return refs;
 }
 
 /** `cells[2]` / `lines[0][1]` from a cell's path. */
@@ -524,8 +578,8 @@ function replaceArrangeItems(state: CheckState, items: ReadonlyMap<string, Arran
 /**
  * Rewrites every cell reference (`<node>.<cell>`) of an edge endpoint, an
  * attach target and an align item to the cell's ID, and reports references
- * that name no cell (`ref/unknown-cell`) or a tokens node itself
- * (`ref/tokens-reference`). A reference to tokens that were not expanded
+ * that name no cell (`ref/unknown-cell`); a tokens node's own ID names its
+ * frame group and stays as it is (#281). A reference to tokens that were not expanded
  * (they have an error of their own) is left to `invalidateDependents()`.
  */
 function resolveCellRefs(
@@ -549,27 +603,12 @@ function resolveCellRefs(
     ref: string,
     at: DocPath,
     subject: { kind: "edge" | "node" | "figure"; id: string },
-    what: string,
   ): string | undefined => {
     const owner = refOwner(ref);
     const cell = refCell(ref);
     const tokens = cells.get(owner);
-    if (cell === undefined) {
-      if (tokens === undefined) return ref;
-      state.diagnostics.push(
-        errorAt(
-          locate,
-          "ref/tokens-reference",
-          `"${owner}" is a tokens node, which is drawn as its cells, so it cannot be ${what}.`,
-          at,
-          {
-            subject,
-            hint: `Name one of its cells as <node>.<cell>, e.g. "${owner}.${tokens.keys().next().value ?? "1"}".`,
-          },
-        ),
-      );
-      return undefined;
-    }
+    // The tokens node itself is the frame group of its cells (#281).
+    if (cell === undefined) return ref;
     const id = tokens?.get(cell);
     if (id !== undefined) return id;
     // Tokens with an error of their own (not expanded): the reference just depends on them.
@@ -600,8 +639,8 @@ function resolveCellRefs(
     const key = edgeKey(edge.id, index);
     if (invalid.has(key)) continue;
     const subject = { kind: "edge", id: edge.id ?? `edges[${index}]` } as const;
-    const from = resolve(edge.from, ["edges", index, "from"], subject, "an edge's source");
-    const to = resolve(edge.to, ["edges", index, "to"], subject, "an edge's target");
+    const from = resolve(edge.from, ["edges", index, "from"], subject);
+    const to = resolve(edge.to, ["edges", index, "to"], subject);
     if (from === undefined || to === undefined) {
       invalid.add(key);
       continue;
@@ -616,7 +655,7 @@ function resolveCellRefs(
     const key = nodeKey(node.id);
     if (invalid.has(key)) continue;
     const subject = { kind: "node", id: node.id } as const;
-    const to = resolve(node.attach.to, ["nodes", index, "attach", "to"], subject, "attached to");
+    const to = resolve(node.attach.to, ["nodes", index, "attach", "to"], subject);
     if (to === undefined) {
       invalid.add(key);
       continue;
@@ -635,8 +674,7 @@ function resolveCellRefs(
     const axis = constraint.x !== undefined ? "x" : "y";
     const list = constraint[axis] ?? [];
     const resolved = list.map(
-      (ref, i) =>
-        resolve(ref, ["figure", "layout", "align", index, axis, i], subject, "aligned") ?? ref,
+      (ref, i) => resolve(ref, ["figure", "layout", "align", index, axis, i], subject) ?? ref,
     );
     if (resolved.every((id, i) => id === list[i])) return constraint;
     changed = true;

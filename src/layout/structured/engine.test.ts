@@ -425,6 +425,84 @@ describe("attach", () => {
   });
 });
 
+describe("brackets (#281)", () => {
+  const tokens = (id: string, extra: object = {}) => ({
+    id,
+    component: "tokens",
+    props: { direction: "down", gap: 0, width: "30pt", height: "16pt", cells: ["a", "b", "c"] },
+    ...extra,
+  });
+  const bracket = (id: string, attach: object, extra: object = {}) => ({
+    id,
+    component: "bracket",
+    attach,
+    ...extra,
+  });
+
+  test("a bracket attached east of a whole sequence is as long as it and as deep as its own size", () => {
+    const layout = layoutOf(
+      figure({ stack: { items: ["seq"] } }, [
+        tokens("seq"),
+        bracket("br", { to: "seq", side: "east", gap: "3pt" }),
+      ]),
+    );
+    const seq = rectOf(layout, "seq");
+    const br = rectOf(layout, "br");
+    expect(seq.height).toBe(96);
+    expect(br).toEqual({ x: seq.x + seq.width + 6, y: seq.y, width: 12, height: 96 });
+  });
+
+  test("north and south brackets span the width; an explicit length wins; corners do not span", () => {
+    const layout = layoutOf(
+      figure({ row: { items: ["seq"] } }, [
+        { ...tokens("seq"), props: { gap: 0, width: "30pt", height: "16pt", cells: ["a", "b"] } },
+        bracket("s", { to: "seq", side: "south" }, { props: { points: "south" } }),
+        bracket("n", { to: "seq", side: "north" }, { props: { points: "north", width: "20pt" } }),
+        bracket("c", { to: "seq", side: "north-east" }),
+      ]),
+    );
+    const seq = rectOf(layout, "seq");
+    expect(rectOf(layout, "s")).toMatchObject({ x: seq.x, width: 120, height: 12 });
+    const n = rectOf(layout, "n");
+    expect(n).toMatchObject({ width: 40, height: 12 });
+    expect(n.x).toBe(seq.x + (seq.width - 40) / 2);
+    expect(rectOf(layout, "c")).toMatchObject({ width: 12, height: 48 });
+  });
+
+  test("a bracket spans a group's side too, and the root grows to hold it", () => {
+    const layout = layoutOf(
+      figure(
+        { stack: { items: ["g"] } },
+        [box("a", "ABCD"), bracket("br", { to: "g", side: "west" }, { props: { points: "west" } })],
+        [{ id: "g", arrange: { stack: { items: ["a"] } } }],
+      ),
+    );
+    const g = rectOf(layout, "g");
+    const br = rectOf(layout, "br");
+    expect(br).toMatchObject({ y: g.y, height: g.height, width: 12 });
+    expect(br.x + br.width).toBe(g.x);
+    expect(br.x).toBeGreaterThanOrEqual(MARGIN);
+  });
+
+  test("the frame of a referenced tokens node has no padding of its own", () => {
+    const layout = layoutOf(
+      figure({ stack: { items: ["seq"] } }, [
+        tokens("seq"),
+        bracket("br", { to: "seq", side: "east" }),
+      ]),
+    );
+    const seq = rectOf(layout, "seq");
+    const cells = ["seq-1", "seq-2", "seq-3"].map((id) => rectOf(layout, id));
+    expect(seq).toEqual({
+      x: Math.min(...cells.map((c) => c.x)),
+      y: cells[0]?.y ?? 0,
+      width: 60,
+      height: 96,
+    });
+    expect(layout.groups.find((g) => g.key === "g:seq")?.content).toEqual(seq);
+  });
+});
+
 describe("sizes from props and outline components", () => {
   test.each([
     ["circle", { width: "20pt" }],

@@ -499,7 +499,7 @@ with the first column by `align`, one `y` constraint per heading. Put the
 root row at **`align: start`**: `align` only adds space, so the headings
 must start above their rows to be pushed down; centred, Sumi pushes the
 first column down instead and the table's rows no longer line up. A
-tokens node takes part through one of its cells (`k0.1`).
+tokens node takes part through one of its cells (`k0.1`) or as a whole (`k0`).
 
 ```yaml
 # expect-render: fits
@@ -854,7 +854,12 @@ expose it, and edge proximity rules do not measure distance to its stroke.
 PDF and both PPTX modes preserve the line.
 
 Edges, `attach.to` and `align` name a cell as **`<node>.<cell>`**: the
-cell's `id`, or its 1-based position when it has none (`keys.3`).
+cell's `id`, or its 1-based position when it has none (`keys.3`). Since
+0.10.0 the tokens node's own ID names the **whole sequence**: one edge
+meets the row or column as a unit (`{ from: encoder, to: seq }`), and an
+[attached bracket](#brackets) gathers it. Sumi lays the cells out in a
+frame group with that ID (no border, fill or padding, so the frame is
+exactly the cells); tokens that nothing names as a whole get no frame.
 
 ```yaml
 # expect-render: fits
@@ -891,10 +896,8 @@ edges:
 
 - Each cell is drawn as an ordinary node `<node>-<cell>` (`seq-a2`,
   `keys-2`): diagnostics name it so, and your own IDs must not use these
-  (`ref/reserved-id`). An unknown cell is `ref/unknown-cell`; the tokens
-  node's own ID as an endpoint, attach target or align item is
-  `ref/tokens-reference`. Place the tokens in an arrange tree, never with
-  `attach` (`layout/attached-tokens`).
+  (`ref/reserved-id`). An unknown cell is `ref/unknown-cell`. Place the
+  tokens in an arrange tree, never with `attach` (`layout/attached-tokens`).
 - Cells without a label are fine (no `lint/empty-label`). A cell cannot be
   an `operator`, `junction`, `image`, `legend` or `tokens`
   (`component/invalid-prop`). An older CLI reports `component/unknown`:

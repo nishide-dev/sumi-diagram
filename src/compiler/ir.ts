@@ -491,6 +491,12 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
                       labelOnLeft: true,
                     }),
                   }),
+                ...(component.manifest.render.renderer === "sumi/bracket" && {
+                  ...(typeof component.props.form === "string" && { form: component.props.form }),
+                  ...(typeof component.props.points === "string" && {
+                    points: component.props.points,
+                  }),
+                }),
                 ...(component.manifest.render.renderer === "sumi/trapezoid" &&
                   typeof component.props.narrow === "string" &&
                   component.props.narrow !== "south" && { narrow: component.props.narrow }),

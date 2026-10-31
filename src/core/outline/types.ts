@@ -31,6 +31,12 @@ export interface OutlineDrawing {
 export interface OutlineRenderer<P extends OutlineParams = OutlineParams> {
   readonly id: `${string}/${string}`;
   readonly version: 1;
+  /**
+   * Set when the drawing never holds a label (a bracket, #281): its footprint
+   * does not depend on the label box, so callers pass a 1 x 1 box. The drawing
+   * may then have no body at all, only `line` layers.
+   */
+  readonly labelless?: boolean;
   /** Strict object; parse fixed manifest params (including defaults) before calling. */
   readonly params: z.ZodType<P>;
   /** Positive finite label size -> size whose safeArea holds it; monotone in both axes. */

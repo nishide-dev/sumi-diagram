@@ -390,8 +390,13 @@ Always take these from `sumi catalog --json`. Each entry has `id`
 - `zoom` (edge, structured only, 0.6.0) joins an element to a view that
   shows it enlarged: see [structured](structured.md#zoom-callouts).
 - `tokens` (structured only) writes a row of cells (sequence tokens,
-  keys) as one node; edges name a cell as `<node>.<cell>`: see
+  keys) as one node; edges name a cell as `<node>.<cell>`, or the whole
+  sequence as `<node>` (0.10.0): see
   [structured](structured.md#token-sequences).
+- `bracket` (structured only, 0.10.0) is a square bracket or curly brace
+  that gathers the elements it is `attach`ed to (a whole `tokens` node, a
+  group, a matrix); edges leave from its spine: see
+  [structured](structured.md#brackets).
 - `matrix` (structured only) draws a grid of cells colored by class
   (tone, variant, `pattern: hatch`) with row and column headers, e.g. an
   attention mask; a legend entry `{ class: <matrix>.<class> }` explains a

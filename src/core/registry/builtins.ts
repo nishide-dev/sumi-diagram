@@ -143,6 +143,46 @@ function outline(name: "trapezoid" | "stack" | "bowtie", description: string): N
   };
 }
 
+export const BRACKET_ID = "sumi/bracket";
+
+/**
+ * A square bracket or curly brace (#281, design doc §6.78) that gathers the
+ * elements beside it. Drawn as one open line by the `sumi/bracket` outline
+ * renderer; takes no label. Attached to a group, matrix or tokens node it is
+ * as long as that side, and edges leave from its spine (the tip of a brace).
+ */
+const bracket: NodeManifest = {
+  ...base,
+  since: "0.10.0",
+  kind: "node",
+  name: "bracket",
+  description:
+    "A square bracket or curly brace that gathers a column or row of elements; takes no label. Attached to a group, matrix or tokens node it is as long as that side, and an edge leaves from the middle of its spine (the tip of a brace). Structured layout only. A tone colors it with variant outlined.",
+  variants: ["default", "emphasis", "muted", "outlined"],
+  props: z.strictObject({
+    form: z
+      .enum(["square", "curly"])
+      .optional()
+      .describe("square: a square bracket (the default). curly: a curly brace with a pointed tip."),
+    points: z
+      .enum(["east", "west", "north", "south"])
+      .optional()
+      .describe(
+        "The side the spine or tip is on, where edges leave: east gathers the elements to its west (the default), west those to its east, south those above it and north those below it.",
+      ),
+    width: SizeLength.optional().describe(
+      'Explicit width as a length such as "10pt" (a multiple of 0.5pt). Omitted means 6pt deep for east / west, or as long as the attach target\'s side (24pt without one) for north / south.',
+    ),
+    height: SizeLength.optional().describe(
+      'Explicit height as a length such as "40pt" (a multiple of 0.5pt). Omitted means as long as the attach target\'s side (24pt without one) for east / west, or 6pt deep for north / south.',
+    ),
+  }),
+  shape: "rectangle",
+  sizing: "auto",
+  render: { type: "outline", renderer: "sumi/bracket" },
+  engines: ["structured"],
+};
+
 /** Glyphs of `sumi/operator`, by `symbol` (all in the bundled font set). */
 export const OPERATOR_GLYPHS = {
   plus: "+",
@@ -420,7 +460,7 @@ const tokens: NodeManifest = {
   kind: "node",
   name: "tokens",
   description:
-    "A sequence of cells side by side, e.g. tokens or keys, each drawn as its own node that edges address as <node>.<cell> (structured layout only).",
+    "A sequence of cells side by side, e.g. tokens or keys, each drawn as its own node that edges address as <node>.<cell>, or as a whole as <node> (structured layout only).",
   variants: ["default"],
   props: z
     .strictObject({
@@ -719,6 +759,7 @@ export const BUILTIN_MANIFESTS: readonly ComponentManifest[] = [
   outline("trapezoid", "A trapezoid with a wider top and a narrower bottom."),
   outline("bowtie", "A bowtie silhouette with two opposing tapered halves and a central waist."),
   outline("stack", "Three overlapping rectangles, e.g. for a collection of documents or layers."),
+  bracket,
   node("label", "text", "Text without a border.", { variants: ["default", "muted"] }),
   operator,
   junction,
