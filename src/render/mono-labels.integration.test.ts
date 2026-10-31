@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { checkFigure } from "../core/check";
+import { BUILTIN_THEMES, getTheme } from "../core/theme/builtin";
 import { getFontSet } from "../core/theme/fonts";
+import type { Theme } from "../core/theme/schema";
 import { measureLabel } from "../lint/geometry/measure";
 import { svgToPdf } from "./pdf";
 import { inspectPdf } from "./pdf/testing";
@@ -27,6 +29,26 @@ const pair = (aFields: string, bFields = aFields, aLabel = "iiiiiiii", bLabel = 
     "a, b",
   );
 const withoutHash = (svg: string) => svg.replace(/input-sha256="[0-9a-f]+"/, "");
+
+/** Register a private in-memory theme without changing any built-in theme. */
+async function withTheme(overrides: Partial<Theme>, run: (id: string) => Promise<void>) {
+  const paper = getTheme("paper");
+  if (!paper) throw new Error("missing paper theme");
+  const id = "test-mono-labels";
+  const themes = BUILTIN_THEMES as Map<string, Theme>;
+  themes.set(id, { ...paper, ...overrides, id });
+  try {
+    await run(id);
+  } finally {
+    themes.delete(id);
+  }
+}
+
+const expanded = (component: "matrix" | "legend", mono = "") =>
+  source(`  - id: a
+    component: ${component}
+    label: iiiWWW${mono}
+    props: ${component === "matrix" ? "{ classes: { x: { label: Cell } }, cells: [x] }" : "{ entries: [{ node: { component: box }, label: Entry }] }"}`);
 
 async function render(yaml: string, theme?: string) {
   const result = await renderFigure(
@@ -61,6 +83,85 @@ describe("monospace node labels (#279)", () => {
     expect(plain.svg).not.toContain("text-mono");
     const off = await render(pair(", mono: false"));
     expect(withoutHash(off.svg)).toBe(withoutHash(plain.svg));
+    const paper = getTheme("paper");
+    if (!paper) throw new Error("missing paper theme");
+    await withTheme(
+      { base: { ...paper.base, node: { ...paper.base.node, mono: true } } },
+      async (id) => {
+        const inherited = await render(pair(""), id);
+        expect(inherited.inspection.elements.flatMap((e) => e.labels.map((l) => l.font))).toEqual([
+          "mono",
+          "mono",
+        ]);
+        const overridden = await render(pair(", mono: false"), id);
+        expect(overridden.inspection.elements.flatMap((e) => e.labels.map((l) => l.font))).toEqual(
+          plain.inspection.elements.flatMap((e) => e.labels.map((l) => l.font)),
+        );
+        expect(overridden.layout.nodes[0]?.rect.width).not.toBeCloseTo(
+          overridden.layout.nodes[1]?.rect.width ?? -1,
+          1,
+        );
+      },
+    );
+  });
+
+  for (const component of ["matrix", "legend"] as const) {
+    test(`${component} preserves mono on its title through expansion`, async () => {
+      const plain = await render(expanded(component));
+      const on = await render(expanded(component, "\n    mono: true"));
+      const title = (figure: RenderedStructuredFigure) =>
+        figure.inspection.elements.flatMap((e) => e.labels).find((l) => l.text === "iiiWWW");
+      expect(title(plain)?.font).toBe("latin-bold");
+      expect(title(on)?.font).toBe("mono-bold");
+      expect(
+        on.inspection.elements
+          .flatMap((e) => e.labels)
+          .filter((l) => l.text !== "iiiWWW")
+          .every((l) => l.font !== "mono"),
+      ).toBe(true);
+      const paper = getTheme("paper");
+      if (!paper) throw new Error("missing paper theme");
+      await withTheme(
+        { base: { ...paper.base, group: { ...paper.base.group, mono: true } } },
+        async (id) => {
+          expect(title(await render(expanded(component), id))?.font).toBe("mono-bold");
+          expect(title(await render(expanded(component, "\n    mono: false"), id))?.font).toBe(
+            "latin-bold",
+          );
+        },
+      );
+    });
+  }
+
+  test("missing mono fonts point to the written override, including inherited tokens", async () => {
+    const paper = getTheme("paper");
+    if (!paper) throw new Error("missing paper theme");
+    const { mono: _, ...fontSet } = paper.fontSet;
+    await withTheme({ fontSet }, async (id) => {
+      const yaml = source(
+        `  - id: a
+    component: tokens
+    mono: true
+    props: { cells: [inherited, { label: own, mono: true }, { label: off, mono: false }] }`,
+        id,
+      );
+      const diagnostics = checkFigure(yaml).state.diagnostics.filter(
+        (d) => d.code === "theme/missing-font",
+      );
+      expect(diagnostics.map((d) => d.path)).toEqual([
+        ["nodes", 0, "mono"],
+        ["nodes", 0, "props", "cells", 1, "mono"],
+      ]);
+      expect(diagnostics.map((d) => d.location?.line)).toEqual([11, 12]);
+      for (const component of ["matrix", "legend"] as const) {
+        const check = checkFigure(
+          expanded(component, "\n    mono: true").replace("theme: paper", `theme: ${id}`),
+        );
+        expect(
+          check.state.diagnostics.filter((d) => d.code === "theme/missing-font").map((d) => d.path),
+        ).toEqual([["nodes", 0, "mono"]]);
+      }
+    });
   });
 
   test("measurement matches the drawn text, with sublabels and colored math spans", async () => {

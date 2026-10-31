@@ -340,6 +340,7 @@ export function expandTokens(state: CheckState, registry: Registry, locate: Loca
       const fields: Record<string, DocPath> = {
         label: short ? path : [...path, "label"],
         tone: own("tone", [...tokensPath, "tone"]),
+        mono: own("mono", [...tokensPath, "mono"]),
         component: own("component", [...propsPath, "component"]),
         variant: own("variant", [...propsPath, "variant"]),
         "props.width": own("width", [...propsPath, "width"]),

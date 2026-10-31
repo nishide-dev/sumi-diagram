@@ -461,6 +461,7 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
     nodes[index] = undefined;
     components.delete(key);
     const frameKey = groupKey(node.id);
+    if (node.mono !== undefined) paints.set(frameKey, { mono: node.mono });
     added.add(frameKey);
     origins.push([
       frameKey,

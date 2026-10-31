@@ -146,7 +146,7 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
         ? hatched(theme, resolution.style, tone)
         : resolution.style;
     // A node's own `mono` (#279) overrides the theme's: true needs the font set's mono font.
-    const mono = entry.kind === "node" ? entry.element.mono : undefined;
+    const mono = entry.kind === "node" ? entry.element.mono : paint?.mono;
     if (mono === true && theme.fontSet.mono === undefined) {
       const at = [...path, "mono"];
       const location = locate(at);

@@ -78,8 +78,8 @@ export interface PartialFigure {
    * How the theme stage paints an expanded node beyond its component,
    * variant and tone (#180): a matrix cell or a legend's sample box of a
    * hatched class (`hatch`), a matrix header with a tone (`toneText`: the
-   * tone's line color for the text). Only set by expansions; no field of a
-   * written element maps here.
+   * tone's line color for the text), or a node's mono override preserved
+   * on its frame group (#279). Only set by expansions.
    */
   paints?: ReadonlyMap<ElementKey, ExpandedPaint>;
   /**
@@ -93,6 +93,8 @@ export interface PartialFigure {
 
 /** See {@link PartialFigure.paints}. */
 export interface ExpandedPaint {
+  /** The original node's label font override, preserved on an expanded frame (#279). */
+  readonly mono?: boolean;
   /** Diagonal lines over the fill, in the tone's line color (#180). */
   readonly hatch?: true;
   /** The text in the tone's line color (`toneLines`) instead of the fill (#180). */
