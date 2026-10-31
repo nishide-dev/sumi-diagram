@@ -172,7 +172,10 @@ export function primitivesFigure(theme: string): string {
             : mark.type === "glyph"
               ? `, props: { ${mark.prop}: ${Object.keys(mark.glyphs)[0]} }`
               : "";
-      lines.push(`  - { id: ${id}, component: ${m.name}${label}, variant: ${variant}${group} }`);
+      const waveformProps = m.name === "waveform" ? ", props: { samples: [0, -0.5, 1, 0] }" : "";
+      lines.push(
+        `  - { id: ${id}, component: ${m.name}${label}${waveformProps}, variant: ${variant}${group} }`,
+      );
       nodes.push(id);
     }
   }

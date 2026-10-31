@@ -482,6 +482,10 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
             ...(component.manifest.render.params !== undefined && {
               params: freeze({
                 ...component.manifest.render.params,
+                ...(component.manifest.render.renderer === "sumi/waveform" && {
+                  samples: (component.props.samples as number[]).join(","),
+                  mode: component.props.mode as string,
+                }),
                 ...(component.manifest.render.renderer === "sumi/bowtie" &&
                   typeof component.props.gap === "number" &&
                   component.props.gap > 0 && {

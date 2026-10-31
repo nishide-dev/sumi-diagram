@@ -189,9 +189,72 @@ const stack: OutlineRenderer<z.output<typeof stackParams>> = {
   },
 };
 
+/** Sample-driven signal and a separate caption corridor, in the node's frame. */
+const waveform: OutlineRenderer = {
+  id: "sumi/waveform",
+  version: 1,
+  params: z.strictObject({
+    samples: z
+      .string()
+      .default("0,0")
+      .refine((value) => {
+        const values = value.split(",");
+        return (
+          values.length >= 2 &&
+          values.length <= 2048 &&
+          values.every(
+            (v) => v.trim() !== "" && Number.isFinite(Number(v)) && Math.abs(Number(v)) <= 1,
+          )
+        );
+      }, "Expected 2–2048 comma-separated finite amplitudes in [-1, 1]"),
+    mode: z.enum(["bars", "line"]).default("bars"),
+  }),
+  footprint({ width, height }) {
+    return { width: Math.max(160, width / 0.8), height: Math.max(96, height / 0.2) };
+  },
+  draw(rect, params) {
+    const { x, y, width, height } = rect;
+    const samples = (params.samples as string).split(",").map(Number);
+    // Proportional insets keep every centerline inside even tiny explicit sizes.
+    const left = x + width / 10;
+    const span = width * 0.8;
+    const center = y + height * 0.35;
+    const amplitude = height * 0.25;
+    const points = samples.map((value, i) => ({
+      x: left + (span * i) / (samples.length - 1),
+      y: center - value * amplitude,
+    }));
+    const signal =
+      params.mode === "line"
+        ? [{ role: "line" as const, path: { points, closed: false } }]
+        : samples.map((value, i) => ({
+            role: "line" as const,
+            path: {
+              closed: false,
+              points: [
+                {
+                  x: left + (span * i) / (samples.length - 1),
+                  y: center - Math.abs(value) * amplitude,
+                },
+                {
+                  x: left + (span * i) / (samples.length - 1),
+                  y: center + Math.abs(value) * amplitude,
+                },
+              ],
+            },
+          }));
+    const outline = rectangle(rect);
+    return {
+      layers: [body(outline), ...signal],
+      outline,
+      safeArea: { x: left, y: y + height * 0.7, width: span, height: height * 0.2 },
+    };
+  },
+};
+
 /** Closed set of renderers bundled with Sumi; no external code loading. */
 export const BUILTIN_OUTLINE_RENDERERS: ReadonlyMap<string, OutlineRenderer> = new Map(
-  [trapezoid, stack, bowtie].map((renderer) => [renderer.id, Object.freeze(renderer)]),
+  [trapezoid, stack, bowtie, waveform].map((renderer) => [renderer.id, Object.freeze(renderer)]),
 );
 
 export function getOutlineRenderer(id: string): OutlineRenderer | undefined {

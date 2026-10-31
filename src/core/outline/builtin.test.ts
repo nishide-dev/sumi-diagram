@@ -12,6 +12,7 @@ const sizes = [
   { width: 160, height: 80 },
 ];
 const params: Record<string, OutlineParams[]> = {
+  "sumi/waveform": [{}, { samples: "-1,0,1" }, { samples: "-1,0,1", mode: "line" }],
   "sumi/trapezoid": [
     {},
     { slant: 0 },
@@ -39,6 +40,7 @@ test("renderer registry contains only the bundled geometry implementations", () 
     "sumi/trapezoid",
     "sumi/stack",
     "sumi/bowtie",
+    "sumi/waveform",
   ]);
   expect(getOutlineRenderer("trapezoid")).toBeUndefined();
   expect(getOutlineRenderer("other/stack")).toBeUndefined();

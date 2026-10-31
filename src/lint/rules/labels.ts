@@ -55,6 +55,8 @@ export const emptyLabel = defineRule({
         manifest.shape === "text" ||
         manifest.mark !== undefined ||
         manifest.embed !== undefined ||
+        // A waveform's samples carry its content; its caption is optional.
+        manifest.render?.renderer === "sumi/waveform" ||
         element.element.icon !== undefined ||
         // A legend's sample box (#131) shows only its fill and outline, a
         // cell of a tokens node (#181) may be a blank token, and a matrix's
