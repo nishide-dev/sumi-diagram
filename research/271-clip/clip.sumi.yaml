@@ -134,6 +134,7 @@ nodes:
         - [ { class: o, text: '$I_N\cdot T_1$' }, { class: o, text: '$I_N\cdot T_2$' }, { class: o, text: '$I_N\cdot T_3$' }, o, { class: d, text: '$I_N\cdot T_N$' } ]
   - id: labels
     component: tokens
+    mono: true
     props:
       direction: down
       gap: 0
@@ -144,6 +145,7 @@ nodes:
   - id: prompt
     component: box
     label: 'A photo of a $\textcolor{blue}{\text{\{object\}}}$.'
+    mono: true
   - id: class-text
     component: trapezoid
     label: "Text\nEncoder"
@@ -190,6 +192,7 @@ nodes:
   - id: answer
     component: label
     label: 'A photo of a $\textcolor{blue}{\text{dog}}$.'
+    mono: true
     attach: { to: scores, side: south, gap: 14pt }
 edges:
   - { from: captions, to: train-text }
