@@ -96,6 +96,23 @@ const model: GalleryModel = {
 };
 
 describe("Markdown escaping", () => {
+  test("the index preserves old component and topic heading anchors", () => {
+    const index = galleryMarkdownPages(model).get("docs/gallery/README.md");
+    for (const id of [
+      "sumibox",
+      "examples",
+      "themes-and-profiles",
+      "tones",
+      "solid-and-tinted-tones",
+      "outlined-tones-and-edge-tones",
+      "dimmed-groups",
+      "profiles",
+      "one-figure-every-theme--profile",
+    ]) {
+      expect(index).toContain(`<a id="${id}"></a>`);
+    }
+  });
+
   test("mdText escapes HTML, Markdown punctuation, pipes and newlines", () => {
     const text = mdText(NASTY);
     expect(text).not.toContain("<img");

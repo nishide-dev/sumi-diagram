@@ -1,15 +1,7 @@
-# A Latent Diffusion Transformer and two DiT block variants (Peebles & Xie
-# 2023, figure 3; only generic block names are used), drawn with the structured
-# layout: three panels of equal height in a row, with residual connections
-# through operators and hidden junctions.
-#
-# Theme `paper` on `paper-double` with `density: compact`.
-# Left panel: a `variant: plain` group, so only its caption remains. A
-# `zoom` edge draws the callout from the DiT block to the adaLN-Zero panel.
-# The compared variant on the right is a `dim: true` group (pale, with
-# everything inside). `sublabel` adds the tensor shapes, `variant: filled`
-# fills the boxes with their tone, and `$...$` labels are math. `straight` anchors keep the
-# lines into and out of the blocks in line with their neighbours.
+# Four-panel DiT figure (Peebles & Xie 2023, Fig. 3), following
+# research/185-acceptance/figures/b-dit.sumi.yaml with generic components.
+# `fit: scale` preserves all four panels at 180mm; small-script infos remain.
+# The plain left panel zooms into adaLN-Zero; the two alternatives are dimmed.
 version: 1
 requires: ">=0.6.0"
 figure:
@@ -17,6 +9,7 @@ figure:
   title: DiT block variants (structured layout, paper theme)
   theme: paper
   profile: paper-double
+  fit: scale
   layout:
     density: compact
     arrange:
@@ -26,9 +19,10 @@ figure:
           - ldt
           - adaln
           - cross
+          - incontext
 
 groups:
-  - id: ldt # no frame, but a group: its caption lines up with the other two
+  - id: ldt # frameless; its caption aligns with the other three
     caption: Latent Diffusion Transformer
     variant: plain
     arrange:
@@ -37,7 +31,7 @@ groups:
         align: stretch
         items:
           - row:
-              align: end
+              align: start
               items:
                 - stack: { items: [ patchify, noised ] }
                 - stack: { items: [ embed, { stack: { gap: 1mm, items: [ timestep, class-label ] } } ] }
@@ -61,7 +55,6 @@ groups:
     dim: true # pale with everything inside: text, lines, frame, fills, caption
     arrange:
       row:
-        gap: 1mm
         align: end
         items:
           - stack:
@@ -69,6 +62,18 @@ groups:
               align: stretch
               items: [ c-tokens, c-split0, c-ln1, c-attn, c-add1, c-split1, c-ln2, c-xattn, c-add2, c-split2, c-ln3, c-ff, c-add3, c-out ]
           - c-cond
+  - id: incontext
+    caption: DiT Block with In-Context Conditioning
+    dim: true
+    arrange:
+      row:
+        align: end
+        items:
+          - stack:
+              direction: up
+              align: stretch
+              items: [ i-tokens, i-concat, i-split0, i-ln1, i-attn, i-add1, i-split1, i-ln2, i-ff, i-add2, i-out ]
+          - i-cond
 
 nodes:
   # panel 1: latent diffusion transformer (lines without arrowheads, as in the original)
@@ -116,6 +121,19 @@ nodes:
   - { id: c-add3, component: operator, props: { symbol: plus } }
   - { id: c-out, component: junction, variant: hidden }
   - { id: c-cond, component: box, label: Conditioning, tone: blue, variant: filled }
+  # panel 4: in-context conditioning (dimmed)
+  - { id: i-tokens, component: box, label: Input Tokens, tone: gray, variant: filled }
+  - { id: i-cond, component: box, label: Conditioning, tone: blue, variant: filled }
+  - { id: i-concat, component: box, label: "Concatenate\non Sequence\nDimension", tone: blue, variant: filled }
+  - { id: i-split0, component: junction, variant: hidden }
+  - { id: i-ln1, component: box, label: Layer Norm, tone: blue, variant: filled }
+  - { id: i-attn, component: box, label: "Multi-Head\nSelf-Attention", tone: orange, variant: filled }
+  - { id: i-add1, component: operator, props: { symbol: plus } }
+  - { id: i-split1, component: junction, variant: hidden }
+  - { id: i-ln2, component: box, label: Layer Norm, tone: blue, variant: filled }
+  - { id: i-ff, component: box, label: "Pointwise\nFeedforward", tone: green, variant: filled }
+  - { id: i-add2, component: operator, props: { symbol: plus } }
+  - { id: i-out, component: junction, variant: hidden }
 
 edges:
   # panel 1
@@ -168,3 +186,17 @@ edges:
   - { from: c-ln3, to: c-ff, component: line }
   - { from: c-ff, to: c-add3, component: line }
   - { from: c-add3, to: c-out }
+  # panel 4: conditioning enters the concatenation from the side
+  - { from: i-tokens, to: i-concat, component: line }
+  - { from: i-cond, fromAnchor: north, to: i-concat, toAnchor: east }
+  - { from: i-concat, to: i-split0, component: line }
+  - { from: i-split0, to: i-ln1, component: line }
+  - { from: i-split0, to: i-add1, toAnchor: west }
+  - { from: i-ln1, to: i-attn, component: line }
+  - { from: i-attn, to: i-add1, component: line }
+  - { from: i-add1, to: i-split1, component: line }
+  - { from: i-split1, to: i-ln2, component: line }
+  - { from: i-split1, to: i-add2, toAnchor: west }
+  - { from: i-ln2, to: i-ff, component: line }
+  - { from: i-ff, to: i-add2, component: line }
+  - { from: i-add2, to: i-out }

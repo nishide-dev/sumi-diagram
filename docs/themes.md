@@ -19,7 +19,7 @@ Sumi has five built-in themes:
 | Purpose | general, neutral default | journal figures, grayscale print | projection | general, with color | color ML-paper figures |
 | Color | monochrome; tones are 3 gray steps | grayscale only; tones are 3 gray steps | monochrome, darker grays; tones are 3 gray steps | pastel tone fills, blue emphasis | pastel tone fills and colored tone lines; blue is one of the tones |
 | Corners | square | square | square | square | rounded (boxes 2pt, groups 6pt) |
-| Lines | 1pt, emphasis 2pt | 0.5pt, emphasis 1pt | 2pt, emphasis 4pt | 1pt, emphasis 2pt | frames 1pt, edges 0.5pt (small arrowheads), emphasis 1.5pt |
+| Lines | 1pt, emphasis 2pt | 0.5pt, emphasis 1pt | 2pt, emphasis 4pt | 1pt, emphasis 2pt | frames 1pt, edges 0.5pt (small arrowheads); emphasis: shapes 1.5pt, edges 1pt |
 | Groups | light gray fill, gray frame | no fill, gray frame | light gray fill, gray frame | light gray fill, gray frame | light gray panel, black 1pt frame, rounded |
 | Font | BIZ UDPGothic; 8pt, edges 7pt | BIZ UDPGothic; 8pt, edges 7pt | BIZ UDPGothic; 16pt, edges 14pt | BIZ UDPGothic; 8pt, edges 7pt | Inter for Latin text in structured figures, BIZ UDPGothic for Japanese; 8pt, edges 7pt |
 | Typical profile | `paper-single`, `paper-double` | `paper-single`, `paper-double` | `presentation-16x9` | `paper-single`, `paper-double` | `paper-single`, `paper-double` |
@@ -40,7 +40,7 @@ The pipeline ([`examples/pipeline`](../examples/pipeline/pipeline.sumi.yaml), au
 | --- | --- | --- | --- | --- |
 | <img src="gallery/compare/pipeline.minimal.paper-single.svg" alt="Pipeline, theme minimal"> | <img src="gallery/compare/pipeline.academic.paper-single.svg" alt="Pipeline, theme academic"> | <img src="gallery/compare/pipeline.slides.paper-single.svg" alt="Pipeline, theme slides"> | <img src="gallery/compare/pipeline.color.paper-single.svg" alt="Pipeline, theme color"> | <img src="gallery/compare/pipeline.paper.paper-single.svg" alt="Pipeline, theme paper"> |
 
-`slides` text is too large for `paper-single` (the figure is drawn with the geometry errors shown in the [profile comparison](gallery/compare.md)); use it with `presentation-16x9`.
+`paper-single` imposes a minimum font size (7pt), not a maximum: `slides` text meets it. This pipeline renders within the page limits, with two collision warnings (`geometry/label-collision` and `geometry/edge-crosses-label`). These are distinct from the `geometry/exceeds-page-height` error under `presentation-16x9`, where the larger spacing makes this tall pipeline exceed the slide height; see the [profile comparison](gallery/compare.md). For projection, use `slides` with `presentation-16x9` and a shallower layout.
 
 ## More
 

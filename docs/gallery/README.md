@@ -4,11 +4,19 @@
 
 ## Topics
 
-- [Examples](examples.md): The committed examples of <code>examples/</code>, rendered from their sources\.
-- [Themes](themes.md): The built\-in themes side by side: a structured Transformer and an auto\-layout pipeline under every theme\.
-- [Tones](tones.md): Every tone under every theme: fills, solid and tinted tokens, outlines and edge tones\.
-- [Dimmed groups](dim.md): A group drawn pale with everything inside it, under every theme\.
-- [Profiles and comparison](compare.md): The built\-in profiles, and one figure under every theme and profile\.
+- <a id="examples"></a>[Examples](examples.md): The committed examples of <code>examples/</code>, rendered from their sources\.
+  - <a id="generic-decision-flow"></a>[Generic decision flow](examples.md#generic-decision-flow)
+  - <a id="dit-block-variants-structured-layout-paper-theme"></a>[DiT block variants \(structured layout, paper theme\)](examples.md#dit-block-variants-structured-layout-paper-theme)
+  - <a id="nested-groups"></a>[Nested groups](examples.md#nested-groups)
+  - <a id="generic-processing-pipeline"></a>[Generic processing pipeline](examples.md#generic-processing-pipeline)
+  - <a id="generic-three-tier-system"></a>[Generic three\-tier system](examples.md#generic-three-tier-system)
+  - <a id="transformer-structured-layout-paper-theme"></a>[Transformer \(structured layout, paper theme\)](examples.md#transformer-structured-layout-paper-theme)
+- <a id="themes-and-profiles"></a>[Themes](themes.md): The built\-in themes side by side: a structured Transformer and an auto\-layout pipeline under every theme\.
+- <a id="tones"></a>[Tones](tones.md): Every tone under every theme: fills, solid and tinted tokens, outlines and edge tones\.
+  - <a id="solid-and-tinted-tones"></a>[Solid and tinted tones](tones.md#solid-and-tinted-tones)
+  - <a id="outlined-tones-and-edge-tones"></a>[Outlined tones and edge tones](tones.md#outlined-tones-and-edge-tones)
+- <a id="dimmed-groups"></a>[Dimmed groups](dim.md): A group drawn pale with everything inside it, under every theme\.
+- <a id="profiles"></a><a id="one-figure-every-theme--profile"></a>[Profiles and comparison](compare.md): The built\-in profiles, and one figure under every theme and profile\.
 
 ## Components
 
@@ -16,27 +24,27 @@ Every built\-in component with every variant, under every built\-in theme\. Each
 
 | component | kind | description |
 | --- | --- | --- |
-| [sumi/box](components/sumi-box.md) | node | A rectangle; the general\-purpose node\. |
-| [sumi/square](components/sumi-square.md) | node | A square\. |
-| [sumi/circle](components/sumi-circle.md) | node | A circle\. |
-| [sumi/ellipse](components/sumi-ellipse.md) | node | An ellipse\. |
-| [sumi/diamond](components/sumi-diamond.md) | node | A diamond, e\.g\. for decisions\. |
-| [sumi/hexagon](components/sumi-hexagon.md) | node | A hexagon\. |
-| [sumi/parallelogram](components/sumi-parallelogram.md) | node | A parallelogram, e\.g\. for input or output\. |
-| [sumi/cylinder](components/sumi-cylinder.md) | node | A cylinder, e\.g\. for storage\. |
-| [sumi/document](components/sumi-document.md) | node | A page with a wavy bottom edge, e\.g\. for documents\. |
-| [sumi/trapezoid](components/sumi-trapezoid.md) | node | A trapezoid with a wider top and a narrower bottom\. |
-| [sumi/bowtie](components/sumi-bowtie.md) | node | A bowtie silhouette with two opposing tapered halves and a central waist\. |
-| [sumi/stack](components/sumi-stack.md) | node | Three overlapping rectangles, e\.g\. for a collection of documents or layers\. |
-| [sumi/label](components/sumi-label.md) | node | Text without a border\. |
-| [sumi/operator](components/sumi-operator.md) | node | A small circle with an operator symbol, e\.g\. where inputs are added or combined; takes no label\. |
-| [sumi/junction](components/sumi-junction.md) | node | A point where lines branch or merge, drawn as a small dot \(variant hidden: no dot, for a smooth split or a line that ends in open space\); takes no label and no tone\. |
-| [sumi/image](components/sumi-image.md) | node | A PNG, JPEG or SVG file embedded as it is, optionally stacked with up\-right copies; takes no label\. |
-| [sumi/legend](components/sumi-legend.md) | node | A key that explains line and fill styles: one sample line or box per entry, drawn with the same fields as the edges or nodes it explains, followed by its text \(structured layout only\)\. |
-| [sumi/tokens](components/sumi-tokens.md) | node | A sequence of cells side by side, e\.g\. tokens or keys, each drawn as its own node that edges address as &lt;node&gt;\.&lt;cell&gt; \(structured layout only\)\. |
-| [sumi/matrix](components/sumi-matrix.md) | node | A grid of cells colored by class, e\.g\. an attention mask, with optional row and column headers; each class is a tone, a variant and a hatch pattern, and a legend explains it as \{ class: &lt;matrix&gt;\.&lt;class&gt; \} \(structured layout only\)\. |
-| [sumi/container](components/sumi-container.md) | group | A rectangular container that groups nodes and other groups\. Variant muted: a dashed border in academic \(easy to confuse with dashed edges\), a white background instead of the shaded fill \(without a tone\) and a gray title in the other themes\. Variant plain: no border and no fill, only the title or caption; filled: a shaded fill without a border; dashed: a dashed border without a fill\. A tone sets the fill of any variant\. |
-| [sumi/arrow](components/sumi-arrow.md) | edge | A line with an arrowhead at the target\. |
-| [sumi/line](components/sumi-line.md) | edge | A line without arrowheads\. |
-| [sumi/double\-arrow](components/sumi-double-arrow.md) | edge | A line with arrowheads at both ends\. |
-| [sumi/zoom](components/sumi-zoom.md) | edge | Two straight lines joining the corners of the source to the matching corners of the target, which shows the source zoomed in \(structured layout only; no label, no arrowheads\)\. |
+| <a id="sumibox"></a>[sumi/box](components/sumi-box.md) | node | A rectangle; the general\-purpose node\. |
+| <a id="sumisquare"></a>[sumi/square](components/sumi-square.md) | node | A square\. |
+| <a id="sumicircle"></a>[sumi/circle](components/sumi-circle.md) | node | A circle\. |
+| <a id="sumiellipse"></a>[sumi/ellipse](components/sumi-ellipse.md) | node | An ellipse\. |
+| <a id="sumidiamond"></a>[sumi/diamond](components/sumi-diamond.md) | node | A diamond, e\.g\. for decisions\. |
+| <a id="sumihexagon"></a>[sumi/hexagon](components/sumi-hexagon.md) | node | A hexagon\. |
+| <a id="sumiparallelogram"></a>[sumi/parallelogram](components/sumi-parallelogram.md) | node | A parallelogram, e\.g\. for input or output\. |
+| <a id="sumicylinder"></a>[sumi/cylinder](components/sumi-cylinder.md) | node | A cylinder, e\.g\. for storage\. |
+| <a id="sumidocument"></a>[sumi/document](components/sumi-document.md) | node | A page with a wavy bottom edge, e\.g\. for documents\. |
+| <a id="sumitrapezoid"></a>[sumi/trapezoid](components/sumi-trapezoid.md) | node | A trapezoid with a wider top and a narrower bottom\. |
+| <a id="sumibowtie"></a>[sumi/bowtie](components/sumi-bowtie.md) | node | A bowtie silhouette with two opposing tapered halves and a central waist\. |
+| <a id="sumistack"></a>[sumi/stack](components/sumi-stack.md) | node | Three overlapping rectangles, e\.g\. for a collection of documents or layers\. |
+| <a id="sumilabel"></a>[sumi/label](components/sumi-label.md) | node | Text without a border\. |
+| <a id="sumioperator"></a>[sumi/operator](components/sumi-operator.md) | node | A small circle with an operator symbol, e\.g\. where inputs are added or combined; takes no label\. |
+| <a id="sumijunction"></a>[sumi/junction](components/sumi-junction.md) | node | A point where lines branch or merge, drawn as a small dot \(variant hidden: no dot, for a smooth split or a line that ends in open space\); takes no label and no tone\. |
+| <a id="sumiimage"></a>[sumi/image](components/sumi-image.md) | node | A PNG, JPEG or SVG file embedded as it is, optionally stacked with up\-right copies; takes no label\. |
+| <a id="sumilegend"></a>[sumi/legend](components/sumi-legend.md) | node | A key that explains line and fill styles: one sample line or box per entry, drawn with the same fields as the edges or nodes it explains, followed by its text \(structured layout only\)\. |
+| <a id="sumitokens"></a>[sumi/tokens](components/sumi-tokens.md) | node | A sequence of cells side by side, e\.g\. tokens or keys, each drawn as its own node that edges address as &lt;node&gt;\.&lt;cell&gt; \(structured layout only\)\. |
+| <a id="sumimatrix"></a>[sumi/matrix](components/sumi-matrix.md) | node | A grid of cells colored by class, e\.g\. an attention mask, with optional row and column headers; each class is a tone, a variant and a hatch pattern, and a legend explains it as \{ class: &lt;matrix&gt;\.&lt;class&gt; \} \(structured layout only\)\. |
+| <a id="sumicontainer"></a>[sumi/container](components/sumi-container.md) | group | A rectangular container that groups nodes and other groups\. Variant muted: a dashed border in academic \(easy to confuse with dashed edges\), a white background instead of the shaded fill \(without a tone\) and a gray title in the other themes\. Variant plain: no border and no fill, only the title or caption; filled: a shaded fill without a border; dashed: a dashed border without a fill\. A tone sets the fill of any variant\. |
+| <a id="sumiarrow"></a>[sumi/arrow](components/sumi-arrow.md) | edge | A line with an arrowhead at the target\. |
+| <a id="sumiline"></a>[sumi/line](components/sumi-line.md) | edge | A line without arrowheads\. |
+| <a id="sumidouble-arrow"></a>[sumi/double\-arrow](components/sumi-double-arrow.md) | edge | A line with arrowheads at both ends\. |
+| <a id="sumizoom"></a>[sumi/zoom](components/sumi-zoom.md) | edge | Two straight lines joining the corners of the source to the matching corners of the target, which shows the source zoomed in \(structured layout only; no label, no arrowheads\)\. |

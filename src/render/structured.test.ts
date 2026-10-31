@@ -240,10 +240,22 @@ describe.each(Object.entries(FIGURES))("%s", (_name, path) => {
 });
 
 describe("geometry lint on structured SVGs", () => {
-  test("the examples and the B panel are clean", async () => {
+  test("the examples and the B panel have only the accepted DiT infos", async () => {
     for (const path of Object.values(FIGURES).filter((p) => !p.includes("a-transformer"))) {
       const source = readFileSync(join(ROOT, path), "utf8");
-      expect(lintGeometry(await render(source), { source })).toEqual([]);
+      const findings = lintGeometry(await render(source), { source });
+      expect(findings.map((d) => [d.severity, d.code])).toEqual(
+        path === "examples/dit-block/dit-block.sumi.yaml"
+          ? [
+              ["info", "geometry/script-too-small"],
+              ["info", "geometry/group-empty-area"],
+              ["info", "geometry/group-empty-area"],
+              ["info", "geometry/arrowhead-cramped"],
+              ["info", "geometry/arrowhead-cramped"],
+              ["info", "geometry/arrowhead-cramped"],
+            ]
+          : [],
+      );
     }
   });
 

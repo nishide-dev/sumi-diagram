@@ -12,7 +12,7 @@ The committed SVGs of <code>examples/</code>, rendered from their sources as wri
 
 ## DiT block variants \(structured layout, paper theme\)
 
-[<code>examples/dit\-block/dit\-block\.sumi\.yaml</code>](../../examples/dit-block/dit-block.sumi.yaml) · [PDF](../../examples/dit-block/dit-block.pdf) · theme <code>paper</code> · profile <code>paper\-double</code> · 164\.92mm × 104\.07mm \(max width 180mm, max height 220mm\)
+[<code>examples/dit\-block/dit\-block\.sumi\.yaml</code>](../../examples/dit-block/dit-block.sumi.yaml) · [PDF](../../examples/dit-block/dit-block.pdf) · theme <code>paper</code> · profile <code>paper\-double</code> · 221\.19mm × 104\.07mm \(max width 180mm, max height 220mm\)<br>info geometry/script\-too\-small: Subscripts or superscripts of label math print at down to 3\.99pt \(4\.9pt shrunk to 81\.4% by figure\.fit: scale\), below the 5pt minimum font size of profile &quot;paper\-double&quot; for a scaled figure: in edge edges\[25\], edge edges\[26\], edge edges\[27\] and 1 more label\.<br>info geometry/group\-empty\-area \(×2\): Group &quot;cross&quot; has 75\.3% empty bounding\-box area \(threshold 75%; edges excluded\)\.<br>info geometry/arrowhead\-cramped \(×3\): The target arrowhead of edge edges\[26\] has only 1\.63pt of visible straight stem before a bend \(less than 2pt\)\.
 
 <img src="../../examples/dit-block/dit-block.svg" alt="DiT block variants (structured layout, paper theme)">
 

@@ -19,7 +19,7 @@
 | 用途 | 汎用・中立の既定 | ジャーナルの図、白黒印刷 | 投影 | 色を使う汎用 | カラーの ML 論文の図 |
 | 色 | 白黒。tone は 3 段階の灰色 | 灰色のみ。tone は 3 段階の灰色 | 白黒（濃いめの灰色）。tone は 3 段階の灰色 | パステルの tone、強調は青 | パステルの tone と tone ごとの線色。青は tone の 1 つ |
 | 角 | 四角 | 四角 | 四角 | 四角 | 角丸（箱 2pt、グループ 6pt） |
-| 線 | 1pt、強調 2pt | 0.5pt、強調 1pt | 2pt、強調 4pt | 1pt、強調 2pt | 枠 1pt、エッジ 0.5pt（矢じりは小さい）、強調 1.5pt |
+| 線 | 1pt、強調 2pt | 0.5pt、強調 1pt | 2pt、強調 4pt | 1pt、強調 2pt | 枠 1pt、エッジ 0.5pt（矢じりは小さい）。強調は図形 1.5pt、エッジ 1pt |
 | グループ | 薄い灰色の塗り、灰色の枠 | 塗りなし、灰色の枠 | 薄い灰色の塗り、灰色の枠 | 薄い灰色の塗り、灰色の枠 | 薄い灰色のパネル、黒 1pt の枠、角丸 |
 | フォント | BIZ UDPGothic。8pt、エッジ 7pt | BIZ UDPGothic。8pt、エッジ 7pt | BIZ UDPGothic。16pt、エッジ 14pt | BIZ UDPGothic。8pt、エッジ 7pt | structured の図の欧文は Inter、日本語は BIZ UDPGothic。8pt、エッジ 7pt |
 | 典型的なプロファイル | `paper-single`、`paper-double` | `paper-single`、`paper-double` | `presentation-16x9` | `paper-single`、`paper-double` | `paper-single`、`paper-double` |
@@ -40,7 +40,7 @@ pipeline（[`examples/pipeline`](../examples/pipeline/pipeline.sumi.yaml)、自�
 | --- | --- | --- | --- | --- |
 | <img src="gallery/compare/pipeline.minimal.paper-single.svg" alt="テーマ minimal の pipeline"> | <img src="gallery/compare/pipeline.academic.paper-single.svg" alt="テーマ academic の pipeline"> | <img src="gallery/compare/pipeline.slides.paper-single.svg" alt="テーマ slides の pipeline"> | <img src="gallery/compare/pipeline.color.paper-single.svg" alt="テーマ color の pipeline"> | <img src="gallery/compare/pipeline.paper.paper-single.svg" alt="テーマ paper の pipeline"> |
 
-`slides` の文字は `paper-single` には大きすぎます（図は描かれますが、[プロファイルの比較](gallery/compare.md)にあるとおり geometry の error が出ます）。`presentation-16x9` と組み合わせてください。
+`paper-single` が定めるのはフォントサイズの下限（7pt）であり、上限ではありません。`slides` の文字はこの下限を満たし、この pipeline はページ内に収まりますが、衝突の warning が 2 件（`geometry/label-collision`・`geometry/edge-crosses-label`）出ます。これは、間隔が広がって縦長の pipeline がスライドの高さを超える `presentation-16x9` の error（`geometry/exceeds-page-height`）とは別です（[プロファイルの比較](gallery/compare.md)）。投影には `slides` と `presentation-16x9` を使い、段数を減らしたレイアウトにしてください。
 
 ## 関連
 

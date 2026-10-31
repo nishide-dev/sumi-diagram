@@ -269,7 +269,7 @@ function profilesTable(): string {
 
 const COMPARISON_NOTE =
   "The same source rendered with `--theme` and `--profile` overrides: nothing is duplicated. " +
-  "Profiles never scale a figure. The paper profiles share their spacing and differ only in the " +
+  "Profiles do not scale a figure unless its source opts into `fit: scale`. The paper profiles share their spacing and differ only in the " +
   "width limit that the geometry lint checks, so their drawings match. A profile whose minimum " +
   "font size is larger than a theme's font sizes rejects the figure before rendering " +
   "(`profile/font-too-small`): `presentation-16x9` requires 14pt text, so it accepts only the " +
@@ -277,7 +277,9 @@ const COMPARISON_NOTE =
   "independent; for slides use `theme: slides` with `profile: presentation-16x9`. A figure that " +
   "exceeds a page limit is still drawn, with the geometry error below it: `slides` doubles the " +
   "text and the presentation profile doubles the spacing, so this tall top-to-bottom figure is " +
-  "taller than a slide. A slide needs a shallow figure: fewer layers, or several figures.";
+  "taller than a slide. On `paper-single`, the pipeline with `slides` fits the page but reports two " +
+  "collision warnings (`geometry/label-collision` and `geometry/edge-crosses-label`), distinct from " +
+  "the presentation profile's height error. A slide needs a shallow figure: fewer layers, or several figures.";
 
 const TONES_NOTE =
   "A node or group picks a color category with `tone` (gray, red, orange, yellow, green, blue, " +
@@ -654,7 +656,7 @@ function mdThemes(model: GalleryModel): string {
     "## The auto-layout pipeline under every theme",
     "",
     mdInline(
-      `The same auto-layout figure (D2 with ELK, \`${comparison.source}\`) with \`--theme\` overrides on profile \`paper-single\`. A theme whose text is larger than the profile allows draws with the geometry error shown below it.`,
+      `The same auto-layout figure (D2 with ELK, \`${comparison.source}\`) with \`--theme\` overrides on profile \`paper-single\`. This profile imposes a minimum font size (7pt), not a maximum; \`slides\` meets it and the pipeline fits the page. Its two collision warnings (\`geometry/label-collision\` and \`geometry/edge-crosses-label\`) are distinct from the \`geometry/exceeds-page-height\` error under \`presentation-16x9\`, whose larger spacing makes the pipeline taller than a slide.`,
     ),
     "",
     ...rows(pipeline, comparison.source, "the pipeline"),
@@ -728,6 +730,20 @@ function mdCompare(model: GalleryModel): string {
 }
 
 function mdIndex(model: GalleryModel): string {
+  // GitHub's old heading slugs must survive the move to individual pages.
+  const headingSlug = (title: string) =>
+    title
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}_\- ]/gu, "")
+      .replaceAll(" ", "-");
+  const legacyAnchor = (title: string) => `<a id="${escapeHtml(headingSlug(title))}"></a>`;
+  const topicAnchors: Record<string, string[]> = {
+    "examples.md": ["Examples"],
+    "themes.md": ["Themes and profiles"],
+    "tones.md": ["Tones"],
+    "dim.md": ["Dimmed groups"],
+    "compare.md": ["Profiles", "One figure, every theme × profile"],
+  };
   return [
     "# Sumi gallery",
     "",
@@ -735,7 +751,20 @@ function mdIndex(model: GalleryModel): string {
     "",
     "## Topics",
     "",
-    ...TOPICS.map(([file, title, line]) => `- [${mdText(title)}](${file}): ${mdInline(line)}`),
+    ...TOPICS.flatMap(([file, title, line]) => [
+      `- ${(topicAnchors[file] ?? []).map(legacyAnchor).join("")}[${mdText(title)}](${file}): ${mdInline(line)}`,
+      ...(file === "examples.md"
+        ? model.examples.map(
+            ({ title }) =>
+              `  - ${legacyAnchor(title)}[${mdText(title)}](examples.md#${headingSlug(title)})`,
+          )
+        : []),
+      ...(file === "tones.md"
+        ? ["Solid and tinted tones", "Outlined tones and edge tones"].map(
+            (title) => `  - ${legacyAnchor(title)}[${title}](tones.md#${headingSlug(title)})`,
+          )
+        : []),
+    ]),
     "",
     "## Components",
     "",
@@ -747,7 +776,7 @@ function mdIndex(model: GalleryModel): string {
     "| --- | --- | --- |",
     ...model.components.map(
       ({ sample }) =>
-        `| [${mdText(sample.entry.id)}](${componentPage(sample.entry)}) | ${mdText(sample.entry.kind)} | ${mdInline(sample.entry.description)} |`,
+        `| ${legacyAnchor(sample.entry.id)}[${mdText(sample.entry.id)}](${componentPage(sample.entry)}) | ${mdText(sample.entry.kind)} | ${mdInline(sample.entry.description)} |`,
     ),
     "",
   ].join("\n");

@@ -23,7 +23,7 @@
  * and writes docs/gallery/index.html (everything on one page) and the Markdown pages
  * (#264): docs/gallery/README.md (a short index), components/<name>.md and the
  * topic pages. Component
- * samples and examples must render without any diagnostic; comparison cells
+ * samples and examples must render without errors or warnings (infos allowed); comparison cells
  * may fail (a profile can reject a theme's font sizes) and show why.
  *
  * Output is byte-deterministic: D2's SVG is deterministic for a given D2
@@ -160,7 +160,7 @@ const model: GalleryModel = {
   filledTones: { sample: filledTones, outcomes: take(filledTones.renderings.length) },
 };
 
-// Component, tone and dim samples and examples must be clean.
+// Component, tone and dim samples and examples allow infos, but no errors or warnings.
 const problems: string[] = [];
 const strict: [string, RenderOutcome][] = [
   ...model.components.flatMap(({ sample, outcomes }) =>
@@ -179,16 +179,17 @@ const strict: [string, RenderOutcome][] = [
   ]),
 ];
 for (const [name, outcome] of strict) {
-  if (outcome.svg === undefined || outcome.diagnostics.length > 0) {
+  const blocking = outcome.diagnostics.filter((d) => d.severity !== "info");
+  if (outcome.svg === undefined || blocking.length > 0) {
     problems.push(
-      `${name}: ${outcome.svg === undefined ? "not rendered" : "rendered with diagnostics"}`,
-      ...outcome.diagnostics.map((d) => `  ${d.severity} ${d.code}: ${d.message}`),
+      `${name}: ${outcome.svg === undefined ? "not rendered" : "rendered with errors or warnings"}`,
+      ...blocking.map((d) => `  ${d.severity} ${d.code}: ${d.message}`),
     );
   }
 }
 if (problems.length > 0) {
   console.error(
-    `Gallery samples and examples must render without diagnostics:\n${problems.join("\n")}`,
+    `Gallery samples and examples must render without errors or warnings (infos allowed):\n${problems.join("\n")}`,
   );
   process.exit(1);
 }

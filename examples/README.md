@@ -12,7 +12,7 @@ vector PDF (#59).
 | [`system-architecture/`](system-architecture/system-architecture.sumi.yaml) | `academic` / `paper-double` | three tiers as groups (default and muted), hexagon entry point, cylinders and a document in the data tier, `double-arrow` reads/writes, a dashed path |
 | [`grouped/`](grouped/grouped.sumi.yaml) | `minimal` / `paper-double` | nested groups (three levels, one muted), two parallel paths crossing group boundaries at every level, ellipse and document outside the groups |
 | [`transformer/`](transformer/transformer.sumi.yaml) | `paper` / `paper-single` | the structured layout (`figure.layout.arrange`, design doc §6.23) with `density: compact`: stacks and rows, `align: stretch`, attached notes, operators and hidden junctions (smooth forks), anchored edges and shared trunks (the Transformer architecture, 78mm wide) |
-| [`dit-block/`](dit-block/dit-block.sumi.yaml) | `paper` / `paper-double` | the structured layout with `fit: scale`: four panels in a row, filled tones with sublabels, a plain (frameless) group, dimmed groups, a `zoom` callout, label math, and one source feeding four labeled taps over a shared bus (DiT block variants, 180mm wide) |
+| [`dit-block/`](dit-block/dit-block.sumi.yaml) | `paper` / `paper-double` | the faithful four-panel DiT figure: Latent Diffusion Transformer, adaLN-Zero, Cross-Attention and In-Context Conditioning; structured layout with `fit: scale`, filled tones with sublabels, a plain (frameless) group, dimmed alternatives, a `zoom` callout, label math, and four labeled conditioning taps over a shared bus (180mm × 84.69mm) |
 
 `pipeline` and `decision-flow` use `direction: down`: four or more nodes in a
 row to the right are already wider than `paper-single` (88mm).
@@ -25,6 +25,23 @@ All six pass `sumi lint --geometry` without errors or warnings. The two
 structured figures use the `paper` theme (the color, ML-paper style) and are laid out and routed by Sumi
 itself, without D2. `transformer` fits one column; `dit-block` is wider than
 `paper-double` and is scaled down to it (`fit: scale`).
+
+The gallery generator requires **no errors and no warnings**; info diagnostics
+are allowed. These are the infos from each example as written (including
+geometry lint):
+
+| Example | Info diagnostics |
+| --- | --- |
+| `pipeline` | none |
+| `decision-flow` | none |
+| `system-architecture` | none |
+| `grouped` | none |
+| `transformer` | none |
+| `dit-block` | 6: `geometry/script-too-small` ×1 (math scripts down to 3.99pt after scaling to 81.38%); `geometry/group-empty-area` ×2 (the equal-height Cross-Attention and In-Context panels); `geometry/arrowhead-cramped` ×3 (conditioning taps, 1.63pt straight stems after scaling) |
+
+The DiT infos are accepted to preserve the complete four-panel reference at
+180mm. Inspect the vector PDF for inline-math labels: `rsvg-convert` drops
+the space before inline math, a known rasterizer issue ([#266](https://github.com/nishide-dev/sumi-diagram/issues/266)).
 
 The [component gallery](../docs/gallery/README.md) has a page for every
 built-in component, a page with every example, and pages that compare themes

@@ -29,8 +29,9 @@ for (const path of cases)
     const inspected = inspectPptx(result.value);
     const w = Number(/<svg[^>]* width="([\d.]+)pt"/.exec(svg)?.[1]);
     const h = Number(/<svg[^>]* height="([\d.]+)pt"/.exec(svg)?.[1]);
-    expect(inspected.widthPt).toBe(Math.max(72, w));
-    expect(inspected.heightPt).toBe(Math.max(72, h));
+    // Slide dimensions are quantized to integer EMUs (12,700 per pt).
+    expect(inspected.widthPt).toBe(Math.round(Math.max(72, w) * 12700) / 12700);
+    expect(inspected.heightPt).toBe(Math.round(Math.max(72, h) * 12700) / 12700);
     expect(inspected.pngWidth).toBe(Math.ceil((w * 8) / 3));
     expect(inspected.pngHeight).toBe(Math.ceil((h * 8) / 3));
     const hash = new Bun.CryptoHasher("sha256").update(result.value).digest("hex");

@@ -28,7 +28,7 @@ Source: [<code>examples/transformer/transformer\.sumi\.yaml</code>](../../exampl
 
 ## The auto-layout pipeline under every theme
 
-The same auto\-layout figure \(D2 with ELK, <code>examples/pipeline/pipeline\.sumi\.yaml</code>\) with <code>\-\-theme</code> overrides on profile <code>paper\-single</code>\. A theme whose text is larger than the profile allows draws with the geometry error shown below it\.
+The same auto\-layout figure \(D2 with ELK, <code>examples/pipeline/pipeline\.sumi\.yaml</code>\) with <code>\-\-theme</code> overrides on profile <code>paper\-single</code>\. This profile imposes a minimum font size \(7pt\), not a maximum; <code>slides</code> meets it and the pipeline fits the page\. Its two collision warnings \(<code>geometry/label\-collision</code> and <code>geometry/edge\-crosses\-label</code>\) are distinct from the <code>geometry/exceeds\-page\-height</code> error under <code>presentation\-16x9</code>, whose larger spacing makes the pipeline taller than a slide\.
 
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> |
 | --- | --- | --- |
