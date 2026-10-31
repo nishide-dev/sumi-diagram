@@ -10,7 +10,7 @@ A bowtie silhouette with two opposing tapered halves and a central waist\.
 | --- | --- | --- | --- |
 | <code>width</code> | <code>string</code> | no | Explicit width as a length such as &quot;30mm&quot; or &quot;40pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
 | <code>height</code> | <code>string</code> | no | Explicit height as a length such as &quot;10mm&quot; or &quot;20pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
-| <code>gap</code> | <code>number</code> | no | Horizontal separation of the two tapered halves in D2 units \(0\.5pt each\), from 0 to 64; omitted or 0 keeps the joined silhouette\. One label is centered across both halves and the gap; filled variants may overlay the bodies, while stroked outline crossings are reported by geometry lint\. Clamped to half the drawn width for small explicit sizes\. |
+| <code>gap</code> | <code>number</code> | no | Horizontal separation of the two tapered halves in D2 units \(0\.5pt each\), from 0 to 64; omitted or 0 keeps the joined silhouette\. One label is centered across both halves and the gap when readable on the page; low\-contrast text \(including solid\) sits on the sized left painted body\. Borderless filled may overlay the bodies, while stroked outline crossings are reported by geometry lint\. Clamped to half the drawn width for small explicit sizes\. |
 
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> |
 | --- | --- | --- | --- | --- |

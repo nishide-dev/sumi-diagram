@@ -1,5 +1,7 @@
 import { expect, test } from "bun:test";
 import { compileFigure } from "../compiler/compile";
+import { buildFigureIR } from "../compiler/ir";
+import { checkFigure } from "../core/check";
 import { getOutlineRenderer } from "../core/outline";
 import { BUILTIN_THEMES } from "../core/theme/builtin";
 import { getFontSet } from "../core/theme/fonts";
@@ -73,9 +75,20 @@ const splitLabels = [
   { label: "高さのみ\n短", size: ", height: 100pt" },
 ];
 
+// Independent contract: filled alone is borderless in every built-in theme.
+const variantCrossings = [
+  ["default", 1],
+  ["muted", 1],
+  ["emphasis", 1],
+  ["filled", 0],
+  ["tinted", 1],
+  ["solid", 1],
+  ["outlined", 1],
+] as const;
+
 for (const theme of BUILTIN_THEMES.keys()) {
   for (const engine of ["auto", "structured"]) {
-    for (const variant of ["default", "filled", "outlined"]) {
+    for (const [variant, crossings] of variantCrossings) {
       test(`${theme}/${engine}/${variant}: only stroked split outlines reject centered body overlays`, async () => {
         const source = `version: 1
 figure: { id: crossing, theme: ${theme}, profile: ${theme === "slides" ? "presentation-16x9" : "paper-double"}, layout: ${engine === "auto" ? "{ direction: right }" : "{ arrange: { row: { items: [a] } } }"} }
@@ -84,19 +97,105 @@ nodes:
 `;
         const result = await renderFigure(source);
         if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
-        const geometry = geometryContextFor(result.value).get("n:a");
+        // Deliberately center the inspection label and use the full-width label
+        // area for every variant, including solid's normally left-placed text.
+        // This isolates painted-outline crossings from safe-area overflow.
+        const input = {
+          ...result.value,
+          compiled: {
+            ...result.value.compiled,
+            ir: {
+              ...result.value.compiled.ir,
+              nodes: result.value.compiled.ir.nodes.map((node) => {
+                if (!node.render) throw new Error("missing outline renderer");
+                return {
+                  ...node,
+                  render: {
+                    ...node.render,
+                    params: { ...node.render.params, labelOnLeft: false },
+                  },
+                };
+              }),
+            },
+          },
+          inspection: {
+            ...result.value.inspection,
+            elements: result.value.inspection.elements.map((element) => ({
+              ...element,
+              labels: element.labels.map((label) => ({
+                ...label,
+                anchor: {
+                  ...label.anchor,
+                  x: element.bbox ? element.bbox.x + element.bbox.width / 2 : label.anchor.x,
+                },
+              })),
+            })),
+          },
+        };
+        const geometry = geometryContextFor(input).get("n:a");
         const line = geometry?.labels[0]?.visibleLines[0];
         if (!geometry?.labelBoundaries || !line) throw new Error("missing geometry");
         expect(polylinesCrossRect(geometry.labelBoundaries, line, 0)).toBe(true);
-        const stroked =
-          geometry.ir.style.stroke !== "transparent" && geometry.ir.style.strokeWidth.units > 0;
         expect(
-          lintGeometry(result.value).filter((d) => d.code === "geometry/label-overflow"),
-        ).toHaveLength(stroked ? 1 : 0);
+          lintGeometry(input).filter((d) => d.code === "geometry/label-overflow"),
+        ).toHaveLength(crossings);
+      });
+
+      test(`${theme}/${engine}/${variant}: split labels stay readable on paint or centered on the page`, async () => {
+        for (const label of ["S", "Long split label\n日本語"]) {
+          const result = await renderFigure(`version: 1
+figure: { id: visible, theme: ${theme}, profile: ${theme === "slides" ? "presentation-16x9" : "paper-double"}, layout: ${engine === "auto" ? "{ direction: right }" : "{ arrange: { row: { items: [a] } } }"} }
+nodes:
+  - { id: a, component: bowtie, variant: ${variant}, label: ${JSON.stringify(label)}, props: { gap: 64 } }
+`);
+          if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+          const geometry = geometryContextFor(result.value).get("n:a");
+          if (!geometry?.bbox || !geometry.labelBoundaries) throw new Error("missing geometry");
+          expect(geometry.labels).toHaveLength(1);
+          for (const line of geometry.labels.flatMap((l) => l.visibleLines)) {
+            const { x, y, width, height } = geometry.bbox;
+            if (variant === "solid") {
+              // Independent geometric oracle: at every y in the middle half,
+              // the painted left trapezoid contains this rectangular region.
+              const lip = x + (width - Math.min(64, width / 2)) / 2;
+              expect(line.x).toBeGreaterThan(x);
+              expect(line.x + line.width).toBeLessThan(lip);
+              expect(line.y).toBeGreaterThan(y + height / 4);
+              expect(line.y + line.height).toBeLessThan(y + (3 * height) / 4);
+              expect(polylinesCrossRect(geometry.labelBoundaries, line, 0)).toBe(false);
+            } else {
+              expect(line.x + line.width / 2).toBeCloseTo(x + width / 2, 2);
+            }
+          }
+          if (variant === "solid") expect(lintGeometry(result.value)).toEqual([]);
+        }
       });
     }
   }
 }
+
+test("split label placement follows resolved ink and opacity, independent of variant name", () => {
+  for (const variant of ["default", "solid"]) {
+    for (const [fontColor, opacity, onLeft] of [
+      ["#fff", 1, true],
+      ["#ffffff", 1, true],
+      ["#777777", 1, true], // 4.48:1 on white
+      ["#767676", 1, false], // 4.54:1 on white
+      ["#000", 1, false],
+      ["#000000", 0.1, true],
+    ] as const) {
+      const checked = checkFigure(`version: 1
+figure: { id: resolved }
+nodes: [{ id: a, component: bowtie, variant: ${variant}, label: S, props: { gap: 64 } }]
+`);
+      const style = checked.state.styles?.get("n:a");
+      if (style?.kind !== "node") throw new Error("missing resolved style");
+      checked.state.styles?.set("n:a", { ...style, fontColor, opacity });
+      const node = buildFigureIR(checked).nodes[0];
+      expect(node?.render?.params?.labelOnLeft === true).toBe(onLeft);
+    }
+  }
+});
 
 for (const theme of BUILTIN_THEMES.keys()) {
   for (const engine of ["auto", "structured"]) {

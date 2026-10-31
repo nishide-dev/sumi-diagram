@@ -81,14 +81,23 @@ const stackParams = z.strictObject({
 const bowtie: OutlineRenderer = {
   id: "sumi/bowtie",
   version: 1,
-  params: z.strictObject({ gap: z.number().finite().min(0).max(64).optional() }),
-  footprint({ width, height }, { gap = 0 }) {
+  params: z.strictObject({
+    gap: z.number().finite().min(0).max(64).optional(),
+    // Internal IR parameter, resolved from text/page contrast by the compiler.
+    labelOnLeft: z.boolean().optional(),
+  }),
+  footprint({ width, height }, { gap = 0, labelOnLeft = false }) {
     return {
-      width: typeof gap === "number" && gap > 0 ? Math.max(width, 2 * gap) : width,
+      width:
+        typeof gap === "number" && gap > 0
+          ? labelOnLeft
+            ? 2 * width + gap
+            : Math.max(width, 2 * gap)
+          : width,
       height: height * 2,
     };
   },
-  draw({ x, y, width, height }, { gap = 0 }) {
+  draw({ x, y, width, height }, { gap = 0, labelOnLeft = false }) {
     if (typeof gap === "number" && gap > 0) {
       const separation = Math.min(gap, width / 2);
       const left = x + (width - separation) / 2;
@@ -111,7 +120,12 @@ const bowtie: OutlineRenderer = {
         layers: boundaries.map(body),
         boundaries,
         outline: rectangle({ x, y, width, height }),
-        safeArea: { x, y: y + height / 4, width, height: height / 2 },
+        safeArea: {
+          x,
+          y: y + height / 4,
+          width: labelOnLeft ? left - x : width,
+          height: height / 2,
+        },
       };
     }
     const outline = [

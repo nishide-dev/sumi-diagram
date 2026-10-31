@@ -24,7 +24,14 @@ const params: Record<string, OutlineParams[]> = {
     ]),
   ],
   "sumi/stack": [{}, { layers: 1 }, { layers: 2, offset: 0.01 }, { layers: 8, offset: 64 }],
-  "sumi/bowtie": [{}, { gap: 0 }, { gap: 8 }, { gap: 64 }],
+  "sumi/bowtie": [
+    {},
+    { gap: 0 },
+    { gap: 8 },
+    { gap: 64 },
+    { gap: 8, labelOnLeft: true },
+    { gap: 64, labelOnLeft: true },
+  ],
 };
 
 test("renderer registry contains only the bundled geometry implementations", () => {

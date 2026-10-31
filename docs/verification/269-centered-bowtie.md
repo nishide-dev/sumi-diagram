@@ -1,8 +1,9 @@
 # #269 split bowtie の中央ラベルと互換性
 
 設計判断は [§6.74](../design/phase1.md#674-269-の-split-bowtie-の中央ラベルへの復帰)。
-ユーザー決定（2026-11-01）に従い、#245 の左台形内配置を撤回した。
-`props.labelAt` は追加せず、左右の台形と gap 全体の中央を使う。
+ユーザー決定（2026-11-01）に従い、page 上で読める文字は左右の台形と gap 全体の中央を使う。
+PR #273 のレビュー対応として、解決済み文字色・opacity の白地コントラストが4.5:1未満なら
+#245 の左台形内配置・寸法を使う。`props.labelAt` は追加しない。
 
 ## 全 YAML の変更前後の比較
 
@@ -59,17 +60,22 @@ SUMI_UPDATE_GOLDEN=1 CI=1 bun test src/render/pdf src/render/pptx src/render/ass
 
 全5 Theme ×全7 variant の bowtie gallery も rasterize して開いた。
 `filled` は gap 8 に文字を重ねる例、stroke 付きは gap 64 に短い `S` を
-収める例。`solid` の白文字は白い gap では見えないため、H3-World のような
-中央の黒文字が必要な図には `filled` を使う。
+収める例。`solid` の白文字は左の塗装された台形の中に1個だけ置き、
+padding込みの文字箱が収まる幅を確保する。全5 Theme × auto / structured で、
+短い `S`・英語と日本語の複数行ラベルが左body内に収まること、他6 variantが中央にあることを検査する。
+輪郭交差の独立oracleは全7 variant ×全5 Theme ×両engineで、意図的に中央へ置いた文字と
+実境界の交差を作り、`filled` だけ0件・他6 variantは1件と固定期待値で検査する。
+解決済み色の境界値（4.48:1 / 4.54:1）、短縮hex、opacityもvariant名と独立に検査する。
 golden は上記の指定経路だけで更新した。
 
 ## 最終検査
 
 - `bun run check` / `bun run typecheck`
-- `CI=1 bun test`: 3351 pass / 13 skip / 0 fail
+- `CI=1 bun test`: 3478 pass / 13 skip / 0 fail（PR #273レビュー対応後）
 - `bun run gallery:check`: 203ファイル一致
 - `bun run schema:check`: schema変更なし
 - 指定のPDF / PPTX / assets golden更新テスト: 594 pass / 0 fail
-- 追加したstrokeなしの回帰も含む描画・lintの集中テスト: 176 pass / 0 fail
+- 全5 ThemeのgalleryをPNGとして開き、split `solid` の白い `S` が暗い左台形内に見えることを確認。他6 variantは中央配置を維持。
+- research両図をrender→previewの順に再生成し、SVG / PNGともレビュー対応前とバイト一致。
 
 emojiのデータ・importerには変更なし。

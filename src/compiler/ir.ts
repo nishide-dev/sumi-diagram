@@ -60,6 +60,7 @@ import {
 import { getTheme } from "../core/theme/builtin";
 import { dimmedElements } from "../core/theme/dim";
 import type { FontSetId } from "../core/theme/fonts";
+import { pageTextContrast } from "../core/theme/node-variants";
 import {
   type EdgeStyle,
   type GroupStyle,
@@ -479,7 +480,13 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
                 ...component.manifest.render.params,
                 ...(component.manifest.render.renderer === "sumi/bowtie" &&
                   typeof component.props.gap === "number" &&
-                  component.props.gap > 0 && { gap: component.props.gap }),
+                  component.props.gap > 0 && {
+                    gap: component.props.gap,
+                    // Light text needs the painted body, not the unpainted gap.
+                    ...(pageTextContrast(style.fontColor, style.opacity) < 4.5 && {
+                      labelOnLeft: true,
+                    }),
+                  }),
                 ...(component.manifest.render.renderer === "sumi/trapezoid" &&
                   typeof component.props.narrow === "string" &&
                   component.props.narrow !== "south" && { narrow: component.props.narrow }),

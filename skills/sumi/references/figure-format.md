@@ -42,8 +42,10 @@ metadata: {}               # optional, any JSON-compatible data; not drawn
 `icon` / `badge`: [assets](assets.md). The `bowtie` outline component,
 corner badges and corner `attach.side` values are new in 0.7.0.
 `bowtie` takes `props.gap: 8` to draw two separate opposing trapezoids
-with one label centered across both halves and the gap. The total width fits
-the label without doubling it; `filled` text may overlay the bodies. Stroked
+with one label centered across both halves and the gap when its resolved text
+is readable on the white page (contrast at least 4.5:1). Lower-contrast text
+(including `solid` white text) sits on the left painted body, sized to hold it.
+Centered labels fit the total width without doubling it; `filled` text may overlay the bodies. Stroked
 variants report label/outline crossings: use `filled` or leave enough gap for
 the text (0 or omitted keeps the joined shape). Gap is a number
 from 0–64 in D2 units (each 0.5pt), clamped to half the width for a small

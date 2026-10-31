@@ -2331,12 +2331,14 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 
 ### 6.74 #269 の split bowtie の中央ラベルへの復帰
 
-- **ユーザー決定（2026-11-01）**: §6.68（#245）の左台形内への配置は原図の意図を損ない、全体を横へ膨らませたため撤回する。§6.66（#233）のように、1 個のラベルを左右の台形と gap 全体の中央に置く。H3-World は輪郭線のない pastel の `filled` を使い、文字が body に重なることを許す。
+- **ユーザー決定（2026-11-01、可読性例外は下記レビュー後決定）**: §6.68（#245）の一律の左台形内配置は原図の意図を損ない、全体を横へ膨らませたため撤回する。page 上で読める文字は §6.66（#233）のように、1 個のラベルを左右の台形と gap 全体の中央に置く。H3-World は輪郭線のない pastel の `filled` を使い、文字が body に重なることを許す。
 - **寸法・幾何**: padding 済みの文字箱 W×H に対し、自然 footprint は `max(W, 2×gap)` × `2H`。ラベルは全幅に収め、gap を指定値で描ける最低幅だけ確保する。`2W + gap` の片側分の増幅も、文字幅に応じた gap の勝手な拡大も行わない。safeArea は全幅×中央の高さ半分。明示サイズと gap の幅半分への clamp は維持する。離れた body の oracle は body union と boundaries の一致を保ち、ラベルは enclosing silhouette 内を検査する。
 - **lint**: §6.68 の実境界との交差検査は、解決済み stroke が transparent でなく幅が正のときだけ行う。safeArea からのはみ出しは塗りだけでも検査する。stroke 付きで内側の線が文字を横切る場合は、既存の `geometry/label-overflow`（error）で知らせる。拡幅だけでは交差を解消しないため、自動拡幅で隠さない。`filled` または文字が収まる gap を選ぶ。診断の位置・1要素1件・許容差は維持する。
-- **API の判断**: `props.labelAt: center|left|right` は今回は追加しない。左右への配置を必要とする具体的な図がなく、左右別の safeArea・寸法契約・全出力の検証を公開 API に増やす費用が利益を上回る。中央が既定かつ唯一の配置で、将来の実例が出た時に再検討する。
+- **レビュー後の可読性決定（PR #273）**: 白い page 上のコントラストが不足する文字を未塗装の gap へ置かない。解決済み `fontColor` と `opacity` を白地に合成し、sRGB 相対輝度によるコントラストが **4.5:1 未満**なら、#245 の左台形内配置と自然寸法 `2W + gap` × `2H` を使う。safeArea は左台形の中央高さ半分、幅 `(drawnWidth − clampedGap) / 2`。全5 Theme の `solid` は白文字のためこの配置になる。variant 名では分岐せず、他の variant / Theme でも解決済み文字が同条件なら同じ扱いとする。4.5:1 以上の文字は上記の中央配置・自然寸法を維持する。
+- **API の判断**: `props.labelAt: center|left|right` は今回は追加しない。可読性に応じた配置を内部の geometry parameter として IR に渡し、sizing・SVG・lint・editable PPTX で同じ safeArea を使う。公開 API で利用者に白文字の回避を委ねない。
 - **検証と互換性**: catalog と Skill、全 Theme × variant の gallery、auto / structured の長い英語・日本語・複数行・明示サイズ・PDF / editable PPTX の文字位置を検証する。stroke 付きの gallery は中央の短い文字が gap に収まる例を使う。`research/233-lora` と `research/248-fill` の H3-World を再描画し、PNG を再生成して目視する。出力変更を許可する既存 YAML は `bowtie.props.gap` を使うこの2図だけ。全 YAML × 自テーマ＋全組み込み Theme の SVG / PDF / picture・editable PPTX / D2 の sha256 を変更前後で比較する。
 - **実測結果**: 全151 YAML ×6通り＝906組のうち成功633組のSVG / PDF / picture PPTXは上記2図×5テーマの各10出力だけ変更。残り149 YAMLの出力・診断は全件一致し、D2 234件・editable freeform 428件・glued 416件も全件一致。H3-World両図は0 errors / 0 warnings、PNGを開いて中央配置を確認した。`CI=1 bun test` は3351 pass / 13 skip / 0 fail。詳細・manifest hashは [検証記録](../verification/269-centered-bowtie.md)。
+- **レビュー対応の検証**: 全7 variant ×全5 Theme × auto / structured で、`solid` の文字箱が塗装された左body内にあり、他6 variantが中央にあることを確認。輪郭交差は固定期待値（`filled` だけ0件、他6 variantは1件）を使い、配置例外とは独立に検証した。全5 ThemeのgalleryをPNGで開き、白い `S` が左台形上で見えることを確認。research両図のSVG / previewは再描画後も変更なし。最終 `CI=1 bun test` は3478 pass / 13 skip / 0 fail、check / typecheck / gallery:check（203 files）/ schema:checkも成功。
 
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
