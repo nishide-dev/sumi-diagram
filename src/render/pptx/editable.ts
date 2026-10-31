@@ -420,6 +420,7 @@ export function svgToEditablePptx(
       el: XmlElement,
       style: { stroke: string; strokeWidth: { units: number }; opacity: number },
       ends = "",
+      strokeStyle: "round" | "svg-default" = "round",
     ) => {
       const width = Number(property(el, "stroke-width") ?? style.strokeWidth.units);
       if (!Number.isFinite(width) || width < 0) throw new Error("Unsupported stroke width");
@@ -433,7 +434,9 @@ export function svgToEditablePptx(
         width > 0 && dash.length
           ? `<a:custDash>${Array.from({ length: dash.length / 2 }, (_, i) => `<a:ds d="${Math.max(1, Math.round(((dash[2 * i] ?? 0) / width) * 100000))}" sp="${Math.max(1, Math.round(((dash[2 * i + 1] ?? 0) / width) * 100000))}"/>`).join("")}</a:custDash>`
           : "";
-      return `<a:ln w="${emu(width)}" cap="rnd">${width === 0 ? "<a:noFill/>" : paint(property(el, "stroke") ?? style.stroke, style.opacity)}${dashXml}<a:round/>${ends}</a:ln>`;
+      const cap = strokeStyle === "svg-default" ? "flat" : "rnd";
+      const join = strokeStyle === "svg-default" ? '<a:miter lim="400000"/>' : "<a:round/>";
+      return `<a:ln w="${emu(width)}" cap="${cap}">${width === 0 ? "<a:noFill/>" : paint(property(el, "stroke") ?? style.stroke, style.opacity)}${dashXml}${join}${ends}</a:ln>`;
     };
     const shape = (
       id: number,
@@ -528,6 +531,11 @@ export function svgToEditablePptx(
         ? undefined
         : childElements(group).find((e) => classList(e).includes("shape"));
       const primitives = container ? [...descendants(container)].filter((e) => e.name !== "g") : [];
+      // DrawingML has one line style per shape. Keep the waveform's mitered
+      // frame separate from its round-capped/round-joined signal paths.
+      const waveform = element.kind === "node" && element.render?.renderer === "sumi/waveform";
+      const bodyPrimitives = waveform ? primitives.slice(0, 1) : primitives;
+      const signalPrimitives = waveform ? primitives.slice(1) : [];
       const label = geo.labels[0];
       const texts = childElements(group).filter((e) => e.name === "text");
       const text = texts[0];
@@ -641,13 +649,15 @@ export function svgToEditablePptx(
       const geom = ellipse
         ? '<a:prstGeom prst="ellipse"><a:avLst/></a:prstGeom>'
         : primitives.length
-          ? geometry(primitives.map(shapePath), box, emu, connectionPoints)
+          ? geometry(bodyPrimitives.map(shapePath), box, emu, connectionPoints)
           : '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>';
       const first = primitives[0];
       const fill = first
         ? paint(property(first, "fill") ?? element.style.fill, element.style.opacity)
         : "<a:noFill/>";
-      const stroke = first ? line(first, element.style) : "<a:ln><a:noFill/></a:ln>";
+      const stroke = first
+        ? line(first, element.style, "", waveform ? "svg-default" : "round")
+        : "<a:ln><a:noFill/></a:ln>";
       const turned = label?.rotation !== undefined;
       // An upright sublabel (#184) joins the node's text when paragraph
       // spacing can put it where the SVG draws it; otherwise (it would need
@@ -691,6 +701,16 @@ export function svgToEditablePptx(
             : "",
           !first,
         ) +
+          (signalPrimitives[0] === undefined
+            ? ""
+            : shape(
+                next++,
+                `${element.key} signal`,
+                box,
+                geometry(signalPrimitives.map(shapePath), box, emu),
+                "<a:noFill/>",
+                line(signalPrimitives[0], element.style),
+              )) +
           (sublabel !== undefined && before !== undefined && !joined ? ownBox(sublabel) : "") +
           (label && text && turned
             ? turnedLabel(`${element.key} label`, label, text, element.style.opacity) +

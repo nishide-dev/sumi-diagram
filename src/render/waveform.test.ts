@@ -47,35 +47,39 @@ nodes:
 
 for (const engine of ["auto", "structured"]) {
   for (const mode of ["bars", "line"]) {
-    test(`${engine}/${mode}: round painted bounds stay inside the painted frame at the minimum size`, async () => {
-      const result = await renderFigure(
-        `${source("[-1, 1, -1]", mode, engine)}      width: 0.5pt\n      height: 0.5pt\n`,
-        { overrides: { theme: "minimal" } },
-      );
-      if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
-      expect(result.diagnostics).toEqual([]);
-      expect(lintGeometry(result.value, {})).toEqual([]);
-      const box = result.value.inspection.elements.find((e) => e.key === "n:signal")?.bbox;
-      if (!box) throw new Error("Missing frame bounds");
-      const radius = required(result.value.compiled.ir.nodes[0]).style.strokeWidth.units / 2;
-      const paths = signalPaths(result.value.svg);
-      expect(paths).toHaveLength(mode === "line" ? 1 : 3);
-      for (const path of paths) {
-        expect(attribute(path, "stroke-linecap")).toBe("round");
-        expect(attribute(path, "stroke-linejoin")).toBe("round");
-        // A round-stroked polyline is a union of segment capsules: extrema
-        // are bounded by vertex coordinates +/- half the actual stroke width.
-        const coordinates = required(required(attribute(path, "d")).match(/-?[\d.]+/g)).map(Number);
-        for (let i = 0; i < coordinates.length; i += 2) {
-          const x = required(coordinates[i]);
-          const y = required(coordinates[i + 1]);
-          expect(x - radius).toBeGreaterThanOrEqual(box.x - radius - 0.001);
-          expect(x + radius).toBeLessThanOrEqual(box.x + box.width + radius + 0.001);
-          expect(y - radius).toBeGreaterThanOrEqual(box.y - radius - 0.001);
-          expect(y + radius).toBeLessThanOrEqual(box.y + box.height + radius + 0.001);
+    for (const theme of BUILTIN_THEMES.keys()) {
+      test(`${theme}/${engine}/${mode}: round painted bounds stay inside the painted frame at the minimum size`, async () => {
+        const result = await renderFigure(
+          `${source("[-1, 1, -1]", mode, engine)}      width: 0.5pt\n      height: 0.5pt\n`,
+          { overrides: { theme } },
+        );
+        if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+        expect(result.diagnostics).toEqual([]);
+        expect(lintGeometry(result.value, {})).toEqual([]);
+        const box = result.value.inspection.elements.find((e) => e.key === "n:signal")?.bbox;
+        if (!box) throw new Error("Missing frame bounds");
+        const radius = required(result.value.compiled.ir.nodes[0]).style.strokeWidth.units / 2;
+        const paths = signalPaths(result.value.svg);
+        expect(paths).toHaveLength(mode === "line" ? 1 : 3);
+        for (const path of paths) {
+          expect(attribute(path, "stroke-linecap")).toBe("round");
+          expect(attribute(path, "stroke-linejoin")).toBe("round");
+          // A round-stroked polyline is a union of segment capsules: extrema
+          // are bounded by vertex coordinates +/- half the actual stroke width.
+          const coordinates = required(required(attribute(path, "d")).match(/-?[\d.]+/g)).map(
+            Number,
+          );
+          for (let i = 0; i < coordinates.length; i += 2) {
+            const x = required(coordinates[i]);
+            const y = required(coordinates[i + 1]);
+            expect(x - radius).toBeGreaterThanOrEqual(box.x - radius - 0.001);
+            expect(x + radius).toBeLessThanOrEqual(box.x + box.width + radius + 0.001);
+            expect(y - radius).toBeGreaterThanOrEqual(box.y - radius - 0.001);
+            expect(y + radius).toBeLessThanOrEqual(box.y + box.height + radius + 0.001);
+          }
         }
-      }
-    });
+      });
+    }
 
     for (const [name, samples] of [
       ["zero", [0, 0]],
@@ -134,7 +138,7 @@ for (const engine of ["auto", "structured"]) {
 }
 
 for (const mode of ["bars", "line"]) {
-  test(`${mode}: editable XML preserves exact signal coordinates, round styles and zero behavior`, async () => {
+  test(`${mode}: editable XML preserves exact coordinates, separate frame/signal styles and zero behavior`, async () => {
     const result = await renderFigure(
       source("[-1, 0, 1]", mode).replace("    tone: red\n", "") +
         "      width: 50pt\n      height: 50pt\n",
@@ -146,6 +150,39 @@ for (const mode of ["bars", "line"]) {
       if (!pptx.ok) throw new Error(JSON.stringify(pptx.diagnostics));
       const slide = new TextDecoder().decode(readPptx(pptx.value).get("ppt/slides/slide1.xml"));
       const all = elements(slide);
+      const shapes = all.filter((e) => e.name === "p:sp");
+      const frame = required(
+        shapes.find((e) =>
+          [...descendants(e)].some(
+            (p) => p.name === "p:cNvPr" && attribute(p, "name") === "n:signal",
+          ),
+        ),
+      );
+      const signal = required(
+        shapes.find((e) =>
+          [...descendants(e)].some(
+            (p) => p.name === "p:cNvPr" && attribute(p, "name") === "n:signal signal",
+          ),
+        ),
+      );
+      const frameElements = [...descendants(frame)];
+      expect(frameElements.filter((e) => e.name === "a:path")).toHaveLength(1);
+      expect(frameElements.some((e) => e.name === "a:close")).toBe(true);
+      expect(attribute(required(frameElements.find((e) => e.name === "a:ln")), "cap")).toBe("flat");
+      expect(attribute(required(frameElements.find((e) => e.name === "a:miter")), "lim")).toBe(
+        "400000",
+      );
+      expect(frameElements.some((e) => e.name === "a:round")).toBe(false);
+      const signalElements = [...descendants(signal)];
+      expect(attribute(required(signalElements.find((e) => e.name === "a:ln")), "cap")).toBe("rnd");
+      expect(signalElements.some((e) => e.name === "a:round")).toBe(true);
+      expect(signalElements.some((e) => e.name === "a:miter")).toBe(false);
+      const svgFrame = required(
+        elements(result.value.svg).find((e) => classList(e).includes("shape")),
+      );
+      const svgFramePath = required(childElements(svgFrame)[0]);
+      expect(attribute(svgFramePath, "stroke-linejoin")).toBeUndefined();
+      expect(attribute(svgFramePath, "stroke-linecap")).toBeUndefined();
       const paths = all.filter((e) => e.name === "a:path").slice(1);
       const coordinates = paths.map((path) =>
         [...descendants(path)]

@@ -218,6 +218,8 @@ const waveform: OutlineRenderer = {
     // With round signal caps/joins, paint extends by at most half the shared
     // stroke width, just like the frame. Miter joins would escape at tiny sizes
     // or with dense, sharply alternating samples despite these centerline insets.
+    // Containment is against the frame's outer painted bounds, not its
+    // unexpanded rectangle: proportional insets do not absorb the cap radius.
     const left = x + width / 10;
     const span = width * 0.8;
     const center = y + height * 0.35;
