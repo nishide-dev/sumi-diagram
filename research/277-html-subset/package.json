@@ -1,0 +1,11 @@
+{
+  "name": "sumi-277-html-subset",
+  "private": true,
+  "type": "module",
+  "description": "Throwaway investigation for #277. Not part of the product.",
+  "dependencies": {
+    "@takumi-rs/wasm": "2.19.0",
+    "satori": "0.63.2",
+    "satori-html": "0.3.2"
+  }
+}

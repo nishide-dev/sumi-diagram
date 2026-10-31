@@ -1,0 +1,1278 @@
+{
+  "environment": {
+    "bun": "1.3.14",
+    "platform": "darwin",
+    "arch": "arm64",
+    "satori": "0.63.2",
+    "satoriHtml": "0.3.2 (not used by the pipeline, see README)",
+    "takumiWasm": "2.19.0"
+  },
+  "singleBinary": {
+    "baselineBytes": 63446114,
+    "baseline": {
+      "bytes": 63446114,
+      "deltaBytes": 0,
+      "wallMsRuns": [10, 10, 10, 10, 10, 10],
+      "wallMsWarmMedian": 10
+    },
+    "satori": {
+      "bytes": 65625698,
+      "deltaBytes": 2179584,
+      "wallMsRuns": [75, 76, 72, 73, 71, 71],
+      "wallMsWarmMedian": 72
+    },
+    "takumi": {
+      "bytes": 67722722,
+      "deltaBytes": 4276608,
+      "wallMsRuns": [39, 39, 39, 39, 39, 40],
+      "wallMsWarmMedian": 39
+    },
+    "linuxX64CrossCompile": "bun build --compile --target=bun-linux-x64 succeeded for satori.ts and takumi.ts (not executed)"
+  },
+  "determinism": {
+    "pieces": 33,
+    "bunRunTwiceIdentical": true,
+    "bunVsNodeIdentical": true,
+    "tzLocaleChangeIdentical": true,
+    "crossOsVerified": false,
+    "sha256Prefixes": {
+      "html/code-window.takumi": "cb874cd78158dcbd",
+      "html/code-window.satori": "1032ac4cb53a2f59",
+      "html/code-window.satori-text": "ee4514d964a42c6c",
+      "html/film-strip.takumi": "76db86abd25ed3d9",
+      "html/film-strip.satori": "9c48ba9871d40bb7",
+      "html/film-strip.satori-text": "9c48ba9871d40bb7",
+      "html/text-card.takumi": "f57e8eb1f21ecf3b",
+      "html/text-card.satori": "40fcdd236be14848",
+      "html/text-card.satori-text": "f614c8139bdf9046",
+      "html/token-strip.takumi": "ac8844a56df5a3f6",
+      "html/token-strip.satori": "e0900f91c7510044",
+      "html/token-strip.satori-text": "feb6c498fd4ddeb0",
+      "html/waveform.takumi": "2b6a24ffa3a2c1f8",
+      "html/waveform.satori": "179209d8924c7461",
+      "html/waveform.satori-text": "179209d8924c7461",
+      "html-safe/code-window.takumi": "94a1ff79ea2c81bc",
+      "html-safe/code-window.satori": "31979d1a89801797",
+      "html-safe/code-window.satori-text": "80b097059b3d2425",
+      "html-safe/film-strip.takumi": "c0d48275c6c543a2",
+      "html-safe/film-strip.satori": "a594d0d5765c6409",
+      "html-safe/film-strip.satori-text": "a594d0d5765c6409",
+      "html-safe/text-card.takumi": "bc051b6fb6d865ad",
+      "html-safe/text-card.satori": "a6963ffc1b179340",
+      "html-safe/text-card.satori-text": "f6f92cabde2d513d",
+      "html-safe/token-strip.takumi": "ac8844a56df5a3f6",
+      "html-safe/token-strip.satori": "e0900f91c7510044",
+      "html-safe/token-strip.satori-text": "feb6c498fd4ddeb0",
+      "html-safe/waveform-bars.takumi": "5c00fc1092fcc323",
+      "html-safe/waveform-bars.satori": "7dc474b949d8beef",
+      "html-safe/waveform-bars.satori-text": "7dc474b949d8beef",
+      "html-safe/waveform.takumi": "2b6a24ffa3a2c1f8",
+      "html-safe/waveform.satori": "179209d8924c7461",
+      "html-safe/waveform.satori-text": "179209d8924c7461"
+    }
+  },
+  "importerCompat": [
+    {
+      "set": "full",
+      "piece": "code-window",
+      "lib": "takumi",
+      "rawBytes": 10011,
+      "rawImportOk": false,
+      "rawIssueCount": 63,
+      "rawIssueKinds": [
+        "unsupported: <clipPath> is not supported",
+        "unsafe: <g> \"clip-path\" refers to another resource (url(#cp0)).",
+        "unsafe: <use> is not allowed",
+        "unsupported: <defs> is not supported"
+      ],
+      "normBytes": 28726,
+      "normImportOk": false,
+      "normIssueKinds": [
+        "unsupported: <defs> is not supported",
+        "unsupported: <clipPath> is not supported",
+        "unsafe: <g> \"clip-path\" refers to another resource (url(#cp0))."
+      ],
+      "hasTextElement": false
+    },
+    {
+      "set": "full",
+      "piece": "code-window",
+      "lib": "satori",
+      "rawBytes": 28468,
+      "rawImportOk": false,
+      "rawIssueCount": 88,
+      "rawIssueKinds": [
+        "unsupported: <clipPath> is not supported",
+        "unsupported: <path> attribute \"x\" is not supported.",
+        "unsupported: <path> attribute \"y\" is not supported.",
+        "unsupported: <path> attribute \"width\" is not supported.",
+        "unsupported: <path> attribute \"height\" is not supported.",
+        "unsupported: <mask> is not supported",
+        "unsafe: <rect> \"mask\" refers to another resource (url(#satori_om-id)).",
+        "unsafe: <rect> \"clip-path\" refers to another resource (url(#satori_cp-id)).",
+        "unsafe: <path> \"clip-path\" refers to another resource (url(#satori_cp-id)).",
+        "unsafe: <path> \"mask\" refers to another resource (url(#satori_om-id)).",
+        "unsafe: <g> \"mask\" refers to another resource (url(#satori_om-id)).",
+        "unsafe: <g> \"clip-path\" refers to another resource (url(#satori_cp-id))."
+      ],
+      "normBytes": 36353,
+      "normImportOk": false,
+      "normIssueKinds": [
+        "unsupported: <defs> is not supported",
+        "unsupported: <clipPath> is not supported",
+        "unsupported: <mask> is not supported",
+        "unsafe: <g> \"clip-path\" refers to another resource (url(#satori_cp-id)).",
+        "unsafe: <g> \"mask\" refers to another resource (url(#satori_om-id)).",
+        "unsafe: <g> \"mask\" refers to another resource (url(#mask1)).",
+        "unsafe: <g> \"mask\" refers to another resource (url(#mask2)).",
+        "unsafe: <g> \"mask\" refers to another resource (url(#mask3)).",
+        "unsafe: <g> \"mask\" refers to another resource (url(#mask4)).",
+        "unsafe: <g> \"mask\" refers to another resource (url(#mask5)).",
+        "unsafe: <g> \"mask\" refers to another resource (url(#mask6)).",
+        "unsafe: <g> \"mask\" refers to another resource (url(#mask7)).",
+        "unsafe: <g> \"mask\" refers to another resource (url(#mask8)).",
+        "unsafe: <g> \"mask\" refers to another resource (url(#mask9)).",
+        "unsafe: <g> \"mask\" refers to another resource (url(#mask10)).",
+        "unsafe: <g> \"mask\" refers to another resource (url(#mask11)).",
+        "unsafe: <g> \"mask\" refers to another resource (url(#mask12)).",
+        "unsafe: <g> \"mask\" refers to another resource (url(#mask13))."
+      ],
+      "hasTextElement": false
+    },
+    {
+      "set": "full",
+      "piece": "film-strip",
+      "lib": "takumi",
+      "rawBytes": 5534,
+      "rawImportOk": false,
+      "rawIssueCount": 68,
+      "rawIssueKinds": [
+        "unsupported: <clipPath> is not supported",
+        "unsafe: <g> \"clip-path\" refers to another resource (url(#cp0)).",
+        "unsupported: <linearGradient> is not supported",
+        "unsupported: <stop> is not supported",
+        "unsafe: <rect> \"fill\" refers to another resource (url(#lg1))."
+      ],
+      "normBytes": 7654,
+      "normImportOk": false,
+      "normIssueKinds": [
+        "unsupported: <defs> is not supported",
+        "unsupported: <linearGradient> is not supported",
+        "unsupported: <stop> is not supported",
+        "unsupported: <clipPath> is not supported",
+        "unsafe: <g> \"clip-path\" refers to another resource (url(#cp0)).",
+        "unsafe: <path> \"fill\" refers to another resource (url(#lg1))."
+      ],
+      "hasTextElement": false
+    },
+    {
+      "set": "full",
+      "piece": "film-strip",
+      "lib": "satori",
+      "rawBytes": 6854,
+      "rawImportOk": false,
+      "rawIssueCount": 111,
+      "rawIssueKinds": [
+        "unsupported: <mask> is not supported",
+        "unsupported: <path> attribute \"x\" is not supported.",
+        "unsupported: <path> attribute \"y\" is not supported.",
+        "unsupported: <path> attribute \"width\" is not supported.",
+        "unsupported: <path> attribute \"height\" is not supported.",
+        "unsupported: <defs> is not supported",
+        "unsupported: <pattern> is not supported",
+        "unsupported: <linearGradient> is not supported",
+        "unsupported: <stop> is not supported",
+        "unsafe: <rect> \"fill\" refers to another resource (url(#satori_biid-1_0)).",
+        "unsafe: <path> \"fill\" refers to another resource (url(#satori_pattern_id-1_0))",
+        "unsupported: <clipPath> is not supported",
+        "unsafe: <g> \"clip-path\" refers to another resource (url(#satori_bs-id-1-0-0)).",
+        "unsafe: <g> \"clip-path\" refers to another resource (url(#satori_br-id-1-0)).",
+        "unsafe: <path> \"clip-path\" refers to another resource (url(#satori_bc-id-1-0))",
+        "unsafe: <g> \"clip-path\" refers to another resource (url(#satori_bs-id-1-0-1)).",
+        "unsafe: <g> \"clip-path\" refers to another resource (url(#satori_bs-id-1-0-2))."
+      ],
+      "normBytes": 6606,
+      "normImportOk": false,
+      "normIssueKinds": [
+        "unsupported: <defs> is not supported",
+        "unsupported: <linearGradient> is not supported",
+        "unsupported: <stop> is not supported",
+        "unsupported: <pattern> is not supported",
+        "unsafe: <path> \"fill\" refers to another resource (url(#satori_biid-1_0)).",
+        "unsupported: <clipPath> is not supported",
+        "unsafe: <path> \"fill\" refers to another resource (url(#satori_pattern_id-1_0))",
+        "unsafe: <g> \"clip-path\" refers to another resource (url(#satori_bs-id-1-0-0)).",
+        "unsafe: <g> \"clip-path\" refers to another resource (url(#satori_br-id-1-0)).",
+        "unsafe: <g> \"clip-path\" refers to another resource (url(#satori_bc-id-1-0)).",
+        "unsafe: <g> \"clip-path\" refers to another resource (url(#satori_bs-id-1-0-1)).",
+        "unsafe: <g> \"clip-path\" refers to another resource (url(#satori_bs-id-1-0-2))."
+      ],
+      "hasTextElement": false
+    },
+    {
+      "set": "full",
+      "piece": "text-card",
+      "lib": "takumi",
+      "rawBytes": 15742,
+      "rawImportOk": false,
+      "rawIssueCount": 82,
+      "rawIssueKinds": [
+        "unsupported: <clipPath> is not supported",
+        "unsafe: <g> \"clip-path\" refers to another resource (url(#cp0)).",
+        "unsupported: <filter> is not supported",
+        "unsupported: <feGaussianBlur> is not supported",
+        "unsafe: <g> \"filter\" refers to another resource (url(#bl1)).",
+        "unsafe: <use> is not allowed",
+        "unsupported: <defs> is not supported"
+      ],
+      "normBytes": 47196,
+      "normImportOk": false,
+      "normIssueKinds": [
+        "unsupported: <defs> is not supported",
+        "unsupported: <filter> is not supported",
+        "unsupported: <feGaussianBlur> is not supported",
+        "unsupported: <clipPath> is not supported",
+        "unsafe: <g> \"clip-path\" refers to another resource (url(#cp0)).",
+        "unsafe: <g> \"filter\" refers to another resource (url(#bl1))."
+      ],
+      "hasTextElement": false
+    },
+    {
+      "set": "full",
+      "piece": "text-card",
+      "lib": "satori",
+      "rawBytes": 42364,
+      "rawImportOk": false,
+      "rawIssueCount": 34,
+      "rawIssueKinds": [
+        "unsupported: <defs> is not supported",
+        "unsupported: <clipPath> is not supported",
+        "unsupported: <path> attribute \"x\" is not supported.",
+        "unsupported: <path> attribute \"y\" is not supported.",
+        "unsupported: <path> attribute \"width\" is not supported.",
+        "unsupported: <path> attribute \"height\" is not supported.",
+        "unsupported: <mask> is not supported",
+        "unsupported: <filter> is not supported",
+        "unsupported: <feGaussianBlur> is not supported",
+        "unsupported: <feFlood> is not supported",
+        "unsupported: <feComposite> is not supported",
+        "unsafe: <g> \"mask\" refers to another resource (url(#satori_ms-id-0)).",
+        "unsafe: <g> \"filter\" refers to another resource (url(#satori_s-id-0)).",
+        "unsafe: <path> \"clip-path\" refers to another resource (url(#satori_bc-id))."
+      ],
+      "normBytes": 52965,
+      "normImportOk": false,
+      "normIssueKinds": [
+        "unsupported: <defs> is not supported",
+        "unsupported: <filter> is not supported",
+        "unsupported: <feGaussianBlur> is not supported",
+        "unsupported: <feFlood> is not supported",
+        "unsupported: <feComposite> is not supported",
+        "unsupported: <clipPath> is not supported",
+        "unsupported: <mask> is not supported",
+        "unsafe: <g> \"mask\" refers to another resource (url(#satori_ms-id-0)).",
+        "unsafe: <g> \"filter\" refers to another resource (url(#satori_s-id-0)).",
+        "unsafe: <g> \"clip-path\" refers to another resource (url(#satori_bc-id))."
+      ],
+      "hasTextElement": false
+    },
+    {
+      "set": "full",
+      "piece": "token-strip",
+      "lib": "takumi",
+      "rawBytes": 9453,
+      "rawImportOk": false,
+      "rawIssueCount": 37,
+      "rawIssueKinds": ["unsafe: <use> is not allowed", "unsupported: <defs> is not supported"],
+      "normBytes": 21617,
+      "normImportOk": true,
+      "normIssueKinds": [],
+      "hasTextElement": false
+    },
+    {
+      "set": "full",
+      "piece": "token-strip",
+      "lib": "satori",
+      "rawBytes": 19123,
+      "rawImportOk": false,
+      "rawIssueCount": 33,
+      "rawIssueKinds": [
+        "unsupported: <mask> is not supported",
+        "unsupported: <path> attribute \"x\" is not supported.",
+        "unsupported: <path> attribute \"y\" is not supported.",
+        "unsupported: <path> attribute \"width\" is not supported.",
+        "unsupported: <path> attribute \"height\" is not supported."
+      ],
+      "normBytes": 22786,
+      "normImportOk": true,
+      "normIssueKinds": [],
+      "hasTextElement": false
+    },
+    {
+      "set": "full",
+      "piece": "waveform",
+      "lib": "takumi",
+      "rawBytes": 850,
+      "rawImportOk": false,
+      "rawIssueCount": 3,
+      "rawIssueKinds": [
+        "unsupported: <clipPath> is not supported",
+        "unsafe: <g> \"clip-path\" refers to another resource (url(#cp0)).",
+        "unsupported: <g> style property \"isolation\" is not supported."
+      ],
+      "normBytes": 1338,
+      "normImportOk": false,
+      "normIssueKinds": [
+        "unsupported: <defs> is not supported",
+        "unsupported: <clipPath> is not supported",
+        "unsafe: <g> \"clip-path\" refers to another resource (url(#cp0)).",
+        "unsupported: <g> style property \"mix-blend-mode\" is not supported.",
+        "unsupported: <g> style property \"isolation\" is not supported."
+      ],
+      "hasTextElement": false
+    },
+    {
+      "set": "full",
+      "piece": "waveform",
+      "lib": "satori",
+      "rawBytes": 1596,
+      "rawImportOk": false,
+      "rawIssueCount": 8,
+      "rawIssueKinds": [
+        "unsupported: <mask> is not supported",
+        "unsupported: <path> attribute \"x\" is not supported.",
+        "unsupported: <path> attribute \"y\" is not supported.",
+        "unsupported: <path> attribute \"width\" is not supported.",
+        "unsupported: <path> attribute \"height\" is not supported.",
+        "unsupported: <clipPath> is not supported",
+        "unsafe: <image> is not allowed"
+      ],
+      "normBytes": 2042,
+      "normImportOk": false,
+      "normIssueKinds": [
+        "unsupported: <defs> is not supported",
+        "unsupported: <clipPath> is not supported",
+        "unsupported: <mask> is not supported",
+        "unsafe: <g> \"clip-path\" refers to another resource (url(#satori_cp-id-0)).",
+        "unsafe: <g> \"mask\" refers to another resource (url(#satori_om-id-0)).",
+        "unsafe: <image> is not allowed"
+      ],
+      "hasTextElement": false
+    },
+    {
+      "set": "safe",
+      "piece": "code-window",
+      "lib": "takumi",
+      "rawBytes": 9679,
+      "rawImportOk": false,
+      "rawIssueCount": 61,
+      "rawIssueKinds": ["unsafe: <use> is not allowed", "unsupported: <defs> is not supported"],
+      "normBytes": 27654,
+      "normImportOk": true,
+      "normIssueKinds": [],
+      "hasTextElement": false
+    },
+    {
+      "set": "safe",
+      "piece": "code-window",
+      "lib": "satori",
+      "rawBytes": 27080,
+      "rawImportOk": false,
+      "rawIssueCount": 40,
+      "rawIssueKinds": [
+        "unsupported: <mask> is not supported",
+        "unsupported: <path> attribute \"x\" is not supported.",
+        "unsupported: <path> attribute \"y\" is not supported.",
+        "unsupported: <path> attribute \"width\" is not supported.",
+        "unsupported: <path> attribute \"height\" is not supported."
+      ],
+      "normBytes": 32340,
+      "normImportOk": true,
+      "normIssueKinds": [],
+      "hasTextElement": false
+    },
+    {
+      "set": "safe",
+      "piece": "film-strip",
+      "lib": "takumi",
+      "rawBytes": 2166,
+      "rawImportOk": true,
+      "rawIssueCount": 0,
+      "rawIssueKinds": [],
+      "normBytes": 3751,
+      "normImportOk": true,
+      "normIssueKinds": [],
+      "hasTextElement": false
+    },
+    {
+      "set": "safe",
+      "piece": "film-strip",
+      "lib": "satori",
+      "rawBytes": 6384,
+      "rawImportOk": false,
+      "rawIssueCount": 109,
+      "rawIssueKinds": [
+        "unsupported: <mask> is not supported",
+        "unsupported: <path> attribute \"x\" is not supported.",
+        "unsupported: <path> attribute \"y\" is not supported.",
+        "unsupported: <path> attribute \"width\" is not supported.",
+        "unsupported: <path> attribute \"height\" is not supported.",
+        "unsupported: <defs> is not supported",
+        "unsupported: <clipPath> is not supported",
+        "unsafe: <g> \"clip-path\" refers to another resource (url(#satori_bs-id-1-0-0)).",
+        "unsafe: <g> \"clip-path\" refers to another resource (url(#satori_br-id-1-0)).",
+        "unsafe: <path> \"clip-path\" refers to another resource (url(#satori_bc-id-1-0))",
+        "unsafe: <g> \"clip-path\" refers to another resource (url(#satori_bs-id-1-0-1)).",
+        "unsafe: <g> \"clip-path\" refers to another resource (url(#satori_bs-id-1-0-2))."
+      ],
+      "normBytes": 6040,
+      "normImportOk": false,
+      "normIssueKinds": [
+        "unsupported: <defs> is not supported",
+        "unsupported: <clipPath> is not supported",
+        "unsafe: <g> \"clip-path\" refers to another resource (url(#satori_bs-id-1-0-0)).",
+        "unsafe: <g> \"clip-path\" refers to another resource (url(#satori_br-id-1-0)).",
+        "unsafe: <g> \"clip-path\" refers to another resource (url(#satori_bc-id-1-0)).",
+        "unsafe: <g> \"clip-path\" refers to another resource (url(#satori_bs-id-1-0-1)).",
+        "unsafe: <g> \"clip-path\" refers to another resource (url(#satori_bs-id-1-0-2))."
+      ],
+      "hasTextElement": false
+    },
+    {
+      "set": "safe",
+      "piece": "text-card",
+      "lib": "takumi",
+      "rawBytes": 15139,
+      "rawImportOk": false,
+      "rawIssueCount": 77,
+      "rawIssueKinds": ["unsafe: <use> is not allowed", "unsupported: <defs> is not supported"],
+      "normBytes": 46280,
+      "normImportOk": true,
+      "normIssueKinds": [],
+      "hasTextElement": false
+    },
+    {
+      "set": "safe",
+      "piece": "text-card",
+      "lib": "satori",
+      "rawBytes": 41484,
+      "rawImportOk": false,
+      "rawIssueCount": 18,
+      "rawIssueKinds": [
+        "unsupported: <defs> is not supported",
+        "unsupported: <clipPath> is not supported",
+        "unsupported: <path> attribute \"x\" is not supported.",
+        "unsupported: <path> attribute \"y\" is not supported.",
+        "unsupported: <path> attribute \"width\" is not supported.",
+        "unsupported: <path> attribute \"height\" is not supported.",
+        "unsupported: <mask> is not supported",
+        "unsafe: <path> \"clip-path\" refers to another resource (url(#satori_bc-id))."
+      ],
+      "normBytes": 51737,
+      "normImportOk": false,
+      "normIssueKinds": [
+        "unsupported: <defs> is not supported",
+        "unsupported: <clipPath> is not supported",
+        "unsafe: <g> \"clip-path\" refers to another resource (url(#satori_bc-id))."
+      ],
+      "hasTextElement": false
+    },
+    {
+      "set": "safe",
+      "piece": "token-strip",
+      "lib": "takumi",
+      "rawBytes": 9453,
+      "rawImportOk": false,
+      "rawIssueCount": 37,
+      "rawIssueKinds": ["unsafe: <use> is not allowed", "unsupported: <defs> is not supported"],
+      "normBytes": 21617,
+      "normImportOk": true,
+      "normIssueKinds": [],
+      "hasTextElement": false
+    },
+    {
+      "set": "safe",
+      "piece": "token-strip",
+      "lib": "satori",
+      "rawBytes": 19123,
+      "rawImportOk": false,
+      "rawIssueCount": 33,
+      "rawIssueKinds": [
+        "unsupported: <mask> is not supported",
+        "unsupported: <path> attribute \"x\" is not supported.",
+        "unsupported: <path> attribute \"y\" is not supported.",
+        "unsupported: <path> attribute \"width\" is not supported.",
+        "unsupported: <path> attribute \"height\" is not supported."
+      ],
+      "normBytes": 22786,
+      "normImportOk": true,
+      "normIssueKinds": [],
+      "hasTextElement": false
+    },
+    {
+      "set": "safe",
+      "piece": "waveform-bars",
+      "lib": "takumi",
+      "rawBytes": 3280,
+      "rawImportOk": true,
+      "rawIssueCount": 0,
+      "rawIssueKinds": [],
+      "normBytes": 6123,
+      "normImportOk": true,
+      "normIssueKinds": [],
+      "hasTextElement": false
+    },
+    {
+      "set": "safe",
+      "piece": "waveform-bars",
+      "lib": "satori",
+      "rawBytes": 7737,
+      "rawImportOk": false,
+      "rawIssueCount": 100,
+      "rawIssueKinds": [
+        "unsupported: <mask> is not supported",
+        "unsupported: <path> attribute \"x\" is not supported.",
+        "unsupported: <path> attribute \"y\" is not supported.",
+        "unsupported: <path> attribute \"width\" is not supported.",
+        "unsupported: <path> attribute \"height\" is not supported."
+      ],
+      "normBytes": 7491,
+      "normImportOk": true,
+      "normIssueKinds": [],
+      "hasTextElement": false
+    },
+    {
+      "set": "safe",
+      "piece": "waveform",
+      "lib": "takumi",
+      "rawBytes": 850,
+      "rawImportOk": false,
+      "rawIssueCount": 3,
+      "rawIssueKinds": [
+        "unsupported: <clipPath> is not supported",
+        "unsafe: <g> \"clip-path\" refers to another resource (url(#cp0)).",
+        "unsupported: <g> style property \"isolation\" is not supported."
+      ],
+      "normBytes": 1338,
+      "normImportOk": false,
+      "normIssueKinds": [
+        "unsupported: <defs> is not supported",
+        "unsupported: <clipPath> is not supported",
+        "unsafe: <g> \"clip-path\" refers to another resource (url(#cp0)).",
+        "unsupported: <g> style property \"mix-blend-mode\" is not supported.",
+        "unsupported: <g> style property \"isolation\" is not supported."
+      ],
+      "hasTextElement": false
+    },
+    {
+      "set": "safe",
+      "piece": "waveform",
+      "lib": "satori",
+      "rawBytes": 1596,
+      "rawImportOk": false,
+      "rawIssueCount": 8,
+      "rawIssueKinds": [
+        "unsupported: <mask> is not supported",
+        "unsupported: <path> attribute \"x\" is not supported.",
+        "unsupported: <path> attribute \"y\" is not supported.",
+        "unsupported: <path> attribute \"width\" is not supported.",
+        "unsupported: <path> attribute \"height\" is not supported.",
+        "unsupported: <clipPath> is not supported",
+        "unsafe: <image> is not allowed"
+      ],
+      "normBytes": 2042,
+      "normImportOk": false,
+      "normIssueKinds": [
+        "unsupported: <defs> is not supported",
+        "unsupported: <clipPath> is not supported",
+        "unsupported: <mask> is not supported",
+        "unsafe: <g> \"clip-path\" refers to another resource (url(#satori_cp-id-0)).",
+        "unsafe: <g> \"mask\" refers to another resource (url(#satori_om-id-0)).",
+        "unsafe: <image> is not allowed"
+      ],
+      "hasTextElement": false
+    }
+  ],
+  "idCollisions": {
+    "takumi": ["cp0", "g0", "g1", "g2", "g3"],
+    "satori": ["satori_om-id", "satori_om-id-0", "satori_om-id-1"]
+  },
+  "text": {
+    "takumiHasTextElement": false,
+    "takumiGlyphUses": 60,
+    "satoriDefaultHasTextElement": false,
+    "satoriEmbedFalseHasTextElement": true,
+    "satoriEmbedFalseSample": "<text x=\"16\" y=\"61\" width=\"24\" height=\"26\" font-weight=\"normal\" font-style=\"normal\" font-size=\"16\" font-family=\"biz udgothic,monospace\" clip-path=\"url(#satori_cp-id)\" fill=\"#c792ea\">def</text>",
+    "satoriEmbedFalseImport": [
+      "unsupported: <clipPath> is not supported",
+      "unsupported: <path> attribute \"x\" is not supported.",
+      "unsupported: <path> attribute \"y\" is not supported.",
+      "unsupported: <path> attribute \"width\" is not supported.",
+      "unsupported: <path> attribute \"height\" is not supported.",
+      "unsupported: <mask> is not supported",
+      "unsafe: <rect> \"mask\" refers to another resource (url(#satori_om-id)).",
+      "unsafe: <rect> \"clip-path\" refers to another resource (url(#satori_cp-id)).",
+      "unsafe: <path> \"clip-path\" refers to another resource (url(#satori_cp-id)).",
+      "unsafe: <path> \"mask\" refers to another resource (url(#satori_om-id)).",
+      "unsupported: <text> is not supported"
+    ]
+  },
+  "measureCodeWindow": {
+    "root": {
+      "width": 320,
+      "height": 176
+    },
+    "runs": [
+      {
+        "text": "def ",
+        "x": 0,
+        "y": 4.921875,
+        "width": 32,
+        "height": 16
+      },
+      {
+        "text": "embed",
+        "x": 0,
+        "y": 4.921875,
+        "width": 40,
+        "height": 16
+      },
+      {
+        "text": "(text):",
+        "x": 0,
+        "y": 4.921875,
+        "width": 56,
+        "height": 16
+      },
+      {
+        "text": "    tokens = ",
+        "x": 0,
+        "y": 4.921875,
+        "width": 104,
+        "height": 16
+      },
+      {
+        "text": "encode",
+        "x": 0,
+        "y": 4.921875,
+        "width": 48,
+        "height": 16
+      },
+      {
+        "text": "(text)",
+        "x": 0,
+        "y": 4.921875,
+        "width": 48,
+        "height": 16
+      },
+      {
+        "text": "    return ",
+        "x": 0,
+        "y": 4.921875,
+        "width": 88,
+        "height": 16
+      },
+      {
+        "text": "pool",
+        "x": 0,
+        "y": 4.921875,
+        "width": 32,
+        "height": 16
+      },
+      {
+        "text": "(tokens)",
+        "x": 0,
+        "y": 4.921875,
+        "width": 64,
+        "height": 16
+      },
+      {
+        "text": "# 埋め込み ... ",
+        "x": 0,
+        "y": 4.921875,
+        "width": 120,
+        "height": 16
+      }
+    ]
+  },
+  "safety": {
+    "img.takumi": {
+      "status": "ok",
+      "requestsToLocalServer": [],
+      "outputHasExternalRef": false,
+      "outputHasImageTag": false,
+      "outputHasScript": false
+    },
+    "img.satori": {
+      "status": "error: Error: Image source resolves to a blocked address (SSRF protection): http://127.0.0.1:52784/img.svg",
+      "requestsToLocalServer": [],
+      "outputHasExternalRef": false,
+      "outputHasImageTag": false,
+      "outputHasScript": false
+    },
+    "bgImage.takumi": {
+      "status": "ok",
+      "requestsToLocalServer": [],
+      "outputHasExternalRef": false,
+      "outputHasImageTag": false,
+      "outputHasScript": false
+    },
+    "bgImage.satori": {
+      "status": "error: Error: Image source resolves to a blocked address (SSRF protection): http://127.0.0.1:52784/bg.svg",
+      "requestsToLocalServer": [],
+      "outputHasExternalRef": false,
+      "outputHasImageTag": false,
+      "outputHasScript": false
+    },
+    "cssImport.takumi": {
+      "status": "ok",
+      "requestsToLocalServer": [],
+      "outputHasExternalRef": false,
+      "outputHasImageTag": false,
+      "outputHasScript": false
+    },
+    "cssImport.satori": {
+      "status": "ok",
+      "requestsToLocalServer": [],
+      "outputHasExternalRef": false,
+      "outputHasImageTag": false,
+      "outputHasScript": false
+    },
+    "script.takumi": {
+      "status": "ok",
+      "requestsToLocalServer": [],
+      "outputHasExternalRef": false,
+      "outputHasImageTag": false,
+      "outputHasScript": false
+    },
+    "script.satori": {
+      "status": "ok",
+      "requestsToLocalServer": [],
+      "outputHasExternalRef": false,
+      "outputHasImageTag": false,
+      "outputHasScript": false
+    },
+    "linkTag.takumi": {
+      "status": "ok",
+      "requestsToLocalServer": [],
+      "outputHasExternalRef": false,
+      "outputHasImageTag": false,
+      "outputHasScript": false
+    },
+    "linkTag.satori": {
+      "status": "ok",
+      "requestsToLocalServer": [],
+      "outputHasExternalRef": false,
+      "outputHasImageTag": false,
+      "outputHasScript": false
+    },
+    "iframe.takumi": {
+      "status": "ok",
+      "requestsToLocalServer": [],
+      "outputHasExternalRef": false,
+      "outputHasImageTag": false,
+      "outputHasScript": false
+    },
+    "iframe.satori": {
+      "status": "ok",
+      "requestsToLocalServer": [],
+      "outputHasExternalRef": false,
+      "outputHasImageTag": false,
+      "outputHasScript": false
+    },
+    "onclick.takumi": {
+      "status": "ok",
+      "requestsToLocalServer": [],
+      "outputHasExternalRef": false,
+      "outputHasImageTag": false,
+      "outputHasScript": false
+    },
+    "onclick.satori": {
+      "status": "ok",
+      "requestsToLocalServer": [],
+      "outputHasExternalRef": false,
+      "outputHasImageTag": false,
+      "outputHasScript": false
+    },
+    "fileImg.takumi": {
+      "status": "ok",
+      "requestsToLocalServer": [],
+      "outputHasExternalRef": false,
+      "outputHasImageTag": false,
+      "outputHasScript": false
+    },
+    "fileImg.satori": {
+      "status": "error: Error: Image source must be an absolute URL: file:///etc/hosts",
+      "requestsToLocalServer": [],
+      "outputHasExternalRef": false,
+      "outputHasImageTag": false,
+      "outputHasScript": false
+    },
+    "dataImg.takumi": {
+      "status": "ok",
+      "requestsToLocalServer": [],
+      "outputHasExternalRef": false,
+      "outputHasImageTag": false,
+      "outputHasScript": false
+    },
+    "dataImg.satori": {
+      "status": "ok",
+      "requestsToLocalServer": [],
+      "outputHasExternalRef": false,
+      "outputHasImageTag": true,
+      "outputHasScript": false
+    }
+  },
+  "cssBehaviour": {
+    "grid.takumi": {
+      "status": "ok",
+      "bytes": 207,
+      "elements": "svg,rect"
+    },
+    "grid.satori": {
+      "status": "ok",
+      "bytes": 460,
+      "elements": "svg,mask,rect"
+    },
+    "float.takumi": {
+      "status": "ok",
+      "bytes": 149,
+      "elements": "svg,rect"
+    },
+    "float.satori": {
+      "status": "ok",
+      "bytes": 317,
+      "elements": "svg,mask,rect"
+    },
+    "position.takumi": {
+      "status": "ok",
+      "bytes": 150,
+      "elements": "svg,rect"
+    },
+    "position.satori": {
+      "status": "ok",
+      "bytes": 319,
+      "elements": "svg,mask,rect"
+    },
+    "calc.takumi": {
+      "status": "ok",
+      "bytes": 150,
+      "elements": "svg,rect"
+    },
+    "calc.satori": {
+      "status": "ok",
+      "bytes": 231,
+      "elements": "svg,mask,rect"
+    },
+    "cssVar.takumi": {
+      "status": "ok",
+      "bytes": 149,
+      "elements": "svg,rect"
+    },
+    "cssVar.satori": {
+      "status": "ok",
+      "bytes": 176,
+      "elements": "svg,mask,rect"
+    },
+    "transform.takumi": {
+      "status": "ok",
+      "bytes": 352,
+      "elements": "svg,g,rect"
+    },
+    "transform.satori": {
+      "status": "ok",
+      "bytes": 305,
+      "elements": "svg,mask,rect"
+    },
+    "boxShadow.takumi": {
+      "status": "ok",
+      "bytes": 549,
+      "elements": "svg,clipPath,path,g,filter,feGaussianBlur,rect"
+    },
+    "boxShadow.satori": {
+      "status": "ok",
+      "bytes": 806,
+      "elements": "svg,mask,rect,defs,filter,feGaussianBlur,feFlood,feComposite,g"
+    },
+    "filterBlur.takumi": {
+      "status": "ok",
+      "bytes": 441,
+      "elements": "svg,filter,feGaussianBlur,g,rect"
+    },
+    "filterBlur.satori": {
+      "status": "ok",
+      "bytes": 475,
+      "elements": "svg,filter,feGaussianBlur,g,mask,rect"
+    },
+    "textShadow.takumi": {
+      "status": "ok",
+      "bytes": 655,
+      "elements": "svg,filter,feGaussianBlur,g,use,defs,path"
+    },
+    "textShadow.satori": {
+      "status": "ok",
+      "bytes": 1035,
+      "elements": "svg,mask,rect,defs,filter,feGaussianBlur,feOffset,feFlood,feComposite,feMerge,feMergeNode,g,path"
+    },
+    "radialGradient.takumi": {
+      "status": "ok",
+      "bytes": 3285,
+      "elements": "svg,radialGradient,stop,rect"
+    },
+    "radialGradient.satori": {
+      "status": "ok",
+      "bytes": 734,
+      "elements": "svg,defs,pattern,radialGradient,stop,rect,mask"
+    },
+    "unknownTag.takumi": {
+      "status": "ok",
+      "bytes": 1137,
+      "elements": "svg,use,g,defs,path"
+    },
+    "unknownTag.satori": {
+      "status": "ok",
+      "bytes": 1864,
+      "elements": "svg,mask,rect,g,path"
+    },
+    "inlineBlockSpan.takumi": {
+      "status": "ok",
+      "bytes": 6554,
+      "elements": "svg,g,use,path,defs"
+    },
+    "inlineBlockSpan.satori": {
+      "status": "ok",
+      "bytes": 11451,
+      "elements": "svg,mask,rect,g,path"
+    },
+    "overflowText.takumi": {
+      "status": "ok",
+      "bytes": 6872,
+      "elements": "svg,g,use,defs,path"
+    },
+    "overflowText.satori": {
+      "status": "ok",
+      "bytes": 15274,
+      "elements": "svg,mask,rect,g,path"
+    },
+    "missingGlyph.takumi": {
+      "status": "ok",
+      "bytes": 2051,
+      "elements": "svg,g,use,defs,path"
+    },
+    "missingGlyph.satori": {
+      "status": "ok",
+      "bytes": 2401,
+      "elements": "svg,mask,rect,g,path"
+    },
+    "emoji.takumi": {
+      "status": "ok",
+      "bytes": 310,
+      "elements": "svg,use,defs,path"
+    },
+    "emoji.satori": {
+      "status": "ok",
+      "bytes": 859,
+      "elements": "svg,mask,rect,g,path"
+    }
+  },
+  "figures": {
+    "takumi": {
+      "used": ["code-window", "text-card", "film-strip", "token-strip", "waveform-bars"],
+      "skipped": {},
+      "renderMs": 39,
+      "svgBytes": 150957,
+      "svgDeterministicTwice": true,
+      "svgSha256": "fd436bac35e9d2dbaf2590e5d277d8583179b262fa71377d7739323e3ee56a0a",
+      "pdfBytes": 36166,
+      "pdfSha256": "27b2bb53ae3672fd15c255851c7c1fa8a3e9b03ca45a5467b3eecd9eb3ff291d",
+      "pdfPages": [
+        {
+          "mediaBox": [0, 0, 506.5, 207.5]
+        }
+      ],
+      "pdfImages": 0,
+      "pdfText": "Sumi components stay native",
+      "pptxBytes": 86295,
+      "pptxFallbackPngBytes": 44653,
+      "renderDiagnostics": [],
+      "geometry": [],
+      "editableDiagnostics": [
+        {
+          "code": "pptx/unsupported-asset",
+          "severity": "error",
+          "message": "The editable PPTX cannot carry the image of node \"code-window\" yet.",
+          "path": ["nodes", 0, "component"],
+          "location": {
+            "line": 15,
+            "column": 5,
+            "endLine": 19,
+            "endColumn": 1
+          },
+          "subject": {
+            "kind": "node",
+            "id": "code-window"
+          },
+          "hint": "Use the picture PPTX (the default --pptx-mode), which keeps icons and images."
+        },
+        {
+          "code": "pptx/unsupported-asset",
+          "severity": "error",
+          "message": "The editable PPTX cannot carry the image of node \"text-card\" yet.",
+          "path": ["nodes", 1, "component"],
+          "location": {
+            "line": 19,
+            "column": 5,
+            "endLine": 23,
+            "endColumn": 1
+          },
+          "subject": {
+            "kind": "node",
+            "id": "text-card"
+          },
+          "hint": "Use the picture PPTX (the default --pptx-mode), which keeps icons and images."
+        },
+        {
+          "code": "pptx/unsupported-asset",
+          "severity": "error",
+          "message": "The editable PPTX cannot carry the image of node \"film-strip\" yet.",
+          "path": ["nodes", 2, "component"],
+          "location": {
+            "line": 23,
+            "column": 5,
+            "endLine": 27,
+            "endColumn": 1
+          },
+          "subject": {
+            "kind": "node",
+            "id": "film-strip"
+          },
+          "hint": "Use the picture PPTX (the default --pptx-mode), which keeps icons and images."
+        },
+        {
+          "code": "pptx/unsupported-asset",
+          "severity": "error",
+          "message": "The editable PPTX cannot carry the image of node \"token-strip\" yet.",
+          "path": ["nodes", 3, "component"],
+          "location": {
+            "line": 27,
+            "column": 5,
+            "endLine": 31,
+            "endColumn": 1
+          },
+          "subject": {
+            "kind": "node",
+            "id": "token-strip"
+          },
+          "hint": "Use the picture PPTX (the default --pptx-mode), which keeps icons and images."
+        },
+        {
+          "code": "pptx/unsupported-asset",
+          "severity": "error",
+          "message": "The editable PPTX cannot carry the image of node \"waveform\" yet.",
+          "path": ["nodes", 4, "component"],
+          "location": {
+            "line": 31,
+            "column": 5,
+            "endLine": 35,
+            "endColumn": 1
+          },
+          "subject": {
+            "kind": "node",
+            "id": "waveform"
+          },
+          "hint": "Use the picture PPTX (the default --pptx-mode), which keeps icons and images."
+        }
+      ]
+    },
+    "satori": {
+      "used": ["code-window", "token-strip", "waveform-bars"],
+      "skipped": {
+        "text-card": "3 importer issues, first: <defs> is not supported; Sumi draws basic shapes only.",
+        "film-strip": "15 importer issues, first: <defs> is not supported; Sumi draws basic shapes only."
+      },
+      "renderMs": 8,
+      "svgBytes": 98861,
+      "svgDeterministicTwice": true,
+      "svgSha256": "482c9dd5a99a7a199bbb1cbe125482e5aabbd5fbdc2cdc9f24a5e5fe347eb3e6",
+      "pdfBytes": 32690,
+      "pdfSha256": "8874d056730a251a71d9d2ded24ddc1a32202f5f5a79c453ae01e7f61c148be3",
+      "pdfPages": [
+        {
+          "mediaBox": [0, 0, 506.5, 139]
+        }
+      ],
+      "pdfImages": 0,
+      "pdfText": "Sumi components stay native",
+      "pptxBytes": 63824,
+      "pptxFallbackPngBytes": 28143,
+      "renderDiagnostics": [],
+      "geometry": [],
+      "editableDiagnostics": [
+        {
+          "code": "pptx/unsupported-asset",
+          "severity": "error",
+          "message": "The editable PPTX cannot carry the image of node \"code-window\" yet.",
+          "path": ["nodes", 0, "component"],
+          "location": {
+            "line": 15,
+            "column": 5,
+            "endLine": 19,
+            "endColumn": 1
+          },
+          "subject": {
+            "kind": "node",
+            "id": "code-window"
+          },
+          "hint": "Use the picture PPTX (the default --pptx-mode), which keeps icons and images."
+        },
+        {
+          "code": "pptx/unsupported-asset",
+          "severity": "error",
+          "message": "The editable PPTX cannot carry the image of node \"token-strip\" yet.",
+          "path": ["nodes", 1, "component"],
+          "location": {
+            "line": 19,
+            "column": 5,
+            "endLine": 23,
+            "endColumn": 1
+          },
+          "subject": {
+            "kind": "node",
+            "id": "token-strip"
+          },
+          "hint": "Use the picture PPTX (the default --pptx-mode), which keeps icons and images."
+        },
+        {
+          "code": "pptx/unsupported-asset",
+          "severity": "error",
+          "message": "The editable PPTX cannot carry the image of node \"waveform\" yet.",
+          "path": ["nodes", 2, "component"],
+          "location": {
+            "line": 23,
+            "column": 5,
+            "endLine": 27,
+            "endColumn": 1
+          },
+          "subject": {
+            "kind": "node",
+            "id": "waveform"
+          },
+          "hint": "Use the picture PPTX (the default --pptx-mode), which keeps icons and images."
+        }
+      ]
+    },
+    "rawSheets": {
+      "takumi": {
+        "svgBytes": 42501,
+        "pdfBytes": 47027,
+        "pdfMs": 94,
+        "pdfImages": 2,
+        "pdfText": "",
+        "hasTextElement": false,
+        "importerOk": false
+      },
+      "satori-paths": {
+        "svgBytes": 98881,
+        "pdfBytes": 67487,
+        "pdfMs": 181,
+        "pdfImages": 2,
+        "pdfText": "",
+        "hasTextElement": false,
+        "importerOk": false
+      },
+      "satori-text": {
+        "svgBytes": 32964,
+        "pdfBytes": 27035,
+        "pdfMs": 178,
+        "pdfImages": 2,
+        "pdfText": "defembed(text):tokens=encode(text)returnpool(tokens)#埋め込み...TextinputAshortpassageissplitintotokensandembeddedintoonevector.日本語もそのまま書ける。Thecatsatonthemat6tokens→[CLS]pooled",
+        "hasTextElement": true,
+        "importerOk": false
+      }
+    }
+  },
+  "lintDemo": {
+    "text-card": {
+      "root": [320, 176],
+      "contentBounds": {
+        "maxRight": 320,
+        "maxBottom": 176
+      },
+      "overflowsRoot": false,
+      "runs": [
+        {
+          "text": "Text input",
+          "x": 24,
+          "y": 38.6,
+          "w": 97.5,
+          "h": 24.2
+        },
+        {
+          "text": "A short passage is split into tokens",
+          "x": 24,
+          "y": 72.5,
+          "w": 246.4,
+          "h": 18.1
+        },
+        {
+          "text": "and embedded into one vector. ",
+          "x": 24,
+          "y": 94.5,
+          "w": 224.8,
+          "h": 18.1
+        },
+        {
+          "text": "日本語",
+          "x": 248.8,
+          "y": 95.8,
+          "w": 45,
+          "h": 15
+        },
+        {
+          "text": "もそのまま書ける。",
+          "x": 24,
+          "y": 117.8,
+          "w": 135,
+          "h": 15
+        }
+      ],
+      "minRunHeightPx": 15
+    },
+    "overflow-fixed-box": {
+      "root": [320, 176],
+      "contentBounds": {
+        "maxRight": 347.98,
+        "maxBottom": 176
+      },
+      "overflowsRoot": true,
+      "runs": [
+        {
+          "text": "A very long unbroken sentence that overflows",
+          "x": 0,
+          "y": 0.5,
+          "w": 348,
+          "h": 19.4
+        }
+      ],
+      "minRunHeightPx": 19.359375
+    },
+    "tiny-text": {
+      "root": [320, 176],
+      "contentBounds": {
+        "maxRight": 320,
+        "maxBottom": 176
+      },
+      "overflowsRoot": false,
+      "runs": [
+        {
+          "text": "tiny",
+          "x": 0,
+          "y": 0.2,
+          "w": 8.5,
+          "h": 6
+        }
+      ],
+      "minRunHeightPx": 6.0498046875
+    }
+  }
+}
