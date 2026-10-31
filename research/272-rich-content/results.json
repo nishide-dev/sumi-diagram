@@ -1,0 +1,174 @@
+{
+  "samples": [
+    4, 9, 12, 3, 4, 7, 6, 3, 10, 13, 6, 5, 42, 11, 28, 35, 30, 25, 52, 47, 44, 27, 28, 19, 48, 25,
+    14, 49, 12, 35, 16, 23, 14, 7, 48, 29, 48, 27, 4, 17, 50, 23, 48, 7, 24, 39, 48, 7, 30, 45, 32,
+    25, 10, 29, 48, 3, 42, 23, 24, 11, 16, 7, 8, 11, 14, 9, 14, 13, 8, 11, 10, 9
+  ],
+  "probes": {
+    "text": {
+      "ok": false,
+      "issues": [
+        {
+          "kind": "unsupported",
+          "message": "<text> is not supported; Sumi draws basic shapes only.",
+          "line": 1,
+          "column": 333
+        },
+        {
+          "kind": "unsupported",
+          "message": "<text> is not supported; Sumi draws basic shapes only.",
+          "line": 1,
+          "column": 442
+        },
+        {
+          "kind": "unsupported",
+          "message": "<text> is not supported; Sumi draws basic shapes only.",
+          "line": 1,
+          "column": 559
+        },
+        {
+          "kind": "unsupported",
+          "message": "<text> is not supported; Sumi draws basic shapes only.",
+          "line": 1,
+          "column": 687
+        },
+        {
+          "kind": "unsupported",
+          "message": "<text> is not supported; Sumi draws basic shapes only.",
+          "line": 1,
+          "column": 802
+        }
+      ]
+    },
+    "foreignObject": {
+      "ok": false,
+      "issues": [
+        {
+          "kind": "unsafe",
+          "message": "<foreignObject> is not allowed: it can run code, load other files or embed foreign content.",
+          "line": 1,
+          "column": 88
+        },
+        {
+          "kind": "unsupported",
+          "message": "<div> is in the namespace http://www.w3.org/1999/xhtml, not drawn by Sumi.",
+          "line": 1,
+          "column": 128
+        }
+      ]
+    },
+    "overflow": {
+      "ok": true,
+      "value": {
+        "viewBox": [0, 0, 320, 176],
+        "width": 320,
+        "height": 176,
+        "markup": "<g><rect x=\"500\" width=\"30\" height=\"30\" fill=\"red\"/></g>"
+      }
+    }
+  },
+  "foreignObjectEngine": {
+    "pngEqualsEmpty": true,
+    "pdfGlyphs": 0,
+    "pdfImages": 0
+  },
+  "renderDiagnostics": [],
+  "image": {
+    "geometry": [],
+    "svgSha256": "67125ba9bca0cdd24b7464e24fb8d6c6c0c960d2e9787d8114496b0cfe1170ae",
+    "pdfSha256": "fbfa08ffce6be56f081b52a7bc34e6cb43c53f143685dd4f5064d51474a2dba7",
+    "pptxSha256": "3bb4602f97b7d91675876824f0aa788a9b859482a8da40e394d7fb3eb16d09c1",
+    "pdfImages": 0,
+    "pdfText": "Sumi components stay native",
+    "pages": [
+      {
+        "mediaBox": [0, 0, 329.5, 136.5]
+      }
+    ],
+    "editableDiagnostics": [
+      {
+        "code": "pptx/unsupported-asset",
+        "severity": "error",
+        "message": "The editable PPTX cannot carry the image of node \"waveform\" yet.",
+        "path": ["nodes", 0, "component"],
+        "location": {
+          "line": 15,
+          "column": 5,
+          "endLine": 19,
+          "endColumn": 1
+        },
+        "subject": {
+          "kind": "node",
+          "id": "waveform"
+        },
+        "hint": "Use the picture PPTX (the default --pptx-mode), which keeps icons and images."
+      },
+      {
+        "code": "pptx/unsupported-asset",
+        "severity": "error",
+        "message": "The editable PPTX cannot carry the image of node \"code\" yet.",
+        "path": ["nodes", 1, "component"],
+        "location": {
+          "line": 19,
+          "column": 5,
+          "endLine": 23,
+          "endColumn": 1
+        },
+        "subject": {
+          "kind": "node",
+          "id": "code"
+        },
+        "hint": "Use the picture PPTX (the default --pptx-mode), which keeps icons and images."
+      }
+    ]
+  },
+  "inline": {
+    "geometry": [],
+    "svgSha256": "4968ad5c80c52f0de905c65af463fa09ad4cc1543be66161b7a42067cb86e1f9",
+    "pdfSha256": "c7450d3acf0383ca200346e0deccb664b220f0d47138e9f89b6c63b01ecebf6f",
+    "pptxSha256": "a0baa86f8e97564896a0750ae74b71c56217a6afdf5d0d0ac2a34eb9358e5d42",
+    "pdfImages": 0,
+    "pdfText": "Sumi components stay native",
+    "pages": [
+      {
+        "mediaBox": [0, 0, 329.5, 136.5]
+      }
+    ],
+    "editableDiagnostics": [
+      {
+        "code": "pptx/unsupported-asset",
+        "severity": "error",
+        "message": "The editable PPTX cannot carry the image of node \"waveform\" yet.",
+        "path": ["nodes", 0, "component"],
+        "location": {
+          "line": 15,
+          "column": 5,
+          "endLine": 19,
+          "endColumn": 1
+        },
+        "subject": {
+          "kind": "node",
+          "id": "waveform"
+        },
+        "hint": "Use the picture PPTX (the default --pptx-mode), which keeps icons and images."
+      },
+      {
+        "code": "pptx/unsupported-asset",
+        "severity": "error",
+        "message": "The editable PPTX cannot carry the image of node \"code\" yet.",
+        "path": ["nodes", 1, "component"],
+        "location": {
+          "line": 19,
+          "column": 5,
+          "endLine": 23,
+          "endColumn": 1
+        },
+        "subject": {
+          "kind": "node",
+          "id": "code"
+        },
+        "hint": "Use the picture PPTX (the default --pptx-mode), which keeps icons and images."
+      }
+    ]
+  }
+}
