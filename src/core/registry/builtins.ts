@@ -64,6 +64,35 @@ const squareSizeProps = sizeProps.refine(
 
 const noProps = z.strictObject({});
 
+const waveform = {
+  version: MANIFEST_VERSION,
+  namespace: BUILTIN_NAMESPACE,
+  since: "0.10.0",
+  kind: "node",
+  name: "waveform",
+  description:
+    "A deterministic sample-driven waveform in a rectangular frame, with an optional label below the signal; no audio decoding or synthesis.",
+  variants: ["default", "emphasis", "muted", "outlined"],
+  shape: "rectangle",
+  sizing: "auto",
+  props: sizeProps.extend({
+    samples: z
+      .array(z.number().finite().min(-1).max(1))
+      .min(2)
+      .max(2048)
+      .describe(
+        "Two to 2048 explicit finite amplitudes in [-1, 1], evenly spaced; no resampling or normalization. Bars mirror absolute amplitudes around the center; line mode preserves signs.",
+      ),
+    mode: z
+      .enum(["bars", "line"])
+      .default("bars")
+      .describe(
+        "bars draws mirrored vertical amplitudes; line joins signed samples with straight segments.",
+      ),
+  }),
+  render: { type: "outline", renderer: "sumi/waveform", params: {} },
+} satisfies NodeManifest;
+
 const base = { version: MANIFEST_VERSION, namespace: BUILTIN_NAMESPACE, since: SINCE } as const;
 
 function node(
@@ -891,6 +920,7 @@ export const BUILTIN_MANIFESTS: readonly ComponentManifest[] = [
   operator,
   junction,
   image,
+  waveform,
   legend,
   tokens,
   matrix,

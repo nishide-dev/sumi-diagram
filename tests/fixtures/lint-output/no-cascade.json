@@ -28,7 +28,7 @@
       "code": "component/unknown",
       "severity": "error",
       "message": "Unknown node component \"cloud\".",
-      "hint": "Known node components: box, square, circle, ellipse, diamond, hexagon, parallelogram, cylinder, document, trapezoid, bowtie, stack, bracket, label, operator, junction, image, legend, tokens, matrix.",
+      "hint": "Known node components: box, square, circle, ellipse, diamond, hexagon, parallelogram, cylinder, document, trapezoid, bowtie, stack, bracket, label, operator, junction, image, waveform, legend, tokens, matrix.",
       "path": [
         "nodes",
         0,

@@ -156,6 +156,12 @@ function componentStyles(styles: VariantStyles): NonNullable<ThemeDefinition["co
       default: { fill: "transparent", strokeWidth: "0pt" },
       framed: { fill: "transparent", strokeWidth: "{line.regular}" },
     },
+    waveform: {
+      default: {},
+      emphasis: styles.shape.emphasis,
+      muted: styles.shape.muted,
+      outlined: styles.shape.outlined,
+    },
     container: styles.container,
     legend: styles.legend,
     ...Object.fromEntries(EDGES.map((name) => [name, styles.edge])),

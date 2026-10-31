@@ -8,6 +8,34 @@ The authoritative definitions are `schema/figure.v1.schema.json` (generated)
 and `docs/design/phase1.md` §2 in the repository. This page is the subset you
 need to write a figure.
 
+## Sample-driven waveform (0.10.0)
+
+`component: waveform` (`sumi/waveform`) accepts required `props.samples`:
+2–2048 finite amplitudes in [-1, 1]. `mode: bars` (default) mirrors absolute
+amplitudes about the center; `mode: line` joins signed values. All samples are
+evenly spaced without resampling. Optional `width` / `height` use normal size
+lengths; omitted sizes fit an optional label below the signal (minimum 80×48pt).
+Variants: `default`, `emphasis`, `muted`, `outlined`. Use `outlined` plus a
+`tone` to color the signal and frame; other variants tone the background.
+Works in auto and structured layouts and SVG/PDF/picture/native editable PPTX.
+Supply actual data or explicitly identified illustrative samples; do not invent
+audio measurements. No audio decoding, seed mode, playback, or random synthesis.
+
+```yaml
+version: 1
+figure: { id: waveform-example }
+nodes:
+  - id: signal
+    component: waveform
+    variant: outlined
+    tone: red
+    props:
+      samples: [0, -0.2, 0.7, -1, 0.4, 0]
+      mode: line
+      width: 80pt
+      height: 48pt
+```
+
 ## Structure
 
 ```yaml

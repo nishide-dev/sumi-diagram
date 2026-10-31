@@ -186,6 +186,12 @@ export function sampleSource(entry: CatalogEntry, theme: string): string {
       for (const v of variants) {
         lines.push(`  - id: ${v}`, `    component: ${entry.id}`, `    label: ${v}`);
         if (v !== "default") lines.push(`    variant: ${v}`);
+        if (entry.id === "sumi/waveform")
+          lines.push(
+            "    props:",
+            "      samples: [0, 0.1, -0.3, 0.7, -1, 0.5, -0.8, 0.3, -0.1, 0]",
+            `      mode: ${v === "outlined" ? "line" : "bars"}`,
+          );
       }
       if (entry.id === "sumi/bowtie") {
         for (const v of variants)
