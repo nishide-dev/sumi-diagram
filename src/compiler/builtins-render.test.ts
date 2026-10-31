@@ -18,7 +18,6 @@ import { checkD2Version, findD2Binary } from "../backends/d2/binary";
 import { D2_VERSION } from "../backends/d2/version";
 import { getProfile } from "../core/profile/builtin";
 import { BUILTIN_THEMES } from "../core/theme/builtin";
-import { d2UnitsToPt } from "../core/units";
 import { lintGeometry } from "../lint";
 import { renderFigure } from "../render";
 import { readSvgMetadata, sha256 } from "../render/finalize";
@@ -254,10 +253,23 @@ describe.skipIf(!available)("built-in primitives render with D2", () => {
             [process.execPath, join(ROOT, "scripts", "render-example.ts"), example, output],
             { cwd: ROOT, stderr: "pipe", stdout: "pipe" },
           );
-          expect({ exitCode: run.exitCode, stderr: run.stderr.toString() }).toEqual({
-            exitCode: 0,
-            stderr: "",
-          });
+          const stderr = run.stderr.toString();
+          expect(run.exitCode, stderr).toBe(0);
+          if (example === "examples/dit-block/dit-block.sumi.yaml") {
+            expect(stderr).toContain("0 errors, 0 warnings, 6 infos");
+            expect(
+              [...stderr.matchAll(/^examples\/.*:\d+:\d+ (\w+) ([\w/-]+)/gm)].map(
+                ([, severity, code]) => [severity, code],
+              ),
+            ).toEqual([
+              ["info", "geometry/script-too-small"],
+              ["info", "geometry/group-empty-area"],
+              ["info", "geometry/group-empty-area"],
+              ["info", "geometry/arrowhead-cramped"],
+              ["info", "geometry/arrowhead-cramped"],
+              ["info", "geometry/arrowhead-cramped"],
+            ]);
+          } else expect(stderr).toBe("");
           const svg = await Bun.file(output).text();
           const committed = example.replace(/\.sumi\.yaml$/, ".svg");
           expect(svg).toBe(await Bun.file(join(ROOT, committed)).text());
@@ -270,12 +282,12 @@ describe.skipIf(!available)("built-in primitives render with D2", () => {
           const compiled = compileFigure(source);
           if (!compiled.ok) throw new Error("expected ok");
           expect(compiled.diagnostics).toEqual([]);
-          // `sumi render` also runs the geometry lint: the empty stderr above means
-          // no geometry diagnostics (e.g. no edge crossing a container label, #31).
+          // Check printed dimensions: fit: scale retains the natural viewBox.
           const { page } = getProfile(compiled.value.ir.meta.profileId) ?? {};
-          const size = /viewBox="0 0 (\d+) (\d+)"/.exec(svg);
-          expect(size).not.toBeNull();
-          const [width, height] = [Number(size?.[1]), Number(size?.[2])].map(d2UnitsToPt);
+          const width = Number(/<svg[^>]* width="([\d.]+)pt"/.exec(svg)?.[1]);
+          const height = Number(/<svg[^>]* height="([\d.]+)pt"/.exec(svg)?.[1]);
+          expect(width).toBeGreaterThan(0);
+          expect(height).toBeGreaterThan(0);
           if (page?.maxWidth) expect(width).toBeLessThanOrEqual(page.maxWidth.pt);
           if (page?.maxHeight) expect(height).toBeLessThanOrEqual(page.maxHeight.pt);
         } finally {

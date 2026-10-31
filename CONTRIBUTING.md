@@ -234,7 +234,7 @@ Closes #4
 
 1. **カタログの記述**: manifest の `description`（何を表す部品か、英語 1 文）、`variants`、`since`、props のスキーマと各 prop の `describe()`。`sumi catalog --json` にそのまま出ます。特定の業務・研究分野に固有の部品にしないでください。
 2. **テーマの対応**: すべての組み込みテーマ（`src/core/theme/builtin.ts`）で、すべての variant の見た目を定義する。定義のない variant は `theme/missing-variant`（warning）で `default` に戻り、ギャラリーの生成とテストが失敗します。
-3. **ギャラリーの再生成**: `bun run gallery` を実行し、`docs/gallery/` の変更をコミットする。サンプルの図はカタログから自動で作られます（全 variant × 全テーマ）。サンプルと `examples/` は診断ゼロ（幾何 lint を含む）でなければ生成が失敗します。CI の `bun run gallery:check` が、コミットされた出力が古くないことを検査します。
+3. **ギャラリーの再生成**: `bun run gallery` を実行し、`docs/gallery/` の変更をコミットする。サンプルの図はカタログから自動で作られます（全 variant × 全テーマ）。サンプルと `examples/` は error / warning ゼロ（幾何 lint を含む）でなければ生成が失敗します。info は許容し、作例ごとの info は `examples/README.md` に記載します。CI の `bun run gallery:check` が、コミットされた出力が古くないことを検査します。
 4. **テスト**: 単体テスト（manifest・props・テーマの解決）と、実際の D2 で描画するテスト（`src/compiler/builtins-render.test.ts` は全部品 × 全 variant × 全テーマを自動で含みます。部品固有の描画上の約束があれば追加する）。
 
 コンパイラ・テーマ・フォント・プロファイルを変えて SVG が変わる場合も、`bun run gallery` で例とギャラリーをまとめて再生成してください。

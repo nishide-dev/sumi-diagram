@@ -8,7 +8,7 @@
 
 ## ギャラリーと例
 
-- [コンポーネントギャラリー](gallery/README.md)（[単体の HTML 版](gallery/index.html)）: 組み込み部品のすべての variant を、組み込みテーマごとに描画した一覧。部品ごとの説明・props・それを生成する YAML と、同じ図をテーマ × プロファイルで描き比べた例を載せています。
+- [コンポーネントギャラリー](gallery/README.md)（[単体の HTML 版](gallery/index.html)）: 目次ページから、部品ごとのページ（すべての variant を組み込みテーマごとに描画し、説明・props・生成する YAML を載せる）と、作例・テーマ・tone・dim・プロファイルの比較ページへたどれます。
 - [`examples/`](../examples/README.md): 汎用的な図の例（pipeline、decision flow、system architecture、入れ子のグループ）。各ディレクトリに元の `*.sumi.yaml` と生成した SVG・PDF があります。
 
 どちらも `bun run gallery` で再生成します（CI の `bun run gallery:check` で、ソースと SVG・PDF が一致していることを検査します）。
@@ -256,10 +256,12 @@ sumi render figure.sumi.yaml -o glued.pptx --pptx-mode editable --pptx-connector
 | テーマ | 内容 |
 | --- | --- |
 | `minimal`（既定） | モノクロ、はっきりした線。文字 8pt（エッジ 7pt） |
-| `academic` | 論文向け。細い線・黒い文字・灰色の強調。文字 8pt（エッジ 7pt） |
+| `academic` | 白黒（グレースケール）で印刷できるジャーナル調。0.5pt の黒い線・角の四角い箱・灰色の tone と強調で、色は使いません。文字 8pt（エッジ 7pt） |
 | `slides` | スライド向け。文字 16pt（エッジ 14pt、コンテナ 18pt）、線 2pt。`presentation-16x9` と組み合わせる |
 | `color` | 色を使う汎用テーマ。`minimal` と同じ線・文字で、tone は淡い色の塗り、強調は青。文字 8pt（エッジ 7pt） |
-| `paper` | 論文の図の見た目。角丸の箱とグループ、パステルの tone、黒い 1pt の枠、0.5pt のエッジと小さい矢じり、structured の図の欧文は Inter（フォントセット `sumi/inter-biz-ud-gothic`）。文字 8pt（エッジ 7pt）（[設計 §6.52](design/phase1.md#652-173-の論文向けの-theme-paper)） |
+| `paper` | カラーの ML 論文風。パステルの tone、角丸の箱とグループ、黒い 1pt の枠、薄い灰色のパネル、0.5pt のエッジと小さい矢じり、structured の図の欧文は Inter（フォントセット `sumi/inter-biz-ud-gothic`）。文字 8pt（エッジ 7pt）（[設計 §6.52](design/phase1.md#652-173-の論文向けの-theme-paper)） |
+
+`academic` と `paper` はどちらも論文向けです。白黒で印刷するなら `academic`、カラーの ML 論文なら `paper` です。比較表と同じ図の描き比べは[テーマの説明](themes-ja.md)を参照してください。
 
 node と group の `tone`（`gray` / `red` / `orange` / `yellow` / `green` / `blue` / `purple` / `pink`）で色の分類を指定できます。色の値はテーマが決めます。`color` と `paper` では色ごとに別の淡い塗りになり、`minimal` / `academic` / `slides` ではグレースケールで印刷できるよう 3 段階の灰色になります（[設計 §6.20](design/phase1.md#620-92-の-operatorjunctiontone-と-color-テーマ)、[ギャラリー](gallery/README.md)）。
 
@@ -269,7 +271,7 @@ node と group の `tone`（`gray` / `red` / `orange` / `yellow` / `green` / `bl
 | `paper-double` | 180mm | 220mm | 7pt |
 | `presentation-16x9` | 338.7mm | 190.5mm | 14pt |
 
-スライドの図は `theme: slides` と `profile: presentation-16x9` で作ります。`presentation-16x9` は 14pt 以上の文字を求めるため、`minimal` / `academic` / `color` / `paper` では `profile/font-too-small` になります（意図どおり）。描き比べは[ギャラリー](gallery/README.md#themes-and-profiles)にあります。
+スライドの図は `theme: slides` と `profile: presentation-16x9` で作ります。`presentation-16x9` は 14pt 以上の文字を求めるため、`minimal` / `academic` / `color` / `paper` では `profile/font-too-small` になります（意図どおり）。描き比べは[ギャラリー](gallery/compare.md)にあります。
 
 ### アイコンと画像
 

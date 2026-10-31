@@ -48,7 +48,7 @@ function fonts(table: string): string[] {
         `Font is not embedded/subset/Unicode: ${row}`,
       );
       check(
-        /^[A-Z]{6}\+(BIZUDP?Gothic-(Regular|Bold)|STIXTwoMath-Regular|STIXTwoText-Italic)$/.test(
+        /^[A-Z]{6}\+(BIZUDP?Gothic-(Regular|Bold)|Inter-(Regular|Bold)|STIXTwoMath-Regular|STIXTwoText-Italic)$/.test(
           name,
         ),
         `Unexpected font: ${row}`,

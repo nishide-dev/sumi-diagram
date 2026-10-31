@@ -14,8 +14,8 @@
     <th>DiT ブロック</th>
   </tr>
   <tr>
-    <td><img src="../research/185-acceptance/previews/a-transformer.png" alt="Sumi で描画した Transformer" height="280"></td>
-    <td><img src="../research/185-acceptance/previews/b-dit.png" alt="Sumi で描画した DiT ブロック" height="280"></td>
+    <td><img src="../examples/transformer/transformer.svg" alt="Sumi で描画した Transformer" height="280"></td>
+    <td><img src="../examples/dit-block/dit-block.svg" alt="Sumi で描画した DiT ブロック" height="280"></td>
   </tr>
 </table>
 
@@ -84,7 +84,7 @@ Wrote hello.svg: 23.64mm × 33.69mm (paper-single, max width 88mm; theme minimal
 | 機能 | できること |
 | --- | --- |
 | [自動・構造化レイアウト](../skills/sumi/references/structured.md) | フローやグラフは自動配置。ブロック図は入れ子の行・列、アンカー、整列、残差接続の経路で構成できます。 |
-| [テーマとプロファイル](usage-ja.md#テーマとプロファイル) | `minimal`・`academic`・`color`・`slides`・`paper`。見た目と、論文・スライドのページ寸法や最小文字サイズの制約を独立して選べます。 |
+| [テーマとプロファイル](themes-ja.md) | `minimal`・`academic`（白黒・印刷向け）・`color`・`slides`・`paper`（カラーの ML 論文風）。見た目と、論文・スライドのページ寸法や最小文字サイズの制約を独立して選べます。 |
 | [数式ラベル](../skills/sumi/references/figure-format.md) | 構造化レイアウトで、同梱の STIX Two フォントによるインライン数式を使えます。 |
 | [アイコン・絵文字・画像](../skills/sumi/references/assets.md) | 同梱 Tabler アイコン、多色 Fluent 絵文字、ローカル PNG / JPEG / SVG を使えます。 |
 | [PDF・PPTX](usage-ja.md#pdf-出力) | フォント埋め込みのベクター PDF、画像方式の PPTX、実験的な編集可能 PowerPoint オブジェクトを出力できます。 |
@@ -105,7 +105,7 @@ Claude Code に **「このパイプラインを Sumi で論文の 1 段組の�
 ## ドキュメント
 
 - [English user guide](usage.md) · [日本語利用ガイド](usage-ja.md): コマンド、診断、出力形式、導入、環境設定
-- [コンポーネントギャラリー](gallery/README.md) · [作例](../examples/README.md)
+- [テーマ](themes-ja.md) · [コンポーネントギャラリー](gallery/README.md) · [作例](../examples/README.md)
 - [図の形式](../skills/sumi/references/figure-format.md) · [構造化レイアウト](../skills/sumi/references/structured.md) · [配置のレシピ](../skills/sumi/references/layout-tips.md)
 - [エディタ補完用 JSON Schema](../schema/figure.v1.schema.json)
 - [貢献ガイド](../CONTRIBUTING.md)

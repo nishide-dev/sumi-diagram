@@ -66,7 +66,7 @@ Format selection is explicit `--format`, otherwise a recognized `-o` extension, 
 
 ### Components and layout
 
-Discover available components, variants, props and engine support with `sumi catalog --json`. The [gallery](gallery/README.md) includes every variant and theme, descriptions, props, YAML and theme/profile comparisons; [examples](../examples/README.md) include source YAML and SVG/PDF outputs.
+Discover available components, variants, props and engine support with `sumi catalog --json`. The [gallery](gallery/README.md) is an index with one page per component (every variant and theme, descriptions, props, YAML) and pages for examples, themes, tones, dimmed groups and theme/profile comparisons; [examples](../examples/README.md) include source YAML and SVG/PDF outputs.
 
 Auto layout uses D2/ELK and `figure.layout.direction`. Structured layout uses Sumi's own nested row/stack arrangement, anchors, alignment and routing, without D2. Math labels require structured layout. `--emit-d2` is unavailable for structured figures. See [structured layout](../skills/sumi/references/structured.md), [layout tips](../skills/sumi/references/layout-tips.md), and [math syntax](../skills/sumi/references/figure-format.md).
 
@@ -147,10 +147,12 @@ Experimental `editable` mode creates separate DrawingML shapes/text. Only indivi
 | Theme | Appearance |
 | --- | --- |
 | `minimal` (default) | Monochrome, clear lines; nodes/groups 8pt, edges 7pt |
-| `academic` | Thin lines, black text, gray emphasis; 8pt/7pt |
+| `academic` | Grayscale, print-friendly journal style: 0.5pt black lines, square corners, gray tones and emphasis; 8pt/7pt |
 | `slides` | Nodes 16pt, groups 18pt, edges 14pt, lines 2pt; pair with `presentation-16x9` |
 | `color` | Minimal's typography/lines with pastel tones and blue emphasis; 8pt/7pt |
-| `paper` | Rounded boxes/groups, pastel tones, black 1pt outlines, 0.5pt edges and small arrows; Inter Latin text in structured layout (`sumi/inter-biz-ud-gothic`); 8pt/7pt |
+| `paper` | Color ML-paper style: pastel tones, rounded boxes/groups, black 1pt outlines, light gray panels, 0.5pt edges and small arrows; Inter Latin text in structured layout (`sumi/inter-biz-ud-gothic`); 8pt/7pt |
+
+`academic` and `paper` are both for papers: `academic` is grayscale for black-and-white print, `paper` is the color ML-paper style. See the [theme overview](themes.md) for a comparison table and the same figures under every theme.
 
 Nodes/groups accept `tone`: `gray`, `red`, `orange`, `yellow`, `green`, `blue`, `purple`, `pink`. Themes determine the actual colors: color/paper use distinct pale fills, minimal/academic/slides use three gray levels for grayscale printing.
 
@@ -160,7 +162,7 @@ Nodes/groups accept `tone`: `gray`, `red`, `orange`, `yellow`, `green`, `blue`, 
 | `paper-double` | 180mm | 220mm | 7pt |
 | `presentation-16x9` | 338.7mm | 190.5mm | 14pt |
 
-Use slides + presentation-16x9 together. Other built-in themes are too small for that profile and report `profile/font-too-small`. See [theme/profile comparisons](gallery/README.md#themes-and-profiles).
+Use slides + presentation-16x9 together. Other built-in themes are too small for that profile and report `profile/font-too-small`. See [theme/profile comparisons](gallery/compare.md).
 
 ## Icons and images
 

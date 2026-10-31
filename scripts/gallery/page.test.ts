@@ -6,17 +6,18 @@
 
 import { describe, expect, test } from "bun:test";
 import type { CatalogEntry } from "../../src/core/registry/catalog";
+import { ptToMm } from "../../src/core/units";
 import {
   escapeHtml,
   type GalleryModel,
   galleryHtml,
-  galleryMarkdown,
+  galleryMarkdownPages,
   mdCode,
   mdFence,
   mdInline,
   mdText,
 } from "./page";
-import type { RenderOutcome } from "./render";
+import { type RenderOutcome, renderOne } from "./render";
 
 const NASTY = "a | b `c` <img src=x onerror=alert(1)> \"q\" 's' *em* [l](u)\nnext";
 const PATH = 'docs/gallery/components/x" onerror="alert(1) |.svg';
@@ -73,6 +74,10 @@ const model: GalleryModel = {
       ),
     ],
   },
+  themeComparison: {
+    source: "examples/x/x.sumi.yaml",
+    outcomes: [outcome({ diagnostics: [{ code: "x/y", severity: "warning", message: NASTY }] })],
+  },
   tones: {
     sample: { fileName: "tones.sumi.yaml", source: "# ``` fence\nversion: 1\n", renderings: [] },
     outcomes: [outcome({ diagnostics: [{ code: "x/y", severity: "warning", message: NASTY }] })],
@@ -92,6 +97,38 @@ const model: GalleryModel = {
 };
 
 describe("Markdown escaping", () => {
+  test("the index preserves old page, renamed example, component and topic heading anchors", () => {
+    const examples = [
+      {
+        source: "examples/dit-block/dit-block.sumi.yaml",
+        title: "DiT block variants (structured layout, paper theme)",
+        outcome: outcome(),
+      },
+      {
+        source: "examples/transformer/transformer.sumi.yaml",
+        title: "Transformer (structured layout, paper theme)",
+        outcome: outcome(),
+      },
+    ];
+    const index = galleryMarkdownPages({ ...model, examples }).get("docs/gallery/README.md");
+    for (const id of [
+      "sumi-component-gallery",
+      "examplesdit-blockdit-blocksumiyaml",
+      "examplestransformertransformersumiyaml",
+      "sumibox",
+      "examples",
+      "themes-and-profiles",
+      "tones",
+      "solid-and-tinted-tones",
+      "outlined-tones-and-edge-tones",
+      "dimmed-groups",
+      "profiles",
+      "one-figure-every-theme--profile",
+    ]) {
+      expect(index).toContain(`<a id="${id}"></a>`);
+    }
+  });
+
   test("mdText escapes HTML, Markdown punctuation, pipes and newlines", () => {
     const text = mdText(NASTY);
     expect(text).not.toContain("<img");
@@ -126,11 +163,28 @@ describe("Markdown escaping", () => {
   });
 
   test("the page contains no injected HTML or table cells", () => {
-    const md = galleryMarkdown(model);
+    const pages = galleryMarkdownPages(model);
+    // The index, the component's page and the five topic pages.
+    expect([...pages.keys()].sort()).toEqual([
+      "docs/gallery/README.md",
+      "docs/gallery/compare.md",
+      "docs/gallery/components/sumi-box.md",
+      "docs/gallery/dim.md",
+      "docs/gallery/examples.md",
+      "docs/gallery/themes.md",
+      "docs/gallery/tones.md",
+    ]);
+    const md = [...pages.values()].join("\n");
     expect(md).not.toContain("<img src=x");
     expect(md).not.toContain('" onerror="');
     expect(md).not.toContain("a | b");
-    expect(md).toContain('src="components/x%22%20onerror%3D%22alert(1)%20%7C.svg"');
+    // Images are relative to the page: the component page lives in components/.
+    expect(pages.get("docs/gallery/components/sumi-box.md")).toContain(
+      'src="x%22%20onerror%3D%22alert(1)%20%7C.svg"',
+    );
+    expect(pages.get("docs/gallery/tones.md")).toContain(
+      'src="components/x%22%20onerror%3D%22alert(1)%20%7C.svg"',
+    );
     // Every table row has as many cells as its header.
     const rows = md.split("\n").filter((line) => line.startsWith("| "));
     const cells = (row: string) => row.split("|").length;
@@ -141,6 +195,28 @@ describe("Markdown escaping", () => {
     }
     expect(md).toContain("````yaml\n# ``` fence");
   });
+});
+
+test("the fitted DiT size reaches both Markdown and HTML captions", async () => {
+  const source = "examples/dit-block/dit-block.sumi.yaml";
+  const result = await renderOne({
+    file: source,
+    source: await Bun.file(new URL(`../../${source}`, import.meta.url)).text(),
+    rendering: {
+      output: "examples/dit-block/dit-block.svg",
+      theme: "paper",
+      profile: "paper-double",
+      overrides: {},
+    },
+  });
+  expect(result.svg).toBeDefined();
+  expect(ptToMm(result.widthPt ?? 0)).toBeCloseTo(180, 2);
+  expect(ptToMm(result.heightPt ?? 0)).toBeCloseTo(84.69, 2);
+  const fittedModel = { ...model, examples: [{ source, title: "DiT", outcome: result }] };
+  expect(galleryMarkdownPages(fittedModel).get("docs/gallery/examples.md")).toContain(
+    "180mm × 84\\.69mm",
+  );
+  expect(galleryHtml(fittedModel)).toContain("180mm × 84.69mm");
 });
 
 describe("HTML escaping", () => {

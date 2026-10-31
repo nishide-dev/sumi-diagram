@@ -7,7 +7,7 @@
 import { availableParallelism } from "node:os";
 import type { Diagnostic } from "../../src/core/diagnostics";
 import { compareDiagnostics, lintGeometry } from "../../src/lint";
-import { renderFigure } from "../../src/render";
+import { printedSize, renderFigure } from "../../src/render";
 import type { Rendering } from "./samples";
 
 export interface RenderOutcome {
@@ -50,14 +50,15 @@ export async function renderOne(job: RenderJob): Promise<RenderOutcome> {
     };
   }
   const { inspection, metadata } = result.value;
+  const { widthPt, heightPt } = printedSize(inspection);
   const diagnostics = [...result.diagnostics, ...lintGeometry(result.value, { source, file })];
   return {
     rendering,
     svg: result.value.svg,
     theme: metadata.theme,
     profile: metadata.profile,
-    widthPt: inspection.canvas.width.pt,
-    heightPt: inspection.canvas.height.pt,
+    widthPt,
+    heightPt,
     ...(inspection.profile.maxWidthPt !== undefined && {
       maxWidthPt: inspection.profile.maxWidthPt,
     }),

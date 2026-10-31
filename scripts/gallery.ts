@@ -17,9 +17,13 @@
  * - every tone under every built-in theme (#92) → docs/gallery/tones/, and
  *   every tone as an outline and on edges (#177) → docs/gallery/tones/outlined.*
  * - a dimmed group under every built-in theme (#175) → docs/gallery/dim/
+ * - `examples/transformer` (structured layout) under every built-in theme →
+ *   docs/gallery/themes/ (#264)
  *
- * and writes docs/gallery/index.html and docs/gallery/README.md. Component
- * samples and examples must render without any diagnostic; comparison cells
+ * and writes docs/gallery/index.html (everything on one page) and the Markdown pages
+ * (#264): docs/gallery/README.md (a short index), components/<name>.md and the
+ * topic pages. Component
+ * samples and examples must render without errors or warnings (infos allowed); comparison cells
  * may fail (a profile can reject a theme's font sizes) and show why.
  *
  * Output is byte-deterministic: D2's SVG is deterministic for a given D2
@@ -34,7 +38,7 @@ import { dirname, join } from "node:path";
 import { parse } from "yaml";
 import { layoutStructuredFigure } from "../src/layout";
 import { svgToPdf } from "../src/render/pdf";
-import { type GalleryModel, galleryHtml, galleryMarkdown } from "./gallery/page";
+import { type GalleryModel, galleryHtml, galleryMarkdownPages } from "./gallery/page";
 import { type RenderJob, type RenderOutcome, renderAll } from "./gallery/render";
 import {
   COMPARISON_EXAMPLE,
@@ -44,6 +48,8 @@ import {
   filledToneSample,
   GALLERY_DIR,
   outlinedToneSample,
+  THEME_COMPARISON_EXAMPLE,
+  themeComparison,
   toneSample,
 } from "./gallery/samples";
 
@@ -66,6 +72,7 @@ const exampleSources = [...new Bun.Glob("examples/*/*.sumi.yaml").scanSync(ROOT)
   .map((p) => p.split("\\").join("/"))
   .sort();
 const compare = comparison();
+const themeCompare = themeComparison();
 const tones = toneSample();
 const dim = dimSample();
 const outlinedTones = outlinedToneSample();
@@ -103,6 +110,17 @@ const comparisonText = exampleTexts.get(COMPARISON_EXAMPLE) ?? (await read(COMPA
 for (const rendering of compare.renderings) {
   jobs.push({ file: COMPARISON_EXAMPLE, source: comparisonText, rendering });
 }
+const themeComparisonText =
+  exampleTexts.get(THEME_COMPARISON_EXAMPLE) ?? (await read(THEME_COMPARISON_EXAMPLE));
+for (const rendering of themeCompare.renderings) {
+  jobs.push({
+    file: THEME_COMPARISON_EXAMPLE,
+    source: themeComparisonText,
+    // Image paths (#94) are relative to the example's YAML file.
+    assetBase: join(ROOT, dirname(THEME_COMPARISON_EXAMPLE)),
+    rendering,
+  });
+}
 for (const rendering of tones.renderings) {
   jobs.push({ file: tones.fileName, source: tones.source, rendering });
 }
@@ -132,13 +150,17 @@ const model: GalleryModel = {
     return { source, title: doc.figure?.title ?? source, outcome, pdf: examplePdf(source) };
   }),
   comparison: { source: COMPARISON_EXAMPLE, outcomes: take(compare.renderings.length) },
+  themeComparison: {
+    source: THEME_COMPARISON_EXAMPLE,
+    outcomes: take(themeCompare.renderings.length),
+  },
   tones: { sample: tones, outcomes: take(tones.renderings.length) },
   dim: { sample: dim, outcomes: take(dim.renderings.length) },
   outlinedTones: { sample: outlinedTones, outcomes: take(outlinedTones.renderings.length) },
   filledTones: { sample: filledTones, outcomes: take(filledTones.renderings.length) },
 };
 
-// Component, tone and dim samples and examples must be clean.
+// Component, tone and dim samples and examples allow infos, but no errors or warnings.
 const problems: string[] = [];
 const strict: [string, RenderOutcome][] = [
   ...model.components.flatMap(({ sample, outcomes }) =>
@@ -157,16 +179,17 @@ const strict: [string, RenderOutcome][] = [
   ]),
 ];
 for (const [name, outcome] of strict) {
-  if (outcome.svg === undefined || outcome.diagnostics.length > 0) {
+  const blocking = outcome.diagnostics.filter((d) => d.severity !== "info");
+  if (outcome.svg === undefined || blocking.length > 0) {
     problems.push(
-      `${name}: ${outcome.svg === undefined ? "not rendered" : "rendered with diagnostics"}`,
-      ...outcome.diagnostics.map((d) => `  ${d.severity} ${d.code}: ${d.message}`),
+      `${name}: ${outcome.svg === undefined ? "not rendered" : "rendered with errors or warnings"}`,
+      ...blocking.map((d) => `  ${d.severity} ${d.code}: ${d.message}`),
     );
   }
 }
 if (problems.length > 0) {
   console.error(
-    `Gallery samples and examples must render without diagnostics:\n${problems.join("\n")}`,
+    `Gallery samples and examples must render without errors or warnings (infos allowed):\n${problems.join("\n")}`,
   );
   process.exit(1);
 }
@@ -202,7 +225,7 @@ for (const { source, outcome } of model.examples) {
   files.set(examplePdf(source), pdf.value);
 }
 files.set(`${GALLERY_DIR}/index.html`, galleryHtml(model));
-files.set(`${GALLERY_DIR}/README.md`, galleryMarkdown(model));
+for (const [path, text] of galleryMarkdownPages(model)) files.set(path, text);
 
 async function listFiles(dir: string): Promise<string[]> {
   const entries = await readdir(join(ROOT, dir), { withFileTypes: true }).catch(() => []);

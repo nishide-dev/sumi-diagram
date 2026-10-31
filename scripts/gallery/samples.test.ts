@@ -18,7 +18,9 @@ import {
   outlinedToneSample,
   PROFILES,
   SAMPLE_PROFILE,
+  THEME_COMPARISON_PROFILE,
   THEMES,
+  themeComparison,
   toneSample,
   WIDE_SAMPLE_PROFILE,
 } from "./samples";
@@ -102,6 +104,16 @@ test("the comparison covers every theme × profile through overrides", () => {
   const { renderings } = comparison();
   expect(renderings).toHaveLength(THEMES.length * PROFILES.length);
   for (const r of renderings) expect(r.overrides).toEqual({ theme: r.theme, profile: r.profile });
+  expect(new Set(renderings.map((r) => r.output)).size).toBe(renderings.length);
+});
+
+test("the structured theme comparison covers every theme, slides with its own profile (#264)", () => {
+  const { renderings } = themeComparison();
+  expect(renderings.map((r) => r.theme)).toEqual([...THEMES]);
+  for (const r of renderings) {
+    expect(r.profile).toBe(r.theme === "slides" ? WIDE_SAMPLE_PROFILE : THEME_COMPARISON_PROFILE);
+    expect(r.overrides).toEqual({ theme: r.theme, profile: r.profile });
+  }
   expect(new Set(renderings.map((r) => r.output)).size).toBe(renderings.length);
 });
 

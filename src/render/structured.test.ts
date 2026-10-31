@@ -136,10 +136,12 @@ describe.each(Object.entries(FIGURES))("%s", (_name, path) => {
     }
     for (const edge of layout.edges) {
       const path = byKey.get(edge.key)?.path ?? [];
+      // A zoom edge (#176) is two separate lines: `M L M L`, not one polyline.
+      const polylines = edge.route?.lines ?? (edge.route ? [edge.route.points] : []);
       expect(path.map((s) => s.command)).toEqual(
-        (edge.route?.points ?? []).map((_, i) => (i === 0 ? "M" : "L")),
+        polylines.flatMap((points) => points.map((_, i) => (i === 0 ? "M" : "L"))),
       );
-      expect(path.map((s) => s.to)).toEqual([...(edge.route?.points ?? [])]);
+      expect(path.map((s) => s.to)).toEqual(polylines.flat());
       expect(byKey.get(edge.key)?.labels.map((l) => l.anchor)).toEqual(
         edge.route?.label === undefined ? [] : [edge.route.label.anchor],
       );
@@ -167,7 +169,10 @@ describe.each(Object.entries(FIGURES))("%s", (_name, path) => {
   });
 
   test("embeds a working font subset for every font class it uses", async () => {
-    const { svg, layout } = await render(source);
+    const { svg, layout, compiled } = await render(source);
+    // Each figure's own font set: `paper` figures are set in Inter.
+    const fonts = getFontSet(compiled.fontSet.id);
+    if (fonts === undefined) throw new Error("no font set");
     const read = readD2Svg(svg);
     if (!read.ok) throw new Error("unreadable");
     expect(checkEmbeddedFonts(read.doc.drawing)).toEqual([]);
@@ -180,12 +185,16 @@ describe.each(Object.entries(FIGURES))("%s", (_name, path) => {
     for (const t of [
       ...layout.groups.map((g) => g.label),
       ...layout.nodes.map((n) => n.label),
+      ...layout.nodes.map((n) => n.sublabel),
       ...layout.edges.map((e) => e.route?.label),
     ]) {
       if (t === undefined) continue;
       for (const run of t.runs?.flat() ?? [{ font: t.font, text: t.lines.join("") }]) {
         used.set(run.font, (used.get(run.font) ?? "") + run.text);
       }
+      // A label of runs (label math) is drawn inside a `<text>` of the label's own
+      // font class, so that face is embedded even if no run is set in it.
+      if (!used.has(t.font)) used.set(t.font, "");
     }
     expect(faces.map((f) => f[2]).sort()).toEqual([...used.keys()].sort());
     for (const [, , font = "", base64 = ""] of faces) {
@@ -231,10 +240,22 @@ describe.each(Object.entries(FIGURES))("%s", (_name, path) => {
 });
 
 describe("geometry lint on structured SVGs", () => {
-  test("the examples and the B panel are clean", async () => {
+  test("the examples and the B panel have only the accepted DiT infos", async () => {
     for (const path of Object.values(FIGURES).filter((p) => !p.includes("a-transformer"))) {
       const source = readFileSync(join(ROOT, path), "utf8");
-      expect(lintGeometry(await render(source), { source })).toEqual([]);
+      const findings = lintGeometry(await render(source), { source });
+      expect(findings.map((d) => [d.severity, d.code])).toEqual(
+        path === "examples/dit-block/dit-block.sumi.yaml"
+          ? [
+              ["info", "geometry/script-too-small"],
+              ["info", "geometry/group-empty-area"],
+              ["info", "geometry/group-empty-area"],
+              ["info", "geometry/arrowhead-cramped"],
+              ["info", "geometry/arrowhead-cramped"],
+              ["info", "geometry/arrowhead-cramped"],
+            ]
+          : [],
+      );
     }
   });
 

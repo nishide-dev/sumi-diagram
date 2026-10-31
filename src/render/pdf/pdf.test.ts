@@ -15,7 +15,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { compileFigure } from "../../compiler/compile";
-import { DEFAULT_FONT_SET_ID, getFontSet } from "../../core/theme/fonts";
+import { getFontSet } from "../../core/theme/fonts";
 import { measureLabel, renderedLines } from "../../lint/geometry/measure";
 import { assetProvenanceEntries, readSvgMetadata } from "../finalize";
 import { inspectSvg } from "../inspect";
@@ -33,9 +33,6 @@ const EXAMPLES = [...new Bun.Glob("examples/*/*.sumi.yaml").scanSync(ROOT)]
       .replace(/\.sumi\.yaml$/, ""),
   )
   .sort();
-const fontSet = getFontSet(DEFAULT_FONT_SET_ID);
-if (fontSet === undefined) throw new Error("no default font set");
-
 const sha256 = (bytes: Uint8Array) => new Bun.CryptoHasher("sha256").update(bytes).digest("hex");
 
 test("the engine module matches its pinned sha256", () => {
@@ -70,7 +67,11 @@ describe.each(EXAMPLES)("%s", (example) => {
     const width = Number(/<svg[^>]* width="([\d.]+)pt"/.exec(svg)?.[1]);
     const height = Number(/<svg[^>]* height="([\d.]+)pt"/.exec(svg)?.[1]);
     expect(inspected.version).toBe("1.7");
-    expect(inspected.pages).toEqual([{ mediaBox: [0, 0, width, height] }]);
+    expect(inspected.pages).toHaveLength(1);
+    expect(inspected.pages[0]?.mediaBox.slice(0, 2)).toEqual([0, 0]);
+    // PDF dimensions pass through f32; fitted SVGs can have fractional pt sizes.
+    expect(inspected.pages[0]?.mediaBox[2]).toBeCloseTo(width, 4);
+    expect(inspected.pages[0]?.mediaBox[3]).toBeCloseTo(height, 4);
   });
 
   test("embeds subsets of the bundled fonts and no raster images", () => {
@@ -79,7 +80,7 @@ describe.each(EXAMPLES)("%s", (example) => {
     for (const font of inspected.fonts) {
       expect(font).toMatchObject({ subtype: "CIDFontType2", embedded: true, subset: true });
       expect(font.baseFont).toMatch(
-        /^[A-Z]{6}\+(BIZUDP?Gothic-(Regular|Bold)|STIXTwoMath-Regular|STIXTwoText-Italic)$/,
+        /^[A-Z]{6}\+(BIZUDP?Gothic-(Regular|Bold)|Inter-(Regular|Bold)|STIXTwoMath-Regular|STIXTwoText-Italic)$/,
       );
     }
   });
@@ -107,9 +108,13 @@ describe.each(EXAMPLES)("%s", (example) => {
     const source = readFileSync(join(ROOT, `${example}.sumi.yaml`), "utf8");
     const compiled = compileFigure(source);
     if (!compiled.ok) throw new Error("compile failed");
+    // The figure's own font set: `paper` examples are set in Inter.
+    const fontSet = getFontSet(compiled.value.fontSet.id);
+    if (fontSet === undefined) throw new Error("no font set");
     const inspection = inspectSvg(svg, compiled.value.ir);
     if (!inspection.ok) throw new Error("inspect failed");
     const vb = inspection.value.canvas.viewBox;
+    const ptPerUnit = 0.5 * (inspection.value.scale ?? 1);
     const pageHeight = inspected.pages[0]?.mediaBox[3] ?? 0;
     const lines = textLines(inspected.glyphs);
     const unmatched = new Set(lines);
@@ -121,9 +126,9 @@ describe.each(EXAMPLES)("%s", (example) => {
       size: number,
     ) => {
       expected++;
-      const x0 = (box.x - vb.x) * 0.5;
-      const width = box.width * 0.5;
-      const baseline = pageHeight - (y - vb.y) * 0.5;
+      const x0 = (box.x - vb.x) * ptPerUnit;
+      const width = box.width * ptPerUnit;
+      const baseline = pageHeight - (y - vb.y) * ptPerUnit;
       const hit = lines.find(
         (l) =>
           unmatched.has(l) &&
@@ -135,7 +140,7 @@ describe.each(EXAMPLES)("%s", (example) => {
       if (hit === undefined) return;
       unmatched.delete(hit);
       expect(Math.abs(hit.x1 - hit.x0 - width)).toBeLessThan(0.01);
-      expect(hit.size).toBeCloseTo(size * 0.5, 4);
+      expect(hit.size).toBeCloseTo(size * ptPerUnit, 4);
     };
     for (const element of inspection.value.elements) {
       for (const label of element.labels) {

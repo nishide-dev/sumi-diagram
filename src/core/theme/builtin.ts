@@ -5,8 +5,10 @@
  * `theme/missing-variant`.
  *
  * - `minimal`: monochrome. Emphasis is a heavier outline and bold text.
- * - `academic`: restrained, for papers. Thin lines, black text, emphasis by a
- *   light gray fill and a slightly heavier outline; prints well in grayscale.
+ * - `academic`: grayscale, print-friendly journal style. 0.5pt black lines,
+ *   square corners, black text, groups without a fill (gray frame), tones as
+ *   gray steps and emphasis by a light gray fill and a slightly heavier
+ *   outline; no color anywhere, so it prints the same in black and white.
  * - `slides`: for projection (#36). Text at least 14pt (the minimum of
  *   `presentation-16x9`) and lines twice as thick as `minimal`, matching the
  *   doubled text; darker grays so muted text stays readable on a projector.
@@ -14,12 +16,13 @@
  *   light gray fill.
  * - `color` (#92): general purpose, with color. Outlines and text as
  *   `minimal`; tones are soft pastel fills and emphasis uses a blue accent.
- * - `paper` (#173, design doc §6.52): for paper figures, after the reference
- *   figures of #167 (Transformer, DiT, H3-World). Rounded boxes and groups,
- *   pastel tone fills measured from those figures, black 1pt frames, light
- *   gray panels, 0.5pt edges (so arrowheads are small: their size follows the
- *   edge's line width) and Inter for Latin text in structured figures (font
- *   set `sumi/inter-biz-ud-gothic`, #172).
+ * - `paper` (#173, design doc §6.52): color ML-paper style, after the
+ *   reference figures of #167 (Transformer, DiT, H3-World). Pastel tone fills
+ *   measured from those figures, rounded boxes (2pt) and groups (6pt), black
+ *   1pt frames, light gray panels, 0.5pt edges (so arrowheads are small: their
+ *   size follows the edge's line width) and Inter for Latin text in structured
+ *   figures (font set `sumi/inter-biz-ud-gothic`, #172). Use `academic`
+ *   instead when the figure must work in grayscale print.
  *
  * Every built-in theme defines `dim` (#175): the gray text and lines and the
  * paler fills of a group with `dim: true` and everything inside it.
@@ -321,7 +324,8 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
   {
     version: 1,
     id: "academic",
-    description: "Restrained theme for papers: thin lines, black text, gray emphasis",
+    description:
+      "Grayscale, print-friendly journal style: thin black lines, square corners, gray tones and emphasis",
     fonts: DEFAULT_FONT_SET_ID,
     tokens: {
       color: {
@@ -570,7 +574,7 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
     version: 1,
     id: "paper",
     description:
-      "For paper figures: rounded corners, pastel tone fills, small arrowheads, Inter for Latin text",
+      "Color ML-paper style: pastel tones, rounded corners, 1pt frames and 0.5pt edges, light gray panels, Inter for Latin text",
     fonts: LATIN_FONT_SET_ID,
     tokens: {
       color: {
