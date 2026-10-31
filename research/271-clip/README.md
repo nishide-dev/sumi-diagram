@@ -27,16 +27,19 @@ Sumi 0.9.0 / Bun 1.3.14 の既存機能だけで、CLIP 論文の Figure 1
 `academic` は色がグレーになるため採用しなかった。
 `paper-double`（180mm）を論文の全幅図として選び、structured の
 grid / row / stack で左に事前学習、右上に分類器生成、右下に予測を配置した。
-`fit: scale` により約87%に縮小し、最終サイズは **180 × 87.01mm**。
+右側は同じ plain グループにまとめ、(2)/(3) 共通の T 行とスコア行を直接接触させた。
+`attach` でセルに hidden junction を配置し、`line` で結んだ共有幹から各セルへ分岐する。
+これは #101 の既存機能であり、集合ポートや専用括弧の追加は不要だった。
+`fit: scale` により約63.6%に縮小し、最終サイズは **180 × 52.82mm**。
 任意の色・座標・フォント設定は追加していない。
 
 ## 原図の構造との比較
 
-| パネル | 原図の構造 | 今回の対応・差分 | 対処・次の改善 |
+| パネル | 原図の構造 | 今回再現したもの | 残る差分と理由 |
 | --- | --- | --- | --- |
-| (1) 対比事前学習 | 重なったキャプション → 紫の台形 → T₁…Tₙ、写真 → 緑の台形 → I₁…Iₙ、N×N 類似度と青い対角 | `stack` の「Pepper the aussie pup」、画像3枚、向き付き台形、T 行 / I 列、Iᵢ·Tⱼ を持つ表を配置。1,2,3,…,N の5行5列で省略を表現 | 構造は再現。テキスト行と行列列は33ptで統一。ネイティブ matrix のラベル対応後に表を置換する |
-| (2) 分類器生成 | 等幅の plane / car / dog / ⋮ / bird を括ってプロンプトへ → Text Encoder → T₁…Tₙ | ラベル列と青い `{object}` を含む文、紫の台形、T 行を再現。等幅と括弧は未再現。ラベル列中央の dog 行を集合の代表接続点として矢印を引いた | 等幅ラベルと collection bracket が必要。dog のみを処理する意味ではなく、全クラスへテンプレートを適用する |
-| (3) ゼロショット予測 | 写真 → Image Encoder → I₁、I₁·T₁…I₁·Tₙ、T₃ を選んで犬の文へ | 合成犬画像、緑の台形、I₁、青い第3スコア、青い dog を含む結果文を再現。分類器の再利用は右側を回る矢印で示した | T 行の末尾とスコア行末尾を代表端点とする。集合全体を接続するポートがあれば意味をさらに明確化できる |
+| (1) 対比事前学習 | 左のキャプション → 横向き Text Encoder → T 行への下向き分岐。画像 → Image Encoder → I 列への右向き分岐。N×N 表と青い対角 | 両台形を `narrow: east` に統一。T 行の真上の水平幹、I 列の左の垂直幹から1,2,3,…,Nの各セルへ矢印。T 行33pt幅 / I 列23pt高を式セルに合わせ、grid と tokens の gap 0 で接触。対角4セルと … / ⋮ / ⋱ を保持 | 合成犬画像、同じ文のカード、罫線なしの省略セルは YAML / 素材の選択。テーマの角丸・色・台形の固定傾斜は原図の厳密なトレースではない |
+| (2) 分類器生成 | plane / car / dog / ⋮ / bird の箱を括ってプロンプトへ → 横向き Text Encoder → 共通 T 行への下向き分岐 | 全ラベルを箱にし、各行から共有の縦幹へ `line` で接続。括弧状の幹から「A photo of a {object}.」へ矢印。紫の横向き台形から水平幹を経て各 T へ矢印 | 等幅だけは未対応（ノード単位の mono 選択なし）なので通常の Inter。専用括弧そのものではなく、既存の junction / line による括弧状の接続。幹の位置と縦方向の長さは YAML の配置選択 |
+| (3) ゼロショット予測 | 写真 → Image Encoder → I₁ → T 行直下の I₁·T 行、T₃ を選んで犬の文へ | I₁から第1スコア左端へ短い直線。共通 T 行とスコア行の全列を37ptで揃え、gap 0 で上下に接触。青い I₁·T₃ から結果文へ真下に矢印。旧末尾セル間の長い迂回線を削除 | 写真は仮画像。行の高さ・列幅・結果文の色と文字密度はテーマ / YAML の選択。T とスコアの接触自体が対応を示し、セル間に追加の矢印は描かない |
 
 ここで N は任意のバッチ数 / クラス数を表す記号であり、5クラスに固定した実験結果ではない。
 スコアも数値の実測値ではなく、原図同様に内積の記号表示である。
@@ -48,19 +51,19 @@ grid / row / stack で左に事前学習、右上に分類器生成、右下に�
 
 | 項目 | 判定・観察 | 現在の対処 / 提案する修正・Issue タイトル |
 | --- | --- | --- |
-| 3パネルの配置 | 対応済み。grid の空セルで左上を空け、右側は2段にできる | 現在の structured 構成を継続。再利用時は `Add reusable multi-panel figure recipes` |
-| 台形エンコーダ | 対応済み。`narrow: south/east` で縦横のフローを区別 | 幅が小さいと文字が斜辺にはみ出すため、横向きは80×48pt。原図と同一の傾斜角・縦横比にはできない。案: `Expose validated trapezoid slant presets` |
+| 3パネルの配置 | 対応済み。grid の空セル、attach、共通の T / スコア行を使用 | パネル(3)は独立コンテナでなくタイトルラベル。上下間隔と空白は YAML の選択で、配置機能の不足ではない |
+| 台形エンコーダ | 対応済み。すべて `narrow: east` で横向き | 寸法は YAML で調整可能。固定傾斜を厳密に合わせる機能はない。案: `Expose validated trapezoid slant presets` |
 | 重なったテキストカード | 対応済み。`stack` で3枚の輪郭と前面テキスト | 枚数・ずれは固定で、カードごとに異なる文は持てない。案: `Support heterogeneous content in stacked cards` |
 | 重なった写真 | 対応済み。`image.props.layers` で3枚を上右にずらせる | すべて同じ合成画像のコピー。異なる写真のバッチは単一ノードで表せない。案: `Support distinct assets in image layers` |
 | 等幅ラベル | 未対応。カタログに mono フォントはあるが Figure Schema にノードの mono 選択がない | 今回は通常の Inter。案: `Expose monospace text styling in figure labels` |
 | 色付き文字列 | 対応済み。数式内の `\textcolor{blue}{\text{…}}` で `{object}` と dog を着色 | プレーンテキストの任意 span ではない。現方式を使用し、使い勝手の改善案: `Add semantic colored spans to plain text labels` |
-| 行列の対角強調 | 色自体は既存 matrix の classes でも対応済み。ただし matrix のセルは文字を持てない | 今回は tokens 5行で式と青の `tinted` 対角を共存。データを手で重複記述。案: `Support labeled matrix cells and diagonal selectors` |
+| 行列の対角強調と接触グリッド | 対応済み。tokens 5行、gap 0 の stack / grid で式と青の `tinted` 対角、密着した見出しを共存 | ネイティブ matrix のセルラベルは未対応だが、今回の見た目の実現を妨げない。案: `Support labeled matrix cells and diagonal selectors` は記述の簡略化 |
 | 省略セル | tokens は対応済み。`component: label` の … / ⋮ / ⋱ を配置できる | ネイティブ matrix は省略専用セルを持たない。今回の省略行・列は罫線を描かない。案: `Support ellipsis rows and columns in matrices` |
-| ラベル列の括弧 | 専用部品なし。括弧を巨大な文字や外部画像にせず省略 | 今回は中央から矢印で代用。案: `Add collection brackets with group-level ports` |
-| トークン集合への接続 | 個別セルは端点にできるが tokens 全体は端点にできない | 中央 / 末尾セルを代表端点にして接続。案: `Add aggregate ports for token sequences` |
+| ラベル列の括弧状の幹 | 既存機能で対応済み。各行に attach した hidden junction を縦につなぐ | 全ラベルの線が1本の幹に合流してプロンプトへ進む。専用括弧部品はこの再現には不要 |
+| トークン集合への接続 | 既存機能で対応済み。hidden junction の共有幹から全セルへ fan-out | 代表セルへの接続は廃止。tokens 自体に集合ポートがない点は今回の図の不足ではなく、YAML の記述量にだけ影響 |
 | 原図の線・配色・文字密度 | テーマのパレット、角丸、線幅、フォント、表の大きさが原図と異なる | 厳密なトレースではなく意味の一致を優先。案: `Add compact paper table styling presets` |
-| 縮小後の読みやすさ | 本文約6.96pt、添字約4.87pt。PNG で全体と式を判読できるが印刷時の添字は小さい | 現在は info として記録。案: `Add fit-aware math script sizing for paper figures` |
-| 矢印の曲がり | 原図の括弧・短い接続と異なり、分類器の出力は右側を迂回する | 衝突のない端点を選択。案: `Preserve minimum arrow stems after figure scaling` |
+| 縮小後の読みやすさ | 本文約5.09pt、添字約3.56pt。PNG では読めるが印刷時の添字は小さい | 横向きフロー全体を180mmへ収める YAML の選択。info として記録。案: `Add fit-aware math script sizing for paper figures` |
+| 矢印の曲がり | 明示的な junction チェーンで水平 / 垂直幹と十分な直線部を確保。cramped info も解消 | 丸い角は既存 router の固定仕様。分類器から共通 T 行への縦区間の長さは YAML の42pt行間隔による。旧 Tₙ→スコア末尾の迂回接続はない |
 
 ## 再現手順
 
@@ -90,7 +93,7 @@ SVG のレイアウト・テキスト・画像は変更しない。
 | `assets/synthetic-dog.png` | ImageMagick で生成した仮画像（コミット対象） |
 | `generate-assets.sh` | 外部入力なしの仮画像生成手順 |
 | `render.ts` | 描画・診断・プレビュー生成手順 |
-| `preview.png` | 目視したプレビュー、56,478 bytes（150KB未満） |
+| `preview.png` | 目視したプレビュー、40,277 bytes（150KB未満） |
 | `out/clip.svg` | 再生成可能な SVG、git 管理外 |
 | `out/lint.json`, `out/render.json` | 絶対パスを含むローカル診断、git 管理外 |
 
@@ -100,17 +103,17 @@ SVG のレイアウト・テキスト・画像は変更しない。
 ## 検証結果
 
 - Sumi の `doctor`: フォント・geometry lint・D2 がすべて正常。
-- `lint --geometry --json` と `render --json`: **errors 0 / warnings 0 / infos 3**。
-- info 内訳: `geometry/script-too-small` 1件（添字4.87pt）、
-  `geometry/arrowhead-cramped` 2件（プロンプト→分類器、I₁→選択スコア、直線部1.74pt）。
-  いずれも preview で接続と文字を識別できることを確認した。
-- プレビュー目視: 左のテキスト入力と写真入力が行列の上下・左右に整列し、
-  青い対角4セルと省略記号が見える。右上のクラス列とプロンプトは読め、
-  右下の青い第3スコアから dog の文への接続も追える。
+- `lint --geometry --json` と `render --json`: **errors 0 / warnings 0 / infos 2**。
+- info 内訳: `geometry/script-too-small` 1件（添字3.56pt）、
+  `geometry/group-empty-area` 1件（右の共通グループ、空白75.6%、線は面積に含まない）。
+  空白は分類器生成と予測を分け、共有幹を通すための YAML の選択。
+- 最終 `preview.png` を実際に開いて目視: 横向きの両エンコーダ、全 T / I への矢印、
+  見出しと表の接触、青い対角4セル、全クラスからプロンプトへ合流する幹、
+  共通 T 行に密着するスコア行、青い第3スコアから dog 文への下向き矢印を確認。
 - `bun run check`: 423ファイル、指摘なし。`bun run typecheck`: 成功。
-- `bun test`: **3321 pass / 13 skip / 0 fail**（133ファイル、約293秒）。
-  初回は120秒のツール制限に達したため、600秒の上限で全体を再実行した。
+- `bun test`: **3321 pass / 13 skip / 0 fail**（133ファイル、約277秒、今回再実行）。
   既存の #124 prototype のスキップ通知も出たが、失敗はない。
 
-受け入れ条件の図と差分一覧は用意できたが、等幅・括弧・集合ポートなどの改善は
-この実験の範囲外のため、関連付けは `Refs #271` とする。
+共有幹・括弧状の接続・全セルへの分岐は既存機能で再現できた。
+残る等幅指定などの不足機能と、画像・間隔などの YAML / 素材選択を分けて記録し、
+原図の厳密なトレースではないため、関連付けは引き続き `Refs #271` とする。
