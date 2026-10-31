@@ -9,6 +9,20 @@ function luminance(color: string): number {
   return 0.2126 * (rgb[0] ?? 0) + 0.7152 * (rgb[1] ?? 0) + 0.0722 * (rgb[2] ?? 0);
 }
 
+/** Contrast against the white page, including the resolved element opacity. */
+export function pageTextContrast(ink: string, opacity = 1): number {
+  if (ink === "transparent") return 1;
+  const hex = ink.length === 4 ? `#${[...ink.slice(1)].map((c) => c + c).join("")}` : ink;
+  const composite = `#${[1, 3, 5]
+    .map((offset) =>
+      Math.round(255 + (Number.parseInt(hex.slice(offset, offset + 2), 16) - 255) * opacity)
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")}`;
+  return 1.05 / (luminance(composite) + 0.05);
+}
+
 /** Keep the fill; darken ink by whole percent steps to the requested contrast. */
 export function readableInk(fill: string, ink: string, minimum = 4.5): string {
   if (!/^#[0-9a-f]{6}$/i.test(fill) || !/^#[0-9a-f]{6}$/i.test(ink)) return ink;

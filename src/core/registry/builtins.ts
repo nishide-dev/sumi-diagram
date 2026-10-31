@@ -128,7 +128,7 @@ function outline(name: "trapezoid" | "stack" | "bowtie", description: string): N
               .max(64)
               .optional()
               .describe(
-                "Horizontal separation of the two tapered halves in D2 units (0.5pt each), from 0 to 64; omitted or 0 keeps the joined silhouette. A split bowtie sizes its left half to hold the single label clear of the gap. Clamped to half the drawn width for small explicit sizes.",
+                "Horizontal separation of the two tapered halves in D2 units (0.5pt each), from 0 to 64; omitted or 0 keeps the joined silhouette. One label is centered across both halves and the gap when readable on the page; low-contrast text (including solid) sits on the sized left painted body. Borderless filled may overlay the bodies, while stroked outline crossings are reported by geometry lint. Clamped to half the drawn width for small explicit sizes.",
               ),
           })
         : name === "trapezoid"

@@ -1,5 +1,16 @@
 # #233 LoRA の 2 台形の受け入れ確認
 
+## #269 の中央ラベルへの復帰
+
+2026-11-01 のユーザー決定に従い、#245 の左台形内配置を撤回。
+render / preview を再実行し、PNGを開いて、線のない pastel の2台形と
+gap 全体に「LoRA」が中央配置され、バッジ・辺端・周囲の文字を妨げないことを確認した。
+180 ×125.71mm、0 errors / 0 warnings / 6 infos、PNG 100,542 bytes。
+互換性例外は本図と `research/248-fill/c-h3world.sumi.yaml` のみ。
+詳細は [#269 検証記録](../../docs/verification/269-centered-bowtie.md) を参照。
+
+## #233 時点の記録
+
 `research/188-badges-emoji-bowtie/c-h3world.sumi.yaml` のコピー。
 2 個の LoRA に `props: { gap: 8 }`（4pt）を追加し、左が中央へ細くなり、
 右が外へ広がる 2 枚の台形にした。ラベル・バッジ・内容と接続は維持する。

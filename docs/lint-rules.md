@@ -135,7 +135,7 @@ const diagnostics = lintGeometry(rendered, { config, source: text, file });
 
 ### 文字を置ける範囲（`geometry/label-overflow`）
 
-outline 部品では safeArea への包含に加え、各行の箱と実際の描画境界（`boundaries`、なければ `outline`）の閉じた線分との重なりも検査する。衝突用凸包には現れない split bowtie の内側の辺も対象。同じ stroke inset と 0.5pt の許容差を適用し、既存の error を 1 要素につき 1 件返す。`bowtie.props.gap > 0` のラベルは gap を除いた左台形の中央帯に置き、自動サイズはその片側に文字と padding を収める。小さすぎる明示サイズには `props.width` / `height` を大きくするか外す。
+outline 部品では safeArea への包含に加え、輪郭線を実際に描く場合（stroke が transparent でなく幅が正）だけ、各行の箱と描画境界（`boundaries`、なければ `outline`）の閉じた線分との重なりも検査する。衝突用凸包には現れない split bowtie の内側の辺も対象。同じ stroke inset と 0.5pt の許容差を適用し、既存の error を 1 要素につき 1 件返す。`bowtie.props.gap > 0` のラベルは左右の台形と gap 全体の中央に置き、自動サイズは全幅に文字と padding を収める。塗りだけの variant は body 上の文字を許容する。輪郭線と交差する場合は `filled` を選ぶか文字が入る gap を取る。小さすぎる明示サイズには `props.width` / `height` を大きくするか外す。
 
 図形の外接矩形（stroke を含まない）から、D2 v0.9.0 の固定の比率で図形を復元する。ラベルは**行ごと**の矩形の 4 隅が範囲内にあれば収まっている（範囲は凸なので 4 隅で判定できる）。行ごとに判定するため、短い行と長い行がある複数行のラベルも菱形・楕円で正しく扱える。
 

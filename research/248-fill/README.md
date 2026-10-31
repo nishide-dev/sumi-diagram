@@ -1,5 +1,14 @@
 # #248 — パネル内を埋める配置
 
+## #269 の中央ラベルへの復帰
+
+2026-11-01 のユーザー決定に従い、LoRA のラベルは左右の pastel 台形と gap
+全体の中央へ戻した。render / preview を再実行してPNGを開き、中央ラベル・
+バッジ・辺端・伸ばした投影列と token 列を確認した。
+180 ×125.71mm、0 errors / 0 warnings / 6 infos、PNG 101,820 bytes。
+再生成したPNGは既存previewとバイト一致。
+互換性の全比較は [#269 検証記録](../../docs/verification/269-centered-bowtie.md) を参照。
+
 ## 原因と変更
 
 元は `../233-lora/c-h3world.sumi.yaml`。そのコミット済み assets をそのまま複製。

@@ -378,6 +378,8 @@ export const labelOverflow = defineGeometryRule({
         (line) =>
           rectDepthInside(labelArea, line) < margin ||
           (element.labelBoundaries !== undefined &&
+            element.ir.style.stroke !== "transparent" &&
+            element.ir.style.strokeWidth.units > 0 &&
             polylinesCrossRect(element.labelBoundaries, line, -margin)),
       );
       if (!overflows) continue;
