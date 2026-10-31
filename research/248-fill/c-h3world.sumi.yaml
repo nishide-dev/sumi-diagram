@@ -75,10 +75,10 @@ groups:
         align: stretch
         items:
           - stack: { gap: 1.5pt, justify: stretch, items: [ ct1, ct2, ct3, ct4, ct5, ct6, ct7, ct8, ct9 ] }
-          - stack: { gap: 6mm, justify: stretch, items: [ lora-in, qkv ] }
+          - stack: { gap: 4mm, justify: stretch, items: [ lora-in, qkv ] }
           - c-add-in
           - row: { gap: 1mm, items: [ query-axis, mask ] }
-          - stack: { gap: 6mm, justify: stretch, items: [ lora-out, out-proj ] }
+          - stack: { gap: 4mm, justify: stretch, items: [ lora-out, out-proj ] }
           - c-add-out
           - stack: { items: [ mask-key ] }
 
@@ -176,10 +176,10 @@ nodes:
   - { id: ct7, component: box, variant: filled, tone: orange, props: { width: 9pt } }
   - { id: ct8, component: box, variant: filled, tone: orange, props: { width: 9pt } }
   - { id: ct9, component: box, variant: filled, tone: gray, props: { width: 9pt } }
-  - { id: lora-in, component: bowtie, label: LoRA, props: { gap: 8, height: 28pt }, tone: pink, variant: filled, badge: { icon: emoji/fire, corner: north-east } }
+  - { id: lora-in, component: bowtie, label: LoRA, grow: 0.6, props: { gap: 8 }, tone: pink, variant: filled, badge: { icon: emoji/fire, corner: north-east } }
   - { id: qkv, component: box, label: "QKV\nProj.", tone: blue, variant: filled, badge: { icon: emoji/snowflake, corner: north-east } }
   - { id: c-add-in, component: operator, props: { symbol: plus }, tone: orange }
-  - { id: lora-out, component: bowtie, label: LoRA, props: { gap: 8, height: 28pt }, tone: pink, variant: filled, badge: { icon: emoji/fire, corner: north-east } }
+  - { id: lora-out, component: bowtie, label: LoRA, grow: 0.6, props: { gap: 8 }, tone: pink, variant: filled, badge: { icon: emoji/fire, corner: north-east } }
   - { id: out-proj, component: box, label: "Out\nProj.", tone: blue, variant: filled, badge: { icon: emoji/snowflake, corner: north-east } }
   - { id: c-add-out, component: operator, props: { symbol: plus }, tone: orange }
   - id: mask

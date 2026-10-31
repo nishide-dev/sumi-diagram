@@ -17,6 +17,8 @@ const body = (points: readonly Point[]): OutlineDrawing["layers"][number] => ({
 const trapezoidParams = z.strictObject({
   slant: z.number().min(0).max(1).default(0.4),
   narrow: z.enum(["south", "north", "east", "west"]).optional(),
+  // Internal: preserve the natural label corridor under main-axis growth.
+  maxInset: z.number().nonnegative().optional(),
 });
 
 const trapezoid: OutlineRenderer<z.output<typeof trapezoidParams>> = {
@@ -28,9 +30,9 @@ const trapezoid: OutlineRenderer<z.output<typeof trapezoidParams>> = {
       return { width, height: height + 2 * slant * width };
     return { width: width + 2 * slant * height, height };
   },
-  draw({ x, y, width, height }, { slant, narrow = "south" }) {
+  draw({ x, y, width, height }, { slant, narrow = "south", maxInset = Infinity }) {
     if (narrow === "east" || narrow === "west") {
-      const inset = Math.min(slant * width, height / 4);
+      const inset = Math.min(slant * width, height / 4, maxInset);
       const outline =
         narrow === "east"
           ? [
@@ -51,7 +53,7 @@ const trapezoid: OutlineRenderer<z.output<typeof trapezoidParams>> = {
         safeArea: { x, y: y + inset, width, height: height - 2 * inset },
       };
     }
-    const inset = Math.min(slant * height, width / 4);
+    const inset = Math.min(slant * height, width / 4, maxInset);
     const outline = [
       { x, y },
       { x: x + width, y },

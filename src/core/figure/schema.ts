@@ -200,7 +200,7 @@ const arrangeFields = {
     .enum(["center", "stretch", "space-between"])
     .optional()
     .describe(
-      "Extra main-axis space: center (default), stretch resizable items equally, or space-between items. Does not inherit; explicit sizes and fixed-aspect shapes are preserved.",
+      "Extra main-axis space: center (default), stretch resizable items by grow weights (default 1) in whole 0.5pt increments, or space-between items. Does not inherit or act at natural size; explicit sizes and fixed-aspect shapes are preserved. Sub-unit remainder stays as centered padding.",
     ),
 };
 
@@ -457,6 +457,14 @@ export const GroupSchema = z.strictObject({
 
 export const NodeSchema = z.strictObject({
   id: Id,
+  grow: z
+    .number()
+    .positive()
+    .max(1000)
+    .optional()
+    .describe(
+      "Structured layout: relative weight of extra main-axis space under the immediate row/stack's justify: stretch (0 < grow <= 1000, default 1), apportioned in whole 0.5pt increments, not a final-size ratio. No effect without extra space, under other justification modes, in grid or attach, or on explicit main-axis sizes and non-stretchable shapes. Does not inherit. Rejected on expanded tokens, matrix and legend components.",
+    ),
   component: ComponentRef.describe("Component reference (kind: node), e.g. `box` or `sumi/box`."),
   label: Label,
   sublabel: z

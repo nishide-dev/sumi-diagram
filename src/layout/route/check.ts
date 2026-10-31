@@ -164,10 +164,10 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
     if (n.render !== undefined) {
       const renderer = getOutlineRenderer(n.render.renderer);
       const drawing = renderer?.draw(node.rect, renderer.params.parse(n.render.params ?? {}));
-      if (drawing?.boundaries) {
+      if (drawing) {
         painted.set(
           node.key,
-          drawing.boundaries.map((points) => ({ kind: "polygon", points })),
+          (drawing.boundaries ?? [drawing.outline]).map((points) => ({ kind: "polygon", points })),
         );
       }
     }

@@ -70,6 +70,7 @@ interface Element {
   tone: string | undefined;
   icon: string | undefined;
   badge: boolean;
+  grow: number | undefined;
   /** Groups only (#127). */
   labelAt: string | undefined;
   /** Nodes only (#178). */
@@ -128,6 +129,21 @@ export function resolveComponents(
       continue;
     }
     const manifest = resolved.value;
+    const growUnsupported =
+      element.grow !== undefined &&
+      ["sumi/tokens", "sumi/matrix", "sumi/legend"].includes(componentId(manifest));
+    if (growUnsupported)
+      report(
+        [
+          {
+            code: "component/grow-unsupported",
+            severity: "error",
+            message: `${componentId(manifest)} expands into layout items and has no standalone node body to weight.`,
+            hint: "Remove grow; use grow on ordinary nodes inside an immediate row/stack with justify: stretch.",
+          },
+        ],
+        () => [...element.path, "grow"],
+      );
     const usage = registry.validateUsage(manifest, element);
     report(usage.diagnostics, (d) => [...element.path, ...(d.path ?? [])]);
     // A component drawn by some engines only (#131, e.g. sumi/legend).
@@ -299,6 +315,7 @@ export function resolveComponents(
     if (
       !usage.ok ||
       wrongEngine ||
+      growUnsupported ||
       badgeUnsupported ||
       missingLabel ||
       unexpectedLabel ||
@@ -469,6 +486,7 @@ function* elements(state: CheckState): Generator<Element> {
       labelRotation: entry.kind === "node" ? entry.element.labelRotation : undefined,
       sublabel: entry.kind === "node" ? entry.element.sublabel : undefined,
       badge: entry.kind === "node" && entry.element.badge !== undefined,
+      grow: entry.kind === "node" ? entry.element.grow : undefined,
       props: entry.kind === "group" ? {} : entry.element.props,
     };
   }

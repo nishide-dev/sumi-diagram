@@ -187,6 +187,12 @@
             "type": "string",
             "pattern": "^[a-z][a-z0-9_-]{0,63}$"
           },
+          "grow": {
+            "description": "Structured layout: relative weight of extra main-axis space under the immediate row/stack's justify: stretch (0 < grow <= 1000, default 1), apportioned in whole 0.5pt increments, not a final-size ratio. No effect without extra space, under other justification modes, in grid or attach, or on explicit main-axis sizes and non-stretchable shapes. Does not inherit. Rejected on expanded tokens, matrix and legend components.",
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 1000
+          },
           "component": {
             "type": "string",
             "minLength": 1,
@@ -479,7 +485,7 @@
               ]
             },
             "justify": {
-              "description": "Extra main-axis space: center (default), stretch resizable items equally, or space-between items. Does not inherit; explicit sizes and fixed-aspect shapes are preserved.",
+              "description": "Extra main-axis space: center (default), stretch resizable items by grow weights (default 1) in whole 0.5pt increments, or space-between items. Does not inherit or act at natural size; explicit sizes and fixed-aspect shapes are preserved. Sub-unit remainder stays as centered padding.",
               "type": "string",
               "enum": [
                 "center",
@@ -543,7 +549,7 @@
               ]
             },
             "justify": {
-              "description": "Extra main-axis space: center (default), stretch resizable items equally, or space-between items. Does not inherit; explicit sizes and fixed-aspect shapes are preserved.",
+              "description": "Extra main-axis space: center (default), stretch resizable items by grow weights (default 1) in whole 0.5pt increments, or space-between items. Does not inherit or act at natural size; explicit sizes and fixed-aspect shapes are preserved. Sub-unit remainder stays as centered padding.",
               "type": "string",
               "enum": [
                 "center",

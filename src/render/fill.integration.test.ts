@@ -46,7 +46,10 @@ for (const theme of BUILTIN_THEMES.keys()) {
     if (group === undefined || a === undefined || b === undefined)
       throw new Error("Missing fill geometry");
     expect(a.y).toBeGreaterThanOrEqual(group.content.y);
-    expect(b.y + b.height).toBeCloseTo(group.content.y + group.content.height, 2);
+    // A fractional gap leaves less than one whole unit of centered padding.
+    const bottomInset = group.content.y + group.content.height - (b.y + b.height);
+    expect(bottomInset).toBeGreaterThanOrEqual(-0.001);
+    expect(bottomInset).toBeLessThan(0.5);
     expect(a.height).toBeGreaterThan(30);
   });
 }
