@@ -49,7 +49,7 @@ bun research/124-stage-b/align/run.ts --record       # 整列。out/align/ に�
 bun research/124-stage-b/measure/accents.ts --record # アクセント。out/accents/ に PNG
 bun research/124-stage-b/measure/d2-probes.ts --record
 bun research/124-stage-b/drafts.ts --record          # 草案。out/drafts/ に PNG
-bun test research/124-stage-b
+bun run test research/124-stage-b
 ```
 
 - `out/`（gitignore）に、改変コピー（`router-variant.ts` など。先頭に `@ts-nocheck`）と描画結果を書く。

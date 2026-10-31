@@ -24,5 +24,5 @@
 ```sh
 bun research/181-tokens/rewrite.ts
 bun src/cli/index.ts lint --geometry research/181-tokens/figures/*.sumi.yaml
-bun test src/render/tokens.integration.test.ts
+bun run test src/render/tokens.integration.test.ts
 ```

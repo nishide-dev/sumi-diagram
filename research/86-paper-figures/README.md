@@ -30,7 +30,7 @@ bun run d2:install                          # 固定 D2 v0.9.0（v1 版の描画
 bun research/86-paper-figures/run.ts        # 全測定。出力は out/（gitignore）
 bun research/86-paper-figures/run.ts --offline     # npm / GitHub へのアクセスを省く
 bun research/86-paper-figures/run.ts --only proto  # proto | schema | v1 | d2 | engine | glyphs | packages | icons | bundles | mathjax
-bun test research/86-paper-figures          # 試作の検査（ネットワーク・D2 不要）
+bun run test research/86-paper-figures      # 試作の検査（ネットワーク・D2 不要）
 ```
 
 - `out/` に、試作の SVG と、製品の WASM エンジン（krilla / resvg、無変更）で変換した PDF・PNG、v1 版の SVG/PDF/PNG、D2 プローブの `.d2` / `.svg` を書く。

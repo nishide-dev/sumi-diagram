@@ -5,7 +5,7 @@
 - `c-h3world.sumi.yaml`: #185 の H3-World の (a) の 5 本の列の stack を、5 列×4 行の grid に転置。画像＋画像のラベル、キーの局所配置、refiner と sequence の外側の stack、左の見出しの align は保持する。`assets/` は元と同じ placeholder の画像。
 - `tests/fixtures/figures/layout/grid-training.sumi.yaml`: #109 図 2 のノード・辺を、4 列×2 行の grid（optimizer は span 2）で配置。2 つのグループの枠は取り除き、画像は fixture の `grid-assets/` に複製する。
 - 再生成: `bun research/126-grid/rewrite.ts`。
-- 検証: `bun test src/layout/structured/grid.test.ts src/render/grid.integration.test.ts`。
+- 検証: `bun run test src/layout/structured/grid.test.ts src/render/grid.integration.test.ts`。
 
 H3-World は元と書き換えの両方を実際に描き、**全 node・group の rect が完全一致**した（小差なし）。column-stack の各列で各段の自然な高さが同じなので、grid の行高も同じになる。SVG の辺は grid 内では箱の主軸による側選択ではなく矩形から側を選ぶが、矩形の一致は経路を付けた後の Layout IR で検証する。図 2 は SVG・PDF・画像方式 PPTX の変換も通る。
 

@@ -63,7 +63,7 @@
 
 ```sh
 bun run gallery
-SUMI_UPDATE_GOLDEN=1 CI=1 bun test src/render/pdf src/render/pptx src/render/assets.integration.test.ts
+SUMI_UPDATE_GOLDEN=1 CI=1 bun run test src/render/pdf src/render/pptx src/render/assets.integration.test.ts
 ```
 
 `bun run check`、`bun run typecheck`、`CI=1 bun test`（2,806 pass / 13 skip / 0 fail）、`bun run gallery:check`、`bun run schema:check` はすべて成功。skip は既存の研究用 prototype 等。

@@ -93,7 +93,7 @@ jobs:
 
       # The same committed WASM and corpus hashes on all four OS/CPU targets.
       - name: PDF/PPTX byte equality and format contracts
-        run: bun test src/render/pdf src/render/pptx
+        run: bun run test src/render/pdf src/render/pptx
 
       - name: Build tarball
         run: bun run release:build --target "$TARGET" --version "$VERSION"

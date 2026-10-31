@@ -49,7 +49,7 @@ bun research/233-lora/preview.ts
 bun src/cli/index.ts render research/248-fill/c-h3world.sumi.yaml
 bun research/248-fill/preview.ts
 bun run gallery
-SUMI_UPDATE_GOLDEN=1 CI=1 bun test src/render/pdf src/render/pptx src/render/assets.integration.test.ts
+SUMI_UPDATE_GOLDEN=1 CI=1 bun run test src/render/pdf src/render/pptx src/render/assets.integration.test.ts
 ```
 
 両図は180 ×125.71mm、0 errors / 0 warnings / 6 infos（縮小添字1件、短い

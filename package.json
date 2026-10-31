@@ -12,7 +12,7 @@
     "check": "biome check .",
     "check:fix": "biome check --write .",
     "typecheck": "tsc --noEmit",
-    "test": "bun test",
+    "test": "bun test --timeout 60000",
     "schema:gen": "bun scripts/gen-schema.ts",
     "schema:check": "bun scripts/gen-schema.ts --check",
     "d2:install": "bun scripts/install-d2.ts",

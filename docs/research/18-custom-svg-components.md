@@ -393,5 +393,5 @@ outline renderer を使う最初の組み込み部品として、汎用形状の
 bun run d2:install
 bun research/18-custom-svg/run.ts --png   # out/ に 3 段階の SVG・PNG・レポート
 bun research/18-custom-svg/probe-d2.ts    # §1.2 の D2 の観察
-bun test research                         # 形状の幾何の smoke test
+bun run test research                     # 形状の幾何の smoke test
 ```

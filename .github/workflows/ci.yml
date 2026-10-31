@@ -109,7 +109,7 @@ jobs:
           bun src/cli/index.ts doctor --json
 
       - name: Test
-        run: bun test ${{ matrix.coverage && '--coverage' || '' }}
+        run: bun run test ${{ matrix.coverage && '--coverage' || '' }}
 
       # Re-renders docs/gallery/ and examples/*/*.svg; fails if they are stale.
       - name: Gallery and examples up to date

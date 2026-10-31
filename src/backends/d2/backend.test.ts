@@ -3,6 +3,7 @@ import { chmod, mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { getProfile, toD2LayoutArgs } from "../../core/profile";
+import { withReadyTimeout } from "../../core/subprocess-test-helpers";
 import type { RenderInput } from "../types";
 import {
   buildD2Args,
@@ -222,6 +223,36 @@ describe("createD2CliBackend", () => {
     expect(await readdir(renderTmp)).toEqual([]);
   });
 
+  test("a graceful zero-exit timeout leaves concurrent and subsequent renders isolated", async () => {
+    const slow = await setup(
+      { svg: SVG, sleepMs: 10_000, shutdownDelayMs: 100 },
+      { timeoutMs: 500 },
+    );
+    const fast = await setup({ svg: SVG });
+    const [timedOut, concurrent] = await withReadyTimeout(
+      500,
+      async () => (await slow.fake.calls()).length === 1,
+      () =>
+        Promise.all([
+          slow.backend.render(input),
+          fast.backend.render({ ...input, d2Source: "concurrent\n" }),
+        ]),
+    );
+    expect(await Bun.file(slow.fake.shutdownFile).text()).toBe("shutdown complete");
+    expect(timedOut.diagnostics.map((d) => d.code)).toEqual(["backend/d2-timeout"]);
+    expect(concurrent.ok && concurrent.value.svg).toBe(SVG);
+    const subsequent = await fast.backend.render({ ...input, d2Source: "subsequent\n" });
+    expect(subsequent.ok && subsequent.value.svg).toBe(SVG);
+    const calls = [...(await slow.fake.calls()), ...(await fast.fake.calls())];
+    expect(calls.map((call) => call.input)).toEqual([
+      input.d2Source,
+      "concurrent\n",
+      "subsequent\n",
+    ]);
+    expect(new Set(calls.map((call) => call.args.at(-1))).size).toBe(3);
+    expect(await readdir(renderTmp)).toEqual([]);
+  });
+
   test.each([
     ["no output file", undefined],
     ["an empty file", ""],
@@ -231,6 +262,8 @@ describe("createD2CliBackend", () => {
     const result = await backend.render(input);
     expect(result.ok).toBe(false);
     expect(result.diagnostics[0]?.code).toBe("backend/empty-output");
+    expect(result.diagnostics[0]?.hint).toContain("external cancellation");
+    expect(result.diagnostics[0]?.hint).toContain("test timeout");
     expect(await readdir(renderTmp)).toEqual([]);
   });
 

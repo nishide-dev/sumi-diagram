@@ -230,6 +230,8 @@ export function createD2CliBackend(options: D2CliBackendOptions = {}): DiagramBa
       });
     }
 
+    // D2 handles SIGTERM by exiting with code 0, potentially without an SVG.
+    // Check our deadline first; exitCode alone cannot identify a completed render.
     if (result.timedOut) {
       return fail({
         code: "backend/d2-timeout",
@@ -264,6 +266,7 @@ export function createD2CliBackend(options: D2CliBackendOptions = {}): DiagramBa
           svg.trim() === ""
             ? "D2 exited successfully but produced no SVG."
             : "D2 exited successfully but its output is not a complete SVG document.",
+        hint: "Check for external cancellation (for example, a test timeout) or another cause of incomplete D2 output.",
       });
     }
 
@@ -312,6 +315,8 @@ export function createD2CliBackend(options: D2CliBackendOptions = {}): DiagramBa
       result = { ...result, diagnostics: [...diagnostics, ...result.diagnostics] };
 
       try {
+        // renderIn waits for the child to exit, including graceful shutdown after
+        // a timeout. Each render owns its mkdtemp directory, even when concurrent.
         await rm(dir, { recursive: true, force: true });
       } catch (error) {
         // Keep the render's own outcome; only report the leftover directory.

@@ -25,5 +25,5 @@ H3-World（利用者の図。コミットしない）の (c) の注意のマス�
 ```sh
 bun research/180-matrix/render.ts
 bun src/cli/index.ts lint --geometry research/180-matrix/figures/c-h3world.sumi.yaml
-bun test src/render/matrix.integration.test.ts
+bun run test src/render/matrix.integration.test.ts
 ```

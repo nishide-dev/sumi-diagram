@@ -24,8 +24,8 @@ sumi render figure.sumi.yaml -o glued.pptx --pptx-mode editable --pptx-connector
 ## 自動検証と再現
 
 ```sh
-bun test src/render/pptx
-SUMI_UPDATE_GOLDEN=1 bun test src/render/pptx/editable.test.ts # 意図して更新するときだけ
+bun run test src/render/pptx
+SUMI_UPDATE_GOLDEN=1 bun run test src/render/pptx/editable.test.ts # 意図して更新するときだけ
 bun scripts/check-pptx-editable.ts
 dotnet build scripts/pptx-validator/Validator.csproj --configuration Release \
   --artifacts-path .sumi/pptx-validator -p:RestoreLockedMode=true
