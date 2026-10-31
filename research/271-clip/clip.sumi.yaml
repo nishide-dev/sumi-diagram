@@ -28,7 +28,7 @@ groups:
           - null
           - text-tokens
           - image-tokens
-          - stack: { gap: 0, items: [ sim1, sim2, sim3, simdots, simn ] }
+          - sim
   - id: inference
     variant: plain
     label: "(2) Create dataset classifier\nfrom label text"
@@ -112,68 +112,26 @@ nodes:
       width: 18pt
       height: 23pt
       cells: [ '$I_1$', '$I_2$', '$I_3$', { label: '⋮', component: label }, '$I_N$' ]
-  # Native matrix cells cannot contain formulas. Token rows keep both labels
-  # and diagonal highlights, including an explicit omitted row and column.
-  - id: sim1
-    component: tokens
+  # One matrix: formula cells, a blue diagonal class, and ellipsis row / column
+  # (…, ⋮, ⋱ drawn borderless at the cell size).
+  - id: sim
+    component: matrix
     props:
-      gap: 0
-      width: 33pt
-      height: 23pt
+      flush: true
+      cellWidth: 33pt
+      cellHeight: 23pt
       variant: outlined
+      classes:
+        d: { tone: blue, variant: tinted }
+        o: {}
+      ellipsisRows: [ 4 ]
+      ellipsisColumns: [ 4 ]
       cells:
-        - { label: '$I_1\cdot T_1$', tone: blue, variant: tinted }
-        - '$I_1\cdot T_2$'
-        - '$I_1\cdot T_3$'
-        - { label: '…', component: label, variant: default }
-        - '$I_1\cdot T_N$'
-  - id: sim2
-    component: tokens
-    props:
-      gap: 0
-      width: 33pt
-      height: 23pt
-      variant: outlined
-      cells:
-        - '$I_2\cdot T_1$'
-        - { label: '$I_2\cdot T_2$', tone: blue, variant: tinted }
-        - '$I_2\cdot T_3$'
-        - { label: '…', component: label, variant: default }
-        - '$I_2\cdot T_N$'
-  - id: sim3
-    component: tokens
-    props:
-      gap: 0
-      width: 33pt
-      height: 23pt
-      variant: outlined
-      cells:
-        - '$I_3\cdot T_1$'
-        - '$I_3\cdot T_2$'
-        - { label: '$I_3\cdot T_3$', tone: blue, variant: tinted }
-        - { label: '…', component: label, variant: default }
-        - '$I_3\cdot T_N$'
-  - id: simdots
-    component: tokens
-    props:
-      gap: 0
-      width: 33pt
-      height: 23pt
-      component: label
-      cells: [ '⋮', '⋮', '⋮', '⋱', '⋮' ]
-  - id: simn
-    component: tokens
-    props:
-      gap: 0
-      width: 33pt
-      height: 23pt
-      variant: outlined
-      cells:
-        - '$I_N\cdot T_1$'
-        - '$I_N\cdot T_2$'
-        - '$I_N\cdot T_3$'
-        - { label: '…', component: label, variant: default }
-        - { label: '$I_N\cdot T_N$', tone: blue, variant: tinted }
+        - [ { class: d, text: '$I_1\cdot T_1$' }, { class: o, text: '$I_1\cdot T_2$' }, { class: o, text: '$I_1\cdot T_3$' }, o, { class: o, text: '$I_1\cdot T_N$' } ]
+        - [ { class: o, text: '$I_2\cdot T_1$' }, { class: d, text: '$I_2\cdot T_2$' }, { class: o, text: '$I_2\cdot T_3$' }, o, { class: o, text: '$I_2\cdot T_N$' } ]
+        - [ { class: o, text: '$I_3\cdot T_1$' }, { class: o, text: '$I_3\cdot T_2$' }, { class: d, text: '$I_3\cdot T_3$' }, o, { class: o, text: '$I_3\cdot T_N$' } ]
+        - ooooo
+        - [ { class: o, text: '$I_N\cdot T_1$' }, { class: o, text: '$I_N\cdot T_2$' }, { class: o, text: '$I_N\cdot T_3$' }, o, { class: d, text: '$I_N\cdot T_N$' } ]
   - id: labels
     component: tokens
     mono: true
@@ -216,26 +174,26 @@ nodes:
     component: box
     label: '$I_1$'
     tone: green
-    attach: { to: scores.1, side: west, gap: 9pt }
+    attach: { to: scores, side: west, gap: 9pt }
     props: { width: 20pt, height: 20pt }
   - id: scores
-    component: tokens
+    component: matrix
     props:
-      gap: 0
-      width: 37pt
-      height: 23pt
+      flush: true
+      cellWidth: 37pt
+      cellHeight: 23pt
       variant: outlined
+      classes:
+        d: { tone: blue, variant: tinted }
+        o: {}
+      ellipsisColumns: [ 4 ]
       cells:
-        - '$I_1\cdot T_1$'
-        - '$I_1\cdot T_2$'
-        - { id: dog, label: '$I_1\cdot T_3$', tone: blue, variant: tinted }
-        - { label: '…', component: label, variant: default }
-        - '$I_1\cdot T_N$'
+        - [ { class: o, text: '$I_1\cdot T_1$' }, { class: o, text: '$I_1\cdot T_2$' }, { class: d, text: '$I_1\cdot T_3$' }, o, { class: o, text: '$I_1\cdot T_N$' } ]
   - id: answer
     component: label
     label: 'A photo of a $\textcolor{blue}{\text{dog}}$.'
     mono: true
-    attach: { to: scores.dog, side: south, gap: 14pt }
+    attach: { to: scores, side: south, gap: 14pt }
 edges:
   - { from: captions, to: train-text }
   - { from: train-text, to: text-bus, component: line, fromAnchor: east }
@@ -282,5 +240,5 @@ edges:
   - { from: class-bus-n, to: class-tokens.5, toAnchor: north }
   - { from: photo, to: predict-image }
   - { from: predict-image, to: image-one }
-  - { from: image-one, to: scores.1, fromAnchor: east, toAnchor: west }
-  - { from: scores.dog, to: answer, fromAnchor: south, toAnchor: north }
+  - { from: image-one, to: scores, fromAnchor: east, toAnchor: west }
+  - { from: scores, to: answer, fromAnchor: south, toAnchor: north }

@@ -917,6 +917,45 @@ the width), `gap` (between cells, default 0), `headerGap` (default `gap`),
 cell) tune it. A legend entry `{ class: <matrix>.<class> }` draws that
 class's sample box with its label: the key is made from the same data.
 
+**Text and ellipsis cells (since 0.10.0).** In a list row a cell may also be
+`{ class, text }` (the text, math allowed, is drawn in the cell, which keeps
+its class's tone, variant and hatch) or `{ ellipsis: "…" | "⋮" | "⋱" }`.
+`ellipsisRows: [4]` and `ellipsisColumns: [4]` (1-based) turn whole rows and
+columns into ellipsis slots: `⋮` in a row, `…` in a column, `⋱` where they
+cross. An ellipsis slot keeps the cell's size (the grid stays regular) and draws
+only the symbol, with **no border, fill or hatch**; the neighboring cells keep
+their own borders. Class-only cells and string rows are unchanged. `flush: true`
+removes the frame's group padding so a header row or column of other nodes can
+touch the matrix (needs a matrix without a `label`). The cells' IDs are not
+addressable, so attach or connect to the matrix as a whole.
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: similarity
+  theme: paper
+  layout:
+    arrange: { row: { gap: 5mm, align: center, items: [sim] } }
+nodes:
+  - id: sim
+    component: matrix
+    props:
+      cellWidth: 30pt
+      cellHeight: 18pt
+      variant: outlined
+      classes:
+        d: { tone: blue, variant: tinted }
+        o: {}
+      ellipsisRows: [3]
+      ellipsisColumns: [3]
+      cells:
+        - [{ class: d, text: '$I_1\cdot T_1$' }, { class: o, text: '$I_1\cdot T_2$' }, o, { class: o, text: '$I_1\cdot T_N$' }]
+        - [{ class: o, text: '$I_2\cdot T_1$' }, { class: d, text: '$I_2\cdot T_2$' }, o, { class: o, text: '$I_2\cdot T_N$' }]
+        - [o, o, o, o]
+        - [{ class: o, text: '$I_N\cdot T_1$' }, { class: o, text: '$I_N\cdot T_2$' }, o, { class: d, text: '$I_N\cdot T_N$' }]
+```
+
 ```yaml
 # expect-render: fits
 version: 1
