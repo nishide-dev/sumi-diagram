@@ -277,3 +277,62 @@ test("compact density (#182) and a dimmed panel (#175) draw a matrix without dia
   expect(rendered.diagnostics).toEqual([]);
   expect(new Set(svgHatches(rendered.svg).map((h) => h.stroke))).toEqual(new Set(["#949494"]));
 });
+
+test("a flush matrix touches its neighbors; text and ellipsis cells keep the grid (#280)", async () => {
+  const source = (flush: boolean) => `version: 1
+figure:
+  id: flush
+  theme: paper
+  layout:
+    arrange:
+      grid:
+        columns: 1
+        rowGap: 0
+        items:
+          - heads
+          - sim
+nodes:
+  - id: heads
+    component: tokens
+    props: { gap: 0, width: 30pt, height: 14pt, cells: ['$T_1$', '$T_2$', '…', '$T_N$'] }
+  - id: sim
+    component: matrix
+    props:
+      cellWidth: 30pt
+      cellHeight: 20pt
+      variant: outlined
+      ${flush ? "flush: true" : "gap: 0"}
+      classes:
+        d: { tone: blue, variant: tinted }
+        o: {}
+      ellipsisColumns: [3]
+      ellipsisRows: [3]
+      cells:
+        - [{ class: d, text: '$I_1\\cdot T_1$' }, { class: o, text: '$I_1\\cdot T_2$' }, o, { class: o, text: '$I_1\\cdot T_N$' }]
+        - [{ class: o, text: '$I_2\\cdot T_1$' }, { class: d, text: '$I_2\\cdot T_2$' }, o, { class: o, text: '$I_2\\cdot T_N$' }]
+        - [o, o, o, o]
+        - [{ class: o, text: '$I_N\\cdot T_1$' }, { class: o, text: '$I_N\\cdot T_2$' }, o, { class: d, text: '$I_N\\cdot T_N$' }]
+`;
+  const rect = (r: RenderedFigure, key: string) => {
+    const found = (r as { layout: LayoutIR }).layout.nodes.find((n) => n.key === key)?.rect;
+    if (found === undefined) throw new Error(key);
+    return found;
+  };
+  const flush = await render(source(true));
+  expect(flush.diagnostics.filter((d) => d.severity !== "info")).toEqual([]);
+  const head = rect(flush, "n:heads-1");
+  const first = rect(flush, "n:sim-1-1");
+  expect(first.x).toBe(head.x);
+  expect(first.y).toBeCloseTo(head.y + head.height, 6);
+  // The ellipsis row and column keep the cell size, so the grid stays regular.
+  const dots = rect(flush, "n:sim-3-3");
+  const last = rect(flush, "n:sim-4-4");
+  expect([dots.width, dots.height]).toEqual([first.width, first.height]);
+  expect(last.x - dots.x).toBeCloseTo(dots.width, 6);
+  expect(last.y - dots.y).toBeCloseTo(dots.height, 6);
+  // Without flush the frame's padding separates them.
+  const padded = await render(source(false));
+  expect(rect(padded, "n:sim-1-1").y).toBeGreaterThan(rect(padded, "n:heads-1").y + head.height);
+  // An ellipsis cell draws its symbol but no border or fill of its own.
+  expect(flush.svg).toMatch(/sumi-k-n--sim-3-3[^>]*>(?:(?!<g class="sumi-k-).)*?⋱/s);
+});

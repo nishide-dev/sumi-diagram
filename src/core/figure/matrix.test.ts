@@ -617,3 +617,125 @@ describe("lint (#180)", () => {
     expect(lintFigure(source).diagnostics).toEqual([]);
   });
 });
+
+describe("text and ellipsis cells (#280)", () => {
+  const TEXT = PROPS.replace(
+    "cells: [oxx, xoo]",
+    () => `cells:
+        - [{ class: o, text: '$I_1\\cdot T_1$' }, { class: x, text: Off }, x]
+        - [x, o, { ellipsis: ⋮ }]`,
+  );
+  const part = (state: ReturnType<typeof checkFigure>["state"], id: string) =>
+    state.doc.nodes?.find((n) => n?.id === id);
+
+  test("a cell with text is a box with the label, still colored by its class", () => {
+    const { state } = checkFigure(figure(TEXT));
+    expect(state.diagnostics).toEqual([]);
+    expect(part(state, "m-1-1")).toMatchObject({
+      component: "sumi/box",
+      label: "$I_1\\cdot T_1$",
+      tone: "green",
+      variant: "filled",
+    });
+    expect(part(state, "m-1-2")).toMatchObject({ component: "sumi/box", label: "Off" });
+    // A class-only cell is unchanged: an empty box.
+    expect(part(state, "m-1-3")).toMatchObject({ component: "sumi/box", label: "" });
+    const cell = state.doc.matrices?.[0]?.parts.find((p) => p.id === "m-1-1");
+    expect(cell?.fields.label).toEqual(["nodes", 1, "props", "cells", 0, 0, "text"]);
+    expect(cell?.fields.tone).toEqual(["nodes", 1, "props", "classes", "o", "tone"]);
+  });
+
+  test("an ellipsis cell keeps the cell's size and draws only the symbol, without border or fill", () => {
+    const { state } = checkFigure(figure(TEXT));
+    const dots = part(state, "m-2-3");
+    expect(dots).toMatchObject({
+      component: "sumi/label",
+      label: "⋮",
+      variant: "default",
+      props: { width: "12pt", height: "9pt" },
+    });
+    expect(dots?.tone).toBeUndefined();
+    const parts = state.doc.matrices?.[0]?.parts ?? [];
+    expect(parts.find((p) => p.id === "m-2-3")).toMatchObject({ kind: "cell", ellipsis: "⋮" });
+    expect(state.doc.paints?.has(nodeKey("m-2-3"))).toBeFalsy();
+  });
+
+  test("ellipsisRows and ellipsisColumns turn whole rows and columns into … ⋮ ⋱", () => {
+    const source = figure(
+      PROPS.replace("cells: [oxx, xoo]", "cells: [oxx, xoo, xxo]")
+        .replace("rows: [S, { label: '$A_1$', tone: purple }]", "rows: [S, A, B]")
+        .replace("columns: [S, '$A_1$', P]", "columns: [S, A, P]")
+        .concat("\n      ellipsisRows: [2]\n      ellipsisColumns: [3]"),
+    );
+    const { state } = checkFigure(source);
+    expect(state.diagnostics).toEqual([]);
+    const label = (id: string) => part(state, id)?.label;
+    expect([
+      label("m-1-3"),
+      label("m-2-1"),
+      label("m-2-2"),
+      label("m-2-3"),
+      label("m-3-3"),
+    ]).toEqual(["…", "⋮", "⋮", "⋱", "…"]);
+    expect(part(state, "m-1-1")).toMatchObject({ component: "sumi/box" });
+    const cell = state.doc.matrices?.[0]?.parts.find((p) => p.id === "m-2-1");
+    expect(cell?.fields.label).toEqual(["nodes", 1, "props", "ellipsisRows"]);
+    // Ellipsis cells still count their written class: no lint warning.
+    expect(lintFigure(source).diagnostics).toEqual([]);
+  });
+
+  test("the IR traces ellipsis and text cells to the matrix", () => {
+    const ir = buildFigureIR(checkFigure(figure(TEXT)));
+    const node = (id: string) => ir.elements.get(nodeKey(id)) as NodeIR;
+    expect(node("m-2-3").matrix?.name).toBe('ellipsis cell 2, 3 of matrix "m"');
+    expect(node("m-1-1").matrix?.name).toBe('cell 1, 1 (class "o") of matrix "m"');
+  });
+
+  test("cells are checked where they are written", () => {
+    const at = (cells: string, extra = "") =>
+      checkFigure(figure(`${PROPS.replace("cells: [oxx, xoo]", cells)}${extra}`)).state.diagnostics;
+    const unknown = at("cells: [[{ class: q, text: a }, x, x], [x, o, o]]");
+    expect(summarize(unknown)[0]?.slice(0, 2)).toEqual([
+      "component/invalid-prop",
+      ["nodes", 1, "props", "cells", 0, 0, "class"],
+    ]);
+    const both = at("cells: [[{ class: o, text: a, ellipsis: '…' }, x, x], [x, o, o]]");
+    expect(both[0]?.code).toBe("component/invalid-prop");
+    const none = at("cells: [[{ text: a }, x, x], [x, o, o]]");
+    expect(none[0]?.code).toBe("component/invalid-prop");
+    const range = at("cells: [oxx, xoo]", "\n      ellipsisRows: [3]");
+    expect(summarize(range)[0]?.slice(0, 2)).toEqual([
+      "component/invalid-prop",
+      ["nodes", 1, "props", "ellipsisRows", 0],
+    ]);
+    const twice = at("cells: [oxx, xoo]", "\n      ellipsisColumns: [2, 2]");
+    expect(summarize(twice)[0]?.slice(0, 2)).toEqual([
+      "component/invalid-prop",
+      ["nodes", 1, "props", "ellipsisColumns", 1],
+    ]);
+    const text = at(
+      "cells: [[o, { class: x, text: a }, x], [x, o, o]]",
+      "\n      ellipsisColumns: [2]",
+    );
+    expect(summarize(text)[0]?.slice(0, 2)).toEqual([
+      "component/invalid-prop",
+      ["nodes", 1, "props", "cells", 0, 1, "text"],
+    ]);
+  });
+
+  test("flush: the frame has no padding; with a title it is an error", () => {
+    const flush = figure(`${PROPS}\n      flush: true`);
+    const check = checkFigure(flush);
+    expect(check.state.diagnostics).toEqual([]);
+    const ir = buildFigureIR(check);
+    expect((ir.elements.get(groupKey("m")) as GroupIR).matrix?.flush).toBe(true);
+    expect((ir.elements.get(nodeKey("m-1-1")) as NodeIR).matrix?.flush).toBeUndefined();
+    const plain = buildFigureIR(checkFigure(SOURCE));
+    expect((plain.elements.get(groupKey("m")) as GroupIR).matrix?.flush).toBeUndefined();
+    const titled = checkFigure(figure(`${PROPS}\n      flush: true`, { m: "\n    label: Title" }));
+    expect(summarize(titled.state.diagnostics)[0]?.slice(0, 2)).toEqual([
+      "component/invalid-prop",
+      ["nodes", 1, "props", "flush"],
+    ]);
+  });
+});

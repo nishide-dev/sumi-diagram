@@ -2355,6 +2355,20 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 
 - **最終検証**: `bun run check`・`bun run typecheck`・`CI=1 bun test`（3593 pass / 13 skip / 0 fail）・`bun run gallery:check`（203 files）・`bun run schema:check` が成功。全 Theme × variant のbowtie / trapezoid galleryをPNG化して開き、文字・塗り・輪郭を確認した。
 
+### 6.77 #280 の matrix のセル文字・省略セル・flush
+
+- **目的**: CLIP の図（#271）の I·T 行列は、セルに式（`$I_1\cdot T_2$`）を書き、省略の行・列（…・⋮・⋱）を置き、対角を強調する。#180 の matrix は class だけのセルで、tokens 5 行の stack で代用していた。1 個の `matrix` で書けるようにする。
+- **前提の確認**: matrix は展開後に通常の `box` と `label` のノードになる（§6.56）。セルのラベルは今まで空文字だったので、文字・数式は既存のラベル描画（寸法・数式・lint・SVG/PDF/PPTX）をそのまま使える。新しい描画経路は作らない。
+- **セルの書き方（判断: class だけの書き方は不変、明示オブジェクトを足す）**: `cells` の行は従来どおり class の文字列（`"o..L"`・空白区切り）か class 名の配列。配列のセルに `{ class, text }`（文字つきのセル。`text` は数式可。塗り・variant・斜線は class のまま）と `{ ellipsis: "…" | "⋮" | "⋱" }`（記号だけのセル。class は省略可）を書ける。文字列の行にはセルごとの文字を持たせない（1 文字の class を連ねる書式と衝突するため）。`class` も `ellipsis` もない、`text` と `ellipsis` の併記は `component/invalid-prop`（そのセルの位置）。未知の class は `…cells[r][c].class` を指す（文字列・配列の class 名の位置は従来どおり）。
+- **省略の行・列（判断: 1 始まりの選択子）**: `ellipsisRows: [4]`・`ellipsisColumns: [4]` で行・列全体を省略にする。記号は行が `⋮`、列が `…`、交点が `⋱`。選択子の範囲外・重複は `component/invalid-prop`（`ellipsisRows[i]` の位置）。選択された行・列に `text` を書くと error（`cells[r][c].text`）。選択された位置のセルは class を書いたままでよい（行の長さをそろえるため）。その class は表示に使わないが、`lint/unused-matrix-class` では使用に数える（省略スロットだけで使う class を誤って警告しない）。
+- **罫線の扱い（判断）**: 省略のスロットは**セルの大きさを保ち、記号だけを描く**。部品は枠・塗りのない `sumi/label`（`variant: default`、tone なし）で、斜線の印（`doc.paints`）も付けない。隣のセルは自分の枠を保つので、省略の行・列は枠のない空白に記号が浮く形になる（原図と同じ。CLIP の再現（#271）の tokens の `component: label` の … ⋮ ⋱ と同じ見た目）。省略スロットを小さく詰める案（大きさを保たない）は、行・列の間隔と対角が崩れるため採らない。枠を描く案（点線の枠）も採らない。
+- **flush（判断: 枠の余白を外す opt-in）**: matrix の枠は plain の group で、profile の `groupPadding` を持つ。このため上の見出し行（T）と左の見出し列（I）を gap 0 で接触させる図ができなかった。`props.flush: true` の matrix は枠の余白を 0 にする。matrix の frame group の figure IR の `matrix` に `flush: true` を付け（frame だけ。部品には付けない）、structured エンジンの `#padding()` が 0 を返す。既定（`flush` なし）は IR・配置とも変わらない。`flush` の matrix は見出し（title）の場所がないので `label` があれば `component/invalid-prop`（`props.flush`）。
+- **セルの参照（非対象）**: セルは枠の group の子なので、`attach` の対象にも辺の端点にもできない（attach は同じ container の中だけ。ID の検査は展開前）。matrix 全体を端点・attach にする。CLIP の (3) は、行が 1 行で dog が中央のセルなので、matrix 全体の南が dog の真下になり位置が変わらない。セルの参照（`<matrix>.r1c3` など）は engine の container 制約の拡張が要るため別 Issue とする。
+- **IR・診断**: 部品の名前は `ellipsis cell 2, 3 of matrix "m"`、文字つきのセルは従来の `cell 1, 1 (class "o") of matrix "m"`。診断の位置の表（`fields`）は、文字つきセルのラベルが `…cells[r][c].text`、省略セルが `…[c].ellipsis` か選択子（`ellipsisRows` / `ellipsisColumns`）を指す。`lint/empty-label` は matrix の部品を従来どおり除外。
+- **CLIP の描き直し（受け入れ条件）**: `research/271-clip/clip.sumi.yaml` の (1) の I·T 行列（tokens 5 行 sim1..simn）を `sim`（`cellWidth: 33pt`、`cellHeight: 23pt`、`flush: true`、`variant: outlined`、class `d`（blue / tinted の対角）と `o`、`ellipsisRows: [4]`、`ellipsisColumns: [4]`）の matrix 1 個に、(3) の I₁·T 行（tokens）を 1 行の matrix `scores`（`ellipsisColumns: [4]`）に書き換えた。生成した `preview.png` は開いて確かめ、**変更前と画素まで同一**（sha256 一致）で、180 × 52.82mm・63.6% 縮小・0 errors / 0 warnings（添字の info 1 件）も同じ。省略の記号と対角の青が従来どおり並ぶ。
+- **互換性（実測）**: 変更前後で、追跡済みの全 153 の `*.sumi.yaml` を自テーマと組み込み 5 Theme の 918 組で描き、SVG・PDF・picture PPTX・D2（emit-d2）の sha256 を比べた。描画まで通った 638 組と D2（auto）234 件のうち、変わったのは書き換えた `research/271-clip/clip.sumi.yaml` の 5 組（自テーマ・paper・minimal・academic・color。ID・要素の構成が変わるため SVG / PDF / PPTX の hash が違う）だけで、残りの 152 YAML の出力は全件一致した。matrix を使う既存の図（`research/180-matrix`、`research/248-fill`、ギャラリー以外の例）も変わらない。JSON Schema は変わらない（部品の props は Figure のスキーマの外）。
+- **テスト**: `matrix.test.ts`（文字つきセルの box とラベル・省略セルの label と大きさ・選択子の記号と交点・IR の名前・診断の位置と文・`flush` の IR と見出しとの併用 error）、`matrix.integration.test.ts`（`flush` の matrix が見出し行に接し、省略の行・列がセルの大きさを保つこと、`flush` なしでは余白が入ること、記号が描かれること）。ギャラリーの matrix のサンプルに文字・省略・対角・`flush` の 2 つ目の matrix を足した（全 Theme の `sumi-matrix` が更新）。Skill の `structured.md` に「Text and ellipsis cells」と作例（`skill.test.ts` が描く）、`figure-format.md` に 1 文。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）

@@ -293,7 +293,8 @@ class StructuredLayout {
 
   /** A group's padding per side: the profile's, plus any `growPadding` added. */
   #padding(key: ElementKey): Overhang {
-    const p = this.#groupPadding;
+    // A flush matrix's frame (#280) has no padding of its own.
+    const p = this.#groups.get(key)?.matrix?.flush === true ? 0 : this.#groupPadding;
     const extra = this.#extraPadding.get(key) ?? NO_OVERHANG;
     return {
       north: p + extra.north,
