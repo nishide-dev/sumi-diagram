@@ -97,28 +97,36 @@ edges: [{ from: a, to: b }, { from: b, to: c }]
 
   for (const variant of ["solid", "filled", "outlined"]) {
     for (const dim of [false, true]) {
-      test(`${theme}/${variant}/dim=${dim}: source tone and dim resolve split-label placement`, async () => {
-        const result = await renderFigure(`version: 1
+      for (const axis of ["natural", "stack", "row"]) {
+        test(`${theme}/${variant}/dim=${dim}/${axis}: source tone and dim resolve split-label placement`, async () => {
+          const result = await renderFigure(`version: 1
 figure: { id: tones, theme: ${theme}, profile: paper-double, layout: { arrange: { stack: { items: [g] } } } }
-groups: [{ id: g, ${dim ? "dim: true," : ""} arrange: { row: { items: [a] } } }]
-nodes: [{ id: a, group: g, component: bowtie, variant: ${variant}, tone: pink, label: S, props: { gap: 64 } }]
+groups: [{ id: g, ${dim ? "dim: true," : ""} arrange: { ${axis === "stack" ? "row" : "stack"}: { align: stretch, items: ${axis === "natural" ? "[a]" : `[extent, { ${axis}: { justify: stretch, items: [a] } }]`} } } }]
+nodes:
+  - { id: a, group: g, component: bowtie, variant: ${variant}, tone: pink, label: S, props: { gap: 64 } }
+${axis === "natural" ? "" : "  - { id: extent, group: g, component: box, props: { width: 200pt, height: 200pt } }"}
 `);
-        if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
-        const node = result.value.compiled.ir.nodes[0];
-        const left = dim ? variant !== "solid" : variant === "solid";
-        expect(node?.render?.params?.labelOnLeft === true).toBe(left);
-        const geometry = geometryContextFor(result.value).get("n:a");
-        const box = geometry?.bbox;
-        const line = geometry?.labels[0]?.visibleLines[0];
-        if (!box || !line) throw new Error("Missing label");
-        const center = left
-          ? box.x + (box.width - Math.min(64, box.width / 2)) / 4
-          : box.x + box.width / 2;
-        expect(line.x + line.width / 2).toBeCloseTo(center, 2);
-        expect(
-          lintGeometry(result.value).filter((d) => d.code === "geometry/label-overflow"),
-        ).toEqual([]);
-      });
+          if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+          const node = result.value.compiled.ir.nodes[0];
+          const left = dim ? variant !== "solid" : variant === "solid";
+          expect(node?.render?.params?.labelOnLeft === true).toBe(left);
+          const geometry = geometryContextFor(result.value).get("n:a");
+          const box = geometry?.bbox;
+          const line = geometry?.labels[0]?.visibleLines[0];
+          if (!box || !line) throw new Error("Missing label");
+          const center = left
+            ? box.x + (box.width - Math.min(64, box.width / 2)) / 4
+            : box.x + box.width / 2;
+          expect(line.x + line.width / 2).toBeCloseTo(center, 2);
+          expect(line.y + line.height / 2).toBeCloseTo(box.y + box.height / 2, 2);
+          if (axis !== "natural") expect(box[axis === "stack" ? "height" : "width"]).toBe(400);
+          expect(line.y).toBeGreaterThanOrEqual(box.y);
+          expect(line.y + line.height).toBeLessThanOrEqual(box.y + box.height);
+          expect(
+            lintGeometry(result.value).filter((d) => d.code === "geometry/label-overflow"),
+          ).toEqual([]);
+        });
+      }
     }
   }
 }

@@ -80,6 +80,13 @@ Theme は CLI と同じ `overrides.theme` で差し替え、成功した出力�
 
 ## #270: outline stretch follow-up
 
+レビュー修正で余りの配分を整数D2 unit（0.5pt）の最大剰余法にした。
+同率は視覚順、非整数gapなどによる1 unit未満の余りは両端の余白に等分する。
+再render / previewで **100,423 bytes** のPNGを生成して実際に開き、
+LoRAとQKV/Outの高さのバランス、ラベル・badge・辺を確認した。
+180 ×125.71mm、0 errors / 0 warnings / 6 infos。以下の寸法・manifestは
+整数配分導入前の初回検証記録。
+
 LoRA の明示 height を外し、`grow: 0.6` と gap 4mm で投影列の余りを共有する。
 等分加算では LoRA:QKV が1.06:1、重み付きでは37.72:45.54pt（0.828:1）。
 `bun research/248-fill/preview.ts` で再生成した PNG を目視確認済み。

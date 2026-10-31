@@ -506,16 +506,27 @@ class StructuredLayout {
     const maxWeight = growers.reduce((max, item) => Math.max(max, rawWeight(item)), 0) || 1;
     const weight = (item: ArrangeItemIR) => rawWeight(item) / maxWeight;
     const totalWeight = growers.reduce((sum, item) => sum + weight(item), 0);
-    const share = totalWeight > 0 ? Math.max(0, extra) / totalWeight : 0;
+    // Apportion whole D2 units (0.5pt), largest remainder first. `order`
+    // is visual order, including for up/left, and breaks equal remainders.
+    const budget = totalWeight > 0 ? Math.floor(Math.max(0, extra)) : 0;
+    const shares = growers.map((item, index) => {
+      const exact = (budget * weight(item)) / totalWeight;
+      return { item, index, units: Math.floor(exact), remainder: exact - Math.floor(exact) };
+    });
+    const remainder = budget - shares.reduce((sum, share) => sum + share.units, 0);
+    const ranked = [...shares].sort((a, b) => b.remainder - a.remainder || a.index - b.index);
+    for (const share of ranked.slice(0, remainder)) share.units++;
+    const additions = new Map(shares.map(({ item, units }) => [item, units]));
     const between = box.justify === "space-between" && order.length > 1 && grow === 0;
     if (between) gap += Math.max(0, extra) / (order.length - 1);
     let cursor =
-      (vertical ? frame.y : frame.x) + (grow > 0 || share > 0 || between ? 0 : extra / 2);
+      (vertical ? frame.y : frame.x) +
+      (grow > 0 || between ? 0 : totalWeight > 0 ? (extra - budget) / 2 : extra / 2);
     const crossAvailable = vertical ? frame.width : frame.height;
     for (const item of order) {
       if (item === null) continue;
       const itemNatural = this.#itemSize(item);
-      const added = grow + (growers.includes(item) ? share * weight(item) : 0);
+      const added = grow + (additions.get(item) ?? 0);
       const size = vertical
         ? { ...itemNatural, height: itemNatural.height + added }
         : { ...itemNatural, width: itemNatural.width + added };

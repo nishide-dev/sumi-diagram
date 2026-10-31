@@ -33,12 +33,18 @@ metadata: {}               # optional, any JSON-compatible data; not drawn
 | Element | Fields (required in bold) | Defaults |
 | --- | --- | --- |
 | group | **`id`**, `label`, `labelAt`, `caption`, `component`, `variant`, `tone`, `dim`, `group`, `arrange`¹ | component `container`, variant `default`, no tone, not dimmed, no parent |
-| node | **`id`**, **`component`**, `label`, `sublabel`¹, `labelRotation`¹, `textAlign`¹, `variant`, `tone`, `icon`, `badge`, `props`, `group`, `attach`¹ | variant `default`, no label, no tone, no group |
+| node | **`id`**, **`component`**, `label`, `sublabel`¹, `labelRotation`¹, `textAlign`¹, `grow`¹, `variant`, `tone`, `icon`, `badge`, `props`, `group`, `attach`¹ | variant `default`, no label, no tone, no group, grow `1` |
 | edge | **`from`**, **`to`**, `id`, `label`, `labelAt`¹, `labelSide`¹, `component`, `variant`, `tone`, `props`, `fromAnchor`¹, `toAnchor`¹ | component `arrow`, variant `default`, no tone |
 
 ¹ Structured layout only (a figure with `figure.layout.arrange`); see
 [structured](structured.md): `sublabel` ([sublabels](structured.md#sublabels)),
 `labelRotation` (`90` / `-90`, [turned labels](structured.md#turned-labels)).
+`grow`: `0 < grow <= 1000`, relative extra-space weight under the immediate
+row/stack's `justify: stretch`, in whole 0.5pt increments (largest remainder,
+visual-order ties), not a final-size ratio. Sub-unit remainder is centered padding.
+No effect without extra space, in other justify modes, grid/attach, on fixed
+main-axis sizes or non-stretchable shapes; does not inherit. Expanded tokens,
+matrix and legend reject it with `component/grow-unsupported`.
 `icon` / `badge`: [assets](assets.md). The `bowtie` outline component,
 corner badges and corner `attach.side` values are new in 0.7.0.
 `bowtie` takes `props.gap: 8` to draw two separate opposing trapezoids

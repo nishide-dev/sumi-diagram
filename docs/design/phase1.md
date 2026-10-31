@@ -903,7 +903,7 @@ layout:
   | 項目 | 内容 |
   | --- | --- |
   | 座標系 | SVG の user unit（1 unit = 0.5pt。D2・`inspectSvg()` と同じ）、y は下向き、原点はキャンバス左上（余白はキャンバスの内側） |
-  | 丸め | すべての座標を 1/1000 unit に丸める（`roundUnits`: 0 から遠い方へ、`-0` なし）。矩形は**辺**（左・上・右・下）を丸め、幅・高さはその差とする。丸める前に接していた矩形（`gap: 0` の積み重ね）は丸めた後も厳密に接する |
+  | 丸め | すべての座標を 1/1000 unit に丸める（`roundUnits`: 0 から遠い方へ、`-0` なし）。矩形は**辺**（左・上・右・下）を丸め、幅・高さはその差とする。丸める前に接していた矩形（`gap: 0` の積み重ね）は丸めた後も厳密に接する。§6.75 の主軸 stretch の加算量はこの最終丸めより前に整数 unit で配分する。位置・gap・明示サイズの端数は許容し、図全体の座標を整数化する規則ではない |
   | `engine` | 結果を作ったもの（`sumi-structured`）。#91 で SVG の metadata の `backend` に書く（調査 §3.5） |
   | `canvas` / `margin` / `content` | キャンバス（整数 unit）、内容と各辺の最小の余白、node・group・ラベルの外接矩形（エッジは経路が決まるまで含まない） |
   | `groups` | `{ key, parent?, rect, content, label? }`。group の木の前順（親が先、同じ階層は文書順）。`content` は padding とラベルを除いた、子を置く領域 |
@@ -2341,6 +2341,10 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **レビュー対応の検証**: 全7 variant ×全5 Theme × auto / structured で、`solid` の文字箱が塗装された左body内にあり、他6 variantが中央にあることを確認。輪郭交差は固定期待値（`filled` だけ0件、他6 variantは1件）を使い、配置例外とは独立に検証した。全5 ThemeのgalleryをPNGで開き、白い `S` が左台形上で見えることを確認。research両図のSVG / previewは再描画後も変更なし。最終 `CI=1 bun test` は3478 pass / 13 skip / 0 fail、check / typecheck / gallery:check（203 files）/ schema:checkも成功。
 
 ### 6.75 #270 の独自輪郭の主軸 stretch と配分
+
+- **レビュー後のサイズグリッド（§6.21との整合）**: 主軸stretchの余りを整数D2 unit（0.5pt）に切り下げて予算とし、重みごとの床を配ったあと最大剰余順で1 unitずつ配る。同率は視覚順（up/leftでは反転後）。自然サイズが整数なら最終サイズも整数で、gapと全体の領域を保つ。gap・明示サイズ・strutなどで生じた1 unit未満の余りは両端の余白に等分する。非整数のgapと整数サイズだけで任意の領域を完全に埋めることはできないため、この余白は領域内に残す。§6.21の位置・明示寸法の端数許容と1/1000 unitの最終辺丸めは維持する。最終サイズ比ではなく、整数化した**加算量**の相対配分である。
+- **展開部品のgrow（判断: 拒否）**: tokens・matrix・legendは単一のnode bodyを持たず、配置箱・group・複数の葉に展開される。groupと配置箱に重みAPIを設けない既存契約に合わせ、展開前の共通component検査で `component/grow-unsupported`（error、元のgrowのpathと行・列）を返す。即時のjustify: stretchでも1でも拒否し、黙って消さない。重みを生成した葉すべてへ複製する案は論理項目の配分を変えるため採用しない。現行の全展開node部品を共通検査で対象とする。
+- **レビュー修正の検証**: 整数サイズ、gap・全領域の保持、視覚順の同率処理、row/stackとup/left、非整数gapの中央余白、全展開部品のgrow位置付きerrorを検査。全Theme×solid/filled/outlined×dim有無に自然サイズと主軸stretch（row/stack）を組み合わせ、split bowtieの実ラベル中心（x/y）とcontainmentを検査した。`bun run gallery` は203 files差分なし、PDF/PPTX/assetsは指定のgoldenコマンドで再生成して差分なし。`schema:gen`で説明を再生成。H3-Worldを再renderし、100,423 bytesのPNGを実際に開いてLoRA・投影箱・中央ラベル・badge・辺を確認した。180 ×125.71mm、0 errors / 0 warnings / 6 infos。下記の37.72:45.54ptと互換性manifestは整数配分導入前の初回実測である。レビュー修正後は `bun run check`・`bun run typecheck`・`CI=1 bun test`（3658 pass / 13 skip / 0 fail）・`bun run gallery:check`・`bun run schema:check` が成功した。
 
 - **対象**: §6.71 の `justify: stretch` に限り、`sumi/bowtie`（一体形・`props.gap` の分離形）と `sumi/trapezoid`（全 `narrow` 方向）を伸ばす。主軸の明示サイズ、固定アスペクト比、text、他の custom outline は保持する。交差軸の `align: stretch` の対象は変えず、justify の省略・center・space-between は従来どおり。badge の予約 footprint は既存のまま差し引き、body の増分を配る。
 - **輪郭と文字領域**: bowtie の中央の高さ半分と、分離形の左body用 safeArea は一軸の拡大で縮まない。gap は絶対値のまま幅半分で clamp し、north/south の口は拡大後の幅・高さから求める。台形は `min(slant × 高さ, 幅 / 4)`（east/west は軸交換）のままだと、高さだけの拡大で文字領域を狭める。このため justify の直接の子の台形だけ、自然 footprint の inset を内部 IR parameter `maxInset` に記録し、描画時の上限にする。輪郭・safeArea・ports・lint・editable PPTX は同じ renderer を参照する。公開 prop は追加しない。通常の図には parameter 自体を加えない。

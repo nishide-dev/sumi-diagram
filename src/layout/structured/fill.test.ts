@@ -36,6 +36,31 @@ function rect(value: ReturnType<typeof layout>, index: number) {
 }
 
 describe("opt-in main-axis fill", () => {
+  test("expanded components reject grow at its source location, even under immediate stretch", () => {
+    for (const [component, props] of [
+      ["tokens", "cells: [A]"],
+      ["matrix", "rows: [R], columns: [C], classes: { x: { tone: blue } }, cells: [x]"],
+      ["legend", "entries: [{ node: { component: box }, label: A }]"],
+    ]) {
+      for (const grow of [1, 10]) {
+        const source = figure("stretch").replace(
+          "component: box, label: A",
+          `component: ${component}, grow: ${grow}, props: { ${props} }`,
+        );
+        const diagnostic = checkFigure(source).state.diagnostics.find(
+          (d) => d.code === "component/grow-unsupported",
+        );
+        expect(diagnostic?.severity).toBe("error");
+        expect(diagnostic?.path).toEqual(["nodes", 1, "grow"]);
+        expect(diagnostic?.location?.line).toBe(14);
+        expect(
+          checkFigure(source.replace(`grow: ${grow}, `, "")).state.diagnostics.filter(
+            (d) => d.severity === "error",
+          ),
+        ).toEqual([]);
+      }
+    }
+  });
   test("grow weights divide extra space only; defaults and other modes retain their behavior", () => {
     for (const axis of ["stack", "row"]) {
       const source = figure("stretch", axis, axis === "stack" ? "down" : "right");
@@ -43,10 +68,12 @@ describe("opt-in main-axis fill", () => {
       const natural = layout(source.replace("justify: stretch,", ""));
       const filled = layout(weighted);
       const main = axis === "stack" ? "height" : "width";
-      expect(2 * (rect(filled, 1)[main] - rect(natural, 1)[main])).toBeCloseTo(
-        rect(filled, 2)[main] - rect(natural, 2)[main],
-        2,
-      );
+      expect(
+        Math.abs(
+          2 * (rect(filled, 1)[main] - rect(natural, 1)[main]) -
+            (rect(filled, 2)[main] - rect(natural, 2)[main]),
+        ),
+      ).toBeLessThanOrEqual(2);
       expect(layout(source.replace("id: a,", "id: a, grow: 1,"))).toEqual(layout(source));
       expect(
         layout(source.replaceAll("component: box, label:", "component: box, grow: 5e-324, label:")),
@@ -82,6 +109,39 @@ describe("opt-in main-axis fill", () => {
     ["row", "right"],
     ["row", "left"],
   ]) {
+    test(`${axis} ${direction}: weighted whole-unit allocation preserves gaps and extent`, () => {
+      const source = figure("stretch", axis, direction).replace(
+        "component: box, label: A",
+        "component: bowtie, grow: 0.6, label: A",
+      );
+      const filled = layout(source);
+      const main = axis === "stack" ? "height" : "width";
+      const pos = axis === "stack" ? "y" : "x";
+      const a = rect(filled, 1);
+      const b = rect(filled, 2);
+      expect(Number.isInteger(a[main])).toBe(true);
+      expect(Number.isInteger(b[main])).toBe(true);
+      const [first, last] = a[pos] < b[pos] ? [a, b] : [b, a];
+      expect(last[pos] - first[pos] - first[main]).toBe(8);
+      expect(first[pos]).toBe(rect(filled, 0)[pos]);
+      expect(last[pos] + last[main]).toBe(rect(filled, 0)[pos] + 360);
+      expect(layout(source)).toEqual(filled);
+
+      // Equal remainders award the odd unit to the first visual item.
+      const tied = layout(
+        figure("stretch", axis, direction)
+          .replace('label: "B\\nMore"', "label: A")
+          .replace("gap: 4pt", "gap: 4.5pt"),
+      );
+      const reversed = direction === "up" || direction === "left";
+      expect(rect(tied, reversed ? 2 : 1)[main]).toBe(rect(tied, reversed ? 1 : 2)[main] + 1);
+      const fractional = layout(source.replace("gap: 4pt", "gap: 4.125pt"));
+      expect(Number.isInteger(rect(fractional, 1)[main])).toBe(true);
+      expect(Number.isInteger(rect(fractional, 2)[main])).toBe(true);
+      expect(
+        Math.min(rect(fractional, 1)[pos], rect(fractional, 2)[pos]) - rect(fractional, 0)[pos],
+      ).toBeCloseTo(0.375, 3);
+    });
     test(`${axis} ${direction}: equal growth fills sibling extent; center preserves defaults`, () => {
       const source = figure("stretch", axis, direction);
       const filled = layout(source);
@@ -94,7 +154,9 @@ describe("opt-in main-axis fill", () => {
       const position = vertical ? "y" : "x";
       expect(a[size] + b[size] + 8).toBeCloseTo(tall[size], 2);
       expect(Math.min(a[position], b[position])).toBeCloseTo(tall[position], 2);
-      expect(a[size] - rect(natural, 1)[size]).toBeCloseTo(b[size] - rect(natural, 2)[size], 2);
+      expect(
+        Math.abs(a[size] - rect(natural, 1)[size] - (b[size] - rect(natural, 2)[size])),
+      ).toBeLessThanOrEqual(1);
       expect(layout(figure("center", axis, direction))).toEqual(natural);
       expect(
         direction === "up" || direction === "left"
@@ -190,10 +252,13 @@ describe("opt-in main-axis fill", () => {
         const main = axis === "stack" ? "height" : "width";
         const cross = axis === "stack" ? "width" : "height";
         expect(rect(filled, 1)[main]).toBeGreaterThan(rect(natural, 1)[main]);
-        expect(rect(filled, 1)[main] - rect(natural, 1)[main]).toBeCloseTo(
-          rect(filled, 2)[main] - rect(natural, 2)[main],
-          2,
-        );
+        expect(
+          Math.abs(
+            rect(filled, 1)[main] -
+              rect(natural, 1)[main] -
+              (rect(filled, 2)[main] - rect(natural, 2)[main]),
+          ),
+        ).toBeLessThanOrEqual(1);
         expect(rect(filled, 1)[cross]).toBe(rect(natural, 1)[cross]);
         const fixed = source.replace(
           `props: { ${props} }`,
@@ -215,9 +280,11 @@ describe("opt-in main-axis fill", () => {
     const filled = layout(
       nested.replace("stack: { items: [a, b] }", "stack: { justify: stretch, items: [a, b] }"),
     );
-    expect(rect(filled, 1).y).toBe(rect(filled, 0).y);
+    const inset = rect(filled, 1).y - rect(filled, 0).y;
+    expect(inset).toBeGreaterThanOrEqual(0);
+    expect(inset).toBeLessThan(0.5);
     expect(rect(filled, 2).y + rect(filled, 2).height).toBeCloseTo(
-      rect(filled, 0).y + rect(filled, 0).height,
+      rect(filled, 0).y + rect(filled, 0).height - inset,
       2,
     );
     const fixed = figure("stretch").replaceAll(

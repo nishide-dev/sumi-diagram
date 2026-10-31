@@ -11,6 +11,12 @@ title/caption spacing. Intentional whitespace needs no change; this does
 not consume `maxWarnings`. The conservative threshold need not report
 every panel worth improving.
 
+## Weighted structured stretch
+
+- `component/grow-unsupported`: `grow` is written on expanded `tokens`, `matrix`
+  or `legend`; error at the original field. Remove it and weight ordinary nodes
+  under their immediate row/stack's `justify: stretch` instead.
+
 ## Corner badges (0.7.0)
 
 - `component/badge-unsupported`: the node expands into parts (`legend`,
