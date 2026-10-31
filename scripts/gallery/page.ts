@@ -737,6 +737,10 @@ function mdIndex(model: GalleryModel): string {
       .replace(/[^\p{L}\p{N}_\- ]/gu, "")
       .replaceAll(" ", "-");
   const legacyAnchor = (title: string) => `<a id="${escapeHtml(headingSlug(title))}"></a>`;
+  const exampleAliases: Record<string, string> = {
+    "examples/dit-block/dit-block.sumi.yaml": "examplesdit-blockdit-blocksumiyaml",
+    "examples/transformer/transformer.sumi.yaml": "examplestransformertransformersumiyaml",
+  };
   const topicAnchors: Record<string, string[]> = {
     "examples.md": ["Examples"],
     "themes.md": ["Themes and profiles"],
@@ -747,6 +751,8 @@ function mdIndex(model: GalleryModel): string {
   return [
     "# Sumi gallery",
     "",
+    legacyAnchor("Sumi component gallery"),
+    "",
     `> ${mdInline(GENERATED_NOTE)} Everything on one page: [${mdCode("index.html")}](index.html).`,
     "",
     "## Topics",
@@ -755,8 +761,8 @@ function mdIndex(model: GalleryModel): string {
       `- ${(topicAnchors[file] ?? []).map(legacyAnchor).join("")}[${mdText(title)}](${file}): ${mdInline(line)}`,
       ...(file === "examples.md"
         ? model.examples.map(
-            ({ title }) =>
-              `  - ${legacyAnchor(title)}[${mdText(title)}](examples.md#${headingSlug(title)})`,
+            ({ source, title }) =>
+              `  - ${exampleAliases[source] === undefined ? "" : legacyAnchor(exampleAliases[source])}${legacyAnchor(title)}[${mdText(title)}](examples.md#${headingSlug(title)})`,
           )
         : []),
       ...(file === "tones.md"
