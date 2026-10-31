@@ -1,0 +1,237 @@
+version: 1
+figure:
+  id: clip-overview
+  title: CLIP — Summary of our approach
+  theme: paper
+  profile: paper-double
+  fit: scale
+  layout:
+    density: compact
+    arrange:
+      row:
+        gap: 10pt
+        align: start
+        items:
+          - training
+          - stack: { gap: 14pt, align: start, items: [ classifier, prediction ] }
+groups:
+  - id: training
+    variant: plain
+    label: (1) Contrastive pre-training
+    labelAt: top-left
+    arrange:
+      grid:
+        columns: 4
+        rowGap: 9pt
+        columnGap: 6pt
+        items:
+          - null
+          - null
+          - null
+          - captions
+          - null
+          - null
+          - null
+          - train-text
+          - null
+          - null
+          - null
+          - text-tokens
+          - photos
+          - train-image
+          - image-tokens
+          - similarities
+  - id: similarities
+    variant: plain
+    arrange:
+      stack: { gap: 0, items: [ sim1, sim2, sim3, simdots, simn ] }
+  - id: classifier
+    variant: plain
+    label: "(2) Create dataset classifier\nfrom label text"
+    labelAt: top-left
+    arrange:
+      row:
+        gap: 9pt
+        items:
+          - labels
+          - prompt
+          - stack: { gap: 10pt, items: [ class-text, class-tokens ] }
+  - id: prediction
+    variant: plain
+    label: (3) Use for zero-shot prediction
+    labelAt: top-left
+    arrange:
+      stack:
+        gap: 12pt
+        items:
+          - row: { gap: 9pt, items: [ photo, predict-image, image-one ] }
+          - scores
+          - answer
+nodes:
+  - id: captions
+    component: stack
+    label: "Pepper the\naussie pup"
+    props: { width: 78pt, height: 38pt }
+  - id: train-text
+    component: trapezoid
+    label: "Text\nEncoder"
+    tone: purple
+    props: { width: 76pt, height: 36pt, narrow: south }
+  - id: photos
+    component: image
+    variant: framed
+    props:
+      src: assets/synthetic-dog.png
+      width: 40pt
+      height: 30pt
+      layers: { count: 3, offset: 3pt }
+  - id: train-image
+    component: trapezoid
+    label: "Image\nEncoder"
+    tone: green
+    props: { width: 58pt, height: 48pt, narrow: east }
+  - id: text-tokens
+    component: tokens
+    tone: purple
+    props:
+      gap: 0
+      width: 33pt
+      height: 18pt
+      cells: [ '$T_1$', '$T_2$', '$T_3$', { label: '…', component: label }, '$T_N$' ]
+  - id: image-tokens
+    component: tokens
+    tone: green
+    props:
+      direction: down
+      gap: 0
+      width: 18pt
+      height: 23pt
+      cells: [ '$I_1$', '$I_2$', '$I_3$', { label: '⋮', component: label }, '$I_N$' ]
+  # Native matrix cells cannot contain formulas. Token rows keep both labels
+  # and diagonal highlights, including an explicit omitted row and column.
+  - id: sim1
+    component: tokens
+    props:
+      gap: 0
+      width: 33pt
+      height: 23pt
+      variant: outlined
+      cells:
+        - { label: '$I_1\cdot T_1$', tone: blue, variant: tinted }
+        - '$I_1\cdot T_2$'
+        - '$I_1\cdot T_3$'
+        - { label: '…', component: label, variant: default }
+        - '$I_1\cdot T_N$'
+  - id: sim2
+    component: tokens
+    props:
+      gap: 0
+      width: 33pt
+      height: 23pt
+      variant: outlined
+      cells:
+        - '$I_2\cdot T_1$'
+        - { label: '$I_2\cdot T_2$', tone: blue, variant: tinted }
+        - '$I_2\cdot T_3$'
+        - { label: '…', component: label, variant: default }
+        - '$I_2\cdot T_N$'
+  - id: sim3
+    component: tokens
+    props:
+      gap: 0
+      width: 33pt
+      height: 23pt
+      variant: outlined
+      cells:
+        - '$I_3\cdot T_1$'
+        - '$I_3\cdot T_2$'
+        - { label: '$I_3\cdot T_3$', tone: blue, variant: tinted }
+        - { label: '…', component: label, variant: default }
+        - '$I_3\cdot T_N$'
+  - id: simdots
+    component: tokens
+    props:
+      gap: 0
+      width: 33pt
+      height: 23pt
+      component: label
+      cells: [ '⋮', '⋮', '⋮', '⋱', '⋮' ]
+  - id: simn
+    component: tokens
+    props:
+      gap: 0
+      width: 33pt
+      height: 23pt
+      variant: outlined
+      cells:
+        - '$I_N\cdot T_1$'
+        - '$I_N\cdot T_2$'
+        - '$I_N\cdot T_3$'
+        - { label: '…', component: label, variant: default }
+        - { label: '$I_N\cdot T_N$', tone: blue, variant: tinted }
+  - id: labels
+    component: tokens
+    props:
+      direction: down
+      gap: 1pt
+      component: label
+      cells: [ plane, car, dog, '⋮', bird ]
+  - id: prompt
+    component: box
+    label: 'A photo of a $\textcolor{blue}{\text{\{object\}}}$.'
+  - id: class-text
+    component: trapezoid
+    label: "Text\nEncoder"
+    tone: purple
+    props: { width: 80pt, height: 48pt, narrow: east }
+  - id: class-tokens
+    component: tokens
+    tone: purple
+    props:
+      gap: 0
+      width: 18pt
+      height: 18pt
+      cells: [ '$T_1$', '$T_2$', '$T_3$', { label: '…', component: label }, '$T_N$' ]
+  - id: photo
+    component: image
+    variant: framed
+    props: { src: assets/synthetic-dog.png, width: 48pt, height: 36pt }
+  - id: predict-image
+    component: trapezoid
+    label: "Image\nEncoder"
+    tone: green
+    props: { width: 80pt, height: 48pt, narrow: east }
+  - id: image-one
+    component: box
+    label: '$I_1$'
+    tone: green
+    props: { width: 20pt, height: 20pt }
+  - id: scores
+    component: tokens
+    props:
+      gap: 0
+      width: 37pt
+      height: 23pt
+      variant: outlined
+      cells:
+        - '$I_1\cdot T_1$'
+        - '$I_1\cdot T_2$'
+        - { id: dog, label: '$I_1\cdot T_3$', tone: blue, variant: tinted }
+        - { label: '…', component: label, variant: default }
+        - '$I_1\cdot T_N$'
+  - id: answer
+    component: label
+    label: 'A photo of a $\textcolor{blue}{\text{dog}}$.'
+edges:
+  - { from: captions, to: train-text }
+  - { from: train-text, to: text-tokens.3 }
+  - { from: photos, to: train-image }
+  - { from: train-image, to: image-tokens.3 }
+  - { from: labels.3, to: prompt }
+  - { from: prompt, to: class-text }
+  - { from: class-text, to: class-tokens.3 }
+  - { from: photo, to: predict-image }
+  - { from: predict-image, to: image-one }
+  - { from: image-one, to: scores.dog, fromAnchor: south, toAnchor: north }
+  - { from: class-tokens.5, to: scores.5, fromAnchor: east, toAnchor: east }
+  - { from: scores.dog, to: answer }
