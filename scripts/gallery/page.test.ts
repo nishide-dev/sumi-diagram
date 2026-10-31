@@ -10,7 +10,7 @@ import {
   escapeHtml,
   type GalleryModel,
   galleryHtml,
-  galleryMarkdown,
+  galleryMarkdownPages,
   mdCode,
   mdFence,
   mdInline,
@@ -73,6 +73,10 @@ const model: GalleryModel = {
       ),
     ],
   },
+  themeComparison: {
+    source: "examples/x/x.sumi.yaml",
+    outcomes: [outcome({ diagnostics: [{ code: "x/y", severity: "warning", message: NASTY }] })],
+  },
   tones: {
     sample: { fileName: "tones.sumi.yaml", source: "# ``` fence\nversion: 1\n", renderings: [] },
     outcomes: [outcome({ diagnostics: [{ code: "x/y", severity: "warning", message: NASTY }] })],
@@ -126,11 +130,28 @@ describe("Markdown escaping", () => {
   });
 
   test("the page contains no injected HTML or table cells", () => {
-    const md = galleryMarkdown(model);
+    const pages = galleryMarkdownPages(model);
+    // The index, the component's page and the five topic pages.
+    expect([...pages.keys()].sort()).toEqual([
+      "docs/gallery/README.md",
+      "docs/gallery/compare.md",
+      "docs/gallery/components/sumi-box.md",
+      "docs/gallery/dim.md",
+      "docs/gallery/examples.md",
+      "docs/gallery/themes.md",
+      "docs/gallery/tones.md",
+    ]);
+    const md = [...pages.values()].join("\n");
     expect(md).not.toContain("<img src=x");
     expect(md).not.toContain('" onerror="');
     expect(md).not.toContain("a | b");
-    expect(md).toContain('src="components/x%22%20onerror%3D%22alert(1)%20%7C.svg"');
+    // Images are relative to the page: the component page lives in components/.
+    expect(pages.get("docs/gallery/components/sumi-box.md")).toContain(
+      'src="x%22%20onerror%3D%22alert(1)%20%7C.svg"',
+    );
+    expect(pages.get("docs/gallery/tones.md")).toContain(
+      'src="components/x%22%20onerror%3D%22alert(1)%20%7C.svg"',
+    );
     // Every table row has as many cells as its header.
     const rows = md.split("\n").filter((line) => line.startsWith("| "));
     const cells = (row: string) => row.split("|").length;

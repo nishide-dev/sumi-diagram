@@ -26,8 +26,9 @@ structured figures use the `paper` theme (the color, ML-paper style) and are lai
 itself, without D2. `transformer` fits one column; `dit-block` is wider than
 `paper-double` and is scaled down to it (`fit: scale`).
 
-The [component gallery](../docs/gallery/README.md) shows every example next to
-every built-in component, and compares one figure across themes and profiles.
+The [component gallery](../docs/gallery/README.md) has a page for every
+built-in component, a page with every example, and pages that compare themes
+(the Transformer above under each one) and profiles.
 
 ## Rendering
 

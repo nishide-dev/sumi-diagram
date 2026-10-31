@@ -8,7 +8,7 @@
 
 ## ギャラリーと例
 
-- [コンポーネントギャラリー](gallery/README.md)（[単体の HTML 版](gallery/index.html)）: 組み込み部品のすべての variant を、組み込みテーマごとに描画した一覧。部品ごとの説明・props・それを生成する YAML と、同じ図をテーマ × プロファイルで描き比べた例を載せています。
+- [コンポーネントギャラリー](gallery/README.md)（[単体の HTML 版](gallery/index.html)）: 目次ページから、部品ごとのページ（すべての variant を組み込みテーマごとに描画し、説明・props・生成する YAML を載せる）と、作例・テーマ・tone・dim・プロファイルの比較ページへたどれます。
 - [`examples/`](../examples/README.md): 汎用的な図の例（pipeline、decision flow、system architecture、入れ子のグループ）。各ディレクトリに元の `*.sumi.yaml` と生成した SVG・PDF があります。
 
 どちらも `bun run gallery` で再生成します（CI の `bun run gallery:check` で、ソースと SVG・PDF が一致していることを検査します）。
@@ -269,7 +269,7 @@ node と group の `tone`（`gray` / `red` / `orange` / `yellow` / `green` / `bl
 | `paper-double` | 180mm | 220mm | 7pt |
 | `presentation-16x9` | 338.7mm | 190.5mm | 14pt |
 
-スライドの図は `theme: slides` と `profile: presentation-16x9` で作ります。`presentation-16x9` は 14pt 以上の文字を求めるため、`minimal` / `academic` / `color` / `paper` では `profile/font-too-small` になります（意図どおり）。描き比べは[ギャラリー](gallery/README.md#themes-and-profiles)にあります。
+スライドの図は `theme: slides` と `profile: presentation-16x9` で作ります。`presentation-16x9` は 14pt 以上の文字を求めるため、`minimal` / `academic` / `color` / `paper` では `profile/font-too-small` になります（意図どおり）。描き比べは[ギャラリー](gallery/compare.md)にあります。
 
 ### アイコンと画像
 

@@ -66,7 +66,7 @@ Format selection is explicit `--format`, otherwise a recognized `-o` extension, 
 
 ### Components and layout
 
-Discover available components, variants, props and engine support with `sumi catalog --json`. The [gallery](gallery/README.md) includes every variant and theme, descriptions, props, YAML and theme/profile comparisons; [examples](../examples/README.md) include source YAML and SVG/PDF outputs.
+Discover available components, variants, props and engine support with `sumi catalog --json`. The [gallery](gallery/README.md) is an index with one page per component (every variant and theme, descriptions, props, YAML) and pages for examples, themes, tones, dimmed groups and theme/profile comparisons; [examples](../examples/README.md) include source YAML and SVG/PDF outputs.
 
 Auto layout uses D2/ELK and `figure.layout.direction`. Structured layout uses Sumi's own nested row/stack arrangement, anchors, alignment and routing, without D2. Math labels require structured layout. `--emit-d2` is unavailable for structured figures. See [structured layout](../skills/sumi/references/structured.md), [layout tips](../skills/sumi/references/layout-tips.md), and [math syntax](../skills/sumi/references/figure-format.md).
 
@@ -160,7 +160,7 @@ Nodes/groups accept `tone`: `gray`, `red`, `orange`, `yellow`, `green`, `blue`, 
 | `paper-double` | 180mm | 220mm | 7pt |
 | `presentation-16x9` | 338.7mm | 190.5mm | 14pt |
 
-Use slides + presentation-16x9 together. Other built-in themes are too small for that profile and report `profile/font-too-small`. See [theme/profile comparisons](gallery/README.md#themes-and-profiles).
+Use slides + presentation-16x9 together. Other built-in themes are too small for that profile and report `profile/font-too-small`. See [theme/profile comparisons](gallery/compare.md).
 
 ## Icons and images
 

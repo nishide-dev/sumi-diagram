@@ -49,6 +49,15 @@ export const SAMPLE_ASSET_DIR = "tests/fixtures/assets";
 /** The example compared across every theme × profile. */
 export const COMPARISON_EXAMPLE = "examples/pipeline/pipeline.sumi.yaml";
 
+/**
+ * The structured example compared across every theme (#264): the Transformer,
+ * which uses stacks, rows, groups, attached notes, operators and shared trunks.
+ */
+export const THEME_COMPARISON_EXAMPLE = "examples/transformer/transformer.sumi.yaml";
+
+/** Profile the structured theme comparison is drawn with (wide enough for every theme). */
+export const THEME_COMPARISON_PROFILE = "paper-double";
+
 export const THEMES: readonly string[] = [...BUILTIN_THEMES.keys()];
 export const PROFILES: readonly string[] = [...BUILTIN_PROFILES.keys()];
 
@@ -828,5 +837,26 @@ export function comparison(): Comparison {
         overrides: { theme, profile },
       })),
     ),
+  };
+}
+
+/**
+ * {@link THEME_COMPARISON_EXAMPLE} under every theme, always through
+ * overrides. `slides` doubles the text and so uses its own profile,
+ * `presentation-16x9`; the other themes use {@link THEME_COMPARISON_PROFILE}.
+ */
+export function themeComparison(): Comparison {
+  const stem = THEME_COMPARISON_EXAMPLE.replace(/^.*\//, "").replace(/\.sumi\.yaml$/, "");
+  return {
+    source: THEME_COMPARISON_EXAMPLE,
+    renderings: THEMES.map((theme) => {
+      const profile = theme === "slides" ? WIDE_SAMPLE_PROFILE : THEME_COMPARISON_PROFILE;
+      return {
+        output: `${GALLERY_DIR}/themes/${stem}.${theme}.svg`,
+        theme,
+        profile,
+        overrides: { theme, profile },
+      };
+    }),
   };
 }
