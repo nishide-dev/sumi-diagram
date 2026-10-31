@@ -222,6 +222,30 @@ describe("createD2CliBackend", () => {
     expect(await readdir(renderTmp)).toEqual([]);
   });
 
+  test("a graceful zero-exit timeout leaves concurrent and subsequent renders isolated", async () => {
+    const slow = await setup(
+      { svg: SVG, sleepMs: 10_000, shutdownDelayMs: 100 },
+      { timeoutMs: 500 },
+    );
+    const fast = await setup({ svg: SVG });
+    const [timedOut, concurrent] = await Promise.all([
+      slow.backend.render(input),
+      fast.backend.render({ ...input, d2Source: "concurrent\n" }),
+    ]);
+    expect(timedOut.diagnostics.map((d) => d.code)).toEqual(["backend/d2-timeout"]);
+    expect(concurrent.ok && concurrent.value.svg).toBe(SVG);
+    const subsequent = await fast.backend.render({ ...input, d2Source: "subsequent\n" });
+    expect(subsequent.ok && subsequent.value.svg).toBe(SVG);
+    const calls = [...(await slow.fake.calls()), ...(await fast.fake.calls())];
+    expect(calls.map((call) => call.input)).toEqual([
+      input.d2Source,
+      "concurrent\n",
+      "subsequent\n",
+    ]);
+    expect(new Set(calls.map((call) => call.args.at(-1))).size).toBe(3);
+    expect(await readdir(renderTmp)).toEqual([]);
+  });
+
   test.each([
     ["no output file", undefined],
     ["an empty file", ""],

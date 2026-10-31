@@ -103,6 +103,33 @@ describe("runCommand", () => {
     }
   }, 10_000);
 
+  test("waits for graceful shutdown even when SIGTERM exits successfully", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "sumi-subprocess-shutdown-"));
+    const marker = join(dir, "exited");
+    try {
+      const result = await runCommand(
+        [
+          bun,
+          "-e",
+          `process.on("SIGTERM", () => {
+            setTimeout(() => {
+              require("node:fs").writeFileSync(process.argv[1], "shutdown complete");
+              process.exit(0);
+            }, 100);
+          });
+          setInterval(() => {}, 1_000);`,
+          marker,
+        ],
+        { timeoutMs: 500 },
+      );
+      expect(result).toMatchObject({ timedOut: true, exitCode: 0, signal: null });
+      // Callers may safely remove the working directory only after this returns.
+      expect(await readFile(marker, "utf8")).toBe("shutdown complete");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   test("rejects an invalid timeout or kill grace period", async () => {
     await expect(runCommand([bun, "--version"], { timeoutMs: 0 })).rejects.toThrow(RangeError);
     await expect(runCommand([bun, "--version"], { killGraceMs: -1 })).rejects.toThrow(RangeError);

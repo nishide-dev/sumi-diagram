@@ -40,10 +40,10 @@ bun install         # 依存関係のインストール
 bun run check       # Biome による format / lint の検査
 bun run check:fix   # Biome による自動修正
 bun run typecheck   # tsc による型検査
-bun test            # テスト
+bun run test        # テスト（全体の既定タイムアウト: 60 秒）
 ```
 
-PR を出す前に `bun run check`、`bun run typecheck`、`bun test` がすべて通ることを確認してください。CI でも同じ検査を実行します。
+PR を出す前に `bun run check`、`bun run typecheck`、`bun run test` がすべて通ることを確認してください。CI でも同じ検査を実行します。
 
 | コマンド | 内容 |
 | --- | --- |
@@ -81,10 +81,14 @@ D2 で実際に描画する統合テストは、固定版の D2 がなければ�
 ```sh
 bun run d2:install       # 固定版の D2（src/backends/d2/version.ts）を .sumi/bin/d2 に導入
 bun src/cli/index.ts doctor  # Bun・D2・フォントの状態を確認
-CI=1 bun test            # D2 の統合テストを必須にして全テストを実行
+CI=1 bun run test        # D2 の統合テストを必須にして全テストを実行
 bun run schema:check     # schema/figure.v1.schema.json が最新か
 bun run gallery:check    # examples/*/*.{svg,pdf} と docs/gallery/ が最新か（バイト一致）
 ```
+
+テストの既定タイムアウトは、低速な macOS runner での D2 描画を考慮して **60,000ms** に揃えています。Bun 1.3.14 は `bunfig.toml` の `[test] timeout` を読み込まないため、`package.json` の `test` と CI / release workflow は `bun test --timeout 60000` を使います。ファイル指定でも `bun run test src/render/lora.integration.test.ts`（または `bun test --timeout 60000 <file>`）を使ってください。新しい D2 テストに個別の 60 秒指定は不要です。別の制限を意図した明示タイムアウトは維持します。
+
+Bun のテストタイムアウトは実行中の子プロセスに SIGTERM を送ります。D2 は SIGTERM を処理して出力なしで正常終了することがあり、打ち切られたテストの継続処理に `backend/empty-output` が出ても、次の描画との一時パス衝突とは限りません（調査: [#289](https://github.com/nishide-dev/sumi-diagram/issues/289)）。バックエンド自身の制限では終了コードにかかわらず `backend/d2-timeout` を返し、子の終了後に呼び出し固有の一時ディレクトリを削除します。
 
 ### ゴールデンの更新
 
@@ -107,7 +111,7 @@ SVG は D2 のバージョンとフォントが同じなら OS によらずバ�
 | ワークフロー | ジョブ | 内容 |
 | --- | --- | --- |
 | CI | Static checks（Linux） | `bun run check`・`bun run typecheck`・`bun run schema:check`・`bun run icons:check`（同梱アイコンのアーカイブが固定版の Tabler Icons と一致するか。npm から取得する） |
-| CI | Test（Linux / macOS） | D2 の導入、環境の記録（OS・`sumi doctor`: Bun・D2・フォントの sha256）、`bun test`（Linux ではカバレッジの表も出力。閾値なし。PDF の golden もここで両 OS のバイト一致を検査）、`bun run gallery:check` |
+| CI | Test（Linux / macOS） | D2 の導入、環境の記録（OS・`sumi doctor`: Bun・D2・フォントの sha256）、`bun test --timeout 60000`（Linux ではカバレッジの表も出力。閾値なし。PDF の golden もここで両 OS のバイト一致を検査）、`bun run gallery:check` |
 | CI | PDF engine reproducible build（Linux） | `bun run pdf:wasm` で PDF エンジンをソースから再ビルドし、コミット済みの `.wasm`・sha256・ライセンス一覧と一致するか（`git diff`） |
 | CI | PDF LaTeX inclusion（Linux） | `bun run pdf:latex` で pdfLaTeX / LuaLaTeX に実際に取り込み、文字・位置・フォント埋め込み・ベクター・表示を検査する（TeX / Poppler はこのジョブのみで導入） |
 | CI | PPTX Open XML validation（Linux） | 画像方式の通常版＋PNG対照版、編集可能方式の両mode＋接続対照を固定版 Open XML SDK で独立検証。各方式の確認用artifactを残す（.NET は検証専用） |

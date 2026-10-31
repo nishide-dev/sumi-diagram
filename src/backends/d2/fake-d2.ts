@@ -18,6 +18,8 @@ export interface FakeD2Behavior {
   exitCode?: number;
   /** Sleep before doing anything else. */
   sleepMs?: number;
+  /** On SIGTERM, exit successfully after this delay without writing output, like D2. */
+  shutdownDelayMs?: number;
   /** Create a directory at the output path, so reading the SVG fails. */
   outputAsDirectory?: boolean;
   /** Leave a file in the render's temp dir and make that dir read-only, so cleanup fails. */
@@ -53,6 +55,14 @@ if (args[0] === "--version") {
   process.exit(cfg.versionExitCode ?? 0);
 }
 const [input, output] = args.slice(-2);
+if (cfg.shutdownDelayMs !== undefined) {
+  process.on("SIGTERM", () => {
+    setTimeout(() => {
+      process.stderr.write("graceful shutdown\\n");
+      process.exit(0);
+    }, cfg.shutdownDelayMs);
+  });
+}
 fs.appendFileSync(cfg.log, JSON.stringify({ args, env: process.env, input: fs.readFileSync(input, "utf8") }) + "\\n");
 if (cfg.outputAsDirectory) fs.mkdirSync(output);
 if (cfg.lockWorkDir) {
