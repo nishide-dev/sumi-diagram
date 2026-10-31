@@ -176,6 +176,7 @@ nodes:
         - { label: '$I_N\cdot T_N$', tone: blue, variant: tinted }
   - id: labels
     component: tokens
+    mono: true
     props:
       direction: down
       gap: 0
@@ -186,6 +187,7 @@ nodes:
   - id: prompt
     component: box
     label: 'A photo of a $\textcolor{blue}{\text{\{object\}}}$.'
+    mono: true
   - id: class-text
     component: trapezoid
     label: "Text\nEncoder"
@@ -232,6 +234,7 @@ nodes:
   - id: answer
     component: label
     label: 'A photo of a $\textcolor{blue}{\text{dog}}$.'
+    mono: true
     attach: { to: scores.dog, side: south, gap: 14pt }
 edges:
   - { from: captions, to: train-text }

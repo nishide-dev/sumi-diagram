@@ -141,10 +141,29 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
     });
     const { missingVariant, missingTone } = resolution;
     // A hatched matrix cell or legend sample (#180): lines in the tone's line color, gray's without one.
-    const style =
+    const painted =
       paint?.hatch === true && resolution.style.kind === "node"
         ? hatched(theme, resolution.style, tone)
         : resolution.style;
+    // A node's own `mono` (#279) overrides the theme's: true needs the font set's mono font.
+    const mono = entry.kind === "node" ? entry.element.mono : undefined;
+    if (mono === true && theme.fontSet.mono === undefined) {
+      const at = [...path, "mono"];
+      const location = locate(at);
+      state.diagnostics.push({
+        code: "theme/missing-font",
+        severity: "error",
+        message: `Node "${subject.id}" asks for monospace text, but font set ${theme.fontSet.id} has no mono font.`,
+        path: at,
+        ...(location !== undefined && { location }),
+        subject,
+        hint: "Use a theme whose font set has a mono font (every built-in theme has one), or remove mono.",
+      });
+      state.invalid.add(key);
+      continue;
+    }
+    const style: ResolvedStyle =
+      mono === undefined || mono === painted.mono ? painted : Object.freeze({ ...painted, mono });
     if (missingVariant) {
       const at = [...path, "variant"];
       const location = locate(at);

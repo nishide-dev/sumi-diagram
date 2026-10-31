@@ -367,6 +367,12 @@ const tokenCellFields = {
   variant: VariantField.optional().describe(
     "The variant of the cell, as on a node. Omitted means the tokens' variant.",
   ),
+  mono: z
+    .boolean()
+    .optional()
+    .describe(
+      "Draw the cell's label in the monospace font, as a node's mono field. Omitted means the tokens node's mono.",
+    ),
   width: SizeLength.optional().describe(
     "The width of the cell, as a node's width prop. Omitted means the tokens' width.",
   ),
@@ -429,7 +435,7 @@ const tokens: NodeManifest = {
         .min(1)
         .optional()
         .describe(
-          "The cells in order: labels, objects with id, label, tone, component, variant, width and height, or { separator: dotted, id?, tone?, width?, height? } divider cells (since 0.7.0). Dividers count in positional cell references.",
+          "The cells in order: labels, objects with id, label, tone, mono, component, variant, width and height, or { separator: dotted, id?, tone?, width?, height? } divider cells (since 0.7.0). Dividers count in positional cell references.",
         ),
       lines: z
         .array(z.array(tokenCell).min(1))

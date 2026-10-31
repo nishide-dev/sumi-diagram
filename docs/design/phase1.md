@@ -2355,6 +2355,18 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 
 - **最終検証**: `bun run check`・`bun run typecheck`・`CI=1 bun test`（3593 pass / 13 skip / 0 fail）・`bun run gallery:check`（203 files）・`bun run schema:check` が成功。全 Theme × variant のbowtie / trapezoid galleryをPNG化して開き、文字・塗り・輪郭を確認した。
 
+### 6.76 #279 のノードの等幅ラベル
+
+- **目的**: CLIP の図（#271）の `plane / car / dog` やプロンプト「A photo of a {object}.」を等幅で書く。ノード単位の等幅の選択がなく、カタログのフォントセットに mono があるのに使えなかった。
+- **判断: 新しいフォントは同梱しない**。組み込みの 2 つのフォントセット（`sumi/biz-ud-gothic`、`sumi/inter-biz-ud-gothic`）はどちらも `mono` スロットに BIZ UDGothic Regular（OFL-1.1、v1.051）を持つ。既存のライセンス・NOTICE・リリースサイズは変わらない。BIZ UDGothic の Latin は半角幅で、文字幅は一定。
+- **構文**: ノードの任意の `mono: boolean`。`true` はそのノードのラベルと sublabel を Theme のフォントセットの mono で描き、`false` は variant が mono を指定していても止める。省略は従来どおり（variant / Theme の `mono`）。解決順は §4.3 の最後に足した: …→ tone → **ノードの `mono`**（dim の前）。groups・edges には足さない（需要が出てから）。tokens は `mono` をノードの既定として各セルが継承し、セルの `mono` で上書きできる（`label` / `tone` と同じ規則で、ノードの `mono` を展開した葉へ渡す）。
+- **一貫性（新しい経路は作らない）**: スタイルの `mono` は既存のプロパティ（§4.1）で、`fontClassOf()` が `mono` / `mono-bold` のフォント class を作る。計測（`measureText()`）、SVG の `text-mono`、幾何 lint の再計測（`fontFileFor()`）、PDF の埋め込み（BIZ UDGothic のサブセット）、編集可能 PPTX の `typeface="BIZ UDGothic"` はすべてこのフォント class から同じファイルを引く。D2 の auto でも `font: mono` になる。
+- **Latin・数式・色付き範囲**: mono は Inter への置換（§6.44）の対象外のまま、ラベル全体が BIZ UDGothic。数式の run（`math` / `math-italic`）は STIX Two のままで、`$I_1\cdot T_2$` のような記号は数式フォントで描く。`$\textcolor{blue}{\text{\{object\}}}$`（§6.61, #186）は `\text` が label のフォント（mono）になり、色の範囲は run の境界として残る。
+- **診断**: フォントセットに mono がなければ `theme/missing-font`（error、`mono` の位置）。組み込みのフォントセットはすべて mono を持つので、この経路は将来のカスタムのフォントセット用。`mono` が boolean でなければ従来の schema 診断。
+- **互換性**: 変更前後の全153 YAML ×（自テーマ＋組み込み5 Theme）の SVG と D2、自テーマの PDF / picture PPTX（計1458ファイル）の sha256 は全件一致。`mono` を使わない図の出力は変わらない。gallery は tokens の説明文だけ変わり（203 files中2）、描画は不変。golden は再生成しても差分なし。
+- **#271 の再現**: `research/271-clip/clip.sumi.yaml` の labels（tokens）・prompt・answer に `mono: true`。180 × 52.4mm（旧 52.82mm: ラベルのフォント変更による行高の差）、errors 0 / warnings 0 / infos 2（変更なし）、プレビュー 39,810 bytes を開いて、plane / car / dog / bird と文が等幅で、`{object}` と dog が青のまま、矢印・箱への収まりが崩れていないことを確認した。
+- **テスト**: `src/render/mono-labels.integration.test.ts` — 全 Theme で `iiiiiiii` と `WWWWWWWW` が同じ幅（proportional では異なる）、`mono` なし / `mono: false` の出力が従来と同じ、sublabel と色付き数式つきの計測、数式の記号が mono にならないこと、PDF の BIZ UDGothic と一定の glyph advance、編集可能 PPTX のフォント名、tokens セルの継承と上書き、boolean 以外の拒否。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）
