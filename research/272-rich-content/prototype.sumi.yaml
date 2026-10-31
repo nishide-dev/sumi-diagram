@@ -1,0 +1,29 @@
+# Synthetic content for exporter research; not a reproduction of the paper.
+version: 1
+figure:
+  id: rich-content-probe
+  theme: paper
+  profile: paper-double
+  layout:
+    arrange:
+      stack:
+        gap: 10mm
+        items:
+          - row: { gap: 10mm, items: [ waveform, code ] }
+          - model
+nodes:
+  - id: waveform
+    component: image
+    variant: framed
+    props: { src: out/waveform.svg, width: 145pt, height: 80pt }
+  - id: code
+    component: image
+    variant: framed
+    props: { src: out/code-window.svg, width: 145pt, height: 80pt }
+  - id: model
+    component: box
+    label: Sumi components stay native
+    tone: purple
+edges:
+  - { from: waveform, to: model }
+  - { from: code, to: model }
