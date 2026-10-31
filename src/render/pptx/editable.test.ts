@@ -52,6 +52,48 @@ for (const item of corpus)
         );
         expect(shape).toBeDefined();
         if (!shape) continue;
+        if (element.kind === "node" && element.render?.renderer === "sumi/waveform") {
+          const group = all.find((e) => e.name === "p:grpSp" && childElements(e).includes(shape));
+          expect(group).toBeDefined();
+          if (!group) throw new Error(`Missing waveform group ${element.key}`);
+          expect(childElements(group).map((e) => e.name)).toEqual([
+            "p:nvGrpSpPr",
+            "p:grpSpPr",
+            "p:sp",
+            "p:sp",
+          ]);
+          const children = childElements(group).filter((e) => e.name === "p:sp");
+          expect(children[0]).toBe(shape);
+          const signal = children[1];
+          if (!signal) throw new Error("Missing waveform signal");
+          const signalProperties = [...descendants(signal)].find((e) => e.name === "p:cNvPr");
+          expect(signalProperties && attribute(signalProperties, "name")).toBe(
+            `${element.key} signal`,
+          );
+          const transform = [...descendants(group)].find((e) => e.name === "a:xfrm");
+          if (!transform) throw new Error("Missing waveform group transform");
+          const [off, ext, chOff, chExt] = childElements(transform);
+          if (!off || !ext) throw new Error("Missing waveform group bounds");
+          expect(childElements(transform).map((e) => e.name)).toEqual([
+            "a:off",
+            "a:ext",
+            "a:chOff",
+            "a:chExt",
+          ]);
+          expect(chOff?.attributes).toEqual(off?.attributes);
+          expect(chExt?.attributes).toEqual(ext?.attributes);
+          for (const child of children) {
+            const childTransform = [...descendants(child)].find((e) => e.name === "a:xfrm");
+            expect(
+              childTransform && childElements(childTransform).map((e) => e.attributes),
+            ).toEqual([off.attributes, ext.attributes]);
+          }
+          // Glued edges must keep referring to the frame inside the group.
+          expect(names.get(element.key)).toBe(
+            String([...item.ir.elements.keys()].indexOf(element.key) + 2),
+          );
+          expect(names.get(`${element.key} waveform`)).not.toBe(names.get(element.key));
+        }
         if (element.kind === "edge") {
           // A zoom edge (#176) is two lines between corners: a freeform shape in either mode.
           const glued = connectors === "glued" && element.routing !== "zoom";

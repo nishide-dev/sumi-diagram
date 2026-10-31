@@ -40,6 +40,7 @@ const LOWERING: Record<string, string> = {
   "sumi/operator": "circle",
   "sumi/junction": "circle",
   "sumi/image": "rectangle",
+  "sumi/waveform": "rectangle",
   // Expanded into a frame group around its entries (#131, structured only).
   "sumi/legend": "rectangle",
   "sumi/container": "rectangle",

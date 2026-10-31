@@ -190,7 +190,11 @@ describe.skipIf(!available)("built-in primitives render with D2", () => {
           }
           if (element.kind === "node" && element.render !== undefined) {
             expect(count(chunk, /<path d="M/g)).toBe(
-              element.render.renderer === "sumi/stack" ? 3 : 1,
+              element.render.renderer === "sumi/stack"
+                ? 3
+                : element.render.renderer === "sumi/waveform"
+                  ? 3
+                  : 1,
             );
             expect(count(chunk, /<rect\b/g)).toBe(0);
           }

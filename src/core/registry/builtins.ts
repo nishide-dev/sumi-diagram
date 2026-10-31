@@ -64,6 +64,35 @@ const squareSizeProps = sizeProps.refine(
 
 const noProps = z.strictObject({});
 
+const waveform = {
+  version: MANIFEST_VERSION,
+  namespace: BUILTIN_NAMESPACE,
+  since: "0.10.0",
+  kind: "node",
+  name: "waveform",
+  description:
+    "A deterministic sample-driven waveform in a rectangular frame, with an optional label below the signal; no audio decoding or synthesis.",
+  variants: ["default", "emphasis", "muted", "outlined"],
+  shape: "rectangle",
+  sizing: "auto",
+  props: sizeProps.extend({
+    samples: z
+      .array(z.number().finite().min(-1).max(1))
+      .min(2)
+      .max(2048)
+      .describe(
+        "Two to 2048 explicit finite amplitudes in [-1, 1], evenly spaced; no resampling or normalization. Bars mirror absolute amplitudes around the center; line mode preserves signs.",
+      ),
+    mode: z
+      .enum(["bars", "line"])
+      .default("bars")
+      .describe(
+        "bars draws mirrored vertical amplitudes; line joins signed samples with straight segments.",
+      ),
+  }),
+  render: { type: "outline", renderer: "sumi/waveform", params: {} },
+} satisfies NodeManifest;
+
 const base = { version: MANIFEST_VERSION, namespace: BUILTIN_NAMESPACE, since: SINCE } as const;
 
 function node(
@@ -237,22 +266,30 @@ const image: NodeManifest = {
   kind: "node",
   name: "image",
   description:
-    "A PNG, JPEG or SVG file embedded as it is, optionally stacked with up-right copies; takes no label.",
+    "A PNG, JPEG or SVG file or safe inline SVG drawing, optionally stacked with up-right copies; takes no label.",
   variants: ["default", "framed"],
   props: z
     .strictObject({
       src: z
         .string()
         .min(1)
+        .optional()
         .describe(
           'Path of the image file relative to the figure\'s YAML file, with "/" between directories, e.g. "img/photo.png". Absolute paths, URLs and paths outside that directory are not allowed.',
+        ),
+      svg: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(
+          "Inline SVG document (since 0.10.0), preferably a YAML block scalar with a viewBox. Exactly one of src or svg is required. Basic shapes only; outline text as paths. Scripts, events, external references, foreignObject, text, defs, gradients and filters are rejected.",
         ),
       sha256: z
         .string()
         .regex(/^[0-9a-fA-F]{64}$/)
         .optional()
         .describe(
-          "Expected sha256 of the file in hex. Rendering fails if the file has changed. Omitted means not checked.",
+          "Expected sha256 of the file bytes or UTF-8 inline SVG source in hex. Rendering fails if the input has changed. Omitted means not checked.",
         ),
       fit: z
         .enum(IMAGE_FITS)
@@ -277,6 +314,10 @@ const image: NodeManifest = {
         .describe(
           "Repeat the unchanged image behind the front one, offset up-right. Width and height size each copy; the node footprint includes the whole stack.",
         ),
+    })
+    .refine(({ src, svg }) => (src !== undefined) !== (svg !== undefined), {
+      error: "an image needs exactly one of src or svg",
+      path: ["svg"],
     })
     .refine(({ width, height }) => width !== undefined || height !== undefined, {
       error: "an image needs a width or a height (or both)",
@@ -879,6 +920,7 @@ export const BUILTIN_MANIFESTS: readonly ComponentManifest[] = [
   operator,
   junction,
   image,
+  waveform,
   legend,
   tokens,
   matrix,

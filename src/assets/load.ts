@@ -1,6 +1,6 @@
 /**
  * Loading a figure's assets for rendering (#94, design doc §6.25): every icon
- * from the bundled archive and every image file from the figure's directory,
+ * from the bundled archive and every image file or inline SVG source,
  * checked and turned into what the SVG embeds. Sumi never draws, decodes or
  * changes an image: PNG and JPEG bytes are embedded as they are (base64
  * `data:` URIs), and SVG is re-serialized by the allow-list importer.
@@ -24,7 +24,9 @@
  * Provenance: `assets-sha256` (the SVG metadata) is the sha256 of one line per
  * icon or image node in document order, `icon <set>/<name>@<version>
  * <sha256>` or `image <src> <sha256>` (the sha256 of the icon's original SVG
- * in the archive, or of the image file). Bundled icons also add their set's
+ * in the archive, or of the image file). Inline sources add
+ * `inline-svg <node id> <sha256>` with the hash of their original UTF-8 bytes.
+ * Bundled icons also add their set's
  * third-party notice (name, version, license and its full text).
  */
 
@@ -166,7 +168,10 @@ export function loadFigureAssets(
         ...(related !== undefined && related.length > 0 && { related }),
       });
     };
-    const loaded = loadImage(image.src, options.base, fail);
+    const loaded =
+      image.svg !== undefined
+        ? loadInlineSvg(image.svg, fail)
+        : loadImage(image.src ?? "", options.base, fail);
     if (loaded === undefined) continue;
     total += loaded.bytes.length;
     if (total > ASSET_LIMITS.maxFigureBytes) {
@@ -181,7 +186,7 @@ export function loadFigureAssets(
     if (image.sha256 !== undefined && image.sha256 !== digest) {
       fail(
         "asset/sha256-mismatch",
-        `${image.src} has sha256 ${digest}, not the ${image.sha256} written in props.sha256.`,
+        `${image.src ?? "Inline SVG"} has sha256 ${digest}, not the ${image.sha256} written in props.sha256.`,
         "Update props.sha256 if the new file is intended.",
       );
       continue;
@@ -190,11 +195,15 @@ export function loadFigureAssets(
     if (size === undefined) {
       fail(
         "asset/invalid-image",
-        `${image.src} has an extreme aspect ratio (${loaded.asset.intrinsic.width} × ${loaded.asset.intrinsic.height}); give both width and height.`,
+        `${image.src ?? "Inline SVG"} has an extreme aspect ratio (${loaded.asset.intrinsic.width} × ${loaded.asset.intrinsic.height}); give both width and height.`,
       );
       continue;
     }
-    lines.push(`image ${image.src} ${digest}\n`);
+    lines.push(
+      image.svg !== undefined
+        ? `inline-svg ${node.id} ${digest}\n`
+        : `image ${image.src} ${digest}\n`,
+    );
     nodes.set(node.key, { ...loaded.asset, size });
   }
 
@@ -212,6 +221,43 @@ export function loadFigureAssets(
 }
 
 const mib = (bytes: number) => `${bytes / 1024 / 1024} MiB`;
+
+function loadInlineSvg(
+  source: string,
+  fail: (code: string, message: string) => void,
+): { asset: LoadedImage; bytes: Uint8Array } | undefined {
+  const bytes = Buffer.from(source, "utf8");
+  if (bytes.length > ASSET_LIMITS.maxFileBytes) {
+    fail("asset/too-large", "Inline SVG exceeds the 16 MiB asset limit.");
+    return undefined;
+  }
+  const imported = importSvg(source);
+  if (!imported.ok) {
+    const issue = imported.issues[0];
+    fail(
+      issue?.kind === "unsafe"
+        ? "asset/unsafe-svg"
+        : issue?.kind === "unsupported"
+          ? "asset/unsupported-svg"
+          : "asset/invalid-image",
+      issue?.message ?? "Invalid inline SVG.",
+    );
+    return undefined;
+  }
+  return { bytes, asset: svgImage(imported.value) };
+}
+
+/** Both input forms embed precisely the importer's re-serialization. */
+function svgImage(svg: ImportedSvg): LoadedImage {
+  const [x, y, w, h] = svg.viewBox;
+  const document = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x} ${y} ${w} ${h}" width="${svg.width}" height="${svg.height}">${svg.markup}</svg>`;
+  return {
+    kind: "image",
+    format: "svg",
+    intrinsic: { width: svg.width, height: svg.height },
+    href: `data:${IMAGE_MIME.svg};base64,${Buffer.from(document, "utf8").toString("base64")}`,
+  };
+}
 
 /** Largest side, in units, an image may get from its aspect ratio (10,000pt). */
 const MAX_DERIVED_UNITS = 20_000;
@@ -323,17 +369,9 @@ function loadImage(
       );
       return undefined;
     }
-    const svg = imported.value;
-    const [x, y, w, h] = svg.viewBox;
-    const document = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x} ${y} ${w} ${h}" width="${svg.width}" height="${svg.height}">${svg.markup}</svg>`;
     return {
       bytes,
-      asset: {
-        kind: "image",
-        format,
-        intrinsic: { width: svg.width, height: svg.height },
-        href: `data:${IMAGE_MIME.svg};base64,${Buffer.from(document, "utf8").toString("base64")}`,
-      },
+      asset: svgImage(imported.value),
     };
   }
 

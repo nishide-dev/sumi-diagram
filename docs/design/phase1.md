@@ -2395,6 +2395,45 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **テスト**: `outline/builtin.test.ts`（renderer の契約を 4 向き × 2 形 × 4 サイズで）、`registry/bracket.test.ts`（manifest・catalog・props・ラベル等の error・auto の `layout/structured-only`・`empty-label` なし）、`figure/tokens.test.ts`（枠 group・参照の維持・枠なしの従来展開・1 セル・group 内）、`structured/engine.test.ts`（4 辺の長さ・明示長・角・group への attach・枠の padding 0）、`render/bracket.integration.test.ts`（全 5 Theme × 2 形 × 4 向きで、辺が背骨の中央から出ること・開いた線 1 本・geometry lint・経路検査・PDF・picture / editable PPTX（freeform・glued）、tokens 全体の端点が枠に当たること）、`compiler/testing.ts` と `scripts/gallery/samples.ts` の作例、`skill.test.ts`（Skill の作例）。
 - **検証**: `bun run check`・`bun run typecheck`・`CI=1 bun test`（3834 pass / 13 skip / 0 fail）・`bun run gallery:check`・`bun run schema:check` が成功。gallery（全 Theme）と #271 の preview.png を実際に開き、波括弧・角括弧・4 向き・先端からの辺・列全体への矢印を目視した。
 
+### 6.79 #277 の安全な inline SVG 入力
+
+ユーザー決定（2026-11-01）: v0.10.0 は既存 importer を使う最小の inline SVG 入口を出す。
+ブラウザなし HTML/CSS の調査結果は #283 に記録されており、HTML は v0.11.0 の別契約にする。
+
+- **記法**: `image` の `props.svg: |`。`src` / `svg` は厳密に片方。完全な SVG document と
+  `viewBox` または正の width/height を要求し、fragment や HTML を自動補完しない。
+  `width` / `height` / `fit` / 枠 / tone / layers は画像配置と共有する。`sha256` はファイル bytes
+  または YAML が復号した inline 原文の UTF-8 bytes を固定する。
+- **信頼境界**: 原文を補間せず既存 `importSvg()` に渡す。allow-list は拡大せず、検査値だけを再直列化する。
+  script / events / foreignObject / href / url / DTD / entity / style 要素等は unsafe、
+  text / tspan / defs / gradients / filters 等は unsupported。文字は輪郭 path / 図形にする。
+  輪郭化した文字は検索・編集できない。`currentColor` は従来のファイル SVG と同じ扱いでテーマへ置換しない。
+- **予算と診断**: UTF-8 原文に 16 MiB/資産、ファイルと合わせ 32 MiB/図。
+  importer の 20,000 要素 / 深さ 32 を維持する。asset 検査で shared Diagnostic を返し、literal block と
+  単一行の plain/quoted scalar は locator の span から YAML 上の位置へ戻す。
+  folded / 複数行 quoted は無理に対応付けず scalar 全体へ戻す。関連する path は `props.svg`。
+- **出力**: importer の正規化済み SVG を従来と同じ data URI / image IR で両 writer へ渡す。
+  SVG / PDF / picture PPTX に共通経路で届き、editable PPTX は既存 `pptx/unsupported-asset` のまま。
+  直接 g を合成する案は viewport clipping を変えてしまうため採用しない。
+  外側の layout / routing / lint の障害物は画像枠。内部の幾何・最小線幅・文字サイズは検査しない。
+- **provenance**: 文書順の既存資産 hash 行に `inline-svg <node id> <原文 sha256>\n` を追加する。
+  仮ファイル名や絶対パスは作らず、空白だけの変更も原文 hash に反映する。
+  新機能を使わない入力の hash 行・SVG / PDF / PPTX / D2 bytes は維持する。
+- **見本と検証**: image gallery に全テーマ × 全 variant の波形、および図形だけの模式コード窓を追加する。
+  原文保持・排他・位置診断・危険入力・予算・hash・両 engine と export のテストを置き、既存全 YAML の
+  own + 全組み込みテーマで全出力 SHA-256 を変更前後比較する。
+
+### 6.80 #278 のサンプル駆動 waveform
+
+**決定:** `sumi/waveform` は数値データを描く汎用 node とする。#272・#277 の調査に従い HTML・画像生成器・音声 decoder は追加しない。`props.samples` は必須の有限数配列（2〜2,048 個、各値 -1〜1）。`mode: bars`（既定）は絶対値の上下対称な縦線、`mode: line` は符号を保った折れ線。等間隔で全点を使い、間引き・補間曲線・自動正規化をしない。seed / envelope は今回導入せず、模式波形も作者が明示データとして渡す。乱数・時刻・外部実行に依存しない。
+
+- **検証:** 既存の strict props schema と `SizeLength` を共有する。振幅・配列長・mode・寸法の誤りは shared Diagnostic（`component/invalid-prop` など）で該当 prop / 配列要素の YAML 行・列へ戻す。NaN / Infinity は Figure の有限数検査でも拒否する。
+- **寸法と内容:** `width` / `height` は通常の明示長さ（0.5pt 単位）、省略時はラベルを安全領域に収めつつ最低 80×48pt。外枠の x=10〜90%、y=10〜60% に信号、y=70〜90% に任意のラベルを置く。ラベルのための余白を信号と分離する。信号は全出力で round cap / round join とし、中心線からの突出を枠と同じ半線幅以内に制限するため、最小寸法・密な鋭角でも外枠の描画 bounds を越えない。bars の振幅 0 はパスを生成せず不可視とする（round cap のゼロ長パスによる点を作らない）。line の振幅 0 は中心線上の点として保持する。外枠がレイアウト / routing の障害物、実線も既存 inspector の shape 経路として測定する。密な samples は線が重なることがあり、拡幅か作者側の集約を選ぶ。
+- **IR / layout:** 既存の version 1 outline renderer と body / line layer を使い、auto の D2 placeholder 合成と structured の writer で同じ幾何を描く。検査済み配列は IR の scalar params へ順序を保つ comma-separated decimal 文字列として固定する（公開 YAML は数値配列のまま）。同じ renderer が配置・測定・SVG・PPTX を共有するため別描画実装を増やさない。
+- **Theme:** 全組み込みテーマで `default` / `emphasis` / `muted` / `outlined` を定義。線幅・色・背景は theme を使用。tone は通常 variant の背景、`outlined` では波形線と枠・文字の色を変える。線が消える `filled` や背景と同色になる `solid` は公開しない。
+- **出力:** SVG / PDF / picture PPTX に対応。editable PPTX は既存の native freeform lowering を使用し、外枠と信号の各 path を保持する。画像化・黙った欠落はしない。freeform / glued の両コネクタモードに対応するが、波形自体はどちらも自由形状（音声や PowerPoint のデータ系列ではない）。実 Office の新規確認はしていない。
+- **検証と互換性:** 全テーマ×variant の gallery、両モード×両 layout×全テーマの再描画・幾何 lint・PDF / picture / editable PPTX テスト、位置付き負例と2,048個の上限を検査。機能追加前からある153個の YAML を自身のテーマ＋5テーマで比較し、918ケース中638件の描画成功について SVG / PDF / picture PPTX / D2 の SHA-256 がすべて一致。残る280件は既存の不正 fixture・旧研究構文などで描画できず、そのうち42件は既知 component 一覧に waveform が増える診断文のみ変化した。詳細は [検証記録](../verification/278-waveform.md)。
+
 
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures

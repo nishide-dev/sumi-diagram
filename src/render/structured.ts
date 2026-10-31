@@ -258,7 +258,9 @@ function nodeShape(node: NodeIR, r: Rect): string {
     return drawing.layers
       .map((layer) => {
         const fill = layer.role === "line" ? "none" : paint(style.fill);
-        return `<path d="${pathData(layer.path.points, layer.path.closed)}" fill="${fill}"${strokeAttributes(style)}/>`;
+        const signal =
+          layer.role === "line" ? ' stroke-linecap="round" stroke-linejoin="round"' : "";
+        return `<path d="${pathData(layer.path.points, layer.path.closed)}" fill="${fill}"${strokeAttributes(style)}${signal}/>`;
       })
       .join("");
   }

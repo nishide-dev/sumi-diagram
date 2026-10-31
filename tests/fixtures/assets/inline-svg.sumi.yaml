@@ -1,0 +1,31 @@
+version: 1
+figure:
+  id: inline-svg
+  layout:
+    arrange:
+      row:
+        items: [waveform, code-window]
+nodes:
+  - id: waveform
+    component: image
+    props:
+      width: 72pt
+      svg: |
+        <svg viewBox="0 0 120 60">
+          <path d="M10 30H18M22 23V37M28 15V45M34 20V40M40 8V52M46 18V42M52 25V35M58 12V48M64 20V40M70 5V55M76 15V45M82 22V38M88 25V35M94 20V40M100 28V32M104 30H110" fill="none" stroke="#c04050" stroke-width="3"/>
+        </svg>
+  - id: code-window
+    component: image
+    variant: framed
+    props:
+      width: 72pt
+      svg: |
+        <svg viewBox="0 0 120 60">
+          <rect width="120" height="60" rx="4" fill="#202938"/>
+          <circle cx="10" cy="9" r="3" fill="#ef7070"/>
+          <circle cx="20" cy="9" r="3" fill="#e9c46a"/>
+          <circle cx="30" cy="9" r="3" fill="#74c69d"/>
+          <path d="M10 25H30M10 43H22" stroke="#c4a7e7" stroke-width="3"/>
+          <path d="M35 25H75M20 34H55" stroke="#89b4fa" stroke-width="3"/>
+          <path d="M60 34H100M27 43H55" stroke="#a6e3a1" stroke-width="3"/>
+        </svg>
