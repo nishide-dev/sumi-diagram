@@ -16,7 +16,7 @@ export interface OutlinePath {
 }
 
 export interface OutlineDrawing {
-  /** Back to front. Bodies are closed, filled polygons; lines are unfilled. */
+  /** Back to front. Bodies are closed, filled polygons; lines are unfilled with round caps/joins. */
   readonly layers: readonly { readonly role: "body" | "line"; readonly path: OutlinePath }[];
   /** Ordered enclosing silhouette; equals the body union unless boundaries is supplied. */
   readonly outline: readonly Point[];

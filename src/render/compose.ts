@@ -161,7 +161,9 @@ export function composeOutlines(
                 ` ${a.name}="${escapeAttribute(layer.role === "line" && a.name === "fill" ? "none" : a.value)}"`,
             )
             .join("");
-          return `<path d="${d}"${attrs}${layer.role === "line" && !paint.some((a) => a.name === "fill") ? ' fill="none"' : ""} />`;
+          const signal =
+            layer.role === "line" ? ' stroke-linecap="round" stroke-linejoin="round"' : "";
+          return `<path d="${d}"${attrs}${layer.role === "line" && !paint.some((a) => a.name === "fill") ? ' fill="none"' : ""}${signal} />`;
         })
         .join("");
       const closing = svg.lastIndexOf("</", shape.end - 1);

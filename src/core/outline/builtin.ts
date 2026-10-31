@@ -215,7 +215,9 @@ const waveform: OutlineRenderer = {
   draw(rect, params) {
     const { x, y, width, height } = rect;
     const samples = (params.samples as string).split(",").map(Number);
-    // Proportional insets keep every centerline inside even tiny explicit sizes.
+    // With round signal caps/joins, paint extends by at most half the shared
+    // stroke width, just like the frame. Miter joins would escape at tiny sizes
+    // or with dense, sharply alternating samples despite these centerline insets.
     const left = x + width / 10;
     const span = width * 0.8;
     const center = y + height * 0.35;
@@ -227,22 +229,28 @@ const waveform: OutlineRenderer = {
     const signal =
       params.mode === "line"
         ? [{ role: "line" as const, path: { points, closed: false } }]
-        : samples.map((value, i) => ({
-            role: "line" as const,
-            path: {
-              closed: false,
-              points: [
-                {
-                  x: left + (span * i) / (samples.length - 1),
-                  y: center - Math.abs(value) * amplitude,
-                },
-                {
-                  x: left + (span * i) / (samples.length - 1),
-                  y: center + Math.abs(value) * amplitude,
-                },
-              ],
-            },
-          }));
+        : samples.flatMap((value, i) =>
+            value === 0
+              ? []
+              : [
+                  {
+                    role: "line" as const,
+                    path: {
+                      closed: false,
+                      points: [
+                        {
+                          x: left + (span * i) / (samples.length - 1),
+                          y: center - Math.abs(value) * amplitude,
+                        },
+                        {
+                          x: left + (span * i) / (samples.length - 1),
+                          y: center + Math.abs(value) * amplitude,
+                        },
+                      ],
+                    },
+                  },
+                ],
+          );
     const outline = rectangle(rect);
     return {
       layers: [body(outline), ...signal],

@@ -193,7 +193,7 @@ describe.skipIf(!available)("built-in primitives render with D2", () => {
               element.render.renderer === "sumi/stack"
                 ? 3
                 : element.render.renderer === "sumi/waveform"
-                  ? 5
+                  ? 3
                   : 1,
             );
             expect(count(chunk, /<rect\b/g)).toBe(0);

@@ -8,6 +8,26 @@ import { svgToPptx } from "./pptx";
 import { svgToEditablePptx } from "./pptx/editable";
 import { readPptx } from "./pptx/testing";
 import { renderFigure } from "./render";
+import { attribute, childElements, classList, descendants, parseXml } from "./xml";
+
+function required<T>(value: T | null | undefined): T {
+  if (value === undefined || value === null) throw new Error("Missing expected geometry");
+  return value;
+}
+
+function elements(xml: string) {
+  const parsed = parseXml(xml);
+  if (!parsed.ok) throw new Error(parsed.message);
+  return [...descendants(parsed.root)];
+}
+
+function signalPaths(svg: string) {
+  const shape = elements(svg).find((e) => classList(e).includes("shape"));
+  if (!shape) throw new Error("Missing signal shape");
+  return childElements(shape)
+    .filter((e) => e.name === "path")
+    .slice(1);
+}
 
 function source(samples = "[0, -0.5, 1, -1, 0]", mode = "bars", engine = "structured") {
   return `version: 1
@@ -24,6 +44,177 @@ nodes:
       mode: ${mode}
 `;
 }
+
+for (const engine of ["auto", "structured"]) {
+  for (const mode of ["bars", "line"]) {
+    test(`${engine}/${mode}: round painted bounds stay inside the painted frame at the minimum size`, async () => {
+      const result = await renderFigure(
+        `${source("[-1, 1, -1]", mode, engine)}      width: 0.5pt\n      height: 0.5pt\n`,
+        { overrides: { theme: "minimal" } },
+      );
+      if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+      expect(result.diagnostics).toEqual([]);
+      expect(lintGeometry(result.value, {})).toEqual([]);
+      const box = result.value.inspection.elements.find((e) => e.key === "n:signal")?.bbox;
+      if (!box) throw new Error("Missing frame bounds");
+      const radius = required(result.value.compiled.ir.nodes[0]).style.strokeWidth.units / 2;
+      const paths = signalPaths(result.value.svg);
+      expect(paths).toHaveLength(mode === "line" ? 1 : 3);
+      for (const path of paths) {
+        expect(attribute(path, "stroke-linecap")).toBe("round");
+        expect(attribute(path, "stroke-linejoin")).toBe("round");
+        // A round-stroked polyline is a union of segment capsules: extrema
+        // are bounded by vertex coordinates +/- half the actual stroke width.
+        const coordinates = required(required(attribute(path, "d")).match(/-?[\d.]+/g)).map(Number);
+        for (let i = 0; i < coordinates.length; i += 2) {
+          const x = required(coordinates[i]);
+          const y = required(coordinates[i + 1]);
+          expect(x - radius).toBeGreaterThanOrEqual(box.x - radius - 0.001);
+          expect(x + radius).toBeLessThanOrEqual(box.x + box.width + radius + 0.001);
+          expect(y - radius).toBeGreaterThanOrEqual(box.y - radius - 0.001);
+          expect(y + radius).toBeLessThanOrEqual(box.y + box.height + radius + 0.001);
+        }
+      }
+    });
+
+    for (const [name, samples] of [
+      ["zero", [0, 0]],
+      ["constant", [0.5, 0.5, 0.5]],
+      ["dense", Array.from({ length: 2048 }, (_, i) => (i % 2 === 0 ? -1 : 1))],
+    ] as const) {
+      test(`${engine}/${mode}/${name}: renders all samples through every export`, async () => {
+        const result = await renderFigure(source(JSON.stringify(samples), mode, engine));
+        if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+        expect(result.diagnostics).toEqual([]);
+        expect(lintGeometry(result.value, {})).toEqual([]);
+        const paths = signalPaths(result.value.svg);
+        expect(paths).toHaveLength(mode === "line" ? 1 : samples.filter((v) => v !== 0).length);
+        const box = required(
+          result.value.inspection.elements.find((e) => e.key === "n:signal")?.bbox,
+        );
+        for (const path of paths) {
+          const coordinates = required(required(attribute(path, "d")).match(/-?[\d.]+/g)).map(
+            Number,
+          );
+          if (name !== "dense") {
+            const value = samples[0];
+            const ys =
+              mode === "line"
+                ? samples.map(() => box.y + box.height * (0.35 - value * 0.25))
+                : [
+                    box.y + box.height * (0.35 - value * 0.25),
+                    box.y + box.height * (0.35 + value * 0.25),
+                  ];
+            for (const [i, y] of coordinates.filter((_, i) => i % 2 === 1).entries()) {
+              expect(y).toBeCloseTo(required(ys[i]), 3);
+            }
+          }
+        }
+        if (mode === "line") {
+          expect(required(attribute(required(paths[0]), "d")).match(/\bL\b/g)).toHaveLength(
+            samples.length - 1,
+          );
+        }
+        expect(svgToPdf(result.value.svg).ok).toBe(true);
+        expect(svgToPptx(result.value.svg).ok).toBe(true);
+        const pptx = svgToEditablePptx(result.value.svg, result.value.compiled.ir);
+        if (!pptx.ok) throw new Error(JSON.stringify(pptx.diagnostics));
+        const slide = new TextDecoder().decode(readPptx(pptx.value).get("ppt/slides/slide1.xml"));
+        const nativePaths = elements(slide).filter((e) => e.name === "a:path");
+        expect(nativePaths).toHaveLength(paths.length + 1);
+        expect(slide).not.toContain("p:pic");
+        if (mode === "line") {
+          expect(
+            [...descendants(required(nativePaths[1]))].filter((e) => e.name === "a:lnTo"),
+          ).toHaveLength(samples.length - 1);
+        }
+      }, 30_000);
+    }
+  }
+}
+
+for (const mode of ["bars", "line"]) {
+  test(`${mode}: editable XML preserves exact signal coordinates, round styles and zero behavior`, async () => {
+    const result = await renderFigure(
+      source("[-1, 0, 1]", mode).replace("    tone: red\n", "") +
+        "      width: 50pt\n      height: 50pt\n",
+      { overrides: { theme: "minimal" } },
+    );
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    for (const connectors of ["freeform", "glued"] as const) {
+      const pptx = svgToEditablePptx(result.value.svg, result.value.compiled.ir, { connectors });
+      if (!pptx.ok) throw new Error(JSON.stringify(pptx.diagnostics));
+      const slide = new TextDecoder().decode(readPptx(pptx.value).get("ppt/slides/slide1.xml"));
+      const all = elements(slide);
+      const paths = all.filter((e) => e.name === "a:path").slice(1);
+      const coordinates = paths.map((path) =>
+        [...descendants(path)]
+          .filter((e) => e.name === "a:pt")
+          .map((e) => [Number(attribute(e, "x")), Number(attribute(e, "y"))]),
+      );
+      expect(coordinates).toEqual(
+        mode === "bars"
+          ? [
+              [
+                [63500, 63500],
+                [63500, 381000],
+              ],
+              [
+                [571500, 63500],
+                [571500, 381000],
+              ],
+            ]
+          : [
+              [
+                [63500, 381000],
+                [317500, 222250],
+                [571500, 63500],
+              ],
+            ],
+      );
+      for (const path of paths) expect(attribute(path, "fill")).toBe("none");
+      expect(slide).toContain(
+        '<a:ln w="12700" cap="rnd"><a:solidFill><a:srgbClr val="525252"></a:srgbClr></a:solidFill><a:round/></a:ln>',
+      );
+      for (const path of signalPaths(result.value.svg)) {
+        expect(attribute(path, "stroke-linecap")).toBe("round");
+        expect(attribute(path, "stroke-linejoin")).toBe("round");
+      }
+    }
+  });
+}
+
+test("auto layout composes a waveform between connected nodes", async () => {
+  const text =
+    source(undefined, "line", "auto") +
+    `  - id: input
+    component: box
+    label: Input
+  - id: output
+    component: box
+    label: Output
+edges:
+  - { from: input, to: signal }
+  - { from: signal, to: output }
+`;
+  const result = await renderFigure(text);
+  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+  expect(result.diagnostics).toEqual([]);
+  expect(lintGeometry(result.value, {})).toEqual([]);
+  const nodes = result.value.inspection.elements;
+  const input = required(nodes.find((e) => e.key === "n:input")?.bbox);
+  const signal = required(nodes.find((e) => e.key === "n:signal")?.bbox);
+  const output = required(nodes.find((e) => e.key === "n:output")?.bbox);
+  expect(input.x + input.width).toBeLessThan(signal.x);
+  expect(signal.x + signal.width).toBeLessThan(output.x);
+  expect(nodes.filter((e) => e.kind === "edge" && e.path !== undefined)).toHaveLength(2);
+  expect(signalPaths(result.value.svg)).toHaveLength(1);
+  for (const connectors of ["freeform", "glued"] as const) {
+    expect(svgToEditablePptx(result.value.svg, result.value.compiled.ir, { connectors }).ok).toBe(
+      true,
+    );
+  }
+}, 30_000);
 
 test("sample and size errors have located shared diagnostics", () => {
   for (const samples of [
@@ -58,10 +249,6 @@ test("bars mirror amplitudes and line mode preserves signed values", () => {
       { x: 10, y: 60 },
     ],
     [
-      { x: 50, y: 35 },
-      { x: 50, y: 35 },
-    ],
-    [
       { x: 90, y: 10 },
       { x: 90, y: 60 },
     ],
@@ -94,7 +281,7 @@ for (const theme of BUILTIN_THEMES.keys()) {
           const parts = readPptx(pptx.value);
           const slide = new TextDecoder().decode(parts.get("ppt/slides/slide1.xml"));
           expect(slide).toContain("a:custGeom");
-          expect(slide.match(/<a:lnTo/g)?.length).toBeGreaterThanOrEqual(mode === "bars" ? 8 : 7);
+          expect(slide.match(/<a:lnTo/g)?.length).toBeGreaterThanOrEqual(mode === "bars" ? 6 : 7);
           expect(slide).not.toContain("p:pic");
           expect([...parts.keys()].some((p) => p.startsWith("ppt/media/"))).toBe(false);
         }
