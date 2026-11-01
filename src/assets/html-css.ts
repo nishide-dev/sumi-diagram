@@ -1,37 +1,66 @@
 /** Conservative complete-value grammars, shared by every HTML preflight call. */
-export function tokenizeCss(source: string, separator: ";" | "," | " "): string[] | undefined {
+export function tokenizeCss(
+  source: string,
+  separator: ";" | "," | " ",
+): { parts: string[]; errorOffset?: never } | { parts?: never; errorOffset: number } {
   const parts: string[] = [];
   let quote = "",
     depth = 0,
     start = 0;
+  const malformed = () => ({
+    errorOffset: start + (source.slice(start).match(/^[ \t\n\f\r]*/)?.[0].length ?? 0),
+  });
   for (let i = 0; i < source.length; i++) {
     const ch = source[i] ?? "";
     if (quote) {
       if (ch === quote) quote = "";
-    } else if (/\s/.test(ch) && !/[ \t\n\f\r]/.test(ch)) return undefined;
+    } else if (/\s/.test(ch) && !/[ \t\n\f\r]/.test(ch)) return malformed();
     else if (ch === "'" || ch === '"') quote = ch;
     else if (ch === "(") depth++;
     else if (ch === ")") {
-      if (--depth < 0) return undefined;
+      if (--depth < 0) return malformed();
     } else if (depth === 0 && (separator === " " ? /[ \t\n\f\r]/.test(ch) : ch === separator)) {
       parts.push(source.slice(start, i));
       start = i + 1;
     }
   }
-  if (quote || depth) return undefined;
+  if (quote || depth) return malformed();
   parts.push(source.slice(start));
-  return separator === " " ? parts.filter(Boolean) : parts;
+  return { parts: separator === " " ? parts.filter(Boolean) : parts };
 }
 
-const numberPattern = /^(?:\d+(?:\.\d+)?|\.\d+)$/;
-const number = (v: string) => numberPattern.test(v) && Number.isFinite(Number(v));
-const integer = (v: string) => /^-?\d+$/.test(v) && Number.isSafeInteger(Number(v));
-const length = (v: string) => /^(?:0|(?:\d+(?:\.\d+)?|\.\d+)(?:px|pt|em|%))$/.test(v);
+// Deliberately much smaller than f32's range. Bound every numeric grammar,
+// including nested shorthands/tracks; never rely on JS finiteness alone.
+export const CSS_LIMITS = Object.freeze({
+  px: 2048,
+  pt: 1536,
+  em: 16,
+  percent: 100,
+  factor: 64,
+  lineHeight: 8,
+  order: 512,
+  grid: 64,
+});
+const numberPattern = /^(?:\d+(?:\.\d{1,2})?|\.\d{1,2})$/;
+const number = (v: string, max: number) => numberPattern.test(v) && Number(v) <= max;
+const integer = (v: string, max: number) => /^-?\d+$/.test(v) && Math.abs(Number(v)) <= max;
+const length = (v: string) => {
+  if (v === "0") return true;
+  const m = /^(.*?)(px|pt|em|%)$/.exec(v);
+  if (!m) return false;
+  const value = m[1] ?? "",
+    unit = m[2] ?? "";
+  const min = unit === "em" ? 0.1 : unit === "pt" ? 0.75 : 1;
+  return (
+    number(value, unit === "%" ? CSS_LIMITS.percent : CSS_LIMITS[unit as "px" | "pt" | "em"]) &&
+    (Number(value) === 0 || Number(value) >= min)
+  );
+};
 const signedLength = (v: string) => length(v.replace(/^-/, ""));
 const absoluteLength = (v: string) => length(v) && !v.endsWith("%");
 const oneOf = (v: string, words: string) => words.split(" ").includes(v);
 const list = (v: string, check: (s: string) => boolean, max = 4) => {
-  const values = tokenizeCss(v, " ");
+  const values = tokenizeCss(v, " ").parts;
   return !!values?.length && values.length <= max && values.every(check);
 };
 const namedColors = new Set(
@@ -46,11 +75,15 @@ function color(v: string): boolean {
   if (/^var\(--sumi-(?:fg|muted|accent|bg)\)$/.test(v)) return true;
   const match = /^(rgb|rgba)\((.*)\)$/.exec(v);
   if (!match) return false;
-  const channels = tokenizeCss(match[2] ?? "", ",")?.map((s) => s.trim());
+  const channels = tokenizeCss(match[2] ?? "", ",").parts?.map((s) => s.trim());
   return (
     !!channels &&
     channels.length === (match[1] === "rgb" ? 3 : 4) &&
-    channels.every((s, i) => number(s) && Number(s) <= (i === 3 ? 1 : 255))
+    channels.every((s, i) =>
+      s.endsWith("%") ? number(s.slice(0, -1), 100) : number(s, i === 3 ? 1 : 255),
+    ) &&
+    // Legacy comma rgb requires all three color channels to use the same unit.
+    channels.slice(0, 3).every((s) => s.endsWith("%") === channels[0]?.endsWith("%"))
   );
 }
 const keywords: Record<string, string> = {
@@ -74,28 +107,38 @@ const keywords: Record<string, string> = {
 const borderStyle = (v: string) => oneOf(v, "solid dashed dotted double none");
 function track(v: string): boolean {
   return (
-    length(v) || /^(?:\d+(?:\.\d+)?|\.\d+)fr$/.test(v) || oneOf(v, "auto min-content max-content")
+    length(v) ||
+    (v.endsWith("fr") && number(v.slice(0, -2), CSS_LIMITS.factor)) ||
+    oneOf(v, "auto min-content max-content")
   );
 }
 function tracks(v: string): boolean {
+  let count = 0;
   return list(
     v,
     (s) => {
-      if (track(s)) return true;
+      if (track(s)) return ++count <= CSS_LIMITS.grid;
       const repeat = /^repeat\(([1-9]\d*),(.+)\)$/.exec(s);
-      return !!repeat && Number(repeat[1]) <= 64 && list((repeat[2] ?? "").trim(), track, 16);
+      if (!repeat || Number(repeat[1]) > CSS_LIMITS.grid) return false;
+      const inner = tokenizeCss((repeat[2] ?? "").trim(), " ").parts;
+      if (!inner?.length || !inner.every(track)) return false;
+      count += Number(repeat[1]) * inner.length;
+      return count <= CSS_LIMITS.grid;
     },
     16,
   );
 }
 function gridLine(v: string): boolean {
-  return v === "auto" || (integer(v) && Number(v) !== 0) || /^span [1-9]\d*$/.test(v);
+  return (
+    v === "auto" ||
+    (integer(v, CSS_LIMITS.grid) && Number(v) !== 0) ||
+    (/^span [1-9]\d*$/.test(v) && Number(v.slice(5)) <= CSS_LIMITS.grid)
+  );
 }
 
 export function validCssValue(prop: string, v: string): boolean {
-  if (Object.hasOwn(keywords, prop)) return oneOf(v, keywords[prop] ?? "");
   if (prop === "font-family") {
-    const families = tokenizeCss(v, ",");
+    const families = tokenizeCss(v, ",").parts;
     return (
       !!families?.length &&
       families.every((s) => {
@@ -107,6 +150,12 @@ export function validCssValue(prop: string, v: string): boolean {
       })
     );
   }
+  // CSS units/keywords/colors are ASCII case-insensitive; custom property
+  // identifiers remain case-sensitive even inside otherwise insensitive values.
+  const variables = v.match(/var\([^)]*\)/gi) ?? [];
+  if (variables.some((s) => !/^var\(--sumi-(?:fg|muted|accent|bg)\)$/.test(s))) return false;
+  v = v.replace(/[A-Z]/g, (ch) => ch.toLowerCase());
+  if (Object.hasOwn(keywords, prop)) return oneOf(v, keywords[prop] ?? "");
   if (prop === "color" || prop === "background-color") return color(v);
   if (/^border(?:-(?:top|right|bottom|left))?-color$/.test(prop))
     return list(v, color, prop === "border-color" ? 4 : 1);
@@ -115,12 +164,12 @@ export function validCssValue(prop: string, v: string): boolean {
   if (/^border(?:-(?:top|right|bottom|left))?-width$/.test(prop))
     return list(v, absoluteLength, prop === "border-width" ? 4 : 1);
   if (/^border(?:-(?:top|right|bottom|left))?$/.test(prop)) {
-    const parts = tokenizeCss(v, " ");
+    const parts = tokenizeCss(v, " ").parts;
     return (
       parts?.length === 3 &&
-      absoluteLength(parts[0] ?? "") &&
-      borderStyle(parts[1] ?? "") &&
-      color(parts[2] ?? "")
+      parts.some(absoluteLength) &&
+      parts.some(borderStyle) &&
+      parts.some(color)
     );
   }
   if (prop === "border-radius") return list(v, length);
@@ -136,18 +185,20 @@ export function validCssValue(prop: string, v: string): boolean {
   if (prop === "gap") return list(v, length, 2);
   if (prop === "row-gap" || prop === "column-gap" || prop === "font-size") return length(v);
   if (prop === "letter-spacing") return (signedLength(v) && !v.endsWith("%")) || v === "normal";
-  if (prop === "line-height") return length(v) || number(v) || v === "normal";
+  if (prop === "line-height")
+    return length(v) || number(v, CSS_LIMITS.lineHeight) || v === "normal";
   if (prop === "font-weight") return oneOf(v, "normal bold 100 200 300 400 500 600 700 800 900");
-  if (prop === "opacity") return number(v) && Number(v) <= 1;
-  if (prop === "flex-grow" || prop === "flex-shrink") return number(v);
-  if (prop === "order") return integer(v);
+  if (prop === "opacity") return number(v, 1);
+  if (prop === "flex-grow" || prop === "flex-shrink") return number(v, CSS_LIMITS.factor);
+  if (prop === "order") return integer(v, CSS_LIMITS.order);
   if (prop === "flex") {
-    const parts = tokenizeCss(v, " ");
+    const parts = tokenizeCss(v, " ").parts;
     return (
       oneOf(v, "none auto initial") ||
+      number(v, CSS_LIMITS.factor) ||
       (parts?.length === 3 &&
-        number(parts[0] ?? "") &&
-        number(parts[1] ?? "") &&
+        number(parts[0] ?? "", CSS_LIMITS.factor) &&
+        number(parts[1] ?? "", CSS_LIMITS.factor) &&
         (length(parts[2] ?? "") || parts[2] === "auto"))
     );
   }

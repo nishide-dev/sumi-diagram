@@ -2442,6 +2442,22 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **契約:** 必須 `props.html` と `viewport: 320x176`（CSS px）。`width` / `height` / `fit` は画像と同じ。片側だけなら viewport 比、両側省略時は CSS px × 0.75pt（0.5pt 単位に丸める）で自然寸法を与える。image の両側省略禁止は変更しない。`default` / `framed` は既存画像枠の theme を共有し、新たな外観指定や layers は追加しない。label / icon は不可。
 - **検査:** Takumi 呼び出し前に `div/span/p/b/i/br` と quoted `style` 属性だけを解析する。閉じタグ・重複属性・宣言・コメントも検査する。CSS は flex/grid、位置、寸法、余白、色、枠、字体、行間、文字間隔、整列、white-space、opacity、border-box の明示 allow-list。未知 property・url・@rule・独自変数・外部 var・CSS escape/entity/comment・gradient・shadow・filter・overflow・transform は拒否。`font-family` は固定変数か同梱 family のみ。asset/unsafe-html と asset/unsupported-css を shared Diagnostic で返し、locator span により `props.html` 内の YAML 行・列に戻す（scalar の fallback 方針は §6.79）。
 - **厳密な構文と値:** タグ・属性の区切りは Takumi と同じ ASCII whitespace（space/tab/LF/FF/CR）のみ。非void要素の自己終了構文（`<div/>` 等）は拒否し、深さ予算を迂回させない。style は引用符・括弧を追跡して宣言・値を分割し、property ごとの完全一致 grammar を検査する。長さは px/pt/em/%/単位なし0（負値・%はpropertyが許す場合のみ）、数値は値域、色は #hex / rgb() / rgba() / 固定named-color一覧、keywords はproperty別列挙。gridは基本trackと有限repeatを許可。calc/min/max/clamp/hsl/minmax等の未検証関数は拒否。varはcolor位置にfg/muted/accent/bg、font-family位置にfont/monoのみ。注入時にも実値を同じ型grammarで検査し、未知値を黙ってrendererへ渡さない。
+- **数値契約（再レビュー）:** JSのfinite判定だけではTakumiのf32 overflowによる無視を防げないため、全numeric grammarを下表へ制限する。小数は小数点以下2桁まで、指数表記なし。長さは最大viewport辺2048pxを基準とする局所予算（小さいviewport内への収まりは #293）。通常のlayout/paint丸めは残る。font-sizeのem/%を親から解決し、他のemは最終font-sizeで解決して2048px上限も検査する。入れ子のemによる上限迂回も拒否する。
+
+  | 値 | inclusive range |
+  |---|---|
+  | 長さの絶対値 | 0、または1–2048px / 0.75–1536pt / 0.1–16em / 1–100%（負値・%はpropertyが許す場合だけ） |
+  | 解決済みfont-size | 0、または1–2048 CSS px |
+  | flex-grow/shrink（flex内部も）・fr | 0–64 |
+  | 単位なしline-height | 0–8（長さ指定は上記長さ予算） |
+  | opacity・数値alpha | 0–1 |
+  | RGB channel・百分率alpha | channelは0–255または0–100%、百分率alphaは0–100%（RGBの3channelは同じ単位） |
+  | font-weight | 100–900の100刻み、normal/bold。同梱faceはregular/boldを選択 |
+  | order | 整数−512–512 |
+  | grid line・span | 非0整数−64–64・正整数1–64 |
+  | repeat・展開後template track数 | count 1–64・合計64以下（top-level entryは16以下） |
+
+- **Takumi確認済み構文:** units/keywords/named colorsはcase-insensitive（40PX、FLEX、RED）。borderはwidth/style/colorを各1個、順序自由。flexは単独grow値、grow/shrink/basisの3値、none/auto/initialを許可。rgb()/rgba()は百分率channel/alphaも許可。固定var名と同梱family名は従来通り。tokenizerは失敗offsetを返し、後続宣言のquote/parenthesis不正・非ASCII CSS空白をその宣言のYAML行・列へ定位する。productionのcompile→Takumi→usvg正規化で新構文・数値端の実効性を回帰検査する。
 - **予算:** UTF-8 128 KiB、512 要素、深さ24。viewport は正整数 WxH、各辺2048px、総計2,097,152px 以下。入力予算は asset/too-large、viewport は asset/invalid-image。変換後も既存 SVG importer の予算と図全体の32MiB予算を通す。
 - **変換:** `@takumi-rs/wasm` を厳密に2.19.0へ固定。HTML → Takumi SVG → 同梱 PDF engine の picture operation（usvg）→ 既存 `importSvg()` → 既存 image IR の loading / placement / compositing。非同期変換は render 境界で行い、同期 compile / lint と既存 load API は維持する。生成SVGが importer に拒否された場合も黙って通さず既存 asset 診断を返す。SVG / PDF / picture PPTX は共通。editable PPTX は既存 pptx/unsupported-asset。
 - **Theme / fonts:** resolved theme から固定 `--sumi-fg/muted/accent/bg/font/mono` を wrapper に注入する。fg/bg/muted は同名 color token（無い場合 base/fallback）、accent は青 tone の resolved line 色。academic のグレー・paper の色を保持する。BIZ UDPGothic regular/bold、Inter regular/bold、BIZ UDGothic mono の順でローカル bytes だけを渡し、明示したfamilyで選択する。Takumi の bundled Geist fallback は残る（clearFonts()でも削除されないため、fresh rendererでの無効な呼び出しは除去）。Latin/日本語の実際の輪郭について、mono変数と明示familyの一致・異なるfamily間の差を回帰検査する。欠字lintは #293。images・URL font・取得オプションは渡さない。

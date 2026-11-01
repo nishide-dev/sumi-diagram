@@ -22,7 +22,7 @@ export interface HtmlIssue {
 }
 const tags = new Set(["div", "span", "p", "b", "i", "br"]);
 
-import { tokenizeCss, validCssValue } from "./html-css";
+import { CSS_LIMITS, tokenizeCss, validCssValue } from "./html-css";
 
 export function htmlViewport(value: string): { width: number; height: number } | undefined {
   const m = /^([1-9]\d*)x([1-9]\d*)$/.exec(value);
@@ -46,6 +46,7 @@ export function validateHtml(source: string): HtmlIssue[] {
       { code: "asset/too-large", message: "HTML exceeds the 128 KiB input budget.", offset: 0 },
     ];
   const stack: string[] = [];
+  const fontSizes: number[] = [];
   let count = 0,
     cursor = 0;
   while (cursor < source.length) {
@@ -72,6 +73,7 @@ export function validateHtml(source: string): HtmlIssue[] {
         start,
       );
     if (match[1]) {
+      fontSizes.pop();
       if (match[3]?.replace(/[ \t\n\f\r]/g, "") || match[4] || stack.pop() !== name)
         fail("asset/unsafe-html", "Mismatched closing tag.", start);
       continue;
@@ -81,6 +83,7 @@ export function validateHtml(source: string): HtmlIssue[] {
       break;
     }
     const attrs = match[3] ?? "";
+    let fontSize = fontSizes.at(-1) ?? 16;
     let at = 0,
       styled = false;
     while (at < attrs.length) {
@@ -107,13 +110,14 @@ export function validateHtml(source: string): HtmlIssue[] {
         );
       else {
         styled = true;
-        validateCss(attr[3] ?? attr[4] ?? "", offset, fail);
+        fontSize = validateCss(attr[3] ?? attr[4] ?? "", offset, fail, fontSize);
       }
       at += attr[0].length;
     }
     if (name !== "br") {
       if (match[4]) fail("asset/unsafe-html", "Self-closing syntax is allowed only on br.", start);
       stack.push(name);
+      fontSizes.push(fontSize);
     }
     if (stack.length > HTML_LIMITS.maxDepth) {
       fail("asset/too-large", "HTML exceeds nesting depth 24.", start);
@@ -131,19 +135,44 @@ function validateCss(
   style: string,
   offset: number,
   fail: (code: string, message: string, offset: number) => void,
-): void {
+  inheritedFontSize: number,
+): number {
   let cursor = 0;
-  const declarations = tokenizeCss(style, ";");
+  const tokenized = tokenizeCss(style, ";");
+  const declarations = tokenized.parts;
   if (!declarations) {
-    fail("asset/unsupported-css", "Malformed CSS quotes or parentheses.", offset);
-    return;
+    fail(
+      "asset/unsupported-css",
+      "Malformed CSS quotes, parentheses or non-ASCII whitespace.",
+      offset + tokenized.errorOffset,
+    );
+    return inheritedFontSize;
+  }
+  // Resolve the last font-size before checking em lengths, regardless of
+  // declaration order. This prevents nested em font sizes escaping the px budget.
+  let fontSize = inheritedFontSize;
+  for (const declaration of declarations) {
+    const match = /^\s*font-size\s*:\s*(.*?)\s*$/i.exec(declaration);
+    const value = match?.[1]?.toLowerCase();
+    if (!value || !validCssValue("font-size", value)) continue;
+    const scalar = Number.parseFloat(value);
+    fontSize = value.endsWith("em")
+      ? scalar * inheritedFontSize
+      : value.endsWith("%")
+        ? (scalar * inheritedFontSize) / 100
+        : value.endsWith("pt")
+          ? (scalar * 4) / 3
+          : scalar;
   }
   for (const declaration of declarations) {
     const at = offset + cursor + (declaration.length - declaration.trimStart().length);
     cursor += declaration.length + 1;
     if (!declaration.trim()) continue;
     const colon = declaration.indexOf(":");
-    const prop = declaration.slice(0, colon).trim().toLowerCase();
+    const prop = declaration
+      .slice(0, colon)
+      .trim()
+      .replace(/[A-Z]/g, (ch) => ch.toLowerCase());
     const value = declaration.slice(colon + 1).trim();
     const reject = (message: string) => fail("asset/unsupported-css", message, at);
     if (colon < 1) {
@@ -155,5 +184,17 @@ function validateCss(
       continue;
     }
     if (!validCssValue(prop, value)) reject(`Unsupported ${prop} value: ${value}.`);
+    else if (prop === "font-size" && (fontSize > CSS_LIMITS.px || (fontSize > 0 && fontSize < 1)))
+      reject("Resolved font-size must be 0 or 1–2048 CSS px.");
+    else if (
+      prop !== "font-family" &&
+      [...value.matchAll(/(-?(?:\d+(?:\.\d+)?|\.\d+))em\b/gi)].some(
+        (m) =>
+          Math.abs(Number(m[1])) * (prop === "font-size" ? inheritedFontSize : fontSize) >
+          CSS_LIMITS.px,
+      )
+    )
+      reject("Resolved em lengths must not exceed the 2048 CSS px side budget.");
   }
+  return fontSize;
 }

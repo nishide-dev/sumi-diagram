@@ -67,7 +67,7 @@ SVG / PDF / picture PPTX に描画した。フォントはrelease内の実ファ
 HTMLをSVG/PDF/picture PPTXに各2回描き、bytes一致、埋め込みSVGの複数glyph path、
 1ページのvector PDF、picture PPTXを検査する。
 
-### full CLIサイズの実測（レビュー修正後）
+### full CLIサイズの実測（初回レビュー修正 b670884 時点）
 
 同一ホスト darwin-arm64、Bun 1.3.14、同じ `bun run release:build --target darwin-arm64`
 でmain `136344848364e0faf301c22a2001e18fa8a199de` と修正worktreeをビルドした。
@@ -97,6 +97,44 @@ academic はグレー、paper は青のテーマaccent。日本語、等幅コ�
 
 ## 自動検査
 
+### b670884 再レビューの回帰検証
+
+`src/assets/html.test.ts` のproduction経路（compileFigure → renderHtmlAssets →
+Takumi 2.19.0 → usvg picture正規化）で下記を検査する。数値は有限性だけでなく
+§6.81 / Skill referenceと同じ保守的な局所予算へ制限する。
+
+| 値 | inclusive range |
+|---|---|
+| 長さの絶対値 | 0、または1–2048px / 0.75–1536pt / 0.1–16em / 1–100% |
+| 解決済みfont-size / 他のem長さ | font-sizeは0または1–2048 CSS px、他のemも解決後2048px以下 |
+| flex-grow/shrink（flex内部も）/ fr | 0–64 |
+| 単位なしline-height | 0–8 |
+| opacity / 数値alpha | 0–1 |
+| RGB / 百分率alpha | RGBは0–255または0–100%、百分率alphaは0–100% |
+| font-weight / order | 100–900の100刻み（またはnormal/bold）/ 整数−512–512 |
+| grid line / span / repeat | 非0整数−64–64 / 正整数1–64 / count 1–64 |
+| template track数 | 展開後64以下、top-level entryは16以下 |
+
+小数は小数点以下2桁まで、指数表記なし。RGBの3channelは同じ単位。
+負の長さ・%はpropertyの許可範囲内だけ。通常のlayout/paint丸めは残り、
+小さいviewport内への収まりは #293。nested em font-sizeと、font-size宣言の順序を
+入れ替えたem寸法の上限迂回も位置付き拒否を確認する。
+
+- 100px flex rowで20/20pxの子、grow=0は20/20、grow=.01は21/20、grow=64は
+  grow=1と同じ**80/20**。正規化SVGの80px pathもassertする。
+  shrink=0/.01/64も2048pxの子を用いて端点の効果を確認し、64は1と同じ80/20。
+  巨大数、64超え、flex内部のgrow/shrink/basisの巨大数はcompile時に拒否する。
+- px/pt/em/%の非0下限・上限と負側の端、0幅対照、opacity 0/.01/1、line-height 0/8/2048px、
+  font-size 1/2048px、font-weight 100/900、order ±512、fr .01/64、
+  grid line ±64 / span64 / repeat64を正規化SVGの差・等値で検証する。
+- 40PX / PT / EM、FLEX/COLUMN、RED、RGB(100%,0%,0%)、RGBAの百分率alphaを
+  小文字・数値表現とbytes比較し、未指定対照とも差を確認する。
+  borderのwidth/style/color全6順列、flex:1 / 1 1 0 / none / auto / initialを
+  確認済みの展開形と比較する。calc()は引き続き拒否。
+- `padding:4px;` の次行のmalformed quote/parenthesis・余分な閉じ括弧・非ASCII
+  CSS空白について、HTML offsetとYAML行12・列11をassertする。
+- 非HTMLのgoldenは変更せず、gallery:checkと既存PDF/PPTX/assetsのbytes検査を通す。
+
 - `src/assets/html.test.ts`: 許可/拒否、literal/quoted YAML位置、viewport・長さ・要素数・深さ、
   imageとの入口分離、固定テーマ変数、両engine、寸法比と自然寸法、container子、
   SVG/PDF/PPTXの2回一致、editable PPTXの既存診断。
@@ -109,9 +147,9 @@ academic はグレー、paper は青のテーマaccent。日本語、等幅コ�
   `bun run gallery:check` / `bun run schema:check` で検証する。
 - emoji の内容・importer・archiveは変更していない。
 
-レビュー修正後の最終結果: `bun run check` / `bun run typecheck` /
+再レビュー修正後の最終結果: `bun run check` / `bun run typecheck` /
 `bun run gallery:check`（227 files、bytes一致） / `bun run schema:check` が成功。
-`CI=1 bun run test` は **4,054 pass / 13 skip / 0 fail**
-（140 files、418.23秒）。skipは既存prototype・任意環境のテスト。
+`CI=1 bun run test` は **4,058 pass / 13 skip / 0 fail**
+（140 files、425.54秒）。skipは既存prototype・任意環境のテスト。
 初回実装時のPDF/PPTX/assets の正規 golden 更新コマンドも **646 pass / 0 fail**。
 `check` の13 warningは未変更の `research/277-html-subset/` に由来する既存のもの。
