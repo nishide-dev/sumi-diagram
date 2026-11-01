@@ -44,8 +44,13 @@ and correspondingly heavier arrowheads. The layout and dimensions are preserved.
 The PDF was rasterized with `pdftoppm` and compared with the reference,
 including text, input merges and the output bus. Regenerate its original
 vector assets with `bun examples/embedding-gemma/generate-assets.ts`, then
-run `bun run gallery`. The seeded 63-point scatter is illustrative, as are
-the explicit waveform amplitudes; neither is measured model/audio data.
+run `bun run gallery`. The seeded 63-point scatter balances blue, amber and
+red, with mixed pie-split points distributed across all three base colors.
+It is illustrative, as are the explicit waveform amplitudes; neither is
+measured model/audio data. This complete example supports SVG, PDF and
+picture PPTX. Editable PPTX rejects its HTML/image nodes with located
+`pptx/unsupported-asset` diagnostics, an existing exporter limitation;
+the new palette/frame controls themselves support editable PPTX.
 
 The gallery generator requires **no errors and no warnings**; info diagnostics
 are allowed. These are the infos from each example as written (including

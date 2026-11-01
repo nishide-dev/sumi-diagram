@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { checkFigure } from "../core/check";
 import { getTheme } from "../core/theme/builtin";
 import { DEFAULT_FONT_SET_ID, getFontSet } from "../core/theme/fonts";
+import { pageTextContrast } from "../core/theme/node-variants";
 import { lintGeometry } from "../lint/geometry";
 import { svgToPdf } from "./pdf";
 import { parsePdf } from "./pdf/testing";
@@ -70,7 +71,9 @@ nodes:
   expect(ir.nodes.find((node) => node.id === "outline")?.style.stroke).toBe("#2f62b0");
   const regular = ir.nodes.find((node) => node.id === "regular");
   expect(regular?.style.fill).toBe("#3d9df5");
-  expect(regular?.style.fontColor).not.toBe("#ffffff");
+  expect(regular).toBeDefined();
+  if (regular)
+    expect(fillContrast(regular.style.fill, regular.style.fontColor)).toBeGreaterThanOrEqual(4.5);
   const dim = await renderFigure(text.replace("variant: dashed", "variant: dashed\n    dim: true"));
   if (!dim.ok) throw new Error(JSON.stringify(dim.diagnostics));
   expect(dim.value.compiled.ir.groups[0]?.style.stroke).toBe("#949494");
@@ -82,6 +85,36 @@ nodes:
   // Refinements do not mutate the selected built-in theme.
   expect(getTheme("paper")?.toneLines.get("blue")?.stroke).toBe("#2f62b0");
 });
+
+// Ratios against the same white page cancel to give symmetric foreground/fill contrast.
+function fillContrast(fill: string, ink: string): number {
+  const ratios = [pageTextContrast(fill), pageTextContrast(ink)];
+  return Math.max(...ratios) / Math.min(...ratios);
+}
+
+test.each(["#000000", "#154c9e", "#757575", "#777777", "#3d9df5", "#ffffff"])(
+  "solid override %s retains passing white ink or selects ink with at least 4.5:1 contrast",
+  async (fill) => {
+    const result = await renderFigure(`version: 1
+figure:
+  id: contrast
+  theme: paper
+  themeOverrides: { solidFills: { blue: '${fill}' } }
+  layout: { arrange: { row: { items: [box] } } }
+nodes:
+  - { id: box, component: box, variant: solid, tone: blue, label: Readable }
+`);
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    expect(result.diagnostics).toEqual([]);
+    const node = result.value.compiled.ir.nodes[0];
+    if (!node) throw new Error("Missing labeled solid box");
+    expect(node.style.fill).toBe(fill);
+    expect(fillContrast(fill, node.style.fontColor)).toBeGreaterThanOrEqual(4.5);
+    if (pageTextContrast(fill) >= 4.5) expect(node.style.fontColor).toBe("#ffffff");
+    else expect(node.style.fontColor).not.toBe("#ffffff");
+    expect(result.value.svg).toContain(node.style.fontColor);
+  },
+);
 
 function pdfStreams(svg: string): string {
   const fontSet = getFontSet(DEFAULT_FONT_SET_ID);

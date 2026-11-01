@@ -50,9 +50,11 @@ for (let i = 0; i < 63; i++) {
   const r = 10 + random() * 2;
   const color = colors[i % 3];
   let body = `<circle r="${r.toFixed(2)}" fill="${color}"/>`;
-  if (i % 3 === 0) {
+  // Split every fourth point, cycling its base color independently of the split cadence.
+  // Unlike every third point, this keeps blue/amber/red areas balanced across the cloud.
+  if (i % 4 === 0) {
     body += `<path d="M0 0V${-r}A${r} ${r} 0 0 1 0 ${r}Z" fill="${colors[(i + 1) % 3]}"/>`;
-    if (i % 2 === 0)
+    if (i % 8 === 0)
       body += `<path d="M0 0L${-r * 0.866} ${-r * 0.5}A${r} ${r} 0 0 1 0 ${-r}Z" fill="${colors[(i + 2) % 3]}"/>`;
   }
   points.push(

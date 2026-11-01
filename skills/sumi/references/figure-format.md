@@ -511,9 +511,10 @@ including expanded frames. Omit any field to keep its existing default.
 Two optional figure-wide palette refinements accept strict `#RRGGBB` colors:
 `solidFills: { blue: '#3d9df5', orange: '#e8a20c', red: '#e04848' }` replaces
 the solid fill and matching border of those tones (including expanded
-tokens/matrix/legend nodes). Text is darkened from white if needed for 4.5:1
-contrast; solid stacks keep white layer separators. Other variants, tone-line
-text and edges retain the theme palette. `dashedGroupStroke: '#527da5'`
+tokens/matrix/legend nodes). Symmetric contrast evaluation retains white text
+on dark fills when it already meets 4.5:1; otherwise text is darkened until it
+meets that ratio against the fill. Solid stacks keep white layer separators.
+Other variants, tone-line text and edges retain the theme palette. `dashedGroupStroke: '#527da5'`
 changes only dashed group borders, preserving their fill and label color.
 Both refinements are applied before inherited dimming and never mutate the
 built-in theme. These are figure-wide refinements, not general per-element

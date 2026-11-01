@@ -2512,10 +2512,11 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 
 **決定:** 原図の丸い箱を維持し、既存の `edgeCorners: sharp` だけを使って入力合流・出力バスの直角とT字接続を描く。全edgeの既存 `emphasis` variantで黒0.5pt→1ptとし、矢じりも連動させる。座標・経路・寸法は変えない。色についてはHTMLへの置き換えやSVG後加工ではなく、nativeのtokens/waveformを保持する小さい汎用拡張を採用した。
 
-- **図単位パレット:** strictな `themeOverrides.solidFills` は既存8toneの任意部分集合から `#RRGGBB` への対応。solid nodeのfillとborderに適用し、白文字は必要なら既存 `readableInk()` で4.5:1まで暗くする。solid stackの白い層境界を維持し、展開token/matrix/legendも通常style解決を通す。他variantやtoneの文字色・edgeには影響しない。`dashedGroupStroke: '#RRGGBB'` はdashed groupのborderだけを変更する。これらはvariant/tone解決後、dim適用前の新しいstyleとして扱う。共有themeを変異させず、省略時の出力は維持する。§6.84の色調整の範囲をこの2用途だけ広げ、自由なCSSや座標指定は設けない。
+- **図単位パレット:** strictな `themeOverrides.solidFills` は既存8toneの任意部分集合から `#RRGGBB` への対応。solid nodeのfillとborderに適用する。`readableInk()` は明暗対称の `(max(Lfill, Link) + 0.05) / (min(Lfill, Link) + 0.05)` でcontrastを評価し、暗いfillで白文字が4.5:1を満たせば維持し、満たさない場合だけ暗くする。以前の明るい背景前提の式では黒や濃青のfillに黒文字を選ぶため修正した。solid stackの白い層境界を維持し、展開token/matrix/legendも通常style解決を通す。他variantやtoneの文字色・edgeには影響しない。`dashedGroupStroke: '#RRGGBB'` はdashed groupのborderだけを変更する。これらはvariant/tone解決後、dim適用前の新しいstyleとして扱う。共有themeを変異させず、省略時の出力は維持する。§6.84の色調整の範囲をこの2用途だけ広げ、自由なCSSや座標指定は設けない。
 - **waveform:** 任意props `frameStroke: '#RRGGBB'` でframeとsignalを分離する。既存signal色・線幅・形状・caption領域は保ち、autoのoutline合成とstructured writerのbodyだけにframe色を適用する。IRのrenderer params経由で保持し、outlineのgeometry自体は変更しない。継承dim時はIRへdim strokeを渡す。PDF/picture PPTXはSVGから、editable PPTXは既存のframe/signal分離primitiveから色を保存する。
 - **作例:** tokenはHTML encoderと同じ青 `#3d9df5`・琥珀 `#e8a20c`・赤 `#e04848`。音声frameは黒、signalは既存red。modular encoderの灰色fillを維持し、破線はlabelと同じ青灰色 `#527da5`。171.8×145.17mmを維持する。鋭角化と線幅変更後は幾何lintを含めerror/warning/infoすべて0。PDFを `pdftoppm` で `.sumi/preview/` にPNG化し、`.sumi/ref/original.png` と全体・文字・合流を比較した。
-- **検証:** 展開solid cellの実効fill、他variant非変更、角丸維持、文字のcontrast調整、共有theme非変異、dim優先、未知tone/不正色のschema拒否、auto/structuredのframeとsignal別色、editable PPTXの両色保存を回帰検査する。JSON SchemaとSkillを同期し、galleryとPDF/PPTX goldenは通常の生成経路で更新する。
+- **散布図とexport:** seed 299・63点・座標は維持し、3点周期の色と分割対象が同期して青だけを覆っていた点を修正。4点周期で分割し、8点周期で3色分割、それ以外は2色分割とする。青・琥珀・赤の単色点と混色点を分散させる。作例全体はSVG/PDF/picture PPTXに対応するが、HTML/imageを含むためeditable PPTXは位置付き `pptx/unsupported-asset` で拒否される既存制限がある。汎用palette/frame制御自体のeditable PPTX対応とは区別する。
+- **検証:** 展開solid cellの実効fill、他variant非変更、角丸維持、文字のcontrast調整（黒・濃青・中間灰の4.5:1境界両側・明るい青・白のラベル付きsolidを描画し、実際の比率と合格済み白文字の維持を検査）、共有theme非変異、dim優先、未知tone/不正色のschema拒否、auto/structuredのframeとsignal別色、editable PPTXの両色保存を回帰検査する。JSON SchemaとSkillを同期し、galleryとPDF/PPTX goldenは通常の生成経路で更新する。
 
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
