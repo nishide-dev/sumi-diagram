@@ -412,6 +412,29 @@ export const FigureMetaSchema = z.strictObject({
   id: Id,
   title: z.string().optional(),
   theme: z.string().min(1).default("minimal").describe("Built-in theme name."),
+  themeOverrides: z
+    .strictObject({
+      nodeCorners: z
+        .literal("square")
+        .optional()
+        .describe(
+          "Square node/group frames, including expanded matrix/tokens cells and legends. Intrinsically curved shapes are preserved.",
+        ),
+      edgeCorners: z
+        .literal("sharp")
+        .optional()
+        .describe(
+          "Sharp structured wires, including hidden junctions/forks, with butt caps and miter joins. Editable PPTX wires use flat caps and miter joins in both connector modes.",
+        ),
+      groupLabelWeight: z
+        .enum(["regular", "bold"])
+        .optional()
+        .describe("Weight of group headings, overriding the theme's group variants."),
+    })
+    .optional()
+    .describe(
+      "Figure-wide refinements of the selected built-in theme. Omitted fields preserve the theme.",
+    ),
   profile: z.string().min(1).default("paper-single").describe("Built-in output profile name."),
   fit: z
     .enum(FIGURE_FITS)

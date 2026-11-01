@@ -1,0 +1,20 @@
+/** Original deterministic illustration; run: bun examples/clip/assets/generate.ts. */
+const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180">
+<rect width="180" height="180" fill="#d9e8ed"/>
+<path d="M0 105L40 85L80 104L130 77L180 95V180H0Z" fill="#8eaa7a"/>
+<path d="M0 134Q80 111 180 130V180H0Z" fill="#6c8d58"/>
+<ellipse cx="94" cy="158" rx="53" ry="9" fill="#536e46"/>
+<ellipse cx="96" cy="124" rx="39" ry="34" fill="#56535a"/>
+<path d="M64 75L42 34L78 45L115 43L146 30L134 84Z" fill="#343840"/>
+<ellipse cx="95" cy="78" rx="41" ry="43" fill="#65646d"/>
+<path d="M87 37L102 37L109 84L97 113L80 88Z" fill="#faf1df"/>
+<path d="M61 77Q70 63 81 78M111 77Q122 62 132 77" fill="none" stroke="#ba926b" stroke-width="8"/>
+<ellipse cx="97" cy="97" rx="25" ry="18" fill="#eee2ce"/>
+<ellipse cx="97" cy="90" rx="9" ry="6" fill="#262b31"/>
+<circle cx="73" cy="74" r="4" fill="#20262d"/><circle cx="121" cy="74" r="4" fill="#20262d"/>
+<path d="M89 108Q98 113 105 107L103 123Q96 131 90 122Z" fill="#cb8d91"/>
+<path d="M78 124L86 149L103 149L115 120L103 135L93 130Z" fill="#f6eddd"/>
+<ellipse cx="74" cy="153" rx="14" ry="9" fill="#eee2ce"/><ellipse cx="118" cy="153" rx="14" ry="9" fill="#eee2ce"/>
+</svg>
+`;
+await Bun.write(new URL("synthetic-dog.svg", import.meta.url), svg);
