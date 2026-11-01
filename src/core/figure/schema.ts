@@ -412,6 +412,23 @@ export const FigureMetaSchema = z.strictObject({
   id: Id,
   title: z.string().optional(),
   theme: z.string().min(1).default("minimal").describe("Built-in theme name."),
+  themeOverrides: z
+    .strictObject({
+      corners: z
+        .literal("square")
+        .optional()
+        .describe(
+          "Square node/group frames and sharp structured wires, including hidden junctions. Intrinsically curved shapes are preserved.",
+        ),
+      groupLabelWeight: z
+        .enum(["regular", "bold"])
+        .optional()
+        .describe("Weight of group headings, overriding the theme's group variants."),
+    })
+    .optional()
+    .describe(
+      "Figure-wide refinements of the selected built-in theme. Omitted fields preserve the theme.",
+    ),
   profile: z.string().min(1).default("paper-single").describe("Built-in output profile name."),
   fit: z
     .enum(FIGURE_FITS)

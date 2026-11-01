@@ -2492,6 +2492,18 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **ローカル実測:** Bun 1.3.14 / darwin-arm64 で新規24 hash と compiled release smoke の共通6 hash が一致。既存154 YAML の比較は SVG / PDF / picture PPTX 各644件、D2 234件が全一致、失敗入力の診断 code も変化なし。全体テストは4,066 pass / 13 skip / 0 fail、gallery 227生成物と schema も最新。OS 間一致の最終判断は上記 CI 待ちとする。
 
 
+### 6.84 #299 の作例昇格と図単位のテーマ調整
+
+**決定:** CLIP Figure 1 の仕上げで、`paper` の色・フォントを保ったまま角丸を外し、3つの見出しを通常ウェイトにする必要があった。組み込みテーマの変更や図固有のSVG後加工ではなく、strictな `figure.themeOverrides` を追加する。
+
+- **スキーマ:** `corners: square` と `groupLabelWeight: regular | bold` のみ。各フィールドは任意で、未知のキー・値・型は既存のschema診断で拒否する。自由なCSS、色、座標、テーマ継承・外部テーマ読込は追加しない。JSON SchemaとSkillの仕様も同期する。
+- **解決:** variant / tone / monoの解決後、dim適用前に図単位で新しいstyleを作る。squareはnode/groupのradiusを0にし、展開されたtokens・matrix・legendの枠とセルにも適用する。見出しのウェイトもgroupのvariantより優先する。共有の組み込みthemeオブジェクトは変更しない。円・波括弧・台形など固有の輪郭は維持する。
+- **structuredの幹:** Figure IRに書かれたoverrideだけを保持し、wire描画と幾何lint共通の `paintedEdges()` でsquare時の角半径を0にする。既存のnet単位の直線unionは維持し、hidden junctionを丸めず、1本の幹へ垂直な枝が接するcombを描く。strokeはbutt/miter。routerの余裕（§6.73）は保守的に維持するので、経路・矢じり配置は変えない。auto/D2への適用範囲はnode/groupの枠と見出しのみで、D2の経路は変えない。
+- **互換性:** override省略時はIRへの追加もなく、既存のradius・ウェイト・wire属性をそのまま使う。既存作例とgalleryのSVG/PDFは再生成でバイト一致を検査する。回帰テストは展開セルのradius、テーマ非変異、通常時の丸いjunction、square時の直線幹・同長の垂直枝・arcゼロ、幾何lint、無効なoverrideを検査する。
+- **CLIP:** `examples/clip/` にYAML・SVG・PDFと決定的な自作SVG犬の生成スクリプトを配置。研究履歴 `research/271-clip/` はそのまま残す。3見出しを通常ウェイト1行、全encoderを48×72pt、クラス名・カード・prompt・answerをmono、object/dogをpink、answerを枠付きにする。ラベル列の波括弧はユーザーの指定を維持。180×67.64mm、本文5.74pt、添字4.02ptのinfoが1件。PNG全体と各幹・台形の拡大を原図と目視比較する。
+- **長い見出し:** 原図どおりの45文字の第2見出しは長さの既定heuristic（40文字）を超えるため、作例ローカルの `lint.json` で上限を48にする。ルールを無効化せず、warning上限0を維持する。実寸のoverflowはgeometry lintで別途検査する。galleryは従来の生成経路を使う。
+- **出力検査:** PDFテスト用の `textLines()` は同じフォント・サイズ・baselineでも色が変わったらrunを分ける。monoの通常文字と色付き語が同じフォントになる作例で、実装の変更なしにSVGのrunごとの位置・幅を検査できるようにする。PDFエンジン・生成バイトは変更しない。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）

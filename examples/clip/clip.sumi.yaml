@@ -1,0 +1,159 @@
+# Source: Radford et al. (2021), Learning Transferable Visual Models From
+# Natural Language Supervision, arXiv:2103.00020, Figure 1 (Summary of our approach).
+# https://arxiv.org/abs/2103.00020
+# Original synthetic dog illustration: assets/generate.ts (no paper images).
+version: 1
+figure:
+  id: clip-overview
+  title: CLIP — Summary of our approach
+  theme: paper
+  themeOverrides: { corners: square, groupLabelWeight: regular }
+  profile: paper-double
+  fit: scale
+  layout:
+    density: compact
+    align:
+      - { y: [ image-one, scores ] }
+    arrange:
+      row: { gap: 12pt, align: start, items: [ training, inference ] }
+groups:
+  - id: training
+    variant: plain
+    label: (1) Contrastive pre-training
+    labelAt: top-left
+    arrange:
+      grid:
+        columns: 2
+        rowGap: 4pt
+        columnGap: 4pt
+        items: [ null, text-tokens, image-tokens, sim ]
+  - id: inference
+    variant: plain
+    label: (2) Create dataset classifier from label text
+    labelAt: top-left
+    arrange:
+      grid:
+        columns: 2
+        rowGap: 24pt
+        columnGap: 7pt
+        items:
+          - row: { gap: 18pt, items: [ labels, prompt, class-text ] }
+          - null
+          - prediction
+          - stack: { gap: 4pt, items: [ class-tokens, scores ] }
+  - id: prediction
+    variant: plain
+    label: (3) Use for zero-shot prediction
+    labelAt: top-left
+    arrange:
+      row: { gap: 14pt, items: [ photo, predict-image, image-one ] }
+nodes:
+  # Straight shared buses with one perpendicular arrow into each header cell.
+  - { id: text-bus, component: junction, variant: hidden, attach: { to: text-tokens.1, side: north, gap: 14pt } }
+  - { id: text-bus-two, component: junction, variant: hidden, attach: { to: text-tokens.2, side: north, gap: 14pt } }
+  - { id: text-bus-three, component: junction, variant: hidden, attach: { to: text-tokens.3, side: north, gap: 14pt } }
+  - { id: text-bus-dots, component: junction, variant: hidden, attach: { to: text-tokens.4, side: north, gap: 14pt } }
+  - { id: text-bus-n, component: junction, variant: hidden, attach: { to: text-tokens.5, side: north, gap: 14pt } }
+  - { id: image-bus, component: junction, variant: hidden, attach: { to: image-tokens.3, side: west, gap: 12pt } }
+  - { id: image-bus-one, component: junction, variant: hidden, attach: { to: image-tokens.1, side: west, gap: 12pt } }
+  - { id: image-bus-two, component: junction, variant: hidden, attach: { to: image-tokens.2, side: west, gap: 12pt } }
+  - { id: image-bus-dots, component: junction, variant: hidden, attach: { to: image-tokens.4, side: west, gap: 12pt } }
+  - { id: image-bus-n, component: junction, variant: hidden, attach: { to: image-tokens.5, side: west, gap: 12pt } }
+  - { id: class-bus, component: junction, variant: hidden, attach: { to: class-tokens.1, side: north, gap: 14pt } }
+  - { id: class-bus-two, component: junction, variant: hidden, attach: { to: class-tokens.2, side: north, gap: 14pt } }
+  - { id: class-bus-three, component: junction, variant: hidden, attach: { to: class-tokens.3, side: north, gap: 14pt } }
+  - { id: class-bus-dots, component: junction, variant: hidden, attach: { to: class-tokens.4, side: north, gap: 14pt } }
+  - { id: class-bus-n, component: junction, variant: hidden, attach: { to: class-tokens.5, side: north, gap: 14pt } }
+  - { id: captions, component: stack, mono: true, label: "Pepper the\naussie pup", attach: { to: train-text, side: west, gap: 10pt }, props: { width: 66pt, height: 36pt } }
+  - { id: train-text, component: trapezoid, label: "Text\nEncoder", tone: purple, attach: { to: text-bus, side: west, gap: 68.5pt }, props: { width: 48pt, height: 72pt, narrow: east } }
+  - { id: photos, component: image, variant: framed, attach: { to: train-image, side: west, gap: 22pt }, props: { src: assets/synthetic-dog.svg, width: 38pt, height: 38pt, layers: { count: 3, offset: 3pt } } }
+  - { id: train-image, component: trapezoid, label: "Image\nEncoder", tone: green, attach: { to: image-bus, side: west, gap: 14pt }, props: { width: 48pt, height: 72pt, narrow: east } }
+  - id: text-tokens
+    component: tokens
+    tone: purple
+    props: { gap: 0, width: 29pt, height: 24pt, cells: [ '$T_1$', '$T_2$', '$T_3$', { label: '…', component: label }, '$T_N$' ] }
+  - id: image-tokens
+    component: tokens
+    tone: green
+    props: { direction: down, gap: 0, width: 24pt, height: 25pt, cells: [ '$I_1$', '$I_2$', '$I_3$', { label: '⋮', component: label }, '$I_N$' ] }
+  - id: sim
+    component: matrix
+    props:
+      flush: true
+      cellWidth: 29pt
+      cellHeight: 25pt
+      variant: outlined
+      classes: { d: { tone: blue, variant: tinted }, o: {} }
+      ellipsisRows: [ 4 ]
+      ellipsisColumns: [ 4 ]
+      cells:
+        - [ { class: d, text: '$I_1\cdot T_1$' }, { class: o, text: '$I_1\cdot T_2$' }, { class: o, text: '$I_1\cdot T_3$' }, o, { class: o, text: '$I_1\cdot T_N$' } ]
+        - [ { class: o, text: '$I_2\cdot T_1$' }, { class: d, text: '$I_2\cdot T_2$' }, { class: o, text: '$I_2\cdot T_3$' }, o, { class: o, text: '$I_2\cdot T_N$' } ]
+        - [ { class: o, text: '$I_3\cdot T_1$' }, { class: o, text: '$I_3\cdot T_2$' }, { class: d, text: '$I_3\cdot T_3$' }, o, { class: o, text: '$I_3\cdot T_N$' } ]
+        - ooooo
+        - [ { class: o, text: '$I_N\cdot T_1$' }, { class: o, text: '$I_N\cdot T_2$' }, { class: o, text: '$I_N\cdot T_3$' }, o, { class: d, text: '$I_N\cdot T_N$' } ]
+  - id: labels
+    component: tokens
+    mono: true
+    props: { direction: down, gap: 0, width: 32pt, height: 18pt, variant: outlined, cells: [ plane, car, dog, { label: '⋮', component: label, variant: default }, bird ] }
+  - { id: label-brace, component: bracket, attach: { to: labels, side: east, gap: 3pt }, props: { form: curly } }
+  - { id: prompt, component: box, mono: true, label: "A photo of\na $\\textcolor{pink}{\\text{\\{object\\}}}$.", props: { width: 72pt, height: 30pt } }
+  - { id: class-text, component: trapezoid, label: "Text\nEncoder", tone: purple, props: { width: 48pt, height: 72pt, narrow: east } }
+  - id: class-tokens
+    component: tokens
+    tone: purple
+    props: { gap: 0, width: 29pt, height: 24pt, cells: [ '$T_1$', '$T_2$', '$T_3$', { label: '…', component: label }, '$T_N$' ] }
+  - { id: photo, component: image, variant: framed, props: { src: assets/synthetic-dog.svg, width: 38pt, height: 38pt } }
+  - { id: predict-image, component: trapezoid, label: "Image\nEncoder", tone: green, props: { width: 48pt, height: 72pt, narrow: east } }
+  - { id: image-one, component: box, label: '$I_1$', tone: green, props: { width: 24pt, height: 25pt } }
+  - id: scores
+    component: matrix
+    props:
+      flush: true
+      cellWidth: 29pt
+      cellHeight: 25pt
+      variant: outlined
+      classes: { d: { tone: blue, variant: tinted }, o: {} }
+      ellipsisColumns: [ 4 ]
+      cells:
+        - [ { class: o, text: '$I_1\cdot T_1$' }, { class: o, text: '$I_1\cdot T_2$' }, { class: d, text: '$I_1\cdot T_3$' }, o, { class: o, text: '$I_1\cdot T_N$' } ]
+  - { id: answer, component: box, mono: true, label: "A photo of\na $\\textcolor{pink}{\\text{dog}}$.", attach: { to: scores, side: south, gap: 16pt }, props: { width: 72pt, height: 30pt } }
+edges:
+  - { from: captions, to: train-text }
+  - { from: train-text, to: text-bus, component: line, fromAnchor: east }
+  - { from: text-bus, to: text-bus-two, component: line }
+  - { from: text-bus-two, to: text-bus-three, component: line }
+  - { from: text-bus-three, to: text-bus-dots, component: line }
+  - { from: text-bus-dots, to: text-bus-n, component: line }
+  - { from: text-bus, to: text-tokens.1, toAnchor: north }
+  - { from: text-bus-two, to: text-tokens.2, toAnchor: north }
+  - { from: text-bus-three, to: text-tokens.3, toAnchor: north }
+  - { from: text-bus-dots, to: text-tokens.4, toAnchor: north }
+  - { from: text-bus-n, to: text-tokens.5, toAnchor: north }
+  - { from: photos, to: train-image }
+  - { from: train-image, to: image-bus, component: line, fromAnchor: east }
+  - { from: image-bus-one, to: image-bus-two, component: line }
+  - { from: image-bus-two, to: image-bus, component: line }
+  - { from: image-bus, to: image-bus-dots, component: line }
+  - { from: image-bus-dots, to: image-bus-n, component: line }
+  - { from: image-bus-one, to: image-tokens.1, toAnchor: west }
+  - { from: image-bus-two, to: image-tokens.2, toAnchor: west }
+  - { from: image-bus, to: image-tokens.3, toAnchor: west }
+  - { from: image-bus-dots, to: image-tokens.4, toAnchor: west }
+  - { from: image-bus-n, to: image-tokens.5, toAnchor: west }
+  - { from: label-brace, to: prompt, fromAnchor: east, toAnchor: west }
+  - { from: prompt, to: class-text }
+  - { from: class-text, to: class-bus, component: line, fromAnchor: east }
+  - { from: class-bus, to: class-bus-two, component: line }
+  - { from: class-bus-two, to: class-bus-three, component: line }
+  - { from: class-bus-three, to: class-bus-dots, component: line }
+  - { from: class-bus-dots, to: class-bus-n, component: line }
+  - { from: class-bus, to: class-tokens.1, toAnchor: north }
+  - { from: class-bus-two, to: class-tokens.2, toAnchor: north }
+  - { from: class-bus-three, to: class-tokens.3, toAnchor: north }
+  - { from: class-bus-dots, to: class-tokens.4, toAnchor: north }
+  - { from: class-bus-n, to: class-tokens.5, toAnchor: north }
+  - { from: photo, to: predict-image }
+  - { from: predict-image, to: image-one }
+  - { from: image-one, to: scores, fromAnchor: east, toAnchor: west }
+  - { from: scores, to: answer, fromAnchor: south, toAnchor: north }

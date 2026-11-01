@@ -45,6 +45,7 @@ figure:                    # required
   id: request-flow         # required ID
   title: Request handling  # optional, not drawn
   theme: minimal           # optional, default minimal
+  # themeOverrides: { corners: square, groupLabelWeight: regular }
   profile: paper-single    # optional, default paper-single
   # fit: scale             # optional (0.6.0): shrink a too-wide figure to the profile width (layout-tips)
   layout:
@@ -489,6 +490,15 @@ edges:
 ## Themes and profiles
 
 They are built in; there is no way to define your own in a figure.
+`figure.themeOverrides` refines the selected theme for this figure only:
+`corners: square` removes node/group frame radii and draws structured wires
+with sharp turns and T-joins at hidden junctions. Intrinsically curved shapes
+(circles, cylinders, curly brackets) retain their outlines. Auto/D2 figures
+also get square node/group frames; their wire routing remains D2's.
+`groupLabelWeight: regular | bold` overrides every group heading's weight,
+including expanded frames. Omit either field to keep the theme's setting.
+These are figure-wide presets, not per-element styles; theme colors, fonts,
+spacing and line widths remain selected by the built-in theme.
 `sumi catalog --json` lists them (see
 [below](#discovering-themes-and-profiles)); the hint of `theme/unknown` /
 `profile/unknown` names them too. The tables are a summary.

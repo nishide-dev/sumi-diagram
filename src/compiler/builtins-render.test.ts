@@ -275,6 +275,13 @@ describe.skipIf(!available)("built-in primitives render with D2", () => {
               ["info", "geometry/arrowhead-cramped"],
               ["info", "geometry/arrowhead-cramped"],
             ]);
+          } else if (example === "examples/clip/clip.sumi.yaml") {
+            expect(stderr).toContain("0 errors, 0 warnings, 1 info");
+            expect(
+              [...stderr.matchAll(/^examples\/.*:\d+:\d+ (\w+) ([\w/-]+)/gm)].map(
+                ([, severity, code]) => [severity, code],
+              ),
+            ).toEqual([["info", "geometry/script-too-small"]]);
           } else expect(stderr).toBe("");
           const svg = await Bun.file(output).text();
           const committed = example.replace(/\.sumi\.yaml$/, ".svg");
