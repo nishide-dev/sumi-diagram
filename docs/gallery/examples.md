@@ -4,6 +4,12 @@
 
 The committed SVGs of <code>examples/</code>, rendered from their sources as written\.
 
+## CLIP — Summary of our approach
+
+[<code>examples/clip/clip\.sumi\.yaml</code>](../../examples/clip/clip.sumi.yaml) · [PDF](../../examples/clip/clip.pdf) · theme <code>paper</code> · profile <code>paper\-double</code> · 180mm × 67\.64mm \(max width 180mm, max height 220mm\)<br>info geometry/script\-too\-small: Subscripts or superscripts of label math print at down to 4\.02pt \(5\.6pt shrunk to 71\.8% by figure\.fit: scale\), below the 5pt minimum font size of profile &quot;paper\-double&quot; for a scaled figure: in cell &quot;1&quot; of tokens &quot;text\-tokens&quot;, cell &quot;2&quot; of tokens &quot;text\-tokens&quot;, cell &quot;3&quot; of tokens &quot;text\-tokens&quot; and 30 more labels\.
+
+<img src="../../examples/clip/clip.svg" alt="CLIP — Summary of our approach">
+
 ## Generic decision flow
 
 [<code>examples/decision\-flow/decision\-flow\.sumi\.yaml</code>](../../examples/decision-flow/decision-flow.sumi.yaml) · [PDF](../../examples/decision-flow/decision-flow.pdf) · theme <code>minimal</code> · profile <code>paper\-single</code> · 59\.62mm × 149\.4mm \(max width 88mm, max height 220mm\)

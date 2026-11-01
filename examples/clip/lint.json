@@ -1,0 +1,6 @@
+{
+  "rules": {
+    "lint/long-label": { "options": { "maxLineWidth": 48 } }
+  },
+  "maxWarnings": 0
+}

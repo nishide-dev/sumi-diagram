@@ -659,7 +659,12 @@ export function svgToEditablePptx(
         ? paint(property(first, "fill") ?? element.style.fill, element.style.opacity)
         : "<a:noFill/>";
       const stroke = first
-        ? line(first, element.style, "", waveform ? "svg-default" : "round")
+        ? line(
+            first,
+            element.style,
+            "",
+            waveform || ir.meta.themeOverrides?.nodeCorners === "square" ? "svg-default" : "round",
+          )
         : "<a:ln><a:noFill/></a:ln>";
       const turned = label?.rotation !== undefined;
       // An upright sublabel (#184) joins the node's text when paragraph
@@ -803,6 +808,7 @@ export function svgToEditablePptx(
         last = geo.path.at(-1)?.to;
       if (!first || !last) throw new Error(`Empty edge ${key}`);
       const arrows = ends(element, path);
+      const edgeStroke = ir.meta.themeOverrides?.edgeCorners === "sharp" ? "svg-default" : "round";
       // A zoom edge (#176) is two lines between corners, not a connector
       // between sites: it stays a freeform shape in either mode.
       if (connectors === "glued" && element.routing !== "zoom") {
@@ -822,7 +828,7 @@ export function svgToEditablePptx(
         };
         const flip = `${b.point.x < a.point.x ? ' flipH="1"' : ""}${b.point.y < a.point.y ? ' flipV="1"' : ""}`;
         output.push(
-          `<p:cxnSp><p:nvCxnSpPr><p:cNvPr id="${id}" name="${escapeXml(key)}"/><p:cNvCxnSpPr><a:stCxn id="${src.id}" idx="${a.index}"/><a:endCxn id="${dst.id}" idx="${b.index}"/></p:cNvCxnSpPr><p:nvPr/></p:nvCxnSpPr><p:spPr>${xfrm(box, flip)}<a:prstGeom prst="straightConnector1"><a:avLst/></a:prstGeom>${line(path, element.style, arrows)}</p:spPr></p:cxnSp>`,
+          `<p:cxnSp><p:nvCxnSpPr><p:cNvPr id="${id}" name="${escapeXml(key)}"/><p:cNvCxnSpPr><a:stCxn id="${src.id}" idx="${a.index}"/><a:endCxn id="${dst.id}" idx="${b.index}"/></p:cNvCxnSpPr><p:nvPr/></p:nvCxnSpPr><p:spPr>${xfrm(box, flip)}<a:prstGeom prst="straightConnector1"><a:avLst/></a:prstGeom>${line(path, element.style, arrows, edgeStroke)}</p:spPr></p:cxnSp>`,
         );
       } else {
         const bounds = new BoundsBuilder().addPath(geo.path).rect();
@@ -836,7 +842,7 @@ export function svgToEditablePptx(
             bounds,
             geometry([{ segments: geo.path, filled: false }], bounds, emu),
             "<a:noFill/>",
-            line(path, element.style, arrows),
+            line(path, element.style, arrows, edgeStroke),
           ),
         );
       }

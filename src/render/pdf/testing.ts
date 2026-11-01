@@ -629,6 +629,7 @@ export function inspectPdf(bytes: Uint8Array): PdfInspection {
 
 export interface PdfTextLine {
   text: string;
+  color?: readonly number[];
   /** Left end of the first glyph and right end of the last (pt, page space). */
   x0: number;
   x1: number;
@@ -639,7 +640,7 @@ export interface PdfTextLine {
 }
 
 /**
- * Groups glyphs into lines: consecutive glyphs with the same font, size and
+ * Groups glyphs into lines: consecutive glyphs with the same paint, font, size and
  * baseline whose origins continue where the previous glyph ended.
  */
 export function textLines(glyphs: readonly PdfGlyph[], tolerance = 0.01): PdfTextLine[] {
@@ -648,6 +649,7 @@ export function textLines(glyphs: readonly PdfGlyph[], tolerance = 0.01): PdfTex
     const last = lines.at(-1);
     if (
       last !== undefined &&
+      JSON.stringify(last.color) === JSON.stringify(g.color) &&
       last.font === g.font &&
       Math.abs(last.size - g.size) < tolerance &&
       Math.abs(last.y - g.y) < tolerance &&
@@ -658,6 +660,7 @@ export function textLines(glyphs: readonly PdfGlyph[], tolerance = 0.01): PdfTex
     } else {
       lines.push({
         text: g.text,
+        ...(g.color !== undefined && { color: g.color }),
         x0: g.x,
         x1: g.x + g.advance,
         y: g.y,

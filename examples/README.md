@@ -14,6 +14,7 @@ vector PDF (#59).
 | [`transformer/`](transformer/transformer.sumi.yaml) | `paper` / `paper-single` | the structured layout (`figure.layout.arrange`, design doc §6.23) with `density: compact`: stacks and rows, `align: stretch`, attached notes, operators and hidden junctions (smooth forks), anchored edges and shared trunks (the Transformer architecture, 78mm wide) |
 | [`dit-block/`](dit-block/dit-block.sumi.yaml) | `paper` / `paper-double` | the faithful four-panel DiT figure: Latent Diffusion Transformer, adaLN-Zero, Cross-Attention and In-Context Conditioning; structured layout with `fit: scale`, filled tones with sublabels, a plain (frameless) group, dimmed alternatives, a `zoom` callout, label math, and four labeled conditioning taps over a shared bus (180mm × 84.69mm) |
 | [`embedding-gemma/`](embedding-gemma/embedding-gemma.sumi.yaml) | `paper` / `paper-double` | EmbeddingGemma 2 Figure 1: restricted `html` prompt and syntax-colored code cards, exact-color HTML encoder blocks, illustrative sample-driven `waveform`, ten `tokens`, orthogonal multimodal joins and an output bus, and original synthetic guitar/video/scatter SVG assets with a deterministic generator (171.8mm × 145.17mm) |
+| [`clip/`](clip/clip.sumi.yaml) | `paper` / `paper-double` | Radford et al. (2021), Figure 1: contrastive pre-training, a text-derived classifier and zero-shot prediction; square theme overrides, sharp shared comb buses, trapezoid encoders, monospace cards, a curly bracket, formula matrices and an original synthetic vector dog (180mm × 67.64mm) |
 
 `pipeline` and `decision-flow` use `direction: down`: four or more nodes in a
 row to the right are already wider than `paper-single` (88mm).
@@ -22,10 +23,11 @@ groups from the side (with `direction: down` they cross the groups' centered
 labels, `geometry/edge-crosses-label`), which makes them wider than one paper
 column: they use `paper-double` (180mm).
 
-All seven pass `sumi lint --geometry` without errors or warnings. The three
+All eight pass `sumi lint --geometry` without errors or warnings (CLIP uses
+`--config examples/clip/lint.json`, as explained below). The four
 structured figures use the `paper` theme (the color, ML-paper style) and are laid out and routed by Sumi
 itself, without D2. `transformer` fits one column; `dit-block` is wider than
-`paper-double` and is scaled down to it (`fit: scale`).
+`paper-double` and is scaled down to it (`fit: scale`), as is `clip`.
 
 `embedding-gemma` uses a moderate 171.8mm width without scaling: the five
 input columns and the full audio caption remain legible (native labels are
@@ -51,10 +53,43 @@ geometry lint):
 | `transformer` | none |
 | `dit-block` | 6: `geometry/script-too-small` ×1 (math scripts down to 3.99pt after scaling to 81.38%); `geometry/group-empty-area` ×2 (the equal-height Cross-Attention and In-Context panels); `geometry/arrowhead-cramped` ×3 (conditioning taps, 1.63pt straight stems after scaling) |
 | `embedding-gemma` | 3: `geometry/edge-near-border` ×3 (the Images/Video and Video/Audio input joins run 0.44mm above the dashed modular-encoder frame for 8.8mm, 10.8mm and 24.9mm; accepted to preserve the reference's compact encoder row) |
+| `clip` | 1: `geometry/script-too-small` ×1 (math scripts down to 4.02pt after scaling to 71.81%; body text is 5.74pt, above the 5pt scaled minimum) |
 
 The DiT infos are accepted to preserve the complete four-panel reference at
 180mm. Inspect the vector PDF for inline-math labels: `rsvg-convert` drops
 the space before inline math, a known rasterizer issue ([#266](https://github.com/nishide-dev/sumi-diagram/issues/266)).
+
+CLIP preserves the reference's one-line panel headings. Its local lint config
+raises only `lint/long-label.maxLineWidth` from 40 to 48 for the 45-character
+panel-2 heading; every rule remains enabled and `maxWarnings` is zero.
+This is a character-count heuristic, not a font-size or overflow exemption:
+geometry lint still checks the actual one-line heading at the printed size.
+Highlighted matrix labels use the same gray ink as the other cells via
+`\textcolor{gray}{…}`, retaining the blue tinted fill and frame. The cards,
+label list, prompt and answer use the bundled BIZ UDGothic mono font (§6.76);
+its sans-serif glyphs differ from the reference's typewriter face.
+CLIP uses independent `figure.themeOverrides` options: `nodeCorners: square`
+for square node/group frames and expanded cells, `edgeCorners: sharp` for
+sharp wires and hidden junctions/forks, and `groupLabelWeight: regular`.
+Either corner option also works alone (sharp wires can retain rounded boxes).
+Editable PPTX preserves square frame joins and sharp wire caps/joins in both
+connector modes; CLIP itself uses picture export because it contains images.
+
+Verify and regenerate with:
+
+```sh
+bun src/cli/index.ts lint --geometry --config examples/clip/lint.json examples/clip/clip.sumi.yaml
+bun examples/clip/assets/generate.ts  # regenerate the original synthetic SVG
+```
+
+The original `research/271-clip/` experiment is retained unchanged as a historical
+record of the earlier decisions and limitations; `examples/clip/` is the polished
+version. The citation is in the YAML header. The dog is an original illustration,
+not a paper crop or an external photograph. The curly label-list bracket is a
+deliberate alternative to the reference's fan-in. The 4.02pt script info is
+accepted to retain the full matrix at 180mm; there are no cramped-arrow infos.
+The output and magnified buses/encoders were inspected using Sumi's resvg PNG
+fallback (which retains the bundled fonts), against the reference Figure 1.
 
 The [component gallery](../docs/gallery/README.md) has a page for every
 built-in component, a page with every example, and pages that compare themes
