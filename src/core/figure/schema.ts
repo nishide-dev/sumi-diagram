@@ -414,11 +414,17 @@ export const FigureMetaSchema = z.strictObject({
   theme: z.string().min(1).default("minimal").describe("Built-in theme name."),
   themeOverrides: z
     .strictObject({
-      corners: z
+      nodeCorners: z
         .literal("square")
         .optional()
         .describe(
-          "Square node/group frames and sharp structured wires, including hidden junctions. Intrinsically curved shapes are preserved.",
+          "Square node/group frames, including expanded matrix/tokens cells and legends. Intrinsically curved shapes are preserved.",
+        ),
+      edgeCorners: z
+        .literal("sharp")
+        .optional()
+        .describe(
+          "Sharp structured wires, including hidden junctions/forks, with butt caps and miter joins. Editable PPTX wires use flat caps and miter joins in both connector modes.",
         ),
       groupLabelWeight: z
         .enum(["regular", "bold"])

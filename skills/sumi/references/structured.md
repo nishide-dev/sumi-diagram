@@ -686,8 +686,11 @@ YAML order, greedily: edges declared first get the best routes.
   `labelAt`, or remove both to let the router choose). Use them to say
   which edge a label belongs to (`K,V` at the `start`, by its source) or
   to keep it on the outer side of a bend.
-- Line corners are drawn rounded (radius up to 4pt, smaller in tight spots);
-  there is no option to make them sharp. Editable PPTX keeps sharp corners.
+- Line corners are drawn rounded (radius up to 4pt, smaller in tight spots).
+  Set `figure.themeOverrides.edgeCorners: sharp` for sharp turns, including
+  hidden junctions/forks, with butt caps and miter joins. This is independent
+  of `nodeCorners: square`. Editable PPTX keeps sharp centerline corners;
+  `edgeCorners: sharp` also sets flat caps and miter joins in both modes.
   The router keeps a straight run of the arrowhead plus the radius before an
   arrowhead where moving a bend gives it. Tight group-padding approaches
   automatically grow that side's padding for the arrowhead plus a visible

@@ -165,7 +165,7 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
     let style: ResolvedStyle =
       mono === undefined || mono === painted.mono ? painted : Object.freeze({ ...painted, mono });
     const overrides = state.doc.figure?.themeOverrides;
-    if (overrides?.corners === "square" && style.kind !== "edge")
+    if (overrides?.nodeCorners === "square" && style.kind !== "edge")
       style = Object.freeze({ ...style, radius: { pt: 0, units: 0 } });
     if (overrides?.groupLabelWeight !== undefined && style.kind === "group")
       style = Object.freeze({ ...style, bold: overrides.groupLabelWeight === "bold" });

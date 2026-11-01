@@ -45,7 +45,7 @@ figure:                    # required
   id: request-flow         # required ID
   title: Request handling  # optional, not drawn
   theme: minimal           # optional, default minimal
-  # themeOverrides: { corners: square, groupLabelWeight: regular }
+  # themeOverrides: { nodeCorners: square, edgeCorners: sharp, groupLabelWeight: regular }
   profile: paper-single    # optional, default paper-single
   # fit: scale             # optional (0.6.0): shrink a too-wide figure to the profile width (layout-tips)
   layout:
@@ -491,12 +491,17 @@ edges:
 
 They are built in; there is no way to define your own in a figure.
 `figure.themeOverrides` refines the selected theme for this figure only:
-`corners: square` removes node/group frame radii and draws structured wires
-with sharp turns and T-joins at hidden junctions. Intrinsically curved shapes
-(circles, cylinders, curly brackets) retain their outlines. Auto/D2 figures
-also get square node/group frames; their wire routing remains D2's.
+`nodeCorners: square` removes node/group frame radii, including expanded
+matrix/tokens cells and legend frames. Intrinsically curved shapes (circles,
+cylinders, curly brackets) retain their outlines. Editable PPTX frames use
+miter stroke joins. Auto/D2 figures also get square node/group frames.
+Independently, `edgeCorners: sharp` draws structured wires with sharp turns
+and T-joins at hidden junctions/forks, butt caps and miter joins. Editable
+PPTX wires use flat caps and miter joins in both freeform and glued modes;
+auto/D2 wire routing remains D2's. Use both options for square frames and
+sharp wires, or only `edgeCorners: sharp` to keep rounded frames.
 `groupLabelWeight: regular | bold` overrides every group heading's weight,
-including expanded frames. Omit either field to keep the theme's setting.
+including expanded frames. Omit any field to keep its existing default.
 These are figure-wide presets, not per-element styles; theme colors, fonts,
 spacing and line widths remain selected by the built-in theme.
 The override object is strict: unknown keys produce `schema/unknown-field`,

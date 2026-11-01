@@ -7,7 +7,7 @@ figure:
   id: clip-overview
   title: CLIP — Summary of our approach
   theme: paper
-  themeOverrides: { corners: square, groupLabelWeight: regular }
+  themeOverrides: { nodeCorners: square, edgeCorners: sharp, groupLabelWeight: regular }
   profile: paper-double
   fit: scale
   layout:

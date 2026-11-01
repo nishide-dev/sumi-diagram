@@ -691,7 +691,7 @@ function wires(
     for (const { edge, polylines, keys } of byStyle.values()) {
       const width = edge.style.strokeWidth.units;
       const rounded = roundCorners(polylines, {
-        radius: ir.meta.themeOverrides?.corners === "square" ? 0 : WIRE_CORNER_RADIUS,
+        radius: ir.meta.themeOverrides?.edgeCorners === "sharp" ? 0 : WIRE_CORNER_RADIUS,
         minRadius: width,
         clearance: width,
         obstacles,
@@ -714,7 +714,7 @@ function wires(
       if (merged.length === 0 && curves.length === 0) continue;
       const d = [...merged.map(([a, b]) => pathData([a, b])), ...curves].join(" ");
       out.push(
-        `<path class="sumi-wire" d="${d}" fill="none"${strokeAttributes(edge.style)} stroke-linecap="${ir.meta.themeOverrides?.corners === "square" ? "butt" : "round"}" stroke-linejoin="${ir.meta.themeOverrides?.corners === "square" ? "miter" : "round"}"${opacity(edge.style)}/>`,
+        `<path class="sumi-wire" d="${d}" fill="none"${strokeAttributes(edge.style)} stroke-linecap="${ir.meta.themeOverrides?.edgeCorners === "sharp" ? "butt" : "round"}" stroke-linejoin="${ir.meta.themeOverrides?.edgeCorners === "sharp" ? "miter" : "round"}"${opacity(edge.style)}/>`,
       );
     }
   }

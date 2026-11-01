@@ -55,6 +55,12 @@ Highlighted matrix labels use the same gray ink as the other cells via
 `\textcolor{gray}{…}`, retaining the blue tinted fill and frame. The cards,
 label list, prompt and answer use the bundled BIZ UDGothic mono font (§6.76);
 its sans-serif glyphs differ from the reference's typewriter face.
+CLIP uses independent `figure.themeOverrides` options: `nodeCorners: square`
+for square node/group frames and expanded cells, `edgeCorners: sharp` for
+sharp wires and hidden junctions/forks, and `groupLabelWeight: regular`.
+Either corner option also works alone (sharp wires can retain rounded boxes).
+Editable PPTX preserves square frame joins and sharp wire caps/joins in both
+connector modes; CLIP itself uses picture export because it contains images.
 
 Verify and regenerate with:
 

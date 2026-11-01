@@ -31,10 +31,15 @@
           "description": "Figure-wide refinements of the selected built-in theme. Omitted fields preserve the theme.",
           "type": "object",
           "properties": {
-            "corners": {
-              "description": "Square node/group frames and sharp structured wires, including hidden junctions. Intrinsically curved shapes are preserved.",
+            "nodeCorners": {
+              "description": "Square node/group frames, including expanded matrix/tokens cells and legends. Intrinsically curved shapes are preserved.",
               "type": "string",
               "const": "square"
+            },
+            "edgeCorners": {
+              "description": "Sharp structured wires, including hidden junctions/forks, with butt caps and miter joins. Editable PPTX wires use flat caps and miter joins in both connector modes.",
+              "type": "string",
+              "const": "sharp"
             },
             "groupLabelWeight": {
               "description": "Weight of group headings, overriding the theme's group variants.",

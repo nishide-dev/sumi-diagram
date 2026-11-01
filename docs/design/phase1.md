@@ -2496,10 +2496,11 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 
 **決定:** CLIP Figure 1 の仕上げで、`paper` の色・フォントを保ったまま角丸を外し、3つの見出しを通常ウェイトにする必要があった。組み込みテーマの変更や図固有のSVG後加工ではなく、strictな `figure.themeOverrides` を追加する。
 
-- **スキーマ:** `corners: square` と `groupLabelWeight: regular | bold` のみ。各フィールドは任意で、未知のキー・値・型は既存のschema診断で拒否する。自由なCSS、色、座標、テーマ継承・外部テーマ読込は追加しない。JSON SchemaとSkillの仕様も同期する。
-- **解決:** variant / tone / monoの解決後、dim適用前に図単位で新しいstyleを作る。squareはnode/groupのradiusを0にし、展開されたtokens・matrix・legendの枠とセルにも適用する。見出しのウェイトもgroupのvariantより優先する。共有の組み込みthemeオブジェクトは変更しない。円・波括弧・台形など固有の輪郭は維持する。
-- **structuredの幹:** Figure IRに書かれたoverrideだけを保持し、wire描画と幾何lint共通の `paintedEdges()` でsquare時の角半径を0にする。既存のnet単位の直線unionは維持し、hidden junctionを丸めず、1本の幹へ垂直な枝が接するcombを描く。strokeはbutt/miter。routerの余裕（§6.73）は保守的に維持するので、経路・矢じり配置は変えない。auto/D2への適用範囲はnode/groupの枠と見出しのみで、D2の経路は変えない。
-- **互換性:** override省略時はIRへの追加もなく、既存のradius・ウェイト・wire属性をそのまま使う。既存作例とgalleryのSVG/PDFは再生成でバイト一致を検査する。回帰テストは展開セルのradius、テーマ非変異、通常時の丸いjunction、square時の直線幹・同長の垂直枝・arcゼロ、幾何lint、無効なoverrideを検査する。
+- **スキーマ:** `nodeCorners: square`、`edgeCorners: sharp`、`groupLabelWeight: regular | bold` のみ。各フィールドは独立・任意で、未知のキー・値・型は既存のschema診断で拒否する。未リリースの `corners` は削除し、互換エイリアスは設けない。EmbeddingGemma 2 Figure 1のような丸い枠＋鋭角wireにも対応するため、枠と線を分離する。自由なCSS、色、座標、テーマ継承・外部テーマ読込は追加しない。JSON SchemaとSkillの仕様も同期する。
+- **解決:** variant / tone / monoの解決後、dim適用前に図単位で新しいstyleを作る。`nodeCorners: square` はnode/groupのradiusを0にし、展開されたtokens・matrix・legendの枠とセルにも適用する。wireには影響しない。見出しのウェイトもgroupのvariantより優先する。共有の組み込みthemeオブジェクトは変更しない。円・波括弧・台形など固有の輪郭は維持する。
+- **structuredの幹:** Figure IRに書かれたoverrideだけを保持し、wire描画と幾何lint共通の `paintedEdges()` で `edgeCorners: sharp` 時の角半径を0にする。node/groupのradiusには影響しない。既存のnet単位の直線unionは維持し、hidden junction/forkを丸めず、1本の幹へ垂直な枝が接するcombを描く。strokeはbutt/miter。routerの余裕（§6.73）は保守的に維持するので、経路・矢じり配置は変えない。auto/D2の枠と見出しにもoverrideを適用するが、D2の経路は変えない。
+- **編集可能PPTX:** `nodeCorners: square` の通常・展開frame/cellはDrawingMLの `<a:miter/>` を使い、`edgeCorners: sharp` のwireはfreeform/glued両modeで `cap="flat"` と `<a:miter/>` を使う。各指定がなければ既存のstroke既定値を維持する。画像を含むCLIPはeditable corpus対象外なので、asset不要の通常box/group・tokens・matrix・legendとhidden junctionの図で、各指定単独・併用・両方省略のSVG/IRと両modeのslide XMLを回帰検査する。
+- **互換性:** override省略時はIRへの追加もなく、既存のradius・ウェイト・wire属性をそのまま使う。既存作例とgalleryのSVG/PDFは再生成でバイト一致を検査する。回帰テストは展開セルのradius、テーマ非変異、通常時の丸いjunction、sharp時の直線幹・同長の垂直枝・arcゼロ、幾何lint、無効なoverrideと削除した `corners` の拒否を検査する。CLIPは両指定を併用し、再描画したSVGはinput-sha256以外が変更前とバイト一致することを確認する。PDFとpicture PPTXのhashも入力由来のメタデータに合わせて更新し、描画内容を維持する。
 - **CLIP:** `examples/clip/` にYAML・SVG・PDFと決定的な自作SVG犬の生成スクリプトを配置。研究履歴 `research/271-clip/` はそのまま残す。3見出しを通常ウェイト1行、全encoderを48×72pt、クラス名・カード・prompt・answerをmono、object/dogをpink、answerを枠付きにする。ラベル列の波括弧はユーザーの指定を維持。180×67.64mm、本文5.74pt、添字4.02ptのinfoが1件。PNG全体と各幹・台形の拡大を原図と目視比較する。
 - **長い見出し:** 原図どおりの45文字の第2見出しは長さの既定heuristic（40文字）を超えるため、作例ローカルの `lint.json` で上限を48にする。ルールを無効化せず、warning上限0を維持する。実寸のoverflowはgeometry lintで別途検査する。galleryは従来の生成経路を使う。
 - **出力検査:** PDFテスト用の `textLines()` は同じフォント・サイズ・baselineでも色が変わったらrunを分ける。monoの通常文字と色付き語が同じフォントになる作例で、実装の変更なしにSVGのrunごとの位置・幅を検査できるようにする。PDFエンジン・生成バイトは変更しない。
