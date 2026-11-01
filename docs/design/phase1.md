@@ -2430,6 +2430,7 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **検証:** 既存の strict props schema と `SizeLength` を共有する。振幅・配列長・mode・寸法の誤りは shared Diagnostic（`component/invalid-prop` など）で該当 prop / 配列要素の YAML 行・列へ戻す。NaN / Infinity は Figure の有限数検査でも拒否する。
 - **寸法と内容:** `width` / `height` は通常の明示長さ（0.5pt 単位）、省略時はラベルを安全領域に収めつつ最低 80×48pt。外枠の x=10〜90%、y=10〜60% に信号、y=70〜90% に任意のラベルを置く。ラベルのための余白を信号と分離する。信号は全出力で round cap / round join とし、中心線からの突出を枠と同じ半線幅以内に制限するため、最小寸法・密な鋭角でも外枠の描画 bounds を越えない。bars の振幅 0 はパスを生成せず不可視とする（round cap のゼロ長パスによる点を作らない）。line の振幅 0 は中心線上の点として保持する。外枠がレイアウト / routing の障害物、実線も既存 inspector の shape 経路として測定する。密な samples は線が重なることがあり、拡幅か作者側の集約を選ぶ。
 - **IR / layout:** 既存の version 1 outline renderer と body / line layer を使い、auto の D2 placeholder 合成と structured の writer で同じ幾何を描く。検査済み配列は IR の scalar params へ順序を保つ comma-separated decimal 文字列として固定する（公開 YAML は数値配列のまま）。同じ renderer が配置・測定・SVG・PPTX を共有するため別描画実装を増やさない。
+- **#299 / PR #301 の中央配置修正:** 上記の y=10〜60% は内部ラベル（またはicon）がある場合に限定する。IR が内部 `hasLabel` を渡し、ラベルなし・空ラベルでは基線を35%から50%へ移す（信号領域 y=25〜75%）。振幅25%・寸法・safeArea・routingは維持する。外付けcaptionは枠内の領域を消費しないため内部ラベルとして数えない。EmbeddingGemmaの黒枠下部の空白は固定のcaption予約が原因であり、例固有のheight調整や座標補正ではなく共通outlineで修正する。bars/line×auto/structuredで上下余白の一致と内部captionの既存領域を回帰検査し、editable PPTXの座標も検査する。
 - **Theme:** 全組み込みテーマで `default` / `emphasis` / `muted` / `outlined` を定義。線幅・色・背景は theme を使用。tone は通常 variant の背景、`outlined` では波形線と枠・文字の色を変える。線が消える `filled` や背景と同色になる `solid` は公開しない。
 - **出力:** SVG / PDF / picture PPTX に対応。editable PPTX は既存の native freeform lowering を使用し、外枠と信号の各 path を保持する。画像化・黙った欠落はしない。freeform / glued の両コネクタモードに対応するが、波形自体はどちらも自由形状（音声や PowerPoint のデータ系列ではない）。実 Office の新規確認はしていない。
 - **検証と互換性:** 全テーマ×variant の gallery、両モード×両 layout×全テーマの再描画・幾何 lint・PDF / picture / editable PPTX テスト、位置付き負例と2,048個の上限を検査。機能追加前からある153個の YAML を自身のテーマ＋5テーマで比較し、918ケース中638件の描画成功について SVG / PDF / picture PPTX / D2 の SHA-256 がすべて一致。残る280件は既存の不正 fixture・旧研究構文などで描画できず、そのうち42件は既知 component 一覧に waveform が増える診断文のみ変化した。詳細は [検証記録](../verification/278-waveform.md)。
@@ -2507,6 +2508,16 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **出力検査:** PDFテスト用の `textLines()` は同じフォント・サイズ・baselineでも色が変わったらrunを分ける。monoの通常文字と色付き語が同じフォントになる作例で、実装の変更なしにSVGのrunごとの位置・幅を検査できるようにする。このhelper自体はPDFエンジン・生成バイトを変更しない。
 
 - **#299 レビュー追補:** `themeOverrides` の未知キーは `schema/unknown-field`（キー位置）、不正な列挙値・型は `schema/invalid-value`（値位置）として、pathと行・列・終端までテストする。CLIPのカード・ラベル列・prompt・answerは §6.76 の `mono: true` を維持し、色付き語も含むSVGの実runがmonoであることを回帰検査する。同梱BIZ UDGothicは等幅sans-serifで、原図のtypewriter字形とは異なる。青い強調セルは既存の `\textcolor{gray}{…}` で通常セルと同じ文字色にし、青のfill/frameは維持する。見出し45文字を1行に保つための `lint/long-label.maxLineWidth: 48` は文字数heuristicだけの調整で、実寸のgeometry検査は継続する（`examples/README.md` に理由を記載）。
+
+### 6.85 #299 の EmbeddingGemma の色と接続の仕上げ
+
+**決定:** 原図の丸い箱を維持し、既存の `edgeCorners: sharp` だけを使って入力合流・出力バスの直角とT字接続を描く。全edgeの既存 `emphasis` variantで黒0.5pt→1ptとし、矢じりも連動させる。座標・経路・寸法は変えない。色についてはHTMLへの置き換えやSVG後加工ではなく、nativeのtokens/waveformを保持する小さい汎用拡張を採用した。
+
+- **図単位パレット:** strictな `themeOverrides.solidFills` は既存8toneの任意部分集合から `#RRGGBB` への対応。solid nodeのfillとborderに適用する。`readableInk()` は明暗対称の `(max(Lfill, Link) + 0.05) / (min(Lfill, Link) + 0.05)` でcontrastを評価し、暗いfillで白文字が4.5:1を満たせば維持し、満たさない場合だけ暗くする。以前の明るい背景前提の式では黒や濃青のfillに黒文字を選ぶため修正した。solid stackの白い層境界を維持し、展開token/matrix/legendも通常style解決を通す。他variantやtoneの文字色・edgeには影響しない。`dashedGroupStroke: '#RRGGBB'` はdashed groupのborderだけを変更する。これらはvariant/tone解決後、dim適用前の新しいstyleとして扱う。共有themeを変異させず、省略時の出力は維持する。§6.84の色調整の範囲をこの2用途だけ広げ、自由なCSSや座標指定は設けない。
+- **waveform:** 任意props `frameStroke: '#RRGGBB'` でframeとsignalを分離する。既存signal色・線幅・形状・caption領域は保ち、autoのoutline合成とstructured writerのbodyだけにframe色を適用する。IRのrenderer params経由で保持し、outlineのgeometry自体は変更しない。継承dim時はIRへdim strokeを渡す。PDF/picture PPTXはSVGから、editable PPTXは既存のframe/signal分離primitiveから色を保存する。
+- **作例:** tokenはHTML encoderと同じ青 `#3d9df5`・琥珀 `#e8a20c`・赤 `#e04848`。音声frameは黒、signalは既存red。modular encoderの灰色fillを維持し、破線はlabelと同じ青灰色 `#527da5`。171.8×145.17mmを維持する。鋭角化と線幅変更後は幾何lintを含めerror/warning/infoすべて0。PDFを `pdftoppm` で `.sumi/preview/` にPNG化し、`.sumi/ref/original.png` と全体・文字・合流を比較した。
+- **散布図とexport:** seed 299・63点・座標は維持し、3点周期の色と分割対象が同期して青だけを覆っていた点を修正。4点周期で分割し、8点周期で3色分割、それ以外は2色分割とする。青・琥珀・赤の単色点と混色点を分散させる。作例全体はSVG/PDF/picture PPTXに対応するが、HTML/imageを含むためeditable PPTXは位置付き `pptx/unsupported-asset` で拒否される既存制限がある。汎用palette/frame制御自体のeditable PPTX対応とは区別する。
+- **検証:** 展開solid cellの実効fill、他variant非変更、角丸維持、文字のcontrast調整（黒・濃青・中間灰の4.5:1境界両側・明るい青・白のラベル付きsolidを描画し、実際の比率と合格済み白文字の維持を検査）、共有theme非変異、dim優先、未知tone/不正色のschema拒否、auto/structuredのframeとsignal別色、editable PPTXの両色保存を回帰検査する。JSON SchemaとSkillを同期し、galleryとPDF/PPTX goldenは通常の生成経路で更新する。
 
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures

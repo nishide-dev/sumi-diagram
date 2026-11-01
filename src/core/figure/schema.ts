@@ -430,6 +430,19 @@ export const FigureMetaSchema = z.strictObject({
         .enum(["regular", "bold"])
         .optional()
         .describe("Weight of group headings, overriding the theme's group variants."),
+      solidFills: z
+        .partialRecord(z.enum(TONE_NAMES), z.string().regex(/^#[0-9a-fA-F]{6}$/))
+        .optional()
+        .describe(
+          "Exact #RRGGBB fills for solid tone nodes, including expanded token cells. Text remains contrast-adjusted.",
+        ),
+      dashedGroupStroke: z
+        .string()
+        .regex(/^#[0-9a-fA-F]{6}$/)
+        .optional()
+        .describe(
+          "Exact #RRGGBB border color for dashed groups; fill and heading color are preserved.",
+        ),
     })
     .optional()
     .describe(

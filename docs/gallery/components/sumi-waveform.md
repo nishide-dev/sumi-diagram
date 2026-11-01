@@ -4,12 +4,13 @@
 
 A deterministic sample\-driven waveform in a rectangular frame, with an optional label below the signal; no audio decoding or synthesis\.
 
-**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, outlined</code> · **since**: <code>0\.10\.0</code> · **shape**: <code>rectangle</code> · **sizing**: <code>auto</code> · **render**: <code>\{&quot;type&quot;:&quot;outline&quot;,&quot;renderer&quot;:&quot;sumi/waveform&quot;,&quot;params&quot;:\{&quot;samples&quot;:&quot;0,0&quot;,&quot;mode&quot;:&quot;bars&quot;\}\}</code>
+**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, outlined</code> · **since**: <code>0\.10\.0</code> · **shape**: <code>rectangle</code> · **sizing**: <code>auto</code> · **render**: <code>\{&quot;type&quot;:&quot;outline&quot;,&quot;renderer&quot;:&quot;sumi/waveform&quot;,&quot;params&quot;:\{&quot;samples&quot;:&quot;0,0&quot;,&quot;mode&quot;:&quot;bars&quot;,&quot;hasLabel&quot;:false\}\}</code>
 
 | prop | type | required | description |
 | --- | --- | --- | --- |
 | <code>width</code> | <code>string</code> | no | Explicit width as a length such as &quot;30mm&quot; or &quot;40pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
 | <code>height</code> | <code>string</code> | no | Explicit height as a length such as &quot;10mm&quot; or &quot;20pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
+| <code>frameStroke</code> | <code>string</code> | no | Independent \#RRGGBB frame color; the signal retains its resolved tone color\. Omit to use the theme stroke for both\. |
 | <code>samples</code> | <code>array</code> | yes | Two to 2048 explicit finite amplitudes in \[\-1, 1\], evenly spaced; no resampling or normalization\. Bars mirror absolute amplitudes around the center; line mode preserves signs\. |
 | <code>mode</code> | <code>&quot;bars&quot; &#124; &quot;line&quot;</code> | no | bars draws mirrored vertical amplitudes; line joins signed samples with straight segments\. |
 

@@ -13,6 +13,7 @@ vector PDF (#59).
 | [`grouped/`](grouped/grouped.sumi.yaml) | `minimal` / `paper-double` | nested groups (three levels, one muted), two parallel paths crossing group boundaries at every level, ellipse and document outside the groups |
 | [`transformer/`](transformer/transformer.sumi.yaml) | `paper` / `paper-single` | the structured layout (`figure.layout.arrange`, design doc §6.23) with `density: compact`: stacks and rows, `align: stretch`, attached notes, operators and hidden junctions (smooth forks), anchored edges and shared trunks (the Transformer architecture, 78mm wide) |
 | [`dit-block/`](dit-block/dit-block.sumi.yaml) | `paper` / `paper-double` | the faithful four-panel DiT figure: Latent Diffusion Transformer, adaLN-Zero, Cross-Attention and In-Context Conditioning; structured layout with `fit: scale`, filled tones with sublabels, a plain (frameless) group, dimmed alternatives, a `zoom` callout, label math, and four labeled conditioning taps over a shared bus (180mm × 84.69mm) |
+| [`embedding-gemma/`](embedding-gemma/embedding-gemma.sumi.yaml) | `paper` / `paper-double` | EmbeddingGemma 2 Figure 1: restricted `html` prompt and syntax-colored code cards, exact-color HTML encoder blocks, illustrative sample-driven `waveform`, ten `tokens`, orthogonal multimodal joins and an output bus, and original synthetic guitar/video/scatter SVG assets with a deterministic generator (171.8mm × 145.17mm) |
 | [`clip/`](clip/clip.sumi.yaml) | `paper` / `paper-double` | Radford et al. (2021), Figure 1: contrastive pre-training, a text-derived classifier and zero-shot prediction; square theme overrides, sharp shared comb buses, trapezoid encoders, monospace cards, a curly bracket, formula matrices and an original synthetic vector dog (180mm × 67.64mm) |
 
 `pipeline` and `decision-flow` use `direction: down`: four or more nodes in a
@@ -22,11 +23,34 @@ groups from the side (with `direction: down` they cross the groups' centered
 labels, `geometry/edge-crosses-label`), which makes them wider than one paper
 column: they use `paper-double` (180mm).
 
-All seven pass `sumi lint --geometry` without errors or warnings (CLIP uses
-`--config examples/clip/lint.json`, as explained below). The three
+All eight pass `sumi lint --geometry` without errors or warnings (CLIP uses
+`--config examples/clip/lint.json`, as explained below). The four
 structured figures use the `paper` theme (the color, ML-paper style) and are laid out and routed by Sumi
 itself, without D2. `transformer` fits one column; `dit-block` is wider than
 `paper-double` and is scaled down to it (`fit: scale`), as is `clip`.
+
+`embedding-gemma` uses a moderate 171.8mm width without scaling: the five
+input columns and the full audio caption remain legible (native labels are
+8pt, HTML text is at least 7.69pt). One 88mm paper column would make these
+labels too small. Its HTML blocks and native solid token cells share exactly
+the same encoder colors: blue `#3d9df5`, amber `#e8a20c`, and red `#e04848`,
+using `themeOverrides.solidFills`. The waveform keeps its red signal with an
+independent black `props.frameStroke`. The dashed encoder group retains its
+light gray fill with a blue-gray `#527da5` border and matching label, via
+`themeOverrides.dashedGroupStroke`. Only `edgeCorners: sharp` is set: the
+boxes stay rounded, while the shared buses and T-joins are sharp. Every edge
+uses `variant: emphasis` for black 1pt lines (twice paper's default 0.5pt)
+and correspondingly heavier arrowheads. The layout and dimensions are preserved.
+The PDF was rasterized with `pdftoppm` and compared with the reference,
+including text, input merges and the output bus. Regenerate its original
+vector assets with `bun examples/embedding-gemma/generate-assets.ts`, then
+run `bun run gallery`. The seeded 63-point scatter balances blue, amber and
+red, with mixed pie-split points distributed across all three base colors.
+It is illustrative, as are the explicit waveform amplitudes; neither is
+measured model/audio data. This complete example supports SVG, PDF and
+picture PPTX. Editable PPTX rejects its HTML/image nodes with located
+`pptx/unsupported-asset` diagnostics, an existing exporter limitation;
+the new palette/frame controls themselves support editable PPTX.
 
 The gallery generator requires **no errors and no warnings**; info diagnostics
 are allowed. These are the infos from each example as written (including
@@ -40,6 +64,7 @@ geometry lint):
 | `grouped` | none |
 | `transformer` | none |
 | `dit-block` | 6: `geometry/script-too-small` ×1 (math scripts down to 3.99pt after scaling to 81.38%); `geometry/group-empty-area` ×2 (the equal-height Cross-Attention and In-Context panels); `geometry/arrowhead-cramped` ×3 (conditioning taps, 1.63pt straight stems after scaling) |
+| `embedding-gemma` | none (sharp joins and 1pt edges remove the previous three `geometry/edge-near-border` infos) |
 | `clip` | 1: `geometry/script-too-small` ×1 (math scripts down to 4.02pt after scaling to 71.81%; body text is 5.74pt, above the 5pt scaled minimum) |
 
 The DiT infos are accepted to preserve the complete four-panel reference at

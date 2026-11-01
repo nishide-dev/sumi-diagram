@@ -18,6 +18,9 @@ lengths; omitted sizes fit an optional label below the signal (minimum 80×48pt)
 Variants: `default`, `emphasis`, `muted`, `outlined`. Use `outlined` plus a
 `tone` to color the signal and frame; other variants tone the background.
 Works in auto and structured layouts and SVG/PDF/picture/native editable PPTX.
+Optional `props.frameStroke: '#000000'` sets an independent frame color
+(`#RRGGBB` only), retaining the signal's tone and all line widths. Inherited
+`dim: true` overrides that frame color too. Omit it to keep the shared color.
 Supply actual data or explicitly identified illustrative samples; do not invent
 audio measurements. No audio decoding, seed mode, playback, or random synthesis.
 
@@ -108,7 +111,7 @@ of a list of unknown fields. A CLI that prints an older version (e.g. a
 source checkout between releases) fails on it too: leave it out.
 
 Every object is strict: an unknown key is an error (`schema/unknown-field`).
-There is no per-element style, color, font or coordinate field — appearance
+There is no general per-element style, color, font or coordinate field — appearance
 is chosen with `variant` and `tone` (below), size with the `width` /
 `height` props of node components (see the catalog), and position by the
 layout: `direction` in auto figures, arrange trees, `attach` and edge
@@ -505,8 +508,19 @@ auto/D2 wire routing remains D2's. Use both options for square frames and
 sharp wires, or only `edgeCorners: sharp` to keep rounded frames.
 `groupLabelWeight: regular | bold` overrides every group heading's weight,
 including expanded frames. Omit any field to keep its existing default.
-These are figure-wide presets, not per-element styles; theme colors, fonts,
-spacing and line widths remain selected by the built-in theme.
+Two optional figure-wide palette refinements accept strict `#RRGGBB` colors:
+`solidFills: { blue: '#3d9df5', orange: '#e8a20c', red: '#e04848' }` replaces
+the solid fill and matching border of those tones (including expanded
+tokens/matrix/legend nodes). Symmetric contrast evaluation retains white text
+on dark fills when it already meets 4.5:1; otherwise text is darkened until it
+meets that ratio against the fill. Solid stacks keep white layer separators.
+Other variants, tone-line text and edges retain the theme palette. `dashedGroupStroke: '#527da5'`
+changes only dashed group borders, preserving their fill and label color.
+Both refinements are applied before inherited dimming and never mutate the
+built-in theme. These are figure-wide refinements, not general per-element
+styles; fonts, spacing and line widths remain selected by the built-in theme.
+Use edge `variant: emphasis` for a heavier line and arrowhead: under `paper`
+it is black 1pt rather than the default 0.5pt.
 The override object is strict: unknown keys produce `schema/unknown-field`,
 and unsupported values produce `schema/invalid-value`, located at the key
 or value in the YAML.

@@ -158,7 +158,16 @@ export function composeOutlines(
           const attrs = paint
             .map(
               (a) =>
-                ` ${a.name}="${escapeAttribute(layer.role === "line" && a.name === "fill" ? "none" : a.value)}"`,
+                ` ${a.name}="${escapeAttribute(
+                  layer.role === "line" && a.name === "fill"
+                    ? "none"
+                    : layer.role === "body" &&
+                        a.name === "stroke" &&
+                        node.render?.renderer === "sumi/waveform" &&
+                        typeof node.render.params?.frameStroke === "string"
+                      ? node.render.params.frameStroke
+                      : a.value,
+                )}"`,
             )
             .join("");
           const signal =

@@ -283,6 +283,11 @@ const waveform: OutlineRenderer = {
         );
       }, "Expected 2–2048 comma-separated finite amplitudes in [-1, 1]"),
     mode: z.enum(["bars", "line"]).default("bars"),
+    hasLabel: z.boolean().default(false),
+    frameStroke: z
+      .string()
+      .regex(/^#[0-9a-fA-F]{6}$/)
+      .optional(),
   }),
   footprint({ width, height }) {
     return { width: Math.max(160, width / 0.8), height: Math.max(96, height / 0.2) };
@@ -297,7 +302,9 @@ const waveform: OutlineRenderer = {
     // unexpanded rectangle: proportional insets do not absorb the cap radius.
     const left = x + width / 10;
     const span = width * 0.8;
-    const center = y + height * 0.35;
+    // Only reserve the caption corridor when this node actually has a label.
+    // External caption nodes do not consume space inside the waveform frame.
+    const center = y + height * (params.hasLabel ? 0.35 : 0.5);
     const amplitude = height * 0.25;
     const points = samples.map((value, i) => ({
       x: left + (span * i) / (samples.length - 1),

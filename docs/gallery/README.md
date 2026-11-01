@@ -10,6 +10,7 @@
   - <a id="clip--summary-of-our-approach"></a>[CLIP — Summary of our approach](examples.md#clip--summary-of-our-approach)
   - <a id="generic-decision-flow"></a>[Generic decision flow](examples.md#generic-decision-flow)
   - <a id="examplesdit-blockdit-blocksumiyaml"></a><a id="dit-block-variants-structured-layout-paper-theme"></a>[DiT block variants \(structured layout, paper theme\)](examples.md#dit-block-variants-structured-layout-paper-theme)
+  - <a id="embeddinggemma-2--unified-multimodal-representations"></a>[EmbeddingGemma 2 — unified multimodal representations](examples.md#embeddinggemma-2--unified-multimodal-representations)
   - <a id="nested-groups"></a>[Nested groups](examples.md#nested-groups)
   - <a id="generic-processing-pipeline"></a>[Generic processing pipeline](examples.md#generic-processing-pipeline)
   - <a id="generic-three-tier-system"></a>[Generic three\-tier system](examples.md#generic-three-tier-system)

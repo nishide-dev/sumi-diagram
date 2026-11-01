@@ -23,7 +23,7 @@ export function pageTextContrast(ink: string, opacity = 1): number {
   return 1.05 / (luminance(composite) + 0.05);
 }
 
-/** Keep the fill; darken ink by whole percent steps to the requested contrast. */
+/** Keep passing ink on either light or dark fills; otherwise darken by whole percent steps. */
 export function readableInk(fill: string, ink: string, minimum = 4.5): string {
   if (!/^#[0-9a-f]{6}$/i.test(fill) || !/^#[0-9a-f]{6}$/i.test(ink)) return ink;
   const background = luminance(fill);
@@ -35,7 +35,12 @@ export function readableInk(fill: string, ink: string, minimum = 4.5): string {
           .padStart(2, "0"),
       )
       .join("")}`;
-    if ((background + 0.05) / (luminance(color) + 0.05) >= minimum) return color;
+    const foreground = luminance(color);
+    if (
+      (Math.max(background, foreground) + 0.05) / (Math.min(background, foreground) + 0.05) >=
+      minimum
+    )
+      return color;
   }
   return "#000000";
 }
