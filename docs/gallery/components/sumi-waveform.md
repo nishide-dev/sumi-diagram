@@ -4,7 +4,7 @@
 
 A deterministic sample\-driven waveform in a rectangular frame, with an optional label below the signal; no audio decoding or synthesis\.
 
-**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, outlined</code> · **since**: <code>0\.10\.0</code> · **shape**: <code>rectangle</code> · **sizing**: <code>auto</code> · **render**: <code>\{&quot;type&quot;:&quot;outline&quot;,&quot;renderer&quot;:&quot;sumi/waveform&quot;,&quot;params&quot;:\{&quot;samples&quot;:&quot;0,0&quot;,&quot;mode&quot;:&quot;bars&quot;\}\}</code>
+**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, outlined</code> · **since**: <code>0\.10\.0</code> · **shape**: <code>rectangle</code> · **sizing**: <code>auto</code> · **render**: <code>\{&quot;type&quot;:&quot;outline&quot;,&quot;renderer&quot;:&quot;sumi/waveform&quot;,&quot;params&quot;:\{&quot;samples&quot;:&quot;0,0&quot;,&quot;mode&quot;:&quot;bars&quot;,&quot;hasLabel&quot;:false\}\}</code>
 
 | prop | type | required | description |
 | --- | --- | --- | --- |

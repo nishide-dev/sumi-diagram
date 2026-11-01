@@ -45,6 +45,40 @@ nodes:
 `;
 }
 
+for (const engine of ["auto", "structured"]) {
+  for (const mode of ["bars", "line"]) {
+    for (const label of [undefined, "", "Caption"]) {
+      test(`${engine}/${mode}/${JSON.stringify(label)}: center the signal unless an internal caption needs space`, async () => {
+        const text = source("[-1, 0, 1]", mode, engine).replace(
+          "    component: waveform",
+          `    component: waveform${label === undefined ? "" : `\n    label: ${JSON.stringify(label)}`}`,
+        );
+        const result = await renderFigure(`${text}      width: 110pt\n      height: 52pt\n`);
+        if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+        expect(lintGeometry(result.value, {})).toEqual([]);
+        const box = required(
+          result.value.inspection.elements.find((e) => e.key === "n:signal")?.bbox,
+        );
+        const ys = signalPaths(result.value.svg).flatMap((path) =>
+          required(required(attribute(path, "d")).match(/-?[\d.]+/g))
+            .map(Number)
+            .filter((_, i) => i % 2 === 1),
+        );
+        const top = Math.min(...ys) - box.y;
+        const bottom = box.y + box.height - Math.max(...ys);
+        if (label) {
+          // Keep the existing 10–60% signal region clear of the 70–90% caption.
+          expect(top).toBeCloseTo(box.height * 0.1, 3);
+          expect(bottom).toBeCloseTo(box.height * 0.4, 3);
+        } else {
+          expect(top).toBeCloseTo(bottom, 3);
+          expect(top).toBeCloseTo(box.height * 0.25, 3);
+        }
+      });
+    }
+  }
+}
+
 test.each(["auto", "structured"])(
   "%s: independent waveform frame paint survives SVG and editable PPTX",
   async (engine) => {
@@ -146,10 +180,10 @@ for (const engine of ["auto", "structured"]) {
             const value = samples[0];
             const ys =
               mode === "line"
-                ? samples.map(() => box.y + box.height * (0.35 - value * 0.25))
+                ? samples.map(() => box.y + box.height * (0.5 - value * 0.25))
                 : [
-                    box.y + box.height * (0.35 - value * 0.25),
-                    box.y + box.height * (0.35 + value * 0.25),
+                    box.y + box.height * (0.5 - value * 0.25),
+                    box.y + box.height * (0.5 + value * 0.25),
                   ];
             for (const [i, y] of coordinates.filter((_, i) => i % 2 === 1).entries()) {
               expect(y).toBeCloseTo(required(ys[i]), 3);
@@ -235,19 +269,19 @@ for (const mode of ["bars", "line"]) {
         mode === "bars"
           ? [
               [
-                [63500, 63500],
-                [63500, 381000],
+                [63500, 158750],
+                [63500, 476250],
               ],
               [
-                [571500, 63500],
-                [571500, 381000],
+                [571500, 158750],
+                [571500, 476250],
               ],
             ]
           : [
               [
-                [63500, 381000],
-                [317500, 222250],
-                [571500, 63500],
+                [63500, 476250],
+                [317500, 317500],
+                [571500, 158750],
               ],
             ],
       );
@@ -336,7 +370,7 @@ test("bars mirror amplitudes and line mode preserves signed values", () => {
   const renderer = getOutlineRenderer("sumi/waveform");
   if (!renderer) throw new Error("Missing waveform renderer");
   const rect = { x: 0, y: 0, width: 100, height: 100 };
-  const bars = renderer.draw(rect, renderer.params.parse({ samples: "-1,0,1" }));
+  const bars = renderer.draw(rect, renderer.params.parse({ samples: "-1,0,1", hasLabel: true }));
   expect(bars.layers.slice(1).map((l) => l.path.points)).toEqual([
     [
       { x: 10, y: 10 },
@@ -347,7 +381,10 @@ test("bars mirror amplitudes and line mode preserves signed values", () => {
       { x: 90, y: 60 },
     ],
   ]);
-  const line = renderer.draw(rect, renderer.params.parse({ samples: "-1,0,1", mode: "line" }));
+  const line = renderer.draw(
+    rect,
+    renderer.params.parse({ samples: "-1,0,1", mode: "line", hasLabel: true }),
+  );
   expect(line.layers[1]?.path.points).toEqual([
     { x: 10, y: 60 },
     { x: 50, y: 35 },

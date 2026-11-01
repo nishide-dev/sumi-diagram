@@ -494,6 +494,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
                 ...(component.manifest.render.renderer === "sumi/waveform" && {
                   samples: (component.props.samples as number[]).join(","),
                   mode: component.props.mode as string,
+                  hasLabel: n.label.trim().length > 0 || n.icon !== undefined,
                   ...(typeof component.props.frameStroke === "string" && {
                     frameStroke: dimmed.includes(key) ? style.stroke : component.props.frameStroke,
                   }),
