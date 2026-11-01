@@ -1,0 +1,15 @@
+version: 1
+figure: { id: html-tokens, theme: academic, layout: { arrange: { row: { items: [tokens] } } } }
+nodes:
+  - id: tokens
+    component: html
+    props:
+      viewport: 400x96
+      width: 200pt
+      html: |
+        <div style="display:flex;gap:8px;padding:16px;align-items:center;color:var(--sumi-fg);font-size:16px">
+          <span style="padding:8px;border:1px solid var(--sumi-muted);border-radius:4px">BOS</span>
+          <span style="padding:8px;background-color:var(--sumi-accent);color:white">日本語</span>
+          <span style="padding:8px;background-color:#f0d8e0">token</span>
+          <span style="padding:8px;border:1px solid var(--sumi-muted)">EOS</span>
+        </div>
