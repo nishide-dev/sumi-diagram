@@ -13,6 +13,7 @@ vector PDF (#59).
 | [`grouped/`](grouped/grouped.sumi.yaml) | `minimal` / `paper-double` | nested groups (three levels, one muted), two parallel paths crossing group boundaries at every level, ellipse and document outside the groups |
 | [`transformer/`](transformer/transformer.sumi.yaml) | `paper` / `paper-single` | the structured layout (`figure.layout.arrange`, design doc §6.23) with `density: compact`: stacks and rows, `align: stretch`, attached notes, operators and hidden junctions (smooth forks), anchored edges and shared trunks (the Transformer architecture, 78mm wide) |
 | [`dit-block/`](dit-block/dit-block.sumi.yaml) | `paper` / `paper-double` | the faithful four-panel DiT figure: Latent Diffusion Transformer, adaLN-Zero, Cross-Attention and In-Context Conditioning; structured layout with `fit: scale`, filled tones with sublabels, a plain (frameless) group, dimmed alternatives, a `zoom` callout, label math, and four labeled conditioning taps over a shared bus (180mm × 84.69mm) |
+| [`embedding-gemma/`](embedding-gemma/embedding-gemma.sumi.yaml) | `paper` / `paper-double` | EmbeddingGemma 2 Figure 1: restricted `html` prompt and syntax-colored code cards, exact-color HTML encoder blocks, illustrative sample-driven `waveform`, ten `tokens`, orthogonal multimodal joins and an output bus, and original synthetic guitar/video/scatter SVG assets with a deterministic generator (171.8mm × 145.17mm) |
 
 `pipeline` and `decision-flow` use `direction: down`: four or more nodes in a
 row to the right are already wider than `paper-single` (88mm).
@@ -21,10 +22,21 @@ groups from the side (with `direction: down` they cross the groups' centered
 labels, `geometry/edge-crosses-label`), which makes them wider than one paper
 column: they use `paper-double` (180mm).
 
-All six pass `sumi lint --geometry` without errors or warnings. The two
+All seven pass `sumi lint --geometry` without errors or warnings. The three
 structured figures use the `paper` theme (the color, ML-paper style) and are laid out and routed by Sumi
 itself, without D2. `transformer` fits one column; `dit-block` is wider than
 `paper-double` and is scaled down to it (`fit: scale`).
+
+`embedding-gemma` uses a moderate 171.8mm width without scaling: the five
+input columns and the full audio caption remain legible (native labels are
+8pt, HTML text is at least 7.69pt). One 88mm paper column would make these
+labels too small. Its HTML blocks preserve the reference encoder colors;
+native solid token cells use the darker blue/orange/red paper tones, and the
+outlined waveform shares its red tone with its frame. The dashed encoder
+group uses the theme's gray fill and black border. Regenerate its original
+vector assets with `bun examples/embedding-gemma/generate-assets.ts`, then
+run `bun run gallery`. The seeded 63-point scatter is illustrative, as are
+the explicit waveform amplitudes; neither is measured model/audio data.
 
 The gallery generator requires **no errors and no warnings**; info diagnostics
 are allowed. These are the infos from each example as written (including
@@ -38,6 +50,7 @@ geometry lint):
 | `grouped` | none |
 | `transformer` | none |
 | `dit-block` | 6: `geometry/script-too-small` ×1 (math scripts down to 3.99pt after scaling to 81.38%); `geometry/group-empty-area` ×2 (the equal-height Cross-Attention and In-Context panels); `geometry/arrowhead-cramped` ×3 (conditioning taps, 1.63pt straight stems after scaling) |
+| `embedding-gemma` | 3: `geometry/edge-near-border` ×3 (the Images/Video and Video/Audio input joins run 0.44mm above the dashed modular-encoder frame for 8.8mm, 10.8mm and 24.9mm; accepted to preserve the reference's compact encoder row) |
 
 The DiT infos are accepted to preserve the complete four-panel reference at
 180mm. Inspect the vector PDF for inline-math labels: `rsvg-convert` drops

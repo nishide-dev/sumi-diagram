@@ -16,6 +16,12 @@ The committed SVGs of <code>examples/</code>, rendered from their sources as wri
 
 <img src="../../examples/dit-block/dit-block.svg" alt="DiT block variants (structured layout, paper theme)">
 
+## EmbeddingGemma 2 — unified multimodal representations
+
+[<code>examples/embedding\-gemma/embedding\-gemma\.sumi\.yaml</code>](../../examples/embedding-gemma/embedding-gemma.sumi.yaml) · [PDF](../../examples/embedding-gemma/embedding-gemma.pdf) · theme <code>paper</code> · profile <code>paper\-double</code> · 171\.8mm × 145\.17mm \(max width 180mm, max height 220mm\)<br>info geometry/edge\-near\-border \(×3\): Edge edges\[3\] runs right beside the border of group &quot;encoders&quot; for 8\.8mm \(0\.44mm between the lines\), so it reads as part of the frame\.
+
+<img src="../../examples/embedding-gemma/embedding-gemma.svg" alt="EmbeddingGemma 2 — unified multimodal representations">
+
 ## Nested groups
 
 [<code>examples/grouped/grouped\.sumi\.yaml</code>](../../examples/grouped/grouped.sumi.yaml) · [PDF](../../examples/grouped/grouped.pdf) · theme <code>minimal</code> · profile <code>paper\-double</code> · 167\.57mm × 65\.97mm \(max width 180mm, max height 220mm\)

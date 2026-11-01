@@ -1,0 +1,146 @@
+# EmbeddingGemma 2: Unified and Efficient Multimodal Representations,
+# arXiv:2610.37364, Figure 1. https://arxiv.org/abs/2610.37364
+# Original synthetic vector illustrations: bun examples/embedding-gemma/generate-assets.ts
+# The waveform samples are illustrative amplitudes, not recorded audio.
+# Moderate paper-double width preserves five columns and >=7pt text without scaling.
+# HTML preserves encoder colors; native tokens/waveform use the closest paper tones.
+version: 1
+figure:
+  id: embedding-gemma
+  title: EmbeddingGemma 2 — unified multimodal representations
+  theme: paper
+  profile: paper-double
+  layout:
+    density: compact
+    arrange:
+      stack:
+        gap: 12pt
+        items:
+          - grid:
+              columns: 10
+              columnGap: 8pt
+              rowGap: 20pt
+              items:
+                - { item: { stack: { gap: 8pt, items: [ text-heading, text ] } }, span: 2 }
+                - { item: { stack: { gap: 8pt, items: [ code-heading, code ] } }, span: 2 }
+                - { item: { stack: { gap: 8pt, items: [ image-heading, guitar ] } }, span: 2 }
+                - { item: { stack: { gap: 8pt, items: [ video-heading, video ] } }, span: 2 }
+                - { item: { stack: { gap: 8pt, items: [ audio-heading, audio ] } }, span: 2 }
+                - { item: embedder, span: 4 }
+                - { item: encoders, span: 6 }
+                - { item: embedder-out, span: 4 }
+                - { item: vision-out, span: 3 }
+                - { item: audio-out, span: 3 }
+          - token-frame
+          - backbone
+          - scatter
+groups:
+  - id: encoders
+    variant: dashed
+    tone: gray
+    arrange:
+      row: { gap: 30pt, items: [ vision-encoder, audio-encoder ] }
+  - id: token-frame
+    variant: muted
+    arrange:
+      row: { items: [ sequence ] }
+nodes:
+  - { id: text-heading, component: label, label: Text }
+  - { id: code-heading, component: label, label: Code }
+  - { id: image-heading, component: label, label: Images }
+  - { id: video-heading, component: label, label: Video }
+  - { id: audio-heading, component: label, label: Audio }
+  - id: text
+    component: html
+    props:
+      width: 94pt
+      viewport: 240x132
+      html: |-
+        <div style="width:240px;height:132px;display:flex;align-items:center;justify-content:center;background-color:#f5f4f4;border:3px solid #111;border-radius:10px;font-family:var(--sumi-font);font-size:22px;line-height:1.3;text-align:center;color:#222"><div>Interactive guitar<br>tuner with real-time<br>waveform visualizer</div></div>
+  - id: code
+    component: html
+    props:
+      width: 100pt
+      viewport: 260x135
+      html: |-
+        <div style="width:260px;height:135px;background-color:#1e1e1e;border-radius:8px;padding:17px;font-family:var(--sumi-mono);font-size:20px;color:#ddd">
+          <div style="display:flex;gap:9px;height:35px"><div style="width:12px;height:12px;border-radius:6px;background-color:#ff6057"></div><div style="width:12px;height:12px;border-radius:6px;background-color:#ffbd2e"></div><div style="width:12px;height:12px;border-radius:6px;background-color:#28c840"></div></div>
+          <div style="white-space:pre"><span style="color:#c985ce">def</span> <span style="color:#d8dda0">detect_note</span>():</div><div style="white-space:pre">    ...</div>
+        </div>
+  - { id: guitar, component: image, props: { src: assets/guitar.svg, width: 70pt, height: 52pt } }
+  - { id: video, component: image, props: { src: assets/video.svg, width: 70pt, height: 52pt } }
+  - id: audio
+    component: waveform
+    variant: outlined
+    tone: red
+    props:
+      width: 110pt
+      height: 52pt
+      samples: [ 0.08, 0.1, 0.12, 0.14, 0.3, 0.55, 0.75, 0.64, 0.95, 0.86, 1, 0.81, 0.92, 0.78, 0.89, 0.7, 0.82, 0.75, 0.85, 0.66, 0.79, 0.72, 0.82, 0.64, 0.76, 0.69, 0.78, 0.6, 0.73, 0.65, 0.72, 0.56, 0.68, 0.59, 0.65, 0.51, 0.58, 0.49, 0.54, 0.42, 0.47, 0.36, 0.4, 0.3, 0.32, 0.25, 0.27, 0.2, 0.22, 0.16, 0.17, 0.13, 0.14, 0.1, 0.12, 0.09, 0.1, 0.08, 0.09, 0.07, 0.08, 0.06, 0.07, 0.05 ]
+  - { id: audio-caption, component: label, label: '[acoustic guitar chord strum]', attach: { to: audio, side: south, gap: 2pt } }
+  - id: embedder
+    component: html
+    props:
+      width: 104pt
+      viewport: 260x104
+      html: |-
+        <div style="width:260px;height:104px;border:3px solid #2785cf;border-radius:10px;background-color:#3d9df5;color:white;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--sumi-font);font-size:28px;line-height:1.25"><b>Embedder</b><div>(141M)</div></div>
+  - id: modular-label
+    component: html
+    attach: { to: encoders, side: west, gap: 8pt }
+    props:
+      width: 54pt
+      viewport: 160x100
+      html: |-
+        <div style="width:160px;height:100px;display:flex;align-items:center;justify-content:center;font-family:var(--sumi-font);font-size:26px;line-height:1.25;color:#527da5;text-align:center"><div>Modular<br>Encoders</div></div>
+  - id: vision-encoder
+    component: html
+    props:
+      width: 104pt
+      viewport: 260x104
+      html: |-
+        <div style="width:260px;height:104px;border:3px solid #c78c0c;border-radius:10px;background-color:#e8a20c;color:white;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--sumi-font);font-size:28px;line-height:1.25"><b>Vision Encoder</b><div>(167M)</div></div>
+  - id: audio-encoder
+    component: html
+    props:
+      width: 104pt
+      viewport: 260x104
+      html: |-
+        <div style="width:260px;height:104px;border:3px solid #c83737;border-radius:10px;background-color:#e04848;color:white;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--sumi-font);font-size:28px;line-height:1.25"><b>Audio Encoder</b><div>(305M)</div></div>
+  - id: sequence
+    component: tokens
+    props:
+      component: square
+      variant: solid
+      width: 14pt
+      height: 14pt
+      gap: 3pt
+      cells: [ { tone: blue }, { tone: orange }, { tone: red }, { tone: blue }, { tone: orange }, { tone: blue }, { tone: red }, { tone: orange }, { tone: red }, { tone: blue } ]
+  - id: backbone
+    component: html
+    props:
+      width: 164pt
+      viewport: 410x104
+      html: |-
+        <div style="width:410px;height:104px;border:3px solid #103c7d;border-radius:10px;background-color:#154c9e;color:white;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--sumi-font);font-size:28px;line-height:1.25"><b>Backbone</b><div>(130M)</div></div>
+  - { id: scatter, component: image, props: { src: assets/scatter.svg, width: 164pt } }
+  - { id: embedder-out, component: junction, variant: hidden }
+  - { id: vision-out, component: junction, variant: hidden }
+  - { id: audio-out, component: junction, variant: hidden }
+  - { id: text-join, component: junction, variant: hidden, attach: { to: embedder, side: north, gap: 12pt } }
+edges:
+  - { from: text, to: text-join, component: line, fromAnchor: south }
+  - { from: code, to: text-join, component: line, fromAnchor: south }
+  - { from: text-join, to: embedder, toAnchor: north }
+  - { from: guitar, to: vision-encoder, fromAnchor: south, toAnchor: north }
+  - { from: video, to: vision-encoder, fromAnchor: 'south:0.35', toAnchor: north }
+  - { from: video, to: audio-encoder, fromAnchor: 'south:0.65', toAnchor: north }
+  - { from: audio-caption, to: audio-encoder, fromAnchor: south, toAnchor: north }
+  - { from: embedder, to: embedder-out, component: line, fromAnchor: south }
+  - { from: vision-encoder, to: vision-out, component: line, fromAnchor: south }
+  - { from: audio-encoder, to: audio-out, component: line, fromAnchor: south }
+  - { from: embedder-out, to: vision-out, component: line }
+  - { from: vision-out, to: audio-out, component: line }
+  - { from: vision-out, to: token-frame, toAnchor: north }
+  - { from: token-frame, to: backbone }
+  - { from: backbone, to: scatter }
