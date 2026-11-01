@@ -1,0 +1,14 @@
+version: 1
+figure: { id: html-card, theme: paper, layout: { arrange: { row: { items: [card] } } } }
+nodes:
+  - id: card
+    component: html
+    props:
+      viewport: 320x240
+      width: 160pt
+      html: |
+        <div style="padding:16px;background-color:var(--sumi-bg);color:var(--sumi-fg);border:2px solid var(--sumi-accent);font-size:18px;line-height:1.5">
+          <b style="font-size:24px">HTML 日本語</b>
+          <p style="margin:8px 0">日本語の文章と English words を同じカードに配置し、幅に合わせて折り返します。</p>
+          <div style="font-family:var(--sumi-mono);font-size:16px;white-space:pre">  code(1.25)</div>
+        </div>

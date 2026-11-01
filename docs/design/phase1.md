@@ -2465,6 +2465,17 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **配布:** npm tarball にライセンスが欠けるため release commit `d482d86c081156760d72842fe28c31f8a0e8f64f` の原文を `assets/licenses/takumi/` へ vendor。MIT/Apache、Geist OFL、IJG、Chromium/Skia、emoji-segmenter、ICU と upstream notice を release の `licenses/takumi/` と NOTICE に含める。Geist OFL は Vercel upstream の固定commitから取得する（Takumi直下のfonts/OFLは別フォント用）。native-only libwebp の記述も upstream 原文のまま保持する。
 - **検証:** catalog、全テーマ×全variant gallery、位置付き許可/拒否・予算・theme・両layout engine・SVG/PDF/PPTX・同一入力2回の一致をテストする。既存全 YAML の自身の theme と全組み込み theme の SVG/PDF/picture PPTX/D2 SHA-256 を前後比較する（失敗例は診断code列のみ）。isolated compiled-release smokeにもHTMLのSVG/PDF/PPTXと2回一致を恒久追加。Bun 1.3.14 / darwin-arm64 のfull CLIはmain `1363448` の70,463,714 bytesから74,773,346 bytesへ **+4,309,632 bytes（約4.11 MiB）**。研究の+4.28 MBはprototype差分。詳細は `docs/verification/283-html.md`。
 
+### 6.83 #294 の HTML 出力のプラットフォーム間決定性
+
+**決定:** 既存の asset golden（`tests/fixtures/assets/outputs-sha256.json`）へ HTML の SVG / PDF / picture PPTX の SHA-256 を追加し、OS ごとの期待値は作らない。`SUMI_UPDATE_GOLDEN=1` の既存更新経路だけで生成する。renderer・font loading・lint の実装は変更しない（#293 と並行作業）。
+
+- **コーパス:** `tests/fixtures/assets/html-{code,card,tokens,nested}.sumi.yaml` の4図。mono の色付きコード行、太字・日本語・Latin の折り返しカード、トークン列、入れ子 flex/grid を含み、academic / paper の両方で計24 hashを検査する。default / framed と structured / D2 layout を含める。作例ではなくテスト fixture として保持する。
+- **CI:** 既存 `assets.integration.test.ts` に追加することで、ubuntu-latest / macos-latest の通常 test matrix の両方で同じ golden を必須にする。個々の fixture×theme を独立した test にし、既定60秒（`bun run test`）を維持する。SVG に vector image があること、PDF が raster image を含まないこと、描画診断・幾何 lint が空であることも検査する。
+- **配布:** `scripts/smoke-release.ts` は同じ日本語カード fixture を隔離作業ディレクトリへコピーし、academic / paper それぞれの SVG / PDF / picture PPTX をコンパイル済みバイナリで生成する。同じ golden JSON の hash と比較し、不一致は key・actual・expected を出して失敗させる。同一バイナリでの2回一致と vector / package の検査も維持する。Release smoke が走る全ターゲットへ適用する。
+- **確認範囲:** ローカル darwin-arm64 で golden を生成・照合する。Linux / macOS の一致および配布対象ごとの一致は、この PR の CI / Release smoke の結果で確認する必要がある。不一致を OS 別 golden や skip で隠さず、float の文字列化・font 読み込み順等を調査して修正または原因を記録する。
+- **互換性:** 既存全 `*.sumi.yaml` を自身の theme と全組み込み theme で変更前後に描画し、SVG / PDF / picture PPTX / D2 の SHA-256 を比較する。不正・追加 registry 必須等の入力は診断 code を記録する。catalog と全テーマ×variant gallery は既存の検査経路で維持する。
+- **ローカル実測:** Bun 1.3.14 / darwin-arm64 で新規24 hash と compiled release smoke の共通6 hash が一致。既存154 YAML の比較は SVG / PDF / picture PPTX 各644件、D2 234件が全一致、失敗入力の診断 code も変化なし。全体テストは4,066 pass / 13 skip / 0 fail、gallery 227生成物と schema も最新。OS 間一致の最終判断は上記 CI 待ちとする。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）
