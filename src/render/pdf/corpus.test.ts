@@ -32,7 +32,12 @@ for (const { id, svg } of corpus) {
     expect(pdf.pages).toHaveLength(1);
     // Raster images (#94) are embedded as PDF images; everything else stays vector.
     expect(pdf.images > 0).toBe(/data:image\/(png|jpeg)/.test(svg));
-    expect(pdf.fonts.length).toBeGreaterThan(0);
+    if (id.includes("/sumi-html.")) {
+      // HTML text is outlined before importing: a wholly vector, font-free PDF.
+      expect(pdf.fonts).toHaveLength(0);
+      expect(pdf.glyphs).toHaveLength(0);
+      expect(pdf.images).toBe(0);
+    } else expect(pdf.fonts.length).toBeGreaterThan(0);
     for (const font of pdf.fonts) expect(font).toMatchObject({ embedded: true, subset: true });
     expect(pdf.glyphs.every((g) => g.text !== "�")).toBe(true);
     expect(pdf.info.CreationDate).toBeUndefined();

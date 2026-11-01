@@ -20,6 +20,17 @@ hint は structured の `align: stretch` と内側の `justify: stretch` /
 
 ## 規則の一覧
 
+### HTML 部品の事前検査（#283）
+
+`html` の `props.html` は Takumi の実行前に検査する。以下は抑制できない error。
+
+| code | 内容 | 直し方 |
+|---|---|---|
+| `asset/unsafe-html` | 許可外タグ、style 以外の属性、重複属性、壊れた入れ子・宣言など。 | div/span/p/b/i/br と quoted style だけにする。 |
+| `asset/unsupported-css` | 未知 property、許可外関数・var/font、escape/entity/comment、overflow/transform/gradient/shadow/filter など。 | 公開 subset と固定 --sumi-* 変数・同梱フォントだけを使う。 |
+
+診断は HTML の offset を YAML scalar の行・列へ戻す。入力128KiB・512要素・深さ24は既存 `asset/too-large`、viewport の形式と各辺2048/総2,097,152pxの違反は `asset/invalid-image`。変換失敗・usvg失敗も同コード、変換後は既存 SVG importer の `asset/unsafe-svg` / `asset/unsupported-svg` 等。文字は輪郭化され、内部のはみ出し・文字サイズ・欠字 lint は #293 で対応する。
+
 配置の `grid` は構造 lint より前の layout 段で検査する。行の残りより大きい span は `layout/grid-span-overflow`（error、`span` の位置）、未完の最終行は `layout/grid-item-count`（error、`items` のキー）。全行を埋める。空けたいセルは `null`（`~`）、複数列は `{ item: null, span: N }` で書く（ノードも経路の障害物も作らない）。空文字・空の items・不正な columns / span・direction は位置付きの `schema/*`。これらは `lint/*` の抑制設定では無効にできない（設計 §6.59）。
 
 `geometry/badge-collision`（既定 warning、#188）は、1 em の角バッジの

@@ -328,6 +328,43 @@ const image: NodeManifest = {
   embed: "image",
 };
 
+/** HTML is a separate public source contract with the existing image placement. */
+const html: NodeManifest = {
+  ...base,
+  since: "0.11.0",
+  kind: "node",
+  name: "html",
+  description:
+    "A restricted HTML/CSS leaf rendered as outlined vector artwork with bundled fonts and theme variables; takes no label.",
+  variants: ["default", "framed"],
+  props: z.strictObject({
+    html: z
+      .string()
+      .min(1)
+      .describe(
+        "Restricted HTML: div, span, p, b, i, br; only inline style. No URLs, images, scripts, overflow, transforms, gradients or shadows. Text becomes outlines, not searchable text.",
+      ),
+    viewport: z
+      .string()
+      .describe(
+        "Required CSS pixel viewport WxH, e.g. 320x176; at most 2048 per side and 2097152 total pixels.",
+      ),
+    width: SizeLength.optional().describe(
+      "Display width, e.g. 120pt; missing side follows viewport aspect ratio. If neither side is given, uses the viewport at 0.75pt per CSS px.",
+    ),
+    height: SizeLength.optional().describe(
+      "Display height; missing side follows viewport aspect ratio.",
+    ),
+    fit: z
+      .enum(IMAGE_FITS)
+      .default("contain")
+      .describe("Image placement: contain (default), cover, or fill."),
+  }),
+  shape: "rectangle",
+  sizing: "auto",
+  embed: "image",
+};
+
 /** Canonical ID of the legend (#131): the one component the `check` stages expand. */
 export const LEGEND_ID = "sumi/legend";
 
@@ -920,6 +957,7 @@ export const BUILTIN_MANIFESTS: readonly ComponentManifest[] = [
   operator,
   junction,
   image,
+  html,
   waveform,
   legend,
   tokens,

@@ -98,6 +98,8 @@ export interface FigureAssets {
 }
 
 export interface LoadAssetsOptions {
+  /** Generated HTML artwork, normalized by the bundled usvg engine. */
+  htmlSvgs?: ReadonlyMap<ElementKey, string>;
   /** The directory image paths are relative to: the figure's YAML file's directory. */
   base?: string;
 }
@@ -169,9 +171,11 @@ export function loadFigureAssets(
       });
     };
     const loaded =
-      image.svg !== undefined
-        ? loadInlineSvg(image.svg, fail)
-        : loadImage(image.src ?? "", options.base, fail);
+      image.html !== undefined
+        ? loadInlineSvg(options.htmlSvgs?.get(node.key) ?? "", fail)
+        : image.svg !== undefined
+          ? loadInlineSvg(image.svg, fail)
+          : loadImage(image.src ?? "", options.base, fail);
     if (loaded === undefined) continue;
     total += loaded.bytes.length;
     if (total > ASSET_LIMITS.maxFigureBytes) {
@@ -191,7 +195,17 @@ export function loadFigureAssets(
       );
       continue;
     }
-    const size = imageSize(node, loaded.asset.intrinsic);
+    const defaultWidth =
+      image.viewport && node.width === undefined && node.height === undefined
+        ? {
+            units: Math.max(1, Math.round(image.viewport.width * 1.5)),
+            pt: Math.max(1, Math.round(image.viewport.width * 1.5)) / 2,
+          }
+        : undefined;
+    const size = imageSize(
+      { ...node, ...(defaultWidth && { width: defaultWidth }) },
+      loaded.asset.intrinsic,
+    );
     if (size === undefined) {
       fail(
         "asset/invalid-image",
@@ -200,9 +214,11 @@ export function loadFigureAssets(
       continue;
     }
     lines.push(
-      image.svg !== undefined
-        ? `inline-svg ${node.id} ${digest}\n`
-        : `image ${image.src} ${digest}\n`,
+      image.html !== undefined
+        ? `html ${node.id} ${sha256(image.html)} ${image.viewport?.width}x${image.viewport?.height} ${digest}\n`
+        : image.svg !== undefined
+          ? `inline-svg ${node.id} ${digest}\n`
+          : `image ${image.src} ${digest}\n`,
     );
     nodes.set(node.key, { ...loaded.asset, size });
   }

@@ -173,7 +173,7 @@ export function sampleSource(entry: CatalogEntry, theme: string): string {
     );
   }
   if (entry.kind === "node" && entry.embed !== undefined) {
-    lines.push(...imageSample(entry));
+    lines.push(...(entry.id === "sumi/html" ? htmlSample(entry) : imageSample(entry)));
     return `${lines.join("\n")}\n`;
   }
   if (entry.kind === "node" && entry.mark !== undefined) {
@@ -566,6 +566,27 @@ function matrixSample(entry: CatalogEntry, theme: string): string {
 }
 
 type MarkedEntry = Extract<CatalogEntry, { kind: "node" }>;
+
+function htmlSample(entry: CatalogEntry): string[] {
+  return [
+    "",
+    "nodes:",
+    ...entry.variants.flatMap((v) => [
+      `  - id: ${v}`,
+      "    component: html",
+      `    variant: ${v}`,
+      "    props:",
+      "      viewport: 320x176",
+      "      width: 160pt",
+      "      html: |",
+      '        <div style="display:flex;flex-direction:column;gap:12px;padding:16px;width:320px;height:176px;background-color:var(--sumi-bg);border:2px solid var(--sumi-accent);border-radius:12px">',
+      `          <b style="font-size:24px;color:var(--sumi-accent)">${v}</b>`,
+      '          <div style="font-family:var(--sumi-mono);white-space:pre;font-size:18px">  render(text)</div>',
+      '          <p style="font-size:18px;color:var(--sumi-muted)">HTML / CSS · 日本語</p>',
+      "        </div>",
+    ]),
+  ];
+}
 
 function imageSample(entry: MarkedEntry): string[] {
   const rows = [

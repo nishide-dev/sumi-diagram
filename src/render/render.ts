@@ -11,6 +11,7 @@
  * they are composed into the placeholders after the outlines.
  */
 
+import { renderHtmlAssets } from "../assets/html-render";
 import { type FigureAssets, hasAssets, loadFigureAssets } from "../assets/load";
 import { createD2CliBackend } from "../backends/d2/backend";
 import type { DiagramBackend, RenderArtifact } from "../backends/types";
@@ -130,7 +131,13 @@ export async function renderCompiledFigure(
   let figure = compiled.value;
   let assets: FigureAssets | undefined;
   if (hasAssets(ir)) {
-    const loaded = loadFigureAssets(ir, { ...(assetBase !== undefined && { base: assetBase }) });
+    const html = await renderHtmlAssets(ir);
+    diagnostics.push(...html.diagnostics);
+    if (!html.ok) return { ok: false, diagnostics };
+    const loaded = loadFigureAssets(ir, {
+      htmlSvgs: html.value,
+      ...(assetBase !== undefined && { base: assetBase }),
+    });
     diagnostics.push(...loaded.diagnostics);
     if (!loaded.ok) return { ok: false, diagnostics };
     assets = loaded.value;

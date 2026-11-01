@@ -24,6 +24,7 @@ import { errorAt } from "../core/figure/report";
 import type { Locator } from "../core/figure/yaml";
 import { componentId } from "../core/registry/manifest";
 import { isBlankForD2 } from "../core/registry/resolve";
+import { htmlViewport, validateHtml } from "./html";
 import { parseIconRef } from "./icon-ref";
 import { IconArchiveError, iconExclusion, iconNames, iconSet, iconSets, iconSvg } from "./icons";
 import { ASSET_LIMITS } from "./load";
@@ -127,6 +128,32 @@ export function checkAssets(state: CheckState, locate: Locator): void {
     }
 
     if (manifest.embed === "image") {
+      if (typeof component.props.html === "string") {
+        const path = ["nodes", index, "props", "html"];
+        const issues = validateHtml(component.props.html);
+        for (const issue of issues) {
+          const location = locate(path, { span: [issue.offset, issue.offset], literalBlock: true });
+          state.diagnostics.push({
+            code: issue.code,
+            severity: "error",
+            message: issue.message,
+            path,
+            subject,
+            ...(location && { location }),
+          });
+        }
+        if (issues.length) {
+          state.invalid.add(key);
+          failed = true;
+        }
+        if (typeof component.props.viewport !== "string" || !htmlViewport(component.props.viewport))
+          fail(
+            "asset/invalid-image",
+            "viewport must be WxH CSS pixels, at most 2048 per side and 2097152 pixels in total.",
+            ["props", "viewport"],
+          );
+        continue;
+      }
       const src = component.props.src;
       const svg = component.props.svg;
       // Custom manifests need not enforce source exclusivity in their props schema.

@@ -156,6 +156,10 @@ function componentStyles(styles: VariantStyles): NonNullable<ThemeDefinition["co
       default: { fill: "transparent", strokeWidth: "0pt" },
       framed: { fill: "transparent", strokeWidth: "{line.regular}" },
     },
+    html: {
+      default: { fill: "transparent", strokeWidth: "0pt" },
+      framed: { fill: "transparent", strokeWidth: "{line.regular}" },
+    },
     waveform: {
       default: {},
       emphasis: styles.shape.emphasis,

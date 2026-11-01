@@ -6,6 +6,34 @@ JPEG or SVG files. It checks and embeds them; it never draws, edits or
 resizes the pixels. Prefer existing components and icons. For a small custom
 drawing, use inline SVG (0.10.0) below; for photos, ask the user for the file.
 
+## Restricted HTML cards (0.11.0)
+
+Use dedicated `component: html`, as a standalone leaf or with `group:` inside a container.
+Required props: `html` and `viewport: 320x176` in CSS px. Optional `width`, `height`,
+`fit: contain|cover|fill`, and variants `default|framed` use image placement.
+One missing dimension preserves the viewport aspect ratio; neither means natural size
+(0.75pt per CSS px, rounded to 0.5pt). Do not put `props.html` on `image`.
+
+Only `div/span/p/b/i/br` and a quoted inline `style` attribute are accepted.
+Use flex/grid layout, position/edges, dimensions, margin/padding/gap, color/background-color,
+border/radius, font properties, line-height, letter-spacing, text-align, white-space,
+opacity and `box-sizing:border-box`. Unknown CSS is an error, never silently ignored.
+No images/SVG/scripts/style tags, events/classes, URLs, @rules, custom properties,
+overflow (including hidden), transforms, gradients, shadows or filters.
+CSS escapes, entities and comments inside style are rejected.
+
+Theme variables: `--sumi-fg`, `--sumi-muted`, `--sumi-accent`, `--sumi-bg`,
+`--sumi-font`, `--sumi-mono`; use `var(--sumi-accent)` without fallbacks.
+font-family may only use the font/mono variables or bundled family names
+`BIZ UDPGothic`, `BIZ UDGothic`, `Inter`. No font fetching.
+**Put `white-space:pre` on each line div, not the parent** (indentation between
+children otherwise becomes extra lines). Takumi uses **border-box**, not browser
+content-box. Budget: 128KiB, 512 elements, depth24; viewport ≤2048 per side and
+2,097,152 total pixels. Text becomes outlines: no PDF text search/copy or editable
+PPTX text; use SVG/PDF/picture PPTX. Internal overflow/text-size/glyph lint is not
+yet available; inspect the rendered result. Diagnostics: `asset/unsafe-html`,
+`asset/unsupported-css`; size budgets reuse `asset/too-large`.
+
 ## Icons
 
 ```sh
