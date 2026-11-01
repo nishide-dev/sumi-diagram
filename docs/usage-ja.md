@@ -66,7 +66,7 @@ tarball には次が入っています。
 | `SHA256SUMS` | 展開先の自身以外の全ファイルの SHA-256。リリース側の一覧は tarball を検証する |
 
 ```sh
-version=0.10.0 target=darwin-arm64   # darwin-arm64 | darwin-x64 | linux-x64 | linux-arm64
+version=0.11.0 target=darwin-arm64   # darwin-arm64 | darwin-x64 | linux-x64 | linux-arm64
 base=https://github.com/nishide-dev/sumi-diagram/releases/download/v$version
 curl -fLO "$base/sumi-$version-$target.tar.gz"
 curl -fLO "$base/SHA256SUMS"

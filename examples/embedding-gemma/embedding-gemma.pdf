@@ -1401,9 +1401,9 @@ endobj
 264 0 obj
 <<
   /Title (embedding-gemma)
-  /Creator (Sumi 0.10.0)
-  /Producer (Sumi 0.10.0 \(krilla 0.8.2, krilla-svg 0.8.1\))
-  /SumiBackend (sumi-structured 0.10.0)
+  /Creator (Sumi 0.11.0)
+  /Producer (Sumi 0.11.0 \(krilla 0.8.2, krilla-svg 0.8.1\))
+  /SumiBackend (sumi-structured 0.11.0)
   /SumiTheme (paper)
   /SumiProfile (paper-double)
   /SumiFontSet (sumi/inter-biz-ud-gothic)
