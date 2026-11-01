@@ -496,7 +496,10 @@ matrix/tokens cells and legend frames. Intrinsically curved shapes (circles,
 cylinders, curly brackets) retain their outlines. Editable PPTX frames use
 miter stroke joins. Auto/D2 figures also get square node/group frames.
 Independently, `edgeCorners: sharp` draws structured wires with sharp turns
-and T-joins at hidden junctions/forks, butt caps and miter joins. Editable
+and T-joins at hidden junctions/forks, butt caps and miter joins. Routed
+bends stay connected for real miter joins while shared trunks are drawn once.
+Zoom wires (including dashed ones) also use butt caps and miter joins in SVG,
+PDF and picture PPTX. Editable
 PPTX wires use flat caps and miter joins in both freeform and glued modes;
 auto/D2 wire routing remains D2's. Use both options for square frames and
 sharp wires, or only `edgeCorners: sharp` to keep rounded frames.

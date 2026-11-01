@@ -1,7 +1,11 @@
 import { expect, test } from "bun:test";
 import { checkFigure } from "../core/check";
 import { getTheme } from "../core/theme/builtin";
+import { DEFAULT_FONT_SET_ID, getFontSet } from "../core/theme/fonts";
 import { lintGeometry } from "../lint/geometry";
+import { svgToPdf } from "./pdf";
+import { parsePdf } from "./pdf/testing";
+import { svgToPptx } from "./pptx";
 import { svgToEditablePptx } from "./pptx/editable";
 import { readPptx } from "./pptx/testing";
 import { renderFigure } from "./render";
@@ -32,6 +36,86 @@ edges:
   - { from: j2, to: tokens.2, toAnchor: north }
   - { from: j3, to: tokens.3, toAnchor: north }
 `;
+
+function pdfStreams(svg: string): string {
+  const fontSet = getFontSet(DEFAULT_FONT_SET_ID);
+  if (!fontSet) throw new Error("Missing default font set");
+  const pdf = svgToPdf(svg, { fontSet });
+  if (!pdf.ok) throw new Error(JSON.stringify(pdf.diagnostics));
+  return [...parsePdf(pdf.value).objects.values()]
+    .filter((object) => object.stream !== undefined)
+    .map((object) => new TextDecoder().decode(object.stream))
+    .join("\n");
+}
+
+test("sharp routed elbows remain connected in SVG and PDF after trunk deduplication", async () => {
+  const result = await renderFigure(
+    source("themeOverrides: { edgeCorners: sharp }").replace(
+      "edges:\n",
+      "edges:\n  - { from: input, to: tokens }\n",
+    ),
+  );
+  if (!result.ok || !("layout" in result.value))
+    throw new Error(JSON.stringify(result.diagnostics));
+  const { svg, layout } = result.value;
+  expect(layout.edges.some((edge) => (edge.route?.points.length ?? 0) > 2)).toBe(true);
+  const wires = [...svg.matchAll(/<path class="sumi-wire"[^>]*>/g)].map((m) => m[0]);
+  const elbow = wires.find((wire) => /d="M [^ML"]+ L [^ML"]+ L /.test(wire));
+  expect(elbow).toBeDefined();
+  expect(elbow).toContain('stroke-linejoin="miter"');
+  // Test the actual writer's wire alone so frame joins cannot satisfy PDF assertions.
+  const wireSvg = svg.replace(/(<svg[^>]*>)[\s\S]*(<\/svg>)/, `$1${elbow}$2`);
+  const streams = pdfStreams(wireSvg);
+  // PDF defaults are butt/miter; the serializer may omit explicit zero operators.
+  expect(streams).not.toMatch(/[12] [Jj]/);
+  // Require a stroked polyline, not the page's rectangular clipping path.
+  expect(streams).toMatch(
+    /[-\d.]+ [-\d.]+ m\s+[-\d.]+ [-\d.]+ l\s+[-\d.]+ [-\d.]+ l(?:\s+[-\d.]+ [-\d.]+ l)*\s+S/,
+  );
+});
+
+test.each([false, true])(
+  "zoom wires honour sharp=%s in SVG, PDF and picture PPTX",
+  async (sharp) => {
+    const result = await renderFigure(`version: 1
+figure:
+  id: zoom-corners
+  theme: paper
+  ${sharp ? "themeOverrides: { edgeCorners: sharp }" : ""}
+  layout: { arrange: { row: { gap: 40pt, items: [a, b] } } }
+nodes:
+  - { id: a, component: box, label: A }
+  - { id: b, component: box, label: B }
+edges:
+  - { from: a, to: b, component: zoom }
+`);
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const { svg } = result.value;
+    const wire = /<path class="sumi-wire"[^>]*>/.exec(svg)?.[0];
+    expect(wire).toBeDefined();
+    expect(wire).toContain("stroke-dasharray");
+    expect(wire).toContain(`stroke-linecap="${sharp ? "butt" : "round"}"`);
+    expect(wire).toContain(`stroke-linejoin="${sharp ? "miter" : "round"}"`);
+    const wireSvg = svg.replace(/(<svg[^>]*>)[\s\S]*(<\/svg>)/, `$1${wire}$2`);
+    if (sharp) expect(pdfStreams(wireSvg)).not.toMatch(/[12] [Jj]/);
+    else expect(pdfStreams(wireSvg)).toMatch(/1 J\s+1 j/);
+    const picture = svgToPptx(svg);
+    if (!picture.ok) throw new Error(JSON.stringify(picture.diagnostics));
+    const media = [...readPptx(picture.value)]
+      .filter(([path]) => path.startsWith("ppt/media/") && path.endsWith(".svg"))
+      .map(([, bytes]) => new TextDecoder().decode(bytes));
+    expect(media).toHaveLength(1);
+    const mediaWire = /<path[^>]*stroke-dasharray="[^"]+"[^>]*>/.exec(media[0] ?? "")?.[0];
+    expect(mediaWire).toBeDefined();
+    // Outlined SVG omits attributes with SVG's default butt/miter values.
+    expect(/stroke-linecap="([^"]+)"/.exec(mediaWire ?? "")?.[1] ?? "butt").toBe(
+      sharp ? "butt" : "round",
+    );
+    expect(/stroke-linejoin="([^"]+)"/.exec(mediaWire ?? "")?.[1] ?? "miter").toBe(
+      sharp ? "miter" : "round",
+    );
+  },
+);
 
 test("square theme override preserves a continuous comb, sharp T joins and identical arrowheads", async () => {
   const text = source(

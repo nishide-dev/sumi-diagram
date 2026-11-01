@@ -689,7 +689,10 @@ YAML order, greedily: edges declared first get the best routes.
 - Line corners are drawn rounded (radius up to 4pt, smaller in tight spots).
   Set `figure.themeOverrides.edgeCorners: sharp` for sharp turns, including
   hidden junctions/forks, with butt caps and miter joins. This is independent
-  of `nodeCorners: square`. Editable PPTX keeps sharp centerline corners;
+  of `nodeCorners: square`. Sharp routed bends remain connected after shared
+  trunks are deduplicated, so the outside of each bend receives a real miter.
+  Zoom wires also use butt caps/miter joins, including their visible dash ends,
+  in SVG, PDF and picture PPTX. Editable PPTX keeps sharp centerline corners;
   `edgeCorners: sharp` also sets flat caps and miter joins in both modes.
   The router keeps a straight run of the arrowhead plus the radius before an
   arrowhead where moving a bend gives it. Tight group-padding approaches

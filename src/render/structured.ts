@@ -497,6 +497,44 @@ function wirePoints(edge: EdgeIR, points: readonly Point[]): Point[] {
 
 type Segment = readonly [Point, Point];
 
+/** Join deduplicated segments at ordinary bends, leaving branch trunks painted once. */
+function sharpPathData(segments: readonly Segment[]): string {
+  const key = (p: Point) => `${p.x},${p.y}`;
+  const touching = new Map<string, number[]>();
+  for (const [i, segment] of segments.entries()) {
+    for (const p of segment) {
+      const ids = touching.get(key(p)) ?? [];
+      ids.push(i);
+      touching.set(key(p), ids);
+    }
+  }
+  const used = new Set<number>();
+  const paths: string[] = [];
+  const walk = (i: number, start: Point) => {
+    const points = [start];
+    let at = start;
+    while (!used.has(i)) {
+      used.add(i);
+      const [a, b] = segments[i] as Segment;
+      at = key(at) === key(a) ? b : a;
+      points.push(at);
+      const next = touching.get(key(at)) ?? [];
+      if (next.length !== 2) break;
+      const candidate = next.find((id) => !used.has(id));
+      if (candidate === undefined) break;
+      i = candidate;
+    }
+    paths.push(key(at) === key(start) ? `${pathData(points.slice(0, -1))} Z` : pathData(points));
+  };
+  // Open chains first; any remaining segments form closed loops.
+  for (const [i, segment] of segments.entries()) {
+    const start = segment.find((p) => touching.get(key(p))?.length !== 2);
+    if (!used.has(i) && start !== undefined) walk(i, start);
+  }
+  for (const [i, [a]] of segments.entries()) if (!used.has(i)) walk(i, a);
+  return paths.join(" ");
+}
+
 /**
  * Merges segments into maximal axis-parallel ones (overlapping or touching
  * collinear segments join): horizontal by y then x, vertical by x then y,
@@ -607,6 +645,8 @@ function wires(
     height: Math.abs(b.y - a.y),
   });
   const out: string[] = [];
+  const sharp = ir.meta.themeOverrides?.edgeCorners === "sharp";
+  const joins = `stroke-linecap="${sharp ? "butt" : "round"}" stroke-linejoin="${sharp ? "miter" : "round"}"`;
   const painted = new Map<ElementKey, { pieces: [Point, Point][]; arcs: Arc[] }>();
   // Zoom edges (#176): their own two straight lines, under the routed wires.
   for (const placed of layout.edges) {
@@ -619,7 +659,7 @@ function wires(
     painted.set(placed.key, { pieces, arcs: [] });
     if (pieces.length === 0) continue;
     out.push(
-      `<path class="sumi-wire" d="${pieces.map((piece) => pathData(piece)).join(" ")}" fill="none"${strokeAttributes(edge.style)} stroke-linecap="round" stroke-linejoin="round"${opacity(edge.style)}/>`,
+      `<path class="sumi-wire" d="${pieces.map((piece) => pathData(piece)).join(" ")}" fill="none"${strokeAttributes(edge.style)} ${joins}${opacity(edge.style)}/>`,
     );
   }
   for (const net of nets) {
@@ -691,7 +731,7 @@ function wires(
     for (const { edge, polylines, keys } of byStyle.values()) {
       const width = edge.style.strokeWidth.units;
       const rounded = roundCorners(polylines, {
-        radius: ir.meta.themeOverrides?.edgeCorners === "sharp" ? 0 : WIRE_CORNER_RADIUS,
+        radius: sharp ? 0 : WIRE_CORNER_RADIUS,
         minRadius: width,
         clearance: width,
         obstacles,
@@ -712,9 +752,11 @@ function wires(
         curves.push(d);
       }
       if (merged.length === 0 && curves.length === 0) continue;
-      const d = [...merged.map(([a, b]) => pathData([a, b])), ...curves].join(" ");
+      const d = sharp
+        ? sharpPathData(merged)
+        : [...merged.map(([a, b]) => pathData([a, b])), ...curves].join(" ");
       out.push(
-        `<path class="sumi-wire" d="${d}" fill="none"${strokeAttributes(edge.style)} stroke-linecap="${ir.meta.themeOverrides?.edgeCorners === "sharp" ? "butt" : "round"}" stroke-linejoin="${ir.meta.themeOverrides?.edgeCorners === "sharp" ? "miter" : "round"}"${opacity(edge.style)}/>`,
+        `<path class="sumi-wire" d="${d}" fill="none"${strokeAttributes(edge.style)} ${joins}${opacity(edge.style)}/>`,
       );
     }
   }
