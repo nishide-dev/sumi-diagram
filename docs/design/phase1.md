@@ -2504,6 +2504,8 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **長い見出し:** 原図どおりの45文字の第2見出しは長さの既定heuristic（40文字）を超えるため、作例ローカルの `lint.json` で上限を48にする。ルールを無効化せず、warning上限0を維持する。実寸のoverflowはgeometry lintで別途検査する。galleryは従来の生成経路を使う。
 - **出力検査:** PDFテスト用の `textLines()` は同じフォント・サイズ・baselineでも色が変わったらrunを分ける。monoの通常文字と色付き語が同じフォントになる作例で、実装の変更なしにSVGのrunごとの位置・幅を検査できるようにする。PDFエンジン・生成バイトは変更しない。
 
+- **#299 レビュー追補:** `themeOverrides` の未知キーは `schema/unknown-field`（キー位置）、不正な列挙値・型は `schema/invalid-value`（値位置）として、pathと行・列・終端までテストする。CLIPのカード・ラベル列・prompt・answerは §6.76 の `mono: true` を維持し、色付き語も含むSVGの実runがmonoであることを回帰検査する。同梱BIZ UDGothicは等幅sans-serifで、原図のtypewriter字形とは異なる。青い強調セルは既存の `\textcolor{gray}{…}` で通常セルと同じ文字色にし、青のfill/frameは維持する。見出し45文字を1行に保つための `lint/long-label.maxLineWidth: 48` は文字数heuristicだけの調整で、実寸のgeometry検査は継続する（`examples/README.md` に理由を記載）。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）

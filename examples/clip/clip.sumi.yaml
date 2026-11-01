@@ -87,11 +87,11 @@ nodes:
       ellipsisRows: [ 4 ]
       ellipsisColumns: [ 4 ]
       cells:
-        - [ { class: d, text: '$I_1\cdot T_1$' }, { class: o, text: '$I_1\cdot T_2$' }, { class: o, text: '$I_1\cdot T_3$' }, o, { class: o, text: '$I_1\cdot T_N$' } ]
-        - [ { class: o, text: '$I_2\cdot T_1$' }, { class: d, text: '$I_2\cdot T_2$' }, { class: o, text: '$I_2\cdot T_3$' }, o, { class: o, text: '$I_2\cdot T_N$' } ]
-        - [ { class: o, text: '$I_3\cdot T_1$' }, { class: o, text: '$I_3\cdot T_2$' }, { class: d, text: '$I_3\cdot T_3$' }, o, { class: o, text: '$I_3\cdot T_N$' } ]
+        - [ { class: d, text: '$\textcolor{gray}{I_1\cdot T_1}$' }, { class: o, text: '$I_1\cdot T_2$' }, { class: o, text: '$I_1\cdot T_3$' }, o, { class: o, text: '$I_1\cdot T_N$' } ]
+        - [ { class: o, text: '$I_2\cdot T_1$' }, { class: d, text: '$\textcolor{gray}{I_2\cdot T_2}$' }, { class: o, text: '$I_2\cdot T_3$' }, o, { class: o, text: '$I_2\cdot T_N$' } ]
+        - [ { class: o, text: '$I_3\cdot T_1$' }, { class: o, text: '$I_3\cdot T_2$' }, { class: d, text: '$\textcolor{gray}{I_3\cdot T_3}$' }, o, { class: o, text: '$I_3\cdot T_N$' } ]
         - ooooo
-        - [ { class: o, text: '$I_N\cdot T_1$' }, { class: o, text: '$I_N\cdot T_2$' }, { class: o, text: '$I_N\cdot T_3$' }, o, { class: d, text: '$I_N\cdot T_N$' } ]
+        - [ { class: o, text: '$I_N\cdot T_1$' }, { class: o, text: '$I_N\cdot T_2$' }, { class: o, text: '$I_N\cdot T_3$' }, o, { class: d, text: '$\textcolor{gray}{I_N\cdot T_N}$' } ]
   - id: labels
     component: tokens
     mono: true
@@ -116,7 +116,7 @@ nodes:
       classes: { d: { tone: blue, variant: tinted }, o: {} }
       ellipsisColumns: [ 4 ]
       cells:
-        - [ { class: o, text: '$I_1\cdot T_1$' }, { class: o, text: '$I_1\cdot T_2$' }, { class: d, text: '$I_1\cdot T_3$' }, o, { class: o, text: '$I_1\cdot T_N$' } ]
+        - [ { class: o, text: '$I_1\cdot T_1$' }, { class: o, text: '$I_1\cdot T_2$' }, { class: d, text: '$\textcolor{gray}{I_1\cdot T_3}$' }, o, { class: o, text: '$I_1\cdot T_N$' } ]
   - { id: answer, component: box, mono: true, label: "A photo of\na $\\textcolor{pink}{\\text{dog}}$.", attach: { to: scores, side: south, gap: 16pt }, props: { width: 72pt, height: 30pt } }
 edges:
   - { from: captions, to: train-text }

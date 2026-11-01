@@ -499,6 +499,9 @@ also get square node/group frames; their wire routing remains D2's.
 including expanded frames. Omit either field to keep the theme's setting.
 These are figure-wide presets, not per-element styles; theme colors, fonts,
 spacing and line widths remain selected by the built-in theme.
+The override object is strict: unknown keys produce `schema/unknown-field`,
+and unsupported values produce `schema/invalid-value`, located at the key
+or value in the YAML.
 `sumi catalog --json` lists them (see
 [below](#discovering-themes-and-profiles)); the hint of `theme/unknown` /
 `profile/unknown` names them too. The tables are a summary.

@@ -48,7 +48,15 @@ the space before inline math, a known rasterizer issue ([#266](https://github.co
 
 CLIP preserves the reference's one-line panel headings. Its local lint config
 raises only `lint/long-label.maxLineWidth` from 40 to 48 for the 45-character
-panel-2 heading; every rule remains enabled and `maxWarnings` is zero:
+panel-2 heading; every rule remains enabled and `maxWarnings` is zero.
+This is a character-count heuristic, not a font-size or overflow exemption:
+geometry lint still checks the actual one-line heading at the printed size.
+Highlighted matrix labels use the same gray ink as the other cells via
+`\textcolor{gray}{…}`, retaining the blue tinted fill and frame. The cards,
+label list, prompt and answer use the bundled BIZ UDGothic mono font (§6.76);
+its sans-serif glyphs differ from the reference's typewriter face.
+
+Verify and regenerate with:
 
 ```sh
 bun src/cli/index.ts lint --geometry --config examples/clip/lint.json examples/clip/clip.sumi.yaml

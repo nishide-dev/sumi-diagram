@@ -79,14 +79,21 @@ test("overrides are isolated: omitted settings keep built-in styles and rounding
 });
 
 test.each([
-  "{ corners: rounded }",
-  "{ groupLabelWeight: light }",
-  "{ corners: 0 }",
-  "{ color: red }",
-])("theme override schema rejects %s", (overrides) => {
-  expect(
-    checkFigure(source(`themeOverrides: ${overrides}`)).state.diagnostics.some(
-      (diagnostic) => diagnostic.severity === "error",
-    ),
-  ).toBe(true);
+  ["{ corners: rounded }", "corners", "rounded", "schema/invalid-value"],
+  ["{ groupLabelWeight: light }", "groupLabelWeight", "light", "schema/invalid-value"],
+  ["{ corners: 0 }", "corners", "0", "schema/invalid-value"],
+  ["{ groupLabelWeight: false }", "groupLabelWeight", "false", "schema/invalid-value"],
+  ["{ color: red }", "color", "color", "schema/unknown-field"],
+])("theme override schema locates rejected %s", (overrides, field, token, code) => {
+  const text = source(`themeOverrides: ${overrides}`);
+  const diagnostics = checkFigure(text).state.diagnostics;
+  expect(diagnostics).toHaveLength(1);
+  const column = (text.split("\n")[4]?.indexOf(token) ?? -1) + 1;
+  expect(column).toBeGreaterThan(0);
+  expect(diagnostics[0]).toMatchObject({
+    code,
+    severity: "error",
+    path: ["figure", "themeOverrides", field],
+    location: { line: 5, column, endLine: 5, endColumn: column + token.length },
+  });
 });
