@@ -36,21 +36,37 @@ export function htmlViewport(value: string): { width: number; height: number } |
     : undefined;
 }
 
+export type HtmlToken =
+  | { kind: "text"; text: string }
+  | { kind: "close"; name: string }
+  | { kind: "open"; name: string; offset: number; css: Record<string, string> };
+
 export function validateHtml(source: string): HtmlIssue[] {
+  return parseHtml(source).issues;
+}
+
+/** One strict parse supplies both preflight diagnostics and source projection. */
+export function parseHtml(source: string): { issues: HtmlIssue[]; tokens: HtmlToken[] } {
+  const tokens: HtmlToken[] = [];
   const issues: HtmlIssue[] = [];
   const fail = (code: string, message: string, offset: number) => {
     if (issues.length < 20) issues.push({ code, message, offset });
   };
   if (Buffer.byteLength(source, "utf8") > HTML_LIMITS.maxBytes)
-    return [
-      { code: "asset/too-large", message: "HTML exceeds the 128 KiB input budget.", offset: 0 },
-    ];
+    return {
+      tokens,
+      issues: [
+        { code: "asset/too-large", message: "HTML exceeds the 128 KiB input budget.", offset: 0 },
+      ],
+    };
   const stack: string[] = [];
   const fontSizes: number[] = [];
   let count = 0,
     cursor = 0;
   while (cursor < source.length) {
     const start = source.indexOf("<", cursor);
+    if (start !== cursor)
+      tokens.push({ kind: "text", text: source.slice(cursor, start < 0 ? undefined : start) });
     if (start < 0) break;
     const match =
       /^<(\/)?([a-z][a-z0-9]*)([ \t\n\f\r]+(?:[^<>"']|"[^"<>]*"|'[^'<>]*')*?)?[ \t\n\f\r]*(\/?)>/i.exec(
@@ -73,6 +89,7 @@ export function validateHtml(source: string): HtmlIssue[] {
         start,
       );
     if (match[1]) {
+      tokens.push({ kind: "close", name });
       fontSizes.pop();
       if (match[3]?.replace(/[ \t\n\f\r]/g, "") || match[4] || stack.pop() !== name)
         fail("asset/unsafe-html", "Mismatched closing tag.", start);
@@ -83,6 +100,7 @@ export function validateHtml(source: string): HtmlIssue[] {
       break;
     }
     const attrs = match[3] ?? "";
+    const css: Record<string, string> = {};
     let fontSize = fontSizes.at(-1) ?? 16;
     let at = 0,
       styled = false;
@@ -110,10 +128,11 @@ export function validateHtml(source: string): HtmlIssue[] {
         );
       else {
         styled = true;
-        fontSize = validateCss(attr[3] ?? attr[4] ?? "", offset, fail, fontSize);
+        fontSize = validateCss(attr[3] ?? attr[4] ?? "", offset, fail, fontSize, css);
       }
       at += attr[0].length;
     }
+    tokens.push({ kind: "open", name, offset: start, css });
     if (name !== "br") {
       if (match[4]) fail("asset/unsafe-html", "Self-closing syntax is allowed only on br.", start);
       stack.push(name);
@@ -128,7 +147,7 @@ export function validateHtml(source: string): HtmlIssue[] {
     fail("asset/unsafe-html", "Unclosed HTML tag.", source.length);
   if (!count && !issues.length)
     fail("asset/unsafe-html", "HTML needs at least one allowed element.", 0);
-  return issues;
+  return { issues, tokens };
 }
 
 function validateCss(
@@ -136,6 +155,7 @@ function validateCss(
   offset: number,
   fail: (code: string, message: string, offset: number) => void,
   inheritedFontSize: number,
+  css: Record<string, string>,
 ): number {
   let cursor = 0;
   const tokenized = tokenizeCss(style, ";");
@@ -176,6 +196,7 @@ function validateCss(
       .trim()
       .replace(/[A-Z]/g, (ch) => ch.toLowerCase());
     const value = declaration.slice(colon + 1).trim();
+    css[prop] = value;
     const reject = (message: string) => fail("asset/unsupported-css", message, at);
     if (colon < 1) {
       reject(`Unsupported CSS property: ${prop || declaration.trim()}.`);

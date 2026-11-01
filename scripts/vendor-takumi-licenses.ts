@@ -1,4 +1,6 @@
 /** The npm tarballs omit licenses. Vendor unmodified texts from the exact release commit. */
+
+import { createHash } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -26,7 +28,18 @@ const geist = await fetch(
 );
 if (!geist.ok) throw new Error(`Geist OFL: HTTP ${geist.status}`);
 await Bun.write(join(root, "Geist-OFL.txt"), await geist.text());
+// The source projection uses a character-reference decoder, not helpers/html's
+// bundled ultrahtml parser. Copy the decoder's BSD-2-Clause notice verbatim.
+const entitiesLicense = await Bun.file(
+  new URL("../LICENSE", import.meta.resolve("entities")),
+).text();
+if (
+  createHash("sha256").update(entitiesLicense).digest("hex") !==
+  "cb992345949ccd6e8394b2cd6c465f7b897c864f845937dbf64e8997f389e164"
+)
+  throw new Error("Review the entities license before updating its pinned notice.");
+await Bun.write(join(root, "entities-LICENSE.txt"), entitiesLicense);
 await Bun.write(
   join(root, "README.md"),
-  `# Takumi 2.19.0 notices\n\nUnmodified upstream license texts from https://github.com/kane50613/takumi/tree/${commit}.\nGeist-OFL.txt is from https://github.com/vercel/geist-font/blob/${geistCommit}/OFL.txt (Takumi's assets/fonts/OFL.txt is for Scheherazade, not Geist).\n\nBoth @takumi-rs/wasm and @takumi-rs/helpers are MIT OR Apache-2.0.\nThe WASM includes Geist (OFL), IJG JPEG algorithms, Chromium/Skia algorithms, emoji-segmenter and ICU. The upstream notice also includes native-only libwebp for completeness.\n\nRegenerate with \`bun scripts/vendor-takumi-licenses.ts\`. Distributed in licenses/takumi/.\n`,
+  `# Takumi 2.19.0 notices\n\nUnmodified upstream license texts from https://github.com/kane50613/takumi/tree/${commit}.\nGeist-OFL.txt is from https://github.com/vercel/geist-font/blob/${geistCommit}/OFL.txt (Takumi's assets/fonts/OFL.txt is for Scheherazade, not Geist).\n\nBoth @takumi-rs/wasm and its transitive @takumi-rs/helpers dependency are MIT OR Apache-2.0. Sumi does not import helpers/html; its bundled ultrahtml parser is not reachable in the executable.\nThe WASM includes Geist (OFL), IJG JPEG algorithms, Chromium/Skia algorithms, emoji-segmenter and ICU. The upstream notice also includes native-only libwebp for completeness.\n\nHTML source projection uses Sumi's validated parse and entities 9.0.0 solely for character-reference decoding (no HTML parser). entities-LICENSE.txt is its unmodified BSD-2-Clause notice, copied from the pinned npm package and SHA-256 checked by the generation script.\n\nRegenerate with \`bun scripts/vendor-takumi-licenses.ts\`. Distributed in licenses/takumi/.\n`,
 );

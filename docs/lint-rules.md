@@ -45,6 +45,8 @@ HTML を含む図では通常の CLI lint も非同期 `lintFigureWithHtml()` �
 
 いずれも `props.html` 内の該当要素の開始タグを指す（同じ要素・同じ診断は1件）。literal block は実際の行・列、single-line plain/quoted は escape を考慮した位置、folded/multiline quoted は既存 locator と同じ scalar fallback。display:none の部分は測定されず対象外。文字サイズは contain なら小さい軸、cover なら大きい軸の縮尺、非等方 fill なら保守的に小さい軸を使う。`figure.fit: scale` は既存の `minScaledFontSize`、それ以外は `minFontSize`。2つの既存 lint code は通常の `--rule` で severity 変更・無効化できる。測定値は SVG の外のメモリに保持し、描画バイトを変えない。
 
+Sumiの検査済みparseからinline root内のblock/absolute、混在flow、空白、brの匿名boxを対応付ける。位置順だけで不一致を補わない。一意に対応できない場合は直近の一意な祖先へ定位し、候補要素の解決font-size/familyを保持する。複数候補は各styleを保守的に検査するため、曖昧時は過検出の可能性があるが、小文字・欠字の検査は省略しない。HTML entityは専用decoderで復号し、第2 HTML parserは使わない。
+
 配置の `grid` は構造 lint より前の layout 段で検査する。行の残りより大きい span は `layout/grid-span-overflow`（error、`span` の位置）、未完の最終行は `layout/grid-item-count`（error、`items` のキー）。全行を埋める。空けたいセルは `null`（`~`）、複数列は `{ item: null, span: N }` で書く（ノードも経路の障害物も作らない）。空文字・空の items・不正な columns / span・direction は位置付きの `schema/*`。これらは `lint/*` の抑制設定では無効にできない（設計 §6.59）。
 
 `geometry/badge-collision`（既定 warning、#188）は、1 em の角バッジの

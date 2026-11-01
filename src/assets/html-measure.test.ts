@@ -1,10 +1,11 @@
 import { expect, test } from "bun:test";
+import { type MeasuredNode, Renderer } from "@takumi-rs/wasm/node";
 import { compileFigure } from "../compiler/compile";
 import type { Diagnostic } from "../core/diagnostics";
 import { lintFigureWithHtml, lintGeometry, lintRenderedFigure } from "../lint";
 import { renderFigure } from "../render/render";
 import { validateHtml } from "./html";
-import { htmlOverflows } from "./html-measure";
+import { htmlOverflows, locateHtmlMeasurement } from "./html-measure";
 
 const source = (html: string, props = "", figure = "", auto = false) => `version: 1
 figure:
@@ -234,4 +235,118 @@ test("resolved font-size range errors name only the last declaration (review nit
   expect(
     validateHtml(html.replace("font-size:1px; font-size:16em", "font-size:16em; font-size:1px")),
   ).toEqual([]);
+});
+
+test("inline roots keep block and absolute descendants' size, family and diagnostic ownership", async () => {
+  for (const absolute of [false, true]) {
+    const html = `<span>
+<div>before</div>
+<div${absolute ? ' style="position:absolute;left:319px"' : ""}>
+<span style="font-size:4px;font-family:Inter">日本語 tiny</span>
+</div>
+<div>after</div>
+</span>`;
+    const report = await lintFigureWithHtml(source(html), options);
+    atElement(matching(report.diagnostics, "geometry/text-too-small")[0], 14);
+    atElement(matching(report.diagnostics, "lint/missing-glyph")[0], 14);
+    if (absolute) {
+      const overflow = matching(report.diagnostics, "asset/html-overflow");
+      expect(overflow.length).toBeGreaterThan(0);
+      expect(overflow.every((d) => [13, 14].includes(d.location?.line ?? 0))).toBe(true);
+    }
+  }
+});
+
+test("generated wrapper/flow combinations preserve every measured run's resolved style and owner", async () => {
+  const renderer = new Renderer();
+  const variables = { "--sumi-font": "'BIZ UDPGothic'" };
+  const wrappers = [
+    "div",
+    "span",
+    "p",
+    "b",
+    "i",
+    'div style="display:inline"',
+    'span style="display:block"',
+  ];
+  const flows = [
+    ["span", "span", "span"],
+    ["div", "div", "div"],
+    ["span", "div", "span"],
+    ["div", "span", "div"],
+    ["div", 'div style="position:absolute;left:319px"', "div"],
+    ["span", 'span style="position:absolute;left:319px"', "span"],
+    ['span style="display:inline-block"', "div", "span"],
+  ];
+  const words = ["Alpha", "Bravo", "Charlie"];
+  const sizes = [16, 4, 12];
+  try {
+    for (const wrapper of wrappers)
+      for (const flow of flows)
+        for (const separator of ["", "\n  ", "<br>"]) {
+          const leaves = words.map(
+            (word, i) =>
+              `<span style="font-size:${sizes[i]}px;font-family:${i === 1 ? "Inter" : "'BIZ UDPGothic'"};font-weight:${i === 1 ? 700 : 400}">${word}</span>`,
+          );
+          const html = `<${wrapper}>${separator}${flow.map((tag, i) => `<${tag}>${leaves[i]}</${tag.split(" ")[0]}>`).join(separator)}${separator}</${wrapper.split(" ")[0]}>`;
+          expect(validateHtml(html), html).toEqual([]);
+          const measured = await renderer.measure(`<div>${html}</div>`, {
+            width: 320,
+            height: 176,
+          });
+          const located = locateHtmlMeasurement(html, variables, measured);
+          const measuredTexts = (node: MeasuredNode): string[] => [
+            ...node.runs.map((r) => r.text),
+            ...node.children.flatMap(measuredTexts),
+          ];
+          expect(located.texts.map((t) => t.text).join(""), html).toBe(
+            measuredTexts(measured).join(""),
+          );
+          for (const text of located.texts) {
+            if (!text.text.trim()) {
+              expect(text, html).toMatchObject({
+                fontSize: 16,
+                families: ["BIZ UDPGothic"],
+                weight: wrapper === "b" ? 700 : 400,
+                offset: 0,
+              });
+              continue;
+            }
+            const index = words.indexOf(text.text.trim());
+            expect(index, `${html}: ${text.text}`).toBeGreaterThanOrEqual(0);
+            expect(text, html).toMatchObject({
+              fontSize: sizes[index],
+              families: [index === 1 ? "Inter" : "BIZ UDPGothic"],
+              weight: index === 1 ? 700 : 400,
+              offset: html.indexOf(leaves[index] ?? ""),
+            });
+          }
+          for (const word of words)
+            expect(
+              located.texts.some((t) => t.text.includes(word)),
+              html,
+            ).toBe(true);
+        }
+  } finally {
+    renderer.free();
+  }
+});
+
+test("ambiguous measurement ownership falls back to the ancestor without losing candidate styles", () => {
+  const html =
+    '<div><span style="font-size:4px;font-family:Inter">same</span><div>same</div></div>';
+  // Simulate a changed anonymous-box topology from a future measurement backend.
+  // Identical text cannot identify which source element owns this run.
+  const measured: MeasuredNode = {
+    width: 320,
+    height: 176,
+    transform: [1, 0, 0, 1, 0, 0],
+    children: [],
+    runs: [{ text: "same", x: 0, y: 0, width: 10, height: 5.2 }],
+  };
+  const result = locateHtmlMeasurement(html, { "--sumi-font": "BIZ UDPGothic" }, measured);
+  expect(result.texts).toMatchObject([
+    { text: "same", offset: 0, fontSize: 4, families: ["Inter"] },
+    { text: "same", offset: 0, fontSize: 16, families: ["BIZ UDPGothic"] },
+  ]);
 });

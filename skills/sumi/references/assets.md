@@ -81,6 +81,12 @@ measure HTML, with diagnostics pointing at the offending element inside `props.h
   contain uses the smaller axis, cover the larger; fill conservatively uses the smaller.
 - `lint/missing-glyph` (warning): fix the selected family or text as above; whitespace,
   controls and default-ignorables are excluded. Hidden (`display:none`) text is ignored.
+Source ownership follows inline roots containing block/absolute children, mixed flows,
+whitespace and `<br>`. Sumi uses its validated parse, with a dedicated entity decoder.
+If a measured box/run cannot be matched unambiguously, its location falls back to the
+nearest unambiguous ancestor; candidate elements' resolved font styles still undergo
+size and glyph checks. Multiple candidate styles are checked conservatively, so an
+ambiguous mapping may over-report rather than silently omit a text check.
 Also inspect the rendered result. Preflight diagnostics: `asset/unsafe-html`,
 `asset/unsupported-css`; size budgets reuse `asset/too-large`. Repeated font-size
 declarations use the last value; resolved-size errors point only at that declaration.
