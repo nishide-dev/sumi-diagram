@@ -6,7 +6,7 @@
 
 ## 作れる図
 
-公開されている参照図を Sumi で再現した Transformer アーキテクチャと DiT ブロックです。
+公開されている参照図を Sumi で再現した、Transformer アーキテクチャ、DiT ブロック、EmbeddingGemma 2 の全体図、CLIP の手法の概要図です。
 
 <table>
   <tr>
@@ -16,6 +16,17 @@
   <tr>
     <td><img src="../examples/transformer/transformer.svg" alt="Sumi で描画した Transformer" height="280"></td>
     <td><img src="../examples/dit-block/dit-block.svg" alt="Sumi で描画した DiT ブロック" height="280"></td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <th>EmbeddingGemma 2</th>
+    <th>CLIP</th>
+  </tr>
+  <tr>
+    <td><img src="../examples/embedding-gemma/embedding-gemma.svg" alt="Sumi で描画した EmbeddingGemma 2 の全体図" height="205"></td>
+    <td><img src="../examples/clip/clip.svg" alt="Sumi で描画した CLIP の概要図" height="205"></td>
   </tr>
 </table>
 

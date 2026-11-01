@@ -6,7 +6,7 @@
 
 ## See what you can build
 
-Sumi-rendered recreations of public reference figures: the Transformer architecture and a DiT block.
+Sumi-rendered recreations of public reference figures: the Transformer architecture, a DiT block, the EmbeddingGemma 2 overview and the CLIP approach summary.
 
 <table>
   <tr>
@@ -16,6 +16,17 @@ Sumi-rendered recreations of public reference figures: the Transformer architect
   <tr>
     <td><img src="examples/transformer/transformer.svg" alt="Transformer architecture rendered by Sumi" height="280"></td>
     <td><img src="examples/dit-block/dit-block.svg" alt="DiT block rendered by Sumi" height="280"></td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <th>EmbeddingGemma 2</th>
+    <th>CLIP</th>
+  </tr>
+  <tr>
+    <td><img src="examples/embedding-gemma/embedding-gemma.svg" alt="EmbeddingGemma 2 overview rendered by Sumi" height="205"></td>
+    <td><img src="examples/clip/clip.svg" alt="CLIP overview rendered by Sumi" height="205"></td>
   </tr>
 </table>
 
