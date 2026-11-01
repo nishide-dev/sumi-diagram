@@ -45,6 +45,48 @@ nodes:
 `;
 }
 
+test.each(["auto", "structured"])(
+  "%s: independent waveform frame paint survives SVG and editable PPTX",
+  async (engine) => {
+    const text = source(undefined, undefined, engine)
+      .replace("  id: waveform-test", "  id: waveform-test\n  theme: paper")
+      .replace("props:\n", "props:\n      frameStroke: '#000000'\n");
+    const result = await renderFigure(text);
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const shape = required(elements(result.value.svg).find((e) => classList(e).includes("shape")));
+    const paths = childElements(shape).filter((e) => e.name === "path");
+    expect(attribute(required(paths[0]), "stroke")).toBe("#000000");
+    const signalStroke = attribute(required(paths[1]), "stroke");
+    expect(signalStroke).not.toBe("#000000");
+    expect(paths.slice(1).every((p) => attribute(p, "stroke") === signalStroke)).toBe(true);
+    const pptx = svgToEditablePptx(result.value.svg, result.value.compiled.ir);
+    if (!pptx.ok) throw new Error(JSON.stringify(pptx.diagnostics));
+    const slide = new TextDecoder().decode(readPptx(pptx.value).get("ppt/slides/slide1.xml"));
+    expect(slide).toContain('val="000000"');
+    expect(slide).toContain(`val="${signalStroke?.slice(1).toUpperCase()}"`);
+  },
+);
+
+test("independent waveform frame paint yields to inherited dimming", async () => {
+  const text = source()
+    .replace("items: [signal]", "items: [panel]")
+    .replace(
+      "nodes:\n",
+      "groups:\n  - id: panel\n    dim: true\n    arrange: { row: { items: [signal] } }\nnodes:\n",
+    )
+    .replace("props:\n", "props:\n      frameStroke: '#000000'\n");
+  const result = await renderFigure(text);
+  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+  const shape = required(
+    elements(result.value.svg).find(
+      (e) => classList(e).includes("shape") && childElements(e).some((c) => c.name === "path"),
+    ),
+  );
+  const paths = childElements(shape).filter((e) => e.name === "path");
+  expect(attribute(required(paths[0]), "stroke")).not.toBe("#000000");
+  expect(attribute(required(paths[0]), "stroke")).toBe(attribute(required(paths[1]), "stroke"));
+});
+
 for (const engine of ["auto", "structured"]) {
   for (const mode of ["bars", "line"]) {
     for (const theme of BUILTIN_THEMES.keys()) {

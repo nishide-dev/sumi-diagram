@@ -76,6 +76,13 @@ const waveform = {
   shape: "rectangle",
   sizing: "auto",
   props: sizeProps.extend({
+    frameStroke: z
+      .string()
+      .regex(/^#[0-9a-fA-F]{6}$/)
+      .optional()
+      .describe(
+        "Independent #RRGGBB frame color; the signal retains its resolved tone color. Omit to use the theme stroke for both.",
+      ),
     samples: z
       .array(z.number().finite().min(-1).max(1))
       .min(2)

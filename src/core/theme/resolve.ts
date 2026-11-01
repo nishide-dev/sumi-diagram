@@ -24,7 +24,7 @@ import type { FontUsage } from "../profile/constrain";
 import type { ComponentId, ComponentKind } from "../registry/manifest";
 import { resolveTheme } from "./builtin";
 import { dimmedElements, dimStyle } from "./dim";
-import { filledToneNode } from "./node-variants";
+import { filledToneNode, readableInk } from "./node-variants";
 import type { Theme } from "./schema";
 import {
   mergeStyle,
@@ -165,6 +165,20 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
     let style: ResolvedStyle =
       mono === undefined || mono === painted.mono ? painted : Object.freeze({ ...painted, mono });
     const overrides = state.doc.figure?.themeOverrides;
+    const solidFill = overrides?.solidFills?.[tone ?? "gray"];
+    if (solidFill !== undefined && style.kind === "node" && variant === "solid")
+      style = Object.freeze({
+        ...style,
+        fill: solidFill,
+        stroke: id === "sumi/stack" ? "#ffffff" : solidFill,
+        fontColor: readableInk(solidFill, "#ffffff"),
+      });
+    if (
+      overrides?.dashedGroupStroke !== undefined &&
+      style.kind === "group" &&
+      variant === "dashed"
+    )
+      style = Object.freeze({ ...style, stroke: overrides.dashedGroupStroke });
     if (overrides?.nodeCorners === "square" && style.kind !== "edge")
       style = Object.freeze({ ...style, radius: { pt: 0, units: 0 } });
     if (overrides?.groupLabelWeight !== undefined && style.kind === "group")

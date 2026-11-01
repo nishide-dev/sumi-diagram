@@ -408,6 +408,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
     if (node !== undefined) captions.set(origin.group, node.id);
   }
   const auto = figure.layout.engine === "auto";
+  const dimmed = [...dimmedElements(doc).keys()];
   // In D2, a captioned group is drawn inside a container that is its
   // caption node (design doc §6.32): the caption's key comes before the group's.
   const d2KeysOfGroup = (id: string): string[] => {
@@ -493,6 +494,9 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
                 ...(component.manifest.render.renderer === "sumi/waveform" && {
                   samples: (component.props.samples as number[]).join(","),
                   mode: component.props.mode as string,
+                  ...(typeof component.props.frameStroke === "string" && {
+                    frameStroke: dimmed.includes(key) ? style.stroke : component.props.frameStroke,
+                  }),
                 }),
                 ...(component.manifest.render.renderer === "sumi/bowtie" &&
                   typeof component.props.gap === "number" &&
@@ -582,7 +586,6 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
   }
 
   const elements = readonlyMap([...groups, ...nodes, ...edges].map((e) => [e.key, e] as const));
-  const dimmed = [...dimmedElements(doc).keys()];
 
   return withStretchOutlines(
     freeze({

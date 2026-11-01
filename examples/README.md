@@ -32,10 +32,17 @@ itself, without D2. `transformer` fits one column; `dit-block` is wider than
 `embedding-gemma` uses a moderate 171.8mm width without scaling: the five
 input columns and the full audio caption remain legible (native labels are
 8pt, HTML text is at least 7.69pt). One 88mm paper column would make these
-labels too small. Its HTML blocks preserve the reference encoder colors;
-native solid token cells use the darker blue/orange/red paper tones, and the
-outlined waveform shares its red tone with its frame. The dashed encoder
-group uses the theme's gray fill and black border. Regenerate its original
+labels too small. Its HTML blocks and native solid token cells share exactly
+the same encoder colors: blue `#3d9df5`, amber `#e8a20c`, and red `#e04848`,
+using `themeOverrides.solidFills`. The waveform keeps its red signal with an
+independent black `props.frameStroke`. The dashed encoder group retains its
+light gray fill with a blue-gray `#527da5` border and matching label, via
+`themeOverrides.dashedGroupStroke`. Only `edgeCorners: sharp` is set: the
+boxes stay rounded, while the shared buses and T-joins are sharp. Every edge
+uses `variant: emphasis` for black 1pt lines (twice paper's default 0.5pt)
+and correspondingly heavier arrowheads. The layout and dimensions are preserved.
+The PDF was rasterized with `pdftoppm` and compared with the reference,
+including text, input merges and the output bus. Regenerate its original
 vector assets with `bun examples/embedding-gemma/generate-assets.ts`, then
 run `bun run gallery`. The seeded 63-point scatter is illustrative, as are
 the explicit waveform amplitudes; neither is measured model/audio data.
@@ -52,7 +59,7 @@ geometry lint):
 | `grouped` | none |
 | `transformer` | none |
 | `dit-block` | 6: `geometry/script-too-small` ×1 (math scripts down to 3.99pt after scaling to 81.38%); `geometry/group-empty-area` ×2 (the equal-height Cross-Attention and In-Context panels); `geometry/arrowhead-cramped` ×3 (conditioning taps, 1.63pt straight stems after scaling) |
-| `embedding-gemma` | 3: `geometry/edge-near-border` ×3 (the Images/Video and Video/Audio input joins run 0.44mm above the dashed modular-encoder frame for 8.8mm, 10.8mm and 24.9mm; accepted to preserve the reference's compact encoder row) |
+| `embedding-gemma` | none (sharp joins and 1pt edges remove the previous three `geometry/edge-near-border` infos) |
 | `clip` | 1: `geometry/script-too-small` ×1 (math scripts down to 4.02pt after scaling to 71.81%; body text is 5.74pt, above the 5pt scaled minimum) |
 
 The DiT infos are accepted to preserve the complete four-panel reference at

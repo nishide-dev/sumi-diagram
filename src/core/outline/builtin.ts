@@ -283,6 +283,10 @@ const waveform: OutlineRenderer = {
         );
       }, "Expected 2–2048 comma-separated finite amplitudes in [-1, 1]"),
     mode: z.enum(["bars", "line"]).default("bars"),
+    frameStroke: z
+      .string()
+      .regex(/^#[0-9a-fA-F]{6}$/)
+      .optional(),
   }),
   footprint({ width, height }) {
     return { width: Math.max(160, width / 0.8), height: Math.max(96, height / 0.2) };

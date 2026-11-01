@@ -275,17 +275,6 @@ describe.skipIf(!available)("built-in primitives render with D2", () => {
               ["info", "geometry/arrowhead-cramped"],
               ["info", "geometry/arrowhead-cramped"],
             ]);
-          } else if (example === "examples/embedding-gemma/embedding-gemma.sumi.yaml") {
-            expect(stderr).toContain("0 errors, 0 warnings, 3 infos");
-            expect(
-              [...stderr.matchAll(/^examples\/.*:\d+:\d+ (\w+) ([\w/-]+)/gm)].map(
-                ([, severity, code]) => [severity, code],
-              ),
-            ).toEqual([
-              ["info", "geometry/edge-near-border"],
-              ["info", "geometry/edge-near-border"],
-              ["info", "geometry/edge-near-border"],
-            ]);
           } else if (example === "examples/clip/clip.sumi.yaml") {
             expect(stderr).toContain("0 errors, 0 warnings, 1 info");
             expect(

@@ -48,6 +48,32 @@
                 "regular",
                 "bold"
               ]
+            },
+            "solidFills": {
+              "description": "Exact #RRGGBB fills for solid tone nodes, including expanded token cells. Text remains contrast-adjusted.",
+              "type": "object",
+              "propertyNames": {
+                "type": "string",
+                "enum": [
+                  "gray",
+                  "red",
+                  "orange",
+                  "yellow",
+                  "green",
+                  "blue",
+                  "purple",
+                  "pink"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string",
+                "pattern": "^#[0-9a-fA-F]{6}$"
+              }
+            },
+            "dashedGroupStroke": {
+              "description": "Exact #RRGGBB border color for dashed groups; fill and heading color are preserved.",
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
             }
           },
           "additionalProperties": false

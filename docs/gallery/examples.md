@@ -24,7 +24,7 @@ The committed SVGs of <code>examples/</code>, rendered from their sources as wri
 
 ## EmbeddingGemma 2 — unified multimodal representations
 
-[<code>examples/embedding\-gemma/embedding\-gemma\.sumi\.yaml</code>](../../examples/embedding-gemma/embedding-gemma.sumi.yaml) · [PDF](../../examples/embedding-gemma/embedding-gemma.pdf) · theme <code>paper</code> · profile <code>paper\-double</code> · 171\.8mm × 145\.17mm \(max width 180mm, max height 220mm\)<br>info geometry/edge\-near\-border \(×3\): Edge edges\[3\] runs right beside the border of group &quot;encoders&quot; for 8\.8mm \(0\.44mm between the lines\), so it reads as part of the frame\.
+[<code>examples/embedding\-gemma/embedding\-gemma\.sumi\.yaml</code>](../../examples/embedding-gemma/embedding-gemma.sumi.yaml) · [PDF](../../examples/embedding-gemma/embedding-gemma.pdf) · theme <code>paper</code> · profile <code>paper\-double</code> · 171\.8mm × 145\.17mm \(max width 180mm, max height 220mm\)
 
 <img src="../../examples/embedding-gemma/embedding-gemma.svg" alt="EmbeddingGemma 2 — unified multimodal representations">
 

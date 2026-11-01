@@ -260,7 +260,11 @@ function nodeShape(node: NodeIR, r: Rect): string {
         const fill = layer.role === "line" ? "none" : paint(style.fill);
         const signal =
           layer.role === "line" ? ' stroke-linecap="round" stroke-linejoin="round"' : "";
-        return `<path d="${pathData(layer.path.points, layer.path.closed)}" fill="${fill}"${strokeAttributes(style)}${signal}/>`;
+        const frameStroke =
+          node.render?.renderer === "sumi/waveform" && layer.role === "body"
+            ? node.render.params?.frameStroke
+            : undefined;
+        return `<path d="${pathData(layer.path.points, layer.path.closed)}" fill="${fill}"${strokeAttributes(typeof frameStroke === "string" ? { ...style, stroke: frameStroke } : style)}${signal}/>`;
       })
       .join("");
   }

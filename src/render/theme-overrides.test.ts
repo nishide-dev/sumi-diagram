@@ -37,6 +37,52 @@ edges:
   - { from: j3, to: tokens.3, toAnchor: north }
 `;
 
+test("figure color refinements reach expanded solids, preserve other variants, and respect dimming", async () => {
+  const text = `version: 1
+figure:
+  id: palette
+  theme: paper
+  themeOverrides:
+    edgeCorners: sharp
+    solidFills: { blue: '#3d9df5', orange: '#e8a20c', red: '#e04848' }
+    dashedGroupStroke: '#527da5'
+  layout: { arrange: { stack: { items: [panel, regular] } } }
+groups:
+  - id: panel
+    variant: dashed
+    tone: gray
+    arrange: { row: { items: [tokens, outline] } }
+nodes:
+  - { id: tokens, component: tokens, props: { variant: solid, cells: [{tone: blue}, {tone: orange}, {tone: red}] } }
+  - { id: outline, component: box, variant: outlined, tone: blue, label: Outline }
+  - { id: regular, component: box, variant: solid, tone: blue, label: Readable }
+`;
+  const result = await renderFigure(text);
+  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+  const ir = result.value.compiled.ir;
+  expect(ir.groups.find((g) => g.id === "panel")?.style).toMatchObject({
+    stroke: "#527da5",
+    fill: "#dcdee6",
+    radius: { pt: 6 },
+  });
+  const cells = ir.nodes.filter((node) => node.tokens !== undefined);
+  expect(cells.map((node) => node.style.fill)).toEqual(["#3d9df5", "#e8a20c", "#e04848"]);
+  expect(ir.nodes.find((node) => node.id === "outline")?.style.stroke).toBe("#2f62b0");
+  const regular = ir.nodes.find((node) => node.id === "regular");
+  expect(regular?.style.fill).toBe("#3d9df5");
+  expect(regular?.style.fontColor).not.toBe("#ffffff");
+  const dim = await renderFigure(text.replace("variant: dashed", "variant: dashed\n    dim: true"));
+  if (!dim.ok) throw new Error(JSON.stringify(dim.diagnostics));
+  expect(dim.value.compiled.ir.groups[0]?.style.stroke).toBe("#949494");
+  expect(
+    dim.value.compiled.ir.nodes
+      .filter((node) => node.tokens !== undefined)
+      .every((node) => node.style.fill !== "#3d9df5"),
+  ).toBe(true);
+  // Refinements do not mutate the selected built-in theme.
+  expect(getTheme("paper")?.toneLines.get("blue")?.stroke).toBe("#2f62b0");
+});
+
 function pdfStreams(svg: string): string {
   const fontSet = getFontSet(DEFAULT_FONT_SET_ID);
   if (!fontSet) throw new Error("Missing default font set");
@@ -47,6 +93,18 @@ function pdfStreams(svg: string): string {
     .map((object) => new TextDecoder().decode(object.stream))
     .join("\n");
 }
+
+test.each([
+  "{ solidFills: { cyan: '#123456' } }",
+  "{ solidFills: { blue: red } }",
+  "{ solidFills: { red: '#abc' } }",
+  "{ dashedGroupStroke: 'url(other.svg)' }",
+])("rejects invalid figure palette refinements: %s", (overrides) => {
+  const diagnostics = checkFigure(source(`themeOverrides: ${overrides}`)).state.diagnostics;
+  expect(
+    diagnostics.some((d) => d.severity === "error" && d.path?.includes("themeOverrides")),
+  ).toBe(true);
+});
 
 test("sharp routed elbows remain connected in SVG and PDF after trunk deduplication", async () => {
   const result = await renderFigure(
