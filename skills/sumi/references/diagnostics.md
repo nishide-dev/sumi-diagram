@@ -129,7 +129,7 @@ Every stage reports problems as the same diagnostic object. In
 | `lint/duplicate-edge` | warning | remove the duplicate or give it a different label |
 | `lint/empty-label` | warning | add a label, or keep it for a deliberate blank shape |
 | `lint/long-label` | warning | shorten or break with `\n` (≤ 40 columns per line, CJK = 2, ≤ 4 lines) |
-| `lint/missing-glyph` | warning | replace the character (emoji and rare CJK are not in the font) |
+| `lint/missing-glyph` | warning | replace the character (emoji and rare CJK are not in the font); for HTML, choose covering bundled font-family/families — Geist fallback does not count |
 | `lint/literal-newline` | warning | a label has `\n` as two characters outside `$...$` (single-quoted or plain YAML), drawn as written: double-quote it and double math backslashes, as the hint shows (`"Scale, Shift\n$\\gamma_1$"`), or use a `\|-` block ([math and line breaks](figure-format.md#math-and-line-breaks-in-one-label)) |
 | `lint/unused-legend-entry` | warning | no edge / node has that legend entry's component, variant and tone: fix the entry, or the elements it should explain ([legends](structured.md#legends)) |
 | `lint/unused-matrix-class` | warning | no cell of the matrix uses that class: remove it, or write it in the cells ([matrices](structured.md#matrices)) |
@@ -174,7 +174,7 @@ exit code 1. Configure like structural rules
 | --- | --- | --- |
 | `geometry/exceeds-page-width` | error | shorter labels; auto: `direction: down`, fewer nodes side by side; structured: re-arrange the trees (a long row as two rows), smaller `gap`s; too wide and too tall: [two rows](layout-tips.md#too-wide-with-right-too-tall-with-down); a wider profile only if the user agrees and the figure is not already on `paper-double` |
 | `geometry/exceeds-page-height` | error | paper profiles 220mm, `presentation-16x9` 190.5mm (no profile allows more than 220mm): auto: `direction: right`, fewer layers; structured: re-arrange the trees (a long stack as a row of stacks), smaller `gap`s; or split the figure |
-| `geometry/text-too-small` | error | as `profile/font-too-small` (a safety net after rendering); with `figure.fit: scale`, a label printed below 5pt (paper profiles) after shrinking — a 7pt `sublabel` already does at 71% (the message names the sublabel): make the figure narrower so it shrinks less, or write the text into the label |
+| `geometry/text-too-small` | error | as `profile/font-too-small` (a safety net after rendering); with `figure.fit: scale`, a label printed below 5pt (paper profiles) after shrinking — a 7pt `sublabel` already does at 71% (the message names the sublabel): make the figure narrower so it shrinks less, or write the text into the label. HTML uses resolved CSS font-size × placed/viewport scale × page-fit scale: increase font-size or placed size relative to viewport |
 | `geometry/script-too-small` | info | with `figure.fit: scale`, subscripts / superscripts of label math print below 5pt after shrinking; one finding per figure; information only (scripts are exempt from the minimum) |
 | `geometry/label-overflow` | error | remove or enlarge explicit `width`/`height` (the `path` points at `props` then), shorten or break the label, or use a shape with more room for text (`box`) |
 | `geometry/out-of-canvas` | error | shorten labels; if it persists, report it as a Sumi bug |

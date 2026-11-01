@@ -264,6 +264,31 @@ export const textTooSmall = defineGeometryRule({
     const findings: LintFinding[] = [];
     const { scale, scaled, minPt: min } = textLimits(context);
     for (const element of context.elements) {
+      if (element.ir.kind !== "node" || !element.bbox) continue;
+      const image = element.ir.image;
+      const measured = context.html?.get(element.key);
+      if (!measured || !image?.viewport) continue;
+      const sx = element.bbox.width / image.viewport.width;
+      const sy = element.bbox.height / image.viewport.height;
+      // SVG image preserveAspectRatio: meet / slice / non-uniform fill. For
+      // fill use the smaller axis, so compressed text cannot evade the rule.
+      const placedScale = image.fit === "cover" ? Math.max(sx, sy) : Math.min(sx, sy);
+      const reported = new Set<number>();
+      for (const run of measured.texts) {
+        const pt = unitsToPt(run.fontSize * placedScale) * scale;
+        if (!run.text.trim() || pt >= min - PT_EPSILON || reported.has(run.offset)) continue;
+        reported.add(run.offset);
+        findings.push({
+          message: `HTML text of ${element.name} is printed at ${formatPt(pt)}, below the ${formatPt(min)} minimum font size of profile "${context.profile.id}"${scaled ? " for a scaled figure" : ""}.`,
+          path: [...image.srcAt.path],
+          span: [run.offset, run.offset],
+          literalBlock: true,
+          subject: element.subject,
+          hint: `Increase CSS font-size, increase the component's placed size relative to viewport, or reduce viewport while keeping content inside it.${scaled ? ` ${SCALED_TEXT_HINT}` : ""}`,
+        });
+      }
+    }
+    for (const element of context.elements) {
       // An icon (#94, no font file) is not text.
       const sizes = element.labels
         .filter((l) => l.fontPath !== "")

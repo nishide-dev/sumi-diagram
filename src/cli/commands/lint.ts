@@ -1,6 +1,6 @@
 /**
  * `sumi lint <files...>`: the diagnostic-collecting stages plus structural
- * lint (`lintFigure()`), for one or more files. No D2 — unless `--geometry`:
+ * lint, for one or more files. HTML is also measured; otherwise no D2 unless `--geometry`:
  * then each figure without errors is also rendered with D2 and checked by the
  * geometry rules (`lintRenderedFigure()`, #13). Nothing is written.
  *
@@ -21,7 +21,7 @@ import {
   LintConfigError,
   type LintJson,
   type LintSummary,
-  lintFigure,
+  lintFigureWithHtml,
   lintRenderedFigure,
   type RenderedLintReport,
   RULE_LEVELS,
@@ -86,7 +86,12 @@ export async function lintCommand(
           backend: createD2CliBackend({ projectRoot: context.cwd, env: context.env }),
           assetBase: dirname(resolve(context.cwd, file)),
         })
-      : lintFigure(text, { file, config: perFile });
+      : await lintFigureWithHtml(text, {
+          file,
+          config: perFile,
+          backend: createD2CliBackend({ projectRoot: context.cwd, env: context.env }),
+          assetBase: dirname(resolve(context.cwd, file)),
+        });
     total.errors += report.summary.errors;
     total.warnings += report.summary.warnings;
     total.infos += report.summary.infos;

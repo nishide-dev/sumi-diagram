@@ -5,6 +5,7 @@
  */
 
 import { badgeRect, iconRect } from "../../assets/draw";
+import type { HtmlMeasurement } from "../../assets/html-measure";
 import type { ElementIR, FigureIR, NodeIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type { DiagnosticSubject, DocPath } from "../../core/diagnostics";
@@ -50,6 +51,7 @@ export interface GeometryElement {
 }
 
 export interface GeometryContext {
+  readonly html?: ReadonlyMap<ElementKey, HtmlMeasurement>;
   readonly ir: FigureIR;
   readonly inspection: SvgInspection;
   /** The canvas (viewBox of `svg.d2-svg`) in element coordinates. */

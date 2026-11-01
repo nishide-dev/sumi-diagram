@@ -4,6 +4,7 @@
  * rendering and the geometry rules (what `sumi lint --geometry` runs).
  */
 
+import { checkFigure } from "../../core/check";
 import { type Diagnostic, type DocPath, formatDocPath } from "../../core/diagnostics";
 import { type CellFields, cellFieldPath } from "../../core/figure/tokens";
 import { type Locator, parseYaml } from "../../core/figure/yaml";
@@ -22,7 +23,7 @@ import { isGeometryRule, type LintFinding, toDiagnostic } from "../rule";
 import { createGeometryContext, type GeometryContext } from "./context";
 
 /** The parts of a render the geometry lint needs (a {@link RenderedFigure} has them). */
-export type GeometryInput = Pick<RenderedFigure, "inspection" | "compiled">;
+export type GeometryInput = Pick<RenderedFigure, "inspection" | "compiled" | "html">;
 
 export interface GeometryLintOptions {
   /** Rule levels and options (`geometry/*` entries apply). Validated; throws `LintConfigError`. */
@@ -70,7 +71,10 @@ export function geometryContextFor(input: GeometryInput, fontSet?: FontSet): Geo
       `internal error: font set "${ir.meta.fontSetId}" of a compiled figure is unknown`,
     );
   }
-  return createGeometryContext(ir, input.inspection, fonts);
+  return {
+    ...createGeometryContext(ir, input.inspection, fonts),
+    ...(input.html && { html: input.html }),
+  };
 }
 
 /** Runs the enabled `geometry/*` rules of a resolved configuration. */
@@ -135,6 +139,8 @@ export type LintRenderedOptions = LintOptions &
   Pick<RenderFigureOptions, "backend" | "sourceName" | "assetBase"> & {
     /** Font set to measure labels with. Defaults to the figure theme's font set. */
     fontSet?: FontSet;
+    /** Plain CLI lint measures HTML but leaves other geometry rules opt-in. */
+    htmlOnly?: boolean;
   };
 
 export interface RenderedLintReport extends LintReport {
@@ -158,7 +164,7 @@ export async function lintRenderedFigure(
   text: string,
   options: LintRenderedOptions = {},
 ): Promise<RenderedLintReport> {
-  const { backend, sourceName, fontSet, assetBase, ...lintOptions } = options;
+  const { backend, sourceName, fontSet, assetBase, htmlOnly, ...lintOptions } = options;
   const config = resolveLintConfig(lintOptions.config, lintOptions.rules);
   const structural = lintFigure(text, lintOptions);
   const diagnostics = [...structural.diagnostics];
@@ -177,17 +183,27 @@ export async function lintRenderedFigure(
       ...(assetBase !== undefined && { assetBase }),
     });
     diagnostics.push(
-      ...result.diagnostics.filter(
-        (d) =>
-          !CHECK_STAGES.has(stageOf(d)) &&
-          !(MIXED_STAGES.has(stageOf(d)) && reported.has(JSON.stringify(d))),
-      ),
+      ...result.diagnostics
+        .filter(
+          (d) =>
+            !CHECK_STAGES.has(stageOf(d)) &&
+            !(MIXED_STAGES.has(stageOf(d)) && reported.has(JSON.stringify(d))),
+        )
+        .flatMap((d) => {
+          if (d.code !== "lint/missing-glyph") return [d];
+          const configured = config.rules.find((r) => r.rule.id === d.code);
+          return configured ? [{ ...d, severity: configured.severity }] : [];
+        }),
     );
     if (result.ok) {
       rendered = result.value;
       const context = geometryContextFor(rendered, fontSet);
       const locate = geometryLocator(rendered, text, lintOptions.file);
-      diagnostics.push(...runGeometryRules(context, config, locate));
+      const geometryConfig = htmlOnly
+        ? { ...config, rules: config.rules.filter((r) => r.rule.id === "geometry/text-too-small") }
+        : config;
+      const findings = runGeometryRules(context, geometryConfig, locate);
+      diagnostics.push(...(htmlOnly ? findings.filter((d) => d.path?.includes("html")) : findings));
     }
   }
   diagnostics.sort(compareDiagnostics);
@@ -202,4 +218,18 @@ export async function lintRenderedFigure(
     exitCode: failed ? LINT_EXIT_CODES.failed : LINT_EXIT_CODES.ok,
     ...(rendered !== undefined && { rendered }),
   };
+}
+
+/** Normal CLI/Skill lint also measures HTML; the synchronous structural API stays available. */
+export async function lintFigureWithHtml(
+  text: string,
+  options: LintRenderedOptions = {},
+): Promise<RenderedLintReport> {
+  const check = checkFigure(text, options);
+  const hasHtml = [...(check.state.components?.values() ?? [])].some(
+    (c) => c.manifest.name === "html",
+  );
+  return hasHtml
+    ? lintRenderedFigure(text, { ...options, htmlOnly: true })
+    : lintFigure(text, options);
 }

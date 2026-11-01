@@ -11,6 +11,7 @@
  * they are composed into the placeholders after the outlines.
  */
 
+import type { HtmlMeasurement } from "../assets/html-measure";
 import { renderHtmlAssets } from "../assets/html-render";
 import { type FigureAssets, hasAssets, loadFigureAssets } from "../assets/load";
 import { createD2CliBackend } from "../backends/d2/backend";
@@ -22,7 +23,9 @@ import {
   type CompileOptions,
   compileFigure,
 } from "../compiler/compile";
+import type { ElementKey } from "../core/check-state";
 import { type Diagnostic, hasErrors } from "../core/diagnostics";
+import { parseYaml } from "../core/figure/yaml";
 import type { Result } from "../core/result";
 import { getFontSet } from "../core/theme/fonts";
 import type { LayoutIR } from "../layout/ir";
@@ -50,6 +53,8 @@ export interface RenderFigureOptions extends CompileOptions {
 }
 
 interface RenderedFigureBase {
+  /** HTML source-mapped measurements, outside the serialized SVG. */
+  html?: ReadonlyMap<ElementKey, HtmlMeasurement>;
   /** The finalized SVG (see `finalizeSvg`). */
   svg: string;
   metadata: FinalizedSvg["metadata"];
@@ -130,8 +135,16 @@ export async function renderCompiledFigure(
   }
   let figure = compiled.value;
   let assets: FigureAssets | undefined;
+  const htmlMeasurements = new Map<ElementKey, HtmlMeasurement>();
   if (hasAssets(ir)) {
-    const html = await renderHtmlAssets(ir);
+    const htmlNode = ir.nodes.find((n) => n.image?.html !== undefined);
+    const locate = htmlNode
+      ? parseYaml(text, htmlNode.image?.srcAt.location?.file).source?.locate
+      : undefined;
+    const html = await renderHtmlAssets(ir, {
+      ...(locate && { locate }),
+      onMeasure: (key, value) => htmlMeasurements.set(key, value),
+    });
     diagnostics.push(...html.diagnostics);
     if (!html.ok) return { ok: false, diagnostics };
     const loaded = loadFigureAssets(ir, {
@@ -143,9 +156,11 @@ export async function renderCompiledFigure(
     assets = loaded.value;
     figure = withImageSizes(figure, assets);
   }
-  return figure.engine === "structured"
+  const result = await (figure.engine === "structured"
     ? renderStructured(text, figure, diagnostics, assets)
-    : renderD2(text, figure, diagnostics, backend ?? createD2CliBackend(), sourceName, assets);
+    : renderD2(text, figure, diagnostics, backend ?? createD2CliBackend(), sourceName, assets));
+  if (result.ok && htmlMeasurements.size) result.value.html = htmlMeasurements;
+  return result;
 }
 
 async function renderD2(

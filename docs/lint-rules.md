@@ -16,6 +16,8 @@ hint は structured の `align: stretch` と内側の `justify: stretch` /
 
 `sumi lint`（API: `lintFigure()`、`src/lint`）は、診断を集める段（`yaml` → `schema` → `ref` → `layout` → `component` → `theme` → `profile`）と、**構造 lint**（stage `lint`）を実行する。構造 lint は描画前の文書だけを検査し、D2 を必要としない。描画後の SVG を検査する幾何 lint（stage `geometry`、#13）は別の段で、`lintRenderedFigure()` / `lintGeometry()` が実行する（下記の「幾何 lint」）。
 
+HTML を含む図では通常の CLI lint も非同期 `lintFigureWithHtml()` で内部を実測する（下記参照）。同期 `lintFigure()` 自体は描画しない。
+
 構造 lint の規則は、前段で error になった要素（`CheckState.invalid` に含まれる要素と、その要素に依存する要素）を検査しない。そのため、1 つの誤りから lint の警告が連鎖して出ることはない。
 
 ## 規則の一覧
@@ -29,7 +31,21 @@ hint は structured の `align: stretch` と内側の `justify: stretch` /
 | `asset/unsafe-html` | 許可外タグ、style 以外の属性、重複属性、壊れた入れ子・宣言など。 | div/span/p/b/i/br と quoted style だけにする。 |
 | `asset/unsupported-css` | 未知 property、許可外関数・var/font、escape/entity/comment、overflow/transform/gradient/shadow/filter など。 | 公開 subset と固定 --sumi-* 変数・同梱フォントだけを使う。 |
 
-診断は HTML の offset を YAML scalar の行・列へ戻す。入力128KiB・512要素・深さ24は既存 `asset/too-large`、viewport の形式と各辺2048/総2,097,152pxの違反は `asset/invalid-image`。変換失敗・usvg失敗も同コード、変換後は既存 SVG importer の `asset/unsafe-svg` / `asset/unsupported-svg` 等。文字は輪郭化され、内部のはみ出し・文字サイズ・欠字 lint は #293 で対応する。
+診断は HTML の offset を YAML scalar の行・列へ戻す。入力128KiB・512要素・深さ24は既存 `asset/too-large`、viewport の形式と各辺2048/総2,097,152pxの違反は `asset/invalid-image`。変換失敗・usvg失敗も同コード、変換後は既存 SVG importer の `asset/unsafe-svg` / `asset/unsupported-svg` 等。
+
+### HTML 内部の実測（#293）
+
+通常の `sumi lint` も HTML を含む図では描画・Takumi `measure()` を実行し、内部を検査する（auto の図は D2 が必要）。Skill の lint も同じ経路。HTML のない図は従来どおり構造 lint だけ。`lint --geometry` / `render` では他の幾何規則と一緒に実行する。同期 API `lintFigure()` は構造検査だけを維持し、CLI 相当には非同期 `lintFigureWithHtml()` を使う。
+
+| code | 既定 | 内容 | 直し方 |
+|---|---|---|---|
+| `asset/html-overflow` | warning | 測定した node box または text run が viewport の左右上下を **0.5 CSS px を超えて**はみ出す。行ボックスを含む実測なのでサブピクセルの丸めだけを許容する。抑制不可の asset 診断。 | viewport を広げる、CSS の寸法・余白を減らす、文字を折り返す、位置を直す。配置 width/height だけを増やしても clipping は直らない。 |
+| `geometry/text-too-small` | error | 検査済み CSS の最終 font-size（継承・em/%/pt・後勝ちを解決）× viewport→配置の縮尺 × 図の印刷縮尺を、通常ラベルと**同じ Profile の下限**と比較する。run の高さは font-size の代用にしない。 | CSS font-size を増やす、viewport に対する配置寸法を大きくする、内容を収めながら viewport を小さくする。fit:scale なら図の縮小も減らす。 |
+| `lint/missing-glyph` | warning | 実際に測定された run の文字を、選択した同梱 family list と weight の TTF cmap で検査する。Geist fallback はカバーと見なさない。空白・制御・default-ignorable の除外と最大10文字の表示はラベルと同じ。 | 文字を置換するか、カバーする同梱 font-family / family list（例: `Inter,'BIZ UDPGothic'`）を選ぶ。 |
+
+いずれも `props.html` 内の該当要素の開始タグを指す（同じ要素・同じ診断は1件）。literal block は実際の行・列、single-line plain/quoted は escape を考慮した位置、folded/multiline quoted は既存 locator と同じ scalar fallback。display:none の部分は測定されず対象外。文字サイズは contain なら小さい軸、cover なら大きい軸の縮尺、非等方 fill なら保守的に小さい軸を使う。`figure.fit: scale` は既存の `minScaledFontSize`、それ以外は `minFontSize`。2つの既存 lint code は通常の `--rule` で severity 変更・無効化できる。測定値は SVG の外のメモリに保持し、描画バイトを変えない。
+
+Sumiの検査済みparseからinline root内のblock/absolute、混在flow、空白、brの匿名boxを対応付ける。位置順だけで不一致を補わない。一意に対応できない場合は直近の一意な祖先へ定位し、候補要素の解決font-size/familyを保持する。複数候補は各styleを保守的に検査するため、曖昧時は過検出の可能性があるが、小文字・欠字の検査は省略しない。HTML entityは専用decoderで復号し、第2 HTML parserは使わない。
 
 配置の `grid` は構造 lint より前の layout 段で検査する。行の残りより大きい span は `layout/grid-span-overflow`（error、`span` の位置）、未完の最終行は `layout/grid-item-count`（error、`items` のキー）。全行を埋める。空けたいセルは `null`（`~`）、複数列は `{ item: null, span: N }` で書く（ノードも経路の障害物も作らない）。空文字・空の items・不正な columns / span・direction は位置付きの `schema/*`。これらは `lint/*` の抑制設定では無効にできない（設計 §6.59）。
 
