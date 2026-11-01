@@ -151,10 +151,12 @@ function validateCss(
   // Resolve the last font-size before checking em lengths, regardless of
   // declaration order. This prevents nested em font sizes escaping the px budget.
   let fontSize = inheritedFontSize;
-  for (const declaration of declarations) {
+  let winningSize = -1;
+  for (const [index, declaration] of declarations.entries()) {
     const match = /^\s*font-size\s*:\s*(.*?)\s*$/i.exec(declaration);
     const value = match?.[1]?.toLowerCase();
     if (!value || !validCssValue("font-size", value)) continue;
+    winningSize = index;
     const scalar = Number.parseFloat(value);
     fontSize = value.endsWith("em")
       ? scalar * inheritedFontSize
@@ -164,7 +166,7 @@ function validateCss(
           ? (scalar * 4) / 3
           : scalar;
   }
-  for (const declaration of declarations) {
+  for (const [index, declaration] of declarations.entries()) {
     const at = offset + cursor + (declaration.length - declaration.trimStart().length);
     cursor += declaration.length + 1;
     if (!declaration.trim()) continue;
@@ -184,6 +186,7 @@ function validateCss(
       continue;
     }
     if (!validCssValue(prop, value)) reject(`Unsupported ${prop} value: ${value}.`);
+    else if (prop === "font-size" && index !== winningSize) continue;
     else if (prop === "font-size" && (fontSize > CSS_LIMITS.px || (fontSize > 0 && fontSize < 1)))
       reject("Resolved font-size must be 0 or 1–2048 CSS px.");
     else if (

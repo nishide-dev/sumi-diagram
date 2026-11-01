@@ -39,6 +39,7 @@ export interface LintFinding {
    * at those characters where the source maps to the value one to one.
    */
   span?: readonly [number, number];
+  literalBlock?: boolean;
   subject?: Diagnostic["subject"];
   hint?: string;
   related?: { path: DocPath; message: string }[];
@@ -134,7 +135,9 @@ export function toDiagnostic(
 ): Diagnostic {
   const location = locate(
     finding.path,
-    finding.span === undefined ? undefined : { span: finding.span },
+    finding.span === undefined
+      ? undefined
+      : { span: finding.span, ...(finding.literalBlock && { literalBlock: true }) },
   );
   const related = finding.related?.map((r) => {
     const at = locate(r.path);

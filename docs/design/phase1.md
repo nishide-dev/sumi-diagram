@@ -2465,6 +2465,19 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **配布:** npm tarball にライセンスが欠けるため release commit `d482d86c081156760d72842fe28c31f8a0e8f64f` の原文を `assets/licenses/takumi/` へ vendor。MIT/Apache、Geist OFL、IJG、Chromium/Skia、emoji-segmenter、ICU と upstream notice を release の `licenses/takumi/` と NOTICE に含める。Geist OFL は Vercel upstream の固定commitから取得する（Takumi直下のfonts/OFLは別フォント用）。native-only libwebp の記述も upstream 原文のまま保持する。
 - **検証:** catalog、全テーマ×全variant gallery、位置付き許可/拒否・予算・theme・両layout engine・SVG/PDF/PPTX・同一入力2回の一致をテストする。既存全 YAML の自身の theme と全組み込み theme の SVG/PDF/picture PPTX/D2 SHA-256 を前後比較する（失敗例は診断code列のみ）。isolated compiled-release smokeにもHTMLのSVG/PDF/PPTXと2回一致を恒久追加。Bun 1.3.14 / darwin-arm64 のfull CLIはmain `1363448` の70,463,714 bytesから74,773,346 bytesへ **+4,309,632 bytes（約4.11 MiB）**。研究の+4.28 MBはprototype差分。詳細は `docs/verification/283-html.md`。
 
+### 6.82 #293 の HTML 実測 lint と位置
+
+**決定:** §6.81 の描画と同じ wrapper・viewport・同梱フォントを渡して Takumi 2.19.0 の `measure()` を実行する。測定は描画の後で行い、結果は `RenderedFigure.html` のメモリだけに保持する。SVG/D2/PDF/PPTX の直列化へは追加しない。
+
+- **はみ出し:** root 基準の絶対 transform と node box / text run box を viewport の四辺と比較し、`asset/html-overflow`（warning）を出す。許容は各辺 **0.5 CSS px（inclusive）**。Takumi の subpixel/line-box 丸めを吸収し、1px の切れは検出する。文字だけが箱を超える場合も検出し、同じ要素の重複はまとめる。配置寸法を増やしても viewport 内の clipping は直らないので、hint は viewport・CSS寸法/余白・折り返し・位置を案内する。
+- **最小文字:** 既存 `geometry/text-too-small` の同じ rule に HTML run を追加する。CSS の最終 font-size を継承・後勝ち・em/%/ptから解決し、実際の配置 bbox / viewport と SVG image の fit を反映する（contain=min、cover=max、非等方fill=minで圧縮側を保守的に検査）。units→pt と印刷縮尺を掛け、既存 `textLimits()` の `minFontSize` / fit:scale時の `minScaledFontSize`、既存比較誤差をそのまま使う。runの高さは行ボックスなのでfont-sizeの代用にしない。独自の下限は作らない。
+- **欠字:** 既存 `lint/missing-glyph` のcode・既定warning・設定を使う。測定されたrunを選択family list / weightへ戻し、描画に渡した同梱TTFのcmapを既存readerで検査する。BIZ UDPGothic / Inter はregular/bold、BIZ UDGothic はregularのみ。リストのいずれかが文字をカバーすればよい。Takumiの暗黙Geist fallbackはカバーに数えない。空白・制御・default-ignorableの除外は既存 `glyphCodePoints()`、文字とU+表記も既存utilityを共有する。
+- **locator:** `measure()` はID・font-sizeを返さず、inline要素をrunに畳み、非表示要素を除く。固定版 `@takumi-rs/helpers`（既存Takumi依存を直接明記）のHTML/entity/CSS parserをsource-map専用に使い、開始タグoffsetを一時IDに埋める。Rust側のp暗黙閉鎖を合わせ、block/inline・匿名line box・inline-block・absolute placeholderをprojectionし、wrapped runを元のinline文字列へ対応付ける。この解析用markupは描画・実測へ渡さない。literalBlock対応の既存Locatorで要素の開始タグをYAMLへ戻す。quoted escapeとfolded等のfallbackは§6.81を継承する。
+- **経路と設定:** 同期 `lintFigure()` は構造APIを維持。非同期 `lintFigureWithHtml()` はHTMLがある図だけ描画し、通常CLI lintとSkillから共用する（autoならD2が必要）。通常lintで他の幾何規則を有効にはしない。`lint --geometry` / render は従来の幾何経路で文字サイズも検査する。2つの既存codeは通常のrule設定を尊重し、overflowはasset診断のまま。HTMLがない図のlint・描画経路は従来どおり。
+- **レビューnit:** `font-size` の解決後の範囲検査は有効な最後の宣言だけに定位する。例えば親256px・子`1px;16em`は16emだけを報告し、逆順なら1pxを採用する。個々の宣言の構文/grammar違反は引き続きそれぞれ検査する。
+- **検証:** 四辺のbox/run overflow・0.5px境界、CSS継承と単位・配置fit・page fit、選択font/list/weightとentity・除外文字・display:none、inline/block/flex/grid/absolute/brの位置、literal/quoted scalar、ruleのoff/昇格、通常CLI lint/renderを回帰検査する。全repository YAML×自身/全組み込みthemeの出力SHA-256前後比較と、既存全theme×全variantのgallery・PDF/PPTX/assets golden検査を通す。描画の変更は意図しない。
+- **互換性の実測:** repository内154個の `*.sumi.yaml`（node_modules / .git / ローカル .sumi を除外）×自身のtheme＋組み込み5themeの924ケースを前後で描画。成功644ケースのSVG/PDF/picture PPTX、autoの222ケースのD2 sourceは全件SHA-256一致。既存の不正fixture・旧研究構文等280ケースも診断code列一致。HTMLを含むgallery全theme×全variantもバイト一致、`bun run gallery` は227 files中0更新。goldenの更新は不要。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）

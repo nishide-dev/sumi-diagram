@@ -882,6 +882,45 @@ describe.skipIf(!d2Available && !process.env.CI)("sumi render (D2)", () => {
     expect(skipped).toMatchObject({ exitCode: 0, stderr: "" });
   }, 60_000);
 
+  test("plain lint and render measure HTML with located diagnostics", async () => {
+    const file = "html-lint.sumi.yaml";
+    await Bun.write(
+      join(dir, file),
+      `version: 1
+figure:
+  id: html-lint
+  layout: { arrange: { row: { items: [card] } } }
+nodes:
+  - id: card
+    component: html
+    props:
+      viewport: 100x60
+      html: |
+        <div style="width:120px;font-size:4px">😀</div>
+`,
+    );
+    const lint = await sumi(["lint", "--json", file], { env: env() });
+    expect(lint.exitCode).toBe(1);
+    const diagnostics = JSON.parse(lint.stdout).results[0].diagnostics;
+    for (const code of ["asset/html-overflow", "lint/missing-glyph", "geometry/text-too-small"]) {
+      expect(diagnostics).toContainEqual(
+        expect.objectContaining({
+          code,
+          location: expect.objectContaining({ file, line: 11, column: 9 }),
+        }),
+      );
+    }
+    expect(await Bun.file(join(dir, "html-lint.svg")).exists()).toBe(false);
+    const render = await sumi(["render", "--json", file], { env: env() });
+    expect(render.exitCode).toBe(1);
+    expect(
+      JSON.parse(render.stdout)
+        .diagnostics.map((d: { code: string }) => d.code)
+        .sort(),
+    ).toEqual(diagnostics.map((d: { code: string }) => d.code).sort());
+    expect(await Bun.file(join(dir, "html-lint.svg")).exists()).toBe(true);
+  });
+
   test("lint --geometry renders and runs the geometry rules", async () => {
     const clean = await copyFixture("lint/clean.sumi.yaml", "geo-clean.sumi.yaml");
     const wide = await copyFixture("geometry/exceeds-page-width.sumi.yaml", "geo-wide.sumi.yaml");

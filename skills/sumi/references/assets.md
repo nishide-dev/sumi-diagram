@@ -63,14 +63,27 @@ The fg/muted/accent/bg variables are colors and cannot be used as dimensions
 or font families; font/mono variables are font lists and cannot be used as
 colors or dimensions. Injected values are type-checked too. Explicit families
 select supplied fonts, but Takumi retains its bundled Geist fallback even after
-clearFonts(); missing-glyph lint is deferred to #293.
+clearFonts(). `lint/missing-glyph` checks measured HTML text against the selected
+bundled families/weight; Geist fallback does not count. Replace unsupported characters
+or choose a covering family list, e.g. `Inter,'BIZ UDPGothic'` for Latin + Japanese.
 **Put `white-space:pre` on each line div, not the parent** (indentation between
 children otherwise becomes extra lines). Takumi uses **border-box**, not browser
 content-box. Budget: 128KiB, 512 elements, depth24; viewport ≤2048 per side and
 2,097,152 total pixels. Text becomes outlines: no PDF text search/copy or editable
-PPTX text; use SVG/PDF/picture PPTX. Internal overflow/text-size/glyph lint is not
-yet available; inspect the rendered result. Diagnostics: `asset/unsafe-html`,
-`asset/unsupported-css`; size budgets reuse `asset/too-large`.
+PPTX text; use SVG/PDF/picture PPTX. Normal `lint`, `lint --geometry`, and render
+measure HTML, with diagnostics pointing at the offending element inside `props.html`:
+- `asset/html-overflow` (warning): a box/run exceeds viewport by more than 0.5 CSS px.
+  Increase viewport or fix CSS dimensions/spacing/wrapping/position. Increasing only
+  placed width/height does not fix clipping.
+- `geometry/text-too-small` (error): resolved CSS font-size × viewport-to-placed-size
+  scale × page-fit scale is below the same profile minimum as normal labels. Increase
+  font-size or placed size relative to viewport; avoid excessive `figure.fit: scale`.
+  contain uses the smaller axis, cover the larger; fill conservatively uses the smaller.
+- `lint/missing-glyph` (warning): fix the selected family or text as above; whitespace,
+  controls and default-ignorables are excluded. Hidden (`display:none`) text is ignored.
+Also inspect the rendered result. Preflight diagnostics: `asset/unsafe-html`,
+`asset/unsupported-css`; size budgets reuse `asset/too-large`. Repeated font-size
+declarations use the last value; resolved-size errors point only at that declaration.
 
 ## Icons
 

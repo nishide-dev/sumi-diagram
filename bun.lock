@@ -5,6 +5,7 @@
     "": {
       "name": "sumi-diagram",
       "dependencies": {
+        "@takumi-rs/helpers": "2.19.0",
         "@takumi-rs/wasm": "2.19.0",
         "commander": "15.0.0",
         "semver": "7.8.5",
