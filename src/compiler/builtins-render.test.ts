@@ -172,7 +172,9 @@ describe.skipIf(!available)("built-in primitives render with D2", () => {
             // An image (#94) draws no text: one embedded image in the placeholder's box.
             expect(chunk).not.toContain("<text");
             expect(count(chunk, /<image class="sumi-image"/g)).toBe(1);
-            expect(chunk).toContain('xlink:href="data:image/png;base64,');
+            expect(chunk).toContain(
+              `xlink:href="data:image/${element.image.html === undefined ? "png" : "svg+xml"};base64,`,
+            );
           } else {
             expect(chunk).toContain(`>${element.label}<`);
             expect(chunk).toContain(`fill="${element.style.fontColor}"`);

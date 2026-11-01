@@ -287,6 +287,9 @@ export interface ImageIR {
   readonly src?: string;
   /** Original inline SVG source, never interpolated or rewritten before importing. */
   readonly svg?: string;
+  /** Validated HTML source and its fixed CSS-pixel viewport (#283). */
+  readonly html?: string;
+  readonly viewport?: { readonly width: number; readonly height: number };
   /** Lowercase hex, if written. */
   readonly sha256?: string;
   readonly fit: ImageFit;
@@ -540,7 +543,11 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
               "nodes",
               index,
               "props",
-              typeof component.props.svg === "string" ? "svg" : "src",
+              typeof component.props.html === "string"
+                ? "html"
+                : typeof component.props.svg === "string"
+                  ? "svg"
+                  : "src",
             ]),
           ),
         }),
@@ -893,11 +900,11 @@ function iconIR(ref: string): IconIR {
 }
 
 function imageIR(props: Record<string, unknown>, srcAt: SourceMapEntry): ImageIR {
-  const { src, svg, sha256, fit = "contain" } = props;
+  const { src, svg, html, sha256, fit = "contain" } = props;
   const layers = props.layers as { count: number; offset: number } | undefined;
   // The component checks a source string and fit in IMAGE_FITS (manifest `embed`).
   if (
-    (typeof src !== "string" && typeof svg !== "string") ||
+    (typeof src !== "string" && typeof svg !== "string" && typeof html !== "string") ||
     !(IMAGE_FITS as readonly unknown[]).includes(fit)
   ) {
     throw new Error("internal error: image props without src or with an unknown fit");
@@ -905,6 +912,13 @@ function imageIR(props: Record<string, unknown>, srcAt: SourceMapEntry): ImageIR
   return freeze({
     ...(typeof src === "string" && { src }),
     ...(typeof svg === "string" && { svg }),
+    ...(typeof html === "string" && {
+      html,
+      viewport: (() => {
+        const [width = 0, height = 0] = String(props.viewport).split("x").map(Number);
+        return freeze({ width, height });
+      })(),
+    }),
     ...(typeof sha256 === "string" && { sha256: sha256.toLowerCase() }),
     fit: fit as ImageFit,
     ...(layers !== undefined && {

@@ -105,6 +105,19 @@ nodes:
   - { id: image, component: image, props: { src: gradient.png, height: 20pt } }
 `;
 
+/** Exercises the embedded Takumi WASM and supplied fonts outside the checkout (#283). */
+const HTML_FIGURE = `version: 1
+figure: { id: html-smoke, theme: paper, layout: { arrange: { row: { items: [card] } } } }
+nodes:
+  - id: card
+    component: html
+    props:
+      viewport: 320x176
+      width: 160pt
+      html: |
+        <div style="padding:12px;color:var(--sumi-fg);border:2px solid var(--sumi-accent)"><b style="font-size:24px">HTML 日本語</b><div style="font-family:var(--sumi-mono);white-space:pre">  code()</div></div>
+`;
+
 const EXPECTED_LABELS = ["入力データ", "構文解析", "出力 (SVG)", "読み込み", "処理系"];
 
 class SmokeFailure extends Error {}
@@ -380,6 +393,40 @@ async function smoke(tarballArg: string, keep: boolean): Promise<void> {
     check(/assets-sha256="[0-9a-f]{64}"/.test(iconSvg), "the SVG lacks assets-sha256");
     check(iconSvg.includes('name="Tabler Icons"'), "the SVG lacks the Tabler notice");
     step("sumi render drew a bundled icon and embedded an image");
+    await Bun.write(join(work, "html.sumi.yaml"), HTML_FIGURE);
+    for (const format of ["svg", "pdf", "pptx"]) {
+      await sumiAt(sumi, ["render", "html.sumi.yaml", "-o", `html.${format}`]);
+      const first = await readFile(join(work, `html.${format}`));
+      await sumiAt(sumi, ["render", "html.sumi.yaml", "-o", `html-repeat.${format}`]);
+      check(
+        first.equals(await readFile(join(work, `html-repeat.${format}`))),
+        `HTML ${format} is not deterministic`,
+      );
+    }
+    const htmlSvg = await readFile(join(work, "html.svg"), "utf8");
+    const htmlXml = parseXml(htmlSvg);
+    check(htmlXml.ok, "HTML SVG is malformed");
+    const htmlUri = [...descendants(htmlXml.root)]
+      .flatMap((e) => e.attributes)
+      .find((a) => a.value.startsWith("data:image/svg+xml;base64,"))?.value;
+    check(htmlUri, "HTML vector image is missing");
+    const htmlOutlines = parseXml(
+      Buffer.from(htmlUri.split(",")[1] ?? "", "base64").toString("utf8"),
+    );
+    check(htmlOutlines.ok, "HTML vector image is malformed");
+    check(
+      [...descendants(htmlOutlines.root)].filter((e) => e.name === "path").length > 10,
+      "HTML outlines are missing",
+    );
+    const htmlPdf = inspectPdf(new Uint8Array(await readFile(join(work, "html.pdf"))));
+    check(htmlPdf.pages.length === 1 && htmlPdf.images === 0, "HTML PDF is not one vector page");
+    check(
+      inspectPptx(new Uint8Array(await readFile(join(work, "html.pptx")))).widthPt > 0,
+      "HTML picture PPTX is invalid",
+    );
+    step(
+      "HTML with Japanese, theme colors and supplied mono font renders deterministically to SVG/PDF/PPTX",
+    );
     await Bun.write(
       join(work, "emoji.sumi.yaml"),
       `version: 1

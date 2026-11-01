@@ -190,20 +190,25 @@ function unwrapped(props: unknown, prop: string): unknown {
 }
 
 /**
- * The props an image embed needs: a string `src` (optional only when a string
- * `svg` is exposed too), `fit` (if any) an enum of {@link IMAGE_FITS}, and
- * `width` / `height`. The asset stage defensively enforces source exclusivity.
+ * Image placement accepts either file/inline SVG sources or a dedicated HTML
+ * manifest with a viewport. All forms share dimensions and IMAGE_FITS.
  */
 function imageProps(props: unknown): boolean {
   const fit = unwrapped(props, "fit");
   const svg = unwrapped(props, "svg");
+  const html = unwrapped(props, "html");
+  const validSource =
+    html !== undefined
+      ? html instanceof z.ZodString &&
+        unwrapped(props, "viewport") instanceof z.ZodString &&
+        unwrapped(props, "src") === undefined &&
+        svg === undefined
+      : props instanceof z.ZodObject &&
+        (!(props.shape.src instanceof z.ZodOptional) || svg instanceof z.ZodString) &&
+        unwrapped(props, "src") instanceof z.ZodString &&
+        (svg === undefined || svg instanceof z.ZodString);
   return (
-    // File-only manifests require src; inline-capable manifests expose both strings.
-    props instanceof z.ZodObject &&
-    (!(props.shape.src instanceof z.ZodOptional) ||
-      unwrapped(props, "svg") instanceof z.ZodString) &&
-    unwrapped(props, "src") instanceof z.ZodString &&
-    (svg === undefined || svg instanceof z.ZodString) &&
+    validSource &&
     (fit === undefined ||
       (fit instanceof z.ZodEnum &&
         (fit.options as unknown[]).every((v) => (IMAGE_FITS as readonly unknown[]).includes(v)))) &&

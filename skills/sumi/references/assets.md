@@ -6,6 +6,72 @@ JPEG or SVG files. It checks and embeds them; it never draws, edits or
 resizes the pixels. Prefer existing components and icons. For a small custom
 drawing, use inline SVG (0.10.0) below; for photos, ask the user for the file.
 
+## Restricted HTML cards (0.11.0)
+
+Use dedicated `component: html`, as a standalone leaf or with `group:` inside a container.
+Required props: `html` and `viewport: 320x176` in CSS px. Optional `width`, `height`,
+`fit: contain|cover|fill`, and variants `default|framed` use image placement.
+One missing dimension preserves the viewport aspect ratio; neither means natural size
+(0.75pt per CSS px, rounded to 0.5pt). Do not put `props.html` on `image`.
+
+Only `div/span/p/b/i/br` and a quoted inline `style` attribute are accepted.
+Only ASCII space/tab/LF/FF/CR separate tags and attributes. Self-closing syntax
+is allowed only for `br`; close every other element explicitly.
+Use flex/grid layout, position/edges, dimensions, margin/padding/gap, color/background-color,
+border/radius, font properties, line-height, letter-spacing, text-align, white-space,
+opacity and `box-sizing:border-box`. Unknown CSS is an error, never silently ignored.
+No images/SVG/scripts/style tags, events/classes, URLs, @rules, custom properties,
+overflow (including hidden), transforms, gradients, shadows or filters.
+CSS escapes, entities and comments inside style are rejected.
+Declarations are tokenized with quote/parenthesis awareness; every property has
+a complete value grammar. Malformed quotes/parentheses and non-ASCII CSS whitespace
+point to the offending declaration, including later lines of a style.
+Units, keywords and named colors are case-insensitive (`40PX`, `FLEX`, `RED`).
+`border` takes exactly one width, style and color in any order (`solid 1px #ccc`).
+`flex` accepts a grow number (`1`), grow/shrink/basis (`1 1 0`), or `none|auto|initial`.
+Lengths use px/pt/em/% or unitless 0 (negative values and percentages only where
+appropriate). All decimals have at most **two fractional digits**, without exponents:
+
+| Numeric value | Inclusive accepted range |
+| --- | --- |
+| Length magnitude | 0, or 1–2048px / 0.75–1536pt / 0.1–16em / 1–100% |
+| Resolved font-size | 0, or 1–2048 CSS px; inherited em/% are resolved before checking |
+| Other em lengths | Also at most 2048 CSS px using the element's resolved font-size |
+| flex-grow / flex-shrink (also inside flex), fr tracks | 0–64 |
+| Unitless line-height | 0–8 (lengths use the length limits) |
+| Opacity / numeric RGBA alpha | 0–1 |
+| RGB channels | 0–255, or 0–100% (all three channels use the same unit) |
+| Percentage RGBA alpha | 0–100% |
+| font-weight | 100–900 in steps of 100, or normal/bold; bundled faces select regular/bold |
+| order | Integer −512–512 |
+| Grid line / span | Nonzero integer −64–64 / positive integer 1–64 |
+| repeat count / expanded template tracks | 1–64 / at most 64; at most 16 top-level track entries |
+
+These are local value budgets tied to the maximum 2048px viewport side, not a
+promise that content fits a smaller viewport. Normal layout and paint rounding still applies.
+Colors accept #hex, comma-separated rgb()/rgba() (including percentages), and this fixed list: transparent, black,
+silver, gray, white, maroon, red, purple, fuchsia, green, lime, olive, yellow,
+navy, blue, teal, aqua, orange, rebeccapurple. Grid supports basic tracks and
+`repeat(2,1fr)`. Unverified functions including calc(),
+min(), max(), clamp(), hsl() and minmax() are rejected.
+
+Theme variables: `--sumi-fg`, `--sumi-muted`, `--sumi-accent`, `--sumi-bg`,
+`--sumi-font`, `--sumi-mono`; use `var(--sumi-accent)` without fallbacks.
+font-family may only use the font/mono variables or bundled family names
+`BIZ UDPGothic`, `BIZ UDGothic`, `Inter`. No font fetching.
+The fg/muted/accent/bg variables are colors and cannot be used as dimensions
+or font families; font/mono variables are font lists and cannot be used as
+colors or dimensions. Injected values are type-checked too. Explicit families
+select supplied fonts, but Takumi retains its bundled Geist fallback even after
+clearFonts(); missing-glyph lint is deferred to #293.
+**Put `white-space:pre` on each line div, not the parent** (indentation between
+children otherwise becomes extra lines). Takumi uses **border-box**, not browser
+content-box. Budget: 128KiB, 512 elements, depth24; viewport ≤2048 per side and
+2,097,152 total pixels. Text becomes outlines: no PDF text search/copy or editable
+PPTX text; use SVG/PDF/picture PPTX. Internal overflow/text-size/glyph lint is not
+yet available; inspect the rendered result. Diagnostics: `asset/unsafe-html`,
+`asset/unsupported-css`; size budgets reuse `asset/too-large`.
+
 ## Icons
 
 ```sh
@@ -109,7 +175,8 @@ The same allow-list importer as file SVG is used, without interpolation.
 HTML/`foreignObject`, scripts, events, external/internal references (`href`,
 `use`, `url(...)`), embedded images, DTD/entities, `<style>`, `defs`, clipping,
 masks, gradients and filters are rejected. Use native Sumi labels outside
-the image for readable/searchable text. HTML is planned separately (#283).
+the image for readable/searchable text. For restricted HTML, use the dedicated
+`html` component described above.
 
 `width`, `height`, `fit`, frames, tones and layers work as for files. Internal
 colors stay as written (`currentColor` is not a theme variable). SVG, PDF and

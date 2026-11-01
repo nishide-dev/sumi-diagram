@@ -6,7 +6,7 @@
 
 | 項目 | 結果 |
 | --- | --- |
-| 推奨ライブラリ | **`@takumi-rs/wasm` 2.19.0**（MIT OR Apache-2.0）。Bun で動き、`bun build --compile` で +4.28 MB。`measure()` で文字の大きさと内容の範囲を測れる |
+| 推奨ライブラリ | **`@takumi-rs/wasm` 2.19.0**（MIT OR Apache-2.0）。Bun で動き、prototypeの `bun build --compile` で +4.28 MB（full CLI差分ではない。実装後の実測は `docs/verification/283-html.md`）。`measure()` で文字の大きさと内容の範囲を測れる |
 | Satori 0.63.2 | 動くが非推奨。MPL-2.0、`satori-html` が Bun で落ちる、全要素に `mask` を出す、`measure` がない、レイアウトが Takumi と食い違う |
 | 出力 | SVG → 既存の `image` 経路 → SVG / PDF / picture PPTX。試作 5 部品を目視確認した。editable PPTX は従来どおり不可 |
 | 文字 | **常に輪郭化（path）**。PDF から検索できない。importer の「`<text>` 禁止」規則とは両立する |
@@ -97,7 +97,7 @@ Satori のカードは横・下が切れている。同じ `width:320px; padding
 
 - Takumi・Satori とも**既定で文字を輪郭化**する。Takumi は glyph を `<defs>` + `<use>` で出し、Satori は path で出す。usvg 後はどちらも path だけになり、importer の「`<text>` 禁止」を満たす。
 - 結果として **PDF から文字を検索・コピーできない**。#272 の「コードを文字として保ちたい」は満たせない。PDF の `pdfText` はネイティブの Sumi ラベルだけ。
-- フォント: 渡した BIZ UD Gothic（OFL）と Inter（OFL）だけで描かれ、日本語も出る。ただし **Takumi は WASM に Geist（OFL）を同梱しており、フォント未指定や欠字では黙ってそれに落ちる**。Sumi の「同梱フォントだけ」を守るには、必ず `font-family` を固定し、欠字を lint する必要がある。
+- フォント: 明示familyで渡した BIZ UD Gothic（OFL）と Inter（OFL）を選択でき、日本語も出る。ただし **Takumi は WASM に Geist（OFL）を同梱しており、フォント未指定や欠字では黙ってそれに落ちる。clearFonts()もbundled fallbackは保持する**。必ず `font-family` を固定し、欠字を lint する必要がある（欠字lintは #293）。
 - Satori は `embedFont:false` で `<text>` を残せる（PDF で `pdfText` が取れた）が、**レイアウトした時のフォントと PDF エンジンが選ぶフォントが食い違う**。試作では Inter が見つからず BIZ に落ち、単語間隔が崩れた（上の右端のシート）。importer は `<text>` を拒否するので、この経路は importer の変更が前提になる。採用しない。
 
 ### 2.4 単一バイナリ

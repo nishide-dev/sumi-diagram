@@ -37,6 +37,7 @@ import { mkdir, readdir, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { parse } from "yaml";
 import { layoutStructuredFigure } from "../src/layout";
+import { formatLintJson, formatLintText, lintFigure } from "../src/lint";
 import { svgToPdf } from "../src/render/pdf";
 import { type GalleryModel, galleryHtml, galleryMarkdownPages } from "./gallery/page";
 import { type RenderJob, type RenderOutcome, renderAll } from "./gallery/render";
@@ -196,6 +197,16 @@ if (problems.length > 0) {
 
 // Everything the generator owns, by path relative to the repository root.
 const files = new Map<string, string | Uint8Array>();
+// Catalog additions change unknown-component hints in diagnostic snapshots too.
+for (const name of ["ancestor-edge", "no-cascade", "clean"]) {
+  const file = `lint/${name}.sumi.yaml`;
+  const report = lintFigure(
+    await read(`tests/fixtures/figures/${file}`),
+    name === "clean" ? {} : { file },
+  );
+  files.set(`tests/fixtures/lint-output/${name}.txt`, formatLintText(report));
+  files.set(`tests/fixtures/lint-output/${name}.json`, formatLintJson(report));
+}
 // Keep the placement/routing snapshots affected by the Transformer gallery
 // in the same canonical regeneration path as its SVG and export goldens.
 for (const name of ["a-transformer", "align-side-kv"]) {

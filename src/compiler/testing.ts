@@ -165,13 +165,15 @@ export function primitivesFigure(theme: string): string {
       const mark = m.kind === "node" ? m.mark : undefined;
       const embed = m.kind === "node" ? m.embed : undefined;
       const label =
-        embed !== undefined
-          ? ", props: { src: gradient.png, height: 24pt }"
-          : mark === undefined
-            ? `, label: ${id}`
-            : mark.type === "glyph"
-              ? `, props: { ${mark.prop}: ${Object.keys(mark.glyphs)[0]} }`
-              : "";
+        m.name === "html"
+          ? `, props: { viewport: 120x60, height: 24pt, html: '<div style="color:var(--sumi-fg);font-size:16px">HTML</div>' }`
+          : embed !== undefined
+            ? ", props: { src: gradient.png, height: 24pt }"
+            : mark === undefined
+              ? `, label: ${id}`
+              : mark.type === "glyph"
+                ? `, props: { ${mark.prop}: ${Object.keys(mark.glyphs)[0]} }`
+                : "";
       const waveformProps = m.name === "waveform" ? ", props: { samples: [0, -0.5, 1, 0] }" : "";
       lines.push(
         `  - { id: ${id}, component: ${m.name}${label}${waveformProps}, variant: ${variant}${group} }`,
