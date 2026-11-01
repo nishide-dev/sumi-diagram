@@ -47,6 +47,7 @@ import { inspectPdf, textLines } from "../src/render/pdf/testing";
 import { svgToEditablePptx, svgToPptx } from "../src/render/pptx";
 import { inspectPptx, readPptx } from "../src/render/pptx/testing";
 import { descendants, parseXml, textContent } from "../src/render/xml";
+import assetGoldens from "../tests/fixtures/assets/outputs-sha256.json";
 import { parseSha256Sums, sha256Hex } from "./release/lib";
 
 const SYSTEM_PATH = "/usr/bin:/bin:/usr/sbin:/sbin";
@@ -103,19 +104,6 @@ figure: { id: assets, layout: { arrange: { row: { items: [icon, image] } } } }
 nodes:
   - { id: icon, component: circle, icon: tabler/wave-sine }
   - { id: image, component: image, props: { src: gradient.png, height: 20pt } }
-`;
-
-/** Exercises the embedded Takumi WASM and supplied fonts outside the checkout (#283). */
-const HTML_FIGURE = `version: 1
-figure: { id: html-smoke, theme: paper, layout: { arrange: { row: { items: [card] } } } }
-nodes:
-  - id: card
-    component: html
-    props:
-      viewport: 320x176
-      width: 160pt
-      html: |
-        <div style="padding:12px;color:var(--sumi-fg);border:2px solid var(--sumi-accent)"><b style="font-size:24px">HTML 日本語</b><div style="font-family:var(--sumi-mono);white-space:pre">  code()</div></div>
 `;
 
 const EXPECTED_LABELS = ["入力データ", "構文解析", "出力 (SVG)", "読み込み", "処理系"];
@@ -393,15 +381,36 @@ async function smoke(tarballArg: string, keep: boolean): Promise<void> {
     check(/assets-sha256="[0-9a-f]{64}"/.test(iconSvg), "the SVG lacks assets-sha256");
     check(iconSvg.includes('name="Tabler Icons"'), "the SVG lacks the Tabler notice");
     step("sumi render drew a bundled icon and embedded an image");
-    await Bun.write(join(work, "html.sumi.yaml"), HTML_FIGURE);
-    for (const format of ["svg", "pdf", "pptx"]) {
-      await sumiAt(sumi, ["render", "html.sumi.yaml", "-o", `html.${format}`]);
-      const first = await readFile(join(work, `html.${format}`));
-      await sumiAt(sumi, ["render", "html.sumi.yaml", "-o", `html-repeat.${format}`]);
-      check(
-        first.equals(await readFile(join(work, `html-repeat.${format}`))),
-        `HTML ${format} is not deterministic`,
-      );
+    const htmlFixture = "html-card.sumi.yaml";
+    await Bun.write(
+      join(work, htmlFixture),
+      await readFile(join(import.meta.dir, "..", "tests", "fixtures", "assets", htmlFixture)),
+    );
+    for (const theme of ["academic", "paper"]) {
+      for (const format of ["svg", "pdf", "pptx"]) {
+        await sumiAt(sumi, ["render", htmlFixture, "--theme", theme, "-o", `html.${format}`]);
+        const first = await readFile(join(work, `html.${format}`));
+        const key = `${htmlFixture}.${theme}.${format}`;
+        const expected = (assetGoldens as Record<string, string>)[key];
+        const actual = sha256Hex(first);
+        check(
+          actual === expected,
+          `${key}: sha256 ${actual}, expected ${expected ?? "(no golden)"}`,
+        );
+        await sumiAt(sumi, [
+          "render",
+          htmlFixture,
+          "--theme",
+          theme,
+          "-o",
+          `html-repeat.${format}`,
+        ]);
+        check(
+          first.equals(await readFile(join(work, `html-repeat.${format}`))),
+          `HTML ${theme} ${format} is not deterministic`,
+        );
+        step(`HTML ${theme} ${format} matches shared golden (sha256 ${actual})`);
+      }
     }
     const htmlSvg = await readFile(join(work, "html.svg"), "utf8");
     const htmlXml = parseXml(htmlSvg);

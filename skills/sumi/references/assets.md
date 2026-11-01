@@ -91,6 +91,11 @@ Also inspect the rendered result. Preflight diagnostics: `asset/unsafe-html`,
 `asset/unsupported-css`; size budgets reuse `asset/too-large`. Repeated font-size
 declarations use the last value; resolved-size errors point only at that declaration.
 
+In the repository, representative HTML code/card/token/flex-grid fixtures under
+`tests/fixtures/assets/html-*.sumi.yaml` have shared SVG/PDF/picture PPTX SHA-256
+goldens for academic and paper. Linux/macOS CI and compiled release smoke check
+the same hashes; platform-specific golden exceptions are not used.
+
 ## Icons
 
 ```sh

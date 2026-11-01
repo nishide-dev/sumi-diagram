@@ -1,0 +1,19 @@
+version: 1
+figure: { id: html-nested, theme: paper, layout: { direction: right } }
+nodes:
+  - id: panel
+    component: html
+    variant: framed
+    props:
+      viewport: 360x200
+      width: 180pt
+      html: |
+        <div style="display:flex;flex-direction:column;gap:12px;padding:16px;color:var(--sumi-fg);background-color:var(--sumi-bg);font-size:16px">
+          <div style="display:flex;justify-content:space-between"><b>Nested layout</b><span style="color:var(--sumi-accent)">日本語</span></div>
+          <div style="display:grid;grid-template-columns:1fr 2fr;gap:8px">
+            <div style="padding:8px;border:1px solid var(--sumi-muted)">Input</div>
+            <div style="display:flex;gap:8px;padding:8px;background-color:#e0e8f0"><span>A</span><b>B</b><i>C</i></div>
+            <div style="padding:8px;border:1px solid var(--sumi-muted)">Output</div>
+            <div style="padding:8px;font-family:var(--sumi-mono);letter-spacing:1.25px">[0.25, 1.5]</div>
+          </div>
+        </div>

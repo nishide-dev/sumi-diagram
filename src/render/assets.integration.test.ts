@@ -71,6 +71,33 @@ async function render(file: string) {
   return { source, ...result.value };
 }
 
+// Shared by both OS test jobs and the compiled release smoke (#294).
+for (const name of ["code", "card", "tokens", "nested"]) {
+  for (const theme of ["academic", "paper"]) {
+    test(`HTML ${name} / ${theme} matches SVG, PDF and picture PPTX goldens`, async () => {
+      const file = `html-${name}.sumi.yaml`;
+      const source = readFileSync(join(ASSETS_DIR, file), "utf8");
+      const result = await renderFigure(source, {
+        file,
+        assetBase: ASSETS_DIR,
+        overrides: { theme },
+      });
+      if (!result.ok) throw new Error(JSON.stringify(result.diagnostics, null, 2));
+      expect(result.diagnostics).toEqual([]);
+      expect(lintGeometry(result.value, { source })).toEqual([]);
+      expect(result.value.svg).toContain("data:image/svg+xml;base64,");
+      record(`${file}.${theme}.svg`, result.value.svg);
+      const pdf = svgToPdf(result.value.svg);
+      if (!pdf.ok) throw new Error(JSON.stringify(pdf.diagnostics));
+      expect(inspectPdf(pdf.value).images).toBe(0);
+      record(`${file}.${theme}.pdf`, pdf.value);
+      const pptx = svgToPptx(result.value.svg);
+      if (!pptx.ok) throw new Error(JSON.stringify(pptx.diagnostics));
+      record(`${file}.${theme}.pptx`, pptx.value);
+    });
+  }
+}
+
 test.skipIf(!d2 && !inCI)(
   "inline SVG shares file-image placement, fit and layers in both engines",
   async () => {

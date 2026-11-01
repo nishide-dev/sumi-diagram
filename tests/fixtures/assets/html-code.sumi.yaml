@@ -1,0 +1,15 @@
+version: 1
+figure: { id: html-code, theme: academic, layout: { arrange: { row: { items: [code] } } } }
+nodes:
+  - id: code
+    component: html
+    variant: framed
+    props:
+      viewport: 360x160
+      width: 180pt
+      html: |
+        <div style="padding:16px;background-color:var(--sumi-bg);color:var(--sumi-fg);font-family:var(--sumi-mono);font-size:16px;line-height:1.5">
+          <div style="color:var(--sumi-muted)">model.ts</div>
+          <div style="white-space:pre"><span style="color:var(--sumi-accent)">const</span> scale = 0.25;</div>
+          <div style="white-space:pre">  <span style="color:#a03060">return</span> input * scale;</div>
+        </div>

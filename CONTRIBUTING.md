@@ -101,7 +101,7 @@ Bun のテストタイムアウトは実行中の子プロセスに SIGTERM を�
 | SVG（`examples/*/*.svg`・`docs/gallery/`） | `bun run gallery` |
 | Transformer の配置・経路（`tests/fixtures/layout/{a-transformer,align-side-kv}*.json`） | `bun run gallery`（例のレイアウト変更と一緒に再生成） |
 | PDF（`examples/*/*.pdf`） | `bun run gallery`（または `SUMI_UPDATE_GOLDEN=1 bun run test src/render/pdf`。同じバイトを書く） |
-| 画像・アイコンの fixture（`tests/fixtures/assets/outputs-sha256.json`、#94） | `SUMI_UPDATE_GOLDEN=1 bun run test src/render/assets.integration.test.ts` |
+| 画像・アイコン・HTML の fixture（`tests/fixtures/assets/outputs-sha256.json`、#94・#294） | `SUMI_UPDATE_GOLDEN=1 bun run test src/render/assets.integration.test.ts` |
 | 編集可能PPTX（slide XML / package hash） | `SUMI_UPDATE_GOLDEN=1 bun run test src/render/pptx/editable.test.ts`。日本語fixtureのYAMLを変えたら先にSVGを通常のrenderで更新する（[再現手順](docs/verification/62-editable-pptx.md)） |
 
 SVG は D2 のバージョンとフォントが同じなら OS によらずバイト単位で一致します。D2 やフォントを更新する手順と、画像（ラスタ）比較を使わない理由は [設計 §6.7](docs/design/phase1.md#67-16-のテスト戦略と-ci) を参照してください。

@@ -2480,6 +2480,18 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **blockingレビュー回帰:** inline rootのblock/absolute内4px・Interの日本語が `geometry/text-too-small` / `lint/missing-glyph` を正しい要素位置で報告し、absolute overflowも前のdivへ誤定位しない。7 wrapper × 7 flow × 3 separatorの147生成ケースで、空白を含む全実測runの文字列・font-size・family・weight・要素offsetを検査する。曖昧な同一文字列と異なるstyleは人工的にbox topologyを変えて祖先定位とstyle保持を検査する。
 - **互換性の実測:** repository内154個の `*.sumi.yaml`（node_modules / .git / ローカル .sumi を除外）×自身のtheme＋組み込み5themeの924ケースを前後で描画。成功644ケースのSVG/PDF/picture PPTX、autoの222ケースのD2 sourceは全件SHA-256一致。既存の不正fixture・旧研究構文等280ケースも診断code列一致。HTMLを含むgallery全theme×全variantもバイト一致、`bun run gallery` は227 files中0更新。goldenの更新は不要。
 
+### 6.83 #294 の HTML 出力のプラットフォーム間決定性
+
+**決定:** 既存の asset golden（`tests/fixtures/assets/outputs-sha256.json`）へ HTML の SVG / PDF / picture PPTX の SHA-256 を追加し、OS ごとの期待値は作らない。`SUMI_UPDATE_GOLDEN=1` の既存更新経路だけで生成する。renderer・font loading・lint の実装は変更しない（#293 と並行作業）。
+
+- **コーパス:** `tests/fixtures/assets/html-{code,card,tokens,nested}.sumi.yaml` の4図。mono の色付きコード行、太字・日本語・Latin の折り返しカード、トークン列、入れ子 flex/grid を含み、academic / paper の両方で計24 hashを検査する。default / framed と structured / D2 layout を含める。作例ではなくテスト fixture として保持する。
+- **CI:** 既存 `assets.integration.test.ts` に追加することで、ubuntu-latest / macos-latest の通常 test matrix の両方で同じ golden を必須にする。個々の fixture×theme を独立した test にし、既定60秒（`bun run test`）を維持する。SVG に vector image があること、PDF が raster image を含まないこと、描画診断・幾何 lint が空であることも検査する。
+- **配布:** `scripts/smoke-release.ts` は同じ日本語カード fixture を隔離作業ディレクトリへコピーし、academic / paper それぞれの SVG / PDF / picture PPTX をコンパイル済みバイナリで生成する。同じ golden JSON の hash と比較し、不一致は key・actual・expected を出して失敗させる。同一バイナリでの2回一致と vector / package の検査も維持する。Release smoke が走る全ターゲットへ適用する。
+- **確認範囲:** ローカル darwin-arm64 で golden を生成・照合する。Linux / macOS の一致および配布対象ごとの一致は、この PR の CI / Release smoke の結果で確認する必要がある。不一致を OS 別 golden や skip で隠さず、float の文字列化・font 読み込み順等を調査して修正または原因を記録する。
+- **互換性:** 既存全 `*.sumi.yaml` を自身の theme と全組み込み theme で変更前後に描画し、SVG / PDF / picture PPTX / D2 の SHA-256 を比較する。不正・追加 registry 必須等の入力は診断 code を記録する。catalog と全テーマ×variant gallery は既存の検査経路で維持する。
+- **ローカル実測:** Bun 1.3.14 / darwin-arm64 で新規24 hash と compiled release smoke の共通6 hash が一致。既存154 YAML の比較は SVG / PDF / picture PPTX 各644件、D2 234件が全一致、失敗入力の診断 code も変化なし。全体テストは4,066 pass / 13 skip / 0 fail、gallery 227生成物と schema も最新。OS 間一致の最終判断は上記 CI 待ちとする。
+
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）

@@ -59,7 +59,8 @@ jobs:
   # The full suite with the pinned D2 on Linux and macOS: unit tests, the D2
   # integration tests (required here because CI is set) and the byte-for-byte
   # SVG goldens of the examples and the gallery, so rendering determinism is
-  # checked on both platforms.
+  # checked on both platforms. assets.integration.test.ts also compares HTML
+  # SVG/PDF/picture PPTX against the same committed SHA-256 goldens (#294).
   test:
     name: Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -108,7 +109,7 @@ jobs:
           bun src/cli/index.ts doctor
           bun src/cli/index.ts doctor --json
 
-      - name: Test
+      - name: Test (including HTML cross-platform goldens)
         run: bun run test ${{ matrix.coverage && '--coverage' || '' }}
 
       # Re-renders docs/gallery/ and examples/*/*.svg; fails if they are stale.
