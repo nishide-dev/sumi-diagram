@@ -21,25 +21,8 @@ export interface HtmlIssue {
   offset: number;
 }
 const tags = new Set(["div", "span", "p", "b", "i", "br"]);
-const properties = new Set(
-  `display flex flex-direction flex-wrap flex-grow flex-shrink flex-basis justify-content align-items align-self align-content justify-items justify-self order grid-template-columns grid-template-rows grid-auto-columns grid-auto-rows grid-auto-flow grid-column grid-row grid-column-start grid-column-end grid-row-start grid-row-end position top left right bottom width height min-width min-height max-width max-height margin margin-top margin-right margin-bottom margin-left padding padding-top padding-right padding-bottom padding-left gap row-gap column-gap color background-color border border-width border-style border-color border-top border-right border-bottom border-left border-top-width border-right-width border-bottom-width border-left-width border-top-style border-right-style border-bottom-style border-left-style border-top-color border-right-color border-bottom-color border-left-color border-radius border-top-left-radius border-top-right-radius border-bottom-left-radius border-bottom-right-radius font-size font-weight font-style font-family line-height letter-spacing text-align white-space opacity box-sizing`.split(
-    " ",
-  ),
-);
-const functions = new Set([
-  "var",
-  "calc",
-  "min",
-  "max",
-  "clamp",
-  "rgb",
-  "rgba",
-  "hsl",
-  "hsla",
-  "repeat",
-  "minmax",
-  "fit-content",
-]);
+
+import { tokenizeCss, validCssValue } from "./html-css";
 
 export function htmlViewport(value: string): { width: number; height: number } | undefined {
   const m = /^([1-9]\d*)x([1-9]\d*)$/.exec(value);
@@ -68,9 +51,10 @@ export function validateHtml(source: string): HtmlIssue[] {
   while (cursor < source.length) {
     const start = source.indexOf("<", cursor);
     if (start < 0) break;
-    const match = /^<(\/)?([a-z][a-z0-9]*)(\s+(?:[^<>"']|"[^"<>]*"|'[^'<>]*')*?)?\s*(\/?)>/i.exec(
-      source.slice(start),
-    );
+    const match =
+      /^<(\/)?([a-z][a-z0-9]*)([ \t\n\f\r]+(?:[^<>"']|"[^"<>]*"|'[^'<>]*')*?)?[ \t\n\f\r]*(\/?)>/i.exec(
+        source.slice(start),
+      );
     if (!match) {
       fail(
         "asset/unsafe-html",
@@ -88,7 +72,7 @@ export function validateHtml(source: string): HtmlIssue[] {
         start,
       );
     if (match[1]) {
-      if (match[3]?.trim() || match[4] || stack.pop() !== name)
+      if (match[3]?.replace(/[ \t\n\f\r]/g, "") || match[4] || stack.pop() !== name)
         fail("asset/unsafe-html", "Mismatched closing tag.", start);
       continue;
     }
@@ -101,8 +85,11 @@ export function validateHtml(source: string): HtmlIssue[] {
       styled = false;
     while (at < attrs.length) {
       const rest = attrs.slice(at);
-      if (!rest.trim()) break;
-      const attr = /^\s+([a-zA-Z_:][\w:.-]*)\s*=\s*("([^"]*)"|'([^']*)')/.exec(rest);
+      if (/^[ \t\n\f\r]*$/.test(rest)) break;
+      const attr =
+        /^[ \t\n\f\r]+([a-zA-Z_:][\w:.-]*)[ \t\n\f\r]*=[ \t\n\f\r]*("([^"]*)"|'([^']*)')/.exec(
+          rest,
+        );
       if (!attr) {
         fail(
           "asset/unsafe-html",
@@ -124,7 +111,10 @@ export function validateHtml(source: string): HtmlIssue[] {
       }
       at += attr[0].length;
     }
-    if (name !== "br" && !match[4]) stack.push(name);
+    if (name !== "br") {
+      if (match[4]) fail("asset/unsafe-html", "Self-closing syntax is allowed only on br.", start);
+      stack.push(name);
+    }
     if (stack.length > HTML_LIMITS.maxDepth) {
       fail("asset/too-large", "HTML exceeds nesting depth 24.", start);
       break;
@@ -143,7 +133,12 @@ function validateCss(
   fail: (code: string, message: string, offset: number) => void,
 ): void {
   let cursor = 0;
-  for (const declaration of style.split(";")) {
+  const declarations = tokenizeCss(style, ";");
+  if (!declarations) {
+    fail("asset/unsupported-css", "Malformed CSS quotes or parentheses.", offset);
+    return;
+  }
+  for (const declaration of declarations) {
     const at = offset + cursor + (declaration.length - declaration.trimStart().length);
     cursor += declaration.length + 1;
     if (!declaration.trim()) continue;
@@ -151,7 +146,7 @@ function validateCss(
     const prop = declaration.slice(0, colon).trim().toLowerCase();
     const value = declaration.slice(colon + 1).trim();
     const reject = (message: string) => fail("asset/unsupported-css", message, at);
-    if (colon < 1 || !properties.has(prop)) {
+    if (colon < 1) {
       reject(`Unsupported CSS property: ${prop || declaration.trim()}.`);
       continue;
     }
@@ -159,51 +154,6 @@ function validateCss(
       reject("CSS escapes, entities, comments, rules and !important are not supported.");
       continue;
     }
-    let depth = 0;
-    for (const ch of value) {
-      if (ch === "(") depth++;
-      if (ch === ")") depth--;
-      if (depth < 0) break;
-    }
-    if (depth !== 0) {
-      reject("Unbalanced CSS function.");
-      continue;
-    }
-    const calls = [...value.matchAll(/([\w-]+)\s*\(/g)];
-    if (calls.some((m) => !functions.has((m[1] ?? "").toLowerCase()))) {
-      reject(
-        "Only layout, color and injected variable CSS functions are allowed; no URLs, gradients or filters.",
-      );
-      continue;
-    }
-    if (calls.some((m) => m[1]?.toLowerCase() === "var") && /var\s*\([^)]*\)/gi.test(value)) {
-      const vars = [...value.matchAll(/var\s*\(([^)]*)\)/gi)];
-      if (vars.some((m) => !(HTML_VARIABLES as readonly string[]).includes((m[1] ?? "").trim()))) {
-        reject("var() may reference only the fixed --sumi-* variables, without fallbacks.");
-        continue;
-      }
-    }
-    if (prop === "font-family") {
-      const names = value.split(",").map((s) => s.trim().replace(/^(['"])(.*)\1$/, "$2"));
-      if (
-        !names.every(
-          (n) =>
-            (HTML_FAMILIES as readonly string[]).includes(n) ||
-            /^var\(--sumi-(font|mono)\)$/.test(n),
-        )
-      )
-        reject(
-          "font-family must use --sumi-font, --sumi-mono or a bundled family (BIZ UDPGothic, BIZ UDGothic, Inter).",
-        );
-    }
-    const enums: Record<string, string[]> = {
-      display: ["flex", "grid", "block", "inline", "inline-block", "none"],
-      position: ["relative", "absolute", "static"],
-      "box-sizing": ["border-box"],
-      "font-style": ["normal", "italic", "oblique"],
-      "white-space": ["normal", "pre", "pre-wrap", "nowrap"],
-      "text-align": ["left", "right", "center", "start", "end", "justify"],
-    };
-    if (enums[prop] && !enums[prop].includes(value)) reject(`Unsupported ${prop} value: ${value}.`);
+    if (!validCssValue(prop, value)) reject(`Unsupported ${prop} value: ${value}.`);
   }
 }

@@ -15,17 +15,33 @@ One missing dimension preserves the viewport aspect ratio; neither means natural
 (0.75pt per CSS px, rounded to 0.5pt). Do not put `props.html` on `image`.
 
 Only `div/span/p/b/i/br` and a quoted inline `style` attribute are accepted.
+Only ASCII space/tab/LF/FF/CR separate tags and attributes. Self-closing syntax
+is allowed only for `br`; close every other element explicitly.
 Use flex/grid layout, position/edges, dimensions, margin/padding/gap, color/background-color,
 border/radius, font properties, line-height, letter-spacing, text-align, white-space,
 opacity and `box-sizing:border-box`. Unknown CSS is an error, never silently ignored.
 No images/SVG/scripts/style tags, events/classes, URLs, @rules, custom properties,
 overflow (including hidden), transforms, gradients, shadows or filters.
 CSS escapes, entities and comments inside style are rejected.
+Declarations are tokenized with quote/parenthesis awareness; every property has
+a complete value grammar. Lengths use px/pt/em/% or unitless 0 (negative values
+and percentages only where appropriate), numbers have property-specific ranges,
+and keywords are property-specific. Colors accept #hex, comma-separated rgb()
+(channels 0–255), rgba() (alpha 0–1), and this fixed list: transparent, black,
+silver, gray, white, maroon, red, purple, fuchsia, green, lime, olive, yellow,
+navy, blue, teal, aqua, orange, rebeccapurple. Grid supports basic tracks and
+`repeat(2,1fr)` (positive count ≤64). Unverified functions including calc(),
+min(), max(), clamp(), hsl() and minmax() are rejected.
 
 Theme variables: `--sumi-fg`, `--sumi-muted`, `--sumi-accent`, `--sumi-bg`,
 `--sumi-font`, `--sumi-mono`; use `var(--sumi-accent)` without fallbacks.
 font-family may only use the font/mono variables or bundled family names
 `BIZ UDPGothic`, `BIZ UDGothic`, `Inter`. No font fetching.
+The fg/muted/accent/bg variables are colors and cannot be used as dimensions
+or font families; font/mono variables are font lists and cannot be used as
+colors or dimensions. Injected values are type-checked too. Explicit families
+select supplied fonts, but Takumi retains its bundled Geist fallback even after
+clearFonts(); missing-glyph lint is deferred to #293.
 **Put `white-space:pre` on each line div, not the parent** (indentation between
 children otherwise becomes extra lines). Takumi uses **border-box**, not browser
 content-box. Budget: 128KiB, 512 elements, depth24; viewport ≤2048 per side and
@@ -137,7 +153,8 @@ The same allow-list importer as file SVG is used, without interpolation.
 HTML/`foreignObject`, scripts, events, external/internal references (`href`,
 `use`, `url(...)`), embedded images, DTD/entities, `<style>`, `defs`, clipping,
 masks, gradients and filters are rejected. Use native Sumi labels outside
-the image for readable/searchable text. HTML is planned separately (#283).
+the image for readable/searchable text. For restricted HTML, use the dedicated
+`html` component described above.
 
 `width`, `height`, `fit`, frames, tones and layers work as for files. Internal
 colors stay as written (`currentColor` is not a theme variable). SVG, PDF and

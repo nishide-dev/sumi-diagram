@@ -11,6 +11,7 @@ import { FONT_ASSETS_DIR } from "../core/theme/fonts";
 import type { Theme } from "../core/theme/schema";
 import { loadEngine, runEngine } from "../render/pdf/engine";
 import { validateHtml } from "./html";
+import { validCssValue } from "./html-css";
 
 /** Fixed order, local bundled bytes only. Never use Takumi's URL resource APIs. */
 function bundledFonts() {
@@ -32,7 +33,7 @@ export function htmlThemeVariables(theme: Theme): Record<string, string> {
     const t = theme.tokens.get(token);
     return t?.type === "color" ? String(t.value) : fallback;
   };
-  return {
+  const variables = {
     "--sumi-fg": color("color.fg", String(theme.base.node.fontColor ?? "#222222")),
     "--sumi-muted": color("color.muted", "#666666"),
     "--sumi-accent": String(
@@ -42,6 +43,11 @@ export function htmlThemeVariables(theme: Theme): Record<string, string> {
     "--sumi-font": theme.fontSet.latin ? "'Inter','BIZ UDPGothic'" : "'BIZ UDPGothic'",
     "--sumi-mono": "'BIZ UDGothic'",
   };
+  for (const [name, value] of Object.entries(variables)) {
+    const property = name === "--sumi-font" || name === "--sumi-mono" ? "font-family" : "color";
+    if (!validCssValue(property, value)) throw new Error(`Invalid injected HTML variable ${name}.`);
+  }
+  return variables;
 }
 
 export function prepareHtml(
@@ -71,8 +77,8 @@ export async function renderHtmlAssets(
       if (!theme) throw new Error("Missing HTML theme.");
       const fonts = bundledFonts();
       const renderer = new Renderer();
-      // Clear the built-in Geist fallback. Missing-glyph lint is tracked by #293.
-      renderer.clearFonts();
+      // Each renderer starts fresh. Takumi retains its bundled Geist fallback;
+      // explicit families select our supplied fonts. Missing-glyph lint is #293.
       const raw = await renderer.renderSvg(prepareHtml(image.html, image.viewport, theme), {
         ...image.viewport,
         fonts,
