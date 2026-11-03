@@ -321,9 +321,7 @@ test("#306: a grid cell and a lower item in another stack need a strut wrapper",
   const d = before.diagnostics.find((d) => d.code === "layout/unsatisfied-align");
   expect(d?.hint).toContain('"cell" is a direct grid cell');
   expect(d?.hint).toContain("grid cells take no align struts");
-  expect(d?.hint).toContain("Wrap the cell in a stack");
-  expect(d?.hint).toContain("In a start-aligned parent");
-  expect(d?.hint).toContain("upward");
+  expect(d?.hint).toContain('Verified by structured layout: wrap "cell" in a stack');
   expect(d?.hint).not.toContain("up/left");
   expect(d?.hint).not.toContain("Put them in different stacks");
   expect(d?.path).toEqual(["figure", "layout", "align", 0]);

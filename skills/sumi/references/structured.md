@@ -187,12 +187,12 @@ being in different branches is not sufficient: the cell has no strut
 position. In the reported start-aligned arrangement, adding space cannot move
 the lower branch upward. This is not universal: trailing space can move an
 item upward within an end-aligned parent and satisfy alignment without a
-wrapper. For the unmet start-aligned case, wrap the cell as
-`{ stack: { items: [cell] } }` (keep a
-nonzero gap) to let that cell move, or wrap the whole grid in a stack if
-it should move as one unit. For `x`, use a row wrapper instead. Parent
-`align: start` can avoid centering coupling; also check competing
-constraints. `layout/unsatisfied-align` names this grid limitation.
+wrapper. Sumi recommends a wrapper (`{ stack: { items: [cell] } }` for `y`,
+a row for `x`; the cell, all cells, or the whole grid) only after a trial
+layout shows that it removes the diagnostic; re-run lint after applying it.
+Cells of the same grid are tracks of that grid: no wrapper separates them, so
+put them in different rows/columns or use another constraint. Also check
+competing constraints. `layout/unsatisfied-align` names this grid limitation.
 
 ## Group titles and captions
 

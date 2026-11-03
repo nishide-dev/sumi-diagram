@@ -257,3 +257,25 @@ test("#306: nested/group grids use their own alignment and non-spans keep generi
   expect(d).toBeDefined();
   expect(d?.hint).not.toContain("grid.align");
 });
+
+test("#306 review: verified hints keep the generic advice and say to re-run lint", () => {
+  const warnings = layoutStructuredFigure(source()).diagnostics.filter(
+    (d) => d.code === "layout/straight-off-side",
+  );
+  expect(warnings.some((d) => d.hint?.includes("Verified by"))).toBe(true);
+  for (const d of warnings) {
+    expect(d.hint).toContain("side anchor");
+    if (d.hint?.includes("Verified by")) expect(d.hint).toContain("Re-run lint");
+  }
+  const errors = layoutStructuredFigure(
+    source(undefined, undefined, "box", true),
+  ).diagnostics.filter((d) => d.code === "layout/no-route");
+  for (const d of errors) {
+    expect(d.hint).toContain("Leave room around the elements it connects");
+    expect(d.hint).toContain("use a different anchor for each end");
+    if (d.hint?.includes("Verified by")) expect(d.hint).toContain("Re-run lint");
+  }
+  expect(layoutStructuredFigure(source()).diagnostics).toEqual(
+    layoutStructuredFigure(source()).diagnostics,
+  );
+});

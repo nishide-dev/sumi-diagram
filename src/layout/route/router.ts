@@ -754,11 +754,11 @@ class Router {
         path: [...(source?.path ?? ["edges", edge.index]), field],
         ...(source?.location !== undefined && { location: source.location }),
         subject: { kind: "edge", id: edge.id ?? `edges[${edge.index}]` },
-        hint:
-          gridHint ??
-          (at.off === "beyond"
+        hint: `${gridHint === undefined ? "" : `${gridHint} `}${
+          at.off === "beyond"
             ? `Bring ${them} over ${me} (the order or align of the arrange box, or figure.layout.align), widen ${me}, or write a side anchor instead (e.g. "${at.side}:0.5").`
-            : `Put ${me} and ${them} in line (one above the other in a stack, or side by side in a row), or write a side anchor instead (e.g. "north:0.5").`),
+            : `Put ${me} and ${them} in line (one above the other in a stack, or side by side in a row), or write a side anchor instead (e.g. "north:0.5").`
+        }`,
       });
     }
   }

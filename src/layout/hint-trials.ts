@@ -4,7 +4,12 @@ import type { LayoutIR } from "./ir";
 import { routeEdges } from "./route/router";
 import { placeStructured, type StructuredLayoutOptions } from "./structured/engine";
 
+// Import cycle: engine.ts imports `hintLayoutOptions` from here and this file imports the
+// engine. Both sides must use the other's exports only at call time, never at module load.
 export const MAX_HINT_TRIALS = 6;
+let trialDepth = 0;
+/** True while a trial layout runs, so placement does not start hint trials of its own. */
+export const inHintTrial = (): boolean => trialDepth > 0;
 export const MAX_HINT_ELEMENTS = 80;
 /** Preserve the actual profile/measurer, without adding anything to the output IR. */
 export const hintLayoutOptions = new WeakMap<FigureIR, StructuredLayoutOptions>();
@@ -53,12 +58,21 @@ export class HintTrials {
       small(original.arrange) &&
       original.groups.every((g) => !g.arrange || small(g.arrange));
   }
-  run(candidate: FigureIR): { layout: LayoutIR; diagnostics: readonly Diagnostic[] } | undefined {
+  run(
+    candidate: FigureIR,
+    route = true,
+  ): { layout: LayoutIR; diagnostics: readonly Diagnostic[] } | undefined {
     if (!this.eligible || this.count >= MAX_HINT_TRIALS) return;
     this.count++;
-    const placed = placeStructured(candidate, hintLayoutOptions.get(this.original));
-    if (hasErrors(placed.diagnostics)) return;
-    const routed = routeEdges(candidate, placed.layout, { hintTrials: false });
-    return { layout: routed.layout, diagnostics: [...placed.diagnostics, ...routed.diagnostics] };
+    trialDepth++;
+    try {
+      const placed = placeStructured(candidate, hintLayoutOptions.get(this.original));
+      if (hasErrors(placed.diagnostics)) return;
+      if (!route) return { layout: placed.layout, diagnostics: placed.diagnostics };
+      const routed = routeEdges(candidate, placed.layout, { hintTrials: false });
+      return { layout: routed.layout, diagnostics: [...placed.diagnostics, ...routed.diagnostics] };
+    } finally {
+      trialDepth--;
+    }
   }
 }

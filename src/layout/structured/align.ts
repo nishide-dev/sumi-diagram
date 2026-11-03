@@ -488,6 +488,10 @@ function strutRecord(struts: Struts): Record<string, number> {
   return out;
 }
 
+/** Neutral advice of a grid-cell hint; the engine swaps it for a verified edit when a trial works. */
+export const UNVERIFIED_ALIGN_TAIL =
+  "No verified wrapper edit is available: check the parent row/stack alignment and competing constraints, or align other elements.";
+
 /** `layout/unsatisfied-align` for constraint `index`. */
 function unsatisfied(
   ir: FigureIR,
@@ -509,10 +513,15 @@ function unsatisfied(
   const box = c.axis === "y" ? "stack" : "row";
   const pathOf = paths(ir);
   const gridItems = c.items.filter((key) => pathOf.get(key)?.at(-1)?.box.kind === "grid");
-  const direction = c.axis === "y" ? "upward" : "leftward";
+  const boxes = new Set(gridItems.map((key) => pathOf.get(key)?.at(-1)?.box));
+  const sameGrid = gridItems.length === c.items.length && boxes.size === 1;
+  const gridNames = gridItems.map((key) => `"${id(key)}"`).join(", ");
+  const explanation = `${gridNames} ${gridItems.length === 1 ? "is a direct grid cell (or attached to one)" : "are direct grid cells (or attached to them)"}: grid cells take no align struts, so they cannot move independently inside the grid.`;
   const hint =
     gridItems.length > 0
-      ? `${gridItems.map((key) => `"${id(key)}"`).join(", ")} ${gridItems.length === 1 ? "is a direct grid cell (or attached to one)" : "are direct grid cells (or attached to them)"}: grid cells take no align struts, so they cannot move independently inside the grid. In a start-aligned parent, adding space cannot move the other branch ${direction}; end alignment can allow that via trailing space. Wrap the cell in a ${box} with a nonzero gap to give it its own strut position, wrap the whole grid in a ${box} if it should move as a unit, or align other elements. Check the parent row/stack alignment (start can avoid centering coupling) and any competing constraints.`
+      ? sameGrid
+        ? `${explanation} They are tracks of the same grid, so wrapping them or the grid cannot separate them: put them in different rows or columns of the grid, or use another constraint.`
+        : `${explanation} ${UNVERIFIED_ALIGN_TAIL}`
       : movable
         ? `Other align constraints or the arrangement keep them apart: a strut only adds space, and it moves the items after it in its ${box} too. Check the constraints that share these elements (they may contradict each other), or align other elements.`
         : `"${id(first)}" and "${id(last)}" cannot be moved apart: a strut goes only in a ${box} that holds just one of them, never inside a box with gap: 0, and it moves the items after it in its ${box} too. Put them in different ${box}s, or align other elements.`;

@@ -2557,14 +2557,21 @@ center/start/end を意図した図の box 幅・port・経路、ひいては SV
   配置・routing 本体の出力や診断 code/severity/location/related は変更しない。
   回帰は全レビュー probe（両端が移動する12ケースを含む）、決定性、
   非破壊性、6回上限と大型/auto の0回実行を検証する。
-- 未達 align の対象が grid 直接 cell（その attach を含む）なら、grid cell
-  は strut を受け取らないことを説明する。報告された start-aligned 親では
-  加算で他方の branch を上（y）/左（x）へ動かせない、という軸別の表現に限定する。
-  end-aligned 親では trailing strut により上/左へ動いて解決する場合もあるため、
-  strut 全般の絶対的制約とは説明しない。cell 自身を動かす非ゼロ gap の stack（y）/
-  row（x）wrapper と、grid 全体を動かす wrapper を区別し、親の start
-  alignment と競合 constraint も案内する。nested linear box 内の item に
-  grid 制限を誤適用しない。既存の残差・severity は変えない。
+- 未達 align の対象が grid 直接 cell（その attach を含む）なら、grid cell は strut を
+  受け取らないことを説明する。wrapper（cell 単体→全 cell→grid 全体）は固定の説明では
+  なく、`placeStructured` の後処理で IR コピーに適用して再配置し、同じ constraint の
+  診断が消える場合だけ「Verified by」として提示する（trial は上記の6回上限、trial 内
+  は再試行なし）。constraint の全対象が同一 grid の cell なら、同じ track であり
+  wrapper では分離できないため、別の行/列や別 constraint を使う中立的な説明にする。
+  軸別に y は stack、x は row の wrapper を試し、grid の先頭行以外の cell も同様に検証する。
+  既存の残差・severity は変えない。
+- 検証済み hint は実測で対象診断を消す編集のみを示すが、他の診断が新たに出る場合が
+  あるため「Re-run lint after applying」を併記し、trial で新規に出た診断 code があれば
+  列挙する。検証済み文は generic な助言（side anchor、`Leave room…`、attach の説明）を
+  置換せず、grid の説明部分だけを置き換えて残りを維持する。no-route で両端が
+  span cell の場合は片端ずつ、次に両端同時の stretch を trial 予算内で試す。
+- `hint-trials.ts` と `engine.ts` は循環 import になるため、`hintLayoutOptions` 等は
+  呼び出し時にのみ参照する（module 読み込み時に評価しない）。
 
 回帰テストは 9/10 列の自然幅と明示 center の同一配置、両 anchor 方向、
 stretch 後の直線接続・route 検証、no-route の blocker 位置、固定幅/固定形、
