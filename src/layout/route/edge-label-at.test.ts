@@ -328,7 +328,7 @@ describe("avoidance within the requested segment", () => {
 });
 
 describe("other edges' arrowheads and labels", () => {
-  test("a shared trunk: the label keeps off the other edge's arrowhead; what remains is reported", () => {
+  test("a shared trunk: a short-span label lifts clear of nodes and the other arrowhead", () => {
     // Two edges a → b on one line: a labelled `line` and an arrow. The 20pt
     // gap is shorter than the label with the arrowhead's room.
     const value = run(
@@ -363,12 +363,9 @@ describe("other edges' arrowheads and labels", () => {
       head.y < label.y + label.height;
     expect(overlap).toBe(false);
     const points = value.layout.edges[0]?.route?.points ?? [];
-    expectBeside(label, requestedSegment(points, "middle"), "left", { centerOnSegment: true });
-    // No clear place in the gap: it overlaps a node, and says so.
-    expect(checkRoutes(value.ir, value.layout).labelCollisions).toEqual(["e:#0 label / n:a"]);
-    const warnings = overlapWarnings(value);
-    expect(warnings.map(([path]) => path)).toEqual([["edges", 0]]);
-    expect(warnings[0]?.[1]).toContain('overlaps node "a"');
+    expect(sideOf(points[0] as Point, points[1] as Point, centerOf(label))).toBe("left");
+    expect(checkRoutes(value.ir, value.layout).labelCollisions).toEqual([]);
+    expect(overlapWarnings(value)).toEqual([]);
   });
 
   test("a requested label keeps clear of a default label written after it", () => {
