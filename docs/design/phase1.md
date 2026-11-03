@@ -2674,6 +2674,13 @@ check・typecheck・gallery:check（231ファイル）・schema:check も成功�
 - **縮小:** `figure.fit: scale` が自然寸法の **90%未満**に縮めたら `geometry/heavy-scaling`（info、`figure.fit`）を報告する。縮尺と自然幅→印刷幅を表示し、#307 の幅内訳（削減が必要な幅・支配する run・子孫・attach・ラベル・確かめた変更）を **縮小前の寸法**で付ける。context のコピーの scale だけを1にして既存の内訳を共用し、現物の inspection・SVG は変えない。90%ちょうど・縮小なしには出さず、文字の下限と幅・高さの従来の検査は独立。`--rule geometry/heavy-scaling=off` で抑止できる。
 - **検証:** 左上・左下の2つの空白を持つ grid fixture、描画された矢印・ラベル・group による占有、外周 margin・細い gutter・小さい図の除外、80%縮小での自然幅の内訳、90%境界、位置情報・抑止・非破壊性・実際に効く hint を回帰検査する。Issue の DETR 評価2図の原本はリポジトリに含めず（`.sumi/tmp/`）、同じ空白の配置を再現した汎用 fixture を回帰に使う。DETR 評価2図（opus は左上に凡例があり出ない、sonnet は左下 111.02mm × 24.75mm・28.3% を報告）と、既存図×自身のテーマ／全組み込みテーマの SVG・PDF・PPTX・D2 の sha256 と既存 golden を比較する。
 
+### 6.98 #266 の平文・数式間の空白を SVG 描画系で保持する
+
+- **問題**: structured のラベルは平文・数式・フォント切り替えを入れ子の `tspan` として出力する。librsvg は既定の空白処理で run 境界の半角空白を落とし、`Timestep $t$` が `Timestept` になる。ブラウザと PDF エンジンでは空白が見えても SVG の可搬性を満たさない。
+- **採用**: 行内の隣接 run の末尾または先頭に半角空白があるラベルの `text` に `xml:space="preserve"` を付け、子の `tspan` に継承する。数式の前後、添字から戻る平文、注記・辺ラベル、アクセントの chunk、色やフォントの切り替えにも同じ規則を使う。該当しないラベルの SVG は変更しない。
+- **代替案と互換性**: 空白を次の run に移すと空白のフォントと advance が変わり得る。NBSP への置換は検索・コピーする文字を変え、`dx` は検査・PDF・編集可能 PPTX の幾何契約を増やすため採用しない。既存の usvg 向けの裸 `tspan`（§6.44）は維持し、run の文字列・計測・配置は変更しない。
+- **検証**: 修正前に失敗する回帰テストでノード・辺・添字・アクセントと対象外ラベルを検査し、PDF の文字位置が計測値と一致すること、編集可能 PPTX に元の空白が残ることを確認する。全 YAML を元テーマと全組み込みテーマで前後描画して SVG/PDF/PPTX/D2 の SHA-256 を比較し、CLI の PDF → `pdftoppm -png` と librsvg の描画を目視する。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）

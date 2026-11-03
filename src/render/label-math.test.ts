@@ -132,6 +132,38 @@ edges: []
 });
 
 describe("rendering", () => {
+  test("spaces at run boundaries are preserved without changing text or measured advances (#266)", async () => {
+    const source = figure(
+      `  - { id: a, component: box, label: 'Timestep $t$' }
+  - { id: b, component: box, label: '$t$ steps and $x_1$ next' }
+  - { id: c, component: box, label: '予測 $\\hat y$ と $x$' }`,
+      "  - { from: a, to: b, label: 'at $t$' }",
+      "[a, b, c]",
+    );
+    const rendered = await render(source);
+    const texts = [...rendered.svg.matchAll(/<text [^>]*>/g)].map((m) => m[0]);
+    expect(texts).toHaveLength(4);
+    for (const text of texts) expect(text).toContain('xml:space="preserve"');
+    expect(rendered.inspection.elements.flatMap((e) => e.labels.map((l) => l.text))).toEqual(
+      expect.arrayContaining(["Timestep t", "t steps and x1 next", "予測 ŷ と x", "at t"]),
+    );
+    expect(lintGeometry(rendered, { source })).toEqual([]);
+    await expectPdfMatchesMeasure(source);
+    const editable = svgToEditablePptx(rendered.svg, rendered.compiled.ir);
+    if (!editable.ok) throw new Error(JSON.stringify(editable.diagnostics));
+    const slide = new TextDecoder().decode(readPptx(editable.value).get("ppt/slides/slide1.xml"));
+    expect(slide).toContain('<a:t xml:space="preserve">Timestep </a:t>');
+  });
+
+  test("labels without spaces between runs keep their SVG whitespace policy (#266)", async () => {
+    for (const label of ["plain text", "$x_1$", "a$x$b", "$x + y$"]) {
+      const { svg } = await render(
+        figure(`  - { id: a, component: box, label: '${label}' }`, "", "[a]"),
+      );
+      expect(svg).not.toContain('xml:space="preserve"');
+    }
+  });
+
   test("labels are drawn as runs that the inspection and the geometry lint read back", async () => {
     const rendered = await render(MATH);
     const { svg, layout, compiled, inspection } = rendered;
