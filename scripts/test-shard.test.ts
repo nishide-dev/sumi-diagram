@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   assignShards,
@@ -6,6 +8,7 @@ import {
   discoverTestFiles,
   durationsFromJunit,
   hashPath,
+  isTestFile,
   verifyPartition,
 } from "./test-shard";
 
@@ -93,5 +96,38 @@ describe("the repository", () => {
     expect(matrix.split(",").map((s) => Number(s.trim()))).toEqual(
       Array.from({ length: total }, (_, i) => i + 1),
     );
+  });
+});
+
+describe("discoverTestFiles", () => {
+  test("finds what bun test runs: .test/_test/.spec/_spec and every JS/TS extension", () => {
+    const root = mkdtempSync(join(tmpdir(), "shard-"));
+    try {
+      const make = (path: string) => {
+        mkdirSync(join(root, path, ".."), { recursive: true });
+        writeFileSync(join(root, path), "");
+      };
+      const runs = [
+        "a_test.ts",
+        "b_spec.ts",
+        "c.test.mts",
+        "d.spec.cts",
+        "e.test.tsx",
+        "sub/h.test.js",
+      ];
+      const skipped = [
+        ".hid/f.test.ts",
+        "node_modules/x/g.test.ts",
+        "notest.ts",
+        "i.test.json",
+        "j-test.ts",
+      ];
+      for (const f of [...runs, ...skipped]) make(f);
+      expect(discoverTestFiles(root)).toEqual([...runs].sort());
+      expect(runs.every(isTestFile)).toBe(true);
+      expect(skipped.some(isTestFile)).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });

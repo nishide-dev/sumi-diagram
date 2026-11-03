@@ -2,7 +2,8 @@
 //
 //   bun scripts/test-shard.ts <index>/<total>   print the test files of one shard
 //   bun scripts/test-shard.ts --check [<total>] verify the shards cover every test file
-//   bun scripts/test-shard.ts --update <junit.xml>  rewrite scripts/test-durations.json
+//   bun scripts/test-shard.ts --update <junit.xml>...  rewrite scripts/test-durations.json
+//     (several reports, e.g. the junit artifacts of all CI shards, are merged)
 //
 // Files are balanced by the per-file seconds recorded in scripts/test-durations.json
 // (longest first onto the lightest shard). A file without a recorded duration is
@@ -17,15 +18,30 @@ import { Glob } from "bun";
 export const DEFAULT_SHARDS = 4;
 const ROOT = join(import.meta.dir, "..");
 const DURATIONS_PATH = join(import.meta.dir, "test-durations.json");
-const SKIPPED_DIRS = /(^|\/)(node_modules|\.[^/]+|dist|target)(\/|$)/;
+const SKIPPED_DIRS = /(^|\/)node_modules(\/|$)/;
+const EXTENSIONS = "ts,tsx,js,jsx,mjs,cjs,mts,cts";
+// Bun's own rules: `*.test.*`, `*_test.*`, `*.spec.*`, `*_spec.*` with a JS/TS
+// extension; node_modules and dot-directories are not searched.
+const TEST_FILE = /[._](test|spec)\.(ts|tsx|js|jsx|mjs|cjs|mts|cts)$/;
+// Deliberately broader, for the cross-check: a tracked file that looks like a
+// test (`foo-test.ts`, `x.tests.ts`) but is not one Bun runs.
+const TEST_LIKE = /(test|tests|spec|specs)\.(ts|tsx|js|jsx|mjs|cjs|mts|cts)$/i;
+
+export function isTestFile(path: string): boolean {
+  return (
+    TEST_FILE.test(path) &&
+    !SKIPPED_DIRS.test(path) &&
+    !path.split("/").some((d) => d.startsWith("."))
+  );
+}
 
 /** Every test file under `root`, as sorted repo-relative POSIX paths (what `bun test` runs). */
 export function discoverTestFiles(root: string = ROOT): string[] {
-  const glob = new Glob("**/*.{test,spec}.{ts,tsx,js,jsx,mjs,cjs}");
+  const glob = new Glob(`**/*{.,_}{test,spec}.{${EXTENSIONS}}`);
   const files: string[] = [];
   for (const file of glob.scanSync({ cwd: root, dot: false })) {
     const path = file.replaceAll("\\", "/");
-    if (!SKIPPED_DIRS.test(path)) files.push(path);
+    if (isTestFile(path)) files.push(path);
   }
   return files.sort();
 }
@@ -103,12 +119,9 @@ async function readDurations(): Promise<Durations> {
   return (await Bun.file(DURATIONS_PATH).json()) as Durations;
 }
 
-/** `git ls-files` view of the test files: independent of the directory scan above. */
-function trackedTestFiles(): string[] {
-  const run = Bun.spawnSync(
-    ["git", "ls-files", "*.test.ts", "*.test.tsx", "*.test.js", "*.spec.ts", "*.spec.js"],
-    { cwd: ROOT },
-  );
+/** Every tracked path (an independent view of the tree from the directory scan). */
+function trackedFiles(): string[] {
+  const run = Bun.spawnSync(["git", "ls-files"], { cwd: ROOT });
   return run.stdout
     .toString()
     .split("\n")
@@ -119,10 +132,14 @@ function trackedTestFiles(): string[] {
 async function main(args: string[]): Promise<number> {
   const [first, second] = args;
   if (first === "--update") {
-    if (!second) throw new Error("Usage: test-shard.ts --update <junit.xml>");
-    const durations = durationsFromJunit(await Bun.file(second).text());
-    await Bun.write(DURATIONS_PATH, `${JSON.stringify(durations, null, 2)}\n`);
-    console.log(`Wrote ${Object.keys(durations).length} durations to ${DURATIONS_PATH}`);
+    const reports = args.slice(1);
+    if (reports.length === 0) throw new Error("Usage: test-shard.ts --update <junit.xml>...");
+    const merged: Record<string, number> = {};
+    for (const report of reports) {
+      Object.assign(merged, durationsFromJunit(await Bun.file(report).text()));
+    }
+    await Bun.write(DURATIONS_PATH, `${JSON.stringify(merged, null, 2)}\n`);
+    console.log(`Wrote ${Object.keys(merged).length} durations to ${DURATIONS_PATH}`);
     return 0;
   }
   const durations = await readDurations();
@@ -131,10 +148,22 @@ async function main(args: string[]): Promise<number> {
     const total = second ? Number(second) : DEFAULT_SHARDS;
     const shards = assignShards(files, durations, total);
     verifyPartition(files, shards);
-    const tracked = trackedTestFiles();
+    const tracked = trackedFiles();
     if (tracked.length > 0) {
-      const gone = tracked.filter((f) => !files.includes(f));
+      const gone = tracked.filter((f) => isTestFile(f) && !files.includes(f));
       if (gone.length > 0) throw new Error(`Tracked test files not discovered: ${gone.join(", ")}`);
+      const nearMiss = tracked.filter((f) => TEST_LIKE.test(f) && !isTestFile(f));
+      if (nearMiss.length > 0) {
+        throw new Error(
+          `Looks like a test file but Bun would not run it (name it *.test.ts / *_test.ts): ${nearMiss.join(", ")}`,
+        );
+      }
+    }
+    const stale = Object.keys(durations).filter((f) => !files.includes(f));
+    if (stale.length > 0) {
+      console.log(
+        `warning: ${stale.length} stale duration entr(ies) in test-durations.json: ${stale.join(", ")}`,
+      );
     }
     const unrecorded = files.filter((f) => durations[f] === undefined);
     shards.forEach((shard, i) => {

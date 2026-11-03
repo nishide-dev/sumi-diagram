@@ -129,14 +129,27 @@ jobs:
         run: |
           # Paths contain no spaces; macOS ships bash 3.2, so no mapfile.
           files="$(bun scripts/test-shard.ts "${{ matrix.shard }}/$TEST_SHARDS")"
-          echo "Shard ${{ matrix.shard }}/$TEST_SHARDS: $(echo "$files" | wc -l | tr -d ' ') test files"
+          if [ -z "$files" ]; then echo "::error::Shard ${{ matrix.shard }}/$TEST_SHARDS has no test files"; exit 1; fi
+          echo "Shard ${{ matrix.shard }}/$TEST_SHARDS: $(printf '%s\n' "$files" | wc -l | tr -d ' ') test files"
+          # The junit report feeds `scripts/test-shard.ts --update` (see CONTRIBUTING.md).
+          report="--reporter=junit --reporter-outfile=junit/shard-${{ matrix.shard }}.xml"
           if [ -n "$COVERAGE" ]; then
             # shellcheck disable=SC2086
-            bun run test --coverage --coverage-reporter=text --coverage-reporter=lcov --coverage-dir=coverage $files
+            bun run test $report --coverage --coverage-reporter=text --coverage-reporter=lcov --coverage-dir=coverage $files
           else
             # shellcheck disable=SC2086
-            bun run test $files
+            bun run test $report $files
           fi
+
+      # Per-file durations for refreshing scripts/test-durations.json.
+      - name: Keep the shard's junit report
+        if: "!cancelled()"
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: junit-${{ matrix.os }}-shard-${{ matrix.shard }}
+          path: junit/shard-${{ matrix.shard }}.xml
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Keep the shard's lcov report
         if: runner.os == 'Linux' && !cancelled()

@@ -122,6 +122,8 @@ bun test --timeout 60000 --reporter=junit --reporter-outfile=/tmp/junit.xml
 bun scripts/test-shard.ts --update /tmp/junit.xml
 ```
 
+CI の各 shard は junit レポートを artifact（`junit-<os>-shard-<n>`）に残します。CI の実測で更新するなら、同じ OS の 4 つをダウンロードして `bun scripts/test-shard.ts --update junit-ubuntu-latest-shard-*/*.xml` を実行します（複数のレポートは合算されます）。`--check` は、記録に残っているが存在しないファイルを警告し、`foo-test.ts` のように Bun が実行しないテストらしい名前のファイルでは失敗します。
+
 shard 数を変えるときは `.github/workflows/ci.yml` の `TEST_SHARDS` と `test` ジョブの `shard` matrix を同時に変えます（食い違いは `scripts/test-shard.test.ts` が検出します）。
 
 ### CI が検査すること
