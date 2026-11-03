@@ -283,13 +283,18 @@ const junction: NodeManifest = {
 
 export { IMAGE_FITS };
 
+/** `[x, y, width, height]` of an image's `crop` (#310). */
+const IMAGE_CROP = z
+  .tuple([z.number(), z.number(), z.number().positive(), z.number().positive()])
+  .optional();
+
 const image: NodeManifest = {
   ...base,
   since: "0.4.0",
   kind: "node",
   name: "image",
   description:
-    "A PNG, JPEG or SVG file or safe inline SVG drawing, optionally stacked with up-right copies; takes no label.",
+    "A PNG, JPEG or SVG file, safe inline SVG drawing or named figure asset (optionally cropped), optionally stacked with up-right copies; takes no label.",
   variants: ["default", "framed"],
   props: z
     .strictObject({
@@ -307,12 +312,22 @@ const image: NodeManifest = {
         .describe(
           "Inline SVG document (since 0.10.0), preferably a YAML block scalar with a viewBox. Exactly one of src or svg is required. Basic shapes only; outline text as paths. Scripts, events, external references, foreignObject, text, defs, gradients and filters are rejected.",
         ),
+      asset: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(
+          "Name of an entry of figure.assets (since 0.12.0): the asset is imported once and shared by every image that names it. Exactly one of src, svg or asset is required.",
+        ),
+      crop: IMAGE_CROP.describe(
+        "[x, y, width, height] in the asset SVG's viewBox coordinates (since 0.12.0): draws only that rectangle, to cut a patch from one picture. Only with asset, on an SVG asset, inside its viewBox.",
+      ),
       sha256: z
         .string()
         .regex(/^[0-9a-fA-F]{64}$/)
         .optional()
         .describe(
-          "Expected sha256 of the file bytes or UTF-8 inline SVG source in hex. Rendering fails if the input has changed. Omitted means not checked.",
+          "Expected sha256 of the file bytes or UTF-8 inline SVG source in hex. Rendering fails if the input has changed. Omitted means not checked. With asset, write it on the figure.assets entry instead.",
         ),
       fit: z
         .enum(IMAGE_FITS)
@@ -338,10 +353,11 @@ const image: NodeManifest = {
           "Repeat the unchanged image behind the front one, offset up-right. Width and height size each copy; the node footprint includes the whole stack.",
         ),
     })
-    .refine(({ src, svg }) => (src !== undefined) !== (svg !== undefined), {
-      error: "an image needs exactly one of src or svg",
-      path: ["svg"],
-    })
+    .refine(
+      ({ src, svg, asset }) =>
+        [src, svg, asset].filter((source) => source !== undefined).length === 1,
+      { error: "an image needs exactly one of src, svg or asset", path: ["svg"] },
+    )
     .refine(({ width, height }) => width !== undefined || height !== undefined, {
       error: "an image needs a width or a height (or both)",
       path: ["width"],
@@ -520,6 +536,20 @@ const tokenCellFields = {
   height: SizeLength.optional().describe(
     "The height of the cell, as a node's height prop. Omitted means the tokens' height.",
   ),
+  asset: z
+    .string()
+    .min(1)
+    .optional()
+    .describe(
+      "Draw the cell as an image of this figure.assets entry (since 0.12.0), as image props.asset: no label, no component, the default or framed variant; width or height from the cell or the tokens.",
+    ),
+  crop: IMAGE_CROP.describe(
+    "[x, y, width, height] in the asset SVG's viewBox coordinates, as image props.crop. Only with asset.",
+  ),
+  fit: z
+    .enum(IMAGE_FITS)
+    .optional()
+    .describe("How the image fills the cell, as image props.fit. Only with asset."),
 };
 
 const tokenCell = z.union([
@@ -576,7 +606,7 @@ const tokens: NodeManifest = {
         .min(1)
         .optional()
         .describe(
-          "The cells in order: labels, objects with id, label, tone, mono, component, variant, width and height, or { separator: dotted, id?, tone?, width?, height? } divider cells (since 0.7.0). Dividers count in positional cell references.",
+          "The cells in order: labels, objects with id, label, tone, mono, component, variant, width and height (or asset, crop and fit for an image cell, since 0.12.0), or { separator: dotted, id?, tone?, width?, height? } divider cells (since 0.7.0). Dividers count in positional cell references.",
         ),
       lines: z
         .array(z.array(tokenCell).min(1))

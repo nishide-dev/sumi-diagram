@@ -179,7 +179,7 @@ their colour SVG and PNG fallback. All exports retain the MIT notice.
 
 ### Inline SVG (0.10.0)
 
-Use exactly one of `props.src` and `props.svg`. Write a complete SVG document
+Use exactly one of `props.src`, `props.svg` and `props.asset` (a shared asset, below). Write a complete SVG document
 with a `viewBox` (or positive width/height); a literal block is easiest:
 
 ```yaml
@@ -213,6 +213,77 @@ budgets; the importer allows at most 20,000 elements and 32 levels. Raw decoded
 source bytes (including whitespace) are hashed into `assets-sha256`; optional
 `sha256` pins those bytes. Diagnostics point into literal blocks and single-line
 quoted scalars; folded/multiline quoted scalars fall back to the whole scalar.
+
+### Reusing one picture: `figure.assets` (0.12.0)
+
+Do not paste the same SVG into many nodes. Define it once under
+`figure.assets` (an ID as the name; `svg:` as above, or `src:` for a file,
+each with an optional `sha256`) and name it in `props.asset`. The asset goes
+through the safe importer once; every image that names it shares the result.
+`props.crop: [x, y, width, height]` (positive numbers, in the asset's viewBox
+coordinates, inside it) draws only that rectangle, so patches are cut from
+one picture. `crop` works on SVG assets only (not PNG/JPEG) and needs
+`asset`; `src`, `svg` and `asset` are exclusive on one image, and `sha256`
+goes on the `figure.assets` entry.
+
+Worked example, 3×3 patches of one 120×120 picture (each patch 40×40):
+
+```yaml
+version: 1
+figure:
+  id: patches
+  assets:
+    photo:
+      svg: |
+        <svg viewBox="0 0 120 120">
+          <rect width="120" height="120" fill="#dde8f5"/>
+          <circle cx="60" cy="60" r="45" fill="#c04050"/>
+          <path d="M0 120L60 20L120 120Z" fill="#3a7d5c"/>
+        </svg>
+  layout:
+    arrange:
+      row:
+        gap: 12mm
+        items: [whole, { grid: { columns: 3, items: [p0, p1, p2, p3, p4, p5, p6, p7, p8] } }]
+nodes:
+  - { id: whole, component: image, props: { asset: photo, width: 60pt } }
+  - { id: p0, component: image, variant: framed, props: { asset: photo, crop: [0, 0, 40, 40], width: 40pt } }
+  - { id: p1, component: image, variant: framed, props: { asset: photo, crop: [40, 0, 40, 40], width: 40pt } }
+  - { id: p2, component: image, variant: framed, props: { asset: photo, crop: [80, 0, 40, 40], width: 40pt } }
+  - { id: p3, component: image, variant: framed, props: { asset: photo, crop: [0, 40, 40, 40], width: 40pt } }
+  - { id: p4, component: image, variant: framed, props: { asset: photo, crop: [40, 40, 40, 40], width: 40pt } }
+  - { id: p5, component: image, variant: framed, props: { asset: photo, crop: [80, 40, 40, 40], width: 40pt } }
+  - { id: p6, component: image, variant: framed, props: { asset: photo, crop: [0, 80, 40, 40], width: 40pt } }
+  - { id: p7, component: image, variant: framed, props: { asset: photo, crop: [40, 80, 40, 40], width: 40pt } }
+  - { id: p8, component: image, variant: framed, props: { asset: photo, crop: [80, 80, 40, 40], width: 40pt } }
+edges:
+  - { from: whole, to: p3 }
+```
+
+For a row of patches, use one `tokens` node with image cells instead of one
+`image` node per patch plus edges (0.12.0). A cell with `asset` is drawn as an
+`image` (no `label`, `component` or `mono`; `variant` is `default` or
+`framed`, `tone`, `crop` and `fit` as on an image); its size is the cell's
+`width` / `height` or the tokens' (one is enough, the aspect ratio gives the
+other). Image and text cells mix, and edges address the cells as `<node>.<cell>`:
+
+```yaml
+- id: patches
+  component: tokens
+  props:
+    width: 30pt
+    cells:
+      - { asset: photo, crop: [0, 0, 40, 40], variant: framed }
+      - { asset: photo, crop: [40, 0, 40, 40], variant: framed }
+      - "…"
+```
+
+Provenance: `assets-sha256` gets one `asset <name> <sha256>` line per entry and
+`asset-use <node id> <name> [crop]` per image. Errors: `asset/unknown-asset`
+(the name is not in `figure.assets`; the hint names the closest),
+`asset/invalid-crop` (no `asset`, a raster asset, or outside the viewBox; the
+message gives the viewBox), and the usual `asset/*` codes located at the
+`figure.assets` entry.
 
 ### File images
 
@@ -319,8 +390,10 @@ Fix: copy (with the user's consent) `logo.png` next to the figure and write
 | `asset/invalid-path` | a relative path with `/` (no `\`, scheme or leading `/`) that names a file and does not leave the directory through `..` |
 | `asset/outside-base` | the path (through a symbolic link) leaves the YAML's directory: copy the real file in |
 | `asset/not-found` | check the path; it is relative to the YAML file, not the current directory |
-| `asset/unsupported-format`, `asset/format-mismatch`, `asset/invalid-image` | convert to PNG / JPEG / SVG; make the extension match the content; re-export a broken file; give exactly one of `props.src` or `props.svg` |
+| `asset/unsupported-format`, `asset/format-mismatch`, `asset/invalid-image` | convert to PNG / JPEG / SVG; make the extension match the content; re-export a broken file; give exactly one of `props.src`, `props.svg` or `props.asset` |
 | `asset/too-large`, `asset/too-many-pixels` | resize or recompress the file (Sumi will not) |
+| `asset/unknown-asset` | the hint names the closest entry of `figure.assets`; define the asset first |
+| `asset/invalid-crop` | `props.crop` needs `props.asset` of an SVG; keep `[x, y, w, h]` inside the asset's viewBox (the message prints it) |
 | `asset/sha256-mismatch` | the file changed: confirm with the user, then update `sha256` (the message gives the actual value) |
 | `asset/unsafe-svg`, `asset/unsupported-svg` | the message and `related` give the SVG line and column; re-export it as plain shapes (text to outlines, no embedded images or styles), or use a PNG |
 | `asset/no-base-directory`, `asset/icons-unavailable` | not a figure problem (library use without a file, damaged install): report it |

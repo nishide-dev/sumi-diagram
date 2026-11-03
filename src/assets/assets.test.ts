@@ -554,7 +554,7 @@ describe("image manifests from outside the built-ins", () => {
       expect.objectContaining({
         code: "asset/invalid-image",
         severity: "error",
-        message: "An image needs exactly one of props.src or props.svg.",
+        message: "An image needs exactly one of props.src, props.svg or props.asset.",
         path: ["nodes", 0, "props"],
         location: expect.objectContaining({ line: 4 }),
         subject: { kind: "node", id: "a" },

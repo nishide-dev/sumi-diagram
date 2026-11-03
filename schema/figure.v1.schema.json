@@ -143,6 +143,35 @@
             }
           },
           "additionalProperties": false
+        },
+        "assets": {
+          "description": "Images and inline SVGs defined once by name (an ID) and drawn by `image` nodes with props.asset, optionally cut with props.crop. Each is imported and checked once.",
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "src": {
+                "description": "Path of the image file relative to the figure's YAML file, with \"/\" between directories, as image props.src.",
+                "type": "string",
+                "minLength": 1
+              },
+              "svg": {
+                "description": "Inline SVG document, as image props.svg (a YAML block scalar with a viewBox). Exactly one of src or svg is required.",
+                "type": "string",
+                "minLength": 1
+              },
+              "sha256": {
+                "description": "Expected sha256 of the file bytes or UTF-8 inline SVG source in hex. Rendering fails if the input has changed. Omitted means not checked.",
+                "type": "string",
+                "pattern": "^[0-9a-fA-F]{64}$"
+              }
+            },
+            "additionalProperties": false
+          }
         }
       },
       "required": [
