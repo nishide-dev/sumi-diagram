@@ -14,7 +14,8 @@
  * - a node / group draws its shape in one `g.shape` whose bounding box is the
  *   layout's `rect`, and its label as a `<text>` with `text-anchor: middle` at
  *   the layout's anchor, later lines as `<tspan dy>` of `lineHeightUnits`
- *   (no `xml:space`: the layout measured collapsed whitespace);
+ *   (the layout measured collapsed whitespace; a label whose runs meet at a
+ *   space gets `xml:space="preserve"` so renderers keep that space);
  * - an edge has one `path.connection` with its whole route (M/L) for the
  *   inspection, and draws its arrowheads and label.
  *
