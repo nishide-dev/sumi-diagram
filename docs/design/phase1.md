@@ -2664,6 +2664,15 @@ check・typecheck・gallery:check（231ファイル）・schema:check も成功�
 - PNG は `bun run gallery` 後に `bun run skill:previews` で PDF から `pdftoppm -png -r 150 -singlefile` により生成する。Poppler は再生成時のみ必要。CI は PNG の存在・データの妥当性・PDF ページとの縦横比（ピクセル丸めを許容）を検査し、OS 間のラスタライズのバイト一致は要求しない。
 - 配布を調べた skills CLI v1.7.2 は GitHub から clone して Skill ディレクトリをコピーする。Git の symlink を展開してくれることには依存せず、配布側 `skills/sumi/` 全体に symlink がないこと、独立コピーにも YAML・アセット・PNG が実体で入ることをテストする。既存の描画 golden と全 YAML × 自身のテーマ／全組み込みテーマの SVG・PDF・PPTX・D2 の sha256 を比較して互換性を確認する。
 
+### 6.95 #329 の交差する対応線の平行区間の分離
+
+- **背景:** 2 行の tokens の対応線を交差させると、別の grid 線を選んでも水平区間が近すぎて 1 本に見えた。`crossing-token-rows.sumi.yaml` は `preds.2 → gt.4` と `preds.4 → gt.2`、行間 6mm、paper の最小再現で、修正前は `geometry/edge-near-edge`（20.1mm の並走、線間 0.00mm）が出る。
+- **決定:** A* の探索・grid・占有コストは変えず、全辺を探索した後、ラベル配置と交差診断の前に facing-port の通路を局所的に再配置する。同方向に出入りする端点の間の水平／垂直の並走を、角丸を除いた描画長 3mm 以上・stroke 間 1.5pt 未満（独立した辺の一致も含む）の場合だけ対象にする。重なる投影と通路を持つ辺を集め、元の通路位置順・文書順で決定的にレーンを詰め、最小 stub と矢尻前の room を保つ。線幅の半分の和 + 3.02 units の中心間隔（丸めの余裕を含む）を使う。必要なら迂回を端点間の 3 区間に置き換える。
+- **保護と限界:** 端点は動かさず、shared port／junction の辺は対象から外す。node の矩形や group title を横切る候補、他辺との新しい長い近接／一致を作る候補、全レーンが収まらない通路は一括して元の経路を残す。node・ラベルの配置、shared trunk、D2/auto、zoom は変えない。端点直後の固定した脚の近接は中央レーンだけでは直せないため、セル間隔やアンカーで端点間を離す必要がある。
+- **狭い通路の hint:** 同じ facing-port 通路の辺を数え、両端の stub／arrow room + レーン数に応じた線幅込みの間隔を mm（小数第 1 位へ切り上げ、fit 前）で示す。必要量未満なら行／列間の arrange `gap` を増やし、node・見出しを通路から外す。既に必要幅がある場合は、その事実を示し、固定脚や障害物に対して行間だけを広げ続けないよう案内する。4mm の再現に対する 4.6mm の提案を実際に適用し、warning が消えることをテストする。障害物のある通路に対する幅の保証や verified layout trial ではなく、空の通路の幾何学的な必要量である。
+- **採用しなかった案:** 全探索への近接コスト追加・grid の全体的な細分化は、関係のない辺の tie-break と出力まで変える。辺ごとのレーン位置指定は、テーマの線幅・矢尻・行間に依存する座標を利用者に固定させるため追加しない。交差する対応自体をなくすために行の順序を変える必要はない。
+- **互換性と検証:** 既存 164 YAML + 新 fixture 1 個（symlink の examples を含む）を、それぞれ自身のテーマおよび組み込み 5 テーマで前後描画し、SVG／PDF／picture PPTX／D2 の SHA-256 を比較した。既存の全出力はバイト一致。変化は新 fixture の own（paper）と paper の SVG／PDF／PPTX のみで、中央レーン分離による。エラー用・古い仕様の fixture は前後で同じ失敗として記録する。2〜4 本・縦横・逆向き、共有 trunk、障害物、狭い通路、全テーマ、独立した route checker を回帰検査し、修正を外すと再現の warning 検査が失敗することを確認した。CLI の SVG／PDF と `pdftoppm -png` の前後を目視した。既存 gallery と render golden は更新不要。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）

@@ -93,6 +93,7 @@ import { PairHeap } from "./heap";
 import { requestedLabelDiagnostics } from "./label-diagnostics";
 import { arrowheadRects, hasRequestedLabel, placeEdgeLabel } from "./labels";
 import { groupArrowheadStems } from "./padding";
+import { separateParallelRuns } from "./parallel";
 import {
   bottomOf,
   DIRS,
@@ -575,6 +576,24 @@ class Router {
       this.#occupy(cells, edge);
       routes.set(edge.ir.key, points);
     }
+    separateParallelRuns(
+      routes,
+      routable.map((e) => ({
+        key: e.ir.key,
+        width: e.ir.style.strokeWidth.units,
+        fromRoom: Math.max(e.fromLane, e.fromRoom),
+        toRoom: Math.max(e.toLane, e.toRoom),
+      })),
+      [
+        ...this.#obstacles.map((o) => o.rect),
+        ...this.#layout.groups.flatMap((g) => (g.label ? [g.label.box] : [])),
+      ],
+      (a, b) =>
+        sharable(
+          routable.find((e) => e.ir.key === a) as Edge,
+          routable.find((e) => e.ir.key === b) as Edge,
+        ),
+    );
     return { layout: this.#result(routable, routes), diagnostics: this.#diagnostics };
   }
 

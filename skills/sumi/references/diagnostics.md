@@ -185,7 +185,7 @@ written; errors make the exit code 1. Configure like structural rules
 | `geometry/zoom-crosses-node` | warning | a zoom line crosses a node: move it, or the source or view |
 | `geometry/edge-on-border` | warning | an edge runs on a group border (3mm or more): structured: move the ends with anchors, reorder items or change a `gap`; auto: change `direction` or grouping |
 | `geometry/edge-near-border` | info | as above, less than 1.5pt beside the border; often the router's turn outside a group: leave it if it reads clearly |
-| `geometry/edge-near-edge` | warning | two edges run less than 1.5pt apart for 3mm or more (an exactly shared trunk is fine): another anchor, one trunk (same anchor, `fanIn: merge`), or rearrange |
+| `geometry/edge-near-edge` | warning | two edges run less than 1.5pt apart for 3mm or more (an exactly shared trunk is fine): independent facing connectors separate automatically when the channel fits; for a narrow channel follow the hint's numeric port-to-port minimum by increasing the row/column gap and keeping it clear. For close fixed legs change anchors or cell spacing; merge a trunk only for genuinely shared endpoints |
 | `geometry/edge-touches-label` | info | an edge passes within 1.5pt of a group title, caption or `label`: as `edge-crosses-label` |
 | `geometry/aspect-distorted` | warning | fewer edges on that `circle` / `square`, or `ellipse` / `box` |
 | `geometry/reversed-edge` | warning | ELK reversed an edge of a cycle (typically inside a group): swap the loop's nodes in `nodes`, or move it out of the group |
