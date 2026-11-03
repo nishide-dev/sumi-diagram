@@ -163,6 +163,28 @@ use nested linear (stack / row) wrappers when vertical alignment needs struts.
 On an older CLI that rejects `grid`, use rows inside a stack and, if needed,
 cross-tree `align` constraints.
 
+**Span does not imply stretch.** A `{ item: projection, span: 9 }` reserves
+nine columns, but with the default `grid.align: center` the box keeps its
+natural width in the middle of them. For a projection / encoder that must
+cover the columns below it, set **`align: stretch` on that grid**, and leave
+the box's `props.width` unset. Fixed-width and non-resizable components
+(e.g. circles, labels and custom outlines) keep their width even then.
+`fromAnchor: straight` / `toAnchor: straight` lines up an edge endpoint;
+it does not widen the box. If outer columns miss its sides,
+`layout/straight-off-side` (and sometimes `layout/no-route`) explains the
+span / natural-width cause and the stretch fix. Put `straight` at the wide
+box's end; check the rendered routes after stretching.
+
+**Cross-tree align cannot insert space directly in a grid cell.** If a
+`y` constraint between a cell and an item in another stack stays unmet,
+being in different branches is not sufficient: the cell has no strut
+position, and the solver only adds space, so it cannot pull an already
+lower item up. Wrap the cell as `{ stack: { items: [cell] } }` (keep a
+nonzero gap) to let that cell move, or wrap the whole grid in a stack if
+it should move as one unit. For `x`, use a row wrapper instead. Parent
+`align: start` can avoid centering coupling; also check competing
+constraints. `layout/unsatisfied-align` names this grid limitation.
+
 ## Group titles and captions
 
 A group's `label` (its title) sits at the **top centre** inside the border,

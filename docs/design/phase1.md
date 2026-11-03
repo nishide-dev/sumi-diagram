@@ -2519,6 +2519,52 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **散布図とexport:** seed 299・63点・座標は維持し、3点周期の色と分割対象が同期して青だけを覆っていた点を修正。4点周期で分割し、8点周期で3色分割、それ以外は2色分割とする。青・琥珀・赤の単色点と混色点を分散させる。作例全体はSVG/PDF/picture PPTXに対応するが、HTML/imageを含むためeditable PPTXは位置付き `pptx/unsupported-asset` で拒否される既存制限がある。汎用palette/frame制御自体のeditable PPTX対応とは区別する。
 - **検証:** 展開solid cellの実効fill、他variant非変更、角丸維持、文字のcontrast調整（黒・濃青・中間灰の4.5:1境界両側・明るい青・白のラベル付きsolidを描画し、実際の比率と合格済み白文字の維持を検査）、共有theme非変異、dim優先、未知tone/不正色のschema拒否、auto/structuredのframeとsignal別色、editable PPTXの両色保存を回帰検査する。JSON SchemaとSkillを同期し、galleryとPDF/PPTX goldenは通常の生成経路で更新する。
 
+### 6.88 #306: grid span と grid cell align の原因別 hint
+
+v0.11.0 と配布 Skill の ViT Figure 1 dogfood を受け、10 列 grid に
+9 列の projection・10 列の encoder と列ごとの box を置き、両方向の
+`straight` anchor を接続して再現した。既定の `center` では span は列を
+予約するだけで box は自然幅のままであり、端の列が側面の外に出る。
+`layout/straight-off-side` の「斜め」と `layout/no-route` の一般的な gap
+案内だけでは `grid.align: stretch` に辿り着けなかった。また、grid の
+直接の cell と別 stack 内の既に下にある item を y-align すると、cell
+に strut を入れられず未達になるのに「different stacks」と案内していた。
+
+**決定と互換性。** span cell の既定 stretch 化は採用しない。既存の
+center/start/end を意図した図の box 幅・port・経路、ひいては SVG/PDF/PPTX
+を変えるためである。配置・track 計算・align solver・router の探索は
+変えず、既存 diagnostic の hint のみを原因別にする。新しい診断コードや
+部品・schema は追加しない。#305/#307（PR #313/#314）の cell align・幅診断
+とは独立させ、engine 自体の変更を避ける。
+
+- `straight` を指定した側が直接の spanning grid item で、上下に離れた
+  相手との straight placement に失敗した場合、`layout/straight-off-side`
+  とその edge の `layout/no-route` に、対象 ID・span 列数・span は予約で
+  あって拡幅ではないこと・自然幅・その grid の `align: stretch` を示す。
+  明示 `props.width` があれば削除または幅変更を案内し、circle/label/custom
+  outline/badge 等の伸ばせない node には stretch 単独で直ると約束しない。
+  overlap/self-loop、横接続、span なし、既に成立する straight は従来通り。
+  edge の path/location/subject と blocker の related は維持する。
+- 未達 align の対象が grid 直接 cell（その attach を含む）なら、grid cell
+  は strut を受け取らないこと、strut は加算のみで下/右の item を上/左へ
+  引けないことを説明する。cell 自身を動かす非ゼロ gap の stack（y）/
+  row（x）wrapper と、grid 全体を動かす wrapper を区別し、親の start
+  alignment と競合 constraint も案内する。nested linear box 内の item に
+  grid 制限を誤適用しない。既存の残差・severity は変えない。
+
+回帰テストは 9/10 列の自然幅と明示 center の同一配置、両 anchor 方向、
+stretch 後の直線接続・route 検証、no-route の blocker 位置、固定幅/固定形、
+別 stack の相手との y-align が cell wrapper で解決することを確認する。
+Skill の Grids 節にも span/stretch と wrapper の選び方を記載する。
+全 `*.sumi.yaml` を元テーマと全組み込みテーマで描画し、変更前後の
+SVG/PDF/PPTX/D2 の SHA-256 を比較する（意図的な不正 fixture 等の描画不可は
+エラーコードで比較する）。golden を更新せず既存出力のバイト互換を検証する。
+
+**実測:** repository の160 YAML × 元テーマ＋組み込み5テーマの960ケースを
+比較し、成功678ケースの SVG/PDF/picture PPTX と auto の228ケースの D2 が
+全件 SHA-256 一致した。既存の不正 fixture・旧研究構文等282ケースも
+エラーコードが一致し、例外は0。gallery 全231ファイルもバイト一致した。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）

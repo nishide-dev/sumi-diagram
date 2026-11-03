@@ -507,9 +507,14 @@ function unsatisfied(
   const line = c.axis === "y" ? "one horizontal line" : "one vertical line";
   const where = formatDocPath(c.srcAt.path);
   const box = c.axis === "y" ? "stack" : "row";
-  const hint = movable
-    ? `Other align constraints or the arrangement keep them apart: a strut only adds space, and it moves the items after it in its ${box} too. Check the constraints that share these elements (they may contradict each other), or align other elements.`
-    : `"${id(first)}" and "${id(last)}" cannot be moved apart: a strut goes only in a ${box} that holds just one of them, never inside a box with gap: 0, and it moves the items after it in its ${box} too. Put them in different ${box}s, or align other elements.`;
+  const pathOf = paths(ir);
+  const gridItems = c.items.filter((key) => pathOf.get(key)?.at(-1)?.box.kind === "grid");
+  const hint =
+    gridItems.length > 0
+      ? `${gridItems.map((key) => `"${id(key)}"`).join(", ")} ${gridItems.length === 1 ? "is a direct grid cell (or attached to one)" : "are direct grid cells (or attached to them)"}: grid cells take no align struts, so they cannot move independently inside the grid. A strut only adds space in a ${box}; it cannot pull an already lower/right item back up/left. Wrap the cell in a ${box} with a nonzero gap to give it its own strut position, wrap the whole grid in a ${box} if it should move as a unit, or align other elements. Check the parent row/stack alignment (start can avoid centering coupling) and any competing constraints.`
+      : movable
+        ? `Other align constraints or the arrangement keep them apart: a strut only adds space, and it moves the items after it in its ${box} too. Check the constraints that share these elements (they may contradict each other), or align other elements.`
+        : `"${id(first)}" and "${id(last)}" cannot be moved apart: a strut goes only in a ${box} that holds just one of them, never inside a box with gap: 0, and it moves the items after it in its ${box} too. Put them in different ${box}s, or align other elements.`;
   const related: RelatedInformation[] = [];
   for (const [i, other] of constraints.entries()) {
     if (i === index || !other.items.some((k) => c.items.includes(k))) continue;
