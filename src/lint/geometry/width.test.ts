@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { printedSize } from "../../render/size";
-import { lintRenderedFigure } from "./lint";
+import { lintGeometry, lintRenderedFigure } from "./lint";
 import { compile, label, lintSpec } from "./testing";
 
 const source = (arrange: string, extra = "") => `version: 1
@@ -14,6 +14,19 @@ nodes:
   - { id: b, component: box, label: B, props: { width: 150pt } }
 ${extra}`;
 const row = source("{ row: { gap: 12mm, items: [a, b] } }");
+const grouped = (kind: string) => `version: 1
+figure:
+  id: probe
+  layout:
+    engine: structured
+    arrange: { stack: { items: [g] } }
+groups:
+  - id: g
+    arrange: { ${kind}: { ${kind === "grid" ? "columns: 2, columnGap" : "gap"}: 20mm, items: [a, b] } }
+nodes:
+  - { id: a, component: box, label: A, props: { width: 150pt } }
+  - { id: b, component: box, label: B, props: { width: 150pt } }
+`;
 const canvas = { x: 0, y: 0, width: 800, height: 100 };
 const rect = (x: number, width: number, y = 0) => ({ x, y, width, height: 20 });
 const hint = (text: string, elements: Parameters<typeof lintSpec>[1]["elements"], scale = 1) =>
@@ -26,6 +39,91 @@ const hint = (text: string, elements: Parameters<typeof lintSpec>[1]["elements"]
   )[0]?.hint ?? "";
 
 describe("page width attribution (#307)", () => {
+  test.each(["row", "grid"])(
+    "padded groups retain the outer footprint and contributing %s without mutation",
+    (kind) => {
+      const text = grouped(kind);
+      const elements = {
+        "g:g": { bbox: rect(-16, 432) },
+        "n:a": { bbox: rect(0, 150) },
+        "n:b": { bbox: rect(250, 150) },
+      };
+      const original = structuredClone(elements);
+      const result = hint(text, elements);
+      expect(result).toContain("Widest horizontal run: figure.layout.arrange.stack = 76.2mm");
+      expect(result).toContain('group "g" 76.2mm');
+      expect(result).toContain(`Contributing descendant run: group "g".arrange.${kind} = 70.56mm`);
+      expect(result).toContain('node "a" 26.46mm');
+      expect(result).toContain('node "b" 26.46mm');
+      expect(result).toContain(
+        `reduce the largest observed gap (17.64mm) in group "g".arrange.${kind}`,
+      );
+      expect(hint(text, elements)).toBe(result);
+      expect(elements).toEqual(original);
+      const scaled = hint(text, elements, 0.5);
+      expect(scaled).toContain("figure.layout.arrange.stack = 38.1mm");
+      expect(scaled).toContain("reduce the largest observed gap (8.82mm)");
+    },
+  );
+
+  test.each(["row", "grid"])(
+    "real padded %s gap edits shrink the page and fit: scale suppresses overflow",
+    async (kind) => {
+      const text = grouped(kind);
+      const before = await lintRenderedFigure(text);
+      const tighter = await lintRenderedFigure(text.replace("20mm", "0mm"));
+      const scaled = await lintRenderedFigure(
+        text.replace("  id: probe", "  id: probe\n  fit: scale"),
+      );
+      if (!before.rendered || !tighter.rendered || !scaled.rendered)
+        throw new Error("render failed");
+      const finding = before.diagnostics.find((d) => d.code === "geometry/exceeds-page-width");
+      const originalInspection = structuredClone(before.rendered.inspection);
+      expect(
+        lintGeometry(before.rendered).find((d) => d.code === "geometry/exceeds-page-width")?.hint,
+      ).toBe(finding?.hint);
+      expect(before.rendered.inspection).toEqual(originalInspection);
+      expect(finding?.hint).toContain("figure.layout.arrange.stack = 131.48mm");
+      expect(finding?.hint).toContain(`Contributing descendant run: group "g".arrange.${kind}`);
+      expect(finding?.hint).toContain('node "a" 52.92mm');
+      expect(finding?.hint).toContain('node "b" 52.92mm');
+      expect(finding?.hint).toContain(
+        `reduce the largest observed gap (20mm) in group "g".arrange.${kind}`,
+      );
+      const reduction =
+        printedSize(before.rendered.inspection).widthPt -
+        printedSize(tighter.rendered.inspection).widthPt;
+      expect(reduction).toBeGreaterThan(56);
+      expect(reduction).toBeLessThan(58);
+      expect(scaled.diagnostics.some((d) => d.code === "geometry/exceeds-page-width")).toBe(false);
+    },
+  );
+
+  test("descent follows nested dominant groups and excludes their smaller stack siblings", () => {
+    const text = grouped("row")
+      .replace("items: [g]", "items: [outer]")
+      .replace("groups:\n", "groups:\n  - { id: outer, arrange: { stack: { items: [g] } } }\n")
+      .replace(
+        "arrange: { row: { gap: 20mm, items: [a, b] } }",
+        "arrange: { stack: { items: [a, { row: { gap: 5mm, items: [b, c] } }] } }",
+      )
+      .concat("  - { id: c, component: box, label: C, props: { width: 20pt } }\n");
+    const result = hint(text, {
+      "g:outer": { bbox: rect(-32, 664) },
+      "g:g": { bbox: rect(-16, 632) },
+      "n:a": { bbox: rect(0, 600) },
+      "n:b": { bbox: rect(0, 40, 40) },
+      "n:c": { bbox: rect(70, 40, 40) },
+    });
+    expect(result).toContain('Contributing descendant run: group "outer".arrange.stack');
+    expect(result).toContain('Contributing descendant run: group "g".arrange.stack');
+    expect(result).toContain('node "a" 105.83mm');
+    expect(result).not.toContain("reduce the largest observed gap");
+    expect(result).not.toContain(
+      'Contributing descendant run: group "g".arrange.stack.items[1].row',
+    );
+  });
+
   test("nested rows identify the widest run, element widths and observed gaps", () => {
     const text = source("{ stack: { items: [{ row: { items: [a, b] } }] } }");
     const result = hint(text, { "n:a": { bbox: rect(0, 100) }, "n:b": { bbox: rect(140, 200) } });
