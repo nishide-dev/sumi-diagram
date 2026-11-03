@@ -14,7 +14,7 @@ import { getOutlineRenderer } from "../../core/outline";
 import { outlineRegions } from "../../lint/geometry/outlines";
 import { rectPolygon, shapeOutline } from "../../lint/geometry/shapes";
 import { type LayoutIR, type Point, type Rect, roundUnits } from "../ir";
-import { endpointRects } from "./endpoint-rects";
+import { endpointRects, makeInside } from "./endpoint-rects";
 
 /** Direction indices: 0 = east (+x), 1 = south (+y), 2 = west (−x), 3 = north (−y). */
 export const DIRS: readonly Point[] = [
@@ -1095,24 +1095,12 @@ function resolveEndsWith(
     return found;
   };
   /** `true` if `inner` lies (transitively) inside the group `outer`. */
-  const inside = (inner: Element, outer: Element): boolean => {
-    // A cell annotation is a member of the layout frame, but outside the
-    // sequence's routing bounds: approach the cells from outside (#331).
-    if (tokenFrames.has(outer.key)) {
-      const c = center(inner.rect);
-      if (
-        c.x < outer.rect.x ||
-        c.x > rightOf(outer.rect) ||
-        c.y < outer.rect.y ||
-        c.y > bottomOf(outer.rect)
-      )
-        return false;
-    }
-    for (let p = inner.parent; p !== undefined; p = elements.get(p)?.parent) {
-      if (p === outer.key) return true;
-    }
-    return false;
-  };
+  const insideKeys = makeInside(
+    new Map([...elements].map(([key, e]) => [key, e.rect])),
+    new Map([...elements].map(([key, e]) => [key, e.parent])),
+    tokenFrames,
+  );
+  const inside = (inner: Element, outer: Element): boolean => insideKeys(inner.key, outer.key);
 
   // The side of each end: the anchor's, or the default.
   const choose = (

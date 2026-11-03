@@ -443,12 +443,19 @@ export function expandTokens(state: CheckState, registry: Registry, locate: Loca
       const tone = asset !== undefined ? cell.tone : (cell.tone ?? node.tone);
       const mono = asset !== undefined ? undefined : (cell.mono ?? node.mono);
       // An inherited variant is a default for compatible components, not a
-      // constraint on a component override (e.g. an ellipsis label, #331).
-      const inherited = registry.resolve(cell.component ?? props.component, "node");
+      // constraint on a component override (e.g. an ellipsis label, #331). A
+      // variant the tokens' own component lacks is a mistake and stays an
+      // error at the tokens' props.variant; the fallback to `default` is only
+      // for a variant that is valid there but not for the cell's override.
+      const supports = (component: string) => {
+        const resolved = registry.resolve(component, "node");
+        return resolved.ok && resolved.value.variants.includes(props.variant as string);
+      };
       const variant =
-        props.variant !== undefined &&
-        inherited.ok &&
-        inherited.value.variants.includes(props.variant)
+        props.variant === undefined ||
+        cell.component === undefined ||
+        supports(cell.component) ||
+        !supports(props.component)
           ? props.variant
           : "default";
       // Written as in a figure: the component stage validates them like any props.
@@ -473,7 +480,7 @@ export function expandTokens(state: CheckState, registry: Registry, locate: Loca
             ? "outlined"
             : asset !== undefined
               ? (cell.variant ?? "default")
-              : (cell.variant ?? variant),
+              : (cell.variant ?? variant ?? "default"),
         ...(tone !== undefined && { tone }),
         ...(mono !== undefined && { mono }),
         props: cellProps,

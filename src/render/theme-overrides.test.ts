@@ -154,6 +154,18 @@ test("sharp routed elbows remain connected in SVG and PDF after trunk deduplicat
   const elbow = wires.find((wire) => /d="M [^ML"]+ L [^ML"]+ L /.test(wire));
   expect(elbow).toBeDefined();
   expect(elbow).toContain('stroke-linejoin="miter"');
+  // The last subpath (after any deduplicated trunk) still ends at an edge endpoint,
+  // short of it only by the arrowhead.
+  const d = /d="([^"]*)"/.exec(elbow as string)?.[1] ?? "";
+  const lastSub = d.split(/(?=M )/).pop() as string;
+  const end = [...lastSub.matchAll(/(-?[\d.]+) (-?[\d.]+)/g)].pop();
+  const ends = layout.edges.flatMap((edge) => {
+    const pts = edge.route?.points ?? [];
+    return [pts[0], pts[pts.length - 1]].filter((pt) => pt !== undefined);
+  });
+  expect(
+    ends.some((pt) => Math.hypot(pt.x - Number(end?.[1]), pt.y - Number(end?.[2])) <= 8.5),
+  ).toBe(true);
   // Test the actual writer's wire alone so frame joins cannot satisfy PDF assertions.
   const wireSvg = svg.replace(/(<svg[^>]*>)[\s\S]*(<\/svg>)/, `$1${elbow}$2`);
   const streams = pdfStreams(wireSvg);

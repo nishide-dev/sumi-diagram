@@ -806,12 +806,14 @@ edges:
 - **Cells.** A cell is a label string or `{ id, label, tone, mono, component,
   variant, width, height }`; `props.component` / `variant` / `width` / `height`
   and the node's `tone` are the defaults. An ellipsis is `{ label: '…',
-  component: label }` or math such as `'$A_{\ldots}$'`. An inherited variant
-  applies only if the cell's component supports it; otherwise it uses `default`
-  (so the label ellipsis works with `props.variant: outlined`). An explicit
-  cell `variant` must be supported. The node has no label of
+  component: label }` or math such as `'$A_{\ldots}$'`. A `props.variant`
+  must be supported by the node's own component (`props.component`, default
+  `box`), or it is an error at `props.variant`. A cell that overrides the
+  component with one lacking that variant (the `label` component in the
+  ellipsis above, with `props.variant: outlined`) falls back to `default`. An
+  explicit cell `variant` must be supported. The node has no label of
   its own (put a `label` node beside it). `props.variant: outlined` gives shape
-  cells a coloured frame and text in their tone; a cell's `variant: solid` is a
+  cells (not `label` cells) a coloured frame and text in their tone; a cell's `variant: solid` is a
   selected cell (strong fill, white text); `tinted` gives pastel highlighted cells
   (both also work in legend `node` samples).
 - **Direction and lines.** `gap` and `align` are those of an arrange box;

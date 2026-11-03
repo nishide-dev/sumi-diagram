@@ -2666,7 +2666,7 @@ check・typecheck・gallery:check（231ファイル）・schema:check も成功�
 
 ### 6.97 #331 の tokens セルの variant 継承と注記を除いた接続範囲
 
-- **variant は互換なセルだけが継承する。** `props.variant` をセルの component が持たない場合は `default` に戻す。`outlined` の列に `{ label: '…', component: label }` を混ぜてもエラーにしない。セルに明示した `variant` は従来どおり検証し、誤りはそのセルのフィールドへ報告する。画像セル・区切りセルの専用の既定値は維持する。継承の不一致は意図した異種セルで自然に起きるため warning は追加しない。
+- **variant の継承規則。** tokens の `props.variant` が tokens 自身の既定 component（`props.component`、省略時 `box`）に無ければ、従来どおり `component/unknown-variant` を tokens の `props.variant` に報告する（`outlinedd` や `nope` の誤記は隠さない）。既定 component では有効だが、セルが上書きした component（例: `{ label: '…', component: label }`）が持たない場合に限り、そのセルは `default` に戻す。`outlined` の列に省略記号セルを混ぜてもエラーにならない。セルに明示した `variant` は従来どおり検証し、誤りはそのセルのフィールドへ報告する。画像セル・区切りセルの専用の既定値は維持する。継承の不一致は意図した異種セルで自然に起きるため warning は追加しない。
 - **配置範囲と接続範囲を分ける。** セルに付けた注記とその attach チェーンは、包含・余白・配置のために tokens の不可視フレームを広げる。一方、tokens 全体への辺の接続範囲はセル自身の矩形の和集合（外接矩形）とする。フレームを縮めると注記の包含と周辺の配置が壊れるため、Layout IR は変更せず、共通の `endpointRects` で接続時だけセル範囲を使う。通常辺・明示 anchor・straight・fan-in・zoom と経路検査で同じ範囲を共有する。セルの外にある attach 元からの辺は、フレームのメンバーであっても外側からセルへ接続する。注記のない tokens は従来の範囲を維持する。
 - **他部品の調査。** 通常ノードの attach は同じ親内に置かれ、対象ノードの矩形そのものは広げない。matrix と legend も全体への attach は外側の兄弟となり、内部の生成セル・見本には公開されたセル参照がない。tokens だけが公開セル参照への attach を生成フレーム内へ移す（§6.78）。通常 group は注記を含む枠自体が接続対象なので変更しない。
 - **検証。** 省略セルの cells / lines、互換な継承・明示不正 variant、全組み込みテーマで四方向の入出力辺と注記チェーンを回帰検証する。全 YAML を自身のテーマと全組み込みテーマで前後描画し、SVG / PDF / PPTX / D2 の SHA-256 を比較する。視覚確認には CLI の PDF 出力と `pdftoppm -png` を使う。

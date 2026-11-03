@@ -385,8 +385,16 @@ nodes:
       ["nodes", 1, "props", "height"],
     ]);
     expect(inherited?.slice(2)).toEqual([14, 15]);
-    // An unsupported inherited variant falls back; an explicit cell variant is checked.
-    expect(at("      variant: nope\n      cells: [A]")).toEqual([]);
+    // An unknown variant inherited from the tokens: the tokens' props.variant.
+    expect(at("      variant: nope\n      cells: [A]").map((d) => d.slice(0, 2))).toEqual([
+      ["component/unknown-variant", ["nodes", 1, "props", "variant"]],
+    ]);
+    // A typo is not hidden by a component override cell.
+    expect(
+      at("      variant: outlinedd\n      cells: [A, { label: '…', component: label }]").map((d) =>
+        d.slice(0, 2),
+      ),
+    ).toContainEqual(["component/unknown-variant", ["nodes", 1, "props", "variant"]]);
   });
 });
 
