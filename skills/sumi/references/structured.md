@@ -123,6 +123,41 @@ groups:
   straight across two columns), use [`align`](#aligning-across-trees), not
   `gap` tweaks.
 
+## Panel separators (0.12.0)
+
+Use `separator` between panels instead of hidden junctions and a dashed `line`.
+It spans its enclosing row's height (vertical line) or stack's width
+(horizontal line), even with `align: start` / `center` / `end`. Nested boxes
+and reversed directions work too. It adds no size of its own; use the box's
+`gap` for whitespace on each side. Variants: `default` / `dashed` (dashed),
+`solid`. `tone` colors the line. No props, label, sublabel, badge or rotation.
+It is decoration, excluded from geometry lint, not an edge endpoint.
+Place it directly in a row or stack, not with `attach` or directly in a grid.
+
+```yaml
+version: 1
+figure:
+  id: two-panels
+  theme: paper
+  layout:
+    arrange: { row: { gap: 6mm, items: [left, divider, right] } }
+groups:
+  - { id: left, variant: plain, arrange: { stack: { items: [a, b] } } }
+  - { id: right, variant: plain, arrange: { stack: { items: [c] } } }
+nodes:
+  - { id: a, component: box, label: Input }
+  - { id: b, component: box, label: Encoder }
+  - { id: divider, component: separator, variant: dashed }
+  - { id: c, component: box, label: Detail }
+edges:
+  - { from: a, to: b }
+```
+
+For panels above and below, change the outer `row` to `stack`. Check
+`sumi catalog separator --json` and `sumi --version` first: on an older CLI,
+`component/unknown` means the component is unavailable; use the older
+hidden-junction/line construction only as a fallback.
+
 ## Grids
 
 Use a grid for rows whose columns must line up (structured only):

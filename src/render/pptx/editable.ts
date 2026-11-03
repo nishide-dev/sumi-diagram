@@ -663,7 +663,11 @@ export function svgToEditablePptx(
             first,
             element.style,
             "",
-            waveform || ir.meta.themeOverrides?.nodeCorners === "square" ? "svg-default" : "round",
+            waveform ||
+              element.component === "sumi/separator" ||
+              ir.meta.themeOverrides?.nodeCorners === "square"
+              ? "svg-default"
+              : "round",
           )
         : "<a:ln><a:noFill/></a:ln>";
       const turned = label?.rotation !== undefined;

@@ -2529,6 +2529,15 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - レビューで判明した singleton 3 行の再現も回帰検査に追加。4 方向 × `lineAlign` 3 種 × 先頭・中間・末尾行 × フレーム有無の 72 通りで、両軸の相対位置維持、セル strut 不在、未達制約の位置付き warning を検査する。旧判定に戻すと横方向で 61.677 layout units の行間増加、転置で 68.677 units の増加を再現し、4 方向ともテストが失敗する。さらに不等長 3 行・両軸・row/stack/grid・複数制約・A↔cell↔B の 360 通り、12 経路の 24 セル端点、単一行 tokens/matrix/box の 18 通りで通常の整列結果・診断・統計との一致を固定する。
 - セル番号は `lines` を記述順に平坦化した 1 始まりの位置。行ごとに再開せず、`direction` による表示順の反転も番号に影響しない。明示 `id` のセルも後続セルの位置の計数に含めるが、そのセル自身は ID で参照する。この規則を配布 Skill の tokens リファレンスへ追記した。
 
+### 6.89 #309 のパネル区切り separator
+
+- **背景と再現**: v0.11.0 の部品集合で `component: separator` は `component/unknown`。ViT Figure 1 のようなパネル区切りに hidden junction 2 個と dashed line を使うと、装飾が接続・経路として扱われ、配置のための stack も必要になる。
+- **契約**: 汎用 node `separator`（since 0.12.0、structured 専用）。`default` と `dashed` は破線、`solid` は実線。props は空で label / sublabel / labelRotation / badge は受け取らない。row の直接の項目なら縦線、stack なら横線になり、その箱の cross-axis 全体を `align` にかかわらず占める。入れ子・逆方向・伸長した箱でも同じ。余白は両側の arrange gap で指定する。
+- **サイズと互換性**: 自然寸法は 0 × 0、配置時に cross-axis だけを与える。兄弟が決めた寸法に追従し、区切り自身が隣のパネルを広げたり、`justify: stretch` の配分に参加したりしない。既存の寸法・経路・診断解決は変更せず、separator のない図の SVG / PDF / PPTX / D2 のバイト一致を全 YAML × 元のテーマおよび全組み込みテーマで検査する。無効な既存 fixture は従来の error code を比較する。
+- **描画と lint**: SVG の node shape に開いた path を 1 本出す。PDF・画像 PPTX は共通 SVG 変換、編集可能 PPTX は既存の custom geometry / dash 変換を使い、両 connector mode で同じ線を残す。tone は toneLines、dim は既存の減光を適用。接続線ではなく装飾なので geometry lint の要素から除外し、空 label の指摘もしない。
+- **誤用**: grid の直接の項目・attach は `component/separator-placement`、edge endpoint は `component/separator-connection` で拒否する。grid のセル内の row / stack には置ける。空の箱では span も 0 のため何も見えない。接続点として必要なら従来の line と junction を使う。
+- **検証・発見性**: 全テーマ × 全 variant のカタログギャラリー、両方向・全 alignment・逆方向・各 export の統合テスト、Skill のパネル区切り例を揃える。#306 / #307 の layout 診断変更は含めない。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）

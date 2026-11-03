@@ -246,6 +246,12 @@ function nodeShape(node: NodeIR, r: Rect): string {
   const { style } = node;
   const paints = ` fill="${paint(style.fill)}"${strokeAttributes(style)}`;
   const { x, y, width: w, height: h } = r;
+  if (node.component === "sumi/separator") {
+    return `<path d="${pathData([
+      { x, y },
+      { x: x + w, y: y + h },
+    ])}" fill="none"${strokeAttributes(style)}/>`;
+  }
   if (node.tokens?.separator !== undefined) {
     return `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" fill="none" stroke="none"/>`;
   }

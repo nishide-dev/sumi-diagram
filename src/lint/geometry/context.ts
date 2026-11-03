@@ -131,6 +131,7 @@ export function createGeometryContext(
     if (element === undefined) {
       throw new Error(`internal error: inspected element ${geometry.key} is not in the IR`);
     }
+    if (element.kind === "node" && element.component === "sumi/separator") continue;
     const shape: DrawnShape | undefined =
       element.kind === "edge" || element.shape === "text" ? undefined : element.shape;
     const bbox = shape === undefined ? undefined : geometry.bbox;

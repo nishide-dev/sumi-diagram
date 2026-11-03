@@ -49,7 +49,10 @@ export const noEdges = defineRule({
     // the captions of groups (#130) or the parts of legends (#131). The
     // cells of tokens nodes (#181) are the author's nodes.
     const nodeCount = context.elements.filter(
-      (e) => e.kind === "node" && (e.origin === undefined || e.origin.from === "tokens"),
+      (e) =>
+        e.kind === "node" &&
+        e.component?.id !== "sumi/separator" &&
+        (e.origin === undefined || e.origin.from === "tokens"),
     ).length;
     if (nodeCount < 2) return [];
     const subject = figureSubject(context);

@@ -235,6 +235,7 @@ export function structuredPrimitivesFigure(theme: string): string {
   ];
   const zooms: string[] = [];
   const tokens: string[] = [];
+  const separators: string[] = [];
   for (const m of STRUCTURED_ONLY_MANIFESTS) {
     const id = `${m.namespace}/${m.name}`;
     if (id === "sumi/tokens") {
@@ -282,6 +283,20 @@ export function structuredPrimitivesFigure(theme: string): string {
           "      cells: [ox, xo]",
         );
         edges.push(`  - { from: ${name}-in, to: ${name} }`);
+      }
+      continue;
+    }
+    if (id === "sumi/separator") {
+      for (const [i, variant] of m.variants.entries()) {
+        const name = `${m.name}-${variant}`;
+        separators.push(
+          `{ ${i === 1 ? "stack" : "row"}: { gap: 3mm, items: [${name}-a, ${name}, ${name}-b] } }`,
+        );
+        nodes.push(
+          `  - { id: ${name}-a, component: box, label: A }`,
+          `  - { id: ${name}, component: separator, variant: ${variant} }`,
+          `  - { id: ${name}-b, component: box, label: B }`,
+        );
       }
       continue;
     }
@@ -348,6 +363,7 @@ export function structuredPrimitivesFigure(theme: string): string {
     "          - row: { gap: 8mm, align: center, items: [a, b, c, d] }",
     `          - row: { gap: 8mm, align: center, items: [${zooms.join(", ")}] }`,
     `          - row: { gap: 8mm, align: center, items: [${tokens.join(", ")}] }`,
+    `          - row: { gap: 8mm, align: center, items: [${separators.join(", ")}] }`,
     `          - row: { gap: 6mm, align: start, items: [${legends.join(", ")}] }`,
     "nodes:",
     ...nodes,

@@ -130,6 +130,50 @@ export function resolveComponents(
       continue;
     }
     const manifest = resolved.value;
+    if (componentId(manifest) === "sumi/separator" && engine === "structured") {
+      const id = element.subject.id;
+      const inLinearBox = (box: import("../figure/schema").ArrangeBox | undefined): boolean => {
+        if (box === undefined) return false;
+        const linear = box.row ?? box.stack;
+        const items = (linear ?? box.grid)?.items ?? [];
+        return items.some((entry) => {
+          const item =
+            entry !== null && typeof entry === "object" && "item" in entry ? entry.item : entry;
+          return typeof item === "string"
+            ? linear !== undefined && item === id
+            : item !== null && inLinearBox(item);
+        });
+      };
+      if (
+        !inLinearBox(state.doc.figure?.layout.arrange) &&
+        !(state.doc.groups ?? []).some((g) => inLinearBox(g?.arrange))
+      ) {
+        report(
+          [
+            {
+              code: "component/separator-placement",
+              severity: "error",
+              message: "A separator must be a direct item of a row or stack.",
+              hint: "Place it between panels in a row or stack; use gap for spacing.",
+            },
+          ],
+          () => [...element.path, "component"],
+        );
+      }
+      if ((state.doc.edges ?? []).some((edge) => edge && [edge.from, edge.to].includes(id))) {
+        report(
+          [
+            {
+              code: "component/separator-connection",
+              severity: "error",
+              message: "A separator is decoration and cannot be an edge endpoint.",
+              hint: "Connect the panels' nodes instead.",
+            },
+          ],
+          () => [...element.path, "component"],
+        );
+      }
+    }
     const growUnsupported =
       element.grow !== undefined &&
       ["sumi/tokens", "sumi/matrix", "sumi/legend"].includes(componentId(manifest));
@@ -195,10 +239,12 @@ export function resolveComponents(
     const mark = manifest.kind === "node" ? manifest.mark : undefined;
     const embed = manifest.kind === "node" ? manifest.embed : undefined;
     // A bracket (#281) is a line with no label, label turn or sublabel.
-    const bracket = componentId(manifest) === BRACKET_ID;
+    const bracket = [BRACKET_ID, "sumi/separator"].includes(componentId(manifest));
     const badgeUnsupported =
       element.badge &&
-      (["sumi/legend", "sumi/tokens", "sumi/matrix", BRACKET_ID].includes(componentId(manifest)) ||
+      (["sumi/legend", "sumi/tokens", "sumi/matrix", BRACKET_ID, "sumi/separator"].includes(
+        componentId(manifest),
+      ) ||
         mark?.type === "point");
     if (badgeUnsupported)
       report(

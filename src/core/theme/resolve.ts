@@ -78,11 +78,13 @@ export function resolveStyle<K extends ComponentKind>(
   const { kind, id, variant, tone } = target;
   const layers = theme.components.get(id);
   const variantLayer = variant === "default" ? undefined : layers?.get(variant);
-  const field = target.toneText === true ? "toneLines" : toneField(kind, variant);
+  const field =
+    target.toneText === true || id === "sumi/separator" ? "toneLines" : toneField(kind, variant);
   const toneLayer = tone === undefined ? undefined : theme[field].get(tone);
   // Compose both palettes only for the new node variants. Gray is their neutral default.
   if (
     kind === "node" &&
+    id !== "sumi/separator" &&
     variantLayer !== undefined &&
     (variant === "solid" || variant === "tinted") &&
     target.toneText !== true
@@ -166,7 +168,12 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
       mono === undefined || mono === painted.mono ? painted : Object.freeze({ ...painted, mono });
     const overrides = state.doc.figure?.themeOverrides;
     const solidFill = overrides?.solidFills?.[tone ?? "gray"];
-    if (solidFill !== undefined && style.kind === "node" && variant === "solid")
+    if (
+      solidFill !== undefined &&
+      style.kind === "node" &&
+      variant === "solid" &&
+      id !== "sumi/separator"
+    )
       style = Object.freeze({
         ...style,
         fill: solidFill,
@@ -215,7 +222,11 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
     const dimmedStyle =
       dim === undefined
         ? style
-        : dimStyle(style, dim, manifest.kind === "node" && variant === "solid");
+        : dimStyle(
+            style,
+            dim,
+            manifest.kind === "node" && variant === "solid" && id !== "sumi/separator",
+          );
     styles.set(
       key,
       dim !== undefined && id === "sumi/stack" && variant === "solid"

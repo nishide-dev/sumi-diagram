@@ -1,5 +1,12 @@
 # Reading and fixing diagnostics
 
+## Panel separators (0.12.0)
+
+- `component/separator-placement`: put the separator directly in a row or stack,
+  not with `attach` or directly in a grid cell.
+- `component/separator-connection`: a separator is decoration, not an edge
+  endpoint; connect the panel's actual nodes instead.
+
 `geometry/group-empty-area` (info, render / `lint --geometry` only): at
 least 75% of a group's frame lies outside its title and direct children's
 bounding boxes, with overlaps counted once and edges excluded. This is an
