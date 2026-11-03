@@ -135,7 +135,15 @@ function richLabel(
   color: string,
 ): string {
   const { anchor } = layout;
-  const open = `<text x="${n(anchor.x)}" y="${n(anchor.y)}" fill="${paint(color)}" class="${textClass(layout.font)}" style="text-anchor:${anchorName(layout)};font-size:${n(layout.fontSizeUnits)}px;font-kerning:none"${rotate(layout)}>`;
+  // librsvg collapses spaces at tspan boundaries in its default whitespace
+  // mode (#266). Preserve the original characters and their font advances;
+  // labels without a space between runs keep their existing SVG bytes.
+  const space = runs.some((line) =>
+    line.some((run, i) => i > 0 && (run.text.startsWith(" ") || line[i - 1]?.text.endsWith(" "))),
+  )
+    ? ' xml:space="preserve"'
+    : "";
+  const open = `<text x="${n(anchor.x)}" y="${n(anchor.y)}" fill="${paint(color)}" class="${textClass(layout.font)}" style="text-anchor:${anchorName(layout)};font-size:${n(layout.fontSizeUnits)}px;font-kerning:none"${space}${rotate(layout)}>`;
   const spans = runs.map((line, i) => {
     const y = n(anchor.y + i * layout.lineHeightUnits);
     if (!line.some((run) => run.accent !== undefined)) {
