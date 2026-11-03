@@ -2519,6 +2519,15 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **散布図とexport:** seed 299・63点・座標は維持し、3点周期の色と分割対象が同期して青だけを覆っていた点を修正。4点周期で分割し、8点周期で3色分割、それ以外は2色分割とする。青・琥珀・赤の単色点と混色点を分散させる。作例全体はSVG/PDF/picture PPTXに対応するが、HTML/imageを含むためeditable PPTXは位置付き `pptx/unsupported-asset` で拒否される既存制限がある。汎用palette/frame制御自体のeditable PPTX対応とは区別する。
 - **検証:** 展開solid cellの実効fill、他variant非変更、角丸維持、文字のcontrast調整（黒・濃青・中間灰の4.5:1境界両側・明るい青・白のラベル付きsolidを描画し、実際の比率と合格済み白文字の維持を検査）、共有theme非変異、dim優先、未知tone/不正色のschema拒否、auto/structuredのframeとsignal別色、editable PPTXの両色保存を回帰検査する。JSON SchemaとSkillを同期し、galleryとPDF/PPTX goldenは通常の生成経路で更新する。
 
+### 6.86 #305 の複数行 tokens のセルを基準にした整列
+
+- v0.11.0 の公開物＋Skill による ViT Figure 1 の dogfood で、`lines` のセルを `figure.layout.align` に指定すると、その行の内部へ strut が入り、別の行との列対応が崩れた。issue の再現では `emb.1` の前へ約 3 セル分の空白を足して制約を満たした扱いになり、図幅が約 75% 増えた。
+- セルの矩形は整列の基準として残すが、複数行 tokens の strut 候補は全セルに共通する arrange item までの経路に限定する。既存の展開由来情報で tokens ごとのセルを集め、最深の arrange box が複数ある場合だけ共通経路へ切り詰める。方向・行数・`lineAlign`・セル ID に依存せず、任意の行・セルの内部へ空白を挿入しない。全体参照による任意フレームの有無にも対応し、attach は切り詰め後の対象経路を継承する。
+- 外側の row / stack で塊を動かせるなら整列し、動かせなければ既存の位置付き `layout/unsatisfied-align` を返す。図の並びを黙って壊すより制約未達を明示する。今回の最小再現は外側に x 方向の自由度がないため、この診断が期待結果になる。解決用の row / stack で包む方法を Skill に記載する。
+- 展開時のフレーム強制作成や新しい props・診断コードは不要。最深 box が同じ単一行 tokens と通常の arrange tree は従来のままにし、SVG/PDF/PPTX/D2 の互換性を守る。既存 YAML 全 160 件を元のテーマ＋組み込み 5 テーマの計 960 通りで修正前後に描画し、SVG/PDF/picture PPTX と auto の D2 の sha256 に差分がないことを確認した（描画不能な fixture は同じエラーコード）。`bun run gallery` も全 231 ファイルで変更なし。
+- 回帰検査は 4 方向 × start/center/end の不等長行の相対位置、外側からの整列成功、任意フレームとセルへの attach、同じ塊の行間で両立しない制約、issue の最小再現を全組み込みテーマで描画したときの列位置と診断位置を含む。
+- セル番号は `lines` を記述順に平坦化した 1 始まりの位置。行ごとに再開せず、`direction` による表示順の反転も番号に影響しない。明示 `id` のセルも後続セルの位置の計数に含めるが、そのセル自身は ID で参照する。この規則を配布 Skill の tokens リファレンスへ追記した。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）

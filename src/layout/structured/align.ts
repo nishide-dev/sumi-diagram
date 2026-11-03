@@ -26,7 +26,8 @@
  * holds no other item of the constraint, and that is not a `gap: 0` box: its
  * items are drawn as one unit (a block and its Add & Norm), so the strut goes
  * to an ancestor, which keeps them touching. An attached node takes its
- * target's path (it moves with the target).
+ * target's path (it moves with the target). Multi-line tokens take only the
+ * path to their common arrange item: struts must not distort their lines.
  *
  * The candidates are laid out and the one with the smallest total residual
  * (the sum of every constraint's range) is kept if it is smaller than before;
@@ -403,6 +404,30 @@ function paths(ir: FigureIR): Map<ElementKey, Step[]> {
     }
   };
   if (ir.arrange !== undefined) walk(ir.arrange, []);
+  // Multi-line tokens are one rigid block (#305). Keep each cell's rectangle
+  // as the align target, but allow struts only outside their common item.
+  // Distinct innermost boxes identify multiple lines; single-line tokens keep
+  // their existing alignment behavior. This also handles a whole-node frame.
+  const tokenPaths = new Map<string, Step[][]>();
+  for (const node of ir.nodes) {
+    const path = out.get(node.key);
+    if (node.tokens === undefined || path === undefined) continue;
+    const list = tokenPaths.get(node.tokens.id) ?? [];
+    list.push(path);
+    tokenPaths.set(node.tokens.id, list);
+  }
+  for (const list of tokenPaths.values()) {
+    if (new Set(list.map((path) => path.at(-1)?.box)).size < 2) continue;
+    const first = list[0] as Step[];
+    let length = first.length;
+    for (const path of list.slice(1)) {
+      let i = 0;
+      while (i < length && path[i]?.item === first[i]?.item) i++;
+      length = i;
+    }
+    // Mutate the shared path arrays before attachments inherit them below.
+    for (const path of list) path.length = length;
+  }
   // Attach chains: each pass resolves the nodes whose target has a path.
   for (let changed = true; changed; ) {
     changed = false;

@@ -914,6 +914,20 @@ meets the row or column as a unit (`{ from: encoder, to: seq }`), and an
 frame group with that ID (no border, fill or padding, so the frame is
 exactly the cells); tokens that nothing names as a whole get no frame.
 
+With `lines`, positions count continuously in **written line order**, then
+written cell order, starting at 1; they do not restart for each line or change
+with `direction`. For `lines: [["0", "1"], [a, b]]`, `emb.1` is `"0"`,
+`emb.2` is `"1"`, and `emb.3` is `a`. A cell with an explicit `id` uses that
+ID instead of its positional number (and still counts toward later positions).
+Prefer explicit IDs when editing lines.
+
+Aligning a cell of multi-line tokens preserves the entire block's cell offsets
+and `lineAlign`; it never shifts just one line. If the outer arrangement cannot
+move the block to meet the constraint, `layout/unsatisfied-align` points to the
+constraint. Wrap the tokens (or the other target) in a `row` for an `x`
+constraint or a `stack` for `y` to give it room to move; check the warning and
+render again. Naming the whole node aligns its frame, not a particular cell.
+
 ```yaml
 # expect-render: fits
 version: 1
