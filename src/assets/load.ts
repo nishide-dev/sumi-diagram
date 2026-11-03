@@ -106,9 +106,17 @@ export interface LoadAssetsOptions {
 
 /** `true` if the figure has icon or image nodes (anything to load). */
 export function hasAssets(ir: FigureIR): boolean {
-  return ir.nodes.some(
-    (n) => n.icon !== undefined || n.image !== undefined || n.badge !== undefined,
+  return (
+    (ir.assets?.size ?? 0) > 0 ||
+    ir.nodes.some((n) => n.icon !== undefined || n.image !== undefined || n.badge !== undefined)
   );
+}
+
+/** A checked image source: what the SVG embeds, its bytes and, for SVG, the importer's result. */
+interface LoadedSource {
+  asset: LoadedImage;
+  bytes: Uint8Array;
+  svg?: ImportedSvg;
 }
 
 const sha256 = (bytes: Uint8Array | string) => createHash("sha256").update(bytes).digest("hex");
@@ -124,6 +132,48 @@ export function loadFigureAssets(
   const lines: string[] = [];
   const notices = new Map<string, ThirdPartyNotice>();
   let total = 0;
+
+  // `figure.assets` (#310): every entry is read, checked and imported once, in
+  // document order; images that name it share the result.
+  const sharedAssets = new Map<string, LoadedSource & { digest: string }>();
+  for (const [name, def] of ir.assets ?? []) {
+    const fail = (code: string, message: string, hint?: string, related?: RelatedInformation[]) => {
+      diagnostics.push({
+        code,
+        severity: "error",
+        message,
+        path: [...def.at.path],
+        ...(def.at.location !== undefined && { location: def.at.location }),
+        ...(hint !== undefined && { hint }),
+        ...(related !== undefined && related.length > 0 && { related }),
+      });
+    };
+    const loaded =
+      def.svg !== undefined
+        ? loadInlineSvg(def.svg, fail)
+        : loadImage(def.src ?? "", options.base, fail);
+    if (loaded === undefined) continue;
+    total += loaded.bytes.length;
+    if (total > ASSET_LIMITS.maxFigureBytes) {
+      fail(
+        "asset/too-large",
+        `The figure's images add up to more than ${mib(ASSET_LIMITS.maxFigureBytes)}.`,
+        "Use smaller files; Sumi embeds them as they are and does not scale them down.",
+      );
+      continue;
+    }
+    const digest = sha256(loaded.bytes);
+    if (def.sha256 !== undefined && def.sha256 !== digest) {
+      fail(
+        "asset/sha256-mismatch",
+        `Asset "${name}" has sha256 ${digest}, not the ${def.sha256} written in its sha256.`,
+        "Update sha256 if the new file is intended.",
+      );
+      continue;
+    }
+    sharedAssets.set(name, { ...loaded, digest });
+    lines.push(`asset ${name} ${digest}\n`);
+  }
 
   for (const node of ir.nodes) {
     for (const [role, ref] of [
@@ -170,15 +220,55 @@ export function loadFigureAssets(
         ...(related !== undefined && related.length > 0 && { related }),
       });
     };
-    const loaded =
-      image.html !== undefined
-        ? loadInlineSvg(options.htmlSvgs?.get(node.key) ?? "", fail)
-        : image.svg !== undefined
-          ? loadInlineSvg(image.svg, fail)
-          : loadImage(image.src ?? "", options.base, fail);
-    if (loaded === undefined) continue;
-    total += loaded.bytes.length;
-    if (total > ASSET_LIMITS.maxFigureBytes) {
+    let loaded: LoadedSource | undefined;
+    let digest: string;
+    if (image.asset !== undefined) {
+      const shared = sharedAssets.get(image.asset);
+      if (shared === undefined) {
+        // An asset that failed to load already has its own diagnostic.
+        if (ir.assets?.has(image.asset) !== true) {
+          fail(
+            "asset/unknown-asset",
+            `props.asset "${image.asset}" is not defined in figure.assets.`,
+            "Define it under figure.assets first.",
+          );
+        }
+        continue;
+      }
+      loaded = shared;
+      digest = shared.digest;
+      if (image.crop !== undefined) {
+        const cropped = cropSource(shared, image.crop, image.asset);
+        if (typeof cropped === "string") {
+          diagnostics.push({
+            code: "asset/invalid-crop",
+            severity: "error",
+            message: cropped,
+            path: [...(image.cropAt ?? image.srcAt).path],
+            ...((image.cropAt ?? image.srcAt).location !== undefined && {
+              location: (image.cropAt ?? image.srcAt).location,
+            }),
+            subject: { kind: "node", id: node.id },
+            hint: cropped.includes("raster")
+              ? "crop applies to SVG assets only; draw a raster asset without crop, or cut the picture beforehand."
+              : "Give [x, y, width, height] inside the asset's viewBox, in its coordinates.",
+          });
+          continue;
+        }
+        loaded = cropped;
+      }
+    } else {
+      loaded =
+        image.html !== undefined
+          ? loadInlineSvg(options.htmlSvgs?.get(node.key) ?? "", fail)
+          : image.svg !== undefined
+            ? loadInlineSvg(image.svg, fail)
+            : loadImage(image.src ?? "", options.base, fail);
+      if (loaded === undefined) continue;
+      total += loaded.bytes.length;
+      digest = sha256(loaded.bytes);
+    }
+    if (image.asset === undefined && total > ASSET_LIMITS.maxFigureBytes) {
       fail(
         "asset/too-large",
         `The figure's images add up to more than ${mib(ASSET_LIMITS.maxFigureBytes)}.`,
@@ -186,7 +276,6 @@ export function loadFigureAssets(
       );
       continue;
     }
-    const digest = sha256(loaded.bytes);
     if (image.sha256 !== undefined && image.sha256 !== digest) {
       fail(
         "asset/sha256-mismatch",
@@ -213,13 +302,18 @@ export function loadFigureAssets(
       );
       continue;
     }
-    lines.push(
-      image.html !== undefined
-        ? `html ${node.id} ${sha256(image.html)} ${image.viewport?.width}x${image.viewport?.height} ${digest}\n`
-        : image.svg !== undefined
-          ? `inline-svg ${node.id} ${digest}\n`
-          : `image ${image.src} ${digest}\n`,
-    );
+    if (image.asset !== undefined) {
+      lines.push(
+        `asset-use ${node.id} ${image.asset}${image.crop ? ` ${image.crop.join(" ")}` : ""}\n`,
+      );
+    } else
+      lines.push(
+        image.html !== undefined
+          ? `html ${node.id} ${sha256(image.html)} ${image.viewport?.width}x${image.viewport?.height} ${digest}\n`
+          : image.svg !== undefined
+            ? `inline-svg ${node.id} ${digest}\n`
+            : `image ${image.src} ${digest}\n`,
+      );
     nodes.set(node.key, { ...loaded.asset, size });
   }
 
@@ -241,7 +335,7 @@ const mib = (bytes: number) => `${bytes / 1024 / 1024} MiB`;
 function loadInlineSvg(
   source: string,
   fail: (code: string, message: string) => void,
-): { asset: LoadedImage; bytes: Uint8Array } | undefined {
+): LoadedSource | undefined {
   const bytes = Buffer.from(source, "utf8");
   if (bytes.length > ASSET_LIMITS.maxFileBytes) {
     fail("asset/too-large", "Inline SVG exceeds the 16 MiB asset limit.");
@@ -260,7 +354,7 @@ function loadInlineSvg(
     );
     return undefined;
   }
-  return { bytes, asset: svgImage(imported.value) };
+  return { bytes, asset: svgImage(imported.value), svg: imported.value };
 }
 
 /** Both input forms embed precisely the importer's re-serialization. */
@@ -272,6 +366,46 @@ function svgImage(svg: ImportedSvg): LoadedImage {
     format: "svg",
     intrinsic: { width: svg.width, height: svg.height },
     href: `data:${IMAGE_MIME.svg};base64,${Buffer.from(document, "utf8").toString("base64")}`,
+  };
+}
+
+/**
+ * The part `crop` of an SVG asset, as an image of its own: the same markup
+ * under a viewBox that is the crop (so the viewport clips the rest), with the
+ * intrinsic size scaled by the same factor. Returns the reason if it cannot.
+ */
+function cropSource(
+  source: LoadedSource,
+  crop: readonly [number, number, number, number],
+  name: string,
+): LoadedSource | string {
+  const svg = source.svg;
+  if (svg === undefined) {
+    return `props.crop cuts SVG assets only, but asset "${name}" is a raster image.`;
+  }
+  const [x, y, w, h] = crop;
+  const [vx, vy, vw, vh] = svg.viewBox;
+  const eps = 1e-9;
+  if (
+    !crop.every(Number.isFinite) ||
+    w <= 0 ||
+    h <= 0 ||
+    x < vx - eps ||
+    y < vy - eps ||
+    x + w > vx + vw + eps ||
+    y + h > vy + vh + eps
+  ) {
+    return `props.crop [${crop.join(", ")}] is not inside the viewBox of asset "${name}" (${vx} ${vy} ${vw} ${vh}).`;
+  }
+  const round = (n: number) => Math.round(n * 1e6) / 1e6;
+  return {
+    bytes: source.bytes,
+    asset: svgImage({
+      ...svg,
+      viewBox: [x, y, w, h],
+      width: round((svg.width * w) / vw),
+      height: round((svg.height * h) / vh),
+    }),
   };
 }
 
@@ -302,7 +436,7 @@ function loadImage(
   src: string,
   base: string | undefined,
   fail: (code: string, message: string, hint?: string, related?: RelatedInformation[]) => void,
-): { asset: LoadedImage; bytes: Uint8Array } | undefined {
+): LoadedSource | undefined {
   // The check stage rejected these already; a figure built some other way is checked again.
   const problem = srcProblem(src);
   if (problem !== undefined) {
@@ -388,6 +522,7 @@ function loadImage(
     return {
       bytes,
       asset: svgImage(imported.value),
+      svg: imported.value,
     };
   }
 

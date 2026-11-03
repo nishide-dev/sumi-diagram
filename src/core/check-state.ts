@@ -50,6 +50,8 @@ export interface PartialFigure {
   version?: 1;
   requires?: string;
   figure?: FigureMeta;
+  /** Names under `figure.assets` as written, valid or not (#310). */
+  assetNames?: readonly string[];
   groups?: (FigureGroup | undefined)[];
   nodes?: (FigureNode | undefined)[];
   edges?: (FigureEdge | undefined)[];

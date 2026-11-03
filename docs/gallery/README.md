@@ -45,7 +45,7 @@ Every built\-in component with every variant, under every built\-in theme\. Each
 | <a id="sumilabel"></a>[sumi/label](components/sumi-label.md) | node | Text without a border\. |
 | <a id="sumioperator"></a>[sumi/operator](components/sumi-operator.md) | node | A small circle with an operator symbol, e\.g\. where inputs are added or combined; takes no label\. |
 | <a id="sumijunction"></a>[sumi/junction](components/sumi-junction.md) | node | A point where lines branch or merge, drawn as a small dot \(variant hidden: no dot, for a smooth split or a line that ends in open space\); takes no label and no tone\. |
-| <a id="sumiimage"></a>[sumi/image](components/sumi-image.md) | node | A PNG, JPEG or SVG file or safe inline SVG drawing, optionally stacked with up\-right copies; takes no label\. |
+| <a id="sumiimage"></a>[sumi/image](components/sumi-image.md) | node | A PNG, JPEG or SVG file, safe inline SVG drawing or named figure asset \(optionally cropped\), optionally stacked with up\-right copies; takes no label\. |
 | <a id="sumihtml"></a>[sumi/html](components/sumi-html.md) | node | A restricted HTML/CSS leaf rendered as outlined vector artwork with bundled fonts and theme variables; takes no label\. |
 | <a id="sumiwaveform"></a>[sumi/waveform](components/sumi-waveform.md) | node | A deterministic sample\-driven waveform in a rectangular frame, with an optional label below the signal; no audio decoding or synthesis\. |
 | <a id="sumilegend"></a>[sumi/legend](components/sumi-legend.md) | node | A key that explains line and fill styles: one sample line or box per entry, drawn with the same fields as the edges or nodes it explains, followed by its text \(structured layout only\)\. |

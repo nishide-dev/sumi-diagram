@@ -78,6 +78,10 @@ export type TokenCell =
       width?: number;
       /** pt */
       height?: number;
+      /** A cell drawn as an image of `figure.assets` (#310). */
+      asset?: string;
+      crop?: [number, number, number, number];
+      fit?: string;
       /** A divider cell has no label, component or variant. */
       separator?: "dotted";
     };
@@ -305,6 +309,36 @@ export function expandTokens(state: CheckState, registry: Registry, locate: Loca
     // 3. Every cell's component must be a shape or text.
     for (const { cell, path } of written) {
       if (cell.separator !== undefined) continue;
+      if (cell.asset !== undefined) {
+        // An image cell is drawn as the image component whatever the tokens' component.
+        const clash = [
+          cell.component !== undefined && "component",
+          cell.mono !== undefined && "mono",
+          cell.label !== undefined && "label",
+        ].find((field) => field !== false);
+        if (clash !== undefined) {
+          fail(
+            "component/invalid-prop",
+            `Invalid prop "${propName(path)}.${clash}" for ${TOKENS_ID}: a cell with asset is drawn as an image, which takes no ${clash}.`,
+            [...path, clash],
+            "Remove it, or draw the cell without asset.",
+          );
+          blocked = true;
+          break;
+        }
+        continue;
+      }
+      if (cell.crop !== undefined || cell.fit !== undefined) {
+        const field = cell.crop !== undefined ? "crop" : "fit";
+        fail(
+          "component/invalid-prop",
+          `Invalid prop "${propName(path)}.${field}" for ${TOKENS_ID}: ${field} belongs to an image cell (with asset).`,
+          [...path, field],
+          "Add asset to the cell, or remove it.",
+        );
+        blocked = true;
+        break;
+      }
       const at: DocPath =
         cell.component !== undefined ? [...path, "component"] : [...propsPath, "component"];
       const resolved = registry.resolve(cell.component ?? props.component, "node");
@@ -391,19 +425,46 @@ export function expandTokens(state: CheckState, registry: Registry, locate: Loca
           fields["props.height"] = path;
         }
       }
-      const tone = cell.tone ?? node.tone;
-      const mono = cell.mono ?? node.mono;
+      const asset = cell.asset;
+      if (asset !== undefined) {
+        fields.component = [...path, "asset"];
+        fields.variant = own("variant", [...path, "asset"]);
+        fields["props.asset"] = [...path, "asset"];
+        fields["props.crop"] = [...path, "crop"];
+        fields["props.fit"] = [...path, "fit"];
+        fields.tone = own("tone", path);
+        // An image needs a size: when neither the cell nor the tokens give one, the cell is at fault.
+        if (width === undefined && height === undefined) {
+          fields["props.width"] = path;
+          fields["props.height"] = path;
+          fields.props = path;
+        }
+      }
+      const tone = asset !== undefined ? cell.tone : (cell.tone ?? node.tone);
+      const mono = asset !== undefined ? undefined : (cell.mono ?? node.mono);
       // Written as in a figure: the component stage validates them like any props.
       const cellProps: Record<string, unknown> = {
+        ...(asset !== undefined && { asset }),
+        ...(cell.crop !== undefined && { crop: cell.crop }),
+        ...(cell.fit !== undefined && { fit: cell.fit }),
         ...(width !== undefined && { width: `${width}pt` }),
         ...(height !== undefined && { height: `${height}pt` }),
       };
       const part: FigureNode = {
         id,
-        component: separator !== undefined ? "box" : (cell.component ?? props.component),
+        component:
+          separator !== undefined
+            ? "box"
+            : asset !== undefined
+              ? "image"
+              : (cell.component ?? props.component),
         label: cell.label ?? "",
         variant:
-          separator !== undefined ? "outlined" : (cell.variant ?? props.variant ?? "default"),
+          separator !== undefined
+            ? "outlined"
+            : asset !== undefined
+              ? (cell.variant ?? "default")
+              : (cell.variant ?? props.variant ?? "default"),
         ...(tone !== undefined && { tone }),
         ...(mono !== undefined && { mono }),
         props: cellProps,

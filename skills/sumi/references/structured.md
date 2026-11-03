@@ -996,6 +996,11 @@ own `variant: solid` marks a pressed key with a strong fill and white text.
 Use `variant: tinted` for pastel action cells with colored borders and text;
 both also work in legend `node` samples.
 
+Since 0.12.0, a cell can be a picture: `{ asset: photo, crop: [0, 0, 40, 40],
+variant: framed }` draws that entry of `figure.assets` (cut with `crop`) as an
+image cell, so a column of patches is one tokens node instead of nine `image`
+nodes and nine edges. See [assets](assets.md#reusing-one-picture-figureassets-0120).
+
 Since 0.7.0, a divider cell is **`{ separator: dotted }`**, optionally with
 `id`, `tone`, `width`, `height` (no label, component or variant). For example,
 `cells: ['$A_1$', { separator: dotted }, '$I_0$', '$V_1$']` separates action

@@ -408,6 +408,40 @@ export const LayoutSchema = LayoutFieldsSchema.transform(
   }),
 );
 
+/**
+ * One entry of `figure.assets` (#310, design doc §6.91): an inline SVG or an
+ * image file defined once and drawn by any number of `image` nodes through
+ * `props.asset`. It is checked and imported once per asset.
+ */
+export const FigureAssetSchema = z
+  .strictObject({
+    src: z
+      .string()
+      .min(1)
+      .optional()
+      .describe(
+        'Path of the image file relative to the figure\'s YAML file, with "/" between directories, as image props.src.',
+      ),
+    svg: z
+      .string()
+      .min(1)
+      .optional()
+      .describe(
+        "Inline SVG document, as image props.svg (a YAML block scalar with a viewBox). Exactly one of src or svg is required.",
+      ),
+    sha256: z
+      .string()
+      .regex(/^[0-9a-fA-F]{64}$/)
+      .optional()
+      .describe(
+        "Expected sha256 of the file bytes or UTF-8 inline SVG source in hex. Rendering fails if the input has changed. Omitted means not checked.",
+      ),
+  })
+  .refine(({ src, svg }) => (src !== undefined) !== (svg !== undefined), {
+    error: "an asset needs exactly one of src or svg",
+    path: ["svg"],
+  });
+
 export const FigureMetaSchema = z.strictObject({
   id: Id,
   title: z.string().optional(),
@@ -456,6 +490,12 @@ export const FigureMetaSchema = z.strictObject({
       "scale: shrink the whole figure (layout unchanged) to the profile's maximum width if it is wider; text is then checked at its printed size. Omitted means the figure is printed at its natural size.",
     ),
   layout: LayoutSchema.prefault({}),
+  assets: z
+    .record(Id, FigureAssetSchema)
+    .optional()
+    .describe(
+      "Images and inline SVGs defined once by name (an ID) and drawn by `image` nodes with props.asset, optionally cut with props.crop. Each is imported and checked once.",
+    ),
 });
 
 export const GroupSchema = z.strictObject({
