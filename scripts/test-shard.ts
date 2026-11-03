@@ -22,24 +22,37 @@ const SKIPPED_DIRS = /(^|\/)node_modules(\/|$)/;
 const EXTENSIONS = "ts,tsx,js,jsx,mjs,cjs,mts,cts";
 // Bun's own rules: `*.test.*`, `*_test.*`, `*.spec.*`, `*_spec.*` with a JS/TS
 // extension; node_modules and dot-directories are not searched.
-const TEST_FILE = /[._](test|spec)\.(ts|tsx|js|jsx|mjs|cjs|mts|cts)$/;
+const TEST_FILE = /[._](test|spec)\.(ts|tsx|js|jsx|mjs|cjs|mts|cts)$/i;
 // Deliberately broader, for the cross-check: a tracked file that looks like a
 // test (`foo-test.ts`, `x.tests.ts`) but is not one Bun runs.
-const TEST_LIKE = /(test|tests|spec|specs)\.(ts|tsx|js|jsx|mjs|cjs|mts|cts)$/i;
+const TEST_LIKE = /(^|[-._])(tests?|specs?)\.(ts|tsx|js|jsx|mjs|cjs|mts|cts)$/i;
+
+export function isTestLike(path: string): boolean {
+  return TEST_LIKE.test(path) && !isTestFile(path);
+}
 
 export function isTestFile(path: string): boolean {
   return (
     TEST_FILE.test(path) &&
     !SKIPPED_DIRS.test(path) &&
-    !path.split("/").some((d) => d.startsWith("."))
+    !path
+      .split("/")
+      .slice(0, -1)
+      .some((d) => d.startsWith("."))
   );
 }
 
 /** Every test file under `root`, as sorted repo-relative POSIX paths (what `bun test` runs). */
 export function discoverTestFiles(root: string = ROOT): string[] {
-  const glob = new Glob(`**/*{.,_}{test,spec}.{${EXTENSIONS}}`);
+  // Bun matches case-insensitively and runs dot-named files (but not dot-directories),
+  // so the glob spells each letter in both cases and scans dot paths; isTestFile filters.
+  const anyCase = (word: string) =>
+    [...word].map((c) => `[${c.toLowerCase()}${c.toUpperCase()}]`).join("");
+  const glob = new Glob(
+    `**/*{.,_}{${anyCase("test")},${anyCase("spec")}}.{${EXTENSIONS.split(",").map(anyCase).join(",")}}`,
+  );
   const files: string[] = [];
-  for (const file of glob.scanSync({ cwd: root, dot: false })) {
+  for (const file of glob.scanSync({ cwd: root, dot: true })) {
     const path = file.replaceAll("\\", "/");
     if (isTestFile(path)) files.push(path);
   }
@@ -152,7 +165,7 @@ async function main(args: string[]): Promise<number> {
     if (tracked.length > 0) {
       const gone = tracked.filter((f) => isTestFile(f) && !files.includes(f));
       if (gone.length > 0) throw new Error(`Tracked test files not discovered: ${gone.join(", ")}`);
-      const nearMiss = tracked.filter((f) => TEST_LIKE.test(f) && !isTestFile(f));
+      const nearMiss = tracked.filter((f) => isTestLike(f));
       if (nearMiss.length > 0) {
         throw new Error(
           `Looks like a test file but Bun would not run it (name it *.test.ts / *_test.ts): ${nearMiss.join(", ")}`,

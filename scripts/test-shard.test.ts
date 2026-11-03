@@ -9,6 +9,7 @@ import {
   durationsFromJunit,
   hashPath,
   isTestFile,
+  isTestLike,
   verifyPartition,
 } from "./test-shard";
 
@@ -126,6 +127,9 @@ describe("discoverTestFiles", () => {
       expect(discoverTestFiles(root)).toEqual([...runs].sort());
       expect(runs.every(isTestFile)).toBe(true);
       expect(skipped.some(isTestFile)).toBe(false);
+      // Ordinary names are not test-like; hyphenated and plural ones are.
+      expect(["latest.ts", "contest.ts", "respec.ts"].some(isTestLike)).toBe(false);
+      expect(["foo-test.ts", "x.tests.ts"].every(isTestLike)).toBe(true);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
