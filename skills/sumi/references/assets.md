@@ -295,7 +295,7 @@ message gives the viewBox), and the usual `asset/*` codes located at the
 ```yaml
 - id: sample
   component: image
-  variant: framed                # default (no border) | framed (theme border)
+  variant: framed                # default (no border) | framed (theme border; `paper`: 0.5pt like its edges, other themes: their node frame)
   props:
     src: gradient.png            # relative to the YAML file
     height: 34pt                 # width or height (or both) is required

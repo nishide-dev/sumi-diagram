@@ -688,6 +688,16 @@ function markSample(entry: MarkedEntry, mark: NonNullable<MarkedEntry["mark"]>):
       markNode(`${row.id}-${entry.name}`, row.variant, `{ ${mark.prop}: ${row.value} }`);
       edge(row.id, `${row.id}-${entry.name}`);
     }
+    // The operator's bounded sizes (#311): the default row continues with a large and an xlarge operator.
+    if (entry.name === "operator") {
+      let from = `default-${entry.name}`;
+      for (const size of ["large", "xlarge"]) {
+        const id = `size-${size}-${entry.name}`;
+        markNode(id, "default", `{ ${mark.prop}: ${first}, size: ${size} }`);
+        edge(from, id);
+        from = id;
+      }
+    }
   } else {
     for (const v of entry.variants) {
       box(v, v);

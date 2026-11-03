@@ -46,6 +46,8 @@ import {
   rectsOverlap,
   regionIntersectsRect,
 } from "./shapes";
+import { verifyHints } from "./verified";
+import { widthBreakdown } from "./width";
 
 /**
  * Slack in SVG units (0.5pt) for D2's rounding: D2 writes shape coordinates
@@ -155,16 +157,9 @@ const listOptions = (options: readonly string[]): string =>
       : `${options.slice(0, -1).join(", ")}, or ${options[options.length - 1]}`,
   );
 
-/** Hint of `exceeds-page-width`: what makes this figure narrower, by engine and profile (#114). */
+/** Neutral print context; concrete remedies require verified trials (#307). */
 export function pageWidthHint(context: GeometryContext): string {
-  const layout = isStructured(context)
-    ? ["turn the widest `row` into a `stack` (or split it into several rows)", "reduce its `gap`"]
-    : isHorizontal(context)
-      ? ["lay it out top to bottom (layout.direction: down)"]
-      : ["place fewer nodes side by side (split a wide layer, or group its nodes)"];
-  const options = [...layout, "shorten long labels", ...profileAdvice(context, "width")];
-  const fit = `Or print it smaller as drawn with \`figure.fit: scale\` (its text must then print at ${formatPt(scaledMinFontSizePt(context.profile))} or more).`;
-  return `Sumi never shrinks a figure on its own. ${listOptions(options)}. ${fit}`;
+  return `Sumi never shrinks a figure on its own. Independent trial reductions are not additive. The minimum printed font size with \`figure.fit: scale\` is ${formatPt(scaledMinFontSizePt(context.profile))}.`;
 }
 
 /** Hint of `exceeds-page-height`: what makes this figure shorter, by engine and profile (#114). */
@@ -209,7 +204,7 @@ export const exceedsPageWidth = defineGeometryRule({
         message: `The figure is ${formatMm(width)} wide, more than the ${formatMm(profile.maxWidthPt)} maximum width of profile "${profile.id}".`,
         path: figurePath,
         subject: figureSubject(context),
-        hint: pageWidthHint(context),
+        hint: [widthBreakdown(context), pageWidthHint(context)].filter(Boolean).join(" "),
       },
     ];
   },
@@ -1545,9 +1540,15 @@ export const groupEmptyArea = defineGeometryRule({
           message: `${capitalize(group.name)} has ${(empty * 100).toFixed(1)}% empty bounding-box area (threshold 75%; edges excluded).`,
           path: group.docPath,
           subject: group.subject,
-          hint: isStructured(context)
-            ? "If unintended, use align: stretch on the enclosing row/stack and justify: stretch inside the stretched column/row, or justify: space-between for fixed-size items. Reduce explicit gaps or avoid stretching the panel itself to tighten title/caption spacing. Whitespace can be intentional; this is information only."
-            : "Whitespace can be intentional. If needed, use structured row/stack layout with align: stretch and justify: stretch (or space-between), or adjust grouping and gaps.",
+          hint: `Whitespace can be intentional; this is information only. ${verifyHints(
+            context,
+            "empty",
+            (trial) => {
+              const target = trial.get(group.key);
+              const value = target ? groupEmptySpace(trial, target) : undefined;
+              return value !== undefined && value >= GROUP_EMPTY_SPACE_THRESHOLD ? value : 0;
+            },
+          )}`,
         },
       ];
     });
