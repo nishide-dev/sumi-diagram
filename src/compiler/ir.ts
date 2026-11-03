@@ -195,6 +195,8 @@ interface ElementIRBase {
 
 /** See {@link ElementIRBase.tokens} and {@link ElementIRBase.matrix}. */
 export interface TokensCellIR {
+  /** Written zero-based line index for tokens using `lines`, even singleton runs. */
+  readonly line?: number;
   /** A dotted separator cell (#216), drawn within its reserved box. */
   readonly separator?: "vertical" | "horizontal";
   /** The ID of the tokens node (which names no element of its own), or of the matrix. */
@@ -834,6 +836,7 @@ function tokensCellOf(doc: PartialFigure, key: ElementKey): { tokens?: TokensCel
       variant,
       name: origin.name,
       fields: freeze({ ...fields }),
+      ...(cell?.path[3] === "lines" && { line: cell.path[4] as number }),
       ...(cell?.separator !== undefined && { separator: cell.separator }),
     }),
   };
