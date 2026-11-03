@@ -14,6 +14,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+env:
+  # Number of test shards per OS; keep in step with the `shard` matrix of the
+  # test job (scripts/test-shard.test.ts checks this).
+  TEST_SHARDS: 4
+
 # Third-party actions are pinned by full commit SHA (tag in the comment).
 jobs:
   # Platform-independent checks: run once.
@@ -46,6 +51,10 @@ jobs:
       - name: Typecheck
         run: bun run typecheck
 
+      # Every test file is in exactly one shard of the test job (#320).
+      - name: Test shards cover every test file
+        run: bun scripts/test-shard.ts --check "$TEST_SHARDS"
+
       - name: JSON Schema up to date
         run: bun run schema:check
 
@@ -61,18 +70,21 @@ jobs:
   # SVG goldens of the examples and the gallery, so rendering determinism is
   # checked on both platforms. assets.integration.test.ts also compares HTML
   # SVG/PDF/picture PPTX against the same committed SHA-256 goldens (#294).
+  #
+  # The suite runs in TEST_SHARDS shards per OS (#320). scripts/test-shard.ts
+  # balances the files by the durations in scripts/test-durations.json; the
+  # "Test shards" step of the static job fails if a file would be in no shard or
+  # in two, and scripts/test-shard.test.ts fails if this matrix and TEST_SHARDS
+  # disagree. "Test" below is the single aggregate result of all shards.
   test:
-    name: Test (${{ matrix.os }})
+    name: Test (${{ matrix.os }}, shard ${{ matrix.shard }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-latest
-            coverage: true
-          - os: macos-latest
-            coverage: false
+        os: [ubuntu-latest, macos-latest]
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -109,12 +121,107 @@ jobs:
           bun src/cli/index.ts doctor
           bun src/cli/index.ts doctor --json
 
+      # Coverage is collected on Linux only (a table per shard, no threshold);
+      # the "Coverage (merged)" job sums the shards' lcov reports.
       - name: Test (including HTML cross-platform goldens)
-        run: bun run test ${{ matrix.coverage && '--coverage' || '' }}
+        env:
+          COVERAGE: ${{ runner.os == 'Linux' && '1' || '' }}
+        run: |
+          # Paths contain no spaces; macOS ships bash 3.2, so no mapfile.
+          files="$(bun scripts/test-shard.ts "${{ matrix.shard }}/$TEST_SHARDS")"
+          echo "Shard ${{ matrix.shard }}/$TEST_SHARDS: $(echo "$files" | wc -l | tr -d ' ') test files"
+          if [ -n "$COVERAGE" ]; then
+            # shellcheck disable=SC2086
+            bun run test --coverage --coverage-reporter=text --coverage-reporter=lcov --coverage-dir=coverage $files
+          else
+            # shellcheck disable=SC2086
+            bun run test $files
+          fi
 
-      # Re-renders docs/gallery/ and examples/*/*.svg; fails if they are stale.
+      - name: Keep the shard's lcov report
+        if: runner.os == 'Linux' && !cancelled()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-shard-${{ matrix.shard }}
+          path: coverage/lcov.info
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # Line coverage of the whole suite, merged from the Linux shards (a shard
+  # alone only sees the files its tests import). Informational, no threshold.
+  coverage:
+    name: Coverage (merged)
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: .bun-version
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: coverage-shard-*
+          path: coverage-shards
+
+      - name: Merge lcov reports
+        run: bun scripts/merge-lcov.ts coverage-shards
+
+  # Re-renders docs/gallery/ and examples/*/*.svg on each OS and fails if they
+  # are stale. Independent of the test shards, so it runs beside them.
+  gallery:
+    name: Gallery and examples (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: .bun-version
+
+      - name: Cache Bun packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('bun.lock') }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Cache D2
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .sumi/bin
+          key: d2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('src/backends/d2/version.ts') }}
+
+      - name: Install D2
+        run: bun run d2:install
+
       - name: Gallery and examples up to date
         run: bun run gallery:check
+
+  # One result for all test shards of both OSes, so the checks list (and anything
+  # waiting on it) has a single "Test" to look at.
+  test-result:
+    name: Test
+    if: always()
+    needs: [test, gallery]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: All shards and the gallery check passed
+        env:
+          RESULTS: ${{ needs.test.result }} ${{ needs.gallery.result }}
+        run: |
+          echo "test, gallery: $RESULTS"
+          [ "$RESULTS" = "success success" ]
 
   # The independent Open XML SDK is test-only, never bundled with the CLI.
   pptx-schema:
