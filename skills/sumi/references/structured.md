@@ -1,59 +1,61 @@
 # Structured layout
 
-Sumi has two layout engines. **auto** (the default) hands the figure to
-D2 + ELK, which place everything along one `direction`. **structured** places
-elements exactly where you put them in nested stacks and rows and routes the
-edges itself (orthogonal lines, shared trunks). It is newer than the
-0.3 releases: if `sumi lint` reports `schema/unknown-field` for `arrange`
-(and `sumi catalog --kind node` lists no `operator` / `junction`), the
-installed CLI predates it — tell the user and use auto instead. Group
-`labelAt` and `caption`, edge `labelAt` / `labelSide`, `figure.layout.align`,
-`figure.layout.fanIn` and the `legend` component came later (0.5.0; the
-examples that use them say `requires: ">=0.5.0"`): if `lint` reports
-`schema/unsatisfied-requires`, `schema/unknown-field` for them or
-`component/unknown` for `legend`, the CLI predates them — drop `requires`
-and fall back to the older ways noted below. The paper-figure fields of
-0.6.0 — `sublabel`, `labelRotation`, `straight` anchors,
-`figure.layout.density`, and the `zoom`, `tokens` and `matrix` components
-(also `figure.fit`, `dim`, the `paper` theme and the `filled` / `outlined` /
-`plain` / `dashed` variants, which work in both engines) — likewise report
-`schema/unknown-field`, `component/unknown` or `component/unknown-variant`
-on an older CLI: each section below names the fallback. Write
-`requires: ">=0.6.0"` only when `sumi --version` prints 0.6.0 or later.
+**Purpose.** The structured layout places every element exactly where you
+put it, in nested stacks, rows and grids, and routes the edges itself
+(orthogonal lines, shared trunks). Use it for paper block diagrams; for
+flows use auto ([layout-tips](layout-tips.md#choose-the-engine-first)).
+Everything on this page is **structured only** unless it says otherwise.
+Feature versions and what to do on an older CLI:
+[figure-format](figure-format.md#feature-versions).
 
-## Which engine
+Contents: [minimal example](#minimal-example) · [engine rules](#engine-rules) ·
+[arrange trees](#arrange-trees) · [grids](#grids) · [panel separators](#panel-separators) ·
+[group titles and captions](#group-titles-and-captions) · [sublabels](#sublabels) ·
+[turned labels](#turned-labels) · [text align](#text-align) · [attach](#attach-side-notes) ·
+[align](#aligning-across-trees) · [tables](#tables) ·
+[edges](#edges-anchors-junctions-and-trunks) · [crossings](#crossings-layoutedge-crossing) ·
+[legends](#legends) · [zoom](#zoom-callouts) · [brackets](#brackets) ·
+[tokens](#token-sequences) · [matrices](#matrices) · [spacing](#spacing-that-routes) ·
+[fixing layout codes](diagnostics.md#fixing-layout)
 
-Corner attachments (0.7.0) use `attach: { to: frame, side: south-east,
-gap: 1mm }`. The other corners are `north-east`, `south-west`, `north-west`.
-The attached node lies outside both sides, with the specified gap on each
-axis; this differs from a [badge](assets.md#corner-badges-070), which is
-centered on the corner. Edge anchors still accept only the four sides.
+## Minimal example
 
-| Figure | Engine |
-| --- | --- |
-| Flowcharts, pipelines, decision flows, state or dependency graphs, architecture overviews whose positions do not matter | auto (`figure.layout.direction`) |
-| Paper block diagrams: stacked layers, residual connections, columns that must line up, blocks of equal width, side notes (`N×`), operators (⊕) on the main path | structured (`figure.layout.arrange`) |
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: minimal-structured
+  theme: paper
+  layout:
+    arrange:                    # its presence makes the figure structured
+      stack: { direction: up, gap: 4mm, items: [ x, block, y ] }   # first item at the bottom
+nodes:
+  - { id: x, component: label, label: $x$ }
+  - { id: block, component: box, label: Layer Norm, tone: blue, variant: filled }
+  - { id: y, component: label, label: $y$ }
+edges:
+  - { from: x, to: block }
+  - { from: block, to: y }
+```
 
-`figure.layout.engine` (`auto` | `structured`) picks the engine; leave it
-out and **a figure with `figure.layout.arrange` is structured, one without
-it auto** — so `engine` is not needed. An explicit `engine: auto` wins over
-`arrange`. Under auto, the structured-only fields (`figure.layout.arrange`,
-`align`, `fanIn` and `density`, `groups[].arrange`, `nodes[].attach` / `sublabel` / `labelRotation` / `textAlign`,
-`edges[].fromAnchor` / `toAnchor` / `labelAt` / `labelSide`) and the
-`legend` component are errors (`layout/structured-only`): remove them, or
-switch the figure to structured (root `arrange`, no `engine: auto`, every
-element placed). Group `labelAt` and `caption` work in both engines.
-`figure.layout.direction` is ignored by structured (each box has its own).
+## Engine rules
 
-What differs in practice:
+`figure.layout.engine` (`auto` | `structured`) is rarely needed: **a figure
+with `figure.layout.arrange` is structured, one without it auto**; an
+explicit `engine: auto` wins. Under auto, every structured-only field
+(`arrange`, `align`, `fanIn`, `density`, `attach`, `sublabel`,
+`labelRotation`, `textAlign`, `grow`, `fromAnchor` / `toAnchor`, edge
+`labelAt` / `labelSide`, and the `legend`, `tokens`, `matrix`, `bracket`,
+`separator` and `zoom` components) is `layout/structured-only`: remove it or
+make the figure structured. Group `labelAt` and `caption`, icons, images,
+tones, `operator`, `junction`, `dim` and the paper variants work in both.
 
-- **Every node and group must be placed exactly once**: listed in one
-  arrange tree, or attached with `attach`. Nothing is placed for you.
-- Label math (`$...$`) is drawn only in structured figures
-  ([figure-format](figure-format.md#labels)).
-- Rendering does not use D2 (`sumi render` works without it), so
-  `--emit-d2` is refused (exit 2). `geometry/reversed-edge` is not checked.
-- Icons, images, tones, `operator` and `junction` work in both engines.
+- **Every node and group must be placed exactly once**: in one arrange tree
+  or with `attach`. Nothing is placed for you.
+- `figure.layout.direction` is ignored (each box has its own).
+- Label math (`$...$`) is drawn only here ([label math](figure-format.md#label-math)).
+- No D2 is needed (`sumi render` works without it); `--emit-d2` is refused
+  (exit 2) and `geometry/reversed-edge` is not checked.
 
 ## Arrange trees
 
@@ -61,8 +63,8 @@ What differs in practice:
 figure:
   layout:
     arrange:                   # root tree: places the root elements
-      row:                     # a box is exactly one of stack (vertical) or row (horizontal)
-        gap: 6mm               # space between items; default 4mm (8mm on slides; 2.5mm with density: compact)
+      row:                     # a box is exactly one of stack (vertical) / row (horizontal) / grid
+        gap: 6mm               # default 4mm (8mm on slides; 2.5mm with density: compact)
         align: end             # start | center | end | stretch (cross axis)
         items:                 # IDs of nodes / groups, or nested boxes
           - stack: { direction: up, items: [ a, b, c ] }
@@ -74,67 +76,106 @@ groups:
       stack: { gap: 3mm, align: stretch, items: [ d, e ] }
 ```
 
-- `stack` lays items top to bottom (`direction: down`, default) or bottom to
-  top (`up`: the first item is at the bottom, like a network drawn from
-  input to output). `row` lays items left to right (`right`, default) or
-  right to left (`left`).
-- `gap`: a length with a unit (`3mm`, `6pt`) or `0` (items touch — e.g. a
-  block and its `Add & Norm` drawn as one unit; do not connect touching
-  items with an edge, see `layout/no-route` below).
-- `align` places items across the box: in a stack `start` = left, in a row
-  `start` = top. `stretch` makes items as wide (stack) or tall (row) as the
-  widest: boxes, groups and box-like nodes stretch; `label`, `circle`,
-  `square`, `trapezoid`, `stack`, `operator`, `junction` and nodes with an
-  explicit size on that axis are centered instead. Nested boxes of the
-  same kind inherit `align`; other boxes start at `center`.
-- A side column next to a tall stack: put both in a `row` and pick the
-  row's `align` (`center` to center it vertically, `end` to line up the
-  bottoms).
-- To fill a short column beside a matrix, set the enclosing row's `align:
-  stretch` and the column stack's `justify: stretch`. Extra height is added
-  by relative weights (equal by default) to resizable items, keeping the written
-  `gap`. In a wide row
-  inside a stretching stack, it grows widths. `justify` does **not** inherit
-  and has no effect at natural size; omitted or `center` keeps the old
-  centred placement. Explicit sizes on the growing axis, fixed-aspect
-  shapes, text and other custom outlines stay fixed. Bowtie (including
-  `props.gap`), trapezoid (every `narrow` direction), and badged boxes can grow;
-  trapezoids preserve their natural slant inset to keep labels clear. An explicit
-  main-axis size still prevents growth. Optional `nodes[].grow` (positive number,
-  at most 1000; default 1) weights **extra** space under the immediate box's
-  `justify: stretch`, not final sizes; e.g. `grow: 0.6` receives 60% of the extra
-  space of an unweighted sibling before rounding. Whole 0.5pt increments use
-  largest remainders, ties in visual order (also up/left). A fractional increment
-  left by gaps/extents stays as centered padding, preserving the frame and gaps.
-  It does not inherit or override fixed sizes; it has no effect at natural size,
-  under other justification modes, in grid/attach or on non-stretchable shapes.
-  Expanded tokens, matrix and legend reject `grow` with a located
-  `component/grow-unsupported` error; groups and layout boxes use weight 1.
-  `justify: space-between` instead leaves sizes unchanged and spreads extra
-  room between items (one item stays centred). Neither option is accepted
-  on `grid`. For tighter title/caption spacing, avoid stretching the panel
-  to an unrelated sibling: use `align: start` there and stretch only its
-  inner columns. Axis labels can attach above/below the matrix outside the body row.
+- `stack` runs top to bottom (`direction: down`, default) or bottom to top
+  (`up`: the first item is at the bottom, like a network drawn from input to
+  output). `row` runs left to right (`right`, default) or right to left (`left`).
+- `gap`: a length with a unit or `0` (items touch, e.g. a block and its
+  `Add & Norm`; never connect touching items with an edge: `layout/no-route`).
+- `align` places items across the box (stack: `start` = left; row: `start` =
+  top). `stretch` widens (stack) or heightens (row) boxes, groups and
+  box-like nodes to the largest; `label`, `circle`, `square`, `trapezoid`,
+  `stack`, `operator`, `junction` and nodes with an explicit size on that axis
+  are centred instead. Nested boxes of the same kind inherit `align`; others
+  start at `center`.
+- A side column next to a tall stack: both in a `row`, then the row's `align`
+  (`center`, or `end` to line up the bottoms).
 - **An item belongs to the owner of the tree**: items of `groups[].arrange`
-  are members of that group, items of the root tree are at the root. Do not
-  also write `group:` (if you do, it must match, else `layout/group-mismatch`).
-  A group is placed as one item in its parent's tree.
-- To line up elements of **different** trees (a skip connection drawn
-  straight across two columns), use [`align`](#aligning-across-trees), not
-  `gap` tweaks.
+  are members of that group; root items are at the root. Do not also write
+  `group:` (a mismatch is `layout/group-mismatch`). A group is one item in its
+  parent's tree.
+- Elements of **different** trees on one line: [`align`](#aligning-across-trees), not `gap` tweaks.
 
-## Panel separators (0.12.0)
+**Filling extra height: `justify` and `grow`.** To fill a short column beside a
+matrix set the row's `align: stretch` and the column stack's `justify: stretch`:
+extra height goes to resizable items by relative weight (equal by default),
+keeping the written `gap` (in a wide row inside a stretching stack it grows
+widths). `justify` does not inherit, does nothing at natural size, and is not
+accepted on `grid`; omitted or `center` keeps centred placement. Explicit sizes
+on the growing axis, fixed-aspect shapes, text and custom outlines stay fixed;
+bowtie, trapezoid and badged boxes can grow. `nodes[].grow` (number > 0, at most
+1000, default 1) weights the **extra** space under the immediate box's `justify:
+stretch` (`grow: 0.6` gets 60% of an unweighted sibling's extra); whole 0.5pt
+increments by largest remainders (ties in visual order), a fractional leftover
+stays as centred padding; no effect at natural size, under other modes, in
+grid/attach or on non-stretchable shapes. Expanded `tokens`, `matrix`, `legend`
+reject it (`component/grow-unsupported`). `justify: space-between` keeps sizes
+and spreads extra room between items (one item stays centred). For tighter
+title/caption spacing do not stretch a panel to an unrelated sibling: use
+`align: start` there and stretch only its inner columns.
 
-Use `separator` between panels instead of hidden junctions and a dashed `line`.
-It spans its enclosing row's height (vertical line) or stack's width
-(horizontal line), even with `align: start` / `center` / `end`. Nested boxes
-and reversed directions work too. It adds no size of its own; use the box's
-`gap` for whitespace on each side. Variants: `default` / `dashed` (dashed),
-`solid`. `tone` colors the line. No props, label, sublabel, badge, rotation or `grow`.
-It is decoration, excluded from geometry lint, not an edge endpoint.
-Place it directly in a row or stack, not with `attach` or directly in a grid.
+## Grids
+
+A grid keeps rows and columns lined up (tables, patch grids, rows of equal columns):
 
 ```yaml
+arrange:
+  grid:
+    columns: 4
+    rowGap: 6mm
+    columnGap: 4mm
+    align: start
+    items: [ dataset, sample, augment, augmented, model, loss, { item: optimizer, span: 2 } ]
+```
+
+- Items fill left to right, then top to bottom; `direction` is not accepted.
+  An item is an ID, a nested stack / row / grid, `null` (YAML `~`), or
+  `{ item: ID-or-box-or-null, span: N }` (spans cover columns only).
+- **Every row must be complete**: crossing a row boundary is
+  `layout/grid-span-overflow`, an incomplete last row `layout/grid-item-count`.
+  Empty lists and strings are invalid. A deliberate blank cell is `null` (or
+  `{ item: null, span: N }`): zero size, no node, obstacle or net endpoint,
+  edges may pass through; a hidden junction is not a blank cell.
+  `fmt --canonical-order` writes blanks as `null`.
+- Column widths are the widest single-cell item; a spanning deficit is shared
+  equally among its columns. Row heights are the tallest item (items are always
+  vertically centred). `align` (`start` / `center` default / `end` / `stretch`)
+  places items horizontally in each cell; stretch changes resizable widths
+  only. Grid alignment is not inherited. Omitted gaps use the profile's arrange
+  gap (compact density included). Extra room centres the whole grid.
+- Cells take no `align` struts (nested stack / row boxes and ancestors still
+  can): to align a grid cell vertically with something in another tree, wrap
+  it (`{ stack: { items: [cell] } }` for `y`, a row for `x`). Sumi suggests
+  the wrapper only after a trial layout shows it removes the diagnostic. Cells
+  of the same grid are tracks of that grid: no wrapper separates them, so put
+  them in the same grid row (`y`) or column (`x`). `layout/unsatisfied-align`
+  names this limit.
+
+**Span does not imply stretch.** `{ item: projection, span: 9 }` reserves nine
+columns, but with the default `align: center` the box keeps its natural width. For
+a box that must cover the columns below it set **`align: stretch` on the grid** and
+leave `props.width` unset (fixed-width and non-resizable components, e.g. circles,
+keep their width). `straight` lines up an endpoint but does not widen the box; if
+outer columns miss its sides `layout/straight-off-side` (sometimes `layout/no-route`)
+explains the span / natural-width cause, and recommends stretch or removing
+`props.width` only after an in-memory trial confirmed it (else neutral wording).
+Put `straight` at the wide box's end and check the routes.
+
+## Panel separators
+
+`component: separator` divides panels instead of hidden junctions plus a
+dashed `line`. It spans its enclosing row's height (vertical line) or
+stack's width (horizontal line), also with `align: start` / `center` /
+`end`, nested boxes and reversed directions. It adds no size: use the box's
+`gap` for whitespace on each side. Variants `default` / `dashed` (dashed) and
+`solid`; `tone` colours it. No props, label, sublabel, badge, rotation or
+`grow`. It is decoration (no geometry-lint obstacle, no edge endpoint:
+`component/separator-connection`) and goes directly in a row or stack, not
+`attach`ed or in a grid (`component/separator-placement`). For panels above
+and below use an outer `stack`. A complete two-panel figure with titles is
+the [panel recipe](layout-tips.md#two-panels-with-a-dashed-divider).
+
+```yaml
+# expect-render: fits
 version: 1
 figure:
   id: two-panels
@@ -153,103 +194,23 @@ edges:
   - { from: a, to: b }
 ```
 
-For panels above and below, change the outer `row` to `stack`. Check
-`sumi catalog separator --json` and `sumi --version` first: on an older CLI,
-`component/unknown` means the component is unavailable; use the older
-hidden-junction/line construction only as a fallback.
-
-## Grids
-
-Use a grid for rows whose columns must line up (structured only):
-
-```yaml
-arrange:
-  grid:
-    columns: 4
-    rowGap: 6mm
-    columnGap: 4mm
-    align: start
-    items: [ dataset, sample, augment, augmented, model, loss, { item: optimizer, span: 2 } ]
-```
-
-Items fill left to right, then top to bottom; `direction` is not accepted.
-An item is an ID, a nested stack / row / grid, `null` (also YAML `~`), or
-`{ item: ID-or-box-or-null, span: N }`.
-Spans cover columns only (default 1). Every row must be complete: crossing a
-row boundary is `layout/grid-span-overflow`; an incomplete final row is
-`layout/grid-item-count`. Empty lists and empty strings are invalid.
-Use explicit `null` for a deliberate blank cell, or `{ item: null, span: N }`
-for several columns. Blanks have zero natural size and produce no node,
-routing obstacle or net endpoint; edges can pass through them. A hidden
-junction has routing/net semantics and is not an empty cell.
-`fmt --canonical-order` writes blank cells as `null`, including inside wrappers.
-
-Single-cell widths set column maxima; spanning deficits are shared equally
-among their columns in document order. Row heights are their tallest items.
-`align` controls horizontal start / center (default) / end / stretch inside
-each cell; items are vertically centered. Stretch changes resizable widths
-only, following stack's rules. Grid alignment is not inherited. Both omitted
-gaps use the profile's arrange gap, including compact density. Extra room
-centers the whole grid without changing tracks. Grid cells take no align
-struts; nested stack / row boxes and ancestor boxes still can.
-Cells are always vertically centered, including with `align: start/end/stretch`.
-Direct grid cells cannot be top/bottom aligned via `figure.layout.align`;
-use nested linear (stack / row) wrappers when vertical alignment needs struts.
-On an older CLI that rejects `grid`, use rows inside a stack and, if needed,
-cross-tree `align` constraints.
-
-**Span does not imply stretch.** A `{ item: projection, span: 9 }` reserves
-nine columns, but with the default `grid.align: center` the box keeps its
-natural width in the middle of them. For a projection / encoder that must
-cover the columns below it, set **`align: stretch` on that grid**, and leave
-the box's `props.width` unset. Fixed-width and non-resizable components
-(e.g. circles, labels and custom outlines) keep their width even then.
-`fromAnchor: straight` / `toAnchor: straight` lines up an edge endpoint;
-it does not widen the box. If outer columns miss its sides,
-`layout/straight-off-side` (and sometimes `layout/no-route`) explains the
-span / natural-width cause. Sumi recommends stretch or removing `props.width`
-only after applying that edit to an in-memory copy and re-running structured
-layout and routing: both endpoints can move. Trials are bounded (at most six
-per diagnostic) and skipped for large figures. When no edit verifies, the hint
-stays neutral. Auto/D2 figures never run trial renders.
-Intrinsic non-resizability takes precedence over an explicit width: removing
-`props.width` does not make a circle stretch. Put `straight` at the wide
-box's end; check the rendered routes after stretching.
-
-**Cross-tree align cannot insert space directly in a grid cell.** If a
-`y` constraint between a cell and an item in another stack stays unmet,
-being in different branches is not sufficient: the cell has no strut
-position. In the reported start-aligned arrangement, adding space cannot move
-the lower branch upward. This is not universal: trailing space can move an
-item upward within an end-aligned parent and satisfy alignment without a
-wrapper. Sumi recommends a wrapper (`{ stack: { items: [cell] } }` for `y`,
-a row for `x`; the cell, all cells, or the whole grid) only after a trial
-layout shows that it removes the diagnostic; re-run lint after applying it.
-Cells of the same grid are tracks of that grid: no wrapper separates them, so
-put them in the same row (`y`) or column (`x`) of the grid, or use another constraint. Also check
-competing constraints. `layout/unsatisfied-align` names this grid limitation.
-
 ## Group titles and captions
 
-A group's `label` (its title) sits at the **top centre** inside the border,
-in a band above the members. An edge entering the group from above near
-the title is routed around it: it detours and its arrowhead ends just under
-the title (or crosses it, `geometry/edge-crosses-label`). Move the title
-with **`labelAt`**: `top-left`, `top` (default), `top-right`, `bottom-left`,
-`bottom` or `bottom-right` — always inside the border; at `bottom*` the
-band is below the members. Pick a place no edge enters: `bottom` for a
-group entered from above, the corner away from the entering edges
-otherwise. A corner helps only when the title is narrow: a title wider
-than about half the group still covers the centre, and the edge detours
-**without any diagnostic** — look at the preview. `labelAt` without a
-`label` gets `component/label-at-without-label` (warning).
+A group's `label` sits at the **top centre** inside the border. An edge entering from above
+near it detours around it, ending just under it (or crosses it: `geometry/edge-crosses-label`).
+Move it with **`labelAt`**: `top-left`, `top` (default), `top-right`, `bottom-left`, `bottom`,
+`bottom-right` (always inside the border), choosing a place no edge enters (`bottom` for a
+group entered from above). A corner helps only for a narrow title: one wider than about half
+the group still covers the centre and the edge detours **without any diagnostic**: look at
+the preview. `labelAt` without a `label` is `component/label-at-without-label`. Both `labelAt`
+and `caption` work in auto figures too (default place `top-left`; at `bottom*` D2 still leaves
+the space at the top, and edges leaving the group downwards cross its caption).
 
-**Attachments and title centring.** A title is positioned relative to the
-**whole group frame**, including attached members, even with `variant: plain`.
-An input attached west of a member widens that frame, so its centred title
-moves left of the arranged body's centre. To title only the body, give it an
-inner group and attach the input to that group (a sibling, not a member of it).
-An untitled outer group can hold both as one panel:
+**Attachments and title centring.** The title is centred on the **whole group
+frame**, attached members included, even with `variant: plain`: an input
+attached west widens the frame and the title moves left of the body's centre.
+To title only the body give it an inner group and attach the input to that
+group (a sibling); an untitled outer group holds both as one panel:
 
 ```yaml
 # expect-render: fits
@@ -274,73 +235,27 @@ edges:
   - { from: input, to: block }
 ```
 
-**`caption`** puts text centered **under** the group's border, outside it,
-like a sub-figure caption (`(a) …`): line breaks and label math as in a
-node label; the position is fixed. It is drawn as a label node with the
-reserved ID `<group>-caption` (a node or group of yours with that ID is
-`ref/reserved-id`); diagnostics about it point at `caption`. Edges cannot
-end on it; a node attached `south` of the group goes under the caption.
+**`caption`** puts text centred **under** the border, outside it (`(a) …`; line breaks
+and math as in a label; fixed position). It is a label node with the reserved ID
+`<group>-caption` (`ref/reserved-id`); diagnostics point at `caption`; edges cannot end on
+it; a node attached `south` goes under it. The router treats it as an obstacle, so **an
+edge between a member and an element below the group can detour around it** (inputs from
+below with `direction: up` as well), with no diagnostic (at most `geometry/edge-on-border`):
+look at the preview. `toAnchor: west` on the member does not help; put the caption on an
+outer group that also holds the other end (`variant: plain` hides its border), or place
+the other end beside the group (a `row`) so the edge crosses a side.
 
-The router treats the caption as an obstacle, so **an edge between a
-member and an element below the group can detour around the caption**
-when the caption blocks its route (out to the side and back under the
-border) — an input entering from below (`direction: up`) as well as an
-output leaving downwards. No diagnostic names the caption (at most
-`geometry/edge-on-border` where the detour runs along the border): look
-at the preview. In a centred stack (member, caption and the other end on
-one vertical), a `toAnchor: west` on the member does not help. If it detours, put the caption on an outer group that
-also holds the other end (a panel around input, block and output, below;
-it draws its own border; `variant: plain` hides it), or place the other end beside the group (a
-`row`) so the edge crosses a side.
-
-**Panels of equal height.** Put the panels (groups with captions) in one
-`row` with `align: stretch`: every group grows to the tallest, so the
-captions sit on one line. A panel drawn without a frame next to framed
-ones is a group with `variant: plain` and a `caption`, not a stack with a
-`label` node under it (the stack grows too, but its items, the label
-included, are centred in the extra height, so that "caption" does not
-line up with the others). Inside a stretched group the tree is likewise
-**centred vertically**: the extra height is split above and below the
-content. To sit the content at the bottom (inputs on one line across
-panels), make the group's tree a `row` with `align: end` around the stack
-(the row grows to the group's height and puts the stack at its bottom):
-`arrange: { row: { align: end, items: [ { stack: { direction: up, items: […] } } ] } }`
-([example 6](examples.md#6-success-a-paper-figure)).
+**Panels of equal height.** Panels (groups with captions) in one `row` with `align:
+stretch` grow to the tallest so captions share a line. A frameless panel next to framed
+ones is a group with `variant: plain` and a `caption`, not a stack with a `label` node
+under it (its items are centred in the extra height). A stretched group's tree is
+**centred vertically**; to sit content at the bottom make the tree a `row` with `align:
+end` around the stack: `arrange: { row: { align: end, items: [ { stack: { direction: up,
+items: […] } } ] } }` ([example 6](examples.md#6-success-a-paper-figure)).
 
 ```yaml
 # expect-render: fits
 version: 1
-requires: ">=0.5.0"
-figure:
-  id: caption-panel
-  theme: academic
-  profile: paper-single
-  layout:
-    arrange:
-      stack: { items: [ panel ] }
-groups:
-  - id: panel                    # the caption sits under x, not between x and the block
-    caption: (a) one block
-    arrange:
-      stack: { direction: up, gap: 3mm, items: [ x, block, y ] }
-  - id: block
-    arrange:
-      stack: { direction: up, gap: 3mm, items: [ norm, attn ] }
-nodes:
-  - { id: x, component: label, label: $x$ }
-  - { id: norm, component: box, label: Layer Norm }
-  - { id: attn, component: box, label: Attention }
-  - { id: y, component: label, label: $y$ }
-edges:
-  - { from: x, to: norm }
-  - { from: norm, to: attn }
-  - { from: attn, to: y }
-```
-
-```yaml
-# expect-render: fits
-version: 1
-requires: ">=0.5.0"
 figure:
   id: group-title
   theme: academic
@@ -364,30 +279,18 @@ edges:
   - { from: model, to: loss }
 ```
 
-Both fields also work in auto figures (there the default title place is
-`top-left`; at `bottom*` D2 still leaves the title's space at the top, and
-edges leaving a group downwards cross its caption). With a CLI older than
-0.5.0, leave out the group's `label` and `attach` a `label` node beside
-the group instead.
-
 ## Sublabels
 
-**`sublabel`** on a node draws a second, smaller text right under its label,
-e.g. a tensor size under its name (`label: Noise, sublabel: "32 × 32 × 4"`).
-It is drawn at 7/8 of the label's font size, rounded down to 0.5pt (7pt
-under 8pt; 14pt under 16pt in `slides`), centered under the label, and the
-node is sized around both. Line breaks and label math work as in labels.
-Use it for a secondary line that should read smaller; a plain second line
-of the same size is just `\n` in the label. Two sizes only. With
-`labelRotation`, label and sublabel turn together. Structured only
-(`layout/structured-only` under auto); it needs a label
-(`component/sublabel-without-label`), and an `icon`, `operator`,
-`junction`, `image` or `legend` takes none
-(`component/sublabel-unsupported`). The sublabel's size is checked like
-any text: `profile/font-too-small` and, in a figure shrunk by
-`figure.fit: scale`, `geometry/text-too-small` at its printed size (7pt
-shrunk to 70% prints at 4.9pt). New in 0.6.0: an older CLI reports
-`schema/unknown-field` — write the text as a second label line instead.
+**`sublabel`** draws a second, smaller text right under a node's label, e.g.
+a tensor size (`label: Noise, sublabel: "32 × 32 × 4"`): 7/8 of the label's
+size rounded down to 0.5pt (7pt under 8pt; 14pt under 16pt in `slides`),
+centred, the node sized around both. Line breaks and math work as in labels;
+with `labelRotation` both turn together. It needs a label
+(`component/sublabel-without-label`); an `icon`, `operator`, `junction`,
+`image` or `legend` takes none (`component/sublabel-unsupported`). It is
+checked like any text: `profile/font-too-small`, and under `figure.fit: scale`
+`geometry/text-too-small` at its printed size (7pt shrunk to 70% prints 4.9pt).
+For a second line of the same size use `\n` in the label.
 
 ```yaml
 # expect-render: fits
@@ -406,17 +309,14 @@ edges:
 
 ## Turned labels
 
-**`labelRotation: -90`** on a node draws its label turned to read bottom to
-top (`90`: top to bottom), e.g. the title of a tall encoder box or a
-vertical axis label (`component: label`). Only `90` and `-90`; nodes only
-(not groups or edges). The node is sized around the turned text, so a
-`label` node becomes tall and narrow; with explicit `props.width` /
-`height`, `geometry/label-overflow` checks the turned text. Line breaks
-and label math turn with it. Structured only (`layout/structured-only`
-under auto); on an `icon`, `operator`, `junction`, `image` or `legend` it
-is `component/label-rotation-unsupported`, and without a label a warning
-(`component/label-rotation-without-label`). New in 0.6.0: an older CLI
-reports `schema/unknown-field` — leave it out.
+**`labelRotation: -90`** draws a node's label reading bottom to top (`90`: top
+to bottom): the title of a tall encoder box, a vertical axis label. Only `90`
+and `-90`; nodes only. The node is sized around the turned text (a `label`
+becomes tall and narrow); with explicit `props.width` / `height`
+`geometry/label-overflow` checks the turned text. Line breaks and math turn
+with it. On an `icon`, `operator`, `junction`, `image` or `legend` it is
+`component/label-rotation-unsupported`; without a label a warning
+(`component/label-rotation-without-label`).
 
 ```yaml
 # expect-render: fits
@@ -435,6 +335,24 @@ edges:
   - { from: vae, to: out }
 ```
 
+## Text align
+
+`textAlign: left | center | right` on a node aligns its label and sublabel
+lines within their shared, widest-line text block (default centred). It does
+not wrap text or change padding: add line breaks yourself. Typical use: left-aligned prompt boxes.
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: prompt-box
+  theme: paper
+  layout:
+    arrange: { stack: { items: [prompt] } }
+nodes:
+  - { id: prompt, component: box, label: "A photo of a cat\nsitting on a mat", textAlign: left, mono: true }
+```
+
 ## Attach: side notes
 
 ```yaml
@@ -443,48 +361,37 @@ edges:
 - { id: repeat, component: label, label: "N×", attach: { to: encoder, side: east, gap: 2mm } }
 ```
 
-`attach: { to, side, gap }` puts a node outside the trees, centered on the
-`side` (`north`, `east`, `south`, `west`) of a node or group, `gap` away
-(default 0). Attachments chain (`pe-label` → `pe` → `add`). An attached node
-belongs to the same group as its target, and that group (or the canvas)
-grows to hold it. Use it for labels beside a block, `N×` beside a group, an
-input feeding an operator from the side.
+`attach: { to, side, gap }` puts a node outside the trees, centred on the
+`side` of a node or group, `gap` away (default 0); chains work (`pe-label` →
+`pe` → `add`). The attached node joins its target's group, which (or the
+canvas) grows to hold it. Corner sides `north-east`, `south-east`,
+`south-west`, `north-west` place it outside both sides with the gap on each
+axis (a [badge](assets.md#corner-badges) is instead centred on the corner);
+edge anchors still take only the four sides. Use it for a label beside a
+block, `N×` beside a group, an input feeding an operator from the side.
 
-A `label` has no size choice: it is drawn at the theme's text size (`paper`:
-8pt; the theme's `small` / `heading` steps are only 7pt / 9pt, so a step would
-not make `L ×` stand out). When an annotation must be larger, draw it as an
-`html` leaf with an inline `font-size` (see [assets](assets.md); not supported
-by editable PPTX), or accept the theme size:
+A `label` has no size choice (the theme's text size; `paper`: 8pt). A larger annotation is
+an `html` leaf with an inline `font-size` ([html](html.md); not editable PPTX):
 
 ```yaml
 - { id: lx, component: html, props: { viewport: 40x20, width: 40pt, html: '<span style="font-family:var(--sumi-font);font-size:14px">L×</span>' } }
 ```
 
-**An attached node takes no space in the tree**: its neighbours are placed
-as if it were not there. Attached into the `gap` between two items of a
-stack or row, it can overlap the next item (`geometry/node-overlap`,
-`geometry/label-collision`) or blocks the edges that need that gap
-(`layout/no-route`). For example
-`{ id: op, component: operator, props: { symbol: plus }, attach: { to: a, side: south, gap: 1mm } }`
-with `a` and `b` in a stack with `gap: 3mm` draws the ⊕ on top of `b`.
-This is the current behaviour. Instead:
-
-- put the element **in the tree**, between the two items
-  (`items: [ a, op, b ]`, edges `a → op → b`): it gets its own place and
-  the gaps on both sides route;
-- or widen that `gap` beyond the attach `gap` plus the attached node's
-  size, and further if an edge must pass beside it (the ⊕ above needs
-  `gap: 7mm`).
-
-Attach on a side where no other item is placed (beside a stack, above or
-below a row).
+**An attached node takes no space in the tree**: neighbours are placed as if
+it were absent. Attached into the `gap` between two items it can overlap the
+next one (`geometry/node-overlap`, `geometry/label-collision`) or block the
+edges that need the gap (`layout/no-route`): e.g. a ⊕ attached `south` of `a`
+in a stack with `gap: 3mm` is drawn on top of `b`. Instead put the element **in
+the tree** between the two items (`items: [ a, op, b ]`, edges `a → op → b`), or
+widen that `gap` beyond the attach `gap` plus the node's size (more if an edge
+must pass beside it; the ⊕ above needs `gap: 7mm`). Attach on a side where no
+other item is placed (beside a stack, above or below a row).
 
 ## Aligning across trees
 
-Each box aligns only its own items. To put elements of different boxes on
-one line — a U-Net's concat ⊕ level with its encoder block so the skip
-runs straight, an encoder output level with the decoder block it feeds —
-list them in **`figure.layout.align`** instead of tuning `gap`s:
+Each box aligns only its own items. To put elements of different boxes on one
+line (a U-Net's concat ⊕ level with its encoder block so the skip runs
+straight) list them in **`figure.layout.align`** instead of tuning `gap`s:
 
 ```yaml
 figure:
@@ -495,52 +402,38 @@ figure:
       - { x: [ head, legend ], at: start } # same left edge: one vertical line
 ```
 
-- Each constraint is exactly one of `y: [ids]` (centres at one height;
-  `at: start` = tops, `at: end` = bottoms) or `x: [ids]` (centres on one
-  vertical; `start` = left edges, `end` = right edges), with at least two
-  node or group IDs (attached nodes too: they move with their target).
-- Sumi only **adds space** before or after items in a stack (for `y`) or
-  row (for `x`) that holds just one of them — never inside a `gap: 0` box,
-  so touching blocks stay touching. So it can align elements in different
-  branches — `y`
-  across stacks side by side in a row, `x` across rows in a stack — but
-  not two items of the same stack on `y`, nor of one stack on `x`. Two
-  items of one row on `y` (e.g. `at: start` to line up their tops) need a
-  stack around one of them: `items: [ a, { stack: { items: [ key ] } } ]`.
-  Put an element **in the tree** (not `attach`ed into a gap) when it
-  should take part.
-- A constraint it cannot meet is `layout/unsatisfied-align` (warning, from
-  `sumi render` / `lint --geometry`, not plain `lint`): the figure is drawn
-  with the closest placement; the message gives the distance left, the
-  hint whether the items cannot be moved apart (same box, `gap: 0`) or
-  another constraint pulls them away. `layout/align-search-limit`
-  (warning) means a figure with very many constraints stopped searching.
-- **Centring can couple constraints even when they share no IDs.** Adding
-  space to a centred branch shifts its other items too: closing one gap can
-  reopen two others. When the greedy search stalls, Sumi tries a bounded,
-  deterministic two-step lookahead: a pair is kept only if its combined
-  result reduces the original total residual. Both steps use the same search
-  budget. If this fallback still leaves a gap above the 0.01-layout-unit
-  tolerance, doubling the space or allowing more rounds does not necessarily
-  help. For table headings that the fallback cannot align, use `align: start`
-  on the parent `row` (for transposed tables, the parent `stack`) so the
-  headings can move down/right independently.
-  Check `lint --geometry` again; the warning still describes a real gap,
-  even if its distance rounds to `0.01mm`.
-- **`align` can enlarge the figure.** The added space also moves
-  everything after it and grows the enclosing boxes: aligning a small item
-  with one deep inside a tall branch can push that whole branch down and
-  leave a large empty band. When the figure grows by more than 5mm and
-  10% in width or height, render reports `layout/align-grew-figure`
-  (info) with the size before and after. If the growth is intended (a
-  U-Net level pushed down for a straight skip), keep it; otherwise align an
-  item that can move alone (wrap it in its own `stack` / `row`), bring the
-  two closer in the tree, or drop the constraint and use an anchor instead.
+- A constraint is exactly one of `y: [ids]` (centres at one height; `at: start`
+  = tops, `at: end` = bottoms) or `x: [ids]` (centres on one vertical; `start` =
+  left edges, `end` = right edges), with at least two node or group IDs
+  (attached nodes too: they move with their target).
+- Sumi only **adds space** before or after items in a stack (for `y`) or row
+  (for `x`) that holds just one of them, never inside a `gap: 0` box. So it
+  aligns elements in different branches (`y` across stacks side by side in a
+  row, `x` across rows in a stack), not two items of one stack on `y` nor of
+  one row on `x`. Two items of one row on `y` need a stack around one:
+  `items: [ a, { stack: { items: [ key ] } } ]`. Put the element **in the tree**
+  (not `attach`ed into a gap).
+- An unmeetable constraint is `layout/unsatisfied-align` (warning; from `sumi
+  render` / `lint --geometry`, not plain `lint`): the figure is drawn with the
+  closest placement; the message gives the distance left, the hint whether the
+  items cannot be moved apart (same box, `gap: 0`) or another constraint pulls
+  them away. `layout/align-search-limit` (warning): too many constraints.
+- **Centring can couple constraints that share no IDs** (space added to a centred
+  branch shifts its other items). Sumi tries a bounded two-step lookahead after the
+  greedy search; a gap above 0.01 layout units that survives it is not fixed by more
+  space: for table headings use `align: start` on the parent `row` (`stack` for
+  transposed tables) so they move down/right independently. The warning describes
+  a real gap even when its distance rounds to `0.01mm`.
+- **`align` can enlarge the figure**: the added space moves everything after it
+  and grows the enclosing boxes. When the figure grows by more than 5mm and 10%
+  render reports `layout/align-grew-figure` (info) with both sizes. Keep it if
+  intended (a U-Net level pushed down for a straight skip); otherwise align an
+  item that can move alone (wrap it in its own `stack` / `row`), bring the two
+  closer in the tree, or use an anchor instead.
 
 ```yaml
 # expect-render: fits
 version: 1
-requires: ">=0.5.0"
 figure:
   id: unet-skips
   theme: academic
@@ -587,25 +480,21 @@ edges:
   - { from: enc1, to: cat1, variant: dashed }
 ```
 
-The concat operators are items of the decoder stack (not attached), and
-the two `align` constraints push `enc1` and `enc2` down to their levels,
-so both dashed skips are single horizontal lines. The `key` legend is
-[below](#legends).
+The concat operators are items of the decoder stack (not attached), and the two
+`align` constraints push `enc1` and `enc2` down to their levels, so both dashed
+skips are single horizontal lines. The `key` legend is [below](#legends).
 
-### Tables: columns of stacks
+## Tables
 
-There is no grid box yet. A table-like block — the same kinds of element
-in rows (frames, keys, prompts, encoders) repeated in columns, with row
-headings on the left — is a `row` of **column stacks**, one per column,
-each listing that column's elements top to bottom; equal widths
-(`props.width`, or `align: stretch` in each column) keep the columns
-even, and an element below the row (a refiner spanning every column) goes
-in a stack around it. The headings are a stack of their own, lined up
-with the first column by `align`, one `y` constraint per heading. Put the
-root row at **`align: start`**: `align` only adds space, so the headings
-must start above their rows to be pushed down; centred, Sumi pushes the
-first column down instead and the table's rows no longer line up. A
-tokens node takes part through one of its cells (`k0.1`) or as a whole (`k0`).
+A table-like block (rows of the same kinds of element repeated in columns,
+with row headings) is a [grid](#grids): headings in the first column, one
+column per repeated unit, a `null` cell and a `span` for an element under
+the columns. `align: stretch` makes the columns even and the refiner as wide
+as the columns; `straight` anchors give vertical lines. (Alternative when
+columns hold items of different heights: a `row` of column `stack`s plus one
+`y` [align](#aligning-across-trees) per heading, with the root row at
+`align: start`, since `align` only adds space.) A tokens node takes part
+through one cell (`k0.1`) or as a whole (`k0`).
 
 ```yaml
 # expect-render: fits
@@ -616,37 +505,39 @@ figure:
   profile: paper-double
   layout:
     arrange:
-      row:
-        gap: 4mm
-        align: start # headings start at the top: align only adds space, so it pushes them down
+      grid:
+        columns: 4
+        rowGap: 4mm
+        columnGap: 4mm
+        align: stretch
         items:
-          - stack: { gap: 1mm, items: [ h-visual, h-action, h-text ] } # the row headings
-          - stack:
-              align: stretch
-              items:
-                - row: # one stack per column; equal widths keep the columns even
-                    items:
-                      - stack: { items: [ f0, k0, p0 ] }
-                      - stack: { items: [ f1, k1, p1 ] }
-                      - stack: { items: [ f2, k2, p2 ] }
-                - refiner # spans every column
-    align: # each heading level with its row
-      - { y: [ h-visual, f0 ] }
-      - { y: [ h-action, k0.1 ] }
-      - { y: [ h-text, p0 ] }
+          - h-visual                  # row 1: heading, then one cell per column
+          - f0
+          - f1
+          - f2
+          - h-action
+          - k0
+          - k1
+          - k2
+          - h-text
+          - p0
+          - p1
+          - p2
+          - null                      # blank under the headings
+          - { item: refiner, span: 3 }
 nodes:
   - { id: h-visual, component: label, label: Frames }
   - { id: h-action, component: label, label: Keys }
   - { id: h-text, component: label, label: Encoders }
-  - { id: f0, component: box, label: Frame 0, tone: gray, variant: filled, props: { width: 60pt } }
-  - { id: f1, component: box, label: Frame 1, tone: gray, variant: filled, props: { width: 60pt } }
-  - { id: f2, component: box, label: Frame 2, tone: gray, variant: filled, props: { width: 60pt } }
+  - { id: f0, component: box, label: Frame 0, tone: gray, variant: filled }
+  - { id: f1, component: box, label: Frame 1, tone: gray, variant: filled }
+  - { id: f2, component: box, label: Frame 2, tone: gray, variant: filled }
   - { id: k0, component: tokens, tone: orange, props: { component: square, variant: outlined, gap: 1pt, width: 11pt, height: 11pt, cells: [ A, S, D ] } }
   - { id: k1, component: tokens, tone: orange, props: { component: square, variant: outlined, gap: 1pt, width: 11pt, height: 11pt, cells: [ { label: A, variant: filled }, S, D ] } }
   - { id: k2, component: tokens, tone: orange, props: { component: square, variant: outlined, gap: 1pt, width: 11pt, height: 11pt, cells: [ A, S, { label: D, variant: filled } ] } }
-  - { id: p0, component: box, label: Encoder, tone: purple, variant: outlined, props: { width: 60pt } }
-  - { id: p1, component: box, label: Encoder, tone: purple, variant: outlined, props: { width: 60pt } }
-  - { id: p2, component: box, label: Encoder, tone: purple, variant: outlined, props: { width: 60pt } }
+  - { id: p0, component: box, label: Encoder, tone: purple, variant: outlined }
+  - { id: p1, component: box, label: Encoder, tone: purple, variant: outlined }
+  - { id: p2, component: box, label: Encoder, tone: purple, variant: outlined }
   - { id: refiner, component: box, label: Token Refiner, tone: gray, variant: filled }
 edges:
   - { from: p0, to: refiner, toAnchor: straight }
@@ -656,73 +547,49 @@ edges:
 
 ## Edges: anchors, junctions and trunks
 
-The router draws orthogonal lines around nodes (never through them) in
-YAML order, greedily: edges declared first get the best routes.
+The router draws orthogonal lines around nodes (never through them) in YAML order,
+greedily: edges declared first get the best routes.
 
-- **Anchors**: `fromAnchor` / `toAnchor` pick the side of an end: `west`,
-  or `"south:0.2"` for a position along it (0..1: left → right on
-  north/south, top → bottom on east/west; default 0.5). Quote values with a
-  `:`. Several edges between the same two elements are spread out
-  automatically. Two ends that face each other within 1pt of one line are
-  drawn as a straight line: one end (an anchored one too) moves along its
-  side by up to 1pt, so an anchor read off a render to 4 decimals still
-  gives a straight drop. If both ends share their points with other edges
-  and neither can move, `layout/unaligned-ends` (warning) says so: write
-  the same position for both.
-  With a split `bowtie` (`props.gap`), a north/south port in the empty gap
-  moves to the nearest painted lip (left on ties), including explicit
-  `fromAnchor` / `toAnchor` positions. This mandatory correction is separate
-  from the 1pt straightening allowance and also applies to bent routes.
-  If the ends were aligned before that move, an
-  unshared, unanchored neighbour follows the lip's line. If a shared port,
-  anchor or short side prevents alignment, `layout/unaligned-ends` reports
-  the remaining step, even when the gap displacement exceeds 1pt.
-- **`straight`** (`toAnchor: straight` / `fromAnchor: straight`): the end
-  sits in line with the other end, on the side facing it, so the line
-  enters (leaves) straight with no jog. Use it for narrow boxes in a row
-  feeding a wide one (patches into a projection, encoders into a
-  refiner) instead of computing `"south:0.3127"` by hand; put it on the
-  end at the **wide** box (`fromAnchor` when the wide box is the source).
-  The side is never written. The other end, if unanchored, takes the
-  facing side. Parallel edges (same two boxes) get separate points and
-  are straight when the other end's points are over this side; from a
-  wide box into a narrow one they cannot be, so they keep separate points,
-  bend, and get `layout/straight-off-side`: put `straight` on the wide
-  box's end instead. Two sources in line
-  with the same point merge there (also with `fanIn: spread`, which
-  spreads only the other ends). If the other element's centre is not over
-  the side (at least 3pt inside its corners), or the two are diagonal or
-  overlapping, `layout/straight-off-side` (warning) and the end acts as
-  if it had no anchor: line them up in the tree, or write a side anchor.
-- **Encoder output into a decoder block** (a Transformer's K and V): two
-  edges from the encoder's top block to the decoder's cross-attention,
-  `fromAnchor: north` on both so they share one trunk, entering at
-  `toAnchor: "south:0.2"` (K) and `"south:0.4"` (V), with Q from the
-  decoder's own split junction at `"south:0.8"`. Entering left of the
-  centre keeps the trunk off the decoder's own line: with the default
-  `"south:0.5"` positions the trunk ends next to the split point and the
-  two lines tangle (no diagnostic names it; look at the preview).
-- **Default sides** (an end without an anchor) follow the arrange tree:
-  take the box where the two ends' branches part (their nearest common
-  box); in a stack the ends use north / south, in a row east / west,
-  towards the other end. An attached node counts as its target's place. If
-  the two ends overlap along that box's axis, or no box separates them (a
-  node and what it is attached to), the side facing the other end is used.
-  Write an anchor whenever you mean another side.
-- **Junction** (`component: junction`, a small dot): where a line splits
-  or merges. Place it in the tree like any node, between the blocks it
-  connects; connect into it with `component: line` (an arrowhead would hide
-  the dot). Every edge touching a junction is drawn as one connected net.
-  `variant: hidden` draws no dot: the lines fork smoothly, as in paper
-  figures. Keep the dot where another line crosses nearby (it is what tells
-  a join from a crossing). A hidden junction with one incoming arrow is an
-  **open end**: the arrow stops in empty space (e.g. a block's output at the
-  top of a stack: `{ id: out, component: junction, variant: hidden }`, then
-  `{ from: add, to: out }`). Put it straight in line, since an arrowhead
-  needs a straight stretch before its tip. Every line meets a junction at
-  its centre: `fromAnchor` / `toAnchor` on a junction end are ignored
-  (`component/anchor-on-junction`, warning). To change where a line
-  enters, anchor its other end or move the junction in the tree.
+- **Anchors**: `fromAnchor` / `toAnchor` pick the side of an end: `west`, or
+  `"south:0.2"` for a position along it (0..1: left → right on north/south, top →
+  bottom on east/west; default 0.5; quote values with `:`). Several edges between
+  the same two elements spread out automatically. Ends facing each other within 1pt
+  of one line are drawn straight (one end moves up to 1pt, so an anchor read off a
+  render still gives a straight drop); if both share points with other edges and
+  neither can move, `layout/unaligned-ends` (warning): write the same position for
+  both. With a split `bowtie` (`props.gap`) a north/south port in the empty gap moves
+  to the nearest painted lip (left on ties), explicit anchors too; an unshared,
+  unanchored neighbour follows the lip's line if the ends were aligned before,
+  otherwise `layout/unaligned-ends` reports the remaining step.
+- **`straight`** (`toAnchor: straight` / `fromAnchor: straight`): the end sits in line
+  with the other end on the side facing it, so the line has no jog. Use it for narrow
+  boxes in a row feeding a wide one (patches into a projection, encoders into a
+  refiner) instead of computing `"south:0.3127"`; put it on the **wide** box's end
+  (`fromAnchor` when it is the source). No side is written; an unanchored other end
+  takes the facing side. Two sources in line with one point merge there. If the other
+  element's centre is not over the side (at least 3pt inside its corners), the two are
+  diagonal or overlapping, or parallel edges run from a wide box into a narrow one,
+  `layout/straight-off-side` (warning) and the end acts as if unanchored: line them up
+  in the tree, put `straight` on the wide end, or write a side anchor.
+- **Encoder output into a decoder block** (Transformer K and V): both edges leave the
+  encoder's top block with `fromAnchor: north` (one shared trunk) and enter at
+  `toAnchor: "south:0.2"` (K) and `"south:0.4"` (V), Q coming from the decoder's own
+  split junction at `"south:0.8"`; with the default `"south:0.5"` the lines tangle (no
+  diagnostic: look at the preview).
+- **Default sides** (no anchor) follow the arrange tree: take the box where the two
+  ends' branches part; in a stack the ends use north / south, in a row east / west,
+  towards the other end (an attached node counts as its target's place). If the ends
+  overlap along that axis, or no box separates them, the facing side is used. Write an
+  anchor whenever you mean another side.
+- **Junction** (`component: junction`, a small dot): where a line splits or merges.
+  Place it in the tree between the blocks it connects and connect into it with
+  `component: line` (an arrowhead would hide the dot); every edge touching it is one
+  connected net. `variant: hidden` draws no dot: lines fork smoothly as in paper figures
+  (keep the dot where another line crosses nearby). A hidden junction with one incoming
+  arrow is an **open end** (`{ id: out, component: junction, variant: hidden }`,
+  `{ from: add, to: out }`); put it straight in line, since an arrowhead needs a straight
+  stretch. Lines meet a junction at its centre: anchors on a junction end are ignored
+  (`component/anchor-on-junction`, warning).
 
   ```yaml
   # residual connection: split before the block, re-enter at the side
@@ -732,96 +599,51 @@ YAML order, greedily: edges declared first get the best routes.
   - { from: split, to: norm, toAnchor: west }               # residual
   ```
 
-- **Shared trunk (bus)**: edges leaving the same element at the same anchor
-  (same side and position) share one line until they branch, e.g. one
-  conditioning MLP feeding four blocks:
-  `{ from: mlp, fromAnchor: north, to: ss1, toAnchor: east }`, … for each
-  target. An edge entering a port and one leaving it never share a line:
-  the end without an anchor moves along the side; if both are anchored at
-  the same point, it is `layout/no-route`, so anchor them at different
-  positions.
-- **Fan-in (`figure.layout.fanIn`)**: by default (`merge`), edges from
-  different elements entering the same side of an element without a
-  `toAnchor` meet at one port and merge into one trunk, like a bus. With
-  `fanIn: spread` (on `figure.layout`, next to `arrange`) Sumi **tries**
-  to bring them in at separate points spread along that side, ordered by
-  where their sources are. Spread is an attempt, not a guarantee: if it
-  would put two ends on one point that `merge` kept apart, or leave an edge
-  unrouted that `merge` routes, Sumi silently draws the **whole figure**
-  as `merge` (no diagnostic). Spread is also skipped for a single side
-  when a spread point would land on an end that is already there. If the
-  preview still shows lines sharing an entry point, spread was skipped for
-  that side or the whole figure fell back to `merge`: give those ends
-  separate anchors
-  (`toAnchor: "north:0.3"`, …). Anchored ends and junction ends are not
-  moved; to merge on purpose under `spread`, route the edges through a
-  `junction`. Spread can add crossings (the separate lines cross others
-  one by one) and changes the routes of a figure written for `merge`.
-  **When to spread**: several sources feeding several targets (workers →
-  stores) where the merged trunks make lines wrap around blocks or make it
-  unclear which source reaches which target. Default sides send all edges
-  from one direction into the same side, so a merged trunk may detour;
-  `spread` can remove such detours (in one measured architecture figure,
-  three detouring edges became none, crossings 3 → 6), or anchor the ends
-  on separate points (`toAnchor: "north:0.3"`, …) for full control.
-- **Operator** (`component: operator`, `props: { symbol: plus }`; also
-  `minus`, `times`, `dot`, `concat`): a small circle with a symbol, no
-  label. Arrows may end on it; a side input usually comes from an attached
-  node through a `line`. `props.size: large | xlarge` (1.5x / 2x, since
-  0.12.0) enlarges the circle and symbol together when a paper figure needs a
-  more visible ⊕.
-- **Edge labels** sit on the last segment, just before the target's
-  arrowhead (above it if that segment is horizontal, right of it if
-  vertical); on an edge with only a source arrowhead, by that arrowhead on
-  the first segment; on a `line` (no arrowhead), mid-way along the longest
-  segment. Where that spot would touch a line or a group border (a short
-  final segment, a trunk forking off right behind the arrowhead, the border
-  of the group the edge enters), the label moves to the other side or back
-  past the line or border. Other collisions are not avoided; keep labels to
-  a word or a math symbol and check the preview.
-- **Placing an edge label**: `labelAt: start | middle | end` puts it on the
-  first segment (by the source), the longest one, or the last one (by the
-  target). Without `labelAt` (e.g. `labelSide` alone) the segment is the
-  default one above: `end` with a target arrowhead, `start` with only a
-  source arrowhead, `middle` with none; `labelSide: left | right` on that side **as
-  seen travelling from source to target** (left of a rightward line is
-  above it, left of a downward line is to its right — not compass sides,
-  since the router picks the direction). Either can be written alone. The
-  label slides along that segment to avoid lines, arrowheads, borders,
-  nodes and other labels, but never leaves the segment and side you
-  named: if nothing there is clear it stays and Sumi reports
-  `layout/edge-label-overlap` (warning; try the other side, another
-  `labelAt`, or remove both to let the router choose). Use them to say
-  which edge a label belongs to (`K,V` at the `start`, by its source) or
-  to keep it on the outer side of a bend.
-- Line corners are drawn rounded (radius up to 4pt, smaller in tight spots).
-  Set `figure.themeOverrides.edgeCorners: sharp` for sharp turns, including
-  hidden junctions/forks, with butt caps and miter joins. This is independent
-  of `nodeCorners: square`. Sharp routed bends remain connected after shared
-  trunks are deduplicated, so the outside of each bend receives a real miter.
-  Zoom wires also use butt caps/miter joins, including their visible dash ends,
-  in SVG, PDF and picture PPTX. Editable PPTX keeps sharp centerline corners;
-  `edgeCorners: sharp` also sets flat caps and miter joins in both modes.
-  The router keeps a straight run of the arrowhead plus the radius before an
-  arrowhead where moving a bend gives it. Tight group-padding approaches
-  automatically grow that side's padding for the arrowhead plus a visible
-  2pt stem and 3pt border clearance (the opposite side grows by the same
-  amount, keeping the content on the group's centre line); rounding
-  preserves that stem. A tight
-  gap elsewhere can still leave the arrowhead right after the corner:
-  `geometry/arrowhead-cramped` (info) reports a structured edge with less
-  than 2pt of painted straight stem before a bend, including after `fit`.
-- Trunks and side paths run close beside the blocks (about 3pt away); the
-  lever to move them is the `gap` of the enclosing box, not a coordinate.
+- **Shared trunk (bus)**: edges leaving one element at the same anchor share a line until
+  they branch (`{ from: mlp, fromAnchor: north, to: ss1, toAnchor: east }`, … per
+  target). An edge entering a port and one leaving it never share a line; both anchored
+  at one point is `layout/no-route`.
+- **Fan-in (`figure.layout.fanIn`)**: by default (`merge`) edges from different elements
+  entering one side without a `toAnchor` merge into one trunk. `fanIn: spread` (next to
+  `arrange`) **tries** to bring them in at separate points ordered by their sources; if
+  that would put two ends on one point or leave an edge unrouted, the **whole figure** is
+  silently drawn as `merge` (a single side is skipped when a point would land on an
+  existing end). If the preview still shows shared entry points, anchor them. Anchored
+  and junction ends are not moved; to merge on purpose use a `junction`. Spread can add
+  crossings (one measured figure: detours 3 → 0, crossings 3 → 6): use it when several
+  sources feed several targets and merged trunks wrap around blocks.
+- **Operator** (`component: operator`, `props: { symbol: plus }`; also `minus`, `times`,
+  `dot`, `concat`): a small circle with a symbol, no label; arrows may end on it, a side
+  input usually comes from an attached node through a `line`. `props.size: regular |
+  large | xlarge` (1x / 1.5x / 2x) makes it more visible
+  ([example](assets.md#framed-images-and-operator-size)).
+- **Edge labels** sit on the last segment before the target's arrowhead (above a
+  horizontal one, right of a vertical one); with only a source arrowhead, by it on the
+  first segment; on a `line`, mid-way along the longest. Where that touches a line or a
+  group border the label moves; other collisions are not avoided: keep labels to a word
+  or math symbol and check the preview. **`labelAt: start | middle | end`** picks the
+  first, longest or last segment; **`labelSide: left | right`** the side **as seen
+  travelling from source to target** (left of a rightward line is above it). Either
+  alone is fine (default segment: `end` with a target arrowhead, `start` with only a
+  source one, `middle` with none). The label slides along that segment but never leaves
+  the segment and side; if nothing there is clear `layout/edge-label-overlap` (warning:
+  the other side, another `labelAt`, or neither). Use them to say which edge a label
+  belongs to (`K,V` at the `start`).
+- **Corners and arrowheads**: lines are drawn rounded (radius up to 4pt).
+  `figure.themeOverrides.edgeCorners: sharp` gives sharp turns with butt caps and miter
+  joins (zoom wires too; editable PPTX keeps sharp centrelines). The router keeps a
+  straight run of head plus radius where moving a bend gives it; tight group padding
+  grows automatically for the head plus a 2pt stem and 3pt border clearance. A tight gap
+  elsewhere can still leave the head right after a corner: `geometry/arrowhead-cramped`
+  (info). Trunks and side paths run about 3pt beside blocks; the lever is the enclosing
+  box's `gap`, not a coordinate.
 
 Three workers writing to one store, each line entering on its own (without
-`fanIn: spread` the three lines join above the store and enter as one
-arrow):
+`fanIn: spread` the lines join above the store and enter as one arrow):
 
 ```yaml
 # expect-render: fits
 version: 1
-requires: ">=0.5.0"
 figure:
   id: fan-in
   theme: color
@@ -847,35 +669,24 @@ edges:
 
 ### Crossings (`layout/edge-crossing`)
 
-The router does not forbid crossings, so dense figures keep some. `sumi
-render` (and `lint --geometry`) reports each point where two separate
-lines cross as `layout/edge-crossing`, an **info**: it does not fail the
-render or count as a warning. A shared trunk counts as one line, so one
-point is one diagnostic (at most 10, then one summary). The diagnostic
-sits on one edge of the line routed later (its first edge through that
-point, which need not be the edge you wrote last); the message names both
-sides and the point in mm from the top left, and `related` gives the YAML
-position of every other edge involved. Fix the
-ones that hurt reading: move the edge you want straight **earlier** in
-`edges`, leave from or enter another side (`fromAnchor` / `toAnchor`), or
-change the arrangement (`gap`, item order, `align`). Some crossings
-cannot be avoided (two lines that swap sides); keep those and mention the
-count in the report. A figure whose expected result is drawn with
-crossings is still clean: errors and warnings are what must reach 0.
+The router does not forbid crossings. `sumi render` (and `lint --geometry`) reports
+each point where two separate lines cross as `layout/edge-crossing`, an **info** (does
+not fail the render or count as a warning). A shared trunk is one line; at most 10 are
+listed, then a summary; the message names both sides and the point in mm and `related`
+gives every other edge. Fix the ones that hurt reading: move the edge you want straight
+**earlier** in `edges`, use another side, or change the arrangement (`gap`, item order,
+`align`). Keep unavoidable ones (two lines swapping sides) and report the count.
 
 ## Legends
 
-A **`legend`** node (`component: legend`, structured only) draws a
-framed key: one row per entry, top to bottom, each a **sample** and its
-text. An entry has exactly one of `edge` (a sample line, with the edge
-fields `component` — default `arrow` —, `variant` and `tone`), `node` (a small
-sample box: `component` — default `box` —, `variant`, `tone`) or `class`
-(the sample box of a [matrix](#matrices) class, `<matrix>.<class>`), plus
-`label` (math allowed; a `class` entry defaults to the class's label). The samples are drawn by the same theme rules as
-real edges and nodes, so a `variant: dashed` sample has exactly the dash,
-arrowhead and width of the dashed edges. No colors are written. The
-legend's own `label` is its title; `variant: plain` drops the frame;
-`tone` colors the frame.
+A **`legend`** node draws a framed key: one row per entry, a **sample** and its
+text. An entry has exactly one of `edge` (a sample line: `component` default
+`arrow`, `variant`, `tone`), `node` (a small sample box: `component` default
+`box`, `variant`, `tone`) or `class` (the sample of a [matrix](#matrices) class,
+`<matrix>.<class>`), plus `label` (math allowed; a `class` entry defaults to the
+class's label). Samples are drawn by the same theme rules as real edges and
+nodes, so no colours are written. The legend's own `label` is its title;
+`variant: plain` drops the frame; `tone` colours it.
 
 ```yaml
 - id: key
@@ -889,74 +700,50 @@ legend's own `label` is its title; `variant: plain` drops the frame;
       - { edge: { tone: orange }, label: latent path }
 ```
 
-- Place it in the tree like any node (a corner of the root stack or row);
-  `align` and edges can name it. It cannot be `attach`ed
-  (`layout/attached-legend`).
-- `lint/unused-legend-entry` (warning): no node or edge of the figure has
-  that entry's component, variant and tone (a `class` entry is never
-  reported: `lint/unused-matrix-class` covers a class without cells). Fix the entry or
-  the elements it should explain; do not keep a key for styles not drawn.
-- The legend expands into nodes and edges named `<legend>-<n>-label`,
-  `-box`, `-line`, `-start`, `-end` (n = entry number): your own IDs must
-  not use these (`ref/reserved-id`). Up to 20 entries; a sample box cannot
-  be a `label`, `image`, `operator`, `junction` or another `legend`
-  (`component/invalid-prop`).
-- Auto figures have no legend: say what the variants mean in the caption
-  or the report.
+- Place it in the tree like a node; `align` and edges can name it; it cannot be attached
+  (`layout/attached-legend`). `lint/unused-legend-entry` (warning): no node or edge has the
+  entry's component, variant and tone (`class` entries never; `lint/unused-matrix-class`
+  covers those): fix the entry or the elements; keep no key for styles not drawn.
+- It expands into nodes and edges `<legend>-<n>-label`, `-box`, `-line`, `-start`, `-end`
+  (`ref/reserved-id`). Up to 20 entries; a sample box cannot be a `label`, `image`,
+  `operator`, `junction` or `legend` (`component/invalid-prop`). Auto figures have no
+  legend: say what variants mean in the caption or report.
 
 ## Zoom callouts
 
-A **`zoom`** edge (`component: zoom`, structured only, 0.6.0; the catalog
-marks it with `"engines": ["structured"]`) shows that a group (or node)
-is an enlarged view of another element: two straight lines, dashed by
-default (`variant: solid`, `muted`), from the source's corners to the
-matching corners of the target. Write it like any edge, without a label or
-anchors:
+A **`zoom`** edge (catalog `"engines": ["structured"]`) shows that a group or node is an
+enlarged view of another element: two straight lines, dashed by default (`variant:
+solid`, `muted`), from the source's corners to the matching corners of the target. No
+label or anchors (`component/unexpected-label`, `component/anchor-on-zoom`).
 
 ```yaml
 edges:
   - { from: dit-block, to: adaln-panel, component: zoom }
 ```
 
-- The corners follow from where the target lies: to the right, the
-  source's top-right and bottom-right go to the target's top-left and
-  bottom-left (left, below and above likewise); apart on both axes, the
-  larger gap decides. Place the target beside, above or below the source
-  in the tree; ends that overlap (an element and its own group) are
-  `layout/no-route`.
-- It is not routed: other lines may cross it, it is left out of
-  `layout/edge-crossing`, and a node in its way is
-  `geometry/zoom-crosses-node` (warning): move the node, or the source or
-  view (item order, `gap`) so the lines pass beside it.
-- A label is `component/unexpected-label`; anchors have no effect
-  (`component/anchor-on-zoom`). Before 0.6.0 the CLI reports
-  `component/unknown`: draw two dashed `line` edges instead.
+The corners follow where the target lies (to the right: source top-right and bottom-right
+→ target top-left and bottom-left; likewise left, below, above; apart on both axes the
+larger gap decides): place the target beside, above or below the source (overlapping ends
+are `layout/no-route`). It is not routed: other lines may cross it, it is left out of
+`layout/edge-crossing`, and a node in its way is `geometry/zoom-crosses-node` (warning):
+move the node, or the source or view.
 
 ## Brackets
 
-A **`bracket`** node (structured only, 0.10.0) gathers a row or column into
-one edge. `props.form` is `square` (default) or `curly`.
-**`props.points`** is `east` (default), `west`, `north` or `south`: the side
-of the square bracket's spine or the curly brace's tip. An east-pointing
-bracket gathers elements to its west. Incoming and outgoing edges always
-meet the spine's middle / brace tip on that side, even when the other end
-is off-axis or behind it; the route bends after leaving the port.
+A **`bracket`** node gathers a row or column into one edge. `props.form` is
+`square` (default) or `curly`; **`props.points`** is `east` (default), `west`,
+`north` or `south`: the side of the spine or brace tip (an east-pointing bracket
+gathers elements to its west). Edges meet the spine's middle / brace tip on that
+side even when the other end is off-axis; the route bends after the port.
 
-- Attach it to a group, matrix or [whole token sequence](#token-sequences).
-  An `east` / `west` attachment automatically matches the target's height;
-  a `north` / `south` attachment matches its width. `points` is independent
-  of `attach.side`: set both explicitly to the intended direction.
-- Explicit `props.width` / `props.height` take precedence over automatic
-  sizing on the corresponding axis. The natural size is 6pt deep × 24pt
-  long (24pt × 6pt for north / south). Corner attachments such as
-  `north-east` retain that natural size instead of spanning the target.
-- Reserve room in the arrange `gap` for the bracket depth, `attach.gap`,
-  and the outgoing arrow. For example, a 6pt-deep bracket with a 2pt attach
-  gap in a row with `gap: 18mm` leaves space for a readable arrow. For
-  off-axis routes, allow room beside the fixed port for the first bend.
-- It takes no label, `labelRotation`, `sublabel` or `badge`. Attach a
-  separate `label` if needed. Variants: `default`, `emphasis`, `muted`,
-  `outlined` (the latter uses the node's tone for its line).
+- Attach it to a group, matrix or [whole token sequence](#token-sequences). `east` /
+  `west` attachments match the target's height, `north` / `south` its width; `points` is
+  independent of `attach.side`: set both. Explicit `props.width` / `height` win; natural
+  size 6pt deep × 24pt long (corner attachments keep it).
+- Reserve room in the arrange `gap` for its depth, `attach.gap` and the outgoing arrow
+  (6pt bracket, 2pt attach gap, row `gap: 18mm` leaves a readable arrow; off-axis routes
+  need room for the first bend). No label, `labelRotation`, `sublabel` or `badge`.
+  Variants: `default`, `emphasis`, `muted`, `outlined` (line in the node's tone).
 
 ```yaml
 # expect-render: fits
@@ -981,65 +768,8 @@ edges:
 
 ## Token sequences
 
-A **`tokens`** node (`component: tokens`, structured only, 0.6.0) writes a row of cells — sequence tokens, patches, keys — as one
-node. Each cell is a label string or `{ id, label, tone, component,
-variant, width, height }`; `props.component` / `variant` / `width` /
-`height` and the node's `tone` are the defaults for every cell. `gap`
-and `align` are those of an arrange box; `direction: down` makes a
-column. `lines: [[W], [A, S, D]]` (instead of `cells`) stacks several
-rows, e.g. a key cluster (`lineGap`, `lineAlign: center`). An ellipsis
-cell is `{ label: '…', component: label }` or a math label such as
-`'$A_{\ldots}$'`. The tokens node has no label of its own (put a `label`
-node beside it). `props.variant: outlined` gives every cell a colored frame
-and text in its tone (white cells, [tones](figure-format.md#tones)); a cell's
-own `variant: solid` marks a pressed key with a strong fill and white text.
-Use `variant: tinted` for pastel action cells with colored borders and text;
-both also work in legend `node` samples.
-
-Since 0.12.0, a cell can be a picture: `{ asset: photo, crop: [0, 0, 40, 40],
-variant: framed }` draws that entry of `figure.assets` (cut with `crop`) as an
-image cell, so a column of patches is one tokens node instead of nine `image`
-nodes and nine edges. See [assets](assets.md#reusing-one-picture-figureassets-0120).
-
-Since 0.7.0, a divider cell is **`{ separator: dotted }`**, optionally with
-`id`, `tone`, `width`, `height` (no label, component or variant). For example,
-`cells: ['$A_1$', { separator: dotted }, '$I_0$', '$V_1$']` separates action
-and video tokens. It draws a vertical dotted line for `right` / `left`, a
-horizontal line for `down` / `up`, centered inside its reserved cell box.
-In a row it reserves 6pt of width and inherits `props.height` (14pt if absent);
-in a column it reserves 6pt of height and inherits `props.width` (14pt if absent).
-Its own sizes override these defaults; `gap` applies on both sides. The line
-uses the theme's outlined tone and line width, inheriting the tokens' tone.
-Dividers also work in `lines` and count as cells for positional references;
-prefer explicit IDs for stable references when inserting them. A divider can
-be an edge endpoint, by name or position: anchors target the invisible reserved
-rectangle, **not the dotted centerline**. Editable PPTX connectors bind to that
-rectangle too. Inspect and geometry lint use the reserved box (including
-edge-through-node checks). The dotted path is decoration: inspect does not
-expose it, and edge proximity rules do not measure distance to its stroke.
-PDF and both PPTX modes preserve the line.
-
-Edges, `attach.to` and `align` name a cell as **`<node>.<cell>`**: the
-cell's `id`, or its 1-based position when it has none (`keys.3`). Since
-0.10.0 the tokens node's own ID names the **whole sequence**: one edge
-meets the row or column as a unit (`{ from: encoder, to: seq }`), and an
-[attached bracket](#brackets) gathers it. Sumi lays the cells out in a
-frame group with that ID (no border, fill or padding, so the frame is
-exactly the cells); tokens that nothing names as a whole get no frame.
-
-With `lines`, positions count continuously in **written line order**, then
-written cell order, starting at 1; they do not restart for each line or change
-with `direction`. For `lines: [["0", "1"], [a, b]]`, `emb.1` is `"0"`,
-`emb.2` is `"1"`, and `emb.3` is `a`. A cell with an explicit `id` uses that
-ID instead of its positional number (and still counts toward later positions).
-Prefer explicit IDs when editing lines.
-
-Aligning a cell of multi-line tokens preserves the entire block's cell offsets
-and `lineAlign`; it never shifts just one line. If the outer arrangement cannot
-move the block to meet the constraint, `layout/unsatisfied-align` points to the
-constraint. Wrap the tokens (or the other target) in a `row` for an `x`
-constraint or a `stack` for `y` to give it room to move; check the warning and
-render again. Naming the whole node aligns its frame, not a particular cell.
+A **`tokens`** node writes a row (or column) of cells (sequence tokens, patches,
+keys) as one node; edges address its cells.
 
 ```yaml
 # expect-render: fits
@@ -1074,70 +804,81 @@ edges:
   - { from: refiner, to: seq.a2 }
 ```
 
-- Each cell is drawn as an ordinary node `<node>-<cell>` (`seq-a2`,
-  `keys-2`): diagnostics name it so, and your own IDs must not use these
-  (`ref/reserved-id`). An unknown cell is `ref/unknown-cell`. Place the
-  tokens in an arrange tree, never with `attach` (`layout/attached-tokens`).
-- Cells without a label are fine (no `lint/empty-label`). A cell cannot be
-  an `operator`, `junction`, `image`, `legend` or `tokens`
-  (`component/invalid-prop`). An older CLI reports `component/unknown`:
-  write one node per cell instead.
+- **Cells.** A cell is a label string or `{ id, label, tone, mono, component,
+  variant, width, height }`; `props.component` / `variant` / `width` / `height`
+  and the node's `tone` are the defaults. An ellipsis is `{ label: '…',
+  component: label }` or math such as `'$A_{\ldots}$'`. The node has no label of
+  its own (put a `label` node beside it). `props.variant: outlined` gives every
+  cell a coloured frame and text in its tone; a cell's `variant: solid` is a
+  pressed key (strong fill, white text); `tinted` gives pastel action cells
+  (both also work in legend `node` samples).
+- **Direction and lines.** `gap` and `align` are those of an arrange box;
+  `direction: down` makes a column. `lines: [[W], [A, S, D]]` (instead of
+  `cells`) stacks several rows, `lineGap` apart, e.g. a key cluster.
+  **`lineAlign`** places the lines across (the catalog lists the values;
+  omitted inherits from the enclosing box): `start` flushes the shorter lines to
+  the start (left for a row), `center` centres them, `end` flushes them to the
+  end, `stretch` as `align: stretch` (resizable cells widen, fixed-size ones such
+  as `square` stay centred). Aligning a cell of multi-line tokens keeps the whole
+  block's cell offsets and `lineAlign`; if the outer arrangement cannot move the
+  block, `layout/unsatisfied-align`: wrap the tokens in a `row` (for `x`) or
+  `stack` (`y`). Naming the whole node aligns its frame, not a cell.
+- **Addressing.** Edges, `attach.to` and `align` name a cell **`<node>.<cell>`**:
+  its `id`, or its 1-based position when it has none (`keys.3`). With `lines`
+  positions count continuously in **written line order**, then written cell
+  order; they do not restart per line or change with `direction`: for
+  `lines: [["0", "1"], [a, b]]`, `emb.1` is `"0"`, `emb.2` is `"1"`, `emb.3` is
+  `a`, `emb.4` is `b`. A cell with an `id` uses it (and still counts toward later
+  positions): prefer ids when editing lines. The node's own ID names the **whole
+  sequence** (`{ from: encoder, to: seq }`; an [attached bracket](#brackets)
+  gathers it): Sumi lays the cells out in a frame group with that ID (no border,
+  fill or padding); tokens that nothing names as a whole get no frame.
+- **Dividers.** `{ separator: dotted }` (optionally `id`, `tone`, `width`, `height`;
+  no label, component or variant) draws a dotted line across the sequence (vertical
+  for `right` / `left`, horizontal for `down` / `up`), reserving 6pt along the
+  direction and inheriting the other size from the tokens (14pt if absent); `gap`
+  applies on both sides. It counts as a cell for positions. An edge to one targets
+  its invisible reserved rectangle, **not the dotted line**; PDF and PPTX keep the line.
+- **Image cells.** `{ asset: photo, crop: [0, 0, 40, 40], variant: framed }`
+  draws an entry of `figure.assets` as a picture cell: a column of patches is one
+  node instead of nine `image` nodes and edges
+  ([assets](assets.md#reusing-one-picture-figureassets)).
+- Each cell is drawn as a node `<node>-<cell>` (`seq-a2`, `keys-2`): diagnostics
+  name it so; your IDs must avoid them (`ref/reserved-id`); an unknown cell is
+  `ref/unknown-cell`. Place tokens in a tree, never with `attach`
+  (`layout/attached-tokens`). Cells without a label are fine; a cell cannot be an
+  `operator`, `junction`, `image`, `legend` or `tokens` (`component/invalid-prop`).
 
-## Matrices
-
-A **`matrix`** node (`component: matrix`, structured only, 0.6.0) draws a grid of cells colored by **class** — an attention mask, a
-pattern of allowed and blocked pairs — with optional row and column headers.
-`classes` names each class (1–16 characters, e.g. `o`, `.`) with a `tone`, a
-box `variant` (e.g. `filled`, `outlined`), `pattern: hatch` (diagonal lines
-over the fill, in the tone's line color) and a `label` for the legend.
-`cells` lists the rows top to bottom: a list of class names, or a string —
-names separated by spaces, or, when every class name is one character, the
-characters themselves (`"o..L"`). `rows` / `columns` are the headers (text,
-math allowed, or `{ label, tone }` to color the text); `corner` is text
-between them (needs both). `cellWidth` (default 10pt), `cellHeight` (default
-the width), `gap` (between cells, default 0), `headerGap` (default `gap`),
-`headerWidth`, `rowsAt: right`, `columnsAt: bottom` and `variant` (of every
-cell) tune it. A legend entry `{ class: <matrix>.<class> }` draws that
-class's sample box with its label: the key is made from the same data.
-
-**Text and ellipsis cells (since 0.10.0).** In a list row a cell may also be
-`{ class, text }` (the text, math allowed, is drawn in the cell, which keeps
-its class's tone, variant and hatch) or `{ ellipsis: "…" | "⋮" | "⋱" }`.
-`ellipsisRows: [4]` and `ellipsisColumns: [4]` (1-based) turn whole rows and
-columns into ellipsis slots: `⋮` in a row, `…` in a column, `⋱` where they
-cross. An ellipsis slot keeps the cell's size (the grid stays regular) and draws
-only the symbol, with **no border, fill or hatch**; the neighboring cells keep
-their own borders. Class-only cells and string rows are unchanged. `flush: true`
-removes the frame's group padding so a header row or column of other nodes can
-touch the matrix (needs a matrix without a `label`). The cells' IDs are not
-addressable, so attach or connect to the matrix as a whole.
+Key numbering and line alignment in one figure (`keys.1` is `W`, `keys.4` is `D`):
 
 ```yaml
 # expect-render: fits
 version: 1
 figure:
-  id: similarity
+  id: key-lines
   theme: paper
   layout:
-    arrange: { row: { gap: 5mm, align: center, items: [sim] } }
+    arrange: { row: { gap: 10mm, align: center, items: [keys, action] } }
 nodes:
-  - id: sim
-    component: matrix
+  - id: keys
+    component: tokens
     props:
-      cellWidth: 30pt
-      cellHeight: 18pt
-      variant: outlined
-      classes:
-        d: { tone: blue, variant: tinted }
-        o: {}
-      ellipsisRows: [3]
-      ellipsisColumns: [3]
-      cells:
-        - [{ class: d, text: '$I_1\cdot T_1$' }, { class: o, text: '$I_1\cdot T_2$' }, o, { class: o, text: '$I_1\cdot T_N$' }]
-        - [{ class: o, text: '$I_2\cdot T_1$' }, { class: d, text: '$I_2\cdot T_2$' }, o, { class: o, text: '$I_2\cdot T_N$' }]
-        - [o, o, o, o]
-        - [{ class: o, text: '$I_N\cdot T_1$' }, { class: o, text: '$I_N\cdot T_2$' }, o, { class: d, text: '$I_N\cdot T_N$' }]
+      component: square
+      width: 11pt
+      height: 11pt
+      gap: 1pt
+      lineGap: 2pt
+      lineAlign: center      # start | center | end | stretch: the short first line sits over the middle
+      lines: [[W], [A, S, D]]
+  - { id: action, component: box, label: Action, tone: orange, variant: filled }
+edges:
+  - { from: keys.4, to: action }   # D: lines count 1 (W), 2 (A), 3 (S), 4 (D)
 ```
+
+## Matrices
+
+A **`matrix`** node draws a grid of cells coloured by **class** (an attention
+mask, allowed and blocked pairs) with optional row and column headers.
 
 ```yaml
 # expect-render: fits
@@ -1171,61 +912,67 @@ edges:
   - { from: qkv, to: mask }
 ```
 
-- The matrix is drawn as a borderless frame with its ID (edges, `align`
-  and arrange trees name it; its `label` is a title above it) around
-  ordinary nodes: cells `<matrix>-<row>-<column>` (1-based), headers
-  `<matrix>-row-<r>`, `<matrix>-col-<c>`, `<matrix>-corner`. Your own IDs
-  must not use these (`ref/reserved-id`). Single cells cannot be edge
-  ends. Never `attach` a matrix (`layout/attached-matrix`).
-- Row headers are as high as a cell and column headers as wide, so the
-  grid stays even: text taller than `cellHeight + gap` (e.g. 16pt
-  `slides` text in 10pt cells) collides (`geometry/label-collision`) —
-  raise `cellHeight` or `gap`.
-- Every row must have as many cells as the first, every name must be a
-  class, and `rows` / `columns` must match the grid (`component/invalid-prop`
-  at the row or field). A class no cell uses is `lint/unused-matrix-class`
-  (warning); a legend `class` that names no class is `ref/unknown-class`.
-  Cells take no label (no `lint/empty-label`). An older CLI reports
-  `component/unknown`: write the cells as boxes in rows instead.
+- `classes` names each class (1–16 characters, e.g. `o`, `.`) with a `tone`, box `variant`,
+  `pattern: hatch` (diagonal lines in the tone's line colour) and a legend `label`. `cells`
+  lists rows top to bottom: class names in a list, or a string (names separated by spaces,
+  or the characters themselves when every name is one character: `"o..L"`). `rows` /
+  `columns` are headers (text, math allowed, or `{ label, tone }`); `corner` sits between
+  them (needs both). Tuning: `cellWidth` (10pt), `cellHeight` (= width), `gap` (0),
+  `headerGap`, `headerWidth`, `rowsAt: right`, `columnsAt: bottom`, `variant`. A legend
+  entry `{ class: <matrix>.<class> }` draws a class's sample with its label.
+- **Text and ellipsis cells.** A list-row cell may be `{ class, text }` (text, math allowed,
+  in a cell keeping its class's look) or `{ ellipsis: "…" | "⋮" | "⋱" }`; `ellipsisRows:
+  [4]` / `ellipsisColumns: [4]` (1-based) turn whole rows / columns into ellipsis slots
+  (`⋮`, `…`, `⋱` at crossings) that keep the cell size and draw only the symbol. `flush:
+  true` removes the frame's padding so other nodes' headers can touch the matrix (no
+  `label`).
+- The matrix is a borderless frame with its ID (its `label` is a title above it) around
+  nodes `<matrix>-<row>-<column>` (1-based), `<matrix>-row-<r>`, `<matrix>-col-<c>`,
+  `<matrix>-corner` (`ref/reserved-id`). Cells are not addressable: connect to the whole
+  matrix; never `attach` it (`layout/attached-matrix`). Headers are as high / wide as a
+  cell: text taller than `cellHeight + gap` collides (`geometry/label-collision`).
+- Every row needs as many cells as the first, every name a class, and `rows` / `columns`
+  must match the grid (`component/invalid-prop`). An unused class is
+  `lint/unused-matrix-class`; a legend `class` naming none is `ref/unknown-class`.
+
+Text and ellipsis cells (`{ class, text }`, `{ ellipsis }`, `ellipsisRows`, `ellipsisColumns`):
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: similarity
+  theme: paper
+  layout: { arrange: { row: { items: [sim] } } }
+nodes:
+  - id: sim
+    component: matrix
+    props:
+      cellWidth: 30pt
+      cellHeight: 18pt
+      classes: { d: { tone: blue, variant: tinted }, o: {} }
+      ellipsisRows: [3]
+      ellipsisColumns: [3]
+      cells:
+        - [{ class: d, text: '$I_1\cdot T_1$' }, o, o, { class: o, text: '$I_1\cdot T_N$' }]
+        - [o, { class: d, text: '$I_2\cdot T_2$' }, o, o]
+        - [o, o, o, o]
+        - [{ class: o, text: '$I_N\cdot T_1$' }, o, o, { ellipsis: "…" }]
+```
 
 ## Spacing that routes
 
 An arrow between two facing sides needs a gap longer than its arrowhead:
-about **1.5mm in `academic` and `paper`, 2.5mm in `minimal` / `color`, 4mm
-in `slides`**. 3mm (academic, paper: 2mm) between connected blocks is a
-good start, or no `gap` at all under `density: compact` (2.5mm); `gap: 0` only
-for blocks that touch with no edge between them. Paths that turn (residuals)
-run in the gap left beside the blocks: if they look cramped, add `gap` to
-the enclosing row or put the turning edge's target side (`toAnchor: west`)
-where there is room.
-
-## Fixing `layout/*`
-
-| Code | Fix |
-| --- | --- |
-| `layout/structured-only` | the figure is auto: delete the field, or switch to structured (root `figure.layout.arrange`, remove `engine: auto`, place everything) |
-| `layout/unplaced` | add the ID to the tree named in the hint (the root tree, or its group's `arrange`), or `attach` it. In a structured figure every node and group needs a place |
-| `layout/duplicate-placement` | the element is in two trees, or in a tree and attached: keep one |
-| `layout/unknown-item` | an `items` entry is not a node or group ID (edges are never placed): use the hint's ID |
-| `layout/unknown-attach-target` | `attach.to` names no node or group: fix the ID |
-| `layout/group-mismatch` | `group:` disagrees with the tree that places the element: delete `group:` (the tree decides) or move the ID into that group's `arrange` |
-| `layout/group-cycle`, `layout/attach-cycle` | a group placed inside itself, or attachments in a loop: break the loop |
-| `layout/invalid-anchor` | write `north`, `east`, `south` or `west`, optionally `:` and a number from 0 to 1; or `straight` (no side) |
-| `layout/no-route` (render) | the ends touch (`gap: 0`), are closer than the arrowhead, or are boxed in (also by a node attached into the gap, see [attach](#attach-side-notes)): widen that `gap` (see above; even a `line` needs a gap > 0), or anchor the edge on other sides |
-| `layout/unknown-align-item`, `layout/duplicate-align-item`, `layout/invalid-align` | an `align` entry names no node or group (edges cannot be aligned), names one twice, or has fewer than two IDs: fix the list ([align](#aligning-across-trees)) |
-| `layout/unsatisfied-align` (render, warning) | the constraint cannot be met; follow the hint: put the items in different boxes, wrap one in its own `stack` / `row`, or drop a constraint that pulls the other way |
-| `layout/align-search-limit` (render, warning) | too many constraints to solve; remove ones that are already met by the boxes |
-| `layout/align-grew-figure` (render, info) | `align` made the figure much larger; keep it if intended, else align an item that can move alone, or drop the constraint ([align](#aligning-across-trees)) |
-| `layout/edge-label-overlap` (render, warning) | an edge label with `labelAt` / `labelSide` has no clear spot on that segment and side: the other `labelSide`, another `labelAt`, remove both, or make room (`gap`, anchors, a shorter label) |
-| `layout/edge-crossing` (render, info) | two lines cross; see [crossings](#crossings-layoutedge-crossing) |
-| `layout/attached-legend` | a legend cannot be attached: list it in an arrange tree |
-| `layout/no-route` on a `zoom` edge | its ends overlap: put the zoomed-in view beside, above or below the source, not around it ([zoom](#zoom-callouts)) |
+about **1.5mm in `academic` and `paper`, 2.5mm in `minimal` / `color`, 4mm in
+`slides`**. 3mm (2mm in academic / paper) between connected blocks is a good
+start, or no `gap` under `density: compact` (2.5mm); `gap: 0` only for blocks
+that touch with no edge between them. Paths that turn (residuals) run in the
+gap beside the blocks: if cramped, add `gap` to the enclosing row or put the
+turning edge's target side (`toAnchor: west`) where there is room.
 
 Geometry warnings after a structured render (`label-collision`,
-`edge-crosses-label`) usually come from edge labels, crossing nets or a
-group title in the way: move the title (`labelAt`, see
-[group titles](#group-titles-and-captions)), place the edge label
-(`labelAt` / `labelSide`), reorder the edges (earlier = straighter),
-shorten the label, or add `gap`.
-
-A complete structured figure is in [examples](examples.md#4-success-a-structured-block-diagram).
+`edge-crosses-label`) usually come from edge labels, crossing nets or a group
+title in the way: move the title (`labelAt`), place the edge label (`labelAt` /
+`labelSide`), reorder the edges (earlier = straighter), shorten the label, or
+add `gap`. A complete block diagram: [example 4](examples.md#4-success-a-structured-block-diagram).
+Per-code fixes for `layout/*`: [diagnostics](diagnostics.md#fixing-layout).
