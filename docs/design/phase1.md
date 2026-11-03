@@ -2664,6 +2664,13 @@ check・typecheck・gallery:check（231ファイル）・schema:check も成功�
 - PNG は `bun run gallery` 後に `bun run skill:previews` で PDF から `pdftoppm -png -r 150 -singlefile` により生成する。Poppler は再生成時のみ必要。CI は PNG の存在・データの妥当性・PDF ページとの縦横比（ピクセル丸めを許容）を検査し、OS 間のラスタライズのバイト一致は要求しない。
 - 配布を調べた skills CLI v1.7.2 は GitHub から clone して Skill ディレクトリをコピーする。Git の symlink を展開してくれることには依存せず、配布側 `skills/sumi/` 全体に symlink がないこと、独立コピーにも YAML・アセット・PNG が実体で入ることをテストする。既存の描画 golden と全 YAML × 自身のテーマ／全組み込みテーマの SVG・PDF・PPTX・D2 の sha256 を比較して互換性を確認する。
 
+### 6.98 #266 の平文・数式間の空白を SVG 描画系で保持する
+
+- **問題**: structured のラベルは平文・数式・フォント切り替えを入れ子の `tspan` として出力する。librsvg は既定の空白処理で run 境界の半角空白を落とし、`Timestep $t$` が `Timestept` になる。ブラウザと PDF エンジンでは空白が見えても SVG の可搬性を満たさない。
+- **採用**: 行内の隣接 run の末尾または先頭に半角空白があるラベルの `text` に `xml:space="preserve"` を付け、子の `tspan` に継承する。数式の前後、添字から戻る平文、注記・辺ラベル、アクセントの chunk、色やフォントの切り替えにも同じ規則を使う。該当しないラベルの SVG は変更しない。
+- **代替案と互換性**: 空白を次の run に移すと空白のフォントと advance が変わり得る。NBSP への置換は検索・コピーする文字を変え、`dx` は検査・PDF・編集可能 PPTX の幾何契約を増やすため採用しない。既存の usvg 向けの裸 `tspan`（§6.44）は維持し、run の文字列・計測・配置は変更しない。
+- **検証**: 修正前に失敗する回帰テストでノード・辺・添字・アクセントと対象外ラベルを検査し、PDF の文字位置が計測値と一致すること、編集可能 PPTX に元の空白が残ることを確認する。全 YAML を元テーマと全組み込みテーマで前後描画して SVG/PDF/PPTX/D2 の SHA-256 を比較し、CLI の PDF → `pdftoppm -png` と librsvg の描画を目視する。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）
