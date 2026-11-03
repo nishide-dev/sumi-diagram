@@ -123,6 +123,41 @@ groups:
   straight across two columns), use [`align`](#aligning-across-trees), not
   `gap` tweaks.
 
+## Panel separators (0.12.0)
+
+Use `separator` between panels instead of hidden junctions and a dashed `line`.
+It spans its enclosing row's height (vertical line) or stack's width
+(horizontal line), even with `align: start` / `center` / `end`. Nested boxes
+and reversed directions work too. It adds no size of its own; use the box's
+`gap` for whitespace on each side. Variants: `default` / `dashed` (dashed),
+`solid`. `tone` colors the line. No props, label, sublabel, badge, rotation or `grow`.
+It is decoration, excluded from geometry lint, not an edge endpoint.
+Place it directly in a row or stack, not with `attach` or directly in a grid.
+
+```yaml
+version: 1
+figure:
+  id: two-panels
+  theme: paper
+  layout:
+    arrange: { row: { gap: 6mm, items: [left, divider, right] } }
+groups:
+  - { id: left, variant: plain, arrange: { stack: { items: [a, b] } } }
+  - { id: right, variant: plain, arrange: { stack: { items: [c] } } }
+nodes:
+  - { id: a, component: box, label: Input }
+  - { id: b, component: box, label: Encoder }
+  - { id: divider, component: separator, variant: dashed }
+  - { id: c, component: box, label: Detail }
+edges:
+  - { from: a, to: b }
+```
+
+For panels above and below, change the outer `row` to `stack`. Check
+`sumi catalog separator --json` and `sumi --version` first: on an older CLI,
+`component/unknown` means the component is unavailable; use the older
+hidden-junction/line construction only as a fallback.
+
 ## Grids
 
 Use a grid for rows whose columns must line up (structured only):
@@ -208,6 +243,36 @@ otherwise. A corner helps only when the title is narrow: a title wider
 than about half the group still covers the centre, and the edge detours
 **without any diagnostic** — look at the preview. `labelAt` without a
 `label` gets `component/label-at-without-label` (warning).
+
+**Attachments and title centring.** A title is positioned relative to the
+**whole group frame**, including attached members, even with `variant: plain`.
+An input attached west of a member widens that frame, so its centred title
+moves left of the arranged body's centre. To title only the body, give it an
+inner group and attach the input to that group (a sibling, not a member of it).
+An untitled outer group can hold both as one panel:
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: body-title
+  theme: paper
+  layout:
+    arrange: { row: { items: [panel] } }
+groups:
+  - id: panel
+    variant: plain
+    arrange: { stack: { items: [body] } }
+  - id: body
+    label: Body
+    variant: plain
+    arrange: { stack: { items: [block] } }
+nodes:
+  - { id: block, component: box, label: Block }
+  - { id: input, component: box, label: Input, attach: { to: body, side: west, gap: 6pt } }
+edges:
+  - { from: input, to: block }
+```
 
 **`caption`** puts text centered **under** the group's border, outside it,
 like a sub-figure caption (`(a) …`): line breaks and label math as in a
@@ -944,6 +1009,20 @@ meets the row or column as a unit (`{ from: encoder, to: seq }`), and an
 [attached bracket](#brackets) gathers it. Sumi lays the cells out in a
 frame group with that ID (no border, fill or padding, so the frame is
 exactly the cells); tokens that nothing names as a whole get no frame.
+
+With `lines`, positions count continuously in **written line order**, then
+written cell order, starting at 1; they do not restart for each line or change
+with `direction`. For `lines: [["0", "1"], [a, b]]`, `emb.1` is `"0"`,
+`emb.2` is `"1"`, and `emb.3` is `a`. A cell with an explicit `id` uses that
+ID instead of its positional number (and still counts toward later positions).
+Prefer explicit IDs when editing lines.
+
+Aligning a cell of multi-line tokens preserves the entire block's cell offsets
+and `lineAlign`; it never shifts just one line. If the outer arrangement cannot
+move the block to meet the constraint, `layout/unsatisfied-align` points to the
+constraint. Wrap the tokens (or the other target) in a `row` for an `x`
+constraint or a `stack` for `y` to give it room to move; check the warning and
+render again. Naming the whole node aligns its frame, not a particular cell.
 
 ```yaml
 # expect-render: fits

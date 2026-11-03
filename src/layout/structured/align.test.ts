@@ -57,6 +57,299 @@ function rectOf(layout: LayoutIR, id: string): Rect {
 
 const centerY = (r: Rect) => r.y + r.height / 2;
 
+describe("multi-line tokens remain a unit under align (#305)", () => {
+  const tokens = (direction: string, lineAlign: string) => ({
+    id: "emb",
+    component: "tokens",
+    props: {
+      direction,
+      lineAlign,
+      width: "16pt",
+      height: "14pt",
+      lines: [
+        ["0", "1", "2", "3"],
+        ["a", "b", "c"],
+      ],
+    },
+  });
+
+  test.each(["right", "left", "down", "up"])(
+    "%s: preserves every cell offset for all line alignments",
+    (direction) => {
+      for (const lineAlign of ["start", "center", "end"]) {
+        const horizontal = direction === "right" || direction === "left";
+        const arrange = horizontal
+          ? { stack: { direction: "up", gap: "10pt", items: ["emb", "head"] } }
+          : { row: { gap: "10pt", items: ["emb", "head"] } };
+        const nodes = [tokens(direction, lineAlign), box("head", "Head")];
+        const plain = place(figure({ arrange }, nodes));
+        const aligned = place(
+          figure(
+            { arrange, align: [horizontal ? { x: ["head", "emb.1"] } : { y: ["head", "emb.1"] }] },
+            nodes,
+          ),
+        );
+        const origin = rectOf(plain.layout, "emb-1");
+        const moved = rectOf(aligned.layout, "emb-1");
+        for (let i = 1; i <= 7; i++) {
+          const a = rectOf(plain.layout, `emb-${i}`);
+          const b = rectOf(aligned.layout, `emb-${i}`);
+          expect(b.x - moved.x).toBeCloseTo(a.x - origin.x, 2);
+          expect(b.y - moved.y).toBeCloseTo(a.y - origin.y, 2);
+        }
+        const warning = aligned.diagnostics.find((d) => d.code === "layout/unsatisfied-align");
+        expect(warning?.path).toEqual(["figure", "layout", "align", 0]);
+        expect(warning?.location?.line).toBeGreaterThan(0);
+      }
+    },
+  );
+
+  test.each([false, true])("an outer row moves the whole block (frame: %s)", (frame) => {
+    const arrange = { stack: { align: "start", items: [{ row: { items: ["emb"] } }, "head"] } };
+    const nodes = [
+      tokens("right", "start"),
+      box("head", "Head"),
+      {
+        id: "badge",
+        component: "label",
+        label: "B",
+        attach: { to: "emb.5", side: "west" },
+      },
+      ...(frame
+        ? [
+            {
+              id: "frame-badge",
+              component: "label",
+              label: "F",
+              attach: { to: "emb", side: "east" },
+            },
+          ]
+        : []),
+    ];
+    const source = (align: unknown[]) => figure({ arrange, align }, nodes);
+    const plain = place(source([]));
+    const aligned = place(source([{ x: ["head", "emb.1"] }]));
+    expect(aligned.diagnostics.filter((d) => d.severity !== "info")).toEqual([]);
+    expect(aligned.align?.residuals.every((r) => r <= ALIGN_EPSILON)).toBe(true);
+    const dx = rectOf(aligned.layout, "emb-1").x - rectOf(plain.layout, "emb-1").x;
+    expect(dx).toBeGreaterThan(0);
+    for (const id of ["emb-1", "emb-2", "emb-3", "emb-4", "emb-5", "emb-6", "emb-7", "badge"]) {
+      expect(rectOf(aligned.layout, id).x - rectOf(plain.layout, id).x).toBeCloseTo(dx, 2);
+    }
+  });
+
+  test.each(["right", "left", "down", "up"])(
+    "%s: collapsed singleton lines retain their offsets and report unmet constraints",
+    (direction) => {
+      const horizontal = direction === "right" || direction === "left";
+      const axis = horizontal ? "y" : "x";
+      for (const lineAlign of ["start", "center", "end"]) {
+        for (const target of [2, 1, 3]) {
+          for (const frame of [false, true]) {
+            const branch = horizontal
+              ? { stack: { items: ["spacer", "head"] } }
+              : { row: { items: ["spacer", "head"] } };
+            const arrange = horizontal
+              ? { row: { align: "start", items: ["emb", branch] } }
+              : { stack: { align: "start", items: ["emb", branch] } };
+            const nodes = [
+              {
+                ...tokens(direction, lineAlign),
+                props: {
+                  ...tokens(direction, lineAlign).props,
+                  lineGap: "4pt",
+                  lines: [["a"], ["b"], ["c"]],
+                },
+              },
+              box("spacer", "Spacer", {
+                props: horizontal ? { height: "36pt" } : { width: "36pt" },
+              }),
+              box("head", "Head"),
+              ...(frame
+                ? [
+                    {
+                      id: "badge",
+                      component: "label",
+                      label: "F",
+                      attach: { to: "emb", side: "east" },
+                    },
+                  ]
+                : []),
+            ];
+            const plain = place(figure({ arrange }, nodes));
+            const aligned = place(
+              figure({ arrange, align: [{ [axis]: ["head", `emb.${target}`] }] }, nodes),
+            );
+            const origin = rectOf(plain.layout, "emb-1");
+            const moved = rectOf(aligned.layout, "emb-1");
+            for (let i = 1; i <= 3; i++) {
+              const a = rectOf(plain.layout, `emb-${i}`);
+              const b = rectOf(aligned.layout, `emb-${i}`);
+              expect(b.x - moved.x).toBeCloseTo(a.x - origin.x, 6);
+              expect(b.y - moved.y).toBeCloseTo(a.y - origin.y, 6);
+            }
+            expect(aligned.align?.residuals[0]).toBeGreaterThan(ALIGN_EPSILON);
+            const warning = aligned.diagnostics.find((d) => d.code === "layout/unsatisfied-align");
+            expect(warning?.severity).toBe("warning");
+            expect(warning?.path).toEqual(["figure", "layout", "align", 0]);
+            expect(warning?.location?.line).toBeGreaterThan(0);
+            expect(Object.keys(aligned.align?.struts ?? {}).some((key) => /n:emb-/.test(key))).toBe(
+              false,
+            );
+          }
+        }
+      }
+    },
+  );
+
+  test("constraints between lines cannot tear apart the same token block", () => {
+    const placed = place(
+      figure(
+        {
+          arrange: { row: { items: ["emb"] } },
+          align: [{ y: ["emb.1", "emb.5"] }],
+        },
+        [tokens("right", "start")],
+      ),
+    );
+    expect(placed.diagnostics.map((d) => d.code)).toEqual(["layout/unsatisfied-align"]);
+    expect(rectOf(placed.layout, "emb-1").y).toBeLessThan(rectOf(placed.layout, "emb-5").y);
+  });
+
+  test("360 unequal-line probes preserve offsets and locate every unmet constraint", () => {
+    for (const direction of ["right", "left", "down", "up"]) {
+      for (const axis of ["x", "y"] as const) {
+        for (const lineAlign of ["start", "center", "end"]) {
+          for (const target of ["emb.1", "emb.4", "emb.6"]) {
+            const arrangements = [
+              { row: { align: "start", items: ["emb", "a", "b"] } },
+              { stack: { align: "start", items: ["emb", "a", "b"] } },
+              { grid: { columns: 2, items: ["emb", "a", "b", null] } },
+              { row: { items: [{ stack: { items: ["emb", "a"] } }, "b"] } },
+              { stack: { items: [{ row: { items: ["emb", "a"] } }, "b"] } },
+            ];
+            for (const [index, arrange] of arrangements.entries()) {
+              const nodes = [
+                {
+                  ...tokens(direction, lineAlign),
+                  props: {
+                    ...tokens(direction, lineAlign).props,
+                    lines: [["a", { id: "named", label: "b" }, "c"], ["d", "e"], ["f"]],
+                  },
+                },
+                box("a", "AAAA"),
+                box("b", "B"),
+              ];
+              const align =
+                index === 3
+                  ? [{ [axis]: ["a", target] }, { [axis]: ["a", "b"] }]
+                  : index === 4
+                    ? [{ [axis]: ["a", target, "b"] }]
+                    : [{ [axis]: ["a", target] }];
+              const plain = place(figure({ arrange }, nodes));
+              const aligned = place(figure({ arrange, align }, nodes));
+              const origin = rectOf(plain.layout, "emb-1");
+              const moved = rectOf(aligned.layout, "emb-1");
+              for (const id of ["emb-1", "emb-named", "emb-3", "emb-4", "emb-5", "emb-6"]) {
+                const a = rectOf(plain.layout, id);
+                const b = rectOf(aligned.layout, id);
+                expect(b.x - moved.x).toBeCloseTo(a.x - origin.x, 6);
+                expect(b.y - moved.y).toBeCloseTo(a.y - origin.y, 6);
+              }
+              expect(aligned.align?.residuals).toHaveLength(align.length);
+              for (const [i, residual] of (aligned.align?.residuals ?? []).entries()) {
+                if (residual <= ALIGN_EPSILON) continue;
+                const warning = aligned.diagnostics.find(
+                  (d) => d.code === "layout/unsatisfied-align" && d.path?.at(-1) === i,
+                );
+                expect(warning?.path).toEqual(["figure", "layout", "align", i]);
+                expect(warning?.location?.line).toBeGreaterThan(0);
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+
+  test("single-line tokens, matrices and boxes retain ordinary alignment behavior", () => {
+    for (const axis of ["x", "y"]) {
+      for (const lineAlign of ["start", "center", "end"]) {
+        for (const kind of ["tokens", "matrix", "box"]) {
+          const node =
+            kind === "tokens"
+              ? { ...tokens("right", lineAlign), props: { lineAlign, lines: [["a", "b", "c"]] } }
+              : kind === "matrix"
+                ? {
+                    id: "emb",
+                    component: "matrix",
+                    props: { classes: { a: { tone: "blue" } }, cells: [["a", "a"]] },
+                  }
+                : box("emb");
+          const target = kind === "tokens" ? "emb.2" : "emb";
+          const ir = irOf(
+            figure(
+              {
+                arrange: {
+                  stack: { align: "start", items: [{ row: { items: ["emb"] } }, "head"] },
+                },
+                align: [{ [axis]: ["head", target] }],
+              },
+              [node, box("head", "Head")],
+            ),
+          );
+          const ordinary = {
+            ...ir,
+            nodes: ir.nodes.map(({ tokens: _tokens, ...node }) => node),
+          };
+          expect(JSON.stringify(placeStructured(ir, { measurer: FAKE }))).toBe(
+            JSON.stringify(placeStructured(ordinary, { measurer: FAKE })),
+          );
+        }
+      }
+    }
+  });
+
+  test("12 routed probes keep cell edge endpoints on their outlines", () => {
+    for (const direction of ["right", "left", "down", "up"]) {
+      for (const lineAlign of ["start", "center", "end"]) {
+        const text = figure(
+          {
+            arrange: { stack: { items: [{ row: { items: ["emb"] } }, "head"] } },
+            align: [{ x: ["head", "emb.1"] }],
+          },
+          [tokens(direction, lineAlign), box("head", "Head")],
+        );
+        const result = layoutStructuredFigure(`${text}edges:\n  - { from: emb.1, to: emb.5 }\n`, {
+          measurer: FAKE,
+        });
+        if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+        const edge = result.value.layout.edges[0];
+        expect(edge?.route).toBeDefined();
+        for (const [id, point] of [
+          ["emb-1", edge?.route?.points[0]],
+          ["emb-5", edge?.route?.points.at(-1)],
+        ] as const) {
+          if (point === undefined) throw new Error("missing endpoint");
+          const rect = rectOf(result.value.layout, id);
+          expect(point.x).toBeGreaterThanOrEqual(rect.x - ALIGN_EPSILON);
+          expect(point.x).toBeLessThanOrEqual(rect.x + rect.width + ALIGN_EPSILON);
+          expect(point.y).toBeGreaterThanOrEqual(rect.y - ALIGN_EPSILON);
+          expect(point.y).toBeLessThanOrEqual(rect.y + rect.height + ALIGN_EPSILON);
+          expect(
+            Math.min(
+              Math.abs(point.x - rect.x),
+              Math.abs(point.x - rect.x - rect.width),
+              Math.abs(point.y - rect.y),
+              Math.abs(point.y - rect.y - rect.height),
+            ),
+          ).toBeLessThanOrEqual(ALIGN_EPSILON);
+        }
+      }
+    }
+  });
+});
+
 describe("the stopping rule", () => {
   test("looks at the largest residual, not the sum", () => {
     // 99 met constraints and one 0.5 unit off: the sum (0.5) is under

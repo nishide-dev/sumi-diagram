@@ -389,6 +389,12 @@ Always take these from `sumi catalog --json`. Each entry has `id`
 (`node` / `group` / `edge` — a node component cannot be used for an edge),
 `variants` and `props` (a JSON Schema; `additionalProperties: false`).
 
+Read allowed prop values from `props.properties.<prop>.enum`, not from
+examples alone: for `sumi/tokens`, `props.properties.lineAlign.enum` is
+`["start", "center", "end", "stretch"]`. `default` gives the omitted value
+when there is one; `required` lists mandatory props. Nested objects and unions
+keep their own `properties`, `enum`, `const` and `anyOf` in the same schema.
+
 - Variants are a closed list per component (typically `default`, `emphasis`,
   `muted`; edges also `dashed`). Use them to encode meaning consistently
   (e.g. `muted` for secondary elements), not for decoration.
@@ -683,6 +689,11 @@ container movement or YAML round-trip. See the repository's
 One document per file (no `---`), no anchors / aliases / merge keys (`&`,
 `*`, `<<`), no tags (`!foo`), no duplicate keys. Comments are fine and are
 preserved by `sumi fmt`.
+
+Plain `sumi fmt file.sumi.yaml` reports `file.sumi.yaml: changed` or
+`file.sumi.yaml: unchanged` on stderr for each successfully formatted file.
+Stdout still lists only rewritten filenames. `--check` lists only files that
+would change (exit 1), and `--stdout` writes only YAML; neither adds status lines.
 
 ## Common mistakes
 

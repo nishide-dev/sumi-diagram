@@ -64,6 +64,21 @@ const squareSizeProps = sizeProps.refine(
 
 const noProps = z.strictObject({});
 
+const separator: NodeManifest = {
+  version: MANIFEST_VERSION,
+  namespace: BUILTIN_NAMESPACE,
+  since: "0.12.0",
+  kind: "node",
+  name: "separator",
+  description:
+    "A decorative panel divider that spans its enclosing structured row's height or stack's width, independently of align; takes no label and is not a connection or a geometry-lint obstacle. Use arrange gap for spacing.",
+  variants: ["default", "dashed", "solid"],
+  props: noProps,
+  shape: "rectangle",
+  sizing: "auto",
+  engines: ["structured"],
+};
+
 const waveform = {
   version: MANIFEST_VERSION,
   namespace: BUILTIN_NAMESPACE,
@@ -180,6 +195,7 @@ function outline(name: "trapezoid" | "stack" | "bowtie", description: string): N
 }
 
 export const BRACKET_ID = "sumi/bracket";
+export const SEPARATOR_ID = "sumi/separator";
 
 /**
  * A square bracket or curly brace (#281, design doc §6.78) that gathers the
@@ -960,6 +976,7 @@ export const BUILTIN_MANIFESTS: readonly ComponentManifest[] = [
   outline("bowtie", "A bowtie silhouette with two opposing tapered halves and a central waist."),
   outline("stack", "Three overlapping rectangles, e.g. for a collection of documents or layers."),
   bracket,
+  separator,
   node("label", "text", "Text without a border.", { variants: ["default", "muted"] }),
   operator,
   junction,

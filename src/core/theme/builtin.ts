@@ -147,6 +147,11 @@ function componentStyles(styles: VariantStyles): NonNullable<ThemeDefinition["co
       muted: shape.muted,
       outlined: shape.outlined,
     },
+    separator: {
+      default: { fill: "transparent", strokeDash: "{dash.regular}" },
+      dashed: { fill: "transparent", strokeDash: "{dash.regular}" },
+      solid: { fill: "transparent", strokeDash: 0 },
+    },
     // Without outlines a stack's rectangles merge into one shape (#174).
     stack: { ...stack, solid: { ...stack.solid, stroke: "#ffffff" } },
     label: styles.label,

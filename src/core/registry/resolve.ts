@@ -40,9 +40,10 @@ import {
   nodeKey,
 } from "../check-state";
 import type { Diagnostic, DiagnosticSubject, DocPath } from "../diagnostics";
+import type { ArrangeBox } from "../figure/schema";
 import type { Locator } from "../figure/yaml";
 import { hasLabelMarkup, looksLikeMath, parseLabel } from "../label/math";
-import { BRACKET_ID } from "./builtins";
+import { BRACKET_ID, SEPARATOR_ID } from "./builtins";
 import { type ComponentKind, componentId, type ResolvedComponent } from "./manifest";
 import type { Registry } from "./registry";
 
@@ -130,16 +131,60 @@ export function resolveComponents(
       continue;
     }
     const manifest = resolved.value;
+    if (componentId(manifest) === SEPARATOR_ID && engine === "structured") {
+      const id = element.subject.id;
+      const inLinearBox = (box: ArrangeBox | undefined): boolean => {
+        if (box === undefined) return false;
+        const linear = box.row ?? box.stack;
+        const items = (linear ?? box.grid)?.items ?? [];
+        return items.some((entry) => {
+          const item =
+            entry !== null && typeof entry === "object" && "item" in entry ? entry.item : entry;
+          return typeof item === "string"
+            ? linear !== undefined && item === id
+            : item !== null && inLinearBox(item);
+        });
+      };
+      if (
+        !inLinearBox(state.doc.figure?.layout.arrange) &&
+        !(state.doc.groups ?? []).some((g) => inLinearBox(g?.arrange))
+      ) {
+        report(
+          [
+            {
+              code: "component/separator-placement",
+              severity: "error",
+              message: "A separator must be a direct item of a row or stack.",
+              hint: "Place it between panels in a row or stack; use gap for spacing.",
+            },
+          ],
+          () => [...element.path, "component"],
+        );
+      }
+      if ((state.doc.edges ?? []).some((edge) => edge && [edge.from, edge.to].includes(id))) {
+        report(
+          [
+            {
+              code: "component/separator-connection",
+              severity: "error",
+              message: "A separator is decoration and cannot be an edge endpoint.",
+              hint: "Connect the panels' nodes instead.",
+            },
+          ],
+          () => [...element.path, "component"],
+        );
+      }
+    }
     const growUnsupported =
       element.grow !== undefined &&
-      ["sumi/tokens", "sumi/matrix", "sumi/legend"].includes(componentId(manifest));
+      ["sumi/tokens", "sumi/matrix", "sumi/legend", SEPARATOR_ID].includes(componentId(manifest));
     if (growUnsupported)
       report(
         [
           {
             code: "component/grow-unsupported",
             severity: "error",
-            message: `${componentId(manifest)} expands into layout items and has no standalone node body to weight.`,
+            message: `${componentId(manifest)} expands into layout items or spans its box, so it has no standalone node body to weight.`,
             hint: "Remove grow; use grow on ordinary nodes inside an immediate row/stack with justify: stretch.",
           },
         ],
@@ -195,10 +240,12 @@ export function resolveComponents(
     const mark = manifest.kind === "node" ? manifest.mark : undefined;
     const embed = manifest.kind === "node" ? manifest.embed : undefined;
     // A bracket (#281) is a line with no label, label turn or sublabel.
-    const bracket = componentId(manifest) === BRACKET_ID;
+    const bracket = [BRACKET_ID, SEPARATOR_ID].includes(componentId(manifest));
     const badgeUnsupported =
       element.badge &&
-      (["sumi/legend", "sumi/tokens", "sumi/matrix", BRACKET_ID].includes(componentId(manifest)) ||
+      (["sumi/legend", "sumi/tokens", "sumi/matrix", BRACKET_ID, SEPARATOR_ID].includes(
+        componentId(manifest),
+      ) ||
         mark?.type === "point");
     if (badgeUnsupported)
       report(
