@@ -406,18 +406,20 @@ function paths(ir: FigureIR): Map<ElementKey, Step[]> {
   if (ir.arrange !== undefined) walk(ir.arrange, []);
   // Multi-line tokens are one rigid block (#305). Keep each cell's rectangle
   // as the align target, but allow struts only outside their common item.
-  // Distinct innermost boxes identify multiple lines; single-line tokens keep
-  // their existing alignment behavior. This also handles a whole-node frame.
-  const tokenPaths = new Map<string, Step[][]>();
+  // Use written line indices: singleton runs collapse to cells and therefore
+  // share an innermost box. Single-line tokens keep their existing behavior.
+  // This also handles a whole-node frame.
+  const tokenPaths = new Map<string, { paths: Step[][]; lines: Set<number> }>();
   for (const node of ir.nodes) {
     const path = out.get(node.key);
     if (node.tokens === undefined || path === undefined) continue;
-    const list = tokenPaths.get(node.tokens.id) ?? [];
-    list.push(path);
-    tokenPaths.set(node.tokens.id, list);
+    const block = tokenPaths.get(node.tokens.id) ?? { paths: [], lines: new Set<number>() };
+    block.paths.push(path);
+    block.lines.add(node.tokens.line ?? 0);
+    tokenPaths.set(node.tokens.id, block);
   }
-  for (const list of tokenPaths.values()) {
-    if (new Set(list.map((path) => path.at(-1)?.box)).size < 2) continue;
+  for (const { paths: list, lines } of tokenPaths.values()) {
+    if (lines.size < 2) continue;
     const first = list[0] as Step[];
     let length = first.length;
     for (const path of list.slice(1)) {
