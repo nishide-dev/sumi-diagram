@@ -515,6 +515,10 @@ function strutRecord(struts: Struts): Record<string, number> {
   return out;
 }
 
+/** Neutral advice of a grid-cell hint; the engine swaps it for a verified edit when a trial works. */
+export const UNVERIFIED_ALIGN_TAIL =
+  "No verified wrapper edit is available: check the parent row/stack alignment and competing constraints, or align other elements.";
+
 /** `layout/unsatisfied-align` for constraint `index`. */
 function unsatisfied(
   ir: FigureIR,
@@ -534,9 +538,20 @@ function unsatisfied(
   const line = c.axis === "y" ? "one horizontal line" : "one vertical line";
   const where = formatDocPath(c.srcAt.path);
   const box = c.axis === "y" ? "stack" : "row";
-  const hint = movable
-    ? `Other align constraints or the arrangement keep them apart: a strut only adds space, and it moves the items after it in its ${box} too. Check the constraints that share these elements (they may contradict each other), or align other elements.`
-    : `"${id(first)}" and "${id(last)}" cannot be moved apart: a strut goes only in a ${box} that holds just one of them, never inside a box with gap: 0, and it moves the items after it in its ${box} too. Put them in different ${box}s, or align other elements.`;
+  const pathOf = paths(ir);
+  const gridItems = c.items.filter((key) => pathOf.get(key)?.at(-1)?.box.kind === "grid");
+  const boxes = new Set(gridItems.map((key) => pathOf.get(key)?.at(-1)?.box));
+  const sameGrid = gridItems.length === c.items.length && boxes.size === 1;
+  const gridNames = gridItems.map((key) => `"${id(key)}"`).join(", ");
+  const explanation = `${gridNames} ${gridItems.length === 1 ? "is a direct grid cell (or attached to one)" : "are direct grid cells (or attached to them)"}: grid cells take no align struts, so they cannot move independently inside the grid.`;
+  const hint =
+    gridItems.length > 0
+      ? sameGrid
+        ? `${explanation} They are tracks of the same grid, so wrapping them or the grid cannot separate them: ${c.axis === "y" ? "put them in the same row of the grid" : "put them in the same column of the grid"}, or use another constraint.`
+        : `${explanation} ${UNVERIFIED_ALIGN_TAIL}`
+      : movable
+        ? `Other align constraints or the arrangement keep them apart: a strut only adds space, and it moves the items after it in its ${box} too. Check the constraints that share these elements (they may contradict each other), or align other elements.`
+        : `"${id(first)}" and "${id(last)}" cannot be moved apart: a strut goes only in a ${box} that holds just one of them, never inside a box with gap: 0, and it moves the items after it in its ${box} too. Put them in different ${box}s, or align other elements.`;
   const related: RelatedInformation[] = [];
   for (const [i, other] of constraints.entries()) {
     if (i === index || !other.items.some((k) => c.items.includes(k))) continue;

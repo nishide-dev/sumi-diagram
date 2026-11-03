@@ -54,6 +54,7 @@ import { type Profile, spacedProfile } from "../../core/profile/schema";
 import { SEPARATOR_ID } from "../../core/registry/builtins";
 import { getFontSet } from "../../core/theme/fonts";
 import { roundToD2Units } from "../../core/units";
+import { hintLayoutOptions, inHintTrial } from "../hint-trials";
 import {
   type EdgeLayout,
   type GroupLayout,
@@ -76,6 +77,7 @@ import {
   type Struts,
   solveAlignment,
 } from "./align";
+import { verifiedAlignHints } from "./align-hint";
 import { nodeLabelCenter, nodeSize, type Size, stretchableShape } from "./sizing";
 
 /** The engine name recorded in the Layout IR. */
@@ -143,6 +145,7 @@ export function placeStructured(
   if (ir.meta.engine !== "structured" || ir.arrange === undefined) {
     throw new Error("internal error: the structured layout needs a structured figure");
   }
+  hintLayoutOptions.set(ir, options);
   const base = options.profile ?? getProfile(ir.meta.profileId);
   if (base === undefined) throw new Error(`internal error: unknown profile ${ir.meta.profileId}`);
   // `figure.layout.density: compact` (#182) swaps in the profile's compact spacing.
@@ -188,7 +191,8 @@ export function placeStructured(
     engine.growPadding(deficits);
     placed = place();
   }
-  return placed;
+  if (inHintTrial() || placed.diagnostics.length === 0) return placed;
+  return { ...placed, diagnostics: verifiedAlignHints(ir, placed.diagnostics) };
 }
 
 /** Re-layouts for the padding before arrowheads (#171); the first nearly always settles it. */

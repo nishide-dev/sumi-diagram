@@ -2521,6 +2521,81 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - レビューで判明した singleton 3 行の再現も回帰検査に追加。4 方向 × `lineAlign` 3 種 × 先頭・中間・末尾行 × フレーム有無の 72 通りで、両軸の相対位置維持、セル strut 不在、未達制約の位置付き warning を検査する。旧判定に戻すと横方向で 61.677 layout units の行間増加、転置で 68.677 units の増加を再現し、4 方向ともテストが失敗する。さらに不等長 3 行・両軸・row/stack/grid・複数制約・A↔cell↔B の 360 通り、12 経路の 24 セル端点、単一行 tokens/matrix/box の 18 通りで通常の整列結果・診断・統計との一致を固定する。
 - セル番号は `lines` を記述順に平坦化した 1 始まりの位置。行ごとに再開せず、`direction` による表示順の反転も番号に影響しない。明示 `id` のセルも後続セルの位置の計数に含めるが、そのセル自身は ID で参照する。この規則を配布 Skill の tokens リファレンスへ追記した。
 
+### 6.88 #306: grid span と grid cell align の原因別 hint
+
+v0.11.0 と配布 Skill の ViT Figure 1 dogfood を受け、10 列 grid に
+9 列の projection・10 列の encoder と列ごとの box を置き、両方向の
+`straight` anchor を接続して再現した。既定の `center` では span は列を
+予約するだけで box は自然幅のままであり、端の列が側面の外に出る。
+`layout/straight-off-side` の「斜め」と `layout/no-route` の一般的な gap
+案内だけでは `grid.align: stretch` に辿り着けなかった。また、grid の
+直接の cell と別 stack 内の既に下にある item を y-align すると、cell
+に strut を入れられず未達になるのに「different stacks」と案内していた。
+
+**決定と互換性。** span cell の既定 stretch 化は採用しない。既存の
+center/start/end を意図した図の box 幅・port・経路、ひいては SVG/PDF/PPTX
+を変えるためである。配置・track 計算・align solver・router の探索は
+変えず、既存 diagnostic の hint のみを原因別にする。新しい診断コードや
+部品・schema は追加しない。#305/#307（PR #313/#314）の cell align・幅診断
+とは独立させ、engine の配置計算は変更しない。
+
+- `straight` を指定した側が直接の spanning grid item で、上下に離れた
+  相手との straight placement に失敗した場合、`layout/straight-off-side`
+  とその edge の `layout/no-route` に、対象 ID・span 列数・span は予約で
+  あって拡幅ではないこと・自然幅・その grid の `align: stretch` を示す。
+  **レビュー後の方針変更: heuristic ではなく実測検証。** 相手を固定した予約矩形の
+  拡張判定は廃止する。`grid.align: stretch` は両端を移動・拡幅し得るため、IR の
+  arrange tree と必要な node をメモリ上でコピーし、stretch（明示幅がある場合は
+  その node の幅削除も含む）を適用して structured placement / align solver /
+  routing を再実行する。同じ edge / anchor の診断が消え、no-route も残らない
+  場合だけ修正案を示す。元の IR・LayoutIR・描画結果は変更しない。
+  circle/label/custom outline/badge 等の固有の非伸縮性には幅削除を勧めない。
+  検証失敗・予算超過時は原因の説明と中立的な文言のみとする。
+  overlap/self-loop、横接続、span なし、既に成立する straight は従来通り。
+  edge の path/location/subject と blocker の related は維持する。
+- コスト上限は診断ごとに6回の trial。要素80個超、arrange
+  item 240個超、grid 80列超は trial を省略する。trial 内では hint の再試行を無効に
+  する。実際に使用した profile / measurer / align limits は WeakMap で引き継ぐ。
+  配置・routing 本体の出力や診断 code/severity/location/related は変更しない。
+  回帰は全レビュー probe（両端が移動する12ケースを含む）、決定性、
+  非破壊性、6回上限と大型/auto の0回実行を検証する。
+- 未達 align の対象が grid 直接 cell（その attach を含む）なら、grid cell は strut を
+  受け取らないことを説明する。wrapper（cell 単体→全 cell→grid 全体）は固定の説明では
+  なく、`placeStructured` の後処理で IR コピーに適用して再配置し、同じ constraint の
+  診断が消える場合だけ「Verified by」として提示する（trial は上記の6回上限、trial 内
+  は再試行なし）。constraint の全対象が同一 grid の cell なら、同じ track であり
+  wrapper では分離できないため、y なら同じ行、x なら同じ列に置く（または別 constraint を使う）という軸別の中立的な説明にする。
+  軸別に y は stack、x は row の wrapper を試し、grid の先頭行以外の cell も同様に検証する。
+  既存の残差・severity は変えない。
+- 検証済み hint は実測で対象診断を消す編集のみを示すが、他の診断が新たに出る場合が
+  あるため「Re-run lint after applying」を併記し、trial で新規に出た診断 code があれば
+  列挙する。検証済み文は generic な助言（side anchor、`Leave room…`、attach の説明）を
+  置換せず、grid の説明部分だけを置き換えて残りを維持する。no-route で両端が
+  span cell の場合は片端ずつ、次に両端同時の stretch を trial 予算内で試す。
+- `hint-trials.ts` と `engine.ts` は循環 import になるため、`hintLayoutOptions` 等は
+  呼び出し時にのみ参照する（module 読み込み時に評価しない）。
+
+回帰テストは 9/10 列の自然幅と明示 center の同一配置、両 anchor 方向、
+stretch 後の直線接続・route 検証、no-route の blocker 位置、固定幅/固定形、
+別 stack の相手との y-align が cell wrapper で解決することを確認する。
+レビューの追加 probe は、長い自然ラベルの9列 span＋空白＋10列目への接続で
+stretch 前後の同一矩形と警告維持、未使用幅があっても span 外へは届かない場合、
+明示40pt幅の circle の幅削除前後の非伸縮案内、end-aligned row 内の2行 grid と
+single-item stack が wrapper なしで上へ動いて整列することを回帰検証する。
+Skill の Grids 節にも span/stretch と wrapper の選び方を記載する。
+全 `*.sumi.yaml` を元テーマと全組み込みテーマで描画し、変更前後の
+SVG/PDF/PPTX/D2 の SHA-256 を比較する（意図的な不正 fixture 等の描画不可は
+エラーコードで比較する）。golden を更新せず既存出力のバイト互換を検証する。
+
+**実測:** repository の160 YAML × 元テーマ＋組み込み5テーマの960ケースを
+比較し、成功678ケースの SVG/PDF/picture PPTX と auto の228ケースの D2 が
+全件 SHA-256 一致した。既存の不正 fixture・旧研究構文等282ケースも
+エラーコードが一致し、例外は0。gallery 全231ファイルもバイト一致した。
+レビュー修正後も HEAD を読み取り専用 baseline として160個の tracked YAMLを
+比較し、hint以外の診断、および成功41件の structured layout / SVG writer出力が
+すべて一致した。`CI=1 bun run test` は4,146 pass / 13 skip / 0 fail、
+check・typecheck・gallery:check（231ファイル）・schema:check も成功した。
+
 ### 6.89 #309 のパネル区切り separator
 
 - **背景と再現**: v0.11.0 の部品集合で `component: separator` は `component/unknown`。ViT Figure 1 のようなパネル区切りに hidden junction 2 個と dashed line を使うと、装飾が接続・経路として扱われ、配置のための stack も必要になる。

@@ -198,6 +198,37 @@ use nested linear (stack / row) wrappers when vertical alignment needs struts.
 On an older CLI that rejects `grid`, use rows inside a stack and, if needed,
 cross-tree `align` constraints.
 
+**Span does not imply stretch.** A `{ item: projection, span: 9 }` reserves
+nine columns, but with the default `grid.align: center` the box keeps its
+natural width in the middle of them. For a projection / encoder that must
+cover the columns below it, set **`align: stretch` on that grid**, and leave
+the box's `props.width` unset. Fixed-width and non-resizable components
+(e.g. circles, labels and custom outlines) keep their width even then.
+`fromAnchor: straight` / `toAnchor: straight` lines up an edge endpoint;
+it does not widen the box. If outer columns miss its sides,
+`layout/straight-off-side` (and sometimes `layout/no-route`) explains the
+span / natural-width cause. Sumi recommends stretch or removing `props.width`
+only after applying that edit to an in-memory copy and re-running structured
+layout and routing: both endpoints can move. Trials are bounded (at most six
+per diagnostic) and skipped for large figures. When no edit verifies, the hint
+stays neutral. Auto/D2 figures never run trial renders.
+Intrinsic non-resizability takes precedence over an explicit width: removing
+`props.width` does not make a circle stretch. Put `straight` at the wide
+box's end; check the rendered routes after stretching.
+
+**Cross-tree align cannot insert space directly in a grid cell.** If a
+`y` constraint between a cell and an item in another stack stays unmet,
+being in different branches is not sufficient: the cell has no strut
+position. In the reported start-aligned arrangement, adding space cannot move
+the lower branch upward. This is not universal: trailing space can move an
+item upward within an end-aligned parent and satisfy alignment without a
+wrapper. Sumi recommends a wrapper (`{ stack: { items: [cell] } }` for `y`,
+a row for `x`; the cell, all cells, or the whole grid) only after a trial
+layout shows that it removes the diagnostic; re-run lint after applying it.
+Cells of the same grid are tracks of that grid: no wrapper separates them, so
+put them in the same row (`y`) or column (`x`) of the grid, or use another constraint. Also check
+competing constraints. `layout/unsatisfied-align` names this grid limitation.
+
 ## Group titles and captions
 
 A group's `label` (its title) sits at the **top centre** inside the border,
