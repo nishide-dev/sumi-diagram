@@ -21,7 +21,7 @@ import { type CheckState, type ElementKey, figureElements, groupKey } from "../c
 import type { Diagnostic, DocPath } from "../diagnostics";
 import type { Locator } from "../figure/yaml";
 import type { FontUsage } from "../profile/constrain";
-import { SEPARATOR_ID } from "../registry/builtins";
+import { OPERATOR_SIZES, SEPARATOR_ID } from "../registry/builtins";
 import type { ComponentId, ComponentKind } from "../registry/manifest";
 import { resolveTheme } from "./builtin";
 import { dimmedElements, dimStyle } from "./dim";
@@ -187,6 +187,14 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
       variant === "dashed"
     )
       style = Object.freeze({ ...style, stroke: overrides.dashedGroupStroke });
+    // `sumi/operator` props.size (#311): the circle is a multiple of the font size, so scale that.
+    if (id === "sumi/operator" && style.kind === "node") {
+      const scale = OPERATOR_SIZES[component.props.size as keyof typeof OPERATOR_SIZES] ?? 1;
+      if (scale !== 1) {
+        const units = Math.round(style.fontSize.units * scale);
+        style = Object.freeze({ ...style, fontSize: { pt: units / 2, units } });
+      }
+    }
     if (overrides?.nodeCorners === "square" && style.kind !== "edge")
       style = Object.freeze({ ...style, radius: { pt: 0, units: 0 } });
     if (overrides?.groupLabelWeight !== undefined && style.kind === "group")

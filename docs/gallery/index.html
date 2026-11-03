@@ -860,8 +860,8 @@ nodes:
 <p>A small circle with an operator symbol, e.g. where inputs are added or combined; takes no label.</p>
 <ul class="chips" aria-label="variants"><li>default</li><li>emphasis</li><li>muted</li><li>filled</li><li>outlined</li><li>solid</li><li>tinted</li></ul>
 <dl class="meta"><dt>since</dt><dd><code>0.4.0</code></dd><dt>shape</dt><dd><code>circle</code></dd><dt>sizing</dt><dd><code>fixed-aspect-1</code></dd><dt>mark</dt><dd><code>{&quot;type&quot;:&quot;glyph&quot;,&quot;prop&quot;:&quot;symbol&quot;,&quot;glyphs&quot;:{&quot;plus&quot;:&quot;+&quot;,&quot;minus&quot;:&quot;−&quot;,&quot;times&quot;:&quot;×&quot;,&quot;dot&quot;:&quot;•&quot;,&quot;concat&quot;:&quot;‖&quot;},&quot;size&quot;:2}</code></dd></dl>
-<table><thead><tr><th>prop</th><th>type</th><th>required</th><th>description</th></tr></thead><tbody><tr><td><code>symbol</code></td><td><code>&quot;plus&quot; | &quot;minus&quot; | &quot;times&quot; | &quot;dot&quot; | &quot;concat&quot;</code></td><td>yes</td><td>The operator drawn in the circle: plus (+), minus (−), times (×), dot (•) or concat (‖).</td></tr></tbody></table>
-<div class="renders"><figure><img src="components/sumi-operator.minimal.svg" alt="sumi/operator, every variant, theme minimal" loading="lazy"><figcaption>theme <code>minimal</code> · <code>sumi render sumi-operator.sumi.yaml</code><br>40.75mm × 172.16mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-operator.academic.svg" alt="sumi/operator, every variant, theme academic" loading="lazy"><figcaption>theme <code>academic</code> · <code>sumi render sumi-operator.sumi.yaml --theme academic</code><br>40.57mm × 172.16mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-operator.slides.svg" alt="sumi/operator, every variant, theme slides" loading="lazy"><figcaption>theme <code>slides</code> · <code>sumi render sumi-operator.sumi.yaml --theme slides</code><br>61.56mm × 206.38mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-operator.color.svg" alt="sumi/operator, every variant, theme color" loading="lazy"><figcaption>theme <code>color</code> · <code>sumi render sumi-operator.sumi.yaml --theme color</code><br>40.75mm × 172.16mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-operator.paper.svg" alt="sumi/operator, every variant, theme paper" loading="lazy"><figcaption>theme <code>paper</code> · <code>sumi render sumi-operator.sumi.yaml --theme paper</code><br>40.04mm × 172.16mm (max width 180mm, max height 220mm)</figcaption></figure></div>
+<table><thead><tr><th>prop</th><th>type</th><th>required</th><th>description</th></tr></thead><tbody><tr><td><code>symbol</code></td><td><code>&quot;plus&quot; | &quot;minus&quot; | &quot;times&quot; | &quot;dot&quot; | &quot;concat&quot;</code></td><td>yes</td><td>The operator drawn in the circle: plus (+), minus (−), times (×), dot (•) or concat (‖).</td></tr><tr><td><code>size</code></td><td><code>&quot;regular&quot; | &quot;large&quot; | &quot;xlarge&quot;</code></td><td>no</td><td>Size of the circle and the symbol together, relative to the theme&#39;s operator (since 0.12.0): regular (the theme&#39;s size, the default), large (1.5x) or xlarge (2x). The frame&#39;s line weight stays the theme&#39;s.</td></tr></tbody></table>
+<div class="renders"><figure><img src="components/sumi-operator.minimal.svg" alt="sumi/operator, every variant, theme minimal" loading="lazy"><figcaption>theme <code>minimal</code> · <code>sumi render sumi-operator.sumi.yaml</code><br>76.2mm × 172.33mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-operator.academic.svg" alt="sumi/operator, every variant, theme academic" loading="lazy"><figcaption>theme <code>academic</code> · <code>sumi render sumi-operator.sumi.yaml --theme academic</code><br>76.2mm × 172.33mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-operator.slides.svg" alt="sumi/operator, every variant, theme slides" loading="lazy"><figcaption>theme <code>slides</code> · <code>sumi render sumi-operator.sumi.yaml --theme slides</code><br>116.59mm × 210.78mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-operator.color.svg" alt="sumi/operator, every variant, theme color" loading="lazy"><figcaption>theme <code>color</code> · <code>sumi render sumi-operator.sumi.yaml --theme color</code><br>76.2mm × 172.33mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-operator.paper.svg" alt="sumi/operator, every variant, theme paper" loading="lazy"><figcaption>theme <code>paper</code> · <code>sumi render sumi-operator.sumi.yaml --theme paper</code><br>73.03mm × 172.16mm (max width 180mm, max height 220mm)</figcaption></figure></div>
 <details><summary>Source: <code>sumi-operator.sumi.yaml</code></summary><pre># sumi/operator: every variant. Generated by `bun run gallery` (#17).
 version: 1
 figure:
@@ -951,6 +951,12 @@ nodes:
   - id: concat-operator
     component: sumi/operator
     props: { symbol: concat }
+  - id: size-large-operator
+    component: sumi/operator
+    props: { symbol: plus, size: large }
+  - id: size-xlarge-operator
+    component: sumi/operator
+    props: { symbol: plus, size: xlarge }
 
 edges:
   - from: default
@@ -977,6 +983,10 @@ edges:
     to: dot-operator
   - from: concat
     to: concat-operator
+  - from: default-operator
+    to: size-large-operator
+  - from: size-large-operator
+    to: size-xlarge-operator
 </pre></details>
 </section>
 <section class="card" id="sumi-junction">

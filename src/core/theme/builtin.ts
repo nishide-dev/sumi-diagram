@@ -69,6 +69,8 @@ const SHAPE_NODES = [
 const EDGES = ["arrow", "line", "double-arrow"];
 
 interface VariantStyles {
+  /** Line weight of a framed image / html (#311); omitted means `{line.regular}`. */
+  imageFrame?: string;
   operator?: { default: StyleLayerInput };
   shape: {
     emphasis: StyleLayerInput;
@@ -159,11 +161,11 @@ function componentStyles(styles: VariantStyles): NonNullable<ThemeDefinition["co
     // An image (#94) is drawn as it is: no background, and a frame only when asked for.
     image: {
       default: { fill: "transparent", strokeWidth: "0pt" },
-      framed: { fill: "transparent", strokeWidth: "{line.regular}" },
+      framed: { fill: "transparent", strokeWidth: styles.imageFrame ?? "{line.regular}" },
     },
     html: {
       default: { fill: "transparent", strokeWidth: "0pt" },
-      framed: { fill: "transparent", strokeWidth: "{line.regular}" },
+      framed: { fill: "transparent", strokeWidth: styles.imageFrame ?? "{line.regular}" },
     },
     waveform: {
       default: {},
@@ -679,6 +681,8 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
         // (#215). A 0.5pt frame balances the smaller regular-weight symbol
         // with paper's edges; emphasis retains its existing bold frame.
         operator: { default: { fontSize: "{size.small}", strokeWidth: "{line.edge}" } },
+        // A framed image's frame is as light as paper's edges (#311), not the 1pt node frame.
+        imageFrame: "{line.edge}",
         label: {
           default: { fill: "transparent", strokeWidth: "0pt" },
           muted: { fontColor: "{color.muted}" },
