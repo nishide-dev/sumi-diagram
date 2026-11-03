@@ -185,13 +185,17 @@ names its Sumi means.
   reuse two or three gap values. Frame a group only when the frame means
   something. *Sumi:* a `gap` per box (e.g. 3mm inside, 6mm between) or the
   `density: compact` defaults; panels as `variant: plain` groups.
-- **No dead blocks.** Whitespace is spread evenly: no empty rectangle larger than
-  about one block. The usual cause is a tall narrow column (a vertical list above
-  a head) beside a wide short one. Fix it by **re-arranging**: put the outputs or
-  note beside their source, turn a vertical list into a row, reorder a row; never
-  by adding elements or enlarging boxes to fill the space. *Sumi:* change the
-  tree, `attach`, tokens `direction`; `geometry/group-empty-area` (info) flags a
-  hollow group.
+- **No unexplained voids.** Whitespace should say something: separate groups, keep
+  a shared line (inputs aligned at the bottom of side-by-side panels), or set the
+  focus apart. An empty region about a block in size or larger is a reason to look
+  again: if it is disproportionate and explains nothing (typically a tall narrow
+  column, such as a vertical list above a head, beside a wide short one),
+  **re-arrange**: put the outputs or note beside their source, turn a vertical list
+  into a row, reorder a row. Never add elements or enlarge boxes to fill it.
+  *Sumi:* change the tree, `attach`, tokens `direction`. The info
+  `geometry/group-empty-area` fires when at least 75% of a group's frame lies outside
+  its title and direct children (edges not counted); it does not find empty regions
+  elsewhere.
 - **Fit the page.** Design for the printed width at the theme's text size:
   `paper-single` (88mm) suits a column, portrait or square; `paper-double`
   (180mm) a wide, short figure (usually under about 90mm tall). Wrap a long chain
@@ -243,16 +247,17 @@ does not fit the target, plan before writing:
    [s1]  [s2]  [s3]  [s4]
    ```
 
-4. **Compare** them on dead space (A leaves empty corners beside its narrow
-   column), aspect ratio against the profile (A is six blocks tall, B three),
+4. **Compare** them on unexplained empty space (A leaves empty corners beside its
+   narrow column), aspect ratio against the profile (A is six blocks tall, B three),
    shared lines, crossings or detours, and notes next to their targets. A one-line
    box is about 6mm tall in paper themes (4.6mm with `density: compact`); measure
    widths with `sumi render`. Pick one; say why in your report.
 5. **Write the tree from the sketch**: each sketch row is a `row`, each column a
    `stack`, repeated units a `grid` or `tokens`, notes `attach`ed.
-6. **After rendering**, look at the preview for empty regions larger than a block,
-   unaligned edges and notes far from their targets. Fix empty space by moving
-   notes or outputs or changing the arrangement, not by adding elements.
+6. **After rendering**, look at the preview for empty regions of a block or more,
+   unaligned edges and notes far from their targets. Keep space that groups,
+   aligns or sets apart; fix a disproportionate, unexplained void by moving notes or
+   outputs or changing the arrangement, not by adding elements.
 
 ## Paper figure recipe
 
@@ -305,7 +310,7 @@ root row's `align: stretch` makes both panels and the dashed `separator` full he
 and its `gap` is the whitespace on each side of the line. `align: stretch` inside the
 left panel makes the encoder as wide as the tile rows, so the panel's edges line up;
 the right panel repeats the encoder's tone, and the two columns are about equally
-tall, so neither leaves an empty block. Edges do not cross the separator: the shared
+tall, so neither leaves an unexplained void. Edges do not cross the separator: the shared
 title names the link.
 
 ```yaml

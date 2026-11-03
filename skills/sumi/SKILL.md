@@ -202,7 +202,8 @@ It uses Quick Look on macOS (padded to a square: the blank space is not part of 
 figure), else `rsvg-convert`; exit 1 if neither exists: skip this and say so. Check:
 reading order follows `direction` (or the arrange tree); no label overlaps a line or
 shape; no edge crosses or detours around a group title (`labelAt`); nothing is huge or
-squashed; text is legible; no empty region larger than a block (re-arrange; never pad).
+squashed; text is legible; an empty region of a block or more is there for a reason
+(grouping, alignment, emphasis); otherwise re-arrange, never pad.
 
 ### 8. Report
 
@@ -213,9 +214,9 @@ could not verify. Show the YAML only if asked or if it is short.
 ## Paper figure workflow
 
 Paper figures are structured, theme `paper`, built to the [design principles](references/layout-tips.md#design-principles)
-(reading direction, focus, shared lines, no dead blocks, colour by role, notes at their
-target). With **content only** (the usual case), [plan the layout](references/layout-tips.md#plan-the-layout-before-writing-yaml)
-before writing YAML: roles, main direction, two ASCII sketches compared on dead space,
+(reading direction, focus, shared lines, no unexplained voids, colour by role, notes at
+their target). With **content only** (the usual case), [plan the layout](references/layout-tips.md#plan-the-layout-before-writing-yaml)
+before writing YAML: roles, main direction, two ASCII sketches compared on empty space,
 aspect ratio, alignment and crossings. With **a reference figure**, map each look to a
 field ([recipe](references/layout-tips.md#paper-figure-recipe)) and keep its arrangement
 unless it breaks the width or the principles (say so). Then read as needed:
@@ -225,8 +226,8 @@ unless it breaks the width or the principles (say so). Then read as needed:
 3. Cells: [tokens](references/structured.md#token-sequences) (numbering, `lines`, `lineAlign`), [matrices](references/structured.md#matrices).
 4. Pictures: [crop, shared assets](references/assets.md#reusing-one-picture-figureassets), [framed images, operator size](references/assets.md#framed-images-and-operator-size), [html](references/html.md) cards.
 5. Looks: [tones and variants](references/figure-format.md#tones-and-variants), [themeOverrides](references/figure-format.md#themes-and-profiles), [`fit: scale`, `density: compact`](references/layout-tips.md#shrinking-to-the-page-width-figurefit-scale).
-6. Loop `fmt` → `lint` → `render` with [diagnostics](references/diagnostics.md). An empty region
-   larger than a block is a layout bug: move notes or outputs, or re-arrange.
+6. Loop `fmt` → `lint` → `render` with [diagnostics](references/diagnostics.md). Review any
+   block-sized void: keep it if it groups or aligns, else move notes or outputs.
 
 ## When to stop and ask
 

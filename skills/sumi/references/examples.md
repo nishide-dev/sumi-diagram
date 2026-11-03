@@ -177,18 +177,19 @@ switch silently.
 
 ## 4. Success: a structured block diagram
 
-Request: "For one paper column, draw our sensor encoder layer: readings at the bottom,
-a feature projection, a time encoding added with a ⊕ from the side, then L× [attention
-+ add & norm, MLP + add & norm] with residuals; math labels for the inputs and
-outputs." Stacked layers, residuals and a side note are a structured figure
+Request: "For one paper column, draw our sensor front end: the raw signal at the
+bottom, calibration with the sensor configuration fed in from the side, then K×
+[a low-, band- and high-pass filter, each with its own gain, combined and added to a
+bypass of the filters]; math labels for the signals." A stage of touching blocks, a
+bypass and a side note are a structured figure
 ([choose](layout-tips.md#choose-the-engine-first)); icon search `sumi catalog --icons
-clock` → `tabler/clock`.
+adjustments` → `tabler/adjustments`.
 
 ```yaml
 # expect-render: fits
 version: 1
 figure:
-  id: sensor-encoder
+  id: sensor-frontend
   theme: academic
   profile: paper-single
   layout:
@@ -196,64 +197,73 @@ figure:
       stack:
         direction: up # first item at the bottom
         gap: 4mm
-        items: [ inputs, projection, add-time, encoder, outputs ]
+        items: [ raw, calibrate, stage, clean ]
 
 groups:
-  - id: encoder
+  - id: stage
     arrange:
       stack:
         direction: up
         gap: 3mm
-        align: stretch # every block as wide as the widest
+        align: stretch # Combine as wide as the three bands
         items:
-          - split1
-          - stack: { direction: up, gap: 0, items: [ attention, norm1 ] } # touching blocks
-          - split2
-          - stack: { direction: up, gap: 0, items: [ mlp, norm2 ] }
+          - split
+          - row:
+              gap: 3mm
+              items:
+                # one touching filter + gain pair per band
+                - stack: { direction: up, gap: 0, align: stretch, items: [ low, gain-low ] }
+                - stack: { direction: up, gap: 0, align: stretch, items: [ band, gain-band ] }
+                - stack: { direction: up, gap: 0, align: stretch, items: [ high, gain-high ] }
+          - combine
+          - add
 
 nodes:
-  - { id: inputs, component: label, label: '$r_1,\,\ldots,\,r_T$' }
-  - { id: projection, component: box, label: Feature Projection, tone: pink }
-  - { id: add-time, component: operator, props: { symbol: plus } }
-  - { id: time, component: circle, icon: tabler/clock, attach: { to: add-time, side: west, gap: 1mm } }
-  - { id: time-label, component: label, label: "Time\nEncoding", attach: { to: time, side: west, gap: 0.5mm } }
-  - { id: split1, component: junction, variant: hidden }
-  - { id: attention, component: box, label: Attention, tone: orange }
-  - { id: norm1, component: box, label: Add & Norm, tone: yellow }
-  - { id: split2, component: junction, variant: hidden }
-  - { id: mlp, component: box, label: MLP, tone: blue }
-  - { id: norm2, component: box, label: Add & Norm, tone: yellow }
-  - { id: repeat, component: label, label: '$L \times$', attach: { to: encoder, side: east, gap: 2mm } }
-  - { id: outputs, component: label, label: '$h_1,\,\ldots,\,h_T$' }
+  - { id: raw, component: label, label: '$u_t$' }
+  - { id: calibrate, component: box, label: Calibration, tone: gray }
+  - { id: config, component: circle, icon: tabler/adjustments, attach: { to: calibrate, side: west, gap: 2mm } }
+  - { id: config-label, component: label, label: "Sensor\nconfig", attach: { to: config, side: west, gap: 0.5mm } }
+  - { id: split, component: junction, variant: hidden }
+  - { id: low, component: box, label: Low-pass, tone: blue }
+  - { id: gain-low, component: box, label: '$g_1$', tone: yellow }
+  - { id: band, component: box, label: Band-pass, tone: blue }
+  - { id: gain-band, component: box, label: '$g_2$', tone: yellow }
+  - { id: high, component: box, label: High-pass, tone: blue }
+  - { id: gain-high, component: box, label: '$g_3$', tone: yellow }
+  - { id: combine, component: box, label: Combine, tone: green }
+  - { id: add, component: operator, props: { symbol: plus } }
+  - { id: repeat, component: label, label: '$K \times$', attach: { to: stage, side: east, gap: 2mm } }
+  - { id: clean, component: label, label: '$\hat{y}_t$' }
 
 edges:
-  - { from: inputs, to: projection }
-  - { from: projection, to: add-time }
-  - { from: time, to: add-time, component: line }
-  - { from: add-time, to: split1, component: line }
-  # one junction fans out to the three attention inputs and the residual
-  - { from: split1, to: attention, toAnchor: "south:0.2" }
-  - { from: split1, to: attention, toAnchor: "south:0.5" }
-  - { from: split1, to: attention, toAnchor: "south:0.8" }
-  - { from: split1, to: norm1, toAnchor: west } # residual
-  - { from: norm1, to: split2, component: line }
-  - { from: split2, to: mlp }
-  - { from: split2, to: norm2, toAnchor: west } # residual
-  - { from: norm2, to: outputs }
+  - { from: raw, to: calibrate }
+  - { from: config, to: calibrate, component: line }
+  - { from: calibrate, to: split, component: line }
+  # one hidden junction fans out to the three bands and the bypass
+  - { from: split, to: low }
+  - { from: split, to: band }
+  - { from: split, to: high }
+  - { from: gain-low, to: combine, toAnchor: straight }
+  - { from: gain-band, to: combine, toAnchor: straight }
+  - { from: gain-high, to: combine, toAnchor: straight }
+  - { from: combine, to: add }
+  - { from: split, to: add, toAnchor: west } # bypass around the filters
+  - { from: add, to: clean }
 ```
 
 ```sh
-$ sumi fmt sensor-encoder.sumi.yaml && sumi lint sensor-encoder.sumi.yaml
+$ sumi fmt sensor-frontend.sumi.yaml && sumi lint sensor-frontend.sumi.yaml
 0 errors, 0 warnings, 0 infos
-$ sumi render sensor-encoder.sumi.yaml
-Wrote sensor-encoder.svg: 50.09mm × 77.96mm (paper-single, max width 88mm; theme academic).
+$ sumi render sensor-frontend.sumi.yaml
+Wrote sensor-frontend.svg: 83.26mm × 68.09mm (paper-single, max width 88mm; theme academic).
 ```
 
-Points to note: every node and group appears once, in a tree or with
-`attach`; members come from the group's `arrange` (no `group:`); `gap: 0`
-stacks join each block to its `Add & Norm`; edges into junctions are `line`s
-and the junctions `hidden`, so the three inputs and the residual fork without a dot;
-math labels are single-quoted with `\,` after commas. `academic` maps tones
+Points to note: every node and group appears once, in a tree or with `attach`
+(`config-label` → `config` → `calibrate` is a chain); members come from the group's
+`arrange` (no `group:`); `gap: 0` stacks join each filter to its gain; the edge into the
+junction is a `line` and the junction `hidden`, so the three bands and the bypass fork
+without a dot; the bypass enters the ⊕ at `west`; `align: stretch` makes Combine as wide
+as the bands, so `straight` gives three vertical lines; math labels are single-quoted. `academic` maps tones
 to gray steps; `theme: color` colours the same YAML.
 
 ## 5. Failure: no room for the arrows

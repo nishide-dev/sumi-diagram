@@ -79,8 +79,8 @@ groups:
 - `stack` runs top to bottom (`direction: down`, default) or bottom to top
   (`up`: the first item is at the bottom, like a network drawn from input to
   output). `row` runs left to right (`right`, default) or right to left (`left`).
-- `gap`: a length with a unit or `0` (items touch, e.g. a block and its
-  `Add & Norm`; never connect touching items with an edge: `layout/no-route`).
+- `gap`: a length with a unit or `0` (items touch, e.g. a filter and its
+  gain; never connect touching items with an edge: `layout/no-route`).
 - `align` places items across the box (stack: `start` = left; row: `start` =
   top). `stretch` widens (stack) or heightens (row) boxes, groups and
   box-like nodes to the largest; `label`, `circle`, `square`, `trapezoid`,
@@ -356,14 +356,14 @@ nodes:
 ## Attach: side notes
 
 ```yaml
-- { id: time, component: circle, icon: tabler/clock, attach: { to: add, side: west, gap: 1mm } }
-- { id: time-label, component: label, label: "Time\nEncoding", attach: { to: time, side: west, gap: 0.5mm } }
+- { id: config, component: circle, icon: tabler/adjustments, attach: { to: add, side: west, gap: 1mm } }
+- { id: config-label, component: label, label: "Sensor\nconfig", attach: { to: config, side: west, gap: 0.5mm } }
 - { id: repeat, component: label, label: "N×", attach: { to: encoder, side: east, gap: 2mm } }
 ```
 
 `attach: { to, side, gap }` puts a node outside the trees, centred on the
-`side` of a node or group, `gap` away (default 0); chains work (`time-label` →
-`time` → `add`). The attached node joins its target's group, which (or the
+`side` of a node or group, `gap` away (default 0); chains work (`config-label` →
+`config` → `add`). The attached node joins its target's group, which (or the
 canvas) grows to hold it. Corner sides `north-east`, `south-east`,
 `south-west`, `north-west` place it outside both sides with the gap on each
 axis (a [badge](assets.md#corner-badges) is instead centred on the corner);
@@ -571,11 +571,10 @@ greedily: edges declared first get the best routes.
   diagonal or overlapping, or parallel edges run from a wide box into a narrow one,
   `layout/straight-off-side` (warning) and the end acts as if unanchored: line them up
   in the tree, put `straight` on the wide end, or write a side anchor.
-- **Encoder output into a decoder block** (Transformer K and V): both edges leave the
-  encoder's top block with `fromAnchor: north` (one shared trunk) and enter at
-  `toAnchor: "south:0.2"` (K) and `"south:0.4"` (V), Q coming from the decoder's own
-  split junction at `"south:0.8"`; with the default `"south:0.5"` the lines tangle (no
-  diagnostic: look at the preview).
+- **Two inputs from another column, one from its own**: the two edges from the other
+  column leave its top block with `fromAnchor: north` (one shared trunk) and enter at
+  `toAnchor: "south:0.2"` and `"south:0.4"`, the column's own input at `"south:0.8"`;
+  with the default `"south:0.5"` the lines tangle (no diagnostic: look at the preview).
 - **Default sides** (no anchor) follow the arrange tree: take the box where the two
   ends' branches part; in a stack the ends use north / south, in a row east / west,
   towards the other end (an attached node counts as its target's place). If the ends
@@ -592,11 +591,11 @@ greedily: edges declared first get the best routes.
   (`component/anchor-on-junction`, warning).
 
   ```yaml
-  # residual connection: split before the block, re-enter at the side
-  - { from: split, to: attention, toAnchor: "south:0.2" }   # Q
-  - { from: split, to: attention, toAnchor: "south:0.5" }   # K
-  - { from: split, to: attention, toAnchor: "south:0.8" }   # V
-  - { from: split, to: norm, toAnchor: west }               # residual
+  # one input entering a block at three points, plus a bypass to the side of the ⊕
+  - { from: split, to: mixer, toAnchor: "south:0.2" }
+  - { from: split, to: mixer, toAnchor: "south:0.5" }
+  - { from: split, to: mixer, toAnchor: "south:0.8" }
+  - { from: split, to: add, toAnchor: west }               # bypass
   ```
 
 - **Shared trunk (bus)**: edges leaving one element at the same anchor share a line until
