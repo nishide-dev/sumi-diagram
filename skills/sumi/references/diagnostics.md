@@ -9,7 +9,8 @@ gap. Grid items identify their column or column span. Attached nodes report the
 horizontal overhang beyond their container's arrange bounds. Concrete edits are
 recommended only after independent in-memory structured layout and routing trials
 verify a smaller page width; they are ranked by measured reduction in mm.
-At most six candidates are tried per diagnostic (the same trial budget as the
+Candidates (row `gap`, grid `columnGap`, explicit node `width`, `attach.gap`) are
+tried in order of their own size; at most six are tried per diagnostic (the same trial budget as the
 grid hints). Figures above 80 elements, without an arrange tree, or with
 external assets use neutral measurements without trials.
 No verified improvement also produces neutral wording. Apply one edit and

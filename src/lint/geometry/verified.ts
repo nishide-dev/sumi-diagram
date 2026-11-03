@@ -6,11 +6,13 @@
  * trial layout: page width and painted group frames are measured there, not
  * in the layout IR. Copies only; nothing is written to disk.
  */
-import type { ArrangeBoxIR, FigureIR } from "../../compiler/ir";
+import type { ArrangeBoxIR, FigureIR, NodeIR } from "../../compiler/ir";
+import { getProfile } from "../../core/profile/builtin";
+import { spacedProfile } from "../../core/profile/schema";
 import { SEPARATOR_ID } from "../../core/registry/builtins";
 import { getFontSet } from "../../core/theme/fonts";
 import { formatMm } from "../../core/units";
-import { HintTrials, mapBoxes } from "../../layout/hint-trials";
+import { HintTrials, MAX_HINT_TRIALS, mapBoxes } from "../../layout/hint-trials";
 import { unitsToPt } from "../../render/geometry";
 import { inspectSvg } from "../../render/inspect";
 import { writeStructuredSvg } from "../../render/structured";
@@ -21,6 +23,8 @@ interface Candidate {
   /** A copy of the figure with exactly one edit. */
   make: () => FigureIR;
   priority: number;
+  /** Expected own contribution to the page width in pt (width mode); orders the budgeted trials. */
+  impact: number;
 }
 
 /** Stable breadth-first order gives outer constraints a turn before descendants. */
@@ -63,6 +67,7 @@ export function verifyHints(
     if (mode === "width" && box.kind !== "stack" && box[field] !== 0)
       candidates.push({
         priority: 0,
+        impact: (box[field] ?? 0) * Math.max(0, (box.columns ?? box.items.length) - 1),
         text: `set ${path}.${box.kind}.${box.kind === "grid" ? "columnGap" : "gap"} to 0mm`,
         make: () => edit({ [field]: 0 }),
       });
@@ -75,40 +80,74 @@ export function verifyHints(
         if (box[key] === value) continue;
         candidates.push({
           priority: key === "align" ? 0 : 2,
+          impact: 0,
           text: `set ${path}.${box.kind}.${key} to ${value}`,
           make: () => edit({ [key]: value }),
         });
       }
     }
   }
+  const base = getProfile(original.meta.profileId);
+  const padX = base ? spacedProfile(base, original.meta.density).layout.nodePaddingX.pt : 0;
+  const withNodes = (replace: (n: NodeIR) => NodeIR) =>
+    mapBoxes({ ...original, nodes: original.nodes.map(replace) }, (b) => b);
   for (const node of original.nodes) {
     // A separator is decoration whose size is not a layout choice.
     if (node.width === undefined || node.component === SEPARATOR_ID) continue;
+    // Excess over the measured label: what removing the explicit width could free.
+    const label = context.get(node.key)?.labels[0]?.box?.width ?? 0;
+    const natural = unitsToPt(label) + padX * 2;
     candidates.push({
       priority: 1,
+      impact: Math.max(0, node.width.pt - natural),
       text: `remove the explicit width of node "${node.id}"`,
       make: () =>
-        mapBoxes(
-          {
-            ...original,
-            nodes: original.nodes.map((n) => {
-              if (n !== node) return n;
-              const { width: _width, ...rest } = n;
-              return rest;
-            }),
-          },
-          (b) => b,
-        ),
+        withNodes((n) => {
+          if (n !== node) return n;
+          const { width: _width, ...rest } = n;
+          return rest;
+        }),
     });
+  }
+  if (mode === "width") {
+    const attached = original.nodes.filter((n) => n.attach !== undefined && n.attach.gapPt > 0);
+    const zero = (targets: readonly NodeIR[]) =>
+      withNodes((n) =>
+        targets.includes(n) && n.attach ? { ...n, attach: { ...n.attach, gapPt: 0 } } : n,
+      );
+    if (attached.length > 1)
+      candidates.push({
+        priority: 0,
+        impact: attached.reduce((sum, n) => sum + (n.attach?.gapPt ?? 0), 0),
+        text: `set attach.gap of all ${attached.length} attached nodes to 0mm`,
+        make: () => zero(attached),
+      });
+    for (const node of attached)
+      candidates.push({
+        priority: 0,
+        impact: node.attach?.gapPt ?? 0,
+        text: `set attach.gap of node "${node.id}" to 0mm`,
+        make: () => zero([node]),
+      });
   }
   const fonts = getFontSet(original.meta.fontSetId);
   if (!fonts) return neutral;
   const verified: { text: string; reduction: number }[] = [];
   const baseline = score(context);
-  for (const candidate of candidates.sort((a, b) => a.priority - b.priority)) {
+  const ordered = candidates.sort(
+    (a, b) => b.impact - a.impact || a.priority - b.priority || a.text.localeCompare(b.text),
+  );
+  for (const candidate of ordered) {
+    // Budget exhaustion ends the search; one failed trial does not.
+    if (trials.count >= MAX_HINT_TRIALS) break;
     const ir = candidate.make();
-    const result = trials.run(ir);
-    if (!result) break;
+    let result: ReturnType<HintTrials["run"]>;
+    try {
+      result = trials.run(ir);
+    } catch {
+      continue;
+    }
+    if (!result) continue;
     if (result.diagnostics.some((d) => d.severity === "error")) continue;
     try {
       const inspected = inspectSvg(writeStructuredSvg(ir, result.layout, fonts), ir);

@@ -171,3 +171,88 @@ nodes:
   expect(hint).toContain("set figure.layout.arrange.row.gap to 0mm (page width reduced by");
   expect(hint).not.toMatch(/node "s"/);
 });
+
+const rowsOf = (gaps: readonly string[]) =>
+  gaps.map((g, i) => `{ row: { gap: ${g}, items: [x${i}, y${i}] } }`).join(", ");
+const rowNodes = (count: number) =>
+  Array.from({ length: count }, (_, i) =>
+    ["x", "y"]
+      .map((c) => `  - { id: ${c}${i}, component: box, label: X, props: { width: 20pt } }`)
+      .join("\n"),
+  ).join("\n");
+const widthHint = async (text: string) =>
+  (await lintRenderedFigure(text)).diagnostics.find((d) => d.code === exceedsPageWidth.id)?.hint;
+
+test("candidates are ordered by expected impact, not tree order, within the trial budget", async () => {
+  const wideNode = await widthHint(`version: 1
+figure: { id: f, profile: paper-single, layout: { engine: structured, arrange: { stack: { items: [a, ${rowsOf(Array(7).fill("5mm"))}] } } } }
+nodes:
+  - { id: a, component: box, label: A, props: { width: 300pt } }
+${rowNodes(7)}
+`);
+  expect(wideNode).toContain('remove the explicit width of node "a" (page width reduced by');
+  const wideGap = await widthHint(
+    `version: 1
+figure: { id: g, profile: paper-single, layout: { engine: structured, arrange: { stack: { items: [${rowsOf([...Array(7).fill("1mm"), "100mm"])}] } } } }
+nodes:
+${rowNodes(7)}
+  - { id: m, component: box, label: M }
+  - { id: n, component: box, label: N }
+`.replace("[x7, y7]", "[m, n]"),
+  );
+  expect(wideGap).toContain("items[7].row.gap to 0mm");
+});
+
+test("attach gaps are verified candidates", async () => {
+  const chain = Array.from(
+    { length: 5 },
+    (_, i) =>
+      `  - { id: c${i}, component: box, label: C, props: { width: 60pt }, attach: { to: ${i === 0 ? "b" : `c${i - 1}`}, side: east, gap: 8mm } }`,
+  ).join("\n");
+  const text = `version: 1
+figure: { id: i, profile: paper-single, layout: { engine: structured, arrange: { row: { items: [a, b] } } } }
+nodes:
+  - { id: a, component: box, label: A }
+  - { id: b, component: box, label: B }
+${chain}
+`;
+  const before = await lintRenderedFigure(text);
+  const after = await lintRenderedFigure(text.replaceAll("gap: 8mm", "gap: 0mm"));
+  if (!before.rendered || !after.rendered) throw new Error("render failed");
+  const reduction =
+    printedSize(before.rendered.inspection).widthPt -
+    printedSize(after.rendered.inspection).widthPt;
+  const hint = before.diagnostics.find((d) => d.code === exceedsPageWidth.id)?.hint;
+  expect(hint).toContain(
+    `set attach.gap of all 5 attached nodes to 0mm (page width reduced by ${formatMm(reduction)})`,
+  );
+});
+
+test("one failed trial does not end the search", async () => {
+  const report = await lintRenderedFigure(gridProbe(1));
+  if (!report.rendered) throw new Error("render failed");
+  const context = geometryContextFor(report.rendered);
+  const real = engine.placeStructured;
+  let calls = 0;
+  const spy = spyOn(engine, "placeStructured").mockImplementation((ir, options) => {
+    calls++;
+    const placed = real(ir, options);
+    // The first candidate fails with a placement error; the search must go on.
+    return calls === 1
+      ? {
+          ...placed,
+          diagnostics: [
+            ...placed.diagnostics,
+            { code: "layout/test", severity: "error" as const, message: "bad candidate" },
+          ],
+        }
+      : placed;
+  });
+  try {
+    const hint = verifyHints(context, "width", (c) => c.canvas.width);
+    expect(calls).toBeGreaterThan(1);
+    expect(hint).toContain("Verified layout edits");
+  } finally {
+    spy.mockRestore();
+  }
+});
