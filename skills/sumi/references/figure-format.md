@@ -222,7 +222,7 @@ fills stay strong).
 
 ```yaml
 groups:
-  - { id: cross, caption: Block with cross-attention, dim: true, arrange: … }
+  - { id: gated, caption: (c) Gated variant, dim: true, arrange: … }
 ```
 
 - Only `true` is accepted; it cannot be turned off inside. An edge with one end outside is

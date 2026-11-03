@@ -272,7 +272,7 @@ nodes:
         - { asset: photo, crop: [0, 0, 60, 60], variant: framed }
         - { asset: photo, crop: [60, 0, 60, 60], variant: framed }
         - "…"
-  - { id: proj, component: box, label: Linear Projection, tone: green, variant: filled }
+  - { id: proj, component: box, label: Projection, tone: green, variant: filled }
 edges:
   - { from: patches, to: proj }
 ```

@@ -1,15 +1,17 @@
 # Layout tips
 
-**Purpose.** Pick the layout engine, make a figure fit its target, and reproduce
-the look of a published paper figure. Contents:
+**Purpose.** Pick the layout engine, make a figure fit its target, and design
+a paper figure that reads well, from content or from a reference. Contents:
 [choose the engine](#choose-the-engine-first) · [auto layout](#auto-layout-d2--elk) ·
 [direction vs. width](#direction-vs-target-width) · [slides](#slides-presentation-16x9) ·
 [too wide with `right`, too tall with `down`](#too-wide-with-right-too-tall-with-down) ·
 [shrinking](#shrinking-to-the-page-width-figurefit-scale) ·
 [compact spacing](#compact-spacing-figurelayoutdensity-compact) ·
-[**paper figure recipe**](#paper-figure-recipe) ·
+[**design principles**](#design-principles) ·
+[**plan the layout**](#plan-the-layout-before-writing-yaml) ·
+[paper figure recipe](#paper-figure-recipe) ·
 [two panels with a divider](#two-panels-with-a-dashed-divider) ·
-[labels and groups](#labels-and-groups) · [reading order](#reading-order-and-emphasis)
+[labels and groups](#labels-and-groups)
 
 ## Choose the engine first
 
@@ -20,11 +22,11 @@ the look of a published paper figure. Contents:
 
 A figure is structured when it has `figure.layout.arrange` (and no `engine:
 auto`). When unsure start with auto: it needs no placement and suits most
-diagrams; switch when the user wants a particular arrangement or the figure
-reproduces a paper's block diagram. Structured figures need every element placed
-and their sizes come from the arrange tree, so the direction tables below do not
-apply (measure with `sumi render`). The rest of this page up to
-[paper figure recipe](#paper-figure-recipe) is mostly about auto.
+diagrams; switch when the user wants a particular arrangement or the figure is a
+paper block diagram. Structured figures need every element placed and their sizes
+come from the arrange tree, so the direction tables below do not apply (measure
+with `sumi render`). The rest of this page up to
+[design principles](#design-principles) is mostly about auto.
 
 ## Auto layout (D2 + ELK)
 
@@ -127,8 +129,9 @@ Text is checked at its printed size: the 8pt / 7pt of the built-in themes must
 print at 5pt or more on paper profiles (`geometry/text-too-small`), so a figure can
 shrink to about 70% (7pt edge labels reach 4.9pt just below). Subscripts of label
 math print smaller and are reported once as information (`geometry/script-too-small`).
-Prefer re-arranging when it fits without shrinking; use `fit: scale` for figures
-modelled on published ones (whose text is often 5–6pt) and tell the user.
+Prefer re-arranging when it fits without shrinking; use `fit: scale` when a dense
+reference figure must keep its arrangement (published text is often 5–6pt) and tell
+the user.
 
 ## Compact spacing (`figure.layout.density: compact`)
 
@@ -159,13 +162,105 @@ figure:
   own `gap`), as does a colliding edge label or badge (`geometry/label-collision`,
   `layout/edge-label-overlap`).
 
+## Design principles
+
+A paper figure is read in seconds, beside its caption. Check every candidate
+arrangement and the preview against these general information-design rules; each
+names its Sumi means.
+
+- **One reading direction.** The main path runs one way, inputs to outputs:
+  bottom to top for a stack of layers, left to right for a pipeline. Side paths
+  (residuals, skips, feedback) run beside it, never back across it. *Sumi:* the
+  root `stack: { direction: up }` or `row`; side entries with `toAnchor: west`;
+  main-path edges first in `edges` (earlier edges route straighter).
+- **One focus.** The one or two elements the figure is about stand out; the rest
+  is quieter; a compared baseline is pale. *Sumi:* `emphasis`, `solid`, operator
+  `size: large` for the focus; pastel `filled` for the rest; `dim: true` on a
+  compared panel.
+- **Shared lines.** Elements at one level share a top, centre or edge; stacked
+  blocks are equally wide; repeated units sit on a grid. Straight edges follow.
+  *Sumi:* `align: stretch`, `grid` (+ `span`), `figure.layout.align` across trees,
+  `straight` anchors.
+- **Proximity groups.** Space inside a group is smaller than space between groups;
+  reuse two or three gap values. Frame a group only when the frame means
+  something. *Sumi:* a `gap` per box (e.g. 3mm inside, 6mm between) or the
+  `density: compact` defaults; panels as `variant: plain` groups.
+- **No dead blocks.** Whitespace is spread evenly: no empty rectangle larger than
+  about one block. The usual cause is a tall narrow column (a vertical list above
+  a head) beside a wide short one. Fix it by **re-arranging**: put the outputs or
+  note beside their source, turn a vertical list into a row, reorder a row; never
+  by adding elements or enlarging boxes to fill the space. *Sumi:* change the
+  tree, `attach`, tokens `direction`; `geometry/group-empty-area` (info) flags a
+  hollow group.
+- **Fit the page.** Design for the printed width at the theme's text size:
+  `paper-single` (88mm) suits a column, portrait or square; `paper-double`
+  (180mm) a wide, short figure (usually under about 90mm tall). Wrap a long chain
+  into rows rather than shrink it. *Sumi:* the size `sumi render` prints;
+  [two rows](#too-wide-with-right-too-tall-with-down); `fit: scale` last.
+- **Colour encodes a role.** One tone per kind of element (all norms `blue`), the
+  same in every panel, three or four tones at most; plumbing (inputs, junctions)
+  stays neutral. Say what tones and dashes mean. *Sumi:* `tone` + one variant per
+  kind; a [`legend`](structured.md#legends) or the caption.
+- **Notes at their target.** A size, `N×` or symbol sits next to what it explains;
+  an edge label is a word on its own edge. *Sumi:* `attach` (`side`, `gap`),
+  `sublabel`, edge `labelAt` / `labelSide`; a legend in the tree beside its panel.
+- **One meaning per line style.** Solid arrow: data flow; `line`: into a junction
+  or ⊕; dashed: optional, skip or callout; a toned edge only for a path you name.
+  *Sumi:* edge `component`, `variant: dashed`, `tone`, `zoom`.
+- **Panels with one message each.** Split for two levels of detail (an overview
+  and an enlarged block) or for variants compared; panels equally tall, captions
+  on one line, the same tones for the same parts. *Sumi:* groups in a `row` with
+  `align: stretch`, `caption`, `separator`, `zoom`, `dim`.
+- **Short labels.** Noun phrases of one to three words in one casing style;
+  symbols in math, shapes in a sublabel; no sentences in boxes. *Sumi:* `\n`,
+  `'$x_t$'`, `sublabel`.
+
+Auto figures follow the same rules where they apply: declare nodes and edges in
+reading order; give `emphasis`, `muted` and `dashed` one meaning each and say it in
+the caption or report (auto figures have no legend).
+
+## Plan the layout before writing YAML
+
+When the user describes the content (no figure to copy), or a reference figure
+does not fit the target, plan before writing:
+
+1. **List the elements and their roles**: inputs, main-path steps, outputs, side
+   inputs, repeated units, notes (sizes, `N×`), compared variants. Mark the main
+   path and the focus.
+2. **Choose the main direction and the panels** from the content and the target:
+   layers bottom to top; a pipeline left to right on `paper-double`, top to bottom
+   or in two rows on `paper-single`. One panel per level of detail or per variant.
+3. **Sketch two candidate arrangements** as small ASCII drawings, one text line per
+   row of the arrange tree. E.g. four sensors fused, a detector, three alert types:
+
+   ```text
+   A: alerts stacked over the detector     B: alerts as a row beside it
+          [a3]                                [Detector] → [a1][a2][a3]
+          [a2]                                [        Fusion        ]
+          [a1]                                [s1]  [s2]  [s3]  [s4]
+       [Detector]
+   [        Fusion        ]
+   [s1]  [s2]  [s3]  [s4]
+   ```
+
+4. **Compare** them on dead space (A leaves empty corners beside its narrow
+   column), aspect ratio against the profile (A is six blocks tall, B three),
+   shared lines, crossings or detours, and notes next to their targets. A one-line
+   box is about 6mm tall in paper themes (4.6mm with `density: compact`); measure
+   widths with `sumi render`. Pick one; say why in your report.
+5. **Write the tree from the sketch**: each sketch row is a `row`, each column a
+   `stack`, repeated units a `grid` or `tokens`, notes `attach`ed.
+6. **After rendering**, look at the preview for empty regions larger than a block,
+   unaligned edges and notes far from their targets. Fix empty space by moving
+   notes or outputs or changing the arrangement, not by adding elements.
+
 ## Paper figure recipe
 
-A figure modelled on a published paper figure is a **structured** figure with the
-`paper` theme. Start from [example 6](examples.md#6-success-a-paper-figure) and map
-what the original shows:
+A paper figure is a **structured** figure with the `paper` theme. Start from
+[example 6](examples.md#6-success-a-paper-figure) and the arrangement you planned (or
+the reference's arrangement), then map each look you want to a field:
 
-| The original shows | Write |
+| To draw | Write |
 | --- | --- |
 | rounded pastel boxes, thin black lines, small arrowheads, sans-serif | `figure.theme: paper` (`academic` for a grayscale, square-cornered figure) |
 | boxes without a border (pastel fill only) | `variant: filled` + `tone` ([variants](figure-format.md#tones-and-variants)) |
@@ -195,79 +290,83 @@ what the original shows:
 
 Order of work: content and arrangement first (the arrange tree, `align: stretch`
 panels), then the looks (`paper`, variants, tones, `dim`), then `density: compact`,
-and `fit: scale` last if still too wide. Check the preview against the original
-after each step. **Not expressible** (say so instead of approximating silently):
-raw colours and free coordinates (tones only; `themeOverrides.solidFills` retints
-solid fills), and free font sizes (use an [html](html.md) card for a large `N×`).
+and `fit: scale` last if still too wide. Check the preview after each step against
+the [principles](#design-principles) (and the reference, if there is one). **Not
+expressible** (say so instead of approximating silently): raw colours and free
+coordinates (tones only; `themeOverrides.solidFills` retints solid fills), and free
+font sizes (use an [html](html.md) card for a large `N×`).
 
 ### Two panels with a dashed divider
 
-The ViT-like layout: a titled left panel (patches cut from one picture → projection
-→ token row), a dashed vertical `separator`, and a titled right panel. Panels are
-`variant: plain` groups whose `label` is the panel title; the row's `align: stretch`
-gives the separator the full height; the row's `gap` is the whitespace on each side
-of the line.
+An overview panel and the enlarged part beside it (an inspection pipeline: one
+picture cut into four tiles → encoder → a score per tile; the encoder's layers on
+the right). Panels are `variant: plain` groups whose `label` is the panel title. The
+root row's `align: stretch` makes both panels and the dashed `separator` full height,
+and its `gap` is the whitespace on each side of the line. `align: stretch` inside the
+left panel makes the encoder as wide as the tile rows, so the panel's edges line up;
+the right panel repeats the encoder's tone, and the two columns are about equally
+tall, so neither leaves an empty block. Edges do not cross the separator: the shared
+title names the link.
 
 ```yaml
 # expect-render: fits
 version: 1
 figure:
-  id: vit-like
+  id: panel-divider
   theme: paper
-  profile: paper-double
+  profile: paper-single
   assets:
-    photo:
+    part:
       svg: |
         <svg viewBox="0 0 120 120">
-          <rect width="120" height="120" fill="#dde8f5"/>
-          <circle cx="60" cy="60" r="45" fill="#c04050"/>
+          <rect width="120" height="120" fill="#e4e9ef"/>
+          <rect x="20" y="30" width="80" height="60" rx="8" fill="#7d8fa6"/>
+          <circle cx="82" cy="78" r="9" fill="#c04050"/>
         </svg>
   layout:
-    arrange: { row: { gap: 6mm, align: stretch, items: [vit, divider, encoder] } }
+    arrange: { row: { gap: 5mm, align: stretch, items: [ overview, divider, detail ] } }
 groups:
-  - id: vit
-    label: Vision Transformer (ViT)
+  - id: overview
+    label: Inspection
     variant: plain
-    arrange: { stack: { direction: up, gap: 5mm, items: [patches, proj, seq] } }
-  - id: encoder
-    label: Transformer Encoder
+    arrange: { stack: { gap: 5mm, align: stretch, items: [ tiles, encoder, scores ] } }
+  - id: detail
+    label: Tile Encoder
     variant: plain
-    arrange: { stack: { direction: up, gap: 5mm, items: [norm, attn, mlp, head] } }
+    arrange: { stack: { gap: 3mm, align: stretch, items: [ conv, norm, pool ] } }
 nodes:
-  - id: patches
+  - id: tiles
     component: tokens
     props:
-      width: 28pt
-      gap: 4pt
+      width: 24pt
+      gap: 3pt
       cells:
-        - { asset: photo, crop: [0, 0, 60, 60], variant: framed }
-        - { asset: photo, crop: [60, 0, 60, 60], variant: framed }
-        - { asset: photo, crop: [0, 60, 60, 60], variant: framed }
-        - { asset: photo, crop: [60, 60, 60, 60], variant: framed }
-  - { id: proj, component: box, label: Linear Projection, tone: green, variant: filled }
-  - id: seq
+        - { asset: part, crop: [ 0, 0, 60, 60 ], variant: framed }
+        - { asset: part, crop: [ 60, 0, 60, 60 ], variant: framed }
+        - { asset: part, crop: [ 0, 60, 60, 60 ], variant: framed }
+        - { asset: part, crop: [ 60, 60, 60, 60 ], variant: framed }
+  - { id: encoder, component: box, label: Tile Encoder, tone: green, variant: filled }
+  - id: scores
     component: tokens
     tone: purple
-    props: { variant: outlined, gap: 1.5pt, cells: [ "0*", "1", "2", "3", "4" ] }
+    props: { variant: outlined, gap: 3pt, width: 24pt, cells: [ '$s_1$', '$s_2$', '$s_3$', '$s_4$' ] }
   - { id: divider, component: separator, variant: dashed }
-  - { id: norm, component: box, label: Norm, tone: blue, variant: filled }
-  - { id: attn, component: box, label: Multi-Head Attention, tone: orange, variant: filled }
-  - { id: mlp, component: box, label: MLP, tone: yellow, variant: filled }
-  - { id: head, component: box, label: MLP Head, tone: gray, variant: filled }
+  - { id: conv, component: box, label: Conv 3×3, tone: green, variant: filled }
+  - { id: norm, component: box, label: Norm, tone: green, variant: filled }
+  - { id: pool, component: box, label: Pooling, tone: green, variant: filled }
 edges:
-  - { from: patches, to: proj }
-  - { from: proj, to: seq }
-  - { from: norm, to: attn }
-  - { from: attn, to: mlp }
-  - { from: mlp, to: head }
+  - { from: tiles, to: encoder }
+  - { from: encoder, to: scores }
+  - { from: conv, to: norm }
+  - { from: norm, to: pool }
 ```
 
 ## Labels and groups
 
-- Short noun-phrase labels lay out best; break long ones with `\n`. Node size follows
-  the label: avoid explicit `width` / `height` unless sizes must match (a box smaller
-  than its label overflows). `circle` / `square` keep 1:1, so long labels make them
-  huge: use `ellipse` / `box`.
+- Node size follows the label ([keep it short](#design-principles)): avoid explicit
+  `width` / `height` unless sizes must match (a box smaller than its label
+  overflows). `circle` / `square` keep 1:1, so long labels make them huge: use
+  `ellipse` / `box`.
 - Auto edge labels get a background box and are placed by ELK, often near a bend: one
   or two words, only where meaningful (`"yes"` / `"no"`, a protocol).
 - Use groups for real structure (tiers, subsystems, phases), one level of nesting is
@@ -281,12 +380,3 @@ edges:
   downwards crosses it; leave sideways or use structured.
 - **Cycles inside a group may be reversed** (`geometry/reversed-edge`): swap the loop's
   nodes in `nodes`, or keep retry loops outside groups (`examples/decision-flow`).
-
-## Reading order and emphasis
-
-- Declare nodes and edges in reading order so the YAML reviews easily against the
-  content.
-- Use variants consistently: `emphasis` for the one or two elements the figure is
-  about, `muted` for context or optional parts, `dashed` edges for optional or
-  asynchronous flows. Say what they mean in the caption or report: auto figures have
-  no legend (structured ones can carry a [`legend`](structured.md#legends)).

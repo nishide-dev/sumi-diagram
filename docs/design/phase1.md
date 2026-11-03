@@ -2648,6 +2648,14 @@ check・typecheck・gallery:check（231ファイル）・schema:check も成功�
 - **互換性（既存の出力）:** operator の `size` を省略した図、および `paper` 以外の framed 画像は全てバイト単位で不変。変わるのは `paper` で framed の `image` / `html` を使う図だけで、`examples/clip`（SVG・PDF）、ギャラリーの `sumi-image.paper` と `sumi-html.paper`、`html-code`・`html-nested`・`image-layers`・`image-layers-auto`（assets の hash）、PDF corpus・PPTX の hash。operator のギャラリーは size の例（default の行の続き）で変わる。ゴールデンは `bun run gallery` と `SUMI_UPDATE_GOLDEN=1 CI=1 bun run test src/render/pdf src/render/pptx src/render/assets.integration.test.ts` で再生成した。
 - **検証:** 全 Theme の operator の円・記号・枠の太さ（regular は省略と同一）、不正値の位置、編集可能 PPTX（freeform / glued）での 2 倍の比、framed の枠の太さを Theme ごとに回帰検査する。`paper` の CLIP を PDF → PNG で目視確認した。
 
+### 6.93 #323 の Skill の論文図ガイド：デザイン原則とレイアウト計画
+
+- **背景:** ViT を題材にした 2 回目の評価で、Skill に ViT Figure 1 そのものの雛形（`layout-tips.md` の `vit-like`。#322 で追加）があり、評価が実力より良く見えていた。また論文図の手順は「元の図」がある前提（"what the original shows"）で、内容だけから設計する手順がなく、縦長の列の横に大きな空白が残る失敗が出た。
+- **方針（決定）:** Skill には特定の有名論文の図をそのまま写した雛形・名前・依頼文を置かない。作例は中立な題材で同じ機能（パネル・separator・crop・tokens・zoom・dim など）を教える。分野の一般的な語（attention、encoder、U-Net の skip）は残す。評価に使う図に合わせて Skill を足すと評価が過大になるため、今後の改善も原則と Sumi の機能の説明として書く。
+- **デザイン原則:** 読む向き、焦点、整列（共有する線）、近接による分類、空白のかたまりを作らない、紙面の幅に合わせた縦横比、色は役割を表す、注記は対象の隣、線種ごとに 1 つの意味、パネルごとに 1 つのメッセージ、短いラベル。根拠は一般的な情報デザインの知見（ゲシュタルトの近接・整列、非データインクを減らす）と評価での失敗で、それぞれ arrange / `align` / `gap` / tone / `attach` などの Sumi の書き方に結びつける。
+- **レイアウト計画:** 内容だけが与えられた場合は、要素と役割の洗い出し → 主な流れの向きとパネル → ASCII の略図 2 案 → 空白・縦横比・整列・交差で比較 → 決定、の後に YAML を書く。空白は要素の追加ではなく、注記や出力の移動・配置の変更で解消する。参照図がある場合は見た目をフィールドへ対応づける表（recipe）を使い、幅や原則に反する場合だけ配置を変えて報告する。
+- **置き場所とサイズ:** 原則と計画は `layout-tips.md` に置き、`SKILL.md` の Paper figure workflow から 2 つの入口（内容のみ／参照図）として案内する。`SKILL.md` 本文は 250 行未満の制約を保ち、Skill 全体の増加は約 3.5%（170.9KB → 176.9KB）に抑えた。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）

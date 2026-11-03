@@ -282,7 +282,7 @@ edges:
 ## Sublabels
 
 **`sublabel`** draws a second, smaller text right under a node's label, e.g.
-a tensor size (`label: Noise, sublabel: "32 × 32 × 4"`): 7/8 of the label's
+a tensor size (`label: Mask, sublabel: "64 × 64"`): 7/8 of the label's
 size rounded down to 0.5pt (7pt under 8pt; 14pt under 16pt in `slides`),
 centred, the node sized around both. Line breaks and math work as in labels;
 with `labelRotation` both turn together. It needs a label
@@ -299,12 +299,12 @@ figure:
   id: sublabels
   theme: color
   layout:
-    arrange: { row: { gap: 6mm, items: [latent, noise] } }
+    arrange: { row: { gap: 6mm, items: [features, mask] } }
 nodes:
-  - { id: latent, component: box, label: "Noised\nLatent", sublabel: "32 × 32 × 4", tone: gray }
-  - { id: noise, component: box, label: Noise, sublabel: "32 × 32 × 4", tone: gray }
+  - { id: features, component: box, label: "Feature\nMap", sublabel: "64 × 64 × 3", tone: gray }
+  - { id: mask, component: box, label: Mask, sublabel: "64 × 64", tone: gray }
 edges:
-  - { from: latent, to: noise }
+  - { from: features, to: mask }
 ```
 
 ## Turned labels
@@ -356,14 +356,14 @@ nodes:
 ## Attach: side notes
 
 ```yaml
-- { id: pe, component: circle, icon: tabler/wave-sine, attach: { to: add, side: west, gap: 1mm } }
-- { id: pe-label, component: label, label: "Positional\nEncoding", attach: { to: pe, side: west, gap: 0.5mm } }
+- { id: time, component: circle, icon: tabler/clock, attach: { to: add, side: west, gap: 1mm } }
+- { id: time-label, component: label, label: "Time\nEncoding", attach: { to: time, side: west, gap: 0.5mm } }
 - { id: repeat, component: label, label: "N×", attach: { to: encoder, side: east, gap: 2mm } }
 ```
 
 `attach: { to, side, gap }` puts a node outside the trees, centred on the
-`side` of a node or group, `gap` away (default 0); chains work (`pe-label` →
-`pe` → `add`). The attached node joins its target's group, which (or the
+`side` of a node or group, `gap` away (default 0); chains work (`time-label` →
+`time` → `add`). The attached node joins its target's group, which (or the
 canvas) grows to hold it. Corner sides `north-east`, `south-east`,
 `south-west`, `north-west` place it outside both sides with the gap on each
 axis (a [badge](assets.md#corner-badges) is instead centred on the corner);
@@ -718,7 +718,7 @@ label or anchors (`component/unexpected-label`, `component/anchor-on-zoom`).
 
 ```yaml
 edges:
-  - { from: dit-block, to: adaln-panel, component: zoom }
+  - { from: block, to: block-detail, component: zoom }
 ```
 
 The corners follow where the target lies (to the right: source top-right and bottom-right
@@ -954,10 +954,10 @@ nodes:
       ellipsisRows: [3]
       ellipsisColumns: [3]
       cells:
-        - [{ class: d, text: '$I_1\cdot T_1$' }, o, o, { class: o, text: '$I_1\cdot T_N$' }]
-        - [o, { class: d, text: '$I_2\cdot T_2$' }, o, o]
+        - [{ class: d, text: '$a_1\cdot b_1$' }, o, o, { class: o, text: '$a_1\cdot b_N$' }]
+        - [o, { class: d, text: '$a_2\cdot b_2$' }, o, o]
         - [o, o, o, o]
-        - [{ class: o, text: '$I_N\cdot T_1$' }, o, o, { ellipsis: "…" }]
+        - [{ class: o, text: '$a_N\cdot b_1$' }, o, o, { ellipsis: "…" }]
 ```
 
 ## Spacing that routes
