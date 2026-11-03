@@ -1,83 +1,78 @@
 # Layout tips
 
+**Purpose.** Pick the layout engine, make a figure fit its target, and reproduce
+the look of a published paper figure. Contents:
+[choose the engine](#choose-the-engine-first) · [auto layout](#auto-layout-d2--elk) ·
+[direction vs. width](#direction-vs-target-width) · [slides](#slides-presentation-16x9) ·
+[too wide with `right`, too tall with `down`](#too-wide-with-right-too-tall-with-down) ·
+[shrinking](#shrinking-to-the-page-width-figurefit-scale) ·
+[compact spacing](#compact-spacing-figurelayoutdensity-compact) ·
+[**paper figure recipe**](#paper-figure-recipe) ·
+[two panels with a divider](#two-panels-with-a-dashed-divider) ·
+[labels and groups](#labels-and-groups) · [reading order](#reading-order-and-emphasis)
+
 ## Choose the engine first
 
 | The figure is… | Use |
 | --- | --- |
 | a flow: flowchart, pipeline, decision flow, state machine, dependency or call graph, an architecture overview where only the connections matter | **auto** (default): `figure.layout.direction` |
-| a paper block diagram: a network drawn as stacked layers, residual or skip connections, columns that must line up, blocks of equal width, notes beside a block (`N×`), operators (⊕) and split points, math labels | **structured**: `figure.layout.arrange` ([structured](structured.md)) |
+| a paper block diagram: stacked layers, residual or skip connections, columns that must line up, blocks of equal width, notes beside a block (`N×`), operators (⊕) and split points, math labels, token rows, patches | **structured**: `figure.layout.arrange` ([structured](structured.md)) |
 
-The figure is structured when it has `figure.layout.arrange` (and no
-`engine: auto`). When
-unsure, start with auto: it needs no placement and suits most diagrams;
-switch when the user wants a particular arrangement or the figure
-reproduces a paper's block diagram. Structured figures need every element
-placed; their sizes come from the arrange tree, so the direction tables
-below do not apply (measure with `sumi render` as usual). Most of this
-page is about **auto**; structured figures are summarised
-[at the end](#structured-from-workarounds-to-fields).
+A figure is structured when it has `figure.layout.arrange` (and no `engine:
+auto`). When unsure start with auto: it needs no placement and suits most
+diagrams; switch when the user wants a particular arrangement or the figure
+reproduces a paper's block diagram. Structured figures need every element placed
+and their sizes come from the arrange tree, so the direction tables below do not
+apply (measure with `sumi render`). The rest of this page up to
+[paper figure recipe](#paper-figure-recipe) is mostly about auto.
 
 ## Auto layout (D2 + ELK)
 
-Auto figures are laid out by D2 + ELK (layered layout). You control only
-the root `direction`, grouping, the order of elements and label length;
-there are no coordinates, anchors or per-group directions. Measure, don't
-guess: `sumi render` prints the final size, and the preview shows the
-result.
+Auto figures are laid out by D2 + ELK (layered). You control only the root
+`direction`, grouping, the order of elements and label length; there are no
+coordinates, anchors or per-group directions. Measure, don't guess: `sumi render`
+prints the final size and the preview shows the result.
 
 ## Direction vs. target width
 
-Each layer (one step along `direction`) adds roughly the width of a node
-plus an 8mm layer gap (paper profiles). Measured with short labels
-(`Collect`, `Clean`, …, `Step 1`, …):
+Each layer (one step along `direction`) adds roughly a node's width plus an 8mm
+layer gap (paper profiles). Measured with short labels:
 
 | Figure | `right` | `down` |
 | --- | --- | --- |
 | 5-step chain, `minimal` | 127mm × 15mm | 26mm × 90mm |
 | 7-step chain, `academic` | 180mm × 15mm | 23mm × 127mm |
 
-- `paper-single` (88mm): at most about 3 nodes side by side. Use
-  `direction: down` for any chain of four or more steps.
-- `paper-double` (180mm): about 6–7 nodes side by side.
-- Branches spread perpendicular to `direction`: a `down` decision flow
-  with two-way branches grows sideways by about one node per branch.
-- Height: paper profiles allow at most 220mm (`geometry/exceeds-page-height`).
-  With `down`, 5 layers take about 90mm and 6–7 layers 125–150mm; that
-  fits but is tall for one column. Prefer fewer layers (merge trivial
-  steps only if the user agrees), or split the figure.
-- Do not fix width by switching to a bigger profile on your own: the
-  profile is the user's target.
+- `paper-single` (88mm): at most about 3 nodes side by side; use `direction: down`
+  for any chain of four or more. `paper-double` (180mm): about 6–7.
+- Branches spread perpendicular to `direction`: a `down` decision flow with
+  two-way branches grows sideways by about one node per branch.
+- Paper profiles allow at most 220mm height (`geometry/exceeds-page-height`):
+  with `down`, 5 layers take about 90mm and 6–7 layers 125–150mm, tall for one
+  column. Prefer fewer layers (merge trivial steps only if the user agrees), or
+  split the figure.
+- Do not fix width by switching to a bigger profile on your own: the profile is
+  the user's target.
 
 ## Slides (`presentation-16x9`)
 
-For slides use `theme: slides` + `profile: presentation-16x9`. The profile
-requires 14pt text; only `slides` meets it (16pt text, 14pt edge labels).
-`minimal` and `academic` (7–9pt) fail every labelled element with
-`profile/font-too-small` by design. Themes and profiles stay independent:
-the profile never enlarges text, so pick the theme to match.
-
-- A slide is about 338mm × 190mm, and `slides` text plus the profile's
-  doubled spacing (16mm layer gap) make figures about 1.5–2 times larger
-  than on paper. Wide, shallow figures fit: 3–4 layers with `direction:
-  right` (e.g. three tiers of containers) take about 280mm × 100mm.
-- Long flows can overflow either way. Two measured examples, the 6–7-layer
-  `examples/pipeline` and `examples/decision-flow` in the repository, came
-  out about 240–250mm tall with `down` and 356mm / 434mm wide with
-  `right` — over the page both ways. That holds for those two figures
-  only; for any other figure, do not assume: render it and check `size`
-  from `render --json` and the `geometry/*` diagnostics. On
-  `geometry/exceeds-page-height` or `-width`, try the other direction,
-  then split the figure into several slides or drop trivial steps (ask the
-  user); do not switch the theme or profile on your own.
+Use `theme: slides` + `profile: presentation-16x9`: the profile requires 14pt text
+and only `slides` meets it (16pt text); `minimal` and `academic` fail every labelled
+element with `profile/font-too-small` by design (the profile never enlarges text).
+A slide is about 338mm × 190mm and `slides` spacing makes figures 1.5–2× larger than
+on paper: 3–4 layers `right` take about 280mm × 100mm, while long flows can overflow
+both ways (`examples/pipeline`, `examples/decision-flow`: 240–250mm tall `down`, 356 /
+434mm wide `right`; for any other figure render and check `size`). On
+`geometry/exceeds-page-height` / `-width` try the other direction, then split the
+figure or drop trivial steps (ask the user); never switch theme or profile alone.
 
 ## Too wide with `right`, too tall with `down`
 
-When a long flow overflows both ways (on paper or slides), wrap it: switch
-the figure to **structured** and lay the steps out in two rows, one `row`
-per line inside a `stack`
-([structured](structured.md#arrange-trees)). With `direction: left` on the
-second row the flow snakes back under the end of the first, so the edge
-that turns is a short vertical one:
+When a long flow overflows both ways, wrap it: make the figure **structured** and
+lay the steps out in two rows, one `row` per line inside a `stack`
+([arrange trees](structured.md#arrange-trees)). With `direction: left` on the second
+row the flow snakes back under the end of the first, so the edge that turns is a
+short vertical one:
 
 ```yaml
 # expect-render: fits
@@ -113,39 +108,36 @@ edges:
   - { from: update, to: save }
 ```
 
-Split where the content has a natural break (e.g. data preparation, then
-training). If the rows hold groups, each group's own `arrange` lays out its
-members; if two rows still do not fit, use three, or split the figure (ask
-the user).
+Split where the content has a natural break (data preparation, then training). If
+the rows hold groups, each group's `arrange` lays out its members; if two rows still
+do not fit use three, or split the figure (ask the user). For a measured breakdown
+of where the width goes, read the hint of `geometry/exceeds-page-width`
+([diagnostics](diagnostics.md#too-wide-the-width-breakdown)).
 
 ## Shrinking to the page width (`figure.fit: scale`)
 
-A dense paper figure laid out as intended (several panels side by side) can
-stay too wide. `figure.fit: scale` (0.6.0, both engines) prints the whole
-figure smaller, at the profile's maximum width, without moving anything: the
-SVG keeps its coordinates and gets a smaller `width` / `height`, and the PDF
-page and the PPTX slide are that size. It never enlarges, and it does not fix
-the height (`geometry/exceeds-page-height` is still checked after shrinking).
-`sumi render` prints `scaled to 70%`; `--json` has `size.scale`.
+A dense paper figure laid out as intended (several panels side by side) can stay
+too wide. `figure.fit: scale` (both engines) prints the whole figure smaller, at the
+profile's maximum width, without moving anything: the SVG keeps its coordinates
+and gets a smaller `width` / `height`, and the PDF page and PPTX slide are that
+size. It never enlarges and does not fix the height. `sumi render` prints `scaled
+to 70%`; `--json` has `size.scale`.
 
-Text is then checked at its printed size: the 8pt / 7pt of the built-in
-themes must print at 5pt or more on the paper profiles
-(`geometry/text-too-small`), so a figure can shrink to about 70% (edge labels
-at 7pt reach 4.9pt just below that). Subscripts of label math print smaller
-and are reported once as information (`geometry/script-too-small`). Prefer
-re-arranging when it fits without shrinking; use `fit: scale` for figures
-modelled on published ones, whose text is often 5–6pt, and tell the user it
-is scaled.
+Text is checked at its printed size: the 8pt / 7pt of the built-in themes must
+print at 5pt or more on paper profiles (`geometry/text-too-small`), so a figure can
+shrink to about 70% (7pt edge labels reach 4.9pt just below). Subscripts of label
+math print smaller and are reported once as information (`geometry/script-too-small`).
+Prefer re-arranging when it fits without shrinking; use `fit: scale` for figures
+modelled on published ones (whose text is often 5–6pt) and tell the user.
 
 ## Compact spacing (`figure.layout.density: compact`)
 
-Published block diagrams pack their boxes more tightly than Sumi's default
-spacing. `figure.layout.density: compact` (0.6.0, structured only) lays the
-figure out with the profile's tighter set: on the paper profiles the default
-`gap` is 2.5mm instead of 4mm, group padding 6pt instead of 8pt, and the
-padding above and below a label 1.5pt instead of 3.5pt (a one-line box is
-13pt tall instead of 17pt for 8pt text); the padding left and right stays
-7pt. The page, the text sizes and the minimum font size do not change.
+Published block diagrams pack boxes tighter than Sumi's default. `density:
+compact` (structured only) uses the profile's tighter set: on paper profiles the
+default `gap` is 2.5mm instead of 4mm, group padding 6pt instead of 8pt, the
+padding above and below a label 1.5pt instead of 3.5pt (a one-line box 13pt tall
+instead of 17pt for 8pt text); left/right padding stays 7pt. Page, text sizes and
+minimum font size do not change.
 
 ```yaml
 figure:
@@ -157,140 +149,144 @@ figure:
     arrange: …
 ```
 
-- It changes defaults only: a `gap` written in the figure stays as written.
-  To make a figure compact, add the line and **remove the gaps you wrote for
-  the normal spacing** (keep the deliberate ones: `gap: 0`, small gaps
-  between keys or tokens, room you added for an edge label or a badge).
-- Use it for dense paper figures, usually with `fit: scale`: a compact
-  figure is also narrower, so it shrinks less and its text prints larger.
-- Keep at least about 2.5mm between items joined by an arrow with themes
-  whose edges are 1pt (`minimal`, `color`: 6pt arrowheads); with 0.5pt edges
-  (`paper`, `academic`: 4pt arrowheads) gaps down to 1.5mm still route. An
-  edge that bends between two items (one block feeding two side by side)
-  needs more; `layout/no-route` names it — give that box its own `gap`.
-- If an edge label or an attached badge collides after removing gaps
-  (`geometry/label-collision`, `layout/edge-label-overlap`), write a larger
-  `gap` on that box only.
+- It changes defaults only: a `gap` you wrote stays, so add the line and **remove the gaps
+  written for normal spacing** (keep deliberate ones: `gap: 0`, small token gaps, room for
+  an edge label or badge). Use it for dense paper figures, usually with `fit: scale`: a
+  compact figure shrinks less and its text prints larger.
+- Keep at least about 2.5mm between items joined by an arrow in themes with 1pt edges
+  (`minimal`, `color`); with 0.5pt edges (`paper`, `academic`) 1.5mm still routes. An edge
+  that bends between two items needs more (`layout/no-route` names it: give that box its
+  own `gap`), as does a colliding edge label or badge (`geometry/label-collision`,
+  `layout/edge-label-overlap`).
 
 ## Paper figure recipe
 
-A figure modelled on a published paper figure (an architecture overview, a
-block and its variants side by side) is a **structured** figure; these
-0.6.0 fields reproduce the look of such figures. Start from
-[example 6](examples.md#6-success-a-paper-figure) and map what the original
-shows:
+A figure modelled on a published paper figure is a **structured** figure with the
+`paper` theme. Start from [example 6](examples.md#6-success-a-paper-figure) and map
+what the original shows:
 
 | The original shows | Write |
 | --- | --- |
-| rounded pastel boxes, thin black lines, small arrowheads, sans-serif text | `figure.theme: paper` (`academic` for a grayscale, square-cornered figure) |
-| boxes without a border (a pastel fill only) | `variant: filled` + `tone` ([variants](figure-format.md#components-variants-and-props)) |
-| white boxes with a colored frame and text (encoders, tokens, keys) | `variant: outlined` + `tone` |
-| strong colored keys or operators with white text | `variant: solid` + `tone` |
-| pastel encoders or token cells with matching colored border and text | `variant: tinted` + `tone` |
-| colored lines | `tone` on the edge ([tones](figure-format.md#tones)) |
+| rounded pastel boxes, thin black lines, small arrowheads, sans-serif | `figure.theme: paper` (`academic` for a grayscale, square-cornered figure) |
+| boxes without a border (pastel fill only) | `variant: filled` + `tone` ([variants](figure-format.md#tones-and-variants)) |
+| white boxes with a coloured frame and text (encoders, tokens, keys) | `variant: outlined` + `tone` |
+| strong coloured keys or operators with white text | `variant: solid` + `tone` |
+| pastel cells with matching coloured border and text | `variant: tinted` + `tone` |
+| coloured lines | `tone` on the edge |
 | a panel without a frame, a shaded panel, a dashed panel | group `variant: plain` / `filled` / `dashed`, with `caption: (a) …` |
 | panels of equal height with captions on one line | the panels in one `row` with `align: stretch` ([captions](structured.md#group-titles-and-captions)) |
-| a pale panel (a variant compared against) | `dim: true` on the group ([dimmed groups](figure-format.md#dimmed-groups)) |
+| panels separated by a dashed vertical (or horizontal) line | a `separator` between them ([recipe below](#two-panels-with-a-dashed-divider)) |
+| a pale panel (a variant compared against) | `dim: true` on the group ([dimmed](figure-format.md#dimmed-groups)) |
 | dashed lines from a block to the panel that enlarges it | an edge `component: zoom` ([zoom](structured.md#zoom-callouts)) |
-| lines entering a wide block straight above each narrow one | `toAnchor: straight` / `fromAnchor: straight` on the wide end ([anchors](structured.md#edges-anchors-junctions-and-trunks)) |
-| a row of token cells, keys, patches | `component: tokens`; edges name a cell as `<node>.<cell>` ([tokens](structured.md#token-sequences)) |
-| an attention mask, a grid of classes with hatched cells | `component: matrix` + legend `{ class: … }` entries ([matrices](structured.md#matrices)) |
+| lines entering a wide block straight above each narrow one | `toAnchor: straight` on the wide end ([anchors](structured.md#edges-anchors-junctions-and-trunks)) |
+| a row of token cells, keys, patches | `component: tokens`; edges name a cell `<node>.<cell>` or the whole node ([tokens](structured.md#token-sequences)); key clusters: `lines` + `lineAlign` |
+| patches cut from one picture | `figure.assets` + `crop` on images or tokens image cells ([assets](assets.md#patches-from-one-picture)) |
+| a framed photo, a bigger ⊕ | `variant: framed` on the image; operator `props.size: large` ([assets](assets.md#framed-images-and-operator-size)) |
+| an attention mask, a grid of classes with hatched cells | `component: matrix` + legend `{ class: … }` ([matrices](structured.md#matrices)) |
 | a size or shape in smaller text under a name | `sublabel` ([sublabels](structured.md#sublabels)) |
 | a vertical title (a tall encoder, an axis) | `labelRotation: -90` ([turned labels](structured.md#turned-labels)) |
-| rows and columns lined up like a table | column `stack`s in a `row` plus `align` ([tables](structured.md#tables-columns-of-stacks)) |
-| boxes packed tightly | `figure.layout.density: compact`, without your own `gap`s ([compact](#compact-spacing-figurelayoutdensity-compact)) |
+| left-aligned prompt text | `textAlign: left` ([text align](structured.md#text-align)) |
+| coloured words inside a label | `$\textcolor{orange}{\text{word}}$` ([labels](figure-format.md#labels)) |
+| a bowtie shape, an emoji on a corner | `component: bowtie`; `badge: { icon: emoji/fire, corner: north-east }` ([badges](assets.md#corner-badges)) |
+| a table: row headings, repeated columns | a `grid` ([tables](structured.md#tables)) |
+| boxes packed tightly | `figure.layout.density: compact`, without your own `gap`s |
 | a figure wider than the page at its natural size | `figure.fit: scale` ([shrinking](#shrinking-to-the-page-width-figurefit-scale)); say it is scaled |
+| repeated video frames | an image's `props.layers: { count: 4, offset: 3pt }` ([layers](assets.md#stacked-copies-layers)) |
 
-Order of work: content and arrangement first (the arrange tree,
-`align: stretch` panels), then the looks (`paper`, variants, tones, `dim`),
-then `density: compact`, and `fit: scale` last if it is still too wide.
-Check the preview against the original after each step. Not yet
-expressible (say so instead of approximating silently): colored text
-spans and left-aligned labels, emoji badges, a
-bowtie shape, a font size of your own (a large `N×`), and white text on a
-saturated fill.
+Order of work: content and arrangement first (the arrange tree, `align: stretch`
+panels), then the looks (`paper`, variants, tones, `dim`), then `density: compact`,
+and `fit: scale` last if still too wide. Check the preview against the original
+after each step. **Not expressible** (say so instead of approximating silently):
+raw colours and free coordinates (tones only; `themeOverrides.solidFills` retints
+solid fills), and free font sizes (use an [html](html.md) card for a large `N×`).
 
-For repeated video frames, use an image's `props.layers: { count: 4, offset: 3pt }`
-([images](assets.md#images)); the whole up-right stack participates in layout.
+### Two panels with a dashed divider
 
-## Labels
+The ViT-like layout: a titled left panel (patches cut from one picture → projection
+→ token row), a dashed vertical `separator`, and a titled right panel. Panels are
+`variant: plain` groups whose `label` is the panel title; the row's `align: stretch`
+gives the separator the full height; the row's `gap` is the whitespace on each side
+of the line.
 
-- Short, noun-phrase labels lay out best. Break long ones with `\n`
-  (`"Fetch from\norigin"`) rather than letting nodes grow wide.
-- Edge labels get a small background box (the theme's edge `fill`) and are
-  placed on the line by ELK, often near a bend;
-  keep them to one or two words and only where they carry meaning
-  (`"yes"` / `"no"` on decision branches, a protocol, a data name).
-- `circle` and `square` keep a 1:1 aspect ratio, so a long label makes
-  them very large; use `ellipse` / `box` for longer text. ELK may also
-  stretch circles that have many edges.
-- Node size follows the label. Avoid explicit `width` / `height` unless
-  sizes must match; a box smaller than its label overflows.
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: vit-like
+  theme: paper
+  profile: paper-double
+  assets:
+    photo:
+      svg: |
+        <svg viewBox="0 0 120 120">
+          <rect width="120" height="120" fill="#dde8f5"/>
+          <circle cx="60" cy="60" r="45" fill="#c04050"/>
+        </svg>
+  layout:
+    arrange: { row: { gap: 6mm, align: stretch, items: [vit, divider, encoder] } }
+groups:
+  - id: vit
+    label: Vision Transformer (ViT)
+    variant: plain
+    arrange: { stack: { direction: up, gap: 5mm, items: [patches, proj, seq] } }
+  - id: encoder
+    label: Transformer Encoder
+    variant: plain
+    arrange: { stack: { direction: up, gap: 5mm, items: [norm, attn, mlp, head] } }
+nodes:
+  - id: patches
+    component: tokens
+    props:
+      width: 28pt
+      gap: 4pt
+      cells:
+        - { asset: photo, crop: [0, 0, 60, 60], variant: framed }
+        - { asset: photo, crop: [60, 0, 60, 60], variant: framed }
+        - { asset: photo, crop: [0, 60, 60, 60], variant: framed }
+        - { asset: photo, crop: [60, 60, 60, 60], variant: framed }
+  - { id: proj, component: box, label: Linear Projection, tone: green, variant: filled }
+  - id: seq
+    component: tokens
+    tone: purple
+    props: { variant: outlined, gap: 1.5pt, cells: [ "0*", "1", "2", "3", "4" ] }
+  - { id: divider, component: separator, variant: dashed }
+  - { id: norm, component: box, label: Norm, tone: blue, variant: filled }
+  - { id: attn, component: box, label: Multi-Head Attention, tone: orange, variant: filled }
+  - { id: mlp, component: box, label: MLP, tone: yellow, variant: filled }
+  - { id: head, component: box, label: MLP Head, tone: gray, variant: filled }
+edges:
+  - { from: patches, to: proj }
+  - { from: proj, to: seq }
+  - { from: norm, to: attn }
+  - { from: attn, to: mlp }
+  - { from: mlp, to: head }
+```
 
-## Groups
+## Labels and groups
 
-- Use groups for real structure (tiers, subsystems, phases), not for
-  decoration. One level of nesting is usually enough.
-- **Edges entering a group can cross its label**: the group label sits at
-  the top-left corner, and an edge coming from outside (especially with
-  `down`) runs through it when the label is wider than about half the group.
-  Mitigations: move the title with `labelAt` (`top-right`, or `bottom` for
-  a group entered from above; D2 still keeps the title's space at the
-  top), put the first node of a flow inside the group (see
-  `examples/pipeline` in the repository), keep the number of edges crossing
-  the border small, or accept it and mention it. `sumi render` reports it
-  as `geometry/edge-crosses-label` (warning).
-- `caption` puts a sub-figure caption under a group (both engines). In
-  auto figures an edge leaving the group downwards crosses the caption
-  (`geometry/edge-crosses-label`): leave sideways (`direction: right`) or
-  use the structured layout, whose router avoids it.
-- **Cycles inside a group may be reversed**: wrapping a loop (A → B → A) in
-  a container can make ELK flip it so the flow reads backwards; `sumi render`
-  reports it as `geometry/reversed-edge`. Swapping the order of the loop's
-  nodes in `nodes` usually fixes it; otherwise keep retry loops outside
-  groups (see `examples/decision-flow`).
-- Edges between a group and its own member trigger `lint/ancestor-edge`;
-  connect to a node inside the group instead.
-- An element that talks to several groups (a worker reading from a queue
-  and writing to a database) often lays out better outside all of them
-  than inside one, where its edges wrap around the figure.
+- Short noun-phrase labels lay out best; break long ones with `\n`. Node size follows
+  the label: avoid explicit `width` / `height` unless sizes must match (a box smaller
+  than its label overflows). `circle` / `square` keep 1:1, so long labels make them
+  huge: use `ellipse` / `box`.
+- Auto edge labels get a background box and are placed by ELK, often near a bend: one
+  or two words, only where meaningful (`"yes"` / `"no"`, a protocol).
+- Use groups for real structure (tiers, subsystems, phases), one level of nesting is
+  usually enough. An element talking to several groups often lays out better outside
+  all of them. A group-to-own-member edge is `lint/ancestor-edge`.
+- **Edges entering a group can cross its title** (auto: top-left; wider than about half
+  the group): `labelAt` (`top-right`, or `bottom` for a group entered from above; D2
+  still keeps the space at the top), put the flow's first node inside the group
+  (`examples/pipeline`), keep few edges crossing the border, or mention it
+  (`geometry/edge-crosses-label`). `caption` in auto: an edge leaving the group
+  downwards crosses it; leave sideways or use structured.
+- **Cycles inside a group may be reversed** (`geometry/reversed-edge`): swap the loop's
+  nodes in `nodes`, or keep retry loops outside groups (`examples/decision-flow`).
 
 ## Reading order and emphasis
 
-- Declare nodes and edges in reading order so the YAML is easy to review
-  against the content.
-- Use variants consistently: `emphasis` for the one or two elements the
-  figure is about, `muted` for context or optional parts, `dashed` edges
-  for optional or asynchronous flows. Say what they mean in the caption
-  or report: auto figures have no legend (structured ones can carry a
-  `legend` component, see [structured](structured.md#legends)).
-
-## Structured: from workarounds to fields
-
-Older figures needed workarounds that now have a field (0.5.0 for the
-first rows, 0.6.0 for the rest). Use the field; fall back only when the CLI
-reports it as unknown.
-
-| Wanted | Workaround | Now |
-| --- | --- | --- |
-| a group title out of the way of edges | drop the group `label`, `attach` a `label` node beside the group | `labelAt` on the group ([titles](structured.md#group-titles-and-captions)) |
-| "(a) …" under a panel | a `label` node attached `south` | `caption` on the group |
-| separate entry points for edges into one block | a `toAnchor` per edge (`"north:0.2"`, `"north:0.5"`, …) | `figure.layout.fanIn: spread`; anchors still for exact positions ([fan-in](structured.md#edges-anchors-junctions-and-trunks)) |
-| two blocks of different columns on one line (straight skips) | nested stacks with tuned `gap`s | `figure.layout.align` ([align](structured.md#aligning-across-trees)) |
-| which edge a label belongs to, or the outer side of a bend | reordering edges, anchors | edge `labelAt` / `labelSide` |
-| `ŷ`, `x̃`, `θ̄` in math | `$y'$`, a typed `ŷ` outside `$...$` | `'$\hat{y}$'`, `'$\tilde{x}$'`, `'$\bar\theta$'` ([label math](figure-format.md#label-math)) |
-| "dashed = skip connection" | a sentence in the caption | a `legend` node ([legends](structured.md#legends)) |
-| knowing where lines cross | looking at the preview | `layout/edge-crossing` infos from `sumi render` |
-| a pale panel | `variant: muted` on every node and edge inside (fills stay strong) | `dim: true` on the group |
-| a frameless panel whose caption lines up | a stack with a `label` node under it | a group with `variant: plain` and `caption` |
-| an edge entering straight above its source | `toAnchor: "north:0.295"` computed from a render, or fixed column widths | `toAnchor: straight` |
-| dashed callout lines to an enlarged panel | two dashed `line`s with `"east:0"` / `"west:0"` anchors | `component: zoom` |
-| a row of tokens, keys or matrix cells | one node per cell (`lint/empty-label` on empty ones) | `tokens`, `matrix` |
-| a smaller second line | a second label line of the same size | `sublabel` |
-| a figure too wide for the page | ignore `exceeds-page-width` and shrink it in LaTeX | `figure.fit: scale` |
-
-A structured figure 0.4 drew is drawn the same by 0.5 (it may gain
-`layout/edge-crossing` infos), except that an end without an anchor now
-takes its side from the arrange tree
-([default sides](structured.md#edges-anchors-junctions-and-trunks)), which
-can change some routes: anchor the ends whose side matters.
+- Declare nodes and edges in reading order so the YAML reviews easily against the
+  content.
+- Use variants consistently: `emphasis` for the one or two elements the figure is
+  about, `muted` for context or optional parts, `dashed` edges for optional or
+  asynchronous flows. Say what they mean in the caption or report: auto figures have
+  no legend (structured ones can carry a [`legend`](structured.md#legends)).

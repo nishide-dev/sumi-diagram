@@ -1,10 +1,13 @@
 # Worked examples
 
-Real runs of the workflow (outputs abbreviated). `sumi` is the skill's
-`scripts/sumi` wrapper. Every complete figure on this page is checked by the
-repository's tests (`src/cli/skill.test.ts`): a `# expect-error:` comment
-lists the errors `sumi lint` must report, `# expect-render: fits` means no
-diagnostics after rendering, `too-wide` exactly
+**Purpose.** Real runs of the workflow (outputs abbreviated); `sumi` is the
+skill's `scripts/sumi` wrapper. Contents: 1 [decision flow](#1-success-a-decision-flow) ·
+2 [unknown component](#2-failure-an-unknown-component) · 3 [too wide](#3-failure-too-wide-for-the-target) ·
+4 [structured block diagram](#4-success-a-structured-block-diagram) ·
+5 [no room for arrows](#5-failure-no-room-for-the-arrows) · 6 [paper figure](#6-success-a-paper-figure).
+Every complete figure in the Skill is checked by `src/cli/skill.test.ts`: a
+`# expect-error:` comment lists the errors `sumi lint` must report,
+`# expect-render: fits` means no diagnostics after rendering, `too-wide` exactly
 `geometry/exceeds-page-width`, and a list of codes exactly those.
 
 ## 1. Success: a decision flow
@@ -16,11 +19,7 @@ stale entry, update the cache, respond."
 The content is fully given, the target is `paper-single`; nothing to ask.
 
 ```sh
-$ sumi doctor
-ok      d2             D2 v0.9.0 (env: …/.sumi/bin/d2)
-ok      fonts          3 bundled font files present, sha256 verified
-ok      geometry-lint  font metrics readable for 3 font files; …
-Ready to render.
+$ sumi doctor            # → ... Ready to render.
 $ sumi catalog --kind node      # → ellipse (terminals), diamond (decisions), box (steps)
 ```
 
@@ -36,46 +35,20 @@ figure:
     direction: down
 
 nodes:
-  - id: request
-    component: ellipse
-    label: Request
-  - id: cached
-    component: diamond
-    label: "In cache?"
-  - id: fresh
-    component: diamond
-    label: "Fresh?"
-  - id: fetch
-    component: box
-    label: "Fetch from\norigin"
-  - id: update
-    component: box
-    label: Update cache
-  - id: respond
-    component: ellipse
-    label: Response
-    variant: emphasis
-
+  - { id: request, component: ellipse, label: Request }
+  - { id: cached, component: diamond, label: "In cache?" }
+  - { id: fresh, component: diamond, label: "Fresh?" }
+  - { id: fetch, component: box, label: "Fetch from\norigin" }
+  - { id: update, component: box, label: Update cache }
+  - { id: respond, component: ellipse, label: Response, variant: emphasis }
 edges:
-  - from: request
-    to: cached
-  - from: cached
-    to: fresh
-    label: "yes"
-  - from: cached
-    to: fetch
-    label: "no"
-  - from: fresh
-    to: respond
-    label: "yes"
-  - from: fresh
-    to: fetch
-    label: "no"
-    variant: dashed
-  - from: fetch
-    to: update
-  - from: update
-    to: respond
+  - { from: request, to: cached }
+  - { from: cached, to: fresh, label: "yes" }
+  - { from: cached, to: fetch, label: "no" }
+  - { from: fresh, to: respond, label: "yes" }
+  - { from: fresh, to: fetch, label: "no", variant: dashed }
+  - { from: fetch, to: update }
+  - { from: update, to: respond }
 ```
 
 ```sh
@@ -110,16 +83,10 @@ groups:
   - id: data
     label: Data
 nodes:
-  - id: api
-    component: box
-    label: API
-  - id: db
-    component: database
-    label: Database
-    group: data
+  - { id: api, component: box, label: API }
+  - { id: db, component: database, label: Database, group: data }
 edges:
-  - from: api
-    to: db
+  - { from: api, to: db }
 ```
 
 ```sh
@@ -149,40 +116,19 @@ figure:
   layout:
     direction: right
 nodes:
-  - id: sources
-    component: parallelogram
-    label: Raw files
-  - id: extract
-    component: box
-    label: Extract
-  - id: clean
-    component: box
-    label: Clean
-  - id: load
-    component: box
-    label: Load
-    variant: emphasis
-  - id: warehouse
-    component: cylinder
-    label: Warehouse
-  - id: report
-    component: document
-    label: Report
+  - { id: sources, component: parallelogram, label: Raw files }
+  - { id: extract, component: box, label: Extract }
+  - { id: clean, component: box, label: Clean }
+  - { id: load, component: box, label: Load, variant: emphasis }
+  - { id: warehouse, component: cylinder, label: Warehouse }
+  - { id: report, component: document, label: Report }
 edges:
-  - from: sources
-    to: extract
-  - from: extract
-    to: clean
-  - from: clean
-    to: load
-  - from: load
-    to: warehouse
-  - from: warehouse
-    to: report
-  - from: clean
-    to: report
-    label: rejects
-    variant: dashed
+  - { from: sources, to: extract }
+  - { from: extract, to: clean }
+  - { from: clean, to: load }
+  - { from: load, to: warehouse }
+  - { from: warehouse, to: report }
+  - { from: clean, to: report, label: rejects, variant: dashed }
 ```
 
 ```sh
@@ -195,55 +141,9 @@ exit 1
 
 The SVG is written despite the error, so it can be inspected.
 
-Fix: a six-step chain cannot fit 88mm side by side, so change the layout,
-not the target: `direction: down`. (`fit: scale` would shrink it to 48%,
-its 8pt text to 3.9pt: an error.)
-
-```yaml
-# expect-render: fits
-version: 1
-figure:
-  id: etl-pipeline
-  theme: academic
-  profile: paper-single
-  layout:
-    direction: down
-nodes:
-  - id: sources
-    component: parallelogram
-    label: Raw files
-  - id: extract
-    component: box
-    label: Extract
-  - id: clean
-    component: box
-    label: Clean
-  - id: load
-    component: box
-    label: Load
-    variant: emphasis
-  - id: warehouse
-    component: cylinder
-    label: Warehouse
-  - id: report
-    component: document
-    label: Report
-edges:
-  - from: sources
-    to: extract
-  - from: extract
-    to: clean
-  - from: clean
-    to: load
-  - from: load
-    to: warehouse
-  - from: warehouse
-    to: report
-  - from: clean
-    to: report
-    label: rejects
-    variant: dashed
-```
+Fix: a six-step chain cannot fit 88mm side by side, so change the layout, not
+the target: `direction: right` → `direction: down` (`fit: scale` would shrink it
+to 48%, its 8pt text to 3.9pt: an error).
 
 ```sh
 $ sumi render etl-pipeline.sumi.yaml; echo "exit $?"
@@ -257,18 +157,12 @@ switch silently.
 
 ## 4. Success: a structured block diagram
 
-Request: "For one paper column, draw a Transformer encoder layer the way
-papers do: inputs at the bottom, input embedding, positional encoding added
-with a ⊕, then N× [multi-head attention + add & norm, feed forward + add &
-norm] with residual connections; math labels for the inputs and outputs."
-
-Stacked layers, residuals and a side note are a structured figure
-([layout-tips](layout-tips.md#choose-the-engine-first)). Icon search:
-
-```sh
-$ sumi catalog --icons "wave sine"
-tabler/wave-sine
-```
+Request: "For one paper column, draw a Transformer encoder layer the way papers do:
+inputs at the bottom, input embedding, positional encoding added with a ⊕, then N×
+[attention + add & norm, feed forward + add & norm] with residuals; math labels for the
+inputs and outputs." Stacked layers, residuals and a side note are a structured figure
+([choose](layout-tips.md#choose-the-engine-first)); icon search `sumi catalog --icons
+"wave sine"` → `tabler/wave-sine`.
 
 ```yaml
 # expect-render: fits
@@ -336,14 +230,11 @@ Wrote encoder-block.svg: 51.68mm × 81.49mm (paper-single, max width 88mm; theme
 ```
 
 Points to note: every node and group appears once, in a tree or with
-`attach` (the positional encoding and its caption hang off the ⊕, `N×` off
-the group); the group's members come from its `arrange`, so no `group:`
-fields; `gap: 0` stacks join each block to its `Add & Norm` with no edge
-between them; edges into junctions are `line`s; the junctions are
-`variant: hidden`, so Q, K, V and the residual fork off the line along
-rounded turns without a dot (nothing else crosses there); math labels are
-single-quoted and use `\,` after commas. `academic` maps the tones to gray
-steps; with `theme: color` the same YAML is in color.
+`attach`; members come from the group's `arrange` (no `group:`); `gap: 0`
+stacks join each block to its `Add & Norm`; edges into junctions are `line`s
+and the junctions `hidden`, so Q, K, V and the residual fork without a dot;
+math labels are single-quoted with `\,` after commas. `academic` maps tones
+to gray steps; `theme: color` colours the same YAML.
 
 ## 5. Failure: no room for the arrows
 
@@ -386,53 +277,19 @@ mlp-block.sumi.yaml:18:5 error layout/no-route No route was found for edge edges
 exit 1
 ```
 
-No SVG is written for a routing error. The default `color` arrows (1pt
-lines) have arrowheads about 2.1mm long, more than the 1.5mm gap; the `line` from `x` and the residual route
-fine. Fix: `gap: 3mm` (not `gap: 0`, which leaves no room at all):
-
-```yaml
-# expect-render: fits
-version: 1
-figure:
-  id: mlp-block
-  theme: color
-  profile: paper-single
-  layout:
-    arrange:
-      stack: { direction: up, gap: 3mm, align: stretch, items: [ x, split, norm, mlp, add, y ] }
-nodes:
-  - { id: x, component: label, label: $x$ }
-  - { id: split, component: junction }
-  - { id: norm, component: box, label: Layer Norm, tone: yellow }
-  - { id: mlp, component: box, label: MLP, tone: blue }
-  - { id: add, component: operator, props: { symbol: plus } }
-  - { id: y, component: label, label: $y$ }
-edges:
-  - { from: x, to: split, component: line }
-  - { from: split, to: norm }
-  - { from: norm, to: mlp }
-  - { from: mlp, to: add }
-  - { from: split, to: add, toAnchor: west } # residual
-  - { from: add, to: y }
-```
-
-```sh
-$ sumi render mlp-block.sumi.yaml; echo "exit $?"
-Wrote mlp-block.svg: 27.52mm × 44.8mm (paper-single, max width 88mm; theme color).
-exit 0
-```
+No SVG is written for a routing error. The default `color` arrows (1pt lines)
+have arrowheads about 2.1mm long, more than the 1.5mm gap; the `line` from `x` and
+the residual route fine. Fix: `gap: 3mm` (not `gap: 0`, which leaves no room at
+all); `fmt`, `lint` and `render` then print `Wrote mlp-block.svg: 27.52mm × 44.8mm
+(paper-single, max width 88mm; theme color).`, exit 0.
 
 ## 6. Success: a paper figure
 
-Request: "For a full-width figure in our paper, in the style of the DiT
-paper: (a) the model — four patches into the encoder, layer norm, a linear
-head with two 32×32×4 outputs, noise and variance; (b) the encoder block
-enlarged — input tokens, layer norm, self-attention, a residual add; (c)
-the cross-attention variant we compared against, drawn pale."
-
-A figure modelled on a published one: structured, theme `paper`, and the
-[paper figure recipe](layout-tips.md#paper-figure-recipe). The target
-(`paper-double`) is given; nothing to ask.
+Request: "For a full-width figure, in the style of the DiT paper: (a) the model: four
+patches into the encoder, layer norm, a linear head with two 32×32×4 outputs; (b) the
+encoder block enlarged; (c) the cross-attention variant we compared against, drawn pale."
+Structured, theme `paper`, the [paper figure recipe](layout-tips.md#paper-figure-recipe);
+`paper-double` is given, nothing to ask.
 
 ```yaml
 # expect-render: fits
@@ -515,18 +372,10 @@ $ sumi render paper-recipe.sumi.yaml
 Wrote paper-recipe.svg: 116.24mm × 54.15mm (paper-double, max width 180mm; theme paper).
 ```
 
-Points to note: the three panels are groups in one `row` with
-`align: stretch`, so the captions share a line — (a) is `variant: plain`
-(no frame) rather than a stack with a label under it; (b) and (c) put
-their stack in a `row` with `align: end` so the inputs sit at the bottom
-of the stretched panels. `filled` boxes have no border, the `outlined`
-tokens a purple frame and text, the residual a blue line. `dim: true`
-pales the whole of (c), caption included, with one field. The four patch
-edges and the two outputs use `straight` on the wide box's end, so every
-line is vertical with no jog. The `zoom` edge draws the dashed callout
-from the encoder's corners to panel (b). `density: compact` sets the
-spacing, so no `gap` is written. `fit: scale` changes nothing here (the
-figure fits); had it been wider than 180mm it would be printed at 180mm
-and `render` would print `scaled to …%` — tell the user. A matrix
-(attention mask) would be one more node: see
-[matrices](structured.md#matrices).
+Points to note: the panels are groups in one `row` with `align: stretch`
+(captions share a line; (a) is `plain`, (b) and (c) put their stack in a `row`
+with `align: end` so inputs sit at the bottom); `dim: true` pales all of (c);
+the patch and output edges use `straight` on the wide box's end; `zoom` draws
+the dashed callout to panel (b); `density: compact` sets spacing, so no `gap`.
+`fit: scale` changes nothing here; had the figure been wider than 180mm,
+`render` would print `scaled to …%`: tell the user.

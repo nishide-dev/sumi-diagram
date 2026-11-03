@@ -1,100 +1,41 @@
 # Icons and images
 
-Sumi embeds two kinds of pictures, in both layout engines (introduced in
-0.4.0): icons from the bundled Tabler Icons set, and the user's own PNG,
-JPEG or SVG files. It checks and embeds them; it never draws, edits or
-resizes the pixels. Prefer existing components and icons. For a small custom
-drawing, use inline SVG (0.10.0) below; for photos, ask the user for the file.
+**Purpose.** Sumi embeds icons from the bundled sets (Tabler, colour emoji),
+and the user's own PNG, JPEG or SVG pictures, in both layout engines. It checks
+and embeds them; it never draws, edits or resizes pixels. Prefer existing
+components and icons. For a small custom drawing use inline SVG, for photos ask
+the user for the file, for rich text a card see [html](html.md).
 
-## Restricted HTML cards (0.11.0)
+Contents: [minimal example](#minimal-example) · [icons](#icons) ·
+[corner badges](#corner-badges) · [file images](#file-images) ·
+[inline SVG](#inline-svg) · [one picture, many uses (`figure.assets`, crop)](#reusing-one-picture-figureassets) ·
+[patch grids and tokens image cells](#patches-from-one-picture) ·
+[stacked copies (`layers`)](#stacked-copies-layers) · [framed images and operator size](#framed-images-and-operator-size) ·
+[fixing `asset/*`](#fixing-asset)
 
-Use dedicated `component: html`, as a standalone leaf or with `group:` inside a container.
-Required props: `html` and `viewport: 320x176` in CSS px. Optional `width`, `height`,
-`fit: contain|cover|fill`, and variants `default|framed` use image placement.
-One missing dimension preserves the viewport aspect ratio; neither means natural size
-(0.75pt per CSS px, rounded to 0.5pt). Do not put `props.html` on `image`.
+## Minimal example
 
-Only `div/span/p/b/i/br` and a quoted inline `style` attribute are accepted.
-Only ASCII space/tab/LF/FF/CR separate tags and attributes. Self-closing syntax
-is allowed only for `br`; close every other element explicitly.
-Use flex/grid layout, position/edges, dimensions, margin/padding/gap, color/background-color,
-border/radius, font properties, line-height, letter-spacing, text-align, white-space,
-opacity and `box-sizing:border-box`. Unknown CSS is an error, never silently ignored.
-No images/SVG/scripts/style tags, events/classes, URLs, @rules, custom properties,
-overflow (including hidden), transforms, gradients, shadows or filters.
-CSS escapes, entities and comments inside style are rejected.
-Declarations are tokenized with quote/parenthesis awareness; every property has
-a complete value grammar. Malformed quotes/parentheses and non-ASCII CSS whitespace
-point to the offending declaration, including later lines of a style.
-Units, keywords and named colors are case-insensitive (`40PX`, `FLEX`, `RED`).
-`border` takes exactly one width, style and color in any order (`solid 1px #ccc`).
-`flex` accepts a grow number (`1`), grow/shrink/basis (`1 1 0`), or `none|auto|initial`.
-Lengths use px/pt/em/% or unitless 0 (negative values and percentages only where
-appropriate). All decimals have at most **two fractional digits**, without exponents:
+A complete figure with an image (`gradient.png` next to the YAML) and an icon:
 
-| Numeric value | Inclusive accepted range |
-| --- | --- |
-| Length magnitude | 0, or 1–2048px / 0.75–1536pt / 0.1–16em / 1–100% |
-| Resolved font-size | 0, or 1–2048 CSS px; inherited em/% are resolved before checking |
-| Other em lengths | Also at most 2048 CSS px using the element's resolved font-size |
-| flex-grow / flex-shrink (also inside flex), fr tracks | 0–64 |
-| Unitless line-height | 0–8 (lengths use the length limits) |
-| Opacity / numeric RGBA alpha | 0–1 |
-| RGB channels | 0–255, or 0–100% (all three channels use the same unit) |
-| Percentage RGBA alpha | 0–100% |
-| font-weight | 100–900 in steps of 100, or normal/bold; bundled faces select regular/bold |
-| order | Integer −512–512 |
-| Grid line / span | Nonzero integer −64–64 / positive integer 1–64 |
-| repeat count / expanded template tracks | 1–64 / at most 64; at most 16 top-level track entries |
-
-These are local value budgets tied to the maximum 2048px viewport side, not a
-promise that content fits a smaller viewport. Normal layout and paint rounding still applies.
-Colors accept #hex, comma-separated rgb()/rgba() (including percentages), and this fixed list: transparent, black,
-silver, gray, white, maroon, red, purple, fuchsia, green, lime, olive, yellow,
-navy, blue, teal, aqua, orange, rebeccapurple. Grid supports basic tracks and
-`repeat(2,1fr)`. Unverified functions including calc(),
-min(), max(), clamp(), hsl() and minmax() are rejected.
-
-Theme variables: `--sumi-fg`, `--sumi-muted`, `--sumi-accent`, `--sumi-bg`,
-`--sumi-font`, `--sumi-mono`; use `var(--sumi-accent)` without fallbacks.
-font-family may only use the font/mono variables or bundled family names
-`BIZ UDPGothic`, `BIZ UDGothic`, `Inter`. No font fetching.
-The fg/muted/accent/bg variables are colors and cannot be used as dimensions
-or font families; font/mono variables are font lists and cannot be used as
-colors or dimensions. Injected values are type-checked too. Explicit families
-select supplied fonts, but Takumi retains its bundled Geist fallback even after
-clearFonts(). `lint/missing-glyph` checks measured HTML text against the selected
-bundled families/weight; Geist fallback does not count. Replace unsupported characters
-or choose a covering family list, e.g. `Inter,'BIZ UDPGothic'` for Latin + Japanese.
-**Put `white-space:pre` on each line div, not the parent** (indentation between
-children otherwise becomes extra lines). Takumi uses **border-box**, not browser
-content-box. Budget: 128KiB, 512 elements, depth24; viewport ≤2048 per side and
-2,097,152 total pixels. Text becomes outlines: no PDF text search/copy or editable
-PPTX text; use SVG/PDF/picture PPTX. Normal `lint`, `lint --geometry`, and render
-measure HTML, with diagnostics pointing at the offending element inside `props.html`:
-- `asset/html-overflow` (warning): a box/run exceeds viewport by more than 0.5 CSS px.
-  Increase viewport or fix CSS dimensions/spacing/wrapping/position. Increasing only
-  placed width/height does not fix clipping.
-- `geometry/text-too-small` (error): resolved CSS font-size × viewport-to-placed-size
-  scale × page-fit scale is below the same profile minimum as normal labels. Increase
-  font-size or placed size relative to viewport; avoid excessive `figure.fit: scale`.
-  contain uses the smaller axis, cover the larger; fill conservatively uses the smaller.
-- `lint/missing-glyph` (warning): fix the selected family or text as above; whitespace,
-  controls and default-ignorables are excluded. Hidden (`display:none`) text is ignored.
-Source ownership follows inline roots containing block/absolute children, mixed flows,
-whitespace and `<br>`. Sumi uses its validated parse, with a dedicated entity decoder.
-If a measured box/run cannot be matched unambiguously, its location falls back to the
-nearest unambiguous ancestor; candidate elements' resolved font styles still undergo
-size and glyph checks. Multiple candidate styles are checked conservatively, so an
-ambiguous mapping may over-report rather than silently omit a text check.
-Also inspect the rendered result. Preflight diagnostics: `asset/unsafe-html`,
-`asset/unsupported-css`; size budgets reuse `asset/too-large`. Repeated font-size
-declarations use the last value; resolved-size errors point only at that declaration.
-
-In the repository, representative HTML code/card/token/flex-grid fixtures under
-`tests/fixtures/assets/html-*.sumi.yaml` have shared SVG/PDF/picture PPTX SHA-256
-goldens for academic and paper. Linux/macOS CI and compiled release smoke check
-the same hashes; platform-specific golden exceptions are not used.
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: photo-to-label
+  theme: color
+  profile: paper-single
+  layout:
+    arrange:
+      row: { gap: 4mm, items: [ photo, model, result ] }
+nodes:
+  - { id: photo, component: image, variant: framed, props: { src: gradient.png, height: 28pt } }
+  - { id: model, component: box, icon: tabler/brain, tone: purple }
+  - { id: result, component: label, label: '$p(y \mid x)$' }
+  - { id: model-name, component: label, label: Classifier, attach: { to: model, side: south, gap: 1mm } }
+edges:
+  - { from: photo, to: model }
+  - { from: model, to: result }
+```
 
 ## Icons
 
@@ -103,9 +44,9 @@ sumi catalog --icons "wave"            # every bundled icon whose name contains 
 sumi catalog --icons "arrow right"     # several words: quote them as one argument
 ```
 
-Each line is a ready-made reference (`tabler/wave-sine`). Tabler Icons
-(outline, no brand logos) has about 4,800 icons; search by what the icon
-shows (`brain`, `database`, `photo`, `world`), not by the concept.
+Each line is a ready-made reference (`tabler/wave-sine`); use it verbatim. Tabler
+(outline, no brand logos, about 4,800 icons) is searched by what the icon shows
+(`brain`, `database`, `photo`, `world`), not by the concept.
 
 ```yaml
 - { id: pe, component: circle, icon: tabler/wave-sine }
@@ -114,73 +55,106 @@ shows (`brain`, `database`, `photo`, `world`), not by the concept.
 ```
 
 - `icon:` goes on a node with a plain shape (`box`, `circle`, `ellipse`,
-  `diamond`, …) or a `label`. Not on `operator`, `junction`, `trapezoid`,
-  `stack`, `image` (`asset/icon-unsupported`), nor on groups.
-- **The icon replaces the label**: writing both is `asset/icon-with-label`.
-  To caption an icon, attach a `label` node beside it (structured) or put
-  the text in a neighbouring node.
-- The icon is one text line tall (1 em), with no size option; the node is
-  sized around it (a `circle` adds a ring of padding — use a bare `label`
-  node for a small inline icon). Its color is the node's text color, so
-  variants and tones apply as to a label.
-- **Icon and text on one block**: not possible in one node. In a structured
-  figure, keep the text block and `attach` a `label` node carrying the icon
-  to a side that has no edges (e.g. `{ id: cond-icon, component: label,
-  icon: tabler/clock, attach: { to: cond, side: south, gap: 1mm } }`); say
-  so in the report.
-- `emoji/<name>` (0.7.0; expanded in 0.8.0) uses 3,124 bundled Fluent Emoji Flat
-  SVGs (Microsoft, MIT). They keep their original multicolour palette in
-  every theme and in SVG, PDF and picture PPTX. **Colour emoji deliberately
-  retain their palette inside `dim: true` groups**, for both replacement icons
-  and badges, without `theme/undimmed-image`; choose Tabler for an icon that
-  follows dimmed text colour. Unicode emoji in labels still have missing-glyph lint.
-- Not supported: replacement icon and label together, icons on groups.
-
-Find emoji by English name, just like Tabler. Searches include both sets;
-use the returned `emoji/…` reference verbatim. The catalog's icon section
-reports each set's count; the empty search lists all supported names (JSON
-clients can select entries beginning with `emoji/`).
+  `diamond`, …) or a `label`; not on `operator`, `junction`, `trapezoid`, `stack`,
+  `image` (`asset/icon-unsupported`) or groups.
+- **The icon replaces the label** (both: `asset/icon-with-label`). To caption an
+  icon attach a `label` node beside it (structured) or use a neighbouring node.
+  Icon and text on one block is not possible in one node: attach a `label` node
+  carrying the icon to a side without edges (`{ id: cond-icon, component: label,
+  icon: tabler/clock, attach: { to: cond, side: south, gap: 1mm } }`) and say so
+  in the report.
+- The icon is one text line tall (1 em), no size option; the node is sized around
+  it (a `circle` adds a ring of padding: use a bare `label` for a small inline
+  icon). Its colour is the node's text colour, so variants and tones apply.
+- **`emoji/<name>`**: 3,124 bundled Fluent Emoji Flat SVGs (Microsoft, MIT) keep their
+  multicolour palette in every theme and output, **also inside `dim: true` groups**
+  (icons and badges, no `theme/undimmed-image`); use Tabler for an icon that follows
+  dimmed text colour. Unicode emoji in labels still hit `lint/missing-glyph`. The 47
+  original names (`emoji/fire`, `emoji/snowflake`) remain; fifty upstream icons needing
+  SVG references, clipping, gradients or filters are excluded and report
+  `asset/unsupported-icon` with the importer's reason.
+- Search covers both sets (English names); the empty search lists all:
 
 ```sh
-sumi catalog --section icons
+sumi catalog --section icons            # counts per set
 sumi catalog --icons "smiling face"
 sumi catalog --icons "artist dark" --json
-sumi catalog --icons "" --json
+sumi catalog --icons "" --json          # entries beginning with emoji/ are emoji
 ```
 
-All original 47 names, including `emoji/fire` and `emoji/snowflake`, remain
-available. Fifty upstream icons need SVG references, clipping, gradients or
-filters and are excluded; using one (for example `emoji/teacher`) reports
-`asset/unsupported-icon` with the importer reason, rather than a spelling hint.
-
-## Corner badges (0.7.0)
+## Corner badges
 
 ```yaml
 - { id: lora, component: bowtie, label: LoRA, tone: pink, badge: { icon: emoji/fire, corner: north-east } }
 - { id: qkv, component: box, label: QKV, badge: { icon: emoji/snowflake, corner: north-east } }
 ```
 
-`badge` is independent of `label` and replacement `icon`. Its one-em square
-is centered on the bounding-box corner (`north-east`, `south-east`,
-`south-west`, `north-west`), including on an outline or image node. It
-accepts bundled Tabler references too. Structured layout reserves the
-actual union of body and badge in rows/stacks, attachments, groups and the canvas
-(including bodies smaller than half an em); auto composes it after D2
-placement, so use geometry lint to check surrounding room.
-`geometry/badge-collision` warns about foreign bodies/labels/badges/edges,
-its own label/sublabel or canvas clipping. Overlap with its own body and
-ancestor-group bodies is intentional; ancestor titles are still checked.
-`legend`, `tokens`, `matrix` and point junctions cannot carry badges
-(`component/badge-unsupported`); put the badge on an ordinary node.
-Editable PPTX rejects badges (`pptx/unsupported-asset`); picture PPTX keeps
-their colour SVG and PNG fallback. All exports retain the MIT notice.
+`badge` is independent of `label` and replacement `icon`. Its one-em square is
+centred on the bounding-box corner (`north-east`, `south-east`, `south-west`,
+`north-west`), also on outline and image nodes, and takes Tabler references too.
+Structured layout reserves the union of body and badge in rows/stacks,
+attachments, groups and the canvas; auto composes it after D2 placement, so check
+the room with geometry lint. `geometry/badge-collision` warns about foreign
+bodies, labels, badges, edges, its own label/sublabel or canvas clipping (overlap
+with its own body and ancestor-group bodies is intended; ancestor titles are
+checked). `legend`, `tokens`, `matrix`, `bracket` and point junctions cannot carry
+badges (`component/badge-unsupported`): put it on an ordinary node. Editable PPTX
+rejects badges (`pptx/unsupported-asset`); picture PPTX keeps them. Exports keep the MIT notice.
 
-## Images
+## File images
 
-### Inline SVG (0.10.0)
+```yaml
+- id: sample
+  component: image
+  variant: framed                # default (no border) | framed (see below)
+  props:
+    src: gradient.png            # relative to the YAML file
+    height: 34pt                 # width or height (or both) is required
+    fit: contain                 # contain (default) | cover | fill, when both sizes are given
+```
 
-Use exactly one of `props.src`, `props.svg` and `props.asset` (a shared asset, below). Write a complete SVG document
-with a `viewBox` (or positive width/height); a literal block is easiest:
+- `src` is a path **relative to the directory of the `.sumi.yaml`**, with `/`
+  separators, staying inside it (subdirectories fine; `..`, absolute paths and
+  URLs are not; a symlink leading outside is refused at render). Copy the file
+  next to the YAML if needed, after asking the user.
+- `width` / `height`: at least one (lengths with a unit, multiples of 0.5pt); the
+  other follows the aspect ratio. With both, `fit`: `contain` (whole image,
+  margins), `cover` (fills, crops), `fill` (stretches).
+- PNG, JPEG, SVG only (no WebP / GIF); at most 16 MiB per file, 32 MiB per figure,
+  8192 px per side, 16.7 megapixels; Sumi never downscales: resize the file.
+- SVG files must be plain drawings: `path`, `rect`, `circle`, `ellipse`, `line`,
+  `polyline`, `polygon`, `g` with fill / stroke / opacity / transform. Scripts,
+  links, embedded images, `<style>`, `<text>`, gradients, filters, masks,
+  `<defs>` / `<use>` are refused.
+- `sha256` (optional, 64 hex digits) pins the content.
+- No label (`component/unexpected-label`) and no sublabel: attach a `label` node.
+  A `tone` colours the background (visible around `contain`).
+
+`sumi lint` checks the path's form; the file itself is read by `sumi render` /
+`sumi lint --geometry`. A path that leaves the directory:
+
+```yaml
+# expect-error: asset/invalid-path
+version: 1
+figure:
+  id: logo-outside
+  layout:
+    arrange:
+      row: { items: [ logo, name ] }
+nodes:
+  - { id: logo, component: image, props: { src: ../shared/logo.png, height: 20pt } }
+  - { id: name, component: label, label: Our method }
+edges:
+  - { from: logo, to: name, component: line }
+```
+
+Fix: copy (with the user's consent) `logo.png` next to the figure and write
+`src: logo.png`.
+
+## Inline SVG
+
+Use exactly one of `props.src`, `props.svg` and `props.asset`. Write a complete
+SVG document with a `viewBox` (or positive width/height); a literal block is easiest:
 
 ```yaml
 - id: waveform
@@ -193,50 +167,51 @@ with a `viewBox` (or positive width/height); a literal block is easiest:
       </svg>
 ```
 
-The same allow-list importer as file SVG is used, without interpolation.
-**Text must be outlined as paths or represented by shapes**; `<text>` and
-`<tspan>` are unsupported, and outlined text is not searchable in PDF.
-HTML/`foreignObject`, scripts, events, external/internal references (`href`,
-`use`, `url(...)`), embedded images, DTD/entities, `<style>`, `defs`, clipping,
-masks, gradients and filters are rejected. Use native Sumi labels outside
-the image for readable/searchable text. For restricted HTML, use the dedicated
-`html` component described above.
+The same allow-list importer as file SVG is used, without interpolation. **Text must be
+outlined as paths or shapes** (`<text>` / `<tspan>` unsupported); HTML/`foreignObject`,
+scripts, events, references (`href`, `use`, `url(...)`), embedded images, DTD/entities,
+`<style>`, `defs`, clipping, masks, gradients and filters are rejected; use native labels
+outside the image for searchable text. `width`, `height`, `fit`, frames, tones and layers
+work as for files; internal colours stay as written. SVG, PDF and picture PPTX are
+supported (editable PPTX: `pptx/unsupported-asset`). The viewport clips overflow; geometry
+lint checks the outer placement only.
 
-`width`, `height`, `fit`, frames, tones and layers work as for files. Internal
-colors stay as written (`currentColor` is not a theme variable). SVG, PDF and
-picture PPTX are supported; editable PPTX reports `pptx/unsupported-asset`.
-The image viewport clips drawing overflow; geometry lint checks the outer
-placement, not the drawing's internal text/line size or containment.
+The UTF-8 source counts toward the shared 16 MiB per asset / 32 MiB per figure
+budgets (at most 20,000 elements, 32 levels). Raw decoded bytes (whitespace
+included) are hashed into `assets-sha256`; optional `sha256` pins them. Diagnostics
+point into literal blocks and single-line quoted scalars (folded or multiline
+quoted scalars: the whole scalar).
 
-The UTF-8 source counts toward the shared 16 MiB/asset and 32 MiB/figure
-budgets; the importer allows at most 20,000 elements and 32 levels. Raw decoded
-source bytes (including whitespace) are hashed into `assets-sha256`; optional
-`sha256` pins those bytes. Diagnostics point into literal blocks and single-line
-quoted scalars; folded/multiline quoted scalars fall back to the whole scalar.
+## Reusing one picture: `figure.assets`
 
-### Reusing one picture: `figure.assets` (0.12.0)
+Do not paste the same SVG into many nodes. Define it once under `figure.assets`
+(an ID as the name; `svg:` as above or `src:` for a file, each with an optional
+`sha256`: quote it, an all-digit hash is read as a number) and name it in
+`props.asset`. The asset goes through the importer once; every image naming it
+shares the result. `props.crop: [x, y, width, height]` (positive numbers in the
+asset's viewBox coordinates, inside it) draws only that rectangle, so patches are
+cut from one picture. `crop` works on **SVG assets only** (not PNG/JPEG) and needs
+`asset`; `src`, `svg` and `asset` are exclusive on one image. Each use embeds its
+own copy (a crop is its own SVG): the budgets count the asset once, but a raster
+asset used N times makes the SVG about N times larger.
 
-Do not paste the same SVG into many nodes. Define it once under
-`figure.assets` (an ID as the name; `svg:` as above, or `src:` for a file,
-each with an optional `sha256`) and name it in `props.asset`. The asset goes
-through the safe importer once; every image that names it shares the result.
-`props.crop: [x, y, width, height]` (positive numbers, in the asset's viewBox
-coordinates, inside it) draws only that rectangle, so patches are cut from
-one picture. `crop` works on SVG assets only (not PNG/JPEG) and needs
-`asset`; `src`, `svg` and `asset` are exclusive on one image, and `sha256`
-goes on the `figure.assets` entry (quote it in YAML: an unquoted all-digit
-hash is read as a number).
+Provenance: `assets-sha256` gets one `asset <name> <sha256>` line per entry and
+`asset-use <node id> <name> [crop]` per image. Errors: `asset/unknown-asset` (name
+not in `figure.assets`; the hint names the closest), `asset/invalid-crop` (no
+`asset`, a raster asset, or outside the viewBox; the message gives the viewBox),
+and the usual `asset/*` codes located at the `figure.assets` entry.
 
-Each use embeds its own copy of the picture in the output (a crop is its own
-SVG); the 16 MiB/32 MiB budgets count the asset once, but a raster asset used
-N times makes the SVG about N times larger.
+### Patches from one picture
 
-Worked example, 3×3 patches of one 120×120 picture (each patch 40×40):
+A 3×3 patch grid of one 120×120 picture (each patch 40×40) next to the whole
+picture:
 
 ```yaml
+# expect-render: fits
 version: 1
 figure:
   id: patches
+  theme: paper
   assets:
     photo:
       svg: |
@@ -265,147 +240,101 @@ edges:
   - { from: whole, to: p3 }
 ```
 
-For a row of patches, use one `tokens` node with image cells instead of one
-`image` node per patch plus edges (0.12.0). A cell with `asset` is drawn as an
-`image` (no `label`, `component` or `mono`; `variant` is `default` or
-`framed`, `tone`, `crop` and `fit` as on an image); its size is the cell's
-`width` / `height` or the tokens' (one is enough, the aspect ratio gives the
-other). Image and text cells mix, and edges address the cells as `<node>.<cell>`:
-
-```yaml
-- id: patches
-  component: tokens
-  props:
-    width: 30pt
-    cells:
-      - { asset: photo, crop: [0, 0, 40, 40], variant: framed }
-      - { asset: photo, crop: [40, 0, 40, 40], variant: framed }
-      - "…"
-```
-
-Provenance: `assets-sha256` gets one `asset <name> <sha256>` line per entry and
-`asset-use <node id> <name> [crop]` per image. Errors: `asset/unknown-asset`
-(the name is not in `figure.assets`; the hint names the closest),
-`asset/invalid-crop` (no `asset`, a raster asset, or outside the viewBox; the
-message gives the viewBox), and the usual `asset/*` codes located at the
-`figure.assets` entry.
-
-### File images
-
-```yaml
-- id: sample
-  component: image
-  variant: framed                # default (no border) | framed (theme border; `paper`: 0.5pt like its edges, other themes: their node frame)
-  props:
-    src: gradient.png            # relative to the YAML file
-    height: 34pt                 # width or height (or both) is required
-    fit: contain                 # contain (default) | cover | fill, when both sizes are given
-```
-
-- `src` is a path **relative to the directory of the `.sumi.yaml`**, with
-  `/` separators, and must stay inside that directory (subdirectories are
-  fine; a path that leads out with `..`, absolute paths and URLs are not;
-  a symbolic link that leads outside is refused when rendering). Copy the file next to the YAML if
-  needed — ask the user before copying their files.
-- `width` / `height`: give at least one (lengths with a unit, multiples of
-  0.5pt); the other follows the image's aspect ratio. With both, `fit`
-  decides: `contain` (whole image, margins), `cover` (fills, crops),
-  `fill` (stretches).
-- Formats: PNG, JPEG, SVG only (no WebP / GIF). At most 16 MiB per file,
-  32 MiB per figure, 8192 px per side and 16.7 megapixels; Sumi never
-  downscales, so resize the file instead.
-- SVG files must be plain drawings: `path`, `rect`, `circle`, `ellipse`,
-  `line`, `polyline`, `polygon`, `g` with fill / stroke / opacity /
-  transform. Scripts, links, embedded images, `<style>`, `<text>`,
-  gradients, filters, masks, `<defs>`/`<use>` are refused.
-- `sha256` (optional, 64 hex digits) pins the file's content.
-- `layers: { count: 4, offset: 3pt }` (optional) repeats the **same unchanged
-  image** behind the front one, diagonally up-right. `count` includes the
-  front (integer 1–16); `offset` is positive, a multiple of 0.5pt. Width and
-  height size **one copy**; layout, obstacles and geometry lint use the
-  whole stack: each side grows by `(count - 1) × offset`. Edge ports are
-  selected on that footprint, then extended to the first painted copy along
-  the edge's approach (preserving arrowhead/stroke clearance). A port that
-  cannot reach any copy is rejected (`layout/no-route` in structured,
-  `svg/outline-edge-miss` in D2). Both engines and
-  all fit modes work. SVG stores the image once per stack with `defs`/`use`;
-  PDF reuses its embedded image. Editable PPTX refuses it with the existing
-  `pptx/unsupported-asset`; use the default picture PPTX. Invalid layer
-  values use `component/invalid-prop` / `component/unknown-prop`.
-- No label (`component/unexpected-label`): attach or place a `label` node
-  next to it. A `tone` colors the background (visible around `contain`).
-  Image sublabels are also forbidden. The node means the **whole stack**:
-  attached labels center on its footprint, and enclosing group captions
-  include that footprint. A south-centered attachment sits right of the
-  front image's center by **spread / 2**, where spread is
-  `(count - 1) × offset` (4.5pt for four copies at 3pt).
-
-`sumi lint` checks the path's form; the file itself is read by
-`sumi render` / `sumi lint --geometry`. A complete figure with an image
-(`gradient.png` next to the YAML) and icons:
+For a **row or column** of patches use one `tokens` node with image cells instead
+of one `image` node plus an edge each. A cell with `asset` is drawn as an `image`
+(no `label`, `component` or `mono`; `variant` `default` or `framed`, `tone`, `crop`
+and `fit` as on an image); its size is the cell's or the tokens' `width` /
+`height` (one is enough: the aspect ratio gives the other). Image and text cells
+mix, and edges address them as `<node>.<cell>` or the whole node:
 
 ```yaml
 # expect-render: fits
 version: 1
 figure:
-  id: photo-to-label
-  theme: color
-  profile: paper-single
+  id: patch-row
+  theme: paper
+  assets:
+    photo:
+      svg: |
+        <svg viewBox="0 0 120 120">
+          <rect width="120" height="120" fill="#dde8f5"/>
+          <circle cx="60" cy="60" r="45" fill="#c04050"/>
+        </svg>
   layout:
-    arrange:
-      row: { gap: 4mm, items: [ photo, model, result ] }
+    arrange: { stack: { direction: up, gap: 6mm, items: [patches, proj] } }
 nodes:
-  - { id: photo, component: image, variant: framed, props: { src: gradient.png, height: 28pt } }
-  - { id: model, component: box, icon: tabler/brain, tone: purple }
-  - { id: result, component: label, label: '$p(y \mid x)$' }
-  - { id: model-name, component: label, label: Classifier, attach: { to: model, side: south, gap: 1mm } }
+  - id: patches
+    component: tokens
+    props:
+      width: 30pt
+      gap: 4pt
+      cells:
+        - { asset: photo, crop: [0, 0, 60, 60], variant: framed }
+        - { asset: photo, crop: [60, 0, 60, 60], variant: framed }
+        - "…"
+  - { id: proj, component: box, label: Linear Projection, tone: green, variant: filled }
 edges:
-  - { from: photo, to: model }
-  - { from: model, to: result }
+  - { from: patches, to: proj }
 ```
 
+### Stacked copies (`layers`)
+
+`layers: { count: 4, offset: 3pt }` on an image (file, inline or asset) repeats the
+**same unchanged image** behind the front one, diagonally up-right (repeated video
+frames). `count` includes the front (integer 1–16); `offset` is positive, a multiple
+of 0.5pt; width and height size **one copy**. The node means the **whole stack**:
+layout, obstacles, geometry lint, attached labels and group captions use the footprint
+(each side grows by `(count - 1) × offset`; a south-centred attachment sits right of
+the front image's centre by half that spread). Edge ports are chosen on the footprint
+and extended to the first painted copy; one that cannot reach a copy is rejected
+(`layout/no-route`, or `svg/outline-edge-miss` in D2). SVG stores the image once
+(`defs`/`use`), PDF reuses it; editable PPTX refuses it (`pptx/unsupported-asset`).
+Invalid values: `component/invalid-prop` / `component/unknown-prop`.
+
+## Framed images and operator size
+
+`variant: framed` draws a border: under `paper` 0.5pt like its edges, in other
+themes their node frame. `operator` takes `props.size: regular | large | xlarge`
+(1x / 1.5x / 2x) when the ⊕ should read as clearly as the pictures around it:
 
 ```yaml
-# expect-error: asset/invalid-path
+# expect-render: fits
 version: 1
 figure:
-  id: logo-outside
+  id: framed-add
+  theme: paper
   layout:
-    arrange:
-      row: { items: [ logo, name ] }
+    arrange: { row: { gap: 8mm, align: center, items: [photo, add, result] } }
 nodes:
-  - { id: logo, component: image, props: { src: ../shared/logo.png, height: 20pt } }
-  - { id: name, component: label, label: Our method }
+  - { id: photo, component: image, variant: framed, props: { src: gradient.png, height: 32pt } }
+  - { id: add, component: operator, props: { symbol: plus, size: large } }
+  - { id: result, component: image, variant: framed, props: { src: gradient.jpg, height: 32pt } }
 edges:
-  - { from: logo, to: name, component: line }
+  - { from: photo, to: add, component: line }
+  - { from: add, to: result }
 ```
-
-Fix: copy (with the user's consent) `logo.png` next to the figure and write
-`src: logo.png`.
 
 ## Fixing `asset/*`
 
 | Code | Fix |
 | --- | --- |
-| `asset/unknown-icon` | use the hint's name, or search with `sumi catalog --icons "<word>"` |
-| `asset/unsupported-icon` | the name exists upstream but needs unsupported SVG features; choose a supported name from `sumi catalog --icons "<word>"` (also applies to badges) |
+| `asset/unknown-icon` | use the hint's name, or search `sumi catalog --icons "<word>"` |
+| `asset/unsupported-icon` | the name exists upstream but needs unsupported SVG features: choose another (also for badges) |
 | `asset/unknown-icon-set` | use `tabler/` or `emoji/` |
 | `asset/icon-with-label` | remove the label, or move the text into a separate `label` node |
 | `asset/icon-unsupported` | put the icon on a `box`, `circle`, `label`, … |
-| `asset/invalid-path` | a relative path with `/` (no `\`, scheme or leading `/`) that names a file and does not leave the directory through `..` |
-| `asset/outside-base` | the path (through a symbolic link) leaves the YAML's directory: copy the real file in |
-| `asset/not-found` | check the path; it is relative to the YAML file, not the current directory |
-| `asset/unsupported-format`, `asset/format-mismatch`, `asset/invalid-image` | convert to PNG / JPEG / SVG; make the extension match the content; re-export a broken file; give exactly one of `props.src`, `props.svg` or `props.asset` |
+| `asset/invalid-path` | a relative path with `/` (no `\`, scheme or leading `/`) naming a file and not leaving the directory through `..` |
+| `asset/outside-base` | the path (through a symlink) leaves the YAML's directory: copy the real file in |
+| `asset/not-found` | the path is relative to the YAML file, not the current directory |
+| `asset/unsupported-format`, `asset/format-mismatch`, `asset/invalid-image` | convert to PNG / JPEG / SVG; make the extension match the content; re-export a broken file; give exactly one of `props.src`, `props.svg`, `props.asset` |
 | `asset/too-large`, `asset/too-many-pixels` | resize or recompress the file (Sumi will not) |
-| `asset/unknown-asset` | the hint names the closest entry of `figure.assets`; define the asset first |
-| `asset/invalid-crop` | `props.crop` needs `props.asset` of an SVG; keep `[x, y, w, h]` inside the asset's viewBox (the message prints it) |
+| `asset/unknown-asset` | the hint names the closest `figure.assets` entry; define the asset first |
+| `asset/invalid-crop` | `props.crop` needs `props.asset` of an SVG; keep `[x, y, w, h]` inside the viewBox (the message prints it) |
 | `asset/sha256-mismatch` | the file changed: confirm with the user, then update `sha256` (the message gives the actual value) |
-| `asset/unsafe-svg`, `asset/unsupported-svg` | the message and `related` give the SVG line and column; re-export it as plain shapes (text to outlines, no embedded images or styles), or use a PNG |
+| `asset/unsafe-svg`, `asset/unsupported-svg` | the message and `related` give the line and column; re-export as plain shapes (text to outlines, no embedded images or styles), or use a PNG |
+| `asset/unsafe-html`, `asset/unsupported-css`, `asset/html-overflow` | [html](html.md#diagnostics) |
 | `asset/no-base-directory`, `asset/icons-unavailable` | not a figure problem (library use without a file, damaged install): report it |
 
-## Output formats
-
-SVG, PDF and the default (picture) PPTX keep icons and images; PDF keeps
-SVG images as vectors and JPEG unchanged. The experimental editable PPTX
-(`--pptx-mode editable`) refuses figures with icons or images
-(`pptx/unsupported-asset`) and writes nothing: use the picture PPTX.
+SVG, PDF and the default (picture) PPTX keep icons and images (PDF keeps SVG
+images as vectors and JPEG unchanged); the experimental editable PPTX refuses them
+and writes nothing: use the picture PPTX.

@@ -331,6 +331,20 @@ describe("skill references", () => {
     for (const size of sizes) expect(shape(size)).toEqual(shape(actual));
   });
 
+  test("the documented tokens `lineAlign` values are the catalog's enum", () => {
+    const tokens = buildFullCatalog(createBuiltinRegistry()).components?.find(
+      (c) => c.id === "sumi/tokens",
+    );
+    const properties = (tokens?.kind === "node" ? tokens.props : undefined) as
+      | { properties?: { lineAlign?: { enum?: string[] } } }
+      | undefined;
+    const values = properties?.properties?.lineAlign?.enum ?? [];
+    expect(values.length).toBeGreaterThan(0);
+    const text = docs.find((d) => d.name === "references/structured.md")?.text ?? "";
+    expect(text).toContain(values.join(" | "));
+    for (const value of values) expect(text, value).toContain(`\`${value}\``);
+  });
+
   test("themes and profiles in code blocks and CLI flags exist", () => {
     for (const block of blocks) {
       if (marker(block.body, "expect-error") !== undefined) continue;
