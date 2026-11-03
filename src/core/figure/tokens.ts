@@ -442,6 +442,15 @@ export function expandTokens(state: CheckState, registry: Registry, locate: Loca
       }
       const tone = asset !== undefined ? cell.tone : (cell.tone ?? node.tone);
       const mono = asset !== undefined ? undefined : (cell.mono ?? node.mono);
+      // An inherited variant is a default for compatible components, not a
+      // constraint on a component override (e.g. an ellipsis label, #331).
+      const inherited = registry.resolve(cell.component ?? props.component, "node");
+      const variant =
+        props.variant !== undefined &&
+        inherited.ok &&
+        inherited.value.variants.includes(props.variant)
+          ? props.variant
+          : "default";
       // Written as in a figure: the component stage validates them like any props.
       const cellProps: Record<string, unknown> = {
         ...(asset !== undefined && { asset }),
@@ -464,7 +473,7 @@ export function expandTokens(state: CheckState, registry: Registry, locate: Loca
             ? "outlined"
             : asset !== undefined
               ? (cell.variant ?? "default")
-              : (cell.variant ?? props.variant ?? "default"),
+              : (cell.variant ?? variant),
         ...(tone !== undefined && { tone }),
         ...(mono !== undefined && { mono }),
         props: cellProps,

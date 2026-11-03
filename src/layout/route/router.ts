@@ -88,6 +88,7 @@ import {
 import { deepFreeze } from "../structured/engine";
 import { arrowheadLength, WIRE_CORNER_RADIUS } from "./arrowhead";
 import { crossingDiagnostics } from "./crossings";
+import { endpointRects } from "./endpoint-rects";
 import { gridSpanHint, verifiedGridHints } from "./grid-hint";
 import { PairHeap } from "./heap";
 import { requestedLabelDiagnostics } from "./label-diagnostics";
@@ -700,9 +701,9 @@ class Router {
     edge: EdgeIR,
     ends: { from: End; to: End } | { error: string } | undefined,
   ): void {
-    const rectOf = (key: ElementKey): Rect | undefined =>
-      this.#layout.nodes.find((n) => n.key === key)?.rect ??
-      this.#layout.groups.find((g) => g.key === key)?.rect;
+    if (edge.fromAnchor !== "straight" && edge.toAnchor !== "straight") return;
+    const rects = endpointRects(this.#ir, this.#layout);
+    const rectOf = (key: ElementKey): Rect | undefined => rects.get(key);
     for (const field of ["fromAnchor", "toAnchor"] as const) {
       if (edge[field] !== "straight") continue;
       const leaving = field === "fromAnchor";

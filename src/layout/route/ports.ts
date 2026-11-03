@@ -14,6 +14,7 @@ import { getOutlineRenderer } from "../../core/outline";
 import { outlineRegions } from "../../lint/geometry/outlines";
 import { rectPolygon, shapeOutline } from "../../lint/geometry/shapes";
 import { type LayoutIR, type Point, type Rect, roundUnits } from "../ir";
+import { endpointRects } from "./endpoint-rects";
 
 /** Direction indices: 0 = east (+x), 1 = south (+y), 2 = west (−x), 3 = north (−y). */
 export const DIRS: readonly Point[] = [
@@ -878,10 +879,7 @@ export function resolveEnds(
   // Fan-in spreading: resolve again with the target ends that met at one
   // port placed side by side (the rest of the resolution, including the
   // #113 split, runs as before around them).
-  const rects = new Map<ElementKey, Rect>([
-    ...layout.nodes.map((n) => [n.key, n.rect] as const),
-    ...layout.groups.map((g) => [g.key, g.rect] as const),
-  ]);
+  const rects = endpointRects(ir, layout);
   const spread = spreadFanIn(ir.edges, ends, (key) => rects.get(key) as Rect);
   if (spread.size === 0) return ends;
   const spreadEnds = resolveEndsWith(ir, layout, spread);
@@ -1071,6 +1069,8 @@ function resolveEndsWith(
   spread: ReadonlyMap<string, { side: Side; offset: number }>,
 ): ({ from: End; to: End } | { error: string })[] {
   const elements = new Map<ElementKey, Element>();
+  const rects = endpointRects(ir, layout);
+  const tokenFrames = new Set(ir.groups.filter((g) => g.tokens !== undefined).map((g) => g.key));
   const nodes = new Map(ir.nodes.map((n) => [n.key, n]));
   for (const n of layout.nodes) {
     const node = nodes.get(n.key);
@@ -1085,7 +1085,7 @@ function resolveEndsWith(
   for (const g of layout.groups) {
     elements.set(g.key, {
       key: g.key,
-      rect: g.rect,
+      rect: rects.get(g.key) as Rect,
       ...(g.parent !== undefined && { parent: g.parent }),
     });
   }
@@ -1096,6 +1096,18 @@ function resolveEndsWith(
   };
   /** `true` if `inner` lies (transitively) inside the group `outer`. */
   const inside = (inner: Element, outer: Element): boolean => {
+    // A cell annotation is a member of the layout frame, but outside the
+    // sequence's routing bounds: approach the cells from outside (#331).
+    if (tokenFrames.has(outer.key)) {
+      const c = center(inner.rect);
+      if (
+        c.x < outer.rect.x ||
+        c.x > rightOf(outer.rect) ||
+        c.y < outer.rect.y ||
+        c.y > bottomOf(outer.rect)
+      )
+        return false;
+    }
     for (let p = inner.parent; p !== undefined; p = elements.get(p)?.parent) {
       if (p === outer.key) return true;
     }

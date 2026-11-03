@@ -16,6 +16,7 @@ import { getOutlineRenderer } from "../../core/outline";
 import { obstaclesCrossedByRoute, type RouteObstacle } from "../../lint/geometry/edges";
 import { rectPolygon, segmentCrossesRect } from "../../lint/geometry/shapes";
 import type { EdgeLayout, LayoutIR, Point, Rect } from "../ir";
+import { endpointRects } from "./endpoint-rects";
 import {
   anchorPoint,
   DIRS,
@@ -173,9 +174,11 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
     }
     rects.set(node.key, node.rect);
   }
+  const endpoints = endpointRects(ir, layout);
   for (const group of layout.groups) {
-    regions.set(group.key, rectPolygon(group.rect));
-    rects.set(group.key, group.rect);
+    const rect = endpoints.get(group.key) as Rect;
+    regions.set(group.key, rectPolygon(rect));
+    rects.set(group.key, rect);
   }
   const obstacles: RouteObstacle[] = layout.nodes.map((n) => ({
     key: n.key,
@@ -186,6 +189,13 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
   );
   /** `inner` lies (transitively) in the group `outer`. */
   const inside = (inner: ElementKey, outer: ElementKey) => {
+    if (ir.groups.some((g) => g.key === outer && g.tokens !== undefined)) {
+      const a = rects.get(inner) as Rect;
+      const b = rects.get(outer) as Rect;
+      const x = a.x + a.width / 2;
+      const y = a.y + a.height / 2;
+      if (x < b.x || x > b.x + b.width || y < b.y || y > b.y + b.height) return false;
+    }
     for (let p = parents.get(inner); p !== undefined; p = parents.get(p)) {
       if (p === outer) return true;
     }

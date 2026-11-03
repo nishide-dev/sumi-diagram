@@ -102,6 +102,37 @@ describe("separator cells (#216)", () => {
 });
 
 describe("expansion (#181)", () => {
+  test("inherits only variants supported by the cell component (#331)", () => {
+    for (const field of ["cells", "lines"]) {
+      const cells =
+        "[{ id: x, label: X }, { label: '…', component: label }, { label: Y, component: circle }]";
+      const { state } = checkFigure(
+        figure(
+          `      variant: outlined\n      ${field}: ${field === "lines" ? `[${cells}]` : cells}`,
+        ),
+      );
+      expect(state.diagnostics).toEqual([]);
+      expect(state.doc.nodes?.slice(2).map((n) => n?.variant)).toEqual([
+        "outlined",
+        "default",
+        "outlined",
+      ]);
+    }
+    // Supported inherited variants still apply to a component override.
+    const { state } = checkFigure(figure(`${CELLS}\n      variant: muted`));
+    expect(state.diagnostics).toEqual([]);
+    expect(state.doc.nodes?.find((n) => n?.id === "seq-3")?.variant).toBe("muted");
+  });
+
+  test("explicit unsupported cell variants are still errors at the cell (#331)", () => {
+    const source = figure(`      variant: outlined
+      cells: [{ id: x, label: X }, { label: '…', component: label, variant: outlined }]`);
+    expect(codesOf(source)).toContainEqual([
+      "component/unknown-variant",
+      ["nodes", 1, "props", "cells", 1, "variant"],
+    ]);
+  });
+
   test("each cell becomes a node; the tokens' arrange item becomes a row of them", () => {
     const { state } = checkFigure(figure(CELLS, { seq: "\n    tone: purple" }));
     expect(state.diagnostics).toEqual([]);
@@ -354,10 +385,8 @@ nodes:
       ["nodes", 1, "props", "height"],
     ]);
     expect(inherited?.slice(2)).toEqual([14, 15]);
-    // An unknown variant inherited from the tokens: the tokens' props.variant.
-    expect(at("      variant: nope\n      cells: [A]").map((d) => d.slice(0, 2))).toEqual([
-      ["component/unknown-variant", ["nodes", 1, "props", "variant"]],
-    ]);
+    // An unsupported inherited variant falls back; an explicit cell variant is checked.
+    expect(at("      variant: nope\n      cells: [A]")).toEqual([]);
   });
 });
 

@@ -160,8 +160,9 @@ test("sharp routed elbows remain connected in SVG and PDF after trunk deduplicat
   // PDF defaults are butt/miter; the serializer may omit explicit zero operators.
   expect(streams).not.toMatch(/[12] [Jj]/);
   // Require a stroked polyline, not the page's rectangular clipping path.
+  // Trunk deduplication can append shorter subpaths to that same stroke.
   expect(streams).toMatch(
-    /[-\d.]+ [-\d.]+ m\s+[-\d.]+ [-\d.]+ l\s+[-\d.]+ [-\d.]+ l(?:\s+[-\d.]+ [-\d.]+ l)*\s+S/,
+    /[-\d.]+ [-\d.]+ m\s+[-\d.]+ [-\d.]+ l\s+[-\d.]+ [-\d.]+ l(?:\s+[-\d.]+ [-\d.]+ [ml])*\s+S/,
   );
 });
 
