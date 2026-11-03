@@ -2519,6 +2519,14 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **散布図とexport:** seed 299・63点・座標は維持し、3点周期の色と分割対象が同期して青だけを覆っていた点を修正。4点周期で分割し、8点周期で3色分割、それ以外は2色分割とする。青・琥珀・赤の単色点と混色点を分散させる。作例全体はSVG/PDF/picture PPTXに対応するが、HTML/imageを含むためeditable PPTXは位置付き `pptx/unsupported-asset` で拒否される既存制限がある。汎用palette/frame制御自体のeditable PPTX対応とは区別する。
 - **検証:** 展開solid cellの実効fill、他variant非変更、角丸維持、文字のcontrast調整（黒・濃青・中間灰の4.5:1境界両側・明るい青・白のラベル付きsolidを描画し、実際の比率と合格済み白文字の維持を検査）、共有theme非変異、dim優先、未知tone/不正色のschema拒否、auto/structuredのframeとsignal別色、editable PPTXの両色保存を回帰検査する。JSON SchemaとSkillを同期し、galleryとPDF/PPTX goldenは通常の生成経路で更新する。
 
+### 6.87 #307 の Profile 幅超過の内訳
+
+- **再現**: v0.11.0 の `tests/fixtures/figures/geometry/exceeds-page-width.sumi.yaml` を `lint --geometry` で描画すると 130.35mm / 上限 88mm の error と一般的な対処しか得られず、どの間隔・要素を変えるか判断できなかった。ViT Figure 1 の dogfood と同じ問題を既存の汎用 fixture で再現した。
+- **判断**: 既存の `geometry/exceeds-page-width` の hint に、同じ描画から測った横幅の内訳を追加する。新しい診断コードやレイアウト変更は導入しない。structured は IR の row / grid を辿り、最も横に長い並びのパス・要素幅・占有 x 投影の和・観測された空きの和を示す。grid は列番号と span を併記し、重なる投影を二重計上しない。row がなければ最上位の footprint を使う。
+- **attach**: 各 container の arrange の union から、attach を IR 順に足したときの横方向の増分を表示する。上・下への attach でも横にはみ出せば対象となる。container 内の増分は重複しないが、入れ子の container 同士は加算しない。attach 自身の幅全体と overhang を混同しない。
+- **候補と限界**: 最大の観測 gap、最も幅のある実測ラベル、attach の overhang を大きい順に最大 3 件示す。固定幅・別の行・stretch・align の制約があるので、その値を削減可能量とは呼ばない。grid の span や上下に並ぶ項目は x 投影の union とし、空の track の割り当ては推測しない。auto は最上位要素の実測投影に限定し、ELK の layer や内部 gap を復元したとは主張しない。本文と同じく印刷サイズ（scale 適用後）の mm を使い、最上位の union と page の幅には margin・stroke・edge / label の広がりが別途あることを明記する。
+- **互換性と検証**: コンパイラ・配置・出力を変更せず、hint のみを更新する。ネストした row、grid の空セル / span、attach、文字のみの要素、scale、auto の重複投影を単体テストし、structured / D2 の実描画でも診断を確認する。既存全 YAML × 元のテーマと全組み込みテーマの SVG / PDF / PPTX / D2 の sha256 比較で互換性を確認する。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）

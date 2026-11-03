@@ -1,5 +1,25 @@
 # Reading and fixing diagnostics
 
+## Finding what makes a figure too wide
+
+`geometry/exceeds-page-width` (`lint --geometry` / render) includes a measured
+width breakdown in its hint. For structured layout, start with the named widest
+row or grid and its item widths, total observed horizontal gaps, and the largest
+gap. Grid items identify their column or column span. Attached nodes report the
+horizontal overhang beyond their container's arrange bounds. Compare the ranked
+gap / label / attach candidates before editing; these measurements are clues,
+not guaranteed savings (fixed widths, other rows and constraints can dominate).
+All lengths are printed mm, including `figure.fit: scale`.
+
+For auto layout, the hint reports the top-level horizontal footprint and observed
+gaps, not ELK's internal layers or tunable spacing. Overlapping x-ranges and grid
+spans are merged rather than added twice; blank tracks cannot be reconstructed
+from painted geometry. Margins, strokes, edges and their labels can also widen
+the page. Re-run after changing the largest relevant contributor; a second row
+may then become the widest. Sumi never shrinks the figure automatically.
+
+## Group occupancy
+
 `geometry/group-empty-area` (info, render / `lint --geometry` only): at
 least 75% of a group's frame lies outside its title and direct children's
 bounding boxes, with overlaps counted once and edges excluded. This is an

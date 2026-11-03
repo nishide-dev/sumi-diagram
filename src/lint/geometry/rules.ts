@@ -46,6 +46,7 @@ import {
   rectsOverlap,
   regionIntersectsRect,
 } from "./shapes";
+import { widthBreakdown } from "./width";
 
 /**
  * Slack in SVG units (0.5pt) for D2's rounding: D2 writes shape coordinates
@@ -209,7 +210,7 @@ export const exceedsPageWidth = defineGeometryRule({
         message: `The figure is ${formatMm(width)} wide, more than the ${formatMm(profile.maxWidthPt)} maximum width of profile "${profile.id}".`,
         path: figurePath,
         subject: figureSubject(context),
-        hint: pageWidthHint(context),
+        hint: [widthBreakdown(context), pageWidthHint(context)].filter(Boolean).join(" "),
       },
     ];
   },
