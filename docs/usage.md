@@ -77,7 +77,7 @@ Auto layout uses D2/ELK and `figure.layout.direction`. Structured layout uses Su
 | Stream | Contents |
 | --- | --- |
 | stdout | lint/doctor/catalog reports, JSON, filenames changed by fmt (or unformatted files with `--check`), `fmt --stdout` YAML, render's `Wrote …`, and `render -o -` SVG |
-| stderr | render/fmt diagnostics, usage errors, logs; render's `Wrote …` when SVG goes to stdout |
+| stderr | render/fmt diagnostics, usage errors, logs; plain fmt's per-file `changed` / `unchanged` status (`--check` / `--stdout` add no status); render's `Wrote …` when SVG goes to stdout |
 
 | Code | Meaning |
 | --- | --- |

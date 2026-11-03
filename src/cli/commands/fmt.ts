@@ -2,7 +2,8 @@
  * `sumi fmt <files...>`: formats `*.sumi.yaml` files in place without
  * changing their meaning (see `formatFigureSource()` for the rules).
  *
- * - default: rewrites files that change (atomically) and lists them on stdout.
+ * - default: rewrites files that change (atomically) and lists them on stdout;
+ *   reports changed / unchanged for each successful file on stderr.
  * - `--check`: writes nothing; lists files that would change on stdout.
  * - `--stdout`: writes the formatted text of a single file to stdout.
  * - stderr: YAML diagnostics of files that cannot be formatted.
@@ -90,12 +91,16 @@ async function formatFile(
     context.stdout.write(result.text);
     return EXIT.ok;
   }
-  if (!result.changed) return EXIT.ok;
+  if (!result.changed) {
+    if (!options.check) context.stderr.write(`${file}: unchanged\n`);
+    return EXIT.ok;
+  }
   if (options.check) {
     context.stdout.write(`${file}\n`);
     return EXIT.failed;
   }
   await writeFileAtomic(context, file, result.text);
   context.stdout.write(`${file}\n`);
+  context.stderr.write(`${file}: changed\n`);
   return EXIT.ok;
 }

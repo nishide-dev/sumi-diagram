@@ -145,7 +145,7 @@ v0.3.0 から、台形 `trapezoid` と重なった矩形 `stack` を使えます
 | 出力 | 内容 |
 | --- | --- |
 | stdout | 結果: lint / doctor / catalog の報告、`--json` の JSON、`fmt` が書き換えた（`--check` では未整形の）ファイル名、`fmt --stdout` の本文、`render` の `Wrote …`、`render -o -` の SVG |
-| stderr | `render`・`fmt` の診断、使い方の誤り、ログ（`render -o -` のときの `Wrote …` も含む） |
+| stderr | `render`・`fmt` の診断、使い方の誤り、ログ。通常の `fmt` は成功したファイルごとに `changed` / `unchanged` を1行表示（`--check` / `--stdout` は追加表示なし）。`render -o -` のときの `Wrote …` も含む |
 
 | 終了コード | 意味 |
 | --- | --- |

@@ -178,6 +178,36 @@ than about half the group still covers the centre, and the edge detours
 **without any diagnostic** — look at the preview. `labelAt` without a
 `label` gets `component/label-at-without-label` (warning).
 
+**Attachments and title centring.** A title is positioned relative to the
+**whole group frame**, including attached members, even with `variant: plain`.
+An input attached west of a member widens that frame, so its centred title
+moves left of the arranged body's centre. To title only the body, give it an
+inner group and attach the input to that group (a sibling, not a member of it).
+An untitled outer group can hold both as one panel:
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: body-title
+  theme: paper
+  layout:
+    arrange: { row: { items: [panel] } }
+groups:
+  - id: panel
+    variant: plain
+    arrange: { stack: { items: [body] } }
+  - id: body
+    label: Body
+    variant: plain
+    arrange: { stack: { items: [block] } }
+nodes:
+  - { id: block, component: box, label: Block }
+  - { id: input, component: box, label: Input, attach: { to: body, side: west, gap: 6pt } }
+edges:
+  - { from: input, to: block }
+```
+
 **`caption`** puts text centered **under** the group's border, outside it,
 like a sub-figure caption (`(a) …`): line breaks and label math as in a
 node label; the position is fixed. It is drawn as a label node with the
