@@ -256,6 +256,20 @@ export function locateHtmlMeasurement(
   const result: HtmlMeasurement = { boxes: [], texts: [] };
   const root = projection(sourceTree(source, variables));
   const descendants = (plan: Plan): Plan[] => [plan, ...plan.children.flatMap(descendants)];
+  // Takumi 2.19 emits a 0x0 placeholder for an absolute child in some inline
+  // flows only, so a plan's children match with or without its placeholders.
+  const align = (node: MeasuredNode, plan: Plan): Plan[] | undefined => {
+    const withoutPlaceholders = plan.children.filter((c) => !c.placeholder);
+    const variants =
+      withoutPlaceholders.length === plan.children.length
+        ? [plan.children]
+        : [plan.children, withoutPlaceholders];
+    return variants.find(
+      (children) =>
+        node.children.length === children.length &&
+        node.children.every((child, i) => !!children[i] && matches(child, children[i])),
+    );
+  };
   const matches = (node: MeasuredNode, plan: Plan): boolean => {
     const sources = runSources(plan.texts);
     let cursor = 0;
@@ -264,11 +278,7 @@ export function locateHtmlMeasurement(
       if (at < 0 || sources.text.slice(cursor, at).trim()) return false;
       cursor = at + run.text.length;
     }
-    return (
-      !sources.text.slice(cursor).trim() &&
-      node.children.length === plan.children.length &&
-      node.children.every((child, i) => !!plan.children[i] && matches(child, plan.children[i]))
-    );
+    return !sources.text.slice(cursor).trim() && !!align(node, plan);
   };
   const visit = (node: MeasuredNode, plan: Plan | undefined, ancestor: Plan) => {
     const location = plan ?? ancestor;
@@ -321,14 +331,9 @@ export function locateHtmlMeasurement(
       }
       cursor = start + run.text.length;
     }
-    const exactChildren =
-      plan &&
-      node.children.length === plan.children.length &&
-      node.children.every(
-        (child, index) => !!plan.children[index] && matches(child, plan.children[index]),
-      );
+    const exactChildren = plan && align(node, plan);
     for (const [index, child] of node.children.entries()) {
-      if (exactChildren) visit(child, plan.children[index], location);
+      if (exactChildren) visit(child, exactChildren[index], location);
       else {
         const candidates = descendants(location).filter((p) => p !== location && matches(child, p));
         visit(child, candidates.length === 1 ? candidates[0] : undefined, location);
