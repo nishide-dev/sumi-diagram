@@ -520,7 +520,7 @@ function unsatisfied(
   const hint =
     gridItems.length > 0
       ? sameGrid
-        ? `${explanation} They are tracks of the same grid, so wrapping them or the grid cannot separate them: put them in different rows or columns of the grid, or use another constraint.`
+        ? `${explanation} They are tracks of the same grid, so wrapping them or the grid cannot separate them: ${c.axis === "y" ? "put them in the same row of the grid" : "put them in the same column of the grid"}, or use another constraint.`
         : `${explanation} ${UNVERIFIED_ALIGN_TAIL}`
       : movable
         ? `Other align constraints or the arrangement keep them apart: a strut only adds space, and it moves the items after it in its ${box} too. Check the constraints that share these elements (they may contradict each other), or align other elements.`

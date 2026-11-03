@@ -138,9 +138,11 @@ export function verifiedGridHints(
         .join(" ");
       const widths = set.filter((end) => end.node?.width !== undefined);
       const text = `${why} Verified by structured layout and routing: ${widths.length > 0 ? "remove props.width and set" : "set"} grid.align: stretch on ${set.length > 1 ? "their containing grids" : "its containing grid"}; this removes this diagnostic. Re-run lint after applying${added.length > 0 ? `: the trial also produced ${added.join(", ")}` : ", as other diagnostics can change"}.`;
-      const replaced = set.reduce(
-        (hint, end, i) =>
-          i === 0 ? hint.replace(end.neutral, text) : hint.replace(end.neutral, ""),
+      // Every end's neutral "No verified edit" sentence goes: the first verified end carries the
+      // recommendation; an end outside the verified set would otherwise contradict it. The
+      // two-end set is defensive: it applies only when stretching both grids is needed.
+      const replaced = ends.reduce(
+        (hint, end) => hint.replace(end.neutral, end === set[0] ? text : ""),
         d.hint ?? "",
       );
       return { ...d, hint: replaced.replace(/ {2,}/g, " ").trim() };

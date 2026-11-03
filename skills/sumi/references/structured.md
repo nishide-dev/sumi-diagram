@@ -191,7 +191,7 @@ wrapper. Sumi recommends a wrapper (`{ stack: { items: [cell] } }` for `y`,
 a row for `x`; the cell, all cells, or the whole grid) only after a trial
 layout shows that it removes the diagnostic; re-run lint after applying it.
 Cells of the same grid are tracks of that grid: no wrapper separates them, so
-put them in different rows/columns or use another constraint. Also check
+put them in the same row (`y`) or column (`x`) of the grid, or use another constraint. Also check
 competing constraints. `layout/unsatisfied-align` names this grid limitation.
 
 ## Group titles and captions

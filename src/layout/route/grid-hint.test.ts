@@ -279,3 +279,46 @@ test("#306 review: verified hints keep the generic advice and say to re-run lint
     layoutStructuredFigure(source()).diagnostics,
   );
 });
+
+test("#306 review: a no-route verified for one end drops the other end's neutral sentence", () => {
+  const cols = 10;
+  const row = (id: string, span: number, off: number) => [
+    ...Array(off).fill(null),
+    { item: id, span },
+    ...Array(cols - off - span).fill(null),
+  ];
+  const mids = Array.from({ length: cols }, (_, i) => `k${i}`);
+  const doc = {
+    version: 1,
+    figure: {
+      id: "f",
+      layout: {
+        arrange: {
+          grid: {
+            columns: cols,
+            rowGap: "0pt",
+            columnGap: "4pt",
+            align: "start",
+            items: [...row("a", 10, 0), ...mids, ...row("b", 9, 1)],
+          },
+        },
+      },
+    },
+    nodes: [
+      { id: "a", component: "box", label: "A label" },
+      { id: "b", component: "box", label: "B label" },
+      ...mids.map((id) => ({
+        id,
+        component: "box",
+        label: "",
+        props: { width: "16pt", height: "16pt" },
+      })),
+    ],
+    edges: [{ id: "e", from: "a", to: "b", fromAnchor: "straight", toAnchor: "straight" }],
+  };
+  const d = layoutStructuredFigure(stringify(doc)).diagnostics.find(
+    (x) => x.code === "layout/no-route",
+  );
+  expect(d?.hint).toContain("Verified by");
+  expect(d?.hint).not.toContain("No verified edit");
+});

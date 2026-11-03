@@ -2562,7 +2562,7 @@ center/start/end を意図した図の box 幅・port・経路、ひいては SV
   なく、`placeStructured` の後処理で IR コピーに適用して再配置し、同じ constraint の
   診断が消える場合だけ「Verified by」として提示する（trial は上記の6回上限、trial 内
   は再試行なし）。constraint の全対象が同一 grid の cell なら、同じ track であり
-  wrapper では分離できないため、別の行/列や別 constraint を使う中立的な説明にする。
+  wrapper では分離できないため、y なら同じ行、x なら同じ列に置く（または別 constraint を使う）という軸別の中立的な説明にする。
   軸別に y は stack、x は row の wrapper を試し、grid の先頭行以外の cell も同様に検証する。
   既存の残差・severity は変えない。
 - 検証済み hint は実測で対象診断を消す編集のみを示すが、他の診断が新たに出る場合が

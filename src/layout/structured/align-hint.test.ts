@@ -30,6 +30,8 @@ test("#306 review: cells of the same grid get neutral same-grid advice, never wr
       );
       const hint = unsatisfied(doc)?.hint ?? "";
       expect(hint).toContain("tracks of the same grid");
+      expect(hint).toContain("same row of the grid");
+      expect(hint).not.toContain("different rows");
       expect(hint).not.toContain("Wrap the cell");
       expect(hint).not.toContain("Verified by");
       expect(hint).not.toContain("other branch");
