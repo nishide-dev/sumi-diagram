@@ -87,7 +87,7 @@ import {
 import { deepFreeze } from "../structured/engine";
 import { arrowheadLength, WIRE_CORNER_RADIUS } from "./arrowhead";
 import { crossingDiagnostics } from "./crossings";
-import { gridSpanHint } from "./grid-hint";
+import { gridSpanHint, verifiedGridHints } from "./grid-hint";
 import { PairHeap } from "./heap";
 import { requestedLabelDiagnostics } from "./label-diagnostics";
 import { arrowheadRects, hasRequestedLabel, placeEdgeLabel } from "./labels";
@@ -168,6 +168,8 @@ export interface RouteResult {
 
 /** Routes the edges of a structured layout. `ir` is the Figure IR the layout was made from. */
 export interface RouteOptions {
+  /** Disable diagnostic trials inside a trial layout. */
+  hintTrials?: boolean;
   /**
    * Use the A* lower bound (default). `false` searches with Dijkstra (the
    * same costs, slower); tests compare the two.
@@ -189,7 +191,14 @@ export function routeEdges(
 ): RouteResult {
   // Zoom edges (#176) are not routed: the other edges are routed without
   // them, and their straight lines are added to the result (`zoom.ts`).
-  const routed = routeWithoutZoom(withoutZoomEdges(ir), withoutZoomLayouts(ir, layout), options);
+  const raw = routeWithoutZoom(withoutZoomEdges(ir), withoutZoomLayouts(ir, layout), options);
+  const routed =
+    options.hintTrials === false
+      ? raw
+      : {
+          ...raw,
+          diagnostics: verifiedGridHints(ir, layout, raw.diagnostics),
+        };
   if (routed.layout.edges.length === layout.edges.length) return routed;
   const zoom = addZoomRoutes(ir, layout, routed.layout);
   return {

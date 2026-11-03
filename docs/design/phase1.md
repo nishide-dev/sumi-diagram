@@ -2541,15 +2541,22 @@ center/start/end を意図した図の box 幅・port・経路、ひいては SV
   相手との straight placement に失敗した場合、`layout/straight-off-side`
   とその edge の `layout/no-route` に、対象 ID・span 列数・span は予約で
   あって拡幅ではないこと・自然幅・その grid の `align: stretch` を示す。
-  配置時の予約 cell 矩形を最終 item 矩形に対応する WeakMap に保持し、未使用幅が
-  あり、その幅への拡張で相手との straight placement が成立する場合だけ stretch
-  を勧める。LayoutIR の列挙可能な項目・シリアライズ結果は増やさず、track を
-  診断側で再計算しない。既に span を満たす自然幅や span 外への接続は一般 hint
-  のままとする。circle/label/custom outline/badge 等の固有の非伸縮性を先に判定し、
-  明示幅があっても幅削除を勧めない。伸縮可能な node の明示 `props.width` にのみ
-  削除または幅変更を案内する。
+  **レビュー後の方針変更: heuristic ではなく実測検証。** 相手を固定した予約矩形の
+  拡張判定は廃止する。`grid.align: stretch` は両端を移動・拡幅し得るため、IR の
+  arrange tree と必要な node をメモリ上でコピーし、stretch（明示幅がある場合は
+  その node の幅削除も含む）を適用して structured placement / align solver /
+  routing を再実行する。同じ edge / anchor の診断が消え、no-route も残らない
+  場合だけ修正案を示す。元の IR・LayoutIR・描画結果は変更しない。
+  circle/label/custom outline/badge 等の固有の非伸縮性には幅削除を勧めない。
+  検証失敗・予算超過時は原因の説明と中立的な文言のみとする。
   overlap/self-loop、横接続、span なし、既に成立する straight は従来通り。
   edge の path/location/subject と blocker の related は維持する。
+- コスト上限は診断ごとに6回の trial。要素80個超、arrange
+  item 240個超、grid 80列超は trial を省略する。trial 内では hint の再試行を無効に
+  する。実際に使用した profile / measurer / align limits は WeakMap で引き継ぐ。
+  配置・routing 本体の出力や診断 code/severity/location/related は変更しない。
+  回帰は全レビュー probe（両端が移動する12ケースを含む）、決定性、
+  非破壊性、6回上限と大型/auto の0回実行を検証する。
 - 未達 align の対象が grid 直接 cell（その attach を含む）なら、grid cell
   は strut を受け取らないことを説明する。報告された start-aligned 親では
   加算で他方の branch を上（y）/左（x）へ動かせない、という軸別の表現に限定する。

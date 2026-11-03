@@ -172,9 +172,11 @@ the box's `props.width` unset. Fixed-width and non-resizable components
 `fromAnchor: straight` / `toAnchor: straight` lines up an edge endpoint;
 it does not widen the box. If outer columns miss its sides,
 `layout/straight-off-side` (and sometimes `layout/no-route`) explains the
-span / natural-width cause and the stretch fix when the reserved span has
-unused width and stretching reaches the other endpoint. A box that already
-fills its span, or a connection outside that span, keeps generic routing advice.
+span / natural-width cause. Sumi recommends stretch or removing `props.width`
+only after applying that edit to an in-memory copy and re-running structured
+layout and routing: both endpoints can move. Trials are bounded (at most six
+per diagnostic) and skipped for large figures. When no edit verifies, the hint
+stays neutral. Auto/D2 figures never run trial renders.
 Intrinsic non-resizability takes precedence over an explicit width: removing
 `props.width` does not make a circle stretch. Put `straight` at the wide
 box's end; check the rendered routes after stretching.

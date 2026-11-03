@@ -3,6 +3,60 @@ import { parse, stringify } from "yaml";
 import { layoutStructuredFigure } from "../index";
 import { checkRoutes } from "./check";
 
+test("#306 review: stretching both endpoints is verified (12 start/end/nested probes)", () => {
+  for (const align of ["start", "end"]) {
+    for (const nesting of ["root", "nested", "group"]) {
+      for (const reverse of [false, true]) {
+        const doc = parse(source(align));
+        const grid = {
+          grid: {
+            columns: 10,
+            align,
+            columnGap: "4pt",
+            items: [
+              ...(align === "end" ? Array(8).fill(null) : []),
+              { item: "a", span: 2 },
+              ...(align === "start" ? Array(8).fill(null) : []),
+              { item: "b", span: 10 },
+              ...Array.from({ length: 10 }, (_, i) => `p${i}`),
+            ],
+          },
+        };
+        doc.figure.layout.arrange =
+          nesting === "root"
+            ? grid
+            : { stack: { items: nesting === "group" ? ["panel"] : [grid] } };
+        if (nesting === "group") doc.groups = [{ id: "panel", arrange: grid }];
+        doc.nodes = [
+          { id: "a", component: "box", label: "A" },
+          { id: "b", component: "box", label: "Medium width box" },
+          ...Array.from({ length: 10 }, (_, i) => ({
+            id: `p${i}`,
+            component: "box",
+            label: "",
+            props: { width: "40pt" },
+          })),
+        ];
+        doc.edges = [
+          reverse
+            ? { from: "b", to: "a", toAnchor: "straight" }
+            : { from: "a", to: "b", fromAnchor: "straight" },
+        ];
+        const text = stringify(doc);
+        const before = layoutStructuredFigure(text);
+        const warning = before.diagnostics.find((d) => d.code === "layout/straight-off-side");
+        expect(warning).toBeDefined();
+        grid.grid.align = "stretch";
+        const after = layoutStructuredFigure(stringify(doc));
+        const remains = after.diagnostics.some((d) => d.code === warning?.code);
+        expect(warning?.hint?.includes("Verified by")).toBe(!remains);
+        if (remains) expect(warning?.hint).not.toContain("grid.align: stretch");
+        expect(layoutStructuredFigure(text).diagnostics).toEqual(before.diagnostics);
+      }
+    }
+  }
+});
+
 function source(align?: string, props?: object, component = "box", blocked = false) {
   const patches = Array.from({ length: 10 }, (_, i) => `p${i}`);
   const encoded = Array.from({ length: 10 }, (_, i) => `e${i}`);
@@ -129,7 +183,7 @@ test("#306 review: a full natural-width span and an unreachable outer column kee
     const warning = before.diagnostics.find((d) => d.code === "layout/straight-off-side");
     expect(warning).toBeDefined();
     expect(warning?.hint).not.toContain("grid.align: stretch");
-    expect(warning?.hint).not.toContain("span reserves tracks");
+    expect(warning?.hint).toContain("No verified edit");
     doc.figure.layout.arrange.grid.align = "stretch";
     const after = layoutStructuredFigure(stringify(doc));
     expect(after.diagnostics.some((d) => d.code === "layout/straight-off-side")).toBe(true);
@@ -169,7 +223,7 @@ test("#306 review: horizontal spanning-cell edges and self-loops keep generic ad
   for (const to of ["projection", "encoder"]) {
     doc.edges = [{ from: "encoder", to, fromAnchor: "straight" }];
     const result = layoutStructuredFigure(stringify(doc));
-    expect(result.diagnostics.every((d) => !d.hint?.includes("span reserves tracks"))).toBe(true);
+    expect(result.diagnostics.every((d) => !d.hint?.includes("Verified by"))).toBe(true);
   }
 });
 
