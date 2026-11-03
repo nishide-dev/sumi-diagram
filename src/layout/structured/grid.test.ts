@@ -322,12 +322,47 @@ test("#306: a grid cell and a lower item in another stack need a strut wrapper",
   expect(d?.hint).toContain('"cell" is a direct grid cell');
   expect(d?.hint).toContain("grid cells take no align struts");
   expect(d?.hint).toContain("Wrap the cell in a stack");
+  expect(d?.hint).toContain("In a start-aligned parent");
+  expect(d?.hint).toContain("upward");
+  expect(d?.hint).not.toContain("up/left");
   expect(d?.hint).not.toContain("Put them in different stacks");
   expect(d?.path).toEqual(["figure", "layout", "align", 0]);
   expect(d?.location?.file).toBe("align.sumi.yaml");
   const after = layoutStructuredFigure(doc(true));
   expect(after.ok).toBe(true);
   expect(after.diagnostics.filter((d) => d.code === "layout/unsatisfied-align")).toEqual([]);
+});
+
+test("#306 review: trailing space can move a single-item branch upward in an end-aligned row", () => {
+  const doc = (constrained: boolean) =>
+    stringify({
+      version: 1,
+      figure: {
+        id: "end-align",
+        layout: {
+          arrange: {
+            row: {
+              align: "end",
+              items: [
+                { grid: { columns: 1, items: ["cell", "below"] } },
+                { stack: { items: ["other"] } },
+              ],
+            },
+          },
+          ...(constrained && { align: [{ y: ["cell", "other"] }] }),
+        },
+      },
+      nodes: ["cell", "below", "other"].map((id) => ({ id, component: "box", label: id })),
+    });
+  const before = layout(doc(false));
+  const result = layoutStructuredFigure(doc(true));
+  expect(result.ok).toBe(true);
+  expect(result.diagnostics.filter((d) => d.code === "layout/unsatisfied-align")).toEqual([]);
+  if (!result.ok) return;
+  const other = result.value.layout.nodes.find((n) => n.key === "n:other")?.rect;
+  const cell = result.value.layout.nodes.find((n) => n.key === "n:cell")?.rect;
+  expect(other?.y).toBeLessThan(before.nodes.find((n) => n.key === "n:other")?.rect.y ?? 0);
+  expect(other?.y).toBe(cell?.y);
 });
 
 test("ancestor struts move a whole grid without changing relative cell rectangles", () => {

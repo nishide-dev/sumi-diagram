@@ -112,6 +112,67 @@ test("#306: fixed widths and fixed shapes do not promise that stretch alone fixe
   }
 });
 
+test("#306 review: a full natural-width span and an unreachable outer column keep generic advice", () => {
+  for (const label of ["Linear Projection ".repeat(10), "Projection"]) {
+    const doc = parse(source());
+    doc.figure.layout.arrange.grid.items = [
+      { item: "projection", span: 9 },
+      null,
+      ...Array.from({ length: 10 }, (_, i) => `p${i}`),
+    ];
+    doc.nodes = doc.nodes.filter(
+      (n: { id: string }) => n.id === "projection" || /^p\d$/.test(n.id),
+    );
+    doc.nodes.find((n: { id: string }) => n.id === "projection").label = label;
+    doc.edges = [{ from: "projection", to: "p9", fromAnchor: "straight" }];
+    const before = layoutStructuredFigure(stringify(doc));
+    const warning = before.diagnostics.find((d) => d.code === "layout/straight-off-side");
+    expect(warning).toBeDefined();
+    expect(warning?.hint).not.toContain("grid.align: stretch");
+    expect(warning?.hint).not.toContain("span reserves tracks");
+    doc.figure.layout.arrange.grid.align = "stretch";
+    const after = layoutStructuredFigure(stringify(doc));
+    expect(after.diagnostics.some((d) => d.code === "layout/straight-off-side")).toBe(true);
+    // Inspect placement without the deliberately unroutable edge.
+    doc.edges = [];
+    const stretched = layoutStructuredFigure(stringify(doc));
+    delete doc.figure.layout.arrange.grid.align;
+    const natural = layoutStructuredFigure(stringify(doc));
+    expect(natural.ok && stretched.ok).toBe(true);
+    if (!natural.ok || !stretched.ok) continue;
+    const naturalRect = natural.value.layout.nodes.find((n) => n.key === "n:projection")?.rect;
+    const stretchedRect = stretched.value.layout.nodes.find((n) => n.key === "n:projection")?.rect;
+    if (label.length > 100) expect(stretchedRect).toEqual(naturalRect);
+    else expect(stretchedRect?.width).toBeGreaterThan(naturalRect?.width ?? 0);
+  }
+});
+
+test("#306 review: explicit width never masks a circle's intrinsic stretch limitation", () => {
+  for (const align of [undefined, "stretch"]) {
+    const withWidth = layoutStructuredFigure(source(align, { width: "40pt" }, "circle"));
+    const withoutWidth = layoutStructuredFigure(source(align, undefined, "circle"));
+    for (const result of [withWidth, withoutWidth]) {
+      const warnings = result.diagnostics.filter((d) => d.code === "layout/straight-off-side");
+      expect(warnings.length).toBeGreaterThan(0);
+      for (const warning of warnings) {
+        expect(warning.hint).toContain("keeps its width");
+        expect(warning.hint).not.toContain("remove props.width");
+      }
+    }
+  }
+});
+
+test("#306 review: horizontal spanning-cell edges and self-loops keep generic advice", () => {
+  const doc = parse(source());
+  doc.figure.layout.arrange.grid.items = [{ item: "encoder", span: 9 }, "projection"];
+  doc.nodes = doc.nodes.filter((n: { id: string }) => ["encoder", "projection"].includes(n.id));
+  for (const to of ["projection", "encoder"]) {
+    doc.edges = [{ from: "encoder", to, fromAnchor: "straight" }];
+    const result = layoutStructuredFigure(stringify(doc));
+    expect(result.diagnostics.every((d) => !d.hint?.includes("span reserves tracks"))).toBe(true);
+  }
+});
+
 test("#306: nested/group grids use their own alignment and non-spans keep generic hints", () => {
   for (const align of ["start", "end"]) {
     const doc = parse(source(align));

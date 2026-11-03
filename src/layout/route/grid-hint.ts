@@ -1,6 +1,7 @@
 import type { ArrangeBoxIR, FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type { LayoutIR } from "../ir";
+import { gridReservations } from "../structured/grid-reservation";
 import { stretchableShape } from "../structured/sizing";
 import { straightPlacement } from "./ports";
 
@@ -44,8 +45,6 @@ export function gridSpanHint(
   if (element === undefined || element.kind === "edge") return undefined;
   const name = `"${element.id}"`;
   const prefix = `${name} spans ${cell.span} grid columns, but span reserves tracks rather than stretching the cell's item.`;
-  if (element.kind === "node" && element.width !== undefined)
-    return `${prefix} Its explicit width prevents stretching: remove props.width and set grid.align: stretch on its containing grid, or increase props.width to cover the connected columns.`;
   if (
     element.kind === "node" &&
     (element.render !== undefined ||
@@ -53,6 +52,15 @@ export function gridSpanHint(
       !stretchableShape(element.shape))
   )
     return `${prefix} This component keeps its width under grid.align: stretch; use a resizable box without an explicit width, or rearrange the endpoints or use side anchors.`;
+  const reserved = gridReservations.get(selfRect);
+  if (
+    reserved === undefined ||
+    reserved.width <= selfRect.width + 0.001 ||
+    "off" in straightPlacement({ ...selfRect, x: reserved.x, width: reserved.width }, otherRect)
+  )
+    return undefined;
+  if (element.kind === "node" && element.width !== undefined)
+    return `${prefix} Its explicit width prevents stretching: remove props.width and set grid.align: stretch on its containing grid, or increase props.width to cover the connected columns.`;
   if (cell.box.align === "stretch") return undefined;
   return `${prefix} With grid.align: ${cell.box.align ?? "center (default)"}, it keeps its natural width, so the outer columns can lie beyond its sides. Set grid.align: stretch on its containing grid so the box covers those columns; straight anchors do not resize it.`;
 }

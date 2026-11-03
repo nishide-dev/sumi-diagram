@@ -75,6 +75,7 @@ import {
   type Struts,
   solveAlignment,
 } from "./align";
+import { gridReservations } from "./grid-reservation";
 import { nodeLabelCenter, nodeSize, type Size, stretchableShape } from "./sizing";
 
 /** The engine name recorded in the Layout IR. */
@@ -218,6 +219,7 @@ class StructuredLayout {
   readonly #rects = new Map<ElementKey, Rect>();
   readonly #contents = new Map<ElementKey, Rect>();
   readonly #grids = new Map<ArrangeBoxIR, GridTracks>();
+  readonly #gridReservations = new Map<ElementKey, Rect>();
 
   constructor(ir: FigureIR, profile: Profile, measurer: TextMeasurer) {
     this.#ir = ir;
@@ -314,6 +316,7 @@ class StructuredLayout {
     this.#rects.clear();
     this.#contents.clear();
     this.#grids.clear();
+    this.#gridReservations.clear();
     const root = this.#ir.arrange as ArrangeBoxIR;
     const size = this.#containerSize(ROOT, root);
     this.#placeContainer(ROOT, root, { x: 0, y: 0, width: size.width, height: size.height });
@@ -470,8 +473,14 @@ class StructuredLayout {
         width,
         height: cell.size.height,
       };
-      if (typeof cell.item === "string") visit(cell.item, rect);
-      else this.#placeBox(cell.item, rect, "center", visit);
+      if (typeof cell.item === "string") {
+        this.#gridReservations.set(cell.item, {
+          ...rect,
+          x: xs[cell.column] as number,
+          width: available,
+        });
+        visit(cell.item, rect);
+      } else this.#placeBox(cell.item, rect, "center", visit);
     }
   }
 
@@ -778,6 +787,10 @@ class StructuredLayout {
       };
     });
     const content = shift({ x: minX, y: minY, width: maxX - minX, height: maxY - minY });
+    for (const item of [...nodes, ...groups]) {
+      const reserved = this.#gridReservations.get(item.key);
+      if (reserved !== undefined) gridReservations.set(item.rect, shift(reserved));
+    }
     return deepFreeze({
       engine: STRUCTURED_ENGINE,
       canvas: {

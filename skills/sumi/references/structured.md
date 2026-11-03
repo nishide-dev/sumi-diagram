@@ -172,14 +172,21 @@ the box's `props.width` unset. Fixed-width and non-resizable components
 `fromAnchor: straight` / `toAnchor: straight` lines up an edge endpoint;
 it does not widen the box. If outer columns miss its sides,
 `layout/straight-off-side` (and sometimes `layout/no-route`) explains the
-span / natural-width cause and the stretch fix. Put `straight` at the wide
+span / natural-width cause and the stretch fix when the reserved span has
+unused width and stretching reaches the other endpoint. A box that already
+fills its span, or a connection outside that span, keeps generic routing advice.
+Intrinsic non-resizability takes precedence over an explicit width: removing
+`props.width` does not make a circle stretch. Put `straight` at the wide
 box's end; check the rendered routes after stretching.
 
 **Cross-tree align cannot insert space directly in a grid cell.** If a
 `y` constraint between a cell and an item in another stack stays unmet,
 being in different branches is not sufficient: the cell has no strut
-position, and the solver only adds space, so it cannot pull an already
-lower item up. Wrap the cell as `{ stack: { items: [cell] } }` (keep a
+position. In the reported start-aligned arrangement, adding space cannot move
+the lower branch upward. This is not universal: trailing space can move an
+item upward within an end-aligned parent and satisfy alignment without a
+wrapper. For the unmet start-aligned case, wrap the cell as
+`{ stack: { items: [cell] } }` (keep a
 nonzero gap) to let that cell move, or wrap the whole grid in a stack if
 it should move as one unit. For `x`, use a row wrapper instead. Parent
 `align: start` can avoid centering coupling; also check competing

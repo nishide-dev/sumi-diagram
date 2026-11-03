@@ -2535,19 +2535,26 @@ center/start/end を意図した図の box 幅・port・経路、ひいては SV
 を変えるためである。配置・track 計算・align solver・router の探索は
 変えず、既存 diagnostic の hint のみを原因別にする。新しい診断コードや
 部品・schema は追加しない。#305/#307（PR #313/#314）の cell align・幅診断
-とは独立させ、engine 自体の変更を避ける。
+とは独立させ、engine の配置計算は変更しない。
 
 - `straight` を指定した側が直接の spanning grid item で、上下に離れた
   相手との straight placement に失敗した場合、`layout/straight-off-side`
   とその edge の `layout/no-route` に、対象 ID・span 列数・span は予約で
   あって拡幅ではないこと・自然幅・その grid の `align: stretch` を示す。
-  明示 `props.width` があれば削除または幅変更を案内し、circle/label/custom
-  outline/badge 等の伸ばせない node には stretch 単独で直ると約束しない。
+  配置時の予約 cell 矩形を最終 item 矩形に対応する WeakMap に保持し、未使用幅が
+  あり、その幅への拡張で相手との straight placement が成立する場合だけ stretch
+  を勧める。LayoutIR の列挙可能な項目・シリアライズ結果は増やさず、track を
+  診断側で再計算しない。既に span を満たす自然幅や span 外への接続は一般 hint
+  のままとする。circle/label/custom outline/badge 等の固有の非伸縮性を先に判定し、
+  明示幅があっても幅削除を勧めない。伸縮可能な node の明示 `props.width` にのみ
+  削除または幅変更を案内する。
   overlap/self-loop、横接続、span なし、既に成立する straight は従来通り。
   edge の path/location/subject と blocker の related は維持する。
 - 未達 align の対象が grid 直接 cell（その attach を含む）なら、grid cell
-  は strut を受け取らないこと、strut は加算のみで下/右の item を上/左へ
-  引けないことを説明する。cell 自身を動かす非ゼロ gap の stack（y）/
+  は strut を受け取らないことを説明する。報告された start-aligned 親では
+  加算で他方の branch を上（y）/左（x）へ動かせない、という軸別の表現に限定する。
+  end-aligned 親では trailing strut により上/左へ動いて解決する場合もあるため、
+  strut 全般の絶対的制約とは説明しない。cell 自身を動かす非ゼロ gap の stack（y）/
   row（x）wrapper と、grid 全体を動かす wrapper を区別し、親の start
   alignment と競合 constraint も案内する。nested linear box 内の item に
   grid 制限を誤適用しない。既存の残差・severity は変えない。
@@ -2555,6 +2562,10 @@ center/start/end を意図した図の box 幅・port・経路、ひいては SV
 回帰テストは 9/10 列の自然幅と明示 center の同一配置、両 anchor 方向、
 stretch 後の直線接続・route 検証、no-route の blocker 位置、固定幅/固定形、
 別 stack の相手との y-align が cell wrapper で解決することを確認する。
+レビューの追加 probe は、長い自然ラベルの9列 span＋空白＋10列目への接続で
+stretch 前後の同一矩形と警告維持、未使用幅があっても span 外へは届かない場合、
+明示40pt幅の circle の幅削除前後の非伸縮案内、end-aligned row 内の2行 grid と
+single-item stack が wrapper なしで上へ動いて整列することを回帰検証する。
 Skill の Grids 節にも span/stretch と wrapper の選び方を記載する。
 全 `*.sumi.yaml` を元テーマと全組み込みテーマで描画し、変更前後の
 SVG/PDF/PPTX/D2 の SHA-256 を比較する（意図的な不正 fixture 等の描画不可は
@@ -2564,6 +2575,10 @@ SVG/PDF/PPTX/D2 の SHA-256 を比較する（意図的な不正 fixture 等の�
 比較し、成功678ケースの SVG/PDF/picture PPTX と auto の228ケースの D2 が
 全件 SHA-256 一致した。既存の不正 fixture・旧研究構文等282ケースも
 エラーコードが一致し、例外は0。gallery 全231ファイルもバイト一致した。
+レビュー修正後も HEAD を読み取り専用 baseline として160個の tracked YAMLを
+比較し、hint以外の診断、および成功41件の structured layout / SVG writer出力が
+すべて一致した。`CI=1 bun run test` は4,146 pass / 13 skip / 0 fail、
+check・typecheck・gallery:check（231ファイル）・schema:check も成功した。
 
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
