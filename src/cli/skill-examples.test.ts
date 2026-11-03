@@ -98,10 +98,9 @@ describe("bundled paper reference figures", () => {
     if (!page) throw new Error(`Missing PDF page for ${name}`);
     const width = (page[2] ?? 0) - (page[0] ?? 0);
     const height = (page[3] ?? 0) - (page[1] ?? 0);
-    // Each PDF dimension is rounded up to a whole pixel independently.
-    expect(Math.abs(png.width - (png.height * width) / height)).toBeLessThanOrEqual(
-      1 + width / height,
-    );
+    // Previews are rendered at 150 dpi; each PDF dimension is rounded to a whole pixel.
+    expect(Math.abs(png.width - (width * 150) / 72)).toBeLessThanOrEqual(2);
+    expect(Math.abs(png.height - (height * 150) / 72)).toBeLessThanOrEqual(2);
   });
 
   test("a standalone installed copy contains real sources, assets and previews and renders identically", async () => {
