@@ -106,12 +106,34 @@ Bun のテストタイムアウトは実行中の子プロセスに SIGTERM を�
 
 SVG は D2 のバージョンとフォントが同じなら OS によらずバイト単位で一致します。D2 やフォントを更新する手順と、画像（ラスタ）比較を使わない理由は [設計 §6.7](docs/design/phase1.md#67-16-のテスト戦略と-ci) を参照してください。
 
+### テストの shard 分割（CI）
+
+CI はテストファイルを OS ごとに 4 つの shard に分けて並列に走らせます（#320）。分割は `scripts/test-shard.ts` が決め、各ファイルの所要秒数を記録した `scripts/test-durations.json` で時間が均等になるようにします。記録のない新しいファイルはパスのハッシュで shard が決まるため、追加しても他のファイルの割り当ては変わりません。
+
+```sh
+bun scripts/test-shard.ts --check        # 全ファイルがちょうど 1 つの shard に入っているか、shard ごとの見込み時間
+bun scripts/test-shard.ts 2/4            # shard 2 のファイル一覧（CI と同じ。bun run test $(…) に渡せる）
+```
+
+テストを大きく足した・遅くしたときは、全体を 1 回実行して所要秒数を更新します（必須ではなく、ずれると shard の偏りが出るだけです）。
+
+```sh
+bun test --timeout 60000 --reporter=junit --reporter-outfile=/tmp/junit.xml
+bun scripts/test-shard.ts --update /tmp/junit.xml
+```
+
+CI の各 shard は junit レポートを artifact（`junit-<os>-shard-<n>`）に残します。CI の実測で更新するなら、同じ OS の 4 つをダウンロードして `bun scripts/test-shard.ts --update junit-ubuntu-latest-shard-*/*.xml` を実行します（複数のレポートは合算されます）。`--check` は、記録に残っているが存在しないファイルを警告し、`foo-test.ts` のように Bun が実行しないテストらしい名前のファイルでは失敗します。
+
+shard 数を変えるときは `.github/workflows/ci.yml` の `TEST_SHARDS` と `test` ジョブの `shard` matrix を同時に変えます（食い違いは `scripts/test-shard.test.ts` が検出します）。
+
 ### CI が検査すること
 
 | ワークフロー | ジョブ | 内容 |
 | --- | --- | --- |
-| CI | Static checks（Linux） | `bun run check`・`bun run typecheck`・`bun run schema:check`・`bun run icons:check`（同梱アイコンのアーカイブが固定版の Tabler Icons と一致するか。npm から取得する） |
-| CI | Test（Linux / macOS） | D2 の導入、環境の記録（OS・`sumi doctor`: Bun・D2・フォントの sha256）、`bun run test`（Linux ではカバレッジの表も出力。閾値なし。PDF の golden もここで両 OS のバイト一致を検査）、`bun run gallery:check` |
+| CI | Static checks（Linux） | `bun run check`・`bun run typecheck`・`bun run schema:check`・`bun run icons:check`（同梱アイコンのアーカイブが固定版の Tabler Icons と一致するか。npm から取得する）、全テストファイルがちょうど 1 つの shard に入っているかの検査（`scripts/test-shard.ts --check`） |
+| CI | Test（Linux / macOS、各 4 shard） | テストファイルを 4 つの shard に分けて OS ごとに並列実行する（`scripts/test-shard.ts`）。各 shard で D2 の導入、環境の記録（OS・`sumi doctor`: Bun・D2・フォントの sha256）、`bun run test <shard のファイル>`（PDF の golden もここで両 OS のバイト一致を検査）。Linux ではカバレッジも集める（閾値なし）。全 shard の結果は集約ジョブ `Test` にまとまる |
+| CI | Coverage (merged)（Linux） | Linux の各 shard の lcov を合算し、行カバレッジの表を出力（閾値なし。関数カバレッジは Bun の lcov に関数単位の記録がないため合算できない） |
+| CI | Gallery and examples（Linux / macOS） | `bun run gallery:check`（再描画して `docs/gallery/` と `examples/` が最新か） |
 | CI | PDF engine reproducible build（Linux） | `bun run pdf:wasm` で PDF エンジンをソースから再ビルドし、コミット済みの `.wasm`・sha256・ライセンス一覧と一致するか（`git diff`） |
 | CI | PDF LaTeX inclusion（Linux） | `bun run pdf:latex` で pdfLaTeX / LuaLaTeX に実際に取り込み、文字・位置・フォント埋め込み・ベクター・表示を検査する（TeX / Poppler はこのジョブのみで導入） |
 | CI | PPTX Open XML validation（Linux） | 画像方式の通常版＋PNG対照版、編集可能方式の両mode＋接続対照を固定版 Open XML SDK で独立検証。各方式の確認用artifactを残す（.NET は検証専用） |
