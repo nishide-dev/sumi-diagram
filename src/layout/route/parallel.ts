@@ -68,6 +68,90 @@ function parallelProblem(a: Lane, b: Lane): boolean {
   );
 }
 
+interface Plan {
+  order: Lane[];
+  positions: number[];
+}
+
+/** Lane centres for one ordering (ascending axis), or undefined when they do not fit. */
+function place(order: Lane[]): Plan | undefined {
+  const offsets = [0];
+  for (let i = 1; i < order.length; i++)
+    offsets.push((offsets[i - 1] ?? 0) + spacing(order[i - 1] as Lane, order[i] as Lane));
+  const low = Math.max(...order.map((l, i) => l.low - (offsets[i] ?? 0)));
+  const high = Math.min(...order.map((l, i) => l.high - (offsets[i] ?? 0)));
+  if (low > high) return undefined;
+  const preferred = order.reduce((sum, l, i) => sum + l.at - (offsets[i] ?? 0), 0) / order.length;
+  const start = Math.max(low, Math.min(high, preferred));
+  return { order, positions: offsets.map((o) => start + o) };
+}
+
+/** Cost of an ordering: leg/run crossings, plus a heavy penalty for overlapping legs. */
+function orderCost({ order, positions }: Plan): number {
+  let count = 0;
+  for (const [i, l] of order.entries()) {
+    const along = l.axis === "y" ? "x" : "y";
+    const ends = [l.points[0] as Point, l.points[3] as Point];
+    for (const [j, m] of order.entries()) {
+      if (i === j) continue;
+      const at = positions[j] as number;
+      // Legs of two lanes on one line must not overlap (merely near legs cannot be fixed by order).
+      for (const end of ends)
+        for (const other of [m.points[0] as Point, m.points[3] as Point]) {
+          if (i > j || Math.abs(end[along] - other[along]) >= COLLINEAR) continue;
+          const reach = [end[l.axis], positions[i] as number];
+          const otherReach = [other[l.axis], at];
+          if (
+            Math.min(Math.max(...reach), Math.max(...otherReach)) -
+              Math.max(Math.min(...reach), Math.min(...otherReach)) >
+            0
+          )
+            count += LEG_OVERLAP;
+        }
+      for (const end of ends) {
+        const x = end[along];
+        const reach = [end[l.axis], positions[i] as number];
+        if (Math.min(...reach) < at && at < Math.max(...reach) && m.from < x && x < m.to) count++;
+      }
+    }
+  }
+  return count;
+}
+
+const MAX_PERMUTED = 7;
+const COLLINEAR = 0.5;
+/** Lane centres are rounded to 1/1000, so a gap of exactly LANE spacing may read a hair short. */
+const EPSILON = 1e-6;
+/** Outweighs any number of crossings: collinear legs read as one line. */
+const LEG_OVERLAP = 1000;
+
+/**
+ * Choose the lane order with the fewest leg/lane crossings (nested spans put the
+ * narrower one nearer its source, crossing pairs keep only the unavoidable
+ * crossing). Ties keep the original-position / document order, so it is
+ * deterministic. Large groups keep that order.
+ */
+function bestOrder(sorted: Lane[]): Plan | undefined {
+  if (sorted.length > MAX_PERMUTED) return place(sorted);
+  let best: (Plan & { cost: number }) | undefined;
+  const walk = (rest: Lane[], chosen: Lane[]) => {
+    if (!rest.length) {
+      const plan = place(chosen);
+      if (!plan) return;
+      const cost = orderCost(plan);
+      if (!best || cost < best.cost) best = { ...plan, cost };
+      return;
+    }
+    for (const [i, l] of rest.entries())
+      walk(
+        rest.filter((_, k) => k !== i),
+        [...chosen, l],
+      );
+  };
+  walk(sorted, []);
+  return best;
+}
+
 /** Do not trade the repaired run for a new overlap/proximity on a leg. */
 function newConflict(
   a: Point[],
@@ -80,7 +164,7 @@ function newConflict(
   const beforeB = axisSegments([oldB]);
   const near = (s: (typeof beforeA)[number], t: (typeof beforeA)[number]) =>
     s.axis === t.axis &&
-    Math.abs(s.at - t.at) < distance &&
+    Math.abs(s.at - t.at) < distance - EPSILON &&
     Math.min(s.to, t.to) - Math.max(s.from, t.from) >= MIN_RUN;
   return axisSegments([a]).some((s, i) =>
     axisSegments([b]).some(
@@ -163,18 +247,13 @@ export function separateParallelRuns(
     )
       continue;
     group.sort((a, b) => a.at - b.at || edges.indexOf(a.edge) - edges.indexOf(b.edge));
-    const offsets = [0];
-    for (let i = 1; i < group.length; i++)
-      offsets.push((offsets[i - 1] ?? 0) + spacing(group[i - 1] as Lane, group[i] as Lane));
-    const low = Math.max(...group.map((l, i) => l.low - (offsets[i] ?? 0)));
-    const high = Math.min(...group.map((l, i) => l.high - (offsets[i] ?? 0)));
-    if (low > high) continue;
-    const preferred = group.reduce((sum, l, i) => sum + l.at - (offsets[i] ?? 0), 0) / group.length;
-    const start = Math.max(low, Math.min(high, preferred));
-    const moved = group.map((l, i) => {
-      const at = roundUnits(start + (offsets[i] ?? 0));
+    const plan = bestOrder(group);
+    if (!plan) continue;
+    const moved = plan.order.map((l, i) => {
+      const at = roundUnits(plan.positions[i] ?? 0);
       return l.points.map((p, j) => (j === 1 || j === 2 ? { ...p, [l.axis]: at } : p));
     });
+    group.splice(0, group.length, ...plan.order);
     // Every changed segment stays out of node interiors. Testing the entire
     // new route also covers the two legs lengthened by moving the run.
     const blocked = moved.some((points) =>

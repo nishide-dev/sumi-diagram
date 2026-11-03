@@ -1194,7 +1194,7 @@ function parallelChannelHint(context: GeometryContext, pair: readonly GeometryEl
     available < required
       ? `For these ${edges.length} facing connectors, increase the arrange \`gap\` between the rows/columns to provide at least ${required.toFixed(1)}mm of clear port-to-port space (arrowhead room plus separate lanes, before figure.fit scaling).`
       : `These ${edges.length} facing connectors have ${available.toFixed(1)}mm of port-to-port space; separate middle lanes need at least ${required.toFixed(1)}mm before figure.fit scaling. Widening that gap alone will not clear fixed port legs or obstacles.`;
-  return `${space} Keep the channel free of nodes and group titles. Sumi separates independent middle runs automatically when they fit. For close fixed legs, move the ports farther apart with fromAnchor / toAnchor or increase spacing between cells within each row. Merge a trunk only if the connections really share an endpoint.`;
+  return `${space} Keep the channel free of nodes and group titles. Sumi separates independent middle runs automatically when they fit; where the router detoured around a node or the lanes do not fit, the runs stay as routed, so clear the channel (move the node or port) or enlarge the gap. For close fixed legs, move the ports farther apart with fromAnchor / toAnchor or increase spacing between cells within each row. Merge a trunk only if the connections really share an endpoint.`;
 }
 
 export const edgeNearEdge = defineGeometryRule({
