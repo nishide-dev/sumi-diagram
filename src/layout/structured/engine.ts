@@ -51,6 +51,7 @@ import type { EdgeAnchor } from "../../core/figure/layout";
 import type { AttachSide, GroupLabelPosition, LabelRotation } from "../../core/figure/schema";
 import { getProfile } from "../../core/profile/builtin";
 import { type Profile, spacedProfile } from "../../core/profile/schema";
+import { SEPARATOR_ID } from "../../core/registry/builtins";
 import { getFontSet } from "../../core/theme/fonts";
 import { roundToD2Units } from "../../core/units";
 import {
@@ -255,9 +256,7 @@ class StructuredLayout {
       // A separator contributes no size: siblings determine its span and gap
       // supplies the whitespace on either side. This avoids sizing feedback.
       const size =
-        node.component === "sumi/separator"
-          ? { width: 0, height: 0 }
-          : nodeSize(node, box, padding);
+        node.component === SEPARATOR_ID ? { width: 0, height: 0 } : nodeSize(node, box, padding);
       const body = { x: 0, y: 0, ...size };
       const badge = badgeRect(node, body);
       const extra = overhangOf(body, badge === undefined ? [] : [badge]);
@@ -541,7 +540,7 @@ class StructuredLayout {
       grow = 0;
       const crossNatural = vertical ? size.width : size.height;
       const separator =
-        typeof item === "string" && this.#nodes.get(item)?.component === "sumi/separator";
+        typeof item === "string" && this.#nodes.get(item)?.component === SEPARATOR_ID;
       const cross =
         separator || (align === "stretch" && this.#stretchable(item, vertical))
           ? crossAvailable
@@ -568,7 +567,7 @@ class StructuredLayout {
     if (typeof item !== "string") return true;
     const node = this.#nodes.get(item);
     if (node === undefined) return true;
-    if (node.component === "sumi/separator") return false;
+    if (node.component === SEPARATOR_ID) return false;
     if ((vertical ? node.height : node.width) !== undefined || node.sizing === "fixed-aspect-1")
       return false;
     // Only these outline contracts support independent main-axis growth.

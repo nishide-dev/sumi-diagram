@@ -5,6 +5,7 @@ import type { EdgeIR, FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type { Diagnostic } from "../../core/diagnostics";
 import { getOutlineRenderer } from "../../core/outline";
+import { SEPARATOR_ID } from "../../core/registry/builtins";
 import type { Result } from "../../core/result";
 import { type FontSet, getFontSet } from "../../core/theme/fonts";
 import { fontFileFor, measureLabel } from "../../lint/geometry/measure";
@@ -664,7 +665,7 @@ export function svgToEditablePptx(
             element.style,
             "",
             waveform ||
-              element.component === "sumi/separator" ||
+              element.component === SEPARATOR_ID ||
               ir.meta.themeOverrides?.nodeCorners === "square"
               ? "svg-default"
               : "round",

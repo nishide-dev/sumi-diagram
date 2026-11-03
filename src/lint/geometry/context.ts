@@ -10,6 +10,7 @@ import type { ElementIR, FigureIR, NodeIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type { DiagnosticSubject, DocPath } from "../../core/diagnostics";
 import { getOutlineRenderer } from "../../core/outline";
+import { SEPARATOR_ID } from "../../core/registry/builtins";
 import type { FontSet } from "../../core/theme/fonts";
 import type { Point, Rect } from "../../render/geometry";
 import type { ProfileLimits, SvgInspection } from "../../render/inspect";
@@ -131,7 +132,7 @@ export function createGeometryContext(
     if (element === undefined) {
       throw new Error(`internal error: inspected element ${geometry.key} is not in the IR`);
     }
-    if (element.kind === "node" && element.component === "sumi/separator") continue;
+    if (element.kind === "node" && element.component === SEPARATOR_ID) continue;
     const shape: DrawnShape | undefined =
       element.kind === "edge" || element.shape === "text" ? undefined : element.shape;
     const bbox = shape === undefined ? undefined : geometry.bbox;

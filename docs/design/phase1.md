@@ -2535,7 +2535,7 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **契約**: 汎用 node `separator`（since 0.12.0、structured 専用）。`default` と `dashed` は破線、`solid` は実線。props は空で label / sublabel / labelRotation / badge は受け取らない。row の直接の項目なら縦線、stack なら横線になり、その箱の cross-axis 全体を `align` にかかわらず占める。入れ子・逆方向・伸長した箱でも同じ。余白は両側の arrange gap で指定する。
 - **サイズと互換性**: 自然寸法は 0 × 0、配置時に cross-axis だけを与える。兄弟が決めた寸法に追従し、区切り自身が隣のパネルを広げたり、`justify: stretch` の配分に参加したりしない。既存の寸法・経路・診断解決は変更せず、separator のない図の SVG / PDF / PPTX / D2 のバイト一致を全 YAML × 元のテーマおよび全組み込みテーマで検査する。無効な既存 fixture は従来の error code を比較する。
 - **描画と lint**: SVG の node shape に開いた path を 1 本出す。PDF・画像 PPTX は共通 SVG 変換、編集可能 PPTX は既存の custom geometry / dash 変換を使い、両 connector mode で同じ線を残す。tone は toneLines、dim は既存の減光を適用。接続線ではなく装飾なので geometry lint の要素から除外し、空 label の指摘もしない。
-- **誤用**: grid の直接の項目・attach は `component/separator-placement`、edge endpoint は `component/separator-connection` で拒否する。grid のセル内の row / stack には置ける。空の箱では span も 0 のため何も見えない。接続点として必要なら従来の line と junction を使う。
+- **誤用**: `grow` は `component/grow-unsupported`、grid の直接の項目・attach は `component/separator-placement`、edge endpoint は `component/separator-connection` で拒否する。grid のセル内の row / stack には置ける。空の箱では span も 0 のため何も見えない。接続点として必要なら従来の line と junction を使う。
 - **検証・発見性**: 全テーマ × 全 variant のカタログギャラリー、両方向・全 alignment・逆方向・各 export の統合テスト、Skill のパネル区切り例を揃える。#306 / #307 の layout 診断変更は含めない。
 
 ## 7. 実装順

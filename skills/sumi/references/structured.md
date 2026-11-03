@@ -130,7 +130,7 @@ It spans its enclosing row's height (vertical line) or stack's width
 (horizontal line), even with `align: start` / `center` / `end`. Nested boxes
 and reversed directions work too. It adds no size of its own; use the box's
 `gap` for whitespace on each side. Variants: `default` / `dashed` (dashed),
-`solid`. `tone` colors the line. No props, label, sublabel, badge or rotation.
+`solid`. `tone` colors the line. No props, label, sublabel, badge, rotation or `grow`.
 It is decoration, excluded from geometry lint, not an edge endpoint.
 Place it directly in a row or stack, not with `attach` or directly in a grid.
 

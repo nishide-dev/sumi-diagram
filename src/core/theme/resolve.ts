@@ -21,6 +21,7 @@ import { type CheckState, type ElementKey, figureElements, groupKey } from "../c
 import type { Diagnostic, DocPath } from "../diagnostics";
 import type { Locator } from "../figure/yaml";
 import type { FontUsage } from "../profile/constrain";
+import { SEPARATOR_ID } from "../registry/builtins";
 import type { ComponentId, ComponentKind } from "../registry/manifest";
 import { resolveTheme } from "./builtin";
 import { dimmedElements, dimStyle } from "./dim";
@@ -79,12 +80,12 @@ export function resolveStyle<K extends ComponentKind>(
   const layers = theme.components.get(id);
   const variantLayer = variant === "default" ? undefined : layers?.get(variant);
   const field =
-    target.toneText === true || id === "sumi/separator" ? "toneLines" : toneField(kind, variant);
+    target.toneText === true || id === SEPARATOR_ID ? "toneLines" : toneField(kind, variant);
   const toneLayer = tone === undefined ? undefined : theme[field].get(tone);
   // Compose both palettes only for the new node variants. Gray is their neutral default.
   if (
     kind === "node" &&
-    id !== "sumi/separator" &&
+    id !== SEPARATOR_ID &&
     variantLayer !== undefined &&
     (variant === "solid" || variant === "tinted") &&
     target.toneText !== true
@@ -172,7 +173,7 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
       solidFill !== undefined &&
       style.kind === "node" &&
       variant === "solid" &&
-      id !== "sumi/separator"
+      id !== SEPARATOR_ID
     )
       style = Object.freeze({
         ...style,
@@ -225,7 +226,7 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
         : dimStyle(
             style,
             dim,
-            manifest.kind === "node" && variant === "solid" && id !== "sumi/separator",
+            manifest.kind === "node" && variant === "solid" && id !== SEPARATOR_ID,
           );
     styles.set(
       key,

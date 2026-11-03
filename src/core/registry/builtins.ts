@@ -195,6 +195,7 @@ function outline(name: "trapezoid" | "stack" | "bowtie", description: string): N
 }
 
 export const BRACKET_ID = "sumi/bracket";
+export const SEPARATOR_ID = "sumi/separator";
 
 /**
  * A square bracket or curly brace (#281, design doc §6.78) that gathers the

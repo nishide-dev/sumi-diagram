@@ -216,3 +216,13 @@ for (const variant of ["dashed", "solid"]) {
     });
   }
 }
+
+test("grow on a separator is a located component/grow-unsupported error", async () => {
+  const text = source().replace("component: separator,", "component: separator, grow: 2,");
+  const result = await renderFigure(text);
+  expect(result.ok).toBe(false);
+  const found = result.diagnostics.find((d) => d.code === "component/grow-unsupported");
+  expect(found?.severity).toBe("error");
+  expect(found?.path).toEqual(["nodes", 2, "grow"]);
+  expect(found?.location).toBeDefined();
+});

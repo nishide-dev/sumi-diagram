@@ -3,6 +3,7 @@
 import { edgeKey, nodeKey } from "../../core/check-state";
 import type { DiagnosticSubject } from "../../core/diagnostics";
 import { parseAnchor } from "../../core/figure/layout";
+import { SEPARATOR_ID } from "../../core/registry/builtins";
 import { defineRule, type LintContext, type LintFinding, type ValidElement } from "../rule";
 
 function figureSubject(context: LintContext): DiagnosticSubject | undefined {
@@ -51,7 +52,7 @@ export const noEdges = defineRule({
     const nodeCount = context.elements.filter(
       (e) =>
         e.kind === "node" &&
-        e.component?.id !== "sumi/separator" &&
+        e.component?.id !== SEPARATOR_ID &&
         (e.origin === undefined || e.origin.from === "tokens"),
     ).length;
     if (nodeCount < 2) return [];

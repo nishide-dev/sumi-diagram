@@ -40,9 +40,10 @@ import {
   nodeKey,
 } from "../check-state";
 import type { Diagnostic, DiagnosticSubject, DocPath } from "../diagnostics";
+import type { ArrangeBox } from "../figure/schema";
 import type { Locator } from "../figure/yaml";
 import { hasLabelMarkup, looksLikeMath, parseLabel } from "../label/math";
-import { BRACKET_ID } from "./builtins";
+import { BRACKET_ID, SEPARATOR_ID } from "./builtins";
 import { type ComponentKind, componentId, type ResolvedComponent } from "./manifest";
 import type { Registry } from "./registry";
 
@@ -130,9 +131,9 @@ export function resolveComponents(
       continue;
     }
     const manifest = resolved.value;
-    if (componentId(manifest) === "sumi/separator" && engine === "structured") {
+    if (componentId(manifest) === SEPARATOR_ID && engine === "structured") {
       const id = element.subject.id;
-      const inLinearBox = (box: import("../figure/schema").ArrangeBox | undefined): boolean => {
+      const inLinearBox = (box: ArrangeBox | undefined): boolean => {
         if (box === undefined) return false;
         const linear = box.row ?? box.stack;
         const items = (linear ?? box.grid)?.items ?? [];
@@ -176,14 +177,14 @@ export function resolveComponents(
     }
     const growUnsupported =
       element.grow !== undefined &&
-      ["sumi/tokens", "sumi/matrix", "sumi/legend"].includes(componentId(manifest));
+      ["sumi/tokens", "sumi/matrix", "sumi/legend", SEPARATOR_ID].includes(componentId(manifest));
     if (growUnsupported)
       report(
         [
           {
             code: "component/grow-unsupported",
             severity: "error",
-            message: `${componentId(manifest)} expands into layout items and has no standalone node body to weight.`,
+            message: `${componentId(manifest)} expands into layout items or spans its box, so it has no standalone node body to weight.`,
             hint: "Remove grow; use grow on ordinary nodes inside an immediate row/stack with justify: stretch.",
           },
         ],
@@ -239,10 +240,10 @@ export function resolveComponents(
     const mark = manifest.kind === "node" ? manifest.mark : undefined;
     const embed = manifest.kind === "node" ? manifest.embed : undefined;
     // A bracket (#281) is a line with no label, label turn or sublabel.
-    const bracket = [BRACKET_ID, "sumi/separator"].includes(componentId(manifest));
+    const bracket = [BRACKET_ID, SEPARATOR_ID].includes(componentId(manifest));
     const badgeUnsupported =
       element.badge &&
-      (["sumi/legend", "sumi/tokens", "sumi/matrix", BRACKET_ID, "sumi/separator"].includes(
+      (["sumi/legend", "sumi/tokens", "sumi/matrix", BRACKET_ID, SEPARATOR_ID].includes(
         componentId(manifest),
       ) ||
         mark?.type === "point");
