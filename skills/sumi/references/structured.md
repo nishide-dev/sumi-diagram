@@ -450,6 +450,12 @@ belongs to the same group as its target, and that group (or the canvas)
 grows to hold it. Use it for labels beside a block, `N×` beside a group, an
 input feeding an operator from the side.
 
+A `label` has no size choice: it is drawn at the theme's text size (`paper`:
+8pt; the theme's `small` / `heading` steps are only 7pt / 9pt, so a step would
+not make `L ×` stand out). When an annotation must be larger, draw it as an
+`html` leaf with an inline `font-size` (`<span style="font-size:14px">L×</span>`,
+see [assets](assets.md); not supported by editable PPTX), or accept the theme size.
+
 **An attached node takes no space in the tree**: its neighbours are placed
 as if it were not there. Attached into the `gap` between two items of a
 stack or row, it can overlap the next item (`geometry/node-overlap`,
@@ -757,7 +763,9 @@ YAML order, greedily: edges declared first get the best routes.
 - **Operator** (`component: operator`, `props: { symbol: plus }`; also
   `minus`, `times`, `dot`, `concat`): a small circle with a symbol, no
   label. Arrows may end on it; a side input usually comes from an attached
-  node through a `line`.
+  node through a `line`. `props.size: large | xlarge` (1.5x / 2x, since
+  0.12.0) enlarges the circle and symbol together when a paper figure needs a
+  more visible ⊕.
 - **Edge labels** sit on the last segment, just before the target's
   arrowhead (above it if that segment is horizontal, right of it if
   vertical); on an edge with only a source arrowhead, by that arrowhead on

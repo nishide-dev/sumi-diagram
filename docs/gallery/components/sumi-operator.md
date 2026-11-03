@@ -9,11 +9,12 @@ A small circle with an operator symbol, e\.g\. where inputs are added or combine
 | prop | type | required | description |
 | --- | --- | --- | --- |
 | <code>symbol</code> | <code>&quot;plus&quot; &#124; &quot;minus&quot; &#124; &quot;times&quot; &#124; &quot;dot&quot; &#124; &quot;concat&quot;</code> | yes | The operator drawn in the circle: plus \(\+\), minus \(−\), times \(×\), dot \(•\) or concat \(‖\)\. |
+| <code>size</code> | <code>&quot;regular&quot; &#124; &quot;large&quot; &#124; &quot;xlarge&quot;</code> | no | Size of the circle and the symbol together, relative to the theme's operator \(since 0\.12\.0\): regular \(the theme's size, the default\), large \(1\.5x\) or xlarge \(2x\)\. The frame's line weight stays the theme's\. |
 
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> |
 | --- | --- | --- | --- | --- |
 | <img src="sumi-operator.minimal.svg" alt="sumi/operator, theme minimal"> | <img src="sumi-operator.academic.svg" alt="sumi/operator, theme academic"> | <img src="sumi-operator.slides.svg" alt="sumi/operator, theme slides"> | <img src="sumi-operator.color.svg" alt="sumi/operator, theme color"> | <img src="sumi-operator.paper.svg" alt="sumi/operator, theme paper"> |
-| <code>sumi render sumi\-operator\.sumi\.yaml</code><br>40\.75mm × 172\.16mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-operator\.sumi\.yaml \-\-theme academic</code><br>40\.57mm × 172\.16mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-operator\.sumi\.yaml \-\-theme slides</code><br>61\.56mm × 206\.38mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-operator\.sumi\.yaml \-\-theme color</code><br>40\.75mm × 172\.16mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-operator\.sumi\.yaml \-\-theme paper</code><br>40\.04mm × 172\.16mm \(max width 180mm, max height 220mm\) |
+| <code>sumi render sumi\-operator\.sumi\.yaml</code><br>76\.2mm × 172\.33mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-operator\.sumi\.yaml \-\-theme academic</code><br>76\.2mm × 172\.33mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-operator\.sumi\.yaml \-\-theme slides</code><br>116\.59mm × 210\.78mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-operator\.sumi\.yaml \-\-theme color</code><br>76\.2mm × 172\.33mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-operator\.sumi\.yaml \-\-theme paper</code><br>73\.03mm × 172\.16mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-operator.sumi.yaml</code></summary>
@@ -108,6 +109,12 @@ nodes:
   - id: concat-operator
     component: sumi/operator
     props: { symbol: concat }
+  - id: size-large-operator
+    component: sumi/operator
+    props: { symbol: plus, size: large }
+  - id: size-xlarge-operator
+    component: sumi/operator
+    props: { symbol: plus, size: xlarge }
 
 edges:
   - from: default
@@ -134,6 +141,10 @@ edges:
     to: dot-operator
   - from: concat
     to: concat-operator
+  - from: default-operator
+    to: size-large-operator
+  - from: size-large-operator
+    to: size-xlarge-operator
 ```
 
 </details>

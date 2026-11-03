@@ -2613,6 +2613,15 @@ check・typecheck・gallery:check（231ファイル）・schema:check も成功�
 - **カタログ:** `catalog --json` の props は既に Zod の入力側 JSON Schema を保持している。列挙値は `components[].props.properties.<prop>.enum`、単一値は `const`、省略値は `default`、必須性は `required`、入れ子や union は `properties` / `anyOf` から取る。重複した候補一覧や新しい JSON フィールドを増やさず、CLI help と Skill に読み方を明記し、optional な `tokens.lineAlign`、default 付きの `tokens.direction`、別部品の `operator.symbol` の実 CLI 出力を回帰検査する。
 - **互換性と検証:** レイアウト・描画のコードは変更せず（engine はコメントのみ）、出力は全図でバイト単位に不変。`bun run gallery:check` と golden の検査で確認する。見出しの回帰検査は全5テーマ・default/plain/dashed・west/east の片側 attach・省略と全6種の `labelAt` で、拡張枠への包含と実 SVG の文字アンカーを検査する。
 
+### 6.92 #311 の paper の枠の太さ・operator の大きさ・注記の大きさ
+
+- **背景:** v0.11.0 と Skill だけで ViT Figure 1 を作る dogfood で、`image` の `variant: framed` の枠が `paper` の 0.5pt の線より重いこと、`operator`（14pt の円・7pt の記号）の大きさを変えられないこと、「L ×」のような注記を大きくできないことが詰まりの原因になった。
+- **framed の枠（決定）:** `image` / `html` の `framed` の線の太さは各 Theme の node の枠（`{line.regular}`）に従う。`paper` の `{line.regular}` は 1pt（Transformer 図の枠）で、edge の 0.5pt（`{line.edge}`）より重い。`paper` だけ framed の枠を `{line.edge}`（0.5pt）にした。色は従来どおり node の線の色で、tone は塗りに作用する。minimal（1pt）・color（1pt）・slides（2pt）・academic（0.5pt）は `{line.regular}` が各 Theme の線の基準なので変更しない。枠を選ぶ新しい props は追加しない（図ごとの調整が要るなら既存の `themeOverrides` の考え方を使う）。Theme の内部は `VariantStyles.imageFrame`（省略時 `{line.regular}`）で表す。
+- **operator の大きさ（決定）:** `props.size: regular | large | xlarge`（省略は regular。since 0.12.0）。Theme の operator の文字サイズに 1 / 1.5 / 2 を掛け、円（文字サイズの 2 倍、§6.20）と記号が一緒に拡大する。0.5pt 単位に丸める。枠の太さは Theme のまま。値は Theme の大きさに対する相対にして、presentation と paper で同じ名前が使える。任意の長さにしない（`width` / `height` を取らない mark の契約 §6.20 を保ち、範囲外の値を検証する必要をなくす）。拡大は style 解決（`fontSize`）で行うので、IR の `width` / `height`、SVG、PDF、画像 PPTX、編集可能 PPTX（円の `a:ext` と文字の `sz`）、profile の最小文字サイズの検査が同じ値を見る。不正な値は `component/invalid-prop`（`props.size` の行・列つき）。
+- **注記の文字サイズ（実装しない）:** Theme の `size`（text / small / heading）は全 Theme にあるが、`paper` では 8 / 7 / 9pt で heading でも +1pt に過ぎず、「L ×」を目立たせる目的に届かない。slides は 16 / 14 / 18pt で段階はあるが、段階名を `label` の props にすると、全 Theme で意味の違う 3 段階を契約にし、`sublabel`・group の見出し・profile の最小サイズとの関係を増やす。出力の品質を決める値を図ごとに増やさない方針（§6.84）にも合わない。代替として、大きな注記は `html` leaf の inline `font-size`（編集可能 PPTX は非対応）で描くか、Theme の大きさを受け入れる。Skill の structured 参照に記載した。
+- **互換性（既存の出力）:** operator の `size` を省略した図、および `paper` 以外の framed 画像は全てバイト単位で不変。変わるのは `paper` で framed の `image` / `html` を使う図だけで、`examples/clip`（SVG・PDF）、ギャラリーの `sumi-image.paper` と `sumi-html.paper`、`image-layers` と `html-nested` と `html-card`（assets の hash）、PDF corpus・PPTX の hash。operator のギャラリーは size の例（default の行の続き）で変わる。ゴールデンは `bun run gallery` と `SUMI_UPDATE_GOLDEN=1 CI=1 bun run test src/render/pdf src/render/pptx src/render/assets.integration.test.ts` で再生成した。
+- **検証:** 全 Theme の operator の円・記号・枠の太さ（regular は省略と同一）、不正値の位置、編集可能 PPTX（freeform / glued）での 2 倍の比、framed の枠の太さを Theme ごとに回帰検査する。`paper` の CLIP を PDF → PNG で目視確認した。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）

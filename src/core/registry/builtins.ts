@@ -244,6 +244,12 @@ export const OPERATOR_GLYPHS = {
   concat: "‖", // ‖ DOUBLE VERTICAL LINE
 } as const;
 
+/**
+ * Scale of `sumi/operator`'s circle and symbol by `props.size` (#311, design
+ * doc §6.92), relative to the theme's size. Bounded to three steps.
+ */
+export const OPERATOR_SIZES = { regular: 1, large: 1.5, xlarge: 2 } as const;
+
 const operator: NodeManifest = {
   ...base,
   since: "0.4.0",
@@ -257,6 +263,12 @@ const operator: NodeManifest = {
       .enum(Object.keys(OPERATOR_GLYPHS) as [keyof typeof OPERATOR_GLYPHS])
       .describe(
         "The operator drawn in the circle: plus (+), minus (−), times (×), dot (•) or concat (‖).",
+      ),
+    size: z
+      .enum(Object.keys(OPERATOR_SIZES) as [keyof typeof OPERATOR_SIZES])
+      .optional()
+      .describe(
+        "Size of the circle and the symbol together, relative to the theme's operator (since 0.12.0): regular (the theme's size, the default), large (1.5x) or xlarge (2x). The frame's line weight stays the theme's.",
       ),
   }),
   shape: "circle",
