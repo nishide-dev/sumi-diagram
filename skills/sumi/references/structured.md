@@ -935,6 +935,31 @@ edges:
   must match the grid (`component/invalid-prop`). An unused class is
   `lint/unused-matrix-class`; a legend `class` naming none is `ref/unknown-class`.
 
+Text and ellipsis cells (`{ class, text }`, `{ ellipsis }`, `ellipsisRows`, `ellipsisColumns`):
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: similarity
+  theme: paper
+  layout: { arrange: { row: { items: [sim] } } }
+nodes:
+  - id: sim
+    component: matrix
+    props:
+      cellWidth: 30pt
+      cellHeight: 18pt
+      classes: { d: { tone: blue, variant: tinted }, o: {} }
+      ellipsisRows: [3]
+      ellipsisColumns: [3]
+      cells:
+        - [{ class: d, text: '$I_1\cdot T_1$' }, o, o, { class: o, text: '$I_1\cdot T_N$' }]
+        - [o, { class: d, text: '$I_2\cdot T_2$' }, o, o]
+        - [o, o, o, o]
+        - [{ class: o, text: '$I_N\cdot T_1$' }, o, o, { ellipsis: "…" }]
+```
+
 ## Spacing that routes
 
 An arrow between two facing sides needs a gap longer than its arrowhead:

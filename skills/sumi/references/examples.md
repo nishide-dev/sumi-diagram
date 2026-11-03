@@ -143,11 +143,31 @@ The SVG is written despite the error, so it can be inspected.
 
 Fix: a six-step chain cannot fit 88mm side by side, so change the layout, not
 the target: `direction: right` → `direction: down` (`fit: scale` would shrink it
-to 48%, its 8pt text to 3.9pt: an error).
+to 48%, its 8pt text to 3.9pt: an error). The fixed figure, checked by the tests:
+
+```yaml
+# expect-render: fits
+version: 1
+figure: { id: etl-pipeline, theme: academic, profile: paper-single, layout: { direction: down } }
+nodes:
+  - { id: sources, component: parallelogram, label: Raw files }
+  - { id: extract, component: box, label: Extract }
+  - { id: clean, component: box, label: Clean }
+  - { id: load, component: box, label: Load, variant: emphasis }
+  - { id: warehouse, component: cylinder, label: Warehouse }
+  - { id: report, component: document, label: Report }
+edges:
+  - { from: sources, to: extract }
+  - { from: extract, to: clean }
+  - { from: clean, to: load }
+  - { from: load, to: warehouse }
+  - { from: warehouse, to: report }
+  - { from: clean, to: report, label: rejects, variant: dashed }
+```
 
 ```sh
 $ sumi render etl-pipeline.sumi.yaml; echo "exit $?"
-Wrote etl-pipeline.svg: 42.69mm × 130mm (paper-single, max width 88mm; theme academic).
+Wrote etl-pipeline.svg: 42.69mm × 119.42mm (paper-single, max width 88mm; theme academic).
 exit 0
 ```
 
@@ -280,8 +300,33 @@ exit 1
 No SVG is written for a routing error. The default `color` arrows (1pt lines)
 have arrowheads about 2.1mm long, more than the 1.5mm gap; the `line` from `x` and
 the residual route fine. Fix: `gap: 3mm` (not `gap: 0`, which leaves no room at
-all); `fmt`, `lint` and `render` then print `Wrote mlp-block.svg: 27.52mm × 44.8mm
-(paper-single, max width 88mm; theme color).`, exit 0.
+all), checked by the tests:
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: mlp-block
+  theme: color
+  layout: { arrange: { stack: { direction: up, gap: 3mm, align: stretch, items: [ x, split, norm, mlp, add, y ] } } }
+nodes:
+  - { id: x, component: label, label: $x$ }
+  - { id: split, component: junction }
+  - { id: norm, component: box, label: Layer Norm, tone: yellow }
+  - { id: mlp, component: box, label: MLP, tone: blue }
+  - { id: add, component: operator, props: { symbol: plus } }
+  - { id: y, component: label, label: $y$ }
+edges:
+  - { from: x, to: split, component: line }
+  - { from: split, to: norm }
+  - { from: norm, to: mlp }
+  - { from: mlp, to: add }
+  - { from: split, to: add, toAnchor: west }
+  - { from: add, to: y }
+```
+
+`render` then prints `Wrote mlp-block.svg: 27.52mm × 44.8mm (paper-single, max
+width 88mm; theme color).`, exit 0.
 
 ## 6. Success: a paper figure
 

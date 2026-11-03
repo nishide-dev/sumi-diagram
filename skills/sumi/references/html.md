@@ -46,7 +46,7 @@ container; never put `props.html` on `image`.
 - **CSS**: flex/grid layout, position/edges, dimensions, margin/padding/gap,
   `color` / `background-color`, border/radius, font properties, `line-height`,
   `letter-spacing`, `text-align`, `white-space`, `opacity`, `box-sizing:border-box`.
-  Units, keywords and named colours are case-insensitive. `border` takes one
+  Units, keywords and named colours are case-insensitive (`40PX`, `FLEX`, `RED`). `border` takes one
   width, style and colour in any order (`solid 1px #ccc`); `flex` a grow number
   (`1`), grow/shrink/basis (`1 1 0`) or `none|auto|initial`; grid supports basic
   tracks and `repeat(2,1fr)`. Lengths use px/pt/em/% or unitless 0. Colours:

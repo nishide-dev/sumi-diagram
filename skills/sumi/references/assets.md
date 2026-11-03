@@ -172,7 +172,7 @@ outlined as paths or shapes** (`<text>` / `<tspan>` unsupported); HTML/`foreignO
 scripts, events, references (`href`, `use`, `url(...)`), embedded images, DTD/entities,
 `<style>`, `defs`, clipping, masks, gradients and filters are rejected; use native labels
 outside the image for searchable text. `width`, `height`, `fit`, frames, tones and layers
-work as for files; internal colours stay as written. SVG, PDF and picture PPTX are
+work as for files; internal colours stay as written (`currentColor` is not a theme variable). SVG, PDF and picture PPTX are
 supported (editable PPTX: `pptx/unsupported-asset`). The viewport clips overflow; geometry
 lint checks the outer placement only.
 
