@@ -2664,6 +2664,16 @@ check・typecheck・gallery:check（231ファイル）・schema:check も成功�
 - PNG は `bun run gallery` 後に `bun run skill:previews` で PDF から `pdftoppm -png -r 150 -singlefile` により生成する。Poppler は再生成時のみ必要。CI は PNG の存在・データの妥当性・PDF ページとの縦横比（ピクセル丸めを許容）を検査し、OS 間のラスタライズのバイト一致は要求しない。
 - 配布を調べた skills CLI v1.7.2 は GitHub から clone して Skill ディレクトリをコピーする。Git の symlink を展開してくれることには依存せず、配布側 `skills/sumi/` 全体に symlink がないこと、独立コピーにも YAML・アセット・PNG が実体で入ることをテストする。既存の描画 golden と全 YAML × 自身のテーマ／全組み込みテーマの SVG・PDF・PPTX・D2 の sha256 を比較して互換性を確認する。
 
+### 6.96 #330 の図全体の空き矩形と大きな縮小の通知
+
+- **診断の置き場所:** 仮称 `layout/dead-space` は、描画後の実測と既存の抑止・severity 設定を使う `geometry/dead-space`（info）とした。`render` / `lint --geometry` でのみ実行し、配置や出力バイトを変更しない。通常の構造 lint は描画しない。
+- **空き矩形:** 本体・group 全体・ラベル（text-only、辺ラベルを含む）・badge・描画された辺の各線分・矢印先端の保守的な外接矩形を障害物にする。group 内部は既存 `geometry/group-empty-area` の担当で、group 自体を空白とは数えない。曲線は既存の flatten 結果、斜線は線分の外接矩形を使うため、白画素を厳密に測るものではなく過少検出側の推定。外周 margin を指摘しないよう内容の外接矩形内だけで探索し、比率の分母は margin 込みの canvas 面積とする。
+- **探索と表示:** 障害物を canvas で clip し、包含された矩形を除く。左右の境界候補を列挙し、各 x 帯の障害物の y 区間の union の間から最大の空き矩形を決定する。最大矩形を順に占有扱いにして、互いに重ならない最大3領域を1診断にまとめる。上下・左右の対向余白の差が canvas の15%を超える側を場所（top-left / bottom-left 等）とし、差が小さければ middle / center。場所・印刷時の幅×高さ（mm）・canvas 比率を報告する。
+- **しきい値:** canvas の **25%以上**、両辺とも印刷時 **10mm以上**。20%では既存 Transformer の意図した下揃えの空白（約20.5%）や回転ラベル比較（約21.7%）にも反応したため25%にした。外周 margin と細い整列用 gutter は除外する。catalogue の operator の大小比較列、slides の matrix 比較、3種の tone 比較には大きい意図的な空白が残り info になるが、既存 examples の自身のテーマでは空白の新規指摘はない。空白は良否の断定ではなく見直しのきっかけ。`lint --geometry` の `--rule geometry/dead-space=off` または lint config の `rules` で抑止できる。
+- **確かめた hint:** 既存 `verifyHints` / `HintTrials`（最大6試行、80要素超・外部アセット等は対象外）で配置コピーだけを変更し、この空白診断が消えた変更だけを提示する。効く変更がなければ中立の説明にする。auto は実測のみ。個別の空白を別の場所へ移しただけの変更は、図全体に診断が残るため推奨しない。
+- **縮小:** `figure.fit: scale` が自然寸法の **90%未満**に縮めたら `geometry/heavy-scaling`（info、`figure.fit`）を報告する。縮尺と自然幅→印刷幅を表示し、#307 の幅内訳（削減が必要な幅・支配する run・子孫・attach・ラベル・確かめた変更）を **縮小前の寸法**で付ける。context のコピーの scale だけを1にして既存の内訳を共用し、現物の inspection・SVG は変えない。90%ちょうど・縮小なしには出さず、文字の下限と幅・高さの従来の検査は独立。`--rule geometry/heavy-scaling=off` で抑止できる。
+- **検証:** 左上・左下の2つの空白を持つ grid fixture、描画された矢印・ラベル・group による占有、外周 margin・細い gutter・小さい図の除外、80%縮小での自然幅の内訳、90%境界、位置情報・抑止・非破壊性・実際に効く hint を回帰検査する。Issue の DETR 評価2図の原本はリポジトリ・Issue 添付にないため、同じ空白の配置を再現した汎用 fixture で検証する。既存図×自身のテーマ／全組み込みテーマの SVG・PDF・PPTX・D2 の sha256 と既存 golden を比較する。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）
