@@ -43,7 +43,7 @@ describe("geometry/exceeds-page-width and exceeds-page-height", () => {
     );
     expect(wide[0]?.subject).toEqual({ kind: "figure", id: "geo" });
     expect(wide[0]?.hint).toBe(
-      "Sumi never shrinks a figure on its own. Lay it out top to bottom (layout.direction: down), shorten long labels, or use a wider profile (paper-double, 180mm). Or print it smaller as drawn with `figure.fit: scale` (its text must then print at 5pt or more).",
+      "Sumi never shrinks a figure on its own. Independent trial reductions are not additive. The minimum printed font size with `figure.fit: scale` is 5pt.",
     );
     expect(wide[0]?.location?.line).toBe(2);
     expect(
@@ -172,13 +172,16 @@ nodes:
       400,
       "Turn the widest `row` into a `stack` (or split it into several rows), reduce its `gap`, or shorten long labels.",
     ],
-  ] as const)("exceeds-page-width: %s on %s, %dmm wide", (variant, profile, width, expected) => {
-    expect(
-      hintOf(variant, profile, "geometry/exceeds-page-width", { width: mm(width), height: 10 }),
-    ).toBe(
-      `Sumi never shrinks a figure on its own. ${expected} Or print it smaller as drawn with \`figure.fit: scale\` (its text must then print at ${profile === "presentation-16x9" ? "14pt" : "5pt"} or more).`,
-    );
-  });
+  ] as const)(
+    "exceeds-page-width: %s on %s, %dmm wide",
+    (variant, profile, width, _previousHint) => {
+      expect(
+        hintOf(variant, profile, "geometry/exceeds-page-width", { width: mm(width), height: 10 }),
+      ).toBe(
+        `Sumi never shrinks a figure on its own. Independent trial reductions are not additive. The minimum printed font size with \`figure.fit: scale\` is ${profile === "presentation-16x9" ? "14pt" : "5pt"}.`,
+      );
+    },
+  );
 
   test.each([
     [

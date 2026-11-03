@@ -1,11 +1,30 @@
 # Reading and fixing diagnostics
 
-## Panel separators (0.12.0)
+## Finding what makes a figure too wide
 
-- `component/separator-placement`: put the separator directly in a row or stack,
-  not with `attach` or directly in a grid cell.
-- `component/separator-connection`: a separator is decoration, not an edge
-  endpoint; connect the panel's actual nodes instead.
+`geometry/exceeds-page-width` (`lint --geometry` / render) includes a measured
+width breakdown in its hint. For structured layout, start with the named widest
+row or grid and its item widths, total observed horizontal gaps, and the largest
+gap. Grid items identify their column or column span. Attached nodes report the
+horizontal overhang beyond their container's arrange bounds. Concrete edits are
+recommended only after independent in-memory structured layout and routing trials
+verify a smaller page width; they are ranked by measured reduction in mm.
+Candidates (row `gap`, grid `columnGap`, explicit node `width`, `attach.gap`) are
+tried in order of their own size; at most six are tried per diagnostic (the same trial budget as the
+grid hints). Figures above 80 elements, without an arrange tree, or with
+external assets use neutral measurements without trials.
+No verified improvement also produces neutral wording. Apply one edit and
+re-check: independent savings are not additive.
+All lengths are printed mm, including `figure.fit: scale`.
+
+For auto layout, the hint reports the top-level horizontal footprint and observed
+gaps, not ELK's internal layers or tunable spacing. Overlapping x-ranges and grid
+spans are merged rather than added twice; blank tracks cannot be reconstructed
+from painted geometry. Margins, strokes, edges and their labels can also widen
+the page. Re-run after changing the largest relevant contributor; a second row
+may then become the widest. Sumi never shrinks the figure automatically.
+
+## Group occupancy
 
 `geometry/group-empty-area` (info, render / `lint --geometry` only): at
 least 75% of a group's frame lies outside its title and direct children's
@@ -17,6 +36,13 @@ for fixed-size items; reduce gaps or avoid stretching a panel for tighter
 title/caption spacing. Intentional whitespace needs no change; this does
 not consume `maxWarnings`. The conservative threshold need not report
 every panel worth improving.
+
+## Panel separators (0.12.0)
+
+- `component/separator-placement`: put the separator directly in a row or stack,
+  not with `attach` or directly in a grid cell.
+- `component/separator-connection`: a separator is decoration, not an edge
+  endpoint; connect the panel's actual nodes instead.
 
 ## Weighted structured stretch
 
