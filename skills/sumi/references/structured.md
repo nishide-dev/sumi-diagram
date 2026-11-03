@@ -453,8 +453,12 @@ input feeding an operator from the side.
 A `label` has no size choice: it is drawn at the theme's text size (`paper`:
 8pt; the theme's `small` / `heading` steps are only 7pt / 9pt, so a step would
 not make `L ×` stand out). When an annotation must be larger, draw it as an
-`html` leaf with an inline `font-size` (`<span style="font-size:14px">L×</span>`,
-see [assets](assets.md); not supported by editable PPTX), or accept the theme size.
+`html` leaf with an inline `font-size` (see [assets](assets.md); not supported
+by editable PPTX), or accept the theme size:
+
+```yaml
+- { id: lx, component: html, props: { viewport: 40x20, width: 40pt, html: '<span style="font-family:var(--sumi-font);font-size:14px">L×</span>' } }
+```
 
 **An attached node takes no space in the tree**: its neighbours are placed
 as if it were not there. Attached into the `gap` between two items of a
