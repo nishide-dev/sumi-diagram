@@ -166,7 +166,7 @@
             "type": "string"
           },
           "labelAt": {
-            "description": "Where the label sits inside the group's border. Omitted means top (top centre) in structured layout and top-left in auto layout.",
+            "description": "Where the label sits inside the group's border, relative to the full frame including attached members, not just the arrange tree. Omitted means top (top centre) in structured layout and top-left in auto layout.",
             "type": "string",
             "enum": [
               "top-left",

@@ -2529,6 +2529,14 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - レビューで判明した singleton 3 行の再現も回帰検査に追加。4 方向 × `lineAlign` 3 種 × 先頭・中間・末尾行 × フレーム有無の 72 通りで、両軸の相対位置維持、セル strut 不在、未達制約の位置付き warning を検査する。旧判定に戻すと横方向で 61.677 layout units の行間増加、転置で 68.677 units の増加を再現し、4 方向ともテストが失敗する。さらに不等長 3 行・両軸・row/stack/grid・複数制約・A↔cell↔B の 360 通り、12 経路の 24 セル端点、単一行 tokens/matrix/box の 18 通りで通常の整列結果・診断・統計との一致を固定する。
 - セル番号は `lines` を記述順に平坦化した 1 始まりの位置。行ごとに再開せず、`direction` による表示順の反転も番号に影響しない。明示 `id` のセルも後続セルの位置の計数に含めるが、そのセル自身は ID で参照する。この規則を配布 Skill の tokens リファレンスへ追記した。
 
+### 6.90 #312 の作図時の小さなフィードバックと探索性
+
+- **再現:** v0.11.0＋配布 Skill による ViT Figure 1 の dogfood から、通常の `fmt` が変更なしのとき無言、片側の attach によって見出しが arrange の中央からずれる、props の候補値を例から推測してしまう、という3点を確認した。west 側に40pt幅・10pt間隔の入力を付けた60pt幅の本体では、見出しと枠の中心は137、本体の中心は187 layout unitsとなる。破線のパネル区切りは背景の利用例であり、この issue では新しい部品を追加しない。
+- **fmt:** 通常実行では成功したファイルごとに `<file>: changed` / `<file>: unchanged` の1行を stderr へ出す。changed は atomic write が完了してから表示する。既存の stdout（書き換えたファイル名）、`--check`（未整形名のみ・exit 1）、`--stdout`（YAML 本文のみ）を保つ。失敗したファイルに成功表示をせず、複数入力は既存どおり後続も処理する。
+- **見出しの基準:** 枠の中央を採用する。attach した子も group の内容なので、全体の枠（plain の不可視枠も含む）に `labelAt` を適用する既存の挙動を明文化する。arrange だけへ自動的に合わせると既存の図、caption、端の配置との一貫性が崩れる。本体だけの見出しにはラベル付きの内側 group を用意し、入力をその group 自体へ attach して兄弟にする。無題の外側 group でパネル全体をまとめる。新しい座標・オフセット・診断は追加しない。スキーマの説明と Skill の実行可能な例を同期する。
+- **カタログ:** `catalog --json` の props は既に Zod の入力側 JSON Schema を保持している。列挙値は `components[].props.properties.<prop>.enum`、単一値は `const`、省略値は `default`、必須性は `required`、入れ子や union は `properties` / `anyOf` から取る。重複した候補一覧や新しい JSON フィールドを増やさず、CLI help と Skill に読み方を明記し、optional な `tokens.lineAlign`、default 付きの `tokens.direction`、別部品の `operator.symbol` の実 CLI 出力を回帰検査する。
+- **互換性と検証:** レイアウト・描画のコードは変更せず（engine はコメントのみ）、出力は全図でバイト単位に不変。`bun run gallery:check` と golden の検査で確認する。見出しの回帰検査は全5テーマ・default/plain/dashed・west/east の片側 attach・省略と全6種の `labelAt` で、拡張枠への包含と実 SVG の文字アンカーを検査する。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）
