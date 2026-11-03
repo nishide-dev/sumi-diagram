@@ -297,11 +297,32 @@ nodes:
     expect(await sumi(["fmt", "inplace.sumi.yaml"])).toMatchObject({
       exitCode: 0,
       stdout: "inplace.sumi.yaml\n",
-      stderr: "",
+      stderr: "inplace.sumi.yaml: changed\n",
     });
     expect(await readFile(path, "utf8")).toBe(formatted);
     expect((await stat(path)).mode & 0o777).toBe(0o640);
-    expect(await sumi(["fmt", "inplace.sumi.yaml"])).toMatchObject({ exitCode: 0, stdout: "" });
+    expect(await sumi(["fmt", "inplace.sumi.yaml"])).toMatchObject({
+      exitCode: 0,
+      stdout: "",
+      stderr: "inplace.sumi.yaml: unchanged\n",
+    });
+  });
+
+  test("reports each result in a mixed batch and continues after an unreadable file", async () => {
+    await writeFile(join(dir, "batch-ok.sumi.yaml"), formatted);
+    await writeFile(join(dir, "batch-messy.sumi.yaml"), unformatted);
+    const result = await sumi([
+      "fmt",
+      "batch-ok.sumi.yaml",
+      "batch-missing.sumi.yaml",
+      "batch-messy.sumi.yaml",
+    ]);
+    expect(result.exitCode).toBe(2);
+    expect(result.stdout).toBe("batch-messy.sumi.yaml\n");
+    expect(result.stderr).toStartWith("batch-ok.sumi.yaml: unchanged\nsumi: error: ");
+    expect(result.stderr).toContain("batch-missing.sumi.yaml");
+    expect(result.stderr).toEndWith("batch-messy.sumi.yaml: changed\n");
+    expect(await readFile(join(dir, "batch-messy.sumi.yaml"), "utf8")).toBe(formatted);
   });
 
   test("--stdout prints the formatted text without writing", async () => {
@@ -353,7 +374,7 @@ nodes:
     expect(await sumi(["fmt", "fmt-link.sumi.yaml"])).toMatchObject({
       exitCode: 0,
       stdout: "fmt-link.sumi.yaml\n",
-      stderr: "",
+      stderr: "fmt-link.sumi.yaml: changed\n",
     });
     expect((await lstat(link)).isSymbolicLink()).toBe(true);
     expect(await readFile(target, "utf8")).toBe(formatted);
@@ -557,6 +578,31 @@ describe("sumi render (output paths)", () => {
 });
 
 describe("sumi catalog", () => {
+  test("--json exposes enum choices, defaults and optional props without consulting the Skill (#312)", async () => {
+    const result = await sumi(["catalog", "--json", "--section", "components"]);
+    expect(result).toMatchObject({ exitCode: 0, stderr: "" });
+    const { components } = JSON.parse(result.stdout);
+    const tokens = components.find((entry: { id: string }) => entry.id === "sumi/tokens");
+    expect(tokens.props.properties.lineAlign).toMatchObject({
+      type: "string",
+      enum: ["start", "center", "end", "stretch"],
+      description: expect.any(String),
+    });
+    expect(tokens.props.required ?? []).not.toContain("lineAlign");
+    expect(tokens.props.properties.direction).toMatchObject({
+      enum: ["right", "left", "down", "up"],
+      default: "right",
+    });
+    const operator = components.find((entry: { id: string }) => entry.id === "sumi/operator");
+    expect(operator.props.properties.symbol.enum).toEqual([
+      "plus",
+      "minus",
+      "times",
+      "dot",
+      "concat",
+    ]);
+  });
+
   test("--json prints exactly buildFullCatalog(): components, themes, profiles and icons", async () => {
     const result = await sumi(["catalog", "--json"]);
     expect(result).toMatchObject({ exitCode: 0, stderr: "" });

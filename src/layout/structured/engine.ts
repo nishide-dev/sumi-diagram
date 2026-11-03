@@ -804,7 +804,8 @@ class StructuredLayout {
   /**
    * Where a group's label is centered: in the band at the top (or, for a
    * bottom `labelAt`, the bottom) of the group, inside the padding, at the
-   * left, centre or right (#127). Omitted `labelAt` is top centre.
+   * left, centre or right (#127). Omitted `labelAt` is top centre. The frame
+   * includes attached members; the arrange tree alone is not the reference (#312).
    */
   #groupLabelCenter(group: GroupIR, rect: Rect, metrics: TextMetrics): { x: number; y: number } {
     const p = this.#groupPadding;

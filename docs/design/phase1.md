@@ -1658,7 +1658,6 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **検証**: `research/176-zoom-edge/figures/` に、#167 の図 B（DiT）と図 C（H3-World）の写しを置き、代用の破線 2 本を `component: zoom` の 1 本に書き換えた（他は同じ。#167 の記録のファイルは変えない）。zoom の辺についての診断は 0 件で、図全体の診断（B: `geometry/exceeds-page-width` 1、C: それに `lint/empty-label` 90）は元の図と同じ（`src/render/zoom.integration.test.ts`）。
 - **テスト**: `src/layout/route/zoom.test.ts`（4 方向の角の組、接する箱、斜めの配置と同点、重なる箱、junction の端、Layout IR の線とネットなし、`checkRoutes` が空、zoom の辺がある図とない図で他の辺の経路・キャンバス・ノードが同じ、交差する zoom の線が `layout/edge-crossing` にならない、重なる端の `layout/no-route`、ラベルと anchor の診断、auto の `layout/structured-only`）、`src/render/zoom.integration.test.ts`（SVG の `path.connection` と破線の wire、`solid`、`geometry/zoom-crosses-node` と `edge-through-node` が出ないこと、PDF・画像方式 PPTX・編集可能 PPTX の両方式、research の 2 図）、`registry.test.ts`（manifest の制約）。全部品 × 全 variant × 全 Theme の描画テスト（`structuredPrimitivesFigure()`）にも zoom を足した。
 
-
 ### 6.46 #178 の ±90° 回転したラベル（`nodes[].labelRotation`）
 
 段階 C（[#167 の調査](../research/167-stage-c.md) §4.7、試作 P2）。H3-World の「Visual VAE Encoder」（縦長の箱）と「Query」（軸のラベル）は 90° 回転した文字。Figure v1 への任意フィールドの追加で、**`labelRotation` を書かない図**の診断・IR・Layout IR・D2・SVG・PDF・PPTX はバイト単位で変わらない。
@@ -2026,7 +2025,6 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **Skill**: `references/structured.md` に「Matrices」（構文・凡例の `class`・予約 ID・見出しの大きさと衝突・診断、描いて確かめる作例）と legend の `class` の項目、`figure-format.md` の部品の一覧、`diagnostics.md` に `ref/unknown-class`・`layout/attached-matrix`・`lint/unused-matrix-class` と予約 ID、`SKILL.md` の structured の機能の一覧に `matrix`。
 - **非対象・引き継ぎ**: 連続値のヒートマップ（Issue の非対象）、セルへの参照・セルのラベル、auto（D2）の行列、回転した軸の見出し（原図の Query / Key。`labelRotation` の `label` ノードを横に置けば書ける）、斜線以外の模様（`pattern` は列挙なので追加できる）、枠の余白なしで辺をセルの端まで届けること（辺は枠で止まる。書き下した版と同じ）、編集可能 PPTX でセルと斜線をグループにすること。
 
-
 ### 6.57 #217 の矢じりの直前の段差の除去・幾何 lint と junction 端の保証
 
 - **指摘された図の原因**: `research/185-acceptance/figures/c-h3world.sumi.yaml` の `out-proj → c-add-out` は、先端までの縦の差が **14.008 unit**。矢じりの hard stub（8 unit）は置けるが、§6.22 の推奨 room（16 unit）は置けない。従来は room 内の曲がりの費用 **100** が、曲がり 2 回分 **80** より高かったため、1.992 unit 下がり、0.913 unit 横に進み、16 unit 上がる S 字が、右からそのまま上がる経路より安くなった。さらに同じネットの別の矢じりの room 内では格子点ごとに 100 を足し、格子の密度で費用が増えていた。最初の実装は stub の長さだけを検査してこの段差を保持してしまったが、それではユーザーの指摘は解決しない。
@@ -2200,7 +2198,6 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
   （2,873 pass / 13 skip / 0 fail）/ `gallery:check`（160 files）/ `schema:check` /
   `emoji:check` が成功した。
 
-
 ### 6.63 #214 の濃い塗りと色付き淡色面（`solid` / `tinted`）
 
 - **構文と対象**: shape node の variant に `solid` と `tinted` を追加する。box・square・circle・ellipse・diamond・hexagon・parallelogram・cylinder・document・trapezoid・stack・operator の 12 部品が対象（#188 の bowtie を加えて 13 部品）。tokens の共通 `props.variant` とセルごとの `variant`、legend の `node.variant` は既存の Registry 検証・展開を通るので同じ名前が使える。tone 未指定時は gray。新しい YAML field・診断は増やさない。
@@ -2230,7 +2227,6 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **テスト**: 区切りの strict props、4 方向の線分座標、明示サイズ・既定サイズ、`lines`、名前・番号の参照と描画した予約矩形への接続（glued PPTX の接続先を含む）、由来と IR、全 5 テーマの inspect bbox と診断ゼロ、衝突の書いた位置、装飾パスを除いても予約箱を横切る無関係な辺の診断、tone 継承、H3-World の順序、縦・横 × 通常・dim の SVG / PDF の線分と dash、画像方式 PPTX の色・dash、編集可能 PPTX 両方式の線図形・色・dash を検査する。部品 props は Figure JSON Schema の外なのでスキーマ本体は変えない。
 - **レビュー対応後の検証**: `bun run check`・`bun run typecheck`・`CI=1 bun test`（**2861 pass / 13 skip / 0 fail、90164 assertions**）・`bun run gallery:check`（**155 ファイルがバイト一致**）・`bun run schema:check` が成功した。既存の D2・lint・画像・PDF・画像方式 / 編集可能 PPTX の golden も更新なしで通る。今回のレビュー対応ではギャラリー・サンプル・golden の変更は **0**。下記の 840 通りの比較は最初の実装時の記録で、今回の追加検証とは区別する。
 - **互換性（実測）**: 既存 `*.sumi.yaml` **140 図 ×（元のテーマ + 組み込み 5 テーマ）= 840 通り**を変更前後に描いた。成功する **574 通り**の SVG・PDF・画像方式 PPTX 各 574 件と、auto の D2 ソース **222 件**は sha256 がすべて一致した。既存の失敗 **266 通り**は失敗のまま。診断の差分は、既に `{ separator: dotted }` が提案構文として書かれていた `research/86-paper-figures/figures/ideal/c-h3world.sumi.yaml` の 6 テーマ分で `component/unknown-prop` が 1 件減ったことだけ（他の未対応構文により出力は引き続きない）。成功・失敗の変化、既存出力の変更は **0**。全チェックは `bun run check`・`bun run typecheck`・`CI=1 bun test`（**2854 pass / 13 skip / 0 fail**）・`bun run gallery:check`（155 ファイル）・`bun run schema:check` が成功した。skip は既存の prototype / 任意環境のテスト。
-
 
 ### 6.66 #233 の離れた 2 台形の bowtie と台形の向き
 
@@ -2269,7 +2265,6 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **ライセンス・告知**: `fluent-emoji-LICENSE.txt` と配布物の `licenses/fluent-emoji/LICENSE` は前後バイト一致（SHA-256 `c2cfccb8…15383`）。MIT・著作者 Microsoft Corporation・上流 URL・図の full notice は維持。配布物の NOTICE / README は同梱範囲の記述（47 → 3,124）と archive hash だけ追従させる。SVG / vector PDF / picture PPTX の notice を両 engine × 全 5 Theme で検査し、元の 47 点に加えて importer 修正を使う `anchor` / `artist-dark` / `hyacinth` と新しい face の各出力も検査する。実リリースの smoke も新しい `artist-dark`、全対応名の件数・非対応名の非掲載を確認する。
 - **互換性の実測**: リポジトリの既存 `*.sumi.yaml` **149 個 ×（書かれた Theme + 組み込み 5 Theme）= 894 通り**を変更前後に `renderFigure()` で描画し、SVG / PDF / 画像方式 PPTX と auto の D2 ソースの SHA-256 を比較。成功 **613 通り**の 3 形式各 613 出力、D2 **222 件**はすべてバイト一致。失敗 **281 通り**の診断も一致した。元の 47 点は元 SVG と importer の戻り値も変更前と全件一致。`bun run gallery` は全 variant × 全 Theme を含む **165 ファイルに差分 0**、golden の更新も不要。
 - **最終検証**: `bun run check`・`bun run typecheck`・`CI=1 bun test`（**2,988 pass / 13 skip / 0 fail**）・`bun run gallery:check`（165 ファイル）・`bun run schema:check`・`bun run emoji:check` が成功。darwin-arm64 の `release:build` と拡大セットを使う `release:smoke` も成功した。
-
 
 ### 6.68 #245 の split bowtie のラベル安全領域と輪郭重なり検出
 
@@ -2327,7 +2322,6 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **経路と描画**: ルータの hard stub（矢じり + 直線）と `keepEnd` は変えない。末端の区間は余白の拡張で「矢じり + 直線 + 4 unit」になり、writer の `room = 区間 − keepEnd` が 4 unit になるので、角は半径 4 unit（`min(radius, room)`）で丸まり、その先に見える直線と矢じりが残る。`groupArrowheadStems()` の選択（狭い接近の判定）は変えない。
 - **代償**: 受け入れ図 A は **77.08 → 78.49mm × 114.12mm**（幅 +1.41mm = 左右 4 unit ずつ）。幅上限を超えるようになったのは `examples/transformer`（academic, 87.49 → 88.90mm）だけで、例の row の `gap` を 2mm から 1mm にして 87.84mm に収めた。比較は [検証記録](../verification/247-arrowhead-stems.md#260-矢じり手前の角の半径)。
 - **回帰**: 余白の量（4 テーマ）、末端の区間が矢じり + 直線 + 4 unit 以上であること、描画の弧の半径が 4 unit で直線の前に終わること、入れ子の余白（26 unit）、Transformer の幅（78.49mm）をテストする。
-
 
 ### 6.74 #269 の split bowtie の中央ラベルへの復帰
 
@@ -2435,7 +2429,6 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **出力:** SVG / PDF / picture PPTX に対応。editable PPTX は既存の native freeform lowering を使用し、外枠と信号の各 path を保持する。画像化・黙った欠落はしない。freeform / glued の両コネクタモードに対応するが、波形自体はどちらも自由形状（音声や PowerPoint のデータ系列ではない）。実 Office の新規確認はしていない。
 - **検証と互換性:** 全テーマ×variant の gallery、両モード×両 layout×全テーマの再描画・幾何 lint・PDF / picture / editable PPTX テスト、位置付き負例と2,048個の上限を検査。機能追加前からある153個の YAML を自身のテーマ＋5テーマで比較し、918ケース中638件の描画成功について SVG / PDF / picture PPTX / D2 の SHA-256 がすべて一致。残る280件は既存の不正 fixture・旧研究構文などで描画できず、そのうち42件は既知 component 一覧に waveform が増える診断文のみ変化した。詳細は [検証記録](../verification/278-waveform.md)。
 
-
 ### 6.81 #283 の専用 HTML/CSS leaf
 
 **決定:** HTML は `image.props.html` ではなく専用 `html` component とする。単独配置・container の子とも通常の leaf として扱う。研究 `research/277-html-subset/README.md` と §6.79 の入口を共有し、SVG importer の許可範囲は拡大しない。
@@ -2492,7 +2485,6 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **互換性:** 既存全 `*.sumi.yaml` を自身の theme と全組み込み theme で変更前後に描画し、SVG / PDF / picture PPTX / D2 の SHA-256 を比較する。不正・追加 registry 必須等の入力は診断 code を記録する。catalog と全テーマ×variant gallery は既存の検査経路で維持する。
 - **ローカル実測:** Bun 1.3.14 / darwin-arm64 で新規24 hash と compiled release smoke の共通6 hash が一致。既存154 YAML の比較は SVG / PDF / picture PPTX 各644件、D2 234件が全一致、失敗入力の診断 code も変化なし。全体テストは4,066 pass / 13 skip / 0 fail、gallery 227生成物と schema も最新。OS 間一致の最終判断は上記 CI 待ちとする。
 
-
 ### 6.84 #299 の作例昇格と図単位のテーマ調整
 
 **決定:** CLIP Figure 1 の仕上げで、`paper` の色・フォントを保ったまま角丸を外し、3つの見出しを通常ウェイトにする必要があった。組み込みテーマの変更や図固有のSVG後加工ではなく、strictな `figure.themeOverrides` を追加する。
@@ -2537,6 +2529,14 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 - **描画と lint**: SVG の node shape に開いた path を 1 本出す。PDF・画像 PPTX は共通 SVG 変換、編集可能 PPTX は既存の custom geometry / dash 変換を使い、両 connector mode で同じ線を残す。tone は toneLines、dim は既存の減光を適用。接続線ではなく装飾なので geometry lint の要素から除外し、空 label の指摘もしない。
 - **誤用**: `grow` は `component/grow-unsupported`、grid の直接の項目・attach は `component/separator-placement`、edge endpoint は `component/separator-connection` で拒否する。grid のセル内の row / stack には置ける。空の箱では span も 0 のため何も見えない。接続点として必要なら従来の line と junction を使う。
 - **検証・発見性**: 全テーマ × 全 variant のカタログギャラリー、両方向・全 alignment・逆方向・各 export の統合テスト、Skill のパネル区切り例を揃える。#306 / #307 の layout 診断変更は含めない。
+
+### 6.90 #312 の作図時の小さなフィードバックと探索性
+
+- **再現:** v0.11.0＋配布 Skill による ViT Figure 1 の dogfood から、通常の `fmt` が変更なしのとき無言、片側の attach によって見出しが arrange の中央からずれる、props の候補値を例から推測してしまう、という3点を確認した。west 側に40pt幅・10pt間隔の入力を付けた60pt幅の本体では、見出しと枠の中心は137、本体の中心は187 layout unitsとなる。破線のパネル区切りは背景の利用例であり、この issue では新しい部品を追加しない。
+- **fmt:** 通常実行では成功したファイルごとに `<file>: changed` / `<file>: unchanged` の1行を stderr へ出す。changed は atomic write が完了してから表示する。既存の stdout（書き換えたファイル名）、`--check`（未整形名のみ・exit 1）、`--stdout`（YAML 本文のみ）を保つ。失敗したファイルに成功表示をせず、複数入力は既存どおり後続も処理する。
+- **見出しの基準:** 枠の中央を採用する。attach した子も group の内容なので、全体の枠（plain の不可視枠も含む）に `labelAt` を適用する既存の挙動を明文化する。arrange だけへ自動的に合わせると既存の図、caption、端の配置との一貫性が崩れる。本体だけの見出しにはラベル付きの内側 group を用意し、入力をその group 自体へ attach して兄弟にする。無題の外側 group でパネル全体をまとめる。新しい座標・オフセット・診断は追加しない。スキーマの説明と Skill の実行可能な例を同期する。
+- **カタログ:** `catalog --json` の props は既に Zod の入力側 JSON Schema を保持している。列挙値は `components[].props.properties.<prop>.enum`、単一値は `const`、省略値は `default`、必須性は `required`、入れ子や union は `properties` / `anyOf` から取る。重複した候補一覧や新しい JSON フィールドを増やさず、CLI help と Skill に読み方を明記し、optional な `tokens.lineAlign`、default 付きの `tokens.direction`、別部品の `operator.symbol` の実 CLI 出力を回帰検査する。
+- **互換性と検証:** レイアウト・描画のコードは変更せず（engine はコメントのみ）、出力は全図でバイト単位に不変。`bun run gallery:check` と golden の検査で確認する。見出しの回帰検査は全5テーマ・default/plain/dashed・west/east の片側 attach・省略と全6種の `labelAt` で、拡張枠への包含と実 SVG の文字アンカーを検査する。
 
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
