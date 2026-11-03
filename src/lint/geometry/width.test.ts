@@ -52,17 +52,15 @@ describe("page width attribution (#307)", () => {
       const result = hint(text, elements);
       expect(result).toContain("Widest horizontal run: figure.layout.arrange.stack = 76.2mm");
       expect(result).toContain('group "g" 76.2mm');
-      expect(result).toContain(`Contributing descendant run: group "g".arrange.${kind} = 70.56mm`);
+      expect(result).toContain(`Descendant run: group "g".arrange.${kind} = 70.56mm`);
       expect(result).toContain('node "a" 26.46mm');
       expect(result).toContain('node "b" 26.46mm');
-      expect(result).toContain(
-        `reduce the largest observed gap (17.64mm) in group "g".arrange.${kind}`,
-      );
+      expect(result).not.toContain("not guaranteed savings");
       expect(hint(text, elements)).toBe(result);
       expect(elements).toEqual(original);
       const scaled = hint(text, elements, 0.5);
       expect(scaled).toContain("figure.layout.arrange.stack = 38.1mm");
-      expect(scaled).toContain("reduce the largest observed gap (8.82mm)");
+      expect(scaled).toContain("8.82mm observed gaps");
     },
   );
 
@@ -84,11 +82,11 @@ describe("page width attribution (#307)", () => {
       ).toBe(finding?.hint);
       expect(before.rendered.inspection).toEqual(originalInspection);
       expect(finding?.hint).toContain("figure.layout.arrange.stack = 131.48mm");
-      expect(finding?.hint).toContain(`Contributing descendant run: group "g".arrange.${kind}`);
+      expect(finding?.hint).toContain(`Descendant run: group "g".arrange.${kind}`);
       expect(finding?.hint).toContain('node "a" 52.92mm');
       expect(finding?.hint).toContain('node "b" 52.92mm');
       expect(finding?.hint).toContain(
-        `reduce the largest observed gap (20mm) in group "g".arrange.${kind}`,
+        `set group "g".arrange.${kind}.${kind === "grid" ? "columnGap" : "gap"} to 0mm (page width reduced by 20.11mm)`,
       );
       const reduction =
         printedSize(before.rendered.inspection).widthPt -
@@ -115,8 +113,8 @@ describe("page width attribution (#307)", () => {
       "n:b": { bbox: rect(0, 40, 40) },
       "n:c": { bbox: rect(70, 40, 40) },
     });
-    expect(result).toContain('Contributing descendant run: group "outer".arrange.stack');
-    expect(result).toContain('Contributing descendant run: group "g".arrange.stack');
+    expect(result).toContain('Descendant run: group "outer".arrange.stack');
+    expect(result).toContain('Descendant run: group "g".arrange.stack');
     expect(result).toContain('node "a" 105.83mm');
     expect(result).not.toContain("reduce the largest observed gap");
     expect(result).not.toContain(
@@ -131,7 +129,7 @@ describe("page width attribution (#307)", () => {
       "figure.layout.arrange.stack.items[0].row = 59.97mm (52.92mm occupied x-projection + 7.06mm observed gaps)",
     );
     expect(result).toContain('node "b" 35.28mm, node "a" 17.64mm');
-    expect(result).toContain("reduce the largest observed gap (7.06mm)");
+    expect(result).toContain("7.06mm observed gaps");
   });
 
   test.each(["row", "grid"])("a wider stack child dominates a small nested %s", (kind) => {
@@ -184,7 +182,7 @@ describe("page width attribution (#307)", () => {
     expect(width - printedSize(tighter.rendered.inspection).widthPt).toBeGreaterThan(56);
     const finding = before.diagnostics.find((d) => d.code === "geometry/exceeds-page-width");
     expect(finding?.hint).toContain(
-      "Largest measured candidates (not guaranteed savings): reduce the largest observed gap",
+      "set figure.layout.arrange.row.gap to 0mm (page width reduced by",
     );
     expect(finding?.hint).not.toContain("shorten or wrap the label");
   });
@@ -194,8 +192,8 @@ describe("page width attribution (#307)", () => {
       "n:a": { bbox: rect(0, 100), labels: [label("漢漢漢漢漢漢漢", 50, 15)] },
       "n:b": { bbox: rect(140, 200) },
     });
-    expect(result).toContain("shorten or wrap the label");
-    expect(result.indexOf("candidates (not guaranteed savings): reduce")).toBeGreaterThan(0);
+    expect(result).toContain("Largest label overhang/auto-sized footprint");
+    expect(result).not.toContain("shorten or wrap");
   });
 
   test("grid columns, blank cells and spans do not double-count x-projections", () => {
@@ -220,8 +218,8 @@ describe("page width attribution (#307)", () => {
       "n:c": { labels: [label("漢漢", 370, 15)] },
     });
     expect(result).toContain('Attach expansion beyond arrange bounds: node "c" +8.11mm');
-    expect(result).toContain('attach node "c" (horizontal overhang 8.11mm)');
-    expect(result).toContain('label of node "c"');
+    expect(result).not.toContain("move or shorten");
+    expect(result).toContain('node "c"');
     // Moving the same label inside the arrange bounds adds no horizontal width.
     expect(
       hint(text, {
@@ -317,7 +315,7 @@ nodes:
     expect(finding?.hint).toContain("figure.layout.arrange.row = 107.25mm");
     expect(finding?.hint).toContain("12mm observed gaps");
     expect(finding?.hint).toContain('node "b" 52.92mm');
-    expect(finding?.hint).toContain("Largest measured candidates");
+    expect(finding?.hint).toContain("Verified layout edits");
     expect(report.exitCode).toBe(1);
   });
 
@@ -328,6 +326,6 @@ nodes:
     const finding = report.diagnostics.find((d) => d.code === "geometry/exceeds-page-width");
     expect(finding?.message).toContain("130.35mm");
     expect(finding?.hint).toContain("auto horizontal footprint");
-    expect(finding?.hint).toContain("measured candidates");
+    expect(finding?.hint).toContain("no trial layouts were run");
   });
 });

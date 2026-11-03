@@ -6,6 +6,7 @@ import { type Rect, unitsToPt } from "../../render/geometry";
 import { printedSize } from "../../render/size";
 import type { GeometryContext, GeometryElement } from "./context";
 import { unionOf } from "./measure";
+import { verifyHints } from "./verified";
 
 interface Footprint {
   name: string;
@@ -137,7 +138,6 @@ export function widthBreakdown(context: GeometryContext): string {
     parts.push(
       `Width to remove: ${formatMm(Math.max(0, pageWidth - context.profile.maxWidthPt))}.`,
     );
-  const candidates: { width: number; text: string }[] = [];
   const contributing: Run[] = [];
   const seen = new Set<Run>();
   const descend = (run: Run) => {
@@ -145,7 +145,8 @@ export function widthBreakdown(context: GeometryContext): string {
     seen.add(run);
     contributing.push(run);
     // Stack siblings compete for width; only the widest child drives it.
-    // Row/grid children contribute horizontally, including padded groups.
+    // Row/grid descendants are observations, not evidence of track dominance.
+    // Only counterfactual layouts below can establish useful edits.
     const children =
       run.priority !== 0
         ? [...run.items]
@@ -158,33 +159,23 @@ export function widthBreakdown(context: GeometryContext): string {
     }
   };
   if (widest) descend(widest);
-  for (const [index, run] of contributing.entries()) {
-    const { widths, gaps, largestGap } = projection(run.items);
+  for (const [index, run] of contributing.slice(0, 6).entries()) {
+    const { widths, gaps } = projection(run.items);
     const items = [...run.items].sort(
       (a, b) => b.rect.width - a.rect.width || a.name.localeCompare(b.name),
     );
     parts.push(
-      `${index === 0 ? "Widest horizontal run" : "Contributing descendant run"}: ${run.name} = ${mm(run.rect.width)} (${mm(widths)} occupied x-projection + ${mm(gaps)} observed gaps). Items: ${items
+      `${index === 0 ? "Widest horizontal run" : "Descendant run"}: ${run.name} = ${mm(run.rect.width)} (${mm(widths)} occupied x-projection + ${mm(gaps)} observed gaps). Items: ${items
         .slice(0, 6)
         .map((item) => `${item.name} ${mm(item.rect.width)}`)
         .join(", ")}${items.length > 6 ? `; ${items.length - 6} more` : ""}.`,
     );
-    if (largestGap > 0)
-      candidates.push({
-        width: largestGap,
-        text: `reduce the largest observed gap (${mm(largestGap)}) in ${run.name}`,
-      });
   }
+  if (contributing.length > 6) parts.push(`${contributing.length - 6} more descendant runs.`);
   if (contributing.length > 1)
     parts.push(
       "Descendant breakdowns explain the outer footprint; parent and child widths are not additive.",
     );
-  for (const attachment of attachments) {
-    candidates.push({
-      width: attachment.width,
-      text: `move or shorten attach ${attachment.name} (horizontal overhang ${mm(attachment.width)})`,
-    });
-  }
   if (attachments.length)
     parts.push(
       `Attach expansion beyond arrange bounds: ${attachments
@@ -212,24 +203,16 @@ export function widthBreakdown(context: GeometryContext): string {
     .sort((a, b) => b.width - a.width || a.element.name.localeCompare(b.element.name));
   const longest = labels[0];
   if (longest)
-    candidates.push({
-      width: longest.width,
-      text: `shorten or wrap the label of ${longest.element.name} (${mm(longest.measured)} measured; fixed widths may still dominate)`,
-    });
+    parts.push(
+      `Largest label overhang/auto-sized footprint: ${longest.element.name} ${mm(longest.width)} (${mm(longest.measured)} measured label width).`,
+    );
   if (root) {
     const drawnWidthPt = unitsToPt(root.width * (context.inspection.scale ?? 1));
     parts.push(
       `Top-level bodies/labels span ${mm(root.width)}; page width also includes margins, strokes and edge/label extents (${formatMm(Math.max(0, pageWidth - drawnWidthPt))} outside that span).`,
     );
   }
-  if (candidates.length)
-    parts.push(
-      `Largest measured candidates (not guaranteed savings): ${candidates
-        .sort((a, b) => b.width - a.width || a.text.localeCompare(b.text))
-        .slice(0, 3)
-        .map((item) => item.text)
-        .join("; ")}.`,
-    );
+  parts.push(verifyHints(context, "width", (trial) => trial.canvas.width));
   if (!structured)
     parts.push(
       "Auto reports observed geometry only; overlapping x-ranges are merged, and ELK layer spacing is not exposed.",

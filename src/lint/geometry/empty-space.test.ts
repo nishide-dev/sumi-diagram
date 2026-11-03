@@ -48,7 +48,7 @@ test("75% boundary, source location, info severity and configurable suppression"
         subject: { kind: "group", id: "g" },
         location: { file: "empty.sumi.yaml", line: 3 },
       });
-      expect(findings[0]?.hint).toContain("justify: stretch");
+      expect(findings[0]?.hint).toContain("Whitespace can be intentional");
     }
     expect(
       lintGeometry(input, {

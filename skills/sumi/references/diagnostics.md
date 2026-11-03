@@ -6,9 +6,13 @@
 width breakdown in its hint. For structured layout, start with the named widest
 row or grid and its item widths, total observed horizontal gaps, and the largest
 gap. Grid items identify their column or column span. Attached nodes report the
-horizontal overhang beyond their container's arrange bounds. Compare the ranked
-gap / label / attach candidates before editing; these measurements are clues,
-not guaranteed savings (fixed widths, other rows and constraints can dominate).
+horizontal overhang beyond their container's arrange bounds. Concrete edits are
+recommended only after independent in-memory structured layout and routing trials
+verify a smaller page width; they are ranked by measured reduction in mm.
+At most six candidates are tried per diagnostic. Figures above 100 elements or
+40 edges, or with external assets, use neutral measurements without trials.
+No verified improvement also produces neutral wording. Apply one edit and
+re-check: independent savings are not additive.
 All lengths are printed mm, including `figure.fit: scale`.
 
 For auto layout, the hint reports the top-level horizontal footprint and observed
