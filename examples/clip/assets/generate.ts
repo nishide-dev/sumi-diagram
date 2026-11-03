@@ -1,4 +1,4 @@
-/** Original deterministic illustration; run: bun examples/clip/assets/generate.ts. */
+/** Original deterministic illustration; run: bun generate.ts from this directory. */
 const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180">
 <rect width="180" height="180" fill="#d9e8ed"/>
 <path d="M0 105L40 85L80 104L130 77L180 95V180H0Z" fill="#8eaa7a"/>

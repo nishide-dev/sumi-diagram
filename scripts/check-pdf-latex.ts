@@ -159,7 +159,9 @@ async function main(): Promise<void> {
   versions.poppler = `${poppler.stdout}${poppler.stderr}`.trim();
   console.log(JSON.stringify(versions, null, 2));
 
-  const sources = [...new Bun.Glob("examples/*/*.sumi.yaml").scanSync(ROOT)].sort();
+  const sources = [
+    ...new Bun.Glob("examples/*/*.sumi.yaml").scanSync({ cwd: ROOT, followSymlinks: true }),
+  ].sort();
   check(sources.length >= 4, "Expected the four example figures");
   sources.push("tests/fixtures/pdf-latex/japanese.sumi.yaml");
   const template = await readFile(join(ROOT, "tests/fixtures/pdf-latex/include.tex"), "utf8");

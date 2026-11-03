@@ -2656,6 +2656,14 @@ check・typecheck・gallery:check（231ファイル）・schema:check も成功�
 - **レイアウト計画:** 内容だけが与えられた場合は、要素と役割の洗い出し → 主な流れの向きとパネル → ASCII の略図 2 案 → 空白・縦横比・整列・交差で比較 → 決定、の後に YAML を書く。ブロック程度以上の空白は見直しのきっかけとし、分類・整列・強調を表す空白は残す。釣り合わない説明のない空白は、要素の追加ではなく注記や出力の移動・配置の変更で解消する（例 6 の下揃えのパネルの上の余白は整列のための意図した空白）。`geometry/group-empty-area`（info）は group の枠の 75% 以上が見出しと直接の子の外にある場合の指摘で、一般の空き領域の検出ではないと記載した。参照図がある場合は見た目をフィールドへ対応づける表（recipe）を使い、幅や原則に反する場合だけ配置を変えて報告する。
 - **置き場所とサイズ:** 原則と計画は `layout-tips.md` に置き、`SKILL.md` の Paper figure workflow から 2 つの入口（内容のみ／参照図）として案内する。`SKILL.md` 本文は 250 行未満の制約を保ち、Skill 全体の増加は約 4.1%（170.9KB → 177.9KB）に抑えた。
 
+### 6.94 #325 の Skill 同梱の公開論文図の完成例
+
+- Transformer・DiT block・CLIP・EmbeddingGemma の公開済みの作例だけを `skills/sumi/examples/<name>/` に同梱する。YAML・相対参照アセット・元の生成スクリプトを実体として移し、`examples/` 側の YAML は相対 symlink にする。一次ソースは一つに保つ。
+- CLI と gallery のアセット基準は、realpath ではなく呼び出し側の YAML パスの親ディレクトリ。検証で `assets/` の symlink は sandbox の `asset/outside-base` に拒否されたため、CLIP と EmbeddingGemma の `examples/` 側にはアセットのコピーを置き、ファイル一覧と全バイトの一致をテストする（Issue の代替案）。sandbox は変更しない。EmbeddingGemma の旧生成コマンドはスクリプトへの相対 symlink で維持する。SVG・PDF・lint.json は従来どおり `examples/` 側の実体とし、README の画像リンクも維持する。Bun の glob は通常 symlink を列挙しないため、gallery・作例描画テスト・PDF/PPTX 検証コーパスの YAML 探索に `followSymlinks: true` を指定する。
+- Skill の README は完成図の一覧・機能・ファイルを示す。SKILL.md と references では「そのモデルや図のスタイルをユーザーが指定したときだけ参照する」と短く案内し、無関係な図のテンプレートや通常の必読手順にはしない。
+- PNG は `bun run gallery` 後に `bun run skill:previews` で PDF から `pdftoppm -png -r 150 -singlefile` により生成する。Poppler は再生成時のみ必要。CI は PNG の存在・データの妥当性・PDF ページとの縦横比（ピクセル丸めを許容）を検査し、OS 間のラスタライズのバイト一致は要求しない。
+- 配布を調べた skills CLI v1.7.2 は GitHub から clone して Skill ディレクトリをコピーする。Git の symlink を展開してくれることには依存せず、配布側 `skills/sumi/` 全体に symlink がないこと、独立コピーにも YAML・アセット・PNG が実体で入ることをテストする。既存の描画 golden と全 YAML × 自身のテーマ／全組み込みテーマの SVG・PDF・PPTX・D2 の sha256 を比較して互換性を確認する。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）

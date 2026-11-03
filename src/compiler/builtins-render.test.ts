@@ -44,7 +44,9 @@ if (!available && !inCI) {
 
 const TIMEOUT_MS = 30_000;
 const ROOT = join(import.meta.dir, "..", "..");
-const EXAMPLES = [...new Bun.Glob("examples/*/*.sumi.yaml").scanSync(ROOT)].sort();
+const EXAMPLES = [
+  ...new Bun.Glob("examples/*/*.sumi.yaml").scanSync({ cwd: ROOT, followSymlinks: true }),
+].sort();
 
 /**
  * Splits D2's SVG into the markup of each element, keyed by its `sumi-k-*`
