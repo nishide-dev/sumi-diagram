@@ -578,7 +578,11 @@ describe("built-in themes", () => {
       for (const manifest of registry.list()) {
         const id = componentId(manifest);
         const base = resolveStyle(t, { kind: manifest.kind, id, variant: "default" }).style;
-        for (const variant of manifest.variants.filter((v) => v !== "default")) {
+        // A separator's default variant is dashed already; only solid differs.
+        const skip = id === "sumi/separator" ? ["dashed"] : [];
+        for (const variant of manifest.variants.filter(
+          (v) => v !== "default" && !skip.includes(v),
+        )) {
           const { style } = resolveStyle(t, { kind: manifest.kind, id, variant });
           expect(style).not.toEqual(base);
         }

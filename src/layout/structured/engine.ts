@@ -51,8 +51,10 @@ import type { EdgeAnchor } from "../../core/figure/layout";
 import type { AttachSide, GroupLabelPosition, LabelRotation } from "../../core/figure/schema";
 import { getProfile } from "../../core/profile/builtin";
 import { type Profile, spacedProfile } from "../../core/profile/schema";
+import { SEPARATOR_ID } from "../../core/registry/builtins";
 import { getFontSet } from "../../core/theme/fonts";
 import { roundToD2Units } from "../../core/units";
+import { hintLayoutOptions, inHintTrial } from "../hint-trials";
 import {
   type EdgeLayout,
   type GroupLayout,
@@ -75,6 +77,7 @@ import {
   type Struts,
   solveAlignment,
 } from "./align";
+import { verifiedAlignHints } from "./align-hint";
 import { nodeLabelCenter, nodeSize, type Size, stretchableShape } from "./sizing";
 
 /** The engine name recorded in the Layout IR. */
@@ -142,6 +145,7 @@ export function placeStructured(
   if (ir.meta.engine !== "structured" || ir.arrange === undefined) {
     throw new Error("internal error: the structured layout needs a structured figure");
   }
+  hintLayoutOptions.set(ir, options);
   const base = options.profile ?? getProfile(ir.meta.profileId);
   if (base === undefined) throw new Error(`internal error: unknown profile ${ir.meta.profileId}`);
   // `figure.layout.density: compact` (#182) swaps in the profile's compact spacing.
@@ -187,7 +191,8 @@ export function placeStructured(
     engine.growPadding(deficits);
     placed = place();
   }
-  return placed;
+  if (inHintTrial() || placed.diagnostics.length === 0) return placed;
+  return { ...placed, diagnostics: verifiedAlignHints(ir, placed.diagnostics) };
 }
 
 /** Re-layouts for the padding before arrowheads (#171); the first nearly always settles it. */
@@ -252,7 +257,10 @@ class StructuredLayout {
         text !== undefined && node.labelRotation !== undefined
           ? { width: text.height, height: text.width }
           : (text ?? iconBox(node));
-      const size = nodeSize(node, box, padding);
+      // A separator contributes no size: siblings determine its span and gap
+      // supplies the whitespace on either side. This avoids sizing feedback.
+      const size =
+        node.component === SEPARATOR_ID ? { width: 0, height: 0 } : nodeSize(node, box, padding);
       const body = { x: 0, y: 0, ...size };
       const badge = badgeRect(node, body);
       const extra = overhangOf(body, badge === undefined ? [] : [badge]);
@@ -535,10 +543,14 @@ class StructuredLayout {
         : { ...itemNatural, width: itemNatural.width + added };
       grow = 0;
       const crossNatural = vertical ? size.width : size.height;
+      const separator =
+        typeof item === "string" && this.#nodes.get(item)?.component === SEPARATOR_ID;
       const cross =
-        align === "stretch" && this.#stretchable(item, vertical) ? crossAvailable : crossNatural;
+        separator || (align === "stretch" && this.#stretchable(item, vertical))
+          ? crossAvailable
+          : crossNatural;
       const offset =
-        align === "start" || (align === "stretch" && cross === crossAvailable)
+        separator || align === "start" || (align === "stretch" && cross === crossAvailable)
           ? 0
           : align === "end"
             ? crossAvailable - cross
@@ -559,6 +571,7 @@ class StructuredLayout {
     if (typeof item !== "string") return true;
     const node = this.#nodes.get(item);
     if (node === undefined) return true;
+    if (node.component === SEPARATOR_ID) return false;
     if ((vertical ? node.height : node.width) !== undefined || node.sizing === "fixed-aspect-1")
       return false;
     // Only these outline contracts support independent main-axis growth.
@@ -795,7 +808,8 @@ class StructuredLayout {
   /**
    * Where a group's label is centered: in the band at the top (or, for a
    * bottom `labelAt`, the bottom) of the group, inside the padding, at the
-   * left, centre or right (#127). Omitted `labelAt` is top centre.
+   * left, centre or right (#127). Omitted `labelAt` is top centre. The frame
+   * includes attached members; the arrange tree alone is not the reference (#312).
    */
   #groupLabelCenter(group: GroupIR, rect: Rect, metrics: TextMetrics): { x: number; y: number } {
     const p = this.#groupPadding;

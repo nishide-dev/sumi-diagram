@@ -54,6 +54,7 @@ import type { FigureAssets } from "../assets/load";
 import type { EdgeIR, FigureIR, GroupIR, NodeIR } from "../compiler/ir";
 import type { ElementKey } from "../core/check-state";
 import { isSpaceRun } from "../core/label/runs";
+import { SEPARATOR_ID } from "../core/registry/builtins";
 import type { Arrowhead } from "../core/registry/manifest";
 import { getTheme } from "../core/theme/builtin";
 import type { FontSet } from "../core/theme/fonts";
@@ -246,6 +247,12 @@ function nodeShape(node: NodeIR, r: Rect): string {
   const { style } = node;
   const paints = ` fill="${paint(style.fill)}"${strokeAttributes(style)}`;
   const { x, y, width: w, height: h } = r;
+  if (node.component === SEPARATOR_ID) {
+    return `<path d="${pathData([
+      { x, y },
+      { x: x + w, y: y + h },
+    ])}" fill="none"${strokeAttributes(style)}/>`;
+  }
   if (node.tokens?.separator !== undefined) {
     return `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" fill="none" stroke="none"/>`;
   }

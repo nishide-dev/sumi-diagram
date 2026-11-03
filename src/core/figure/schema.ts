@@ -465,7 +465,7 @@ export const GroupSchema = z.strictObject({
     .enum(GROUP_LABEL_POSITIONS)
     .optional()
     .describe(
-      "Where the label sits inside the group's border. Omitted means top (top centre) in structured layout and top-left in auto layout.",
+      "Where the label sits inside the group's border, relative to the full frame including attached members, not just the arrange tree. Omitted means top (top centre) in structured layout and top-left in auto layout.",
     ),
   caption: z
     .string()

@@ -71,6 +71,7 @@
 import type { EdgeIR, FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import { type Diagnostic, hasErrors } from "../../core/diagnostics";
+import { SEPARATOR_ID } from "../../core/registry/builtins";
 import {
   type EdgeLayout,
   type EdgeRoute,
@@ -87,6 +88,7 @@ import {
 import { deepFreeze } from "../structured/engine";
 import { arrowheadLength, WIRE_CORNER_RADIUS } from "./arrowhead";
 import { crossingDiagnostics } from "./crossings";
+import { gridSpanHint, verifiedGridHints } from "./grid-hint";
 import { PairHeap } from "./heap";
 import { requestedLabelDiagnostics } from "./label-diagnostics";
 import { arrowheadRects, hasRequestedLabel, placeEdgeLabel } from "./labels";
@@ -167,6 +169,8 @@ export interface RouteResult {
 
 /** Routes the edges of a structured layout. `ir` is the Figure IR the layout was made from. */
 export interface RouteOptions {
+  /** Disable diagnostic trials inside a trial layout. */
+  hintTrials?: boolean;
   /**
    * Use the A* lower bound (default). `false` searches with Dijkstra (the
    * same costs, slower); tests compare the two.
@@ -188,7 +192,14 @@ export function routeEdges(
 ): RouteResult {
   // Zoom edges (#176) are not routed: the other edges are routed without
   // them, and their straight lines are added to the result (`zoom.ts`).
-  const routed = routeWithoutZoom(withoutZoomEdges(ir), withoutZoomLayouts(ir, layout), options);
+  const raw = routeWithoutZoom(withoutZoomEdges(ir), withoutZoomLayouts(ir, layout), options);
+  const routed =
+    options.hintTrials === false
+      ? raw
+      : {
+          ...raw,
+          diagnostics: verifiedGridHints(ir, layout, raw.diagnostics),
+        };
   if (routed.layout.edges.length === layout.edges.length) return routed;
   const zoom = addZoomRoutes(ir, layout, routed.layout);
   return {
@@ -733,6 +744,10 @@ class Router {
             : at.off === "overlap"
               ? `${me} and ${them} overlap or one holds the other, so no side of ${me} faces ${them}`
               : `the centre of ${them} is not in line with the ${at.side} side of ${me} (at least ${STRAIGHT_MARGIN / 2}pt inside its corners)`;
+      const gridHint =
+        at.off === "diagonal" || at.off === "beyond"
+          ? gridSpanHint(this.#ir, this.#layout, selfKey, otherKey)
+          : undefined;
       this.#diagnostics.push({
         code: "layout/straight-off-side",
         severity: "warning",
@@ -740,10 +755,11 @@ class Router {
         path: [...(source?.path ?? ["edges", edge.index]), field],
         ...(source?.location !== undefined && { location: source.location }),
         subject: { kind: "edge", id: edge.id ?? `edges[${edge.index}]` },
-        hint:
+        hint: `${gridHint === undefined ? "" : `${gridHint} `}${
           at.off === "beyond"
             ? `Bring ${them} over ${me} (the order or align of the arrange box, or figure.layout.align), widen ${me}, or write a side anchor instead (e.g. "${at.side}:0.5").`
-            : `Put ${me} and ${them} in line (one above the other in a stack, or side by side in a row), or write a side anchor instead (e.g. "north:0.5").`,
+            : `Put ${me} and ${them} in line (one above the other in a stack, or side by side in a row), or write a side anchor instead (e.g. "north:0.5").`
+        }`,
       });
     }
   }
@@ -778,6 +794,13 @@ class Router {
       attached.length === 0
         ? ""
         : ` ${attached.join(", ")}: an attached node takes no space in the arrange tree, so attach it to another side, put it in the tree, or widen the gap it sits in.`;
+    const gridHints = (["fromAnchor", "toAnchor"] as const).flatMap((field) => {
+      if (edge[field] !== "straight") return [];
+      const self = field === "fromAnchor" ? edge.from : edge.to;
+      const other = field === "fromAnchor" ? edge.to : edge.from;
+      const hint = gridSpanHint(this.#ir, this.#layout, self, other);
+      return hint === undefined ? [] : [hint];
+    });
     this.#diagnostics.push({
       code: "layout/no-route",
       severity: "error",
@@ -785,7 +808,7 @@ class Router {
       path: source?.path ?? ["edges", edge.index],
       ...(source?.location !== undefined && { location: source.location }),
       subject: { kind: "edge", id: edge.id ?? `edges[${edge.index}]` },
-      hint: `Leave room around the elements it connects (a gap of at least 2 × 3pt plus the arrowhead between facing sides), connect other sides with fromAnchor / toAnchor, or use a different anchor for each end.${attachHint}`,
+      hint: `${gridHints.length > 0 ? `${gridHints.join(" ")} ` : ""}Leave room around the elements it connects (a gap of at least 2 × 3pt plus the arrowhead between facing sides), connect other sides with fromAnchor / toAnchor, or use a different anchor for each end.${attachHint}`,
       ...(related.length > 0 && { related }),
     });
   }
@@ -937,7 +960,9 @@ class Router {
       if (isJunction(nodeIR.get(node.key))) junctions.push(node);
       else solid.push(node.rect);
     }
-    this.#obstacles = layout.nodes.map((node) => ({ key: node.key, rect: node.rect }));
+    this.#obstacles = layout.nodes
+      .filter((node) => nodeIR.get(node.key)?.component !== SEPARATOR_ID)
+      .map((node) => ({ key: node.key, rect: node.rect }));
     const xs = new Set<number>();
     const ys = new Set<number>();
     const addRect = (r: Rect, inflate: number) => {

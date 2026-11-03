@@ -9,8 +9,9 @@ gap. Grid items identify their column or column span. Attached nodes report the
 horizontal overhang beyond their container's arrange bounds. Concrete edits are
 recommended only after independent in-memory structured layout and routing trials
 verify a smaller page width; they are ranked by measured reduction in mm.
-At most six candidates are tried per diagnostic. Figures above 100 elements or
-40 edges, or with external assets, use neutral measurements without trials.
+At most six candidates are tried per diagnostic (the same trial budget as the
+grid hints). Figures above 80 elements, without an arrange tree, or with
+external assets use neutral measurements without trials.
 No verified improvement also produces neutral wording. Apply one edit and
 re-check: independent savings are not additive.
 All lengths are printed mm, including `figure.fit: scale`.
@@ -34,6 +35,13 @@ for fixed-size items; reduce gaps or avoid stretching a panel for tighter
 title/caption spacing. Intentional whitespace needs no change; this does
 not consume `maxWarnings`. The conservative threshold need not report
 every panel worth improving.
+
+## Panel separators (0.12.0)
+
+- `component/separator-placement`: put the separator directly in a row or stack,
+  not with `attach` or directly in a grid cell.
+- `component/separator-connection`: a separator is decoration, not an edge
+  endpoint; connect the panel's actual nodes instead.
 
 ## Weighted structured stretch
 

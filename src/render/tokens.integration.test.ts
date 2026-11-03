@@ -15,11 +15,53 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { ElementKey } from "../core/check-state";
 import type { Diagnostic } from "../core/diagnostics";
+import { BUILTIN_THEMES } from "../core/theme/builtin";
 import type { LayoutIR } from "../layout/ir";
 import { lintRenderedFigure } from "../lint/geometry/lint";
 import { type RenderedFigure, renderFigure } from "./render";
 
 const ROOT = join(import.meta.dir, "..", "..");
+
+test("multi-line tokens keep their columns when a cell is aligned (#305)", async () => {
+  const text = `version: 1
+figure:
+  id: repro
+  theme: paper
+  layout:
+    align:
+      - { x: [ head, emb.1 ] }
+    arrange:
+      stack: { direction: up, gap: 10pt, items: [ emb, head ] }
+nodes:
+  - id: emb
+    component: tokens
+    props:
+      lineAlign: start
+      width: 16pt
+      height: 14pt
+      lines:
+        - [ { label: "0" }, { label: "1" }, { label: "2" }, { label: "3" } ]
+        - [ { label: a }, { label: b }, { label: c }, { label: d } ]
+  - { id: head, component: box, label: Head }
+`;
+  for (const theme of BUILTIN_THEMES.keys()) {
+    const report = await lintRenderedFigure(text, { overrides: { theme } });
+    expect(report.rendered).toBeDefined();
+    const layout = layoutOf(report.rendered as RenderedFigure);
+    for (let i = 1; i <= 4; i++) {
+      const top = layout.nodes.find((n) => n.key === `n:emb-${i}`);
+      const bottom = layout.nodes.find((n) => n.key === `n:emb-${i + 4}`);
+      expect(top?.rect.x).toBe(bottom?.rect.x);
+    }
+    expect(report.diagnostics.filter((d) => d.severity !== "info").map((d) => d.code)).toEqual([
+      "lint/no-edges",
+      "layout/unsatisfied-align",
+    ]);
+    const warning = report.diagnostics.find((d) => d.code === "layout/unsatisfied-align");
+    expect(warning?.path).toEqual(["figure", "layout", "align", 0]);
+    expect(warning?.location?.line).toBe(7);
+  }
+});
 
 async function render(
   file: string,

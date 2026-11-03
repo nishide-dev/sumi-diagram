@@ -1,10 +1,11 @@
 import { expect, spyOn, test } from "bun:test";
 import { formatMm } from "../../core/units";
+import { MAX_HINT_ELEMENTS, MAX_HINT_TRIALS } from "../../layout/hint-trials";
 import * as engine from "../../layout/structured/engine";
 import { printedSize } from "../../render/size";
 import { geometryContextFor, lintGeometry, lintRenderedFigure } from "./lint";
 import { exceedsPageWidth, groupEmptyArea } from "./rules";
-import { MAX_HINT_ELEMENTS, MAX_HINT_TRIALS, verifyHints } from "./verified";
+import { verifyHints } from "./verified";
 
 const gridProbe = (count: number, span = false) => `version: 1
 figure:
@@ -156,4 +157,17 @@ nodes:
     { rules: [groupEmptyArea] },
   );
   expect(after.diagnostics.some((d) => d.subject?.id === "g")).toBe(true);
+});
+
+test("a separator is neither a width candidate nor an obstacle to verified width hints", async () => {
+  const report = await lintRenderedFigure(`version: 1
+figure: { id: sep, layout: { engine: structured, arrange: { row: { gap: 30mm, items: [a, s, b] } } } }
+nodes:
+  - { id: a, component: box, label: A, props: { width: 300pt } }
+  - { id: s, component: separator }
+  - { id: b, component: box, label: B, props: { width: 300pt } }
+`);
+  const hint = report.diagnostics.find((d) => d.code === exceedsPageWidth.id)?.hint;
+  expect(hint).toContain("set figure.layout.arrange.row.gap to 0mm (page width reduced by");
+  expect(hint).not.toMatch(/node "s"/);
 });

@@ -35,6 +35,7 @@ const LOWERING: Record<string, string> = {
   "sumi/trapezoid": "rectangle",
   "sumi/bowtie": "rectangle",
   "sumi/bracket": "rectangle",
+  "sumi/separator": "rectangle",
   "sumi/stack": "rectangle",
   "sumi/label": "text",
   "sumi/operator": "circle",
@@ -125,6 +126,7 @@ describe("built-in components lower to standard D2 shapes", () => {
       // Only the components the auto engine cannot draw are left to the structured figure.
       expect(STRUCTURED_ONLY_MANIFESTS.map((m) => m.name)).toEqual([
         "bracket",
+        "separator",
         "legend",
         "tokens",
         "matrix",
