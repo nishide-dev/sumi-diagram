@@ -173,6 +173,8 @@ written; errors make the exit code 1. Configure like structural rules
 | `geometry/exceeds-page-height` | error | paper profiles 220mm, `presentation-16x9` 190.5mm: auto: `direction: right`, fewer layers; structured: re-arrange (a long stack as a row of stacks), smaller `gap`s; or split the figure |
 | `geometry/text-too-small` | error | as `profile/font-too-small` (safety net); under `figure.fit: scale` a label printed below 5pt (a 7pt `sublabel` does at 71%): make the figure narrower so it shrinks less, or write the text into the label. HTML: font-size × placed/viewport scale × page-fit scale |
 | `geometry/script-too-small` | info | with `fit: scale`, math subscripts print below 5pt; one finding per figure; scripts are exempt from the minimum |
+| `geometry/heavy-scaling` | info | `fit: scale` prints below 90%; reports scale, natural/printed width and the width breakdown before scaling; review the layout or use a wider profile |
+| `geometry/dead-space` | info | up to three empty rectangles, each ≥27% of canvas and ≥10mm on both sides at printed size, with position and mm; outside group/body/label/arrow footprints, excluding outer margins; review unexplained voids, keep intentional space |
 | `geometry/label-overflow` | error | remove or enlarge explicit `width`/`height` (`path` points at `props`), shorten or break the label, or use a roomier shape (`box`) |
 | `geometry/out-of-canvas` | error | shorten labels; if it persists, a Sumi bug |
 | `geometry/node-overlap` | warning | review explicit sizes; auto: same group; structured: an attached node in a `gap` overlaps its neighbour: put it in the tree, attach to a free side, or widen the `gap` ([attach](structured.md#attach-side-notes)) |
@@ -210,8 +212,9 @@ of their own size) are recommended only if the trial shows a smaller width, rank
 mm saved. **Auto:** the top-level horizontal footprint and observed gaps, not
 ELK's internal layers or spacing; overlapping x-ranges and grid spans are merged,
 blank tracks cannot be reconstructed; margins, strokes, edges and labels can also
-widen the page. Lengths are printed mm (also under `fit: scale`). Sumi never
-shrinks a figure automatically.
+widen the page. Lengths are printed mm; `geometry/heavy-scaling` explicitly uses
+natural, pre-scaling mm so the same breakdown remains available under `fit: scale`.
+Sumi never shrinks a figure automatically.
 
 Procedure: apply the hint's edit (or shorten labels), re-run, repeat: a second
 row may become the widest. Then, by cost: auto: `direction: down`, fewer nodes
