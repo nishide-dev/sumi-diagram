@@ -79,8 +79,8 @@ groups:
 - `stack` runs top to bottom (`direction: down`, default) or bottom to top
   (`up`: the first item is at the bottom, like a network drawn from input to
   output). `row` runs left to right (`right`, default) or right to left (`left`).
-- `gap`: a length with a unit or `0` (items touch, e.g. a block and its
-  `Add & Norm`; never connect touching items with an edge: `layout/no-route`).
+- `gap`: a length with a unit or `0` (items touch, e.g. a filter and its
+  gain; never connect touching items with an edge: `layout/no-route`).
 - `align` places items across the box (stack: `start` = left; row: `start` =
   top). `stretch` widens (stack) or heightens (row) boxes, groups and
   box-like nodes to the largest; `label`, `circle`, `square`, `trapezoid`,
@@ -282,7 +282,7 @@ edges:
 ## Sublabels
 
 **`sublabel`** draws a second, smaller text right under a node's label, e.g.
-a tensor size (`label: Noise, sublabel: "32 × 32 × 4"`): 7/8 of the label's
+a tensor size (`label: Mask, sublabel: "64 × 64"`): 7/8 of the label's
 size rounded down to 0.5pt (7pt under 8pt; 14pt under 16pt in `slides`),
 centred, the node sized around both. Line breaks and math work as in labels;
 with `labelRotation` both turn together. It needs a label
@@ -299,12 +299,12 @@ figure:
   id: sublabels
   theme: color
   layout:
-    arrange: { row: { gap: 6mm, items: [latent, noise] } }
+    arrange: { row: { gap: 6mm, items: [features, mask] } }
 nodes:
-  - { id: latent, component: box, label: "Noised\nLatent", sublabel: "32 × 32 × 4", tone: gray }
-  - { id: noise, component: box, label: Noise, sublabel: "32 × 32 × 4", tone: gray }
+  - { id: features, component: box, label: "Feature\nMap", sublabel: "64 × 64 × 3", tone: gray }
+  - { id: mask, component: box, label: Mask, sublabel: "64 × 64", tone: gray }
 edges:
-  - { from: latent, to: noise }
+  - { from: features, to: mask }
 ```
 
 ## Turned labels
@@ -325,14 +325,14 @@ figure:
   id: turned-labels
   theme: academic
   layout:
-    arrange: { row: { gap: 6mm, items: [query, vae, out] } }
+    arrange: { row: { gap: 6mm, items: [query, backbone, out] } }
 nodes:
   - { id: query, component: label, label: Query, labelRotation: -90 }
-  - { id: vae, component: box, label: Visual VAE Encoder, labelRotation: -90 }
+  - { id: backbone, component: box, label: Shared Backbone, labelRotation: -90 }
   - { id: out, component: box, label: Latent }
 edges:
-  - { from: query, to: vae }
-  - { from: vae, to: out }
+  - { from: query, to: backbone }
+  - { from: backbone, to: out }
 ```
 
 ## Text align
@@ -356,14 +356,14 @@ nodes:
 ## Attach: side notes
 
 ```yaml
-- { id: pe, component: circle, icon: tabler/wave-sine, attach: { to: add, side: west, gap: 1mm } }
-- { id: pe-label, component: label, label: "Positional\nEncoding", attach: { to: pe, side: west, gap: 0.5mm } }
+- { id: config, component: circle, icon: tabler/adjustments, attach: { to: add, side: west, gap: 1mm } }
+- { id: config-label, component: label, label: "Sensor\nconfig", attach: { to: config, side: west, gap: 0.5mm } }
 - { id: repeat, component: label, label: "N×", attach: { to: encoder, side: east, gap: 2mm } }
 ```
 
 `attach: { to, side, gap }` puts a node outside the trees, centred on the
-`side` of a node or group, `gap` away (default 0); chains work (`pe-label` →
-`pe` → `add`). The attached node joins its target's group, which (or the
+`side` of a node or group, `gap` away (default 0); chains work (`config-label` →
+`config` → `add`). The attached node joins its target's group, which (or the
 canvas) grows to hold it. Corner sides `north-east`, `south-east`,
 `south-west`, `north-west` place it outside both sides with the gap on each
 axis (a [badge](assets.md#corner-badges) is instead centred on the corner);
@@ -489,7 +489,7 @@ skips are single horizontal lines. The `key` legend is [below](#legends).
 A table-like block (rows of the same kinds of element repeated in columns,
 with row headings) is a [grid](#grids): headings in the first column, one
 column per repeated unit, a `null` cell and a `span` for an element under
-the columns. `align: stretch` makes the columns even and the refiner as wide
+the columns. `align: stretch` makes the columns even and the ensemble box as wide
 as the columns; `straight` anchors give vertical lines. (Alternative when
 columns hold items of different heights: a `row` of column `stack`s plus one
 `y` [align](#aligning-across-trees) per heading, with the root row at
@@ -500,7 +500,7 @@ through one cell (`k0.1`) or as a whole (`k0`).
 # expect-render: fits
 version: 1
 figure:
-  id: stream-table
+  id: model-table
   theme: paper
   profile: paper-double
   layout:
@@ -511,38 +511,38 @@ figure:
         columnGap: 4mm
         align: stretch
         items:
-          - h-visual                  # row 1: heading, then one cell per column
-          - f0
-          - f1
-          - f2
-          - h-action
+          - h-data                    # row 1: heading, then one cell per column
+          - d0
+          - d1
+          - d2
+          - h-flags
           - k0
           - k1
           - k2
-          - h-text
+          - h-model
           - p0
           - p1
           - p2
           - null                      # blank under the headings
-          - { item: refiner, span: 3 }
+          - { item: merge, span: 3 }
 nodes:
-  - { id: h-visual, component: label, label: Frames }
-  - { id: h-action, component: label, label: Keys }
-  - { id: h-text, component: label, label: Encoders }
-  - { id: f0, component: box, label: Frame 0, tone: gray, variant: filled }
-  - { id: f1, component: box, label: Frame 1, tone: gray, variant: filled }
-  - { id: f2, component: box, label: Frame 2, tone: gray, variant: filled }
-  - { id: k0, component: tokens, tone: orange, props: { component: square, variant: outlined, gap: 1pt, width: 11pt, height: 11pt, cells: [ A, S, D ] } }
-  - { id: k1, component: tokens, tone: orange, props: { component: square, variant: outlined, gap: 1pt, width: 11pt, height: 11pt, cells: [ { label: A, variant: filled }, S, D ] } }
-  - { id: k2, component: tokens, tone: orange, props: { component: square, variant: outlined, gap: 1pt, width: 11pt, height: 11pt, cells: [ A, S, { label: D, variant: filled } ] } }
-  - { id: p0, component: box, label: Encoder, tone: purple, variant: outlined }
-  - { id: p1, component: box, label: Encoder, tone: purple, variant: outlined }
-  - { id: p2, component: box, label: Encoder, tone: purple, variant: outlined }
-  - { id: refiner, component: box, label: Token Refiner, tone: gray, variant: filled }
+  - { id: h-data, component: label, label: Data }
+  - { id: h-flags, component: label, label: Options }
+  - { id: h-model, component: label, label: Models }
+  - { id: d0, component: box, label: Split 0, tone: gray, variant: filled }
+  - { id: d1, component: box, label: Split 1, tone: gray, variant: filled }
+  - { id: d2, component: box, label: Split 2, tone: gray, variant: filled }
+  - { id: k0, component: tokens, tone: orange, props: { component: square, variant: outlined, gap: 1pt, width: 11pt, height: 11pt, cells: [ a, b, c ] } }
+  - { id: k1, component: tokens, tone: orange, props: { component: square, variant: outlined, gap: 1pt, width: 11pt, height: 11pt, cells: [ { label: a, variant: filled }, b, c ] } }
+  - { id: k2, component: tokens, tone: orange, props: { component: square, variant: outlined, gap: 1pt, width: 11pt, height: 11pt, cells: [ a, b, { label: c, variant: filled } ] } }
+  - { id: p0, component: box, label: Model, tone: purple, variant: outlined }
+  - { id: p1, component: box, label: Model, tone: purple, variant: outlined }
+  - { id: p2, component: box, label: Model, tone: purple, variant: outlined }
+  - { id: merge, component: box, label: Ensemble, tone: gray, variant: filled }
 edges:
-  - { from: p0, to: refiner, toAnchor: straight }
-  - { from: p1, to: refiner, toAnchor: straight }
-  - { from: p2, to: refiner, toAnchor: straight }
+  - { from: p0, to: merge, toAnchor: straight }
+  - { from: p1, to: merge, toAnchor: straight }
+  - { from: p2, to: merge, toAnchor: straight }
 ```
 
 ## Edges: anchors, junctions and trunks
@@ -563,19 +563,18 @@ greedily: edges declared first get the best routes.
   otherwise `layout/unaligned-ends` reports the remaining step.
 - **`straight`** (`toAnchor: straight` / `fromAnchor: straight`): the end sits in line
   with the other end on the side facing it, so the line has no jog. Use it for narrow
-  boxes in a row feeding a wide one (patches into a projection, encoders into a
-  refiner) instead of computing `"south:0.3127"`; put it on the **wide** box's end
+  boxes in a row feeding a wide one (patches into a projection, models into an
+  ensemble) instead of computing `"south:0.3127"`; put it on the **wide** box's end
   (`fromAnchor` when it is the source). No side is written; an unanchored other end
   takes the facing side. Two sources in line with one point merge there. If the other
   element's centre is not over the side (at least 3pt inside its corners), the two are
   diagonal or overlapping, or parallel edges run from a wide box into a narrow one,
   `layout/straight-off-side` (warning) and the end acts as if unanchored: line them up
   in the tree, put `straight` on the wide end, or write a side anchor.
-- **Encoder output into a decoder block** (Transformer K and V): both edges leave the
-  encoder's top block with `fromAnchor: north` (one shared trunk) and enter at
-  `toAnchor: "south:0.2"` (K) and `"south:0.4"` (V), Q coming from the decoder's own
-  split junction at `"south:0.8"`; with the default `"south:0.5"` the lines tangle (no
-  diagnostic: look at the preview).
+- **Two inputs from another column, one from its own**: the two edges from the other
+  column leave its top block with `fromAnchor: north` (one shared trunk) and enter at
+  `toAnchor: "south:0.2"` and `"south:0.4"`, the column's own input at `"south:0.8"`;
+  with the default `"south:0.5"` the lines tangle (no diagnostic: look at the preview).
 - **Default sides** (no anchor) follow the arrange tree: take the box where the two
   ends' branches part; in a stack the ends use north / south, in a row east / west,
   towards the other end (an attached node counts as its target's place). If the ends
@@ -592,11 +591,11 @@ greedily: edges declared first get the best routes.
   (`component/anchor-on-junction`, warning).
 
   ```yaml
-  # residual connection: split before the block, re-enter at the side
-  - { from: split, to: attention, toAnchor: "south:0.2" }   # Q
-  - { from: split, to: attention, toAnchor: "south:0.5" }   # K
-  - { from: split, to: attention, toAnchor: "south:0.8" }   # V
-  - { from: split, to: norm, toAnchor: west }               # residual
+  # one input entering a block at three points, plus a bypass to the side of the ⊕
+  - { from: split, to: mixer, toAnchor: "south:0.2" }
+  - { from: split, to: mixer, toAnchor: "south:0.5" }
+  - { from: split, to: mixer, toAnchor: "south:0.8" }
+  - { from: split, to: add, toAnchor: west }               # bypass
   ```
 
 - **Shared trunk (bus)**: edges leaving one element at the same anchor share a line until
@@ -718,7 +717,7 @@ label or anchors (`component/unexpected-label`, `component/anchor-on-zoom`).
 
 ```yaml
 edges:
-  - { from: dit-block, to: adaln-panel, component: zoom }
+  - { from: block, to: block-detail, component: zoom }
 ```
 
 The corners follow where the target lies (to the right: source top-right and bottom-right
@@ -769,7 +768,7 @@ edges:
 ## Token sequences
 
 A **`tokens`** node writes a row (or column) of cells (sequence tokens, patches,
-keys) as one node; edges address its cells.
+options) as one node; edges address its cells.
 
 ```yaml
 # expect-render: fits
@@ -782,10 +781,10 @@ figure:
       stack:
         gap: 5mm
         items:
-          - refiner
-          - row: { gap: 6mm, align: end, items: [seq, keys] }
+          - pool
+          - row: { gap: 6mm, align: end, items: [seq, cluster] }
 nodes:
-  - { id: refiner, component: box, label: Token Refiner, tone: gray }
+  - { id: pool, component: box, label: Pooling, tone: gray }
   - id: seq
     component: tokens
     tone: purple
@@ -793,15 +792,15 @@ nodes:
       gap: 1.5pt
       height: 14pt
       cells:
-        - { id: static, label: Static, tone: gray }
-        - { id: a1, label: '$A_1$' }
-        - { id: a2, label: '$A_2$' }
+        - { id: prefix, label: Prefix, tone: gray }
+        - { id: x1, label: '$x_1$' }
+        - { id: x2, label: '$x_2$' }
         - { label: '…', component: label }
-  - id: keys
+  - id: cluster
     component: tokens
-    props: { gap: 1pt, component: square, lineAlign: center, lines: [[W], [{ label: A, tone: orange }, S, D]] }
+    props: { gap: 1pt, component: square, lineAlign: center, lines: [[a], [{ label: b, tone: orange }, c, d]] }
 edges:
-  - { from: refiner, to: seq.a2 }
+  - { from: pool, to: seq.x2 }
 ```
 
 - **Cells.** A cell is a label string or `{ id, label, tone, mono, component,
@@ -810,11 +809,11 @@ edges:
   component: label }` or math such as `'$A_{\ldots}$'`. The node has no label of
   its own (put a `label` node beside it). `props.variant: outlined` gives every
   cell a coloured frame and text in its tone; a cell's `variant: solid` is a
-  pressed key (strong fill, white text); `tinted` gives pastel action cells
+  selected cell (strong fill, white text); `tinted` gives pastel highlighted cells
   (both also work in legend `node` samples).
 - **Direction and lines.** `gap` and `align` are those of an arrange box;
-  `direction: down` makes a column. `lines: [[W], [A, S, D]]` (instead of
-  `cells`) stacks several rows, `lineGap` apart, e.g. a key cluster.
+  `direction: down` makes a column. `lines: [[a], [b, c, d]]` (instead of
+  `cells`) stacks several rows, `lineGap` apart, e.g. a small cluster.
   **`lineAlign`** places the lines across (the catalog lists the values;
   omitted inherits from the enclosing box): `start` flushes the shorter lines to
   the start (left for a row), `center` centres them, `end` flushes them to the
@@ -824,7 +823,7 @@ edges:
   block, `layout/unsatisfied-align`: wrap the tokens in a `row` (for `x`) or
   `stack` (`y`). Naming the whole node aligns its frame, not a cell.
 - **Addressing.** Edges, `attach.to` and `align` name a cell **`<node>.<cell>`**:
-  its `id`, or its 1-based position when it has none (`keys.3`). With `lines`
+  its `id`, or its 1-based position when it has none (`cluster.3`). With `lines`
   positions count continuously in **written line order**, then written cell
   order; they do not restart per line or change with `direction`: for
   `lines: [["0", "1"], [a, b]]`, `emb.1` is `"0"`, `emb.2` is `"1"`, `emb.3` is
@@ -843,24 +842,24 @@ edges:
   draws an entry of `figure.assets` as a picture cell: a column of patches is one
   node instead of nine `image` nodes and edges
   ([assets](assets.md#reusing-one-picture-figureassets)).
-- Each cell is drawn as a node `<node>-<cell>` (`seq-a2`, `keys-2`): diagnostics
+- Each cell is drawn as a node `<node>-<cell>` (`seq-x2`, `cluster-2`): diagnostics
   name it so; your IDs must avoid them (`ref/reserved-id`); an unknown cell is
   `ref/unknown-cell`. Place tokens in a tree, never with `attach`
   (`layout/attached-tokens`). Cells without a label are fine; a cell cannot be an
   `operator`, `junction`, `image`, `legend` or `tokens` (`component/invalid-prop`).
 
-Key numbering and line alignment in one figure (`keys.1` is `W`, `keys.4` is `D`):
+Cell numbering and line alignment in one figure (`cluster.1` is `a`, `cluster.4` is `d`):
 
 ```yaml
 # expect-render: fits
 version: 1
 figure:
-  id: key-lines
+  id: cluster-lines
   theme: paper
   layout:
-    arrange: { row: { gap: 10mm, align: center, items: [keys, action] } }
+    arrange: { row: { gap: 10mm, align: center, items: [cluster, select] } }
 nodes:
-  - id: keys
+  - id: cluster
     component: tokens
     props:
       component: square
@@ -869,10 +868,10 @@ nodes:
       gap: 1pt
       lineGap: 2pt
       lineAlign: center      # start | center | end | stretch: the short first line sits over the middle
-      lines: [[W], [A, S, D]]
-  - { id: action, component: box, label: Action, tone: orange, variant: filled }
+      lines: [[a], [b, c, d]]
+  - { id: select, component: box, label: Selection, tone: orange, variant: filled }
 edges:
-  - { from: keys.4, to: action }   # D: lines count 1 (W), 2 (A), 3 (S), 4 (D)
+  - { from: cluster.4, to: select }   # d: lines count 1 (a), 2 (b), 3 (c), 4 (d)
 ```
 
 ## Matrices
@@ -884,24 +883,24 @@ mask, allowed and blocked pairs) with optional row and column headers.
 # expect-render: fits
 version: 1
 figure:
-  id: attention-mask
+  id: pair-mask
   theme: paper
   layout:
-    arrange: { row: { gap: 5mm, align: center, items: [qkv, mask, key] } }
+    arrange: { row: { gap: 5mm, align: center, items: [scores, mask, key] } }
 nodes:
-  - { id: qkv, component: box, label: QKV, tone: blue, variant: filled }
+  - { id: scores, component: box, label: Scores, tone: blue, variant: filled }
   - id: mask
     component: matrix
     props:
-      corner: Q / K
-      rows: [S, { label: '$A_1$', tone: purple }, { label: '$V_1$', tone: orange }]
-      columns: [S, { label: '$A_1$', tone: purple }, { label: '$V_1$', tone: orange }]
+      corner: i / j
+      rows: [P, { label: '$x_1$', tone: purple }, { label: '$y_1$', tone: orange }]
+      columns: [P, { label: '$x_1$', tone: purple }, { label: '$y_1$', tone: orange }]
       cellWidth: 12pt
       gap: 1.5pt
       variant: filled
       classes:
         o: { tone: green, label: Allowed }
-        L: { tone: orange, label: "A↔V Link" }
+        L: { tone: orange, label: "x–y pair" }
         .: { pattern: hatch, label: Masked }
       cells: [o.o, ooL, oLo]
   - id: key
@@ -909,7 +908,7 @@ nodes:
     props:
       entries: [{ class: mask.o }, { class: mask.L }, { class: mask.. }]
 edges:
-  - { from: qkv, to: mask }
+  - { from: scores, to: mask }
 ```
 
 - `classes` names each class (1–16 characters, e.g. `o`, `.`) with a `tone`, box `variant`,
@@ -954,10 +953,10 @@ nodes:
       ellipsisRows: [3]
       ellipsisColumns: [3]
       cells:
-        - [{ class: d, text: '$I_1\cdot T_1$' }, o, o, { class: o, text: '$I_1\cdot T_N$' }]
-        - [o, { class: d, text: '$I_2\cdot T_2$' }, o, o]
+        - [{ class: d, text: '$a_1\cdot b_1$' }, o, o, { class: o, text: '$a_1\cdot b_N$' }]
+        - [o, { class: d, text: '$a_2\cdot b_2$' }, o, o]
         - [o, o, o, o]
-        - [{ class: o, text: '$I_N\cdot T_1$' }, o, o, { ellipsis: "…" }]
+        - [{ class: o, text: '$a_N\cdot b_1$' }, o, o, { ellipsis: "…" }]
 ```
 
 ## Spacing that routes

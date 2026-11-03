@@ -177,18 +177,19 @@ switch silently.
 
 ## 4. Success: a structured block diagram
 
-Request: "For one paper column, draw a Transformer encoder layer the way papers do:
-inputs at the bottom, input embedding, positional encoding added with a ⊕, then N×
-[attention + add & norm, feed forward + add & norm] with residuals; math labels for the
-inputs and outputs." Stacked layers, residuals and a side note are a structured figure
+Request: "For one paper column, draw our sensor front end: the raw signal at the
+bottom, calibration with the sensor configuration fed in from the side, then K×
+[a low-, band- and high-pass filter, each with its own gain, combined and added to a
+bypass of the filters]; math labels for the signals." A stage of touching blocks, a
+bypass and a side note are a structured figure
 ([choose](layout-tips.md#choose-the-engine-first)); icon search `sumi catalog --icons
-"wave sine"` → `tabler/wave-sine`.
+adjustments` → `tabler/adjustments`.
 
 ```yaml
 # expect-render: fits
 version: 1
 figure:
-  id: encoder-block
+  id: sensor-frontend
   theme: academic
   profile: paper-single
   layout:
@@ -196,64 +197,73 @@ figure:
       stack:
         direction: up # first item at the bottom
         gap: 4mm
-        items: [ inputs, embedding, add-pe, encoder, outputs ]
+        items: [ raw, calibrate, stage, clean ]
 
 groups:
-  - id: encoder
+  - id: stage
     arrange:
       stack:
         direction: up
         gap: 3mm
-        align: stretch # every block as wide as the widest
+        align: stretch # Combine as wide as the three bands
         items:
-          - split1
-          - stack: { direction: up, gap: 0, items: [ attention, norm1 ] } # touching blocks
-          - split2
-          - stack: { direction: up, gap: 0, items: [ feed-forward, norm2 ] }
+          - split
+          - row:
+              gap: 3mm
+              items:
+                # one touching filter + gain pair per band
+                - stack: { direction: up, gap: 0, align: stretch, items: [ low, gain-low ] }
+                - stack: { direction: up, gap: 0, align: stretch, items: [ band, gain-band ] }
+                - stack: { direction: up, gap: 0, align: stretch, items: [ high, gain-high ] }
+          - combine
+          - add
 
 nodes:
-  - { id: inputs, component: label, label: '$x_1,\,\ldots,\,x_n$' }
-  - { id: embedding, component: box, label: Input Embedding, tone: pink }
-  - { id: add-pe, component: operator, props: { symbol: plus } }
-  - { id: pe, component: circle, icon: tabler/wave-sine, attach: { to: add-pe, side: west, gap: 1mm } }
-  - { id: pe-label, component: label, label: "Positional\nEncoding", attach: { to: pe, side: west, gap: 0.5mm } }
-  - { id: split1, component: junction, variant: hidden }
-  - { id: attention, component: box, label: "Multi-Head\nAttention", tone: orange }
-  - { id: norm1, component: box, label: Add & Norm, tone: yellow }
-  - { id: split2, component: junction, variant: hidden }
-  - { id: feed-forward, component: box, label: Feed Forward, tone: blue }
-  - { id: norm2, component: box, label: Add & Norm, tone: yellow }
-  - { id: repeat, component: label, label: '$N \times$', attach: { to: encoder, side: east, gap: 2mm } }
-  - { id: outputs, component: label, label: '$h_1,\,\ldots,\,h_n$' }
+  - { id: raw, component: label, label: '$u_t$' }
+  - { id: calibrate, component: box, label: Calibration, tone: gray }
+  - { id: config, component: circle, icon: tabler/adjustments, attach: { to: calibrate, side: west, gap: 2mm } }
+  - { id: config-label, component: label, label: "Sensor\nconfig", attach: { to: config, side: west, gap: 0.5mm } }
+  - { id: split, component: junction, variant: hidden }
+  - { id: low, component: box, label: Low-pass, tone: blue }
+  - { id: gain-low, component: box, label: '$g_1$', tone: yellow }
+  - { id: band, component: box, label: Band-pass, tone: blue }
+  - { id: gain-band, component: box, label: '$g_2$', tone: yellow }
+  - { id: high, component: box, label: High-pass, tone: blue }
+  - { id: gain-high, component: box, label: '$g_3$', tone: yellow }
+  - { id: combine, component: box, label: Combine, tone: green }
+  - { id: add, component: operator, props: { symbol: plus } }
+  - { id: repeat, component: label, label: '$K \times$', attach: { to: stage, side: east, gap: 2mm } }
+  - { id: clean, component: label, label: '$\hat{y}_t$' }
 
 edges:
-  - { from: inputs, to: embedding }
-  - { from: embedding, to: add-pe }
-  - { from: pe, to: add-pe, component: line }
-  - { from: add-pe, to: split1, component: line }
-  # one junction fans out to Q, K, V and the residual
-  - { from: split1, to: attention, toAnchor: "south:0.2" }
-  - { from: split1, to: attention, toAnchor: "south:0.5" }
-  - { from: split1, to: attention, toAnchor: "south:0.8" }
-  - { from: split1, to: norm1, toAnchor: west } # residual
-  - { from: norm1, to: split2, component: line }
-  - { from: split2, to: feed-forward }
-  - { from: split2, to: norm2, toAnchor: west } # residual
-  - { from: norm2, to: outputs }
+  - { from: raw, to: calibrate }
+  - { from: config, to: calibrate, component: line }
+  - { from: calibrate, to: split, component: line }
+  # one hidden junction fans out to the three bands and the bypass
+  - { from: split, to: low }
+  - { from: split, to: band }
+  - { from: split, to: high }
+  - { from: gain-low, to: combine, toAnchor: straight }
+  - { from: gain-band, to: combine, toAnchor: straight }
+  - { from: gain-high, to: combine, toAnchor: straight }
+  - { from: combine, to: add }
+  - { from: split, to: add, toAnchor: west } # bypass around the filters
+  - { from: add, to: clean }
 ```
 
 ```sh
-$ sumi fmt encoder-block.sumi.yaml && sumi lint encoder-block.sumi.yaml
+$ sumi fmt sensor-frontend.sumi.yaml && sumi lint sensor-frontend.sumi.yaml
 0 errors, 0 warnings, 0 infos
-$ sumi render encoder-block.sumi.yaml
-Wrote encoder-block.svg: 51.68mm × 81.49mm (paper-single, max width 88mm; theme academic).
+$ sumi render sensor-frontend.sumi.yaml
+Wrote sensor-frontend.svg: 83.26mm × 68.09mm (paper-single, max width 88mm; theme academic).
 ```
 
-Points to note: every node and group appears once, in a tree or with
-`attach`; members come from the group's `arrange` (no `group:`); `gap: 0`
-stacks join each block to its `Add & Norm`; edges into junctions are `line`s
-and the junctions `hidden`, so Q, K, V and the residual fork without a dot;
-math labels are single-quoted with `\,` after commas. `academic` maps tones
+Points to note: every node and group appears once, in a tree or with `attach`
+(`config-label` → `config` → `calibrate` is a chain); members come from the group's
+`arrange` (no `group:`); `gap: 0` stacks join each filter to its gain; the edge into the
+junction is a `line` and the junction `hidden`, so the three bands and the bypass fork
+without a dot; the bypass enters the ⊕ at `west`; `align: stretch` makes Combine as wide
+as the bands, so `straight` gives three vertical lines; math labels are single-quoted. `academic` maps tones
 to gray steps; `theme: color` colours the same YAML.
 
 ## 5. Failure: no room for the arrows
@@ -330,10 +340,11 @@ width 88mm; theme color).`, exit 0.
 
 ## 6. Success: a paper figure
 
-Request: "For a full-width figure, in the style of the DiT paper: (a) the model: four
-patches into the encoder, layer norm, a linear head with two 32×32×4 outputs; (b) the
-encoder block enlarged; (c) the cross-attention variant we compared against, drawn pale."
-Structured, theme `paper`, the [paper figure recipe](layout-tips.md#paper-figure-recipe);
+Request: "For a full-width figure: (a) our model: four input chunks into the backbone,
+a norm, a linear head with two 64 × 64 outputs (mean and scale); (b) the backbone block
+enlarged; (c) the gated variant we compared against, drawn pale." Structured, theme
+`paper`, [planned](layout-tips.md#plan-the-layout-before-writing-yaml) as one row of
+three equally tall panels, model first (left to right: overview, detail, comparison);
 `paper-double` is given, nothing to ask.
 
 ```yaml
@@ -349,7 +360,7 @@ figure:
     arrange:
       row:
         align: stretch # panels equally tall, so the captions share a line
-        items: [ model, block, cross ]
+        items: [ model, block, gated ]
 groups:
   - id: model
     caption: (a) Model
@@ -358,69 +369,67 @@ groups:
       stack:
         direction: up
         align: stretch
-        items: [ patches, encoder, norm, head, { row: { items: [ noise, sigma ] } } ]
+        items: [ chunks, backbone, norm, head, { row: { items: [ mean, scale ] } } ]
   - id: block # the paper container: light gray, rounded
-    caption: (b) Encoder block
-    arrange: # a stretched group centres its tree vertically: a row with align: end moves it to the bottom
-      row: { align: end, items: [ { stack: { direction: up, align: stretch, items: [ b-in, b-norm, b-attn, b-add, b-out ] } } ] }
-  - id: cross
-    caption: (c) Cross-attention variant
+    caption: (b) Backbone block
+    arrange:
+      # a stretched group centres its tree vertically: a row with align: end moves it to the bottom
+      row: { align: end, items: [ { stack: { direction: up, align: stretch, items: [ b-in, b-norm, b-conv, b-add, b-out ] } } ] }
+  - id: gated
+    caption: (c) Gated variant
     dim: true # the compared variant: pale, with everything inside
     arrange:
-      row: { align: end, items: [ { stack: { direction: up, align: stretch, items: [ c-in, c-norm, c-attn, c-add, c-out ] } } ] }
+      row: { align: end, items: [ { stack: { direction: up, align: stretch, items: [ g-in, g-norm, g-conv, g-add, g-out ] } } ] }
 nodes:
-  - id: patches
+  - id: chunks
     component: tokens # one node for a row of cells; edges name a cell
     tone: purple
-    props: { variant: outlined, gap: 1.5pt, cells: [ P1, P2, P3, P4 ] }
-  - { id: encoder, component: box, label: Encoder, props: { height: 28pt } }
-  - { id: norm, component: box, label: Layer Norm, tone: blue, variant: filled }
+    props: { variant: outlined, gap: 1.5pt, cells: [ C1, C2, C3, C4 ] }
+  - { id: backbone, component: box, label: Backbone, props: { height: 28pt } }
+  - { id: norm, component: box, label: Norm, tone: blue, variant: filled }
   - { id: head, component: box, label: Linear, tone: green, variant: filled }
-  - { id: noise, component: box, label: Noise, sublabel: 32 × 32 × 4, tone: gray, variant: filled }
-  - { id: sigma, component: box, label: Variance, sublabel: 32 × 32 × 4, tone: gray, variant: filled }
-  - { id: b-in, component: box, label: Input Tokens, tone: gray, variant: filled }
-  - { id: b-norm, component: box, label: Layer Norm, tone: blue, variant: filled }
-  - { id: b-attn, component: box, label: Self-Attention, tone: orange, variant: filled }
+  - { id: mean, component: box, label: Mean, sublabel: 64 × 64, tone: gray, variant: filled }
+  - { id: scale, component: box, label: Scale, sublabel: 64 × 64, tone: gray, variant: filled }
+  - { id: b-in, component: box, label: Input, tone: gray, variant: filled }
+  - { id: b-norm, component: box, label: Norm, tone: blue, variant: filled }
+  - { id: b-conv, component: box, label: Conv 3×3, tone: orange, variant: filled }
   - { id: b-add, component: operator, props: { symbol: plus } }
   - { id: b-out, component: junction, variant: hidden }
-  - { id: c-in, component: box, label: Input Tokens, tone: gray, variant: filled }
-  - { id: c-norm, component: box, label: Layer Norm, tone: blue, variant: filled }
-  - { id: c-attn, component: box, label: Cross-Attention, tone: red, variant: filled }
-  - { id: c-add, component: operator, props: { symbol: plus } }
-  - { id: c-out, component: junction, variant: hidden }
+  - { id: g-in, component: box, label: Input, tone: gray, variant: filled }
+  - { id: g-norm, component: box, label: Norm, tone: blue, variant: filled }
+  - { id: g-conv, component: box, label: Gated Conv, tone: red, variant: filled }
+  - { id: g-add, component: operator, props: { symbol: plus } }
+  - { id: g-out, component: junction, variant: hidden }
 edges:
-  - { from: patches.1, to: encoder, toAnchor: straight } # each cell straight up
-  - { from: patches.2, to: encoder, toAnchor: straight }
-  - { from: patches.3, to: encoder, toAnchor: straight }
-  - { from: patches.4, to: encoder, toAnchor: straight }
-  - { from: encoder, to: norm, component: line }
+  - { from: chunks.1, to: backbone, toAnchor: straight } # each cell straight up
+  - { from: chunks.2, to: backbone, toAnchor: straight }
+  - { from: chunks.3, to: backbone, toAnchor: straight }
+  - { from: chunks.4, to: backbone, toAnchor: straight }
+  - { from: backbone, to: norm, component: line }
   - { from: norm, to: head, component: line }
-  - { from: head, fromAnchor: straight, to: noise } # leaves the wide box in line
-  - { from: head, fromAnchor: straight, to: sigma }
-  - { from: encoder, to: block, component: zoom } # dashed corner-to-corner callout
+  - { from: head, fromAnchor: straight, to: mean } # leaves the wide box in line
+  - { from: head, fromAnchor: straight, to: scale }
+  - { from: backbone, to: block, component: zoom } # dashed corner-to-corner callout
   - { from: b-in, to: b-norm, component: line }
-  - { from: b-norm, to: b-attn, component: line }
-  - { from: b-attn, to: b-add, component: line }
+  - { from: b-norm, to: b-conv, component: line }
+  - { from: b-conv, to: b-add, component: line }
   - { from: b-in, to: b-add, toAnchor: west, tone: blue } # residual, colored
   - { from: b-add, to: b-out }
-  - { from: c-in, to: c-norm, component: line }
-  - { from: c-norm, to: c-attn, component: line }
-  - { from: c-attn, to: c-add, component: line }
-  - { from: c-in, to: c-add, toAnchor: west }
-  - { from: c-add, to: c-out }
+  - { from: g-in, to: g-norm, component: line }
+  - { from: g-norm, to: g-conv, component: line }
+  - { from: g-conv, to: g-add, component: line }
+  - { from: g-in, to: g-add, toAnchor: west }
+  - { from: g-add, to: g-out }
 ```
 
 ```sh
 $ sumi fmt paper-recipe.sumi.yaml && sumi lint paper-recipe.sumi.yaml
 0 errors, 0 warnings, 0 infos
 $ sumi render paper-recipe.sumi.yaml
-Wrote paper-recipe.svg: 116.24mm × 54.15mm (paper-double, max width 180mm; theme paper).
+Wrote paper-recipe.svg: 100.89mm × 54.15mm (paper-double, max width 180mm; theme paper).
 ```
 
-Points to note: the panels are groups in one `row` with `align: stretch`
-(captions share a line; (a) is `plain`, (b) and (c) put their stack in a `row`
-with `align: end` so inputs sit at the bottom); `dim: true` pales all of (c);
-the patch and output edges use `straight` on the wide box's end; `zoom` draws
-the dashed callout to panel (b); `density: compact` sets spacing, so no `gap`.
-`fit: scale` changes nothing here; had the figure been wider than 180mm,
-`render` would print `scaled to …%`: tell the user.
+Points to note (the YAML comments say the rest): (b) and (c) put their stack in a
+`row` with `align: end` so their inputs sit at the bottom, level with (a)'s; every panel
+reads bottom to top and repeats the tones of the same parts (norms `blue`). Had the
+figure been wider than 180mm, `render` would print `scaled to …%`: tell the user.

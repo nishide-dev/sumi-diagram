@@ -186,7 +186,7 @@ distinguishable colours use `color` (`paper` for a paper figure).
 ```yaml
 nodes:
   - { id: attention, component: box, label: Attention, tone: orange }
-  - { id: encoder, component: box, label: H3 Encoder, tone: purple, variant: outlined }
+  - { id: encoder, component: box, label: Text Encoder, tone: purple, variant: outlined }
 edges:
   - { from: attention, to: encoder, tone: orange }
 ```
@@ -199,8 +199,8 @@ edges also `dashed`) change how the tone is drawn:
 | `default` | tone as a pastel fill, black frame | all |
 | `filled` | tone fill without outline (a block cannot be both `filled` and `muted`) | box-like shapes, `operator` (not `stack`) |
 | `outlined` | white node, outline and text in the tone's line colour (without a tone: gray's line) | box-like shapes, `operator`, `stack` |
-| `tinted` | pastel fill, matching coloured border and text (encoders, action cells); text ink darkens just enough for 4.5:1 | box-like shapes, `operator`, `stack` |
-| `solid` | strong tone fill, white text (pressed keys, operators); solid stacks use white separators | box-like shapes, `operator`, `stack` |
+| `tinted` | pastel fill, matching coloured border and text (encoders, highlighted cells); text ink darkens just enough for 4.5:1 | box-like shapes, `operator`, `stack` |
+| `solid` | strong tone fill, white text (selected cells, operators); solid stacks use white separators | box-like shapes, `operator`, `stack` |
 | `muted`, `emphasis` | quieter / heavier | most; `emphasis` on an edge: heavier line and head (`paper`: black 1pt vs 0.5pt) |
 
 `outlined`, `tinted`, `solid` can also be set on tokens cells and legend node
@@ -222,7 +222,7 @@ fills stay strong).
 
 ```yaml
 groups:
-  - { id: cross, caption: Block with cross-attention, dim: true, arrange: … }
+  - { id: gated, caption: (c) Gated variant, dim: true, arrange: … }
 ```
 
 - Only `true` is accepted; it cannot be turned off inside. An edge with one end outside is
