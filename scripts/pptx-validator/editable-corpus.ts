@@ -7,12 +7,16 @@ import { componentSamples, outlinedToneSample } from "../gallery/samples";
 
 const root = resolve(import.meta.dir, "../..");
 export function editableCorpus() {
-  const inputs = [...new Bun.Glob("examples/*/*.sumi.yaml").scanSync(root)].sort().map((path) => ({
-    id: path.replace(/\.sumi\.yaml$/, ""),
-    source: readFileSync(resolve(root, path), "utf8"),
-    svgPath: path.replace(/\.sumi\.yaml$/, ".svg"),
-    overrides: {},
-  }));
+  const inputs = [
+    ...new Bun.Glob("examples/*/*.sumi.yaml").scanSync({ cwd: root, followSymlinks: true }),
+  ]
+    .sort()
+    .map((path) => ({
+      id: path.replace(/\.sumi\.yaml$/, ""),
+      source: readFileSync(resolve(root, path), "utf8"),
+      svgPath: path.replace(/\.sumi\.yaml$/, ".svg"),
+      overrides: {},
+    }));
   // The outlined-tone sample (#177): outlined nodes and toned edges and legend samples.
   for (const sample of [...componentSamples(), outlinedToneSample()])
     for (const r of sample.renderings)

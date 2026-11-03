@@ -25,7 +25,9 @@ import { inspectPdf, textLines } from "./testing";
 
 const ROOT = join(import.meta.dir, "..", "..", "..");
 const update = process.env.SUMI_UPDATE_GOLDEN === "1";
-const EXAMPLES = [...new Bun.Glob("examples/*/*.sumi.yaml").scanSync(ROOT)]
+const EXAMPLES = [
+  ...new Bun.Glob("examples/*/*.sumi.yaml").scanSync({ cwd: ROOT, followSymlinks: true }),
+]
   .map((p) =>
     p
       .split("\\")

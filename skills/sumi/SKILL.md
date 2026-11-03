@@ -242,7 +242,7 @@ Stop, report the current state (last diagnostics, what you tried) and ask when:
 - a command exits 2 for a reason you cannot fix (e.g. D2 missing).
 
 ## References
-
+Consult [reference figures](examples/README.md) only when the user asks for that model or figure style; they are not templates for unrelated figures.
 [figure-format](references/figure-format.md) (fields, feature versions, labels, math,
 tones and variants, groups, components, themes, profiles, mistakes) ·
 [structured](references/structured.md) (arrange trees, grids, separators, titles, attach,

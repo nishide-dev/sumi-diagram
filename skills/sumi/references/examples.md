@@ -1,5 +1,7 @@
 # Worked examples
 
+For a requested model or figure style only, consult the [bundled reference figures](../examples/README.md); they are not templates for unrelated figures.
+
 **Purpose.** Real runs of the workflow (outputs abbreviated); `sumi` is the
 skill's `scripts/sumi` wrapper. Contents: 1 [decision flow](#1-success-a-decision-flow) ·
 2 [unknown component](#2-failure-an-unknown-component) · 3 [too wide](#3-failure-too-wide-for-the-target) ·

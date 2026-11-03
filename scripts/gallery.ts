@@ -69,7 +69,9 @@ const sameBytes = (a: Uint8Array, b: Uint8Array) =>
   a.length === b.length && a.every((byte, i) => byte === b[i]);
 
 const samples = componentSamples();
-const exampleSources = [...new Bun.Glob("examples/*/*.sumi.yaml").scanSync(ROOT)]
+const exampleSources = [
+  ...new Bun.Glob("examples/*/*.sumi.yaml").scanSync({ cwd: ROOT, followSymlinks: true }),
+]
   .map((p) => p.split("\\").join("/"))
   .sort();
 const compare = comparison();
