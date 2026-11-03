@@ -211,7 +211,7 @@ export function checkAssets(state: CheckState, locate: Locator): void {
         continue;
       }
       if (typeof asset === "string") {
-        const names = Object.keys(state.doc.figure?.assets ?? {});
+        const names = state.doc.assetNames ?? Object.keys(state.doc.figure?.assets ?? {});
         if (!names.includes(asset)) {
           const near = closestMatch(asset, names);
           fail(

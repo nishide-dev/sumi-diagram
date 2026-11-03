@@ -6,6 +6,7 @@
 import { describe, expect, test } from "bun:test";
 import { checkD2Version, findD2Binary } from "../backends/d2/binary";
 import { compileFigure } from "../compiler/compile";
+import { ASSETS_DIR } from "../compiler/testing";
 import { renderFigure } from "../render/render";
 import { loadFigureAssets } from "./load";
 
@@ -128,6 +129,17 @@ describe("figure.assets and props.asset", () => {
     expect(badName.length).toBeGreaterThan(0);
   });
 
+  test("an asset entry with its own error is not also reported as unknown", () => {
+    for (const entry of [`{ svg: '${photo}', src: x.png }`, `{ svg: '${photo}', html: x }`]) {
+      const diagnostics = codes(
+        figure(image("a", "asset: photo"), `  assets:\n    photo: ${entry}\n`, "[a]"),
+      );
+      expect(diagnostics.length).toBeGreaterThan(0);
+      expect(diagnostics.map((d) => d.code)).not.toContain("asset/unknown-asset");
+      expect(diagnostics.every((d) => d.path?.[0] === "figure")).toBe(true);
+    }
+  });
+
   test("a figure's asset that does not load is reported at its definition, and a pinned sha256 is checked", () => {
     const pinned = `  assets:\n    photo:\n      sha256: "${"0".repeat(64)}"\n      svg: '${photo}'\n`;
     const compiled = compileFigure(figure(image("a", "asset: photo"), pinned, "[a]"));
@@ -182,11 +194,18 @@ describe("props.crop", () => {
       });
       expect(loaded.diagnostics[0]?.location?.line).toBe(10);
     }
-    const raster = load("asset: x, crop: [0, 0, 1, 1]", "  assets:\n    x: { src: png-rgb.png }\n");
-    expect(
-      raster.diagnostics[0]?.code === "asset/not-found" ||
-        raster.diagnostics[0]?.code === "asset/invalid-crop",
-    ).toBe(true);
+    const rasterFigure = compileFigure(
+      figure(
+        image("a", "asset: x, crop: [0, 0, 1, 1]"),
+        "  assets:\n    x: { src: gradient.png }\n",
+        "[a]",
+      ),
+    );
+    if (!rasterFigure.ok) throw new Error(JSON.stringify(rasterFigure.diagnostics));
+    const raster = loadFigureAssets(rasterFigure.value.ir, { base: ASSETS_DIR });
+    expect(raster.diagnostics[0]).toMatchObject({ code: "asset/invalid-crop" });
+    expect(raster.diagnostics[0]?.hint).toContain("SVG assets only");
+    expect(raster.diagnostics[0]?.hint).not.toContain("viewBox");
   });
 
   test("a crop needs positive numbers (4 of them)", () => {

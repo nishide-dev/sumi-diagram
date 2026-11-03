@@ -249,7 +249,9 @@ export function loadFigureAssets(
               location: (image.cropAt ?? image.srcAt).location,
             }),
             subject: { kind: "node", id: node.id },
-            hint: "Give [x, y, width, height] inside the asset's viewBox, in its coordinates.",
+            hint: cropped.includes("raster")
+              ? "crop applies to SVG assets only; draw a raster asset without crop, or cut the picture beforehand."
+              : "Give [x, y, width, height] inside the asset's viewBox, in its coordinates.",
           });
           continue;
         }

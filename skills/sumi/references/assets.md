@@ -224,7 +224,12 @@ through the safe importer once; every image that names it shares the result.
 coordinates, inside it) draws only that rectangle, so patches are cut from
 one picture. `crop` works on SVG assets only (not PNG/JPEG) and needs
 `asset`; `src`, `svg` and `asset` are exclusive on one image, and `sha256`
-goes on the `figure.assets` entry.
+goes on the `figure.assets` entry (quote it in YAML: an unquoted all-digit
+hash is read as a number).
+
+Each use embeds its own copy of the picture in the output (a crop is its own
+SVG); the 16 MiB/32 MiB budgets count the asset once, but a raster asset used
+N times makes the SVG about N times larger.
 
 Worked example, 3×3 patches of one 120×120 picture (each patch 40×40):
 
