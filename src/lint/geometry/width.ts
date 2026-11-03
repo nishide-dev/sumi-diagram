@@ -25,6 +25,8 @@ interface Run {
   name: string;
   items: Footprint[];
   rect: Rect;
+  /** Prefer a detailed row/grid over an equally wide stack or root union. */
+  priority: number;
 }
 
 /**
@@ -81,7 +83,7 @@ export function widthBreakdown(context: GeometryContext): string {
     const rect = unionOf(items.map((child) => child.rect));
     if (!rect) return undefined;
     const name = `${path}.${item.kind}`;
-    if (item.kind !== "stack") runs.push({ name, items, rect });
+    runs.push({ name, items, rect, priority: item.kind === "stack" ? 1 : 0 });
     return { name, rect };
   };
   const containers: { name: string; tree: ArrangeBoxIR | undefined; parent?: ElementKey }[] = [
@@ -112,13 +114,17 @@ export function widthBreakdown(context: GeometryContext): string {
   });
   const root = unionOf(rootItems.map((item) => item.rect));
   const structured = context.ir.meta.engine === "structured";
-  if (!structured && root)
-    runs.push({ name: "auto horizontal footprint", items: rootItems, rect: root });
-  if (structured && runs.length === 0 && root)
-    runs.push({ name: "structured horizontal footprint", items: rootItems, rect: root });
+  if (root)
+    runs.push({
+      name: `${structured ? "structured" : "auto"} horizontal footprint`,
+      items: rootItems,
+      rect: root,
+      priority: 2,
+    });
   // Stable path ordering resolves equal-width runs deterministically.
   const widest = runs.sort(
-    (a, b) => b.rect.width - a.rect.width || a.name.localeCompare(b.name),
+    (a, b) =>
+      b.rect.width - a.rect.width || a.priority - b.priority || a.name.localeCompare(b.name),
   )[0];
   const parts: string[] = [];
   const pageWidth = printedSize(context.inspection).widthPt;
@@ -152,20 +158,34 @@ export function widthBreakdown(context: GeometryContext): string {
   }
   if (attachments.length)
     parts.push(
-      `Attach expansion beyond arrange bounds: ${attachments.map((item) => `${item.name} +${mm(item.width)}`).join(", ")} (incremental within each container; nested containers are not additive).`,
+      `Attach expansion beyond arrange bounds: ${attachments
+        .slice(0, 6)
+        .map((item) => `${item.name} +${mm(item.width)}`)
+        .join(
+          ", ",
+        )}${attachments.length > 6 ? `; ${attachments.length - 6} more` : ""} (incremental within each container; nested containers are not additive).`,
     );
   const labels = context.elements
     .flatMap((element) =>
-      element.labels.flatMap((label) =>
-        label.box && label.label.text.length > 0 ? [{ element, width: label.box.width }] : [],
-      ),
+      element.labels.flatMap((label) => {
+        if (!label.box || label.label.text.length === 0) return [];
+        // A label inside an explicitly sized body cannot shrink that body.
+        // For overflow, only the overhang is potentially removable, not the
+        // entire measured text width. Auto-sized bodies remain uncertain.
+        const fixed = element.ir.kind === "node" && element.ir.width !== undefined;
+        const width =
+          fixed && element.bbox
+            ? (unionOf([element.bbox, label.box]) as Rect).width - element.bbox.width
+            : label.box.width;
+        return width > 0 ? [{ element, width, measured: label.box.width }] : [];
+      }),
     )
     .sort((a, b) => b.width - a.width || a.element.name.localeCompare(b.element.name));
   const longest = labels[0];
   if (longest)
     candidates.push({
       width: longest.width,
-      text: `shorten or wrap the label of ${longest.element.name} (${mm(longest.width)} measured; fixed widths may still dominate)`,
+      text: `shorten or wrap the label of ${longest.element.name} (${mm(longest.measured)} measured; fixed widths may still dominate)`,
     });
   if (root) {
     const drawnWidthPt = unitsToPt(root.width * (context.inspection.scale ?? 1));

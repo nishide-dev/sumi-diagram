@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { printedSize } from "../../render/size";
 import { lintRenderedFigure } from "./lint";
 import { compile, label, lintSpec } from "./testing";
 
@@ -33,6 +34,70 @@ describe("page width attribution (#307)", () => {
     );
     expect(result).toContain('node "b" 35.28mm, node "a" 17.64mm');
     expect(result).toContain("reduce the largest observed gap (7.06mm)");
+  });
+
+  test.each(["row", "grid"])("a wider stack child dominates a small nested %s", (kind) => {
+    const text = source(
+      `{ stack: { items: [a, { ${kind}: { ${kind === "grid" ? "columns: 2, columnGap" : "gap"}: 5mm, items: [b, c] } }] } }`,
+      "  - { id: c, component: box, label: C, props: { width: 20pt } }\n",
+    );
+    const result = hint(text, {
+      "n:a": { bbox: rect(0, 600) },
+      "n:b": { bbox: rect(0, 40, 40) },
+      "n:c": { bbox: rect(70, 40, 40) },
+    });
+    expect(result).toContain("figure.layout.arrange.stack = 105.83mm");
+    expect(result).toContain('node "a" 105.83mm');
+    expect(result).not.toContain("reduce the largest observed gap");
+  });
+
+  test("real dominant stack child remains attributed when the unrelated gap is removed", async () => {
+    const text = source(
+      "{ stack: { items: [a, { row: { gap: 5mm, items: [b, c] } }] } }",
+      "  - { id: c, component: box, label: C, props: { width: 20pt } }\n",
+    )
+      .replace("width: 120pt", "width: 300pt")
+      .replace("width: 150pt", "width: 20pt");
+    const before = await lintRenderedFigure(text);
+    const after = await lintRenderedFigure(text.replace("gap: 5mm", "gap: 0mm"));
+    expect(before.rendered).toBeDefined();
+    expect(after.rendered).toBeDefined();
+    if (!before.rendered || !after.rendered) throw new Error("render failed");
+    expect(printedSize(after.rendered.inspection).widthPt).toBe(
+      printedSize(before.rendered.inspection).widthPt,
+    );
+    const finding = before.diagnostics.find((d) => d.code === "geometry/exceeds-page-width");
+    expect(finding?.hint).toContain('node "a" 105.83mm');
+    expect(finding?.hint).not.toContain("reduce the largest observed gap");
+  });
+
+  test("fixed-width contained labels cannot outrank an effective row gap edit", async () => {
+    const text = source("{ row: { gap: 20mm, items: [a, b] } }")
+      .replace("width: 120pt", "width: 150pt")
+      .replace("label: A", 'label: "A moderately long label"');
+    const before = await lintRenderedFigure(text);
+    const shorter = await lintRenderedFigure(text.replace("A moderately long label", "A"));
+    const tighter = await lintRenderedFigure(text.replace("gap: 20mm", "gap: 0mm"));
+    if (!before.rendered || !shorter.rendered || !tighter.rendered)
+      throw new Error("render failed");
+    expect(before.diagnostics.some((d) => d.code === "geometry/label-overflow")).toBe(false);
+    const width = printedSize(before.rendered.inspection).widthPt;
+    expect(printedSize(shorter.rendered.inspection).widthPt).toBe(width);
+    expect(width - printedSize(tighter.rendered.inspection).widthPt).toBeGreaterThan(56);
+    const finding = before.diagnostics.find((d) => d.code === "geometry/exceeds-page-width");
+    expect(finding?.hint).toContain(
+      "Largest measured candidates (not guaranteed savings): reduce the largest observed gap",
+    );
+    expect(finding?.hint).not.toContain("shorten or wrap the label");
+  });
+
+  test("fixed-width label overflow ranks by overhang rather than full text width", () => {
+    const result = hint(row, {
+      "n:a": { bbox: rect(0, 100), labels: [label("漢漢漢漢漢漢漢", 50, 15)] },
+      "n:b": { bbox: rect(140, 200) },
+    });
+    expect(result).toContain("shorten or wrap the label");
+    expect(result.indexOf("candidates (not guaranteed savings): reduce")).toBeGreaterThan(0);
   });
 
   test("grid columns, blank cells and spans do not double-count x-projections", () => {
@@ -78,6 +143,28 @@ describe("page width attribution (#307)", () => {
     expect(result).toContain("29.99mm (26.46mm occupied x-projection + 3.53mm observed gaps)");
   });
 
+  test("an 80-attachment chain caps detail and summarizes the remainder deterministically", () => {
+    const extra = Array.from(
+      { length: 80 },
+      (_, i) =>
+        `  - { id: c${i}, component: box, label: C, attach: { to: ${i === 0 ? "b" : `c${i - 1}`}, side: east } }\n`,
+    ).join("");
+    const elements: Parameters<typeof hint>[1] = {
+      "n:a": { bbox: rect(0, 100) },
+      "n:b": { bbox: rect(140, 200) },
+    };
+    for (let i = 0; i < 80; i++) elements[`n:c${i}`] = { bbox: rect(350 + i * 110, 100) };
+    const text = source("{ row: { items: [a, b] } }", extra);
+    const original = structuredClone(elements);
+    const result = hint(text, elements);
+    const detail = result.split("Attach expansion beyond arrange bounds: ")[1]?.split(" (")[0];
+    expect(detail?.match(/node /g)).toHaveLength(6);
+    expect(detail).toContain("74 more");
+    expect(result.length).toBeLessThan(1800);
+    expect(hint(text, elements)).toBe(result);
+    expect(elements).toEqual(original);
+  });
+
   test("nested groups report north/west attach chains without adding container totals", () => {
     const text = `version: 1
 figure: { id: nested, layout: { arrange: { stack: { items: [g] } } } }
@@ -94,7 +181,8 @@ nodes:
       "n:b": { bbox: rect(-50, 200, -40) },
       "n:c": { bbox: rect(-150, 100, -40) },
     });
-    expect(result).toContain('group "g".arrange.row = 17.64mm');
+    expect(result).toContain("figure.layout.arrange.stack = 70.56mm");
+    expect(result).toContain('group "g" 70.56mm');
     expect(result).toContain('node "b" +17.64mm, node "c" +17.64mm');
     expect(result).toContain("nested containers are not additive");
   });

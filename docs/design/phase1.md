@@ -2522,9 +2522,10 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 ### 6.87 #307 の Profile 幅超過の内訳
 
 - **再現**: v0.11.0 の `tests/fixtures/figures/geometry/exceeds-page-width.sumi.yaml` を `lint --geometry` で描画すると 130.35mm / 上限 88mm の error と一般的な対処しか得られず、どの間隔・要素を変えるか判断できなかった。ViT Figure 1 の dogfood と同じ問題を既存の汎用 fixture で再現した。
-- **判断**: 既存の `geometry/exceeds-page-width` の hint に、同じ描画から測った横幅の内訳を追加する。新しい診断コードやレイアウト変更は導入しない。structured は IR の row / grid を辿り、最も横に長い並びのパス・要素幅・占有 x 投影の和・観測された空きの和を示す。grid は列番号と span を併記し、重なる投影を二重計上しない。row がなければ最上位の footprint を使う。
+- **判断**: 既存の `geometry/exceeds-page-width` の hint に、同じ描画から測った横幅の内訳を追加する。新しい診断コードやレイアウト変更は導入しない。structured は IR の row / grid / stack と最上位 footprint をすべて比較し、最も横に長い並びのパス・要素幅・占有 x 投影の和・観測された空きの和を示す。同幅なら row / grid、stack、最上位 footprint の順で詳細な内訳を優先する。小さな row が存在しても、幅を支配する stack 子要素や padding を含む group の footprint を除外しない。grid は列番号と span を併記し、重なる投影を二重計上しない。
 - **attach**: 各 container の arrange の union から、attach を IR 順に足したときの横方向の増分を表示する。上・下への attach でも横にはみ出せば対象となる。container 内の増分は重複しないが、入れ子の container 同士は加算しない。attach 自身の幅全体と overhang を混同しない。
-- **候補と限界**: 最大の観測 gap、最も幅のある実測ラベル、attach の overhang を大きい順に最大 3 件示す。固定幅・別の行・stretch・align の制約があるので、その値を削減可能量とは呼ばない。grid の span や上下に並ぶ項目は x 投影の union とし、空の track の割り当ては推測しない。auto は最上位要素の実測投影に限定し、ELK の layer や内部 gap を復元したとは主張しない。本文と同じく印刷サイズ（scale 適用後）の mm を使い、最上位の union と page の幅には margin・stroke・edge / label の広がりが別途あることを明記する。
+- **候補と限界**: 選ばれた並びの最大の観測 gap、実測ラベル、attach の overhang を大きい順に最大 3 件示す。IR に明示幅のある node は、body 内に収まるラベルを候補から除外し、はみ出すラベルも全幅ではなく body 外への横方向の増分で順位付けする。自動幅のラベルは実測幅を用いる。別の行・stretch・align などの制約は残るので、その値を削減可能量とは呼ばない。項目の内訳と attach の詳細はそれぞれ最大 6 件で、残り件数を要約する。grid の span や上下に並ぶ項目は x 投影の union とし、空の track の割り当ては推測しない。auto は最上位要素の実測投影に限定し、ELK の layer や内部 gap を復元したとは主張しない。本文と同じく印刷サイズ（scale 適用後）の mm を使い、最上位の union と page の幅には margin・stroke・edge / label の広がりが別途あることを明記する。
+- **レビュー回帰**: 300pt の stack 子と 20pt × 2 / 5mm gap の小さな row（grid も検査）では 105.83mm の子を表示し、小さな gap を推奨しない。150pt × 2 / 20mm gap と body 内の長いラベルでは gap を先頭にし、ラベル短縮が無効・gap 削除が有効なことを実描画で確認する。80 個の attach chain では詳細 6 件 + 残り 74 件とし、決定性と入力の非破壊も検査する。
 - **互換性と検証**: コンパイラ・配置・出力を変更せず、hint のみを更新する。ネストした row、grid の空セル / span、attach、文字のみの要素、scale、auto の重複投影を単体テストし、structured / D2 の実描画でも診断を確認する。既存全 YAML × 元のテーマと全組み込みテーマの SVG / PDF / PPTX / D2 の sha256 比較で互換性を確認する。
 
 ## 7. 実装順
