@@ -199,7 +199,7 @@ names its Sumi means.
   into a row, reorder a row. Never add elements or enlarge boxes to fill it.
   *Sumi:* change the tree, `attach`, tokens `direction`. `geometry/dead-space`
   (info) names up to three non-overlapping empty rectangles outside bodies,
-  groups, arrows and labels: at least 25% of the canvas and 10mm on both sides
+  groups, arrows and labels: at least 27% of the canvas and 10mm on both sides
   at printed size. Outer margins are excluded; intentional whitespace can be
   suppressed on `lint --geometry` with `--rule geometry/dead-space=off`.
   Follow a verified hint if it helps; otherwise inspect the preview.

@@ -7,7 +7,7 @@
 
 - `geometry/dead-space`: ノード・group 全体・ラベル・badge・描画された矢印の
   保守的な外接矩形に重ならない最大の空き矩形を探す。外周 margin を除く内容の
-  外接矩形内で、canvas 面積の **25%以上**かつ印刷時の両辺が **10mm以上**の
+  外接矩形内で、canvas 面積の **27%以上**かつ印刷時の両辺が **10mm以上**の
   領域を最大3つ、互いに重ならない順に報告する。場所（top-left / bottom-left 等）・
   幅×高さ（mm）・面積比率を表示する。group 内部の空白は従来の規則が担当。
   構造化レイアウトでは既存の有限回の試行で診断が消える変更だけを hint にする。
@@ -18,7 +18,7 @@
 
 `lint --geometry` での抑止は `--rule geometry/dead-space=off` / `--rule geometry/heavy-scaling=off`、
 または lint 設定の `{"rules":{"geometry/dead-space":"off","geometry/heavy-scaling":"off"}}`。
-25%の根拠と意図的な catalogue の空白は設計 §6.96 を参照。
+27%の根拠と意図的な catalogue の空白は設計 §6.96 を参照。
 
 ## グループの空き面積（#248）
 

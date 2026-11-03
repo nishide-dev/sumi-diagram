@@ -7,10 +7,16 @@ import type { GeometryContext } from "./context";
 import { unionOf } from "./measure";
 import { verifyHints } from "./verified";
 
-export const DEAD_SPACE_THRESHOLD = 0.25;
+export const DEAD_SPACE_THRESHOLD = 0.27;
 const MIN_SIDE_PT = mmToPt(10);
 
-/** Exact largest axis-aligned empty rectangle for rectangular obstacles, clipped to frame. */
+/**
+ * Exact largest axis-aligned empty rectangle for rectangular obstacles, clipped
+ * to the frame. Coordinates are compressed to the obstacle edges; a sweep over
+ * the compressed rows keeps a histogram of empty heights and finds the maximal
+ * rectangles with a monotonic stack: O(X·Y + n·X) time, O(X + n) memory.
+ * Ties prefer the smaller x, then the smaller y, so results are deterministic.
+ */
 export function largestEmptyRect(
   frame: Rect,
   obstacles: readonly Rect[],
@@ -19,40 +25,84 @@ export function largestEmptyRect(
   if (frame.width <= 0 || frame.height <= 0) return undefined;
   const right = frame.x + frame.width;
   const bottom = frame.y + frame.height;
-  const boxes = obstacles.flatMap((box) => {
+  const boxes: Rect[] = [];
+  for (const box of obstacles) {
     const x = Math.max(frame.x, box.x);
     const y = Math.max(frame.y, box.y);
     const r = Math.min(right, box.x + box.width);
     const b = Math.min(bottom, box.y + box.height);
-    return r > x && b > y ? [{ x, y, width: r - x, height: b - y }] : [];
-  });
+    if (r > x && b > y) boxes.push({ x, y, width: r - x, height: b - y });
+  }
+  const order = (a: number, b: number) => a - b;
   const xs = [...new Set([frame.x, right, ...boxes.flatMap((b) => [b.x, b.x + b.width])])].sort(
-    (a, b) => a - b,
+    order,
   );
-  const byY = [...boxes].sort((a, b) => a.y - b.y);
+  const ys = [...new Set([frame.y, bottom, ...boxes.flatMap((b) => [b.y, b.y + b.height])])].sort(
+    order,
+  );
+  const xIndex = new Map(xs.map((v, i) => [v, i]));
+  const yIndex = new Map(ys.map((v, i) => [v, i]));
+  const cols = xs.length - 1;
+  const rows = ys.length - 1;
+  // Per compressed row: the obstacles that start and stop being active there.
+  const starts: number[][] = Array.from({ length: rows }, () => []);
+  const stops: number[][] = Array.from({ length: rows + 1 }, () => []);
+  const spans = boxes.map((box, i) => {
+    const y0 = yIndex.get(box.y) as number;
+    const y1 = yIndex.get(box.y + box.height) as number;
+    (starts[y0] as number[]).push(i);
+    (stops[y1] as number[]).push(i);
+    return [xIndex.get(box.x) as number, xIndex.get(box.x + box.width) as number] as const;
+  });
+  const blocked = new Int32Array(cols);
+  const height = new Float64Array(cols);
+  const stackAt = new Int32Array(cols + 1);
+  const stackHeight = new Float64Array(cols + 1);
   let best: Rect | undefined;
   let area = 0;
-  for (let i = 0; i < xs.length - 1; i++) {
-    const left = xs[i] as number;
-    for (let j = i + 1; j < xs.length; j++) {
-      const end = xs[j] as number;
-      const width = end - left;
-      if (width < minSide) continue;
-      if (width * frame.height <= area) continue;
-      let y = frame.y;
-      const consider = (stop: number) => {
-        const height = stop - y;
-        if (height >= minSide && width * height > area) {
-          area = width * height;
-          best = { x: left, y, width, height };
-        }
-      };
-      for (const box of byY) {
-        if (box.x >= end || box.x + box.width <= left) continue;
-        consider(box.y);
-        y = Math.max(y, box.y + box.height);
+  const consider = (left: number, end: number, h: number, bottomY: number) => {
+    const width = (xs[end] as number) - (xs[left] as number);
+    if (width < minSide || h < minSide) return;
+    const candidate = width * h;
+    const x = xs[left] as number;
+    const y = bottomY - h;
+    if (
+      !best ||
+      candidate > area ||
+      (candidate === area && (x < best.x || (x === best.x && y < best.y)))
+    ) {
+      area = candidate;
+      best = { x, y, width, height: h };
+    }
+  };
+  for (let row = 0; row < rows; row++) {
+    for (const i of stops[row] as number[]) {
+      const [l, r] = spans[i] as readonly [number, number];
+      for (let c = l; c < r; c++) blocked[c] = (blocked[c] as number) - 1;
+    }
+    for (const i of starts[row] as number[]) {
+      const [l, r] = spans[i] as readonly [number, number];
+      for (let c = l; c < r; c++) blocked[c] = (blocked[c] as number) + 1;
+    }
+    const step = (ys[row + 1] as number) - (ys[row] as number);
+    const bottomY = ys[row + 1] as number;
+    let top = 0;
+    for (let c = 0; c <= cols; c++) {
+      const h = c < cols && !blocked[c] ? (height[c] as number) + step : 0;
+      if (c < cols) height[c] = h;
+      let at = c;
+      while (top > 0 && (stackHeight[top - 1] as number) >= h) {
+        top--;
+        at = stackAt[top] as number;
+        const popped = stackHeight[top] as number;
+        // A bar equal to the incoming one extends into it instead of closing.
+        if (popped > 0 && popped > h) consider(at, c, popped, bottomY);
       }
-      consider(bottom);
+      if (h > 0) {
+        stackAt[top] = at;
+        stackHeight[top] = h;
+        top++;
+      }
     }
   }
   return best;
@@ -107,23 +157,51 @@ function footprints(context: GeometryContext): Rect[] {
   });
 }
 
+/**
+ * Unions boxes that share an extent on one axis and touch or overlap on the
+ * other (consecutive collinear wire segments, duplicate shared wires). The
+ * covered area is unchanged, so the empty-space search is identical, but far
+ * fewer obstacles remain.
+ */
+export function mergeAligned(boxes: readonly Rect[]): Rect[] {
+  let current = boxes.map((b) => ({ ...b }));
+  for (const horizontal of [true, false, true]) {
+    const groups = new Map<string, Rect[]>();
+    for (const box of current) {
+      const key = horizontal ? `${box.y}:${box.height}` : `${box.x}:${box.width}`;
+      const group = groups.get(key);
+      if (group) group.push(box);
+      else groups.set(key, [box]);
+    }
+    const next: Rect[] = [];
+    for (const group of groups.values()) {
+      group.sort((a, b) => (horizontal ? a.x - b.x : a.y - b.y));
+      let open = group[0] as Rect;
+      for (const box of group.slice(1)) {
+        const end = horizontal ? open.x + open.width : open.y + open.height;
+        const start = horizontal ? box.x : box.y;
+        if (start <= end) {
+          const boxEnd = horizontal ? box.x + box.width : box.y + box.height;
+          if (boxEnd > end) {
+            if (horizontal) open.width = boxEnd - open.x;
+            else open.height = boxEnd - open.y;
+          }
+        } else {
+          next.push(open);
+          open = box;
+        }
+      }
+      next.push(open);
+    }
+    current = next;
+  }
+  return current;
+}
+
 /** Ignore outer margins: only search inside the union of the content's extents. */
 export function figureDeadSpace(context: GeometryContext): Rect[] {
   const all = footprints(context);
-  // Whole group frames already occupy their descendants; remove redundant
-  // rectangles before the exact search, including duplicate shared wires.
-  const boxes = all.filter(
-    (a, i) =>
-      !all.some(
-        (b, j) =>
-          i !== j &&
-          b.x <= a.x &&
-          b.y <= a.y &&
-          b.x + b.width >= a.x + a.width &&
-          b.y + b.height >= a.y + a.height &&
-          (j < i || b.width * b.height > a.width * a.height),
-      ),
-  );
+  const boxes = mergeAligned(all);
   const content = unionOf(boxes);
   if (!content || context.canvas.width <= 0 || context.canvas.height <= 0) return [];
   const x = Math.max(content.x, context.canvas.x);
@@ -136,9 +214,12 @@ export function figureDeadSpace(context: GeometryContext): Rect[] {
   };
   const total = context.canvas.width * context.canvas.height;
   const scale = context.inspection.scale ?? 1;
+  // The area threshold already implies a minimum extent on each side (the
+  // frame never exceeds the canvas), so only the absolute floor is needed.
+  const minSide = (MIN_SIDE_PT * 2) / scale;
   const found: Rect[] = [];
   for (let i = 0; i < 3; i++) {
-    const rect = largestEmptyRect(frame, [...boxes, ...found], (MIN_SIDE_PT * 2) / scale);
+    const rect = largestEmptyRect(frame, [...boxes, ...found], minSide);
     if (!rect || (rect.width * rect.height) / total < DEAD_SPACE_THRESHOLD) break;
     found.push(rect);
   }
@@ -161,7 +242,7 @@ function position(rect: Rect, frame: Rect): string {
 export const deadSpace = defineGeometryRule({
   id: "geometry/dead-space",
   description:
-    "A figure-wide empty rectangle occupies at least 25% of the canvas and is at least 10mm on both sides.",
+    "A figure-wide empty rectangle occupies at least 27% of the canvas and is at least 10mm on both sides.",
   defaultSeverity: "info",
   fixable: false,
   run(context) {
@@ -174,7 +255,7 @@ export const deadSpace = defineGeometryRule({
         message: `The figure has large empty rectangles: ${rects.map((r) => `${position(r, context.canvas)} ${mm(r.width)} × ${mm(r.height)} (${((100 * r.width * r.height) / (context.canvas.width * context.canvas.height)).toFixed(1)}% of the canvas)`).join("; ")}.`,
         path: ["figure", "layout"],
         subject: { kind: "figure", id: context.ir.meta.id },
-        hint: `Whitespace can be intentional; review the layout before reducing gaps or scaling. ${verifyHints(context, "empty", (trial) => (figureDeadSpace(trial).length ? 1 : 0))} Suppress with geometry/dead-space: off in the lint configuration.`,
+        hint: `Whitespace can be intentional; review the layout before reducing gaps or scaling. ${verifyHints(context, "empty", (trial) => (figureDeadSpace(trial).length ? 1 : 0))} Suppress with sumi lint --geometry --rule geometry/dead-space=off, or {"rules":{"geometry/dead-space":"off"}} in the --config file.`,
       },
     ];
   },

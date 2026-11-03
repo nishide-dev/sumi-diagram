@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { deadSpace, figureDeadSpace, largestEmptyRect } from "./dead-space";
+import { deadSpace, figureDeadSpace, largestEmptyRect, mergeAligned } from "./dead-space";
 import { geometryContextFor, lintGeometry, lintRenderedFigure } from "./lint";
 import { heavyScaling } from "./rules";
 import { compile, inspection, label } from "./testing";
@@ -28,8 +28,8 @@ edges: [{ from: right, to: middle }]
 const compiled = compile(source);
 const canvas = { x: 0, y: 0, width: 1000, height: 1000 };
 const elements = {
-  "n:right": { bbox: { x: 650, y: 0, width: 350, height: 1000 } },
-  "n:middle": { bbox: { x: 0, y: 400, width: 650, height: 200 } },
+  "n:right": { bbox: { x: 700, y: 0, width: 300, height: 1000 } },
+  "n:middle": { bbox: { x: 0, y: 400, width: 700, height: 200 } },
 };
 
 test("DETR-shaped layout reports top-left and bottom-left with printed mm, area and suppression", () => {
@@ -45,18 +45,18 @@ test("DETR-shaped layout reports top-left and bottom-left with printed mm, area 
     subject: { kind: "figure", id: "corners" },
     location: { file: "corners.sumi.yaml", line: 2 },
   });
-  expect(findings[0]?.message).toContain("top-left 91.58mm × 56.3mm (25.9%");
-  expect(findings[0]?.message).toContain("bottom-left 91.58mm × 56.3mm (25.9%");
+  expect(findings[0]?.message).toContain("top-left 98.64mm × 56.3mm (27.9%");
+  expect(findings[0]?.message).toContain("bottom-left 98.64mm × 56.3mm (27.9%");
   expect(
     lintGeometry(input, { ...options, config: { rules: { "geometry/dead-space": "off" } } }),
   ).toEqual([]);
   expect(input.inspection).toEqual(original);
 });
 
-test("the 25% area boundary is inclusive, without rounding smaller voids up", () => {
+test("the 27% area boundary is inclusive, without rounding smaller voids up", () => {
   for (const [width, count] of [
-    [625, 2],
-    [624.9, 0],
+    [675, 2],
+    [674.9, 0],
   ] as const) {
     const context = geometryContextFor({
       compiled,
@@ -76,7 +76,7 @@ test("the 25% area boundary is inclusive, without rounding smaller voids up", ()
 test("painted arrows and labels occupy space, while hidden logical routes do not", () => {
   const crossing = [
     { x: 0, y: 200 },
-    { x: 650, y: 200 },
+    { x: 700, y: 200 },
   ];
   const run = (painted: boolean) =>
     lintGeometry(
@@ -106,7 +106,7 @@ test("painted arrows and labels occupy space, while hidden logical routes do not
       texts: ["Label"],
       lines: [],
       visibleLines: [],
-      box: { x: 0, y: 0, width: 650, height: 400 },
+      box: { x: 0, y: 0, width: 700, height: 400 },
     },
   ];
   expect(figureDeadSpace(c)).toHaveLength(1);
@@ -222,4 +222,42 @@ test("real blank grid cells report both left corners through the default lint pa
   const edited = await lintRenderedFigure(text.replace("width: 160pt, ", ""));
   expect(edited.diagnostics.some((d) => d.code === "geometry/dead-space")).toBe(false);
   expect(finding?.location?.line).toBe(6);
+});
+
+test("aligned touching or overlapping boxes merge without changing the covered area", () => {
+  const merged = mergeAligned([
+    { x: 0, y: 0, width: 5, height: 2 },
+    { x: 5, y: 0, width: 5, height: 2 },
+    { x: 8, y: 0, width: 4, height: 2 },
+    { x: 0, y: 2, width: 12, height: 2 },
+    { x: 20, y: 0, width: 1, height: 2 },
+  ]);
+  expect(merged).toHaveLength(2);
+  expect(merged).toContainEqual({ x: 0, y: 0, width: 12, height: 4 });
+  expect(merged).toContainEqual({ x: 20, y: 0, width: 1, height: 2 });
+});
+
+test("the empty-rectangle search stays fast and exact for thousands of obstacles", () => {
+  // Deterministic pseudo-random wire segments plus a known void in the corner.
+  let seed = 12345;
+  const next = () => {
+    seed = (seed * 1664525 + 1013904223) % 4294967296;
+    return seed / 4294967296;
+  };
+  const frame = { x: 0, y: 0, width: 1000, height: 1000 };
+  const boxes = Array.from({ length: 1500 }, () => {
+    const horizontal = next() < 0.5;
+    const x = 300 + next() * 690;
+    const y = 300 + next() * 690;
+    return horizontal
+      ? { x, y, width: 5 + next() * 60, height: 1 }
+      : { x, y, width: 1, height: 5 + next() * 60 };
+  });
+  const started = performance.now();
+  const rect = largestEmptyRect(frame, boxes, 20);
+  const elapsed = performance.now() - started;
+  expect(rect).toBeDefined();
+  expect((rect?.width ?? 0) * (rect?.height ?? 0)).toBeGreaterThanOrEqual(300 * 1000);
+  // Quadratic/cubic searches take seconds here; the sweep takes tens of ms.
+  expect(elapsed).toBeLessThan(1000);
 });
