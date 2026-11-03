@@ -290,6 +290,12 @@ export interface ImageIR {
   readonly src?: string;
   /** Original inline SVG source, never interpolated or rewritten before importing. */
   readonly svg?: string;
+  /** Name of a `figure.assets` entry (#310). */
+  readonly asset?: string;
+  /** `[x, y, width, height]` in the asset SVG's viewBox coordinates, with `asset` only. */
+  readonly crop?: readonly [number, number, number, number];
+  /** Where `props.crop` is written, for crop diagnostics. */
+  readonly cropAt?: SourceMapEntry;
   /** Validated HTML source and its fixed CSS-pixel viewport (#283). */
   readonly html?: string;
   readonly viewport?: { readonly width: number; readonly height: number };
@@ -350,7 +356,18 @@ export interface EdgeIR extends ElementIRBase {
 
 export type ElementIR = NodeIR | GroupIR | EdgeIR;
 
+/** One `figure.assets` entry (#310), imported once by `loadFigureAssets()`. */
+export interface AssetDefIR {
+  readonly src?: string;
+  readonly svg?: string;
+  readonly sha256?: string;
+  /** Where `src` or `svg` is written, for asset diagnostics. */
+  readonly at: SourceMapEntry;
+}
+
 export interface FigureIR {
+  /** `figure.assets` in document order; absent when not written. */
+  readonly assets?: ReadonlyMap<string, AssetDefIR>;
   /** Elements whose text colors are overridden by inherited dimming. */
   readonly dimmed?: readonly ElementKey[];
   readonly meta: FigureMetaIR;
@@ -555,8 +572,11 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
                 ? "html"
                 : typeof component.props.svg === "string"
                   ? "svg"
-                  : "src",
+                  : typeof component.props.asset === "string"
+                    ? "asset"
+                    : "src",
             ]),
+            sourceEntry(["nodes", index, "props", "crop"]),
           ),
         }),
         ...(caption !== undefined && { captionOf: groupKey(caption.group) }),
@@ -605,6 +625,28 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
         ...(figure.layout.density !== undefined && { density: figure.layout.density }),
         fontSetId: theme.fontSet.id,
       }),
+      ...(figure.assets !== undefined &&
+        Object.keys(figure.assets).length > 0 && {
+          assets: readonlyMap(
+            Object.entries(figure.assets).map(
+              ([name, def]) =>
+                [
+                  name,
+                  freeze({
+                    ...(def.src !== undefined && { src: def.src }),
+                    ...(def.svg !== undefined && { svg: def.svg }),
+                    ...(def.sha256 !== undefined && { sha256: def.sha256.toLowerCase() }),
+                    at: sourceEntry([
+                      "figure",
+                      "assets",
+                      name,
+                      def.src !== undefined ? "src" : "svg",
+                    ]),
+                  }),
+                ] as const,
+            ),
+          ),
+        }),
       groups: freeze(groups),
       nodes: freeze(nodes),
       edges: freeze(edges),
@@ -908,12 +950,20 @@ function iconIR(ref: string): IconIR {
   return freeze(parsed);
 }
 
-function imageIR(props: Record<string, unknown>, srcAt: SourceMapEntry): ImageIR {
-  const { src, svg, html, sha256, fit = "contain" } = props;
+function imageIR(
+  props: Record<string, unknown>,
+  srcAt: SourceMapEntry,
+  cropAt: SourceMapEntry,
+): ImageIR {
+  const { src, svg, html, asset, sha256, fit = "contain" } = props;
+  const crop = props.crop as [number, number, number, number] | undefined;
   const layers = props.layers as { count: number; offset: number } | undefined;
   // The component checks a source string and fit in IMAGE_FITS (manifest `embed`).
   if (
-    (typeof src !== "string" && typeof svg !== "string" && typeof html !== "string") ||
+    (typeof src !== "string" &&
+      typeof svg !== "string" &&
+      typeof html !== "string" &&
+      typeof asset !== "string") ||
     !(IMAGE_FITS as readonly unknown[]).includes(fit)
   ) {
     throw new Error("internal error: image props without src or with an unknown fit");
@@ -921,6 +971,11 @@ function imageIR(props: Record<string, unknown>, srcAt: SourceMapEntry): ImageIR
   return freeze({
     ...(typeof src === "string" && { src }),
     ...(typeof svg === "string" && { svg }),
+    ...(typeof asset === "string" && { asset }),
+    ...(crop !== undefined && {
+      crop: freeze([...crop] as unknown as [number, number, number, number]),
+      cropAt,
+    }),
     ...(typeof html === "string" && {
       html,
       viewport: (() => {

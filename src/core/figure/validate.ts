@@ -124,6 +124,11 @@ export function validateFigure(state: CheckState, raw: unknown, locate: Locator)
   } else {
     const figure = parseElement(FigureMetaSchema, raw.figure, ["figure"], state, locate);
     if (figure.value !== undefined) doc.figure = figure.value;
+    // Names as written, so an entry with its own error is not also "unknown" (#310).
+    const written = (raw.figure as { assets?: unknown } | null)?.assets;
+    if (typeof written === "object" && written !== null && !Array.isArray(written)) {
+      doc.assetNames = Object.keys(written);
+    }
   }
 
   if (raw.metadata !== undefined) {

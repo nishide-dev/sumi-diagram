@@ -12,6 +12,11 @@
  *   figure's directory (`asset/invalid-path`). Whether the file exists, its
  *   format, size and sha256 are checked when the figure is rendered
  *   (`loadFigureAssets()`).
+ * - `figure.assets` (#310, design doc §6.91): each entry is checked like an
+ *   image source (`asset/invalid-path`, the inline SVG importer); an image's
+ *   `props.asset` must name one (`asset/unknown-asset`), takes no `sha256`,
+ *   and `props.crop` needs an asset (`asset/invalid-crop`; the crop's bounds
+ *   are checked against the SVG's viewBox when the asset is loaded).
  * - Inline `props.svg` uses the same allow-list importer, with the byte,
  *   element and depth budgets and diagnostics mapped into the YAML scalar.
  *
@@ -19,7 +24,7 @@
  */
 
 import { type CheckState, invalidateDependents, nodeKey } from "../core/check-state";
-import { closestMatch } from "../core/diagnostics";
+import { closestMatch, type Diagnostic } from "../core/diagnostics";
 import { errorAt } from "../core/figure/report";
 import type { Locator } from "../core/figure/yaml";
 import { componentId } from "../core/registry/manifest";
@@ -36,6 +41,27 @@ export function checkAssets(state: CheckState, locate: Locator): void {
   const components = state.components;
   if (components === undefined) return;
   let failed = false;
+  for (const [name, def] of Object.entries(state.doc.figure?.assets ?? {})) {
+    const base = ["figure", "assets", name];
+    if (def.svg !== undefined) {
+      checkSvgSource(state, locate, def.svg, [...base, "svg"], undefined);
+    } else if (def.src !== undefined) {
+      const problem = srcProblem(def.src);
+      if (problem !== undefined) {
+        state.diagnostics.push(
+          errorAt(
+            locate,
+            "asset/invalid-path",
+            `figure.assets.${name}.src "${def.src}" cannot be used: ${problem}.`,
+            [...base, "src"],
+            {
+              hint: "Put the file in the figure's directory (or below it) and give its relative path.",
+            },
+          ),
+        );
+      }
+    }
+  }
   for (const [index, node] of (state.doc.nodes ?? []).entries()) {
     if (node === undefined) continue;
     const key = nodeKey(node.id);
@@ -44,10 +70,11 @@ export function checkAssets(state: CheckState, locate: Locator): void {
     const manifest = component.manifest;
     if (manifest.kind !== "node") continue;
     const subject = { kind: "node", id: node.id } as const;
+    // A cell of a tokens node (#310) is located by the cell it was expanded from.
+    const origin = state.doc.expanded?.get(key);
+    const at: (string | number)[] = origin?.from === "tokens" ? [...origin.path] : ["nodes", index];
     const fail = (code: string, message: string, path: (string | number)[], hint?: string) => {
-      state.diagnostics.push(
-        errorAt(locate, code, message, ["nodes", index, ...path], { subject, hint }),
-      );
+      state.diagnostics.push(errorAt(locate, code, message, [...at, ...path], { subject, hint }));
       state.invalid.add(key);
       failed = true;
     };
@@ -156,48 +183,55 @@ export function checkAssets(state: CheckState, locate: Locator): void {
       }
       const src = component.props.src;
       const svg = component.props.svg;
+      const asset = component.props.asset;
       // Custom manifests need not enforce source exclusivity in their props schema.
-      if ((typeof src === "string") === (typeof svg === "string")) {
+      if ([src, svg, asset].filter((source) => typeof source === "string").length !== 1) {
         fail(
           "asset/invalid-image",
-          "An image needs exactly one of props.src or props.svg.",
+          "An image needs exactly one of props.src, props.svg or props.asset.",
           ["props"],
-          "Provide either a relative image path in src or inline SVG in svg.",
+          "Provide a relative image path in src, inline SVG in svg, or the name of a figure.assets entry in asset.",
+        );
+        continue;
+      }
+      if (component.props.crop !== undefined && typeof asset !== "string") {
+        fail(
+          "asset/invalid-crop",
+          "props.crop cuts a part out of a figure asset, so it needs props.asset.",
+          ["props", "crop"],
+          "Define the picture under figure.assets and name it in props.asset, or remove the crop.",
         );
         continue;
       }
       if (typeof svg === "string") {
-        const path = ["nodes", index, "props", "svg"];
-        if (Buffer.byteLength(svg, "utf8") > ASSET_LIMITS.maxFileBytes) {
-          fail("asset/too-large", "Inline SVG exceeds the 16 MiB asset limit.", ["props", "svg"]);
-          continue;
-        }
-        const imported = importSvg(svg);
-        if (!imported.ok) {
-          const lines = svg.split("\n");
-          for (const issue of imported.issues.slice(0, 20)) {
-            const offset =
-              lines.slice(0, issue.line - 1).reduce((n, s) => n + s.length + 1, 0) +
-              issue.column -
-              1;
-            const location = locate(path, { span: [offset, offset], literalBlock: true });
-            state.diagnostics.push({
-              code:
-                issue.kind === "unsafe"
-                  ? "asset/unsafe-svg"
-                  : issue.kind === "unsupported"
-                    ? "asset/unsupported-svg"
-                    : "asset/invalid-image",
-              severity: "error",
-              message: issue.message,
-              path,
-              ...(location !== undefined && { location }),
-              subject,
-              hint: "Use plain shapes only; text must be outlined as paths. HTML, references, scripts, events, defs, gradients and filters are not supported.",
-            });
-          }
+        if (!checkSvgSource(state, locate, svg, [...at, "props", "svg"], subject)) {
           state.invalid.add(key);
           failed = true;
+        }
+        continue;
+      }
+      if (typeof asset === "string") {
+        const names = state.doc.assetNames ?? Object.keys(state.doc.figure?.assets ?? {});
+        if (!names.includes(asset)) {
+          const near = closestMatch(asset, names);
+          fail(
+            "asset/unknown-asset",
+            `props.asset "${asset}" is not defined in figure.assets.`,
+            ["props", "asset"],
+            near !== undefined
+              ? `Did you mean "${near}"?`
+              : names.length > 0
+                ? `Defined assets: ${names.join(", ")}.`
+                : "Define it under figure.assets first.",
+          );
+        }
+        if (component.props.sha256 !== undefined) {
+          fail(
+            "asset/invalid-image",
+            "props.sha256 cannot be used with props.asset; the asset is pinned by its own figure.assets entry.",
+            ["props", "sha256"],
+            "Write sha256 on the figure.assets entry.",
+          );
         }
         continue;
       }
@@ -216,4 +250,48 @@ export function checkAssets(state: CheckState, locate: Locator): void {
   if (!failed) return;
   invalidateDependents(state);
   for (const key of components.keys()) if (state.invalid.has(key)) components.delete(key);
+}
+
+/**
+ * Imports an inline SVG source once to check it, reporting each issue at its
+ * position inside the YAML scalar at `path`. Returns whether it is accepted.
+ */
+function checkSvgSource(
+  state: CheckState,
+  locate: Locator,
+  svg: string,
+  path: (string | number)[],
+  subject: Diagnostic["subject"],
+): boolean {
+  if (Buffer.byteLength(svg, "utf8") > ASSET_LIMITS.maxFileBytes) {
+    state.diagnostics.push(
+      errorAt(locate, "asset/too-large", "Inline SVG exceeds the 16 MiB asset limit.", path, {
+        subject,
+      }),
+    );
+    return false;
+  }
+  const imported = importSvg(svg);
+  if (imported.ok) return true;
+  const lines = svg.split("\n");
+  for (const issue of imported.issues.slice(0, 20)) {
+    const offset =
+      lines.slice(0, issue.line - 1).reduce((n, s) => n + s.length + 1, 0) + issue.column - 1;
+    const location = locate(path, { span: [offset, offset], literalBlock: true });
+    state.diagnostics.push({
+      code:
+        issue.kind === "unsafe"
+          ? "asset/unsafe-svg"
+          : issue.kind === "unsupported"
+            ? "asset/unsupported-svg"
+            : "asset/invalid-image",
+      severity: "error",
+      message: issue.message,
+      path,
+      ...(location !== undefined && { location }),
+      ...(subject !== undefined && { subject }),
+      hint: "Use plain shapes only; text must be outlined as paths. HTML, references, scripts, events, defs, gradients and filters are not supported.",
+    });
+  }
+  return false;
 }
