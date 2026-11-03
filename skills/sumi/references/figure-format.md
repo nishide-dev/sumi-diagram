@@ -29,7 +29,7 @@ figure:                    # required
   layout:
     direction: down        # optional: right (default) | down | left | up
     # arrange: …           # optional: switches to the structured layout (structured.md)
-    # align: […]¹, fanIn: merge | spread¹   (structured.md)
+    # align: […]¹, alignGrowth: allow¹, fanIn: merge | spread¹   (structured.md)
     # density: compact¹    # optional: tighter default gaps and padding (layout-tips)
 groups: []                 # optional
 nodes: []                  # optional (an empty figure gets a lint warning)

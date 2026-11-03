@@ -83,6 +83,14 @@ export const FAN_IN_MODES = ["merge", "spread"] as const;
 export type FanInMode = (typeof FAN_IN_MODES)[number];
 
 /**
+ * `figure.layout.alignGrowth` (#333): `report` (default) keeps the info
+ * `layout/align-grew-figure`; `allow` says the growth is intended and
+ * silences it.
+ */
+export const ALIGN_GROWTH_MODES = ["report", "allow"] as const;
+export type AlignGrowthMode = (typeof ALIGN_GROWTH_MODES)[number];
+
+/**
  * How a figure wider than its profile's maximum width is printed (#183,
  * design doc §6.48): `scale` shrinks the whole output, layout unchanged, to
  * that width; text is then checked at its printed size. Never enlarges.
@@ -379,6 +387,12 @@ export const LayoutFieldsSchema = z.strictObject({
     .describe(
       "Structured layout: elements of different arrange trees placed on one horizontal (y) or vertical (x) line.",
     ),
+  alignGrowth: z
+    .enum(ALIGN_GROWTH_MODES)
+    .optional()
+    .describe(
+      "allow: the space the align constraints add is intended, so the info layout/align-grew-figure is not reported. Omitted means report (structured layout only).",
+    ),
   fanIn: z
     .enum(FAN_IN_MODES)
     .optional()
@@ -398,11 +412,12 @@ export const LayoutFieldsSchema = z.strictObject({
  * `figure.layout` alone (design doc §6.19), so later stages never guess.
  */
 export const LayoutSchema = LayoutFieldsSchema.transform(
-  ({ engine, direction, arrange, align, fanIn, density }) => ({
+  ({ engine, direction, arrange, align, alignGrowth, fanIn, density }) => ({
     engine: engine ?? (arrange !== undefined ? "structured" : "auto"),
     direction,
     ...(arrange !== undefined && { arrange }),
     ...(align !== undefined && { align }),
+    ...(alignGrowth !== undefined && { alignGrowth }),
     ...(fanIn !== undefined && { fanIn }),
     ...(density !== undefined && { density }),
   }),
@@ -554,7 +569,7 @@ export const NodeSchema = z.strictObject({
     .enum(["left", "center", "right"])
     .optional()
     .describe(
-      "Horizontal alignment of the node's label and sublabel within their shared text block (structured only). Omitted means center.",
+      "Horizontal alignment of the node's label and sublabel within their shared text block (structured only). Omitted means center (left for the entries of a legend).",
     ),
   labelRotation: z
     .literal([90, -90])

@@ -2664,6 +2664,17 @@ check・typecheck・gallery:check（231ファイル）・schema:check も成功�
 - PNG は `bun run gallery` 後に `bun run skill:previews` で PDF から `pdftoppm -png -r 150 -singlefile` により生成する。Poppler は再生成時のみ必要。CI は PNG の存在・データの妥当性・PDF ページとの縦横比（ピクセル丸めを許容）を検査し、OS 間のラスタライズのバイト一致は要求しない。
 - 配布を調べた skills CLI v1.7.2 は GitHub から clone して Skill ディレクトリをコピーする。Git の symlink を展開してくれることには依存せず、配布側 `skills/sumi/` 全体に symlink がないこと、独立コピーにも YAML・アセット・PNG が実体で入ることをテストする。既存の描画 golden と全 YAML × 自身のテーマ／全組み込みテーマの SVG・PDF・PPTX・D2 の sha256 を比較して互換性を確認する。
 
+### 6.100 #333 の凡例の文字の左そろえ、`alignGrowth`、小さな作図上の判断
+
+DETR の評価で見つかった 4 つの小さな詰まりについて、採否と理由を記録する。
+
+- **凡例の文字（採用、既定を左そろえに変更）:** 凡例の項目は `label` ノードで、複数行（`\n`）の文字は行ごとに中央にそろっていた。凡例は一覧なので、折り返した行は左にそろえるのが自然で、エージェントは `lint/long-label` を避けるために文を短くしていた。既定を `left` にし、凡例ノードの既存フィールド `textAlign: center | right` で変えられるようにした（新しいフィールドは足さない。`textAlign` は structured の全ノードにあり、凡例ではこれまで無視されていた）。1 行の項目は文字の箱が文字の幅そのものなので見た目は変わらない。変わるのは複数行の項目を持つ凡例だけで、その図は PR に列挙した。
+- **`layout/align-grew-figure`（採用、`figure.layout.alignGrowth: allow`）:** 意図した整列でも描画のたびに info が出ていた。出る条件（5mm かつ 10% 超）は #155 の暴走と通常の整列の費用（2〜4mm）を分ける値として妥当なので変えず、図全体の合図として `alignGrowth: report | allow`（省略は `report`）を `figure.layout` に足した。`allow` は info だけを消し、配置は変えない。制約ごとのフィールドにしなかったのは、増加量が全制約の合計で決まり、どの制約の責任かを決められないため。他の診断（`layout/unsatisfied-align`、`layout/align-search-limit`）は `allow` でも出る。auto エンジンでは他の structured 専用フィールドと同じく `layout/structured-only`。
+- **grid の行・列を指定した配置（不採用）:** `null` のセルが多い疎な grid は冗長だが、`{ at: [row, col] }` を足すと、行優先で完全な行という grid の約束（行の長さの検査、span との重なり、空セルの意味）が二通りの書き方になり、検査と診断が倍になる。疎な配置はたいてい入れ子の row / stack、または `align` で書け、`null` の数も 1 行に並べれば読める。効果に対して実装と検査の費用が釣り合わないため採らない。繰り返し必要になった場合は、実例とともに別の Issue で扱う。
+- **`sumi preview`（不採用、Skill の説明を修正）:** SVG を PNG にするには Quick Look（macOS）や `rsvg-convert` といった外部の道具が要り、単一バイナリの配布（`bun build --compile`）と、フォントを埋め込んだ SVG を正しく描けるという保証に合わない。確認の本命は `sumi render -o x.pdf` と `pdftoppm` で、これは利用者の環境に任せる。代わりに Skill の手順 7 に「`sumi preview` というコマンドはなく、Skill の `scripts/preview` を使う」と明記し、CLI のコマンドと取り違えないようにした。
+
+互換性: 既存の全 `*.sumi.yaml` を自身のテーマと全組み込みテーマで描画し、SVG・PDF・PPTX・D2 の sha256 を main と比べた。差が出たのは複数行の項目を持つ凡例の図だけで、それ以外は同一である。
+
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures
 2. #5 / #6 / #7（#4 の後に並行可能）
