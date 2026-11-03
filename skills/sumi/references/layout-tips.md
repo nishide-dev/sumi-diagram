@@ -269,8 +269,8 @@ the reference's arrangement), then map each look you want to a field:
 | --- | --- |
 | rounded pastel boxes, thin black lines, small arrowheads, sans-serif | `figure.theme: paper` (`academic` for a grayscale, square-cornered figure) |
 | boxes without a border (pastel fill only) | `variant: filled` + `tone` ([variants](figure-format.md#tones-and-variants)) |
-| white boxes with a coloured frame and text (encoders, tokens, keys) | `variant: outlined` + `tone` |
-| strong coloured keys or operators with white text | `variant: solid` + `tone` |
+| white boxes with a coloured frame and text (encoders, tokens) | `variant: outlined` + `tone` |
+| strong coloured cells or operators with white text | `variant: solid` + `tone` |
 | pastel cells with matching coloured border and text | `variant: tinted` + `tone` |
 | coloured lines | `tone` on the edge |
 | a panel without a frame, a shaded panel, a dashed panel | group `variant: plain` / `filled` / `dashed`, with `caption: (a) …` |
@@ -279,7 +279,7 @@ the reference's arrangement), then map each look you want to a field:
 | a pale panel (a variant compared against) | `dim: true` on the group ([dimmed](figure-format.md#dimmed-groups)) |
 | dashed lines from a block to the panel that enlarges it | an edge `component: zoom` ([zoom](structured.md#zoom-callouts)) |
 | lines entering a wide block straight above each narrow one | `toAnchor: straight` on the wide end ([anchors](structured.md#edges-anchors-junctions-and-trunks)) |
-| a row of token cells, keys, patches | `component: tokens`; edges name a cell `<node>.<cell>` or the whole node ([tokens](structured.md#token-sequences)); key clusters: `lines` + `lineAlign` |
+| a row of token cells or patches | `component: tokens`; edges name a cell `<node>.<cell>` or the whole node ([tokens](structured.md#token-sequences)); several rows of cells: `lines` + `lineAlign` |
 | patches cut from one picture | `figure.assets` + `crop` on images or tokens image cells ([assets](assets.md#patches-from-one-picture)) |
 | a framed photo, a bigger ⊕ | `variant: framed` on the image; operator `props.size: large` ([assets](assets.md#framed-images-and-operator-size)) |
 | an attention mask, a grid of classes with hatched cells | `component: matrix` + legend `{ class: … }` ([matrices](structured.md#matrices)) |
