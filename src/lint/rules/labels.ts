@@ -58,6 +58,7 @@ export const emptyLabel = defineRule({
         // A bracket (#281) is a line and takes no label; a waveform's samples
         // carry its content, so its caption is optional.
         manifest.render?.renderer === "sumi/bracket" ||
+        (manifest.namespace === "sumi" && manifest.name === "separator") ||
         manifest.render?.renderer === "sumi/waveform" ||
         element.element.icon !== undefined ||
         // A legend's sample box (#131) shows only its fill and outline, a

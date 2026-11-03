@@ -71,6 +71,7 @@
 import type { EdgeIR, FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import { type Diagnostic, hasErrors } from "../../core/diagnostics";
+import { SEPARATOR_ID } from "../../core/registry/builtins";
 import {
   type EdgeLayout,
   type EdgeRoute,
@@ -937,7 +938,9 @@ class Router {
       if (isJunction(nodeIR.get(node.key))) junctions.push(node);
       else solid.push(node.rect);
     }
-    this.#obstacles = layout.nodes.map((node) => ({ key: node.key, rect: node.rect }));
+    this.#obstacles = layout.nodes
+      .filter((node) => nodeIR.get(node.key)?.component !== SEPARATOR_ID)
+      .map((node) => ({ key: node.key, rect: node.rect }));
     const xs = new Set<number>();
     const ys = new Set<number>();
     const addRect = (r: Rect, inflate: number) => {
