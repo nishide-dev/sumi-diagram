@@ -113,6 +113,11 @@ stops with one `schema/unsatisfied-requires` instead of a list of unknown fields
 
 ## Label math
 
+In structured labels, write ordinary spaces around inline math, e.g.
+`'Timestep $t$'`. SVG preserves spaces at text-run boundaries (including in
+librsvg); no non-breaking-space workaround is needed. PDF and PPTX keep the
+same text and measured spacing.
+
 Structured figures only. Auto figures draw every label as written, dollar signs
 included (math with a command, `_` or `^` gets `component/unsupported-in-auto`).
 `$...$` inside any label (nodes, groups, edges) is a small TeX subset drawn as
