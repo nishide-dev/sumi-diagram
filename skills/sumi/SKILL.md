@@ -54,9 +54,10 @@ Before writing YAML, make sure you know:
   connections, inputs and outputs) for step 7.
 - **Target** (the user's decision): where it goes (one column of a two-column paper,
   full width, a single-column paper's text width, a first-page overview, a README or
-  web page, a slide), the venue's minimum font size, maximum height and the height
-  the figure may take. Width picks the profile, the rest `figure.target`
-  ([placement](references/layout-tips.md#fit-the-placement)).
+  web page, a slide), the venue's minimum text and line sizes and the height the
+  figure may take. Width picks the profile; the minimums and the height budget go in
+  `figure.target` (a venue maximum below the profile's: set `height`, which only
+  warns) ([placement](references/layout-tips.md#fit-the-placement)).
 - **Theme**: `minimal` (default), `academic`, `color`, `slides` (needed for a slide)
   or `paper` — **recommend `paper` for a color paper figure** (`academic` if grayscale).
   Output path: default next to the user's files, `<figure-id>.sumi.yaml`.
@@ -121,8 +122,8 @@ edges:
 - Every node needs `component`; groups default to `container`, edges to `arrow`.
   `from` / `to` reference node or group IDs; quote labels such as `"yes"`, `"no"`
   and anything containing `:` or `#`.
-- Shape follows placement and content, not a rule: render 2–4 candidates and compare
-  them ([fit the placement](references/layout-tips.md#fit-the-placement)).
+- Shape follows placement and content, not a rule. If it is not obvious (a short chain
+  that fits is), render 2–4 candidates and compare ([fit the placement](references/layout-tips.md#fit-the-placement)).
 - **Structured figures** add `figure.layout.arrange` (nested `stack` / `row` / `grid`
   boxes listing every node and group once), `attach`, anchors, `align`, and the
   `legend`, `tokens`, `matrix`, `bracket`, `separator`, `zoom` components: read

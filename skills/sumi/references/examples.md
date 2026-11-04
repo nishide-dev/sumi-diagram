@@ -135,9 +135,9 @@ edges:
 
 ```sh
 $ sumi render etl-pipeline.sumi.yaml; echo "exit $?"
-etl-pipeline.sumi.yaml:4:3 error geometry/exceeds-page-width The figure is 182.56mm wide, more than the 88mm maximum width of profile "paper-single".
-  hint: Sumi never shrinks a figure on its own. Lay it out top to bottom (layout.direction: down), or shorten long labels. Or print it smaller as drawn with `figure.fit: scale` (its text must then print at 5pt or more).
-Wrote etl-pipeline.svg: 182.56mm × 32.46mm (paper-single, max width 88mm, TOO WIDE; theme academic).
+etl-pipeline.sumi.yaml:4:3 error geometry/exceeds-page-width The figure is 171.63mm wide, more than the 88mm maximum width of profile "paper-single".
+  hint: Width to remove: 83.63mm. Widest horizontal run: auto horizontal footprint = 167.39mm (127.71mm occupied x-projection + 39.69mm observed gaps). Items: node "sources" 31.4mm, … Sumi never shrinks a figure on its own. … The minimum printed font size with `figure.fit: scale` is 5pt.
+Wrote etl-pipeline.svg: 171.63mm × 24.17mm (paper-single, max width 88mm, TOO WIDE; theme academic).
 exit 1
 ```
 
@@ -145,7 +145,7 @@ The SVG is written despite the error, so it can be inspected.
 
 Fix: a six-step chain cannot fit 88mm side by side, so change the layout, not
 the target: `direction: right` → `direction: down` (`fit: scale` would shrink it
-to 48%, its 8pt text to 3.9pt: an error). The fixed figure, checked by the tests:
+to 51%, its 8pt text to 4.1pt: an error). The fixed figure, checked by the tests:
 
 ```yaml
 # expect-render: fits

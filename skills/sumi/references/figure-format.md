@@ -132,9 +132,10 @@ real, searchable text in the bundled STIX Two math fonts:
 - Commands: Greek (`\alpha` … `\omega`, `\Gamma` …), operators and relations (`\times`
   `\cdot` `\pm` `\oplus` `\otimes` `\odot` `\leq` `\geq` `\neq` `\approx` `\sim` `\equiv`
   `\in` `\to` `\Rightarrow` `\mapsto` …), `\infty` `\partial` `\nabla` `\sum` `\prod` `\int`
-  `\ldots` `\cdots` `\langle` `\rangle`, functions (`\log` `\exp` `\sin` `\tanh` `\max` …;
+  `\ldots` `\cdots` `\langle` `\rangle` `\emptyset`, functions (`\log` `\exp` `\sin` `\tanh` `\max` …;
   others `\operatorname{softmax}`; no space after one: `$\tanh\,x$`), `\mathrm{…}`,
   `\mathit{…}`, `\text{…}` (any text, Japanese too).
+- Write ∅ ("no object", empty set) as `$\emptyset$`: a typed ∅ in Inter looks like ø.
 - **Accents** `\hat` `\tilde` `\bar` `\dot` `\ddot` `\vec` over **one** character
   or command: `$\hat{y}$`, `$\hat y$`, `$\bar\theta$`, `$\hat{\nabla}$`. A script
   after the accent belongs to the accented letter (`$\hat\theta_t$`); accents work

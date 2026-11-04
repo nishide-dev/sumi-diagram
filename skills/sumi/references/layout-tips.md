@@ -41,9 +41,9 @@ into panels. Measure candidates instead of applying a rule:
 
    | Constraint | Hard? | Sumi |
    | --- | --- | --- |
-   | width W (column, full width, single-column text width, slide, web column) | yes | `profile`; between two profiles use the wider one and keep `size.widthMm` ≤ W (`fit: scale` targets the profile width) |
+   | width W (column, full width, single-column text width, slide, web column) | yes | `profile`; for a W between or below the profiles use the wider (or `paper-single`), keep `size.widthMm` ≤ W and count reserved area as W × height yourself (`fit: scale` and `placement-usage` use the profile width) |
    | maximum height (paper profiles 220mm, slides 190.5mm; venues differ) | yes | profile, `geometry/exceeds-page-height` |
-   | minimum final text size (venues differ widely, in print or on a slide) | yes | `figure.target.minFontSize`, `geometry/text-too-small` |
+   | minimum final text size (venues differ widely, in print or on a slide) | yes | `figure.target.minFontSize`, `geometry/text-too-small`; unscaled math scripts (0.7×: 8pt → 5.6pt) are not checked: keep them above it yourself |
    | minimum line width, if the venue sets one | yes | `figure.target.minLineWidth`, `geometry/line-too-thin` |
    | height budget: what the document can spare | no | `figure.target.height`, `geometry/exceeds-target-height` |
    | reading context: print, screen, projection; beside a caption or alone | no | theme; which sizes read comfortably |
@@ -51,7 +51,8 @@ into panels. Measure candidates instead of applying a rule:
    A full-width figure reserves the whole text width × its height, however narrow
    it is, so its cost is height and unused width is wasted; a column figure
    reserves column width × height. On the web the size is not physical: the page
-   scales the SVG to its column, so text in px = pt × column px ÷ figure width in pt.
+   scales the SVG to its column, so text px = text pt × column px ÷ figure width in pt
+   (1mm = 2.835pt).
 2. **Candidates.** Count the content's structure (main-path length, side inputs,
    parallel branches, nesting, independent topics, longest labels, natural breaks)
    and build two to four candidates from: a **strip** (main path one way, side
@@ -64,7 +65,7 @@ into panels. Measure candidates instead of applying a rule:
    `figure.target`: `sumi render --json` gives `size` (printed mm, `scale`);
    `geometry/placement-usage` the reserved area, width use and budget use;
    `geometry/heavy-scaling` / `text-too-small` final text against the minimum;
-   `geometry/dead-space`, `layout/edge-crossing` voids and crossings.
+   `geometry/dead-space` voids, `layout/edge-crossing` crossings (structured).
 4. **Drop** candidates that break a hard constraint (an error, or
    `geometry/line-too-thin`).
 5. **Compare** the rest on: reserved area (and height against the budget), final
@@ -83,10 +84,10 @@ labels plus a small scale) and compare the results as above.
 
 | Option | Costs | Consider when |
 | --- | --- | --- |
-| shorten labels | detail (moves to caption or text) | labels set the box widths (width breakdown); symbols or abbreviations are defined in the text. Keep the meaning |
+| shorten labels | detail (moves to caption or text) | labels set the box widths (width breakdown); symbols or abbreviations are defined in the text. Keep the meaning. A tall block can turn its title (`labelRotation: -90`) |
 | merge steps | content granularity | neighbouring steps are one sentence in the text and not the point of the figure. **Ask the user** |
 | tighten spacing (`density: compact`, smaller `gap`s) | separation of groups | gaps are a large share of the width; inside/between-group spacing stays distinct |
-| scale (`figure.fit: scale`) | final text and line size | the scaled text keeps headroom over the venue minimum (easy at 5pt, rarely at 9pt or on slides) |
+| scale (`figure.fit: scale`) | final text and line size | the scaled text keeps headroom over the venue minimum (easy at 5pt, rarely at 9pt or on slides). Unavailable when the minimum equals the theme's smallest text (`paper` 7pt edge labels and sublabels at a 7pt minimum) |
 | fold into rows | height (reserved area) and reading continuity | scaling would break the minimum; there is a natural break; the height budget has room; a long chain in a narrow column |
 | split into panels | cross-referencing between panels | there are two or more topics, each readable alone |
 | change placement (column → full width, one figure → two) | the document's layout | nothing above meets the constraints. **The user decides** |
@@ -221,7 +222,8 @@ figure:
   an edge label or badge). Use it for dense figures; with `fit: scale` a compact figure
   shrinks less and its text prints larger.
 - Keep at least about 2.5mm between items joined by an arrow in themes with 1pt edges
-  (`minimal`, `color`); with 0.5pt edges (`paper`, `academic`) 1.5mm still routes. An edge
+  (`minimal`, `color`); with 0.5pt edges (`paper`, `academic`) 1.5mm still routes; a
+  labelled edge needs a gap wider than its label. An edge
   that bends between two items needs more (`layout/no-route` names it: give that box its
   own `gap`), as does a colliding edge label or badge (`geometry/label-collision`,
   `layout/edge-label-overlap`).
@@ -293,7 +295,8 @@ does not fit the target, plan before writing:
 1. **List the elements and their roles**: inputs, main-path steps, outputs, side
    inputs, repeated units, notes (sizes, `N×`), compared variants. Mark the main
    path and the focus. This list, with each connection and its direction, is the
-   content checklist of SKILL.md step 7; also count the structure for step 2.
+   content checklist of SKILL.md step 7; also count the structure for step 2 of
+   [fit the placement](#fit-the-placement).
 2. **Get the placement constraints and pick candidate shapes** as in
    [fit the placement](#fit-the-placement) (steps 1–2).
 3. **Sketch the candidates** as small ASCII drawings, one text line per
