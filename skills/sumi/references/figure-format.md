@@ -132,9 +132,10 @@ real, searchable text in the bundled STIX Two math fonts:
 - Commands: Greek (`\alpha` … `\omega`, `\Gamma` …), operators and relations (`\times`
   `\cdot` `\pm` `\oplus` `\otimes` `\odot` `\leq` `\geq` `\neq` `\approx` `\sim` `\equiv`
   `\in` `\to` `\Rightarrow` `\mapsto` …), `\infty` `\partial` `\nabla` `\sum` `\prod` `\int`
-  `\ldots` `\cdots` `\langle` `\rangle`, functions (`\log` `\exp` `\sin` `\tanh` `\max` …;
+  `\ldots` `\cdots` `\langle` `\rangle` `\emptyset`, functions (`\log` `\exp` `\sin` `\tanh` `\max` …;
   others `\operatorname{softmax}`; no space after one: `$\tanh\,x$`), `\mathrm{…}`,
   `\mathit{…}`, `\text{…}` (any text, Japanese too).
+- Write ∅ ("no object", empty set) as `$\emptyset$`: a typed ∅ in Inter looks like ø.
 - **Accents** `\hat` `\tilde` `\bar` `\dot` `\ddot` `\vec` over **one** character
   or command: `$\hat{y}$`, `$\hat y$`, `$\bar\theta$`, `$\hat{\nabla}$`. A script
   after the accent belongs to the accented letter (`$\hat\theta_t$`); accents work
@@ -426,8 +427,8 @@ All three fields take a length with a unit; omitted fields retain profile defaul
 
 With any explicit target (even `{}`), `geometry/placement-usage` reports reserved
 profile width × printed height (mm²), width utilization and optional height-budget
-use. Compare candidates at the same placement width; this is not an aspect-ratio
-score. Discover the target schema with `sumi catalog --json --section targets`.
+use. Compare candidates at the same placement ([fit the placement](layout-tips.md#fit-the-placement));
+it is not an aspect-ratio score. Discover the target schema with `sumi catalog --json --section targets`.
 
 **`figure.themeOverrides`** refines the theme for this figure only (strict: unknown keys
 `schema/unknown-field`, bad values `schema/invalid-value`; fonts, spacing and line widths
