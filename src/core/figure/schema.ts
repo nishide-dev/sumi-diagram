@@ -618,6 +618,12 @@ export const NodeSchema = z.strictObject({
 });
 
 export const EdgeSchema = z.strictObject({
+  route: z
+    .literal("straight")
+    .optional()
+    .describe(
+      "Join endpoints with one straight segment, including diagonals, without obstacle avoidance or shared trunks (structured layout only). Omitted keeps orthogonal routing.",
+    ),
   id: Id.optional().describe("Optional edge ID (separate ID space from nodes and groups)."),
   from: Ref.describe("Source node or group ID, or a cell of a tokens node as <node>.<cell>."),
   fromAnchor: Anchor.optional().describe(
@@ -632,13 +638,13 @@ export const EdgeSchema = z.strictObject({
     .enum(EDGE_LABEL_POSITIONS)
     .optional()
     .describe(
-      "Where along the route the label sits: beside the first segment (start), the longest segment (middle) or the last segment (end). Omitted means next to the arrowhead, or the middle of a line without arrowheads (structured layout only).",
+      "Where along the route the label sits: beside the first segment (start), the longest segment (middle) or the last segment (end). Omitted means next to the arrowhead, or the middle of a line without arrowheads. With route: straight, start/end are near that endpoint and the default is middle (structured layout only).",
     ),
   labelSide: z
     .enum(EDGE_LABEL_SIDES)
     .optional()
     .describe(
-      "Which side of the line the label sits on, facing from the source to the target. Omitted means above a horizontal segment and right of a vertical one, or the other side when that is clear (structured layout only).",
+      "Which side of the line the label sits on, facing from the source to the target. Omitted means above a horizontal segment and right of a vertical one, or the other side when that is clear. With route: straight, the default is left and labels stay horizontal without obstacle avoidance (structured layout only).",
     ),
   component: ComponentRef.default("arrow").describe("Component reference (kind: edge)."),
   variant: Variant,

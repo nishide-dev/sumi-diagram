@@ -66,7 +66,12 @@ export function nodeRegion(node: NodeIR, rect: Rect): Region {
 /** First intersection with the ordered, possibly concave port silhouette.
  * Collision checks deliberately keep using the conservative convex region.
  */
-function nodeBoundaryEntry(a: Point, b: Point, node: NodeIR, rect: Rect): number | undefined {
+export function nodeBoundaryEntry(
+  a: Point,
+  b: Point,
+  node: NodeIR,
+  rect: Rect,
+): number | undefined {
   if (node.render === undefined) return boundaryEntry(a, b, nodeRegion(node, rect));
   const renderer = getOutlineRenderer(node.render.renderer);
   if (!renderer)

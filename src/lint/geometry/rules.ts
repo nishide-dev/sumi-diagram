@@ -736,7 +736,11 @@ export const edgeCrossesLabel = defineGeometryRule({
           message: `${capitalize(edge.name)} crosses the ${contentNoun(other)} of ${other.name}.`,
           path: edge.docPath,
           subject: edge.subject,
-          hint: isZoom(edge) ? zoomLabelHint() : edgeCrossesLabelHint(context, other),
+          hint: isZoom(edge)
+            ? zoomLabelHint()
+            : edge.ir.kind === "edge" && edge.ir.route === "straight"
+              ? "route: straight does not avoid labels. Move the endpoints or the label, change labelAt / labelSide on an edge label, or remove route: straight."
+              : edgeCrossesLabelHint(context, other),
           related: [{ path: labelPath(other), message: "The label is defined here." }],
         });
       }
@@ -774,7 +778,10 @@ export const edgeThroughNode = defineGeometryRule({
           message: `${capitalize(edge.name)} passes through the shape of ${node.name}.`,
           path: edge.docPath,
           subject: edge.subject,
-          hint: "An edge should go around the nodes it does not connect. In a structured figure, change its anchors (fromAnchor / toAnchor) or leave a free channel between the nodes; in an auto figure, change layout.direction or the grouping.",
+          hint:
+            edge.ir.route === "straight"
+              ? "route: straight does not avoid obstacles. Move the node or the endpoints, change fromAnchor / toAnchor, or remove route: straight to use obstacle-avoiding routing."
+              : "An edge should go around the nodes it does not connect. In a structured figure, change its anchors (fromAnchor / toAnchor) or leave a free channel between the nodes; in an auto figure, change layout.direction or the grouping.",
           related: [{ path: node.docPath, message: `${capitalize(node.name)} is defined here.` }],
         });
       }

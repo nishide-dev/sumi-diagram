@@ -175,7 +175,7 @@ function checkAuto(state: CheckState, locate: Locator): void {
   for (const [index, edge] of (doc.edges ?? []).entries()) {
     if (edge === undefined || invalid.has(edgeKey(edge.id, index))) continue;
     const subject = { kind: "edge", id: edge.id ?? `edges[${index}]` } as const;
-    for (const field of ["fromAnchor", "toAnchor", "labelAt", "labelSide"] as const) {
+    for (const field of ["fromAnchor", "toAnchor", "labelAt", "labelSide", "route"] as const) {
       if (edge[field] !== undefined) {
         report(field, ["edges", index, field], edgeKey(edge.id, index), subject);
       }

@@ -45,7 +45,7 @@ with `figure.layout.arrange` is structured, one without it auto**; an
 explicit `engine: auto` wins. Under auto, every structured-only field
 (`arrange`, `align`, `alignGrowth`, `fanIn`, `density`, `attach`, `sublabel`,
 `labelRotation`, `textAlign`, `grow`, `fromAnchor` / `toAnchor`, edge
-`labelAt` / `labelSide`, and the `legend`, `tokens`, `matrix`, `bracket`,
+`labelAt` / `labelSide` / `route`, and the `legend`, `tokens`, `matrix`, `bracket`,
 `separator` and `zoom` components) is `layout/structured-only`: remove it or
 make the figure structured. Group `labelAt` and `caption`, icons, images,
 tones, `operator`, `junction`, `dim` and the paper variants work in both.
@@ -562,6 +562,22 @@ keep nodes/titles out of that channel. Close fixed legs need more space between
 ports (anchors or cell spacing); a larger row gap alone does not separate them.
 Shared trunks keep their existing routing. There is no per-edge lane coordinate.
 
+- **Diagonal correspondences**: use `route: straight` on each correspondence,
+  e.g. `{ from: predictions.1, to: targets.3, route: straight }` and
+  `{ from: predictions.3, to: targets.1, route: straight, component: line }`.
+  Each is one independent segment (no shared trunks or obstacle avoidance).
+  Automatic ends follow the centre-to-centre line to the shapes' outlines;
+  side anchors pick exact box positions (projected onto non-rectangular outlines).
+  A `straight` anchor on this route uses the same automatic endpoint.
+  Arrowheads follow the diagonal. Labels stay horizontal, default at the midpoint
+  on the left facing source → target; `labelAt: start | middle | end` and
+  `labelSide: left | right` choose another position. Labels do not dodge obstacles.
+  Inspect crossings: `geometry/edge-through-node`, `geometry/edge-crosses-label`
+  and `geometry/label-collision` locate overlaps; move endpoints, labels or nodes.
+  Self-loops, overlapping endpoint boxes, missing outline intersections, inward-facing anchors, insufficient
+  arrowhead room and `component: zoom` conflicts are `layout/no-route` errors.
+  PDF and picture/editable PPTX support the line; glued PPTX snaps to its connection
+  sites as usual. Omit `route` for the existing orthogonal router.
 - **Anchors**: `fromAnchor` / `toAnchor` pick the side of an end: `west`, or
   `"south:0.2"` for a position along it (0..1: left → right on north/south, top →
   bottom on east/west; default 0.5; quote values with `:`). Several edges between
