@@ -159,6 +159,10 @@ edges:
   a non-direct reference or another justification is `layout/invalid-center-on`.
 - Inputs are ordinary arrange items: use `gap` for arrow clearance and connect
   them explicitly. Reserve `attach` for small annotations whose space you manage.
+  An attached label takes no space: one on the main flow's path ends in
+  `layout/no-route` (or `geometry/edge-crosses-label` with `route: straight`),
+  so put it in the stack. An edge from another row enters the `centerOn` node
+  from a side its inputs (items or nested boxes) do not use.
 
 ## Grids
 
