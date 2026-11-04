@@ -242,7 +242,7 @@ export const heavyScaling = defineGeometryRule({
         message: `The smallest final text (including math scripts) is ${formatPt(smallest)}, ${Math.round((smallest / min) * 1000) / 10}% of the ${formatPt(min)} minimum (${formatPt(smallest - min)} headroom; 20% or less). figure.fit: scale prints at ${Math.round(scale * 1000) / 10}%: ${formatMm(context.inspection.canvas.width.pt)} → ${formatMm(printedSize(context.inspection).widthPt)} wide.`,
         path: ["figure", "fit"],
         subject: figureSubject(context),
-        hint: `Compare final text size and reserved page area when choosing scaling, shorter labels, another arrangement, or a wider profile. Math scripts remain information-only. Width breakdown before scaling: ${widthBreakdown(natural)} Independent trial reductions are not additive.`,
+        hint: `Compare final text size and reserved page area when choosing scaling, shorter labels, another arrangement, or a wider profile. Without figure.target.minFontSize math scripts remain information-only (geometry/script-too-small); with it, geometry/script-below-target warns. Width breakdown before scaling: ${widthBreakdown(natural)} Independent trial reductions are not additive.`,
       },
     ];
   },
@@ -464,26 +464,28 @@ export const scriptBelowTarget = defineGeometryRule({
     const scale = printScale(context);
     const findings: LintFinding[] = [];
     for (const element of context.elements) {
-      const scripts = element.labels
-        .filter((l) => l.fontPath !== "")
-        .flatMap(({ label }) =>
-          (label.runs ?? [])
-            .flat()
-            .filter((run) => run.text.trim() && run.fontSizeUnits < label.fontSizeUnits)
-            .map((run) => ({
-              pt: unitsToPt(run.fontSizeUnits),
-              base: unitsToPt(label.fontSizeUnits),
-            })),
-        );
-      if (scripts.length === 0) continue;
-      const smallest = scripts.reduce((a, b) => (b.pt < a.pt ? b : a));
-      if (smallest.pt * scale >= min - PT_EPSILON) continue;
-      const needed = Math.ceil((min / 0.7 - PT_EPSILON) * 2) / 2;
-      findings.push({
-        message: `A math subscript or superscript in the label of ${element.name} prints at ${formatPt(smallest.pt * scale)}${scaleNote(smallest.pt, scale)}, below the ${formatPt(min)} figure.target.minFontSize (scripts are set at 0.7 of the base text, here ${formatPt(smallest.base * scale)}).`,
-        path: labelPath(element),
-        subject: element.subject,
-        hint: `Raise the base text to about ${formatPt(needed)} or more at the final size (a larger theme/variant font size${scale < 1 ? ", or less scaling" : ""}), or write it without a script (for example a plain "q1" or a separate label).`,
+      const texts = element.labels.filter((l) => l.fontPath !== "");
+      // As in text-too-small, a node's second text is its sublabel (#184).
+      const hasSublabel =
+        element.ir.kind === "node" && element.ir.sublabel !== undefined && texts.length === 2;
+      texts.forEach(({ label }, index) => {
+        const sizes = (label.runs ?? [])
+          .flat()
+          .filter((run) => run.text.trim() && run.fontSizeUnits < label.fontSizeUnits)
+          .map((run) => unitsToPt(run.fontSizeUnits));
+        if (sizes.length === 0) return;
+        const smallest = Math.min(...sizes);
+        if (smallest * scale >= min - PT_EPSILON) return;
+        const base = unitsToPt(label.fontSizeUnits);
+        const sublabel = hasSublabel && index === 1;
+        const what = sublabel ? "sublabel" : "label";
+        const needed = Math.ceil((min / 0.7 - PT_EPSILON) * 2) / 2;
+        findings.push({
+          message: `A math subscript or superscript in the ${what} of ${element.name} prints at ${formatPt(smallest * scale)}${scaleNote(smallest, scale)}, below the ${formatPt(min)} figure.target.minFontSize (scripts are set at 0.7 of the base text, here ${formatPt(base * scale)}).`,
+          path: sublabel ? [...element.docPath, "sublabel"] : labelPath(element),
+          subject: element.subject,
+          hint: `Raise the base text to about ${formatPt(needed)} or more at the final size (a larger theme/variant font size${scale < 1 ? ", or less scaling" : ""}${sublabel ? "; a sublabel is drawn at 7/8 of its node's font size" : ""}), or write it without a script (for example a plain "q1" or a separate label).`,
+        });
       });
     }
     return findings;

@@ -329,3 +329,26 @@ test("emitted JSON Schema keeps positive-length and 4.5pt floor constraints", as
       expect(font.test(ok)).toBe(true);
   }
 });
+
+test("a script in a node's sublabel is reported as the sublabel with its own path (#356)", async () => {
+  const scripts = async (label: string) => {
+    const result = await lintRenderedFigure(
+      source("{ minFontSize: 7pt }").replace(
+        "label: A }",
+        `label: ${JSON.stringify(label)}, sublabel: "sub $y_1$" }`,
+      ),
+    );
+    return result.diagnostics.filter((d) => d.code === "geometry/script-below-target");
+  };
+  const only = await scripts("plain");
+  expect(only).toHaveLength(1);
+  expect(only[0]?.path).toEqual(["nodes", 0, "sublabel"]);
+  expect(only[0]?.message).toContain("in the sublabel of");
+  const both = await scripts("$q_1$");
+  expect(both.map((d) => d.path)).toEqual([
+    ["nodes", 0, "label"],
+    ["nodes", 0, "sublabel"],
+  ]);
+  expect(both[0]?.message).toContain("in the label of");
+  expect(both[1]?.message).toContain("in the sublabel of");
+});

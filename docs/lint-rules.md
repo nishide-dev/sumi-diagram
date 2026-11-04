@@ -15,7 +15,8 @@
 - `geometry/heavy-scaling`（#347）: 縮小した図の最小の最終文字（数式の添字・配置後の
   HTML を含む）が有効な下限の **120%以下**なら報告する。最終サイズ・下限・余裕・
   縮尺・自然幅→印刷幅と、#307 の幅内訳を **縮小前の寸法**で表示する。
-  縮尺だけでは良し悪しを判定しない。添字は引き続き error の対象外。
+  縮尺だけでは良し悪しを判定しない。添字は引き続き error の対象外で、`figure.target.minFontSize`
+  がなければ情報のみ（`script-too-small`）、あれば `script-below-target`（warning）が知らせる。
 
 `lint --geometry` での抑止は `--rule geometry/dead-space=off` / `--rule geometry/heavy-scaling=off`、
 または lint 設定の `{"rules":{"geometry/dead-space":"off","geometry/heavy-scaling":"off"}}`。
