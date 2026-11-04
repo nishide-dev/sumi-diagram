@@ -5,7 +5,7 @@
  */
 
 import { imageLayerRects } from "../../assets/layers";
-import type { ArrangeBoxIR, EdgeIR, FigureIR, NodeIR } from "../../compiler/ir";
+import type { ArrangeBoxIR, ArrangeItemIR, EdgeIR, FigureIR, NodeIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import { type Anchor, type EdgeAnchor, STRAIGHT_ANCHOR } from "../../core/figure/layout";
 import type { Side } from "../../core/figure/schema";
@@ -880,20 +880,40 @@ function sideInputHosts(
 ): ReadonlyMap<ElementKey, SideInputHost> {
   const hosts = new Map<ElementKey, SideInputHost>();
   const groups = new Map(ir.groups.map((g) => [g.key, g]));
+  /** Keys of the elements an item holds: itself, or the leaves of an inline box (recursively). */
+  const leaves = (item: ArrangeItemIR): ElementKey[] =>
+    item === null ? [] : typeof item === "string" ? [item] : item.items.flatMap(leaves);
+  const union = (keys: readonly ElementKey[]): Rect | undefined => {
+    const rects = keys.map(rectOf);
+    if (rects.length === 0) return undefined;
+    const x = Math.min(...rects.map((r) => r.x));
+    const y = Math.min(...rects.map((r) => r.y));
+    return {
+      x,
+      y,
+      width: Math.max(...rects.map(rightOf)) - x,
+      height: Math.max(...rects.map(bottomOf)) - y,
+    };
+  };
   const walk = (box: ArrangeBoxIR) => {
-    const keys = box.items.filter((item): item is ElementKey => typeof item === "string");
     const target = box.centerOn;
-    if (target !== undefined && box.kind !== "grid" && keys.includes(target)) {
-      const self = rectOf(target);
-      const c = center(self);
+    // `centerOn` names a direct item, and an element sits once in the arrange
+    // tree, so no two boxes share a target: no entry is overwritten.
+    if (target !== undefined && box.kind !== "grid" && box.items.includes(target)) {
+      const c = center(rectOf(target));
       const blocked = new Set<Side>();
-      for (const key of keys) {
-        if (key === target) continue;
-        const o = center(rectOf(key));
+      const members: ElementKey[] = [];
+      for (const item of box.items) {
+        const keys = leaves(item);
+        members.push(...keys);
+        if (item === target) continue;
+        const rect = union(keys);
+        if (rect === undefined) continue;
+        const o = center(rect);
         if (box.kind === "stack") blocked.add(o.y < c.y ? "north" : "south");
         else blocked.add(o.x < c.x ? "west" : "east");
       }
-      if (blocked.size > 0) hosts.set(target, { members: keys, blocked });
+      if (blocked.size > 0) hosts.set(target, { members, blocked });
     }
     for (const item of box.items) {
       if (item === null) continue;

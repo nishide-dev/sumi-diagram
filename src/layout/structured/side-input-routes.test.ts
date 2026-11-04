@@ -198,77 +198,92 @@ for (const direction of ["left", "right"] as const)
         ).toBe(true);
     });
 
-// #357: an edge from another row arrives at a `centerOn` target from the side
-// its side inputs occupy. The default end used to take that side, so the route
-// wound around the tokens and label and joined the input's last segment.
-for (const direction of ["up", "down"] as const)
-  for (const rowDirection of ["left", "right"] as const) {
-    test(`cross-row edge does not enter a centerOn target through its ${direction} side input (row ${rowDirection})`, async () => {
-      const encoderRow = { row: { items: ["encoder"] } };
-      const decoderRow = {
-        row: {
-          gap: "5mm",
-          direction: rowDirection,
-          items: [
-            {
-              stack: {
-                centerOn: "decoder",
-                direction,
-                gap: "3mm",
-                items: ["decoder", "queries", "queries-label"],
-              },
-            },
-            "preds",
-          ],
-        },
-      };
-      const text = stringify({
-        version: 1,
-        figure: {
-          id: "cross-row",
-          theme: "paper",
-          profile: "paper-double",
-          layout: {
-            arrange: {
-              stack: {
-                gap: "8mm",
-                align: "end",
-                items: direction === "up" ? [encoderRow, decoderRow] : [decoderRow, encoderRow],
-              },
-            },
+// #357: an edge from another row or column arrives at a `centerOn` target from
+// the side its side inputs occupy. The default end used to take that side, so
+// the route wound around the tokens and label and joined the input's last
+// segment. `inline` writes the side input as a nested row/stack, not as items.
+type CrossCase = { box: "stack" | "row"; direction: string; inline: boolean; flip: boolean };
+
+function crossSource({ box, direction, inline, flip }: CrossCase): string {
+  const vertical = box === "stack";
+  const inputs = inline
+    ? [{ [vertical ? "row" : "stack"]: { items: ["queries", "queries-label"] } }]
+    : ["queries", "queries-label"];
+  const host = {
+    [box]: { centerOn: "decoder", direction, gap: "3mm", items: ["decoder", ...inputs] },
+  };
+  // The edge's other end sits on the side the inputs occupy: `before` it in
+  // the outer box when they lie before the target (up / left), else after.
+  const encoder = { [vertical ? "row" : "stack"]: { items: ["encoder"] } };
+  const before = direction === "up" || direction === "left";
+  const inner = vertical
+    ? { row: { gap: "5mm", direction: flip ? "left" : "right", items: [host, "preds"] } }
+    : { stack: { gap: "5mm", direction: flip ? "up" : "down", items: [host, "preds"] } };
+  return stringify({
+    version: 1,
+    figure: {
+      id: "cross-row",
+      theme: "paper",
+      profile: "paper-double",
+      layout: {
+        arrange: {
+          [vertical ? "stack" : "row"]: {
+            gap: "8mm",
+            align: "end",
+            items: before ? [encoder, inner] : [inner, encoder],
           },
         },
-        nodes: [
-          { id: "encoder", component: "box", label: "Encoder" },
-          { id: "decoder", component: "box", label: "Decoder" },
-          { id: "queries", component: "tokens", props: { cells: ["", "", "", ""] } },
-          { id: "queries-label", component: "label", label: "N object queries" },
-          { id: "preds", component: "box", label: "Predictions" },
-        ],
-        edges: [
-          { from: "encoder", to: "decoder" },
-          { from: "queries", to: "decoder" },
-          { from: "decoder", to: "preds" },
-        ],
-      });
-      const result = await renderFigure(text, {});
-      if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
-      const rendered = result.value;
-      if (!("layout" in rendered)) throw new Error("expected structured layout");
-      const { nodes, edges } = rendered.layout;
-      const decoder = nodes.find((n) => n.key === "n:decoder")?.rect as Rect;
-      const points = edges.find((e) => e.from === "n:encoder")?.route?.points ?? [];
-      for (const n of nodes.filter(
-        (n) => n.key === "n:queries-label" || n.key.startsWith("n:queries"),
-      ))
-        expect(crosses(points, n.rect)).toBe(false);
-      // The side input keeps its face of the decoder to itself.
-      const inputFace = direction === "up" ? decoder.y : decoder.y + decoder.height;
-      expect(points.at(-1)?.y).not.toBe(inputFace);
-      const input = edges.find((e) => e.from === "g:queries");
-      expect(input?.route?.points.at(-1)?.y).toBe(inputFace);
-      expect(lintGeometry(rendered, { source: text }).filter((d) => d.severity !== "info")).toEqual(
-        [],
-      );
-    });
-  }
+      },
+    },
+    nodes: [
+      { id: "encoder", component: "box", label: "Encoder" },
+      { id: "decoder", component: "box", label: "Decoder" },
+      { id: "queries", component: "tokens", props: { cells: ["", "", "", ""] } },
+      { id: "queries-label", component: "label", label: "N object queries" },
+      { id: "preds", component: "box", label: "Predictions" },
+    ],
+    edges: [
+      { from: "encoder", to: "decoder" },
+      { from: "queries", to: "decoder" },
+      { from: "decoder", to: "preds" },
+    ],
+  });
+}
+
+const crossCases: CrossCase[] = [];
+for (const [box, directions] of [
+  ["stack", ["up", "down"]],
+  ["row", ["left", "right"]],
+] as const)
+  for (const direction of directions)
+    for (const inline of [false, true])
+      for (const flip of [false, true]) crossCases.push({ box, direction, inline, flip });
+
+for (const c of crossCases) {
+  test(`cross edge does not enter a centerOn target through its side input (${JSON.stringify(c)})`, async () => {
+    const text = crossSource(c);
+    const result = await renderFigure(text, {});
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const rendered = result.value;
+    if (!("layout" in rendered)) throw new Error("expected structured layout");
+    const { nodes, edges } = rendered.layout;
+    const decoder = nodes.find((n) => n.key === "n:decoder")?.rect as Rect;
+    const points = edges.find((e) => e.from === "n:encoder")?.route?.points ?? [];
+    for (const n of nodes.filter((n) => n.key.startsWith("n:queries")))
+      expect(crosses(points, n.rect)).toBe(false);
+    // The side input keeps its face of the decoder to itself.
+    const end = points.at(-1);
+    const input = edges.find((e) => e.from.startsWith("g:queries") || e.from === "n:queries");
+    const inputEnd = input?.route?.points.at(-1);
+    expect(inputEnd).toBeDefined();
+    const axis = c.box === "stack" ? "y" : "x";
+    const size = c.box === "stack" ? decoder.height : decoder.width;
+    const face =
+      (inputEnd?.[axis] ?? NaN) - decoder[axis] < size / 2 ? decoder[axis] : decoder[axis] + size;
+    expect(inputEnd?.[axis]).toBe(face);
+    expect(end?.[axis]).not.toBe(face);
+    expect(lintGeometry(rendered, { source: text }).filter((d) => d.severity !== "info")).toEqual(
+      [],
+    );
+  });
+}
