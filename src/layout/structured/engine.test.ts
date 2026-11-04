@@ -68,6 +68,23 @@ const close = (actual: number, expected: number) =>
   expect(Math.abs(actual - expected)).toBeLessThanOrEqual(0.001);
 
 describe("stack and row", () => {
+  test("nested centerOn placement stays within a small work budget", () => {
+    let arrange: unknown = { row: { items: ["leaf"] } };
+    const nodes = [box("leaf")];
+    for (let i = 0; i < 10; i++) {
+      const id = `n${i}`;
+      nodes.push(box(id));
+      arrange = { stack: { centerOn: id, items: [id, arrange] } };
+    }
+    const checked = checkFigure(figure(arrange, nodes));
+    const ir = buildFigureIR(checked);
+    const start = performance.now();
+    const layout = layoutStructured(ir, { measurer: FAKE });
+    expect(performance.now() - start).toBeLessThan(1000);
+    expect(layout.nodes).toHaveLength(11);
+    expect(layout.nodes.every((n) => inside(layout.content, n.rect))).toBe(true);
+  });
+
   for (const direction of ["down", "up", "right", "left"]) {
     test(`centerOn reserves side-input space and keeps the main line (${direction})`, () => {
       const vertical = direction === "down" || direction === "up";

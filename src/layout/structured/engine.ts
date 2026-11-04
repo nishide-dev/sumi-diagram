@@ -223,6 +223,8 @@ class StructuredLayout {
   readonly #rects = new Map<ElementKey, Rect>();
   readonly #contents = new Map<ElementKey, Rect>();
   readonly #grids = new Map<ArrangeBoxIR, GridTracks>();
+  readonly #boxSizes = new Map<ArrangeBoxIR, Size>();
+  readonly #centerPaddings = new Map<ArrangeBoxIR, { before: number; after: number }>();
 
   constructor(ir: FigureIR, profile: Profile, measurer: TextMeasurer) {
     this.#ir = ir;
@@ -322,6 +324,9 @@ class StructuredLayout {
     this.#rects.clear();
     this.#contents.clear();
     this.#grids.clear();
+    // Measurements depend on this pass's struts and any grown group padding.
+    this.#boxSizes.clear();
+    this.#centerPaddings.clear();
     const root = this.#ir.arrange as ArrangeBoxIR;
     const size = this.#containerSize(ROOT, root);
     this.#placeContainer(ROOT, root, { x: 0, y: 0, width: size.width, height: size.height });
@@ -346,6 +351,8 @@ class StructuredLayout {
   }
 
   #boxSize(box: ArrangeBoxIR): Size {
+    const cached = this.#boxSizes.get(box);
+    if (cached !== undefined) return cached;
     if (box.kind === "grid") return this.#gridTracks(box).size;
     const sizes = box.items.map((item) => this.#itemSize(item));
     const vertical = box.kind === "stack";
@@ -356,12 +363,16 @@ class StructuredLayout {
     const cross = Math.max(0, ...sizes.map((s) => (vertical ? s.width : s.height)));
     const padding = this.#centerPadding(box);
     const length = main + gaps + padding.before + padding.after;
-    return vertical ? { width: cross, height: length } : { width: length, height: cross };
+    const size = vertical ? { width: cross, height: length } : { width: length, height: cross };
+    this.#boxSizes.set(box, size);
+    return size;
   }
 
   /** Reserve the complete input bundle symmetrically about its main-path item. */
   #centerPadding(box: ArrangeBoxIR): { before: number; after: number } {
     if (box.centerOn === undefined) return { before: 0, after: 0 };
+    const cached = this.#centerPaddings.get(box);
+    if (cached !== undefined) return cached;
     const vertical = box.kind === "stack";
     const order =
       box.direction === "up" || box.direction === "left" ? [...box.items].reverse() : box.items;
@@ -374,7 +385,12 @@ class StructuredLayout {
       if (item === box.centerOn) {
         const body = this.#bodyRect(box.centerOn, { x: 0, y: 0, ...size });
         center = cursor + (vertical ? body.y + body.height / 2 : body.x + body.width / 2);
-      } else if (item !== null && typeof item !== "string") {
+      } else if (
+        item !== null &&
+        typeof item !== "string" &&
+        item.growFirst === true &&
+        item.items[0] === box.centerOn
+      ) {
         // Caption expansion wraps a direct group item in a generated stack.
         this.#placeBox(item, { x: 0, y: 0, ...size }, "center", (key, rect) => {
           if (key === box.centerOn)
@@ -384,7 +400,12 @@ class StructuredLayout {
       cursor += length + this.#trail(item) + this.#gap(box);
     }
     const length = cursor - this.#gap(box);
-    return { before: Math.max(0, length - 2 * center), after: Math.max(0, 2 * center - length) };
+    const padding = {
+      before: Math.max(0, length - 2 * center),
+      after: Math.max(0, 2 * center - length),
+    };
+    this.#centerPaddings.set(box, padding);
+    return padding;
   }
 
   /** Strut before `item` along its box's main axis, in visual order (above / left of it). */
