@@ -25,6 +25,8 @@ test("a titled frame's center alignment explains the jog and supplies a working 
   const diagnostic = result.diagnostics.find((d) => d.code === "layout/group-title-offset");
   expect(diagnostic?.message).toContain('group "g"');
   expect(diagnostic?.hint).toContain("{ y: [a, b] }");
+  expect(diagnostic?.hint).toContain("may shift the surrounding frames");
+  expect(diagnostic?.hint).toContain("re-check the render");
   expect(diagnostic?.path).toEqual(["edges", 0]);
   expect(diagnostic?.location?.file).toBe("title.sumi.yaml");
   for (const [title, align] of [

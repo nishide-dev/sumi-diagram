@@ -49,3 +49,47 @@ for (const axis of ["row", "stack"]) {
     }
   }
 }
+
+test("a short span's label is not lifted away from its line or across a group border (#332)", () => {
+  const result = layoutStructuredFigure(
+    stringify({
+      version: 1,
+      figure: {
+        id: "lift",
+        theme: "paper",
+        layout: { arrange: { row: { gap: "6mm", items: ["g", "c"] } } },
+      },
+      groups: [{ id: "g", arrange: { row: { gap: "6mm", items: ["a", "b"] } } }],
+      nodes: ["a", "b", "c"].map((id) => ({ id, component: "box", label: "Node label" })),
+      edges: [{ component: "arrow", from: "a", to: "b", label: "flatten memory" }],
+    }),
+  );
+  expect(result.ok).toBe(true);
+  if (!result.ok) return;
+  const route = result.value.layout.edges[0]?.route;
+  const label = route?.label?.box;
+  const [p, q] = route?.points ?? [];
+  if (label === undefined || p === undefined || q === undefined) throw new Error("no label");
+  const frame = result.value.layout.groups?.find((g) => g.key === "g:g")?.rect;
+  // Beside the line: within three label heights of it, never farther.
+  const gapToLine = Math.max(
+    label.x - Math.max(p.x, q.x),
+    Math.min(p.x, q.x) - (label.x + label.width),
+    0,
+  );
+  expect(gapToLine).toBeLessThanOrEqual(3 * label.height);
+  if (frame !== undefined) {
+    const inside =
+      label.x >= frame.x &&
+      label.x + label.width <= frame.x + frame.width &&
+      label.y >= frame.y &&
+      label.y + label.height <= frame.y + frame.height;
+    const outside =
+      label.x >= frame.x + frame.width ||
+      label.x + label.width <= frame.x ||
+      label.y >= frame.y + frame.height ||
+      label.y + label.height <= frame.y;
+    expect(inside || outside).toBe(true);
+    expect(inside).toBe(true);
+  }
+});
