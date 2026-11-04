@@ -135,6 +135,20 @@ describe("expansion (#131)", () => {
     ]);
   });
 
+  test("entry text is left-aligned by default and follows the legend's textAlign (#333)", () => {
+    const align = (extra: string) => {
+      const check = checkFigure(figure(ENTRIES, { key: extra }));
+      expect(check.state.diagnostics).toEqual([]);
+      const ir = buildFigureIR(check);
+      return [nodeKey("key-1-label"), nodeKey("key-2-label")].map(
+        (k) => (ir.elements.get(k) as { textAlign?: string }).textAlign,
+      );
+    };
+    expect(align("")).toEqual(["left", "left"]);
+    expect(align("\n    textAlign: center")).toEqual(["center", "center"]);
+    expect(align("\n    textAlign: right")).toEqual(["right", "right"]);
+  });
+
   test("the IR traces every part to the legend and its entry", () => {
     const check = checkFigure(figure(ENTRIES));
     const ir = buildFigureIR(check);

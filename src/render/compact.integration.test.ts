@@ -67,6 +67,7 @@ describe("DiT (paper, paper-double, fit: scale)", () => {
     // No label, edge label or sublabel below 5pt after scaling, no warnings:
     // Small scripts (4.07pt), cramped arrowhead stems and two sparse panels are informational only.
     expect(diagnosticsOf(compact, DIT)).toEqual([
+      "info geometry/heavy-scaling",
       "info geometry/script-too-small",
       "info geometry/group-empty-area",
       "info geometry/group-empty-area",

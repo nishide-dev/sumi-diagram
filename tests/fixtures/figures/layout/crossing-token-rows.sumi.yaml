@@ -1,0 +1,16 @@
+# #329: crossing correspondences must have distinct horizontal runs.
+version: 1
+figure:
+  id: crossing-token-rows
+  theme: paper
+  layout:
+    arrange:
+      stack:
+        gap: 6mm
+        items: [preds, gt]
+nodes:
+  - { id: preds, component: tokens, props: { cells: ['1', '2', '3', '4', '5'] } }
+  - { id: gt, component: tokens, props: { width: 20pt, cells: ['1', '2', '3', '4', '5'] } }
+edges:
+  - { from: preds.2, to: gt.4 }
+  - { from: preds.4, to: gt.2 }

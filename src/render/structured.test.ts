@@ -247,6 +247,7 @@ describe("geometry lint on structured SVGs", () => {
       expect(findings.map((d) => [d.severity, d.code])).toEqual(
         path === "examples/dit-block/dit-block.sumi.yaml"
           ? [
+              ["info", "geometry/heavy-scaling"],
               ["info", "geometry/script-too-small"],
               ["info", "geometry/group-empty-area"],
               ["info", "geometry/group-empty-area"],

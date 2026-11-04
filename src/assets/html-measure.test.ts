@@ -350,3 +350,42 @@ test("ambiguous measurement ownership falls back to the ancestor without losing 
     { text: "same", offset: 0, fontSize: 16, families: ["BIZ UDPGothic"] },
   ]);
 });
+
+test("missing glyphs next to absolute children are located at the precise element whether or not Takumi emits a placeholder", async () => {
+  const abs = '<span style="position:absolute;left:0;top:50px">tiny</span>';
+  const cases: { html: string; lines: number[] }[] = [
+    // #298: a later styled sibling makes Takumi omit the 0x0 placeholder.
+    { html: `<span>a${abs}\n<span style="font-family:Inter">日</span></span>`, lines: [12] },
+    // No styled sibling after the absolute child: the placeholder is emitted.
+    {
+      html: `<span>a${abs}\n<span>b</span>\n<span style="font-family:Inter">日</span></span>`,
+      lines: [13],
+    },
+    { html: `<span>${abs}\n<span style="font-family:Inter">日</span>\n</span>`, lines: [12] },
+    // Absolute child directly followed by the glyph, in a block parent.
+    { html: `<div>\n${abs}\n<span style="font-family:Inter">日</span>\n</div>`, lines: [13] },
+    // Nested inline wrappers.
+    {
+      html: `<span>\n<span>x${abs}\n<span style="font-family:Inter">日</span></span>\n</span>`,
+      lines: [13],
+    },
+    // Several glyphs, including one inside the absolute child itself.
+    {
+      html: `<span>a<span style="position:absolute;left:0;top:50px;font-family:Inter">月</span>\n<span style="font-family:Inter">日</span>\n<span style="font-family:Inter">火</span></span>`,
+      lines: [11, 12, 13],
+    },
+  ];
+  for (const { html, lines } of cases) {
+    const report = await lintFigureWithHtml(source(html), options);
+    const glyphs = matching(report.diagnostics, "lint/missing-glyph");
+    expect(glyphs.map((d) => d.location?.line).sort(), html).toEqual(lines);
+    for (const d of glyphs) expect(d.location?.column, html).toBeGreaterThanOrEqual(9);
+  }
+
+  // The exact YAML position of the reported element (issue #298): 12 line, column 9.
+  const issue = await lintFigureWithHtml(
+    source(`<span>a${abs}\n<span style="font-family:Inter">日</span></span>`),
+    options,
+  );
+  atElement(matching(issue.diagnostics, "lint/missing-glyph")[0], 12, 9);
+});
