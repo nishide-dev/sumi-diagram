@@ -2,7 +2,7 @@
 
 - 対象 Issue: [#18](https://github.com/nishide-dev/sumi-diagram/issues/18)（親: #1。関連: #5、#9、#11、#13）
 - 前提: D2 CLI v0.9.0（`.sumi/bin/d2`、ELK）、Sumi `main`（v0.1.0 + #49）、同梱フォント BIZ UD Gothic
-- PoC: [`research/18-custom-svg/`](../../research/18-custom-svg/README.md)（製品のコードからは参照しない）
+- PoC: [`research/18-custom-svg/`](README.md)（製品のコードからは参照しない）
 - 座標の単位は SVG の user unit（= D2 unit、1 unit = 0.5pt。§5.1）
 
 ## 0. 結論
@@ -252,7 +252,7 @@ compile → (カスタム部品があり明示サイズがなければ) D2 で 1
 
 ```markdown
 ## 目的
-D2 の標準形状にない汎用形状を Sumi 側で描くための契約（manifest の `render` と OutlineRenderer API）を、v1 互換の追加として定義する。#18 の調査メモ（docs/research/18-custom-svg-components.md §5.1・§5.2）に基づく。
+D2 の標準形状にない汎用形状を Sumi 側で描くための契約（manifest の `render` と OutlineRenderer API）を、v1 互換の追加として定義する。#18 の調査メモ（research/18-custom-svg/report.md §5.1・§5.2）に基づく。
 
 ## 内容
 - NodeManifest に任意フィールド `render: { type: "outline"; renderer; params? }` を追加する（省略時は従来どおり）

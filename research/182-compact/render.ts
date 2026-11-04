@@ -25,7 +25,7 @@ mkdirSync(previews, { recursive: true });
 
 /** Width of the reference figure (mm) the heights are compared at, and its height. */
 const REFERENCE: Record<string, { widthMm: number; heightMm: number } | undefined> = {
-  // arXiv 1706.03762v7 Fig. 1, printed size (docs/research/167-stage-c.md §1.1)
+  // arXiv 1706.03762v7 Fig. 1, printed size (research/167-stage-c/report.md §1.1)
   "a-transformer": { widthMm: 77.2, heightMm: 113.7 },
   // arXiv 2212.09748v2 Fig. 3, about 170 × 68mm with the captions (§1.1)
   "b-dit": { widthMm: 170, heightMm: 68 },

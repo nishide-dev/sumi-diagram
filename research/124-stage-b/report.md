@@ -1,8 +1,8 @@
 # #124 論文図の段階 B の範囲（#109 の dogfooding から）
 
-- 対象: [#124](https://github.com/nishide-dev/sumi-diagram/issues/124)。関連: #80（ロードマップ）、#86（[論文図の調査](86-paper-figures.md)）、#109（[v0.4.0 の dogfooding](../../research/109-dogfood-v0.4/README.md)）、v0.4.1（[リリースノート](../releases/v0.4.1.md)）
+- 対象: [#124](https://github.com/nishide-dev/sumi-diagram/issues/124)。関連: #80（ロードマップ）、#86（[論文図の調査](../86-paper-figures/report.md)）、#109（[v0.4.0 の dogfooding](../109-dogfood-v0.4/README.md)）、v0.4.1（[リリースノート](../../docs/releases/v0.4.1.md)）
 - 調査日: 2026-10-27。環境: macOS 26.2 / arm64（Apple M4 Pro）、Bun 1.3.14、Sumi の基点 `5cf29f6`（v0.4.1）、固定 D2 v0.9.0、製品の WASM エンジン（krilla 0.8.2 / resvg 0.47.0、無変更）、同梱の BIZ UDPGothic 1.051・STIX Two Math / Text Italic 2.13。画像の確認に Poppler 26.04.0、ImageMagick 7.1.2、Google Chrome 156.0.8078.48
-- 試作・再現手順: [`research/124-stage-b/`](../../research/124-stage-b/README.md)。測定値は `results/*.json`、描画の縮小版は `previews/`
+- 試作・再現手順: [`research/124-stage-b/`](README.md)。測定値は `results/*.json`、描画の縮小版は `previews/`
 
 本文では、**実測**（スクリプトで測った値・確かめた挙動）と**判断**（それに基づく採否・設計）を分けて書く。判断の段落・表の列には「判断」と明記する。#109 の頻度は「4 図中に必要になった図の数」。
 
@@ -487,4 +487,4 @@ bun research/124-stage-b/drafts.ts --record
 bun run test research/124-stage-b
 ```
 
-詳細は [研究ディレクトリの README](../../research/124-stage-b/README.md)。
+詳細は [研究ディレクトリの README](README.md)。

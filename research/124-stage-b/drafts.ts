@@ -1,6 +1,6 @@
 /**
  * The four #109 figures rewritten in the proposed stage-B syntax
- * (`figures/*.sumi.yaml`, docs/research/124-stage-b.md §9).
+ * (`figures/*.sumi.yaml`, research/124-stage-b/report.md §9).
  *
  *   bun research/124-stage-b/drafts.ts            # table + out/drafts/*.{svg,pdf,png}
  *   bun research/124-stage-b/drafts.ts --record   # also write results/drafts.json

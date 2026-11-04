@@ -1,6 +1,6 @@
 # #181 セルの並び（`component: tokens`）の確認
 
-[Issue #181](https://github.com/nishide-dev/sumi-diagram/issues/181)、設計 [§6.50](../../docs/design/phase1.md)、調査 [#167 §4.5](../../docs/research/167-stage-c.md)。
+[Issue #181](https://github.com/nishide-dev/sumi-diagram/issues/181)、設計 [§6.50](../../docs/design/phase1.md)、調査 [#167 §4.5](../167-stage-c/report.md)。
 
 1 セルずつのノードで書いていたトークン列・キーの並びを `component: tokens` に書き換え、書き下した版と同じ Layout IR になることを確かめる。元の図（`research/167-stage-c/`・`research/151-dogfood-v0.5/`）は変更しない。
 

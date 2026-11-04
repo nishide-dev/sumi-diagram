@@ -2,7 +2,7 @@
 # lines into and out of both operators loop around the ⊕ and cross the
 # residuals (four layout/edge-crossing infos). With a gap of 49mm, 50.5mm or
 # 51mm (or the panel alone) the same block routes straight; 170mm loops
-# again. The route depends on the absolute position. docs/research/167-stage-c.md §2.2.
+# again. The route depends on the absolute position. research/167-stage-c/report.md §2.2.
 version: 1
 figure:
   id: operator-loop

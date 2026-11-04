@@ -1,8 +1,8 @@
 # #167 論文図の段階 C の範囲（Transformer・DiT・H3-World の 3 図から）
 
-- 対象: [#167](https://github.com/nishide-dev/sumi-diagram/issues/167)。関連: #80（ロードマップ）、#86（[論文図の調査](86-paper-figures.md)）、#124（[段階 B](124-stage-b.md)）、#151（[v0.5 の dogfooding](../../research/151-dogfood-v0.5/README.md)）
+- 対象: [#167](https://github.com/nishide-dev/sumi-diagram/issues/167)。関連: #80（ロードマップ）、#86（[論文図の調査](../86-paper-figures/report.md)）、#124（[段階 B](../124-stage-b/report.md)）、#151（[v0.5 の dogfooding](../151-dogfood-v0.5/README.md)）
 - 調査日: 2026-10-28。環境: macOS 26.2 / arm64、Bun 1.3.14、Sumi の基点 `67a4816`（main、v0.5.2）、製品の WASM エンジン（無変更）、同梱の BIZ UDPGothic 1.051・STIX Two Math / Text Italic 2.13。画像の確認に Poppler 26.04.0、ImageMagick 7.1.2
-- 描いた図・試作・再現手順: [`research/167-stage-c/`](../../research/167-stage-c/README.md)。測定値は `results/*.json`、描画の縮小版は `previews/`
+- 描いた図・試作・再現手順: [`research/167-stage-c/`](README.md)。測定値は `results/*.json`、描画の縮小版は `previews/`
 - 基準の図（リポジトリには入れない。比較は手元の原図と描いた PNG を並べて行った）: **A** Vaswani et al., arXiv 1706.03762v7, Fig. 1（3 ページ）、**B** Peebles & Xie, arXiv 2212.09748v2, Fig. 3（PDF の 3 ページ）、**C** 利用者自身の図「Figure 3. Overview of H3-World」（未公開。題名以外の文言は引用しない）
 
 本文では、**実測**（CLI・スクリプト・原図の PDF で確かめた値と挙動）と**判断**（それに基づく採否・設計）を分けて書く。判断の段落・表の列には「判断」と明記する。段階 C は **基準の 3 図を論文にそのまま載せられる品質でどこまで再現できるか** を尺度にする。
@@ -63,7 +63,7 @@
 
 ### 2.2 図 A: Transformer
 
-[`figures/a-transformer.sumi.yaml`](../../research/167-stage-c/figures/a-transformer.sumi.yaml)、[`previews/a-transformer.png`](../../research/167-stage-c/previews/a-transformer.png)。`examples/transformer` を `color` にして始めた。
+[`figures/a-transformer.sumi.yaml`](figures/a-transformer.sumi.yaml)、[`previews/a-transformer.png`](previews/a-transformer.png)。`examples/transformer` を `color` にして始めた。
 
 | 回 | 変更 | 診断 | 見た目 |
 | --- | --- | --- | --- |
@@ -74,7 +74,7 @@
 | --- | --- | --- | --- |
 | A-1 | ブロックと枠の角が丸くない | 新機能（Theme、§4.1） | 組み込み Theme の `radius` はすべて 0 |
 | A-2 | エンコーダ・デコーダの枠が黒く太くない（`color` は灰色の細い枠） | 新機能（Theme、§4.1） | — |
-| A-3 | 残差の線が枠に 0.35mm まで寄り、矢じりの直前で角が鋭くなる。原図は余白の中央 | **不具合 R3**（§3.3） | `edge-near-border` info ×5（`academic` では 0）、[`previews/detail-residual-lane.png`](../../research/167-stage-c/previews/detail-residual-lane.png) |
+| A-3 | 残差の線が枠に 0.35mm まで寄り、矢じりの直前で角が鋭くなる。原図は余白の中央 | **不具合 R3**（§3.3） | `edge-near-border` info ×5（`academic` では 0）、[`previews/detail-residual-lane.png`](previews/detail-residual-lane.png) |
 | A-4 | 図が縦に長い（幅を揃えると高さが原図の約 1.1 倍。絶対値では 140.6 / 113.7mm）。ブロックの上下の余白と間隔が大きい | 新機能（compact、§4.6） | — |
 | A-5 | 矢じりが原図より大きい | Theme（§4.1） | — |
 | A-6 | 欧文の字形（BIZ UDPGothic。原図は細いサンセリフ） | 判断（§10 Q6） | — |
@@ -84,7 +84,7 @@
 
 ### 2.3 図 B: DiT
 
-[`figures/b-dit.sumi.yaml`](../../research/167-stage-c/figures/b-dit.sumi.yaml)、[`previews/b-dit.png`](../../research/167-stage-c/previews/b-dit.png)。左のパネルは枠がないので group にせず、`stack` と label（キャプション役）で組んだ。
+[`figures/b-dit.sumi.yaml`](figures/b-dit.sumi.yaml)、[`previews/b-dit.png`](previews/b-dit.png)。左のパネルは枠がないので group にせず、`stack` と label（キャプション役）で組んだ。
 
 | 回 | 変更 | 診断 | 見た目 |
 | --- | --- | --- | --- |
@@ -104,8 +104,8 @@
 | B-4 | 拡大線が角どうしの斜めの破線にならない（直交の折れ線で、下の 1 本はパネルの枠に重なる） | 新機能 `zoom`（§4.3） | 今の代用: `fromAnchor: "east:0"` → `toAnchor: "west:0"` の `line` 2 本 |
 | B-5 | 寸法「32 × 32 × 4」が小さい 2 行目にならない（同じ大きさ） | 新機能 `sublabel`（§4.8） | 原図は 8.4pt と 7.35pt |
 | B-6 | Patchify・Embed → DiT Block、Linear → Noise・Σ が中央の 1 点で合流して段差になる（原図は各箱の真上・真下へまっすぐ） | 新機能 C1（§4.4） | 試作 P1 |
-| B-7 | 辺のラベル（γ₁,β₁・α₁ …）の背景が白く、灰色のパネルの上で白い四角 | **不具合 R2**（§3.2） | [`previews/detail-label-halo.png`](../../research/167-stage-c/previews/detail-label-halo.png) |
-| B-8 | ⊕ の周りを線が一周する（根の `gap` で出たり消えたりする） | **不具合 R1**（§3.1） | [`repro/operator-loop.sumi.yaml`](../../research/167-stage-c/repro/operator-loop.sumi.yaml) |
+| B-7 | 辺のラベル（γ₁,β₁・α₁ …）の背景が白く、灰色のパネルの上で白い四角 | **不具合 R2**（§3.2） | [`previews/detail-label-halo.png`](previews/detail-label-halo.png) |
+| B-8 | ⊕ の周りを線が一周する（根の `gap` で出たり消えたりする） | **不具合 R1**（§3.1） | [`repro/operator-loop.sumi.yaml`](repro/operator-loop.sumi.yaml) |
 | B-9 | 幅 257mm（原図は約 170mm）。原図の文字は 5.4〜8.4pt、Sumi は 7〜9pt で余白も大きい | 新機能（compact / fit、§4.6）、判断（§10 Q1） | P3 |
 | B-10 | 「N x」を大きくできない | 新機能（文字の大きさ。後回し、§8） | — |
 | B-11 | パネルの高さを揃える（原図は 4 枚とも同じ高さ） | Skill の不足: 根の `row` を `align: stretch` にすれば、キャプション付きの group も同じ高さに伸びる（7 回目の後で確かめて最終版に反映。group の高さ 629.252 unit で一致） | 最終版 |
@@ -113,7 +113,7 @@
 
 ### 2.4 図 C: H3-World
 
-[`figures/c-h3world.sumi.yaml`](../../research/167-stage-c/figures/c-h3world.sumi.yaml)（`gen-c.ts` が生成）、[`previews/c-h3world.png`](../../research/167-stage-c/previews/c-h3world.png)。
+[`figures/c-h3world.sumi.yaml`](figures/c-h3world.sumi.yaml)（`gen-c.ts` が生成）、[`previews/c-h3world.png`](previews/c-h3world.png)。
 
 **表のような整列（`grid`）は今の構文で代用できた**: (a) の本体を「列ごとの `stack`（画像・キー・プロンプト・Encoder）を並べた `row`」と、それに `align: stretch` で揃う Refiner とトークン列の `stack` にし、左の見出しの列は `figure.layout.align` の `y` 制約 5 本で各行に揃えた。
 
@@ -170,7 +170,7 @@
 
 ### 3.1 R1: ほぼ揃った端で、短い段差の代わりに送り元の周りを一周する
 
-**実測**: [`repro/operator-loop.sumi.yaml`](../../research/167-stage-c/repro/operator-loop.sumi.yaml)（B の 4 番目のパネルを根の `gap` 50mm で右にずらしたもの）で、⊕ に入る線と出る線がそれぞれ ⊕ の周りを一周し、`layout/edge-crossing` が 4 件出る（[`previews/repro-operator-loop.png`](../../research/167-stage-c/previews/repro-operator-loop.png)）。
+**実測**: [`repro/operator-loop.sumi.yaml`](repro/operator-loop.sumi.yaml)（B の 4 番目のパネルを根の `gap` 50mm で右にずらしたもの）で、⊕ に入る線と出る線がそれぞれ ⊕ の周りを一周し、`layout/edge-crossing` が 4 件出る（[`previews/repro-operator-loop.png`](previews/repro-operator-loop.png)）。
 
 | 根の `gap` | 40 | 45 | 49 | **50** | 50.5 | 51 | 55〜80 | **170** |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -180,7 +180,7 @@ SVG の経路では、Attention の中心 x が 444.968、⊕ の中心 x が 44
 
 同じ形は図 C でも出た: `toAnchor: "north:0.3"` が中心から 0.8 unit ずれて一周（3 回目）、SVG から 4 桁で計算した anchor（ずれ 0.001〜0.035 unit）で 5 本すべてが一周（5 回目）。試作 P1（§5.1）の「4 桁に丸めた anchor」でも C の 2 本が一周した（余分な経路長 175・488 unit）。
 
-**原因（未特定）**（#169 で特定し修正した: [設計 §6.40](../design/phase1.md#640-169-のほぼ揃った端で一周しない)。以下は調査時点の記録）: ルータには直線の特別扱いはない（`src/layout/route/router.ts` の冒頭: 向かい合う口の直線は最も安い経路として普通の探索で選ばれる）。端が完全に揃えば直線が選ばれ、わずかにずれると直線がなくなり、狭い隙間では段差（折れ 2 つ）が置けずに一周の方が選ばれている、という観察まで。段差が置けない理由は、端の stub（6 unit）と、矢じりの前に「矢じり＋角の丸め」の直線を空ける規則（#116・#153）が隙間を使い切ることだと推測するが、コードでは確かめていない。
+**原因（未特定）**（#169 で特定し修正した: [設計 §6.40](../../docs/design/phase1.md#640-169-のほぼ揃った端で一周しない)。以下は調査時点の記録）: ルータには直線の特別扱いはない（`src/layout/route/router.ts` の冒頭: 向かい合う口の直線は最も安い経路として普通の探索で選ばれる）。端が完全に揃えば直線が選ばれ、わずかにずれると直線がなくなり、狭い隙間では段差（折れ 2 つ）が置けずに一周の方が選ばれている、という観察まで。段差が置けない理由は、端の stub（6 unit）と、矢じりの前に「矢じり＋角の丸め」の直線を空ける規則（#116・#153）が隙間を使い切ることだと推測するが、コードでは確かめていない。
 
 **判断（修正案）**: 原因を特定したうえで、次の 2 つを検討する。(1) 端どうしの横のずれが ε（案: 1 unit = 0.5pt）以下なら、まっすぐに揃える（anchor を辺の上で ε 以内だけ動かす）。(2) 段差が隙間に入らない場合、一周より短い候補（stub や矢じりの前の直線を縮めた段差）を探すか、黙って一周せずに診断を出す。
 
@@ -368,7 +368,7 @@ edges:
 
 **理想の YAML**: `{ id: vae, component: box, label: Visual VAE Encoder, labelRotation: -90 }`。
 
-**試作 P2（実測、`proto/rotate.ts`、`results/rotate.json`）**: 製品が描いた C の SVG の VAE の文字を 1 行・`transform="rotate(-90 cx cy)"` に置き換えた。`inspectSvg()` は拒否（`svg/unsupported-geometry`: `<text> has a transform`）、`svgToPdf()` は変換でき（59,588 bytes）、`pdftotext` で文字のまま抽出でき、Type 3 なし。見た目は [`previews/proto-rotate.png`](../../research/167-stage-c/previews/proto-rotate.png)。
+**試作 P2（実測、`proto/rotate.ts`、`results/rotate.json`）**: 製品が描いた C の SVG の VAE の文字を 1 行・`transform="rotate(-90 cx cy)"` に置き換えた。`inspectSvg()` は拒否（`svg/unsupported-geometry`: `<text> has a transform`）、`svgToPdf()` は変換でき（59,588 bytes）、`pdftotext` で文字のまま抽出でき、Type 3 なし。見た目は [`previews/proto-rotate.png`](previews/proto-rotate.png)。
 
 **層**: schema、計測（幅と高さの入れ替え）、engine、writer、**inspect の契約**（±90° の回転だけを読む）、幾何 lint、PPTX（`bodyPr vert="vert270"`、要確認）、auto は `layout/structured-only`。**互換性**: 任意フィールド。**大きさ・リスク**: M（inspect の契約の拡張は auto の D2 の SVG の読み取りにも関わる）。**判断**: 採る。
 
@@ -424,7 +424,7 @@ textAlign: left
 
 | 試作 | 目的 | 結論（実測） |
 | --- | --- | --- |
-| P1 `proto/straight.ts` | 真上で入る端の効果と、丸めの影響 | 3 図の 21 本（C 7、B 5、ViT 9）すべてがまっすぐ、交差 0。4 桁の丸めで C の 2 本が一周（[`previews/proto-straight-4dp-loop.png`](../../research/167-stage-c/previews/proto-straight-4dp-loop.png)）、B・ViT は小さな段差。#151 の手計算の anchor にも 0.13 unit までのずれ |
+| P1 `proto/straight.ts` | 真上で入る端の効果と、丸めの影響 | 3 図の 21 本（C 7、B 5、ViT 9）すべてがまっすぐ、交差 0。4 桁の丸めで C の 2 本が一周（[`previews/proto-straight-4dp-loop.png`](previews/proto-straight-4dp-loop.png)）、B・ViT は小さな段差。#151 の手計算の anchor にも 0.13 unit までのずれ |
 | P2 `proto/rotate.ts` | 回転した文字の出力経路 | PDF で文字のまま（抽出可、Type 3 なし）。inspect が拒否 |
 | P3 `proto/compact.ts` | 幅と密度 | 縮小で実効 5.4〜6.2pt（原図と同程度）。密度は余白を半分にしても原図より 25〜30% 低い |
 
@@ -438,7 +438,7 @@ textAlign: left
 | B（5） | 3/5、折れ 4 | 3/5、折れ 4 | 3/5、折れ 4 | **5/5、折れ 0** | 3/5、折れ 2（0.01 unit の段差） |
 | #151 ViT（9） | 0/9、折れ 28 | 0/9、折れ 20 | 1/9（手計算。0.006〜0.13 unit ずれ） | **9/9、折れ 0** | 1/9（0.001〜0.02 unit の段差） |
 
-（「まっすぐ」は 0.5 unit 未満の線分を除いた折れの数が 0。[`previews/proto-straight-vit.png`](../../research/167-stage-c/previews/proto-straight-vit.png) は左から spread・手計算・straight。）
+（「まっすぐ」は 0.5 unit 未満の線分を除いた折れの数が 0。[`previews/proto-straight-vit.png`](previews/proto-straight-vit.png) は左から spread・手計算・straight。）
 
 ## 6. 評価の一覧（#86 §9.2・§9.3、#151 C1〜C7、新規）
 
@@ -579,4 +579,4 @@ bun research/167-stage-c/proto/rotate.ts
 bun research/167-stage-c/proto/compact.ts
 ```
 
-原図との比較には、上記の arXiv 版の PDF と利用者の図を手元に用意する（リポジトリには入れない）。詳細は [研究ディレクトリの README](../../research/167-stage-c/README.md)。
+原図との比較には、上記の arXiv 版の PDF と利用者の図を手元に用意する（リポジトリには入れない）。詳細は [研究ディレクトリの README](README.md)。

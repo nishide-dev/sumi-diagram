@@ -1,6 +1,6 @@
 # #56 サイズ決定の1パス化の調査
 
-調査の判断と測定結果は [調査メモ](../../docs/research/56-single-pass-sizing.md)、Issue は [#56](https://github.com/nishide-dev/sumi-diagram/issues/56)。製品コードはこのディレクトリを参照しない。
+調査の判断と測定結果は [調査メモ](report.md)、Issue は [#56](https://github.com/nishide-dev/sumi-diagram/issues/56)。製品コードはこのディレクトリを参照しない。
 
 ## 再現
 

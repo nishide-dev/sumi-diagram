@@ -1,6 +1,6 @@
 # #57 カスタム部品の固定ポートを提供できるか
 
-対象: [#57](https://github.com/nishide-dev/sumi-diagram/issues/57)。#9 の D2 バックエンド、#18 の[輪郭合成調査](18-custom-svg-components.md)、#52〜#55 の実装に対する追加調査。
+対象: [#57](https://github.com/nishide-dev/sumi-diagram/issues/57)。#9 の D2 バックエンド、#18 の[輪郭合成調査](../18-custom-svg/report.md)、#52〜#55 の実装に対する追加調査。
 
 ## 0. 判断
 
@@ -13,7 +13,7 @@
 
 ## 1. 調査条件・参照先
 
-2026-10-24、macOS 26.2 / arm64、Bun 1.3.14、Sumi製品の基点 `17c2352`、固定D2 v0.9.0。実験の再現手順は [`research/57-fixed-ports/`](../../research/57-fixed-ports/README.md)、記録は [`results/report.json`](../../research/57-fixed-ports/results/report.json)。
+2026-10-24、macOS 26.2 / arm64、Bun 1.3.14、Sumi製品の基点 `17c2352`、固定D2 v0.9.0。実験の再現手順は [`research/57-fixed-ports/`](README.md)、記録は [`results/report.json`](results/report.json)。
 
 - [D2最新リリース](https://github.com/d2lang/d2/releases/tag/v0.9.0): v0.9.0、公開2026-09-07。GitHub Releases APIで最新と直近のリリースを確認した。
 - [固定D2のソース](https://github.com/d2lang/d2/tree/d5a51743b6d5c00f1ec6f8340003f5d5a6ba4eda): v0.9.0のタグ参照先。

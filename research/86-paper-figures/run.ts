@@ -1,5 +1,5 @@
 /**
- * Reproduces the #86 measurements (docs/research/86-paper-figures.md).
+ * Reproduces the #86 measurements (research/86-paper-figures/report.md).
  *
  *   bun research/86-paper-figures/run.ts             # everything, prints a summary
  *   bun research/86-paper-figures/run.ts --offline   # skip npm / GitHub downloads

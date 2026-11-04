@@ -311,6 +311,8 @@ Skill の正は [`skills/sumi/`](skills/sumi/SKILL.md) です（`npx skills add 
 ## 設計判断の記録
 
 - 設計上の判断・代替案・トレードオフは、**関連 Issue のコメント**に記録する。PR だけで議論を完結させない
+- 実装で決めた設計判断は、`docs/design/decisions/<issue番号>-<名前>.md` に 1 判断 1 ファイルで書く（[書き方](docs/design/README.md)）。`docs/design/phase1.md` の §6 には追記しない（並行する PR が同じファイルで衝突し、節の番号も重なるため）
+- 調査（試作・測定・評価）は `research/<issue番号>-<名前>/` にまとめ、報告は `README.md`（長い場合は `report.md`）に書く
 - API や後方互換性に影響する変更は、その影響を Issue と PR の双方に明記する
 - 計画やフェーズ構成が変わった場合は、現行ロードマップ [#236](https://github.com/nishide-dev/sumi-diagram/issues/236) を更新する（前の計画 #80 は v0.7.0 までの記録として閉じた）。完了済みの #1 は履歴として残す
 - Issue に書かれた詳細仕様は実装前の初期提案であり、検証結果に応じて見直してよい

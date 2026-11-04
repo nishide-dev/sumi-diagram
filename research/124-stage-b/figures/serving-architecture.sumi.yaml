@@ -1,5 +1,5 @@
 # #109 figure 3 (serving architecture) in the syntax proposed for stage B (#124).
-# New in this draft (docs/research/124-stage-b.md):
+# New in this draft (research/124-stage-b/report.md):
 #   groups[].labelAt              §1  titles top-left (no edge enters there), "GPU pool"
 #                                     and "Storage" are group titles again instead of
 #                                     attached label nodes (#109 round 8)

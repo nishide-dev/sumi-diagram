@@ -38,3 +38,4 @@ Run `bun run check`, `bun run typecheck`, and `bun run test` before committing.
 - Commit messages and PR titles: English Conventional Commits. Issue/PR bodies: Japanese, following the templates in `.github/`
 - In the PR body, use `Closes #<number>` only when the PR fully resolves the issue; use `Refs #<number>` for partial or related work. PRs are squash-merged
 - Record design decisions and trade-offs in the related issue; update #236 when the plan changes
+- Write each implementation design decision to its own file `docs/design/decisions/<issue>-<name>.md` (see docs/design/README.md); do not append sections to `docs/design/phase1.md`. Research and evaluations go under `research/<issue>-<name>/`

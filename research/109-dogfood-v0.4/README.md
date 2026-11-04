@@ -1,6 +1,6 @@
 # #109 v0.4.0 を典型的な論文図で使ってみた記録（dogfooding）
 
-[Issue #109](https://github.com/nishide-dev/sumi-diagram/issues/109)。関連: #80（ロードマップ）、#86（論文図の調査、[調査メモ](../../docs/research/86-paper-figures.md)）、#107（v0.4.0）。製品の src・schema・examples・golden は変更しない。
+[Issue #109](https://github.com/nishide-dev/sumi-diagram/issues/109)。関連: #80（ロードマップ）、#86（論文図の調査、[調査メモ](../86-paper-figures/report.md)）、#107（v0.4.0）。製品の src・schema・examples・golden は変更しない。
 
 ## 方法
 

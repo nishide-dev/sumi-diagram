@@ -3,7 +3,7 @@
 # original figure (research/173-paper-theme/README.md).
 # #167 figure A: the Transformer (Vaswani et al. 2017, Fig. 1), drawn with
 # today's syntax (main after v0.5.2) as close to the original as possible.
-# The original is described from memory of the paper (docs/research/167-stage-c.md §1);
+# The original is described from memory of the paper (research/167-stage-c/report.md §1);
 # only the generic block names are reused.
 version: 1
 figure:

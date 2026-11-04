@@ -1,6 +1,6 @@
 /**
  * A patched copy of the product router (`src/layout/route/router.ts`) for the
- * crossing-reduction experiments (#124, docs/research/124-stage-b.md §8).
+ * crossing-reduction experiments (#124, research/124-stage-b/report.md §8).
  *
  * The product source is read at run time and rewritten into
  * `out/router-variant.ts` and `out/ports-variant.ts` (gitignored) with textual patches, each of

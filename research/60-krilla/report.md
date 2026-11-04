@@ -2,7 +2,7 @@
 
 - 調査日: 2026-10-24、基点 `c1611c9`、macOS arm64 / Bun 1.3.14 / Rust 1.98.1 / Poppler 26.04.0 / ImageMagick 7.1.2-32。
 - 関連: [#60](https://github.com/nishide-dev/sumi-diagram/issues/60)、#19、#59、#63。正式移行: [#74](https://github.com/nishide-dev/sumi-diagram/issues/74)。
-- [PoC・再現手順](../../research/60-krilla/README.md)、[全ケースの測定値](../../research/60-krilla/results.json)、[固定依存のライセンス表現](../../research/60-krilla/dependencies.json)。
+- [PoC・再現手順](README.md)、[全ケースの測定値](results.json)、[固定依存のライセンス表現](dependencies.json)。
 
 ## 結論
 

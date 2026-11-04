@@ -1,6 +1,6 @@
 # #167 論文図の段階 C の調査（基準の 3 図の再現と試作）
 
-[調査メモ](../../docs/research/167-stage-c.md)、[Issue #167](https://github.com/nishide-dev/sumi-diagram/issues/167)。関連: #80（ロードマップ）、#86（[論文図の調査](../../docs/research/86-paper-figures.md)）、#124（[段階 B](../../docs/research/124-stage-b.md)）、#151（[v0.5 の dogfooding](../151-dogfood-v0.5/README.md)）。
+[調査メモ](report.md)、[Issue #167](https://github.com/nishide-dev/sumi-diagram/issues/167)。関連: #80（ロードマップ）、#86（[論文図の調査](../86-paper-figures/report.md)）、#124（[段階 B](../124-stage-b/report.md)）、#151（[v0.5 の dogfooding](../151-dogfood-v0.5/README.md)）。
 
 製品の `src/`・schema・examples・golden・テストは変更しない。ここのコードは製品の `src/` を読むだけ（import）で、製品のコードはこのディレクトリを参照しない。
 

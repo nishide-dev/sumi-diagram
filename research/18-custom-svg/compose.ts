@@ -1,6 +1,6 @@
 /**
  * PoC for #18: SVG post-processing that turns placeholder rectangles into
- * custom outlines (approach (a) in docs/research/18-custom-svg-components.md).
+ * custom outlines (approach (a) in research/18-custom-svg/report.md).
  *
  * Input is a finalized Sumi SVG, its IR and its inspection. For every node
  * with a custom shape it

@@ -1,6 +1,6 @@
 # #60 krilla WASM evaluation
 
-判断と未検証条件: [`docs/research/60-krilla.md`](../../docs/research/60-krilla.md)。製品とは独立した PoC。
+判断と未検証条件: [`research/60-krilla/report.md`](report.md)。製品とは独立した PoC。
 
 ## 再現
 

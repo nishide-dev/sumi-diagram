@@ -1,6 +1,6 @@
 # #129 数式のアクセント: 製品の PDF エンジンとヘッドレス Chrome の一致（検証記録）
 
-[Issue #129](https://github.com/nishide-dev/sumi-diagram/issues/129)、[設計 §6.29](../../docs/design/phase1.md#629-129-の数式のアクセント)、計画は [#124 の調査 §3.6](../../docs/research/124-stage-b.md)。
+[Issue #129](https://github.com/nishide-dev/sumi-diagram/issues/129)、[設計 §6.29](../../docs/design/phase1.md#629-129-の数式のアクセント)、計画は [#124 の調査 §3.6](../124-stage-b/report.md)。
 
 受け入れ条件「SVG のアクセントの位置が計測と一致し、製品の PDF エンジンとヘッドレス Chrome で同じ位置（検証記録を残す）」のうち、Chrome を使う部分の記録。Chrome が要るので CI では実行しない。計測との一致・PDF の run ごとの書体と位置・抽出・編集可能 PPTX は CI のテスト（`src/render/label-math.test.ts` の `accents (#129)`、`src/render/label-math-fonts.test.ts`）が検査する。
 

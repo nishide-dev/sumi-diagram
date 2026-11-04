@@ -4,7 +4,7 @@
 # as it was.
 # #167 figure B: DiT (Peebles & Xie 2023, arXiv 2212.09748v2, Fig. 3), all
 # four panels, drawn with today's syntax (main after v0.5.2) and compared with
-# the published figure (docs/research/167-stage-c.md §1). Only generic block
+# the published figure (research/167-stage-c/report.md §1). Only generic block
 # names are reused. Panels 3 and 4 are dimmed in the original: today that
 # takes `variant: muted` on every node, edge and the group (no inheritance).
 version: 1

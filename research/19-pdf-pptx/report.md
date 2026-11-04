@@ -2,11 +2,11 @@
 
 - Issue: [#19](https://github.com/nishide-dev/sumi-diagram/issues/19)（親: #1、関連: #11・#13）
 - 調査日: 2026-10-18 / 環境: macOS 26.2（arm64）、Sumi v0.1.0 相当の `main`（D2 v0.9.0、`sumi/biz-ud-gothic`）、Microsoft PowerPoint for Mac 16.114
-- PoC と再現手順: [`research/19-pdf-pptx/`](../../research/19-pdf-pptx/README.md)（結果の抜粋は `research/19-pdf-pptx/results/`）
+- PoC と再現手順: [`research/19-pdf-pptx/`](README.md)（結果の抜粋は `research/19-pdf-pptx/results/`）
 
 ## 0. 結論
 
-> 2026-10-24 追記: svg2pdf は archived / 保守終了となり、公式が krilla + krilla-svg を推奨している。旧評価は保守状況と krilla の比較が欠けていた。[#60 の追加評価](60-krilla.md)で、後継への移行を進めると判断した。以下は旧選定時点の記録。決定性パッチの上流提案は移行評価へ計画変更する。
+> 2026-10-24 追記: svg2pdf は archived / 保守終了となり、公式が krilla + krilla-svg を推奨している。旧評価は保守状況と krilla の比較が欠けていた。[#60 の追加評価](../60-krilla/report.md)で、後継への移行を進めると判断した。以下は旧選定時点の記録。決定性パッチの上流提案は移行評価へ計画変更する。
 
 1. **PDF は svg2pdf（typst 系の Rust ライブラリ）を WASM にして Sumi に組み込む方式を推す。** 調べた変換器のうち、(1) ページが SVG の pt サイズと一致し、(2) 文字が同梱フォント（BIZ UDPGothic）のサブセット埋め込みの文字として残り、(3) 全体がベクターのまま（ラスタ画像 0）で、(4) バイト単位で決定的（2 か所の小さなパッチ後）だったのは svg2pdf だけだった。WASM（2.37MB、gzip 0.81MB）は `bun build --compile` のバイナリに埋め込め、そのバイナリから同じ PDF を出力できた。ブラウザ・ネイティブの追加バイナリ・プラットフォームごとの配布物は増えない。
 2. **PPTX は 2 段階に分ける。** まず (a) 「SVG 画像＋PNG フォールバック」の 1 枚画像を出す（忠実で保守が軽い。ただし編集はできない）。(b) ネイティブ図形への展開は、**「図形と文字が個別に選択・編集できる」までを保証範囲とし、「元と同じ見た目で、自由に再配置しても経路が保たれる」ことは保証しない**別機能（実験的）として扱う。この Mac の PowerPoint 16.114 では、自由形状（`a:custGeom`）のコネクタを含むスライドは図形が残らなかった（最小の再現ファイルと対照を `results/` に置いた。§4.3）。この PoC の範囲では、ELK の経路を保つと接着できず、接着すると経路が直線に変わった。他の版・他のアプリで自由形状のコネクタが扱える可能性は排除していない。

@@ -1,6 +1,6 @@
 # #177 tone の枠線（`variant: outlined`）と辺の `tone` の確認
 
-[Issue #177](https://github.com/nishide-dev/sumi-diagram/issues/177)、設計 [§6.54](../../docs/design/phase1.md#654-177-の-tone-の枠線variant-outlinedと辺の-tone)、調査 [#167 §4.5](../../docs/research/167-stage-c.md)（C-2・C-9）。
+[Issue #177](https://github.com/nishide-dev/sumi-diagram/issues/177)、設計 [§6.54](../../docs/design/phase1.md#654-177-の-tone-の枠線variant-outlinedと辺の-tone)、調査 [#167 §4.5](../167-stage-c/report.md)（C-2・C-9）。
 
 #173 の H3-World の図（[`research/173-paper-theme/figures/c-h3world.sumi.yaml`](../173-paper-theme/figures/c-h3world.sumi.yaml)、変更しない）から、原図で色の枠線・色の文字・色の線になっている箇所だけを新しい構文に書き換え、原図と同じ色の配置で描けることを確かめる。原図そのもの・切り出し・文言はリポジトリに入れていない（利用者自身の未公開の図で、見た目の特徴だけを書く）。
 

@@ -2,7 +2,7 @@
 
 ## 変更と互換性
 
-保守終了した svg2pdf 0.13.0 と決定性パッチを削除し、krilla 0.8.2 + krilla-svg 0.8.1（Rust 1.98.1、Cargo.lock 固定、upstream パッチなし）へ移行する。選定根拠は [#60 の評価](../research/60-krilla.md)。
+保守終了した svg2pdf 0.13.0 と決定性パッチを削除し、krilla 0.8.2 + krilla-svg 0.8.1（Rust 1.98.1、Cargo.lock 固定、upstream パッチなし）へ移行する。選定根拠は [#60 の評価](../../research/60-krilla/report.md)。
 
 CLI、YAML、SVG、PDF の寸法・日本語・検索可能なフォントサブセット・ベクターマスク・provenance 項目・Diagnostic は維持する。PDF の内部表現・subset tag・Producer・hash は変わり、golden を更新する。Producer は `Sumi <版> (krilla 0.8.2, krilla-svg 0.8.1)`。WASM 生サイズは旧 1,922,851 bytes から約 3.52MB へ増える。
 

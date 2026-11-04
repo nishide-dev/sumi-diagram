@@ -1,5 +1,5 @@
 # #109 figure 2 (training pipeline) in the syntax proposed for stage B (#124).
-# New in this draft (docs/research/124-stage-b.md):
+# New in this draft (research/124-stage-b/report.md):
 #   groups[].labelAt              §1  "Training step" top-right: the incoming edges enter
 #                                     at the left (batch) and centre (y); top-left would
 #                                     meet "batch" instead (measured, §1)
