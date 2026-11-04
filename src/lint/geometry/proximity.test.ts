@@ -3,6 +3,7 @@ import { getFontSet } from "../../core/theme/fonts";
 import { inkLines, measureLabel } from "./measure";
 import {
   axisSegments,
+  directedRun,
   PieceIndex,
   parallelRun,
   polylinesRectDistance,
@@ -35,6 +36,24 @@ const compiled = compile(SOURCE);
 const group = { bbox: { x: 100, y: 100, width: 200, height: 100 } };
 
 describe("proximity geometry", () => {
+  test("diagonal proximity measures perpendicular clearance over partial projected runs in either direction", () => {
+    for (const angle of [Math.PI / 6, Math.PI / 4, -Math.PI / 3]) {
+      const point = (along: number, normal: number) => ({
+        x: along * Math.cos(angle) - normal * Math.sin(angle),
+        y: along * Math.sin(angle) + normal * Math.cos(angle),
+      });
+      const a = { a: point(0, 0), b: point(100, 0), owner: "a", width: 2 };
+      const b = { a: point(130, 3), b: point(40, 3), owner: "b", width: 2 };
+      const run = directedRun(a, b, 5);
+      expect(run?.distance).toBeCloseTo(3, 8);
+      expect(run?.from).toBeCloseTo(40, 8);
+      expect(run?.to).toBeCloseTo(100, 8);
+      expect(directedRun(a, { ...b, a: point(100, 3), b: point(130, 3) }, 5)).toBeUndefined();
+      expect(directedRun(a, { ...b, a: point(0, 3), b: point(100, -3) }, 5)).toBeUndefined();
+      expect(directedRun(a, { ...b, a: point(0, 0.22), b: point(100, 0.22) }, 5)).toBeUndefined();
+    }
+  });
+
   test("axisSegments merges collinear chords and drops slanted ones", () => {
     expect(
       axisSegments([

@@ -329,6 +329,8 @@ export interface GroupIR extends ObjectIRBase {
 }
 
 export interface EdgeIR extends ElementIRBase {
+  /** Opt-in single-segment routing in structured layout (#349). */
+  readonly route?: "straight";
   readonly kind: "edge";
   /** User ID; edges without one are identified by `index`. */
   readonly id?: string;
@@ -758,6 +760,7 @@ function edgeIR(
     ...anchorIR("toAnchor", e.toAnchor),
     ...(e.labelAt !== undefined && { labelAt: e.labelAt }),
     ...(e.labelSide !== undefined && { labelSide: e.labelSide }),
+    ...(e.route !== undefined && { route: e.route }),
     ...(manifest.routing !== undefined && { routing: manifest.routing }),
   });
 }

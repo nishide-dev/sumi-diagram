@@ -115,6 +115,7 @@ Apply one edit and re-check: independent savings are not additive.
 | `layout/group-mismatch` | `group:` disagrees with the tree: delete `group:` or move the ID into that group's `arrange` |
 | `layout/group-cycle`, `layout/attach-cycle` | a group placed inside itself, or attachments in a loop |
 | `layout/invalid-anchor` | `north`, `east`, `south`, `west`, optionally `:` and 0..1; or `straight` (no side) |
+| `layout/no-route` with `route: straight` | separate overlapping ends, choose anchors meeting their outlines and facing outwards, increase the gap for arrowheads, or omit `route` (also on zoom callouts); obstacle and label overlaps are geometry warnings |
 | `layout/attached-legend`, `layout/attached-tokens`, `layout/attached-matrix` | these cannot be attached: list them in an arrange tree |
 | `layout/grid-span-overflow`, `layout/grid-item-count` | a grid item crosses its row boundary / the last row is incomplete: reduce the span or complete the row; `null` for a deliberate blank ([grids](structured.md#grids)) |
 | `layout/no-route` (render) | the ends touch (`gap: 0`), are closer than the arrowhead, or are boxed in (the message and `related` name the node, often an `attach`ed one); on a `zoom` edge the ends overlap | widen that `gap` (arrows need about 1.5mm in `academic` / `paper`, 2.5mm in `minimal` / `color`, 4mm in `slides`; even a `line` needs > 0), anchor other sides ([spacing](structured.md#spacing-that-routes)); for `zoom` put the view beside, above or below the source |

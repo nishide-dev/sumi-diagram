@@ -180,7 +180,8 @@ export interface GroupLayout {
 export interface EdgeRoute {
   /**
    * First point on the source's outline, last on the target's; at least 2
-   * points. The structured router's routes are orthogonal, without repeated
+   * points. `route: straight` has exactly two points, possibly diagonal.
+   * The default structured routes are orthogonal, without repeated
    * or collinear interior points; at a junction the end is its center. For a
    * zoom edge (#176), its first line (`lines[0]`).
    */
@@ -196,7 +197,7 @@ export interface EdgeRoute {
   readonly label?: TextLayout;
   /**
    * The edge's net: an index into {@link LayoutIR.nets} (#90). Omitted for a
-   * zoom edge (#176), which belongs to no net.
+   * zoom edge (#176) or `route: straight` (#349), which belong to no net.
    */
   readonly net?: number;
   /** The side of the source the route leaves; omitted at a junction. */

@@ -195,9 +195,52 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
   );
   const netOf = (e: EdgeLayout) => e.route?.net ?? -1;
   const zoom = new Set(ir.edges.filter(isZoomEdge).map((e) => e.key));
-  const edges = layout.edges.filter((e) => !zoom.has(e.key));
+  const straight = new Set(ir.edges.filter((e) => e.route === "straight").map((e) => e.key));
+  const edges = layout.edges.filter((e) => !zoom.has(e.key) && !straight.has(e.key));
   const routed = edges.filter((e) => e.route !== undefined);
   const pointsOf = (e: EdgeLayout) => e.route?.points ?? [];
+
+  // Independent correspondence lines may cross each other, but still have
+  // exactly two distinct points, on their shapes, inside the canvas.
+  for (const edge of layout.edges.filter((e) => straight.has(e.key))) {
+    if (edge.route === undefined) {
+      report.unrouted.push(edge.key);
+      continue;
+    }
+    const points = edge.route.points;
+    if (
+      points.length !== 2 ||
+      Math.hypot(
+        (points[1]?.x ?? 0) - (points[0]?.x ?? 0),
+        (points[1]?.y ?? 0) - (points[0]?.y ?? 0),
+      ) < SAME
+    ) {
+      report.malformed.push(`${edge.key} is not one straight segment`);
+      continue;
+    }
+    for (const [key, p] of [
+      [edge.from, points[0]],
+      [edge.to, points[1]],
+    ] as const) {
+      const region = regions.get(key);
+      if (
+        region !== undefined &&
+        p !== undefined &&
+        !isJunction(nodeIR.get(key)) &&
+        !(painted.get(key) ?? [region]).some((body) => onOutline(body, p))
+      )
+        report.endpointMisses.push(`${edge.key} ${key} not on outline`);
+    }
+    for (const p of points)
+      if (!contains(layout.content, { ...p, width: 0, height: 0 })) report.outside.push(edge.key);
+    for (const key of obstaclesCrossedByRoute(
+      [points],
+      obstacles,
+      new Set([edge.from, edge.to]),
+      EPS,
+    ))
+      report.throughNode.push(`${edge.key} through ${key}`);
+  }
 
   for (const edge of layout.edges) {
     if (!zoom.has(edge.key)) continue;
