@@ -426,8 +426,8 @@ All three fields take a length with a unit; omitted fields retain profile defaul
 
 With any explicit target (even `{}`), `geometry/placement-usage` reports reserved
 profile width × printed height (mm²), width utilization and optional height-budget
-use. Compare candidates at the same placement width; this is not an aspect-ratio
-score. Discover the target schema with `sumi catalog --json --section targets`.
+use. Compare candidates at the same placement ([fit the placement](layout-tips.md#fit-the-placement));
+it is not an aspect-ratio score. Discover the target schema with `sumi catalog --json --section targets`.
 
 **`figure.themeOverrides`** refines the theme for this figure only (strict: unknown keys
 `schema/unknown-field`, bad values `schema/invalid-value`; fonts, spacing and line widths

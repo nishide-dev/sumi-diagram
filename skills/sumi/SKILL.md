@@ -49,23 +49,23 @@ absolute path in every command. Below, `sumi` means the wrapper.
 
 Before writing YAML, make sure you know:
 
-- **Content**: the elements (steps, components, states), the connections between
-  them and their exact labels; which elements belong together.
-- **Target**: ask placement width, maximum height, height budget and venue minimum
-  text size (column, full width, single-column paper, teaser, README or slide).
-  Use a matching profile and optional `figure.target`; [placement](references/figure-format.md#themes-and-profiles).
+- **Content**: the elements, the connections between them and their exact labels;
+  what belongs together. Keep it as a checklist (elements, directed labelled
+  connections, inputs and outputs) for step 7.
+- **Target** (the user's decision): where it goes (one column of a two-column paper,
+  full width, a single-column paper's text width, a first-page overview, a README or
+  web page, a slide), the venue's minimum font size, maximum height and the height
+  the figure may take. Width picks the profile, the rest `figure.target`
+  ([placement](references/layout-tips.md#fit-the-placement)).
 - **Theme**: `minimal` (default), `academic`, `color`, `slides` (needed for a slide)
-  or `paper` — **recommend `paper` for a color paper figure** (`academic` if it must
-  be grayscale). And the output path (default: next to the user's other files,
-  named `<figure-id>.sumi.yaml`).
-- **Layout** (your choice, not a question): flows and graphs use the default
-  **auto** layout; paper block diagrams (stacked layers, residuals, aligned columns,
-  ⊕ operators, math labels, token rows) the **structured** layout
-  ([choose](references/layout-tips.md#choose-the-engine-first)), planned first
-  ([paper figure workflow](#paper-figure-workflow)).
+  or `paper` — **recommend `paper` for a color paper figure** (`academic` if grayscale).
+  Output path: default next to the user's files, `<figure-id>.sumi.yaml`.
+- **Layout** (your choice, not a question): **auto** for flows and graphs;
+  **structured** for paper block diagrams (layers, residuals, aligned columns, ⊕, math,
+  tokens; [choose](references/layout-tips.md#choose-the-engine-first)), planned first ([paper figure workflow](#paper-figure-workflow)).
 
-Ask once, briefly, for what is missing. If told to go ahead, use `paper-single`
-+ `minimal` (`paper` for a paper figure) and say so in your report.
+Ask once, briefly, for what is missing. If told to go ahead, assume `paper-single` +
+`minimal` (`paper` for a paper figure) and the profile's minimum; report it.
 
 ### 2. Check the environment (once per session)
 
@@ -121,7 +121,8 @@ edges:
 - Every node needs `component`; groups default to `container`, edges to `arrow`.
   `from` / `to` reference node or group IDs; quote labels such as `"yes"`, `"no"`
   and anything containing `:` or `#`.
-- Long `right` chains often exceed a column; measure and compare `down`, rows and scaling ([layout-tips](references/layout-tips.md)).
+- Shape follows placement and content, not a rule: render 2–4 candidates and compare
+  them ([fit the placement](references/layout-tips.md#fit-the-placement)).
 - **Structured figures** add `figure.layout.arrange` (nested `stack` / `row` / `grid`
   boxes listing every node and group once), `attach`, anchors, `align`, and the
   `legend`, `tokens`, `matrix`, `bracket`, `separator`, `zoom` components: read
@@ -165,18 +166,17 @@ sumi render figure.sumi.yaml -o figure.pdf     # vector PDF (or -o figure.pptx);
 
 Write PDF or PPTX (one picture, not editable shapes) only when the user asks ([output
 formats](references/figure-format.md#output-formats)); inspect the SVG either way.
-`render` reports `geometry/*` diagnostics (page size, label overflow, overlaps, labels
-crossed by edges). Geometry errors make it exit 1 but **the SVG is still written**. It
-prints `Wrote figure.svg: <W>mm × <H>mm (…)`; `--json` has `size` (`widthMm`,
-`heightMm`, limits, `fits`; `null` if nothing was rendered).
+`render` reports `geometry/*` diagnostics (page size, text size, overflow, overlaps).
+Geometry errors exit 1 but **the SVG is still written**. It prints `Wrote figure.svg:
+<W>mm × <H>mm (…)`; `--json` has `size` (`widthMm`, `heightMm`, limits, `fits`; `scale` if scaled).
 
 - `geometry/exceeds-page-width` / `-height`: the width hint measures where the width
   goes and, if a trial verified it, names an edit: apply one, re-run ([width
-  breakdown](references/diagnostics.md#too-wide-the-width-breakdown)). Else shorten
-  labels, change the layout. Auto: the other `direction`; if both overflow,
-  [layout-tips](references/layout-tips.md#too-wide-with-right-too-tall-with-down).
-  Structured: re-arrange the trees (a long row as two rows), reduce `gap`s. A wider
-  profile is the user's choice: ask, never switch on your own.
+  breakdown](references/diagnostics.md#too-wide-the-width-breakdown)). Else compare
+  the [options](references/layout-tips.md#when-width-runs-short) and what each costs.
+  A wider profile is the user's choice: ask, never switch on your own.
+- `figure.target` adds `geometry/exceeds-target-height` (over budget) and
+  `geometry/placement-usage` (reserved area: compare candidates by it).
 - Geometry warnings (`edge-crosses-label`, `label-collision`, …): try the
   [layout-tips](references/layout-tips.md) workarounds once or twice, then keep and report them.
 - Structured: `layout/no-route` (no SVG written): an edge has no room; widen that `gap`
@@ -186,45 +186,47 @@ prints `Wrote figure.svg: <W>mm × <H>mm (…)`; `--json` has `size` (`widthMm`,
 - Other render errors (`svg/*`, `backend/*`, `asset/*`) and all `geometry/*` codes:
   [diagnostics](references/diagnostics.md).
 
-### 7. Inspect the result
+### 7. Check content, then readability
 
-Clean diagnostics do not guarantee readability. There is no `sumi preview` command: this
-Skill's script rasterizes the SVG, then open the printed PNG with the Read tool:
+Clean diagnostics prove neither. This Skill's script rasterizes the SVG (Quick Look,
+padded to a square, or `rsvg-convert`; exit 1 if neither: skip the PNG, say so); open
+the PNG with Read. Give ~6 px per printed mm of the larger side, so text looks as
+small as it prints:
 
 ```sh
-<skill-dir>/scripts/preview figure.svg    # prints a temporary PNG path
+<skill-dir>/scripts/preview figure.svg 1080   # 180 × 60mm figure; prints the PNG path
 ```
 
-It uses Quick Look on macOS (padded to a square: the blank space is not part of the
-figure), else `rsvg-convert`; exit 1 if neither exists: skip this and say so. Check:
-reading order follows `direction` (or the arrange tree); no label overlaps a line or
-shape; no edge crosses or detours around a group title (`labelAt`); nothing is huge or
-squashed; text is legible; an empty region of a block or more is there for a reason
-(grouping, alignment, emphasis); otherwise re-arrange, never pad.
+1. **Content.** Tick each item of the step 1 checklist in the YAML (node, label, edge
+   `from` → `to`) and in the PNG (present, readable, arrow pointing the right way);
+   nothing may be added. Fix omissions, wrong directions and wrong labels before any
+   layout polish. In the YAML but unreadable in the PNG is a legibility defect: fix
+   size or spacing.
+2. **Readability.** Reading order follows `direction` (or the tree); no label overlaps
+   a line or shape; no edge crosses a group title (`labelAt`); nothing is huge or
+   squashed; a block-sized void has a reason (grouping, alignment), else re-arrange.
 
 ### 8. Report
 
-Tell the user: the files written (YAML and SVG), size and profile, the final lint and
+Tell the user: the files written (YAML and SVG), size and profile, the placement
+constraints, the candidates compared and why you chose this one, the final lint and
 render summaries (kept warnings with reasons), your assumptions, and anything you
 could not verify. Show the YAML only if asked or if it is short.
 
 ## Paper figure workflow
 
-Paper figures are structured, theme `paper`, built to the [design principles](references/layout-tips.md#design-principles)
-(reading direction, focus, shared lines, no unexplained voids, colour by role, notes at
-their target). With **content only** (the usual case), [plan the layout](references/layout-tips.md#plan-the-layout-before-writing-yaml)
-before writing YAML: roles, main direction, two ASCII sketches compared on empty space,
-aspect ratio, alignment and crossings. With **a reference figure**, map each look to a
-field ([recipe](references/layout-tips.md#paper-figure-recipe)) and keep its arrangement
-unless it breaks the width or the principles (say so). Then read as needed:
+Paper figures are structured, theme `paper`, built to the [design principles](references/layout-tips.md#design-principles).
+With **content only** (the usual case), [plan the layout](references/layout-tips.md#plan-the-layout-before-writing-yaml)
+first: roles, placement constraints, candidates rendered and compared. With **a
+reference figure**, map each look to a field ([recipe](references/layout-tips.md#paper-figure-recipe))
+and keep its arrangement unless it breaks the placement or the principles (say so). Read as needed:
 
 1. [Example 6](references/examples.md#6-success-a-paper-figure) (three panels, zoom, dimmed variant).
 2. Structure: [arrange trees](references/structured.md#arrange-trees), [grids](references/structured.md#grids), [titles and captions](references/structured.md#group-titles-and-captions), [panel separators](references/structured.md#panel-separators), [two panels with a divider](references/layout-tips.md#two-panels-with-a-dashed-divider).
 3. Cells: [tokens](references/structured.md#token-sequences) (numbering, `lines`, `lineAlign`), [matrices](references/structured.md#matrices).
 4. Pictures: [crop, shared assets](references/assets.md#reusing-one-picture-figureassets), [framed images, operator size](references/assets.md#framed-images-and-operator-size), [html](references/html.md) cards.
 5. Looks: [tones and variants](references/figure-format.md#tones-and-variants), [themeOverrides](references/figure-format.md#themes-and-profiles), [`fit: scale`, `density: compact`](references/layout-tips.md#shrinking-to-the-page-width-figurefit-scale).
-6. Loop `fmt` → `lint` → `render` with [diagnostics](references/diagnostics.md). Review any
-   block-sized void: keep it if it groups or aligns, else move notes or outputs.
+6. Loop `fmt` → `lint` → `render` with [diagnostics](references/diagnostics.md), then step 7.
 
 ## When to stop and ask
 
@@ -240,10 +242,9 @@ Stop, report the current state (last diagnostics, what you tried) and ask when:
 
 ## References
 Consult [reference figures](examples/README.md) only when the user asks for that model or figure style; they are not templates for unrelated figures.
-[figure-format](references/figure-format.md) (fields, feature versions, labels, math,
-tones and variants, groups, components, themes, profiles, mistakes) ·
-[structured](references/structured.md) (arrange trees, grids, separators, titles, attach,
-align, anchors, legends, zoom, brackets, tokens, matrices) · [assets](references/assets.md)
-(icons, images, crop) · [html](references/html.md) · [diagnostics](references/diagnostics.md)
-(fixes by code) · [layout-tips](references/layout-tips.md) (engine, fitting, design
-principles, layout planning, paper recipe) · [examples](references/examples.md)
+[figure-format](references/figure-format.md) (fields, labels, math, tones, groups, themes,
+profiles, target) · [structured](references/structured.md) (arrange trees, grids, attach,
+align, anchors, legends, zoom, tokens, matrices) · [assets](references/assets.md) ·
+[html](references/html.md) · [diagnostics](references/diagnostics.md) (fixes by code) ·
+[layout-tips](references/layout-tips.md) (engine, placement, width options, design
+principles, planning, paper recipe) · [examples](references/examples.md)
