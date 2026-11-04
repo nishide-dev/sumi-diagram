@@ -1,0 +1,26 @@
+version: 1
+figure:
+  id: straight-correspondence
+  theme: paper
+  profile: paper-double
+  layout:
+    engine: structured
+    arrange:
+      stack:
+        gap: 18mm
+        items: [predictions, targets]
+nodes:
+  - id: predictions
+    component: tokens
+    props:
+      gap: 12mm
+      cells: [{ id: a, label: A }, { id: b, label: B }, { id: c, label: C }]
+  - id: targets
+    component: tokens
+    props:
+      gap: 12mm
+      cells: [{ id: x, label: X }, { id: y, label: Y }, { id: z, label: Z }]
+edges:
+  - { id: az, from: predictions.a, to: targets.z, route: straight, tone: blue }
+  - { id: bx, from: predictions.b, to: targets.x, route: straight, component: line, tone: orange }
+  - { id: cy, from: predictions.c, to: targets.y, route: straight, component: double-arrow, tone: green }

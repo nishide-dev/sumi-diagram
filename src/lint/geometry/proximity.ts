@@ -1,12 +1,58 @@
 /**
  * Proximity geometry for the geometry lint (#156): where an edge runs along a
  * group's border or along another edge, and how close it comes to a label.
- * Routes of both engines are orthogonal (D2/ELK with rounded corners, the
- * structured router with straight ones) and group borders are rectangles, so
- * "running along" is measured between axis-parallel pieces only.
+ * Default routes and group borders use an axis-parallel sweep. Opt-in straight
+ * correspondence edges additionally use common projections in any direction.
  */
 
 import type { Point, Rect } from "../../core/geometry";
+
+/** A segment in any direction, used by opt-in straight correspondence edges. */
+export interface DirectedPiece<Owner> {
+  a: Point;
+  b: Point;
+  owner: Owner;
+  width: number;
+}
+
+/** Perpendicular clearance over the common projection onto the first line.
+ * A crossing changes sides and is intentional correspondence, not proximity.
+ */
+export function directedRun<Owner>(
+  a: DirectedPiece<Owner>,
+  b: DirectedPiece<Owner>,
+  reach: number,
+): ParallelRun | undefined {
+  const length = Math.hypot(a.b.x - a.a.x, a.b.y - a.a.y);
+  if (length === 0) return undefined;
+  const ux = (a.b.x - a.a.x) / length;
+  const uy = (a.b.y - a.a.y) / length;
+  const project = (p: Point) => ({
+    x: (p.x - a.a.x) * ux + (p.y - a.a.y) * uy,
+    y: -(p.x - a.a.x) * uy + (p.y - a.a.y) * ux,
+  });
+  const p = project(b.a);
+  const q = project(b.b);
+  if (Math.abs(q.x - p.x) < 1e-9) return undefined;
+  let from = Math.max(0, Math.min(p.x, q.x));
+  let to = Math.min(length, Math.max(p.x, q.x));
+  if (to - from <= 1e-9) return undefined;
+  const slope = (q.y - p.y) / (q.x - p.x);
+  const at = (x: number) => p.y + (x - p.x) * slope;
+  const d0 = at(from);
+  const d1 = at(to);
+  if (d0 * d1 <= 0) return undefined;
+  if (Math.max(Math.abs(d0), Math.abs(d1)) <= COINCIDENT_UNITS) return undefined;
+  // Clip the common run to the strip within stroke clearance reach.
+  if (Math.abs(slope) > 1e-9) {
+    const x0 = p.x + (-reach - p.y) / slope;
+    const x1 = p.x + (reach - p.y) / slope;
+    from = Math.max(from, Math.min(x0, x1));
+    to = Math.min(to, Math.max(x0, x1));
+  } else if (Math.abs(d0) >= reach) return undefined;
+  if (to - from <= 1e-9) return undefined;
+  return { from, to, distance: Math.min(Math.abs(at(from)), Math.abs(at(to))) };
+}
 
 /** A horizontal (`h`, at y = `at`) or vertical (`v`, at x = `at`) piece from `from` to `to` (`from < to`). */
 export interface AxisSegment {
