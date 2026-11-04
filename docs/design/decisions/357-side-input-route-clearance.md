@@ -1,43 +1,49 @@
-# #357 centerOn の側入力と主経路の辺の確認
+# #357 centerOn の側入力を通る主経路の辺
 
 ## 背景
 
 全幅の図の確認で、`direction: up` の `centerOn` stack に置いた object queries
-（tokens とラベル）の領域を encoder → decoder の辺が通ったのに診断が出なかった、
-という観察が 1 件あった。#350 の `centerOn` は側入力の幅を予約するため、
-主経路の辺が側入力を通ることは設計上ないはずで、まず再現を試した。
+（tokens とラベル）の領域を encoder → decoder の辺が通ったのに診断が出なかった。
+#350 の `centerOn` は側入力の幅を予約するが、別の row から入る辺の端点は考慮していなかった。
 
-## 再現の結果
+## 再現と原因
 
-再現できなかった。次の組み合わせを自動で 1344 通り（上下の stack 方向、row の
-align 3 種、エンコーダの高さ 2 種、ラベルの置き方 7 種、項目順、gap、`fanIn:
-spread`、`route: straight`）描画し、主経路の辺が tokens とラベルの矩形を通る
-のに診断が無い図を探した。見つかった数件は、すべて明示的な `route: straight`
-（ルーターが障害物を避けない指定）で、矩形の判定の誤差とみられ、実際の
-交差は確認できなかった。通常の経路では次のとおりだった。
+同じ row の中の辺は、上下の stack・align・ラベルの置き方・`fanIn`・`route:
+straight` を 1344 通り試しても再現しなかった。再現したのは、外側の stack の
+2 つの row のうち上の row に encoder があり、下の row（`direction: left`）の
+先頭に `centerOn: decoder` の stack（`direction: up`、項目は decoder・queries・
+ラベル）がある図である。encoder と decoder は別の row にあるので、既定の端点の側を
+決める `arrangeSides` は共通の箱（外側の stack）の順序から decoder の north を
+選ぶ。north は側入力が占める面で、そこにはすでに queries が入る。
 
-- ツリーに置いたラベルは stack が幅を予約し、辺は隙間を通る。
-- `attach` したラベルは経路の障害物になり、避けられない場合は
-  `layout/no-route`（error、位置つき。障害物の `attach` 先を示す hint つき）で止まる。
-- `route: straight` は既存の `geometry/edge-crosses-label` が警告する。
-- row の `direction: left` / `right` と縦の主経路でも同じだった。
-
-エージェントの図は、1 回の観察にとどまり、入力も残っていない。おそらく
-`attach` したラベルが経路を塞いだ時点で出る `layout/no-route`、または
-`route: straight` を使っていた可能性があるが、確認できていない。
+ルーターは tokens とラベルを障害物として扱っており、通り抜けてはいなかった。
+代わりに、north の入口に向かって側入力の外側をぐるりと回り、最後の区間で
+queries の辺と同じ線に重なった。ラベルすれすれの迂回で、かつ重なりは
+ファンインの合流（共有の幹）として許されるため、`edge-crosses-label`・
+`edge-through-node`・`edge-near-edge` はどれも報告しなかった。
 
 ## 決定
 
-エンジンは変更しない。原因の見つからない挙動を推測で変えると、`centerOn` を
-使わない既存の図の出力を壊す危険があるため。代わりに、上記の保証を回帰試験
-（`src/layout/structured/side-input-routes.test.ts`）として固定する。
+`resolveEnds` の既定の端点（アンカー未指定）で、端点の要素が `centerOn` の
+基準であり、選んだ側が兄弟項目（側入力）のある側で、相手の端が兄弟の外にある
+ときは、その側を使わず直交する 2 辺から選ぶ。空きが大きい方（辺の先に最も近い
+他のノードまでの距離）を優先し、同じなら相手の中心に近い方を選ぶ。アンカー、
+`straight`、`fanIn: spread` の位置、兄弟どうしの辺は従来どおり。側入力が
+占める面を主経路が使わないので、迂回と合流が起きない。診断は増やさない。
 
-主経路の辺が側入力（tokens の各セルとラベル）の矩形を通る図は、位置つきの
-診断（`geometry/edge-crosses-label` など）を持つか、描画が位置つきの error で
-止まることを検査する。方向（上下左右）、align、ラベルの置き方、`fanIn`、
-`route: straight` を組み合わせる。
+この変更の範囲は `centerOn` の基準だけで、一般のノードの既定の側は変えない。
 
-## 互換性
+## 採らなかった案
 
-実装を変えないため、既存の図の出力は変わらない。再現する図が見つかった場合は
-#357 に最小の YAML を添えて追記する。
+- 迂回した経路を検出して新しい診断を出す: 原因（端点の側の選択）を直さず、
+  作者に毎回 `toAnchor` の指定を求める。
+- 全ノードで障害物の前の側を避ける: `centerOn` を使わない既存の図の出力が変わる。
+
+## 互換性と検証
+
+`centerOn` の基準でない端点、同じ row・stack 内の辺、アンカー指定の端点は
+変更しない。リポジトリの全 `*.sumi.yaml`（research/ と c-h3world を除く 103
+ファイル）を自身のテーマと組み込み 5 テーマの 618 条件で変更前後に描画し、SVG の
+SHA-256（失敗は診断コード）を比較して差分ゼロだった。回帰試験は
+`src/layout/structured/side-input-routes.test.ts`（上下左右、別 row からの辺、
+修正なしでは失敗する）。

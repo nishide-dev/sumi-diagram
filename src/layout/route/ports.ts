@@ -862,6 +862,67 @@ function nearestSide(group: Rect, inner: Rect): Side {
   return best[0];
 }
 
+/** A `centerOn` target (#350) with the sides its side inputs occupy (#357). */
+interface SideInputHost {
+  readonly members: readonly ElementKey[];
+  readonly blocked: ReadonlySet<Side>;
+}
+
+/**
+ * For each `centerOn` target, the sides facing its sibling items (the side
+ * inputs the box reserved space for) and those siblings. An edge from
+ * outside the box must not take a default end on such a side: the route
+ * would wind around the side input and arrive through its tokens and label.
+ */
+function sideInputHosts(
+  ir: FigureIR,
+  rectOf: (key: ElementKey) => Rect,
+): ReadonlyMap<ElementKey, SideInputHost> {
+  const hosts = new Map<ElementKey, SideInputHost>();
+  const groups = new Map(ir.groups.map((g) => [g.key, g]));
+  const walk = (box: ArrangeBoxIR) => {
+    const keys = box.items.filter((item): item is ElementKey => typeof item === "string");
+    const target = box.centerOn;
+    if (target !== undefined && box.kind !== "grid" && keys.includes(target)) {
+      const self = rectOf(target);
+      const c = center(self);
+      const blocked = new Set<Side>();
+      for (const key of keys) {
+        if (key === target) continue;
+        const o = center(rectOf(key));
+        if (box.kind === "stack") blocked.add(o.y < c.y ? "north" : "south");
+        else blocked.add(o.x < c.x ? "west" : "east");
+      }
+      if (blocked.size > 0) hosts.set(target, { members: keys, blocked });
+    }
+    for (const item of box.items) {
+      if (item === null) continue;
+      if (typeof item === "string") {
+        const arrange = groups.get(item)?.arrange;
+        if (arrange !== undefined) walk(arrange);
+      } else walk(item);
+    }
+  };
+  if (ir.arrange !== undefined) walk(ir.arrange);
+  return hosts;
+}
+
+/** Free distance from `rect`'s `side` to the nearest other node rect ahead of it (Infinity if none). */
+function freeRun(rect: Rect, side: Side, others: readonly Rect[]): number {
+  let best = Number.POSITIVE_INFINITY;
+  for (const o of others) {
+    const overlapX = o.x < rightOf(rect) && rightOf(o) > rect.x;
+    const overlapY = o.y < bottomOf(rect) && bottomOf(o) > rect.y;
+    let d: number | undefined;
+    if (side === "north" && overlapX && bottomOf(o) <= rect.y) d = rect.y - bottomOf(o);
+    else if (side === "south" && overlapX && o.y >= bottomOf(rect)) d = o.y - bottomOf(rect);
+    else if (side === "west" && overlapY && rightOf(o) <= rect.x) d = rect.x - rightOf(o);
+    else if (side === "east" && overlapY && o.x >= rightOf(rect)) d = o.x - rightOf(rect);
+    if (d !== undefined) best = Math.min(best, d);
+  }
+  return best;
+}
+
 /**
  * Resolves both ends of every edge (in document order), or a reason the
  * edge cannot be routed. Ends without an anchor take the default side (from
@@ -1172,13 +1233,39 @@ function resolveEndsWith(
     if (other.node === undefined && inside(self, other)) {
       return { side: nearestSide(other.rect, self.rect), inward: false, anchored: false };
     }
-    return {
-      side: treeSide(self.key, other.key) ?? facingSide(self.rect, other.rect),
-      inward: false,
-      anchored: false,
-    };
+    const side = treeSide(self.key, other.key) ?? facingSide(self.rect, other.rect);
+    const host = hosts.get(self.key);
+    if (
+      host?.blocked.has(side) === true &&
+      !host.members.some((m) => m === other.key || inside(other, element(m)))
+    ) {
+      // The default side faces the side inputs: take a perpendicular side,
+      // the one with more free room, else the one nearer the other end.
+      const sideways: Side[] =
+        side === "north" || side === "south" ? ["west", "east"] : ["north", "south"];
+      const candidates = sideways.filter((c) => !host.blocked.has(c));
+      const rects = layout.nodes
+        .filter((n) => n.key !== self.key && n.key !== other.key)
+        .map((n) => n.rect);
+      const oc = center(other.rect);
+      const sc = center(self.rect);
+      const score = (c: Side) => freeRun(self.rect, c, rects);
+      const nearer = (c: Side) =>
+        c === "west"
+          ? sc.x - oc.x
+          : c === "east"
+            ? oc.x - sc.x
+            : c === "north"
+              ? sc.y - oc.y
+              : oc.y - sc.y;
+      candidates.sort((a, b) => score(b) - score(a) || nearer(b) - nearer(a));
+      const picked = candidates[0];
+      if (picked !== undefined) return { side: picked, inward: false, anchored: false };
+    }
+    return { side, inward: false, anchored: false };
   };
   const treeSide = arrangeSides(ir, (key) => element(key).rect);
+  const hosts = sideInputHosts(ir, (key) => element(key).rect);
 
   const choices = ir.edges.map((edge, index) => {
     const from = element(edge.from);

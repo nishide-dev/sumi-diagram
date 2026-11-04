@@ -197,3 +197,78 @@ for (const direction of ["left", "right"] as const)
           lintGeometry(rendered, { source: text }).some((d) => WATCHED.has(d.code) && d.location),
         ).toBe(true);
     });
+
+// #357: an edge from another row arrives at a `centerOn` target from the side
+// its side inputs occupy. The default end used to take that side, so the route
+// wound around the tokens and label and joined the input's last segment.
+for (const direction of ["up", "down"] as const)
+  for (const rowDirection of ["left", "right"] as const) {
+    test(`cross-row edge does not enter a centerOn target through its ${direction} side input (row ${rowDirection})`, async () => {
+      const encoderRow = { row: { items: ["encoder"] } };
+      const decoderRow = {
+        row: {
+          gap: "5mm",
+          direction: rowDirection,
+          items: [
+            {
+              stack: {
+                centerOn: "decoder",
+                direction,
+                gap: "3mm",
+                items: ["decoder", "queries", "queries-label"],
+              },
+            },
+            "preds",
+          ],
+        },
+      };
+      const text = stringify({
+        version: 1,
+        figure: {
+          id: "cross-row",
+          theme: "paper",
+          profile: "paper-double",
+          layout: {
+            arrange: {
+              stack: {
+                gap: "8mm",
+                align: "end",
+                items: direction === "up" ? [encoderRow, decoderRow] : [decoderRow, encoderRow],
+              },
+            },
+          },
+        },
+        nodes: [
+          { id: "encoder", component: "box", label: "Encoder" },
+          { id: "decoder", component: "box", label: "Decoder" },
+          { id: "queries", component: "tokens", props: { cells: ["", "", "", ""] } },
+          { id: "queries-label", component: "label", label: "N object queries" },
+          { id: "preds", component: "box", label: "Predictions" },
+        ],
+        edges: [
+          { from: "encoder", to: "decoder" },
+          { from: "queries", to: "decoder" },
+          { from: "decoder", to: "preds" },
+        ],
+      });
+      const result = await renderFigure(text, {});
+      if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+      const rendered = result.value;
+      if (!("layout" in rendered)) throw new Error("expected structured layout");
+      const { nodes, edges } = rendered.layout;
+      const decoder = nodes.find((n) => n.key === "n:decoder")?.rect as Rect;
+      const points = edges.find((e) => e.from === "n:encoder")?.route?.points ?? [];
+      for (const n of nodes.filter(
+        (n) => n.key === "n:queries-label" || n.key.startsWith("n:queries"),
+      ))
+        expect(crosses(points, n.rect)).toBe(false);
+      // The side input keeps its face of the decoder to itself.
+      const inputFace = direction === "up" ? decoder.y : decoder.y + decoder.height;
+      expect(points.at(-1)?.y).not.toBe(inputFace);
+      const input = edges.find((e) => e.from === "g:queries");
+      expect(input?.route?.points.at(-1)?.y).toBe(inputFace);
+      expect(lintGeometry(rendered, { source: text }).filter((d) => d.severity !== "info")).toEqual(
+        [],
+      );
+    });
+  }
