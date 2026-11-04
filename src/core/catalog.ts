@@ -6,18 +6,20 @@
  *
  * Compatibility: within a version, fields and sections are only added, never
  * removed or changed (design doc §6.10). The `themes` and `profiles` sections
- * were added to version 1 in #37 and `icons` in #94; a reader of
+ * were added to version 1 in #37, `icons` in #94 and `targets` in #347; a reader of
  * `{ version: 1, components }` keeps working.
  */
 
+import { z } from "zod";
 import { type IconSetInfo, iconSets } from "../assets/icons";
+import { FigureTargetSchema } from "./figure/schema";
 import { buildProfileCatalog, type ProfileCatalogEntry } from "./profile/catalog";
 import { buildCatalog, CATALOG_VERSION, type CatalogEntry } from "./registry/catalog";
 import type { ComponentKind } from "./registry/manifest";
 import type { Registry } from "./registry/registry";
 import { buildThemeCatalog, type ThemeCatalogEntry } from "./theme/catalog";
 
-export const CATALOG_SECTIONS = ["components", "themes", "profiles", "icons"] as const;
+export const CATALOG_SECTIONS = ["components", "themes", "profiles", "icons", "targets"] as const;
 export type CatalogSection = (typeof CATALOG_SECTIONS)[number];
 
 /** The catalog; a section is present only if it was selected. */
@@ -28,6 +30,17 @@ export interface FullCatalog {
   profiles?: ProfileCatalogEntry[];
   /** The bundled icon sets (names: `sumi catalog --icons <words>`). */
   icons?: IconSetInfo[];
+  /** Input schema for figure.target: optional placement-specific lint values. */
+  targets?: ReturnType<typeof buildTargetCatalog>;
+}
+
+export function buildTargetCatalog() {
+  return {
+    path: "figure.target",
+    description:
+      "Placement-specific lint targets; height is a budget, fitting remains width-only. Font minima override the profile at final size; math scripts stay information-only.",
+    schema: z.toJSONSchema(FigureTargetSchema, { io: "input" }),
+  };
 }
 
 export interface FullCatalogOptions {
@@ -51,5 +64,6 @@ export function buildFullCatalog(
     ...(sections.has("themes") && { themes: buildThemeCatalog(undefined, { registry }) }),
     ...(sections.has("profiles") && { profiles: buildProfileCatalog() }),
     ...(sections.has("icons") && { icons: iconSets() }),
+    ...(sections.has("targets") && { targets: buildTargetCatalog() }),
   };
 }

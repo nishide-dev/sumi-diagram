@@ -457,6 +457,20 @@ export const FigureAssetSchema = z
     path: ["svg"],
   });
 
+export const FigureTargetSchema = z.strictObject({
+  height: LayoutLength.refine((pt) => pt > 0, "Height budget must be positive.")
+    .optional()
+    .describe("Printed height budget, including margins; exceeding it warns but never rescales."),
+  minFontSize: LayoutLength.refine((pt) => pt >= 4.5, "Minimum font size must be at least 4.5pt.")
+    .optional()
+    .describe("Minimum final text size (at least 4.5pt), overriding both profile font minima."),
+  minLineWidth: LayoutLength.refine((pt) => pt > 0, "Minimum line width must be positive.")
+    .optional()
+    .describe(
+      "Minimum final diagram border/wire width; thinner lines warn. Excludes image content.",
+    ),
+});
+
 export const FigureMetaSchema = z.strictObject({
   id: Id,
   title: z.string().optional(),
@@ -498,6 +512,9 @@ export const FigureMetaSchema = z.strictObject({
       "Figure-wide refinements of the selected built-in theme. Omitted fields preserve the theme.",
     ),
   profile: z.string().min(1).default("paper-single").describe("Built-in output profile name."),
+  target: FigureTargetSchema.optional().describe(
+    "Placement-specific lint targets; do not change layout, fonts, or width-only fitting.",
+  ),
   fit: z
     .enum(FIGURE_FITS)
     .optional()

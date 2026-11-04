@@ -608,7 +608,14 @@ describe("sumi catalog", () => {
     expect(result).toMatchObject({ exitCode: 0, stderr: "" });
     const json = JSON.parse(result.stdout);
     expect(json).toEqual(JSON.parse(JSON.stringify(buildFullCatalog(createBuiltinRegistry()))));
-    expect(Object.keys(json)).toEqual(["version", "components", "themes", "profiles", "icons"]);
+    expect(Object.keys(json)).toEqual([
+      "version",
+      "components",
+      "themes",
+      "profiles",
+      "icons",
+      "targets",
+    ]);
     // #94: the bundled icon set, without the (long) list of names.
     expect(json.icons).toEqual([
       expect.objectContaining({ id: "tabler", version: "3.49.0", license: "MIT", count: 4808 }),

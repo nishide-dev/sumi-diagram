@@ -84,6 +84,49 @@
           "type": "string",
           "minLength": 1
         },
+        "target": {
+          "description": "Placement-specific lint targets; do not change layout, fonts, or width-only fitting.",
+          "type": "object",
+          "properties": {
+            "height": {
+              "description": "Printed height budget, including margins; exceeding it warns but never rescales.",
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|\\d+(\\.\\d+)?(mm|cm|in|pt))$"
+                },
+                {
+                  "const": 0
+                }
+              ]
+            },
+            "minFontSize": {
+              "description": "Minimum final text size (at least 4.5pt), overriding both profile font minima.",
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|\\d+(\\.\\d+)?(mm|cm|in|pt))$"
+                },
+                {
+                  "const": 0
+                }
+              ]
+            },
+            "minLineWidth": {
+              "description": "Minimum final diagram border/wire width; thinner lines warn. Excludes image content.",
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|\\d+(\\.\\d+)?(mm|cm|in|pt))$"
+                },
+                {
+                  "const": 0
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
         "fit": {
           "description": "scale: shrink the whole figure (layout unchanged) to the profile's maximum width if it is wider; text is then checked at its printed size. Omitted means the figure is printed at its natural size.",
           "type": "string",

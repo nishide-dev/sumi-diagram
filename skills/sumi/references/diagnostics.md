@@ -173,8 +173,11 @@ written; errors make the exit code 1. Configure like structural rules
 | `geometry/exceeds-page-width` | error | see [too wide](#too-wide-the-width-breakdown); a wider profile only if the user agrees and the figure is not already on `paper-double` |
 | `geometry/exceeds-page-height` | error | paper profiles 220mm, `presentation-16x9` 190.5mm: auto: `direction: right`, fewer layers; structured: re-arrange (a long stack as a row of stacks), smaller `gap`s; or split the figure |
 | `geometry/text-too-small` | error | as `profile/font-too-small` (safety net); under `figure.fit: scale` a label printed below 5pt (a 7pt `sublabel` does at 71%): make the figure narrower so it shrinks less, or write the text into the label. HTML: font-size × placed/viewport scale × page-fit scale |
-| `geometry/script-too-small` | info | with `fit: scale`, math subscripts print below 5pt; one finding per figure; scripts are exempt from the minimum |
-| `geometry/heavy-scaling` | info | `fit: scale` prints below 90%; reports scale, natural/printed width and the width breakdown before scaling; review the layout or use a wider profile |
+| `geometry/script-too-small` | info | with `fit: scale`, math scripts print below the target minimum, or the scaled profile minimum (paper: 5pt); one finding per figure; scripts remain exempt from errors |
+| `geometry/heavy-scaling` | info | scaled final text (including scripts/HTML) is at most 120% of the effective minimum; reports final size, minimum, headroom, scale and natural-width attribution; compare readable text and reserved area |
+| `geometry/exceeds-target-height` | warning | printed height exceeds `figure.target.height`; reports budget, actual height and vertical placement attribution; change arrangement or the budget, not automatic height scaling |
+| `geometry/placement-usage` | info | an explicit target reports reserved profile width × printed height, width utilization and optional height-budget use |
+| `geometry/line-too-thin` | warning | final diagram border/wire width is below `figure.target.minLineWidth`; use thicker theme strokes or less scaling; imported image/icon/HTML strokes are excluded |
 | `geometry/dead-space` | info | up to three empty rectangles, each ≥27% of canvas and ≥10mm on both sides at printed size, with position and mm; outside group/body/label/arrow footprints, excluding outer margins; review unexplained voids, keep intentional space |
 | `geometry/label-overflow` | error | remove or enlarge explicit `width`/`height` (`path` points at `props`), shorten or break the label, or use a roomier shape (`box`) |
 | `geometry/out-of-canvas` | error | shorten labels; if it persists, a Sumi bug |

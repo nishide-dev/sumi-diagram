@@ -12,13 +12,32 @@
   幅×高さ（mm）・面積比率を表示する。group 内部の空白は従来の規則が担当。
   構造化レイアウトでは既存の有限回の試行で診断が消える変更だけを hint にする。
   意図した余白は維持してよい。斜線・曲線は保守的な矩形近似なので過少検出がある。
-- `geometry/heavy-scaling`: `figure.fit: scale` が自然寸法の **90%未満**に縮めたら、
+- `geometry/heavy-scaling`（#347）: 縮小した図の最小の最終文字（数式の添字・配置後の
+  HTML を含む）が有効な下限の **120%以下**なら報告する。最終サイズ・下限・余裕・
   縮尺・自然幅→印刷幅と、#307 の幅内訳を **縮小前の寸法**で表示する。
-  本文・数式の最小文字サイズと、印刷後の幅・高さの検査は従来どおり独立。
+  縮尺だけでは良し悪しを判定しない。添字は引き続き error の対象外。
 
 `lint --geometry` での抑止は `--rule geometry/dead-space=off` / `--rule geometry/heavy-scaling=off`、
 または lint 設定の `{"rules":{"geometry/dead-space":"off","geometry/heavy-scaling":"off"}}`。
 27%の根拠と意図的な catalogue の空白は設計 §6.96 を参照。
+
+## 置き場所の目標（#347）
+
+`figure.target` は任意。描画・幅だけへの fit・Profile のページ上限は変えない。
+`render` / `lint --geometry` で検査する。
+
+| ルール | 既定 | 条件・表示 |
+| --- | --- | --- |
+| `geometry/exceeds-target-height` | warning | 印刷時の高さ（margin 込み）が正の `target.height` 予算を超える。予算の位置を指し、実寸・予算比・最上位の本体/ラベルの縦投影・隙間・外周と overhang・大きい要素の高さ/位置を示す。重なりは二重に数えない。 |
+| `geometry/placement-usage` | info | 明示的な target があれば Profile 幅 × 印刷高さの予約面積（mm²）、実幅/配置幅、任意の高さ予算比を示す。縦横比を評価する点数ではない。 |
+| `geometry/line-too-thin` | warning | 可視の図の枠/辺の線幅 × 印刷縮尺が正の `target.minLineWidth` 未満。画像・アイコン・HTML 内の線は対象外。 |
+
+`target.minFontSize` は **4.5pt以上**で Profile の通常時/縮小時両方の最小文字を
+上書きする（引き上げも引き下げも可能）。明示時は描画前の `profile/font-too-small`
+では止めず、最終サイズを `geometry/text-too-small`（ラベル・sublabel・配置後の HTML、
+error）、`script-too-small`（縮小した添字、info）と `heavy-scaling` で共通に使う。
+省略時は従来の Profile の下限・描画前検査を維持する。
+設計と採否は [設計 #347](design/decisions/347-figure-target.md) を参照。
 
 ## グループの空き面積（#248）
 
