@@ -143,6 +143,31 @@ nodes:
     }
   });
 
+  test("scaled rotated overflow reports printed and pre-scale YAML sizes", async () => {
+    const text = `version: 1
+figure: { id: overflow-scale, theme: academic, fit: scale, layout: { engine: structured, arrange: { row: { items: [vae, wide] } } } }
+nodes:
+  - { id: vae, component: box, label: Visual VAE Encoder, labelRotation: -90, props: { width: 100pt, height: 20pt } }
+  - { id: wide, component: box, label: Wide, props: { width: 200pt } }
+`;
+    const result = await renderFigure(text);
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    expect(result.value.inspection.scale).toBeLessThan(1);
+    const finding = lintGeometry(result.value, { source: text }).find(
+      (d) => d.code === "geometry/label-overflow",
+    );
+    expect(finding?.message).toContain("printed;");
+    expect(finding?.message).toContain("100pt × 20pt before scaling (YAML units)");
+    expect(finding?.message.match(/before scaling \(YAML units\)/g)).toHaveLength(2);
+    expect(finding?.path).toEqual(["nodes", 0, "props"]);
+    expect(finding?.related?.[0]?.path).toEqual(["nodes", 0, "label"]);
+    const unscaled = await renderFigure(text.replace("fit: scale, ", ""));
+    if (!unscaled.ok) throw new Error(JSON.stringify(unscaled.diagnostics));
+    expect(
+      lintGeometry(unscaled.value).find((d) => d.code === "geometry/label-overflow")?.message,
+    ).not.toContain("before scaling");
+  });
+
   test("the picture PPTX and the editable PPTX (a text box turned with rot)", async () => {
     const rendered = await render(source);
     const picture = svgToPptx(rendered.svg, { fontSet: fonts });

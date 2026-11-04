@@ -58,6 +58,76 @@ test("a spanning dominant item does not turn ineffective descendant gaps into re
   expect(hint).not.toMatch(/set group "g\d"\.arrange\.row\.gap/);
 });
 
+test.each([false, true])(
+  "inline SVG assets participate in verified width trials (shared: %s)",
+  async (shared) => {
+    const svg =
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 10"><rect width="20" height="10" fill="red"/></svg>';
+    const text = `version: 1
+figure:
+  id: inline-trials
+  ${shared ? `assets: { art: { svg: '${svg}' } }` : ""}
+  layout: { engine: structured, arrange: { row: { gap: 20mm, items: [a, b] } } }
+nodes:
+  - { id: a, component: image, props: { ${shared ? "asset: art, crop: [0, 0, 10, 10]" : `svg: '${svg}'`}, width: 100pt } }
+  - { id: b, component: box, label: B, props: { width: 100pt } }
+`;
+    const before = await lintRenderedFigure(text, { rules: [exceedsPageWidth] });
+    const after = await lintRenderedFigure(text.replace("gap: 20mm", "gap: 0mm"), {
+      rules: [exceedsPageWidth],
+    });
+    if (!before.rendered || !after.rendered) throw new Error(JSON.stringify(before.diagnostics));
+    const reduction =
+      printedSize(before.rendered.inspection).widthPt -
+      printedSize(after.rendered.inspection).widthPt;
+    const hint = before.diagnostics.find((d) => d.code === exceedsPageWidth.id)?.hint;
+    expect(hint).toContain(
+      `set figure.layout.arrange.row.gap to 0mm (page width reduced by ${formatMm(reduction)})`,
+    );
+    expect(hint).not.toContain("trials skipped");
+    expect(hint).not.toContain('remove the explicit width of node "a"');
+    expect(before.rendered.svg).toContain("data:image/svg+xml");
+  },
+);
+
+test("external and HTML asset bypasses explain their reasons without running trials", async () => {
+  const report = await lintRenderedFigure(gridProbe(1));
+  if (!report.rendered) throw new Error("render failed");
+  const context = geometryContextFor(report.rendered);
+  const spy = spyOn(engine, "placeStructured");
+  try {
+    const node = context.ir.nodes[0];
+    if (!node) throw new Error("node missing");
+    for (const shared of [false, true]) {
+      const ir = {
+        ...context.ir,
+        nodes: shared
+          ? context.ir.nodes
+          : [
+              {
+                ...node,
+                image: { src: "external.svg", fit: "contain" as const, srcAt: { path: [] } },
+              },
+            ],
+        ...(shared && { assets: new Map([["art", { src: "external.svg", at: { path: [] } }]]) }),
+      };
+      expect(verifyHints({ ...context, ir }, "width", (c) => c.canvas.width)).toContain(
+        "external asset files",
+      );
+    }
+    expect(
+      verifyHints(
+        { ...context, html: new Map([[node.key, { boxes: [], texts: [] }]]) },
+        "width",
+        (c) => c.canvas.width,
+      ),
+    ).toContain("HTML assets");
+    expect(spy).not.toHaveBeenCalled();
+  } finally {
+    spy.mockRestore();
+  }
+});
+
 test("layout trial budget and large-figure bypass are deterministic performance guards", async () => {
   const report = await lintRenderedFigure(gridProbe(8));
   if (!report.rendered) throw new Error("render failed");
@@ -75,7 +145,7 @@ test("layout trial budget and large-figure bypass are deterministic performance 
     for (let i = large.elements.size; i <= MAX_HINT_ELEMENTS; i++)
       large.elements.set(`n:extra${i}`, large.nodes[0] as NonNullable<(typeof large.nodes)[0]>);
     expect(verifyHints({ ...context, ir: large }, "width", (c) => c.canvas.width)).toContain(
-      "trials skipped",
+      "trials skipped: figure exceeds the bounded layout trial size limits",
     );
     expect(spy).not.toHaveBeenCalled();
     expect(
