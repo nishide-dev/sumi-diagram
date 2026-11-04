@@ -43,7 +43,7 @@ edges:
 `figure.layout.engine` (`auto` | `structured`) is rarely needed: **a figure
 with `figure.layout.arrange` is structured, one without it auto**; an
 explicit `engine: auto` wins. Under auto, every structured-only field
-(`arrange`, `align`, `fanIn`, `density`, `attach`, `sublabel`,
+(`arrange`, `align`, `alignGrowth`, `fanIn`, `density`, `attach`, `sublabel`,
 `labelRotation`, `textAlign`, `grow`, `fromAnchor` / `toAnchor`, edge
 `labelAt` / `labelSide`, and the `legend`, `tokens`, `matrix`, `bracket`,
 `separator` and `zoom` components) is `layout/structured-only`: remove it or
@@ -429,7 +429,8 @@ figure:
   render reports `layout/align-grew-figure` (info) with both sizes. Keep it if
   intended (a U-Net level pushed down for a straight skip); otherwise align an
   item that can move alone (wrap it in its own `stack` / `row`), bring the two
-  closer in the tree, or use an anchor instead.
+  closer in the tree, or use an anchor instead. For an intended growth set
+  `figure.layout.alignGrowth: allow` to drop this info.
 
 ```yaml
 # expect-render: fits
@@ -685,7 +686,9 @@ text. An entry has exactly one of `edge` (a sample line: `component` default
 `<matrix>.<class>`), plus `label` (math allowed; a `class` entry defaults to the
 class's label). Samples are drawn by the same theme rules as real edges and
 nodes, so no colours are written. The legend's own `label` is its title;
-`variant: plain` drops the frame; `tone` colours it.
+`variant: plain` drops the frame; `tone` colours it. Entry text is left-aligned (a
+wrapped `\n` entry keeps its lines flush left); `textAlign: center | right` on the legend
+changes it.
 
 ```yaml
 - id: key
