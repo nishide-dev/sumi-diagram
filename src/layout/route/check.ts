@@ -16,6 +16,7 @@ import { getOutlineRenderer } from "../../core/outline";
 import { obstaclesCrossedByRoute, type RouteObstacle } from "../../lint/geometry/edges";
 import { rectPolygon, segmentCrossesRect } from "../../lint/geometry/shapes";
 import type { EdgeLayout, LayoutIR, Point, Rect } from "../ir";
+import { endpointRects, makeInside } from "./endpoint-rects";
 import {
   anchorPoint,
   DIRS,
@@ -173,9 +174,11 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
     }
     rects.set(node.key, node.rect);
   }
+  const endpoints = endpointRects(ir, layout);
   for (const group of layout.groups) {
-    regions.set(group.key, rectPolygon(group.rect));
-    rects.set(group.key, group.rect);
+    const rect = endpoints.get(group.key) as Rect;
+    regions.set(group.key, rectPolygon(rect));
+    rects.set(group.key, rect);
   }
   const obstacles: RouteObstacle[] = layout.nodes.map((n) => ({
     key: n.key,
@@ -185,12 +188,11 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
     [...layout.nodes, ...layout.groups].map((e) => [e.key, e.parent]),
   );
   /** `inner` lies (transitively) in the group `outer`. */
-  const inside = (inner: ElementKey, outer: ElementKey) => {
-    for (let p = parents.get(inner); p !== undefined; p = parents.get(p)) {
-      if (p === outer) return true;
-    }
-    return false;
-  };
+  const inside = makeInside(
+    rects,
+    parents,
+    new Set(ir.groups.filter((g) => g.tokens !== undefined).map((g) => g.key)),
+  );
   const netOf = (e: EdgeLayout) => e.route?.net ?? -1;
   const zoom = new Set(ir.edges.filter(isZoomEdge).map((e) => e.key));
   const edges = layout.edges.filter((e) => !zoom.has(e.key));

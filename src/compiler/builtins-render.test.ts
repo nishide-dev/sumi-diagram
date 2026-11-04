@@ -264,12 +264,13 @@ describe.skipIf(!available)("built-in primitives render with D2", () => {
           const stderr = run.stderr.toString();
           expect(run.exitCode, stderr).toBe(0);
           if (example === "examples/dit-block/dit-block.sumi.yaml") {
-            expect(stderr).toContain("0 errors, 0 warnings, 6 infos");
+            expect(stderr).toContain("0 errors, 0 warnings, 7 infos");
             expect(
               [...stderr.matchAll(/^examples\/.*:\d+:\d+ (\w+) ([\w/-]+)/gm)].map(
                 ([, severity, code]) => [severity, code],
               ),
             ).toEqual([
+              ["info", "geometry/heavy-scaling"],
               ["info", "geometry/script-too-small"],
               ["info", "geometry/group-empty-area"],
               ["info", "geometry/group-empty-area"],
@@ -278,12 +279,15 @@ describe.skipIf(!available)("built-in primitives render with D2", () => {
               ["info", "geometry/arrowhead-cramped"],
             ]);
           } else if (example === "examples/clip/clip.sumi.yaml") {
-            expect(stderr).toContain("0 errors, 0 warnings, 1 info");
+            expect(stderr).toContain("0 errors, 0 warnings, 2 infos");
             expect(
               [...stderr.matchAll(/^examples\/.*:\d+:\d+ (\w+) ([\w/-]+)/gm)].map(
                 ([, severity, code]) => [severity, code],
               ),
-            ).toEqual([["info", "geometry/script-too-small"]]);
+            ).toEqual([
+              ["info", "geometry/heavy-scaling"],
+              ["info", "geometry/script-too-small"],
+            ]);
           } else expect(stderr).toBe("");
           const svg = await Bun.file(output).text();
           const committed = example.replace(/\.sumi\.yaml$/, ".svg");

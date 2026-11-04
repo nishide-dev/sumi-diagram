@@ -21,6 +21,7 @@ import type { FigureCheck } from "../core/figure/check";
 import { type EdgeAnchor, parseAnchor } from "../core/figure/layout";
 import type {
   AlignConstraint,
+  AlignGrowthMode,
   AlignPosition,
   ArrangeAlign,
   ArrangeBox,
@@ -94,6 +95,8 @@ export interface FigureMetaIR {
   readonly direction: LayoutDirection;
   /** Layout engine (design doc §6.19); `direction` applies to `auto` only. */
   readonly engine: LayoutEngine;
+  /** Structured layout: `figure.layout.alignGrowth` (#333). Absent when not written (report). */
+  readonly alignGrowth?: AlignGrowthMode;
   /** Structured layout: `figure.layout.fanIn` (#134). Absent when not written (merge). */
   readonly fanIn?: FanInMode;
   /** Structured layout: `figure.layout.density` (#182). Absent when not written (normal). */
@@ -621,6 +624,9 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
         ...(figure.themeOverrides !== undefined && { themeOverrides: figure.themeOverrides }),
         direction: figure.layout.direction,
         engine: figure.layout.engine,
+        ...(figure.layout.alignGrowth !== undefined && {
+          alignGrowth: figure.layout.alignGrowth,
+        }),
         ...(figure.layout.fanIn !== undefined && { fanIn: figure.layout.fanIn }),
         ...(figure.layout.density !== undefined && { density: figure.layout.density }),
         fontSetId: theme.fontSet.id,

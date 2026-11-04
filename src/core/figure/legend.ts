@@ -367,6 +367,9 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
     sizes ??= themeSizes(doc.figure?.theme);
     const legendName = `legend "${node.id}"`;
     const rows: ArrangeItem[] = [];
+    // Entries are read as a list: wrapped lines start at the left (#333), unless
+    // the legend asks otherwise with its own `textAlign`.
+    const textAlign = node.textAlign ?? "left";
     const expansion: LegendExpansion = { id: node.id, path: legendPath, entries: [] };
     const addNode = (part: FigureNode, path: DocPath, name: string) => {
       nodes.push(part);
@@ -391,7 +394,7 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
       const matrixClass = classes.get(j);
       const label = matrixClass?.label ?? entry.label ?? "";
       addNode(
-        { ...partNode(ids.label, "sumi/label", "default"), label },
+        { ...partNode(ids.label, "sumi/label", "default"), label, textAlign },
         entryPath,
         `the text ${of}`,
       );

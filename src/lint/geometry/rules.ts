@@ -26,6 +26,7 @@ import { printedSize } from "../../render/size";
 import { defineGeometryRule, type GeometryRule, type LintFinding } from "../rule";
 import { arrowheadStraightRun } from "./arrowheads";
 import type { GeometryContext, GeometryElement } from "./context";
+import { deadSpace } from "./dead-space";
 import { obstaclesCrossedByRoute, type RouteObstacle } from "./edges";
 import { groupEmptySpace } from "./empty-space";
 import { microJogLengths } from "./jogs";
@@ -209,6 +210,26 @@ export const exceedsPageWidth = defineGeometryRule({
         path: figurePath,
         subject: figureSubject(context),
         hint: [widthBreakdown(context), pageWidthHint(context)].filter(Boolean).join(" "),
+      },
+    ];
+  },
+});
+
+export const heavyScaling = defineGeometryRule({
+  id: "geometry/heavy-scaling",
+  description: "figure.fit: scale prints the figure below 90% of its natural size.",
+  defaultSeverity: "info",
+  fixable: false,
+  run(context) {
+    const scale = printScale(context);
+    if (context.ir.meta.fit !== "scale" || scale >= 0.9 - PT_EPSILON) return [];
+    const natural = { ...context, inspection: { ...context.inspection, scale: 1 } };
+    return [
+      {
+        message: `figure.fit: scale prints the figure at ${Math.round(scale * 1000) / 10}% of its natural size (below 90%): ${formatMm(context.inspection.canvas.width.pt)} → ${formatMm(printedSize(context.inspection).widthPt)} wide.`,
+        path: ["figure", "fit"],
+        subject: figureSubject(context),
+        hint: `Review the layout or use a wider profile before accepting smaller text. Width breakdown before scaling: ${widthBreakdown(natural)} Independent trial reductions are not additive.`,
       },
     ];
   },
@@ -1624,6 +1645,8 @@ export const groupEmptyArea = defineGeometryRule({
 });
 
 export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
+  deadSpace,
+  heavyScaling,
   groupEmptyArea,
   badgeCollision,
   exceedsPageWidth,

@@ -191,8 +191,8 @@ prints `Wrote figure.svg: <W>mm × <H>mm (…)`; `--json` has `size` (`widthMm`,
 
 ### 7. Inspect the result
 
-Clean diagnostics do not guarantee readability. Rasterize and open the printed PNG with
-the Read tool:
+Clean diagnostics do not guarantee readability. There is no `sumi preview` command: this
+Skill's script rasterizes the SVG, then open the printed PNG with the Read tool:
 
 ```sh
 <skill-dir>/scripts/preview figure.svg    # prints a temporary PNG path

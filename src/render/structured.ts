@@ -14,7 +14,8 @@
  * - a node / group draws its shape in one `g.shape` whose bounding box is the
  *   layout's `rect`, and its label as a `<text>` with `text-anchor: middle` at
  *   the layout's anchor, later lines as `<tspan dy>` of `lineHeightUnits`
- *   (no `xml:space`: the layout measured collapsed whitespace);
+ *   (the layout measured collapsed whitespace; a label whose runs meet at a
+ *   space gets `xml:space="preserve"` so renderers keep that space);
  * - an edge has one `path.connection` with its whole route (M/L) for the
  *   inspection, and draws its arrowheads and label.
  *
@@ -135,7 +136,15 @@ function richLabel(
   color: string,
 ): string {
   const { anchor } = layout;
-  const open = `<text x="${n(anchor.x)}" y="${n(anchor.y)}" fill="${paint(color)}" class="${textClass(layout.font)}" style="text-anchor:${anchorName(layout)};font-size:${n(layout.fontSizeUnits)}px;font-kerning:none"${rotate(layout)}>`;
+  // librsvg collapses spaces at tspan boundaries in its default whitespace
+  // mode (#266). Preserve the original characters and their font advances;
+  // labels without a space between runs keep their existing SVG bytes.
+  const space = runs.some((line) =>
+    line.some((run, i) => i > 0 && (run.text.startsWith(" ") || line[i - 1]?.text.endsWith(" "))),
+  )
+    ? ' xml:space="preserve"'
+    : "";
+  const open = `<text x="${n(anchor.x)}" y="${n(anchor.y)}" fill="${paint(color)}" class="${textClass(layout.font)}" style="text-anchor:${anchorName(layout)};font-size:${n(layout.fontSizeUnits)}px;font-kerning:none"${space}${rotate(layout)}>`;
   const spans = runs.map((line, i) => {
     const y = n(anchor.y + i * layout.lineHeightUnits);
     if (!line.some((run) => run.accent !== undefined)) {

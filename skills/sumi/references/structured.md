@@ -43,7 +43,7 @@ edges:
 `figure.layout.engine` (`auto` | `structured`) is rarely needed: **a figure
 with `figure.layout.arrange` is structured, one without it auto**; an
 explicit `engine: auto` wins. Under auto, every structured-only field
-(`arrange`, `align`, `fanIn`, `density`, `attach`, `sublabel`,
+(`arrange`, `align`, `alignGrowth`, `fanIn`, `density`, `attach`, `sublabel`,
 `labelRotation`, `textAlign`, `grow`, `fromAnchor` / `toAnchor`, edge
 `labelAt` / `labelSide`, and the `legend`, `tokens`, `matrix`, `bracket`,
 `separator` and `zoom` components) is `layout/structured-only`: remove it or
@@ -429,7 +429,8 @@ figure:
   render reports `layout/align-grew-figure` (info) with both sizes. Keep it if
   intended (a U-Net level pushed down for a straight skip); otherwise align an
   item that can move alone (wrap it in its own `stack` / `row`), bring the two
-  closer in the tree, or use an anchor instead.
+  closer in the tree, or use an anchor instead. For an intended growth set
+  `figure.layout.alignGrowth: allow` to drop this info.
 
 ```yaml
 # expect-render: fits
@@ -694,7 +695,9 @@ text. An entry has exactly one of `edge` (a sample line: `component` default
 `<matrix>.<class>`), plus `label` (math allowed; a `class` entry defaults to the
 class's label). Samples are drawn by the same theme rules as real edges and
 nodes, so no colours are written. The legend's own `label` is its title;
-`variant: plain` drops the frame; `tone` colours it.
+`variant: plain` drops the frame; `tone` colours it. Entry text is left-aligned (a
+wrapped `\n` entry keeps its lines flush left); `textAlign: center | right` on the legend
+changes it.
 
 ```yaml
 - id: key
@@ -815,9 +818,14 @@ edges:
 - **Cells.** A cell is a label string or `{ id, label, tone, mono, component,
   variant, width, height }`; `props.component` / `variant` / `width` / `height`
   and the node's `tone` are the defaults. An ellipsis is `{ label: '…',
-  component: label }` or math such as `'$A_{\ldots}$'`. The node has no label of
-  its own (put a `label` node beside it). `props.variant: outlined` gives every
-  cell a coloured frame and text in its tone; a cell's `variant: solid` is a
+  component: label }` or math such as `'$A_{\ldots}$'`. A `props.variant`
+  must be supported by the node's own component (`props.component`, default
+  `box`), or it is an error at `props.variant`. A cell that overrides the
+  component with one lacking that variant (the `label` component in the
+  ellipsis above, with `props.variant: outlined`) falls back to `default`. An
+  explicit cell `variant` must be supported. The node has no label of
+  its own (put a `label` node beside it). `props.variant: outlined` gives shape
+  cells (not `label` cells) a coloured frame and text in their tone; a cell's `variant: solid` is a
   selected cell (strong fill, white text); `tinted` gives pastel highlighted cells
   (both also work in legend `node` samples).
 - **Direction and lines.** `gap` and `align` are those of an arrange box;
@@ -841,6 +849,8 @@ edges:
   sequence** (`{ from: encoder, to: seq }`; an [attached bracket](#brackets)
   gathers it): Sumi lays the cells out in a frame group with that ID (no border,
   fill or padding); tokens that nothing names as a whole get no frame.
+  Whole-sequence edge endpoints use the cells' bounding rectangle, excluding
+  attached annotations, even when a wide note enlarges the layout frame.
 - **Dividers.** `{ separator: dotted }` (optionally `id`, `tone`, `width`, `height`;
   no label, component or variant) draws a dotted line across the sequence (vertical
   for `right` / `left`, horizontal for `down` / `up`), reserving 6pt along the

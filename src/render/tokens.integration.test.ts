@@ -17,10 +17,131 @@ import type { ElementKey } from "../core/check-state";
 import type { Diagnostic } from "../core/diagnostics";
 import { BUILTIN_THEMES } from "../core/theme/builtin";
 import type { LayoutIR } from "../layout/ir";
+import { checkRoutes } from "../layout/route/check";
 import { lintRenderedFigure } from "../lint/geometry/lint";
 import { type RenderedFigure, renderFigure } from "./render";
 
 const ROOT = join(import.meta.dir, "..", "..");
+
+test("whole-token edges meet cells rather than attached notes (#331)", async () => {
+  for (const theme of BUILTIN_THEMES.keys()) {
+    for (const direction of ["right", "left", "down", "up"]) {
+      for (const reverse of [false, true]) {
+        const vertical = direction === "down" || direction === "up";
+        const noteSide = vertical ? "east" : "south";
+        const text = `version: 1
+figure:
+  id: annotated-tokens
+  layout:
+    arrange: { ${vertical ? "stack" : "row"}: { direction: ${direction}, gap: 30pt, items: [box, seq] } }
+nodes:
+  - { id: box, component: box, label: B }
+  - id: seq
+    component: tokens
+    props: { cells: [A, B, C], gap: 0, width: 20pt, height: 20pt }
+  - { id: note, component: label, label: A very wide annotation, attach: { to: seq.2, side: ${noteSide}, gap: 4pt } }
+  - { id: chain, component: label, label: A second wide annotation, attach: { to: note, side: ${noteSide}, gap: 4pt } }
+edges:
+  - { from: ${reverse ? "seq" : "box"}, to: ${reverse ? "box" : "seq"} }
+`;
+        const result = await renderFigure(text, { overrides: { theme } });
+        if (!result.ok)
+          throw new Error(
+            JSON.stringify({ theme, direction, reverse, diagnostics: result.diagnostics }),
+          );
+        const layout = layoutOf(result.value);
+        const cells = layout.nodes.filter((n) => n.key.startsWith("n:seq-"));
+        const left = Math.min(...cells.map((n) => n.rect.x));
+        const right = Math.max(...cells.map((n) => n.rect.x + n.rect.width));
+        const top = Math.min(...cells.map((n) => n.rect.y));
+        const bottom = Math.max(...cells.map((n) => n.rect.y + n.rect.height));
+        const points = layout.edges[0]?.route?.points;
+        expect(points).toBeDefined();
+        const end = reverse ? points?.[0] : points?.at(-1);
+        expect(end).toBeDefined();
+        expect(end?.x as number).toBeGreaterThanOrEqual(left);
+        expect(end?.x as number).toBeLessThanOrEqual(right);
+        expect(end?.y as number).toBeGreaterThanOrEqual(top);
+        expect(end?.y as number).toBeLessThanOrEqual(bottom);
+        if (direction === "right") expect(end?.x).toBe(left);
+        if (direction === "left") expect(end?.x).toBe(right);
+        if (direction === "down") expect(end?.y).toBe(top);
+        if (direction === "up") expect(end?.y).toBe(bottom);
+      }
+    }
+  }
+});
+
+test("nested multi-line token endpoints share cell bounds for anchors and zoom (#331)", async () => {
+  for (const theme of BUILTIN_THEMES.keys()) {
+    for (const anchors of ["", "toAnchor: west:0.25", "toAnchor: straight", "component: zoom"]) {
+      const result = await renderFigure(
+        `version: 1
+figure:
+  id: nested-tokens
+  layout:
+    arrange: { row: { gap: 30pt, items: [box, panel] } }
+groups:
+  - { id: panel, variant: plain, arrange: { row: { items: [seq] } } }
+nodes:
+  - { id: box, component: box, label: B }
+  - id: seq
+    component: tokens
+    props: { lines: [[A, B, C], [D, E, F]], gap: 0, lineGap: 0, width: 20pt, height: 20pt }
+  - { id: note, component: label, label: A very wide annotation, attach: { to: seq.2, side: north, gap: 4pt } }
+  - { id: whole, component: label, label: Whole sequence, attach: { to: seq, side: south, gap: 4pt } }
+edges:
+  - { from: box, to: seq, ${anchors} }
+`,
+        { overrides: { theme } },
+      );
+      if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+      const layout = layoutOf(result.value);
+      const cell = layout.nodes.find((n) => n.key === "n:seq-1");
+      if (cell === undefined) throw new Error("missing first token cell");
+      const route = layout.edges[0]?.route;
+      expect(route?.points.at(-1)?.x).toBe(cell?.rect.x);
+      if (anchors.includes("0.25")) {
+        expect(route?.points.at(-1)?.y).toBe((cell?.rect.y ?? 0) + 20);
+      }
+      if (anchors.includes("zoom")) {
+        expect(route?.lines?.[0]?.[1]).toEqual({ x: cell.rect.x, y: cell.rect.y });
+      }
+      const checked = checkRoutes(result.value.compiled.ir, layout);
+      expect(checked.endpointMisses).toEqual([]);
+      expect(checked.zoomMisses).toEqual([]);
+      // The invisible layout frame still contains the note.
+      const frame = layout.groups.find((g) => g.key === "g:seq");
+      const note = layout.nodes.find((n) => n.key === "n:note");
+      expect(frame?.rect.x as number).toBeLessThanOrEqual(note?.rect.x as number);
+      expect(frame?.rect.y as number).toBeLessThanOrEqual(note?.rect.y as number);
+    }
+  }
+});
+
+test("an attached source approaches its own token frame from outside the cells (#331)", async () => {
+  for (const theme of BUILTIN_THEMES.keys()) {
+    const result = await renderFigure(
+      `version: 1
+figure:
+  id: attached-source
+  layout: { arrange: { row: { items: [seq] } } }
+nodes:
+  - { id: seq, component: tokens, props: { cells: [A], width: 20pt, height: 20pt } }
+  - { id: input, component: box, label: Input, attach: { to: seq.1, side: west, gap: 30pt } }
+edges:
+  - { from: input, to: seq }
+`,
+      { overrides: { theme } },
+    );
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const layout = layoutOf(result.value);
+    const cell = layout.nodes.find((n) => n.key === "n:seq-1");
+    expect(layout.edges[0]?.route?.points.at(-1)?.x).toBe(cell?.rect.x);
+    expect(layout.edges[0]?.route?.toSide).toBe("west");
+    expect(checkRoutes(result.value.compiled.ir, layout).endpointMisses).toEqual([]);
+  }
+});
 
 test("multi-line tokens keep their columns when a cell is aligned (#305)", async () => {
   const text = `version: 1

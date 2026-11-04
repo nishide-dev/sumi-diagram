@@ -110,6 +110,7 @@ describe("structured: #167 figures B and C on paper-double", () => {
     ).toEqual(["edges[6]", "edges[7]", "edges[27]", "edges[28]", "edges[29]"]);
     const diagnostics = all.filter((d) => d.code !== "geometry/arrowhead-cramped");
     expect(diagnostics.map((d) => [d.code, d.severity, d.subject?.id])).toEqual([
+      ["geometry/heavy-scaling", "info", "stage-c-dit"],
       ["geometry/script-too-small", "info", "stage-c-dit"],
       ["geometry/group-empty-area", "info", "incontext"],
       // Two edges 2pt from a group's border (natural size) print 1.4pt from it.
@@ -120,9 +121,9 @@ describe("structured: #167 figures B and C on paper-double", () => {
       ["geometry/text-too-small", "error", "edges[28]"],
       ["geometry/text-too-small", "error", "edges[29]"],
     ]);
-    expect(diagnostics[4]?.message).toContain("printed at 4.9pt (7pt shrunk to 70%");
-    expect(diagnostics[0]?.message).toContain("down to 3.43pt");
-    expect(diagnostics[2]?.message).toContain("(0.49mm between the lines)");
+    expect(diagnostics[5]?.message).toContain("printed at 4.9pt (7pt shrunk to 70%");
+    expect(diagnostics[1]?.message).toContain("down to 3.43pt");
+    expect(diagnostics[3]?.message).toContain("(0.49mm between the lines)");
   });
 
   test("C reports its existing micro-jogs and reports its scripts once, as information", async () => {
@@ -145,11 +146,12 @@ describe("structured: #167 figures B and C on paper-double", () => {
     ]);
     const diagnostics = all.filter((d) => d.code !== "geometry/arrowhead-cramped");
     expect(diagnostics.map((d) => [d.code, d.severity, d.subject?.id])).toEqual([
+      ["geometry/heavy-scaling", "info", "stage-c-h3world"],
       ["geometry/script-too-small", "info", "stage-c-h3world"],
       ["geometry/edge-jog", "info", "edges[17]"],
       ["geometry/edge-jog", "info", "edges[20]"],
     ]);
-    expect(diagnostics[0]?.message).toContain("down to 4.34pt (5.6pt shrunk to 77.4%");
+    expect(diagnostics[1]?.message).toContain("down to 4.34pt (5.6pt shrunk to 77.4%");
   });
 
   test("the PDF page and both PPTX slides are 180mm wide", async () => {
