@@ -551,6 +551,15 @@ edges:
 The router draws orthogonal lines around nodes (never through them) in YAML order,
 greedily: edges declared first get the best routes.
 
+Independent crossing connectors between two rows (or columns) get separate
+middle lanes automatically when the clear channel fits their stubs, arrowhead
+room and 1.5pt stroke-to-stroke spacing. Keep the correspondence order: do not
+reorder a row just to remove the crossing. If `geometry/edge-near-edge` remains,
+use its numeric port-to-port minimum to increase the **gap between rows**, and
+keep nodes/titles out of that channel. Close fixed legs need more space between
+ports (anchors or cell spacing); a larger row gap alone does not separate them.
+Shared trunks keep their existing routing. There is no per-edge lane coordinate.
+
 - **Anchors**: `fromAnchor` / `toAnchor` pick the side of an end: `west`, or
   `"south:0.2"` for a position along it (0..1: left → right on north/south, top →
   bottom on east/west; default 0.5; quote values with `:`). Several edges between
