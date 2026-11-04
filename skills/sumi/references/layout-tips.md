@@ -1,10 +1,12 @@
 # Layout tips
 
-**Purpose.** Pick the layout engine, make a figure fit its target, and design
-a paper figure that reads well, from content or from a reference. Contents:
-[choose the engine](#choose-the-engine-first) · [auto layout](#auto-layout-d2--elk) ·
+**Purpose.** Pick the layout engine, choose a figure's shape for its placement,
+and design a paper figure that reads well, from content or from a reference.
+Contents: [choose the engine](#choose-the-engine-first) ·
+[**fit the placement**](#fit-the-placement) ·
+[when width runs short](#when-width-runs-short) · [auto layout](#auto-layout-d2--elk) ·
 [direction vs. width](#direction-vs-target-width) · [slides](#slides-presentation-16x9) ·
-[too wide with `right`, too tall with `down`](#too-wide-with-right-too-tall-with-down) ·
+[folding into rows](#folding-a-flow-into-rows) ·
 [shrinking](#shrinking-to-the-page-width-figurefit-scale) ·
 [compact spacing](#compact-spacing-figurelayoutdensity-compact) ·
 [**design principles**](#design-principles) ·
@@ -21,12 +23,74 @@ a paper figure that reads well, from content or from a reference. Contents:
 | a paper block diagram: stacked layers, residual or skip connections, columns that must line up, blocks of equal width, notes beside a block (`N×`), operators (⊕) and split points, math labels, token rows, patches | **structured**: `figure.layout.arrange` ([structured](structured.md)) |
 
 A figure is structured when it has `figure.layout.arrange` (and no `engine:
-auto`). When unsure start with auto: it needs no placement and suits most
+auto`). When unsure start with auto: it needs no arrange tree and suits most
 diagrams; switch when the user wants a particular arrangement or the figure is a
-paper block diagram. Structured figures need every element placed and their sizes
-come from the arrange tree, so the direction tables below do not apply (measure
-with `sumi render`). The rest of this page up to
-[design principles](#design-principles) is mostly about auto.
+paper block diagram. Structured sizes come from the arrange tree, so the direction
+tables below (auto) do not apply: measure with `sumi render`.
+
+## Fit the placement
+
+Shape is a consequence of the placement and the content, not a convention. No
+placement prescribes an aspect ratio, a direction or a number of rows: a full-width
+ML method figure is often one wide row, but a one-column first-page overview, a
+README figure, a slide or a figure from another field may be tall, square or split
+into panels. Measure candidates instead of applying a rule:
+
+1. **Constraints.** From the user or the venue (SKILL.md step 1); report any you
+   assume. Field details: [`figure.target`](figure-format.md#themes-and-profiles).
+
+   | Constraint | Hard? | Sumi |
+   | --- | --- | --- |
+   | width W (column, full width, single-column text width, slide, web column) | yes | `profile`; for a W between or below the profiles use the wider (or `paper-single`), keep `size.widthMm` ≤ W and count reserved area as W × height yourself (`fit: scale` and `placement-usage` use the profile width) |
+   | maximum height (paper profiles 220mm, slides 190.5mm; venues differ) | yes | profile, `geometry/exceeds-page-height` |
+   | minimum final text size (venues differ widely, in print or on a slide) | yes | `figure.target.minFontSize`, `geometry/text-too-small`; math scripts (0.7×: 8pt → 5.6pt) are checked against it by `geometry/script-below-target` |
+   | minimum line width, if the venue sets one | yes | `figure.target.minLineWidth`, `geometry/line-too-thin` |
+   | height budget: what the document can spare | no | `figure.target.height`, `geometry/exceeds-target-height` |
+   | reading context: print, screen, projection; beside a caption or alone | no | theme; which sizes read comfortably |
+
+   A full-width figure reserves the whole text width × its height, however narrow
+   it is, so its cost is height and unused width is wasted; a column figure
+   reserves column width × height. On the web the size is not physical: the page
+   scales the SVG to its column, so text px = text pt × column px ÷ figure width in pt
+   (1mm = 2.835pt).
+2. **Candidates.** Count the content's structure (main-path length, side inputs,
+   parallel branches, nesting, independent topics, longest labels, natural breaks)
+   and build two to four candidates from: a **strip** (main path one way, side
+   inputs and branches perpendicular), a **vertical stack**, **folded rows** at a
+   natural break ([folding](#folding-a-flow-into-rows)), an **L/T** (main strip, a
+   training or detail branch below), **panels** (overview and detail, inference
+   and training), **condensed** (shorter labels, merged steps:
+   [costs](#when-width-runs-short)). Do not pick one by rule.
+3. **Render and measure** each (separate files or successive edits) with a
+   `figure.target`: `sumi render --json` gives `size` (printed mm, `scale`);
+   `geometry/placement-usage` the reserved area, width use and budget use;
+   `geometry/heavy-scaling` / `text-too-small` final text against the minimum;
+   `geometry/dead-space` voids, `layout/edge-crossing` crossings (structured).
+4. **Drop** candidates that break a hard constraint (an error, or
+   `geometry/line-too-thin`).
+5. **Compare** the rest on: reserved area (and height against the budget), final
+   text size and its headroom over the minimum, main-path turns and reversals,
+   unexplained whitespace, crossings and detours. Do not add these into one score:
+   drop a candidate no better on any of them than another, and weigh the rest.
+6. **Choose and report why**, e.g. "a 46mm strip with 6.8pt text against an 87mm
+   two-row version at 8pt; the venue allows 5pt, so the strip reserves half the
+   area". When the choice depends on the user's priority (area or text size), show
+   both and ask.
+
+### When width runs short
+
+No option always wins; each spends something different. Combine them (shorter
+labels plus a small scale) and compare the results as above.
+
+| Option | Costs | Consider when |
+| --- | --- | --- |
+| shorten labels | detail (moves to caption or text) | labels set the box widths (width breakdown); symbols or abbreviations are defined in the text. Keep the meaning. A tall block can turn its title (`labelRotation: -90`) |
+| merge steps | content granularity | neighbouring steps are one sentence in the text and not the point of the figure. **Ask the user** |
+| tighten spacing (`density: compact`, smaller `gap`s) | separation of groups | gaps are a large share of the width; inside/between-group spacing stays distinct |
+| scale (`figure.fit: scale`) | final text and line size | the scaled text keeps headroom over the venue minimum (easy at 5pt, rarely at 9pt or on slides). Unavailable when the minimum equals the theme's smallest text (`paper` 7pt edge labels and sublabels at a 7pt minimum) |
+| fold into rows | height (reserved area) and reading continuity | scaling would break the minimum; there is a natural break; the height budget has room; a long chain in a narrow column |
+| split into panels | cross-referencing between panels | there are two or more topics, each readable alone |
+| change placement (column → full width, one figure → two) | the document's layout | nothing above meets the constraints. **The user decides** |
 
 ## Auto layout (D2 + ELK)
 
@@ -45,15 +109,12 @@ layer gap (paper profiles). Measured with short labels:
 | 5-step chain, `minimal` | 127mm × 15mm | 26mm × 90mm |
 | 7-step chain, `academic` | 180mm × 15mm | 23mm × 127mm |
 
-- With these short labels, `paper-single` (88mm) holds about 3 nodes side by side,
-  `paper-double` (180mm) about 6–7. For longer chains compare `down`, rows and
-  scaling by measured size and final text, rather than using node count as a rule.
+- With these labels about 3 nodes fit side by side in 88mm and 6–7 in 180mm; longer
+  labels fit fewer. Use the numbers to estimate candidates, not as a rule.
 - Branches spread perpendicular to `direction`: a `down` decision flow with
   two-way branches grows sideways by about one node per branch.
-- Paper profiles allow at most 220mm height (`geometry/exceeds-page-height`):
-  with `down`, 5 layers take about 90mm and 6–7 layers 125–150mm, tall for one
-  column. Prefer fewer layers (merge trivial steps only if the user agrees), or
-  split the figure.
+- With `down`, 5 layers take about 90mm and 6–7 layers 125–150mm; whether that is
+  too tall depends on the height budget and the 220mm maximum, not on the column.
 - Do not fix width by switching to a bigger profile on your own: the profile is
   the user's target.
 
@@ -62,20 +123,22 @@ layer gap (paper profiles). Measured with short labels:
 Use `theme: slides` + `profile: presentation-16x9`: the profile requires 14pt text
 and only `slides` meets it (16pt text); `minimal` and `academic` fail every labelled
 element with `profile/font-too-small` by design (the profile never enlarges text).
-A slide is about 338mm × 190mm and `slides` spacing makes figures 1.5–2× larger than
-on paper: 3–4 layers `right` take about 280mm × 100mm, while long flows can overflow
+Slide guidance often asks for 18pt or more: set `figure.target.minFontSize`. A slide
+is about 338mm × 190mm and `slides` spacing makes figures 1.5–2× larger than on
+paper: 3–4 layers `right` take about 280mm × 100mm, while long flows can overflow
 both ways (`examples/pipeline`, `examples/decision-flow`: 240–250mm tall `down`, 356 /
 434mm wide `right`; for any other figure render and check `size`). On
-`geometry/exceeds-page-height` / `-width` try the other direction, then split the
-figure or drop trivial steps (ask the user); never switch theme or profile alone.
+`geometry/exceeds-page-height` / `-width` compare the
+[options](#when-width-runs-short); never switch theme or profile alone.
 
-## Too wide with `right`, too tall with `down`
+## Folding a flow into rows
 
-One candidate when a long flow overflows both ways is to wrap it: make the figure **structured** and
-lay the steps out in two rows, one `row` per line inside a `stack`
+To build the folded-rows candidate, make the figure **structured** and lay the steps
+out in rows, one `row` per line inside a `stack`
 ([arrange trees](structured.md#arrange-trees)). With `direction: left` on the second
 row the flow snakes back under the end of the first, so the edge that turns is a
-short vertical one:
+short vertical one (the second row then reads right to left; keeping both rows left
+to right costs a long return edge instead):
 
 ```yaml
 # expect-render: fits
@@ -112,36 +175,30 @@ edges:
 ```
 
 Split where the content has a natural break (data preparation, then training). If
-the rows hold groups, each group's `arrange` lays out its members; if two rows still
-do not fit use three, or split the figure (ask the user). For a measured breakdown
-of where the width goes, read the hint of `geometry/exceeds-page-width`
+the rows hold groups, each group's `arrange` lays out its members. For a measured
+breakdown of where the width goes, read the hint of `geometry/exceeds-page-width`
 ([diagnostics](diagnostics.md#too-wide-the-width-breakdown)).
 
 ## Shrinking to the page width (`figure.fit: scale`)
 
-A dense paper figure laid out as intended (several panels side by side) can stay
-too wide. `figure.fit: scale` (both engines) prints the whole figure smaller, at the
+`figure.fit: scale` (both engines) prints the whole figure smaller, at the
 profile's maximum width, without moving anything: the SVG keeps its coordinates
 and gets a smaller `width` / `height`, and the PDF page and PPTX slide are that
 size. It never enlarges and does not fix the height. `sumi render` prints `scaled
 to 70%`; `--json` has `size.scale`.
 
-When scaled text has at most **20% headroom** over its effective minimum (or falls
-below it), `geometry/heavy-scaling` (info) gives the smallest final size, including
-math scripts and placed HTML, minimum, headroom, scale and width breakdown
-**before scaling**. A low scale with readable text can pass; a high scale can still
-need review. Suppress an intentional choice
-with `--rule geometry/heavy-scaling=off` on `lint --geometry`.
-
-Text is checked at its printed size: the 8pt / 7pt of the built-in themes must
-print at 5pt or more on paper profiles (`geometry/text-too-small`), so a figure can
-shrink to about 70% (7pt edge labels reach 4.9pt just below). Subscripts of label
-math print smaller and are reported once as information (`geometry/script-too-small`).
-`figure.target.minFontSize` overrides the minimum (at least 4.5pt) and also judges math
-scripts (0.7 × base) at their final size, scaled or not (`geometry/script-below-target`, warning: a
-8pt `$q_1$` prints at 5.6pt); optional
-`minLineWidth` warns on thin final diagram strokes. Choose scaling or re-arranging
-by final readability and reserved page area; neither always wins. Report the trade-off.
+Text is checked at its printed size: by default the 8pt / 7pt of the built-in
+themes must print at 5pt or more on paper profiles (`geometry/text-too-small`), so a
+figure can shrink to about 70%; `figure.target.minFontSize` replaces that minimum
+and also judges math scripts (0.7 × base) at their final size, scaled or not
+(`geometry/script-below-target`, warning: an 8pt `$q_1$` prints at 5.6pt). Without a
+target, subscripts of scaled label math are reported once as information
+(`geometry/script-too-small`). When the smallest scaled text (including scripts and
+placed HTML) has at most **20% headroom** over the minimum, `geometry/heavy-scaling`
+(info) gives that size, the minimum, headroom, scale and the width breakdown
+**before scaling**: compare with the other [options](#when-width-runs-short). A low
+scale with readable text can pass. Suppress an intentional choice with `--rule
+geometry/heavy-scaling=off` on `lint --geometry`; say in the report that it is scaled.
 
 ## Compact spacing (`figure.layout.density: compact`)
 
@@ -164,10 +221,11 @@ figure:
 
 - It changes defaults only: a `gap` you wrote stays, so add the line and **remove the gaps
   written for normal spacing** (keep deliberate ones: `gap: 0`, small token gaps, room for
-  an edge label or badge). Use it for dense paper figures, usually with `fit: scale`: a
-  compact figure shrinks less and its text prints larger.
+  an edge label or badge). Use it for dense figures; with `fit: scale` a compact figure
+  shrinks less and its text prints larger.
 - Keep at least about 2.5mm between items joined by an arrow in themes with 1pt edges
-  (`minimal`, `color`); with 0.5pt edges (`paper`, `academic`) 1.5mm still routes. An edge
+  (`minimal`, `color`); with 0.5pt edges (`paper`, `academic`) 1.5mm still routes; a
+  labelled edge needs a gap wider than its label. An edge
   that bends between two items needs more (`layout/no-route` names it: give that box its
   own `gap`), as does a colliding edge label or badge (`geometry/label-collision`,
   `layout/edge-label-overlap`).
@@ -178,8 +236,8 @@ A paper figure is read in seconds, beside its caption. Check every candidate
 arrangement and the preview against these general information-design rules; each
 names its Sumi means.
 
-- **One reading direction.** The main path runs one way, inputs to outputs:
-  bottom to top for a stack of layers, left to right for a pipeline. Side paths
+- **One reading direction.** The main path runs one way, inputs to outputs
+  (e.g. bottom to top for a stack of layers); a fold or turn has a reason. Side paths
   (residuals, skips, feedback) run beside it, never back across it. *Sumi:* the
   root `stack: { direction: up }` or `row`; side entries with `toAnchor: west`;
   main-path edges first in `edges` (earlier edges route straighter).
@@ -203,17 +261,12 @@ names its Sumi means.
   **re-arrange**: put the outputs or note beside their source, turn a vertical list
   into a row, reorder a row. Never add elements or enlarge boxes to fill it.
   *Sumi:* change the tree, `attach`, tokens `direction`. `geometry/dead-space`
-  (info) names up to three non-overlapping empty rectangles outside bodies,
-  groups, arrows and labels: at least 27% of the canvas and 10mm on both sides
-  at printed size. Outer margins are excluded; intentional whitespace can be
-  suppressed on `lint --geometry` with `--rule geometry/dead-space=off`.
-  Follow a verified hint if it helps; otherwise inspect the preview.
-  `geometry/group-empty-area` instead checks the space inside a group
-  (75% outside its title and direct children; edges not counted).
-- **Fit the placement.** Establish width, maximum height, height budget and minimum
-  final text size. Content determines shape; column/full width does not prescribe
-  an aspect ratio. *Sumi:* profile, `figure.target`, and measured `sumi render` size.
-  Compare reserved profile width × height, final text, whitespace and reading direction.
+  (canvas) and `geometry/group-empty-area` (inside a group) report large voids
+  ([geometry lint](diagnostics.md#geometry-lint-geometry)); follow a verified hint,
+  else inspect the preview; silence intentional space with `--rule …=off`.
+- **Fit the placement.** Shape follows the placement's constraints and the
+  content, chosen among measured candidates ([fit the placement](#fit-the-placement)).
+  *Sumi:* profile, `figure.target`, the size `sumi render` prints.
 - **Colour encodes a role.** One tone per kind of element (all norms `blue`), the
   same in every panel, three or four tones at most; plumbing (inputs, junctions)
   stays neutral. Say what tones and dashes mean. *Sumi:* `tone` + one variant per
@@ -243,11 +296,12 @@ does not fit the target, plan before writing:
 
 1. **List the elements and their roles**: inputs, main-path steps, outputs, side
    inputs, repeated units, notes (sizes, `N×`), compared variants. Mark the main
-   path and the focus. Keep an element/connection checklist for the final review.
-2. **Establish placement constraints**, then choose candidates from a strip,
-   vertical stack, folded rows, L/T branches or separate panels. The content,
-   not the profile name, determines which directions make sense.
-3. **Sketch two candidate arrangements** as small ASCII drawings, one text line per
+   path and the focus. This list, with each connection and its direction, is the
+   content checklist of SKILL.md step 7; also count the structure for step 2 of
+   [fit the placement](#fit-the-placement).
+2. **Get the placement constraints and pick candidate shapes** as in
+   [fit the placement](#fit-the-placement) (steps 1–2).
+3. **Sketch the candidates** as small ASCII drawings, one text line per
    row of the arrange tree. E.g. four sensors fused, a detector, three alert types:
 
    ```text
@@ -260,22 +314,18 @@ does not fit the target, plan before writing:
    [s1]  [s2]  [s3]  [s4]
    ```
 
-4. **Render and compare** final text/line minima, hard page limits, height budget,
-   reserved area, unused width, unexplained whitespace, crossings and main-path
-   turns. Discard candidates violating hard limits; explain the remaining trade-off.
-   Shorter labels or merged steps cost detail (ask the user); compact spacing costs
-   separation; scaling costs final text size; folding costs height and continuity;
-   panels cost cross-references; a different placement is the user's decision.
-5. **Write the tree from the sketch**: each sketch row is a `row`, each column a
+4. **Write a tree per sketch**: each sketch row is a `row`, each column a
    `stack`, repeated units a `grid` or `tokens`, notes `attach`ed. For inputs
    below/above a main-flow node, use a stack with `centerOn: <main-node>` inside
    the centered row: [side-input pattern](structured.md#side-inputs-on-a-main-flow).
    It reserves input space (including tokens) while preserving the main centerline.
-6. **After rendering**, check every element and directed connection against the
-   checklist in both YAML and a preview at final printed size. Look for empty regions of a block or more,
-   unaligned edges and notes far from their targets. Keep space that groups,
-   aligns or sets apart; fix a disproportionate, unexplained void by moving notes or
-   outputs or changing the arrangement, not by adding elements.
+5. **Render, measure, compare and choose** as in
+   [fit the placement](#fit-the-placement) (steps 3–6); say why in your report.
+6. **Check the chosen figure**: the content check (SKILL.md step 7) first, then
+   empty regions of a block or more, unaligned edges and notes far from their
+   targets. Keep space that groups, aligns or sets apart; fix a disproportionate,
+   unexplained void by moving notes or outputs or changing the arrangement, not by
+   adding elements.
 
 ## Paper figure recipe
 
@@ -308,12 +358,12 @@ the reference's arrangement), then map each look you want to a field:
 | a bowtie shape, an emoji on a corner | `component: bowtie`; `badge: { icon: emoji/fire, corner: north-east }` ([badges](assets.md#corner-badges)) |
 | a table: row headings, repeated columns | a `grid` ([tables](structured.md#tables)) |
 | boxes packed tightly | `figure.layout.density: compact`, without your own `gap`s |
-| a figure wider than the page at its natural size | `figure.fit: scale` ([shrinking](#shrinking-to-the-page-width-figurefit-scale)); say it is scaled |
+| the whole figure printed smaller than its natural size | `figure.fit: scale` ([shrinking](#shrinking-to-the-page-width-figurefit-scale); one of the [options](#when-width-runs-short)); say it is scaled |
 | repeated video frames | an image's `props.layers: { count: 4, offset: 3pt }` ([layers](assets.md#stacked-copies-layers)) |
 
 Order of work: content and arrangement first (the arrange tree, `align: stretch`
-panels), then the looks (`paper`, variants, tones, `dim`). Compare `density: compact`,
-scaling and alternative arrangements by the target metrics. Check previews against
+panels), then the looks (`paper`, variants, tones, `dim`). Treat `density: compact`,
+scaling and other arrangements as candidates ([fit the placement](#fit-the-placement)). Check previews against
 the [principles](#design-principles) (and the reference, if there is one). **Not
 expressible** (say so instead of approximating silently): raw colours and free
 coordinates (tones only; `themeOverrides.solidFills` retints solid fills), and free

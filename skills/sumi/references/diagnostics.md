@@ -175,13 +175,13 @@ written; errors make the exit code 1. Configure like structural rules
 | Code | Default | Fix |
 | --- | --- | --- |
 | `geometry/exceeds-page-width` | error | see [too wide](#too-wide-the-width-breakdown); a wider profile only if the user agrees and the figure is not already on `paper-double` |
-| `geometry/exceeds-page-height` | error | paper profiles 220mm, `presentation-16x9` 190.5mm: auto: `direction: right`, fewer layers; structured: re-arrange (a long stack as a row of stacks), smaller `gap`s; or split the figure |
-| `geometry/text-too-small` | error | as `profile/font-too-small` (safety net); under `figure.fit: scale` a label printed below 5pt (a 7pt `sublabel` does at 71%): make the figure narrower so it shrinks less, or write the text into the label. HTML: font-size × placed/viewport scale × page-fit scale |
-| `geometry/script-too-small` | info | with `fit: scale`, math scripts print below the target minimum, or the scaled profile minimum (paper: 5pt); one finding per figure; scripts remain exempt from errors; not used when `target.minFontSize` is set |
+| `geometry/exceeds-page-height` | error | paper profiles 220mm, `presentation-16x9` 190.5mm: candidates: auto `direction: right`, fewer layers; structured a long stack as a row of stacks, smaller `gap`s; split the figure (ask) ([options](layout-tips.md#when-width-runs-short)) |
+| `geometry/text-too-small` | error | as `profile/font-too-small` (safety net); under `figure.fit: scale` a label printed below 5pt (or `figure.target.minFontSize`; a 7pt `sublabel` does at 71%): make the figure narrower so it shrinks less, or write the text into the label. HTML: font-size × placed/viewport scale × page-fit scale |
+| `geometry/script-too-small` | info | with `fit: scale`, math scripts print below the scaled profile minimum (paper: 5pt); one finding per figure; scripts remain exempt from errors; not used when `target.minFontSize` is set |
 | `geometry/script-below-target` | warning | with `figure.target.minFontSize`, a math script (0.7 × base) prints below it at the final size, scaled or not; one finding per label, positioned; raise the base text to min ÷ 0.7 or avoid scripts |
 | `geometry/heavy-scaling` | info | scaled final text (including scripts/HTML) is at most 120% of the effective minimum; reports final size, minimum, headroom, scale and natural-width attribution; compare readable text and reserved area |
 | `geometry/exceeds-target-height` | warning | printed height exceeds `figure.target.height`; reports budget, actual height and vertical placement attribution; change arrangement or the budget, not automatic height scaling |
-| `geometry/placement-usage` | info | an explicit target reports reserved profile width × printed height, width utilization and optional height-budget use |
+| `geometry/placement-usage` | info | an explicit target reports reserved profile width × printed height, width utilization and optional height-budget use: compare these across candidates at the same placement ([fit the placement](layout-tips.md#fit-the-placement)); no single value is good or bad |
 | `geometry/line-too-thin` | warning | final diagram border/wire width is below `figure.target.minLineWidth`; use thicker theme strokes or less scaling; imported image/icon/HTML strokes are excluded |
 | `geometry/dead-space` | info | up to three empty rectangles, each ≥27% of canvas and ≥10mm on both sides at printed size, with position and mm; outside group/body/label/arrow footprints, excluding outer margins; review unexplained voids, keep intentional space |
 | `geometry/label-overflow` | error | remove or enlarge explicit `width`/`height` (`path` points at `props`), shorten or break the label, or use a roomier shape (`box`); when scaled, sizes include printed and pre-scale (YAML-unit) values, including rotated label bounds |
@@ -226,8 +226,7 @@ natural, pre-scaling mm so the same breakdown remains available under `fit: scal
 Sumi never shrinks a figure automatically.
 
 Procedure: apply the hint's edit (or shorten labels), re-run, repeat: a second
-row may become the widest. Then, by cost: auto: `direction: down`, fewer nodes
-side by side; structured: re-arrange (a long row as two rows: [two
-rows](layout-tips.md#too-wide-with-right-too-tall-with-down)) and smaller `gap`s;
-last, `figure.fit: scale` ([shrinking](layout-tips.md#shrinking-to-the-page-width-figurefit-scale))
-or a wider profile, both user decisions.
+row may become the widest. If it is still too wide, build candidates from the
+[options](layout-tips.md#when-width-runs-short) (auto: the other `direction`;
+structured: [rows](layout-tips.md#folding-a-flow-into-rows), smaller `gap`s, panels;
+`figure.fit: scale`) and compare them measured; a wider profile is the user's decision.

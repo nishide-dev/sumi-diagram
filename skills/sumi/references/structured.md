@@ -610,9 +610,11 @@ ports (anchors or cell spacing); a larger row gap alone does not separate them.
 Shared trunks keep their existing routing. There is no per-edge lane coordinate.
 
 - **Diagonal correspondences**: use `route: straight` on each correspondence,
-  e.g. `{ from: predictions.1, to: targets.3, route: straight }` and
-  `{ from: predictions.3, to: targets.1, route: straight, component: line }`.
-  Each is one independent segment (no shared trunks or obstacle avoidance).
+  e.g. for stacked rows `{ from: predictions.1, to: targets.3, route: straight,
+  fromAnchor: south, toAnchor: north }` (side by side: `east` / `west`). Each is one
+  independent segment with **no obstacle avoidance**: centre-to-centre ends between
+  tokens cells can cut through neighbouring cells, so give side anchors. Where edge
+  labels crowd, use an attached `label` node instead.
   Automatic ends follow the centre-to-centre line to the shapes' outlines;
   side anchors pick exact box positions (projected onto non-rectangular outlines).
   A `straight` anchor on this route uses the same automatic endpoint.
