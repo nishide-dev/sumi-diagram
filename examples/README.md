@@ -63,12 +63,12 @@ geometry lint):
 | `system-architecture` | none |
 | `grouped` | none |
 | `transformer` | none |
-| `dit-block` | 6: `geometry/script-too-small` ×1 (math scripts down to 3.99pt after scaling to 81.38%); `geometry/group-empty-area` ×2 (the equal-height Cross-Attention and In-Context panels); `geometry/arrowhead-cramped` ×3 (conditioning taps, 1.63pt straight stems after scaling) |
+| `dit-block` | 7: `geometry/heavy-scaling` ×1 (81.38%, with the width breakdown before scaling); `geometry/script-too-small` ×1 (math scripts down to 3.99pt after scaling); `geometry/group-empty-area` ×2 (the equal-height Cross-Attention and In-Context panels); `geometry/arrowhead-cramped` ×3 (conditioning taps, 1.63pt straight stems after scaling) |
 | `embedding-gemma` | none (sharp joins and 1pt edges remove the previous three `geometry/edge-near-border` infos) |
-| `clip` | 1: `geometry/script-too-small` ×1 (math scripts down to 4.02pt after scaling to 71.81%; body text is 5.74pt, above the 5pt scaled minimum) |
+| `clip` | 2: `geometry/heavy-scaling` ×1 (71.81%, with the width breakdown before scaling); `geometry/script-too-small` ×1 (math scripts down to 4.02pt after scaling; body text is 5.74pt, above the 5pt scaled minimum) |
 
-The DiT infos are accepted to preserve the complete four-panel reference at
-180mm. Inspect the vector PDF for inline-math labels: `rsvg-convert` drops
+The DiT and CLIP scaling infos are accepted to preserve their complete reference
+arrangements at 180mm. Inspect the vector PDF for inline-math labels: `rsvg-convert` drops
 the space before inline math, a known rasterizer issue ([#266](https://github.com/nishide-dev/sumi-diagram/issues/266)).
 
 CLIP preserves the reference's one-line panel headings. Its local lint config

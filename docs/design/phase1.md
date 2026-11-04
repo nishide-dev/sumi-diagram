@@ -2664,12 +2664,40 @@ check・typecheck・gallery:check（231ファイル）・schema:check も成功�
 - PNG は `bun run gallery` 後に `bun run skill:previews` で PDF から `pdftoppm -png -r 150 -singlefile` により生成する。Poppler は再生成時のみ必要。CI は PNG の存在・データの妥当性・PDF ページとの縦横比（ピクセル丸めを許容）を検査し、OS 間のラスタライズのバイト一致は要求しない。
 - 配布を調べた skills CLI v1.7.2 は GitHub から clone して Skill ディレクトリをコピーする。Git の symlink を展開してくれることには依存せず、配布側 `skills/sumi/` 全体に symlink がないこと、独立コピーにも YAML・アセット・PNG が実体で入ることをテストする。既存の描画 golden と全 YAML × 自身のテーマ／全組み込みテーマの SVG・PDF・PPTX・D2 の sha256 を比較して互換性を確認する。
 
+### 6.96 #330 の図全体の空き矩形と大きな縮小の通知
+
+- **診断の置き場所:** 仮称 `layout/dead-space` は、描画後の実測と既存の抑止・severity 設定を使う `geometry/dead-space`（info）とした。`render` / `lint --geometry` でのみ実行し、配置や出力バイトを変更しない。通常の構造 lint は描画しない。
+- **空き矩形:** 本体・group 全体・ラベル（text-only、辺ラベルを含む）・badge・描画された辺の各線分・矢印先端の保守的な外接矩形を障害物にする。group 内部は既存 `geometry/group-empty-area` の担当で、group 自体を空白とは数えない。曲線は既存の flatten 結果、斜線は線分の外接矩形を使うため、白画素を厳密に測るものではなく過少検出側の推定。外周 margin を指摘しないよう内容の外接矩形内だけで探索し、比率の分母は margin 込みの canvas 面積とする。
+- **探索と表示:** 障害物を canvas で clip し、同じ範囲で接する・重なる矩形（連続する同一直線の線分、共有の幹線の重複）を先に1つにまとめる。座標を障害物の辺に圧縮し、行ごとの空き高さのヒストグラムと単調スタックで最大の空き矩形を厳密に求める（O(X·Y)。旧実装の O(n³) は線分数 n=1200 で約20秒かかったため置き換えた。1500障害物で約60ms）。同面積は x・y の小さい側を採るので結果は決定的。最大矩形を順に占有扱いにして、互いに重ならない最大3領域を1診断にまとめる。上下・左右の対向余白の差が canvas の15%を超える側を場所（top-left / bottom-left 等）とし、差が小さければ middle / center。場所・印刷時の幅×高さ（mm）・canvas 比率を報告する。
+- **しきい値:** canvas の **27%以上**、両辺とも印刷時 **10mm以上**。20%では既存 Transformer の意図した下揃えの空白（約20.5%）や回転ラベル比較（約21.7%）にも、25%では gallery の matrix 比較（25.6%）にも反応したため27%にした。DETR 評価図 sonnet の空白（28.3%）は残る。内容の外接矩形は canvas を超えないので、面積しきい値が各辺に「canvas の27%以上」の下限を含意し、辺の相対下限は別に設けない。外周 margin と細い整列用 gutter は除外する。catalogue の operator の大小比較列と3種の tone 比較には大きい意図的な空白が残り info になるが、既存 examples の自身のテーマでは空白の新規指摘はない。空白は良否の断定ではなく見直しのきっかけ。`lint --geometry` の `--rule geometry/dead-space=off` または lint config の `rules` で抑止できる。
+- **確かめた hint:** 既存 `verifyHints` / `HintTrials`（最大6試行、80要素超・外部アセット等は対象外）で配置コピーだけを変更し、この空白診断が消えた変更だけを提示する。効く変更がなければ中立の説明にする。auto は実測のみ。個別の空白を別の場所へ移しただけの変更は、図全体に診断が残るため推奨しない。
+- **縮小:** `figure.fit: scale` が自然寸法の **90%未満**に縮めたら `geometry/heavy-scaling`（info、`figure.fit`）を報告する。縮尺と自然幅→印刷幅を表示し、#307 の幅内訳（削減が必要な幅・支配する run・子孫・attach・ラベル・確かめた変更）を **縮小前の寸法**で付ける。context のコピーの scale だけを1にして既存の内訳を共用し、現物の inspection・SVG は変えない。90%ちょうど・縮小なしには出さず、文字の下限と幅・高さの従来の検査は独立。`--rule geometry/heavy-scaling=off` で抑止できる。
+- **検証:** 左上・左下の2つの空白を持つ grid fixture、描画された矢印・ラベル・group による占有、外周 margin・細い gutter・小さい図の除外、80%縮小での自然幅の内訳、90%境界、位置情報・抑止・非破壊性・実際に効く hint を回帰検査する。Issue の DETR 評価2図の原本はリポジトリに含めず（`.sumi/tmp/`）、同じ空白の配置を再現した汎用 fixture を回帰に使う。DETR 評価2図（opus は左上に凡例があり出ない、sonnet は左下 111.02mm × 24.75mm・28.3% を報告）と、既存図×自身のテーマ／全組み込みテーマの SVG・PDF・PPTX・D2 の sha256 と既存 golden を比較する。
+
 ### 6.97 #331 の tokens セルの variant 継承と注記を除いた接続範囲
 
 - **variant の継承規則。** tokens の `props.variant` が tokens 自身の既定 component（`props.component`、省略時 `box`）に無ければ、従来どおり `component/unknown-variant` を tokens の `props.variant` に報告する（`outlinedd` や `nope` の誤記は隠さない）。既定 component では有効だが、セルが上書きした component（例: `{ label: '…', component: label }`）が持たない場合に限り、そのセルは `default` に戻す。`outlined` の列に省略記号セルを混ぜてもエラーにならない。セルに明示した `variant` は従来どおり検証し、誤りはそのセルのフィールドへ報告する。画像セル・区切りセルの専用の既定値は維持する。継承の不一致は意図した異種セルで自然に起きるため warning は追加しない。
 - **配置範囲と接続範囲を分ける。** セルに付けた注記とその attach チェーンは、包含・余白・配置のために tokens の不可視フレームを広げる。一方、tokens 全体への辺の接続範囲はセル自身の矩形の和集合（外接矩形）とする。フレームを縮めると注記の包含と周辺の配置が壊れるため、Layout IR は変更せず、共通の `endpointRects` で接続時だけセル範囲を使う。通常辺・明示 anchor・straight・fan-in・zoom と経路検査で同じ範囲を共有する。セルの外にある attach 元からの辺は、フレームのメンバーであっても外側からセルへ接続する。注記のない tokens は従来の範囲を維持する。
 - **他部品の調査。** 通常ノードの attach は同じ親内に置かれ、対象ノードの矩形そのものは広げない。matrix と legend も全体への attach は外側の兄弟となり、内部の生成セル・見本には公開されたセル参照がない。tokens だけが公開セル参照への attach を生成フレーム内へ移す（§6.78）。通常 group は注記を含む枠自体が接続対象なので変更しない。
 - **検証。** 省略セルの cells / lines、互換な継承・明示不正 variant、全組み込みテーマで四方向の入出力辺と注記チェーンを回帰検証する。全 YAML を自身のテーマと全組み込みテーマで前後描画し、SVG / PDF / PPTX / D2 の SHA-256 を比較する。視覚確認には CLI の PDF 出力と `pdftoppm -png` を使う。
+
+### 6.98 #266 の平文・数式間の空白を SVG 描画系で保持する
+
+- **問題**: structured のラベルは平文・数式・フォント切り替えを入れ子の `tspan` として出力する。librsvg は既定の空白処理で run 境界の半角空白を落とし、`Timestep $t$` が `Timestept` になる。ブラウザと PDF エンジンでは空白が見えても SVG の可搬性を満たさない。
+- **採用**: 行内の隣接 run の末尾または先頭に半角空白があるラベルの `text` に `xml:space="preserve"` を付け、子の `tspan` に継承する。数式の前後、添字から戻る平文、注記・辺ラベル、アクセントの chunk、色やフォントの切り替えにも同じ規則を使う。該当しないラベルの SVG は変更しない。
+- **代替案と互換性**: 空白を次の run に移すと空白のフォントと advance が変わり得る。NBSP への置換は検索・コピーする文字を変え、`dx` は検査・PDF・編集可能 PPTX の幾何契約を増やすため採用しない。既存の usvg 向けの裸 `tspan`（§6.44）は維持し、run の文字列・計測・配置は変更しない。
+- **検証**: 修正前に失敗する回帰テストでノード・辺・添字・アクセントと対象外ラベルを検査し、PDF の文字位置が計測値と一致すること、編集可能 PPTX に元の空白が残ることを確認する。全 YAML を元テーマと全組み込みテーマで前後描画して SVG/PDF/PPTX/D2 の SHA-256 を比較し、CLI の PDF → `pdftoppm -png` と librsvg の描画を目視する。
+
+### 6.100 #333 の凡例の文字の左そろえ、`alignGrowth`、小さな作図上の判断
+
+DETR の評価で見つかった 4 つの小さな詰まりについて、採否と理由を記録する。
+
+- **凡例の文字（採用、既定を左そろえに変更）:** 凡例の項目は `label` ノードで、複数行（`\n`）の文字は行ごとに中央にそろっていた。凡例は一覧なので、折り返した行は左にそろえるのが自然で、エージェントは `lint/long-label` を避けるために文を短くしていた。既定を `left` にし、凡例ノードの既存フィールド `textAlign: center | right` で変えられるようにした（新しいフィールドは足さない。`textAlign` は structured の全ノードにあり、凡例ではこれまで無視されていた）。1 行の項目は文字の箱が文字の幅そのものなので見た目は変わらない。変わるのは複数行の項目を持つ凡例だけで、その図は PR に列挙した。
+- **`layout/align-grew-figure`（採用、`figure.layout.alignGrowth: allow`）:** 意図した整列でも描画のたびに info が出ていた。出る条件（5mm かつ 10% 超）は #155 の暴走と通常の整列の費用（2〜4mm）を分ける値として妥当なので変えず、図全体の合図として `alignGrowth: report | allow`（省略は `report`）を `figure.layout` に足した。`allow` は info だけを消し、配置は変えない。制約ごとのフィールドにしなかったのは、増加量が全制約の合計で決まり、どの制約の責任かを決められないため。他の診断（`layout/unsatisfied-align`、`layout/align-search-limit`）は `allow` でも出る。auto エンジンでは他の structured 専用フィールドと同じく `layout/structured-only`。
+- **grid の行・列を指定した配置（不採用）:** `null` のセルが多い疎な grid は冗長だが、`{ at: [row, col] }` を足すと、行優先で完全な行という grid の約束（行の長さの検査、span との重なり、空セルの意味）が二通りの書き方になり、検査と診断が倍になる。疎な配置はたいてい入れ子の row / stack、または `align` で書け、`null` の数も 1 行に並べれば読める。効果に対して実装と検査の費用が釣り合わないため採らない。繰り返し必要になった場合は、実例とともに別の Issue で扱う。
+- **`sumi preview`（不採用、Skill の説明を修正）:** SVG を PNG にするには Quick Look（macOS）や `rsvg-convert` といった外部の道具が要り、単一バイナリの配布（`bun build --compile`）と、フォントを埋め込んだ SVG を正しく描けるという保証に合わない。確認の本命は `sumi render -o x.pdf` と `pdftoppm` で、これは利用者の環境に任せる。代わりに Skill の手順 7 に「`sumi preview` というコマンドはなく、Skill の `scripts/preview` を使う」と明記し、CLI のコマンドと取り違えないようにした。
+
+互換性: 既存の全 `*.sumi.yaml` を自身のテーマと全組み込みテーマで描画し、SVG・PDF・PPTX・D2 の sha256 を main と比べた。凡例を含む図は、1 行の項目でも文字の基準が中央から左端に変わる（SVG の `text-anchor`・x、編集可能 PPTX の段落のそろえ）ため、バイト列が変わる。1 行の項目は文字の箱が文字の幅なので描画結果は同じで、見た目が変わるのは複数行の項目を持つ凡例だけである。凡例を含まない図は同一。
 
 ## 7. 実装順
 1. #4: Diagnostic・Result 型、位置付き YAML 解析、Figure Schema（Zod）＋ JSON Schema 生成、参照検証（重複 ID・未知の端点 / グループ・グループの循環）、fixtures

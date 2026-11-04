@@ -1,0 +1,16 @@
+version: 1
+figure:
+  id: dead-space
+  profile: paper-double
+  layout:
+    arrange:
+      grid:
+        columns: 2
+        columnGap: 0pt
+        rowGap: 0pt
+        items: [null, top, middle, right, null, bottom]
+nodes:
+  - { id: top, component: box, label: Top, props: { width: 50pt, height: 100pt } }
+  - { id: middle, component: box, label: Middle, props: { width: 160pt, height: 20pt } }
+  - { id: right, component: box, label: Right, props: { width: 50pt, height: 20pt } }
+  - { id: bottom, component: box, label: Bottom, props: { width: 50pt, height: 100pt } }

@@ -88,6 +88,7 @@ describe("dotted token separators (#216)", () => {
       assetBase: dirname(file),
     });
     expect(report.diagnostics.map((d) => [d.severity, d.code])).toEqual([
+      ["info", "geometry/heavy-scaling"],
       ["info", "geometry/script-too-small"],
       ...Array(7).fill(["info", "geometry/arrowhead-cramped"]),
     ]);

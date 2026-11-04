@@ -951,3 +951,23 @@ describe("figure.layout.align (#132)", () => {
     expect(d?.hint).toBe('"e" is an edge; only nodes and groups are placed.');
   });
 });
+
+describe("figure.layout.alignGrowth (#333)", () => {
+  test("an unknown value is a positioned schema error", () => {
+    const text = figure(
+      "  layout:\n    alignGrowth: quiet\n    arrange: { stack: { items: [a] } }\nnodes:\n  - { id: a, component: box }\n",
+    );
+    expect(check(text)).toEqual([
+      ["schema/invalid-value", ["figure", "layout", "alignGrowth"], 5, 18],
+    ]);
+  });
+
+  test("is structured-only under the auto engine", () => {
+    const text = figure(
+      "  layout:\n    engine: auto\n    alignGrowth: allow\nnodes:\n  - { id: a, component: box }\n",
+    );
+    expect(check(text)).toEqual([
+      ["layout/structured-only", ["figure", "layout", "alignGrowth"], 6, 5],
+    ]);
+  });
+});

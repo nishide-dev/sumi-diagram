@@ -313,7 +313,7 @@ export function solveAlignment(
     });
   }
   diagnostics.push(...unsatisfiedDiagnostics);
-  const growth = grewFigure(ir, plain, layout);
+  const growth = ir.meta.alignGrowth === "allow" ? undefined : grewFigure(ir, plain, layout);
   if (growth !== undefined) diagnostics.push(growth);
   const stats: AlignStats = {
     rounds,
@@ -490,7 +490,7 @@ export function grewFigure(
     message: `figure.layout.align made the figure ${sides.join(" and ")} than the layout without it.`,
     path: ["figure", "layout", "align"],
     subject: { kind: "figure", id: ir.meta.id },
-    hint: "A strut only adds space, and the space it adds before an item moves the items after it and grows the boxes around it. If that space is not wanted, align an item that sits in a shorter branch (wrap it in a stack or row of its own so that it can move alone), put the items closer in the arrange trees, or drop the constraint.",
+    hint: "A strut only adds space, and the space it adds before an item moves the items after it and grows the boxes around it. If that space is intended, set figure.layout.alignGrowth: allow. If it is not wanted, align an item that sits in a shorter branch (wrap it in a stack or row of its own so that it can move alone), put the items closer in the arrange trees, or drop the constraint.",
   };
 }
 
