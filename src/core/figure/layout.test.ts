@@ -26,6 +26,31 @@ function figure(body: string): string {
 }
 
 describe("engine", () => {
+  test("centerOn requires a direct item and centered justification", () => {
+    for (const fields of [
+      "centerOn: missing",
+      "centerOn: a, justify: stretch",
+      "centerOn: a, justify: space-between",
+    ]) {
+      const result = checkFigureSource(
+        figure(
+          `  layout:\n    arrange: { stack: { ${fields}, items: [a] } }\nnodes:\n  - { id: a, component: box, label: A }\n`,
+        ),
+      );
+      const diagnostic = result.state.diagnostics.find(
+        (d) => d.code === "layout/invalid-center-on",
+      );
+      expect(diagnostic?.path).toEqual(["figure", "layout", "arrange", "stack", "centerOn"]);
+      expect(diagnostic?.location?.line).toBe(5);
+    }
+    const nested = checkFigureSource(
+      figure(
+        "  layout:\n    arrange: { stack: { centerOn: a, items: [{ row: { items: [a] } }] } }\nnodes:\n  - { id: a, component: box, label: A }\n",
+      ),
+    );
+    expect(nested.state.diagnostics.map((d) => d.code)).toEqual(["layout/invalid-center-on"]);
+  });
+
   test("is auto without figure.layout.arrange, also when other fields are given", () => {
     const parsed = parseFigure(figure("nodes:\n  - { id: a, component: box }\n"));
     expect(parsed.ok && parsed.value.figure.layout).toEqual({ engine: "auto", direction: "right" });

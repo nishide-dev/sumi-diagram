@@ -262,7 +262,10 @@ does not fit the target, plan before writing:
    box is about 6mm tall in paper themes (4.6mm with `density: compact`); measure
    widths with `sumi render`. Pick one; say why in your report.
 5. **Write the tree from the sketch**: each sketch row is a `row`, each column a
-   `stack`, repeated units a `grid` or `tokens`, notes `attach`ed.
+   `stack`, repeated units a `grid` or `tokens`, notes `attach`ed. For inputs
+   below/above a main-flow node, use a stack with `centerOn: <main-node>` inside
+   the centered row: [side-input pattern](structured.md#side-inputs-on-a-main-flow).
+   It reserves input space (including tokens) while preserving the main centerline.
 6. **After rendering**, look at the preview for empty regions of a block or more,
    unaligned edges and notes far from their targets. Keep space that groups,
    aligns or sets apart; fix a disproportionate, unexplained void by moving notes or

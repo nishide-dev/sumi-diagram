@@ -112,6 +112,7 @@ Apply one edit and re-check: independent savings are not additive.
 | `layout/duplicate-placement` | the element is in two trees, or in a tree and attached: keep one |
 | `layout/unknown-item` | an `items` entry is not a node or group ID (edges are never placed): use the hint's ID |
 | `layout/unknown-attach-target` | `attach.to` names no node or group |
+| `layout/invalid-center-on` | stack/row `centerOn` must name a direct item, with `justify` omitted or `center`; use the whole tokens node ID, not a cell |
 | `layout/group-mismatch` | `group:` disagrees with the tree: delete `group:` or move the ID into that group's `arrange` |
 | `layout/group-cycle`, `layout/attach-cycle` | a group placed inside itself, or attachments in a loop |
 | `layout/invalid-anchor` | `north`, `east`, `south`, `west`, optionally `:` and 0..1; or `straight` (no side) |

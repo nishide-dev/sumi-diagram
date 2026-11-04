@@ -1,0 +1,38 @@
+version: 1
+figure:
+  id: side-inputs
+  theme: paper
+  profile: paper-double
+  layout:
+    arrange:
+      row:
+        gap: 5mm
+        items:
+          - features
+          - stack:
+              centerOn: encoder
+              gap: 4mm
+              items: [encoder, position]
+          - stack:
+              centerOn: decoder
+              gap: 4mm
+              items: [decoder, queries, query-label]
+          - predictions
+nodes:
+  - { id: features, component: box, label: Features }
+  - { id: encoder, component: box, label: Encoder, tone: blue }
+  - { id: decoder, component: box, label: Decoder, tone: orange }
+  - { id: predictions, component: box, label: Predictions }
+  - { id: position, component: box, label: "Positional\nencoding", tone: purple }
+  - id: queries
+    component: tokens
+    tone: green
+    props:
+      cells: [q₁, q₂, q₃]
+  - { id: query-label, component: label, label: Object queries }
+edges:
+  - { from: features, to: encoder }
+  - { from: encoder, to: decoder }
+  - { from: decoder, to: predictions }
+  - { from: position, to: encoder, fromAnchor: north, toAnchor: south }
+  - { from: queries, to: decoder, fromAnchor: north, toAnchor: south }

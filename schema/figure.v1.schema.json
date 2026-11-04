@@ -559,6 +559,11 @@
                 "up"
               ]
             },
+            "centerOn": {
+              "description": "Keep this direct item's center at the box's main-axis center, reserving symmetric space for all items. Use a stack inside a centered row for side inputs. Only compatible with justify: center (the default).",
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+            },
             "gap": {
               "description": "Space between items. Omitted means the theme/profile default.",
               "anyOf": [
@@ -622,6 +627,11 @@
                 "right",
                 "left"
               ]
+            },
+            "centerOn": {
+              "description": "Keep this direct item's center at the box's main-axis center, reserving symmetric space for all items. Use a stack inside a centered row for side inputs. Only compatible with justify: center (the default).",
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,63}$"
             },
             "gap": {
               "description": "Space between items. Omitted means the theme/profile default.",
