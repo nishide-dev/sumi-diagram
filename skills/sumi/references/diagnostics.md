@@ -49,8 +49,10 @@ In `sumi lint --json` diagnostics are under `results[i].diagnostics`; in
 **Verified hints.** Several structured hints (grid span and cell alignment,
 `layout/straight-off-side`, `geometry/exceeds-page-width`) recommend an edit
 only after applying it to an in-memory copy and re-running layout and routing
-(at most six trials per diagnostic; skipped above 80 elements, without an arrange
-tree or with external assets). A hint without such an edit is neutral wording.
+(at most six trials per diagnostic; bounded by element and arrange-tree size).
+Width/scaling and empty-area trials support inline SVGs (`props.svg` and
+`figure.assets`) and bundled icons. They skip external asset files and HTML;
+the hint states the reason. A hint without a verified edit is neutral wording.
 Apply one edit and re-check: independent savings are not additive.
 
 ## By stage
@@ -176,7 +178,7 @@ written; errors make the exit code 1. Configure like structural rules
 | `geometry/script-too-small` | info | with `fit: scale`, math subscripts print below 5pt; one finding per figure; scripts are exempt from the minimum |
 | `geometry/heavy-scaling` | info | `fit: scale` prints below 90%; reports scale, natural/printed width and the width breakdown before scaling; review the layout or use a wider profile |
 | `geometry/dead-space` | info | up to three empty rectangles, each ≥27% of canvas and ≥10mm on both sides at printed size, with position and mm; outside group/body/label/arrow footprints, excluding outer margins; review unexplained voids, keep intentional space |
-| `geometry/label-overflow` | error | remove or enlarge explicit `width`/`height` (`path` points at `props`), shorten or break the label, or use a roomier shape (`box`) |
+| `geometry/label-overflow` | error | remove or enlarge explicit `width`/`height` (`path` points at `props`), shorten or break the label, or use a roomier shape (`box`); when scaled, sizes include printed and pre-scale (YAML-unit) values, including rotated label bounds |
 | `geometry/out-of-canvas` | error | shorten labels; if it persists, a Sumi bug |
 | `geometry/node-overlap` | warning | review explicit sizes; auto: same group; structured: an attached node in a `gap` overlaps its neighbour: put it in the tree, attach to a free side, or widen the `gap` ([attach](structured.md#attach-side-notes)) |
 | `geometry/label-collision` | warning | a label overlaps another label, a shape or a group border: shorten; move a group title with `labelAt`; auto: change `direction` or grouping; structured: place the edge label, change `gap`, anchors or attach side |
