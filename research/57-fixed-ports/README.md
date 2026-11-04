@@ -1,6 +1,6 @@
 # #57 固定ポートの調査
 
-[調査メモ](../../docs/research/57-fixed-ports.md)、[Issue #57](https://github.com/nishide-dev/sumi-diagram/issues/57)。製品コードはこの研究ディレクトリを参照しない。
+[調査メモ](report.md)、[Issue #57](https://github.com/nishide-dev/sumi-diagram/issues/57)。製品コードはこの研究ディレクトリを参照しない。
 
 ```sh
 bun install --frozen-lockfile

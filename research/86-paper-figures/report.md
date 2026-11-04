@@ -1,8 +1,8 @@
 # #86 論文図に対応するための配置・文字・画像の調査
 
-- 対象: [#86](https://github.com/nishide-dev/sumi-diagram/issues/86)。関連: #80（ロードマップ）、#18（[カスタム輪郭](18-custom-svg-components.md)）、#19（[PDF/PPTX](19-pdf-pptx-export.md)）、#56（[1パス化](56-single-pass-sizing.md)）、#57（[固定ポート](57-fixed-ports.md)）、#60（[krilla](60-krilla.md)）
+- 対象: [#86](https://github.com/nishide-dev/sumi-diagram/issues/86)。関連: #80（ロードマップ）、#18（[カスタム輪郭](../18-custom-svg/report.md)）、#19（[PDF/PPTX](../19-pdf-pptx/report.md)）、#56（[1パス化](../56-single-pass/report.md)）、#57（[固定ポート](../57-fixed-ports/report.md)）、#60（[krilla](../60-krilla/report.md)）
 - 調査日: 2026-10-26。環境: macOS 26.2 / arm64、Bun 1.3.14、Sumi の基点 `e10b65b`（v0.3.1）、固定 D2 v0.9.0（[`d5a5174`](https://github.com/d2lang/d2/tree/d5a51743b6d5c00f1ec6f8340003f5d5a6ba4eda)）、同梱 BIZ UD Gothic v1.051、製品の WASM エンジン `assets/wasm/sumi-pdf.wasm`（sha256 `cf6ec198…`、krilla 0.8.2 / krilla-svg 0.8.1 / resvg 0.47.0）
-- 試作・再現手順: [`research/86-paper-figures/`](../../research/86-paper-figures/README.md)。測定値は [`results/report.json`](../../research/86-paper-figures/results/report.json)
+- 試作・再現手順: [`research/86-paper-figures/`](README.md)。測定値は [`results/report.json`](results/report.json)
 - 基準の図（リポジトリには入れない）: **A** Transformer（Vaswani et al. 2017, Fig. 1）、**B** DiT（Peebles & Xie 2023, Fig. 3）、**C** H3-World 系の概要図。以下では構造だけを書き起こした自作の YAML を使う。
 
 本文では、**実測**（スクリプトで測った値・確認した挙動）と**判断**（それに基づく採否・設計）を分けて書く。判断の段落・表の列には「判断」と明記する。
@@ -41,7 +41,7 @@ npm の版: elkjs 0.12.0、@dagrejs/dagre 3.1.3、webcola 3.4.0、@lume/kiwi 0.4
 
 ### 2.1 構文の方針（判断）
 
-先に理想の YAML を書いた（[`figures/ideal/`](../../research/86-paper-figures/figures/ideal/)）。書きやすさ・扱いやすさを、人と LLM（Skill）の両方の観点で優先した。
+先に理想の YAML を書いた（[`figures/ideal/`](figures/ideal)）。書きやすさ・扱いやすさを、人と LLM（Skill）の両方の観点で優先した。
 
 - **要素の定義と配置を分ける。** node / group / edge は今の平らな一覧のまま書き、並べ方は `arrange`（`stack` / `row`、段階 B で `grid`）の木で ID を参照する。配置を消せば `auto` に戻せ、差分も読みやすい。group の `arrange.items` に入れた要素は、その group の子になる（子の `group:` を重ねて書かなくてよい。両方書いて食い違えばエラー）。
 - **各要素は配置の木か `attach` のどちらかにちょうど 1 回現れる。** 漏れ・重複は ID と位置付きのエラーにする。LLM が要素を足したのに配置し忘れる、という典型的な誤りを機械的に検出できる（試作でも検査した）。
@@ -52,7 +52,7 @@ npm の版: elkjs 0.12.0、@dagrejs/dagre 3.1.3、webcola 3.4.0、@lume/kiwi 0.4
 
 ### 2.2 図 A（易）
 
-[`a-transformer.sumi.yaml`](../../research/86-paper-figures/figures/ideal/a-transformer.sumi.yaml)。試作がこのファイルをそのまま読んで描く。要点:
+[`a-transformer.sumi.yaml`](figures/ideal/a-transformer.sumi.yaml)。試作がこのファイルをそのまま読んで描く。要点:
 
 ```yaml
 figure:
@@ -94,11 +94,11 @@ edges:
 
 ### 2.3 図 B（中）
 
-[`b-dit.sumi.yaml`](../../research/86-paper-figures/figures/ideal/b-dit.sumi.yaml)（全体、試作は描かない）と、そのうち 1 パネルの [`b-adaln-panel.sumi.yaml`](../../research/86-paper-figures/figures/ideal/b-adaln-panel.sumi.yaml)（試作が描く）。A に加えて、パネル（`component: panel`）とキャプション（`caption`）、パネル全体の薄表示（`variant: dim`）、拡大の引き出し線（edge の `component: zoom`）、補足ラベル（`sublabel: "32 × 32 × 4"`）、数式ラベル（`'$\gamma_1,\beta_1$'`）、矢じりの近くのエッジラベル、1 つの出口から 4 本に分かれるバス。
+[`b-dit.sumi.yaml`](figures/ideal/b-dit.sumi.yaml)（全体、試作は描かない）と、そのうち 1 パネルの [`b-adaln-panel.sumi.yaml`](figures/ideal/b-adaln-panel.sumi.yaml)（試作が描く）。A に加えて、パネル（`component: panel`）とキャプション（`caption`）、パネル全体の薄表示（`variant: dim`）、拡大の引き出し線（edge の `component: zoom`）、補足ラベル（`sublabel: "32 × 32 × 4"`）、数式ラベル（`'$\gamma_1,\beta_1$'`）、矢じりの近くのエッジラベル、1 つの出口から 4 本に分かれるバス。
 
 ### 2.4 図 C（難）
 
-[`c-h3world.sumi.yaml`](../../research/86-paper-figures/figures/ideal/c-h3world.sumi.yaml)（草案。試作は描かない）。B に加えて、ユーザー画像（`component: image`、`props.src` / `sha256` / `fit` / `layers`）、表のように行と列を揃える `grid`（`span` 付き）、トークン列（`tokens`、セルをエッジの端点 `sequence.a5` にできる）、キーの集合（`keys`）、色つきの文字範囲、回転した文字（`labelRotation: -90`）、角のバッジ（`badge: { icon: emoji/fire }`）、斜線と凡例つきの行列（`matrix`）、`bowtie`、破線のパネルと「(a) …」の見出し。
+[`c-h3world.sumi.yaml`](figures/ideal/c-h3world.sumi.yaml)（草案。試作は描かない）。B に加えて、ユーザー画像（`component: image`、`props.src` / `sha256` / `fit` / `layers`）、表のように行と列を揃える `grid`（`span` 付き）、トークン列（`tokens`、セルをエッジの端点 `sequence.a5` にできる）、キーの集合（`keys`）、色つきの文字範囲、回転した文字（`labelRotation: -90`）、角のバッジ（`badge: { icon: emoji/fire }`）、斜線と凡例つきの行列（`matrix`）、`bowtie`、破線のパネルと「(a) …」の見出し。
 
 画像のパスは構文の例のための仮の値で、ファイルは置いていない。B・C の草案は構文の方向を示すもので、厳密なスキーマでそのまま検証できる完成形ではない（例: `tokens` の props の形、`node.cell` 端点の ID 規則は実装 Issue で決める）。
 
@@ -153,7 +153,7 @@ D2 v0.9.0 の機能で近づけられるかを確かめた（`measure/d2-probes.
 
 grid で「積み重ね」自体はできるが、grid の中のエッジは ELK の経路ではなく直線になり、残差・分岐・幹線を表せない。D2 には一般ノードのポート指定もない（#57）。**判断: 案 A は論文図の主用途には使えない。** `auto` は今のまま、フロー図・構成図の自動配置として残す。
 
-参考に、図 A を現行 v1 で最大限近づけた版（[`figures/v1/`](../../research/86-paper-figures/figures/v1/a-transformer.sumi.yaml)、`direction: up`、group 2 つ、残差・Q/K/V を普通のエッジにした）を製品の `renderFigure()` で描いた。
+参考に、図 A を現行 v1 で最大限近づけた版（[`figures/v1/`](figures/v1/a-transformer.sumi.yaml)、`direction: up`、group 2 つ、残差・Q/K/V を普通のエッジにした）を製品の `renderFigure()` で描いた。
 
 | 項目 | v1（D2/ELK） | 試作（structured） |
 | --- | --- | --- |
@@ -165,7 +165,7 @@ grid で「積み重ね」自体はできるが、grid の中のエッジは ELK
 
 ### 3.2 案 B: Sumi の構造的配置（試作で実測）
 
-試作（[`proto/`](../../research/86-paper-figures/proto/)）は次の 3 段からなる。製品のコードを読み取り専用で使い（TTF の計測・XML parser・WASM エンジン）、依存は追加していない。
+試作（[`proto/`](proto)）は次の 3 段からなる。製品のコードを読み取り専用で使い（TTF の計測・XML parser・WASM エンジン）、依存は追加していない。
 
 1. **配置**（`layout.ts`）: 葉の大きさを同梱 TTF で文字を計測して決め（#56 の compact 候補と同じく実際に描くフォントの advance を使う）、箱を下から上へ計測し、上から下へ置く 1 パスの計算。`stretch`、同じ軸だけの揃えの継承、group の余白、`attach`、最後に余白込みの原点合わせと 1/1000 unit への丸め。
 2. **経路**（`route.ts`）: §4。
@@ -475,4 +475,4 @@ bun research/86-paper-figures/run.ts          # 全測定（out/ に SVG・PDF�
 bun run test research/86-paper-figures        # 試作の検査（ネットワーク・D2 不要）
 ```
 
-詳細は [研究ディレクトリの README](../../research/86-paper-figures/README.md)。
+詳細は [研究ディレクトリの README](README.md)。

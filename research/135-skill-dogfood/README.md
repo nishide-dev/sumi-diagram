@@ -1,6 +1,6 @@
 # #135 段階 B の書き方を Skill だけで使う短い dogfooding
 
-[Issue #135](https://github.com/nishide-dev/sumi-diagram/issues/135)。関連: #109（[v0.4.0 の dogfooding](../109-dogfood-v0.4/README.md)）、#124（[段階 B の調査](../../docs/research/124-stage-b.md)、[草案](../124-stage-b/figures/)）。製品の src・schema・examples・golden は変更しない。
+[Issue #135](https://github.com/nishide-dev/sumi-diagram/issues/135)。関連: #109（[v0.4.0 の dogfooding](../109-dogfood-v0.4/README.md)）、#124（[段階 B の調査](../124-stage-b/report.md)、[草案](../124-stage-b/figures/)）。製品の src・schema・examples・golden は変更しない。
 
 ## 方法
 

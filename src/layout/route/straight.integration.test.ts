@@ -1,6 +1,6 @@
 /**
  * `straight` anchors (#179, design doc §6.47) on the figures of prototype P1
- * (`research/167-stage-c/proto/straight.ts`, docs/research/167-stage-c.md
+ * (`research/167-stage-c/proto/straight.ts`, research/167-stage-c/report.md
  * §5.1): the 21 edges whose ends #167 found out of line (the encoders into
  * the Token Refiner and two more of figure C, five of figure B, the nine
  * patches and tokens of #151's ViT). Written as `toAnchor: straight` (and

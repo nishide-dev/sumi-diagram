@@ -283,7 +283,7 @@ type Arrowhead = "triangle" | "arrow" | "diamond" | "circle" | "box" | "cross" |
 
 ### 3.1 カスタム輪郭の契約（#52）
 
-#18 の[調査](../research/18-custom-svg-components.md)に基づく v1 互換の追加。一次ソースの Figure YAML ではなく、部品 manifest に描画方式を持たせる。
+#18 の[調査](../../research/18-custom-svg/report.md)に基づく v1 互換の追加。一次ソースの Figure YAML ではなく、部品 manifest に描画方式を持たせる。
 
 ```ts
 interface OutlineRender {
@@ -481,6 +481,8 @@ layout:
 - 自動再配置（方向を変えて試すなど）は段階的に導入する。MVP は診断のみ。
 
 ## 6. #8〜#13 に引き継ぐ契約
+
+> v0.13.0 より後の設計判断は、この §6 に足さず、[`decisions/`](decisions/) に 1 判断 1 ファイルで書きます（[書き方](README.md)）。§6.1〜§6.101 は過去の判断の記録として残します。
 
 - **Figure IR（#8）**: 正規化済みの node / group / edge、グループ木、正規部品 ID、ResolvedStyle、内部 D2 key、元の `DocPath` / `SourceLocation`（source map）を持つ。
 - **D2 生成（#8）**: 全要素について shape・label（クォート / エスケープ済み）・class・実効スタイルを明示的に出力する。ELK 指定は D2 ソースではなく CLI フラグで渡す（d2-config では ELK のオプションを指定できないため）。
@@ -750,7 +752,7 @@ layout:
 
 ### 6.12 PDF 出力（#59・#74）
 
-**現行実装は #74 の krilla + krilla-svg。** 保守終了した svg2pdf を置き換える判断は [#60 の評価](../research/60-krilla.md)、移行の検証は [#74 の記録](../verification/74-krilla.md) を参照。
+**現行実装は #74 の krilla + krilla-svg。** 保守終了した svg2pdf を置き換える判断は [#60 の評価](../../research/60-krilla/report.md)、移行の検証は [#74 の記録](../verification/74-krilla.md) を参照。
 
 - **契約**: `svgToPdf(svg, { fontSet? }): Result<Uint8Array>`、CLI の形式・出力先・JSON、provenance の項目、既存 `pdf/*` Diagnostic、入力上限は #59 の契約を維持する。
 - **エンジン**: `native/pdf-wasm/` の krilla 0.8.2 + krilla-svg 0.8.1、usvg 0.47.0、fontdb 0.23.0。Rust 1.98.1 / `wasm32-unknown-unknown`、Cargo.lock の版・checksum 固定、upstream パッチなし。raw ABI は `alloc` / `add_font` / `convert` / `output_ptr`。host imports は 0 と検査する。
@@ -764,7 +766,7 @@ layout:
 <details>
 <summary>#59 時点の svg2pdf 実装の記録（#74 で置換済み）</summary>
 
-#19 の評価（[docs/research/19-pdf-pptx-export.md](../research/19-pdf-pptx-export.md)）で推した方式（svg2pdf を WASM にして同梱）で実装した。
+#19 の評価（[research/19-pdf-pptx/report.md](../../research/19-pdf-pptx/report.md)）で推した方式（svg2pdf を WASM にして同梱）で実装した。
 
 1. **段と API**（`src/render/pdf`）: 仕上げ後の SVG（§6.3）を入力にする新しい段 `pdf`（§0）。`svgToPdf(svg, { fontSet? }): Result<Uint8Array>`。フォントセットは省略すると SVG のメタデータの `font-set` から引く。診断コード（いずれも error）: `pdf/input-too-large`（下記の入力の上限を超えた）、`pdf/missing-font`（フォントセットが分からない、またはフォントファイルを読めない・解析できない）、`pdf/unresolved-font`（SVG が使う D2 のフォント slot にファイルがない、または書き換え後も D2 の family 名が残る）、`pdf/engine-unavailable`（WASM がない、または sha256 が固定値と違う）、`pdf/conversion-failed`（エンジンが SVG を拒否した、エンジンが trap で止まった、または出力の文書情報が想定と違う）。
    - **trap**: WASM の trap（スタック溢れによる範囲外アクセス、メモリ不足、Rust の panic による `unreachable`）や、想定した export がないモジュールは、`runEngine()` が例外にせず失敗として返し、`pdf/conversion-failed` になる（CLI は exit 1、`--json` も出る）。インスタンスは変換ごとに作り直すので、trap したインスタンスを使い回すことはない。
@@ -849,7 +851,7 @@ layout:
 
 ### 6.19 #88 の構造的配置のスキーマと検査
 
-[#86 の調査](../research/86-paper-figures.md)（§2.1・§3.5・§9.1）の段階 A の 1 件目。配置エンジン・経路・SVG 出力は #89〜#91 で、この節はスキーマ・正規化・検査だけを扱う。すべて Figure v1 への任意フィールドの追加で、既存の図の正規化結果に `figure.layout.engine: auto` が加わる以外、診断・IR・D2・SVG・PDF・PPTX は変わらない。
+[#86 の調査](../../research/86-paper-figures/report.md)（§2.1・§3.5・§9.1）の段階 A の 1 件目。配置エンジン・経路・SVG 出力は #89〜#91 で、この節はスキーマ・正規化・検査だけを扱う。すべて Figure v1 への任意フィールドの追加で、既存の図の正規化結果に `figure.layout.engine: auto` が加わる以外、診断・IR・D2・SVG・PDF・PPTX は変わらない。
 
 - **フィールド**（すべて strict）:
   - `figure.layout.engine`: `auto`（D2/ELK、従来）| `structured`。`figure.layout.arrange`: root の配置の木。`groups[].arrange`: group の子の配置の木。`nodes[].attach: { to, side, gap? }`: 配置の木の外で、`to`（node か group）の `side` 側に `gap` 離して置く。`edges[].fromAnchor` / `toAnchor`: `"<side>"` か `"<side>:<0..1>"`（north/south では左→右、east/west では上→下の位置。省略時 0.5）。
@@ -872,7 +874,7 @@ layout:
 
 ### 6.20 #92 の operator・junction・tone と color テーマ
 
-[#86 の調査](../research/86-paper-figures.md)（§2.1・§9.1 の Issue 5）。すべて追加で、`tone` を書かず新しい部品も使わない図の診断・IR・D2・SVG・PDF は変わらない（既存の examples・ギャラリーの SVG はバイト単位で同じ）。
+[#86 の調査](../../research/86-paper-figures/report.md)（§2.1・§9.1 の Issue 5）。すべて追加で、`tone` を書かず新しい部品も使わない図の診断・IR・D2・SVG・PDF は変わらない（既存の examples・ギャラリーの SVG はバイト単位で同じ）。
 
 - **`tone` はフィールド（props ではない）**: `nodes[].tone` と `groups[].tone`（任意）。値は Sumi が固定する 8 色名 `gray | red | orange | yellow | green | blue | purple | pink`（`src/core/theme/tones.ts`。スキーマの enum なので未知の名前は `schema/*`、エディタ補完が効く）。
   - 理由: tone は `variant` と同じく「Theme が見た目を決める、部品をまたいだ選択」で、部品の意味（props）ではない。props にすると全 manifest に同じ prop を宣言させることになり、部品の契約と見た目が混ざる。調査の提案（node のフィールド）どおり。group にも同じ規則で付けられる（追加の費用がほぼない）。edge の tone（調査の段階 C）は対象外（#177 で追加、§6.54）。
@@ -895,7 +897,7 @@ layout:
 
 ### 6.21 #89 の構造的配置エンジンと Layout IR
 
-[#86 の調査](../research/86-paper-figures.md)（§3.2・§3.5・§9.1）の段階 A の 2 件目。§6.19 で検査した structured の図から、要素の矩形とラベルの箱を求める配置エンジンと、その結果の型 **Layout IR** を `src/layout/` に置く。経路（#90）と SVG 出力（#91）はまだないため、`compileFigure()` は §6.19 のとおり `layout/engine-unavailable` で止めたままとし、エンジンは単体のモジュールとしてテストする（`layoutStructured(ir, { profile?, measurer? })`、検査から配置までを通す `layoutStructuredFigure(text)`）。`auto` の経路（D2 ソース・SVG・PDF・PPTX）は変えていない。
+[#86 の調査](../../research/86-paper-figures/report.md)（§3.2・§3.5・§9.1）の段階 A の 2 件目。§6.19 で検査した structured の図から、要素の矩形とラベルの箱を求める配置エンジンと、その結果の型 **Layout IR** を `src/layout/` に置く。経路（#90）と SVG 出力（#91）はまだないため、`compileFigure()` は §6.19 のとおり `layout/engine-unavailable` で止めたままとし、エンジンは単体のモジュールとしてテストする（`layoutStructured(ir, { profile?, measurer? })`、検査から配置までを通す `layoutStructuredFigure(text)`）。`auto` の経路（D2 ソース・SVG・PDF・PPTX）は変えていない。
 
 - **Figure IR への追加**: `meta.engine`（`auto` | `structured`）、root の配置の木 `arrange`、`GroupIR.arrange`、`NodeIR.attach`（`{ to: ElementKey, side, gapPt }`。gap 省略は 0）、`EdgeIR.fromAnchor` / `toAnchor`（`parseAnchor()` 済みの `{ side, offset }`）。配置の木の箱は `{ kind: stack|row, direction, gapPt?, align?, items: (ElementKey | 箱)[] }` で、`gapPt` と `align` は省略を保つ（既定値はエンジンが決める）。`gapPt` は §6.19 のとおり pt の数値で、量子化しない。
 - **Layout IR**（`src/layout/ir.ts`）: 計算方法によらない幾何の型。将来 ELK を直接使う backend（#57 §5）も同じ型を返す（ELK の node の x/y/width/height → `rect`、group の子の領域 → `content`）。**幾何だけを持ち、見た目は持たない**: 部品・アウトラインの renderer と params・実効スタイル（線幅・矢じり・色）・フォントセットは Figure IR にあり、消費者（#90・#91）は **Figure IR と Layout IR を `ElementKey` で突き合わせて**使う（YAML に戻らない）。
@@ -950,12 +952,12 @@ layout:
 
 ### 6.22 #90 の直交ルータ
 
-[#86 の調査](../research/86-paper-figures.md)（§4）の段階 A の 3 件目。§6.21 の Layout IR を受け取り、全エッジの `route` と `nets` を埋める直交ルータを `src/layout/route/` に置く。`layoutStructuredFigure(text)` は検査 → Figure IR → 配置 → **経路**まで通す（`{ route: false }` で配置だけ）。単体の入口は `routeEdges(ir, layout)`（`{ layout, diagnostics }` を返し、経路のないエッジがあっても他のエッジの経路を持つ Layout IR を返す）。SVG writer（#91）がまだないため、`compileFigure()` は §6.19 のとおり `layout/engine-unavailable` で止めたまま。`auto` の出力（D2・SVG・PDF・PPTX・lint の golden・ギャラリー）は変えていない。
+[#86 の調査](../../research/86-paper-figures/report.md)（§4）の段階 A の 3 件目。§6.21 の Layout IR を受け取り、全エッジの `route` と `nets` を埋める直交ルータを `src/layout/route/` に置く。`layoutStructuredFigure(text)` は検査 → Figure IR → 配置 → **経路**まで通す（`{ route: false }` で配置だけ）。単体の入口は `routeEdges(ir, layout)`（`{ layout, diagnostics }` を返し、経路のないエッジがあっても他のエッジの経路を持つ Layout IR を返す）。SVG writer（#91）がまだないため、`compileFigure()` は §6.19 のとおり `layout/engine-unavailable` で止めたまま。`auto` の出力（D2・SVG・PDF・PPTX・lint の golden・ギャラリー）は変えていない。
 
 - **端点（`ports.ts`）**:
   - anchor があればその辺と位置。ない端は、相手の中心へ向かう向きのうち、差の大きい軸の辺（同じなら縦）。位置は 0.5。#134 から、2 つの要素を分ける配置の木の箱があればその向きの辺（stack なら北 / 南、row なら東 / 西。§6.33）、`figure.layout.fanIn: spread` では別の要素から同じ口に入る端を並べる（§6.33）。
   - **同じ 2 要素の間のエッジ**（多重辺・`a → b` と `b → a` の閉路）で、ある要素の同じ既定の辺を使う端は、文書順に位置 1/(n+1) … n/(n+1) に振り分ける。平行な別の線になり、重ならない（anchor を書いた端は動かさない）。
-  - **入りと出が同じ口を使う場合（#113）**: 上の振り分けの後、同じ口（要素・辺・点・向き）から出る端と入る端が両方ある口は、片方の向きの端をまとめて辺に沿って動かす。下のネットは向きごとなので、動かさないと 2 つのネットが口の stub を共有し、`api → worker` と `worker → store` が `api → store` に読める（[調査 #109](../research/109-dogfood-v0.4/README.md) の A2）。
+  - **入りと出が同じ口を使う場合（#113）**: 上の振り分けの後、同じ口（要素・辺・点・向き）から出る端と入る端が両方ある口は、片方の向きの端をまとめて辺に沿って動かす。下のネットは向きごとなので、動かさないと 2 つのネットが口の stub を共有し、`api → worker` と `worker → store` が `api → store` に読める（[調査 #109](../../research/109-dogfood-v0.4/README.md) の A2）。
     - **動かす側（判断）**: anchor を書いた端は動かさない（上の振り分けと同じ契約。`checkRoutes` も anchor の位置を検査する）。両方の向きが動かせるなら、相手の端と一直線（辺に垂直な同じ線上）のエッジが少ない向き、次にエッジが少ない向き、次に出る向きを動かす。両方に anchor があれば動かさず、文書順で後の向きのエッジを `layout/no-route`（「出る辺と入る辺が同じ点に anchor されていて線を共有する」）にする。別のネットのまま重ねて描くと #113 の誤読そのもので、検査でも重なりになるため、黙って描かない。
     - **動かす先**: 位置 `o` から辺の端までの中点（`o / 2` か `(o + 1) / 2`。0.5 なら 0.25 / 0.75）。向きは動かす端の相手の平均の側、同じなら残る端の相手と反対の側、それも同じなら正の側。辺の角（0 / 1）では反対側。多重辺の振り分け（1/3・2/3 など）と同じ幅にしなかったのは、口がもう 1 つ増えるだけなので、辺の中央からの距離を大きくして 2 本の線の間を空けるため。動かす先が**平行な辺**（同じ 2 要素を同じ向きに結ぶ辺）の端の点なら、反対側の半分、次に辺の空いた位置に置く（#143、§6.35）。
     - **一直線を保つ**: 動かした端のエッジが向かい合う辺どうしの直線だった場合、相手の端に anchor がなく、その口を他のエッジが使っていなければ、相手の端も同じ座標に動かす（再現の `api → worker` は直線のまま上にずれる）。動かした先が別の口と重なれば次の周回で同じ処理をする（最大 8 周。決定的）。8 周で解けなければ（半分ずつ動かす先がすべて使われている場合）、動かせる向きを 1/4, 3/4, 1/8, 3/8, …（1/1024 まで）のうち最初の空いた位置に置く。使用中かは向き（外から・内から）によらず点で判定する。`layout/no-route` になるのは、両方の向きに anchor がある場合と、それらの位置がすべて使われている場合（1 辺に千を超える口。理由を分けて出す）だけ。
@@ -982,7 +984,7 @@ layout:
   - node の辺上と内側の格子の辺は使えない（junction を除く）。したがって経路は**設計上 node を貫通しない**（試作の「膨らませた障害物の内側を通れない」から変えた: 2mm 間隔のスタックでは膨らませた障害物が重なり、隣のブロックを直線でつなぐ特別扱いが要った。製品は clearance を費用にしたので、隣どうしの直線も通常の探索で最短として見つかる）。
   - 交差の費用（300）は試作（80）より高い。図の交差は折れより読みにくいので、折れ 7 回分程度までの迂回は交差より安くする。
 - **stub**: ポートから辺に垂直に、clearance 以上（矢じりのある端は矢じりの長さ以上）まっすぐ進むまで曲がれない。矢じりの長さは D2 の三角形と同じ **4 + 4 × 線幅**（unit。academic の 1 unit の線で 8）とし、`arrowheadLength()` として公開する。junction の端には stub がない。stub は「曲がれない範囲」なので、向かい合う 2 つのポートを結ぶ直線は stub より短くてもよい（2mm 間隔のスタックの線）。ただし**矢じりは描く場所が要る**ので、矢じりのある端の線分が矢じりより短くなる場合（向かい合う端の間隔が矢じりより狭い直線）は `layout/no-route` にする（矢じりのない `line` なら引ける）。
-- **矢じりの前の余白（#116）**: [調査 #109](../research/109-dogfood-v0.4/README.md) の A7。stub は矢じりの長さだけなので、角の直後に矢じりが来て丸めた角（§6.26）が矢じりに重なり、共有の幹線が矢じりの直前で分かれる（gateway → 3 つの API。真ん中の矢じりの底が分岐点）と「+」の形に見えた。
+- **矢じりの前の余白（#116）**: [調査 #109](../../research/109-dogfood-v0.4/README.md) の A7。stub は矢じりの長さだけなので、角の直後に矢じりが来て丸めた角（§6.26）が矢じりに重なり、共有の幹線が矢じりの直前で分かれる（gateway → 3 つの API。真ん中の矢じりの底が分岐点）と「+」の形に見えた。
   - **#217 による更新（§6.57 が現行仕様）**: 直前の stub の説明の「junction の端には stub がない」は自由な方向の初回探索についての記述。矢じりのある junction の直線が不足する場合は、4 方向（両端なら最大 16 通り）を矢じり長の hard stub で再探索し、どれも引けなければ `layout/no-route`。以下の **100・格子点ごとの課金・S 字を作らないという説明は旧仕様の記録**であり、現行は **60・別の端の room の領域への進入時に 1 回**。`40 < 60 < 80` は余分な S 字を避ける好みで、共有の格子辺では曲がりの費用を省く場合や複数の room 進入・曲がりの費用が累積する場合があり、保証ではない。
   - **余白**: 矢じりのある端に `arrowRoom()` = 矢じりの長さ + 角の最大半径（`WIRE_CORNER_RADIUS` = 8。§6.26 の定数をルータに移し、writer が読む）。余白の中で曲がる（終点の線分に入る・始点の線分から出る）と 100、同じネットの別の口のエッジが余白の中の格子点に入る（幹線から分かれる・合流する）と 100 を足す。stub（曲がれない範囲）は従来どおり矢じりの長さで、余白は禁止ではない。
   - **費用 100（判断）**: 折れ 2 回（80）より高く、交差（300）より低い。余白は折れや幹線の位置をずらすだけで得られることが多く（長さは変わらない）、その場合は必ず取る。2 回の余分な折れ（S 字）や交差と引き換えには取らない。150 では 3mm 間隔のスタックの Z 字の線が S 字に迂回した。禁止（stub を余白まで伸ばし、経路がなければ従来の stub で探し直す）や 3000 では、下記のグループの扱いがないと Transformer の残差がグループの枠の外を回った。
@@ -997,7 +999,7 @@ layout:
 - **順序**: YAML の順に貪欲に引く（全体最適ではない）。交差が残れば検査で検出する。
 - **`layout/no-route`（error）**: 経路がない（node に囲まれている、接している node の間、stub が向かいの node に当たる）、両端が同じ点、または端の間隔が矢じりより狭い。位置はエッジ（`edges[i]`）。他のエッジは引く。経路がない場合は、塞いでいる候補の node（#114）をメッセージ（`in the way: "note"`）と `related`（YAML の位置）に示す: 端の stub と重なる・接する node、なければ両端の stub の先端を対角とする箱（直線・L 字の経路が通る範囲）と重なる node を、端に近い順（同じなら配置順）に最大 3 個。経路は端でない junction にも入れないので junction も含め、端の 2 要素は除く。`attach` した node が含まれれば、hint で「`attach` は配置の木で場所を取らない」ことと直し方を示す。失敗時だけ、node の走査と該当したものの整列をする（決定的）。`layoutStructuredFigure` は error として失敗を返す。
 - **エッジのラベル（`labels.ts`、試作 `edge-labels.ts` と同じ）**: 矢じりのある端（target、なければ source）の最後の線分で、矢じりの手前に置く。水平なら線の上、垂直なら線の右、間隔 3 unit。矢じりのない線は最も長い線分の中央。
-  - **経路と枠線を避ける（#116）**: [調査 #109](../research/109-dogfood-v0.4/README.md) の A8・A9。最後の線分がラベルより短いと、ラベルの箱（背景で塗る）が手前の線分を覆い、破線の切れ端が点に見えた（`update θ·`）。またラベルがグループの枠線に乗った（gRPC）。最初の位置が、いずれかの経路（自分の手前の線分、同じネットの幹線、他のエッジ）か、グループの枠線に間隔 3 unit より近ければ、候補を順に試す: 反対側、最後の線分に沿って、それを横切る経路・枠線の先まで下げた位置（角の先まで）を、矢じりに近い順（同じ距離なら上・右が先）に、両側。最後に手前の線分の脇（最後の線分が出ていかない側、角から 3 unit）。枠線は線を描くグループだけ（線幅 0・`transparent` のグループは lint と同じく除く）。経路に近くない候補のうち、枠線と node の箱にも重ならないもの、なければ node の箱に重ならないもの（node の上のラベルは枠線の上より多くを隠す）、なければ最初のものを選ぶ。どれも経路に近ければ最初の位置のまま。最初の位置が経路にも枠線にも近くなければ動かさない（node との重なりは従来どおり検査で検出）ので、既存の図のラベルは、この 2 つの不具合があった箇所だけが動く（図 B のタップのラベルはバスが動いた分、`x` 194 → 202）。残る衝突は検査（`checkRoutes`）と幾何 lint の `geometry/label-collision`（枠線も対象にした）で検出する。
+  - **経路と枠線を避ける（#116）**: [調査 #109](../../research/109-dogfood-v0.4/README.md) の A8・A9。最後の線分がラベルより短いと、ラベルの箱（背景で塗る）が手前の線分を覆い、破線の切れ端が点に見えた（`update θ·`）。またラベルがグループの枠線に乗った（gRPC）。最初の位置が、いずれかの経路（自分の手前の線分、同じネットの幹線、他のエッジ）か、グループの枠線に間隔 3 unit より近ければ、候補を順に試す: 反対側、最後の線分に沿って、それを横切る経路・枠線の先まで下げた位置（角の先まで）を、矢じりに近い順（同じ距離なら上・右が先）に、両側。最後に手前の線分の脇（最後の線分が出ていかない側、角から 3 unit）。枠線は線を描くグループだけ（線幅 0・`transparent` のグループは lint と同じく除く）。経路に近くない候補のうち、枠線と node の箱にも重ならないもの、なければ node の箱に重ならないもの（node の上のラベルは枠線の上より多くを隠す）、なければ最初のものを選ぶ。どれも経路に近ければ最初の位置のまま。最初の位置が経路にも枠線にも近くなければ動かさない（node との重なりは従来どおり検査で検出）ので、既存の図のラベルは、この 2 つの不具合があった箇所だけが動く（図 B のタップのラベルはバスが動いた分、`x` 194 → 202）。残る衝突は検査（`checkRoutes`）と幾何 lint の `geometry/label-collision`（枠線も対象にした）で検出する。
 - **内容とキャンバス**: 経路とエッジのラベルを含めて `content` を広げる。上か左にはみ出した場合は全体（node・group・ラベル・経路）を平行移動して、内容の左上を余白の位置に保つ。キャンバスは配置エンジンと同じ式（内容＋両側の余白を整数 unit に切り上げ）。
 - **Layout IR への追加**（既存のフィールドは変えていない）:
 
@@ -1034,7 +1036,7 @@ layout:
 
 ### 6.23 #91 の structured の SVG writer とフォントのサブセット
 
-[#86 の調査](../research/86-paper-figures.md)（§3.5）の段階 A の 4 件目。§6.21・§6.22 の Layout IR から SVG を書き、既存の finalize・inspect・幾何 lint・PDF・PPTX に接続した。§6.19 の `layout/engine-unavailable` はなくなり、structured の図は `sumi render` で描ける。`auto` の図の出力（D2 ソース・SVG・PDF・PPTX・lint の golden・ギャラリー）はバイト単位で変わらない。
+[#86 の調査](../../research/86-paper-figures/report.md)（§3.5）の段階 A の 4 件目。§6.21・§6.22 の Layout IR から SVG を書き、既存の finalize・inspect・幾何 lint・PDF・PPTX に接続した。§6.19 の `layout/engine-unavailable` はなくなり、structured の図は `sumi render` で描ける。`auto` の図の出力（D2 ソース・SVG・PDF・PPTX・lint の golden・ギャラリー）はバイト単位で変わらない。
 
 - **経路**: `compileFigure()` の値 `CompiledFigure` を `engine` で判別する union にした。`auto` は従来どおり `d2Source` と `layout`（D2 の引数）を持つ `CompiledD2Figure`、`structured` はそれらを持たない `CompiledStructuredFigure`（D2 ソースがないので、作り物の D2 を持たせない）。`compileFigure()` は I/O のない純関数のまま（配置はフォントファイルを読むので描画時に行う）。`renderFigure()` は structured を **配置（`layoutStructured`）→ 経路（`routeEdges`）→ `writeStructuredSvg()` → `finalizeStructuredSvg()` → `inspectSvg()`** で描き、D2 backend を呼ばない。`layout/no-route` は error として失敗を返す。`RenderedFigure` も union で、D2 なら `artifact`、structured なら描いた `layout`（経路付きの Layout IR）を持つ。要素のない図は従来どおり `svg/empty-figure`。
 - **inspect 契約との差の解消**（調査 §3.5 の 5 点）:
@@ -1067,7 +1069,7 @@ layout:
 
 ### 6.24 #93 のラベルの数式と数式フォント
 
-[#86 の調査](../research/86-paper-figures.md)（§5）の段階 A の 6 件目。structured の図のラベルに `$...$` の数式の部分集合を書けるようにし、数式用の OFL フォントを同梱した。`$` を含まないラベル、`auto` の図の出力（D2 ソース・SVG・PDF・PPTX・lint の golden・ギャラリー）はバイト単位で変わらない。変わる golden は `examples/dit-block`（数式を使うように書き換えた）だけ。
+[#86 の調査](../../research/86-paper-figures/report.md)（§5）の段階 A の 6 件目。structured の図のラベルに `$...$` の数式の部分集合を書けるようにし、数式用の OFL フォントを同梱した。`$` を含まないラベル、`auto` の図の出力（D2 ソース・SVG・PDF・PPTX・lint の golden・ギャラリー）はバイト単位で変わらない。変わる golden は `examples/dit-block`（数式を使うように書き換えた）だけ。
 
 - **記法**（`src/core/label/`。I/O のない純関数）:
   - `$...$` の外は文字どおり。`\$` だけが `$` 1 文字になる。`$` は同じ行で閉じる。
@@ -1105,7 +1107,7 @@ layout:
 
 ### 6.25 #94 のユーザー画像と同梱アイコン
 
-[#86 の調査](../research/86-paper-figures.md)（§6・§9.1 の Issue 7）。Sumi は画像を描かず・加工せず、外部の資産を**検査して埋め込むだけ**にする（利用者の判断 2026-10-26）。すべて追加で、アイコンも画像も使わない図の診断・IR・D2・SVG・PDF・PPTX はバイト単位で変わらない（examples・ギャラリーで変わったのは `examples/transformer` の作例だけ）。
+[#86 の調査](../../research/86-paper-figures/report.md)（§6・§9.1 の Issue 7）。Sumi は画像を描かず・加工せず、外部の資産を**検査して埋め込むだけ**にする（利用者の判断 2026-10-26）。すべて追加で、アイコンも画像も使わない図の診断・IR・D2・SVG・PDF・PPTX はバイト単位で変わらない（examples・ギャラリーで変わったのは `examples/transformer` の作例だけ）。
 
 - **`icon`（判断: node のフィールド）**: `nodes[].icon: <set>/<name>`（例 `tabler/wave-sine`。形式はスキーマの pattern）。`tone`・`variant` と同じく部品をまたいだ選択なので props にせず、どの部品の manifest にも宣言させない。
   - 使える部品は**輪郭が普通の図形の node だけ**（box・circle・ellipse・diamond など、と `label`）。mark（operator / junction）・アウトライン部品（trapezoid / stack）・image に書くと `asset/icon-unsupported`。group は対象外（スキーマにない）。
@@ -1168,7 +1170,7 @@ layout:
 
 ### 6.27 #127 のグループ見出しの位置（`groups[].labelAt`）
 
-段階 B（[#124 の計画](../research/124-stage-b.md) §3.1・§5-1）の 1 件目。#109 の 4 図中 3 図で、structured の上端中央に固定の見出し（§6.21）が上から入る辺とぶつかった。Figure v1 への任意フィールドの追加で、**`labelAt` を書かない図**の IR・Layout IR・D2・SVG・PDF・PPTX はバイト単位で変わらない（既存の golden・作例・ギャラリーは無変更）。診断も code・位置・本文は変わらず、変わるのは下記の hint の文言だけ（新しい warning は `labelAt` を書いた図にだけ出る）。
+段階 B（[#124 の計画](../../research/124-stage-b/report.md) §3.1・§5-1）の 1 件目。#109 の 4 図中 3 図で、structured の上端中央に固定の見出し（§6.21）が上から入る辺とぶつかった。Figure v1 への任意フィールドの追加で、**`labelAt` を書かない図**の IR・Layout IR・D2・SVG・PDF・PPTX はバイト単位で変わらない（既存の golden・作例・ギャラリーは無変更）。診断も code・位置・本文は変わらず、変わるのは下記の hint の文言だけ（新しい warning は `labelAt` を書いた図にだけ出る）。
 
 - **フィールド**: `groups[].labelAt`: `top-left` | `top` | `top-right` | `bottom-left` | `bottom` | `bottom-right`（Zod の enum で閉じる。誤った値は `schema/invalid-value` と最も近い値の提案）。見出しは常に**枠の内側**で、位置は名前で指定する（座標・オフセットは書かせない。#124 §2）。値の名前は、中央を `top` / `bottom`（D2 の `top-center` ではなく）として短くした。`fmt --canonical-order` は `label` の直後に並べる（スキーマのフィールド順。既定の `fmt` はキーの順を保つ）。
 - **見出しのない group（判断: warning）**: `label` が省略・空・空白だけの group に `labelAt` を書くと `component/label-at-without-label`（warning、`groups[i].labelAt` の位置。hint: ラベルを足すか `labelAt` を消す）。見える見出しがないので error にはしないが、黙って無視もしない（§6.19 と同じ考え方）。group は有効なまま。省略・空のラベルは場所を取らないので `labelAt` は何も変えない。空白だけのラベルは structured では計測されて空の帯が残り、`labelAt` はその帯を上下に動かす（子の位置が変わる。メッセージで区別し、`engine.test.ts` で固定）。
@@ -1182,7 +1184,7 @@ layout:
 
 ### 6.28 #133 の structured の図での交差の報告
 
-[#124 の調査](../research/124-stage-b.md) §3.7 の判断（Issue 7）。ルータの交差は費用で、禁止ではなく貪欲なので（§6.22）、密な図では別のネットの交差が残る（#109 の図 3 で 4 点）。費用の調整・辺の順序・rip-up・交渉は効果が 1 点以下で、遠回りか時間が増えたので採らず、交差を **`layout/edge-crossing`（info）** として作者に知らせ、辺の順序・anchor・配置で直せるようにする。描いた出力（SVG・PDF・PPTX・Layout IR）はバイト単位で変わらず、info の診断が増えるだけ。
+[#124 の調査](../../research/124-stage-b/report.md) §3.7 の判断（Issue 7）。ルータの交差は費用で、禁止ではなく貪欲なので（§6.22）、密な図では別のネットの交差が残る（#109 の図 3 で 4 点）。費用の調整・辺の順序・rip-up・交渉は効果が 1 点以下で、遠回りか時間が増えたので採らず、交差を **`layout/edge-crossing`（info）** として作者に知らせ、辺の順序・anchor・配置で直せるようにする。描いた出力（SVG・PDF・PPTX・Layout IR）はバイト単位で変わらず、info の診断が増えるだけ。
 
 - **段と入口**: `routeEdges()`（経路の選択は `chooseRouting()`）が、no-route の再試行（§6.22 の stub の線）で結果を選んだ後、すべてのエッジに経路があるとき（`layout/no-route` が 0 件）だけ、`crossingDiagnostics(ir, layout)`（`src/layout/route/crossings.ts`）を足す。`renderFigure()`・`layoutStructuredFigure()`・`sumi render`・`sumi lint --geometry`（layout の段は描画の診断も残す。`src/lint/geometry/lint.ts` の `MIXED_STAGES`）に同じ診断が出る。`layout/no-route` がある図は描画が失敗するので、交差は出さない（直すべき error を埋もれさせない）。再試行で全エッジが引けた場合は、その結果の交差を出す。
 - **交差の定義（判断）**: 2 つのネットの `nets[].segments`（ネットの経路の和を最大の軸平行な線分にしたもの）で、一方の水平な線分と他方の垂直な線分が、**両方の内側**（端から 0.01 unit より内）で交わる点。
@@ -1206,7 +1208,7 @@ layout:
 
 ### 6.29 #129 の数式のアクセント
 
-段階 B（[#124 の調査](../research/124-stage-b.md) §3.6・§5-3）。§6.24 のラベルの数式に `\hat` `\tilde` `\bar` `\dot` `\ddot` `\vec` を足した。今までエラーだった記法が通るようになるだけで、**アクセントのない図の出力（D2 ソース・SVG・PDF・PPTX・lint の golden・ギャラリー）はバイト単位で変わらない**。
+段階 B（[#124 の調査](../../research/124-stage-b/report.md) §3.6・§5-3）。§6.24 のラベルの数式に `\hat` `\tilde` `\bar` `\dot` `\ddot` `\vec` を足した。今までエラーだった記法が通るようになるだけで、**アクセントのない図の出力（D2 ソース・SVG・PDF・PPTX・lint の golden・ギャラリー）はバイト単位で変わらない**。
 
 - **記法**（`src/core/label/math.ts`・`symbols.ts` の `ACCENT_COMMANDS`）: 引数は 1 文字か 1 コマンド（`\hat y`、`\hat{y}`、`\bar\theta`、`\hat{\nabla}`）で、数式のフォントの 1 文字になるもの。アクセントの付いた atom は ord（TeX の Acc と同じ）で、後の `_` / `^` はその atom に付く（`\hat\theta_t`）。添字の中（`x_{\hat i}`）と `\mathrm{…}` の中でも書ける。アクセントは結合文字（U+0302 0303 0304 0307 0308 20D7）として、基底の run（`MarkupRun.accent`）に持たせ、その run は隣と結合しない（`mergeableRuns()`）。
   - **エラー**（`component/invalid-math`。位置は §6.24 と同じく文字の範囲）: 複数文字の引数（`\hat{xy}`・`\hat\log`・`\hat{x_t}`・`\hat\text{a}`・空白）は引数の範囲、引数がない（`\hat`、`\hat}`）はコマンドの範囲、入れ子（`\hat\hat x` は引数に入る前に拒否するので、深い入れ子でもスタックを溢れさせない。`\hat{\hat x}` は §6.24 の 32 段の上限の中）、幅のあるアクセント（`\widehat` `\widetilde` `\overline` `\overrightarrow` 等、`WIDE_ACCENT_COMMANDS`）は未知のコマンドより具体的なメッセージで、どれも `\hat{y}` の形を hint に示す。`\imath` / `\jmath` は対象外（`\hat i` は i の点の上に描く）。
@@ -1226,7 +1228,7 @@ layout:
 
 ### 6.30 #128 のエッジのラベルの位置（`edges[].labelAt` / `labelSide`）
 
-段階 B（[#124 の計画](../research/124-stage-b.md) §3.2・§5-2）の 2 件目。#109 の 4 図中 3 図で、辺のラベルを始点寄り・終点寄りや線の片側に置きたかった。Figure v1 への任意フィールドの追加で、**どちらも書かない辺**のラベルは §6.22（#116）の規則のまま（`labels.ts` の既定の分岐は変えていない）。既存の IR・Layout IR・D2・SVG・PDF・PPTX・診断はバイト単位で変わらない（既存の golden・作例・ギャラリーは無変更）。
+段階 B（[#124 の計画](../../research/124-stage-b/report.md) §3.2・§5-2）の 2 件目。#109 の 4 図中 3 図で、辺のラベルを始点寄り・終点寄りや線の片側に置きたかった。Figure v1 への任意フィールドの追加で、**どちらも書かない辺**のラベルは §6.22（#116）の規則のまま（`labels.ts` の既定の分岐は変えていない）。既存の IR・Layout IR・D2・SVG・PDF・PPTX・診断はバイト単位で変わらない（既存の golden・作例・ギャラリーは無変更）。
 
 - **フィールド**: `edges[].labelAt`: `start` | `middle` | `end`、`edges[].labelSide`: `left` | `right`（Zod の enum で閉じる。誤った値は `schema/invalid-value`）。IR（`EdgeIR.labelAt` / `labelSide`）は**書いたときだけ**持つ（§6.27 と同じ）。`fmt --canonical-order` では `label` の直後。
 - **auto（判断: `layout/structured-only`）**: D2 v0.9.0 は辺の `label.near` を受け付けるが位置を変えない（#124 で実測）。黙って無視しないよう、`fromAnchor` / `toAnchor` と同じく `layout/structured-only`（error、そのフィールドの位置）にし、辺を無効にする。矢じりのラベル（`source-arrowhead.label`）で `start` / `end` を写す案は、D2 の塗りの class と inspect の確認が要るので後回し（#124 §6）。
@@ -1245,7 +1247,7 @@ layout:
 
 ### 6.31 #132 の配置の木をまたぐ整列（`figure.layout.align`）
 
-[#124 の計画](../research/124-stage-b.md) §3.5・§5-6。#109 の 4 図中 2 図で、別の配置の木（箱）にある要素どうしを揃えたかった（U-Net の concat を encoder の段と同じ高さにして skip を水平にする、encoder の出力と decoder の Cross-Attention を揃えて K,V を 1 本の水平線にする）。Figure v1 への任意フィールドの追加で、**`align` を書かない図**の IR・Layout IR・D2・SVG・PDF・PPTX・診断はバイト単位で変わらない（既存の golden・作例・ギャラリーは無変更。`align` のない図は従来の 1 パスそのもので、strut の入力は空）。
+[#124 の計画](../../research/124-stage-b/report.md) §3.5・§5-6。#109 の 4 図中 2 図で、別の配置の木（箱）にある要素どうしを揃えたかった（U-Net の concat を encoder の段と同じ高さにして skip を水平にする、encoder の出力と decoder の Cross-Attention を揃えて K,V を 1 本の水平線にする）。Figure v1 への任意フィールドの追加で、**`align` を書かない図**の IR・Layout IR・D2・SVG・PDF・PPTX・診断はバイト単位で変わらない（既存の golden・作例・ギャラリーは無変更。`align` のない図は従来の 1 パスそのもので、strut の入力は空）。
 
 - **フィールド**: `figure.layout.align`: 制約のリスト。各制約は `{ y: [ids...] }`（項目の y が等しい＝1 本の水平線）か `{ x: [ids...] }`（x が等しい＝1 本の垂直線）のちょうど一方と、任意の `at: center | start | end`（中心・上端/左端・下端/右端。省略時 `center`）。ID は node か group。配置の木の外（`figure.layout`）に置くのは、木をまたぐ関係だから（#124 §2 の「配置は配置に書く」）。group の中だけの整列も同じ書き方で書ける。`x` と `y` の両方・どちらもなしは `schema/invalid-value`（`stack` / `row` と同じ「ちょうど 1 つ」の検査。`z` のような綴りの誤りは `schema/unknown-field` の 1 件だけにする。JSON Schema は `oneOf` の `required`）。正規化で `at` は埋めず、IR（`AlignIR`）で `center` にする。
 - **layout の段の検査（error、位置付き）**: auto の図で書くと `figure.layout.align` のキーの位置に `layout/structured-only`（§6.19 と同じ）。structured では、未知の ID は `layout/unknown-align-item`（その項目の位置。近い ID の提案、edge の ID なら「node と group だけ」）、同じ制約に同じ要素が 2 回なら `layout/duplicate-align-item`（2 回目の位置、1 回目を `related`）、項目が 2 個未満なら `layout/invalid-align`（`x` / `y` のキーの位置）。制約は図についての指定なので、要素を無効にしない。すでに無効な要素（自分の error がある）の ID は重ねて報告しない。**attach された node も項目にできる**（判断）: 対象と一緒に動く（strut は対象の経路に入る）。attach の対象と同じ制約に並べた場合など動かせない組は、下記の `layout/unsatisfied-align` で報告する（静的に禁止すると、`east` に付けた node と対象の y 揃えのように最初から満たされる制約まで拒むため）。
@@ -1286,7 +1288,7 @@ layout:
 
 ### 6.32 #130 のグループのキャプション（`groups[].caption`）
 
-段階 B（[#124 の計画](../research/124-stage-b.md) §3.3・§5-4）。#109 の 4 図中 2 図で、パネルの下に「(a) …」のキャプションが要った。Figure v1 への任意フィールドの追加で、**`caption` を書かない図**の診断・IR・Layout IR・D2・SVG・PDF・PPTX はバイト単位で変わらない（既存の golden・作例・ギャラリーは無変更）。
+段階 B（[#124 の計画](../../research/124-stage-b/report.md) §3.3・§5-4）。#109 の 4 図中 2 図で、パネルの下に「(a) …」のキャプションが要った。Figure v1 への任意フィールドの追加で、**`caption` を書かない図**の診断・IR・Layout IR・D2・SVG・PDF・PPTX はバイト単位で変わらない（既存の golden・作例・ギャラリーは無変更）。
 
 - **フィールド**: `groups[].caption`: 空でない文字列（空は `schema/invalid-value`）。改行で複数行、structured ではラベルの数式（§6.24）も使える（ノードの `label` と同じ扱い）。位置は常に**枠の下の中央**で、指定するフィールドはない。`fmt --canonical-order` では `labelAt` の直後。
 - **展開（判断）**: `checkFigure()` が `layout` 段の後、`component` 段の前に、キャプションを `sumi/label` のノード **`<group>-caption`**（予約した ID）として `nodes` の末尾に足す（`expandCaptions()`、`src/core/figure/caption.ts`）。ノードは group の親を持つ。以降の段（component・asset・theme・profile・lint・IR）はこれを普通の label として検査し、描く。`layout` 段の後にしたのは、配置の木の検査（各要素をちょうど 1 回置く、未知の項目）が作者の書いたものだけを見るため。`parseFigure()`（`fmt` が読むもの）は展開しない。
@@ -1306,7 +1308,7 @@ layout:
 
 ### 6.33 #134 の配置の木による既定の辺と fan-in の口の分散（`figure.layout.fanIn`）
 
-[#124 の調査](../research/124-stage-b.md)（§3.7・§8 Q1）の Issue 8。anchor のない端の辺の選び方を配置の木から決め（既定）、別の要素から同じ口に入る辺を並べて入れる（opt-in）。どちらも `ports.ts` の `resolveEnds` の中で、§6.22 の多重辺の振り分けと #113 の口の分割はそのまま通る。
+[#124 の調査](../../research/124-stage-b/report.md)（§3.7・§8 Q1）の Issue 8。anchor のない端の辺の選び方を配置の木から決め（既定）、別の要素から同じ口に入る辺を並べて入れる（opt-in）。どちらも `ports.ts` の `resolveEnds` の中で、§6.22 の多重辺の振り分けと #113 の口の分割はそのまま通る。
 
 - **配置の木で辺を選ぶ（既定、利用者の判断 2026-10-27、レビュー後に再確認）**: anchor のない端（junction・自己ループ・group とその内側の要素の場合を除く、§6.22 で `facingSide` を使っていた端）は、2 つの要素を分ける配置の木の箱（根からの道が最初に別の項目に分かれる、共通の祖先の箱）の向きで辺を決める。stack なら北 / 南、row なら東 / 西で、相手の中心の側（`up` / `left` の箱も中心で決まる）。`attach` で置いた node は対象の場所を使う（連鎖をたどる）。group が端なら group の場所。
   - **箱の軸で離れていなければ使わない（レビューで修正）**: 2 つの端の外接矩形が、箱の軸（stack なら y、row なら x）で重なる場合は、箱の向きは端の位置を表さないので従来の `facingSide`。`attach` した node は配置の木で場所を取らないので、次の項目の横に来ることがある（stack [a, b]、a の東に p、p の南に x を attach すると x は b と同じ高さ。修正前は x → b が南 / 南の 188 unit・折れ 2 になり、従来の直線 120 unit より悪かった）。判定は 2 つの矩形の対称な条件なので、両端に同じく掛かる。
@@ -1354,7 +1356,7 @@ layout:
 
 ### 6.34 #131 の凡例（`component: legend`）
 
-段階 B（[#124 の計画](../research/124-stage-b.md) §3.3・§5-5）。#109 の 4 図中 2 図（図 2・4）で「破線 = skip / 教師信号・更新」の凡例が要った。新しい部品の追加で、**`legend` を使わない図**の IR・Layout IR・D2・SVG・PDF・PPTX はバイト単位で変わらない（作例・ギャラリーの既存の出力は無変更。ギャラリーには legend の見本 4 枚と目次が**追加**され、PDF・画像方式 PPTX・編集可能 PPTX の corpus の hash も追加だけ）。診断で変わるのは、未知の部品・種類違いの hint の部品の一覧に `legend` が加わることだけ（lint の golden `no-cascade` を更新）。
+段階 B（[#124 の計画](../../research/124-stage-b/report.md) §3.3・§5-5）。#109 の 4 図中 2 図（図 2・4）で「破線 = skip / 教師信号・更新」の凡例が要った。新しい部品の追加で、**`legend` を使わない図**の IR・Layout IR・D2・SVG・PDF・PPTX はバイト単位で変わらない（作例・ギャラリーの既存の出力は無変更。ギャラリーには legend の見本 4 枚と目次が**追加**され、PDF・画像方式 PPTX・編集可能 PPTX の corpus の hash も追加だけ）。診断で変わるのは、未知の部品・種類違いの hint の部品の一覧に `legend` が加わることだけ（lint の golden `no-cascade` を更新）。
 
 - **部品**: `sumi/legend`（kind `node`、variants `default`（枠あり）・`plain`（枠なし）、since 0.5.0）。`props.entries`（1〜20 件、上から順）の各項目は `edge`（見本の線: `component`（既定 `arrow`）・`variant`）か `node`（見本の箱: `component`（既定 `box`）・`variant`・`tone`）の**ちょうど一方**と、`label`（空でない文字列。ラベルの数式も使える）を持つ。どちらもない・両方ある項目は `component/invalid-prop`（項目の位置）。項目のフィールド名は辺・ノードのフィールド名そのままで、色の値は書かない（Theme が決める）。凡例の `label` は枠の見出し（group の見出しの書式）、`tone` は枠の色。`icon` は `asset/icon-unsupported`。
 - **manifest の `engines`（判断）**: 部品が描けるエンジンを manifest に書けるようにした（`engines: ["structured"]`。省略はすべてのエンジン。空・重複は `component/invalid-manifest`）。`component` 段が、図のエンジンを含まない部品を `layout/structured-only`（auto の図。対称のため structured の図では `layout/auto-only`。組み込みでは使わない）として部品の参照の位置に出す。`sumi catalog --json` とギャラリーの部品の表にもそのまま出るので、利用者・エージェント・試験基盤（下記）がエンジンを見て部品を選べる。凡例の ID で特別扱いしなかったのは、試験基盤の見本の生成を「エンジンを見る」一般の規則にするため。
@@ -1420,7 +1422,7 @@ layout:
 
 ### 6.37 #153 の矢じりの前の余白を junction の先まで伸ばさない
 
-§6.22 の矢じりの前の余白（#116）の不具合の修正。[調査 #151](../research/151-dogfood-v0.5/README.md) の A1。
+§6.22 の矢じりの前の余白（#116）の不具合の修正。[調査 #151](../../research/151-dogfood-v0.5/README.md) の A1。
 
 - **不具合**: ⊕ からすぐ上の hidden junction への線（`add1 → split2`）が、まっすぐ引けるのに S 字に迂回し、junction に西から入った（再現 `research/151-dogfood-v0.5/repro/junction-detour.sumi.yaml`）。
 - **原因**: junction から出て矢じりで入る辺（`split2 → norm2`）の余白（`arrowRoom()` = 20 unit）が、junction と Layer Norm の距離（約 14.7 unit）より長く、余白（とその stub の予約）が自分の始点の junction を越えて、反対側（⊕ の側）まで伸びていた。`add1 → split2` は junction を通じて同じネットなので、その余白の中の格子点に踏み込むたびに「同じネットの別のエッジが余白の中で合流する」費用 `ROUTE.arrowRoom`（100）を払う。費用は格子点ごとなので、格子の密度で変わる。凡例（とその上の MLP）が加える格子の線（junction の真下の 159.274・155.854）で、まっすぐの経路は 3 点分（300）、西に出て横から junction に入る経路は junction の 1 点分（100）と曲がり 3 回（120）になり、S 字が安くなった。凡例・MLP・Feedforward のどれかを消すと線の位置が変わってまっすぐに戻るのはこのため（Issue の疑いだった、凡例の見本の junction の扱いやネットの結合は関係しない。凡例の見本を `node` にしても起きたのは、格子の線を加えるのが凡例の箱だから）。A8（破線の共有幹線の T 字の分岐が「›」に見える）は経路ではなく、分岐点で各経路が自分の角を丸める描画（`src/render/wire.ts`）によるもので、原因が違うのでこの修正の対象外（経路は修正の前後で同じ）。
@@ -1492,7 +1494,7 @@ layout:
 
 ### 6.40 #169 のほぼ揃った端で一周しない
 
-[#167 の調査](../research/167-stage-c.md) の R1（§3.1）。structured の図で、向かい合う 2 つの端が 1 unit 未満ずれていると、段差で済むところを端の周りを一周する経路になった（再現 `research/167-stage-c/repro/operator-loop.sumi.yaml` は根の `gap` 50mm で一周し、49mm・51mm では起きない）。
+[#167 の調査](../../research/167-stage-c/report.md) の R1（§3.1）。structured の図で、向かい合う 2 つの端が 1 unit 未満ずれていると、段差で済むところを端の周りを一周する経路になった（再現 `research/167-stage-c/repro/operator-loop.sumi.yaml` は根の `gap` 50mm で一周し、49mm・51mm では起きない）。
 
 - **原因（実測）**: 2 つが重なって起きる。
   1. **ずれの出どころ**: Layout IR の座標は 1/1000 unit に丸める。`align: stretch` で伸びた箱の中心（丸めた `x` ＋ 丸めた `width` の半分）と、中央に置いた ⊕ の中心（中心から計算して丸めた `x` ＋ 16）は別々に丸まるので、根の位置によって 0.001 unit ずれる（50mm で Attention の中心 444.968、⊕ 444.969。49mm では幅が 249.008 になり一致する）。幅の 1/1000 の桁が奇数の箱の中心は 1/1000 unit で表せないので、丸め方を変えても全部は揃わない。anchor を描画から 4 桁で写す・切りのよい分数で書く場合のずれ（0.001〜0.8 unit）も同じ形。
@@ -1532,7 +1534,7 @@ layout:
 
 ### 6.41 #170 の辺のラベルの背景をその下の塗りにする
 
-#167 の調査の R2（`docs/research/167-stage-c.md` §3.2、図 B の B-7）。structured の辺のラベルの背景は辺のスタイルの `fill`（#31、組み込みの Theme ではすべて白）で描いていたので、塗りのある group の上では白い四角になった（[`detail-label-halo.png`](../../research/167-stage-c/previews/detail-label-halo.png)）。背景を、ラベルの下に実際に塗られている色にする。
+#167 の調査の R2（`research/167-stage-c/report.md` §3.2、図 B の B-7）。structured の辺のラベルの背景は辺のスタイルの `fill`（#31、組み込みの Theme ではすべて白）で描いていたので、塗りのある group の上では白い四角になった（[`detail-label-halo.png`](../../research/167-stage-c/previews/detail-label-halo.png)）。背景を、ラベルの下に実際に塗られている色にする。
 
 - **色の決め方（判断）**: 図の背景（キャンバス。writer が最初に描く白の `<rect>`、`CANVAS_FILL`）から始め、ラベルの箱の中心を含む group を描く順（前順。外側が先）に重ねる（`labelBackground()`、`src/render/structured.ts`）。`transparent` の group と不透明度 0 の group は飛ばす。規則はあくまで**描く順の合成**（画家のアルゴリズムをその 1 点で行う）で、「内側から外側へたどって最初に塗られている色、なければキャンバス」はその略記にすぎない。略記が合成と一致するのは、中心を含む group が入れ子の祖先だけで（重なる兄弟がない）、塗りのある group が不透明な場合に限る。重なる兄弟の group では後に描かれたほうが上（入れ子の深さではない）、半透明の group は下の色との合成になり、どちらも合成の規則のとおりに決まる。**`transparent` は返さない**: 背景は下を走るもの（線）を隠すためにあり（#31）、透明では目的を失う。
 - **不透明度**: group の `opacity` が 1 未満なら、その塗りを下の色に `opacity` で合成した色（`#rrggbb`）にする。SVG の `<g opacity>` が塗りを下に重ねるのと同じ結果になる。1 のときは Theme の色の文字列をそのまま使う（`#rgb` も変えない）。
@@ -1547,7 +1549,7 @@ layout:
 
 ### 6.42 #171 の矢じりの前の余地をグループの余白に取る
 
-[調査 #167](../research/167-stage-c.md) の R3（§3.3）。
+[調査 #167](../../research/167-stage-c/report.md) の R3（§3.3）。
 
 **#247 による更新（§6.70）**: 以下は #171 当時の記録。「stub = 矢じり長」「academic は変わらない」「ルータは変えない」は現行仕様ではなく、グループ内の接近に見える 2pt の直線を加え、ルータと丸めでも保持する。広げるのは「その側だけ」ではなく、軸の左右（北南）で大きい方に揃えて両側（§6.70）。
 
@@ -1583,7 +1585,7 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 
 ### 6.44 #172 の欧文のサンセリフ（フォントセットの `latin` / `latinBold`）
 
-[#167 の調査](../research/167-stage-c.md) §10 Q6 の利用者の判断（2026-10-28）: 3 図の原図は欧文がサンセリフ（Helvetica 系・Arial・Avenir）で、今の Sumi は欧文も BIZ UDPGothic で描く。欧文用の OFL のサンセリフを同梱し、論文向けの Theme（#173）で使う。この Issue では同梱とフォントセットの slot までで、**既存の Theme・フォントセットの字形は変えない**（paper Theme は #173）。
+[#167 の調査](../../research/167-stage-c/report.md) §10 Q6 の利用者の判断（2026-10-28）: 3 図の原図は欧文がサンセリフ（Helvetica 系・Arial・Avenir）で、今の Sumi は欧文も BIZ UDPGothic で描く。欧文用の OFL のサンセリフを同梱し、論文向けの Theme（#173）で使う。この Issue では同梱とフォントセットの slot までで、**既存の Theme・フォントセットの字形は変えない**（paper Theme は #173）。
 
 - **候補の比較（実測。製品の cmap / hmtx reader で各 Regular を読んだ）**: 幅は「The quick brown fox jumps over the lazy dog」の advance の和（em）。記号は → ↑ ↔ − × ≤ ≥ ≈ … – — ‘ ’ “ ” • 等 18 字のうち持つ数。大きさは Regular + Bold の静的 TTF。
 
@@ -1633,7 +1635,7 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 
 ### 6.45 #176 の拡大の引き出し線（`component: zoom`）
 
-#167 の調査（`docs/research/167-stage-c.md` §4.3、図 B の B-4・図 C の C-10）。DiT（Fig. 3 の DiT Block → adaLN のパネル）と H3-World（(b) の Attention → (c)）は、ブロックからそれを拡大したパネルへ、対応する角どうしを結ぶ斜めの破線 2 本を引く。これまでは `fromAnchor: "east:0"` → `toAnchor: "west:0"` の `line` 2 本で代用し、直交の折れ線になっていた（下の 1 本はパネルの枠に重なる）。経路探索をしない部品として足す。
+#167 の調査（`research/167-stage-c/report.md` §4.3、図 B の B-4・図 C の C-10）。DiT（Fig. 3 の DiT Block → adaLN のパネル）と H3-World（(b) の Attention → (c)）は、ブロックからそれを拡大したパネルへ、対応する角どうしを結ぶ斜めの破線 2 本を引く。これまでは `fromAnchor: "east:0"` → `toAnchor: "west:0"` の `line` 2 本で代用し、直交の折れ線になっていた（下の 1 本はパネルの枠に重なる）。経路探索をしない部品として足す。
 
 - **構文（判断: edge の部品）**: `{ from: dit-block, to: adaln, component: zoom }`。`sumi/zoom`（edge、`since: 0.6.0`、props なし）。variant は `default`（破線）・`solid`（実線）・`muted`（破線・薄い色）。既存の `arrow` / `line` / `double-arrow` と同じく、線の描き方を部品で選ぶ。edge のフィールド（`zoom: true` など）にしなかったのは、Theme が部品ごとに線種を持て（既定を破線にできる）、`sumi catalog` とギャラリーにそのまま出て、Figure Schema（v1）を変えずに済むため。manifest には `routing: "zoom"` を足す（省略は経路探索する辺。カタログの JSON にも出る）。`routing: "zoom"` の manifest は `direction: "none"`（矢じりなし）かつ `engines: ["structured"]` でなければ登録できない（`component/invalid-manifest`）。
 - **角の組（規則）**: 送り元と拡大先の箱（node・group の `rect`）の位置関係で辺を決める。
@@ -1660,7 +1662,7 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 
 ### 6.46 #178 の ±90° 回転したラベル（`nodes[].labelRotation`）
 
-段階 C（[#167 の調査](../research/167-stage-c.md) §4.7、試作 P2）。H3-World の「Visual VAE Encoder」（縦長の箱）と「Query」（軸のラベル）は 90° 回転した文字。Figure v1 への任意フィールドの追加で、**`labelRotation` を書かない図**の診断・IR・Layout IR・D2・SVG・PDF・PPTX はバイト単位で変わらない。
+段階 C（[#167 の調査](../../research/167-stage-c/report.md) §4.7、試作 P2）。H3-World の「Visual VAE Encoder」（縦長の箱）と「Query」（軸のラベル）は 90° 回転した文字。Figure v1 への任意フィールドの追加で、**`labelRotation` を書かない図**の診断・IR・Layout IR・D2・SVG・PDF・PPTX はバイト単位で変わらない。
 
 - **フィールド**: `nodes[].labelRotation`: `90` または `-90`（数値。`"90"`・`45`・`180`・`0` は `schema/invalid-value`）。角度は SVG の `rotate()` と同じく**正が時計回り**（y 下向き）: `-90` は下から上へ読む（H3-World の向き）、`90` は上から下へ読む。#86 §5.1 の判断どおり ±90° に限り、縦組みは非対象。`fmt --canonical-order` では `label` の直後。
 - **対象（判断: ノードだけ）**: ノード（`label` 部品を含む）にだけ置く。group と edge のスキーマには足さない（書けば `schema/unknown-field`）。理由: group の見出しは上下の帯（§6.21・§6.27、高さはラベルの高さ）に置く設計で、回転した見出しには左右の帯という別の配置が要る。edge のラベルはルータが線分の横に水平な箱として置く（§6.30）前提で、回転した箱の置き方は別に設計が要る。H3-World の 2 つはどちらもノード（箱と `label` 部品）で足りる。
@@ -1683,7 +1685,7 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 
 ### 6.47 #179 の相手の真上（真横）で入る端（`toAnchor: straight` / `fromAnchor: straight`）
 
-[#167 の調査](../research/167-stage-c.md) の §4.4（#151 C1）。幅の広い箱へ並んだ送り元から入る線は、既定では受け手の中心（merge）か分散した位置（`fanIn: spread`）に入り、段差ができる。作者が手で `"south:0.3127"` を計算して書くと 4 桁の丸めでずれる（§6.40 の R1）。相手の中心の射影を router が配置の後に計算して端にする値を足す。**opt-in の値**で、既定の端の規則は変えない（利用者の判断 2026-10-28、§10 Q3）。
+[#167 の調査](../../research/167-stage-c/report.md) の §4.4（#151 C1）。幅の広い箱へ並んだ送り元から入る線は、既定では受け手の中心（merge）か分散した位置（`fanIn: spread`）に入り、段差ができる。作者が手で `"south:0.3127"` を計算して書くと 4 桁の丸めでずれる（§6.40 の R1）。相手の中心の射影を router が配置の後に計算して端にする値を足す。**opt-in の値**で、既定の端の規則は変えない（利用者の判断 2026-10-28、§10 Q3）。
 
 - **構文（判断: `straight` だけ、辺は書かない）**: `toAnchor: straight` / `fromAnchor: straight`。`south:straight` のように辺を書く形は採らない。まっすぐ入れる辺は、2 つの要素が離れている軸（1 つだけ）で決まり、向かい合う辺のほかにはない。辺を書くと、決まる辺と同じなら冗長、違えば矛盾（まっすぐにならない）で、検査する規則が増えるだけになる。既存の文法（`<side>` / `<side>:<0..1>`）と重ならない 1 語なので、`parseAnchor()` は `"straight"` を返し（`EdgeAnchor = Anchor | "straight"`）、`ANCHOR_PATTERN`（JSON Schema）にも加えた。大文字・`straight:0.5`・`south:straight` は `layout/invalid-anchor`。メッセージの期待する形と hint に `straight` を加え、`strait` などには `Did you mean "straight"?` が出る（誤った anchor の診断の文面だけが変わる。リポジトリの図・golden には出ない）。IR・Layout IR の `fromAnchor` / `toAnchor` は書いたとおり `"straight"` を持つ（解決した位置は経路の端の点にだけ現れる）。
 - **辺と位置（`straightPlacement()`、`ports.ts`）**: 2 つの要素の外接矩形が y だけで離れていれば北 / 南、x だけなら東 / 西の、相手に向かう辺。位置は相手の中心の、その辺への射影（丸めない値の比。端点は他の端と同じく `anchorPoint` で 1/1000 unit に丸まる）。射影が辺の角から `STRAIGHT_MARGIN`（6 unit = 3pt、router の clearance と同じ）以上内側にあるときだけ採る（矢じりと線が角や隣の辺に掛からない。辺が 12 unit より短ければ中央だけ）。試作 P1 と同じ規則。
@@ -1713,7 +1715,7 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 
 ### 6.48 #183 の幅に合わせた縮小（`figure.fit: scale`）
 
-#167 の調査（[§4.6・§10 Q1](../research/167-stage-c.md)）で、論文の原図の文字は印刷時 5〜6pt 程度で、Sumi の B（DiT、幅 257mm）・C（H3-World、232mm）は 180mm に縮めると文字が原図と同程度になると分かった。利用者の判断（2026-10-28）: 縮小を正式に認め、縮小後の実効の文字の下限は 5pt とする。これまでは幅超過の error を無視して LaTeX の `\includegraphics` で縮めるしかなく、Sumi は縮小後の文字を検査しなかった。配置は変えない（密度を上げる compact は #167 の別項目）。
+#167 の調査（[§4.6・§10 Q1](../../research/167-stage-c/report.md)）で、論文の原図の文字は印刷時 5〜6pt 程度で、Sumi の B（DiT、幅 257mm）・C（H3-World、232mm）は 180mm に縮めると文字が原図と同程度になると分かった。利用者の判断（2026-10-28）: 縮小を正式に認め、縮小後の実効の文字の下限は 5pt とする。これまでは幅超過の error を無視して LaTeX の `\includegraphics` で縮めるしかなく、Sumi は縮小後の文字を検査しなかった。配置は変えない（密度を上げる compact は #167 の別項目）。
 
 - **構文（判断: `figure.fit`、`figure.layout.fit` ではない）**: `figure.fit: scale`。`figure.layout` は配置を決める欄（`engine`・`direction`・`arrange`・`align`・`fanIn`）で、そのうち 3 つは structured 専用。`fit` は配置を変えず、出力の物理的な大きさだけを変えるので、物理的な出力先を選ぶ `figure.profile` の隣に置く（両 engine 共通であることも、layout の下より伝わる）。値は列挙で今は `scale` だけ。省略は今までどおり自然な大きさ（0.5pt/unit）。任意フィールドの追加なので Figure v1 のまま（`requires: ">=0.6.0"` を書けば古い Sumi は `schema/unsatisfied-requires` で止まる）。
 - **縮小率（判断: 幅だけで決め、拡大しない）**: s = min(1, `maxWidth` ÷ 自然な幅)。`maxWidth` のない Profile では何もしない。高さは縮小後の大きさで `geometry/exceeds-page-height` を検査し、はみ出せば今までどおり error（受け入れ条件）。高さにも合わせる（幅と高さの比の小さい方）案は採らない: 論文の図は幅をそろえて載せるもので、高さの超過は分割・配置で直す問題であり、黙って縮めると文字が予想外に小さくなる。
@@ -1742,7 +1744,7 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 
 ### 6.49 #174 の枠のない node と、枠のない・破線の container（`variant: filled` / `plain` / `dashed`）
 
-#167 の調査（[§4.1](../research/167-stage-c.md)）で、B（DiT）の箱は枠線のない塗り、左のパネルは枠も塗りもなく、C（H3-World）の (a)(b) は枠のない塗りのパネル、(c) は破線の枠と分かった。今の box と group は必ず枠を描くので、B の左のパネルは stack の下に `label` のノードを置いてキャプションの代わりにしており、他のパネルのキャプションと揃わなかった。角丸（`radius`）と論文向けの Theme は #173 で別に扱う。
+#167 の調査（[§4.1](../../research/167-stage-c/report.md)）で、B（DiT）の箱は枠線のない塗り、左のパネルは枠も塗りもなく、C（H3-World）の (a)(b) は枠のない塗りのパネル、(c) は破線の枠と分かった。今の box と group は必ず枠を描くので、B の左のパネルは stack の下に `label` のノードを置いてキャプションの代わりにしており、他のパネルのキャプションと揃わなかった。角丸（`radius`）と論文向けの Theme は #173 で別に扱う。
 
 - **構文（判断: 既存の variant の追加）**: 部品も style のフィールドも増やさず、manifest の variant にする（#124 §3.3 で `component: panel` を作らなかった判断、#101 の junction `hidden`、#131 の legend `plain` と同じ流れ）。variant は Theme が部品ごとに見た目を持つ閉じた一覧で、`sumi catalog`・ギャラリー・`theme/missing-variant` にそのまま乗り、Figure Schema（v1）は変わらない。名前は調査の理想の YAML のとおり:
   - node の **`filled`**: 塗りだけで枠線なし。box・square・circle・ellipse・diamond・hexagon・parallelogram・cylinder・document・trapezoid・operator。**stack には付けない**: 重なる 3 枚の矩形を分けているのは枠線で、枠を消すと 1 つの塗りの形に潰れる（意味のない variant をギャラリーに出さない）。label・junction・image・legend は既に枠のない variant（`default` / `hidden` / `plain`）を持つので変えない。
@@ -1766,7 +1768,7 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 
 ### 6.50 #181 のセルの並び（`component: tokens`）とセルへの参照（`<node>.<cell>`）
 
-#167 の調査（[§4.5・§10 Q4](../research/167-stage-c.md)）。H3-World（C）のトークン列（`Static`・A1〜・V1〜）、(b) の H3 ブロックのトークン、(c) の LoRA のトークンの列、キーの並び（W / ASD、IF / JKL。押したキーに色）と、ViT（#151）の位置とパッチのトークンを、これまでは 1 セルずつのノードで書いていた（C では 177 ノードの大半）。利用者の判断（2026-10-28）: キーボード専用の部品は作らず、キーの並びもこの汎用の「セルの並び」と tone（枠線の tone は #177）で書く。legend（§6.34）と同じく、検査の後に普通のノードへ展開する。
+#167 の調査（[§4.5・§10 Q4](../../research/167-stage-c/report.md)）。H3-World（C）のトークン列（`Static`・A1〜・V1〜）、(b) の H3 ブロックのトークン、(c) の LoRA のトークンの列、キーの並び（W / ASD、IF / JKL。押したキーに色）と、ViT（#151）の位置とパッチのトークンを、これまでは 1 セルずつのノードで書いていた（C では 177 ノードの大半）。利用者の判断（2026-10-28）: キーボード専用の部品は作らず、キーの並びもこの汎用の「セルの並び」と tone（枠線の tone は #177）で書く。legend（§6.34）と同じく、検査の後に普通のノードへ展開する。
 
 - **部品**: `sumi/tokens`（kind `node`、variants `default`、since 0.6.0、`engines: ["structured"]`）。props:
   - `cells`（1 件以上）か `lines`（1 行以上、各行 1 件以上のセルのリスト）の**ちょうど一方**（両方・どちらもないは `component/invalid-prop`、props の位置）。
@@ -1796,7 +1798,7 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 
 ### 6.51 #184 の小さい 2 行目（`nodes[].sublabel`）
 
-段階 C（[#167 の調査](../research/167-stage-c.md) §4.8、B-5）。DiT の Noise・Σ・Noised Latent は、名前（原図 8.4pt）の下に小さい寸法「32 × 32 × 4」（7.35pt）の 2 行。今までは 3 行目のラベルとして同じ大きさで書くしかなかった。Figure v1 への任意フィールドの追加で、**`sublabel` を書かない図**の診断・IR・Layout IR・D2・SVG・PDF・PPTX はバイト単位で変わらない。
+段階 C（[#167 の調査](../../research/167-stage-c/report.md) §4.8、B-5）。DiT の Noise・Σ・Noised Latent は、名前（原図 8.4pt）の下に小さい寸法「32 × 32 × 4」（7.35pt）の 2 行。今までは 3 行目のラベルとして同じ大きさで書くしかなかった。Figure v1 への任意フィールドの追加で、**`sublabel` を書かない図**の診断・IR・Layout IR・D2・SVG・PDF・PPTX はバイト単位で変わらない。
 
 - **フィールド**: `nodes[].sublabel`: 文字列。空・空白だけは `schema/invalid-value`（`must not be empty or only whitespace`）。改行（`\n`）で行を分け、ラベルの数式（§6.24・§6.29）も書ける（`component/invalid-math` の位置は `sublabel`、メッセージは `sublabel characters …`）。`fmt --canonical-order` では `label` の直後（`labelRotation` の前）。
 - **対象（判断: ノードだけ）**: group と edge のスキーマには足さない（書けば `schema/unknown-field`）。group の見出しの帯（§6.21・§6.27）と edge のラベルの置き方（§6.30）は 1 つの箱を前提にしており、DiT の 3 か所はどれもノード。
@@ -1827,7 +1829,7 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 
 ### 6.52 #173 の論文向けの Theme paper
 
-[#167 の調査](../research/167-stage-c.md) §4.1・§10 Q2 の利用者の判断（2026-10-28）: 3 図の原図（Transformer arXiv 1706.03762 Fig. 1、DiT arXiv 2212.09748 Fig. 3、利用者の H3-World）は角丸・tone の塗り・小さめの矢じり・欧文のサンセリフで描かれている。**新しい組み込みの Theme `paper` を足し、既存の `minimal`・`academic`・`slides`・`color` は変えない**。原図と並べた記録は [`research/173-paper-theme/`](../../research/173-paper-theme/README.md)。
+[#167 の調査](../../research/167-stage-c/report.md) §4.1・§10 Q2 の利用者の判断（2026-10-28）: 3 図の原図（Transformer arXiv 1706.03762 Fig. 1、DiT arXiv 2212.09748 Fig. 3、利用者の H3-World）は角丸・tone の塗り・小さめの矢じり・欧文のサンセリフで描かれている。**新しい組み込みの Theme `paper` を足し、既存の `minimal`・`academic`・`slides`・`color` は変えない**。原図と並べた記録は [`research/173-paper-theme/`](../../research/173-paper-theme/README.md)。
 
 - **値（`src/core/theme/builtin.ts`）**:
 
@@ -1874,7 +1876,7 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 
 ### 6.53 #175 の薄表示の継承（`groups[].dim`）
 
-[#167 の調査](../research/167-stage-c.md) §4.2（図 B の B-3）と [#86](../research/86-paper-figures.md) §8。DiT（Fig. 3）の 3・4 番目のパネルは、文字・線・矢じり・枠・キャプションが灰色で、tone の塗りも淡い（原図を見て確かめた）。今は `variant: muted` を node・辺・group の 53 か所に書いて近似し、それでも塗りは tone のまま濃く、キャプションは黒いままだった。group に 1 か所書けば、その group と中のすべてが薄くなるようにする。Figure v1 への任意フィールドと Theme の任意フィールドの追加で、**`dim` を書かない図**の診断・IR・Layout IR・D2・SVG・PDF・PPTX はバイト単位で変わらない（下記）。
+[#167 の調査](../../research/167-stage-c/report.md) §4.2（図 B の B-3）と [#86](../../research/86-paper-figures/report.md) §8。DiT（Fig. 3）の 3・4 番目のパネルは、文字・線・矢じり・枠・キャプションが灰色で、tone の塗りも淡い（原図を見て確かめた）。今は `variant: muted` を node・辺・group の 53 か所に書いて近似し、それでも塗りは tone のまま濃く、キャプションは黒いままだった。group に 1 か所書けば、その group と中のすべてが薄くなるようにする。Figure v1 への任意フィールドと Theme の任意フィールドの追加で、**`dim` を書かない図**の診断・IR・Layout IR・D2・SVG・PDF・PPTX はバイト単位で変わらない（下記）。
 
 - **構文（判断: variant ではなくフィールド）**: `groups[].dim: true`（`tone` の直後。`fmt --canonical-order` でもこの位置）。#167 §4.2 の理想の YAML は `variant: dim` だったが、次の理由でフィールドにした。
   - **variant は 1 要素に 1 つ**（§4.3、§6.49 の「`filled` と `muted` は両立しない」）。薄くしたいパネルにも自分の見た目（`dashed`・`plain`・`filled` の枠、凡例の `plain`）があり、`variant: dim` ではそれを捨てることになる。薄表示はその見た目を**変換**するもので、見た目の選択肢の 1 つではない。
@@ -1903,7 +1905,7 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 
 ### 6.54 #177 の tone の枠線（`variant: outlined`）と辺の `tone`
 
-[#167 の調査](../research/167-stage-c.md) §4.5（C-2・C-9）。H3-World（C）は、白地に色の枠線と色の文字の箱（H3 Encoder の紫、Visual VAE Encoder の橙、トークンの紫・橙・灰、キーの橙・青）と、色のついた辺（橙・ピンク・青）を多く使う。これまで tone は node と group の塗りだけを変え（§6.20）、辺には付けられなかった。Figure v1 への任意フィールド・variant と Theme の任意フィールドの追加で、**`outlined` も辺の `tone` も使わない図**の診断・IR・D2・SVG・PDF・PPTX はバイト単位で変わらない（下の実測）。原図と並べた記録は [`research/177-outlined-tones/`](../../research/177-outlined-tones/README.md)。
+[#167 の調査](../../research/167-stage-c/report.md) §4.5（C-2・C-9）。H3-World（C）は、白地に色の枠線と色の文字の箱（H3 Encoder の紫、Visual VAE Encoder の橙、トークンの紫・橙・灰、キーの橙・青）と、色のついた辺（橙・ピンク・青）を多く使う。これまで tone は node と group の塗りだけを変え（§6.20）、辺には付けられなかった。Figure v1 への任意フィールド・variant と Theme の任意フィールドの追加で、**`outlined` も辺の `tone` も使わない図**の診断・IR・D2・SVG・PDF・PPTX はバイト単位で変わらない（下の実測）。原図と並べた記録は [`research/177-outlined-tones/`](../../research/177-outlined-tones/README.md)。
 
 - **構文（判断）**:
   - node の **`variant: outlined`**: 白地（Theme の紙の色）で、枠線と文字を tone の色にする。`filled`（§6.49）と同じく manifest の variant で、box・square・circle・ellipse・diamond・hexagon・parallelogram・cylinder・document・trapezoid・operator に加え **stack にも付ける**（枠線が残るので重なりは分かれる）。label（枠がない）・junction（点）・image・legend・tokens・container には付けない。名前は #167 §4.5 の理想の YAML どおり。
@@ -1943,7 +1945,7 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 
 ### 6.55 #182 の詰めた間隔（`figure.layout.density: compact`）
 
-[#167 の調査](../research/167-stage-c.md) §4.6 の (c)。原図は Sumi より密で、DiT を原図と同じ 170mm 幅にそろえても Sumi の版は 17〜25% 高かった（`paper` の #173 の版では 33.5%）。余白を半分にしただけでは変わらず、効くのは間隔と 1 行の箱の高さ（§4.6）。利用者の判断（2026-10-28）: 縮小後の実効の文字の下限は原図並み（5pt。§6.48 の `minScaledFontSize`）とし、密度は間隔を詰めて原図に近づける。3 図の記録は [`research/182-compact/`](../../research/182-compact/README.md)。
+[#167 の調査](../../research/167-stage-c/report.md) §4.6 の (c)。原図は Sumi より密で、DiT を原図と同じ 170mm 幅にそろえても Sumi の版は 17〜25% 高かった（`paper` の #173 の版では 33.5%）。余白を半分にしただけでは変わらず、効くのは間隔と 1 行の箱の高さ（§4.6）。利用者の判断（2026-10-28）: 縮小後の実効の文字の下限は原図並み（5pt。§6.48 の `minScaledFontSize`）とし、密度は間隔を詰めて原図に近づける。3 図の記録は [`research/182-compact/`](../../research/182-compact/README.md)。
 
 - **構文（判断: `figure.layout.density`）**: `figure.layout.density: compact`（値は `normal` | `compact`、省略は `normal`）。structured の図だけで、auto の図に書くと `fanIn` などと同じ `layout/structured-only`（error。`normal` でも。黙って無視しないため）。任意フィールドの追加なので Figure v1 のまま。`figure.fit`（§6.48）は配置を変えず出力の大きさだけを変えるので `figure` の直下に置いたが、`density` は配置そのものを変えるので、配置を決める欄（`arrange`・`align`・`fanIn`）の並びの `figure.layout` に置く。
 - **値の置き場所（判断: Profile が値を持ち、図が選ぶ）**: 間隔の値は §6.21 のとおり Profile の `layout`（`arrangeGap`・`groupPadding`・`nodePaddingX` / `nodePaddingY`）にある。Profile の `layout` に同じ 4 項目の組 `compact` を足し、図の `density: compact` がその組を選ぶ。配置エンジンは `spacedProfile(profile, density)`（`src/core/profile/schema.ts`）で 4 項目だけを差し替えた Profile で配置する（`placeStructured`、キャプションとの間の `groupPadding / 2` を決める `buildFigureIR`）。ページの上限・余白（margin）・文字の下限・auto の値（`layerGap`・`containerPadding`）は変えない。compact の各値は通常の値以下でなければならず（`validateProfile`。超えれば `layout.compact.<項目>` の位置に `profile/invalid-value`。等しいのは可）、compact が図を通常より広げることはない。定義で `compact` を省略すると paper 系の値（`COMPACT_DEFAULTS`）と通常の値の小さい方を項目ごとに取る（既存の定義はそのまま通り、通常の間隔が小さい Profile でも compact が広がらない）。他の案を採らなかった理由:
@@ -1982,7 +1984,7 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 
 ### 6.56 #180 の行列（`component: matrix`）と斜線・class から作る凡例
 
-#167 の調査（[§4.5](../research/167-stage-c.md)）と #86（[§7・§9](../research/86-paper-figures.md)）。H3-World（C）の (c) の注意のマスクは、行・列の見出しと、色と斜線で塗り分けたセル（Allowed は緑、A↔V Link は橙、Masked は斜線）の行列で、横に同じ塗り分けの凡例がある。これまでは 81 個のセルの box・19 個の見出しの label・行ごとの row の group で書いており（約 100 ノード）、空のセルが `lint/empty-label` を 81 件出し、斜線は描けなかった（Masked は白い box で代用）。凡例は見本の箱を別に書くので、行列の塗りと食い違いうる。legend（§6.34）・tokens（§6.50）と同じく、検査の後に普通の要素へ展開する部品にする。
+#167 の調査（[§4.5](../../research/167-stage-c/report.md)）と #86（[§7・§9](../../research/86-paper-figures/report.md)）。H3-World（C）の (c) の注意のマスクは、行・列の見出しと、色と斜線で塗り分けたセル（Allowed は緑、A↔V Link は橙、Masked は斜線）の行列で、横に同じ塗り分けの凡例がある。これまでは 81 個のセルの box・19 個の見出しの label・行ごとの row の group で書いており（約 100 ノード）、空のセルが `lint/empty-label` を 81 件出し、斜線は描けなかった（Masked は白い box で代用）。凡例は見本の箱を別に書くので、行列の塗りと食い違いうる。legend（§6.34）・tokens（§6.50）と同じく、検査の後に普通の要素へ展開する部品にする。
 
 - **部品**: `sumi/matrix`（kind `node`、variants `default`、since 0.6.0、`engines: ["structured"]`）。props:
   - `cells`（必須、1〜64 行）: 上の行から、各行のセルの **class 名**を左から。行は class 名のリスト、または文字列。文字列は空白で区切った class 名の並びで、**すべての class 名が 1 文字なら文字そのもの**（空白は無視。`"o...oooo."`）。#167 §4.5 の案の「1 行 1 文字列」を、1 文字でない名前（`allowed` など）でも書けるように広げた。規則は class の集合だけで決まり、曖昧さはない（1 文字の名前だけなら 1 文字ずつ、そうでなければ空白区切り）。
@@ -2063,7 +2065,7 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 
 ### 6.59 #126 の配置の箱 `grid`
 
-[#124 §3.4](../research/124-stage-b.md) と #167 の H3-World (a) の表状の配置。Figure v1 の配置の木に任意の箱を追加する。新しい箱を使わない図の出力は不変。
+[#124 §3.4](../../research/124-stage-b/report.md) と #167 の H3-World (a) の表状の配置。Figure v1 の配置の木に任意の箱を追加する。新しい箱を使わない図の出力は不変。
 
 - **構文・順序**: `grid: { columns, rowGap?, columnGap?, align?, items }`。`columns` は正の整数。項目は ID・入れ子の箱（stack / row / grid）、または `{ item: IDか箱, span?: 正の整数 }`（省略は 1）。fmt の canonical order もこの順。常に左から右、上から下に埋め、`direction` は受け付けない（`schema/unknown-field`）。横の span だけを扱い、行をまたぐ span・自動折り返し・free は対象外。
 - **空のセルと個数（判断）**: 空けたいセルには明示的な YAML `null` / `~`、複数列には `{ item: null, span: N }` を使う。自然サイズは幅・高さとも 0 で、列を消費するだけでノード・経路の障害物・net の端点を作らない。hidden junction は障害物と接続の意味を持つため、空セルの代用にしない。暗黙の穴・空文字・空の items は認めない（位置付き `schema/*`）。全行をちょうど `columns` 列分で埋める。項目が行の残りを越えると `layout/grid-span-overflow`（error、wrapper の `span` の位置）、最後の行が未完なら `layout/grid-item-count`（error、`items` キーの位置）。途中で自動改行する案は採らない: 空の列が暗黙に増えると、作者が列を予測しにくい。所属・未知 ID・重複配置は既存の検査を wrapper の `item` の位置で実行する。auto は既存の `arrange` の `layout/structured-only`。
@@ -2108,7 +2110,7 @@ PR #190（#170）のレビューで見つかった、§6.41 と同じ種類の�
 
 ### 6.61 #186 の色つき文字範囲とラベルの左右揃え
 
-段階 C（[#167 の調査](../research/167-stage-c.md) §4.9）。H3-World のプロンプトの動作・カメラの句を orange / blue で区別し、複数行を左揃えで描く。
+段階 C（[#167 の調査](../../research/167-stage-c/report.md) §4.9）。H3-World のプロンプトの動作・カメラの句を orange / blue で区別し、複数行を左揃えで描く。
 
 - **文法と互換性**: structured の `$…$` 内だけで `\textcolor{<tone>}{…}` を認識する。平文は `\text{…}` で包む。tone は既存の 8 色名だけ（任意の RGB・CSS は不可）。以前は `component/invalid-math` だった場所だけを拡張する。数式の外は文字どおり、`\text{…}` の中は従来のエスケープ規則のまま（`\\textcolor` は文字列、エスケープなしのコマンドは error）。auto の数式は `component/unsupported-in-auto` の warning と文字どおりの描画を維持する。不正な色名・欠けた引数・閉じない波括弧には既存の `component/invalid-math` を使い、新しい診断コードは追加しない。
 - **run の契約**: parser → フォント fallback → 測定の run に任意の `tone` を保ち、隣接 run は tone も一致するときだけ統合する。色だけの単一 run も plain-text 経路へ省略しない。入れ子は内側の色が優先し、添字・accent にも適用する。色は幅やフォントに影響しない。writer でテーマの **`toneLines.fontColor`** に解決し、`<tspan fill>` を描く。`dim` の継承が優先するため、IR は dimmed な要素の key を任意リストで保持する（色の値から薄表示を推測しない）。

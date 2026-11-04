@@ -1,6 +1,6 @@
 # #176 拡大の引き出し線（`component: zoom`）の確認
 
-[Issue #176](https://github.com/nishide-dev/sumi-diagram/issues/176)、設計 [§6.45](../../docs/design/phase1.md)、調査 [#167 §4.3](../../docs/research/167-stage-c.md)。
+[Issue #176](https://github.com/nishide-dev/sumi-diagram/issues/176)、設計 [§6.45](../../docs/design/phase1.md)、調査 [#167 §4.3](../167-stage-c/report.md)。
 
 #167 の図 B（DiT）と図 C（H3-World）の写しで、代用の破線 2 本（`fromAnchor: "east:0"` → `toAnchor: "west:0"` の `line`）を `component: zoom` の 1 本に書き換えた。他は変えていない。#167 の記録（`research/167-stage-c/`）は変更しない。
 

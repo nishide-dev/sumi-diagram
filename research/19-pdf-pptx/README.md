@@ -1,6 +1,6 @@
 # #19 PoC: ベクター PDF / PPTX 出力の評価
 
-調査メモは [docs/research/19-pdf-pptx-export.md](../../docs/research/19-pdf-pptx-export.md)。ここには再現用のスクリプトと、小さく選んだ結果（`results/`）だけを置く。製品のコード（`src/`）と依存関係（`package.json`）は変更しない。
+調査メモは [research/19-pdf-pptx/report.md](report.md)。ここには再現用のスクリプトと、小さく選んだ結果（`results/`）だけを置く。製品のコード（`src/`）と依存関係（`package.json`）は変更しない。
 
 ## 構成
 

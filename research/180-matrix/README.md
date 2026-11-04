@@ -1,6 +1,6 @@
 # #180 行列（`component: matrix`）の確認
 
-[Issue #180](https://github.com/nishide-dev/sumi-diagram/issues/180)、設計 [§6.56](../../docs/design/phase1.md)、調査 [#167 §4.5](../../docs/research/167-stage-c.md)・[#86](../../docs/research/86-paper-figures.md)。
+[Issue #180](https://github.com/nishide-dev/sumi-diagram/issues/180)、設計 [§6.56](../../docs/design/phase1.md)、調査 [#167 §4.5](../167-stage-c/report.md)・[#86](../86-paper-figures/report.md)。
 
 H3-World（利用者の図。コミットしない）の (c) の注意のマスクを、#177 の図（`research/177-outlined-tones/figures/c-h3world.sumi.yaml`。変更しない）では 81 個のセルの box・19 個の見出しの label・行ごとの row の group で書いていた。これを 1 つの `matrix` ノードで書き、凡例を行列の class から作る。
 

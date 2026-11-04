@@ -1,7 +1,7 @@
 /**
  * PoC for #18: two generic custom node shapes, written as the pure "outline
  * renderer" functions the design memo proposes
- * (docs/research/18-custom-svg-components.md §5).
+ * (research/18-custom-svg/report.md §5).
  *
  * A renderer is a pure function of the laid-out footprint (the placeholder
  * rectangle D2/ELK placed) and returns:

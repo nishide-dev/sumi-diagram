@@ -2,7 +2,7 @@
 // (figures/ideal/c-h3world.sumi.yaml) written with today's syntax only.
 // The keycaps, token rows and the 9 x 9 attention matrix have no component
 // yet (#86 §7), so they are spelled out node by node; the generator exists to
-// measure that cost (docs/research/167-stage-c.md §2.3) and to keep the file
+// measure that cost (research/167-stage-c/report.md §2.3) and to keep the file
 // consistent. Usage: bun research/167-stage-c/gen-c.ts
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";

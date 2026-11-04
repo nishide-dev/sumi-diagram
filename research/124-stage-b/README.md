@@ -1,6 +1,6 @@
 # #124 段階 B の調査（試作と測定）
 
-[調査メモ](../../docs/research/124-stage-b.md)、[Issue #124](https://github.com/nishide-dev/sumi-diagram/issues/124)。関連: #80（ロードマップ）、#86（[論文図の調査](../../docs/research/86-paper-figures.md)）、#109（[v0.4.0 の dogfooding](../109-dogfood-v0.4/README.md)）。
+[調査メモ](report.md)、[Issue #124](https://github.com/nishide-dev/sumi-diagram/issues/124)。関連: #80（ロードマップ）、#86（[論文図の調査](../86-paper-figures/report.md)）、#109（[v0.4.0 の dogfooding](../109-dogfood-v0.4/README.md)）。
 
 製品の `src/`・schema・examples・golden は変更しない。ここのコードは製品の `src/` を読むだけで（import と、実行時に読み込んで `out/` に書く改変コピー）、製品のコードはこのディレクトリを参照しない。
 

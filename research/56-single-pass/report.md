@@ -1,6 +1,6 @@
 # #56 カスタム部品のサイズ決定を1パス化できるか
 
-対象: [#56](https://github.com/nishide-dev/sumi-diagram/issues/56)。前提は #18 の[輪郭調査](18-custom-svg-components.md)と #52〜#55 の実装。
+対象: [#56](https://github.com/nishide-dev/sumi-diagram/issues/56)。前提は #18 の[輪郭調査](../18-custom-svg/report.md)と #52〜#55 の実装。
 
 ## 0. 判断
 
@@ -28,7 +28,7 @@
 
 ## 2. 比較した方式
 
-実装と再現方法は [`research/56-single-pass/`](../../research/56-single-pass/README.md)。測定スナップショットは [`results/report.json`](../../research/56-single-pass/results/report.json)。研究用の候補を製品から呼ばない。
+実装と再現方法は [`research/56-single-pass/`](README.md)。測定スナップショットは [`results/report.json`](results/report.json)。研究用の候補を製品から呼ばない。
 
 | 名前 | 測定・サイズ計算 | D2呼び出し |
 | --- | --- | --- |
@@ -132,6 +132,6 @@ bun run d2:install
 bun research/56-single-pass/run.ts
 ```
 
-詳細は [研究ディレクトリの README](../../research/56-single-pass/README.md)。`out/` の各 YAML を元に、同じbasenameの各方式のSVGと `report.json` を確認できる。保存した `results/report.json` は測定のスナップショットで、時間やOS依存値をCIのgoldenにはしない。
+詳細は [研究ディレクトリの README](README.md)。`out/` の各 YAML を元に、同じbasenameの各方式のSVGと `report.json` を確認できる。保存した `results/report.json` は測定のスナップショットで、時間やOS依存値をCIのgoldenにはしない。
 
 製品の source / renderer / safeArea / Profile は変更しない。今回の成果物は、再現スクリプト・測定結果・本メモと、関連 Issue に残す採否判断である。

@@ -2,7 +2,7 @@
 # *structure* of Vaswani et al. 2017, Fig. 1 (no pixels, text or styling
 # copied beyond generic block names).
 #
-# PROPOSED syntax for #86 (docs/research/86-paper-figures.md). Sumi v0.3.1
+# PROPOSED syntax for #86 (research/86-paper-figures/report.md). Sumi v0.3.1
 # rejects this file; research/86-paper-figures/proto/ lays it out.
 #
 # New in this draft (all additive to Figure v1):

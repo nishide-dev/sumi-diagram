@@ -1,6 +1,6 @@
 # #173 paper Theme と基準の 3 図の比較
 
-[Issue #173](https://github.com/nishide-dev/sumi-diagram/issues/173)、設計は [design doc §6.52](../../docs/design/phase1.md#652-173-の論文向けの-theme-paper)。関連: #167（[段階 C の調査](../../docs/research/167-stage-c.md) §1.1・§4.1、[3 図の再現](../167-stage-c/README.md)）、#172（Inter、§6.44）、#183（`figure.fit: scale`、§6.48）。
+[Issue #173](https://github.com/nishide-dev/sumi-diagram/issues/173)、設計は [design doc §6.52](../../docs/design/phase1.md#652-173-の論文向けの-theme-paper)。関連: #167（[段階 C の調査](../167-stage-c/report.md) §1.1・§4.1、[3 図の再現](../167-stage-c/README.md)）、#172（Inter、§6.44）、#183（`figure.fit: scale`、§6.48）。
 
 新しい組み込みの Theme `paper` で #167 の 3 図を描き直し、原図（基準の図）と並べて比べた記録。原図そのもの・切り出し・文言はリポジトリに入れていない（Transformer: arXiv 1706.03762v7 Fig. 1、DiT: arXiv 2212.09748v2 Fig. 3 は公開の PDF、H3-World は利用者自身の未公開の図で、見た目の特徴だけを書く）。
 

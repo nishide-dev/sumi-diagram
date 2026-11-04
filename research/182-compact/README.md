@@ -1,6 +1,6 @@
 # #182 論文の図の詰めた間隔（`figure.layout.density: compact`）
 
-[Issue #182](https://github.com/nishide-dev/sumi-diagram/issues/182)、設計は [design doc §6.55](../../docs/design/phase1.md#655-182-の詰めた間隔figurelayoutdensity-compact)。関連: #167（[段階 C の調査](../../docs/research/167-stage-c.md) §4.6・§10 Q1）、#173（[paper Theme の比較](../173-paper-theme/README.md)、§6.52）、#183（`figure.fit: scale`、§6.48）。
+[Issue #182](https://github.com/nishide-dev/sumi-diagram/issues/182)、設計は [design doc §6.55](../../docs/design/phase1.md#655-182-の詰めた間隔figurelayoutdensity-compact)。関連: #167（[段階 C の調査](../167-stage-c/report.md) §4.6・§10 Q1）、#173（[paper Theme の比較](../173-paper-theme/README.md)、§6.52）、#183（`figure.fit: scale`、§6.48）。
 
 #173 の 3 図（`paper`）を `figure.layout.density: compact` で描き直し、縮小後の大きさを原図と比べた記録。原図そのもの・切り出しはリポジトリに入れていない（Transformer: arXiv 1706.03762v7 Fig. 1、DiT: arXiv 2212.09748v2 Fig. 3、H3-World は利用者の未公開の図）。
 

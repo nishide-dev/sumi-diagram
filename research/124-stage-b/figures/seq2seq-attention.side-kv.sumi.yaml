@@ -1,6 +1,6 @@
 # #109 figure 1 (encoder-decoder with cross-attention) in the syntax proposed
 # for stage B (#124), variant: K,V enters Cross-Attention from the side, straight.
-# New in this draft (docs/research/124-stage-b.md):
+# New in this draft (research/124-stage-b/report.md):
 #   groups[].labelAt: top-left    §1  the group titles come back (#109 dropped them:
 #                                     top-centre titles met the decoder's output edge)
 #   edges[].labelAt: middle       §2  "K,V" mid-line, not under the arrowhead

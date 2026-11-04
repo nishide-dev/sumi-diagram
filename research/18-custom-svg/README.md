@@ -1,6 +1,6 @@
 # #18 PoC: カスタム SVG 輪郭の合成
 
-[#18](https://github.com/nishide-dev/sumi-diagram/issues/18) の技術検証用の PoC です。設計メモは [docs/research/18-custom-svg-components.md](../../docs/research/18-custom-svg-components.md) にあります。**製品のコードからは参照しません**（`src/` はこのフォルダを import しません）。
+[#18](https://github.com/nishide-dev/sumi-diagram/issues/18) の技術検証用の PoC です。設計メモは [research/18-custom-svg/report.md](report.md) にあります。**製品のコードからは参照しません**（`src/` はこのフォルダを import しません）。
 
 D2 の標準形状にない汎用形状 2 つ（台形 `trapezoid`、重なった矩形 `stack`）を、次の方式で描きます。
 

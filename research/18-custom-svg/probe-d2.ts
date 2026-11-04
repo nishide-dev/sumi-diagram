@@ -1,6 +1,6 @@
 /**
  * #18: probes of D2 v0.9.0 behaviour that the design memo relies on
- * (docs/research/18-custom-svg-components.md). Plain D2 sources rendered with
+ * (research/18-custom-svg/report.md). Plain D2 sources rendered with
  * the pinned binary; prints one line per finding and writes the SVGs to
  * `out/probe-*.svg`.
  *

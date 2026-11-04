@@ -1,6 +1,6 @@
 # #185 v0.6.0 の受け入れ: 段階 C の構文で 3 図を描き直す
 
-[Issue #185](https://github.com/nishide-dev/sumi-diagram/issues/185)。調査 [#167](../../docs/research/167-stage-c.md)（§7.2 の 18）、関連: #80（ロードマップ）、#172〜#184（v0.6.0 の各機能）。
+[Issue #185](https://github.com/nishide-dev/sumi-diagram/issues/185)。調査 [#167](../167-stage-c/report.md)（§7.2 の 18）、関連: #80（ロードマップ）、#172〜#184（v0.6.0 の各機能）。
 
 #167 の基準の 3 図を、v0.6.0 の構文（`requires: ">=0.6.0"`、`theme: paper`）で描き直し、原図と並べて比べた記録。原図そのもの・切り出し・文言はリポジトリに入れていない（Transformer: arXiv 1706.03762v7 Fig. 1、DiT: arXiv 2212.09748v2 Fig. 3、H3-World: 利用者自身の未公開の図。H3-World は見た目の特徴だけを書き、題・キャプションは引用しない。図の中の短いラベル（Encoder の名前・パネルの題など）は #167 の版と同じく図に描いている）。比較は手元の原図と `previews/*.png` を並べて目で行った。
 

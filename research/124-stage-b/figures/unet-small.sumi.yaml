@@ -1,5 +1,5 @@
 # #109 figure 4 (small U-Net) in the syntax proposed for stage B (#124).
-# New in this draft (docs/research/124-stage-b.md):
+# New in this draft (research/124-stage-b/report.md):
 #   figure.layout.align        §6  concat ops on the encoder's levels (straight skips)
 #   component: legend          §3  "dashed = skip connection"
 #   edges[].labelSide          §2  "pool" left of the downward arrows

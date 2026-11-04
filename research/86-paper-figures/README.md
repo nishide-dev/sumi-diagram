@@ -1,6 +1,6 @@
 # #86 論文図への対応の調査
 
-[調査メモ](../../docs/research/86-paper-figures.md)、[Issue #86](https://github.com/nishide-dev/sumi-diagram/issues/86)。製品コードはこの研究ディレクトリを参照しない。製品の src・schema・examples・golden は変更しない。
+[調査メモ](report.md)、[Issue #86](https://github.com/nishide-dev/sumi-diagram/issues/86)。製品コードはこの研究ディレクトリを参照しない。製品の src・schema・examples・golden は変更しない。
 
 元の論文の図（Transformer / DiT / H3-World）は著作権のためリポジトリに入れない。ここにあるのは、構造だけを書き起こした自作の YAML と、それを描く試作である。
 
