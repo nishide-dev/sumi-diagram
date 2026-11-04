@@ -235,9 +235,44 @@ test("the same target minimum reaches sublabels, HTML and scaled script informat
       },
     },
   };
-  const script = lintSpec(compiled, spec, { code: "geometry/script-too-small" });
-  expect(script[0]?.message).toContain("9pt minimum font size of figure.target.minFontSize");
-  expect(script[0]?.severity).toBe("info");
+  // An explicit minimum supersedes the scaled-only information (#356).
+  expect(lintSpec(compiled, spec, { code: "geometry/script-too-small" })).toEqual([]);
+  const script = lintSpec(compiled, spec, { code: "geometry/script-below-target" });
+  expect(script[0]?.message).toContain("below the 9pt figure.target.minFontSize");
+  expect(script[0]?.severity).toBe("warning");
+});
+
+test("math scripts are judged against minFontSize at the natural size (#356)", () => {
+  const code = "geometry/script-below-target";
+  const spec = (size = 16) => ({
+    elements: {
+      "n:a": {
+        labels: [
+          label("q1", 30, 30, {
+            fontSizeUnits: size,
+            runs: [
+              [
+                { text: "q", font: "math-italic", fontSizeUnits: size, shiftUnits: 0 },
+                { text: "1", font: "math", fontSizeUnits: size * 0.7, shiftUnits: 2 },
+              ],
+            ],
+          }),
+        ],
+      },
+    },
+  });
+  // 8pt label, 5.6pt script, 7pt minimum: positioned warning at the label.
+  const found = lintSpec(compile(source("{ minFontSize: 7pt }")), spec(), { code });
+  expect(found).toHaveLength(1);
+  expect(found[0]?.severity).toBe("warning");
+  expect(found[0]?.path).toEqual(["nodes", 0, "label"]);
+  expect(found[0]?.message).toContain("5.6pt");
+  expect(found[0]?.hint).toContain("10pt");
+  // No target, or a script that stays above the minimum: unchanged and silent.
+  expect(lintSpec(compile(source()), spec(), { code })).toEqual([]);
+  expect(lintSpec(compile(source("{ minFontSize: 5pt }")), spec(), { code })).toEqual([]);
+  expect(lintSpec(compile(source("{ height: 90mm }")), spec(), { code })).toEqual([]);
+  expect(lintSpec(compile(source()), spec(), { code: "geometry/script-too-small" })).toEqual([]);
 });
 
 test("a standalone junction paints no stroke, so it never trips minLineWidth", async () => {
@@ -293,4 +328,27 @@ test("emitted JSON Schema keeps positive-length and 4.5pt floor constraints", as
     for (const ok of ["4.5pt", "4.50pt", "5pt", "12pt", "1.5875mm", "2mm", "0.16cm", "0.0625in"])
       expect(font.test(ok)).toBe(true);
   }
+});
+
+test("a script in a node's sublabel is reported as the sublabel with its own path (#356)", async () => {
+  const scripts = async (label: string) => {
+    const result = await lintRenderedFigure(
+      source("{ minFontSize: 7pt }").replace(
+        "label: A }",
+        `label: ${JSON.stringify(label)}, sublabel: "sub $y_1$" }`,
+      ),
+    );
+    return result.diagnostics.filter((d) => d.code === "geometry/script-below-target");
+  };
+  const only = await scripts("plain");
+  expect(only).toHaveLength(1);
+  expect(only[0]?.path).toEqual(["nodes", 0, "sublabel"]);
+  expect(only[0]?.message).toContain("in the sublabel of");
+  const both = await scripts("$q_1$");
+  expect(both.map((d) => d.path)).toEqual([
+    ["nodes", 0, "label"],
+    ["nodes", 0, "sublabel"],
+  ]);
+  expect(both[0]?.message).toContain("in the label of");
+  expect(both[1]?.message).toContain("in the sublabel of");
 });
