@@ -2674,6 +2674,13 @@ check・typecheck・gallery:check（231ファイル）・schema:check も成功�
 - **縮小:** `figure.fit: scale` が自然寸法の **90%未満**に縮めたら `geometry/heavy-scaling`（info、`figure.fit`）を報告する。縮尺と自然幅→印刷幅を表示し、#307 の幅内訳（削減が必要な幅・支配する run・子孫・attach・ラベル・確かめた変更）を **縮小前の寸法**で付ける。context のコピーの scale だけを1にして既存の内訳を共用し、現物の inspection・SVG は変えない。90%ちょうど・縮小なしには出さず、文字の下限と幅・高さの従来の検査は独立。`--rule geometry/heavy-scaling=off` で抑止できる。
 - **検証:** 左上・左下の2つの空白を持つ grid fixture、描画された矢印・ラベル・group による占有、外周 margin・細い gutter・小さい図の除外、80%縮小での自然幅の内訳、90%境界、位置情報・抑止・非破壊性・実際に効く hint を回帰検査する。Issue の DETR 評価2図の原本はリポジトリに含めず（`.sumi/tmp/`）、同じ空白の配置を再現した汎用 fixture を回帰に使う。DETR 評価2図（opus は左上に凡例があり出ない、sonnet は左下 111.02mm × 24.75mm・28.3% を報告）と、既存図×自身のテーマ／全組み込みテーマの SVG・PDF・PPTX・D2 の sha256 と既存 golden を比較する。
 
+### 6.97 #331 の tokens セルの variant 継承と注記を除いた接続範囲
+
+- **variant の継承規則。** tokens の `props.variant` が tokens 自身の既定 component（`props.component`、省略時 `box`）に無ければ、従来どおり `component/unknown-variant` を tokens の `props.variant` に報告する（`outlinedd` や `nope` の誤記は隠さない）。既定 component では有効だが、セルが上書きした component（例: `{ label: '…', component: label }`）が持たない場合に限り、そのセルは `default` に戻す。`outlined` の列に省略記号セルを混ぜてもエラーにならない。セルに明示した `variant` は従来どおり検証し、誤りはそのセルのフィールドへ報告する。画像セル・区切りセルの専用の既定値は維持する。継承の不一致は意図した異種セルで自然に起きるため warning は追加しない。
+- **配置範囲と接続範囲を分ける。** セルに付けた注記とその attach チェーンは、包含・余白・配置のために tokens の不可視フレームを広げる。一方、tokens 全体への辺の接続範囲はセル自身の矩形の和集合（外接矩形）とする。フレームを縮めると注記の包含と周辺の配置が壊れるため、Layout IR は変更せず、共通の `endpointRects` で接続時だけセル範囲を使う。通常辺・明示 anchor・straight・fan-in・zoom と経路検査で同じ範囲を共有する。セルの外にある attach 元からの辺は、フレームのメンバーであっても外側からセルへ接続する。注記のない tokens は従来の範囲を維持する。
+- **他部品の調査。** 通常ノードの attach は同じ親内に置かれ、対象ノードの矩形そのものは広げない。matrix と legend も全体への attach は外側の兄弟となり、内部の生成セル・見本には公開されたセル参照がない。tokens だけが公開セル参照への attach を生成フレーム内へ移す（§6.78）。通常 group は注記を含む枠自体が接続対象なので変更しない。
+- **検証。** 省略セルの cells / lines、互換な継承・明示不正 variant、全組み込みテーマで四方向の入出力辺と注記チェーンを回帰検証する。全 YAML を自身のテーマと全組み込みテーマで前後描画し、SVG / PDF / PPTX / D2 の SHA-256 を比較する。視覚確認には CLI の PDF 出力と `pdftoppm -png` を使う。
+
 ### 6.98 #266 の平文・数式間の空白を SVG 描画系で保持する
 
 - **問題**: structured のラベルは平文・数式・フォント切り替えを入れ子の `tspan` として出力する。librsvg は既定の空白処理で run 境界の半角空白を落とし、`Timestep $t$` が `Timestept` になる。ブラウザと PDF エンジンでは空白が見えても SVG の可搬性を満たさない。

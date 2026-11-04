@@ -809,9 +809,14 @@ edges:
 - **Cells.** A cell is a label string or `{ id, label, tone, mono, component,
   variant, width, height }`; `props.component` / `variant` / `width` / `height`
   and the node's `tone` are the defaults. An ellipsis is `{ label: '…',
-  component: label }` or math such as `'$A_{\ldots}$'`. The node has no label of
-  its own (put a `label` node beside it). `props.variant: outlined` gives every
-  cell a coloured frame and text in its tone; a cell's `variant: solid` is a
+  component: label }` or math such as `'$A_{\ldots}$'`. A `props.variant`
+  must be supported by the node's own component (`props.component`, default
+  `box`), or it is an error at `props.variant`. A cell that overrides the
+  component with one lacking that variant (the `label` component in the
+  ellipsis above, with `props.variant: outlined`) falls back to `default`. An
+  explicit cell `variant` must be supported. The node has no label of
+  its own (put a `label` node beside it). `props.variant: outlined` gives shape
+  cells (not `label` cells) a coloured frame and text in their tone; a cell's `variant: solid` is a
   selected cell (strong fill, white text); `tinted` gives pastel highlighted cells
   (both also work in legend `node` samples).
 - **Direction and lines.** `gap` and `align` are those of an arrange box;
@@ -835,6 +840,8 @@ edges:
   sequence** (`{ from: encoder, to: seq }`; an [attached bracket](#brackets)
   gathers it): Sumi lays the cells out in a frame group with that ID (no border,
   fill or padding); tokens that nothing names as a whole get no frame.
+  Whole-sequence edge endpoints use the cells' bounding rectangle, excluding
+  attached annotations, even when a wide note enlarges the layout frame.
 - **Dividers.** `{ separator: dotted }` (optionally `id`, `tone`, `width`, `height`;
   no label, component or variant) draws a dotted line across the sequence (vertical
   for `right` / `left`, horizontal for `down` / `up`), reserving 6pt along the
