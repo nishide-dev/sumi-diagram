@@ -1,5 +1,7 @@
 # #347 置き場所の予算と最終サイズによる縮小の判断
 
+> 添字の判定は [#356](356-script-min-font.md) で見直した（`minFontSize` 明示時は縮小なしでも warning）。
+
 ## 背景
 
 [#345 の調査](https://github.com/nishide-dev/sumi-diagram/pull/346) は、置き場所の

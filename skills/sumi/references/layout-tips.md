@@ -137,7 +137,9 @@ Text is checked at its printed size: the 8pt / 7pt of the built-in themes must
 print at 5pt or more on paper profiles (`geometry/text-too-small`), so a figure can
 shrink to about 70% (7pt edge labels reach 4.9pt just below). Subscripts of label
 math print smaller and are reported once as information (`geometry/script-too-small`).
-`figure.target.minFontSize` overrides the minimum (at least 4.5pt); optional
+`figure.target.minFontSize` overrides the minimum (at least 4.5pt) and also judges math
+scripts (0.7 × base) at their final size, scaled or not (`geometry/script-below-target`, warning: a
+8pt `$q_1$` prints at 5.6pt); optional
 `minLineWidth` warns on thin final diagram strokes. Choose scaling or re-arranging
 by final readability and reserved page area; neither always wins. Report the trade-off.
 

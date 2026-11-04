@@ -407,12 +407,13 @@ const SCRIPT_NAMES = 3;
 export const scriptTooSmall = defineGeometryRule({
   id: "geometry/script-too-small",
   description:
-    "In a scaled figure, a math script prints below figure.target.minFontSize, or the profile's scaled minimum when omitted (information only).",
+    "In a scaled figure without figure.target.minFontSize, a math script prints below the profile's scaled minimum (information only).",
   defaultSeverity: "info",
   fixable: false,
   run(context) {
     const { scale, scaled, minPt: min } = textLimits(context);
-    if (!scaled) return [];
+    // An explicit figure.target.minFontSize is judged by script-below-target (#356).
+    if (!scaled || context.ir.meta.target?.minFontSize !== undefined) return [];
     const small: { name: string; pt: number }[] = [];
     for (const element of context.elements) {
       const scripts = element.labels.flatMap(({ label }) =>
@@ -442,6 +443,50 @@ export const scriptTooSmall = defineGeometryRule({
       hint: `Scripts are exempt from the minimum at the natural size, so this is information only. If they are too small to read, ${SCALED_TEXT_HINT.charAt(0).toLowerCase()}${SCALED_TEXT_HINT.slice(1)}`,
     };
     return [finding];
+  },
+});
+
+/**
+ * With an explicit `figure.target.minFontSize` (#356) the minimum is a
+ * submission requirement that covers subscripts and superscripts too, so they
+ * are judged at their final size, scaled or not. Positioned at the label, one
+ * finding per element. Without a target, scripts keep the #183 behavior.
+ */
+export const scriptBelowTarget = defineGeometryRule({
+  id: "geometry/script-below-target",
+  description:
+    "With figure.target.minFontSize, a math script of a label prints below it at the final size (scaled or not).",
+  defaultSeverity: "warning",
+  fixable: false,
+  run(context) {
+    const min = context.ir.meta.target?.minFontSize;
+    if (min === undefined) return [];
+    const scale = printScale(context);
+    const findings: LintFinding[] = [];
+    for (const element of context.elements) {
+      const scripts = element.labels
+        .filter((l) => l.fontPath !== "")
+        .flatMap(({ label }) =>
+          (label.runs ?? [])
+            .flat()
+            .filter((run) => run.text.trim() && run.fontSizeUnits < label.fontSizeUnits)
+            .map((run) => ({
+              pt: unitsToPt(run.fontSizeUnits),
+              base: unitsToPt(label.fontSizeUnits),
+            })),
+        );
+      if (scripts.length === 0) continue;
+      const smallest = scripts.reduce((a, b) => (b.pt < a.pt ? b : a));
+      if (smallest.pt * scale >= min - PT_EPSILON) continue;
+      const needed = Math.ceil((min / 0.7 - PT_EPSILON) * 2) / 2;
+      findings.push({
+        message: `A math subscript or superscript in the label of ${element.name} prints at ${formatPt(smallest.pt * scale)}${scaleNote(smallest.pt, scale)}, below the ${formatPt(min)} figure.target.minFontSize (scripts are set at 0.7 of the base text, here ${formatPt(smallest.base * scale)}).`,
+        path: labelPath(element),
+        subject: element.subject,
+        hint: `Raise the base text to about ${formatPt(needed)} or more at the final size (a larger theme/variant font size${scale < 1 ? ", or less scaling" : ""}), or write it without a script (for example a plain "q1" or a separate label).`,
+      });
+    }
+    return findings;
   },
 });
 
@@ -1754,6 +1799,7 @@ export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
   exceedsPageHeight,
   textTooSmall,
   scriptTooSmall,
+  scriptBelowTarget,
   labelOverflow,
   outOfCanvas,
   nodeOverlap,

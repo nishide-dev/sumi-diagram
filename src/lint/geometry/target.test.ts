@@ -235,9 +235,44 @@ test("the same target minimum reaches sublabels, HTML and scaled script informat
       },
     },
   };
-  const script = lintSpec(compiled, spec, { code: "geometry/script-too-small" });
-  expect(script[0]?.message).toContain("9pt minimum font size of figure.target.minFontSize");
-  expect(script[0]?.severity).toBe("info");
+  // An explicit minimum supersedes the scaled-only information (#356).
+  expect(lintSpec(compiled, spec, { code: "geometry/script-too-small" })).toEqual([]);
+  const script = lintSpec(compiled, spec, { code: "geometry/script-below-target" });
+  expect(script[0]?.message).toContain("below the 9pt figure.target.minFontSize");
+  expect(script[0]?.severity).toBe("warning");
+});
+
+test("math scripts are judged against minFontSize at the natural size (#356)", () => {
+  const code = "geometry/script-below-target";
+  const spec = (size = 16) => ({
+    elements: {
+      "n:a": {
+        labels: [
+          label("q1", 30, 30, {
+            fontSizeUnits: size,
+            runs: [
+              [
+                { text: "q", font: "math-italic", fontSizeUnits: size, shiftUnits: 0 },
+                { text: "1", font: "math", fontSizeUnits: size * 0.7, shiftUnits: 2 },
+              ],
+            ],
+          }),
+        ],
+      },
+    },
+  });
+  // 8pt label, 5.6pt script, 7pt minimum: positioned warning at the label.
+  const found = lintSpec(compile(source("{ minFontSize: 7pt }")), spec(), { code });
+  expect(found).toHaveLength(1);
+  expect(found[0]?.severity).toBe("warning");
+  expect(found[0]?.path).toEqual(["nodes", 0, "label"]);
+  expect(found[0]?.message).toContain("5.6pt");
+  expect(found[0]?.hint).toContain("10pt");
+  // No target, or a script that stays above the minimum: unchanged and silent.
+  expect(lintSpec(compile(source()), spec(), { code })).toEqual([]);
+  expect(lintSpec(compile(source("{ minFontSize: 5pt }")), spec(), { code })).toEqual([]);
+  expect(lintSpec(compile(source("{ height: 90mm }")), spec(), { code })).toEqual([]);
+  expect(lintSpec(compile(source()), spec(), { code: "geometry/script-too-small" })).toEqual([]);
 });
 
 test("a standalone junction paints no stroke, so it never trips minLineWidth", async () => {
