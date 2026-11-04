@@ -195,6 +195,9 @@ export const LayoutLength = z
   });
 
 const arrangeFields = {
+  centerOn: Id.optional().describe(
+    "Keep this direct item's center at the box's main-axis center, reserving symmetric space for all items. Use a stack inside a centered row for side inputs. Only compatible with justify: center (the default).",
+  ),
   gap: LayoutLength.optional().describe(
     "Space between items. Omitted means the theme/profile default.",
   ),

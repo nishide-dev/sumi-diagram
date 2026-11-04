@@ -586,6 +586,19 @@ function wholeReferences(doc: PartialFigure): Set<string> {
   for (const constraint of doc.figure?.layout.align ?? []) {
     for (const ref of [...(constraint.x ?? []), ...(constraint.y ?? [])]) add(ref);
   }
+  const walk = (box: ArrangeBox) => {
+    const spec = box.stack ?? box.row ?? box.grid;
+    if (spec === undefined) return;
+    if ("centerOn" in spec && spec.centerOn !== undefined) add(spec.centerOn);
+    for (const cell of spec.items) {
+      const item = cell !== null && typeof cell === "object" && "item" in cell ? cell.item : cell;
+      if (item !== null && typeof item !== "string") walk(item);
+    }
+  };
+  if (doc.figure?.layout.arrange !== undefined) walk(doc.figure.layout.arrange);
+  for (const group of doc.groups ?? []) {
+    if (group?.arrange !== undefined) walk(group.arrange);
+  }
   return refs;
 }
 

@@ -113,6 +113,53 @@ and spreads extra room between items (one item stays centred). For tighter
 title/caption spacing do not stretch a panel to an unrelated sibling: use
 `align: start` there and stretch only its inner columns.
 
+## Side inputs on a main flow
+
+Put the main node and its side inputs in a **stack with `centerOn`**, inside
+a centered row. The inputs reserve their full width and height, including
+tokens; the named node stays on the row's centerline without `layout.align`
+constraints or wrapping the other main-flow nodes.
+
+```yaml
+version: 1
+figure:
+  id: side-input
+  layout:
+    arrange:
+      row:
+        items:
+          - encoder
+          - stack:
+              centerOn: decoder
+              gap: 4mm
+              items: [decoder, queries]
+          - output
+nodes:
+  - { id: encoder, component: box, label: Encoder }
+  - { id: decoder, component: box, label: Decoder }
+  - { id: output, component: box, label: Output }
+  - id: queries
+    component: tokens
+    props: { cells: [q1, q2, q3] }
+edges:
+  - { from: encoder, to: decoder }
+  - { from: decoder, to: output }
+  - { from: queries, to: decoder, fromAnchor: north, toAnchor: south }
+```
+
+- `centerOn` names a **direct node or group item** in that stack/row (use the
+  tokens node ID for a whole sequence, not a cell). The box reserves symmetric
+  main-axis space about that item's body center; its opposite side can contain
+  blank space, especially inside a framed group. It does not change membership.
+- To put the inputs **above**, use `direction: up` and reverse the input edge's
+  anchors. For side inputs beside a vertical flow, put a `row` with `centerOn`
+  inside a centered `stack` (`right`/`left` selects the side).
+- Keep the outer box's `align` omitted or `center`. The inner box's cross-axis
+  `align` still works normally. `centerOn` allows only omitted/`center` `justify`;
+  a non-direct reference or another justification is `layout/invalid-center-on`.
+- Inputs are ordinary arrange items: use `gap` for arrow clearance and connect
+  them explicitly. Reserve `attach` for small annotations whose space you manage.
+
 ## Grids
 
 A grid keeps rows and columns lined up (tables, patch grids, rows of equal columns):

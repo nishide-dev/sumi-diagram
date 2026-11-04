@@ -354,7 +354,37 @@ class StructuredLayout {
       box.items.reduce((sum, item) => sum + this.#lead(item) + this.#trail(item), 0);
     const gaps = this.#gap(box) * (sizes.length - 1);
     const cross = Math.max(0, ...sizes.map((s) => (vertical ? s.width : s.height)));
-    return vertical ? { width: cross, height: main + gaps } : { width: main + gaps, height: cross };
+    const padding = this.#centerPadding(box);
+    const length = main + gaps + padding.before + padding.after;
+    return vertical ? { width: cross, height: length } : { width: length, height: cross };
+  }
+
+  /** Reserve the complete input bundle symmetrically about its main-path item. */
+  #centerPadding(box: ArrangeBoxIR): { before: number; after: number } {
+    if (box.centerOn === undefined) return { before: 0, after: 0 };
+    const vertical = box.kind === "stack";
+    const order =
+      box.direction === "up" || box.direction === "left" ? [...box.items].reverse() : box.items;
+    let cursor = 0;
+    let center = 0;
+    for (const item of order) {
+      const size = this.#itemSize(item);
+      const length = vertical ? size.height : size.width;
+      cursor += this.#lead(item);
+      if (item === box.centerOn) {
+        const body = this.#bodyRect(box.centerOn, { x: 0, y: 0, ...size });
+        center = cursor + (vertical ? body.y + body.height / 2 : body.x + body.width / 2);
+      } else if (item !== null && typeof item !== "string") {
+        // Caption expansion wraps a direct group item in a generated stack.
+        this.#placeBox(item, { x: 0, y: 0, ...size }, "center", (key, rect) => {
+          if (key === box.centerOn)
+            center = cursor + (vertical ? rect.y + rect.height / 2 : rect.x + rect.width / 2);
+        });
+      }
+      cursor += length + this.#trail(item) + this.#gap(box);
+    }
+    const length = cursor - this.#gap(box);
+    return { before: Math.max(0, length - 2 * center), after: Math.max(0, 2 * center - length) };
   }
 
   /** Strut before `item` along its box's main axis, in visual order (above / left of it). */
@@ -532,6 +562,7 @@ class StructuredLayout {
     if (between) gap += Math.max(0, extra) / (order.length - 1);
     let cursor =
       (vertical ? frame.y : frame.x) +
+      this.#centerPadding(box).before +
       (grow > 0 || between ? 0 : totalWeight > 0 ? (extra - budget) / 2 : extra / 2);
     const crossAvailable = vertical ? frame.width : frame.height;
     for (const item of order) {

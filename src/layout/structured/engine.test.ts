@@ -68,6 +68,123 @@ const close = (actual: number, expected: number) =>
   expect(Math.abs(actual - expected)).toBeLessThanOrEqual(0.001);
 
 describe("stack and row", () => {
+  for (const direction of ["down", "up", "right", "left"]) {
+    test(`centerOn reserves side-input space and keeps the main line (${direction})`, () => {
+      const vertical = direction === "down" || direction === "up";
+      const bundle = {
+        [vertical ? "stack" : "row"]: {
+          direction,
+          centerOn: "b",
+          gap: "6pt",
+          items: ["b", "queries"],
+        },
+      };
+      const layout = layoutOf(
+        figure({ [vertical ? "row" : "stack"]: { items: ["a", bundle, "c"] } }, [
+          box("a"),
+          box("b"),
+          box("c"),
+          {
+            id: "queries",
+            component: "tokens",
+            props: { cells: ["Q1", "Q2", "Q3"] },
+          },
+        ]),
+      );
+      const a = rectOf(layout, "a"),
+        b = rectOf(layout, "b"),
+        c = rectOf(layout, "c");
+      const center = (r: Rect) => (vertical ? r.y + r.height / 2 : r.x + r.width / 2);
+      close(center(a), center(b));
+      close(center(c), center(b));
+      const cells = layout.nodes.filter((n) => !["n:a", "n:b", "n:c"].includes(n.key));
+      expect(cells.length).toBe(3);
+      for (const { rect } of cells) {
+        if (vertical) {
+          expect(rect.x).toBeGreaterThan(a.x + a.width);
+          expect(rect.x + rect.width).toBeLessThan(c.x);
+        } else {
+          expect(rect.y).toBeGreaterThan(a.y + a.height);
+          expect(rect.y + rect.height).toBeLessThan(c.y);
+        }
+      }
+    });
+  }
+
+  test("centerOn can name a whole tokens sequence", () => {
+    const layout = layoutOf(
+      figure({ row: { items: ["a", { stack: { centerOn: "seq", items: ["seq", "b"] } }] } }, [
+        box("a"),
+        box("b"),
+        { id: "seq", component: "tokens", props: { cells: ["x", "y"] } },
+      ]),
+    );
+    const a = rectOf(layout, "a"),
+      seq = rectOf(layout, "seq");
+    close(a.y + a.height / 2, seq.y + seq.height / 2);
+  });
+
+  test("centerOn uses the group body when caption expansion wraps it", () => {
+    const layout = layoutOf(
+      figure(
+        { row: { items: ["a", { stack: { centerOn: "g", items: ["g", "input"] } }] } },
+        [box("a"), box("b"), box("input")],
+        [
+          {
+            id: "g",
+            component: "container",
+            caption: "Caption",
+            arrange: { row: { items: ["b"] } },
+          },
+        ],
+      ),
+    );
+    const a = rectOf(layout, "a"),
+      g = rectOf(layout, "g");
+    close(a.y + a.height / 2, g.y + g.height / 2);
+  });
+
+  test("centerOn keeps an asymmetric two-sided bundle contained when stretched in a grid", () => {
+    const layout = layoutOf(
+      figure(
+        { grid: { columns: 2, align: "stretch", items: ["g", "tall"] } },
+        [
+          box("a"),
+          box("b"),
+          box("above", "A much wider input"),
+          box("below"),
+          box("tall", "Tall", { props: { height: "100pt" } }),
+        ],
+        [
+          {
+            id: "g",
+            component: "container",
+            arrange: {
+              row: {
+                align: "stretch",
+                items: [
+                  "a",
+                  {
+                    stack: { centerOn: "b", justify: "center", items: ["above", "b", "below"] },
+                  },
+                ],
+              },
+            },
+          },
+        ],
+      ),
+    );
+    const a = rectOf(layout, "a"),
+      b = rectOf(layout, "b");
+    close(a.y + a.height / 2, b.y + b.height / 2);
+    const content = layout.groups.find((g) => g.key === "g:g")?.content;
+    if (content === undefined) throw new Error("missing content");
+    for (const id of ["a", "b", "above", "below"])
+      expect(inside(content, rectOf(layout, id))).toBe(true);
+    expect(rectOf(layout, "above").y + rectOf(layout, "above").height).toBeLessThan(b.y);
+    expect(rectOf(layout, "below").y).toBeGreaterThan(b.y + b.height);
+  });
+
   test("items follow each other with the profile's default gap, from the margin", () => {
     // "A": 8 × 20 label → 36 × 34 box; "ABCD": 60 × 34.
     const layout = layoutOf(figure({ stack: { items: ["a", "b"] } }, [box("a"), box("b", "ABCD")]));
