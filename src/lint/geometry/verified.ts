@@ -6,6 +6,7 @@
  * trial layout: page width and painted group frames are measured there, not
  * in the layout IR. Copies only; nothing is written to disk.
  */
+import { loadFigureAssets } from "../../assets/load";
 import type { ArrangeBoxIR, FigureIR, NodeIR } from "../../compiler/ir";
 import { getProfile } from "../../core/profile/builtin";
 import { spacedProfile } from "../../core/profile/schema";
@@ -57,8 +58,19 @@ export function verifyHints(
   if (original.meta.engine !== "structured")
     return "Observed geometry only; no trial layouts were run.";
   const trials = new HintTrials(original);
-  if (!trials.eligible || context.html?.size || original.nodes.some((n) => n.image !== undefined))
-    return "Layout trials skipped for figure size or external assets; the measurements describe the current figure.";
+  const skipped = (reason: string) =>
+    `Layout trials skipped: ${reason}; the measurements describe the current figure.`;
+  if (!original.arrange) return skipped("no structured arrange tree is available");
+  if (!trials.eligible) return skipped("figure exceeds the bounded layout trial size limits");
+  if (context.html?.size || original.nodes.some((n) => n.image?.html !== undefined))
+    return skipped("HTML assets require prepared rendering and measurements");
+  if (
+    original.nodes.some((n) => n.image?.src !== undefined) ||
+    [...(original.assets?.values() ?? [])].some((a) => a.src !== undefined)
+  )
+    return skipped("external asset files are not loaded during layout trials");
+  const assets = loadFigureAssets(original);
+  if (!assets.ok) return skipped("inline or bundled assets could not be prepared");
   const candidates: Candidate[] = [];
   for (const { box, path } of boxes(original)) {
     const edit = (patch: Partial<ArrangeBoxIR>) =>
@@ -92,8 +104,11 @@ export function verifyHints(
   const withNodes = (replace: (n: NodeIR) => NodeIR) =>
     mapBoxes({ ...original, nodes: original.nodes.map(replace) }, (b) => b);
   for (const node of original.nodes) {
+    // Image dimensions include aspect-ratio-derived sizes. Removing their width here
+    // cannot reproduce removing it in YAML (which may also leave no required size).
     // A separator is decoration whose size is not a layout choice.
-    if (node.width === undefined || node.component === SEPARATOR_ID) continue;
+    if (node.width === undefined || node.component === SEPARATOR_ID || node.image !== undefined)
+      continue;
     // Excess over the measured label: what removing the explicit width could free.
     const label = context.get(node.key)?.labels[0]?.box?.width ?? 0;
     const natural = unitsToPt(label) + padX * 2;
@@ -150,7 +165,7 @@ export function verifyHints(
     if (!result) continue;
     if (result.diagnostics.some((d) => d.severity === "error")) continue;
     try {
-      const inspected = inspectSvg(writeStructuredSvg(ir, result.layout, fonts), ir);
+      const inspected = inspectSvg(writeStructuredSvg(ir, result.layout, fonts, assets.value), ir);
       if (!inspected.ok) continue;
       const trial = createGeometryContext(ir, inspected.value, fonts);
       const after = score(trial);

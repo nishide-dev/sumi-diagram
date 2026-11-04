@@ -82,6 +82,12 @@ const printedUnits = (context: GeometryContext, units: number): number =>
 const formatSize = (context: GeometryContext, rect: Rect): string =>
   `${formatPt(unitsToPt(printedUnits(context, rect.width)))} × ${formatPt(unitsToPt(printedUnits(context, rect.height)))}`;
 
+/** Keep printed measurements while making scaled overflow sizes comparable to YAML. */
+const formatOverflowSize = (context: GeometryContext, rect: Rect): string =>
+  printScale(context) === 1
+    ? formatSize(context, rect)
+    : `${formatSize(context, rect)} printed; ${formatPt(unitsToPt(rect.width))} × ${formatPt(unitsToPt(rect.height))} before scaling (YAML units)`;
+
 const figurePath: DocPath = ["figure"];
 
 function figureSubject(context: GeometryContext) {
@@ -435,8 +441,8 @@ export const labelOverflow = defineGeometryRule({
       const outside = box !== undefined && !rectsOverlap(box, bbox, 0);
       findings.push({
         message: hasIcon(element)
-          ? `The icon of ${element.name} (${box === undefined ? "" : `${formatSize(context, box)}, `}1 em) does not fit inside its ${shapeName(element)} shape (${formatSize(context, bbox)})${outside ? "; it is drawn outside the shape" : ""}.`
-          : `The label of ${element.name} (${box === undefined ? "" : `${formatSize(context, box)}, `}measured with the theme's fonts) does not fit inside its ${shapeName(element)} shape (${formatSize(context, bbox)})${outside ? "; it is drawn outside the shape" : ""}.`,
+          ? `The icon of ${element.name} (${box === undefined ? "" : `${formatOverflowSize(context, box)}, `}1 em) does not fit inside its ${shapeName(element)} shape (${formatOverflowSize(context, bbox)})${outside ? "; it is drawn outside the shape" : ""}.`
+          : `The label of ${element.name} (${box === undefined ? "" : `${formatOverflowSize(context, box)}, `}measured with the theme's fonts) does not fit inside its ${shapeName(element)} shape (${formatOverflowSize(context, bbox)})${outside ? "; it is drawn outside the shape" : ""}.`,
         path: explicit ? [...element.docPath, "props"] : labelPath(element),
         subject: element.subject,
         hint: explicit
