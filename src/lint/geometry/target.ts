@@ -100,7 +100,15 @@ export const lineTooThin = defineGeometryRule({
     return context.inspection.elements.flatMap((geometry) => {
       const ir = context.ir.elements.get(geometry.key);
       if (!ir || (!geometry.bbox && !geometry.path)) return [];
-      if (ir.kind === "node" && ir.image !== undefined) return [];
+      // These renderer branches paint no outline, regardless of the IR stroke style.
+      if (
+        ir.kind === "node" &&
+        (ir.image !== undefined ||
+          ir.mark?.type === "point" ||
+          ir.tokens?.separator !== undefined ||
+          ir.shape === "text")
+      )
+        return [];
       const style = ir.style;
       const pt = style.strokeWidth.pt * scale;
       if (style.stroke === "transparent" || style.opacity === 0 || pt <= 0 || pt >= min - EPSILON)

@@ -239,3 +239,58 @@ test("the same target minimum reaches sublabels, HTML and scaled script informat
   expect(script[0]?.message).toContain("9pt minimum font size of figure.target.minFontSize");
   expect(script[0]?.severity).toBe("info");
 });
+
+test("a standalone junction paints no stroke, so it never trips minLineWidth", async () => {
+  const header =
+    "version: 1\nfigure: { id: j, theme: paper, target: { minLineWidth: 1.1pt }, layout: { engine: structured, arrange: { stack: { items: [j] } } } }\n";
+  const lone = await renderFigure(
+    `${header}nodes:\n  - { id: j, component: junction }\nedges: []\n`,
+  );
+  if (!lone.ok) throw new Error(JSON.stringify(lone.diagnostics));
+  expect(lone.value.svg).toMatch(/<circle [^>]*stroke="none"/);
+  expect(lintGeometry(lone.value, { rules: [lineTooThin] })).toEqual([]);
+  const real = await renderFigure(source("{ minLineWidth: 9pt }"));
+  if (!real.ok) throw new Error(JSON.stringify(real.diagnostics));
+  const kinds = lintGeometry(real.value, { rules: [lineTooThin] }).map((d) => d.subject?.kind);
+  expect(kinds).toContain("node");
+  expect(kinds).toContain("edge");
+});
+
+test("emitted JSON Schema keeps positive-length and 4.5pt floor constraints", async () => {
+  const emitted = JSON.parse(await Bun.file("schema/figure.v1.schema.json").text());
+  const catalogSchema = buildFullCatalog(builtinRegistry(), { sections: ["targets"] }).targets
+    ?.schema;
+  const patternOf = (schema: unknown, key: string): RegExp => {
+    const props = (schema as { properties: Record<string, { pattern?: string }> }).properties;
+    const pattern = props[key]?.pattern;
+    if (pattern === undefined) throw new Error(`no pattern for ${key}`);
+    return new RegExp(pattern);
+  };
+  const find = (node: unknown): unknown => {
+    if (node && typeof node === "object") {
+      const record = node as Record<string, unknown>;
+      const props = record.properties as Record<string, unknown> | undefined;
+      if (props && "minFontSize" in props && "minLineWidth" in props) return node;
+      for (const value of Object.values(record)) {
+        const hit = find(value);
+        if (hit) return hit;
+      }
+    }
+    return undefined;
+  };
+  for (const schema of [find(emitted), catalogSchema]) {
+    expect(schema).toBeDefined();
+    const height = patternOf(schema, "height");
+    const line = patternOf(schema, "minLineWidth");
+    const font = patternOf(schema, "minFontSize");
+    for (const bad of ["0pt", "0mm", "0.00cm", "00in"]) {
+      expect(height.test(bad)).toBe(false);
+      expect(line.test(bad)).toBe(false);
+    }
+    for (const ok of ["0.3pt", "60mm", "0.01in", "10pt"]) expect(line.test(ok)).toBe(true);
+    for (const bad of ["4pt", "4.49pt", "1.58mm", "0.158cm", "0.06in", "0pt"])
+      expect(font.test(bad)).toBe(false);
+    for (const ok of ["4.5pt", "4.50pt", "5pt", "12pt", "1.5875mm", "2mm", "0.16cm", "0.0625in"])
+      expect(font.test(ok)).toBe(true);
+  }
+});

@@ -26,6 +26,11 @@
   `geometry/line-too-thin`（warning）を要素の位置で報告する。Profile には新たな
   線幅の既定を設けない。不可視/幅0の線・文字だけの要素は除く。IR で管理しない
   image/icon/HTML の内部の線は測らない。画像の frame も今回の検査の対象外。
+  レンダラーが線を描かない要素（junction の点、トークン区切りの枠、アイコンだけの
+  label 枠）も、IR の strokeWidth に関わらず除く。
+  JSON Schema では refine が失われるため、正の長さ（0 の全表記を除外）と
+  minFontSize の4.5pt下限（pt/mm/cm/in 各単位）を入力側の pattern で表し、
+  実行時の refine と二重に保つ。
 - `geometry/heavy-scaling` は縮小した図で最小の最終文字が下限の120%以下なら info。
   **20%の余裕**は規定ではなく、候補を再確認するための目安。最小値には添字と
   配置後の HTML も含めるので、85%で4.2ptの添字になる図も知らせる。文字がない図は

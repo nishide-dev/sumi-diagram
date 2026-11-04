@@ -457,14 +457,45 @@ export const FigureAssetSchema = z
     path: ["svg"],
   });
 
+/** Target budgets require units and exclude every spelling of zero. */
+const PositiveTargetLength = z
+  .string()
+  .regex(/^(?=\d*(?:\.)?\d*[1-9])\d+(?:\.\d+)?(?:mm|cm|in|pt)$/)
+  .pipe(LayoutLength as unknown as z.ZodType<number, string>);
+
+/** Decimal >= a positive, fractional threshold below 10, allowing leading zeros. */
+function decimalFloorPattern(threshold: string): string {
+  const [whole = "", fraction = ""] = threshold.split(".");
+  const greaterFractions = [...fraction].flatMap((digit, index) =>
+    digit === "9" ? [] : [`${fraction.slice(0, index)}[${Number(digit) + 1}-9]\\d*`],
+  );
+  return `0*(?:[1-9]\\d+(?:\\.\\d+)?|[${Number(whole) + 1}-9](?:\\.\\d+)?|${whole}\\.(?:${[...greaterFractions, `${fraction}\\d*`].join("|")}))`;
+}
+
+// Exact equivalents of 4.5pt. Input patterns survive JSON Schema generation,
+// unlike refinements after the normalization transform.
+const TargetFontLength = z
+  .string()
+  .regex(
+    new RegExp(
+      `^(?:${Object.entries({ pt: "4.5", mm: "1.5875", cm: "0.15875", in: "0.0625" })
+        .map(([unit, floor]) => `${decimalFloorPattern(floor)}${unit}`)
+        .join("|")})$`,
+    ),
+  )
+  .pipe(LayoutLength as unknown as z.ZodType<number, string>);
+
 export const FigureTargetSchema = z.strictObject({
-  height: LayoutLength.refine((pt) => pt > 0, "Height budget must be positive.")
+  height: PositiveTargetLength.refine((pt) => pt > 0, "Height budget must be positive.")
     .optional()
     .describe("Printed height budget, including margins; exceeding it warns but never rescales."),
-  minFontSize: LayoutLength.refine((pt) => pt >= 4.5, "Minimum font size must be at least 4.5pt.")
+  minFontSize: TargetFontLength.refine(
+    (pt) => pt >= 4.5,
+    "Minimum font size must be at least 4.5pt.",
+  )
     .optional()
     .describe("Minimum final text size (at least 4.5pt), overriding both profile font minima."),
-  minLineWidth: LayoutLength.refine((pt) => pt > 0, "Minimum line width must be positive.")
+  minLineWidth: PositiveTargetLength.refine((pt) => pt > 0, "Minimum line width must be positive.")
     .optional()
     .describe(
       "Minimum final diagram border/wire width; thinner lines warn. Excludes image content.",

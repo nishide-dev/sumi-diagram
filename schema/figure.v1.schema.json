@@ -90,39 +90,18 @@
           "properties": {
             "height": {
               "description": "Printed height budget, including margins; exceeding it warns but never rescales.",
-              "anyOf": [
-                {
-                  "type": "string",
-                  "pattern": "^(0|\\d+(\\.\\d+)?(mm|cm|in|pt))$"
-                },
-                {
-                  "const": 0
-                }
-              ]
+              "type": "string",
+              "pattern": "^(?=\\d*(?:\\.)?\\d*[1-9])\\d+(?:\\.\\d+)?(?:mm|cm|in|pt)$"
             },
             "minFontSize": {
               "description": "Minimum final text size (at least 4.5pt), overriding both profile font minima.",
-              "anyOf": [
-                {
-                  "type": "string",
-                  "pattern": "^(0|\\d+(\\.\\d+)?(mm|cm|in|pt))$"
-                },
-                {
-                  "const": 0
-                }
-              ]
+              "type": "string",
+              "pattern": "^(?:0*(?:[1-9]\\d+(?:\\.\\d+)?|[5-9](?:\\.\\d+)?|4\\.(?:[6-9]\\d*|5\\d*))pt|0*(?:[1-9]\\d+(?:\\.\\d+)?|[2-9](?:\\.\\d+)?|1\\.(?:[6-9]\\d*|5[9-9]\\d*|58[8-9]\\d*|587[6-9]\\d*|5875\\d*))mm|0*(?:[1-9]\\d+(?:\\.\\d+)?|[1-9](?:\\.\\d+)?|0\\.(?:[2-9]\\d*|1[6-9]\\d*|15[9-9]\\d*|158[8-9]\\d*|1587[6-9]\\d*|15875\\d*))cm|0*(?:[1-9]\\d+(?:\\.\\d+)?|[1-9](?:\\.\\d+)?|0\\.(?:[1-9]\\d*|0[7-9]\\d*|06[3-9]\\d*|062[6-9]\\d*|0625\\d*))in)$"
             },
             "minLineWidth": {
               "description": "Minimum final diagram border/wire width; thinner lines warn. Excludes image content.",
-              "anyOf": [
-                {
-                  "type": "string",
-                  "pattern": "^(0|\\d+(\\.\\d+)?(mm|cm|in|pt))$"
-                },
-                {
-                  "const": 0
-                }
-              ]
+              "type": "string",
+              "pattern": "^(?=\\d*(?:\\.)?\\d*[1-9])\\d+(?:\\.\\d+)?(?:mm|cm|in|pt)$"
             }
           },
           "additionalProperties": false
