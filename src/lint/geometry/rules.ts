@@ -36,6 +36,8 @@ import {
   axisSegments,
   type Bundle,
   COINCIDENT_UNITS,
+  type DirectedPiece,
+  directedRun,
   type Piece,
   PieceIndex,
   parallelRun,
@@ -1309,6 +1311,45 @@ export const edgeNearEdge = defineGeometryRule({
       const seen = best.get(key);
       if (seen === undefined || length > seen.length)
         best.set(key, { earlier, later, gap, length });
+    }
+    // Opt-in straight edges add arbitrary directions. Keep the axis sweep
+    // unchanged for existing figures, and compare each new diagonal with the
+    // actual painted segments (including orthogonal neighbours).
+    const directed: DirectedPiece<GeometryElement>[] = [];
+    const diagonal = (p: DirectedPiece<GeometryElement>) =>
+      p.owner.ir.kind === "edge" &&
+      p.owner.ir.route === "straight" &&
+      Math.abs(p.b.x - p.a.x) > 0.25 &&
+      Math.abs(p.b.y - p.a.y) > 0.25;
+    if (context.elements.some((e) => e.ir.kind === "edge" && e.ir.route === "straight")) {
+      for (const edge of context.elements) {
+        if (!isDrawnEdge(edge)) continue;
+        for (const line of edge.drawn ?? []) {
+          for (let i = 1; i < line.length; i++)
+            directed.push({
+              a: line[i - 1] as Point,
+              b: line[i] as Point,
+              owner: edge,
+              width: edge.ir.style.strokeWidth.units,
+            });
+        }
+      }
+    }
+    for (let i = 0; i < directed.length; i++) {
+      const a = directed[i] as DirectedPiece<GeometryElement>;
+      for (const b of directed.slice(i + 1)) {
+        if (a.owner === b.owner || (!diagonal(a) && !diagonal(b))) continue;
+        const run = directedRun(a, b, gapUnits + (a.width + b.width) / 2);
+        if (run === undefined || run.to - run.from < minRun) continue;
+        const gap = run.distance - (a.width + b.width) / 2;
+        const [earlier, later] = inOrder([a.owner, b.owner], order);
+        if (earlier === undefined || later === undefined) continue;
+        const key = `${later.key}|${earlier.key}`;
+        const length = run.to - run.from;
+        const seen = best.get(key);
+        if (seen === undefined || length > seen.length)
+          best.set(key, { earlier: [earlier], later: [later], gap, length });
+      }
     }
     return [...best.values()].map(({ earlier, later, gap, length }) => {
       const edge = later[0] as GeometryElement;

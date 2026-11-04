@@ -101,6 +101,126 @@ test("explicit anchors are exact; automatic circle and diamond ends touch their 
   }
 });
 
+test("vertical and diagonal bowtie routes leave painted waists, including split bodies", async () => {
+  for (const split of [false, true]) {
+    for (const diagonal of [false, true]) {
+      const doc = parse(simple({ component: "line" }));
+      doc.nodes[0] = {
+        id: "a",
+        component: "bowtie",
+        props: { width: "80pt", height: "40pt", ...(split && { gap: 8 }) },
+      };
+      doc.nodes[1].props = { width: "20pt" };
+      doc.figure.layout.arrange = {
+        stack: { gap: "16mm", align: diagonal || split ? "start" : "center", items: ["a", "b"] },
+      };
+      // A split bowtie's centre is empty. Contact the left painted body;
+      // automatic endpoints on a diagonal also choose that body.
+      if (split && !diagonal) {
+        doc.edges[0].fromAnchor = "south:0";
+        doc.edges[0].toAnchor = "north:0";
+      }
+      if (diagonal) {
+        doc.nodes.push({ id: "spacer", component: "box", props: { width: "12pt" } });
+        doc.figure.layout.arrange.stack.items[1] = { row: { gap: "2pt", items: ["b", "spacer"] } };
+      }
+      const r = await render(stringify(doc));
+      const points = r.layout.edges[0]?.route?.points;
+      expect(points).toHaveLength(2);
+      if (diagonal) expect(points?.[0]?.x).not.toBe(points?.[1]?.x);
+      else expect(points?.[0]?.x).toBe(points?.[1]?.x);
+      expect(checkRoutes(r.compiled.ir, r.layout).endpointMisses).toEqual([]);
+      doc.edges[0].fromAnchor = split ? "north:0.1" : "north:0.5";
+      const inward = await renderFigure(stringify(doc));
+      expect(inward.ok).toBe(false);
+      expect(inward.diagnostics.some((d) => d.code === "layout/no-route")).toBe(true);
+    }
+  }
+});
+
+test("bracket fixed ports reject open-side approaches and preserve diagonal spine contacts", async () => {
+  for (const diagonal of [false, true]) {
+    for (const open of [false, true]) {
+      for (const reverse of [false, true]) {
+        const doc = parse(simple({ component: "line", ...(reverse && { from: "b", to: "a" }) }));
+        doc.nodes[1] = { id: "b", component: "bracket", props: { points: open ? "east" : "west" } };
+        // The fixed port overrides even an explicit anchor on another side.
+        doc.edges[0][reverse ? "fromAnchor" : "toAnchor"] = "north:0.1";
+        if (diagonal) {
+          doc.nodes.push({ id: "spacer", component: "box" });
+          doc.figure.layout.arrange.row.items[0] = { stack: { items: ["a", "spacer"] } };
+        }
+        const text = stringify(doc);
+        if (open) {
+          const result = await renderFigure(text);
+          expect(result.ok).toBe(false);
+          expect(result.diagnostics).toContainEqual(
+            expect.objectContaining({
+              code: "layout/no-route",
+              path: ["edges", 0],
+              location: expect.anything(),
+            }),
+          );
+        } else {
+          const r = await render(text);
+          const rect = r.layout.nodes.find((n) => n.key === "n:b")?.rect;
+          if (!rect) throw new Error("Missing bracket");
+          const points = r.layout.edges[0]?.route?.points;
+          expect(reverse ? points?.[0] : points?.at(-1)).toEqual({
+            x: rect.x,
+            y: Math.round((rect.y + rect.height / 2) * 1000) / 1000,
+          });
+        }
+      }
+    }
+  }
+});
+
+test("close diagonal straight runs and partial overlaps have source-located proximity warnings", async () => {
+  for (const partial of [false, true]) {
+    const doc = parse(
+      simple({ component: "line", fromAnchor: "east:0.25", toAnchor: "west:0.65" }),
+    );
+    doc.edges.push({
+      from: "a",
+      to: "b",
+      component: "line",
+      route: "straight",
+      fromAnchor: "east:0.30",
+      toAnchor: "west:0.70",
+    });
+    if (partial) {
+      doc.nodes.push({ id: "c", component: "box" });
+      doc.figure.layout.arrange.row.items.push("c");
+      doc.edges[1].to = "c";
+      doc.edges[0].toAnchor = "west:0.4";
+      doc.edges[1].toAnchor = "west:0.65";
+    }
+    const lint = await lintRenderedFigure(stringify(doc));
+    const d = lint.diagnostics.find((d) => d.code === "geometry/edge-near-edge");
+    expect(d?.severity).toBe("warning");
+    expect(d?.path).toEqual(["edges", 1]);
+    expect(d?.location?.line).toBeGreaterThan(0);
+    expect(d?.related?.[0]?.location?.line).toBeGreaterThan(0);
+  }
+});
+
+test("clean diagonal X-crossings and intentional shared straight trunks have no proximity warning", async () => {
+  for (const shared of [false, true]) {
+    const doc = parse(simple({ component: "line", fromAnchor: "east:0.2", toAnchor: "west:0.8" }));
+    doc.edges.push({
+      from: "a",
+      to: "b",
+      component: "line",
+      route: "straight",
+      fromAnchor: shared ? "east:0.2" : "east:0.8",
+      toAnchor: shared ? "west:0.8" : "west:0.2",
+    });
+    const lint = await lintRenderedFigure(stringify(doc));
+    expect(lint.diagnostics.filter((d) => d.code === "geometry/edge-near-edge")).toEqual([]);
+  }
+});
+
 test("overlaps retain source-located node and label warnings", async () => {
   const text = simple({}, ["a", "obstacle", "b"], [{ id: "obstacle", label: "obstacle" }]);
   const lint = await lintRenderedFigure(text);

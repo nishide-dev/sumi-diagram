@@ -227,7 +227,7 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
         region !== undefined &&
         p !== undefined &&
         !isJunction(nodeIR.get(key)) &&
-        !onOutline(region, p)
+        !(painted.get(key) ?? [region]).some((body) => onOutline(body, p))
       )
         report.endpointMisses.push(`${edge.key} ${key} not on outline`);
     }

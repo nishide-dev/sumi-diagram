@@ -9,9 +9,11 @@ DETR の二部マッチングの評価では、入れ替わる対応が直角の
 - structured の edge に省略可能な `route: straight` を追加する。auto では位置付きの `layout/structured-only`。値は `straight` のみ受け付け、省略時は従来の直角ルーターを使う。
 - 直角経路を先に配置し、その最終座標から直線を追加する。直線はネット、共有幹、fanIn、交差回避、junction の角丸の対象にしない。対応線同士の交差は意図的なので `layout/edge-crossing` に含めない。既存の SVG 幾何 lint は引き続き適用する。
 - 端点の既定は中心間の線と描画輪郭との交点。tokens のセル参照も共通の endpointRects を使う。junction は中心。明示した side/offset は箱上の座標を輪郭へ中心方向に投影する。`fromAnchor: straight` / `toAnchor: straight` はこの経路では自動端点と同じで、直角経路の整列用アンカーとは用途が異なる。
+- `OutlineDrawing.fixedPort` がある部品は自動投影・明示アンカーより固定接点を優先し、他端の自動投影もその接点へ向ける。固定接点の外向き半平面から近づけない単一区間は `layout/no-route` とする。端点への再進入は凸衝突領域ではなく、凹輪郭・分離した各描画境界との交点で区間を分割し、偶奇判定で内部を検査する。保守的な凸包は他ノードの障害物判定に残す。
 - 矢印は始点・終点を結ぶ方向に向ける。arrow / line / double-arrow と既存の variant・tone を使える。線は独立した SVG wire として描画し、矢印の下の部分を従来同様に切り詰める。
 - ラベルは水平のまま、既定では線の中点・進行方向の左。文字矩形を法線に射影した半径に既存の 1.5pt の余白を足して離す。`labelAt: start | middle | end` と `labelSide: left | right` を受け付ける。端寄せでは文字と矢印の余地を取り、短い線では中点に制限する。障害物探索は行わず、ラベルを含むよう canvas/content を拡張する。
 - ノードやラベルの重なりは既存の `geometry/edge-through-node` / `geometry/edge-crosses-label` / `geometry/label-collision` により warning として YAML の位置・関連要素を示す。直線を勝手に曲げず、配置・アンカー・ラベルを直すよう案内する。
+- `geometry/edge-near-edge` は straight の斜線についても共通射影区間の垂直方向のストローク間隔を測る。近接閾値内の区間が印刷時 3mm 以上なら位置付き warning を出す。共通区間内で左右が入れ替わる対応線の交差、同一幹は除外する。straight を含まない図の既存の軸平行解析・出力は変更しない。
 - 自己ループ、端点の箱の重なり、輪郭との交点がない線、端点内部へ入るアンカー、矢印を収められない短い線、zoom との併用は位置付き `layout/no-route` error。経路の意味を黙って切り替えない。
 - PDF と画像 PPTX は同じ SVG から生成する。編集可能 PPTX の freeform は斜めの経路と矢印を保持する。glued は既存仕様通り connection site へスナップした直線になり、固定ラベルとの相対位置が変わり得る。
 

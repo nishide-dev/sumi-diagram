@@ -2,6 +2,7 @@
 import type { EdgeIR, FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type { Diagnostic } from "../../core/diagnostics";
+import { getOutlineRenderer } from "../../core/outline";
 import { segmentCrossesRegion } from "../../lint/geometry/edges";
 import { rectPolygon } from "../../lint/geometry/shapes";
 import type { EdgeLayout, LayoutIR, Point, Rect, TextLayout, TextMetrics } from "../ir";
@@ -10,7 +11,15 @@ import { placeText } from "../structured/engine";
 import { arrowheadLength } from "./arrowhead";
 import { endpointRects } from "./endpoint-rects";
 import { EDGE_LABEL_GAP } from "./labels";
-import { anchorPoint, boundaryEntry, isJunction, nodeBoundaryEntry, nodeRegion } from "./ports";
+import {
+  anchorPoint,
+  boundaryEntry,
+  DIRS,
+  isJunction,
+  nodeBoundaryEntry,
+  nodeRegion,
+  SIDE_DIR,
+} from "./ports";
 import { zoomSide } from "./zoom";
 
 export const isStraightEdge = (edge: Pick<EdgeIR, "route">): boolean => edge.route === "straight";
@@ -78,8 +87,23 @@ export function addStraightRoutes(
     if (zoomSide(source, target) === undefined) return fail("the endpoint boxes overlap");
     const raw = (r: Rect, anchor: EdgeIR["fromAnchor"]): Point =>
       anchor === undefined || anchor === "straight" ? center(r) : anchorPoint(r, anchor);
-    const s = raw(source, edge.fromAnchor);
-    const t = raw(target, edge.toAnchor);
+    const drawing = (key: ElementKey, r: Rect) => {
+      const render = nodes.get(key)?.render;
+      if (render === undefined) return undefined;
+      const renderer = getOutlineRenderer(render.renderer);
+      if (!renderer) throw new Error(`Unknown outline renderer ${render.renderer}`);
+      return renderer.draw(r, renderer.params.parse(render.params ?? {}));
+    };
+    const sourceDrawing = drawing(edge.from, source);
+    const targetDrawing = drawing(edge.to, target);
+    const s =
+      sourceDrawing?.fixedPort === undefined
+        ? raw(source, edge.fromAnchor)
+        : anchorPoint(source, sourceDrawing.fixedPort);
+    const t =
+      targetDrawing?.fixedPort === undefined
+        ? raw(target, edge.toAnchor)
+        : anchorPoint(target, targetDrawing.fixedPort);
     const end = (
       key: ElementKey,
       r: Rect,
@@ -89,6 +113,8 @@ export function addStraightRoutes(
     ): Point | undefined => {
       const node = nodes.get(key);
       if (isJunction(node)) return center(r);
+      const fixed = drawing(key, r)?.fixedPort;
+      if (fixed !== undefined) return anchorPoint(r, fixed);
       // Explicit anchors are projected radially onto the silhouette. Automatic
       // ends trace the line from the other end towards this shape's centre.
       const from = anchor === undefined || anchor === "straight" ? other : rawPoint;
@@ -108,6 +134,15 @@ export function addStraightRoutes(
     const b = end(edge.to, target, t, s, edge.toAnchor);
     if (a === undefined || b === undefined)
       return fail("the line does not meet an endpoint outline; choose another anchor");
+    for (const [fixed, p, q] of [
+      [sourceDrawing?.fixedPort, a, b],
+      [targetDrawing?.fixedPort, b, a],
+    ] as const) {
+      if (fixed === undefined) continue;
+      const normal = DIRS[SIDE_DIR[fixed.side]] as Point;
+      if ((q.x - p.x) * normal.x + (q.y - p.y) * normal.y <= 0.001)
+        return fail("the line cannot approach the fixed port from its outward side");
+    }
     const length = Math.hypot(b.x - a.x, b.y - a.y);
     const head = arrowheadLength(edge.style.strokeWidth.units);
     const needed =
@@ -119,6 +154,11 @@ export function addStraightRoutes(
     const enters = (key: ElementKey, r: Rect, p: Point, q: Point) => {
       const node = nodes.get(key);
       if (isJunction(node)) return false;
+      const painted = drawing(key, r);
+      if (painted !== undefined)
+        return (painted.boundaries ?? [painted.outline]).some((polygon) =>
+          crossesPaintedPolygon(p, q, polygon),
+        );
       return segmentCrossesRegion(
         p,
         q,
@@ -137,6 +177,46 @@ export function addStraightRoutes(
     };
   });
   return { layout: growForStraightLabels({ ...routed, edges }), diagnostics };
+}
+
+/** Split at every boundary crossing, then test the open intervals by even/odd fill.
+ * Unlike convex clipping this preserves concavities and disconnected bodies.
+ */
+function crossesPaintedPolygon(a: Point, b: Point, polygon: readonly Point[]): boolean {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const length = Math.hypot(dx, dy);
+  const cuts = [0, 1];
+  for (const [i, p] of polygon.entries()) {
+    const q = polygon[(i + 1) % polygon.length] as Point;
+    const ex = q.x - p.x;
+    const ey = q.y - p.y;
+    const cross = dx * ey - dy * ex;
+    if (Math.abs(cross) < 1e-9) continue;
+    const t = ((p.x - a.x) * ey - (p.y - a.y) * ex) / cross;
+    const u = ((p.x - a.x) * dy - (p.y - a.y) * dx) / cross;
+    if (t > 0 && t < 1 && u >= 0 && u <= 1) cuts.push(t);
+  }
+  cuts.sort((x, y) => x - y);
+  return cuts.some((end, i) => {
+    const start = cuts[i - 1];
+    if (start === undefined || (end - start) * length <= 0.002) return false;
+    const t = (start + end) / 2;
+    const x = a.x + t * dx;
+    const y = a.y + t * dy;
+    let inside = false;
+    let distance = Number.POSITIVE_INFINITY;
+    for (const [j, p] of polygon.entries()) {
+      const q = polygon[(j + 1) % polygon.length] as Point;
+      if (p.y > y !== q.y > y && x < p.x + ((y - p.y) * (q.x - p.x)) / (q.y - p.y))
+        inside = !inside;
+      const ex = q.x - p.x;
+      const ey = q.y - p.y;
+      const u = Math.max(0, Math.min(1, ((x - p.x) * ex + (y - p.y) * ey) / (ex * ex + ey * ey)));
+      distance = Math.min(distance, Math.hypot(x - p.x - u * ex, y - p.y - u * ey));
+    }
+    return inside && distance > 0.001;
+  });
 }
 
 /** Keep new labels in the content and canvas, translating the whole layout if needed. */
