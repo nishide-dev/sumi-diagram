@@ -43,7 +43,7 @@ into panels. Measure candidates instead of applying a rule:
    | --- | --- | --- |
    | width W (column, full width, single-column text width, slide, web column) | yes | `profile`; for a W between or below the profiles use the wider (or `paper-single`), keep `size.widthMm` ≤ W and count reserved area as W × height yourself (`fit: scale` and `placement-usage` use the profile width) |
    | maximum height (paper profiles 220mm, slides 190.5mm; venues differ) | yes | profile, `geometry/exceeds-page-height` |
-   | minimum final text size (venues differ widely, in print or on a slide) | yes | `figure.target.minFontSize`, `geometry/text-too-small`; unscaled math scripts (0.7×: 8pt → 5.6pt) are not checked: keep them above it yourself |
+   | minimum final text size (venues differ widely, in print or on a slide) | yes | `figure.target.minFontSize`, `geometry/text-too-small`; math scripts (0.7×: 8pt → 5.6pt) are checked against it by `geometry/script-below-target` |
    | minimum line width, if the venue sets one | yes | `figure.target.minLineWidth`, `geometry/line-too-thin` |
    | height budget: what the document can spare | no | `figure.target.height`, `geometry/exceeds-target-height` |
    | reading context: print, screen, projection; beside a caption or alone | no | theme; which sizes read comfortably |
@@ -189,8 +189,10 @@ to 70%`; `--json` has `size.scale`.
 
 Text is checked at its printed size: by default the 8pt / 7pt of the built-in
 themes must print at 5pt or more on paper profiles (`geometry/text-too-small`), so a
-figure can shrink to about 70%; `figure.target.minFontSize` replaces that minimum.
-Subscripts of label math print smaller and are reported once as information
+figure can shrink to about 70%; `figure.target.minFontSize` replaces that minimum
+and also judges math scripts (0.7 × base) at their final size, scaled or not
+(`geometry/script-below-target`, warning: an 8pt `$q_1$` prints at 5.6pt). Without a
+target, subscripts of scaled label math are reported once as information
 (`geometry/script-too-small`). When the smallest scaled text (including scripts and
 placed HTML) has at most **20% headroom** over the minimum, `geometry/heavy-scaling`
 (info) gives that size, the minimum, headroom, scale and the width breakdown

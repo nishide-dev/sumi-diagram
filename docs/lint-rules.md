@@ -15,7 +15,8 @@
 - `geometry/heavy-scaling`（#347）: 縮小した図の最小の最終文字（数式の添字・配置後の
   HTML を含む）が有効な下限の **120%以下**なら報告する。最終サイズ・下限・余裕・
   縮尺・自然幅→印刷幅と、#307 の幅内訳を **縮小前の寸法**で表示する。
-  縮尺だけでは良し悪しを判定しない。添字は引き続き error の対象外。
+  縮尺だけでは良し悪しを判定しない。添字は引き続き error の対象外で、`figure.target.minFontSize`
+  がなければ情報のみ（`script-too-small`）、あれば `script-below-target`（warning）が知らせる。
 
 `lint --geometry` での抑止は `--rule geometry/dead-space=off` / `--rule geometry/heavy-scaling=off`、
 または lint 設定の `{"rules":{"geometry/dead-space":"off","geometry/heavy-scaling":"off"}}`。
@@ -35,7 +36,7 @@
 `target.minFontSize` は **4.5pt以上**で Profile の通常時/縮小時両方の最小文字を
 上書きする（引き上げも引き下げも可能）。明示時は描画前の `profile/font-too-small`
 では止めず、最終サイズを `geometry/text-too-small`（ラベル・sublabel・配置後の HTML、
-error）、`script-too-small`（縮小した添字、info）と `heavy-scaling` で共通に使う。
+error）、`script-below-target`（添字、warning。縮小の有無によらない。設計 [#356](design/decisions/356-script-min-font.md)）と `heavy-scaling` で共通に使う。
 省略時は従来の Profile の下限・描画前検査を維持する。
 設計と採否は [設計 #347](design/decisions/347-figure-target.md) を参照。
 
@@ -183,7 +184,8 @@ const diagnostics = lintGeometry(rendered, { config, source: text, file });
 | `geometry/exceeds-page-width` | error | 出力幅（余白込み）が Profile の `maxWidth` を超える。pt のまま量子化せずに比較し、両方の大きさを mm で示す。`figure.fit: scale` の図は縮小後の幅で比べる（`maxWidth` に縮むので出ない）。 | auto: 横向き（`right` / `left`）なら `layout.direction: down`、縦向きなら横に並ぶノードを減らす。structured: 最も幅の広い `row` を `stack` にする（または複数行に分ける）、`gap` を詰める。ラベルを短くする。hint は、現在より幅が広く、図が収まり、最小文字サイズが大きくない組み込み Profile があるときだけそれを示す（paper-single の図に paper-double。paper-double や presentation-16x9 では示さない。#114）。 |
 | `geometry/exceeds-page-height` | error | 出力の高さが Profile の `maxHeight` を超える（`maxHeight` がある Profile だけ。組み込みでは paper 系 220mm、presentation-16x9 190.5mm）。`figure.fit: scale` の図は縮小後の高さで比べる（幅に合わせて縮めた後もはみ出せば報告する）。 | auto: 縦向きなら `layout.direction: right`、横向きなら縦に並ぶノードを減らす。structured: 最も高い `stack` を `row` にする、`gap` を詰める。図を分ける。高さに余裕のある組み込み Profile は、上と同じ条件で存在するときだけ示す（組み込みの paper 系どうしは同じ 220mm なので、通常は示さない。#114）。 |
 | `geometry/text-too-small` | error | 描画されたラベルの文字サイズが Profile の `minFontSize` 未満。通常は `profile/font-too-small` が描画前に防ぐので、描画後の安全網。`figure.fit: scale`（#183、設計 §6.48）で縮めた図では、縮小後の**印刷される大きさ**（文字サイズ × 縮小率）を Profile の `minScaledFontSize`（paper 系 5pt。ない Profile は `minFontSize`）と比べる。添字（ラベルの数式の 0.7 倍）は対象外（§6.24）。node の `sublabel`（#184、設計 §6.51）は別の `<text>` として自分の大きさ（ラベルの 7/8）で判定し、それだけが下回るときはメッセージと位置が `sublabel` を指す。 | 文字サイズの大きい Theme / variant を使う（`presentation-16x9` なら `slides`）。縮めた図: 図の幅を詰めて縮小率を小さくする（`fit` を外したときの `exceeds-page-width` の hint）、幅の広い Profile にする。 |
-| `geometry/script-too-small` | info | `figure.fit: scale` で縮めた図で、ラベルの数式の添字（下付き・上付き）が縮小後に `minScaledFontSize` 未満になる。添字は縮めない図では最小の対象外なので情報にとどめ、図全体で 1 件（`figure.fit` を指し、最小の大きさと該当するラベルを最大 3 つ挙げる）。縮めない図では報告しない。 | 読めないなら `text-too-small` と同じく縮小率を小さくする。 |
+| `geometry/script-too-small` | info | `figure.fit: scale` で縮めた図で、ラベルの数式の添字（下付き・上付き）が縮小後に `minScaledFontSize` 未満になる。添字は縮めない図では最小の対象外なので情報にとどめ、図全体で 1 件（`figure.fit` を指し、最小の大きさと該当するラベルを最大 3 つ挙げる）。縮めない図では報告しない。`figure.target.minFontSize` があるときは次の `script-below-target` が代わりに報告する。 | 読めないなら `text-too-small` と同じく縮小率を小さくする。 |
+| `geometry/script-below-target` | warning | `figure.target.minFontSize` があるとき、ラベルの数式の添字（基準の 0.7 倍）の最終的な印刷サイズが最小値未満（縮小の有無によらない）。ラベルの位置つきで要素ごとに 1 件。`target` や `minFontSize` がない図では報告しない（#356）。 | 基準の文字を「最小値 ÷ 0.7」以上にする（大きい Theme / variant の文字、縮小の軽減）、または添字を使わない書き方にする。 |
 | `geometry/label-overflow` | error | ノード・グループのラベル（再計測）が、図形の中の文字を置ける範囲（下表）に収まらない。明示サイズ（`props.width` / `height`）が小さい場合は `props` を指す（D2 は明示サイズを保ち、ラベルを図形の外に出す）。 | 明示サイズを大きくするか外す。ラベルを短くするか改行する。文字の入る範囲が広い図形にする。 |
 | `geometry/out-of-canvas` | error | 図形・ラベル（再計測）・エッジの経路がキャンバスの外にはみ出す（切れて表示される）。 | ラベルを短くする。解消しなければ不具合として報告する。 |
 | `geometry/node-overlap` | warning | 2 つのノード・グループの図形が重なり、グループの木でどちらも他方を含まない。通常部品同士は従来の外接矩形、カスタム輪郭が関わる組は下記の凸衝突領域で判定する。子と祖先グループの重なり（意図した包含）は対象外。 | 明示サイズを見直す。auto: 同じグループに入れる。一方が `attach` したノードなら、hint はそれを示す: `attach` は配置の木で場所を取らないので、木に入れる、空いた側に付ける、付け先の隣の `gap` を広げる（#114）。 |
