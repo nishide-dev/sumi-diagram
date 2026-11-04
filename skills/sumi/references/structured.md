@@ -45,7 +45,7 @@ with `figure.layout.arrange` is structured, one without it auto**; an
 explicit `engine: auto` wins. Under auto, every structured-only field
 (`arrange`, `align`, `alignGrowth`, `fanIn`, `density`, `attach`, `sublabel`,
 `labelRotation`, `textAlign`, `grow`, `fromAnchor` / `toAnchor`, edge
-`labelAt` / `labelSide`, and the `legend`, `tokens`, `matrix`, `bracket`,
+`labelAt` / `labelSide` / `route`, and the `legend`, `tokens`, `matrix`, `bracket`,
 `separator` and `zoom` components) is `layout/structured-only`: remove it or
 make the figure structured. Group `labelAt` and `caption`, icons, images,
 tones, `operator`, `junction`, `dim` and the paper variants work in both.
@@ -112,6 +112,53 @@ reject it (`component/grow-unsupported`). `justify: space-between` keeps sizes
 and spreads extra room between items (one item stays centred). For tighter
 title/caption spacing do not stretch a panel to an unrelated sibling: use
 `align: start` there and stretch only its inner columns.
+
+## Side inputs on a main flow
+
+Put the main node and its side inputs in a **stack with `centerOn`**, inside
+a centered row. The inputs reserve their full width and height, including
+tokens; the named node stays on the row's centerline without `layout.align`
+constraints or wrapping the other main-flow nodes.
+
+```yaml
+version: 1
+figure:
+  id: side-input
+  layout:
+    arrange:
+      row:
+        items:
+          - encoder
+          - stack:
+              centerOn: decoder
+              gap: 4mm
+              items: [decoder, queries]
+          - output
+nodes:
+  - { id: encoder, component: box, label: Encoder }
+  - { id: decoder, component: box, label: Decoder }
+  - { id: output, component: box, label: Output }
+  - id: queries
+    component: tokens
+    props: { cells: [q1, q2, q3] }
+edges:
+  - { from: encoder, to: decoder }
+  - { from: decoder, to: output }
+  - { from: queries, to: decoder, fromAnchor: north, toAnchor: south }
+```
+
+- `centerOn` names a **direct node or group item** in that stack/row (use the
+  tokens node ID for a whole sequence, not a cell). The box reserves symmetric
+  main-axis space about that item's body center; its opposite side can contain
+  blank space, especially inside a framed group. It does not change membership.
+- To put the inputs **above**, use `direction: up` and reverse the input edge's
+  anchors. For side inputs beside a vertical flow, put a `row` with `centerOn`
+  inside a centered `stack` (`right`/`left` selects the side).
+- Keep the outer box's `align` omitted or `center`. The inner box's cross-axis
+  `align` still works normally. `centerOn` allows only omitted/`center` `justify`;
+  a non-direct reference or another justification is `layout/invalid-center-on`.
+- Inputs are ordinary arrange items: use `gap` for arrow clearance and connect
+  them explicitly. Reserve `attach` for small annotations whose space you manage.
 
 ## Grids
 
@@ -562,6 +609,22 @@ keep nodes/titles out of that channel. Close fixed legs need more space between
 ports (anchors or cell spacing); a larger row gap alone does not separate them.
 Shared trunks keep their existing routing. There is no per-edge lane coordinate.
 
+- **Diagonal correspondences**: use `route: straight` on each correspondence,
+  e.g. `{ from: predictions.1, to: targets.3, route: straight }` and
+  `{ from: predictions.3, to: targets.1, route: straight, component: line }`.
+  Each is one independent segment (no shared trunks or obstacle avoidance).
+  Automatic ends follow the centre-to-centre line to the shapes' outlines;
+  side anchors pick exact box positions (projected onto non-rectangular outlines).
+  A `straight` anchor on this route uses the same automatic endpoint.
+  Arrowheads follow the diagonal. Labels stay horizontal, default at the midpoint
+  on the left facing source → target; `labelAt: start | middle | end` and
+  `labelSide: left | right` choose another position. Labels do not dodge obstacles.
+  Inspect crossings: `geometry/edge-through-node`, `geometry/edge-crosses-label`
+  and `geometry/label-collision` locate overlaps; move endpoints, labels or nodes.
+  Self-loops, overlapping endpoint boxes, missing outline intersections, inward-facing anchors, insufficient
+  arrowhead room and `component: zoom` conflicts are `layout/no-route` errors.
+  PDF and picture/editable PPTX support the line; glued PPTX snaps to its connection
+  sites as usual. Omit `route` for the existing orthogonal router.
 - **Anchors**: `fromAnchor` / `toAnchor` pick the side of an end: `west`, or
   `"south:0.2"` for a position along it (0..1: left → right on north/south, top →
   bottom on east/west; default 0.5; quote values with `:`). Several edges between

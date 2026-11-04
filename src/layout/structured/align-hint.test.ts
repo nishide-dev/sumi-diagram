@@ -110,3 +110,31 @@ test("#306 review: a y-axis cell versus a stack item is verified by wrapping the
   doc.figure.layout.arrange.row.items[0].grid.items[1] = { stack: { items: ["g1"] } };
   expect(unsatisfied(doc)).toBeUndefined();
 });
+
+test("verified wrapper hints retain centerOn in a neighboring side-input bundle", () => {
+  const doc = mk(
+    {
+      row: {
+        align: "start",
+        items: [
+          { grid: { columns: 1, items: ["g0", "g1"] } },
+          { stack: { items: ["s0", "s1", { row: { centerOn: "s2", items: ["s2", "input"] } }] } },
+        ],
+      },
+    },
+    [{ y: ["g1", "s2"] }],
+    ["g0", "g1", "s0", "s1", "s2", "input"],
+  );
+  expect(unsatisfied(doc)?.hint).toContain('Verified by structured layout: wrap "g1" in a stack');
+  doc.figure.layout.arrange.row.items[0].grid.items[1] = { stack: { items: ["g1"] } };
+  const result = layoutStructuredFigure(stringify(doc));
+  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+  expect(result.diagnostics.filter((d) => d.severity !== "info")).toEqual([]);
+  const center = (id: string, axis: "x" | "y") => {
+    const rect = result.value.layout.nodes.find((n) => n.key === `n:${id}`)?.rect;
+    if (!rect) throw new Error(`missing ${id}`);
+    return rect[axis] + rect[axis === "x" ? "width" : "height"] / 2;
+  };
+  expect(Math.abs(center("g1", "y") - center("s2", "y"))).toBeLessThanOrEqual(0.001);
+  expect(Math.abs(center("s0", "x") - center("s2", "x"))).toBeLessThanOrEqual(0.001);
+});

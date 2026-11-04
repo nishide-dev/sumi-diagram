@@ -125,6 +125,8 @@ export interface ArrangeBoxIR {
   readonly align?: ArrangeAlign;
   /** Opt-in allocation of extra main-axis space; never inherited. */
   readonly justify?: "center" | "stretch" | "space-between";
+  /** Direct item whose center defines the box's main-axis center (#350). */
+  readonly centerOn?: ElementKey;
   readonly items: readonly ArrangeItemIR[];
   /**
    * Set only on the stack a group's caption is expanded into (#130): extra
@@ -330,6 +332,8 @@ export interface GroupIR extends ObjectIRBase {
 }
 
 export interface EdgeIR extends ElementIRBase {
+  /** Opt-in single-segment routing in structured layout (#349). */
+  readonly route?: "straight";
   readonly kind: "edge";
   /** User ID; edges without one are identified by `index`. */
   readonly id?: string;
@@ -760,6 +764,7 @@ function edgeIR(
     ...anchorIR("toAnchor", e.toAnchor),
     ...(e.labelAt !== undefined && { labelAt: e.labelAt }),
     ...(e.labelSide !== undefined && { labelSide: e.labelSide }),
+    ...(e.route !== undefined && { route: e.route }),
     ...(manifest.routing !== undefined && { routing: manifest.routing }),
   });
 }
@@ -844,6 +849,7 @@ function arrangeIR(
     direction: linear.direction,
     ...(linear.gap !== undefined && { gapPt: linear.gap }),
     ...(linear.justify !== undefined && { justify: linear.justify }),
+    ...(linear.centerOn !== undefined && { centerOn: keyOf(linear.centerOn) }),
     ...(spec.align !== undefined && { align: spec.align }),
     items: freeze(linear.items.map(item)),
   });

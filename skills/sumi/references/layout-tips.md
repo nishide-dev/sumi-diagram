@@ -265,7 +265,10 @@ does not fit the target, plan before writing:
    separation; scaling costs final text size; folding costs height and continuity;
    panels cost cross-references; a different placement is the user's decision.
 5. **Write the tree from the sketch**: each sketch row is a `row`, each column a
-   `stack`, repeated units a `grid` or `tokens`, notes `attach`ed.
+   `stack`, repeated units a `grid` or `tokens`, notes `attach`ed. For inputs
+   below/above a main-flow node, use a stack with `centerOn: <main-node>` inside
+   the centered row: [side-input pattern](structured.md#side-inputs-on-a-main-flow).
+   It reserves input space (including tokens) while preserving the main centerline.
 6. **After rendering**, check every element and directed connection against the
    checklist in both YAML and a preview at final printed size. Look for empty regions of a block or more,
    unaligned edges and notes far from their targets. Keep space that groups,

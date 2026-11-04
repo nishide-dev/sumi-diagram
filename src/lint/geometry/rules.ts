@@ -36,6 +36,8 @@ import {
   axisSegments,
   type Bundle,
   COINCIDENT_UNITS,
+  type DirectedPiece,
+  directedRun,
   type Piece,
   PieceIndex,
   parallelRun,
@@ -82,6 +84,12 @@ const printedUnits = (context: GeometryContext, units: number): number =>
 
 const formatSize = (context: GeometryContext, rect: Rect): string =>
   `${formatPt(unitsToPt(printedUnits(context, rect.width)))} × ${formatPt(unitsToPt(printedUnits(context, rect.height)))}`;
+
+/** Keep printed measurements while making scaled overflow sizes comparable to YAML. */
+const formatOverflowSize = (context: GeometryContext, rect: Rect): string =>
+  printScale(context) === 1
+    ? formatSize(context, rect)
+    : `${formatSize(context, rect)} printed; ${formatPt(unitsToPt(rect.width))} × ${formatPt(unitsToPt(rect.height))} before scaling (YAML units)`;
 
 const figurePath: DocPath = ["figure"];
 
@@ -479,8 +487,8 @@ export const labelOverflow = defineGeometryRule({
       const outside = box !== undefined && !rectsOverlap(box, bbox, 0);
       findings.push({
         message: hasIcon(element)
-          ? `The icon of ${element.name} (${box === undefined ? "" : `${formatSize(context, box)}, `}1 em) does not fit inside its ${shapeName(element)} shape (${formatSize(context, bbox)})${outside ? "; it is drawn outside the shape" : ""}.`
-          : `The label of ${element.name} (${box === undefined ? "" : `${formatSize(context, box)}, `}measured with the theme's fonts) does not fit inside its ${shapeName(element)} shape (${formatSize(context, bbox)})${outside ? "; it is drawn outside the shape" : ""}.`,
+          ? `The icon of ${element.name} (${box === undefined ? "" : `${formatOverflowSize(context, box)}, `}1 em) does not fit inside its ${shapeName(element)} shape (${formatOverflowSize(context, bbox)})${outside ? "; it is drawn outside the shape" : ""}.`
+          : `The label of ${element.name} (${box === undefined ? "" : `${formatOverflowSize(context, box)}, `}measured with the theme's fonts) does not fit inside its ${shapeName(element)} shape (${formatOverflowSize(context, bbox)})${outside ? "; it is drawn outside the shape" : ""}.`,
         path: explicit ? [...element.docPath, "props"] : labelPath(element),
         subject: element.subject,
         hint: explicit
@@ -780,7 +788,11 @@ export const edgeCrossesLabel = defineGeometryRule({
           message: `${capitalize(edge.name)} crosses the ${contentNoun(other)} of ${other.name}.`,
           path: edge.docPath,
           subject: edge.subject,
-          hint: isZoom(edge) ? zoomLabelHint() : edgeCrossesLabelHint(context, other),
+          hint: isZoom(edge)
+            ? zoomLabelHint()
+            : edge.ir.kind === "edge" && edge.ir.route === "straight"
+              ? "route: straight does not avoid labels. Move the endpoints or the label, change labelAt / labelSide on an edge label, or remove route: straight."
+              : edgeCrossesLabelHint(context, other),
           related: [{ path: labelPath(other), message: "The label is defined here." }],
         });
       }
@@ -818,7 +830,10 @@ export const edgeThroughNode = defineGeometryRule({
           message: `${capitalize(edge.name)} passes through the shape of ${node.name}.`,
           path: edge.docPath,
           subject: edge.subject,
-          hint: "An edge should go around the nodes it does not connect. In a structured figure, change its anchors (fromAnchor / toAnchor) or leave a free channel between the nodes; in an auto figure, change layout.direction or the grouping.",
+          hint:
+            edge.ir.route === "straight"
+              ? "route: straight does not avoid obstacles. Move the node or the endpoints, change fromAnchor / toAnchor, or remove route: straight to use obstacle-avoiding routing."
+              : "An edge should go around the nodes it does not connect. In a structured figure, change its anchors (fromAnchor / toAnchor) or leave a free channel between the nodes; in an auto figure, change layout.direction or the grouping.",
           related: [{ path: node.docPath, message: `${capitalize(node.name)} is defined here.` }],
         });
       }
@@ -1346,6 +1361,45 @@ export const edgeNearEdge = defineGeometryRule({
       const seen = best.get(key);
       if (seen === undefined || length > seen.length)
         best.set(key, { earlier, later, gap, length });
+    }
+    // Opt-in straight edges add arbitrary directions. Keep the axis sweep
+    // unchanged for existing figures, and compare each new diagonal with the
+    // actual painted segments (including orthogonal neighbours).
+    const directed: DirectedPiece<GeometryElement>[] = [];
+    const diagonal = (p: DirectedPiece<GeometryElement>) =>
+      p.owner.ir.kind === "edge" &&
+      p.owner.ir.route === "straight" &&
+      Math.abs(p.b.x - p.a.x) > 0.25 &&
+      Math.abs(p.b.y - p.a.y) > 0.25;
+    if (context.elements.some((e) => e.ir.kind === "edge" && e.ir.route === "straight")) {
+      for (const edge of context.elements) {
+        if (!isDrawnEdge(edge)) continue;
+        for (const line of edge.drawn ?? []) {
+          for (let i = 1; i < line.length; i++)
+            directed.push({
+              a: line[i - 1] as Point,
+              b: line[i] as Point,
+              owner: edge,
+              width: edge.ir.style.strokeWidth.units,
+            });
+        }
+      }
+    }
+    for (let i = 0; i < directed.length; i++) {
+      const a = directed[i] as DirectedPiece<GeometryElement>;
+      for (const b of directed.slice(i + 1)) {
+        if (a.owner === b.owner || (!diagonal(a) && !diagonal(b))) continue;
+        const run = directedRun(a, b, gapUnits + (a.width + b.width) / 2);
+        if (run === undefined || run.to - run.from < minRun) continue;
+        const gap = run.distance - (a.width + b.width) / 2;
+        const [earlier, later] = inOrder([a.owner, b.owner], order);
+        if (earlier === undefined || later === undefined) continue;
+        const key = `${later.key}|${earlier.key}`;
+        const length = run.to - run.from;
+        const seen = best.get(key);
+        if (seen === undefined || length > seen.length)
+          best.set(key, { earlier: [earlier], later: [later], gap, length });
+      }
     }
     return [...best.values()].map(({ earlier, later, gap, length }) => {
       const edge = later[0] as GeometryElement;

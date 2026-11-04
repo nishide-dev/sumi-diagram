@@ -668,6 +668,19 @@ function wires(
   const sharp = ir.meta.themeOverrides?.edgeCorners === "sharp";
   const joins = `stroke-linecap="${sharp ? "butt" : "round"}" stroke-linejoin="${sharp ? "miter" : "round"}"`;
   const painted = new Map<ElementKey, { pieces: [Point, Point][]; arcs: Arc[] }>();
+  // Correspondence lines are independent: no trunk merging or junction rounding.
+  for (const placed of layout.edges) {
+    const edge = edges.get(placed.key);
+    if (edge?.route !== "straight" || placed.route === undefined) continue;
+    const points = wirePoints(edge, placed.route.points);
+    const pieces: [Point, Point][] =
+      points.length < 2 ? [] : [[points[0] as Point, points[1] as Point]];
+    painted.set(placed.key, { pieces, arcs: [] });
+    if (pieces.length > 0)
+      out.push(
+        `<path class="sumi-wire" d="${pathData(points)}" fill="none"${strokeAttributes(edge.style)} ${joins}${opacity(edge.style)}/>`,
+      );
+  }
   // Zoom edges (#176): their own two straight lines, under the routed wires.
   for (const placed of layout.edges) {
     const edge = edges.get(placed.key);

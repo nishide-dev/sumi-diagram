@@ -1,0 +1,39 @@
+venue,placement,width_mm,max_height_mm,min_font_pt,max_font_pt,min_line_pt,strength,verified,source
+IEEE,single column,88.9,,9-10 (rec),,,width typical; font rec,fetched,https://journals.ieeeauthorcenter.ieee.org/create-your-ieee-journal-article/create-graphics-for-your-article/resolution-and-size/
+IEEE,double column,182,220,9-10 (rec),,,max size stated,fetched,https://journals.ieeeauthorcenter.ieee.org/create-your-ieee-journal-article/create-graphics-for-your-article/file-formatting/
+Nature,single column,89,170,5,7,,required,fetched,https://research-figure-guide.nature.com/figures/preparing-figures-our-specifications/
+Nature,1.5 column,120 or 136,170,5,7,,required,fetched,https://www.nature.com/documents/nature-final-artwork.pdf
+Nature,double column,183,170,5,7,,required,fetched,https://research-figure-guide.nature.com/figures/building-and-exporting-figure-panels/
+Springer,single column,84,234,8-12 (rec),,0.28 (0.1mm),height and line required,secondary copy,https://vldb.org/vldb_journal/index.php/572-author-guidelines/additional-specifics/54-artwork
+Springer,1.5 column,129,234,8-12 (rec),,0.28,,secondary copy,same
+Springer,full width,174,234,8-12 (rec),,0.28,,secondary copy,same
+Elsevier,single column,90,,7 (sub 6),,,target sizes,fetched,https://www.elsevier.com/about/policies-and-standards/author/artwork-and-media-instructions/artwork-sizing
+Elsevier,1.5 column,140,,7 (sub 6),,,,fetched,same
+Elsevier,double column,190,,7 (sub 6),,,,fetched,same
+Elsevier,graphical abstract,~112 (1328px@300dpi),~45 (2.5:1),,,,required min size,fetched,https://www.elsevier.com/researcher/author/tools-and-resources/graphical-abstract
+Cell Press,single column,85,~203 (rec),6-8 (rec),,0.5-1.5 (rec),rec,snippet,cell.com/figureguidelines
+Cell Press,1.5 column,114,~203,6-8,,0.5-1.5,rec,snippet,same
+Cell Press,full width,174,~203,6-8,,0.5-1.5,rec,snippet,same
+Cell Press,graphical abstract,square (1:1),,12-16,,,required,fetched,https://crosstalk.cell.com/hubfs/Files/GA_guide.pdf
+Science,single column,55-90 (editions differ),,5,,,min font required,snippet,science.org figure prep guide
+PNAS,single column,87,225 (rec),6,12,,font required,snippet,pnas.org digital art guidelines
+PNAS,1.5 column,114,225 (rec),6,12,,,snippet,same
+PNAS,double column,178,225 (rec),6,12,,,snippet,same
+APS,single column,86,,~2mm lettering,,0.5,required,fetched,https://journals.aps.org/prapplied/authors/information-contributors-physical-review-applied
+PLOS ONE,any,66.8-190.5,222.3,8,12,,required,fetched,https://journals.plos.org/plosone/s/figures
+ACS (JACS),single column,<=84.7,,4.5,,0.5,required,fetched,https://researcher-resources.acs.org/publish/author_guidelines?coden=jacsat
+ACS (JACS),double column,105.8-177.8,,4.5,,0.5,required,fetched,same
+ACS,TOC graphic,<=82.6,<=44.5,6 (pref 8),,,required,fetched,https://pubsapp.acs.org/paragonplus/submission/toc_abstract_graphics_guidelines.pdf
+ACM sigconf,single column,86.9,,,,,,snippet,authors.acm.org TAPS image specifications
+ACM sigconf,double column,177.8,,,,,,snippet,same
+NeurIPS/ICLR,text width (1-col paper),139.7,228.6 (text block),legible (no number),,,template,fetched,https://raw.githubusercontent.com/ICLR/Master-Template/master/iclr2026/iclr2026_conference.tex
+ICML,column,82.6,228.6 (text block),,,0.5,required,fetched,https://media.icml.cc/Conferences/ICML2025/Styles/icml2025.zip
+ICML,full width,171.5,228.6 (text block),,,0.5,required (top/bottom of page),fetched,same
+CVPR/ICCV,column,~83.3,225.4 (text block),match body text (rec),,,rec,fetched,https://github.com/cvpr-org/author-kit
+CVPR/ICCV,full width,174.6,225.4 (text block),match body text (rec),,,rec,fetched,same
+ACL/ARR,column,77,247 (text block),body size 11 (rec),,,figures >= 1 column required,fetched,https://acl-org.github.io/ACLPUB/formatting.html
+ACL/ARR,full width,160,247 (text block),body size 11 (rec),,,,fetched,same
+AAAI,column,83.8,,9,,,required,fetched,https://aaai.org/conference/aaai/aaai-26/submission-instructions/
+Slides 16:9,slide,338.7,190.5,18-24 (rec),,,rec,fetched,https://www.cctl.cam.ac.uk/slide-accessibility-guidance
+Poster CVPR 2025,poster,2134,1067,24-28 body (rec),,,size required,fetched,https://cvpr.thecvf.com/Conferences/2025/PosterPrintingInformation
+GitHub README,repo view,830px,,,,,measured,third-party,https://wh0.github.io/2025/05/18/banner-width.html

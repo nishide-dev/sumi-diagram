@@ -175,7 +175,7 @@ function checkAuto(state: CheckState, locate: Locator): void {
   for (const [index, edge] of (doc.edges ?? []).entries()) {
     if (edge === undefined || invalid.has(edgeKey(edge.id, index))) continue;
     const subject = { kind: "edge", id: edge.id ?? `edges[${index}]` } as const;
-    for (const field of ["fromAnchor", "toAnchor", "labelAt", "labelSide"] as const) {
+    for (const field of ["fromAnchor", "toAnchor", "labelAt", "labelSide", "route"] as const) {
       if (edge[field] !== undefined) {
         report(field, ["edges", index, field], edgeKey(edge.id, index), subject);
       }
@@ -250,6 +250,26 @@ function checkStructured(state: CheckState, locate: Locator): void {
     for (const kind of ["stack", "row", "grid"] as const) {
       const spec = box[kind];
       if (spec === undefined) continue;
+      if (!silent && kind !== "grid" && "centerOn" in spec && spec.centerOn !== undefined) {
+        const linear = spec as NonNullable<ArrangeBox["stack"]>;
+        if (
+          !linear.items.includes(spec.centerOn) ||
+          (linear.justify !== undefined && linear.justify !== "center")
+        ) {
+          push(
+            errorAt(
+              locate,
+              "layout/invalid-center-on",
+              `centerOn must name a direct item and requires justify: center (or omitted).`,
+              [...path, kind, "centerOn"],
+              {
+                subject: ownerSubject,
+                hint: "Name a node or group directly listed in this box's items; use the tokens node ID for a whole sequence. Remove stretch or space-between justification.",
+              },
+            ),
+          );
+        }
+      }
       let column = 0;
       for (const [index, cell] of spec.items.entries()) {
         let itemPath = [...path, kind, "items", index];

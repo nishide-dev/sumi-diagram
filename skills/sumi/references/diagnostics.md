@@ -49,8 +49,10 @@ In `sumi lint --json` diagnostics are under `results[i].diagnostics`; in
 **Verified hints.** Several structured hints (grid span and cell alignment,
 `layout/straight-off-side`, `geometry/exceeds-page-width`) recommend an edit
 only after applying it to an in-memory copy and re-running layout and routing
-(at most six trials per diagnostic; skipped above 80 elements, without an arrange
-tree or with external assets). A hint without such an edit is neutral wording.
+(at most six trials per diagnostic; bounded by element and arrange-tree size).
+Width/scaling and empty-area trials support inline SVGs (`props.svg` and
+`figure.assets`) and bundled icons. They skip external asset files and HTML;
+the hint states the reason. A hint without a verified edit is neutral wording.
 Apply one edit and re-check: independent savings are not additive.
 
 ## By stage
@@ -110,9 +112,11 @@ Apply one edit and re-check: independent savings are not additive.
 | `layout/duplicate-placement` | the element is in two trees, or in a tree and attached: keep one |
 | `layout/unknown-item` | an `items` entry is not a node or group ID (edges are never placed): use the hint's ID |
 | `layout/unknown-attach-target` | `attach.to` names no node or group |
+| `layout/invalid-center-on` | stack/row `centerOn` must name a direct item, with `justify` omitted or `center`; use the whole tokens node ID, not a cell |
 | `layout/group-mismatch` | `group:` disagrees with the tree: delete `group:` or move the ID into that group's `arrange` |
 | `layout/group-cycle`, `layout/attach-cycle` | a group placed inside itself, or attachments in a loop |
 | `layout/invalid-anchor` | `north`, `east`, `south`, `west`, optionally `:` and 0..1; or `straight` (no side) |
+| `layout/no-route` with `route: straight` | separate overlapping ends, choose anchors meeting their outlines and facing outwards, increase the gap for arrowheads, or omit `route` (also on zoom callouts); obstacle and label overlaps are geometry warnings |
 | `layout/attached-legend`, `layout/attached-tokens`, `layout/attached-matrix` | these cannot be attached: list them in an arrange tree |
 | `layout/grid-span-overflow`, `layout/grid-item-count` | a grid item crosses its row boundary / the last row is incomplete: reduce the span or complete the row; `null` for a deliberate blank ([grids](structured.md#grids)) |
 | `layout/no-route` (render) | the ends touch (`gap: 0`), are closer than the arrowhead, or are boxed in (the message and `related` name the node, often an `attach`ed one); on a `zoom` edge the ends overlap | widen that `gap` (arrows need about 1.5mm in `academic` / `paper`, 2.5mm in `minimal` / `color`, 4mm in `slides`; even a `line` needs > 0), anchor other sides ([spacing](structured.md#spacing-that-routes)); for `zoom` put the view beside, above or below the source |
@@ -179,7 +183,7 @@ written; errors make the exit code 1. Configure like structural rules
 | `geometry/placement-usage` | info | an explicit target reports reserved profile width × printed height, width utilization and optional height-budget use |
 | `geometry/line-too-thin` | warning | final diagram border/wire width is below `figure.target.minLineWidth`; use thicker theme strokes or less scaling; imported image/icon/HTML strokes are excluded |
 | `geometry/dead-space` | info | up to three empty rectangles, each ≥27% of canvas and ≥10mm on both sides at printed size, with position and mm; outside group/body/label/arrow footprints, excluding outer margins; review unexplained voids, keep intentional space |
-| `geometry/label-overflow` | error | remove or enlarge explicit `width`/`height` (`path` points at `props`), shorten or break the label, or use a roomier shape (`box`) |
+| `geometry/label-overflow` | error | remove or enlarge explicit `width`/`height` (`path` points at `props`), shorten or break the label, or use a roomier shape (`box`); when scaled, sizes include printed and pre-scale (YAML-unit) values, including rotated label bounds |
 | `geometry/out-of-canvas` | error | shorten labels; if it persists, a Sumi bug |
 | `geometry/node-overlap` | warning | review explicit sizes; auto: same group; structured: an attached node in a `gap` overlaps its neighbour: put it in the tree, attach to a free side, or widen the `gap` ([attach](structured.md#attach-side-notes)) |
 | `geometry/label-collision` | warning | a label overlaps another label, a shape or a group border: shorten; move a group title with `labelAt`; auto: change `direction` or grouping; structured: place the edge label, change `gap`, anchors or attach side |
