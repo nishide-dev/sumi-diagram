@@ -91,6 +91,7 @@ export interface FigureMetaIR {
   readonly profileId: string;
   /** `figure.fit` (#183): `scale` shrinks the output to the profile's width. Absent when not written. */
   readonly fit?: FigureFit;
+  readonly target?: Readonly<NonNullable<FigureMeta["target"]>>;
   readonly themeOverrides?: FigureMeta["themeOverrides"];
   readonly direction: LayoutDirection;
   /** Layout engine (design doc §6.19); `direction` applies to `auto` only. */
@@ -625,6 +626,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
         themeId: theme.id,
         profileId: profile.id,
         ...(figure.fit !== undefined && { fit: figure.fit }),
+        ...(figure.target !== undefined && { target: freeze({ ...figure.target }) }),
         ...(figure.themeOverrides !== undefined && { themeOverrides: figure.themeOverrides }),
         direction: figure.layout.direction,
         engine: figure.layout.engine,

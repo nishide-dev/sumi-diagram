@@ -45,8 +45,9 @@ layer gap (paper profiles). Measured with short labels:
 | 5-step chain, `minimal` | 127mm × 15mm | 26mm × 90mm |
 | 7-step chain, `academic` | 180mm × 15mm | 23mm × 127mm |
 
-- `paper-single` (88mm): at most about 3 nodes side by side; use `direction: down`
-  for any chain of four or more. `paper-double` (180mm): about 6–7.
+- With these short labels, `paper-single` (88mm) holds about 3 nodes side by side,
+  `paper-double` (180mm) about 6–7. For longer chains compare `down`, rows and
+  scaling by measured size and final text, rather than using node count as a rule.
 - Branches spread perpendicular to `direction`: a `down` decision flow with
   two-way branches grows sideways by about one node per branch.
 - Paper profiles allow at most 220mm height (`geometry/exceeds-page-height`):
@@ -70,7 +71,7 @@ figure or drop trivial steps (ask the user); never switch theme or profile alone
 
 ## Too wide with `right`, too tall with `down`
 
-When a long flow overflows both ways, wrap it: make the figure **structured** and
+One candidate when a long flow overflows both ways is to wrap it: make the figure **structured** and
 lay the steps out in two rows, one `row` per line inside a `stack`
 ([arrange trees](structured.md#arrange-trees)). With `direction: left` on the second
 row the flow snakes back under the end of the first, so the edge that turns is a
@@ -125,18 +126,20 @@ and gets a smaller `width` / `height`, and the PDF page and PPTX slide are that
 size. It never enlarges and does not fix the height. `sumi render` prints `scaled
 to 70%`; `--json` has `size.scale`.
 
-Below 90%, `geometry/heavy-scaling` (info) gives the scale and the width
-breakdown **before scaling**, including verified layout edits where available.
-Review it even if text still passes its minimum; suppress an intentional choice
+When scaled text has at most **20% headroom** over its effective minimum (or falls
+below it), `geometry/heavy-scaling` (info) gives the smallest final size, including
+math scripts and placed HTML, minimum, headroom, scale and width breakdown
+**before scaling**. A low scale with readable text can pass; a high scale can still
+need review. Suppress an intentional choice
 with `--rule geometry/heavy-scaling=off` on `lint --geometry`.
 
 Text is checked at its printed size: the 8pt / 7pt of the built-in themes must
 print at 5pt or more on paper profiles (`geometry/text-too-small`), so a figure can
 shrink to about 70% (7pt edge labels reach 4.9pt just below). Subscripts of label
 math print smaller and are reported once as information (`geometry/script-too-small`).
-Prefer re-arranging when it fits without shrinking; use `fit: scale` when a dense
-reference figure must keep its arrangement (published text is often 5–6pt) and tell
-the user.
+`figure.target.minFontSize` overrides the minimum (at least 4.5pt); optional
+`minLineWidth` warns on thin final diagram strokes. Choose scaling or re-arranging
+by final readability and reserved page area; neither always wins. Report the trade-off.
 
 ## Compact spacing (`figure.layout.density: compact`)
 
@@ -205,11 +208,10 @@ names its Sumi means.
   Follow a verified hint if it helps; otherwise inspect the preview.
   `geometry/group-empty-area` instead checks the space inside a group
   (75% outside its title and direct children; edges not counted).
-- **Fit the page.** Design for the printed width at the theme's text size:
-  `paper-single` (88mm) suits a column, portrait or square; `paper-double`
-  (180mm) a wide, short figure (usually under about 90mm tall). Wrap a long chain
-  into rows rather than shrink it. *Sumi:* the size `sumi render` prints;
-  [two rows](#too-wide-with-right-too-tall-with-down); `fit: scale` last.
+- **Fit the placement.** Establish width, maximum height, height budget and minimum
+  final text size. Content determines shape; column/full width does not prescribe
+  an aspect ratio. *Sumi:* profile, `figure.target`, and measured `sumi render` size.
+  Compare reserved profile width × height, final text, whitespace and reading direction.
 - **Colour encodes a role.** One tone per kind of element (all norms `blue`), the
   same in every panel, three or four tones at most; plumbing (inputs, junctions)
   stays neutral. Say what tones and dashes mean. *Sumi:* `tone` + one variant per
@@ -239,10 +241,10 @@ does not fit the target, plan before writing:
 
 1. **List the elements and their roles**: inputs, main-path steps, outputs, side
    inputs, repeated units, notes (sizes, `N×`), compared variants. Mark the main
-   path and the focus.
-2. **Choose the main direction and the panels** from the content and the target:
-   layers bottom to top; a pipeline left to right on `paper-double`, top to bottom
-   or in two rows on `paper-single`. One panel per level of detail or per variant.
+   path and the focus. Keep an element/connection checklist for the final review.
+2. **Establish placement constraints**, then choose candidates from a strip,
+   vertical stack, folded rows, L/T branches or separate panels. The content,
+   not the profile name, determines which directions make sense.
 3. **Sketch two candidate arrangements** as small ASCII drawings, one text line per
    row of the arrange tree. E.g. four sensors fused, a detector, three alert types:
 
@@ -256,17 +258,19 @@ does not fit the target, plan before writing:
    [s1]  [s2]  [s3]  [s4]
    ```
 
-4. **Compare** them on unexplained empty space (A leaves empty corners beside its
-   narrow column), aspect ratio against the profile (A is six blocks tall, B three),
-   shared lines, crossings or detours, and notes next to their targets. A one-line
-   box is about 6mm tall in paper themes (4.6mm with `density: compact`); measure
-   widths with `sumi render`. Pick one; say why in your report.
+4. **Render and compare** final text/line minima, hard page limits, height budget,
+   reserved area, unused width, unexplained whitespace, crossings and main-path
+   turns. Discard candidates violating hard limits; explain the remaining trade-off.
+   Shorter labels or merged steps cost detail (ask the user); compact spacing costs
+   separation; scaling costs final text size; folding costs height and continuity;
+   panels cost cross-references; a different placement is the user's decision.
 5. **Write the tree from the sketch**: each sketch row is a `row`, each column a
    `stack`, repeated units a `grid` or `tokens`, notes `attach`ed. For inputs
    below/above a main-flow node, use a stack with `centerOn: <main-node>` inside
    the centered row: [side-input pattern](structured.md#side-inputs-on-a-main-flow).
    It reserves input space (including tokens) while preserving the main centerline.
-6. **After rendering**, look at the preview for empty regions of a block or more,
+6. **After rendering**, check every element and directed connection against the
+   checklist in both YAML and a preview at final printed size. Look for empty regions of a block or more,
    unaligned edges and notes far from their targets. Keep space that groups,
    aligns or sets apart; fix a disproportionate, unexplained void by moving notes or
    outputs or changing the arrangement, not by adding elements.
@@ -306,8 +310,8 @@ the reference's arrangement), then map each look you want to a field:
 | repeated video frames | an image's `props.layers: { count: 4, offset: 3pt }` ([layers](assets.md#stacked-copies-layers)) |
 
 Order of work: content and arrangement first (the arrange tree, `align: stretch`
-panels), then the looks (`paper`, variants, tones, `dim`), then `density: compact`,
-and `fit: scale` last if still too wide. Check the preview after each step against
+panels), then the looks (`paper`, variants, tones, `dim`). Compare `density: compact`,
+scaling and alternative arrangements by the target metrics. Check previews against
 the [principles](#design-principles) (and the reference, if there is one). **Not
 expressible** (say so instead of approximating silently): raw colours and free
 coordinates (tones only; `themeOverrides.solidFills` retints solid fills), and free

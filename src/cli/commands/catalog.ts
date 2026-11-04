@@ -1,7 +1,7 @@
 /**
- * `sumi catalog`: the available components, themes and profiles. stdout: one
+ * `sumi catalog`: components, themes, profiles, icons and placement targets. stdout: one
  * table per section, or with `--json` exactly `buildFullCatalog()`
- * (`{ version: 1, components?, themes?, profiles? }`, see
+ * (`{ version: 1, components?, themes?, profiles?, icons?, targets? }`, see
  * `CATALOG_VERSION`). Exit 0.
  *
  * Sections: `--section <name>` (repeatable) selects them; without it, all
@@ -81,6 +81,18 @@ export function formatCatalogText(catalog: FullCatalog): string {
   if (catalog.themes) tables.push(["Themes", formatThemeTable(catalog.themes)]);
   if (catalog.profiles) tables.push(["Profiles", formatProfileTable(catalog.profiles)]);
   if (catalog.icons) tables.push(["Icons", formatIconTable(catalog.icons)]);
+  if (catalog.targets) {
+    tables.push([
+      "Targets",
+      `${catalog.targets.path}: ${catalog.targets.description}\n${formatTable(
+        ["FIELD", "DESCRIPTION"],
+        Object.entries(catalog.targets.schema.properties ?? {}).map(([name, schema]) => [
+          name,
+          typeof schema === "object" ? (schema.description ?? "") : "",
+        ]),
+      )}`,
+    ]);
+  }
   if (tables.length === 1) return tables[0]?.[1] ?? "";
   return tables.map(([title, table]) => `${title}:\n${table}`).join("\n");
 }

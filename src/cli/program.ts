@@ -125,11 +125,11 @@ stack traces for internal errors. If the reader of the output exits early
 
   program
     .command("catalog")
-    .description("list the available components, themes, profiles and icon sets")
+    .description("list components, themes, profiles, icon sets and placement targets")
     .option("--json", "print the catalog as JSON (props use JSON Schema, including enum values)")
     .option(
       "--section <name>",
-      "only this section: components, themes, profiles or icons (repeatable; default: all, or components with --kind)",
+      "only this section: components, themes, profiles, icons or targets (repeatable; default: all, or components with --kind)",
       collectSection,
     )
     .option(

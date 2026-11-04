@@ -68,6 +68,10 @@ export function checkFontSizes(
   fonts: Iterable<FontUsage>,
   locate: Locator,
 ): void {
+  // An explicit placement minimum is checked at final size by geometry lint,
+  // including placed HTML and sublabels. Do not reject it against the profile
+  // before rendering (in particular when the author lowers the minimum).
+  if (state.doc.figure?.target?.minFontSize !== undefined) return;
   const min = profile.typography.minFontSize.pt;
   for (const { key, fontSizePt, sublabel } of fonts) {
     if (state.invalid.has(key) || fontSizePt >= min) continue;

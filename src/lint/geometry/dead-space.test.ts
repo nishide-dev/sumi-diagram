@@ -145,7 +145,7 @@ test("whole group frames, outer margins, narrow gutters and small figures are no
     ).toEqual([]);
 });
 
-test("80% scaling keeps pre-scaling width attribution and 90% boundary is quiet", () => {
+test("low text headroom keeps pre-scaling width attribution", () => {
   const text = `version: 1
 figure: { id: scaled, fit: scale, layout: { arrange: { row: { gap: 10mm, items: [a, b] } } } }
 nodes:
@@ -158,7 +158,10 @@ nodes:
     scale: 0.8,
     profile: { maxWidthPt: 400 },
     elements: {
-      "n:a": { bbox: { x: 0, y: 0, width: 400, height: 100 } },
+      "n:a": {
+        bbox: { x: 0, y: 0, width: 400, height: 100 },
+        labels: [label("A", 200, 50, { fontSizeUnits: 14 })],
+      },
       "n:b": { bbox: { x: 500, y: 0, width: 400, height: 100 } },
     },
   };
@@ -191,7 +194,7 @@ nodes:
   ).toEqual([]);
 });
 
-test("rendered scaling is informational, preserves output and verifies natural-width remedies", async () => {
+test("rendered scaling with sufficient final text headroom needs no advice", async () => {
   const text = `version: 1
 figure: { id: real, fit: scale, layout: { arrange: { row: { gap: 20mm, items: [a, b] } } } }
 nodes:
@@ -202,10 +205,7 @@ edges: [{ from: a, to: b }]
   const report = await lintRenderedFigure(text, { config: { maxWarnings: 0 } });
   expect(report.exitCode).toBe(0);
   const finding = report.diagnostics.find((d) => d.code === "geometry/heavy-scaling");
-  expect(finding?.hint).toContain(
-    'remove the explicit width of node "a" (page width reduced by 35.1mm)',
-  );
-  expect(finding?.hint).toContain("before scaling");
+  expect(finding).toBeUndefined();
   expect(report.rendered).toBeDefined();
 });
 

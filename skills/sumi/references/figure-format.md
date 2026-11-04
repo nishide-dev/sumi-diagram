@@ -24,6 +24,7 @@ figure:                    # required
   theme: minimal           # optional, default minimal
   # themeOverrides: { nodeCorners: square, edgeCorners: sharp, groupLabelWeight: regular }
   profile: paper-single    # optional, default paper-single
+  # target: { height: 60mm, minFontSize: 5pt, minLineWidth: 0.5pt } # placement lint
   # fit: scale             # optional: shrink a too-wide figure to the profile width (layout-tips)
   # assets: { photo: { svg: … } }   # optional: pictures shared by image nodes (assets.md)
   layout:
@@ -400,14 +401,33 @@ square needs about 1.4× the text size (11pt for 8pt text); otherwise leave size
 
 | Profile | Max width | Max height | Min font size | Use |
 | --- | --- | --- | --- | --- |
-| `paper-single` | 88mm | — | 7pt | one column of a two-column paper (default) |
-| `paper-double` | 180mm | — | 7pt | full page width |
+| `paper-single` | 88mm | 220mm | 7pt | one column of a two-column paper (default) |
+| `paper-double` | 180mm | 220mm | 7pt | full page width |
 | `presentation-16x9` | 338.7mm | 190.5mm | 14pt | slides; only `slides` meets its 14pt minimum |
 
 `sumi render --theme <name> --profile <name>` overrides them for one render. With
 `figure.fit: scale` a too-wide figure is printed smaller and text is checked at its
 printed size against `minScaledFontSize` (5pt on paper profiles;
 [shrinking](layout-tips.md#shrinking-to-the-page-width-figurefit-scale)).
+
+**`figure.target`** optionally describes this figure's placement (both engines).
+All three fields take a length with a unit; omitted fields retain profile defaults:
+
+- `height: 60mm`: positive printed-height **budget**, margins included. Exceeding
+  it gives `geometry/exceeds-target-height` (warning) with vertical attribution.
+  The profile's maximum height stays a hard limit; height never triggers scaling.
+- `minFontSize: 5pt`: overrides both profile font minima, up or down, with a floor
+  of **4.5pt**. This is a check, not a request to resize text. Run `lint --geometry`:
+  final labels, sublabels and placed HTML below it give `geometry/text-too-small`
+  (error). Math scripts remain information-only when scaled.
+- `minLineWidth: 0.5pt`: positive final diagram border/wire minimum;
+  `geometry/line-too-thin` warns below it, including after scaling. Imported
+  image/icon/HTML strokes are excluded.
+
+With any explicit target (even `{}`), `geometry/placement-usage` reports reserved
+profile width × printed height (mm²), width utilization and optional height-budget
+use. Compare candidates at the same placement width; this is not an aspect-ratio
+score. Discover the target schema with `sumi catalog --json --section targets`.
 
 **`figure.themeOverrides`** refines the theme for this figure only (strict: unknown keys
 `schema/unknown-field`, bad values `schema/invalid-value`; fonts, spacing and line widths
@@ -433,7 +453,7 @@ sumi catalog --json --section themes --section profiles
 ```
 
 prints `{ "version": 1, "themes": [...], "profiles": [...] }` (plain `--json` adds
-`components`; `--icons` searches icons). One entry of each:
+`components`, `icons` and the `targets` input schema; `--icons` searches icons). One entry of each:
 
 ```json
 {

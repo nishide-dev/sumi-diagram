@@ -5,11 +5,9 @@ description: Build, check and render diagrams as code with the Sumi CLI (*.sumi.
 
 # Sumi: diagrams as code
 
-Sumi turns a declarative `*.sumi.yaml` figure into an SVG, using only
-predefined components, built-in themes and output profiles. Your job is to
-write that YAML from the user's content and drive it through the CLI until
-it is clean — never to draw the SVG yourself, and never to edit generated
-`.svg` or `.d2` files.
+Sumi turns declarative `*.sumi.yaml` into SVG using predefined components,
+built-in themes and output profiles. Write YAML from the user's content and
+drive it through the CLI until clean. Never draw SVG yourself or edit generated `.svg` / `.d2` files.
 
 ## Ground rules
 
@@ -53,9 +51,9 @@ Before writing YAML, make sure you know:
 
 - **Content**: the elements (steps, components, states), the connections between
   them and their exact labels; which elements belong together.
-- **Target**: one paper column (`paper-single`, max 88mm wide), a full-width paper
-  figure (`paper-double`, 180mm) or a slide (`presentation-16x9`). This is the
-  user's decision — ask if it is not stated. Slides: [layout-tips](references/layout-tips.md).
+- **Target**: ask placement width, maximum height, height budget and venue minimum
+  text size (column, full width, single-column paper, teaser, README or slide).
+  Use a matching profile and optional `figure.target`; [placement](references/figure-format.md#themes-and-profiles).
 - **Theme**: `minimal` (default), `academic`, `color`, `slides` (needed for a slide)
   or `paper` — **recommend `paper` for a color paper figure** (`academic` if it must
   be grayscale). And the output path (default: next to the user's other files,
@@ -83,7 +81,7 @@ d2:install` in a checkout, or set `SUMI_D2_PATH` (v0.9.0).
 ### 3. Discover components, themes and profiles
 
 ```sh
-sumi catalog --json              # { version, components, themes, profiles }
+sumi catalog --json              # components, themes, profiles, icons, targets
 sumi catalog --json --section themes --section profiles   # only those sections
 sumi catalog --kind node         # human-readable table, one kind of component
 sumi catalog --icons "wave sine" # bundled icons whose names contain all the words
@@ -123,8 +121,7 @@ edges:
 - Every node needs `component`; groups default to `container`, edges to `arrow`.
   `from` / `to` reference node or group IDs; quote labels such as `"yes"`, `"no"`
   and anything containing `:` or `#`.
-- A chain of 4+ nodes laid out `right` does not fit `paper-single`; prefer
-  `down` ([layout-tips](references/layout-tips.md)).
+- Long `right` chains often exceed a column; measure and compare `down`, rows and scaling ([layout-tips](references/layout-tips.md)).
 - **Structured figures** add `figure.layout.arrange` (nested `stack` / `row` / `grid`
   boxes listing every node and group once), `attach`, anchors, `align`, and the
   `legend`, `tokens`, `matrix`, `bracket`, `separator`, `zoom` components: read
