@@ -29,6 +29,7 @@ import type { EdgeIR, FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type { Diagnostic } from "../../core/diagnostics";
 import { type LayoutIR, type Point, type Rect, roundUnits } from "../ir";
+import { endpointRects } from "./endpoint-rects";
 import { bottomOf, isJunction, rightOf } from "./ports";
 
 /** `true` for a zoom edge (#176): drawn between corners, not routed. */
@@ -129,10 +130,7 @@ export function addZoomRoutes(
 ): { layout: LayoutIR; diagnostics: Diagnostic[] } {
   const zoom = new Map(ir.edges.filter(isZoomEdge).map((edge) => [edge.key, edge]));
   if (zoom.size === 0) return { layout: routed, diagnostics: [] };
-  const rects = new Map<ElementKey, Rect>([
-    ...routed.nodes.map((n) => [n.key, n.rect] as const),
-    ...routed.groups.map((g) => [g.key, g.rect] as const),
-  ]);
+  const rects = endpointRects(ir, routed);
   const nodes = new Map(ir.nodes.map((n) => [n.key, n]));
   const routedEdges = new Map(routed.edges.map((e) => [e.key, e]));
   const diagnostics: Diagnostic[] = [];

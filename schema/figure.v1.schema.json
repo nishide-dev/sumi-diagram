@@ -125,6 +125,14 @@
                 "$ref": "#/$defs/AlignConstraint"
               }
             },
+            "alignGrowth": {
+              "description": "allow: the space the align constraints add is intended, so the info layout/align-grew-figure is not reported. Omitted means report (structured layout only).",
+              "type": "string",
+              "enum": [
+                "report",
+                "allow"
+              ]
+            },
             "fanIn": {
               "description": "Edges from different elements entering the same point of an element without an anchor: merge joins them into one line, spread enters them side by side in the order of their other ends. Omitted means merge (structured layout only).",
               "type": "string",
@@ -289,7 +297,7 @@
             "pattern": "\\S"
           },
           "textAlign": {
-            "description": "Horizontal alignment of the node's label and sublabel within their shared text block (structured only). Omitted means center.",
+            "description": "Horizontal alignment of the node's label and sublabel within their shared text block (structured only). Omitted means center (left for the entries of a legend).",
             "type": "string",
             "enum": [
               "left",

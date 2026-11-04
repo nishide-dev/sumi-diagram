@@ -15,13 +15,18 @@ import type { DocPath } from "../../core/diagnostics";
 import type { GroupLabelPosition } from "../../core/figure/schema";
 import { BUILTIN_PROFILES } from "../../core/profile/builtin";
 import { formatMm, formatPt, mmToPt, ptToD2Units } from "../../core/units";
-import { ARROWHEAD_STEM_UNITS, arrowheadLength } from "../../layout/route/arrowhead";
+import {
+  ARROWHEAD_STEM_UNITS,
+  arrowheadLength,
+  WIRE_CORNER_RADIUS,
+} from "../../layout/route/arrowhead";
 import { type Point, type Rect, unitsToMm, unitsToPt } from "../../render/geometry";
 import type { ProfileLimits } from "../../render/inspect";
 import { printedSize } from "../../render/size";
 import { defineGeometryRule, type GeometryRule, type LintFinding } from "../rule";
 import { arrowheadStraightRun } from "./arrowheads";
 import type { GeometryContext, GeometryElement } from "./context";
+import { deadSpace } from "./dead-space";
 import { obstaclesCrossedByRoute, type RouteObstacle } from "./edges";
 import { groupEmptySpace } from "./empty-space";
 import { microJogLengths } from "./jogs";
@@ -205,6 +210,26 @@ export const exceedsPageWidth = defineGeometryRule({
         path: figurePath,
         subject: figureSubject(context),
         hint: [widthBreakdown(context), pageWidthHint(context)].filter(Boolean).join(" "),
+      },
+    ];
+  },
+});
+
+export const heavyScaling = defineGeometryRule({
+  id: "geometry/heavy-scaling",
+  description: "figure.fit: scale prints the figure below 90% of its natural size.",
+  defaultSeverity: "info",
+  fixable: false,
+  run(context) {
+    const scale = printScale(context);
+    if (context.ir.meta.fit !== "scale" || scale >= 0.9 - PT_EPSILON) return [];
+    const natural = { ...context, inspection: { ...context.inspection, scale: 1 } };
+    return [
+      {
+        message: `figure.fit: scale prints the figure at ${Math.round(scale * 1000) / 10}% of its natural size (below 90%): ${formatMm(context.inspection.canvas.width.pt)} → ${formatMm(printedSize(context.inspection).widthPt)} wide.`,
+        path: ["figure", "fit"],
+        subject: figureSubject(context),
+        hint: `Review the layout or use a wider profile before accepting smaller text. Width breakdown before scaling: ${widthBreakdown(natural)} Independent trial reductions are not additive.`,
       },
     ];
   },
@@ -1129,6 +1154,70 @@ interface LinePair {
   to: number;
 }
 
+/** A quantitative fallback for a narrow, otherwise empty facing-port channel. */
+function parallelChannelHint(context: GeometryContext, pair: readonly GeometryElement[]): string {
+  const generic =
+    "Edges that should merge share one line only when they start or end at the same point; otherwise keep them apart. Move an end with fromAnchor / toAnchor, merge the edges into one trunk (the same anchor, or figure.layout.fanIn: merge), or change the arrangement (a `gap`, the order of a box's items) so they take different channels.";
+  const corridor = (e: GeometryElement) => {
+    const p = e.route?.[0];
+    if (!p || p.length < 4 || e.ir.kind !== "edge") return undefined;
+    const a = p[0] as Point,
+      b = p[1] as Point;
+    const c = p[p.length - 2] as Point,
+      d = p[p.length - 1] as Point;
+    const axis = a.x === b.x ? "y" : "x";
+    const along = axis === "y" ? "x" : "y";
+    if (
+      c[along] !== d[along] ||
+      Math.sign(b[axis] - a[axis]) !== Math.sign(d[axis] - c[axis]) ||
+      Math.sign(d[axis] - a[axis]) !== Math.sign(b[axis] - a[axis])
+    )
+      return undefined;
+    return { axis, low: Math.min(a[axis], d[axis]), high: Math.max(a[axis], d[axis]) };
+  };
+  const channel = corridor(pair[0] as GeometryElement);
+  if (
+    !channel ||
+    pair.some((e) => {
+      const c = corridor(e);
+      return (
+        !c ||
+        c.axis !== channel.axis ||
+        Math.abs(c.low - channel.low) > 0.01 ||
+        Math.abs(c.high - channel.high) > 0.01
+      );
+    })
+  )
+    return generic;
+  const edges = context.elements.filter((e) => {
+    const c = corridor(e);
+    return (
+      c &&
+      c.axis === channel.axis &&
+      Math.abs(c.low - channel.low) <= 0.01 &&
+      Math.abs(c.high - channel.high) <= 0.01
+    );
+  });
+  let from = 6,
+    to = 6,
+    width = 0;
+  for (const e of edges) {
+    if (e.ir.kind !== "edge") continue;
+    const w = e.ir.style.strokeWidth.units;
+    const room = arrowheadLength(w) + WIRE_CORNER_RADIUS;
+    from = Math.max(from, e.ir.sourceArrowhead ? room : 6);
+    to = Math.max(to, e.ir.targetArrowhead ? room : 6);
+    width = Math.max(width, w);
+  }
+  const required = Math.ceil(unitsToMm(from + to + (edges.length - 1) * (width + 3.02)) * 10) / 10;
+  const available = unitsToMm(channel.high - channel.low);
+  const space =
+    available < required
+      ? `For these ${edges.length} facing connectors, increase the arrange \`gap\` between the rows/columns to provide at least ${required.toFixed(1)}mm of clear port-to-port space (arrowhead room plus separate lanes, before figure.fit scaling).`
+      : `These ${edges.length} facing connectors have ${available.toFixed(1)}mm of port-to-port space; separate middle lanes need at least ${required.toFixed(1)}mm before figure.fit scaling. Widening that gap alone will not clear fixed port legs or obstacles.`;
+  return `${space} Keep the channel free of nodes and group titles. Sumi separates independent middle runs automatically when they fit; where the router detoured around a node or the lanes do not fit, the runs stay as routed, so clear the channel (move the node or port) or enlarge the gap. For close fixed legs, move the ports farther apart with fromAnchor / toAnchor or increase spacing between cells within each row. Merge a trunk only if the connections really share an endpoint.`;
+}
+
 export const edgeNearEdge = defineGeometryRule({
   id: "geometry/edge-near-edge",
   description:
@@ -1223,7 +1312,7 @@ export const edgeNearEdge = defineGeometryRule({
         hint: isZoom(edge)
           ? zoomLineHint()
           : isStructured(context)
-            ? "Edges that should merge share one line only when they start or end at the same point; otherwise keep them apart. Move an end with fromAnchor / toAnchor, merge the edges into one trunk (the same anchor, or figure.layout.fanIn: merge), or change the arrangement (a `gap`, the order of a box's items) so they take different channels."
+            ? parallelChannelHint(context, [...earlier, ...later])
             : "Change the layout (layout.direction, grouping) so the edges take different channels, or connect them through a shared node.",
         related: [
           ...sharedRelated(later),
@@ -1556,6 +1645,8 @@ export const groupEmptyArea = defineGeometryRule({
 });
 
 export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
+  deadSpace,
+  heavyScaling,
   groupEmptyArea,
   badgeCollision,
   exceedsPageWidth,

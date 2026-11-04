@@ -119,7 +119,7 @@ Apply one edit and re-check: independent savings are not additive.
 | `layout/unknown-align-item`, `layout/duplicate-align-item`, `layout/invalid-align` | an `align` entry names no node or group (edges cannot be aligned), names one twice, or has fewer than two IDs; an entry with both or neither of `x` / `y` is `schema/invalid-value` ([align](structured.md#aligning-across-trees)) |
 | `layout/unsatisfied-align` (render, warning) | the constraint could not be met; drawn closest, the message gives the distance | follow the hint: items share a box (use different boxes or wrap one in its own `stack` / `row`) or another constraint pulls them apart; for table headings `align: start` on the parent row |
 | `layout/align-search-limit` (render, warning) | too many constraints: remove ones the boxes already satisfy, or split the figure |
-| `layout/align-grew-figure` (render, info) | `align` struts made the figure much larger (more than 5mm and 10%); keep if intended, else align an item that can move alone, or drop the constraint |
+| `layout/align-grew-figure` (render, info) | `align` struts made the figure much larger (more than 5mm and 10%); keep if intended (`figure.layout.alignGrowth: allow` silences it), else align an item that can move alone, or drop the constraint |
 | `layout/edge-label-overlap` (render, warning) | an edge label with `labelAt` / `labelSide` has no clear spot: the other `labelSide`, another `labelAt`, neither, or make room (`gap`, anchors, shorter label) |
 | `layout/straight-off-side` (render, warning) | a `straight` end has no side facing the other end in line with its centre (past the 3pt corner margin, diagonal, overlapping, or parallel edges from a wide element into a narrow one) | line them up in the tree (`align`), widen the box, put `straight` on the wide end, or write a side anchor; verified recommendations: [grids](structured.md#grids) |
 | `layout/unaligned-ends` (render, warning) | facing ends are within 1pt of alignment but shared ports, anchors or side limits prevent straightening | align with the painted lip, remove the neighbour's anchor, or give one end an unshared point with room |
@@ -173,6 +173,8 @@ written; errors make the exit code 1. Configure like structural rules
 | `geometry/exceeds-page-height` | error | paper profiles 220mm, `presentation-16x9` 190.5mm: auto: `direction: right`, fewer layers; structured: re-arrange (a long stack as a row of stacks), smaller `gap`s; or split the figure |
 | `geometry/text-too-small` | error | as `profile/font-too-small` (safety net); under `figure.fit: scale` a label printed below 5pt (a 7pt `sublabel` does at 71%): make the figure narrower so it shrinks less, or write the text into the label. HTML: font-size × placed/viewport scale × page-fit scale |
 | `geometry/script-too-small` | info | with `fit: scale`, math subscripts print below 5pt; one finding per figure; scripts are exempt from the minimum |
+| `geometry/heavy-scaling` | info | `fit: scale` prints below 90%; reports scale, natural/printed width and the width breakdown before scaling; review the layout or use a wider profile |
+| `geometry/dead-space` | info | up to three empty rectangles, each ≥27% of canvas and ≥10mm on both sides at printed size, with position and mm; outside group/body/label/arrow footprints, excluding outer margins; review unexplained voids, keep intentional space |
 | `geometry/label-overflow` | error | remove or enlarge explicit `width`/`height` (`path` points at `props`), shorten or break the label, or use a roomier shape (`box`) |
 | `geometry/out-of-canvas` | error | shorten labels; if it persists, a Sumi bug |
 | `geometry/node-overlap` | warning | review explicit sizes; auto: same group; structured: an attached node in a `gap` overlaps its neighbour: put it in the tree, attach to a free side, or widen the `gap` ([attach](structured.md#attach-side-notes)) |
@@ -185,7 +187,7 @@ written; errors make the exit code 1. Configure like structural rules
 | `geometry/zoom-crosses-node` | warning | a zoom line crosses a node: move it, or the source or view |
 | `geometry/edge-on-border` | warning | an edge runs on a group border (3mm or more): structured: move the ends with anchors, reorder items or change a `gap`; auto: change `direction` or grouping |
 | `geometry/edge-near-border` | info | as above, less than 1.5pt beside the border; often the router's turn outside a group: leave it if it reads clearly |
-| `geometry/edge-near-edge` | warning | two edges run less than 1.5pt apart for 3mm or more (an exactly shared trunk is fine): another anchor, one trunk (same anchor, `fanIn: merge`), or rearrange |
+| `geometry/edge-near-edge` | warning | two edges run less than 1.5pt apart for 3mm or more (an exactly shared trunk is fine): independent facing connectors separate automatically when the channel fits; for a narrow channel follow the hint's numeric port-to-port minimum by increasing the row/column gap and keeping it clear. For close fixed legs change anchors or cell spacing; merge a trunk only for genuinely shared endpoints |
 | `geometry/edge-touches-label` | info | an edge passes within 1.5pt of a group title, caption or `label`: as `edge-crosses-label` |
 | `geometry/aspect-distorted` | warning | fewer edges on that `circle` / `square`, or `ellipse` / `box` |
 | `geometry/reversed-edge` | warning | ELK reversed an edge of a cycle (typically inside a group): swap the loop's nodes in `nodes`, or move it out of the group |
@@ -210,8 +212,9 @@ of their own size) are recommended only if the trial shows a smaller width, rank
 mm saved. **Auto:** the top-level horizontal footprint and observed gaps, not
 ELK's internal layers or spacing; overlapping x-ranges and grid spans are merged,
 blank tracks cannot be reconstructed; margins, strokes, edges and labels can also
-widen the page. Lengths are printed mm (also under `fit: scale`). Sumi never
-shrinks a figure automatically.
+widen the page. Lengths are printed mm; `geometry/heavy-scaling` explicitly uses
+natural, pre-scaling mm so the same breakdown remains available under `fit: scale`.
+Sumi never shrinks a figure automatically.
 
 Procedure: apply the hint's edit (or shorten labels), re-run, repeat: a second
 row may become the widest. Then, by cost: auto: `direction: down`, fewer nodes

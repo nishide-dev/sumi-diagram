@@ -125,6 +125,11 @@ and gets a smaller `width` / `height`, and the PDF page and PPTX slide are that
 size. It never enlarges and does not fix the height. `sumi render` prints `scaled
 to 70%`; `--json` has `size.scale`.
 
+Below 90%, `geometry/heavy-scaling` (info) gives the scale and the width
+breakdown **before scaling**, including verified layout edits where available.
+Review it even if text still passes its minimum; suppress an intentional choice
+with `--rule geometry/heavy-scaling=off` on `lint --geometry`.
+
 Text is checked at its printed size: the 8pt / 7pt of the built-in themes must
 print at 5pt or more on paper profiles (`geometry/text-too-small`), so a figure can
 shrink to about 70% (7pt edge labels reach 4.9pt just below). Subscripts of label
@@ -192,10 +197,14 @@ names its Sumi means.
   column, such as a vertical list above a head, beside a wide short one),
   **re-arrange**: put the outputs or note beside their source, turn a vertical list
   into a row, reorder a row. Never add elements or enlarge boxes to fill it.
-  *Sumi:* change the tree, `attach`, tokens `direction`. The info
-  `geometry/group-empty-area` fires when at least 75% of a group's frame lies outside
-  its title and direct children (edges not counted); it does not find empty regions
-  elsewhere.
+  *Sumi:* change the tree, `attach`, tokens `direction`. `geometry/dead-space`
+  (info) names up to three non-overlapping empty rectangles outside bodies,
+  groups, arrows and labels: at least 27% of the canvas and 10mm on both sides
+  at printed size. Outer margins are excluded; intentional whitespace can be
+  suppressed on `lint --geometry` with `--rule geometry/dead-space=off`.
+  Follow a verified hint if it helps; otherwise inspect the preview.
+  `geometry/group-empty-area` instead checks the space inside a group
+  (75% outside its title and direct children; edges not counted).
 - **Fit the page.** Design for the printed width at the theme's text size:
   `paper-single` (88mm) suits a column, portrait or square; `paper-double`
   (180mm) a wide, short figure (usually under about 90mm tall). Wrap a long chain

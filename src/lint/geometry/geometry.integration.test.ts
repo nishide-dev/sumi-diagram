@@ -49,7 +49,7 @@ describe.skipIf(!available && !inCI)("geometry lint with D2", () => {
     ["reversed-edge-reordered", []],
     ["reversed-edge-group", []],
     ["containment", []],
-    ["whitespace", []],
+    ["whitespace", ["geometry/dead-space"]],
   ])("fixture %s", async (name, expected) => {
     const { report, geometry } = await lintFile(join(FIXTURES, "geometry", `${name}.sumi.yaml`));
     expect(report.rendered).toBeDefined();
@@ -78,7 +78,7 @@ describe.skipIf(!available && !inCI)("geometry lint with D2", () => {
 
   test("labels with blank lines render; D2's line advances are measured as written", async () => {
     const { report, geometry } = await lintFile(join(FIXTURES, "geometry", "whitespace.sumi.yaml"));
-    expect(geometry).toEqual([]);
+    expect(geometry.map((d) => [d.severity, d.code])).toEqual([["info", "geometry/dead-space"]]);
     const labelOf = (key: string) =>
       report.rendered?.inspection.elements.find((e) => e.key === key)?.labels[0];
     // D2 v0.9.0 divides its measured height (blank first / last lines add none) by the line count.

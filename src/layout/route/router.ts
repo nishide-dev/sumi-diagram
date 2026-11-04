@@ -88,11 +88,13 @@ import {
 import { deepFreeze } from "../structured/engine";
 import { arrowheadLength, WIRE_CORNER_RADIUS } from "./arrowhead";
 import { crossingDiagnostics } from "./crossings";
+import { endpointRects } from "./endpoint-rects";
 import { gridSpanHint, verifiedGridHints } from "./grid-hint";
 import { PairHeap } from "./heap";
 import { requestedLabelDiagnostics } from "./label-diagnostics";
 import { arrowheadRects, hasRequestedLabel, placeEdgeLabel } from "./labels";
 import { groupArrowheadStems } from "./padding";
+import { separateParallelRuns } from "./parallel";
 import {
   bottomOf,
   DIRS,
@@ -575,6 +577,24 @@ class Router {
       this.#occupy(cells, edge);
       routes.set(edge.ir.key, points);
     }
+    separateParallelRuns(
+      routes,
+      routable.map((e) => ({
+        key: e.ir.key,
+        width: e.ir.style.strokeWidth.units,
+        fromRoom: Math.max(e.fromLane, e.fromRoom),
+        toRoom: Math.max(e.toLane, e.toRoom),
+      })),
+      [
+        ...this.#obstacles.map((o) => o.rect),
+        ...this.#layout.groups.flatMap((g) => (g.label ? [g.label.box] : [])),
+      ],
+      (a, b) =>
+        sharable(
+          routable.find((e) => e.ir.key === a) as Edge,
+          routable.find((e) => e.ir.key === b) as Edge,
+        ),
+    );
     return { layout: this.#result(routable, routes), diagnostics: this.#diagnostics };
   }
 
@@ -700,9 +720,9 @@ class Router {
     edge: EdgeIR,
     ends: { from: End; to: End } | { error: string } | undefined,
   ): void {
-    const rectOf = (key: ElementKey): Rect | undefined =>
-      this.#layout.nodes.find((n) => n.key === key)?.rect ??
-      this.#layout.groups.find((g) => g.key === key)?.rect;
+    if (edge.fromAnchor !== "straight" && edge.toAnchor !== "straight") return;
+    const rects = endpointRects(this.#ir, this.#layout);
+    const rectOf = (key: ElementKey): Rect | undefined => rects.get(key);
     for (const field of ["fromAnchor", "toAnchor"] as const) {
       if (edge[field] !== "straight") continue;
       const leaving = field === "fromAnchor";

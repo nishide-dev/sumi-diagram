@@ -3,7 +3,7 @@
  * design doc §6.19) and normalizes group membership.
  *
  * - With the `auto` engine, every structured-only field (`figure.layout.arrange`,
- *   `figure.layout.align`, `figure.layout.fanIn` (#134),
+ *   `figure.layout.align`, `figure.layout.alignGrowth` (#333), `figure.layout.fanIn` (#134),
  *   `figure.layout.density` (#182),
  *   `group.arrange`, `node.attach`, `node.sublabel` (#184),
  *   `node.labelRotation` (#178), `edge.fromAnchor` / `toAnchor`,
@@ -148,6 +148,9 @@ function checkAuto(state: CheckState, locate: Locator): void {
   }
   if (doc.figure?.layout.align !== undefined) {
     report("align", ["figure", "layout", "align"]);
+  }
+  if (doc.figure?.layout.alignGrowth !== undefined) {
+    report("alignGrowth", ["figure", "layout", "alignGrowth"]);
   }
   if (doc.figure?.layout.fanIn !== undefined) {
     report("fanIn", ["figure", "layout", "fanIn"]);

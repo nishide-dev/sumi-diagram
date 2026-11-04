@@ -835,6 +835,30 @@ describe("the figure's growth (#155)", () => {
     expect(d?.hint).toMatch(/^A strut only adds space/);
   });
 
+  test("alignGrowth: allow silences the growth info and nothing else (#333)", () => {
+    const layout = (extra: object) => ({
+      arrange: {
+        row: {
+          align: "start",
+          items: [
+            { stack: { gap: "30mm", items: ["a", "b"] } },
+            { stack: { gap: "30mm", items: ["c", "d"] } },
+          ],
+        },
+      },
+      align: [{ y: ["b", "c"] }],
+      ...extra,
+    });
+    const nodes = ["a", "b", "c", "d"].map((id) => box(id));
+    const reported = place(figure(layout({}), nodes));
+    expect(reported.diagnostics.map((d) => d.code)).toEqual(["layout/align-grew-figure"]);
+    const allowed = place(figure(layout({ alignGrowth: "allow" }), nodes));
+    expect(allowed.diagnostics).toEqual([]);
+    // The layout itself is the same: only the report is gone.
+    expect(allowed.layout).toEqual(reported.layout);
+    expect(allowed.align?.residuals).toEqual([0]);
+  });
+
   test("a small growth is not reported", () => {
     // The side-KV fixture grows by about 4mm (3%): the usual cost of aligning.
     const text = readFileSync(`${fixtures}/figures/layout/align-side-kv.sumi.yaml`, "utf8");
