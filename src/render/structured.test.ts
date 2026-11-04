@@ -274,8 +274,8 @@ describe("geometry lint on structured SVGs", () => {
   // The reproduction (research/109-dogfood-v0.4, A9): an edge label beside
   // the arrowhead, where the edge enters a group, sat on the group's border
   // unnoticed. The label now moves off the border where it can (past it,
-  // outside the group); with no room there, the lint reports it.
-  test("an edge label on a group's border is a label-collision (#116)", async () => {
+  // outside the group). #332 also lets it move farther beside a short span.
+  test("a short-span label clears the group's border (#116, #332)", async () => {
     const source = `version: 1
 figure:
   id: a9
@@ -293,13 +293,7 @@ edges:
   - { from: a, to: b, label: gRPC }
 `;
     const findings = lintGeometry(await render(source), { source });
-    expect(findings.map((d) => [d.code, d.message, d.location?.line])).toEqual([
-      [
-        "geometry/label-collision",
-        'The label of edge edges[0] overlaps the border of group "grp".',
-        15,
-      ],
-    ]);
+    expect(findings).toEqual([]);
     // With room before the group, the label goes there.
     const roomy = source.replace("gap: 2mm", "gap: 4mm");
     expect(lintGeometry(await render(roomy), { source: roomy })).toEqual([]);
@@ -517,11 +511,8 @@ edges:
     );
   });
 
-  // The #116 reproduction: the label sits on the group's border (reported by
-  // geometry/label-collision). The color is the one under the box's center:
-  // here above the border, so the canvas, though its lower part is on the
-  // group (the other way round in the labelBackground() test below).
-  test("a box across a group border takes the color under its center", async () => {
+  // #332 moves this short-span label beside the frame: its background is canvas.
+  test("a short-span label beside a group takes the canvas color", async () => {
     const source = `version: 1
 figure:
   id: a9
@@ -542,10 +533,7 @@ edges:
     const box = rendered.layout.edges[0]?.route?.label?.box;
     const rect = rendered.layout.groups[0]?.rect;
     if (box === undefined || rect === undefined) throw new Error("no label or group");
-    const cy = box.y + box.height / 2;
-    // It does straddle the border, with its center outside the group.
-    expect(box.y + box.height).toBeGreaterThan(rect.y);
-    expect(cy).toBeLessThan(rect.y);
+    expect(box.x >= rect.x + rect.width || box.x + box.width <= rect.x).toBe(true);
     expect(groupFill(rendered, "grp")).toBe("#f6f8fa");
     expect(svg.get(0)).toBe(CANVAS_FILL);
   });

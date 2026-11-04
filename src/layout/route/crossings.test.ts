@@ -440,7 +440,8 @@ describe("findCrossings: what is a crossing", () => {
 describe("chooseRouting", () => {
   const { ir, layout } = load(serving).value;
   const noRoute: Diagnostic = { code: "layout/no-route", severity: "error", message: "x" };
-  const codes = (r: { diagnostics: Diagnostic[] }) => r.diagnostics.map((d) => d.code);
+  const codes = (r: { diagnostics: Diagnostic[] }) =>
+    r.diagnostics.map((d) => d.code).filter((code) => code !== "layout/group-title-offset");
 
   test("a retry that routes every edge reports its crossings", () => {
     const result = chooseRouting(ir, (stubLines) =>

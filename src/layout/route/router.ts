@@ -90,6 +90,7 @@ import { arrowheadLength, WIRE_CORNER_RADIUS } from "./arrowhead";
 import { crossingDiagnostics } from "./crossings";
 import { endpointRects } from "./endpoint-rects";
 import { gridSpanHint, verifiedGridHints } from "./grid-hint";
+import { groupTitleDiagnostics } from "./group-title-diagnostics";
 import { PairHeap } from "./heap";
 import { requestedLabelDiagnostics } from "./label-diagnostics";
 import { arrowheadRects, hasRequestedLabel, placeEdgeLabel } from "./labels";
@@ -259,6 +260,7 @@ export function chooseRouting(
     diagnostics: [
       ...result.diagnostics,
       ...crossingDiagnostics(ir, result.layout),
+      ...groupTitleDiagnostics(ir, result.layout),
       ...requestedLabelDiagnostics(ir, result.layout, (edge) =>
         arrowheadLength(edge.style.strokeWidth.units),
       ),

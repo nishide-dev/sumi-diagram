@@ -452,7 +452,9 @@ describe("figures in the skill", () => {
     const failed = report.diagnostics.some((d) => d.severity === "error");
     expect(run.exitCode).toBe(failed ? 1 : 0);
     // Geometry errors still write the SVG; layout and asset errors do not.
-    const drawn = !report.diagnostics.some((d) => /^(layout|asset)\//.test(d.code));
+    const drawn = !report.diagnostics.some(
+      (d) => d.severity === "error" && /^(layout|asset)\//.test(d.code),
+    );
     expect(existsSync(join(work, output))).toBe(drawn);
     if (drawn) {
       // The library path gives the same result.

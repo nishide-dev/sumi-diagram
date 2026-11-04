@@ -210,10 +210,12 @@ the space at the top, and edges leaving the group downwards cross its caption).
 frame**, attached members included, even with `variant: plain`: an input
 attached west widens the frame and the title moves left of the body's centre.
 To title only the body give it an inner group and attach the input to that
-group (a sibling); an untitled outer group holds both as one panel:
+group (a sibling); an untitled outer group holds both as one panel. This centers
+the input on the titled frame, so its edge jogs to the block's content center
+(`layout/group-title-offset`); use an untitled body or a caption for a straight input:
 
 ```yaml
-# expect-render: fits
+# expect-render: layout/group-title-offset
 version: 1
 figure:
   id: body-title
@@ -629,15 +631,21 @@ Shared trunks keep their existing routing. There is no per-edge lane coordinate.
 - **Edge labels** sit on the last segment before the target's arrowhead (above a
   horizontal one, right of a vertical one); with only a source arrowhead, by it on the
   first segment; on a `line`, mid-way along the longest. Where that touches a line or a
-  group border the label moves; other collisions are not avoided: keep labels to a word
-  or math symbol and check the preview. **`labelAt: start | middle | end`** picks the
+  group border the label moves. On short spans, a label that overlaps a node can move
+  farther away from the line instead of widening the gap; check the preview.
+  **`labelAt: start | middle | end`** picks the
   first, longest or last segment; **`labelSide: left | right`** the side **as seen
   travelling from source to target** (left of a rightward line is above it). Either
   alone is fine (default segment: `end` with a target arrowhead, `start` with only a
-  source one, `middle` with none). The label slides along that segment but never leaves
-  the segment and side; if nothing there is clear `layout/edge-label-overlap` (warning:
+  source one, `middle` with none). The label slides along that segment and keeps its
+  side; a short span may need extra distance from the line to clear nodes or labels.
+  If nothing there is clear `layout/edge-label-overlap` (warning:
   the other side, another `labelAt`, or neither). Use them to say which edge a label
   belongs to (`K,V` at the `start`).
+- **Titled group alignment**: frame centers and content centers differ because the
+  title reserves space. `layout/group-title-offset` (info) explains a horizontal jog
+  between aligned frames. Align the connected nodes, e.g.
+  `figure.layout.align: [{ y: [encoderOut, decoderIn] }]`, or use a caption/untitled group.
 - **Corners and arrowheads**: lines are drawn rounded (radius up to 4pt).
   `figure.themeOverrides.edgeCorners: sharp` gives sharp turns with butt caps and miter
   joins (zoom wires too; editable PPTX keeps sharp centrelines). The router keeps a

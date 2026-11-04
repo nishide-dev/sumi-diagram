@@ -10,7 +10,8 @@
  * An edge with `labelAt` or `labelSide` (#128) gets its label beside the
  * requested segment, on the requested side, instead (`placeRequestedLabel`):
  * it moves only along that segment to keep clear of routes, group borders,
- * nodes and labels.
+ * nodes and labels. On a short span, a colliding label can move farther
+ * from the line, keeping its side (#332).
  */
 
 import type { EdgeIR } from "../../compiler/ir";
@@ -79,6 +80,77 @@ const grow = (rect: Rect, d: number): Rect => ({
   width: rect.width + 2 * d,
   height: rect.height + 2 * d,
 });
+
+/**
+ * How far past the usual place a short span's label may be lifted, in label
+ * heights: beyond it the label reads as detached from the line it names (#332).
+ */
+const MAX_LIFT_HEIGHTS = 3;
+
+/**
+ * Whether `box` stays in the group frames the segment `a`-`b` is in: inside
+ * every frame holding the whole segment, clear of every frame it does not
+ * touch. A frame the segment crosses (the edge enters or leaves it) puts no
+ * limit. A lifted label that jumps a group border reads as belonging to
+ * another group.
+ */
+const keepsFrames = (box: Rect, a: Point, b: Point, groups: readonly Rect[]): boolean =>
+  groups.every((g) => {
+    const seg = segmentRect(a, b);
+    if (!overlaps(grow(seg, 1e-6), g)) return !overlaps(box, g);
+    const holds =
+      seg.x >= g.x &&
+      seg.y >= g.y &&
+      seg.x + seg.width <= g.x + g.width &&
+      seg.y + seg.height <= g.y + g.height;
+    return (
+      !holds ||
+      (box.x >= g.x &&
+        box.y >= g.y &&
+        box.x + box.width <= g.x + g.width &&
+        box.y + box.height <= g.y + g.height)
+    );
+  });
+
+/**
+ * Short spans cannot contain the text: keep its side, but lift it past nearby
+ * boxes, at most `MAX_LIFT_HEIGHTS` label heights beyond the usual place.
+ */
+function shortSpanCandidates(
+  a: Point,
+  b: Point,
+  w: number,
+  h: number,
+  sides: readonly (1 | -1)[],
+  obstacles: readonly Rect[],
+): Candidate[] {
+  const flat = Math.abs(a.y - b.y) < 1e-9;
+  const across = flat ? a.y : a.x;
+  const half = (flat ? h : w) / 2;
+  const candidates: Candidate[] = [];
+  for (const side of sides) {
+    const sign = flat ? -side : side;
+    const distances = new Set([EDGE_LABEL_GAP + half]);
+    for (const r of obstacles) {
+      const boundary = flat ? (sign > 0 ? r.y + r.height : r.y) : sign > 0 ? r.x + r.width : r.x;
+      const distance = (boundary - across) * sign + EDGE_LABEL_GAP + half;
+      const usual = EDGE_LABEL_GAP + half;
+      if (distance >= usual && distance <= usual + MAX_LIFT_HEIGHTS * h) distances.add(distance);
+    }
+    for (const distance of distances) {
+      candidates.push({
+        center: flat
+          ? { x: (a.x + b.x) / 2, y: across + sign * distance }
+          : { x: across + sign * distance, y: (a.y + b.y) / 2 },
+      });
+    }
+  }
+  return candidates.sort((p, q) =>
+    flat
+      ? Math.abs(p.center.y - across) - Math.abs(q.center.y - across)
+      : Math.abs(p.center.x - across) - Math.abs(q.center.x - across),
+  );
+}
 
 /** What an edge label keeps clear of, besides its own route (#116). */
 export interface EdgeLabelSurroundings {
@@ -182,7 +254,23 @@ export function placeEdgeLabel(
     const middle = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
     // Centered on the middle along the segment.
     const back = -(Math.abs(b.x - a.x) > 0 ? w : h) / 2;
-    return placeText(metrics, beside(a, middle, w, h, back, 1).center);
+    const candidate = beside(a, middle, w, h, back, 1);
+    if (
+      bestLength < (Math.abs(b.x - a.x) > 0 ? w : h) + g &&
+      (surroundings.nodes ?? []).some((r) => overlaps(boxOf(candidate.center, w, h), r))
+    ) {
+      // No arrowheads and no labelAt/labelSide here (those returned above), so
+      // the default end is "middle": the same segment, but with the short-span
+      // search for a place beside the line clear of the nodes.
+      return placeRequestedLabel(
+        metrics,
+        points,
+        { ...edge, labelAt: "middle" },
+        arrowhead,
+        surroundings,
+      );
+    }
+    return placeText(metrics, candidate.center);
   }
 
   const n = line.length;
@@ -247,13 +335,32 @@ export function placeEdgeLabel(
   const clearOfNodes = (c: Candidate) =>
     (surroundings.nodes ?? []).every((o) => !overlaps(boxOf(c.center, w, h), o));
   const first = candidates[0] as Candidate;
-  if (clearOfRoutes(first) && clearOfBorders(first)) return placeText(metrics, first.center);
+  const short = last < (flat ? w : h) + arrowhead + g;
+  if (clearOfRoutes(first) && clearOfBorders(first) && (!short || clearOfNodes(first)))
+    return placeText(metrics, first.center);
   const clear = candidates.filter(clearOfRoutes);
   const chosen =
     clear.find((c) => clearOfBorders(c) && clearOfNodes(c)) ??
     clear.find(clearOfNodes) ??
     clear[0] ??
     first;
+  if (short && !clearOfNodes(chosen)) {
+    const lifted = shortSpanCandidates(
+      prev,
+      tip,
+      w,
+      h,
+      [1, -1],
+      [...(surroundings.nodes ?? []), ...segments, ...borders, head],
+    ).find(
+      (c) =>
+        clearOfRoutes(c) &&
+        clearOfBorders(c) &&
+        clearOfNodes(c) &&
+        keepsFrames(boxOf(c.center, w, h), prev, tip, surroundings.groups ?? []),
+    );
+    if (lifted !== undefined) return placeText(metrics, lifted.center);
+  }
   return placeText(metrics, chosen.center);
 }
 
@@ -315,7 +422,8 @@ export function absoluteSide(a: Point, b: Point, labelSide: EdgeLabelSide): 1 | 
  * Of the places clear of the routes (and arrowheads), it takes the first
  * also clear of borders, nodes and labels, else of nodes and labels, else
  * any; if none is clear of the routes, the first place. It never leaves the
- * requested segment or side: what remains is reported as
+ * requested segment or side. On short spans a label that still overlaps a
+ * box can move farther from the line (#332). What remains is reported as
  * `layout/edge-label-overlap` (`label-diagnostics.ts`).
  */
 function placeRequestedLabel(
@@ -406,5 +514,14 @@ function placeRequestedLabel(
     clear.find(clearOfBoxes) ??
     clear[0] ??
     (candidates[0] as Candidate);
+  if (length < len + arrowhead + g && !clearOfBoxes(chosen)) {
+    const lifted = shortSpanCandidates(a, b, w, h, sides, [
+      ...boxes,
+      ...segments,
+      ...borders,
+      ...heads,
+    ]).find((c) => clearOfRoutes(c) && clearOfBorders(c) && clearOfBoxes(c) && true);
+    if (lifted !== undefined) return placeText(metrics, lifted.center);
+  }
   return placeText(metrics, chosen.center);
 }
