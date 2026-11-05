@@ -68,7 +68,7 @@
  * (`labels.ts`) and the content and canvas grow to hold the routes.
  */
 
-import type { EdgeIR, FigureIR } from "../../compiler/ir";
+import type { ArrangeBoxIR, EdgeIR, FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import { type Diagnostic, hasErrors } from "../../core/diagnostics";
 import { SEPARATOR_ID } from "../../core/registry/builtins";
@@ -111,7 +111,7 @@ import {
   straightenable,
   straightPlacement,
 } from "./ports";
-import { addZoomRoutes, withoutZoomEdges, withoutZoomLayouts } from "./zoom";
+import { addZoomRoutes, isZoomEdge, withoutZoomEdges, withoutZoomLayouts } from "./zoom";
 
 /** Router parameters in units (0.5pt) and costs (in units of length). */
 export const ROUTE = Object.freeze({
@@ -1781,7 +1781,10 @@ export function clipRoomAtJunction(end: End, other: End, room: number, lane: num
  * Only a hidden junction moves, only along that line and only within its
  * channel: every other end of its edges must stay at least the corner
  * radius away (and a port aligned across the move stays out), it stays
- * inside its group, and no node moves. A junction with an arrowhead
+ * inside every containing group, and its swept rectangle stays clear of
+ * obstacles. Explicit alignment, centerOn, attachments and incident direct
+ * or zoom routes keep their solved placement. No other node moves.
+ * A junction with an arrowhead
  * straight ahead (a T, whose trunk does not turn) or edges that ask for
  * different moves is left alone. Returns `layout` itself if nothing moves.
  */
@@ -1790,15 +1793,32 @@ export function junctionsOnBus(ir: FigureIR, layout: LayoutIR): LayoutIR {
   if (hidden.length === 0) return layout;
   const resolved = resolveEnds(ir, layout);
   const moves = new Map<ElementKey, Point>();
+  const sweeps: Rect[] = [];
   for (const junction of hidden) {
     const at = layout.nodes.find((n) => n.key === junction.key)?.rect;
     if (at === undefined) continue;
+    // Direct edges have no orthogonal bus. Even in a mixed net, keep their
+    // solved endpoints: their anchor/curve requirements are not checked here.
+    if (
+      junction.attach !== undefined ||
+      ir.nodes.some((n) => n.attach?.to === junction.key) ||
+      ir.edges.some(
+        (e) =>
+          (e.from === junction.key || e.to === junction.key) && (isDirectEdge(e) || isZoomEdge(e)),
+      )
+    )
+      continue;
     const here = { x: at.x + at.width / 2, y: at.y + at.height / 2 };
     // The edge ends at the other end of each edge of the junction.
     const others: { end: End; arrowhead: boolean; width: number }[] = [];
+    let unresolved = false;
     for (const [index, edge] of ir.edges.entries()) {
+      if (edge.from !== junction.key && edge.to !== junction.key) continue;
       const ends = resolved[index];
-      if (ends === undefined || "error" in ends) continue;
+      if (ends === undefined || "error" in ends) {
+        unresolved = true;
+        break;
+      }
       const [mine, other, head] =
         edge.from === junction.key
           ? [ends.from, ends.to, edge.targetArrowhead]
@@ -1813,7 +1833,7 @@ export function junctionsOnBus(ir: FigureIR, layout: LayoutIR): LayoutIR {
       });
     }
     let move: Point | undefined;
-    let ok = others.length > 0;
+    let ok = !unresolved && others.length > 0;
     for (const { end, arrowhead, width } of others) {
       if (end.junction || end.dir < 0) {
         ok = false;
@@ -1841,6 +1861,17 @@ export function junctionsOnBus(ir: FigureIR, layout: LayoutIR): LayoutIR {
       move = delta;
     }
     if (!ok || move === undefined) continue;
+    const axis = move.x === 0 ? "y" : "x";
+    const constrained = (box: ArrangeBoxIR): boolean =>
+      (box.centerOn === junction.key && (box.kind === "stack" ? "y" : "x") === axis) ||
+      (box.kind === "place" && box.items.includes(junction.key)) ||
+      box.items.some((item) => typeof item === "object" && item !== null && constrained(item));
+    if (
+      ir.align?.some((a) => a.axis === axis && a.items.includes(junction.key)) ||
+      (ir.arrange !== undefined && constrained(ir.arrange)) ||
+      ir.groups.some((g) => g.arrange !== undefined && constrained(g.arrange))
+    )
+      continue;
     const to = { x: here.x + move.x, y: here.y + move.y };
     // The other ends keep their approach: a port on the line of the move
     // keeps the corner radius, one across it stays out of line.
@@ -1858,11 +1889,61 @@ export function junctionsOnBus(ir: FigureIR, layout: LayoutIR): LayoutIR {
         if (Math.abs(along) < STRAIGHT_MARGIN) ok = false;
       }
     }
-    const parent = junction.parent;
-    const group = parent === undefined ? undefined : layout.groups.find((g) => g.key === parent);
-    if (group !== undefined && (to.y > bottomOf(group.rect) || to.x > rightOf(group.rect)))
+    const proposed = roundRect({ ...at, x: at.x + move.x, y: at.y + move.y });
+    const swept = {
+      x: Math.min(at.x, proposed.x),
+      y: Math.min(at.y, proposed.y),
+      width: Math.max(rightOf(at), rightOf(proposed)) - Math.min(at.x, proposed.x),
+      height: Math.max(bottomOf(at), bottomOf(proposed)) - Math.min(at.y, proposed.y),
+    };
+    const contains = (outer: Rect, inner: Rect) =>
+      inner.x >= outer.x &&
+      inner.y >= outer.y &&
+      rightOf(inner) <= rightOf(outer) &&
+      bottomOf(inner) <= bottomOf(outer);
+    const touches = (a: Rect, b: Rect) =>
+      a.x <= rightOf(b) && rightOf(a) >= b.x && a.y <= bottomOf(b) && bottomOf(a) >= b.y;
+    // Bounding rectangles conservatively cover every node outline. Check the
+    // entire swept rectangle, not just its destination or connected ports.
+    if (
+      layout.nodes.some((n) => {
+        if (n.key === junction.key) return false;
+        const spec = ir.nodes.find((node) => node.key === n.key);
+        if (spec === undefined) return true;
+        const stroke = spec.style.strokeWidth.units / 2;
+        const outline = {
+          x: n.rect.x - stroke,
+          y: n.rect.y - stroke,
+          width: n.rect.width + 2 * stroke,
+          height: n.rect.height + 2 * stroke,
+        };
+        return touches(swept, outline);
+      }) ||
+      sweeps.some((r) => touches(swept, r))
+    )
       ok = false;
-    if (ok) moves.set(junction.key, move);
+    if (junction.parent !== undefined && !layout.groups.some((g) => g.key === junction.parent))
+      ok = false;
+    for (const group of layout.groups) {
+      const spec = ir.groups.find((g) => g.key === group.key);
+      if (spec === undefined) {
+        ok = false;
+        break;
+      }
+      const front = groupFrontRect(spec, group.rect);
+      if (contains(front, at) || group.key === junction.parent) {
+        if (!contains(front, swept)) ok = false;
+      } else if (touches(front, swept)) ok = false;
+      if (
+        (group.label !== undefined && touches(swept, group.label.box)) ||
+        groupLayerObstacles(spec, group.rect).some((r) => touches(swept, r))
+      )
+        ok = false;
+    }
+    if (ok) {
+      moves.set(junction.key, move);
+      sweeps.push(swept);
+    }
   }
   if (moves.size === 0) return layout;
   return {

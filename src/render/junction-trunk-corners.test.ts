@@ -6,8 +6,9 @@
 
 import { describe, expect, test } from "bun:test";
 import type { ElementKey } from "../core/check-state";
+import { validateProfile } from "../core/profile/schema";
 import { layoutStructuredFigure } from "../layout";
-import { junctionsOnBus } from "../layout/route/router";
+import { junctionsOnBus, routeEdges } from "../layout/route/router";
 import { paintedEdges } from "./structured";
 import type { Arc } from "./wire";
 
@@ -85,5 +86,219 @@ describe("junctionsOnBus", () => {
     expect(centreY("dec-split2")).toBeCloseTo(split.rect.y + split.rect.height / 2, 3);
     // The T splits of the encoder and of the masked block stay.
     expect(junctionsOnBus(ir, layout).nodes).toEqual(layout.nodes);
+  });
+});
+
+function placed(text: string, profile?: Parameters<typeof layoutStructuredFigure>[1]) {
+  const result = layoutStructuredFigure(text, { ...profile, route: false });
+  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+  return result.value;
+}
+
+const small = (route = "orthogonal", centerOn = false) => `
+version: 1
+figure:
+  id: bus-guards
+  layout:
+    arrange:
+      row:
+        items:
+          - stack: { direction: up, gap: 7pt, ${centerOn ? "centerOn: j," : ""} items: [a, j, b] }
+          - c
+nodes:
+  - { id: a, component: box, label: A }
+  - { id: j, component: junction, variant: hidden }
+  - { id: b, component: box, label: B }
+  - { id: c, component: box, label: C }
+edges:
+  - { from: a, to: j, component: arrow }
+  - { from: j, to: b, component: arrow, ${route === "orthogonal" ? "" : `route: ${route},`} toAnchor: 'south:0.8' }
+`;
+
+function nodeRect(value: ReturnType<typeof placed>, id: string) {
+  const key = value.ir.nodes.find((n) => n.id === id)?.key;
+  const rect = value.layout.nodes.find((n) => n.key === key)?.rect;
+  if (rect === undefined) throw new Error(`missing ${id}`);
+  return rect;
+}
+
+describe("bus movement preserves solved placement", () => {
+  test("transformer y alignment still holds after routing", async () => {
+    const text = (await Bun.file(`${root}/${TRANSFORMER}`).text()).replace(
+      "    density: compact",
+      "    density: compact\n    align: [{ y: [dec-split2, enc-split2] }]",
+    );
+    const value = placed(text);
+    const routed = routeEdges(value.ir, value.layout);
+    expect(routed.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+    const final = { ...value, layout: routed.layout };
+    expect(nodeRect(final, "dec-split2").y).toBe(nodeRect(final, "enc-split2").y);
+    expect(nodeRect(final, "dec-split2").y).toBe(nodeRect(value, "dec-split2").y);
+  });
+
+  test("stack.centerOn keeps the junction aligned with the neighboring main path", () => {
+    const value = placed(small("orthogonal", true));
+    const result = routeEdges(value.ir, value.layout);
+    expect(result.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+    const final = { ...value, layout: result.layout };
+    const center = (id: string) => {
+      const r = nodeRect(final, id);
+      return r.y + r.height / 2;
+    };
+    expect(center("j")).toBe(center("c"));
+    expect(nodeRect(final, "j")).toEqual(nodeRect(value, "j"));
+  });
+
+  test("an attached obstacle retains its relationship and does not cause no-route errors", async () => {
+    const text = (await Bun.file(`${root}/${TRANSFORMER}`).text()).replace(
+      "nodes:",
+      `nodes:
+  - id: obstacle
+    component: box
+    props: { width: 2pt, height: 1pt }
+    attach: { to: dec-split2, side: south, gap: 0 }`,
+    );
+    const value = placed(text);
+    const result = routeEdges(value.ir, value.layout);
+    expect(result.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+    const final = { ...value, layout: result.layout };
+    const j = nodeRect(final, "dec-split2");
+    expect(nodeRect(final, "obstacle").y).toBeCloseTo(j.y + j.height, 3);
+    expect(j).toEqual(nodeRect(value, "dec-split2"));
+  });
+
+  test.each(["straight", "curve"])("%s edges cannot request a bus move", (route) => {
+    const value = placed(small(route));
+    const result = routeEdges(value.ir, value.layout);
+    expect(result.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+    expect(nodeRect({ ...value, layout: result.layout }, "j")).toEqual(nodeRect(value, "j"));
+  });
+
+  test.each(["straight", "curve", "zoom"])(
+    "mixed routing retains incident %s endpoints",
+    (route) => {
+      const text = small().replace(
+        "{ from: a, to: j, component: arrow }",
+        `{ from: a, to: j, component: ${route === "zoom" ? "zoom" : "arrow"}${route === "zoom" ? "" : `, route: ${route}`} }`,
+      );
+      const value = placed(text);
+      expect(junctionsOnBus(value.ir, value.layout)).toBe(value.layout);
+    },
+  );
+
+  test.each(["node", "group", "title", "layer"])(
+    "the swept channel cannot intersect a %s obstacle",
+    async (kind) => {
+      const value = placed(await Bun.file(`${root}/${TRANSFORMER}`).text());
+      const at = nodeRect(value, "dec-split2");
+      // The move is 1.33 units down: this obstacle lies strictly between the
+      // original and final rectangles, so checking only the destination fails.
+      const obstacle = { x: at.x - 1, y: at.y + at.height + 0.2, width: at.width + 2, height: 0.1 };
+      const template = value.layout.groups[0];
+      const spec = value.ir.groups[0];
+      const node = value.layout.nodes.find(
+        (n) => n.key !== value.ir.nodes.find((n) => n.id === "dec-split2")?.key,
+      );
+      if (!template || !spec || !node) throw new Error("missing obstacle template");
+      const key = "group:bus-obstacle" as ElementKey;
+      let { ir, layout } = value;
+      if (kind === "node") {
+        layout = {
+          ...layout,
+          nodes: layout.nodes.map((n) => (n === node ? { ...n, rect: obstacle } : n)),
+        };
+      } else {
+        const group = { kind: "group" as const, key, rect: obstacle, content: obstacle };
+        if (kind === "title") {
+          const label = layout.nodes.find((n) => n.label)?.label;
+          if (!label) throw new Error("missing label");
+          layout = {
+            ...layout,
+            groups: [
+              ...layout.groups,
+              {
+                ...group,
+                rect: { ...obstacle, x: obstacle.x + 100 },
+                label: { ...label, box: obstacle },
+              },
+            ],
+          };
+        } else if (kind === "layer") {
+          // Its front starts below the sweep, but the back-card strip covers it.
+          layout = {
+            ...layout,
+            groups: [...layout.groups, { ...group, rect: { ...obstacle, height: 30, width: 30 } }],
+          };
+        } else layout = { ...layout, groups: [...layout.groups, group] };
+        ir = {
+          ...ir,
+          groups: [
+            ...ir.groups,
+            {
+              ...spec,
+              key,
+              ...(kind === "layer" ? { layers: { count: 2, offset: { units: 2, pt: 1 } } } : {}),
+            },
+          ],
+        };
+      }
+      expect(
+        junctionsOnBus(ir, layout).nodes.find(
+          (n) => n.key === value.ir.nodes.find((n) => n.id === "dec-split2")?.key,
+        )?.rect,
+      ).toEqual(at);
+    },
+  );
+
+  test.each(["north", "west"])("the complete junction cannot leave the %s group border", (side) => {
+    const checked = validateProfile({
+      version: 1,
+      id: "zero-padding",
+      description: "Zero group padding",
+      page: { maxWidth: "88mm", maxHeight: "220mm" },
+      margin: "2mm",
+      typography: { minFontSize: "7pt" },
+      layout: {
+        layerGap: "10mm",
+        containerPadding: "4mm",
+        groupPadding: "0pt",
+        compact: {
+          arrangeGap: "0pt",
+          nodePaddingX: "0pt",
+          nodePaddingY: "0pt",
+          groupPadding: "0pt",
+        },
+      },
+    });
+    if (!checked.ok) throw new Error(JSON.stringify(checked.diagnostics));
+    const text = `version: 1
+figure:
+  id: containment
+  theme: paper
+  layout:
+    arrange:
+      ${side === "north" ? "stack" : "row"}: { gap: 5pt, items: [g, b] }
+groups:
+  - id: g
+    arrange:
+      stack: { items: [j] }
+nodes:
+  - { id: b, component: box, label: B }
+  - { id: j, component: junction, variant: hidden }
+edges:
+  - { from: j, to: b, component: arrow, toAnchor: '${side}:0.8' }
+`;
+    const value = placed(text, { profile: checked.value });
+    expect(junctionsOnBus(value.ir, value.layout)).toBe(value.layout);
+    const routed = routeEdges(value.ir, value.layout);
+    expect(routed.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+    const final = routed.layout;
+    const j = nodeRect({ ...value, layout: final }, "j");
+    const g = final.groups[0]?.rect;
+    if (!g) throw new Error("missing group");
+    expect(j.x).toBeGreaterThanOrEqual(g.x);
+    expect(j.y).toBeGreaterThanOrEqual(g.y);
+    expect(j.x + j.width).toBeLessThanOrEqual(g.x + g.width);
+    expect(j.y + j.height).toBeLessThanOrEqual(g.y + g.height);
   });
 });

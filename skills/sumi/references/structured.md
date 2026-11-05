@@ -830,7 +830,10 @@ edges:
   elsewhere can still leave the head right after a corner: `geometry/arrowhead-cramped`
   (info). A hidden junction in a stack gap that feeds a bus from aside, just short of the
   head's room, moves onto the bus row (nodes never move), so its trunk turns into the bus
-  with a gentle corner. Trunks and side paths run about 3pt beside blocks; the lever is the
+  with a gentle corner. It stays at its placed position when that axis is constrained by
+  `layout.align` or `centerOn`, it has an attachment or an incident straight/curve/zoom edge,
+  or its swept rectangle meets a node, group border, title or back-card obstacle. Uncertain
+  checks keep the original position. Trunks and side paths run about 3pt beside blocks; the lever is the
   enclosing box's `gap`, not a coordinate.
 
 Three workers writing to one store, each line entering on its own (without

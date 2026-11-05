@@ -25,7 +25,13 @@ Multi-Head Attention の 3 つの入力（K・V は encoder から、Q は junct
 - 動かすのは hidden junction だけ。ノードは動かさない。動かす向きは矢じりの向きの一本だけ。次の場合は動かさない。
   - junction の真正面に同じ辺の矢じりがある T 字（幹が曲がらない）、辺ごとに動かす量が違う、junction どうしが辺でつながる。
   - ほかの端が動かした後に半径（8）以上離れない、動かす線に近く並んだ（`STRAIGHT_MARGIN` 以内の）ポートがある。
-  - 動かした位置が親グループの外になる。
+  - 動かす軸が `layout.align` または arrange の `centerOn` で拘束されている。座標配置の直接の項目も動かさない。
+  - junction 自身が attach されている、または junction に attach されたノードがある。接触していなくても配置関係を保つ。
+  - straight / curve / zoom の辺が接続している。これらは直交 bus の移動要求を作らない。混在時も直接経路の端点・接線などの条件をここでは検証できないため、junction を動かさない。
+  - junction の長方形を移動中も含めて覆う swept rectangle が、ほかのノードの外接長方形（線幅を含む）、グループ境界、タイトル、背面カードの障害物と接触する。
+  - 移動前に入っていたグループの前面長方形に swept rectangle 全体が収まらない。親グループについては必ず四辺を検査し、北・西への脱出や中心だけが内側にある移動も拒否する。
+  - 接続端や親グループなど必要な情報を解決できない。判断が不確かなときは配置済み位置を保持する。
+  - 先に採用した junction の swept rectangle と交わる（複数の移動同士の衝突も防ぐ）。
 - 動かした後の幹の角は junction の弧で、半径は幹の長さの半分（13.33 / 2 = 6.67）。幹の長さの全部を使うには junction の弧の上限（隣の角に半分を残す規則）を
   外す必要があり、ほかの図に影響するので、この issue では行わない。
 - 診断は足さない。矢じりの角は変わらず 4 で、`arrowhead-cramped` / `arrowhead-on-bend` の条件にも触れない。
@@ -42,3 +48,21 @@ Multi-Head Attention の 3 つの入力（K・V は encoder から、Q は junct
 リポジトリの全 `*.sumi.yaml`（research/ と非公開の図を除く）を、図自身のテーマと built-in 5 テーマで render し、SVG と診断出力のハッシュを比べた。
 変わるのは `examples/transformer`（`skills/sumi/examples/transformer` は同じ内容）と `tests/fixtures/figures/compact/a-transformer`（変種）だけ。
 encoder の分岐、masked 分岐などの T 字は動かないので変わらない。
+
+## レビュー後の制約保護
+
+配置の solve 後に junction を動かすため、配置だけを試す alignment hint では回帰を検出できなかった。
+transformer に `align: [{ y: [dec-split2, enc-split2] }]` を加えた再現では 345.039 が 346.366 に変わり、
+`stack.centerOn: j` の再現では中心が 59.5 から 65 に変わっていた。回帰テストは `routeEdges` の最終結果で等式と元の座標を確認する。
+`dec-split2` の南に gap 0 の 2pt × 1pt ノードを attach した再現では、移動により発生していた 3 件の `layout/no-route` がなくなり、attach 関係も保持される。
+padding 0 の検証済み profile と 5pt の外部ターゲットの再現は北・西とも脱出しない。
+7pt の上向き stack の直線・曲線辺は bus を要求せず、混在する直線・曲線・zoom 辺も端点を保持する。
+
+レビュー修正は安全性が証明できる範囲だけの最適化とする。制約付き配置を再 solve して他の要素を移動する案は採らない。
+ノードの外接長方形による衝突判定は、非矩形の空いている角でも移動を見送ることがあるが、配置の契約を優先する。
+回帰テストは移動のガードを無効化すると失敗することを確認した。障害物は到着点だけでなく移動途中に置き、ノード・別グループ・タイトル・背面カードを個別に検査する。
+
+レビュー修正前後の互換性比較は既存 101 YAML × 6 テーマ設定（自身のテーマ + built-in 5 テーマ）の 606 通り。
+SVG / PDF / PPTX / D2（生成される場合）の SHA-256 はすべて一致した。402 通りは描画成功、204 通りは不正入力・空図・未登録のテスト用部品などで前後とも出力なし。
+research/ と非公開の図は除外した。既存の transformer の改善は維持され、今回追加の golden 更新は不要。
+transformer と alignment・attach 障害物・`centerOn`・straight・curve の再現は CLI の PDF 出力を `pdftoppm -png` で画像化して確認した。
