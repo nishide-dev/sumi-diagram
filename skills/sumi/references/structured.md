@@ -1,7 +1,7 @@
 # Structured layout
 
 **Purpose.** The structured layout places every element exactly where you
-put it, in nested stacks, rows and grids, and routes the edges itself
+put it, in nested stacks, rows, grids and coordinate boxes, and routes the edges itself
 (orthogonal lines, shared trunks). Use it for paper block diagrams; for
 flows use auto ([layout-tips](layout-tips.md#choose-the-engine-first)).
 Everything on this page is **structured only** unless it says otherwise.
@@ -9,7 +9,7 @@ Feature versions and what to do on an older CLI:
 [figure-format](figure-format.md#feature-versions).
 
 Contents: [minimal example](#minimal-example) · [engine rules](#engine-rules) ·
-[arrange trees](#arrange-trees) · [grids](#grids) · [panel separators](#panel-separators) ·
+[arrange trees](#arrange-trees) · [grids](#grids) · [coordinates](#coordinate-placement) · [panel separators](#panel-separators) ·
 [group titles and captions](#group-titles-and-captions) · [sublabels](#sublabels) ·
 [turned labels](#turned-labels) · [text align](#text-align) · [attach](#attach-side-notes) ·
 [align](#aligning-across-trees) · [tables](#tables) ·
@@ -63,7 +63,7 @@ tones, `operator`, `junction`, `dim` and the paper variants work in both.
 figure:
   layout:
     arrange:                   # root tree: places the root elements
-      row:                     # a box is exactly one of stack (vertical) / row (horizontal) / grid
+      row:                     # exactly one of stack / row / grid / place
         gap: 6mm               # default 4mm (8mm on slides; 2.5mm with density: compact)
         align: end             # start | center | end | stretch (cross axis)
         items:                 # IDs of nodes / groups, or nested boxes
@@ -112,6 +112,52 @@ reject it (`component/grow-unsupported`). `justify: space-between` keeps sizes
 and spreads extra room between items (one item stays centred). For tighter
 title/caption spacing do not stretch a panel to an unrelated sibling: use
 `align: start` there and stretch only its inner columns.
+
+## Coordinate placement
+
+Use `place` for small graphs whose shape you choose. `unit` is a positive length
+(`mm`, `cm`, `in`, `pt`); each `at: [x, y]` is the item's center in multiples of
+that unit, with y downward. Signed and fractional numbers are allowed; each scaled
+coordinate must be within ±100000pt. The box is the union of its natural item
+footprints, without reserving space back to the origin. Nodes/groups retain labels,
+tones, captions, attach and edges; nested arrange boxes work too. A node's badge or
+a group's caption extends its footprint without changing the body's authored center.
+
+The parent places the box like any other item; extra space centers the whole shape
+without stretching its contents. `place` has no `gap`, `align`, `justify` or `centerOn`;
+use those on its parent. Cross-tree `align` can move the whole box via an enclosing
+stack/row, but cannot change authored offsets; impossible constraints report
+`layout/unsatisfied-align`. Repeat coordinates **and unit** to repeat a graph's shape
+in two groups. Overlapping item footprints report `layout/place-overlap` (render
+warning, both source positions); touching is allowed. Unknown/repeated IDs use the
+usual arrange diagnostics. Straight edges through another vertex remain geometry
+warnings, so move the vertex or change the edge.
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: four-vertex-graph
+  theme: paper
+  layout:
+    arrange:
+      place:
+        unit: 6mm
+        items:
+          - { item: a, at: [1.5, 0] }
+          - { item: b, at: [0, 2] }
+          - { item: c, at: [0.5, 4] }
+          - { item: d, at: [3, 3] }
+nodes:
+  - { id: a, component: circle, label: A, tone: blue }
+  - { id: b, component: circle, label: B, tone: orange }
+  - { id: c, component: circle, label: C, tone: green }
+  - { id: d, component: circle, label: D, tone: purple }
+edges:
+  - { from: a, to: b, component: line, route: straight }
+  - { from: b, to: c, component: line, route: straight }
+  - { from: b, to: d, component: line, route: straight }
+```
 
 ## Side inputs on a main flow
 
@@ -179,7 +225,7 @@ arrange:
 ```
 
 - Items fill left to right, then top to bottom; `direction` is not accepted.
-  An item is an ID, a nested stack / row / grid, `null` (YAML `~`), or
+  An item is an ID, a nested stack / row / grid / place, `null` (YAML `~`), or
   `{ item: ID-or-box-or-null, span: N }` (spans cover columns only).
 - **Every row must be complete**: crossing a row boundary is
   `layout/grid-span-overflow`, an incomplete last row `layout/grid-item-count`.

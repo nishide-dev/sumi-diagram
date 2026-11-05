@@ -29,14 +29,19 @@ nodes:
 `;
 const canvas = { x: 0, y: 0, width: 800, height: 100 };
 const rect = (x: number, width: number, y = 0) => ({ x, y, width, height: 20 });
-const hint = (text: string, elements: Parameters<typeof lintSpec>[1]["elements"], scale = 1) =>
+const finding = (text: string, elements: Parameters<typeof lintSpec>[1]["elements"], scale = 1) =>
   lintSpec(
     compile(text),
     { canvas, elements, scale, profile: { maxWidthPt: 1 } },
     {
       code: "geometry/exceeds-page-width",
     },
-  )[0]?.hint ?? "";
+  )[0];
+/** The hint plus the related detail notes: everything the diagnostic says about the width (#368). */
+const fullText = (d: { hint?: string; related?: { message: string }[] } | undefined) =>
+  [d?.hint ?? "", ...(d?.related ?? []).map((r) => r.message)].join(" ");
+const hint = (text: string, elements: Parameters<typeof lintSpec>[1]["elements"], scale = 1) =>
+  fullText(finding(text, elements, scale));
 
 describe("page width attribution (#307)", () => {
   test.each(["row", "grid"])(
@@ -75,17 +80,19 @@ describe("page width attribution (#307)", () => {
       );
       if (!before.rendered || !tighter.rendered || !scaled.rendered)
         throw new Error("render failed");
-      const finding = before.diagnostics.find((d) => d.code === "geometry/exceeds-page-width");
+      const found = before.diagnostics.find((d) => d.code === "geometry/exceeds-page-width");
       const originalInspection = structuredClone(before.rendered.inspection);
       expect(
-        lintGeometry(before.rendered).find((d) => d.code === "geometry/exceeds-page-width")?.hint,
-      ).toBe(finding?.hint);
+        fullText(
+          lintGeometry(before.rendered).find((d) => d.code === "geometry/exceeds-page-width"),
+        ),
+      ).toBe(fullText(found));
       expect(before.rendered.inspection).toEqual(originalInspection);
-      expect(finding?.hint).toContain("figure.layout.arrange.stack = 131.48mm");
-      expect(finding?.hint).toContain(`Descendant run: group "g".arrange.${kind}`);
-      expect(finding?.hint).toContain('node "a" 52.92mm');
-      expect(finding?.hint).toContain('node "b" 52.92mm');
-      expect(finding?.hint).toContain(
+      expect(fullText(found)).toContain("figure.layout.arrange.stack = 131.48mm");
+      expect(fullText(found)).toContain(`Descendant run: group "g".arrange.${kind}`);
+      expect(fullText(found)).toContain('node "a" 52.92mm');
+      expect(fullText(found)).toContain('node "b" 52.92mm');
+      expect(fullText(found)).toContain(
         `set group "g".arrange.${kind}.${kind === "grid" ? "columnGap" : "gap"} to 0mm (page width reduced by 20.11mm)`,
       );
       const reduction =
@@ -162,9 +169,9 @@ describe("page width attribution (#307)", () => {
     expect(printedSize(after.rendered.inspection).widthPt).toBe(
       printedSize(before.rendered.inspection).widthPt,
     );
-    const finding = before.diagnostics.find((d) => d.code === "geometry/exceeds-page-width");
-    expect(finding?.hint).toContain('node "a" 105.83mm');
-    expect(finding?.hint).not.toContain("reduce the largest observed gap");
+    const found = before.diagnostics.find((d) => d.code === "geometry/exceeds-page-width");
+    expect(fullText(found)).toContain('node "a" 105.83mm');
+    expect(fullText(found)).not.toContain("reduce the largest observed gap");
   });
 
   test("fixed-width contained labels cannot outrank an effective row gap edit", async () => {
@@ -180,11 +187,11 @@ describe("page width attribution (#307)", () => {
     const width = printedSize(before.rendered.inspection).widthPt;
     expect(printedSize(shorter.rendered.inspection).widthPt).toBe(width);
     expect(width - printedSize(tighter.rendered.inspection).widthPt).toBeGreaterThan(56);
-    const finding = before.diagnostics.find((d) => d.code === "geometry/exceeds-page-width");
-    expect(finding?.hint).toContain(
+    const found = before.diagnostics.find((d) => d.code === "geometry/exceeds-page-width");
+    expect(fullText(found)).toContain(
       "set figure.layout.arrange.row.gap to 0mm (page width reduced by",
     );
-    expect(finding?.hint).not.toContain("shorten or wrap the label");
+    expect(fullText(found)).not.toContain("shorten or wrap the label");
   });
 
   test("fixed-width label overflow ranks by overhang rather than full text width", () => {
@@ -311,11 +318,11 @@ nodes:
 
   test("real structured rendering reports concrete widths and the actionable gap", async () => {
     const report = await lintRenderedFigure(row);
-    const finding = report.diagnostics.find((d) => d.code === "geometry/exceeds-page-width");
-    expect(finding?.hint).toContain("figure.layout.arrange.row = 107.25mm");
-    expect(finding?.hint).toContain("12mm observed gaps");
-    expect(finding?.hint).toContain('node "b" 52.92mm');
-    expect(finding?.hint).toContain("Verified layout edits");
+    const found = report.diagnostics.find((d) => d.code === "geometry/exceeds-page-width");
+    expect(fullText(found)).toContain("figure.layout.arrange.row = 107.25mm");
+    expect(fullText(found)).toContain("12mm observed gaps");
+    expect(fullText(found)).toContain('node "b" 52.92mm');
+    expect(fullText(found)).toContain("Verified layout edits");
     expect(report.exitCode).toBe(1);
   });
 
@@ -323,9 +330,42 @@ nodes:
     const report = await lintRenderedFigure(
       await Bun.file("tests/fixtures/figures/geometry/exceeds-page-width.sumi.yaml").text(),
     );
-    const finding = report.diagnostics.find((d) => d.code === "geometry/exceeds-page-width");
-    expect(finding?.message).toContain("130.35mm");
-    expect(finding?.hint).toContain("auto horizontal footprint");
-    expect(finding?.hint).toContain("no trial layouts were run");
+    const found = report.diagnostics.find((d) => d.code === "geometry/exceeds-page-width");
+    expect(found?.message).toContain("130.35mm");
+    expect(fullText(found)).toContain("auto horizontal footprint");
+    expect(fullText(found)).toContain("no trial layouts were run");
+  });
+
+  test("the hint leads with overflow, the widest run and verified edits; detail moves to related notes (#368)", async () => {
+    const text = source(
+      "{ stack: { items: [{ row: { gap: 8mm, items: [a, { row: { gap: 6mm, items: [b, c] } }] } }] } }",
+      "  - { id: c, component: box, label: C, props: { width: 60pt } }\n",
+    );
+    const report = await lintRenderedFigure(text);
+    const found = report.diagnostics.find((d) => d.code === "geometry/exceeds-page-width");
+    const hint = found?.hint ?? "";
+    const order = [
+      "Width to remove: ",
+      "Sets the width: figure.layout.arrange.stack.items[0].row = ",
+      "Verified layout edits",
+      "Sumi never shrinks",
+    ].map((part) => hint.indexOf(part));
+    expect(order.every((i) => i >= 0)).toBe(true);
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+    // The fine-grained breakdown is not in the hint, but stays in the report.
+    for (const detail of [
+      "Descendant run:",
+      "occupied x-projection",
+      "Top-level bodies/labels span",
+      "Grid spans and overlapping",
+    ])
+      expect(hint).not.toContain(detail);
+    expect(hint.length).toBeLessThan(900);
+    const notes = (found?.related ?? []).map((r) => r.message).join("\n");
+    expect(notes).toContain("Widest horizontal run: figure.layout.arrange.stack.items[0].row");
+    expect(notes).toContain(
+      "Descendant run: figure.layout.arrange.stack.items[0].row.items[1].row",
+    );
+    expect(notes).toContain("Top-level bodies/labels span");
   });
 });

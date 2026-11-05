@@ -119,6 +119,7 @@ Apply one edit and re-check: independent savings are not additive.
 | `layout/no-route` with `route: straight` | separate overlapping ends, choose anchors meeting their outlines and facing outwards, increase the gap for arrowheads, or omit `route` (also on zoom callouts); obstacle and label overlaps are geometry warnings |
 | `layout/attached-legend`, `layout/attached-tokens`, `layout/attached-matrix` | these cannot be attached: list them in an arrange tree |
 | `layout/grid-span-overflow`, `layout/grid-item-count` | a grid item crosses its row boundary / the last row is incomplete: reduce the span or complete the row; `null` for a deliberate blank ([grids](structured.md#grids)) |
+| `layout/place-overlap` (render, warning) | natural footprints overlap at the reported centers; separate the coordinates or increase `place.unit`. Touching is allowed; placement never moves items automatically ([coordinates](structured.md#coordinate-placement)) |
 | `layout/no-route` (render) | the ends touch (`gap: 0`), are closer than the arrowhead, or are boxed in (the message and `related` name the node, often an `attach`ed one); on a `zoom` edge the ends overlap | widen that `gap` (arrows need about 1.5mm in `academic` / `paper`, 2.5mm in `minimal` / `color`, 4mm in `slides`; even a `line` needs > 0), anchor other sides ([spacing](structured.md#spacing-that-routes)); for `zoom` put the view beside, above or below the source |
 | `layout/unknown-align-item`, `layout/duplicate-align-item`, `layout/invalid-align` | an `align` entry names no node or group (edges cannot be aligned), names one twice, or has fewer than two IDs; an entry with both or neither of `x` / `y` is `schema/invalid-value` ([align](structured.md#aligning-across-trees)) |
 | `layout/unsatisfied-align` (render, warning) | the constraint could not be met; drawn closest, the message gives the distance | follow the hint: items share a box (use different boxes or wrap one in its own `stack` / `row`) or another constraint pulls them apart; for table headings `align: start` on the parent row |
@@ -212,18 +213,23 @@ explicit `props`: those findings point at `label`; partial or explicit ones at `
 
 ## Too wide: the width breakdown
 
-`geometry/exceeds-page-width` (render / `lint --geometry`) carries a measured
-breakdown in its hint. **Structured:** the widest row or grid, its item widths,
-the total and largest horizontal gap (a grid item names its column or span), and
-the horizontal overhang of attached nodes beyond their container. Concrete edits
-(row `gap`, grid `columnGap`, explicit node `width`, `attach.gap`; tried in order
-of their own size) are recommended only if the trial shows a smaller width, ranked by
-mm saved. **Auto:** the top-level horizontal footprint and observed gaps, not
-ELK's internal layers or spacing; overlapping x-ranges and grid spans are merged,
-blank tracks cannot be reconstructed; margins, strokes, edges and labels can also
-widen the page. Lengths are printed mm; `geometry/heavy-scaling` explicitly uses
-natural, pre-scaling mm so the same breakdown remains available under `fit: scale`.
-Sumi never shrinks a figure automatically.
+`geometry/exceeds-page-width` (render / `lint --geometry`) keeps its hint short and
+in the order you act on it: **1.** `Width to remove` (the overflow in mm), **2.** `Sets
+the width`: the row, grid or auto footprint that sets the page width and its three
+widest items (a grid item names its column or span), **3.** `Verified layout edits`:
+concrete edits (row `gap`, grid `columnGap`, explicit node `width`, `attach.gap`; tried
+in order of their own size) recommended only if the trial shows a smaller width, ranked
+by mm saved (up to 3; trial reductions are independent, not additive), and **4.** the
+reminder that Sumi never shrinks a figure on its own. The fine-grained breakdown is not
+in the hint: it follows as `related` notes (and in `--json` under `related`): every
+item width and the total of observed gaps of the widest run, the descendant runs, the
+horizontal overhang of attached nodes beyond their container, the largest label
+overhang and the top-level span. **Auto:** only the top-level horizontal footprint and
+observed gaps, not ELK's internal layers or spacing; no trials run. Overlapping
+x-ranges and grid spans are merged, blank tracks cannot be reconstructed; margins,
+strokes, edges and labels can also widen the page. Lengths are printed mm;
+`geometry/heavy-scaling` shows the same headline for the natural, pre-scaling width,
+so it remains available under `fit: scale`.
 
 Procedure: apply the hint's edit (or shorten labels), re-run, repeat: a second
 row may become the widest. If it is still too wide, build candidates from the

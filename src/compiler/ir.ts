@@ -111,7 +111,10 @@ export interface FigureMetaIR {
  * layout engine supplies the defaults (§6.21).
  */
 export interface ArrangeBoxIR {
-  readonly kind: "stack" | "row" | "grid";
+  readonly kind: "stack" | "row" | "grid" | "place";
+  /** Coordinate centers in pt, parallel to items; place boxes are rigid. */
+  readonly positionsPt?: readonly (readonly [number, number])[];
+  readonly placementSources?: readonly SourceMapEntry[];
   /** Grid-only track count, spans (parallel to items), and gaps in pt. */
   readonly columns?: number;
   readonly spans?: readonly number[];
@@ -490,7 +493,8 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
     const caption = attach.side === "south" ? captions.get(attach.to) : undefined;
     return caption === undefined ? endpointKey(attach.to) : nodeKey(caption);
   };
-  const arrangeOf = (box: ArrangeBox) => arrangeIR(box, endpointKey, captions, captionGapPt);
+  const arrangeOf = (box: ArrangeBox, path: DocPath) =>
+    arrangeIR(box, endpointKey, captions, captionGapPt, "center", path, sourceEntry);
 
   // Document order, with the cells of tokens nodes (#181) in their tokens node's place.
   for (const index of nodeOrder(doc)) {
@@ -594,7 +598,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
     addChild(n.group, key);
   }
 
-  const groups: GroupIR[] = groupEntries.map(({ g }) => {
+  const groups: GroupIR[] = groupEntries.map(({ g, index }) => {
     const key = groupKey(g.id);
     if (componentOf(state, key).manifest.kind !== "group") throw kindMismatch(key);
     return freeze({
@@ -603,7 +607,9 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
       shape: "rectangle",
       children: freeze(childrenOf.get(g.id) ?? []),
       style: styleOf(state, key, "group"),
-      ...(g.arrange !== undefined && { arrange: arrangeOf(g.arrange) }),
+      ...(g.arrange !== undefined && {
+        arrange: arrangeOf(g.arrange, ["groups", index, "arrange"]),
+      }),
       ...(g.labelAt !== undefined && { labelAt: g.labelAt }),
       ...(captions.has(g.id) && { caption: nodeKey(captions.get(g.id) as string) }),
     });
@@ -664,7 +670,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
       edges: freeze(edges),
       roots: freeze(childrenOf.get(undefined) ?? []),
       ...(figure.layout.arrange !== undefined && {
-        arrange: arrangeOf(figure.layout.arrange),
+        arrange: arrangeOf(figure.layout.arrange, ["figure", "layout", "arrange"]),
       }),
       ...(figure.layout.align !== undefined && {
         align: freeze(
@@ -799,16 +805,45 @@ function arrangeIR(
   captions: ReadonlyMap<string, string>,
   captionGapPt: number,
   inherited: ArrangeAlign = "center",
+  path: DocPath = [],
+  sourceEntry?: (path: DocPath) => SourceMapEntry,
 ): ArrangeBoxIR {
-  const spec = box.stack ?? box.row ?? box.grid;
-  if (spec === undefined) throw new Error("internal error: arrange box without stack, row or grid");
-  const kind = box.stack !== undefined ? "stack" : box.row !== undefined ? "row" : "grid";
-  const align = spec.align ?? (kind === "grid" ? "center" : inherited);
-  const item = (item: ArrangeItem | null): ArrangeItemIR => {
+  const spec = box.stack ?? box.row ?? box.grid ?? box.place;
+  if (spec === undefined) throw new Error("internal error: arrange box without a kind");
+  const kind =
+    box.stack !== undefined
+      ? "stack"
+      : box.row !== undefined
+        ? "row"
+        : box.grid !== undefined
+          ? "grid"
+          : "place";
+  const align =
+    ("align" in spec ? spec.align : undefined) ?? (kind === "grid" ? "center" : inherited);
+  const item = (item: ArrangeItem | null, index: number): ArrangeItemIR => {
     if (item === null) return null;
     if (typeof item !== "string") {
-      const nested = item.stack !== undefined ? "stack" : item.row !== undefined ? "row" : "grid";
-      return arrangeIR(item, keyOf, captions, captionGapPt, nested === kind ? align : "center");
+      const nested =
+        item.stack !== undefined
+          ? "stack"
+          : item.row !== undefined
+            ? "row"
+            : item.grid !== undefined
+              ? "grid"
+              : "place";
+      const cell = box.grid?.items[index];
+      const wrapped =
+        kind === "place" ||
+        (kind === "grid" && cell !== null && typeof cell === "object" && "item" in cell);
+      return arrangeIR(
+        item,
+        keyOf,
+        captions,
+        captionGapPt,
+        nested === kind ? align : "center",
+        [...path, kind, "items", index, ...(wrapped ? ["item"] : [])],
+        sourceEntry,
+      );
     }
     const caption = captions.get(item);
     if (caption === undefined) return keyOf(item);
@@ -836,10 +871,24 @@ function arrangeIR(
         ),
       ),
       items: freeze(
-        grid.items.map((c) =>
-          item(c !== null && typeof c === "object" && "item" in c ? c.item : c),
+        grid.items.map((c, index) =>
+          item(c !== null && typeof c === "object" && "item" in c ? c.item : c, index),
         ),
       ),
+    });
+  }
+  if (box.place !== undefined) {
+    const { unit, items } = box.place;
+    return freeze({
+      kind: "place",
+      direction: "right",
+      positionsPt: freeze(items.map(({ at }) => freeze([at[0] * unit, at[1] * unit] as const))),
+      ...(sourceEntry && {
+        placementSources: freeze(
+          items.map((_, i) => sourceEntry([...path, "place", "items", i, "at"])),
+        ),
+      }),
+      items: freeze(items.map((cell, i) => item(cell.item, i))),
     });
   }
   const linear = box.stack ?? box.row;
@@ -850,7 +899,7 @@ function arrangeIR(
     ...(linear.gap !== undefined && { gapPt: linear.gap }),
     ...(linear.justify !== undefined && { justify: linear.justify }),
     ...(linear.centerOn !== undefined && { centerOn: keyOf(linear.centerOn) }),
-    ...(spec.align !== undefined && { align: spec.align }),
+    ...(linear.align !== undefined && { align: linear.align }),
     items: freeze(linear.items.map(item)),
   });
 }
