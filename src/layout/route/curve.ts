@@ -9,7 +9,11 @@ import { type Cubic, cubicPoint, sampleCubic } from "./cubic";
 import { straightLabel } from "./direct-label";
 import { DIRS, isJunction, SIDE_DIR } from "./ports";
 
-/** Resolve each junction once from the complete incident set, including the through edge. */
+/**
+ * Resolve each junction once from the complete incident set, including the through edge.
+ * The vector is an oriented flow direction: edges ending here arrive along it and edges
+ * starting here depart along it, so curves continue through the junction without a cusp.
+ */
 export function junctionTangents(
   ir: FigureIR,
   layout: LayoutIR,
@@ -50,6 +54,25 @@ export function junctionTangents(
         { x: 0, y: 0 },
       );
       v = sum.x >= sum.y ? { x: 1, y: 0 } : { x: 0, y: 1 };
+      const into = incident.filter((e) => e.to === key);
+      const out = incident.filter((e) => e.from === key);
+      const [first] = into;
+      const [last] = out;
+      if (first && last && into.length === 1 && out.length === 1) {
+        // One in, one out: the through direction runs from the incoming source to the outgoing target.
+        const a = center(first.from);
+        const b = center(last.to);
+        v = { x: b.x - a.x, y: b.y - a.y };
+      } else {
+        // Fan-in/fan-out: orient the axis along the incoming (else outgoing) chords.
+        const dot = (e: EdgeIR) => {
+          const a = center(e.from);
+          const b = center(e.to);
+          return v.x * (b.x - a.x) + v.y * (b.y - a.y);
+        };
+        const total = (into.length > 0 ? into : out).reduce((n, e) => n + dot(e), 0);
+        if (total < 0) v = { x: -v.x, y: -v.y };
+      }
     }
     tangents.set(key, v);
   }
@@ -81,8 +104,8 @@ export function curvePoints(
       const normal = DIRS[SIDE_DIR[side.side]] as Point;
       return { x: normal.x * (source ? 1 : -1), y: normal.y * (source ? 1 : -1) };
     }
-    const v = tangents.get(key) ?? chord;
-    return v.x * chord.x + v.y * chord.y < 0 ? { x: -v.x, y: -v.y } : v;
+    // Junction vectors are already oriented along the flow; only ordinary nodes follow the chord.
+    return tangents.get(key) ?? chord;
   };
   const distance = Math.hypot(chord.x, chord.y) / 3;
   const control = (p: Point, v: Point, sign: number): Point => {

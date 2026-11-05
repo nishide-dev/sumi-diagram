@@ -150,15 +150,16 @@ test("a diagonal curved through-edge shares both junction tangents with its bran
       expect(
         Math.abs(u.x * v.y - u.y * v.x) / (Math.hypot(u.x, u.y) * Math.hypot(v.x, v.y)),
       ).toBeLessThan(0.0001);
+      // Same direction, not merely collinear: an antiparallel pair leaves a cusp.
+      expect(u.x * v.x + u.y * v.y).toBeGreaterThan(0);
     }
-    for (const p of [incoming, through, outgoing]) {
-      const chord = { x: p[3].x - p[0].x, y: p[3].y - p[0].y };
-      for (const [a, b] of [
-        [p[0], p[1]],
-        [p[2], p[3]],
-      ] as const) {
-        expect((b.x - a.x) * chord.x + (b.y - a.y) * chord.y).toBeGreaterThan(0);
-      }
+    // The through edge itself runs along the shared flow direction at both ends.
+    const chord = { x: through[3].x - through[0].x, y: through[3].y - through[0].y };
+    for (const [a, b] of [
+      [through[0], through[1]],
+      [through[2], through[3]],
+    ] as const) {
+      expect((b.x - a.x) * chord.x + (b.y - a.y) * chord.y).toBeGreaterThan(0);
     }
     expect(Object.values(checkRoutes(r.compiled.ir, r.layout)).flat()).toEqual([]);
   }
@@ -319,4 +320,90 @@ test("invalid curve routes fail with source-located diagnostics", async () => {
       (d) => d.code === "layout/structured-only" && d.path?.at(-1) === "route",
     ),
   ).toBe(true);
+});
+
+test("the horizontal GCN-style bundle keeps its exact pre-orientation geometry", async () => {
+  const r = await render(fixture);
+  const actual = r.layout.edges.map((e) => [e.key, e.route?.points]);
+  expect(actual).toEqual([
+    [
+      "e:in1",
+      [
+        { x: 43.974, y: 42.688 },
+        { x: 72.939, y: 72.132 },
+        { x: 89.567, y: 131.02 },
+        { x: 130.87, y: 131.02 },
+      ],
+    ],
+    [
+      "e:in2",
+      [
+        { x: 49.393, y: 102.324 },
+        { x: 76.552, y: 111.889 },
+        { x: 102.076, y: 131.02 },
+        { x: 130.87, y: 131.02 },
+      ],
+    ],
+    [
+      "e:in3",
+      [
+        { x: 49.561, y: 157.214 },
+        { x: 76.664, y: 148.483 },
+        { x: 102.395, y: 131.02 },
+        { x: 130.87, y: 131.02 },
+      ],
+    ],
+    [
+      "e:in4",
+      [
+        { x: 45.132, y: 216.886 },
+        { x: 73.711, y: 188.264 },
+        { x: 90.423, y: 131.02 },
+        { x: 130.87, y: 131.02 },
+      ],
+    ],
+    [
+      "e:hidden",
+      [
+        { x: 130.87, y: 131.02 },
+        { x: 211.24, y: 131.02 },
+      ],
+    ],
+    [
+      "e:out1",
+      [
+        { x: 211.24, y: 131.02 },
+        { x: 252.474, y: 131.02 },
+        { x: 269.071, y: 72.228 },
+        { x: 297.987, y: 42.832 },
+      ],
+    ],
+    [
+      "e:out2",
+      [
+        { x: 211.24, y: 131.02 },
+        { x: 239.877, y: 131.02 },
+        { x: 265.232, y: 111.909 },
+        { x: 292.228, y: 102.353 },
+      ],
+    ],
+    [
+      "e:out3",
+      [
+        { x: 211.24, y: 131.02 },
+        { x: 239.556, y: 131.02 },
+        { x: 265.119, y: 148.464 },
+        { x: 292.058, y: 157.186 },
+      ],
+    ],
+    [
+      "e:out4",
+      [
+        { x: 211.24, y: 131.02 },
+        { x: 251.619, y: 131.02 },
+        { x: 268.301, y: 188.167 },
+        { x: 296.832, y: 216.74 },
+      ],
+    ],
+  ]);
 });

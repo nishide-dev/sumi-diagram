@@ -633,8 +633,10 @@ Shared trunks keep their existing routing. There is no per-edge lane coordinate.
   sites as usual. Omit `route` for the existing orthogonal router.
 - **Smooth bundles**: `route: curve` draws one independent cubic Bézier, without
   obstacle avoidance. Outline endpoints and anchors follow `route: straight`.
-  All incident curves at a junction share one tangent direction, including a
-  curved through-edge. Explicit side anchors override that direction.
+  All incident curves at a junction share one oriented direction, including a
+  curved through-edge: curves arrive along it and depart along it, so they continue
+  in the same direction through the junction without a cusp. Explicit side anchors
+  override that direction.
   At ordinary nodes, automatic tangents follow the
   endpoint chord; side anchors/fixed ports use their outward side normal.
   Arrowheads follow the end tangent; `tone` works as on straight edges. Labels
