@@ -342,7 +342,10 @@ function llamaComponents(): NonNullable<ThemeDefinition["components"]> {
     bracket: { ...components.bracket, muted: mutedLine },
     waveform: { ...components.waveform, muted: mutedLine },
     // The zoom lines are thin and light gray.
-    zoom: { ...components.zoom, default: { strokeDash: "{dash.zoom}", stroke: "{color.zoom}" } },
+    zoom: {
+      ...components.zoom,
+      default: { strokeDash: "{dash.zoom}", stroke: "{color.zoom}", strokeWidth: "{line.thin}" },
+    },
   };
 }
 
@@ -847,8 +850,10 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
         pink: "#b8326e",
       },
       size: { text: "8pt", small: "7pt", heading: "9pt" },
-      // Frames and edges are equally thin in the figure.
-      line: { regular: "0.5pt", bold: "1pt" },
+      // Frames and edges are about equally heavy in the figure: near a fifth
+      // of the text's ink height (#386), i.e. 1pt at 8pt text. The zoom
+      // lines are thinner.
+      line: { thin: "0.5pt", regular: "1pt", bold: "1.5pt" },
       radius: { node: "3pt", group: "5pt", legend: "3pt" },
       // The zoom lines have short dashes.
       dash: { regular: 3, zoom: 2 },

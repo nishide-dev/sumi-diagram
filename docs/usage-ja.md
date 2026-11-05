@@ -268,7 +268,7 @@ sumi render figure.sumi.yaml -o glued.pptx --pptx-mode editable --pptx-connector
 | `slides` | スライド向け。文字 16pt（エッジ 14pt、コンテナ 18pt）、線 2pt。`presentation-16x9` と組み合わせる |
 | `color` | 色を使う汎用テーマ。`minimal` と同じ線・文字で、tone は淡い色の塗り、強調は青。文字 8pt（エッジ 7pt） |
 | `paper` | カラーの ML 論文風。パステルの tone、角丸の箱とグループ、黒い 1pt の枠、薄い灰色のパネル、0.5pt のエッジと小さい矢じり、structured の図の欧文は Inter（フォントセット `sumi/inter-biz-ud-gothic`）。文字 8pt（エッジ 7pt）（[設計 §6.52](design/phase1.md#652-173-の論文向けの-theme-paper)） |
-| `llama` | Meta の Llama 4 の発表記事の MoE の図にならったテーマ。0.5pt の青灰色の線と開いた山形の矢じり、灰色の枠の白い箱、濃い青灰色の `solid`、青い `emphasis`、枠のない淡いパネル。欧文は `paper` と同じ Inter。文字 8pt（エッジ 7pt）（[設計 #386](design/decisions/386-llama-theme.md)） |
+| `llama` | Meta の Llama 4 の発表記事の MoE の図にならったテーマ。1pt の青灰色の線と開いた山形の矢じり、灰色の枠の白い箱、濃い青灰色の `solid`、青い `emphasis`、枠のない淡いパネル。欧文は `paper` と同じ Inter。文字 8pt（エッジ 7pt）（[設計 #386](design/decisions/386-llama-theme.md)） |
 
 `academic` と `paper` はどちらも論文向けです。白黒で印刷するなら `academic`、カラーの ML 論文なら `paper` です。比較表と同じ図の描き比べは[テーマの説明](themes-ja.md)を参照してください。
 

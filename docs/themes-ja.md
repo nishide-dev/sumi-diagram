@@ -20,7 +20,7 @@
 | 用途 | 汎用・中立の既定 | ジャーナルの図、白黒印刷 | 投影 | 色を使う汎用 | カラーの ML 論文の図 | Llama 4 の MoE の図の調子の図 |
 | 色 | 白黒。tone は 3 段階の灰色 | 灰色のみ。tone は 3 段階の灰色 | 白黒（濃いめの灰色）。tone は 3 段階の灰色 | パステルの tone、強調は青 | パステルの tone と tone ごとの線色。青は tone の 1 つ | 青灰色と灰色。`solid` は濃い青灰色、`emphasis` は青、`filled` / `muted` は枠のない灰色 / 淡い箱。tone は淡い塗り |
 | 角 | 四角 | 四角 | 四角 | 四角 | 角丸（箱 2pt、グループ 6pt） | 角丸（箱 3pt、グループ 5pt） |
-| 線 | 1pt、強調 2pt | 0.5pt、強調 1pt | 2pt、強調 4pt | 1pt、強調 2pt | 枠 1pt、エッジ 0.5pt（矢じりは小さい）。強調は図形 1.5pt、エッジ 1pt | 枠とエッジ 0.5pt、**開いた山形の矢じり**。強調のエッジは 1pt の青 |
+| 線 | 1pt、強調 2pt | 0.5pt、強調 1pt | 2pt、強調 4pt | 1pt、強調 2pt | 枠 1pt、エッジ 0.5pt（矢じりは小さい）。強調は図形 1.5pt、エッジ 1pt | 枠とエッジ 1pt、**開いた山形の矢じり**（箱から少し離す）。強調のエッジは 1.5pt の青、拡大の破線は 0.5pt |
 | グループ | 薄い灰色の塗り、灰色の枠 | 塗りなし、灰色の枠 | 薄い灰色の塗り、灰色の枠 | 薄い灰色の塗り、灰色の枠 | 薄い灰色のパネル、黒 1pt の枠、角丸 | 枠のない淡いパネル、見出しは細字。`muted` は白いパネル |
 | フォント | BIZ UDPGothic。8pt、エッジ 7pt | BIZ UDPGothic。8pt、エッジ 7pt | BIZ UDPGothic。16pt、エッジ 14pt | BIZ UDPGothic。8pt、エッジ 7pt | structured の図の欧文は Inter、日本語は BIZ UDPGothic。8pt、エッジ 7pt | `paper` と同じ |
 | 典型的なプロファイル | `paper-single`、`paper-double` | `paper-single`、`paper-double` | `presentation-16x9` | `paper-single`、`paper-double` | `paper-single`、`paper-double` | `paper-single`、`paper-double` |

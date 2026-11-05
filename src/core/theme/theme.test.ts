@@ -690,11 +690,11 @@ describe("built-in themes", () => {
       strokeWidth: s.strokeWidth.pt,
       fontColor: s.fontColor,
     });
-    // Expert: a white block with a thin gray frame and dark text.
+    // Expert: a white block with a 1pt gray frame and dark text.
     expect(colors(style("box"))).toEqual({
       fill: "#ffffff",
       stroke: "#8a96a1",
-      strokeWidth: 0.5,
+      strokeWidth: 1,
       fontColor: "#1c2b33",
     });
     // Attention: the dark slate block with white text.
@@ -736,7 +736,7 @@ describe("built-in themes", () => {
       });
     }
     // Slate edges; thin light gray dashed zoom lines.
-    expect(colors(style("arrow"))).toMatchObject({ stroke: "#344854", strokeWidth: 0.5 });
+    expect(colors(style("arrow"))).toMatchObject({ stroke: "#344854", strokeWidth: 1 });
     expect(style("zoom")).toMatchObject({ stroke: "#96a0a7", strokeWidth: { pt: 0.5 } });
     expect(style("zoom").strokeDash).toBeGreaterThan(0);
     // Rounded blocks and panels.
@@ -744,7 +744,7 @@ describe("built-in themes", () => {
     expect(style("container")).toMatchObject({ radius: { pt: 5 } });
     // Line-only components keep a visible muted line.
     for (const id of ["bracket", "waveform"]) {
-      expect(style(id, "muted")).toMatchObject({ stroke: "#657585", strokeWidth: { pt: 0.5 } });
+      expect(style(id, "muted")).toMatchObject({ stroke: "#657585", strokeWidth: { pt: 1 } });
     }
   });
 
@@ -805,7 +805,7 @@ describe("borderless and dashed variants (#174)", () => {
       // its dashed group draws one in the theme's frame color.
       expect(group("dashed")).toMatchObject({
         fill: "transparent",
-        strokeWidth: id === "llama" ? { pt: 0.5 } : group("default").strokeWidth,
+        strokeWidth: id === "llama" ? { pt: 1, units: 2 } : group("default").strokeWidth,
         stroke: group("default").stroke,
       });
       expect(group("dashed").strokeDash).toBeGreaterThan(0);

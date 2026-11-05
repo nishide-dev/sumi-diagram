@@ -415,18 +415,26 @@ const unit = (from: Point, to: Point): Point => {
 };
 
 /**
- * An open arrowhead (#386): a chevron whose arms reach this fraction of the
- * arrowhead length back from its vertex and as far to each side, a right
- * angle a little wider than the triangle (which is as wide as it is long), so
- * it reads at the thin lines of the themes that use it. It stays within the
- * length the router keeps.
+ * An open arrowhead (#386): a right-angled chevron of two strokes, drawn
+ * inside the rectangle the router and the lint keep for every arrowhead
+ * (`arrowheadLength()` long and as wide, `arrowheadRects()`), stroke caps
+ * included: each arm reaches half that width less half a stroke back and to
+ * the side. Its painted tip stands {@link openArrowheadGap} short of the
+ * route's end, so it does not touch the box it points at.
  */
-export const OPEN_ARROWHEAD_REACH = 0.75;
+export function openArrowhead(length: number, strokeUnits: number) {
+  const gap = openArrowheadGap(strokeUnits);
+  return { gap, vertex: gap + strokeUnits / 2, reach: length / 2 - strokeUnits / 2 };
+}
+
+/** The gap between an open chevron's painted tip and the route's end: one stroke width. */
+export function openArrowheadGap(strokeUnits: number): number {
+  return strokeUnits;
+}
 
 /**
  * How far an arrowhead's base is from its tip: where the line stops. An
- * open chevron's line runs to its vertex, half a stroke behind the tip (the
- * round join reaches the tip).
+ * open chevron's line runs to its vertex (see {@link openArrowhead}).
  */
 function arrowheadInset(head: Arrowhead, length: number, strokeUnits: number): number {
   switch (head) {
@@ -434,7 +442,7 @@ function arrowheadInset(head: Arrowhead, length: number, strokeUnits: number): n
     case "cross":
       return 0;
     case "open":
-      return strokeUnits / 2;
+      return openArrowhead(length, strokeUnits).vertex;
     case "arrow":
       return length * 0.6;
     default:
@@ -473,8 +481,8 @@ export function drawArrowhead(
     case "open": {
       // Stroked, never filled: the line shows through the open side.
       const w = style.strokeWidth.units;
-      const reach = length * OPEN_ARROWHEAD_REACH;
-      const points = [at(w / 2 + reach, reach), at(w / 2, 0), at(w / 2 + reach, -reach)];
+      const { vertex, reach } = openArrowhead(length, w);
+      const points = [at(vertex + reach, reach), at(vertex, 0), at(vertex + reach, -reach)];
       return `<path class="sumi-arrowhead" d="${pathData(points)}" fill="none" stroke="${color}" stroke-width="${n(w)}" stroke-linecap="round" stroke-linejoin="round"/>`;
     }
     case "triangle":

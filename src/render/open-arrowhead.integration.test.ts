@@ -146,7 +146,7 @@ describe("structured SVG", () => {
     const chunk = chunkOf(rendered.svg, 0);
     expect(chunk).not.toContain("<polygon");
     const head =
-      /<path class="sumi-arrowhead" d="M ([\d.]+) ([\d.]+) L ([\d.]+) ([\d.]+) L ([\d.]+) ([\d.]+)" fill="none" stroke="#344854" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"\/>/.exec(
+      /<path class="sumi-arrowhead" d="M ([\d.]+) ([\d.]+) L ([\d.]+) ([\d.]+) L ([\d.]+) ([\d.]+)" fill="none" stroke="#344854" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"\/>/.exec(
         chunk,
       );
     if (head === null) throw new Error(`no chevron in ${chunk}`);
@@ -160,10 +160,12 @@ describe("structured SVG", () => {
     ];
     const tip = /<path class="connection" d="M [\d.]+ [\d.]+ L ([\d.]+) ([\d.]+)"/.exec(chunk);
     const [tx, ty] = [Number(tip?.[1]), Number(tip?.[2])];
-    // Pointing right: the vertex half a stroke (0.5 units) behind the tip,
-    // the arms 0.75 × the 8-unit arrowhead back and to each side.
-    expect([vx, vy]).toEqual([tx - 0.5, ty]);
-    expect([x1, y1, x2, y2]).toEqual([vx - 6, vy + 6, vx - 6, vy - 6]);
+    // Pointing right, 1pt (2-unit) lines, a 12-unit arrowhead: the painted
+    // tip one stroke short of the route's end (the vertex a further half
+    // stroke back), the arms 5 units back and to each side, so with their
+    // round caps they stay within the 12 × 12 rectangle kept for the head.
+    expect([vx, vy]).toEqual([tx - 3, ty]);
+    expect([x1, y1, x2, y2]).toEqual([vx - 5, vy + 5, vx - 5, vy - 5]);
     // The wire (round caps) ends at the vertex, not at a triangle's base.
     const wires = [...rendered.svg.matchAll(/<path class="sumi-wire" d="([^"]*)"/g)].map(
       (m) => m[1] ?? "",
@@ -194,6 +196,126 @@ describe("structured SVG", () => {
     const rendered = await render(structured("paper"));
     expect(rendered.svg).not.toContain("sumi-arrowhead");
     expect(chunkOf(rendered.svg, 0)).toContain("<polygon");
+  });
+});
+
+/** Axis-aligned box of a chevron's painted ink: its points widened by half the stroke (round caps). */
+function chevronBoxes(chunk: string) {
+  return [
+    ...chunk.matchAll(/<path class="sumi-arrowhead" d="([^"]*)"[^>]* stroke-width="([\d.]+)"/g),
+  ].map((m) => {
+    const values = [...(m[1] ?? "").matchAll(/-?[\d.]+/g)].map((v) => Number(v[0]));
+    const xs = values.filter((_, i) => i % 2 === 0);
+    const ys = values.filter((_, i) => i % 2 === 1);
+    const half = Number(m[2]) / 2;
+    return {
+      x0: Math.min(...xs) - half,
+      x1: Math.max(...xs) + half,
+      y0: Math.min(...ys) - half,
+      y1: Math.max(...ys) + half,
+    };
+  });
+}
+
+type Box = ReturnType<typeof chevronBoxes>[number];
+const overlaps = (a: Box, b: Box) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+
+/** The connection polyline of every edge, by index. */
+function connections(svg: string): Map<number, [number, number][]> {
+  const out = new Map<number, [number, number][]>();
+  for (const m of svg.matchAll(
+    /<g class="[^"]*\bsumi-k-e--_(\d+) [^"]*"[^>]*><path class="connection" d="([^"]*)"/g,
+  )) {
+    const values = [...(m[2] ?? "").matchAll(/-?[\d.]+/g)].map((v) => Number(v[0]));
+    const points: [number, number][] = [];
+    for (let i = 0; i + 1 < values.length; i += 2)
+      points.push([values[i] ?? 0, values[i + 1] ?? 0]);
+    out.set(Number(m[1]), points);
+  }
+  return out;
+}
+
+describe("an open head stays inside the room kept for an arrowhead", () => {
+  test("it does not reach into a neighbouring node (review of #386)", async () => {
+    // Two boxes 1pt apart; the arrow enters the shorter one near its corner.
+    const rendered = await render(`version: 1
+figure:
+  id: neighbour
+  theme: llama
+  profile: paper-double
+  layout:
+    arrange:
+      stack:
+        gap: 8mm
+        items:
+          - row: { gap: 1pt, align: start, items: [ a, b ] }
+          - src
+nodes:
+  - { id: a, component: box, label: A, props: { width: 40pt, height: 12pt } }
+  - { id: b, component: box, label: B, props: { width: 40pt, height: 30pt } }
+  - { id: src, component: box, label: S }
+edges:
+  - { from: src, to: a, toAnchor: "south:0.95" }
+`);
+    const boxes = chevronBoxes(chunkOf(rendered.svg, 0));
+    expect(boxes).toHaveLength(1);
+    const b = rendered.inspection.elements.find((e) => e.key === "n:b")?.bbox;
+    if (b === undefined) throw new Error("no box b");
+    const rect = { x0: b.x, x1: b.x + b.width, y0: b.y, y1: b.y + b.height };
+    for (const head of boxes) expect(overlaps(head, rect)).toBe(false);
+    // Across the line, the ink is at most the arrowhead length wide (12 units).
+    for (const head of boxes) expect(head.x1 - head.x0).toBeLessThanOrEqual(12 + 1e-6);
+  });
+
+  test("it does not cross a neighbouring line", async () => {
+    // Three arrows enter one box side by side, as closely as the router allows.
+    const rendered = await render(`version: 1
+figure:
+  id: lines
+  theme: llama
+  profile: paper-double
+  layout:
+    fanIn: spread
+    arrange:
+      stack:
+        gap: 8mm
+        items:
+          - row: { gap: 2mm, items: [ p, q, r ] }
+          - sink
+nodes:
+  - { id: p, component: box, label: P }
+  - { id: q, component: box, label: Q }
+  - { id: r, component: box, label: R }
+  - { id: sink, component: box, label: Sink, props: { width: 30pt } }
+edges:
+  - { from: p, to: sink }
+  - { from: q, to: sink }
+  - { from: r, to: sink }
+`);
+    const lines = connections(rendered.svg);
+    expect(lines.size).toBe(3);
+    for (const [index] of lines) {
+      for (const head of chevronBoxes(chunkOf(rendered.svg, index))) {
+        for (const [other, points] of lines) {
+          if (other === index) continue;
+          for (let i = 1; i < points.length; i++) {
+            const [ax, ay] = points[i - 1] as [number, number];
+            const [bx, by] = points[i] as [number, number];
+            const segment = {
+              x0: Math.min(ax, bx) - 1,
+              x1: Math.max(ax, bx) + 1,
+              y0: Math.min(ay, by) - 1,
+              y1: Math.max(ay, by) + 1,
+            };
+            expect({ index, other, crosses: overlaps(head, segment) }).toEqual({
+              index,
+              other,
+              crosses: false,
+            });
+          }
+        }
+      }
+    }
   });
 });
 

@@ -389,7 +389,7 @@ They are built in; a figure cannot define its own. `sumi catalog --json` lists t
 | `slides` | for slides: 16pt text (14pt on edges, 18pt container labels), 2pt lines; use with `presentation-16x9` |
 | `color` | general purpose with color: like `minimal`, but tones are pastel fills and emphasis is blue |
 | `paper` | color ML-paper style: pastel tone fills, rounded boxes (2pt) and groups (6pt), black 1pt frames, light gray groups, thin 0.5pt edges with small arrowheads, framed images with a 0.5pt border, Inter for Latin text |
-| `llama` | after Meta's Llama 4 MoE figure: 0.5pt slate lines with **open chevron arrowheads**, white boxes with a gray frame, `solid` = dark slate block with white text, `emphasis` = blue accent block, `filled` = gray borderless block, `muted` = pale borderless block, borderless pale groups with a regular-weight title (`muted` group: white panel), rounded corners (3pt / 5pt), Inter for Latin text |
+| `llama` | after Meta's Llama 4 MoE figure: 1pt slate lines and frames with **open chevron arrowheads** (a small gap before the box), white boxes with a gray frame, `solid` = dark slate block with white text, `emphasis` = blue accent block, `filled` = gray borderless block, `muted` = pale borderless block, borderless pale groups with a regular-weight title (`muted` group: white panel), rounded corners (3pt / 5pt), Inter for Latin text |
 
 `minimal`, `academic`, `color`, `paper` and `llama` use 8pt text (7pt on edges). `academic` is
 for black-and-white journals, `paper` for the coloured figures of ML papers; both fit
