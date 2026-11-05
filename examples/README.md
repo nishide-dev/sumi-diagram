@@ -16,6 +16,7 @@ vector PDF (#59).
 | [`embedding-gemma/`](embedding-gemma/embedding-gemma.sumi.yaml) | `paper` / `paper-double` | EmbeddingGemma 2 Figure 1: restricted `html` prompt and syntax-colored code cards, exact-color HTML encoder blocks, illustrative sample-driven `waveform`, ten `tokens`, orthogonal multimodal joins and an output bus, and original synthetic guitar/video/scatter SVG assets with a deterministic generator (171.8mm × 145.17mm) |
 | [`clip/`](clip/clip.sumi.yaml) | `paper` / `paper-double` | Radford et al. (2021), Figure 1: contrastive pre-training, a text-derived classifier and zero-shot prediction; square theme overrides, sharp shared comb buses, trapezoid encoders, monospace cards, a curly bracket, formula matrices and an original synthetic vector dog (180mm × 67.64mm) |
 | [`gcn/`](gcn/gcn.sumi.yaml) | `paper` / `paper-double` | Kipf & Welling (2017), Figure 1: a multi-layer graph convolutional network; vertices placed by coordinates (`place`), the same graph shape in two layers drawn as stacked cards (`props.layers`), colored curves that converge on and spread from the hidden layers (`route: curve`), straight undirected graph edges, per-figure tone colors and white cards (`themeOverrides.tones`, `groupFill`), and an original synthetic t-SNE-style point cloud (178.86mm × 65.44mm) |
+| [`llama4-moe/`](llama4-moe/llama4-moe.sumi.yaml) | `llama` / `paper-double` | Meta AI (2025), the Llama 4 mixture-of-experts figure: the `llama` theme (dark solid blocks, borderless muted panels, a white muted inner panel, a filled router, an emphasis shared expert, 1pt lines and open chevron arrowheads), alternating Attention/FFN with a dashed `zoom` into the expanded MoE panel, a ⊕ operator, and hidden-junction forks that share one bus even with a short `···` label among the experts (156.28mm × 107.77mm) |
 
 `pipeline` and `decision-flow` use `direction: down`: four or more nodes in a
 row to the right are already wider than `paper-single` (88mm).
@@ -24,7 +25,7 @@ groups from the side (with `direction: down` they cross the groups' centered
 labels, `geometry/edge-crosses-label`), which makes them wider than one paper
 column: they use `paper-double` (180mm).
 
-All nine pass `sumi lint --geometry` without errors or warnings (CLIP uses
+All ten pass `sumi lint --geometry` without errors or warnings (CLIP uses
 `--config examples/clip/lint.json`, as explained below). The four
 structured figures use the `paper` theme (the color, ML-paper style) and are laid out and routed by Sumi
 itself, without D2. `transformer` fits one column; `dit-block` is wider than
@@ -68,6 +69,7 @@ geometry lint):
 | `embedding-gemma` | none (sharp joins and 1pt edges remove the previous three `geometry/edge-near-border` infos) |
 | `clip` | 2: `geometry/heavy-scaling` ×1 (71.81%, with the width breakdown before scaling); `geometry/script-too-small` ×1 (math scripts down to 4.02pt after scaling; body text is 5.74pt, above the 5pt scaled minimum) |
 | `gcn` | 2: `geometry/group-empty-area` ×2 (the input and output layers: the graphs keep the original's sparse vertex positions) |
+| `llama4-moe` | none |
 
 The DiT and CLIP scaling infos are accepted to preserve their complete reference
 arrangements at 180mm. Inspect the vector PDF for inline-math labels: `rsvg-convert` drops

@@ -40,6 +40,12 @@ The committed SVGs of <code>examples/</code>, rendered from their sources as wri
 
 <img src="../../examples/grouped/grouped.svg" alt="Nested groups">
 
+## Llama 4 — Mixture of Experts
+
+[<code>examples/llama4\-moe/llama4\-moe\.sumi\.yaml</code>](../../examples/llama4-moe/llama4-moe.sumi.yaml) · [PDF](../../examples/llama4-moe/llama4-moe.pdf) · theme <code>llama</code> · profile <code>paper\-double</code> · 156\.28mm × 107\.77mm \(max width 180mm, max height 220mm\)
+
+<img src="../../examples/llama4-moe/llama4-moe.svg" alt="Llama 4 — Mixture of Experts">
+
 ## Generic processing pipeline
 
 [<code>examples/pipeline/pipeline\.sumi\.yaml</code>](../../examples/pipeline/pipeline.sumi.yaml) · [PDF](../../examples/pipeline/pipeline.pdf) · theme <code>academic</code> · profile <code>paper\-single</code> · 61\.74mm × 150\.28mm \(max width 88mm, max height 220mm\)

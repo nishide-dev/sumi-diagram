@@ -173,6 +173,7 @@
   "examples/embedding-gemma/embedding-gemma.svg": "82295f84a4f6bb665be94c85e1dab251da4383fc1162c917977d746f8c2c6ddb",
   "examples/gcn/gcn.svg": "c19d7c3f27078f83e6628f2dd8887af8023f7ee59603782fbefb79ec61ee0216",
   "examples/grouped/grouped.svg": "994b70043462043b8c7f030db2270314dd3046df790a935e898c871f520b16c8",
+  "examples/llama4-moe/llama4-moe.svg": "67d0071fa6abe8c7b34b19bf198e9dddde6d62c911c5cd37d37e9822e79ce8db",
   "examples/pipeline/pipeline.svg": "31ec825f10a4db1cf29d6c752459acdcd3540926f7fcf6c06829c510005f4ecd",
   "examples/system-architecture/system-architecture.svg": "2d66c2c39bf7320f87d7cca80523f827d25d9b74ed86653cd4e925db44463184",
   "examples/transformer/transformer.svg": "5bbb5cae68db0afac7da48980f77d637ea62219f79d9b38ef146a76155c9665a",
