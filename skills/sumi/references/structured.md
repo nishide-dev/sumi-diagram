@@ -625,8 +625,10 @@ Shared trunks keep their existing routing. There is no per-edge lane coordinate.
   Arrowheads follow the diagonal. Labels stay horizontal, default at the midpoint
   on the left facing source → target; `labelAt: start | middle | end` and
   `labelSide: left | right` choose another position. Labels do not dodge obstacles.
-  Inspect crossings: `geometry/edge-through-node`, `geometry/edge-crosses-label`
-  and `geometry/label-collision` locate overlaps; move endpoints, labels or nodes.
+  Inspect crossings: `geometry/edge-through-node` (also when the line only clips
+  or brushes a node or tokens cell: its stroke touches the outline),
+  `geometry/edge-crosses-label` and `geometry/label-collision` locate overlaps;
+  move endpoints, labels or nodes, or use side anchors.
   Self-loops, overlapping endpoint boxes, missing outline intersections, inward-facing anchors, insufficient
   arrowhead room and `component: zoom` conflicts are `layout/no-route` errors.
   PDF and picture/editable PPTX support the line; glued PPTX snaps to its connection
