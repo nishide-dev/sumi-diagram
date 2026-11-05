@@ -53,7 +53,13 @@ function projection(items: Footprint[]): { widths: number; gaps: number; largest
   return { widths, gaps, largestGap };
 }
 
-export function widthBreakdown(context: GeometryContext): string {
+/** `hint` leads with overflow, the widest run and verified edits; `details` is the fine-grained breakdown (#368). */
+export interface WidthBreakdown {
+  hint: string;
+  details: string[];
+}
+
+export function widthBreakdown(context: GeometryContext): WidthBreakdown {
   const mm = (units: number) => formatMm(unitsToPt(units * (context.inspection.scale ?? 1)));
   const byKey = new Map<ElementKey, Footprint>();
   for (const element of context.elements) {
@@ -61,7 +67,7 @@ export function widthBreakdown(context: GeometryContext): string {
     const rect = footprint(element);
     if (rect) byKey.set(element.key, { name: element.name, rect, key: element.key });
   }
-  if (byKey.size === 0) return "";
+  if (byKey.size === 0) return { hint: "", details: [] };
   const runs: Run[] = [];
   const visit = (item: ArrangeItemIR, path: string): Footprint | undefined => {
     if (item === null) return undefined;
@@ -132,12 +138,27 @@ export function widthBreakdown(context: GeometryContext): string {
     (a, b) =>
       b.rect.width - a.rect.width || a.priority - b.priority || a.name.localeCompare(b.name),
   )[0];
-  const parts: string[] = [];
   const pageWidth = printedSize(context.inspection).widthPt;
+  const bySize = (a: Footprint, b: Footprint) =>
+    b.rect.width - a.rect.width || a.name.localeCompare(b.name);
+  const describeRun = (run: Run, limit: number) => {
+    const { widths, gaps } = projection(run.items);
+    const items = [...run.items].sort(bySize);
+    return {
+      text: `${run.name} = ${mm(run.rect.width)} (${mm(widths)} occupied x-projection + ${mm(gaps)} observed gaps)`,
+      items: `${items
+        .slice(0, limit)
+        .map((item) => `${item.name} ${mm(item.rect.width)}`)
+        .join(", ")}${items.length > limit ? `; ${items.length - limit} more` : ""}`,
+      gaps,
+    };
+  };
+  // The headline is what an agent acts on: the overflow, the run that sets the
+  // width and the trial-verified edits. Everything else goes to `details` (#368).
+  const head: string[] = [];
+  const details: string[] = [];
   if (context.profile.maxWidthPt !== undefined)
-    parts.push(
-      `Width to remove: ${formatMm(Math.max(0, pageWidth - context.profile.maxWidthPt))}.`,
-    );
+    head.push(`Width to remove: ${formatMm(Math.max(0, pageWidth - context.profile.maxWidthPt))}.`);
   const contributing: Run[] = [];
   const seen = new Set<Run>();
   const descend = (run: Run) => {
@@ -147,37 +168,29 @@ export function widthBreakdown(context: GeometryContext): string {
     // Stack siblings compete for width; only the widest child drives it.
     // Row/grid descendants are observations, not evidence of track dominance.
     // Only counterfactual layouts below can establish useful edits.
-    const children =
-      run.priority !== 0
-        ? [...run.items]
-            .sort((a, b) => b.rect.width - a.rect.width || a.name.localeCompare(b.name))
-            .slice(0, 1)
-        : run.items;
+    const children = run.priority !== 0 ? [...run.items].sort(bySize).slice(0, 1) : run.items;
     for (const child of children) {
       const nested = child.run ?? (child.key ? groupRuns.get(child.key) : undefined);
       if (nested) descend(nested);
     }
   };
-  if (widest) descend(widest);
-  for (const [index, run] of contributing.slice(0, 6).entries()) {
-    const { widths, gaps } = projection(run.items);
-    const items = [...run.items].sort(
-      (a, b) => b.rect.width - a.rect.width || a.name.localeCompare(b.name),
-    );
-    parts.push(
-      `${index === 0 ? "Widest horizontal run" : "Descendant run"}: ${run.name} = ${mm(run.rect.width)} (${mm(widths)} occupied x-projection + ${mm(gaps)} observed gaps). Items: ${items
-        .slice(0, 6)
-        .map((item) => `${item.name} ${mm(item.rect.width)}`)
-        .join(", ")}${items.length > 6 ? `; ${items.length - 6} more` : ""}.`,
-    );
+  if (widest) {
+    descend(widest);
+    const top = describeRun(widest, 3);
+    head.push(`Sets the width: ${widest.name} = ${mm(widest.rect.width)}; items ${top.items}.`);
+    details.push(`Widest horizontal run: ${top.text}. Items: ${describeRun(widest, 6).items}.`);
   }
-  if (contributing.length > 6) parts.push(`${contributing.length - 6} more descendant runs.`);
+  for (const run of contributing.slice(1, 6)) {
+    const described = describeRun(run, 6);
+    details.push(`Descendant run: ${described.text}. Items: ${described.items}.`);
+  }
+  if (contributing.length > 6) details.push(`${contributing.length - 6} more descendant runs.`);
   if (contributing.length > 1)
-    parts.push(
+    details.push(
       "Descendant breakdowns explain the outer footprint; parent and child widths are not additive.",
     );
   if (attachments.length)
-    parts.push(
+    details.push(
       `Attach expansion beyond arrange bounds: ${attachments
         .slice(0, 6)
         .map((item) => `${item.name} +${mm(item.width)}`)
@@ -203,23 +216,23 @@ export function widthBreakdown(context: GeometryContext): string {
     .sort((a, b) => b.width - a.width || a.element.name.localeCompare(b.element.name));
   const longest = labels[0];
   if (longest)
-    parts.push(
+    details.push(
       `Largest label overhang/auto-sized footprint: ${longest.element.name} ${mm(longest.width)} (${mm(longest.measured)} measured label width).`,
     );
   if (root) {
     const drawnWidthPt = unitsToPt(root.width * (context.inspection.scale ?? 1));
-    parts.push(
+    details.push(
       `Top-level bodies/labels span ${mm(root.width)}; page width also includes margins, strokes and edge/label extents (${formatMm(Math.max(0, pageWidth - drawnWidthPt))} outside that span).`,
     );
   }
-  parts.push(verifyHints(context, "width", (trial) => trial.canvas.width));
+  head.push(verifyHints(context, "width", (trial) => trial.canvas.width));
   if (!structured)
-    parts.push(
+    details.push(
       "Auto reports observed geometry only; overlapping x-ranges are merged, and ELK layer spacing is not exposed.",
     );
   else
-    parts.push(
+    details.push(
       "Grid spans and overlapping x-ranges are merged; observed gaps may include alignment/stretch, not just the written gap. Blank tracks cannot be attributed from painted geometry.",
     );
-  return parts.join(" ");
+  return { hint: head.join(" "), details };
 }

@@ -177,7 +177,7 @@ nodes:
   expect(finding?.message).toContain("176.39mm → 141.11mm");
   expect(finding?.hint).toContain("Width to remove: 35.28mm");
   expect(finding?.hint).toContain('node "a" 70.56mm');
-  expect(finding?.hint).toContain("17.64mm observed gaps");
+  expect(finding?.hint).toContain("Sets the width: figure.layout.arrange.row = 158.75mm");
   expect(input.inspection).toEqual(original);
   for (const scale of [0.9, 0.95, 1])
     expect(

@@ -220,12 +220,16 @@ export const exceedsPageWidth = defineGeometryRule({
     const { profile } = context;
     const width = printedSize(context.inspection).widthPt;
     if (profile.maxWidthPt === undefined || width <= profile.maxWidthPt + PT_EPSILON) return [];
+    const breakdown = widthBreakdown(context);
     return [
       {
         message: `The figure is ${formatMm(width)} wide, more than the ${formatMm(profile.maxWidthPt)} maximum width of profile "${profile.id}".`,
         path: figurePath,
         subject: figureSubject(context),
-        hint: [widthBreakdown(context), pageWidthHint(context)].filter(Boolean).join(" "),
+        hint: [breakdown.hint, pageWidthHint(context)].filter(Boolean).join(" "),
+        ...(breakdown.details.length > 0 && {
+          related: breakdown.details.map((message) => ({ path: figurePath, message })),
+        }),
       },
     ];
   },
@@ -249,7 +253,7 @@ export const heavyScaling = defineGeometryRule({
         message: `The smallest final text (including math scripts) is ${formatPt(smallest)}, ${Math.round((smallest / min) * 1000) / 10}% of the ${formatPt(min)} minimum (${formatPt(smallest - min)} headroom; 20% or less). figure.fit: scale prints at ${Math.round(scale * 1000) / 10}%: ${formatMm(context.inspection.canvas.width.pt)} → ${formatMm(printedSize(context.inspection).widthPt)} wide.`,
         path: ["figure", "fit"],
         subject: figureSubject(context),
-        hint: `Compare final text size and reserved page area when choosing scaling, shorter labels, another arrangement, or a wider profile. Without figure.target.minFontSize math scripts remain information-only (geometry/script-too-small); with it, geometry/script-below-target warns. Width breakdown before scaling: ${widthBreakdown(natural)} Independent trial reductions are not additive.`,
+        hint: `Compare final text size and reserved page area when choosing scaling, shorter labels, another arrangement, or a wider profile. Without figure.target.minFontSize math scripts remain information-only (geometry/script-too-small); with it, geometry/script-below-target warns. Width breakdown before scaling: ${widthBreakdown(natural).hint} Independent trial reductions are not additive.`,
       },
     ];
   },
