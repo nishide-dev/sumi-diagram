@@ -13,6 +13,7 @@
   - <a id="embeddinggemma-2--unified-multimodal-representations"></a>[EmbeddingGemma 2 — unified multimodal representations](examples.md#embeddinggemma-2--unified-multimodal-representations)
   - <a id="gcn--graph-convolutional-network"></a>[GCN — Graph Convolutional Network](examples.md#gcn--graph-convolutional-network)
   - <a id="nested-groups"></a>[Nested groups](examples.md#nested-groups)
+  - <a id="llama-4--mixture-of-experts"></a>[Llama 4 — Mixture of Experts](examples.md#llama-4--mixture-of-experts)
   - <a id="generic-processing-pipeline"></a>[Generic processing pipeline](examples.md#generic-processing-pipeline)
   - <a id="generic-three-tier-system"></a>[Generic three\-tier system](examples.md#generic-three-tier-system)
   - <a id="examplestransformertransformersumiyaml"></a><a id="transformer-structured-layout-paper-theme"></a>[Transformer \(structured layout, paper theme\)](examples.md#transformer-structured-layout-paper-theme)

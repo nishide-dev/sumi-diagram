@@ -5,6 +5,8 @@
   "examples/dit-block/dit-block.glued": "6c024e52797cbde3b9c50ab9ad52d633a08dfc42dfd04934920515b041cba141",
   "examples/grouped/grouped.freeform": "64efa1f12ca6e5c0f155248eaae6efa6efc6ea2d3939158259d9a8e6021f304d",
   "examples/grouped/grouped.glued": "41f2163ddda962ed483eae5b9f840b22930464b29fd3a53223ffe20db34d4b35",
+  "examples/llama4-moe/llama4-moe.freeform": "a53c5873971e06c0bdfab5a4bab3ddb2151e3c5e4f1ee37c7b474bfcc4241989",
+  "examples/llama4-moe/llama4-moe.glued": "cb9c6dad9e21637b0cc38817934c907f2524bd2a6efd5dc9c8c6d5034e46df1a",
   "examples/pipeline/pipeline.freeform": "d74f26b54a6b8c9240d9dc8a4ae0fbd4a51dc0099f0a48daa0bc074b1ec465ff",
   "examples/pipeline/pipeline.glued": "3d6e0b55990cfea40fa53860e5e86bcac891dce8247920986259669bdcfc7402",
   "examples/system-architecture/system-architecture.freeform": "b33d241170599c8327e3b5bc0d2e80eb0e2b4280a4b7b6959467d2078e8ca158",
