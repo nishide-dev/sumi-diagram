@@ -927,6 +927,27 @@ export const edgeThroughNode = defineGeometryRule({
           related: [{ path: node.docPath, message: `${capitalize(node.name)} is defined here.` }],
         });
       }
+      // A straight line (#369) has no avoidance, so a line that only clips or
+      // brushes a neighbour (a cell next to the end, a third circle) is a
+      // finding too: the painted strokes touch once the line is within the two
+      // half stroke widths of the outline, even when it never gets 1 unit inside.
+      if (edge.ir.route !== "straight") continue;
+      const through = new Set(
+        obstaclesCrossedByRoute(edge.route, obstacles, ends, GEOMETRY_TOLERANCE_UNITS),
+      );
+      for (const obstacle of obstacles) {
+        if (ends.has(obstacle.key) || through.has(obstacle.key)) continue;
+        const node = context.get(obstacle.key) as GeometryElement;
+        const margin = node.strokeInset + edge.strokeInset;
+        if (obstaclesCrossedByRoute(edge.route, [obstacle], ends, -margin).length === 0) continue;
+        findings.push({
+          message: `${capitalize(edge.name)} touches the outline of ${node.name}: the straight line grazes the shape or clips its edge.`,
+          path: edge.docPath,
+          subject: edge.subject,
+          hint: "route: straight does not avoid obstacles. Give the ends side anchors (fromAnchor / toAnchor, e.g. south / north), move the node or the endpoints so the line clears it, or remove route: straight to use obstacle-avoiding routing.",
+          related: [{ path: node.docPath, message: `${capitalize(node.name)} is defined here.` }],
+        });
+      }
     }
     return findings;
   },
