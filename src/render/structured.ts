@@ -63,6 +63,7 @@ import { withToneOverrides } from "../core/theme/overrides";
 import type { CommonStyle } from "../core/theme/style";
 import { groupLayerRects } from "../layout/group-layers";
 import type { LayoutIR, Point, Rect, TextLayout, TextRun } from "../layout/ir";
+import { ARROWHEAD_STEM_UNITS } from "../layout/route/arrowhead";
 import { type Cubic, sampleCubic, trimCubic } from "../layout/route/cubic";
 import { groupArrowheadStems } from "../layout/route/padding";
 import { arrowheadLength, WIRE_CORNER_RADIUS } from "../layout/route/router";
@@ -772,12 +773,18 @@ function wires(
         underArrowhead(edge.sourceArrowhead ?? "none", edge) + (stems.get(key)?.source ?? 0);
       const keepEnd =
         underArrowhead(edge.targetArrowhead ?? "none", edge) + (stems.get(key)?.target ?? 0);
+      const stem = (head: Arrowhead | undefined, group: number) =>
+        head !== undefined && head !== "none" && group === 0 ? ARROWHEAD_STEM_UNITS : 0;
+      const stemStart = stem(edge.sourceArrowhead, stems.get(key)?.source ?? 0);
+      const stemEnd = stem(edge.targetArrowhead, stems.get(key)?.target ?? 0);
       entry.polylines.push({
         points: wire,
         ...(joined.has(route.from) ? { start: route.from } : {}),
         ...(joined.has(route.to) ? { end: route.to } : {}),
         ...(keepStart > 0 && { keepStart }),
         ...(keepEnd > 0 && { keepEnd }),
+        ...(stemStart > 0 && { stemStart }),
+        ...(stemEnd > 0 && { stemEnd }),
       });
       byStyle.set(lineKey(edge.style), entry);
     }

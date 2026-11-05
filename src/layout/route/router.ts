@@ -543,9 +543,9 @@ class Router {
         enteringId: -1,
       };
     });
-    const routable = edges
-      .filter((e): e is Edge => e !== undefined)
-      .map((e, index) => ({ ...e, index }));
+    const routable = this.#clearJunctionTurns(edges.filter((e): e is Edge => e !== undefined)).map(
+      (e, index) => ({ ...e, index }),
+    );
     this.#edges = routable;
     this.#joinNets(routable);
     this.#buildGrid(routable);
@@ -641,6 +641,60 @@ class Router {
       }
     }
     return best;
+  }
+
+  /**
+   * Ends the room of the arrowheads on one side of a node at the row of a
+   * junction that feeds them from aside, so the trunk turns into the bus at
+   * the junction with the full corner radius instead of running past it and
+   * back by a few units (#385; see `junctionBusRoom`). Every arrowhead end on
+   * that side takes the shortest such room, so their buses stay on one row.
+   * Not where the junction's line runs straight into an arrowhead on that
+   * side (a T, whose trunk does not turn).
+   */
+  #clearJunctionTurns(edges: Edge[]): Edge[] {
+    const ends = (e: Edge) =>
+      [
+        {
+          end: e.from,
+          other: e.to,
+          room: e.fromRoom,
+          lane: e.fromLane,
+          head: e.ir.sourceArrowhead,
+        },
+        { end: e.to, other: e.from, room: e.toRoom, lane: e.toLane, head: e.ir.targetArrowhead },
+      ] as const;
+    const straight = new Set<string>();
+    for (const e of edges) {
+      for (const { end, other, head } of ends(e)) {
+        if (head === undefined || end.dir < 0 || !other.junction) continue;
+        const d = DIRS[end.dir] as Point;
+        const dx = other.port.x - end.port.x;
+        const dy = other.port.y - end.port.y;
+        if (Math.abs(dx * d.y - dy * d.x) < 1e-9 && dx * d.x + dy * d.y > 0) {
+          straight.add(`${other.key}|${end.dir}`);
+        }
+      }
+    }
+    const sideOf = (end: End) => `${end.key}|${end.side}|${end.dir}`;
+    const rooms = new Map<string, number>();
+    for (const e of edges) {
+      for (const { end, other, room, lane, head } of ends(e)) {
+        if (head === undefined || room === 0 || straight.has(`${other.key}|${end.dir}`)) continue;
+        const need = junctionBusRoom(end, other, room, lane);
+        if (need === 0) continue;
+        rooms.set(sideOf(end), Math.min(rooms.get(sideOf(end)) ?? need, need));
+      }
+    }
+    if (rooms.size === 0) return edges;
+    return edges.map((e) => {
+      const from = e.ir.sourceArrowhead !== undefined ? rooms.get(sideOf(e.from)) : undefined;
+      const to = e.ir.targetArrowhead !== undefined ? rooms.get(sideOf(e.to)) : undefined;
+      const fromRoom =
+        from !== undefined && e.fromRoom > 0 ? Math.min(e.fromRoom, from) : e.fromRoom;
+      const toRoom = to !== undefined && e.toRoom > 0 ? Math.min(e.toRoom, to) : e.toRoom;
+      return fromRoom === e.fromRoom && toRoom === e.toRoom ? e : { ...e, fromRoom, toRoom };
+    });
   }
 
   /**
@@ -1764,6 +1818,32 @@ export function clipRoomAtJunction(end: End, other: End, room: number, lane: num
   const aside = dx * d.y - dy * d.x;
   if (Math.abs(aside) >= 1e-9 || ahead <= 0 || ahead >= room) return room;
   return ahead >= lane ? ahead : 0;
+}
+
+/**
+ * The room before an arrowhead at `end` that ends at the row of a junction
+ * feeding it from aside (#385), or 0 if that is not needed. `room` is the
+ * normal room (`arrowRoom()`), `lane` the stub.
+ *
+ * The junction `other` lies `ahead` along the end's direction, not in line.
+ * Where `ahead` is within the room, the bus at the room's end runs past the
+ * junction by `room - ahead` and the trunk, which stops at the junction,
+ * leaves a spike there; a turn into the bus within that distance rounds with
+ * less than the corner radius. With the room ending at `ahead` the bus runs
+ * out of the junction itself and its turn takes the whole trunk. Only where
+ * that leaves half a corner radius of straight wire after the arrowhead and
+ * its stub (`lane`). Not for a junction straight ahead
+ * (`clipRoomAtJunction`), behind, nearer than that, or beyond the room.
+ */
+export function junctionBusRoom(end: End, other: End, room: number, lane: number): number {
+  if (end.dir < 0 || !other.junction) return 0;
+  const d = DIRS[end.dir] as Point;
+  const dx = other.port.x - end.port.x;
+  const dy = other.port.y - end.port.y;
+  const ahead = dx * d.x + dy * d.y;
+  const aside = dx * d.y - dy * d.x;
+  if (Math.abs(aside) < 1e-9 || ahead >= room) return 0;
+  return ahead >= lane + WIRE_CORNER_RADIUS / 2 ? ahead : 0;
 }
 
 /**
