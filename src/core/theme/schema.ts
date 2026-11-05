@@ -17,6 +17,11 @@
  * `dim` (#175) gives the colors of a dimmed group and everything inside it:
  * one text color, one line color and how far fills move toward white (see
  * `dim.ts`).
+ *
+ * `arrowhead` (#386) is the shape of the standard arrowhead: `triangle` (the
+ * default, filled) or `open` (a chevron of two strokes). It replaces every
+ * `triangle` end, the one built-in arrows and unspecified ends use; other
+ * shapes a component asks for are kept.
  */
 
 import { z } from "zod";
@@ -59,6 +64,10 @@ import { isTone, TONE_NAMES, type Tone } from "./tones";
 
 export const THEME_FORMAT_VERSION = 1;
 
+/** Shapes of a theme's standard arrowhead (#386). */
+export const THEME_ARROWHEADS = ["triangle", "open"] as const;
+export type ThemeArrowhead = (typeof THEME_ARROWHEADS)[number];
+
 /** A token group or leaf name. Dots separate the segments of a reference. */
 export const TOKEN_NAME_PATTERN = /^[a-zA-Z][a-zA-Z0-9_-]*$/;
 
@@ -95,6 +104,8 @@ export interface ThemeDefinition {
   toneLines?: Partial<Record<Tone, StyleLayerInput>>;
   /** Colors of dimmed elements (#175): every text, every line, and how pale fills become. */
   dim?: { fontColor: ValueInput; stroke: ValueInput; lighten: ValueInput };
+  /** Shape of the standard arrowhead (#386); omitted means `triangle`. */
+  arrowhead?: ThemeArrowhead;
 }
 
 /** A validated theme. All values are checked and resolved; component keys are canonical. */
@@ -112,6 +123,11 @@ export interface Theme {
   readonly toneLines: ReadonlyMap<Tone, StyleLayer>;
   /** Colors of dimmed elements (#175); a theme without them draws `dim` groups as they are. */
   readonly dim?: DimColors;
+  /**
+   * Shape drawn for every `triangle` arrowhead (#386); present only when the
+   * definition sets it (absent means `triangle`).
+   */
+  readonly arrowhead?: ThemeArrowhead;
   /**
    * A figure's `themeOverrides.tones` (#380), already merged into `tones` and
    * `toneLines`; kept for the tinted and solid node variants, whose frame and
@@ -164,6 +180,7 @@ export const ThemeSchema = z.strictObject({
   dim: z
     .strictObject({ fontColor: z.unknown(), stroke: z.unknown(), lighten: z.unknown() })
     .optional(),
+  arrowhead: z.enum(THEME_ARROWHEADS).optional(),
 });
 
 export interface ValidateThemeOptions {
@@ -328,6 +345,7 @@ class ThemeChecker {
         tones,
         toneLines,
         ...(dim !== undefined && { dim }),
+        ...(theme.arrowhead !== undefined && { arrowhead: theme.arrowhead }),
       }),
       diagnostics: this.diagnostics,
     };

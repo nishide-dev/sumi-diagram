@@ -18,7 +18,7 @@ import type { Registry } from "../registry/registry";
 import { BUILTIN_THEMES } from "./builtin";
 import type { FontSet } from "./fonts";
 import { resolveStyle } from "./resolve";
-import type { Theme } from "./schema";
+import type { Theme, ThemeArrowhead } from "./schema";
 import { mergeStyle } from "./style";
 import { TONE_NAMES, type Tone } from "./tones";
 
@@ -60,6 +60,8 @@ export interface ThemeCatalogEntry {
    * meets, so the theme never causes `profile/font-too-small` with them.
    */
   compatibleProfiles: string[];
+  /** Shape of the standard arrowhead (#386): `triangle` (filled) or `open` (a chevron). */
+  arrowhead: ThemeArrowhead;
 }
 
 export interface ThemeCatalogOptions {
@@ -117,6 +119,7 @@ export function themeCatalogEntry(
     compatibleProfiles: [...profiles.values()]
       .filter((profile) => profile.typography.minFontSize.pt <= min)
       .map((profile) => profile.id),
+    arrowhead: theme.arrowhead ?? "triangle",
   };
 }
 

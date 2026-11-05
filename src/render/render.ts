@@ -31,7 +31,7 @@ import { getFontSet } from "../core/theme/fonts";
 import type { LayoutIR } from "../layout/ir";
 import { routeEdges } from "../layout/route/router";
 import { placeStructured } from "../layout/structured/engine";
-import { composeJunctionEnds, composeOutlines } from "./compose";
+import { composeJunctionEnds, composeOpenArrowheads, composeOutlines } from "./compose";
 import { composeAssets, withImageSizes } from "./compose-assets";
 import { type FinalizedSvg, finalizeStructuredSvg, finalizeSvg } from "./finalize";
 import type { PathSegment } from "./geometry";
@@ -229,9 +229,13 @@ async function renderD2(
     diagnostics.push(...inspected.diagnostics);
     if (!inspected.ok) return fail();
   }
+  // Open arrowheads (#386): D2 drew triangles; the inspection reads no markers.
+  const opened = composeOpenArrowheads(joined.value, effective.ir);
+  diagnostics.push(...opened.diagnostics);
+  if (!opened.ok) return fail();
   // Icons and images go into the placeholders' boxes; the inspection does not
   // read them, so it stays valid.
-  let svg = joined.value;
+  let svg = opened.value;
   if (assets !== undefined) {
     const withAssets = composeAssets(svg, effective.ir, inspected.value, assets);
     diagnostics.push(...withAssets.diagnostics);

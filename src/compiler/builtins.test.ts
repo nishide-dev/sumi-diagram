@@ -103,9 +103,18 @@ describe("built-in components lower to standard D2 shapes", () => {
       const structured = compileAny(structuredPrimitivesFigure(theme));
       expect(structured.engine).toBe("structured");
       const seen = lowerings(ir, structured.ir);
+      // A theme's open arrowhead (#386) replaces every triangle end.
+      const standard = theme === "llama" ? "open" : "triangle";
       expect(Object.fromEntries([...seen].map(([id, values]) => [id, [...values]]))).toEqual(
-        Object.fromEntries(Object.entries(LOWERING).map(([id, value]) => [id, [value]])),
+        Object.fromEntries(
+          Object.entries(LOWERING).map(([id, value]) => [
+            id,
+            [value.replaceAll(":triangle", `:${standard}`)],
+          ]),
+        ),
       );
+      // D2 has no open chevron: it is written as a filled triangle.
+      if (standard === "open") expect(d2Source).not.toContain("shape: open");
       for (const shape of new Set(Object.values(LOWERING))) {
         if (!shape.includes("-")) expect(d2Source).toContain(`shape: ${shape}\n`);
       }

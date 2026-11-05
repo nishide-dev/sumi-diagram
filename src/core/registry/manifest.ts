@@ -48,8 +48,13 @@ export type NodeSizing = (typeof NODE_SIZINGS)[number];
 export const EDGE_DIRECTIONS = ["forward", "backward", "both", "none"] as const;
 export type EdgeDirection = (typeof EDGE_DIRECTIONS)[number];
 
+/**
+ * Arrowhead shapes. `open` (#386) is a chevron of two strokes the line runs
+ * into; a theme's `arrowhead: open` draws every `triangle` end as one.
+ */
 export const ARROWHEADS = [
   "triangle",
+  "open",
   "arrow",
   "diamond",
   "circle",

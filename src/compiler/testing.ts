@@ -440,6 +440,17 @@ export function edgeLook(svg: string, chunk: string) {
     });
     return { sides: sides.sort((a, b) => a - b), fill: m[2] };
   });
+  // An open chevron (#386) is a stroked path of two arms.
+  for (const m of chunk.matchAll(
+    /<path class="sumi-arrowhead" d="([^"]*)" fill="none" stroke="([^"]*)"/g,
+  )) {
+    const points = pointsOf(` d="${m[1] ?? ""}"`);
+    const sides = points.slice(1).map((q, i) => {
+      const p = points[i] ?? q;
+      return Math.round(Math.hypot(q[0] - p[0], q[1] - p[1]) * 100);
+    });
+    heads.push({ sides: sides.sort((a, b) => a - b), fill: `none ${m[2]}` });
+  }
   if (wire === undefined) throw new Error(`no drawn line for the edge at ${start}`);
   return {
     stroke: attr(wire, "stroke"),

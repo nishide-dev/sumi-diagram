@@ -414,12 +414,35 @@ const unit = (from: Point, to: Point): Point => {
     : { x: (to.x - from.x) / length, y: (to.y - from.y) / length };
 };
 
-/** How far an arrowhead's base is from its tip: where the line stops. */
-function arrowheadInset(head: Arrowhead, length: number): number {
+/**
+ * An open arrowhead (#386): a right-angled chevron of two strokes, drawn
+ * inside the rectangle the router and the lint keep for every arrowhead
+ * (`arrowheadLength()` long and as wide, `arrowheadRects()`), stroke caps
+ * included: each arm reaches half that width less half a stroke back and to
+ * the side. Its painted tip stands {@link openArrowheadGap} short of the
+ * route's end, so it does not touch the box it points at.
+ */
+export function openArrowhead(length: number, strokeUnits: number) {
+  const gap = openArrowheadGap(strokeUnits);
+  return { gap, vertex: gap + strokeUnits / 2, reach: length / 2 - strokeUnits / 2 };
+}
+
+/** The gap between an open chevron's painted tip and the route's end: one stroke width. */
+export function openArrowheadGap(strokeUnits: number): number {
+  return strokeUnits;
+}
+
+/**
+ * How far an arrowhead's base is from its tip: where the line stops. An
+ * open chevron's line runs to its vertex (see {@link openArrowhead}).
+ */
+function arrowheadInset(head: Arrowhead, length: number, strokeUnits: number): number {
   switch (head) {
     case "none":
     case "cross":
       return 0;
+    case "open":
+      return openArrowhead(length, strokeUnits).vertex;
     case "arrow":
       return length * 0.6;
     default:
@@ -455,6 +478,13 @@ export function drawArrowhead(
     : ` fill="${fill}" stroke="${color}" stroke-width="${n(style.strokeWidth.units)}" stroke-linejoin="miter"`;
   const half = length / 2;
   switch (head) {
+    case "open": {
+      // Stroked, never filled: the line shows through the open side.
+      const w = style.strokeWidth.units;
+      const { vertex, reach } = openArrowhead(length, w);
+      const points = [at(vertex + reach, reach), at(vertex, 0), at(vertex + reach, -reach)];
+      return `<path class="sumi-arrowhead" d="${pathData(points)}" fill="none" stroke="${color}" stroke-width="${n(w)}" stroke-linecap="round" stroke-linejoin="round"/>`;
+    }
     case "triangle":
       return polygon([tip, at(length, half), at(length, -half)], outline);
     case "arrow":
@@ -506,14 +536,15 @@ function trimEnd(points: readonly Point[], amount: number): Point[] {
 function underArrowhead(head: Arrowhead, edge: EdgeIR): number {
   if (head === "none") return 0;
   const length = arrowheadLength(edge.style.strokeWidth.units);
-  return length - arrowheadInset(head, length);
+  return length - arrowheadInset(head, length, edge.style.strokeWidth.units);
 }
 
 /** The part of an edge's route its wire strokes: the route minus the arrowheads' insets. */
 function wirePoints(edge: EdgeIR, points: readonly Point[]): Point[] {
-  const length = arrowheadLength(edge.style.strokeWidth.units);
-  const head = arrowheadInset(edge.targetArrowhead ?? "none", length);
-  const tail = arrowheadInset(edge.sourceArrowhead ?? "none", length);
+  const width = edge.style.strokeWidth.units;
+  const length = arrowheadLength(width);
+  const head = arrowheadInset(edge.targetArrowhead ?? "none", length, width);
+  const tail = arrowheadInset(edge.sourceArrowhead ?? "none", length, width);
   const trimmed = trimEnd(points, head);
   return trimEnd(trimmed.reverse(), tail).reverse();
 }
@@ -680,8 +711,8 @@ function wires(
       const length = arrowheadLength(edge.style.strokeWidth.units);
       const curve = trimCubic(
         placed.route.points as Cubic,
-        arrowheadInset(edge.sourceArrowhead ?? "none", length),
-        arrowheadInset(edge.targetArrowhead ?? "none", length),
+        arrowheadInset(edge.sourceArrowhead ?? "none", length, edge.style.strokeWidth.units),
+        arrowheadInset(edge.targetArrowhead ?? "none", length, edge.style.strokeWidth.units),
       );
       const samples = sampleCubic(curve);
       const pieces = samples.slice(1).map((p, i): [Point, Point] => [samples[i] as Point, p]);
@@ -772,12 +803,20 @@ function wires(
         underArrowhead(edge.sourceArrowhead ?? "none", edge) + (stems.get(key)?.source ?? 0);
       const keepEnd =
         underArrowhead(edge.targetArrowhead ?? "none", edge) + (stems.get(key)?.target ?? 0);
+      // An open chevron's wire runs on under it (#386): its turns are sized
+      // as if the wire stopped at the triangle's base.
+      const open = (head: Arrowhead | undefined) =>
+        head === "open" ? underArrowhead(head, edge) : 0;
+      const headStart = open(edge.sourceArrowhead);
+      const headEnd = open(edge.targetArrowhead);
       entry.polylines.push({
         points: wire,
         ...(joined.has(route.from) ? { start: route.from } : {}),
         ...(joined.has(route.to) ? { end: route.to } : {}),
         ...(keepStart > 0 && { keepStart }),
         ...(keepEnd > 0 && { keepEnd }),
+        ...(headStart > 0 && { headStart }),
+        ...(headEnd > 0 && { headEnd }),
       });
       byStyle.set(lineKey(edge.style), entry);
     }

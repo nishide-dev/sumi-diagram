@@ -10,10 +10,10 @@ A key that explains line and fill styles: one sample line or box per entry, draw
 | --- | --- | --- | --- |
 | <code>entries</code> | <code>array</code> | yes | The entries, top to bottom\. Each has edge \(a sample line\), node \(a sample box\) or class \(the sample box of a matrix class\), and a label\. |
 
-| <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> |
-| --- | --- | --- | --- | --- |
-| <img src="sumi-legend.minimal.svg" alt="sumi/legend, theme minimal"> | <img src="sumi-legend.academic.svg" alt="sumi/legend, theme academic"> | <img src="sumi-legend.slides.svg" alt="sumi/legend, theme slides"> | <img src="sumi-legend.color.svg" alt="sumi/legend, theme color"> | <img src="sumi-legend.paper.svg" alt="sumi/legend, theme paper"> |
-| <code>sumi render sumi\-legend\.sumi\.yaml</code><br>88\.02mm × 43\.39mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-legend\.sumi\.yaml \-\-theme academic</code><br>88\.02mm × 42\.16mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-legend\.sumi\.yaml \-\-theme slides</code><br>154\.69mm × 64\.91mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-legend\.sumi\.yaml \-\-theme color</code><br>88\.02mm × 43\.39mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-legend\.sumi\.yaml \-\-theme paper</code><br>80\.61mm × 42\.69mm \(max width 180mm, max height 220mm\) |
+| <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> | <code>llama</code> |
+| --- | --- | --- | --- | --- | --- |
+| <img src="sumi-legend.minimal.svg" alt="sumi/legend, theme minimal"> | <img src="sumi-legend.academic.svg" alt="sumi/legend, theme academic"> | <img src="sumi-legend.slides.svg" alt="sumi/legend, theme slides"> | <img src="sumi-legend.color.svg" alt="sumi/legend, theme color"> | <img src="sumi-legend.paper.svg" alt="sumi/legend, theme paper"> | <img src="sumi-legend.llama.svg" alt="sumi/legend, theme llama"> |
+| <code>sumi render sumi\-legend\.sumi\.yaml</code><br>88\.02mm × 43\.39mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-legend\.sumi\.yaml \-\-theme academic</code><br>88\.02mm × 42\.16mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-legend\.sumi\.yaml \-\-theme slides</code><br>154\.69mm × 64\.91mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-legend\.sumi\.yaml \-\-theme color</code><br>88\.02mm × 43\.39mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-legend\.sumi\.yaml \-\-theme paper</code><br>80\.61mm × 42\.69mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-legend\.sumi\.yaml \-\-theme llama</code><br>80\.61mm × 43\.39mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-legend.sumi.yaml</code></summary>
