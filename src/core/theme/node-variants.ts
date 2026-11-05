@@ -9,6 +9,12 @@ function luminance(color: string): number {
   return 0.2126 * (rgb[0] ?? 0) + 0.7152 * (rgb[1] ?? 0) + 0.0722 * (rgb[2] ?? 0);
 }
 
+/** WCAG contrast ratio of two `#RRGGBB` colors (#380). */
+export function contrastRatio(a: string, b: string): number {
+  const [x, y] = [luminance(a), luminance(b)];
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+}
+
 /** Contrast against the white page, including the resolved element opacity. */
 export function pageTextContrast(ink: string, opacity = 1): number {
   if (ink === "transparent") return 1;

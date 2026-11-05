@@ -25,12 +25,14 @@ import { OPERATOR_SIZES, SEPARATOR_ID } from "../registry/builtins";
 import type { ComponentId, ComponentKind } from "../registry/manifest";
 import { resolveTheme } from "./builtin";
 import { dimmedElements, dimStyle } from "./dim";
-import { filledToneNode, readableInk } from "./node-variants";
-import type { Theme } from "./schema";
+import { contrastRatio as contrast, filledToneNode, readableInk } from "./node-variants";
+import { withToneOverrides } from "./overrides";
+import type { Theme, ToneOverride } from "./schema";
 import {
   mergeStyle,
   type NodeStyle,
   type ResolvedStyle,
+  type StyleLayer,
   type StyleOf,
   sublabelFontSize,
 } from "./style";
@@ -42,6 +44,8 @@ import type { Tone } from "./tones";
  * `toneLines.<tone>`, not `tones.<tone>`.
  */
 export const OUTLINED_VARIANT = "outlined";
+
+const CONTAINER_ID = "sumi/container";
 
 export interface StyleTarget<K extends ComponentKind = ComponentKind> {
   kind: K;
@@ -92,10 +96,11 @@ export function resolveStyle<K extends ComponentKind>(
   ) {
     const fill = theme.tones.get(tone ?? "gray")?.fill;
     const ink = theme.toneLines.get(tone ?? "gray")?.stroke;
-    const paint =
+    const filled =
       ink !== undefined && (variant === "solid" || fill !== undefined)
         ? filledToneNode(variant, fill ?? "#ffffff", ink, id === "sumi/stack")
         : undefined;
+    const paint = overriddenTone(filled, variant, theme.toneOverrides?.get(tone ?? "gray"));
     return {
       style: mergeStyle(kind, [theme.base[kind], layers?.get("default"), variantLayer, paint]),
       missingVariant: false,
@@ -107,6 +112,30 @@ export function resolveStyle<K extends ComponentKind>(
     style: mergeStyle(kind, [theme.base[kind], layers?.get("default"), variantLayer, toneLayer]),
     missingVariant: variant !== "default" && variantLayer === undefined,
     missingTone: tone !== undefined && toneLayer === undefined,
+  };
+}
+
+/**
+ * A tinted or solid node in a tone the figure overrides (#380). Tinted: an
+ * explicit `line` is the frame as written (only text is darkened for
+ * contrast), and an explicit `text` the text as written. Solid: the fill is
+ * the line color, so its white text is contrast-adjusted as with
+ * `solidFills`; `text` (meant for pale fills) does not apply.
+ */
+function overriddenTone(
+  paint: StyleLayer | undefined,
+  variant: "solid" | "tinted",
+  override: ToneOverride | undefined,
+): StyleLayer | undefined {
+  if (paint === undefined || override === undefined) return paint;
+  if (variant === "solid")
+    return override.line === undefined
+      ? paint
+      : { ...paint, fontColor: readableInk(override.line, "#ffffff") };
+  return {
+    ...paint,
+    ...(override.line !== undefined && { stroke: override.line }),
+    ...(override.text !== undefined && { fontColor: override.text }),
   };
 }
 
@@ -124,7 +153,9 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
   const resolved = resolveTheme(name, ["figure", "theme"], locate);
   state.diagnostics.push(...resolved.diagnostics);
   if (!resolved.ok) return undefined;
-  const theme = resolved.value;
+  const overrides = state.doc.figure?.themeOverrides;
+  const theme = withToneOverrides(resolved.value, overrides?.tones);
+  reportToneContrast(state, locate, theme);
   const dimmed = dimmedElements(state.doc);
   reportDim(state, locate, theme, dimmed);
 
@@ -167,7 +198,6 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
     }
     let style: ResolvedStyle =
       mono === undefined || mono === painted.mono ? painted : Object.freeze({ ...painted, mono });
-    const overrides = state.doc.figure?.themeOverrides;
     const solidFill = overrides?.solidFills?.[tone ?? "gray"];
     if (
       solidFill !== undefined &&
@@ -187,6 +217,16 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
       variant === "dashed"
     )
       style = Object.freeze({ ...style, stroke: overrides.dashedGroupStroke });
+    else if (overrides?.groupStroke !== undefined && id === CONTAINER_ID && style.kind === "group")
+      style = Object.freeze({ ...style, stroke: overrides.groupStroke });
+    if (
+      overrides?.groupFill !== undefined &&
+      id === CONTAINER_ID &&
+      style.kind === "group" &&
+      tone === undefined &&
+      style.fill !== "transparent"
+    )
+      style = Object.freeze({ ...style, fill: overrides.groupFill });
     // `sumi/operator` props.size (#311): the circle is a multiple of the font size, so scale that.
     if (id === "sumi/operator" && style.kind === "node") {
       const scale = OPERATOR_SIZES[component.props.size as keyof typeof OPERATOR_SIZES] ?? 1;
@@ -244,6 +284,30 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
     );
   }
   return theme;
+}
+
+/**
+ * `theme/low-contrast` (#380): an explicit tone `text` is drawn as written,
+ * so warn when it has less than 4.5:1 contrast on the tone's fill.
+ */
+function reportToneContrast(state: CheckState, locate: Locator, theme: Theme): void {
+  for (const [tone, override] of theme.toneOverrides ?? []) {
+    const fill = theme.tones.get(tone)?.fill;
+    if (override.text === undefined || fill === undefined || !/^#[0-9a-f]{6}$/i.test(fill))
+      continue;
+    const ratio = contrast(fill, override.text);
+    if (ratio >= 4.5) continue;
+    const path = ["figure", "themeOverrides", "tones", tone, "text"];
+    const location = locate(path);
+    state.diagnostics.push({
+      code: "theme/low-contrast",
+      severity: "warning",
+      message: `Text color ${override.text} of tone "${tone}" has a contrast of ${ratio.toFixed(2)}:1 on its fill ${fill}; text needs at least 4.5:1.`,
+      path,
+      ...(location !== undefined && { location }),
+      hint: "Use a darker text color (or a paler fill), or omit text to darken the line color automatically.",
+    });
+  }
 }
 
 /**

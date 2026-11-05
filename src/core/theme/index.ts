@@ -3,6 +3,7 @@
 export * from "./builtin";
 export * from "./catalog";
 export * from "./fonts";
+export * from "./overrides";
 export * from "./resolve";
 export * from "./schema";
 export * from "./style";
