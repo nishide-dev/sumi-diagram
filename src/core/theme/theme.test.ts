@@ -62,9 +62,11 @@ describe("font sets", () => {
     // The default set has no Latin slots (#172): built-in themes keep their glyphs.
     expect(set.latin).toBeUndefined();
     expect(set.latinBold).toBeUndefined();
-    // Only paper (#173) uses the Latin set.
+    // Only paper (#173) and llama (#386) use the Latin set.
     for (const theme of BUILTIN_THEMES.values()) {
-      expect(theme.fontSet.id).toBe(theme.id === "paper" ? LATIN_FONT_SET_ID : DEFAULT_FONT_SET_ID);
+      expect(theme.fontSet.id).toBe(
+        ["paper", "llama"].includes(theme.id) ? LATIN_FONT_SET_ID : DEFAULT_FONT_SET_ID,
+      );
     }
     // The Latin set is the default set plus Inter for Latin text.
     const latin = getFontSet(LATIN_FONT_SET_ID);
@@ -541,10 +543,19 @@ describe("resolveStyle", () => {
 describe("built-in themes", () => {
   const registry = createBuiltinRegistry();
 
-  test("minimal, academic, slides, color and paper are registered with their font sets", () => {
-    expect([...BUILTIN_THEMES.keys()]).toEqual(["minimal", "academic", "slides", "color", "paper"]);
+  test("minimal, academic, slides, color, paper and llama are registered with their font sets", () => {
+    expect([...BUILTIN_THEMES.keys()]).toEqual([
+      "minimal",
+      "academic",
+      "slides",
+      "color",
+      "paper",
+      "llama",
+    ]);
     for (const t of BUILTIN_THEMES.values()) {
-      expect(t.fontSet.id).toBe(t.id === "paper" ? LATIN_FONT_SET_ID : DEFAULT_FONT_SET_ID);
+      expect(t.fontSet.id).toBe(
+        ["paper", "llama"].includes(t.id) ? LATIN_FONT_SET_ID : DEFAULT_FONT_SET_ID,
+      );
     }
     for (const definition of BUILTIN_THEME_DEFINITIONS) {
       expect(validateTheme(definition).diagnostics).toEqual([]);
@@ -663,6 +674,80 @@ describe("built-in themes", () => {
     expect(new Set(fills).size).toBe(8);
   });
 
+  test("llama gives the Llama 4 MoE figure's elements to the variants (#386)", () => {
+    const llama = BUILTIN_THEMES.get("llama");
+    if (llama === undefined) throw new Error("missing llama");
+    expect(llama.arrowhead).toBe("open");
+    const style = (id: string, variant = "default", tone?: "blue") => {
+      const manifest = registry.get(`sumi/${id}`);
+      if (manifest === undefined) throw new Error(`missing ${id}`);
+      const target = { kind: manifest.kind, id: componentId(manifest), variant, tone };
+      return resolveStyle(llama, target).style;
+    };
+    const colors = (s: ReturnType<typeof style>) => ({
+      fill: "fill" in s ? s.fill : undefined,
+      stroke: s.stroke,
+      strokeWidth: s.strokeWidth.pt,
+      fontColor: s.fontColor,
+    });
+    // Expert: a white block with a 1pt gray frame and dark text.
+    expect(colors(style("box"))).toEqual({
+      fill: "#ffffff",
+      stroke: "#8a96a1",
+      strokeWidth: 1,
+      fontColor: "#1c2b33",
+    });
+    // Attention: the dark slate block with white text.
+    expect(colors(style("box", "solid"))).toMatchObject({ fill: "#465a69", fontColor: "#ffffff" });
+    // Shared Expert: the blue accent with white text.
+    expect(colors(style("box", "emphasis"))).toMatchObject({
+      fill: "#3880f3",
+      fontColor: "#ffffff",
+    });
+    // Router and FFN: borderless gray and pale blocks with dark text.
+    expect(colors(style("box", "filled"))).toEqual({
+      fill: "#cbd2d8",
+      stroke: "#8a96a1",
+      strokeWidth: 0,
+      fontColor: "#1c2b33",
+    });
+    expect(colors(style("box", "muted"))).toMatchObject({
+      fill: "#f1f4f7",
+      strokeWidth: 0,
+      fontColor: "#1c2b33",
+    });
+    // ⊕: white in a light gray frame with a dark symbol.
+    expect(colors(style("operator"))).toMatchObject({
+      fill: "#ffffff",
+      stroke: "#cbd2d9",
+      fontColor: "#1c2b33",
+    });
+    // Mixture of Experts: a borderless pale panel; Routed Experts: a white one.
+    // Both titles are regular dark text.
+    for (const [variant, fill] of [
+      ["default", "#f1f4f7"],
+      ["muted", "#ffffff"],
+    ] as const) {
+      expect(style("container", variant)).toMatchObject({
+        fill,
+        strokeWidth: { pt: 0 },
+        fontColor: "#1c2b33",
+        bold: false,
+      });
+    }
+    // Slate edges; thin light gray dashed zoom lines.
+    expect(colors(style("arrow"))).toMatchObject({ stroke: "#344854", strokeWidth: 1 });
+    expect(style("zoom")).toMatchObject({ stroke: "#96a0a7", strokeWidth: { pt: 0.5 } });
+    expect(style("zoom").strokeDash).toBeGreaterThan(0);
+    // Rounded blocks and panels.
+    expect(style("box").kind === "node" && style("box")).toMatchObject({ radius: { pt: 3 } });
+    expect(style("container")).toMatchObject({ radius: { pt: 5 } });
+    // Line-only components keep a visible muted line.
+    for (const id of ["bracket", "waveform"]) {
+      expect(style(id, "muted")).toMatchObject({ stroke: "#657585", strokeWidth: { pt: 1 } });
+    }
+  });
+
   test("resolveTheme suggests the closest theme name", () => {
     expect(resolveTheme("academic").ok).toBe(true);
     const result = resolveTheme("minimall");
@@ -671,7 +756,7 @@ describe("built-in themes", () => {
       [
         "theme/unknown",
         ["figure", "theme"],
-        'Did you mean "minimal"? Available themes: minimal, academic, slides, color, paper.',
+        'Did you mean "minimal"? Available themes: minimal, academic, slides, color, paper, llama.',
       ],
     ]);
   });
@@ -716,9 +801,11 @@ describe("borderless and dashed variants (#174)", () => {
       expect(group("plain")).toMatchObject({ fill: "transparent", strokeWidth: { pt: 0 } });
       expect(group("filled").strokeWidth.pt).toBe(0);
       expect(group("filled").fill).not.toBe("transparent");
+      // The frame of the default group; llama's groups have none (#386), so
+      // its dashed group draws one in the theme's frame color.
       expect(group("dashed")).toMatchObject({
         fill: "transparent",
-        strokeWidth: group("default").strokeWidth,
+        strokeWidth: id === "llama" ? { pt: 1, units: 2 } : group("default").strokeWidth,
         stroke: group("default").stroke,
       });
       expect(group("dashed").strokeDash).toBeGreaterThan(0);

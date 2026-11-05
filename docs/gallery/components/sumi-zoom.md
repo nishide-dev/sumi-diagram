@@ -8,10 +8,10 @@ Two straight lines joining the corners of the source to the matching corners of 
 
 No props.
 
-| <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> |
-| --- | --- | --- | --- | --- |
-| <img src="sumi-zoom.minimal.svg" alt="sumi/zoom, theme minimal"> | <img src="sumi-zoom.academic.svg" alt="sumi/zoom, theme academic"> | <img src="sumi-zoom.slides.svg" alt="sumi/zoom, theme slides"> | <img src="sumi-zoom.color.svg" alt="sumi/zoom, theme color"> | <img src="sumi-zoom.paper.svg" alt="sumi/zoom, theme paper"> |
-| <code>sumi render sumi\-zoom\.sumi\.yaml</code><br>56\.27mm × 67\.38mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-zoom\.sumi\.yaml \-\-theme academic</code><br>56\.27mm × 65\.79mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-zoom\.sumi\.yaml \-\-theme slides</code><br>72\.85mm × 89\.61mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-zoom\.sumi\.yaml \-\-theme color</code><br>56\.27mm × 67\.38mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-zoom\.sumi\.yaml \-\-theme paper</code><br>53\.8mm × 67\.38mm \(max width 180mm, max height 220mm\) |
+| <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> | <code>llama</code> |
+| --- | --- | --- | --- | --- | --- |
+| <img src="sumi-zoom.minimal.svg" alt="sumi/zoom, theme minimal"> | <img src="sumi-zoom.academic.svg" alt="sumi/zoom, theme academic"> | <img src="sumi-zoom.slides.svg" alt="sumi/zoom, theme slides"> | <img src="sumi-zoom.color.svg" alt="sumi/zoom, theme color"> | <img src="sumi-zoom.paper.svg" alt="sumi/zoom, theme paper"> | <img src="sumi-zoom.llama.svg" alt="sumi/zoom, theme llama"> |
+| <code>sumi render sumi\-zoom\.sumi\.yaml</code><br>56\.27mm × 67\.38mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-zoom\.sumi\.yaml \-\-theme academic</code><br>56\.27mm × 65\.79mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-zoom\.sumi\.yaml \-\-theme slides</code><br>72\.85mm × 89\.61mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-zoom\.sumi\.yaml \-\-theme color</code><br>56\.27mm × 67\.38mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-zoom\.sumi\.yaml \-\-theme paper</code><br>53\.8mm × 67\.38mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-zoom\.sumi\.yaml \-\-theme llama</code><br>53\.8mm × 67\.38mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-zoom.sumi.yaml</code></summary>

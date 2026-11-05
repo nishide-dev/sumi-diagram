@@ -134,7 +134,7 @@ v0.3.0 から、台形 `trapezoid` と重なった矩形 `stack` を使えます
 
 - `trapezoid`: 上辺が広く、下辺が狭い台形。
 - `stack`: 3枚の矩形を重ねた形。書類やレイヤーの集まりなどに使い、文字は前面に配置します。
-- どちらも `default`・`emphasis`・`muted`、5 つの組み込みテーマに対応し、props は任意の `width` / `height` です。現在の対応状況はカタログを参照してください。傾き・枚数・ずれ幅は固定で、props では変更できません。通常はサイズを省略し、文字に合わせて自動配置します。
+- どちらも `default`・`emphasis`・`muted`、すべての組み込みテーマに対応し、props は任意の `width` / `height` です。現在の対応状況はカタログを参照してください。傾き・枚数・ずれ幅は固定で、props では変更できません。通常はサイズを省略し、文字に合わせて自動配置します。
 
 `sumi catalog --json` の `render` は Sumi が輪郭を合成する部品のメタデータで、Figure YAML に書くフィールドではありません。自動配置の接続は ELK が選ぶ辺と位置に従い、輪郭までエッジを延ばします。自動配置では任意位置のポートは提供しません。[ギャラリー](gallery/README.md)に全 variant・全テーマの作例があります。
 
@@ -259,7 +259,7 @@ sumi render figure.sumi.yaml -o glued.pptx --pptx-mode editable --pptx-connector
 
 見た目はテーマ（`figure.theme`）、出力先の制約（ページの大きさ・最小文字サイズ・間隔）はプロファイル（`figure.profile`）で選びます。両者は独立で、プロファイルが図や文字を拡大・縮小することはありません。
 
-組み込みテーマは次の 5 つです。
+組み込みテーマは次の 6 つです。
 
 | テーマ | 内容 |
 | --- | --- |
@@ -268,6 +268,7 @@ sumi render figure.sumi.yaml -o glued.pptx --pptx-mode editable --pptx-connector
 | `slides` | スライド向け。文字 16pt（エッジ 14pt、コンテナ 18pt）、線 2pt。`presentation-16x9` と組み合わせる |
 | `color` | 色を使う汎用テーマ。`minimal` と同じ線・文字で、tone は淡い色の塗り、強調は青。文字 8pt（エッジ 7pt） |
 | `paper` | カラーの ML 論文風。パステルの tone、角丸の箱とグループ、黒い 1pt の枠、薄い灰色のパネル、0.5pt のエッジと小さい矢じり、structured の図の欧文は Inter（フォントセット `sumi/inter-biz-ud-gothic`）。文字 8pt（エッジ 7pt）（[設計 §6.52](design/phase1.md#652-173-の論文向けの-theme-paper)） |
+| `llama` | Meta の Llama 4 の発表記事の MoE の図にならったテーマ。1pt の青灰色の線と開いた山形の矢じり、灰色の枠の白い箱、濃い青灰色の `solid`、青い `emphasis`、枠のない淡いパネル。欧文は `paper` と同じ Inter。文字 8pt（エッジ 7pt）（[設計 #386](design/decisions/386-llama-theme.md)） |
 
 `academic` と `paper` はどちらも論文向けです。白黒で印刷するなら `academic`、カラーの ML 論文なら `paper` です。比較表と同じ図の描き比べは[テーマの説明](themes-ja.md)を参照してください。
 

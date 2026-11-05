@@ -638,6 +638,7 @@ describe("sumi catalog", () => {
         "tones",
         "toneLines",
         "compatibleProfiles",
+        "arrowhead",
       ]);
     }
     for (const profile of json.profiles) {

@@ -75,7 +75,8 @@ const splitLabels = [
   { label: "高さのみ\n短", size: ", height: 100pt" },
 ];
 
-// Independent contract: filled alone is borderless in every built-in theme.
+// Independent contract: filled alone is borderless in every built-in theme,
+// but for llama's muted block (#386), a borderless pale fill.
 const variantCrossings = [
   ["default", 1],
   ["muted", 1],
@@ -138,7 +139,7 @@ nodes:
         expect(polylinesCrossRect(geometry.labelBoundaries, line, 0)).toBe(true);
         expect(
           lintGeometry(input).filter((d) => d.code === "geometry/label-overflow"),
-        ).toHaveLength(crossings);
+        ).toHaveLength(theme === "llama" && variant === "muted" ? 0 : crossings);
       });
 
       test(`${theme}/${engine}/${variant}: split labels stay readable on paint or centered on the page`, async () => {
@@ -152,9 +153,11 @@ nodes:
           const geometry = geometryContextFor(result.value).get("n:a");
           if (!geometry?.bbox || !geometry.labelBoundaries) throw new Error("missing geometry");
           expect(geometry.labels).toHaveLength(1);
+          // llama's emphasis (#386) has white text on its accent fill, like solid.
+          const onPaint = variant === "solid" || (theme === "llama" && variant === "emphasis");
           for (const line of geometry.labels.flatMap((l) => l.visibleLines)) {
             const { x, y, width, height } = geometry.bbox;
-            if (variant === "solid") {
+            if (onPaint) {
               // Independent geometric oracle: at every y in the middle half,
               // the painted left trapezoid contains this rectangular region.
               const lip = x + (width - Math.min(64, width / 2)) / 2;
@@ -167,7 +170,7 @@ nodes:
               expect(line.x + line.width / 2).toBeCloseTo(x + width / 2, 2);
             }
           }
-          if (variant === "solid") expect(lintGeometry(result.value)).toEqual([]);
+          if (onPaint) expect(lintGeometry(result.value)).toEqual([]);
         }
       });
     }

@@ -556,3 +556,129 @@ export function composeJunctionEnds(
     return { ok: false, diagnostics };
   }
 }
+
+/**
+ * Open arrowheads in `auto` (#386): D2 has no chevron, so an `open` end is
+ * written to D2 as a filled triangle (`compileToD2`) and its marker is
+ * replaced here by a copy with the same box that strokes a right-angled
+ * chevron in the triangle's color and the edge's line width. The copy gets
+ * an id of its own, so a triangle that shares D2's marker stays as it is.
+ * The vertex sits just ahead of the line's end (D2 stops the line 1.5 widths
+ * behind the tip), so the line runs into the chevron without a gap. Figures
+ * without open arrowheads are returned as they are.
+ */
+export function composeOpenArrowheads(svg: string, ir: FigureIR): Result<string> {
+  const diagnostics: Diagnostic[] = [];
+  const open = ir.edges.filter((e) => e.sourceArrowhead === "open" || e.targetArrowhead === "open");
+  if (open.length === 0) return { ok: true, value: svg, diagnostics };
+  let current: ElementKey = (open[0] as (typeof open)[number]).key;
+  try {
+    const parsed = parseXml(svg);
+    if (!parsed.ok) throw new Error(parsed.message);
+    const groups = new Map<ElementKey, XmlElement>();
+    const markers = new Map<string, XmlElement>();
+    for (const element of descendants(parsed.root)) {
+      if (element.name === "marker") {
+        const id = attribute(element, "id");
+        if (id !== undefined && !markers.has(id)) markers.set(id, element);
+      }
+      if (element.name !== "g") continue;
+      for (const name of classList(element)) {
+        const key = decodeElementClass(name);
+        if (key) groups.set(key, element);
+      }
+    }
+    const edits: Edit[] = [];
+    const added = new Set<string>();
+    for (const edge of open) {
+      current = edge.key;
+      const group = groups.get(edge.key);
+      const path =
+        group &&
+        childElements(group).find((c) => c.name === "path" && classList(c).includes("connection"));
+      if (!path) throw new Error(`${edge.key}: missing edge path.`);
+      let tag = svg.slice(path.start, path.startTagEnd);
+      for (const [end, head] of [
+        ["start", edge.sourceArrowhead],
+        ["end", edge.targetArrowhead],
+      ] as const) {
+        if (head !== "open") continue;
+        const id = /^url\(#(.+)\)$/.exec(attribute(path, `marker-${end}`) ?? "")?.[1];
+        const marker = id === undefined ? undefined : markers.get(id);
+        if (id === undefined || marker === undefined)
+          throw new Error(`${edge.key}: missing ${end} arrowhead marker.`);
+        const chevronId = `${id}-open`;
+        if (!added.has(chevronId)) {
+          added.add(chevronId);
+          // Before the original: D2 writes the path right after its marker.
+          edits.push({
+            start: marker.start,
+            end: marker.start,
+            text: chevronMarker(marker, chevronId, edge.style.strokeWidth.units),
+          });
+        }
+        const pattern = new RegExp(`(\\smarker-${end}\\s*=\\s*)(?:"[^"]*"|'[^']*')`);
+        tag = tag.replace(pattern, (_, prefix: string) => `${prefix}"url(#${chevronId})"`);
+      }
+      edits.push({ start: path.start, end: path.startTagEnd, text: tag });
+    }
+    let out = svg;
+    for (const edit of edits.sort((a, b) => b.start - a.start)) {
+      out = out.slice(0, edit.start) + edit.text + out.slice(edit.end);
+    }
+    return { ok: true, value: out, diagnostics };
+  } catch (cause) {
+    diagnostics.push(
+      outlineDiagnostic(
+        ir,
+        current,
+        "svg/unsupported-geometry",
+        "error",
+        cause instanceof Error ? cause.message : String(cause),
+      ),
+    );
+    return { ok: false, diagnostics };
+  }
+}
+
+/** A copy of D2's triangle `marker` that strokes a chevron instead (see `composeOpenArrowheads`). */
+function chevronMarker(marker: XmlElement, id: string, width: number): string {
+  const polygon = childElements(marker).find((c) => c.name === "polygon");
+  const points = (attribute(polygon ?? marker, "points") ?? "")
+    .trim()
+    .split(/\s+/)
+    .map((pair) => pair.split(",").map(Number) as [number, number]);
+  if (
+    polygon === undefined ||
+    points.length !== 3 ||
+    points.flat().some((v) => !Number.isFinite(v))
+  )
+    throw new Error("The arrowhead marker is not a triangle.");
+  // The tip is the corner opposite the base, whose two corners share x.
+  const tipIndex = points.findIndex((_, i) => {
+    const [a, b] = points.filter((_, j) => j !== i) as [[number, number], [number, number]];
+    return a[0] === b[0];
+  });
+  if (tipIndex < 0) throw new Error("The arrowhead marker is not a triangle.");
+  const tip = points[tipIndex] as [number, number];
+  const base = points.filter((_, i) => i !== tipIndex) as [number, number][];
+  const baseX = (base[0] as [number, number])[0];
+  const half = Math.abs((base[0] as [number, number])[1] - (base[1] as [number, number])[1]) / 2;
+  const sign = Math.sign(tip[0] - baseX);
+  const refX = Number(attribute(marker, "refX"));
+  const refY = Number(attribute(marker, "refY"));
+  if (!Number.isFinite(refX) || !Number.isFinite(refY))
+    throw new Error("The arrowhead marker has no reference point.");
+  // The inner corner of the stroked vertex (0.7 widths behind it) meets the line's end.
+  const vertex = refX + sign * 0.7 * width;
+  const reach = Math.min(half - width / 2, Math.abs(vertex - baseX) - width / 2);
+  const d = `M ${fmt(vertex - sign * reach)} ${fmt(refY - reach)} L ${fmt(vertex)} ${fmt(refY)} L ${fmt(vertex - sign * reach)} ${fmt(refY + reach)}`;
+  const keep = ["markerWidth", "markerHeight", "refX", "refY", "viewBox", "orient", "markerUnits"]
+    .map((name) => {
+      const value = attribute(marker, name);
+      return value === undefined ? "" : ` ${name}="${escapeAttribute(value)}"`;
+    })
+    .join("");
+  const color = escapeAttribute(attribute(polygon, "fill") ?? "#000000");
+  return `<marker id="${escapeAttribute(id)}"${keep}><path d="${d}" fill="none" stroke="${color}" stroke-width="${fmt(width)}" stroke-linecap="round" stroke-linejoin="round"/></marker>`;
+}
