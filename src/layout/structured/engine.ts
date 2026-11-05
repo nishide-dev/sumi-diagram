@@ -191,8 +191,11 @@ export function placeStructured(
     engine.growPadding(deficits);
     placed = place();
   }
-  if (inHintTrial() || placed.diagnostics.length === 0) return placed;
-  return { ...placed, diagnostics: verifiedAlignHints(ir, placed.diagnostics) };
+  const diagnostics =
+    inHintTrial() || placed.diagnostics.length === 0
+      ? placed.diagnostics
+      : verifiedAlignHints(ir, placed.diagnostics);
+  return { ...placed, diagnostics: [...diagnostics, ...engine.placementDiagnostics()] };
 }
 
 /** Re-layouts for the padding before arrowheads (#171); the first nearly always settles it. */
@@ -335,6 +338,39 @@ class StructuredLayout {
 
   // --- Measuring -----------------------------------------------------------
 
+  placementDiagnostics(): Diagnostic[] {
+    const diagnostics: Diagnostic[] = [];
+    for (const box of this.#boxSizes.keys()) {
+      if (box.kind !== "place") continue;
+      const rects = box.items.map((item, i) =>
+        this.#coordinateRect(item, box.positionsPt?.[i] ?? [0, 0]),
+      );
+      for (const [i, a] of rects.entries())
+        for (let j = i + 1; j < rects.length; j++) {
+          const b = rects[j] as Rect;
+          if (
+            Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x) <= 0.001 ||
+            Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y) <= 0.001
+          )
+            continue;
+          const source = box.placementSources?.[j];
+          const first = box.placementSources?.[i];
+          const position = (k: number) => `(${box.positionsPt?.[k]?.join(", ")})pt`;
+          diagnostics.push({
+            code: "layout/place-overlap",
+            severity: "warning",
+            message: `Place item ${i + 1} at ${position(i)} overlaps item ${j + 1} at ${position(j)} (natural footprints).`,
+            ...source,
+            hint: "Separate the centers or increase place.unit; coordinates are never moved automatically.",
+            ...(first && {
+              related: [{ ...first, message: "The other item's center is written here." }],
+            }),
+          });
+        }
+    }
+    return diagnostics;
+  }
+
   #gap(box: ArrangeBoxIR): number {
     return box.gapPt === undefined ? this.#defaultGap : box.gapPt * 2;
   }
@@ -353,6 +389,12 @@ class StructuredLayout {
   #boxSize(box: ArrangeBoxIR): Size {
     const cached = this.#boxSizes.get(box);
     if (cached !== undefined) return cached;
+    if (box.kind === "place") {
+      const bounds = this.#placeBounds(box);
+      const size = { width: bounds.width, height: bounds.height };
+      this.#boxSizes.set(box, size);
+      return size;
+    }
     if (box.kind === "grid") return this.#gridTracks(box).size;
     const sizes = box.items.map((item) => this.#itemSize(item));
     const vertical = box.kind === "stack";
@@ -463,6 +505,53 @@ class StructuredLayout {
 
   // --- Placing ---------------------------------------------------------------
 
+  /** Union of natural footprints around the authored centers, without grid quantization. */
+  #placeBounds(box: ArrangeBoxIR): Rect {
+    const rects = box.items.map((item, i) =>
+      this.#coordinateRect(item, box.positionsPt?.[i] ?? [0, 0]),
+    );
+    const x = Math.min(...rects.map((r) => r.x));
+    const y = Math.min(...rects.map((r) => r.y));
+    return {
+      x,
+      y,
+      width: Math.max(...rects.map((r) => r.x + r.width)) - x,
+      height: Math.max(...rects.map((r) => r.y + r.height)) - y,
+    };
+  }
+
+  /** Center a node/group body; its badge or caption still contributes to the footprint. */
+  #coordinateRect(item: ArrangeItemIR, [x, y]: readonly [number, number]): Rect {
+    const size = this.#itemSize(item);
+    let body = { x: 0, y: 0, ...size };
+    if (typeof item === "string") body = this.#bodyRect(item, body);
+    else if (item?.growFirst === true) {
+      const key = item.items[0];
+      this.#placeBox(item, body, "center", (k, rect) => {
+        if (k === key) body = rect;
+      });
+    }
+    return { x: x * 2 - body.x - body.width / 2, y: y * 2 - body.y - body.height / 2, ...size };
+  }
+
+  #placeCoordinates(
+    box: ArrangeBoxIR,
+    frame: Rect,
+    visit: (key: ElementKey, rect: Rect) => void,
+  ): void {
+    const bounds = this.#placeBounds(box);
+    box.items.forEach((item, i) => {
+      const local = this.#coordinateRect(item, box.positionsPt?.[i] ?? [0, 0]);
+      const rect = {
+        ...local,
+        x: frame.x + (frame.width - bounds.width) / 2 - bounds.x + local.x,
+        y: frame.y + (frame.height - bounds.height) / 2 - bounds.y + local.y,
+      };
+      if (typeof item === "string") visit(item, this.#bodyRect(item, rect));
+      else if (item !== null) this.#placeBox(item, rect, "center", visit);
+    });
+  }
+
   /** Single-column maxima first, then distribute spanning deficits in document order. */
   #gridTracks(box: ArrangeBoxIR): GridTracks {
     const cached = this.#grids.get(box);
@@ -544,6 +633,10 @@ class StructuredLayout {
     inherited: Align,
     visit: (key: ElementKey, rect: Rect) => void,
   ): void {
+    if (box.kind === "place") {
+      this.#placeCoordinates(box, frame, visit);
+      return;
+    }
     if (box.kind === "grid") {
       this.#placeGrid(box, frame, visit);
       return;
