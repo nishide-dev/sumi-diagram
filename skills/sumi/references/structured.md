@@ -790,6 +790,11 @@ edges:
   they branch (`{ from: mlp, fromAnchor: north, to: ss1, toAnchor: east }`, … per
   target). An edge entering a port and one leaving it never share a line; both anchored
   at one point is `layout/no-route`.
+  A hidden junction feeding the same vertical side of unequal-height targets
+  (e.g. boxes with a short `label` among them) prefers one horizontal bus with
+  full arrowhead room for every target. The shorter target gets a longer arrow;
+  obstacles and tight gaps can still force a detour. Equal-height targets keep
+  their existing routing.
 - **Fan-in (`figure.layout.fanIn`)**: by default (`merge`) edges from different elements
   entering one side without a `toAnchor` merge into one trunk. `fanIn: spread` (next to
   `arrange`) **tries** to bring them in at separate points ordered by their sources; if
