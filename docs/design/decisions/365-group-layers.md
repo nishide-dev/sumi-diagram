@@ -26,6 +26,6 @@ GCN Figure 1 の特徴マップ群には、頂点を含む前面カードと、�
 
 layers がないグループは同じ寸法・描画順・出力のまま。count 1 も描画は同じ。既存 props のないグループへ既定値を書き足さず、metadata も維持する。不明な group props は従来の schema/unknown-field から component/unknown-prop に変わる（新しい有効な props フィールドを追加したため）。
 
-既存の対象 YAML を自身の theme および全組み込み theme で変更前後に描画し、SVG / PDF / picture PPTX / D2 の SHA-256 を比較する。research と名前に c-h3world を含むファイルを除外する。新機能は全 theme × framed variant、4 枚、左上の数式タイトル＋下キャプション、前面への接続、不正値、plain / auto / editable の診断、入れ子、count 1 を回帰テストで検証する。視覚確認用の生成物は `.sumi/preview/` に置き、CLI の PDF を pdftoppm で PNG 化して確認する。
+既存の対象 YAML を自身の theme および全組み込み theme で変更前後に描画し、SVG / PDF / picture PPTX / D2 の SHA-256 を比較する。research と非公開の図を除外する。新機能は全 theme × framed variant、4 枚、左上の数式タイトル＋下キャプション、前面への接続、不正値、plain / auto / editable の診断、入れ子、count 1 を回帰テストで検証する。視覚確認用の生成物は `.sumi/preview/` に置き、CLI の PDF を pdftoppm で PNG 化して確認する。
 
 PR #377 の回帰テストでは4枚のグループ内から北・東へ出る orthogonal / straight の辺が迂回せず背面帯を通り、SVG のカードより後に描画されることを検証する。`label-stack` の junction 間に `Layer\nWeights` を置く再現では、前面・背面の枠を覆うラベルに collision が出ること、十分な高さがある場合は衝突なく配置すること、footprint 内部に収まる前面枠・背面帯の衝突も検出することを検証する。
