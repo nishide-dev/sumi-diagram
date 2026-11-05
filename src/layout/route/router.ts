@@ -391,7 +391,10 @@ function sharable(a: Edge, b: Edge): boolean {
  * the existing soft room preference to the common row; obstacles and tight
  * spaces retain the router's usual fallback. Do not move the junction here.
  */
-function forkRooms(edges: Edge[], ir: FigureIR): Edge[] {
+function forkRooms(edges: Edge[], ir: FigureIR, layout: LayoutIR): Edge[] {
+  const centers = new Map(
+    layout.nodes.map((node) => [node.key, roundUnits(node.rect.y + node.rect.height / 2)]),
+  );
   const forks = new Map<ElementKey, Edge[]>();
   for (const edge of edges) {
     const node = ir.elements.get(edge.from.key);
@@ -409,12 +412,20 @@ function forkRooms(edges: Edge[], ir: FigureIR): Edge[] {
       continue;
     const d = DIRS[dir] as Point;
     if (d.x !== 0) continue;
+    const row = centers.get(first.to.key);
+    if (
+      row === undefined ||
+      !branches.every((e) => Math.abs((centers.get(e.to.key) ?? Infinity) - row) <= 0.002)
+    )
+      continue;
     const along = (p: Point) => p.x * d.x + p.y * d.y;
     const levels = branches.map((e) => along(e.to.port));
     if (levels.every((v) => v === levels[0])) continue;
     const required = Math.max(
       ...branches.map((e) => along(e.to.port) + Math.max(e.toRoom, e.toLane)),
     );
+    // Keep the original room-end grid rows when the common bus cannot fit.
+    if (along(first.from.port) < required) continue;
     const bus = Math.max(required, along(first.from.port));
     for (const edge of branches) rooms.set(edge, roundUnits(bus - along(edge.to.port)));
   }
@@ -583,6 +594,7 @@ class Router {
     const routable = forkRooms(
       edges.filter((e): e is Edge => e !== undefined).map((e, index) => ({ ...e, index })),
       ir,
+      this.#layout,
     );
     this.#edges = routable;
     this.#joinNets(routable);
