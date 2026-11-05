@@ -8,10 +8,10 @@ A line with an arrowhead at the target\.
 
 No props.
 
-| <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> |
-| --- | --- | --- | --- | --- |
-| <img src="sumi-arrow.minimal.svg" alt="sumi/arrow, theme minimal"> | <img src="sumi-arrow.academic.svg" alt="sumi/arrow, theme academic"> | <img src="sumi-arrow.slides.svg" alt="sumi/arrow, theme slides"> | <img src="sumi-arrow.color.svg" alt="sumi/arrow, theme color"> | <img src="sumi-arrow.paper.svg" alt="sumi/arrow, theme paper"> |
-| <code>sumi render sumi\-arrow\.sumi\.yaml</code><br>53\.09mm × 57\.86mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-arrow\.sumi\.yaml \-\-theme academic</code><br>53\.09mm × 57\.86mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-arrow\.sumi\.yaml \-\-theme slides</code><br>69\.5mm × 69\.5mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-arrow\.sumi\.yaml \-\-theme color</code><br>53\.09mm × 57\.86mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-arrow\.sumi\.yaml \-\-theme paper</code><br>53\.09mm × 57\.86mm \(max width 180mm, max height 220mm\) |
+| <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> | <code>llama</code> |
+| --- | --- | --- | --- | --- | --- |
+| <img src="sumi-arrow.minimal.svg" alt="sumi/arrow, theme minimal"> | <img src="sumi-arrow.academic.svg" alt="sumi/arrow, theme academic"> | <img src="sumi-arrow.slides.svg" alt="sumi/arrow, theme slides"> | <img src="sumi-arrow.color.svg" alt="sumi/arrow, theme color"> | <img src="sumi-arrow.paper.svg" alt="sumi/arrow, theme paper"> | <img src="sumi-arrow.llama.svg" alt="sumi/arrow, theme llama"> |
+| <code>sumi render sumi\-arrow\.sumi\.yaml</code><br>53\.09mm × 57\.86mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-arrow\.sumi\.yaml \-\-theme academic</code><br>53\.09mm × 57\.86mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-arrow\.sumi\.yaml \-\-theme slides</code><br>69\.5mm × 69\.5mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-arrow\.sumi\.yaml \-\-theme color</code><br>53\.09mm × 57\.86mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-arrow\.sumi\.yaml \-\-theme paper</code><br>53\.09mm × 57\.86mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-arrow\.sumi\.yaml \-\-theme llama</code><br>53\.09mm × 57\.86mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-arrow.sumi.yaml</code></summary>

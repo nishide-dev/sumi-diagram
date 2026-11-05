@@ -1081,8 +1081,9 @@ export const arrowheadOnBend = defineGeometryRule({
         // D2's triangle marker is 4 + 3w long, with its tip 1.5w beyond
         // path.connection's endpoint (refX = 4 + 1.5w). Its nearly tangent
         // cubic ends are quantized too, so use the usual geometry tolerance.
+        // An open chevron (#386) is drawn in that triangle's marker box.
         const head = source ? edge.ir.sourceArrowhead : edge.ir.targetArrowhead;
-        if (!structured && head !== "triangle") continue;
+        if (!structured && head !== "triangle" && head !== "open") continue;
         const run =
           arrowheadStraightRun(
             route,
