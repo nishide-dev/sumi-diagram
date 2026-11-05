@@ -136,7 +136,8 @@ edges:
 ```sh
 $ sumi render etl-pipeline.sumi.yaml; echo "exit $?"
 etl-pipeline.sumi.yaml:4:3 error geometry/exceeds-page-width The figure is 171.63mm wide, more than the 88mm maximum width of profile "paper-single".
-  hint: Width to remove: 83.63mm. Widest horizontal run: auto horizontal footprint = 167.39mm (127.71mm occupied x-projection + 39.69mm observed gaps). Items: node "sources" 31.4mm, … Sumi never shrinks a figure on its own. … The minimum printed font size with `figure.fit: scale` is 5pt.
+  hint: Width to remove: 83.63mm. Sets the width: auto horizontal footprint = 167.39mm; items node "sources" 31.4mm, …. Observed geometry only; no trial layouts were run. Sumi never shrinks a figure on its own. … The minimum printed font size with `figure.fit: scale` is 5pt.
+  related: etl-pipeline.sumi.yaml:4:3 Widest horizontal run: auto horizontal footprint = 167.39mm (127.71mm occupied x-projection + 39.69mm observed gaps). Items: …
 Wrote etl-pipeline.svg: 171.63mm × 24.17mm (paper-single, max width 88mm, TOO WIDE; theme academic).
 exit 1
 ```

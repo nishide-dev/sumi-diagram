@@ -212,18 +212,23 @@ explicit `props`: those findings point at `label`; partial or explicit ones at `
 
 ## Too wide: the width breakdown
 
-`geometry/exceeds-page-width` (render / `lint --geometry`) carries a measured
-breakdown in its hint. **Structured:** the widest row or grid, its item widths,
-the total and largest horizontal gap (a grid item names its column or span), and
-the horizontal overhang of attached nodes beyond their container. Concrete edits
-(row `gap`, grid `columnGap`, explicit node `width`, `attach.gap`; tried in order
-of their own size) are recommended only if the trial shows a smaller width, ranked by
-mm saved. **Auto:** the top-level horizontal footprint and observed gaps, not
-ELK's internal layers or spacing; overlapping x-ranges and grid spans are merged,
-blank tracks cannot be reconstructed; margins, strokes, edges and labels can also
-widen the page. Lengths are printed mm; `geometry/heavy-scaling` explicitly uses
-natural, pre-scaling mm so the same breakdown remains available under `fit: scale`.
-Sumi never shrinks a figure automatically.
+`geometry/exceeds-page-width` (render / `lint --geometry`) keeps its hint short and
+in the order you act on it: **1.** `Width to remove` (the overflow in mm), **2.** `Sets
+the width`: the row, grid or auto footprint that sets the page width and its three
+widest items (a grid item names its column or span), **3.** `Verified layout edits`:
+concrete edits (row `gap`, grid `columnGap`, explicit node `width`, `attach.gap`; tried
+in order of their own size) recommended only if the trial shows a smaller width, ranked
+by mm saved (up to 3; trial reductions are independent, not additive), and **4.** the
+reminder that Sumi never shrinks a figure on its own. The fine-grained breakdown is not
+in the hint: it follows as `related` notes (and in `--json` under `related`): every
+item width and the total of observed gaps of the widest run, the descendant runs, the
+horizontal overhang of attached nodes beyond their container, the largest label
+overhang and the top-level span. **Auto:** only the top-level horizontal footprint and
+observed gaps, not ELK's internal layers or spacing; no trials run. Overlapping
+x-ranges and grid spans are merged, blank tracks cannot be reconstructed; margins,
+strokes, edges and labels can also widen the page. Lengths are printed mm;
+`geometry/heavy-scaling` shows the same headline for the natural, pre-scaling width,
+so it remains available under `fit: scale`.
 
 Procedure: apply the hint's edit (or shorten labels), re-run, repeat: a second
 row may become the widest. If it is still too wide, build candidates from the
