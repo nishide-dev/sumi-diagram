@@ -143,6 +143,7 @@
   "examples/decision-flow/decision-flow.svg": "ea863a774b58fb1d985fbe9f0d7d8418033a8212acdba0127274f17b4aca7087",
   "examples/dit-block/dit-block.svg": "81ae48671a5d5e0eb0e1050026b55224181f1cf89dda2655395b441cfb1c97cf",
   "examples/embedding-gemma/embedding-gemma.svg": "8fa87cda4a03662e8a5737e5b5bb22dc2517de0edf05a9160189a7e3854043ee",
+  "examples/gcn/gcn.svg": "c7c78961515d4480804cf71f303816a92a4492e438fdb74aa75ea31d37ceb7b2",
   "examples/grouped/grouped.svg": "b1261e7d08c87dd98d724ce21126b40396e80b88cd522cd755c7c822f374c176",
   "examples/pipeline/pipeline.svg": "a421c3eaacc9fd285ef7ee19e95255607c5ac4811d07caf342130ccf8b7319df",
   "examples/system-architecture/system-architecture.svg": "58a4e467375eb710cd5f56d18c7edc2be908ef89be24fdb7aaba5d700ffa7538",

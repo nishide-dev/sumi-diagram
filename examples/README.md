@@ -15,6 +15,7 @@ vector PDF (#59).
 | [`dit-block/`](dit-block/dit-block.sumi.yaml) | `paper` / `paper-double` | the faithful four-panel DiT figure: Latent Diffusion Transformer, adaLN-Zero, Cross-Attention and In-Context Conditioning; structured layout with `fit: scale`, filled tones with sublabels, a plain (frameless) group, dimmed alternatives, a `zoom` callout, label math, and four labeled conditioning taps over a shared bus (180mm × 84.69mm) |
 | [`embedding-gemma/`](embedding-gemma/embedding-gemma.sumi.yaml) | `paper` / `paper-double` | EmbeddingGemma 2 Figure 1: restricted `html` prompt and syntax-colored code cards, exact-color HTML encoder blocks, illustrative sample-driven `waveform`, ten `tokens`, orthogonal multimodal joins and an output bus, and original synthetic guitar/video/scatter SVG assets with a deterministic generator (171.8mm × 145.17mm) |
 | [`clip/`](clip/clip.sumi.yaml) | `paper` / `paper-double` | Radford et al. (2021), Figure 1: contrastive pre-training, a text-derived classifier and zero-shot prediction; square theme overrides, sharp shared comb buses, trapezoid encoders, monospace cards, a curly bracket, formula matrices and an original synthetic vector dog (180mm × 67.64mm) |
+| [`gcn/`](gcn/gcn.sumi.yaml) | `paper` / `paper-double` | Kipf & Welling (2017), Figure 1: a multi-layer graph convolutional network; vertices placed by coordinates (`place`), the same graph shape in two layers drawn as stacked cards (`props.layers`), colored curves that converge on and spread from the hidden layers (`route: curve`), straight undirected graph edges, per-figure tone colors and white cards (`themeOverrides.tones`, `groupFill`), and an original synthetic t-SNE-style point cloud (178.86mm × 65.44mm) |
 
 `pipeline` and `decision-flow` use `direction: down`: four or more nodes in a
 row to the right are already wider than `paper-single` (88mm).
@@ -23,7 +24,7 @@ groups from the side (with `direction: down` they cross the groups' centered
 labels, `geometry/edge-crosses-label`), which makes them wider than one paper
 column: they use `paper-double` (180mm).
 
-All eight pass `sumi lint --geometry` without errors or warnings (CLIP uses
+All nine pass `sumi lint --geometry` without errors or warnings (CLIP uses
 `--config examples/clip/lint.json`, as explained below). The four
 structured figures use the `paper` theme (the color, ML-paper style) and are laid out and routed by Sumi
 itself, without D2. `transformer` fits one column; `dit-block` is wider than
@@ -66,6 +67,7 @@ geometry lint):
 | `dit-block` | 7: `geometry/heavy-scaling` ×1 (81.38%, with the width breakdown before scaling); `geometry/script-too-small` ×1 (math scripts down to 3.99pt after scaling); `geometry/group-empty-area` ×2 (the equal-height Cross-Attention and In-Context panels); `geometry/arrowhead-cramped` ×3 (conditioning taps, 1.63pt straight stems after scaling) |
 | `embedding-gemma` | none (sharp joins and 1pt edges remove the previous three `geometry/edge-near-border` infos) |
 | `clip` | 2: `geometry/heavy-scaling` ×1 (71.81%, with the width breakdown before scaling); `geometry/script-too-small` ×1 (math scripts down to 4.02pt after scaling; body text is 5.74pt, above the 5pt scaled minimum) |
+| `gcn` | 2: `geometry/group-empty-area` ×2 (the input and output layers: the graphs keep the original's sparse vertex positions) |
 
 The DiT and CLIP scaling infos are accepted to preserve their complete reference
 arrangements at 180mm. Inspect the vector PDF for inline-math labels: `rsvg-convert` drops

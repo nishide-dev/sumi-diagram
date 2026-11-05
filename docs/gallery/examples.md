@@ -28,6 +28,12 @@ The committed SVGs of <code>examples/</code>, rendered from their sources as wri
 
 <img src="../../examples/embedding-gemma/embedding-gemma.svg" alt="EmbeddingGemma 2 — unified multimodal representations">
 
+## GCN — Graph Convolutional Network
+
+[<code>examples/gcn/gcn\.sumi\.yaml</code>](../../examples/gcn/gcn.sumi.yaml) · [PDF](../../examples/gcn/gcn.pdf) · theme <code>paper</code> · profile <code>paper\-double</code> · 178\.86mm × 65\.44mm \(max width 180mm, max height 220mm\)<br>info geometry/group\-empty\-area \(×2\): Group &quot;input&quot; has 86\.5% empty bounding\-box area \(threshold 75%; edges excluded\)\.
+
+<img src="../../examples/gcn/gcn.svg" alt="GCN — Graph Convolutional Network">
+
 ## Nested groups
 
 [<code>examples/grouped/grouped\.sumi\.yaml</code>](../../examples/grouped/grouped.sumi.yaml) · [PDF](../../examples/grouped/grouped.pdf) · theme <code>minimal</code> · profile <code>paper\-double</code> · 167\.57mm × 65\.97mm \(max width 180mm, max height 220mm\)
