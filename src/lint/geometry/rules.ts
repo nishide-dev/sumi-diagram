@@ -837,8 +837,8 @@ export const edgeCrossesLabel = defineGeometryRule({
           subject: edge.subject,
           hint: isZoom(edge)
             ? zoomLabelHint()
-            : edge.ir.kind === "edge" && edge.ir.route === "straight"
-              ? "route: straight does not avoid labels. Move the endpoints or the label, change labelAt / labelSide on an edge label, or remove route: straight."
+            : edge.ir.kind === "edge" && edge.ir.route !== undefined
+              ? `route: ${edge.ir.route} does not avoid labels. Move the endpoints or the label, change labelAt / labelSide on an edge label, or remove route: ${edge.ir.route}.`
               : edgeCrossesLabelHint(context, other),
           related: [{ path: labelPath(other), message: "The label is defined here." }],
         });
@@ -878,8 +878,8 @@ export const edgeThroughNode = defineGeometryRule({
           path: edge.docPath,
           subject: edge.subject,
           hint:
-            edge.ir.route === "straight"
-              ? "route: straight does not avoid obstacles. Move the node or the endpoints, change fromAnchor / toAnchor, or remove route: straight to use obstacle-avoiding routing."
+            edge.ir.route !== undefined
+              ? `route: ${edge.ir.route} does not avoid obstacles. Move the node or the endpoints, change fromAnchor / toAnchor, or remove route: ${edge.ir.route} to use obstacle-avoiding routing.`
               : "An edge should go around the nodes it does not connect. In a structured figure, change its anchors (fromAnchor / toAnchor) or leave a free channel between the nodes; in an auto figure, change layout.direction or the grouping.",
           related: [{ path: node.docPath, message: `${capitalize(node.name)} is defined here.` }],
         });
@@ -991,6 +991,8 @@ export const arrowheadOnBend = defineGeometryRule({
     const findings: LintFinding[] = [];
     for (const edge of context.elements) {
       if (!isDrawnEdge(edge) || edge.ir.kind !== "edge" || edge.route === undefined) continue;
+      // Cubics have a continuous tangent, not a straight stem followed by a bend.
+      if (edge.ir.route === "curve") continue;
       const width = edge.ir.style.strokeWidth.units;
       const structured = isStructured(context);
       const length = structured ? arrowheadLength(width) : 4 + 3 * width;
@@ -1033,6 +1035,7 @@ export const arrowheadCramped = defineGeometryRule({
     const findings: LintFinding[] = [];
     for (const edge of context.elements) {
       if (!isDrawnEdge(edge) || edge.ir.kind !== "edge" || edge.route === undefined) continue;
+      if (edge.ir.route === "curve") continue;
       const length = arrowheadLength(edge.ir.style.strokeWidth.units);
       for (const source of [true, false]) {
         if ((source ? edge.ir.sourceArrowhead : edge.ir.targetArrowhead) === undefined) continue;

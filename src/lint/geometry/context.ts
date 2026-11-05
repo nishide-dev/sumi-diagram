@@ -12,6 +12,7 @@ import type { DiagnosticSubject, DocPath } from "../../core/diagnostics";
 import { getOutlineRenderer } from "../../core/outline";
 import { SEPARATOR_ID } from "../../core/registry/builtins";
 import type { FontSet } from "../../core/theme/fonts";
+import { sampleCubic } from "../../layout/route/cubic";
 import type { Point, Rect } from "../../render/geometry";
 import type { ProfileLimits, SvgInspection } from "../../render/inspect";
 import { type MeasuredLabel, measureLabel } from "./measure";
@@ -176,7 +177,22 @@ export function createGeometryContext(
           ? [iconAsLabel(element, geometry.bbox)]
           : []),
       ],
-      ...(geometry.path !== undefined && { route: flattenPath(geometry.path) }),
+      ...(geometry.path !== undefined && {
+        route:
+          element.kind === "edge" &&
+          element.route === "curve" &&
+          geometry.path[0]?.command === "M" &&
+          geometry.path[1]?.command === "C"
+            ? [
+                sampleCubic([
+                  geometry.path[0].to,
+                  geometry.path[1].c1,
+                  geometry.path[1].c2,
+                  geometry.path[1].to,
+                ]),
+              ]
+            : flattenPath(geometry.path),
+      }),
     });
   }
   if (inspection.painted !== undefined) {

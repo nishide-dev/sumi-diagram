@@ -333,7 +333,7 @@ export interface GroupIR extends ObjectIRBase {
 
 export interface EdgeIR extends ElementIRBase {
   /** Opt-in single-segment routing in structured layout (#349). */
-  readonly route?: "straight";
+  readonly route?: "straight" | "curve";
   readonly kind: "edge";
   /** User ID; edges without one are identified by `index`. */
   readonly id?: string;

@@ -816,6 +816,11 @@ export function svgToEditablePptx(
       const edgeStroke = ir.meta.themeOverrides?.edgeCorners === "sharp" ? "svg-default" : "round";
       // A zoom edge (#176) is two lines between corners, not a connector
       // between sites: it stays a freeform shape in either mode.
+      if (connectors === "glued" && element.route === "curve") {
+        throw new Error(
+          "Curved edges require freeform connectors; glued connectors cannot preserve cubic tangents. Use --pptx-connectors freeform.",
+        );
+      }
       if (connectors === "glued" && element.routing !== "zoom") {
         if (element.from === element.to)
           throw new Error("Glued self-loops are unsupported; use freeform connectors.");

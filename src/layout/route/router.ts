@@ -88,7 +88,7 @@ import {
 import { deepFreeze } from "../structured/engine";
 import { arrowheadLength, WIRE_CORNER_RADIUS } from "./arrowhead";
 import { crossingDiagnostics } from "./crossings";
-import { addStraightRoutes, isStraightEdge } from "./diagonal";
+import { addDirectRoutes, isDirectEdge } from "./diagonal";
 import { endpointRects } from "./endpoint-rects";
 import { gridSpanHint, verifiedGridHints } from "./grid-hint";
 import { groupTitleDiagnostics } from "./group-title-diagnostics";
@@ -196,7 +196,7 @@ export function routeEdges(
 ): RouteResult {
   // Zoom edges (#176) are not routed: the other edges are routed without
   // them, and their straight lines are added to the result (`zoom.ts`).
-  const straight = new Set(ir.edges.filter(isStraightEdge).map((e) => e.key));
+  const straight = new Set(ir.edges.filter(isDirectEdge).map((e) => e.key));
   const orthogonalIR =
     straight.size === 0 ? ir : { ...ir, edges: ir.edges.filter((e) => !straight.has(e.key)) };
   const orthogonalLayout =
@@ -216,7 +216,7 @@ export function routeEdges(
           diagnostics: verifiedGridHints(ir, layout, raw.diagnostics),
         };
   if (routed.layout.edges.length === layout.edges.length) return routed;
-  const diagonal = addStraightRoutes(ir, layout, routed.layout);
+  const diagonal = addDirectRoutes(ir, layout, routed.layout);
   const zoom = addZoomRoutes(ir, straight.size === 0 ? layout : diagonal.layout, diagonal.layout);
   return {
     layout: deepFreeze(zoom.layout),

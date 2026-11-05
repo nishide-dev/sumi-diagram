@@ -1,0 +1,35 @@
+version: 1
+figure:
+  id: curve-bundle
+  theme: paper
+  profile: paper-double
+  layout:
+    arrange:
+      row:
+        gap: 14mm
+        items:
+          - stack: { gap: 5mm, items: [x1, x2, x3, x4] }
+          - j1
+          - j2
+          - stack: { gap: 5mm, items: [z1, z2, z3, z4] }
+nodes:
+  - { id: x1, component: circle, label: X1, tone: blue }
+  - { id: x2, component: circle, label: X2, tone: orange }
+  - { id: x3, component: circle, label: X3, tone: green }
+  - { id: x4, component: circle, label: X4, tone: red }
+  - { id: j1, component: junction, variant: hidden }
+  - { id: j2, component: junction, variant: hidden }
+  - { id: z1, component: circle, label: Z1 }
+  - { id: z2, component: circle, label: Z2 }
+  - { id: z3, component: circle, label: Z3 }
+  - { id: z4, component: circle, label: Z4 }
+edges:
+  - { id: in1, from: x1, to: j1, route: curve, component: line, tone: blue }
+  - { id: in2, from: x2, to: j1, route: curve, component: line, tone: orange }
+  - { id: in3, from: x3, to: j1, route: curve, component: line, tone: green }
+  - { id: in4, from: x4, to: j1, route: curve, component: line, tone: red }
+  - { id: hidden, from: j1, to: j2, component: line, variant: dashed }
+  - { id: out1, from: j2, to: z1, route: curve, tone: blue }
+  - { id: out2, from: j2, to: z2, route: curve, tone: orange }
+  - { id: out3, from: j2, to: z3, route: curve, tone: green }
+  - { id: out4, from: j2, to: z4, route: curve, tone: red }
