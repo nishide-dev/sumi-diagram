@@ -384,6 +384,43 @@ function sharable(a: Edge, b: Edge): boolean {
   );
 }
 
+/**
+ * A hidden fork into a row of unequal-height targets keeps one bus (#390).
+ * Greedy reuse otherwise lets a short label buy a second, closer bus, and
+ * later branches reuse it even inside a taller target's arrow room. Extend
+ * the existing soft room preference to the common row; obstacles and tight
+ * spaces retain the router's usual fallback. Do not move the junction here.
+ */
+function forkRooms(edges: Edge[], ir: FigureIR): Edge[] {
+  const forks = new Map<ElementKey, Edge[]>();
+  for (const edge of edges) {
+    const node = ir.elements.get(edge.from.key);
+    if (!edge.from.junction || node?.kind !== "node" || node.variant !== "hidden") continue;
+    const list = forks.get(edge.from.key) ?? [];
+    list.push(edge);
+    forks.set(edge.from.key, list);
+  }
+  const rooms = new Map<Edge, number>();
+  for (const branches of forks.values()) {
+    if (branches.length < 2) continue;
+    const first = branches[0] as Edge;
+    const dir = first.to.dir;
+    if (dir < 0 || !branches.every((e) => !e.to.junction && e.to.dir === dir && e.toRoom > 0))
+      continue;
+    const d = DIRS[dir] as Point;
+    if (d.x !== 0) continue;
+    const along = (p: Point) => p.x * d.x + p.y * d.y;
+    const levels = branches.map((e) => along(e.to.port));
+    if (levels.every((v) => v === levels[0])) continue;
+    const required = Math.max(
+      ...branches.map((e) => along(e.to.port) + Math.max(e.toRoom, e.toLane)),
+    );
+    const bus = Math.max(required, along(first.from.port));
+    for (const edge of branches) rooms.set(edge, roundUnits(bus - along(edge.to.port)));
+  }
+  return edges.map((e) => (rooms.has(e) ? { ...e, toRoom: rooms.get(e) as number } : e));
+}
+
 class Router {
   readonly #ir: FigureIR;
   readonly #layout: LayoutIR;
@@ -543,9 +580,10 @@ class Router {
         enteringId: -1,
       };
     });
-    const routable = edges
-      .filter((e): e is Edge => e !== undefined)
-      .map((e, index) => ({ ...e, index }));
+    const routable = forkRooms(
+      edges.filter((e): e is Edge => e !== undefined).map((e, index) => ({ ...e, index })),
+      ir,
+    );
     this.#edges = routable;
     this.#joinNets(routable);
     this.#buildGrid(routable);
