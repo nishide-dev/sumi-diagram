@@ -258,10 +258,9 @@ describe("misuse of built-in components is rejected", () => {
       d.path,
     ]);
 
-  test("unknown props on groups and edges (they take none)", () => {
-    // Groups have no `props` field at all in the v1 schema.
+  test("unknown props on groups and edges", () => {
     expect(codes("groups: [{ id: g, props: { width: 10pt } }]\n")).toEqual([
-      ["schema/unknown-field", ["groups", 0, "props"]],
+      ["component/unknown-prop", ["groups", 0, "props", "width"]],
     ]);
     expect(
       codes(

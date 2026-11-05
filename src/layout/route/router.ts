@@ -72,6 +72,7 @@ import type { EdgeIR, FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import { type Diagnostic, hasErrors } from "../../core/diagnostics";
 import { SEPARATOR_ID } from "../../core/registry/builtins";
+import { groupLayerObstacles } from "../group-layers";
 import {
   type EdgeLayout,
   type EdgeRoute,
@@ -91,6 +92,7 @@ import { crossingDiagnostics } from "./crossings";
 import { addStraightRoutes, isStraightEdge } from "./diagonal";
 import { endpointRects } from "./endpoint-rects";
 import { gridSpanHint, verifiedGridHints } from "./grid-hint";
+import { groupLayerDiagnostics } from "./group-layer-diagnostics";
 import { groupTitleDiagnostics } from "./group-title-diagnostics";
 import { PairHeap } from "./heap";
 import { requestedLabelDiagnostics } from "./label-diagnostics";
@@ -215,12 +217,21 @@ export function routeEdges(
           ...raw,
           diagnostics: verifiedGridHints(ir, layout, raw.diagnostics),
         };
-  if (routed.layout.edges.length === layout.edges.length) return routed;
+  if (routed.layout.edges.length === layout.edges.length)
+    return {
+      ...routed,
+      diagnostics: [...routed.diagnostics, ...groupLayerDiagnostics(ir, routed.layout)],
+    };
   const diagonal = addStraightRoutes(ir, layout, routed.layout);
   const zoom = addZoomRoutes(ir, straight.size === 0 ? layout : diagonal.layout, diagonal.layout);
   return {
     layout: deepFreeze(zoom.layout),
-    diagnostics: [...routed.diagnostics, ...diagonal.diagnostics, ...zoom.diagnostics],
+    diagnostics: [
+      ...routed.diagnostics,
+      ...diagonal.diagnostics,
+      ...zoom.diagnostics,
+      ...groupLayerDiagnostics(ir, zoom.layout),
+    ],
   };
 }
 
@@ -994,6 +1005,10 @@ class Router {
     for (const node of layout.nodes) {
       if (isJunction(nodeIR.get(node.key))) junctions.push(node);
       else solid.push(node.rect);
+    }
+    for (const placed of layout.groups) {
+      const group = this.#ir.elements.get(placed.key);
+      if (group?.kind === "group") solid.push(...groupLayerObstacles(group, placed.rect));
     }
     this.#obstacles = layout.nodes
       .filter((node) => nodeIR.get(node.key)?.component !== SEPARATOR_ID)

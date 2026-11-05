@@ -329,6 +329,7 @@ export interface GroupIR extends ObjectIRBase {
   readonly labelAt?: GroupLabelPosition;
   /** The label node expanded from the group's `caption` (#130). */
   readonly caption?: ElementKey;
+  readonly layers?: { readonly count: number; readonly offset: StyleLength };
 }
 
 export interface EdgeIR extends ElementIRBase {
@@ -603,6 +604,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
       shape: "rectangle",
       children: freeze(childrenOf.get(g.id) ?? []),
       style: styleOf(state, key, "group"),
+      ...groupLayers(componentOf(state, key).props),
       ...(g.arrange !== undefined && { arrange: arrangeOf(g.arrange) }),
       ...(g.labelAt !== undefined && { labelAt: g.labelAt }),
       ...(captions.has(g.id) && { caption: nodeKey(captions.get(g.id) as string) }),
@@ -678,6 +680,13 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
       sourceMap: readonlyMap(sourceMap),
     }),
   );
+}
+
+function groupLayers(props: Readonly<Record<string, unknown>>): Pick<GroupIR, "layers"> {
+  const layers = props.layers as { count: number; offset: number } | undefined;
+  return layers === undefined
+    ? {}
+    : { layers: freeze({ count: layers.count, offset: lengthOf(layers.offset) }) };
 }
 
 /**

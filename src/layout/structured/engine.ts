@@ -54,6 +54,7 @@ import { type Profile, spacedProfile } from "../../core/profile/schema";
 import { SEPARATOR_ID } from "../../core/registry/builtins";
 import { getFontSet } from "../../core/theme/fonts";
 import { roundToD2Units } from "../../core/units";
+import { groupFrontRect, groupLayerSpread } from "../group-layers";
 import { hintLayoutOptions, inHintTrial } from "../hint-trials";
 import {
   type EdgeLayout,
@@ -424,8 +425,12 @@ class StructuredLayout {
     const p = this.#padding(group.key);
     return {
       width:
-        Math.max(content.width, label === undefined ? 0 : Math.ceil(label.width)) + p.west + p.east,
-      height: content.height + p.north + p.south + this.#labelSpace(label),
+        Math.max(content.width, label === undefined ? 0 : Math.ceil(label.width)) +
+        p.west +
+        p.east +
+        groupLayerSpread(group),
+      height:
+        content.height + p.north + p.south + this.#labelSpace(label) + groupLayerSpread(group),
     };
   }
 
@@ -679,6 +684,7 @@ class StructuredLayout {
     this.#rects.set(key, rect);
     const group = this.#groups.get(key);
     if (group === undefined) return;
+    rect = groupFrontRect(group, rect);
     const p = this.#padding(key);
     const band = this.#labelSpace(this.#labels.get(key));
     // The label band is above the content, or below it for a bottom label (#127).
@@ -777,7 +783,7 @@ class StructuredLayout {
     }
     for (const group of this.#ir.groups) {
       const metrics = this.#labels.get(group.key);
-      const rect = this.#rect(group.key);
+      const rect = groupFrontRect(group, this.#rect(group.key));
       if (metrics !== undefined) {
         labels.set(group.key, placeText(metrics, this.#groupLabelCenter(group, rect, metrics)));
       }

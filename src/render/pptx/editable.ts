@@ -216,6 +216,19 @@ export function svgToEditablePptx(
     ok: false,
     diagnostics: [{ code: "pptx/unsupported-geometry", severity: "error", message }],
   });
+  const layeredGroups = ir.groups.filter((g) => (g.layers?.count ?? 1) > 1);
+  if (layeredGroups.length > 0)
+    return {
+      ok: false,
+      diagnostics: layeredGroups.map((group) => ({
+        code: "pptx/unsupported-geometry",
+        severity: "error",
+        message: `Editable PPTX cannot preserve stacked frames and front-frame connection sites of group "${group.id}".`,
+        path: [...(ir.sourceMap.get(group.key)?.path ?? []), "props", "layers"],
+        subject: { kind: "group", id: group.id },
+        hint: "Use picture PPTX (the default --pptx-mode), which preserves all cards.",
+      })),
+    };
   // Icons and images (#94) have no editable DrawingML form yet (research #86
   // §6.2: a separate `p:pic` is stage B). Refuse rather than drop them.
   const withAssets = ir.nodes.filter(
