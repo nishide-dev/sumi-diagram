@@ -54,6 +54,7 @@ import {
   GroupSchema,
   LayoutFieldsSchema,
   NodeSchema,
+  PlaceSchema,
   StackSchema,
 } from "./schema";
 import { parseYaml, YAML_PARSE_OPTIONS } from "./yaml";
@@ -93,6 +94,7 @@ const KEY_ORDER = {
   /** `stack` and `row` share the field order. */
   box: Object.keys(StackSchema.shape),
   grid: Object.keys(GridSchema.shape),
+  place: Object.keys(PlaceSchema.shape),
   cell: Object.keys(GridCellSchema.shape),
   attach: Object.keys(AttachSchema.shape),
 };
@@ -202,16 +204,19 @@ function reorderDocument(contents: unknown): void {
 /** Puts every arrange box and grid cell wrapper in schema order. */
 function reorderArrange(box: unknown): void {
   if (!isMap(box)) return;
-  for (const kind of ["stack", "row", "grid"]) {
+  for (const kind of ["stack", "row", "grid", "place"]) {
     const spec = box.get(kind, true);
     if (!isMap(spec)) continue;
-    sortMap(spec, kind === "grid" ? KEY_ORDER.grid : KEY_ORDER.box);
+    sortMap(
+      spec,
+      kind === "place" ? KEY_ORDER.place : kind === "grid" ? KEY_ORDER.grid : KEY_ORDER.box,
+    );
     const items = spec.get("items", true);
     if (isSeq(items))
       for (const item of items.items) {
         if (kind === "grid" && isScalar(item) && item.value === null) item.source = "null";
-        if (kind === "grid" && isMap(item) && item.has("item")) {
-          sortMap(item, KEY_ORDER.cell);
+        if ((kind === "grid" || kind === "place") && isMap(item) && item.has("item")) {
+          sortMap(item, kind === "place" ? ["item", "at"] : KEY_ORDER.cell);
           const value = item.get("item", true);
           if (isScalar(value) && value.value === null) value.source = "null";
           reorderArrange(value);

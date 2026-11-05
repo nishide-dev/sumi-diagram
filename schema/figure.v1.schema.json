@@ -631,7 +631,7 @@
                   }
                 ]
               },
-              "description": "Node or group IDs, or nested stack / row boxes."
+              "description": "Node or group IDs, or nested arrange boxes (stack / row / grid / place)."
             }
           },
           "required": [
@@ -700,7 +700,7 @@
                   }
                 ]
               },
-              "description": "Node or group IDs, or nested stack / row boxes."
+              "description": "Node or group IDs, or nested arrange boxes (stack / row / grid / place)."
             }
           },
           "required": [
@@ -811,10 +811,65 @@
             "items"
           ],
           "additionalProperties": false
+        },
+        "place": {
+          "type": "object",
+          "properties": {
+            "unit": {
+              "type": "string",
+              "pattern": "^(?=\\d*(?:\\.\\d*)?[1-9])\\d+(?:\\.\\d+)?(?:mm|cm|in|pt)$",
+              "description": "A positive length with a unit (mm, cm, in or pt)."
+            },
+            "items": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+                      },
+                      {
+                        "$ref": "#/$defs/ArrangeBox"
+                      }
+                    ]
+                  },
+                  "at": {
+                    "type": "array",
+                    "prefixItems": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ],
+                    "items": false,
+                    "minItems": 2,
+                    "maxItems": 2,
+                    "description": "Item center [x, y] in units; y grows downward."
+                  }
+                },
+                "required": [
+                  "item",
+                  "at"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "unit",
+            "items"
+          ],
+          "additionalProperties": false
         }
       },
       "additionalProperties": false,
-      "description": "A stack (vertical), row (horizontal), or row-major grid of items.",
+      "description": "A stack (vertical), row (horizontal), row-major grid, or rigid coordinate placement of items.",
       "minProperties": 1,
       "maxProperties": 1
     },

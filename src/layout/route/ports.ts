@@ -682,7 +682,7 @@ function arrangeSides(
       const sb = b[k] as Step;
       if (sa.box !== sb.box) return undefined;
       if (sa.index === sb.index) continue;
-      if (sa.box.kind === "grid") return undefined;
+      if (sa.box.kind === "grid" || sa.box.kind === "place") return undefined;
       const ra = rectOf(self);
       const rb = rectOf(other);
       const ca = center(ra);
