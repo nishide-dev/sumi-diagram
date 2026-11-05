@@ -38,7 +38,7 @@ export function buildTargetCatalog() {
   return {
     path: "figure.target",
     description:
-      "Placement-specific lint targets; height is a budget, fitting remains width-only. Font minima override the profile at final size; math scripts stay information-only.",
+      "Placement-specific lint targets; height is a budget, fitting remains width-only. Font minima override the profile at final size; math scripts (0.7x) are checked against minFontSize (geometry/script-below-target).",
     schema: z.toJSONSchema(FigureTargetSchema, { io: "input" }),
   };
 }

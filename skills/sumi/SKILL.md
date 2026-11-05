@@ -15,7 +15,7 @@ drive it through the CLI until clean. Never draw SVG yourself or edit generated 
   profiles come from `sumi catalog --json`; fields from the Figure Schema
   ([figure-format](references/figure-format.md)). Never invent a component,
   variant, prop, field, theme, profile, style or icon name. If the diagram needs
-  something Sumi lacks (free colors or coordinates, a domain-specific shape), say
+  something Sumi lacks (free colors, a domain-specific shape), say
   so and use the closest generic component.
 - **Do not fabricate content.** Labels and relationships come from the user or
   sources they point to. Keep facts (connections, names, numbers) separate from
@@ -124,7 +124,7 @@ edges:
   and anything containing `:` or `#`.
 - Shape follows placement and content, not a rule. If it is not obvious (a short chain
   that fits is), render 2–4 candidates and compare ([fit the placement](references/layout-tips.md#fit-the-placement)).
-- **Structured figures** add `figure.layout.arrange` (nested `stack` / `row` / `grid`
+- **Structured figures** add `figure.layout.arrange` (nested `stack` / `row` / `grid` / `place`
   boxes listing every node and group once), `attach`, anchors, `align`, and the
   `legend`, `tokens`, `matrix`, `bracket`, `separator`, `zoom` components: read
   [structured](references/structured.md) first; a paper figure: the [paper figure

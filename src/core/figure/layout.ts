@@ -247,7 +247,7 @@ function checkStructured(state: CheckState, locate: Locator): void {
     ownerSubject: DiagnosticSubject,
     silent: boolean,
   ) => {
-    for (const kind of ["stack", "row", "grid"] as const) {
+    for (const kind of ["stack", "row", "grid", "place"] as const) {
       const spec = box[kind];
       if (spec === undefined) continue;
       if (!silent && kind !== "grid" && "centerOn" in spec && spec.centerOn !== undefined) {
@@ -276,7 +276,7 @@ function checkStructured(state: CheckState, locate: Locator): void {
         const wrapped = cell !== null && typeof cell === "object" && "item" in cell;
         const item = wrapped ? cell.item : cell;
         if (kind === "grid" && box.grid !== undefined) {
-          const span = wrapped ? (cell.span ?? 1) : 1;
+          const span = wrapped && "span" in cell ? (cell.span ?? 1) : 1;
           if (column + span > box.grid.columns && !silent) {
             push(
               errorAt(

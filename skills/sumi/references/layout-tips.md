@@ -21,6 +21,7 @@ Contents: [choose the engine](#choose-the-engine-first) ·
 | --- | --- |
 | a flow: flowchart, pipeline, decision flow, state machine, dependency or call graph, an architecture overview where only the connections matter | **auto** (default): `figure.layout.direction` |
 | a paper block diagram: stacked layers, residual or skip connections, columns that must line up, blocks of equal width, notes beside a block (`N×`), operators (⊕) and split points, math labels, token rows, patches | **structured**: `figure.layout.arrange` ([structured](structured.md)) |
+| a small graph/network with authored vertex positions, or matching input/output graph shapes | **structured**: [`place`](structured.md#coordinate-placement) with the same unit and coordinates in each group; `line` + `route: straight` for undirected edges |
 
 A figure is structured when it has `figure.layout.arrange` (and no `engine:
 auto`). When unsure start with auto: it needs no arrange tree and suits most
