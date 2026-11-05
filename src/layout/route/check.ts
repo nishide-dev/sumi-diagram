@@ -16,6 +16,7 @@ import { getOutlineRenderer } from "../../core/outline";
 import { obstaclesCrossedByRoute, type RouteObstacle } from "../../lint/geometry/edges";
 import { rectPolygon, segmentCrossesRect } from "../../lint/geometry/shapes";
 import type { EdgeLayout, LayoutIR, Point, Rect } from "../ir";
+import { sampleCubic } from "./cubic";
 import { endpointRects, makeInside } from "./endpoint-rects";
 import {
   anchorPoint,
@@ -195,32 +196,33 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
   );
   const netOf = (e: EdgeLayout) => e.route?.net ?? -1;
   const zoom = new Set(ir.edges.filter(isZoomEdge).map((e) => e.key));
-  const straight = new Set(ir.edges.filter((e) => e.route === "straight").map((e) => e.key));
+  const straight = new Set(ir.edges.filter((e) => e.route !== undefined).map((e) => e.key));
   const edges = layout.edges.filter((e) => !zoom.has(e.key) && !straight.has(e.key));
   const routed = edges.filter((e) => e.route !== undefined);
   const pointsOf = (e: EdgeLayout) => e.route?.points ?? [];
 
-  // Independent correspondence lines may cross each other, but still have
-  // exactly two distinct points, on their shapes, inside the canvas.
+  // Independent routes may cross each other. Endpoints lie on their shapes,
+  // and the line / cubic control polygon stays inside the canvas.
   for (const edge of layout.edges.filter((e) => straight.has(e.key))) {
     if (edge.route === undefined) {
       report.unrouted.push(edge.key);
       continue;
     }
     const points = edge.route.points;
+    const curve = ir.edges.find((e) => e.key === edge.key)?.route === "curve";
     if (
-      points.length !== 2 ||
+      points.length !== (curve ? 4 : 2) ||
       Math.hypot(
-        (points[1]?.x ?? 0) - (points[0]?.x ?? 0),
-        (points[1]?.y ?? 0) - (points[0]?.y ?? 0),
+        (points.at(-1)?.x ?? 0) - (points[0]?.x ?? 0),
+        (points.at(-1)?.y ?? 0) - (points[0]?.y ?? 0),
       ) < SAME
     ) {
-      report.malformed.push(`${edge.key} is not one straight segment`);
+      report.malformed.push(`${edge.key} is not one ${curve ? "cubic curve" : "straight segment"}`);
       continue;
     }
     for (const [key, p] of [
       [edge.from, points[0]],
-      [edge.to, points[1]],
+      [edge.to, points.at(-1)],
     ] as const) {
       const region = regions.get(key);
       if (
@@ -234,7 +236,7 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
     for (const p of points)
       if (!contains(layout.content, { ...p, width: 0, height: 0 })) report.outside.push(edge.key);
     for (const key of obstaclesCrossedByRoute(
-      [points],
+      [curve ? sampleCubic(points) : points],
       obstacles,
       new Set([edge.from, edge.to]),
       EPS,

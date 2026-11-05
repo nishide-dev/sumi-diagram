@@ -679,6 +679,47 @@ Shared trunks keep their existing routing. There is no per-edge lane coordinate.
   arrowhead room and `component: zoom` conflicts are `layout/no-route` errors.
   PDF and picture/editable PPTX support the line; glued PPTX snaps to its connection
   sites as usual. Omit `route` for the existing orthogonal router.
+- **Smooth bundles**: `route: curve` draws one independent cubic Bézier, without
+  obstacle avoidance. Outline endpoints and anchors follow `route: straight`.
+  All incident curves at a junction share one oriented direction, including a
+  curved through-edge: curves arrive along it and depart along it, so they continue
+  in the same direction through the junction without a cusp. Explicit side anchors
+  override that direction.
+  At ordinary nodes, automatic tangents follow the
+  endpoint chord; side anchors/fixed ports use their outward side normal.
+  Arrowheads follow the end tangent; `tone` works as on straight edges. Labels
+  stay horizontal, left of the local tangent at the arc-length midpoint by default;
+  `labelAt` and `labelSide` also work. Node/label crossings are sampled and reported
+  with YAML positions. Move the arrangement or anchors to clear them.
+  SVG, PDF, picture PPTX and editable **freeform** PPTX preserve the curve;
+  editable **glued** returns `pptx/unsupported-geometry` (choose freeform).
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: smooth-bundle
+  theme: paper
+  layout:
+    arrange:
+      row:
+        gap: 10mm
+        items: [{ stack: { items: [x1, x2] } }, j1, j2, { stack: { items: [z1, z2] } }]
+nodes:
+  - { id: x1, component: circle, label: X1 }
+  - { id: x2, component: circle, label: X2 }
+  - { id: j1, component: junction, variant: hidden }
+  - { id: j2, component: junction, variant: hidden }
+  - { id: z1, component: circle, label: Z1 }
+  - { id: z2, component: circle, label: Z2 }
+edges:
+  - { from: x1, to: j1, route: curve, component: line, tone: blue }
+  - { from: x2, to: j1, route: curve, component: line, tone: orange }
+  - { from: j1, to: j2, component: line, variant: dashed }
+  - { from: j2, to: z1, route: curve, tone: blue }
+  - { from: j2, to: z2, route: curve, tone: orange }
+```
+
 - **Anchors**: `fromAnchor` / `toAnchor` pick the side of an end: `west`, or
   `"south:0.2"` for a position along it (0..1: left → right on north/south, top →
   bottom on east/west; default 0.5; quote values with `:`). Several edges between

@@ -1,16 +1,17 @@
-/** Opt-in, independent single-segment correspondence lines (#349). */
+/** Opt-in independent straight (#349) and cubic (#366) correspondence routes. */
 import type { EdgeIR, FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type { Diagnostic } from "../../core/diagnostics";
 import { getOutlineRenderer } from "../../core/outline";
 import { segmentCrossesRegion } from "../../lint/geometry/edges";
 import { rectPolygon } from "../../lint/geometry/shapes";
-import type { EdgeLayout, LayoutIR, Point, Rect, TextLayout, TextMetrics } from "../ir";
+import type { EdgeLayout, LayoutIR, Point, Rect, TextLayout } from "../ir";
 import { roundUnits } from "../ir";
-import { placeText } from "../structured/engine";
 import { arrowheadLength } from "./arrowhead";
+import { sampleCubic } from "./cubic";
+import { curveLabel, curvePoints, junctionTangents } from "./curve";
+import { straightLabel } from "./direct-label";
 import { endpointRects } from "./endpoint-rects";
-import { EDGE_LABEL_GAP } from "./labels";
 import {
   anchorPoint,
   boundaryEntry,
@@ -22,34 +23,10 @@ import {
 } from "./ports";
 import { zoomSide } from "./zoom";
 
-export const isStraightEdge = (edge: Pick<EdgeIR, "route">): boolean => edge.route === "straight";
+export const isDirectEdge = (edge: Pick<EdgeIR, "route">): boolean => edge.route !== undefined;
 
-/** Horizontal text, offset by its support radius along the line's normal. */
-function straightLabel(metrics: TextMetrics, a: Point, b: Point, edge: EdgeIR): TextLayout {
-  const length = Math.hypot(b.x - a.x, b.y - a.y);
-  const ux = (b.x - a.x) / length;
-  const uy = (b.y - a.y) / length;
-  const along = (Math.abs(ux) * metrics.width + Math.abs(uy) * metrics.height) / 2;
-  const away = (Math.abs(uy) * metrics.width + Math.abs(ux) * metrics.height) / 2 + EDGE_LABEL_GAP;
-  const at = edge.labelAt ?? "middle";
-  const head = arrowheadLength(edge.style.strokeWidth.units);
-  const start = along + EDGE_LABEL_GAP + (edge.sourceArrowhead === undefined ? 0 : head);
-  const end = length - along - EDGE_LABEL_GAP - (edge.targetArrowhead === undefined ? 0 : head);
-  const t =
-    at === "start"
-      ? Math.min(length / 2, start)
-      : at === "end"
-        ? Math.max(length / 2, end)
-        : length / 2;
-  const side = edge.labelSide === "right" ? -1 : 1;
-  return placeText(metrics, {
-    x: roundUnits(a.x + ux * t + uy * away * side),
-    y: roundUnits(a.y + uy * t - ux * away * side),
-  });
-}
-
-/** Add straight lines after orthogonal routing, using the final endpoint rectangles. */
-export function addStraightRoutes(
+/** Add direct routes after orthogonal routing, using the final endpoint rectangles. */
+export function addDirectRoutes(
   ir: FigureIR,
   placed: LayoutIR,
   routed: LayoutIR,
@@ -57,9 +34,10 @@ export function addStraightRoutes(
   layout: LayoutIR;
   diagnostics: Diagnostic[];
 } {
-  const straight = new Map(ir.edges.filter(isStraightEdge).map((e) => [e.key, e]));
+  const straight = new Map(ir.edges.filter(isDirectEdge).map((e) => [e.key, e]));
   if (straight.size === 0) return { layout: routed, diagnostics: [] };
   const rects = endpointRects(ir, routed);
+  const tangents = junctionTangents(ir, routed, rects);
   const nodes = new Map(ir.nodes.map((n) => [n.key, n]));
   const existing = new Map(routed.edges.map((e) => [e.key, e]));
   const diagnostics: Diagnostic[] = [];
@@ -75,11 +53,11 @@ export function addStraightRoutes(
       diagnostics.push({
         code: "layout/no-route",
         severity: "error",
-        message: `Cannot draw straight edge ${edge.id ?? `edges[${edge.index}]`}: ${reason}.`,
+        message: `Cannot draw ${edge.route} edge ${edge.id ?? `edges[${edge.index}]`}: ${reason}.`,
         path: at?.path ?? ["edges", edge.index],
         ...(at?.location !== undefined && { location: at.location }),
         subject: { kind: "edge", id: edge.id ?? `edges[${edge.index}]` },
-        hint: "Separate the endpoints, choose anchors facing the other end, increase the gap, or remove route: straight.",
+        hint: `Separate the endpoints, choose anchors facing the other end, increase the gap, or remove route: ${edge.route}.`,
       });
       return e;
     };
@@ -166,8 +144,29 @@ export function addStraightRoutes(
         0.01,
       );
     };
-    if (enters(edge.from, source, a, b) || enters(edge.to, target, b, a))
+    if (
+      edge.route === "straight" &&
+      (enters(edge.from, source, a, b) || enters(edge.to, target, b, a))
+    )
       return fail("an anchor faces into its endpoint");
+    if (edge.route === "curve") {
+      const points = curvePoints(edge, a, b, ir, rects, tangents);
+      const samples = sampleCubic(points);
+      if (
+        samples.slice(1).some((q, i) => {
+          const p = samples[i] as Point;
+          return enters(edge.from, source, p, q) || enters(edge.to, target, p, q);
+        })
+      )
+        return fail("the curve re-enters an endpoint; choose another anchor");
+      return {
+        ...e,
+        route: {
+          points,
+          ...(e.labelMetrics !== undefined && { label: curveLabel(e.labelMetrics, points, edge) }),
+        },
+      };
+    }
     return {
       ...e,
       route: {
@@ -223,6 +222,9 @@ function crossesPaintedPolygon(a: Point, b: Point, polygon: readonly Point[]): b
 function growForStraightLabels(layout: LayoutIR): LayoutIR {
   const boxes = [
     layout.content,
+    ...layout.edges.flatMap(
+      (e) => e.route?.points.map((p) => ({ ...p, width: 0, height: 0 })) ?? [],
+    ),
     ...layout.edges.flatMap((e) => (e.route?.label === undefined ? [] : [e.route.label.box])),
   ];
   const left = Math.min(...boxes.map((r) => r.x));
