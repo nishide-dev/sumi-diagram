@@ -605,6 +605,11 @@ export const FigureMetaSchema = z.strictObject({
 
 export const GroupSchema = z.strictObject({
   id: Id,
+  props: Props.unwrap()
+    .optional()
+    .describe(
+      "Component options. Container supports layers: { count, offset } for stacked frames in structured layout; count includes the front card (1–16), offset is a positive 0.5pt-grid length up-right.",
+    ),
   label: Label,
   labelAt: z
     .enum(GROUP_LABEL_POSITIONS)

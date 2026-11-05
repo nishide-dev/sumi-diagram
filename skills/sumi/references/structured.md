@@ -293,6 +293,24 @@ edges:
 
 ## Group titles and captions
 
+**Stacked group frames.** Use `props.layers: { count: 4, offset: 3pt }` on a
+group (structured layout). `count` includes the front card (1–16); `offset` is
+a positive length on the 0.5pt grid, diagonally up-right, matching image layers.
+Only frames repeat, with the same fill/stroke, tone and dim colors; the front
+keeps its title, children and padding. Rows, stacks, grids, obstacles, geometry
+lint and the centred caption reserve the whole footprint. `label: '$C$'` with
+`labelAt: top-left` puts an italic math title on the front card.
+Use `default`, `muted`, `filled` or `dashed`; `plain` has no frame and reports
+`component/invalid-prop`. Auto layout reports `layout/structured-only`.
+Edges address the front frame and are painted above the cards. Rear cards are
+decoration: orthogonal, `route: straight` and zoom edges may cross their north/east
+bands, including edges leaving a child inside the group. Edge labels prefer to
+avoid the front border and rear bands; if no clear place exists, geometry lint
+reports `geometry/label-collision`. Keep enough space for multiline labels so their
+opaque backgrounds do not hide card borders. SVG, PDF and picture PPTX preserve the stack;
+editable PPTX reports `pptx/unsupported-geometry` for more than one card.
+
+
 A group's `label` sits at the **top centre** inside the border. An edge entering from above
 near it detours around it, ending just under it (or crosses it: `geometry/edge-crosses-label`).
 Move it with **`labelAt`**: `top-left`, `top` (default), `top-right`, `bottom-left`, `bottom`,

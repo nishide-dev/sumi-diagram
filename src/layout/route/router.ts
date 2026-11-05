@@ -72,6 +72,7 @@ import type { EdgeIR, FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import { type Diagnostic, hasErrors } from "../../core/diagnostics";
 import { SEPARATOR_ID } from "../../core/registry/builtins";
+import { groupFrontRect, groupLayerObstacles } from "../group-layers";
 import {
   type EdgeLayout,
   type EdgeRoute,
@@ -1009,7 +1010,8 @@ class Router {
       addRect(r, C);
     }
     for (const group of layout.groups) {
-      addRect(group.rect, 0);
+      const element = this.#ir.elements.get(group.key);
+      addRect(element?.kind === "group" ? groupFrontRect(element, group.rect) : group.rect, 0);
       if (group.label !== undefined) addRect(group.label.box, 0);
     }
     for (const node of junctions) {
@@ -1117,7 +1119,8 @@ class Router {
       );
     }
     for (const group of layout.groups) {
-      const g = group.rect;
+      const element = this.#ir.elements.get(group.key);
+      const g = element?.kind === "group" ? groupFrontRect(element, group.rect) : group.rect;
       const ix0 = lowerBound(X, g.x);
       const ix1 = lowerBound(X, rightOf(g));
       const iy0 = lowerBound(Y, g.y);
@@ -1603,13 +1606,19 @@ class Router {
     const irEdges = new Map(this.#ir.edges.map((e) => [e.key, e]));
     const labels = new Map<ElementKey, TextLayout>();
     const nodeBoxes = layout.nodes.map((node) => node.rect);
+    const reserved: Rect[] = [];
+    // Rear cards are passable for routes, but labels must not erase their decoration.
+    for (const placed of layout.groups) {
+      const group = this.#ir.elements.get(placed.key);
+      if (group?.kind === "group") reserved.push(...groupLayerObstacles(group, placed.rect));
+    }
     // Groups drawn with a border (as `geometry/label-collision` checks them).
     const groupBoxes = layout.groups.flatMap((group) => {
       const element = this.#ir.elements.get(group.key);
       const style = element?.kind === "group" ? element.style : undefined;
       return style === undefined || style.strokeWidth.units === 0 || style.stroke === "transparent"
         ? []
-        : [group.rect];
+        : [element?.kind === "group" ? groupFrontRect(element, group.rect) : group.rect];
     });
     // Labels in two passes (#128): the default placements first (they look at
     // routes, nodes and borders only, so they are as before), then the
@@ -1635,6 +1644,7 @@ class Router {
         const label = placeEdgeLabel(e.labelMetrics, points, edge, arrow, {
           routes: others,
           nodes: nodeBoxes,
+          reserved,
           groups: groupBoxes,
           ...(requested && {
             labels: [...labelBoxes],

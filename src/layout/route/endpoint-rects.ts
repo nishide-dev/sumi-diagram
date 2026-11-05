@@ -1,5 +1,6 @@
 import type { FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
+import { groupFrontRect } from "../group-layers";
 import { type LayoutIR, type Rect, roundRect } from "../ir";
 
 /**
@@ -22,6 +23,9 @@ export function endpointRects(ir: FigureIR, layout: LayoutIR): Map<ElementKey, R
     cells.set(node.tokens.id, list);
   }
   for (const group of ir.groups) {
+    const footprint = rects.get(group.key);
+    if (footprint !== undefined && group.layers !== undefined)
+      rects.set(group.key, groupFrontRect(group, footprint));
     if (group.tokens === undefined || !annotated.has(group.key)) continue;
     const parts = cells.get(group.tokens.id);
     if (parts === undefined || parts.length === 0) continue;

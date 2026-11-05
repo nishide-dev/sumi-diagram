@@ -6,7 +6,9 @@ A rectangular container that groups nodes and other groups\. Variant muted: a da
 
 **kind**: <code>group</code> · **variants**: <code>default, muted, plain, filled, dashed</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>rectangle</code>
 
-No props.
+| prop | type | required | description |
+| --- | --- | --- | --- |
+| <code>layers</code> | <code>object</code> | no | Repeat the frame behind the front card, offset up\-right\. The footprint includes every card; only the front contains children and a title\. Structured layout only; plain is unsupported\. |
 
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> |
 | --- | --- | --- | --- | --- |

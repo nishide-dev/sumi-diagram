@@ -279,6 +279,10 @@ edges:
 
 ### Stacked copies (`layers`)
 
+Groups also accept `props.layers: { count, offset }` to repeat frames only;
+see [stacked group frames](structured.md#group-titles-and-captions) for the
+structured-only layout, front-frame connections and export limitations.
+
 `layers: { count: 4, offset: 3pt }` on an image (file, inline or asset) repeats the
 **same unchanged image** behind the front one, diagonally up-right (repeated video
 frames). `count` includes the front (integer 1–16); `offset` is positive, a multiple

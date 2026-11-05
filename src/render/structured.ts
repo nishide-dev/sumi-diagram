@@ -60,6 +60,7 @@ import type { Arrowhead } from "../core/registry/manifest";
 import { getTheme } from "../core/theme/builtin";
 import type { FontSet } from "../core/theme/fonts";
 import type { CommonStyle } from "../core/theme/style";
+import { groupLayerRects } from "../layout/group-layers";
 import type { LayoutIR, Point, Rect, TextLayout, TextRun } from "../layout/ir";
 import { type Cubic, sampleCubic, trimCubic } from "../layout/route/cubic";
 import { groupArrowheadStems } from "../layout/route/padding";
@@ -1011,7 +1012,9 @@ export function writeStructuredSvg(
     if (group === undefined)
       throw new Error(`internal error: ${g.key} is not a group of the figure`);
     painted.push({ rect: g.rect, fill: group.style.fill, opacity: group.style.opacity });
-    const shape = nodeShape({ ...asNode(group), shape: "rectangle" }, g.rect);
+    const shape = groupLayerRects(group, g.rect)
+      .map((rect) => nodeShape({ ...asNode(group), shape: "rectangle" }, rect))
+      .join("");
     body.push(objectGroup(group, shape, colored(g.label, group)));
     useText(g.label);
   }

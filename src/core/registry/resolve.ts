@@ -192,6 +192,35 @@ export function resolveComponents(
       );
     const usage = registry.validateUsage(manifest, element);
     report(usage.diagnostics, (d) => [...element.path, ...(d.path ?? [])]);
+    if (element.kind === "group" && element.props.layers !== undefined) {
+      if (engine !== "structured") {
+        report(
+          [
+            {
+              code: "layout/structured-only",
+              severity: "error",
+              message:
+                "Group layers need structured layout to reserve the whole stack and route edges to the front frame.",
+              hint: "Set figure.layout.arrange and the group's arrange tree.",
+            },
+          ],
+          () => [...element.path, "props", "layers"],
+        );
+      }
+      if (element.variant === "plain") {
+        report(
+          [
+            {
+              code: "component/invalid-prop",
+              severity: "error",
+              message: "Group layers need a frame; the plain variant has no frame.",
+              hint: "Use default, muted, filled or dashed, or remove props.layers.",
+            },
+          ],
+          () => [...element.path, "props", "layers"],
+        );
+      }
+    }
     // A component drawn by some engines only (#131, e.g. sumi/legend).
     const wrongEngine =
       engine !== undefined && manifest.engines !== undefined && !manifest.engines.includes(engine);
@@ -544,7 +573,7 @@ function* elements(state: CheckState): Generator<Element> {
       sublabel: entry.kind === "node" ? entry.element.sublabel : undefined,
       badge: entry.kind === "node" && entry.element.badge !== undefined,
       grow: entry.kind === "node" ? entry.element.grow : undefined,
-      props: entry.kind === "group" ? {} : entry.element.props,
+      props: entry.element.props ?? {},
     };
   }
 }

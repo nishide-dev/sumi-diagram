@@ -16,6 +16,7 @@ import type { EdgeIR, FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type { Diagnostic } from "../../core/diagnostics";
 import { EDGE_LABEL_POSITIONS, EDGE_LABEL_SIDES } from "../../core/figure/schema";
+import { groupFrontRect, groupLayerObstacles } from "../group-layers";
 import type { LayoutIR, Point, Rect } from "../ir";
 import { arrowheadRects, hasRequestedLabel } from "./labels";
 
@@ -111,7 +112,13 @@ export function requestedLabelDiagnostics(
       found.push(`the label of ${elementName(key)}`);
     }
     for (const group of bordered) {
-      if (overlaps(group.rect, box) && !contains(group.rect, box)) {
+      const element = ir.elements.get(group.key);
+      if (element?.kind !== "group") continue;
+      const front = groupFrontRect(element, group.rect);
+      if (
+        (overlaps(front, box) && !contains(front, box)) ||
+        groupLayerObstacles(element, group.rect).some((band) => overlaps(band, box))
+      ) {
         found.push(`the border of ${elementName(group.key)}`);
       }
     }

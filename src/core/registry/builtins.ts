@@ -152,6 +152,13 @@ function edge(
   };
 }
 
+export const LayersSchema = z.strictObject({
+  count: z.int().min(1).max(16).describe("Total cards, including the front card (1–16)."),
+  offset: SizeLength.describe(
+    'Positive distance up and right between copies, e.g. "3pt" (a multiple of 0.5pt).',
+  ),
+});
+
 const container: GroupManifest = {
   ...base,
   kind: "group",
@@ -159,7 +166,11 @@ const container: GroupManifest = {
   description:
     "A rectangular container that groups nodes and other groups. Variant muted: a dashed border in academic (easy to confuse with dashed edges), a white background instead of the shaded fill (without a tone) and a gray title in the other themes. Variant plain: no border and no fill, only the title or caption; filled: a shaded fill without a border; dashed: a dashed border without a fill. A tone sets the fill of any variant.",
   variants: ["default", "muted", "plain", "filled", "dashed"],
-  props: noProps,
+  props: z.strictObject({
+    layers: LayersSchema.optional().describe(
+      "Repeat the frame behind the front card, offset up-right. The footprint includes every card; only the front contains children and a title. Structured layout only; plain is unsupported.",
+    ),
+  }),
   shape: "rectangle",
 };
 
@@ -353,13 +364,9 @@ const image: NodeManifest = {
       height: SizeLength.optional().describe(
         'Height as a length such as "20mm" (a multiple of 0.5pt). Omitted means from the width and the image\'s aspect ratio.',
       ),
-      layers: z
-        .strictObject({
-          count: z.int().min(1).max(16).describe("Total images, including the front image (1–16)."),
-          offset: SizeLength.describe(
-            'Positive distance up and right between copies, e.g. "3pt" (a multiple of 0.5pt).',
-          ),
-        })
+      layers: LayersSchema.extend({
+        count: z.int().min(1).max(16).describe("Total images, including the front image (1–16)."),
+      })
         .optional()
         .describe(
           "Repeat the unchanged image behind the front one, offset up-right. Width and height size each copy; the node footprint includes the whole stack.",

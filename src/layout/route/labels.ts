@@ -158,6 +158,8 @@ export interface EdgeLabelSurroundings {
   readonly routes?: readonly (readonly Point[])[];
   /** Node boxes: a place clear of them is preferred. */
   readonly nodes?: readonly Rect[];
+  /** Decorative rear-card bands: routes may cross them, labels should not. */
+  readonly reserved?: readonly Rect[];
   /** Group boxes: a place the gap away from their borders is preferred. */
   readonly groups?: readonly Rect[];
   /**
@@ -228,6 +230,12 @@ export function placeEdgeLabel(
   arrowhead: number,
   surroundings: EdgeLabelSurroundings = {},
 ): TextLayout {
+  if (surroundings.reserved?.length) {
+    surroundings = {
+      ...surroundings,
+      nodes: [...(surroundings.nodes ?? []), ...surroundings.reserved],
+    };
+  }
   if (hasRequestedLabel(edge)) {
     return placeRequestedLabel(metrics, points, edge, arrowhead, surroundings);
   }
@@ -255,9 +263,20 @@ export function placeEdgeLabel(
     // Centered on the middle along the segment.
     const back = -(Math.abs(b.x - a.x) > 0 ? w : h) / 2;
     const candidate = beside(a, middle, w, h, back, 1);
+    const box = boxOf(candidate.center, w, h);
+    const crossesFrame = (surroundings.groups ?? []).some((r) =>
+      [
+        { x: r.x, y: r.y, width: r.width, height: 0 },
+        { x: r.x, y: r.y + r.height, width: r.width, height: 0 },
+        { x: r.x, y: r.y, width: 0, height: r.height },
+        { x: r.x + r.width, y: r.y, width: 0, height: r.height },
+      ].some((border) => overlaps(grow(box, g - 1e-6), border)),
+    );
     if (
-      bestLength < (Math.abs(b.x - a.x) > 0 ? w : h) + g &&
-      (surroundings.nodes ?? []).some((r) => overlaps(boxOf(candidate.center, w, h), r))
+      crossesFrame ||
+      (surroundings.reserved ?? []).some((r) => overlaps(box, r)) ||
+      (bestLength < (Math.abs(b.x - a.x) > 0 ? w : h) + g &&
+        (surroundings.nodes ?? []).some((r) => overlaps(box, r)))
     ) {
       // No arrowheads and no labelAt/labelSide here (those returned above), so
       // the default end is "middle": the same segment, but with the short-span
