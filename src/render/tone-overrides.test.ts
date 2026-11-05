@@ -20,7 +20,7 @@ const toned = `groups:
 nodes:
   - { id: plain, component: box, tone: blue, label: Plain }
   - { id: tinted, component: box, variant: tinted, tone: blue, label: Tinted }
-  - { id: outlined, component: box, variant: outlined, tone: blue, label: '\\textcolor{blue}{Outlined}' }
+  - { id: outlined, component: box, variant: outlined, tone: blue, label: '$\\textcolor{blue}{\\text{Outlined}}$' }
   - { id: solid, component: box, variant: solid, tone: blue, label: Solid }
   - { id: auto, component: box, variant: tinted, tone: orange, label: Auto }
   - id: mask
@@ -185,9 +185,88 @@ nodes:
     expect.objectContaining({
       severity: "warning",
       path: ["figure", "themeOverrides", "tones", "blue", "text"],
+      message: expect.stringContaining("on its fill #dfe1ea"),
       location: expect.objectContaining({ line: 5 }),
     }),
   ]);
+});
+
+const ORANGE_LINE = "{ tones: { orange: { line: '#fc8226' } } }";
+const oneNode = (
+  node: string,
+  edges = "",
+) => `groups: [{ id: panel, arrange: { row: { items: [n, m] } } }]
+nodes:
+  - ${node}
+  - { id: m, component: box, label: M }
+${edges}`;
+
+test.each([
+  [
+    "outlined text",
+    ORANGE_LINE,
+    oneNode("{ id: n, component: box, variant: outlined, tone: orange, label: N }"),
+    "line",
+  ],
+  [
+    "a toned edge label",
+    ORANGE_LINE,
+    oneNode(
+      "{ id: n, component: box, label: N }",
+      "edges: [{ from: n, to: m, tone: orange, label: go }]",
+    ),
+    "line",
+  ],
+  [
+    "a \\textcolor run",
+    ORANGE_LINE,
+    oneNode("{ id: n, component: box, label: 'A $\\textcolor{orange}{N}$' }"),
+    "line",
+  ],
+  [
+    "an explicit text",
+    "{ tones: { orange: { text: '#aaaaaa' } } }",
+    oneNode("{ id: n, component: box, variant: outlined, tone: orange, label: N }"),
+    "text",
+  ],
+])("tone text on white under 4.5:1 warns: %s", async (_, overrides, body, field) => {
+  const result = await render(figure(overrides, body));
+  expect(result.diagnostics.filter((d) => d.code === "theme/low-contrast")).toEqual([
+    expect.objectContaining({
+      severity: "warning",
+      path: ["figure", "themeOverrides", "tones", "orange", field],
+      message: expect.stringContaining("on white"),
+    }),
+  ]);
+});
+
+test.each([
+  [
+    "only tinted nodes (text darkened automatically)",
+    ORANGE_LINE,
+    oneNode("{ id: n, component: box, variant: tinted, tone: orange, label: N }"),
+  ],
+  [
+    "an unused tone",
+    "{ tones: { orange: { line: '#fc8226', text: '#eeeeee' } } }",
+    oneNode("{ id: n, component: box, variant: outlined, tone: blue, label: N }"),
+  ],
+  [
+    "a dark explicit text",
+    "{ tones: { orange: { line: '#fc8226', text: '#000000' } } }",
+    oneNode(
+      "{ id: n, component: box, variant: outlined, tone: orange, label: N }",
+      "edges: [{ from: n, to: m, tone: orange, label: go }]",
+    ),
+  ],
+  [
+    "an unlabelled toned edge",
+    ORANGE_LINE,
+    oneNode("{ id: n, component: box, label: N }", "edges: [{ from: n, to: m, tone: orange }]"),
+  ],
+])("no contrast warning for %s", async (_, overrides, body) => {
+  const result = await render(figure(overrides, body));
+  expect(result.diagnostics.filter((d) => d.code === "theme/low-contrast")).toEqual([]);
 });
 
 test.each([

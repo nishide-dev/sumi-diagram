@@ -14,7 +14,12 @@ GCN の図 1（#367）の再現では、頂点の枠が tone の色、塗りが�
   - solid: 塗りと枠は `line`。白い文字は `solidFills` と同じく 4.5:1 に満たなければ暗くする。`text` は淡い塗り（と白地）の上の文字色なので solid には使わない。`solidFills` が同じ tone を指定していれば、solid の塗りは `solidFills` が優先する（より限定的な指定のため）。
   - default・filled variant の文字は tone の色ではなく theme の文字色なので、`text` は効かない。
 - dim は上書き後の style に従来どおり適用する（淡くする・灰色にする）。
-- `text` を明示した場合はコントラストを自動調整せず、書いたとおりに描く。tone の塗りに対して 4.5:1 未満なら新しい警告 `theme/low-contrast` を `figure.themeOverrides.tones.<tone>.text` の位置に出す。既存のコントラスト診断はないため新設した。
+- 上書きした tone の文字は自動調整しない場所が 2 つあるので、そこで 4.5:1 未満なら新しい警告 `theme/low-contrast` を出す（既存のコントラスト診断はないため新設した）。図が実際にその文脈で tone を使うときだけ検査する。
+  - tone の塗りの上: 明示した `text` を、その tone の tinted ノード（tone のない tinted は gray）があるとき塗りと比べる。位置は `tones.<tone>.text`。`text` を省けば tinted の文字は自動で暗くなるので検査しない。
+  - 白地の上: tone の文字色（`text`、なければ `line`）を、outlined の要素・ラベルつきの tone の辺・tone つきの見出し・`\textcolor{<tone>}` があるとき白と比べる。位置は `text` があれば `tones.<tone>.text`、なければ `tones.<tone>.line`。`line` だけを明るい色にすると outlined の文字や辺のラベルがそのまま薄くなるため。
+  - メッセージにはどちらの背景で足りないかを書く。
+- `gray` を上書きすると、tone のない tinted / solid ノードも変わる（これらの中立の既定は gray の塗りと線のため）。`solidFills.gray` と同じ扱い。tone のない outlined は variant 自体の色なので変わらない。
+- HTML 埋め込みの `--sumi-accent` は青の線色なので、`tones.blue.line` に従う。
 - グループには `themeOverrides.groupFill` と `groupStroke`（いずれも `#RRGGBB`）を追加する。対象は `container` のグループで、凡例や行列の枠は含まない。
   - `groupFill`: tone のない、塗りのある（`transparent` でない）グループの塗り。`plain` / `dashed` のような塗りのない variant は透明のまま。tone つきグループは tone の塗り（`tones.<tone>.fill` で上書き可）を優先する。
   - `groupStroke`: すべての container の枠の色。`dashed` は `dashedGroupStroke` があればそちらが優先する。枠の幅が 0 の variant には見た目の変化がない。

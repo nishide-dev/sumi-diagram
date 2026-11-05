@@ -36,7 +36,7 @@ import {
   type StyleOf,
   sublabelFontSize,
 } from "./style";
-import type { Tone } from "./tones";
+import { isTone, type Tone } from "./tones";
 
 /**
  * The variant whose tone colors the outline and the text instead of the
@@ -287,27 +287,76 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
 }
 
 /**
- * `theme/low-contrast` (#380): an explicit tone `text` is drawn as written,
- * so warn when it has less than 4.5:1 contrast on the tone's fill.
+ * `theme/low-contrast` (#380): an overridden tone's text is drawn without
+ * contrast adjustment in two places, so warn below 4.5:1 where the figure
+ * actually draws it:
+ * - an explicit `text` on the tone's fill: tinted nodes in the tone (gray
+ *   for an untoned tinted node);
+ * - the tone's text (`text`, else `line`) on white: outlined elements and
+ *   labelled edges in the tone, toned matrix headers, `\textcolor` runs.
  */
 function reportToneContrast(state: CheckState, locate: Locator, theme: Theme): void {
-  for (const [tone, override] of theme.toneOverrides ?? []) {
+  if (theme.toneOverrides === undefined) return;
+  const { onFill, onWhite } = toneTextUses(state);
+  for (const [tone, override] of theme.toneOverrides) {
+    const warn = (field: "text" | "line", color: string, background: string, where: string) => {
+      const ratio = contrast(background, color);
+      if (ratio >= 4.5) return;
+      const path = ["figure", "themeOverrides", "tones", tone, field];
+      const location = locate(path);
+      state.diagnostics.push({
+        code: "theme/low-contrast",
+        severity: "warning",
+        message: `Text color ${color} of tone "${tone}" has a contrast of ${ratio.toFixed(2)}:1 ${where}; text needs at least 4.5:1.`,
+        path,
+        ...(location !== undefined && { location }),
+        hint:
+          field === "line"
+            ? "Set a darker text color for the tone (or use a darker line color)."
+            : "Use a darker text color (or a paler fill), or omit text to darken the line color automatically on fills.",
+      });
+    };
     const fill = theme.tones.get(tone)?.fill;
-    if (override.text === undefined || fill === undefined || !/^#[0-9a-f]{6}$/i.test(fill))
-      continue;
-    const ratio = contrast(fill, override.text);
-    if (ratio >= 4.5) continue;
-    const path = ["figure", "themeOverrides", "tones", tone, "text"];
-    const location = locate(path);
-    state.diagnostics.push({
-      code: "theme/low-contrast",
-      severity: "warning",
-      message: `Text color ${override.text} of tone "${tone}" has a contrast of ${ratio.toFixed(2)}:1 on its fill ${fill}; text needs at least 4.5:1.`,
-      path,
-      ...(location !== undefined && { location }),
-      hint: "Use a darker text color (or a paler fill), or omit text to darken the line color automatically.",
-    });
+    if (
+      onFill.has(tone) &&
+      override.text !== undefined &&
+      fill !== undefined &&
+      /^#[0-9a-f]{6}$/i.test(fill)
+    )
+      warn("text", override.text, fill, `on its fill ${fill} (tinted nodes)`);
+    const ink = override.text ?? override.line;
+    if (onWhite.has(tone) && ink !== undefined)
+      warn(
+        override.text !== undefined ? "text" : "line",
+        ink,
+        "#ffffff",
+        "on white (outlined text, toned edge labels, \\textcolor runs)",
+      );
   }
+}
+
+/** Where a figure draws tone text without adjusting it (#380): see {@link reportToneContrast}. */
+function toneTextUses(state: CheckState): { onFill: Set<Tone>; onWhite: Set<Tone> } {
+  const onFill = new Set<Tone>();
+  const onWhite = new Set<Tone>();
+  for (const { key, kind, element } of figureElements(state.doc)) {
+    const component = state.components?.get(key);
+    const tone = element.tone;
+    if (component?.manifest.kind === "node" && component.variant === "tinted")
+      onFill.add(tone ?? "gray");
+    if (
+      tone !== undefined &&
+      (component?.variant === OUTLINED_VARIANT ||
+        state.doc.paints?.get(key)?.toneText === true ||
+        (kind === "edge" && element.label !== undefined && element.label !== ""))
+    )
+      onWhite.add(tone);
+    const texts = [element.label, "sublabel" in element ? element.sublabel : undefined];
+    for (const text of texts)
+      for (const match of typeof text === "string" ? text.matchAll(/\\textcolor\{(\w+)\}/g) : [])
+        if (isTone(match[1] ?? "")) onWhite.add(match[1] as Tone);
+  }
+  return { onFill, onWhite };
 }
 
 /**

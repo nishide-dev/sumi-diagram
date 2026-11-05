@@ -98,7 +98,7 @@ Apply one edit and re-check: independent savings are not additive.
 | `asset/*` | icons, images, figure assets, HTML | [assets](assets.md#fixing-asset), [html](html.md#diagnostics) |
 | `theme/unknown` | `figure.theme` is not built in | `minimal`, `academic`, `slides`, `color` or `paper` |
 | `theme/missing-variant`, `theme/missing-tone`, `theme/missing-dim` (warnings) | the theme lacks a style (built-ins define all) | usually ignore |
-| `theme/low-contrast` (warning) | an explicit `themeOverrides.tones.<tone>.text` has under 4.5:1 on the tone's fill | darker `text`, paler `fill`, or omit `text` |
+| `theme/low-contrast` (warning) | an overridden tone's text (`themeOverrides.tones.<tone>.text`, else `line`) has under 4.5:1 on its fill (tinted) or on white (outlined, edge labels, `\textcolor`) | darker `text`, paler `fill`, or omit `text` for tinted-only tones |
 | `theme/undimmed-image` (warning) | an `image` in a `dim: true` group is drawn at full colour (dimming is by colour, not opacity) | move it out, or use a paler file |
 | other `theme/*` | a problem in a theme definition | not fixable in the figure: report it |
 | `profile/unknown` | `figure.profile` is not built in | `paper-single`, `paper-double` or `presentation-16x9` |
