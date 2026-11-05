@@ -192,9 +192,10 @@ export interface RouteOptions {
 
 export function routeEdges(
   ir: FigureIR,
-  layout: LayoutIR,
+  unmoved: LayoutIR,
   options: RouteOptions = {},
 ): RouteResult {
+  const layout = junctionsOnBus(ir, unmoved);
   // Zoom edges (#176) are not routed: the other edges are routed without
   // them, and their straight lines are added to the result (`zoom.ts`).
   const straight = new Set(ir.edges.filter(isDirectEdge).map((e) => e.key));
@@ -543,9 +544,9 @@ class Router {
         enteringId: -1,
       };
     });
-    const routable = this.#clearJunctionTurns(edges.filter((e): e is Edge => e !== undefined)).map(
-      (e, index) => ({ ...e, index }),
-    );
+    const routable = edges
+      .filter((e): e is Edge => e !== undefined)
+      .map((e, index) => ({ ...e, index }));
     this.#edges = routable;
     this.#joinNets(routable);
     this.#buildGrid(routable);
@@ -641,60 +642,6 @@ class Router {
       }
     }
     return best;
-  }
-
-  /**
-   * Ends the room of the arrowheads on one side of a node at the row of a
-   * junction that feeds them from aside, so the trunk turns into the bus at
-   * the junction with the full corner radius instead of running past it and
-   * back by a few units (#385; see `junctionBusRoom`). Every arrowhead end on
-   * that side takes the shortest such room, so their buses stay on one row.
-   * Not where the junction's line runs straight into an arrowhead on that
-   * side (a T, whose trunk does not turn).
-   */
-  #clearJunctionTurns(edges: Edge[]): Edge[] {
-    const ends = (e: Edge) =>
-      [
-        {
-          end: e.from,
-          other: e.to,
-          room: e.fromRoom,
-          lane: e.fromLane,
-          head: e.ir.sourceArrowhead,
-        },
-        { end: e.to, other: e.from, room: e.toRoom, lane: e.toLane, head: e.ir.targetArrowhead },
-      ] as const;
-    const straight = new Set<string>();
-    for (const e of edges) {
-      for (const { end, other, head } of ends(e)) {
-        if (head === undefined || end.dir < 0 || !other.junction) continue;
-        const d = DIRS[end.dir] as Point;
-        const dx = other.port.x - end.port.x;
-        const dy = other.port.y - end.port.y;
-        if (Math.abs(dx * d.y - dy * d.x) < 1e-9 && dx * d.x + dy * d.y > 0) {
-          straight.add(`${other.key}|${end.dir}`);
-        }
-      }
-    }
-    const sideOf = (end: End) => `${end.key}|${end.side}|${end.dir}`;
-    const rooms = new Map<string, number>();
-    for (const e of edges) {
-      for (const { end, other, room, lane, head } of ends(e)) {
-        if (head === undefined || room === 0 || straight.has(`${other.key}|${end.dir}`)) continue;
-        const need = junctionBusRoom(end, other, room, lane);
-        if (need === 0) continue;
-        rooms.set(sideOf(end), Math.min(rooms.get(sideOf(end)) ?? need, need));
-      }
-    }
-    if (rooms.size === 0) return edges;
-    return edges.map((e) => {
-      const from = e.ir.sourceArrowhead !== undefined ? rooms.get(sideOf(e.from)) : undefined;
-      const to = e.ir.targetArrowhead !== undefined ? rooms.get(sideOf(e.to)) : undefined;
-      const fromRoom =
-        from !== undefined && e.fromRoom > 0 ? Math.min(e.fromRoom, from) : e.fromRoom;
-      const toRoom = to !== undefined && e.toRoom > 0 ? Math.min(e.toRoom, to) : e.toRoom;
-      return fromRoom === e.fromRoom && toRoom === e.toRoom ? e : { ...e, fromRoom, toRoom };
-    });
   }
 
   /**
@@ -1821,29 +1768,112 @@ export function clipRoomAtJunction(end: End, other: End, room: number, lane: num
 }
 
 /**
- * The room before an arrowhead at `end` that ends at the row of a junction
- * feeding it from aside (#385), or 0 if that is not needed. `room` is the
- * normal room (`arrowRoom()`), `lane` the stub.
+ * Moves a hidden junction onto the bus row of the arrowhead it feeds (#385).
  *
- * The junction `other` lies `ahead` along the end's direction, not in line.
- * Where `ahead` is within the room, the bus at the room's end runs past the
- * junction by `room - ahead` and the trunk, which stops at the junction,
- * leaves a spike there; a turn into the bus within that distance rounds with
- * less than the corner radius. With the room ending at `ahead` the bus runs
- * out of the junction itself and its turn takes the whole trunk. Only where
- * that leaves half a corner radius of straight wire after the arrowhead and
- * its stub (`lane`). Not for a junction straight ahead
- * (`clipRoomAtJunction`), behind, nearer than that, or beyond the room.
+ * A junction in a stack gap sits midway between its blocks. When an edge
+ * with an arrowhead leaves it from aside and the junction lies within the
+ * arrowhead's room (`lane <= ahead < room`), the bus at the room's end runs
+ * past the junction: the trunk rises to the junction and the edge drops back
+ * to the bus, so the corner between them has a leg of a few units and rounds
+ * with that. Instead the junction moves along the arrowhead's direction to
+ * the room's end, and the trunk runs straight up into the bus row.
+ *
+ * Only a hidden junction moves, only along that line and only within its
+ * channel: every other end of its edges must stay at least the corner
+ * radius away (and a port aligned across the move stays out), it stays
+ * inside its group, and no node moves. A junction with an arrowhead
+ * straight ahead (a T, whose trunk does not turn) or edges that ask for
+ * different moves is left alone. Returns `layout` itself if nothing moves.
  */
-export function junctionBusRoom(end: End, other: End, room: number, lane: number): number {
-  if (end.dir < 0 || !other.junction) return 0;
-  const d = DIRS[end.dir] as Point;
-  const dx = other.port.x - end.port.x;
-  const dy = other.port.y - end.port.y;
-  const ahead = dx * d.x + dy * d.y;
-  const aside = dx * d.y - dy * d.x;
-  if (Math.abs(aside) < 1e-9 || ahead >= room) return 0;
-  return ahead >= lane + WIRE_CORNER_RADIUS / 2 ? ahead : 0;
+export function junctionsOnBus(ir: FigureIR, layout: LayoutIR): LayoutIR {
+  const hidden = ir.nodes.filter((n) => n.mark?.type === "point" && n.variant === "hidden");
+  if (hidden.length === 0) return layout;
+  const resolved = resolveEnds(ir, layout);
+  const moves = new Map<ElementKey, Point>();
+  for (const junction of hidden) {
+    const at = layout.nodes.find((n) => n.key === junction.key)?.rect;
+    if (at === undefined) continue;
+    const here = { x: at.x + at.width / 2, y: at.y + at.height / 2 };
+    // The edge ends at the other end of each edge of the junction.
+    const others: { end: End; arrowhead: boolean; width: number }[] = [];
+    for (const [index, edge] of ir.edges.entries()) {
+      const ends = resolved[index];
+      if (ends === undefined || "error" in ends) continue;
+      const [mine, other, head] =
+        edge.from === junction.key
+          ? [ends.from, ends.to, edge.targetArrowhead]
+          : edge.to === junction.key
+            ? [ends.to, ends.from, edge.sourceArrowhead]
+            : [undefined, undefined, undefined];
+      if (mine === undefined || other === undefined) continue;
+      others.push({
+        end: other,
+        arrowhead: head !== undefined,
+        width: edge.style.strokeWidth.units,
+      });
+    }
+    let move: Point | undefined;
+    let ok = others.length > 0;
+    for (const { end, arrowhead, width } of others) {
+      if (end.junction || end.dir < 0) {
+        ok = false;
+        break;
+      }
+      if (!arrowhead) continue;
+      const d = DIRS[end.dir] as Point;
+      const ahead = (here.x - end.port.x) * d.x + (here.y - end.port.y) * d.y;
+      const aside = (here.x - end.port.x) * d.y - (here.y - end.port.y) * d.x;
+      if (Math.abs(aside) < 1e-9) {
+        // A T: the trunk runs straight into this arrowhead.
+        if (ahead > 0) ok = false;
+        continue;
+      }
+      const room = arrowRoom(width);
+      if (ahead < arrowheadLength(width) || ahead >= room) continue;
+      const delta = { x: d.x * (room - ahead), y: d.y * (room - ahead) };
+      if (
+        move !== undefined &&
+        (Math.abs(move.x - delta.x) > 1e-6 || Math.abs(move.y - delta.y) > 1e-6)
+      ) {
+        ok = false;
+        break;
+      }
+      move = delta;
+    }
+    if (!ok || move === undefined) continue;
+    const to = { x: here.x + move.x, y: here.y + move.y };
+    // The other ends keep their approach: a port on the line of the move
+    // keeps the corner radius, one across it stays out of line.
+    const m = Math.hypot(move.x, move.y);
+    const mx = move.x / m;
+    const my = move.y / m;
+    for (const { end } of others) {
+      const d = DIRS[end.dir] as Point;
+      const dot = d.x * mx + d.y * my;
+      if (Math.abs(dot) > 0.5) {
+        const ahead = (to.x - end.port.x) * d.x + (to.y - end.port.y) * d.y;
+        if (ahead < WIRE_CORNER_RADIUS) ok = false;
+      } else {
+        const along = (here.x - end.port.x) * mx + (here.y - end.port.y) * my;
+        if (Math.abs(along) < STRAIGHT_MARGIN) ok = false;
+      }
+    }
+    const parent = junction.parent;
+    const group = parent === undefined ? undefined : layout.groups.find((g) => g.key === parent);
+    if (group !== undefined && (to.y > bottomOf(group.rect) || to.x > rightOf(group.rect)))
+      ok = false;
+    if (ok) moves.set(junction.key, move);
+  }
+  if (moves.size === 0) return layout;
+  return {
+    ...layout,
+    nodes: layout.nodes.map((n) => {
+      const move = moves.get(n.key);
+      return move === undefined
+        ? n
+        : { ...n, rect: roundRect({ ...n.rect, x: n.rect.x + move.x, y: n.rect.y + move.y }) };
+    }),
+  };
 }
 
 /**

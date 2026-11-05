@@ -61,14 +61,6 @@ export interface WirePolyline {
    */
   readonly keepStart?: number;
   readonly keepEnd?: number;
-  /**
-   * Straight wire an arrowhead keeps visible before the turn at its end of
-   * the first / last segment (#385): the stem the geometry lint asks for
-   * (`geometry/arrowhead-cramped`). The turn rounds with less rather than
-   * leave a shorter stem. Not part of what a junction's arcs reserve.
-   */
-  readonly stemStart?: number;
-  readonly stemEnd?: number;
 }
 
 export interface CornerOptions {
@@ -273,40 +265,30 @@ export function roundCorners(
   // length but what the junction's arcs use of it (none if the junction joins
   // nothing there); any other leg half of it (the turn at its other end may
   // take the other half).
-  polylines.forEach(
-    ({ points, start, end, keepStart = 0, keepEnd = 0, stemStart = 0, stemEnd = 0 }, index) => {
-      const last = points.length - 2; // the last segment
-      for (let i = 1; i + 1 < points.length; i++) {
-        const prev = points[i - 1] as Point;
-        const p = points[i] as Point;
-        const next = points[i + 1] as Point;
-        const d1 = axis(direction(prev, p));
-        const d2 = axis(direction(p, next));
-        if (!perpendicular(d1, d2)) continue;
-        const before = distance(prev, p);
-        const after = distance(p, next);
-        const room = Math.min(
-          i - 1 === 0 && start !== undefined
-            ? before - (reserveStart[index] as number)
-            : before / 2,
-          i === last && end !== undefined ? after - (reserveEnd[index] as number) : after / 2,
-          i - 1 === 0 ? before - keepStart - stemStart : before,
-          i === last ? after - keepEnd - stemEnd : after,
-        );
-        const r = clearRadius(
-          p,
-          { x: -d1.x, y: -d1.y },
-          d2,
-          Math.min(options.radius, room),
-          options,
-        );
-        if (r < options.minRadius) continue;
-        (cutEnd[index] as number[])[i - 1] = r;
-        (cutStart[index] as number[])[i] = r;
-        (arcs[index] as Arc[]).push(arc(p, d1, d2, r));
-      }
-    },
-  );
+  polylines.forEach(({ points, start, end, keepStart = 0, keepEnd = 0 }, index) => {
+    const last = points.length - 2; // the last segment
+    for (let i = 1; i + 1 < points.length; i++) {
+      const prev = points[i - 1] as Point;
+      const p = points[i] as Point;
+      const next = points[i + 1] as Point;
+      const d1 = axis(direction(prev, p));
+      const d2 = axis(direction(p, next));
+      if (!perpendicular(d1, d2)) continue;
+      const before = distance(prev, p);
+      const after = distance(p, next);
+      const room = Math.min(
+        i - 1 === 0 && start !== undefined ? before - (reserveStart[index] as number) : before / 2,
+        i === last && end !== undefined ? after - (reserveEnd[index] as number) : after / 2,
+        i - 1 === 0 ? before - keepStart : before,
+        i === last ? after - keepEnd : after,
+      );
+      const r = clearRadius(p, { x: -d1.x, y: -d1.y }, d2, Math.min(options.radius, room), options);
+      if (r < options.minRadius) continue;
+      (cutEnd[index] as number[])[i - 1] = r;
+      (cutStart[index] as number[])[i] = r;
+      (arcs[index] as Arc[]).push(arc(p, d1, d2, r));
+    }
+  });
 
   const pieces = polylines.map(({ points }, index) => {
     const out: [Point, Point][] = [];

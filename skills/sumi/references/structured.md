@@ -828,10 +828,10 @@ edges:
   straight run of head plus radius where moving a bend gives it; tight group padding
   grows automatically for the head plus a 2pt stem and 3pt border clearance. A tight gap
   elsewhere can still leave the head right after a corner: `geometry/arrowhead-cramped`
-  (info). A bus fed by a hidden junction that sits just short of the head's room runs at
-  the junction's row, so the trunk turns into it with a full corner; the turn before each
-  head then rounds with less so the 2pt stem stays. Trunks and side paths run about 3pt beside blocks; the lever is the enclosing
-  box's `gap`, not a coordinate.
+  (info). A hidden junction in a stack gap that feeds a bus from aside, just short of the
+  head's room, moves onto the bus row (nodes never move), so its trunk turns into the bus
+  with a gentle corner. Trunks and side paths run about 3pt beside blocks; the lever is the
+  enclosing box's `gap`, not a coordinate.
 
 Three workers writing to one store, each line entering on its own (without
 `fanIn: spread` the lines join above the store and enter as one arrow):
