@@ -9,7 +9,7 @@ import type { EdgeLayout, LayoutIR, Point, Rect, TextLayout } from "../ir";
 import { roundUnits } from "../ir";
 import { arrowheadLength } from "./arrowhead";
 import { sampleCubic } from "./cubic";
-import { curveLabel, curvePoints } from "./curve";
+import { curveLabel, curvePoints, junctionTangents } from "./curve";
 import { straightLabel } from "./direct-label";
 import { endpointRects } from "./endpoint-rects";
 import {
@@ -37,6 +37,7 @@ export function addDirectRoutes(
   const straight = new Map(ir.edges.filter(isDirectEdge).map((e) => [e.key, e]));
   if (straight.size === 0) return { layout: routed, diagnostics: [] };
   const rects = endpointRects(ir, routed);
+  const tangents = junctionTangents(ir, routed, rects);
   const nodes = new Map(ir.nodes.map((n) => [n.key, n]));
   const existing = new Map(routed.edges.map((e) => [e.key, e]));
   const diagnostics: Diagnostic[] = [];
@@ -143,10 +144,13 @@ export function addDirectRoutes(
         0.01,
       );
     };
-    if (enters(edge.from, source, a, b) || enters(edge.to, target, b, a))
+    if (
+      edge.route === "straight" &&
+      (enters(edge.from, source, a, b) || enters(edge.to, target, b, a))
+    )
       return fail("an anchor faces into its endpoint");
     if (edge.route === "curve") {
-      const points = curvePoints(edge, a, b, ir, routed, rects);
+      const points = curvePoints(edge, a, b, ir, rects, tangents);
       const samples = sampleCubic(points);
       if (
         samples.slice(1).some((q, i) => {

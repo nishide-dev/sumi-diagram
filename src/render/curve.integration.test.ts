@@ -103,6 +103,94 @@ test("junctions without a through edge share an axis, and explicit sides overrid
   expect(p[2].y).toBeLessThan(p[3].y);
 });
 
+test("a diagonal curved through-edge shares both junction tangents with its branches", async () => {
+  const doc = {
+    version: 1,
+    figure: {
+      id: "diagonal-through",
+      layout: {
+        arrange: {
+          row: {
+            gap: "60pt",
+            items: [
+              { stack: { gap: "60pt", items: ["a", "j1"] } },
+              { stack: { gap: "60pt", items: ["j2", "b"] } },
+            ],
+          },
+        },
+      },
+    },
+    nodes: [
+      ...["a", "b"].map((id) => ({ id, component: "circle", label: id })),
+      ...["j1", "j2"].map((id) => ({ id, component: "junction", variant: "hidden" })),
+    ],
+    edges: [
+      { id: "in", from: "a", to: "j1", route: "curve" },
+      { id: "through", from: "j1", to: "j2", route: "curve" },
+      { id: "out", from: "j2", to: "b", route: "curve" },
+    ],
+  };
+  for (const edges of [doc.edges, [...doc.edges].reverse()]) {
+    const r = await render(stringify({ ...doc, edges }));
+    const points = (id: string) =>
+      r.layout.edges.find((e) => e.key === `e:${id}`)?.route?.points as Cubic;
+    const incoming = points("in");
+    const through = points("through");
+    const outgoing = points("out");
+    expect(incoming[3]).toEqual(through[0]);
+    expect(through[3]).toEqual(outgoing[0]);
+    for (const [a, b, c, d] of [
+      [incoming[2], incoming[3], through[0], through[1]],
+      [through[2], through[3], outgoing[0], outgoing[1]],
+    ] as const) {
+      const u = { x: b.x - a.x, y: b.y - a.y };
+      const v = { x: d.x - c.x, y: d.y - c.y };
+      expect(Math.abs(v.x)).toBeGreaterThan(1);
+      expect(Math.abs(v.y)).toBeGreaterThan(1);
+      expect(
+        Math.abs(u.x * v.y - u.y * v.x) / (Math.hypot(u.x, u.y) * Math.hypot(v.x, v.y)),
+      ).toBeLessThan(0.0001);
+    }
+    for (const p of [incoming, through, outgoing]) {
+      const chord = { x: p[3].x - p[0].x, y: p[3].y - p[0].y };
+      for (const [a, b] of [
+        [p[0], p[1]],
+        [p[2], p[3]],
+      ] as const) {
+        expect((b.x - a.x) * chord.x + (b.y - a.y) * chord.y).toBeGreaterThan(0);
+      }
+    }
+    expect(Object.values(checkRoutes(r.compiled.ir, r.layout)).flat()).toEqual([]);
+  }
+});
+
+for (const component of ["circle", "diamond"]) {
+  test(`${component} offset anchors validate the curve rather than its intersecting chord`, async () => {
+    const doc = parse(simple({ fromAnchor: "north:0.1", toAnchor: "north:0.1" }));
+    doc.figure.layout.arrange.row.gap = "60pt";
+    for (const node of doc.nodes) node.component = component;
+    const text = stringify(doc);
+    const r = await render(text);
+    const p = r.layout.edges[0]?.route?.points as Cubic;
+    expect(p[1].x).toBe(p[0].x);
+    expect(p[1].y).toBeLessThan(p[0].y);
+    expect(p[2].x).toBe(p[3].x);
+    expect(p[2].y).toBeLessThan(p[3].y);
+    expect(Object.values(checkRoutes(r.compiled.ir, r.layout)).flat()).toEqual([]);
+    expect(
+      (await lintRenderedFigure(text)).diagnostics.filter((d) => d.code !== "geometry/dead-space"),
+    ).toEqual([]);
+    doc.edges[0].route = "straight";
+    const straight = await renderFigure(stringify(doc));
+    expect(straight.ok).toBe(false);
+    expect(
+      straight.diagnostics.some(
+        (d) => d.code === "layout/no-route" && d.message.includes("anchor faces into"),
+      ),
+    ).toBe(true);
+  });
+}
+
 test("outline endpoints, explicit anchors and arrow tangents survive native exports", async () => {
   const r = await render(
     simple({ fromAnchor: "east", toAnchor: "west", component: "double-arrow", label: "flow" }),

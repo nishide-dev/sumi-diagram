@@ -9,46 +9,29 @@ import { type Cubic, cubicPoint, sampleCubic } from "./cubic";
 import { straightLabel } from "./direct-label";
 import { DIRS, isJunction, SIDE_DIR } from "./ports";
 
-export function curvePoints(
-  edge: EdgeIR,
-  a: Point,
-  b: Point,
+/** Resolve each junction once from the complete incident set, including the through edge. */
+export function junctionTangents(
   ir: FigureIR,
   layout: LayoutIR,
   rects: ReadonlyMap<ElementKey, Rect>,
-): Cubic {
+): ReadonlyMap<ElementKey, Point> {
   const center = (key: ElementKey): Point => {
     const r = rects.get(key);
     if (!r) throw new Error(`Missing curve endpoint ${key}`);
     return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
   };
   const nodes = new Map(ir.nodes.map((n) => [n.key, n]));
-  const chord = { x: b.x - a.x, y: b.y - a.y };
-  const tangent = (key: ElementKey, anchor: EdgeIR["fromAnchor"], source: boolean): Point => {
-    const node = nodes.get(key);
-    let fixed: EdgeIR["fromAnchor"];
-    if (node?.render) {
-      const renderer = getOutlineRenderer(node.render.renderer);
-      fixed = renderer?.draw(
-        rects.get(key) as Rect,
-        renderer.params.parse(node.render.params ?? {}),
-      ).fixedPort;
-    }
-    const side = fixed ?? anchor;
-    if (side !== undefined && side !== "straight") {
-      const normal = DIRS[SIDE_DIR[side.side]] as Point;
-      return { x: normal.x * (source ? 1 : -1), y: normal.y * (source ? 1 : -1) };
-    }
-    if (!isJunction(node)) return chord;
-    const incident = ir.edges.filter((e) => e.from === key || e.to === key);
-    const otherEdges = incident
-      .filter((e) => e.key !== edge.key)
+  const tangents = new Map<ElementKey, Point>();
+  for (const node of ir.nodes.filter(isJunction)) {
+    const key = node.key;
+    const incident = ir.edges
+      .filter((e) => e.from === key || e.to === key)
       .sort((a, b) => a.key.localeCompare(b.key));
     // A junction-to-junction edge is the explicit through flow. Otherwise use
     // a non-curved neighbour, then the dominant axis of the incident bundle.
     const other =
-      otherEdges.find((e) => isJunction(nodes.get(e.from === key ? e.to : e.from))) ??
-      otherEdges.find((e) => e.route !== "curve");
+      incident.find((e) => isJunction(nodes.get(e.from === key ? e.to : e.from))) ??
+      incident.find((e) => e.route !== "curve");
     let v: Point;
     if (other) {
       const p = layout.edges.find((e) => e.key === other.key)?.route?.points;
@@ -68,8 +51,38 @@ export function curvePoints(
       );
       v = sum.x >= sum.y ? { x: 1, y: 0 } : { x: 0, y: 1 };
     }
-    if (v.x * chord.x + v.y * chord.y < 0) v = { x: -v.x, y: -v.y };
-    return v;
+    tangents.set(key, v);
+  }
+  return tangents;
+}
+
+export function curvePoints(
+  edge: EdgeIR,
+  a: Point,
+  b: Point,
+  ir: FigureIR,
+  rects: ReadonlyMap<ElementKey, Rect>,
+  tangents: ReadonlyMap<ElementKey, Point>,
+): Cubic {
+  const nodes = new Map(ir.nodes.map((n) => [n.key, n]));
+  const chord = { x: b.x - a.x, y: b.y - a.y };
+  const tangent = (key: ElementKey, anchor: EdgeIR["fromAnchor"], source: boolean): Point => {
+    const node = nodes.get(key);
+    let fixed: EdgeIR["fromAnchor"];
+    if (node?.render) {
+      const renderer = getOutlineRenderer(node.render.renderer);
+      fixed = renderer?.draw(
+        rects.get(key) as Rect,
+        renderer.params.parse(node.render.params ?? {}),
+      ).fixedPort;
+    }
+    const side = fixed ?? anchor;
+    if (side !== undefined && side !== "straight") {
+      const normal = DIRS[SIDE_DIR[side.side]] as Point;
+      return { x: normal.x * (source ? 1 : -1), y: normal.y * (source ? 1 : -1) };
+    }
+    const v = tangents.get(key) ?? chord;
+    return v.x * chord.x + v.y * chord.y < 0 ? { x: -v.x, y: -v.y } : v;
   };
   const distance = Math.hypot(chord.x, chord.y) / 3;
   const control = (p: Point, v: Point, sign: number): Point => {
