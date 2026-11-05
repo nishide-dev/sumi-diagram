@@ -470,9 +470,12 @@
         "type": "object",
         "properties": {
           "route": {
-            "description": "Join endpoints with one straight segment, including diagonals, without obstacle avoidance or shared trunks (structured layout only). Omitted keeps orthogonal routing.",
+            "description": "Join endpoints with one straight segment (straight) or cubic Bézier (curve), without obstacle avoidance or shared trunks (structured layout only). Curves share the through tangent at junctions. Omitted keeps orthogonal routing.",
             "type": "string",
-            "const": "straight"
+            "enum": [
+              "straight",
+              "curve"
+            ]
           },
           "id": {
             "description": "Optional edge ID (separate ID space from nodes and groups).",
@@ -505,7 +508,7 @@
             "type": "string"
           },
           "labelAt": {
-            "description": "Where along the route the label sits: beside the first segment (start), the longest segment (middle) or the last segment (end). Omitted means next to the arrowhead, or the middle of a line without arrowheads. With route: straight, start/end are near that endpoint and the default is middle (structured layout only).",
+            "description": "Where along the route the label sits: beside the first segment (start), the longest segment (middle) or the last segment (end). Omitted means next to the arrowhead, or the middle of a line without arrowheads. With route: straight or curve, start/end are near that endpoint and the default is the arc-length midpoint (structured layout only).",
             "type": "string",
             "enum": [
               "start",
@@ -514,7 +517,7 @@
             ]
           },
           "labelSide": {
-            "description": "Which side of the line the label sits on, facing from the source to the target. Omitted means above a horizontal segment and right of a vertical one, or the other side when that is clear. With route: straight, the default is left and labels stay horizontal without obstacle avoidance (structured layout only).",
+            "description": "Which side of the line the label sits on, facing from the source to the target. Omitted means above a horizontal segment and right of a vertical one, or the other side when that is clear. With route: straight or curve, the default is left of the local tangent and labels stay horizontal without obstacle avoidance (structured layout only).",
             "type": "string",
             "enum": [
               "left",
@@ -639,7 +642,7 @@
                   }
                 ]
               },
-              "description": "Node or group IDs, or nested stack / row boxes."
+              "description": "Node or group IDs, or nested arrange boxes (stack / row / grid / place)."
             }
           },
           "required": [
@@ -708,7 +711,7 @@
                   }
                 ]
               },
-              "description": "Node or group IDs, or nested stack / row boxes."
+              "description": "Node or group IDs, or nested arrange boxes (stack / row / grid / place)."
             }
           },
           "required": [
@@ -819,10 +822,65 @@
             "items"
           ],
           "additionalProperties": false
+        },
+        "place": {
+          "type": "object",
+          "properties": {
+            "unit": {
+              "type": "string",
+              "pattern": "^(?=\\d*(?:\\.\\d*)?[1-9])\\d+(?:\\.\\d+)?(?:mm|cm|in|pt)$",
+              "description": "A positive length with a unit (mm, cm, in or pt)."
+            },
+            "items": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+                      },
+                      {
+                        "$ref": "#/$defs/ArrangeBox"
+                      }
+                    ]
+                  },
+                  "at": {
+                    "type": "array",
+                    "prefixItems": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ],
+                    "items": false,
+                    "minItems": 2,
+                    "maxItems": 2,
+                    "description": "Item center [x, y] in units; y grows downward."
+                  }
+                },
+                "required": [
+                  "item",
+                  "at"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "unit",
+            "items"
+          ],
+          "additionalProperties": false
         }
       },
       "additionalProperties": false,
-      "description": "A stack (vertical), row (horizontal), or row-major grid of items.",
+      "description": "A stack (vertical), row (horizontal), row-major grid, or rigid coordinate placement of items.",
       "minProperties": 1,
       "maxProperties": 1
     },

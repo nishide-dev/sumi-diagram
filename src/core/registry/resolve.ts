@@ -136,7 +136,7 @@ export function resolveComponents(
       const inLinearBox = (box: ArrangeBox | undefined): boolean => {
         if (box === undefined) return false;
         const linear = box.row ?? box.stack;
-        const items = (linear ?? box.grid)?.items ?? [];
+        const items = (linear ?? box.grid ?? box.place)?.items ?? [];
         return items.some((entry) => {
           const item =
             entry !== null && typeof entry === "object" && "item" in entry ? entry.item : entry;

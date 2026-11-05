@@ -791,6 +791,45 @@ describe("geometry/label-collision", () => {
     ]);
   });
 
+  test("attached corner labels that touch without overlapping (#371)", () => {
+    const attached = compile(`version: 1
+figure: { id: h, layout: { engine: structured, arrange: { row: { gap: 2mm, items: [a, b] } } } }
+nodes:
+  - { id: a, component: box, label: A }
+  - { id: b, component: box, label: B }
+  - { id: la, component: label, label: NE, attach: { to: a, side: north-east } }
+  - { id: lb, component: label, label: NW, attach: { to: b, side: north-west } }
+`);
+    const run = (bx: number) =>
+      lintSpec(
+        attached,
+        {
+          elements: {
+            "n:la": { labels: [label("漢漢", 100, 100)] },
+            "n:lb": { labels: [label("漢漢", bx, 100)] },
+          },
+        },
+        { code },
+      );
+    // 100 ± 16 and 132 ± 16 share an edge: touching.
+    expect(run(132).map((d) => [d.severity, d.message])).toEqual([
+      ["warning", 'The label of node "la" touches the label of node "lb".'],
+    ]);
+    expect(run(135)).toEqual([]);
+    // Without attach the same neighbours are not reported.
+    const plain = lintSpec(
+      compiled,
+      {
+        elements: {
+          "e:#0": { labels: [label("漢漢", 100, 100)] },
+          "e:e2": { labels: [label("漢漢", 132, 100)] },
+        },
+      },
+      { code },
+    );
+    expect(plain).toEqual([]);
+  });
+
   test("an edge label over a node's shape, aware of the shape's outline", () => {
     const circle = { x: 100, y: 100, width: 100, height: 100 };
     const run = (x: number, baseline: number) =>

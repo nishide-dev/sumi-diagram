@@ -233,6 +233,75 @@ test("overlaps retain source-located node and label warnings", async () => {
   }
 });
 
+/** A 3x3-style grid of circles with one straight edge a -> f, which brushes b and e. */
+const circles = (gap: string) =>
+  stringify({
+    version: 1,
+    figure: {
+      id: "graze",
+      theme: "paper",
+      profile: "paper-double",
+      layout: {
+        engine: "structured",
+        arrange: {
+          grid: { columns: 3, rowGap: gap, columnGap: gap, items: ["a", "b", "c", "d", "e", "f"] },
+        },
+      },
+    },
+    nodes: ["a", "b", "c", "d", "e", "f"].map((id) => ({ id, component: "circle", label: id })),
+    edges: [{ id: "af", from: "a", to: "f", route: "straight" }],
+  });
+const stackedTokens = (gap: string) =>
+  stringify({
+    version: 1,
+    figure: {
+      id: "graze-cells",
+      theme: "paper",
+      profile: "paper-double",
+      layout: { engine: "structured", arrange: { stack: { gap, items: ["p", "t"] } } },
+    },
+    nodes: [
+      ["p", ["a", "b", "c"]],
+      ["t", ["x", "y", "z"]],
+    ].map(([id, ids]) => ({
+      id,
+      component: "tokens",
+      props: { gap: "2mm", cells: (ids as string[]).map((c) => ({ id: c, label: c })) },
+    })),
+    edges: [{ id: "az", from: "p.a", to: "t.z", route: "straight" }],
+  });
+
+test("a straight line that clips or brushes a circle or a neighbouring cell is located", async () => {
+  // 0.5mm: the line is 0.5 units inside b and e (under the 1 unit tolerance);
+  // 1mm: it passes 0.7 units outside them, their strokes still touch it.
+  for (const gap of ["0.5mm", "1mm"]) {
+    const lint = await lintRenderedFigure(circles(gap));
+    const touched = lint.diagnostics.filter((d) => d.code === "geometry/edge-through-node");
+    expect(touched).toHaveLength(2);
+    for (const d of touched) {
+      expect(d.severity).toBe("warning");
+      expect(d.message).toContain("touches the outline");
+      expect(d.hint).toContain("side anchors");
+      expect(d.path).toEqual(["edges", 0]);
+      expect(d.location?.line).toBeGreaterThan(0);
+      expect(d.related?.[0]?.location?.line).toBeGreaterThan(0);
+    }
+  }
+  const cells = await lintRenderedFigure(stackedTokens("4mm"));
+  const named = cells.diagnostics
+    .filter((d) => d.code === "geometry/edge-through-node")
+    .map((d) => d.message);
+  expect(named.some((m) => m.includes('cell "b" of tokens "p"'))).toBe(true);
+  expect(named.some((m) => m.includes('cell "y" of tokens "t"'))).toBe(true);
+});
+
+test("a straight line with clear room has no touch warning", async () => {
+  for (const text of [circles("2mm"), stackedTokens("10mm"), fixture]) {
+    const lint = await lintRenderedFigure(text);
+    expect(lint.diagnostics.filter((d) => d.code === "geometry/edge-through-node")).toEqual([]);
+  }
+});
+
 test("straight is structured-only and unsupported route values are rejected", () => {
   const auto = checkFigure(
     simple()

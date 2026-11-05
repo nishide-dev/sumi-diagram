@@ -748,9 +748,16 @@ describe("scripts/preview", () => {
       ].join("\n"),
       { mode: 0o755 },
     );
+    // A stand-in `sips` records its arguments and copies the input as output.
+    await writeFile(
+      join(bin, "sips"),
+      ["#!/bin/sh", 'echo "$*" > "$FAKE_SIPS_CAPTURE"', 'cp "$4" "$6"', ""].join("\n"),
+      { mode: 0o755 },
+    );
     try {
       await fn(
         {
+          FAKE_SIPS_CAPTURE: join(work, "sips.txt"),
           PATH: `${bin}:${process.env.PATH ?? ""}`,
           TMPDIR: tmp,
           FAKE_QL_CAPTURE: join(work, "wrapper.svg"),
@@ -777,7 +784,19 @@ describe("scripts/preview", () => {
   // fake qlmanage, the system commands the scripts use, and that one runtime.
   // All three runtimes are required in CI.
   const SYSTEM_PATH = "/usr/bin:/bin";
-  const COMMANDS = ["basename", "cat", "cp", "dirname", "mktemp", "mv", "rm"];
+  const COMMANDS = [
+    "awk",
+    "basename",
+    "cat",
+    "cp",
+    "dirname",
+    "head",
+    "mktemp",
+    "mv",
+    "rm",
+    "sed",
+    "tr",
+  ];
   const runtimes = {
     bun: process.execPath,
     node: Bun.which("node"),
@@ -824,6 +843,40 @@ describe("scripts/preview", () => {
       },
     );
   }
+
+  for (const [label, viewBox, image, crop] of [
+    ["wide", "0 0 200 50", 'x="0" y="150" width="400" height="100"', "-c 100 400"],
+    ["tall", "0,0,50,200", 'x="150" y="0" width="100" height="400"', "-c 400 100"],
+  ] as const) {
+    test(`fits the thumbnail to a ${label} figure's aspect ratio`, async () => {
+      await withFakeQuickLook(async (env, { work }) => {
+        const svg = join(work, "figure.svg");
+        await writeFile(
+          svg,
+          `<?xml version="1.0"?>\n<svg xmlns="http://www.w3.org/2000/svg"\n viewBox="${viewBox}"><svg viewBox="9 9 9 9"/></svg>`,
+        );
+        const run = await runScript("preview", [svg, "400"], env);
+        expect(run.stderr).toBe("");
+        expect(run.exitCode).toBe(0);
+        expect(readFileSync(env.FAKE_QL_CAPTURE ?? "", "utf8")).toContain(image);
+        expect(readFileSync(env.FAKE_SIPS_CAPTURE ?? "", "utf8")).toMatch(new RegExp(`^${crop} `));
+        expect(readdirSync(dirname(run.stdout.trim()))).toEqual(["figure.png"]);
+      });
+    });
+  }
+
+  test("keeps the whole square when the SVG has no viewBox", async () => {
+    await withFakeQuickLook(async (env, { work }) => {
+      const svg = join(work, "figure.svg");
+      await writeFile(svg, "<svg xmlns='http://www.w3.org/2000/svg'/>");
+      const run = await runScript("preview", [svg, "400"], env);
+      expect(run.exitCode).toBe(0);
+      expect(existsSync(env.FAKE_SIPS_CAPTURE ?? "")).toBe(false);
+      expect(readFileSync(env.FAKE_QL_CAPTURE ?? "", "utf8")).toContain(
+        'x="0" y="0" width="400" height="400"',
+      );
+    });
+  });
 
   test("keeps the PNG of an input named like its intermediate file (figure.svg)", async () => {
     await withFakeQuickLook(async (env, { work }) => {

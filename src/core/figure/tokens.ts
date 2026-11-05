@@ -587,7 +587,7 @@ function wholeReferences(doc: PartialFigure): Set<string> {
     for (const ref of [...(constraint.x ?? []), ...(constraint.y ?? [])]) add(ref);
   }
   const walk = (box: ArrangeBox) => {
-    const spec = box.stack ?? box.row ?? box.grid;
+    const spec = box.stack ?? box.row ?? box.grid ?? box.place;
     if (spec === undefined) return;
     if ("centerOn" in spec && spec.centerOn !== undefined) add(spec.centerOn);
     for (const cell of spec.items) {
@@ -644,6 +644,20 @@ function cellsItem(props: TokensProps, lines: ArrangeItem[][]): ArrangeItem {
 function replaceArrangeItems(state: CheckState, items: ReadonlyMap<string, ArrangeItem>): void {
   const { doc } = state;
   const replace = (box: ArrangeBox): ArrangeBox => {
+    if (box.place !== undefined) {
+      return {
+        place: {
+          ...box.place,
+          items: box.place.items.map((cell) => ({
+            ...cell,
+            item:
+              typeof cell.item === "string"
+                ? (items.get(cell.item) ?? cell.item)
+                : replace(cell.item),
+          })),
+        },
+      };
+    }
     if (box.grid !== undefined) {
       const replaceItem = (item: ArrangeItem | null): ArrangeItem | null =>
         item === null ? null : typeof item === "string" ? (items.get(item) ?? item) : replace(item);

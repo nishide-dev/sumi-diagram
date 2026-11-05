@@ -16,7 +16,7 @@
  *   the layout's anchor, later lines as `<tspan dy>` of `lineHeightUnits`
  *   (the layout measured collapsed whitespace; a label whose runs meet at a
  *   space gets `xml:space="preserve"` so renderers keep that space);
- * - an edge has one `path.connection` with its whole route (M/L) for the
+ * - an edge has one `path.connection` with its whole route (M/L or M/C) for the
  *   inspection, and draws its arrowheads and label.
  *
  * Lines are drawn per net (#90): the edges of one net with the same line
@@ -62,6 +62,7 @@ import type { FontSet } from "../core/theme/fonts";
 import type { CommonStyle } from "../core/theme/style";
 import { groupLayerRects } from "../layout/group-layers";
 import type { LayoutIR, Point, Rect, TextLayout, TextRun } from "../layout/ir";
+import { type Cubic, sampleCubic, trimCubic } from "../layout/route/cubic";
 import { groupArrowheadStems } from "../layout/route/padding";
 import { arrowheadLength, WIRE_CORNER_RADIUS } from "../layout/route/router";
 import { fontFileFor } from "../lint/geometry/measure";
@@ -615,6 +616,8 @@ export { WIRE_CORNER_RADIUS };
 
 /** A point as SVG path coordinates. */
 const xy = (p: Point): string => `${n(p.x)} ${n(p.y)}`;
+const cubicData = (points: readonly Point[]): string =>
+  `M ${xy(points[0] as Point)} C ${points.slice(1).map(xy).join(" ")}`;
 
 /**
  * Wires: per net and line style, the union of the edges' wire segments (see
@@ -672,6 +675,21 @@ function wires(
   // Correspondence lines are independent: no trunk merging or junction rounding.
   for (const placed of layout.edges) {
     const edge = edges.get(placed.key);
+    if (edge?.route === "curve" && placed.route !== undefined) {
+      const length = arrowheadLength(edge.style.strokeWidth.units);
+      const curve = trimCubic(
+        placed.route.points as Cubic,
+        arrowheadInset(edge.sourceArrowhead ?? "none", length),
+        arrowheadInset(edge.targetArrowhead ?? "none", length),
+      );
+      const samples = sampleCubic(curve);
+      const pieces = samples.slice(1).map((p, i): [Point, Point] => [samples[i] as Point, p]);
+      painted.set(placed.key, { pieces, arcs: [] });
+      out.push(
+        `<path class="sumi-wire" d="${cubicData(curve)}" fill="none"${strokeAttributes(edge.style)} ${joins}${opacity(edge.style)}/>`,
+      );
+      continue;
+    }
     if (edge?.route !== "straight" || placed.route === undefined) continue;
     const points = wirePoints(edge, placed.route.points);
     const pieces: [Point, Point][] =
@@ -865,7 +883,7 @@ function edgeGroup(
   const { style } = edge;
   const width = style.strokeWidth.units;
   const dash = dashArray(width, style.strokeDash);
-  const connection = `<path class="connection" d="${pathData(points)}" fill="none" stroke-width="${n(width)}"${dash === undefined ? "" : ` stroke-dasharray="${n(dash[0])},${n(dash[1])}"`}/>`;
+  const connection = `<path class="connection" d="${edge.route === "curve" ? cubicData(points) : pathData(points)}" fill="none" stroke-width="${n(width)}"${dash === undefined ? "" : ` stroke-dasharray="${n(dash[0])},${n(dash[1])}"`}/>`;
   const first = points[0] as Point;
   const last = points[points.length - 1] as Point;
   const heads =

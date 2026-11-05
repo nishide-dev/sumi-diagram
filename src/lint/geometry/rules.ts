@@ -65,6 +65,13 @@ import { widthBreakdown } from "./width";
  */
 export const GEOMETRY_TOLERANCE_UNITS = 1;
 
+/**
+ * Clearance in SVG units (0.5pt) under which two texts, one of them an
+ * `attach`ed node's, count as touching (#371): the line boxes do not overlap,
+ * but the glyphs run into each other (`se-a` + `x` beside it).
+ */
+export const LABEL_TOUCH_UNITS = 2;
+
 /** Slack for comparing physical sizes in pt (floating point only; sizes are not quantized). */
 const PT_EPSILON = 1e-6;
 
@@ -214,12 +221,16 @@ export const exceedsPageWidth = defineGeometryRule({
     const { profile } = context;
     const width = printedSize(context.inspection).widthPt;
     if (profile.maxWidthPt === undefined || width <= profile.maxWidthPt + PT_EPSILON) return [];
+    const breakdown = widthBreakdown(context);
     return [
       {
         message: `The figure is ${formatMm(width)} wide, more than the ${formatMm(profile.maxWidthPt)} maximum width of profile "${profile.id}".`,
         path: figurePath,
         subject: figureSubject(context),
-        hint: [widthBreakdown(context), pageWidthHint(context)].filter(Boolean).join(" "),
+        hint: [breakdown.hint, pageWidthHint(context)].filter(Boolean).join(" "),
+        ...(breakdown.details.length > 0 && {
+          related: breakdown.details.map((message) => ({ path: figurePath, message })),
+        }),
       },
     ];
   },
@@ -243,7 +254,7 @@ export const heavyScaling = defineGeometryRule({
         message: `The smallest final text (including math scripts) is ${formatPt(smallest)}, ${Math.round((smallest / min) * 1000) / 10}% of the ${formatPt(min)} minimum (${formatPt(smallest - min)} headroom; 20% or less). figure.fit: scale prints at ${Math.round(scale * 1000) / 10}%: ${formatMm(context.inspection.canvas.width.pt)} → ${formatMm(printedSize(context.inspection).widthPt)} wide.`,
         path: ["figure", "fit"],
         subject: figureSubject(context),
-        hint: `Compare final text size and reserved page area when choosing scaling, shorter labels, another arrangement, or a wider profile. Without figure.target.minFontSize math scripts remain information-only (geometry/script-too-small); with it, geometry/script-below-target warns. Width breakdown before scaling: ${widthBreakdown(natural)} Independent trial reductions are not additive.`,
+        hint: `Compare final text size and reserved page area when choosing scaling, shorter labels, another arrangement, or a wider profile. Without figure.target.minFontSize math scripts remain information-only (geometry/script-too-small); with it, geometry/script-below-target warns. Width breakdown before scaling: ${widthBreakdown(natural).hint} Independent trial reductions are not additive.`,
       },
     ];
   },
@@ -678,12 +689,18 @@ export const labelCollision = defineGeometryRule({
     const labelled = context.elements.filter((e) => e.labels.length > 0);
     const lineBoxes = (e: GeometryElement) => e.labels.flatMap((l) => l.visibleLines);
     const reported = new Set<string>();
-    const report = (a: GeometryElement, b: GeometryElement, what: string, hint?: string) => {
+    const report = (
+      a: GeometryElement,
+      b: GeometryElement,
+      what: string,
+      hint?: string,
+      verb = "overlaps",
+    ) => {
       const pair = [a.key, b.key].sort().join(" ");
       if (reported.has(pair)) return;
       reported.add(pair);
       findings.push({
-        message: `The ${contentNoun(a)} of ${a.name} overlaps ${what} of ${b.name}.`,
+        message: `The ${contentNoun(a)} of ${a.name} ${verb} ${what} of ${b.name}.`,
         path: labelPath(a),
         subject: a.subject,
         hint:
@@ -702,6 +719,32 @@ export const labelCollision = defineGeometryRule({
         const boxesB = lineBoxes(b);
         if (boxesA.some((ra) => boxesB.some((rb) => rectsOverlap(ra, rb, tolerance)))) {
           report(a, b, `the ${contentNoun(b)}`);
+        } else if (
+          (a.ir.kind === "node" && a.ir.attach !== undefined) ||
+          (b.ir.kind === "node" && b.ir.attach !== undefined)
+        ) {
+          // Attached labels (corners included) are placed by hand: report ones
+          // that sit against another text without overlapping it (#371).
+          const gap = (ra: Rect, rb: Rect, axis: "x" | "y") => {
+            const [p, size] = axis === "x" ? (["x", "width"] as const) : (["y", "height"] as const);
+            return Math.max(ra[p] - (rb[p] + rb[size]), rb[p] - (ra[p] + ra[size]));
+          };
+          if (
+            boxesA.some((ra) =>
+              boxesB.some(
+                (rb) =>
+                  gap(ra, rb, "x") < LABEL_TOUCH_UNITS && gap(ra, rb, "y") < LABEL_TOUCH_UNITS,
+              ),
+            )
+          ) {
+            report(
+              a,
+              b,
+              `the ${contentNoun(b)}`,
+              "Texts that touch read as one. Widen the attach gap or the arrange gap, attach the label to another side or corner, or shorten the labels.",
+              "touches",
+            );
+          }
         }
       }
     }
@@ -851,8 +894,8 @@ export const edgeCrossesLabel = defineGeometryRule({
           subject: edge.subject,
           hint: isZoom(edge)
             ? zoomLabelHint()
-            : edge.ir.kind === "edge" && edge.ir.route === "straight"
-              ? "route: straight does not avoid labels. Move the endpoints or the label, change labelAt / labelSide on an edge label, or remove route: straight."
+            : edge.ir.kind === "edge" && edge.ir.route !== undefined
+              ? `route: ${edge.ir.route} does not avoid labels. Move the endpoints or the label, change labelAt / labelSide on an edge label, or remove route: ${edge.ir.route}.`
               : edgeCrossesLabelHint(context, other),
           related: [{ path: labelPath(other), message: "The label is defined here." }],
         });
@@ -892,9 +935,30 @@ export const edgeThroughNode = defineGeometryRule({
           path: edge.docPath,
           subject: edge.subject,
           hint:
-            edge.ir.route === "straight"
-              ? "route: straight does not avoid obstacles. Move the node or the endpoints, change fromAnchor / toAnchor, or remove route: straight to use obstacle-avoiding routing."
+            edge.ir.route !== undefined
+              ? `route: ${edge.ir.route} does not avoid obstacles. Move the node or the endpoints, change fromAnchor / toAnchor, or remove route: ${edge.ir.route} to use obstacle-avoiding routing.`
               : "An edge should go around the nodes it does not connect. In a structured figure, change its anchors (fromAnchor / toAnchor) or leave a free channel between the nodes; in an auto figure, change layout.direction or the grouping.",
+          related: [{ path: node.docPath, message: `${capitalize(node.name)} is defined here.` }],
+        });
+      }
+      // A straight line (#369) has no avoidance, so a line that only clips or
+      // brushes a neighbour (a cell next to the end, a third circle) is a
+      // finding too: the painted strokes touch once the line is within the two
+      // half stroke widths of the outline, even when it never gets 1 unit inside.
+      if (edge.ir.route !== "straight") continue;
+      const through = new Set(
+        obstaclesCrossedByRoute(edge.route, obstacles, ends, GEOMETRY_TOLERANCE_UNITS),
+      );
+      for (const obstacle of obstacles) {
+        if (ends.has(obstacle.key) || through.has(obstacle.key)) continue;
+        const node = context.get(obstacle.key) as GeometryElement;
+        const margin = node.strokeInset + edge.strokeInset;
+        if (obstaclesCrossedByRoute(edge.route, [obstacle], ends, -margin).length === 0) continue;
+        findings.push({
+          message: `${capitalize(edge.name)} touches the outline of ${node.name}: the straight line grazes the shape or clips its edge.`,
+          path: edge.docPath,
+          subject: edge.subject,
+          hint: "route: straight does not avoid obstacles. Give the ends side anchors (fromAnchor / toAnchor, e.g. south / north), move the node or the endpoints so the line clears it, or remove route: straight to use obstacle-avoiding routing.",
           related: [{ path: node.docPath, message: `${capitalize(node.name)} is defined here.` }],
         });
       }
@@ -1005,6 +1069,8 @@ export const arrowheadOnBend = defineGeometryRule({
     const findings: LintFinding[] = [];
     for (const edge of context.elements) {
       if (!isDrawnEdge(edge) || edge.ir.kind !== "edge" || edge.route === undefined) continue;
+      // Cubics have a continuous tangent, not a straight stem followed by a bend.
+      if (edge.ir.route === "curve") continue;
       const width = edge.ir.style.strokeWidth.units;
       const structured = isStructured(context);
       const length = structured ? arrowheadLength(width) : 4 + 3 * width;
@@ -1047,6 +1113,7 @@ export const arrowheadCramped = defineGeometryRule({
     const findings: LintFinding[] = [];
     for (const edge of context.elements) {
       if (!isDrawnEdge(edge) || edge.ir.kind !== "edge" || edge.route === undefined) continue;
+      if (edge.ir.route === "curve") continue;
       const length = arrowheadLength(edge.ir.style.strokeWidth.units);
       for (const source of [true, false]) {
         if ((source ? edge.ir.sourceArrowhead : edge.ir.targetArrowhead) === undefined) continue;

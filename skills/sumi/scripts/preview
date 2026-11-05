@@ -4,7 +4,10 @@
 #
 # macOS: Quick Look (`qlmanage`), which uses the fonts embedded in the SVG.
 #   Quick Look thumbnails are square and crop the rest, so the figure is
-#   wrapped in a square SVG (referencing it by file URL) and scaled to fit.
+#   wrapped in a square SVG (referencing it by file URL) and scaled to fit;
+#   the figure is placed centred at its own aspect ratio and the
+#   square is cropped to it with `sips` (skipped when `sips` or the SVG's
+#   viewBox is unavailable).
 # Elsewhere: `rsvg-convert` (librsvg) if installed; it may substitute a
 #   system font for the embedded one, so judge layout, not typography.
 #
@@ -35,6 +38,7 @@ fi
 svg_dir=$(CDPATH='' cd -- "$(dirname -- "$1")" && pwd)
 svg_abs="$svg_dir/$(basename -- "$1")"
 tmp=${TMPDIR:-/tmp}
+name=$(basename -- "$1" .svg)
 out=$(mktemp -d "${tmp%/}/sumi-preview.XXXXXX")
 cleanup() {
   status=$?
@@ -70,16 +74,47 @@ sys.stdout.write("".join(xml.get(c, c) for c in url))
     echo "preview: needs bun, node or python3 to build the file URL" >&2
     exit 1
   fi
+  # Figure box inside the square: the viewBox's aspect ratio, centred, so that
+  # a centred crop with `sips` (macOS) leaves just the figure. Without `sips`
+  # or a viewBox the figure fills the square (letterboxed by Quick Look).
+  fx=0 fy=0 fw=$size fh=$size crop=
+  if command -v sips >/dev/null 2>&1; then
+    vb=$(head -c 8192 "$svg_abs" | tr '\n\t,' '   ' |
+      awk '{ if (match($0, /<svg[^>]*>/)) print substr($0, RSTART, RLENGTH) }' |
+      sed -n 's/.* viewBox="\([^"]*\)".*/\1/p')
+    # shellcheck disable=SC2086
+    set -- $vb
+    if [ $# -eq 4 ]; then
+      box=$(awk -v w="$3" -v h="$4" -v s="$size" 'BEGIN {
+        if (w > 0 && h > 0) {
+          if (w >= h) { bw = s; bh = int(s * h / w + 0.5) }
+          else { bh = s; bw = int(s * w / h + 0.5) }
+          if (bw < 1) bw = 1
+          if (bh < 1) bh = 1
+          printf "%d %d %d %d", int((s - bw) / 2), int((s - bh) / 2), bw, bh
+        }
+      }')
+      if [ -n "$box" ]; then
+        # shellcheck disable=SC2086
+        set -- $box
+        fx=$1 fy=$2 fw=$3 fh=$4 crop=$box
+      fi
+    fi
+  fi
   cat >"$out/figure.svg" <<EOF
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 $size $size" width="$size" height="$size"><rect width="$size" height="$size" fill="#ffffff"/><image href="$href" xlink:href="$href" width="$size" height="$size"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 $size $size" width="$size" height="$size"><rect width="$size" height="$size" fill="#ffffff"/><image href="$href" xlink:href="$href" x="$fx" y="$fy" width="$fw" height="$fh"/></svg>
 EOF
   qlmanage -t -s "$size" -o "$out" "$out/figure.svg" >/dev/null 2>&1
   rm -f "$out/figure.svg"
   mv "$out/figure.svg.png" "$out/figure.png"
+  if [ -n "$crop" ]; then
+    # Best effort: keep the full square if cropping fails.
+    sips -c "$fh" "$fw" "$out/figure.png" --out "$out/cropped.png" >/dev/null 2>&1 &&
+      mv "$out/cropped.png" "$out/figure.png" || rm -f "$out/cropped.png"
+  fi
 else
   rsvg-convert -a -w "$size" -h "$size" -b white "$svg_abs" -o "$out/figure.png"
 fi
-name=$(basename -- "$1" .svg)
 # GNU mv fails when source and destination are the same (input figure.svg).
 if [ "$name" != figure ]; then mv "$out/figure.png" "$out/$name.png"; fi
 echo "$out/$name.png"

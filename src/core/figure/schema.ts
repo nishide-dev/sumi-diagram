@@ -9,7 +9,7 @@ import { validRange } from "semver";
 import { z } from "zod";
 import { ICON_REF_MAX_LENGTH, ICON_REF_PATTERN } from "../../assets/icon-ref";
 import { TONE_NAMES } from "../theme/tones";
-import { parseLength } from "../units";
+import { MAX_LENGTH_PT, parseLength } from "../units";
 
 /** Element ID: lowercase only, because D2 keys are case-insensitive. */
 export const ID_PATTERN = /^[a-z][a-z0-9_-]{0,63}$/;
@@ -223,7 +223,7 @@ export const StackSchema = z.strictObject({
     return z
       .array(ArrangeItemSchema)
       .min(1)
-      .describe("Node or group IDs, or nested stack / row boxes.");
+      .describe("Node or group IDs, or nested arrange boxes (stack / row / grid / place).");
   },
 });
 
@@ -235,7 +235,7 @@ export const RowSchema = z.strictObject({
     return z
       .array(ArrangeItemSchema)
       .min(1)
-      .describe("Node or group IDs, or nested stack / row boxes.");
+      .describe("Node or group IDs, or nested arrange boxes (stack / row / grid / place).");
   },
 });
 
@@ -267,7 +267,42 @@ export const GridSchema = z.strictObject({
   },
 });
 
-/** One box of an arrange tree: exactly one of stack, row or grid. */
+/** Rigid coordinate placement; signed, fractional centers in multiples of unit. */
+export const PlaceSchema = z
+  .strictObject({
+    unit: LayoutLength.refine((value) => value > 0, "Placement unit must be positive.").meta({
+      anyOf: undefined,
+      type: "string",
+      pattern: /^(?=\d*(?:\.\d*)?[1-9])\d+(?:\.\d+)?(?:mm|cm|in|pt)$/.source,
+      description: "A positive length with a unit (mm, cm, in or pt).",
+    }),
+    get items() {
+      return z
+        .array(
+          z.strictObject({
+            item: ArrangeItemSchema,
+            at: z
+              .tuple([z.number(), z.number()])
+              .describe("Item center [x, y] in units; y grows downward."),
+          }),
+        )
+        .min(1);
+    },
+  })
+  .check((ctx) => {
+    for (const [index, cell] of ctx.value.items.entries())
+      for (const [axis, coordinate] of cell.at.entries()) {
+        if (Math.abs(coordinate * ctx.value.unit) <= MAX_LENGTH_PT) continue;
+        ctx.issues.push({
+          code: "custom",
+          input: coordinate,
+          path: ["items", index, "at", axis],
+          message: `Coordinate times place.unit must be within ±${MAX_LENGTH_PT}pt.`,
+        });
+      }
+  });
+
+/** One box of an arrange tree: exactly one of stack, row, grid or place. */
 export const ArrangeBoxSchema = z
   .strictObject({
     get stack() {
@@ -279,21 +314,25 @@ export const ArrangeBoxSchema = z
     get grid() {
       return GridSchema.optional();
     },
+    get place() {
+      return PlaceSchema.optional();
+    },
   })
   .check((ctx) => {
     const kinds = Object.values(ctx.value).filter((v) => v !== undefined).length;
     if (kinds !== 1) {
       ctx.issues.push({
         code: "custom",
-        message: 'An arrange box must have exactly one of "stack", "row" or "grid".',
+        message: 'An arrange box must have exactly one of "stack", "row", "grid" or "place".',
         input: ctx.value,
-        params: { [ONE_OF_ISSUE]: ["stack", "row", "grid"] },
+        params: { [ONE_OF_ISSUE]: ["stack", "row", "grid", "place"] },
       });
     }
   })
   .meta({
     id: "ArrangeBox",
-    description: "A stack (vertical), row (horizontal), or row-major grid of items.",
+    description:
+      "A stack (vertical), row (horizontal), row-major grid, or rigid coordinate placement of items.",
     minProperties: 1,
     maxProperties: 1,
   });
@@ -675,10 +714,10 @@ export const NodeSchema = z.strictObject({
 
 export const EdgeSchema = z.strictObject({
   route: z
-    .literal("straight")
+    .enum(["straight", "curve"])
     .optional()
     .describe(
-      "Join endpoints with one straight segment, including diagonals, without obstacle avoidance or shared trunks (structured layout only). Omitted keeps orthogonal routing.",
+      "Join endpoints with one straight segment (straight) or cubic Bézier (curve), without obstacle avoidance or shared trunks (structured layout only). Curves share the through tangent at junctions. Omitted keeps orthogonal routing.",
     ),
   id: Id.optional().describe("Optional edge ID (separate ID space from nodes and groups)."),
   from: Ref.describe("Source node or group ID, or a cell of a tokens node as <node>.<cell>."),
@@ -694,13 +733,13 @@ export const EdgeSchema = z.strictObject({
     .enum(EDGE_LABEL_POSITIONS)
     .optional()
     .describe(
-      "Where along the route the label sits: beside the first segment (start), the longest segment (middle) or the last segment (end). Omitted means next to the arrowhead, or the middle of a line without arrowheads. With route: straight, start/end are near that endpoint and the default is middle (structured layout only).",
+      "Where along the route the label sits: beside the first segment (start), the longest segment (middle) or the last segment (end). Omitted means next to the arrowhead, or the middle of a line without arrowheads. With route: straight or curve, start/end are near that endpoint and the default is the arc-length midpoint (structured layout only).",
     ),
   labelSide: z
     .enum(EDGE_LABEL_SIDES)
     .optional()
     .describe(
-      "Which side of the line the label sits on, facing from the source to the target. Omitted means above a horizontal segment and right of a vertical one, or the other side when that is clear. With route: straight, the default is left and labels stay horizontal without obstacle avoidance (structured layout only).",
+      "Which side of the line the label sits on, facing from the source to the target. Omitted means above a horizontal segment and right of a vertical one, or the other side when that is clear. With route: straight or curve, the default is left of the local tangent and labels stay horizontal without obstacle avoidance (structured layout only).",
     ),
   component: ComponentRef.default("arrow").describe("Component reference (kind: edge)."),
   variant: Variant,
