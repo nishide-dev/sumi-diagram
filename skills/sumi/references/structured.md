@@ -256,9 +256,12 @@ lint and the centred caption reserve the whole footprint. `label: '$C$'` with
 `labelAt: top-left` puts an italic math title on the front card.
 Use `default`, `muted`, `filled` or `dashed`; `plain` has no frame and reports
 `component/invalid-prop`. Auto layout reports `layout/structured-only`.
-Edges address the front frame: west/south anchors leave the back cards clear;
-routes that cross their reserved bands fail with `layout/no-route` (including
-straight and zoom edges). SVG, PDF and picture PPTX preserve the stack;
+Edges address the front frame and are painted above the cards. Rear cards are
+decoration: orthogonal, `route: straight` and zoom edges may cross their north/east
+bands, including edges leaving a child inside the group. Edge labels prefer to
+avoid the front border and rear bands; if no clear place exists, geometry lint
+reports `geometry/label-collision`. Keep enough space for multiline labels so their
+opaque backgrounds do not hide card borders. SVG, PDF and picture PPTX preserve the stack;
 editable PPTX reports `pptx/unsupported-geometry` for more than one card.
 
 

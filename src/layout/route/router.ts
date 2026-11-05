@@ -72,7 +72,7 @@ import type { EdgeIR, FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import { type Diagnostic, hasErrors } from "../../core/diagnostics";
 import { SEPARATOR_ID } from "../../core/registry/builtins";
-import { groupLayerObstacles } from "../group-layers";
+import { groupFrontRect, groupLayerObstacles } from "../group-layers";
 import {
   type EdgeLayout,
   type EdgeRoute,
@@ -92,7 +92,6 @@ import { crossingDiagnostics } from "./crossings";
 import { addStraightRoutes, isStraightEdge } from "./diagonal";
 import { endpointRects } from "./endpoint-rects";
 import { gridSpanHint, verifiedGridHints } from "./grid-hint";
-import { groupLayerDiagnostics } from "./group-layer-diagnostics";
 import { groupTitleDiagnostics } from "./group-title-diagnostics";
 import { PairHeap } from "./heap";
 import { requestedLabelDiagnostics } from "./label-diagnostics";
@@ -217,21 +216,12 @@ export function routeEdges(
           ...raw,
           diagnostics: verifiedGridHints(ir, layout, raw.diagnostics),
         };
-  if (routed.layout.edges.length === layout.edges.length)
-    return {
-      ...routed,
-      diagnostics: [...routed.diagnostics, ...groupLayerDiagnostics(ir, routed.layout)],
-    };
+  if (routed.layout.edges.length === layout.edges.length) return routed;
   const diagonal = addStraightRoutes(ir, layout, routed.layout);
   const zoom = addZoomRoutes(ir, straight.size === 0 ? layout : diagonal.layout, diagonal.layout);
   return {
     layout: deepFreeze(zoom.layout),
-    diagnostics: [
-      ...routed.diagnostics,
-      ...diagonal.diagnostics,
-      ...zoom.diagnostics,
-      ...groupLayerDiagnostics(ir, zoom.layout),
-    ],
+    diagnostics: [...routed.diagnostics, ...diagonal.diagnostics, ...zoom.diagnostics],
   };
 }
 
@@ -1006,10 +996,6 @@ class Router {
       if (isJunction(nodeIR.get(node.key))) junctions.push(node);
       else solid.push(node.rect);
     }
-    for (const placed of layout.groups) {
-      const group = this.#ir.elements.get(placed.key);
-      if (group?.kind === "group") solid.push(...groupLayerObstacles(group, placed.rect));
-    }
     this.#obstacles = layout.nodes
       .filter((node) => nodeIR.get(node.key)?.component !== SEPARATOR_ID)
       .map((node) => ({ key: node.key, rect: node.rect }));
@@ -1024,7 +1010,8 @@ class Router {
       addRect(r, C);
     }
     for (const group of layout.groups) {
-      addRect(group.rect, 0);
+      const element = this.#ir.elements.get(group.key);
+      addRect(element?.kind === "group" ? groupFrontRect(element, group.rect) : group.rect, 0);
       if (group.label !== undefined) addRect(group.label.box, 0);
     }
     for (const node of junctions) {
@@ -1132,7 +1119,8 @@ class Router {
       );
     }
     for (const group of layout.groups) {
-      const g = group.rect;
+      const element = this.#ir.elements.get(group.key);
+      const g = element?.kind === "group" ? groupFrontRect(element, group.rect) : group.rect;
       const ix0 = lowerBound(X, g.x);
       const ix1 = lowerBound(X, rightOf(g));
       const iy0 = lowerBound(Y, g.y);
@@ -1618,13 +1606,19 @@ class Router {
     const irEdges = new Map(this.#ir.edges.map((e) => [e.key, e]));
     const labels = new Map<ElementKey, TextLayout>();
     const nodeBoxes = layout.nodes.map((node) => node.rect);
+    const reserved: Rect[] = [];
+    // Rear cards are passable for routes, but labels must not erase their decoration.
+    for (const placed of layout.groups) {
+      const group = this.#ir.elements.get(placed.key);
+      if (group?.kind === "group") reserved.push(...groupLayerObstacles(group, placed.rect));
+    }
     // Groups drawn with a border (as `geometry/label-collision` checks them).
     const groupBoxes = layout.groups.flatMap((group) => {
       const element = this.#ir.elements.get(group.key);
       const style = element?.kind === "group" ? element.style : undefined;
       return style === undefined || style.strokeWidth.units === 0 || style.stroke === "transparent"
         ? []
-        : [group.rect];
+        : [element?.kind === "group" ? groupFrontRect(element, group.rect) : group.rect];
     });
     // Labels in two passes (#128): the default placements first (they look at
     // routes, nodes and borders only, so they are as before), then the
@@ -1650,6 +1644,7 @@ class Router {
         const label = placeEdgeLabel(e.labelMetrics, points, edge, arrow, {
           routes: others,
           nodes: nodeBoxes,
+          reserved,
           groups: groupBoxes,
           ...(requested && {
             labels: [...labelBoxes],

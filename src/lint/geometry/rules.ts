@@ -15,6 +15,7 @@ import type { DocPath } from "../../core/diagnostics";
 import type { GroupLabelPosition } from "../../core/figure/schema";
 import { BUILTIN_PROFILES } from "../../core/profile/builtin";
 import { formatMm, formatPt, mmToPt, ptToD2Units } from "../../core/units";
+import { groupFrontRect, groupLayerObstacles } from "../../layout/group-layers";
 import {
   ARROWHEAD_STEM_UNITS,
   arrowheadLength,
@@ -728,7 +729,8 @@ export const labelCollision = defineGeometryRule({
         if (b === a || b.ir.kind !== "group" || b.bbox === undefined) continue;
         const { style } = b.ir;
         if (style.strokeWidth.units === 0 || style.stroke === "transparent") continue;
-        const border = [borderOf(b.bbox, style.radius.units)];
+        const border = [borderOf(groupFrontRect(b.ir, b.bbox), style.radius.units)];
+        const bands = groupLayerObstacles(b.ir, b.bbox);
         const reach = b.strokeInset + tolerance;
         const grown = (r: Rect): Rect => ({
           x: r.x - reach,
@@ -736,7 +738,19 @@ export const labelCollision = defineGeometryRule({
           width: r.width + 2 * reach,
           height: r.height + 2 * reach,
         });
-        if (boxesA.some((r) => polylinesCrossRect(border, grown(r), 0))) {
+        // Layered cards reserve their exposed bands for labels, even though
+        // routes may cross them. Include the opaque edge-label background.
+        const boxes =
+          bands.length > 0 && a.kind === "edge"
+            ? a.labels.flatMap((l) => (l.box === undefined ? [] : [l.box]))
+            : boxesA;
+        if (
+          boxes.some(
+            (r) =>
+              polylinesCrossRect(border, grown(r), 0) ||
+              bands.some((band) => rectsOverlap(grown(r), band, 0)),
+          )
+        ) {
           report(
             a,
             b,

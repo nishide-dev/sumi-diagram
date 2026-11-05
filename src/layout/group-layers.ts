@@ -29,7 +29,7 @@ export function groupLayerRects(group: GroupIR, footprint: Rect): Rect[] {
   });
 }
 
-/** Conservative reserved bands outside the front card (including stair-step gaps). */
+/** Label exclusions outside the front card (including stair-step gaps); routes may cross them. */
 export function groupLayerObstacles(group: GroupIR, footprint: Rect): Rect[] {
   const spread = groupLayerSpread(group);
   if (spread === 0) return [];
