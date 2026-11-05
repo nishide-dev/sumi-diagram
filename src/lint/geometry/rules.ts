@@ -64,6 +64,13 @@ import { widthBreakdown } from "./width";
  */
 export const GEOMETRY_TOLERANCE_UNITS = 1;
 
+/**
+ * Clearance in SVG units (0.5pt) under which two texts, one of them an
+ * `attach`ed node's, count as touching (#371): the line boxes do not overlap,
+ * but the glyphs run into each other (`se-a` + `x` beside it).
+ */
+export const LABEL_TOUCH_UNITS = 2;
+
 /** Slack for comparing physical sizes in pt (floating point only; sizes are not quantized). */
 const PT_EPSILON = 1e-6;
 
@@ -681,12 +688,18 @@ export const labelCollision = defineGeometryRule({
     const labelled = context.elements.filter((e) => e.labels.length > 0);
     const lineBoxes = (e: GeometryElement) => e.labels.flatMap((l) => l.visibleLines);
     const reported = new Set<string>();
-    const report = (a: GeometryElement, b: GeometryElement, what: string, hint?: string) => {
+    const report = (
+      a: GeometryElement,
+      b: GeometryElement,
+      what: string,
+      hint?: string,
+      verb = "overlaps",
+    ) => {
       const pair = [a.key, b.key].sort().join(" ");
       if (reported.has(pair)) return;
       reported.add(pair);
       findings.push({
-        message: `The ${contentNoun(a)} of ${a.name} overlaps ${what} of ${b.name}.`,
+        message: `The ${contentNoun(a)} of ${a.name} ${verb} ${what} of ${b.name}.`,
         path: labelPath(a),
         subject: a.subject,
         hint:
@@ -705,6 +718,32 @@ export const labelCollision = defineGeometryRule({
         const boxesB = lineBoxes(b);
         if (boxesA.some((ra) => boxesB.some((rb) => rectsOverlap(ra, rb, tolerance)))) {
           report(a, b, `the ${contentNoun(b)}`);
+        } else if (
+          (a.ir.kind === "node" && a.ir.attach !== undefined) ||
+          (b.ir.kind === "node" && b.ir.attach !== undefined)
+        ) {
+          // Attached labels (corners included) are placed by hand: report ones
+          // that sit against another text without overlapping it (#371).
+          const gap = (ra: Rect, rb: Rect, axis: "x" | "y") => {
+            const [p, size] = axis === "x" ? (["x", "width"] as const) : (["y", "height"] as const);
+            return Math.max(ra[p] - (rb[p] + rb[size]), rb[p] - (ra[p] + ra[size]));
+          };
+          if (
+            boxesA.some((ra) =>
+              boxesB.some(
+                (rb) =>
+                  gap(ra, rb, "x") < LABEL_TOUCH_UNITS && gap(ra, rb, "y") < LABEL_TOUCH_UNITS,
+              ),
+            )
+          ) {
+            report(
+              a,
+              b,
+              `the ${contentNoun(b)}`,
+              "Texts that touch read as one. Widen the attach gap or the arrange gap, attach the label to another side or corner, or shorten the labels.",
+              "touches",
+            );
+          }
         }
       }
     }
