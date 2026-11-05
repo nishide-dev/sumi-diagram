@@ -177,6 +177,59 @@ test("cross-tree alignment reports impossible internal constraints without defor
   expect((center(b)[1] as number) - (center(a)[1] as number)).toBe(30);
 });
 
+test("rejected alignment probes cannot add overlaps to the selected placed layout", () => {
+  const result = placed(
+    stringify({
+      version: 1,
+      figure: {
+        id: "align-probes",
+        layout: {
+          arrange: {
+            place: {
+              unit: "1pt",
+              items: [
+                { item: "g", at: [0, 0] },
+                { item: "t", at: [15, 30] },
+              ],
+            },
+          },
+          align: [{ y: ["a", "b"] }],
+        },
+      },
+      groups: [{ id: "g", arrange: { stack: { items: ["a", "b"] } } }],
+      nodes: [node("a"), node("b"), node("t")],
+    }),
+  );
+  const group = result.value.layout.groups[0]?.rect as Rect;
+  const target = result.value.layout.nodes.find((n) => n.key === "n:t")?.rect as Rect;
+  expect(target.y - (group.y + group.height)).toBeCloseTo(2.662, 3);
+  expect(result.diagnostics.some((d) => d.code === "layout/unsatisfied-align")).toBe(true);
+  expect(result.diagnostics.filter((d) => d.code === "layout/place-overlap")).toEqual([]);
+});
+
+test("orthogonal edges in place use geometric facing sides around a touching neighbor", async () => {
+  const text = source(
+    {
+      place: {
+        unit: "1pt",
+        items: [
+          { item: "a", at: [0, 0] },
+          { item: "b", at: [20, 70] },
+          { item: "c", at: [10, 0] },
+        ],
+      },
+    },
+    [node("a"), node("b"), node("c")],
+    { edges: [{ from: "a", to: "b", component: "arrow" }] },
+  );
+  const result = await renderFigure(text);
+  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+  expect(result.diagnostics.filter((d) => d.severity !== "info")).toEqual([]);
+  expect(lintGeometry(result.value, { source: text }).filter((d) => d.severity !== "info")).toEqual(
+    [],
+  );
+});
+
 test("formatter orders place and its wrappers recursively", () => {
   const text =
     "version: 1\nfigure:\n  id: place\n  layout:\n    arrange:\n      place: { items: [{ at: [0, 0], item: a }], unit: 6mm }\nnodes: [{ id: a, component: circle }]\n";

@@ -162,11 +162,19 @@ export function placeStructured(
   // solves of the re-layouts below; the stats count them all.
   const budget = options.alignLimits?.maxLayouts ?? MAX_ALIGN_LAYOUTS;
   let spent = 0;
+  // The solver may return an earlier candidate after running rejected trials
+  // or diagnostic probes. Snapshot footprints while each layout owns the caches.
+  const placementDiagnostics = new WeakMap<LayoutIR, readonly Diagnostic[]>();
+  const run = (struts?: Struts): LayoutIR => {
+    const layout = engine.run(struts);
+    placementDiagnostics.set(layout, engine.placementDiagnostics());
+    return layout;
+  };
   const place = (): PlacedStructured => {
     if (ir.align === undefined || ir.align.length === 0) {
-      return { layout: engine.run(), diagnostics: [] };
+      return { layout: run(), diagnostics: [] };
     }
-    const solved = solveAlignment(ir, ir.align, (struts) => engine.run(struts), {
+    const solved = solveAlignment(ir, ir.align, run, {
       ...options.alignLimits,
       maxLayouts: budget - spent,
     });
@@ -195,7 +203,10 @@ export function placeStructured(
     inHintTrial() || placed.diagnostics.length === 0
       ? placed.diagnostics
       : verifiedAlignHints(ir, placed.diagnostics);
-  return { ...placed, diagnostics: [...diagnostics, ...engine.placementDiagnostics()] };
+  return {
+    ...placed,
+    diagnostics: [...diagnostics, ...(placementDiagnostics.get(placed.layout) ?? [])],
+  };
 }
 
 /** Re-layouts for the padding before arrowheads (#171); the first nearly always settles it. */
