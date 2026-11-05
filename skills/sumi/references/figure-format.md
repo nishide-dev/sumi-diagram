@@ -444,6 +444,18 @@ stay the theme's):
   fill and border of those tones (expanded nodes too); white text stays if it meets 4.5:1,
   else it darkens; other variants, tone-line text and edges keep the palette.
 - `dashedGroupStroke: '#527da5'` changes only dashed group borders.
+- `tones: { blue: { fill: '#dfe1ea', line: '#5f6a95', text: '#000000' } }` recolours a tone
+  everywhere it appears: `fill` = pale fills (default/filled/tinted, toned groups, matrix
+  classes, legend samples); `line` = outlined/tinted frames, toned edges and arrowheads,
+  hatches, solid fills (`solidFills` wins), html `--sumi-accent` (blue); `text` =
+  outlined/tinted text, toned edge labels, `\textcolor`, drawn as written. Without `text`,
+  tinted text is the line darkened to 4.5:1 and white-ground text is the line. `text` never
+  applies to solid nodes (white, contrast-adjusted) or default-variant text. Overriding
+  `gray` also recolours untoned tinted/solid nodes. `theme/low-contrast` warns when used text
+  is under 4.5:1 on the tone's fill (tinted) or on white (outlined, edge labels, `\textcolor`).
+- `groupFill: '#ffffff'` / `groupStroke: '#000000'` set container group fills (untoned,
+  non-transparent variants) and frames (toned groups too; `dashedGroupStroke` wins), stacked
+  `layers` cards too.
 
 Colours are strict `#RRGGBB` and apply before inherited dimming.
 

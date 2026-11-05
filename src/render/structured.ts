@@ -59,6 +59,7 @@ import { SEPARATOR_ID } from "../core/registry/builtins";
 import type { Arrowhead } from "../core/registry/manifest";
 import { getTheme } from "../core/theme/builtin";
 import type { FontSet } from "../core/theme/fonts";
+import { withToneOverrides } from "../core/theme/overrides";
 import type { CommonStyle } from "../core/theme/style";
 import { groupLayerRects } from "../layout/group-layers";
 import type { LayoutIR, Point, Rect, TextLayout, TextRun } from "../layout/ir";
@@ -963,7 +964,9 @@ export function writeStructuredSvg(
   assets?: FigureAssets,
 ): string {
   const groups = new Map(ir.groups.map((g) => [g.key, g]));
-  const theme = getTheme(ir.meta.themeId);
+  const builtin = getTheme(ir.meta.themeId);
+  // Inline tone runs take the figure's tone colors (#380).
+  const theme = builtin && withToneOverrides(builtin, ir.meta.themeOverrides?.tones);
   const colored = (
     layout: TextLayout | undefined,
     element: NodeIR | GroupIR | EdgeIR,

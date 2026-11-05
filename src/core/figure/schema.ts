@@ -544,6 +544,9 @@ export const FigureTargetSchema = z.strictObject({
     ),
 });
 
+/** An exact `#RRGGBB` color in a figure (`themeOverrides`). */
+const HexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/);
+
 export const FigureMetaSchema = z.strictObject({
   id: Id,
   title: z.string().optional(),
@@ -579,6 +582,31 @@ export const FigureMetaSchema = z.strictObject({
         .describe(
           "Exact #RRGGBB border color for dashed groups; fill and heading color are preserved.",
         ),
+      tones: z
+        .partialRecord(
+          z.enum(TONE_NAMES),
+          z.strictObject({
+            fill: HexColor.optional().describe(
+              "The tone's pale fill: default, filled and tinted variants, toned groups, matrix classes.",
+            ),
+            line: HexColor.optional().describe(
+              "The tone's line color: outlined/tinted frames, toned edges and arrowheads, hatches, solid fills (unless solidFills sets one).",
+            ),
+            text: HexColor.optional().describe(
+              "The tone's text color, used as written: outlined/tinted text, toned edge labels, toned header text. Omitted: the line color (darkened to 4.5:1 on tinted fills).",
+            ),
+          }),
+        )
+        .optional()
+        .describe(
+          "Exact #RRGGBB colors of tones, applied wherever the tone is used; dimming still applies.",
+        ),
+      groupFill: HexColor.optional().describe(
+        "Exact #RRGGBB fill for container groups (and their stacked layers) that have a fill and no tone.",
+      ),
+      groupStroke: HexColor.optional().describe(
+        "Exact #RRGGBB frame color for container groups (and their stacked layers); dashedGroupStroke wins for dashed groups.",
+      ),
     })
     .optional()
     .describe(

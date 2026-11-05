@@ -112,6 +112,19 @@ export interface Theme {
   readonly toneLines: ReadonlyMap<Tone, StyleLayer>;
   /** Colors of dimmed elements (#175); a theme without them draws `dim` groups as they are. */
   readonly dim?: DimColors;
+  /**
+   * A figure's `themeOverrides.tones` (#380), already merged into `tones` and
+   * `toneLines`; kept for the tinted and solid node variants, whose frame and
+   * text follow an explicit `line` / `text` as written.
+   */
+  readonly toneOverrides?: ReadonlyMap<Tone, ToneOverride>;
+}
+
+/** Exact colors of one tone in a figure (#380); each omitted color keeps the theme's. */
+export interface ToneOverride {
+  readonly fill?: string | undefined;
+  readonly line?: string | undefined;
+  readonly text?: string | undefined;
 }
 
 /** The style properties a tone may set: colors only, so tones never change sizes or fonts. */
