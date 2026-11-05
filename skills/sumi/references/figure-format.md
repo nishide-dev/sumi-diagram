@@ -389,12 +389,13 @@ They are built in; a figure cannot define its own. `sumi catalog --json` lists t
 | `slides` | for slides: 16pt text (14pt on edges, 18pt container labels), 2pt lines; use with `presentation-16x9` |
 | `color` | general purpose with color: like `minimal`, but tones are pastel fills and emphasis is blue |
 | `paper` | color ML-paper style: pastel tone fills, rounded boxes (2pt) and groups (6pt), black 1pt frames, light gray groups, thin 0.5pt edges with small arrowheads, framed images with a 0.5pt border, Inter for Latin text |
+| `llama` | after Meta's Llama 4 MoE figure: 0.5pt slate lines with **open chevron arrowheads**, white boxes with a gray frame, `solid` = dark slate block with white text, `emphasis` = blue accent block, `filled` = gray borderless block, `muted` = pale borderless block, borderless pale groups with a regular-weight title (`muted` group: white panel), rounded corners (3pt / 5pt), Inter for Latin text |
 
-`minimal`, `academic`, `color` and `paper` use 8pt text (7pt on edges). `academic` is
+`minimal`, `academic`, `color`, `paper` and `llama` use 8pt text (7pt on edges). `academic` is
 for black-and-white journals, `paper` for the coloured figures of ML papers; both fit
 `paper-single` / `paper-double`, and the same YAML renders under either with
 `--theme`. Fonts: `minimal`, `academic`, `slides`, `color` use `sumi/biz-ud-gothic`
-(Latin and Japanese); `paper` uses `sumi/inter-biz-ud-gothic` (structured figures:
+(Latin and Japanese); `paper` and `llama` use `sumi/inter-biz-ud-gothic` (structured figures:
 Inter for Latin, BIZ UDPGothic for Japanese; auto figures all BIZ UDPGothic). Inter's
 line box is taller (1.21em vs 1.00em), so a small node with explicit `width` /
 `height` can fail `geometry/label-overflow` under `paper`: a one-character key in a
@@ -484,7 +485,8 @@ prints `{ "version": 1, "themes": [...], "profiles": [...] }` (plain `--json` ad
       "missingVariants": {},
       "tones": ["gray", "red", "orange", "yellow", "green", "blue", "purple", "pink"],
       "toneLines": ["gray", "red", "orange", "yellow", "green", "blue", "purple", "pink"],
-      "compatibleProfiles": ["paper-single", "paper-double"]
+      "compatibleProfiles": ["paper-single", "paper-double"],
+      "arrowhead": "triangle"
     }
   ],
   "profiles": [
@@ -515,6 +517,9 @@ prints `{ "version": 1, "themes": [...], "profiles": [...] }` (plain `--json` ad
 - `fonts.styles`: `italic: true` / `mono: true` need `italic` / `mono` here.
   `missingVariants`: variants the theme lacks (fallback `default`,
   `theme/missing-variant`); `tones`: the tones it colours (all, for built-ins).
+- `arrowhead`: the theme's standard arrowhead, `triangle` (filled) or `open` (a
+  chevron the line runs into; `llama`). It replaces every triangle end in SVG, PDF and
+  PPTX (editable PPTX: the native open `arrow` end).
 - `page.maxWidth` / `maxHeight` (`null` = no limit) include the margin; `layerGap`
   is the space between layers (nodes in a layer are always 10pt apart);
   `typography.minScaledFontSize` is the minimum printed size under `fit: scale`.

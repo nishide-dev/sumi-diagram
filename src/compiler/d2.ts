@@ -156,8 +156,10 @@ export function generateD2(ir: FigureIR): string {
     ] as const) {
       if (shape === undefined) continue;
       write(1, `${end}: {`);
-      write(2, `shape: ${shape}`);
-      write(2, `style.filled: ${edge.style.filled}`);
+      // D2 has no open chevron (#386): it draws a filled triangle, whose
+      // marker `composeOpenArrowheads()` replaces with the chevron.
+      write(2, `shape: ${shape === "open" ? "triangle" : shape}`);
+      write(2, `style.filled: ${shape === "open" ? true : edge.style.filled}`);
       write(1, "}");
     }
     write(0, "}");

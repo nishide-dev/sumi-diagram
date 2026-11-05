@@ -23,6 +23,12 @@
  *   size follows the edge's line width) and Inter for Latin text in structured
  *   figures (font set `sumi/inter-biz-ud-gothic`, #172). Use `academic`
  *   instead when the figure must work in grayscale print.
+ * - `llama` (#386): after the mixture-of-experts figure of Meta's Llama 4
+ *   announcement. Slate lines with open chevron arrowheads (`arrowhead:
+ *   open`), white blocks with a gray frame, dark slate `solid` blocks, a blue
+ *   accent for `emphasis`, borderless pale panels and Inter. See
+ *   docs/design/decisions/386-llama-theme.md for how its variants map to the
+ *   figure's elements.
  *
  * Every built-in theme defines `dim` (#175): the gray text and lines and the
  * paler fills of a group with `dim: true` and everything inside it.
@@ -279,6 +285,66 @@ const DIM_GRAY: NonNullable<ThemeDefinition["dim"]> = {
   stroke: "#8c959f",
   lighten: 0.5,
 };
+
+/**
+ * Components of `llama` (#386). The pale `muted` block (FFN) is a borderless
+ * fill, which a line-only component (bracket, waveform) cannot take: those
+ * keep a muted gray line instead.
+ */
+function llamaComponents(): NonNullable<ThemeDefinition["components"]> {
+  const mutedLine: StyleLayerInput = { stroke: "{color.muted}", fontColor: "{color.muted}" };
+  const components = roundedBoxes(
+    componentStyles({
+      shape: {
+        // The Shared Expert block: the accent fill, white text.
+        emphasis: { fill: "{color.accent}", stroke: "{color.accent}", fontColor: "{color.paper}" },
+        // The borderless pale FFN blocks.
+        muted: { fill: "{color.surface}", strokeWidth: "0pt" },
+        // The Router: a borderless gray block.
+        filled: filledNode("{tone.gray}"),
+        outlined: outlinedNode("{color.paper}", "{ink.gray}"),
+      },
+      // A white circle in a light gray frame with a dark symbol.
+      operator: { default: { stroke: "{color.operator}", fontColor: "{color.text}" } },
+      label: {
+        default: { fill: "transparent", strokeWidth: "0pt" },
+        muted: { fontColor: "{color.muted}" },
+      },
+      junction: junctionStyles("{color.line}", "{color.muted}"),
+      container: {
+        // The white Routed Experts panel inside the pale one.
+        muted: { fill: "{color.paper}" },
+        plain: { fill: "transparent", strokeWidth: "0pt" },
+        filled: { fill: "{color.shade}", strokeWidth: "0pt" },
+        // The panels have no frame, so the dashed one draws the gray frame.
+        dashed: {
+          fill: "transparent",
+          strokeWidth: "{line.regular}",
+          strokeDash: "{dash.regular}",
+        },
+      },
+      // Groups have no frame; a legend keeps its gray one.
+      legend: {
+        ...legendStyles("{color.paper}", "{color.frame}"),
+        default: { fill: "{color.paper}", stroke: "{color.frame}", strokeWidth: "{line.regular}" },
+      },
+      edge: {
+        dashed: { strokeDash: "{dash.regular}" },
+        emphasis: { stroke: "{color.accent}", strokeWidth: "{line.bold}" },
+        muted: { stroke: "{color.muted}", fontColor: "{color.muted}" },
+      },
+    }),
+    "{radius.node}",
+    "{radius.legend}",
+  );
+  return {
+    ...components,
+    bracket: { ...components.bracket, muted: mutedLine },
+    waveform: { ...components.waveform, muted: mutedLine },
+    // The zoom lines are thin and light gray.
+    zoom: { ...components.zoom, default: { strokeDash: "{dash.zoom}", stroke: "{color.zoom}" } },
+  };
+}
 
 export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
   {
@@ -725,6 +791,108 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
     // lines #949494, tone fills and the panel's surface halfway to white
     // (blue #cddff6 → #e6effb, the surface #f3f3f5 → #f9f9fa).
     dim: { fontColor: "#949494", stroke: "#949494", lighten: 0.5 },
+  },
+  {
+    version: 1,
+    id: "llama",
+    description:
+      "After Meta's Llama 4 MoE figure: slate lines with open arrowheads, gray-framed white blocks, dark slate solid blocks, blue accent emphasis, borderless pale panels, Inter for Latin text",
+    fonts: LATIN_FONT_SET_ID,
+    // The standard arrowhead is an open chevron (#386).
+    arrowhead: "open",
+    tokens: {
+      // Measured from the Llama 4 MoE figure (#386).
+      color: {
+        text: "#1c2b33",
+        line: "#344854",
+        paper: "#ffffff",
+        // The gray frame of the experts' white blocks.
+        frame: "#8a96a1",
+        // Contrast 4.7:1 on white: muted text stays readable at 7pt.
+        muted: "#657585",
+        // The borderless pale panels (FFN, Mixture of Experts).
+        surface: "#f1f4f7",
+        // A panel one step darker, for a filled panel inside a pale one.
+        shade: "#e6eaee",
+        // The Shared Expert block: white text at 3.8:1 (the figure's own contrast).
+        accent: "#3880f3",
+        // The circle of the ⊕ operator.
+        operator: "#cbd2d9",
+        // The thin dashed zoom lines.
+        zoom: "#96a0a7",
+      },
+      // Pale fills; the text keeps a contrast of at least 9:1 on each. Gray
+      // is the Router's fill (a `filled` block).
+      tone: {
+        gray: "#cbd2d8",
+        red: "#f9d7d5",
+        orange: "#fce3c8",
+        yellow: "#f8efc2",
+        green: "#d4ecd9",
+        blue: "#d5e5fd",
+        purple: "#e4dcf7",
+        pink: "#f8d9e8",
+      },
+      // Line and text colors of the tones, at least 4.5:1 on white, so a
+      // `solid` block keeps its white text readable. Gray is the figure's
+      // dark slate block (Attention); blue the accent darkened to 4.5:1.
+      ink: {
+        gray: "#465a69",
+        red: "#c8372d",
+        orange: "#b45309",
+        yellow: "#8a6d00",
+        green: "#2e7d4f",
+        blue: "#3273db",
+        purple: "#6d4fc2",
+        pink: "#b8326e",
+      },
+      size: { text: "8pt", small: "7pt", heading: "9pt" },
+      // Frames and edges are equally thin in the figure.
+      line: { regular: "0.5pt", bold: "1pt" },
+      radius: { node: "3pt", group: "5pt", legend: "3pt" },
+      // The zoom lines have short dashes.
+      dash: { regular: 3, zoom: 2 },
+    },
+    base: {
+      node: {
+        fill: "{color.paper}",
+        stroke: "{color.frame}",
+        strokeWidth: "{line.regular}",
+        fontSize: "{size.text}",
+        fontColor: "{color.text}",
+      },
+      // Borderless pale panels with a regular-weight title.
+      group: {
+        fill: "{color.surface}",
+        stroke: "{color.frame}",
+        strokeWidth: "0pt",
+        radius: "{radius.group}",
+        fontSize: "{size.heading}",
+        fontColor: "{color.text}",
+        bold: false,
+      },
+      edge: {
+        fill: "{color.paper}",
+        stroke: "{color.line}",
+        strokeWidth: "{line.regular}",
+        fontSize: "{size.small}",
+        fontColor: "{color.text}",
+        filled: true,
+      },
+    },
+    components: llamaComponents(),
+    tones: {
+      gray: { fill: "{tone.gray}" },
+      red: { fill: "{tone.red}" },
+      orange: { fill: "{tone.orange}" },
+      yellow: { fill: "{tone.yellow}" },
+      green: { fill: "{tone.green}" },
+      blue: { fill: "{tone.blue}" },
+      purple: { fill: "{tone.purple}" },
+      pink: { fill: "{tone.pink}" },
+    },
+    toneLines: toneLines(toneTokens("ink")),
+    dim: { fontColor: "#9aa5ae", stroke: "#9aa5ae", lighten: 0.5 },
   },
 ];
 

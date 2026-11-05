@@ -62,6 +62,7 @@ import { getTheme } from "../core/theme/builtin";
 import { dimmedElements } from "../core/theme/dim";
 import type { FontSetId } from "../core/theme/fonts";
 import { pageTextContrast } from "../core/theme/node-variants";
+import type { ThemeArrowhead } from "../core/theme/schema";
 import {
   type EdgeStyle,
   type GroupStyle,
@@ -620,7 +621,16 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
   const edges: EdgeIR[] = [];
   for (const [index, e] of doc.edges.entries()) {
     if (e === undefined) continue;
-    edges.push(edgeIR(state, e, index, endpointKey, legendPartOf(doc, edgeKey(e.id, index))));
+    edges.push(
+      edgeIR(
+        state,
+        e,
+        index,
+        endpointKey,
+        legendPartOf(doc, edgeKey(e.id, index)),
+        theme.arrowhead,
+      ),
+    );
     mapSource(edgeKey(e.id, index), ["edges", index]);
   }
 
@@ -752,6 +762,7 @@ function edgeIR(
   index: number,
   endpointKey: (id: string) => ElementKey,
   legend: { legend?: LegendPartIR },
+  standard: ThemeArrowhead = "triangle",
 ): EdgeIR {
   const key = edgeKey(e.id, index);
   const component = componentOf(state, key);
@@ -760,6 +771,11 @@ function edgeIR(
   const { direction } = manifest;
   const source = direction === "backward" || direction === "both";
   const target = direction === "forward" || direction === "both";
+  // The theme's standard arrowhead (#386) draws every triangle end.
+  const shape = (head: Arrowhead | undefined): Arrowhead => {
+    const resolved = head ?? DEFAULT_ARROWHEAD;
+    return resolved === "triangle" ? standard : resolved;
+  };
   return freeze({
     key,
     kind: "edge",
@@ -772,8 +788,8 @@ function edgeIR(
     from: endpointKey(e.from),
     to: endpointKey(e.to),
     direction,
-    ...(source && { sourceArrowhead: manifest.tail ?? DEFAULT_ARROWHEAD }),
-    ...(target && { targetArrowhead: manifest.head ?? DEFAULT_ARROWHEAD }),
+    ...(source && { sourceArrowhead: shape(manifest.tail) }),
+    ...(target && { targetArrowhead: shape(manifest.head) }),
     style: styleOf(state, key, "edge"),
     ...anchorIR("fromAnchor", e.fromAnchor),
     ...anchorIR("toAnchor", e.toAnchor),

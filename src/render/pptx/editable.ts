@@ -766,8 +766,10 @@ export function svgToEditablePptx(
     const ends = (edge: EdgeIR, path: XmlElement) => {
       const emit = (at: "start" | "end", type: EdgeIR["sourceArrowhead"]) => {
         if (!type || type === "none") return "";
+        // OOXML's `arrow` end is an open chevron: `open` (#386) maps to it exactly.
         const mapped = {
           triangle: "triangle",
+          open: "arrow",
           arrow: "arrow",
           diamond: "diamond",
           circle: "oval",

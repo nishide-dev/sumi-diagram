@@ -142,7 +142,7 @@ Experimental `editable` mode creates separate DrawingML shapes/text. Only indivi
 
 ## Themes and profiles
 
-`figure.theme` selects appearance; `figure.profile` selects page limits, minimum text size and spacing. They are independent. A profile never scales the diagram or its text. There are five built-in themes:
+`figure.theme` selects appearance; `figure.profile` selects page limits, minimum text size and spacing. They are independent. A profile never scales the diagram or its text. There are six built-in themes:
 
 | Theme | Appearance |
 | --- | --- |
@@ -151,6 +151,7 @@ Experimental `editable` mode creates separate DrawingML shapes/text. Only indivi
 | `slides` | Nodes 16pt, groups 18pt, edges 14pt, lines 2pt; pair with `presentation-16x9` |
 | `color` | Minimal's typography/lines with pastel tones and blue emphasis; 8pt/7pt |
 | `paper` | Color ML-paper style: pastel tones, rounded boxes/groups, black 1pt outlines, light gray panels, 0.5pt edges and small arrows; Inter Latin text in structured layout (`sumi/inter-biz-ud-gothic`); 8pt/7pt |
+| `llama` | After Meta's Llama 4 MoE figure: 0.5pt slate lines with open chevron arrowheads, gray-framed white boxes, dark slate `solid`, blue `emphasis`, borderless pale panels; Inter like `paper`; 8pt/7pt ([design #386](design/decisions/386-llama-theme.md)) |
 
 `academic` and `paper` are both for papers: `academic` is grayscale for black-and-white print, `paper` is the color ML-paper style. See the [theme overview](themes.md) for a comparison table and the same figures under every theme.
 
