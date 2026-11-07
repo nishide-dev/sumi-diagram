@@ -52,6 +52,10 @@ for (const engine of ["auto", "structured"] as const) {
       const area = drawing.safeArea;
       for (const l of geometry.labels) {
         const measured = measureLabel(l, fonts);
+        expect(l.textAlign).toBe("left");
+        for (const line of measured.visibleLines) {
+          expect(line.x).toBeCloseTo(measured.visibleLines[0]?.x ?? NaN, 3);
+        }
         for (const line of measured.visibleLines) {
           expect(line.width).toBeLessThanOrEqual(area.width + 0.01);
           expect(line.x).toBeGreaterThanOrEqual(area.x - 0.01);
@@ -178,6 +182,42 @@ test("all themes draw every tail without fallback", async () => {
   }
 });
 
+test("existing textAlign overrides the chat default in both layouts and editable PPTX", async () => {
+  for (const engine of ["auto", "structured"] as const) {
+    for (const align of ["left", "center", "right"] as const) {
+      const r = await renderFigure(`version: 1
+figure:
+  id: bubble-align
+  layout: ${engine === "structured" ? "{ arrange: { row: { items: [a] } } }" : "{ direction: down }"}
+nodes:
+  - { id: a, component: bubble, label: "Long first line\\nShort", textAlign: ${align}, props: { tail: right } }
+`);
+      if (!r.ok) throw new Error(JSON.stringify(r.diagnostics));
+      expect(lintGeometry(r.value).filter((d) => d.severity !== "info")).toEqual([]);
+      const l = r.value.inspection.elements.find((e) => e.key === "n:a")?.labels[0];
+      const fonts = getFontSet(r.value.compiled.ir.meta.fontSetId);
+      if (!l || !fonts) throw new Error("missing label/fonts");
+      expect(l.textAlign ?? "center").toBe(align);
+      const lines = measureLabel(l, fonts).visibleLines;
+      expect(lines).toHaveLength(2);
+      const anchor = (line: (typeof lines)[number]) =>
+        line.x + line.width * (align === "left" ? 0 : align === "right" ? 1 : 0.5);
+      expect(anchor(lines[0] as (typeof lines)[number])).toBeCloseTo(
+        anchor(lines[1] as (typeof lines)[number]),
+        3,
+      );
+      const pptx = svgToEditablePptx(r.value.svg, r.value.compiled.ir);
+      if (!pptx.ok) throw new Error(JSON.stringify(pptx.diagnostics));
+      const slide = new TextDecoder().decode(readPptx(pptx.value).get("ppt/slides/slide1.xml"));
+      expect(
+        slide.match(
+          new RegExp(`algn="${align === "left" ? "l" : align === "right" ? "r" : "ctr"}"`, "g"),
+        ),
+      ).toHaveLength(2);
+    }
+  }
+});
+
 test("tail participates in overlap, edge-through-node and label-collision lint", () => {
   const s = `version: 1
 figure: { id: tail-lint }
@@ -197,8 +237,8 @@ edges: [{ from: a, to: b }]
       canvas: { x: 0, y: 0, width: 100, height: 100 },
       elements: {
         "n:bubble": { bbox: { x: 0, y: 0, width: 100, height: 80 } },
-        "n:other": { bbox: { x: 1, y: 16, width: 18, height: 12 } },
-        "n:text": { labels: [label("X", 11, 25)] },
+        "n:other": { bbox: { x: 1, y: 0, width: 18, height: 12 } },
+        "n:text": { labels: [label("X", 11, 12)] },
         "e:#0": {
           path: [
             { x: 8, y: 0 },

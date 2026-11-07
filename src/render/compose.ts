@@ -5,6 +5,8 @@ import type { ElementKey } from "../core/check-state";
 import type { Diagnostic } from "../core/diagnostics";
 import { getOutlineRenderer, type OutlineDrawing } from "../core/outline";
 import type { Result } from "../core/result";
+import { getFontSet } from "../core/theme/fonts";
+import { measureLabel } from "../lint/geometry/measure";
 import { type PathSegment, type Point, parsePath, type Rect } from "./geometry";
 import { decodeElementClass, type SvgInspection } from "./inspect";
 import {
@@ -189,13 +191,31 @@ export function composeOutlines(
             `The polygon outline of ${node.id} does not support rounded corners.`,
           ),
         );
-      const dx = drawing.safeArea.x + drawing.safeArea.width / 2 - bbox.x - bbox.width / 2;
+      let dx = drawing.safeArea.x + drawing.safeArea.width / 2 - bbox.x - bbox.width / 2;
       const dy = drawing.safeArea.y + drawing.safeArea.height / 2 - bbox.y - bbox.height / 2;
-      if (Math.abs(dx) + Math.abs(dy) > 1e-9) {
+      const align = node.render?.renderer === "sumi/bubble" ? node.textAlign : undefined;
+      if (align === "left" || align === "right") {
+        const fonts = getFontSet(ir.meta.fontSetId);
+        const label = geometry.get(node.key)?.labels[0];
+        if (fonts && label) {
+          const width = measureLabel(label, fonts).box?.width ?? 0;
+          dx += (align === "left" ? -width : width) / 2;
+        }
+      }
+      if (Math.abs(dx) + Math.abs(dy) > 1e-9 || align !== undefined) {
         for (const text of childElements(group).filter((c) => c.name === "text")) {
           const x = Number(attribute(text, "x"));
           const y = Number(attribute(text, "y"));
-          editTag(text, { x: fmt(x + dx), y: fmt(y + dy) });
+          editTag(text, {
+            x: fmt(x + dx),
+            y: fmt(y + dy),
+            ...(align !== undefined && {
+              style: (attribute(text, "style") ?? "").replace(
+                /text-anchor:middle/,
+                `text-anchor:${align === "left" ? "start" : align === "right" ? "end" : "middle"}`,
+              ),
+            }),
+          });
           for (const span of childElements(text).filter(
             (c) => c.name === "tspan" && attribute(c, "x") !== undefined,
           ))

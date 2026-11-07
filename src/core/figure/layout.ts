@@ -168,6 +168,7 @@ function checkAuto(state: CheckState, locate: Locator): void {
     const subject = { kind: "node", id: node.id } as const;
     for (const field of ["attach", "sublabel", "labelRotation", "textAlign", "grow"] as const) {
       if (node[field] !== undefined) {
+        if (field === "textAlign" && ["bubble", "sumi/bubble"].includes(node.component)) continue;
         report(field, ["nodes", index, field], nodeKey(node.id), subject);
       }
     }

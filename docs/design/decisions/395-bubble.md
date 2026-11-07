@@ -16,12 +16,15 @@ SVG → PDF／picture PPTX と editable PPTX の共通化を踏襲する。
   話者の左右を暗黙に決めない。チャットでは明示して左右を選ぶ。
 - `tailAt: start|center|end|<length>`。既定は `start`。
   左右辺では本体の上、上下辺では本体の左から測る。`0`／`0pt` も可。
-  角の丸みとしっぽの基部を避ける範囲にクランプする。
+  基部が収まる範囲にクランプする。start（小さい数値をクランプした位置を含む）は
+  近い角そのものを置き換え、左右では上端に接する hook にする。
 - `tailSize` は外への深さ（正の長さ、0.5pt 単位）。省略時はテーマの実効 fontSize の 0.6 倍、
   角半径は同 0.9 倍。投影用テーマでは文字とともに大きくなり、印刷では小さな wedge になる。
   小さな明示寸法では深さを横断寸法の 1/3、角半径を本体各辺の 1/4 以下に抑える。
-- しっぽは外向きで少し始点側へ傾く短い wedge。戻り側は本体の辺へ接する三次曲線。
-  四隅は 1/4 円を各16分割、しっぽの曲線は12分割し、既存の直線輪郭契約で
+- しっぽは非対称の短い hook。往路・復路とも三次曲線とし、両基部で本体の辺と
+  接線を一致させる。start では隣接辺から上端をほぼ引き継ぎ、鋭い tip から凹曲線で
+  側面へ戻る。corner を描き終わってから wedge を挿入せず、周長上の区間を置換するため
+  内向きの段差や逆走がない。四隅は 1/4 円を各16分割、しっぽの曲線は各32分割し、既存の直線輪郭契約で
   **本体としっぽを1本の閉じた path** として描く。別の三角形を重ねないため継ぎ目がない。
   SVG・PDF・picture PPTX・editable PPTX はこの同じ path を使い、新しい backend は増やさない。
 - 本体の外にしっぽを置き、全体が footprint に入る。自然寸法は padded label box に角の安全帯と
@@ -40,6 +43,9 @@ SVG → PDF／picture PPTX と editable PPTX の共通化を踏襲する。
   長い単語は grapheme 単位に分割し、基本的な行頭／行末禁則を守る。明示改行を保ち、
   `$...$` は途中で分けない（幅より長い不可分の数式や1文字は幅を超え得る）。
   折り返しは bubble の IR label だけを変え、既存部品の文字処理を変えない。
+- 文字は既存 `nodes[].textAlign: left|center|right` を再利用し、bubble の既定だけ `left`。
+  structured は既存の文字ブロック配置、auto は outline compose 時に最長行の左端へ
+  anchor と tspan を移す。bubble に限り auto でも明示指定を許可する。
 - 内容は文字。画像専用の props は増やさず、画像は既存 `image` ノードで組み合わせる。
   画像を内包する複合コンテンツは今回は追加しない。
 
@@ -66,5 +72,13 @@ SVG → PDF／picture PPTX と editable PPTX の共通化を踏襲する。
   既存の図で描画出力が変わったものはない。
 - `CI=1 bun run test` は research/ と private figures を参照するファイルを除外した146ファイルで
   4,722 pass／0 fail。Biome も同じ除外を一時設定して検査し、設定はコミットに含めない。
-  typecheck、gallery:check、schema:check も成功。schema:gen の再実行で汎用 Figure Schema の
+  typecheck、gallery:check、schema:check も成功。初回追加時の schema:gen では汎用 Figure Schema の
   出力は不変（部品固有 props はカタログの JSON Schema に追加される）。
+- しっぽと文字揃えのレビュー修正後、除外設定なしで `CI=1 bun run test` を実行し、
+  174ファイル、5,352 pass／13 skip／0 fail。`bun run check`（既存 research の warning のみ）、
+  typecheck、schema:check、gallery:check も成功。Figure Schema の `textAlign` 説明を
+  bubble の auto 対応と既定左揃えに合わせて再生成した。
+- `bun run gallery` と `SUMI_UPDATE_GOLDEN=1 bun run test src/render/pdf src/render/pptx`
+  のみで golden を再生成。変更した描画 golden は bubble の6テーマ分だけ。
+- `.sumi/preview/bubble.pdf` を `pdftoppm -scale-to 3200 -png -singlefile` で再ラスタライズし、
+  4800px の拡大 crop も開いた。左右 hook・上下の凹曲線・和文2行の左揃えと余白を目視確認した。

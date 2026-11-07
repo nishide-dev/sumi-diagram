@@ -38,8 +38,12 @@ export const bubble: OutlineRenderer<z.output<typeof bubbleParams>> = {
       { x: x + r, y: y + h - r },
       { x: x + r, y: y + r },
     ];
-    const outline: Point[] = [];
+    let outline: Point[] = [];
     const ports: Point[] = [];
+    const distances: number[] = [];
+    const quarter = (Math.PI * r) / 2;
+    const straight = [h - 2 * r, w - 2 * r, h - 2 * r, w - 2 * r];
+    let distance = 0;
     // Clockwise: top-right arc, right side, bottom-right arc, ... .
     for (let corner = 0; corner < 4; corner++) {
       const c = corners[corner] as Point;
@@ -48,13 +52,15 @@ export const bubble: OutlineRenderer<z.output<typeof bubbleParams>> = {
         const p = { x: c.x + r * Math.cos(angle), y: c.y + r * Math.sin(angle) };
         outline.push(p);
         ports.push(p);
+        distances.push(distance + (i * quarter) / 16);
       }
-      const side = ["right", "bottom", "left", "top"][corner];
-      if (side !== tail) continue;
+      distance += quarter + (straight[corner] ?? 0);
+    }
+    if (tail !== "none") {
       const length = horizontal ? h : w;
-      const half = Math.min(size * 0.65, (length - 2 * r) / 4);
-      const low = r + 2 * half;
-      const high = length - r - 2 * half;
+      const half = Math.min(size, (length - 2 * r) / 4);
+      const low = r + half;
+      const high = length - r - half;
       const at = Math.max(
         low,
         Math.min(
@@ -80,23 +86,60 @@ export const bubble: OutlineRenderer<z.output<typeof bubbleParams>> = {
             return { x: x + along, y: y + h + out };
         }
       };
-      // A short swept wedge: tangent at the lower base, a small upward-pointing tip.
-      const wedge: Point[] = [place(at - half, 0), place(at - half * 1.4, size)];
-      for (let i = 1; i <= 12; i++) {
-        const t = i / 12;
-        const u = 1 - t;
-        wedge.push(
-          place(
-            u ** 3 * (at - half * 1.4) +
-              3 * u * u * t * (at - half * 0.8) +
-              3 * u * t * t * (at + half * 0.6) +
-              t ** 3 * (at + half),
-            u ** 3 * size + 3 * u * u * t * size * 0.15,
-          ),
-        );
-      }
-      if (tail === "left" || tail === "bottom") wedge.reverse();
-      outline.push(...wedge);
+      const start = at === low;
+      const upper = start ? 0 : at - half;
+      const lower = start ? r + half * 1.1 : at + half;
+      const tip = start ? 0 : upper + half * 0.2;
+      const wedge: Point[] = [];
+      // Both roots are tangent to the body. At start, replace the rounded
+      // corner itself so the upper lip continues the adjacent edge.
+      const curve = (a: Point, b: Point, c: Point, d: Point) => {
+        for (let i = wedge.length ? 1 : 0; i <= 32; i++) {
+          const t = i / 32;
+          const u = 1 - t;
+          wedge.push(
+            place(
+              u ** 3 * a.x + 3 * u * u * t * b.x + 3 * u * t * t * c.x + t ** 3 * d.x,
+              u ** 3 * a.y + 3 * u * u * t * b.y + 3 * u * t * t * c.y + t ** 3 * d.y,
+            ),
+          );
+        }
+      };
+      curve(
+        { x: upper, y: start ? -r : 0 },
+        { x: start ? 0 : upper + half * 0.6, y: start ? -r * 0.25 : 0 },
+        { x: tip + half * 0.16, y: size * 0.55 },
+        { x: tip, y: size },
+      );
+      curve(
+        { x: tip, y: size },
+        { x: tip + half * 0.75, y: size * 0.35 },
+        { x: lower - half * 0.65, y: 0 },
+        { x: lower, y: 0 },
+      );
+      const sideStart = {
+        right: quarter,
+        bottom: 2 * quarter + h - 2 * r,
+        left: 3 * quarter + h + w - 4 * r,
+        top: 4 * quarter + 2 * h + w - 6 * r,
+      };
+      const reversed = tail === "left" || tail === "bottom";
+      const onSide = (along: number) =>
+        sideStart[tail] + (reversed ? length - r - along : along - r);
+      const root = start
+        ? reversed
+          ? onSide(r) + quarter
+          : sideStart[tail] - quarter
+        : onSide(upper);
+      const from = reversed ? onSide(lower) : root;
+      const to = reversed ? root : onSide(lower);
+      if (reversed) wedge.reverse();
+      const wrap = (s: number) => ((s % distance) + distance) % distance;
+      const remaining = ports
+        .map((point, i) => ({ point, offset: wrap((distances[i] ?? 0) - to) }))
+        .filter(({ offset }) => offset > 1e-8 && offset < wrap(from - to) - 1e-8)
+        .sort((a, b) => a.offset - b.offset);
+      outline = [...wedge, ...remaining.map(({ point }) => point)];
     }
     return {
       layers: [{ role: "body", path: { points: outline, closed: true } }],

@@ -71,7 +71,7 @@ const bubble: NodeManifest = {
   kind: "node",
   name: "bubble",
   description:
-    "A rounded speech bubble or callout with an optional outward tail and wrapped text, including Japanese; edges attach to the body, never the tail tip.",
+    "A rounded speech bubble or callout with an optional curved hook and left-aligned wrapped text, including Japanese; edges attach to the body, never the tail tip.",
   variants: FILLABLE_NODE_VARIANTS,
   props: sizeProps.extend({
     tail: z
@@ -82,7 +82,7 @@ const bubble: NodeManifest = {
       .union([z.enum(["start", "center", "end"]), LayoutLength])
       .optional()
       .describe(
-        "Tail base position from the body's top on left/right, or left on top/bottom; start (default), center, end or a length. Clamped clear of rounded corners.",
+        "Tail base position from the body's top on left/right, or left on top/bottom; start (default) replaces the near corner with a smooth hook. Center, end or a length are clamped to fit the base.",
       ),
     tailSize: SizeLength.optional().describe(
       "Outward tail depth; omitted means 0.6 times the theme font size. Clamped for very small explicit sizes.",

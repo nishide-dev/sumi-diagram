@@ -602,7 +602,9 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
           }),
         }),
         ...(n.labelRotation !== undefined && { labelRotation: n.labelRotation }),
-        ...(n.textAlign !== undefined && { textAlign: n.textAlign }),
+        ...((n.textAlign !== undefined || component.id === "sumi/bubble") && {
+          textAlign: n.textAlign ?? "left",
+        }),
         ...(n.sublabel !== undefined && {
           sublabel: freeze({ text: n.sublabel, fontSize: sublabelFontSize(style.fontSize) }),
         }),

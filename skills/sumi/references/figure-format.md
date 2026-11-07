@@ -46,6 +46,7 @@ metadata: {}               # optional, any JSON-compatible data; not drawn
 
 ¹ Structured layout only (a figure with `figure.layout.arrange`):
 [structured](structured.md) (`grow`: [filling extra height](structured.md#arrange-trees)).
+Exception: `bubble` supports `textAlign` in auto layout too.
 `icon` / `badge`: [assets](assets.md). Group `labelAt` / `caption`: [groups](#groups).
 
 Every object is strict: an unknown key is `schema/unknown-field`. There is no
@@ -104,7 +105,7 @@ stops with one `schema/unsatisfied-requires` instead of a list of unknown fields
   colours guarantee contrast against white, not toned fills (a paper node with
   `tone: orange` and `$\textcolor{orange}{\text{Highlight}}$` gives `#bd5410` on
   `#f9e0bc`, about 3.70:1): prefer a white fill for coloured phrases.
-- `textAlign: left | center | right` (structured): [text align](structured.md#text-align).
+- `textAlign: left | center | right` (structured, or `bubble` in either layout): [text align](structured.md#text-align). Bubbles default to `left`.
 - `mono: true` on a node (and tokens cells; not groups or edges) draws label and
   sublabel in the theme's monospace font (BIZ UDGothic in every built-in theme):
   class names, code, prompts. `mono: false` turns off a variant's monospace text;
@@ -319,12 +320,15 @@ their own `properties`, `enum`, `const` and `anyOf`.
   `props.tail: left | right | top | bottom | none` (default `none`);
   `tailAt: start | center | end | <length>` (default `start`, `0` allowed).
   Positions run from the body's top on left/right or left on top/bottom and
-  clamp clear of the corners. `tailSize` overrides the theme-derived depth
+  clamp to fit the base; `start` replaces the near corner with a smooth curved
+  hook (at the top for left/right). `tailSize` overrides the theme-derived depth
   (0.6 × font size; radius 0.9 × font size). The short swept tail sits outside
   the body but inside its reserved footprint; edges attach to the body, never
   to the tip. `width` / `height` size that **whole footprint**. Text wraps
   automatically (Japanese included); `maxWidth` sets the text-line width
   (default 120pt), also constrained by an explicit width. Newlines remain.
+  Lines default to start alignment; `textAlign: center | right` overrides it
+  in either layout, using the existing node field.
   `default` is white with a frame; `filled` / `solid` are borderless and use
   the usual tones; other shape variants also work. Both layouts and SVG,
   PDF, picture and editable PPTX use one closed path, without a tail seam.
