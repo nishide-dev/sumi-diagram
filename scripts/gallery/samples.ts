@@ -170,6 +170,12 @@ export function sampleSource(entry: CatalogEntry, theme: string): string {
               .join(", ")}] }`,
           ])
         : []),
+      ...(entry.id === "sumi/bubble"
+        ? [
+            "          - row: { items: [tail-left, tail-right, tail-top, tail-bottom] }",
+            "          - row: { items: [english, japanese] }",
+          ]
+        : []),
     );
   }
   if (entry.kind === "node" && entry.embed !== undefined) {
@@ -205,6 +211,16 @@ export function sampleSource(entry: CatalogEntry, theme: string): string {
             lines.push(
               `  - { id: ${narrow}-${v}, component: trapezoid, label: "${narrow}", variant: ${v}, props: { narrow: ${narrow}, width: 90pt, height: 44pt } }`,
             );
+      }
+      if (entry.id === "sumi/bubble") {
+        for (const tail of ["left", "right", "top", "bottom"])
+          lines.push(
+            `  - { id: tail-${tail}, component: bubble, label: ${tail}, props: { tail: ${tail} } }`,
+          );
+        lines.push(
+          '  - { id: english, component: bubble, label: "Messages wrap inside a chat bubble.", props: { tail: left, maxWidth: 120pt } }',
+          '  - { id: japanese, component: bubble, variant: filled, tone: green, label: "日本語の文章も吹き出しで折り返します。", props: { tail: right, maxWidth: 120pt } }',
+        );
       }
       break;
     case "group":

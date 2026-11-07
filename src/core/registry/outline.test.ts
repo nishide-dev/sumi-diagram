@@ -161,9 +161,14 @@ describe("outline manifests", () => {
     expect(buildCatalog(r).components[0]).not.toHaveProperty("render");
     for (const entry of buildCatalog(createBuiltinRegistry()).components) {
       if (
-        !["sumi/trapezoid", "sumi/stack", "sumi/bowtie", "sumi/bracket", "sumi/waveform"].includes(
-          entry.id,
-        )
+        ![
+          "sumi/trapezoid",
+          "sumi/stack",
+          "sumi/bowtie",
+          "sumi/bracket",
+          "sumi/waveform",
+          "sumi/bubble",
+        ].includes(entry.id)
       )
         expect(entry).not.toHaveProperty("render");
     }

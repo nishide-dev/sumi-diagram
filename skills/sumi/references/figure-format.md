@@ -315,6 +315,20 @@ their own `properties`, `enum`, `const` and `anyOf`.
   stand out. `junction` takes no `tone`; connect into it with `line` (an arrowhead
   would cover the dot); `variant: hidden` draws no dot (lines meet smoothly; only
   where no other line crosses nearby) and an arrow into it ends in open space.
+- **`bubble`** (since 0.16.0): a generously rounded speech bubble / callout.
+  `props.tail: left | right | top | bottom | none` (default `none`);
+  `tailAt: start | center | end | <length>` (default `start`, `0` allowed).
+  Positions run from the body's top on left/right or left on top/bottom and
+  clamp clear of the corners. `tailSize` overrides the theme-derived depth
+  (0.6 × font size; radius 0.9 × font size). The short swept tail sits outside
+  the body but inside its reserved footprint; edges attach to the body, never
+  to the tip. `width` / `height` size that **whole footprint**. Text wraps
+  automatically (Japanese included); `maxWidth` sets the text-line width
+  (default 120pt), also constrained by an explicit width. Newlines remain.
+  `default` is white with a frame; `filled` / `solid` are borderless and use
+  the usual tones; other shape variants also work. Both layouts and SVG,
+  PDF, picture and editable PPTX use one closed path, without a tail seam.
+  The component takes text; use separate `image` nodes for pictures.
 - `image` (PNG, JPEG, SVG file, inline SVG or shared asset), `icon: tabler/<name>`
   / `emoji/<name>` replacing a label, `badge`, `props.layers`: [assets](assets.md).
   `html` (restricted HTML card): [html](html.md).

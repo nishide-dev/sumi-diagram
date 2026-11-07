@@ -12,6 +12,9 @@ const sizes = [
   { width: 160, height: 80 },
 ];
 const params: Record<string, OutlineParams[]> = {
+  "sumi/bubble": ["none", "left", "right", "top", "bottom"].flatMap((tail) =>
+    ["start", "center", "end", 0, 999].map((tailAt) => ({ tail, tailAt })),
+  ),
   "sumi/waveform": [{}, { samples: "-1,0,1" }, { samples: "-1,0,1", mode: "line" }],
   "sumi/trapezoid": [
     {},
@@ -50,6 +53,7 @@ test("renderer registry contains only the bundled geometry implementations", () 
     "sumi/bowtie",
     "sumi/bracket",
     "sumi/waveform",
+    "sumi/bubble",
   ]);
   expect(getOutlineRenderer("trapezoid")).toBeUndefined();
   expect(getOutlineRenderer("other/stack")).toBeUndefined();

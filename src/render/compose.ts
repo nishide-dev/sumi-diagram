@@ -145,7 +145,7 @@ export function composeOutlines(
       const drawing = drawNodeOutline(node, bbox);
       drawings.set(node.key, {
         bbox,
-        outlines: drawing.boundaries ?? [drawing.outline],
+        outlines: drawing.boundaries ?? [drawing.portOutline ?? drawing.outline],
         ...(drawing.boundaries && { disconnected: true }),
       });
       const paint = rect.attributes.filter((a) => !PATH_GEOMETRY.has(a.name));

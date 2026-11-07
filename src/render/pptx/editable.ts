@@ -583,9 +583,10 @@ export function svgToEditablePptx(
       const preciseSites =
         element.kind === "node" &&
         element.render !== undefined &&
-        ((element.render.renderer === "sumi/bowtie" &&
-          typeof element.render.params?.gap === "number" &&
-          element.render.params.gap > 0) ||
+        (element.render.renderer === "sumi/bubble" ||
+          (element.render.renderer === "sumi/bowtie" &&
+            typeof element.render.params?.gap === "number" &&
+            element.render.params.gap > 0) ||
           (element.render.renderer === "sumi/trapezoid" &&
             element.render.params?.narrow !== undefined));
       const connectionEnds = preciseSites
@@ -611,7 +612,7 @@ export function svgToEditablePptx(
         const renderer = getOutlineRenderer(element.render.renderer);
         if (!renderer) throw new Error(`Missing renderer ${element.render.renderer}`);
         const drawing = renderer.draw(box, renderer.params.parse(element.render.params));
-        const boundaries = drawing.boundaries ?? [drawing.outline];
+        const boundaries = drawing.boundaries ?? [drawing.portOutline ?? drawing.outline];
         // Auto routes retain D2's clearance. A glued site must instead lie on
         // the painted boundary, including at the corner of a split body's lip.
         for (const [index, point] of connectionPoints.entries()) {

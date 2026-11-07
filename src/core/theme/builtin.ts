@@ -149,6 +149,11 @@ function componentStyles(styles: VariantStyles): NonNullable<ThemeDefinition["co
   return {
     ...Object.fromEntries(SHAPE_NODES.map((name) => [name, shape])),
     ...(styles.operator && { operator: { ...shape, ...styles.operator } }),
+    bubble: {
+      ...shape,
+      default: { fill: "#ffffff" },
+      solid: { ...shape.solid, strokeWidth: "0pt" },
+    },
     // A bracket (#281) is one line: no fill to vary.
     bracket: {
       emphasis: shape.emphasis,
