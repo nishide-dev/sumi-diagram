@@ -82,10 +82,10 @@ const bubble: NodeManifest = {
       .union([z.enum(["start", "center", "end"]), LayoutLength])
       .optional()
       .describe(
-        "Tail base position from the body's top on left/right, or left on top/bottom; start (default) replaces the top corner on left/right with a small horn. Other positions and top/bottom use a short curved wedge, clamped to fit the edge.",
+        "Tail base position from the body's top on left/right, or left on top/bottom; start (default) attaches a small thorn to the rounded top corner arc on left/right. Other positions and top/bottom use a short curved wedge, clamped to fit the edge.",
       ),
     tailSize: SizeLength.optional().describe(
-      "Outward tail depth; omitted means 0.3 times the bubble radius for a side horn, 0.5 for other side positions, or 0.6 for top/bottom. Radius is 1.1 times the theme font size; tails do not grow with message height. Clamped for very small explicit sizes.",
+      "Outward tail depth; omitted means 0.33 times the theme font size for a side horn, 0.55 for other side positions, or 0.66 for top/bottom. Radius is 1.75 times the theme font size (about 0.45 times single-line body height); tails do not grow with message height. Clamped for very small explicit sizes.",
     ),
     maxWidth: SizeLength.optional().describe(
       "Maximum text-line width for automatic wrapping, including Japanese; omitted means 120pt. Width/height props size the complete footprint, including the tail.",

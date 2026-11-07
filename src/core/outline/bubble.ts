@@ -30,7 +30,10 @@ export const bubble: OutlineRenderer<z.output<typeof bubbleParams>> = {
       width: rect.width - (horizontal ? size : 0),
       height: rect.height - (tail === "top" || tail === "bottom" ? size : 0),
     };
-    const r = Math.min(radius, box.width / 2.5, box.height / 2.5);
+    // Leave a short straight segment even in tiny explicit boxes, so adjacent
+    // quarter arcs never duplicate an endpoint in the shared polygon contract.
+    const cornerLimit = (horizontal && tailAt === "start") || tail === "none" ? 0.49 : 0.4;
+    const r = Math.min(radius, box.width * cornerLimit, box.height * cornerLimit);
     const { x, y, width: w, height: h } = box;
     const corners = [
       { x: x + w - r, y: y + r },
@@ -87,12 +90,15 @@ export const bubble: OutlineRenderer<z.output<typeof bubbleParams>> = {
         }
       };
       const start = horizontal && tailAt === "start";
-      const upper = start ? 0 : at - half;
-      const lower = start ? r * 0.9 : at + half;
-      const tip = start ? r * 0.15 : at;
+      const upper = start ? r * 0.23 : at - half;
+      const lower = start ? r * 0.7 : at + half;
+      const tip = start ? Math.min(size * 0.6, h - r * 0.3) : at;
+      const lowerIn = r * (1 - Math.sqrt(1 - 0.3 ** 2));
+      const upperIn = r * (1 - Math.sqrt(1 - 0.77 ** 2));
       const wedge: Point[] = [];
-      // Both roots are tangent to the body. At start, replace the rounded
-      // corner itself so the upper lip continues the adjacent edge.
+      // Local coordinates are (along the side, outward from the side).
+      // The start horn interrupts only the middle of the corner arc: the
+      // rounded top survives above the upper root, leaving a small valley.
       const curve = (a: Point, b: Point, c: Point, d: Point) => {
         for (let i = wedge.length ? 1 : 0; i <= 32; i++) {
           const t = i / 32;
@@ -105,19 +111,23 @@ export const bubble: OutlineRenderer<z.output<typeof bubbleParams>> = {
           );
         }
       };
-      // Keep both upper controls on the top line for start horns: along(t) = tip*t³.
-      // The upper edge is monotone and convex, with no dip past the tip's height.
       curve(
-        { x: upper, y: start ? -r * 0.8 : 0 },
-        { x: start ? 0 : upper + half * 0.7, y: start ? -r * 0.35 : 0 },
-        { x: start ? 0 : tip - half * 0.25, y: start ? -r * 0.05 : size * 0.3 },
+        { x: upper, y: start ? -upperIn : 0 },
+        {
+          x: start ? upper + r * 0.04 * Math.sqrt(1 - 0.77 ** 2) : upper + half * 0.7,
+          y: start ? -upperIn + r * 0.04 * 0.77 : 0,
+        },
+        { x: start ? tip + r * 0.16 : tip - half * 0.25, y: start ? size - r * 0.18 : size * 0.3 },
         { x: tip, y: size },
       );
       curve(
         { x: tip, y: size },
-        { x: start ? r * 0.55 : tip + half * 0.25, y: size * (start ? 0.65 : 0.3) },
-        { x: start ? r * 0.55 : lower - half * 0.7, y: 0 },
-        { x: lower, y: 0 },
+        { x: start ? tip + r * 0.28 : tip + half * 0.25, y: start ? size - r * 0.02 : size * 0.3 },
+        {
+          x: start ? lower - r * 0.22 * Math.sqrt(1 - 0.3 ** 2) : lower - half * 0.7,
+          y: start ? -lowerIn - r * 0.22 * 0.3 : 0,
+        },
+        { x: lower, y: start ? -lowerIn : 0 },
       );
       const sideStart = {
         right: quarter,
@@ -128,12 +138,13 @@ export const bubble: OutlineRenderer<z.output<typeof bubbleParams>> = {
       const reversed = tail === "left" || tail === "bottom";
       const onSide = (along: number) =>
         sideStart[tail] + (reversed ? length - r - along : along - r);
-      const root = start
-        ? reversed
-          ? onSide(r) + quarter
-          : sideStart[tail] - quarter
-        : onSide(upper);
-      const sideEnd = onSide(start ? r : lower);
+      const arcDistance = (along: number) => r * Math.acos(1 - along / r);
+      const onArc = (along: number) =>
+        reversed
+          ? onSide(r) + quarter - arcDistance(along)
+          : sideStart[tail] - quarter + arcDistance(along);
+      const root = start ? onArc(upper) : onSide(upper);
+      const sideEnd = start ? onArc(lower) : onSide(lower);
       const from = reversed ? sideEnd : root;
       const to = reversed ? root : sideEnd;
       if (reversed) wedge.reverse();

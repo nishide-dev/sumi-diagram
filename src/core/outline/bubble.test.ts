@@ -24,7 +24,7 @@ test("only the overhang is reserved, and ports and labels stay on the body", () 
   }
 });
 
-test("side horns replace only the top corner, mirror exactly, and never scale with height", () => {
+test("side horns join the corner arc, mirror exactly, and never scale with height", () => {
   const r = 28;
   for (const height of [84, 240, 600]) {
     const local = (["left", "right"] as const).map((tail) => {
@@ -32,27 +32,31 @@ test("side horns replace only the top corner, mirror exactly, and never scale wi
       const horn = d.outline.slice(0, 65);
       if (tail === "left") horn.reverse();
       const points = horn.map((p) => ({ x: tail === "left" ? p.x - 8.4 : 231.6 - p.x, y: p.y }));
-      expect(points[0]?.x).toBeCloseTo(r * 0.8, 8);
-      expect(points[0]?.y).toBeCloseTo(0, 8);
+      expect(points[0]?.x).toBeCloseTo(r * (1 - Math.sqrt(1 - 0.77 ** 2)), 8);
+      expect(points[0]?.y).toBeCloseTo(r * 0.23, 8);
       expect(points[32]?.x).toBeCloseTo(-r * 0.3, 8);
-      expect(points[32]?.y).toBeCloseTo(r * 0.15, 8);
-      expect(points[64]?.x).toBeCloseTo(0, 8);
-      expect(points[64]?.y).toBeCloseTo(r * 0.9, 8);
+      expect(points[32]?.y).toBeCloseTo(8.4 * 0.6, 8);
+      expect(points[64]?.x).toBeCloseTo(r * (1 - Math.sqrt(1 - 0.3 ** 2)), 8);
+      expect(points[64]?.y).toBeCloseTo(r * 0.7, 8);
       const first = points[0];
       const next = points[1];
       const beforeLast = points[63];
       const last = points[64];
       if (!first || !next || !beforeLast || !last) throw new Error("missing horn roots");
-      expect(Math.abs((next.y - first.y) / (next.x - first.x))).toBeLessThan(0.03);
-      expect(Math.abs((last.x - beforeLast.x) / (last.y - beforeLast.y))).toBeLessThan(0.06);
-      // Beyond the replaced corner, both top endpoints remain on a straight top edge.
+      expect(next.x).toBeLessThan(first.x);
+      expect(next.y).toBeGreaterThan(first.y);
+      expect(
+        Math.abs((last.x - beforeLast.x) / (last.y - beforeLast.y) + 0.3 / Math.sqrt(0.91)),
+      ).toBeLessThan(0.08);
+      // The top edge and its rounded transition survive the horn insertion.
       const top = d.outline.filter((p) => Math.abs(p.y) < 1e-8);
-      expect(top.length).toBeGreaterThanOrEqual(3);
+      expect(top.length).toBeGreaterThanOrEqual(2);
       expect(top.some((p) => Math.abs(p.x - (tail === "left" ? 36.4 : 28)) < 1e-8)).toBe(true);
-      // Three complete, unchanged quarter-circle arcs survive.
+      // Only the arc interval between the two roots is interrupted.
       for (const p of d.portOutline ?? []) {
-        const inHornCorner = p.y < r && (tail === "left" ? p.x < 36.4 : p.x > 203.6);
-        if (!inHornCorner) expect(d.outline).toContainEqual(p);
+        const inHornInterval =
+          p.y > r * 0.23 + 1e-8 && p.y < r * 0.7 && (tail === "left" ? p.x < 36.4 : p.x > 203.6);
+        if (!inHornInterval) expect(d.outline).toContainEqual(p);
       }
       return points;
     });
@@ -63,7 +67,7 @@ test("side horns replace only the top corner, mirror exactly, and never scale wi
   }
 });
 
-test("side horn upper edges descend monotonically to the tip without an inflection", () => {
+test("side horn tips follow the overhang and both roots lie on the preserved circular corner", () => {
   for (const tail of ["left", "right"] as const) {
     for (const height of [24, 84, 240, 600]) {
       for (const tailSize of [1, 8.4, 80]) {
@@ -73,24 +77,30 @@ test("side horn upper edges descend monotonically to the tip without an inflecti
         );
         const horn = d.outline.slice(0, 65);
         if (tail === "left") horn.reverse();
-        const upper = horn.slice(0, 33);
-        const join = upper[0];
-        const tip = upper[32];
-        if (!join || !tip) throw new Error("missing upper edge");
-        expect(join.y).toBeCloseTo(31, 8);
-        expect(tip.y).toBeGreaterThan(join.y);
-        for (let i = 1; i < upper.length; i++) {
-          const a = upper[i - 1];
-          const b = upper[i];
-          if (!a || !b) throw new Error("missing upper edge sample");
-          expect(b.y).toBeGreaterThanOrEqual(a.y);
-          expect(b.y).toBeLessThanOrEqual(tip.y);
-          const c = upper[i + 1];
-          if (c) {
-            // Consistent signed turns exclude an S-curve, including in the mirrored horn.
-            const cross = (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
-            expect(cross * (tail === "left" ? -1 : 1)).toBeGreaterThan(0);
-          }
+        const size = Math.min(tailSize, 80);
+        const side = tail === "left" ? 17 + size : 257 - size;
+        const r = Math.min(28, height * 0.49);
+        const cx = side + (tail === "left" ? r : -r);
+        const cy = 31 + r;
+        const tip = horn[32];
+        if (!tip) throw new Error("missing tip");
+        expect(tip.x).toBeCloseTo(side + (tail === "left" ? -size : size), 8);
+        expect(tip.y).toBeCloseTo(31 + Math.min(size * 0.6, height - r * 0.3), 8);
+        for (const root of [horn[0], horn[64]]) {
+          if (!root) throw new Error("missing root");
+          expect(Math.hypot(root.x - cx, root.y - cy)).toBeCloseTo(r, 8);
+        }
+        const upperY = 31 + r * 0.23;
+        const arc = (d.portOutline ?? []).filter(
+          (p) => p.y < upperY && (tail === "left" ? p.x <= cx : p.x >= cx),
+        );
+        expect(arc.length).toBeGreaterThanOrEqual(8);
+        for (const p of arc) expect(d.outline).toContainEqual(p);
+        // At reference-sized overhangs, the upper lip dips below its root:
+        // this is the concave valley, rather than the old convex top replacement.
+        if (size <= r * 0.3) {
+          expect(Math.max(...horn.slice(0, 33).map((p) => p.y))).toBeGreaterThan(upperY);
+          expect(tip.y).toBeLessThan(upperY);
         }
       }
     }

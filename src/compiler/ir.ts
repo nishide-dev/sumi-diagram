@@ -522,7 +522,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
                 typeof component.props.maxWidth === "number" ? component.props.maxWidth * 2 : 240,
                 typeof width === "number"
                   ? width * 2 -
-                      style.fontSize.units * 1.1 -
+                      style.fontSize.units * 1.75 -
                       (component.props.tail === "left" || component.props.tail === "right"
                         ? typeof component.props.tailSize === "number"
                           ? component.props.tailSize * 2
@@ -569,7 +569,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
                             ? 0.3
                             : 0.5
                           : 0.6),
-                  radius: style.fontSize.units * 1.1,
+                  radius: style.fontSize.units * 1.75,
                 }),
                 ...(component.manifest.render.renderer === "sumi/waveform" && {
                   samples: (component.props.samples as number[]).join(","),
