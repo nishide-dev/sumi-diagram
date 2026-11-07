@@ -36,7 +36,7 @@ nodes: [{id: a, component: bubble, label: Hello, variant: ${variant}, tone: gree
       const n = result.value.ir.nodes[0];
       if (!n) throw new Error("missing bubble");
       if (variant === "filled" || variant === "solid") expect(n.style.strokeWidth.pt).toBe(0);
-      expect(n.render?.params?.tailSize).toBe(n.style.fontSize.units * 0.6);
-      expect(n.render?.params?.radius).toBe(n.style.fontSize.units * 0.9);
+      expect(n.render?.params?.tailSize).toBe(n.style.fontSize.units * 1.1 * 0.6);
+      expect(n.render?.params?.radius).toBe(n.style.fontSize.units * 1.1);
     }
 });

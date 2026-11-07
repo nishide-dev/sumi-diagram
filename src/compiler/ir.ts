@@ -522,11 +522,16 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
                 typeof component.props.maxWidth === "number" ? component.props.maxWidth * 2 : 240,
                 typeof width === "number"
                   ? width * 2 -
-                      style.fontSize.units * 0.9 -
+                      style.fontSize.units * 1.1 -
                       (component.props.tail === "left" || component.props.tail === "right"
                         ? typeof component.props.tailSize === "number"
                           ? component.props.tailSize * 2
-                          : style.fontSize.units * 0.6
+                          : style.fontSize.units *
+                            1.1 *
+                            (component.props.tailAt === undefined ||
+                            component.props.tailAt === "start"
+                              ? 0.3
+                              : 0.5)
                         : 0) -
                       profile.layout.nodePaddingX.pt * 4
                   : Infinity,
@@ -556,8 +561,15 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
                   tailSize:
                     typeof component.props.tailSize === "number"
                       ? component.props.tailSize * 2
-                      : style.fontSize.units * 0.6,
-                  radius: style.fontSize.units * 0.9,
+                      : style.fontSize.units *
+                        1.1 *
+                        (component.props.tail === "left" || component.props.tail === "right"
+                          ? component.props.tailAt === undefined ||
+                            component.props.tailAt === "start"
+                            ? 0.3
+                            : 0.5
+                          : 0.6),
+                  radius: style.fontSize.units * 1.1,
                 }),
                 ...(component.manifest.render.renderer === "sumi/waveform" && {
                   samples: (component.props.samples as number[]).join(","),

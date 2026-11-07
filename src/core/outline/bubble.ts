@@ -6,8 +6,8 @@ import type { OutlineRenderer } from "./types";
 export const bubbleParams = z.strictObject({
   tail: z.enum(["none", "left", "right", "top", "bottom"]).default("none"),
   tailAt: z.union([z.enum(["start", "center", "end"]), z.number().nonnegative()]).default("start"),
-  tailSize: z.number().positive().default(12),
-  radius: z.number().positive().default(18),
+  tailSize: z.number().positive().default(8.4),
+  radius: z.number().positive().default(28),
 });
 
 export const bubble: OutlineRenderer<z.output<typeof bubbleParams>> = {
@@ -30,7 +30,7 @@ export const bubble: OutlineRenderer<z.output<typeof bubbleParams>> = {
       width: rect.width - (horizontal ? size : 0),
       height: rect.height - (tail === "top" || tail === "bottom" ? size : 0),
     };
-    const r = Math.min(radius, box.width / 4, box.height / 4);
+    const r = Math.min(radius, box.width / 2.5, box.height / 2.5);
     const { x, y, width: w, height: h } = box;
     const corners = [
       { x: x + w - r, y: y + r },
@@ -58,7 +58,7 @@ export const bubble: OutlineRenderer<z.output<typeof bubbleParams>> = {
     }
     if (tail !== "none") {
       const length = horizontal ? h : w;
-      const half = Math.min(size, (length - 2 * r) / 4);
+      const half = Math.min(r / 2, (length - 2 * r) / 2);
       const low = r + half;
       const high = length - r - half;
       const at = Math.max(
@@ -86,10 +86,10 @@ export const bubble: OutlineRenderer<z.output<typeof bubbleParams>> = {
             return { x: x + along, y: y + h + out };
         }
       };
-      const start = at === low;
+      const start = horizontal && tailAt === "start";
       const upper = start ? 0 : at - half;
-      const lower = start ? r + half * 1.1 : at + half;
-      const tip = start ? 0 : upper + half * 0.2;
+      const lower = start ? r * 0.9 : at + half;
+      const tip = start ? r * 0.15 : at;
       const wedge: Point[] = [];
       // Both roots are tangent to the body. At start, replace the rounded
       // corner itself so the upper lip continues the adjacent edge.
@@ -106,15 +106,15 @@ export const bubble: OutlineRenderer<z.output<typeof bubbleParams>> = {
         }
       };
       curve(
-        { x: upper, y: start ? -r : 0 },
-        { x: start ? 0 : upper + half * 0.6, y: start ? -r * 0.25 : 0 },
-        { x: tip + half * 0.16, y: size * 0.55 },
+        { x: upper, y: start ? -r * 0.8 : 0 },
+        { x: start ? 0 : upper + half * 0.7, y: start ? -r * 0.35 : 0 },
+        { x: start ? r * 0.32 : tip - half * 0.25, y: start ? -r * 0.05 : size * 0.3 },
         { x: tip, y: size },
       );
       curve(
         { x: tip, y: size },
-        { x: tip + half * 0.75, y: size * 0.35 },
-        { x: lower - half * 0.65, y: 0 },
+        { x: start ? r * 0.55 : tip + half * 0.25, y: size * (start ? 0.65 : 0.3) },
+        { x: start ? r * 0.55 : lower - half * 0.7, y: 0 },
         { x: lower, y: 0 },
       );
       const sideStart = {
@@ -131,13 +131,21 @@ export const bubble: OutlineRenderer<z.output<typeof bubbleParams>> = {
           ? onSide(r) + quarter
           : sideStart[tail] - quarter
         : onSide(upper);
-      const from = reversed ? onSide(lower) : root;
-      const to = reversed ? root : onSide(lower);
+      const sideEnd = onSide(start ? r : lower);
+      const from = reversed ? sideEnd : root;
+      const to = reversed ? root : sideEnd;
       if (reversed) wedge.reverse();
-      const wrap = (s: number) => ((s % distance) + distance) % distance;
+      const wrap = (s: number) => {
+        const wrapped = ((s % distance) + distance) % distance;
+        return distance - wrapped < 1e-8 ? 0 : wrapped;
+      };
       const remaining = ports
         .map((point, i) => ({ point, offset: wrap((distances[i] ?? 0) - to) }))
-        .filter(({ offset }) => offset > 1e-8 && offset < wrap(from - to) - 1e-8)
+        .filter(({ offset }) =>
+          start
+            ? offset < 1e-8 || offset <= wrap(from - to) + 1e-8
+            : offset > 1e-8 && offset < wrap(from - to) - 1e-8,
+        )
         .sort((a, b) => a.offset - b.offset);
       outline = [...wedge, ...remaining.map(({ point }) => point)];
     }

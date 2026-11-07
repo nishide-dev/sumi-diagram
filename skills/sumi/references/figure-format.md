@@ -320,9 +320,12 @@ their own `properties`, `enum`, `const` and `anyOf`.
   `props.tail: left | right | top | bottom | none` (default `none`);
   `tailAt: start | center | end | <length>` (default `start`, `0` allowed).
   Positions run from the body's top on left/right or left on top/bottom and
-  clamp to fit the base; `start` replaces the near corner with a smooth curved
-  hook (at the top for left/right). `tailSize` overrides the theme-derived depth
-  (0.6 × font size; radius 0.9 × font size). The short swept tail sits outside
+  clamp to fit the base; `start` on left/right replaces only the top corner
+  with a small horn. Other positions and top/bottom use a short symmetric curved
+  wedge. `tailSize` overrides the theme-derived depth: 0.3 × radius for side horns,
+  0.5 × radius for other side positions, 0.6 × radius for top/bottom.
+  Radius is 1.1 × font size; neither radius nor tail grows with message height.
+  The tail sits outside
   the body but inside its reserved footprint; edges attach to the body, never
   to the tip. `width` / `height` size that **whole footprint**. Text wraps
   automatically (Japanese included); `maxWidth` sets the text-line width
