@@ -105,10 +105,12 @@ export const bubble: OutlineRenderer<z.output<typeof bubbleParams>> = {
           );
         }
       };
+      // Keep both upper controls on the top line for start horns: along(t) = tip*t³.
+      // The upper edge is monotone and convex, with no dip past the tip's height.
       curve(
         { x: upper, y: start ? -r * 0.8 : 0 },
         { x: start ? 0 : upper + half * 0.7, y: start ? -r * 0.35 : 0 },
-        { x: start ? r * 0.32 : tip - half * 0.25, y: start ? -r * 0.05 : size * 0.3 },
+        { x: start ? 0 : tip - half * 0.25, y: start ? -r * 0.05 : size * 0.3 },
         { x: tip, y: size },
       );
       curve(

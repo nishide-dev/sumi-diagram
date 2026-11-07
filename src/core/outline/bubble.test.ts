@@ -63,6 +63,40 @@ test("side horns replace only the top corner, mirror exactly, and never scale wi
   }
 });
 
+test("side horn upper edges descend monotonically to the tip without an inflection", () => {
+  for (const tail of ["left", "right"] as const) {
+    for (const height of [24, 84, 240, 600]) {
+      for (const tailSize of [1, 8.4, 80]) {
+        const d = bubble.draw(
+          { x: 17, y: 31, width: 240, height },
+          bubble.params.parse({ tail, tailSize }),
+        );
+        const horn = d.outline.slice(0, 65);
+        if (tail === "left") horn.reverse();
+        const upper = horn.slice(0, 33);
+        const join = upper[0];
+        const tip = upper[32];
+        if (!join || !tip) throw new Error("missing upper edge");
+        expect(join.y).toBeCloseTo(31, 8);
+        expect(tip.y).toBeGreaterThan(join.y);
+        for (let i = 1; i < upper.length; i++) {
+          const a = upper[i - 1];
+          const b = upper[i];
+          if (!a || !b) throw new Error("missing upper edge sample");
+          expect(b.y).toBeGreaterThanOrEqual(a.y);
+          expect(b.y).toBeLessThanOrEqual(tip.y);
+          const c = upper[i + 1];
+          if (c) {
+            // Consistent signed turns exclude an S-curve, including in the mirrored horn.
+            const cross = (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
+            expect(cross * (tail === "left" ? -1 : 1)).toBeGreaterThan(0);
+          }
+        }
+      }
+    }
+  }
+});
+
 test("other positions use short symmetric wedges with concave sides and tangent roots", () => {
   for (const tail of ["left", "right", "top", "bottom"] as const) {
     for (const tailAt of ["start", "center", "end", 0, 80, 999] as const) {
