@@ -1,6 +1,7 @@
 /** Built-in geometric renderers; components using them are added in #55. */
 import { z } from "zod";
 import type { Point, Rect } from "../geometry";
+import { bubble } from "./bubble";
 import type { OutlineDrawing, OutlineRenderer } from "./types";
 
 const rectangle = ({ x, y, width, height }: Rect): Point[] => [
@@ -346,7 +347,7 @@ const waveform: OutlineRenderer = {
 
 /** Closed set of renderers bundled with Sumi; no external code loading. */
 export const BUILTIN_OUTLINE_RENDERERS: ReadonlyMap<string, OutlineRenderer> = new Map(
-  [trapezoid, stack, bowtie, bracket, waveform].map((renderer) => [
+  [trapezoid, stack, bowtie, bracket, waveform, bubble].map((renderer) => [
     renderer.id,
     Object.freeze(renderer),
   ]),

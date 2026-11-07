@@ -34,7 +34,7 @@ function contrast(a: string, b: string): number {
 
 describe("solid and tinted nodes", () => {
   test("every shape, theme and tone has both variants and at least 4.5:1 text contrast", () => {
-    expect(shapes).toHaveLength(13);
+    expect(shapes).toHaveLength(14);
     for (const theme of BUILTIN_THEMES.values()) {
       for (const shape of shapes) {
         for (const variant of ["solid", "tinted"] as const) {
@@ -46,7 +46,8 @@ describe("solid and tinted nodes", () => {
             const a = luminance(fill);
             const b = luminance(fontColor);
             expect((Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)).toBeGreaterThanOrEqual(4.5);
-            expect(strokeWidth.pt).toBeGreaterThan(0);
+            if (shape.id === "sumi/bubble" && variant === "solid") expect(strokeWidth.pt).toBe(0);
+            else expect(strokeWidth.pt).toBeGreaterThan(0);
             if (variant === "solid") {
               expect(fontColor).toBe("#ffffff");
               expect(fill).toBe(theme.toneLines.get(tone ?? "gray")?.stroke ?? "");

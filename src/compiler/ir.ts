@@ -44,7 +44,6 @@ import type {
 import { nodeOrder } from "../core/figure/tokens";
 import { getProfile } from "../core/profile/builtin";
 import { spacedProfile } from "../core/profile/schema";
-
 import {
   type Arrowhead,
   type ComponentId,
@@ -71,6 +70,7 @@ import {
   type StyleLength,
   sublabelFontSize,
 } from "../core/theme/style";
+import { wrapBubbleText } from "./bubble";
 import { withStretchOutlines } from "./stretch-outlines";
 
 export type LayoutDirection = FigureMeta["layout"]["direction"];
@@ -513,6 +513,34 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
     nodes.push(
       freeze({
         ...objectBase(key, "n", n),
+        ...(component.id === "sumi/bubble" && {
+          label: wrapBubbleText(
+            n.label,
+            Math.max(
+              style.fontSize.units,
+              Math.min(
+                typeof component.props.maxWidth === "number" ? component.props.maxWidth * 2 : 240,
+                typeof width === "number"
+                  ? width * 2 -
+                      style.fontSize.units * 1.75 -
+                      (component.props.tail === "left" || component.props.tail === "right"
+                        ? typeof component.props.tailSize === "number"
+                          ? component.props.tailSize * 2
+                          : style.fontSize.units *
+                            1.1 *
+                            (component.props.tailAt === undefined ||
+                            component.props.tailAt === "start"
+                              ? 0.3
+                              : 0.5)
+                        : 0) -
+                      profile.layout.nodePaddingX.pt * 4
+                  : Infinity,
+              ),
+            ),
+            style,
+            theme.fontSet,
+          ),
+        }),
         ...(mark !== undefined && { label: markLabel(mark, component.props) }),
         kind: "node",
         shape: component.manifest.shape,
@@ -524,6 +552,25 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
             ...(component.manifest.render.params !== undefined && {
               params: freeze({
                 ...component.manifest.render.params,
+                ...(component.manifest.render.renderer === "sumi/bubble" && {
+                  tail: component.props.tail as string,
+                  tailAt:
+                    typeof component.props.tailAt === "number"
+                      ? component.props.tailAt * 2
+                      : ((component.props.tailAt as string | undefined) ?? "start"),
+                  tailSize:
+                    typeof component.props.tailSize === "number"
+                      ? component.props.tailSize * 2
+                      : style.fontSize.units *
+                        1.1 *
+                        (component.props.tail === "left" || component.props.tail === "right"
+                          ? component.props.tailAt === undefined ||
+                            component.props.tailAt === "start"
+                            ? 0.3
+                            : 0.5
+                          : 0.6),
+                  radius: style.fontSize.units * 1.75,
+                }),
                 ...(component.manifest.render.renderer === "sumi/waveform" && {
                   samples: (component.props.samples as number[]).join(","),
                   mode: component.props.mode as string,
@@ -567,7 +614,9 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
           }),
         }),
         ...(n.labelRotation !== undefined && { labelRotation: n.labelRotation }),
-        ...(n.textAlign !== undefined && { textAlign: n.textAlign }),
+        ...((n.textAlign !== undefined || component.id === "sumi/bubble") && {
+          textAlign: n.textAlign ?? "left",
+        }),
         ...(n.sublabel !== undefined && {
           sublabel: freeze({ text: n.sublabel, fontSize: sublabelFontSize(style.fontSize) }),
         }),

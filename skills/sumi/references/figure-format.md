@@ -46,6 +46,7 @@ metadata: {}               # optional, any JSON-compatible data; not drawn
 
 ¹ Structured layout only (a figure with `figure.layout.arrange`):
 [structured](structured.md) (`grow`: [filling extra height](structured.md#arrange-trees)).
+Exception: `bubble` supports `textAlign` in auto layout too.
 `icon` / `badge`: [assets](assets.md). Group `labelAt` / `caption`: [groups](#groups).
 
 Every object is strict: an unknown key is `schema/unknown-field`. There is no
@@ -104,7 +105,7 @@ stops with one `schema/unsatisfied-requires` instead of a list of unknown fields
   colours guarantee contrast against white, not toned fills (a paper node with
   `tone: orange` and `$\textcolor{orange}{\text{Highlight}}$` gives `#bd5410` on
   `#f9e0bc`, about 3.70:1): prefer a white fill for coloured phrases.
-- `textAlign: left | center | right` (structured): [text align](structured.md#text-align).
+- `textAlign: left | center | right` (structured, or `bubble` in either layout): [text align](structured.md#text-align). Bubbles default to `left`.
 - `mono: true` on a node (and tokens cells; not groups or edges) draws label and
   sublabel in the theme's monospace font (BIZ UDGothic in every built-in theme):
   class names, code, prompts. `mono: false` turns off a variant's monospace text;
@@ -315,6 +316,26 @@ their own `properties`, `enum`, `const` and `anyOf`.
   stand out. `junction` takes no `tone`; connect into it with `line` (an arrowhead
   would cover the dot); `variant: hidden` draws no dot (lines meet smoothly; only
   where no other line crosses nearby) and an arrow into it ends in open space.
+- **`bubble`** (since 0.16.0): a generously rounded speech bubble / callout.
+  `props.tail: left | right | top | bottom | none` (default `none`);
+  `tailAt: start | center | end | <length>` (default `start`, `0` allowed).
+  Positions run from the body's top on left/right or left on top/bottom and
+  clamp to fit the base; `start` on left/right replaces only the top corner
+  with a small horn. Other positions and top/bottom use a short symmetric curved
+  wedge. `tailSize` overrides the theme-derived depth: 0.3 × radius for side horns,
+  0.5 × radius for other side positions, 0.6 × radius for top/bottom.
+  Radius is 1.1 × font size; neither radius nor tail grows with message height.
+  The tail sits outside
+  the body but inside its reserved footprint; edges attach to the body, never
+  to the tip. `width` / `height` size that **whole footprint**. Text wraps
+  automatically (Japanese included); `maxWidth` sets the text-line width
+  (default 120pt), also constrained by an explicit width. Newlines remain.
+  Lines default to start alignment; `textAlign: center | right` overrides it
+  in either layout, using the existing node field.
+  `default` is white with a frame; `filled` / `solid` are borderless and use
+  the usual tones; other shape variants also work. Both layouts and SVG,
+  PDF, picture and editable PPTX use one closed path, without a tail seam.
+  The component takes text; use separate `image` nodes for pictures.
 - `image` (PNG, JPEG, SVG file, inline SVG or shared asset), `icon: tabler/<name>`
   / `emoji/<name>` replacing a label, `badge`, `props.layers`: [assets](assets.md).
   `html` (restricted HTML card): [html](html.md).
