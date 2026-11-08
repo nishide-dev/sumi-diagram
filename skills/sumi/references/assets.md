@@ -123,8 +123,8 @@ feature vector a paper figure draws at the corner of an icon:
   with the tone's accent (its line colour: a dark hue in `color` / `paper`-like
   themes, a gray step in `minimal` / `academic`) and a 0.5pt ink outline, so 3pt
   cells stay readable. `none` stays the default box fill in both.
-- `size`: cell side, dot diameter or pill height (default 0.4 em: about 3pt at
-  7.5pt text). `outline: false` drops the thin outline.
+- `size`: cell side, dot diameter or pill height, a length such as `2.5pt` (default
+  0.4 em: about 3pt at 7.5pt text). `outline: false` drops the thin outline.
 - Structured layout reserves the union of body and glyphs (rows, stacks,
   attachments, groups, canvas); auto draws them after D2 placement. Edges attach
   to the body, never to a glyph. Glyphs need no icon asset: SVG, PDF, picture

@@ -26,6 +26,7 @@ figure material.
 | CLIP | Contrastive pre-training and zero-shot classification | panels, `grid`, `tokens`, `matrix`, curly bracket, shared image assets and crops, shared comb buses, monospace cards, `themeOverrides` (square/sharp corners) | `paper` / `paper-double` | [YAML](clip/clip.sumi.yaml), [PNG](clip/clip.png), [assets](clip/assets/) |
 | EmbeddingGemma | Multimodal inputs into a shared embedding space | `html` cards, image assets, `waveform`, `tokens`, aligned columns, orthogonal joins and an output bus, exact-color `themeOverrides` | `paper` / `paper-double` | [YAML](embedding-gemma/embedding-gemma.sumi.yaml), [PNG](embedding-gemma/embedding-gemma.png), [assets](embedding-gemma/assets/), [generator](embedding-gemma/generate-assets.ts) |
 | GCN | Multi-layer graph convolutional network (Kipf & Welling) | `place` (vertices by coordinates), repeated graph shape as stacked cards (`props.layers`), colored `route: curve` edges, undirected edges, per-figure tone colors (`themeOverrides.tones`, `groupFill`), picture asset | `paper` / `paper-double` | [YAML](gcn/gcn.sumi.yaml), [PNG](gcn/gcn.png), [assets and generator](gcn/assets/) |
+| TriCL | A dense, wide overview of tri-directional contrast (Hwang et al.): hypergraph cards, two views, encoder and heads, contrast arrows | everything placed by coordinates (`place`), vertices with feature-vector `glyphs`, dashed hyperedges as `sets` (`shape: hull`), rect sets as gray panels, `legend` glyph and node samples, curves through mid-edge markers, `themeOverrides.palette`, `density: compact`; a benchmark for density and proportions | `paper` / `paper-double` | [YAML](tricl/tricl.sumi.yaml), [PNG](tricl/tricl.png) |
 | Llama 4 MoE | Mixture-of-experts transformer block (Meta AI) | the `llama` theme (dark solid blocks, borderless muted panels, open chevron arrowheads), alternating Attention/FFN, dashed `zoom` into an expanded panel, ⊕ operator, hidden-junction forks sharing one bus | `llama` / `paper-double` | [YAML](llama4-moe/llama4-moe.sumi.yaml), [PNG](llama4-moe/llama4-moe.png) |
 
 ## Conversations (`chat` arrangement)
@@ -46,7 +47,7 @@ figure material.
 
 Choosing quickly: a paper block diagram with residuals or notes starts from
 Transformer or DiT; multi-panel figures with images or matrices from CLIP or
-EmbeddingGemma; graphs on coordinates from GCN; a dark-theme model figure from
+EmbeddingGemma; graphs on coordinates from GCN; a dense wide overview of small pictures (hypergraphs, feature vectors, panels) from TriCL; a dark-theme model figure from
 Llama 4 MoE; messages from Chat or LLM dialogue; flows and tiers from the generic four.
 
 For a consistent visual vocabulary across panels, study GCN (the same vertex and

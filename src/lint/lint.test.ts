@@ -317,6 +317,29 @@ nodes:
     expect(d?.message).toContain("has 12 characters missing");
   });
 
+  test("a picture node (glyphs, or a mark-sized shape) needs no label (#420)", () => {
+    const text = [
+      "version: 1",
+      "figure: { id: marks, layout: { arrange: { row: { items: [ vertex, dot, marker, wide, cell, big ] } } } }",
+      "nodes:",
+      "  - { id: vertex, component: ellipse, glyphs: [ { kind: vector } ] }",
+      "  - { id: dot, component: circle, props: { width: 5pt } }",
+      "  - { id: marker, component: diamond, props: { width: 7pt, height: 7pt } }",
+      "  - { id: wide, component: ellipse, props: { width: 6pt } }",
+      "  - { id: cell, component: box, props: { width: 6pt, height: 6pt } }",
+      "  - { id: big, component: circle, props: { width: 20pt } }",
+      "",
+    ].join("\n");
+    const report = lintFigure(text, { file: "marks.sumi.yaml" });
+    // A shape with one written size (not a circle), a small box and a circle large enough for text are blank shapes.
+    const blank = report.diagnostics.filter((d) => d.code === "lint/empty-label");
+    expect(blank.map((d) => d.message)).toEqual([
+      'Node "wide" has no label.',
+      'Node "cell" has no label.',
+      'Node "big" has no label.',
+    ]);
+  });
+
   test("valid built-in fixtures only get label warnings", () => {
     expect(codes(lint("valid/full.sumi.yaml").diagnostics)).toEqual([]);
     expect(new Set(codes(lint("valid/components.sumi.yaml").diagnostics))).toEqual(
