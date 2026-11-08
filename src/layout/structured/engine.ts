@@ -768,6 +768,7 @@ class StructuredLayout {
       (key) => this.#itemSize(key),
       (key) => this.#nodes.get(key),
       this.#defaultGap,
+      (key, rect) => this.#bodyRect(key, rect),
     );
   }
 

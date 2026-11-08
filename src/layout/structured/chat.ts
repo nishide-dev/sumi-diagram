@@ -10,6 +10,7 @@ export function chatGeometry(
   sizeOf: (key: ElementKey) => Size,
   nodeOf: (key: ElementKey) => NodeIR | undefined,
   gap: number,
+  bodyRect: (key: ElementKey, rect: Rect) => Rect,
 ): { size: Size; rects: Map<ElementKey, Rect>; diagnostics: Diagnostic[] } {
   const chat = box.chat;
   if (!chat) throw new Error("internal error: missing chat rows");
@@ -27,13 +28,20 @@ export function chatGeometry(
       y += bubble.height;
     } else {
       const node = nodeOf(row.node);
+      const body = bodyRect(row.node, { x: 0, y: 0, ...bubble });
       const horn =
-        typeof node?.render?.params?.tailSize === "number" ? node.render.params.tailSize : 0;
+        typeof node?.render?.params?.tailSize === "number"
+          ? Math.min(node.render.params.tailSize, body.width / 3)
+          : 0;
       if (row.runStart) runHorn = horn;
       const avatar = row.indentAvatar ? sizeOf(row.indentAvatar) : undefined;
       const indent = avatar ? avatar.width + smallGap : 0;
       const meta = row.meta ? sizeOf(row.meta) : undefined;
-      const top = y + Math.max(0, (meta?.height ?? 0) - bubble.height);
+      const avatarBody =
+        row.avatar && avatar ? bodyRect(row.avatar, { x: 0, y: 0, ...avatar }) : undefined;
+      // Align bodies, but shift the entire row to keep every footprint above y.
+      const top =
+        y + Math.max(0, (meta?.height ?? 0) - body.y - body.height, (avatarBody?.y ?? 0) - body.y);
       const x =
         row.side === "left"
           ? indent + (row.runStart ? 0 : runHorn)
@@ -42,16 +50,19 @@ export function chatGeometry(
       if (row.avatar && avatar)
         rects.set(row.avatar, {
           x: row.side === "left" ? 0 : width - avatar.width,
-          y: top,
+          y: top + body.y - (avatarBody?.y ?? 0),
           ...avatar,
         });
       if (row.meta && meta)
         rects.set(row.meta, {
           x: row.side === "left" ? x + bubble.width + smallGap : x - smallGap - meta.width,
-          y: top + bubble.height - meta.height,
+          y: top + body.y + body.height - meta.height,
           ...meta,
         });
-      y = top + Math.max(bubble.height, row.avatar ? (avatar?.height ?? 0) : 0);
+      y = Math.max(
+        top + bubble.height,
+        row.avatar ? (rects.get(row.avatar)?.y ?? top) + (avatar?.height ?? 0) : 0,
+      );
     }
     const keys = [row.node, row.avatar, row.meta].filter((k): k is ElementKey => k !== undefined);
     if (

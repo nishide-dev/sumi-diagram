@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { badgeRect } from "../../assets/draw";
 import { chatSource } from "../../compiler/chat.fixture";
 import { compileFigure } from "../../compiler/compile";
 import type { Rect } from "../../core/geometry";
@@ -17,6 +18,72 @@ function layout(source = chatSource) {
 }
 const right = (r: Rect) => r.x + r.width;
 const bottom = (r: Rect) => r.y + r.height;
+
+test("chat maxWidth constrains the sublabel as well as the label", () => {
+  const p = layout(`version: 1
+figure:
+  id: secondary
+  layout:
+    arrange:
+      chat:
+        width: 500pt
+        maxWidth: 70pt
+        speakers: { friend: { side: left } }
+        items: [{ node: a, from: friend }]
+nodes:
+  - id: a
+    component: bubble
+    label: Hi
+    sublabel: This is a long secondary message line that should wrap within the bubble
+`);
+  expect(p.ir.nodes.find((n) => n.id === "a")?.sublabel?.text).toContain("\n");
+  expect(p.rect("n:a").width).toBeLessThanOrEqual(140);
+  expect(p.diagnostics).toEqual([]);
+});
+
+test("badges reserve space while meta bottoms and avatar tops align to node bodies", () => {
+  for (const corner of ["south-east", "north-east"] as const) {
+    const p = layout(
+      chatSource
+        .replace("id: m1,", `id: m1, badge: { icon: emoji/fire, corner: ${corner} },`)
+        .replace("id: avatar,", "id: avatar, badge: { icon: emoji/fire, corner: north-east },"),
+    );
+    const rows = p.ir.groups[0]?.arrange?.chat?.rows;
+    const row = rows?.[1];
+    if (!row?.avatar || !row.meta) throw new Error("missing visuals");
+    expect(bottom(p.rect(row.meta))).toBeCloseTo(bottom(p.rect(row.node)), 3);
+    expect(p.rect(row.avatar).y).toBeCloseTo(p.rect(row.node).y, 3);
+    for (const key of [row.node, row.avatar]) {
+      const node = p.ir.nodes.find((n) => n.key === key);
+      if (!node) throw new Error("missing node");
+      const badge = badgeRect(node, p.rect(key));
+      if (!badge) throw new Error("missing badge");
+      expect(p.rect("n:m2").y).toBeGreaterThan(bottom(badge));
+      expect(badge.y).toBeGreaterThanOrEqual(bottom(p.rect(rows?.[0]?.node ?? "missing")));
+    }
+    expect(p.diagnostics).toEqual([]);
+  }
+});
+
+test("continuations reserve the rendered horn when explicit width clamps tailSize", () => {
+  for (const [id, next, side] of [
+    ["m1", "m2", "left"],
+    ["m3", "m4", "right"],
+  ]) {
+    const p = layout(
+      chatSource.replace(
+        `id: ${id}, component: bubble,`,
+        `id: ${id}, component: bubble, props: { width: 50pt, tailSize: 20pt },`,
+      ),
+    );
+    const first = p.rect(`n:${id}`),
+      second = p.rect(`n:${next}`);
+    expect(first.width).toBe(100);
+    const offset = side === "left" ? second.x - first.x : right(first) - right(second);
+    expect(Math.abs(offset - 100 / 3)).toBeLessThanOrEqual(0.001);
+    expect(p.diagnostics).toEqual([]);
+  }
+});
 
 test("chat sides, constant body indent, run gaps and top-aligned avatars", () => {
   const p = layout();

@@ -72,6 +72,33 @@ test("authored bubble IDs remain valid edge endpoints", () => {
   expect(r.value.ir.edges[0]?.to).toBe("n:m3");
 });
 
+test("avatar edges connect only to the authored first occurrence", () => {
+  const r = compileFigure(`${chatSource}\nedges: [{ from: avatar, to: m1 }]\n`);
+  if (!r.ok) throw new Error(JSON.stringify(r.diagnostics));
+  const rows = r.value.ir.groups[0]?.arrange?.chat?.rows;
+  expect(rows?.[1]?.avatar).toBe("n:avatar");
+  expect(rows?.[5]?.avatar).toBeDefined();
+  expect(rows?.[5]?.avatar).not.toBe("n:avatar");
+  expect(r.value.ir.edges).toHaveLength(1);
+  expect(r.value.ir.edges[0]?.from).toBe(rows?.[1]?.avatar);
+});
+
+test("chat maxWidth overrides node maxWidth, including when chat uses its default", () => {
+  for (const source of [chatSource, chatSource.replace("        maxWidth: 0.7\n", "")]) {
+    const baseline = compileFigure(source);
+    const overridden = compileFigure(
+      source.replace(
+        "id: m3, component: bubble,",
+        "id: m3, component: bubble, props: { maxWidth: 10pt },",
+      ),
+    );
+    if (!baseline.ok || !overridden.ok) throw new Error("chat must compile");
+    expect(overridden.value.ir.nodes.find((n) => n.id === "m3")?.label).toBe(
+      baseline.value.ir.nodes.find((n) => n.id === "m3")?.label,
+    );
+  }
+});
+
 test("chat errors identify unknown speakers, nodes, avatars, non-bubbles and duplicate placement", () => {
   for (const [source, code] of [
     [chatSource.replace("from: me", "from: missing"), "layout/chat-unknown-speaker"],
@@ -106,12 +133,19 @@ test("chat schema accepts a fractional or physical maximum and rejects invalid d
 });
 
 test("format preserves chat semantics and comments", () => {
-  const r = formatFigureSource(chatSource, { canonicalOrder: true });
+  const r = formatFigureSource(
+    chatSource.replace("        maxWidth:", "        # Keep bubbles narrow\n        maxWidth:"),
+    { canonicalOrder: true },
+  );
   if (!r.ok) throw new Error(JSON.stringify(r.diagnostics));
+  expect(r.text).toContain("# Keep bubbles narrow");
   expect(compileFigure(r.text).ok).toBe(true);
 });
 
 test("conversation nodes do not require graph edges", () => {
-  expect(lintFigure(chatSource).diagnostics.some((d) => d.code === "lint/no-edges")).toBe(false);
-  expect(lintFigure(chatSource).diagnostics.some((d) => d.code === "lint/long-label")).toBe(false);
+  const result = lintFigure(chatSource);
+  expect(result.exitCode).toBe(0);
+  expect(result.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+  expect(result.diagnostics.some((d) => d.code === "lint/no-edges")).toBe(false);
+  expect(result.diagnostics.some((d) => d.code === "lint/long-label")).toBe(false);
 });

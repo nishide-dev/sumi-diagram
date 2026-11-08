@@ -533,53 +533,54 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
     const style = styleOf(state, key, "node");
     const { mark } = component.manifest;
     const markSize = mark && markSizeOf(mark, style);
+    const wrapText = (text: string, fontSize = style.fontSize) =>
+      wrapBubbleText(
+        text,
+        Math.max(
+          style.fontSize.units,
+          Math.min(
+            chatWidths.has(key)
+              ? Infinity
+              : typeof component.props.maxWidth === "number"
+                ? component.props.maxWidth * 2
+                : 240,
+            typeof width === "number"
+              ? width * 2 -
+                  style.fontSize.units * 1.75 -
+                  (component.props.tail === "left" || component.props.tail === "right"
+                    ? typeof component.props.tailSize === "number"
+                      ? component.props.tailSize * 2
+                      : style.fontSize.units *
+                        1.1 *
+                        (component.props.tailAt === undefined || component.props.tailAt === "start"
+                          ? 0.3
+                          : 0.5)
+                    : 0) -
+                  profile.layout.nodePaddingX.pt * 4
+              : Infinity,
+            chatWidths.has(key)
+              ? (chatWidths.get(key) as number) * 2 -
+                  style.fontSize.units * 1.4 -
+                  (component.props.tail === "none"
+                    ? 0
+                    : typeof component.props.tailSize === "number"
+                      ? component.props.tailSize * 2
+                      : style.fontSize.units * 0.33) -
+                  profile.layout.nodePaddingX.pt * 2 -
+                  1
+              : Infinity,
+          ),
+        ),
+        { ...style, fontSize },
+        theme.fontSet,
+      );
     nodes.push(
       freeze({
         ...objectBase(key, "n", n),
         ...(chatParts.has(key) && { chatPart: chatParts.get(key) as "meta" | "divider" }),
         ...(chatWidths.has(key) && { chatMessage: true as const }),
         ...(component.id === "sumi/bubble" && {
-          label: wrapBubbleText(
-            n.label,
-            Math.max(
-              style.fontSize.units,
-              Math.min(
-                chatWidths.has(key)
-                  ? Infinity
-                  : typeof component.props.maxWidth === "number"
-                    ? component.props.maxWidth * 2
-                    : 240,
-                typeof width === "number"
-                  ? width * 2 -
-                      style.fontSize.units * 1.75 -
-                      (component.props.tail === "left" || component.props.tail === "right"
-                        ? typeof component.props.tailSize === "number"
-                          ? component.props.tailSize * 2
-                          : style.fontSize.units *
-                            1.1 *
-                            (component.props.tailAt === undefined ||
-                            component.props.tailAt === "start"
-                              ? 0.3
-                              : 0.5)
-                        : 0) -
-                      profile.layout.nodePaddingX.pt * 4
-                  : Infinity,
-                chatWidths.has(key)
-                  ? (chatWidths.get(key) as number) * 2 -
-                      style.fontSize.units * 1.4 -
-                      (component.props.tail === "none"
-                        ? 0
-                        : typeof component.props.tailSize === "number"
-                          ? component.props.tailSize * 2
-                          : style.fontSize.units * 0.33) -
-                      profile.layout.nodePaddingX.pt * 2 -
-                      1
-                  : Infinity,
-              ),
-            ),
-            style,
-            theme.fontSet,
-          ),
+          label: wrapText(n.label),
         }),
         ...(mark !== undefined && { label: markLabel(mark, component.props) }),
         kind: "node",
@@ -662,7 +663,12 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
           textAlign: n.textAlign ?? "left",
         }),
         ...(n.sublabel !== undefined && {
-          sublabel: freeze({ text: n.sublabel, fontSize: sublabelFontSize(style.fontSize) }),
+          sublabel: freeze({
+            text: chatWidths.has(key)
+              ? wrapText(n.sublabel, sublabelFontSize(style.fontSize))
+              : n.sublabel,
+            fontSize: sublabelFontSize(style.fontSize),
+          }),
         }),
         ...(n.icon !== undefined && { icon: iconIR(n.icon) }),
         ...(n.badge !== undefined && {

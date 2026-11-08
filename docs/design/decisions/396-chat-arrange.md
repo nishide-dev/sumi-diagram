@@ -20,11 +20,14 @@
 - 同一話者が隣接する間を run とする。divider は run を切る。
   先頭は話者側の `tail` と `tailAt: start`、連投は `tail: none`。
   しっぽの有無で本体の端がずれないよう、連投にも horn の幅を予約する。
+  明示幅が小さい場合は renderer と同じく幅の1/3に clamp した実効 horn 幅を使う。
   文字は左揃え。話者の tone / variant は本文に明示指定があればそちらを優先する。
   明示 `variant: default` も上書きしない。省略時は左が白い default、右が gray / filled。
   green などの指定もテーマの tone で解決し、アプリ固有の色を持ち込まない。
 - 最大幅は文字だけでなく bubble の自然 footprint に対する上限とする。
   角の安全帯・しっぽ・padding と丸めの余裕を引いて既存の折り返し関数へ渡す。
+  sublabel も同じ幅を実際の小さい文字サイズで折り返す。
+  chat の maxWidth は既定値を含めノードの props.maxWidth に優先する。
   明示 width / height は通常ノードと同じく保持する。不可分の数式などが幅を超える場合は
   輪郭を潰さず、列の overflow を診断する。
 - chat 内の本文は会話に適した寸法にするため、profile の左右 node padding の半分、
@@ -32,12 +35,15 @@
   通常の bubble の寸法・輪郭契約は変更しない。
 - avatar は既存ノード ID。run 先頭の bubble の上に揃え、同じ話者の連投もその幅と gap を予約する。
   初回は元のノードを使い、次の run から通常のノードとして複製する。
+  元の avatar ID への辺は初回だけに接続し、複製への辺の複製・付け替えは行わない。
   右話者も明示 avatar があれば対応し、省略なら予約しない。
 - meta は muted label、divider は gray / filled の小さい bubble（しっぽなし）に展開する。
   両者の文字サイズはテーマの小さい注記（edge の既定サイズ）、文字色は muted label と共通。
   divider は列の中央、左右 padding は通常の半分、上下 padding は0、安全帯の基準は1em。
   meta は bubble の内側の横に置き、下端を揃える。右発言の注記は右揃え、左発言は左揃え。
   複数行の meta が本文より高いときも、行全体の高さを予約する。
+  avatar の上端と meta の下端は badge を除く本体矩形に揃え、行間・衝突回避には
+  badge を含む footprint 全体を予約する。
 - profile の実効 arrangeGap を G とし、異なる話者／divider の前は G/2、連投は G/4、
   avatar と meta の横 gap は G/4。compact と slides の倍率も同じ経路で適用する。
 - 展開した各要素は通常の component / asset / theme / profile / geometry lint / export を通す。
