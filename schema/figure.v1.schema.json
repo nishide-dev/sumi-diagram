@@ -424,6 +424,142 @@
             ],
             "additionalProperties": false
           },
+          "glyphs": {
+            "description": "Small marks over the node's border, e.g. a three-cell feature vector at a corner of an icon; their overhang reserves layout space.",
+            "minItems": 1,
+            "maxItems": 8,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "vector",
+                    "dot",
+                    "pill"
+                  ],
+                  "description": "vector: a short column or row of cells (a feature vector); dot: a small circle; pill: a small rounded bar."
+                },
+                "at": {
+                  "default": "north-east",
+                  "description": "Where the glyph's center lies on the node's body: a corner or the middle of a side. Omitted means north-east.",
+                  "type": "string",
+                  "enum": [
+                    "north",
+                    "north-east",
+                    "east",
+                    "south-east",
+                    "south",
+                    "south-west",
+                    "west",
+                    "north-west"
+                  ]
+                },
+                "dx": {
+                  "description": "Move the glyph right by this many ems (the node's font size); negative moves left.",
+                  "type": "number",
+                  "minimum": -10,
+                  "maximum": 10
+                },
+                "dy": {
+                  "description": "Move the glyph down by this many ems (the node's font size); negative moves up.",
+                  "type": "number",
+                  "minimum": -10,
+                  "maximum": 10
+                },
+                "size": {
+                  "description": "Side of one vector cell, or the diameter of a dot, or the height of a pill. Omitted means 0.4 em of the node's font size.",
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(0|\\d+(\\.\\d+)?(mm|cm|in|pt))$"
+                    },
+                    {
+                      "const": 0
+                    }
+                  ]
+                },
+                "width": {
+                  "description": "pill only: the length of the pill. Omitted means twice its height.",
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(0|\\d+(\\.\\d+)?(mm|cm|in|pt))$"
+                    },
+                    {
+                      "const": 0
+                    }
+                  ]
+                },
+                "cells": {
+                  "description": "vector only: the number of cells. Omitted means 3 (or the length of tones).",
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 16
+                },
+                "direction": {
+                  "description": "vector only: lay the cells out downward (default) or rightward.",
+                  "type": "string",
+                  "enum": [
+                    "down",
+                    "right"
+                  ]
+                },
+                "tone": {
+                  "description": "The fill of every cell, the dot or the pill, from the theme's palette. none or omitted means the default node fill.",
+                  "type": "string",
+                  "enum": [
+                    "gray",
+                    "red",
+                    "orange",
+                    "yellow",
+                    "green",
+                    "blue",
+                    "purple",
+                    "pink",
+                    "none"
+                  ]
+                },
+                "strength": {
+                  "description": "soft (default): the tone's fill, as for a node. solid: the tone's accent color (its line color: a dark shade of the hue, a gray step in the monochrome themes) with a 0.5pt outline in the theme's ink, for readable small cells. none stays the plain node fill.",
+                  "type": "string",
+                  "enum": [
+                    "soft",
+                    "solid"
+                  ]
+                },
+                "tones": {
+                  "description": "vector only: one tone per cell, in order; its length is the cell count. Not combined with tone.",
+                  "minItems": 1,
+                  "maxItems": 16,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "gray",
+                      "red",
+                      "orange",
+                      "yellow",
+                      "green",
+                      "blue",
+                      "purple",
+                      "pink",
+                      "none"
+                    ]
+                  }
+                },
+                "outline": {
+                  "description": "Draw a thin outline around each cell, dot or pill (default true).",
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            }
+          },
           "variant": {
             "default": "default",
             "type": "string",

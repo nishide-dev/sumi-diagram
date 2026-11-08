@@ -431,6 +431,124 @@ export const AttachSchema = z.strictObject({
   gap: LayoutLength.optional().describe("Space between the target and this node. Omitted means 0."),
 });
 
+/** Where a glyph (#408) sits on its node's body: a corner or the middle of a side. */
+export const GLYPH_POSITIONS = [
+  "north",
+  "north-east",
+  "east",
+  "south-east",
+  "south",
+  "south-west",
+  "west",
+  "north-west",
+] as const;
+export type GlyphPosition = (typeof GLYPH_POSITIONS)[number];
+
+/** The kinds of glyph (#408): a feature vector, a dot or a pill. */
+export const GLYPH_KINDS = ["vector", "dot", "pill"] as const;
+export type GlyphKind = (typeof GLYPH_KINDS)[number];
+
+/** Most cells one feature vector may have. */
+export const MAX_GLYPH_CELLS = 16;
+
+const GlyphLength = LayoutLength.refine((pt) => pt > 0, { message: "must be positive" });
+const GlyphTone = z.enum([...TONE_NAMES, "none"]);
+
+/**
+ * One glyph of `nodes[].glyphs` (#408, design doc `408-node-glyphs`): a small
+ * mark drawn over a node's border at a corner or side, apart from its label
+ * and without taking part in routing.
+ */
+export const GlyphSchema = z
+  .strictObject({
+    kind: z
+      .enum(GLYPH_KINDS)
+      .describe(
+        "vector: a short column or row of cells (a feature vector); dot: a small circle; pill: a small rounded bar.",
+      ),
+    at: z
+      .enum(GLYPH_POSITIONS)
+      .default("north-east")
+      .describe(
+        "Where the glyph's center lies on the node's body: a corner or the middle of a side. Omitted means north-east.",
+      ),
+    dx: z
+      .number()
+      .min(-10)
+      .max(10)
+      .optional()
+      .describe(
+        "Move the glyph right by this many ems (the node's font size); negative moves left.",
+      ),
+    dy: z
+      .number()
+      .min(-10)
+      .max(10)
+      .optional()
+      .describe("Move the glyph down by this many ems (the node's font size); negative moves up."),
+    size: GlyphLength.optional().describe(
+      "Side of one vector cell, or the diameter of a dot, or the height of a pill. Omitted means 0.4 em of the node's font size.",
+    ),
+    width: GlyphLength.optional().describe(
+      "pill only: the length of the pill. Omitted means twice its height.",
+    ),
+    cells: z
+      .int()
+      .min(1)
+      .max(MAX_GLYPH_CELLS)
+      .optional()
+      .describe("vector only: the number of cells. Omitted means 3 (or the length of tones)."),
+    direction: z
+      .enum(["down", "right"])
+      .optional()
+      .describe("vector only: lay the cells out downward (default) or rightward."),
+    tone: GlyphTone.optional().describe(
+      "The fill of every cell, the dot or the pill, from the theme's palette. none or omitted means the default node fill.",
+    ),
+    strength: z
+      .enum(["soft", "solid"])
+      .optional()
+      .describe(
+        "soft (default): the tone's fill, as for a node. solid: the tone's accent color (its line color: a dark shade of the hue, a gray step in the monochrome themes) with a 0.5pt outline in the theme's ink, for readable small cells. none stays the plain node fill.",
+      ),
+    tones: z
+      .array(GlyphTone)
+      .min(1)
+      .max(MAX_GLYPH_CELLS)
+      .optional()
+      .describe(
+        "vector only: one tone per cell, in order; its length is the cell count. Not combined with tone.",
+      ),
+    outline: z
+      .boolean()
+      .optional()
+      .describe("Draw a thin outline around each cell, dot or pill (default true)."),
+  })
+  .superRefine((glyph, ctx) => {
+    const issue = (path: string, message: string) =>
+      ctx.addIssue({ code: "custom", message, path: [path] });
+    if (glyph.kind !== "vector") {
+      for (const field of ["cells", "direction", "tones"] as const) {
+        if (glyph[field] !== undefined) issue(field, `${field} applies to a vector only.`);
+      }
+    }
+    if (glyph.tones !== undefined && glyph.tone !== undefined)
+      issue(
+        "tones",
+        "tones and tone cannot be combined: give one tone per cell, or one tone for all.",
+      );
+    if (glyph.kind !== "pill" && glyph.width !== undefined)
+      issue("width", "width applies to a pill only.");
+    if (
+      glyph.tones !== undefined &&
+      glyph.cells !== undefined &&
+      glyph.tones.length !== glyph.cells
+    ) {
+      issue("tones", `tones has ${glyph.tones.length} entries but cells is ${glyph.cells}.`);
+    }
+  });
+export type FigureGlyph = z.infer<typeof GlyphSchema>;
+
 const Anchor = z
   .string()
   .meta({ pattern: ANCHOR_PATTERN.source })
@@ -801,6 +919,14 @@ export const NodeSchema = z.strictObject({
     .optional()
     .describe(
       "A one-em corner badge, independent of the node label; its overhang reserves layout space.",
+    ),
+  glyphs: z
+    .array(GlyphSchema)
+    .min(1)
+    .max(8)
+    .optional()
+    .describe(
+      "Small marks over the node's border, e.g. a three-cell feature vector at a corner of an icon; their overhang reserves layout space.",
     ),
   variant: Variant,
   tone: Tone,

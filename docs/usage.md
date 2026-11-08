@@ -175,6 +175,8 @@ nodes:
   - { id: photo, component: image, props: { src: img/photo.png, height: 30pt } }
 ```
 
+A node's `glyphs` put small marks over its border: a feature vector (a short column or row of coloured cells, e.g. at the top right of an icon), a dot or a pill, at a corner or side with `dx` / `dy` offsets. Layout reserves their room, edges attach to the body, and SVG, PDF and PPTX draw them (see the [skill reference](../skills/sumi/references/assets.md#glyphs)).
+
 Local PNG/JPEG/SVG paths are relative to the YAML. Specify image width or height. Images are embedded without alteration; SVG imports accept only permitted shapes and reject scripts/external references with source-position diagnostics. Editable PPTX does not support icons/images. See [assets reference](../skills/sumi/references/assets.md).
 
 ## D2 version and discovery

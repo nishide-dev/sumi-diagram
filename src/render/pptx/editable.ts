@@ -535,6 +535,35 @@ export function svgToEditablePptx(
         line(hatch, style),
       );
     };
+    /**
+     * A node's glyphs (#408, `g.sumi-glyphs`): one editable shape per cell,
+     * dot or pill, in the SVG's own colours, over the node's body.
+     */
+    const glyphShapes = (key: ElementKey, group: XmlElement, opacity: number): string => {
+      const glyphs = childElements(group).find(
+        (e) => e.name === "g" && classList(e).includes("sumi-glyphs"),
+      );
+      if (glyphs === undefined) return "";
+      return [...descendants(glyphs)]
+        .filter((e) => e.name === "rect")
+        .map((cell, index) => {
+          const b = {
+            x: value(cell, "x"),
+            y: value(cell, "y"),
+            width: value(cell, "width"),
+            height: value(cell, "height"),
+          };
+          return shape(
+            next++,
+            `${key} glyph ${index + 1}`,
+            b,
+            geometry([shapePath(cell)], b, emu),
+            paint(property(cell, "fill") ?? "none", opacity),
+            line(cell, { stroke: "none", strokeWidth: { units: 0 }, opacity }),
+          );
+        })
+        .join("");
+    };
     const objectXml = new Map<ElementKey, string>();
     for (const element of [...ir.groups, ...ir.nodes]) {
       const group = byKey.get(element.key),
@@ -755,7 +784,8 @@ export function svgToEditablePptx(
                     element.style.opacity,
                   ))
             : "") +
-          hatchShape(element.key, group, box, element.style),
+          hatchShape(element.key, group, box, element.style) +
+          (element.kind === "node" ? glyphShapes(element.key, group, element.style.opacity) : ""),
       );
       objects.set(element.key, { id, box, ellipse, ...(connectionPoints && { connectionPoints }) });
     }

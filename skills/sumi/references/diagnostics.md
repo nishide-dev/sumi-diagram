@@ -95,6 +95,7 @@ Apply one edit and re-check: independent savings are not additive.
 | `component/separator-placement` | a `separator` with `attach` or directly in a grid cell | put it directly in a row or stack |
 | `component/separator-connection` | a `separator` as an edge endpoint | connect the panels' real nodes |
 | `component/badge-unsupported` | a badge on a `legend`, `tokens`, `matrix`, point junction or `bracket` | put it on an ordinary shape, outline or image |
+| `component/glyph-unsupported` | `glyphs` on a `legend`, `tokens`, `matrix`, point junction or `bracket` | put them on an ordinary shape, outline or image |
 | `component/deprecated` (warning) | still works but is being replaced | switch to the replacement named |
 | `asset/*` | icons, images, figure assets, HTML | [assets](assets.md#fixing-asset), [html](html.md#diagnostics) |
 | `theme/unknown` | `figure.theme` is not built in | `minimal`, `academic`, `slides`, `color` or `paper` |
@@ -209,6 +210,7 @@ written; errors make the exit code 1. Configure like structural rules
 | `geometry/set-contains-non-member` | warning | a set's outline covers a node that is not one of its `members` (its centre, or a quarter of its box, lies inside): add it, move it clear (`place` coordinates, gaps), or fit closer with `shape: hull` / `ellipse` or a smaller `padding` ([sets](structured.md#set-enclosures)) |
 | `geometry/set-label-collision` | warning | a set's label overlaps another label, a node, an edge's route or another set's boundary (a subset's label inside its superset is fine): change `labelAt`, shorten it, or move the sets apart |
 | `geometry/badge-collision` | warning | a badge touches labels, other bodies, badges, edges or the canvas edge (its own body may overlap): change the corner, increase gaps / margin; invalid badge icons: `asset/unknown-icon` at `badge.icon` |
+| `geometry/glyph-collision` | warning | a glyph (feature vector, dot, pill) touches other bodies, labels, badges, glyphs, edges or the canvas edge, or covers its own text (its own body and icon may be touched): change `at`, `dx` / `dy` or `size`, increase gaps / margin |
 | `geometry/group-empty-area` | info | at least 75% of a group's frame lies outside its title and direct children (occupancy estimate; nested groups count fully; tokens/matrix/legend frames skipped; not counted in `maxWarnings`): consider `align: stretch` with inner `justify: stretch`, `justify: space-between`, smaller gaps, or do not stretch the panel; intentional whitespace needs no change |
 
 Custom outlines: `geometry/label-overflow` checks the renderer's safe label

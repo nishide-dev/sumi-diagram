@@ -15,6 +15,7 @@ import {
   componentSamples,
   dimSample,
   filledToneSample,
+  glyphSample,
   outlinedToneSample,
   PROFILES,
   SAMPLE_PROFILE,
@@ -128,6 +129,7 @@ test("every theme-wide sample passes structural lint under every theme (#177)", 
     outlinedToneSample(),
     filledToneSample(),
     dimSample(),
+    glyphSample(),
     setsSample(),
   ]) {
     for (const theme of THEMES) {

@@ -54,6 +54,7 @@ export function groupEmptySpace(
     ...(e.bbox === undefined ? [] : [e.bbox]),
     ...e.labels.flatMap((l) => (l.box === undefined ? [] : [l.box])),
     ...(e.badge === undefined ? [] : [e.badge]),
+    ...(e.glyphs ?? []),
   ]);
   // A partial inspection without measured children is not evidence of whitespace.
   if (childrenBoxes.length === 0) return undefined;

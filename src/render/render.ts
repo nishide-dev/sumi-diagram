@@ -236,8 +236,14 @@ async function renderD2(
   // Icons and images go into the placeholders' boxes; the inspection does not
   // read them, so it stays valid.
   let svg = opened.value;
-  if (assets !== undefined) {
-    const withAssets = composeAssets(svg, effective.ir, inspected.value, assets);
+  // Glyphs (#408) need no asset: an empty set draws them.
+  if (assets !== undefined || effective.ir.nodes.some((n) => n.glyphs !== undefined)) {
+    const withAssets = composeAssets(
+      svg,
+      effective.ir,
+      inspected.value,
+      assets ?? { nodes: new Map(), notices: [] },
+    );
     diagnostics.push(...withAssets.diagnostics);
     if (!withAssets.ok) return fail();
     svg = withAssets.value;

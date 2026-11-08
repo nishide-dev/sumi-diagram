@@ -37,6 +37,8 @@ export interface GalleryModel {
   tones: { sample: ToneSample; outcomes: RenderOutcome[] };
   /** A dimmed group under every theme (#175). */
   dim: { sample: ToneSample; outcomes: RenderOutcome[] };
+  /** Node glyphs under every theme (#408). */
+  glyphs: { sample: ToneSample; outcomes: RenderOutcome[] };
   /** Set enclosures under every theme (#407). */
   sets: { sample: ToneSample; outcomes: RenderOutcome[] };
   /** Every tone as an outline and on edges under every theme (#177). */
@@ -296,6 +298,13 @@ const DIM_NOTE =
   "The group keeps its own variant and tone. The dashed line from the left panel ends inside the " +
   "dimmed one and is drawn as written.";
 
+const GLYPHS_NOTE =
+  "A node's `glyphs` put small marks over its border: a feature vector (a short column or row of " +
+  "cells), a dot or a pill, centered on a corner or the middle of a side and moved by `dx` / `dy` " +
+  "(ems). A `tone` fills them from the theme's palette, as for a node, so the vector of a paper " +
+  "icon can change color per stage. `strength: solid` fills with the tone's accent and a thin ink " +
+  "outline for readable small cells. Layout reserves their room and edges attach to the node's body; " +
+  "SVG, PDF and PPTX draw them.";
 const SETS_NOTE =
   "`sets` draws a translucent circle, ellipse, rounded hull or rounded rectangle around nodes and " +
   "groups after they are placed, so a node can belong to several sets and sets may overlap: a Venn " +
@@ -393,7 +402,7 @@ export function galleryHtml(model: GalleryModel): string {
 <main>
 <h1>Sumi component gallery</h1>
 <p class="note">${inlineCode(GENERATED_NOTE)}</p>
-<nav aria-label="Contents"><ul><li><a href="#components">Components</a></li><li><a href="#examples">Examples</a></li><li><a href="#themes">Themes</a></li><li><a href="#tones">Tones</a></li><li><a href="#dim">Dimmed groups</a></li><li><a href="#sets">Set enclosures</a></li><li><a href="#comparison">Profiles</a></li></ul><ul>${toc}</ul></nav>
+<nav aria-label="Contents"><ul><li><a href="#components">Components</a></li><li><a href="#examples">Examples</a></li><li><a href="#themes">Themes</a></li><li><a href="#tones">Tones</a></li><li><a href="#dim">Dimmed groups</a></li><li><a href="#glyphs">Node glyphs</a></li><li><a href="#sets">Set enclosures</a></li><li><a href="#comparison">Profiles</a></li></ul><ul>${toc}</ul></nav>
 
 <h2 id="components">Components</h2>
 <p class="note">${inlineCode(`Every built-in component with every variant, under every built-in theme (profile \`${model.components[0]?.outcomes[0]?.profile ?? ""}\`). Each sample is the source shown below it; the other themes are rendered from the same source with \`--theme\`.`)}</p>
@@ -417,6 +426,9 @@ ${htmlTones(model.filledTones, FILLED_TONES_NOTE, "every tone solid and tinted")
 
 <h2 id="dim">Dimmed groups</h2>
 ${htmlTones(model.dim, DIM_NOTE, "a dimmed group")}
+
+<h2 id="glyphs">Node glyphs</h2>
+${htmlTones(model.glyphs, GLYPHS_NOTE, "node glyphs")}
 
 <h2 id="sets">Set enclosures</h2>
 ${htmlTones(model.sets, SETS_NOTE, "set enclosures")}
@@ -592,6 +604,11 @@ const TOPICS = [
   ],
   ["dim.md", "Dimmed groups", "A group drawn pale with everything inside it, under every theme."],
   [
+    "glyphs.md",
+    "Node glyphs",
+    "Feature vectors, dots and pills over a node's border, under every theme.",
+  ],
+  [
     "sets.md",
     "Set enclosures",
     "Overlapping translucent sets around nodes, for Venn diagrams and hyperedges, under every theme.",
@@ -715,6 +732,20 @@ function mdDim(model: GalleryModel): string {
   ]);
 }
 
+function mdGlyphs(model: GalleryModel): string {
+  return mdTopic("Node glyphs", undefined, [
+    mdInline(GLYPHS_NOTE),
+    "",
+    ...mdThemeRow(
+      model.glyphs.outcomes,
+      model.glyphs.sample.fileName,
+      (o) => `node glyphs, theme ${o.theme}`,
+      GALLERY_DIR,
+    ),
+    ...mdSource(model.glyphs.sample.fileName, model.glyphs.sample.source),
+  ]);
+}
+
 function mdSets(model: GalleryModel): string {
   return mdTopic("Set enclosures", undefined, [
     mdInline(SETS_NOTE),
@@ -778,6 +809,7 @@ function mdIndex(model: GalleryModel): string {
     "themes.md": ["Themes and profiles"],
     "tones.md": ["Tones"],
     "dim.md": ["Dimmed groups"],
+    "glyphs.md": ["Node glyphs"],
     "sets.md": ["Set enclosures"],
     "compare.md": ["Profiles", "One figure, every theme × profile"],
   };
@@ -835,6 +867,7 @@ export function galleryMarkdownPages(model: GalleryModel): Map<string, string> {
   pages.set(`${GALLERY_DIR}/themes.md`, mdThemes(model));
   pages.set(`${GALLERY_DIR}/tones.md`, mdTones(model));
   pages.set(`${GALLERY_DIR}/dim.md`, mdDim(model));
+  pages.set(`${GALLERY_DIR}/glyphs.md`, mdGlyphs(model));
   pages.set(`${GALLERY_DIR}/sets.md`, mdSets(model));
   pages.set(`${GALLERY_DIR}/compare.md`, mdCompare(model));
   return pages;

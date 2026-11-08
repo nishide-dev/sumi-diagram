@@ -5,6 +5,7 @@
  */
 
 import { badgeRect, iconRect } from "../../assets/draw";
+import { glyphRects } from "../../assets/glyphs";
 import type { HtmlMeasurement } from "../../assets/html-measure";
 import type { ElementIR, FigureIR, NodeIR, SetIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
@@ -41,6 +42,8 @@ export interface GeometryElement {
   labels: MeasuredLabel[];
   /** Full badge footprint, allowed to overlap only its own body. */
   badge?: Rect;
+  /** Footprints of the node's glyphs (#408), each allowed to overlap only its own body. */
+  glyphs?: Rect[];
   /** Edge: the route as polylines (cubics flattened). */
   route?: Point[][];
   /**
@@ -182,6 +185,9 @@ export function createGeometryContext(
       ...(element.kind === "node" &&
         element.badge !== undefined &&
         geometry.bbox !== undefined && { badge: badgeRect(element, geometry.bbox) as Rect }),
+      ...(element.kind === "node" &&
+        element.glyphs !== undefined &&
+        geometry.bbox !== undefined && { glyphs: glyphRects(element, geometry.bbox) }),
       labels: [
         ...geometry.labels.map((label) => measureLabel(label, fonts)),
         // An icon (#94) is drawn in place of the label: the rules that keep

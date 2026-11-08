@@ -55,6 +55,7 @@
  */
 
 import { assetMarkup, badgeMarkup, imagePlaceholder } from "../assets/draw";
+import { glyphMarkup } from "../assets/glyphs";
 import type { FigureAssets } from "../assets/load";
 import type { EdgeIR, FigureIR, GroupIR, NodeIR, SetIR } from "../compiler/ir";
 import type { ElementKey } from "../core/check-state";
@@ -1111,7 +1112,8 @@ export function writeStructuredSvg(
         colored(placed.label, node),
         asset,
         colored(placed.sublabel, node),
-        badgeMarkup(node, assets?.badges?.get(node.key), placed.rect),
+        badgeMarkup(node, assets?.badges?.get(node.key), placed.rect) +
+          glyphMarkup(node, placed.rect),
       ),
     );
     useText(placed.label);
