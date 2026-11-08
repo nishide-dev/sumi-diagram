@@ -6,7 +6,7 @@
  *
  * Compatibility: within a version, fields and sections are only added, never
  * removed or changed (design doc §6.10). The `themes` and `profiles` sections
- * were added to version 1 in #37, `icons` in #94, `targets` in #347 and `sets` in #407; a reader of
+ * were added to version 1 in #37, `icons` in #94, `targets` in #347, `sets` in #407 and `palettes` in #417; a reader of
  * `{ version: 1, components }` keeps working.
  */
 
@@ -24,6 +24,7 @@ import { buildCatalog, CATALOG_VERSION, type CatalogEntry } from "./registry/cat
 import type { ComponentKind } from "./registry/manifest";
 import type { Registry } from "./registry/registry";
 import { buildThemeCatalog, type ThemeCatalogEntry } from "./theme/catalog";
+import { BUILTIN_PALETTES, PALETTE_SOURCE, type Palette } from "./theme/palette";
 
 export const CATALOG_SECTIONS = [
   "components",
@@ -32,6 +33,7 @@ export const CATALOG_SECTIONS = [
   "icons",
   "targets",
   "sets",
+  "palettes",
 ] as const;
 export type CatalogSection = (typeof CATALOG_SECTIONS)[number];
 
@@ -47,6 +49,25 @@ export interface FullCatalog {
   targets?: ReturnType<typeof buildTargetCatalog>;
   /** Input schema for the figure's `sets`: enclosures that may overlap (#407). */
   sets?: ReturnType<typeof buildSetCatalog>;
+  /** The built-in color palettes, selected by `figure.themeOverrides.palette` (#417). */
+  palettes?: ReturnType<typeof buildPaletteCatalog>;
+}
+
+/** The built-in palettes with their four colors, the color roles they map to, and their source. */
+export function buildPaletteCatalog() {
+  return {
+    path: "figure.themeOverrides.palette",
+    description:
+      "Built-in color palettes: four colors mapped to the theme's color roles (panel, tint, accent, ink, plus derived muted and strong). Select one by name on any theme; tones other than gray, sizes and fonts stay the theme's. roles lists the colors a figure gets; adjusted names the roles that are derived or adjusted for contrast, not one of the four colors as published.",
+    source: PALETTE_SOURCE,
+    palettes: [...BUILTIN_PALETTES.values()].map((p: Palette) => ({
+      id: p.id,
+      description: p.description,
+      colors: [...p.colors],
+      roles: { ...p.roles },
+      adjusted: [...p.adjusted],
+    })),
+  };
 }
 
 export function buildTargetCatalog() {
@@ -93,5 +114,6 @@ export function buildFullCatalog(
     ...(sections.has("icons") && { icons: iconSets() }),
     ...(sections.has("targets") && { targets: buildTargetCatalog() }),
     ...(sections.has("sets") && { sets: buildSetCatalog() }),
+    ...(sections.has("palettes") && { palettes: buildPaletteCatalog() }),
   };
 }

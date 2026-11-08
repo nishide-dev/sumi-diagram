@@ -26,6 +26,7 @@
 - <a id="dimmed-groups"></a>[Dimmed groups](dim.md): A group drawn pale with everything inside it, under every theme\.
 - <a id="node-glyphs"></a>[Node glyphs](glyphs.md): Feature vectors, dots and pills over a node's border, under every theme\.
 - <a id="set-enclosures"></a>[Set enclosures](sets.md): Overlapping translucent sets around nodes, for Venn diagrams and hyperedges, under every theme\.
+- <a id="palettes"></a>[Palettes](palettes.md): One figure in every built\-in color palette, with each palette's colors and roles\.
 - <a id="profiles"></a><a id="one-figure-every-theme--profile"></a>[Profiles and comparison](compare.md): The built\-in profiles, and one figure under every theme and profile\.
 
 ## Components

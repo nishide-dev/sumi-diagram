@@ -9,7 +9,7 @@ import type { Locator } from "../core/figure/yaml";
 import type { Result } from "../core/result";
 import { getTheme } from "../core/theme/builtin";
 import { FONT_ASSETS_DIR } from "../core/theme/fonts";
-import { withToneOverrides } from "../core/theme/overrides";
+import { figureTheme } from "../core/theme/overrides";
 import type { Theme } from "../core/theme/schema";
 import { loadGlyphCoverage } from "../lint/cmap";
 import { formatCodePoint, glyphCodePoints } from "../lint/text";
@@ -82,7 +82,7 @@ export async function renderHtmlAssets(
       if (!image.viewport) throw new Error("Missing HTML viewport.");
       const builtin = getTheme(ir.meta.themeId);
       if (!builtin) throw new Error("Missing HTML theme.");
-      const theme = withToneOverrides(builtin, ir.meta.themeOverrides?.tones);
+      const theme = figureTheme(builtin, ir.meta.themeOverrides);
       const fonts = bundledFonts();
       const renderer = new Renderer();
       // Each renderer starts fresh. Explicit families select our supplied fonts;

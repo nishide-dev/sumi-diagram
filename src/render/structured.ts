@@ -64,7 +64,7 @@ import { SEPARATOR_ID } from "../core/registry/builtins";
 import type { Arrowhead } from "../core/registry/manifest";
 import { getTheme } from "../core/theme/builtin";
 import type { FontSet } from "../core/theme/fonts";
-import { withToneOverrides } from "../core/theme/overrides";
+import { figureTheme } from "../core/theme/overrides";
 import type { CommonStyle } from "../core/theme/style";
 import { groupLayerRects } from "../layout/group-layers";
 import type { LayoutIR, Point, Rect, SetLayout, TextLayout, TextRun } from "../layout/ir";
@@ -1025,7 +1025,7 @@ export function writeStructuredSvg(
   const groups = new Map(ir.groups.map((g) => [g.key, g]));
   const builtin = getTheme(ir.meta.themeId);
   // Inline tone runs take the figure's tone colors (#380).
-  const theme = builtin && withToneOverrides(builtin, ir.meta.themeOverrides?.tones);
+  const theme = builtin && figureTheme(builtin, ir.meta.themeOverrides);
   const colored = (
     layout: TextLayout | undefined,
     element: { readonly key: ElementKey; readonly style: { readonly fontColor: string } },

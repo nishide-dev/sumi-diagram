@@ -11,6 +11,7 @@
  * `toneOverrides` as well (see `resolveStyle`).
  */
 
+import { withPalette } from "./palette";
 import type { Theme, ToneOverride } from "./schema";
 import type { StyleLayer } from "./style";
 import type { Tone } from "./tones";
@@ -49,3 +50,20 @@ export function withToneOverrides(
 }
 
 const layer = (values: StyleLayer): StyleLayer => Object.freeze(values);
+
+/**
+ * The theme a figure is drawn with: the built-in theme in the figure's
+ * palette (#417), then its tone colors (#380), so an explicit tone color wins
+ * over the palette. The theme itself without either.
+ */
+export function figureTheme(
+  theme: Theme,
+  overrides:
+    | {
+        readonly palette?: string | undefined;
+        readonly tones?: Partial<Record<Tone, ToneOverride>> | undefined;
+      }
+    | undefined,
+): Theme {
+  return withToneOverrides(withPalette(theme, overrides?.palette), overrides?.tones);
+}

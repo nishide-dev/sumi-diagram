@@ -1,6 +1,6 @@
 # Node glyphs
 
-[Gallery](README.md) · [Examples](examples.md) · [Themes](themes.md) · [Tones](tones.md) · [Dimmed groups](dim.md) · [Node glyphs](glyphs.md) · [Set enclosures](sets.md) · [Profiles and comparison](compare.md)
+[Gallery](README.md) · [Examples](examples.md) · [Themes](themes.md) · [Tones](tones.md) · [Dimmed groups](dim.md) · [Node glyphs](glyphs.md) · [Set enclosures](sets.md) · [Palettes](palettes.md) · [Profiles and comparison](compare.md)
 
 A node's <code>glyphs</code> put small marks over its border: a feature vector \(a short column or row of cells\), a dot or a pill, centered on a corner or the middle of a side and moved by <code>dx</code> / <code>dy</code> \(ems\)\. A <code>tone</code> fills them from the theme's palette, as for a node, so the vector of a paper icon can change color per stage\. <code>strength: solid</code> fills with the tone's accent and a thin ink outline for readable small cells\. Layout reserves their room and edges attach to the node's body; SVG, PDF and PPTX draw them\.
 

@@ -22,7 +22,7 @@ figure:                    # required
   id: request-flow         # required ID
   title: Request handling  # optional, not drawn
   theme: minimal           # optional, default minimal
-  # themeOverrides: { nodeCorners: square, edgeCorners: sharp, groupLabelWeight: regular }
+  # themeOverrides: { palette: cool-blue, nodeCorners: square, edgeCorners: sharp }
   profile: paper-single    # optional, default paper-single
   # target: { height: 60mm, minFontSize: 5pt, minLineWidth: 0.5pt } # placement lint
   # fit: scale             # optional: shrink a too-wide figure to the profile width (layout-tips)
@@ -460,6 +460,8 @@ it is not an aspect-ratio score. Discover the target schema with `sumi catalog -
 `schema/unknown-field`, bad values `schema/invalid-value`; fonts, spacing and line widths
 stay the theme's):
 
+- `palette: cool-blue` recolours the whole figure with a built-in four-colour palette
+  (below). Tones, `groupFill` and the other keys refine it.
 - `nodeCorners: square` removes node/group frame radii (also expanded matrix/tokens cells
   and legend frames; circles, cylinders, curly brackets keep their outlines; auto figures too).
 - `edgeCorners: sharp` draws structured wires with sharp turns, T-joins at hidden junctions,
@@ -485,6 +487,20 @@ stay the theme's):
 
 Colours are strict `#RRGGBB` and apply before inherited dimming.
 
+**Palettes.** `themeOverrides.palette: <name>` gives the figure one coherent colour scheme
+on any theme (`minimal`, `color`, `paper`, `llama`, …; `academic` is grayscale by design, so
+leave it unpainted for black-and-white print). Names: `cool-blue` (navy, high contrast),
+`slate` (muted blue-gray), `coral` (warm), `terracotta` (earthy), `sage` (muted green),
+`lavender`, `cyan-pink` (cyan with a hot accent), `seafoam` (teal with a rose accent). A
+palette recolours text, frames, edges and arrowheads (ink), group panels (the palest colour),
+`filled`/`tinted` nodes and the `gray` tone (the tint), `solid` fills and outlined frames
+(a step paler than the ink) and `emphasis` nodes and edges (the accent). It never changes
+sizes, fonts, line weights or the other tones: `tone: green` stays the theme's green, so a
+tone still carries its meaning while the palette sets the mood. Every text keeps 4.5:1 on its
+fill in every palette. List the colours with `sumi catalog --section palettes`; an unknown
+name is `schema/invalid-value` with the closest name. Explicit `tones`, `groupFill`,
+`groupStroke` and `solidFills` win over the palette.
+
 ## Discovering themes and profiles
 
 ```sh
@@ -492,7 +508,8 @@ sumi catalog --json --section themes --section profiles
 ```
 
 prints `{ "version": 1, "themes": [...], "profiles": [...] }` (plain `--json` adds
-`components`, `icons` and the `targets` input schema; `--icons` searches icons). One entry of each:
+`components`, `icons`, the `targets` and `sets` input schemas and the `palettes`; `--icons`
+searches icons). One entry of each:
 
 ```json
 {

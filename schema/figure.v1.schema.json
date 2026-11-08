@@ -31,6 +31,20 @@
           "description": "Figure-wide refinements of the selected built-in theme. Omitted fields preserve the theme.",
           "type": "object",
           "properties": {
+            "palette": {
+              "description": "Built-in color palette (sumi catalog --section palettes): recolors text, frames, lines, panels, filled and tinted nodes, the gray tone and emphasis of the theme. Other tones, sizes and fonts stay the theme's; tones, groupFill and groupStroke below refine it.",
+              "type": "string",
+              "enum": [
+                "cool-blue",
+                "slate",
+                "coral",
+                "terracotta",
+                "sage",
+                "lavender",
+                "cyan-pink",
+                "seafoam"
+              ]
+            },
             "nodeCorners": {
               "description": "Square node/group frames, including expanded matrix/tokens cells and legends. Intrinsically curved shapes are preserved.",
               "type": "string",

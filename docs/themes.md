@@ -43,6 +43,10 @@ The pipeline ([`examples/pipeline`](../examples/pipeline/pipeline.sumi.yaml), au
 
 `paper-single` imposes a minimum font size (7pt), not a maximum: `slides` text meets it. This pipeline renders within the page limits, with two collision warnings (`geometry/label-collision` and `geometry/edge-crosses-label`). These are distinct from the `geometry/exceeds-page-height` error under `presentation-16x9`, where the larger spacing makes this tall pipeline exceed the slide height; see the [profile comparison](gallery/compare.md). For projection, use `slides` with `presentation-16x9` and a shallower layout.
 
+## Palettes
+
+`figure.themeOverrides.palette: <name>` recolors any theme with one of eight built-in four-color palettes (`cool-blue`, `slate`, `coral`, `terracotta`, `sage`, `lavender`, `cyan-pink`, `seafoam`): text, frames and edges take the palette's ink, group panels its palest color, filled nodes and the `gray` tone its tint, and `emphasis` its accent. Sizes, fonts and the other tones stay the theme's. See the [palette gallery](gallery/palettes.md) and `sumi catalog --section palettes`.
+
 ## More
 
 - [Gallery: themes](gallery/themes.md), [tones](gallery/tones.md), [dimmed groups](gallery/dim.md) and the [theme and profile matrix](gallery/compare.md)

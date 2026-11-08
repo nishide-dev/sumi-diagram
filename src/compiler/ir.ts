@@ -67,7 +67,8 @@ import { getTheme } from "../core/theme/builtin";
 import { dimmedElements } from "../core/theme/dim";
 import type { FontSetId } from "../core/theme/fonts";
 import { pageTextContrast } from "../core/theme/node-variants";
-import { withToneOverrides } from "../core/theme/overrides";
+import { figureTheme } from "../core/theme/overrides";
+import { withPalette } from "../core/theme/palette";
 import type { ThemeArrowhead } from "../core/theme/schema";
 import { resolveSetStyle, type SetStyle } from "../core/theme/set-style";
 import {
@@ -491,6 +492,9 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
     throw new Error("internal error: incomplete figure without error diagnostics");
   }
 
+  // Glyphs take the figure's palette like every other element (#417).
+  const glyphTheme = withPalette(theme, figure.themeOverrides?.palette);
+
   const sourceMap = new Map<ElementKey, SourceMapEntry>();
   const sourceEntry = (path: DocPath): SourceMapEntry => {
     const location = locate(path);
@@ -734,7 +738,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
           badge: freeze({ icon: iconIR(n.badge.icon), corner: n.badge.corner }),
         }),
         ...(n.glyphs !== undefined && {
-          glyphs: freeze(glyphsOf(n.glyphs, style, theme, dimmed.includes(key)).map(freeze)),
+          glyphs: freeze(glyphsOf(n.glyphs, style, glyphTheme, dimmed.includes(key)).map(freeze)),
         }),
         ...(component.manifest.embed === "image" && {
           image: imageIR(
@@ -797,7 +801,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
 
   const elements = readonlyMap([...groups, ...nodes, ...edges].map((e) => [e.key, e] as const));
 
-  const setTheme = withToneOverrides(theme, figure.themeOverrides?.tones);
+  const setTheme = figureTheme(theme, figure.themeOverrides);
   const sets: SetIR[] = [];
   for (const [index, set] of (doc.sets ?? []).entries()) {
     if (set === undefined) continue;

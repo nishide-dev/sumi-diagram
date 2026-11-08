@@ -15,11 +15,13 @@ import type { Diagnostic } from "../../src/core/diagnostics";
 import { BUILTIN_PROFILES } from "../../src/core/profile/builtin";
 import type { CatalogEntry } from "../../src/core/registry/catalog";
 import { BUILTIN_THEMES } from "../../src/core/theme/builtin";
+import { BUILTIN_PALETTES, PALETTE_SOURCE } from "../../src/core/theme/palette";
 import { formatMm, formatPt } from "../../src/core/units";
 import type { RenderOutcome } from "./render";
 import {
   type ComponentSample,
   GALLERY_DIR,
+  type PaletteSample,
   PROFILES,
   THEME_COMPARISON_PROFILE,
   THEMES,
@@ -41,6 +43,8 @@ export interface GalleryModel {
   glyphs: { sample: ToneSample; outcomes: RenderOutcome[] };
   /** Set enclosures under every theme (#407). */
   sets: { sample: ToneSample; outcomes: RenderOutcome[] };
+  /** One figure under every built-in palette (#417). */
+  palettes: { sample: PaletteSample; outcomes: RenderOutcome[] };
   /** Every tone as an outline and on edges under every theme (#177). */
   outlinedTones: { sample: ToneSample; outcomes: RenderOutcome[] };
   filledTones: { sample: ToneSample; outcomes: RenderOutcome[] };
@@ -313,6 +317,42 @@ const SETS_NOTE =
   "place the members with `place` and leave room for the outline and label. A node inside the " +
   "outline that is not a member is reported (`geometry/set-contains-non-member`).";
 
+const PALETTES_NOTE =
+  "`figure.themeOverrides.palette: <name>` recolors a theme with four colors from a popular Color Hunt palette: " +
+  "panels (group fill) take the palest, filled and tinted nodes and the `gray` tone the tint, emphasis the accent, and text, " +
+  "frames and edges the ink (the darkest color, darkened to 9:1 on white when it is paler). Every text keeps at least 4.5:1 " +
+  "on the fill it sits on, so the same figure reads in each palette; the other tones, sizes and fonts stay the theme's " +
+  "(the legend's green is the theme's). The figure is the same in every palette: only `palette` changes in the source. " +
+  `Colors: ${PALETTE_SOURCE}. \`sumi catalog --section palettes\` lists them.`;
+
+const swatch = (color: string) =>
+  `<span style="display:inline-block;width:14px;height:14px;vertical-align:-2px;margin-right:4px;background:${color};border:1px solid #0003"></span>`;
+
+function htmlPalettes(palettes: GalleryModel["palettes"]): string {
+  const rows = [...BUILTIN_PALETTES.values()]
+    .map((p) => {
+      const roles = Object.entries(p.roles)
+        .map(([role, color]) => `${swatch(color)}<code>${role} ${color}</code>`)
+        .join("<br>");
+      return `<tr><th><code>${escapeHtml(p.id)}</code></th><td>${p.colors.map((c) => `${swatch(c)}<code>${c}</code>`).join("<br>")}</td><td>${roles}</td><td>${escapeHtml(p.adjusted.join(", "))}</td><td>${escapeHtml(p.description)}</td></tr>`;
+    })
+    .join("");
+  const renders = palettes.outcomes
+    .map((o, i) => {
+      const id = palettes.sample.renderings[i]?.palette ?? "";
+      return htmlFigure(
+        o,
+        `palette <code>${escapeHtml(id)}</code> · <code>themeOverrides.palette: ${escapeHtml(id)}</code>`,
+        `one figure, palette ${id}`,
+      );
+    })
+    .join("");
+  return `<p>${inlineCode(PALETTES_NOTE)}</p>
+<div style="overflow-x:auto"><table><thead><tr><th>palette</th><th>colors as published</th><th>roles</th><th>derived or adjusted</th><th>description</th></tr></thead><tbody>${rows}</tbody></table></div>
+<div class="renders">${renders}</div>
+<details><summary>Source: <code>${escapeHtml(palettes.sample.fileName)}</code> (palette ${escapeHtml(palettes.sample.renderings[0]?.palette ?? "")})</summary><pre>${escapeHtml(palettes.sample.source)}</pre></details>`;
+}
+
 const OUTLINED_TONES_NOTE =
   "With `variant: outlined` a tone colors the outline and the text of a node instead of its fill " +
   "(left column; without a tone, tone gray's). An edge's `tone` colors its line, arrowheads and " +
@@ -402,7 +442,7 @@ export function galleryHtml(model: GalleryModel): string {
 <main>
 <h1>Sumi component gallery</h1>
 <p class="note">${inlineCode(GENERATED_NOTE)}</p>
-<nav aria-label="Contents"><ul><li><a href="#components">Components</a></li><li><a href="#examples">Examples</a></li><li><a href="#themes">Themes</a></li><li><a href="#tones">Tones</a></li><li><a href="#dim">Dimmed groups</a></li><li><a href="#glyphs">Node glyphs</a></li><li><a href="#sets">Set enclosures</a></li><li><a href="#comparison">Profiles</a></li></ul><ul>${toc}</ul></nav>
+<nav aria-label="Contents"><ul><li><a href="#components">Components</a></li><li><a href="#examples">Examples</a></li><li><a href="#themes">Themes</a></li><li><a href="#tones">Tones</a></li><li><a href="#dim">Dimmed groups</a></li><li><a href="#glyphs">Node glyphs</a></li><li><a href="#sets">Set enclosures</a></li><li><a href="#palettes">Palettes</a></li><li><a href="#comparison">Profiles</a></li></ul><ul>${toc}</ul></nav>
 
 <h2 id="components">Components</h2>
 <p class="note">${inlineCode(`Every built-in component with every variant, under every built-in theme (profile \`${model.components[0]?.outcomes[0]?.profile ?? ""}\`). Each sample is the source shown below it; the other themes are rendered from the same source with \`--theme\`.`)}</p>
@@ -432,6 +472,9 @@ ${htmlTones(model.glyphs, GLYPHS_NOTE, "node glyphs")}
 
 <h2 id="sets">Set enclosures</h2>
 ${htmlTones(model.sets, SETS_NOTE, "set enclosures")}
+
+<h2 id="palettes">Palettes</h2>
+${htmlPalettes(model.palettes)}
 
 <h2 id="comparison">Profiles</h2>
 ${profilesTable()}
@@ -614,6 +657,11 @@ const TOPICS = [
     "Overlapping translucent sets around nodes, for Venn diagrams and hyperedges, under every theme.",
   ],
   [
+    "palettes.md",
+    "Palettes",
+    "One figure in every built-in color palette, with each palette's colors and roles.",
+  ],
+  [
     "compare.md",
     "Profiles and comparison",
     "The built-in profiles, and one figure under every theme and profile.",
@@ -760,6 +808,30 @@ function mdSets(model: GalleryModel): string {
   ]);
 }
 
+function mdPalettes(model: GalleryModel): string {
+  const { sample, outcomes } = model.palettes;
+  const ids = sample.renderings.map((r) => r.palette);
+  return mdTopic("Palettes", undefined, [
+    mdInline(PALETTES_NOTE),
+    "",
+    "| palette | colors as published | roles | derived or adjusted |",
+    "| --- | --- | --- | --- |",
+    ...[...BUILTIN_PALETTES.values()].map(
+      (p) =>
+        `| ${mdCode(p.id)} | ${p.colors.map(mdCode).join("<br>")} | ${Object.entries(p.roles)
+          .map(([role, color]) => mdCode(`${role} ${color}`))
+          .join("<br>")} | ${mdText(p.adjusted.join(", "))} |`,
+    ),
+    "",
+    `| ${ids.map(mdCode).join(" | ")} |`,
+    `| ${ids.map(() => "---").join(" | ")} |`,
+    `| ${outcomes.map((o, i) => mdImage(o, `one figure, palette ${ids[i]}`, GALLERY_DIR)).join(" | ")} |`,
+    `| ${outcomes.map((o, i) => `${mdCode(`themeOverrides.palette: ${ids[i]}`)}<br>${mdCaption(o)}`).join(" | ")} |`,
+    "",
+    ...mdSource(sample.fileName, sample.source),
+  ]);
+}
+
 function mdCompare(model: GalleryModel): string {
   const lines = [
     "## Profiles",
@@ -811,6 +883,7 @@ function mdIndex(model: GalleryModel): string {
     "dim.md": ["Dimmed groups"],
     "glyphs.md": ["Node glyphs"],
     "sets.md": ["Set enclosures"],
+    "palettes.md": ["Palettes"],
     "compare.md": ["Profiles", "One figure, every theme × profile"],
   };
   return [
@@ -869,6 +942,7 @@ export function galleryMarkdownPages(model: GalleryModel): Map<string, string> {
   pages.set(`${GALLERY_DIR}/dim.md`, mdDim(model));
   pages.set(`${GALLERY_DIR}/glyphs.md`, mdGlyphs(model));
   pages.set(`${GALLERY_DIR}/sets.md`, mdSets(model));
+  pages.set(`${GALLERY_DIR}/palettes.md`, mdPalettes(model));
   pages.set(`${GALLERY_DIR}/compare.md`, mdCompare(model));
   return pages;
 }

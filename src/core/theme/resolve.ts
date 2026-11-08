@@ -27,7 +27,7 @@ import type { ComponentId, ComponentKind } from "../registry/manifest";
 import { resolveTheme } from "./builtin";
 import { dimmedElements, dimStyle } from "./dim";
 import { contrastRatio as contrast, filledToneNode, readableInk } from "./node-variants";
-import { withToneOverrides } from "./overrides";
+import { figureTheme } from "./overrides";
 import type { Theme, ToneOverride } from "./schema";
 import {
   mergeStyle,
@@ -155,7 +155,7 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
   state.diagnostics.push(...resolved.diagnostics);
   if (!resolved.ok) return undefined;
   const overrides = state.doc.figure?.themeOverrides;
-  const theme = withToneOverrides(resolved.value, overrides?.tones);
+  const theme = figureTheme(resolved.value, overrides);
   reportToneContrast(state, locate, theme);
   const dimmed = dimmedElements(state.doc);
   const chatParts = chatVisuals(state);

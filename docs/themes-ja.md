@@ -43,6 +43,10 @@ pipeline（[`examples/pipeline`](../examples/pipeline/pipeline.sumi.yaml)、自�
 
 `paper-single` が定めるのはフォントサイズの下限（7pt）であり、上限ではありません。`slides` の文字はこの下限を満たし、この pipeline はページ内に収まりますが、衝突の warning が 2 件（`geometry/label-collision`・`geometry/edge-crosses-label`）出ます。これは、間隔が広がって縦長の pipeline がスライドの高さを超える `presentation-16x9` の error（`geometry/exceeds-page-height`）とは別です（[プロファイルの比較](gallery/compare.md)）。投影には `slides` と `presentation-16x9` を使い、段数を減らしたレイアウトにしてください。
 
+## パレット
+
+`figure.themeOverrides.palette: <名前>` で、どのテーマにも 4 色の組み込みパレット（`cool-blue`・`slate`・`coral`・`terracotta`・`sage`・`lavender`・`cyan-pink`・`seafoam`）を重ねて図全体の色合いを変えられます。文字・枠・辺はパレットの ink、グループのパネルは最も淡い色、filled のノードと `gray` tone は tint、`emphasis` は accent になります。大きさ・フォント・ほかの tone はテーマのままです。[パレットのギャラリー](gallery/palettes.md)と `sumi catalog --section palettes` を参照してください。
+
 ## 関連
 
 - [ギャラリー: テーマ](gallery/themes.md)・[tone](gallery/tones.md)・[dim](gallery/dim.md)・[テーマ × プロファイルの一覧](gallery/compare.md)
