@@ -1,0 +1,39 @@
+# An original illustrative exchange, not a recorded model response or evaluation.
+version: 1
+figure:
+  id: llm-dialogue
+  title: LLM dialogue — a math word problem
+  theme: llama
+  profile: paper-single
+  layout:
+    arrange:
+      chat:
+        width: 80mm
+        maxWidth: 0.68
+        speakers:
+          user: { side: right, avatar: user-avatar, tone: blue, variant: filled }
+          assistant: { side: left, avatar: assistant-avatar }
+        items:
+          - { node: question, from: user, meta: User }
+          - { node: solution, from: assistant, meta: Assistant }
+          - { node: follow-up, from: user, meta: User }
+          - { node: answer, from: assistant, meta: Assistant }
+nodes:
+  - { id: user-avatar, component: circle, icon: tabler/user, variant: filled, tone: blue, props: { width: 18pt, height: 18pt } }
+  - { id: assistant-avatar, component: circle, icon: tabler/robot, variant: filled, tone: gray, props: { width: 18pt, height: 18pt } }
+  - id: question
+    component: bubble
+    label: Mia has 3 boxes of 8 crayons. She gives away 5 crayons. How many are left?
+  - id: solution
+    component: bubble
+    label: |-
+      Start with $3 \times 8 = 24$ crayons.
+      Subtract the 5 she gives away:
+      $24 - 5 = 19$.
+      Mia has 19 crayons left.
+  - { id: follow-up, component: bubble, label: What if she gives away 7 instead? }
+  - id: answer
+    component: bubble
+    label: |-
+      Then $24 - 7 = 17$.
+      She has 17 crayons left.

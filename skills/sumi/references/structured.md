@@ -216,9 +216,9 @@ non-bubble message nodes and normal unknown/duplicate placements are errors;
 `layout/chat-overflow` warns when visuals exceed the column: widen it, reduce
 `maxWidth` or shorten the note. Keep the phone frame, header and input bar separate.
 
-In the repository, `examples/chat/chat.sumi.yaml` shows a complete Japanese
+The bundled [chat](../examples/chat/chat.sumi.yaml) example shows a complete Japanese
 conversation with a date divider, read receipts and an initial avatar;
-`examples/llm-dialogue/llm-dialogue.sumi.yaml` shows an English paper-single
+[llm-dialogue](../examples/llm-dialogue/llm-dialogue.sumi.yaml) shows an English paper-single
 dialogue with generic user/robot circle icons, speaker meta notes and multi-line
 inline math. Both use `llama`, need no scaling and have no lint diagnostics.
 Use `|-` for explicit multi-line answers; keep each `$...$` expression short

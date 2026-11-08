@@ -1,6 +1,6 @@
 # Worked examples
 
-For a requested model or figure style only, consult the [bundled reference figures](../examples/README.md); they are not templates for unrelated figures.
+These are runs of the workflow. For finished figures to look at before writing and compare with after rendering, see the [bundled reference figures](../examples/README.md) (PNG and YAML); they are idiom references, not content to copy.
 
 **Purpose.** Real runs of the workflow (outputs abbreviated); `sumi` is the
 skill's `scripts/sumi` wrapper. Contents: 1 [decision flow](#1-success-a-decision-flow) ·

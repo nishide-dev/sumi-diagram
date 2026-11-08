@@ -1,0 +1,82 @@
+# Nested groups built only from built-in components: a system group holding
+# two modules, one of which holds a nested submodule. Two parallel paths run
+# from an entry outside the groups, through each module, to a result.
+#
+# Layout: `direction: right`, so edges enter the groups from the side. With
+# `direction: down` they enter from above and cross the groups' centered labels
+# (`geometry/edge-crosses-label`). Five columns are wider than paper-single's
+# 88mm, so the profile is paper-double (180mm; the figure is about 176mm).
+#
+# Edges connect nodes across group boundaries at every nesting level; none ends
+# on a group itself.
+#
+# Render: bun run example:render examples/grouped/grouped.sumi.yaml
+version: 1
+figure:
+  id: grouped
+  title: Nested groups
+  theme: minimal
+  profile: paper-double
+  layout:
+    direction: right
+
+groups:
+  - id: system
+    label: System
+  - id: module-a
+    label: Module A
+    group: system
+  - id: module-b
+    label: Module B
+    group: system
+  - id: submodule
+    label: Submodule
+    variant: muted
+    group: module-b
+
+nodes:
+  - id: entry
+    component: ellipse
+    label: Entry
+  - id: step-a1
+    component: box
+    label: Step A1
+    group: module-a
+  - id: step-a2
+    component: box
+    label: Step A2
+    group: module-a
+  - id: step-b1
+    component: box
+    label: Step B1
+    group: module-b
+  - id: step-b2
+    component: box
+    label: Step B2
+    variant: emphasis
+    group: submodule
+  - id: step-b3
+    component: box
+    label: Step B3
+    variant: muted
+    group: submodule
+  - id: result
+    component: document
+    label: Result
+
+edges:
+  - from: entry
+    to: step-a1
+  - from: step-a1
+    to: step-a2
+  - from: step-a2
+    to: result
+  - from: entry
+    to: step-b1
+  - from: step-b1
+    to: step-b2
+  - from: step-b2
+    to: step-b3
+    variant: dashed
+  - from: step-b3
+    to: result
