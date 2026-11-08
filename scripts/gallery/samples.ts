@@ -1227,7 +1227,6 @@ figure:
 
 groups:
   - id: encoder
-    caption: Encoder
     arrange: { row: { gap: 7mm, items: [embed, attn, ffn] } }
 
 nodes:

@@ -19,16 +19,17 @@
 
 ### 4 色から役割への割り当て
 
-パレットの 4 色は、明度の順に **panel**（最も淡い）・**tint**（2 番目に淡い）・**accent**（強調に使う 1 色）・**ink**（最も濃い）に割り当てる。これに、ink から導く **muted** と **strong** を足した 6 つが、テーマのどこに効くかの単位になる。
+パレットの 4 色は、明度の順に **panel**（最も淡い）・**tint**（2 番目に淡い）・**accent**（強調に使う 1 色）・**ink**（最も濃い）に割り当てる。これに、ink から導く **muted**、accent から導く **strong**、panel と tint から導く **soft**・**frame**（`muted` のグループ用）を足した 8 つが、テーマのどこに効くかの単位になる。panel と tint は、公開された色が白に近すぎる（`cool-blue` の `#f9f7f7`、`cyan-pink` の `#f5f5f5`）か、パレットの色相が出ない（`sage`・`seafoam` のクリーム・桃色）ときは、パレットの定義で別の公開色、またはその色を白・accent へ寄せた色にする。
 
 | 役 | 決め方 | 効く先 |
 | --- | --- | --- |
-| panel | 最も淡い色（そのまま） | グループの塗り（`container` の既定。塗りのないグループは透明のまま）、枠なしの淡いパネル |
+| panel | 淡い色。パレットの色相が見えるもの（公開色、または公開色を白へ寄せた色） | グループの塗り（`container` の既定。塗りのないグループは透明のまま）、枠なしの淡いパネル |
 | tint | 2 番目に淡い色。ink が読める 4.5:1 に足りなければ白へ寄せる | `filled`・`tinted` のノード、`gray` tone の塗り、`container` の `filled`、`emphasis` が塗りの theme（academic・slides）の塗り |
 | accent | 公開された色のうち、強調に選んだ 1 色。白に対して 4.5:1 に足りなければ、色相を保って明度を下げる | `emphasis` の枠（全テーマ）、`emphasis` の辺、llama の `emphasis` の塗り（白い文字が 4.5:1 になる） |
 | ink | 最も濃い色。白に対して 9:1 に足りなければ黒へ寄せる | 文字、ノードの枠、辺・矢じり、junction、グループ見出し |
 | muted | ink を白へ寄せ、白とパネルの上で 4.5:1 を保つ限り薄くした色 | `muted` の variant、ラベルの `muted`、グループの枠、凡例の枠、拡大線など灰色の補助線 |
-| strong | ink を最大 25% 白へ寄せた色。白とパネルの上で 5:1 / 4.5:1 | `solid` の塗り（白い文字）、`outlined` の枠と文字、`gray` tone の線（辺・ハッチ・set の輪郭） |
+| strong | accent の公開色を、色相を保って白とパネルの上で 4.5:1 になるまで暗くした色（accent と同系の濃い色） | `solid` の塗り（白い文字。灰色ではなくパレットの色になる）、`outlined` の枠と文字、`gray` tone の線（辺・ハッチ・set の輪郭） |
+| soft / frame | soft は panel を白へ 50% 寄せた色、frame は tint を ink へ 30% 寄せた色 | `muted` のグループ（`sumi/container` の `muted`）の塗りと枠。他のテーマでは白地に灰色の枠だったものが、パレットの淡い色になる（塗りのない theme は透明のまま） |
 
 実装は、テーマごとの値を知らずに済むよう、テーマが役割ごとに持つ色を**値で写す**。役割は組み込みテーマが共通して置く場所から読む（`colorMap()`）。
 
@@ -55,27 +56,27 @@ tone は**テーマのまま**にする。`red`・`blue`・`green` などは図�
 
 | 名前 | 4 色（公開された順） | 性格と役 |
 | --- | --- | --- |
-| `cool-blue` | `#f9f7f7 #dbe2ef #3f72af #112d4e` | 冷たい青。背景・面・強調・文字の 4 役そのもの。高コントラスト。panel `#f9f7f7`、tint `#dbe2ef`、accent `#3f72af`、ink `#112d4e` |
-| `slate` | `#27374d #526d82 #9db2bf #dde6ed` | くすんだ青灰色。濃淡 4 段階。panel `#dde6ed`、tint `#9db2bf`、accent `#526d82`、ink `#27374d`。落ち着いた図向け |
-| `coral` | `#fff5e4 #ffe3e1 #ffd1d1 #ff9494` | 暖色。クリームと桃色。ink は #ff9494 の暗い色、accent は同じ色相を保って暗くしたもの |
-| `terracotta` | `#7d5a50 #b4846c #e5b299 #fcdec0` | くすんだ土色。panel `#fcdec0`、tint `#e5b299`、accent `#b4846c` を暗く、ink `#7d5a50` を暗く |
-| `sage` | `#f8ede3 #bdd2b6 #a2b29f #798777` | くすんだ緑。accent は `#bdd2b6` の色相を保って暗くした緑、ink は `#798777` を暗く |
-| `lavender` | `#f4eeff #dcd6f7 #a6b1e1 #424874` | ラベンダー。panel `#f4eeff`、tint `#dcd6f7`、accent は `#a6b1e1` を暗く、ink `#424874` を暗く |
-| `cyan-pink` | `#364f6b #3fc1c9 #f5f5f5 #fc5185` | 高コントラストで、シアンの塗りとピンクの強調。ink `#364f6b` を暗く、tint `#3fc1c9` を淡く、accent `#fc5185` を暗く |
-| `seafoam` | `#ffb6b9 #fae3d9 #bbded6 #61c0bf` | 緑青。panel `#fae3d9`、tint `#bbded6`、accent は `#ffb6b9` を暗くしたバラ色、ink は `#61c0bf` を暗くした深い青緑 |
+| `cool-blue` | `#f9f7f7 #dbe2ef #3f72af #112d4e` | 冷たい青。高コントラスト。panel `#dbe2ef`（公開色）、tint は `#dbe2ef` を accent へ寄せた青、accent `#3f72af`、ink `#112d4e` |
+| `slate` | `#27374d #526d82 #9db2bf #dde6ed` | くすんだ青灰色。panel `#dde6ed`、tint `#9db2bf`、accent `#526d82`、ink `#27374d`。落ち着いた図向け |
+| `coral` | `#fff5e4 #ffe3e1 #ffd1d1 #ff9494` | 暖色（ピンク）。panel `#ffe3e1`、tint は `#ffd1d1` と `#ff9494` の中間、accent は `#ff9494` を暗くした赤、ink は `#ff9494` を暗くした茶 |
+| `terracotta` | `#7d5a50 #b4846c #e5b299 #fcdec0` | くすんだ土色。panel `#fcdec0`、tint `#e5b299`、accent は `#b4846c` を暗く、ink は `#7d5a50` を暗く |
+| `sage` | `#f8ede3 #bdd2b6 #a2b29f #798777` | くすんだ緑。panel は `#bdd2b6` を白へ寄せた淡い緑、tint `#bdd2b6`、accent は `#bdd2b6` を暗くした緑、ink は `#798777` を暗く |
+| `lavender` | `#f4eeff #dcd6f7 #a6b1e1 #424874` | ラベンダー。panel は `#dcd6f7` を白へ寄せた色、tint `#dcd6f7`、accent は `#a6b1e1` を暗くした青紫、ink は `#424874` を暗く |
+| `cyan-pink` | `#364f6b #3fc1c9 #f5f5f5 #fc5185` | 高コントラスト。panel は `#3fc1c9` を白へ寄せた淡いシアン、tint は `#3fc1c9`（ink が読めるよう少し淡く）、accent は `#fc5185` を暗くしたピンク、ink は `#364f6b` を暗く |
+| `seafoam` | `#ffb6b9 #fae3d9 #bbded6 #61c0bf` | 緑青。panel は `#bbded6` を白へ寄せた淡い緑、tint `#bbded6`、accent は `#61c0bf` を暗くした青緑、ink は同じ色をさらに暗くした深い青緑。ピンクの 2 色は使わない |
 
 各パレットの実際の役の色（`sumi catalog --section palettes` と同じ）と、公開された色のまま使えなかった役を次に示す。「調整した役」に ink・tint・accent の名前があるものは、その役の色が公開された 4 色のどれでもない（muted と strong は常に ink から導く）。
 
-| 名前 | panel / tint / accent / ink / muted / strong | 調整した役 |
+| 名前 | panel / tint / accent / ink / muted / strong / soft / frame | 調整した役 |
 | --- | --- | --- |
-| `cool-blue` | `#f9f7f7 #dbe2ef #3f72af #112d4e #607288 #4d627a` | なし |
-| `slate` | `#dde6ed #9db2bf #526d82 #27374d #5b6778 #5b6778` | なし |
-| `coral` | `#fff5e4 #ffe3e1 #cb4b4b #663b3b #896868 #886666` | ink, accent |
-| `terracotta` | `#fcdec0 #e5b299 #9c6950 #5d433b #755f58 #755f58` | ink, accent |
-| `sage` | `#f8ede3 #bdd2b6 #5a7e4e #434a41 #696e67 #696e67` | ink, accent |
-| `lavender` | `#f4eeff #dcd6f7 #5d71c8 #404671 #666b8d #666b8d` | ink, accent |
-| `cyan-pink` | `#f5f5f5 #50c7ce #ca476f #334a65 #607287 #5e7085` | ink, tint, accent |
-| `seafoam` | `#fae3d9 #bbded6 #ca494e #284f4e #4d6d6c #4d6d6c` | ink, accent |
+| `cool-blue` | `#dbe2ef #acc0dc #3f72af #112d4e #51667e #38659c #edf1f7 #7e94b1` | tint, strong |
+| `slate` | `#dde6ed #9db2bf #526d82 #27374d #5b6778 #4f697d #eef3f6 #7a8d9d` | strong |
+| `coral` | `#ffe3e1 #ffb3b3 #cb4b4b #663b3b #836060 #bf3737 #fff1f0 #d18f8f` | ink, tint, accent, strong |
+| `terracotta` | `#fcdec0 #e5b299 #9c6950 #5d433b #755f58 #875b45 #feefe0 #bc917d` | ink, accent, strong |
+| `sage` | `#e1ebde #bdd2b6 #5a7e4e #434a41 #636961 #4f7045 #f0f5ef #98a993` | ink, panel, accent, strong |
+| `lavender` | `#ece8fb #dcd6f7 #5d71c8 #404671 #62678b #4b62c2 #f6f4fd #adabcf` | ink, panel, accent, strong |
+| `cyan-pink` | `#d9f3f4 #50c7ce #ca476f #334a65 #5a6c82 #bf3761 #ecf9fa #47a2af` | ink, panel, tint, accent, strong |
+| `seafoam` | `#e0f0ed #bbded6 #348281 #284f4e #517070 #2e7473 #f0f8f6 #8fb3ad` | ink, panel, accent, strong |
 
 ink を 9:1（白の上）に定めたのは、accent と ink を色覚の違いで見分けるために明度の差を大きく取るため。7:1 では coral の P 型で accent と ink の色差（CIE76 の ΔE）が 13 だった。
 
@@ -91,21 +92,21 @@ ink を 9:1（白の上）に定めたのは、accent と ink を色覚の違い
 
 | 名前 | ink のコントラスト | muted（panel） | 白に対する strong / accent | L\* | ΔE（accent-ink） |
 | --- | --- | --- | --- | --- | --- |
-| `cool-blue` | 13.9 / 13.0 / 10.7 | 4.6 | 6.3 / 5.0 | 97 / 90 / 47 / 18 | 32.4 / 32.9 / 32.2 |
-| `slate` | 12.1 / 9.5 / 5.5 | 4.5 | 5.7 / 5.4 | 91 / 71 / 45 / 23 | 22.6 / 22.4 / 21.9 |
-| `coral` | 9.3 / 8.6 / 7.7 | 4.6 | 5.1 / 4.5 | 97 / 92 / 50 / 30 | 42.1 / 19.2 / 31.5 |
-| `terracotta` | 9.0 / 7.0 / 4.8 | 4.6 | 5.9 / 4.6 | 90 / 77 / 49 / 31 | 23.6 / 20.6 / 23.4 |
-| `sage` | 9.2 / 7.9 / 5.7 | 4.5 | 5.2 / 4.6 | 94 / 82 / 49 / 31 | 31.1 / 28.1 / 24.4 |
-| `lavender` | 9.0 / 7.9 / 6.4 | 4.6 | 5.2 / 4.5 | 95 / 87 / 50 / 31 | 30.1 / 29.4 / 29.7 |
-| `cyan-pink` | 9.1 / 8.3 / 4.5 | 4.5 | 5.1 / 4.5 | 97 / 74 / 50 / 31 | 63.6 / 16.0 / 39.2 |
-| `seafoam` | 9.1 / 7.4 / 6.3 | 4.6 | 5.6 / 4.6 | 92 / 86 / 49 / 31 | 73.9 / 18.6 / 42.4 |
+| `cool-blue` | 13.9 / 10.7 / 7.5 | 4.5 | 6.0 / 5.0 | 90 / 77 / 47 / 18 | 32.4 / 32.9 / 32.2 |
+| `slate` | 12.1 / 9.5 / 5.5 | 4.5 | 5.8 / 5.4 | 91 / 71 / 45 / 23 | 22.6 / 22.4 / 21.9 |
+| `coral` | 9.3 / 7.7 / 5.5 | 4.6 | 5.5 / 4.5 | 92 / 80 / 50 / 30 | 42.1 / 19.2 / 31.5 |
+| `terracotta` | 9.0 / 7.0 / 4.8 | 4.6 | 5.8 / 4.6 | 90 / 77 / 49 / 31 | 23.6 / 20.6 / 23.4 |
+| `sage` | 9.2 / 7.5 / 5.7 | 4.6 | 5.6 / 4.6 | 92 / 82 / 49 / 31 | 31.1 / 28.1 / 24.4 |
+| `lavender` | 9.0 / 7.5 / 6.4 | 4.6 | 5.5 / 4.5 | 93 / 87 / 50 / 31 | 30.1 / 29.4 / 29.7 |
+| `cyan-pink` | 9.1 / 7.8 / 4.5 | 4.6 | 5.3 / 4.5 | 94 / 74 / 50 / 31 | 63.6 / 16.0 / 39.2 |
+| `seafoam` | 9.1 / 7.7 / 6.3 | 4.6 | 5.4 / 4.5 | 94 / 86 / 50 / 31 | 21.5 / 19.9 / 18.8 |
 
 **公開された色のままでは通らず、調整した色**:
 
 - `coral`・`terracotta`・`sage`・`lavender`・`cyan-pink`・`seafoam` の ink: 最も濃い色が白の上で 9:1 に満たない（`#ff9494` は 2.1:1、`#364f6b` は 8.4:1 など）ので、黒へ寄せて 9:1 にした。`cool-blue`・`slate` は公開された色のまま。
 - `coral`・`terracotta`・`sage`・`lavender`・`cyan-pink`・`seafoam` の accent: 公開された色が淡く、白の上で 4.5:1（枠として見えて、白い文字が読める値）に満たないので、色相を保って明度を下げた。彩度は 0.55 までにして、淡い色が蛍光色にならないようにした。
-- `cyan-pink` の tint（`#3fc1c9`）: ink がその上で 4.5:1 に満たない（3.8:1）ので、白へ寄せて `#50c7ce` にした。
-- slate の strong は muted と同じ色になる（パネルが濃く、strong の上限が panel の上の 4.5:1 で決まるため）。
+- `cool-blue` の tint、`coral` の tint、`sage`・`lavender`・`cyan-pink`・`seafoam` の panel: 公開色を白や accent へ寄せた派生色。`cyan-pink` の tint（`#3fc1c9`）: ink がその上で 4.5:1 に満たない（3.8:1）ので、白へ寄せて `#50c7ce` にした。
+- `strong` は accent の公開色から導く（panel の上で 4.5:1 になるまで暗くする）。panel が濃い `slate` では `#4f697d` と、accent `#526d82` よりやや濃い。
 
 制約として、`slate` の accent は ink と同じ青灰色の系統で、色相の差は小さい（ΔE 22）。強調は太い枠でも示すので見落とされないが、色だけで強調を伝える図には向かない。`coral` の P 型の ΔE が 19、`cyan-pink`・`seafoam` が 16〜19 と小さいのは、赤とこげ茶・紺・深緑が P 型でともに暗く見えるため。明度の差（L\* で 20 以上）で見分ける設計にしてある。
 

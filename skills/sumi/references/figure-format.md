@@ -491,10 +491,11 @@ Colours are strict `#RRGGBB` and apply before inherited dimming.
 on any theme (`minimal`, `color`, `paper`, `llama`, …; `academic` is grayscale by design, so
 leave it unpainted for black-and-white print). Names: `cool-blue` (navy, high contrast),
 `slate` (muted blue-gray), `coral` (warm), `terracotta` (earthy), `sage` (muted green),
-`lavender`, `cyan-pink` (cyan with a hot accent), `seafoam` (teal with a rose accent). A
+`lavender`, `cyan-pink` (cyan with a hot accent), `seafoam` (green-teal). A
 palette recolours text, frames, edges and arrowheads (ink), group panels (the palest colour),
 `filled`/`tinted` nodes and the `gray` tone (the tint), `solid` fills and outlined frames
-(a step paler than the ink) and `emphasis` nodes and edges (the accent). It never changes
+(the accent colour, deepened for white text), `muted` groups (a paler panel and a palette
+frame) and `emphasis` nodes and edges (the accent). It never changes
 sizes, fonts, line weights or the other tones: `tone: green` stays the theme's green, so a
 tone still carries its meaning while the palette sets the mood. Every text keeps 4.5:1 on its
 fill in every palette. List the colours with `sumi catalog --section palettes`; an unknown

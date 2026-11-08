@@ -50,8 +50,6 @@ describe("the built-in palettes", () => {
         if (!palette.adjusted.includes(role as never))
           expect(published.has(color), `${palette.id} ${role}`).toBe(true);
       }
-      // The palest color is always the panel as published.
-      expect(palette.adjusted).not.toContain("panel");
     }
   });
 
@@ -113,7 +111,7 @@ describe("the built-in palettes", () => {
     for (const id of ["cool-blue", "slate"]) expect(adjusted(id)).not.toContain("ink");
     // A palest-color tint that the ink cannot read on is lightened.
     expect(adjusted("cyan-pink")).toContain("tint");
-    expect(adjusted("cool-blue")).not.toContain("tint");
+    expect(adjusted("slate")).not.toContain("tint");
   });
 });
 
@@ -190,6 +188,23 @@ describe("withPalette", () => {
         // A theme whose groups have no fill (academic) keeps them open.
         if (group.fill !== "transparent")
           expect(group.fill, `${theme.id} ${id} panel`).toBe(roles.panel);
+      }
+    }
+  });
+
+  test("a muted group takes the palette's soft fill and frame, not a neutral gray", () => {
+    for (const base of BUILTIN_THEMES.values()) {
+      for (const { id, roles } of palettes) {
+        const group = resolveStyle(withPalette(base, id), {
+          kind: "group",
+          id: "sumi/container",
+          variant: "muted",
+        }).style;
+        // Academic's groups have no fill; that stays.
+        expect(group.fill, `${base.id} ${id}`).toBe(
+          base.id === "academic" ? "transparent" : roles.soft,
+        );
+        expect(group.stroke, `${base.id} ${id}`).toBe(roles.frame);
       }
     }
   });

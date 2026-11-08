@@ -34,8 +34,12 @@ export interface PaletteRoles {
   readonly ink: string;
   /** Secondary text and frames: at least 4.5:1 on white and on the panel. */
   readonly muted: string;
-  /** Solid fills (with white text), outlined frames and text, `gray` tone line. */
+  /** Solid fills (with white text), outlined frames and text, `gray` tone line: the accent, deepened. */
   readonly strong: string;
+  /** Fill of a `muted` group: a paler panel. */
+  readonly soft: string;
+  /** Frame of a `muted` group. */
+  readonly frame: string;
 }
 
 export type PaletteRole = keyof PaletteRoles;
@@ -56,6 +60,9 @@ interface PaletteDefinition {
   readonly colors: readonly [string, string, string, string];
   /** Which of `colors` is the accent. */
   readonly accent: string;
+  /** The panel (group fill) and the tint: published colors, or ones moved toward white / the accent. */
+  readonly panel: string;
+  readonly tint: string;
 }
 
 const WHITE = "#ffffff";
@@ -66,61 +73,80 @@ const DEFINITIONS: readonly PaletteDefinition[] = [
     description: "Cool blue: near-white panel, pale blue tint, mid blue accent, navy ink",
     colors: ["#f9f7f7", "#dbe2ef", "#3f72af", "#112d4e"],
     accent: "#3f72af",
+    panel: "#dbe2ef",
+    tint: mix("#dbe2ef", "#3f72af", 0.3),
   },
   {
     id: "slate",
     description: "Muted blue-gray: slate ink, steel-gray tint, pale mist panel",
     colors: ["#27374d", "#526d82", "#9db2bf", "#dde6ed"],
     accent: "#526d82",
+    panel: "#dde6ed",
+    tint: "#9db2bf",
   },
   {
     id: "coral",
     description: "Warm: cream panel, blush tint, coral accent, brick-brown ink",
     colors: ["#fff5e4", "#ffe3e1", "#ffd1d1", "#ff9494"],
     accent: "#ff9494",
+    panel: "#ffe3e1",
+    tint: mix("#ffd1d1", "#ff9494", 0.5),
   },
   {
     id: "terracotta",
     description: "Earthy: sand panel, clay tint, terracotta accent, cocoa ink",
     colors: ["#7d5a50", "#b4846c", "#e5b299", "#fcdec0"],
     accent: "#b4846c",
+    panel: "#fcdec0",
+    tint: "#e5b299",
   },
   {
     id: "sage",
     description: "Muted green: warm cream panel, sage tint, moss accent, forest ink",
     colors: ["#f8ede3", "#bdd2b6", "#a2b29f", "#798777"],
     accent: "#bdd2b6",
+    panel: mix("#bdd2b6", WHITE, 0.55),
+    tint: "#bdd2b6",
   },
   {
     id: "lavender",
     description: "Lavender: pale violet panel, periwinkle tint and accent, indigo ink",
     colors: ["#f4eeff", "#dcd6f7", "#a6b1e1", "#424874"],
     accent: "#a6b1e1",
+    panel: mix("#dcd6f7", WHITE, 0.45),
+    tint: "#dcd6f7",
   },
   {
     id: "cyan-pink",
     description: "High contrast: light gray panel, cyan tint, hot pink accent, navy ink",
     colors: ["#364f6b", "#3fc1c9", "#f5f5f5", "#fc5185"],
     accent: "#fc5185",
+    panel: mix("#3fc1c9", WHITE, 0.8),
+    tint: "#3fc1c9",
   },
   {
     id: "seafoam",
-    description: "Green-teal: peach panel, seafoam tint, rose accent, deep teal ink",
+    description: "Green-teal: mint panel, seafoam tint, teal accent, deep teal ink",
     colors: ["#ffb6b9", "#fae3d9", "#bbded6", "#61c0bf"],
-    accent: "#ffb6b9",
+    accent: "#61c0bf",
+    panel: mix("#bbded6", WHITE, 0.55),
+    tint: "#bbded6",
   },
 ];
 
 // ---- color arithmetic (sRGB, `#rrggbb`) ----
 
-const channels = (hex: string): [number, number, number] => [
-  Number.parseInt(hex.slice(1, 3), 16),
-  Number.parseInt(hex.slice(3, 5), 16),
-  Number.parseInt(hex.slice(5, 7), 16),
-];
+function channels(hex: string): [number, number, number] {
+  return [
+    Number.parseInt(hex.slice(1, 3), 16),
+    Number.parseInt(hex.slice(3, 5), 16),
+    Number.parseInt(hex.slice(5, 7), 16),
+  ];
+}
 
-const toHex = (rgb: readonly number[]): string =>
-  `#${rgb.map((c) => Math.round(c).toString(16).padStart(2, "0")).join("")}`;
+function toHex(rgb: readonly number[]): string {
+  return `#${rgb.map((c) => Math.round(c).toString(16).padStart(2, "0")).join("")}`;
+}
 
 /** `a` moved `t` (0..1) of the way to `b`. */
 function mix(a: string, b: string, t: number): string {
@@ -193,29 +219,34 @@ function lightenUntil(hex: string, ok: (color: string) => boolean): string {
 function definePalette(definition: PaletteDefinition): Palette {
   const { id, description, colors, accent: published } = definition;
   const ordered = [...colors].sort((a, b) => relativeLuminance(b) - relativeLuminance(a));
-  const [panel = WHITE, lightTint = WHITE] = ordered;
   const darkest = ordered[ordered.length - 1] ?? "#000000";
   const adjusted: PaletteRole[] = [];
-  const keep = (role: PaletteRole, color: string, source: string): string => {
-    if (color !== source) adjusted.push(role);
+  const keep = (role: PaletteRole, color: string): string => {
+    if (!colors.includes(color)) adjusted.push(role);
     return color;
   };
   // Ink: the darkest color, darkened until it reads on white at 9:1.
   const ink = keep(
     "ink",
     darkenUntil(darkest, (c) => contrastRatio(c, WHITE) >= 9),
-    darkest,
   );
-  // Tint: the second palest color, lightened until the ink reads on it at 4.5:1.
+  // Panel: the definition's pale color (a published color, or a published color toward white).
+  const panel = keep("panel", definition.panel);
+  // Tint: lightened until the ink reads on it at 4.5:1.
   const tint = keep(
     "tint",
-    lightenUntil(lightTint, (c) => contrastRatio(ink, c) >= 4.5),
-    lightTint,
+    lightenUntil(definition.tint, (c) => contrastRatio(ink, c) >= 4.5),
   );
+  // Accent: the published color, deepened (hue kept) until white text reads on it at 4.5:1.
   const accent = keep(
     "accent",
     deepenUntil(published, (c) => contrastRatio(c, WHITE) >= 4.5),
-    published,
+  );
+  // Strong: the accent deepened further as needed so it also reads on the panel at 4.5:1
+  // (outlined text); solid fills (white text), outlined frames and the gray tone take it.
+  const strong = keep(
+    "strong",
+    deepenUntil(published, (c) => contrastRatio(c, WHITE) >= 4.5 && contrastRatio(c, panel) >= 4.5),
   );
   // Muted: the ink as pale as it can be and still read on white and on the panel at 4.5:1.
   let muted = ink;
@@ -224,20 +255,15 @@ function definePalette(definition: PaletteDefinition): Palette {
     if (contrastRatio(candidate, WHITE) >= 4.5 && contrastRatio(candidate, panel) >= 4.5)
       muted = candidate;
   }
-  // Strong: a step paler than the ink (so an outlined node differs a little from a default
-  // one), at least 5:1 for the white text of a solid fill and 4.5:1 on the panel.
-  let strong = ink;
-  for (let percent = 0; percent <= 25; percent++) {
-    const candidate = mix(ink, WHITE, percent / 100);
-    if (contrastRatio(candidate, WHITE) >= 5 && contrastRatio(candidate, panel) >= 4.5)
-      strong = candidate;
-  }
-  adjusted.push("muted", "strong");
+  // A muted group: a paler panel with a frame between the tint and the ink.
+  const soft = mix(panel, WHITE, 0.5);
+  const frame = mix(tint, ink, 0.3);
+  adjusted.push("muted", "soft", "frame");
   return Object.freeze({
     id,
     description,
     colors,
-    roles: Object.freeze({ panel, tint, accent, ink, muted, strong }),
+    roles: Object.freeze({ panel, tint, accent, ink, muted, strong, soft, frame }),
     adjusted: Object.freeze(adjusted),
   });
 }
@@ -337,7 +363,7 @@ export function withPalette(theme: Theme, name: string | undefined): Theme {
   if (palette === undefined) return theme;
   const { roles } = palette;
   const map = colorMap(theme, roles);
-  const recolor = (source: StyleLayer, emphasis = false): StyleLayer => {
+  const recolor = (source: StyleLayer, emphasis = false, muted = false): StyleLayer => {
     const values: Record<string, unknown> = { ...source };
     for (const property of COLOR_PROPERTIES) {
       const color = normalized(source[property]);
@@ -346,13 +372,21 @@ export function withPalette(theme: Theme, name: string | undefined): Theme {
     }
     // Emphasis is drawn in the accent whatever the theme does (a heavier black frame, a gray fill).
     if (emphasis && source.stroke !== "transparent") values.stroke = roles.accent;
+    // A muted group is a paler panel with a frame from the palette, not a neutral gray.
+    if (muted) {
+      if (normalized(source.fill) !== undefined) values.fill = roles.soft;
+      values.stroke = roles.frame;
+    }
     return Object.freeze(values) as StyleLayer;
   };
   const components = new Map(
     [...theme.components].map(([id, variants]) => [
       id,
       new Map(
-        [...variants].map(([variant, layer]) => [variant, recolor(layer, variant === "emphasis")]),
+        [...variants].map(([variant, layer]) => [
+          variant,
+          recolor(layer, variant === "emphasis", variant === "muted" && id === "sumi/container"),
+        ]),
       ),
     ]),
   );

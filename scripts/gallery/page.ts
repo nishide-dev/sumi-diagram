@@ -319,7 +319,7 @@ const SETS_NOTE =
 
 const PALETTES_NOTE =
   "`figure.themeOverrides.palette: <name>` recolors a theme with four colors from a popular Color Hunt palette: " +
-  "panels (group fill) take the palest, filled and tinted nodes and the `gray` tone the tint, emphasis the accent, and text, " +
+  "panels (group fill) take the palest, filled and tinted nodes and the `gray` tone the tint, solid fills and emphasis the accent (deepened for white text), and text, " +
   "frames and edges the ink (the darkest color, darkened to 9:1 on white when it is paler). Every text keeps at least 4.5:1 " +
   "on the fill it sits on, so the same figure reads in each palette; the other tones, sizes and fonts stay the theme's " +
   "(the legend's green is the theme's). The figure is the same in every palette: only `palette` changes in the source. " +

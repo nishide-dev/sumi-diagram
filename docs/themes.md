@@ -45,7 +45,7 @@ The pipeline ([`examples/pipeline`](../examples/pipeline/pipeline.sumi.yaml), au
 
 ## Palettes
 
-`figure.themeOverrides.palette: <name>` recolors any theme with one of eight built-in four-color palettes (`cool-blue`, `slate`, `coral`, `terracotta`, `sage`, `lavender`, `cyan-pink`, `seafoam`): text, frames and edges take the palette's ink, group panels its palest color, filled nodes and the `gray` tone its tint, and `emphasis` its accent. Sizes, fonts and the other tones stay the theme's. See the [palette gallery](gallery/palettes.md) and `sumi catalog --section palettes`.
+`figure.themeOverrides.palette: <name>` recolors any theme with one of eight built-in four-color palettes (`cool-blue`, `slate`, `coral`, `terracotta`, `sage`, `lavender`, `cyan-pink`, `seafoam`): text, frames and edges take the palette's ink, group panels its palest color, filled nodes and the `gray` tone its tint, `solid` fills and `emphasis` its accent. Sizes, fonts and the other tones stay the theme's. See the [palette gallery](gallery/palettes.md) and `sumi catalog --section palettes`.
 
 ## More
 

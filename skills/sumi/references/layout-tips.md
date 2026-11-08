@@ -309,7 +309,7 @@ Fill it from the paper, not from a template: drop rows that do not occur, add yo
 own. Then **pick a palette** for the mood and the medium (the table's tones keep their
 meaning on top of it): `sumi catalog --section palettes` lists eight; choose by character
 and by where the figure is read. A cool, calm figure: `cool-blue` or `slate`; warm or
-friendly: `coral` or `terracotta`; quiet, natural: `sage` or `seafoam`; soft: `lavender`;
+friendly: `coral` or `terracotta`; quiet, natural: `sage` (green) or `seafoam` (teal); soft: `lavender`;
 a strong accent for one result: `cyan-pink`. Set it once with `themeOverrides.palette`
 and do not mix per-element colours that fight it; for black-and-white print use the
 `academic` theme without a palette. Then follow these rules while writing the YAML:

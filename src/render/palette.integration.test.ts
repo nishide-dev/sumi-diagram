@@ -116,7 +116,16 @@ describe("palettes section of the catalog (#417)", () => {
     expect(catalog.palettes?.palettes.map((p) => p.id)).toEqual([...PALETTE_NAMES]);
     for (const p of catalog.palettes?.palettes ?? []) {
       expect(p.colors).toHaveLength(4);
-      expect(Object.keys(p.roles)).toEqual(["panel", "tint", "accent", "ink", "muted", "strong"]);
+      expect(Object.keys(p.roles)).toEqual([
+        "panel",
+        "tint",
+        "accent",
+        "ink",
+        "muted",
+        "strong",
+        "soft",
+        "frame",
+      ]);
     }
   });
 });
