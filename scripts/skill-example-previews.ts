@@ -9,7 +9,6 @@ for (const name of [
   "embedding-gemma",
   "gcn",
   "llama4-moe",
-  "strokes",
   "chat",
   "llm-dialogue",
   "pipeline",

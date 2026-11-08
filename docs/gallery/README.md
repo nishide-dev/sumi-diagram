@@ -17,7 +17,6 @@
   - <a id="llama-4--mixture-of-experts"></a>[Llama 4 — Mixture of Experts](examples.md#llama-4--mixture-of-experts)
   - <a id="llm-dialogue--a-math-word-problem"></a>[LLM dialogue — a math word problem](examples.md#llm-dialogue--a-math-word-problem)
   - <a id="generic-processing-pipeline"></a>[Generic processing pipeline](examples.md#generic-processing-pipeline)
-  - <a id="thin-lines-dotted-arrows-and-small-arrowheads"></a>[Thin lines, dotted arrows and small arrowheads](examples.md#thin-lines-dotted-arrows-and-small-arrowheads)
   - <a id="generic-three-tier-system"></a>[Generic three\-tier system](examples.md#generic-three-tier-system)
   - <a id="examplestransformertransformersumiyaml"></a><a id="transformer-structured-layout-paper-theme"></a>[Transformer \(structured layout, paper theme\)](examples.md#transformer-structured-layout-paper-theme)
 - <a id="legend-samples"></a>[Legend samples](legend-samples.md): Legend entries with icon, glyph, edge and set samples in rows under headings, under every theme\.
@@ -28,6 +27,7 @@
 - <a id="dimmed-groups"></a>[Dimmed groups](dim.md): A group drawn pale with everything inside it, under every theme\.
 - <a id="node-glyphs"></a>[Node glyphs](glyphs.md): Feature vectors, dots and pills over a node's border, under every theme\.
 - <a id="set-enclosures"></a>[Set enclosures](sets.md): Overlapping translucent sets around nodes, for Venn diagrams and hyperedges, under every theme\.
+- <a id="stroke-options"></a>[Stroke options](strokes.md): Line widths, dotted lines, arrowhead sizes and frame corners, under every theme\.
 - <a id="palettes"></a>[Palettes](palettes.md): One figure in every built\-in color palette, with each palette's colors and roles\.
 - <a id="profiles"></a><a id="one-figure-every-theme--profile"></a>[Profiles and comparison](compare.md): The built\-in profiles, and one figure under every theme and profile\.
 

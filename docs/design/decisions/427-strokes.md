@@ -68,7 +68,7 @@ TriCL（#420）と LLaDA（#421）の再現では、元の図との差の多く�
 
 新しいキーを書かない図の出力は変わらない。スタイルに新しいキーは現れず、`arrowheadLength(units)` は従来の式と同じ値、点線でない線の SVG は同じ文字列のまま（`lineKey` と wire の線端の属性は点線のときだけ変わる）。対象 YAML（research と非公開の図を除く）を自身のテーマと全組み込みテーマで変更前後に描画し、SVG・D2・PDF・picture PPTX・editable PPTX の SHA-256 が一致することを確かめた（結果は PR 本文）。
 
-ギャラリーには、`dotted` の variant が辺・container・集合の見本に加わる。`examples/strokes` を足した（TriCL の一部を 0.5pt の線で再現）。
+ギャラリーには、`dotted` の variant が辺・container・集合の見本に加わる。ギャラリーに「Stroke options」の見本（`docs/gallery/strokes.md`、全テーマ）を足した。examples/ には、原図に忠実な完全な図だけを置くので、TriCL の一部の再現は入れない。
 
 回帰テスト: `src/render/strokes.integration.test.ts`（スキーマの範囲、`auto` での拒否、各 scale の矢じりの長さと lint、太さ・角・集合・凡例への反映、点線の SVG・PDF・picture / editable PPTX、指定しない図が従来どおりであること）。
 

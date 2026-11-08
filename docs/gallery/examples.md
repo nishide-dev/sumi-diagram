@@ -1,6 +1,6 @@
 # Examples
 
-[Gallery](README.md) · [Examples](examples.md) · [Legend samples](legend-samples.md) · [Themes](themes.md) · [Tones](tones.md) · [Dimmed groups](dim.md) · [Node glyphs](glyphs.md) · [Set enclosures](sets.md) · [Palettes](palettes.md) · [Profiles and comparison](compare.md)
+[Gallery](README.md) · [Examples](examples.md) · [Legend samples](legend-samples.md) · [Themes](themes.md) · [Tones](tones.md) · [Dimmed groups](dim.md) · [Node glyphs](glyphs.md) · [Set enclosures](sets.md) · [Stroke options](strokes.md) · [Palettes](palettes.md) · [Profiles and comparison](compare.md)
 
 The committed SVGs of <code>examples/</code>, rendered from their sources as written\.
 
@@ -63,12 +63,6 @@ The committed SVGs of <code>examples/</code>, rendered from their sources as wri
 [<code>examples/pipeline/pipeline\.sumi\.yaml</code>](../../examples/pipeline/pipeline.sumi.yaml) · [PDF](../../examples/pipeline/pipeline.pdf) · theme <code>academic</code> · profile <code>paper\-single</code> · 61\.74mm × 150\.28mm \(max width 88mm, max height 220mm\)
 
 <img src="../../examples/pipeline/pipeline.svg" alt="Generic processing pipeline">
-
-## Thin lines, dotted arrows and small arrowheads
-
-[<code>examples/strokes/strokes\.sumi\.yaml</code>](../../examples/strokes/strokes.sumi.yaml) · [PDF](../../examples/strokes/strokes.pdf) · theme <code>paper</code> · profile <code>paper\-double</code> · 95\.6mm × 63\.15mm \(max width 180mm, max height 220mm\)
-
-<img src="../../examples/strokes/strokes.svg" alt="Thin lines, dotted arrows and small arrowheads">
 
 ## Generic three\-tier system
 

@@ -27,7 +27,6 @@ figure material.
 | EmbeddingGemma | Multimodal inputs into a shared embedding space | `html` cards, image assets, `waveform`, `tokens`, aligned columns, orthogonal joins and an output bus, exact-color `themeOverrides` | `paper` / `paper-double` | [YAML](embedding-gemma/embedding-gemma.sumi.yaml), [PNG](embedding-gemma/embedding-gemma.png), [assets](embedding-gemma/assets/), [generator](embedding-gemma/generate-assets.ts) |
 | GCN | Multi-layer graph convolutional network (Kipf & Welling) | `place` (vertices by coordinates), repeated graph shape as stacked cards (`props.layers`), colored `route: curve` edges, undirected edges, per-figure tone colors (`themeOverrides.tones`, `groupFill`), picture asset | `paper` / `paper-double` | [YAML](gcn/gcn.sumi.yaml), [PNG](gcn/gcn.png), [assets and generator](gcn/assets/) |
 | Llama 4 MoE | Mixture-of-experts transformer block (Meta AI) | the `llama` theme (dark solid blocks, borderless muted panels, open chevron arrowheads), alternating Attention/FFN, dashed `zoom` into an expanded panel, ⊕ operator, hidden-junction forks sharing one bus | `llama` / `paper-double` | [YAML](llama4-moe/llama4-moe.sumi.yaml), [PNG](llama4-moe/llama4-moe.png) |
-| Strokes | A slice of the TriCL figure in thin lines (Hwang et al.) | `themeOverrides` `lineWidth` / `frameWidth` / `arrowheadScale` / `cornerRadius`, `variant: dotted` coloured double arrows, rect sets as gray panels, `place` | `paper` / `paper-double` | [YAML](strokes/strokes.sumi.yaml), [PNG](strokes/strokes.png) |
 
 ## Conversations (`chat` arrangement)
 
