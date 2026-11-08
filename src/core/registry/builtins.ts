@@ -9,12 +9,14 @@ import { ICON_REF_MAX_LENGTH, ICON_REF_PATTERN } from "../../assets/icon-ref";
 import { didYouMean } from "../diagnostics";
 import {
   ARRANGE_ALIGNS,
+  ArrowheadScale,
   checkGlyph,
   glyphShape,
   IconSize,
   ID_PATTERN,
   LayoutLength,
   SET_VARIANTS,
+  StrokeWidth,
 } from "../figure/schema";
 import { TONE_NAMES } from "../theme/tones";
 import { SizeLength } from "./length";
@@ -54,7 +56,7 @@ const FILLABLE_NODE_VARIANTS = [
   "solid",
   "tinted",
 ];
-const EDGE_VARIANTS = ["default", "dashed", "emphasis", "muted"];
+const EDGE_VARIANTS = ["default", "dashed", "dotted", "emphasis", "muted"];
 
 const sizeProps = z.strictObject({
   width: SizeLength.optional().describe(
@@ -205,8 +207,8 @@ const container: GroupManifest = {
   kind: "group",
   name: "container",
   description:
-    "A rectangular container that groups nodes and other groups. Variant muted: a dashed border in academic (easy to confuse with dashed edges), a white background instead of the shaded fill (without a tone) and a gray title in the other themes. Variant plain: no border and no fill, only the title or caption; filled: a shaded fill without a border; dashed: a dashed border without a fill. A tone sets the fill of any variant.",
-  variants: ["default", "muted", "plain", "filled", "dashed"],
+    "A rectangular container that groups nodes and other groups. Variant muted: a dashed border in academic (easy to confuse with dashed edges), a white background instead of the shaded fill (without a tone) and a gray title in the other themes. Variant plain: no border and no fill, only the title or caption; filled: a shaded fill without a border; dashed: a dashed border without a fill; dotted: the same with round dots. A tone sets the fill of any variant.",
+  variants: ["default", "muted", "plain", "filled", "dashed", "dotted"],
   props: z.strictObject({
     layers: LayersSchema.optional().describe(
       "Repeat the frame behind the front card, offset up-right. The footprint includes every card; only the front contains children and a title. Structured layout only; plain is unsupported.",
@@ -493,6 +495,12 @@ const legendEntry = z
           .enum(TONE_NAMES)
           .optional()
           .describe("The tone of the sample line, as on an edge. Omitted means none."),
+        lineWidth: StrokeWidth.optional().describe(
+          "The width of the sample line, as an edge's lineWidth. Omitted means the figure's or the theme's.",
+        ),
+        arrowheadScale: ArrowheadScale.optional().describe(
+          "The size of the sample line's arrowheads, as an edge's arrowheadScale. Omitted means the figure's or 1.",
+        ),
       })
       .optional()
       .describe(
@@ -546,7 +554,7 @@ const legendEntry = z
           .enum(SET_VARIANTS)
           .optional()
           .describe(
-            "default (tint and outline), filled (tint), outlined (outline) or dashed, as on a set. Omitted means default.",
+            "default (tint and outline), filled (tint), outlined (outline), dashed or dotted, as on a set. Omitted means default.",
           ),
         tone: z
           .enum(TONE_NAMES)

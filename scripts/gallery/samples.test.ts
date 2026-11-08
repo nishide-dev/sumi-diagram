@@ -54,7 +54,9 @@ describe("component samples", () => {
               sample.entry.mark === undefined &&
               sample.entry.embed === undefined &&
               sample.entry.variants.includes("solid")
-            )
+            ) &&
+            // Six group frames take two explicit rows (#427).
+            !(sample.entry.kind === "group" && sample.entry.variants.length > 5)
             ? "auto"
             : "structured",
         );

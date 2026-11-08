@@ -34,6 +34,12 @@ export interface CommonStyle {
   readonly strokeWidth: StyleLength;
   /** D2 dash level 0–10 (not a physical length). */
   readonly strokeDash: number;
+  /**
+   * Round dots instead of dashes (#427, the `dotted` variant). Set only when
+   * true, so every style without dots is unchanged; `strokeDash` is 0 then.
+   * Structured layout only.
+   */
+  readonly strokeDotted?: true;
   readonly opacity: number;
   readonly fontSize: StyleLength;
   readonly fontColor: Color;
@@ -71,6 +77,12 @@ export interface EdgeStyle extends CommonStyle {
   readonly fill: Color;
   /** Whether arrowheads are filled. */
   readonly filled: boolean;
+  /**
+   * Multiplier of the arrowhead size (#427, `arrowheadScale`): the head takes
+   * `arrowheadLength(strokeWidth) × arrowheadScale`. Set only when it is not
+   * 1, so every other style is unchanged. Structured layout only.
+   */
+  readonly arrowheadScale?: number;
 }
 
 /** The complete, immutable effective style of one element. */

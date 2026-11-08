@@ -87,7 +87,13 @@ describe("built-in components", () => {
       "solid",
       "tinted",
     ]);
-    expect(get("sumi/arrow")?.variants).toEqual(["default", "dashed", "emphasis", "muted"]);
+    expect(get("sumi/arrow")?.variants).toEqual([
+      "default",
+      "dashed",
+      "dotted",
+      "emphasis",
+      "muted",
+    ]);
   });
 
   test("each call creates an independent registry", () => {

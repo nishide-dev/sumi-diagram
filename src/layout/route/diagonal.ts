@@ -7,7 +7,7 @@ import { segmentCrossesRegion } from "../../lint/geometry/edges";
 import { rectPolygon } from "../../lint/geometry/shapes";
 import type { EdgeLayout, LayoutIR, Point, Rect, TextLayout } from "../ir";
 import { roundUnits } from "../ir";
-import { arrowheadLength } from "./arrowhead";
+import { edgeArrowheadLength } from "./arrowhead";
 import { sampleCubic } from "./cubic";
 import { curveLabel, curvePoints, junctionTangents } from "./curve";
 import { straightLabel } from "./direct-label";
@@ -122,7 +122,7 @@ export function addDirectRoutes(
         return fail("the line cannot approach the fixed port from its outward side");
     }
     const length = Math.hypot(b.x - a.x, b.y - a.y);
-    const head = arrowheadLength(edge.style.strokeWidth.units);
+    const head = edgeArrowheadLength(edge.style);
     const needed =
       (edge.sourceArrowhead === undefined ? 0 : head) +
       (edge.targetArrowhead === undefined ? 0 : head);

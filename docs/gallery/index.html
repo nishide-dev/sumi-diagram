@@ -1488,11 +1488,11 @@ edges:
 </section>
 <section class="card" id="sumi-container">
 <header><h3>sumi/container</h3><span class="kind">group</span></header>
-<p>A rectangular container that groups nodes and other groups. Variant muted: a dashed border in academic (easy to confuse with dashed edges), a white background instead of the shaded fill (without a tone) and a gray title in the other themes. Variant plain: no border and no fill, only the title or caption; filled: a shaded fill without a border; dashed: a dashed border without a fill. A tone sets the fill of any variant.</p>
-<ul class="chips" aria-label="variants"><li>default</li><li>muted</li><li>plain</li><li>filled</li><li>dashed</li></ul>
+<p>A rectangular container that groups nodes and other groups. Variant muted: a dashed border in academic (easy to confuse with dashed edges), a white background instead of the shaded fill (without a tone) and a gray title in the other themes. Variant plain: no border and no fill, only the title or caption; filled: a shaded fill without a border; dashed: a dashed border without a fill; dotted: the same with round dots. A tone sets the fill of any variant.</p>
+<ul class="chips" aria-label="variants"><li>default</li><li>muted</li><li>plain</li><li>filled</li><li>dashed</li><li>dotted</li></ul>
 <dl class="meta"><dt>since</dt><dd><code>0.1.0</code></dd><dt>shape</dt><dd><code>rectangle</code></dd></dl>
 <table><thead><tr><th>prop</th><th>type</th><th>required</th><th>description</th></tr></thead><tbody><tr><td><code>layers</code></td><td><code>object</code></td><td>no</td><td>Repeat the frame behind the front card, offset up-right. The footprint includes every card; only the front contains children and a title. Structured layout only; plain is unsupported.</td></tr></tbody></table>
-<div class="renders"><figure><img src="components/sumi-container.minimal.svg" alt="sumi/container, every variant, theme minimal" loading="lazy"><figcaption>theme <code>minimal</code> · <code>sumi render sumi-container.sumi.yaml</code><br>162.1mm × 24.17mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-container.academic.svg" alt="sumi/container, every variant, theme academic" loading="lazy"><figcaption>theme <code>academic</code> · <code>sumi render sumi-container.sumi.yaml --theme academic</code><br>162.1mm × 23.64mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-container.slides.svg" alt="sumi/container, every variant, theme slides" loading="lazy"><figcaption>theme <code>slides</code> · <code>sumi render sumi-container.sumi.yaml --theme slides --profile presentation-16x9</code><br>268.11mm × 38.63mm (max width 338.7mm, max height 190.5mm)</figcaption></figure><figure><img src="components/sumi-container.color.svg" alt="sumi/container, every variant, theme color" loading="lazy"><figcaption>theme <code>color</code> · <code>sumi render sumi-container.sumi.yaml --theme color</code><br>162.1mm × 24.17mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-container.paper.svg" alt="sumi/container, every variant, theme paper" loading="lazy"><figcaption>theme <code>paper</code> · <code>sumi render sumi-container.sumi.yaml --theme paper</code><br>162.1mm × 24.17mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-container.llama.svg" alt="sumi/container, every variant, theme llama" loading="lazy"><figcaption>theme <code>llama</code> · <code>sumi render sumi-container.sumi.yaml --theme llama</code><br>161.93mm × 24.17mm (max width 180mm, max height 220mm)</figcaption></figure></div>
+<div class="renders"><figure><img src="components/sumi-container.minimal.svg" alt="sumi/container, every variant, theme minimal" loading="lazy"><figcaption>theme <code>minimal</code> · <code>sumi render sumi-container.sumi.yaml</code><br>81.32mm × 42.16mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-container.academic.svg" alt="sumi/container, every variant, theme academic" loading="lazy"><figcaption>theme <code>academic</code> · <code>sumi render sumi-container.sumi.yaml --theme academic</code><br>81.32mm × 41.1mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-container.slides.svg" alt="sumi/container, every variant, theme slides" loading="lazy"><figcaption>theme <code>slides</code> · <code>sumi render sumi-container.sumi.yaml --theme slides --profile presentation-16x9</code><br>162.81mm × 84.31mm (max width 338.7mm, max height 190.5mm)</figcaption></figure><figure><img src="components/sumi-container.color.svg" alt="sumi/container, every variant, theme color" loading="lazy"><figcaption>theme <code>color</code> · <code>sumi render sumi-container.sumi.yaml --theme color</code><br>81.32mm × 42.16mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-container.paper.svg" alt="sumi/container, every variant, theme paper" loading="lazy"><figcaption>theme <code>paper</code> · <code>sumi render sumi-container.sumi.yaml --theme paper</code><br>77.08mm × 42.16mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-container.llama.svg" alt="sumi/container, every variant, theme llama" loading="lazy"><figcaption>theme <code>llama</code> · <code>sumi render sumi-container.sumi.yaml --theme llama</code><br>77.08mm × 42.16mm (max width 180mm, max height 220mm)</figcaption></figure></div>
 <details><summary>Source: <code>sumi-container.sumi.yaml</code></summary><pre># sumi/container: every variant. Generated by `bun run gallery` (#17).
 version: 1
 figure:
@@ -1501,59 +1501,71 @@ figure:
   theme: minimal
   profile: paper-double
   layout:
-    direction: down
+    arrange:
+      stack:
+        items:
+          - row: { items: [default, muted, plain] }
+          - row: { items: [filled, dashed, dotted] }
 
 groups:
   - id: default
     component: sumi/container
     label: default
+    arrange: { row: { items: [default-member] } }
   - id: muted
     component: sumi/container
     label: muted
     variant: muted
+    arrange: { row: { items: [muted-member] } }
   - id: plain
     component: sumi/container
     label: plain
     variant: plain
+    arrange: { row: { items: [plain-member] } }
   - id: filled
     component: sumi/container
     label: filled
     variant: filled
+    arrange: { row: { items: [filled-member] } }
   - id: dashed
     component: sumi/container
     label: dashed
     variant: dashed
+    arrange: { row: { items: [dashed-member] } }
+  - id: dotted
+    component: sumi/container
+    label: dotted
+    variant: dotted
+    arrange: { row: { items: [dotted-member] } }
 
 nodes:
   - id: default-member
     component: box
     label: member
-    group: default
   - id: muted-member
     component: box
     label: member
-    group: muted
   - id: plain-member
     component: box
     label: member
-    group: plain
   - id: filled-member
     component: box
     label: member
-    group: filled
   - id: dashed-member
     component: box
     label: member
-    group: dashed
+  - id: dotted-member
+    component: box
+    label: member
 </pre></details>
 </section>
 <section class="card" id="sumi-arrow">
 <header><h3>sumi/arrow</h3><span class="kind">edge</span></header>
 <p>A line with an arrowhead at the target.</p>
-<ul class="chips" aria-label="variants"><li>default</li><li>dashed</li><li>emphasis</li><li>muted</li></ul>
+<ul class="chips" aria-label="variants"><li>default</li><li>dashed</li><li>dotted</li><li>emphasis</li><li>muted</li></ul>
 <dl class="meta"><dt>since</dt><dd><code>0.1.0</code></dd><dt>direction</dt><dd><code>forward</code></dd><dt>head</dt><dd><code>triangle</code></dd></dl>
 <p class="note">No props.</p>
-<div class="renders"><figure><img src="components/sumi-arrow.minimal.svg" alt="sumi/arrow, every variant, theme minimal" loading="lazy"><figcaption>theme <code>minimal</code> · <code>sumi render sumi-arrow.sumi.yaml</code><br>53.09mm × 57.86mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-arrow.academic.svg" alt="sumi/arrow, every variant, theme academic" loading="lazy"><figcaption>theme <code>academic</code> · <code>sumi render sumi-arrow.sumi.yaml --theme academic</code><br>53.09mm × 57.86mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-arrow.slides.svg" alt="sumi/arrow, every variant, theme slides" loading="lazy"><figcaption>theme <code>slides</code> · <code>sumi render sumi-arrow.sumi.yaml --theme slides</code><br>69.5mm × 69.5mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-arrow.color.svg" alt="sumi/arrow, every variant, theme color" loading="lazy"><figcaption>theme <code>color</code> · <code>sumi render sumi-arrow.sumi.yaml --theme color</code><br>53.09mm × 57.86mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-arrow.paper.svg" alt="sumi/arrow, every variant, theme paper" loading="lazy"><figcaption>theme <code>paper</code> · <code>sumi render sumi-arrow.sumi.yaml --theme paper</code><br>53.09mm × 57.86mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-arrow.llama.svg" alt="sumi/arrow, every variant, theme llama" loading="lazy"><figcaption>theme <code>llama</code> · <code>sumi render sumi-arrow.sumi.yaml --theme llama</code><br>53.09mm × 57.86mm (max width 180mm, max height 220mm)</figcaption></figure></div>
+<div class="renders"><figure><img src="components/sumi-arrow.minimal.svg" alt="sumi/arrow, every variant, theme minimal" loading="lazy"><figcaption>theme <code>minimal</code> · <code>sumi render sumi-arrow.sumi.yaml</code><br>53.09mm × 72.14mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-arrow.academic.svg" alt="sumi/arrow, every variant, theme academic" loading="lazy"><figcaption>theme <code>academic</code> · <code>sumi render sumi-arrow.sumi.yaml --theme academic</code><br>53.09mm × 72.14mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-arrow.slides.svg" alt="sumi/arrow, every variant, theme slides" loading="lazy"><figcaption>theme <code>slides</code> · <code>sumi render sumi-arrow.sumi.yaml --theme slides</code><br>69.5mm × 86.61mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-arrow.color.svg" alt="sumi/arrow, every variant, theme color" loading="lazy"><figcaption>theme <code>color</code> · <code>sumi render sumi-arrow.sumi.yaml --theme color</code><br>53.09mm × 72.14mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-arrow.paper.svg" alt="sumi/arrow, every variant, theme paper" loading="lazy"><figcaption>theme <code>paper</code> · <code>sumi render sumi-arrow.sumi.yaml --theme paper</code><br>53.09mm × 72.14mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-arrow.llama.svg" alt="sumi/arrow, every variant, theme llama" loading="lazy"><figcaption>theme <code>llama</code> · <code>sumi render sumi-arrow.sumi.yaml --theme llama</code><br>53.09mm × 72.14mm (max width 180mm, max height 220mm)</figcaption></figure></div>
 <details><summary>Source: <code>sumi-arrow.sumi.yaml</code></summary><pre># sumi/arrow: every variant. Generated by `bun run gallery` (#17).
 version: 1
 figure:
@@ -1577,6 +1589,12 @@ nodes:
   - id: dashed-b
     component: box
     label: B
+  - id: dotted-a
+    component: box
+    label: A
+  - id: dotted-b
+    component: box
+    label: B
   - id: emphasis-a
     component: box
     label: A
@@ -1600,6 +1618,11 @@ edges:
     component: sumi/arrow
     label: dashed
     variant: dashed
+  - from: dotted-a
+    to: dotted-b
+    component: sumi/arrow
+    label: dotted
+    variant: dotted
   - from: emphasis-a
     to: emphasis-b
     component: sumi/arrow
@@ -1615,10 +1638,10 @@ edges:
 <section class="card" id="sumi-line">
 <header><h3>sumi/line</h3><span class="kind">edge</span></header>
 <p>A line without arrowheads.</p>
-<ul class="chips" aria-label="variants"><li>default</li><li>dashed</li><li>emphasis</li><li>muted</li></ul>
+<ul class="chips" aria-label="variants"><li>default</li><li>dashed</li><li>dotted</li><li>emphasis</li><li>muted</li></ul>
 <dl class="meta"><dt>since</dt><dd><code>0.1.0</code></dd><dt>direction</dt><dd><code>none</code></dd></dl>
 <p class="note">No props.</p>
-<div class="renders"><figure><img src="components/sumi-line.minimal.svg" alt="sumi/line, every variant, theme minimal" loading="lazy"><figcaption>theme <code>minimal</code> · <code>sumi render sumi-line.sumi.yaml</code><br>53.09mm × 57.86mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-line.academic.svg" alt="sumi/line, every variant, theme academic" loading="lazy"><figcaption>theme <code>academic</code> · <code>sumi render sumi-line.sumi.yaml --theme academic</code><br>53.09mm × 57.86mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-line.slides.svg" alt="sumi/line, every variant, theme slides" loading="lazy"><figcaption>theme <code>slides</code> · <code>sumi render sumi-line.sumi.yaml --theme slides</code><br>69.5mm × 69.5mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-line.color.svg" alt="sumi/line, every variant, theme color" loading="lazy"><figcaption>theme <code>color</code> · <code>sumi render sumi-line.sumi.yaml --theme color</code><br>53.09mm × 57.86mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-line.paper.svg" alt="sumi/line, every variant, theme paper" loading="lazy"><figcaption>theme <code>paper</code> · <code>sumi render sumi-line.sumi.yaml --theme paper</code><br>53.09mm × 57.86mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-line.llama.svg" alt="sumi/line, every variant, theme llama" loading="lazy"><figcaption>theme <code>llama</code> · <code>sumi render sumi-line.sumi.yaml --theme llama</code><br>53.09mm × 57.86mm (max width 180mm, max height 220mm)</figcaption></figure></div>
+<div class="renders"><figure><img src="components/sumi-line.minimal.svg" alt="sumi/line, every variant, theme minimal" loading="lazy"><figcaption>theme <code>minimal</code> · <code>sumi render sumi-line.sumi.yaml</code><br>53.09mm × 72.14mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-line.academic.svg" alt="sumi/line, every variant, theme academic" loading="lazy"><figcaption>theme <code>academic</code> · <code>sumi render sumi-line.sumi.yaml --theme academic</code><br>53.09mm × 72.14mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-line.slides.svg" alt="sumi/line, every variant, theme slides" loading="lazy"><figcaption>theme <code>slides</code> · <code>sumi render sumi-line.sumi.yaml --theme slides</code><br>69.5mm × 86.61mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-line.color.svg" alt="sumi/line, every variant, theme color" loading="lazy"><figcaption>theme <code>color</code> · <code>sumi render sumi-line.sumi.yaml --theme color</code><br>53.09mm × 72.14mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-line.paper.svg" alt="sumi/line, every variant, theme paper" loading="lazy"><figcaption>theme <code>paper</code> · <code>sumi render sumi-line.sumi.yaml --theme paper</code><br>53.09mm × 72.14mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-line.llama.svg" alt="sumi/line, every variant, theme llama" loading="lazy"><figcaption>theme <code>llama</code> · <code>sumi render sumi-line.sumi.yaml --theme llama</code><br>53.09mm × 72.14mm (max width 180mm, max height 220mm)</figcaption></figure></div>
 <details><summary>Source: <code>sumi-line.sumi.yaml</code></summary><pre># sumi/line: every variant. Generated by `bun run gallery` (#17).
 version: 1
 figure:
@@ -1642,6 +1665,12 @@ nodes:
   - id: dashed-b
     component: box
     label: B
+  - id: dotted-a
+    component: box
+    label: A
+  - id: dotted-b
+    component: box
+    label: B
   - id: emphasis-a
     component: box
     label: A
@@ -1665,6 +1694,11 @@ edges:
     component: sumi/line
     label: dashed
     variant: dashed
+  - from: dotted-a
+    to: dotted-b
+    component: sumi/line
+    label: dotted
+    variant: dotted
   - from: emphasis-a
     to: emphasis-b
     component: sumi/line
@@ -1680,10 +1714,10 @@ edges:
 <section class="card" id="sumi-double-arrow">
 <header><h3>sumi/double-arrow</h3><span class="kind">edge</span></header>
 <p>A line with arrowheads at both ends.</p>
-<ul class="chips" aria-label="variants"><li>default</li><li>dashed</li><li>emphasis</li><li>muted</li></ul>
+<ul class="chips" aria-label="variants"><li>default</li><li>dashed</li><li>dotted</li><li>emphasis</li><li>muted</li></ul>
 <dl class="meta"><dt>since</dt><dd><code>0.1.0</code></dd><dt>direction</dt><dd><code>both</code></dd><dt>head</dt><dd><code>triangle</code></dd><dt>tail</dt><dd><code>triangle</code></dd></dl>
 <p class="note">No props.</p>
-<div class="renders"><figure><img src="components/sumi-double-arrow.minimal.svg" alt="sumi/double-arrow, every variant, theme minimal" loading="lazy"><figcaption>theme <code>minimal</code> · <code>sumi render sumi-double-arrow.sumi.yaml</code><br>53.09mm × 57.86mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-double-arrow.academic.svg" alt="sumi/double-arrow, every variant, theme academic" loading="lazy"><figcaption>theme <code>academic</code> · <code>sumi render sumi-double-arrow.sumi.yaml --theme academic</code><br>53.09mm × 57.86mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-double-arrow.slides.svg" alt="sumi/double-arrow, every variant, theme slides" loading="lazy"><figcaption>theme <code>slides</code> · <code>sumi render sumi-double-arrow.sumi.yaml --theme slides</code><br>69.5mm × 69.5mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-double-arrow.color.svg" alt="sumi/double-arrow, every variant, theme color" loading="lazy"><figcaption>theme <code>color</code> · <code>sumi render sumi-double-arrow.sumi.yaml --theme color</code><br>53.09mm × 57.86mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-double-arrow.paper.svg" alt="sumi/double-arrow, every variant, theme paper" loading="lazy"><figcaption>theme <code>paper</code> · <code>sumi render sumi-double-arrow.sumi.yaml --theme paper</code><br>53.09mm × 57.86mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-double-arrow.llama.svg" alt="sumi/double-arrow, every variant, theme llama" loading="lazy"><figcaption>theme <code>llama</code> · <code>sumi render sumi-double-arrow.sumi.yaml --theme llama</code><br>53.09mm × 57.86mm (max width 180mm, max height 220mm)</figcaption></figure></div>
+<div class="renders"><figure><img src="components/sumi-double-arrow.minimal.svg" alt="sumi/double-arrow, every variant, theme minimal" loading="lazy"><figcaption>theme <code>minimal</code> · <code>sumi render sumi-double-arrow.sumi.yaml</code><br>53.09mm × 72.14mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-double-arrow.academic.svg" alt="sumi/double-arrow, every variant, theme academic" loading="lazy"><figcaption>theme <code>academic</code> · <code>sumi render sumi-double-arrow.sumi.yaml --theme academic</code><br>53.09mm × 72.14mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-double-arrow.slides.svg" alt="sumi/double-arrow, every variant, theme slides" loading="lazy"><figcaption>theme <code>slides</code> · <code>sumi render sumi-double-arrow.sumi.yaml --theme slides</code><br>69.5mm × 86.61mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-double-arrow.color.svg" alt="sumi/double-arrow, every variant, theme color" loading="lazy"><figcaption>theme <code>color</code> · <code>sumi render sumi-double-arrow.sumi.yaml --theme color</code><br>53.09mm × 72.14mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-double-arrow.paper.svg" alt="sumi/double-arrow, every variant, theme paper" loading="lazy"><figcaption>theme <code>paper</code> · <code>sumi render sumi-double-arrow.sumi.yaml --theme paper</code><br>53.09mm × 72.14mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="components/sumi-double-arrow.llama.svg" alt="sumi/double-arrow, every variant, theme llama" loading="lazy"><figcaption>theme <code>llama</code> · <code>sumi render sumi-double-arrow.sumi.yaml --theme llama</code><br>53.09mm × 72.14mm (max width 180mm, max height 220mm)</figcaption></figure></div>
 <details><summary>Source: <code>sumi-double-arrow.sumi.yaml</code></summary><pre># sumi/double-arrow: every variant. Generated by `bun run gallery` (#17).
 version: 1
 figure:
@@ -1707,6 +1741,12 @@ nodes:
   - id: dashed-b
     component: box
     label: B
+  - id: dotted-a
+    component: box
+    label: A
+  - id: dotted-b
+    component: box
+    label: B
   - id: emphasis-a
     component: box
     label: A
@@ -1730,6 +1770,11 @@ edges:
     component: sumi/double-arrow
     label: dashed
     variant: dashed
+  - from: dotted-a
+    to: dotted-b
+    component: sumi/double-arrow
+    label: dotted
+    variant: dotted
   - from: emphasis-a
     to: emphasis-b
     component: sumi/double-arrow
@@ -1867,6 +1912,10 @@ edges:
 <section class="card">
 <header><h3>Generic processing pipeline</h3><a href="../../examples/pipeline/pipeline.sumi.yaml"><code>examples/pipeline/pipeline.sumi.yaml</code></a> · <a href="../../examples/pipeline/pipeline.pdf">PDF</a></header>
 <div class="renders"><figure><img src="../../examples/pipeline/pipeline.svg" alt="Generic processing pipeline" loading="lazy"><figcaption>theme <code>academic</code> · profile <code>paper-single</code><br>61.74mm × 150.28mm (max width 88mm, max height 220mm)</figcaption></figure></div>
+</section>
+<section class="card">
+<header><h3>Thin lines, dotted arrows and small arrowheads</h3><a href="../../examples/strokes/strokes.sumi.yaml"><code>examples/strokes/strokes.sumi.yaml</code></a> · <a href="../../examples/strokes/strokes.pdf">PDF</a></header>
+<div class="renders"><figure><img src="../../examples/strokes/strokes.svg" alt="Thin lines, dotted arrows and small arrowheads" loading="lazy"><figcaption>theme <code>paper</code> · profile <code>paper-double</code><br>95.6mm × 63.15mm (max width 180mm, max height 220mm)</figcaption></figure></div>
 </section>
 <section class="card">
 <header><h3>Generic three-tier system</h3><a href="../../examples/system-architecture/system-architecture.sumi.yaml"><code>examples/system-architecture/system-architecture.sumi.yaml</code></a> · <a href="../../examples/system-architecture/system-architecture.pdf">PDF</a></header>

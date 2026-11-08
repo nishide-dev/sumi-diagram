@@ -64,6 +64,12 @@ The committed SVGs of <code>examples/</code>, rendered from their sources as wri
 
 <img src="../../examples/pipeline/pipeline.svg" alt="Generic processing pipeline">
 
+## Thin lines, dotted arrows and small arrowheads
+
+[<code>examples/strokes/strokes\.sumi\.yaml</code>](../../examples/strokes/strokes.sumi.yaml) · [PDF](../../examples/strokes/strokes.pdf) · theme <code>paper</code> · profile <code>paper\-double</code> · 95\.6mm × 63\.15mm \(max width 180mm, max height 220mm\)
+
+<img src="../../examples/strokes/strokes.svg" alt="Thin lines, dotted arrows and small arrowheads">
+
 ## Generic three\-tier system
 
 [<code>examples/system\-architecture/system\-architecture\.sumi\.yaml</code>](../../examples/system-architecture/system-architecture.sumi.yaml) · [PDF](../../examples/system-architecture/system-architecture.pdf) · theme <code>academic</code> · profile <code>paper\-double</code> · 157\.34mm × 71\.97mm \(max width 180mm, max height 220mm\)

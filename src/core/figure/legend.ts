@@ -62,7 +62,13 @@ import type { Locator } from "./yaml";
 
 /** One entry of `props.entries`, as validated by the manifest. */
 export interface LegendEntry {
-  edge?: { component?: string; variant?: string; tone?: Tone };
+  edge?: {
+    component?: string;
+    variant?: string;
+    tone?: Tone;
+    lineWidth?: number;
+    arrowheadScale?: number;
+  };
   node?: { component?: string; variant?: string; tone?: Tone };
   /** A matrix class (#180): `<matrix>.<class>`. */
   class?: string;
@@ -501,6 +507,10 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
           component: entry.edge.component ?? "arrow",
           variant: entry.edge.variant ?? "default",
           ...(entry.edge.tone !== undefined && { tone: entry.edge.tone }),
+          ...(entry.edge.lineWidth !== undefined && { lineWidth: entry.edge.lineWidth }),
+          ...(entry.edge.arrowheadScale !== undefined && {
+            arrowheadScale: entry.edge.arrowheadScale,
+          }),
           props: {},
         };
         edges.push(edge);
@@ -669,6 +679,8 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
       component: LEGEND_ID,
       variant: component.variant,
       ...(node.tone !== undefined && { tone: node.tone }),
+      ...(node.lineWidth !== undefined && { lineWidth: node.lineWidth }),
+      ...(node.cornerRadius !== undefined && { cornerRadius: node.cornerRadius }),
       ...(node.group !== undefined && { group: node.group }),
       arrange: { stack: { direction: "down", gap: sizes.rowGap, align: "start", items: rows } },
     };

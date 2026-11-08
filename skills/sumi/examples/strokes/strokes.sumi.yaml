@@ -1,0 +1,96 @@
+# A slice of the TriCL overview (Hwang et al., 2022, Figure 1) in the original's
+# thin lines: 0.5pt black frames, a gray panel, a thin dotted coloured double
+# arrow and small arrowheads. Positions and the key are original.
+version: 1
+figure:
+  id: strokes-slice
+  title: Thin lines, dotted arrows and small arrowheads
+  theme: paper
+  themeOverrides:
+    lineWidth: 0.5pt
+    frameWidth: 0.5pt
+    arrowheadScale: 0.6
+    cornerRadius: 1.5pt
+    groupFill: "#ffffff"
+    groupStroke: "#000000"
+    tones:
+      gray: { fill: "#d9d9d9", line: "#000000", text: "#000000" }
+      blue: { fill: "#d6dcfb", line: "#1942f3", text: "#1942f3" }
+      red: { fill: "#f4d6d4", line: "#d0352b", text: "#d0352b" }
+      green: { fill: "#d4e2d0", line: "#296218", text: "#296218" }
+  profile: paper-double
+  layout:
+    density: compact
+    arrange:
+      place:
+        unit: 1pt
+        items:
+          - { item: contrast-key, at: [ 150, 12.9 ] }
+          - { item: enc1, at: [ 60, 62.4 ] }
+          - { item: shared, at: [ 60, 102 ] }
+          - { item: enc2, at: [ 60, 140.4 ] }
+          - { item: phi1, at: [ 140, 49.5 ] }
+          - { item: node-head-label, at: [ 139.7, 93 ] }
+          - { item: phi2, at: [ 140, 128.1 ] }
+          - { item: psi1, at: [ 192.5, 75 ] }
+          - { item: edge-head-label, at: [ 192.2, 110.1 ] }
+          - { item: psi2, at: [ 192.5, 153 ] }
+          - { item: z1, at: [ 242.9, 49.5 ] }
+          - { item: y1, at: [ 242.9, 75 ] }
+          - { item: z2, at: [ 242.9, 128.1 ] }
+          - { item: y2, at: [ 242.9, 153 ] }
+          - { item: m-node, at: [ 277, 88.8 ] }
+          - { item: m-group, at: [ 277.4, 114 ] }
+groups:
+  - id: contrast-key
+    arrange:
+      row:
+        gap: 5mm
+        items:
+          - { row: { gap: 2mm, items: [ { row: { gap: 9pt, items: [ lk-n-a, lk-n-m, lk-n-b ] } }, lk-n ] } }
+          - { row: { gap: 2mm, items: [ { row: { gap: 9pt, items: [ lk-g-a, lk-g-m, lk-g-b ] } }, lk-g ] } }
+nodes:
+  - { id: lk-n-a, component: junction, variant: hidden }
+  - { id: lk-n-m, component: circle, variant: solid, tone: blue, props: { width: 6pt } }
+  - { id: lk-n-b, component: junction, variant: hidden }
+  - { id: lk-n, component: label, label: Node-level contrast }
+  - { id: lk-g-a, component: junction, variant: hidden }
+  - { id: lk-g-m, component: square, variant: solid, tone: red, props: { width: 6pt } }
+  - { id: lk-g-b, component: junction, variant: hidden }
+  - { id: lk-g, component: label, label: Group-level contrast }
+  - { id: enc1, component: box, label: "Hypergraph\nEncoder\n$f_\\theta(\\cdot)$", props: { width: 70pt, height: 50pt } }
+  - { id: enc2, component: box, label: "Hypergraph\nEncoder\n$f_\\theta(\\cdot)$", props: { width: 70pt, height: 50pt } }
+  - { id: shared, component: label, label: Shared weights }
+  - { id: phi1, component: box, label: "$g_\\phi(\\cdot)$", props: { width: 35pt, height: 20pt } }
+  - { id: phi2, component: box, label: "$g_\\phi(\\cdot)$", props: { width: 35pt, height: 20pt } }
+  - { id: node-head-label, component: label, label: "Node\nProjection\nHead" }
+  - { id: psi1, component: box, label: "$g_\\psi(\\cdot)$", props: { width: 35pt, height: 20pt } }
+  - { id: psi2, component: box, label: "$g_\\psi(\\cdot)$", props: { width: 35pt, height: 20pt } }
+  - { id: edge-head-label, component: label, label: "Hyperedge\nProjection\nHead" }
+  - { id: z1, component: box, label: "$\\mathit{Z}_1$", props: { width: 25pt, height: 17pt } }
+  - { id: y1, component: box, label: "$\\mathit{Y}_1$", props: { width: 25pt, height: 17pt } }
+  - { id: z2, component: box, label: "$\\mathit{Z}_2$", props: { width: 25pt, height: 17pt } }
+  - { id: y2, component: box, label: "$\\mathit{Y}_2$", props: { width: 25pt, height: 17pt } }
+  - { id: m-node, component: circle, variant: solid, tone: blue, props: { width: 6pt } }
+  - { id: m-group, component: square, variant: solid, tone: red, props: { width: 6pt } }
+edges:
+  - { from: lk-n-m, to: lk-n-a, variant: dotted, tone: blue }
+  - { from: lk-n-m, to: lk-n-b, variant: dotted, tone: blue }
+  - { from: lk-g-m, to: lk-g-a, variant: dotted, tone: red }
+  - { from: lk-g-m, to: lk-g-b, variant: dotted, tone: red }
+  - { from: enc1, to: phi1, fromAnchor: "east:0.24", toAnchor: west, labelAt: start, labelSide: left, label: "$\\mathit{P}_1$" }
+  - { from: enc1, to: psi1, fromAnchor: "east:0.75", toAnchor: west, labelAt: start, labelSide: left, label: "$\\mathit{Q}_1$" }
+  - { from: enc2, to: phi2, fromAnchor: "east:0.24", toAnchor: west, labelAt: start, labelSide: left, label: "$\\mathit{P}_2$" }
+  - { from: enc2, to: psi2, fromAnchor: "east:0.75", toAnchor: west, labelAt: start, labelSide: left, label: "$\\mathit{Q}_2$" }
+  - { from: phi1, to: z1 }
+  - { from: psi1, to: y1 }
+  - { from: phi2, to: z2 }
+  - { from: psi2, to: y2 }
+  - { from: m-node, to: z1, component: double-arrow, route: straight, variant: dotted, tone: blue, fromAnchor: north, toAnchor: east }
+  - { from: m-node, to: z2, component: double-arrow, route: straight, variant: dotted, tone: blue, fromAnchor: south, toAnchor: east }
+  - { from: m-group, to: y1, component: double-arrow, route: straight, variant: dotted, tone: red, fromAnchor: north, toAnchor: east }
+  - { from: m-group, to: y2, component: double-arrow, route: straight, variant: dotted, tone: red, fromAnchor: south, toAnchor: east }
+sets:
+  - { id: encoder, members: [ enc1, shared, enc2 ], shape: rect, padding: 4.5pt, fillOpacity: 0.1 }
+  - { id: node-head, members: [ phi1, node-head-label, phi2 ], shape: rect, padding: 4.5pt, fillOpacity: 0.1 }
+  - { id: edge-head, members: [ psi1, edge-head-label, psi2 ], shape: rect, padding: 4.5pt, fillOpacity: 0.1 }

@@ -224,18 +224,34 @@ export function sampleSource(entry: CatalogEntry, theme: string): string {
         );
       }
       break;
-    case "group":
+    case "group": {
+      // Six frames no longer fit in one row (#427): two explicit rows of three.
+      const rows = variants.length > 5;
+      if (rows) {
+        const half = Math.ceil(variants.length / 2);
+        lines.splice(
+          lines.length - 1,
+          1,
+          "    arrange:",
+          "      stack:",
+          "        items:",
+          `          - row: { items: [${variants.slice(0, half).join(", ")}] }`,
+          `          - row: { items: [${variants.slice(half).join(", ")}] }`,
+        );
+      }
       lines.push("", "groups:");
       for (const v of variants) {
         lines.push(`  - id: ${v}`, `    component: ${entry.id}`, `    label: ${v}`);
         if (v !== "default") lines.push(`    variant: ${v}`);
+        if (rows) lines.push(`    arrange: { row: { items: [${v}-member] } }`);
       }
       lines.push("", "nodes:");
       for (const v of variants) {
         lines.push(`  - id: ${v}-member`, "    component: box", "    label: member");
-        lines.push(`    group: ${v}`);
+        if (!rows) lines.push(`    group: ${v}`);
       }
       break;
+    }
     case "edge":
       lines.push("", "nodes:");
       for (const v of variants) {

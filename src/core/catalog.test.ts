@@ -227,7 +227,7 @@ describe("sets section (#407)", () => {
     expect(Object.keys(catalog)).toEqual(["version", "sets"]);
     expect(catalog.sets?.path).toBe("sets");
     expect(catalog.sets?.shapes).toEqual(["circle", "ellipse", "hull", "rect"]);
-    expect(catalog.sets?.variants).toEqual(["default", "filled", "outlined", "dashed"]);
+    expect(catalog.sets?.variants).toEqual(["default", "filled", "outlined", "dashed", "dotted"]);
     expect(catalog.sets?.labelAt).toContain("top-left");
     expect(Object.keys(catalog.sets?.schema.properties ?? {})).toEqual([
       "id",
@@ -238,6 +238,8 @@ describe("sets section (#407)", () => {
       "padding",
       "fillOpacity",
       "variant",
+      "lineWidth",
+      "cornerRadius",
       "tone",
     ]);
   });

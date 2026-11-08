@@ -827,6 +827,8 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
           tone: set.tone,
           fillOpacity: set.fillOpacity,
           square: figure.themeOverrides?.nodeCorners === "square",
+          figure: figure.themeOverrides,
+          element: set,
         }),
         source: sourceEntry(["sets", index]),
       }),

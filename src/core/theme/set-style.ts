@@ -11,6 +11,7 @@
 import type { SetVariant } from "../figure/schema";
 import { resolveStyle } from "./resolve";
 import type { Theme } from "./schema";
+import type { ElementStrokes, FigureStrokes } from "./strokes";
 import type { Color, CommonStyle, StyleLength } from "./style";
 import type { Tone } from "./tones";
 
@@ -30,6 +31,7 @@ export const SET_FILL_OPACITY: Readonly<Record<SetVariant, number>> = {
   filled: 0.28,
   outlined: 0,
   dashed: 0.2,
+  dotted: 0.2,
 };
 
 export interface SetStyleOptions {
@@ -39,6 +41,10 @@ export interface SetStyleOptions {
   readonly fillOpacity?: number | undefined;
   /** `figure.themeOverrides.nodeCorners: square`. */
   readonly square?: boolean | undefined;
+  /** The figure's frame widths and corners (#427, `themeOverrides`). */
+  readonly figure?: Pick<FigureStrokes, "frameWidth" | "cornerRadius"> | undefined;
+  /** The set's own `lineWidth` and `cornerRadius` (#427), in pt. */
+  readonly element?: Pick<ElementStrokes, "lineWidth" | "cornerRadius"> | undefined;
 }
 
 /** Resolves the style of a set under `theme` (already carrying the figure's tone overrides). */
@@ -59,11 +65,28 @@ export function resolveSetStyle(theme: Theme, options: SetStyleOptions): SetStyl
   const outlined = variant !== "filled";
   const tinted = variant !== "outlined";
   const zero: StyleLength = { pt: 0, units: 0 };
+  const own = options.element?.lineWidth;
+  const wide = options.figure?.frameWidth;
+  const radiusPt = options.element?.cornerRadius ?? options.figure?.cornerRadius;
+  // The set's own width always draws; the figure's replaces a frame the theme draws (a borderless one has none).
+  const strokeWidth =
+    own !== undefined
+      ? { pt: own, units: own * 2 }
+      : wide !== undefined && frame.strokeWidth.units > 0
+        ? { pt: wide, units: wide * 2 }
+        : frame.strokeWidth;
+  const radius: StyleLength =
+    options.square === true && options.element?.cornerRadius === undefined
+      ? zero
+      : radiusPt === undefined
+        ? frame.radius
+        : { pt: radiusPt, units: radiusPt * 2 };
   return Object.freeze({
     kind: "set",
     stroke: outlined ? ink : "transparent",
-    strokeWidth: outlined ? frame.strokeWidth : zero,
+    strokeWidth: outlined ? strokeWidth : zero,
     strokeDash: variant === "dashed" ? Math.max(1, dashed.strokeDash) : 0,
+    ...(variant === "dotted" && { strokeDotted: true as const }),
     opacity: 1,
     fontSize: frame.fontSize,
     fontColor: line?.fontColor ?? ink,
@@ -72,6 +95,6 @@ export function resolveSetStyle(theme: Theme, options: SetStyleOptions): SetStyl
     mono: frame.mono,
     fill: tinted ? ink : "transparent",
     fillOpacity: tinted ? (options.fillOpacity ?? SET_FILL_OPACITY[variant]) : 0,
-    radius: options.square === true ? zero : frame.radius,
+    radius,
   });
 }

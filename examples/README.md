@@ -21,6 +21,7 @@ and `bun run skill:previews`.
 | [`clip/`](clip/clip.sumi.yaml) | `paper` / `paper-double` | Radford et al. (2021), Figure 1: contrastive pre-training, a text-derived classifier and zero-shot prediction; square theme overrides, sharp shared comb buses, trapezoid encoders, monospace cards, a curly bracket, formula matrices and an original synthetic vector dog (180mm × 67.64mm) |
 | [`gcn/`](gcn/gcn.sumi.yaml) | `paper` / `paper-double` | Kipf & Welling (2017), Figure 1: a multi-layer graph convolutional network; vertices placed by coordinates (`place`), the same graph shape in two layers drawn as stacked cards (`props.layers`), colored curves that converge on and spread from the hidden layers (`route: curve`), straight undirected graph edges, per-figure tone colors and white cards (`themeOverrides.tones`, `groupFill`), and an original synthetic t-SNE-style point cloud (178.86mm × 65.44mm) |
 | [`llama4-moe/`](llama4-moe/llama4-moe.sumi.yaml) | `llama` / `paper-double` | Meta AI (2025), the Llama 4 mixture-of-experts figure: the `llama` theme (dark solid blocks, borderless muted panels, a white muted inner panel, a filled router, an emphasis shared expert, 1pt lines and open chevron arrowheads), alternating Attention/FFN with a dashed `zoom` into the expanded MoE panel, a ⊕ operator, and hidden-junction forks that share one bus even with a short `···` label among the experts (156.28mm × 107.77mm) |
+| [`strokes/`](strokes/strokes.sumi.yaml) | `paper` / `paper-double` | a slice of the TriCL figure (Hwang et al., 2022, Figure 1) in the original's thin lines: `themeOverrides` `lineWidth` / `frameWidth` / `arrowheadScale` / `cornerRadius` (0.5pt frames and wires, small arrowheads, 1.5pt corners), gray rect sets, and thin dotted coloured double arrows (`variant: dotted`) |
 | [`chat/`](chat/chat.sumi.yaml) | `llama` / `paper-single` | a generic Japanese conversation using `bubble` nodes and the `chat` arrangement: a 今日 divider, timestamps, read receipts, an initial in a circle, consecutive messages and automatic wrapping; white incoming bubbles and pale green outgoing ones (83.96mm × 59.09mm) |
 | [`llm-dialogue/`](llm-dialogue/llm-dialogue.sumi.yaml) | `llama` / `paper-single` | an original illustrative user–assistant math dialogue: `chat` with avatars on both sides (bundled user/robot icons), explicit speaker notes, a multi-line answer with inline math and a follow-up question (83.96mm × 61.56mm) |
 
@@ -76,6 +77,7 @@ geometry lint):
 | `clip` | 2: `geometry/heavy-scaling` ×1 (71.81%, with the width breakdown before scaling); `geometry/script-too-small` ×1 (math scripts down to 4.02pt after scaling; body text is 5.74pt, above the 5pt scaled minimum) |
 | `gcn` | 2: `geometry/group-empty-area` ×2 (the input and output layers: the graphs keep the original's sparse vertex positions) |
 | `llama4-moe` | none |
+| `strokes` | none |
 | `chat` | none |
 | `llm-dialogue` | none |
 

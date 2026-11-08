@@ -396,6 +396,8 @@ the reference's arrangement), then map each look you want to a field:
 | strong coloured cells or operators with white text | `variant: solid` + `tone` |
 | pastel cells with matching coloured border and text | `variant: tinted` + `tone` |
 | coloured lines | `tone` on the edge |
+| thin 0.5pt frames and lines, small arrowheads (paper figures usually want this; heavy default lines are the commonest difference from the original) | `themeOverrides: { lineWidth: 0.5pt, frameWidth: 0.5pt, arrowheadScale: 0.6 }` ([line weights](figure-format.md#themes-and-profiles)) |
+| dotted coloured lines | edge `variant: dotted` + `tone` (`lineWidth: 0.5pt` for one edge) |
 | a panel without a frame, a shaded panel, a dashed panel | group `variant: plain` / `filled` / `dashed`, with `caption: (a) …` |
 | panels of equal height with captions on one line | the panels in one `row` with `align: stretch` ([captions](structured.md#group-titles-and-captions)) |
 | panels separated by a dashed vertical (or horizontal) line | a `separator` between them ([recipe below](#two-panels-with-a-dashed-divider)) |
