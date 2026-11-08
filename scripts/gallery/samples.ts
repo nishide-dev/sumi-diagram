@@ -946,7 +946,7 @@ nodes:
   - { id: h, component: box, label: h }
 
 edges:
-  - { from: b2, to: s, component: line }
+  - { from: b2, to: s, component: line, route: straight }
   - { from: d, to: f }
   - { from: f, to: o }
   - { from: o, to: h }
