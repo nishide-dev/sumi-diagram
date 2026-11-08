@@ -141,7 +141,7 @@ Apply one edit and re-check: independent savings are not additive.
 | Code | Default | Fix |
 | --- | --- | --- |
 | `lint/empty-figure` | warning | add nodes |
-| `lint/no-edges` | warning | connect the nodes, or keep it if unconnected nodes are intended (say so); chat visuals do not require edges |
+| `lint/no-edges` | warning | connect the nodes, or keep it if unconnected nodes are intended (say so); chat visuals do not require edges; nodes in a set's `members` (or in a member group) are not counted |
 | `lint/ancestor-edge` | warning | connect elements both inside or both outside the group |
 | `lint/self-loop` | info | remove if unintended |
 | `lint/duplicate-edge` | warning | remove it or give it a different label |

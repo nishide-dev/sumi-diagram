@@ -391,3 +391,18 @@ describe("PDF and PPTX", () => {
     expect(slide).toContain("custGeom");
   });
 });
+
+describe("label background at a set boundary", () => {
+  test("only a label wholly inside the tint takes the tinted background", async () => {
+    const { labelBackground } = await import("./structured");
+    const inside = (p: { x: number; y: number }) => Math.hypot(p.x - 50, p.y - 50) <= 30;
+    const groups = [
+      { rect: { x: 20, y: 20, width: 60, height: 60 }, fill: "#ff0000", opacity: 0.2, inside },
+    ];
+    const within = labelBackground({ x: 40, y: 45, width: 20, height: 10 }, groups);
+    expect(within).not.toBe("#ffffff");
+    // Centre inside, but a corner outside the circle: stays on the canvas colour.
+    const straddling = labelBackground({ x: 55, y: 62, width: 40, height: 10 }, groups);
+    expect(straddling).toBe("#ffffff");
+  });
+});

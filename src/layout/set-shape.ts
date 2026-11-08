@@ -40,9 +40,12 @@ export function footprintPoints({ rect, round }: MemberFootprint): Point[] {
   }
   const cx = x + width / 2;
   const cy = y + height / 2;
+  // The samples are the vertices of a polygon circumscribing the disc, so the fit
+  // never cuts into it (an inscribed one would fall short by up to 0.5%).
+  const k = 1 / Math.cos(Math.PI / ROUND_SAMPLES);
   return Array.from({ length: ROUND_SAMPLES }, (_, i) => {
     const a = (i / ROUND_SAMPLES) * 2 * Math.PI;
-    return { x: cx + (width / 2) * Math.cos(a), y: cy + (height / 2) * Math.sin(a) };
+    return { x: cx + (width / 2) * k * Math.cos(a), y: cy + (height / 2) * k * Math.sin(a) };
   });
 }
 

@@ -7,7 +7,7 @@
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> | <code>llama</code> |
 | --- | --- | --- | --- | --- | --- |
 | <img src="sets/sets.minimal.svg" alt="set enclosures, theme minimal"> | <img src="sets/sets.academic.svg" alt="set enclosures, theme academic"> | <img src="sets/sets.slides.svg" alt="set enclosures, theme slides"> | <img src="sets/sets.color.svg" alt="set enclosures, theme color"> | <img src="sets/sets.paper.svg" alt="set enclosures, theme paper"> | <img src="sets/sets.llama.svg" alt="set enclosures, theme llama"> |
-| <code>sumi render sets\.sumi\.yaml</code><br>137\.94mm × 70\.2mm \(max width 180mm, max height 220mm\) | <code>sumi render sets\.sumi\.yaml \-\-theme academic</code><br>134\.76mm × 68\.97mm \(max width 180mm, max height 220mm\) | <code>sumi render sets\.sumi\.yaml \-\-theme slides</code><br>171\.63mm × 88\.55mm \(max width 180mm, max height 220mm\) | <code>sumi render sets\.sumi\.yaml \-\-theme color</code><br>137\.94mm × 70\.2mm \(max width 180mm, max height 220mm\) | <code>sumi render sets\.sumi\.yaml \-\-theme paper</code><br>132\.82mm × 69\.85mm \(max width 180mm, max height 220mm\) | <code>sumi render sets\.sumi\.yaml \-\-theme llama</code><br>131\.94mm × 69\.85mm \(max width 180mm, max height 220mm\) |
+| <code>sumi render sets\.sumi\.yaml</code><br>131\.94mm × 73\.91mm \(max width 180mm, max height 220mm\) | <code>sumi render sets\.sumi\.yaml \-\-theme academic</code><br>130mm × 73\.2mm \(max width 180mm, max height 220mm\) | <code>sumi render sets\.sumi\.yaml \-\-theme slides</code><br>156\.63mm × 91\.55mm \(max width 180mm, max height 220mm\) | <code>sumi render sets\.sumi\.yaml \-\-theme color</code><br>131\.94mm × 73\.91mm \(max width 180mm, max height 220mm\) | <code>sumi render sets\.sumi\.yaml \-\-theme paper</code><br>129\.12mm × 73\.73mm \(max width 180mm, max height 220mm\) | <code>sumi render sets\.sumi\.yaml \-\-theme llama</code><br>128\.59mm × 73\.73mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sets.sumi.yaml</code></summary>
@@ -26,7 +26,7 @@ figure:
         gap: 14mm
         items:
           - row:
-              gap: 16mm
+              gap: 22mm
               align: center
               items:
                 - place:
@@ -40,10 +40,11 @@ figure:
                 - place:
                     unit: 12mm
                     items:
-                      - { item: p, at: [0, 0] }
-                      - { item: q, at: [0.9, 0.5] }
-                      - { item: r, at: [2.4, 1.2] }
-                      - { item: s, at: [0.3, 1.6] }
+                      - { item: p, at: [0.5, 0] }
+                      - { item: r, at: [2.3, 0.5] }
+                      - { item: q, at: [1.2, 1.0] }
+                      - { item: s, at: [0, 1.7] }
+                      - { item: t, at: [2.0, 2.1] }
           - row:
               gap: 22mm
               items: [d, f, o, h]
@@ -54,17 +55,18 @@ nodes:
   - { id: ab, component: box, label: ab }
   - { id: b1, component: box, label: b1 }
   - { id: b2, component: box, label: b2 }
-  - { id: p, component: box, label: p }
-  - { id: q, component: box, label: q }
-  - { id: r, component: box, label: r }
-  - { id: s, component: box, label: s }
+  - { id: p, component: circle, label: p }
+  - { id: q, component: circle, label: q }
+  - { id: r, component: circle, label: r }
+  - { id: s, component: circle, label: s }
+  - { id: t, component: circle, label: t }
   - { id: d, component: box, label: d }
   - { id: f, component: box, label: f }
   - { id: o, component: box, label: o }
   - { id: h, component: box, label: h }
 
 edges:
-  - { from: b1, to: p }
+  - { from: b2, to: s, component: line }
   - { from: d, to: f }
   - { from: f, to: o }
   - { from: o, to: h }
@@ -72,8 +74,8 @@ edges:
 sets:
   - { id: left, label: Left, members: [a1, a2, ab], tone: blue, labelAt: top-left }
   - { id: right, label: Right, members: [ab, b1, b2], tone: green, labelAt: top }
-  - { id: outer, label: Outer hull, members: [p, q, r, s], tone: gray, shape: hull, padding: 8mm, labelAt: right }
-  - { id: inner, label: Inner, members: [p, q], tone: orange, shape: ellipse, padding: 3mm, labelAt: top-right }
+  - { id: outer, label: Hull, members: [p, q, r, s, t], tone: gray, shape: hull, padding: 9mm, labelAt: right }
+  - { id: inner, members: [q], tone: orange, shape: circle, padding: 3mm }
   - { id: default, label: default, members: [d], tone: blue, labelAt: bottom }
   - { id: filled, label: filled, members: [f], tone: orange, variant: filled, labelAt: bottom }
   - { id: outlined, label: outlined, members: [o], tone: green, variant: outlined, labelAt: bottom }

@@ -205,18 +205,31 @@ nodes:
     expect(warning?.message).toBe("The figure has 3 nodes but no edges.");
   });
 
-  test("no-edges does not apply to a figure with sets, which relate nodes by membership (#407)", () => {
-    const text = [
-      "version: 1",
-      "figure: { id: x, layout: { arrange: { row: { items: [a, b] } } } }",
-      "nodes:",
-      "  - { id: a, component: box, label: A }",
-      "  - { id: b, component: box, label: B }",
-      "",
-    ].join("\n");
-    expect(lintFigure(text).diagnostics.map((d) => d.code)).toEqual(["lint/no-edges"]);
-    const withSet = `${text}sets:\n  - { id: s, members: [a, b] }\n`;
-    expect(lintFigure(withSet).diagnostics).toEqual([]);
+  test("no-edges counts only the nodes that are not set members, directly or through a group (#407)", () => {
+    const base = (sets: string) =>
+      [
+        "version: 1",
+        "figure: { id: x, layout: { arrange: { row: { items: [g, c, d] } } } }",
+        "groups:",
+        "  - { id: g, arrange: { row: { items: [a, b] } } }",
+        "nodes:",
+        "  - { id: a, component: box, label: A }",
+        "  - { id: b, component: box, label: B }",
+        "  - { id: c, component: box, label: C }",
+        "  - { id: d, component: box, label: D }",
+        sets,
+        "",
+      ].join("\n");
+    const message = (text: string) =>
+      lintFigure(text).diagnostics.find((d) => d.code === "lint/no-edges")?.message;
+    expect(message(base("sets: []"))).toBe("The figure has 4 nodes but no edges.");
+    // a and b through the member group g, c directly: only d is left, so nothing to connect.
+    expect(message(base("sets:\n  - { id: s, members: [g, c] }"))).toBeUndefined();
+    // c and d are not members: two unrelated nodes remain.
+    expect(message(base("sets:\n  - { id: s, members: [g] }"))).toBe(
+      "The figure has 2 nodes but no edges.",
+    );
+    expect(message(base("sets:\n  - { id: s, members: [a, b, c, d] }"))).toBeUndefined();
   });
 
   test("missing-glyph lists characters with code points and the font slot", () => {

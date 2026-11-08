@@ -893,7 +893,18 @@ function over(top: string, alpha: number, bottom: string): string {
  * color beneath the label box's center (`backgroundAt()`).
  */
 export function labelBackground(box: Rect, groups: readonly PaintedGroup[]): string {
-  return backgroundAt({ x: box.x + box.width / 2, y: box.y + box.height / 2 }, groups);
+  // A set's tint (#407) has a curved edge: only a label wholly inside it gets the tinted
+  // background; one that straddles the boundary keeps the colour beneath its other paint.
+  const corners: Point[] = [
+    { x: box.x, y: box.y },
+    { x: box.x + box.width, y: box.y },
+    { x: box.x, y: box.y + box.height },
+    { x: box.x + box.width, y: box.y + box.height },
+  ];
+  const usable = groups.filter(
+    (g) => g.inside === undefined || corners.every((p) => g.inside?.(p) === true),
+  );
+  return backgroundAt({ x: box.x + box.width / 2, y: box.y + box.height / 2 }, usable);
 }
 
 /**

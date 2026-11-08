@@ -107,7 +107,8 @@ describe("fitSetOutline", () => {
     const round = { rect: { x: 0, y: 0, width: 10, height: 10 }, round: true };
     const outline = fitSetOutline([round], "circle", 0);
     if (outline.kind !== "ellipse") throw new Error("expected an ellipse");
-    expect(outline.rx).toBeCloseTo(5, 6);
+    expect(outline.rx).toBeCloseTo(5, 1);
+    expect(outline.rx).toBeGreaterThanOrEqual(5);
     const square = fitSetOutline([box(0, 0)], "circle", 0);
     if (square.kind !== "ellipse") throw new Error("expected an ellipse");
     expect(square.rx).toBeCloseTo(Math.hypot(5, 5), 6);
@@ -225,5 +226,145 @@ describe("samplePath", () => {
   test("keeps the endpoints and adds the cubics' interior points", () => {
     const points = samplePath(roundedHull([{ x: 0, y: 0 }], 10), 4);
     expect(points.length).toBeGreaterThan(8);
+  });
+});
+
+/** Distance from `p` to the segment `a`-`b`. */
+function segmentDistance(p: Point, a: Point, b: Point): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len2 = dx * dx + dy * dy;
+  const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2));
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}
+
+const boundaryDistance = (p: Point, polygon: readonly Point[]): number =>
+  Math.min(
+    ...polygon.map((a, i) => segmentDistance(p, a, polygon[(i + 1) % polygon.length] as Point)),
+  );
+
+describe("hull is the offset of the members' convex hull by the padding", () => {
+  const PAD = 12;
+  const cases: Record<string, { rect: Rect; round: boolean }[]> = {
+    boxes: [box(0, 0, 12), box(70, 10, 12), box(30, 60, 12), box(80, 70, 12), box(10, 40, 12)],
+    discs: [
+      { rect: { x: 0, y: 0, width: 16, height: 16 }, round: true },
+      { rect: { x: 60, y: 20, width: 16, height: 16 }, round: true },
+      { rect: { x: 25, y: 55, width: 16, height: 16 }, round: true },
+    ],
+  };
+  for (const [name, members] of Object.entries(cases)) {
+    const outline = fitSetOutline(members, "hull", PAD);
+    if (outline.kind !== "path") throw new Error("expected a path");
+    const points = samplePath(outline.segments, 24);
+    const hull = convexHull(members.flatMap(footprintPoints));
+
+    test(`${name}: every outline point keeps the padding from every member`, () => {
+      for (const p of points)
+        for (const { rect, round } of members) {
+          const d = round
+            ? Math.hypot(p.x - (rect.x + rect.width / 2), p.y - (rect.y + rect.height / 2)) -
+              rect.width / 2
+            : Math.hypot(
+                Math.max(rect.x - p.x, 0, p.x - rect.x - rect.width),
+                Math.max(rect.y - p.y, 0, p.y - rect.y - rect.height),
+              );
+          expect(d).toBeGreaterThanOrEqual(PAD - 0.2);
+        }
+    });
+
+    test(`${name}: no bulge beyond padding from the convex hull`, () => {
+      for (const p of points) expect(boundaryDistance(p, hull)).toBeLessThanOrEqual(PAD + 0.05);
+      // ...and it is exactly the padding away (the offset), not nearer.
+      for (const p of points) expect(boundaryDistance(p, hull)).toBeGreaterThanOrEqual(PAD - 0.05);
+    });
+
+    test(`${name}: each corner is an arc of radius = padding about a hull vertex`, () => {
+      const arcs = outline.segments.filter((s) => s.command === "C");
+      expect(arcs.length).toBeGreaterThanOrEqual(hull.length);
+      // Curvature: points on arcs are at distance PAD (curvature 1/PAD) from a hull vertex.
+      const onArc = points.filter(
+        (p) => Math.min(...hull.map((v) => Math.hypot(p.x - v.x, p.y - v.y))) < PAD + 0.05,
+      );
+      expect(onArc.length).toBeGreaterThan(hull.length * 5);
+      for (const p of onArc) {
+        const d = Math.min(...hull.map((v) => Math.hypot(p.x - v.x, p.y - v.y)));
+        expect(Math.abs(d - PAD)).toBeLessThan(0.05);
+      }
+    });
+  }
+});
+
+describe("degenerate hull inputs", () => {
+  test("collinear points give a stadium", () => {
+    const hull = convexHull([
+      { x: 0, y: 0 },
+      { x: 5, y: 0 },
+      { x: 10, y: 0 },
+    ]);
+    expect(hull).toHaveLength(2);
+    const b = outlineBounds({ kind: "path", segments: roundedHull(hull, 3) });
+    expect(b.width).toBeCloseTo(16, 6);
+    expect(b.height).toBeCloseTo(6, 6);
+  });
+
+  test("duplicate points collapse", () => {
+    const p = { x: 4, y: 4 };
+    expect(convexHull([p, { ...p }, { ...p }])).toEqual([p]);
+  });
+
+  test("zero-size members give a circle of the padding", () => {
+    const outline = fitSetOutline([box(5, 5, 0)], "hull", 7);
+    const b = outlineBounds(outline);
+    expect(b.width).toBeCloseTo(14, 6);
+    expect(b.height).toBeCloseTo(14, 6);
+    const circle = fitSetOutline([box(5, 5, 0)], "circle", 7);
+    expect(circle).toMatchObject({ kind: "ellipse", rx: 7, ry: 7 });
+  });
+
+  test("a two-point hull is a stadium of two arcs", () => {
+    const segments = roundedHull(
+      [
+        { x: 0, y: 0 },
+        { x: 20, y: 10 },
+      ],
+      4,
+    );
+    expect(segments.filter((s) => s.command === "C").length).toBeGreaterThanOrEqual(4);
+    for (const p of samplePath(segments, 12))
+      expect(segmentDistance(p, { x: 0, y: 0 }, { x: 20, y: 10 })).toBeCloseTo(4, 1);
+  });
+});
+
+describe("all eight label positions", () => {
+  const outline = fitSetOutline([box(0, 0, 20), box(50, 30, 20)], "ellipse", 6);
+  const size = { width: 24, height: 10 };
+  const b = outlineBounds(outline);
+  const positions = [
+    "top",
+    "top-right",
+    "right",
+    "bottom-right",
+    "bottom",
+    "bottom-left",
+    "left",
+    "top-left",
+  ] as const;
+  for (const at of positions) {
+    test(`${at}: the label box lies outside the outline`, () => {
+      const c = setLabelCenter(outline, at, size, 4);
+      const label = { x: c.x - 12, y: c.y - 5, width: 24, height: 10 };
+      if (outline.kind !== "ellipse") throw new Error("ellipse");
+      const nx = Math.max(label.x, Math.min(outline.cx, label.x + label.width));
+      const ny = Math.max(label.y, Math.min(outline.cy, label.y + label.height));
+      expect(
+        ((nx - outline.cx) / outline.rx) ** 2 + ((ny - outline.cy) / outline.ry) ** 2,
+      ).toBeGreaterThan(1);
+    });
+  }
+  test("right is centred vertically beside the bounding box", () => {
+    const c = setLabelCenter(outline, "right", size, 4);
+    expect(c.x - 12).toBeCloseTo(b.x + b.width + 4, 6);
+    expect(c.y).toBeCloseTo(b.y + b.height / 2, 6);
   });
 });

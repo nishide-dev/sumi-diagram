@@ -906,7 +906,7 @@ figure:
         gap: 14mm
         items:
           - row:
-              gap: 16mm
+              gap: 22mm
               align: center
               items:
                 - place:
@@ -920,10 +920,11 @@ figure:
                 - place:
                     unit: 12mm
                     items:
-                      - { item: p, at: [0, 0] }
-                      - { item: q, at: [0.9, 0.5] }
-                      - { item: r, at: [2.4, 1.2] }
-                      - { item: s, at: [0.3, 1.6] }
+                      - { item: p, at: [0.5, 0] }
+                      - { item: r, at: [2.3, 0.5] }
+                      - { item: q, at: [1.2, 1.0] }
+                      - { item: s, at: [0, 1.7] }
+                      - { item: t, at: [2.0, 2.1] }
           - row:
               gap: 22mm
               items: [d, f, o, h]
@@ -934,17 +935,18 @@ nodes:
   - { id: ab, component: box, label: ab }
   - { id: b1, component: box, label: b1 }
   - { id: b2, component: box, label: b2 }
-  - { id: p, component: box, label: p }
-  - { id: q, component: box, label: q }
-  - { id: r, component: box, label: r }
-  - { id: s, component: box, label: s }
+  - { id: p, component: circle, label: p }
+  - { id: q, component: circle, label: q }
+  - { id: r, component: circle, label: r }
+  - { id: s, component: circle, label: s }
+  - { id: t, component: circle, label: t }
   - { id: d, component: box, label: d }
   - { id: f, component: box, label: f }
   - { id: o, component: box, label: o }
   - { id: h, component: box, label: h }
 
 edges:
-  - { from: b1, to: p }
+  - { from: b2, to: s, component: line }
   - { from: d, to: f }
   - { from: f, to: o }
   - { from: o, to: h }
@@ -952,8 +954,8 @@ edges:
 sets:
   - { id: left, label: Left, members: [a1, a2, ab], tone: blue, labelAt: top-left }
   - { id: right, label: Right, members: [ab, b1, b2], tone: green, labelAt: top }
-  - { id: outer, label: Outer hull, members: [p, q, r, s], tone: gray, shape: hull, padding: 8mm, labelAt: right }
-  - { id: inner, label: Inner, members: [p, q], tone: orange, shape: ellipse, padding: 3mm, labelAt: top-right }
+  - { id: outer, label: Hull, members: [p, q, r, s, t], tone: gray, shape: hull, padding: 9mm, labelAt: right }
+  - { id: inner, members: [q], tone: orange, shape: circle, padding: 3mm }
   - { id: default, label: default, members: [d], tone: blue, labelAt: bottom }
   - { id: filled, label: filled, members: [f], tone: orange, variant: filled, labelAt: bottom }
   - { id: outlined, label: outlined, members: [o], tone: green, variant: outlined, labelAt: bottom }
