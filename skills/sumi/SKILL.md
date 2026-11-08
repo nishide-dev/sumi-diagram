@@ -37,10 +37,10 @@ and fonts are bundled), check with `sumi doctor`. Optional: `SUMI_BIN`, `SUMI_D2
 <skill-dir>/scripts/sumi <command> ...   # <skill-dir> = the base directory of this skill
 ```
 
-The wrapper runs `$SUMI_BIN`, else the Sumi checkout it lives in, else `sumi` on
-`PATH`, else a checkout around the current directory; otherwise it exits 127 with
-install instructions: relay them and stop (install nothing without asking). Use its
-absolute path; below, `sumi` means the wrapper.
+The wrapper runs `$SUMI_BIN`, else its own Sumi checkout, else `sumi` on `PATH`, else
+a checkout around the current directory; otherwise it exits 127 with install
+instructions: relay them and stop (install nothing without asking). Use its absolute
+path; below, `sumi` means the wrapper.
 
 ## Workflow
 
@@ -64,7 +64,7 @@ Before writing YAML, make sure you know:
   tokens; [choose](references/layout-tips.md#choose-the-engine-first)), planned first ([paper figure workflow](#paper-figure-workflow)).
 
 Ask once, briefly, for what is missing. If told to go ahead, assume `paper-single` +
-`minimal` (`paper` for a paper figure) and the profile's minimum; report it.
+`minimal` (`paper` for a paper figure); report it.
 
 ### 2. Check the environment (once per session)
 
@@ -74,8 +74,7 @@ sumi doctor
 
 Exit 0 and `Ready to render.` means D2, fonts and geometry lint are in place. If a
 check fails, relay its `hint` and stop (a lone `d2` failure does not block structured
-figures): reinstall the release tarball, `bun run d2:install` in a checkout, or set
-`SUMI_D2_PATH` (v0.9.0).
+figures): reinstall the tarball, `bun run d2:install`, or set `SUMI_D2_PATH` (v0.9.0).
 
 ### 3. Discover components, themes and profiles
 
@@ -86,9 +85,9 @@ sumi catalog --kind node         # human-readable table, one kind of component
 sumi catalog --icons "wave sine" # bundled icons whose names contain all the words
 ```
 
-Pick each component from `components`, matching the `description` to the element's
-role (`diamond` for a decision, `cylinder` for storage). Use only listed variants and
-props; `engines`, when present, lists the only layout engines it works in. The theme's
+Pick each component from `components` by its `description` (`diamond` for a decision,
+`cylinder` for storage). Use only listed variants and props; `engines`, when present,
+lists the only layout engines it works in. The theme's
 `compatibleProfiles` must include the profile, else labelled elements fail with
 `profile/font-too-small`
 ([figure-format](references/figure-format.md#discovering-themes-and-profiles)). Icons:
@@ -131,8 +130,7 @@ edges:
   workflow](#paper-figure-workflow). Label math (`'$\hat{y}_t$'`) works only there;
   with a line break, double-quote it and double backslashes (`"A\n$\\gamma$"`). Any
   group takes `labelAt` and `caption`.
-- Icons, images, `figure.assets` pictures: [assets](references/assets.md); rich
-  text cards: [html](references/html.md).
+- Icons, images, `figure.assets`: [assets](references/assets.md); rich cards: [html](references/html.md).
 
 ### 5. Format, lint, fix
 
@@ -151,7 +149,7 @@ fixes: [diagnostics](references/diagnostics.md).
 
 Exit codes: 0 clean (warnings allowed), 1 problems found, 2 usage error (bad flag,
 unknown `--theme`/`--profile`, unreadable file): fix the command. Resolve every error;
-fix warnings unless intended (`lint/no-edges`) and mention the ones you keep.
+fix warnings unless intended (`lint/no-edges`), mentioning those you keep.
 
 ### 6. Render and check geometry
 
@@ -164,7 +162,7 @@ sumi lint --geometry --json figure.sumi.yaml   # lint + render in memory + geome
 sumi render figure.sumi.yaml -o figure.pdf     # vector PDF (or -o figure.pptx); same checks
 ```
 
-Write PDF or PPTX (one picture, not editable shapes) only when the user asks ([output
+Write PDF or PPTX (one picture) only when asked ([output
 formats](references/figure-format.md#output-formats)); inspect the SVG either way.
 `render` reports `geometry/*` diagnostics (page size, text size, overflow, overlaps).
 Geometry errors exit 1 but **the SVG is still written**. It prints `Wrote figure.svg:
@@ -183,15 +181,13 @@ Geometry errors exit 1 but **the SVG is still written**. It prints `Wrote figure
   or move an attached node out of it ([spacing](references/structured.md#spacing-that-routes)).
   Also `layout/unsatisfied-align`, `layout/edge-label-overlap` (warnings),
   `layout/edge-crossing`, `layout/align-grew-figure` (infos); no `--emit-d2`.
-- Other render errors (`svg/*`, `backend/*`, `asset/*`) and all `geometry/*` codes:
-  [diagnostics](references/diagnostics.md).
+- Other `svg/*`, `backend/*`, `asset/*`, `geometry/*` codes: [diagnostics](references/diagnostics.md).
 
 ### 7. Check content, then readability
 
-Clean diagnostics prove neither. This Skill's script rasterizes the SVG (Quick Look,
-padded to a square, or `rsvg-convert`; exit 1 if neither: skip the PNG, say so); open
-the PNG with Read. Give ~6 px per printed mm of the larger side, so text looks as
-small as it prints:
+Clean diagnostics prove neither. The script rasterizes the SVG (Quick Look, padded to
+a square, or `rsvg-convert`; exit 1 if neither: skip the PNG, say so); open the PNG
+with Read, ~6 px per printed mm of the larger side:
 
 ```sh
 <skill-dir>/scripts/preview figure.svg 1080   # 180 × 60mm; writes figure.png beside the SVG (-o <png> to move it)
@@ -205,21 +201,26 @@ small as it prints:
 2. **Readability.** Reading order follows `direction` (or the tree); no label overlaps
    a line or shape; no edge crosses a group title (`labelAt`); nothing is huge or
    squashed; a block-sized void has a reason (grouping, alignment), else re-arrange.
-3. **Compare.** View your PNG next to the chosen examples' PNGs: spacing, tone use,
+3. **Consistency (paper figures).** Against the visual-language table: the same kind
+   of thing looks the same in every panel; no text-heavy boxes; one legend; no edge
+   crosses a panel except the main flow; the figure reads without its caption.
+4. **Compare.** View your PNG next to the chosen examples' PNGs: spacing, tone use,
    notes and text sizes should be as deliberate. Fix the gaps that are yours.
 
 ### 8. Report
 
-Tell the user: the files written (YAML and SVG), size and profile, the placement
-constraints, the candidates compared and why you chose this one, the final lint and
-render summaries (kept warnings with reasons), your assumptions, and anything you
-could not verify. Show the YAML only if asked or if it is short.
+Tell the user: files written (YAML, SVG), size and profile, placement constraints,
+candidates compared and why this one, final lint and render summaries (kept warnings
+with reasons), assumptions, and what you could not verify. Show the YAML only if asked or short.
 
 ## Paper figure workflow
 
 Paper figures are structured, theme `paper`, built to the [design principles](references/layout-tips.md#design-principles).
-With **content only** (the usual case), [plan the layout](references/layout-tips.md#plan-the-layout-before-writing-yaml)
-first: roles, placement constraints, candidates rendered and compared. With **a
+With **content only** (the usual case), first [plan the visual language](references/layout-tips.md#plan-the-visual-language-before-drawing)
+(a table: each kind of thing, one visual form and tone), then [plan the layout](references/layout-tips.md#plan-the-layout-before-writing-yaml):
+roles, placement constraints, candidates rendered and compared.
+Objects and data are pictures (icons, glyphs, `sets`), operations arrows; minimal text;
+one vocabulary and tone meaning in every panel; one legend; numbered stage columns. With **a
 reference figure**, map each look to a field ([recipe](references/layout-tips.md#paper-figure-recipe))
 and keep its arrangement unless it breaks the placement or the principles (say so). Read as needed:
 
@@ -232,11 +233,10 @@ and keep its arrangement unless it breaks the placement or the principles (say s
 
 ## When to stop and ask
 
-Stop, report the state (last diagnostics, what you tried) and ask when:
+Stop, report the state (last diagnostics, attempts) and ask when:
 
 - the same error persists after **3 fix attempts**, or the figure is not clean after **6 rounds**;
-- a fix would change the content (dropping or merging elements, rewording beyond
-  shortening, inventing a connection);
+- a fix would change the content (dropping or merging elements, rewording, inventing a connection);
 - the fix needs the user's choice: profile or theme, page size, splitting the figure;
 - the diagram needs a capability Sumi does not have;
 - a command exits 2 for a reason you cannot fix (e.g. D2 missing).

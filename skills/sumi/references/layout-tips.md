@@ -290,6 +290,52 @@ Auto figures follow the same rules where they apply: declare nodes and edges in
 reading order; give `emphasis`, `muted` and `dashed` one meaning each and say it in
 the caption or report (auto figures have no legend).
 
+## Plan the visual language before drawing
+
+A paper figure is understood through a few repeated pictures, not many boxes. Before
+planning the arrangement, write a table with one row per kind of thing in the figure
+and decide its one visual form and tone:
+
+| Kind of thing | Visual form | Tone |
+| --- | --- | --- |
+| objects, entities (papers, users, images) | icon node | one per type |
+| representations, embeddings, vectors | glyph vector beside its object | the object's tone |
+| collections, groups, hyperedges, clusters | set enclosure | one tint per set |
+| operations, mappings, aggregation | arrow (edge label of a word or two), or one short box | neutral |
+| stages, steps | numbered columns (`row` of panels with captions `(a)`, `(b)`) | neutral |
+| losses, objectives | one short box or a dashed edge to the thing it trains | one accent |
+
+Fill it from the paper, not from a template: drop rows that do not occur, add your
+own. Then follow these rules while writing the YAML:
+
+- **Pictures for things, arrows for operations.** Objects and data are icons, glyphs
+  and sets; an operation is an edge or at most a few short boxes. If a box holds a
+  verb phrase plus a formula, it belongs in the paper body.
+- **Minimal text.** Short labels only; leave equations to the text unless the
+  symbol itself is the point (`sublabel` or an [html](html.md) card for one).
+- **One vocabulary.** A kind of thing keeps its form, tone and size in every panel
+  (stage 2 reuses stage 1's icons and sets, not a new diagram type); one tone means
+  one thing.
+- **One legend**, in one place (usually the bottom), covering every tone and mark
+  that needs explaining ([legends](structured.md#legends)); no per-panel keys.
+- **Read in order.** Stages go left to right or top to bottom as numbered columns;
+  no edge leaves its panel except the main flow, so repeat a small icon instead of
+  drawing a long edge.
+
+Sumi features for each form:
+
+- **Icons**: `label` or `box` with `icon:` ([icons](assets.md#icons), find names with
+  `sumi catalog --icons`); tones from [tones and variants](figure-format.md#tones-and-variants).
+- **Feature vectors, dots, pills**: node `glyphs` ([glyphs](assets.md#glyphs)).
+- **Sets and hyperedges**: top-level `sets` ([set enclosures](structured.md#set-enclosures)).
+- **Small graphs**: `place` with coordinates ([coordinate placement](structured.md#coordinate-placement)).
+- **Per-figure colors**: `themeOverrides` ([themes](figure-format.md#themes-and-profiles)).
+- **Panels, numbered columns**: groups with `caption` in one `row`
+  ([captions](structured.md#group-titles-and-captions)).
+
+The GCN and Llama 4 MoE [examples](../examples/README.md) keep one vocabulary across
+all their panels.
+
 ## Plan the layout before writing YAML
 
 When the user describes the content (no figure to copy), or a reference figure
