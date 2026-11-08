@@ -1,9 +1,13 @@
 # Examples
 
 Generic, domain-neutral figures built only from the built-in components
-(`docs/design/phase1.md` §3). Each directory holds the source
-(`*.sumi.yaml`, the primary source), its rendered SVG and that SVG as a
-vector PDF (#59).
+(`docs/design/phase1.md` §3), and reproductions of public figures. Each directory
+holds the source (`*.sumi.yaml`, the primary source), its rendered SVG and that SVG
+as a vector PDF (#59). Every source is a link to the canonical copy in
+[`skills/sumi/examples/`](../skills/sumi/examples/README.md), which also holds the
+PNG previews and assets that the Claude Code Skill ships (an index of what each
+example shows and how to use them). Edit the YAML there, then run `bun run gallery`
+and `bun run skill:previews`.
 
 | Example | Theme / Profile | Shows |
 | --- | --- | --- |

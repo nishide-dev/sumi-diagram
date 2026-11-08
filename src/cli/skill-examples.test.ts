@@ -9,7 +9,20 @@ import { renderFigure } from "../render/render";
 
 const ROOT = resolve(import.meta.dir, "../..");
 const SKILL = join(ROOT, "skills/sumi");
-const NAMES = ["transformer", "dit-block", "clip", "embedding-gemma"];
+const NAMES = [
+  "transformer",
+  "dit-block",
+  "clip",
+  "embedding-gemma",
+  "gcn",
+  "llama4-moe",
+  "chat",
+  "llm-dialogue",
+  "pipeline",
+  "decision-flow",
+  "system-architecture",
+  "grouped",
+];
 
 /** Do not follow symlinks: Git archives preserve them, rather than their targets. */
 function realFiles(directory: string): string[] {
@@ -71,7 +84,7 @@ describe("bundled paper reference figures", () => {
     expect(readdirSync(join(SKILL, "examples")).sort()).toEqual(["README.md", ...NAMES].sort());
   });
 
-  test.each(["clip", "embedding-gemma"])(
+  test.each(["clip", "embedding-gemma", "gcn"])(
     "%s asset mirrors match the canonical Skill files",
     (name) => {
       const canonical = join(SKILL, "examples", name, "assets");

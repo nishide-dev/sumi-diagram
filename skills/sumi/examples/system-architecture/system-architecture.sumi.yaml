@@ -1,0 +1,94 @@
+# A generic three-tier system built only from built-in components: clients,
+# an entry point, a service tier and a data tier, each tier a group.
+#
+# Layout: `direction: right`, so the tiers read left to right as columns and
+# edges enter the groups from the side. (With `direction: down` they enter from
+# above and cross the tiers' centered labels.) Four columns are wider than a
+# single paper column, so the profile is paper-double (180mm; the figure is
+# about 164mm). The edges carry no labels: each label widens its column gap,
+# and with labels the figure no longer fits 180mm.
+#
+# Edges connect the nodes inside the tiers rather than the groups themselves:
+# in D2/ELK an edge that ends on a container crosses the container's label.
+#
+# Render: bun run example:render examples/system-architecture/system-architecture.sumi.yaml
+version: 1
+figure:
+  id: system-architecture
+  title: Generic three-tier system
+  theme: academic
+  profile: paper-double
+  layout:
+    direction: right
+
+groups:
+  - id: clients
+    label: Clients
+    variant: muted
+  - id: services
+    label: Service tier
+  - id: data
+    label: Data tier
+    variant: muted
+
+nodes:
+  - id: client-a
+    component: box
+    label: Client A
+    group: clients
+  - id: client-b
+    component: box
+    label: Client B
+    group: clients
+  - id: gateway
+    component: hexagon
+    label: Gateway
+    variant: emphasis
+  - id: service-a
+    component: box
+    label: Service A
+    group: services
+  - id: service-b
+    component: box
+    label: Service B
+    group: services
+  - id: worker
+    component: box
+    label: Worker
+    variant: muted
+    group: services
+  - id: primary
+    component: cylinder
+    label: Primary store
+    group: data
+  - id: cache
+    component: cylinder
+    label: Cache
+    variant: muted
+    group: data
+  - id: archive
+    component: document
+    label: Archive
+    group: data
+
+edges:
+  - from: client-a
+    to: gateway
+  - from: client-b
+    to: gateway
+  - from: gateway
+    to: service-a
+  - from: gateway
+    to: service-b
+  - from: service-a
+    to: primary
+    component: double-arrow
+  - from: service-a
+    to: cache
+    component: double-arrow
+    variant: muted
+  - from: gateway
+    to: worker
+    variant: dashed
+  - from: worker
+    to: archive

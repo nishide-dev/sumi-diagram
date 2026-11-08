@@ -5,9 +5,9 @@ description: Build, check and render diagrams as code with the Sumi CLI (*.sumi.
 
 # Sumi: diagrams as code
 
-Sumi turns declarative `*.sumi.yaml` into SVG using predefined components,
-built-in themes and output profiles. Write YAML from the user's content and
-drive it through the CLI until clean. Never draw SVG yourself or edit generated `.svg` / `.d2` files.
+Sumi turns declarative `*.sumi.yaml` into SVG using predefined components, themes and
+profiles. Write YAML from the user's content and drive the CLI until clean. Never draw
+SVG yourself or edit generated `.svg` / `.d2` files.
 
 ## Ground rules
 
@@ -21,8 +21,7 @@ drive it through the CLI until clean. Never draw SVG yourself or edit generated 
   sources they point to. Keep facts (connections, names, numbers) separate from
   presentation (layout, variants, grouping). If a fact is missing or ambiguous,
   ask. Shortening a label for space is presentation; changing its meaning is not.
-- **Let the CLI decide.** Diagnostics are the source of truth; do not guess
-  whether something is valid.
+- **Let the CLI decide.** Diagnostics are the source of truth; do not guess validity.
 
 ## Prerequisites
 
@@ -40,8 +39,8 @@ and fonts are bundled), check with `sumi doctor`. Optional: `SUMI_BIN`, `SUMI_D2
 
 The wrapper runs `$SUMI_BIN`, else the Sumi checkout it lives in, else `sumi` on
 `PATH`, else a checkout around the current directory; otherwise it exits 127 with
-install instructions: relay them and stop (install nothing without asking). Use the
-absolute path in every command. Below, `sumi` means the wrapper.
+install instructions: relay them and stop (install nothing without asking). Use its
+absolute path; below, `sumi` means the wrapper.
 
 ## Workflow
 
@@ -49,18 +48,17 @@ absolute path in every command. Below, `sumi` means the wrapper.
 
 Before writing YAML, make sure you know:
 
-- **Content**: the elements, the connections between them and their exact labels;
-  what belongs together. Keep it as a checklist (elements, directed labelled
-  connections, inputs and outputs) for step 7.
+- **Content**: the elements, their connections and exact labels; what belongs
+  together. Keep a checklist (elements, directed labelled connections, inputs and
+  outputs) for step 7.
 - **Target** (the user's decision): where it goes (one column of a two-column paper,
   full width, a single-column paper's text width, a first-page overview, a README or
-  web page, a slide), the venue's minimum text and line sizes and the height the
-  figure may take. Width picks the profile; the minimums and the height budget go in
-  `figure.target` (a venue maximum below the profile's: set `height`, which only
-  warns) ([placement](references/layout-tips.md#fit-the-placement)).
+  web page, a slide), the venue's minimum text and line sizes and the height it may
+  take. Width picks the profile; minimums and the height budget go in `figure.target`
+  (a venue maximum below the profile's: set `height`, which only warns) ([placement](references/layout-tips.md#fit-the-placement)).
 - **Theme**: `minimal` (default), `academic`, `color`, `slides` (needed for a slide)
   or `paper` — **recommend `paper` for a color paper figure** (`academic` if grayscale).
-  Output path: default next to the user's files, `<figure-id>.sumi.yaml`.
+  Output: next to the user's files, `<figure-id>.sumi.yaml`.
 - **Layout** (your choice, not a question): **auto** for flows and graphs;
   **structured** for paper block diagrams (layers, residuals, aligned columns, ⊕, math,
   tokens; [choose](references/layout-tips.md#choose-the-engine-first)), planned first ([paper figure workflow](#paper-figure-workflow)).
@@ -75,9 +73,9 @@ sumi doctor
 ```
 
 Exit 0 and `Ready to render.` means D2, fonts and geometry lint are in place. If a
-check fails, relay its `hint` and stop, except that a `d2` failure alone does not
-block structured figures. For `d2`: reinstall the release tarball, `bun run
-d2:install` in a checkout, or set `SUMI_D2_PATH` (v0.9.0).
+check fails, relay its `hint` and stop (a lone `d2` failure does not block structured
+figures): reinstall the release tarball, `bun run d2:install` in a checkout, or set
+`SUMI_D2_PATH` (v0.9.0).
 
 ### 3. Discover components, themes and profiles
 
@@ -98,8 +96,10 @@ props; `engines`, when present, lists the only layout engines it works in. The t
 
 ### 4. Write the figure
 
-Read [references/figure-format.md](references/figure-format.md) before writing your
-first figure. Essentials:
+First open the [examples index](examples/README.md), choose the 1–2 closest examples
+by figure type and features, view their PNGs (Read shows images) and read their YAML.
+Reuse their idioms (arrange boxes, tones, notes), never their content. Then read
+[references/figure-format.md](references/figure-format.md) before your first figure. Essentials:
 
 ```yaml
 version: 1
@@ -151,8 +151,7 @@ fixes: [diagnostics](references/diagnostics.md).
 
 Exit codes: 0 clean (warnings allowed), 1 problems found, 2 usage error (bad flag,
 unknown `--theme`/`--profile`, unreadable file): fix the command. Resolve every error;
-fix warnings unless intended (`lint/no-edges` for deliberately unconnected nodes) and
-mention the ones you keep.
+fix warnings unless intended (`lint/no-edges`) and mention the ones you keep.
 
 ### 6. Render and check geometry
 
@@ -206,6 +205,8 @@ small as it prints:
 2. **Readability.** Reading order follows `direction` (or the tree); no label overlaps
    a line or shape; no edge crosses a group title (`labelAt`); nothing is huge or
    squashed; a block-sized void has a reason (grouping, alignment), else re-arrange.
+3. **Compare.** View your PNG next to the chosen examples' PNGs: spacing, tone use,
+   notes and text sizes should be as deliberate. Fix the gaps that are yours.
 
 ### 8. Report
 
@@ -231,10 +232,9 @@ and keep its arrangement unless it breaks the placement or the principles (say s
 
 ## When to stop and ask
 
-Stop, report the current state (last diagnostics, what you tried) and ask when:
+Stop, report the state (last diagnostics, what you tried) and ask when:
 
-- the same error persists after **3 fix attempts**, or a figure is not clean after **6
-  fix rounds** in total;
+- the same error persists after **3 fix attempts**, or the figure is not clean after **6 rounds**;
 - a fix would change the content (dropping or merging elements, rewording beyond
   shortening, inventing a connection);
 - the fix needs the user's choice: profile or theme, page size, splitting the figure;
@@ -242,7 +242,8 @@ Stop, report the current state (last diagnostics, what you tried) and ask when:
 - a command exits 2 for a reason you cannot fix (e.g. D2 missing).
 
 ## References
-Consult [reference figures](examples/README.md) only when the user asks for that model or figure style; they are not templates for unrelated figures.
+[Examples](examples/README.md): look at the closest ones before writing and after
+rendering (steps 4 and 7); they are references for idioms, not content to copy.
 [figure-format](references/figure-format.md) (fields, labels, math, tones, groups, themes,
 profiles, target) · [structured](references/structured.md) (arrange trees, grids, attach,
 align, anchors, legends, zoom, tokens, matrices) · [assets](references/assets.md) ·

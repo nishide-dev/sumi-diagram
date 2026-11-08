@@ -2,7 +2,20 @@
 import { join, resolve } from "node:path";
 
 const root = resolve(import.meta.dir, "..");
-for (const name of ["transformer", "dit-block", "clip", "embedding-gemma"]) {
+for (const name of [
+  "transformer",
+  "dit-block",
+  "clip",
+  "embedding-gemma",
+  "gcn",
+  "llama4-moe",
+  "chat",
+  "llm-dialogue",
+  "pipeline",
+  "decision-flow",
+  "system-architecture",
+  "grouped",
+]) {
   const pdf = join(root, "examples", name, `${name}.pdf`);
   const output = join(root, "skills", "sumi", "examples", name, name);
   const run = Bun.spawnSync(["pdftoppm", "-png", "-r", "150", "-singlefile", pdf, output], {
