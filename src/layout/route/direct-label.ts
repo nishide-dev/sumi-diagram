@@ -2,7 +2,7 @@ import type { EdgeIR } from "../../compiler/ir";
 import type { Point, TextLayout, TextMetrics } from "../ir";
 import { roundUnits } from "../ir";
 import { placeText } from "../structured/engine";
-import { arrowheadLength } from "./arrowhead";
+import { edgeArrowheadLength } from "./arrowhead";
 import { EDGE_LABEL_GAP } from "./labels";
 
 /** Horizontal text, offset by its support radius along the line's normal. */
@@ -13,7 +13,7 @@ export function straightLabel(metrics: TextMetrics, a: Point, b: Point, edge: Ed
   const along = (Math.abs(ux) * metrics.width + Math.abs(uy) * metrics.height) / 2;
   const away = (Math.abs(uy) * metrics.width + Math.abs(ux) * metrics.height) / 2 + EDGE_LABEL_GAP;
   const at = edge.labelAt ?? "middle";
-  const head = arrowheadLength(edge.style.strokeWidth.units);
+  const head = edgeArrowheadLength(edge.style);
   const start = along + EDGE_LABEL_GAP + (edge.sourceArrowhead === undefined ? 0 : head);
   const end = length - along - EDGE_LABEL_GAP - (edge.targetArrowhead === undefined ? 0 : head);
   const t =

@@ -29,6 +29,7 @@ import { dimmedElements, dimStyle } from "./dim";
 import { contrastRatio as contrast, filledToneNode, readableInk } from "./node-variants";
 import { figureTheme } from "./overrides";
 import type { Theme, ToneOverride } from "./schema";
+import { withRadius, withStrokes } from "./strokes";
 import {
   mergeStyle,
   type NodeStyle,
@@ -76,12 +77,26 @@ export interface StyleResolution<K extends ComponentKind = ComponentKind> {
   missingTone: boolean;
 }
 
+/**
+ * The variant that draws a dashed element's line as round dots (#427): an
+ * edge or a container takes the theme's `dashed` style with dots instead of
+ * dashes, so no theme needs a layer of its own.
+ */
+export const DOTTED_VARIANT = "dotted";
+
 /** Resolves the effective style of a component variant under a theme. */
 export function resolveStyle<K extends ComponentKind>(
   theme: Theme,
   target: StyleTarget<K>,
 ): StyleResolution<K> {
   const { kind, id, variant, tone } = target;
+  if (variant === DOTTED_VARIANT && (kind === "edge" || id === CONTAINER_ID)) {
+    const dashed = resolveStyle(theme, { ...target, variant: "dashed" });
+    return {
+      ...dashed,
+      style: Object.freeze({ ...dashed.style, strokeDash: 0, strokeDotted: true }) as StyleOf<K>,
+    };
+  }
   const layers = theme.components.get(id);
   const variantLayer = variant === "default" ? undefined : layers?.get(variant);
   const field =
@@ -287,8 +302,24 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
         style = Object.freeze({ ...style, fontSize: { pt: units / 2, units } });
       }
     }
+    // Line widths, arrowhead sizes and frame corners (#427): the figure's, then the element's.
+    {
+      const frame = style.kind === "group";
+      const reference =
+        overrides?.lineWidth === undefined || frame
+          ? style.strokeWidth
+          : resolveStyle(theme, { kind: manifest.kind, id, variant: "default" }).style.strokeWidth;
+      style = withStrokes(style, {
+        figure: overrides,
+        element: entry.element,
+        frame,
+        reference,
+      });
+      if (frame) style = withRadius(style, overrides?.cornerRadius);
+    }
     if (overrides?.nodeCorners === "square" && style.kind !== "edge")
       style = Object.freeze({ ...style, radius: { pt: 0, units: 0 } });
+    style = withRadius(style, entry.kind === "edge" ? undefined : entry.element.cornerRadius);
     if (overrides?.groupLabelWeight !== undefined && style.kind === "group")
       style = Object.freeze({ ...style, bold: overrides.groupLabelWeight === "bold" });
     if (missingVariant) {

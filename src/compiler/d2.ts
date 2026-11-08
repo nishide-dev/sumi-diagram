@@ -192,7 +192,8 @@ function writeStyle(style: ResolvedStyle, depth: number, write: Write): void {
     ["fill", d2String(style.fill)],
     ["stroke", d2String(style.stroke)],
     ["stroke-width", units(style.strokeWidth)],
-    ["stroke-dash", integer(style.strokeDash)],
+    // D2 has no dots: a dotted line is its finest dash (structured layout draws round dots, #427).
+    ["stroke-dash", integer(style.strokeDotted === true ? 1 : style.strokeDash)],
     ["border-radius", shape && units(style.radius)],
     ["opacity", String(style.opacity)],
     ["font-size", units(style.fontSize)],

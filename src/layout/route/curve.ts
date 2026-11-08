@@ -4,7 +4,7 @@ import type { ElementKey } from "../../core/check-state";
 import { getOutlineRenderer } from "../../core/outline";
 import type { LayoutIR, Point, Rect, TextLayout, TextMetrics } from "../ir";
 import { roundUnits } from "../ir";
-import { arrowheadLength } from "./arrowhead";
+import { edgeArrowheadLength } from "./arrowhead";
 import { type Cubic, cubicPoint, sampleCubic } from "./cubic";
 import { straightLabel } from "./direct-label";
 import { DIRS, isJunction, SIDE_DIR } from "./ports";
@@ -132,10 +132,7 @@ export function curveLabel(metrics: TextMetrics, points: Cubic, edge: EdgeIR): T
     lengths.push((lengths[i - 1] ?? 0) + Math.hypot(b.x - a.x, b.y - a.y));
   }
   const total = lengths.at(-1) ?? 1;
-  const room =
-    Math.hypot(metrics.width, metrics.height) / 2 +
-    arrowheadLength(edge.style.strokeWidth.units) +
-    2;
+  const room = Math.hypot(metrics.width, metrics.height) / 2 + edgeArrowheadLength(edge.style) + 2;
   const at =
     edge.labelAt === "start"
       ? Math.min(total / 2, room)

@@ -4,8 +4,21 @@
  * last segment before an arrowhead at least this long; the SVG writer (#91)
  * must not draw a longer one.
  */
-export function arrowheadLength(strokeUnits: number): number {
-  return 4 + 4 * strokeUnits;
+export function arrowheadLength(strokeUnits: number, scale = 1): number {
+  const length = 4 + 4 * strokeUnits;
+  return scale === 1 ? length : Math.round(length * scale * 1000) / 1000;
+}
+
+/**
+ * The arrowhead length of an edge style (#427): D2's triangle for its stroke
+ * width, times its `arrowheadScale`. The router's reserved room, the writer
+ * and the lints all read it here, so a scaled head keeps them in step.
+ */
+export function edgeArrowheadLength(style: {
+  readonly strokeWidth: { readonly units: number };
+  readonly arrowheadScale?: number | undefined;
+}): number {
+  return arrowheadLength(style.strokeWidth.units, style.arrowheadScale);
 }
 /** Visible straight wire before a group-padding arrowhead: 2pt (#247). */
 export const ARROWHEAD_STEM_UNITS = 4;

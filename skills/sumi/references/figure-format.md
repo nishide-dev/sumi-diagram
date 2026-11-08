@@ -76,7 +76,7 @@ stops with one `schema/unsatisfied-requires` instead of a list of unknown fields
 | 0.10.0 | inline SVG images, `waveform`, `bracket`, whole-sequence `tokens` edges, matrix text and ellipsis cells |
 | 0.11.0 | `html` component |
 | 0.12.0 | `separator`, `figure.assets` with `crop` and tokens image cells, operator `size`, grid hints, width-overflow breakdown |
-| 0.16.0 | `sets`: overlapping enclosures for Venn diagrams and hyperedges; node `glyphs`; `legend` samples `icon` / `glyph` / `set`, `flow`, `perRow`, `heading`, `labelAt`; node `iconSize` (and a legend `icon` entry's) sizes an icon without an enclosing shape; `block-arrow`, `triangle-arrow`, `chevron` flow markers |
+| 0.16.0 | `sets`: overlapping enclosures for Venn diagrams and hyperedges; node `glyphs`; `legend` samples `icon` / `glyph` / `set`, `flow`, `perRow`, `heading`, `labelAt`; node `iconSize` (and a legend `icon` entry's) sizes an icon without an enclosing shape; stroke options: `themeOverrides` `lineWidth` / `frameWidth` / `arrowheadScale` / `cornerRadius`, element `lineWidth` / `cornerRadius` / `arrowheadScale`, `dotted` variant; `block-arrow`, `triangle-arrow`, `chevron` flow markers |
 
 ## IDs
 
@@ -204,7 +204,7 @@ edges:
 ```
 
 Variants (closed list per component; typically `default`, `emphasis`, `muted`;
-edges also `dashed`) change how the tone is drawn:
+edges also `dashed` and `dotted`) change how the tone is drawn:
 
 | Variant | Looks | Works on |
 | --- | --- | --- |
@@ -259,7 +259,7 @@ groups:
   edges or say what each means; other themes: a solid gray border and a white
   background, a `tone` sets the fill). `plain` draws neither border nor fill, only
   title and caption (a panel whose caption must line up with framed panels);
-  `filled` a shaded fill without border; `dashed` a dashed border without fill. A
+  `filled` a shaded fill without border; `dashed` a dashed border without fill; `dotted` the same with round dots (structured; finest dash in `auto`). A
   `tone` sets the fill of any of them (`plain` with a tone looks like `filled`: use
   `filled`). An undrawn border is not geometry-linted, and an edge label inside a
   `plain` group gets the background beneath it. To make a whole panel pale use
@@ -497,6 +497,22 @@ stay the theme's):
   `layers` cards too.
 
 Colours are strict `#RRGGBB` and apply before inherited dimming.
+
+**Line weights, dots and arrowheads** (structured layout; the options below give
+`layout/structured-only` in `auto`, where `dotted` is drawn as D2's finest dash). Paper figures want thin lines: `themeOverrides: { lineWidth: 0.5pt, frameWidth:
+0.5pt, arrowheadScale: 0.6, cornerRadius: 2pt }`.
+- `lineWidth` replaces the regular width of node frames and edges; widths are multiples of
+  0.25pt from 0.25pt to 4pt. A heavier variant (`emphasis`) or lighter one (`zoom`) keeps its
+  ratio to the theme's regular width; borderless stays borderless.
+- `frameWidth` sets the frames of groups, sets and legends (those the theme draws).
+- `arrowheadScale` (0.5 to 2) multiplies every arrowhead (4 + 4 × width units); the router's
+  room and the lints follow. `cornerRadius` (multiple of 0.5pt, up to 10pt) rounds group, set
+  (rect) and legend frames; `nodeCorners: square` still squares them.
+- Per element, these win: `lineWidth` on a node, group, edge or set (on a `legend` node it is
+  the frame; in a legend `edge` entry the sample's), `arrowheadScale` on an edge, `cornerRadius`
+  on a node, group or set. `variant: dotted` on an edge, `container` or set draws round dots
+  three line widths apart (the theme's `dashed` colours and fill); use `dashed` for dashes.
+  Editable PPTX uses PowerPoint's round-dot preset and the nearest of its three head sizes.
 
 **Palettes.** `themeOverrides.palette: <name>` gives the figure one coherent colour scheme
 on any theme (`minimal`, `color`, `paper`, `llama`, …; `academic` is grayscale by design, so

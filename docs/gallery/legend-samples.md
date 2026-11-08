@@ -1,6 +1,6 @@
 # Legend samples
 
-[Gallery](README.md) · [Examples](examples.md) · [Legend samples](legend-samples.md) · [Themes](themes.md) · [Tones](tones.md) · [Dimmed groups](dim.md) · [Node glyphs](glyphs.md) · [Set enclosures](sets.md) · [Palettes](palettes.md) · [Profiles and comparison](compare.md)
+[Gallery](README.md) · [Examples](examples.md) · [Legend samples](legend-samples.md) · [Themes](themes.md) · [Tones](tones.md) · [Dimmed groups](dim.md) · [Node glyphs](glyphs.md) · [Set enclosures](sets.md) · [Stroke options](strokes.md) · [Palettes](palettes.md) · [Profiles and comparison](compare.md)
 
 A <code>legend</code> entry takes one sample: an <code>edge</code> \(a line with its dash, tone and arrowheads, e\.g\. <code>double\-arrow</code> for a pair\), a <code>node</code> box, an <code>icon</code> \(<code>iconSize</code> makes it larger\), a <code>glyph</code> \(a feature vector, dot or pill with the fields of a node glyph\) or a <code>set</code> swatch painted like a set enclosure\. <code>flow: row</code> puts the entries on a line \(<code>perRow</code> wraps them\), <code>heading</code> starts a group on its own line, and <code>labelAt: left</code> puts the text before the sample\. Every sample is drawn by the same theme rules as what it explains, so no colors are written\.
 

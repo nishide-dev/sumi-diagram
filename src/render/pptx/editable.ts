@@ -9,6 +9,7 @@ import { type FlowArrowParams, flowArrow, flowArrowHead } from "../../core/outli
 import { SEPARATOR_ID } from "../../core/registry/builtins";
 import type { Result } from "../../core/result";
 import { type FontSet, getFontSet } from "../../core/theme/fonts";
+import { edgeArrowheadLength } from "../../layout/route/arrowhead";
 import { fontFileFor, measureLabel } from "../../lint/geometry/measure";
 import { FontParseError } from "../../lint/sfnt";
 import { readSvgMetadata } from "../finalize";
@@ -512,13 +513,21 @@ export function svgToEditablePptx(
         .split(/[ ,]+/)
         .filter(Boolean)
         .map(Number);
-      if (dash.length && (dash.length % 2 !== 0 || !dash.every((n) => Number.isFinite(n) && n > 0)))
+      // Round dots (#427) are a zero-length dash with round caps: PowerPoint's own round dot.
+      const dotted = dash.length === 2 && dash[0] === 0 && (dash[1] ?? 0) > 0;
+      if (
+        !dotted &&
+        dash.length &&
+        (dash.length % 2 !== 0 || !dash.every((n) => Number.isFinite(n) && n > 0))
+      )
         throw new Error("Unsupported dash pattern");
       const dashXml =
-        width > 0 && dash.length
-          ? `<a:custDash>${Array.from({ length: dash.length / 2 }, (_, i) => `<a:ds d="${Math.max(1, Math.round(((dash[2 * i] ?? 0) / width) * 100000))}" sp="${Math.max(1, Math.round(((dash[2 * i + 1] ?? 0) / width) * 100000))}"/>`).join("")}</a:custDash>`
-          : "";
-      const cap = strokeStyle === "svg-default" ? "flat" : "rnd";
+        width > 0 && dotted
+          ? '<a:prstDash val="sysDot"/>'
+          : width > 0 && dash.length
+            ? `<a:custDash>${Array.from({ length: dash.length / 2 }, (_, i) => `<a:ds d="${Math.max(1, Math.round(((dash[2 * i] ?? 0) / width) * 100000))}" sp="${Math.max(1, Math.round(((dash[2 * i + 1] ?? 0) / width) * 100000))}"/>`).join("")}</a:custDash>`
+            : "";
+      const cap = strokeStyle === "svg-default" && !dotted ? "flat" : "rnd";
       const join = strokeStyle === "svg-default" ? '<a:miter lim="400000"/>' : "<a:round/>";
       return `<a:ln w="${emu(width)}" cap="${cap}">${width === 0 ? "<a:noFill/>" : paint(property(el, "stroke") ?? style.stroke, style.opacity)}${dashXml}${join}${ends}</a:ln>`;
     };
@@ -902,7 +911,12 @@ export function svgToEditablePptx(
             Math.abs(next[1] - pt) < Math.abs(best[1] - pt) ? next : best,
           )[0];
         };
-        return `<a:${at === "start" ? "headEnd" : "tailEnd"} type="${mapped}" w="${size(marker ? value(marker, "markerHeight") : 12)}" len="${size(marker ? value(marker, "markerWidth") : 12)}"/>`;
+        // A figure that scales its arrowheads (#427) picks the size nearest to the scaled head.
+        const scaled =
+          edge.style.arrowheadScale === undefined ? undefined : edgeArrowheadLength(edge.style);
+        const across = scaled ?? (marker ? value(marker, "markerHeight") : 12);
+        const along = scaled ?? (marker ? value(marker, "markerWidth") : 12);
+        return `<a:${at === "start" ? "headEnd" : "tailEnd"} type="${mapped}" w="${size(across)}" len="${size(along)}"/>`;
       };
       return emit("start", edge.sourceArrowhead) + emit("end", edge.targetArrowhead);
     };
