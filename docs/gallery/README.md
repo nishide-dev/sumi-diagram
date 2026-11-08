@@ -7,6 +7,7 @@
 ## Topics
 
 - <a id="examples"></a>[Examples](examples.md): The committed examples of <code>examples/</code>, rendered from their sources\.
+  - <a id="chat--making-plans"></a>[Chat — making plans](examples.md#chat--making-plans)
   - <a id="clip--summary-of-our-approach"></a>[CLIP — Summary of our approach](examples.md#clip--summary-of-our-approach)
   - <a id="generic-decision-flow"></a>[Generic decision flow](examples.md#generic-decision-flow)
   - <a id="examplesdit-blockdit-blocksumiyaml"></a><a id="dit-block-variants-structured-layout-paper-theme"></a>[DiT block variants \(structured layout, paper theme\)](examples.md#dit-block-variants-structured-layout-paper-theme)
@@ -14,6 +15,7 @@
   - <a id="gcn--graph-convolutional-network"></a>[GCN — Graph Convolutional Network](examples.md#gcn--graph-convolutional-network)
   - <a id="nested-groups"></a>[Nested groups](examples.md#nested-groups)
   - <a id="llama-4--mixture-of-experts"></a>[Llama 4 — Mixture of Experts](examples.md#llama-4--mixture-of-experts)
+  - <a id="llm-dialogue--a-math-word-problem"></a>[LLM dialogue — a math word problem](examples.md#llm-dialogue--a-math-word-problem)
   - <a id="generic-processing-pipeline"></a>[Generic processing pipeline](examples.md#generic-processing-pipeline)
   - <a id="generic-three-tier-system"></a>[Generic three\-tier system](examples.md#generic-three-tier-system)
   - <a id="examplestransformertransformersumiyaml"></a><a id="transformer-structured-layout-paper-theme"></a>[Transformer \(structured layout, paper theme\)](examples.md#transformer-structured-layout-paper-theme)

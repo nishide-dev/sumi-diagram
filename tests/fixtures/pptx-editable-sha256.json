@@ -1,4 +1,6 @@
 {
+  "examples/chat/chat.freeform": "15b2d70ca8bfbd17e0096bf683d44b0963b9c3e65947164c78216cc102cb0bc0",
+  "examples/chat/chat.glued": "925d77de59ca5c98d88c607b88d0ad1c9014861f63d6913e8cc3e67938f04147",
   "examples/decision-flow/decision-flow.freeform": "0ce330f26db2e6537730d34e7075517037e792e6463b12c69c5c2758d497afe4",
   "examples/decision-flow/decision-flow.glued": "e05a436851f2a26b18c24ebe1b13dc5ba66b6ed4ba20a397e6e01416a3efeb8e",
   "examples/dit-block/dit-block.freeform": "26f858098024b5015860833eddc75071eff6977d7256156d66e17694a8acea06",
