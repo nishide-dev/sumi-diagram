@@ -12,8 +12,10 @@
 #   fill and a line colour, so the eight tones are recoloured and `solid` cells
 #   use the line colour (`green` solid is the dark gray, `pink` solid the light gray);
 # - the mask cell (a box with a cross) is an SVG asset: assets/mask.svg;
-# - the dotted arrows are `dashed` edges (no dotted variant); short arrows float
-#   between hidden junctions because an edge cannot be shorter than its gap;
+# - the Random mask arrows are `variant: dotted`; thin lines, small arrowheads and
+#   rounded frames come from `lineWidth` / `frameWidth` / `arrowheadScale` and a
+#   set's `cornerRadius`; short arrows float between hidden junctions because an
+#   edge cannot be shorter than its gap;
 # - the legend frame and the dashed step frame are sets (`shape: rect`).
 version: 1
 figure:
@@ -26,7 +28,10 @@ figure:
     mask:
       src: assets/mask.svg
   themeOverrides:
+    lineWidth: 1pt
     nodeCorners: square
+    frameWidth: 0.5pt
+    arrowheadScale: 0.6
     tones:
       gray: { fill: "#bfbfbf", line: "#000000", text: "#000000" }
       blue: { fill: "#a5c2e3", line: "#94a9d8", text: "#000000" }
@@ -195,8 +200,8 @@ nodes:
   - { id: b-tag, component: label, label: (b) }
   - { id: b-prompt, component: label, label: Prompt }
   - { id: b-response, component: label, label: Response }
-  - { id: b-br1, component: bracket, props: { form: curly, points: north, width: 54.5pt, height: 2.5pt } }
-  - { id: b-br2, component: bracket, props: { form: curly, points: north, width: 54pt, height: 2.5pt } }
+  - { id: b-br1, component: bracket, props: { form: curly, points: north, width: 54.5pt, height: 2.5pt }, lineWidth: 0.25pt }
+  - { id: b-br2, component: bracket, props: { form: curly, points: north, width: 54pt, height: 2.5pt }, lineWidth: 0.25pt }
   - id: b1
     component: tokens
     props:
@@ -240,8 +245,8 @@ nodes:
   - { id: c-tag, component: label, label: (c) }
   - { id: c-prompt, component: label, label: Prompt }
   - { id: c-response, component: label, label: Response }
-  - { id: c-br1, component: bracket, props: { form: curly, points: north, width: 54.5pt, height: 2.5pt } }
-  - { id: c-br2, component: bracket, props: { form: curly, points: north, width: 54pt, height: 2.5pt } }
+  - { id: c-br1, component: bracket, props: { form: curly, points: north, width: 54.5pt, height: 2.5pt }, lineWidth: 0.25pt }
+  - { id: c-br2, component: bracket, props: { form: curly, points: north, width: 54pt, height: 2.5pt }, lineWidth: 0.25pt }
   - id: c1
     component: tokens
     props:
@@ -315,7 +320,7 @@ nodes:
       variant: filled
       cells: [ { tone: blue }, { tone: purple }, { tone: blue, variant: solid }, { tone: purple, variant: solid }, { tone: red }, { tone: orange }, { tone: orange, variant: solid }, { tone: yellow } ]
   - { id: c-t0, component: label, label: $t = 0$ }
-  - { id: c-brace, component: bracket, props: { form: curly, points: east, width: 6pt, height: 98pt } }
+  - { id: c-brace, component: bracket, props: { form: curly, points: east, width: 6pt, height: 98pt }, lineWidth: 0.25pt }
   - { id: c-step, component: label, label: An intermediate step, labelRotation: 90 }
   # Time arrow t = 1 -> t = 0
   - { id: t-top, component: junction, variant: hidden }
@@ -326,32 +331,32 @@ nodes:
   - { id: t-bot2, component: junction, variant: hidden }
 edges:
   # (a) Pre-training: mask every token independently
-  - { from: a-mask-s, to: a-mask-e, route: straight, variant: dashed }
-  - { from: a-in-s, to: a-in-e, route: straight, variant: emphasis }
-  - { from: a-out1-s, to: a-out1-e, route: straight, variant: emphasis }
-  - { from: a-out2-s, to: a-out2-e, route: straight, variant: emphasis }
+  - { from: a-mask-s, to: a-mask-e, route: straight, variant: dotted }
+  - { from: a-in-s, to: a-in-e, route: straight }
+  - { from: a-out1-s, to: a-out1-e, route: straight }
+  - { from: a-out2-s, to: a-out2-e, route: straight }
   # Legend: mask token, non-mask token, remask, random mask
   - { from: key-remask-s, to: key-remask-e, route: straight, variant: dashed }
-  - { from: key-random-s, to: key-random-e, route: straight, variant: dashed }
+  - { from: key-random-s, to: key-random-e, route: straight, variant: dotted }
   # (b) SFT: only the response can be masked
-  - { from: b-mask-s, to: b-mask-e, route: straight, variant: dashed }
-  - { from: b-in-s, to: b-in-e, route: straight, variant: emphasis }
-  - { from: b-out1-s, to: b-out1-e, route: straight, variant: emphasis }
-  - { from: b-out2-s, to: b-out2-e, route: straight, variant: emphasis }
+  - { from: b-mask-s, to: b-mask-e, route: straight, variant: dotted }
+  - { from: b-in-s, to: b-in-e, route: straight }
+  - { from: b-out1-s, to: b-out1-e, route: straight }
+  - { from: b-out2-s, to: b-out2-e, route: straight }
   # (c) Sampling: from t = 1 (fully masked) to t = 0, with one intermediate step
-  - { from: c-in-s, to: c-in-e, route: straight, variant: emphasis }
-  - { from: c-out1-s, to: c-out1-e, route: straight, variant: emphasis }
-  - { from: c-out2-s, to: c-out2-e, route: straight, variant: emphasis }
-  - { from: c-out3-s, to: c-out3-e, route: straight, variant: emphasis }
+  - { from: c-in-s, to: c-in-e, route: straight }
+  - { from: c-out1-s, to: c-out1-e, route: straight }
+  - { from: c-out2-s, to: c-out2-e, route: straight }
+  - { from: c-out3-s, to: c-out3-e, route: straight }
   - { from: c-rm1-s, to: c-rm1-e, route: straight, variant: dashed }
   - { from: c-rm2-s, to: c-rm2-e, route: straight, variant: dashed }
   - { from: c-rm3-s, to: c-rm3-e, route: straight, variant: dashed }
   # Time arrow t = 1 -> t = 0
-  - { from: t-top2, to: t-top, component: line, tone: red, variant: emphasis }
-  - { from: t-mid2, to: t-mid, component: line, tone: red, variant: emphasis }
-  - { from: t-bot2, to: t-bot, component: line, tone: red, variant: emphasis }
-  - { from: t-top, to: t-mid, component: line, tone: red, variant: emphasis }
-  - { from: t-mid, to: t-bot, tone: red, variant: emphasis }
+  - { from: t-top2, to: t-top, component: line, tone: red }
+  - { from: t-mid2, to: t-mid, component: line, tone: red }
+  - { from: t-bot2, to: t-bot, component: line, tone: red }
+  - { from: t-top, to: t-mid, component: line, tone: red }
+  - { from: t-mid, to: t-bot, tone: red }
 sets:
-  - { id: step, members: [ c2, c-pred, c-r1, c-r2, c-r3, c-remask, c3 ], shape: rect, variant: dashed, fillOpacity: 0, padding: 3pt }
-  - { id: key, members: [ key-mask, key-nonmask, key-t1, key-t2, key-t3, key-t4, key-remask-s, key-remask-e, key-random-s, key-random-e ], shape: rect, variant: outlined, padding: 3pt }
+  - { id: step, members: [ c2, c-pred, c-r1, c-r2, c-r3, c-remask, c3 ], shape: rect, variant: dashed, fillOpacity: 0, padding: 3pt, cornerRadius: 3pt }
+  - { id: key, members: [ key-mask, key-nonmask, key-t1, key-t2, key-t3, key-t4, key-remask-s, key-remask-e, key-random-s, key-random-e ], shape: rect, variant: outlined, padding: 3pt, cornerRadius: 3pt }
