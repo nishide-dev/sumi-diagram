@@ -9,7 +9,8 @@ import type { Locator } from "../core/figure/yaml";
 import type { Result } from "../core/result";
 import { getTheme } from "../core/theme/builtin";
 import { FONT_ASSETS_DIR } from "../core/theme/fonts";
-import { withToneOverrides } from "../core/theme/overrides";
+import { figureTheme } from "../core/theme/overrides";
+import { getPalette } from "../core/theme/palette";
 import type { Theme } from "../core/theme/schema";
 import { loadGlyphCoverage } from "../lint/cmap";
 import { formatCodePoint, glyphCodePoints } from "../lint/text";
@@ -34,7 +35,7 @@ function bundledFonts() {
   }));
 }
 
-export function htmlThemeVariables(theme: Theme): Record<string, string> {
+export function htmlThemeVariables(theme: Theme, palette?: string): Record<string, string> {
   const color = (token: string, fallback: string) => {
     const t = theme.tokens.get(token);
     return t?.type === "color" ? String(t.value) : fallback;
@@ -42,9 +43,10 @@ export function htmlThemeVariables(theme: Theme): Record<string, string> {
   const variables = {
     "--sumi-fg": color("color.fg", String(theme.base.node.fontColor ?? "#222222")),
     "--sumi-muted": color("color.muted", "#666666"),
-    "--sumi-accent": String(
-      theme.toneLines.get("blue")?.stroke ?? theme.base.node.stroke ?? "#333333",
-    ),
+    // A palette's accent replaces the theme's blue (#417).
+    "--sumi-accent":
+      getPalette(palette ?? "")?.roles.accent ??
+      String(theme.toneLines.get("blue")?.stroke ?? theme.base.node.stroke ?? "#333333"),
     "--sumi-bg": color("color.bg", "#ffffff"),
     "--sumi-font": theme.fontSet.latin ? "'Inter','BIZ UDPGothic'" : "'BIZ UDPGothic'",
     "--sumi-mono": "'BIZ UDGothic'",
@@ -60,8 +62,9 @@ export function prepareHtml(
   source: string,
   viewport: { width: number; height: number },
   theme: Theme,
+  palette?: string,
 ): string {
-  const vars = Object.entries(htmlThemeVariables(theme))
+  const vars = Object.entries(htmlThemeVariables(theme, palette))
     .map(([k, v]) => `${k}:${v}`)
     .join(";");
   return `<div style="${vars};width:${viewport.width}px;height:${viewport.height}px;font-family:var(--sumi-font);color:var(--sumi-fg);box-sizing:border-box">${source}</div>`;
@@ -82,19 +85,24 @@ export async function renderHtmlAssets(
       if (!image.viewport) throw new Error("Missing HTML viewport.");
       const builtin = getTheme(ir.meta.themeId);
       if (!builtin) throw new Error("Missing HTML theme.");
-      const theme = withToneOverrides(builtin, ir.meta.themeOverrides?.tones);
+      const theme = figureTheme(builtin, ir.meta.themeOverrides);
       const fonts = bundledFonts();
       const renderer = new Renderer();
       // Each renderer starts fresh. Explicit families select our supplied fonts;
       // glyph lint below excludes Takumi's retained bundled Geist fallback.
-      const prepared = prepareHtml(image.html, image.viewport, theme);
+      const prepared = prepareHtml(
+        image.html,
+        image.viewport,
+        theme,
+        ir.meta.themeOverrides?.palette,
+      );
       let raw: string;
       let measurement: HtmlMeasurement;
       try {
         raw = await renderer.renderSvg(prepared, { ...image.viewport, fonts });
         measurement = locateHtmlMeasurement(
           image.html,
-          htmlThemeVariables(theme),
+          htmlThemeVariables(theme, ir.meta.themeOverrides?.palette),
           await renderer.measure(prepared, { ...image.viewport, fonts }),
         );
       } finally {

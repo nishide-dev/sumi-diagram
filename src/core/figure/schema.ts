@@ -8,6 +8,7 @@
 import { validRange } from "semver";
 import { z } from "zod";
 import { ICON_REF_MAX_LENGTH, ICON_REF_PATTERN } from "../../assets/icon-ref";
+import { PALETTE_NAMES } from "../theme/palette";
 import { TONE_NAMES } from "../theme/tones";
 import { MAX_LENGTH_PT, parseLength } from "../units";
 
@@ -763,6 +764,12 @@ export const FigureMetaSchema = z.strictObject({
   theme: z.string().min(1).default("minimal").describe("Built-in theme name."),
   themeOverrides: z
     .strictObject({
+      palette: z
+        .enum(PALETTE_NAMES)
+        .optional()
+        .describe(
+          "Built-in color palette (sumi catalog --section palettes): recolors text, frames, lines, panels, filled and tinted nodes, the gray tone and emphasis of the theme. Other tones, sizes and fonts stay the theme's; tones, groupFill and groupStroke below refine it.",
+        ),
       nodeCorners: z
         .literal("square")
         .optional()

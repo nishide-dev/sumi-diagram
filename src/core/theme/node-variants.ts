@@ -1,7 +1,8 @@
 /** Filled tone variants (#214, design doc §6.63). Existing palettes stay unchanged. */
 import type { StyleLayer } from "./style";
 
-function luminance(color: string): number {
+/** WCAG relative luminance of a `#RRGGBB` color. */
+export function luminance(color: string): number {
   const rgb = [1, 3, 5].map((offset) => {
     const value = Number.parseInt(color.slice(offset, offset + 2), 16) / 255;
     return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;

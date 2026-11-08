@@ -19,6 +19,7 @@
   - <a id="generic-processing-pipeline"></a>[Generic processing pipeline](examples.md#generic-processing-pipeline)
   - <a id="generic-three-tier-system"></a>[Generic three\-tier system](examples.md#generic-three-tier-system)
   - <a id="examplestransformertransformersumiyaml"></a><a id="transformer-structured-layout-paper-theme"></a>[Transformer \(structured layout, paper theme\)](examples.md#transformer-structured-layout-paper-theme)
+- <a id="legend-samples"></a>[Legend samples](legend-samples.md): Legend entries with icon, glyph, edge and set samples in rows under headings, under every theme\.
 - <a id="themes-and-profiles"></a>[Themes](themes.md): The built\-in themes side by side: a structured Transformer and an auto\-layout pipeline under every theme\.
 - <a id="tones"></a>[Tones](tones.md): Every tone under every theme: fills, solid and tinted tokens, outlines and edge tones\.
   - <a id="solid-and-tinted-tones"></a>[Solid and tinted tones](tones.md#solid-and-tinted-tones)
@@ -26,7 +27,7 @@
 - <a id="dimmed-groups"></a>[Dimmed groups](dim.md): A group drawn pale with everything inside it, under every theme\.
 - <a id="node-glyphs"></a>[Node glyphs](glyphs.md): Feature vectors, dots and pills over a node's border, under every theme\.
 - <a id="set-enclosures"></a>[Set enclosures](sets.md): Overlapping translucent sets around nodes, for Venn diagrams and hyperedges, under every theme\.
-- <a id="legend-samples"></a>[Legend samples](legend-samples.md): Legend entries with icon, glyph, edge and set samples in rows under headings, under every theme\.
+- <a id="palettes"></a>[Palettes](palettes.md): One figure in every built\-in color palette, with each palette's colors and roles\.
 - <a id="profiles"></a><a id="one-figure-every-theme--profile"></a>[Profiles and comparison](compare.md): The built\-in profiles, and one figure under every theme and profile\.
 
 ## Components

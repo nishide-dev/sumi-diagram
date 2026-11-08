@@ -1,7 +1,7 @@
 /**
- * `sumi catalog`: components, themes, profiles, icons, placement targets and sets. stdout: one
+ * `sumi catalog`: components, themes, profiles, icons, placement targets, sets and palettes. stdout: one
  * table per section, or with `--json` exactly `buildFullCatalog()`
- * (`{ version: 1, components?, themes?, profiles?, icons?, targets?, sets? }`, see
+ * (`{ version: 1, components?, themes?, profiles?, icons?, targets?, sets?, palettes? }`, see
  * `CATALOG_VERSION`). Exit 0.
  *
  * Sections: `--section <name>` (repeatable) selects them; without it, all
@@ -101,6 +101,24 @@ export function formatCatalogText(catalog: FullCatalog): string {
         Object.entries(catalog.sets.schema.properties ?? {}).map(([name, schema]) => [
           name,
           typeof schema === "object" ? (schema.description ?? "") : "",
+        ]),
+      )}`,
+    ]);
+  }
+  if (catalog.palettes) {
+    tables.push([
+      "Palettes",
+      `${catalog.palettes.path}: ${catalog.palettes.description} Source: ${catalog.palettes.source}.\n${formatTable(
+        ["ID", "PANEL", "TINT", "ACCENT", "INK", "MUTED", "STRONG", "DESCRIPTION"],
+        catalog.palettes.palettes.map((p) => [
+          p.id,
+          p.roles.panel,
+          p.roles.tint,
+          p.roles.accent,
+          p.roles.ink,
+          p.roles.muted,
+          p.roles.strong,
+          `${p.description} (colors ${p.colors.join(" ")})`,
         ]),
       )}`,
     ]);

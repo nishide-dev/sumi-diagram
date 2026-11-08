@@ -616,6 +616,7 @@ describe("sumi catalog", () => {
       "icons",
       "targets",
       "sets",
+      "palettes",
     ]);
     // #94: the bundled icon set, without the (long) list of names.
     expect(json.icons).toEqual([

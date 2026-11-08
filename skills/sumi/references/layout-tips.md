@@ -306,7 +306,13 @@ and decide its one visual form and tone:
 | losses, objectives | one short box or a dashed edge to the thing it trains | one accent |
 
 Fill it from the paper, not from a template: drop rows that do not occur, add your
-own. Then follow these rules while writing the YAML:
+own. Then **pick a palette** for the mood and the medium (the table's tones keep their
+meaning on top of it: a palette does not change the semantic tones, except gray): `sumi catalog --section palettes` lists eight; choose by character
+and by where the figure is read. A cool, calm figure: `cool-blue` or `slate`; warm or
+friendly: `coral` or `terracotta`; quiet, natural: `sage` (green) or `seafoam` (teal); soft: `lavender`;
+a strong accent for one result: `cyan-pink`. Set it once with `themeOverrides.palette`
+and do not mix per-element colours that fight it; for black-and-white print use the
+`academic` theme without a palette. Then follow these rules while writing the YAML:
 
 - **Pictures for things, arrows for operations.** Objects and data are icons, glyphs
   and sets; an operation is an edge or at most a few short boxes. If a box holds a
@@ -329,7 +335,8 @@ Sumi features for each form:
 - **Feature vectors, dots, pills**: node `glyphs` ([glyphs](assets.md#glyphs)).
 - **Sets and hyperedges**: top-level `sets` ([set enclosures](structured.md#set-enclosures)).
 - **Small graphs**: `place` with coordinates ([coordinate placement](structured.md#coordinate-placement)).
-- **Per-figure colors**: `themeOverrides` ([themes](figure-format.md#themes-and-profiles)).
+- **Per-figure colors**: `themeOverrides.palette` for a whole scheme, `tones` and the
+  other keys for single colours ([palettes](figure-format.md#themes-and-profiles)).
 - **Panels, numbered columns**: groups with `caption` in one `row`
   ([captions](structured.md#group-titles-and-captions)).
 
