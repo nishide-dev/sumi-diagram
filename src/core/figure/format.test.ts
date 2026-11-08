@@ -6,6 +6,12 @@ import { parseYaml } from "./yaml";
 
 const ROOT = join(import.meta.dir, "..", "..", "..");
 const FIXTURES = join(ROOT, "tests", "fixtures", "figures");
+const EXAMPLES = [
+  join(ROOT, "examples", "pipeline", "pipeline.sumi.yaml"),
+  join(ROOT, "examples", "decision-flow", "decision-flow.sumi.yaml"),
+  join(ROOT, "examples", "chat", "chat.sumi.yaml"),
+  join(ROOT, "examples", "llm-dialogue", "llm-dialogue.sumi.yaml"),
+];
 
 function format(text: string, canonicalOrder = false): string {
   const result = formatFigureSource(text, { canonicalOrder });
@@ -19,8 +25,7 @@ const sources = [
       .filter((name) => name.endsWith(".sumi.yaml"))
       .map((name) => join(FIXTURES, dir, name)),
   ),
-  join(ROOT, "examples", "pipeline", "pipeline.sumi.yaml"),
-  join(ROOT, "examples", "decision-flow", "decision-flow.sumi.yaml"),
+  ...EXAMPLES,
 ];
 
 describe("formatFigureSource", () => {
@@ -43,7 +48,7 @@ describe("formatFigureSource", () => {
   });
 
   test("leaves the committed examples unchanged", () => {
-    for (const file of sources.filter((f) => f.includes("examples"))) {
+    for (const file of EXAMPLES) {
       const text = readFileSync(file, "utf8");
       expect(format(text)).toBe(text);
     }

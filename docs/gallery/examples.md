@@ -4,6 +4,12 @@
 
 The committed SVGs of <code>examples/</code>, rendered from their sources as written\.
 
+## Chat — making plans
+
+[<code>examples/chat/chat\.sumi\.yaml</code>](../../examples/chat/chat.sumi.yaml) · [PDF](../../examples/chat/chat.pdf) · theme <code>llama</code> · profile <code>paper\-single</code> · 83\.96mm × 59\.09mm \(max width 88mm, max height 220mm\)
+
+<img src="../../examples/chat/chat.svg" alt="Chat — making plans">
+
 ## CLIP — Summary of our approach
 
 [<code>examples/clip/clip\.sumi\.yaml</code>](../../examples/clip/clip.sumi.yaml) · [PDF](../../examples/clip/clip.pdf) · theme <code>paper</code> · profile <code>paper\-double</code> · 180mm × 67\.64mm \(max width 180mm, max height 220mm\)<br>info geometry/heavy\-scaling: The smallest final text \(including math scripts\) is 4\.02pt, 80\.4% of the 5pt minimum \(\-0\.98pt headroom; 20% or less\)\. figure\.fit: scale prints at 71\.8%: 250\.65mm → 180mm wide\.<br>info geometry/script\-too\-small: Subscripts or superscripts of label math print at down to 4\.02pt \(5\.6pt shrunk to 71\.8% by figure\.fit: scale\), below the 5pt minimum font size of profile &quot;paper\-double&quot; for a scaled figure: in cell &quot;1&quot; of tokens &quot;text\-tokens&quot;, cell &quot;2&quot; of tokens &quot;text\-tokens&quot;, cell &quot;3&quot; of tokens &quot;text\-tokens&quot; and 30 more labels\.
@@ -45,6 +51,12 @@ The committed SVGs of <code>examples/</code>, rendered from their sources as wri
 [<code>examples/llama4\-moe/llama4\-moe\.sumi\.yaml</code>](../../examples/llama4-moe/llama4-moe.sumi.yaml) · [PDF](../../examples/llama4-moe/llama4-moe.pdf) · theme <code>llama</code> · profile <code>paper\-double</code> · 156\.28mm × 107\.77mm \(max width 180mm, max height 220mm\)
 
 <img src="../../examples/llama4-moe/llama4-moe.svg" alt="Llama 4 — Mixture of Experts">
+
+## LLM dialogue — a math word problem
+
+[<code>examples/llm\-dialogue/llm\-dialogue\.sumi\.yaml</code>](../../examples/llm-dialogue/llm-dialogue.sumi.yaml) · [PDF](../../examples/llm-dialogue/llm-dialogue.pdf) · theme <code>llama</code> · profile <code>paper\-single</code> · 83\.96mm × 61\.56mm \(max width 88mm, max height 220mm\)
+
+<img src="../../examples/llm-dialogue/llm-dialogue.svg" alt="LLM dialogue — a math word problem">
 
 ## Generic processing pipeline
 

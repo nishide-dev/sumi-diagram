@@ -246,8 +246,9 @@ describe.skipIf(!available)("built-in primitives render with D2", () => {
     );
   }
 
-  test("the example list is not empty", () => {
-    expect(EXAMPLES.length).toBeGreaterThanOrEqual(2);
+  test("the example list includes both conversation figures", () => {
+    expect(EXAMPLES).toContain("examples/chat/chat.sumi.yaml");
+    expect(EXAMPLES).toContain("examples/llm-dialogue/llm-dialogue.sumi.yaml");
   });
 
   for (const example of EXAMPLES) {
