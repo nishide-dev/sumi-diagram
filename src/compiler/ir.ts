@@ -326,6 +326,11 @@ export interface NodeIR extends ObjectIRBase {
   readonly sublabel?: SublabelIR;
   /** A bundled icon drawn in place of the label (#94); the node has no label. */
   readonly icon?: IconIR;
+  /**
+   * The side of the icon's square in units (#424, design doc `424-icon-size`);
+   * absent means one em (the font size), so existing figures are unchanged.
+   */
+  readonly iconSize?: number;
   readonly badge?: { readonly icon: IconIR; readonly corner: Corner };
   /** Small marks over the node's border (#408), already coloured and sized in units. */
   readonly glyphs?: readonly GlyphIR[];
@@ -733,6 +738,10 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
           }),
         }),
         ...(n.icon !== undefined && { icon: iconIR(n.icon) }),
+        ...(n.icon !== undefined &&
+          n.iconSize !== undefined && {
+            iconSize: iconSizeUnits(n.iconSize, style.fontSize.units),
+          }),
         ...(n.badge !== undefined && {
           badge: freeze({ icon: iconIR(n.badge.icon), corner: n.badge.corner }),
         }),
@@ -1246,6 +1255,15 @@ function freezeMark(mark: NodeMark): Readonly<NodeMark> {
   return mark.type === "glyph"
     ? freeze({ ...mark, glyphs: freeze({ ...mark.glyphs }) })
     : freeze({ ...mark });
+}
+
+/**
+ * `iconSize` in whole units (0.5pt, at least 1), so an icon-only label node's
+ * box (rounded up to whole units) is exactly the icon's square: a number is a
+ * multiple of the font size, a length is in pt (2 units).
+ */
+function iconSizeUnits(size: number | { pt: number }, emUnits: number): number {
+  return Math.max(1, Math.round(typeof size === "number" ? size * emUnits : size.pt * 2));
 }
 
 function iconIR(ref: string): IconIR {

@@ -411,6 +411,28 @@
             "maxLength": 80,
             "pattern": "^([a-z][a-z0-9]*)\\/([a-z0-9]+(?:-[a-z0-9]+)*)$"
           },
+          "iconSize": {
+            "description": "Side of the icon square (needs icon): a number is a multiple of the node's font size (\"em\", e.g. 2), a string is a length with a unit (e.g. \"12mm\"). Omitted means 1 em. Draws a larger icon without an enclosing shape; a label node is sized to the icon.",
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.25,
+                "maximum": 24
+              },
+              {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^(0|\\d+(\\.\\d+)?(mm|cm|in|pt))$"
+                  },
+                  {
+                    "const": 0
+                  }
+                ],
+                "description": "A length with a unit (mm, cm, in or pt), e.g. \"3mm\"; 0 needs no unit."
+              }
+            ]
+          },
           "badge": {
             "description": "A one-em corner badge, independent of the node label; its overhang reserves layout space.",
             "type": "object",

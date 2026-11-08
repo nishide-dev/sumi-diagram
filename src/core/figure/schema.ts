@@ -453,6 +453,18 @@ export type GlyphPosition = (typeof GLYPH_POSITIONS)[number];
 export const GLYPH_KINDS = ["vector", "dot", "pill"] as const;
 export type GlyphKind = (typeof GLYPH_KINDS)[number];
 
+/** Smallest and largest `iconSize` as a multiple of the font size (#424). */
+export const ICON_SIZE_EM_RANGE = { min: 0.25, max: 24 } as const;
+
+/**
+ * `nodes[].iconSize` (#424, design doc `424-icon-size`): a number is a multiple
+ * of the node's font size, a string a positive length with a unit.
+ */
+export const IconSize = z.union([
+  z.number().min(ICON_SIZE_EM_RANGE.min).max(ICON_SIZE_EM_RANGE.max),
+  LayoutLength.refine((pt) => pt > 0, { message: "must be positive" }).transform((pt) => ({ pt })),
+]);
+
 /** Most cells one feature vector may have. */
 export const MAX_GLYPH_CELLS = 16;
 
@@ -925,6 +937,9 @@ export const NodeSchema = z.strictObject({
     .describe(
       "A bundled icon drawn in place of the label, e.g. tabler/wave-sine (text color) or emoji/fire (original multicolour palette).",
     ),
+  iconSize: IconSize.optional().describe(
+    'Side of the icon square (needs icon): a number is a multiple of the node\'s font size ("em", e.g. 2), a string is a length with a unit (e.g. "12mm"). Omitted means 1 em. Draws a larger icon without an enclosing shape; a label node is sized to the icon.',
+  ),
   badge: z
     .strictObject({
       icon: z

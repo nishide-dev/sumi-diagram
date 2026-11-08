@@ -42,7 +42,7 @@ metadata: {}               # optional, any JSON-compatible data; not drawn
 | Element | Fields (required in bold) | Defaults |
 | --- | --- | --- |
 | group | **`id`**, `label`, `labelAt`, `caption`, `component`, `variant`, `tone`, `dim`, `group`, `arrange`¹ | component `container`, variant `default`, no tone, not dimmed, no parent |
-| node | **`id`**, **`component`**, `label`, `sublabel`¹, `labelRotation`¹, `textAlign`¹, `grow`¹, `variant`, `tone`, `mono`, `icon`, `badge`, `glyphs`, `props`, `group`, `attach`¹ | variant `default`, no label, no tone, no group, grow `1` |
+| node | **`id`**, **`component`**, `label`, `sublabel`¹, `labelRotation`¹, `textAlign`¹, `grow`¹, `variant`, `tone`, `mono`, `icon`, `iconSize`, `badge`, `glyphs`, `props`, `group`, `attach`¹ | variant `default`, no label, no tone, no group, grow `1` |
 | set¹ | **`id`**, **`members`**, `label`, `labelAt`, `shape`, `padding`, `variant`, `tone`, `fillOpacity` | shape `circle`, labelAt `top`, variant `default`, no tone (gray), padding = the profile's group padding |
 | edge | **`from`**, **`to`**, `id`, `label`, `labelAt`¹, `labelSide`¹, `route`¹, `component`, `variant`, `tone`, `props`, `fromAnchor`¹, `toAnchor`¹ | component `arrow`, variant `default`, no tone |
 
@@ -76,7 +76,7 @@ stops with one `schema/unsatisfied-requires` instead of a list of unknown fields
 | 0.10.0 | inline SVG images, `waveform`, `bracket`, whole-sequence `tokens` edges, matrix text and ellipsis cells |
 | 0.11.0 | `html` component |
 | 0.12.0 | `separator`, `figure.assets` with `crop` and tokens image cells, operator `size`, grid hints, width-overflow breakdown |
-| 0.16.0 | `sets`: overlapping enclosures for Venn diagrams and hyperedges; node `glyphs`; `legend` samples `icon` / `glyph` / `set`, `flow`, `perRow`, `heading`, `labelAt` |
+| 0.16.0 | `sets`: overlapping enclosures for Venn diagrams and hyperedges; node `glyphs`; `legend` samples `icon` / `glyph` / `set`, `flow`, `perRow`, `heading`, `labelAt`; node `iconSize` (and a legend `icon` entry's) sizes an icon without an enclosing shape |
 
 ## IDs
 
@@ -621,6 +621,7 @@ Per-code fixes: [diagnostics](diagnostics.md). The ones agents repeat:
 | `label: 'Scale\n$\gamma$'` | `lint/literal-newline` | `"Scale\n$\\gamma$"` or a `\|-` block |
 | math, `toAnchor`, edge `labelAt`, `align`, `legend`… in an auto figure | `component/unsupported-in-auto`, `layout/structured-only` | make the figure structured, or remove it |
 | `label:` and `icon:` on one node | `asset/icon-with-label` | keep one; attach a `label` node |
+| an icon wrapped in a `circle` to make it bigger | none (looks bad) | `component: label` with `icon` and `iconSize: 2` |
 | `labelAt: top-center` (group), `labelSide: above` | `schema/invalid-value` | group: `top-left`, `top`, `top-right`, `bottom-left`, `bottom`, `bottom-right`; edge `labelAt`: `start` / `middle` / `end`; `labelSide`: `left` / `right` |
 | `width: 10px`; `label: 2024`; `label: Step 1: parse` | `component/invalid-prop`, `schema/invalid-type`, `yaml/syntax` | `pt` / `mm` units; quote the label |
 | `variant: muted` on every element of a panel | none | `dim: true` on the group |

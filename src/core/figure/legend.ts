@@ -68,6 +68,8 @@ export interface LegendEntry {
   class?: string;
   /** An icon sample (#409), e.g. `tabler/file-text`. */
   icon?: string;
+  /** The icon sample's side (#424): a number of ems or a length; one em when omitted. */
+  iconSize?: number | { pt: number };
   /** A glyph sample (#409): the fields of a node glyph without its position. */
   glyph?: Omit<FigureGlyph, "at" | "dx" | "dy">;
   /** A set swatch (#409). */
@@ -532,9 +534,13 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
         });
         item = withText(ids.box);
       } else if (entry.icon !== undefined) {
-        // An icon sample (#409): a label node that draws the icon, one em tall.
+        // An icon sample (#409): a label node that draws the icon, one em tall or `iconSize`.
         addNode(
-          { ...partNode(ids.box, "sumi/label", "default"), icon: entry.icon },
+          {
+            ...partNode(ids.box, "sumi/label", "default"),
+            icon: entry.icon,
+            ...(entry.iconSize !== undefined && { iconSize: entry.iconSize }),
+          },
           [...entryPath, "icon"],
           `the sample icon ${of}`,
         );

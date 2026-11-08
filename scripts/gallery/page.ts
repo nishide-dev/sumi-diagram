@@ -357,7 +357,7 @@ function htmlPalettes(palettes: GalleryModel["palettes"]): string {
 
 const LEGENDS_NOTE =
   "A `legend` entry takes one sample: an `edge` (a line with its dash, tone and arrowheads, e.g. " +
-  "`double-arrow` for a pair), a `node` box, an `icon`, a `glyph` (a feature vector, dot or pill with " +
+  "`double-arrow` for a pair), a `node` box, an `icon` (`iconSize` makes it larger), a `glyph` (a feature vector, dot or pill with " +
   "the fields of a node glyph) or a `set` swatch painted like a set enclosure. `flow: row` puts the " +
   "entries on a line (`perRow` wraps them), `heading` starts a group on its own line, and `labelAt: " +
   "left` puts the text before the sample. Every sample is drawn by the same theme rules as what it " +

@@ -151,6 +151,7 @@ Apply one edit and re-check: independent savings are not additive.
 | `lint/missing-glyph` | warning | replace the character (emoji and rare CJK are not in the font); for HTML choose covering bundled families (Geist fallback does not count) |
 | `lint/literal-newline` | warning | `\n` as two characters outside `$...$` (single-quoted or plain YAML): double-quote it and double math backslashes (`"Scale, Shift\n$\\gamma_1$"`), or a `\|-` block ([math and line breaks](figure-format.md#math-and-line-breaks-in-one-label)) |
 | `lint/unused-legend-entry` | warning | no edge / node has the entry's component, variant and tone, no node draws its `icon` or has its `glyph`, or no set has its swatch's variant and tone: fix the entry or the elements ([legends](structured.md#legends)) |
+| `lint/icon-enclosure` | info | a plain `circle` / `box` holds only an `icon` (no tone, variant, size, badge or glyphs): use `component: label` with `icon` and `iconSize`; give the frame a tone or variant if its shape means something |
 | `lint/unused-matrix-class` | warning | no cell uses the class: remove it or use it ([matrices](structured.md#matrices)) |
 
 `sumi lint --rule lint/no-edges=off` silences a rule for one run. There is no

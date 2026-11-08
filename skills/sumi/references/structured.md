@@ -597,7 +597,7 @@ nodes:
 ## Attach: side notes
 
 ```yaml
-- { id: config, component: circle, icon: tabler/adjustments, attach: { to: add, side: west, gap: 1mm } }
+- { id: config, component: label, icon: tabler/adjustments, iconSize: 1.5, attach: { to: add, side: west, gap: 1mm } }
 - { id: config-label, component: label, label: "Sensor\nconfig", attach: { to: config, side: west, gap: 0.5mm } }
 - { id: repeat, component: label, label: "N×", attach: { to: encoder, side: east, gap: 2mm } }
 ```
@@ -1012,7 +1012,7 @@ text. An entry has exactly one of `edge` (a sample line: `component` default
 `box`, `variant`, `tone`) or `class` (the sample of a [matrix](#matrices) class,
 `<matrix>.<class>`), plus `label` (math allowed; a `class` entry defaults to the
 class's label). Since 0.16.0 three more samples: `icon: tabler/file-text` (an
-icon one text line tall), `glyph: { kind: vector, tone: blue, strength: solid }`
+icon one text line tall, or `iconSize` as on a node), `glyph: { kind: vector, tone: blue, strength: solid }`
 (the fields of a node [glyph](assets.md#glyphs) except `at` / `dx` / `dy`: `kind`,
 `cells`, `direction`, `tone`, `tones`, `strength`, `size`, `width`, `outline`) and
 `set: { tone: green, variant: dashed, fillOpacity: 0.3 }` (a small translucent
