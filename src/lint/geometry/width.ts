@@ -21,6 +21,7 @@ function footprint(element: GeometryElement): Rect | undefined {
     ...(element.bbox ? [element.bbox] : []),
     ...element.labels.flatMap((label) => (label.box ? [label.box] : [])),
     ...(element.badge ? [element.badge] : []),
+    ...(element.glyphs ?? []),
   ]);
 }
 

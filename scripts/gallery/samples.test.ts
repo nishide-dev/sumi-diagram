@@ -15,6 +15,7 @@ import {
   componentSamples,
   dimSample,
   filledToneSample,
+  glyphSample,
   outlinedToneSample,
   PROFILES,
   SAMPLE_PROFILE,
@@ -122,7 +123,13 @@ test("the structured theme comparison covers every theme, slides with its own pr
 test("every theme-wide sample passes structural lint under every theme (#177)", () => {
   // Rendering in the gallery checks diagnostics and geometry only; the
   // structural rules (e.g. lint/unused-legend-entry) run here.
-  for (const sample of [toneSample(), outlinedToneSample(), filledToneSample(), dimSample()]) {
+  for (const sample of [
+    toneSample(),
+    outlinedToneSample(),
+    filledToneSample(),
+    dimSample(),
+    glyphSample(),
+  ]) {
     for (const theme of THEMES) {
       const source = sample.source.replace(/^ {2}theme: .*$/m, `  theme: ${theme}`);
       const report = lintFigure(source);

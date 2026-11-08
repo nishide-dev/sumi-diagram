@@ -21,6 +21,7 @@ export function heightBreakdown(context: GeometryContext): string {
         ...(element.bbox ? [element.bbox] : []),
         ...element.labels.flatMap((l) => (l.box ? [l.box] : [])),
         ...(element.badge ? [element.badge] : []),
+        ...(element.glyphs ?? []),
       ]);
       return rect ? [{ name: element.name, rect }] : [];
     })

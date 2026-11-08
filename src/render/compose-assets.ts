@@ -9,6 +9,7 @@
  */
 
 import { assetMarkup, badgeMarkup } from "../assets/draw";
+import { glyphMarkup } from "../assets/glyphs";
 import type { FigureAssets } from "../assets/load";
 import type { CompiledFigure } from "../compiler/compile";
 import { generateD2 } from "../compiler/d2";
@@ -69,7 +70,11 @@ export function composeAssets(
   assets: FigureAssets,
 ): Result<string> {
   const nodes = ir.nodes.filter(
-    (n) => n.icon !== undefined || n.image !== undefined || n.badge !== undefined,
+    (n) =>
+      n.icon !== undefined ||
+      n.image !== undefined ||
+      n.badge !== undefined ||
+      n.glyphs !== undefined,
   );
   if (nodes.length === 0) return { ok: true, value: svg, diagnostics: [] };
   const parsed = parseXml(svg);
@@ -105,10 +110,10 @@ export function composeAssets(
       };
     }
     inserts.push({ at: shape.end, text: assetMarkup(node, assets.nodes.get(node.key), box) });
-    if (node.badge !== undefined && group !== undefined)
+    if ((node.badge !== undefined || node.glyphs !== undefined) && group !== undefined)
       inserts.push({
         at: group.end - 4,
-        text: badgeMarkup(node, assets.badges?.get(node.key), box),
+        text: badgeMarkup(node, assets.badges?.get(node.key), box) + glyphMarkup(node, box),
       });
   }
   let out = svg;

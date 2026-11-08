@@ -7,6 +7,7 @@
  * groups, nodes and edges each in the order they are written.
  */
 
+import { glyphsOf } from "../assets/glyphs";
 import { parseIconRef } from "../assets/icon-ref";
 import {
   type CheckState,
@@ -37,6 +38,8 @@ import type {
   FigureGroup,
   FigureMeta,
   FigureNode,
+  GlyphKind,
+  GlyphPosition,
   GroupLabelPosition,
   LabelRotation,
   LayoutDensity,
@@ -171,6 +174,33 @@ export interface AlignIR {
   readonly srcAt: SourceMapEntry;
 }
 
+/** One part of a glyph (#408): a cell, a dot or a pill, in the glyph's own frame (units). */
+export interface GlyphPartIR {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+  /** Corner radius; half the short side for a dot or pill. */
+  readonly radius: number;
+  readonly fill: string;
+}
+
+/** `nodes[].glyphs[]` (#408, design doc `408-node-glyphs`) resolved against the theme. */
+export interface GlyphIR {
+  readonly kind: GlyphKind;
+  readonly at: GlyphPosition;
+  /** Offset from the anchor in units (the ems written, times the node's font size). */
+  readonly dx: number;
+  readonly dy: number;
+  /** The parts' extent, without the outline. */
+  readonly width: number;
+  readonly height: number;
+  readonly parts: readonly GlyphPartIR[];
+  readonly stroke: string;
+  /** Outline width in units; 0 draws none. */
+  readonly strokeWidth: number;
+}
+
 /** `nodes[].sublabel` (#184): its text and the font size it is drawn at. */
 export interface SublabelIR {
   /** As written: newlines break lines, label math is allowed. */
@@ -293,6 +323,8 @@ export interface NodeIR extends ObjectIRBase {
   /** A bundled icon drawn in place of the label (#94); the node has no label. */
   readonly icon?: IconIR;
   readonly badge?: { readonly icon: IconIR; readonly corner: Corner };
+  /** Small marks over the node's border (#408), already coloured and sized in units. */
+  readonly glyphs?: readonly GlyphIR[];
   /** The image a `sumi/image` node embeds (#94); the node has no label. */
   readonly image?: ImageIR;
   /**
@@ -673,6 +705,9 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
         ...(n.icon !== undefined && { icon: iconIR(n.icon) }),
         ...(n.badge !== undefined && {
           badge: freeze({ icon: iconIR(n.badge.icon), corner: n.badge.corner }),
+        }),
+        ...(n.glyphs !== undefined && {
+          glyphs: freeze(glyphsOf(n.glyphs, style, theme, dimmed.includes(key)).map(freeze)),
         }),
         ...(component.manifest.embed === "image" && {
           image: imageIR(

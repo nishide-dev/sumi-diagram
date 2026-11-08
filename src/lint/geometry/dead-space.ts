@@ -123,6 +123,7 @@ function footprints(context: GeometryContext): Rect[] {
         : []),
       ...element.labels.flatMap((label) => (label.box ? [label.box] : [])),
       ...(element.badge ? [element.badge] : []),
+      ...(element.glyphs ?? []),
     ];
     // A segment's bounding rectangle is conservative for diagonals/curves;
     // unlike a whole-route bbox it leaves the inside of an elbow available.

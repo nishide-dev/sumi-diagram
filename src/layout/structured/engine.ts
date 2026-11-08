@@ -44,6 +44,7 @@
  */
 
 import { badgeRect, iconBox } from "../../assets/draw";
+import { glyphRects } from "../../assets/glyphs";
 import type { ArrangeBoxIR, ArrangeItemIR, FigureIR, GroupIR, NodeIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type { Diagnostic } from "../../core/diagnostics";
@@ -289,8 +290,7 @@ class StructuredLayout {
                 : padding,
             );
       const body = { x: 0, y: 0, ...size };
-      const badge = badgeRect(node, body);
-      const extra = overhangOf(body, badge === undefined ? [] : [badge]);
+      const extra = overhangOf(body, decorationRects(node, body));
       this.#badgeOverhangs.set(node.key, extra);
       this.#leafSizes.set(node.key, {
         width: size.width + extra.west + extra.east,
@@ -799,6 +799,7 @@ class StructuredLayout {
       explicit === undefined &&
       node.render === undefined &&
       node.badge === undefined &&
+      node.glyphs === undefined &&
       stretchableShape(node.shape)
     );
   }
@@ -900,8 +901,7 @@ class StructuredLayout {
   #attachedRects(container: Container, rects: Map<ElementKey, Rect>): Rect[] {
     return (this.#attached.get(container) ?? []).flatMap((node) => {
       const rect = rects.get(node.key);
-      const badge = rect === undefined ? undefined : badgeRect(node, rect);
-      return rect === undefined ? [] : [rect, ...(badge === undefined ? [] : [badge])];
+      return rect === undefined ? [] : [rect, ...decorationRects(node, rect)];
     });
   }
 
@@ -941,10 +941,7 @@ class StructuredLayout {
 
     const all = [
       ...this.#rects.values(),
-      ...this.#ir.nodes.flatMap((node) => {
-        const box = badgeRect(node, this.#rect(node.key));
-        return box === undefined ? [] : [box];
-      }),
+      ...this.#ir.nodes.flatMap((node) => decorationRects(node, this.#rect(node.key))),
       ...[...labels.values(), ...sublabels.values()].map((label) => label.box),
       ...this.#chatFrames.values(),
     ];
@@ -1075,6 +1072,12 @@ function attachedRect(target: Rect, size: Size, side: AttachSide, gap: number): 
 }
 
 /** How far `rects` reach beyond `frame` on each side (0 where they stay inside). */
+/** A node's corner badge and glyphs (#408): what hangs over its body's border. */
+function decorationRects(node: NodeIR, body: Rect): Rect[] {
+  const badge = badgeRect(node, body);
+  return [...(badge === undefined ? [] : [badge]), ...glyphRects(node, body)];
+}
+
 function overhangOf(frame: Rect, rects: readonly Rect[]): Overhang {
   const overhang = { ...NO_OVERHANG };
   for (const r of rects) {

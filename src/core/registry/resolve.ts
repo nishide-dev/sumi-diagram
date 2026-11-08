@@ -72,6 +72,7 @@ interface Element {
   tone: string | undefined;
   icon: string | undefined;
   badge: boolean;
+  glyphs: boolean;
   grow: number | undefined;
   /** Groups only (#127). */
   labelAt: string | undefined;
@@ -270,12 +271,12 @@ export function resolveComponents(
     const embed = manifest.kind === "node" ? manifest.embed : undefined;
     // A bracket (#281) is a line with no label, label turn or sublabel.
     const bracket = [BRACKET_ID, SEPARATOR_ID].includes(componentId(manifest));
-    const badgeUnsupported =
-      element.badge &&
-      (["sumi/legend", "sumi/tokens", "sumi/matrix", BRACKET_ID, SEPARATOR_ID].includes(
+    const noBody =
+      ["sumi/legend", "sumi/tokens", "sumi/matrix", BRACKET_ID, SEPARATOR_ID].includes(
         componentId(manifest),
-      ) ||
-        mark?.type === "point");
+      ) || mark?.type === "point";
+    const badgeUnsupported = element.badge && noBody;
+    const glyphsUnsupported = element.glyphs && noBody;
     if (badgeUnsupported)
       report(
         [
@@ -287,6 +288,18 @@ export function resolveComponents(
           },
         ],
         () => [...element.path, "badge"],
+      );
+    if (glyphsUnsupported)
+      report(
+        [
+          {
+            code: "component/glyph-unsupported",
+            severity: "error",
+            message: `${componentId(manifest)} has no standalone node body for glyphs.`,
+            hint: "Put the glyphs on an ordinary shape, image or outline node instead.",
+          },
+        ],
+        () => [...element.path, "glyphs"],
       );
     const zoom = manifest.kind === "edge" && manifest.routing === "zoom";
     const unexpectedLabel =
@@ -403,6 +416,7 @@ export function resolveComponents(
       wrongEngine ||
       growUnsupported ||
       badgeUnsupported ||
+      glyphsUnsupported ||
       missingLabel ||
       unexpectedLabel ||
       rotationUnsupported ||
@@ -572,6 +586,7 @@ function* elements(state: CheckState): Generator<Element> {
       labelRotation: entry.kind === "node" ? entry.element.labelRotation : undefined,
       sublabel: entry.kind === "node" ? entry.element.sublabel : undefined,
       badge: entry.kind === "node" && entry.element.badge !== undefined,
+      glyphs: entry.kind === "node" && entry.element.glyphs !== undefined,
       grow: entry.kind === "node" ? entry.element.grow : undefined,
       props: entry.element.props ?? {},
     };

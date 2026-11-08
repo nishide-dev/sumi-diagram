@@ -5,7 +5,7 @@
 `geometry/dead-space` と `geometry/heavy-scaling` は既定 **info**。
 `render` / `lint --geometry` で検査し、`maxWarnings` に含めず、描画は変えない。
 
-- `geometry/dead-space`: ノード・group 全体・ラベル・badge・描画された矢印の
+- `geometry/dead-space`: ノード・group 全体・ラベル・badge・glyph・描画された矢印の
   保守的な外接矩形に重ならない最大の空き矩形を探す。外周 margin を除く内容の
   外接矩形内で、canvas 面積の **27%以上**かつ印刷時の両辺が **10mm以上**の
   領域を最大3つ、互いに重ならない順に報告する。場所（top-left / bottom-left 等）・
@@ -94,6 +94,13 @@ Sumiの検査済みparseからinline root内のblock/absolute、混在flow、空
 ラベルに重なる場合を `nodes[].badge` に報告する。本体との意図した重なりと
 祖先グループの本体は除外する（祖先グループの見出しは検査する）。`corner` を変えるか、間隔・余白を広げる。
 structured は足跡の張り出しを配置に含め、auto は D2 配置後に合成する。
+
+`geometry/glyph-collision`（既定 warning、#408）は、`nodes[].glyphs` の小さな添え物
+（特徴ベクトル・点・pill）の足跡が、キャンバス外に出る場合、他ノード・ラベル・バッジ・
+他の添え物・辺に重なる場合、または自身の文字ラベルや同じノードのバッジ・別の添え物に
+重なる場合を `glyphs[i]` に報告する。自身の本体と自身のアイコン、祖先グループの本体との
+重なりは意図したものとして除外する。辺は本体に接続するので、辺が出る辺の中央に置いた
+添え物は辺と重なる。`at`・`dx` / `dy`・`size` を変えるか、間隔・余白を広げる。
 
 いずれも自動修正には対応していない（`fixable: false`）。
 

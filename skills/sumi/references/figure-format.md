@@ -41,13 +41,13 @@ metadata: {}               # optional, any JSON-compatible data; not drawn
 | Element | Fields (required in bold) | Defaults |
 | --- | --- | --- |
 | group | **`id`**, `label`, `labelAt`, `caption`, `component`, `variant`, `tone`, `dim`, `group`, `arrange`¹ | component `container`, variant `default`, no tone, not dimmed, no parent |
-| node | **`id`**, **`component`**, `label`, `sublabel`¹, `labelRotation`¹, `textAlign`¹, `grow`¹, `variant`, `tone`, `mono`, `icon`, `badge`, `props`, `group`, `attach`¹ | variant `default`, no label, no tone, no group, grow `1` |
+| node | **`id`**, **`component`**, `label`, `sublabel`¹, `labelRotation`¹, `textAlign`¹, `grow`¹, `variant`, `tone`, `mono`, `icon`, `badge`, `glyphs`, `props`, `group`, `attach`¹ | variant `default`, no label, no tone, no group, grow `1` |
 | edge | **`from`**, **`to`**, `id`, `label`, `labelAt`¹, `labelSide`¹, `route`¹, `component`, `variant`, `tone`, `props`, `fromAnchor`¹, `toAnchor`¹ | component `arrow`, variant `default`, no tone |
 
 ¹ Structured layout only (a figure with `figure.layout.arrange`):
 [structured](structured.md) (`grow`: [filling extra height](structured.md#arrange-trees)).
 Exception: `bubble` supports `textAlign` in auto layout too.
-`icon` / `badge`: [assets](assets.md). Group `labelAt` / `caption`: [groups](#groups).
+`icon` / `badge` / `glyphs`: [assets](assets.md#glyphs). Group `labelAt` / `caption`: [groups](#groups).
 
 Every object is strict: an unknown key is `schema/unknown-field`. There is no
 general per-element style, colour, font or coordinate field: appearance is

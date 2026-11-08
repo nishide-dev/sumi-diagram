@@ -1871,6 +1871,71 @@ export const groupEmptyArea = defineGeometryRule({
   },
 });
 
+/**
+ * A glyph (#408) is a deliberate overhang of its node's border. It may lie
+ * over its own body (and its own icon), but not over another element's body,
+ * text, badge, glyph or edge, nor leave the canvas.
+ */
+export const glyphCollision = defineGeometryRule({
+  id: "geometry/glyph-collision",
+  description:
+    "A node glyph (feature vector, dot or pill) is outside the canvas or collides with another element, label, badge, glyph or edge.",
+  defaultSeverity: "warning",
+  fixable: false,
+  run(context) {
+    const findings: LintFinding[] = [];
+    for (const element of context.elements) {
+      for (const [index, glyph] of (element.glyphs ?? []).entries()) {
+        const collisions = context.elements.filter((other) => {
+          if (other.key === element.key) return false;
+          return (
+            (!context.isAncestor(other.key, element.key) &&
+              other.bbox !== undefined &&
+              rectsOverlap(glyph, other.bbox, GEOMETRY_TOLERANCE_UNITS)) ||
+            (other.badge !== undefined &&
+              rectsOverlap(glyph, other.badge, GEOMETRY_TOLERANCE_UNITS)) ||
+            (other.glyphs ?? []).some((box) =>
+              rectsOverlap(glyph, box, GEOMETRY_TOLERANCE_UNITS),
+            ) ||
+            other.labels.some((label) =>
+              label.visibleLines.some((line) =>
+                rectsOverlap(glyph, line, GEOMETRY_TOLERANCE_UNITS),
+              ),
+            ) ||
+            (other.drawn !== undefined &&
+              polylinesCrossRect(other.drawn, glyph, GEOMETRY_TOLERANCE_UNITS))
+          );
+        });
+        // An icon is the node's picture, which a glyph may touch; text it must not cover.
+        const ownText =
+          (element.ir.kind !== "node" || element.ir.icon === undefined) &&
+          element.labels.some((label) =>
+            label.visibleLines.some((line) => rectsOverlap(glyph, line, GEOMETRY_TOLERANCE_UNITS)),
+          );
+        const ownBadge =
+          element.badge !== undefined &&
+          rectsOverlap(glyph, element.badge, GEOMETRY_TOLERANCE_UNITS);
+        const ownGlyph = (element.glyphs ?? []).some(
+          (box, other) => other < index && rectsOverlap(glyph, box, GEOMETRY_TOLERANCE_UNITS),
+        );
+        const collides = collisions.length > 0 || ownText || ownBadge || ownGlyph;
+        if (collides || !rectInside(context.canvas, glyph, GEOMETRY_TOLERANCE_UNITS))
+          findings.push({
+            message: `Glyph ${index + 1} of ${element.name} ${collides ? "collides with a label, a badge, another glyph or another element" : "extends outside the canvas"}.`,
+            path: [...element.docPath, "glyphs", index],
+            subject: element.subject,
+            hint: "Choose another position, use dx / dy or a smaller size, or increase the layout gap or margin.",
+            related: collisions.map((other) => ({
+              path: other.docPath,
+              message: `${capitalize(other.name)} is here.`,
+            })),
+          });
+      }
+    }
+    return findings;
+  },
+});
+
 export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
   deadSpace,
   heavyScaling,
@@ -1879,6 +1944,7 @@ export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
   lineTooThin,
   groupEmptyArea,
   badgeCollision,
+  glyphCollision,
   exceedsPageWidth,
   exceedsPageHeight,
   textTooSmall,

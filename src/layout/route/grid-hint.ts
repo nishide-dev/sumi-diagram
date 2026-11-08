@@ -47,7 +47,7 @@ export function gridSpanHint(
   const prefix = `"${element.id}" spans ${cell.span} grid columns; span reserves tracks rather than stretching the cell's item.`;
   if (
     element.kind === "node" &&
-    (element.render || element.badge || !stretchableShape(element.shape))
+    (element.render || element.badge || element.glyphs || !stretchableShape(element.shape))
   )
     return `${prefix} This component keeps its width when grid cells stretch. No verified edit is available.`;
   return `${prefix} The current endpoint geometry does not support this straight anchor. No verified edit is available.`;
@@ -103,7 +103,8 @@ export function verifiedGridHints(
     const trials = new HintTrials(ir);
     if (ends.length === 0 || !trials.eligible) return d;
     const fixable = ends.filter(
-      ({ node }) => !(node && (node.render || node.badge || !stretchableShape(node.shape))),
+      ({ node }) =>
+        !(node && (node.render || node.badge || node.glyphs || !stretchableShape(node.shape))),
     );
     const sets = fixable.map((end) => [end]);
     if (d.code === "layout/no-route" && fixable.length > 1) sets.push(fixable);

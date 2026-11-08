@@ -101,6 +101,35 @@ checked). `legend`, `tokens`, `matrix`, `bracket` and point junctions cannot car
 badges (`component/badge-unsupported`): put it on an ordinary node. Editable PPTX
 rejects badges (`pptx/unsupported-asset`); picture PPTX keeps them. Exports keep the MIT notice.
 
+## Glyphs
+
+`glyphs` (since 0.16.0) puts small marks over a node's border, e.g. the three-cell
+feature vector a paper figure draws at the corner of an icon:
+
+```yaml
+- { id: doc, component: label, icon: tabler/file-text,
+    glyphs: [{ kind: vector, cells: 3, tone: blue, dx: 0.3 }] }
+- { id: out, component: box, label: Out, glyphs: [{ kind: vector, direction: right, tones: [pink, none, green], at: south }, { kind: dot, at: north-west }] }
+```
+
+- `kind`: `vector` (cells; `cells` default 3, `direction: down|right`, `tone` for
+  all cells or `tones` one per cell, `none` = the plain node fill), `dot`, `pill`
+  (`width`, default twice its height). Up to 8 glyphs per node, each with its
+  own `at`. For an icon on a corner use `badge`.
+- `at`: a corner or side middle (`north`, `north-east`, ..., default `north-east`);
+  the glyph is centred there, moved by `dx` / `dy` ems (right / down, 1 em = the
+  node's font size). For an icon node centred on a corner use `dx: 0.3`.
+- `size`: cell side, dot diameter or pill height (default 0.4 em: about 3pt at
+  7.5pt text). `outline: false` drops the thin outline.
+- Structured layout reserves the union of body and glyphs (rows, stacks,
+  attachments, groups, canvas); auto draws them after D2 placement. Edges attach
+  to the body, never to a glyph. Glyphs need no icon asset: SVG, PDF, picture
+  and editable PPTX all draw them (editable PPTX cannot carry icon nodes).
+- `geometry/glyph-collision` warns about foreign bodies, labels, badges, glyphs,
+  edges (also a glyph on the side an edge leaves), its own text or canvas
+  clipping; an own icon may be touched. `legend`, `tokens`, `matrix`, `bracket`
+  and point junctions cannot carry glyphs (`component/glyph-unsupported`).
+
 ## File images
 
 ```yaml
