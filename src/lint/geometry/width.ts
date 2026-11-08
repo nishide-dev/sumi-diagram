@@ -226,6 +226,23 @@ export function widthBreakdown(context: GeometryContext): WidthBreakdown {
       `Top-level bodies/labels span ${mm(root.width)}; page width also includes margins, strokes and edge/label extents (${formatMm(Math.max(0, pageWidth - drawnWidthPt))} outside that span).`,
     );
   }
+  // Set enclosures (#407) take no space in the arrange trees but widen the canvas.
+  const setBoxes = context.sets.flatMap((set) => [
+    set.geometry.bbox,
+    ...set.labels.flatMap((label) => (label.box ? [label.box] : [])),
+  ]);
+  const setSpan = unionOf(setBoxes);
+  if (
+    setSpan &&
+    root &&
+    (setSpan.x < root.x - 1 || setSpan.x + setSpan.width > root.x + root.width + 1)
+  ) {
+    const text = `Set enclosures (outlines and labels) span ${mm(setSpan.width)} and reach beyond the arrange items; they are not part of the arrange trees.`;
+    head.push(text);
+    details.push(
+      "Reduce a set's padding, move its label (labelAt), shorten the label, or leave more room inside the page by moving the members closer.",
+    );
+  }
   head.push(verifyHints(context, "width", (trial) => trial.canvas.width));
   if (!structured)
     details.push(

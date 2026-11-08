@@ -265,7 +265,7 @@ describe.skipIf(!available)("built-in primitives render with D2", () => {
           const stderr = run.stderr.toString();
           expect(run.exitCode, stderr).toBe(0);
           if (example === "examples/dit-block/dit-block.sumi.yaml") {
-            expect(stderr).toContain("0 errors, 0 warnings, 7 infos");
+            expect(stderr).toContain("0 errors, 0 warnings, 4 infos");
             expect(
               [...stderr.matchAll(/^examples\/.*:\d+:\d+ (\w+) ([\w/-]+)/gm)].map(
                 ([, severity, code]) => [severity, code],
@@ -275,9 +275,6 @@ describe.skipIf(!available)("built-in primitives render with D2", () => {
               ["info", "geometry/script-too-small"],
               ["info", "geometry/group-empty-area"],
               ["info", "geometry/group-empty-area"],
-              ["info", "geometry/arrowhead-cramped"],
-              ["info", "geometry/arrowhead-cramped"],
-              ["info", "geometry/arrowhead-cramped"],
             ]);
           } else if (example === "examples/clip/clip.sumi.yaml") {
             expect(stderr).toContain("0 errors, 0 warnings, 2 infos");

@@ -70,6 +70,7 @@ Apply one edit and re-check: independent savings are not additive.
 | `ref/unknown-endpoint` | edge `from`/`to` is not a node or group ID | use the hint's ID, or add the missing element if the content calls for it |
 | `ref/unknown-group` | `group:` names no group | add it under `groups:` or fix the ID |
 | `ref/duplicate-id` | two nodes/groups (or two edges) share an ID | rename one (nodes and groups share an ID space) |
+| `ref/unknown-set-member`, `ref/duplicate-set-member` | a `sets[].members` entry is not a node or group ID, or is listed twice | use the hint's ID; list each member once ([sets](structured.md#set-enclosures)) |
 | `ref/group-cycle` | groups contain each other | fix the `group:` chain |
 | `ref/reserved-id` | an ID of yours is one Sumi generates: `<group>-caption`, `<legend>-<n>-label` / `-box` / `-line` / `-start` / `-end`, `<tokens>-<cell>`, `<matrix>-<r>-<c>` / `-row-<r>` / `-col-<c>` / `-corner` | rename your element |
 | `ref/unknown-cell` | `<node>.<cell>` names no cell: not a `tokens` node, or no cell with that `id` (unnamed cells count from 1, across `lines`) | use the hint's cell ([tokens](structured.md#token-sequences)) |
@@ -141,7 +142,7 @@ Apply one edit and re-check: independent savings are not additive.
 | Code | Default | Fix |
 | --- | --- | --- |
 | `lint/empty-figure` | warning | add nodes |
-| `lint/no-edges` | warning | connect the nodes, or keep it if unconnected nodes are intended (say so); chat visuals do not require edges |
+| `lint/no-edges` | warning | connect the nodes, or keep it if unconnected nodes are intended (say so); chat visuals do not require edges; nodes in a set's `members` (or in a member group) are not counted |
 | `lint/ancestor-edge` | warning | connect elements both inside or both outside the group |
 | `lint/self-loop` | info | remove if unintended |
 | `lint/duplicate-edge` | warning | remove it or give it a different label |
@@ -197,15 +198,17 @@ written; errors make the exit code 1. Configure like structural rules
 | `geometry/edge-crosses-label` | warning | auto: connect elements inside the group rather than the group, change `direction`, shorten the label; both: move the group's title away from the entering edge with `labelAt` ([titles](structured.md#group-titles-and-captions)); structured: or enter from the side with an anchor |
 | `geometry/edge-through-node` | warning | an edge crosses a node it does not connect (a `route: straight` line also when it only brushes the outline): change `direction` or grouping, or use side anchors |
 | `geometry/arrowhead-on-bend` | warning | the straight run from a tip to the preceding bend is shorter than the head (structured head = 4 + 4 × stroke width in 0.5pt units; D2 triangle and open markers only): move the anchor, widen the gap, or rearrange |
-| `geometry/arrowhead-cramped` | info | a structured head has under 2pt of visible stem before a bend (after rounding and `fit`; not for straight, invisible or legend edges): tight group padding grows automatically; else widen the gap, change anchors, reduce shrinking. Promote with `{"rules":{"geometry/arrowhead-cramped":"warning"}}` |
+| `geometry/arrowhead-cramped` | info | a structured head has under 1pt of visible stem before a bend (the router aims at 2pt before `fit`; after rounding and `fit`; not for straight, invisible or legend edges): tight group padding grows automatically; else widen the gap, change anchors, reduce shrinking. Promote with `{"rules":{"geometry/arrowhead-cramped":"warning"}}` |
 | `geometry/edge-jog` | info | a straight segment under 1pt (printed) between two right-angle bends: align `fromAnchor` / `toAnchor`, widen the gap, or rearrange. Promotable like the rule above |
 | `geometry/zoom-crosses-node` | warning | a zoom line crosses a node: move it, or the source or view |
-| `geometry/edge-on-border` | warning | an edge runs on a group border (3mm or more): structured: move the ends with anchors, reorder items or change a `gap`; auto: change `direction` or grouping |
+| `geometry/edge-on-border` | warning | an edge runs on a group border (3mm or more; short pieces of edges merging into one trunk on the same line add up): structured: move the ends with anchors, reorder items or change a `gap`; auto: change `direction` or grouping |
 | `geometry/edge-near-border` | info | as above, less than 1.5pt beside the border; often the router's turn outside a group: leave it if it reads clearly |
 | `geometry/edge-near-edge` | warning | two edges run less than 1.5pt apart for 3mm or more (an exactly shared trunk is fine): independent facing connectors separate automatically when the channel fits; for a narrow channel follow the hint's numeric port-to-port minimum by increasing the row/column gap and keeping it clear. For close fixed legs change anchors or cell spacing; merge a trunk only for genuinely shared endpoints |
 | `geometry/edge-touches-label` | info | an edge passes within 1.5pt of a group title, caption or `label`: as `edge-crosses-label` |
 | `geometry/aspect-distorted` | warning | fewer edges on that `circle` / `square`, or `ellipse` / `box` |
 | `geometry/reversed-edge` | warning | ELK reversed an edge of a cycle (typically inside a group): swap the loop's nodes in `nodes`, or move it out of the group |
+| `geometry/set-contains-non-member` | warning | a set's outline covers a node that is not one of its `members` (its centre, or a quarter of its box, lies inside): add it, move it clear (`place` coordinates, gaps), or fit closer with `shape: hull` / `ellipse` or a smaller `padding` ([sets](structured.md#set-enclosures)) |
+| `geometry/set-label-collision` | warning | a set's label overlaps another label, a node, an edge's route or another set's boundary (a subset's label inside its superset is fine): change `labelAt`, shorten it, or move the sets apart |
 | `geometry/badge-collision` | warning | a badge touches labels, other bodies, badges, edges or the canvas edge (its own body may overlap): change the corner, increase gaps / margin; invalid badge icons: `asset/unknown-icon` at `badge.icon` |
 | `geometry/glyph-collision` | warning | a glyph (feature vector, dot, pill) touches other bodies, labels, badges, glyphs, edges or the canvas edge, or covers its own text (its own body and icon may be touched): change `at`, `dx` / `dy` or `size`, increase gaps / margin |
 | `geometry/group-empty-area` | info | at least 75% of a group's frame lies outside its title and direct children (occupancy estimate; nested groups count fully; tokens/matrix/legend frames skipped; not counted in `maxWarnings`): consider `align: stretch` with inner `justify: stretch`, `justify: space-between`, smaller gaps, or do not stretch the panel; intentional whitespace needs no change |

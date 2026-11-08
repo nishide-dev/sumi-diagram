@@ -255,3 +255,19 @@ edges:
     });
   });
 });
+
+test("--canonical-order puts the keys of a set in Figure Schema order (#407)", () => {
+  const source = `version: 1
+figure: { id: f, layout: { arrange: { row: { items: [a, b] } } } }
+nodes:
+  - { id: a, component: box }
+  - { id: b, component: box }
+sets:
+  - { tone: blue, members: [a, b], label: S, id: s, shape: hull }
+`;
+  const result = formatFigureSource(source, { canonicalOrder: true });
+  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+  expect(result.text).toContain(
+    "- { id: s, label: S, members: [ a, b ], shape: hull, tone: blue }",
+  );
+});

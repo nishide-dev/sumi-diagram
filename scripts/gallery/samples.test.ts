@@ -19,6 +19,7 @@ import {
   outlinedToneSample,
   PROFILES,
   SAMPLE_PROFILE,
+  setsSample,
   THEME_COMPARISON_PROFILE,
   THEMES,
   themeComparison,
@@ -129,6 +130,7 @@ test("every theme-wide sample passes structural lint under every theme (#177)", 
     filledToneSample(),
     dimSample(),
     glyphSample(),
+    setsSample(),
   ]) {
     for (const theme of THEMES) {
       const source = sample.source.replace(/^ {2}theme: .*$/m, `  theme: ${theme}`);

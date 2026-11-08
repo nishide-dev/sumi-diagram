@@ -21,6 +21,7 @@ import {
   type FigureGroup,
   type FigureMeta,
   type FigureNode,
+  type FigureSet,
   type JsonValue,
   refOwner,
 } from "./figure/schema";
@@ -56,6 +57,8 @@ export interface PartialFigure {
   groups?: (FigureGroup | undefined)[];
   nodes?: (FigureNode | undefined)[];
   edges?: (FigureEdge | undefined)[];
+  /** Set enclosures (#407), by their index in `sets`; absent when the document has none. */
+  sets?: (FigureSet | undefined)[];
   metadata?: JsonValue;
   /**
    * Nodes expanded from `groups[].caption` (#130), by their index in `nodes`

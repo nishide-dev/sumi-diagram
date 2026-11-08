@@ -831,6 +831,52 @@ export function svgToEditablePptx(
       };
       return emit("start", edge.sourceArrowhead) + emit("end", edge.targetArrowhead);
     };
+    // Set enclosures (#407): a freeform shape with the tint's alpha, then its label as a text box.
+    // They sit between the groups and the nodes, as in the SVG.
+    const setXml: string[] = [];
+    for (const set of ir.sets ?? []) {
+      const geo = inspected.value.sets?.find((g) => g.id === set.id);
+      const group = [...descendants(read.doc.drawing)].find(
+        (e) => e.name === "g" && classList(e).includes(`sumi-set-${set.id}`),
+      );
+      const drawn =
+        group && childElements(group).find((e) => classList(e).includes("sumi-set-shape"));
+      if (!geo || !group || !drawn) throw new Error(`Missing set ${set.id}`);
+      const { style } = set;
+      const tint = paint(
+        property(drawn, "fill") ?? "none",
+        Number(attribute(drawn, "fill-opacity") ?? 1),
+      );
+      setXml.push(
+        shape(
+          next++,
+          `set ${set.id}`,
+          geo.bbox,
+          geometry([shapePath(drawn)], geo.bbox, emu),
+          tint,
+          line(drawn, style),
+        ),
+      );
+      const text = childElements(group).find((e) => e.name === "text");
+      const label = geo.labels[0];
+      const b = label && measureLabel(label, fonts).box;
+      if (text && label && b) {
+        const box = { ...b, x: b.x - 2, width: b.width + 4 };
+        setXml.push(
+          shape(
+            next++,
+            `set ${set.id} label`,
+            box,
+            '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>',
+            "<a:noFill/>",
+            "<a:ln><a:noFill/></a:ln>",
+            textBody(label, text, box, 1),
+            true,
+          ),
+        );
+      }
+    }
+    let setsEmitted = setXml.length === 0;
     const output: string[] = [];
     const labels: string[] = [];
     // Zoom edges (#176) are painted under the routed edges, as in the SVG
@@ -847,6 +893,10 @@ export function svgToEditablePptx(
         geo = geometries.get(key),
         id = ids.get(key);
       if (!element || !geo || id === undefined) throw new Error(`Unknown element ${key}`);
+      if (element.kind !== "group" && !setsEmitted) {
+        output.push(...setXml);
+        setsEmitted = true;
+      }
       if (element.kind !== "edge") {
         output.push(objectXml.get(key) ?? "");
         continue;
@@ -939,6 +989,7 @@ export function svgToEditablePptx(
         );
       });
     }
+    if (!setsEmitted) output.push(...setXml);
     const diagnostics: Diagnostic[] = [
       {
         code: "pptx/experimental-editable",

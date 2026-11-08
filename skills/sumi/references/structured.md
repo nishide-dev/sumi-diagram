@@ -159,6 +159,65 @@ edges:
   - { from: b, to: d, component: line, route: straight }
 ```
 
+## Set enclosures
+
+`sets` draws a translucent shape around nodes and groups after they are placed: Venn
+diagrams, the hyperedges of a hypergraph, clusters, containment. Membership is
+many-to-many and independent of groups: a node listed in two sets lies in their overlap,
+and the two tints show through each other. Sets are a top-level list (own ID space);
+members are node or group IDs (a group stands for its whole frame; `unknown member` is
+`ref/unknown-set-member`, a repeat `ref/duplicate-set-member`). Structured layout only
+(`layout/structured-only` in an auto figure).
+
+| Field | Meaning |
+| --- | --- |
+| `members` | node / group IDs to enclose |
+| `shape` | `circle` (default: the smallest circle around the members, like a classic Venn), `ellipse` (axis-parallel, at most 3:1, for a row of members), `hull` (rounded convex hull, for irregular members), `rect` (rounded rectangle) |
+| `padding` | room between members and outline (default: the profile's group padding) |
+| `label`, `labelAt` | outside the outline: `top` (default), `bottom`, `left`, `right`, or beside a diagonal extreme `top-left`, `top-right`, `bottom-left`, `bottom-right`. For a label inside, make a `label` node a member |
+| `tone`, `variant` | the tone's line color draws outline, label and (at low opacity) the tint in every theme, gray without a tone. `default` tint + outline, `filled` tint, `outlined` outline, `dashed`; `fillOpacity` (0..1) overrides the tint |
+
+- A set takes **no space** in the arrange trees: place the members first (`place` gives
+  exact positions), then leave room around them for the outline and label, since the
+  canvas grows to hold them. Sets are drawn over groups and under nodes and edges; an
+  edge may cross a set's boundary.
+- Put the shared member where the shapes overlap. A node inside an outline that is not a
+  member reads as one: `geometry/set-contains-non-member` (warning) names it; add it to
+  `members`, move it, or fit closer (`hull`, `ellipse`, smaller `padding`). A set label
+  over text, a node, an edge or another set's boundary is `geometry/set-label-collision`:
+  change `labelAt`. A subset's label inside its superset is fine.
+- SVG, PDF and picture PPTX keep the opacity; editable PPTX draws each set as a
+  freeform shape with alpha (and a text box for the label).
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: hyperedges
+  theme: paper
+  layout:
+    arrange:
+      place:
+        unit: 7mm
+        items:
+          - { item: p1, at: [0, 0.3] }
+          - { item: p2, at: [0.2, 1.9] }
+          - { item: shared, at: [1.5, 1.1] }
+          - { item: title, at: [2.8, 0.3] }
+          - { item: abstract, at: [2.8, 1.9] }
+nodes:
+  - { id: p1, component: circle, icon: tabler/file-text, tone: blue, variant: tinted }
+  - { id: p2, component: circle, icon: tabler/file-text, tone: blue, variant: tinted }
+  - { id: shared, component: circle, icon: tabler/file-text, tone: gray, variant: tinted }
+  - { id: title, component: circle, icon: tabler/letter-t, tone: green, variant: tinted }
+  - { id: abstract, component: circle, icon: tabler/align-left, tone: green, variant: tinted }
+edges:
+  - { from: shared, to: abstract, component: line }
+sets:
+  - { id: e1, label: Entities, members: [p1, p2, shared], tone: blue, labelAt: top-left }
+  - { id: e2, label: Attributes, members: [shared, title, abstract], tone: green, labelAt: top-right }
+```
+
 ## Chat conversations
 
 Use `chat` at the root, inside a group, or as a nested arrange box. Declare message
@@ -1109,7 +1168,8 @@ edges:
   gathers it): Sumi lays the cells out in a frame group with that ID (no border,
   fill or padding); tokens that nothing names as a whole get no frame.
   Whole-sequence edge endpoints use the cells' bounding rectangle, excluding
-  attached annotations, even when a wide note enlarges the layout frame.
+  attached annotations, even when a wide note enlarges the layout frame or
+  `align: stretch` widens it (`fromAnchor: east` starts at the last cell).
 - **Dividers.** `{ separator: dotted }` (optionally `id`, `tone`, `width`, `height`;
   no label, component or variant) draws a dotted line across the sequence (vertical
   for `right` / `left`, horizontal for `down` / `up`), reserving 6pt along the

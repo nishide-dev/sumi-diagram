@@ -119,6 +119,45 @@ edges:
   }
 });
 
+test("a stretched tokens frame does not move the whole-sequence anchor off the cells (#411)", async () => {
+  for (const theme of BUILTIN_THEMES.keys()) {
+    for (const anchor of ["east", "north"]) {
+      const result = await renderFigure(
+        `version: 1
+figure:
+  id: stretched-tokens
+  layout:
+    arrange:
+      row:
+        gap: 30pt
+        items:
+          - stack: { gap: 12pt, align: stretch, items: [wide, seq] }
+          - out
+nodes:
+  - { id: wide, component: box, label: A very wide box that sets the width of the column }
+  - { id: seq, component: tokens, props: { cells: [a, b, c], gap: 2pt, width: 20pt, height: 20pt } }
+  - { id: out, component: box, label: Out }
+edges:
+  - { from: seq, to: out, fromAnchor: ${anchor} }
+`,
+        { overrides: { theme } },
+      );
+      if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+      const layout = layoutOf(result.value);
+      const cells = layout.nodes.filter((n) => n.key.startsWith("n:seq-"));
+      const frame = layout.groups.find((g) => g.key === "g:seq");
+      const right = Math.max(...cells.map((n) => n.rect.x + n.rect.width));
+      const top = Math.min(...cells.map((n) => n.rect.y));
+      // The frame itself is stretched past the cells ...
+      expect((frame?.rect.x ?? 0) + (frame?.rect.width ?? 0)).toBeGreaterThan(right + 1);
+      // ... but the edge leaves the cells' bounding rectangle.
+      const start = layout.edges[0]?.route?.points[0];
+      if (anchor === "east") expect(start?.x).toBe(right);
+      else expect(start?.y).toBe(top);
+    }
+  }
+});
+
 test("an attached source approaches its own token frame from outside the cells (#331)", async () => {
   for (const theme of BUILTIN_THEMES.keys()) {
     const result = await renderFigure(

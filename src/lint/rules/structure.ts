@@ -38,7 +38,8 @@ export const emptyFigure = defineRule({
 
 export const noEdges = defineRule({
   id: "lint/no-edges",
-  description: "The figure has two or more valid nodes but no edges.",
+  description:
+    "The figure has two or more valid nodes but no edges (set members count as related by membership).",
   defaultSeverity: "warning",
   fixable: false,
   run(context) {
@@ -47,18 +48,33 @@ export const noEdges = defineRule({
     const { edges, expanded } = context.state.doc;
     if (edges === undefined) return [];
     if (edges.some((e, i) => e === undefined || !expanded?.has(edgeKey(e.id, i)))) return [];
+    // Sets (#407) relate nodes by membership: a node in a set (directly or through a
+    // member group) needs no edge, so only the other nodes are counted.
+    const doc = context.state.doc;
+    const memberIds = new Set<string>();
+    for (const set of doc.sets ?? []) for (const m of set?.members ?? []) memberIds.add(m);
+    const parents = new Map(
+      (doc.groups ?? []).flatMap((g) => (g ? [[g.id, g.group] as const] : [])),
+    );
+    const inSet = (id: string, parent: string | undefined): boolean => {
+      if (memberIds.has(id)) return true;
+      for (let p = parent, n = 0; p !== undefined && n < 1000; p = parents.get(p), n++)
+        if (memberIds.has(p)) return true;
+      return false;
+    };
     // Invalid nodes already have errors; count only the valid ones, and not
     // the captions of groups (#130) or the parts of legends (#131). The
     // cells of tokens nodes (#181) are the author's nodes.
     const chatNodes = new Set(
-      (context.state.doc.chats ?? []).flatMap((chat) => chat.rows.flatMap(chatKeys)).map(nodeKey),
+      (doc.chats ?? []).flatMap((chat) => chat.rows.flatMap(chatKeys)).map(nodeKey),
     );
     const nodeCount = context.elements.filter(
       (e) =>
         e.kind === "node" &&
         !chatNodes.has(e.key) &&
         e.component?.id !== SEPARATOR_ID &&
-        (e.origin === undefined || e.origin.from === "tokens"),
+        (e.origin === undefined || e.origin.from === "tokens") &&
+        !inSet(e.element.id, e.element.group),
     ).length;
     if (nodeCount < 2) return [];
     const subject = figureSubject(context);

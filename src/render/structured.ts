@@ -33,6 +33,10 @@
  * straight lines as two subpaths, and a `path.sumi-wire` of its own,
  * before the nets' wires, strokes them.
  *
+ * Set enclosures (#407) are `g.sumi-set` groups between the groups and the
+ * nodes (see `setGroup()`); they are not elements of the figure, so they
+ * carry no `sumi-k-` class.
+ *
  * A hatched matrix cell or legend sample box (#180) draws its hatch lines
  * as one `path.sumi-hatch` right after its `g.shape` (`hatch.ts`).
  *
@@ -53,7 +57,7 @@
 import { assetMarkup, badgeMarkup, imagePlaceholder } from "../assets/draw";
 import { glyphMarkup } from "../assets/glyphs";
 import type { FigureAssets } from "../assets/load";
-import type { EdgeIR, FigureIR, GroupIR, NodeIR } from "../compiler/ir";
+import type { EdgeIR, FigureIR, GroupIR, NodeIR, SetIR } from "../compiler/ir";
 import type { ElementKey } from "../core/check-state";
 import { isSpaceRun } from "../core/label/runs";
 import { SEPARATOR_ID } from "../core/registry/builtins";
@@ -63,10 +67,11 @@ import type { FontSet } from "../core/theme/fonts";
 import { withToneOverrides } from "../core/theme/overrides";
 import type { CommonStyle } from "../core/theme/style";
 import { groupLayerRects } from "../layout/group-layers";
-import type { LayoutIR, Point, Rect, TextLayout, TextRun } from "../layout/ir";
+import type { LayoutIR, Point, Rect, SetLayout, TextLayout, TextRun } from "../layout/ir";
 import { type Cubic, sampleCubic, trimCubic } from "../layout/route/cubic";
 import { groupArrowheadStems } from "../layout/route/padding";
 import { arrowheadLength, WIRE_CORNER_RADIUS } from "../layout/route/router";
+import { outlinePolygon } from "../layout/set-shape";
 import { fontFileFor } from "../lint/geometry/measure";
 import { CYLINDER_ARC_UNITS, shapeOutline } from "../lint/geometry/shapes";
 import { drawNodeOutline } from "./compose";
@@ -864,6 +869,8 @@ export interface PaintedGroup {
   readonly rect: Rect;
   readonly fill: string;
   readonly opacity: number;
+  /** A set enclosure's shape (#407): holds the points of the outline, which `rect` only bounds. */
+  readonly inside?: (point: Point) => boolean;
 }
 
 function hexChannels(color: string): number[] | undefined {
@@ -887,7 +894,18 @@ function over(top: string, alpha: number, bottom: string): string {
  * color beneath the label box's center (`backgroundAt()`).
  */
 export function labelBackground(box: Rect, groups: readonly PaintedGroup[]): string {
-  return backgroundAt({ x: box.x + box.width / 2, y: box.y + box.height / 2 }, groups);
+  // A set's tint (#407) has a curved edge: only a label wholly inside it gets the tinted
+  // background; one that straddles the boundary keeps the colour beneath its other paint.
+  const corners: Point[] = [
+    { x: box.x, y: box.y },
+    { x: box.x + box.width, y: box.y },
+    { x: box.x, y: box.y + box.height },
+    { x: box.x + box.width, y: box.y + box.height },
+  ];
+  const usable = groups.filter(
+    (g) => g.inside === undefined || corners.every((p) => g.inside?.(p) === true),
+  );
+  return backgroundAt({ x: box.x + box.width / 2, y: box.y + box.height / 2 }, usable);
 }
 
 /**
@@ -906,10 +924,11 @@ export function labelBackground(box: Rect, groups: readonly PaintedGroup[]): str
  */
 export function backgroundAt({ x: cx, y: cy }: Point, groups: readonly PaintedGroup[]): string {
   let color = CANVAS_FILL;
-  for (const { rect, fill, opacity } of groups) {
+  for (const { rect, fill, opacity, inside } of groups) {
     if (fill === "transparent" || opacity <= 0) continue;
     if (cx < rect.x || cx > rect.x + rect.width || cy < rect.y || cy > rect.y + rect.height)
       continue;
+    if (inside !== undefined && !inside({ x: cx, y: cy })) continue;
     color = over(fill, opacity, color);
   }
   return color;
@@ -1009,7 +1028,7 @@ export function writeStructuredSvg(
   const theme = builtin && withToneOverrides(builtin, ir.meta.themeOverrides?.tones);
   const colored = (
     layout: TextLayout | undefined,
-    element: NodeIR | GroupIR | EdgeIR,
+    element: { readonly key: ElementKey; readonly style: { readonly fontColor: string } },
   ): TextLayout | undefined => {
     if (
       layout?.runs === undefined ||
@@ -1060,6 +1079,23 @@ export function writeStructuredSvg(
       .join("");
     body.push(objectGroup(group, shape, colored(g.label, group)));
     useText(g.label);
+  }
+  // Set enclosures (#407) are drawn over the groups and under the nodes and edges.
+  const setIRs = new Map((ir.sets ?? []).map((set) => [set.id, set]));
+  for (const placed of layout.sets ?? []) {
+    const set = setIRs.get(placed.id);
+    if (set === undefined)
+      throw new Error(`internal error: set "${placed.id}" is not in the figure`);
+    painted.push({
+      rect: placed.rect,
+      fill: set.style.fill,
+      opacity: set.style.fillOpacity,
+      inside: containsPoint(placed),
+    });
+    body.push(
+      setGroup(set, placed, colored(placed.label, { key: SET_COLOR_KEY, style: set.style })),
+    );
+    useText(placed.label);
   }
   for (const placed of layout.nodes) {
     const node = nodes.get(placed.key);
@@ -1117,6 +1153,75 @@ export function writeStructuredSvg(
     drawing +
     "</svg></svg>"
   );
+}
+
+/** A set label is never dimmed: a stand-in key for `colored()`, which looks a key up in the dimmed groups. */
+const SET_COLOR_KEY = "g:" as ElementKey;
+
+/** Whether a point lies inside a set's convex outline (the translucent fill's shape). */
+function containsPoint(placed: SetLayout): (point: Point) => boolean {
+  const { outline } = placed;
+  if (outline.kind === "ellipse") {
+    return ({ x, y }) =>
+      ((x - outline.cx) / outline.rx) ** 2 + ((y - outline.cy) / outline.ry) ** 2 <= 1;
+  }
+  if (outline.kind === "rect") {
+    const { x, y, width, height } = outline.rect;
+    return (p) => p.x >= x && p.x <= x + width && p.y >= y && p.y <= y + height;
+  }
+  const polygon = outlinePolygon(outline);
+  return (p) => {
+    let sign = 0;
+    for (let i = 0; i < polygon.length; i++) {
+      const a = polygon[i] as Point;
+      const b = polygon[(i + 1) % polygon.length] as Point;
+      const length = Math.hypot(b.x - a.x, b.y - a.y);
+      const cross = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
+      // A repeated point (where two arcs meet) has no side.
+      if (length < 1e-6 || Math.abs(cross / length) < 1e-9) continue;
+      if (sign === 0) sign = Math.sign(cross);
+      else if (Math.sign(cross) !== sign) return false;
+    }
+    return true;
+  };
+}
+
+/**
+ * A set enclosure (#407): `g.sumi-set` (and `sumi-set-<id>`) with one
+ * `.sumi-set-shape` (a circle, ellipse, rect or path; the tint is `fill`
+ * with `fill-opacity`, so overlapping sets show through each other) and its
+ * label as a `<text>`. It carries no `sumi-k-` class: a set is not an
+ * element of the figure, `inspectSvg()` reads it as a set.
+ */
+function setGroup(set: SetIR, placed: SetLayout, labelLayout: TextLayout | undefined): string {
+  const { style } = set;
+  const o = placed.outline;
+  const paints =
+    ` fill="${paint(style.fill)}"` +
+    (style.fillOpacity < 1 && style.fill !== "transparent"
+      ? ` fill-opacity="${n(style.fillOpacity)}"`
+      : "") +
+    strokeAttributes(style);
+  const cls = ' class="sumi-set-shape"';
+  let shape: string;
+  if (o.kind === "ellipse") {
+    shape =
+      o.rx === o.ry
+        ? `<circle${cls} cx="${n(o.cx)}" cy="${n(o.cy)}" r="${n(o.rx)}"${paints}/>`
+        : `<ellipse${cls} cx="${n(o.cx)}" cy="${n(o.cy)}" rx="${n(o.rx)}" ry="${n(o.ry)}"${paints}/>`;
+  } else if (o.kind === "rect") {
+    const { x, y, width, height } = o.rect;
+    shape = `<rect${cls} x="${n(x)}" y="${n(y)}" width="${n(width)}" height="${n(height)}"${o.radius > 0 ? ` rx="${n(o.radius)}"` : ""}${paints}/>`;
+  } else {
+    const d = o.segments
+      .map((s) =>
+        s.command === "C" ? `C ${xy(s.c1)} ${xy(s.c2)} ${xy(s.to)}` : `${s.command} ${xy(s.to)}`,
+      )
+      .join(" ");
+    shape = `<path${cls} d="${d} Z"${paints}/>`;
+  }
+  const labelSvg = labelLayout === undefined ? "" : label(labelLayout, style.fontColor);
+  return `<g class="sumi-set sumi-set-${set.id}">${shape}${labelSvg}</g>`;
 }
 
 /** A group drawn like a rectangle node (same paint, radius and dashes). */
