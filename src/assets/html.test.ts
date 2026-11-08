@@ -379,7 +379,7 @@ test("HTML budgets, required props and image source separation", () => {
 });
 
 test("resolved theme variables provide grayscale and colored accents and pinned families", () => {
-  const vars = [...BUILTIN_THEMES.values()].map(htmlThemeVariables);
+  const vars = [...BUILTIN_THEMES.values()].map((theme) => htmlThemeVariables(theme));
   expect(new Set(vars.map((v) => v["--sumi-accent"])).size).toBeGreaterThan(1);
   for (const v of vars) {
     expect(Object.keys(v)).toEqual([

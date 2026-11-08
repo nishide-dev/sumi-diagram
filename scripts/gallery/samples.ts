@@ -1205,7 +1205,7 @@ export interface PaletteSample {
 /**
  * A small pipeline in every built-in palette (#417): panels, default, solid,
  * filled and outlined nodes, an emphasized node and edge, a set, a legend with
- * every variant, and one node in a tone (which a palette leaves as the theme's).
+ * every variant.
  */
 export function paletteSample(): PaletteSample {
   const sourceFor = (palette: string) =>
@@ -1247,7 +1247,6 @@ nodes:
         - { node: { variant: outlined }, label: outlined }
         - { node: { variant: emphasis }, label: emphasis }
         - { node: { variant: muted }, label: muted }
-        - { node: { tone: green }, label: tone green }
         - { edge: { variant: emphasis }, label: emphasis edge }
 
 edges:

@@ -2,16 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { builtinRegistry } from "../registry/builtins";
 import { componentId } from "../registry/manifest";
 import { BUILTIN_THEMES, getTheme } from "./builtin";
-import { contrastRatio } from "./node-variants";
-import {
-  BUILTIN_PALETTES,
-  getPalette,
-  PALETTE_NAMES,
-  PALETTE_SOURCE,
-  type Palette,
-  relativeLuminance,
-  withPalette,
-} from "./palette";
+import { contrastRatio, luminance } from "./node-variants";
+import { BUILTIN_PALETTES, getPalette, PALETTE_NAMES, type Palette, withPalette } from "./palette";
 import { resolveStyle } from "./resolve";
 import { TONE_NAMES } from "./tones";
 
@@ -33,7 +25,6 @@ const PUBLISHED: Record<string, string[]> = {
 describe("the built-in palettes", () => {
   test("are eight, named by character, with the four published colors", () => {
     expect([...PALETTE_NAMES]).toEqual(Object.keys(PUBLISHED));
-    expect(PALETTE_SOURCE).toContain("2026-11-08");
     for (const palette of palettes) {
       expect(palette.colors).toEqual(PUBLISHED[palette.id] as never);
       expect(palette.description.length).toBeGreaterThan(10);
@@ -68,26 +59,34 @@ describe("the built-in palettes", () => {
     }
   });
 
-  test("keep the roles apart in grayscale: white > panel > tint > accent > ink by lightness", () => {
+  test("keep the roles apart in grayscale: white > soft > panel > tint > frame > accent > strong > ink", () => {
     const lightness = (hex: string) => {
-      const y = relativeLuminance(hex);
+      const y = luminance(hex);
       return y > 216 / 24389 ? 116 * y ** (1 / 3) - 16 : (24389 / 27) * y;
     };
     for (const { id, roles: r } of palettes) {
-      const [panel, tint, accent, ink] = [r.panel, r.tint, r.accent, r.ink].map(lightness) as [
-        number,
-        number,
-        number,
-        number,
-      ];
-      expect(100 - panel, `${id} white-panel`).toBeGreaterThanOrEqual(2);
-      expect(panel - tint, `${id} panel-tint`).toBeGreaterThanOrEqual(4);
-      expect(tint - accent, `${id} tint-accent`).toBeGreaterThanOrEqual(20);
-      expect(accent - ink, `${id} accent-ink`).toBeGreaterThanOrEqual(10);
+      const L = Object.fromEntries(Object.entries(r).map(([k, v]) => [k, lightness(v)])) as Record<
+        keyof typeof r,
+        number
+      >;
+      const gap = (what: string, higher: number, lower: number, minimum: number) =>
+        expect(higher - lower, `${id} ${what}`).toBeGreaterThanOrEqual(minimum);
+      gap("white-panel", 100, L.panel, 5);
+      gap("white-soft", 100, L.soft, 1);
+      gap("soft-panel", L.soft, L.panel, 2);
+      gap("panel-tint", L.panel, L.tint, 5);
+      gap("tint-frame", L.tint, L.frame, 5);
+      gap("tint-accent", L.tint, L.accent, 20);
+      // The frame of a muted group stands out from its panel.
+      gap("panel-frame", L.panel, L.frame, 20);
+      // A solid fill is the accent, deepened: never lighter, and well above the ink.
+      gap("accent-strong", L.accent, L.strong, 2);
+      gap("strong-ink", L.strong, L.ink, 8);
+      gap("accent-ink", L.accent, L.ink, 10);
     }
   });
 
-  test("keep the accent apart from the ink and the tint under protanopia and deuteranopia", () => {
+  test("keep the accent apart from the ink and the tint under protanopia, deuteranopia and tritanopia", () => {
     for (const { id, roles: r } of palettes) {
       for (const [view, matrix] of Object.entries(VISION)) {
         expect(
@@ -268,6 +267,11 @@ const VISION = {
     [0.367322, 0.860646, -0.227968],
     [0.280085, 0.672501, 0.047413],
     [-0.01182, 0.04294, 0.968881],
+  ],
+  tritanopia: [
+    [1.255528, -0.076749, -0.178779],
+    [-0.078411, 0.930809, 0.147602],
+    [0.004733, 0.691367, 0.3039],
   ],
   normal: [
     [1, 0, 0],

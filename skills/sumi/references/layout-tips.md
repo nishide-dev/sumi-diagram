@@ -307,7 +307,7 @@ and decide its one visual form and tone:
 
 Fill it from the paper, not from a template: drop rows that do not occur, add your
 own. Then **pick a palette** for the mood and the medium (the table's tones keep their
-meaning on top of it): `sumi catalog --section palettes` lists eight; choose by character
+meaning on top of it: a palette does not change the semantic tones, except gray): `sumi catalog --section palettes` lists eight; choose by character
 and by where the figure is read. A cool, calm figure: `cool-blue` or `slate`; warm or
 friendly: `coral` or `terracotta`; quiet, natural: `sage` (green) or `seafoam` (teal); soft: `lavender`;
 a strong accent for one result: `cyan-pink`. Set it once with `themeOverrides.palette`

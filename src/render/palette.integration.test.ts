@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
+import { htmlThemeVariables } from "../assets/html-render";
 import { buildFullCatalog } from "../core/catalog";
 import { checkFigure } from "../core/check";
 import { createBuiltinRegistry } from "../core/registry/builtins";
+import { getTheme } from "../core/theme/builtin";
 import { getPalette, PALETTE_NAMES } from "../core/theme/palette";
 import { renderFigure } from "./render";
 
@@ -127,5 +129,46 @@ describe("palettes section of the catalog (#417)", () => {
         "frame",
       ]);
     }
+  });
+});
+
+describe("glyphs and HTML embeds follow the figure's colors (#417)", () => {
+  const glyphSource = (overrides: string) => `version: 1
+figure:
+  id: glyphs
+  theme: paper
+  themeOverrides:
+${overrides}
+  layout: { arrange: { row: { items: [a] } } }
+nodes:
+  - id: a
+    component: box
+    label: A
+    glyphs: [{ kind: vector, cells: 2, tone: orange }, { kind: dot, tone: gray }]
+`;
+  const fills = async (overrides: string) => {
+    const node = (await render(glyphSource(overrides))).compiled.ir.nodes[0];
+    return node?.glyphs?.flatMap((g) => g.parts.map((part) => part.fill)) ?? [];
+  };
+
+  test("a glyph takes the overridden tone colors, with or without a palette", async () => {
+    const tones = "    tones: { orange: { fill: '#aabbcc' } }";
+    expect(await fills(tones)).toContain("#aabbcc");
+    expect(await fills(`${tones}\n    palette: coral`)).toContain("#aabbcc");
+    // And the palette's gray tone for a gray glyph.
+    expect(await fills("    palette: coral")).toContain(getPalette("coral")?.roles.tint as string);
+    expect(await fills("    nodeCorners: square")).not.toContain("#aabbcc");
+  });
+
+  test("--sumi-accent is the palette's accent when a palette is set, the theme's blue otherwise", () => {
+    const theme = getTheme("paper");
+    if (theme === undefined) throw new Error("paper");
+    const plain = htmlThemeVariables(theme)["--sumi-accent"];
+    expect(plain).toBe(theme.toneLines.get("blue")?.stroke as string);
+    for (const name of PALETTE_NAMES)
+      expect(htmlThemeVariables(theme, name)["--sumi-accent"]).toBe(
+        getPalette(name)?.roles.accent as string,
+      );
+    expect(htmlThemeVariables(theme, undefined)["--sumi-accent"]).toBe(plain);
   });
 });

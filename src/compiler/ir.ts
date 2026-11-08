@@ -68,7 +68,6 @@ import { dimmedElements } from "../core/theme/dim";
 import type { FontSetId } from "../core/theme/fonts";
 import { pageTextContrast } from "../core/theme/node-variants";
 import { figureTheme } from "../core/theme/overrides";
-import { withPalette } from "../core/theme/palette";
 import type { ThemeArrowhead } from "../core/theme/schema";
 import { resolveSetStyle, type SetStyle } from "../core/theme/set-style";
 import {
@@ -492,8 +491,8 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
     throw new Error("internal error: incomplete figure without error diagnostics");
   }
 
-  // Glyphs take the figure's palette like every other element (#417).
-  const glyphTheme = withPalette(theme, figure.themeOverrides?.palette);
+  // Glyphs take the figure's palette and tone colors like every other element (#417).
+  const glyphTheme = figureTheme(theme, figure.themeOverrides);
 
   const sourceMap = new Map<ElementKey, SourceMapEntry>();
   const sourceEntry = (path: DocPath): SourceMapEntry => {
@@ -801,7 +800,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
 
   const elements = readonlyMap([...groups, ...nodes, ...edges].map((e) => [e.key, e] as const));
 
-  const setTheme = figureTheme(theme, figure.themeOverrides);
+  const setTheme = glyphTheme;
   const sets: SetIR[] = [];
   for (const [index, set] of (doc.sets ?? []).entries()) {
     if (set === undefined) continue;

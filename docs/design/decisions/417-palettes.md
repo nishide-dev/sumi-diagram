@@ -15,7 +15,7 @@
   - 同じオブジェクトの `tones`・`groupFill`・`groupStroke`・`solidFills` より先に適用するので、「パレットが土台、個別の指定が優先」という順序が 1 か所で表せる。
   - テーマを変えるだけで見た目が変わらないよう、パレットはテーマの選択（`figure.theme`）と独立に書ける。
 - **どのテーマにも重ねられる**（minimal・academic・slides・color・paper・llama）。パレットは色だけを変え、大きさ・フォント・線の太さ・角の丸み・矢じりの形・dim の灰色はテーマのまま。`academic` は白黒印刷向けにグレー 1 色で作ったテーマなので、パレットを重ねると色が付く。白黒で印刷する図には重ねない（Skill に書く）。
-- `withPalette(theme, name)`（`src/core/theme/palette.ts`）は、組み込みテーマの**写し**を返す。組み込みテーマ自体は変えない。`figureTheme(theme, themeOverrides)`（`overrides.ts`）が「パレット → `tones`」の順に適用し、図のテーマを引く 4 か所（`styleFigure`・IR の組み立て・構造化 SVG の書き出し・HTML 埋め込み）がこれを使う。`palette` を書かない図は `withPalette` が同じオブジェクトを返すので、すべての経路で従来と同じ値を読む。
+- `withPalette(theme, name)`（`src/core/theme/palette.ts`）は、組み込みテーマの**写し**を返す。組み込みテーマ自体は変えない。`figureTheme(theme, themeOverrides)`（`overrides.ts`）が「パレット → `tones`」の順に適用し、図のテーマを引く 5 か所（`styleFigure`・IR の set・IR の glyph・構造化 SVG の書き出し・HTML 埋め込み）がこれを使う。glyph はこれまでテーマそのものを読んでいたため、`themeOverrides.tones` も届いていなかった。同じテーマを読むようにした（`palette` も `tones` も書かない図の出力は変わらない）。`palette` を書かない図は `withPalette` が同じオブジェクトを返すので、すべての経路で従来と同じ値を読む。
 
 ### 4 色から役割への割り当て
 
@@ -39,7 +39,7 @@
 - `emphasis` が彩度のある色（color・llama のアクセント）→ accent。
 - それ以外の淡い色・灰色（彩度が低いもの）は明度で振り分ける。輝度 0.85 超は panel、0.5 超は tint、それより濃いものは muted（グループの淡い塗り、academic の強調の塗り、llama の operator の枠、拡大線など）。
 - すべての `emphasis` の枠は accent にする。minimal・academic・slides・paper の `emphasis` は太い黒枠だったが、パレットでは太さはそのまま、色が accent になる。
-- テーマの `tokens`（HTML 埋め込みの `--sumi-fg`）にも同じ写しを適用する。
+- テーマの `tokens`（HTML 埋め込みの `--sumi-fg`）にも同じ写しを適用する。HTML 埋め込みの `--sumi-accent` は、パレットを指定したときは accent の色にする（指定しなければ従来どおりテーマの青）。
 - 写すのは `base`・`components`・`gray` の `tones` / `toneLines` だけ。`dim` と、`gray` 以外の tone は触らない。
 
 ### tone との関係
@@ -70,7 +70,7 @@ tone は**テーマのまま**にする。`red`・`blue`・`green` などは図�
 | 名前 | panel / tint / accent / ink / muted / strong / soft / frame | 調整した役 |
 | --- | --- | --- |
 | `cool-blue` | `#dbe2ef #acc0dc #3f72af #112d4e #51667e #38659c #edf1f7 #7e94b1` | tint, strong |
-| `slate` | `#dde6ed #9db2bf #526d82 #27374d #5b6778 #4f697d #eef3f6 #7a8d9d` | strong |
+| `slate` | `#dde6ed #9db2bf #526d82 #27374d #5b6778 #4c6579 #eef3f6 #7a8d9d` | strong |
 | `coral` | `#ffe3e1 #ffb3b3 #cb4b4b #663b3b #836060 #bf3737 #fff1f0 #d18f8f` | ink, tint, accent, strong |
 | `terracotta` | `#fcdec0 #e5b299 #9c6950 #5d433b #755f58 #875b45 #feefe0 #bc917d` | ink, accent, strong |
 | `sage` | `#e1ebde #bdd2b6 #5a7e4e #434a41 #636961 #4f7045 #f0f5ef #98a993` | ink, panel, accent, strong |
@@ -85,8 +85,8 @@ ink を 9:1（白の上）に定めたのは、accent と ink を色覚の違い
 各パレットを、次のテストで確かめる。
 
 - **文字と背景のコントラスト**（`theme/low-contrast` の基準 4.5:1）: ink は白の上で 9:1 以上、panel・tint の上で 4.5:1 以上。muted は白とパネルの上で 4.5:1 以上。strong の上の白（solid）と、パネルの上の strong（outlined の文字）、accent の上の白（llama の `emphasis`）は 4.5:1 以上。さらに、全テーマ × 全パレット × 全部品 × 全 variant（tone なしと `gray`）で、解決した文字色が自分の塗り（塗りがなければ白かパネル）の上で 4.5:1 以上。
-- **グレースケールでの分離**: L\*（CIELAB の明度）で、白 > panel > tint > accent > ink の順に、差が 2・4・20・10 以上。
-- **色覚の違い**: Machado らの P 型・D 型の行列（強度 1.0、線形 RGB）で見たとき、accent と ink の色差が 15 以上、accent と tint の色差が 20 以上（CIE76）。
+- **グレースケールでの分離**: L\*（CIELAB の明度）で、白 > soft > panel > tint > frame > accent > strong > ink の順に、差が 1・2・5・5 と、tint と accent が 20 以上、panel と frame が 20 以上、accent と strong が 2 以上、strong と ink が 8 以上、accent と ink が 10 以上。
+- **色覚の違い**: Machado らの P 型・D 型・T 型（第三色盲）の行列（強度 1.0、線形 RGB）で見たとき、accent と ink の色差が 15 以上、accent と tint の色差が 20 以上（CIE76）。
 
 結果（ink は白 / panel / tint の上、L\* は panel / tint / accent / ink、ΔE は accent と ink の通常 / P 型 / D 型）:
 
@@ -106,7 +106,7 @@ ink を 9:1（白の上）に定めたのは、accent と ink を色覚の違い
 - `coral`・`terracotta`・`sage`・`lavender`・`cyan-pink`・`seafoam` の ink: 最も濃い色が白の上で 9:1 に満たない（`#ff9494` は 2.1:1、`#364f6b` は 8.4:1 など）ので、黒へ寄せて 9:1 にした。`cool-blue`・`slate` は公開された色のまま。
 - `coral`・`terracotta`・`sage`・`lavender`・`cyan-pink`・`seafoam` の accent: 公開された色が淡く、白の上で 4.5:1（枠として見えて、白い文字が読める値）に満たないので、色相を保って明度を下げた。彩度は 0.55 までにして、淡い色が蛍光色にならないようにした。
 - `cool-blue` の tint、`coral` の tint、`sage`・`lavender`・`cyan-pink`・`seafoam` の panel: 公開色を白や accent へ寄せた派生色。`cyan-pink` の tint（`#3fc1c9`）: ink がその上で 4.5:1 に満たない（3.8:1）ので、白へ寄せて `#50c7ce` にした。
-- `strong` は accent の公開色から導く（panel の上で 4.5:1 になるまで暗くする）。panel が濃い `slate` では `#4f697d` と、accent `#526d82` よりやや濃い。
+- `strong` は accent の公開色から導く（panel の上で 4.5:1 になるまで暗くする）。panel が濃い `slate` では `#4c6579`。accent `#526d82` と見分けがつくよう、accent に対する比が 1.12 以上になるまで暗くする（この条件で変わったのは `slate` だけ）。
 
 制約として、`slate` の accent は ink と同じ青灰色の系統で、色相の差は小さい（ΔE 22）。強調は太い枠でも示すので見落とされないが、色だけで強調を伝える図には向かない。`coral` の P 型の ΔE が 19、`cyan-pink`・`seafoam` が 16〜19 と小さいのは、赤とこげ茶・紺・深緑が P 型でともに暗く見えるため。明度の差（L\* で 20 以上）で見分ける設計にしてある。
 
@@ -124,10 +124,10 @@ ink を 9:1（白の上）に定めたのは、accent と ink を色覚の違い
 - `sumi catalog --section palettes`（`--json` では `palettes` 節）が、パレットの名前・説明・4 色・役の色・調整した役・出典を出す。セクションの追加なので、`version: 1` のまま（既存の読み手は変わらない）。
 - JSON スキーマの `themeOverrides.palette` は `schema:gen` で再生成した。
 - Skill（`skills/sumi/references/figure-format.md` と `layout-tips.md` の「見た目の方針を先に決める」）に、パレットを選ぶ手順（系統ごとの選び方、白黒印刷には `academic` を使うこと）を書いた。
-- ギャラリーに `docs/gallery/palettes.md`（と `index.html` の節）を足した。小さなパイプライン（グループ・default・solid・filled・outlined・emphasis と辺・set・凡例・テーマのままの tone の見本）を 8 パレットで描く。
+- ギャラリーに `docs/gallery/palettes.md`（と `index.html` の節）を足した。小さなパイプライン（グループ・default・solid・filled・outlined・emphasis と辺・set・凡例）を 8 パレットで描く。パレットはテーマの意味の tone（`gray` 以外）を変えないので、見本には tone の箱を置かない（注記とSkill に書いた）。
 
 ## 互換性
 
 `palette` を書かない図の出力は変わらない（`withPalette` は同じテーマを返す）。対象 YAML（research と非公開の図を除く）を自身のテーマと全組み込みテーマで変更前後に描画し、SVG・D2・PDF・picture PPTX の SHA-256 が一致することを確かめた。変わるものはない（ギャラリーに加わった `palettes` の項目と、ギャラリーのナビゲーションのリンクを除く）。
 
-回帰テスト: `src/core/theme/palette.test.ts`（出典の色、調整した役の申告、コントラスト、グレースケール、P 型・D 型、全テーマ × 全パレットの文字の可読性、テーマが変わらないこと、色以外が変わらないこと）、`src/render/palette.integration.test.ts`（パレットなしで出力が同じ、全テーマで役の色が効くこと、`tones` の優先、未知の名前のエラー、catalog の節）。
+回帰テスト: `src/core/theme/palette.test.ts`（調整した役の申告、コントラスト、グレースケール、P 型・D 型、全テーマ × 全パレットの文字の可読性、テーマが変わらないこと、色以外が変わらないこと）、`src/render/palette.integration.test.ts`（パレットなしで出力が同じ、全テーマで役の色が効くこと、`tones` の優先、未知の名前のエラー、catalog の節）。

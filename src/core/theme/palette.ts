@@ -15,7 +15,7 @@
  * than `gray` stay the theme's. See docs/design/decisions/417-palettes.md.
  */
 
-import { contrastRatio } from "./node-variants";
+import { contrastRatio, luminance } from "./node-variants";
 import type { Theme } from "./schema";
 import type { StyleLayer, TypedValue } from "./style";
 
@@ -70,7 +70,7 @@ const WHITE = "#ffffff";
 const DEFINITIONS: readonly PaletteDefinition[] = [
   {
     id: "cool-blue",
-    description: "Cool blue: near-white panel, pale blue tint, mid blue accent, navy ink",
+    description: "Cool blue: pale blue panel, blue tint, mid blue accent, navy ink",
     colors: ["#f9f7f7", "#dbe2ef", "#3f72af", "#112d4e"],
     accent: "#3f72af",
     panel: "#dbe2ef",
@@ -86,7 +86,7 @@ const DEFINITIONS: readonly PaletteDefinition[] = [
   },
   {
     id: "coral",
-    description: "Warm: cream panel, blush tint, coral accent, brick-brown ink",
+    description: "Warm: pale pink panel, pink tint, coral-red accent, brick-brown ink",
     colors: ["#fff5e4", "#ffe3e1", "#ffd1d1", "#ff9494"],
     accent: "#ff9494",
     panel: "#ffe3e1",
@@ -102,7 +102,7 @@ const DEFINITIONS: readonly PaletteDefinition[] = [
   },
   {
     id: "sage",
-    description: "Muted green: warm cream panel, sage tint, moss accent, forest ink",
+    description: "Muted green: pale green panel, sage tint, moss accent, gray-green ink",
     colors: ["#f8ede3", "#bdd2b6", "#a2b29f", "#798777"],
     accent: "#bdd2b6",
     panel: mix("#bdd2b6", WHITE, 0.55),
@@ -118,7 +118,7 @@ const DEFINITIONS: readonly PaletteDefinition[] = [
   },
   {
     id: "cyan-pink",
-    description: "High contrast: light gray panel, cyan tint, hot pink accent, navy ink",
+    description: "High contrast: pale cyan panel, cyan tint, hot pink accent, navy ink",
     colors: ["#364f6b", "#3fc1c9", "#f5f5f5", "#fc5185"],
     accent: "#fc5185",
     panel: mix("#3fc1c9", WHITE, 0.8),
@@ -152,15 +152,6 @@ function toHex(rgb: readonly number[]): string {
 function mix(a: string, b: string, t: number): string {
   const [x, y] = [channels(a), channels(b)];
   return toHex(x.map((c, i) => c + ((y[i] ?? 0) - c) * t));
-}
-
-/** WCAG relative luminance. */
-export function relativeLuminance(hex: string): number {
-  const [r, g, b] = channels(hex).map((c) => {
-    const v = c / 255;
-    return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
-  }) as [number, number, number];
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
 /** The color darkened (toward black) in 1% steps until `ok` holds. */
@@ -218,7 +209,7 @@ function lightenUntil(hex: string, ok: (color: string) => boolean): string {
 
 function definePalette(definition: PaletteDefinition): Palette {
   const { id, description, colors, accent: published } = definition;
-  const ordered = [...colors].sort((a, b) => relativeLuminance(b) - relativeLuminance(a));
+  const ordered = [...colors].sort((a, b) => luminance(b) - luminance(a));
   const darkest = ordered[ordered.length - 1] ?? "#000000";
   const adjusted: PaletteRole[] = [];
   const keep = (role: PaletteRole, color: string): string => {
@@ -242,11 +233,18 @@ function definePalette(definition: PaletteDefinition): Palette {
     "accent",
     deepenUntil(published, (c) => contrastRatio(c, WHITE) >= 4.5),
   );
-  // Strong: the accent deepened further as needed so it also reads on the panel at 4.5:1
-  // (outlined text); solid fills (white text), outlined frames and the gray tone take it.
+  // Strong: the accent deepened further so it also reads on the panel at 4.5:1 (outlined
+  // text) and stands apart from the accent; solid fills (white text), outlined frames and the gray tone take it.
   const strong = keep(
     "strong",
-    deepenUntil(published, (c) => contrastRatio(c, WHITE) >= 4.5 && contrastRatio(c, panel) >= 4.5),
+    deepenUntil(
+      published,
+      (c) =>
+        contrastRatio(c, WHITE) >= 4.5 &&
+        contrastRatio(c, panel) >= 4.5 &&
+        // Visibly deeper than the accent, so a solid or outlined node differs from an emphasis.
+        contrastRatio(c, accent) >= 1.12,
+    ),
   );
   // Muted: the ink as pale as it can be and still read on white and on the panel at 4.5:1.
   let muted = ink;
@@ -336,7 +334,7 @@ function colorMap(theme: Theme, roles: PaletteRoles): Map<string, string> {
   const rest = (value: unknown) => {
     const color = normalized(value);
     if (color === undefined || color === WHITE || map.has(color) || chroma(color) > 0.2) return;
-    const y = relativeLuminance(color);
+    const y = luminance(color);
     map.set(color, y > 0.85 ? roles.panel : y > 0.5 ? roles.tint : roles.muted);
   };
   for (const l of recolorable(theme)) for (const property of COLOR_PROPERTIES) rest(l[property]);
