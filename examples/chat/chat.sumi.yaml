@@ -12,7 +12,7 @@ figure:
         maxWidth: 0.7
         speakers:
           friend: { side: left, avatar: friend-avatar }
-          me: { side: right, tone: gray, variant: filled }
+          me: { side: right, tone: green, variant: filled }
         items:
           - divider: 今日
           - { node: next-time, from: friend, meta: "23:10" }
