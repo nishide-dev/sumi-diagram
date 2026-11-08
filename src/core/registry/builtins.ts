@@ -18,6 +18,7 @@ import {
   SET_VARIANTS,
   StrokeWidth,
 } from "../figure/schema";
+import { FLOW_ARROW_DIRECTIONS, type FLOW_ARROW_FORMS } from "../outline/flow-arrow";
 import { TONE_NAMES } from "../theme/tones";
 import { SizeLength } from "./length";
 import {
@@ -250,6 +251,93 @@ function outline(name: "trapezoid" | "stack" | "bowtie", description: string): N
 
 export const BRACKET_ID = "sumi/bracket";
 export const SEPARATOR_ID = "sumi/separator";
+/** The flow-marker shapes (#426): drawn by one outline renderer, no label, never an edge endpoint. */
+export const FLOW_ARROW_IDS = ["sumi/block-arrow", "sumi/triangle-arrow", "sumi/chevron"];
+
+const flowDirection = z
+  .enum(FLOW_ARROW_DIRECTIONS)
+  .optional()
+  .describe("The way it points: right (the default), left, up or down.");
+const flowLength = SizeLength.optional().describe(
+  'Explicit length along the arrow as a length such as "24pt" (a multiple of 0.5pt), whichever way it points. Omitted means a multiple of the theme text size.',
+);
+const flowThickness = SizeLength.optional().describe(
+  'Explicit thickness across the arrow as a length such as "12pt" (a multiple of 0.5pt). Omitted means the theme text size (1 em).',
+);
+
+function flowArrow(
+  name: "block-arrow" | "triangle-arrow" | "chevron",
+  form: (typeof FLOW_ARROW_FORMS)[number],
+  description: string,
+  extra: z.ZodRawShape = {},
+): NodeManifest {
+  return {
+    ...base,
+    since: "0.16.0",
+    kind: "node",
+    name,
+    description,
+    variants: ["default", "muted", "outlined"],
+    props: z.strictObject({
+      direction: flowDirection,
+      length: flowLength,
+      thickness: flowThickness,
+      ...extra,
+    }),
+    shape: "rectangle",
+    sizing: "auto",
+    render: { type: "outline", renderer: "sumi/flow-arrow", params: { form } },
+    engines: ["structured"],
+  };
+}
+
+/**
+ * Flow markers (#426): a thick block arrow, a solid triangle and a chevron
+ * placed between the stages of a figure. Solid ink with no outline by default.
+ */
+const blockArrow = flowArrow(
+  "block-arrow",
+  "block",
+  "A thick block arrow (a shaft and a head, 1.6 em long and 1 em thick by default) that marks the flow between stages, e.g. between two panels of a row. Takes no label, is not an edge endpoint and does not stretch. Solid ink with no outline; muted is gray and outlined an outline only. Structured layout only.",
+  {
+    head: z
+      .number()
+      .min(0.1)
+      .max(1)
+      .optional()
+      .describe(
+        "Head length as a fraction of the shorter side of the arrow, from 0.1 to 1. Omitted means 0.5.",
+      ),
+    shaft: z
+      .number()
+      .min(0.1)
+      .max(0.9)
+      .optional()
+      .describe(
+        "Shaft thickness as a fraction of the thickness, from 0.1 to 0.9. Omitted means 0.5.",
+      ),
+  },
+);
+const triangleArrow = flowArrow(
+  "triangle-arrow",
+  "triangle",
+  "A solid triangle (0.9 em long and 1 em thick by default) that marks the flow between stages. Takes no label, is not an edge endpoint and does not stretch. Solid ink with no outline; muted is gray and outlined an outline only. Structured layout only.",
+);
+const chevron = flowArrow(
+  "chevron",
+  "chevron",
+  "A chevron (a bent arrowhead, 0.7 em long and 1 em thick by default) that marks the flow between stages. Takes no label, is not an edge endpoint and does not stretch. Solid ink with no outline; muted is gray and outlined an outline only. Structured layout only.",
+  {
+    head: z
+      .number()
+      .min(0.1)
+      .max(1)
+      .optional()
+      .describe(
+        "Depth of the point and the notch as a fraction of the shorter side, from 0.1 to 1. Omitted means 0.5.",
+      ),
+  },
+);
 
 /**
  * A square bracket or curly brace (#281, design doc §6.78) that gathers the
@@ -1163,6 +1251,9 @@ export const BUILTIN_MANIFESTS: readonly ComponentManifest[] = [
   bracket,
   bubble,
   separator,
+  blockArrow,
+  triangleArrow,
+  chevron,
   node("label", "text", "Text without a border.", { variants: ["default", "muted"] }),
   operator,
   junction,

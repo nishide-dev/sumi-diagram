@@ -8,7 +8,11 @@
 import { join } from "node:path";
 import { z } from "zod";
 import type { ElementKey } from "../core/check-state";
-import { BUILTIN_MANIFESTS, createBuiltinRegistry } from "../core/registry/builtins";
+import {
+  BUILTIN_MANIFESTS,
+  createBuiltinRegistry,
+  FLOW_ARROW_IDS,
+} from "../core/registry/builtins";
 import type { ComponentManifest, EdgeManifest } from "../core/registry/manifest";
 import type { ResolvedStyle } from "../core/theme/style";
 import { compileFigure } from "./compile";
@@ -236,6 +240,7 @@ export function structuredPrimitivesFigure(theme: string): string {
   const zooms: string[] = [];
   const tokens: string[] = [];
   const separators: string[] = [];
+  const flows: string[] = [];
   for (const m of STRUCTURED_ONLY_MANIFESTS) {
     const id = `${m.namespace}/${m.name}`;
     if (id === "sumi/tokens") {
@@ -297,6 +302,15 @@ export function structuredPrimitivesFigure(theme: string): string {
           `  - { id: ${name}, component: separator, variant: ${variant} }`,
           `  - { id: ${name}-b, component: box, label: B }`,
         );
+      }
+      continue;
+    }
+    if (FLOW_ARROW_IDS.includes(id)) {
+      // The flow markers (#426) of every component and variant, side by side.
+      for (const variant of m.variants) {
+        const name = `${m.name}-${variant}`;
+        flows.push(name);
+        nodes.push(`  - { id: ${name}, component: ${m.name}, variant: ${variant} }`);
       }
       continue;
     }
@@ -364,6 +378,7 @@ export function structuredPrimitivesFigure(theme: string): string {
     `          - row: { gap: 8mm, align: center, items: [${zooms.join(", ")}] }`,
     `          - row: { gap: 8mm, align: center, items: [${tokens.join(", ")}] }`,
     `          - row: { gap: 8mm, align: center, items: [${separators.join(", ")}] }`,
+    `          - row: { gap: 3mm, align: center, items: [${flows.join(", ")}] }`,
     `          - row: { gap: 6mm, align: start, items: [${legends.join(", ")}] }`,
     "nodes:",
     ...nodes,

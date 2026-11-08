@@ -5,6 +5,7 @@ import type { EdgeIR, FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type { Diagnostic } from "../../core/diagnostics";
 import { getOutlineRenderer } from "../../core/outline";
+import { type FlowArrowParams, flowArrow, flowArrowHead } from "../../core/outline/flow-arrow";
 import { SEPARATOR_ID } from "../../core/registry/builtins";
 import type { Result } from "../../core/result";
 import { type FontSet, getFontSet } from "../../core/theme/fonts";
@@ -32,6 +33,59 @@ export interface EditablePptxOptions {
   fontSet?: FontSet;
 }
 const U = 6350; // one D2 unit = .5pt
+
+/**
+ * A flow arrow (#426) as the PowerPoint preset of its form, so it stays one
+ * editable shape: `rightArrow`, `triangle` or `chevron`, turned or flipped to
+ * point the right way. A preset is drawn unturned pointing right (the
+ * triangle: up), so a turned shape takes the box with its sides swapped about
+ * the same center and DrawingML's `rot` (clockwise, 60000ths of a degree).
+ */
+export function flowArrowPreset(box: Rect, params: FlowArrowParams) {
+  const { form, direction, shaft } = params;
+  const flat = direction === "right" || direction === "left";
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  const swapped = {
+    x: cx - box.height / 2,
+    y: cy - box.width / 2,
+    width: box.height,
+    height: box.width,
+  };
+  const percent = (fraction: number) => Math.round(fraction * 100000);
+  const [length, thickness] = flat ? [box.width, box.height] : [box.height, box.width];
+  // The head the geometry draws, which may be shorter than asked (a chevron's band keeps some width).
+  const head = flowArrowHead(params, length, thickness) / Math.min(length, thickness);
+  let preset: string;
+  let adjust = "";
+  let drawn = box;
+  let turn = "";
+  if (form === "triangle") {
+    preset = "triangle";
+    // Up is the preset's own direction; the others turn it about its center.
+    if (flat) drawn = swapped;
+    turn = { up: "", down: ' flipV="1"', right: ' rot="5400000"', left: ' rot="16200000"' }[
+      direction
+    ];
+  } else {
+    if (form === "block") {
+      preset = "rightArrow";
+      adjust = `<a:gd name="adj1" fmla="val ${percent(shaft)}"/><a:gd name="adj2" fmla="val ${percent(head)}"/>`;
+    } else {
+      preset = "chevron";
+      adjust = `<a:gd name="adj" fmla="val ${percent(head)}"/>`;
+    }
+    if (!flat) drawn = swapped;
+    turn = { right: "", left: ' flipH="1"', down: ' rot="5400000"', up: ' rot="16200000"' }[
+      direction
+    ];
+  }
+  return {
+    geom: `<a:prstGeom prst="${preset}"><a:avLst>${adjust}</a:avLst></a:prstGeom>`,
+    box: drawn,
+    turn,
+  };
+}
 /**
  * How far above its SVG position (units) a sublabel (#184) may start when
  * joined to its node's text: rounding only (1/1000 unit coordinates).
@@ -715,11 +769,17 @@ export function svgToEditablePptx(
         // Also offer painted sites on an unconnected shape when edited later.
         connectionPoints.push(...boundaries.flat());
       }
-      const geom = ellipse
-        ? '<a:prstGeom prst="ellipse"><a:avLst/></a:prstGeom>'
-        : primitives.length
-          ? geometry(bodyPrimitives.map(shapePath), box, emu, connectionPoints)
-          : '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>';
+      const flow =
+        element.kind === "node" && element.render?.renderer === "sumi/flow-arrow"
+          ? flowArrowPreset(box, flowArrow.params.parse(element.render.params ?? {}))
+          : undefined;
+      const geom = flow
+        ? flow.geom
+        : ellipse
+          ? '<a:prstGeom prst="ellipse"><a:avLst/></a:prstGeom>'
+          : primitives.length
+            ? geometry(bodyPrimitives.map(shapePath), box, emu, connectionPoints)
+            : '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>';
       const first = primitives[0];
       const fill = first
         ? paint(property(first, "fill") ?? element.style.fill, element.style.opacity)
@@ -730,6 +790,7 @@ export function svgToEditablePptx(
             element.style,
             "",
             waveform ||
+              flow !== undefined ||
               element.component === SEPARATOR_ID ||
               ir.meta.themeOverrides?.nodeCorners === "square"
               ? "svg-default"
@@ -760,7 +821,7 @@ export function svgToEditablePptx(
       let body = shape(
         id,
         element.key,
-        box,
+        flow?.box ?? box,
         geom,
         fill,
         stroke,
@@ -776,6 +837,7 @@ export function svgToEditablePptx(
             )
           : "",
         !first,
+        flow?.turn,
       );
       if (signalPrimitives[0] !== undefined) {
         body += shape(

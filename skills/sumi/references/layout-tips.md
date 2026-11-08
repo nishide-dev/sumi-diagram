@@ -303,6 +303,7 @@ and decide its one visual form and tone:
 | collections, groups, hyperedges, clusters | set enclosure | one tint per set |
 | operations, mappings, aggregation | arrow (edge label of a word or two), or one short box | neutral |
 | stages, steps | numbered columns (`row` of panels with captions `(a)`, `(b)`) | neutral |
+| stage flow, what feeds what | a `block-arrow` or `triangle-arrow` between the columns, not a thin edge ([flow arrows](structured.md#flow-arrows)) | neutral ink |
 | losses, objectives | one short box or a dashed edge to the thing it trains | one accent |
 
 Fill it from the paper, not from a template: drop rows that do not occur, add your
@@ -324,7 +325,8 @@ and do not mix per-element colours that fight it; for black-and-white print use 
   one thing.
 - **One legend**, in one place (usually the bottom), covering every tone and mark
   that needs explaining ([legends](structured.md#legends)); no per-panel keys.
-- **Read in order.** Stages go left to right or top to bottom as numbered columns;
+- **Read in order.** Stages go left to right or top to bottom as numbered columns,
+  with a block arrow or triangle between them to carry the flow;
   no edge leaves its panel except the main flow, so repeat a small icon instead of
   drawing a long edge.
 

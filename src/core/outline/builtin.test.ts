@@ -54,6 +54,7 @@ test("renderer registry contains only the bundled geometry implementations", () 
     "sumi/bracket",
     "sumi/waveform",
     "sumi/bubble",
+    "sumi/flow-arrow",
   ]);
   expect(getOutlineRenderer("trapezoid")).toBeUndefined();
   expect(getOutlineRenderer("other/stack")).toBeUndefined();
