@@ -14,6 +14,7 @@
   - <a id="embeddinggemma-2--unified-multimodal-representations"></a>[EmbeddingGemma 2 — unified multimodal representations](examples.md#embeddinggemma-2--unified-multimodal-representations)
   - <a id="gcn--graph-convolutional-network"></a>[GCN — Graph Convolutional Network](examples.md#gcn--graph-convolutional-network)
   - <a id="nested-groups"></a>[Nested groups](examples.md#nested-groups)
+  - <a id="llada--overview-of-pre-training-sft-and-sampling"></a>[LLaDA — overview of pre\-training, SFT and sampling](examples.md#llada--overview-of-pre-training-sft-and-sampling)
   - <a id="llama-4--mixture-of-experts"></a>[Llama 4 — Mixture of Experts](examples.md#llama-4--mixture-of-experts)
   - <a id="llm-dialogue--a-math-word-problem"></a>[LLM dialogue — a math word problem](examples.md#llm-dialogue--a-math-word-problem)
   - <a id="generic-processing-pipeline"></a>[Generic processing pipeline](examples.md#generic-processing-pipeline)

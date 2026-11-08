@@ -1,0 +1,357 @@
+# Source: Nie et al. (2025), Large Language Diffusion Models, arXiv:2502.09992,
+# Figure 2 (overview of LLaDA). https://arxiv.org/abs/2502.09992
+#
+# A density benchmark: three panels of token cells, a gray Mask predictor and
+# short arrows, with almost no text. One `place` with a unit of 0.3113pt lays out
+# the elements at the reference's own pixel coordinates (1 unit = 1 px of the
+# 1980 px wide original), so cell widths, gaps and the share of the canvas that
+# is filled follow the reference. The figure is scaled to 180mm (`fit: scale`).
+#
+# Workarounds, each a missing feature recorded in the PR (#421):
+# - the muted cool/warm cell colours need 12 raw colours but a tone has only a
+#   fill and a line colour, so the eight tones are recoloured and `solid` cells
+#   use the line colour (`green` solid is the dark gray, `pink` solid the light gray);
+# - the mask cell (a box with a cross) is an SVG asset: assets/mask.svg;
+# - the dotted arrows are `dashed` edges (no dotted variant); short arrows float
+#   between hidden junctions because an edge cannot be shorter than its gap;
+# - the legend frame and the dashed step frame are sets (`shape: rect`).
+version: 1
+figure:
+  id: llada
+  title: LLaDA — overview of pre-training, SFT and sampling
+  theme: paper
+  profile: paper-double
+  fit: scale
+  assets:
+    mask:
+      src: assets/mask.svg
+  themeOverrides:
+    nodeCorners: square
+    tones:
+      gray: { fill: "#bfbfbf", line: "#000000", text: "#000000" }
+      blue: { fill: "#a5c2e3", line: "#94a9d8", text: "#000000" }
+      purple: { fill: "#b8c6e4", line: "#8896ae", text: "#000000" }
+      orange: { fill: "#f1cdb1", line: "#eab48a", text: "#000000" }
+      yellow: { fill: "#fbe7a3", line: "#d9b45a", text: "#000000" }
+      green: { fill: "#b1d095", line: "#757171", text: "#000000" }
+      pink: { fill: "#f7e6d8", line: "#dbdbdb", text: "#000000" }
+      red: { fill: "#fdf2d0", line: "#c00000", text: "#000000" }
+  layout:
+    arrange:
+      place:
+        unit: 0.3113pt
+        items:
+          # (a) Pre-training: mask every token independently
+          - { item: a-tag, at: [ 62, 52 ] }
+          - { item: a-title, at: [ 321.5, 52 ] }
+          - { item: a1, at: [ 321, 106 ] }
+          - { item: a2, at: [ 321, 184 ] }
+          - { item: a-mask-s, at: [ 321, 127 ] }
+          - { item: a-mask-e, at: [ 321, 158 ] }
+          - { item: a-mask-label, at: [ 465.5, 143 ] }
+          - { item: a-in-s, at: [ 321, 212 ] }
+          - { item: a-in-e, at: [ 321, 242 ] }
+          - { item: a-pred, at: [ 321, 281.5 ] }
+          - { item: a-out1-s, at: [ 188, 323 ] }
+          - { item: a-out1-e, at: [ 188, 353 ] }
+          - { item: a-out2-s, at: [ 454, 323 ] }
+          - { item: a-out2-e, at: [ 454, 353 ] }
+          - { item: a-r1, at: [ 188.5, 378.5 ] }
+          - { item: a-r2, at: [ 453.5, 378.5 ] }
+          # Legend: mask token, non-mask token, remask, random mask
+          - { item: key-mask, at: [ 140.5, 458 ] }
+          - { item: key-nonmask, at: [ 140.5, 516 ] }
+          - { item: key-t1, at: [ 248.5, 461 ] }
+          - { item: key-t2, at: [ 277.5, 516 ] }
+          - { item: key-remask-s, at: [ 404, 438 ] }
+          - { item: key-remask-e, at: [ 404, 473 ] }
+          - { item: key-random-s, at: [ 404, 497 ] }
+          - { item: key-random-e, at: [ 404, 533 ] }
+          - { item: key-t3, at: [ 485.5, 460 ] }
+          - { item: key-t4, at: [ 522.5, 516 ] }
+          # (b) SFT: only the response can be masked
+          - { item: b-tag, at: [ 716, 47 ] }
+          - { item: b-prompt, at: [ 852, 45 ] }
+          - { item: b-response, at: [ 1059, 45 ] }
+          - { item: b-br1, at: [ 852.5, 71 ] }
+          - { item: b-br2, at: [ 1062.5, 71 ] }
+          - { item: b1, at: [ 957.5, 106 ] }
+          - { item: b2, at: [ 957.5, 184 ] }
+          - { item: b-mask-s, at: [ 1064, 127 ] }
+          - { item: b-mask-e, at: [ 1064, 158 ] }
+          - { item: b-in-s, at: [ 957, 210 ] }
+          - { item: b-in-e, at: [ 957, 240 ] }
+          - { item: b-pred, at: [ 957.5, 281.5 ] }
+          - { item: b-out1-s, at: [ 985, 323 ] }
+          - { item: b-out1-e, at: [ 985, 353 ] }
+          - { item: b-out2-s, at: [ 1090, 323 ] }
+          - { item: b-out2-e, at: [ 1090, 353 ] }
+          - { item: b-r1, at: [ 984, 378.5 ] }
+          - { item: b-r2, at: [ 1090, 378.5 ] }
+          # (c) Sampling: from t = 1 (fully masked) to t = 0, with one intermediate step
+          - { item: c-tag, at: [ 1352, 52 ] }
+          - { item: c-prompt, at: [ 1495, 45 ] }
+          - { item: c-response, at: [ 1704, 45 ] }
+          - { item: c-br1, at: [ 1495.5, 71 ] }
+          - { item: c-br2, at: [ 1704, 71 ] }
+          - { item: c1, at: [ 1599, 106 ] }
+          - { item: c-t1, at: [ 1867, 98 ] }
+          - { item: c-dots1, at: [ 1597, 140 ] }
+          - { item: c2, at: [ 1599, 184 ] }
+          - { item: c-in-s, at: [ 1599, 212 ] }
+          - { item: c-in-e, at: [ 1599, 240 ] }
+          - { item: c-pred, at: [ 1599, 281.5 ] }
+          - { item: c-out1-s, at: [ 1625, 323 ] }
+          - { item: c-out1-e, at: [ 1625, 353 ] }
+          - { item: c-out2-s, at: [ 1678, 323 ] }
+          - { item: c-out2-e, at: [ 1678, 353 ] }
+          - { item: c-out3-s, at: [ 1783, 323 ] }
+          - { item: c-out3-e, at: [ 1783, 353 ] }
+          - { item: c-r1, at: [ 1623.5, 378.5 ] }
+          - { item: c-r2, at: [ 1677, 378.5 ] }
+          - { item: c-r3, at: [ 1782.5, 378.5 ] }
+          - { item: c-remask, at: [ 1512, 418 ] }
+          - { item: c-rm1-s, at: [ 1625, 405 ] }
+          - { item: c-rm1-e, at: [ 1625, 435 ] }
+          - { item: c-rm2-s, at: [ 1678, 405 ] }
+          - { item: c-rm2-e, at: [ 1678, 435 ] }
+          - { item: c-rm3-s, at: [ 1783, 405 ] }
+          - { item: c-rm3-e, at: [ 1783, 435 ] }
+          - { item: c3, at: [ 1599, 464 ] }
+          - { item: c-dots2, at: [ 1597, 503 ] }
+          - { item: c4, at: [ 1599, 537 ] }
+          - { item: c-t0, at: [ 1867, 538 ] }
+          - { item: c-brace, at: [ 1836, 320 ] }
+          - { item: c-step, at: [ 1876, 312 ] }
+          # Time arrow t = 1 -> t = 0
+          - { item: t-top, at: [ 1920, 90 ] }
+          - { item: t-mid, at: [ 1920, 314 ] }
+          - { item: t-bot, at: [ 1920, 548 ] }
+          - { item: t-top2, at: [ 1906, 90 ] }
+          - { item: t-mid2, at: [ 1906, 314 ] }
+          - { item: t-bot2, at: [ 1906, 538 ] }
+nodes:
+  # (a) Pre-training: mask every token independently
+  - { id: a-tag, component: label, label: (a) }
+  - { id: a-title, component: label, label: Mask all tokens independently }
+  - id: a1
+    component: tokens
+    props:
+      gap: 0
+      width: 16.5pt
+      height: 9pt
+      variant: filled
+      cells: [ { tone: blue, variant: solid }, { tone: orange }, { tone: pink, variant: solid }, { tone: yellow }, { tone: blue }, { tone: green }, { tone: purple, variant: solid }, { tone: green, variant: solid } ]
+  - id: a2
+    component: tokens
+    props:
+      gap: 0
+      width: 16.5pt
+      height: 9pt
+      variant: filled
+      cells: [ { tone: blue, variant: solid }, { asset: mask }, { tone: pink, variant: solid }, { tone: yellow }, { tone: blue }, { tone: green }, { asset: mask }, { tone: green, variant: solid } ]
+  - { id: a-mask-s, component: junction, variant: hidden }
+  - { id: a-mask-e, component: junction, variant: hidden }
+  - { id: a-mask-label, component: label, label: 'Mask ratio $t \sim U(0,1)$' }
+  - { id: a-in-s, component: junction, variant: hidden }
+  - { id: a-in-e, component: junction, variant: hidden }
+  - { id: a-pred, component: box, tone: gray, variant: filled, label: Mask predictor, props: { width: 132pt, height: 17.5pt } }
+  - { id: a-out1-s, component: junction, variant: hidden }
+  - { id: a-out1-e, component: junction, variant: hidden }
+  - { id: a-out2-s, component: junction, variant: hidden }
+  - { id: a-out2-e, component: junction, variant: hidden }
+  - id: a-r1
+    component: tokens
+    props:
+      width: 16.5pt
+      height: 8.5pt
+      variant: filled
+      cells: [ { tone: orange } ]
+  - id: a-r2
+    component: tokens
+    props:
+      width: 16.5pt
+      height: 8.5pt
+      variant: filled
+      cells: [ { tone: purple, variant: solid } ]
+  # Legend: mask token, non-mask token, remask, random mask
+  - { id: key-mask, component: image, props: { asset: mask, width: 16.5pt, height: 7.5pt } }
+  - id: key-nonmask
+    component: tokens
+    props:
+      width: 16pt
+      height: 8.5pt
+      variant: filled
+      cells: [ { tone: blue, variant: solid } ]
+  - { id: key-t1, component: label, label: Mask token }
+  - { id: key-t2, component: label, label: Non-mask token }
+  - { id: key-remask-s, component: junction, variant: hidden }
+  - { id: key-remask-e, component: junction, variant: hidden }
+  - { id: key-random-s, component: junction, variant: hidden }
+  - { id: key-random-e, component: junction, variant: hidden }
+  - { id: key-t3, component: label, label: Remask }
+  - { id: key-t4, component: label, label: Random mask }
+  # (b) SFT: only the response can be masked
+  - { id: b-tag, component: label, label: (b) }
+  - { id: b-prompt, component: label, label: Prompt }
+  - { id: b-response, component: label, label: Response }
+  - { id: b-br1, component: bracket, props: { form: curly, points: north, width: 54.5pt, height: 2.5pt } }
+  - { id: b-br2, component: bracket, props: { form: curly, points: north, width: 54pt, height: 2.5pt } }
+  - id: b1
+    component: tokens
+    props:
+      gap: 0
+      width: 16.5pt
+      height: 9pt
+      variant: filled
+      cells: [ { tone: blue }, { tone: purple }, { tone: blue, variant: solid }, { tone: purple, variant: solid }, { tone: red }, { tone: pink }, { tone: orange, variant: solid }, { tone: yellow } ]
+  - id: b2
+    component: tokens
+    props:
+      gap: 0
+      width: 16.5pt
+      height: 9pt
+      variant: filled
+      cells: [ { tone: blue }, { tone: purple }, { tone: blue, variant: solid }, { tone: purple, variant: solid }, { asset: mask }, { tone: pink }, { asset: mask }, { tone: yellow } ]
+  - { id: b-mask-s, component: junction, variant: hidden }
+  - { id: b-mask-e, component: junction, variant: hidden }
+  - { id: b-in-s, component: junction, variant: hidden }
+  - { id: b-in-e, component: junction, variant: hidden }
+  - { id: b-pred, component: box, tone: gray, variant: filled, label: Mask predictor, props: { width: 132pt, height: 17.5pt } }
+  - { id: b-out1-s, component: junction, variant: hidden }
+  - { id: b-out1-e, component: junction, variant: hidden }
+  - { id: b-out2-s, component: junction, variant: hidden }
+  - { id: b-out2-e, component: junction, variant: hidden }
+  - id: b-r1
+    component: tokens
+    props:
+      width: 16.5pt
+      height: 8.5pt
+      variant: filled
+      cells: [ { tone: red } ]
+  - id: b-r2
+    component: tokens
+    props:
+      width: 16.5pt
+      height: 8.5pt
+      variant: filled
+      cells: [ { tone: orange, variant: solid } ]
+  # (c) Sampling: from t = 1 (fully masked) to t = 0, with one intermediate step
+  - { id: c-tag, component: label, label: (c) }
+  - { id: c-prompt, component: label, label: Prompt }
+  - { id: c-response, component: label, label: Response }
+  - { id: c-br1, component: bracket, props: { form: curly, points: north, width: 54.5pt, height: 2.5pt } }
+  - { id: c-br2, component: bracket, props: { form: curly, points: north, width: 54pt, height: 2.5pt } }
+  - id: c1
+    component: tokens
+    props:
+      gap: 0
+      width: 16.5pt
+      height: 9pt
+      variant: filled
+      cells: [ { tone: blue }, { tone: purple }, { tone: blue, variant: solid }, { tone: purple, variant: solid }, { asset: mask }, { asset: mask }, { asset: mask }, { asset: mask } ]
+  - { id: c-t1, component: label, label: $t = 1$ }
+  - { id: c-dots1, component: label, label: '$\cdots$' }
+  - id: c2
+    component: tokens
+    props:
+      gap: 0
+      width: 16.5pt
+      height: 9pt
+      variant: filled
+      cells: [ { tone: blue }, { tone: purple }, { tone: blue, variant: solid }, { tone: purple, variant: solid }, { asset: mask }, { asset: mask }, { tone: orange, variant: solid }, { asset: mask } ]
+  - { id: c-in-s, component: junction, variant: hidden }
+  - { id: c-in-e, component: junction, variant: hidden }
+  - { id: c-pred, component: box, tone: gray, variant: filled, label: Mask predictor, props: { width: 132pt, height: 17.5pt } }
+  - { id: c-out1-s, component: junction, variant: hidden }
+  - { id: c-out1-e, component: junction, variant: hidden }
+  - { id: c-out2-s, component: junction, variant: hidden }
+  - { id: c-out2-e, component: junction, variant: hidden }
+  - { id: c-out3-s, component: junction, variant: hidden }
+  - { id: c-out3-e, component: junction, variant: hidden }
+  - id: c-r1
+    component: tokens
+    props:
+      width: 16.5pt
+      height: 8.5pt
+      variant: filled
+      cells: [ { tone: green } ]
+  - id: c-r2
+    component: tokens
+    props:
+      width: 16.5pt
+      height: 8.5pt
+      variant: filled
+      cells: [ { tone: orange } ]
+  - id: c-r3
+    component: tokens
+    props:
+      width: 16.5pt
+      height: 8.5pt
+      variant: filled
+      cells: [ { tone: yellow } ]
+  - { id: c-remask, component: label, label: Remask }
+  - { id: c-rm1-s, component: junction, variant: hidden }
+  - { id: c-rm1-e, component: junction, variant: hidden }
+  - { id: c-rm2-s, component: junction, variant: hidden }
+  - { id: c-rm2-e, component: junction, variant: hidden }
+  - { id: c-rm3-s, component: junction, variant: hidden }
+  - { id: c-rm3-e, component: junction, variant: hidden }
+  - id: c3
+    component: tokens
+    props:
+      gap: 0
+      width: 16.5pt
+      height: 9pt
+      variant: filled
+      cells: [ { tone: blue }, { tone: purple }, { tone: blue, variant: solid }, { tone: purple, variant: solid }, { asset: mask }, { tone: orange }, { tone: orange, variant: solid }, { tone: yellow } ]
+  - { id: c-dots2, component: label, label: '$\cdots$' }
+  - id: c4
+    component: tokens
+    props:
+      gap: 0
+      width: 16.5pt
+      height: 9pt
+      variant: filled
+      cells: [ { tone: blue }, { tone: purple }, { tone: blue, variant: solid }, { tone: purple, variant: solid }, { tone: red }, { tone: orange }, { tone: orange, variant: solid }, { tone: yellow } ]
+  - { id: c-t0, component: label, label: $t = 0$ }
+  - { id: c-brace, component: bracket, props: { form: curly, points: east, width: 6pt, height: 98pt } }
+  - { id: c-step, component: label, label: An intermediate step, labelRotation: 90 }
+  # Time arrow t = 1 -> t = 0
+  - { id: t-top, component: junction, variant: hidden }
+  - { id: t-mid, component: junction, variant: hidden }
+  - { id: t-bot, component: junction, variant: hidden }
+  - { id: t-top2, component: junction, variant: hidden }
+  - { id: t-mid2, component: junction, variant: hidden }
+  - { id: t-bot2, component: junction, variant: hidden }
+edges:
+  # (a) Pre-training: mask every token independently
+  - { from: a-mask-s, to: a-mask-e, route: straight, variant: dashed }
+  - { from: a-in-s, to: a-in-e, route: straight, variant: emphasis }
+  - { from: a-out1-s, to: a-out1-e, route: straight, variant: emphasis }
+  - { from: a-out2-s, to: a-out2-e, route: straight, variant: emphasis }
+  # Legend: mask token, non-mask token, remask, random mask
+  - { from: key-remask-s, to: key-remask-e, route: straight, variant: dashed }
+  - { from: key-random-s, to: key-random-e, route: straight, variant: dashed }
+  # (b) SFT: only the response can be masked
+  - { from: b-mask-s, to: b-mask-e, route: straight, variant: dashed }
+  - { from: b-in-s, to: b-in-e, route: straight, variant: emphasis }
+  - { from: b-out1-s, to: b-out1-e, route: straight, variant: emphasis }
+  - { from: b-out2-s, to: b-out2-e, route: straight, variant: emphasis }
+  # (c) Sampling: from t = 1 (fully masked) to t = 0, with one intermediate step
+  - { from: c-in-s, to: c-in-e, route: straight, variant: emphasis }
+  - { from: c-out1-s, to: c-out1-e, route: straight, variant: emphasis }
+  - { from: c-out2-s, to: c-out2-e, route: straight, variant: emphasis }
+  - { from: c-out3-s, to: c-out3-e, route: straight, variant: emphasis }
+  - { from: c-rm1-s, to: c-rm1-e, route: straight, variant: dashed }
+  - { from: c-rm2-s, to: c-rm2-e, route: straight, variant: dashed }
+  - { from: c-rm3-s, to: c-rm3-e, route: straight, variant: dashed }
+  # Time arrow t = 1 -> t = 0
+  - { from: t-top2, to: t-top, component: line, tone: red, variant: emphasis }
+  - { from: t-mid2, to: t-mid, component: line, tone: red, variant: emphasis }
+  - { from: t-bot2, to: t-bot, component: line, tone: red, variant: emphasis }
+  - { from: t-top, to: t-mid, component: line, tone: red, variant: emphasis }
+  - { from: t-mid, to: t-bot, tone: red, variant: emphasis }
+sets:
+  - { id: step, members: [ c2, c-pred, c-r1, c-r2, c-r3, c-remask, c3 ], shape: rect, variant: dashed, fillOpacity: 0, padding: 3pt }
+  - { id: key, members: [ key-mask, key-nonmask, key-t1, key-t2, key-t3, key-t4, key-remask-s, key-remask-e, key-random-s, key-random-e ], shape: rect, variant: outlined, padding: 3pt }

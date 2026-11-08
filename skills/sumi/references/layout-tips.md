@@ -343,6 +343,15 @@ Sumi features for each form:
 The GCN and Llama 4 MoE [examples](../examples/README.md) keep one vocabulary across
 all their panels.
 
+**Dense reproductions.** A wide figure of cell rows, short arrows and frames (the LLaDA
+example) is drawn in one [`place`](structured.md#coordinate-placement) whose `unit` is the
+reference's pixel (e.g. `unit: 0.3113pt` so a 53 px cell is a 16.5pt tokens cell) and
+`fit: scale`: measure each element's centre in the reference, write it as `at`, and
+the proportions, gaps and canvas fill follow. A short arrow that must not touch its
+neighbours is a `route: straight` edge between two hidden junctions placed at its ends.
+Compare at the same width after each round. Colours that exceed the eight tones are
+set by recolouring tones (`fill` for pale cells, `line` for `solid` ones).
+
 ## Plan the layout before writing YAML
 
 When the user describes the content (no figure to copy), or a reference figure

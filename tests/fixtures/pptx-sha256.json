@@ -180,6 +180,7 @@
   "examples/embedding-gemma/embedding-gemma.svg": "b6bf3848a0186e9251a785ef186ac73b5a76994affe1adbf52fa70c547f545a8",
   "examples/gcn/gcn.svg": "c9351a91e5752e813a1b61b9e2251dbbd7a447c44cd2e526880e2dc8f261bda2",
   "examples/grouped/grouped.svg": "ee24fa9018f6e62b6d8b2a9be8a86f71577adb099ce377c69f7baf13c6e9cebd",
+  "examples/llada/llada.svg": "7023301ba5e6a590dd5fd724e924a44591bc48141c0e90b716ac8749a41c1f94",
   "examples/llama4-moe/llama4-moe.svg": "c908ed8c5486a4373cf0632df6ee3805b28914b8178e1aea186558a8f667578c",
   "examples/llm-dialogue/llm-dialogue.svg": "baa980b03a3d8cd334a7b819eac5ad2d36f739eb72eefe34e36dca18382f1583",
   "examples/pipeline/pipeline.svg": "edab46d40346e703187f8ec8a93dd49d046995b9fba94d6b620130d6bf95e763",

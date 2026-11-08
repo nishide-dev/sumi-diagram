@@ -568,7 +568,8 @@ export function expandTokens(state: CheckState, registry: Registry, locate: Loca
 
 /**
  * The IDs named as a whole (without `.<cell>`) by an edge end, an attach
- * target or an align item: the ones that can be tokens nodes (#281).
+ * target, an align item or a set member: the ones that can be tokens nodes
+ * (#281).
  */
 function wholeReferences(doc: PartialFigure): Set<string> {
   const refs = new Set<string>();
@@ -582,6 +583,9 @@ function wholeReferences(doc: PartialFigure): Set<string> {
   }
   for (const node of doc.nodes ?? []) {
     if (node?.attach !== undefined) add(node.attach.to);
+  }
+  for (const set of doc.sets ?? []) {
+    for (const member of set?.members ?? []) add(member);
   }
   for (const constraint of doc.figure?.layout.align ?? []) {
     for (const ref of [...(constraint.x ?? []), ...(constraint.y ?? [])]) add(ref);
