@@ -23,7 +23,8 @@ describe("geometry/arrowhead-cramped", () => {
     for (const [run, count] of [
       [3, 0],
       [8, 1],
-      [11.99, 1],
+      [9.99, 1],
+      [10, 0],
       [12, 0],
       [20, 0],
     ]) {
@@ -47,8 +48,11 @@ describe("geometry/arrowhead-cramped", () => {
   test("uses painted geometry, source heads, and the printed stem after fit", () => {
     const spec = { elements: { "e:e": { path: [p(0, 0), p(0, 16), p(40, 16)] } } };
     expect(lintSpec(compiled, spec, { code })).toEqual([]);
-    expect(lintSpec(compiled, { ...spec, scale: 0.4 }, { code })).toHaveLength(1);
-    const painted = [[p(0, 8), p(0, 10), p(2, 14), p(6, 16), p(32, 16)]];
+    // The router's 2pt stem shrunk by a typical fit (0.83) is fine (#411);
+    // a stem shrunk below 1pt is not.
+    expect(lintSpec(compiled, { ...spec, scale: 0.83 }, { code })).toEqual([]);
+    expect(lintSpec(compiled, { ...spec, scale: 0.2 }, { code })).toHaveLength(1);
+    const painted = [[p(0, 8), p(0, 9), p(2, 14), p(6, 16), p(32, 16)]];
     const findings = lintSpec(compiled, { ...spec, painted: { "e:e": painted } }, { code });
     expect(findings).toHaveLength(1);
     expect(findings[0]?.message).toContain("source arrowhead");

@@ -250,6 +250,57 @@ export class PieceIndex<Owner> {
   }
 }
 
+/**
+ * Bundles that lie on one line and touch or overlap along it, joined into one
+ * (#411): two edges that merge into a trunk each paint only their half of it,
+ * but the eye sees one line. A joined bundle sits on the coordinate of the
+ * member nearest `toward` and has all their owners. Only bundles of one stroke
+ * width join. Bundles that join nothing are returned as they are.
+ */
+export function joinCollinear<Owner>(
+  bundles: readonly Bundle<Owner>[],
+  toward: number,
+): Bundle<Owner>[] {
+  const result: Bundle<Owner>[] = [];
+  const left = [...bundles].sort((a, b) => a.from - b.from || a.to - b.to);
+  const used = new Set<Bundle<Owner>>();
+  for (const first of left) {
+    if (used.has(first)) continue;
+    used.add(first);
+    const members = [first];
+    let to = first.to;
+    for (let grew = true; grew; ) {
+      grew = false;
+      for (const other of left) {
+        if (used.has(other) || other.axis !== first.axis) continue;
+        if (other.width !== first.width) continue;
+        if (members.every((m) => Math.abs(m.at - other.at) > COINCIDENT_UNITS)) continue;
+        if (other.from > to + COINCIDENT_UNITS) continue;
+        used.add(other);
+        members.push(other);
+        to = Math.max(to, other.to);
+        grew = true;
+      }
+    }
+    if (members.length === 1) {
+      result.push(first);
+      continue;
+    }
+    const nearest = members.reduce((a, b) =>
+      Math.abs(b.at - toward) < Math.abs(a.at - toward) ? b : a,
+    );
+    result.push({
+      axis: first.axis,
+      at: nearest.at,
+      from: first.from,
+      to,
+      width: first.width,
+      owners: [...new Set(members.flatMap((m) => m.owners))],
+    });
+  }
+  return result;
+}
+
 /** The four straight sides of a rectangle whose corners are rounded by `radius`. */
 export function rectSides({ x, y, width, height }: Rect, radius = 0): AxisSegment[] {
   const r = Math.max(0, Math.min(radius, width / 2, height / 2));

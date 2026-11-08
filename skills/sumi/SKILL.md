@@ -194,7 +194,7 @@ the PNG with Read. Give ~6 px per printed mm of the larger side, so text looks a
 small as it prints:
 
 ```sh
-<skill-dir>/scripts/preview figure.svg 1080   # 180 × 60mm figure; prints the PNG path
+<skill-dir>/scripts/preview figure.svg 1080   # 180 × 60mm; writes figure.png beside the SVG (-o <png> to move it)
 ```
 
 1. **Content.** Tick each item of the step 1 checklist in the YAML (node, label, edge

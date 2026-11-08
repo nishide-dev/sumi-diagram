@@ -1,6 +1,10 @@
 #!/bin/sh
 # Rasterize a rendered Sumi SVG to a PNG for visual inspection and print the
-# PNG's path. Usage: preview <figure.svg> [size-in-px, default 1600]
+# PNG's path. Usage: preview [-o <out.png>] <figure.svg> [size-in-px, default 1600]
+#
+# The PNG is written next to the SVG (figure.svg -> figure.png, overwriting an
+# existing figure.png) unless -o/--out names another .png path. Missing output
+# directories are created.
 #
 # macOS: Quick Look (`qlmanage`), which uses the fonts embedded in the SVG.
 #   Quick Look thumbnails are square and crop the rest, so the figure is
@@ -11,13 +15,28 @@
 # Elsewhere: `rsvg-convert` (librsvg) if installed; it may substitute a
 #   system font for the embedded one, so judge layout, not typography.
 #
-# On success only the PNG is left in a new temporary directory; on failure
-# nothing is left behind.
+# On success only the PNG is written; on failure nothing is left behind.
 set -eu
-if [ $# -lt 1 ] || [ ! -f "$1" ]; then
-  echo "usage: preview <figure.svg> [size]" >&2
+usage() {
+  echo "usage: preview [-o <out.png>] <figure.svg> [size]" >&2
   exit 2
-fi
+}
+dest=
+while [ $# -gt 0 ]; do
+  case $1 in
+    -o | --out)
+      [ $# -ge 2 ] || usage
+      dest=$2
+      shift 2
+      ;;
+    --)
+      shift
+      break
+      ;;
+    *) break ;;
+  esac
+done
+if [ $# -lt 1 ] || [ $# -gt 2 ] || [ ! -f "$1" ]; then usage; fi
 size=${2:-1600}
 case $size in
   '' | *[!0-9]*)
@@ -39,6 +58,18 @@ svg_dir=$(CDPATH='' cd -- "$(dirname -- "$1")" && pwd)
 svg_abs="$svg_dir/$(basename -- "$1")"
 tmp=${TMPDIR:-/tmp}
 name=$(basename -- "$1" .svg)
+if [ -z "$dest" ]; then dest="$svg_dir/$name.png"; fi
+case $dest in
+  *.png) ;;
+  *)
+    echo "preview: the output path must end in .png" >&2
+    exit 2
+    ;;
+esac
+if [ -d "$dest" ]; then
+  echo "preview: $dest is a directory" >&2
+  exit 2
+fi
 out=$(mktemp -d "${tmp%/}/sumi-preview.XXXXXX")
 cleanup() {
   status=$?
@@ -115,6 +146,7 @@ EOF
 else
   rsvg-convert -a -w "$size" -h "$size" -b white "$svg_abs" -o "$out/figure.png"
 fi
-# GNU mv fails when source and destination are the same (input figure.svg).
-if [ "$name" != figure ]; then mv "$out/figure.png" "$out/$name.png"; fi
-echo "$out/$name.png"
+mkdir -p -- "$(dirname -- "$dest")"
+mv -f -- "$out/figure.png" "$dest"
+rmdir "$out"
+echo "$dest"

@@ -337,6 +337,32 @@ export function placeEdgeLabel(
     // `beside()`'s +1 side is above (negative y) or right (positive x).
     const side: 1 | -1 = (horizontal ? away > 0 : away < 0) ? 1 : -1;
     candidates.push(beside(before, corner, w, h, g, side));
+    // Then slid along that segment on either side (#411), past the routes and
+    // borders that cross it, so a label next to a trunk near a group's border
+    // can take the free side or a free stretch of the trunk. These come after
+    // the places above: a figure whose label was already clear keeps it.
+    const beforeLength = Math.abs(before.x - corner.x) + Math.abs(before.y - corner.y);
+    const beforeFlat = horizontal;
+    const len = beforeFlat ? w : h;
+    const back = (c: number) =>
+      beforeFlat
+        ? (corner.x - c) * Math.sign(corner.x - before.x)
+        : (corner.y - c) * Math.sign(corner.y - before.y);
+    const slides = new Set<number>();
+    for (const r of [...segments, ...borders]) {
+      for (const c of beforeFlat ? [r.x, r.x + r.width] : [r.y, r.y + r.height]) {
+        const d = back(c);
+        // Just past `c`, on either side of it along the segment.
+        for (const at of [d + g, d - g - len]) {
+          if (at >= g - 1e-9 && at + len <= beforeLength + 1e-9) slides.add(at);
+        }
+      }
+    }
+    for (const d of [...slides].sort((p, q) => p - q)) {
+      for (const sideOf of [side, -side as 1 | -1]) {
+        candidates.push(beside(before, corner, w, h, d, sideOf));
+      }
+    }
   }
   const ux = Math.sign(tip.x - prev.x);
   const uy = Math.sign(tip.y - prev.y);
