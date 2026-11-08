@@ -39,6 +39,7 @@ import {
   COINCIDENT_UNITS,
   type DirectedPiece,
   directedRun,
+  joinCollinear,
   type Piece,
   PieceIndex,
   parallelRun,
@@ -1104,9 +1105,20 @@ export const arrowheadOnBend = defineGeometryRule({
   },
 });
 
+/**
+ * The printed stem below which a structured arrowhead reads as sitting on its
+ * bend (#411): 1pt. The router leaves {@link ARROWHEAD_STEM_UNITS} (2pt) at
+ * the natural size, and `figure.fit: scale` shrinks stem and head together,
+ * so a stem of 2pt x scale is proportionally the designed one; at the 0.83 of
+ * a typical paper figure that is 1.66pt, which looks fine. Under 1pt (half
+ * the designed stem, a scale of 0.5 or less, or a router that left no room)
+ * the stem no longer separates the head from the bend.
+ */
+const ARROWHEAD_MIN_STEM_UNITS = ARROWHEAD_STEM_UNITS / 2;
+
 export const arrowheadCramped = defineGeometryRule({
   id: "geometry/arrowhead-cramped",
-  description: "A structured arrowhead has less than 2pt of visible straight stem before a bend.",
+  description: "A structured arrowhead has less than 1pt of visible straight stem before a bend.",
   defaultSeverity: "info",
   fixable: false,
   run(context) {
@@ -1130,12 +1142,12 @@ export const arrowheadCramped = defineGeometryRule({
         // Straight edges have no preceding bend. Overlap already has a warning.
         if (run >= total - 0.002 || run + GEOMETRY_TOLERANCE_UNITS < length) continue;
         const stem = Math.max(0, printedUnits(context, run - length));
-        if (stem >= ARROWHEAD_STEM_UNITS - 0.002) continue;
+        if (stem >= ARROWHEAD_MIN_STEM_UNITS - 0.002) continue;
         findings.push({
-          message: `The ${source ? "source" : "target"} arrowhead of ${edge.name} has only ${formatPt(unitsToPt(stem))} of visible straight stem before a bend (less than 2pt).`,
+          message: `The ${source ? "source" : "target"} arrowhead of ${edge.name} has only ${formatPt(unitsToPt(stem))} of visible straight stem before a bend (less than 1pt).`,
           path: edge.docPath,
           subject: edge.subject,
-          hint: "Leave the arrowhead length plus 2pt of straight approach after rounding. Increase the gap or change fromAnchor / toAnchor; a fitted figure may need more room before scaling.",
+          hint: "Leave the arrowhead length plus at least 1pt of straight approach after rounding (the router aims at 2pt before scaling). Increase the gap or change fromAnchor / toAnchor; a fitted figure may need more room before scaling.",
         });
       }
     }
@@ -1235,7 +1247,18 @@ function borderRuns(context: GeometryContext): BorderRun[] {
     const width = group.ir.style.strokeWidth.units;
     const reach = gapUnits + (maxWidth + width) / 2;
     for (const [side, line] of rectSides(group.bbox, group.ir.style.radius.units).entries()) {
-      for (const bundle of index.near(line.axis, line.at, reach)) {
+      // Pieces too short on their own may add up to a trunk (#411).
+      const near = index.near(line.axis, line.at, reach);
+      const long = (b: Bundle<GeometryElement>) =>
+        (parallelRun(b, line)?.to ?? 0) - (parallelRun(b, line)?.from ?? 0) >= minRun;
+      const candidates = [
+        ...near.filter(long),
+        ...joinCollinear(
+          near.filter((b) => !long(b)),
+          line.at,
+        ),
+      ];
+      for (const bundle of candidates) {
         const run = parallelRun(bundle, line);
         if (run === undefined || run.to - run.from < minRun) continue;
         const gap = run.distance - (bundle.width + width) / 2;

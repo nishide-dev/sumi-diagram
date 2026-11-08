@@ -127,7 +127,7 @@ edges:
         {
           code: "geometry/arrowhead-cramped",
           message:
-            "The target arrowhead of edge edges[1] has only 0pt of visible straight stem before a bend (less than 2pt).",
+            "The target arrowhead of edge edges[1] has only 0pt of visible straight stem before a bend (less than 1pt).",
         },
         {
           code: "geometry/edge-touches-label",

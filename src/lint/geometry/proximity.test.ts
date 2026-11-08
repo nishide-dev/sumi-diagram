@@ -253,6 +253,48 @@ describe("geometry/edge-on-border and geometry/edge-near-border", () => {
   });
 });
 
+describe("a trunk made of short pieces beside a border (#411)", () => {
+  const p = (x: number, y: number) => ({ x, y });
+  // Each edge paints only 14 units (2mm) of the trunk, below the 3mm minimum
+  // run; together they are 28 units (3.9mm) on one line.
+  const horizontal = (y: number) => ({
+    "e:#0": { path: [p(186, 260), p(186, y), p(200, y), p(200, 150)] },
+    "e:#1": { path: [p(214, 260), p(214, y), p(200, y), p(200, 150)] },
+  });
+  const vertical = (x: number) => ({
+    "e:#0": { path: [p(40, 114), p(x, 114), p(x, 128), p(150, 128)] },
+    "e:#1": { path: [p(40, 142), p(x, 142), p(x, 128), p(150, 128)] },
+  });
+
+  test("two inputs entering from below: a horizontal trunk on the bottom border", () => {
+    // The group's bottom side is y = 200.
+    for (const [y, code] of [
+      [201, "geometry/edge-on-border"],
+      [204, "geometry/edge-near-border"],
+    ] as const) {
+      const result = lintSpec(compiled, { elements: { "g:grp": group, ...horizontal(y) } });
+      expect(result.map((d) => d.code)).toEqual([code]);
+      expect(result[0]?.message).toContain("The line shared by edge edges[0] and edge edges[1]");
+    }
+    expect(lintSpec(compiled, { elements: { "g:grp": group, ...horizontal(230) } })).toEqual([]);
+  });
+
+  test("the same trunk along a vertical side", () => {
+    // The group's left side is x = 100.
+    const result = lintSpec(compiled, { elements: { "g:grp": group, ...vertical(96) } });
+    expect(result.map((d) => d.code)).toEqual(["geometry/edge-near-border"]);
+    expect(lintSpec(compiled, { elements: { "g:grp": group, ...vertical(60) } })).toEqual([]);
+  });
+
+  test("pieces that do not touch stay separate and below the minimum", () => {
+    const gap = {
+      "e:#0": { path: [p(150, 260), p(150, 204), p(164, 204), p(164, 150)] },
+      "e:#1": { path: [p(236, 260), p(236, 204), p(222, 204), p(222, 150)] },
+    };
+    expect(lintSpec(compiled, { elements: { "g:grp": group, ...gap } })).toEqual([]);
+  });
+});
+
 describe("geometry/edge-near-edge", () => {
   const code = "geometry/edge-near-edge";
   const vertical = (x: number, from = 0, to = 100) => ({

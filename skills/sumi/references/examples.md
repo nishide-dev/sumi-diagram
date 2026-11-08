@@ -60,7 +60,7 @@ $ sumi lint --json cache-lookup.sumi.yaml | jq -c .summary
 $ sumi render cache-lookup.sumi.yaml
 Wrote cache-lookup.svg: 48.86mm × 154.87mm (paper-single, max width 88mm; theme minimal).
                                  # no geometry diagnostics, exit 0
-$ <skill-dir>/scripts/preview cache-lookup.svg   # then Read the PNG
+$ <skill-dir>/scripts/preview cache-lookup.svg   # writes cache-lookup.png; then Read it
 ```
 
 Inspection: top-to-bottom flow, both decisions readable, edge labels sit on
