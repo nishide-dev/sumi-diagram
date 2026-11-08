@@ -564,7 +564,7 @@ export const labelOverflow = defineGeometryRule({
       const outside = box !== undefined && !rectsOverlap(box, bbox, 0);
       findings.push({
         message: hasIcon(element)
-          ? `The icon of ${element.name} (${box === undefined ? "" : `${formatOverflowSize(context, box)}, `}1 em) does not fit inside its ${shapeName(element)} shape (${formatOverflowSize(context, bbox)})${outside ? "; it is drawn outside the shape" : ""}.`
+          ? `The icon of ${element.name} (${box === undefined ? "" : formatOverflowSize(context, box)}${element.ir.kind === "node" && element.ir.iconSize !== undefined ? "" : `${box === undefined ? "" : ", "}1 em`}) does not fit inside its ${shapeName(element)} shape (${formatOverflowSize(context, bbox)})${outside ? "; it is drawn outside the shape" : ""}.`
           : `The label of ${element.name} (${box === undefined ? "" : `${formatOverflowSize(context, box)}, `}measured with the theme's fonts) does not fit inside its ${shapeName(element)} shape (${formatOverflowSize(context, bbox)})${outside ? "; it is drawn outside the shape" : ""}.`,
         path: explicit ? [...element.docPath, "props"] : labelPath(element),
         subject: element.subject,

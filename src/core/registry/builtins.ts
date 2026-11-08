@@ -11,6 +11,7 @@ import {
   ARRANGE_ALIGNS,
   checkGlyph,
   glyphShape,
+  IconSize,
   ID_PATTERN,
   LayoutLength,
   SET_VARIANTS,
@@ -527,8 +528,11 @@ const legendEntry = z
       .regex(ICON_REF_PATTERN)
       .optional()
       .describe(
-        "Draws a bundled icon as the sample, as a node's icon, e.g. tabler/file-text (text color) or emoji/fire. It is one text line tall.",
+        "Draws a bundled icon as the sample, as a node's icon, e.g. tabler/file-text (text color) or emoji/fire. It is one text line tall unless iconSize is given.",
       ),
+    iconSize: IconSize.optional().describe(
+      'Side of the sample icon, as the node field iconSize: a number of ems of the legend\'s font size (e.g. 2) or a length (e.g. "8mm"). Needs icon.',
+    ),
     glyph: glyphShape
       .omit({ at: true, dx: true, dy: true })
       .superRefine(checkGlyph)
@@ -589,6 +593,13 @@ const legendEntry = z
         message: "Invalid input: expected string, received undefined",
       });
       return;
+    }
+    if (entry.iconSize !== undefined && entry.icon === undefined) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["iconSize"],
+        message: 'iconSize needs "icon" in the same entry',
+      });
     }
     const kinds = [entry.edge, entry.node, entry.class, entry.icon, entry.glyph, entry.set].filter(
       (k) => k !== undefined,

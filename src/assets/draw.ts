@@ -2,7 +2,7 @@
  * How icons and images are drawn (#94, design doc §6.25), shared by the
  * structured SVG writer and the composition of `auto` (D2) figures:
  *
- * - An icon is a square of 1 em (the node's font size) centered where the
+ * - An icon is a square of 1 em (the node's font size, or its `iconSize`, #424) centered where the
  *   label would be (`labelCenter()`), drawn as the importer's shapes under
  *   one `<g class="sumi-icon" transform="…">` (no nested `<svg>`), in the
  *   node's text color (Tabler icons stroke `currentColor`).
@@ -33,14 +33,22 @@ const FIT: Readonly<Record<ImageFit, string>> = {
   fill: "none",
 };
 
-/** The side of a node's icon in units: 1 em. */
-export function iconSize(node: Pick<NodeIR, "style">): number {
+/**
+ * The side of a node's icon in units: 1 em, or its `iconSize` (#424). A badge
+ * is always 1 em.
+ */
+export function iconSize(node: Pick<NodeIR, "style" | "iconSize">): number {
+  return node.iconSize ?? node.style.fontSize.units;
+}
+
+/** A badge's side in units: 1 em (the font size). */
+function badgeSize(node: Pick<NodeIR, "style">): number {
   return node.style.fontSize.units;
 }
 
 /** The label box an icon takes when the node is sized: a square of {@link iconSize}. */
 export function iconBox(
-  node: Pick<NodeIR, "icon" | "style">,
+  node: Pick<NodeIR, "icon" | "iconSize" | "style">,
 ): { width: number; height: number } | undefined {
   if (node.icon === undefined) return undefined;
   const side = iconSize(node);
@@ -48,7 +56,7 @@ export function iconBox(
 }
 
 /** Where a node's icon is drawn: centered on the label center of its shape in `rect`. */
-export function iconRect(node: Pick<NodeIR, "shape" | "style">, rect: Rect): Rect {
+export function iconRect(node: Pick<NodeIR, "shape" | "style" | "iconSize">, rect: Rect): Rect {
   const side = iconSize(node);
   const center = labelCenter(node.shape, rect);
   return { x: center.x - side / 2, y: center.y - side / 2, width: side, height: side };
@@ -65,7 +73,7 @@ export function iconMarkup(icon: LoadedIcon, box: Rect): string {
 /** A badge's full footprint: one em centered on the selected bounding-box corner. */
 export function badgeRect(node: Pick<NodeIR, "badge" | "style">, rect: Rect): Rect | undefined {
   if (node.badge === undefined) return undefined;
-  const side = iconSize(node);
+  const side = badgeSize(node);
   return {
     x: rect.x + (node.badge.corner.endsWith("east") ? rect.width : 0) - side / 2,
     y: rect.y + (node.badge.corner.startsWith("south") ? rect.height : 0) - side / 2,
@@ -142,7 +150,7 @@ function layeredImageMarkup(
  * or `""` if the node has none.
  */
 export function assetMarkup(
-  node: Pick<NodeIR, "key" | "shape" | "style" | "icon" | "image">,
+  node: Pick<NodeIR, "key" | "shape" | "style" | "icon" | "iconSize" | "image">,
   asset: LoadedAsset | undefined,
   rect: Rect,
 ): string {
