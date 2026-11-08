@@ -205,3 +205,51 @@ export const duplicateEdge = defineRule({
     return findings;
   },
 });
+
+/** The frames an author wraps around an icon to enlarge it (#424). */
+const ICON_FRAMES: ReadonlySet<string> = new Set(["circle", "box"]);
+
+export const iconEnclosure = defineRule({
+  id: "lint/icon-enclosure",
+  description:
+    "A plain circle or box whose only content is an icon: an icon wrapped in a frame just to make it bigger. Nodes with a tone, a variant, an explicit size or an iconSize are not reported.",
+  defaultSeverity: "info",
+  fixable: false,
+  run(context) {
+    const findings: LintFinding[] = [];
+    for (const element of context.elements) {
+      const manifest = element.component?.manifest;
+      if (
+        element.kind !== "node" ||
+        manifest?.kind !== "node" ||
+        manifest.namespace !== "sumi" ||
+        !ICON_FRAMES.has(manifest.name) ||
+        element.origin !== undefined
+      ) {
+        continue;
+      }
+      const node = element.element;
+      // The shape carries meaning when the author colors it, styles it or
+      // sizes it: a category marker, not a stand-in for a bigger icon.
+      if (
+        node.icon === undefined ||
+        node.iconSize !== undefined ||
+        node.tone !== undefined ||
+        node.variant !== "default" ||
+        node.glyphs !== undefined ||
+        node.badge !== undefined ||
+        node.props?.width !== undefined ||
+        node.props?.height !== undefined
+      ) {
+        continue;
+      }
+      findings.push({
+        message: `Node "${node.id}" wraps its icon in a plain ${manifest.name}, which only makes the icon look bigger.`,
+        path: [...element.path, "component"],
+        subject: element.subject,
+        hint: "Draw a bare icon larger instead: component: label with icon and iconSize (e.g. iconSize: 2). Keep the frame only if its shape carries meaning: give it a tone or variant.",
+      });
+    }
+    return findings;
+  },
+});

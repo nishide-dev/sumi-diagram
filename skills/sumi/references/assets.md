@@ -71,7 +71,7 @@ Each line is a ready-made reference (`tabler/wave-sine`); use it verbatim. Table
   square; a `box` or `circle` adds padding around it. `iconSize` needs an `icon`
   (`asset/icon-size-without-icon`); badges stay one em. Its colour is the
   node's text colour, so variants and tones apply. A legend `icon` entry takes
-  the same `iconSize`. Tabler artwork has a margin of about 1/12 of its side, so
+  the same `iconSize`. A sized Tabler icon keeps the printed stroke of a 1 em icon (the stroke width is divided by the extra scale); emoji are unchanged. Tabler artwork has a margin of about 1/12 of its side, so
   a large icon's edge ends slightly short of the strokes: use a small `gap`.
 - **`emoji/<name>`**: 3,124 bundled Fluent Emoji Flat SVGs (Microsoft, MIT) keep their
   multicolour palette in every theme and output, **also inside `dim: true` groups**

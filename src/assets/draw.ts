@@ -21,6 +21,7 @@ import type { ImageFit, NodeIR } from "../compiler/ir";
 import type { Rect } from "../core/geometry";
 import { labelCenter } from "../layout/structured/sizing";
 import { n, strokeAttributes } from "../render/stroke";
+import { TABLER_SET } from "./icons";
 import { imageLayerRects } from "./layers";
 import type { LoadedAsset, LoadedIcon, LoadedImage } from "./load";
 
@@ -62,12 +63,30 @@ export function iconRect(node: Pick<NodeIR, "shape" | "style" | "iconSize">, rec
   return { x: center.x - side / 2, y: center.y - side / 2, width: side, height: side };
 }
 
-export function iconMarkup(icon: LoadedIcon, box: Rect): string {
+/**
+ * A sized icon's stroke width (#424): a stroke icon's lines scale with the
+ * icon, so at 2 em or 3 em they look heavy. With `em` (the node's font size,
+ * given when `iconSize` is set), each `stroke-width` of a bundled Tabler icon
+ * is divided by the extra scale, so the printed line stays that of a 1 em
+ * icon. Fill-based icons (emoji) and icons at 1 em are left as they are.
+ */
+function compensateStrokes(icon: LoadedIcon, scale: number, em: number | undefined): string {
+  const markup = icon.svg.markup;
+  if (em === undefined || icon.set !== TABLER_SET) return markup;
+  const [, , vw, vh] = icon.svg.viewBox;
+  const reference = em / Math.max(vw, vh);
+  if (Math.abs(reference - scale) < 1e-9) return markup;
+  return markup.replace(/stroke-width="([\d.]+)"/g, (_, width: string) => {
+    return `stroke-width="${n((Number(width) * reference) / scale)}"`;
+  });
+}
+
+export function iconMarkup(icon: LoadedIcon, box: Rect, em?: number): string {
   const [minX, minY, vw, vh] = icon.svg.viewBox;
   const scale = Math.min(box.width / vw, box.height / vh);
   const tx = box.x + (box.width - vw * scale) / 2 - minX * scale;
   const ty = box.y + (box.height - vh * scale) / 2 - minY * scale;
-  return `<g class="sumi-icon" transform="translate(${n(tx)} ${n(ty)}) scale(${n(scale)})">${icon.svg.markup}</g>`;
+  return `<g class="sumi-icon" transform="translate(${n(tx)} ${n(ty)}) scale(${n(scale)})">${compensateStrokes(icon, scale, em)}</g>`;
 }
 
 /** A badge's full footprint: one em centered on the selected bounding-box corner. */
@@ -160,7 +179,13 @@ export function assetMarkup(
     }
     return "";
   }
-  if (asset.kind === "icon") return iconMarkup(asset, iconRect(node, rect));
+  if (asset.kind === "icon") {
+    return iconMarkup(
+      asset,
+      iconRect(node, rect),
+      node.iconSize === undefined ? undefined : node.style.fontSize.units,
+    );
+  }
   if (node.image === undefined) throw new Error(`internal error: ${node.key} is not an image`);
   if (node.image.layers !== undefined) return layeredImageMarkup(node, asset, rect);
   return imageMarkup(asset, node.image.fit, rect, node.style);

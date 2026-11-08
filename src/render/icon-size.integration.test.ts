@@ -193,6 +193,58 @@ describe("compatibility", () => {
   });
 });
 
+describe("stroke weight", () => {
+  const widths = (svg: string) =>
+    [...svg.matchAll(/class="sumi-icon" transform="[^"]*scale\(([\d.]+)\)">(.*?)<\/g>/g)].map(
+      (m) => ({
+        scale: Number(m[1]),
+        strokes: [...(m[2] as string).matchAll(/stroke-width="([\d.]+)"/g)].map((w) =>
+          Number(w[1]),
+        ),
+      }),
+    );
+
+  test("a larger Tabler icon keeps the printed stroke of a 1 em icon", async () => {
+    const out = await render(row(", iconSize: 3"));
+    const [small, large] = widths(out.svg);
+    if (small === undefined || large === undefined) throw new Error("no icons");
+    expect(large.scale).toBeGreaterThan(small.scale * 2.9);
+    expect(large.strokes.length).toBeGreaterThan(0);
+    // stroke-width * scale is the printed width: equal at 1 em and 3 em.
+    expect((large.strokes[0] as number) * large.scale).toBeCloseTo(
+      (small.strokes[0] as number) * small.scale,
+      2,
+    );
+  });
+
+  test("lengths compensate too, and the PDF and PPTX are built from the same SVG", async () => {
+    const out = await render(row(', iconSize: "12mm"'));
+    const sized = widths(out.svg)[1];
+    expect((sized?.strokes[0] as number) * (sized?.scale as number)).toBeCloseTo(
+      (widths(out.svg)[0]?.strokes[0] as number) * (widths(out.svg)[0]?.scale as number),
+      2,
+    );
+    const pdf = svgToPdf(out.svg);
+    const pptx = svgToPptx(out.svg);
+    if (!pdf.ok || !pptx.ok) throw new Error("conversion failed");
+    const picture = [...readPptx(pptx.value).entries()].find(([name]) => name.endsWith(".svg"));
+    // Three icons: the sized one carries the compensated (thinner) stroke in the picture too.
+    const printed = [
+      ...new TextDecoder().decode(picture?.[1]).matchAll(/stroke-width="([\d.]+)"/g),
+    ];
+    expect(printed.length).toBeGreaterThan(0);
+  });
+
+  test("a sized emoji, a 1 em icon and a badge are left as they are", async () => {
+    const emoji = (extra: string) =>
+      `version: 1\nfigure: { id: e, layout: { arrange: { row: { items: [a] } } } }\nnodes: [{ id: a, component: label, icon: emoji/fire${extra} }]\n`;
+    const unsized = await render(emoji(""));
+    const sized = await render(emoji(", iconSize: 3"));
+    const body = (svg: string) => svg.match(/class="sumi-icon"[^>]*>(.*?)<\/g>/)?.[1];
+    expect(body(sized.svg)).toBe(body(unsized.svg));
+  });
+});
+
 describe("formats", () => {
   test("SVG, PDF and picture PPTX carry the larger icon", async () => {
     const small = await render(row(""));

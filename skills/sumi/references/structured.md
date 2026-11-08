@@ -597,7 +597,7 @@ nodes:
 ## Attach: side notes
 
 ```yaml
-- { id: config, component: circle, icon: tabler/adjustments, attach: { to: add, side: west, gap: 1mm } }
+- { id: config, component: label, icon: tabler/adjustments, iconSize: 1.5, attach: { to: add, side: west, gap: 1mm } }
 - { id: config-label, component: label, label: "Sensor\nconfig", attach: { to: config, side: west, gap: 0.5mm } }
 - { id: repeat, component: label, label: "N×", attach: { to: encoder, side: east, gap: 2mm } }
 ```
