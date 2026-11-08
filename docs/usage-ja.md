@@ -126,7 +126,7 @@ sumi catalog --json --section themes --section profiles   # Theme と Profile �
 | `lint <files...>` | 描画せずに schema・参照・部品・Theme・Profile と構造 lint を検査する。`--geometry` を付けると描画し（ファイルは書かない）、幾何 lint も実行する（[規則の一覧](lint-rules.md)） | `--geometry`、`--json`、`--config <lint.json>`、`--rule <id>=<level>`（繰り返し可。`geometry/*` も可）、`--max-warnings <n>`（全ファイルの合計） |
 | `fmt <files...>` | YAML を意味を変えずに整形する（コメント・引用符・キー順は保つ）。YAML として不正なファイルは整形しない | `--check`（書き込まずに未整形のファイルを列挙）、`--stdout`、`--canonical-order`（既知のキーを schema の順に並べる） |
 | `doctor` | Sumi / Bun のバージョン、D2 の有無とバージョン、同梱フォントの sha256、幾何 lint 用のフォントの metrics を読めるかを確認する | `--json` |
-| `catalog` | 部品・Theme・Profile の一覧、同梱アイコンの検索 | `--json`、`--section components\|themes\|profiles`（繰り返し可）、`--kind node\|group\|edge`（`--section` なしでは部品だけを出す）、`--icons <語>`（アイコンを検索）、`--icons ""`（全アイコン名） |
+| `catalog` | 部品・Theme・Profile の一覧、同梱アイコンの検索 | `--json`、`--section components\|themes\|profiles\|icons\|targets\|sets`（繰り返し可）、`--kind node\|group\|edge`（`--section` なしでは部品だけを出す）、`--icons <語>`（アイコンを検索）、`--icons ""`（全アイコン名） |
 
 ### 台形と stack
 

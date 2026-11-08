@@ -176,6 +176,38 @@ export interface GroupLayout {
   readonly label?: TextLayout;
 }
 
+/** A segment of a set's closed outline path: absolute points, every subpath starts with `M` (#407). */
+export type SetSegment =
+  | { readonly command: "M" | "L"; readonly to: Point }
+  | { readonly command: "C"; readonly c1: Point; readonly c2: Point; readonly to: Point };
+
+/**
+ * The shape of a set enclosure (#407): an ellipse (a circle when `rx` equals
+ * `ry`), a rounded rectangle, or a closed path of lines and cubics (the
+ * rounded convex hull). Always convex.
+ */
+export type SetOutline =
+  | {
+      readonly kind: "ellipse";
+      readonly cx: number;
+      readonly cy: number;
+      readonly rx: number;
+      readonly ry: number;
+    }
+  | { readonly kind: "rect"; readonly rect: Rect; readonly radius: number }
+  | { readonly kind: "path"; readonly segments: readonly SetSegment[] };
+
+/** A placed set enclosure (#407): its outline around the members, and its label outside it. */
+export interface SetLayout {
+  readonly id: string;
+  /** The outline (stroke not included). */
+  readonly outline: SetOutline;
+  /** The smallest rectangle around the outline. */
+  readonly rect: Rect;
+  /** The set's label, outside the outline; omitted when it has none. */
+  readonly label?: TextLayout;
+}
+
 /** An edge's path: absolute polyline points, or four cubic control points (#366). */
 export interface EdgeRoute {
   /**
@@ -259,4 +291,6 @@ export interface LayoutIR {
   readonly edges: readonly EdgeLayout[];
   /** The edges' nets (#90), by `id`; omitted until the edges are routed. */
   readonly nets?: readonly RouteNet[];
+  /** Set enclosures (#407) in document order, drawn between the groups and the nodes; omitted when the figure has none. */
+  readonly sets?: readonly SetLayout[];
 }

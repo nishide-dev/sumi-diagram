@@ -22,7 +22,7 @@ export interface SourceLocation {
 }
 
 export interface DiagnosticSubject {
-  kind: "node" | "group" | "edge" | "figure";
+  kind: "node" | "group" | "edge" | "set" | "figure";
   id: string;
 }
 

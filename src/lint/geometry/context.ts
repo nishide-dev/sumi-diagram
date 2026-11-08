@@ -6,7 +6,7 @@
 
 import { badgeRect, iconRect } from "../../assets/draw";
 import type { HtmlMeasurement } from "../../assets/html-measure";
-import type { ElementIR, FigureIR, NodeIR } from "../../compiler/ir";
+import type { ElementIR, FigureIR, NodeIR, SetIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type { DiagnosticSubject, DocPath } from "../../core/diagnostics";
 import { getOutlineRenderer } from "../../core/outline";
@@ -14,7 +14,7 @@ import { SEPARATOR_ID } from "../../core/registry/builtins";
 import type { FontSet } from "../../core/theme/fonts";
 import { sampleCubic } from "../../layout/route/cubic";
 import type { Point, Rect } from "../../render/geometry";
-import type { ProfileLimits, SvgInspection } from "../../render/inspect";
+import type { ProfileLimits, SetGeometry, SvgInspection } from "../../render/inspect";
 import { type MeasuredLabel, measureLabel } from "./measure";
 import { outlineRegions } from "./outlines";
 import { type DrawnShape, flattenPath, labelArea, type Region, shapeOutline } from "./shapes";
@@ -52,6 +52,17 @@ export interface GeometryElement {
   drawn?: Point[][];
 }
 
+/** A set enclosure (#407) as the geometry rules see it: its IR entry, drawn shape and re-measured label. */
+export interface GeometrySet {
+  readonly ir: SetIR;
+  readonly geometry: SetGeometry;
+  /** `set "entities"`, for messages. */
+  readonly name: string;
+  readonly docPath: DocPath;
+  readonly subject: DiagnosticSubject;
+  readonly labels: readonly MeasuredLabel[];
+}
+
 export interface GeometryContext {
   readonly html?: ReadonlyMap<ElementKey, HtmlMeasurement>;
   readonly ir: FigureIR;
@@ -61,6 +72,8 @@ export interface GeometryContext {
   readonly profile: ProfileLimits;
   /** Every element in IR order: groups, nodes, edges. */
   readonly elements: readonly GeometryElement[];
+  /** The set enclosures (#407) in IR order; empty for a figure without sets. */
+  readonly sets: readonly GeometrySet[];
   get(key: ElementKey): GeometryElement | undefined;
   /** `true` if `ancestor` is a group that (transitively) contains `key`. */
   isAncestor(ancestor: ElementKey, key: ElementKey): boolean;
@@ -204,12 +217,27 @@ export function createGeometryContext(
     for (const element of elements) if (element.route !== undefined) element.drawn = element.route;
   }
   const byKey = new Map(elements.map((e) => [e.key, e]));
+  const sets = (ir.sets ?? []).flatMap((set): GeometrySet[] => {
+    const geometry = inspection.sets?.find((g) => g.id === set.id);
+    if (geometry === undefined) return [];
+    return [
+      {
+        ir: set,
+        geometry,
+        name: `set "${set.id}"`,
+        docPath: [...set.source.path],
+        subject: { kind: "set", id: set.id },
+        labels: geometry.labels.map((label) => measureLabel(label, fonts)),
+      },
+    ];
+  });
   return {
     ir,
     inspection,
     canvas: inspection.canvas.viewBox,
     profile: inspection.profile,
     elements,
+    sets,
     get: (key) => byKey.get(key),
     isAncestor(ancestor, key) {
       const seen = new Set<ElementKey>();

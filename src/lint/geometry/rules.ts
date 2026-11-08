@@ -46,6 +46,7 @@ import {
   polylinesRectDistance,
   rectSides,
 } from "./proximity";
+import { setContainsNonMember, setLabelCollision } from "./sets";
 import {
   CUBIC_STEPS,
   overhang,
@@ -399,6 +400,22 @@ export const textTooSmall = defineGeometryRule({
             : context.ir.meta.target?.minFontSize !== undefined
               ? "Use a theme or variant with a larger font size. figure.target.minFontSize is a final-size check, not a request to resize text."
               : "Use a theme or variant with a larger font size. Sumi does not shrink text below the profile's minimum.",
+      });
+    }
+    // A set's label (#407) is text too.
+    for (const set of context.sets) {
+      const sizes = set.labels.map((l) => unitsToPt(l.label.fontSizeUnits));
+      const smallest = Math.min(...sizes);
+      if (sizes.length === 0 || smallest * scale >= min - PT_EPSILON) continue;
+      findings.push({
+        message: scaled
+          ? `The label of ${set.name} is printed at ${formatPt(smallest * scale)}${scaleNote(smallest, scale)}, below the ${formatPt(min)} minimum font size of ${minimumSource(context)} for a scaled figure.`
+          : `The label of ${set.name} is drawn at ${formatPt(smallest)}, below the ${formatPt(min)} minimum font size of ${minimumSource(context)}.`,
+        path: [...set.docPath, "label"],
+        subject: set.subject,
+        hint: scaled
+          ? SCALED_TEXT_HINT
+          : "Use a theme with a larger font size. Sumi does not shrink text below the profile's minimum.",
       });
     }
     return findings;
@@ -1923,4 +1940,6 @@ export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
   edgeTouchesLabel,
   aspectDistorted,
   reversedEdge,
+  setContainsNonMember,
+  setLabelCollision,
 ] as GeometryRule[]);

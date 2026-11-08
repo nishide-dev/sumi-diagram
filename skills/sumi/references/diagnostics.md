@@ -70,6 +70,7 @@ Apply one edit and re-check: independent savings are not additive.
 | `ref/unknown-endpoint` | edge `from`/`to` is not a node or group ID | use the hint's ID, or add the missing element if the content calls for it |
 | `ref/unknown-group` | `group:` names no group | add it under `groups:` or fix the ID |
 | `ref/duplicate-id` | two nodes/groups (or two edges) share an ID | rename one (nodes and groups share an ID space) |
+| `ref/unknown-set-member`, `ref/duplicate-set-member` | a `sets[].members` entry is not a node or group ID, or is listed twice | use the hint's ID; list each member once ([sets](structured.md#set-enclosures)) |
 | `ref/group-cycle` | groups contain each other | fix the `group:` chain |
 | `ref/reserved-id` | an ID of yours is one Sumi generates: `<group>-caption`, `<legend>-<n>-label` / `-box` / `-line` / `-start` / `-end`, `<tokens>-<cell>`, `<matrix>-<r>-<c>` / `-row-<r>` / `-col-<c>` / `-corner` | rename your element |
 | `ref/unknown-cell` | `<node>.<cell>` names no cell: not a `tokens` node, or no cell with that `id` (unnamed cells count from 1, across `lines`) | use the hint's cell ([tokens](structured.md#token-sequences)) |
@@ -140,7 +141,7 @@ Apply one edit and re-check: independent savings are not additive.
 | Code | Default | Fix |
 | --- | --- | --- |
 | `lint/empty-figure` | warning | add nodes |
-| `lint/no-edges` | warning | connect the nodes, or keep it if unconnected nodes are intended (say so); chat visuals do not require edges |
+| `lint/no-edges` | warning | connect the nodes, or keep it if unconnected nodes are intended (say so); chat visuals do not require edges; nodes in a set's `members` (or in a member group) are not counted |
 | `lint/ancestor-edge` | warning | connect elements both inside or both outside the group |
 | `lint/self-loop` | info | remove if unintended |
 | `lint/duplicate-edge` | warning | remove it or give it a different label |
@@ -205,6 +206,8 @@ written; errors make the exit code 1. Configure like structural rules
 | `geometry/edge-touches-label` | info | an edge passes within 1.5pt of a group title, caption or `label`: as `edge-crosses-label` |
 | `geometry/aspect-distorted` | warning | fewer edges on that `circle` / `square`, or `ellipse` / `box` |
 | `geometry/reversed-edge` | warning | ELK reversed an edge of a cycle (typically inside a group): swap the loop's nodes in `nodes`, or move it out of the group |
+| `geometry/set-contains-non-member` | warning | a set's outline covers a node that is not one of its `members` (its centre, or a quarter of its box, lies inside): add it, move it clear (`place` coordinates, gaps), or fit closer with `shape: hull` / `ellipse` or a smaller `padding` ([sets](structured.md#set-enclosures)) |
+| `geometry/set-label-collision` | warning | a set's label overlaps another label, a node, an edge's route or another set's boundary (a subset's label inside its superset is fine): change `labelAt`, shorten it, or move the sets apart |
 | `geometry/badge-collision` | warning | a badge touches labels, other bodies, badges, edges or the canvas edge (its own body may overlap): change the corner, increase gaps / margin; invalid badge icons: `asset/unknown-icon` at `badge.icon` |
 | `geometry/group-empty-area` | info | at least 75% of a group's frame lies outside its title and direct children (occupancy estimate; nested groups count fully; tokens/matrix/legend frames skipped; not counted in `maxWarnings`): consider `align: stretch` with inner `justify: stretch`, `justify: space-between`, smaller gaps, or do not stretch the panel; intentional whitespace needs no change |
 

@@ -4,6 +4,7 @@ import { expandChats } from "./chat";
 import { checkLayout } from "./layout";
 import { linkFigure } from "./link";
 import type { FigureDocument } from "./schema";
+import { checkSets } from "./sets";
 import { validateFigure } from "./validate";
 import { type Locator, parseYaml } from "./yaml";
 
@@ -54,6 +55,7 @@ export function checkFigureSource(text: string, options: CheckFigureOptions = {}
   expandChats(state, locate, value);
   linkFigure(state, locate);
   checkLayout(state, locate);
+  checkSets(state, locate);
   return { state, locate };
 }
 
@@ -106,6 +108,7 @@ function completeFigure(doc: PartialFigure): FigureDocument {
     groups: present(groups),
     nodes: present(nodes),
     edges: present(edges),
+    ...(doc.sets !== undefined && { sets: present(doc.sets) }),
     ...(doc.metadata !== undefined && { metadata: doc.metadata }),
   };
 }

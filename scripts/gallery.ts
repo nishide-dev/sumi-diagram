@@ -17,6 +17,7 @@
  * - every tone under every built-in theme (#92) → docs/gallery/tones/, and
  *   every tone as an outline and on edges (#177) → docs/gallery/tones/outlined.*
  * - a dimmed group under every built-in theme (#175) → docs/gallery/dim/
+ * - set enclosures under every built-in theme (#407) → docs/gallery/sets/
  * - `examples/transformer` (structured layout) under every built-in theme →
  *   docs/gallery/themes/ (#264)
  *
@@ -49,6 +50,7 @@ import {
   filledToneSample,
   GALLERY_DIR,
   outlinedToneSample,
+  setsSample,
   THEME_COMPARISON_EXAMPLE,
   themeComparison,
   toneSample,
@@ -78,6 +80,7 @@ const compare = comparison();
 const themeCompare = themeComparison();
 const tones = toneSample();
 const dim = dimSample();
+const sets = setsSample();
 const outlinedTones = outlinedToneSample();
 const filledTones = filledToneSample();
 
@@ -130,6 +133,9 @@ for (const rendering of tones.renderings) {
 for (const rendering of dim.renderings) {
   jobs.push({ file: dim.fileName, source: dim.source, rendering });
 }
+for (const rendering of sets.renderings) {
+  jobs.push({ file: sets.fileName, source: sets.source, rendering });
+}
 for (const rendering of outlinedTones.renderings) {
   jobs.push({ file: outlinedTones.fileName, source: outlinedTones.source, rendering });
 }
@@ -159,6 +165,7 @@ const model: GalleryModel = {
   },
   tones: { sample: tones, outcomes: take(tones.renderings.length) },
   dim: { sample: dim, outcomes: take(dim.renderings.length) },
+  sets: { sample: sets, outcomes: take(sets.renderings.length) },
   outlinedTones: { sample: outlinedTones, outcomes: take(outlinedTones.renderings.length) },
   filledTones: { sample: filledTones, outcomes: take(filledTones.renderings.length) },
 };
@@ -172,6 +179,7 @@ const strict: [string, RenderOutcome][] = [
   ...model.examples.map(({ source, outcome }): [string, RenderOutcome] => [source, outcome]),
   ...model.tones.outcomes.map((o): [string, RenderOutcome] => [`tones (${o.theme})`, o]),
   ...model.dim.outcomes.map((o): [string, RenderOutcome] => [`dim (${o.theme})`, o]),
+  ...model.sets.outcomes.map((o): [string, RenderOutcome] => [`sets (${o.theme})`, o]),
   ...model.filledTones.outcomes.map((o): [string, RenderOutcome] => [
     `filled tones (${o.theme})`,
     o,

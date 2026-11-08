@@ -129,6 +129,42 @@ export const GROUP_LABEL_POSITIONS = [
 export type GroupLabelPosition = (typeof GROUP_LABEL_POSITIONS)[number];
 
 /**
+ * Set enclosures (#407, design record 407): the shape fitted around the
+ * members. `circle` (the default) is the smallest circle around them and
+ * `ellipse` an axis-parallel ellipse up to three times wider than tall (or
+ * the reverse); both grow by the padding. `hull` is the convex hull of the
+ * members grown by the padding with round corners, and `rect` their bounding
+ * box grown by the padding with the theme's group corner radius.
+ */
+export const SET_SHAPES = ["circle", "ellipse", "hull", "rect"] as const;
+export type SetShape = (typeof SET_SHAPES)[number];
+
+/**
+ * Where a set's label sits, outside its outline: above, below, left or
+ * right of it (centred on that side), or beside one of its four diagonal
+ * extremes.
+ */
+export const SET_LABEL_POSITIONS = [
+  "top",
+  "top-right",
+  "right",
+  "bottom-right",
+  "bottom",
+  "bottom-left",
+  "left",
+  "top-left",
+] as const;
+export type SetLabelPosition = (typeof SET_LABEL_POSITIONS)[number];
+
+/**
+ * Paint of a set: `default` is a translucent tinted fill with a solid
+ * outline, `filled` the tint alone, `outlined` the outline alone and
+ * `dashed` the tint with a dashed outline.
+ */
+export const SET_VARIANTS = ["default", "filled", "outlined", "dashed"] as const;
+export type SetVariant = (typeof SET_VARIANTS)[number];
+
+/**
  * Where along its route an edge's label sits (#128, design doc §6.30): beside
  * the first segment (near `from`), the longest segment, or the last segment
  * (near `to`). Structured layout only.
@@ -823,6 +859,52 @@ export const EdgeSchema = z.strictObject({
   props: Props,
 });
 
+/**
+ * One entry of `sets` (#407): an enclosure drawn around nodes and groups
+ * that may overlap another set's. Membership is many to many and independent
+ * of the group tree: a node can be a member of several sets.
+ */
+export const SetSchema = z.strictObject({
+  id: Id.describe("Set ID (its own ID space, separate from nodes, groups and edges)."),
+  label: Label,
+  members: z
+    .array(Id)
+    .min(1)
+    .describe(
+      "IDs of the nodes and groups the set encloses (each listed once). A group stands for its whole frame; the nodes inside it are members too.",
+    ),
+  shape: z
+    .enum(SET_SHAPES)
+    .default("circle")
+    .describe(
+      "circle (default; the smallest circle around the members), ellipse (axis-parallel, up to 3:1), hull (rounded convex hull) or rect (rounded rectangle).",
+    ),
+  labelAt: z
+    .enum(SET_LABEL_POSITIONS)
+    .optional()
+    .describe(
+      "Where the label sits outside the outline: top, top-right, right, bottom-right, bottom, bottom-left, left or top-left. Omitted means top.",
+    ),
+  padding: LayoutLength.optional().describe(
+    "Room between the members and the outline. Omitted means the profile's group padding.",
+  ),
+  fillOpacity: z
+    .number()
+    .min(0)
+    .max(1)
+    .optional()
+    .describe(
+      "Opacity of the tinted fill (0..1) so that overlapping sets show through each other. Omitted means the variant's own (0.2 for default and dashed, 0.28 for filled).",
+    ),
+  variant: z
+    .enum(SET_VARIANTS)
+    .default("default")
+    .describe("default (tint and outline), filled (tint), outlined (outline) or dashed."),
+  tone: Tone.describe(
+    "Color category from the theme's palette: its line color draws the outline and the label and, at low opacity, the tint, in every theme. Omitted means gray.",
+  ),
+});
+
 export const FigureDocumentSchema = z
   .strictObject({
     version: z.literal(FIGURE_SCHEMA_VERSION),
@@ -833,6 +915,12 @@ export const FigureDocumentSchema = z
     groups: z.array(GroupSchema).prefault([]),
     nodes: z.array(NodeSchema).prefault([]),
     edges: z.array(EdgeSchema).prefault([]),
+    sets: z
+      .array(SetSchema)
+      .optional()
+      .describe(
+        "Set enclosures (#407): translucent shapes around nodes and groups that may overlap, for Venn diagrams and hyperedges. Structured layout only; they are drawn below the nodes and edges and take no space in the arrange trees.",
+      ),
     metadata: JsonValue.optional().describe("Arbitrary JSON-compatible data; not interpreted."),
   })
   .meta({ title: "Sumi figure (schema v1)" });
@@ -851,4 +939,5 @@ export type FigureNode = z.output<typeof NodeSchema>;
 /** `nodes[].labelRotation` (#178): degrees, positive clockwise as in SVG's `rotate()`. */
 export type LabelRotation = NonNullable<FigureNode["labelRotation"]>;
 export type FigureEdge = z.output<typeof EdgeSchema>;
+export type FigureSet = z.output<typeof SetSchema>;
 export type JsonValue = z.output<typeof JsonValue>;

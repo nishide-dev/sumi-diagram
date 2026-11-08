@@ -86,6 +86,10 @@ const model: GalleryModel = {
     sample: { fileName: "dim.sumi.yaml", source: "# ``` fence\nversion: 1\n", renderings: [] },
     outcomes: [outcome({ diagnostics: [{ code: "x/y", severity: "warning", message: NASTY }] })],
   },
+  sets: {
+    sample: { fileName: "sets.sumi.yaml", source: "# ``` fence\nversion: 1\n", renderings: [] },
+    outcomes: [outcome()],
+  },
   outlinedTones: {
     sample: { fileName: "outlined.sumi.yaml", source: "# ``` fence\nversion: 1\n", renderings: [] },
     outcomes: [outcome()],
@@ -122,6 +126,7 @@ describe("Markdown escaping", () => {
       "solid-and-tinted-tones",
       "outlined-tones-and-edge-tones",
       "dimmed-groups",
+      "set-enclosures",
       "profiles",
       "one-figure-every-theme--profile",
     ]) {
@@ -164,13 +169,14 @@ describe("Markdown escaping", () => {
 
   test("the page contains no injected HTML or table cells", () => {
     const pages = galleryMarkdownPages(model);
-    // The index, the component's page and the five topic pages.
+    // The index, the component's page and the six topic pages.
     expect([...pages.keys()].sort()).toEqual([
       "docs/gallery/README.md",
       "docs/gallery/compare.md",
       "docs/gallery/components/sumi-box.md",
       "docs/gallery/dim.md",
       "docs/gallery/examples.md",
+      "docs/gallery/sets.md",
       "docs/gallery/themes.md",
       "docs/gallery/tones.md",
     ]);

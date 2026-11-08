@@ -65,6 +65,8 @@ import {
   type Rect,
   roundRect,
   roundUnits,
+  type SetLayout,
+  type SetOutline,
   type TextLayout,
   type TextMetrics,
 } from "../ir";
@@ -80,6 +82,7 @@ import {
 } from "./align";
 import { verifiedAlignHints } from "./align-hint";
 import { chatGeometry } from "./chat";
+import { fitSets } from "./sets";
 import { nodeLabelCenter, nodeSize, type Size, stretchableShape } from "./sizing";
 
 /** The engine name recorded in the Layout IR. */
@@ -939,8 +942,24 @@ class StructuredLayout {
       }
     }
 
+    // Set enclosures (#407) are fitted around the placed members; the canvas holds them and their labels.
+    const fitted = fitSets(this.#ir, (key) => this.#rect(key), this.#measurer, this.#groupPadding);
+    const setBoxes = fitted.flatMap(({ rect, label }) => [
+      rect,
+      ...(label === undefined
+        ? []
+        : [
+            {
+              x: label.center.x - label.metrics.width / 2,
+              y: label.center.y - label.metrics.height / 2,
+              width: label.metrics.width,
+              height: label.metrics.height,
+            },
+          ]),
+    ]);
     const all = [
       ...this.#rects.values(),
+      ...setBoxes,
       ...this.#ir.nodes.flatMap((node) => {
         const box = badgeRect(node, this.#rect(node.key));
         return box === undefined ? [] : [box];
@@ -1000,6 +1019,41 @@ class StructuredLayout {
       };
     });
     const content = shift({ x: minX, y: minY, width: maxX - minX, height: maxY - minY });
+    const shiftPoint = (p: Point): Point => ({ x: roundUnits(p.x + dx), y: roundUnits(p.y + dy) });
+    const sets: SetLayout[] = fitted.map(({ set, outline, rect, label }) => {
+      const placed: SetOutline =
+        outline.kind === "ellipse"
+          ? {
+              kind: "ellipse",
+              cx: shiftPoint({ x: outline.cx, y: outline.cy }).x,
+              cy: shiftPoint({ x: outline.cx, y: outline.cy }).y,
+              rx: roundUnits(outline.rx),
+              ry: roundUnits(outline.ry),
+            }
+          : outline.kind === "rect"
+            ? { kind: "rect", rect: shift(outline.rect), radius: roundUnits(outline.radius) }
+            : {
+                kind: "path",
+                segments: outline.segments.map((s) =>
+                  s.command === "C"
+                    ? {
+                        command: "C",
+                        c1: shiftPoint(s.c1),
+                        c2: shiftPoint(s.c2),
+                        to: shiftPoint(s.to),
+                      }
+                    : { command: s.command, to: shiftPoint(s.to) },
+                ),
+              };
+      return {
+        id: set.id,
+        outline: placed,
+        rect: shift(rect),
+        ...(label !== undefined && {
+          label: shiftText(placeText(label.metrics, label.center)),
+        }),
+      };
+    });
     return deepFreeze({
       engine: STRUCTURED_ENGINE,
       canvas: {
@@ -1011,6 +1065,7 @@ class StructuredLayout {
       groups,
       nodes,
       edges,
+      ...(sets.length > 0 && { sets }),
     });
   }
 

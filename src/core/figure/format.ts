@@ -20,7 +20,7 @@
  * by the YAML library (e.g. `!!int 123`, `!!str "123"`).
  *
  * With `canonicalOrder`, the known keys of the root, `figure`,
- * `figure.layout`, groups, nodes, edges, `attach` and the stack / row boxes of
+ * `figure.layout`, groups, nodes, edges, sets, `attach` and the stack / row boxes of
  * arrange trees are put in Figure Schema field order (unknown keys follow in
  * their original order; `props` and `metadata` are left alone). This is
  * meaning-preserving but moves lines around, so it is opt-in.
@@ -55,6 +55,7 @@ import {
   LayoutFieldsSchema,
   NodeSchema,
   PlaceSchema,
+  SetSchema,
   StackSchema,
 } from "./schema";
 import { parseYaml, YAML_PARSE_OPTIONS } from "./yaml";
@@ -91,6 +92,7 @@ const KEY_ORDER = {
   group: Object.keys(GroupSchema.shape),
   node: Object.keys(NodeSchema.shape),
   edge: Object.keys(EdgeSchema.shape),
+  set: Object.keys(SetSchema.shape),
   /** `stack` and `row` share the field order. */
   box: Object.keys(StackSchema.shape),
   grid: Object.keys(GridSchema.shape),
@@ -186,6 +188,7 @@ function reorderDocument(contents: unknown): void {
     ["groups", KEY_ORDER.group],
     ["nodes", KEY_ORDER.node],
     ["edges", KEY_ORDER.edge],
+    ["sets", KEY_ORDER.set],
   ] as const) {
     const list = contents.get(field, true);
     if (!isSeq(list)) continue;

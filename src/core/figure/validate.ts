@@ -32,6 +32,7 @@ import {
   NodeSchema,
   ONE_OF_ISSUE,
   REF_PATTERN,
+  SetSchema,
 } from "./schema";
 import type { Locator } from "./yaml";
 
@@ -53,6 +54,8 @@ const COLLECTIONS = [
       return edgeKey(id, index);
     },
   },
+  // Sets (#407) have no element key: an invalid one is left out of the document.
+  { name: "sets", schema: SetSchema, key: () => undefined },
 ] as const;
 
 /** Runs the `schema` stage on the plain YAML data. */
@@ -147,7 +150,7 @@ export function validateFigure(state: CheckState, raw: unknown, locate: Locator)
   for (const { name, schema, key } of COLLECTIONS) {
     const list = raw[name];
     if (list === undefined) {
-      doc[name] = [];
+      if (name !== "sets") doc[name] = [];
       continue;
     }
     if (!Array.isArray(list)) {
