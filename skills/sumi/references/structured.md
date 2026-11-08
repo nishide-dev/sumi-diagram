@@ -1039,8 +1039,9 @@ changes it.
 **Layout** (since 0.16.0): `flow: column` (default, one entry per line) or
 `flow: row` (the entries side by side; `perRow: 3` wraps after 3 per line, row only).
 An entry's `heading: "Entity:"` starts a group: the heading is drawn at the start of
-its own line (a row: before the group's first entry) and the following entries
-without a heading belong to it. `labelAt: left` puts an entry's text before its
+its own line (a row: in one table column, as wide as the widest heading, with the
+group's lines, wrapped ones included, starting at one x beside it) and the following
+entries without a heading belong to it. `labelAt: left` puts an entry's text before its
 sample (Paper followed by its icon). One legend can hold a whole paper key at the bottom:
 
 ```yaml

@@ -450,6 +450,8 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
       props: {},
       group: node.id,
     });
+    const flow = (component.props.flow as "column" | "row" | undefined) ?? "column";
+    const perRow = component.props.perRow as number | undefined;
     // The groups of entries (#409): a heading starts a new one.
     const sections: { heading?: string; items: ArrangeItem[] }[] = [{ items: [] }];
     for (const [j, entry] of entries.entries()) {
@@ -461,7 +463,11 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
       const label = matrixClass?.label ?? entry.label ?? "";
       if (entry.heading !== undefined) {
         addNode(
-          { ...partNode(ids.heading, "sumi/label", "default"), label: entry.heading, textAlign },
+          {
+            ...partNode(ids.heading, "sumi/label", "default"),
+            label: entry.heading,
+            textAlign,
+          },
           [...entryPath, "heading"],
           `the heading ${of}`,
         );
@@ -612,10 +618,10 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
     }
     // The lines (#409): a column is one entry per line, with each heading on a line of its
     // own; a row is the entries of a group side by side, wrapping after `perRow` of them,
-    // the heading leading the first line of its group.
-    const flow = (component.props.flow as "column" | "row" | undefined) ?? "column";
-    const perRow = component.props.perRow as number | undefined;
+    // the heading beside the lines of its group.
     const rows: ArrangeItem[] = [];
+    // Headed groups of a row legend (heading, lines), laid out as the rows of one table.
+    const table: ArrangeItem[] = [];
     for (const section of sections) {
       if (flow === "column") {
         if (section.heading !== undefined) rows.push(section.heading);
@@ -623,16 +629,32 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
         continue;
       }
       const lineLength = perRow ?? Math.max(1, section.items.length);
+      const lines: ArrangeItem[] = [];
       for (let start = 0; start < section.items.length; start += lineLength) {
-        const chunk = section.items.slice(start, start + lineLength);
-        const [first, ...rest] = chunk;
-        if (first === undefined) continue;
-        const lead =
-          start === 0 && section.heading !== undefined
-            ? row(sizes.textGap, [section.heading, first])
-            : first;
-        rows.push(row(sizes.entryGap, [lead, ...rest]));
+        lines.push(row(sizes.entryGap, section.items.slice(start, start + lineLength)));
       }
+      if (lines.length === 0) continue;
+      if (section.heading === undefined) {
+        rows.push(...lines);
+        continue;
+      }
+      // The heading goes beside all the lines of its group, which start under the first entry.
+      // A grid keeps the headings of all groups in one column, as wide as the widest.
+      const block: ArrangeBox = {
+        stack: { direction: "down", gap: sizes.rowGap, align: "start", items: lines },
+      };
+      table.push(section.heading, block);
+    }
+    if (table.length > 0) {
+      rows.push({
+        grid: {
+          columns: 2,
+          columnGap: sizes.textGap,
+          rowGap: sizes.rowGap,
+          align: "start",
+          items: table,
+        },
+      });
     }
     // The frame takes the legend node's place: its ID, parent and position.
     const frame: FigureGroup = {

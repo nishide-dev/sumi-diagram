@@ -167,14 +167,23 @@ describe("layout", () => {
       "{ heading: 'Other:', node: {}, label: c }",
     );
     const rows = stackItems(figure(`      flow: row\n${grouped}`));
-    expect(rows).toHaveLength(2);
-    expect(JSON.stringify(rows[0])).toContain("key-1-heading");
-    expect(JSON.stringify(rows[1])).toContain("key-3-heading");
+    // One table of heading and lines: the headings share a column.
+    expect(rows).toHaveLength(1);
+    const grid = (rows[0] as { grid: { columns: number; items: unknown[] } }).grid;
+    expect(grid.columns).toBe(2);
+    expect(grid.items).toHaveLength(4);
+    expect(grid.items[0]).toBe("key-1-heading");
+    expect(grid.items[2]).toBe("key-3-heading");
     const column = stackItems(figure(grouped));
     // heading, a, b, heading, c
     expect(column).toHaveLength(5);
     expect(column[0]).toBe("key-1-heading");
     expect(column[3]).toBe("key-3-heading");
+  });
+
+  test("a row legend without headings has no table", () => {
+    const items = stackItems(figure(`      flow: row\n      perRow: 2\n${entries(...labels)}`));
+    expect(JSON.stringify(items)).not.toContain("grid");
   });
 
   test("labelAt: left puts the text before the sample", () => {

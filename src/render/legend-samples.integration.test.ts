@@ -98,6 +98,32 @@ describe("every theme", () => {
   }
 });
 
+describe("headed groups", () => {
+  test("entries of every group start at one x, and wrapped lines under the first entry", async () => {
+    const result = await renderFigure(source("color"));
+    if (!result.ok) throw new Error("render failed");
+    const { elements } = result.value.inspection;
+    const fonts = getFontSet(result.value.compiled.ir.meta.fontSetId);
+    if (fonts === undefined) throw new Error("no font set");
+    const left = (key: string) => {
+      const geometry = elements.find((e) => e.key === key);
+      const label = geometry?.labels[0];
+      const box = geometry?.bbox ?? (label && (measureLabel(label, fonts).box as Rect));
+      if (box === undefined) throw new Error(`no x of ${key}`);
+      return box.x;
+    };
+    // Entries 1 (Entity), 2 (Paper's wrap: Title) ... : source() has groups
+    // Entity (icons 1-3), Feature (4-5) and Pairs (6-8); perRow 2 wraps the first.
+    const first = left("n:key-1-label");
+    const wrapped = left("n:key-3-label");
+    expect(wrapped).toBeCloseTo(first, 0);
+    expect(left("n:key-4-label")).toBeCloseTo(first, 0);
+    // The headings share the left edge, and the entries sit right of the widest.
+    expect(left("n:key-1-heading")).toBeCloseTo(left("n:key-4-heading"), 0);
+    expect(first).toBeGreaterThan(left("n:key-1-heading") + 20);
+  });
+});
+
 describe("formats", () => {
   test("the SVG draws the glyph of a sample like that of a node, centered in its box", async () => {
     const result = await renderFigure(source("paper"));
@@ -127,5 +153,12 @@ describe("formats", () => {
     if (!withIcons.ok) throw new Error("render failed");
     const refused = svgToEditablePptx(withIcons.value.svg, withIcons.value.compiled.ir);
     expect(refused.diagnostics.map((d) => d.code)).toContain("pptx/unsupported-asset");
+    // The message names the legend entry, not the hidden sample node.
+    const icon = refused.diagnostics.find((d) => d.message.includes("entry 1"));
+    expect(icon?.message).toBe(
+      'The editable PPTX cannot carry the icon of entry 1 of legend "key" yet.',
+    );
+    expect(icon?.path).toEqual(["nodes", 3, "props", "entries", 0, "icon"]);
+    expect(icon?.subject).toEqual({ kind: "node", id: "key" });
   });
 });
