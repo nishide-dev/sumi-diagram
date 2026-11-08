@@ -317,7 +317,7 @@ their own `properties`, `enum`, `const` and `anyOf`.
   stand out. `junction` takes no `tone`; connect into it with `line` (an arrowhead
   would cover the dot); `variant: hidden` draws no dot (lines meet smoothly; only
   where no other line crosses nearby) and an arrow into it ends in open space.
-- **`bubble`** (since 0.16.0): a generously rounded speech bubble / callout.
+- **`bubble`** (since 0.15.2): a generously rounded speech bubble / callout.
   `props.tail: left | right | top | bottom | none` (default `none`);
   `tailAt: start | center | end | <length>` (default `start`, `0` allowed).
   Positions run from the body's top on left/right or left on top/bottom and

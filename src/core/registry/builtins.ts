@@ -67,7 +67,7 @@ const noProps = z.strictObject({});
 const bubble: NodeManifest = {
   version: MANIFEST_VERSION,
   namespace: BUILTIN_NAMESPACE,
-  since: "0.16.0",
+  since: "0.15.2",
   kind: "node",
   name: "bubble",
   description:

@@ -8,7 +8,7 @@ SVG → PDF／picture PPTX と editable PPTX の共通化を踏襲する。
 
 ## 決定
 
-- `sumi/bubble`、`since: 0.16.0`。auto（D2/ELK）と structured の両方に対応する。
+- `sumi/bubble`、`since: 0.15.2`。auto（D2/ELK）と structured の両方に対応する。
   variants は一般の塗れる形と同じ `default / emphasis / muted / filled / outlined / solid / tinted`。
   全組み込みテーマで定義する。default は白地の枠、filled と solid は枠なし。
   tone は既存の塗り／線／濃い塗りの解決をそのまま使う。
