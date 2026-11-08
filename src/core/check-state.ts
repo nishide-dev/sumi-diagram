@@ -106,6 +106,8 @@ export interface ExpandedPaint {
   readonly hatch?: true;
   /** The text in the tone's line color (`toneLines`) instead of the fill (#180). */
   readonly toneText?: true;
+  /** No fill and no outline: the empty body of a glyph or set sample in a legend (#409). */
+  readonly bare?: true;
 }
 
 /** Where an expanded element (see {@link PartialFigure.expanded}) is written. */

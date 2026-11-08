@@ -41,6 +41,8 @@ export interface GalleryModel {
   glyphs: { sample: ToneSample; outcomes: RenderOutcome[] };
   /** Set enclosures under every theme (#407). */
   sets: { sample: ToneSample; outcomes: RenderOutcome[] };
+  /** Legend entries with icon, glyph, edge and set samples under every theme (#409). */
+  legends: { sample: ToneSample; outcomes: RenderOutcome[] };
   /** Every tone as an outline and on edges under every theme (#177). */
   outlinedTones: { sample: ToneSample; outcomes: RenderOutcome[] };
   filledTones: { sample: ToneSample; outcomes: RenderOutcome[] };
@@ -313,6 +315,14 @@ const SETS_NOTE =
   "place the members with `place` and leave room for the outline and label. A node inside the " +
   "outline that is not a member is reported (`geometry/set-contains-non-member`).";
 
+const LEGENDS_NOTE =
+  "A `legend` entry takes one sample: an `edge` (a line with its dash, tone and arrowheads, e.g. " +
+  "`double-arrow` for a pair), a `node` box, an `icon`, a `glyph` (a feature vector, dot or pill with " +
+  "the fields of a node glyph) or a `set` swatch painted like a set enclosure. `flow: row` puts the " +
+  "entries on a line (`perRow` wraps them), `heading` starts a group on its own line, and `labelAt: " +
+  "left` puts the text before the sample. Every sample is drawn by the same theme rules as what it " +
+  "explains, so no colors are written.";
+
 const OUTLINED_TONES_NOTE =
   "With `variant: outlined` a tone colors the outline and the text of a node instead of its fill " +
   "(left column; without a tone, tone gray's). An edge's `tone` colors its line, arrowheads and " +
@@ -402,7 +412,7 @@ export function galleryHtml(model: GalleryModel): string {
 <main>
 <h1>Sumi component gallery</h1>
 <p class="note">${inlineCode(GENERATED_NOTE)}</p>
-<nav aria-label="Contents"><ul><li><a href="#components">Components</a></li><li><a href="#examples">Examples</a></li><li><a href="#themes">Themes</a></li><li><a href="#tones">Tones</a></li><li><a href="#dim">Dimmed groups</a></li><li><a href="#glyphs">Node glyphs</a></li><li><a href="#sets">Set enclosures</a></li><li><a href="#comparison">Profiles</a></li></ul><ul>${toc}</ul></nav>
+<nav aria-label="Contents"><ul><li><a href="#components">Components</a></li><li><a href="#examples">Examples</a></li><li><a href="#themes">Themes</a></li><li><a href="#tones">Tones</a></li><li><a href="#dim">Dimmed groups</a></li><li><a href="#glyphs">Node glyphs</a></li><li><a href="#sets">Set enclosures</a></li><li><a href="#legends">Legend samples</a></li><li><a href="#comparison">Profiles</a></li></ul><ul>${toc}</ul></nav>
 
 <h2 id="components">Components</h2>
 <p class="note">${inlineCode(`Every built-in component with every variant, under every built-in theme (profile \`${model.components[0]?.outcomes[0]?.profile ?? ""}\`). Each sample is the source shown below it; the other themes are rendered from the same source with \`--theme\`.`)}</p>
@@ -432,6 +442,9 @@ ${htmlTones(model.glyphs, GLYPHS_NOTE, "node glyphs")}
 
 <h2 id="sets">Set enclosures</h2>
 ${htmlTones(model.sets, SETS_NOTE, "set enclosures")}
+
+<h2 id="legends">Legend samples</h2>
+${htmlTones(model.legends, LEGENDS_NOTE, "legend samples")}
 
 <h2 id="comparison">Profiles</h2>
 ${profilesTable()}
@@ -614,6 +627,11 @@ const TOPICS = [
     "Overlapping translucent sets around nodes, for Venn diagrams and hyperedges, under every theme.",
   ],
   [
+    "legend-samples.md",
+    "Legend samples",
+    "Legend entries with icon, glyph, edge and set samples in rows under headings, under every theme.",
+  ],
+  [
     "compare.md",
     "Profiles and comparison",
     "The built-in profiles, and one figure under every theme and profile.",
@@ -760,6 +778,20 @@ function mdSets(model: GalleryModel): string {
   ]);
 }
 
+function mdLegends(model: GalleryModel): string {
+  return mdTopic("Legend samples", undefined, [
+    mdInline(LEGENDS_NOTE),
+    "",
+    ...mdThemeRow(
+      model.legends.outcomes,
+      model.legends.sample.fileName,
+      (o) => `legend samples, theme ${o.theme}`,
+      GALLERY_DIR,
+    ),
+    ...mdSource(model.legends.sample.fileName, model.legends.sample.source),
+  ]);
+}
+
 function mdCompare(model: GalleryModel): string {
   const lines = [
     "## Profiles",
@@ -811,6 +843,7 @@ function mdIndex(model: GalleryModel): string {
     "dim.md": ["Dimmed groups"],
     "glyphs.md": ["Node glyphs"],
     "sets.md": ["Set enclosures"],
+    "legend-samples.md": ["Legend samples"],
     "compare.md": ["Profiles", "One figure, every theme × profile"],
   };
   return [
@@ -869,6 +902,7 @@ export function galleryMarkdownPages(model: GalleryModel): Map<string, string> {
   pages.set(`${GALLERY_DIR}/dim.md`, mdDim(model));
   pages.set(`${GALLERY_DIR}/glyphs.md`, mdGlyphs(model));
   pages.set(`${GALLERY_DIR}/sets.md`, mdSets(model));
+  pages.set(`${GALLERY_DIR}/legend-samples.md`, mdLegends(model));
   pages.set(`${GALLERY_DIR}/compare.md`, mdCompare(model));
   return pages;
 }

@@ -133,6 +133,8 @@ feature vector a paper figure draws at the corner of an icon:
   edges (also a glyph on the side an edge leaves), its own text or canvas
   clipping; an own icon may be touched. `legend`, `tokens`, `matrix`, `bracket`
   and point junctions cannot carry glyphs (`component/glyph-unsupported`).
+  `at: center` puts a glyph on the middle of the body (covering a label is reported); a
+  [legend](structured.md#legends) entry's `glyph` sample takes the same fields.
 
 ## File images
 

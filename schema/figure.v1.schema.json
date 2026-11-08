@@ -443,9 +443,10 @@
                 },
                 "at": {
                   "default": "north-east",
-                  "description": "Where the glyph's center lies on the node's body: a corner or the middle of a side. Omitted means north-east.",
+                  "description": "Where the glyph's center lies on the node's body: a corner, the middle of a side or the center. Omitted means north-east.",
                   "type": "string",
                   "enum": [
+                    "center",
                     "north",
                     "north-east",
                     "east",

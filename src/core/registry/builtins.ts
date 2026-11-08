@@ -5,8 +5,16 @@
  */
 
 import { z } from "zod";
+import { ICON_REF_MAX_LENGTH, ICON_REF_PATTERN } from "../../assets/icon-ref";
 import { didYouMean } from "../diagnostics";
-import { ARRANGE_ALIGNS, ID_PATTERN, LayoutLength } from "../figure/schema";
+import {
+  ARRANGE_ALIGNS,
+  checkGlyph,
+  glyphShape,
+  ID_PATTERN,
+  LayoutLength,
+  SET_VARIANTS,
+} from "../figure/schema";
 import { TONE_NAMES } from "../theme/tones";
 import { SizeLength } from "./length";
 import {
@@ -513,12 +521,63 @@ const legendEntry = z
       .describe(
         "Draws the sample box of a class of a matrix, as <matrix>.<class>, e.g. mask.o: the class's tone, variant and hatch pattern. The label defaults to the class's label.",
       ),
+    icon: z
+      .string()
+      .max(ICON_REF_MAX_LENGTH)
+      .regex(ICON_REF_PATTERN)
+      .optional()
+      .describe(
+        "Draws a bundled icon as the sample, as a node's icon, e.g. tabler/file-text (text color) or emoji/fire. It is one text line tall.",
+      ),
+    glyph: glyphShape
+      .omit({ at: true, dx: true, dy: true })
+      .superRefine(checkGlyph)
+      .optional()
+      .describe(
+        "Draws a small glyph as the sample, with the fields of a node's glyph (kind, tone, tones, strength, cells, direction, size, width, outline): a feature vector, a dot or a pill.",
+      ),
+    set: z
+      .strictObject({
+        variant: z
+          .enum(SET_VARIANTS)
+          .optional()
+          .describe(
+            "default (tint and outline), filled (tint), outlined (outline) or dashed, as on a set. Omitted means default.",
+          ),
+        tone: z
+          .enum(TONE_NAMES)
+          .optional()
+          .describe("The tone of the swatch, as on a set. Omitted means gray."),
+        fillOpacity: z
+          .number()
+          .min(0)
+          .max(1)
+          .optional()
+          .describe("Opacity of the tinted fill (0..1), as on a set. Omitted means the variant's."),
+      })
+      .optional()
+      .describe(
+        "Draws a small translucent rectangle as the sample, painted like a set enclosure of the same variant and tone.",
+      ),
+    heading: z
+      .string()
+      .min(1)
+      .optional()
+      .describe(
+        "Starts a group of entries under this heading (math allowed): the heading is drawn at the start of its own line, before this entry, and the entries after it belong to it until the next heading.",
+      ),
+    labelAt: z
+      .enum(["right", "left"])
+      .optional()
+      .describe(
+        "Which side of the sample the text sits on: right (default) or left, e.g. Paper followed by its icon.",
+      ),
     label: z
       .string()
       .min(1)
       .optional()
       .describe(
-        "What the sample means, drawn to its right (a label; math allowed). Required, except that a class entry defaults to its class's label.",
+        "What the sample means, drawn beside it (a label; math allowed). Required, except that a class entry defaults to its class's label.",
       ),
   })
   .superRefine((entry, ctx) => {
@@ -531,11 +590,13 @@ const legendEntry = z
       });
       return;
     }
-    const kinds = [entry.edge, entry.node, entry.class].filter((k) => k !== undefined).length;
+    const kinds = [entry.edge, entry.node, entry.class, entry.icon, entry.glyph, entry.set].filter(
+      (k) => k !== undefined,
+    ).length;
     if (kinds !== 1) {
       ctx.addIssue({
         code: "custom",
-        message: 'an entry needs exactly one of "edge", "node" or "class"',
+        message: 'an entry needs exactly one of "edge", "node", "class", "icon", "glyph" or "set"',
       });
     }
   });
@@ -546,17 +607,41 @@ const legend: NodeManifest = {
   kind: "node",
   name: "legend",
   description:
-    "A key that explains line and fill styles: one sample line or box per entry, drawn with the same fields as the edges or nodes it explains, followed by its text (structured layout only).",
+    "A key that explains styles: one sample per entry (a line, a box, an icon, a glyph such as a feature vector, or a set swatch), drawn with the same fields as the edges, nodes, glyphs or sets it explains, beside its text; in a column, a row or rows, with optional group headings (structured layout only).",
   variants: ["default", "plain"],
-  props: z.strictObject({
-    entries: z
-      .array(legendEntry)
-      .min(1)
-      .max(LEGEND_MAX_ENTRIES)
-      .describe(
-        "The entries, top to bottom. Each has edge (a sample line), node (a sample box) or class (the sample box of a matrix class), and a label.",
-      ),
-  }),
+  props: z
+    .strictObject({
+      entries: z
+        .array(legendEntry)
+        .min(1)
+        .max(LEGEND_MAX_ENTRIES)
+        .describe(
+          "The entries, in order. Each has one sample: edge (a line), node (a box), class (the sample box of a matrix class), icon, glyph or set; and a label. An entry may start a group with a heading.",
+        ),
+      flow: z
+        .enum(["column", "row"])
+        .optional()
+        .describe(
+          "column (default): one entry per line, top to bottom. row: the entries side by side on one line (see perRow for several lines). A heading always starts a new line.",
+        ),
+      perRow: z
+        .int()
+        .min(1)
+        .max(LEGEND_MAX_ENTRIES)
+        .optional()
+        .describe(
+          "With flow: row, the most entries on a line before it wraps; each group wraps by itself. Omitted means no wrapping.",
+        ),
+    })
+    .superRefine((props, ctx) => {
+      if (props.perRow !== undefined && props.flow !== "row") {
+        ctx.addIssue({
+          code: "custom",
+          path: ["perRow"],
+          message: "perRow needs flow: row; a column has one entry per line",
+        });
+      }
+    }),
   shape: "rectangle",
   sizing: "auto",
   engines: ["structured"],

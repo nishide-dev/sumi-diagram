@@ -134,6 +134,7 @@ describe("glyph geometry", () => {
     "south-west": [100, 90],
     west: [100, 70],
     "north-west": [100, 50],
+    center: [140, 70],
   } as const;
   for (const at of GLYPH_POSITIONS) {
     test(`${at}: the footprint is centered on the body's anchor`, () => {
