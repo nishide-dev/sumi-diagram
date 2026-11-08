@@ -76,7 +76,7 @@ stops with one `schema/unsatisfied-requires` instead of a list of unknown fields
 | 0.10.0 | inline SVG images, `waveform`, `bracket`, whole-sequence `tokens` edges, matrix text and ellipsis cells |
 | 0.11.0 | `html` component |
 | 0.12.0 | `separator`, `figure.assets` with `crop` and tokens image cells, operator `size`, grid hints, width-overflow breakdown |
-| 0.16.0 | `sets`: overlapping enclosures for Venn diagrams and hyperedges; node `glyphs`; `legend` samples `icon` / `glyph` / `set`, `flow`, `perRow`, `heading`, `labelAt`; node `iconSize` (and a legend `icon` entry's) sizes an icon without an enclosing shape |
+| 0.16.0 | `sets`: overlapping enclosures for Venn diagrams and hyperedges; node `glyphs`; `legend` samples `icon` / `glyph` / `set`, `flow`, `perRow`, `heading`, `labelAt`; node `iconSize` (and a legend `icon` entry's) sizes an icon without an enclosing shape; `block-arrow`, `triangle-arrow`, `chevron` flow markers |
 
 ## IDs
 
@@ -340,6 +340,17 @@ their own `properties`, `enum`, `const` and `anyOf`.
   the usual tones; other shape variants also work. Both layouts and SVG,
   PDF, picture and editable PPTX use one closed path, without a tail seam.
   The component takes text; use separate `image` nodes for pictures.
+- **`block-arrow`, `triangle-arrow`, `chevron`** (since 0.16.0, structured only): a
+  flow marker placed in a row or stack between stages, not an edge: a thick arrow
+  (1.6 em long, 1 em thick), a solid triangle (0.9 em) or a chevron (0.7 em), in
+  the theme's ink with no outline. `props.direction: right | left | up | down`
+  (default `right`), `length` (along the arrow, whichever way it points) and
+  `thickness`; `block-arrow` `head` (head length, a fraction of the shorter side,
+  default 0.5) and `shaft` (fraction of the thickness, 0.5); `chevron` `head`
+  (depth of the tip). Variants `default` (ink), `muted` (gray), `outlined`;
+  `tone` colours it. No label, sublabel, badge, glyphs or `grow`, and never an
+  edge endpoint (`component/flow-arrow-connection`). Editable PPTX uses the
+  `rightArrow`, `triangle` and `chevron` presets. See [flow arrows](structured.md#flow-arrows).
 - `image` (PNG, JPEG, SVG file, inline SVG or shared asset), `icon: tabler/<name>`
   / `emoji/<name>` replacing a label, `badge`, `props.layers`: [assets](assets.md).
   `html` (restricted HTML card): [html](html.md).
@@ -368,7 +379,7 @@ their own `properties`, `enum`, `const` and `anyOf`.
   ```
 
 - Structured-only components (the catalog marks `"engines": ["structured"]`):
-  `legend`, `tokens`, `matrix`, `bracket`, `separator`, edge `zoom`: see
+  `legend`, `tokens`, `matrix`, `bracket`, `separator`, `block-arrow`, `triangle-arrow`, `chevron`, edge `zoom`: see
   [structured](structured.md). Components without `engines` work in both.
 
 **Catalog render metadata.** A node manifest may carry a `render` block that `catalog

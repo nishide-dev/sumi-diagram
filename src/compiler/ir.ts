@@ -706,6 +706,23 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
                     points: component.props.points,
                   }),
                 }),
+                ...(component.manifest.render.renderer === "sumi/flow-arrow" && {
+                  // Lengths are D2 units; the default size is a multiple of the text size.
+                  em: style.fontSize.units,
+                  ...(typeof component.props.direction === "string" && {
+                    direction: component.props.direction,
+                  }),
+                  ...(typeof component.props.length === "number" && {
+                    length: component.props.length * 2,
+                  }),
+                  ...(typeof component.props.thickness === "number" && {
+                    thickness: component.props.thickness * 2,
+                  }),
+                  ...(typeof component.props.head === "number" && { head: component.props.head }),
+                  ...(typeof component.props.shaft === "number" && {
+                    shaft: component.props.shaft,
+                  }),
+                }),
                 ...(component.manifest.render.renderer === "sumi/trapezoid" &&
                   typeof component.props.narrow === "string" &&
                   component.props.narrow !== "south" && { narrow: component.props.narrow }),

@@ -160,6 +160,20 @@ function componentStyles(styles: VariantStyles): NonNullable<ThemeDefinition["co
       muted: shape.muted,
       outlined: shape.outlined,
     },
+    // Flow markers (#426): the default is the ink with no outline (resolveStyle),
+    // muted a gray fill, outlined an outline only.
+    ...Object.fromEntries(
+      ["block-arrow", "triangle-arrow", "chevron"].map((name) => [
+        name,
+        {
+          muted: {
+            fill: shape.muted.stroke ?? "{color.muted}",
+            stroke: shape.muted.stroke ?? "{color.muted}",
+          },
+          outlined: shape.outlined,
+        },
+      ]),
+    ),
     separator: {
       default: { fill: "transparent", strokeDash: "{dash.regular}" },
       dashed: { fill: "transparent", strokeDash: "{dash.regular}" },
