@@ -2,6 +2,7 @@
 
 import { edgeKey, nodeKey } from "../../core/check-state";
 import type { DiagnosticSubject } from "../../core/diagnostics";
+import { chatKeys } from "../../core/figure/chat";
 import { parseAnchor } from "../../core/figure/layout";
 import { SEPARATOR_ID } from "../../core/registry/builtins";
 import { defineRule, type LintContext, type LintFinding, type ValidElement } from "../rule";
@@ -49,9 +50,13 @@ export const noEdges = defineRule({
     // Invalid nodes already have errors; count only the valid ones, and not
     // the captions of groups (#130) or the parts of legends (#131). The
     // cells of tokens nodes (#181) are the author's nodes.
+    const chatNodes = new Set(
+      (context.state.doc.chats ?? []).flatMap((chat) => chat.rows.flatMap(chatKeys)).map(nodeKey),
+    );
     const nodeCount = context.elements.filter(
       (e) =>
         e.kind === "node" &&
+        !chatNodes.has(e.key) &&
         e.component?.id !== SEPARATOR_ID &&
         (e.origin === undefined || e.origin.from === "tokens"),
     ).length;

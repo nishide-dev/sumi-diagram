@@ -204,12 +204,18 @@ function reorderDocument(contents: unknown): void {
 /** Puts every arrange box and grid cell wrapper in schema order. */
 function reorderArrange(box: unknown): void {
   if (!isMap(box)) return;
-  for (const kind of ["stack", "row", "grid", "place"]) {
+  for (const kind of ["stack", "row", "grid", "place", "chat"]) {
     const spec = box.get(kind, true);
     if (!isMap(spec)) continue;
     sortMap(
       spec,
-      kind === "place" ? KEY_ORDER.place : kind === "grid" ? KEY_ORDER.grid : KEY_ORDER.box,
+      kind === "chat"
+        ? ["width", "maxWidth", "speakers", "items"]
+        : kind === "place"
+          ? KEY_ORDER.place
+          : kind === "grid"
+            ? KEY_ORDER.grid
+            : KEY_ORDER.box,
     );
     const items = spec.get("items", true);
     if (isSeq(items))

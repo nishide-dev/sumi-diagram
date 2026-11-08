@@ -63,7 +63,7 @@ tones, `operator`, `junction`, `dim` and the paper variants work in both.
 figure:
   layout:
     arrange:                   # root tree: places the root elements
-      row:                     # exactly one of stack / row / grid / place
+      row:                     # exactly one of stack / row / grid / place / chat
         gap: 6mm               # default 4mm (8mm on slides; 2.5mm with density: compact)
         align: end             # start | center | end | stretch (cross axis)
         items:                 # IDs of nodes / groups, or nested boxes
@@ -158,6 +158,56 @@ edges:
   - { from: b, to: c, component: line, route: straight }
   - { from: b, to: d, component: line, route: straight }
 ```
+
+## Chat conversations
+
+Use `chat` at the root, inside a group, or as a nested arrange box. Declare message
+content as ordinary `bubble` nodes so IDs and edges keep working:
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: chat
+  theme: paper
+  layout:
+    arrange:
+      chat:
+        width: 80mm
+        maxWidth: 0.7
+        speakers:
+          friend: { side: left, avatar: avatar }
+          me: { side: right, tone: green, variant: filled }
+        items:
+          - divider: 今日
+          - { node: hello, from: friend, meta: "23:10" }
+          - { node: reply, from: me, meta: [既読, "23:11"] }
+nodes:
+  - { id: avatar, component: circle, label: Y, variant: filled, tone: gray, props: { width: 16pt, height: 16pt } }
+  - { id: hello, component: bubble, label: 次いつ遊ぶ？ }
+  - { id: reply, component: bubble, label: いつでも！ }
+```
+
+`width` defaults from the profile's page width, margins and one group's padding.
+`maxWidth` is the maximum natural bubble footprint: a column fraction `(0, 1]`
+(default `0.7`) or a physical length such as `48mm`. Japanese and English wrap
+inside it. Explicit node width/height remain authored constraints.
+Messages are left-aligned text; the arrangement sets tail side and `tailAt: start`.
+Consecutive messages by the same speaker drop the horn and avatar, keep the body
+indent and use a smaller gap. Dividers reset the run. The avatar is an existing
+node (circle, image, etc.), top-aligned with the first bubble and repeated on later
+runs; do not place it separately. Right speakers have no avatar unless specified.
+Left defaults to white `default` bubbles; right to theme `gray` / `filled`.
+Node tone and explicitly written variant override speaker defaults.
+
+Meta notes (string or list of lines) use the theme's small, muted annotation text,
+bottom-aligned on the inner side of the bubble; outgoing notes are right-aligned.
+Dividers are centered muted pills. Both participate in page bounds and collision
+lint. Spacing follows the profile, including `density: compact`. Chat columns stay
+rigid under parent stretch, centered in extra space. Unknown speakers/avatars,
+non-bubble message nodes and normal unknown/duplicate placements are errors;
+`layout/chat-overflow` warns when visuals exceed the column: widen it, reduce
+`maxWidth` or shorten the note. Keep the phone frame, header and input bar separate.
 
 ## Side inputs on a main flow
 

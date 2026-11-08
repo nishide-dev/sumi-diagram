@@ -121,6 +121,9 @@ Apply one edit and re-check: independent savings are not additive.
 | `layout/attached-legend`, `layout/attached-tokens`, `layout/attached-matrix` | these cannot be attached: list them in an arrange tree |
 | `layout/grid-span-overflow`, `layout/grid-item-count` | a grid item crosses its row boundary / the last row is incomplete: reduce the span or complete the row; `null` for a deliberate blank ([grids](structured.md#grids)) |
 | `layout/place-overlap` (render, warning) | natural footprints overlap at the reported centers; separate the coordinates or increase `place.unit`. Touching is allowed; placement never moves items automatically ([coordinates](structured.md#coordinate-placement)) |
+| `layout/chat-unknown-speaker`, `layout/chat-unknown-avatar` | use a name in `chat.speakers` / an existing avatar node ID ([chat](structured.md#chat-conversations)) |
+| `layout/chat-non-bubble` | message `node` must reference a `bubble` node |
+| `layout/chat-overflow` (render, warning) | widen `chat.width`, lower `maxWidth` or shorten the meta note; visuals retain their authored sizes |
 | `layout/no-route` (render) | the ends touch (`gap: 0`), are closer than the arrowhead, or are boxed in (the message and `related` name the node, often an `attach`ed one); on a `zoom` edge the ends overlap | widen that `gap` (arrows need about 1.5mm in `academic` / `paper`, 2.5mm in `minimal` / `color`, 4mm in `slides`; even a `line` needs > 0), anchor other sides ([spacing](structured.md#spacing-that-routes)); for `zoom` put the view beside, above or below the source |
 | `layout/unknown-align-item`, `layout/duplicate-align-item`, `layout/invalid-align` | an `align` entry names no node or group (edges cannot be aligned), names one twice, or has fewer than two IDs; an entry with both or neither of `x` / `y` is `schema/invalid-value` ([align](structured.md#aligning-across-trees)) |
 | `layout/unsatisfied-align` (render, warning) | the constraint could not be met; drawn closest, the message gives the distance | follow the hint: items share a box (use different boxes or wrap one in its own `stack` / `row`) or another constraint pulls them apart; for table headings `align: start` on the parent row |
@@ -137,7 +140,7 @@ Apply one edit and re-check: independent savings are not additive.
 | Code | Default | Fix |
 | --- | --- | --- |
 | `lint/empty-figure` | warning | add nodes |
-| `lint/no-edges` | warning | connect the nodes, or keep it if unconnected nodes are intended (say so) |
+| `lint/no-edges` | warning | connect the nodes, or keep it if unconnected nodes are intended (say so); chat visuals do not require edges |
 | `lint/ancestor-edge` | warning | connect elements both inside or both outside the group |
 | `lint/self-loop` | info | remove if unintended |
 | `lint/duplicate-edge` | warning | remove it or give it a different label |

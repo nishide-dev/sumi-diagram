@@ -690,7 +690,7 @@
                   }
                 ]
               },
-              "description": "Node or group IDs, or nested arrange boxes (stack / row / grid / place)."
+              "description": "Node or group IDs, or nested arrange boxes (stack / row / grid / place / chat)."
             }
           },
           "required": [
@@ -759,7 +759,7 @@
                   }
                 ]
               },
-              "description": "Node or group IDs, or nested arrange boxes (stack / row / grid / place)."
+              "description": "Node or group IDs, or nested arrange boxes (stack / row / grid / place / chat)."
             }
           },
           "required": [
@@ -925,10 +925,138 @@
             "items"
           ],
           "additionalProperties": false
+        },
+        "chat": {
+          "type": "object",
+          "properties": {
+            "width": {
+              "description": "Column width; omitted uses the profile page width minus margins and one group's padding.",
+              "type": "string",
+              "pattern": "^(?=\\d*(?:\\.\\d*)?[1-9])\\d+(?:\\.\\d+)?(?:mm|cm|in|pt)$"
+            },
+            "maxWidth": {
+              "description": "Maximum natural bubble width: a column fraction (0, 1] or a positive length. Default: 0.7.",
+              "anyOf": [
+                {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "maximum": 1
+                },
+                {
+                  "type": "string",
+                  "pattern": "^(?=\\d*(?:\\.\\d*)?[1-9])\\d+(?:\\.\\d+)?(?:mm|cm|in|pt)$",
+                  "description": "A positive length with a unit (mm, cm, in or pt)."
+                }
+              ]
+            },
+            "speakers": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+              },
+              "additionalProperties": {
+                "type": "object",
+                "properties": {
+                  "side": {
+                    "type": "string",
+                    "enum": [
+                      "left",
+                      "right"
+                    ]
+                  },
+                  "avatar": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+                  },
+                  "tone": {
+                    "description": "Color category from the theme's palette (e.g. a pastel fill in the color theme, a gray step in monochrome themes). With variant outlined it colors the outline and text instead of the fill. Omitted means none.",
+                    "type": "string",
+                    "enum": [
+                      "gray",
+                      "red",
+                      "orange",
+                      "yellow",
+                      "green",
+                      "blue",
+                      "purple",
+                      "pink"
+                    ]
+                  },
+                  "variant": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "side"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "items": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "divider": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "divider"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "node": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+                      },
+                      "from": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+                      },
+                      "meta": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "minItems": 1,
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "node",
+                      "from"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          },
+          "required": [
+            "speakers",
+            "items"
+          ],
+          "additionalProperties": false
         }
       },
       "additionalProperties": false,
-      "description": "A stack (vertical), row (horizontal), row-major grid, or rigid coordinate placement of items.",
+      "description": "A stack (vertical), row (horizontal), row-major grid, rigid coordinate placement, or chat conversation column.",
       "minProperties": 1,
       "maxProperties": 1
     },
