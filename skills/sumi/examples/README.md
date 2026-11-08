@@ -49,6 +49,10 @@ Transformer or DiT; multi-panel figures with images or matrices from CLIP or
 EmbeddingGemma; graphs on coordinates from GCN; a dark-theme model figure from
 Llama 4 MoE; messages from Chat or LLM dialogue; flows and tiers from the generic four.
 
+For a consistent visual vocabulary across panels, study GCN (the same vertex and
+edge look in every layer and tone meaning throughout) and Llama 4 MoE (the same
+block style and arrow in every panel); [plan it first](../references/layout-tips.md#plan-the-visual-language-before-drawing).
+
 Copy a figure's entire directory when adapting it so its relative asset paths stay
 valid. Asset generators require Bun and write next to themselves, for example
 `bun clip/assets/generate.ts`, `bun gcn/assets/generate.ts` or
