@@ -98,13 +98,21 @@ export const longLabel = defineRule({
   options: LongLabelOptions,
   run(context, { maxLineWidth, maxLines }) {
     const findings: LintFinding[] = [];
+    const chatMessages = new Set(
+      (context.state.doc.chats ?? []).flatMap((chat) =>
+        chat.rows.filter((row) => row.side !== undefined).map((row) => row.node),
+      ),
+    );
     for (const element of context.elements) {
       for (const { field, text: label } of writtenTexts(element)) {
         if (label === "") continue;
         const lines = drawnLines(context.state, element, label) ?? labelLines(label);
         const widest = Math.max(...lines.map(displayWidth));
         const problems: string[] = [];
-        if (widest > maxLineWidth) {
+        // Chat owns automatic wrapping; source line width is not its drawn width.
+        const wraps =
+          element.kind === "node" && field === "label" && chatMessages.has(element.element.id);
+        if (widest > maxLineWidth && !wraps) {
           problems.push(`a line ${widest} columns wide (limit ${maxLineWidth})`);
         }
         if (lines.length > maxLines) problems.push(`${lines.length} lines (limit ${maxLines})`);

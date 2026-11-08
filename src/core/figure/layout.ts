@@ -40,6 +40,7 @@ import {
 } from "../check-state";
 import type { Diagnostic, DiagnosticSubject, DocPath, SourceLocation } from "../diagnostics";
 import { closestMatch, didYouMean } from "../diagnostics";
+import { chatKeys } from "./chat";
 import { errorAt, relatedAt } from "./report";
 import {
   type ArrangeBox,
@@ -248,6 +249,26 @@ function checkStructured(state: CheckState, locate: Locator): void {
     ownerSubject: DiagnosticSubject,
     silent: boolean,
   ) => {
+    if (box.chat !== undefined) {
+      const chat = doc.chats?.find((c) => c.spec === box.chat);
+      for (const row of chat?.rows ?? [])
+        for (const id of chatKeys(row)) {
+          const itemPath = [
+            ...row.path,
+            id === row.node ? "node" : id === row.meta ? "meta" : "avatar",
+          ];
+          if (!elements.has(id) && !isInvalidId(id)) {
+            if (collectionsReadable && !silent)
+              push(
+                errorAt(locate, "layout/unknown-item", `Unknown chat node "${id}".`, itemPath, {
+                  subject: ownerSubject,
+                  hint: unknownHint(id),
+                }),
+              );
+          } else add({ id, path: itemPath, via: "arrange", owner, silent });
+        }
+      return;
+    }
     for (const kind of ["stack", "row", "grid", "place"] as const) {
       const spec = box[kind];
       if (spec === undefined) continue;

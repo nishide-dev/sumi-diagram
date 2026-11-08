@@ -19,6 +19,7 @@
 
 import { type CheckState, type ElementKey, figureElements, groupKey } from "../check-state";
 import type { Diagnostic, DocPath } from "../diagnostics";
+import { chatVisuals } from "../figure/chat";
 import type { Locator } from "../figure/yaml";
 import type { FontUsage } from "../profile/constrain";
 import { OPERATOR_SIZES, SEPARATOR_ID } from "../registry/builtins";
@@ -157,6 +158,7 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
   const theme = withToneOverrides(resolved.value, overrides?.tones);
   reportToneContrast(state, locate, theme);
   const dimmed = dimmedElements(state.doc);
+  const chatParts = chatVisuals(state);
   reportDim(state, locate, theme, dimmed);
 
   for (const entry of figureElements(state.doc)) {
@@ -198,6 +200,14 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
     }
     let style: ResolvedStyle =
       mono === undefined || mono === painted.mono ? painted : Object.freeze({ ...painted, mono });
+    if (chatParts.has(key)) {
+      // Annotation size follows the theme's small edge text; muted label ink is theme-owned.
+      const small = resolveStyle(theme, { kind: "edge", id: "sumi/line", variant: "default" }).style
+        .fontSize;
+      const muted = resolveStyle(theme, { kind: "node", id: "sumi/label", variant: "muted" }).style
+        .fontColor;
+      style = Object.freeze({ ...style, fontSize: small, fontColor: muted });
+    }
     const solidFill = overrides?.solidFills?.[tone ?? "gray"];
     if (
       solidFill !== undefined &&

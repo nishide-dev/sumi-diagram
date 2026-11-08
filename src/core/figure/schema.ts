@@ -223,7 +223,7 @@ export const StackSchema = z.strictObject({
     return z
       .array(ArrangeItemSchema)
       .min(1)
-      .describe("Node or group IDs, or nested arrange boxes (stack / row / grid / place).");
+      .describe("Node or group IDs, or nested arrange boxes (stack / row / grid / place / chat).");
   },
 });
 
@@ -235,7 +235,7 @@ export const RowSchema = z.strictObject({
     return z
       .array(ArrangeItemSchema)
       .min(1)
-      .describe("Node or group IDs, or nested arrange boxes (stack / row / grid / place).");
+      .describe("Node or group IDs, or nested arrange boxes (stack / row / grid / place / chat).");
   },
 });
 
@@ -302,7 +302,48 @@ export const PlaceSchema = z
       }
   });
 
-/** One box of an arrange tree: exactly one of stack, row, grid or place. */
+/** Conversation column; message content remains ordinary, addressable bubble nodes. */
+const ChatLength = LayoutLength.refine((v) => v > 0, "Chat length must be positive.").meta({
+  anyOf: undefined,
+  type: "string",
+  pattern: /^(?=\d*(?:\.\d*)?[1-9])\d+(?:\.\d+)?(?:mm|cm|in|pt)$/.source,
+  description: "A positive length with a unit (mm, cm, in or pt).",
+});
+export const ChatSchema = z.strictObject({
+  width: ChatLength.optional().describe(
+    "Column width; omitted uses the profile page width minus margins and one group's padding.",
+  ),
+  maxWidth: z
+    .union([z.number().positive().max(1), ChatLength.transform((pt) => ({ pt }))])
+    .optional()
+    .describe(
+      "Maximum natural bubble width: a column fraction (0, 1] or a positive length. Default: 0.7.",
+    ),
+  speakers: z.record(
+    Id,
+    z.strictObject({
+      side: z.enum(["left", "right"]),
+      avatar: Id.optional(),
+      tone: Tone,
+      variant: z.string().min(1).optional(),
+    }),
+  ),
+  items: z
+    .array(
+      z.union([
+        z.strictObject({ divider: z.string().min(1) }),
+        z.strictObject({
+          node: Id,
+          from: Id,
+          meta: z.union([z.string(), z.array(z.string()).min(1)]).optional(),
+        }),
+      ]),
+    )
+    .min(1),
+});
+export type Chat = z.output<typeof ChatSchema>;
+
+/** One box of an arrange tree: exactly one arrangement kind. */
 export const ArrangeBoxSchema = z
   .strictObject({
     get stack() {
@@ -317,22 +358,24 @@ export const ArrangeBoxSchema = z
     get place() {
       return PlaceSchema.optional();
     },
+    chat: ChatSchema.optional(),
   })
   .check((ctx) => {
     const kinds = Object.values(ctx.value).filter((v) => v !== undefined).length;
     if (kinds !== 1) {
       ctx.issues.push({
         code: "custom",
-        message: 'An arrange box must have exactly one of "stack", "row", "grid" or "place".',
+        message:
+          'An arrange box must have exactly one of "stack", "row", "grid", "place" or "chat".',
         input: ctx.value,
-        params: { [ONE_OF_ISSUE]: ["stack", "row", "grid", "place"] },
+        params: { [ONE_OF_ISSUE]: ["stack", "row", "grid", "place", "chat"] },
       });
     }
   })
   .meta({
     id: "ArrangeBox",
     description:
-      "A stack (vertical), row (horizontal), row-major grid, or rigid coordinate placement of items.",
+      "A stack (vertical), row (horizontal), row-major grid, rigid coordinate placement, or chat conversation column.",
     minProperties: 1,
     maxProperties: 1,
   });

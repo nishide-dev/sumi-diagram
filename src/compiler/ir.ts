@@ -17,6 +17,7 @@ import {
   type PartialFigure,
 } from "../core/check-state";
 import { type DocPath, hasErrors, type SourceLocation } from "../core/diagnostics";
+import { type ChatExpansion, chatKeys, chatVisuals } from "../core/figure/chat";
 import type { FigureCheck } from "../core/figure/check";
 import { type EdgeAnchor, parseAnchor } from "../core/figure/layout";
 import type {
@@ -112,7 +113,8 @@ export interface FigureMetaIR {
  * layout engine supplies the defaults (§6.21).
  */
 export interface ArrangeBoxIR {
-  readonly kind: "stack" | "row" | "grid" | "place";
+  readonly kind: "stack" | "row" | "grid" | "place" | "chat";
+  readonly chat?: { readonly widthPt: number; readonly rows: readonly ChatRowIR[] };
   /** Coordinate centers in pt, parallel to items; place boxes are rigid. */
   readonly positionsPt?: readonly (readonly [number, number])[];
   readonly placementSources?: readonly SourceMapEntry[];
@@ -138,6 +140,16 @@ export interface ArrangeBoxIR {
    * item, the group, instead of centring the items.
    */
   readonly growFirst?: true;
+}
+
+export interface ChatRowIR {
+  readonly node: ElementKey;
+  readonly side?: "left" | "right";
+  readonly avatar?: ElementKey;
+  readonly indentAvatar?: ElementKey;
+  readonly meta?: ElementKey;
+  readonly runStart: boolean;
+  readonly source: SourceMapEntry;
 }
 
 /** An item of an arrange box: a node or group, a nested box, or a blank grid cell. */
@@ -243,6 +255,8 @@ interface ObjectIRBase extends ElementIRBase {
 }
 
 export interface NodeIR extends ObjectIRBase {
+  readonly chatPart?: "meta" | "divider";
+  readonly chatMessage?: true;
   readonly kind: "node";
   readonly shape: NodeShape;
   readonly sizing: NodeSizing;
@@ -496,7 +510,16 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
     return caption === undefined ? endpointKey(attach.to) : nodeKey(caption);
   };
   const arrangeOf = (box: ArrangeBox, path: DocPath) =>
-    arrangeIR(box, endpointKey, captions, captionGapPt, "center", path, sourceEntry);
+    arrangeIR(box, endpointKey, captions, captionGapPt, "center", path, sourceEntry, doc.chats);
+
+  const chatWidths = new Map<ElementKey, number>();
+  const chatParts = chatVisuals(state);
+  for (const chat of doc.chats ?? [])
+    for (const row of chat.rows) {
+      if (row.side === undefined) continue;
+      const max = chat.spec.maxWidth ?? 0.7;
+      chatWidths.set(nodeKey(row.node), typeof max === "number" ? chat.widthPt * max : max.pt);
+    }
 
   // Document order, with the cells of tokens nodes (#181) in their tokens node's place.
   for (const index of nodeOrder(doc)) {
@@ -510,36 +533,54 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
     const style = styleOf(state, key, "node");
     const { mark } = component.manifest;
     const markSize = mark && markSizeOf(mark, style);
+    const wrapText = (text: string, fontSize = style.fontSize) =>
+      wrapBubbleText(
+        text,
+        Math.max(
+          style.fontSize.units,
+          Math.min(
+            chatWidths.has(key)
+              ? Infinity
+              : typeof component.props.maxWidth === "number"
+                ? component.props.maxWidth * 2
+                : 240,
+            typeof width === "number"
+              ? width * 2 -
+                  style.fontSize.units * 1.75 -
+                  (component.props.tail === "left" || component.props.tail === "right"
+                    ? typeof component.props.tailSize === "number"
+                      ? component.props.tailSize * 2
+                      : style.fontSize.units *
+                        1.1 *
+                        (component.props.tailAt === undefined || component.props.tailAt === "start"
+                          ? 0.3
+                          : 0.5)
+                    : 0) -
+                  profile.layout.nodePaddingX.pt * 4
+              : Infinity,
+            chatWidths.has(key)
+              ? (chatWidths.get(key) as number) * 2 -
+                  style.fontSize.units * 1.4 -
+                  (component.props.tail === "none"
+                    ? 0
+                    : typeof component.props.tailSize === "number"
+                      ? component.props.tailSize * 2
+                      : style.fontSize.units * 0.33) -
+                  profile.layout.nodePaddingX.pt * 2 -
+                  1
+              : Infinity,
+          ),
+        ),
+        { ...style, fontSize },
+        theme.fontSet,
+      );
     nodes.push(
       freeze({
         ...objectBase(key, "n", n),
+        ...(chatParts.has(key) && { chatPart: chatParts.get(key) as "meta" | "divider" }),
+        ...(chatWidths.has(key) && { chatMessage: true as const }),
         ...(component.id === "sumi/bubble" && {
-          label: wrapBubbleText(
-            n.label,
-            Math.max(
-              style.fontSize.units,
-              Math.min(
-                typeof component.props.maxWidth === "number" ? component.props.maxWidth * 2 : 240,
-                typeof width === "number"
-                  ? width * 2 -
-                      style.fontSize.units * 1.75 -
-                      (component.props.tail === "left" || component.props.tail === "right"
-                        ? typeof component.props.tailSize === "number"
-                          ? component.props.tailSize * 2
-                          : style.fontSize.units *
-                            1.1 *
-                            (component.props.tailAt === undefined ||
-                            component.props.tailAt === "start"
-                              ? 0.3
-                              : 0.5)
-                        : 0) -
-                      profile.layout.nodePaddingX.pt * 4
-                  : Infinity,
-              ),
-            ),
-            style,
-            theme.fontSet,
-          ),
+          label: wrapText(n.label),
         }),
         ...(mark !== undefined && { label: markLabel(mark, component.props) }),
         kind: "node",
@@ -563,13 +604,17 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
                       ? component.props.tailSize * 2
                       : style.fontSize.units *
                         1.1 *
-                        (component.props.tail === "left" || component.props.tail === "right"
+                        (chatWidths.has(key) ||
+                        component.props.tail === "left" ||
+                        component.props.tail === "right"
                           ? component.props.tailAt === undefined ||
                             component.props.tailAt === "start"
                             ? 0.3
                             : 0.5
                           : 0.6),
-                  radius: style.fontSize.units * 1.75,
+                  radius:
+                    style.fontSize.units *
+                    (chatParts.get(key) === "divider" ? 1 : chatWidths.has(key) ? 1.4 : 1.75),
                 }),
                 ...(component.manifest.render.renderer === "sumi/waveform" && {
                   samples: (component.props.samples as number[]).join(","),
@@ -618,7 +663,12 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
           textAlign: n.textAlign ?? "left",
         }),
         ...(n.sublabel !== undefined && {
-          sublabel: freeze({ text: n.sublabel, fontSize: sublabelFontSize(style.fontSize) }),
+          sublabel: freeze({
+            text: chatWidths.has(key)
+              ? wrapText(n.sublabel, sublabelFontSize(style.fontSize))
+              : n.sublabel,
+            fontSize: sublabelFontSize(style.fontSize),
+          }),
         }),
         ...(n.icon !== undefined && { icon: iconIR(n.icon) }),
         ...(n.badge !== undefined && {
@@ -881,7 +931,33 @@ function arrangeIR(
   inherited: ArrangeAlign = "center",
   path: DocPath = [],
   sourceEntry?: (path: DocPath) => SourceMapEntry,
+  chats?: readonly ChatExpansion[],
 ): ArrangeBoxIR {
+  if (box.chat) {
+    const chat = chats?.find((c) => c.spec === box.chat);
+    if (!chat) throw new Error("internal error: unexpanded chat");
+    return freeze({
+      kind: "chat",
+      direction: "down",
+      chat: freeze({
+        widthPt: chat.widthPt,
+        rows: freeze(
+          chat.rows.map((row) =>
+            freeze({
+              node: keyOf(row.node),
+              ...(row.side && { side: row.side }),
+              ...(row.avatar && { avatar: keyOf(row.avatar) }),
+              ...(row.indentAvatar && { indentAvatar: keyOf(row.indentAvatar) }),
+              ...(row.meta && { meta: keyOf(row.meta) }),
+              runStart: row.runStart,
+              source: sourceEntry?.(row.path) ?? { path: row.path },
+            }),
+          ),
+        ),
+      }),
+      items: freeze(chat.rows.flatMap(chatKeys).map(keyOf)),
+    });
+  }
   const spec = box.stack ?? box.row ?? box.grid ?? box.place;
   if (spec === undefined) throw new Error("internal error: arrange box without a kind");
   const kind =
@@ -917,6 +993,7 @@ function arrangeIR(
         nested === kind ? align : "center",
         [...path, kind, "items", index, ...(wrapped ? ["item"] : [])],
         sourceEntry,
+        chats,
       );
     }
     const caption = captions.get(item);

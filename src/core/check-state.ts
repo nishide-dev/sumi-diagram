@@ -13,6 +13,7 @@
 
 import type { Diagnostic, DiagnosticSubject, DocPath } from "./diagnostics";
 import type { CaptionOrigin } from "./figure/caption";
+import type { ChatExpansion } from "./figure/chat";
 import type { LegendExpansion } from "./figure/legend";
 import type { MatrixExpansion } from "./figure/matrix";
 import {
@@ -61,6 +62,7 @@ export interface PartialFigure {
    * (after the written ones). Set by `expandCaptions()`.
    */
   captions?: ReadonlyMap<number, CaptionOrigin>;
+  chats?: readonly ChatExpansion[];
   /**
    * Legends expanded into a frame group and its parts (#131), in the order
    * of the legend nodes. Set by `expandLegends()`.
@@ -106,7 +108,7 @@ export interface ExpandedPaint {
 /** Where an expanded element (see {@link PartialFigure.expanded}) is written. */
 export interface ExpandedOrigin {
   /** What it was expanded from. */
-  from: "caption" | "legend" | "tokens" | "matrix";
+  from: "caption" | "legend" | "tokens" | "matrix" | "chat";
   /** The field it stands for, e.g. `["groups", 2, "caption"]` or a legend entry. */
   path: DocPath;
   /** Whom diagnostics about it name: the captioned group, or the legend, tokens or matrix node. */

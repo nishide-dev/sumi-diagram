@@ -53,7 +53,8 @@ Every object is strict: an unknown key is `schema/unknown-field`. There is no
 general per-element style, colour, font or coordinate field: appearance is
 `variant` and `tone`, size the `width` / `height` props of node components, and
 position the layout (`direction` in auto figures; arrange trees, `attach` and
-anchors in structured ones).
+anchors in structured ones). Conversations use a [`chat` arrange box](structured.md#chat-conversations)
+with ordinary `bubble` nodes, speakers, meta notes and date dividers.
 
 ## Feature versions
 

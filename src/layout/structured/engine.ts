@@ -79,6 +79,7 @@ import {
   solveAlignment,
 } from "./align";
 import { verifiedAlignHints } from "./align-hint";
+import { chatGeometry } from "./chat";
 import { nodeLabelCenter, nodeSize, type Size, stretchableShape } from "./sizing";
 
 /** The engine name recorded in the Layout IR. */
@@ -239,6 +240,7 @@ class StructuredLayout {
   readonly #contents = new Map<ElementKey, Rect>();
   readonly #grids = new Map<ArrangeBoxIR, GridTracks>();
   readonly #boxSizes = new Map<ArrangeBoxIR, Size>();
+  readonly #chatFrames = new Map<ArrangeBoxIR, Rect>();
   readonly #centerPaddings = new Map<ArrangeBoxIR, { before: number; after: number }>();
 
   constructor(ir: FigureIR, profile: Profile, measurer: TextMeasurer) {
@@ -277,7 +279,15 @@ class StructuredLayout {
       // A separator contributes no size: siblings determine its span and gap
       // supplies the whitespace on either side. This avoids sizing feedback.
       const size =
-        node.component === SEPARATOR_ID ? { width: 0, height: 0 } : nodeSize(node, box, padding);
+        node.component === SEPARATOR_ID
+          ? { width: 0, height: 0 }
+          : nodeSize(
+              node,
+              box,
+              node.chatPart === "divider" || node.chatMessage
+                ? { x: padding.x / 2, y: 0 }
+                : padding,
+            );
       const body = { x: 0, y: 0, ...size };
       const badge = badgeRect(node, body);
       const extra = overhangOf(body, badge === undefined ? [] : [badge]);
@@ -341,6 +351,7 @@ class StructuredLayout {
     this.#grids.clear();
     // Measurements depend on this pass's struts and any grown group padding.
     this.#boxSizes.clear();
+    this.#chatFrames.clear();
     this.#centerPaddings.clear();
     const root = this.#ir.arrange as ArrangeBoxIR;
     const size = this.#containerSize(ROOT, root);
@@ -353,6 +364,7 @@ class StructuredLayout {
   placementDiagnostics(): Diagnostic[] {
     const diagnostics: Diagnostic[] = [];
     for (const box of this.#boxSizes.keys()) {
+      if (box.kind === "chat") diagnostics.push(...this.#chatGeometry(box).diagnostics);
       if (box.kind !== "place") continue;
       const rects = box.items.map((item, i) =>
         this.#coordinateRect(item, box.positionsPt?.[i] ?? [0, 0]),
@@ -401,6 +413,11 @@ class StructuredLayout {
   #boxSize(box: ArrangeBoxIR): Size {
     const cached = this.#boxSizes.get(box);
     if (cached !== undefined) return cached;
+    if (box.kind === "chat") {
+      const size = this.#chatGeometry(box).size;
+      this.#boxSizes.set(box, size);
+      return size;
+    }
     if (box.kind === "place") {
       const bounds = this.#placeBounds(box);
       const size = { width: bounds.width, height: bounds.height };
@@ -649,6 +666,24 @@ class StructuredLayout {
     inherited: Align,
     visit: (key: ElementKey, rect: Rect) => void,
   ): void {
+    if (box.kind === "chat") {
+      const geometry = this.#chatGeometry(box);
+      this.#chatFrames.set(box, {
+        x: frame.x + (frame.width - geometry.size.width) / 2,
+        y: frame.y + (frame.height - geometry.size.height) / 2,
+        ...geometry.size,
+      });
+      for (const [key, local] of geometry.rects)
+        visit(
+          key,
+          this.#bodyRect(key, {
+            ...local,
+            x: frame.x + (frame.width - geometry.size.width) / 2 + local.x,
+            y: frame.y + (frame.height - geometry.size.height) / 2 + local.y,
+          }),
+        );
+      return;
+    }
     if (box.kind === "place") {
       this.#placeCoordinates(box, frame, visit);
       return;
@@ -724,6 +759,17 @@ class StructuredLayout {
       else this.#placeBox(item, rect, item.kind === box.kind ? align : "center", visit);
       cursor += (vertical ? size.height : size.width) + gap + this.#trail(item);
     }
+  }
+
+  /** Measure and place chat visuals through the same natural-footprint contract. */
+  #chatGeometry(box: ArrangeBoxIR) {
+    return chatGeometry(
+      box,
+      (key) => this.#itemSize(key),
+      (key) => this.#nodes.get(key),
+      this.#defaultGap,
+      (key, rect) => this.#bodyRect(key, rect),
+    );
   }
 
   /** Main-axis growth is opt-in; badged boxes retain their reserved footprint. */
@@ -900,6 +946,7 @@ class StructuredLayout {
         return box === undefined ? [] : [box];
       }),
       ...[...labels.values(), ...sublabels.values()].map((label) => label.box),
+      ...this.#chatFrames.values(),
     ];
     const minX = Math.min(...all.map((r) => r.x));
     const minY = Math.min(...all.map((r) => r.y));
