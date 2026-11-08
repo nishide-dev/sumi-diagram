@@ -1,6 +1,6 @@
 # Dimmed groups
 
-[Gallery](README.md) · [Examples](examples.md) · [Themes](themes.md) · [Tones](tones.md) · [Dimmed groups](dim.md) · [Node glyphs](glyphs.md) · [Set enclosures](sets.md) · [Palettes](palettes.md) · [Profiles and comparison](compare.md)
+[Gallery](README.md) · [Examples](examples.md) · [Legend samples](legend-samples.md) · [Themes](themes.md) · [Tones](tones.md) · [Dimmed groups](dim.md) · [Node glyphs](glyphs.md) · [Set enclosures](sets.md) · [Palettes](palettes.md) · [Profiles and comparison](compare.md)
 
 A group with <code>dim: true</code> is drawn pale with everything inside it: its nested groups, nodes, caption and the edges whose two ends are inside\. Text and lines take the theme's dim gray and fills move toward white, so tones stay recognizable; sizes, dashes and the layout do not change\. The group keeps its own variant and tone\. The dashed line from the left panel ends inside the dimmed one and is drawn as written\.
 

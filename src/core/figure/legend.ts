@@ -21,6 +21,7 @@
  * placed in an arrange tree, never by `attach`.
  */
 
+import { glyphSize } from "../../assets/glyphs";
 import {
   type CheckState,
   type ElementKey,
@@ -46,8 +47,17 @@ import { resolveStyle } from "../theme/resolve";
 import type { Tone } from "../theme/tones";
 import { recordExpanded, reportReservedId, takenIds } from "./expand";
 import type { MatrixExpansion } from "./matrix";
-import { errorAt } from "./report";
-import type { ArrangeBox, ArrangeItem, FigureEdge, FigureGroup, FigureNode } from "./schema";
+import { errorAt, relatedAt } from "./report";
+import type {
+  ArrangeBox,
+  ArrangeItem,
+  FigureEdge,
+  FigureGlyph,
+  FigureGroup,
+  FigureNode,
+  FigureSet,
+  SetVariant,
+} from "./schema";
 import type { Locator } from "./yaml";
 
 /** One entry of `props.entries`, as validated by the manifest. */
@@ -56,16 +66,32 @@ export interface LegendEntry {
   node?: { component?: string; variant?: string; tone?: Tone };
   /** A matrix class (#180): `<matrix>.<class>`. */
   class?: string;
+  /** An icon sample (#409), e.g. `tabler/file-text`. */
+  icon?: string;
+  /** A glyph sample (#409): the fields of a node glyph without its position. */
+  glyph?: Omit<FigureGlyph, "at" | "dx" | "dy">;
+  /** A set swatch (#409). */
+  set?: { variant?: SetVariant; tone?: Tone; fillOpacity?: number };
+  /** Starts a group of entries under this heading (#409). */
+  heading?: string;
+  /** Which side of the sample the text sits on; right when omitted (#409). */
+  labelAt?: "right" | "left";
   /** Required unless `class` is given (then the class's label is the default). */
   label?: string;
 }
 
 /** One expanded entry of a legend. */
 export interface LegendEntryExpansion {
-  /** `edge`: a sample line; `node`: a sample box. */
-  kind: "edge" | "node";
-  /** The sample edge or node. */
+  /** `edge`: a sample line; `node`: a sample box; `icon`, `glyph` and `set` (#409): see the entry. */
+  kind: "edge" | "node" | "icon" | "glyph" | "set";
+  /** The sample edge or node (for a set swatch, the node the set encloses). */
   sample: ElementKey;
+  /** `icon`: the icon the sample draws. */
+  icon?: string;
+  /** `glyph`: the sample's glyph. */
+  glyph?: Omit<FigureGlyph, "at" | "dx" | "dy">;
+  /** `set`: the swatch's set (its ID in `doc.sets`), variant and tone. */
+  set?: { id: string; variant: SetVariant; tone: Tone | undefined };
   /** `["nodes", i, "props", "entries", j]`. */
   path: DocPath;
   label: string;
@@ -97,6 +123,8 @@ export const LEGEND_EM = {
   textGap: 0.5,
   /** Space between rows. */
   rowGap: 0.375,
+  /** Space between entries on one line (flow: row, #409). */
+  entryGap: 1.5,
 } as const;
 
 /** The text size used when the figure's theme is unknown (an error is reported). */
@@ -108,6 +136,10 @@ export interface LegendSizes {
   box: number;
   textGap: number;
   rowGap: number;
+  /** Space between entries on one line. */
+  entryGap: number;
+  /** The text size in pt, which the size of a glyph sample follows. */
+  em: number;
   /** Length of a sample line between its junctions: `sample` minus the junctions. */
   line: number;
 }
@@ -121,6 +153,8 @@ export function legendSizes(emPt: number, junctionPt: number): LegendSizes {
     box: units(LEGEND_EM.box),
     textGap: units(LEGEND_EM.textGap),
     rowGap: units(LEGEND_EM.rowGap),
+    entryGap: units(LEGEND_EM.entryGap),
+    em: emPt,
     line: Math.max(0.5, sample - 2 * junctionPt),
   };
 }
@@ -142,6 +176,10 @@ function themeSizes(themeId: string | undefined): LegendSizes {
 export function legendPartIds(id: string, n: number) {
   return {
     label: `${id}-${n}-label`,
+    /** The heading of a group (#409). */
+    heading: `${id}-${n}-heading`,
+    /** The set of a set swatch (its own ID space, #409). */
+    set: `${id}-${n}-set`,
     box: `${id}-${n}-box`,
     start: `${id}-${n}-start`,
     end: `${id}-${n}-end`,
@@ -318,8 +356,11 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
     // 1. Every reserved ID must be free.
     for (const [j, entry] of entries.entries()) {
       const ids = legendPartIds(node.id, j + 1);
-      const parts =
-        entry.edge !== undefined ? [ids.label, ids.start, ids.end] : [ids.label, ids.box];
+      const parts = [
+        ids.label,
+        ...(entry.edge !== undefined ? [ids.start, ids.end] : [ids.box]),
+        ...(entry.heading !== undefined ? [ids.heading] : []),
+      ];
       const related = { path: [...entriesPath, j], message: "The legend entry is written here." };
       for (const id of parts) {
         const owner = taken.get(id);
@@ -340,6 +381,29 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
           reservedFor: `the sample line of entry ${j + 1} of legend "${node.id}"`,
           related,
         });
+        blocked = true;
+      }
+      // The set of a set swatch has an ID space of its own.
+      const setIndex =
+        entry.set === undefined
+          ? -1
+          : (doc.sets ?? []).findIndex((existing) => existing?.id === ids.set);
+      if (setIndex >= 0) {
+        state.diagnostics.push(
+          errorAt(
+            locate,
+            "ref/reserved-id",
+            `The ID "${ids.set}" is reserved for the swatch of entry ${j + 1} of legend "${node.id}".`,
+            ["sets", setIndex, "id"],
+            {
+              subject: { kind: "set", id: ids.set },
+              hint: "Rename this set: Sumi draws the swatch as a set with this ID.",
+              related: [
+                relatedAt(locate, [...entriesPath, j], "The legend entry is written here."),
+              ],
+            },
+          ),
+        );
         blocked = true;
       }
     }
@@ -365,8 +429,8 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
 
     // 3. Expand.
     sizes ??= themeSizes(doc.figure?.theme);
+    const size = sizes;
     const legendName = `legend "${node.id}"`;
-    const rows: ArrangeItem[] = [];
     // Entries are read as a list: wrapped lines start at the left (#333), unless
     // the legend asks otherwise with its own `textAlign`.
     const textAlign = node.textAlign ?? "left";
@@ -386,6 +450,10 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
       props: {},
       group: node.id,
     });
+    const flow = (component.props.flow as "column" | "row" | undefined) ?? "column";
+    const perRow = component.props.perRow as number | undefined;
+    // The groups of entries (#409): a heading starts a new one.
+    const sections: { heading?: string; items: ArrangeItem[] }[] = [{ items: [] }];
     for (const [j, entry] of entries.entries()) {
       const n = j + 1;
       const ids = legendPartIds(node.id, n);
@@ -393,11 +461,32 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
       const of = `of entry ${n} of ${legendName}`;
       const matrixClass = classes.get(j);
       const label = matrixClass?.label ?? entry.label ?? "";
+      if (entry.heading !== undefined) {
+        addNode(
+          {
+            ...partNode(ids.heading, "sumi/label", "default"),
+            label: entry.heading,
+            textAlign,
+          },
+          [...entryPath, "heading"],
+          `the heading ${of}`,
+        );
+        const last = sections.at(-1);
+        if (last !== undefined && last.heading === undefined && last.items.length === 0) {
+          last.heading = ids.heading;
+        } else {
+          sections.push({ heading: ids.heading, items: [] });
+        }
+      }
       addNode(
         { ...partNode(ids.label, "sumi/label", "default"), label, textAlign },
         entryPath,
         `the text ${of}`,
       );
+      // The sample and its text, side by side (the text first with labelAt: left).
+      const withText = (sample: ArrangeItem): ArrangeBox =>
+        row(size.textGap, entry.labelAt === "left" ? [ids.label, sample] : [sample, ids.label]);
+      let item: ArrangeBox;
       if (entry.edge !== undefined) {
         const linePath: DocPath = [...entryPath, "edge"];
         addNode(partNode(ids.start, "sumi/junction", "hidden"), linePath, `the sample line ${of}`);
@@ -421,7 +510,7 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
         ]);
         takenEdges.set(ids.line, linePath);
         expansion.entries.push({ kind: "edge", sample, path: entryPath, label });
-        rows.push(row(sizes.textGap, [row(sizes.line, [ids.start, ids.end]), ids.label]));
+        item = withText(row(sizes.line, [ids.start, ids.end]));
       } else if (matrixClass !== undefined) {
         // The sample box of a matrix class (#180): a box as the class's cells.
         const { matrix, name } = matrixClass;
@@ -441,7 +530,72 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
           label,
           class: { matrix: matrix.id, name },
         });
-        rows.push(row(sizes.textGap, [ids.box, ids.label]));
+        item = withText(ids.box);
+      } else if (entry.icon !== undefined) {
+        // An icon sample (#409): a label node that draws the icon, one em tall.
+        addNode(
+          { ...partNode(ids.box, "sumi/label", "default"), icon: entry.icon },
+          [...entryPath, "icon"],
+          `the sample icon ${of}`,
+        );
+        expansion.entries.push({
+          kind: "icon",
+          sample: nodeKey(ids.box),
+          path: entryPath,
+          label,
+          icon: entry.icon,
+        });
+        item = withText(ids.box);
+      } else if (entry.glyph !== undefined) {
+        // A glyph sample (#409): the glyph centered on an empty, bare box sized to it.
+        const extent = glyphSize(entry.glyph, sizes.em * 2);
+        const box: FigureNode = {
+          ...partNode(ids.box, "box", "default"),
+          props: {
+            width: `${Math.ceil(extent.width) / 2}pt`,
+            height: `${Math.ceil(extent.height) / 2}pt`,
+          },
+          glyphs: [{ ...entry.glyph, at: "center" }],
+        };
+        addNode(box, [...entryPath, "glyph"], `the sample glyph ${of}`);
+        paints.set(nodeKey(ids.box), { bare: true });
+        expansion.entries.push({
+          kind: "glyph",
+          sample: nodeKey(ids.box),
+          path: entryPath,
+          label,
+          glyph: entry.glyph,
+        });
+        item = withText(ids.box);
+      } else if (entry.set !== undefined) {
+        // A set swatch (#409): a set around an empty, bare box, as wide as a sample box, with no padding.
+        const setPath: DocPath = [...entryPath, "set"];
+        const box: FigureNode = {
+          ...partNode(ids.box, "box", "default"),
+          props: { width: `${sizes.sample}pt`, height: `${sizes.box}pt` },
+        };
+        addNode(box, setPath, `the sample swatch ${of}`);
+        paints.set(nodeKey(ids.box), { bare: true });
+        const swatch: FigureSet = {
+          id: ids.set,
+          label: "",
+          members: [ids.box],
+          shape: "rect",
+          padding: 0,
+          variant: entry.set.variant ?? "default",
+          ...(entry.set.tone !== undefined && { tone: entry.set.tone }),
+          ...(entry.set.fillOpacity !== undefined && { fillOpacity: entry.set.fillOpacity }),
+        };
+        doc.sets ??= [];
+        doc.sets.push(swatch);
+        expansion.entries.push({
+          kind: "set",
+          sample: nodeKey(ids.box),
+          path: entryPath,
+          label,
+          set: { id: ids.set, variant: swatch.variant, tone: entry.set.tone },
+        });
+        item = withText(ids.box);
       } else {
         const fields = entry.node ?? {};
         const boxPath: DocPath = [...entryPath, "node"];
@@ -458,8 +612,49 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
           path: entryPath,
           label,
         });
-        rows.push(row(sizes.textGap, [ids.box, ids.label]));
+        item = withText(ids.box);
       }
+      sections.at(-1)?.items.push(item);
+    }
+    // The lines (#409): a column is one entry per line, with each heading on a line of its
+    // own; a row is the entries of a group side by side, wrapping after `perRow` of them,
+    // the heading beside the lines of its group.
+    const rows: ArrangeItem[] = [];
+    // Headed groups of a row legend (heading, lines), laid out as the rows of one table.
+    const table: ArrangeItem[] = [];
+    for (const section of sections) {
+      if (flow === "column") {
+        if (section.heading !== undefined) rows.push(section.heading);
+        rows.push(...section.items);
+        continue;
+      }
+      const lineLength = perRow ?? Math.max(1, section.items.length);
+      const lines: ArrangeItem[] = [];
+      for (let start = 0; start < section.items.length; start += lineLength) {
+        lines.push(row(sizes.entryGap, section.items.slice(start, start + lineLength)));
+      }
+      if (lines.length === 0) continue;
+      if (section.heading === undefined) {
+        rows.push(...lines);
+        continue;
+      }
+      // The heading goes beside all the lines of its group, which start under the first entry.
+      // A grid keeps the headings of all groups in one column, as wide as the widest.
+      const block: ArrangeBox = {
+        stack: { direction: "down", gap: sizes.rowGap, align: "start", items: lines },
+      };
+      table.push(section.heading, block);
+    }
+    if (table.length > 0) {
+      rows.push({
+        grid: {
+          columns: 2,
+          columnGap: sizes.textGap,
+          rowGap: sizes.rowGap,
+          align: "start",
+          items: table,
+        },
+      });
     }
     // The frame takes the legend node's place: its ID, parent and position.
     const frame: FigureGroup = {

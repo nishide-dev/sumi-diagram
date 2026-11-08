@@ -45,8 +45,9 @@ edges: [{ from: a, to: b }]
     const first = layout.edges[0]?.route?.points[0];
     expect(first?.x).toBeCloseTo(a.rect.x + a.rect.width, 3);
     // The edge leaves the east side, through a glyph centered there: reported.
+    // A glyph at the center covers the node's own label: reported too.
     expect(lintGeometry(rendered.value).filter((d) => d.code === CODE)).toHaveLength(
-      at === "east" ? 1 : 0,
+      at === "east" || at === "center" ? 1 : 0,
     );
   });
 }

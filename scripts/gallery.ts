@@ -20,6 +20,8 @@
  * - feature vectors, a dot and a pill on nodes under every theme (#408) → docs/gallery/glyphs/
  * - set enclosures under every built-in theme (#407) → docs/gallery/sets/
  * - one figure under every built-in palette (#417) → docs/gallery/palettes/
+ * - legend entries with icon, glyph, edge and set samples under every theme (#409) →
+ *   docs/gallery/legend-samples/
  * - `examples/transformer` (structured layout) under every built-in theme →
  *   docs/gallery/themes/ (#264)
  *
@@ -52,6 +54,7 @@ import {
   filledToneSample,
   GALLERY_DIR,
   glyphSample,
+  legendSample,
   outlinedToneSample,
   paletteSample,
   setsSample,
@@ -87,6 +90,7 @@ const dim = dimSample();
 const glyphs = glyphSample();
 const sets = setsSample();
 const palettes = paletteSample();
+const legends = legendSample();
 const outlinedTones = outlinedToneSample();
 const filledTones = filledToneSample();
 
@@ -148,6 +152,9 @@ for (const rendering of sets.renderings) {
 for (const rendering of palettes.renderings) {
   jobs.push({ file: palettes.fileName, source: rendering.source, rendering });
 }
+for (const rendering of legends.renderings) {
+  jobs.push({ file: legends.fileName, source: legends.source, rendering });
+}
 for (const rendering of outlinedTones.renderings) {
   jobs.push({ file: outlinedTones.fileName, source: outlinedTones.source, rendering });
 }
@@ -180,6 +187,7 @@ const model: GalleryModel = {
   glyphs: { sample: glyphs, outcomes: take(glyphs.renderings.length) },
   sets: { sample: sets, outcomes: take(sets.renderings.length) },
   palettes: { sample: palettes, outcomes: take(palettes.renderings.length) },
+  legends: { sample: legends, outcomes: take(legends.renderings.length) },
   outlinedTones: { sample: outlinedTones, outcomes: take(outlinedTones.renderings.length) },
   filledTones: { sample: filledTones, outcomes: take(filledTones.renderings.length) },
 };
@@ -199,6 +207,7 @@ const strict: [string, RenderOutcome][] = [
     `palettes (${palettes.renderings[i]?.palette})`,
     o,
   ]),
+  ...model.legends.outcomes.map((o): [string, RenderOutcome] => [`legend samples (${o.theme})`, o]),
   ...model.filledTones.outcomes.map((o): [string, RenderOutcome] => [
     `filled tones (${o.theme})`,
     o,

@@ -242,15 +242,28 @@ export function svgToEditablePptx(
         return {
           code: "pptx/unsupported-asset",
           severity: "error",
-          message: `The editable PPTX cannot carry the ${node.badge !== undefined ? "badge" : node.icon !== undefined ? "icon" : "image"} of node "${node.id}" yet.`,
+          message: `The editable PPTX cannot carry the ${node.badge !== undefined ? "badge" : node.icon !== undefined ? "icon" : "image"} of ${
+            node.legend === undefined
+              ? `node "${node.id}"`
+              : node.legend.name.replace(/^the sample icon of /, "")
+          } yet.`,
           ...(source !== undefined && {
             path: [
               ...source.path,
-              node.badge !== undefined ? "badge" : node.icon !== undefined ? "icon" : "component",
+              // The origin of a legend's icon sample is the entry's `icon` already.
+              ...(node.legend !== undefined && node.icon !== undefined
+                ? []
+                : [
+                    node.badge !== undefined
+                      ? "badge"
+                      : node.icon !== undefined
+                        ? "icon"
+                        : "component",
+                  ]),
             ],
           }),
           ...(source?.location !== undefined && { location: source.location }),
-          subject: { kind: "node", id: node.id },
+          subject: { kind: "node", id: node.legend?.id ?? node.id },
           hint: "Use the picture PPTX (the default --pptx-mode), which keeps icons and images.",
         };
       }),

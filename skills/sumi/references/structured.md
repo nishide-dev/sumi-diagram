@@ -1011,8 +1011,15 @@ text. An entry has exactly one of `edge` (a sample line: `component` default
 `arrow`, `variant`, `tone`), `node` (a small sample box: `component` default
 `box`, `variant`, `tone`) or `class` (the sample of a [matrix](#matrices) class,
 `<matrix>.<class>`), plus `label` (math allowed; a `class` entry defaults to the
-class's label). Samples are drawn by the same theme rules as real edges and
-nodes, so no colours are written. The legend's own `label` is its title;
+class's label). Since 0.16.0 three more samples: `icon: tabler/file-text` (an
+icon one text line tall), `glyph: { kind: vector, tone: blue, strength: solid }`
+(the fields of a node [glyph](assets.md#glyphs) except `at` / `dx` / `dy`: `kind`,
+`cells`, `direction`, `tone`, `tones`, `strength`, `size`, `width`, `outline`) and
+`set: { tone: green, variant: dashed, fillOpacity: 0.3 }` (a small translucent
+rectangle painted like a [set](#set-enclosures)). A paired arrow is
+`edge: { component: double-arrow, tone: red }`; edge variants are `default`,
+`dashed`, `emphasis`, `muted` (there is no dotted line). Samples are drawn by the
+same theme rules as real edges, nodes, glyphs and sets, so no colours are written. The legend's own `label` is its title;
 `variant: plain` drops the frame; `tone` colours it. Entry text is left-aligned (a
 wrapped `\n` entry keeps its lines flush left); `textAlign: center | right` on the legend
 changes it.
@@ -1029,14 +1036,40 @@ changes it.
       - { edge: { tone: orange }, label: latent path }
 ```
 
+**Layout** (since 0.16.0): `flow: column` (default, one entry per line) or
+`flow: row` (the entries side by side; `perRow: 3` wraps after 3 per line, row only).
+An entry's `heading: "Entity:"` starts a group: the heading is drawn at the start of
+its own line (a row: in one table column, as wide as the widest heading, with the
+group's lines, wrapped ones included, starting at one x beside it) and the following
+entries without a heading belong to it. `labelAt: left` puts an entry's text before its
+sample (Paper followed by its icon). One legend can hold a whole paper key at the bottom:
+
+```yaml
+- id: key
+  component: legend
+  variant: plain
+  props:
+    flow: row
+    entries:
+      - { heading: "Entity:", icon: tabler/file-text, labelAt: left, label: Paper }
+      - { heading: "Feature:", glyph: { kind: vector, tone: blue, strength: solid }, labelAt: left, label: Initial }
+      - { glyph: { kind: vector, tone: orange, strength: solid }, labelAt: left, label: Integrated }
+      - { heading: "Pairs:", edge: { component: double-arrow, tone: blue }, label: Positive }
+      - { set: { tone: green }, label: Hyperedge }
+```
+
 - Place it in the tree like a node; `align` and edges can name it; it cannot be attached
   (`layout/attached-legend`). `lint/unused-legend-entry` (warning): no node or edge has the
-  entry's component, variant and tone (`class` entries never; `lint/unused-matrix-class`
-  covers those): fix the entry or the elements; keep no key for styles not drawn.
-- It expands into nodes and edges `<legend>-<n>-label`, `-box`, `-line`, `-start`, `-end`
-  (`ref/reserved-id`). Up to 20 entries; a sample box cannot be a `label`, `image`,
+  entry's component, variant and tone, no node draws the `icon` (or a badge of it), has a
+  `glyph` of the entry's kind, strength and tones, or no set has the swatch's variant
+  and tone (`class` entries never; `lint/unused-matrix-class` covers those): fix the
+  entry or the elements; keep no key for styles not drawn.
+- It expands into nodes, edges and a set `<legend>-<n>-label`, `-heading`, `-box`, `-line`,
+  `-start`, `-end`, `-set` (`ref/reserved-id`). Up to 20 entries; a sample box cannot be a `label`, `image`,
   `operator`, `junction` or `legend` (`component/invalid-prop`). Auto figures have no
-  legend: say what variants mean in the caption or report.
+  legend: say what variants mean in the caption or report. Headings are plain text
+  (no bold). An icon sample in an editable PPTX is the node icon limit
+  (`pptx/unsupported-asset`); glyph, set and edge samples are shapes.
 
 ## Zoom callouts
 
