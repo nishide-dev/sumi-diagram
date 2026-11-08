@@ -58,6 +58,8 @@ export const emptyLabel = defineRule({
         // A bracket (#281) is a line and takes no label; a waveform's samples
         // carry its content, so its caption is optional.
         manifest.render?.renderer === "sumi/bracket" ||
+        // A flow arrow (#426) is a shape that marks the flow between stages.
+        manifest.render?.renderer === "sumi/flow-arrow" ||
         (manifest.namespace === "sumi" && manifest.name === "separator") ||
         manifest.render?.renderer === "sumi/waveform" ||
         element.element.icon !== undefined ||
