@@ -26,6 +26,7 @@
 - <a id="dimmed-groups"></a>[Dimmed groups](dim.md): A group drawn pale with everything inside it, under every theme\.
 - <a id="node-glyphs"></a>[Node glyphs](glyphs.md): Feature vectors, dots and pills over a node's border, under every theme\.
 - <a id="set-enclosures"></a>[Set enclosures](sets.md): Overlapping translucent sets around nodes, for Venn diagrams and hyperedges, under every theme\.
+- <a id="legend-samples"></a>[Legend samples](legend-samples.md): Legend entries with icon, glyph, edge and set samples in rows under headings, under every theme\.
 - <a id="profiles"></a><a id="one-figure-every-theme--profile"></a>[Profiles and comparison](compare.md): The built\-in profiles, and one figure under every theme and profile\.
 
 ## Components
@@ -55,7 +56,7 @@ Every built\-in component with every variant, under every built\-in theme\. Each
 | <a id="sumiimage"></a>[sumi/image](components/sumi-image.md) | node | A PNG, JPEG or SVG file, safe inline SVG drawing or named figure asset \(optionally cropped\), optionally stacked with up\-right copies; takes no label\. |
 | <a id="sumihtml"></a>[sumi/html](components/sumi-html.md) | node | A restricted HTML/CSS leaf rendered as outlined vector artwork with bundled fonts and theme variables; takes no label\. |
 | <a id="sumiwaveform"></a>[sumi/waveform](components/sumi-waveform.md) | node | A deterministic sample\-driven waveform in a rectangular frame, with an optional label below the signal; no audio decoding or synthesis\. |
-| <a id="sumilegend"></a>[sumi/legend](components/sumi-legend.md) | node | A key that explains line and fill styles: one sample line or box per entry, drawn with the same fields as the edges or nodes it explains, followed by its text \(structured layout only\)\. |
+| <a id="sumilegend"></a>[sumi/legend](components/sumi-legend.md) | node | A key that explains styles: one sample per entry \(a line, a box, an icon, a glyph such as a feature vector, or a set swatch\), drawn with the same fields as the edges, nodes, glyphs or sets it explains, beside its text; in a column, a row or rows, with optional group headings \(structured layout only\)\. |
 | <a id="sumitokens"></a>[sumi/tokens](components/sumi-tokens.md) | node | A sequence of cells side by side, e\.g\. tokens or keys, each drawn as its own node that edges address as &lt;node&gt;\.&lt;cell&gt;, or as a whole as &lt;node&gt; \(structured layout only\)\. |
 | <a id="sumimatrix"></a>[sumi/matrix](components/sumi-matrix.md) | node | A grid of cells colored by class, e\.g\. an attention mask or a similarity matrix, with optional row and column headers, cell text and ellipsis rows, columns and cells; each class is a tone, a variant and a hatch pattern, and a legend explains it as \{ class: &lt;matrix&gt;\.&lt;class&gt; \} \(structured layout only\)\. |
 | <a id="sumicontainer"></a>[sumi/container](components/sumi-container.md) | group | A rectangular container that groups nodes and other groups\. Variant muted: a dashed border in academic \(easy to confuse with dashed edges\), a white background instead of the shaded fill \(without a tone\) and a gray title in the other themes\. Variant plain: no border and no fill, only the title or caption; filled: a shaded fill without a border; dashed: a dashed border without a fill\. A tone sets the fill of any variant\. |

@@ -177,10 +177,20 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
     });
     const { missingVariant, missingTone } = resolution;
     // A hatched matrix cell or legend sample (#180): lines in the tone's line color, gray's without one.
-    const painted =
+    const hatchedStyle =
       paint?.hatch === true && resolution.style.kind === "node"
         ? hatched(theme, resolution.style, tone)
         : resolution.style;
+    // The empty body of a glyph or set sample in a legend (#409): nothing is drawn but the sample.
+    const painted =
+      paint?.bare === true && hatchedStyle.kind === "node"
+        ? Object.freeze({
+            ...hatchedStyle,
+            fill: "transparent",
+            stroke: "transparent",
+            strokeWidth: { pt: 0, units: 0 },
+          })
+        : hatchedStyle;
     // A node's own `mono` (#279) overrides the theme's: true needs the font set's mono font.
     const mono = entry.kind === "node" ? entry.element.mono : paint?.mono;
     if (mono === true && theme.fontSet.mono === undefined) {

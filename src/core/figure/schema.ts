@@ -431,8 +431,12 @@ export const AttachSchema = z.strictObject({
   gap: LayoutLength.optional().describe("Space between the target and this node. Omitted means 0."),
 });
 
-/** Where a glyph (#408) sits on its node's body: a corner or the middle of a side. */
+/**
+ * Where a glyph (#408) sits on its node's body: a corner, the middle of a
+ * side or (#409, for the sample of a legend entry) the centre.
+ */
 export const GLYPH_POSITIONS = [
+  "center",
   "north",
   "north-east",
   "east",
@@ -459,72 +463,78 @@ const GlyphTone = z.enum([...TONE_NAMES, "none"]);
  * mark drawn over a node's border at a corner or side, apart from its label
  * and without taking part in routing.
  */
-export const GlyphSchema = z
-  .strictObject({
-    kind: z
-      .enum(GLYPH_KINDS)
-      .describe(
-        "vector: a short column or row of cells (a feature vector); dot: a small circle; pill: a small rounded bar.",
-      ),
-    at: z
-      .enum(GLYPH_POSITIONS)
-      .default("north-east")
-      .describe(
-        "Where the glyph's center lies on the node's body: a corner or the middle of a side. Omitted means north-east.",
-      ),
-    dx: z
-      .number()
-      .min(-10)
-      .max(10)
-      .optional()
-      .describe(
-        "Move the glyph right by this many ems (the node's font size); negative moves left.",
-      ),
-    dy: z
-      .number()
-      .min(-10)
-      .max(10)
-      .optional()
-      .describe("Move the glyph down by this many ems (the node's font size); negative moves up."),
-    size: GlyphLength.optional().describe(
-      "Side of one vector cell, or the diameter of a dot, or the height of a pill. Omitted means 0.4 em of the node's font size.",
+export const glyphShape = z.strictObject({
+  kind: z
+    .enum(GLYPH_KINDS)
+    .describe(
+      "vector: a short column or row of cells (a feature vector); dot: a small circle; pill: a small rounded bar.",
     ),
-    width: GlyphLength.optional().describe(
-      "pill only: the length of the pill. Omitted means twice its height.",
+  at: z
+    .enum(GLYPH_POSITIONS)
+    .default("north-east")
+    .describe(
+      "Where the glyph's center lies on the node's body: a corner, the middle of a side or the center. Omitted means north-east.",
     ),
-    cells: z
-      .int()
-      .min(1)
-      .max(MAX_GLYPH_CELLS)
-      .optional()
-      .describe("vector only: the number of cells. Omitted means 3 (or the length of tones)."),
-    direction: z
-      .enum(["down", "right"])
-      .optional()
-      .describe("vector only: lay the cells out downward (default) or rightward."),
-    tone: GlyphTone.optional().describe(
-      "The fill of every cell, the dot or the pill, from the theme's palette. none or omitted means the default node fill.",
+  dx: z
+    .number()
+    .min(-10)
+    .max(10)
+    .optional()
+    .describe("Move the glyph right by this many ems (the node's font size); negative moves left."),
+  dy: z
+    .number()
+    .min(-10)
+    .max(10)
+    .optional()
+    .describe("Move the glyph down by this many ems (the node's font size); negative moves up."),
+  size: GlyphLength.optional().describe(
+    "Side of one vector cell, or the diameter of a dot, or the height of a pill. Omitted means 0.4 em of the node's font size.",
+  ),
+  width: GlyphLength.optional().describe(
+    "pill only: the length of the pill. Omitted means twice its height.",
+  ),
+  cells: z
+    .int()
+    .min(1)
+    .max(MAX_GLYPH_CELLS)
+    .optional()
+    .describe("vector only: the number of cells. Omitted means 3 (or the length of tones)."),
+  direction: z
+    .enum(["down", "right"])
+    .optional()
+    .describe("vector only: lay the cells out downward (default) or rightward."),
+  tone: GlyphTone.optional().describe(
+    "The fill of every cell, the dot or the pill, from the theme's palette. none or omitted means the default node fill.",
+  ),
+  strength: z
+    .enum(["soft", "solid"])
+    .optional()
+    .describe(
+      "soft (default): the tone's fill, as for a node. solid: the tone's accent color (its line color: a dark shade of the hue, a gray step in the monochrome themes) with a 0.5pt outline in the theme's ink, for readable small cells. none stays the plain node fill.",
     ),
-    strength: z
-      .enum(["soft", "solid"])
-      .optional()
-      .describe(
-        "soft (default): the tone's fill, as for a node. solid: the tone's accent color (its line color: a dark shade of the hue, a gray step in the monochrome themes) with a 0.5pt outline in the theme's ink, for readable small cells. none stays the plain node fill.",
-      ),
-    tones: z
-      .array(GlyphTone)
-      .min(1)
-      .max(MAX_GLYPH_CELLS)
-      .optional()
-      .describe(
-        "vector only: one tone per cell, in order; its length is the cell count. Not combined with tone.",
-      ),
-    outline: z
-      .boolean()
-      .optional()
-      .describe("Draw a thin outline around each cell, dot or pill (default true)."),
-  })
-  .superRefine((glyph, ctx) => {
+  tones: z
+    .array(GlyphTone)
+    .min(1)
+    .max(MAX_GLYPH_CELLS)
+    .optional()
+    .describe(
+      "vector only: one tone per cell, in order; its length is the cell count. Not combined with tone.",
+    ),
+  outline: z
+    .boolean()
+    .optional()
+    .describe("Draw a thin outline around each cell, dot or pill (default true)."),
+});
+
+/** The cross-field rules of a glyph, shared by the node's `glyphs` and a legend's `glyph`. */
+export function checkGlyph(
+  glyph: Pick<
+    z.output<typeof glyphShape>,
+    "kind" | "tones" | "tone" | "cells" | "direction" | "width"
+  >,
+  ctx: z.RefinementCtx,
+): void {
+  {
     const issue = (path: string, message: string) =>
       ctx.addIssue({ code: "custom", message, path: [path] });
     if (glyph.kind !== "vector") {
@@ -546,7 +556,10 @@ export const GlyphSchema = z
     ) {
       issue("tones", `tones has ${glyph.tones.length} entries but cells is ${glyph.cells}.`);
     }
-  });
+  }
+}
+
+export const GlyphSchema = glyphShape.superRefine(checkGlyph);
 export type FigureGlyph = z.infer<typeof GlyphSchema>;
 
 const Anchor = z

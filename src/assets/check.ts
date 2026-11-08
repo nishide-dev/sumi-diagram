@@ -72,7 +72,13 @@ export function checkAssets(state: CheckState, locate: Locator): void {
     const subject = { kind: "node", id: node.id } as const;
     // A cell of a tokens node (#310) is located by the cell it was expanded from.
     const origin = state.doc.expanded?.get(key);
-    const at: (string | number)[] = origin?.from === "tokens" ? [...origin.path] : ["nodes", index];
+    // An icon sample of a legend entry (#409) by the entry's `icon` (its origin is that field).
+    const at: (string | number)[] =
+      origin?.from === "tokens"
+        ? [...origin.path]
+        : origin?.from === "legend" && node.icon !== undefined
+          ? origin.path.slice(0, -1)
+          : ["nodes", index];
     const fail = (code: string, message: string, path: (string | number)[], hint?: string) => {
       state.diagnostics.push(errorAt(locate, code, message, [...at, ...path], { subject, hint }));
       state.invalid.add(key);

@@ -189,8 +189,24 @@ describe("expansion (#131)", () => {
   });
 
   test("samples scale with the entries' text size", () => {
-    expect(legendSizes(8, 0.5)).toEqual({ sample: 20, box: 9, textGap: 4, rowGap: 3, line: 19 });
-    expect(legendSizes(16, 0.5)).toEqual({ sample: 40, box: 18, textGap: 8, rowGap: 6, line: 39 });
+    expect(legendSizes(8, 0.5)).toEqual({
+      sample: 20,
+      box: 9,
+      textGap: 4,
+      rowGap: 3,
+      entryGap: 12,
+      em: 8,
+      line: 19,
+    });
+    expect(legendSizes(16, 0.5)).toEqual({
+      sample: 40,
+      box: 18,
+      textGap: 8,
+      rowGap: 6,
+      entryGap: 24,
+      em: 16,
+      line: 39,
+    });
     expect(LEGEND_EM.sample).toBe(2.5);
     const slides = checkFigure(figure(ENTRIES).replace("theme: academic", "theme: slides")).state;
     expect(slides.doc.nodes?.at(-1)?.props).toEqual({ width: "40pt", height: "18pt" });
@@ -208,6 +224,8 @@ describe("expansion (#131)", () => {
   test("reserved IDs are the legend's ID, the entry number and the part", () => {
     expect(legendPartIds("key", 3)).toEqual({
       label: "key-3-label",
+      heading: "key-3-heading",
+      set: "key-3-set",
       box: "key-3-box",
       start: "key-3-start",
       end: "key-3-end",
@@ -289,7 +307,7 @@ nodes:
       ["component/invalid-prop", ["nodes", 2, "props", "entries", 2, "label"], 16, 11],
     ]);
     expect(state.diagnostics[0]?.message).toBe(
-      'Invalid prop "entries[0]" for sumi/legend: an entry needs exactly one of "edge", "node" or "class".',
+      'Invalid prop "entries[0]" for sumi/legend: an entry needs exactly one of "edge", "node", "class", "icon", "glyph" or "set".',
     );
   });
 

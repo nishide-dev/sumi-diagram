@@ -141,6 +141,30 @@ export function glyphsOf(
   });
 }
 
+/**
+ * The size of a glyph's drawing (parts only, without the outline) in D2 units,
+ * for a node whose font size is `emUnits` (#409): what a legend sample reserves.
+ */
+export function glyphSize(
+  glyph: Pick<FigureGlyph, "kind" | "size" | "width" | "cells" | "direction" | "tones">,
+  emUnits: number,
+): { width: number; height: number } {
+  const size = round(glyph.size === undefined ? emUnits * DEFAULT_SIZE_EM : glyph.size * 2);
+  if (glyph.kind === "vector") {
+    const count = glyph.tones?.length ?? glyph.cells ?? DEFAULT_CELLS;
+    return glyph.direction === "right"
+      ? { width: round(count * size), height: size }
+      : { width: size, height: round(count * size) };
+  }
+  if (glyph.kind === "pill") {
+    return {
+      width: round(glyph.width === undefined ? size * PILL_ASPECT : glyph.width * 2),
+      height: size,
+    };
+  }
+  return { width: size, height: size };
+}
+
 /** The point of `rect` a glyph at `at` is centered on. */
 function anchor(at: GlyphIR["at"], rect: Rect): { x: number; y: number } {
   const x = at.endsWith("east")

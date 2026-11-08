@@ -1,0 +1,131 @@
+/**
+ * Legend samples (#409) drawn end to end: icon, glyph, edge and set swatches
+ * in rows and groups, under every theme, in SVG, PDF and both PPTX modes.
+ */
+
+import { describe, expect, test } from "bun:test";
+import { BUILTIN_THEMES } from "../core/theme/builtin";
+import { getFontSet } from "../core/theme/fonts";
+import { lintGeometry } from "../lint";
+import { measureLabel } from "../lint/geometry/measure";
+import type { Rect } from "./geometry";
+import { svgToPdf } from "./pdf";
+import { svgToEditablePptx, svgToPptx } from "./pptx";
+import { renderFigure } from "./render";
+
+const source = (theme: string, icons = true) => `version: 1
+figure:
+  id: legend-samples
+  theme: ${theme}
+  profile: paper-double
+  layout:
+    arrange:
+      stack:
+        gap: 5mm
+        align: start
+        items:
+          - row: { gap: 12mm, align: center, items: [paper, title, flask] }
+          - key
+nodes:
+  - { id: paper, component: ${icons ? "label" : "box"}, ${icons ? "icon: tabler/file-text" : "label: Paper"}, glyphs: [{ kind: vector, tone: blue, strength: solid, dx: 0.3, dy: -0.25 }] }
+  - { id: title, component: ${icons ? "label" : "box"}, ${icons ? "icon: tabler/letter-t" : "label: Title"} }
+  - { id: flask, component: ${icons ? "label" : "box"}, ${icons ? "icon: tabler/flask" : "label: Flask"}, glyphs: [{ kind: dot, tone: red }] }
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: row
+      perRow: 2
+      entries:
+${
+  icons
+    ? `        - { heading: "Entity:", icon: tabler/file-text, labelAt: left, label: Paper }
+        - { icon: tabler/letter-t, labelAt: left, label: Title }
+        - { icon: tabler/flask, labelAt: left, label: Flask }`
+    : `        - { heading: "Entity:", node: {}, labelAt: left, label: Paper }`
+}
+        - { heading: "Feature:", glyph: { kind: vector, tone: blue, strength: solid }, labelAt: left, label: Initial }
+        - { glyph: { kind: dot, tone: red }, labelAt: left, label: Dot }
+        - { heading: "Pairs:", edge: { component: double-arrow, tone: blue }, label: Positive }
+        - { edge: { component: double-arrow, tone: red }, label: Negative }
+        - { set: { tone: green }, label: Hyperedge }
+edges:
+  - { from: paper, to: title, component: double-arrow, tone: blue }
+  - { from: title, to: flask, component: double-arrow, tone: red }
+sets:
+  - { id: group, members: [paper, title], shape: ellipse, tone: green, padding: 3mm }
+`;
+
+describe("every theme", () => {
+  for (const theme of BUILTIN_THEMES.keys()) {
+    test(`${theme}: renders with no finding, every part inside the frame`, async () => {
+      const text = source(theme);
+      const result = await renderFigure(text);
+      if (!result.ok) throw new Error(JSON.stringify(result.diagnostics, null, 2));
+      expect(result.diagnostics.filter((d) => d.severity !== "info")).toEqual([]);
+      expect(
+        lintGeometry(result.value, { source: text }).filter((d) => d.severity !== "info"),
+      ).toEqual([]);
+      const { elements, sets } = result.value.inspection;
+      const frame = elements.find((e) => e.key === "g:key")?.bbox;
+      if (frame === undefined) throw new Error("no frame");
+      const parts = [...result.value.compiled.ir.elements.values()].filter(
+        (e) => e.legend?.id === "key" && e.key !== "g:key" && e.kind === "node",
+      );
+      expect(parts.length).toBeGreaterThan(8);
+      const fonts = getFontSet(result.value.compiled.ir.meta.fontSetId);
+      if (fonts === undefined) throw new Error("no font set");
+      for (const part of parts) {
+        const geometry = elements.find((e) => e.key === part.key);
+        const label = geometry?.labels[0];
+        // A text node has no bbox: its measured text box is what must fit.
+        const box = geometry?.bbox ?? (label && (measureLabel(label, fonts).box as Rect));
+        if (box === undefined) throw new Error(`no box of ${part.key}`);
+        expect(box.x).toBeGreaterThanOrEqual(frame.x - 0.01);
+        expect(box.y).toBeGreaterThanOrEqual(frame.y - 0.01);
+        expect(box.x + box.width).toBeLessThanOrEqual(frame.x + frame.width + 0.01);
+        expect(box.y + box.height).toBeLessThanOrEqual(frame.y + frame.height + 0.01);
+      }
+      // The swatch is the sample box exactly: no padding.
+      const swatch = sets?.find((s) => s.id === "key-8-set");
+      const body = elements.find((e) => e.key === "n:key-8-box")?.bbox;
+      if (swatch === undefined || body === undefined) throw new Error("no swatch");
+      expect(swatch.bbox.x).toBeCloseTo(body.x, 1);
+      expect(swatch.bbox.y).toBeCloseTo(body.y, 1);
+      expect(swatch.bbox.width).toBeCloseTo(body.width, 1);
+      expect(swatch.bbox.height).toBeCloseTo(body.height, 1);
+    });
+  }
+});
+
+describe("formats", () => {
+  test("the SVG draws the glyph of a sample like that of a node, centered in its box", async () => {
+    const result = await renderFigure(source("paper"));
+    if (!result.ok) throw new Error("render failed");
+    const { svg } = result.value;
+    // Two glyph samples and two glyph nodes.
+    expect(svg.match(/class="sumi-glyphs"/g)).toHaveLength(4);
+    expect(svg).toContain("sumi-set-key-8-set");
+    const sample = result.value.compiled.ir.elements.get("n:key-4-box");
+    expect(sample).toMatchObject({ glyphs: [{ kind: "vector", at: "center", strokeWidth: 1 }] });
+  });
+
+  test("PDF and picture PPTX are written", async () => {
+    const result = await renderFigure(source("color"));
+    if (!result.ok) throw new Error("render failed");
+    expect(svgToPdf(result.value.svg).ok).toBe(true);
+    expect(svgToPptx(result.value.svg).ok).toBe(true);
+  });
+
+  test("editable PPTX draws glyph cells and swatches as shapes; an icon is the existing limit", async () => {
+    const plain = await renderFigure(source("color", false));
+    if (!plain.ok) throw new Error("render failed");
+    const editable = svgToEditablePptx(plain.value.svg, plain.value.compiled.ir);
+    expect(editable.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+    expect(editable.ok).toBe(true);
+    const withIcons = await renderFigure(source("color"));
+    if (!withIcons.ok) throw new Error("render failed");
+    const refused = svgToEditablePptx(withIcons.value.svg, withIcons.value.compiled.ir);
+    expect(refused.diagnostics.map((d) => d.code)).toContain("pptx/unsupported-asset");
+  });
+});

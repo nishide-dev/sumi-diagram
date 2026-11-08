@@ -76,7 +76,7 @@ stops with one `schema/unsatisfied-requires` instead of a list of unknown fields
 | 0.10.0 | inline SVG images, `waveform`, `bracket`, whole-sequence `tokens` edges, matrix text and ellipsis cells |
 | 0.11.0 | `html` component |
 | 0.12.0 | `separator`, `figure.assets` with `crop` and tokens image cells, operator `size`, grid hints, width-overflow breakdown |
-| 0.16.0 | `sets`: overlapping enclosures for Venn diagrams and hyperedges |
+| 0.16.0 | `sets`: overlapping enclosures for Venn diagrams and hyperedges; node `glyphs`; `legend` samples `icon` / `glyph` / `set`, `flow`, `perRow`, `heading`, `labelAt` |
 
 ## IDs
 
