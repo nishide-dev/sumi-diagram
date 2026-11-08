@@ -52,6 +52,9 @@ SVG → PDF／picture PPTX と editable PPTX の共通化を踏襲する。
   Latin／BIZ UD Gothic の幅を測り、英単語の境界と和文の分節で折り返す。
   長い単語は grapheme 単位に分割し、基本的な行頭／行末禁則を守る。明示改行を保ち、
   `$...$` は途中で分けない（幅より長い不可分の数式や1文字は幅を超え得る）。
+  `\$` と数式内部のエスケープは label parser と同じ規則で認識し、計測・禁則の
+  後退でも分割しない。後退した残りも幅に収め直し、単語境界で禁則を満たせない場合は
+  単語内で分割する。禁則と幅の両立が不可能な場合は幅を優先する。
   折り返しは bubble の IR label だけを変え、既存部品の文字処理を変えない。
 - 文字は既存 `nodes[].textAlign: left|center|right` を再利用し、bubble の既定だけ `left`。
   structured は既存の文字ブロック配置、auto は outline compose 時に最長行の左端へ
