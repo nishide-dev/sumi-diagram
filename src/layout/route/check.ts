@@ -28,7 +28,7 @@ import {
   straightMarginDistance,
   straightPlacement,
 } from "./ports";
-import { arrowheadLength } from "./router";
+import { edgeArrowheadLength } from "./router";
 import { isZoomEdge, zoomLines, zoomSide } from "./zoom";
 
 /** Each list names the problems found; all empty is a clean routing. */
@@ -433,7 +433,7 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
     // Arrowheads need a straight segment as long as themselves.
     const ir = edgeIR.get(edge.key);
     if (ir !== undefined) {
-      const arrow = arrowheadLength(ir.style.strokeWidth.units);
+      const arrow = edgeArrowheadLength(ir.style);
       const length = ([a, b]: Segment) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
       const first = segments[0];
       const last = segments[segments.length - 1];

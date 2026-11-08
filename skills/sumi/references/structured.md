@@ -9,7 +9,7 @@ Feature versions and what to do on an older CLI:
 [figure-format](figure-format.md#feature-versions).
 
 Contents: [minimal example](#minimal-example) · [engine rules](#engine-rules) ·
-[arrange trees](#arrange-trees) · [grids](#grids) · [coordinates](#coordinate-placement) · [panel separators](#panel-separators) ·
+[arrange trees](#arrange-trees) · [grids](#grids) · [coordinates](#coordinate-placement) · [panel separators](#panel-separators) · [flow arrows](#flow-arrows) ·
 [group titles and captions](#group-titles-and-captions) · [sublabels](#sublabels) ·
 [turned labels](#turned-labels) · [text align](#text-align) · [attach](#attach-side-notes) ·
 [align](#aligning-across-trees) · [tables](#tables) ·
@@ -46,7 +46,7 @@ explicit `engine: auto` wins. Under auto, every structured-only field
 (`arrange`, `align`, `alignGrowth`, `fanIn`, `density`, `attach`, `sublabel`,
 `labelRotation`, `textAlign`, `grow`, `fromAnchor` / `toAnchor`, edge
 `labelAt` / `labelSide` / `route`, and the `legend`, `tokens`, `matrix`, `bracket`,
-`separator` and `zoom` components) is `layout/structured-only`: remove it or
+`separator`, `block-arrow`, `triangle-arrow`, `chevron` and `zoom` components) is `layout/structured-only`: remove it or
 make the figure structured. Group `labelAt` and `caption`, icons, images,
 tones, `operator`, `junction`, `dim` and the paper variants work in both.
 
@@ -417,6 +417,44 @@ edges:
   - { from: a, to: b }
 ```
 
+## Flow arrows
+
+`block-arrow`, `triangle-arrow` and `chevron` are shapes that show the flow
+between stages, as in paper figures: put one as an ordinary item of a row or
+stack between two panels. With `align: center` (the default) it sits on the
+middle line of the panels; it is never stretched or grown, and works in
+`place` too. They are markers, not connections: no label, sublabel, badge,
+glyphs or `grow`, and an edge cannot start or end at one
+(`component/flow-arrow-connection`). Default size, from the theme's text size:
+block arrow 1.6 em by 1 em, triangle 0.9 em, chevron 0.7 em. Solid ink with no
+outline; `variant: muted` is gray, `outlined` an outline only, `tone` colours it.
+`props`: `direction` (`right`, `left`, `up`, `down`), `length` and `thickness`
+(lengths, in the arrow's own axes), and `head` / `shaft` for `block-arrow`.
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: stage-flow
+  theme: paper
+  layout:
+    arrange: { row: { gap: 3mm, align: center, items: [views, flow1, encoder, flow2, heads] } }
+groups:
+  - { id: views, arrange: { stack: { items: [v1, v2] } } }
+  - { id: encoder, arrange: { stack: { items: [enc] } } }
+  - { id: heads, arrange: { stack: { items: [h1, h2] } } }
+nodes:
+  - { id: v1, component: box, label: View 1 }
+  - { id: v2, component: box, label: View 2 }
+  - { id: flow1, component: block-arrow }
+  - { id: enc, component: box, label: Encoder }
+  - { id: flow2, component: triangle-arrow, variant: muted }
+  - { id: h1, component: box, label: Head 1 }
+  - { id: h2, component: box, label: Head 2 }
+edges:
+  - { from: v1, to: v2 }
+```
+
 ## Group titles and captions
 
 **Stacked group frames.** Use `props.layers: { count: 4, offset: 3pt }` on a
@@ -599,7 +637,7 @@ nodes:
 ## Attach: side notes
 
 ```yaml
-- { id: config, component: circle, icon: tabler/adjustments, attach: { to: add, side: west, gap: 1mm } }
+- { id: config, component: label, icon: tabler/adjustments, iconSize: 1.5, attach: { to: add, side: west, gap: 1mm } }
 - { id: config-label, component: label, label: "Sensor\nconfig", attach: { to: config, side: west, gap: 0.5mm } }
 - { id: repeat, component: label, label: "N×", attach: { to: encoder, side: east, gap: 2mm } }
 ```
@@ -1014,7 +1052,7 @@ text. An entry has exactly one of `edge` (a sample line: `component` default
 `box`, `variant`, `tone`) or `class` (the sample of a [matrix](#matrices) class,
 `<matrix>.<class>`), plus `label` (math allowed; a `class` entry defaults to the
 class's label). Since 0.16.0 three more samples: `icon: tabler/file-text` (an
-icon one text line tall), `glyph: { kind: vector, tone: blue, strength: solid }`
+icon one text line tall, or `iconSize` as on a node), `glyph: { kind: vector, tone: blue, strength: solid }`
 (the fields of a node [glyph](assets.md#glyphs) except `at` / `dx` / `dy`: `kind`,
 `cells`, `direction`, `tone`, `tones`, `strength`, `size`, `width`, `outline`) and
 `set: { tone: green, variant: dashed, fillOpacity: 0.3 }` (a small translucent

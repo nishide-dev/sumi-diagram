@@ -118,6 +118,9 @@ type Push = (diagnostic: Diagnostic, key?: ElementKey) => void;
 const STRUCTURED_HINT =
   'The structured layout is selected by figure.layout.arrange or "engine: structured"; otherwise remove this field.';
 
+/** The `themeOverrides` fields (#427) only the structured layout draws. */
+const STROKE_THEME_FIELDS = ["lineWidth", "frameWidth", "arrowheadScale", "cornerRadius"] as const;
+
 /** Runs the `layout` stage on `state.doc`. */
 export function checkLayout(state: CheckState, locate: Locator): void {
   const { doc } = state;
@@ -159,15 +162,33 @@ function checkAuto(state: CheckState, locate: Locator): void {
   if (doc.figure?.layout.density !== undefined) {
     report("density", ["figure", "layout", "density"]);
   }
+  // Stroke options (#427) are drawn by the structured writer only: D2 has no arrowhead sizes or quarter-point widths (a dotted variant is drawn as D2's finest dash).
+  for (const field of STROKE_THEME_FIELDS) {
+    if (doc.figure?.themeOverrides?.[field] !== undefined)
+      report(`themeOverrides.${field}`, ["figure", "themeOverrides", field]);
+  }
   for (const [index, group] of (doc.groups ?? []).entries()) {
-    if (group?.arrange === undefined || invalid.has(groupKey(group.id))) continue;
+    if (group === undefined || invalid.has(groupKey(group.id))) continue;
     const subject = { kind: "group", id: group.id } as const;
-    report("arrange", ["groups", index, "arrange"], groupKey(group.id), subject);
+    if (group.arrange !== undefined)
+      report("arrange", ["groups", index, "arrange"], groupKey(group.id), subject);
+    for (const field of ["lineWidth", "cornerRadius"] as const) {
+      if (group[field] !== undefined)
+        report(field, ["groups", index, field], groupKey(group.id), subject);
+    }
   }
   for (const [index, node] of (doc.nodes ?? []).entries()) {
     if (node === undefined || invalid.has(nodeKey(node.id))) continue;
     const subject = { kind: "node", id: node.id } as const;
-    for (const field of ["attach", "sublabel", "labelRotation", "textAlign", "grow"] as const) {
+    for (const field of [
+      "attach",
+      "sublabel",
+      "labelRotation",
+      "textAlign",
+      "grow",
+      "lineWidth",
+      "cornerRadius",
+    ] as const) {
       if (node[field] !== undefined) {
         if (field === "textAlign" && ["bubble", "sumi/bubble"].includes(node.component)) continue;
         report(field, ["nodes", index, field], nodeKey(node.id), subject);
@@ -177,7 +198,15 @@ function checkAuto(state: CheckState, locate: Locator): void {
   for (const [index, edge] of (doc.edges ?? []).entries()) {
     if (edge === undefined || invalid.has(edgeKey(edge.id, index))) continue;
     const subject = { kind: "edge", id: edge.id ?? `edges[${index}]` } as const;
-    for (const field of ["fromAnchor", "toAnchor", "labelAt", "labelSide", "route"] as const) {
+    for (const field of [
+      "fromAnchor",
+      "toAnchor",
+      "labelAt",
+      "labelSide",
+      "route",
+      "lineWidth",
+      "arrowheadScale",
+    ] as const) {
       if (edge[field] !== undefined) {
         report(field, ["edges", index, field], edgeKey(edge.id, index), subject);
       }

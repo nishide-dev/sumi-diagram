@@ -63,9 +63,16 @@ Each line is a ready-made reference (`tabler/wave-sine`); use it verbatim. Table
   carrying the icon to a side without edges (`{ id: cond-icon, component: label,
   icon: tabler/clock, attach: { to: cond, side: south, gap: 1mm } }`) and say so
   in the report.
-- The icon is one text line tall (1 em), no size option; the node is sized around
-  it (a `circle` adds a ring of padding: use a bare `label` for a small inline
-  icon). Its colour is the node's text colour, so variants and tones apply.
+- The icon is one text line tall (1 em) unless `iconSize` sets it: a number is a
+  multiple of the node's font size (`iconSize: 2.5`), a string a length
+  (`iconSize: "12mm"`). **Size icons with `iconSize`; do not wrap them in a
+  `circle` or `box` to make them bigger.** A bare `label` with `icon` and
+  `iconSize` is sized to exactly the icon (no padding), so edges end on its
+  square; a `box` or `circle` adds padding around it. `iconSize` needs an `icon`
+  (`asset/icon-size-without-icon`); badges stay one em. Its colour is the
+  node's text colour, so variants and tones apply. A legend `icon` entry takes
+  the same `iconSize`. A sized Tabler icon keeps the printed stroke of a 1 em icon (the stroke width is divided by the extra scale); emoji are unchanged. Tabler artwork has a margin of about 1/12 of its side, so
+  a large icon's edge ends slightly short of the strokes: use a small `gap`.
 - **`emoji/<name>`**: 3,124 bundled Fluent Emoji Flat SVGs (Microsoft, MIT) keep their
   multicolour palette in every theme and output, **also inside `dim: true` groups**
   (icons and badges, no `theme/undimmed-image`); use Tabler for an icon that follows
@@ -362,6 +369,7 @@ edges:
 | `asset/unknown-icon-set` | use `tabler/` or `emoji/` |
 | `asset/icon-with-label` | remove the label, or move the text into a separate `label` node |
 | `asset/icon-unsupported` | put the icon on a `box`, `circle`, `label`, … |
+| `asset/icon-size-without-icon` | `iconSize` belongs to a node with `icon`: add the icon or remove it |
 | `asset/invalid-path` | a relative path with `/` (no `\`, scheme or leading `/`) naming a file and not leaving the directory through `..` |
 | `asset/outside-base` | the path (through a symlink) leaves the YAML's directory: copy the real file in |
 | `asset/not-found` | the path is relative to the YAML file, not the current directory |

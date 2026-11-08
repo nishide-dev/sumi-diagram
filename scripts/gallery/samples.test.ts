@@ -21,6 +21,7 @@ import {
   PROFILES,
   SAMPLE_PROFILE,
   setsSample,
+  strokeSample,
   THEME_COMPARISON_PROFILE,
   THEMES,
   themeComparison,
@@ -54,7 +55,9 @@ describe("component samples", () => {
               sample.entry.mark === undefined &&
               sample.entry.embed === undefined &&
               sample.entry.variants.includes("solid")
-            )
+            ) &&
+            // Six group frames take two explicit rows (#427).
+            !(sample.entry.kind === "group" && sample.entry.variants.length > 5)
             ? "auto"
             : "structured",
         );
@@ -132,6 +135,7 @@ test("every theme-wide sample passes structural lint under every theme (#177)", 
     dimSample(),
     glyphSample(),
     setsSample(),
+    strokeSample(),
     legendSample(),
   ]) {
     for (const theme of THEMES) {

@@ -62,12 +62,20 @@ import type { Locator } from "./yaml";
 
 /** One entry of `props.entries`, as validated by the manifest. */
 export interface LegendEntry {
-  edge?: { component?: string; variant?: string; tone?: Tone };
+  edge?: {
+    component?: string;
+    variant?: string;
+    tone?: Tone;
+    lineWidth?: number;
+    arrowheadScale?: number;
+  };
   node?: { component?: string; variant?: string; tone?: Tone };
   /** A matrix class (#180): `<matrix>.<class>`. */
   class?: string;
   /** An icon sample (#409), e.g. `tabler/file-text`. */
   icon?: string;
+  /** The icon sample's side (#424): a number of ems or a length; one em when omitted. */
+  iconSize?: number | { pt: number };
   /** A glyph sample (#409): the fields of a node glyph without its position. */
   glyph?: Omit<FigureGlyph, "at" | "dx" | "dy">;
   /** A set swatch (#409). */
@@ -499,6 +507,10 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
           component: entry.edge.component ?? "arrow",
           variant: entry.edge.variant ?? "default",
           ...(entry.edge.tone !== undefined && { tone: entry.edge.tone }),
+          ...(entry.edge.lineWidth !== undefined && { lineWidth: entry.edge.lineWidth }),
+          ...(entry.edge.arrowheadScale !== undefined && {
+            arrowheadScale: entry.edge.arrowheadScale,
+          }),
           props: {},
         };
         edges.push(edge);
@@ -532,9 +544,13 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
         });
         item = withText(ids.box);
       } else if (entry.icon !== undefined) {
-        // An icon sample (#409): a label node that draws the icon, one em tall.
+        // An icon sample (#409): a label node that draws the icon, one em tall or `iconSize`.
         addNode(
-          { ...partNode(ids.box, "sumi/label", "default"), icon: entry.icon },
+          {
+            ...partNode(ids.box, "sumi/label", "default"),
+            icon: entry.icon,
+            ...(entry.iconSize !== undefined && { iconSize: entry.iconSize }),
+          },
           [...entryPath, "icon"],
           `the sample icon ${of}`,
         );
@@ -663,6 +679,8 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
       component: LEGEND_ID,
       variant: component.variant,
       ...(node.tone !== undefined && { tone: node.tone }),
+      ...(node.lineWidth !== undefined && { lineWidth: node.lineWidth }),
+      ...(node.cornerRadius !== undefined && { cornerRadius: node.cornerRadius }),
       ...(node.group !== undefined && { group: node.group }),
       arrange: { stack: { direction: "down", gap: sizes.rowGap, align: "start", items: rows } },
     };

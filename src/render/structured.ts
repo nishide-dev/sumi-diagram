@@ -70,14 +70,14 @@ import { groupLayerRects } from "../layout/group-layers";
 import type { LayoutIR, Point, Rect, SetLayout, TextLayout, TextRun } from "../layout/ir";
 import { type Cubic, sampleCubic, trimCubic } from "../layout/route/cubic";
 import { groupArrowheadStems } from "../layout/route/padding";
-import { arrowheadLength, WIRE_CORNER_RADIUS } from "../layout/route/router";
+import { edgeArrowheadLength, WIRE_CORNER_RADIUS } from "../layout/route/router";
 import { outlinePolygon } from "../layout/set-shape";
 import { fontFileFor } from "../lint/geometry/measure";
 import { CYLINDER_ARC_UNITS, shapeOutline } from "../lint/geometry/shapes";
 import { drawNodeOutline } from "./compose";
 import { subsetFont } from "./font-subset";
 import { HATCH, hatchSegments } from "./hatch";
-import { dashArray, n, paint, strokeAttributes } from "./stroke";
+import { dashArray, dashAttribute, n, paint, strokeAttributes } from "./stroke";
 import { type Arc, isHiddenJunction, roundCorners, type WirePolyline } from "./wire";
 import { escapeAttribute } from "./xml";
 
@@ -472,7 +472,7 @@ export function drawArrowhead(
 ): string {
   if (head === "none") return "";
   const { style } = edge;
-  const length = arrowheadLength(style.strokeWidth.units);
+  const length = edgeArrowheadLength(style);
   const at = (along: number, across: number): Point => ({
     x: tip.x - u.x * along - u.y * across,
     y: tip.y - u.y * along + u.x * across,
@@ -541,14 +541,14 @@ function trimEnd(points: readonly Point[], amount: number): Point[] {
  */
 function underArrowhead(head: Arrowhead, edge: EdgeIR): number {
   if (head === "none") return 0;
-  const length = arrowheadLength(edge.style.strokeWidth.units);
+  const length = edgeArrowheadLength(edge.style);
   return length - arrowheadInset(head, length, edge.style.strokeWidth.units);
 }
 
 /** The part of an edge's route its wire strokes: the route minus the arrowheads' insets. */
 function wirePoints(edge: EdgeIR, points: readonly Point[]): Point[] {
   const width = edge.style.strokeWidth.units;
-  const length = arrowheadLength(width);
+  const length = edgeArrowheadLength(edge.style);
   const head = arrowheadInset(edge.targetArrowhead ?? "none", length, width);
   const tail = arrowheadInset(edge.sourceArrowhead ?? "none", length, width);
   const trimmed = trimEnd(points, head);
@@ -647,7 +647,7 @@ export function mergeSegments(segments: readonly Segment[]): Segment[] {
 
 /** The line style that decides which edges of a net share a wire. */
 const lineKey = (style: EdgeIR["style"]): string =>
-  `${paint(style.stroke)}|${style.strokeWidth.units}|${style.strokeDash}|${style.opacity}`;
+  `${paint(style.stroke)}|${style.strokeWidth.units}|${style.strokeDash}|${style.opacity}${style.strokeDotted === true ? "|dotted" : ""}`;
 
 /** The largest corner radius of a wire (#101); defined by the router, which keeps room for it (#116). */
 export { WIRE_CORNER_RADIUS };
@@ -708,13 +708,15 @@ function wires(
   });
   const out: string[] = [];
   const sharp = ir.meta.themeOverrides?.edgeCorners === "sharp";
-  const joins = `stroke-linecap="${sharp ? "butt" : "round"}" stroke-linejoin="${sharp ? "miter" : "round"}"`;
+  // Dots are round caps, so a dotted wire keeps the cap `strokeAttributes()` gives it.
+  const joinsOf = (style: EdgeIR["style"]) =>
+    `${style.strokeDotted === true ? "" : `stroke-linecap="${sharp ? "butt" : "round"}" `}stroke-linejoin="${sharp ? "miter" : "round"}"`;
   const painted = new Map<ElementKey, { pieces: [Point, Point][]; arcs: Arc[] }>();
   // Correspondence lines are independent: no trunk merging or junction rounding.
   for (const placed of layout.edges) {
     const edge = edges.get(placed.key);
     if (edge?.route === "curve" && placed.route !== undefined) {
-      const length = arrowheadLength(edge.style.strokeWidth.units);
+      const length = edgeArrowheadLength(edge.style);
       const curve = trimCubic(
         placed.route.points as Cubic,
         arrowheadInset(edge.sourceArrowhead ?? "none", length, edge.style.strokeWidth.units),
@@ -724,7 +726,7 @@ function wires(
       const pieces = samples.slice(1).map((p, i): [Point, Point] => [samples[i] as Point, p]);
       painted.set(placed.key, { pieces, arcs: [] });
       out.push(
-        `<path class="sumi-wire" d="${cubicData(curve)}" fill="none"${strokeAttributes(edge.style)} ${joins}${opacity(edge.style)}/>`,
+        `<path class="sumi-wire" d="${cubicData(curve)}" fill="none"${strokeAttributes(edge.style)} ${joinsOf(edge.style)}${opacity(edge.style)}/>`,
       );
       continue;
     }
@@ -735,7 +737,7 @@ function wires(
     painted.set(placed.key, { pieces, arcs: [] });
     if (pieces.length > 0)
       out.push(
-        `<path class="sumi-wire" d="${pathData(points)}" fill="none"${strokeAttributes(edge.style)} ${joins}${opacity(edge.style)}/>`,
+        `<path class="sumi-wire" d="${pathData(points)}" fill="none"${strokeAttributes(edge.style)} ${joinsOf(edge.style)}${opacity(edge.style)}/>`,
       );
   }
   // Zoom edges (#176): their own two straight lines, under the routed wires.
@@ -749,7 +751,7 @@ function wires(
     painted.set(placed.key, { pieces, arcs: [] });
     if (pieces.length === 0) continue;
     out.push(
-      `<path class="sumi-wire" d="${pieces.map((piece) => pathData(piece)).join(" ")}" fill="none"${strokeAttributes(edge.style)} ${joins}${opacity(edge.style)}/>`,
+      `<path class="sumi-wire" d="${pieces.map((piece) => pathData(piece)).join(" ")}" fill="none"${strokeAttributes(edge.style)} ${joinsOf(edge.style)}${opacity(edge.style)}/>`,
     );
   }
   for (const net of nets) {
@@ -854,7 +856,7 @@ function wires(
         ? sharpPathData(merged)
         : [...merged.map(([a, b]) => pathData([a, b])), ...curves].join(" ");
       out.push(
-        `<path class="sumi-wire" d="${d}" fill="none"${strokeAttributes(edge.style)} ${joins}${opacity(edge.style)}/>`,
+        `<path class="sumi-wire" d="${d}" fill="none"${strokeAttributes(edge.style)} ${joinsOf(edge.style)}${opacity(edge.style)}/>`,
       );
     }
   }
@@ -942,8 +944,7 @@ function edgeGroup(
 ): string {
   const { style } = edge;
   const width = style.strokeWidth.units;
-  const dash = dashArray(width, style.strokeDash);
-  const connection = `<path class="connection" d="${edge.route === "curve" ? cubicData(points) : pathData(points)}" fill="none" stroke-width="${n(width)}"${dash === undefined ? "" : ` stroke-dasharray="${n(dash[0])},${n(dash[1])}"`}/>`;
+  const connection = `<path class="connection" d="${edge.route === "curve" ? cubicData(points) : pathData(points)}" fill="none" stroke-width="${n(width)}"${dashAttribute(style)}/>`;
   const first = points[0] as Point;
   const last = points[points.length - 1] as Point;
   const heads =
@@ -985,9 +986,8 @@ function edgeGroup(
 function zoomGroup(edge: EdgeIR, lines: readonly (readonly [Point, Point])[]): string {
   const { style } = edge;
   const width = style.strokeWidth.units;
-  const dash = dashArray(width, style.strokeDash);
   const d = lines.map((line) => pathData(line)).join(" ");
-  const connection = `<path class="connection" d="${d}" fill="none" stroke-width="${n(width)}"${dash === undefined ? "" : ` stroke-dasharray="${n(dash[0])},${n(dash[1])}"`}/>`;
+  const connection = `<path class="connection" d="${d}" fill="none" stroke-width="${n(width)}"${dashAttribute(style)}/>`;
   return `<g class="${elementClass(edge.key)} sumi-kind-edge"${opacity(style)}>${connection}</g>`;
 }
 

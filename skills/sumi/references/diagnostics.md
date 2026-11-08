@@ -83,7 +83,7 @@ Apply one edit and re-check: independent savings are not additive.
 | `component/unknown-variant` | variant not listed for that component | one from the hint / catalog |
 | `component/unknown-prop`, `component/invalid-prop` | prop not in the schema, or a bad value (e.g. `px`, not a multiple of 0.5pt; an `image` without `width` or `height`) | remove it or use the hint's value |
 | `component/missing-label` | a text-only component (`label`) has no text | give it a label |
-| `component/unexpected-label` | `operator`, `junction`, `image`, `bracket`, `separator` or a `zoom` edge has a label | remove it; put a `label` node next to it (for `zoom`, title the zoomed-in group) |
+| `component/unexpected-label` | `operator`, `junction`, `image`, `bracket`, `separator`, a flow arrow or a `zoom` edge has a label | remove it; put a `label` node next to it (for `zoom`, title the zoomed-in group) |
 | `component/invalid-math` | unsupported or malformed `$...$` (the message gives the characters) | use the supported subset, close the `$`, or write `\$` ([label math](figure-format.md#label-math)) |
 | `component/unsupported-in-auto` (warning) | label math with a command, `_` or `^` in an auto figure, drawn as written | use the structured layout or drop the `$...$` |
 | `component/label-at-without-label`, `component/label-rotation-without-label`, `component/sublabel-without-label` | `labelAt` / `labelRotation` / `sublabel` without a (non-empty) label (the sublabel one is an error) | add the label, or remove the field |
@@ -91,9 +91,10 @@ Apply one edit and re-check: independent savings are not additive.
 | `component/invalid-prop` on a legend entry | both or neither of `edge` / `node` / `class` / `icon` / `glyph` / `set`, `perRow` without `flow: row`, or a sample box that is a mark, text or picture | one sample per entry; a shape such as `box` |
 | `component/tone-unsupported` | `tone` on a `junction` | remove it |
 | `component/anchor-on-junction`, `component/anchor-on-zoom` (warnings) | an anchor on an end at a `junction` (every line meets the dot's centre) or on a `zoom` edge (corners follow the target's place) | remove the anchor; anchor the other end or move the junction / target |
-| `component/grow-unsupported` | `grow` on expanded `tokens`, `matrix` or `legend` | remove it; weight ordinary nodes under their row/stack's `justify: stretch` |
+| `component/grow-unsupported` | `grow` on expanded `tokens`, `matrix`, `legend`, `separator` or a flow arrow | remove it; weight ordinary nodes under their row/stack's `justify: stretch` |
 | `component/separator-placement` | a `separator` with `attach` or directly in a grid cell | put it directly in a row or stack |
 | `component/separator-connection` | a `separator` as an edge endpoint | connect the panels' real nodes |
+| `component/flow-arrow-connection` | a `block-arrow`, `triangle-arrow` or `chevron` as an edge endpoint | connect the nodes on either side; the arrow is only a marker in the row |
 | `component/badge-unsupported` | a badge on a `legend`, `tokens`, `matrix`, point junction or `bracket` | put it on an ordinary shape, outline or image |
 | `component/glyph-unsupported` | `glyphs` on a `legend`, `tokens`, `matrix`, point junction or `bracket` | put them on an ordinary shape, outline or image |
 | `component/deprecated` (warning) | still works but is being replaced | switch to the replacement named |
@@ -151,6 +152,7 @@ Apply one edit and re-check: independent savings are not additive.
 | `lint/missing-glyph` | warning | replace the character (emoji and rare CJK are not in the font); for HTML choose covering bundled families (Geist fallback does not count) |
 | `lint/literal-newline` | warning | `\n` as two characters outside `$...$` (single-quoted or plain YAML): double-quote it and double math backslashes (`"Scale, Shift\n$\\gamma_1$"`), or a `\|-` block ([math and line breaks](figure-format.md#math-and-line-breaks-in-one-label)) |
 | `lint/unused-legend-entry` | warning | no edge / node has the entry's component, variant and tone, no node draws its `icon` or has its `glyph`, or no set has its swatch's variant and tone: fix the entry or the elements ([legends](structured.md#legends)) |
+| `lint/icon-enclosure` | info | a plain `circle` / `box` holds only an `icon` (no tone, variant, size, badge or glyphs): use `component: label` with `icon` and `iconSize`; give the frame a tone or variant if its shape means something |
 | `lint/unused-matrix-class` | warning | no cell uses the class: remove it or use it ([matrices](structured.md#matrices)) |
 
 `sumi lint --rule lint/no-edges=off` silences a rule for one run. There is no

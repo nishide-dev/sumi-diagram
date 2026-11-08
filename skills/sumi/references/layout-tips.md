@@ -303,6 +303,7 @@ and decide its one visual form and tone:
 | collections, groups, hyperedges, clusters | set enclosure | one tint per set |
 | operations, mappings, aggregation | arrow (edge label of a word or two), or one short box | neutral |
 | stages, steps | numbered columns (`row` of panels with captions `(a)`, `(b)`) | neutral |
+| stage flow, what feeds what | a `block-arrow` or `triangle-arrow` between the columns, not a thin edge ([flow arrows](structured.md#flow-arrows)) | neutral ink |
 | losses, objectives | one short box or a dashed edge to the thing it trains | one accent |
 
 Fill it from the paper, not from a template: drop rows that do not occur, add your
@@ -324,14 +325,16 @@ and do not mix per-element colours that fight it; for black-and-white print use 
   one thing.
 - **One legend**, in one place (usually the bottom), covering every tone and mark
   that needs explaining ([legends](structured.md#legends)); no per-panel keys.
-- **Read in order.** Stages go left to right or top to bottom as numbered columns;
+- **Read in order.** Stages go left to right or top to bottom as numbered columns,
+  with a block arrow or triangle between them to carry the flow;
   no edge leaves its panel except the main flow, so repeat a small icon instead of
   drawing a long edge.
 
 Sumi features for each form:
 
 - **Icons**: `label` or `box` with `icon:` ([icons](assets.md#icons), find names with
-  `sumi catalog --icons`); tones from [tones and variants](figure-format.md#tones-and-variants).
+  `sumi catalog --icons`); make an icon larger with `iconSize` (`2`, or `"12mm"`),
+  never by enclosing it in a circle; tones from [tones and variants](figure-format.md#tones-and-variants).
 - **Feature vectors, dots, pills**: node `glyphs` ([glyphs](assets.md#glyphs)).
 - **Sets and hyperedges**: top-level `sets` ([set enclosures](structured.md#set-enclosures)).
 - **Small graphs**: `place` with coordinates ([coordinate placement](structured.md#coordinate-placement)).
@@ -404,6 +407,8 @@ the reference's arrangement), then map each look you want to a field:
 | strong coloured cells or operators with white text | `variant: solid` + `tone` |
 | pastel cells with matching coloured border and text | `variant: tinted` + `tone` |
 | coloured lines | `tone` on the edge |
+| thin 0.5pt frames and lines, small arrowheads (paper figures usually want this; heavy default lines are the commonest difference from the original) | `themeOverrides: { lineWidth: 0.5pt, frameWidth: 0.5pt, arrowheadScale: 0.6 }` ([line weights](figure-format.md#themes-and-profiles)) |
+| dotted coloured lines | edge `variant: dotted` + `tone` (`lineWidth: 0.5pt` for one edge) |
 | a panel without a frame, a shaded panel, a dashed panel | group `variant: plain` / `filled` / `dashed`, with `caption: (a) …` |
 | panels of equal height with captions on one line | the panels in one `row` with `align: stretch` ([captions](structured.md#group-titles-and-captions)) |
 | panels separated by a dashed vertical (or horizontal) line | a `separator` between them ([recipe below](#two-panels-with-a-dashed-divider)) |

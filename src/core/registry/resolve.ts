@@ -43,7 +43,7 @@ import type { Diagnostic, DiagnosticSubject, DocPath } from "../diagnostics";
 import type { ArrangeBox } from "../figure/schema";
 import type { Locator } from "../figure/yaml";
 import { hasLabelMarkup, looksLikeMath, parseLabel } from "../label/math";
-import { BRACKET_ID, SEPARATOR_ID } from "./builtins";
+import { BRACKET_ID, FLOW_ARROW_IDS, SEPARATOR_ID } from "./builtins";
 import { type ComponentKind, componentId, type ResolvedComponent } from "./manifest";
 import type { Registry } from "./registry";
 
@@ -176,9 +176,27 @@ export function resolveComponents(
         );
       }
     }
+    if (FLOW_ARROW_IDS.includes(componentId(manifest))) {
+      const id = element.subject.id;
+      if ((state.doc.edges ?? []).some((edge) => edge && [edge.from, edge.to].includes(id))) {
+        report(
+          [
+            {
+              code: "component/flow-arrow-connection",
+              severity: "error",
+              message: `${componentId(manifest)} marks the flow between stages and cannot be an edge endpoint.`,
+              hint: "Connect the nodes on either side instead; an arrow shape is placed in a row or stack between them.",
+            },
+          ],
+          () => [...element.path, "component"],
+        );
+      }
+    }
     const growUnsupported =
       element.grow !== undefined &&
-      ["sumi/tokens", "sumi/matrix", "sumi/legend", SEPARATOR_ID].includes(componentId(manifest));
+      ["sumi/tokens", "sumi/matrix", "sumi/legend", SEPARATOR_ID, ...FLOW_ARROW_IDS].includes(
+        componentId(manifest),
+      );
     if (growUnsupported)
       report(
         [
@@ -270,11 +288,16 @@ export function resolveComponents(
     const mark = manifest.kind === "node" ? manifest.mark : undefined;
     const embed = manifest.kind === "node" ? manifest.embed : undefined;
     // A bracket (#281) is a line with no label, label turn or sublabel.
-    const bracket = [BRACKET_ID, SEPARATOR_ID].includes(componentId(manifest));
+    const bracket = [BRACKET_ID, SEPARATOR_ID, ...FLOW_ARROW_IDS].includes(componentId(manifest));
     const noBody =
-      ["sumi/legend", "sumi/tokens", "sumi/matrix", BRACKET_ID, SEPARATOR_ID].includes(
-        componentId(manifest),
-      ) || mark?.type === "point";
+      [
+        "sumi/legend",
+        "sumi/tokens",
+        "sumi/matrix",
+        BRACKET_ID,
+        SEPARATOR_ID,
+        ...FLOW_ARROW_IDS,
+      ].includes(componentId(manifest)) || mark?.type === "point";
     const badgeUnsupported = element.badge && noBody;
     const glyphsUnsupported = element.glyphs && noBody;
     if (badgeUnsupported)
