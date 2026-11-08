@@ -38,7 +38,8 @@ export const emptyFigure = defineRule({
 
 export const noEdges = defineRule({
   id: "lint/no-edges",
-  description: "The figure has two or more valid nodes but no edges.",
+  description:
+    "The figure has two or more valid nodes but no edges (a figure with sets relates its nodes by membership).",
   defaultSeverity: "warning",
   fixable: false,
   run(context) {
@@ -47,6 +48,8 @@ export const noEdges = defineRule({
     const { edges, expanded } = context.state.doc;
     if (edges === undefined) return [];
     if (edges.some((e, i) => e === undefined || !expanded?.has(edgeKey(e.id, i)))) return [];
+    // Sets (#407) relate nodes by membership: a Venn diagram needs no edges.
+    if ((context.state.doc.sets ?? []).some((set) => set !== undefined)) return [];
     // Invalid nodes already have errors; count only the valid ones, and not
     // the captions of groups (#130) or the parts of legends (#131). The
     // cells of tokens nodes (#181) are the author's nodes.

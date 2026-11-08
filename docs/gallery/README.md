@@ -24,6 +24,7 @@
   - <a id="solid-and-tinted-tones"></a>[Solid and tinted tones](tones.md#solid-and-tinted-tones)
   - <a id="outlined-tones-and-edge-tones"></a>[Outlined tones and edge tones](tones.md#outlined-tones-and-edge-tones)
 - <a id="dimmed-groups"></a>[Dimmed groups](dim.md): A group drawn pale with everything inside it, under every theme\.
+- <a id="set-enclosures"></a>[Set enclosures](sets.md): Overlapping translucent sets around nodes, for Venn diagrams and hyperedges, under every theme\.
 - <a id="profiles"></a><a id="one-figure-every-theme--profile"></a>[Profiles and comparison](compare.md): The built\-in profiles, and one figure under every theme and profile\.
 
 ## Components

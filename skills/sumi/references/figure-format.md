@@ -35,6 +35,7 @@ figure:                    # required
 groups: []                 # optional
 nodes: []                  # optional (an empty figure gets a lint warning)
 edges: []                  # optional
+sets: []                   # optional: enclosures around nodes that may overlap¹ (structured.md)
 metadata: {}               # optional, any JSON-compatible data; not drawn
 ```
 
@@ -42,6 +43,7 @@ metadata: {}               # optional, any JSON-compatible data; not drawn
 | --- | --- | --- |
 | group | **`id`**, `label`, `labelAt`, `caption`, `component`, `variant`, `tone`, `dim`, `group`, `arrange`¹ | component `container`, variant `default`, no tone, not dimmed, no parent |
 | node | **`id`**, **`component`**, `label`, `sublabel`¹, `labelRotation`¹, `textAlign`¹, `grow`¹, `variant`, `tone`, `mono`, `icon`, `badge`, `props`, `group`, `attach`¹ | variant `default`, no label, no tone, no group, grow `1` |
+| set¹ | **`id`**, **`members`**, `label`, `labelAt`, `shape`, `padding`, `variant`, `tone`, `fillOpacity` | shape `circle`, labelAt `top`, variant `default`, no tone (gray), padding = the profile's group padding |
 | edge | **`from`**, **`to`**, `id`, `label`, `labelAt`¹, `labelSide`¹, `route`¹, `component`, `variant`, `tone`, `props`, `fromAnchor`¹, `toAnchor`¹ | component `arrow`, variant `default`, no tone |
 
 ¹ Structured layout only (a figure with `figure.layout.arrange`):
@@ -74,6 +76,7 @@ stops with one `schema/unsatisfied-requires` instead of a list of unknown fields
 | 0.10.0 | inline SVG images, `waveform`, `bracket`, whole-sequence `tokens` edges, matrix text and ellipsis cells |
 | 0.11.0 | `html` component |
 | 0.12.0 | `separator`, `figure.assets` with `crop` and tokens image cells, operator `size`, grid hints, width-overflow breakdown |
+| 0.16.0 | `sets`: overlapping enclosures for Venn diagrams and hyperedges |
 
 ## IDs
 

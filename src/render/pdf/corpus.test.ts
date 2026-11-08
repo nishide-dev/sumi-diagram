@@ -13,7 +13,11 @@ const update = process.env.SUMI_UPDATE_GOLDEN === "1";
 const actual: Record<string, string> = {};
 const fontSet = getFontSet(DEFAULT_FONT_SET_ID);
 if (!fontSet) throw new Error("Missing bundled font set");
-const paths = [...new Bun.Glob("docs/gallery/components/*.svg").scanSync(root)].sort();
+// The set enclosures sample (#407) carries translucent fills.
+const paths = [
+  ...new Bun.Glob("docs/gallery/components/*.svg").scanSync(root),
+  ...new Bun.Glob("docs/gallery/sets/*.svg").scanSync(root),
+].sort();
 const corpus = paths.map((path) => ({ id: path, svg: readFileSync(join(root, path), "utf8") }));
 corpus.push({
   id: "japanese-mask",

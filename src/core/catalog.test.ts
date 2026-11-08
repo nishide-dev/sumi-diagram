@@ -220,3 +220,25 @@ describe("buildFullCatalog", () => {
     );
   });
 });
+
+describe("sets section (#407)", () => {
+  test("describes the set schema, shapes, variants and label positions", () => {
+    const catalog = buildFullCatalog(createBuiltinRegistry(), { sections: ["sets"] });
+    expect(Object.keys(catalog)).toEqual(["version", "sets"]);
+    expect(catalog.sets?.path).toBe("sets");
+    expect(catalog.sets?.shapes).toEqual(["circle", "ellipse", "hull", "rect"]);
+    expect(catalog.sets?.variants).toEqual(["default", "filled", "outlined", "dashed"]);
+    expect(catalog.sets?.labelAt).toContain("top-left");
+    expect(Object.keys(catalog.sets?.schema.properties ?? {})).toEqual([
+      "id",
+      "label",
+      "members",
+      "shape",
+      "labelAt",
+      "padding",
+      "fillOpacity",
+      "variant",
+      "tone",
+    ]);
+  });
+});

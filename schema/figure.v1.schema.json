@@ -614,6 +614,107 @@
         "additionalProperties": false
       }
     },
+    "sets": {
+      "description": "Set enclosures (#407): translucent shapes around nodes and groups that may overlap, for Venn diagrams and hyperedges. Structured layout only; they are drawn below the nodes and edges and take no space in the arrange trees.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+            "description": "Set ID (its own ID space, separate from nodes, groups and edges)."
+          },
+          "label": {
+            "default": "",
+            "description": "Plain text; newlines break lines. Empty or omitted means no label.",
+            "type": "string"
+          },
+          "members": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+            },
+            "description": "IDs of the nodes and groups the set encloses (each listed once). A group stands for its whole frame; the nodes inside it are members too."
+          },
+          "shape": {
+            "default": "circle",
+            "description": "circle (default; the smallest circle around the members), ellipse (axis-parallel, up to 3:1), hull (rounded convex hull) or rect (rounded rectangle).",
+            "type": "string",
+            "enum": [
+              "circle",
+              "ellipse",
+              "hull",
+              "rect"
+            ]
+          },
+          "labelAt": {
+            "description": "Where the label sits outside the outline: top, top-right, right, bottom-right, bottom, bottom-left, left or top-left. Omitted means top.",
+            "type": "string",
+            "enum": [
+              "top",
+              "top-right",
+              "right",
+              "bottom-right",
+              "bottom",
+              "bottom-left",
+              "left",
+              "top-left"
+            ]
+          },
+          "padding": {
+            "description": "Room between the members and the outline. Omitted means the profile's group padding.",
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(0|\\d+(\\.\\d+)?(mm|cm|in|pt))$"
+              },
+              {
+                "const": 0
+              }
+            ]
+          },
+          "fillOpacity": {
+            "description": "Opacity of the tinted fill (0..1) so that overlapping sets show through each other. Omitted means the variant's own (0.2 for default and dashed, 0.28 for filled).",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "variant": {
+            "default": "default",
+            "description": "default (tint and outline), filled (tint), outlined (outline) or dashed.",
+            "type": "string",
+            "enum": [
+              "default",
+              "filled",
+              "outlined",
+              "dashed"
+            ]
+          },
+          "tone": {
+            "description": "Color category from the theme's palette: its line color draws the outline and the label and, at low opacity, the tint, in every theme. Omitted means gray.",
+            "type": "string",
+            "enum": [
+              "gray",
+              "red",
+              "orange",
+              "yellow",
+              "green",
+              "blue",
+              "purple",
+              "pink"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "members"
+        ],
+        "additionalProperties": false
+      }
+    },
     "metadata": {
       "description": "Arbitrary JSON-compatible data; not interpreted.",
       "$ref": "#/$defs/JsonValue"

@@ -1,6 +1,6 @@
 # Profiles and comparison
 
-[Gallery](README.md) · [Examples](examples.md) · [Themes](themes.md) · [Tones](tones.md) · [Dimmed groups](dim.md) · [Profiles and comparison](compare.md)
+[Gallery](README.md) · [Examples](examples.md) · [Themes](themes.md) · [Tones](tones.md) · [Dimmed groups](dim.md) · [Set enclosures](sets.md) · [Profiles and comparison](compare.md)
 
 ## Profiles
 

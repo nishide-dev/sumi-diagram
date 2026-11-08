@@ -1,0 +1,118 @@
+/**
+ * Stage `ref` for set enclosures (#407, design record 407): checks the IDs
+ * of `sets` and their members.
+ *
+ * - Set IDs form their own ID space, like edge IDs: a set may share an ID
+ *   with a node (`ref/duplicate-id` between sets only).
+ * - A member is a node or a group of the figure (`ref/unknown-set-member`),
+ *   listed once (`ref/duplicate-set-member`). A member that is itself
+ *   invalid is left alone: it has its own diagnostic.
+ * - Sets are drawn by the structured layout only (`layout/structured-only`).
+ *
+ * A set with an error is dropped from the document (`doc.sets[i]` becomes
+ * `undefined`), so later stages never see one.
+ */
+
+import { type CheckState, groupKey, nodeKey } from "../check-state";
+import { type Diagnostic, type DocPath, didYouMean } from "../diagnostics";
+import { errorAt, relatedAt } from "./report";
+import type { Locator } from "./yaml";
+
+/** Runs the set checks on `state.doc`. */
+export function checkSets(state: CheckState, locate: Locator): void {
+  const { doc } = state;
+  const sets = doc.sets;
+  if (sets === undefined || doc.figure === undefined) return;
+  const subject = (id: string) => ({ kind: "set", id }) as const;
+  const report = (index: number, diagnostic: Diagnostic) => {
+    state.diagnostics.push(diagnostic);
+    sets[index] = undefined;
+  };
+
+  if (doc.figure.layout.engine === "auto") {
+    for (const [index, set] of sets.entries()) {
+      if (set === undefined) continue;
+      report(
+        index,
+        errorAt(
+          locate,
+          "layout/structured-only",
+          `"sets" needs the structured layout engine, but this figure uses the auto engine.`,
+          ["sets", index],
+          {
+            atKey: true,
+            subject: subject(set.id),
+            hint: 'The structured layout is selected by figure.layout.arrange or "engine: structured"; otherwise remove sets.',
+          },
+        ),
+      );
+    }
+    return;
+  }
+
+  const known = new Set<string>();
+  for (const g of doc.groups ?? []) if (g !== undefined) known.add(g.id);
+  for (const n of doc.nodes ?? []) if (n !== undefined) known.add(n.id);
+  // IDs that exist but have an error of their own: not reported again.
+  const invalid = (id: string) => state.invalid.has(nodeKey(id)) || state.invalid.has(groupKey(id));
+  const first = new Map<string, number>();
+  for (const [index, set] of sets.entries()) {
+    if (set === undefined) continue;
+    const path: DocPath = ["sets", index];
+    const earlier = first.get(set.id);
+    if (earlier !== undefined) {
+      report(
+        index,
+        errorAt(
+          locate,
+          "ref/duplicate-id",
+          `Set ID "${set.id}" is already used by sets[${earlier}].`,
+          [...path, "id"],
+          {
+            subject: subject(set.id),
+            hint: "Set IDs must be unique among sets.",
+            related: [relatedAt(locate, ["sets", earlier, "id"], "First defined here.")],
+          },
+        ),
+      );
+      continue;
+    }
+    first.set(set.id, index);
+    const seen = new Map<string, number>();
+    let failed = false;
+    for (const [m, member] of set.members.entries()) {
+      const at = [...path, "members", m];
+      const before = seen.get(member);
+      if (before !== undefined) {
+        state.diagnostics.push(
+          errorAt(
+            locate,
+            "ref/duplicate-set-member",
+            `"${member}" is listed twice in the members of set "${set.id}".`,
+            at,
+            {
+              subject: subject(set.id),
+              hint: "List each member once.",
+              related: [relatedAt(locate, [...path, "members", before], "First listed here.")],
+            },
+          ),
+        );
+        failed = true;
+        continue;
+      }
+      seen.set(member, m);
+      if (known.has(member) || invalid(member)) continue;
+      state.diagnostics.push(
+        errorAt(
+          locate,
+          "ref/unknown-set-member",
+          `Unknown member "${member}" in set "${set.id}"; members must be node or group IDs.`,
+          at,
+          { subject: subject(set.id), hint: didYouMean(member, known) },
+        ),
+      );
+      failed = true;
+    }
+    if (failed) sets[index] = undefined;
+  }
+}

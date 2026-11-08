@@ -205,6 +205,20 @@ nodes:
     expect(warning?.message).toBe("The figure has 3 nodes but no edges.");
   });
 
+  test("no-edges does not apply to a figure with sets, which relate nodes by membership (#407)", () => {
+    const text = [
+      "version: 1",
+      "figure: { id: x, layout: { arrange: { row: { items: [a, b] } } } }",
+      "nodes:",
+      "  - { id: a, component: box, label: A }",
+      "  - { id: b, component: box, label: B }",
+      "",
+    ].join("\n");
+    expect(lintFigure(text).diagnostics.map((d) => d.code)).toEqual(["lint/no-edges"]);
+    const withSet = `${text}sets:\n  - { id: s, members: [a, b] }\n`;
+    expect(lintFigure(withSet).diagnostics).toEqual([]);
+  });
+
   test("missing-glyph lists characters with code points and the font slot", () => {
     const messages = lint("lint/missing-glyph.sumi.yaml").diagnostics.map((d) => d.message);
     expect(messages).toEqual([

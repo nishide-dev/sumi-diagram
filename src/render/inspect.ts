@@ -12,6 +12,7 @@ import type { ElementIR, FigureIR } from "../compiler/ir";
 import type { ElementKey } from "../core/check-state";
 import type { Diagnostic, DiagnosticSubject } from "../core/diagnostics";
 import type { LabelRotation } from "../core/figure/schema";
+import type { Region } from "../core/geometry";
 import { getProfile } from "../core/profile/builtin";
 import type { Result } from "../core/result";
 import { PT_PER_D2_UNIT } from "../core/units";
@@ -25,7 +26,14 @@ import {
   toSize,
 } from "./geometry";
 import { invalid, parseNumber, readD2Svg } from "./svg";
-import { attribute, childElements, classList, textContent, type XmlElement } from "./xml";
+import {
+  attribute,
+  childElements,
+  classList,
+  descendants,
+  textContent,
+  type XmlElement,
+} from "./xml";
 
 export interface LabelGeometry {
   textAlign?: "left" | "right";
@@ -111,6 +119,21 @@ export interface ProfileLimits {
   minScaledFontSizePt?: number;
 }
 
+/**
+ * A set enclosure (#407) as the SVG draws it: `g.sumi-set-<id>` holding its
+ * `.sumi-set-shape` and its label. Sets are not elements of the figure (no
+ * `sumi-k-` class); they are read only when the IR has `sets`.
+ */
+export interface SetGeometry {
+  readonly id: string;
+  /** The shape's bounding box, stroke excluded. */
+  readonly bbox: Rect;
+  /** The convex region the shape covers (a circle or ellipse, otherwise a polygon). */
+  readonly region: Region;
+  /** The label, if any. */
+  readonly labels: LabelGeometry[];
+}
+
 export interface SvgInspection {
   canvas: {
     /**
@@ -132,6 +155,8 @@ export interface SvgInspection {
   scale?: number;
   /** One entry per IR element, in IR order (groups, nodes, edges). */
   elements: ElementGeometry[];
+  /** One entry per set of the IR (#407), in IR order; absent for a figure without sets. */
+  sets?: SetGeometry[];
   /**
    * What a structured figure paints for each edge (#90, #156), as absolute
    * M/L/C segments: the wires (`path.sumi-wire`) stroke the edges of a net
@@ -611,6 +636,7 @@ export function inspectSvg(svg: string, ir: FigureIR): Result<SvgInspection> {
     elements.push(geometry);
   }
 
+  const sets = ir.sets === undefined ? undefined : readSets(drawing, ir, diagnostics);
   if (diagnostics.length > 0) return { ok: false, diagnostics };
   const scale = printScale(root, read.doc.viewBox);
   const profile = getProfile(ir.meta.profileId);
@@ -631,9 +657,128 @@ export function inspectSvg(svg: string, ir: FigureIR): Result<SvgInspection> {
       },
       ...(scale !== undefined && { scale }),
       elements,
+      ...(sets !== undefined && { sets }),
     },
     diagnostics: [],
   };
+}
+
+/** The convex region of a set's shape element, or a problem description. */
+function setRegion(shape: XmlElement): Region | string {
+  const num = (name: string) => parseNumber(attribute(shape, name));
+  switch (shape.name) {
+    case "circle":
+    case "ellipse": {
+      const [cx, cy, rx, ry] =
+        shape.name === "circle"
+          ? [num("cx"), num("cy"), num("r"), num("r")]
+          : [num("cx"), num("cy"), num("rx"), num("ry")];
+      if (cx === undefined || cy === undefined || rx === undefined || ry === undefined)
+        return `<${shape.name}> lacks numeric attributes`;
+      return { kind: "ellipse", cx, cy, rx, ry };
+    }
+    case "rect": {
+      const [x, y, width, height] = ["x", "y", "width", "height"].map(num);
+      if (x === undefined || y === undefined || width === undefined || height === undefined)
+        return "<rect> lacks numeric attributes";
+      return {
+        kind: "polygon",
+        points: [
+          { x, y },
+          { x: x + width, y },
+          { x: x + width, y: y + height },
+          { x, y: y + height },
+        ],
+      };
+    }
+    case "path": {
+      const parsed = parsePath(attribute(shape, "d") ?? "");
+      if (!parsed.ok) return `<path>: ${parsed.message}`;
+      const points: Point[] = [];
+      let at: Point | undefined;
+      for (const s of parsed.segments) {
+        if (s.command === "C" && at !== undefined) {
+          for (let i = 1; i <= 16; i++) {
+            const t = i / 16;
+            const u = 1 - t;
+            points.push({
+              x: u ** 3 * at.x + 3 * u * u * t * s.c1.x + 3 * u * t * t * s.c2.x + t ** 3 * s.to.x,
+              y: u ** 3 * at.y + 3 * u * u * t * s.c1.y + 3 * u * t * t * s.c2.y + t ** 3 * s.to.y,
+            });
+          }
+        } else points.push(s.to);
+        at = s.to;
+      }
+      return { kind: "polygon", points };
+    }
+    default:
+      return `unsupported shape element <${shape.name}>`;
+  }
+}
+
+/** Reads the set enclosures (#407) of the IR from the SVG; missing or unreadable ones are errors. */
+function readSets(drawing: XmlElement, ir: FigureIR, diagnostics: Diagnostic[]): SetGeometry[] {
+  const groups = new Map<string, XmlElement[]>();
+  for (const element of descendants(drawing)) {
+    if (element.name !== "g" || !classList(element).includes("sumi-set")) continue;
+    const id = classList(element)
+      .find((c) => c.startsWith("sumi-set-"))
+      ?.slice("sumi-set-".length);
+    if (id !== undefined) groups.set(id, [...(groups.get(id) ?? []), element]);
+  }
+  const out: SetGeometry[] = [];
+  for (const set of ir.sets ?? []) {
+    const subject: DiagnosticSubject = { kind: "set", id: set.id };
+    const located = {
+      subject,
+      path: [...set.source.path],
+      ...(set.source.location !== undefined && { location: set.source.location }),
+    };
+    const found = groups.get(set.id) ?? [];
+    if (found.length !== 1) {
+      diagnostics.push({
+        code: found.length === 0 ? "svg/missing-element" : "svg/duplicate-element",
+        severity: "error",
+        message:
+          found.length === 0
+            ? `The set "${set.id}" does not appear in the SVG.`
+            : `The set "${set.id}" appears ${found.length} times in the SVG.`,
+        ...located,
+      });
+      continue;
+    }
+    const group = found[0] as XmlElement;
+    const children = childElements(group);
+    const shapes = children.filter((c) => classList(c).includes("sumi-set-shape"));
+    const problems: string[] = [];
+    const labels: LabelGeometry[] = [];
+    for (const text of children.filter((c) => c.name === "text")) {
+      const label = readLabel(text);
+      if (typeof label === "string") problems.push(label);
+      else labels.push(label);
+    }
+    const shape = shapes[0];
+    if (shapes.length !== 1 || shape === undefined) {
+      problems.push(`it has ${shapes.length} shapes; expected one`);
+    } else {
+      const region = setRegion(shape);
+      const bounds = new BoundsBuilder();
+      addShape(bounds, { ...group, children: [shape] }, problems);
+      const bbox = bounds.rect();
+      if (typeof region === "string") problems.push(region);
+      else if (bbox === undefined) problems.push("its shape draws nothing");
+      else if (problems.length === 0) out.push({ id: set.id, bbox, region, labels });
+    }
+    if (problems.length > 0) {
+      diagnostics.push({
+        ...unsupported(
+          `Cannot read the geometry of set "${set.id}": ${problems.map((p) => p.replace(/\.$/, "")).join("; ")}.`,
+        ),
+        ...located,
+      });
+    }
+  }
+  return out;
 }
 
 /**

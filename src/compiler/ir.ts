@@ -41,6 +41,8 @@ import type {
   LabelRotation,
   LayoutDensity,
   LayoutEngine,
+  SetLabelPosition,
+  SetShape,
 } from "../core/figure/schema";
 import { nodeOrder } from "../core/figure/tokens";
 import { getProfile } from "../core/profile/builtin";
@@ -62,7 +64,9 @@ import { getTheme } from "../core/theme/builtin";
 import { dimmedElements } from "../core/theme/dim";
 import type { FontSetId } from "../core/theme/fonts";
 import { pageTextContrast } from "../core/theme/node-variants";
+import { withToneOverrides } from "../core/theme/overrides";
 import type { ThemeArrowhead } from "../core/theme/schema";
+import { resolveSetStyle, type SetStyle } from "../core/theme/set-style";
 import {
   type EdgeStyle,
   type GroupStyle,
@@ -383,6 +387,27 @@ export interface EdgeIR extends ElementIRBase {
 
 export type ElementIR = NodeIR | GroupIR | EdgeIR;
 
+/**
+ * One entry of `sets` (#407): an enclosure fitted around nodes and groups
+ * after they are placed. Structured layout only.
+ */
+export interface SetIR {
+  readonly id: string;
+  /** Plain-text label; `""` means no label. */
+  readonly label: string;
+  /** The enclosed nodes and groups, in the order written. */
+  readonly members: readonly ElementKey[];
+  readonly shape: SetShape;
+  /** Where the label sits outside the outline; `top` when not written. */
+  readonly labelAt: SetLabelPosition;
+  /** Room between the members and the outline in pt; omitted means the profile's group padding. */
+  readonly paddingPt?: number;
+  readonly variant: string;
+  readonly style: SetStyle;
+  /** Where the set is written (`sets[i]`), for diagnostics. */
+  readonly source: SourceMapEntry;
+}
+
 /** One `figure.assets` entry (#310), imported once by `loadFigureAssets()`. */
 export interface AssetDefIR {
   readonly src?: string;
@@ -407,6 +432,8 @@ export interface FigureIR {
   readonly arrange?: ArrangeBoxIR;
   /** Structured layout: `figure.layout.align` (#132); absent when not written. */
   readonly align?: readonly AlignIR[];
+  /** `sets` (#407), in document order; absent when the figure has none. */
+  readonly sets?: readonly SetIR[];
   readonly elements: ReadonlyMap<ElementKey, ElementIR>;
   readonly sourceMap: SourceMap;
 }
@@ -735,6 +762,30 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
 
   const elements = readonlyMap([...groups, ...nodes, ...edges].map((e) => [e.key, e] as const));
 
+  const setTheme = withToneOverrides(theme, figure.themeOverrides?.tones);
+  const sets: SetIR[] = [];
+  for (const [index, set] of (doc.sets ?? []).entries()) {
+    if (set === undefined) continue;
+    sets.push(
+      freeze({
+        id: set.id,
+        label: set.label,
+        members: freeze(set.members.map(endpointKey)),
+        shape: set.shape,
+        labelAt: set.labelAt ?? "top",
+        ...(set.padding !== undefined && { paddingPt: set.padding }),
+        variant: set.variant,
+        style: resolveSetStyle(setTheme, {
+          variant: set.variant,
+          tone: set.tone,
+          fillOpacity: set.fillOpacity,
+          square: figure.themeOverrides?.nodeCorners === "square",
+        }),
+        source: sourceEntry(["sets", index]),
+      }),
+    );
+  }
+
   return withStretchOutlines(
     freeze({
       meta: freeze({
@@ -790,6 +841,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
           ),
         ),
       }),
+      ...(sets.length > 0 && { sets: freeze(sets) }),
       elements,
       ...(dimmed.length > 0 && { dimmed: freeze(dimmed) }),
       sourceMap: readonlyMap(sourceMap),

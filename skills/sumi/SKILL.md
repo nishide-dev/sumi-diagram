@@ -80,7 +80,7 @@ figures): reinstall the release tarball, `bun run d2:install` in a checkout, or 
 ### 3. Discover components, themes and profiles
 
 ```sh
-sumi catalog --json              # components, themes, profiles, icons, targets
+sumi catalog --json              # components, themes, profiles, icons, targets, sets
 sumi catalog --json --section themes --section profiles   # only those sections
 sumi catalog --kind node         # human-readable table, one kind of component
 sumi catalog --icons "wave sine" # bundled icons whose names contain all the words
@@ -125,8 +125,8 @@ edges:
 - Shape follows placement and content, not a rule. If it is not obvious (a short chain
   that fits is), render 2–4 candidates and compare ([fit the placement](references/layout-tips.md#fit-the-placement)).
 - **Structured figures** add `figure.layout.arrange` (nested `stack` / `row` / `grid` / `place` / `chat`
-  boxes listing every node and group once), `attach`, anchors, `align`, and the
-  `legend`, `tokens`, `matrix`, `bracket`, `separator`, `zoom` components: read
+  boxes listing every node and group once), `attach`, anchors, `align`, `sets`
+  (overlapping Venn / hyperedge enclosures), and the `legend`, `tokens`, `matrix`, `bracket`, `separator`, `zoom` components: read
   [structured](references/structured.md) first; a paper figure: the [paper figure
   workflow](#paper-figure-workflow). Label math (`'$\hat{y}_t$'`) works only there;
   with a line break, double-quote it and double backslashes (`"A\n$\\gamma$"`). Any
@@ -246,7 +246,7 @@ Stop, report the state (last diagnostics, what you tried) and ask when:
 rendering (steps 4 and 7); they are references for idioms, not content to copy.
 [figure-format](references/figure-format.md) (fields, labels, math, tones, groups, themes,
 profiles, target) · [structured](references/structured.md) (arrange trees, grids, attach,
-align, anchors, legends, zoom, tokens, matrices) · [assets](references/assets.md) ·
+align, anchors, sets, legends, zoom, tokens, matrices) · [assets](references/assets.md) ·
 [html](references/html.md) · [diagnostics](references/diagnostics.md) (fixes by code) ·
 [layout-tips](references/layout-tips.md) (engine, placement, width options, design
 principles, planning, paper recipe) · [examples](references/examples.md)
