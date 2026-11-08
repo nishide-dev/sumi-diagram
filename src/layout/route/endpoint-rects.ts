@@ -5,15 +5,15 @@ import { type LayoutIR, type Rect, roundRect } from "../ir";
 
 /**
  * Routing bounds, distinct from layout/containment bounds. A tokens frame
- * reserves space for annotations attached to its cells, but edges address
- * the sequence itself (#331), not the empty space around those annotations.
+ * reserves space for annotations attached to its cells, and a stack or row
+ * with `align: stretch` widens the frame past its cells (#411), but edges
+ * address the sequence itself (#331), not the empty space around it.
  */
 export function endpointRects(ir: FigureIR, layout: LayoutIR): Map<ElementKey, Rect> {
   const rects = new Map<ElementKey, Rect>(
     [...layout.nodes, ...layout.groups].map((element) => [element.key, element.rect]),
   );
   const cells = new Map<string, Rect[]>();
-  const annotated = new Set(ir.nodes.filter((n) => n.attach !== undefined).map((n) => n.parent));
   for (const node of ir.nodes) {
     if (node.tokens === undefined) continue;
     const rect = rects.get(node.key);
@@ -26,7 +26,7 @@ export function endpointRects(ir: FigureIR, layout: LayoutIR): Map<ElementKey, R
     const footprint = rects.get(group.key);
     if (footprint !== undefined && group.layers !== undefined)
       rects.set(group.key, groupFrontRect(group, footprint));
-    if (group.tokens === undefined || !annotated.has(group.key)) continue;
+    if (group.tokens === undefined) continue;
     const parts = cells.get(group.tokens.id);
     if (parts === undefined || parts.length === 0) continue;
     const x = Math.min(...parts.map((r) => r.x));

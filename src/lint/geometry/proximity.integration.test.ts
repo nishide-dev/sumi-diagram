@@ -73,7 +73,10 @@ describe("proximity rules on painted wires (structured)", async () => {
       'geometry/edge-near-border: Edge edges[11] runs right beside the border of group "storage" for 24.7mm (0.35mm between the lines), so it reads as part of the frame.',
       'geometry/edge-near-border: Edge edges[14] runs right beside the border of group "storage" for 16.5mm (0.35mm between the lines), so it reads as part of the frame.',
       "geometry/edge-near-edge: The line shared by edge edges[14] and edge edges[15] runs beside the line shared by edge edges[11] and edge edges[13] for 10.0mm, 0.46mm apart, so the two read as one line.",
+      // Short pieces of edges that join on one line add up to 3mm or more (#411).
+      'geometry/edge-near-border: Edge edges[15] runs right beside the border of group "storage" for 3.0mm (0.21mm between the lines), so it reads as part of the frame.',
       'geometry/edge-on-border: Edge edges[16] runs on the border of group "workers" for 31.8mm (0.16mm between the lines), so it reads as part of the frame.',
+      'geometry/edge-near-border: Edge edges[17] runs right beside the border of group "storage" for 3.6mm (0.21mm between the lines), so it reads as part of the frame.',
       "geometry/edge-near-edge: Edge edges[17] runs beside edge edges[16] for 40.8mm, 0.16mm apart, so the two read as one line.",
     ]);
   });

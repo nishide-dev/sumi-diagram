@@ -791,9 +791,11 @@ describe("scripts/preview", () => {
     "cp",
     "dirname",
     "head",
+    "mkdir",
     "mktemp",
     "mv",
     "rm",
+    "rmdir",
     "sed",
     "tr",
   ];
@@ -827,10 +829,10 @@ describe("scripts/preview", () => {
           expect(run.stderr).toBe("");
           expect(run.exitCode).toBe(0);
           const png = run.stdout.trim();
-          expect(png.endsWith("/fig#1 & 50%.png")).toBe(true);
-          expect(dirname(dirname(png))).toBe(tmp);
-          // Only the PNG is kept.
-          expect(readdirSync(dirname(png))).toEqual(["fig#1 & 50%.png"]);
+          // The PNG sits next to the SVG; the temporary directory is gone.
+          expect(png).toBe(join(dir, "fig#1 & 50%.png"));
+          expect(existsSync(png)).toBe(true);
+          expect(readdirSync(tmp)).toEqual([]);
 
           const wrapper = readFileSync(env.FAKE_QL_CAPTURE ?? "", "utf8");
           expect(parseXml(wrapper).ok).toBe(true);
@@ -860,7 +862,7 @@ describe("scripts/preview", () => {
         expect(run.exitCode).toBe(0);
         expect(readFileSync(env.FAKE_QL_CAPTURE ?? "", "utf8")).toContain(image);
         expect(readFileSync(env.FAKE_SIPS_CAPTURE ?? "", "utf8")).toMatch(new RegExp(`^${crop} `));
-        expect(readdirSync(dirname(run.stdout.trim()))).toEqual(["figure.png"]);
+        expect(run.stdout.trim()).toBe(join(work, "figure.png"));
       });
     });
   }
@@ -886,8 +888,51 @@ describe("scripts/preview", () => {
       expect(run.stderr).toBe("");
       expect(run.exitCode).toBe(0);
       const png = run.stdout.trim();
-      expect(png.endsWith("/figure.png")).toBe(true);
-      expect(readdirSync(dirname(png))).toEqual(["figure.png"]);
+      expect(png).toBe(join(work, "figure.png"));
+      expect(readFileSync(png, "utf8")).toBe("png");
+      expect(readFileSync(svg, "utf8")).toContain("<svg");
+    });
+  });
+
+  test("writes the PNG next to the SVG, not into the temporary folder (#411)", async () => {
+    await withFakeQuickLook(async (env, { work, tmp }) => {
+      const dir = join(work, "figs");
+      await mkdir(dir);
+      const svg = join(dir, "arch.svg");
+      await writeFile(svg, "<svg xmlns='http://www.w3.org/2000/svg'/>");
+      const run = await runScript("preview", [svg, "400"], env);
+      expect(run.stderr).toBe("");
+      expect(run.exitCode).toBe(0);
+      expect(run.stdout.trim()).toBe(join(dir, "arch.png"));
+      expect(readdirSync(dir).sort()).toEqual(["arch.png", "arch.svg"]);
+      expect(readdirSync(tmp)).toEqual([]);
+    });
+  });
+
+  test("-o / --out chooses the PNG path and creates its folder (#411)", async () => {
+    await withFakeQuickLook(async (env, { work }) => {
+      const svg = join(work, "arch.svg");
+      await writeFile(svg, "<svg xmlns='http://www.w3.org/2000/svg'/>");
+      for (const flag of ["-o", "--out"]) {
+        const png = join(work, `out-${flag.length}`, "nested", "shot.png");
+        const run = await runScript("preview", [flag, png, svg, "400"], env);
+        expect(run.stderr).toBe("");
+        expect(run.exitCode).toBe(0);
+        expect(run.stdout.trim()).toBe(png);
+        expect(existsSync(png)).toBe(true);
+      }
+      expect(existsSync(join(work, "arch.png"))).toBe(false);
+    });
+  });
+
+  test("rejects an output path that is not a .png (#411)", async () => {
+    await withFakeQuickLook(async (env, { work }) => {
+      const svg = join(work, "arch.svg");
+      await writeFile(svg, "<svg xmlns='http://www.w3.org/2000/svg'/>");
+      const run = await runScript("preview", ["-o", svg, svg], env);
+      expect(run.exitCode).toBe(2);
+      expect(run.stderr).toContain("must end in .png");
+      expect(readFileSync(svg, "utf8")).toContain("<svg");
     });
   });
 

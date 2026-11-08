@@ -251,9 +251,6 @@ describe("geometry lint on structured SVGs", () => {
               ["info", "geometry/script-too-small"],
               ["info", "geometry/group-empty-area"],
               ["info", "geometry/group-empty-area"],
-              ["info", "geometry/arrowhead-cramped"],
-              ["info", "geometry/arrowhead-cramped"],
-              ["info", "geometry/arrowhead-cramped"],
             ]
           : [],
       );

@@ -1109,7 +1109,8 @@ edges:
   gathers it): Sumi lays the cells out in a frame group with that ID (no border,
   fill or padding); tokens that nothing names as a whole get no frame.
   Whole-sequence edge endpoints use the cells' bounding rectangle, excluding
-  attached annotations, even when a wide note enlarges the layout frame.
+  attached annotations, even when a wide note enlarges the layout frame or
+  `align: stretch` widens it (`fromAnchor: east` starts at the last cell).
 - **Dividers.** `{ separator: dotted }` (optionally `id`, `tone`, `width`, `height`;
   no label, component or variant) draws a dotted line across the sequence (vertical
   for `right` / `left`, horizontal for `down` / `up`), reserving 6pt along the
