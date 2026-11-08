@@ -73,7 +73,7 @@ nodes:
   - { id: tail-top, component: bubble, label: top, props: { tail: top } }
   - { id: tail-bottom, component: bubble, label: bottom, props: { tail: bottom } }
   - { id: english, component: bubble, label: "Messages wrap inside a chat bubble.", props: { tail: left, maxWidth: 120pt } }
-  - { id: japanese, component: bubble, variant: filled, tone: green, label: "日本語の文章も吹き出しで折り返します。", props: { tail: right, maxWidth: 120pt } }
+  - { id: japanese, component: bubble, variant: filled, label: "日本語の文章も吹き出しで折り返します。", props: { tail: right, maxWidth: 120pt } }
 ```
 
 </details>
