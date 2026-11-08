@@ -521,8 +521,16 @@
                     "none"
                   ]
                 },
+                "strength": {
+                  "description": "soft (default): the tone's fill, as for a node. solid: the tone's accent color (its line color: a dark shade of the hue, a gray step in the monochrome themes) with a 0.5pt outline in the theme's ink, for readable small cells. none stays the plain node fill.",
+                  "type": "string",
+                  "enum": [
+                    "soft",
+                    "solid"
+                  ]
+                },
                 "tones": {
-                  "description": "vector only: one tone per cell, in order; its length is the cell count.",
+                  "description": "vector only: one tone per cell, in order; its length is the cell count. Not combined with tone.",
                   "minItems": 1,
                   "maxItems": 16,
                   "type": "array",

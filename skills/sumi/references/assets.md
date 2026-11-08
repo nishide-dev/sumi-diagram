@@ -113,12 +113,16 @@ feature vector a paper figure draws at the corner of an icon:
 ```
 
 - `kind`: `vector` (cells; `cells` default 3, `direction: down|right`, `tone` for
-  all cells or `tones` one per cell, `none` = the plain node fill), `dot`, `pill`
+  all cells or `tones` one per cell (not both), `none` = the theme's default box fill, not the node's own fill), `dot`, `pill`
   (`width`, default twice its height). Up to 8 glyphs per node, each with its
   own `at`. For an icon on a corner use `badge`.
 - `at`: a corner or side middle (`north`, `north-east`, ..., default `north-east`);
   the glyph is centred there, moved by `dx` / `dy` ems (right / down, 1 em = the
   node's font size). For an icon node centred on a corner use `dx: 0.3`.
+- `strength: soft` (default) fills with the tone like a node (pale); `solid` fills
+  with the tone's accent (its line colour: a dark hue in `color` / `paper`-like
+  themes, a gray step in `minimal` / `academic`) and a 0.5pt ink outline, so 3pt
+  cells stay readable. `none` stays the default box fill in both.
 - `size`: cell side, dot diameter or pill height (default 0.4 em: about 3pt at
   7.5pt text). `outline: false` drops the thin outline.
 - Structured layout reserves the union of body and glyphs (rows, stacks,

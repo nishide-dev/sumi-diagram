@@ -300,7 +300,8 @@ const GLYPHS_NOTE =
   "A node's `glyphs` put small marks over its border: a feature vector (a short column or row of " +
   "cells), a dot or a pill, centered on a corner or the middle of a side and moved by `dx` / `dy` " +
   "(ems). A `tone` fills them from the theme's palette, as for a node, so the vector of a paper " +
-  "icon can change color per stage. Layout reserves their room and edges attach to the node's body; " +
+  "icon can change color per stage. `strength: solid` fills with the tone's accent and a thin ink " +
+  "outline for readable small cells. Layout reserves their room and edges attach to the node's body; " +
   "SVG, PDF and PPTX draw them.";
 
 const OUTLINED_TONES_NOTE =

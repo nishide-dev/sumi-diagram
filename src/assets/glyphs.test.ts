@@ -28,6 +28,8 @@ describe("glyph schema", () => {
     ["{ kind: star }", "expected one of", ["kind"]],
     ["{ kind: vector, tone: chartreuse }", "", ["tone"]],
     ["{ kind: vector, extra: 1 }", "", []],
+    ["{ kind: vector, tone: blue, tones: [pink] }", "cannot be combined", ["tones"]],
+    ["{ kind: vector, strength: loud }", "expected one of", ["strength"]],
   ];
   for (const [glyph, message, path] of invalid) {
     test(`rejects ${glyph}`, () => {
@@ -178,5 +180,38 @@ describe("glyph geometry", () => {
     expect(markup.match(/<rect /g)).toHaveLength(5);
     expect(markup).toContain("sumi-glyph-vector");
     expect(markup).toContain("sumi-glyph-dot");
+  });
+});
+
+describe("solid strength", () => {
+  const themes = ["minimal", "academic", "slides", "color", "paper", "llama"];
+  for (const theme of themes) {
+    test(`${theme}: solid takes the tone's accent with a 0.5pt ink outline and differs from soft`, () => {
+      const soft = nodeWith("[{ kind: dot, tone: blue }]", theme).glyphs?.[0];
+      const solid = nodeWith("[{ kind: dot, tone: blue, strength: solid }]", theme).glyphs?.[0];
+      const plain = nodeWith("[{ kind: dot, strength: solid }]", theme).glyphs?.[0];
+      const compiled = compileFigure(
+        `version: 1\nfigure: { id: g, theme: ${theme} }\nnodes: [{ id: a, component: box }]\n`,
+      );
+      if (!compiled.ok) throw new Error("compile");
+      const node = compiled.value.ir.nodes[0];
+      expect(solid?.strokeWidth).toBe(1);
+      expect(solid?.stroke).toBe(node?.style.fontColor);
+      expect(solid?.parts[0]?.fill).not.toBe(soft?.parts[0]?.fill);
+      // The accent is distinct from the paper-white default fill of `none`.
+      expect(solid?.parts[0]?.fill).not.toBe(plain?.parts[0]?.fill);
+      expect(plain?.parts[0]?.fill).toBe(node?.style.fill);
+    });
+  }
+
+  test("soft stays the default and solid applies to every cell tone", () => {
+    const a = nodeWith("[{ kind: vector, tones: [pink, none, green] }]").glyphs?.[0];
+    const b = nodeWith("[{ kind: vector, strength: soft, tones: [pink, none, green] }]")
+      .glyphs?.[0];
+    expect(b).toEqual(a);
+    const s = nodeWith("[{ kind: vector, strength: solid, tones: [pink, none, green] }]")
+      .glyphs?.[0];
+    expect(s?.strokeWidth).toBe(1);
+    expect(new Set(s?.parts.map((p) => p.fill)).size).toBe(3);
   });
 });

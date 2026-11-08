@@ -469,12 +469,20 @@ export const GlyphSchema = z
     tone: GlyphTone.optional().describe(
       "The fill of every cell, the dot or the pill, from the theme's palette. none or omitted means the default node fill.",
     ),
+    strength: z
+      .enum(["soft", "solid"])
+      .optional()
+      .describe(
+        "soft (default): the tone's fill, as for a node. solid: the tone's accent color (its line color: a dark shade of the hue, a gray step in the monochrome themes) with a 0.5pt outline in the theme's ink, for readable small cells. none stays the plain node fill.",
+      ),
     tones: z
       .array(GlyphTone)
       .min(1)
       .max(MAX_GLYPH_CELLS)
       .optional()
-      .describe("vector only: one tone per cell, in order; its length is the cell count."),
+      .describe(
+        "vector only: one tone per cell, in order; its length is the cell count. Not combined with tone.",
+      ),
     outline: z
       .boolean()
       .optional()
@@ -488,6 +496,11 @@ export const GlyphSchema = z
         if (glyph[field] !== undefined) issue(field, `${field} applies to a vector only.`);
       }
     }
+    if (glyph.tones !== undefined && glyph.tone !== undefined)
+      issue(
+        "tones",
+        "tones and tone cannot be combined: give one tone per cell, or one tone for all.",
+      );
     if (glyph.kind !== "pill" && glyph.width !== undefined)
       issue("width", "width applies to a pill only.");
     if (

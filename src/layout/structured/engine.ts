@@ -1071,13 +1071,13 @@ function attachedRect(target: Rect, size: Size, side: AttachSide, gap: number): 
   }
 }
 
-/** How far `rects` reach beyond `frame` on each side (0 where they stay inside). */
 /** A node's corner badge and glyphs (#408): what hangs over its body's border. */
 function decorationRects(node: NodeIR, body: Rect): Rect[] {
   const badge = badgeRect(node, body);
   return [...(badge === undefined ? [] : [badge]), ...glyphRects(node, body)];
 }
 
+/** How far `rects` reach beyond `frame` on each side (0 where they stay inside). */
 function overhangOf(frame: Rect, rects: readonly Rect[]): Overhang {
   const overhang = { ...NO_OVERHANG };
   for (const r of rects) {

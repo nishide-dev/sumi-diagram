@@ -36,6 +36,21 @@ const OUTLINE_RATIO = 0.6;
 const MIN_OUTLINE = 0.5;
 const MAX_OUTLINE = 1.5;
 
+/** The outline of a solid glyph: 0.5pt. */
+const SOLID_OUTLINE = { pt: 0.5, units: 1 } as const;
+
+/** A color 35% of the way to black, for a tone the theme gives no line color. */
+function darken(color: string): string {
+  const hex = color.replace(/^#([0-9a-f])([0-9a-f])([0-9a-f])$/i, "#$1$1$2$2$3$3");
+  if (!/^#[0-9a-f]{6}$/i.test(hex)) return color;
+  const channels = [1, 3, 5].map((i) =>
+    Math.round(Number.parseInt(hex.slice(i, i + 2), 16) * 0.65)
+      .toString(16)
+      .padStart(2, "0"),
+  );
+  return `#${channels.join("")}`;
+}
+
 const round = (value: number) => Math.round(value * 1000) / 1000;
 
 /** The glyphs of a node: each one resolved against the theme and the node's own style. */
@@ -46,24 +61,40 @@ export function glyphsOf(
   dimmed: boolean,
 ): GlyphIR[] {
   const em = style.fontSize.units;
-  const fillOf = (tone: string | undefined): { fill: string; stroke: string; width: number } => {
+  const fillOf = (
+    tone: string | undefined,
+    solid: boolean,
+  ): { fill: string; stroke: string; width: number } => {
     const resolved = resolveStyle(theme, {
       kind: "node",
       id: "sumi/box",
       variant: "default",
       ...(tone !== undefined && isTone(tone) && { tone }),
     }).style;
-    const painted =
-      dimmed && theme.dim !== undefined ? dimStyle(resolved, theme.dim, true) : resolved;
-    return { fill: painted.fill, stroke: painted.stroke, width: resolved.strokeWidth.units };
+    // Solid (#408): the tone's accent (its line color, a dark shade of the hue;
+    // a gray step in the monochrome themes), outlined in the theme's ink. A
+    // theme without a line color for the tone gets its fill darkened.
+    const accent =
+      solid && tone !== undefined && isTone(tone)
+        ? (theme.toneLines.get(tone)?.stroke ?? darken(resolved.fill))
+        : resolved.fill;
+    const base: NodeStyle = solid
+      ? { ...resolved, fill: accent, stroke: resolved.fontColor, strokeWidth: SOLID_OUTLINE }
+      : resolved;
+    const painted = dimmed && theme.dim !== undefined ? dimStyle(base, theme.dim, true) : base;
+    return { fill: painted.fill, stroke: painted.stroke, width: base.strokeWidth.units };
   };
   return glyphs.map((glyph): GlyphIR => {
     const size = round(glyph.size === undefined ? em * DEFAULT_SIZE_EM : glyph.size * 2);
-    const base = fillOf(glyph.tone === "none" ? undefined : glyph.tone);
+    const solid = glyph.strength === "solid";
+    const fixed = (tone: string | undefined) => fillOf(tone === "none" ? undefined : tone, solid);
+    const base = fixed(glyph.tone);
     const outlined = glyph.outline !== false && base.width > 0 && base.stroke !== "transparent";
-    const strokeWidth = outlined
-      ? round(Math.min(MAX_OUTLINE, Math.max(MIN_OUTLINE, base.width * OUTLINE_RATIO)))
-      : 0;
+    const strokeWidth = !outlined
+      ? 0
+      : solid
+        ? SOLID_OUTLINE.units
+        : round(Math.min(MAX_OUTLINE, Math.max(MIN_OUTLINE, base.width * OUTLINE_RATIO)));
     const parts: GlyphPartIR[] = [];
     let width = size;
     let height = size;
@@ -78,7 +109,7 @@ export function glyphsOf(
           width: size,
           height: size,
           radius: 0,
-          fill: fillOf(tone === "none" ? undefined : tone).fill,
+          fill: fixed(tone).fill,
         });
       }
       if (right) width = round(count * size);

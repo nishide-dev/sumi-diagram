@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { glyphRects } from "../assets/glyphs";
 import { GLYPH_POSITIONS } from "../core/figure/schema";
+import { getTheme } from "../core/theme/builtin";
 import { lintGeometry } from "../lint";
 import { svgToPdf } from "./pdf";
 import { inspectPdf } from "./pdf/testing";
@@ -166,3 +167,86 @@ nodes: [{ id: a, component: box, label: A, props: { width: 283.5pt, height: 20pt
   expect((glyph?.x ?? 0) + (glyph?.width ?? 0)).toBeLessThanOrEqual(canvas.x + canvas.width + 1e-6);
   expect(svgToPdf(result.value.svg).ok).toBe(true);
 });
+
+async function layoutOf(source: string) {
+  const rendered = await renderFigure(source);
+  if (!rendered.ok || !("layout" in rendered.value))
+    throw new Error(JSON.stringify(rendered.diagnostics));
+  return rendered.value;
+}
+
+test("glyph overhang is reserved inside a stack and keeps the body size", async () => {
+  const value = await layoutOf(`version: 1
+figure: { id: stack, layout: { arrange: { stack: { gap: 0, items: [a, b] } } } }
+nodes:
+  - { id: a, component: box, label: A, props: { width: 30pt, height: 20pt }, glyphs: [{ kind: vector, at: south, dy: 1 }] }
+  - { id: b, component: box, label: B, props: { width: 30pt, height: 20pt } }
+`);
+  const a = value.layout.nodes.find((n) => n.key === "n:a");
+  const b = value.layout.nodes.find((n) => n.key === "n:b");
+  const node = value.compiled.ir.nodes[0];
+  if (!a || !b || !node) throw new Error("missing nodes");
+  expect(a.rect.height).toBe(40);
+  const [glyph] = glyphRects(node, a.rect);
+  expect(glyph && glyph.y + glyph.height > a.rect.y + a.rect.height).toBe(true);
+  expect(b.rect.y).toBeGreaterThanOrEqual((glyph?.y ?? 0) + (glyph?.height ?? 0));
+});
+
+test("glyph overhang is reserved inside a group, whose frame contains it", async () => {
+  const value = await layoutOf(`version: 1
+figure: { id: group, layout: { arrange: { row: { items: [g] } } } }
+groups: [{ id: g, label: G, arrange: { row: { items: [a] } } }]
+nodes:
+  - { id: a, component: box, label: A, group: g, props: { width: 30pt, height: 20pt }, glyphs: [{ kind: vector, at: east, dx: 1 }] }
+`);
+  const a = value.layout.nodes.find((n) => n.key === "n:a");
+  const group = value.layout.groups.find((n) => n.key === "g:g");
+  const node = value.compiled.ir.nodes[0];
+  if (!a || !group || !node) throw new Error("missing");
+  const [glyph] = glyphRects(node, a.rect);
+  if (!glyph) throw new Error("no glyph");
+  expect(glyph.x + glyph.width).toBeLessThanOrEqual(group.rect.x + group.rect.width + 1e-6);
+  expect(a.rect.width).toBe(60);
+});
+
+test("a dimmed node's glyphs take the theme's dim colors", async () => {
+  const result = await renderFigure(`version: 1
+figure: { id: dim, theme: color, layout: { arrange: { row: { items: [g, h] } } } }
+groups:
+  - { id: g, dim: true, arrange: { row: { items: [a] } } }
+  - { id: h, arrange: { row: { items: [b] } } }
+nodes:
+  - { id: a, group: g, component: box, label: A, glyphs: [{ kind: dot, tone: blue, strength: solid }] }
+  - { id: b, group: h, component: box, label: B, glyphs: [{ kind: dot, tone: blue, strength: solid }] }
+`);
+  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+  const [dimmed, plain] = result.value.compiled.ir.nodes.map((n) => n.glyphs?.[0]);
+  const theme = getTheme("color");
+  if (theme?.dim === undefined || dimmed === undefined || plain === undefined)
+    throw new Error("missing");
+  expect(dimmed.stroke).toBe(theme.dim.stroke);
+  expect(dimmed.parts[0]?.fill).not.toBe(plain.parts[0]?.fill);
+  expect(plain.stroke).not.toBe(theme.dim.stroke);
+});
+
+for (const at of GLYPH_POSITIONS) {
+  for (const order of ["a, b", "b, a"]) {
+    test(`${at}, row ${order}, gap 0: the neighbour is kept off the glyph`, async () => {
+      const value = await layoutOf(`version: 1
+figure: { id: clear, layout: { arrange: { row: { gap: 0, items: [${order}] } } } }
+nodes:
+  - { id: a, component: box, props: { width: 30pt, height: 20pt }, glyphs: [{ kind: vector, at: ${at}, dx: 0.5, dy: 0.5 }] }
+  - { id: b, component: box, props: { width: 30pt, height: 20pt } }
+`);
+      const a = value.layout.nodes.find((n) => n.key === "n:a");
+      const b = value.layout.nodes.find((n) => n.key === "n:b");
+      const node = value.compiled.ir.nodes[0];
+      if (!a || !b || !node) throw new Error("missing nodes");
+      const [glyph] = glyphRects(node, a.rect);
+      if (!glyph) throw new Error("no glyph");
+      const apart =
+        glyph.x + glyph.width <= b.rect.x + 1e-6 || b.rect.x + b.rect.width <= glyph.x + 1e-6;
+      expect(apart).toBe(true);
+    });
+  }
+}
