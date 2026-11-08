@@ -13,6 +13,10 @@ figure:
   themeOverrides:
     # The original's look: white cards with black frames, light gray panels,
     # black marks, and blue / red / dark green for the three contrasts.
+    lineWidth: 0.5pt
+    frameWidth: 0.5pt
+    arrowheadScale: 0.6
+    cornerRadius: 1.5pt
     groupFill: "#ffffff"
     groupStroke: "#000000"
     tones:
@@ -35,6 +39,8 @@ figure:
           - { item: hyper, at: [ 108.6, 101.4 ] }
           - { item: view1, at: [ 214.8, 61.7 ] }
           - { item: view2, at: [ 214.8, 141.1 ] }
+          - { item: stage1, at: [ 264, 62.4 ] }
+          - { item: stage2, at: [ 264, 140.4 ] }
           - { item: enc1, at: [ 312.9, 62.4 ] }
           - { item: shared, at: [ 312.9, 102 ] }
           - { item: enc2, at: [ 312.9, 140.4 ] }
@@ -150,7 +156,7 @@ nodes:
   - { id: q-i, component: circle, variant: filled, tone: gray, props: { width: 5pt } }
   - { id: q-k, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, none, gray ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
   # Not-yet-expressible original detail: the hatched circle of membership masking
-  # is a filled dot, and the dotted contrast lines are dashed.
+  # is a filled dot, and the contrast lines are dotted.
   - { id: key, component: legend, variant: plain, props: { entries: [ { glyph: { kind: vector, tones: [ gray, none, none ], strength: solid, size: 2.5pt }, label: Node feature masking }, { node: { component: circle, variant: filled, tone: gray }, label: Membership masking } ] } }
   # The key: a sample line with the marker of its contrast in the middle, then its name.
   - { id: lk-n-a, component: junction, variant: hidden }
@@ -158,13 +164,15 @@ nodes:
   - { id: lk-n-b, component: junction, variant: hidden }
   - { id: lk-n, component: label, label: Node-level contrast }
   - { id: lk-g-a, component: junction, variant: hidden }
-  - { id: lk-g-m, component: square, variant: solid, tone: red, props: { width: 6pt } }
+  - { id: lk-g-m, component: square, variant: solid, tone: red, cornerRadius: 0pt, props: { width: 6pt } }
   - { id: lk-g-b, component: junction, variant: hidden }
   - { id: lk-g, component: label, label: Group-level contrast }
   - { id: lk-m-a, component: junction, variant: hidden }
   - { id: lk-m-m, component: diamond, variant: solid, tone: green, props: { width: 7pt, height: 7pt } }
   - { id: lk-m-b, component: junction, variant: hidden }
   - { id: lk-m, component: label, label: Membership-level contrast }
+  - { id: stage1, component: block-arrow, props: { length: 11pt, thickness: 6pt } }
+  - { id: stage2, component: block-arrow, props: { length: 11pt, thickness: 6pt } }
   - { id: enc1, component: box, label: "Hypergraph\nEncoder\n$f_\\theta(\\cdot)$", props: { width: 70pt, height: 50pt } }
   - { id: enc2, component: box, label: "Hypergraph\nEncoder\n$f_\\theta(\\cdot)$", props: { width: 70pt, height: 50pt } }
   - { id: shared, component: label, label: Shared weights }
@@ -179,22 +187,20 @@ nodes:
   - { id: z2, component: box, label: "$\\mathit{Z}_2$", props: { width: 25pt, height: 17pt } }
   - { id: y2, component: box, label: "$\\mathit{Y}_2$", props: { width: 25pt, height: 17pt } }
   - { id: m-node, component: circle, variant: solid, tone: blue, props: { width: 6pt } }
-  - { id: m-group, component: square, variant: solid, tone: red, props: { width: 6pt } }
+  - { id: m-group, component: square, variant: solid, tone: red, cornerRadius: 0pt, props: { width: 6pt } }
   - { id: m-mem-a, component: diamond, variant: solid, tone: green, props: { width: 7pt, height: 7pt } }
   - { id: m-mem-b, component: diamond, variant: solid, tone: green, props: { width: 7pt, height: 7pt } }
 edges:
   # The key's sample lines have their marker in the middle, so they are drawn as
   # nodes and edges (the legend component has no middle marker).
-  - { from: lk-n-m, to: lk-n-a, variant: dashed, tone: blue }
-  - { from: lk-n-m, to: lk-n-b, variant: dashed, tone: blue }
-  - { from: lk-g-m, to: lk-g-a, variant: dashed, tone: red }
-  - { from: lk-g-m, to: lk-g-b, variant: dashed, tone: red }
-  - { from: lk-m-m, to: lk-m-a, variant: dashed, tone: green }
-  - { from: lk-m-m, to: lk-m-b, variant: dashed, tone: green }
+  - { from: lk-n-m, to: lk-n-a, variant: dotted, tone: blue }
+  - { from: lk-n-m, to: lk-n-b, variant: dotted, tone: blue }
+  - { from: lk-g-m, to: lk-g-a, variant: dotted, tone: red }
+  - { from: lk-g-m, to: lk-g-b, variant: dotted, tone: red }
+  - { from: lk-m-m, to: lk-m-a, variant: dotted, tone: green }
+  - { from: lk-m-m, to: lk-m-b, variant: dotted, tone: green }
   - { from: hyper, to: view1, route: curve, fromAnchor: east, toAnchor: west, label: "$\\mathit{T}_1$" }
   - { from: hyper, to: view2, route: curve, fromAnchor: east, toAnchor: west, label: "$\\mathit{T}_2$" }
-  - { from: view1, to: enc1, variant: emphasis, tone: gray, toAnchor: west }
-  - { from: view2, to: enc2, variant: emphasis, tone: gray, toAnchor: west }
   - { from: enc1, to: phi1, fromAnchor: "east:0.24", toAnchor: west, labelAt: start, labelSide: left, label: "$\\mathit{P}_1$" }
   - { from: enc1, to: psi1, fromAnchor: "east:0.75", toAnchor: west, labelAt: start, labelSide: left, label: "$\\mathit{Q}_1$" }
   - { from: enc2, to: phi2, fromAnchor: "east:0.24", toAnchor: west, labelAt: start, labelSide: left, label: "$\\mathit{P}_2$" }
@@ -203,14 +209,14 @@ edges:
   - { from: psi1, to: y1 }
   - { from: phi2, to: z2 }
   - { from: psi2, to: y2 }
-  - { from: m-node, to: z1, route: curve, variant: dashed, tone: blue, fromAnchor: north, toAnchor: "east:0.3" }
-  - { from: m-node, to: z2, route: curve, variant: dashed, tone: blue, fromAnchor: south, toAnchor: "east:0.3" }
-  - { from: m-group, to: y1, route: curve, variant: dashed, tone: red, fromAnchor: north, toAnchor: "east:0.3" }
-  - { from: m-group, to: y2, route: curve, variant: dashed, tone: red, fromAnchor: south, toAnchor: "east:0.3" }
-  - { from: m-mem-a, to: y1, route: curve, variant: dashed, tone: green, fromAnchor: north, toAnchor: "east:0.7" }
-  - { from: m-mem-a, to: z2, route: curve, variant: dashed, tone: green, fromAnchor: south, toAnchor: "east:0.7" }
-  - { from: m-mem-b, to: z1, route: curve, variant: dashed, tone: green, fromAnchor: north, toAnchor: "east:0.7" }
-  - { from: m-mem-b, to: y2, route: curve, variant: dashed, tone: green, fromAnchor: south, toAnchor: "east:0.7" }
+  - { from: m-node, to: z1, route: curve, variant: dotted, lineWidth: 0.75pt, arrowheadScale: 0.8, tone: blue, fromAnchor: north, toAnchor: "east:0.3" }
+  - { from: m-node, to: z2, route: curve, variant: dotted, lineWidth: 0.75pt, arrowheadScale: 0.8, tone: blue, fromAnchor: south, toAnchor: "east:0.3" }
+  - { from: m-group, to: y1, route: curve, variant: dotted, lineWidth: 0.75pt, arrowheadScale: 0.8, tone: red, fromAnchor: north, toAnchor: "east:0.3" }
+  - { from: m-group, to: y2, route: curve, variant: dotted, lineWidth: 0.75pt, arrowheadScale: 0.8, tone: red, fromAnchor: south, toAnchor: "east:0.3" }
+  - { from: m-mem-a, to: y1, route: curve, variant: dotted, lineWidth: 0.75pt, arrowheadScale: 0.8, tone: green, fromAnchor: north, toAnchor: "east:0.7" }
+  - { from: m-mem-a, to: z2, route: curve, variant: dotted, lineWidth: 0.75pt, arrowheadScale: 0.8, tone: green, fromAnchor: south, toAnchor: "east:0.7" }
+  - { from: m-mem-b, to: z1, route: curve, variant: dotted, lineWidth: 0.75pt, arrowheadScale: 0.8, tone: green, fromAnchor: north, toAnchor: "east:0.7" }
+  - { from: m-mem-b, to: y2, route: curve, variant: dotted, lineWidth: 0.75pt, arrowheadScale: 0.8, tone: green, fromAnchor: south, toAnchor: "east:0.7" }
 sets:
   # The gray panels of the original: rect sets around their members.
   - { id: encoder, members: [ enc1, shared, enc2 ], shape: rect, padding: 4.5pt, fillOpacity: 0.1 }
