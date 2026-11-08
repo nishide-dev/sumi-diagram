@@ -2,7 +2,7 @@
 # hypergraphs: tri-directional contrast (TriCL), arXiv:2206.04739, Figure 1.
 # https://arxiv.org/abs/2206.04739
 # A density benchmark: a wide figure of pictures and little text. The layout
-# follows the original; the colors are a calm palette of our own, not the paper's.
+# follows the original, colors included (sampled from the figure).
 # Vertex positions and the key are original (no paper data).
 # Math: label math has no \mathcal or \mathbf, so $\mathit{…}$ stands in.
 version: 1
@@ -11,7 +11,15 @@ figure:
   title: TriCL — overview of tri-directional contrastive learning
   theme: paper
   themeOverrides:
-    palette: cool-blue
+    # The original's look: white cards with black frames, light gray panels,
+    # black marks, and blue / red / dark green for the three contrasts.
+    groupFill: "#ffffff"
+    groupStroke: "#000000"
+    tones:
+      gray: { fill: "#d9d9d9", line: "#000000", text: "#000000" }
+      blue: { fill: "#d6dcfb", line: "#1942f3", text: "#1942f3" }
+      red: { fill: "#f4d6d4", line: "#d0352b", text: "#d0352b" }
+      green: { fill: "#d4e2d0", line: "#296218", text: "#296218" }
   profile: paper-double
   layout:
     density: compact
@@ -108,49 +116,49 @@ groups:
           - { item: q-i, at: [ 231.3, 132.6 ] }
           - { item: q-k, at: [ 202.7, 123.2 ] }
 nodes:
-  - { id: o-a, component: ellipse, tone: blue, variant: tinted, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, blue, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: o-b, component: ellipse, tone: blue, variant: tinted, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, none, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: o-c, component: ellipse, tone: blue, variant: tinted, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, none, blue ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: o-d, component: ellipse, tone: blue, variant: tinted, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, blue, blue ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: o-e, component: ellipse, tone: blue, variant: tinted, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ blue, none, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: o-f, component: ellipse, tone: blue, variant: tinted, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, blue, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: o-j, component: ellipse, tone: blue, variant: tinted, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ blue, none, blue ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: o-g, component: ellipse, tone: blue, variant: tinted, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, none, blue ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: o-h, component: ellipse, tone: blue, variant: tinted, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, none, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: o-i, component: ellipse, tone: blue, variant: tinted, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ blue, none, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: o-k, component: ellipse, tone: blue, variant: tinted, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, blue, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: p-a, component: ellipse, tone: blue, variant: tinted, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ blue, none, blue ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: p-b, component: circle, variant: filled, props: { width: 5pt } }
-  - { id: p-c, component: ellipse, tone: blue, variant: tinted, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, blue, blue ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: p-d, component: circle, variant: filled, props: { width: 5pt } }
-  - { id: p-e, component: circle, variant: filled, props: { width: 5pt } }
-  - { id: p-f, component: circle, variant: filled, props: { width: 5pt } }
-  - { id: p-j, component: ellipse, tone: blue, variant: tinted, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, none, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: p-g, component: ellipse, tone: blue, variant: tinted, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, blue, blue ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: p-h, component: ellipse, tone: blue, variant: tinted, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, none, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: p-i, component: ellipse, tone: blue, variant: tinted, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, blue, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: p-k, component: ellipse, tone: blue, variant: tinted, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, none, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: q-a, component: circle, variant: filled, props: { width: 5pt } }
-  - { id: q-b, component: ellipse, tone: blue, variant: tinted, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, none, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: q-c, component: circle, variant: filled, props: { width: 5pt } }
-  - { id: q-d, component: circle, variant: filled, props: { width: 5pt } }
-  - { id: q-e, component: ellipse, tone: blue, variant: tinted, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ blue, none, blue ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: q-f, component: circle, variant: filled, props: { width: 5pt } }
-  - { id: q-j, component: circle, variant: filled, props: { width: 5pt } }
-  - { id: q-g, component: circle, variant: filled, props: { width: 5pt } }
-  - { id: q-h, component: ellipse, tone: blue, variant: tinted, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, none, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: q-i, component: circle, variant: filled, props: { width: 5pt } }
-  - { id: q-k, component: ellipse, tone: blue, variant: tinted, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, none, blue ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
+  - { id: o-a, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, gray, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
+  - { id: o-b, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, none, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
+  - { id: o-c, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, none, gray ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
+  - { id: o-d, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, gray, gray ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
+  - { id: o-e, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ gray, none, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
+  - { id: o-f, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, gray, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
+  - { id: o-j, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ gray, none, gray ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
+  - { id: o-g, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, none, gray ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
+  - { id: o-h, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, none, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
+  - { id: o-i, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ gray, none, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
+  - { id: o-k, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, gray, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
+  - { id: p-a, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ gray, none, gray ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
+  - { id: p-b, component: circle, variant: filled, tone: gray, props: { width: 5pt } }
+  - { id: p-c, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, gray, gray ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
+  - { id: p-d, component: circle, variant: filled, tone: gray, props: { width: 5pt } }
+  - { id: p-e, component: circle, variant: filled, tone: gray, props: { width: 5pt } }
+  - { id: p-f, component: circle, variant: filled, tone: gray, props: { width: 5pt } }
+  - { id: p-j, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, none, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
+  - { id: p-g, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, gray, gray ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
+  - { id: p-h, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, none, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
+  - { id: p-i, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, gray, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
+  - { id: p-k, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, none, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
+  - { id: q-a, component: circle, variant: filled, tone: gray, props: { width: 5pt } }
+  - { id: q-b, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, none, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
+  - { id: q-c, component: circle, variant: filled, tone: gray, props: { width: 5pt } }
+  - { id: q-d, component: circle, variant: filled, tone: gray, props: { width: 5pt } }
+  - { id: q-e, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ gray, none, gray ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
+  - { id: q-f, component: circle, variant: filled, tone: gray, props: { width: 5pt } }
+  - { id: q-j, component: circle, variant: filled, tone: gray, props: { width: 5pt } }
+  - { id: q-g, component: circle, variant: filled, tone: gray, props: { width: 5pt } }
+  - { id: q-h, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, none, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
+  - { id: q-i, component: circle, variant: filled, tone: gray, props: { width: 5pt } }
+  - { id: q-k, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, none, gray ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
   # Not-yet-expressible original detail: the hatched circle of membership masking
   # is a filled dot, and the dotted contrast lines are dashed.
-  - { id: key, component: legend, variant: plain, props: { entries: [ { glyph: { kind: vector, tones: [ blue, none, none ], strength: solid, size: 2.5pt }, label: Node feature masking }, { node: { component: circle, variant: filled }, label: Membership masking } ] } }
+  - { id: key, component: legend, variant: plain, props: { entries: [ { glyph: { kind: vector, tones: [ gray, none, none ], strength: solid, size: 2.5pt }, label: Node feature masking }, { node: { component: circle, variant: filled, tone: gray }, label: Membership masking } ] } }
   # The key: a sample line with the marker of its contrast in the middle, then its name.
   - { id: lk-n-a, component: junction, variant: hidden }
   - { id: lk-n-m, component: circle, variant: solid, tone: blue, props: { width: 6pt } }
   - { id: lk-n-b, component: junction, variant: hidden }
   - { id: lk-n, component: label, label: Node-level contrast }
   - { id: lk-g-a, component: junction, variant: hidden }
-  - { id: lk-g-m, component: square, variant: solid, tone: orange, props: { width: 6pt } }
+  - { id: lk-g-m, component: square, variant: solid, tone: red, props: { width: 6pt } }
   - { id: lk-g-b, component: junction, variant: hidden }
   - { id: lk-g, component: label, label: Group-level contrast }
   - { id: lk-m-a, component: junction, variant: hidden }
@@ -171,7 +179,7 @@ nodes:
   - { id: z2, component: box, label: "$\\mathit{Z}_2$", props: { width: 25pt, height: 17pt } }
   - { id: y2, component: box, label: "$\\mathit{Y}_2$", props: { width: 25pt, height: 17pt } }
   - { id: m-node, component: circle, variant: solid, tone: blue, props: { width: 6pt } }
-  - { id: m-group, component: square, variant: solid, tone: orange, props: { width: 6pt } }
+  - { id: m-group, component: square, variant: solid, tone: red, props: { width: 6pt } }
   - { id: m-mem-a, component: diamond, variant: solid, tone: green, props: { width: 7pt, height: 7pt } }
   - { id: m-mem-b, component: diamond, variant: solid, tone: green, props: { width: 7pt, height: 7pt } }
 edges:
@@ -179,14 +187,14 @@ edges:
   # nodes and edges (the legend component has no middle marker).
   - { from: lk-n-m, to: lk-n-a, variant: dashed, tone: blue }
   - { from: lk-n-m, to: lk-n-b, variant: dashed, tone: blue }
-  - { from: lk-g-m, to: lk-g-a, variant: dashed, tone: orange }
-  - { from: lk-g-m, to: lk-g-b, variant: dashed, tone: orange }
+  - { from: lk-g-m, to: lk-g-a, variant: dashed, tone: red }
+  - { from: lk-g-m, to: lk-g-b, variant: dashed, tone: red }
   - { from: lk-m-m, to: lk-m-a, variant: dashed, tone: green }
   - { from: lk-m-m, to: lk-m-b, variant: dashed, tone: green }
   - { from: hyper, to: view1, route: curve, fromAnchor: east, toAnchor: west, label: "$\\mathit{T}_1$" }
   - { from: hyper, to: view2, route: curve, fromAnchor: east, toAnchor: west, label: "$\\mathit{T}_2$" }
-  - { from: view1, to: enc1, variant: emphasis, toAnchor: west }
-  - { from: view2, to: enc2, variant: emphasis, toAnchor: west }
+  - { from: view1, to: enc1, variant: emphasis, tone: gray, toAnchor: west }
+  - { from: view2, to: enc2, variant: emphasis, tone: gray, toAnchor: west }
   - { from: enc1, to: phi1, fromAnchor: "east:0.24", toAnchor: west, labelAt: start, labelSide: left, label: "$\\mathit{P}_1$" }
   - { from: enc1, to: psi1, fromAnchor: "east:0.75", toAnchor: west, labelAt: start, labelSide: left, label: "$\\mathit{Q}_1$" }
   - { from: enc2, to: phi2, fromAnchor: "east:0.24", toAnchor: west, labelAt: start, labelSide: left, label: "$\\mathit{P}_2$" }
@@ -197,17 +205,17 @@ edges:
   - { from: psi2, to: y2 }
   - { from: m-node, to: z1, route: curve, variant: dashed, tone: blue, fromAnchor: north, toAnchor: "east:0.3" }
   - { from: m-node, to: z2, route: curve, variant: dashed, tone: blue, fromAnchor: south, toAnchor: "east:0.3" }
-  - { from: m-group, to: y1, route: curve, variant: dashed, tone: orange, fromAnchor: north, toAnchor: "east:0.3" }
-  - { from: m-group, to: y2, route: curve, variant: dashed, tone: orange, fromAnchor: south, toAnchor: "east:0.3" }
+  - { from: m-group, to: y1, route: curve, variant: dashed, tone: red, fromAnchor: north, toAnchor: "east:0.3" }
+  - { from: m-group, to: y2, route: curve, variant: dashed, tone: red, fromAnchor: south, toAnchor: "east:0.3" }
   - { from: m-mem-a, to: y1, route: curve, variant: dashed, tone: green, fromAnchor: north, toAnchor: "east:0.7" }
   - { from: m-mem-a, to: z2, route: curve, variant: dashed, tone: green, fromAnchor: south, toAnchor: "east:0.7" }
   - { from: m-mem-b, to: z1, route: curve, variant: dashed, tone: green, fromAnchor: north, toAnchor: "east:0.7" }
   - { from: m-mem-b, to: y2, route: curve, variant: dashed, tone: green, fromAnchor: south, toAnchor: "east:0.7" }
 sets:
   # The gray panels of the original: rect sets around their members.
-  - { id: encoder, members: [ enc1, shared, enc2 ], shape: rect, padding: 4.5pt, fillOpacity: 0.3 }
-  - { id: node-head, members: [ phi1, node-head-label, phi2 ], shape: rect, padding: 4.5pt, fillOpacity: 0.3 }
-  - { id: edge-head, members: [ psi1, edge-head-label, psi2 ], shape: rect, padding: 4.5pt, fillOpacity: 0.3 }
+  - { id: encoder, members: [ enc1, shared, enc2 ], shape: rect, padding: 4.5pt, fillOpacity: 0.1 }
+  - { id: node-head, members: [ phi1, node-head-label, phi2 ], shape: rect, padding: 4.5pt, fillOpacity: 0.1 }
+  - { id: edge-head, members: [ psi1, edge-head-label, psi2 ], shape: rect, padding: 4.5pt, fillOpacity: 0.1 }
   - { id: o-e1, members: [ o-a, o-b, o-c, o-f, o-e ], shape: hull, padding: 4pt, variant: dashed, fillOpacity: 0 }
   - { id: o-e2, members: [ o-d, o-e, o-g, o-h, o-k ], shape: hull, padding: 4pt, variant: dashed, fillOpacity: 0 }
   - { id: o-e3, members: [ o-f, o-j, o-i, o-h ], shape: hull, padding: 4pt, variant: dashed, fillOpacity: 0 }
