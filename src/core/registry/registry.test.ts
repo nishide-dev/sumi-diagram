@@ -50,6 +50,7 @@ describe("built-in components", () => {
       ["sumi/bowtie", "node"],
       ["sumi/stack", "node"],
       ["sumi/bracket", "node"],
+      ["sumi/bubble", "node"],
       ["sumi/separator", "node"],
       ["sumi/label", "node"],
       ["sumi/operator", "node"],
@@ -294,7 +295,7 @@ describe("resolve", () => {
         code: "component/unknown",
         severity: "error",
         message: 'Unknown node component "rectangel".',
-        hint: "Known node components: box, square, circle, ellipse, diamond, hexagon, parallelogram, cylinder, document, trapezoid, bowtie, stack, bracket, separator, label, operator, junction, image, html, waveform, legend, tokens, matrix.",
+        hint: "Known node components: box, square, circle, ellipse, diamond, hexagon, parallelogram, cylinder, document, trapezoid, bowtie, stack, bracket, bubble, separator, label, operator, junction, image, html, waveform, legend, tokens, matrix.",
       },
     ]);
     expect(registry.resolve("arow", "edge").diagnostics[0]?.hint).toBe('Did you mean "arrow"?');
@@ -317,7 +318,7 @@ describe("resolve", () => {
         severity: "error",
         message:
           'Component "arrow" (sumi/arrow) is an edge component, but a node component is required here.',
-        hint: "Known node components: box, square, circle, ellipse, diamond, hexagon, parallelogram, cylinder, document, trapezoid, bowtie, stack, bracket, separator, label, operator, junction, image, html, waveform, legend, tokens, matrix.",
+        hint: "Known node components: box, square, circle, ellipse, diamond, hexagon, parallelogram, cylinder, document, trapezoid, bowtie, stack, bracket, bubble, separator, label, operator, junction, image, html, waveform, legend, tokens, matrix.",
       },
     ]);
     expect(codes(registry.resolve("container", "node"))).toEqual(["component/wrong-kind"]);

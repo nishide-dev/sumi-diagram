@@ -692,7 +692,7 @@ export const NodeSchema = z.strictObject({
     .enum(["left", "center", "right"])
     .optional()
     .describe(
-      "Horizontal alignment of the node's label and sublabel within their shared text block (structured only). Omitted means center (left for the entries of a legend).",
+      "Horizontal alignment of the node's label and sublabel within their shared text block (structured layout, or bubble in either layout). Omitted means center (left for bubbles and the entries of a legend).",
     ),
   labelRotation: z
     .literal([90, -90])

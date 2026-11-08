@@ -64,6 +64,38 @@ const squareSizeProps = sizeProps.refine(
 
 const noProps = z.strictObject({});
 
+const bubble: NodeManifest = {
+  version: MANIFEST_VERSION,
+  namespace: BUILTIN_NAMESPACE,
+  since: "0.16.0",
+  kind: "node",
+  name: "bubble",
+  description:
+    "A rounded speech bubble or callout with an optional curved hook and left-aligned wrapped text, including Japanese; edges attach to the body, never the tail tip.",
+  variants: FILLABLE_NODE_VARIANTS,
+  props: sizeProps.extend({
+    tail: z
+      .enum(["left", "right", "top", "bottom", "none"])
+      .default("none")
+      .describe("Tail side; none (the default) draws a rounded bubble without a pointer."),
+    tailAt: z
+      .union([z.enum(["start", "center", "end"]), LayoutLength])
+      .optional()
+      .describe(
+        "Tail base position from the body's top on left/right, or left on top/bottom; start (default) attaches a small thorn to the rounded top corner arc on left/right. Other positions and top/bottom use a short curved wedge, clamped to fit the edge.",
+      ),
+    tailSize: SizeLength.optional().describe(
+      "Outward tail depth; omitted means 0.33 times the theme font size for a side horn, 0.55 for other side positions, or 0.66 for top/bottom. Radius is 1.75 times the theme font size (about 0.45 times single-line body height); tails do not grow with message height. Clamped for very small explicit sizes.",
+    ),
+    maxWidth: SizeLength.optional().describe(
+      "Maximum text-line width for automatic wrapping, including Japanese; omitted means 120pt. Width/height props size the complete footprint, including the tail.",
+    ),
+  }),
+  shape: "rectangle",
+  sizing: "auto",
+  render: { type: "outline", renderer: "sumi/bubble", params: {} },
+};
+
 const separator: NodeManifest = {
   version: MANIFEST_VERSION,
   namespace: BUILTIN_NAMESPACE,
@@ -1025,6 +1057,7 @@ export const BUILTIN_MANIFESTS: readonly ComponentManifest[] = [
   outline("bowtie", "A bowtie silhouette with two opposing tapered halves and a central waist."),
   outline("stack", "Three overlapping rectangles, e.g. for a collection of documents or layers."),
   bracket,
+  bubble,
   separator,
   node("label", "text", "Text without a border.", { variants: ["default", "muted"] }),
   operator,

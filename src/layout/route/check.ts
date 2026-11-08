@@ -169,7 +169,10 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
       if (drawing) {
         painted.set(
           node.key,
-          (drawing.boundaries ?? [drawing.outline]).map((points) => ({ kind: "polygon", points })),
+          (drawing.boundaries ?? [drawing.portOutline ?? drawing.outline]).map((points) => ({
+            kind: "polygon",
+            points,
+          })),
         );
       }
     }

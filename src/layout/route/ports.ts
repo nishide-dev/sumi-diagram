@@ -80,7 +80,7 @@ export function nodeBoundaryEntry(
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   let first: number | undefined;
-  for (const points of drawing.boundaries ?? [drawing.outline]) {
+  for (const points of drawing.boundaries ?? [drawing.portOutline ?? drawing.outline]) {
     for (const [i, p] of points.entries()) {
       const q = points[(i + 1) % points.length] as Point;
       const ex = q.x - p.x;

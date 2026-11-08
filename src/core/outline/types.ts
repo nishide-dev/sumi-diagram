@@ -21,6 +21,8 @@ export interface OutlineDrawing {
   readonly layers: readonly { readonly role: "body" | "line"; readonly path: OutlinePath }[];
   /** Ordered enclosing silhouette; equals the body union unless boundaries is supplied. */
   readonly outline: readonly Point[];
+  /** Optional body-only boundary for edge contacts; collision still includes the complete silhouette. */
+  readonly portOutline?: readonly Point[];
   /** Disconnected painted boundaries, when present. Ports contact these, never the gap. */
   readonly boundaries?: readonly (readonly Point[])[];
   /** The only painted contact for incoming and outgoing edges, independent of the other end. */

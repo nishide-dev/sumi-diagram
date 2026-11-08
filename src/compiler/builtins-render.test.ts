@@ -178,7 +178,7 @@ describe.skipIf(!available)("built-in primitives render with D2", () => {
               `xlink:href="data:image/${element.image.html === undefined ? "png" : "svg+xml"};base64,`,
             );
           } else {
-            expect(chunk).toContain(`>${element.label}<`);
+            for (const line of element.label.split("\n")) expect(chunk).toContain(`>${line}<`);
             expect(chunk).toContain(`fill="${element.style.fontColor}"`);
           }
           if (element.kind === "node" && element.mark?.type === "glyph") {

@@ -35,6 +35,7 @@ const LOWERING: Record<string, string> = {
   "sumi/trapezoid": "rectangle",
   "sumi/bowtie": "rectangle",
   "sumi/bracket": "rectangle",
+  "sumi/bubble": "rectangle",
   "sumi/separator": "rectangle",
   "sumi/stack": "rectangle",
   "sumi/label": "text",
@@ -218,7 +219,8 @@ describe("the same components under different themes", () => {
       expect(other?.kind).toBe(element.kind);
       if (JSON.stringify(other?.style) !== JSON.stringify(element.style)) changed++;
     }
-    expect(changed).toBe(minimal.ir.elements.size);
+    // Borderless solid bubbles coincide in the two monochrome themes.
+    expect(changed).toBe(minimal.ir.elements.size - 1);
   });
 
   test("profile-derived layout and structure do not", () => {
