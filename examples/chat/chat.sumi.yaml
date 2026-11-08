@@ -9,7 +9,6 @@ figure:
     arrange:
       chat:
         width: 80mm
-        maxWidth: 0.7
         speakers:
           friend: { side: left, avatar: friend-avatar }
           me: { side: right, tone: green, variant: filled }
