@@ -127,6 +127,27 @@
                 "additionalProperties": false
               }
             },
+            "lineWidth": {
+              "description": "Width of the lines of edges and node frames (except legends; see frameWidth): replaces the theme's regular width, e.g. 0.5pt for the thin lines of a paper figure. A variant the theme draws heavier or lighter (emphasis, zoom lines) keeps its ratio to the regular width; a borderless element stays borderless. Per element: lineWidth.",
+              "type": "string",
+              "pattern": "^(?:0\\.25|0\\.5|0\\.75|1|1\\.25|1\\.5|1\\.75|2|2\\.25|2\\.5|2\\.75|3|3\\.25|3\\.5|3\\.75|4)pt$"
+            },
+            "frameWidth": {
+              "description": "Width of the frames of groups, sets and legends (a frame the theme draws; plain and borderless variants stay without one). Per element: lineWidth.",
+              "type": "string",
+              "pattern": "^(?:0\\.25|0\\.5|0\\.75|1|1\\.25|1\\.5|1\\.75|2|2\\.25|2\\.5|2\\.75|3|3\\.25|3\\.5|3\\.75|4)pt$"
+            },
+            "arrowheadScale": {
+              "description": "Size of every arrowhead as a multiple (0.5 to 2) of what the edge's width gives; the router's room and the lints follow. Per edge: arrowheadScale. Structured layout only.",
+              "type": "number",
+              "minimum": 0.5,
+              "maximum": 2
+            },
+            "cornerRadius": {
+              "description": "Corner radius of group, set (rect) and legend frames, replacing the theme's. nodeCorners: square still squares them. Per element: cornerRadius.",
+              "type": "string",
+              "pattern": "^(?:0|0\\.5|1|1\\.5|2|2\\.5|3|3\\.5|4|4\\.5|5|5\\.5|6|6\\.5|7|7\\.5|8|8\\.5|9|9\\.5|10)pt$"
+            },
             "groupFill": {
               "description": "Exact #RRGGBB fill for container groups (and their stacked layers) that have a fill and no tone.",
               "type": "string",
@@ -336,6 +357,16 @@
               "pink"
             ]
           },
+          "lineWidth": {
+            "description": "Width of the group's frame (a multiple of 0.25pt from 0.25pt to 4pt, e.g. \"0.5pt\"), replacing the variant's; a variant without a frame (plain, filled) stays without one. Omitted means figure.themeOverrides.frameWidth or the theme's.",
+            "type": "string",
+            "pattern": "^(?:0\\.25|0\\.5|0\\.75|1|1\\.25|1\\.5|1\\.75|2|2\\.25|2\\.5|2\\.75|3|3\\.25|3\\.5|3\\.75|4)pt$"
+          },
+          "cornerRadius": {
+            "description": "Corner radius of the group's frame (a multiple of 0.5pt up to 10pt), replacing the theme's. Omitted means figure.themeOverrides.cornerRadius or the theme's.",
+            "type": "string",
+            "pattern": "^(?:0|0\\.5|1|1\\.5|2|2\\.5|3|3\\.5|4|4\\.5|5|5\\.5|6|6\\.5|7|7\\.5|8|8\\.5|9|9\\.5|10)pt$"
+          },
           "dim": {
             "description": "Draw the group and everything inside it (nodes, edges between them, nested groups, the caption, legends) in the theme's pale dim colors: gray text and lines, paler fills. Keeps the group's variant and tone; inherited and cannot be turned off inside. Omit it to draw the group as it is.",
             "type": "boolean",
@@ -410,6 +441,28 @@
             "type": "string",
             "maxLength": 80,
             "pattern": "^([a-z][a-z0-9]*)\\/([a-z0-9]+(?:-[a-z0-9]+)*)$"
+          },
+          "iconSize": {
+            "description": "Side of the icon square (needs icon): a number is a multiple of the node's font size (\"em\", e.g. 2), a string is a length with a unit (e.g. \"12mm\"). Omitted means 1 em. Draws a larger icon without an enclosing shape; a label node is sized to the icon.",
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.25,
+                "maximum": 24
+              },
+              {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^(0|\\d+(\\.\\d+)?(mm|cm|in|pt))$"
+                  },
+                  {
+                    "const": 0
+                  }
+                ],
+                "description": "A length with a unit (mm, cm, in or pt), e.g. \"3mm\"; 0 needs no unit."
+              }
+            ]
           },
           "badge": {
             "description": "A one-em corner badge, independent of the node label; its overhang reserves layout space.",
@@ -594,6 +647,16 @@
               "pink"
             ]
           },
+          "lineWidth": {
+            "description": "Width of the node's frame (a multiple of 0.25pt from 0.25pt to 4pt, e.g. \"0.5pt\"), replacing the variant's; a borderless variant stays borderless. On a legend it is the frame's width. Omitted means figure.themeOverrides.lineWidth or the theme's.",
+            "type": "string",
+            "pattern": "^(?:0\\.25|0\\.5|0\\.75|1|1\\.25|1\\.5|1\\.75|2|2\\.25|2\\.5|2\\.75|3|3\\.25|3\\.5|3\\.75|4)pt$"
+          },
+          "cornerRadius": {
+            "description": "Corner radius of the node's shape (a multiple of 0.5pt up to 10pt), replacing the theme's; e.g. a rounded legend frame. Omitted means the theme's.",
+            "type": "string",
+            "pattern": "^(?:0|0\\.5|1|1\\.5|2|2\\.5|3|3\\.5|4|4\\.5|5|5\\.5|6|6\\.5|7|7\\.5|8|8\\.5|9|9\\.5|10)pt$"
+          },
           "mono": {
             "description": "Draw the node's label and sublabel in the theme's monospace font (e.g. a class name or a prompt). false turns off a variant's monospace text. Math stays in the math fonts; \\textcolor spans keep their colors. On a tokens node it is the default of its cells. Omitted means the variant's own setting (normally proportional text).",
             "type": "boolean"
@@ -748,6 +811,17 @@
               "pink"
             ]
           },
+          "lineWidth": {
+            "description": "Width of the line and its arrowhead strokes (a multiple of 0.25pt from 0.25pt to 4pt, e.g. \"0.5pt\"), replacing the variant's. Omitted means figure.themeOverrides.lineWidth or the theme's. The arrowhead's size follows the width (see arrowheadScale).",
+            "type": "string",
+            "pattern": "^(?:0\\.25|0\\.5|0\\.75|1|1\\.25|1\\.5|1\\.75|2|2\\.25|2\\.5|2\\.75|3|3\\.25|3\\.5|3\\.75|4)pt$"
+          },
+          "arrowheadScale": {
+            "description": "Size of this edge's arrowheads as a multiple (0.5 to 2) of what its width gives; the router keeps room for the scaled head. Omitted means figure.themeOverrides.arrowheadScale or 1. Structured layout only.",
+            "type": "number",
+            "minimum": 0.5,
+            "maximum": 2
+          },
           "props": {
             "description": "Component props, validated against the component manifest.",
             "default": {},
@@ -835,14 +909,25 @@
           },
           "variant": {
             "default": "default",
-            "description": "default (tint and outline), filled (tint), outlined (outline) or dashed.",
+            "description": "default (tint and outline), filled (tint), outlined (outline), dashed (tint and dashed outline) or dotted (tint and dotted outline).",
             "type": "string",
             "enum": [
               "default",
               "filled",
               "outlined",
-              "dashed"
+              "dashed",
+              "dotted"
             ]
+          },
+          "lineWidth": {
+            "description": "Width of the outline (a multiple of 0.25pt from 0.25pt to 4pt). Omitted means figure.themeOverrides.frameWidth or the theme's group frame.",
+            "type": "string",
+            "pattern": "^(?:0\\.25|0\\.5|0\\.75|1|1\\.25|1\\.5|1\\.75|2|2\\.25|2\\.5|2\\.75|3|3\\.25|3\\.5|3\\.75|4)pt$"
+          },
+          "cornerRadius": {
+            "description": "Corner radius of a rect set (a multiple of 0.5pt up to 10pt). Omitted means figure.themeOverrides.cornerRadius or the theme's group frame.",
+            "type": "string",
+            "pattern": "^(?:0|0\\.5|1|1\\.5|2|2\\.5|3|3\\.5|4|4\\.5|5|5\\.5|6|6\\.5|7|7\\.5|8|8\\.5|9|9\\.5|10)pt$"
           },
           "tone": {
             "description": "Color category from the theme's palette: its line color draws the outline and the label and, at low opacity, the tint, in every theme. Omitted means gray.",

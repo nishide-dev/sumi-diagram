@@ -18,7 +18,7 @@ import { formatMm, formatPt, mmToPt, ptToD2Units } from "../../core/units";
 import { groupFrontRect, groupLayerObstacles } from "../../layout/group-layers";
 import {
   ARROWHEAD_STEM_UNITS,
-  arrowheadLength,
+  edgeArrowheadLength,
   WIRE_CORNER_RADIUS,
 } from "../../layout/route/arrowhead";
 import { type Point, type Rect, unitsToMm, unitsToPt } from "../../render/geometry";
@@ -564,7 +564,7 @@ export const labelOverflow = defineGeometryRule({
       const outside = box !== undefined && !rectsOverlap(box, bbox, 0);
       findings.push({
         message: hasIcon(element)
-          ? `The icon of ${element.name} (${box === undefined ? "" : `${formatOverflowSize(context, box)}, `}1 em) does not fit inside its ${shapeName(element)} shape (${formatOverflowSize(context, bbox)})${outside ? "; it is drawn outside the shape" : ""}.`
+          ? `The icon of ${element.name} (${box === undefined ? "" : formatOverflowSize(context, box)}${element.ir.kind === "node" && element.ir.iconSize !== undefined ? "" : `${box === undefined ? "" : ", "}1 em`}) does not fit inside its ${shapeName(element)} shape (${formatOverflowSize(context, bbox)})${outside ? "; it is drawn outside the shape" : ""}.`
           : `The label of ${element.name} (${box === undefined ? "" : `${formatOverflowSize(context, box)}, `}measured with the theme's fonts) does not fit inside its ${shapeName(element)} shape (${formatOverflowSize(context, bbox)})${outside ? "; it is drawn outside the shape" : ""}.`,
         path: explicit ? [...element.docPath, "props"] : labelPath(element),
         subject: element.subject,
@@ -1091,7 +1091,7 @@ export const arrowheadOnBend = defineGeometryRule({
       if (edge.ir.route === "curve") continue;
       const width = edge.ir.style.strokeWidth.units;
       const structured = isStructured(context);
-      const length = structured ? arrowheadLength(width) : 4 + 3 * width;
+      const length = structured ? edgeArrowheadLength(edge.ir.style) : 4 + 3 * width;
       for (const source of [true, false]) {
         if ((source ? edge.ir.sourceArrowhead : edge.ir.targetArrowhead) === undefined) continue;
         const route = source ? edge.route[0] : edge.route.at(-1);
@@ -1144,7 +1144,7 @@ export const arrowheadCramped = defineGeometryRule({
     for (const edge of context.elements) {
       if (!isDrawnEdge(edge) || edge.ir.kind !== "edge" || edge.route === undefined) continue;
       if (edge.ir.route === "curve") continue;
-      const length = arrowheadLength(edge.ir.style.strokeWidth.units);
+      const length = edgeArrowheadLength(edge.ir.style);
       for (const source of [true, false]) {
         if ((source ? edge.ir.sourceArrowhead : edge.ir.targetArrowhead) === undefined) continue;
         const route = source ? edge.route[0] : edge.route.at(-1);
@@ -1432,7 +1432,7 @@ function parallelChannelHint(context: GeometryContext, pair: readonly GeometryEl
   for (const e of edges) {
     if (e.ir.kind !== "edge") continue;
     const w = e.ir.style.strokeWidth.units;
-    const room = arrowheadLength(w) + WIRE_CORNER_RADIUS;
+    const room = edgeArrowheadLength(e.ir.style) + WIRE_CORNER_RADIUS;
     from = Math.max(from, e.ir.sourceArrowhead ? room : 6);
     to = Math.max(to, e.ir.targetArrowhead ? room : 6);
     width = Math.max(width, w);

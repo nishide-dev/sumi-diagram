@@ -1,6 +1,6 @@
 # Set enclosures
 
-[Gallery](README.md) · [Examples](examples.md) · [Legend samples](legend-samples.md) · [Themes](themes.md) · [Tones](tones.md) · [Dimmed groups](dim.md) · [Node glyphs](glyphs.md) · [Set enclosures](sets.md) · [Palettes](palettes.md) · [Profiles and comparison](compare.md)
+[Gallery](README.md) · [Examples](examples.md) · [Legend samples](legend-samples.md) · [Themes](themes.md) · [Tones](tones.md) · [Dimmed groups](dim.md) · [Node glyphs](glyphs.md) · [Set enclosures](sets.md) · [Stroke options](strokes.md) · [Palettes](palettes.md) · [Profiles and comparison](compare.md)
 
 <code>sets</code> draws a translucent circle, ellipse, rounded hull or rounded rectangle around nodes and groups after they are placed, so a node can belong to several sets and sets may overlap: a Venn diagram, or the hyperedges of a hypergraph\. The tint is the tone's line color at low opacity, so overlaps show in every theme, also the monochrome ones\. Sets take no space in the arrange trees: place the members with <code>place</code> and leave room for the outline and label\. A node inside the outline that is not a member is reported \(<code>geometry/set\-contains\-non\-member</code>\)\.
 

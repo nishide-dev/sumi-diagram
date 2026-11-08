@@ -1,6 +1,6 @@
 # Palettes
 
-[Gallery](README.md) · [Examples](examples.md) · [Legend samples](legend-samples.md) · [Themes](themes.md) · [Tones](tones.md) · [Dimmed groups](dim.md) · [Node glyphs](glyphs.md) · [Set enclosures](sets.md) · [Palettes](palettes.md) · [Profiles and comparison](compare.md)
+[Gallery](README.md) · [Examples](examples.md) · [Legend samples](legend-samples.md) · [Themes](themes.md) · [Tones](tones.md) · [Dimmed groups](dim.md) · [Node glyphs](glyphs.md) · [Set enclosures](sets.md) · [Stroke options](strokes.md) · [Palettes](palettes.md) · [Profiles and comparison](compare.md)
 
 <code>figure\.themeOverrides\.palette: &lt;name&gt;</code> recolors a theme with four colors from a popular Color Hunt palette: panels \(group fill\) take the palest, filled and tinted nodes and the <code>gray</code> tone the tint, solid fills and emphasis the accent \(deepened for white text\), and text, frames and edges the ink \(the darkest color, darkened to 9:1 on white when it is paler\)\. Every text keeps at least 4\.5:1 on the fill it sits on, so the same figure reads in each palette; the other tones, sizes and fonts stay the theme's \(a palette does not change the semantic tones such as <code>red</code> or <code>green</code>; only <code>gray</code> follows it\)\. The figure is the same in every palette: only <code>palette</code> changes in the source\. Colors: Color Hunt popular palettes, retrieved 2026\-11\-08\. <code>sumi catalog \-\-section palettes</code> lists them\.
 

@@ -224,7 +224,7 @@ groups:
 nodes:
   - { id: raw, component: label, label: '$u_t$' }
   - { id: calibrate, component: box, label: Calibration, tone: gray }
-  - { id: config, component: circle, icon: tabler/adjustments, attach: { to: calibrate, side: west, gap: 2mm } }
+  - { id: config, component: label, icon: tabler/adjustments, iconSize: 1.5, attach: { to: calibrate, side: west, gap: 2mm } }
   - { id: config-label, component: label, label: "Sensor\nconfig", attach: { to: config, side: west, gap: 0.5mm } }
   - { id: split, component: junction, variant: hidden }
   - { id: low, component: box, label: Low-pass, tone: blue }

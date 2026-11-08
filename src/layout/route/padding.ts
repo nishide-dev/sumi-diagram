@@ -21,7 +21,7 @@ import type { Side } from "../../core/figure/schema";
 import type { LayoutIR, Rect } from "../ir";
 import {
   ARROWHEAD_STEM_UNITS,
-  arrowheadLength,
+  edgeArrowheadLength,
   GROUP_STEM_CORNER_UNITS,
   WIRE_CORNER_RADIUS,
 } from "./arrowhead";
@@ -72,10 +72,7 @@ export function arrowheadPaddingDeficits(
   routed.edges.forEach((edge, index) => {
     const ends = resolved[index];
     if (ends === undefined || "error" in ends) return;
-    const stub = Math.max(
-      BORDER_CLEARANCE,
-      arrowheadLength(edge.style.strokeWidth.units) + ARROWHEAD_STEM_UNITS,
-    );
+    const stub = Math.max(BORDER_CLEARANCE, edgeArrowheadLength(edge.style) + ARROWHEAD_STEM_UNITS);
     // The end segment holds a small rounded corner before the stem (#260).
     const need = stub + GROUP_STEM_CORNER_UNITS + BORDER_CLEARANCE;
     const check = (end: End, other: End) => {
@@ -137,10 +134,8 @@ export function groupArrowheadStems(ir: FigureIR, layout: LayoutIR) {
     const ends = resolved[index];
     if (ends === undefined || "error" in ends) return;
     const need =
-      Math.max(
-        BORDER_CLEARANCE,
-        arrowheadLength(edge.style.strokeWidth.units) + ARROWHEAD_STEM_UNITS,
-      ) + BORDER_CLEARANCE;
+      Math.max(BORDER_CLEARANCE, edgeArrowheadLength(edge.style) + ARROWHEAD_STEM_UNITS) +
+      BORDER_CLEARANCE;
     const stem = (end: End, other: End) => {
       if (end.junction || end.dir < 0) return 0;
       return layout.groups.some((group) => {

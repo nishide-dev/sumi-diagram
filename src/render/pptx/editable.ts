@@ -5,9 +5,11 @@ import type { EdgeIR, FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type { Diagnostic } from "../../core/diagnostics";
 import { getOutlineRenderer } from "../../core/outline";
+import { type FlowArrowParams, flowArrow, flowArrowHead } from "../../core/outline/flow-arrow";
 import { SEPARATOR_ID } from "../../core/registry/builtins";
 import type { Result } from "../../core/result";
 import { type FontSet, getFontSet } from "../../core/theme/fonts";
+import { edgeArrowheadLength } from "../../layout/route/arrowhead";
 import { fontFileFor, measureLabel } from "../../lint/geometry/measure";
 import { FontParseError } from "../../lint/sfnt";
 import { readSvgMetadata } from "../finalize";
@@ -31,6 +33,59 @@ export interface EditablePptxOptions {
   fontSet?: FontSet;
 }
 const U = 6350; // one D2 unit = .5pt
+
+/**
+ * A flow arrow (#426) as the PowerPoint preset of its form, so it stays one
+ * editable shape: `rightArrow`, `triangle` or `chevron`, turned or flipped to
+ * point the right way. A preset is drawn unturned pointing right (the
+ * triangle: up), so a turned shape takes the box with its sides swapped about
+ * the same center and DrawingML's `rot` (clockwise, 60000ths of a degree).
+ */
+export function flowArrowPreset(box: Rect, params: FlowArrowParams) {
+  const { form, direction, shaft } = params;
+  const flat = direction === "right" || direction === "left";
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  const swapped = {
+    x: cx - box.height / 2,
+    y: cy - box.width / 2,
+    width: box.height,
+    height: box.width,
+  };
+  const percent = (fraction: number) => Math.round(fraction * 100000);
+  const [length, thickness] = flat ? [box.width, box.height] : [box.height, box.width];
+  // The head the geometry draws, which may be shorter than asked (a chevron's band keeps some width).
+  const head = flowArrowHead(params, length, thickness) / Math.min(length, thickness);
+  let preset: string;
+  let adjust = "";
+  let drawn = box;
+  let turn = "";
+  if (form === "triangle") {
+    preset = "triangle";
+    // Up is the preset's own direction; the others turn it about its center.
+    if (flat) drawn = swapped;
+    turn = { up: "", down: ' flipV="1"', right: ' rot="5400000"', left: ' rot="16200000"' }[
+      direction
+    ];
+  } else {
+    if (form === "block") {
+      preset = "rightArrow";
+      adjust = `<a:gd name="adj1" fmla="val ${percent(shaft)}"/><a:gd name="adj2" fmla="val ${percent(head)}"/>`;
+    } else {
+      preset = "chevron";
+      adjust = `<a:gd name="adj" fmla="val ${percent(head)}"/>`;
+    }
+    if (!flat) drawn = swapped;
+    turn = { right: "", left: ' flipH="1"', down: ' rot="5400000"', up: ' rot="16200000"' }[
+      direction
+    ];
+  }
+  return {
+    geom: `<a:prstGeom prst="${preset}"><a:avLst>${adjust}</a:avLst></a:prstGeom>`,
+    box: drawn,
+    turn,
+  };
+}
 /**
  * How far above its SVG position (units) a sublabel (#184) may start when
  * joined to its node's text: rounding only (1/1000 unit coordinates).
@@ -458,13 +513,21 @@ export function svgToEditablePptx(
         .split(/[ ,]+/)
         .filter(Boolean)
         .map(Number);
-      if (dash.length && (dash.length % 2 !== 0 || !dash.every((n) => Number.isFinite(n) && n > 0)))
+      // Round dots (#427) are a zero-length dash with round caps: PowerPoint's own round dot.
+      const dotted = dash.length === 2 && dash[0] === 0 && (dash[1] ?? 0) > 0;
+      if (
+        !dotted &&
+        dash.length &&
+        (dash.length % 2 !== 0 || !dash.every((n) => Number.isFinite(n) && n > 0))
+      )
         throw new Error("Unsupported dash pattern");
       const dashXml =
-        width > 0 && dash.length
-          ? `<a:custDash>${Array.from({ length: dash.length / 2 }, (_, i) => `<a:ds d="${Math.max(1, Math.round(((dash[2 * i] ?? 0) / width) * 100000))}" sp="${Math.max(1, Math.round(((dash[2 * i + 1] ?? 0) / width) * 100000))}"/>`).join("")}</a:custDash>`
-          : "";
-      const cap = strokeStyle === "svg-default" ? "flat" : "rnd";
+        width > 0 && dotted
+          ? '<a:prstDash val="sysDot"/>'
+          : width > 0 && dash.length
+            ? `<a:custDash>${Array.from({ length: dash.length / 2 }, (_, i) => `<a:ds d="${Math.max(1, Math.round(((dash[2 * i] ?? 0) / width) * 100000))}" sp="${Math.max(1, Math.round(((dash[2 * i + 1] ?? 0) / width) * 100000))}"/>`).join("")}</a:custDash>`
+            : "";
+      const cap = strokeStyle === "svg-default" && !dotted ? "flat" : "rnd";
       const join = strokeStyle === "svg-default" ? '<a:miter lim="400000"/>' : "<a:round/>";
       return `<a:ln w="${emu(width)}" cap="${cap}">${width === 0 ? "<a:noFill/>" : paint(property(el, "stroke") ?? style.stroke, style.opacity)}${dashXml}${join}${ends}</a:ln>`;
     };
@@ -706,11 +769,17 @@ export function svgToEditablePptx(
         // Also offer painted sites on an unconnected shape when edited later.
         connectionPoints.push(...boundaries.flat());
       }
-      const geom = ellipse
-        ? '<a:prstGeom prst="ellipse"><a:avLst/></a:prstGeom>'
-        : primitives.length
-          ? geometry(bodyPrimitives.map(shapePath), box, emu, connectionPoints)
-          : '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>';
+      const flow =
+        element.kind === "node" && element.render?.renderer === "sumi/flow-arrow"
+          ? flowArrowPreset(box, flowArrow.params.parse(element.render.params ?? {}))
+          : undefined;
+      const geom = flow
+        ? flow.geom
+        : ellipse
+          ? '<a:prstGeom prst="ellipse"><a:avLst/></a:prstGeom>'
+          : primitives.length
+            ? geometry(bodyPrimitives.map(shapePath), box, emu, connectionPoints)
+            : '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>';
       const first = primitives[0];
       const fill = first
         ? paint(property(first, "fill") ?? element.style.fill, element.style.opacity)
@@ -721,6 +790,7 @@ export function svgToEditablePptx(
             element.style,
             "",
             waveform ||
+              flow !== undefined ||
               element.component === SEPARATOR_ID ||
               ir.meta.themeOverrides?.nodeCorners === "square"
               ? "svg-default"
@@ -751,7 +821,7 @@ export function svgToEditablePptx(
       let body = shape(
         id,
         element.key,
-        box,
+        flow?.box ?? box,
         geom,
         fill,
         stroke,
@@ -767,6 +837,7 @@ export function svgToEditablePptx(
             )
           : "",
         !first,
+        flow?.turn,
       );
       if (signalPrimitives[0] !== undefined) {
         body += shape(
@@ -840,7 +911,12 @@ export function svgToEditablePptx(
             Math.abs(next[1] - pt) < Math.abs(best[1] - pt) ? next : best,
           )[0];
         };
-        return `<a:${at === "start" ? "headEnd" : "tailEnd"} type="${mapped}" w="${size(marker ? value(marker, "markerHeight") : 12)}" len="${size(marker ? value(marker, "markerWidth") : 12)}"/>`;
+        // A figure that scales its arrowheads (#427) picks the size nearest to the scaled head.
+        const scaled =
+          edge.style.arrowheadScale === undefined ? undefined : edgeArrowheadLength(edge.style);
+        const across = scaled ?? (marker ? value(marker, "markerHeight") : 12);
+        const along = scaled ?? (marker ? value(marker, "markerWidth") : 12);
+        return `<a:${at === "start" ? "headEnd" : "tailEnd"} type="${mapped}" w="${size(across)}" len="${size(along)}"/>`;
       };
       return emit("start", edge.sourceArrowhead) + emit("end", edge.targetArrowhead);
     };

@@ -82,6 +82,7 @@ HTML を含む図では通常の CLI lint も非同期 `lintFigureWithHtml()` �
 | `asset/html-overflow` | warning | 測定した node box または text run が viewport の左右上下を **0.5 CSS px を超えて**はみ出す。行ボックスを含む実測なのでサブピクセルの丸めだけを許容する。抑制不可の asset 診断。 | viewport を広げる、CSS の寸法・余白を減らす、文字を折り返す、位置を直す。配置 width/height だけを増やしても clipping は直らない。 |
 | `geometry/text-too-small` | error | 検査済み CSS の最終 font-size（継承・em/%/pt・後勝ちを解決）× viewport→配置の縮尺 × 図の印刷縮尺を、通常ラベルと**同じ Profile の下限**と比較する。run の高さは font-size の代用にしない。 | CSS font-size を増やす、viewport に対する配置寸法を大きくする、内容を収めながら viewport を小さくする。fit:scale なら図の縮小も減らす。 |
 | `lint/missing-glyph` | warning | 実際に測定された run の文字を、選択した同梱 family list と weight の TTF cmap で検査する。Geist fallback はカバーと見なさない。空白・制御・default-ignorable の除外と最大10文字の表示はラベルと同じ。 | 文字を置換するか、カバーする同梱 font-family / family list（例: `Inter,'BIZ UDPGothic'`）を選ぶ。 |
+| `lint/icon-enclosure` | info | 円（`circle`）か箱（`box`）で、中身が `icon` だけのもの（#424）。アイコンを大きく見せるためだけに図形で囲んだ形を指す。色（`tone`）・`variant`・明示の大きさ（`props.width` / `height`）・`iconSize`・`badge`・`glyphs` のどれかがあるノードは、図形に意味がある（カテゴリの印など）とみなして対象外。凡例の見本も対象外。 | 囲みなしの `label` に `icon` と `iconSize`（例: `iconSize: 2`）を付ける。図形に意味があるなら `tone` か `variant` を付ける（またはこの規則を無効にする）。 |
 
 いずれも `props.html` 内の該当要素の開始タグを指す（同じ要素・同じ診断は1件）。literal block は実際の行・列、single-line plain/quoted は escape を考慮した位置、folded/multiline quoted は既存 locator と同じ scalar fallback。display:none の部分は測定されず対象外。文字サイズは contain なら小さい軸、cover なら大きい軸の縮尺、非等方 fill なら保守的に小さい軸を使う。`figure.fit: scale` は既存の `minScaledFontSize`、それ以外は `minFontSize`。2つの既存 lint code は通常の `--rule` で severity 変更・無効化できる。測定値は SVG の外のメモリに保持し、描画バイトを変えない。
 

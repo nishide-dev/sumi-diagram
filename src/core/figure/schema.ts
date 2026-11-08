@@ -160,9 +160,10 @@ export type SetLabelPosition = (typeof SET_LABEL_POSITIONS)[number];
 /**
  * Paint of a set: `default` is a translucent tinted fill with a solid
  * outline, `filled` the tint alone, `outlined` the outline alone and
- * `dashed` the tint with a dashed outline.
+ * `dashed` the tint with a dashed outline and `dotted` (#427) the tint with a
+ * dotted one.
  */
-export const SET_VARIANTS = ["default", "filled", "outlined", "dashed"] as const;
+export const SET_VARIANTS = ["default", "filled", "outlined", "dashed", "dotted"] as const;
 export type SetVariant = (typeof SET_VARIANTS)[number];
 
 /**
@@ -230,6 +231,48 @@ export const LayoutLength = z
     }
     return parsed.length.pt;
   });
+
+/**
+ * The line widths a figure may set (#427, design record 427): multiples of
+ * 0.25pt from 0.25pt to 4pt, written in pt ("0.5pt"). Normalized to pt.
+ */
+export const LINE_WIDTH_MIN_PT = 0.25;
+export const LINE_WIDTH_MAX_PT = 4;
+const LINE_WIDTH_VALUES = Array.from({ length: 16 }, (_, i) => String((i + 1) / 4));
+const LINE_WIDTH_PATTERN = new RegExp(
+  `^(?:${LINE_WIDTH_VALUES.map((v) => v.replace(".", "\\.")).join("|")})pt$`,
+);
+export const StrokeWidth = z
+  .string()
+  .regex(LINE_WIDTH_PATTERN, {
+    error: `A line width is a multiple of 0.25pt from ${LINE_WIDTH_MIN_PT}pt to ${LINE_WIDTH_MAX_PT}pt, in pt, e.g. "0.5pt".`,
+  })
+  .transform((text) => Number.parseFloat(text))
+  .meta({
+    description:
+      'A line width in pt: a multiple of 0.25pt from 0.25pt to 4pt, e.g. "0.5pt" (thin lines of paper figures) or "1pt".',
+  });
+
+/** The corner radius a figure may set (#427): multiples of 0.5pt (one D2 unit) up to 10pt. */
+export const CORNER_RADIUS_MAX_PT = 10;
+const CORNER_RADIUS_VALUES = Array.from({ length: 21 }, (_, i) => String(i / 2));
+const CORNER_RADIUS_PATTERN = new RegExp(
+  `^(?:${CORNER_RADIUS_VALUES.map((v) => v.replace(".", "\\.")).join("|")})pt$`,
+);
+const CornerRadius = z
+  .string()
+  .regex(CORNER_RADIUS_PATTERN, {
+    error: `A corner radius is a multiple of 0.5pt from 0pt to ${CORNER_RADIUS_MAX_PT}pt, in pt, e.g. "3pt".`,
+  })
+  .transform((text) => Number.parseFloat(text))
+  .meta({
+    description: 'A corner radius in pt: a multiple of 0.5pt from 0pt to 10pt, e.g. "3pt".',
+  });
+
+/** Multiplier of arrowhead sizes (#427): 0.5 to 2; 1 is the size the stroke width gives. */
+export const ARROWHEAD_SCALE_MIN = 0.5;
+export const ARROWHEAD_SCALE_MAX = 2;
+export const ArrowheadScale = z.number().min(ARROWHEAD_SCALE_MIN).max(ARROWHEAD_SCALE_MAX);
 
 const arrangeFields = {
   centerOn: Id.optional().describe(
@@ -452,6 +495,18 @@ export type GlyphPosition = (typeof GLYPH_POSITIONS)[number];
 /** The kinds of glyph (#408): a feature vector, a dot or a pill. */
 export const GLYPH_KINDS = ["vector", "dot", "pill"] as const;
 export type GlyphKind = (typeof GLYPH_KINDS)[number];
+
+/** Smallest and largest `iconSize` as a multiple of the font size (#424). */
+export const ICON_SIZE_EM_RANGE = { min: 0.25, max: 24 } as const;
+
+/**
+ * `nodes[].iconSize` (#424, design doc `424-icon-size`): a number is a multiple
+ * of the node's font size, a string a positive length with a unit.
+ */
+export const IconSize = z.union([
+  z.number().min(ICON_SIZE_EM_RANGE.min).max(ICON_SIZE_EM_RANGE.max),
+  LayoutLength.refine((pt) => pt > 0, { message: "must be positive" }).transform((pt) => ({ pt })),
+]);
 
 /** Most cells one feature vector may have. */
 export const MAX_GLYPH_CELLS = 16;
@@ -818,6 +873,18 @@ export const FigureMetaSchema = z.strictObject({
         .describe(
           "Exact #RRGGBB colors of tones, applied wherever the tone is used; dimming still applies.",
         ),
+      lineWidth: StrokeWidth.optional().describe(
+        "Width of the lines of edges and node frames (except legends; see frameWidth): replaces the theme's regular width, e.g. 0.5pt for the thin lines of a paper figure. A variant the theme draws heavier or lighter (emphasis, zoom lines) keeps its ratio to the regular width; a borderless element stays borderless. Per element: lineWidth.",
+      ),
+      frameWidth: StrokeWidth.optional().describe(
+        "Width of the frames of groups, sets and legends (a frame the theme draws; plain and borderless variants stay without one). Per element: lineWidth.",
+      ),
+      arrowheadScale: ArrowheadScale.optional().describe(
+        "Size of every arrowhead as a multiple (0.5 to 2) of what the edge's width gives; the router's room and the lints follow. Per edge: arrowheadScale. Structured layout only.",
+      ),
+      cornerRadius: CornerRadius.optional().describe(
+        "Corner radius of group, set (rect) and legend frames, replacing the theme's. nodeCorners: square still squares them. Per element: cornerRadius.",
+      ),
       groupFill: HexColor.optional().describe(
         "Exact #RRGGBB fill for container groups (and their stacked layers) that have a fill and no tone.",
       ),
@@ -872,6 +939,12 @@ export const GroupSchema = z.strictObject({
   component: ComponentRef.default("container").describe("Component reference (kind: group)."),
   variant: Variant,
   tone: Tone,
+  lineWidth: StrokeWidth.optional().describe(
+    "Width of the group's frame (a multiple of 0.25pt from 0.25pt to 4pt, e.g. \"0.5pt\"), replacing the variant's; a variant without a frame (plain, filled) stays without one. Omitted means figure.themeOverrides.frameWidth or the theme's.",
+  ),
+  cornerRadius: CornerRadius.optional().describe(
+    "Corner radius of the group's frame (a multiple of 0.5pt up to 10pt), replacing the theme's. Omitted means figure.themeOverrides.cornerRadius or the theme's.",
+  ),
   dim: z
     .literal(true)
     .optional()
@@ -925,6 +998,9 @@ export const NodeSchema = z.strictObject({
     .describe(
       "A bundled icon drawn in place of the label, e.g. tabler/wave-sine (text color) or emoji/fire (original multicolour palette).",
     ),
+  iconSize: IconSize.optional().describe(
+    'Side of the icon square (needs icon): a number is a multiple of the node\'s font size ("em", e.g. 2), a string is a length with a unit (e.g. "12mm"). Omitted means 1 em. Draws a larger icon without an enclosing shape; a label node is sized to the icon.',
+  ),
   badge: z
     .strictObject({
       icon: z
@@ -950,6 +1026,12 @@ export const NodeSchema = z.strictObject({
     ),
   variant: Variant,
   tone: Tone,
+  lineWidth: StrokeWidth.optional().describe(
+    "Width of the node's frame (a multiple of 0.25pt from 0.25pt to 4pt, e.g. \"0.5pt\"), replacing the variant's; a borderless variant stays borderless. On a legend it is the frame's width. Omitted means figure.themeOverrides.lineWidth or the theme's.",
+  ),
+  cornerRadius: CornerRadius.optional().describe(
+    "Corner radius of the node's shape (a multiple of 0.5pt up to 10pt), replacing the theme's; e.g. a rounded legend frame. Omitted means the theme's.",
+  ),
   mono: z
     .boolean()
     .optional()
@@ -1002,6 +1084,12 @@ export const EdgeSchema = z.strictObject({
     .describe(
       "Color category from the theme's palette for the line, its arrowheads and its label (the tone's line color, e.g. a dark orange in the color theme, a gray step in monochrome themes). Omitted means none.",
     ),
+  lineWidth: StrokeWidth.optional().describe(
+    "Width of the line and its arrowhead strokes (a multiple of 0.25pt from 0.25pt to 4pt, e.g. \"0.5pt\"), replacing the variant's. Omitted means figure.themeOverrides.lineWidth or the theme's. The arrowhead's size follows the width (see arrowheadScale).",
+  ),
+  arrowheadScale: ArrowheadScale.optional().describe(
+    "Size of this edge's arrowheads as a multiple (0.5 to 2) of what its width gives; the router keeps room for the scaled head. Omitted means figure.themeOverrides.arrowheadScale or 1. Structured layout only.",
+  ),
   props: Props,
 });
 
@@ -1045,7 +1133,15 @@ export const SetSchema = z.strictObject({
   variant: z
     .enum(SET_VARIANTS)
     .default("default")
-    .describe("default (tint and outline), filled (tint), outlined (outline) or dashed."),
+    .describe(
+      "default (tint and outline), filled (tint), outlined (outline), dashed (tint and dashed outline) or dotted (tint and dotted outline).",
+    ),
+  lineWidth: StrokeWidth.optional().describe(
+    "Width of the outline (a multiple of 0.25pt from 0.25pt to 4pt). Omitted means figure.themeOverrides.frameWidth or the theme's group frame.",
+  ),
+  cornerRadius: CornerRadius.optional().describe(
+    "Corner radius of a rect set (a multiple of 0.5pt up to 10pt). Omitted means figure.themeOverrides.cornerRadius or the theme's group frame.",
+  ),
   tone: Tone.describe(
     "Color category from the theme's palette: its line color draws the outline and the label and, at low opacity, the tint, in every theme. Omitted means gray.",
   ),

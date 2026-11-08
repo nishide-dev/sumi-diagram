@@ -87,7 +87,7 @@ import {
   type TextLayout,
 } from "../ir";
 import { deepFreeze } from "../structured/engine";
-import { arrowheadLength, WIRE_CORNER_RADIUS } from "./arrowhead";
+import { arrowheadLength, edgeArrowheadLength, WIRE_CORNER_RADIUS } from "./arrowhead";
 import { crossingDiagnostics } from "./crossings";
 import { addDirectRoutes, isDirectEdge } from "./diagonal";
 import { endpointRects } from "./endpoint-rects";
@@ -149,7 +149,7 @@ export const ROUTE = Object.freeze({
 
 // In its own module so the structured engine can size group padding by it
 // (#171, `padding.ts`) without importing the router.
-export { arrowheadLength, WIRE_CORNER_RADIUS };
+export { arrowheadLength, edgeArrowheadLength, WIRE_CORNER_RADIUS };
 
 /**
  * The straight line a route keeps before an arrowhead where it can (#116):
@@ -158,8 +158,8 @@ export { arrowheadLength, WIRE_CORNER_RADIUS };
  * may not turn at all) is only the arrowhead's length, except for group
  * padding approaches that also reserve a visible stem (#247).
  */
-export function arrowRoom(strokeUnits: number): number {
-  return arrowheadLength(strokeUnits) + WIRE_CORNER_RADIUS;
+export function arrowRoom(strokeUnits: number, scale = 1): number {
+  return arrowheadLength(strokeUnits, scale) + WIRE_CORNER_RADIUS;
 }
 
 export interface RouteResult {
@@ -276,9 +276,7 @@ export function chooseRouting(
       ...result.diagnostics,
       ...crossingDiagnostics(ir, result.layout),
       ...groupTitleDiagnostics(ir, result.layout),
-      ...requestedLabelDiagnostics(ir, result.layout, (edge) =>
-        arrowheadLength(edge.style.strokeWidth.units),
-      ),
+      ...requestedLabelDiagnostics(ir, result.layout, (edge) => edgeArrowheadLength(edge.style)),
     ],
   };
 }
@@ -556,7 +554,7 @@ class Router {
         this.#report(edge, ends.error);
         return undefined;
       }
-      const arrow = arrowheadLength(edge.style.strokeWidth.units);
+      const arrow = edgeArrowheadLength(edge.style);
       const lane = (end: End, arrowhead: boolean) =>
         end.junction
           ? arrowhead
@@ -574,7 +572,12 @@ class Router {
       const room = (end: End, other: End, arrowhead: boolean) =>
         end.junction || !arrowhead
           ? 0
-          : this.#room(end, other, arrowRoom(edge.style.strokeWidth.units), lane(end, arrowhead));
+          : this.#room(
+              end,
+              other,
+              arrowRoom(edge.style.strokeWidth.units, edge.style.arrowheadScale),
+              lane(end, arrowhead),
+            );
       const source = edge.sourceArrowhead !== undefined;
       const target = edge.targetArrowhead !== undefined;
       return {
@@ -1682,7 +1685,7 @@ class Router {
     for (const [key, points] of routes) {
       const edge = irEdges.get(key);
       if (edge === undefined) continue;
-      heads.set(key, arrowheadRects(points, edge, arrowheadLength(edge.style.strokeWidth.units)));
+      heads.set(key, arrowheadRects(points, edge, edgeArrowheadLength(edge.style)));
     }
     for (const requested of [false, true]) {
       for (const e of layout.edges) {
@@ -1690,7 +1693,7 @@ class Router {
         const edge = irEdges.get(e.key);
         if (points === undefined || edge === undefined || e.labelMetrics === undefined) continue;
         if (hasRequestedLabel(edge) !== requested) continue;
-        const arrow = arrowheadLength(edge.style.strokeWidth.units);
+        const arrow = edgeArrowheadLength(edge.style);
         const others = [...routes].flatMap(([key, route]) => (key === e.key ? [] : [route]));
         const label = placeEdgeLabel(e.labelMetrics, points, edge, arrow, {
           routes: others,
@@ -1860,7 +1863,7 @@ export function junctionsOnBus(ir: FigureIR, layout: LayoutIR): LayoutIR {
       continue;
     const here = { x: at.x + at.width / 2, y: at.y + at.height / 2 };
     // The edge ends at the other end of each edge of the junction.
-    const others: { end: End; arrowhead: boolean; width: number }[] = [];
+    const others: { end: End; arrowhead: boolean; length: number; room: number }[] = [];
     let unresolved = false;
     for (const [index, edge] of ir.edges.entries()) {
       if (edge.from !== junction.key && edge.to !== junction.key) continue;
@@ -1879,12 +1882,13 @@ export function junctionsOnBus(ir: FigureIR, layout: LayoutIR): LayoutIR {
       others.push({
         end: other,
         arrowhead: head !== undefined,
-        width: edge.style.strokeWidth.units,
+        length: edgeArrowheadLength(edge.style),
+        room: arrowRoom(edge.style.strokeWidth.units, edge.style.arrowheadScale),
       });
     }
     let move: Point | undefined;
     let ok = !unresolved && others.length > 0;
-    for (const { end, arrowhead, width } of others) {
+    for (const { end, arrowhead, length, room } of others) {
       if (end.junction || end.dir < 0) {
         ok = false;
         break;
@@ -1898,8 +1902,7 @@ export function junctionsOnBus(ir: FigureIR, layout: LayoutIR): LayoutIR {
         if (ahead > 0) ok = false;
         continue;
       }
-      const room = arrowRoom(width);
-      if (ahead < arrowheadLength(width) || ahead >= room) continue;
+      if (ahead < length || ahead >= room) continue;
       const delta = { x: d.x * (room - ahead), y: d.y * (room - ahead) };
       if (
         move !== undefined &&
@@ -2077,7 +2080,7 @@ export function shortArrowEnd(
   _to: End,
   points: readonly Point[],
 ): "source" | "target" | undefined {
-  const arrow = arrowheadLength(edge.style.strokeWidth.units);
+  const arrow = edgeArrowheadLength(edge.style);
   const length = (a: Point, b: Point) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
   const n = points.length;
   if (

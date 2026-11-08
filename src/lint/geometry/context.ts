@@ -113,10 +113,10 @@ function nameOf(element: ElementIR): string {
   return `${element.kind} "${element.id}"`;
 }
 
-/** An icon's square as a one-line label without text (1 em, where `iconRect()` draws it). */
+/** An icon's square as a one-line label without text (1 em or `iconSize`, where `iconRect()` draws it). */
 function iconAsLabel(node: NodeIR, box: Rect): MeasuredLabel {
   const rect = iconRect(node, box);
-  const size = node.style.fontSize.units;
+  const size = rect.height;
   return {
     label: {
       text: "",

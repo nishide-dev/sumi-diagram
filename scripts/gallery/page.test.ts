@@ -94,6 +94,10 @@ const model: GalleryModel = {
     sample: { fileName: "sets.sumi.yaml", source: "# ``` fence\nversion: 1\n", renderings: [] },
     outcomes: [outcome()],
   },
+  strokes: {
+    sample: { fileName: "strokes.sumi.yaml", source: "# ``` fence\nversion: 1\n", renderings: [] },
+    outcomes: [outcome()],
+  },
   palettes: {
     sample: { fileName: "palette.sumi.yaml", source: "# ``` fence\nversion: 1\n", renderings: [] },
     outcomes: [outcome({ diagnostics: [{ code: "x/y", severity: "warning", message: NASTY }] })],
@@ -198,6 +202,7 @@ describe("Markdown escaping", () => {
       "docs/gallery/legend-samples.md",
       "docs/gallery/palettes.md",
       "docs/gallery/sets.md",
+      "docs/gallery/strokes.md",
       "docs/gallery/themes.md",
       "docs/gallery/tones.md",
     ]);

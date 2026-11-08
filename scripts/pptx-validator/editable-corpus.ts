@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { compileFigure } from "../../src/compiler/compile";
 import { readSvgMetadata } from "../../src/render/finalize";
-import { componentSamples, outlinedToneSample, setsSample } from "../gallery/samples";
+import { componentSamples, outlinedToneSample, setsSample, strokeSample } from "../gallery/samples";
 
 const root = resolve(import.meta.dir, "../..");
 export function editableCorpus() {
@@ -19,7 +19,7 @@ export function editableCorpus() {
     }));
   // The outlined-tone sample (#177): outlined nodes and toned edges and legend samples;
   // the set enclosures sample (#407): translucent freeform shapes under the nodes.
-  for (const sample of [...componentSamples(), outlinedToneSample(), setsSample()])
+  for (const sample of [...componentSamples(), outlinedToneSample(), setsSample(), strokeSample()])
     for (const r of sample.renderings)
       inputs.push({
         id: r.output.replace(/\.svg$/, ""),

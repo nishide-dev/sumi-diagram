@@ -1,4 +1,5 @@
 /** Freeze a trapezoid's natural slant before opt-in main-axis growth (#270). */
+import { iconBox } from "../assets/draw";
 import { getOutlineRenderer } from "../core/outline";
 import { getProfile } from "../core/profile/builtin";
 import { spacedProfile } from "../core/profile/schema";
@@ -41,10 +42,7 @@ export function withStretchOutlines(ir: FigureIR): FigureIR {
     const content =
       text && node.labelRotation !== undefined
         ? { width: text.height, height: text.width }
-        : (text ??
-          (node.icon
-            ? { width: node.style.fontSize.units, height: node.style.fontSize.units }
-            : undefined));
+        : (text ?? iconBox(node));
     const size = nodeSize(node, content, padding);
     const renderer = getOutlineRenderer(node.render.renderer);
     if (!renderer) throw new Error("Missing trapezoid renderer");

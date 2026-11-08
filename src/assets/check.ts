@@ -8,6 +8,7 @@
  *   hint). An icon is drawn in place of the label, so a node with an icon
  *   takes no label (`asset/icon-with-label`), and only plain shapes take one:
  *   not marks, outline components or images (`asset/icon-unsupported`).
+ *   `iconSize` (#424) needs an `icon` (`asset/icon-size-without-icon`).
  * - `sumi/image`: `props.src` must be a relative path that stays in the
  *   figure's directory (`asset/invalid-path`). Whether the file exists, its
  *   format, size and sha256 are checked when the figure is rendered
@@ -84,6 +85,16 @@ export function checkAssets(state: CheckState, locate: Locator): void {
       state.invalid.add(key);
       failed = true;
     };
+
+    if (node.iconSize !== undefined && node.icon === undefined) {
+      fail(
+        "asset/icon-size-without-icon",
+        `Node "${node.id}" sets iconSize but draws no icon.`,
+        ["iconSize"],
+        "Add icon, or remove iconSize. A badge is always one em.",
+      );
+      continue;
+    }
 
     for (const [field, value] of [
       ["badge", node.badge?.icon],

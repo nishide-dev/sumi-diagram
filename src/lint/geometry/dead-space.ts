@@ -1,6 +1,6 @@
 /** Figure-wide empty rectangles, using conservative body/label/painted-route footprints. */
 import { formatMm, mmToPt } from "../../core/units";
-import { arrowheadLength } from "../../layout/route/arrowhead";
+import { edgeArrowheadLength } from "../../layout/route/arrowhead";
 import { type Rect, unitsToPt } from "../../render/geometry";
 import { defineGeometryRule } from "../rule";
 import type { GeometryContext } from "./context";
@@ -144,7 +144,7 @@ function footprints(context: GeometryContext): Rect[] {
     if (element.ir.kind === "edge") {
       const size =
         context.ir.meta.engine === "structured"
-          ? arrowheadLength(element.ir.style.strokeWidth.units)
+          ? edgeArrowheadLength(element.ir.style)
           : 4 + 3 * element.ir.style.strokeWidth.units;
       for (const source of [true, false]) {
         if ((source ? element.ir.sourceArrowhead : element.ir.targetArrowhead) === undefined)

@@ -19,6 +19,7 @@
  * - a dimmed group under every built-in theme (#175) → docs/gallery/dim/
  * - feature vectors, a dot and a pill on nodes under every theme (#408) → docs/gallery/glyphs/
  * - set enclosures under every built-in theme (#407) → docs/gallery/sets/
+ * - stroke options under every built-in theme (#427) → docs/gallery/strokes/
  * - one figure under every built-in palette (#417) → docs/gallery/palettes/
  * - legend entries with icon, glyph, edge and set samples under every theme (#409) →
  *   docs/gallery/legend-samples/
@@ -58,6 +59,7 @@ import {
   outlinedToneSample,
   paletteSample,
   setsSample,
+  strokeSample,
   THEME_COMPARISON_EXAMPLE,
   themeComparison,
   toneSample,
@@ -89,6 +91,7 @@ const tones = toneSample();
 const dim = dimSample();
 const glyphs = glyphSample();
 const sets = setsSample();
+const strokes = strokeSample();
 const palettes = paletteSample();
 const legends = legendSample();
 const outlinedTones = outlinedToneSample();
@@ -149,6 +152,9 @@ for (const rendering of glyphs.renderings) {
 for (const rendering of sets.renderings) {
   jobs.push({ file: sets.fileName, source: sets.source, rendering });
 }
+for (const rendering of strokes.renderings) {
+  jobs.push({ file: strokes.fileName, source: strokes.source, rendering });
+}
 for (const rendering of palettes.renderings) {
   jobs.push({ file: palettes.fileName, source: rendering.source, rendering });
 }
@@ -186,6 +192,7 @@ const model: GalleryModel = {
   dim: { sample: dim, outcomes: take(dim.renderings.length) },
   glyphs: { sample: glyphs, outcomes: take(glyphs.renderings.length) },
   sets: { sample: sets, outcomes: take(sets.renderings.length) },
+  strokes: { sample: strokes, outcomes: take(strokes.renderings.length) },
   palettes: { sample: palettes, outcomes: take(palettes.renderings.length) },
   legends: { sample: legends, outcomes: take(legends.renderings.length) },
   outlinedTones: { sample: outlinedTones, outcomes: take(outlinedTones.renderings.length) },
@@ -203,6 +210,7 @@ const strict: [string, RenderOutcome][] = [
   ...model.dim.outcomes.map((o): [string, RenderOutcome] => [`dim (${o.theme})`, o]),
   ...model.glyphs.outcomes.map((o): [string, RenderOutcome] => [`glyphs (${o.theme})`, o]),
   ...model.sets.outcomes.map((o): [string, RenderOutcome] => [`sets (${o.theme})`, o]),
+  ...model.strokes.outcomes.map((o): [string, RenderOutcome] => [`strokes (${o.theme})`, o]),
   ...model.palettes.outcomes.map((o, i): [string, RenderOutcome] => [
     `palettes (${palettes.renderings[i]?.palette})`,
     o,

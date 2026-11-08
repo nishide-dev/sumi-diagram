@@ -569,9 +569,12 @@ describe("built-in themes", () => {
           const target = { kind: manifest.kind, id: componentId(manifest), variant };
           const { style, missingVariant } = resolveStyle(t, target);
           expect(missingVariant).toBe(false);
-          expect(Object.keys(style).sort()).toEqual(
-            Object.keys(KIND_DEFAULTS[manifest.kind]).sort(),
-          );
+          // `strokeDotted` (#427) is set only on a dotted style.
+          expect(
+            Object.keys(style)
+              .filter((key) => key !== "strokeDotted")
+              .sort(),
+          ).toEqual(Object.keys(KIND_DEFAULTS[manifest.kind]).sort());
           expect(style.bold && style.italic).toBe(false);
           // Paper profiles require at least 7pt.
           expect(style.fontSize.pt).toBeGreaterThanOrEqual(7);

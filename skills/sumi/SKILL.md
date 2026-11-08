@@ -125,7 +125,7 @@ edges:
   that fits is), render 2–4 candidates and compare ([fit the placement](references/layout-tips.md#fit-the-placement)).
 - **Structured figures** add `figure.layout.arrange` (nested `stack` / `row` / `grid` / `place` / `chat`
   boxes listing every node and group once), `attach`, anchors, `align`, `sets`
-  (overlapping Venn / hyperedge enclosures), and the `legend`, `tokens`, `matrix`, `bracket`, `separator`, `zoom` components: read
+  (overlapping Venn / hyperedge enclosures), and the `legend`, `tokens`, `matrix`, `bracket`, `separator`, `zoom` components and the `block-arrow` / `triangle-arrow` / `chevron` flow markers: read
   [structured](references/structured.md) first; a paper figure: the [paper figure
   workflow](#paper-figure-workflow). Label math (`'$\hat{y}_t$'`) works only there;
   with a line break, double-quote it and double backslashes (`"A\n$\\gamma$"`). Any
