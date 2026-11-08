@@ -4,7 +4,7 @@
 
 A rounded speech bubble or callout with an optional curved hook and left\-aligned wrapped text, including Japanese; edges attach to the body, never the tail tip\.
 
-**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, filled, outlined, solid, tinted</code> · **since**: <code>0\.16\.0</code> · **shape**: <code>rectangle</code> · **sizing**: <code>auto</code> · **render**: <code>\{&quot;type&quot;:&quot;outline&quot;,&quot;renderer&quot;:&quot;sumi/bubble&quot;,&quot;params&quot;:\{&quot;tail&quot;:&quot;none&quot;,&quot;tailAt&quot;:&quot;start&quot;,&quot;tailSize&quot;:8\.4,&quot;radius&quot;:28\}\}</code>
+**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, filled, outlined, solid, tinted</code> · **since**: <code>0\.15\.2</code> · **shape**: <code>rectangle</code> · **sizing**: <code>auto</code> · **render**: <code>\{&quot;type&quot;:&quot;outline&quot;,&quot;renderer&quot;:&quot;sumi/bubble&quot;,&quot;params&quot;:\{&quot;tail&quot;:&quot;none&quot;,&quot;tailAt&quot;:&quot;start&quot;,&quot;tailSize&quot;:8\.4,&quot;radius&quot;:28\}\}</code>
 
 | prop | type | required | description |
 | --- | --- | --- | --- |

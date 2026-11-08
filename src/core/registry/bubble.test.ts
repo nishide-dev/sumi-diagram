@@ -6,7 +6,7 @@ import { builtinRegistry } from "./builtins";
 test("bubble has documented props, variants, defaults and strict length validation", () => {
   const manifest = builtinRegistry().get("sumi/bubble");
   if (!manifest) throw new Error("missing bubble");
-  expect(manifest.since).toBe("0.16.0");
+  expect(manifest.since).toBe("0.15.2");
   expect(manifest.props.parse({})).toEqual({ tail: "none" });
   for (const tail of ["none", "left", "right", "top", "bottom"])
     for (const tailAt of ["start", "center", "end", "12pt"])
