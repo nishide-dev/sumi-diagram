@@ -219,7 +219,7 @@ export function sampleSource(entry: CatalogEntry, theme: string): string {
           );
         lines.push(
           '  - { id: english, component: bubble, label: "Messages wrap inside a chat bubble.", props: { tail: left, maxWidth: 120pt } }',
-          '  - { id: japanese, component: bubble, variant: filled, tone: green, label: "日本語の文章も吹き出しで折り返します。", props: { tail: right, maxWidth: 120pt } }',
+          '  - { id: japanese, component: bubble, variant: filled, label: "日本語の文章も吹き出しで折り返します。", props: { tail: right, maxWidth: 120pt } }',
         );
       }
       break;
