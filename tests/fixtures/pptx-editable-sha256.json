@@ -1,6 +1,6 @@
 {
-  "examples/chat/chat.freeform": "43c27fd96763ef26146ca55bdbf71ea838bc424f844efc66bce7e6f939fd7fd2",
-  "examples/chat/chat.glued": "c83d4c08f95ab02b256b1f2ee25d57706c2a9f948170b7bb8e7bd99e94e2c78c",
+  "examples/chat/chat.freeform": "d2e6746832edda1913504529b2fc94482f33dc55ca28207c1fbef7da24592e41",
+  "examples/chat/chat.glued": "32201de6cffd08651deef23166addb89cc3dbad631f9d99b4f786a2c410030aa",
   "examples/decision-flow/decision-flow.freeform": "0ce330f26db2e6537730d34e7075517037e792e6463b12c69c5c2758d497afe4",
   "examples/decision-flow/decision-flow.glued": "e05a436851f2a26b18c24ebe1b13dc5ba66b6ed4ba20a397e6e01416a3efeb8e",
   "examples/dit-block/dit-block.freeform": "26f858098024b5015860833eddc75071eff6977d7256156d66e17694a8acea06",
