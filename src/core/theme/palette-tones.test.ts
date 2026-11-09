@@ -202,7 +202,7 @@ describe("withPalette and the derived tones (#423)", () => {
       }
     }
     expect(withPalette(paper, undefined)).toBe(paper);
-    expect(paper.tones.get("green")?.fill).toBe("#d0e6cd");
+    expect(paper.tones.get("green")?.fill).toBe("#c6edcd");
   });
 
   test("explicit tone overrides win, per tone and per field", () => {

@@ -90,7 +90,7 @@ test("a tone override reaches every variant, edge, matrix class, legend sample a
   expect(svg).not.toContain(getTheme("paper")?.toneLines.get("blue")?.stroke ?? "?");
   expect(result.diagnostics.filter((d) => d.severity === "warning")).toEqual([]);
   // The built-in theme is not changed.
-  expect(getTheme("paper")?.tones.get("blue")?.fill).toBe("#cddff6");
+  expect(getTheme("paper")?.tones.get("blue")?.fill).toBe("#d1e7ff");
 });
 
 test("solidFills wins over a tone's line for the solid fill", async () => {
@@ -150,7 +150,7 @@ nodes:
   const group = (id: string) => result.value.compiled.ir.groups.find((g) => g.id === id)?.style;
   expect(group("card")).toMatchObject({ fill: "#fffff0", stroke: "#000000" });
   // A toned group keeps its tone fill; a borderless/unfilled one keeps "transparent".
-  expect(group("toned")).toMatchObject({ fill: "#cddff6", stroke: "#000000" });
+  expect(group("toned")).toMatchObject({ fill: "#d1e7ff", stroke: "#000000" });
   expect(group("panel")?.fill).toBe("transparent");
   // dashedGroupStroke is the more specific setting.
   expect(group("dashed")).toMatchObject({ fill: "transparent", stroke: "#527da5" });

@@ -63,12 +63,12 @@ nodes:
   const ir = result.value.compiled.ir;
   expect(ir.groups.find((g) => g.id === "panel")?.style).toMatchObject({
     stroke: "#527da5",
-    fill: "#dcdee6",
+    fill: "#dee1e8",
     radius: { pt: 6 },
   });
   const cells = ir.nodes.filter((node) => node.tokens !== undefined);
   expect(cells.map((node) => node.style.fill)).toEqual(["#3d9df5", "#e8a20c", "#e04848"]);
-  expect(ir.nodes.find((node) => node.id === "outline")?.style.stroke).toBe("#2f62b0");
+  expect(ir.nodes.find((node) => node.id === "outline")?.style.stroke).toBe("#31608e");
   const regular = ir.nodes.find((node) => node.id === "regular");
   expect(regular?.style.fill).toBe("#3d9df5");
   expect(regular).toBeDefined();
@@ -83,7 +83,7 @@ nodes:
       .every((node) => node.style.fill !== "#3d9df5"),
   ).toBe(true);
   // Refinements do not mutate the selected built-in theme.
-  expect(getTheme("paper")?.toneLines.get("blue")?.stroke).toBe("#2f62b0");
+  expect(getTheme("paper")?.toneLines.get("blue")?.stroke).toBe("#31608e");
 });
 
 // Ratios against the same white page cancel to give symmetric foreground/fill contrast.

@@ -110,11 +110,11 @@ describe("hatch lines (#180)", async () => {
     ]);
     // Gray's line color without a tone, the tone's with one (paper).
     expect(hatches.map((h) => h.stroke)).toEqual([
-      "#6b6e78",
-      "#bd5410",
-      "#6b6e78",
-      "#6b6e78",
-      "#bd5410",
+      "#656970",
+      "#8a4b00",
+      "#656970",
+      "#656970",
+      "#8a4b00",
     ]);
     // Equal cells, equal hatching.
     const relative = (h: (typeof hatches)[number], rect: { x: number; y: number }) =>

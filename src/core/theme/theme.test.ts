@@ -645,7 +645,7 @@ describe("built-in themes", () => {
     expect(radius(style("container", "muted"))).toBe(6);
     expect(radius(style("legend"))).toBe(3);
     // #174's variants: borderless rounded fills and panels, a dashed rounded panel.
-    expect(style("box", "filled")).toMatchObject({ strokeWidth: { pt: 0 }, fill: "#dcdee6" });
+    expect(style("box", "filled")).toMatchObject({ strokeWidth: { pt: 0 }, fill: "#dee1e8" });
     expect(radius(style("box", "filled"))).toBe(2);
     for (const variant of ["plain", "filled", "dashed"]) {
       expect(radius(style("container", variant))).toBe(6);

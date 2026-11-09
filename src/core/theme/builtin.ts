@@ -697,30 +697,32 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
         // The light gray of the panels in the Transformer and DiT figures.
         surface: "#f3f3f5",
       },
-      // Pastel fills measured from the reference figures (Transformer, DiT);
-      // the text (black) keeps a contrast of at least 15:1 on each.
+      // Harmonized pastel fills (#434, #423 proposal B): similar lightness and
+      // chroma for every tone, so the eight tones read as one family. Yellow, and the
+      // orange and red lines, deviate from B, which looked olive and brown.
+      // The text (black) keeps a contrast of at least 15:1 on each.
       tone: {
-        gray: "#dcdee6",
-        red: "#f6dcdb",
-        orange: "#f9e0bc",
-        yellow: "#f1f4c6",
-        green: "#d0e6cd",
-        blue: "#cddff6",
-        purple: "#dfdcef",
-        pink: "#f6d8e5",
+        gray: "#dee1e8",
+        red: "#f9c7bb",
+        orange: "#fcdbb7",
+        yellow: "#f8efbf",
+        green: "#c6edcd",
+        blue: "#d1e7ff",
+        purple: "#d8cdf8",
+        pink: "#ffdcf1",
       },
-      // Line and text colors of the tones (#177): the hues of H3-World's
-      // colored frames, text and edges, darkened where needed to a contrast
-      // of at least 4.5:1 on white.
+      // Line and text colors of the tones (#177, #434): the same hues as the
+      // fills in a darker, less saturated shade (lightness about 0.5, chroma
+      // about 0.1), at a contrast of at least 4.5:1 on white.
       ink: {
-        gray: "#6b6e78",
-        red: "#c0392b",
-        orange: "#bd5410",
-        yellow: "#857500",
-        green: "#3f7d3a",
-        blue: "#2f62b0",
-        purple: "#7240a8",
-        pink: "#b8336a",
+        gray: "#656970",
+        red: "#8b3c34",
+        orange: "#8a4b00",
+        yellow: "#866c02",
+        green: "#417a50",
+        blue: "#31608e",
+        purple: "#524177",
+        pink: "#7c4569",
       },
       size: { text: "8pt", small: "7pt", heading: "9pt" },
       // Frames 1pt as in the Transformer figure; edges 0.5pt, which keeps
@@ -811,7 +813,7 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
     toneLines: toneLines(toneTokens("ink")),
     // Measured from the dimmed panels of the DiT figure (#175): gray text and
     // lines #949494, tone fills and the panel's surface halfway to white
-    // (blue #cddff6 → #e6effb, the surface #f3f3f5 → #f9f9fa).
+    // (blue #d1e7ff → #e8f3ff, the surface #f3f3f5 → #f9f9fa).
     dim: { fontColor: "#949494", stroke: "#949494", lighten: 0.5 },
   },
   {

@@ -110,9 +110,9 @@ describe("structured text colors (#186)", () => {
     const rendered = await render(
       source(String.raw`$\textcolor{orange}{\text{Highlight}}$`, "tone: orange"),
     );
-    expect(rendered.svg).toContain('fill="#f9e0bc"');
+    expect(rendered.svg).toContain('fill="#fcdbb7"');
     expect(rendered.inspection.elements[0]?.labels[0]?.runs?.flat().map((r) => r.fill)).toEqual([
-      "#bd5410",
+      "#8a4b00",
     ]);
   });
 
