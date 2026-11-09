@@ -189,8 +189,15 @@ describe("withPalette", () => {
         expect(style("sumi/box", "solid").fill, `${theme.id} ${id} solid`).toBe(roles.strong);
         const group = style("sumi/container");
         // A theme whose groups have no fill (academic) keeps them open.
-        if (group.fill !== "transparent")
+        // `paper`'s default groups are white (#440): a palette does not tint them.
+        if (group.fill !== "transparent" && theme.id !== "paper")
           expect(group.fill, `${theme.id} ${id} panel`).toBe(roles.panel);
+        if (theme.id === "paper") {
+          expect(group.fill, `${id} paper default group`).toBe("#ffffff");
+          expect(style("sumi/container", "filled").fill, `${id} paper filled group`).toBe(
+            roles.panel,
+          );
+        }
       }
     }
   });

@@ -58,6 +58,7 @@ Before writing YAML, make sure you know:
   (a venue maximum below the profile's: set `height`, which only warns) ([placement](references/layout-tips.md#fit-the-placement)).
 - **Theme**: `minimal` (default), `academic`, `color`, `slides` (needed for a slide)
   or `paper` — **recommend `paper` for a color paper figure** (`academic` if grayscale).
+  Colour: white ground, colour only for meaning (2–3 hues + one accent), nothing translucent over colour; LLaDA is the exemplar ([colour](references/layout-tips.md#plan-the-visual-language-before-drawing)).
   Output: next to the user's files, `<figure-id>.sumi.yaml`.
 - **Layout** (your choice, not a question): **auto** for flows and graphs;
   **structured** for paper block diagrams (layers, residuals, aligned columns, ⊕, math,

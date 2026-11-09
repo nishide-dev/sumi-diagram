@@ -162,7 +162,7 @@ nodes:
 test("empty overrides and a groupFill equal to the theme's change nothing", async () => {
   const base = await render(figure("{ groupLabelWeight: bold }", toned));
   const empty = await render(
-    figure("{ groupLabelWeight: bold, tones: { blue: {} }, groupFill: '#f3f3f5' }", toned),
+    figure("{ groupLabelWeight: bold, tones: { blue: {} }, groupFill: '#ffffff' }", toned),
   );
   // The input hash in the metadata differs; the drawing does not.
   const drawing = (svg: string) =>

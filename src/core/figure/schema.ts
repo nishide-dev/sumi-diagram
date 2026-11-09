@@ -158,7 +158,7 @@ export const SET_LABEL_POSITIONS = [
 export type SetLabelPosition = (typeof SET_LABEL_POSITIONS)[number];
 
 /**
- * Paint of a set: `default` is a translucent tinted fill with a solid
+ * Paint of a set: `default` is a pale tinted fill with a solid
  * outline, `filled` the tint alone, `outlined` the outline alone and
  * `dashed` the tint with a dashed outline and `dotted` (#427) the tint with a
  * dotted one.
@@ -1134,7 +1134,7 @@ export const SetSchema = z.strictObject({
     .max(1)
     .optional()
     .describe(
-      "Opacity of the tinted fill (0..1) so that overlapping sets show through each other. Omitted means the variant's own (0.2 for default and dashed, 0.28 for filled).",
+      "Strength of the tinted fill (0..1): the share of the tone's line color mixed into white. The fill is opaque, so it looks the same on a white page and on a gray panel; where sets overlap, the overlap is painted in the product of their fills. Omitted means the variant's own (0.2 for default and dashed, 0.28 for filled).",
     ),
   variant: z
     .enum(SET_VARIANTS)
@@ -1149,7 +1149,7 @@ export const SetSchema = z.strictObject({
     "Corner radius of a rect set (a multiple of 0.5pt up to 10pt). Omitted means figure.themeOverrides.cornerRadius or the theme's group frame.",
   ),
   tone: Tone.describe(
-    "Color category from the theme's palette: its line color draws the outline and the label and, at low opacity, the tint, in every theme. Omitted means gray.",
+    "Color category from the theme's palette: its line color draws the outline and the label and, mixed into white, the opaque tint, in every theme. Omitted means gray.",
   ),
 });
 
@@ -1167,7 +1167,7 @@ export const FigureDocumentSchema = z
       .array(SetSchema)
       .optional()
       .describe(
-        "Set enclosures (#407): translucent shapes around nodes and groups that may overlap, for Venn diagrams and hyperedges. Structured layout only; they are drawn below the nodes and edges and take no space in the arrange trees.",
+        "Set enclosures (#407): tinted shapes (opaque pale fills, overlaps in the product of the fills) around nodes and groups that may overlap, for Venn diagrams and hyperedges. Structured layout only; they are drawn below the nodes and edges and take no space in the arrange trees.",
       ),
     metadata: JsonValue.optional().describe("Arbitrary JSON-compatible data; not interpreted."),
   })

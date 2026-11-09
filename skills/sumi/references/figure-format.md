@@ -519,7 +519,7 @@ on any theme (`minimal`, `color`, `paper`, `llama`, …; `academic` is grayscale
 leave it unpainted for black-and-white print). Names: `cool-blue` (navy, high contrast),
 `slate` (muted blue-gray), `coral` (warm), `terracotta` (earthy), `sage` (muted green),
 `lavender`, `cyan-pink` (cyan with a hot accent), `seafoam` (green-teal). A
-palette recolours text, frames, edges and arrowheads (ink), group panels (the palest colour),
+palette recolours text, frames, edges and arrowheads (ink), the group panels a theme fills (the palest colour; `paper`'s default groups are white and stay white, so a palette does not tint every panel: only `variant: filled` groups and an explicit `groupFill` take it),
 `filled`/`tinted` nodes and the `gray` tone (the tint), `solid` fills and outlined frames
 (the accent colour, deepened for white text), `muted` groups (a paler panel and a palette
 frame) and `emphasis` nodes and edges (the accent). It never changes sizes, fonts or line

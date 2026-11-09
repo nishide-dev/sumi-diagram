@@ -55,6 +55,8 @@ figure of your own, leave the colors to the theme (or a `palette`).
 | System architecture | Clients, entry point, service tier and data tier | tiers as groups, hexagon entry, cylinders, `double-arrow` reads/writes, dashed path, `direction: right` so edges enter groups from the side | `academic` / `paper-double` | [YAML](system-architecture/system-architecture.sumi.yaml), [PNG](system-architecture/system-architecture.png) |
 | Grouped | Nested modules with two parallel paths | three nested group levels, a muted group, paths crossing group boundaries, elements outside the groups | `minimal` / `paper-double` | [YAML](grouped/grouped.sumi.yaml), [PNG](grouped/grouped.png) |
 
+**Colour.** LLaDA is the colour exemplar: a white ground, a few muted related tones, one accent. TriCL is a density and composition benchmark, **not** a colour exemplar: its gray panels and per-figure colours reproduce the original; do not copy them into a new figure (`paper`'s default panels are white, and a set is an opaque pale tint).
+
 Choosing quickly: a paper block diagram with residuals or notes starts from
 Transformer or DiT; multi-panel figures with images or matrices from CLIP or
 EmbeddingGemma; graphs on coordinates from GCN; a dense wide figure of cell rows and short arrows from LLaDA; a dense wide overview of small pictures (hypergraphs, feature vectors, panels) from TriCL; a dark-theme model figure from

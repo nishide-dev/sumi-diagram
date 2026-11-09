@@ -24,7 +24,7 @@ The committed SVGs of <code>examples/</code>, rendered from their sources as wri
 
 ## DiT block variants \(structured layout, paper theme\)
 
-[<code>examples/dit\-block/dit\-block\.sumi\.yaml</code>](../../examples/dit-block/dit-block.sumi.yaml) · [PDF](../../examples/dit-block/dit-block.pdf) · theme <code>paper</code> · profile <code>paper\-double</code> · 180mm × 84\.69mm \(max width 180mm, max height 220mm\)<br>info geometry/heavy\-scaling: The smallest final text \(including math scripts\) is 3\.99pt, 79\.7% of the 5pt minimum \(\-1\.01pt headroom; 20% or less\)\. figure\.fit: scale prints at 81\.4%: 221\.19mm → 180mm wide\.<br>info geometry/script\-too\-small: Subscripts or superscripts of label math print at down to 3\.99pt \(4\.9pt shrunk to 81\.4% by figure\.fit: scale\), below the 5pt minimum font size of profile &quot;paper\-double&quot; for a scaled figure: in edge edges\[25\], edge edges\[26\], edge edges\[27\] and 1 more label\.<br>info geometry/group\-empty\-area \(×2\): Group &quot;cross&quot; has 75\.3% empty bounding\-box area \(threshold 75%; edges excluded\)\.
+[<code>examples/dit\-block/dit\-block\.sumi\.yaml</code>](../../examples/dit-block/dit-block.sumi.yaml) · [PDF](../../examples/dit-block/dit-block.pdf) · theme <code>paper</code> · profile <code>paper\-double</code> · 180mm × 84\.69mm \(max width 180mm, max height 220mm\)<br>info geometry/heavy\-scaling: The smallest final text \(including math scripts\) is 3\.99pt, 79\.7% of the 5pt minimum \(\-1\.01pt headroom; 20% or less\)\. figure\.fit: scale prints at 81\.4%: 221\.19mm → 180mm wide\.<br>info geometry/script\-too\-small: Subscripts or superscripts of label math print at down to 3\.99pt \(4\.9pt shrunk to 81\.4% by figure\.fit: scale\), below the 5pt minimum font size of profile &quot;paper\-double&quot; for a scaled figure: in edge edges\[25\], edge edges\[26\], edge edges\[27\] and 1 more label\.<br>info geometry/color\-on\-panel: Group &quot;adaln&quot; is filled \#f3f3f6 and holds 10 colored elements \(node &quot;a\-ln1&quot;, node &quot;a\-ss1&quot;, node &quot;a\-attn&quot;, and 7 more\): the colors compete with the panel's\.<br>info geometry/group\-empty\-area \(×2\): Group &quot;cross&quot; has 75\.3% empty bounding\-box area \(threshold 75%; edges excluded\)\.
 
 <img src="../../examples/dit-block/dit-block.svg" alt="DiT block variants (structured layout, paper theme)">
 
@@ -78,7 +78,7 @@ The committed SVGs of <code>examples/</code>, rendered from their sources as wri
 
 ## Transformer \(structured layout, paper theme\)
 
-[<code>examples/transformer/transformer\.sumi\.yaml</code>](../../examples/transformer/transformer.sumi.yaml) · [PDF](../../examples/transformer/transformer.pdf) · theme <code>paper</code> · profile <code>paper\-single</code> · 83\.43mm × 114\.12mm \(max width 88mm, max height 220mm\)
+[<code>examples/transformer/transformer\.sumi\.yaml</code>](../../examples/transformer/transformer.sumi.yaml) · [PDF](../../examples/transformer/transformer.pdf) · theme <code>paper</code> · profile <code>paper\-single</code> · 83\.43mm × 114\.12mm \(max width 88mm, max height 220mm\)<br>info geometry/color\-on\-panel \(×2\): Group &quot;encoder&quot; is filled \#f2f2f2 and holds 4 colored elements \(node &quot;enc\-mha&quot;, node &quot;enc\-norm1&quot;, node &quot;enc\-ff&quot;, and 1 more\): the colors compete with the panel's\.
 
 <img src="../../examples/transformer/transformer.svg" alt="Transformer (structured layout, paper theme)">
 

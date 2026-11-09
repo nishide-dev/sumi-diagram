@@ -81,8 +81,8 @@ geometry lint):
 | `decision-flow` | none |
 | `system-architecture` | none |
 | `grouped` | none |
-| `transformer` | none |
-| `dit-block` | 7: `geometry/heavy-scaling` ×1 (81.38%, with the width breakdown before scaling); `geometry/script-too-small` ×1 (math scripts down to 3.99pt after scaling); `geometry/group-empty-area` ×2 (the equal-height Cross-Attention and In-Context panels); `geometry/arrowhead-cramped` ×3 (conditioning taps, 1.63pt straight stems after scaling) |
+| `transformer` | 2: `geometry/color-on-panel` ×2 (the original's gray encoder and decoder panels hold the colored blocks; the colors are pinned to the original, #441) |
+| `dit-block` | 5: `geometry/heavy-scaling` ×1 (81.38%, with the width breakdown before scaling); `geometry/script-too-small` ×1 (math scripts down to 3.99pt after scaling); `geometry/color-on-panel` ×1 (the original's gray adaLN-Zero panel holds the colored blocks, #441); `geometry/group-empty-area` ×2 (the equal-height Cross-Attention and In-Context panels) |
 | `embedding-gemma` | none (sharp joins and 1pt edges remove the previous three `geometry/edge-near-border` infos) |
 | `clip` | 2: `geometry/heavy-scaling` ×1 (71.81%, with the width breakdown before scaling); `geometry/script-too-small` ×1 (math scripts down to 4.02pt after scaling; body text is 5.74pt, above the 5pt scaled minimum) |
 | `gcn` | 2: `geometry/group-empty-area` ×2 (the input and output layers: the graphs keep the original's sparse vertex positions) |

@@ -161,10 +161,10 @@ edges:
 
 ## Set enclosures
 
-`sets` draws a translucent shape around nodes and groups after they are placed: Venn
+`sets` draws a pale tinted shape around nodes and groups after they are placed: Venn
 diagrams, the hyperedges of a hypergraph, clusters, containment. Membership is
 many-to-many and independent of groups: a node listed in two sets lies in their overlap,
-and the two tints show through each other. Sets are a top-level list (own ID space);
+which is painted in the product of the two tints (the fills are opaque, never translucent). Sets are a top-level list (own ID space);
 members are node or group IDs (a group stands for its whole frame; `unknown member` is
 `ref/unknown-set-member`, a repeat `ref/duplicate-set-member`). Structured layout only
 (`layout/structured-only` in an auto figure).
@@ -176,7 +176,7 @@ members are node or group IDs (a group stands for its whole frame; `unknown memb
 | `angle` | `shape: ellipse` only (else `ref/set-angle-needs-ellipse`). `auto` turns the ellipse to the members (the smallest area; hugs diagonal members, like a hyperedge around a diagonal row), or degrees clockwise on the page (`rx` runs along it). Both fit the tightest ellipse that keeps `padding` clear of every member, with no 3:1 limit. Omitted: the axis-parallel ellipse above, unchanged |
 | `padding` | room between members and outline (default: the profile's group padding) |
 | `label`, `labelAt` | outside the outline: `top` (default), `bottom`, `left`, `right`, or beside a diagonal extreme `top-left`, `top-right`, `bottom-left`, `bottom-right`. For a label inside, make a `label` node a member |
-| `tone`, `variant` | the tone's line color draws outline, label and (at low opacity) the tint in every theme, gray without a tone. `default` tint + outline, `filled` tint, `outlined` outline, `dashed`; `fillOpacity` (0..1) overrides the tint |
+| `tone`, `variant` | the tone's line color draws outline, label and, mixed into white, the opaque tint in every theme, gray without a tone. `default` tint + outline, `filled` tint, `outlined` outline, `dashed`; `fillOpacity` (0..1) is the tint's strength (the share of the line color mixed into white: 0.2 default, 0.28 `filled`), not a transparency, so the set looks the same on white and on a panel |
 
 - A member may be a whole [token sequence](#token-sequences) (the tokens node's ID): it
   gets its frame like a node named by an edge, so a dashed rectangle can enclose rows of cells.
@@ -190,8 +190,12 @@ members are node or group IDs (a group stands for its whole frame; `unknown memb
   `padding`). A set label
   over text, a node, an edge or another set's boundary is `geometry/set-label-collision`:
   change `labelAt`. A subset's label inside its superset is fine.
-- SVG, PDF and picture PPTX keep the opacity; editable PPTX draws each set as a
-  freeform shape with alpha (and a text box for the label). A tilted ellipse is a path of
+- The tints are opaque and painted first, then each outline and label on top, so an
+  earlier set's outline stays visible under a later set's tint. SVG, PDF and picture PPTX
+  clip each overlap region to its sets and fill it with the product of their tints;
+  editable PPTX draws opaque freeforms for the tints and for the overlap polygons (the
+  overlap outlines are polygons sampled from the curves), an unfilled freeform for each
+  outline and a text box for the label. A tilted ellipse is a path of
   cubics in all of them (no rotation attribute); labels at the 8 positions sit outside it.
 
 ```yaml
@@ -1085,7 +1089,7 @@ class's label). Since 0.16.0 three more samples: `icon: tabler/file-text` (an
 icon one text line tall, or `iconSize` as on a node), `glyph: { kind: vector, tone: blue, strength: solid }`
 (the fields of a node [glyph](assets.md#glyphs) except `at` / `dx` / `dy`: `kind`,
 `cells`, `direction`, `tone`, `tones`, `strength`, `size`, `width`, `outline`) and
-`set: { tone: green, variant: dashed, fillOpacity: 0.3 }` (a small translucent
+`set: { tone: green, variant: dashed, fillOpacity: 0.3 }` (a small tinted
 rectangle painted like a [set](#set-enclosures)). A paired arrow is
 `edge: { component: double-arrow, tone: red }`; edge variants are `default`,
 `dashed`, `emphasis`, `muted` (there is no dotted line). Samples are drawn by the
