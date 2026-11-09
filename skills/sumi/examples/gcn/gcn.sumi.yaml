@@ -9,9 +9,13 @@ figure:
   theme: paper
   themeOverrides:
     groupLabelWeight: regular
+    # Line weights, measured at 200 dpi: the cards' frames are hairlines.
+    frameWidth: 0.5pt
+    lineWidth: 1pt
     # The original's palette: white cards with black frames, pale node fills,
     # frames and edges in the tone line colours, black node text.
     groupFill: "#ffffff"
+    groupStroke: "#000000"
     tones:
       blue: { fill: "#dfe1ea", line: "#5f6a95", text: "#000000" }
       orange: { fill: "#ffe6d3", line: "#fc8226", text: "#000000" }
@@ -83,22 +87,22 @@ nodes:
   - { id: tsne, component: image, props: { src: assets/tsne.svg, width: 136pt } }
 edges:
   # The graph structure, shared over layers.
-  - { from: x1, to: x2, component: line, route: straight }
-  - { from: x2, to: x3, component: line, route: straight }
-  - { from: x2, to: x4, component: line, route: straight }
-  - { from: z1, to: z2, component: line, route: straight }
-  - { from: z2, to: z3, component: line, route: straight }
-  - { from: z2, to: z4, component: line, route: straight }
+  - { from: x1, to: x2, component: line, route: straight, lineWidth: 1pt }
+  - { from: x2, to: x3, component: line, route: straight, lineWidth: 1pt }
+  - { from: x2, to: x4, component: line, route: straight, lineWidth: 1pt }
+  - { from: z1, to: z2, component: line, route: straight, lineWidth: 1pt }
+  - { from: z2, to: z3, component: line, route: straight, lineWidth: 1pt }
+  - { from: z2, to: z4, component: line, route: straight, lineWidth: 1pt }
   # Every input node feeds the hidden layers, which feed every output node.
-  - { from: x1, to: j1, component: line, route: curve, tone: blue }
-  - { from: x2, to: j1, component: line, route: curve, tone: orange }
-  - { from: x3, to: j1, component: line, route: curve, tone: green }
-  - { from: x4, to: j1, component: line, route: curve, tone: pink }
-  - { from: j1, to: j2, component: line, variant: dashed, label: "hidden\nlayers", labelSide: right }
-  - { from: j2, to: z1, route: curve, tone: orange }
-  - { from: j2, to: z2, route: curve, tone: pink }
-  - { from: j2, to: z3, route: curve, tone: green }
-  - { from: j2, to: z4, route: curve, tone: pink }
+  - { from: x1, to: j1, component: line, route: curve, tone: blue, lineWidth: 0.5pt }
+  - { from: x2, to: j1, component: line, route: curve, tone: orange, lineWidth: 0.5pt }
+  - { from: x3, to: j1, component: line, route: curve, tone: green, lineWidth: 0.5pt }
+  - { from: x4, to: j1, component: line, route: curve, tone: pink, lineWidth: 0.5pt }
+  - { from: j1, to: j2, component: line, variant: dashed, label: "hidden\nlayers", labelSide: right, lineWidth: 0.5pt }
+  - { from: j2, to: z1, route: curve, tone: orange, lineWidth: 0.5pt }
+  - { from: j2, to: z2, route: curve, tone: pink, lineWidth: 0.5pt }
+  - { from: j2, to: z3, route: curve, tone: green, lineWidth: 0.5pt }
+  - { from: j2, to: z4, route: curve, tone: pink, lineWidth: 0.5pt }
   # Labels for the labelled nodes.
-  - { from: z1, to: y1, component: double-arrow, variant: dashed, tone: blue }
-  - { from: z4, to: y4, component: double-arrow, variant: dashed, tone: pink }
+  - { from: z1, to: y1, component: double-arrow, variant: dashed, tone: blue, lineWidth: 0.5pt }
+  - { from: z4, to: y4, component: double-arrow, variant: dashed, tone: pink, lineWidth: 0.5pt }

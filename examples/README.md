@@ -9,6 +9,15 @@ PNG previews and assets that the Claude Code Skill ships (an index of what each
 example shows and how to use them). Edit the YAML there, then run `bun run gallery`
 and `bun run skill:previews`.
 
+**Reproductions pin their colors to the original figure.** `transformer`, `dit-block`,
+`clip`, `embedding-gemma`, `gcn`, `llama4-moe`, `tricl` and `llada` reproduce a published
+figure, so their fills, frames, panels and tone colors are written out in
+`themeOverrides` (sampled from the original, #441) and node `tone`s; changing a theme's
+tone or panel defaults never recolors them. The theme's defaults are for new figures. A new
+reproduction must pin its colors the same way and be added to `REPRODUCTIONS` in
+`src/compiler/pinned-reproductions.test.ts`, which renders each one with deliberately
+different theme defaults and requires identical painted colors.
+
 | Example | Theme / Profile | Shows |
 | --- | --- | --- |
 | [`pipeline/`](pipeline/pipeline.sumi.yaml) | `academic` / `paper-single` | groups (default and muted container), box, parallelogram, cylinder, document, emphasis / muted variants, `arrow`, `double-arrow`, dashed edge, edge labels |

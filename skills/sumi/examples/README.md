@@ -7,6 +7,13 @@ not templates to copy content from. The paper figures cite their public paper in
 the YAML header; the illustrations are original synthetic assets, not private
 figure material.
 
+**Reproductions pin their colors to the original figure.** The figures that reproduce a
+published figure (`transformer`, `dit-block`, `clip`, `embedding-gemma`, `gcn`,
+`llama4-moe`, `tricl`, `llada`) write out the original's fills, frames and panel colors in
+`themeOverrides` (`tones`, `groupFill`, `groupStroke`, `solidFills`) and node `tone`s, so a
+theme's defaults never change them. Copy that idiom when you reproduce a figure; for a new
+figure of your own, leave the colors to the theme (or a `palette`).
+
 ## How to use
 
 1. Pick the 1–2 examples closest to your figure by type and features (tables below).
