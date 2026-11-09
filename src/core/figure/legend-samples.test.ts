@@ -181,6 +181,34 @@ describe("layout", () => {
     expect(column[3]).toBe("key-3-heading");
   });
 
+  test("headings: inline puts the groups on the same lines, each heading before its first entry (#446)", () => {
+    const grouped = entries(
+      "{ heading: 'Entity:', node: {}, label: a }",
+      "{ node: {}, label: b }",
+      "{ heading: 'Other:', node: {}, label: c }",
+      "{ node: {}, label: d }",
+    );
+    const one = stackItems(figure(`      flow: row\n      headings: inline\n${grouped}`));
+    expect(one).toHaveLength(1);
+    expect(JSON.stringify(one)).not.toContain("grid");
+    expect(rowSize(one[0])).toBe(4);
+    const units = (one[0] as { row: { items: unknown[] } }).row.items;
+    expect(units[0]).toMatchObject({ row: { items: ["key-1-heading", expect.anything()] } });
+    expect(units[2]).toMatchObject({ row: { items: ["key-3-heading", expect.anything()] } });
+    // perRow counts entries across groups, not headings.
+    const wrapped = stackItems(
+      figure(`      flow: row\n      headings: inline\n      perRow: 3\n${grouped}`),
+    );
+    expect(wrapped.map(rowSize)).toEqual([3, 1]);
+  });
+
+  test("headings needs flow: row", () => {
+    const { state } = checkFigure(figure(`      headings: inline\n${entries(...labels)}`));
+    expect(state.diagnostics.map((d) => [d.code, d.path])).toEqual([
+      ["component/invalid-prop", ["nodes", 1, "props", "headings"]],
+    ]);
+  });
+
   test("a row legend without headings has no table", () => {
     const items = stackItems(figure(`      flow: row\n      perRow: 2\n${entries(...labels)}`));
     expect(JSON.stringify(items)).not.toContain("grid");

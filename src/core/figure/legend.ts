@@ -460,6 +460,7 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
     });
     const flow = (component.props.flow as "column" | "row" | undefined) ?? "column";
     const perRow = component.props.perRow as number | undefined;
+    const inline = flow === "row" && component.props.headings === "inline";
     // The groups of entries (#409): a heading starts a new one.
     const sections: { heading?: string; items: ArrangeItem[] }[] = [{ items: [] }];
     for (const [j, entry] of entries.entries()) {
@@ -636,9 +637,27 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
     // own; a row is the entries of a group side by side, wrapping after `perRow` of them,
     // the heading beside the lines of its group.
     const rows: ArrangeItem[] = [];
+    if (inline) {
+      // Inline headings (#446): every group follows the one before on the same line, each heading
+      // beside its group's first entry; the whole legend wraps after `perRow` entries.
+      const units: ArrangeItem[] = [];
+      for (const section of sections) {
+        section.items.forEach((item, i) => {
+          units.push(
+            i === 0 && section.heading !== undefined
+              ? row(size.textGap, [section.heading, item])
+              : item,
+          );
+        });
+      }
+      const lineLength = perRow ?? Math.max(1, units.length);
+      for (let start = 0; start < units.length; start += lineLength) {
+        rows.push(row(size.entryGap, units.slice(start, start + lineLength)));
+      }
+    }
     // Headed groups of a row legend (heading, lines), laid out as the rows of one table.
     const table: ArrangeItem[] = [];
-    for (const section of sections) {
+    for (const section of inline ? [] : sections) {
       if (flow === "column") {
         if (section.heading !== undefined) rows.push(section.heading);
         rows.push(...section.items);

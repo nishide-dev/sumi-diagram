@@ -1115,7 +1115,10 @@ changes it.
 An entry's `heading: "Entity:"` starts a group: the heading is drawn at the start of
 its own line (a row: in one table column, as wide as the widest heading, with the
 group's lines, wrapped ones included, starting at one x beside it) and the following
-entries without a heading belong to it. `labelAt: left` puts an entry's text before its
+entries without a heading belong to it. With `flow: row`, `headings: inline` instead
+puts each heading on the line of its group's first entry, the groups following one
+another on the same lines (`perRow` then counts entries across all groups). A legend
+wider than everything else is named in `geometry/exceeds-page-width`. `labelAt: left` puts an entry's text before its
 sample (Paper followed by its icon). One legend can hold a whole paper key at the bottom:
 
 ```yaml
