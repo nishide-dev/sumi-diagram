@@ -369,3 +369,38 @@ nodes:
     expect(notes).toContain("Top-level bodies/labels span");
   });
 });
+
+describe("a legend that sets the width (#446)", () => {
+  const withLegend = `version: 1
+figure:
+  id: wide
+  layout:
+    engine: structured
+    arrange: { stack: { items: [a, key] } }
+nodes:
+  - { id: a, component: box, label: A, props: { width: 120pt } }
+  - id: key
+    component: legend
+    props:
+      flow: row
+      entries:
+        - { node: {}, label: One }
+        - { node: {}, label: Two }
+`;
+  const elements = (legend: number) => ({
+    "n:a": { bbox: rect(0, 100) },
+    "g:key": { bbox: rect(0, legend) },
+    "n:key-1-box": { bbox: rect(0, 20) },
+    "n:key-2-box": { bbox: rect(0, 20) },
+  });
+
+  test("the hint names the legend and perRow when it is the widest item", () => {
+    const result = hint(withLegend, elements(500));
+    expect(result).toContain('Legend "key" sets the width of the figure');
+    expect(result).toContain("perRow");
+  });
+
+  test("it says nothing when another item is as wide", () => {
+    expect(hint(withLegend, elements(100))).not.toContain("sets the width of the figure");
+  });
+});

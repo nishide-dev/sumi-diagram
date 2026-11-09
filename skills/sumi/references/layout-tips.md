@@ -447,7 +447,10 @@ Checklist (answer each with what you see; "fine" is not an answer):
 2. **Element sizes.** Are the same kinds of boxes, icons and arrows about equally
    large, with stroke weights and arrowheads as deliberate as the reference's?
 3. **One visual vocabulary.** Does each kind of thing keep one form and tone in every
-   panel, with one legend, as in your visual-language table?
+   panel, with one legend, as in your visual-language table? Advice, not a rule: the same kind of
+   element (e.g. every set, whether entity-entity or entity-attribute) should usually share
+   one fill and border, and emphasis reads better as an accent colour than as a different
+   form. Whether each panel has a frame is a case-by-case call.
 4. **Colour harmony.** A white ground with a few related tones (at most 2–3 hues and
    one accent), each with a meaning, like LLaDA; or gray panels, colour on colour,
    clashing or saturated colours? Anything translucent over a coloured surface?
@@ -457,6 +460,13 @@ Checklist (answer each with what you see; "fine" is not an answer):
 6. **Stage flow.** Can the eye follow the stages (numbered columns, one main flow
    direction) without crossing or backtracking?
 7. **Main subject.** Is the one thing the figure is about clearly the most prominent?
+
+Verify before you fix. A critic (you or a subagent) sees only pixels and can be wrong
+about measurable things: "unequal sizes", "different colour", "translucent" or
+"misaligned" must be checked against the YAML (`size`, `fill`, `opacity`, placement),
+`sumi lint --geometry --json` or the SVG before you accept it. Drop claims that do not
+hold; fix the ones that do. Judgements (density, balance, flow) have no number: weigh
+them against the reference.
 
 Fix what fails (arrangement, sizes, tones, text), re-render, and compare again until
 no item fails or the rest is justified in your report. The `lint` infos about density

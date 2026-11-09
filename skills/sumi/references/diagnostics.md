@@ -89,7 +89,7 @@ Apply one edit and re-check: independent savings are not additive.
 | `component/unsupported-in-auto` (warning) | label math with a command, `_` or `^` in an auto figure, drawn as written | use the structured layout or drop the `$...$` |
 | `component/label-at-without-label`, `component/label-rotation-without-label`, `component/sublabel-without-label` | `labelAt` / `labelRotation` / `sublabel` without a (non-empty) label (the sublabel one is an error) | add the label, or remove the field |
 | `component/label-rotation-unsupported`, `component/sublabel-unsupported` | on an icon, `operator`, `junction`, `image`, `bracket` or `legend` node | remove it; put a `label` node next to it |
-| `component/invalid-prop` on a legend entry | both or neither of `edge` / `node` / `class` / `icon` / `glyph` / `set`, `perRow` without `flow: row`, or a sample box that is a mark, text or picture | one sample per entry; a shape such as `box` |
+| `component/invalid-prop` on a legend entry | both or neither of `edge` / `node` / `class` / `icon` / `glyph` / `set`, `perRow` or `headings` without `flow: row`, or a sample box that is a mark, text or picture | one sample per entry; a shape such as `box` |
 | `component/tone-unsupported` | `tone` on a `junction` | remove it |
 | `component/anchor-on-junction`, `component/anchor-on-zoom` (warnings) | an anchor on an end at a `junction` (every line meets the dot's centre) or on a `zoom` edge (corners follow the target's place) | remove the anchor; anchor the other end or move the junction / target |
 | `component/grow-unsupported` | `grow` on expanded `tokens`, `matrix`, `legend`, `separator` or a flow arrow | remove it; weight ordinary nodes under their row/stack's `justify: stretch` |
@@ -102,7 +102,7 @@ Apply one edit and re-check: independent savings are not additive.
 | `asset/*` | icons, images, figure assets, HTML | [assets](assets.md#fixing-asset), [html](html.md#diagnostics) |
 | `theme/unknown` | `figure.theme` is not built in | `minimal`, `academic`, `slides`, `color` or `paper` |
 | `theme/missing-variant`, `theme/missing-tone`, `theme/missing-dim` (warnings) | the theme lacks a style (built-ins define all) | usually ignore |
-| `theme/low-contrast` (warning) | an overridden tone's text (`themeOverrides.tones.<tone>.text`, else `line`) has under 4.5:1 on its fill (tinted) or on white (outlined, edge labels, `\textcolor`) | darker `text`, paler `fill`, or omit `text` for tinted-only tones |
+| `theme/low-contrast` (warning) | an overridden tone's text (`themeOverrides.tones.<tone>.text`, else `line`) has under 4.5:1 on its fill (tinted) or on white (outlined, edge labels, icon-only labels, `\textcolor`) | darker `text`, paler `fill`, or omit `text` for tinted-only tones |
 | `theme/undimmed-image` (warning) | an `image` in a `dim: true` group is drawn at full colour (dimming is by colour, not opacity) | move it out, or use a paler file |
 | other `theme/*` | a problem in a theme definition | not fixable in the figure: report it |
 | `profile/unknown` | `figure.profile` is not built in | `paper-single`, `paper-double` or `presentation-16x9` |

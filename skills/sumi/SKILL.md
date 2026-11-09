@@ -201,12 +201,12 @@ Clean diagnostics prove neither. The script rasterizes the SVG (Quick Look or
    a line or shape; no edge crosses a group title (`labelAt`); nothing is huge or
    squashed; a block-sized void has a reason (grouping, alignment), else re-arrange.
 3. **Consistency (paper figures).** Against the visual-language table: the same kind
-   of thing looks the same in every panel; no text-heavy boxes; one legend; no edge
+   of thing looks the same in every panel (usually one fill and border per kind, e.g. all sets; emphasise with an accent colour rather than another form; judge panel frames case by case); no text-heavy boxes; one legend; no edge
    crosses a panel except the main flow; the figure reads without its caption; resolve
    `geometry/sparse-figure` and `text-heavy-nodes` ([density](references/diagnostics.md#density-of-paper-figures)), never suppress.
 4. **Critique against references (paper figures, mandatory).** `<skill-dir>/scripts/compare figure.svg <ref.png>...`
    stacks yours with the closest examples (plus `tricl`/`llada` if dense); critique by the [checklist](references/layout-tips.md#critique-against-references),
-   ideally by a fresh view (a subagent shown only image and checklist); fix, repeat.
+   ideally by a fresh view (a subagent shown only image and checklist); verify each measurable claim (size, colour, opacity, position) in the YAML or `sumi` output before acting; fix, repeat.
 
 ### 8. Report
 
