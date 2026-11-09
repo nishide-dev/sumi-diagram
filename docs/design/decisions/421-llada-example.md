@@ -12,6 +12,8 @@ LLaDA（arXiv:2502.09992）の Figure 2 を、密度と配色の基準となる�
 - 線の重さと形は #427 の指定で合わせた: `themeOverrides` の `lineWidth: 1pt`、`frameWidth: 0.5pt`、`arrowheadScale: 0.6`、集合ごとの `cornerRadius: 3pt`、括弧の `lineWidth: 0.25pt`。Random mask と Mask ratio の矢印は `variant: dotted`。ノードの角は `nodeCorners: square` のまま（枠の角丸は集合の `cornerRadius` で個別に指定する）。
 - 小さな修正: 集合の構成要素に tokens ノードの ID を書くと、枠を持つ「全体」として扱われず、レイアウトで `internal error: n:<id> was not placed` になった。`wholeReferences` に集合の `members` を加え、枠を持たせた（`src/core/figure/tokens.ts`、回帰テストは `tokens.test.ts`）。
 
+- 小さな修正（2）: tokens の `solid` のセルは、塗りと同じ色の枠を描くので、枠の太さの半分だけ上下左右に大きく塗られ、`filled` のセルと並べると大きさが揃わなかった。tokens のセル（`node.tokens` を持つノード）で、枠の色が塗りと同じなら枠を描かない（`src/render/structured.ts` の `nodeShape`）。回帰テストは `src/render/token-cell-extent.integration.test.ts`（修正を外すと失敗する）。box など tokens 以外の `solid` は変えない（変えると既存の図の多くが変わる）。
+
 ## 採らなかった案
 
 - 「Sumi に足りない機能を先に実装する」: 本 issue では実装せず、不足は PR の「不足している機能」に記録した。線の重さ・点線・矢じりは #427 で解決済み。
@@ -19,4 +21,4 @@ LLaDA（arXiv:2502.09992）の Figure 2 を、密度と配色の基準となる�
 
 ## 互換性
 
-集合の構成要素に tokens ノードを書いた図だけが変わる（それまでは内部エラーで描けなかった）。ほかの図の SVG・PDF・PPTX・D2 の出力は変わらない。
+集合の構成要素に tokens ノードを書いた図と、`solid` のセルを持つ tokens の図（`embedding-gemma`、`llada`）だけが変わる。ほかの図の SVG・PDF・PPTX・D2 の出力は変わらない。
