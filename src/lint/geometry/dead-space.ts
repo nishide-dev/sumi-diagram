@@ -227,7 +227,7 @@ export function figureDeadSpace(context: GeometryContext): Rect[] {
   return found;
 }
 
-function position(rect: Rect, frame: Rect): string {
+export function position(rect: Rect, frame: Rect): string {
   // Compare opposing clearances, so a large corner void is still called
   // left/right even when its centre extends into the middle third.
   const axis = (start: number, size: number, origin: number, extent: number) => {

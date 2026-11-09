@@ -1,0 +1,210 @@
+# Overview of the entity-attribute aware learning framework
+# ("attribute-as-structure" for heterogeneous hypergraphs), EACL 2026, Sec. 3.
+version: 1
+figure:
+  id: aas-overview
+  title: Attribute-as-structure framework overview
+  theme: paper
+  profile: paper-double
+  fit: scale
+  target: { height: 80mm }
+  layout:
+    density: compact
+    arrange:
+      row:
+        gap: 6mm
+        align: stretch
+        items: [ construct, encoder, learning ]
+
+groups:
+  # (a) heterogeneous hypergraph construction
+  - id: construct
+    variant: plain
+    caption: (a) Hypergraph construction
+    arrange:
+      stack:
+        gap: 4mm
+        items:
+          - hg
+          - grid:
+              columns: 2
+              columnGap: 3mm
+              rowGap: 1mm
+              align: start
+              items:
+                - row: { gap: 0.5mm, items: [ ki-paper, kt-paper ] }
+                - row: { gap: 0.5mm, items: [ ki-title, kt-title ] }
+                - row: { gap: 0.5mm, items: [ ki-abs, kt-abs ] }
+                - row: { gap: 0.5mm, items: [ ki-cmp, kt-cmp ] }
+          - key-a
+  - id: hg
+    variant: plain
+    arrange:
+      place:
+        unit: 6mm
+        items:
+          - { item: p1, at: [ 0, 0 ] }
+          - { item: p2, at: [ 0, 3 ] }
+          - { item: hee, at: [ 1.3, 1.5 ] }
+          - { item: p3, at: [ 2.7, 1.5 ] }
+          - { item: hea, at: [ 4.1, 1.5 ] }
+          - { item: at, at: [ 5.4, 0 ] }
+          - { item: ab, at: [ 5.8, 1.5 ] }
+          - { item: cp, at: [ 5.4, 3 ] }
+
+  # (b) heterogeneous hypergraph encoder
+  - id: encoder
+    caption: (b) Heterogeneous hypergraph encoder
+    arrange:
+      row:
+        align: end
+        items:
+          - stack:
+              direction: up
+              align: stretch
+              items:
+                - inputs
+                - proj
+                - add0
+                - mp
+                - mlp
+  - id: inputs
+    variant: plain
+    arrange:
+      row: { items: [ in-ent, in-attr ] }
+  - id: mp
+    label: "Bidirectional\nmessage passing"
+    labelAt: top-right
+    arrange:
+      stack:
+        direction: up
+        items:
+          - split
+          - row:
+              gap: 3mm
+              items:
+                - res
+                - stack: { direction: up, items: [ n2e-ee, e2n-ee ] }
+                - stack: { direction: up, items: [ n2e-ea, e2n-ea ] }
+          - add1
+
+  # (c) contrastive learning
+  - id: learning
+    caption: (c) Contrastive learning
+    arrange:
+      row:
+        align: end
+        items:
+          - stack:
+              items:
+                - row:
+                    align: start
+                    items:
+                      - stack: { gap: 6mm, items: [ tricl, key-c ] }
+                      - stack: { items: [ att, integ, pairs, aacl ] }
+                - total
+
+nodes:
+  # (a) entity nodes (papers), attribute nodes, and hyperedges drawn as small squares
+  - { id: p1, component: circle, icon: tabler/file-text, tone: blue, variant: tinted }
+  - { id: p2, component: circle, icon: tabler/file-text, tone: blue, variant: tinted }
+  - { id: p3, component: circle, icon: tabler/file-text, tone: blue, variant: tinted }
+  - { id: at, component: circle, icon: tabler/letter-t, tone: green, variant: tinted }
+  - { id: ab, component: circle, icon: tabler/align-left, tone: green, variant: tinted }
+  - { id: cp, component: circle, icon: tabler/flask, tone: green, variant: tinted }
+  - { id: hee, component: square, label: '$e_1$', tone: orange, variant: solid, props: { width: 12pt, height: 12pt } }
+  - { id: hea, component: square, label: '$e_2$', tone: purple, variant: solid, props: { width: 12pt, height: 12pt } }
+  - id: key-a
+    component: legend
+    variant: plain
+    props:
+      entries:
+        - { node: { component: circle, tone: blue, variant: tinted }, label: Entity node (paper) }
+        - { node: { component: circle, tone: green, variant: tinted }, label: Attribute node }
+        - { node: { component: square, tone: orange, variant: solid }, label: "Entity–entity hyperedge\n→ self-attention" }
+        - { node: { component: square, tone: purple, variant: solid }, label: "Entity–attribute hyperedge\n→ cross-type attention" }
+  - { id: ki-paper, component: label, icon: tabler/file-text }
+  - { id: kt-paper, component: label, label: Paper }
+  - { id: ki-title, component: label, icon: tabler/letter-t }
+  - { id: kt-title, component: label, label: Title }
+  - { id: ki-abs, component: label, icon: tabler/align-left }
+  - { id: kt-abs, component: label, label: Abstract }
+  - { id: ki-cmp, component: label, icon: tabler/flask }
+  - { id: kt-cmp, component: label, label: Compound }
+
+  # (b) encoder
+  - { id: in-ent, component: box, label: Entity nodes, sublabel: structural features, tone: blue, variant: filled }
+  - { id: in-attr, component: box, label: Attribute nodes, sublabel: pre-trained encoder, tone: green, variant: filled }
+  - { id: proj, component: box, label: Type-specific projection, sublabel: '$\mathrm{ELU}(\mathrm{LN}(W_t X_t + b_t))$', tone: gray, variant: filled }
+  - { id: add0, component: operator, props: { symbol: plus } }
+  - { id: emb, component: label, label: "Type & role\nembeddings $e_t,\\,e_k$", attach: { to: add0, side: west, gap: 2mm } }
+  - { id: split, component: junction, variant: hidden }
+  - { id: res, component: junction, variant: hidden }
+  - { id: n2e-ee, component: box, label: Node → Hyperedge, sublabel: 'input $H_v + e_r$', tone: orange, variant: filled }
+  - { id: e2n-ee, component: box, label: Hyperedge → Node, tone: orange, variant: filled }
+  - { id: n2e-ea, component: box, label: Node → Hyperedge, sublabel: 'input $H_v + e_r$', tone: purple, variant: filled }
+  - { id: e2n-ea, component: box, label: Hyperedge → Node, tone: purple, variant: filled }
+  - { id: add1, component: operator, props: { symbol: plus } }
+  - { id: times-l, component: label, label: '$\times L$', attach: { to: mp, side: east, gap: 1.5mm } }
+  - { id: mlp, component: box, label: 'Type-specific MLP $\mathrm{MLP}_{\tau(v)}$', tone: gray, variant: filled }
+
+  # (c) learning objectives
+  - { id: tricl, component: box, label: "Structural loss\n$L_{\\mathrm{TriCL}}$", sublabel: "node, hyperedge and\nmembership contrast\nbetween two views", tone: gray, variant: filled }
+  - { id: att, component: box, label: Attribute attention, sublabel: '$\alpha_{i,a} = \operatorname{softmax}_a f(Z_i, Z_a)$', tone: red, variant: filled }
+  - { id: integ, component: box, label: Attribute integration, sublabel: '$z_i^{\mathrm{attr}} = Z_i + \sum_a \alpha_{i,a} Z_a$', tone: red, variant: filled }
+  - id: pairs
+    component: tokens
+    props:
+      gap: 7mm
+      component: circle
+      variant: outlined
+      cells:
+        - { id: zia, label: '$\hat{z}_i^{\mathrm{attr}}$' }
+        - { id: zi, label: '$\hat{z}_i$' }
+        - { id: zja, label: '$\hat{z}_j^{\mathrm{attr}}$' }
+  - { id: aacl, component: box, label: "AACL loss $L_{\\mathrm{AACL}}$", tone: red, variant: tinted }
+  - id: key-c
+    component: legend
+    variant: plain
+    props:
+      entries:
+        - { edge: { component: double-arrow, tone: blue }, label: Positive pair }
+        - { edge: { component: double-arrow, tone: red, variant: dashed }, label: Negative pair }
+  - { id: total, component: box, label: '$L = L_{\mathrm{TriCL}} + \lambda L_{\mathrm{AACL}}$', variant: emphasis }
+
+edges:
+  # (a) hyperedge membership
+  - { from: hee, to: p1, component: line, route: straight, tone: orange }
+  - { from: hee, to: p2, component: line, route: straight, tone: orange }
+  - { from: hee, to: p3, component: line, route: straight, tone: orange }
+  - { from: hea, to: p3, component: line, route: straight, tone: purple }
+  - { from: hea, to: at, component: line, route: straight, tone: purple }
+  - { from: hea, to: ab, component: line, route: straight, tone: purple }
+  - { from: hea, to: cp, component: line, route: straight, tone: purple }
+  # (a) -> (b)
+  - { from: hg, to: in-ent, fromAnchor: east, toAnchor: west }
+  # (b) main path
+  - { from: in-ent, to: proj, toAnchor: straight }
+  - { from: in-attr, to: proj, toAnchor: straight }
+  - { from: proj, to: add0, component: line }
+  - { from: emb, to: add0, component: line }
+  - { from: add0, to: split, component: line }
+  - { from: split, to: n2e-ee }
+  - { from: split, to: n2e-ea }
+  - { from: n2e-ee, to: e2n-ee }
+  - { from: n2e-ea, to: e2n-ea }
+  - { from: e2n-ee, to: add1 }
+  - { from: e2n-ea, to: add1 }
+  - { from: split, to: res, component: line }
+  - { from: res, to: add1, toAnchor: west }
+  - { from: add1, to: mlp }
+  # (b) -> (c)
+  - { from: mlp, to: tricl, fromAnchor: east, toAnchor: north, label: '$Z_v$', labelAt: start }
+  - { from: mlp, to: att, fromAnchor: east, toAnchor: north }
+  - { from: att, to: integ }
+  - { from: integ, to: pairs }
+  - { from: pairs.zi, to: pairs.zia, component: double-arrow, tone: blue }
+  - { from: pairs.zi, to: pairs.zja, component: double-arrow, tone: red, variant: dashed }
+  - { from: pairs, to: aacl }
+  - { from: tricl, to: total }
+  - { from: aacl, to: total }

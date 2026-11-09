@@ -1,0 +1,184 @@
+# Source: Mitigating Degree Bias in Hypergraphs via Attribute-as-Structure
+# Approach (EACL 2026), Figure 1: the overall framework.
+# https://aclanthology.org/2026.eacl-long.81.pdf
+# A redrawn overview, not a copy: generic bundled icons, no paper data.
+# Visual language, the same in all three stages: papers and attributes are icon
+# nodes (blue, green); hyperedges are sets (entity-entity blue, entity-attribute
+# green); feature vectors are glyphs whose tone marks the stage (gray initial,
+# purple encoded, orange attribute-integrated); operations are arrows; positive
+# pairs are black, negative pairs red and dashed. One legend explains them all.
+version: 1
+figure:
+  id: aas-hypergraph
+  title: Attribute-as-structure hypergraph learning
+  theme: paper
+  profile: paper-double
+  themeOverrides:
+    palette: slate
+  layout:
+    density: compact
+    arrange:
+      row:
+        align: start
+        items:
+          - stack:
+              align: center
+              items:
+                - row: { align: stretch, items: [ construct, encode ] }
+                - key
+          - learn
+groups:
+  - id: construct
+    label: 1. Construction
+    variant: plain
+    arrange:
+      place:
+        unit: 5mm
+        items:
+          - { item: p1, at: [ 0, 0.2 ] }
+          - { item: p2, at: [ 0.3, 2.7 ] }
+          - { item: p3, at: [ 2, 1.5 ] }
+          - { item: t3, at: [ 3.6, 0 ] }
+          - { item: a3, at: [ 4.2, 1.6 ] }
+          - { item: c3, at: [ 3.5, 3.2 ] }
+          - { item: c-left, at: [ -1.1, 1.5 ] }
+          - { item: c-right, at: [ 5.55, 1.5 ] }
+  - id: encode
+    label: 2. Encoding
+    variant: plain
+    arrange:
+      row:
+        align: center
+        items: [ encoder, encoded ]
+  - id: encoder
+    variant: plain
+    arrange:
+      stack: { align: stretch, items: [ project, passing, mlp ] }
+  - id: encoded
+    variant: plain
+    arrange:
+      place:
+        unit: 5mm
+        items:
+          - { item: q1, at: [ 0, 0.2 ] }
+          - { item: q2, at: [ 0.3, 2.7 ] }
+          - { item: q3, at: [ 2, 1.5 ] }
+          - { item: tq, at: [ 3.6, 0 ] }
+          - { item: aq, at: [ 4.2, 1.6 ] }
+          - { item: cq, at: [ 3.5, 3.2 ] }
+          - { item: q-left, at: [ -1.1, 1.5 ] }
+          - { item: q-right, at: [ 5.55, 1.5 ] }
+  - id: learn
+    label: 3. Contrastive learning
+    variant: plain
+    arrange:
+      stack:
+        gap: 4mm
+        align: center
+        items: [ aacl, tricl, total ]
+  - id: aacl
+    caption: Attribute-attentive loss (AACL)
+    variant: plain
+    arrange:
+      place:
+        unit: 5mm
+        items:
+          - { item: zt, at: [ 0, -1.7 ] }
+          - { item: za, at: [ 0, 0 ] }
+          - { item: zc, at: [ 0, 1.7 ] }
+          - { item: zi, at: [ 2.4, -2 ] }
+          - { item: mix, at: [ 2.4, 0 ] }
+          - { item: zia, at: [ 4.8, 0 ] }
+          - { item: zja, at: [ 6, -2 ] }
+  - id: tricl
+    caption: Structural loss (TriCL)
+    variant: plain
+    arrange:
+      place:
+        unit: 5mm
+        items:
+          - { item: u1, at: [ 0, 0 ] }
+          - { item: u2, at: [ 0.4, 1.6 ] }
+          - { item: w1, at: [ 3.6, 0 ] }
+          - { item: w2, at: [ 4, 1.6 ] }
+          - { item: view1-label, at: [ 0.2, -1.6 ] }
+          - { item: view2-label, at: [ 3.8, -1.6 ] }
+nodes:
+  # 1. Papers (entities) and their attributes as nodes, with initial features.
+  - { id: p1, component: circle, icon: tabler/file-text, tone: blue, variant: outlined, glyphs: [ { kind: vector, tone: gray } ] }
+  - { id: p2, component: circle, icon: tabler/file-text, tone: blue, variant: outlined, glyphs: [ { kind: vector, tone: gray } ] }
+  - { id: p3, component: circle, icon: tabler/file-text, tone: blue, variant: outlined, glyphs: [ { kind: vector, tone: gray } ] }
+  - { id: t3, component: circle, icon: tabler/letter-t, tone: green, variant: outlined, glyphs: [ { kind: vector, tone: gray } ] }
+  - { id: a3, component: circle, icon: tabler/align-left, tone: green, variant: outlined, glyphs: [ { kind: vector, tone: gray } ] }
+  - { id: c3, component: circle, icon: tabler/flask, tone: green, variant: outlined, glyphs: [ { kind: vector, tone: gray } ] }
+  # Sets take no layout space: hidden points at their outer edges widen the panel
+  # so that the arrows between panels start and end at the outlines.
+  - { id: c-left, component: junction, variant: hidden }
+  - { id: c-right, component: junction, variant: hidden }
+  - { id: q-left, component: junction, variant: hidden }
+  - { id: q-right, component: junction, variant: hidden }
+  # 2. The encoder, then the same hypergraph with encoded features.
+  - { id: project, component: box, label: "Type-specific\nprojection", sublabel: + type & role emb., variant: outlined }
+  - { id: passing, component: box, label: Message passing, sublabel: node ⇄ hyperedge × L, variant: outlined }
+  - { id: mlp, component: box, label: Type-specific MLP, variant: outlined }
+  - { id: q1, component: circle, icon: tabler/file-text, tone: blue, variant: outlined, glyphs: [ { kind: vector, tone: purple, strength: solid } ] }
+  - { id: q2, component: circle, icon: tabler/file-text, tone: blue, variant: outlined, glyphs: [ { kind: vector, tone: purple, strength: solid } ] }
+  - { id: q3, component: circle, icon: tabler/file-text, tone: blue, variant: outlined, glyphs: [ { kind: vector, tone: purple, strength: solid } ] }
+  - { id: tq, component: circle, icon: tabler/letter-t, tone: green, variant: outlined, glyphs: [ { kind: vector, tone: purple, strength: solid } ] }
+  - { id: aq, component: circle, icon: tabler/align-left, tone: green, variant: outlined, glyphs: [ { kind: vector, tone: purple, strength: solid } ] }
+  - { id: cq, component: circle, icon: tabler/flask, tone: green, variant: outlined, glyphs: [ { kind: vector, tone: purple, strength: solid } ] }
+  # 3a. AACL: attention-weighted attributes added to the paper, contrasted with it.
+  - { id: zt, component: circle, icon: tabler/letter-t, tone: green, variant: outlined, glyphs: [ { kind: vector, tone: purple, strength: solid } ] }
+  - { id: za, component: circle, icon: tabler/align-left, tone: green, variant: outlined, glyphs: [ { kind: vector, tone: purple, strength: solid } ] }
+  - { id: zc, component: circle, icon: tabler/flask, tone: green, variant: outlined, glyphs: [ { kind: vector, tone: purple, strength: solid } ] }
+  - { id: zi, component: circle, icon: tabler/file-text, tone: blue, variant: outlined, glyphs: [ { kind: vector, tone: purple, strength: solid } ] }
+  - { id: mix, component: operator, props: { symbol: plus } }
+  - { id: zia, component: circle, icon: tabler/file-text, tone: blue, variant: outlined, glyphs: [ { kind: vector, tone: orange, strength: solid } ] }
+  - { id: zja, component: circle, icon: tabler/file-text, tone: blue, variant: outlined, glyphs: [ { kind: vector, tone: orange, strength: solid } ] }
+  # 3b. TriCL: the same papers in two augmented views.
+  - { id: u1, component: circle, icon: tabler/file-text, tone: blue, variant: outlined, glyphs: [ { kind: vector, tone: purple, strength: solid } ] }
+  - { id: u2, component: circle, icon: tabler/file-text, tone: blue, variant: outlined, glyphs: [ { kind: vector, tone: purple, strength: solid } ] }
+  - { id: w1, component: circle, icon: tabler/file-text, tone: blue, variant: outlined, glyphs: [ { kind: vector, tone: purple, strength: solid } ] }
+  - { id: w2, component: circle, icon: tabler/file-text, tone: blue, variant: outlined, glyphs: [ { kind: vector, tone: purple, strength: solid } ] }
+  - { id: view1-label, component: label, label: view 1 }
+  - { id: view2-label, component: label, label: view 2 }
+  - { id: total, component: box, label: '$L = L_{\mathrm{TriCL}} + \lambda L_{\mathrm{AACL}}$', variant: outlined }
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: row
+      entries:
+        - { heading: "Entity:", icon: tabler/file-text, labelAt: left, label: Paper }
+        - { heading: "Attributes:", icon: tabler/letter-t, labelAt: left, label: Title }
+        - { icon: tabler/align-left, labelAt: left, label: Abstract }
+        - { icon: tabler/flask, labelAt: left, label: Compound }
+        - { heading: "Hyperedges:", set: { tone: blue }, label: entity–entity }
+        - { set: { tone: green }, label: entity–attribute }
+        - { heading: "Features:", glyph: { kind: vector, tone: gray }, label: initial }
+        - { glyph: { kind: vector, tone: purple, strength: solid }, label: encoded }
+        - { glyph: { kind: vector, tone: orange, strength: solid }, label: attribute-integrated }
+        - { heading: "Pairs:", edge: { component: double-arrow }, label: positive }
+        - { edge: { component: double-arrow, variant: dashed, tone: red }, label: negative }
+edges:
+  - { from: construct, to: encoder, toAnchor: straight }
+  - { from: project, to: passing }
+  - { from: passing, to: mlp }
+  - { from: encoder, to: encoded }
+  - { from: encoded, to: learn, toAnchor: straight }
+  - { from: zt, to: mix, route: straight, label: '$\alpha$' }
+  - { from: za, to: mix }
+  - { from: zc, to: mix, route: straight, fromAnchor: east }
+  - { from: zi, to: mix }
+  - { from: mix, to: zia }
+  - { from: zi, to: zia, component: double-arrow, route: straight }
+  - { from: zi, to: zja, component: double-arrow, variant: dashed, tone: red, route: straight }
+  - { from: u1, to: w1, component: double-arrow, route: straight }
+  - { from: u1, to: w2, component: double-arrow, variant: dashed, tone: red, route: straight }
+sets:
+  - { id: ee, padding: 1.5mm, members: [ p1, p2, p3 ], tone: blue }
+  - { id: ea, padding: 1.5mm, members: [ p3, t3, a3, c3 ], tone: green }
+  - { id: ee-q, padding: 1.5mm, members: [ q1, q2, q3 ], tone: blue }
+  - { id: ea-q, padding: 1.5mm, members: [ q3, tq, aq, cq ], tone: green }
+  - { id: view1, padding: 1.5mm, members: [ u1, u2 ], tone: blue }
+  - { id: view2, padding: 1.5mm, members: [ w1, w2 ], tone: blue }
