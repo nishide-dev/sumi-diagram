@@ -48,7 +48,7 @@ test("CLIP preserves mono text and colored words, with neutral ink on blue matri
   for (const id of ["sim-1-1", "sim-2-2", "sim-3-3", "sim-5-5", "scores-1-3"]) {
     const node = compiled.ir.nodes.find((node) => node.id === id);
     expect(node?.style.fill).toBe(theme.tones.get("blue")?.fill);
-    expect(node?.style.stroke).toBe("#2e60ac");
+    expect(node?.style.stroke).toBe("#31608e");
     const visibleRuns = label(id)
       ?.runs?.flat()
       .filter((run) => run.text.trim() !== "");

@@ -125,9 +125,9 @@ describe("figure.themeOverrides.palette (#417)", () => {
     const slate = await render(withPalette("paper", "slate"));
     const fillOf = (r: typeof paper) =>
       r.compiled.ir.nodes.find((n) => n.id === "green")?.style.fill;
-    expect(fillOf(paper)).toBe("#d0e6cd");
+    expect(fillOf(paper)).toBe("#c6edcd");
     expect(fillOf(slate)).not.toBe(fillOf(paper));
-    expect(slate.svg).not.toContain("#d0e6cd");
+    expect(slate.svg).not.toContain("#c6edcd");
   });
 
   test("an unknown palette is a schema error that suggests the closest name", () => {

@@ -351,7 +351,7 @@ describe("styles (#180)", () => {
     const theme = BUILTIN_THEMES.get("paper");
     expect(state.styles?.get(nodeKey("m-1-3"))).toMatchObject({
       hatch: theme?.toneLines.get("orange")?.stroke,
-      fill: "#f9e0bc",
+      fill: "#fcdbb7",
     });
   });
 

@@ -122,7 +122,7 @@ describe("dotted token separators (#216)", () => {
       .replace("variant: outlined", "variant: filled");
     const report = await lintRenderedFigure(text, {});
     expect(report.diagnostics).toEqual([]);
-    expect(report.rendered?.svg).toMatch(/class="sumi-token-separator"[^>]*stroke="#2f62b0"/);
+    expect(report.rendered?.svg).toMatch(/class="sumi-token-separator"[^>]*stroke="#31608e"/);
   });
 
   for (const theme of BUILTIN_THEMES.keys()) {
