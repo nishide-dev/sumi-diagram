@@ -74,17 +74,17 @@ groups:
       place:
         unit: 1pt
         items:
-          - { item: o-a, at: [ 89.9, 84.2 ] }
-          - { item: o-b, at: [ 108.6, 83.1 ] }
-          - { item: o-c, at: [ 127.3, 82.1 ] }
-          - { item: o-d, at: [ 81.1, 94.7 ] }
-          - { item: o-e, at: [ 98.7, 93.6 ] }
-          - { item: o-f, at: [ 117.4, 94.7 ] }
-          - { item: o-j, at: [ 138.3, 95.2 ] }
-          - { item: o-g, at: [ 87.7, 105.2 ] }
-          - { item: o-h, at: [ 106.4, 104.1 ] }
-          - { item: o-i, at: [ 125.1, 105.2 ] }
-          - { item: o-k, at: [ 96.5, 114.6 ] }
+          - { item: o-a, at: [ 97.1, 82.6 ] }
+          - { item: o-b, at: [ 114.1, 83.0 ] }
+          - { item: o-c, at: [ 127.4, 80.9 ] }
+          - { item: o-d, at: [ 88.1, 96.3 ] }
+          - { item: o-e, at: [ 110.2, 96.2 ] }
+          - { item: o-f, at: [ 131.0, 96.2 ] }
+          - { item: o-j, at: [ 137.8, 107.2 ] }
+          - { item: o-g, at: [ 85.2, 105.7 ] }
+          - { item: o-h, at: [ 101.8, 105.7 ] }
+          - { item: o-i, at: [ 121.7, 106.1 ] }
+          - { item: o-k, at: [ 92.0, 115.5 ] }
   - id: view1
     label: "$\\mathit{H}_1=(\\mathit{X}_1,\\mathit{H}_1)$"
     labelAt: bottom
@@ -92,17 +92,17 @@ groups:
       place:
         unit: 1pt
         items:
-          - { item: p-a, at: [ 233.5, 45.2 ] }
-          - { item: p-b, at: [ 214.8, 44.1 ] }
-          - { item: p-c, at: [ 196.1, 43.1 ] }
-          - { item: p-d, at: [ 242.3, 55.7 ] }
-          - { item: p-e, at: [ 224.7, 54.6 ] }
-          - { item: p-f, at: [ 206, 55.7 ] }
-          - { item: p-j, at: [ 185.1, 56.2 ] }
-          - { item: p-g, at: [ 235.7, 66.2 ] }
-          - { item: p-h, at: [ 217, 65.1 ] }
-          - { item: p-i, at: [ 198.3, 66.2 ] }
-          - { item: p-k, at: [ 226.9, 75.6 ] }
+          - { item: p-a, at: [ 226.3, 42.9 ] }
+          - { item: p-b, at: [ 209.3, 43.3 ] }
+          - { item: p-c, at: [ 196.0, 41.2 ] }
+          - { item: p-d, at: [ 235.3, 56.6 ] }
+          - { item: p-e, at: [ 213.2, 56.5 ] }
+          - { item: p-f, at: [ 192.4, 56.5 ] }
+          - { item: p-j, at: [ 185.6, 67.5 ] }
+          - { item: p-g, at: [ 238.2, 66.0 ] }
+          - { item: p-h, at: [ 221.6, 66.0 ] }
+          - { item: p-i, at: [ 201.7, 66.4 ] }
+          - { item: p-k, at: [ 231.4, 75.8 ] }
   - id: view2
     label: "$\\mathit{H}_2=(\\mathit{X}_2,\\mathit{H}_2)$"
     labelAt: bottom
@@ -110,17 +110,17 @@ groups:
       place:
         unit: 1pt
         items:
-          - { item: q-a, at: [ 196.1, 153.6 ] }
-          - { item: q-b, at: [ 214.8, 154.7 ] }
-          - { item: q-c, at: [ 233.5, 155.7 ] }
-          - { item: q-d, at: [ 187.3, 143.1 ] }
-          - { item: q-e, at: [ 204.9, 144.2 ] }
-          - { item: q-f, at: [ 223.6, 143.1 ] }
-          - { item: q-j, at: [ 244.5, 142.6 ] }
-          - { item: q-g, at: [ 193.9, 132.6 ] }
-          - { item: q-h, at: [ 212.6, 133.7 ] }
-          - { item: q-i, at: [ 231.3, 132.6 ] }
-          - { item: q-k, at: [ 202.7, 123.2 ] }
+          - { item: q-a, at: [ 203.3, 155.9 ] }
+          - { item: q-b, at: [ 220.3, 155.5 ] }
+          - { item: q-c, at: [ 233.6, 157.6 ] }
+          - { item: q-d, at: [ 194.3, 142.2 ] }
+          - { item: q-e, at: [ 216.4, 142.3 ] }
+          - { item: q-f, at: [ 237.2, 142.3 ] }
+          - { item: q-j, at: [ 244.0, 131.3 ] }
+          - { item: q-g, at: [ 191.4, 132.8 ] }
+          - { item: q-h, at: [ 208.0, 132.8 ] }
+          - { item: q-i, at: [ 227.9, 132.4 ] }
+          - { item: q-k, at: [ 198.2, 123.0 ] }
 nodes:
   - { id: o-a, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, gray, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
   - { id: o-b, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, none, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
@@ -222,12 +222,12 @@ sets:
   - { id: encoder, members: [ enc1, shared, enc2 ], shape: rect, padding: 4.5pt, fillOpacity: 0.1 }
   - { id: node-head, members: [ phi1, node-head-label, phi2 ], shape: rect, padding: 4.5pt, fillOpacity: 0.1 }
   - { id: edge-head, members: [ psi1, edge-head-label, psi2 ], shape: rect, padding: 4.5pt, fillOpacity: 0.1 }
-  - { id: o-e1, members: [ o-a, o-b, o-c, o-f, o-e ], shape: hull, padding: 4pt, variant: dashed, fillOpacity: 0 }
-  - { id: o-e2, members: [ o-d, o-e, o-g, o-h, o-k ], shape: hull, padding: 4pt, variant: dashed, fillOpacity: 0 }
-  - { id: o-e3, members: [ o-f, o-j, o-i, o-h ], shape: hull, padding: 4pt, variant: dashed, fillOpacity: 0 }
-  - { id: p-e1, members: [ p-a, p-b, p-c, p-f, p-e ], shape: hull, padding: 4pt, variant: dashed, fillOpacity: 0 }
-  - { id: p-e2, members: [ p-d, p-e, p-g, p-h, p-k ], shape: hull, padding: 4pt, variant: dashed, fillOpacity: 0 }
-  - { id: p-e3, members: [ p-f, p-j, p-i, p-h ], shape: hull, padding: 4pt, variant: dashed, fillOpacity: 0 }
-  - { id: q-e1, members: [ q-a, q-b, q-c, q-f, q-e ], shape: hull, padding: 4pt, variant: dashed, fillOpacity: 0 }
-  - { id: q-e2, members: [ q-d, q-e, q-g, q-h, q-k ], shape: hull, padding: 4pt, variant: dashed, fillOpacity: 0 }
-  - { id: q-e3, members: [ q-f, q-j, q-i, q-h ], shape: hull, padding: 4pt, variant: dashed, fillOpacity: 0 }
+  - { id: o-e1, members: [ o-a, o-b, o-c, o-e, o-f ], shape: ellipse, angle: auto, padding: 2.5pt, variant: dashed, fillOpacity: 0 }
+  - { id: o-e2, members: [ o-d, o-g, o-e, o-h, o-k ], shape: ellipse, angle: auto, padding: 2.5pt, variant: dashed, fillOpacity: 0 }
+  - { id: o-e3, members: [ o-e, o-f, o-i, o-j, o-h ], shape: ellipse, angle: auto, padding: 2.5pt, variant: dashed, fillOpacity: 0 }
+  - { id: p-e1, members: [ p-a, p-b, p-c, p-e, p-f ], shape: ellipse, angle: auto, padding: 2.5pt, variant: dashed, fillOpacity: 0 }
+  - { id: p-e2, members: [ p-d, p-g, p-e, p-h, p-k ], shape: ellipse, angle: auto, padding: 2.5pt, variant: dashed, fillOpacity: 0 }
+  - { id: p-e3, members: [ p-e, p-f, p-i, p-j, p-h ], shape: ellipse, angle: auto, padding: 2.5pt, variant: dashed, fillOpacity: 0 }
+  - { id: q-e1, members: [ q-a, q-b, q-c, q-e, q-f ], shape: ellipse, angle: auto, padding: 2.5pt, variant: dashed, fillOpacity: 0 }
+  - { id: q-e2, members: [ q-d, q-g, q-e, q-h, q-k ], shape: ellipse, angle: auto, padding: 2.5pt, variant: dashed, fillOpacity: 0 }
+  - { id: q-e3, members: [ q-e, q-f, q-i, q-j, q-h ], shape: ellipse, angle: auto, padding: 2.5pt, variant: dashed, fillOpacity: 0 }

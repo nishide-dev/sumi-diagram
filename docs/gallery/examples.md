@@ -78,6 +78,6 @@ The committed SVGs of <code>examples/</code>, rendered from their sources as wri
 
 ## TriCL — overview of tri\-directional contrastive learning
 
-[<code>examples/tricl/tricl\.sumi\.yaml</code>](../../examples/tricl/tricl.sumi.yaml) · [PDF](../../examples/tricl/tricl.pdf) · theme <code>paper</code> · profile <code>paper\-double</code> · 178\.68mm × 64\.73mm \(max width 180mm, max height 220mm\)<br>info geometry/group\-empty\-area \(×3\): Group &quot;hyper&quot; has 83\.1% empty bounding\-box area \(threshold 75%; edges excluded\)\.
+[<code>examples/tricl/tricl\.sumi\.yaml</code>](../../examples/tricl/tricl.sumi.yaml) · [PDF](../../examples/tricl/tricl.pdf) · theme <code>paper</code> · profile <code>paper\-double</code> · 178\.68mm × 64\.91mm \(max width 180mm, max height 220mm\)<br>info geometry/group\-empty\-area \(×3\): Group &quot;hyper&quot; has 82\.6% empty bounding\-box area \(threshold 75%; edges excluded\)\.
 
 <img src="../../examples/tricl/tricl.svg" alt="TriCL — overview of tri-directional contrastive learning">
