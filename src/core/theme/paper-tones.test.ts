@@ -17,8 +17,8 @@ if (PAPER === undefined) throw new Error("missing paper");
 const EXPECTED = {
   gray: ["#dee1e8", "#656970"],
   red: ["#f9c7bb", "#8b3c34"],
-  orange: ["#fcdbb7", "#8a4b00"],
-  yellow: ["#f8efbf", "#866c02"],
+  orange: ["#fcdbb7", "#b83b07"],
+  yellow: ["#f8efbf", "#876200"],
   green: ["#c6edcd", "#417a50"],
   blue: ["#d1e7ff", "#31608e"],
   purple: ["#d8cdf8", "#524177"],
@@ -41,7 +41,9 @@ describe("paper tones (#434)", () => {
 
   test("lines are less saturated than the former set and fills share a lightness band", () => {
     for (const tone of TONE_NAMES) {
-      expect(toOklch(lineOf(tone)).c, `${tone} line chroma`).toBeLessThan(0.115);
+      // The warm lines are the exception (#444): they keep their chroma so they do not turn brown.
+      const limit = tone === "orange" ? 0.18 : tone === "yellow" ? 0.13 : 0.115;
+      expect(toOklch(lineOf(tone)).c, `${tone} line chroma`).toBeLessThan(limit);
       expect(toOklch(fillOf(tone)).l, `${tone} fill lightness`).toBeGreaterThan(0.85);
     }
   });

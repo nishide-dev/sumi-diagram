@@ -720,8 +720,8 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
       ink: {
         gray: "#656970",
         red: "#8b3c34",
-        orange: "#8a4b00",
-        yellow: "#866c02",
+        orange: "#b83b07",
+        yellow: "#876200",
         green: "#417a50",
         blue: "#31608e",
         purple: "#524177",

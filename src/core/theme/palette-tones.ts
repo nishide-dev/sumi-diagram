@@ -77,6 +77,25 @@ export const FILL_LIGHTNESS: Readonly<Record<DerivedTone, number>> = {
 export const FILL_CHROMA = [0.06, 0.1] as const;
 /** Range of the line chroma. */
 export const LINE_CHROMA = [0.09, 0.14] as const;
+/**
+ * Warm lines (#444): orange and yellow turn brown and olive when darkened for white text, so they
+ * start from the lightest color that still reads (4.5:1 on white and on the panel), keep at least
+ * this chroma (above the usual {@link LINE_CHROMA}) and lean a few degrees toward red.
+ */
+export const WARM_LINE_CHROMA: Readonly<Partial<Record<DerivedTone, number>>> = {
+  orange: 0.17,
+  yellow: 0.125,
+};
+/** The highest hue of a warm line: above these, orange reads brown and yellow reads olive. */
+export const WARM_HUE_LIMIT: Readonly<Partial<Record<DerivedTone, number>>> = {
+  orange: 40,
+  yellow: 82,
+};
+/** Degrees a warm line's hue leans toward red (orange away from brown, yellow away from olive). */
+export const WARM_HUE_LEAN: Readonly<Partial<Record<DerivedTone, number>>> = {
+  orange: -18,
+  yellow: -16,
+};
 /** The least CIE76 difference between a tone and the palette's gray tone (the tint and the strong color). */
 export const GRAY_SEPARATION = 9;
 /** The farthest a tone's lightness moves to keep clear of the gray tone. */
@@ -131,18 +150,28 @@ export function deriveTones(source: ToneSource): Record<DerivedTone, DerivedTone
     // The line: the strong color's lightness (and the tone's offset), moved the least that lets white
     // text and the panel's outlined text read (4.5:1) and, for the tone of the palette's own hue,
     // tells it from the gray tone's line (the strong color): darker first.
+    const warmChroma = WARM_LINE_CHROMA[tone];
+    const lineHue = Math.min(hue + (WARM_HUE_LEAN[tone] ?? 0), WARM_HUE_LIMIT[tone] ?? 360);
+    const chroma = Math.max(lineChroma, warmChroma ?? 0);
     const lineAt = (shift: number) =>
-      fromOklch({ l: strong.l + LINE_LIGHTNESS[tone] + shift, c: lineChroma, h: hue });
+      fromOklch({ l: strong.l + LINE_LIGHTNESS[tone] + shift, c: chroma, h: lineHue });
     const usableLine = (color: string) =>
       readable(color, source.panel) && deltaE(color, source.strong) >= GRAY_SEPARATION;
     let line = lineAt(0);
+    if (warmChroma !== undefined) {
+      // Warm tone: the lightest line that reads, not the strong color's lightness.
+      line = fromOklch({ l: 0.75, c: chroma, h: lineHue });
+      for (let l = 0.75; l > 0.2 && !readable(line, source.panel); l -= 0.005) {
+        line = fromOklch({ l, c: chroma, h: lineHue });
+      }
+    }
     for (let step = 0; step <= 40 && !usableLine(line); step++) {
       const candidates = [-step, step].map((d) => lineAt(d / 100));
       line = candidates.find(usableLine) ?? (candidates[0] as string);
     }
     // Still short (a gamut edge): darken until it reads.
     for (let step = 1; step <= 100 && !readable(line, source.panel); step++) {
-      line = fromOklch({ ...toOklch(line), c: lineChroma, h: hue, l: toOklch(line).l - 0.005 });
+      line = fromOklch({ ...toOklch(line), c: chroma, h: lineHue, l: toOklch(line).l - 0.005 });
     }
     return [tone, { fill, line }] as const;
   });
