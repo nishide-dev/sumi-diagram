@@ -22,6 +22,24 @@
 または lint 設定の `{"rules":{"geometry/dead-space":"off","geometry/heavy-scaling":"off"}}`。
 27%の根拠と意図的な catalogue の空白は設計 §6.96 を参照。
 
+## 配色の調和（#423）
+
+`geometry/color-harmony` は既定 **info**（`render` / `lint --geometry`）。`maxWarnings` に含めず、描画は変えない。
+描かれた色（グループ・ノード・辺・set の輪郭・glyph の色。解決後のテーマ、パレット、tone の上書きを反映）を OKLCH で見て、
+無彩色（彩度 0.025 未満）を除いた色に次の 3 つを調べ、該当した信号ごとに図に 1 件報告する。
+info にしたのは、配色は好みと意図（分類のための多色）に左右され、誤検出を errors や warnings で止めたくないため。
+
+| 信号 | 条件 |
+| --- | --- |
+| 色相の数（`hues`） | 30°以内を 1 つの系統として数え、**7 系統を超える**（組み込みの tone は有彩色 7 色なので、テーマの tone だけなら出ない） |
+| 塗りの混在（`fills`） | 3 色以上の塗り（ノードの塗り・glyph。グループの背景と set の淡い塗りは除く）で、彩度が **3 倍以上**開き最大が **0.10 以上**（淡い色と鮮やかな色の混在）、または明度が **0.30 を超えて**開く |
+| パレットとの不調和（`palette`） | `themeOverrides.palette` があり、パレットとそこから導いた tone が描かない有彩色が **2 色以上**、パレットの帯の外にある。塗りは tint の明度から 0.10 超離れる、または全ての色が tone の彩度の **1.4 倍**を超える。濃い枠はコントラストのために暗くなるので、暗い側は見ない |
+
+しきい値は `examples/llada`（くすんだ寒色と暖色が同じ明度・彩度でそろう）と `examples/llama4-moe` で出ず、#412 の試行（`paper` の tone を `slate` に重ねた図）で出るように決めた。
+#423 以降、パレットを指定した図は tone もパレットから導くので、`palette` の信号は `themeOverrides.tones` の上書きを足したときにだけ出る（直し方は上書きを外すこと）。
+`lint --geometry` での抑止は `--rule geometry/color-harmony=off`、または lint 設定の `{"rules":{"geometry/color-harmony":"off"}}`。
+設計と根拠は [設計 #423](design/decisions/423-tone-harmony.md) を参照。
+
 ## 置き場所の目標（#347）
 
 `figure.target` は任意。描画・幅だけへの fit・Profile のページ上限は変えない。
@@ -327,3 +345,23 @@ figure.sumi.yaml:21:5 warning lint/ancestor-edge Edge edges[1] connects group "o
 ## 規則の追加
 
 規則は `defineRule()`（`src/lint/rule.ts`）で定義し、`BUILTIN_LINT_RULES`（`src/lint/rules/index.ts`）に加える。幾何の規則は `defineGeometryRule()` で定義し、`BUILTIN_GEOMETRY_RULES`（`src/lint/geometry/rules.ts`）に加える（`GeometryContext` を受け取る）。規則は `LintContext`（有効な要素、解決済みの部品とスタイル、Theme）を受け取り、`{ message, path, subject?, hint?, related? }` を返す。code・severity・位置情報は枠組みが付ける。options を取る規則は、既定値付きの Zod スキーマを `options` に指定する。規則は汎用的に保ち、特定分野に固有の検査は加えない。
+
+## 論文図の密度（#422）
+
+`geometry/sparse-figure` と `geometry/text-heavy-nodes` は **info**（render / `lint --geometry` のみ、
+`maxWarnings` に含めず、描画は変えない）。対象は paper 系 Profile（`paper-single` / `paper-double`）
+または `figure.target` のある図。Skill は論文図の点検で両方を解消するよう求める。
+
+- `geometry/sparse-figure`: 描画ノードが **30 以上**、ノード本体・文字・badge・glyph・set の
+  外接矩形の union が canvas の **34% 未満**、かつノード 1 つあたりの印刷 canvas 面積が
+  **330mm² 超**なら報告する。group の枠と辺は内容に数えない。最大の空き矩形の位置と大きさを示し、
+  凡例や散らばったラベルをそこへ寄せる、canvas を縮める（gap・padding・`density: compact`・
+  `target.height`）、要素を大きくする、を勧める。
+- `geometry/text-heavy-nodes`: 描画ノードが **12 以上**で、ラベルが **36 文字以上**のノードが
+  **2 つ以上**あれば報告する（空白は 1 文字に畳む。会話の `bubble` は除く）。数式や説明は
+  キャプションへ、ラベルは名前に、を勧める。
+
+基準値は TriCL・LLaDA の再現図（指摘されない）と前回の試行の 3 図（指摘される）で校正した。
+測定値と採らなかった指標は [設計 #422](design/decisions/422-density-lint.md)。
+抑止は `--rule geometry/sparse-figure=off` などで、意図した疎らさや文章が図の主題のときだけ使う。
+

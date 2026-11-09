@@ -2,7 +2,7 @@
 
 [Gallery](README.md) · [Examples](examples.md) · [Legend samples](legend-samples.md) · [Themes](themes.md) · [Tones](tones.md) · [Dimmed groups](dim.md) · [Node glyphs](glyphs.md) · [Set enclosures](sets.md) · [Stroke options](strokes.md) · [Palettes](palettes.md) · [Profiles and comparison](compare.md)
 
-<code>figure\.themeOverrides\.palette: &lt;name&gt;</code> recolors a theme with four colors from a popular Color Hunt palette: panels \(group fill\) take the palest, filled and tinted nodes and the <code>gray</code> tone the tint, solid fills and emphasis the accent \(deepened for white text\), and text, frames and edges the ink \(the darkest color, darkened to 9:1 on white when it is paler\)\. Every text keeps at least 4\.5:1 on the fill it sits on, so the same figure reads in each palette; the other tones, sizes and fonts stay the theme's \(a palette does not change the semantic tones such as <code>red</code> or <code>green</code>; only <code>gray</code> follows it\)\. The figure is the same in every palette: only <code>palette</code> changes in the source\. Colors: Color Hunt popular palettes, retrieved 2026\-11\-08\. <code>sumi catalog \-\-section palettes</code> lists them\.
+<code>figure\.themeOverrides\.palette: &lt;name&gt;</code> recolors a theme with four colors from a popular Color Hunt palette: panels \(group fill\) take the palest, filled and tinted nodes and the <code>gray</code> tone the tint, solid fills and emphasis the accent \(deepened for white text\), and text, frames and edges the ink \(the darkest color, darkened to 9:1 on white when it is paler\)\. Every text keeps at least 4\.5:1 on the fill it sits on, so the same figure reads in each palette\. The tones are derived from the palette too \(\#423\): <code>gray</code> is its neutral, and <code>red</code>, <code>green</code>, <code>blue</code> and the rest keep their hue but take the palette's lightness and chroma \(the row of tinted tone boxes\), so a figure in a palette stays in one family of colors; an explicit <code>themeOverrides\.tones</code> color wins\. Sizes and fonts stay the theme's\. The figure is the same in every palette: only <code>palette</code> changes in the source\. Colors: Color Hunt popular palettes, retrieved 2026\-11\-08\. <code>sumi catalog \-\-section palettes</code> lists them\.
 
 | palette | colors as published | roles | derived or adjusted |
 | --- | --- | --- | --- |
@@ -18,7 +18,7 @@
 | <code>cool\-blue</code> | <code>slate</code> | <code>coral</code> | <code>terracotta</code> | <code>sage</code> | <code>lavender</code> | <code>cyan\-pink</code> | <code>seafoam</code> |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | <img src="palettes/palettes.cool-blue.svg" alt="one figure, palette cool-blue"> | <img src="palettes/palettes.slate.svg" alt="one figure, palette slate"> | <img src="palettes/palettes.coral.svg" alt="one figure, palette coral"> | <img src="palettes/palettes.terracotta.svg" alt="one figure, palette terracotta"> | <img src="palettes/palettes.sage.svg" alt="one figure, palette sage"> | <img src="palettes/palettes.lavender.svg" alt="one figure, palette lavender"> | <img src="palettes/palettes.cyan-pink.svg" alt="one figure, palette cyan-pink"> | <img src="palettes/palettes.seafoam.svg" alt="one figure, palette seafoam"> |
-| <code>themeOverrides\.palette: cool\-blue</code><br>174\.1mm × 45\.16mm \(max width 180mm, max height 220mm\) | <code>themeOverrides\.palette: slate</code><br>174\.1mm × 45\.16mm \(max width 180mm, max height 220mm\) | <code>themeOverrides\.palette: coral</code><br>174\.1mm × 45\.16mm \(max width 180mm, max height 220mm\) | <code>themeOverrides\.palette: terracotta</code><br>174\.1mm × 45\.16mm \(max width 180mm, max height 220mm\) | <code>themeOverrides\.palette: sage</code><br>174\.1mm × 45\.16mm \(max width 180mm, max height 220mm\) | <code>themeOverrides\.palette: lavender</code><br>174\.1mm × 45\.16mm \(max width 180mm, max height 220mm\) | <code>themeOverrides\.palette: cyan\-pink</code><br>174\.1mm × 45\.16mm \(max width 180mm, max height 220mm\) | <code>themeOverrides\.palette: seafoam</code><br>174\.1mm × 45\.16mm \(max width 180mm, max height 220mm\) |
+| <code>themeOverrides\.palette: cool\-blue</code><br>174\.1mm × 57\.33mm \(max width 180mm, max height 220mm\)<br>info geometry/dead\-space: The figure has large empty rectangles: bottom\-left 135\.55mm × 20\.46mm \(27\.8% of the canvas\)\. | <code>themeOverrides\.palette: slate</code><br>174\.1mm × 57\.33mm \(max width 180mm, max height 220mm\)<br>info geometry/dead\-space: The figure has large empty rectangles: bottom\-left 135\.55mm × 20\.46mm \(27\.8% of the canvas\)\. | <code>themeOverrides\.palette: coral</code><br>174\.1mm × 57\.33mm \(max width 180mm, max height 220mm\)<br>info geometry/dead\-space: The figure has large empty rectangles: bottom\-left 135\.55mm × 20\.46mm \(27\.8% of the canvas\)\. | <code>themeOverrides\.palette: terracotta</code><br>174\.1mm × 57\.33mm \(max width 180mm, max height 220mm\)<br>info geometry/dead\-space: The figure has large empty rectangles: bottom\-left 135\.55mm × 20\.46mm \(27\.8% of the canvas\)\. | <code>themeOverrides\.palette: sage</code><br>174\.1mm × 57\.33mm \(max width 180mm, max height 220mm\)<br>info geometry/dead\-space: The figure has large empty rectangles: bottom\-left 135\.55mm × 20\.46mm \(27\.8% of the canvas\)\. | <code>themeOverrides\.palette: lavender</code><br>174\.1mm × 57\.33mm \(max width 180mm, max height 220mm\)<br>info geometry/dead\-space: The figure has large empty rectangles: bottom\-left 135\.55mm × 20\.46mm \(27\.8% of the canvas\)\. | <code>themeOverrides\.palette: cyan\-pink</code><br>174\.1mm × 57\.33mm \(max width 180mm, max height 220mm\)<br>info geometry/dead\-space: The figure has large empty rectangles: bottom\-left 135\.55mm × 20\.46mm \(27\.8% of the canvas\)\. | <code>themeOverrides\.palette: seafoam</code><br>174\.1mm × 57\.33mm \(max width 180mm, max height 220mm\)<br>info geometry/dead\-space: The figure has large empty rectangles: bottom\-left 135\.55mm × 20\.46mm \(27\.8% of the canvas\)\. |
 
 <details>
 <summary>Source: <code>palette.sumi.yaml</code></summary>
@@ -35,10 +35,14 @@ figure:
     palette: cool-blue
   layout:
     arrange:
-      row:
-        gap: 9mm
-        align: center
-        items: [input, encoder, head, out, key]
+      stack:
+        gap: 6mm
+        items:
+          - row:
+              gap: 9mm
+              align: center
+              items: [input, encoder, head, out, key]
+          - row: { gap: 3mm, items: [t-gray, t-red, t-orange, t-yellow, t-green, t-blue, t-purple, t-pink] }
 
 groups:
   - id: encoder
@@ -51,6 +55,14 @@ nodes:
   - { id: ffn, component: box, label: FFN, variant: filled }
   - { id: head, component: box, label: Head, variant: emphasis }
   - { id: out, component: box, label: Output, variant: outlined }
+  - { id: t-gray, component: box, label: gray, tone: gray, variant: tinted }
+  - { id: t-red, component: box, label: red, tone: red, variant: tinted }
+  - { id: t-orange, component: box, label: orange, tone: orange, variant: tinted }
+  - { id: t-yellow, component: box, label: yellow, tone: yellow, variant: tinted }
+  - { id: t-green, component: box, label: green, tone: green, variant: tinted }
+  - { id: t-blue, component: box, label: blue, tone: blue, variant: tinted }
+  - { id: t-purple, component: box, label: purple, tone: purple, variant: tinted }
+  - { id: t-pink, component: box, label: pink, tone: pink, variant: tinted }
   - id: key
     component: legend
     props:

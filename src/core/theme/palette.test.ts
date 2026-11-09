@@ -134,7 +134,7 @@ describe("withPalette", () => {
     expect(recolored.base.node.fontColor).toBe(PALETTE("cool-blue").roles.ink);
   });
 
-  test("changes colors only: sizes, fonts, line weights and the other tones stay the theme's", () => {
+  test("changes colors only: sizes, fonts and line weights stay the theme's", () => {
     const recolored = withPalette(theme, "terracotta");
     expect(recolored.fontSet).toBe(theme.fontSet);
     expect(recolored.arrowhead).toBe(theme.arrowhead);
@@ -158,9 +158,13 @@ describe("withPalette", () => {
           expect(b[key], `${id} ${variant} ${key}`).toEqual(a[key]);
       }
     }
+    // The other tones are the palette's derived tones (#423): only their colors differ.
     for (const tone of TONE_NAMES.filter((t) => t !== "gray")) {
-      expect(recolored.tones.get(tone)).toEqual(theme.tones.get(tone));
-      expect(recolored.toneLines.get(tone)).toEqual(theme.toneLines.get(tone));
+      expect(Object.keys(recolored.tones.get(tone) ?? {})).toEqual(
+        Object.keys(theme.tones.get(tone) ?? {}),
+      );
+      expect(recolored.tones.get(tone)?.fill).toBe(PALETTE("terracotta").tones[tone].fill);
+      expect(recolored.toneLines.get(tone)?.stroke).toBe(PALETTE("terracotta").tones[tone].line);
     }
     // The gray tone is the palette's neutral.
     expect(recolored.tones.get("gray")?.fill).toBe(PALETTE("terracotta").roles.tint);
@@ -229,9 +233,6 @@ describe("withPalette", () => {
               const grounds = /^#[0-9a-f]{6}$/.test(style.fill)
                 ? [style.fill]
                 : [WHITE, PALETTE(id).roles.panel];
-              // Pale ink on a fill: the theme's own tones stay as designed; the palette's
-              // roles are checked above, here only what the palette recolors.
-              if (tone !== undefined && tone !== "gray") continue;
               // A muted or emphasized element with a tone keeps its own text color on the tone's
               // fill (the theme's own limit, with or without a palette).
               if (tone !== undefined && (variant === "muted" || variant === "emphasis")) continue;

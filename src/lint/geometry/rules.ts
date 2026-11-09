@@ -26,8 +26,10 @@ import type { ProfileLimits } from "../../render/inspect";
 import { printedSize } from "../../render/size";
 import { defineGeometryRule, type GeometryRule, type LintFinding } from "../rule";
 import { arrowheadStraightRun } from "./arrowheads";
+import { colorHarmony } from "./color-harmony";
 import type { GeometryContext, GeometryElement } from "./context";
 import { deadSpace } from "./dead-space";
+import { sparseFigure, textHeavy } from "./density";
 import { obstaclesCrossedByRoute, type RouteObstacle } from "./edges";
 import { groupEmptySpace } from "./empty-space";
 import { microJogLengths } from "./jogs";
@@ -1978,9 +1980,12 @@ export const glyphCollision = defineGeometryRule({
 
 export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
   deadSpace,
+  sparseFigure,
+  textHeavy,
   heavyScaling,
   exceedsTargetHeight,
   placementUsage,
+  colorHarmony,
   lineTooThin,
   groupEmptyArea,
   badgeCollision,

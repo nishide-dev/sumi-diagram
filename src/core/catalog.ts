@@ -58,13 +58,16 @@ export function buildPaletteCatalog() {
   return {
     path: "figure.themeOverrides.palette",
     description:
-      "Built-in color palettes: four colors mapped to the theme's color roles (panel, tint, accent, ink, plus derived muted and strong). Select one by name on any theme; tones other than gray, sizes and fonts stay the theme's. roles lists the colors a figure gets; adjusted names the roles that are derived or adjusted for contrast, not one of the four colors as published.",
+      "Built-in color palettes: four colors mapped to the theme's color roles (panel, tint, accent, ink, plus derived muted and strong). Select one by name on any theme; the tones other than gray are derived from it (each keeps its hue, takes the palette's lightness and chroma; tones lists their fill and line colors, and an explicit themeOverrides.tones color wins), sizes and fonts stay the theme's. roles lists the colors a figure gets; adjusted names the roles that are derived or adjusted for contrast, not one of the four colors as published.",
     source: PALETTE_SOURCE,
     palettes: [...BUILTIN_PALETTES.values()].map((p: Palette) => ({
       id: p.id,
       description: p.description,
       colors: [...p.colors],
       roles: { ...p.roles },
+      tones: Object.fromEntries(
+        Object.entries(p.tones).map(([tone, colors]) => [tone, { ...colors }]),
+      ),
       adjusted: [...p.adjusted],
     })),
   };
