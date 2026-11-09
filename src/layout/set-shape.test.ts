@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import type { Point, Rect } from "./ir";
 import {
   convexHull,
+  ellipseSegments,
   fitSetOutline,
   footprintPoints,
   minimumEnclosingCircle,
@@ -366,5 +367,106 @@ describe("all eight label positions", () => {
     const c = setLabelCenter(outline, "right", size, 4);
     expect(c.x - 12).toBeCloseTo(b.x + b.width + 4, 6);
     expect(c.y).toBeCloseTo(b.y + b.height / 2, 6);
+  });
+});
+
+describe("oriented ellipses (#430)", () => {
+  const diagonal = [box(0, 0, 12), box(40, 38, 12), box(80, 76, 12), box(120, 115, 12)];
+  const round = (x: number, y: number) => ({
+    rect: { x, y, width: 14, height: 14 },
+    round: true,
+  });
+
+  function ellipseOf(outline: ReturnType<typeof fitSetOutline>) {
+    if (outline.kind !== "ellipse") throw new Error("expected an ellipse");
+    return outline;
+  }
+
+  test("an ellipse without angle is the axis-parallel one: no angle field, same numbers", () => {
+    const outline = ellipseOf(fitSetOutline(diagonal, "ellipse", 6));
+    expect("angle" in outline).toBe(false);
+    expect(fitSetOutline(diagonal, "ellipse", 6, 0, undefined)).toEqual(outline);
+  });
+
+  test("angle: auto turns the ellipse to the diagonal and is far tighter than axis-parallel", () => {
+    const tilted = ellipseOf(fitSetOutline(diagonal, "ellipse", 6, 0, "auto"));
+    const flat = ellipseOf(fitSetOutline(diagonal, "ellipse", 6));
+    expect(tilted.angle).toBeGreaterThan(40);
+    expect(tilted.angle).toBeLessThan(50);
+    expect(tilted.rx).toBeGreaterThan(tilted.ry);
+    expect(tilted.rx * tilted.ry).toBeLessThan(flat.rx * flat.ry * 0.5);
+  });
+
+  test("a given angle is kept (folded into -90..90) and rx lies along it", () => {
+    const a = ellipseOf(fitSetOutline(diagonal, "ellipse", 6, 0, 30));
+    expect(a.angle).toBe(30);
+    expect(ellipseOf(fitSetOutline(diagonal, "ellipse", 6, 0, 210)).angle).toBe(30);
+    expect(ellipseOf(fitSetOutline(diagonal, "ellipse", 6, 0, -150)).angle).toBe(30);
+    // angle: 0 is the tightest axis-parallel ellipse, without the 3:1 limit.
+    const zero = ellipseOf(fitSetOutline(diagonal, "ellipse", 6, 0, 0));
+    expect(zero.angle).toBe(0);
+    const row = [box(0, 0), box(200, 0)];
+    const long = ellipseOf(fitSetOutline(row, "ellipse", 4, 0, 0));
+    expect(long.rx / long.ry).toBeGreaterThan(4);
+  });
+
+  test("boxes and round members keep the padding clear (the discs themselves, not their corners)", () => {
+    const members = [round(0, 0), round(46, 40), box(90, 85, 12), round(130, 118)];
+    for (const angle of ["auto", 0, 40, -70] as const) {
+      const e = ellipseOf(fitSetOutline(members, "ellipse", 8, 0, angle));
+      const edge = outlinePolygon({ ...e, kind: "ellipse" });
+      const gap = (p: Point) => Math.min(...edge.map((q) => Math.hypot(q.x - p.x, q.y - p.y)));
+      for (const m of members) {
+        const cx = m.rect.x + m.rect.width / 2;
+        const cy = m.rect.y + m.rect.height / 2;
+        const points = m.round
+          ? Array.from({ length: 64 }, (_, i) => ({
+              x: cx + 7 * Math.cos((i / 64) * 2 * Math.PI),
+              y: cy + 7 * Math.sin((i / 64) * 2 * Math.PI),
+            }))
+          : footprintPoints(m);
+        for (const p of points) expect(gap(p)).toBeGreaterThanOrEqual(8 - 0.05);
+      }
+    }
+  });
+
+  test("bounds, polygon and the path of cubics agree for a tilted ellipse", () => {
+    const e = ellipseOf(fitSetOutline(diagonal, "ellipse", 6, 0, "auto"));
+    const bounds = outlineBounds(e);
+    const polygon = outlinePolygon(e);
+    expect(Math.min(...polygon.map((p) => p.x))).toBeCloseTo(bounds.x, 0);
+    expect(Math.max(...polygon.map((p) => p.x))).toBeCloseTo(bounds.x + bounds.width, 0);
+    expect(Math.min(...polygon.map((p) => p.y))).toBeCloseTo(bounds.y, 0);
+    expect(Math.max(...polygon.map((p) => p.y))).toBeCloseTo(bounds.y + bounds.height, 0);
+    // The cubics stay within 5e-6 of the true radius.
+    const a = (e.angle ?? 0) * (Math.PI / 180);
+    for (const p of samplePath(ellipseSegments(e), 8)) {
+      const dx = p.x - e.cx;
+      const dy = p.y - e.cy;
+      const r = Math.hypot(
+        (dx * Math.cos(a) + dy * Math.sin(a)) / e.rx,
+        (dy * Math.cos(a) - dx * Math.sin(a)) / e.ry,
+      );
+      expect(Math.abs(r - 1)).toBeLessThan(1e-5);
+    }
+  });
+
+  test("a label at a diagonal position clears the rotated outline", () => {
+    const e = ellipseOf(fitSetOutline(diagonal, "ellipse", 6, 0, "auto"));
+    const size = { width: 30, height: 10 };
+    const polygon = outlinePolygon(e);
+    for (const at of ["top-left", "top-right", "bottom-left", "bottom-right"] as const) {
+      const c = setLabelCenter(e, at, size, 4);
+      const label = { x: c.x - 15, y: c.y - 5, width: 30, height: 10 };
+      // No sample of the outline falls inside the label's box.
+      for (const p of polygon) {
+        const insideLabel =
+          p.x > label.x && p.x < label.x + 30 && p.y > label.y && p.y < label.y + 10;
+        expect(insideLabel).toBe(false);
+      }
+    }
+    // Top sits above the rotated ellipse's own bounds.
+    const top = setLabelCenter(e, "top", size, 4);
+    expect(top.y + 5).toBeLessThanOrEqual(outlineBounds(e).y - 4 + 1e-9);
   });
 });

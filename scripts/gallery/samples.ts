@@ -1163,7 +1163,8 @@ export function themeComparison(): Comparison {
 /**
  * Set enclosures (#407) under every theme: a Venn diagram of two overlapping
  * sets with a member in both, a hull around four nodes with an ellipse around
- * two of them (a subset), and the four variants around one node each.
+ * two of them (a subset), ellipses tilted to their members (`angle: auto`) or
+ * by a given angle (#430), and the four variants around one node each.
  * Structured, since sets are drawn by the structured layout; the members are
  * placed with `place` in units wide enough for the `slides` theme.
  */
@@ -1202,6 +1203,23 @@ figure:
                       - { item: s, at: [0, 1.7] }
                       - { item: t, at: [2.0, 2.1] }
           - row:
+              gap: 14mm
+              align: center
+              items:
+                - place:
+                    unit: 10mm
+                    items:
+                      - { item: t1, at: [0, 3.2] }
+                      - { item: t2, at: [1.6, 1.8] }
+                      - { item: t3, at: [2.7, 3.0] }
+                      - { item: t4, at: [3.0, 0.6] }
+                - place:
+                    unit: 10mm
+                    items:
+                      - { item: u1, at: [0, 0] }
+                      - { item: u2, at: [1.5, 0.9] }
+                      - { item: u3, at: [2.9, 1.8] }
+          - row:
               gap: 22mm
               items: [d, f, o, h]
 
@@ -1216,6 +1234,13 @@ nodes:
   - { id: r, component: circle, label: r }
   - { id: s, component: circle, label: s }
   - { id: t, component: circle, label: t }
+  - { id: t1, component: circle, label: t1 }
+  - { id: t2, component: circle, label: t2 }
+  - { id: t3, component: circle, label: t3 }
+  - { id: t4, component: circle, label: t4 }
+  - { id: u1, component: box, label: u1 }
+  - { id: u2, component: box, label: u2 }
+  - { id: u3, component: box, label: u3 }
   - { id: d, component: box, label: d }
   - { id: f, component: box, label: f }
   - { id: o, component: box, label: o }
@@ -1232,6 +1257,8 @@ sets:
   - { id: right, label: Right, members: [ab, b1, b2], tone: green, labelAt: top }
   - { id: outer, label: Hull, members: [p, q, r, s, t], tone: gray, shape: hull, padding: 9mm, labelAt: right }
   - { id: inner, members: [q], tone: orange, shape: circle, padding: 3mm }
+  - { id: tilted, label: "angle: auto", members: [t1, t2, t3, t4], tone: blue, shape: ellipse, angle: auto, padding: 4mm, labelAt: top-left }
+  - { id: fixed, label: "angle: 30", members: [u1, u2, u3], tone: purple, shape: ellipse, angle: 30, padding: 4mm, labelAt: top-right }
   - { id: default, label: default, members: [d], tone: blue, labelAt: bottom }
   - { id: filled, label: filled, members: [f], tone: orange, variant: filled, labelAt: bottom }
   - { id: outlined, label: outlined, members: [o], tone: green, variant: outlined, labelAt: bottom }
