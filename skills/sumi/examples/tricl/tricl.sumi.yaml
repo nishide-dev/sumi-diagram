@@ -50,6 +50,10 @@ figure:
           - { item: psi1, at: [ 445.2, 75 ] }
           - { item: edge-head-label, at: [ 444.9, 110.1 ] }
           - { item: psi2, at: [ 445.2, 153 ] }
+          - { item: lab-p1, at: [ 361.2, 42.3 ] }
+          - { item: lab-q1, at: [ 361.2, 68.1 ] }
+          - { item: lab-p2, at: [ 361.2, 119.4 ] }
+          - { item: lab-q2, at: [ 361.2, 145.2 ] }
           - { item: z1, at: [ 495.6, 49.5 ] }
           - { item: y1, at: [ 495.6, 75 ] }
           - { item: z2, at: [ 495.6, 128.1 ] }
@@ -182,6 +186,10 @@ nodes:
   - { id: psi1, component: box, label: "$g_\\psi(\\cdot)$", props: { width: 35pt, height: 20pt } }
   - { id: psi2, component: box, label: "$g_\\psi(\\cdot)$", props: { width: 35pt, height: 20pt } }
   - { id: edge-head-label, component: label, label: "Hyperedge\nProjection\nHead" }
+  - { id: lab-p1, component: label, label: "$\\mathit{P}_1$" }
+  - { id: lab-q1, component: label, label: "$\\mathit{Q}_1$" }
+  - { id: lab-p2, component: label, label: "$\\mathit{P}_2$" }
+  - { id: lab-q2, component: label, label: "$\\mathit{Q}_2$" }
   - { id: z1, component: box, label: "$\\mathit{Z}_1$", props: { width: 25pt, height: 17pt } }
   - { id: y1, component: box, label: "$\\mathit{Y}_1$", props: { width: 25pt, height: 17pt } }
   - { id: z2, component: box, label: "$\\mathit{Z}_2$", props: { width: 25pt, height: 17pt } }
@@ -201,10 +209,10 @@ edges:
   - { from: lk-m-m, to: lk-m-b, variant: dotted, tone: green }
   - { from: hyper, to: view1, route: curve, fromAnchor: east, toAnchor: west, label: "$\\mathit{T}_1$" }
   - { from: hyper, to: view2, route: curve, fromAnchor: east, toAnchor: west, label: "$\\mathit{T}_2$" }
-  - { from: enc1, to: phi1, fromAnchor: "east:0.24", toAnchor: west, labelAt: middle, labelSide: left, label: "$\\mathit{P}_1$" }
-  - { from: enc1, to: psi1, fromAnchor: "east:0.75", toAnchor: west, labelAt: middle, labelSide: left, label: "$\\mathit{Q}_1$" }
-  - { from: enc2, to: phi2, fromAnchor: "east:0.24", toAnchor: west, labelAt: middle, labelSide: left, label: "$\\mathit{P}_2$" }
-  - { from: enc2, to: psi2, fromAnchor: "east:0.75", toAnchor: west, labelAt: middle, labelSide: left, label: "$\\mathit{Q}_2$" }
+  - { from: enc1, to: phi1, fromAnchor: "east:0.24", toAnchor: west }
+  - { from: enc1, to: psi1, fromAnchor: "east:0.75", toAnchor: west }
+  - { from: enc2, to: phi2, fromAnchor: "east:0.24", toAnchor: west }
+  - { from: enc2, to: psi2, fromAnchor: "east:0.75", toAnchor: west }
   - { from: phi1, to: z1 }
   - { from: psi1, to: y1 }
   - { from: phi2, to: z2 }
