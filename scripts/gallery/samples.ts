@@ -1362,7 +1362,7 @@ export interface PaletteSample {
 /**
  * A small pipeline in every built-in palette (#417): panels, default, solid,
  * filled and outlined nodes, an emphasized node and edge, a set, a legend with
- * every variant.
+ * every variant, and a row of the eight tones (#423), which the palette derives.
  */
 export function paletteSample(): PaletteSample {
   const sourceFor = (palette: string) =>
@@ -1377,10 +1377,14 @@ figure:
     palette: ${palette}
   layout:
     arrange:
-      row:
-        gap: 9mm
-        align: center
-        items: [input, encoder, head, out, key]
+      stack:
+        gap: 6mm
+        items:
+          - row:
+              gap: 9mm
+              align: center
+              items: [input, encoder, head, out, key]
+          - row: { gap: 3mm, items: [t-gray, t-red, t-orange, t-yellow, t-green, t-blue, t-purple, t-pink] }
 
 groups:
   - id: encoder
@@ -1393,6 +1397,12 @@ nodes:
   - { id: ffn, component: box, label: FFN, variant: filled }
   - { id: head, component: box, label: Head, variant: emphasis }
   - { id: out, component: box, label: Output, variant: outlined }
+${["gray", "red", "orange", "yellow", "green", "blue", "purple", "pink"]
+  .map(
+    (tone) =>
+      `  - { id: t-${tone}, component: box, label: ${tone}, tone: ${tone}, variant: tinted }`,
+  )
+  .join("\n")}
   - id: key
     component: legend
     props:

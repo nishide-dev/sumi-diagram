@@ -522,13 +522,16 @@ leave it unpainted for black-and-white print). Names: `cool-blue` (navy, high co
 palette recolours text, frames, edges and arrowheads (ink), group panels (the palest colour),
 `filled`/`tinted` nodes and the `gray` tone (the tint), `solid` fills and outlined frames
 (the accent colour, deepened for white text), `muted` groups (a paler panel and a palette
-frame) and `emphasis` nodes and edges (the accent). It never changes
-sizes, fonts, line weights or the semantic tones (`red`, `orange`, `yellow`, `green`, `blue`,
-`purple`, `pink`) -- only `gray` follows the palette. `tone: green` stays the theme's green, so a
-tone still carries its meaning while the palette sets the mood. Every text keeps 4.5:1 on its
-fill in every palette. List the colours with `sumi catalog --section palettes`; an unknown
-name is `schema/invalid-value` with the closest name. Explicit `tones`, `groupFill`,
-`groupStroke` and `solidFills` win over the palette.
+frame) and `emphasis` nodes and edges (the accent). It never changes sizes, fonts or line
+weights. The tones are derived from the palette too: `gray` is its neutral, and `red`, `orange`,
+`yellow`, `green`, `blue`, `purple`, `pink` keep their own hue (`tone: green` is still green) but
+take the palette's lightness and chroma (fills at its tint, lines at its strong colour), so a
+tone carries its meaning while the whole figure stays in one family of colours. Every text keeps
+4.5:1 on its fill in every palette. List the colours and the derived tones with
+`sumi catalog --section palettes`; an unknown name is `schema/invalid-value` with the closest
+name. Explicit `tones`, `groupFill`, `groupStroke` and `solidFills` win over the palette, but
+tone colours of your own next to a palette are what `geometry/color-harmony` reports (it clashes
+unless they match the palette's lightness and chroma): leave `tones` out.
 
 ## Discovering themes and profiles
 
