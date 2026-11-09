@@ -43,7 +43,7 @@ metadata: {}               # optional, any JSON-compatible data; not drawn
 | --- | --- | --- |
 | group | **`id`**, `label`, `labelAt`, `caption`, `component`, `variant`, `tone`, `dim`, `group`, `arrange`¹ | component `container`, variant `default`, no tone, not dimmed, no parent |
 | node | **`id`**, **`component`**, `label`, `sublabel`¹, `labelRotation`¹, `textAlign`¹, `grow`¹, `variant`, `tone`, `mono`, `icon`, `iconSize`, `badge`, `glyphs`, `props`, `group`, `attach`¹ | variant `default`, no label, no tone, no group, grow `1` |
-| set¹ | **`id`**, **`members`**, `label`, `labelAt`, `shape`, `padding`, `variant`, `tone`, `fillOpacity` | shape `circle`, labelAt `top`, variant `default`, no tone (gray), padding = the profile's group padding |
+| set¹ | **`id`**, **`members`**, `label`, `labelAt`, `shape`, `angle`, `padding`, `variant`, `tone`, `fillOpacity` | shape `circle`, labelAt `top`, variant `default`, no tone (gray), padding = the profile's group padding |
 | edge | **`from`**, **`to`**, `id`, `label`, `labelAt`¹, `labelSide`¹, `route`¹, `component`, `variant`, `tone`, `props`, `fromAnchor`¹, `toAnchor`¹ | component `arrow`, variant `default`, no tone |
 
 ¹ Structured layout only (a figure with `figure.layout.arrange`):
@@ -76,7 +76,7 @@ stops with one `schema/unsatisfied-requires` instead of a list of unknown fields
 | 0.10.0 | inline SVG images, `waveform`, `bracket`, whole-sequence `tokens` edges, matrix text and ellipsis cells |
 | 0.11.0 | `html` component |
 | 0.12.0 | `separator`, `figure.assets` with `crop` and tokens image cells, operator `size`, grid hints, width-overflow breakdown |
-| 0.16.0 | `sets`: overlapping enclosures for Venn diagrams and hyperedges; node `glyphs`; `legend` samples `icon` / `glyph` / `set`, `flow`, `perRow`, `heading`, `labelAt`; node `iconSize` (and a legend `icon` entry's) sizes an icon without an enclosing shape; stroke options: `themeOverrides` `lineWidth` / `frameWidth` / `arrowheadScale` / `cornerRadius`, element `lineWidth` / `cornerRadius` / `arrowheadScale`, `dotted` variant; `block-arrow`, `triangle-arrow`, `chevron` flow markers |
+| 0.16.0 | `sets`: overlapping enclosures for Venn diagrams and hyperedges (`shape: ellipse` with `angle`: tilted ellipses); node `glyphs`; `legend` samples `icon` / `glyph` / `set`, `flow`, `perRow`, `heading`, `labelAt`; node `iconSize` (and a legend `icon` entry's) sizes an icon without an enclosing shape; stroke options: `themeOverrides` `lineWidth` / `frameWidth` / `arrowheadScale` / `cornerRadius`, element `lineWidth` / `cornerRadius` / `arrowheadScale`, `dotted` variant; `block-arrow`, `triangle-arrow`, `chevron` flow markers |
 
 ## IDs
 

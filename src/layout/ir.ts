@@ -183,7 +183,7 @@ export type SetSegment =
 
 /**
  * The shape of a set enclosure (#407): an ellipse (a circle when `rx` equals
- * `ry`), a rounded rectangle, or a closed path of lines and cubics (the
+ * `ry`, tilted by `angle`, #430), a rounded rectangle, or a closed path of lines and cubics (the
  * rounded convex hull). Always convex.
  */
 export type SetOutline =
@@ -193,6 +193,8 @@ export type SetOutline =
       readonly cy: number;
       readonly rx: number;
       readonly ry: number;
+      /** Degrees clockwise on the page that the `rx` axis is turned by (#430); omitted: axis-parallel. */
+      readonly angle?: number;
     }
   | { readonly kind: "rect"; readonly rect: Rect; readonly radius: number }
   | { readonly kind: "path"; readonly segments: readonly SetSegment[] };

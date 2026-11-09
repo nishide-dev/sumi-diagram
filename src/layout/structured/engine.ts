@@ -1026,6 +1026,7 @@ class StructuredLayout {
               cy: shiftPoint({ x: outline.cx, y: outline.cy }).y,
               rx: roundUnits(outline.rx),
               ry: roundUnits(outline.ry),
+              ...(outline.angle !== undefined && { angle: roundUnits(outline.angle) }),
             }
           : outline.kind === "rect"
             ? { kind: "rect", rect: shift(outline.rect), radius: roundUnits(outline.radius) }

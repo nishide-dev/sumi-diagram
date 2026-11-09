@@ -70,6 +70,7 @@ Apply one edit and re-check: independent savings are not additive.
 | `ref/unknown-endpoint` | edge `from`/`to` is not a node or group ID | use the hint's ID, or add the missing element if the content calls for it |
 | `ref/unknown-group` | `group:` names no group | add it under `groups:` or fix the ID |
 | `ref/duplicate-id` | two nodes/groups (or two edges) share an ID | rename one (nodes and groups share an ID space) |
+| `ref/set-angle-needs-ellipse` | a set has `angle` but its shape is not `ellipse` | use `shape: ellipse` (`angle: auto` fits the tilt to the members), or remove `angle` ([sets](structured.md#set-enclosures)) |
 | `ref/unknown-set-member`, `ref/duplicate-set-member` | a `sets[].members` entry is not a node or group ID, or is listed twice | use the hint's ID; list each member once ([sets](structured.md#set-enclosures)) |
 | `ref/group-cycle` | groups contain each other | fix the `group:` chain |
 | `ref/reserved-id` | an ID of yours is one Sumi generates: `<group>-caption`, `<legend>-<n>-label` / `-heading` / `-box` / `-line` / `-start` / `-end` / `-set` (a set ID), `<tokens>-<cell>`, `<matrix>-<r>-<c>` / `-row-<r>` / `-col-<c>` / `-corner` | rename your element |
@@ -209,7 +210,7 @@ written; errors make the exit code 1. Configure like structural rules
 | `geometry/edge-touches-label` | info | an edge passes within 1.5pt of a group title, caption or `label`: as `edge-crosses-label` |
 | `geometry/aspect-distorted` | warning | fewer edges on that `circle` / `square`, or `ellipse` / `box` |
 | `geometry/reversed-edge` | warning | ELK reversed an edge of a cycle (typically inside a group): swap the loop's nodes in `nodes`, or move it out of the group |
-| `geometry/set-contains-non-member` | warning | a set's outline covers a node that is not one of its `members` (its centre, or a quarter of its box, lies inside): add it, move it clear (`place` coordinates, gaps), or fit closer with `shape: hull` / `ellipse` or a smaller `padding` ([sets](structured.md#set-enclosures)) |
+| `geometry/set-contains-non-member` | warning | a set's outline covers a node that is not one of its `members` (its centre, or a quarter of its box, lies inside): add it, move it clear (`place` coordinates, gaps), or fit closer with `shape: hull`, `ellipse` with `angle: auto`, or a smaller `padding` ([sets](structured.md#set-enclosures)) |
 | `geometry/set-label-collision` | warning | a set's label overlaps another label, a node, an edge's route or another set's boundary (a subset's label inside its superset is fine): change `labelAt`, shorten it, or move the sets apart |
 | `geometry/badge-collision` | warning | a badge touches labels, other bodies, badges, edges or the canvas edge (its own body may overlap): change the corner, increase gaps / margin; invalid badge icons: `asset/unknown-icon` at `badge.icon` |
 | `geometry/glyph-collision` | warning | a glyph (feature vector, dot, pill) touches other bodies, labels, badges, glyphs, edges or the canvas edge, or covers its own text (its own body and icon may be touched): change `at`, `dx` / `dy` or `size`, increase gaps / margin |
