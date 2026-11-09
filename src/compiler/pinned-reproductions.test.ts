@@ -65,33 +65,55 @@ function recolor(
   return out;
 }
 
-/** The theme with different tone colors, group fills and group frames. */
+/** The layer with a visible stroke width tripled (variants keep their ratios). */
+function heavier(layer: StyleLayer): StyleLayer {
+  const width = layer.strokeWidth;
+  if (width === undefined || width.pt === 0) return layer;
+  return { ...layer, strokeWidth: { pt: width.pt * 3, units: width.units * 3 } };
+}
+
+/**
+ * The theme with different tone colors, group fills and group frames, and
+ * heavier lines (the width of every frame and edge the theme draws).
+ */
 function perturbed(theme: Theme): Theme {
   const all = ["fill", "stroke", "fontColor"] as const;
   const panel = ["fill", "stroke"] as const;
+  const weighty = (layer: StyleLayer): StyleLayer => heavier(layer);
   return {
     ...theme,
-    tones: new Map([...theme.tones].map(([tone, layer]) => [tone, recolor(layer, all)])),
-    toneLines: new Map([...theme.toneLines].map(([tone, layer]) => [tone, recolor(layer, all)])),
+    tones: new Map([...theme.tones].map(([tone, layer]) => [tone, weighty(recolor(layer, all))])),
+    toneLines: new Map(
+      [...theme.toneLines].map(([tone, layer]) => [tone, weighty(recolor(layer, all))]),
+    ),
     components: new Map(
       [...theme.components].map(([id, variants]) => [
         id,
         new Map(
           [...variants].map(([variant, layer]) => [
             variant,
-            id.endsWith("/container") ? recolor(layer, panel) : layer,
+            weighty(id.endsWith("/container") ? recolor(layer, panel) : layer),
           ]),
         ),
       ]),
     ),
-    base: { ...theme.base, group: recolor(theme.base.group, panel) },
+    base: {
+      node: weighty(theme.base.node),
+      edge: weighty(theme.base.edge),
+      group: weighty(recolor(theme.base.group, panel)),
+    },
   };
 }
 
-/** Every painted color of an SVG, as a sorted list: zero-width frames paint nothing. */
+/**
+ * Every painted color and stroke width of an SVG, as a sorted list: zero-width
+ * frames paint nothing.
+ */
 function painted(svg: string): string[] {
   const visible = svg.replace(/ stroke="#[0-9a-f]{6}"( stroke-width="0")/gi, "$1");
-  return [...visible.matchAll(/#[0-9a-f]{6}\b/gi)].map((m) => m[0].toLowerCase()).sort();
+  const colors = [...visible.matchAll(/#[0-9a-f]{6}\b/gi)].map((m) => m[0].toLowerCase());
+  const widths = [...visible.matchAll(/stroke-width="([0-9.]+)"/g)].map((m) => `w${m[1]}`);
+  return [...colors, ...widths].sort();
 }
 
 async function svgOf(text: string, assetBase: string, themeId: string, theme: Theme) {
@@ -110,7 +132,7 @@ async function svgOf(text: string, assetBase: string, themeId: string, theme: Th
 run("reproductions are pinned to their original figures (#441)", () => {
   for (const name of REPRODUCTIONS) {
     test(
-      `${name} paints the same colors whatever the theme's tone and panel defaults are`,
+      `${name} paints the same colors and line widths whatever the theme's tone, panel and line defaults are`,
       async () => {
         const file = join(ROOT, "examples", name, `${name}.sumi.yaml`);
         const text = readFileSync(file, "utf8");

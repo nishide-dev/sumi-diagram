@@ -78,7 +78,7 @@ The committed SVGs of <code>examples/</code>, rendered from their sources as wri
 
 ## Transformer \(structured layout, paper theme\)
 
-[<code>examples/transformer/transformer\.sumi\.yaml</code>](../../examples/transformer/transformer.sumi.yaml) · [PDF](../../examples/transformer/transformer.pdf) · theme <code>paper</code> · profile <code>paper\-single</code> · 78\.49mm × 114\.12mm \(max width 88mm, max height 220mm\)
+[<code>examples/transformer/transformer\.sumi\.yaml</code>](../../examples/transformer/transformer.sumi.yaml) · [PDF](../../examples/transformer/transformer.pdf) · theme <code>paper</code> · profile <code>paper\-single</code> · 83\.43mm × 114\.12mm \(max width 88mm, max height 220mm\)
 
 <img src="../../examples/transformer/transformer.svg" alt="Transformer (structured layout, paper theme)">
 

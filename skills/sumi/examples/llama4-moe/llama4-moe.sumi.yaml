@@ -11,6 +11,7 @@ figure:
   # behind Mixture of Experts and the white Routed Experts panel inside it
   # (`tone: blue` stands for "white" here), all without a frame.
   themeOverrides:
+    lineWidth: 1pt
     groupFill: "#f1f4f7"
     groupStroke: "#f1f4f7"
     tones:

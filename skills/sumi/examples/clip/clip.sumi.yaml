@@ -14,6 +14,10 @@ figure:
     nodeCorners: square
     edgeCorners: sharp
     groupLabelWeight: regular
+    # Line weights, measured at 200 dpi: about 1px at the printed scale.
+    lineWidth: 0.5pt
+    frameWidth: 0.5pt
+    arrowheadScale: 1.2
     groupFill: "#ffffff"
     groupStroke: "#000000"
     tones:

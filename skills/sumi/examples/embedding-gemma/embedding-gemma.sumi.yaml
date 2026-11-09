@@ -11,6 +11,10 @@ figure:
   theme: paper
   themeOverrides:
     edgeCorners: sharp
+    # Line weights, measured at 200 dpi: edges about 0.75pt.
+    lineWidth: 0.75pt
+    frameWidth: 1pt
+    arrowheadScale: 1
     solidFills: { blue: '#3d9df5', orange: '#e8a20c', red: '#e04848' }
     dashedGroupStroke: '#527da5'
     # Pinned to the original's colors, not the theme's: the gray panel behind

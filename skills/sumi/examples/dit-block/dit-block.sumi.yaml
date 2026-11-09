@@ -11,7 +11,11 @@ figure:
   # Pinned to figure 3's own colors, not the theme's: bluish gray, blue, green,
   # orange and red blocks (the dimmed panels dim these), light gray panels in
   # black frames.
+  # Line weights, measured at 200 dpi: edges about 1.2pt, panel frames 1pt.
   themeOverrides:
+    lineWidth: 1.25pt
+    frameWidth: 1pt
+    arrowheadScale: 0.75
     groupFill: "#f3f3f6"
     groupStroke: "#000000"
     tones:
