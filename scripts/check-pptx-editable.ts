@@ -12,8 +12,13 @@ if (args.length && (args.length !== 2 || args[0] !== "--out"))
 const out = resolve(args[1] ?? ".sumi/pptx-editable");
 mkdirSync(out, { recursive: true });
 const report = [];
-for (const item of editableCorpus())
-  for (const connectors of ["freeform", "glued"] as const) {
+for (const item of editableCorpus()) {
+  // Glued connectors cannot keep a cubic tangent, so a figure with curved
+  // edges (#420) is refused in glued mode; validate it with freeform only.
+  const curved = [...item.ir.elements.values()].some(
+    (e) => e.kind === "edge" && e.route === "curve",
+  );
+  for (const connectors of curved ? (["freeform"] as const) : (["freeform", "glued"] as const)) {
     const result = svgToEditablePptx(item.svg, item.ir, { connectors });
     if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
     const name = `${item.id.replaceAll("/", "_")}.${connectors}.pptx`;
@@ -26,6 +31,7 @@ for (const item of editableCorpus())
       warnings: result.diagnostics.map((d) => d.code),
     });
   }
+}
 // Structured figures (no D2 needed). #183: a figure shrunk by
 // `figure.fit: scale`, where every length, line width and text size is
 // scaled. #184: sublabels, a second run of smaller paragraphs with space

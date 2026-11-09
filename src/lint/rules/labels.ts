@@ -7,6 +7,7 @@ import { markText } from "../../core/registry/manifest";
 import { isBlankForD2 } from "../../core/registry/resolve";
 import type { FontSet } from "../../core/theme/fonts";
 import type { ResolvedStyle } from "../../core/theme/style";
+import { parseLength } from "../../core/units";
 import { fontClassOf } from "../../layout/text";
 import { loadGlyphCoverage } from "../cmap";
 import { fontFileFor, latinFontOf } from "../geometry/measure";
@@ -37,6 +38,34 @@ function describeElement(element: ValidElement): string {
   return `${kind} ${id}`;
 }
 
+/** A mark-sized shape (a vertex dot, a marker) cannot hold text: both written sizes are at most this. */
+const MARK_SIZE_PT = 10;
+
+/**
+ * A node drawn as a picture rather than as a text container: one with glyphs
+ * (#408, a vertex with its feature vector) or with both explicit sizes at most
+ * {@link MARK_SIZE_PT} (a small dot or marker).
+ */
+function isPictureNode(element: ValidElement): boolean {
+  if (element.kind !== "node") return false;
+  const node = element.element;
+  if (node.glyphs !== undefined && node.glyphs.length > 0) return true;
+  const props = node.props as Record<string, unknown> | undefined;
+  if (props === undefined) return false;
+  // A circle or square takes its height from its width.
+  const name = element.component?.manifest.name;
+  // A small box is a blank cell, not a mark: it stays reported.
+  if (name === "box") return false;
+  const keys = ["width", "height"];
+  const written = keys.filter((key) => props[key] !== undefined);
+  const needed = name === "circle" || name === "square" ? 1 : 2;
+  if (written.length < needed) return false;
+  return written.every((key) => {
+    const parsed = parseLength(props[key]);
+    return parsed.ok && parsed.length.pt <= MARK_SIZE_PT;
+  });
+}
+
 export const emptyLabel = defineRule({
   id: "lint/empty-label",
   description: "A node whose shape usually carries text has no label.",
@@ -63,6 +92,7 @@ export const emptyLabel = defineRule({
         (manifest.namespace === "sumi" && manifest.name === "separator") ||
         manifest.render?.renderer === "sumi/waveform" ||
         element.element.icon !== undefined ||
+        isPictureNode(element) ||
         // A legend's sample box (#131) shows only its fill and outline, a
         // cell of a tokens node (#181) may be a blank token, and a matrix's
         // cells (#180) show their class by fill and pattern alone.
