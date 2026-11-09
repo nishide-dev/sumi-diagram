@@ -23,7 +23,7 @@
 
 ### B. paper テーマのパネルは白
 
-- `paper` の既定のグループは**白の塗りと従来の枠**（黒 1pt、角丸）にした。塗りなし（transparent）にしなかったのは、`themeOverrides.groupFill`（TriCL・GCN が使う）が transparent の塗りには効かない契約で、白なら灰色などを明示したときに効くため。見た目は白地の上で塗りなしと同じ。transformer・dit-block では、灰色のパネルが白地に黒い枠になり、元の論文の図（Transformer）に近づいた。clip はグループが `plain` なので変わらない。
+- `paper` の既定のグループは**白の塗りと 0.5pt の淡い灰色の枠**（`#b4b8c0`、角丸）にした。最初は従来の黒 1pt の枠にしたが、白地では硬く重く見えたため、ユーザーの選択（2026-11-09）で細い淡い灰色にした。塗りなし（transparent）にしなかったのは、`themeOverrides.groupFill`（TriCL・GCN が使う）が transparent の塗りには効かない契約で、白なら灰色などを明示したときに効くため。論文の再現図（transformer・dit-block など）は #441 で元の図の塗り・枠を明示して固定したので、この既定の変更では変わらない。clip はグループが `plain` なので変わらない。
 - 灰色は明示したときだけ: `variant: filled`（薄い灰色、枠なし）、`themeOverrides.groupFill`、tone を付けたグループ。
 - パレット（[#417](417-palettes.md)）: パレットの panel の色は、テーマが塗っているグループの塗りだけに効く。`paper` の既定のグループは白のままなので、パレットで全グループが灰色や薄い色になることはない。`filled` のグループと明示した `groupFill` がパレットの panel の色になる（オプトイン）。ほかのテーマ（`minimal`・`color` など）の既定のパネルはテーマの塗りのままで、この issue では変えない。
 

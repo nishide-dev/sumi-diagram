@@ -685,7 +685,7 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
     version: 1,
     id: "paper",
     description:
-      "Color ML-paper style: pastel tones, rounded corners, 1pt frames and 0.5pt edges, white framed panels (gray only when asked: the filled variant, groupFill), Inter for Latin text",
+      "Color ML-paper style: pastel tones, rounded corners, 1pt frames and 0.5pt edges, white panels with a thin light gray frame (gray only when asked: the filled variant, groupFill), Inter for Latin text",
     fonts: LATIN_FONT_SET_ID,
     tokens: {
       color: {
@@ -696,6 +696,9 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
         muted: "#737373",
         // The light gray of the panels in the Transformer and DiT figures.
         surface: "#f3f3f5",
+        // Light gray frame of the default white panel (#440): a hairline that separates
+        // without weighing the figure down.
+        frame: "#b4b8c0",
       },
       // Harmonized pastel fills (#434, #423 proposal B): similar lightness and
       // chroma for every tone, so the eight tones read as one family. Yellow, and the
@@ -741,8 +744,8 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
       },
       group: {
         fill: "{color.paper}",
-        stroke: "{color.line}",
-        strokeWidth: "{line.regular}",
+        stroke: "{color.frame}",
+        strokeWidth: "{line.edge}",
         radius: "{radius.group}",
         fontSize: "{size.heading}",
         fontColor: "{color.text}",
