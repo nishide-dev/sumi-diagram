@@ -653,11 +653,13 @@ const legendEntry = z
           .min(0)
           .max(1)
           .optional()
-          .describe("Opacity of the tinted fill (0..1), as on a set. Omitted means the variant's."),
+          .describe(
+            "Strength of the tinted fill (0..1), as on a set. Omitted means the variant's.",
+          ),
       })
       .optional()
       .describe(
-        "Draws a small translucent rectangle as the sample, painted like a set enclosure of the same variant and tone.",
+        "Draws a small tinted rectangle as the sample, painted like a set enclosure of the same variant and tone.",
       ),
     heading: z
       .string()

@@ -1,0 +1,75 @@
+import { describe, expect, test } from "bun:test";
+import { getTheme } from "./builtin";
+import { toOklch } from "./color-math";
+import { resolveStyle } from "./resolve";
+import { multiplyTints, resolveSetStyle, SET_FILL_OPACITY, tintOver } from "./set-style";
+
+describe("set tints are opaque (#440)", () => {
+  test("tintOver mixes the ink into white: 0 is white, 1 is the ink", () => {
+    expect(tintOver("#000000", 0)).toBe("#ffffff");
+    expect(tintOver("#102030", 1)).toBe("#102030");
+    // 20% of black over white is what 20% opacity black looks like on a white page.
+    expect(tintOver("#000000", 0.2)).toBe("#cccccc");
+    expect(tintOver("#31608e", 0.2)).toBe(tintOver("#31608e", 0.2).toLowerCase());
+  });
+
+  test("a color that is not hex is left alone", () => {
+    expect(tintOver("transparent", 0.2)).toBe("transparent");
+  });
+
+  test("multiplyTints is the product relative to white", () => {
+    expect(multiplyTints(["#ffffff", "#ffffff"])).toBe("#ffffff");
+    expect(multiplyTints(["#808080", "#ffffff"])).toBe("#808080");
+    expect(multiplyTints(["#ff0000", "#00ff00"])).toBe("#000000");
+    const product = multiplyTints(["#dde5ee", "#ddeae3"]);
+    // Darker than both, and still tinted (a gray-brown stack of alphas would not be).
+    expect(toOklch(product).l).toBeLessThan(toOklch("#dde5ee").l);
+    expect(toOklch(product).c).toBeGreaterThan(0.015);
+  });
+
+  test("a default set's fill is an opaque pale color whose opacity is gone from the style", () => {
+    const theme = getTheme("paper");
+    if (theme === undefined) throw new Error("no paper theme");
+    const style = resolveSetStyle(theme, { variant: "default", tone: "blue" });
+    const ink = theme.toneLines.get("blue")?.stroke ?? "";
+    expect(style.fill).toBe(tintOver(ink, SET_FILL_OPACITY.default));
+    expect(style.fill).toMatch(/^#[0-9a-f]{6}$/);
+    expect(style.strength).toBe(SET_FILL_OPACITY.default);
+    expect("fillOpacity" in style).toBe(false);
+  });
+
+  test("fillOpacity is the strength of the tint; outlined has none", () => {
+    const theme = getTheme("paper");
+    if (theme === undefined) throw new Error("no paper theme");
+    const weak = resolveSetStyle(theme, { variant: "default", tone: "green", fillOpacity: 0.1 });
+    const strong = resolveSetStyle(theme, { variant: "default", tone: "green", fillOpacity: 0.5 });
+    expect(toOklch(strong.fill).l).toBeLessThan(toOklch(weak.fill).l);
+    const outlined = resolveSetStyle(theme, { variant: "outlined", tone: "green" });
+    expect(outlined.fill).toBe("transparent");
+    expect(outlined.strength).toBe(0);
+  });
+});
+
+describe("the paper theme's panels (#440)", () => {
+  const fillOf = (variant: string) => {
+    const theme = getTheme("paper");
+    if (theme === undefined) throw new Error("no paper theme");
+    return resolveStyle(theme, { kind: "group", id: "sumi/container", variant }).style.fill;
+  };
+
+  test("the default group is white, with its frame", () => {
+    const theme = getTheme("paper");
+    if (theme === undefined) throw new Error("no paper theme");
+    const style = resolveStyle(theme, {
+      kind: "group",
+      id: "sumi/container",
+      variant: "default",
+    }).style;
+    expect(style.fill).toBe("#ffffff");
+    expect(style.strokeWidth.units).toBeGreaterThan(0);
+  });
+
+  test("gray panels are asked for: variant filled stays gray", () => {
+    expect(fillOf("filled")).toBe("#f3f3f5");
+  });
+});

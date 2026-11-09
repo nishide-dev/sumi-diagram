@@ -72,7 +72,7 @@ export function paintedColors(ir: FigureIR): PaintedColor[] {
       }
     }
   }
-  // A set's tint is its outline color at low opacity: only the outline is a choice of color.
+  // A set's tint is its outline color mixed into white: only the outline is a choice of color.
   for (const set of ir.sets ?? []) {
     if (set.style.strokeWidth.units > 0) add(set.style.stroke, "line", `set "${set.id}" outline`);
   }

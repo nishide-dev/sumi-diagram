@@ -35,7 +35,9 @@
  *
  * Set enclosures (#407) are `g.sumi-set` groups between the groups and the
  * nodes (see `setGroup()`); they are not elements of the figure, so they
- * carry no `sumi-k-` class.
+ * carry no `sumi-k-` class. Their tints (#440) are opaque and painted first,
+ * in one `g.sumi-set-fills` (the overlaps with the product of the fills,
+ * clipped to the sets), so the outlines of all sets stay on top.
  *
  * A hatched matrix cell or legend sample box (#180) draws its hatch lines
  * as one `path.sumi-hatch` right after its `g.shape` (`hatch.ts`).
@@ -65,12 +67,14 @@ import type { Arrowhead } from "../core/registry/manifest";
 import { getTheme } from "../core/theme/builtin";
 import type { FontSet } from "../core/theme/fonts";
 import { figureTheme } from "../core/theme/overrides";
+import { multiplyTints } from "../core/theme/set-style";
 import type { CommonStyle } from "../core/theme/style";
 import { groupLayerRects } from "../layout/group-layers";
 import type { LayoutIR, Point, Rect, SetLayout, TextLayout, TextRun } from "../layout/ir";
 import { type Cubic, sampleCubic, trimCubic } from "../layout/route/cubic";
 import { groupArrowheadStems } from "../layout/route/padding";
 import { edgeArrowheadLength, WIRE_CORNER_RADIUS } from "../layout/route/router";
+import { setOverlaps } from "../layout/set-overlap";
 import { ellipseSegments, outlinePolygon } from "../layout/set-shape";
 import { fontFileFor } from "../lint/geometry/measure";
 import { CYLINDER_ARC_UNITS, shapeOutline } from "../lint/geometry/shapes";
@@ -1086,18 +1090,19 @@ export function writeStructuredSvg(
     body.push(objectGroup(group, shape, colored(g.label, group)));
     useText(g.label);
   }
-  // Set enclosures (#407) are drawn over the groups and under the nodes and edges.
+  // Set enclosures (#407) are drawn over the groups and under the nodes and edges:
+  // the opaque tints first (#440), then each set's outline and label.
   const setIRs = new Map((ir.sets ?? []).map((set) => [set.id, set]));
-  for (const placed of layout.sets ?? []) {
+  const drawnSets = (layout.sets ?? []).map((placed) => {
     const set = setIRs.get(placed.id);
     if (set === undefined)
       throw new Error(`internal error: set "${placed.id}" is not in the figure`);
-    painted.push({
-      rect: placed.rect,
-      fill: set.style.fill,
-      opacity: set.style.fillOpacity,
-      inside: containsPoint(placed),
-    });
+    return { set, placed };
+  });
+  const fills = setFills(drawnSets);
+  if (fills.markup !== "") body.push(fills.markup);
+  painted.push(...fills.painted);
+  for (const { set, placed } of drawnSets) {
     body.push(
       setGroup(set, placed, colored(placed.label, { key: SET_COLOR_KEY, style: set.style })),
     );
@@ -1164,7 +1169,7 @@ export function writeStructuredSvg(
 /** A set label is never dimmed: a stand-in key for `colored()`, which looks a key up in the dimmed groups. */
 const SET_COLOR_KEY = "g:" as ElementKey;
 
-/** Whether a point lies inside a set's convex outline (the translucent fill's shape). */
+/** Whether a point lies inside a set's convex outline (the fill's shape). */
 function containsPoint(placed: SetLayout): (point: Point) => boolean {
   const { outline } = placed;
   if (outline.kind === "ellipse") {
@@ -1198,24 +1203,9 @@ function containsPoint(placed: SetLayout): (point: Point) => boolean {
   };
 }
 
-/**
- * A set enclosure (#407): `g.sumi-set` (and `sumi-set-<id>`) with one
- * `.sumi-set-shape` (a circle, ellipse, rect or path; the tint is `fill`
- * with `fill-opacity`, so overlapping sets show through each other) and its
- * label as a `<text>`. It carries no `sumi-k-` class: a set is not an
- * element of the figure, `inspectSvg()` reads it as a set.
- */
-function setGroup(set: SetIR, placed: SetLayout, labelLayout: TextLayout | undefined): string {
-  const { style } = set;
+/** The shape element of a set's outline, with `extra` attributes after the class. */
+function outlineShape(placed: SetLayout, cls: string, extra: string): string {
   const o = placed.outline;
-  const paints =
-    ` fill="${paint(style.fill)}"` +
-    (style.fillOpacity < 1 && style.fill !== "transparent"
-      ? ` fill-opacity="${n(style.fillOpacity)}"`
-      : "") +
-    strokeAttributes(style);
-  const cls = ' class="sumi-set-shape"';
-  let shape: string;
   // A tilted ellipse (#430) is a path of cubics, which SVG, PDF, PPTX and the inspector all read.
   const segments =
     o.kind === "ellipse" && o.angle !== undefined && o.rx !== o.ry
@@ -1224,21 +1214,135 @@ function setGroup(set: SetIR, placed: SetLayout, labelLayout: TextLayout | undef
         ? o.segments
         : undefined;
   if (o.kind === "ellipse" && segments === undefined) {
-    shape =
-      o.rx === o.ry
-        ? `<circle${cls} cx="${n(o.cx)}" cy="${n(o.cy)}" r="${n(o.rx)}"${paints}/>`
-        : `<ellipse${cls} cx="${n(o.cx)}" cy="${n(o.cy)}" rx="${n(o.rx)}" ry="${n(o.ry)}"${paints}/>`;
-  } else if (o.kind === "rect") {
-    const { x, y, width, height } = o.rect;
-    shape = `<rect${cls} x="${n(x)}" y="${n(y)}" width="${n(width)}" height="${n(height)}"${o.radius > 0 ? ` rx="${n(o.radius)}"` : ""}${paints}/>`;
-  } else {
-    const d = (segments ?? [])
-      .map((s) =>
-        s.command === "C" ? `C ${xy(s.c1)} ${xy(s.c2)} ${xy(s.to)}` : `${s.command} ${xy(s.to)}`,
-      )
-      .join(" ");
-    shape = `<path${cls} d="${d} Z"${paints}/>`;
+    return o.rx === o.ry
+      ? `<circle${cls} cx="${n(o.cx)}" cy="${n(o.cy)}" r="${n(o.rx)}"${extra}/>`
+      : `<ellipse${cls} cx="${n(o.cx)}" cy="${n(o.cy)}" rx="${n(o.rx)}" ry="${n(o.ry)}"${extra}/>`;
   }
+  if (o.kind === "rect") {
+    const { x, y, width, height } = o.rect;
+    return `<rect${cls} x="${n(x)}" y="${n(y)}" width="${n(width)}" height="${n(height)}"${o.radius > 0 ? ` rx="${n(o.radius)}"` : ""}${extra}/>`;
+  }
+  const d = (segments ?? [])
+    .map((s) =>
+      s.command === "C" ? `C ${xy(s.c1)} ${xy(s.c2)} ${xy(s.to)}` : `${s.command} ${xy(s.to)}`,
+    )
+    .join(" ");
+  return `<path${cls} d="${d} Z"${extra}/>`;
+}
+
+/** Whether a point lies inside a convex polygon (any winding). */
+function insidePolygon(polygon: readonly Point[]): (point: Point) => boolean {
+  return (p) => {
+    let sign = 0;
+    for (let i = 0; i < polygon.length; i++) {
+      const a = polygon[i] as Point;
+      const b = polygon[(i + 1) % polygon.length] as Point;
+      const cross = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
+      if (Math.abs(cross) < 1e-9) continue;
+      if (sign === 0) sign = Math.sign(cross);
+      else if (Math.sign(cross) !== sign) return false;
+    }
+    return true;
+  };
+}
+
+const boundsOf = (polygon: readonly Point[]): Rect => {
+  const xs = polygon.map((p) => p.x);
+  const ys = polygon.map((p) => p.y);
+  const x = Math.min(...xs);
+  const y = Math.min(...ys);
+  return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y };
+};
+
+/**
+ * The tints of the set enclosures (#440), opaque, in one `g.sumi-set-fills`:
+ * each set's fill (the tone's line color mixed into white), then the regions
+ * where two or more sets overlap, each painted with the product of their
+ * fills (`multiplyTints()`), clipped to the sets with nested `clip-path`s.
+ * Nothing is translucent, so the color is the same over a white page, a gray
+ * panel or another set. It comes before every set's outline and label, so
+ * the outlines of an earlier set are not covered by a later set's fill.
+ * `painted` is what lies under an edge label: the fills, then the overlaps.
+ */
+function setFills(drawn: readonly { set: SetIR; placed: SetLayout }[]): {
+  markup: string;
+  painted: PaintedGroup[];
+} {
+  const tinted = drawn.map(({ set }) => set.style.fill !== "transparent" && set.style.strength > 0);
+  if (!tinted.includes(true)) return { markup: "", painted: [] };
+  const polygons = drawn.map(({ placed }, i) =>
+    tinted[i] === true ? outlinePolygon(placed.outline) : undefined,
+  );
+  const painted: PaintedGroup[] = [];
+  const parts: string[] = [];
+  drawn.forEach(({ set, placed }, i) => {
+    if (tinted[i] !== true) return;
+    parts.push(outlineShape(placed, ' class="sumi-set-fill"', ` fill="${paint(set.style.fill)}"`));
+    painted.push({
+      rect: placed.rect,
+      fill: set.style.fill,
+      opacity: 1,
+      inside: containsPoint(placed),
+    });
+  });
+  const clips = new Map<number, string>();
+  const clipId = (i: number): string => {
+    const known = clips.get(i);
+    if (known !== undefined) return known;
+    const shape = outlineShape((drawn[i] as { placed: SetLayout }).placed, "", "");
+    const id = `sumi-clip-${figureHash(shape)}`;
+    clips.set(i, id);
+    return id;
+  };
+  const overlaps = setOverlaps(polygons);
+  const regions: string[] = [];
+  for (const { members, polygon } of overlaps) {
+    const color = multiplyTints(members.map((m) => (drawn[m] as { set: SetIR }).set.style.fill));
+    const last = members[members.length - 1] as number;
+    let region = outlineShape(
+      (drawn[last] as { placed: SetLayout }).placed,
+      ' class="sumi-set-overlap"',
+      ` fill="${color}"`,
+    );
+    for (const m of members.slice(0, -1).reverse())
+      region = `<g clip-path="url(#${clipId(m)})">${region}</g>`;
+    regions.push(region);
+    painted.push({
+      rect: boundsOf(polygon),
+      fill: color,
+      opacity: 1,
+      inside: insidePolygon(polygon),
+    });
+  }
+  const defs =
+    clips.size === 0
+      ? ""
+      : `<defs>${[...clips]
+          .map(
+            ([i, id]) =>
+              `<clipPath id="${id}">${outlineShape((drawn[i] as { placed: SetLayout }).placed, "", "")}</clipPath>`,
+          )
+          .join("")}</defs>`;
+  return {
+    markup: `<g class="sumi-set-fills">${defs}${parts.join("")}${regions.join("")}</g>`,
+    painted,
+  };
+}
+
+/**
+ * A set enclosure (#407): `g.sumi-set` (and `sumi-set-<id>`) with one
+ * `.sumi-set-shape` (a circle, ellipse, rect or path: the outline only, its
+ * tint is in `g.sumi-set-fills`, #440) and its label as a `<text>`. It
+ * carries no `sumi-k-` class: a set is not an element of the figure,
+ * `inspectSvg()` reads it as a set.
+ */
+function setGroup(set: SetIR, placed: SetLayout, labelLayout: TextLayout | undefined): string {
+  const { style } = set;
+  const shape = outlineShape(
+    placed,
+    ' class="sumi-set-shape"',
+    ` fill="none"${strokeAttributes(style)}`,
+  );
   const labelSvg = labelLayout === undefined ? "" : label(labelLayout, style.fontColor);
   return `<g class="sumi-set sumi-set-${set.id}">${shape}${labelSvg}</g>`;
 }

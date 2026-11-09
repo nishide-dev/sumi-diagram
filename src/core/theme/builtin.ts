@@ -685,7 +685,7 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
     version: 1,
     id: "paper",
     description:
-      "Color ML-paper style: pastel tones, rounded corners, 1pt frames and 0.5pt edges, light gray panels, Inter for Latin text",
+      "Color ML-paper style: pastel tones, rounded corners, 1pt frames and 0.5pt edges, white framed panels (gray only when asked: the filled variant, groupFill), Inter for Latin text",
     fonts: LATIN_FONT_SET_ID,
     tokens: {
       color: {
@@ -740,7 +740,7 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
         fontColor: "{color.text}",
       },
       group: {
-        fill: "{color.surface}",
+        fill: "{color.paper}",
         stroke: "{color.line}",
         strokeWidth: "{line.regular}",
         radius: "{radius.group}",

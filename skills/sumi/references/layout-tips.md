@@ -269,9 +269,10 @@ names its Sumi means.
 - **Fit the placement.** Shape follows the placement's constraints and the
   content, chosen among measured candidates ([fit the placement](#fit-the-placement)).
   *Sumi:* profile, `figure.target`, the size `sumi render` prints.
-- **Colour encodes a role.** One tone per kind of element (all norms `blue`), the
-  same in every panel, three or four tones at most; plumbing (inputs, junctions)
-  stays neutral. Say what tones and dashes mean. *Sumi:* `tone` + one variant per
+- **Colour encodes a role.** A white page; one tone per kind of element (all norms
+  `blue`), the same in every panel, two or three hues and one accent at most;
+  plumbing (inputs, junctions) stays neutral; no translucent colour over a coloured
+  surface ([colour and ground](#plan-the-visual-language-before-drawing)). Say what tones and dashes mean. *Sumi:* `tone` + one variant per
   kind; a [`legend`](structured.md#legends) or the caption.
 - **Notes at their target.** A size, `N×` or symbol sits next to what it explains;
   an edge label is a word on its own edge. *Sumi:* `attach` (`side`, `gap`),
@@ -316,6 +317,18 @@ a strong accent for one result: `cyan-pink`. Set it once with `themeOverrides.pa
 and do not mix per-element colours that fight it; for black-and-white print use the
 `academic` theme without a palette. Then follow these rules while writing the YAML:
 
+- **Colour and ground.** Keep the page **white**: `paper` panels are white with a thin
+  frame, so leave them alone (a gray or tinted panel only when the reference has one:
+  `variant: filled`, `themeOverrides.groupFill`). Colour only what carries meaning, in
+  **at most 2–3 hues plus one accent** (a loss, the result), the palest tones at the
+  same lightness. Never lay a translucent colour over a coloured or gray surface: it
+  mixes into mud, and the overlap of two such colours more so. Sets are opaque pale
+  tints for that reason (an overlap is painted in the product of its tints); do not
+  put colour-on-colour on a filled panel either. The colour exemplar is **LLaDA**
+  (`examples/llada`: white ground, a few muted related tones, one red accent). TriCL is
+  a density and composition benchmark, not a colour exemplar: copy its proportions, not
+  its gray panels. `geometry/muddy-color` and `geometry/color-on-panel` check this
+  ([diagnostics](diagnostics.md#geometry-lint-geometry)).
 - **Pictures for things, arrows for operations.** Objects and data are icons, glyphs
   and sets; an operation is an edge or at most a few short boxes. If a box holds a
   verb phrase plus a formula, it belongs in the paper body.
@@ -350,7 +363,7 @@ all their panels.
 **A dense, wide figure** (many small pictures, little text) is easiest to place by
 coordinates, as the TriCL [example](../examples/README.md) does: one root `place` with
 every card, box and label at a measured centre (1pt per 3.3 px of the reference), each
-card a group with its own `place` for its vertices. Then gray panels behind a column are
+card a group with its own `place` for its vertices. Then the original's gray panels behind a column are
 `rect` [sets](structured.md#set-enclosures) (they take no space, so the boxes inside stay
 on one line and the edges between columns run straight), a node with `glyphs` or an
 explicit size of at most 10pt (not a `box`) needs no label (`lint/empty-label` skips it), and each card's
@@ -432,8 +445,10 @@ Checklist (answer each with what you see; "fine" is not an answer):
    large, with stroke weights and arrowheads as deliberate as the reference's?
 3. **One visual vocabulary.** Does each kind of thing keep one form and tone in every
    panel, with one legend, as in your visual-language table?
-4. **Colour harmony.** A few related tones with meaning, or clashing, saturated or
-   unrelated colours? Are neutrals used for structure?
+4. **Colour harmony.** A white ground with a few related tones (at most 2–3 hues and
+   one accent), each with a meaning, like LLaDA; or gray panels, colour on colour,
+   clashing or saturated colours? Anything translucent over a coloured surface?
+   Neutrals for structure?
 5. **Text amount.** Only short labels in the figure? Formulas, definitions and
    explanations belong in the caption.
 6. **Stage flow.** Can the eye follow the stages (numbered columns, one main flow
@@ -442,7 +457,7 @@ Checklist (answer each with what you see; "fine" is not an answer):
 
 Fix what fails (arrangement, sizes, tones, text), re-render, and compare again until
 no item fails or the rest is justified in your report. The `lint` infos about density
-and colour harmony (`geometry/sparse-figure`, `geometry/text-heavy-nodes`, `geometry/color-harmony`) are inputs to this critique:
+and colour (`geometry/sparse-figure`, `geometry/text-heavy-nodes`, `geometry/color-harmony`, `geometry/muddy-color`, `geometry/color-on-panel`) are inputs to this critique:
 they are rough, and a figure can pass them and still fail the checklist.
 
 ## Paper figure recipe
@@ -461,7 +476,7 @@ the reference's arrangement), then map each look you want to a field:
 | coloured lines | `tone` on the edge |
 | thin 0.5pt frames and lines, small arrowheads (paper figures usually want this; heavy default lines are the commonest difference from the original) | `themeOverrides: { lineWidth: 0.5pt, frameWidth: 0.5pt, arrowheadScale: 0.6 }` ([line weights](figure-format.md#themes-and-profiles)) |
 | dotted coloured lines | edge `variant: dotted` + `tone` (`lineWidth: 0.5pt` for one edge) |
-| a panel without a frame, a shaded panel, a dashed panel | group `variant: plain` / `filled` / `dashed`, with `caption: (a) …` |
+| a white framed panel (`paper`'s default), a panel without a frame, a shaded gray panel (only if the reference has one), a dashed panel | group (default) / `plain` / `filled` / `dashed`, with `caption: (a) …` |
 | panels of equal height with captions on one line | the panels in one `row` with `align: stretch` ([captions](structured.md#group-titles-and-captions)) |
 | panels separated by a dashed vertical (or horizontal) line | a `separator` between them ([recipe below](#two-panels-with-a-dashed-divider)) |
 | a pale panel (a variant compared against) | `dim: true` on the group ([dimmed](figure-format.md#dimmed-groups)) |

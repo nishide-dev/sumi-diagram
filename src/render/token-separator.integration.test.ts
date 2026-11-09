@@ -91,6 +91,7 @@ describe("dotted token separators (#216)", () => {
       ["info", "geometry/heavy-scaling"],
       ["info", "geometry/script-too-small"],
       ["info", "geometry/text-heavy-nodes"],
+      ["info", "geometry/color-on-panel"],
     ]);
     const rendered = report.rendered;
     if (!rendered || !("layout" in rendered)) throw new Error("missing H3-World layout");

@@ -1,15 +1,18 @@
 /** Experimental DrawingML: editable objects, not a fidelity/round-trip format (#62). */
 
 import { readFileSync } from "node:fs";
-import type { EdgeIR, FigureIR } from "../../compiler/ir";
+import type { EdgeIR, FigureIR, SetIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type { Diagnostic } from "../../core/diagnostics";
+import type { Region } from "../../core/geometry";
 import { getOutlineRenderer } from "../../core/outline";
 import { type FlowArrowParams, flowArrow, flowArrowHead } from "../../core/outline/flow-arrow";
 import { SEPARATOR_ID } from "../../core/registry/builtins";
 import type { Result } from "../../core/result";
 import { type FontSet, getFontSet } from "../../core/theme/fonts";
+import { multiplyTints } from "../../core/theme/set-style";
 import { edgeArrowheadLength } from "../../layout/route/arrowhead";
+import { setOverlaps } from "../../layout/set-overlap";
 import { fontFileFor, measureLabel } from "../../lint/geometry/measure";
 import { FontParseError } from "../../lint/sfnt";
 import { readSvgMetadata } from "../finalize";
@@ -189,6 +192,14 @@ function shapePath(el: XmlElement): { segments: PathSegment[]; filled: boolean }
       el.name !== "line" &&
       el.name !== "polyline",
   };
+}
+/** A set's convex region as a polygon (an ellipse sampled in 96 steps, as `outlinePolygon()` does). */
+function regionPolygon(region: Region): Point[] {
+  if (region.kind === "polygon") return [...region.points];
+  return Array.from({ length: 96 }, (_, i) => {
+    const a = (i / 96) * 2 * Math.PI;
+    return { x: region.cx + region.rx * Math.cos(a), y: region.cy + region.ry * Math.sin(a) };
+  });
 }
 function geometry(
   paths: { segments: PathSegment[]; filled: boolean }[],
@@ -920,10 +931,12 @@ export function svgToEditablePptx(
       };
       return emit("start", edge.sourceArrowhead) + emit("end", edge.targetArrowhead);
     };
-    // Set enclosures (#407): a freeform shape with the tint's alpha, then its label as a text box.
-    // They sit between the groups and the nodes, as in the SVG.
+    // Set enclosures (#407), as in the SVG (#440): every set's opaque tint, the regions where
+    // sets overlap (freeform polygons in the product of the tints), then each outline (no fill)
+    // and label. They sit between the groups and the nodes.
     const setXml: string[] = [];
-    for (const set of ir.sets ?? []) {
+    const outlineXml: string[] = [];
+    const drawnSets = (ir.sets ?? []).map((set) => {
       const geo = inspected.value.sets?.find((g) => g.id === set.id);
       const group = [...descendants(read.doc.drawing)].find(
         (e) => e.name === "g" && classList(e).includes(`sumi-set-${set.id}`),
@@ -931,19 +944,62 @@ export function svgToEditablePptx(
       const drawn =
         group && childElements(group).find((e) => classList(e).includes("sumi-set-shape"));
       if (!geo || !group || !drawn) throw new Error(`Missing set ${set.id}`);
-      const { style } = set;
-      const tint = paint(
-        property(drawn, "fill") ?? "none",
-        Number(attribute(drawn, "fill-opacity") ?? 1),
-      );
+      return { set, geo, group, drawn };
+    });
+    const tinted = drawnSets.map(
+      ({ set }) => set.style.fill !== "transparent" && set.style.strength > 0,
+    );
+    for (const [i, { set, geo, drawn }] of drawnSets.entries()) {
+      if (tinted[i] !== true) continue;
       setXml.push(
         shape(
           next++,
           `set ${set.id}`,
           geo.bbox,
+          // The outline element is drawn `fill="none"`: the tint shape fills the same path.
+          geometry([{ ...shapePath(drawn), filled: true }], geo.bbox, emu),
+          paint(set.style.fill),
+          "<a:ln><a:noFill/></a:ln>",
+        ),
+      );
+    }
+    const overlaps = setOverlaps(
+      drawnSets.map(({ geo }, i) => (tinted[i] === true ? regionPolygon(geo.region) : undefined)),
+    );
+    for (const { members, polygon } of overlaps) {
+      const xs = polygon.map((p) => p.x);
+      const ys = polygon.map((p) => p.y);
+      const bounds: Rect = {
+        x: Math.min(...xs),
+        y: Math.min(...ys),
+        width: Math.max(...xs) - Math.min(...xs),
+        height: Math.max(...ys) - Math.min(...ys),
+      };
+      const ring: PathSegment[] = [
+        { command: "M", to: polygon[0] as Point },
+        ...polygon.slice(1).map((to): PathSegment => ({ command: "L", to })),
+        { command: "L", to: polygon[0] as Point },
+      ];
+      setXml.push(
+        shape(
+          next++,
+          `set overlap ${members.map((m) => (drawnSets[m] as { set: { id: string } }).set.id).join(" + ")}`,
+          bounds,
+          geometry([{ segments: ring, filled: true }], bounds, emu),
+          paint(multiplyTints(members.map((m) => (drawnSets[m] as { set: SetIR }).set.style.fill))),
+          "<a:ln><a:noFill/></a:ln>",
+        ),
+      );
+    }
+    for (const { set, geo, group, drawn } of drawnSets) {
+      outlineXml.push(
+        shape(
+          next++,
+          `set ${set.id} outline`,
+          geo.bbox,
           geometry([shapePath(drawn)], geo.bbox, emu),
-          tint,
-          line(drawn, style),
+          "<a:noFill/>",
+          line(drawn, set.style),
         ),
       );
       const text = childElements(group).find((e) => e.name === "text");
@@ -951,7 +1007,7 @@ export function svgToEditablePptx(
       const b = label && measureLabel(label, fonts).box;
       if (text && label && b) {
         const box = { ...b, x: b.x - 2, width: b.width + 4 };
-        setXml.push(
+        outlineXml.push(
           shape(
             next++,
             `set ${set.id} label`,
@@ -965,6 +1021,7 @@ export function svgToEditablePptx(
         );
       }
     }
+    setXml.push(...outlineXml);
     let setsEmitted = setXml.length === 0;
     const output: string[] = [];
     const labels: string[] = [];

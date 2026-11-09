@@ -8,7 +8,7 @@
 | <code>academic</code> | Grayscale, print\-friendly journal style: thin black lines, square corners, gray tones and emphasis | <code>sumi/biz\-ud\-gothic</code> |
 | <code>slides</code> | Large text and thick lines for slides \(use with presentation\-16x9\) | <code>sumi/biz\-ud\-gothic</code> |
 | <code>color</code> | General\-purpose theme with color: pastel tone fills, blue accent for emphasis | <code>sumi/biz\-ud\-gothic</code> |
-| <code>paper</code> | Color ML\-paper style: pastel tones, rounded corners, 1pt frames and 0\.5pt edges, light gray panels, Inter for Latin text | <code>sumi/inter\-biz\-ud\-gothic</code> |
+| <code>paper</code> | Color ML\-paper style: pastel tones, rounded corners, 1pt frames and 0\.5pt edges, white framed panels \(gray only when asked: the filled variant, groupFill\), Inter for Latin text | <code>sumi/inter\-biz\-ud\-gothic</code> |
 | <code>llama</code> | After Meta's Llama 4 MoE figure: slate lines with open arrowheads, gray\-framed white blocks, dark slate solid blocks, blue accent emphasis, borderless pale panels, Inter for Latin text | <code>sumi/inter\-biz\-ud\-gothic</code> |
 
 ## The structured Transformer under every theme
@@ -23,7 +23,7 @@ The same structured figure \(the Transformer, <code>examples/transformer/</code>
 | <code>color</code> | <code>paper</code> | <code>llama</code> |
 | --- | --- | --- |
 | <img src="themes/transformer.color.svg" alt="the structured Transformer, theme color"> | <img src="themes/transformer.paper.svg" alt="the structured Transformer, theme paper"> | <img src="themes/transformer.llama.svg" alt="the structured Transformer, theme llama"> |
-| <code>sumi render examples/transformer/transformer\.sumi\.yaml \-\-theme color \-\-profile paper\-double</code><br>88\.19mm × 114\.83mm \(max width 180mm, max height 220mm\) | <code>sumi render examples/transformer/transformer\.sumi\.yaml \-\-theme paper \-\-profile paper\-double</code><br>78\.49mm × 114\.12mm \(max width 180mm, max height 220mm\) | <code>sumi render examples/transformer/transformer\.sumi\.yaml \-\-theme llama \-\-profile paper\-double</code><br>80\.61mm × 114\.83mm \(max width 180mm, max height 220mm\) |
+| <code>sumi render examples/transformer/transformer\.sumi\.yaml \-\-theme color \-\-profile paper\-double</code><br>88\.19mm × 114\.83mm \(max width 180mm, max height 220mm\) | <code>sumi render examples/transformer/transformer\.sumi\.yaml \-\-theme paper \-\-profile paper\-double</code><br>78\.49mm × 114\.12mm \(max width 180mm, max height 220mm\) | <code>sumi render examples/transformer/transformer\.sumi\.yaml \-\-theme llama \-\-profile paper\-double</code><br>80\.61mm × 114\.83mm \(max width 180mm, max height 220mm\)<br>info geometry/color\-on\-panel \(×2\): Group &quot;encoder&quot; is filled \#f1f4f7 and holds 4 colored elements \(node &quot;enc\-mha&quot;, node &quot;enc\-norm1&quot;, node &quot;enc\-ff&quot;, and 1 more\): the colors compete with the panel's\. |
 
 Source: [<code>examples/transformer/transformer\.sumi\.yaml</code>](../../examples/transformer/transformer.sumi.yaml)
 

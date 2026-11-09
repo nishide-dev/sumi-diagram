@@ -82,6 +82,7 @@ describe("DiT with panels 3 and 4 dimmed (structured)", () => {
     expect(await codes(DIT)).toEqual([
       "geometry/exceeds-page-width",
       "geometry/sparse-figure",
+      "geometry/color-on-panel",
       "geometry/group-empty-area",
       "geometry/arrowhead-cramped",
       "geometry/arrowhead-cramped",

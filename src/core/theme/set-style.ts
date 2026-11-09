@@ -3,9 +3,11 @@
  * registry component: its paint comes from the theme's group frame
  * (`sumi/container`: line width, text size and weight, corner radius) and
  * the tone's line color (`toneLines.<tone>`, gray's without a tone) that the
- * outline, the translucent fill and the label all take. Because the tint is
- * the line color at low opacity, it shows in every theme, also the
- * monochrome ones, and two overlapping sets mix to a darker color.
+ * outline, the fill and the label all take. The fill is the line color mixed
+ * into white at the set's strength, painted **opaque** (#440): the same pale
+ * color on any background, so it shows in every theme, also the monochrome
+ * ones, and never turns muddy over a panel. Where sets overlap, the renderer
+ * paints the product of their fills ({@link multiplyTints}).
  */
 
 import type { SetVariant } from "../figure/schema";
@@ -17,15 +19,15 @@ import type { Tone } from "./tones";
 
 export interface SetStyle extends CommonStyle {
   readonly kind: "set";
-  /** The tint; `transparent` for an outlined set. */
+  /** The tint, opaque: the line color mixed into white at `strength`; `transparent` for an outlined set. */
   readonly fill: Color;
-  /** Opacity of the tint alone (the outline and the label stay opaque). */
-  readonly fillOpacity: number;
+  /** The share of the line color mixed into white (0 for an outlined set): `fillOpacity` as written, else the variant's. */
+  readonly strength: number;
   /** Corner radius of a `rect` set. */
   readonly radius: StyleLength;
 }
 
-/** Default opacity of the tinted fill of a variant. */
+/** Default strength of the tinted fill of a variant. */
 export const SET_FILL_OPACITY: Readonly<Record<SetVariant, number>> = {
   default: 0.2,
   filled: 0.28,
@@ -37,7 +39,7 @@ export const SET_FILL_OPACITY: Readonly<Record<SetVariant, number>> = {
 export interface SetStyleOptions {
   readonly variant: SetVariant;
   readonly tone?: Tone | undefined;
-  /** `fillOpacity` as written. */
+  /** `fillOpacity` as written: the strength of the tint (#440), not a transparency. */
   readonly fillOpacity?: number | undefined;
   /** `figure.themeOverrides.nodeCorners: square`. */
   readonly square?: boolean | undefined;
@@ -45,6 +47,49 @@ export interface SetStyleOptions {
   readonly figure?: Pick<FigureStrokes, "frameWidth" | "cornerRadius"> | undefined;
   /** The set's own `lineWidth` and `cornerRadius` (#427), in pt. */
   readonly element?: Pick<ElementStrokes, "lineWidth" | "cornerRadius"> | undefined;
+}
+
+const HEX = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i;
+
+function channels(color: string): [number, number, number] | undefined {
+  const long = color.replace(/^#([0-9a-f])([0-9a-f])([0-9a-f])$/i, "#$1$1$2$2$3$3");
+  const m = HEX.exec(long);
+  if (m === null) return undefined;
+  return [
+    Number.parseInt(m[1] as string, 16),
+    Number.parseInt(m[2] as string, 16),
+    Number.parseInt(m[3] as string, 16),
+  ];
+}
+
+const hexOf = (c: readonly number[]): string =>
+  `#${c.map((v) => Math.round(v).toString(16).padStart(2, "0")).join("")}`;
+
+/**
+ * The opaque color of `ink` mixed into white at `strength` (0 is white, 1 is
+ * `ink`): what a translucent fill of that opacity looks like on a white page,
+ * painted opaque so that it looks the same on any background (#440). A color
+ * that is not `#rgb` / `#rrggbb` is returned as it is.
+ */
+export function tintOver(ink: string, strength: number): string {
+  const c = channels(ink);
+  if (c === undefined) return ink;
+  return hexOf(c.map((v) => 255 + (v - 255) * strength));
+}
+
+/**
+ * The color where tints overlap: the multiply of the colors relative to white
+ * (each channel's product over 255), so two pale fills give a darker one in
+ * the hues of both instead of the gray-brown a stack of translucent fills
+ * mixes to (#440). Colors that are not hex are skipped.
+ */
+export function multiplyTints(colors: readonly string[]): string {
+  let out: number[] = [255, 255, 255];
+  for (const color of colors) {
+    const c = channels(color);
+    if (c !== undefined) out = out.map((v, i) => (v * (c[i] as number)) / 255);
+  }
+  return hexOf(out);
 }
 
 /** Resolves the style of a set under `theme` (already carrying the figure's tone overrides). */
@@ -62,6 +107,7 @@ export function resolveSetStyle(theme: Theme, options: SetStyleOptions): SetStyl
   }).style;
   const line = theme.toneLines.get(tone ?? "gray");
   const ink = line?.stroke ?? frame.stroke;
+  const strength = options.fillOpacity ?? SET_FILL_OPACITY[variant];
   const outlined = variant !== "filled";
   const tinted = variant !== "outlined";
   const zero: StyleLength = { pt: 0, units: 0 };
@@ -93,8 +139,8 @@ export function resolveSetStyle(theme: Theme, options: SetStyleOptions): SetStyl
     bold: frame.bold,
     italic: frame.italic,
     mono: frame.mono,
-    fill: tinted ? ink : "transparent",
-    fillOpacity: tinted ? (options.fillOpacity ?? SET_FILL_OPACITY[variant]) : 0,
+    fill: tinted ? tintOver(ink, strength) : "transparent",
+    strength: tinted ? strength : 0,
     radius,
   });
 }

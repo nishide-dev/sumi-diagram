@@ -659,7 +659,7 @@ describe("built-in themes", () => {
     // Black 1pt frames, 0.5pt edges: arrowheads as small as academic's.
     expect(style("box").strokeWidth.pt).toBe(1);
     expect(style("box").stroke).toBe("#000000");
-    expect(style("container").fill).toBe("#f3f3f5");
+    expect(style("container").fill).toBe("#ffffff");
     for (const id of ["arrow", "line", "double-arrow"]) {
       expect(style(id).strokeWidth.pt).toBe(0.5);
       expect(style(id, "emphasis").strokeWidth.pt).toBe(1);

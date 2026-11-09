@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { BUILTIN_THEMES } from "../core/theme/builtin";
+import { toOklch } from "../core/theme/color-math";
+import { multiplyTints, tintOver } from "../core/theme/set-style";
 import type { SetLayout } from "../layout/ir";
 import { lintGeometry } from "../lint/geometry";
 import { svgToPdf } from "./pdf";
@@ -123,7 +125,7 @@ describe("a Venn diagram of two sets", () => {
     expect(without.layout.sets).toBeUndefined();
   });
 
-  test("SVG: below the nodes and edges, above the groups, with a translucent tint", async () => {
+  test("SVG: below the nodes and edges, above the groups, with an opaque tint (#440)", async () => {
     const source = venn().replace("sets:", "edges:\n  - { from: a1, to: b1 }\nsets:");
     const { svg } = await render(source);
     const at = (needle: string) => svg.indexOf(needle);
@@ -132,16 +134,73 @@ describe("a Venn diagram of two sets", () => {
     expect(at('class="sumi-set sumi-set-right"')).toBeGreaterThan(firstSet);
     expect(at("sumi-k-n--a1")).toBeGreaterThan(at('class="sumi-set sumi-set-right"'));
     expect(at("sumi-k-e--_0")).toBeGreaterThan(at("sumi-k-n--b2"));
+    // The outlines carry no fill; the tints are opaque shapes of their own, painted first.
     const shape = svg.match(/<circle class="sumi-set-shape"[^>]*>/g) ?? [];
     expect(shape).toHaveLength(2);
     for (const circle of shape) {
-      expect(circle).toMatch(/fill-opacity="0\.2"/);
-      expect(circle).toMatch(/fill="#[0-9a-f]{6}"/);
+      expect(circle).toMatch(/fill="none"/);
       expect(circle).toMatch(/stroke="#[0-9a-f]{6}"/);
     }
+    const tints = svg.match(/<circle class="sumi-set-fill"[^>]*>/g) ?? [];
+    expect(tints).toHaveLength(2);
+    for (const circle of tints) {
+      expect(circle).toMatch(/fill="#[0-9a-f]{6}"/);
+      expect(circle).not.toContain("opacity");
+    }
+    expect(svg).not.toMatch(/<[a-z]+ class="sumi-set[^"]*"[^>]*fill-opacity/);
+    expect(at('class="sumi-set-fills"')).toBeLessThan(firstSet);
     expect(svg).toContain(">Left</text>");
     // Two different tones give two different tints.
-    expect(new Set(shape.map((s) => /fill="(#[0-9a-f]{6})"/.exec(s)?.[1])).size).toBe(2);
+    expect(new Set(tints.map((s) => /fill="(#[0-9a-f]{6})"/.exec(s)?.[1])).size).toBe(2);
+  });
+
+  test("an overlap is painted with the product of the two tints, clipped to the sets (#440)", async () => {
+    const { svg } = await render(venn());
+    const tints = [...svg.matchAll(/<circle class="sumi-set-fill"[^>]*fill="(#[0-9a-f]{6})"/g)].map(
+      (m) => m[1] as string,
+    );
+    expect(tints).toHaveLength(2);
+    const product = multiplyTints(tints);
+    const overlap =
+      /<g clip-path="url\(#(sumi-clip-\d+)\)"><circle class="sumi-set-overlap"[^>]*>/.exec(svg);
+    expect(overlap).not.toBeNull();
+    expect(overlap?.[0]).toContain(`fill="${product}"`);
+    expect(svg).toMatch(new RegExp(`<clipPath id="${overlap?.[1]}"><circle `));
+    // Darker than both tints, in the hues of both.
+    expect(toOklch(product).l).toBeLessThan(Math.min(...tints.map((t) => toOklch(t).l)));
+    expect(toOklch(product).c).toBeGreaterThan(0.01);
+    // Painted after every tint and before every outline.
+    expect(svg.indexOf("sumi-set-overlap")).toBeGreaterThan(svg.lastIndexOf("sumi-set-fill"));
+    expect(svg.indexOf("sumi-set-overlap")).toBeLessThan(svg.indexOf('class="sumi-set-shape"'));
+  });
+
+  test("a set looks the same on a gray panel as on white: the tint does not mix with what lies beneath (#440)", async () => {
+    const onWhite = await render(venn());
+    const source = venn().replace(
+      "  layout:",
+      "  themeOverrides: { groupFill: '#e0e0e0' }\n  layout:",
+    );
+    const panel = await render(
+      source
+        .replace("- { item: a1", "- { item: p, at: [-1, -1] }\n          - { item: a1")
+        .replace(
+          "nodes:",
+          "groups:\n  - { id: p, arrange: { row: { items: [pad] } } }\nnodes:\n  - { id: pad, component: box, label: pad }",
+        ),
+    );
+    const fills = (svg: string) =>
+      (svg.match(/<[a-z]+ class="sumi-set-(?:fill|overlap)"[^>]*>/g) ?? []).map(
+        (m) => /fill="(#[0-9a-f]{6})"/.exec(m)?.[1],
+      );
+    expect(fills(panel.svg)).toEqual(fills(onWhite.svg));
+  });
+
+  test("an unfilled set (outlined, or no strength) paints no tint layer", async () => {
+    const { svg } = await render(
+      venn("", "color", "  - { id: left, members: [a1, a2], tone: blue, variant: outlined }"),
+    );
+    expect(svg).not.toContain("sumi-set-fill");
+    expect(svg).not.toContain("clipPath");
   });
 
   test("the inspection reads each set's shape and label", async () => {
@@ -190,13 +249,29 @@ describe("shapes, variants and tint", () => {
         "color",
         `  - { id: left, members: [a1, a2], tone: blue, variant: ${variant}${extra} }`,
       );
-    const shapeOf = async (v: string, extra = "") =>
-      (await render(one(v, extra))).svg.match(/<circle class="sumi-set-shape"[^>]*>/)?.[0] ?? "";
-    expect(await shapeOf("default")).toMatch(/fill-opacity="0\.2".*stroke="#/);
+    const shapeOf = async (v: string, extra = "", cls = "sumi-set-shape") =>
+      (await render(one(v, extra))).svg.match(new RegExp(`<circle class="${cls}"[^>]*>`))?.[0] ??
+      "";
+    const tintOf = async (v: string, extra = "") =>
+      /fill="(#[0-9a-f]{6})"/.exec(await shapeOf(v, extra, "sumi-set-fill"))?.[1];
+    expect(await shapeOf("default")).toMatch(/fill="none".*stroke="#/);
+    expect(await tintOf("default")).toBeDefined();
     expect(await shapeOf("dashed")).toContain("stroke-dasharray");
-    expect(await shapeOf("filled")).toMatch(/fill-opacity="0\.28".*stroke="none" stroke-width="0"/);
+    expect(await tintOf("dashed")).toBe(await tintOf("default"));
+    expect(await shapeOf("filled")).toMatch(/stroke="none" stroke-width="0"/);
+    expect(await tintOf("filled")).toBeDefined();
+    // `filled` is the stronger tint (0.28 against 0.2); fillOpacity is the tint's strength, never a transparency.
+    expect(toOklch((await tintOf("filled")) ?? "#000000").l).toBeLessThan(
+      toOklch((await tintOf("default")) ?? "#000000").l,
+    );
     expect(await shapeOf("outlined")).toMatch(/fill="none"/);
-    expect(await shapeOf("default", ", fillOpacity: 0.5")).toMatch(/fill-opacity="0\.5"/);
+    expect(await tintOf("outlined")).toBeUndefined();
+    expect(toOklch((await tintOf("default", ", fillOpacity: 0.5")) ?? "#000000").l).toBeLessThan(
+      toOklch((await tintOf("default")) ?? "#000000").l,
+    );
+    expect(await shapeOf("default", ", fillOpacity: 0.5", "sumi-set-fill")).not.toContain(
+      "opacity",
+    );
   });
 
   for (const theme of BUILTIN_THEMES.keys()) {
@@ -206,7 +281,7 @@ describe("shapes, variants and tint", () => {
         return { svg: r.value.svg, diagnostics: r.diagnostics };
       });
       expect(diagnostics.filter((d) => d.severity === "error")).toEqual([]);
-      const tints = (svg.match(/<circle class="sumi-set-shape"[^>]*fill="(#[0-9a-f]{6})"/g) ?? [])
+      const tints = (svg.match(/<circle class="sumi-set-fill"[^>]*fill="(#[0-9a-f]{6})"/g) ?? [])
         .length;
       expect(tints).toBe(2);
     });
@@ -218,7 +293,9 @@ describe("shapes, variants and tint", () => {
       '  themeOverrides: { tones: { blue: { line: "#123456" } } }\n  layout:',
     );
     const { svg } = await render(source);
-    expect(svg).toMatch(/<circle class="sumi-set-shape"[^>]*fill="#123456"/);
+    expect(svg).toMatch(
+      new RegExp(`<circle class="sumi-set-fill"[^>]*fill="${tintOver("#123456", 0.2)}"`),
+    );
   });
 });
 
@@ -400,7 +477,7 @@ describe("text and width", () => {
 });
 
 describe("PDF and PPTX", () => {
-  test("PDF keeps the tint's opacity", async () => {
+  test("PDF paints the tints opaque: no transparency state (#440), and the overlap is clipped", async () => {
     const { svg } = await render(venn());
     const pdf = svgToPdf(svg);
     if (!pdf.ok) throw new Error(JSON.stringify(pdf.diagnostics));
@@ -409,7 +486,8 @@ describe("PDF and PPTX", () => {
         ? [(value as { ca: number }).ca]
         : [],
     );
-    expect(states).toContain(0.2);
+    expect(states).not.toContain(0.2);
+    expect(svg).toContain("clip-path");
   });
 
   test("picture PPTX exports", async () => {
@@ -418,7 +496,7 @@ describe("PDF and PPTX", () => {
     expect(pptx.ok).toBe(true);
   });
 
-  test("editable PPTX: a freeform shape with alpha per set, between the groups and the nodes", async () => {
+  test("editable PPTX: opaque freeforms for the tints and the overlap, then the outlines, between the groups and the nodes (#440)", async () => {
     const rendered = await render(venn());
     const result = svgToEditablePptx(rendered.svg, rendered.compiled.ir);
     if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
@@ -431,9 +509,21 @@ describe("PDF and PPTX", () => {
     const order = (name: string) => names.indexOf(name);
     expect(order("set left")).toBeGreaterThanOrEqual(0);
     expect(order("set right")).toBeGreaterThan(order("set left"));
+    // The overlap lies over both tints and under both outlines.
+    expect(order("set overlap left + right")).toBeGreaterThan(order("set right"));
+    expect(order("set left outline")).toBeGreaterThan(order("set overlap left + right"));
     expect(order("n:a1")).toBeGreaterThan(order("set right label"));
-    expect(slide).toContain('<a:alpha val="20000"/>');
+    expect(slide).not.toContain("<a:alpha");
     expect(slide).toContain("custGeom");
+    // The overlap is filled in the product of the two tints.
+    const tints = [
+      ...rendered.svg.matchAll(/<circle class="sumi-set-fill"[^>]*fill="(#[0-9a-f]{6})"/g),
+    ].map((m) => m[1] as string);
+    expect(slide).toContain(`<a:srgbClr val="${multiplyTints(tints).slice(1).toUpperCase()}">`);
+    // The tint shapes fill their path (the outline element is unfilled).
+    expect(slide).not.toMatch(
+      /name="set left"[\s\S]*?<a:path [^>]*fill="none"[\s\S]*?name="set right"/,
+    );
   });
 });
 
@@ -442,7 +532,7 @@ describe("label background at a set boundary", () => {
     const { labelBackground } = await import("./structured");
     const inside = (p: { x: number; y: number }) => Math.hypot(p.x - 50, p.y - 50) <= 30;
     const groups = [
-      { rect: { x: 20, y: 20, width: 60, height: 60 }, fill: "#ff0000", opacity: 0.2, inside },
+      { rect: { x: 20, y: 20, width: 60, height: 60 }, fill: "#ffcccc", opacity: 1, inside },
     ];
     const within = labelBackground({ x: 40, y: 45, width: 20, height: 10 }, groups);
     expect(within).not.toBe("#ffffff");

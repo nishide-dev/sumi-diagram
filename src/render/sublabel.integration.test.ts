@@ -118,6 +118,7 @@ describe("sublabel (#184): DiT", () => {
     expect(codes(rendered, source)).toEqual([
       "geometry/exceeds-page-width",
       "geometry/sparse-figure",
+      "geometry/color-on-panel",
       "geometry/group-empty-area",
       "geometry/arrowhead-cramped",
       "geometry/arrowhead-cramped",
@@ -125,6 +126,7 @@ describe("sublabel (#184): DiT", () => {
     expect(codes(await render(research), research)).toEqual([
       "geometry/exceeds-page-width",
       "geometry/sparse-figure",
+      "geometry/color-on-panel",
       "geometry/group-empty-area",
       "geometry/arrowhead-cramped",
       "geometry/arrowhead-cramped",

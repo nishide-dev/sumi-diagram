@@ -112,6 +112,7 @@ describe("structured: #167 figures B and C on paper-double", () => {
     expect(diagnostics.map((d) => [d.code, d.severity, d.subject?.id])).toEqual([
       ["geometry/heavy-scaling", "info", "stage-c-dit"],
       ["geometry/script-too-small", "info", "stage-c-dit"],
+      ["geometry/color-on-panel", "info", "adaln"],
       ["geometry/group-empty-area", "info", "incontext"],
       // Two edges 2pt from a group's border (natural size) print 1.4pt from it.
       ["geometry/edge-near-border", "info", "edges[8]"],
@@ -121,9 +122,9 @@ describe("structured: #167 figures B and C on paper-double", () => {
       ["geometry/text-too-small", "error", "edges[28]"],
       ["geometry/text-too-small", "error", "edges[29]"],
     ]);
-    expect(diagnostics[5]?.message).toContain("printed at 4.9pt (7pt shrunk to 70%");
+    expect(diagnostics[6]?.message).toContain("printed at 4.9pt (7pt shrunk to 70%");
     expect(diagnostics[1]?.message).toContain("down to 3.43pt");
-    expect(diagnostics[3]?.message).toContain("(0.49mm between the lines)");
+    expect(diagnostics[4]?.message).toContain("(0.49mm between the lines)");
   });
 
   test("C reports its existing micro-jogs and reports its scripts once, as information", async () => {

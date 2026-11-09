@@ -40,6 +40,23 @@ info にしたのは、配色は好みと意図（分類のための多色）に
 `lint --geometry` での抑止は `--rule geometry/color-harmony=off`、または lint 設定の `{"rules":{"geometry/color-harmony":"off"}}`。
 設計と根拠は [設計 #423](design/decisions/423-tone-harmony.md) を参照。
 
+## 色の重なりと濁り（#440）
+
+描かれた塗り（グループ・set・set の重なり・ノード）を、描画順に背景へ重ねた最終の色（`src/lint/geometry/composite.ts`）で判定する。
+set の塗りは tone の線の色を白に混ぜた不透明な淡い色で、重なりは両方の淡い色の乗算（白基準）で描くので、
+白でも灰色のパネルの上でも同じ色になる。重大度は、最終の色を測る 2 つが **warning**、構成の傾向を見る 1 つが **info**。
+
+| 規則 | 既定 | 条件 |
+| --- | --- | --- |
+| `geometry/muddy-color` | warning | 有彩色（own の OKLCH 彩度 0.03 以上）の塗りが、同じ塗りを白に置いたときと比べて、最終の色で彩度の半分超を失う、または明度が 0.06 以上下がって彩度 0.045 未満の灰色になる、または色相が 30° 以上ずれて彩度 0.05 未満になる。set の重なりは、重なる set の最大の彩度の半分を下回るときだけ。見えている点（4×4 の格子）の半数以上で成り立つ塗りを、関わる要素の名前つきで報告する |
+| `geometry/translucent-over-color` | warning | 不透明度が 1 未満の塗りが、白以外の面（パネル・ほかの塗り）の上にある。色が下の面で変わる |
+| `geometry/color-on-panel` | info | 白以外の塗りのグループが、有彩色（OKLCH 彩度 0.025 以上）のノードか set を 3 つ以上持つ。パネルの色と要素の色が競う。1〜2 個（Llama 4 のアクセント）は報告しない |
+
+warning にしたのは、最終の色を実際に合成して測る検査で、図の意図ではなく結果の濁りを見ているため。`geometry/color-on-panel` は好みと意図に左右されるので info とし、`maxWarnings` に含めない。
+しきい値は、試行 3 の図（灰色のパネルに半透明の set。変更前の描き方で `muddy-color` 6 件、`translucent-over-color` 9 件、`color-on-panel` 2 件）で出て、`examples/llada` と `examples/llama4-moe` で何も出ず、
+不透明な塗りに変えた同じ図で `muddy-color` と `translucent-over-color` が出ないように決めた。
+抑止は `--rule geometry/muddy-color=off` など。設計と較正は [設計 #440](design/decisions/440-color-composition.md) を参照。
+
 ## 置き場所の目標（#347）
 
 `figure.target` は任意。描画・幅だけへの fit・Profile のページ上限は変えない。

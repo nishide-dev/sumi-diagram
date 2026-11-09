@@ -840,7 +840,7 @@
       }
     },
     "sets": {
-      "description": "Set enclosures (#407): translucent shapes around nodes and groups that may overlap, for Venn diagrams and hyperedges. Structured layout only; they are drawn below the nodes and edges and take no space in the arrange trees.",
+      "description": "Set enclosures (#407): tinted shapes (opaque pale fills, overlaps in the product of the fills) around nodes and groups that may overlap, for Venn diagrams and hyperedges. Structured layout only; they are drawn below the nodes and edges and take no space in the arrange trees.",
       "type": "array",
       "items": {
         "type": "object",
@@ -916,7 +916,7 @@
             ]
           },
           "fillOpacity": {
-            "description": "Opacity of the tinted fill (0..1) so that overlapping sets show through each other. Omitted means the variant's own (0.2 for default and dashed, 0.28 for filled).",
+            "description": "Strength of the tinted fill (0..1): the share of the tone's line color mixed into white. The fill is opaque, so it looks the same on a white page and on a gray panel; where sets overlap, the overlap is painted in the product of their fills. Omitted means the variant's own (0.2 for default and dashed, 0.28 for filled).",
             "type": "number",
             "minimum": 0,
             "maximum": 1
@@ -944,7 +944,7 @@
             "pattern": "^(?:0|0\\.5|1|1\\.5|2|2\\.5|3|3\\.5|4|4\\.5|5|5\\.5|6|6\\.5|7|7\\.5|8|8\\.5|9|9\\.5|10)pt$"
           },
           "tone": {
-            "description": "Color category from the theme's palette: its line color draws the outline and the label and, at low opacity, the tint, in every theme. Omitted means gray.",
+            "description": "Color category from the theme's palette: its line color draws the outline and the label and, mixed into white, the opaque tint, in every theme. Omitted means gray.",
             "type": "string",
             "enum": [
               "gray",
