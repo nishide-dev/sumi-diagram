@@ -249,10 +249,16 @@ describe("geometry lint on structured SVGs", () => {
           ? [
               ["info", "geometry/heavy-scaling"],
               ["info", "geometry/script-too-small"],
+              ["info", "geometry/color-on-panel"],
               ["info", "geometry/group-empty-area"],
               ["info", "geometry/group-empty-area"],
             ]
-          : [],
+          : path === "examples/transformer/transformer.sumi.yaml"
+            ? [
+                ["info", "geometry/color-on-panel"],
+                ["info", "geometry/color-on-panel"],
+              ]
+            : [],
       );
     }
   });

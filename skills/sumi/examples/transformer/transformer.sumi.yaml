@@ -15,6 +15,22 @@ figure:
   id: transformer
   title: Transformer (structured layout, paper theme)
   theme: paper
+  # Pinned to figure 1's own colors, not the theme's: the pastel of each block
+  # type, light gray panels in black rounded frames.
+  # Line weights, measured at 200 dpi: frames and edges are both about 1.2pt.
+  themeOverrides:
+    lineWidth: 1.25pt
+    frameWidth: 1.25pt
+    arrowheadScale: 0.75
+    groupFill: "#f2f2f2"
+    groupStroke: "#000000"
+    tones:
+      pink: { fill: "#fce0e1" }
+      orange: { fill: "#ffe2bb" }
+      yellow: { fill: "#f1f3c0" }
+      blue: { fill: "#c2e8f7" }
+      purple: { fill: "#dadeee" }
+      green: { fill: "#cbe6ce" }
   profile: paper-single
   layout:
     density: compact
@@ -54,24 +70,24 @@ groups:
 
 nodes:
   - { id: inputs, component: label, label: Inputs }
-  - { id: input-embedding, component: box, label: "Input\nEmbedding", tone: pink }
+  - { id: input-embedding, component: box, label: "Input\nEmbedding", tone: pink, props: { width: 68pt } }
   - { id: enc-add, component: operator, props: { symbol: plus } }
   - { id: enc-pe, component: circle, icon: tabler/wave-sine, attach: { to: enc-add, side: west, gap: 1mm } }
   - { id: enc-pe-label, component: label, label: "Positional\nEncoding", attach: { to: enc-pe, side: west, gap: 0.5mm } }
   - { id: enc-split1, component: junction, variant: hidden }
-  - { id: enc-mha, component: box, label: "Multi-Head\nAttention", tone: orange }
+  - { id: enc-mha, component: box, label: "Multi-Head\nAttention", tone: orange, props: { width: 68pt } }
   - { id: enc-norm1, component: box, label: "Add & Norm", tone: yellow }
   - { id: enc-split2, component: junction, variant: hidden }
   - { id: enc-ff, component: box, label: "Feed\nForward", tone: blue }
   - { id: enc-norm2, component: box, label: "Add & Norm", tone: yellow }
   - { id: enc-n, component: label, label: "N×", attach: { to: encoder, side: west, gap: 2mm } }
   - { id: outputs, component: label, label: "Outputs\n(shifted right)" }
-  - { id: output-embedding, component: box, label: "Output\nEmbedding", tone: pink }
+  - { id: output-embedding, component: box, label: "Output\nEmbedding", tone: pink, props: { width: 68pt } }
   - { id: dec-add, component: operator, props: { symbol: plus } }
   - { id: dec-pe, component: circle, icon: tabler/wave-sine, attach: { to: dec-add, side: east, gap: 1mm } }
   - { id: dec-pe-label, component: label, label: "Positional\nEncoding", attach: { to: dec-pe, side: east, gap: 0.5mm } }
   - { id: dec-split1, component: junction, variant: hidden }
-  - { id: dec-mmha, component: box, label: "Masked\nMulti-Head\nAttention", tone: orange }
+  - { id: dec-mmha, component: box, label: "Masked\nMulti-Head\nAttention", tone: orange, props: { width: 68pt } }
   - { id: dec-norm1, component: box, label: "Add & Norm", tone: yellow }
   - { id: dec-split2, component: junction, variant: hidden }
   - { id: dec-mha, component: box, label: "Multi-Head\nAttention", tone: orange }
@@ -80,8 +96,8 @@ nodes:
   - { id: dec-ff, component: box, label: "Feed\nForward", tone: blue }
   - { id: dec-norm3, component: box, label: "Add & Norm", tone: yellow }
   - { id: dec-n, component: label, label: "N×", attach: { to: decoder, side: east, gap: 2mm } }
-  - { id: linear, component: box, label: Linear, tone: purple }
-  - { id: softmax, component: box, label: Softmax, tone: green }
+  - { id: linear, component: box, label: Linear, tone: purple, props: { width: 68pt } }
+  - { id: softmax, component: box, label: Softmax, tone: green, props: { width: 68pt } }
   - { id: probabilities, component: label, label: "Output\nProbabilities" }
 
 edges:

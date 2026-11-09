@@ -268,7 +268,8 @@ describe.skipIf(!available)("built-in primitives render with D2", () => {
           const stderr = run.stderr.toString();
           expect(run.exitCode, stderr).toBe(0);
           if (example === "examples/dit-block/dit-block.sumi.yaml") {
-            expect(stderr).toContain("0 errors, 0 warnings, 4 infos");
+            // The original's gray panel holds the colored blocks (#440, pinned in #441).
+            expect(stderr).toContain("0 errors, 0 warnings, 5 infos");
             expect(
               [...stderr.matchAll(/^examples\/.*:\d+:\d+ (\w+) ([\w/-]+)/gm)].map(
                 ([, severity, code]) => [severity, code],
@@ -276,8 +277,20 @@ describe.skipIf(!available)("built-in primitives render with D2", () => {
             ).toEqual([
               ["info", "geometry/heavy-scaling"],
               ["info", "geometry/script-too-small"],
+              ["info", "geometry/color-on-panel"],
               ["info", "geometry/group-empty-area"],
               ["info", "geometry/group-empty-area"],
+            ]);
+          } else if (example === "examples/transformer/transformer.sumi.yaml") {
+            // The original's gray encoder and decoder panels hold colored blocks (#440, #441).
+            expect(stderr).toContain("0 errors, 0 warnings, 2 infos");
+            expect(
+              [...stderr.matchAll(/^examples\/.*:\d+:\d+ (\w+) ([\w/-]+)/gm)].map(
+                ([, severity, code]) => [severity, code],
+              ),
+            ).toEqual([
+              ["info", "geometry/color-on-panel"],
+              ["info", "geometry/color-on-panel"],
             ]);
           } else if (example === "examples/clip/clip.sumi.yaml") {
             expect(stderr).toContain("0 errors, 0 warnings, 2 infos");

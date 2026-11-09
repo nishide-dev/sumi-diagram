@@ -354,6 +354,9 @@ Sumi features for each form:
 - **Small graphs**: `place` with coordinates ([coordinate placement](structured.md#coordinate-placement)).
 - **Per-figure colors**: `themeOverrides.palette` for a whole scheme, `tones` and the
   other keys for single colours ([palettes](figure-format.md#themes-and-profiles)).
+  Reproducing a published figure: sample its colours and pin every fill, frame and panel
+  (`tones`, `groupFill`, `groupStroke`, `solidFills`, node `tone`) so no theme default
+  shows; the bundled reproductions do.
 - **Panels, numbered columns**: groups with `caption` in one `row`
   ([captions](structured.md#group-titles-and-captions)).
 

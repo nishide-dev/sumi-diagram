@@ -48,7 +48,7 @@ describe("the decoder's middle split of the transformer", () => {
     // junction's arc, kept with that edge. Before: 1.33 units (0.67pt).
     const trunk = into("dec-split2");
     expect(trunk.length).toBe(1);
-    expect(radius(trunk[0]?.[0] as Arc)).toBeGreaterThanOrEqual(6.5);
+    expect(radius(trunk[0]?.[0] as Arc)).toBeGreaterThanOrEqual(5); // the pinned line weights (#441) tighten the gap a little
     // The turns up into the three arrowheads are as gentle as the encoder's:
     // 4 units, with the 2pt stem kept.
     const heads = into("dec-mha");
