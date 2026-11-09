@@ -125,3 +125,42 @@ describe("sets: engine", () => {
     expect(check.state.doc.sets).toEqual([undefined]);
   });
 });
+
+describe("sets: angle (#430)", () => {
+  const set = (fields: string) => `sets:\n  - { id: s, members: [a, b], ${fields} }`;
+
+  test("angle is a number of degrees from -180 to 180, or auto", () => {
+    const ok = (angle: unknown) =>
+      SetSchema.safeParse({ id: "s", members: ["a"], shape: "ellipse", angle }).success;
+    expect(ok(30)).toBe(true);
+    expect(ok(-180)).toBe(true);
+    expect(ok(0)).toBe(true);
+    expect(ok("auto")).toBe(true);
+    expect(ok(181)).toBe(false);
+    expect(ok("30")).toBe(false);
+    expect(ok("diagonal")).toBe(false);
+  });
+
+  test("an ellipse takes angle; without it the parsed set has no angle", () => {
+    expect(diagnostics(figure(set("shape: ellipse, angle: auto")))).toEqual([]);
+    expect(diagnostics(figure(set("shape: ellipse, angle: -35")))).toEqual([]);
+    const parsed = parseFigure(figure(set("shape: ellipse")));
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.diagnostics));
+    expect("angle" in (parsed.value.sets?.[0] ?? {})).toBe(false);
+  });
+
+  test("angle on a circle, hull or rect is ref/set-angle-needs-ellipse, and drops the set", () => {
+    for (const shape of ["circle", "hull", "rect"]) {
+      const check = checkFigure(figure(set(`shape: ${shape}, angle: 30`)));
+      expect(check.state.diagnostics.map((d) => [d.code, d.path?.join("."), d.severity])).toEqual([
+        ["ref/set-angle-needs-ellipse", "sets.0.angle", "error"],
+      ]);
+      expect(check.state.diagnostics[0]?.hint).toContain("shape: ellipse");
+      expect(check.state.doc.sets).toEqual([undefined]);
+    }
+    // The default shape is a circle.
+    expect(diagnostics(figure(set("angle: auto"))).map(([code]) => code)).toEqual([
+      "ref/set-angle-needs-ellipse",
+    ]);
+  });
+});

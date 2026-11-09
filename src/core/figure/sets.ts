@@ -7,6 +7,9 @@
  * - A member is a node or a group of the figure (`ref/unknown-set-member`),
  *   listed once (`ref/duplicate-set-member`). A member that is itself
  *   invalid is left alone: it has its own diagnostic.
+ * - `angle` turns an ellipse (#430): on another shape it is an error
+ *   (`ref/set-angle-needs-ellipse`), since a circle, hull or rectangle has
+ *   no orientation to set.
  * - Sets are drawn by the structured layout only (`layout/structured-only`).
  *
  * A set with an error is dropped from the document (`doc.sets[i]` becomes
@@ -78,6 +81,22 @@ export function checkSets(state: CheckState, locate: Locator): void {
       continue;
     }
     first.set(set.id, index);
+    if (set.angle !== undefined && set.shape !== "ellipse") {
+      report(
+        index,
+        errorAt(
+          locate,
+          "ref/set-angle-needs-ellipse",
+          `Set "${set.id}" has angle, but its shape is ${set.shape}; only an ellipse can be turned.`,
+          [...path, "angle"],
+          {
+            subject: subject(set.id),
+            hint: "Use shape: ellipse (angle: auto fits the tilt to the members), or remove angle.",
+          },
+        ),
+      );
+      continue;
+    }
     const seen = new Map<string, number>();
     let failed = false;
     for (const [m, member] of set.members.entries()) {

@@ -98,7 +98,7 @@ export const setContainsNonMember = defineGeometryRule({
         message: `The outline of ${set.name} covers ${names.length === 1 ? names[0] : `${names.length} nodes (${names.join(", ")})`}, which ${names.length === 1 ? "is" : "are"} not ${names.length === 1 ? "a member" : "members"}.`,
         path: set.docPath,
         subject: set.subject,
-        hint: "A node inside a set's outline reads as a member. Add it to members, or move it clear of the outline (the `place` coordinates or a gap), or fit the set closer with shape: hull, ellipse or rect, or a smaller padding.",
+        hint: "A node inside a set's outline reads as a member. Add it to members, or move it clear of the outline (the `place` coordinates or a gap), or fit the set closer with shape: hull, rect, a tilted ellipse (shape: ellipse with angle: auto), or a smaller padding.",
         related: covered.map((n) => ({
           path: n.docPath,
           message: `${capitalize(n.name)} is defined here.`,

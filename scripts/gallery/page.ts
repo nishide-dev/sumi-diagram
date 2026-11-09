@@ -314,7 +314,8 @@ const GLYPHS_NOTE =
   "outline for readable small cells. Layout reserves their room and edges attach to the node's body; " +
   "SVG, PDF and PPTX draw them.";
 const SETS_NOTE =
-  "`sets` draws a translucent circle, ellipse, rounded hull or rounded rectangle around nodes and " +
+  "`sets` draws a translucent circle, ellipse (axis-parallel, or tilted to the members with " +
+  "`angle: auto` or by a given `angle`), rounded hull or rounded rectangle around nodes and " +
   "groups after they are placed, so a node can belong to several sets and sets may overlap: a Venn " +
   "diagram, or the hyperedges of a hypergraph. The tint is the tone's line color at low opacity, so " +
   "overlaps show in every theme, also the monochrome ones. Sets take no space in the arrange trees: " +
