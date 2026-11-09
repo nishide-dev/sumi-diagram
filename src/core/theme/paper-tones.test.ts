@@ -16,9 +16,9 @@ if (PAPER === undefined) throw new Error("missing paper");
 /** Fill and line (text, solid fill, edge) of each tone. */
 const EXPECTED = {
   gray: ["#dee1e8", "#656970"],
-  red: ["#f9c7bb", "#703226"],
-  orange: ["#fcdbb7", "#71480a"],
-  yellow: ["#d7d8aa", "#73722e"],
+  red: ["#f9c7bb", "#8b3c34"],
+  orange: ["#fcdbb7", "#8a4b00"],
+  yellow: ["#f8efbf", "#866c02"],
   green: ["#c6edcd", "#417a50"],
   blue: ["#d1e7ff", "#31608e"],
   purple: ["#d8cdf8", "#524177"],

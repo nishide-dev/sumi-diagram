@@ -11,9 +11,9 @@
 | tone | 塗り（旧 → 新） | 線（旧 → 新） |
 | --- | --- | --- |
 | gray | `#dcdee6` → `#dee1e8` | `#6b6e78` → `#656970` |
-| red | `#f6dcdb` → `#f9c7bb` | `#c0392b` → `#703226` |
-| orange | `#f9e0bc` → `#fcdbb7` | `#bd5410` → `#71480a` |
-| yellow | `#f1f4c6` → `#d7d8aa` | `#857500` → `#73722e` |
+| red | `#f6dcdb` → `#f9c7bb` | `#c0392b` → `#8b3c34`（案 B は `#703226`） |
+| orange | `#f9e0bc` → `#fcdbb7` | `#bd5410` → `#8a4b00`（案 B は `#71480a`） |
+| yellow | `#f1f4c6` → `#f8efbf` | `#857500` → `#866c02` |
 | green | `#d0e6cd` → `#c6edcd` | `#3f7d3a` → `#417a50` |
 | blue | `#cddff6` → `#d1e7ff` | `#2f62b0` → `#31608e` |
 | purple | `#dfdcef` → `#d8cdf8` | `#7240a8` → `#524177` |
@@ -39,4 +39,4 @@
 
 全 `*.sumi.yaml`（`research/` と非公開の図を除く）を、図自身のテーマと組み込み 6 テーマで描き、SVG と D2 の sha256 を前後で比べた。変わったのは `paper` の出力だけで、他の 5 テーマと、`themeOverrides` で色を明示した図（`gcn`・`tricl`）は 1 バイトも変わらない。D2 が変わったのは `images-auto`（`paper`）のみ。
 
-見た目で気づいた点: yellow の塗りが旧（`#f1f4c6`、明るい淡黄）よりくすんだオリーブ寄り（`#d7d8aa`）になり、Transformer の Add & Norm が重く見える。purple の塗りは旧より青紫が強くなる。どちらも案 B の選定の結果で、tone の側では直さない。
+見た目で気づいた点: yellow の塗りが旧（`#f1f4c6`、明るい淡黄）よりくすんだオリーブ寄り（`#f8efbf`）になり、Transformer の Add & Norm が重く見える。purple の塗りは旧より青紫が強くなる。どちらも案 B の選定の結果で、tone の側では直さない。

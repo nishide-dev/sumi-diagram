@@ -112,7 +112,7 @@ describe("structured text colors (#186)", () => {
     );
     expect(rendered.svg).toContain('fill="#fcdbb7"');
     expect(rendered.inspection.elements[0]?.labels[0]?.runs?.flat().map((r) => r.fill)).toEqual([
-      "#71480a",
+      "#8a4b00",
     ]);
   });
 

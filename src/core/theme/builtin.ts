@@ -698,13 +698,14 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
         surface: "#f3f3f5",
       },
       // Harmonized pastel fills (#434, #423 proposal B): similar lightness and
-      // chroma for every tone, so the eight tones read as one family.
+      // chroma for every tone, so the eight tones read as one family. Yellow, and the
+      // orange and red lines, deviate from B, which looked olive and brown.
       // The text (black) keeps a contrast of at least 15:1 on each.
       tone: {
         gray: "#dee1e8",
         red: "#f9c7bb",
         orange: "#fcdbb7",
-        yellow: "#d7d8aa",
+        yellow: "#f8efbf",
         green: "#c6edcd",
         blue: "#d1e7ff",
         purple: "#d8cdf8",
@@ -715,9 +716,9 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
       // about 0.1), at a contrast of at least 4.5:1 on white.
       ink: {
         gray: "#656970",
-        red: "#703226",
-        orange: "#71480a",
-        yellow: "#73722e",
+        red: "#8b3c34",
+        orange: "#8a4b00",
+        yellow: "#866c02",
         green: "#417a50",
         blue: "#31608e",
         purple: "#524177",
