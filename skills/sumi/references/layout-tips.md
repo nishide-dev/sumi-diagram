@@ -12,6 +12,7 @@ Contents: [choose the engine](#choose-the-engine-first) ·
 [**design principles**](#design-principles) ·
 [**plan the layout**](#plan-the-layout-before-writing-yaml) ·
 [paper figure recipe](#paper-figure-recipe) ·
+[critique against references](#critique-against-references) ·
 [two panels with a divider](#two-panels-with-a-dashed-divider) ·
 [labels and groups](#labels-and-groups)
 
@@ -403,6 +404,46 @@ does not fit the target, plan before writing:
    targets. Keep space that groups, aligns or sets apart; fix a disproportionate,
    unexplained void by moving notes or outputs or changing the arrangement, not by
    adding elements.
+
+## Critique against references
+
+Lint sees only part of what makes a paper figure weak. After the content check
+(SKILL.md step 7), look at your figure next to good ones, at the same width:
+
+```sh
+<skill-dir>/scripts/compare figure.svg <skill-dir>/examples/llada/llada.png   # → figure-compare.png
+```
+
+- Pass your figure (`.svg`, `.pdf` or `.png`) first, then 1–2 reference PNGs from
+  [examples](../examples/README.md): the closest by type and, for a dense overview,
+  `tricl/tricl.png` or `llada/llada.png` (the density benchmarks).
+- Images are stacked, or `--side` puts them left to right; `-w <px>` sets the common
+  width (default 1200); `-o <png>` moves the output (default `figure-compare.png`
+  beside your figure). It needs ImageMagick; without it the script says so and exits 1:
+  view the PNGs one after another then.
+- Open the result with Read. Prefer a fresh view: give a subagent only that image and
+  the checklist below (not your YAML or intentions) and ask for a verdict per item.
+
+Checklist (answer each with what you see; "fine" is not an answer):
+
+1. **Density and holes.** Is yours as full as the reference, or sparse and loose? Any
+   block-sized empty area that groups or aligns nothing?
+2. **Element sizes.** Are the same kinds of boxes, icons and arrows about equally
+   large, with stroke weights and arrowheads as deliberate as the reference's?
+3. **One visual vocabulary.** Does each kind of thing keep one form and tone in every
+   panel, with one legend, as in your visual-language table?
+4. **Colour harmony.** A few related tones with meaning, or clashing, saturated or
+   unrelated colours? Are neutrals used for structure?
+5. **Text amount.** Only short labels in the figure? Formulas, definitions and
+   explanations belong in the caption.
+6. **Stage flow.** Can the eye follow the stages (numbered columns, one main flow
+   direction) without crossing or backtracking?
+7. **Main subject.** Is the one thing the figure is about clearly the most prominent?
+
+Fix what fails (arrangement, sizes, tones, text), re-render, and compare again until
+no item fails or the rest is justified in your report. The `lint` infos about density
+and colour harmony (`geometry/sparse-figure`, `geometry/text-heavy-nodes`, `geometry/color-harmony`) are inputs to this critique:
+they are rough, and a figure can pass them and still fail the checklist.
 
 ## Paper figure recipe
 

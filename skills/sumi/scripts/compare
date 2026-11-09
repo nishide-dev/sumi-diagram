@@ -1,0 +1,189 @@
+#!/bin/sh
+# Put a rendered Sumi figure next to reference figures in one labelled PNG, all
+# at the same width, for a visual critique. Prints the PNG's path.
+# Usage: compare [-o <out.png>] [-w <width-px, default 1200>] [--side]
+#                <figure.svg|figure.pdf|figure.png> <reference.png>...
+#
+# The first image is yours; the rest are references (for example
+# <skill-dir>/examples/llada/llada.png). They are stacked top to bottom, or placed
+# left to right with --side, each scaled to the width and labelled with its file
+# name. The PNG is written next to your figure (figure.svg -> figure-compare.png,
+# overwriting) unless -o/--out names another .png path. Missing output
+# directories are created.
+#
+# Your figure is rasterized as follows: .svg by the sibling `preview` script,
+# .pdf by `pdftoppm` (poppler) or, on macOS, `sips`, .png as is.
+# Composing needs ImageMagick (`magick`, or `convert`). Without it the script
+# exits 1 and names the PNGs to view one after the other instead (nothing is
+# composed, so run `preview` yourself first if the figure is an SVG).
+#
+# On success only the PNG is written; on failure nothing is left behind.
+set -eu
+usage() {
+  echo "usage: compare [-o <out.png>] [-w <width>] [--side] <figure.svg|pdf|png> <reference.png>..." >&2
+  exit 2
+}
+dest=
+width=1200
+side=
+while [ $# -gt 0 ]; do
+  case $1 in
+    -o | --out)
+      [ $# -ge 2 ] || usage
+      dest=$2
+      shift 2
+      ;;
+    -w | --width)
+      [ $# -ge 2 ] || usage
+      width=$2
+      shift 2
+      ;;
+    --side)
+      side=1
+      shift
+      ;;
+    --)
+      shift
+      break
+      ;;
+    -*) usage ;;
+    *) break ;;
+  esac
+done
+if [ $# -lt 2 ]; then usage; fi
+case $width in
+  '' | *[!0-9]* | 0)
+    echo "compare: width must be a positive integer" >&2
+    exit 2
+    ;;
+esac
+for f in "$@"; do
+  if [ ! -f "$f" ]; then
+    echo "compare: no such file: $f" >&2
+    exit 2
+  fi
+done
+fig=$1
+shift
+case $fig in
+  *.svg | *.pdf | *.png) ;;
+  *)
+    echo "compare: the figure must be .svg, .pdf or .png" >&2
+    exit 2
+    ;;
+esac
+for f in "$@"; do
+  case $f in
+    *.png) ;;
+    *)
+      echo "compare: references must be .png: $f" >&2
+      exit 2
+      ;;
+  esac
+done
+
+here=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+fig_dir=$(CDPATH='' cd -- "$(dirname -- "$fig")" && pwd)
+name=$(basename -- "$fig")
+name=${name%.*}
+if [ -z "$dest" ]; then dest="$fig_dir/$name-compare.png"; fi
+case $dest in
+  *.png) ;;
+  *)
+    echo "compare: the output path must end in .png" >&2
+    exit 2
+    ;;
+esac
+if [ -d "$dest" ]; then
+  echo "compare: $dest is a directory" >&2
+  exit 2
+fi
+
+if command -v magick >/dev/null 2>&1; then
+  im="magick"
+elif command -v convert >/dev/null 2>&1; then
+  im="convert"
+else
+  echo "compare: ImageMagick (magick) is not installed, so the images cannot be composed." >&2
+  echo "compare: view them one after the other instead (yours first; preview makes a PNG of an SVG):" >&2
+  echo "compare:   $fig" >&2
+  for f in "$@"; do echo "compare:   $f" >&2; done
+  exit 1
+fi
+
+tmp=${TMPDIR:-/tmp}
+out=$(mktemp -d "${tmp%/}/sumi-compare.XXXXXX")
+cleanup() {
+  status=$?
+  rm -rf "$out"
+  exit "$status"
+}
+trap cleanup EXIT
+trap 'exit 130' INT TERM
+
+case $fig in
+  *.png) cp -- "$fig" "$out/0.png" ;;
+  *.svg) "$here/preview" -o "$out/0.png" "$fig" "$width" >/dev/null ;;
+  *.pdf)
+    if command -v pdftoppm >/dev/null 2>&1; then
+      pdftoppm -png -singlefile -scale-to-x "$width" -scale-to-y -1 "$fig" "$out/0"
+    elif command -v sips >/dev/null 2>&1; then
+      sips -s format png "$fig" --out "$out/0.png" >/dev/null
+    else
+      echo "compare: neither pdftoppm nor sips is available to rasterize a PDF" >&2
+      exit 1
+    fi
+    ;;
+esac
+
+font=
+for candidate in /System/Library/Fonts/Supplemental/Arial.ttf /System/Library/Fonts/Helvetica.ttc \
+  /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf /usr/share/fonts/dejavu/DejaVuSans.ttf \
+  /usr/share/fonts/TTF/DejaVuSans.ttf /usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf; do
+  if [ -f "$candidate" ]; then
+    font=$candidate
+    break
+  fi
+done
+
+# Scale every image to the width and add a label bar above it.
+i=0
+list="$out/0.png"
+for f in "$@"; do
+  i=$((i + 1))
+  cp -- "$f" "$out/$i.png"
+  list="$list $out/$i.png"
+done
+n=0
+parts=
+for p in $list; do
+  if [ "$n" -eq 0 ]; then
+    label="yours: $(basename -- "$fig")"
+  else
+    eval "ref=\${$n}"
+    label="reference: $(basename -- "$ref")"
+  fi
+  scaled="$p -background white -alpha remove -alpha off -resize ${width}x"
+  bar="-gravity north -background #e8e8e8 -splice 0x34 -fill black -pointsize 20 -gravity northwest"
+  # shellcheck disable=SC2086
+  if [ -n "$font" ] && $im $scaled $bar -font "$font" -annotate +10+7 "$label" +repage "$out/s$n.png" 2>/dev/null; then
+    :
+  else
+    # No usable font: keep an unlabelled grey bar and say which is which.
+    # shellcheck disable=SC2086
+    $im $scaled $bar +repage "$out/s$n.png"
+    echo "compare: no font for labels; the images are in this order: $label" >&2
+  fi
+  parts="$parts $out/s$n.png"
+  n=$((n + 1))
+done
+if [ -n "$side" ]; then
+  # shellcheck disable=SC2086
+  $im $parts -background white -gravity north -bordercolor white -border 6 +append "$out/result.png"
+else
+  # shellcheck disable=SC2086
+  $im $parts -background white -gravity northwest -bordercolor white -border 6 -append "$out/result.png"
+fi
+mkdir -p -- "$(dirname -- "$dest")"
+mv -f -- "$out/result.png" "$dest"
+echo "$dest"
