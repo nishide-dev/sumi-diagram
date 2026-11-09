@@ -11,7 +11,13 @@ import {
 import { contrastRatio } from "./node-variants";
 import { figureTheme } from "./overrides";
 import { BUILTIN_PALETTES, type Palette, withPalette } from "./palette";
-import { type DerivedTone, deriveTones, GRAY_SEPARATION, TONE_HUES } from "./palette-tones";
+import {
+  type DerivedTone,
+  deriveTones,
+  GRAY_SEPARATION,
+  TONE_HUES,
+  WARM_LINE_CHROMA,
+} from "./palette-tones";
 
 const palettes = [...BUILTIN_PALETTES.values()];
 const tones = Object.keys(TONE_HUES) as DerivedTone[];
@@ -25,6 +31,12 @@ const pairs = tones.flatMap((a, i) =>
 
 /** The shortest distance between two hues in degrees. */
 const hueGap = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180);
+
+/** Warm lines lean toward red (#444): orange and yellow may sit further from their nominal hue. */
+const hueTolerance = (tone: DerivedTone, kind: "fill" | "line") =>
+  kind === "line" && tone in WARM_LINE_CHROMA ? 28 : 14;
+/** The least gap between the hues of neighboring lines; red and orange lean together (#444). */
+const minHueGap = (a: DerivedTone, b: DerivedTone) => (a === "red" && b === "orange" ? 6 : 25);
 
 describe("derived tones (#423)", () => {
   test("every palette derives the seven tones other than gray, as lowercase hex", () => {
@@ -43,7 +55,7 @@ describe("derived tones (#423)", () => {
     }
   });
 
-  test("each tone keeps its own hue: blue stays blue (within 14 degrees of its nominal hue)", () => {
+  test("each tone keeps its own hue: blue stays blue (within 14 degrees of its nominal hue, 28 for the warm lines)", () => {
     for (const { id, tones: derived } of palettes) {
       for (const tone of tones) {
         for (const kind of ["fill", "line"] as const) {
@@ -51,7 +63,7 @@ describe("derived tones (#423)", () => {
           expect(
             hueGap(h, TONE_HUES[tone]),
             `${id} ${tone} ${kind} hue ${h.toFixed(0)}`,
-          ).toBeLessThanOrEqual(14);
+          ).toBeLessThanOrEqual(hueTolerance(tone, kind));
         }
       }
     }
@@ -64,7 +76,9 @@ describe("derived tones (#423)", () => {
         const next = (i + 1) % tones.length;
         const gap = ((hues[next] as number) - (hues[i] as number) + 360) % 360;
         // red 25, orange 62, yellow 100, green 145, blue 255, purple 305, pink 350, back to red.
-        expect(gap, `${id} ${tones[i]}-${tones[next]}`).toBeGreaterThanOrEqual(25);
+        expect(gap, `${id} ${tones[i]}-${tones[next]}`).toBeGreaterThanOrEqual(
+          minHueGap(tones[i] as DerivedTone, tones[next] as DerivedTone),
+        );
       }
     }
   });
@@ -83,7 +97,7 @@ describe("derived tones (#423)", () => {
         expect(fill.c, `${id} ${tone} fill C`).toBeGreaterThanOrEqual(0.045);
         expect(fill.c, `${id} ${tone} fill C`).toBeLessThanOrEqual(0.105);
         expect(line.c, `${id} ${tone} line C`).toBeGreaterThanOrEqual(0.07);
-        expect(line.c, `${id} ${tone} line C`).toBeLessThanOrEqual(0.15);
+        expect(line.c, `${id} ${tone} line C`).toBeLessThanOrEqual(WARM_LINE_CHROMA[tone] ?? 0.15);
       }
       // The fills of all tones are within a few L* of each other: they read as one family.
       const L = tones.map((t) => lightness(derived[t].fill));
@@ -177,6 +191,41 @@ describe("derived tones (#423)", () => {
         }
       }
     }
+  });
+});
+
+describe("warm solid fills do not turn brown or olive (#444)", () => {
+  /** What a solid orange or yellow must be (OKLCH), whatever the palette. */
+  const brown = (hex: string) => {
+    const { l, c, h } = toOklch(hex);
+    return { l, c, h };
+  };
+
+  test("orange lines stay vivid and orange-red (chroma 0.13+, hue under 50) in every palette", () => {
+    for (const { id, tones: derived } of palettes) {
+      const { l, c, h } = brown(derived.orange.line);
+      expect(c, `${id} orange chroma ${c.toFixed(3)}`).toBeGreaterThanOrEqual(0.13);
+      expect(h, `${id} orange hue ${h.toFixed(0)}`).toBeLessThan(50);
+      // As light as 4.5:1 with white text allows: darker is brown.
+      expect(l, `${id} orange lightness ${l.toFixed(2)}`).toBeGreaterThanOrEqual(0.5);
+    }
+  });
+
+  test("yellow lines lean to gold, not olive (hue under 90, chroma 0.10+)", () => {
+    for (const { id, tones: derived } of palettes) {
+      const { c, h } = brown(derived.yellow.line);
+      expect(h, `${id} yellow hue ${h.toFixed(0)}`).toBeLessThan(90);
+      expect(c, `${id} yellow chroma ${c.toFixed(3)}`).toBeGreaterThanOrEqual(0.1);
+    }
+  });
+
+  test("the paper theme's solid orange and yellow follow the same bounds", () => {
+    const paper = getTheme("paper");
+    const orange = brown(paper?.toneLines.get("orange")?.stroke ?? "");
+    const yellow = brown(paper?.toneLines.get("yellow")?.stroke ?? "");
+    expect(orange.c).toBeGreaterThanOrEqual(0.13);
+    expect(orange.h).toBeLessThan(50);
+    expect(yellow.h).toBeLessThan(90);
   });
 });
 
