@@ -28,7 +28,8 @@ figure:
     mask:
       src: assets/mask.svg
   themeOverrides:
-    lineWidth: 1pt
+    lineWidth: 0.25pt
+    edgeCorners: sharp
     nodeCorners: square
     frameWidth: 0.5pt
     arrowheadScale: 0.6
@@ -131,7 +132,8 @@ figure:
           # Time arrow t = 1 -> t = 0
           - { item: t-top, at: [ 1920, 90 ] }
           - { item: t-mid, at: [ 1920, 314 ] }
-          - { item: t-bot, at: [ 1920, 548 ] }
+          - { item: t-low, at: [ 1920, 538 ] }
+          - { item: t-bot, at: [ 1920, 558 ] }
           - { item: t-top2, at: [ 1906, 90 ] }
           - { item: t-mid2, at: [ 1906, 314 ] }
           - { item: t-bot2, at: [ 1906, 538 ] }
@@ -325,38 +327,40 @@ nodes:
   # Time arrow t = 1 -> t = 0
   - { id: t-top, component: junction, variant: hidden }
   - { id: t-mid, component: junction, variant: hidden }
+  - { id: t-low, component: junction, variant: hidden }
   - { id: t-bot, component: junction, variant: hidden }
   - { id: t-top2, component: junction, variant: hidden }
   - { id: t-mid2, component: junction, variant: hidden }
   - { id: t-bot2, component: junction, variant: hidden }
 edges:
   # (a) Pre-training: mask every token independently
-  - { from: a-mask-s, to: a-mask-e, route: straight, variant: dotted }
-  - { from: a-in-s, to: a-in-e, route: straight }
-  - { from: a-out1-s, to: a-out1-e, route: straight }
-  - { from: a-out2-s, to: a-out2-e, route: straight }
+  - { from: a-mask-s, to: a-mask-e, route: straight, variant: dotted, lineWidth: 1pt }
+  - { from: a-in-s, to: a-in-e, route: straight, lineWidth: 1pt }
+  - { from: a-out1-s, to: a-out1-e, route: straight, lineWidth: 1pt }
+  - { from: a-out2-s, to: a-out2-e, route: straight, lineWidth: 1pt }
   # Legend: mask token, non-mask token, remask, random mask
-  - { from: key-remask-s, to: key-remask-e, route: straight, variant: dashed }
-  - { from: key-random-s, to: key-random-e, route: straight, variant: dotted }
+  - { from: key-remask-s, to: key-remask-e, route: straight, variant: dashed, lineWidth: 1pt }
+  - { from: key-random-s, to: key-random-e, route: straight, variant: dotted, lineWidth: 1pt }
   # (b) SFT: only the response can be masked
-  - { from: b-mask-s, to: b-mask-e, route: straight, variant: dotted }
-  - { from: b-in-s, to: b-in-e, route: straight }
-  - { from: b-out1-s, to: b-out1-e, route: straight }
-  - { from: b-out2-s, to: b-out2-e, route: straight }
+  - { from: b-mask-s, to: b-mask-e, route: straight, variant: dotted, lineWidth: 1pt }
+  - { from: b-in-s, to: b-in-e, route: straight, lineWidth: 1pt }
+  - { from: b-out1-s, to: b-out1-e, route: straight, lineWidth: 1pt }
+  - { from: b-out2-s, to: b-out2-e, route: straight, lineWidth: 1pt }
   # (c) Sampling: from t = 1 (fully masked) to t = 0, with one intermediate step
-  - { from: c-in-s, to: c-in-e, route: straight }
-  - { from: c-out1-s, to: c-out1-e, route: straight }
-  - { from: c-out2-s, to: c-out2-e, route: straight }
-  - { from: c-out3-s, to: c-out3-e, route: straight }
-  - { from: c-rm1-s, to: c-rm1-e, route: straight, variant: dashed }
-  - { from: c-rm2-s, to: c-rm2-e, route: straight, variant: dashed }
-  - { from: c-rm3-s, to: c-rm3-e, route: straight, variant: dashed }
+  - { from: c-in-s, to: c-in-e, route: straight, lineWidth: 1pt }
+  - { from: c-out1-s, to: c-out1-e, route: straight, lineWidth: 1pt }
+  - { from: c-out2-s, to: c-out2-e, route: straight, lineWidth: 1pt }
+  - { from: c-out3-s, to: c-out3-e, route: straight, lineWidth: 1pt }
+  - { from: c-rm1-s, to: c-rm1-e, route: straight, variant: dashed, lineWidth: 1pt }
+  - { from: c-rm2-s, to: c-rm2-e, route: straight, variant: dashed, lineWidth: 1pt }
+  - { from: c-rm3-s, to: c-rm3-e, route: straight, variant: dashed, lineWidth: 1pt }
   # Time arrow t = 1 -> t = 0
-  - { from: t-top2, to: t-top, component: line, tone: red }
-  - { from: t-mid2, to: t-mid, component: line, tone: red }
-  - { from: t-bot2, to: t-bot, component: line, tone: red }
-  - { from: t-top, to: t-mid, component: line, tone: red }
-  - { from: t-mid, to: t-bot, tone: red }
+  - { from: t-top2, to: t-top, component: line, tone: red, lineWidth: 1pt }
+  - { from: t-mid2, to: t-mid, component: line, tone: red, lineWidth: 1pt }
+  - { from: t-bot2, to: t-low, component: line, tone: red, lineWidth: 1pt }
+  - { from: t-top, to: t-mid, component: line, tone: red, lineWidth: 1pt }
+  - { from: t-mid, to: t-low, component: line, tone: red, lineWidth: 1pt }
+  - { from: t-low, to: t-bot, route: straight, tone: red, lineWidth: 1pt }
 sets:
   - { id: step, members: [ c2, c-pred, c-r1, c-r2, c-r3, c-remask, c3 ], shape: rect, variant: dashed, fillOpacity: 0, padding: 3pt, cornerRadius: 3pt }
   - { id: key, members: [ key-mask, key-nonmask, key-t1, key-t2, key-t3, key-t4, key-remask-s, key-remask-e, key-random-s, key-random-e ], shape: rect, variant: outlined, padding: 3pt, cornerRadius: 3pt }
