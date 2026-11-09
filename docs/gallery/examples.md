@@ -46,6 +46,12 @@ The committed SVGs of <code>examples/</code>, rendered from their sources as wri
 
 <img src="../../examples/grouped/grouped.svg" alt="Nested groups">
 
+## LLaDA — overview of pre\-training, SFT and sampling
+
+[<code>examples/llada/llada\.sumi\.yaml</code>](../../examples/llada/llada.sumi.yaml) · [PDF](../../examples/llada/llada.pdf) · theme <code>paper</code> · profile <code>paper\-double</code> · 180mm × 53\.24mm \(max width 180mm, max height 220mm\)
+
+<img src="../../examples/llada/llada.svg" alt="LLaDA — overview of pre-training, SFT and sampling">
+
 ## Llama 4 — Mixture of Experts
 
 [<code>examples/llama4\-moe/llama4\-moe\.sumi\.yaml</code>](../../examples/llama4-moe/llama4-moe.sumi.yaml) · [PDF](../../examples/llama4-moe/llama4-moe.pdf) · theme <code>llama</code> · profile <code>paper\-double</code> · 156\.28mm × 107\.77mm \(max width 180mm, max height 220mm\)

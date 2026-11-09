@@ -121,6 +121,7 @@ describe.each(EXAMPLES)("%s", (example) => {
     const lines = textLines(inspected.glyphs);
     const unmatched = new Set(lines);
     let expected = 0;
+    const turned: string[] = [];
     const expectText = (
       text: string,
       box: { x: number; width: number },
@@ -146,6 +147,11 @@ describe.each(EXAMPLES)("%s", (example) => {
     };
     for (const element of inspection.value.elements) {
       for (const label of element.labels) {
+        // A turned label (`labelRotation`, #421) is drawn along the vertical, not on a baseline.
+        if (label.rotation !== undefined) {
+          turned.push(...renderedLines(label.text));
+          continue;
+        }
         const measured = measureLabel(label, fontSet);
         if (measured.runs !== undefined) {
           // Label math (#93): every run is text in its font, size and baseline.
@@ -165,6 +171,9 @@ describe.each(EXAMPLES)("%s", (example) => {
     expect(expected).toBeGreaterThan(0);
     // Color boundaries can isolate math-spacing runs. Like the expected runs
     // above, these carry no visible text; adjacent glyph positions verify spacing.
-    expect([...unmatched].map((l) => l.text).filter((text) => text.trim() !== "")).toEqual([]);
+    const rest = [...unmatched].map((l) => l.text).filter((text) => text.trim() !== "");
+    // Turned labels are drawn glyph by glyph along the vertical: all their letters remain.
+    if (turned.length === 0) expect(rest).toEqual([]);
+    else expect(rest.join("")).toBe(turned.join("").replace(/\s/g, ""));
   });
 });

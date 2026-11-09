@@ -178,6 +178,8 @@ members are node or group IDs (a group stands for its whole frame; `unknown memb
 | `label`, `labelAt` | outside the outline: `top` (default), `bottom`, `left`, `right`, or beside a diagonal extreme `top-left`, `top-right`, `bottom-left`, `bottom-right`. For a label inside, make a `label` node a member |
 | `tone`, `variant` | the tone's line color draws outline, label and (at low opacity) the tint in every theme, gray without a tone. `default` tint + outline, `filled` tint, `outlined` outline, `dashed`; `fillOpacity` (0..1) overrides the tint |
 
+- A member may be a whole [token sequence](#token-sequences) (the tokens node's ID): it
+  gets its frame like a node named by an edge, so a dashed rectangle can enclose rows of cells.
 - A set takes **no space** in the arrange trees: place the members first (`place` gives
   exact positions), then leave room around them for the outline and label, since the
   canvas grows to hold them. Sets are drawn over groups and under nodes and edges; an

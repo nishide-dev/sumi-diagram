@@ -1,6 +1,6 @@
 # Reference figures
 
-Twelve complete figures, each a YAML plus a PNG preview. Look at the closest ones
+Thirteen complete figures, each a YAML plus a PNG preview. Look at the closest ones
 **before you write a figure and again after you render it**. They are references
 for idioms (how boxes are arranged, which tone marks what, how notes are attached),
 not templates to copy content from. The paper figures cite their public paper in
@@ -26,6 +26,7 @@ figure material.
 | CLIP | Contrastive pre-training and zero-shot classification | panels, `grid`, `tokens`, `matrix`, curly bracket, shared image assets and crops, shared comb buses, monospace cards, `themeOverrides` (square/sharp corners) | `paper` / `paper-double` | [YAML](clip/clip.sumi.yaml), [PNG](clip/clip.png), [assets](clip/assets/) |
 | EmbeddingGemma | Multimodal inputs into a shared embedding space | `html` cards, image assets, `waveform`, `tokens`, aligned columns, orthogonal joins and an output bus, exact-color `themeOverrides` | `paper` / `paper-double` | [YAML](embedding-gemma/embedding-gemma.sumi.yaml), [PNG](embedding-gemma/embedding-gemma.png), [assets](embedding-gemma/assets/), [generator](embedding-gemma/generate-assets.ts) |
 | GCN | Multi-layer graph convolutional network (Kipf & Welling) | `place` (vertices by coordinates), repeated graph shape as stacked cards (`props.layers`), colored `route: curve` edges, undirected edges, per-figure tone colors (`themeOverrides.tones`, `groupFill`), picture asset | `paper` / `paper-double` | [YAML](gcn/gcn.sumi.yaml), [PNG](gcn/gcn.png), [assets and generator](gcn/assets/) |
+| LLaDA | Pre-training, SFT and sampling of a masked diffusion language model (Nie et al.) | a dense, wide figure with minimal text: one `place` at the reference's pixel coordinates (unit = 1 reference px), `tokens` rows with per-cell tones recoloured by `themeOverrides.tones`, a mask-cell SVG asset (`figure.assets`), hidden-junction arrows, `sets` as frames, curly `bracket`, `labelRotation`, `fit: scale` | `paper` / `paper-double` | [YAML](llada/llada.sumi.yaml), [PNG](llada/llada.png), [assets](llada/assets/) |
 | TriCL | A dense, wide overview of tri-directional contrast (Hwang et al.): hypergraph cards, two views, encoder and heads, contrast arrows | everything placed by coordinates (`place`), vertices with feature-vector `glyphs`, dashed hyperedges as `sets` (`shape: ellipse`, `angle: auto`), rect sets as gray panels, `legend` glyph and node samples, dotted curves through mid-edge markers, `block-arrow` stage arrows, thin strokes (`lineWidth`, `frameWidth`, `arrowheadScale`), the original's colors via `themeOverrides` (`tones`, `groupFill`, `groupStroke`), `density: compact`; a benchmark for density and proportions | `paper` / `paper-double` | [YAML](tricl/tricl.sumi.yaml), [PNG](tricl/tricl.png) |
 | Llama 4 MoE | Mixture-of-experts transformer block (Meta AI) | the `llama` theme (dark solid blocks, borderless muted panels, open chevron arrowheads), alternating Attention/FFN, dashed `zoom` into an expanded panel, ⊕ operator, hidden-junction forks sharing one bus | `llama` / `paper-double` | [YAML](llama4-moe/llama4-moe.sumi.yaml), [PNG](llama4-moe/llama4-moe.png) |
 
@@ -47,7 +48,7 @@ figure material.
 
 Choosing quickly: a paper block diagram with residuals or notes starts from
 Transformer or DiT; multi-panel figures with images or matrices from CLIP or
-EmbeddingGemma; graphs on coordinates from GCN; a dense wide overview of small pictures (hypergraphs, feature vectors, panels) from TriCL; a dark-theme model figure from
+EmbeddingGemma; graphs on coordinates from GCN; a dense wide figure of cell rows and short arrows from LLaDA; a dense wide overview of small pictures (hypergraphs, feature vectors, panels) from TriCL; a dark-theme model figure from
 Llama 4 MoE; messages from Chat or LLM dialogue; flows and tiers from the generic four.
 
 For a consistent visual vocabulary across panels, study GCN (the same vertex and

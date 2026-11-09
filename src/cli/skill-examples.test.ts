@@ -17,6 +17,7 @@ const NAMES = [
   "gcn",
   "tricl",
   "llama4-moe",
+  "llada",
   "chat",
   "llm-dialogue",
   "pipeline",
@@ -85,7 +86,7 @@ describe("bundled paper reference figures", () => {
     expect(readdirSync(join(SKILL, "examples")).sort()).toEqual(["README.md", ...NAMES].sort());
   });
 
-  test.each(["clip", "embedding-gemma", "gcn"])(
+  test.each(["clip", "embedding-gemma", "gcn", "llada"])(
     "%s asset mirrors match the canonical Skill files",
     (name) => {
       const canonical = join(SKILL, "examples", name, "assets");

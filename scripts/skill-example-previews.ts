@@ -10,6 +10,7 @@ for (const name of [
   "gcn",
   "tricl",
   "llama4-moe",
+  "llada",
   "chat",
   "llm-dialogue",
   "pipeline",

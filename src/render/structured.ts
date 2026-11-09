@@ -263,7 +263,13 @@ const DOCUMENT_EDGE = 0.8586;
 /** The drawing elements of a node's shape, whose bounding box is exactly `r`. */
 function nodeShape(node: NodeIR, r: Rect): string {
   const { style } = node;
-  const paints = ` fill="${paint(style.fill)}"${strokeAttributes(style)}`;
+  // A cell's painted extent is its box whatever its variant (#421): a stroke in the
+  // fill's own colour (a `solid` cell) would only grow it by half a stroke on every side.
+  const sameColourStroke =
+    node.tokens !== undefined && style.strokeWidth.units > 0 && style.stroke === style.fill;
+  const paints = ` fill="${paint(style.fill)}"${strokeAttributes(
+    sameColourStroke ? { ...style, strokeWidth: { ...style.strokeWidth, units: 0 } } : style,
+  )}`;
   const { x, y, width: w, height: h } = r;
   if (node.component === SEPARATOR_ID) {
     return `<path d="${pathData([

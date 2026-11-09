@@ -468,6 +468,17 @@ describe("errors (#181)", () => {
     ]);
   });
 
+  test("a set that names a tokens node makes it a whole sequence with a frame (#421)", () => {
+    const source = `${figure(CELLS, { edges: "  - { from: a, to: seq.x }" })}sets:
+  - { id: s, members: [seq], shape: rect }
+`;
+    const check = checkFigure(source);
+    expect(check.state.diagnostics).toEqual([]);
+    expect(check.state.doc.groups?.map((g) => g?.id)).toEqual(["seq"]);
+    const ir = buildFigureIR(check);
+    expect(ir.sets?.[0]?.members).toEqual(["g:seq"]);
+  });
+
   test("a one-cell sequence and a sequence inside a group have a frame too (#281)", () => {
     const source = `version: 1
 figure:
