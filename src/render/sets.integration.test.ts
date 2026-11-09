@@ -314,6 +314,51 @@ describe("lint", () => {
     ).toEqual([]);
   });
 
+  test("a set's outline through the text of an outside label is reported (#420)", async () => {
+    // A tilted ellipse around a, b and shared reaches the title of a group below them.
+    const source = `version: 1
+figure:
+  id: through-text
+  theme: color
+  layout:
+    arrange:
+      place:
+        unit: 10mm
+        items:
+          - { item: a, at: [0, 0] }
+          - { item: b, at: [2, 0.6] }
+          - { item: card, at: [1, 1.2] }
+nodes:
+  - { id: a, component: circle, label: A }
+  - { id: b, component: circle, label: B }
+  - { id: c, component: box, label: Note, group: card }
+groups:
+  - { id: card, label: Card title, arrange: { stack: { items: [c] } } }
+sets:
+  - { id: s, members: [a, b], shape: ellipse, angle: auto, padding: 6mm, variant: dashed }
+`;
+    const rendered = await render(source);
+    const hits = lintGeometry(rendered, { source }).filter(
+      (d) => d.code === "geometry/set-outline-crosses-text",
+    );
+    expect(hits.map((d) => d.subject?.id)).toEqual(["s"]);
+    expect(hits[0]?.message).toContain("crosses the text");
+    // Text of a member (its own label, inside the outline) is fine, and so is a clear set.
+    const clear = source.replace("padding: 6mm", "padding: 1mm").replace("[1, 1.2]", "[1, 3]");
+    const fine = await render(clear);
+    expect(
+      lintGeometry(fine, { source: clear }).filter(
+        (d) => d.code === "geometry/set-outline-crosses-text",
+      ),
+    ).toEqual([]);
+    const plain = await render(venn());
+    expect(
+      lintGeometry(plain, { source: venn() }).filter(
+        (d) => d.code === "geometry/set-outline-crosses-text",
+      ),
+    ).toEqual([]);
+  });
+
   test("a subset's label inside its superset is fine (containment)", async () => {
     const source = venn(
       "",

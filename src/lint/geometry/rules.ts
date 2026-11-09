@@ -46,7 +46,7 @@ import {
   polylinesRectDistance,
   rectSides,
 } from "./proximity";
-import { setContainsNonMember, setLabelCollision } from "./sets";
+import { setContainsNonMember, setLabelCollision, setOutlineCrossesText } from "./sets";
 import {
   CUBIC_STEPS,
   overhang,
@@ -2008,4 +2008,5 @@ export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
   reversedEdge,
   setContainsNonMember,
   setLabelCollision,
+  setOutlineCrossesText,
 ] as GeometryRule[]);

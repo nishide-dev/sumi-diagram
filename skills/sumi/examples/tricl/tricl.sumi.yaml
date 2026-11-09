@@ -201,10 +201,10 @@ edges:
   - { from: lk-m-m, to: lk-m-b, variant: dotted, tone: green }
   - { from: hyper, to: view1, route: curve, fromAnchor: east, toAnchor: west, label: "$\\mathit{T}_1$" }
   - { from: hyper, to: view2, route: curve, fromAnchor: east, toAnchor: west, label: "$\\mathit{T}_2$" }
-  - { from: enc1, to: phi1, fromAnchor: "east:0.24", toAnchor: west, labelAt: start, labelSide: left, label: "$\\mathit{P}_1$" }
-  - { from: enc1, to: psi1, fromAnchor: "east:0.75", toAnchor: west, labelAt: start, labelSide: left, label: "$\\mathit{Q}_1$" }
-  - { from: enc2, to: phi2, fromAnchor: "east:0.24", toAnchor: west, labelAt: start, labelSide: left, label: "$\\mathit{P}_2$" }
-  - { from: enc2, to: psi2, fromAnchor: "east:0.75", toAnchor: west, labelAt: start, labelSide: left, label: "$\\mathit{Q}_2$" }
+  - { from: enc1, to: phi1, fromAnchor: "east:0.24", toAnchor: west, labelAt: middle, labelSide: left, label: "$\\mathit{P}_1$" }
+  - { from: enc1, to: psi1, fromAnchor: "east:0.75", toAnchor: west, labelAt: middle, labelSide: left, label: "$\\mathit{Q}_1$" }
+  - { from: enc2, to: phi2, fromAnchor: "east:0.24", toAnchor: west, labelAt: middle, labelSide: left, label: "$\\mathit{P}_2$" }
+  - { from: enc2, to: psi2, fromAnchor: "east:0.75", toAnchor: west, labelAt: middle, labelSide: left, label: "$\\mathit{Q}_2$" }
   - { from: phi1, to: z1 }
   - { from: psi1, to: y1 }
   - { from: phi2, to: z2 }
@@ -228,6 +228,6 @@ sets:
   - { id: p-e1, members: [ p-a, p-b, p-c, p-e, p-f ], shape: ellipse, angle: auto, padding: 2.5pt, variant: dashed, fillOpacity: 0 }
   - { id: p-e2, members: [ p-d, p-g, p-e, p-h, p-k ], shape: ellipse, angle: auto, padding: 2.5pt, variant: dashed, fillOpacity: 0 }
   - { id: p-e3, members: [ p-e, p-f, p-i, p-j, p-h ], shape: ellipse, angle: auto, padding: 2.5pt, variant: dashed, fillOpacity: 0 }
-  - { id: q-e1, members: [ q-a, q-b, q-c, q-e, q-f ], shape: ellipse, angle: auto, padding: 2.5pt, variant: dashed, fillOpacity: 0 }
+  - { id: q-e1, members: [ q-a, q-b, q-e, q-f ], shape: ellipse, angle: auto, padding: 2.5pt, variant: dashed, fillOpacity: 0 }
   - { id: q-e2, members: [ q-d, q-g, q-e, q-h, q-k ], shape: ellipse, angle: auto, padding: 2.5pt, variant: dashed, fillOpacity: 0 }
   - { id: q-e3, members: [ q-e, q-f, q-i, q-j, q-h ], shape: ellipse, angle: auto, padding: 2.5pt, variant: dashed, fillOpacity: 0 }
