@@ -63,6 +63,17 @@ export interface StyleTarget<K extends ComponentKind = ComponentKind> {
   toneText?: boolean | undefined;
 }
 
+/**
+ * An icon-only `label` node with a tone (#445): the tone colors the icon, with the
+ * tone's line color (`toneLines`), since the label draws no fill or outline of its own.
+ */
+export function inksIcon(
+  id: ComponentId,
+  element: { icon?: string | undefined; tone?: string | undefined },
+): boolean {
+  return id === "sumi/label" && element.icon !== undefined && element.tone !== undefined;
+}
+
 /** Which of a theme's tone layers an element takes: `tones` or `toneLines` (#177). */
 export function toneField(kind: ComponentKind, variant: string): "tones" | "toneLines" {
   return kind === "edge" || variant === OUTLINED_VARIANT ? "toneLines" : "tones";
@@ -265,6 +276,14 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
         .fontColor;
       style = Object.freeze({ ...style, fontSize: small, fontColor: muted });
     }
+    if (style.kind === "node" && entry.kind === "node" && inksIcon(id, entry.element)) {
+      // An icon-only label (#445): its tone is the line color of the icon (Tabler icons stroke
+      // the text color). The tone's fill is not drawn: the label has no shape.
+      const line = theme.toneLines.get(entry.element.tone as Tone);
+      const ink = line?.fontColor ?? line?.stroke;
+      if (ink !== undefined && ink !== style.fontColor)
+        style = Object.freeze({ ...style, fontColor: ink });
+    }
     const solidFill = overrides?.solidFills?.[tone ?? "gray"];
     if (
       solidFill !== undefined &&
@@ -413,7 +432,7 @@ function reportToneContrast(state: CheckState, locate: Locator, theme: Theme): v
         override.text !== undefined ? "text" : "line",
         ink,
         "#ffffff",
-        "on white (outlined text, toned edge labels, \\textcolor runs)",
+        "on white (outlined text, toned edge labels, icon-only labels, \\textcolor runs)",
       );
   }
 }
@@ -429,7 +448,8 @@ function toneTextUses(state: CheckState): { onFill: Set<Tone>; onWhite: Set<Tone
       onFill.add(tone ?? "gray");
     if (
       tone !== undefined &&
-      (component?.variant === OUTLINED_VARIANT ||
+      ((component !== undefined && inksIcon(component.id, element)) ||
+        component?.variant === OUTLINED_VARIANT ||
         state.doc.paints?.get(key)?.toneText === true ||
         (kind === "edge" && element.label !== undefined && element.label !== ""))
     )
