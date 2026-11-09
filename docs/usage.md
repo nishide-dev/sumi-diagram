@@ -167,7 +167,7 @@ Use slides + presentation-16x9 together. Other built-in themes are too small for
 
 ## Icons and images
 
-Use `icon: tabler/<name>` instead of a node label for one of 4,808 bundled Tabler outline icons (Brand category excluded; MIT). Icons follow text color. The 47 bundled `emoji/<name>` Fluent Emoji Flat icons retain their multicolor palette, including in dimmed groups. Search with `sumi catalog --icons <words>`; `--icons ""` lists all names. Badges can place icons on node corners. `iconSize` draws a larger icon without an enclosing shape: a number is a multiple of the font size (`iconSize: 2`), a string a length (`iconSize: "12mm"`); a `label` node is sized to exactly the icon, and a legend `icon` entry takes the same field (design record [#424](design/decisions/424-icon-size.md)).
+Use `icon: tabler/<name>` instead of a node label for one of 4,808 bundled Tabler outline icons (Brand category excluded; MIT). Icons follow text color. The 47 bundled `emoji/<name>` Fluent Emoji Flat icons retain their multicolor palette, including in dimmed groups. Search with `sumi catalog --icons <words>`; `--icons ""` lists all names. Badges can place icons on node corners. `iconSize` draws a larger icon without an enclosing shape: a number is a multiple of the font size (`iconSize: 2`), a string a length (`iconSize: "12mm"`); a `label` node is sized to exactly the icon, and a legend `icon` entry takes the same field (design record [#424](design/decisions/424-icon-size.md)). A `tone` on a `label` node with an icon colors the icon's lines with the tone's line color, and a legend `icon` entry takes `iconTone` (design record [#445](design/decisions/445-icon-tone.md)).
 
 ```yaml
 nodes:

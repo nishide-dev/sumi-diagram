@@ -323,7 +323,7 @@ HTML/CSS の入口は後続の #283 で扱います。
 
 node の `icon: tabler/<name>` で、同梱の [Tabler Icons](https://github.com/tabler/tabler-icons)（MIT。outline から Brand カテゴリを除いた 4,808 個）のアイコンをラベルの代わりに描けます。色は node の文字色に従います。名前は `sumi catalog --icons <語>` で探せます。自分の画像は `component: image` と `props.src`（YAML ファイルからの相対パス。PNG / JPEG / SVG）・`width` か `height` で埋め込みます。Sumi は画像を加工せずそのまま埋め込み、SVG は許可した図形だけを取り込みます（スクリプトや外部への参照は位置付きのエラー）。編集可能 PPTX では使えません（[設計 §6.25](design/phase1.md#625-94-のユーザー画像と同梱アイコン)）。
 
-`emoji/<name>` は同梱の Fluent Emoji Flat 47 点（MIT）の多色アイコンです。薄表示のグループでも元の色を保ちます。`sumi catalog --icons ""` で全名前を確認できます。アイコンを角に置く badge も使えます。`iconSize` でアイコンを円などで囲まずに大きく描けます（数値は文字の大きさの倍数、`"12mm"` のような文字列は長さ。凡例の `icon` の見本も同じ指定に従います。[設計記録 #424](design/decisions/424-icon-size.md)）。node の `glyphs` で、アイコンの右上などに小さな特徴ベクトル（色付きのセルの縦列・横列）・点・pill を添えられます（[設計記録 #408](design/decisions/408-node-glyphs.md)）。[アセットの参照](../skills/sumi/references/assets.md)を参照してください。
+`emoji/<name>` は同梱の Fluent Emoji Flat 47 点（MIT）の多色アイコンです。薄表示のグループでも元の色を保ちます。`sumi catalog --icons ""` で全名前を確認できます。アイコンを角に置く badge も使えます。`iconSize` でアイコンを円などで囲まずに大きく描けます（数値は文字の大きさの倍数、`"12mm"` のような文字列は長さ。凡例の `icon` の見本も同じ指定に従います。[設計記録 #424](design/decisions/424-icon-size.md)）。アイコンだけの `label` ノードの `tone` は、アイコンの線をその tone の線の色で描きます（凡例の `icon` の見本は `iconTone`。[設計記録 #445](design/decisions/445-icon-tone.md)）。node の `glyphs` で、アイコンの右上などに小さな特徴ベクトル（色付きのセルの縦列・横列）・点・pill を添えられます（[設計記録 #408](design/decisions/408-node-glyphs.md)）。[アセットの参照](../skills/sumi/references/assets.md)を参照してください。
 
 ```yaml
 nodes:

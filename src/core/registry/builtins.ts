@@ -629,6 +629,12 @@ const legendEntry = z
     iconSize: IconSize.optional().describe(
       'Side of the sample icon, as the node field iconSize: a number of ems of the legend\'s font size (e.g. 2) or a length (e.g. "8mm"). Needs icon.',
     ),
+    iconTone: z
+      .enum(TONE_NAMES)
+      .optional()
+      .describe(
+        "Tone of the sample icon, as the node field tone on an icon-only label: the icon is drawn in the tone's line color. Needs icon.",
+      ),
     glyph: glyphShape
       .omit({ at: true, dx: true, dy: true })
       .superRefine(checkGlyph)
@@ -697,6 +703,13 @@ const legendEntry = z
         code: "custom",
         path: ["iconSize"],
         message: 'iconSize needs "icon" in the same entry',
+      });
+    }
+    if (entry.iconTone !== undefined && entry.icon === undefined) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["iconTone"],
+        message: 'iconTone needs "icon" in the same entry',
       });
     }
     const kinds = [entry.edge, entry.node, entry.class, entry.icon, entry.glyph, entry.set].filter(
