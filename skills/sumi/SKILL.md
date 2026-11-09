@@ -203,9 +203,9 @@ with Read, ~6 px per printed mm of the larger side:
    squashed; a block-sized void has a reason (grouping, alignment), else re-arrange.
 3. **Consistency (paper figures).** Against the visual-language table: the same kind
    of thing looks the same in every panel; no text-heavy boxes; one legend; no edge
-   crosses a panel except the main flow; the figure reads without its caption.
-4. **Compare.** View your PNG next to the chosen examples' PNGs: spacing, tone use,
-   notes and text sizes should be as deliberate. Fix the gaps that are yours.
+   crosses a panel except the main flow; the figure reads without its caption; resolve
+   `geometry/sparse-figure` and `text-heavy-nodes` ([density](references/diagnostics.md#density-of-paper-figures)), never suppress.
+4. **Compare.** View your PNG next to the chosen examples' PNGs: spacing, tone use, notes and text sizes should be as deliberate.
 
 ### 8. Report
 

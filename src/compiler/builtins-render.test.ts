@@ -105,7 +105,10 @@ describe("structured-only built-in components render", () => {
         const rendered = await renderFigure(structuredPrimitivesFigure(theme));
         if (!rendered.ok) throw new Error(JSON.stringify(rendered.diagnostics, null, 2));
         expect(rendered.diagnostics).toEqual([]);
-        expect(lintGeometry(rendered.value, {})).toEqual([]);
+        // A component catalog sheet is sparse by construction (slides text is large).
+        expect(
+          lintGeometry(rendered.value, {}).filter((d) => d.code !== "geometry/sparse-figure"),
+        ).toEqual([]);
         const { ir } = rendered.value.compiled;
         expect(ir.meta.engine).toBe("structured");
         const markup = elementMarkup(rendered.value.svg);

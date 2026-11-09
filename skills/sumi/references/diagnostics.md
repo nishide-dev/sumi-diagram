@@ -216,6 +216,8 @@ written; errors make the exit code 1. Configure like structural rules
 | `geometry/badge-collision` | warning | a badge touches labels, other bodies, badges, edges or the canvas edge (its own body may overlap): change the corner, increase gaps / margin; invalid badge icons: `asset/unknown-icon` at `badge.icon` |
 | `geometry/glyph-collision` | warning | a glyph (feature vector, dot, pill) touches other bodies, labels, badges, glyphs, edges or the canvas edge, or covers its own text (its own body and icon may be touched): change `at`, `dx` / `dy` or `size`, increase gaps / margin |
 | `geometry/group-empty-area` | info | at least 75% of a group's frame lies outside its title and direct children (occupancy estimate; nested groups count fully; tokens/matrix/legend frames skipped; not counted in `maxWarnings`): consider `align: stretch` with inner `justify: stretch`, `justify: space-between`, smaller gaps, or do not stretch the panel; intentional whitespace needs no change |
+| `geometry/sparse-figure` | info | paper profile or `figure.target`; at least 30 drawn nodes, node bodies/text/badges/glyphs cover under 34% of the canvas and each node gets more than 330mm² of printed canvas (not counted in `maxWarnings`): see [density](#density-of-paper-figures) |
+| `geometry/text-heavy-nodes` | info | paper profile or `figure.target`; a figure of 12+ nodes with at least 2 nodes whose label holds 36+ characters (chat `bubble` excluded): move formulas and explanations to the caption, shorten labels to names, use a small `sublabel` |
 
 Custom outlines: `geometry/label-overflow` checks the renderer's safe label
 rectangle and, for stroked outlines, overlap with boundary segments (including
@@ -249,3 +251,18 @@ row may become the widest. If it is still too wide, build candidates from the
 [options](layout-tips.md#when-width-runs-short) (auto: the other `direction`;
 structured: [rows](layout-tips.md#folding-a-flow-into-rows), smaller `gap`s, panels;
 `figure.fit: scale`) and compare them measured; a wider profile is the user's decision.
+
+## Density of paper figures
+
+`geometry/sparse-figure` and `geometry/text-heavy-nodes` are info, but for a paper
+figure treat them as work to do: change the layout until they are gone, and suppress
+one only when the sparseness or the sentences are the point of the figure.
+Thresholds come from dense reference figures (TriCL, LLaDA: fill 36-41%, 78-194mm² per node)
+and sparse trial figures (27-32%, 378-433mm² per node).
+
+- Sparse: shrink the canvas rather than add content: smaller `gap`s and padding,
+  `layout.density: compact`, a lower `figure.target.height`, or larger elements
+  (bigger text, icons) so the same content fills a smaller area. The message names
+  the largest empty area: move the legend or scattered labels into it.
+- Text-heavy: a box holds a name, not a sentence. Move formulas and explanations to
+  the caption, or split into a title and a short `sublabel`.

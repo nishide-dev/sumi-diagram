@@ -136,6 +136,7 @@ describe("structured: #167 figures B and C on paper-double", () => {
     expect(diagnostics.map((d) => [d.code, d.severity, d.subject?.id])).toEqual([
       ["geometry/heavy-scaling", "info", "stage-c-h3world"],
       ["geometry/script-too-small", "info", "stage-c-h3world"],
+      ["geometry/text-heavy-nodes", "info", "stage-c-h3world"],
       ["geometry/edge-jog", "info", "edges[17]"],
       ["geometry/edge-jog", "info", "edges[20]"],
     ]);
