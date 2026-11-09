@@ -7,7 +7,21 @@ figure:
   id: clip-overview
   title: CLIP — Summary of our approach
   theme: paper
-  themeOverrides: { nodeCorners: square, edgeCorners: sharp, groupLabelWeight: regular }
+  # Pinned to figure 1's own colors (draw.io's purple, green and blue), not the
+  # theme's: each tone is a pale fill with a matching frame; the monospace
+  # placeholders are pink, the matching cells' text dark.
+  themeOverrides:
+    nodeCorners: square
+    edgeCorners: sharp
+    groupLabelWeight: regular
+    groupFill: "#ffffff"
+    groupStroke: "#000000"
+    tones:
+      purple: { fill: "#e1d5e7", line: "#9673a6", text: "#000000" }
+      green: { fill: "#d5e8d4", line: "#82b366", text: "#000000" }
+      blue: { fill: "#dae8fc", line: "#6c8ebf", text: "#000000" }
+      pink: { fill: "#ffffff", line: "#666666", text: "#a65a8c" }
+      gray: { fill: "#ffffff", line: "#666666", text: "#333333" }
   profile: paper-double
   fit: scale
   layout:
@@ -83,7 +97,7 @@ nodes:
       cellWidth: 29pt
       cellHeight: 25pt
       variant: outlined
-      classes: { d: { tone: blue, variant: tinted }, o: {} }
+      classes: { d: { tone: blue, variant: tinted }, o: { tone: gray } }
       ellipsisRows: [ 4 ]
       ellipsisColumns: [ 4 ]
       cells:
@@ -95,6 +109,7 @@ nodes:
   - id: labels
     component: tokens
     mono: true
+    tone: pink
     props: { direction: down, gap: 0, width: 32pt, height: 18pt, variant: outlined, cells: [ plane, car, dog, { label: '⋮', component: label, variant: default }, bird ] }
   - { id: label-brace, component: bracket, attach: { to: labels, side: east, gap: 3pt }, props: { form: curly } }
   - { id: prompt, component: box, mono: true, label: "A photo of\na $\\textcolor{pink}{\\text{\\{object\\}}}$.", props: { width: 72pt, height: 30pt } }
@@ -113,7 +128,7 @@ nodes:
       cellWidth: 29pt
       cellHeight: 25pt
       variant: outlined
-      classes: { d: { tone: blue, variant: tinted }, o: {} }
+      classes: { d: { tone: blue, variant: tinted }, o: { tone: gray } }
       ellipsisColumns: [ 4 ]
       cells:
         - [ { class: o, text: '$I_1\cdot T_1$' }, { class: o, text: '$I_1\cdot T_2$' }, { class: d, text: '$\textcolor{gray}{I_1\cdot T_3}$' }, o, { class: o, text: '$I_1\cdot T_N$' } ]

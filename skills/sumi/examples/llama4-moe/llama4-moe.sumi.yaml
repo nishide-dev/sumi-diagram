@@ -6,6 +6,16 @@ figure:
   id: llama4-moe
   title: Llama 4 — Mixture of Experts
   theme: llama
+  # Pinned to the Meta figure's colors (sampled from it), not the theme's: the
+  # dark slate Attention blocks (gray line), the Router's gray, the pale panel
+  # behind Mixture of Experts and the white Routed Experts panel inside it
+  # (`tone: blue` stands for "white" here), all without a frame.
+  themeOverrides:
+    groupFill: "#f1f4f7"
+    groupStroke: "#f1f4f7"
+    tones:
+      gray: { fill: "#cbd2d9", line: "#465a69" }
+      blue: { fill: "#ffffff", line: "#ffffff" }
   profile: paper-double
   layout:
     arrange:
@@ -41,6 +51,7 @@ groups:
   - id: routed
     label: Routed Experts
     variant: muted
+    tone: blue
     arrange:
       stack:
         direction: up

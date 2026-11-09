@@ -13,6 +13,13 @@ figure:
     edgeCorners: sharp
     solidFills: { blue: '#3d9df5', orange: '#e8a20c', red: '#e04848' }
     dashedGroupStroke: '#527da5'
+    # Pinned to the original's colors, not the theme's: the gray panel behind
+    # the modular encoders, the red waveform, the frame of the token strip.
+    groupFill: '#ffffff'
+    groupStroke: '#545454'
+    tones:
+      gray: { fill: '#dadada' }
+      red: { line: '#e04848', text: '#c53030' }
   profile: paper-double
   layout:
     density: compact

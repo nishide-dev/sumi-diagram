@@ -8,6 +8,19 @@ figure:
   id: dit-block
   title: DiT block variants (structured layout, paper theme)
   theme: paper
+  # Pinned to figure 3's own colors, not the theme's: bluish gray, blue, green,
+  # orange and red blocks (the dimmed panels dim these), light gray panels in
+  # black frames.
+  themeOverrides:
+    groupFill: "#f3f3f6"
+    groupStroke: "#000000"
+    tones:
+      gray: { fill: "#d4d7e3", line: "#000000", text: "#000000" }
+      blue: { fill: "#c6dbfe", line: "#000000", text: "#000000" }
+      green: { fill: "#c3e3bd", line: "#000000", text: "#000000" }
+      orange: { fill: "#f9cc8b", line: "#000000", text: "#000000" }
+      red: { fill: "#fbbcb9", line: "#000000", text: "#000000" }
+      purple: { fill: "#f3f3f6", line: "#000000", text: "#000000" } # the DiT Block's panel gray
   profile: paper-double
   fit: scale
   layout:
@@ -82,7 +95,7 @@ nodes:
   - { id: embed, component: box, label: Embed, tone: blue, variant: filled }
   - { id: timestep, component: box, label: Timestep $t$, tone: blue, variant: filled }
   - { id: class-label, component: box, label: Label $y$, tone: blue, variant: filled }
-  - { id: dit-block, component: box, label: DiT Block, props: { height: 34pt } }
+  - { id: dit-block, component: box, label: DiT Block, tone: purple, props: { height: 34pt } }
   - { id: dit-n, component: label, label: N x, attach: { to: dit-block, side: west, gap: 1.5mm } }
   - { id: layer-norm, component: box, label: Layer Norm, tone: blue, variant: filled }
   - { id: linear, component: box, label: Linear and Reshape, tone: green, variant: filled }

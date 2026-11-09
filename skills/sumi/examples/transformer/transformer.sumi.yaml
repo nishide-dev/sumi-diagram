@@ -15,6 +15,18 @@ figure:
   id: transformer
   title: Transformer (structured layout, paper theme)
   theme: paper
+  # Pinned to figure 1's own colors, not the theme's: the pastel of each block
+  # type, light gray panels in black rounded frames.
+  themeOverrides:
+    groupFill: "#f2f2f2"
+    groupStroke: "#000000"
+    tones:
+      pink: { fill: "#fce0e1" }
+      orange: { fill: "#ffe2bb" }
+      yellow: { fill: "#f1f3c0" }
+      blue: { fill: "#c2e8f7" }
+      purple: { fill: "#dadeee" }
+      green: { fill: "#cbe6ce" }
   profile: paper-single
   layout:
     density: compact

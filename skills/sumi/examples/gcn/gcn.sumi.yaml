@@ -12,6 +12,7 @@ figure:
     # The original's palette: white cards with black frames, pale node fills,
     # frames and edges in the tone line colours, black node text.
     groupFill: "#ffffff"
+    groupStroke: "#000000"
     tones:
       blue: { fill: "#dfe1ea", line: "#5f6a95", text: "#000000" }
       orange: { fill: "#ffe6d3", line: "#fc8226", text: "#000000" }
