@@ -16,6 +16,8 @@ figure material.
    from the user.
 5. After rendering, compare your output PNG with the example's: spacing, text
    size, tone use, how notes and edges are drawn. Fix the differences that are yours.
+   `scripts/compare figure.svg <example.png>` puts them side by side at one width
+   ([critique checklist](../references/layout-tips.md#critique-against-references)).
 
 ## Structured paper figures (`figure.layout.arrange`)
 

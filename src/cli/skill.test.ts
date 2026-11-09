@@ -196,7 +196,7 @@ describe("skill metadata", () => {
   });
 
   test("helper scripts exist and are executable", () => {
-    for (const script of ["sumi", "preview"]) {
+    for (const script of ["sumi", "preview", "compare"]) {
       expect(() => accessSync(join(SKILL_DIR, "scripts", script), constants.X_OK)).not.toThrow();
     }
   });
@@ -943,6 +943,172 @@ describe("scripts/preview", () => {
       const run = await runScript("preview", [svg], { ...env, FAKE_QL_FAIL: "1" });
       expect(run.exitCode).not.toBe(0);
       expect(run.stdout).toBe("");
+      expect(readdirSync(tmp)).toEqual([]);
+    });
+  });
+});
+
+/**
+ * `scripts/compare` with stand-in `magick` and `pdftoppm` first on PATH (no
+ * network, no real image tools needed): the stand-in `magick` logs its
+ * arguments and writes a dummy PNG to its last argument, or fails when
+ * FAKE_IM_FAIL is set.
+ */
+describe("scripts/compare", () => {
+  async function withFakeMagick(
+    fn: (
+      env: Record<string, string>,
+      dirs: { work: string; tmp: string; log: string },
+    ) => Promise<void>,
+  ) {
+    const work = await mkdtemp(join(tmpdir(), "sumi-compare-test-"));
+    const bin = join(work, "bin");
+    const tmp = join(work, "tmp");
+    const log = join(work, "magick.log");
+    await mkdir(bin);
+    await mkdir(tmp);
+    await writeFile(
+      join(bin, "magick"),
+      [
+        "#!/bin/sh",
+        'if [ -n "$FAKE_IM_FAIL" ]; then exit 1; fi',
+        'echo "$*" >> "$FAKE_IM_LOG"',
+        'for last in "$@"; do :; done',
+        'printf png > "$last"',
+        "",
+      ].join("\n"),
+      { mode: 0o755 },
+    );
+    // pdftoppm ... <file.pdf> <prefix>: writes <prefix>.png
+    await writeFile(
+      join(bin, "pdftoppm"),
+      ["#!/bin/sh", 'for last in "$@"; do :; done', 'printf png > "$last.png"', ""].join("\n"),
+      { mode: 0o755 },
+    );
+    try {
+      await fn(
+        { PATH: `${bin}:${process.env.PATH ?? ""}`, TMPDIR: tmp, FAKE_IM_LOG: log },
+        { work, tmp, log },
+      );
+    } finally {
+      await rm(work, { recursive: true, force: true });
+    }
+  }
+
+  async function pngs(dir: string, ...names: string[]): Promise<string[]> {
+    const paths: string[] = [];
+    for (const name of names) {
+      const path = join(dir, name);
+      await writeFile(path, "png");
+      paths.push(path);
+    }
+    return paths;
+  }
+
+  test("stacks the figure and references into <figure>-compare.png beside the figure", async () => {
+    await withFakeMagick(async (env, { work, tmp, log }) => {
+      const dir = join(work, "figs");
+      await mkdir(dir);
+      const [fig, ref1, ref2] = await pngs(dir, "mine.png", "llada.png", "tricl.png");
+      const run = await runScript("compare", ["-w", "900", fig ?? "", ref1 ?? "", ref2 ?? ""], env);
+      expect(run.stderr).toBe("");
+      expect(run.exitCode).toBe(0);
+      expect(run.stdout.trim()).toBe(join(dir, "mine-compare.png"));
+      expect(readdirSync(dir).sort()).toEqual([
+        "llada.png",
+        "mine-compare.png",
+        "mine.png",
+        "tricl.png",
+      ]);
+      expect(readdirSync(tmp)).toEqual([]);
+      const calls = readFileSync(log, "utf8").trim().split("\n");
+      // three scaled-and-labelled images, then one composition
+      expect(calls).toHaveLength(4);
+      expect(calls.slice(0, 3).every((call) => call.includes("-resize 900x"))).toBe(true);
+      const annotations = calls.slice(0, 3).join("\n");
+      expect(annotations).toContain("yours: mine.png");
+      expect(annotations).toContain("reference: llada.png");
+      expect(annotations).toContain("reference: tricl.png");
+      expect(calls[3]).toContain("-append");
+      expect(calls[3]).not.toContain("+append");
+    });
+  });
+
+  test("--side places the images left to right; -o names the output and creates its folder", async () => {
+    await withFakeMagick(async (env, { work, log }) => {
+      const [fig, ref] = await pngs(work, "mine.png", "ref.png");
+      const out = join(work, "out", "nested", "side.png");
+      const run = await runScript("compare", ["--side", "-o", out, fig ?? "", ref ?? ""], env);
+      expect(run.exitCode).toBe(0);
+      expect(run.stdout.trim()).toBe(out);
+      expect(existsSync(out)).toBe(true);
+      expect(existsSync(join(work, "mine-compare.png"))).toBe(false);
+      const calls = readFileSync(log, "utf8").trim().split("\n");
+      expect(calls[calls.length - 1]).toContain("+append");
+      expect(calls[0]).toContain("-resize 1200x");
+    });
+  });
+
+  test("rasterizes a PDF figure with pdftoppm", async () => {
+    await withFakeMagick(async (env, { work, tmp }) => {
+      const [ref] = await pngs(work, "ref.png");
+      const pdf = join(work, "mine.pdf");
+      await writeFile(pdf, "%PDF-1.4");
+      const run = await runScript("compare", [pdf, ref ?? ""], env);
+      expect(run.stderr).toBe("");
+      expect(run.exitCode).toBe(0);
+      expect(run.stdout.trim()).toBe(join(work, "mine-compare.png"));
+      expect(readdirSync(tmp)).toEqual([]);
+    });
+  });
+
+  test("rejects bad usage with exit 2 and writes nothing", async () => {
+    await withFakeMagick(async (env, { work }) => {
+      const [fig, ref] = await pngs(work, "mine.png", "ref.png");
+      const cases: [string[], string][] = [
+        [[fig ?? ""], "usage:"],
+        [["-o", join(work, "x.txt"), fig ?? "", ref ?? ""], "must end in .png"],
+        [["-w", "0", fig ?? "", ref ?? ""], "width must be a positive integer"],
+        [[fig ?? "", join(work, "missing.png")], "no such file"],
+        [[join(work, "ref.png"), join(work, "mine.png"), "-w", "5"], "no such file"],
+      ];
+      for (const [args, message] of cases) {
+        const run = await runScript("compare", args, env);
+        expect(run.exitCode, args.join(" ")).toBe(2);
+        expect(run.stderr).toContain(message);
+      }
+      expect(readdirSync(work).sort()).toEqual(["bin", "mine.png", "ref.png", "tmp"]);
+    });
+  });
+
+  test("without ImageMagick it exits 1, names the images to view and writes nothing", async () => {
+    await withFakeMagick(async (env, { work, tmp }) => {
+      const [fig, ref] = await pngs(work, "mine.png", "ref.png");
+      const tools = join(work, "tools");
+      await mkdir(tools);
+      for (const command of ["basename", "dirname", "mktemp", "rm", "cp", "mkdir", "mv"]) {
+        const target = Bun.which(command, { PATH: "/usr/bin:/bin" });
+        expect(target, command).not.toBeNull();
+        await symlink(target ?? "", join(tools, command));
+      }
+      const run = await runScript("compare", [fig ?? "", ref ?? ""], { ...env, PATH: tools });
+      expect(run.exitCode).toBe(1);
+      expect(run.stdout).toBe("");
+      expect(run.stderr).toContain("ImageMagick");
+      expect(run.stderr).toContain(fig ?? "");
+      expect(run.stderr).toContain(ref ?? "");
+      expect(existsSync(join(work, "mine-compare.png"))).toBe(false);
+      expect(readdirSync(tmp)).toEqual([]);
+    });
+  });
+
+  test("leaves nothing behind when ImageMagick fails", async () => {
+    await withFakeMagick(async (env, { work, tmp }) => {
+      const [fig, ref] = await pngs(work, "mine.png", "ref.png");
+      const run = await runScript("compare", [fig ?? "", ref ?? ""], { ...env, FAKE_IM_FAIL: "1" });
+      expect(run.exitCode).not.toBe(0);
+      expect(run.stdout).toBe("");
+      expect(existsSync(join(work, "mine-compare.png"))).toBe(false);
       expect(readdirSync(tmp)).toEqual([]);
     });
   });

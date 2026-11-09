@@ -64,7 +64,7 @@ Before writing YAML, make sure you know:
   tokens; [choose](references/layout-tips.md#choose-the-engine-first)), planned first ([paper figure workflow](#paper-figure-workflow)).
 
 Ask once, briefly, for what is missing. If told to go ahead, assume `paper-single` +
-`minimal` (`paper` for a paper figure); report it.
+`minimal` (`paper` for a paper figure) and report it.
 
 ### 2. Check the environment (once per session)
 
@@ -162,8 +162,7 @@ sumi lint --geometry --json figure.sumi.yaml   # lint + render in memory + geome
 sumi render figure.sumi.yaml -o figure.pdf     # vector PDF (or -o figure.pptx); same checks
 ```
 
-Write PDF or PPTX (one picture) only when asked ([output
-formats](references/figure-format.md#output-formats)); inspect the SVG either way.
+Write PDF or PPTX (one picture) only when asked ([output formats](references/figure-format.md#output-formats)); inspect the SVG either way.
 `render` reports `geometry/*` diagnostics (page size, text size, overflow, overlaps).
 Geometry errors exit 1 but **the SVG is still written**. It prints `Wrote figure.svg:
 <W>mm × <H>mm (…)`; `--json` has `size` (`widthMm`, `heightMm`, limits, `fits`; `scale` if scaled).
@@ -185,9 +184,9 @@ Geometry errors exit 1 but **the SVG is still written**. It prints `Wrote figure
 
 ### 7. Check content, then readability
 
-Clean diagnostics prove neither. The script rasterizes the SVG (Quick Look, padded to
-a square, or `rsvg-convert`; exit 1 if neither: skip the PNG, say so); open the PNG
-with Read, ~6 px per printed mm of the larger side:
+Clean diagnostics prove neither. The script rasterizes the SVG (Quick Look or
+`rsvg-convert`; exit 1 if neither: skip the PNG, say so); open the PNG with Read,
+~6 px per printed mm of the larger side:
 
 ```sh
 <skill-dir>/scripts/preview figure.svg 1080   # 180 × 60mm; writes figure.png beside the SVG (-o <png> to move it)
@@ -195,23 +194,25 @@ with Read, ~6 px per printed mm of the larger side:
 
 1. **Content.** Tick each item of the step 1 checklist in the YAML (node, label, edge
    `from` → `to`) and in the PNG (present, readable, arrow pointing the right way);
-   nothing may be added. Fix omissions, wrong directions and wrong labels before any
-   layout polish. In the YAML but unreadable in the PNG is a legibility defect: fix
-   size or spacing.
+   nothing may be added. Fix omissions, wrong directions and labels before layout
+   polish. In the YAML but unreadable in the PNG is a legibility defect: fix size or spacing.
 2. **Readability.** Reading order follows `direction` (or the tree); no label overlaps
    a line or shape; no edge crosses a group title (`labelAt`); nothing is huge or
    squashed; a block-sized void has a reason (grouping, alignment), else re-arrange.
 3. **Consistency (paper figures).** Against the visual-language table: the same kind
    of thing looks the same in every panel; no text-heavy boxes; one legend; no edge
    crosses a panel except the main flow; the figure reads without its caption.
-4. **Compare.** View your PNG next to the chosen examples' PNGs: spacing, tone use,
-   notes and text sizes should be as deliberate. Fix the gaps that are yours.
+4. **Critique against references (paper figures, mandatory).** `<skill-dir>/scripts/compare figure.svg <ref.png>...`
+   stacks yours with the 1–2 closest examples (plus `tricl` or `llada` if dense) at one
+   width. Critique it by the [checklist](references/layout-tips.md#critique-against-references),
+   ideally by a fresh view (a subagent shown only image and checklist); fix, repeat.
+   Lint density/colour infos feed this, not replace it.
 
 ### 8. Report
 
 Tell the user: files written (YAML, SVG), size and profile, placement constraints,
-candidates compared and why this one, final lint and render summaries (kept warnings
-with reasons), assumptions, and what you could not verify. Show the YAML only if asked or short.
+candidates compared and why, final lint and render summaries (kept warnings with
+reasons), assumptions, what you could not verify. Show the YAML only if asked or short.
 
 ## Paper figure workflow
 
@@ -229,10 +230,9 @@ and keep its arrangement unless it breaks the placement or the principles (say s
 3. Cells: [tokens](references/structured.md#token-sequences) (numbering, `lines`, `lineAlign`), [matrices](references/structured.md#matrices).
 4. Pictures: [crop, shared assets](references/assets.md#reusing-one-picture-figureassets), [framed images, operator size](references/assets.md#framed-images-and-operator-size), [html](references/html.md) cards.
 5. Looks: [tones and variants](references/figure-format.md#tones-and-variants), [themeOverrides](references/figure-format.md#themes-and-profiles), [`fit: scale`, `density: compact`](references/layout-tips.md#shrinking-to-the-page-width-figurefit-scale).
-6. Loop `fmt` → `lint` → `render` with [diagnostics](references/diagnostics.md), then step 7.
+6. Loop `fmt` → `lint` → `render` ([diagnostics](references/diagnostics.md)), then step 7 (its step 4 is mandatory).
 
 ## When to stop and ask
-
 Stop, report the state (last diagnostics, attempts) and ask when:
 
 - the same error persists after **3 fix attempts**, or the figure is not clean after **6 rounds**;
