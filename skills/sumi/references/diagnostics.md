@@ -89,7 +89,7 @@ Apply one edit and re-check: independent savings are not additive.
 | `component/unsupported-in-auto` (warning) | label math with a command, `_` or `^` in an auto figure, drawn as written | use the structured layout or drop the `$...$` |
 | `component/label-at-without-label`, `component/label-rotation-without-label`, `component/sublabel-without-label` | `labelAt` / `labelRotation` / `sublabel` without a (non-empty) label (the sublabel one is an error) | add the label, or remove the field |
 | `component/label-rotation-unsupported`, `component/sublabel-unsupported` | on an icon, `operator`, `junction`, `image`, `bracket` or `legend` node | remove it; put a `label` node next to it |
-| `component/invalid-prop` on a legend entry | both or neither of `edge` / `node` / `class` / `icon` / `glyph` / `set`, `perRow` without `flow: row`, or a sample box that is a mark, text or picture | one sample per entry; a shape such as `box` |
+| `component/invalid-prop` on a legend entry | both or neither of `edge` / `node` / `class` / `icon` / `glyph` / `set`, `perRow` or `headings` without `flow: row`, or a sample box that is a mark, text or picture | one sample per entry; a shape such as `box` |
 | `component/tone-unsupported` | `tone` on a `junction` | remove it |
 | `component/anchor-on-junction`, `component/anchor-on-zoom` (warnings) | an anchor on an end at a `junction` (every line meets the dot's centre) or on a `zoom` edge (corners follow the target's place) | remove the anchor; anchor the other end or move the junction / target |
 | `component/grow-unsupported` | `grow` on expanded `tokens`, `matrix`, `legend`, `separator` or a flow arrow | remove it; weight ordinary nodes under their row/stack's `justify: stretch` |

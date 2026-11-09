@@ -744,7 +744,13 @@ const legend: NodeManifest = {
         .enum(["column", "row"])
         .optional()
         .describe(
-          "column (default): one entry per line, top to bottom. row: the entries side by side on one line (see perRow for several lines). A heading always starts a new line.",
+          "column (default): one entry per line, top to bottom. row: the entries side by side on one line (see perRow for several lines). With flow: row, a heading starts a new line unless headings: inline.",
+        ),
+      headings: z
+        .enum(["line", "inline"])
+        .optional()
+        .describe(
+          "With flow: row, where a heading goes. line (default): a table, each group on its own lines with the headings in one column. inline: the heading sits on the line of its group's first entry, and groups follow one another on the same line, wrapping after perRow entries.",
         ),
       perRow: z
         .int()
@@ -752,7 +758,7 @@ const legend: NodeManifest = {
         .max(LEGEND_MAX_ENTRIES)
         .optional()
         .describe(
-          "With flow: row, the most entries on a line before it wraps; each group wraps by itself. Omitted means no wrapping.",
+          "With flow: row, the most entries on a line before it wraps; each group wraps by itself (with headings: inline, the whole legend wraps, headings not counted). Omitted means no wrapping.",
         ),
     })
     .superRefine((props, ctx) => {
@@ -761,6 +767,13 @@ const legend: NodeManifest = {
           code: "custom",
           path: ["perRow"],
           message: "perRow needs flow: row; a column has one entry per line",
+        });
+      }
+      if (props.headings !== undefined && props.flow !== "row") {
+        ctx.addIssue({
+          code: "custom",
+          path: ["headings"],
+          message: "headings needs flow: row; a column puts each heading on its own line",
         });
       }
     }),
