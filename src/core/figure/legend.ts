@@ -460,6 +460,7 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
     });
     const flow = (component.props.flow as "column" | "row" | undefined) ?? "column";
     const perRow = component.props.perRow as number | undefined;
+    const inline = flow === "row" && component.props.headings === "inline";
     // The groups of entries (#409): a heading starts a new one.
     const sections: { heading?: string; items: ArrangeItem[] }[] = [{ items: [] }];
     for (const [j, entry] of entries.entries()) {
@@ -636,9 +637,56 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
     // own; a row is the entries of a group side by side, wrapping after `perRow` of them,
     // the heading beside the lines of its group.
     const rows: ArrangeItem[] = [];
+    if (inline) {
+      // Inline headings (#446): the groups follow one another on the same lines, each heading
+      // beside its group's first entry. A line holds `perRow` entries; a break goes before a
+      // heading, so a group is split only when it alone has more than `perRow` entries, and
+      // then it is a small table: the heading, and its lines hanging after the heading's width.
+      const limit = perRow ?? Number.POSITIVE_INFINITY;
+      let line: ArrangeItem[] = [];
+      const flush = () => {
+        if (line.length > 0) rows.push(row(size.entryGap, line));
+        line = [];
+      };
+      for (const section of sections) {
+        const { heading, items } = section;
+        if (items.length === 0) continue;
+        if (items.length <= limit) {
+          if (line.length + items.length > limit) flush();
+          line.push(
+            ...items.map((item, i) =>
+              i === 0 && heading !== undefined ? row(size.textGap, [heading, item]) : item,
+            ),
+          );
+          continue;
+        }
+        flush();
+        const lines: ArrangeItem[] = [];
+        for (let start = 0; start < items.length; start += limit) {
+          lines.push(row(size.entryGap, items.slice(start, start + limit)));
+        }
+        const block: ArrangeBox = {
+          stack: { direction: "down", gap: size.rowGap, align: "start", items: lines },
+        };
+        rows.push(
+          heading === undefined
+            ? block
+            : {
+                grid: {
+                  columns: 2,
+                  columnGap: size.textGap,
+                  rowGap: size.rowGap,
+                  align: "start",
+                  items: [heading, block],
+                },
+              },
+        );
+      }
+      flush();
+    }
     // Headed groups of a row legend (heading, lines), laid out as the rows of one table.
     const table: ArrangeItem[] = [];
-    for (const section of sections) {
+    for (const section of inline ? [] : sections) {
       if (flow === "column") {
         if (section.heading !== undefined) rows.push(section.heading);
         rows.push(...section.items);

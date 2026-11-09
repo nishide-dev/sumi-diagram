@@ -9,8 +9,9 @@ A key that explains styles: one sample per entry \(a line, a box, an icon, a gly
 | prop | type | required | description |
 | --- | --- | --- | --- |
 | <code>entries</code> | <code>array</code> | yes | The entries, in order\. Each has one sample: edge \(a line\), node \(a box\), class \(the sample box of a matrix class\), icon, glyph or set; and a label\. An entry may start a group with a heading\. |
-| <code>flow</code> | <code>&quot;column&quot; &#124; &quot;row&quot;</code> | no | column \(default\): one entry per line, top to bottom\. row: the entries side by side on one line \(see perRow for several lines\)\. A heading always starts a new line\. |
-| <code>perRow</code> | <code>integer</code> | no | With flow: row, the most entries on a line before it wraps; each group wraps by itself\. Omitted means no wrapping\. |
+| <code>flow</code> | <code>&quot;column&quot; &#124; &quot;row&quot;</code> | no | column \(default\): one entry per line, top to bottom\. row: the entries side by side on one line \(see perRow for several lines\)\. With flow: row, a heading starts a new line unless headings: inline\. |
+| <code>headings</code> | <code>&quot;line&quot; &#124; &quot;inline&quot;</code> | no | With flow: row, where a heading goes\. line \(default\): a table, each group on its own lines with the headings in one column\. inline: the heading sits on the line of its group's first entry, and groups follow one another on the same line, wrapping after perRow entries\. |
+| <code>perRow</code> | <code>integer</code> | no | With flow: row, the most entries on a line before it wraps; each group wraps by itself \(with headings: inline, the whole legend wraps, headings not counted\)\. Omitted means no wrapping\. |
 
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> | <code>llama</code> |
 | --- | --- | --- | --- | --- | --- |

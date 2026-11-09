@@ -243,6 +243,20 @@ export function widthBreakdown(context: GeometryContext): WidthBreakdown {
       "Reduce a set's padding, move its label (labelAt), shorten the label, or leave more room inside the page by moving the members closer.",
     );
   }
+  // A legend that is wider than everything else sets the figure's width (#446).
+  const legends = context.ir.groups.flatMap((group) => {
+    const rect = group.legend?.id === group.id ? byKey.get(group.key)?.rect : undefined;
+    return rect ? [{ id: group.legend?.id ?? group.id, key: group.key, rect }] : [];
+  });
+  const widestLegend = legends.sort((a, b) => b.rect.width - a.rect.width)[0];
+  if (widestLegend) {
+    const others = rootItems.filter((item) => !legends.some((l) => l.key === item.key));
+    const otherWidth = Math.max(0, ...others.map((item) => item.rect.width));
+    if (widestLegend.rect.width > otherWidth + 1)
+      head.push(
+        `Legend "${widestLegend.id}" sets the width of the figure (${mm(widestLegend.rect.width)}, wider than everything else); flow: row with props.perRow wraps its entries onto more lines, and fewer or shorter entries narrow it.`,
+      );
+  }
   head.push(verifyHints(context, "width", (trial) => trial.canvas.width));
   if (!structured)
     details.push(
