@@ -8,16 +8,19 @@
  * accent so that every pair of text and background keeps the contrast the
  * `theme/low-contrast` rule asks for (4.5:1): `muted`, `strong` and the
  * accent's line shade. A role that is not one of the four colors as published
- * is listed in {@link Palette.adjusted}.
+ * is listed in {@link Palette.adjusted}. The other tones (blue, green, ...) are
+ * derived from the roles in OKLCH ({@link Palette.tones}, `palette-tones.ts`, #423).
  *
  * {@link withPalette} recolors a copy of a theme, never the theme itself, so
- * a figure without a palette is drawn exactly as before. The tone colors other
- * than `gray` stay the theme's. See docs/design/decisions/417-palettes.md.
+ * a figure without a palette is drawn exactly as before. See
+ * docs/design/decisions/417-palettes.md and 423-tone-harmony.md.
  */
 
 import { contrastRatio, luminance } from "./node-variants";
+import { type DerivedTone, type DerivedToneColors, deriveTones } from "./palette-tones";
 import type { Theme } from "./schema";
 import type { StyleLayer, TypedValue } from "./style";
+import { TONE_NAMES } from "./tones";
 
 /** Where the four colors of every palette come from (colors only, no other data). */
 export const PALETTE_SOURCE = "Color Hunt popular palettes, retrieved 2026-11-08";
@@ -50,6 +53,11 @@ export interface Palette {
   /** The four colors as published, in the source's order. */
   readonly colors: readonly [string, string, string, string];
   readonly roles: PaletteRoles;
+  /**
+   * The tones other than `gray`, in the palette's lightness and chroma (#423):
+   * each keeps its own hue. `gray` is the palette's neutral (tint and strong).
+   */
+  readonly tones: Readonly<Record<DerivedTone, DerivedToneColors>>;
   /** Roles that are derived or adjusted, not one of `colors` as published. */
   readonly adjusted: readonly PaletteRole[];
 }
@@ -262,6 +270,7 @@ function definePalette(definition: PaletteDefinition): Palette {
     description,
     colors,
     roles: Object.freeze({ panel, tint, accent, ink, muted, strong, soft, frame }),
+    tones: Object.freeze(deriveTones({ panel, tint, accent, strong, ink })),
     adjusted: Object.freeze(adjusted),
   });
 }
@@ -392,6 +401,16 @@ export function withPalette(theme: Theme, name: string | undefined): Theme {
   const toneLines = new Map(theme.toneLines);
   const gray = theme.tones.get("gray");
   if (gray !== undefined) tones.set("gray", recolor(gray));
+  // The other tones are drawn in the palette's lightness and chroma, each in its own hue (#423).
+  for (const tone of TONE_NAMES) {
+    if (tone === "gray") continue;
+    const colors = palette.tones[tone];
+    const fill = theme.tones.get(tone);
+    if (fill !== undefined) tones.set(tone, Object.freeze({ ...fill, fill: colors.fill }));
+    const line = theme.toneLines.get(tone);
+    if (line !== undefined)
+      toneLines.set(tone, Object.freeze({ ...line, stroke: colors.line, fontColor: colors.line }));
+  }
   const grayLine = theme.toneLines.get("gray");
   if (grayLine !== undefined) toneLines.set("gray", recolor(grayLine));
   const tokens = new Map<string, TypedValue>(

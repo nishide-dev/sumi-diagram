@@ -63,11 +63,8 @@ describe("figure.themeOverrides.palette (#417)", () => {
       expect(node("b")?.fill, theme).toBe(palette.roles.strong);
       expect(node("c")?.fill, theme).toBe(palette.roles.tint);
       expect(node("out")?.stroke, theme).toBe(palette.roles.accent);
-      // The other tones stay the theme's.
-      const plain = (await render(source(theme))).compiled.ir;
-      expect(node("green")?.fill, theme).toBe(
-        plain.nodes.find((n) => n.id === "green")?.style.fill,
-      );
+      // The other tones are the palette's own, in their hue (#423).
+      expect(node("green")?.fill, theme).toBe(palette.tones.green.fill);
       // The gray tone is the palette's neutral.
       expect(node("gray")?.fill, theme).toBe(palette.roles.tint);
       expect(result.svg).not.toBe((await render(source(theme))).svg);
@@ -84,6 +81,7 @@ describe("figure.themeOverrides.palette (#417)", () => {
       if (palette === undefined) throw new Error(name);
       expect(result.value.svg).toContain(palette.roles.ink);
       expect(result.value.svg).toContain(palette.roles.accent);
+      expect(result.value.svg).toContain(palette.tones.green.fill);
       svgs.add(result.value.svg);
     }
     expect(svgs.size).toBe(PALETTE_NAMES.length);
@@ -98,6 +96,38 @@ describe("figure.themeOverrides.palette (#417)", () => {
     expect(result.compiled.ir.nodes.find((n) => n.id === "a")?.style.fontColor).toBe(
       getPalette("coral")?.roles.ink,
     );
+  });
+
+  test("an explicit tone color wins over the tone the palette derives (#423)", async () => {
+    const result = await render(
+      withPalette(
+        "paper",
+        "slate",
+        "    tones:\n      green: { fill: '#112233', line: '#445566' }\n",
+      ),
+    );
+    const green = result.compiled.ir.nodes.find((n) => n.id === "green")?.style;
+    expect(green?.fill).toBe("#112233");
+    // Another tone and the rest of the palette are still derived.
+    const slate = getPalette("slate");
+    if (slate === undefined) throw new Error("slate");
+    expect(result.compiled.ir.nodes.find((n) => n.id === "gray")?.style.fill).toBe(
+      slate.roles.tint,
+    );
+    const derived = await render(withPalette("paper", "slate"));
+    expect(derived.compiled.ir.nodes.find((n) => n.id === "green")?.style.fill).toBe(
+      slate.tones.green.fill,
+    );
+  });
+
+  test("a tone is drawn in the palette's hue family, not the theme's colors (#423)", async () => {
+    const paper = await render(source("paper"));
+    const slate = await render(withPalette("paper", "slate"));
+    const fillOf = (r: typeof paper) =>
+      r.compiled.ir.nodes.find((n) => n.id === "green")?.style.fill;
+    expect(fillOf(paper)).toBe("#d0e6cd");
+    expect(fillOf(slate)).not.toBe(fillOf(paper));
+    expect(slate.svg).not.toContain("#d0e6cd");
   });
 
   test("an unknown palette is a schema error that suggests the closest name", () => {
@@ -116,6 +146,22 @@ describe("palettes section of the catalog (#417)", () => {
     expect(catalog.palettes?.path).toBe("figure.themeOverrides.palette");
     expect(catalog.palettes?.source).toContain("2026-11-08");
     expect(catalog.palettes?.palettes.map((p) => p.id)).toEqual([...PALETTE_NAMES]);
+    // The derived tones are listed (#423): every tone but gray, a fill and a line each.
+    for (const p of catalog.palettes?.palettes ?? []) {
+      expect(Object.keys(p.tones)).toEqual([
+        "red",
+        "orange",
+        "yellow",
+        "green",
+        "blue",
+        "purple",
+        "pink",
+      ]);
+      for (const colors of Object.values(p.tones)) {
+        expect(colors.fill).toMatch(/^#[0-9a-f]{6}$/);
+        expect(colors.line).toMatch(/^#[0-9a-f]{6}$/);
+      }
+    }
     for (const p of catalog.palettes?.palettes ?? []) {
       expect(p.colors).toHaveLength(4);
       expect(Object.keys(p.roles)).toEqual([

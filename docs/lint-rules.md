@@ -22,6 +22,24 @@
 または lint 設定の `{"rules":{"geometry/dead-space":"off","geometry/heavy-scaling":"off"}}`。
 27%の根拠と意図的な catalogue の空白は設計 §6.96 を参照。
 
+## 配色の調和（#423）
+
+`geometry/color-harmony` は既定 **info**（`render` / `lint --geometry`）。`maxWarnings` に含めず、描画は変えない。
+描かれた色（グループ・ノード・辺・set の輪郭・glyph の色。解決後のテーマ、パレット、tone の上書きを反映）を OKLCH で見て、
+無彩色（彩度 0.025 未満）を除いた色に次の 3 つを調べ、該当した信号ごとに図に 1 件報告する。
+info にしたのは、配色は好みと意図（分類のための多色）に左右され、誤検出を errors や warnings で止めたくないため。
+
+| 信号 | 条件 |
+| --- | --- |
+| 色相の数（`hues`） | 30°以内を 1 つの系統として数え、**7 系統を超える**（組み込みの tone は有彩色 7 色なので、テーマの tone だけなら出ない） |
+| 塗りの混在（`fills`） | 3 色以上の塗り（ノードの塗り・glyph。グループの背景と set の淡い塗りは除く）で、彩度が **3 倍以上**開き最大が **0.10 以上**（淡い色と鮮やかな色の混在）、または明度が **0.30 を超えて**開く |
+| パレットとの不調和（`palette`） | `themeOverrides.palette` があり、パレットとそこから導いた tone が描かない有彩色が **2 色以上**、パレットの帯の外にある。塗りは tint の明度から 0.10 超離れる、または全ての色が tone の彩度の **1.4 倍**を超える。濃い枠はコントラストのために暗くなるので、暗い側は見ない |
+
+しきい値は `examples/llada`（くすんだ寒色と暖色が同じ明度・彩度でそろう）と `examples/llama4-moe` で出ず、#412 の試行（`paper` の tone を `slate` に重ねた図）で出るように決めた。
+#423 以降、パレットを指定した図は tone もパレットから導くので、`palette` の信号は `themeOverrides.tones` の上書きを足したときにだけ出る（直し方は上書きを外すこと）。
+`lint --geometry` での抑止は `--rule geometry/color-harmony=off`、または lint 設定の `{"rules":{"geometry/color-harmony":"off"}}`。
+設計と根拠は [設計 #423](design/decisions/423-tone-harmony.md) を参照。
+
 ## 置き場所の目標（#347）
 
 `figure.target` は任意。描画・幅だけへの fit・Profile のページ上限は変えない。

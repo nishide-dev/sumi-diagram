@@ -26,6 +26,7 @@ import type { ProfileLimits } from "../../render/inspect";
 import { printedSize } from "../../render/size";
 import { defineGeometryRule, type GeometryRule, type LintFinding } from "../rule";
 import { arrowheadStraightRun } from "./arrowheads";
+import { colorHarmony } from "./color-harmony";
 import type { GeometryContext, GeometryElement } from "./context";
 import { deadSpace } from "./dead-space";
 import { sparseFigure, textHeavy } from "./density";
@@ -1984,6 +1985,7 @@ export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
   heavyScaling,
   exceedsTargetHeight,
   placementUsage,
+  colorHarmony,
   lineTooThin,
   groupEmptyArea,
   badgeCollision,
