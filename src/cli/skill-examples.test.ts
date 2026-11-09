@@ -15,6 +15,7 @@ const NAMES = [
   "clip",
   "embedding-gemma",
   "gcn",
+  "tricl",
   "llama4-moe",
   "llada",
   "chat",

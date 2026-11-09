@@ -21,6 +21,7 @@ and `bun run skill:previews`.
 | [`clip/`](clip/clip.sumi.yaml) | `paper` / `paper-double` | Radford et al. (2021), Figure 1: contrastive pre-training, a text-derived classifier and zero-shot prediction; square theme overrides, sharp shared comb buses, trapezoid encoders, monospace cards, a curly bracket, formula matrices and an original synthetic vector dog (180mm × 67.64mm) |
 | [`gcn/`](gcn/gcn.sumi.yaml) | `paper` / `paper-double` | Kipf & Welling (2017), Figure 1: a multi-layer graph convolutional network; vertices placed by coordinates (`place`), the same graph shape in two layers drawn as stacked cards (`props.layers`), colored curves that converge on and spread from the hidden layers (`route: curve`), straight undirected graph edges, per-figure tone colors and white cards (`themeOverrides.tones`, `groupFill`), and an original synthetic t-SNE-style point cloud (178.86mm × 65.44mm) |
 | [`llada/`](llada/llada.sumi.yaml) | `paper` / `paper-double` | Nie et al. (2025), Figure 2: an overview of LLaDA, a dense three-panel figure with almost no text; one `place` whose unit is the reference's own pixel so cell widths, gaps and canvas fill match; rows of token cells in muted cool and warm colors (`themeOverrides.tones`), mask cells from one SVG asset, short arrows between hidden junctions, dashed step frame and legend frame as `sets`, curly brackets, a rotated label and a time arrow (180mm × 52.79mm, `fit: scale`) |
+| [`tricl/`](tricl/tricl.sumi.yaml) | `paper` / `paper-double` | Hwang et al. (2022), TriCL, Figure 1: a density benchmark, a wide figure of pictures and little text; every element placed by coordinates (`place`), vertices with feature-vector `glyphs`, overlapping dashed hyperedges (`sets`, `shape: ellipse`, `angle: auto`) and rect sets as gray panels, a `legend` with glyph and node samples, a second key built from nodes and edges so that each sample carries its marker in the middle, dotted curves through mid-edge markers (`route: curve`, `variant: dotted`), `block-arrow` stage arrows, thin lines (`lineWidth`, `frameWidth`, `arrowheadScale`, `cornerRadius`), the original's colors (`themeOverrides.tones`, `groupFill`, `groupStroke`) (178.68mm × 64.73mm) |
 | [`llama4-moe/`](llama4-moe/llama4-moe.sumi.yaml) | `llama` / `paper-double` | Meta AI (2025), the Llama 4 mixture-of-experts figure: the `llama` theme (dark solid blocks, borderless muted panels, a white muted inner panel, a filled router, an emphasis shared expert, 1pt lines and open chevron arrowheads), alternating Attention/FFN with a dashed `zoom` into the expanded MoE panel, a ⊕ operator, and hidden-junction forks that share one bus even with a short `···` label among the experts (156.28mm × 107.77mm) |
 | [`chat/`](chat/chat.sumi.yaml) | `llama` / `paper-single` | a generic Japanese conversation using `bubble` nodes and the `chat` arrangement: a 今日 divider, timestamps, read receipts, an initial in a circle, consecutive messages and automatic wrapping; white incoming bubbles and pale green outgoing ones (83.96mm × 59.09mm) |
 | [`llm-dialogue/`](llm-dialogue/llm-dialogue.sumi.yaml) | `llama` / `paper-single` | an original illustrative user–assistant math dialogue: `chat` with avatars on both sides (bundled user/robot icons), explicit speaker notes, a multi-line answer with inline math and a follow-up question (83.96mm × 61.56mm) |
@@ -32,7 +33,7 @@ groups from the side (with `direction: down` they cross the groups' centered
 labels, `geometry/edge-crosses-label`), which makes them wider than one paper
 column: they use `paper-double` (180mm).
 
-All thirteen pass `sumi lint --geometry` without errors or warnings (CLIP uses
+All fourteen pass `sumi lint --geometry` without errors or warnings (CLIP uses
 `--config examples/clip/lint.json`, as explained below). The five
 structured `paper` figures use the color, ML-paper style and are laid out and routed by Sumi
 itself, without D2. `transformer` fits one column; `dit-block` is wider than
@@ -76,6 +77,7 @@ geometry lint):
 | `embedding-gemma` | none (sharp joins and 1pt edges remove the previous three `geometry/edge-near-border` infos) |
 | `clip` | 2: `geometry/heavy-scaling` ×1 (71.81%, with the width breakdown before scaling); `geometry/script-too-small` ×1 (math scripts down to 4.02pt after scaling; body text is 5.74pt, above the 5pt scaled minimum) |
 | `gcn` | 2: `geometry/group-empty-area` ×2 (the input and output layers: the graphs keep the original's sparse vertex positions) |
+| `tricl` | 3: `geometry/group-empty-area` ×3 (the three small hypergraph cards: vertices and hyperedges are drawn small, as in the original) |
 | `llama4-moe` | none |
 | `llada` | none |
 | `chat` | none |

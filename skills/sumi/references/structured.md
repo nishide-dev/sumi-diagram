@@ -172,7 +172,8 @@ members are node or group IDs (a group stands for its whole frame; `unknown memb
 | Field | Meaning |
 | --- | --- |
 | `members` | node / group IDs to enclose |
-| `shape` | `circle` (default: the smallest circle around the members, like a classic Venn), `ellipse` (axis-parallel, at most 3:1, for a row of members), `hull` (rounded convex hull, for irregular members), `rect` (rounded rectangle) |
+| `shape` | `circle` (default: the smallest circle around the members, like a classic Venn), `ellipse` (axis-parallel, at most 3:1, for a row of members; tilt it with `angle`), `hull` (rounded convex hull, for irregular members), `rect` (rounded rectangle) |
+| `angle` | `shape: ellipse` only (else `ref/set-angle-needs-ellipse`). `auto` turns the ellipse to the members (the smallest area; hugs diagonal members, like a hyperedge around a diagonal row), or degrees clockwise on the page (`rx` runs along it). Both fit the tightest ellipse that keeps `padding` clear of every member, with no 3:1 limit. Omitted: the axis-parallel ellipse above, unchanged |
 | `padding` | room between members and outline (default: the profile's group padding) |
 | `label`, `labelAt` | outside the outline: `top` (default), `bottom`, `left`, `right`, or beside a diagonal extreme `top-left`, `top-right`, `bottom-left`, `bottom-right`. For a label inside, make a `label` node a member |
 | `tone`, `variant` | the tone's line color draws outline, label and (at low opacity) the tint in every theme, gray without a tone. `default` tint + outline, `filled` tint, `outlined` outline, `dashed`; `fillOpacity` (0..1) overrides the tint |
@@ -185,11 +186,13 @@ members are node or group IDs (a group stands for its whole frame; `unknown memb
   edge may cross a set's boundary.
 - Put the shared member where the shapes overlap. A node inside an outline that is not a
   member reads as one: `geometry/set-contains-non-member` (warning) names it; add it to
-  `members`, move it, or fit closer (`hull`, `ellipse`, smaller `padding`). A set label
+  `members`, move it, or fit closer (`hull`, `ellipse` with `angle: auto`, smaller
+  `padding`). A set label
   over text, a node, an edge or another set's boundary is `geometry/set-label-collision`:
   change `labelAt`. A subset's label inside its superset is fine.
 - SVG, PDF and picture PPTX keep the opacity; editable PPTX draws each set as a
-  freeform shape with alpha (and a text box for the label).
+  freeform shape with alpha (and a text box for the label). A tilted ellipse is a path of
+  cubics in all of them (no rotation attribute); labels at the 8 positions sit outside it.
 
 ```yaml
 # expect-render: fits
@@ -218,6 +221,33 @@ edges:
 sets:
   - { id: e1, label: Entities, members: [p1, p2, shared], tone: blue, labelAt: top-left }
   - { id: e2, label: Attributes, members: [shared, title, abstract], tone: green, labelAt: top-right }
+```
+
+`angle: auto` tilts an ellipse to diagonal members (a hyperedge around a diagonal row);
+`angle: 30` sets the tilt yourself. The members keep `padding` of room everywhere.
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: tilted-sets
+  theme: paper
+  layout:
+    arrange:
+      place:
+        unit: 7mm
+        items:
+          - { item: a, at: [0, 3] }
+          - { item: b, at: [1.4, 1.8] }
+          - { item: c, at: [2.6, 2.8] }
+          - { item: d, at: [3, 0.4] }
+nodes:
+  - { id: a, component: circle, label: a }
+  - { id: b, component: circle, label: b }
+  - { id: c, component: circle, label: c }
+  - { id: d, component: circle, label: d }
+sets:
+  - { id: e, label: e, members: [a, b, c, d], shape: ellipse, angle: auto, variant: dashed, padding: 4mm }
 ```
 
 ## Chat conversations

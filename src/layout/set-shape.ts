@@ -12,6 +12,7 @@
  */
 
 import type { SetLabelPosition, SetShape } from "../core/figure/schema";
+import { fitOrientedEllipse, foldAngle } from "./ellipse-fit";
 import type { Point, Rect, SetOutline, SetSegment } from "./ir";
 
 /** A member's footprint: its box, and whether its shape is round (a circle or oval). */
@@ -233,12 +234,18 @@ export function samplePath(segments: readonly SetSegment[], steps = 12): Point[]
   return out;
 }
 
-/** Fits the outline of `shape` around the members. `radius` rounds a `rect`'s corners. */
+/**
+ * Fits the outline of `shape` around the members. `radius` rounds a `rect`'s
+ * corners; `angle` (#430) tilts an `ellipse`: degrees for that orientation,
+ * `"auto"` for the one that needs the least area, omitted for the
+ * axis-parallel ellipse of at most 3:1.
+ */
 export function fitSetOutline(
   members: readonly MemberFootprint[],
   shape: SetShape,
   padding: number,
   radius = 0,
+  angle?: number | "auto",
 ): SetOutline {
   const points = members.flatMap(footprintPoints);
   if (points.length === 0) throw new Error("internal error: a set without members");
@@ -248,6 +255,10 @@ export function fitSetOutline(
       return { kind: "ellipse", cx: c.cx, cy: c.cy, rx: c.r + padding, ry: c.r + padding };
     }
     case "ellipse": {
+      if (angle !== undefined) {
+        const e = fitOrientedEllipse(points, padding, angle === "auto" ? angle : foldAngle(angle));
+        return { kind: "ellipse", cx: e.cx, cy: e.cy, rx: e.rx, ry: e.ry, angle: e.angle };
+      }
       const box = bounds(points);
       const ratio =
         box.height < EPSILON
@@ -289,18 +300,32 @@ export function fitSetOutline(
 /** The smallest rectangle around an outline's drawing (stroke not included). */
 export function outlineBounds(outline: SetOutline): Rect {
   switch (outline.kind) {
-    case "ellipse":
+    case "ellipse": {
+      const half = ellipseHalfExtent(outline);
       return {
-        x: outline.cx - outline.rx,
-        y: outline.cy - outline.ry,
-        width: 2 * outline.rx,
-        height: 2 * outline.ry,
+        x: outline.cx - half.x,
+        y: outline.cy - half.y,
+        width: 2 * half.x,
+        height: 2 * half.y,
       };
+    }
     case "rect":
       return outline.rect;
     case "path":
       return pathBounds(outline.segments);
   }
+}
+
+/** An ellipse's half width and half height: `rx` and `ry` unless it is tilted. */
+function ellipseHalfExtent(outline: EllipseOutline): Point {
+  if (outline.angle === undefined) return { x: outline.rx, y: outline.ry };
+  const a = (outline.angle * Math.PI) / 180;
+  const c = Math.cos(a);
+  const s = Math.sin(a);
+  return {
+    x: Math.hypot(outline.rx * c, outline.ry * s),
+    y: Math.hypot(outline.rx * s, outline.ry * c),
+  };
 }
 
 /** The exact bounds of a closed path of lines and cubics (the cubic's extrema included). */
@@ -316,10 +341,7 @@ export function outlinePolygon(outline: SetOutline): Point[] {
       const steps = 96;
       return Array.from({ length: steps }, (_, i) => {
         const a = (i / steps) * 2 * Math.PI;
-        return {
-          x: outline.cx + outline.rx * Math.cos(a),
-          y: outline.cy + outline.ry * Math.sin(a),
-        };
+        return ellipsePoint(outline, outline.rx * Math.cos(a), outline.ry * Math.sin(a));
       });
     }
     case "rect": {
@@ -336,15 +358,32 @@ export function outlinePolygon(outline: SetOutline): Point[] {
   }
 }
 
+type EllipseOutline = Extract<SetOutline, { kind: "ellipse" }>;
+
+/** The point at `(u, v)` in the ellipse's own frame (turned by its angle, about its center). */
+function ellipsePoint(outline: EllipseOutline, u: number, v: number): Point {
+  if (outline.angle === undefined) return { x: outline.cx + u, y: outline.cy + v };
+  const a = (outline.angle * Math.PI) / 180;
+  return {
+    x: outline.cx + u * Math.cos(a) - v * Math.sin(a),
+    y: outline.cy + u * Math.sin(a) + v * Math.cos(a),
+  };
+}
+
 /** The outline's point farthest in the direction `(dx, dy)`. */
 function support(outline: SetOutline, dx: number, dy: number): Point {
   if (outline.kind === "ellipse") {
-    // The point of the ellipse with the largest dot product: (rx² dx, ry² dy) scaled.
-    const length = Math.hypot(outline.rx * dx, outline.ry * dy) || 1;
-    return {
-      x: outline.cx + (outline.rx * outline.rx * dx) / length,
-      y: outline.cy + (outline.ry * outline.ry * dy) / length,
-    };
+    // The point of the ellipse with the largest dot product: (rx² dx, ry² dy) scaled,
+    // in the ellipse's own frame.
+    const a = ((outline.angle ?? 0) * Math.PI) / 180;
+    const u = dx * Math.cos(a) + dy * Math.sin(a);
+    const v = -dx * Math.sin(a) + dy * Math.cos(a);
+    const length = Math.hypot(outline.rx * u, outline.ry * v) || 1;
+    return ellipsePoint(
+      outline,
+      (outline.rx * outline.rx * u) / length,
+      (outline.ry * outline.ry * v) / length,
+    );
   }
   const points = outlinePolygon(outline);
   return points.reduce((best, p) => (p.x * dx + p.y * dy > best.x * dx + best.y * dy ? p : best));
@@ -379,4 +418,44 @@ export function setLabelCenter(
       return { x: p.x + dx * (gap + w / 2), y: p.y + dy * (gap + h / 2) };
     }
   }
+}
+
+/** Pieces an ellipse is drawn in as a path: 45° each, within 4e-6 of the radius. */
+const ELLIPSE_PIECES = 8;
+
+/**
+ * A tilted ellipse as a closed path of cubics (#430): SVG, PDF and PPTX draw
+ * it as any path, and the lint reads its polygon. It starts at the end of
+ * the `rx` axis.
+ */
+export function ellipseSegments(outline: EllipseOutline): SetSegment[] {
+  const step = (2 * Math.PI) / ELLIPSE_PIECES;
+  const k = (4 / 3) * Math.tan(step / 4);
+  const at = (t: number): Point =>
+    ellipsePoint(outline, outline.rx * Math.cos(t), outline.ry * Math.sin(t));
+  // The tangent (not unit) at t, in the ellipse's frame, turned back to the page.
+  const slope = (t: number): Point => {
+    const p = ellipsePoint(
+      { ...outline, cx: 0, cy: 0 },
+      -outline.rx * Math.sin(t),
+      outline.ry * Math.cos(t),
+    );
+    return p;
+  };
+  const out: SetSegment[] = [{ command: "M", to: at(0) }];
+  for (let i = 0; i < ELLIPSE_PIECES; i++) {
+    const a = i * step;
+    const b = a + step;
+    const p0 = at(a);
+    const p1 = at(b);
+    const t0 = slope(a);
+    const t1 = slope(b);
+    out.push({
+      command: "C",
+      c1: { x: p0.x + k * t0.x, y: p0.y + k * t0.y },
+      c2: { x: p1.x - k * t1.x, y: p1.y - k * t1.y },
+      to: i === ELLIPSE_PIECES - 1 ? at(0) : p1,
+    });
+  }
+  return out;
 }

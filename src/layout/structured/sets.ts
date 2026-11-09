@@ -47,7 +47,7 @@ export function fitSets(
       return [{ rect, round }, ...(badge === undefined ? [] : [{ rect: badge, round: false }])];
     });
     const room = set.paddingPt === undefined ? padding : set.paddingPt * 2;
-    const outline = fitSetOutline(members, set.shape, room, set.style.radius.units);
+    const outline = fitSetOutline(members, set.shape, room, set.style.radius.units, set.angle);
     const rect = outlineBounds(outline);
     const metrics = measureText(set.label, set.style, measurer);
     return {

@@ -18,8 +18,20 @@ const actual: Record<string, string> = {};
 if (update) mkdirSync(goldenDir, { recursive: true });
 test("editable corpus includes every current component and examples", () =>
   expect(corpus.length).toBeGreaterThanOrEqual(53));
+// Glued connectors cannot keep a cubic tangent: a figure with curved edges (#420) is
+// exported with freeform connectors only and refused, with a diagnostic, when glued.
+const hasCurve = (item: (typeof corpus)[number]) =>
+  [...item.ir.elements.values()].some((e) => e.kind === "edge" && e.route === "curve");
 for (const item of corpus)
-  for (const connectors of ["freeform", "glued"] as const)
+  for (const connectors of ["freeform", "glued"] as const) {
+    if (connectors === "glued" && hasCurve(item)) {
+      test(`${item.id}: editable glued refuses curved edges`, () => {
+        const result = svgToEditablePptx(item.svg, item.ir, { connectors });
+        expect(result.ok).toBe(false);
+        expect(result.diagnostics.map((d) => d.code)).toContain("pptx/unsupported-geometry");
+      });
+      continue;
+    }
     test(`${item.id}: editable ${connectors}`, () => {
       const result = svgToEditablePptx(item.svg, item.ir, { connectors });
       if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
@@ -155,11 +167,16 @@ for (const item of corpus)
         expect(hash).toBe(expected);
       }
     });
+  }
 test("native package manifest covers the corpus", () => {
   if (update) writeFileSync(hashPath, `${JSON.stringify(actual, null, 2)}\n`);
   else
     expect(Object.keys(hashes).sort()).toEqual(
-      corpus.flatMap((item) => [`${item.id}.freeform`, `${item.id}.glued`]).sort(),
+      corpus
+        .flatMap((item) =>
+          hasCurve(item) ? [`${item.id}.freeform`] : [`${item.id}.freeform`, `${item.id}.glued`],
+        )
+        .sort(),
     );
 });
 test("unsupported native input is a diagnostic, not a damaged package", () => {

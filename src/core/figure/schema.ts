@@ -133,7 +133,7 @@ export type GroupLabelPosition = (typeof GROUP_LABEL_POSITIONS)[number];
  * Set enclosures (#407, design record 407): the shape fitted around the
  * members. `circle` (the default) is the smallest circle around them and
  * `ellipse` an axis-parallel ellipse up to three times wider than tall (or
- * the reverse); both grow by the padding. `hull` is the convex hull of the
+ * the reverse, or tilted by the set's `angle`, #430); both grow by the padding. `hull` is the convex hull of the
  * members grown by the padding with round corners, and `rect` their bounding
  * box grown by the padding with the theme's group corner radius.
  */
@@ -1111,7 +1111,13 @@ export const SetSchema = z.strictObject({
     .enum(SET_SHAPES)
     .default("circle")
     .describe(
-      "circle (default; the smallest circle around the members), ellipse (axis-parallel, up to 3:1), hull (rounded convex hull) or rect (rounded rectangle).",
+      "circle (default; the smallest circle around the members), ellipse (axis-parallel, up to 3:1, or tilted with angle), hull (rounded convex hull) or rect (rounded rectangle).",
+    ),
+  angle: z
+    .union([z.number().min(-180).max(180), z.literal("auto")])
+    .optional()
+    .describe(
+      "Orientation of an ellipse set (shape: ellipse only), in degrees clockwise on the page (the first axis, rx, points along it), or auto to turn the ellipse to the members' layout. Either fits the smallest ellipse that keeps the padding clear of every member, with no limit on its aspect ratio. Omitted means an axis-parallel ellipse up to 3:1.",
     ),
   labelAt: z
     .enum(SET_LABEL_POSITIONS)

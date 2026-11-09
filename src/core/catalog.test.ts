@@ -234,6 +234,7 @@ describe("sets section (#407)", () => {
       "label",
       "members",
       "shape",
+      "angle",
       "labelAt",
       "padding",
       "fillOpacity",

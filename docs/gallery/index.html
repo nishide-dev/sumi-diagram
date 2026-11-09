@@ -2042,6 +2042,10 @@ edges:
 <header><h3>Transformer (structured layout, paper theme)</h3><a href="../../examples/transformer/transformer.sumi.yaml"><code>examples/transformer/transformer.sumi.yaml</code></a> · <a href="../../examples/transformer/transformer.pdf">PDF</a></header>
 <div class="renders"><figure><img src="../../examples/transformer/transformer.svg" alt="Transformer (structured layout, paper theme)" loading="lazy"><figcaption>theme <code>paper</code> · profile <code>paper-single</code><br>78.49mm × 114.12mm (max width 88mm, max height 220mm)</figcaption></figure></div>
 </section>
+<section class="card">
+<header><h3>TriCL — overview of tri-directional contrastive learning</h3><a href="../../examples/tricl/tricl.sumi.yaml"><code>examples/tricl/tricl.sumi.yaml</code></a> · <a href="../../examples/tricl/tricl.pdf">PDF</a></header>
+<div class="renders"><figure><img src="../../examples/tricl/tricl.svg" alt="TriCL — overview of tri-directional contrastive learning" loading="lazy"><figcaption>theme <code>paper</code> · profile <code>paper-double</code><br>178.68mm × 64.91mm (max width 180mm, max height 220mm)<br><span class="failed">info geometry/group-empty-area (×3): Group &quot;hyper&quot; has 82.6% empty bounding-box area (threshold 75%; edges excluded).</span></figcaption></figure></div>
+</section>
 
 <h2 id="themes">Themes</h2>
 <table><thead><tr><th>theme</th><th>description</th><th>font set</th></tr></thead><tbody><tr><td><code>minimal</code></td><td>Monochrome theme with clear outlines</td><td><code>sumi/biz-ud-gothic</code></td></tr><tr><td><code>academic</code></td><td>Grayscale, print-friendly journal style: thin black lines, square corners, gray tones and emphasis</td><td><code>sumi/biz-ud-gothic</code></td></tr><tr><td><code>slides</code></td><td>Large text and thick lines for slides (use with presentation-16x9)</td><td><code>sumi/biz-ud-gothic</code></td></tr><tr><td><code>color</code></td><td>General-purpose theme with color: pastel tone fills, blue accent for emphasis</td><td><code>sumi/biz-ud-gothic</code></td></tr><tr><td><code>paper</code></td><td>Color ML-paper style: pastel tones, rounded corners, 1pt frames and 0.5pt edges, light gray panels, Inter for Latin text</td><td><code>sumi/inter-biz-ud-gothic</code></td></tr><tr><td><code>llama</code></td><td>After Meta&#39;s Llama 4 MoE figure: slate lines with open arrowheads, gray-framed white blocks, dark slate solid blocks, blue accent emphasis, borderless pale panels, Inter for Latin text</td><td><code>sumi/inter-biz-ud-gothic</code></td></tr></tbody></table>
@@ -2345,8 +2349,8 @@ edges:
 </pre></details>
 
 <h2 id="sets">Set enclosures</h2>
-<p><code>sets</code> draws a translucent circle, ellipse, rounded hull or rounded rectangle around nodes and groups after they are placed, so a node can belong to several sets and sets may overlap: a Venn diagram, or the hyperedges of a hypergraph. The tint is the tone&#39;s line color at low opacity, so overlaps show in every theme, also the monochrome ones. Sets take no space in the arrange trees: place the members with <code>place</code> and leave room for the outline and label. A node inside the outline that is not a member is reported (<code>geometry/set-contains-non-member</code>).</p>
-<div class="renders"><figure><img src="sets/sets.minimal.svg" alt="set enclosures, theme minimal" loading="lazy"><figcaption>theme <code>minimal</code> · <code>sumi render sets.sumi.yaml</code><br>131.94mm × 73.91mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="sets/sets.academic.svg" alt="set enclosures, theme academic" loading="lazy"><figcaption>theme <code>academic</code> · <code>sumi render sets.sumi.yaml --theme academic</code><br>130mm × 73.2mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="sets/sets.slides.svg" alt="set enclosures, theme slides" loading="lazy"><figcaption>theme <code>slides</code> · <code>sumi render sets.sumi.yaml --theme slides</code><br>156.63mm × 91.55mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="sets/sets.color.svg" alt="set enclosures, theme color" loading="lazy"><figcaption>theme <code>color</code> · <code>sumi render sets.sumi.yaml --theme color</code><br>131.94mm × 73.91mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="sets/sets.paper.svg" alt="set enclosures, theme paper" loading="lazy"><figcaption>theme <code>paper</code> · <code>sumi render sets.sumi.yaml --theme paper</code><br>129.12mm × 73.73mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="sets/sets.llama.svg" alt="set enclosures, theme llama" loading="lazy"><figcaption>theme <code>llama</code> · <code>sumi render sets.sumi.yaml --theme llama</code><br>128.59mm × 73.73mm (max width 180mm, max height 220mm)</figcaption></figure></div>
+<p><code>sets</code> draws a translucent circle, ellipse (axis-parallel, or tilted to the members with <code>angle: auto</code> or by a given <code>angle</code>), rounded hull or rounded rectangle around nodes and groups after they are placed, so a node can belong to several sets and sets may overlap: a Venn diagram, or the hyperedges of a hypergraph. The tint is the tone&#39;s line color at low opacity, so overlaps show in every theme, also the monochrome ones. Sets take no space in the arrange trees: place the members with <code>place</code> and leave room for the outline and label. A node inside the outline that is not a member is reported (<code>geometry/set-contains-non-member</code>).</p>
+<div class="renders"><figure><img src="sets/sets.minimal.svg" alt="set enclosures, theme minimal" loading="lazy"><figcaption>theme <code>minimal</code> · <code>sumi render sets.sumi.yaml</code><br>131.94mm × 120.47mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="sets/sets.academic.svg" alt="set enclosures, theme academic" loading="lazy"><figcaption>theme <code>academic</code> · <code>sumi render sets.sumi.yaml --theme academic</code><br>130mm × 119.77mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="sets/sets.slides.svg" alt="set enclosures, theme slides" loading="lazy"><figcaption>theme <code>slides</code> · <code>sumi render sets.sumi.yaml --theme slides</code><br>172.33mm × 143.05mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="sets/sets.color.svg" alt="set enclosures, theme color" loading="lazy"><figcaption>theme <code>color</code> · <code>sumi render sets.sumi.yaml --theme color</code><br>131.94mm × 120.47mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="sets/sets.paper.svg" alt="set enclosures, theme paper" loading="lazy"><figcaption>theme <code>paper</code> · <code>sumi render sets.sumi.yaml --theme paper</code><br>129.12mm × 119.94mm (max width 180mm, max height 220mm)</figcaption></figure><figure><img src="sets/sets.llama.svg" alt="set enclosures, theme llama" loading="lazy"><figcaption>theme <code>llama</code> · <code>sumi render sets.sumi.yaml --theme llama</code><br>128.59mm × 119.94mm (max width 180mm, max height 220mm)</figcaption></figure></div>
 <details><summary>Source: <code>sets.sumi.yaml</code></summary><pre># Set enclosures: overlapping sets for Venn diagrams and hyperedges. Generated by `bun run gallery` (#407).
 version: 1
 figure:
@@ -2380,6 +2384,23 @@ figure:
                       - { item: s, at: [0, 1.7] }
                       - { item: t, at: [2.0, 2.1] }
           - row:
+              gap: 14mm
+              align: center
+              items:
+                - place:
+                    unit: 10mm
+                    items:
+                      - { item: t1, at: [0, 3.2] }
+                      - { item: t2, at: [1.6, 1.8] }
+                      - { item: t3, at: [2.7, 3.0] }
+                      - { item: t4, at: [3.0, 0.6] }
+                - place:
+                    unit: 10mm
+                    items:
+                      - { item: u1, at: [0, 0] }
+                      - { item: u2, at: [1.5, 0.9] }
+                      - { item: u3, at: [2.9, 1.8] }
+          - row:
               gap: 22mm
               items: [d, f, o, h]
 
@@ -2394,6 +2415,13 @@ nodes:
   - { id: r, component: circle, label: r }
   - { id: s, component: circle, label: s }
   - { id: t, component: circle, label: t }
+  - { id: t1, component: circle, label: t1 }
+  - { id: t2, component: circle, label: t2 }
+  - { id: t3, component: circle, label: t3 }
+  - { id: t4, component: circle, label: t4 }
+  - { id: u1, component: box, label: u1 }
+  - { id: u2, component: box, label: u2 }
+  - { id: u3, component: box, label: u3 }
   - { id: d, component: box, label: d }
   - { id: f, component: box, label: f }
   - { id: o, component: box, label: o }
@@ -2410,6 +2438,8 @@ sets:
   - { id: right, label: Right, members: [ab, b1, b2], tone: green, labelAt: top }
   - { id: outer, label: Hull, members: [p, q, r, s, t], tone: gray, shape: hull, padding: 9mm, labelAt: right }
   - { id: inner, members: [q], tone: orange, shape: circle, padding: 3mm }
+  - { id: tilted, label: &quot;angle: auto&quot;, members: [t1, t2, t3, t4], tone: blue, shape: ellipse, angle: auto, padding: 4mm, labelAt: top-left }
+  - { id: fixed, label: &quot;angle: 30&quot;, members: [u1, u2, u3], tone: purple, shape: ellipse, angle: 30, padding: 4mm, labelAt: top-right }
   - { id: default, label: default, members: [d], tone: blue, labelAt: bottom }
   - { id: filled, label: filled, members: [f], tone: orange, variant: filled, labelAt: bottom }
   - { id: outlined, label: outlined, members: [o], tone: green, variant: outlined, labelAt: bottom }

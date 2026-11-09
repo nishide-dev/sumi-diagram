@@ -71,7 +71,7 @@ import type { LayoutIR, Point, Rect, SetLayout, TextLayout, TextRun } from "../l
 import { type Cubic, sampleCubic, trimCubic } from "../layout/route/cubic";
 import { groupArrowheadStems } from "../layout/route/padding";
 import { edgeArrowheadLength, WIRE_CORNER_RADIUS } from "../layout/route/router";
-import { outlinePolygon } from "../layout/set-shape";
+import { ellipseSegments, outlinePolygon } from "../layout/set-shape";
 import { fontFileFor } from "../lint/geometry/measure";
 import { CYLINDER_ARC_UNITS, shapeOutline } from "../lint/geometry/shapes";
 import { drawNodeOutline } from "./compose";
@@ -1168,8 +1168,14 @@ const SET_COLOR_KEY = "g:" as ElementKey;
 function containsPoint(placed: SetLayout): (point: Point) => boolean {
   const { outline } = placed;
   if (outline.kind === "ellipse") {
-    return ({ x, y }) =>
-      ((x - outline.cx) / outline.rx) ** 2 + ((y - outline.cy) / outline.ry) ** 2 <= 1;
+    const a = ((outline.angle ?? 0) * Math.PI) / 180;
+    const c = Math.cos(a);
+    const s = Math.sin(a);
+    return ({ x, y }) => {
+      const dx = x - outline.cx;
+      const dy = y - outline.cy;
+      return ((dx * c + dy * s) / outline.rx) ** 2 + ((dy * c - dx * s) / outline.ry) ** 2 <= 1;
+    };
   }
   if (outline.kind === "rect") {
     const { x, y, width, height } = outline.rect;
@@ -1210,7 +1216,14 @@ function setGroup(set: SetIR, placed: SetLayout, labelLayout: TextLayout | undef
     strokeAttributes(style);
   const cls = ' class="sumi-set-shape"';
   let shape: string;
-  if (o.kind === "ellipse") {
+  // A tilted ellipse (#430) is a path of cubics, which SVG, PDF, PPTX and the inspector all read.
+  const segments =
+    o.kind === "ellipse" && o.angle !== undefined && o.rx !== o.ry
+      ? ellipseSegments(o)
+      : o.kind === "path"
+        ? o.segments
+        : undefined;
+  if (o.kind === "ellipse" && segments === undefined) {
     shape =
       o.rx === o.ry
         ? `<circle${cls} cx="${n(o.cx)}" cy="${n(o.cy)}" r="${n(o.rx)}"${paints}/>`
@@ -1219,7 +1232,7 @@ function setGroup(set: SetIR, placed: SetLayout, labelLayout: TextLayout | undef
     const { x, y, width, height } = o.rect;
     shape = `<rect${cls} x="${n(x)}" y="${n(y)}" width="${n(width)}" height="${n(height)}"${o.radius > 0 ? ` rx="${n(o.radius)}"` : ""}${paints}/>`;
   } else {
-    const d = o.segments
+    const d = (segments ?? [])
       .map((s) =>
         s.command === "C" ? `C ${xy(s.c1)} ${xy(s.c2)} ${xy(s.to)}` : `${s.command} ${xy(s.to)}`,
       )

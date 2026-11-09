@@ -435,6 +435,8 @@ export interface SetIR {
   /** The enclosed nodes and groups, in the order written. */
   readonly members: readonly ElementKey[];
   readonly shape: SetShape;
+  /** An ellipse's orientation (#430): degrees, or `auto`; omitted means axis-parallel. */
+  readonly angle?: number | "auto";
   /** Where the label sits outside the outline; `top` when not written. */
   readonly labelAt: SetLabelPosition;
   /** Room between the members and the outline in pt; omitted means the profile's group padding. */
@@ -836,6 +838,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
         label: set.label,
         members: freeze(set.members.map(endpointKey)),
         shape: set.shape,
+        ...(set.angle !== undefined && { angle: set.angle }),
         labelAt: set.labelAt ?? "top",
         ...(set.padding !== undefined && { paddingPt: set.padding }),
         variant: set.variant,

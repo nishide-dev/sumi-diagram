@@ -866,13 +866,27 @@
           },
           "shape": {
             "default": "circle",
-            "description": "circle (default; the smallest circle around the members), ellipse (axis-parallel, up to 3:1), hull (rounded convex hull) or rect (rounded rectangle).",
+            "description": "circle (default; the smallest circle around the members), ellipse (axis-parallel, up to 3:1, or tilted with angle), hull (rounded convex hull) or rect (rounded rectangle).",
             "type": "string",
             "enum": [
               "circle",
               "ellipse",
               "hull",
               "rect"
+            ]
+          },
+          "angle": {
+            "description": "Orientation of an ellipse set (shape: ellipse only), in degrees clockwise on the page (the first axis, rx, points along it), or auto to turn the ellipse to the members' layout. Either fits the smallest ellipse that keeps the padding clear of every member, with no limit on its aspect ratio. Omitted means an axis-parallel ellipse up to 3:1.",
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": -180,
+                "maximum": 180
+              },
+              {
+                "type": "string",
+                "const": "auto"
+              }
             ]
           },
           "labelAt": {

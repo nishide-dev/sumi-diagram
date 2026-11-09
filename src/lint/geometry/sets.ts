@@ -98,10 +98,69 @@ export const setContainsNonMember = defineGeometryRule({
         message: `The outline of ${set.name} covers ${names.length === 1 ? names[0] : `${names.length} nodes (${names.join(", ")})`}, which ${names.length === 1 ? "is" : "are"} not ${names.length === 1 ? "a member" : "members"}.`,
         path: set.docPath,
         subject: set.subject,
-        hint: "A node inside a set's outline reads as a member. Add it to members, or move it clear of the outline (the `place` coordinates or a gap), or fit the set closer with shape: hull, ellipse or rect, or a smaller padding.",
+        hint: "A node inside a set's outline reads as a member. Add it to members, or move it clear of the outline (the `place` coordinates or a gap), or fit the set closer with shape: hull, rect, a tilted ellipse (shape: ellipse with angle: auto), or a smaller padding.",
         related: covered.map((n) => ({
           path: n.docPath,
           message: `${capitalize(n.name)} is defined here.`,
+        })),
+      });
+    }
+    return findings;
+  },
+});
+
+/** How close (units) the outline may come to a text box before it counts as touching it. */
+const TEXT_TOUCH = 1;
+
+/** Whether `element` is a member of `set`, or lies inside a member group: its text belongs to the set. */
+function belongsToSet(
+  context: GeometryContext,
+  set: GeometrySet,
+  element: GeometryElement,
+): boolean {
+  if (element.kind === "edge") return false;
+  const caption = captionOf(element);
+  return set.ir.members.some(
+    (member) =>
+      member === element.key ||
+      context.isAncestor(member, element.key) ||
+      (caption !== undefined && member === `g:${caption}`),
+  );
+}
+
+export const setOutlineCrossesText = defineGeometryRule({
+  id: "geometry/set-outline-crosses-text",
+  description:
+    "A set's outline crosses or touches a label, caption or edge label it does not enclose: a node label, a group title or caption, or an edge label of something that is not a member.",
+  defaultSeverity: "warning",
+  fixable: false,
+  run(context) {
+    const findings: LintFinding[] = [];
+    for (const set of context.sets) {
+      const hits: GeometryElement[] = [];
+      for (const element of context.elements) {
+        if (belongsToSet(context, set, element)) continue;
+        const crossed = element.labels.some((l) =>
+          l.visibleLines.some(
+            (line) =>
+              // Within TEXT_TOUCH of the text, yet not wholly inside the outline.
+              regionIntersectsRect(set.geometry.region, line, -TEXT_TOUCH) &&
+              rectDepthInside(set.geometry.region, line) < TEXT_TOUCH,
+          ),
+        );
+        // A text entirely inside the outline of a non-member is reported by set-contains-non-member.
+        if (crossed) hits.push(element);
+      }
+      if (hits.length === 0) continue;
+      const names = hits.map((h) => h.name);
+      findings.push({
+        message: `The outline of ${set.name} crosses the text of ${names.length === 1 ? names[0] : `${names.length} elements (${names.join(", ")})`}.`,
+        path: set.docPath,
+        subject: set.subject,
+        hint: "A dashed or solid outline through text is hard to read. Move the members or the label apart (the `place` coordinates or a gap), use a smaller padding, or fit the set closer (a tilted ellipse: shape: ellipse with angle: auto).",
+        related: hits.map((h) => ({
+          path: h.docPath,
+          message: `${capitalize(h.name)} is defined here.`,
         })),
       });
     }

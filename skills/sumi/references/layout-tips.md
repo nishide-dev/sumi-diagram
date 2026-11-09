@@ -346,6 +346,17 @@ Sumi features for each form:
 The GCN and Llama 4 MoE [examples](../examples/README.md) keep one vocabulary across
 all their panels.
 
+**A dense, wide figure** (many small pictures, little text) is easiest to place by
+coordinates, as the TriCL [example](../examples/README.md) does: one root `place` with
+every card, box and label at a measured centre (1pt per 3.3 px of the reference), each
+card a group with its own `place` for its vertices. Then gray panels behind a column are
+`rect` [sets](structured.md#set-enclosures) (they take no space, so the boxes inside stay
+on one line and the edges between columns run straight), a node with `glyphs` or an
+explicit size of at most 10pt (not a `box`) needs no label (`lint/empty-label` skips it), and each card's
+frame is its content plus group padding, so size it by the vertex spread. Measure the
+reference first: element sizes and gaps as a fraction of the width, and check the
+rendered text against its elements.
+
 **Dense reproductions.** A wide figure of cell rows, short arrows and frames (the LLaDA
 example) is drawn in one [`place`](structured.md#coordinate-placement) whose `unit` is the
 reference's pixel (e.g. `unit: 0.3113pt` so a 53 px cell is a 16.5pt tokens cell) and

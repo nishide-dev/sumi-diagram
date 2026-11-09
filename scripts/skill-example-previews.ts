@@ -8,6 +8,7 @@ for (const name of [
   "clip",
   "embedding-gemma",
   "gcn",
+  "tricl",
   "llama4-moe",
   "llada",
   "chat",
