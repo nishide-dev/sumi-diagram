@@ -345,3 +345,23 @@ figure.sumi.yaml:21:5 warning lint/ancestor-edge Edge edges[1] connects group "o
 ## 規則の追加
 
 規則は `defineRule()`（`src/lint/rule.ts`）で定義し、`BUILTIN_LINT_RULES`（`src/lint/rules/index.ts`）に加える。幾何の規則は `defineGeometryRule()` で定義し、`BUILTIN_GEOMETRY_RULES`（`src/lint/geometry/rules.ts`）に加える（`GeometryContext` を受け取る）。規則は `LintContext`（有効な要素、解決済みの部品とスタイル、Theme）を受け取り、`{ message, path, subject?, hint?, related? }` を返す。code・severity・位置情報は枠組みが付ける。options を取る規則は、既定値付きの Zod スキーマを `options` に指定する。規則は汎用的に保ち、特定分野に固有の検査は加えない。
+
+## 論文図の密度（#422）
+
+`geometry/sparse-figure` と `geometry/text-heavy-nodes` は **info**（render / `lint --geometry` のみ、
+`maxWarnings` に含めず、描画は変えない）。対象は paper 系 Profile（`paper-single` / `paper-double`）
+または `figure.target` のある図。Skill は論文図の点検で両方を解消するよう求める。
+
+- `geometry/sparse-figure`: 描画ノードが **30 以上**、ノード本体・文字・badge・glyph・set の
+  外接矩形の union が canvas の **34% 未満**、かつノード 1 つあたりの印刷 canvas 面積が
+  **330mm² 超**なら報告する。group の枠と辺は内容に数えない。最大の空き矩形の位置と大きさを示し、
+  凡例や散らばったラベルをそこへ寄せる、canvas を縮める（gap・padding・`density: compact`・
+  `target.height`）、要素を大きくする、を勧める。
+- `geometry/text-heavy-nodes`: 描画ノードが **12 以上**で、ラベルが **36 文字以上**のノードが
+  **2 つ以上**あれば報告する（空白は 1 文字に畳む。会話の `bubble` は除く）。数式や説明は
+  キャプションへ、ラベルは名前に、を勧める。
+
+基準値は TriCL・LLaDA の再現図（指摘されない）と前回の試行の 3 図（指摘される）で校正した。
+測定値と採らなかった指標は [設計 #422](design/decisions/422-density-lint.md)。
+抑止は `--rule geometry/sparse-figure=off` などで、意図した疎らさや文章が図の主題のときだけ使う。
+

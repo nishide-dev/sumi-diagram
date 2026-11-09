@@ -1,0 +1,138 @@
+# Overview of the attribute-as-structure framework (EACL 2026, long paper 81):
+# (1) heterogeneous hypergraph construction, (2) heterogeneous hypergraph encoder,
+# (3) learning objectives L = L_TriCL + lambda L_AACL.
+# Target: full text width of an ACL two-column page (about 160mm), so the
+# natural width must stay at or under 160mm (paper-double allows 180mm).
+version: 1
+figure:
+  id: aas-overview
+  title: Attribute-as-structure framework overview
+  theme: paper
+  themeOverrides: { palette: slate, groupLabelWeight: regular }
+  profile: paper-double
+  target: { height: 90mm }
+  layout:
+    density: compact
+    align:
+      - { y: [ zi, wsum ] }
+    arrange:
+      stack:
+        gap: 3mm
+        items:
+          - row: { gap: 7mm, align: stretch, items: [ construct, encode, learn ] }
+          - key
+groups:
+  # (1) Heterogeneous hypergraph construction
+  - id: construct
+    variant: plain
+    caption: (1) Hypergraph construction
+    arrange:
+      place:
+        unit: 5.5mm
+        items:
+          - { item: p1, at: [ 0.2, 0 ] }
+          - { item: p2, at: [ 0, 3.4 ] }
+          - { item: p3, at: [ 1.7, 1.7 ] }
+          - { item: title, at: [ 3.4, 0 ] }
+          - { item: abstract, at: [ 3.9, 1.9 ] }
+          - { item: compound, at: [ 3.2, 3.6 ] }
+  # (2) Heterogeneous hypergraph encoder
+  - id: encode
+    variant: plain
+    caption: (2) Hypergraph encoder
+    arrange:
+      stack: { gap: 3mm, align: stretch, items: [ embed, mp, mlp ] }
+  - id: mp
+    arrange:
+      stack:
+        items:
+          - h-in
+          - row: { gap: 3mm, items: [ self-att, cross-att ] }
+          - add
+          - h-out
+  # (3) Learning objectives
+  - id: learn
+    variant: plain
+    caption: (3) Contrastive learning
+    arrange:
+      stack: { gap: 3mm, align: stretch, items: [ aacl, tricl, loss ] }
+  - id: aacl
+    label: AACL
+    labelAt: top-left
+    arrange:
+      stack:
+        gap: 5mm
+        items:
+          - row: { gap: 2mm, items: [ za-t, za-a, za-c ] }
+          - stack: { gap: 6mm, items: [ { row: { gap: 4mm, items: [ zi, { stack: { items: [ wsum ] } }, zattr-i, zattr-j ] } }, pair-room ] }
+nodes:
+  # (1) entities (papers) and attributes as distinct node types, with initial features
+  - { id: p1, component: circle, icon: tabler/file-text, tone: blue, variant: tinted, glyphs: [ { kind: vector, tone: blue, dx: 0.3 } ] }
+  - { id: p2, component: circle, icon: tabler/file-text, tone: blue, variant: tinted, glyphs: [ { kind: vector, tone: blue, dx: 0.3 } ] }
+  - { id: p3, component: circle, icon: tabler/file-text, tone: blue, variant: tinted, glyphs: [ { kind: vector, tone: blue, dx: 0.3 } ] }
+  - { id: title, component: circle, icon: tabler/letter-t, tone: green, variant: tinted, glyphs: [ { kind: vector, tone: green, dx: 0.3 } ] }
+  - { id: abstract, component: circle, icon: tabler/align-left, tone: green, variant: tinted, glyphs: [ { kind: vector, tone: green, dx: 0.3 } ] }
+  - { id: compound, component: circle, icon: tabler/flask, tone: green, variant: tinted, glyphs: [ { kind: vector, tone: green, dx: 0.3 } ] }
+  # (2) encoder steps
+  - { id: embed, component: box, label: Type-specific embedding, sublabel: '$+\,e_t + e_k$', tone: gray, variant: outlined }
+  - { id: h-in, component: junction, variant: hidden }
+  - { id: self-att, component: box, label: "Self-\nattention", sublabel: entity–entity, tone: blue, variant: tinted }
+  - { id: cross-att, component: box, label: "Cross-type\nattention", sublabel: entity–attribute, tone: green, variant: tinted }
+  - { id: add, component: operator, props: { symbol: plus } }
+  - { id: h-out, component: junction, variant: hidden }
+  - { id: mp-title, component: label, label: Message passing ×L, labelRotation: -90, attach: { to: mp, side: west, gap: 0.5mm } }
+  - { id: mlp, component: box, label: Type-specific MLP, sublabel: '$\mathrm{MLP}_{\tau(v)}$', tone: gray, variant: outlined }
+  # (3) AACL: entity output Z_i, attribute outputs Z_a, attention-weighted sum
+  - { id: za-t, component: circle, icon: tabler/letter-t, tone: green, variant: tinted, glyphs: [ { kind: vector, tone: green, strength: solid, dx: 0.3 } ] }
+  - { id: za-a, component: circle, icon: tabler/align-left, tone: green, variant: tinted, glyphs: [ { kind: vector, tone: green, strength: solid, dx: 0.3 } ] }
+  - { id: za-c, component: circle, icon: tabler/flask, tone: green, variant: tinted, glyphs: [ { kind: vector, tone: green, strength: solid, dx: 0.3 } ] }
+  - { id: zi, component: circle, icon: tabler/file-text, tone: blue, variant: tinted, glyphs: [ { kind: vector, tone: blue, strength: solid, dx: 0.3 } ] }
+  - { id: wsum, component: operator, props: { symbol: plus } }
+  - { id: alpha, component: label, label: '$\alpha_{i,a}$', attach: { to: wsum, side: north-east, gap: 0.5mm } }
+  - { id: pair-room, component: junction, variant: hidden }
+  - { id: zattr-i, component: circle, icon: tabler/file-text, tone: blue, variant: tinted, glyphs: [ { kind: vector, tone: orange, strength: solid, dx: 0.3 } ] }
+  - { id: zattr-j, component: circle, icon: tabler/file-text, tone: blue, variant: tinted, glyphs: [ { kind: vector, tone: orange, strength: solid, dx: 0.3 } ] }
+  - { id: tricl, component: box, label: TriCL, sublabel: "node + edge + membership\n(two augmented views)", tone: gray, variant: outlined }
+  - { id: loss, component: box, label: '$L = L_{\mathrm{TriCL}} + \lambda L_{\mathrm{AACL}}$', tone: purple, variant: tinted }
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: row
+      entries:
+        - { heading: "Nodes:", icon: tabler/file-text, label: Paper (entity) }
+        - { icon: tabler/letter-t, label: Title }
+        - { icon: tabler/align-left, label: Abstract }
+        - { icon: tabler/flask, label: Compound }
+        - { heading: "Hyperedges:", set: { tone: blue }, label: Entity–entity }
+        - { set: { tone: green }, label: Entity–attribute }
+        - { heading: "Embeddings:", glyph: { kind: vector, tone: blue }, label: Initial }
+        - { glyph: { kind: vector, tone: blue, strength: solid }, label: Encoder output }
+        - { glyph: { kind: vector, tone: orange, strength: solid }, label: Attribute-integrated }
+        - { edge: { component: double-arrow, tone: blue }, label: Positive pair }
+        - { edge: { component: double-arrow, tone: red }, label: Negative pair }
+edges:
+  # main flow between stages
+  - { from: construct, to: embed, toAnchor: west }
+  - { from: mlp, to: aacl, toAnchor: west }
+  - { from: mlp, to: tricl, toAnchor: west }
+  # encoder: per edge type, node -> hyperedge -> node attention, summed with a residual
+  - { from: embed, to: h-in, component: line }
+  - { from: h-in, to: self-att }
+  - { from: h-in, to: cross-att }
+  - { from: embed, fromAnchor: "south:0.06", to: add, toAnchor: west }
+  - { from: self-att, to: add, component: line }
+  - { from: cross-att, to: add, component: line }
+  - { from: add, to: h-out, component: line }
+  - { from: h-out, to: mlp }
+  # AACL
+  - { from: za-a, to: wsum }
+  - { from: za-t, to: wsum }
+  - { from: za-c, to: wsum }
+  - { from: zi, to: wsum, component: line }
+  - { from: wsum, to: zattr-i }
+  - { from: zi, to: zattr-i, component: double-arrow, tone: blue, fromAnchor: south, toAnchor: south, route: curve }
+  - { from: zi, to: zattr-j, component: double-arrow, tone: red, fromAnchor: south, toAnchor: south, route: curve }
+sets:
+  - { id: ee, members: [ p1, p2, p3 ], tone: blue, shape: ellipse }
+  - { id: ea, members: [ p3, title, abstract, compound ], tone: green, shape: ellipse }

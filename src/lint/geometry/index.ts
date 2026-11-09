@@ -1,5 +1,6 @@
 // Geometry lint (stage `geometry`, #13): rules on the rendered SVG's geometry.
 export * from "./context";
+export * from "./density";
 export * from "./edges";
 export * from "./lint";
 export * from "./measure";
