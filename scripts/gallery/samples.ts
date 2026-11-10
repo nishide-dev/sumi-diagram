@@ -1377,14 +1377,17 @@ figure:
     palette: ${palette}
   layout:
     arrange:
-      stack:
-        gap: 6mm
+      row:
+        gap: 9mm
+        align: center
         items:
-          - row:
-              gap: 9mm
+          - stack:
+              gap: 6mm
               align: center
-              items: [input, encoder, head, out, key]
-          - row: { gap: 3mm, items: [t-gray, t-red, t-orange, t-yellow, t-green, t-blue, t-purple, t-pink] }
+              items:
+                - row: { gap: 9mm, align: center, items: [input, encoder, head, out] }
+                - row: { gap: 3mm, items: [t-gray, t-red, t-orange, t-yellow, t-green, t-blue, t-purple, t-pink] }
+          - key
 
 groups:
   - id: encoder

@@ -527,7 +527,7 @@ weights. The tones are derived from the palette too: `gray` is its neutral, and 
 `yellow`, `green`, `blue`, `purple`, `pink` keep their own hue (`tone: green` is still green) but
 take the palette's lightness and chroma (fills at its tint, lines at its strong colour), so a
 tone carries its meaning while the whole figure stays in one family of colours. Every text keeps
-4.5:1 on its fill in every palette. The warm lines are the exception to "the palette's lightness": `orange` and `yellow` solid fills are kept vivid (orange-red, gold) instead of darkened into brown and olive (#444). List the colours and the derived tones with
+4.5:1 on its fill in every palette. Yellow fills are kept light and warm; muted orange fills are kept peach-like. Orange and yellow lines remain vivid orange-red and ochre (#444, #455). List the colours and the derived tones with
 `sumi catalog --section palettes`; an unknown name is `schema/invalid-value` with the closest
 name. Explicit `tones`, `groupFill`, `groupStroke` and `solidFills` win over the palette, but
 tone colours of your own next to a palette are what `geometry/color-harmony` reports (it clashes
