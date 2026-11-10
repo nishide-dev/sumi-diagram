@@ -434,7 +434,17 @@ class StructuredLayout {
       sizes.reduce((sum, s) => sum + (vertical ? s.height : s.width), 0) +
       box.items.reduce((sum, item) => sum + this.#lead(item) + this.#trail(item), 0);
     const gaps = this.#gap(box) * (sizes.length - 1);
-    const cross = Math.max(0, ...sizes.map((s) => (vertical ? s.width : s.height)));
+    const cross = Math.max(
+      0,
+      ...box.items.map((item, i) => {
+        const size = sizes[i] as Size;
+        const length = vertical ? size.width : size.height;
+        if (typeof item !== "string") return length;
+        const body = this.#bodyRect(item, { x: 0, y: 0, ...size });
+        const center = vertical ? body.x + body.width / 2 : body.y + body.height / 2;
+        return 2 * Math.max(center, length - center);
+      }),
+    );
     const padding = this.#centerPadding(box);
     const length = main + gaps + padding.before + padding.after;
     const size = vertical ? { width: cross, height: length } : { width: length, height: cross };
@@ -603,17 +613,28 @@ class StructuredLayout {
       const column = cursor % columns;
       const row = Math.floor(cursor / columns);
       const size = this.#itemSize(item);
-      heights[row] = Math.max(heights[row] ?? 0, size.height);
-      if (span === 1) widths[column] = Math.max(widths[column] ?? 0, size.width);
+      const body =
+        typeof item === "string"
+          ? this.#bodyRect(item, { x: 0, y: 0, ...size })
+          : { x: 0, y: 0, ...size };
+      const centerX = body.x + body.width / 2;
+      const centerY = body.y + body.height / 2;
+      const trackWidth =
+        (box.align ?? "center") === "center"
+          ? 2 * Math.max(centerX, size.width - centerX)
+          : size.width;
+      const trackHeight = 2 * Math.max(centerY, size.height - centerY);
+      heights[row] = Math.max(heights[row] ?? 0, trackHeight);
+      if (span === 1) widths[column] = Math.max(widths[column] ?? 0, trackWidth);
       cursor += span;
-      return { item, span, column, row, size };
+      return { item, span, column, row, size, trackWidth };
     });
     for (const cell of cells) {
       if (cell.span === 1) continue;
       const available =
         widths.slice(cell.column, cell.column + cell.span).reduce((a, b) => a + b, 0) +
         columnGap * (cell.span - 1);
-      const extra = Math.max(0, cell.size.width - available) / cell.span;
+      const extra = Math.max(0, cell.trackWidth - available) / cell.span;
       for (let c = cell.column; c < cell.column + cell.span; c++)
         widths[c] = (widths[c] ?? 0) + extra;
     }
@@ -646,15 +667,21 @@ class StructuredLayout {
         tracks.columnGap * (cell.span - 1);
       const width =
         align === "stretch" && this.#stretchable(cell.item, true) ? available : cell.size.width;
-      const offset =
+      let offset =
         align === "start" ? 0 : align === "end" ? available - width : (available - width) / 2;
+      let yOffset = ((tracks.heights[cell.row] as number) - cell.size.height) / 2;
+      if (typeof cell.item === "string") {
+        const body = this.#bodyRect(cell.item, { x: 0, y: 0, width, height: cell.size.height });
+        if (align === "center") offset = available / 2 - body.x - body.width / 2;
+        yOffset = (tracks.heights[cell.row] as number) / 2 - body.y - body.height / 2;
+      }
       const rect = {
         x: (xs[cell.column] as number) + offset,
-        y: (ys[cell.row] as number) + ((tracks.heights[cell.row] as number) - cell.size.height) / 2,
+        y: (ys[cell.row] as number) + yOffset,
         width,
         height: cell.size.height,
       };
-      if (typeof cell.item === "string") visit(cell.item, rect);
+      if (typeof cell.item === "string") visit(cell.item, this.#bodyRect(cell.item, rect));
       else this.#placeBox(cell.item, rect, "center", visit);
     }
   }
@@ -748,12 +775,17 @@ class StructuredLayout {
         separator || (align === "stretch" && this.#stretchable(item, vertical))
           ? crossAvailable
           : crossNatural;
-      const offset =
+      let offset =
         separator || align === "start" || (align === "stretch" && cross === crossAvailable)
           ? 0
           : align === "end"
             ? crossAvailable - cross
             : (crossAvailable - cross) / 2;
+      if (align === "center" && typeof item === "string" && !separator) {
+        const body = this.#bodyRect(item, { x: 0, y: 0, ...size });
+        const center = vertical ? body.x + body.width / 2 : body.y + body.height / 2;
+        offset = crossAvailable / 2 - center;
+      }
       cursor += this.#lead(item);
       const rect: Rect = vertical
         ? { x: frame.x + offset, y: cursor, width: cross, height: size.height }
