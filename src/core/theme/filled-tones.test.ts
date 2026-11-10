@@ -8,7 +8,7 @@ import { buildCatalog } from "../registry/catalog";
 import { BUILTIN_THEMES } from "./builtin";
 import { toOklch } from "./color-math";
 import { dimStyle, lightenColor } from "./dim";
-import { PALETTE_NAMES, withPalette } from "./palette";
+import { getPalette, PALETTE_NAMES, withPalette } from "./palette";
 import { resolveStyle } from "./resolve";
 import { TONE_NAMES } from "./tones";
 
@@ -54,10 +54,15 @@ describe("solid and tinted nodes", () => {
           tone: "yellow",
         }).style.stroke;
         expect(frame).toBe(arrow);
-        const panels = [
-          resolveStyle(theme, { kind: "group", id: "sumi/container", variant: "default" }).style
-            .fill,
-        ];
+        const panels = ["default", ...(palette === undefined ? ["filled"] : [])].map(
+          (variant) =>
+            resolveStyle(theme, { kind: "group", id: "sumi/container", variant }).style.fill,
+        );
+        if (palette) {
+          const selected = getPalette(palette);
+          if (!selected) throw new Error(`missing palette ${palette}`);
+          panels.push(selected.roles.panel);
+        }
         const yellow = toOklch(arrow);
         expect(muddinessOf(yellow, yellow), `${base.id}/${palette ?? "default"}`).toBeUndefined();
         for (const background of ["#ffffff", ...panels.filter((fill) => fill !== "transparent")]) {
