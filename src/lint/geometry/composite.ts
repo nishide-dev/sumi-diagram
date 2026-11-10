@@ -189,14 +189,6 @@ const covers = (item: PaintItem, p: Point): boolean =>
   p.y <= item.bbox.y + item.bbox.height + 1e-6 &&
   depthInside(item.region, p) >= 0;
 
-/** Composite painted fills at a point in renderer order over the white canvas. */
-export function surfaceAt(items: readonly PaintItem[], point: Point): string {
-  return items.reduce(
-    (color, item) => (covers(item, point) ? over(item.color, item.alpha, color) : color),
-    WHITE,
-  );
-}
-
 /** Every item with the samples at which it shows. */
 export function analyze(items: readonly PaintItem[]): Analysis[] {
   return items.map((item, index) => {
