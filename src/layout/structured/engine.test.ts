@@ -69,6 +69,30 @@ const close = (actual: number, expected: number) =>
   expect(Math.abs(actual - expected)).toBeLessThanOrEqual(0.001);
 
 describe("stack and row", () => {
+  test("set enclosures include member glyphs and padding", () => {
+    const text = stringify({
+      version: 1,
+      figure: { id: "set-glyph", theme: "slides", layout: { arrange: { row: { items: ["a"] } } } },
+      nodes: [
+        {
+          id: "a",
+          component: "label",
+          icon: "tabler/file-text",
+          glyphs: [{ kind: "vector", direction: "right", at: "north", dy: -0.35 }],
+        },
+      ],
+      sets: [{ id: "s", members: ["a"], shape: "rect", padding: "3mm", enclose: "footprint" }],
+    });
+    const result = layoutStructuredFigure(text, { measurer: FAKE });
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const { ir, layout } = result.value;
+    const node = ir.nodes.find((n) => n.key === "n:a");
+    const enclosure = layout.sets?.find((s) => s.id === "s");
+    if (node === undefined || enclosure === undefined) throw new Error("missing node or set");
+    const glyph = glyphRects(node, rectOf(layout, "a"))[0] as Rect;
+    expect(inside(enclosure.rect, glyph)).toBe(true);
+    expect(glyph.y - enclosure.rect.y).toBeGreaterThan(15);
+  });
   test("grid centers node bodies and keeps their glyph footprints inside their cells", () => {
     const text = stringify({
       version: 1,

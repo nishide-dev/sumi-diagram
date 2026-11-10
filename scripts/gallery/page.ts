@@ -368,11 +368,9 @@ function htmlPalettes(palettes: GalleryModel["palettes"]): string {
 }
 
 const LEGENDS_NOTE =
-  "This contrastive-learning sketch compares document features with related and unrelated attributes. " +
-  "The legend identifies the document, title and abstract icons, their feature-vector glyphs, " +
-  "positive and negative double-arrow pairs, and the set enclosing related items. " +
-  "Entries are arranged with `flow: row`, wrapped by `perRow` and grouped by `heading`; " +
-  "`labelAt: left` puts text before a sample. Each sample follows the figure's theme.";
+  "A hypergraph encoder transforms document features into embeddings for contrastive learning. " +
+  "The legend identifies icon, glyph, set and edge samples, including positive and negative pairs. " +
+  "Entries use `flow: row`, `headings: inline` and `perRow` to group and wrap the samples.";
 
 const OUTLINED_TONES_NOTE =
   "With `variant: outlined` a tone colors the outline and the text of a node instead of its fill " +

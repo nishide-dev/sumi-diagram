@@ -7,6 +7,7 @@
  */
 
 import { badgeRect } from "../../assets/draw";
+import { glyphRects } from "../../assets/glyphs";
 import type { FigureIR, SetIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type { Point, Rect, SetOutline, TextMetrics } from "../ir";
@@ -44,7 +45,13 @@ export function fitSets(
       const node = nodes.get(key);
       const round = node !== undefined && (node.shape === "circle" || node.shape === "oval");
       const badge = node === undefined ? undefined : badgeRect(node, rect);
-      return [{ rect, round }, ...(badge === undefined ? [] : [{ rect: badge, round: false }])];
+      return [
+        { rect, round },
+        ...(badge === undefined ? [] : [{ rect: badge, round: false }]),
+        ...(node === undefined || set.enclose !== "footprint"
+          ? []
+          : glyphRects(node, rect).map((rect) => ({ rect, round: false }))),
+      ];
     });
     const room = set.paddingPt === undefined ? padding : set.paddingPt * 2;
     const outline = fitSetOutline(members, set.shape, room, set.style.radius.units, set.angle);

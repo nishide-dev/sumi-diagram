@@ -1107,6 +1107,10 @@ export const SetSchema = z.strictObject({
     .describe(
       "IDs of the nodes and groups the set encloses (each listed once). A group stands for its whole frame; the nodes inside it are members too.",
     ),
+  enclose: z
+    .enum(["body", "footprint"])
+    .optional()
+    .describe("Whether to enclose member bodies (default) or their glyphs as well (footprint)."),
   shape: z
     .enum(SET_SHAPES)
     .default("circle")

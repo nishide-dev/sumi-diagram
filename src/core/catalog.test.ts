@@ -233,6 +233,7 @@ describe("sets section (#407)", () => {
       "id",
       "label",
       "members",
+      "enclose",
       "shape",
       "angle",
       "labelAt",
