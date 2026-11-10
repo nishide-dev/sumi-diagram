@@ -45,6 +45,36 @@ test("legend story uses the same relations and symbols as its key", () => {
   expect(source).toContain("tabler/flask");
 });
 
+test("glyph and stroke stories preserve their visual semantics and slides profile", () => {
+  const glyph = glyphSample();
+  expect(glyph.source).toContain(
+    "tones: [blue, blue, blue, blue, orange, orange, orange, orange], strength: solid, direction: right",
+  );
+  expect(glyph.source).toContain("kind: dot, tone: green }, label: Trainable");
+  expect(glyph.source).toContain("kind: pill, tone: purple }, label: Frozen");
+  const stroke = strokeSample();
+  expect(stroke.source).toContain(
+    "from: images, to: student, lineWidth: 1.5pt, arrowheadScale: 1.3",
+  );
+  expect(stroke.source).toContain(
+    "from: images, to: teacher, lineWidth: 0.5pt, arrowheadScale: 0.7",
+  );
+  expect(stroke.source).toContain("from: teacher, to: loss, variant: dashed");
+  expect(stroke.source).toContain("from: query, to: student-copy, variant: dotted");
+  expect(stroke.source).toContain("cornerRadius: 8pt");
+  expect(stroke.source).toContain("variant: dotted\n    cornerRadius: 0pt");
+  for (const sample of [glyph, stroke]) {
+    for (const rendering of sample.renderings) {
+      expect(rendering.profile).toBe(
+        rendering.theme === "slides" ? WIDE_SAMPLE_PROFILE : SAMPLE_PROFILE,
+      );
+      expect(rendering.overrides.profile).toBe(
+        rendering.theme === "slides" ? WIDE_SAMPLE_PROFILE : undefined,
+      );
+    }
+  }
+});
+
 test("every catalog component has a sample, in catalog order", () => {
   expect(samples.map((s) => s.entry.id)).toEqual(
     buildCatalog(createBuiltinRegistry()).components.map((c) => c.id),

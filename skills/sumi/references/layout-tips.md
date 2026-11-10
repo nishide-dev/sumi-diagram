@@ -350,6 +350,8 @@ Sumi features for each form:
   `sumi catalog --icons`); make an icon larger with `iconSize` (`2`, or `"12mm"`),
   never by enclosing it in a circle; tones from [tones and variants](figure-format.md#tones-and-variants).
 - **Feature vectors, dots, pills**: node `glyphs` ([glyphs](assets.md#glyphs)).
+  Give each mark a meaning: for example, soft raw vectors and solid embedding vectors,
+  a multi-tone row for concatenation, and dot / pill marks for trainable / frozen models.
 - **Sets and hyperedges**: top-level `sets` ([set enclosures](structured.md#set-enclosures)).
 - **Small graphs**: `place` with coordinates ([coordinate placement](structured.md#coordinate-placement)).
 - **Per-figure colors**: `themeOverrides.palette` for a whole scheme, `tones` and the
