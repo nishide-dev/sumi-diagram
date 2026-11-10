@@ -240,6 +240,19 @@ describe.each(Object.entries(FIGURES))("%s", (_name, path) => {
 });
 
 describe("geometry lint on structured SVGs", () => {
+  test("the original LLaDA's short dashed remask arrows remain reported", async () => {
+    const path = "examples/llada/llada.sumi.yaml";
+    const source = readFileSync(join(ROOT, path), "utf8");
+    const result = await renderFigure(source, {
+      file: path,
+      assetBase: join(ROOT, "examples/llada"),
+    });
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    expect(lintGeometry(result.value, { source }).map((d) => [d.severity, d.code, d.path])).toEqual(
+      [4, 14, 15, 16].map((i) => ["warning", "geometry/dash-hidden", ["edges", i]]),
+    );
+  });
+
   test("the examples and the B panel have only the accepted DiT infos", async () => {
     for (const path of Object.values(FIGURES).filter((p) => !p.includes("a-transformer"))) {
       const source = readFileSync(join(ROOT, path), "utf8");
