@@ -7,42 +7,45 @@ const root = join(import.meta.dir, "../..");
 const manifest = join(import.meta.dir, "reproduction-hashes.json");
 const update = "SUMI_UPDATE_REPRODUCTIONS=1 bun test src/compiler/reproduction-hashes.test.ts";
 
+function git(...args: string[]): string {
+  const result = Bun.spawnSync(["git", ...args], { cwd: root });
+  if (result.exitCode !== 0) throw new Error(`git ${args[0]} failed: ${result.stderr.toString()}`);
+  return result.stdout.toString();
+}
+
 /**
- * The figure sources of every example: tracked regular files (symlinks are covered by their
- * targets, and a checkout without symlink support would otherwise hash the link text) that are a
- * figure, a referenced asset or the script that generates one, at any depth.
+ * The figure sources of every example, at any depth: a figure, a referenced asset or the script
+ * that generates one, as tracked by git (a source must be added to git to be covered). A regular
+ * file is recorded by its content with line endings normalized, so a CRLF checkout hashes the
+ * same; a symlink by its target as git stores it, never by reading the checkout, which holds the
+ * link text where symlinks are not supported.
  */
-function sourcePaths(): string[] {
-  const listed = Bun.spawnSync(
-    ["git", "ls-files", "-s", "-z", "examples", "skills/sumi/examples"],
-    {
-      cwd: root,
-    },
-  );
-  if (listed.exitCode !== 0) throw new Error(`git ls-files failed: ${listed.stderr.toString()}`);
-  return listed.stdout
-    .toString()
+function sources(): Record<string, string> {
+  const entries = git("ls-files", "-s", "-z", "examples", "skills/sumi/examples")
     .split("\0")
     .filter(Boolean)
-    .map((line) => line.split("\t") as [string, string])
-    .filter(([info]) => !info.startsWith("120000"))
-    .map(([, path]) => path)
-    .filter((path) => /\.sumi\.yaml$|\/assets\/|\/generate[^/]*\.ts$/.test(path))
-    .sort();
+    .map((line) => {
+      const [info = "", path = ""] = line.split("\t");
+      const [mode = "", blob = ""] = info.split(" ");
+      return { mode, blob, path };
+    })
+    .filter(({ path }) => /\.sumi\.yaml$|\/assets\/|\/generate[^/]*\.ts$/.test(path))
+    .sort((a, b) => a.path.localeCompare(b.path));
+  return Object.fromEntries(
+    entries.map(({ mode, blob, path }) => {
+      if (mode === "120000") return [path, `symlink:${git("cat-file", "-p", blob)}`];
+      const bytes = readFileSync(join(root, path));
+      const text = bytes.toString("utf8");
+      const normalized = text.includes("\0") ? bytes : text.replace(/\r\n/g, "\n");
+      return [path, createHash("sha256").update(normalized).digest("hex")];
+    }),
+  );
 }
 
 test("example sources match the reproduction manifest", () => {
-  const paths = sourcePaths();
-  const hashes = Object.fromEntries(
-    paths.map((path) => [
-      path,
-      createHash("sha256")
-        .update(readFileSync(join(root, path)))
-        .digest("hex"),
-    ]),
-  );
+  const actual = sources();
   if (process.env.SUMI_UPDATE_REPRODUCTIONS === "1") {
-    writeFileSync(manifest, `${JSON.stringify(hashes, null, 2)}\n`);
+    writeFileSync(manifest, `${JSON.stringify(actual, null, 2)}\n`);
   }
   let expected: Record<string, string> = {};
   try {
@@ -52,11 +55,11 @@ test("example sources match the reproduction manifest", () => {
       cause: error,
     });
   }
-  const changed = [...new Set([...Object.keys(expected), ...paths])].filter(
-    (path) => expected[path] !== hashes[path],
+  const changed = [...new Set([...Object.keys(expected), ...Object.keys(actual)])].filter(
+    (path) => expected[path] !== actual[path],
   );
   expect(
     changed,
-    `Reproductions must stay faithful to the original figure. Record lint findings as expected diagnostics instead of editing the figure. Update the manifest only for an intended change: ${update}\nChanged, added, or removed paths: ${changed.join(", ")}`,
+    `Reproductions must stay faithful to the original figure. Record lint findings as expected diagnostics instead of editing the figure. Update the manifest only for an intended change (git add new sources first): ${update}\nChanged, added, or removed paths: ${changed.join(", ")}`,
   ).toEqual([]);
 });
