@@ -147,11 +147,20 @@ describe("muddiness() thresholds", () => {
   test("opaque khaki fills are muddy even on white; pale yellow and gray are not", () => {
     const orange = { l: 0.8, c: 0.06, h: 80 };
     expect(muddinessOf(orange, orange)).toBe("khaki");
-    for (const hex of ["#d1bc79", "#a5a57a", "#b5b589"]) {
+    for (const hex of [
+      "#d1bc79",
+      "#a5a57a",
+      "#b5b589",
+      "#ebecbe",
+      "#cda58b",
+      "#deb59a",
+      "#e5c4a1",
+      "#efcfab",
+    ]) {
       const color = toOklch(hex);
       expect(muddinessOf(color, color), hex).toBe("khaki");
     }
-    for (const hex of ["#f8efbf", "#cccccc", "#d1e7ff"]) {
+    for (const hex of ["#f8efbf", "#fde7a3", "#f7bc90", "#fcd1b6", "#cccccc", "#d1e7ff"]) {
       const color = toOklch(hex);
       expect(muddinessOf(color, color), hex).toBeUndefined();
     }

@@ -68,6 +68,21 @@ export function muddinessOf(
     final.h <= 115
   )
     return "khaki";
+  if (
+    (final.h >= 52 &&
+      final.h <= 72 &&
+      final.l >= 0.7 &&
+      final.l < (final.h >= 65 ? 0.88 : 0.85) &&
+      final.c >= 0.045 &&
+      final.c < 0.065) ||
+    (final.h > 105 &&
+      final.h <= 115 &&
+      final.l >= 0.9 &&
+      final.l < 0.94 &&
+      final.c >= 0.045 &&
+      final.c < 0.07)
+  )
+    return "khaki";
   if (final.c < reference.c * CHROMA_KEPT) return "chroma";
   if (reference.l - final.l >= DULL_LIGHTNESS_DROP && final.c < DULL_CHROMA) return "dull";
   if (hueGap(reference.h, final.h) >= HUE_DRIFT && final.c < DRIFT_CHROMA && reference.c > 0.005)

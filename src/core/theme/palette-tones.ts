@@ -132,20 +132,32 @@ export function deriveTones(source: ToneSource): Record<DerivedTone, DerivedTone
   // The palette's hue: that of its most colorful role (the accent, or the tint of a pale palette).
   const temperature = accent.c >= tint.c ? accent.h : tint.h;
   const entries = (Object.keys(TONE_HUES) as DerivedTone[]).map((tone) => {
-    const hue = pulled(TONE_HUES[tone], temperature);
+    const pulledHue = pulled(TONE_HUES[tone], temperature);
+    const hue =
+      tone === "yellow"
+        ? Math.min(98, pulledHue)
+        : tone === "orange"
+          ? Math.min(60, pulledHue)
+          : pulledHue;
     // The fill: the tint's lightness (and the tone's small offset), moved the least that lets the
     // palette's ink read on it (4.5:1) and, for the tone of the palette's own hue, tells it from
     // the gray tone (the tint): lighter first, darker where a lighter color would lose its chroma.
-    const fillBase =
+    const minimumLightness =
       tone === "yellow"
-        ? Math.max(0.93, tint.l + FILL_LIGHTNESS[tone])
-        : tint.l + FILL_LIGHTNESS[tone];
-    const fillAt = (shift: number) => fromOklch({ l: fillBase + shift, c: fillChroma, h: hue });
+        ? 0.93
+        : tone === "orange" && fillChroma <= 0.065
+          ? 0.84
+          : tone === "red" && tint.l < 0.78
+            ? 0.79
+            : 0;
+    const fillBase = Math.max(minimumLightness, tint.l + FILL_LIGHTNESS[tone]);
+    const chromaFill = tone === "orange" ? Math.max(0.075, fillChroma) : fillChroma;
+    const fillAt = (shift: number) => fromOklch({ l: fillBase + shift, c: chromaFill, h: hue });
     const usable = (color: string) =>
       contrastRatio(source.ink, color) >= 4.5 && deltaE(color, source.tint) >= GRAY_SEPARATION;
     let fill = fillAt(0);
     for (let step = 0; step <= SEPARATION_RANGE * 100 + 10 && !usable(fill); step++) {
-      const candidates = (tone === "yellow" ? [step] : [step, -step]).map((d) => fillAt(d / 100));
+      const candidates = (minimumLightness ? [step] : [step, -step]).map((d) => fillAt(d / 100));
       fill =
         candidates.find((c) => usable(c) && toOklch(c).c >= fillChroma * 0.9) ??
         (candidates[0] as string);

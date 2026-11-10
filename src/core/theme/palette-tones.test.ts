@@ -229,6 +229,23 @@ describe("warm solid fills do not turn brown or olive (#444)", () => {
     }
   });
 
+  test("warm fills stay yellow or peach rather than lime or tan", () => {
+    for (const { id, tones: derived } of palettes) {
+      const yellow = derived.yellow.fill;
+      const r = Number.parseInt(yellow.slice(1, 3), 16);
+      const g = Number.parseInt(yellow.slice(3, 5), 16);
+      const b = Number.parseInt(yellow.slice(5, 7), 16);
+      expect(r, id).toBeGreaterThanOrEqual(g);
+      expect(g - b, id).toBeGreaterThan(25);
+      expect(toOklch(yellow).h, id).toBeLessThanOrEqual(100);
+      const orange = toOklch(derived.orange.fill);
+      expect(orange.h, id).toBeLessThanOrEqual(61);
+      expect(orange.c, id).toBeGreaterThanOrEqual(orange.l > 0.88 ? 0.06 : 0.073);
+      expect(orange.l, id).toBeGreaterThanOrEqual(0.78);
+      expect(toOklch(derived.red.fill).l, id).toBeGreaterThanOrEqual(0.75);
+    }
+  });
+
   test("the paper theme's solid orange and yellow follow the same bounds", () => {
     const paper = getTheme("paper");
     const orange = brown(paper?.toneLines.get("orange")?.stroke ?? "");
