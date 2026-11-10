@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { stringify } from "yaml";
+import { glyphRects } from "../../assets/glyphs";
 import { buildFigureIR } from "../../compiler/ir";
 import { checkFigure } from "../../core/check";
 import { getOutlineRenderer } from "../../core/outline";
@@ -68,6 +69,117 @@ const close = (actual: number, expected: number) =>
   expect(Math.abs(actual - expected)).toBeLessThanOrEqual(0.001);
 
 describe("stack and row", () => {
+  test("grid centers node bodies and keeps their glyph footprints inside their cells", () => {
+    const text = stringify({
+      version: 1,
+      figure: {
+        id: "glyph-grid",
+        layout: { arrange: { grid: { columns: 2, items: ["a", "b", "c", "d"] } } },
+      },
+      nodes: [
+        {
+          id: "a",
+          component: "label",
+          icon: "tabler/file-text",
+          glyphs: [{ kind: "vector", cells: 3, dx: 0.3, dy: -0.25 }],
+        },
+        { id: "b", component: "label", icon: "tabler/flask" },
+        { id: "c", component: "label", icon: "tabler/flask" },
+        { id: "d", component: "label", icon: "tabler/flask" },
+      ],
+    });
+    const result = layoutStructuredFigure(text, { measurer: FAKE });
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const { ir, layout } = result.value;
+    const a = rectOf(layout, "a"),
+      b = rectOf(layout, "b"),
+      c = rectOf(layout, "c");
+    close(a.width, b.width);
+    close(a.height, b.height);
+    close(a.y + a.height / 2, b.y + b.height / 2);
+    close(a.x + a.width / 2, c.x + c.width / 2);
+    const node = ir.nodes.find((n) => n.key === "n:a");
+    if (node === undefined) throw new Error("missing node a");
+    const glyph = glyphRects(node, a)[0] as Rect;
+    expect(glyph.x + glyph.width).toBeLessThan(b.x);
+    expect(glyph.y + glyph.height).toBeLessThan(c.y);
+  });
+  test("a stack centers node bodies while reserving horizontal glyph room", () => {
+    const text = stringify({
+      version: 1,
+      figure: {
+        id: "glyph-stack",
+        layout: { arrange: { stack: { align: "center", items: ["a", "b", "c"] } } },
+      },
+      nodes: [
+        {
+          id: "a",
+          component: "label",
+          icon: "tabler/file-text",
+          glyphs: [{ kind: "vector", direction: "right", cells: 3, dx: 0.3 }],
+        },
+        box("b"),
+        { id: "c", component: "label", icon: "tabler/flask" },
+      ],
+      edges: [
+        { from: "a", to: "b" },
+        { from: "b", to: "c" },
+      ],
+    });
+    const result = layoutStructuredFigure(text, { measurer: FAKE });
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const { layout } = result.value;
+    const a = rectOf(layout, "a");
+    const b = rectOf(layout, "b");
+    const c = rectOf(layout, "c");
+    close(a.x + a.width / 2, b.x + b.width / 2);
+    close(c.x + c.width / 2, b.x + b.width / 2);
+    for (const edge of layout.edges) {
+      expect(edge.route?.points.length).toBe(2);
+      const points = edge.route?.points ?? [];
+      close((points[0] as { x: number }).x, (points[1] as { x: number }).x);
+    }
+  });
+  test("glyph room does not displace body centers or their horizontal edges", () => {
+    const text = stringify({
+      version: 1,
+      figure: {
+        id: "glyph-row",
+        layout: { arrange: { row: { align: "center", items: ["a", "b", "c"] } } },
+      },
+      nodes: [
+        {
+          id: "a",
+          component: "label",
+          icon: "tabler/file-text",
+          glyphs: [{ kind: "vector", cells: 3, dx: 0.3, dy: -0.25 }],
+        },
+        box("b"),
+        { id: "c", component: "label", icon: "tabler/flask" },
+      ],
+      edges: [
+        { from: "a", to: "b" },
+        { from: "b", to: "c" },
+      ],
+    });
+    const result = layoutStructuredFigure(text, { measurer: FAKE });
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const { ir, layout } = result.value;
+    const a = rectOf(layout, "a");
+    const b = rectOf(layout, "b");
+    const c = rectOf(layout, "c");
+    close(a.y + a.height / 2, b.y + b.height / 2);
+    close(c.y + c.height / 2, b.y + b.height / 2);
+    for (const edge of layout.edges) {
+      expect(edge.route?.points.length).toBe(2);
+      const points = edge.route?.points ?? [];
+      close((points[0] as { y: number }).y, (points[1] as { y: number }).y);
+    }
+    const node = ir.nodes.find((n) => n.key === "n:a");
+    if (node === undefined) throw new Error("missing node a");
+    const glyph = glyphRects(node, a)[0] as Rect;
+    expect(glyph.x + glyph.width).toBeLessThan(b.x);
+  });
   test("nested centerOn placement stays within a small work budget", () => {
     let arrange: unknown = { row: { items: ["leaf"] } };
     const nodes = [box("leaf")];
