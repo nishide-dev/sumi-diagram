@@ -432,5 +432,6 @@ export function withPalette(theme: Theme, name: string | undefined): Theme {
       tones,
       toneLines,
     }),
+    roles.panel,
   );
 }

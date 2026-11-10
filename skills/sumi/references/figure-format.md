@@ -527,7 +527,7 @@ weights. The tones are derived from the palette too: `gray` is its neutral, and 
 `yellow`, `green`, `blue`, `purple`, `pink` keep their own hue (`tone: green` is still green) but
 take the palette's lightness and chroma (fills at its tint, lines at its strong colour), so a
 tone carries its meaning while the whole figure stays in one family of colours. Every text keeps
-4.5:1 on its fill in every palette. Yellow fills are kept light and warm; muted orange fills are kept peach-like. Chromatic yellow uses a golden stroke and neutral ink for text; monochrome themes retain gray tones. List the colours and the derived tones with
+4.5:1 on its fill in every palette. Yellow fills are kept light and warm; muted orange fills are kept peach-like. Chromatic yellow uses a golden stroke (at least 3:1 on white and the palette panel) and neutral ink for text; monochrome themes retain gray tones. Darker filled-group tint backgrounds can require a custom contrasting line. List the colours and the derived tones with
 `sumi catalog --section palettes`; an unknown name is `schema/invalid-value` with the closest
 name. Explicit `tones`, `groupFill`, `groupStroke` and `solidFills` win over the palette, but
 tone colours of your own next to a palette are what `geometry/color-harmony` reports (it clashes

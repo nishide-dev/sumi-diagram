@@ -18,7 +18,7 @@ const EXPECTED = {
   gray: ["#dee1e8", "#656970"],
   red: ["#f9c7bb", "#8b3c34"],
   orange: ["#fcdbb7", "#b83b07"],
-  yellow: ["#f8efbf", "#ba8c00"],
+  yellow: ["#f8efbf", "#b28600"],
   green: ["#c6edcd", "#417a50"],
   blue: ["#d1e7ff", "#31608e"],
   purple: ["#d8cdf8", "#524177"],
@@ -62,7 +62,7 @@ describe("paper tones (#434)", () => {
       expect(
         contrastRatio(lineOf(tone), "#f3f3f5"),
         `${tone} line on panel`,
-      ).toBeGreaterThanOrEqual(tone === "yellow" ? 2.7 : 4.5);
+      ).toBeGreaterThanOrEqual(tone === "yellow" ? 3 : 4.5);
     }
   });
 

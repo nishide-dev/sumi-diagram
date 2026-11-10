@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { muddinessOf } from "../../lint/geometry/color-composition";
 import { renderFigure } from "../../render";
 import { attribute, descendants, parseXml } from "../../render/xml";
 import { checkFigure } from "../check";
@@ -7,6 +8,7 @@ import { buildCatalog } from "../registry/catalog";
 import { BUILTIN_THEMES } from "./builtin";
 import { toOklch } from "./color-math";
 import { dimStyle, lightenColor } from "./dim";
+import { getPalette, PALETTE_NAMES, withPalette } from "./palette";
 import { resolveStyle } from "./resolve";
 import { TONE_NAMES } from "./tones";
 
@@ -34,6 +36,44 @@ function contrast(a: string, b: string): number {
 }
 
 describe("solid and tinted nodes", () => {
+  test("chromatic yellow arrows and frames contrast with white and the default panel", () => {
+    for (const base of BUILTIN_THEMES.values()) {
+      for (const palette of [undefined, ...PALETTE_NAMES]) {
+        const theme = withPalette(base, palette);
+        if (!theme.solidTones?.has("yellow")) continue;
+        const arrow = resolveStyle(theme, {
+          kind: "edge",
+          id: "sumi/arrow",
+          variant: "default",
+          tone: "yellow",
+        }).style.stroke;
+        const frame = resolveStyle(theme, {
+          kind: "node",
+          id: "sumi/box",
+          variant: "outlined",
+          tone: "yellow",
+        }).style.stroke;
+        expect(frame).toBe(arrow);
+        const panels = ["default", ...(palette === undefined ? ["filled"] : [])].map(
+          (variant) =>
+            resolveStyle(theme, { kind: "group", id: "sumi/container", variant }).style.fill,
+        );
+        if (palette) {
+          const selected = getPalette(palette);
+          if (!selected) throw new Error(`missing palette ${palette}`);
+          panels.push(selected.roles.panel);
+        }
+        const yellow = toOklch(arrow);
+        expect(muddinessOf(yellow, yellow), `${base.id}/${palette ?? "default"}`).toBeUndefined();
+        for (const background of ["#ffffff", ...panels.filter((fill) => fill !== "transparent")]) {
+          expect(
+            contrast(arrow, background),
+            `${base.id}/${palette ?? "default"} on ${background}`,
+          ).toBeGreaterThanOrEqual(3);
+        }
+      }
+    }
+  });
   test("monochrome warm solids retain their gray line colors", () => {
     for (const theme of BUILTIN_THEMES.values()) {
       if (!["academic", "minimal", "slides"].includes(theme.id)) continue;

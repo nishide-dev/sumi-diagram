@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { toOklch } from "../../core/theme/color-math";
+import { muddinessOf } from "./color-composition";
 
 test("gallery warm paints avoid dark ochre and dull khaki", async () => {
   for (const directory of ["tones", "palettes", "sets"]) {
@@ -12,10 +13,8 @@ test("gallery warm paints avoid dark ochre and dull khaki", async () => {
           ["#875b45", "#9c6950", "#674534"].includes(color.toLowerCase())
         )
           continue;
-        const { l, c, h } = toOklch(color);
-        const dark = c >= 0.03 && h >= 45 && h <= 115 && l < 0.66;
-        const dull = c >= 0.03 && h >= 60 && h <= 115 && l >= 0.66 && l < 0.86 && c < 0.11;
-        expect(dark || dull, `${file}: ${color}`).toBe(false);
+        const value = toOklch(color);
+        expect(muddinessOf(value, value), `${file}: ${color}`).toBeUndefined();
       }
     }
   }
