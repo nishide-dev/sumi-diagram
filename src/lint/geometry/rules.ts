@@ -59,6 +59,7 @@ import {
   rectsOverlap,
   regionIntersectsRect,
 } from "./shapes";
+import { strokeContrast } from "./stroke-contrast";
 import { exceedsTargetHeight, lineTooThin, placementUsage } from "./target";
 import { verifyHints } from "./verified";
 import { widthBreakdown } from "./width";
@@ -1988,6 +1989,7 @@ export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
   placementUsage,
   colorHarmony,
   muddyColor,
+  strokeContrast,
   translucentOverColor,
   colorOnPanel,
   lineTooThin,

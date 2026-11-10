@@ -49,6 +49,7 @@ set の塗りは tone の線の色を白に混ぜた不透明な淡い色で、�
 | 規則 | 既定 | 条件 |
 | --- | --- | --- |
 | `geometry/muddy-color` | warning | 有彩色（own の OKLCH 彩度 0.03 以上）の塗りが、同じ塗りを白に置いたときと比べて、最終の色で彩度の半分超を失う、または明度が 0.06 以上下がって彩度 0.045 未満の灰色になる、または色相が 30° 以上ずれて彩度 0.05 未満になる。set の重なりは、重なる set の最大の彩度の半分を下回るときだけ。見えている点（4×4 の格子）の半数以上で成り立つ塗りを、関わる要素の名前つきで報告する |
+| `geometry/low-stroke-contrast` | warning | 白と 1.2:1 以上異なる group 塗り上で、矢印の描画経路の合計 10 単位以上が 3:1 未満。明るいパネルまたは tone の line の上書きを使う。枠線やノード・set 上は対象外（[設計 #459](design/decisions/459-solid-warm-tones.md)） |
 | `geometry/translucent-over-color` | warning | 不透明度が 1 未満の塗りが、白以外の面（パネル・ほかの塗り）の上にある。色が下の面で変わる |
 | `geometry/color-on-panel` | info | 白以外の塗りのグループが、有彩色（OKLCH 彩度 0.025 以上）のノードか set を 3 つ以上持つ。パネルの色と要素の色が競う。1〜2 個（Llama 4 のアクセント）は報告しない |
 
@@ -381,4 +382,3 @@ figure.sumi.yaml:21:5 warning lint/ancestor-edge Edge edges[1] connects group "o
 基準値は TriCL・LLaDA の再現図（指摘されない）と前回の試行の 3 図（指摘される）で校正した。
 測定値と採らなかった指標は [設計 #422](design/decisions/422-density-lint.md)。
 抑止は `--rule geometry/sparse-figure=off` などで、意図した疎らさや文章が図の主題のときだけ使う。
-
