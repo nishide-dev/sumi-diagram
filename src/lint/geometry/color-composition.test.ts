@@ -67,6 +67,26 @@ async function contextOf(source: string, path?: string) {
 }
 
 describe("geometry/muddy-color (#440): the third trial", () => {
+  test("reports an opaque khaki node and suggests a lighter fill", async () => {
+    for (const fill of ["#d1bc79", "#d2b48c", "#808000", "#b5a642", "#c3b091"]) {
+      const source = `version: 1
+figure:
+  id: khaki
+  theme: paper
+  themeOverrides:
+    tones:
+      yellow: { fill: '${fill}' }
+nodes:
+  - { id: yellow, component: box, label: yellow, tone: yellow }
+`;
+      const findings = muddyFindings(analyze(paintItems(await contextOf(source))));
+      expect(
+        findings.some((finding) => finding.message.includes("khaki")),
+        fill,
+      ).toBe(true);
+      expect(findings[0]?.hint).toContain("lighter yellow");
+    }
+  });
   test("drawn as before (translucent tints over a gray panel) it is reported", async () => {
     const context = await contextOf(trial());
     const legacy = analyze(paintItems(context, { translucentSets: true }));
@@ -129,6 +149,31 @@ describe("the overlap of sets is painted, not mixed (#440)", () => {
 });
 
 describe("muddiness() thresholds", () => {
+  test("opaque khaki fills are muddy even on white; pale yellow and gray are not", () => {
+    const orange = { l: 0.8, c: 0.06, h: 80 };
+    expect(muddinessOf(orange, orange)).toBe("khaki");
+    for (const hex of [
+      "#d1bc79",
+      "#d2b48c",
+      "#808000",
+      "#b5a642",
+      "#c3b091",
+      "#a5a57a",
+      "#b5b589",
+      "#ebecbe",
+      "#cda58b",
+      "#deb59a",
+      "#e5c4a1",
+      "#efcfab",
+    ]) {
+      const color = toOklch(hex);
+      expect(muddinessOf(color, color), hex).toBe("khaki");
+    }
+    for (const hex of ["#f8efbf", "#fde7a3", "#f7bc90", "#fcd1b6", "#cccccc", "#d1e7ff"]) {
+      const color = toOklch(hex);
+      expect(muddinessOf(color, color), hex).toBeUndefined();
+    }
+  });
   test("a tone kept intact is fine; one that lost its chroma, darkened into gray or drifted is not", () => {
     const blue = toOklch("#d1e7ff");
     expect(muddinessOf(blue, blue)).toBeUndefined();
