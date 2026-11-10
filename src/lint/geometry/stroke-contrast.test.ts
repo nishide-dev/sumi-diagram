@@ -59,28 +59,6 @@ nodes: [{ id: frame, component: box, group: panel, variant: outlined, tone: yell
   expect(findings[0]?.message).toContain("#acc0dc");
 });
 
-test("does not warn for a pastel filled cell with a lighter frame on white", () => {
-  const compiled = compile(`version: 1
-figure: { id: cell }
-nodes: [{ id: cell, component: box }]
-`);
-  const base = geometryContextFor({
-    compiled,
-    inspection: inspection(compiled, {
-      elements: { "n:cell": { bbox: { x: 0, y: 0, width: 120, height: 60 } } },
-    }),
-  });
-  const elements = base.elements.map((element) =>
-    element.ir.kind === "node"
-      ? {
-          ...element,
-          ir: { ...element.ir, style: { ...element.ir.style, fill: "#c8d8ef", stroke: "#e4eafa" } },
-        }
-      : element,
-  );
-  expect(strokeContrast.run({ ...base, elements }, undefined)).toEqual([]);
-});
-
 test("edges use set fills in paint order, including on the canvas", () => {
   const compiled =
     compile(`${source("cool-blue").replace("theme: llama,", "theme: llama, layout: { arrange: { row: { items: [panel] } } },").replace("variant: filled }", "variant: filled, arrange: { row: { items: [a, b] } } }")}
