@@ -92,6 +92,8 @@ Bun のテストタイムアウトは実行中の子プロセスに SIGTERM を�
 
 ### ゴールデンの更新
 
+再現図は原図への忠実さを保ち、lint の指摘は図を編集せず期待診断に記録する。意図した例の変更時のみ `SUMI_UPDATE_REPRODUCTIONS=1 bun test src/compiler/reproduction-hashes.test.ts` でハッシュを更新する（[設計 #462](docs/design/decisions/462-reproduction-hashes.md)）。
+
 出力を意図して変えた場合は、ゴールデンを再生成して差分を確認し、同じ PR でコミットします。
 
 | 対象 | 更新コマンド |
