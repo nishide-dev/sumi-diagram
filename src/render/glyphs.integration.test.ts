@@ -176,6 +176,55 @@ async function layoutOf(source: string) {
   return rendered.value;
 }
 
+test("a straight edge crossing the default north-east vector is diagnosed", async () => {
+  const value = await layoutOf(`version: 1
+figure: { id: crossing, layout: { arrange: { row: { align: center, items: [a, b] } } } }
+nodes:
+  - { id: a, component: label, icon: tabler/file-text, glyphs: [{ kind: vector, cells: 3 }] }
+  - { id: b, component: label, icon: tabler/file-text }
+edges: [{ from: a, to: b }]
+`);
+  const findings = lintGeometry(value).filter((d) => d.code === CODE);
+  expect(findings).toHaveLength(1);
+  expect(findings[0]?.hint).toContain("attach the edge elsewhere");
+});
+
+for (const kind of ["row", "stack", "grid"]) {
+  for (const align of ["start", "end"]) {
+    test(`${kind} ${align} aligns bodies while enclosing glyph overhang`, async () => {
+      const at =
+        kind === "row"
+          ? align === "start"
+            ? "north"
+            : "south"
+          : align === "start"
+            ? "west"
+            : "east";
+      const items = kind === "grid" ? "columns: 1, items: [a, b]" : "items: [a, b]";
+      const value = await layoutOf(`version: 1
+figure: { id: align, layout: { arrange: { row: { items: [g] } } } }
+groups: [{ id: g, arrange: { ${kind}: { align: ${align}, ${items} } } }]
+nodes:
+  - { id: a, group: g, component: box, props: { width: 30pt, height: 20pt }, glyphs: [{ kind: vector, at: ${at}, cells: 3 }] }
+  - { id: b, group: g, component: box, props: { width: 30pt, height: 20pt } }
+`);
+      const a = value.layout.nodes.find((n) => n.key === "n:a")?.rect;
+      const b = value.layout.nodes.find((n) => n.key === "n:b")?.rect;
+      const group = value.layout.groups.find((n) => n.key === "g:g")?.rect;
+      const node = value.compiled.ir.nodes[0];
+      if (!a || !b || !group || !node) throw new Error("missing layout");
+      const glyph = glyphRects(node, a)[0];
+      if (!glyph) throw new Error("missing glyph");
+      const axis = kind === "row" ? "y" : "x";
+      expect(a[axis]).toBeCloseTo(b[axis], 3);
+      expect(glyph.x).toBeGreaterThanOrEqual(group.x - 0.001);
+      expect(glyph.y).toBeGreaterThanOrEqual(group.y - 0.001);
+      expect(glyph.x + glyph.width).toBeLessThanOrEqual(group.x + group.width + 0.001);
+      expect(glyph.y + glyph.height).toBeLessThanOrEqual(group.y + group.height + 0.001);
+    });
+  }
+}
+
 test("glyph overhang is reserved inside a stack and keeps the body size", async () => {
   const value = await layoutOf(`version: 1
 figure: { id: stack, layout: { arrange: { stack: { gap: 0, items: [a, b] } } } }

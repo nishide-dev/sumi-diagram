@@ -87,10 +87,10 @@ groups:
   `stack`, `operator`, `junction` and nodes with an explicit size on that axis
   are centred instead. Nested boxes of the same kind inherit `align`; others
   start at `center`.
-- In a centered row or stack, node bodies align on the cross-axis centerline;
+- In a row or stack, start, center and end alignment use node bodies on the cross axis;
   glyph and badge overhang still reserves room around each body.
-- Grid rows also center node bodies vertically, and centered columns align their
-  bodies horizontally while retaining glyph and badge room.
+- Grid rows also center node bodies vertically, and start, center and end columns
+  align their bodies horizontally while retaining glyph and badge room.
 - A side column next to a tall stack: both in a `row`, then the row's `align`
   (`center`, or `end` to line up the bottoms).
 - **An item belongs to the owner of the tree**: items of `groups[].arrange`

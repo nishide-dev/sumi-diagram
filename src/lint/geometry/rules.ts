@@ -1967,7 +1967,7 @@ export const glyphCollision = defineGeometryRule({
             message: `Glyph ${index + 1} of ${element.name} ${collides ? "collides with a label, a badge, another glyph or another element" : "extends outside the canvas"}.`,
             path: [...element.docPath, "glyphs", index],
             subject: element.subject,
-            hint: "Choose another position, use dx / dy or a smaller size, or increase the layout gap or margin.",
+            hint: "Move the glyph with at / dx / dy, use a smaller size, attach the edge elsewhere, or increase the layout gap or margin.",
             related: collisions.map((other) => ({
               path: other.docPath,
               message: `${capitalize(other.name)} is here.`,
