@@ -34,6 +34,7 @@ Run `bun run check`, `bun run typecheck`, and `bun run test` before committing.
 
 ## Working rules
 
+- Keep reproductions faithful to their originals; record lint findings as expected diagnostics, and update example hashes only for intended changes (see CONTRIBUTING.md).
 - Work on a branch named `<type>/<issue>-<desc>`; never commit directly to `main`
 - Commit messages and PR titles: English Conventional Commits. Issue/PR bodies: Japanese, following the templates in `.github/`
 - In the PR body, use `Closes #<number>` only when the PR fully resolves the issue; use `Refs #<number>` for partial or related work. PRs are squash-merged
