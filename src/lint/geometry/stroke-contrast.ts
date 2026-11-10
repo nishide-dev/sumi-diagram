@@ -51,6 +51,16 @@ export const strokeContrast = defineGeometryRule({
             const t = (j + 0.5) / count;
             const point = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
             const fill = surfaceAt(surfaces, point);
+            // A distinguishable fill already reveals a node's silhouette; its
+            // decorative frame does not need to provide the outline on its own.
+            if (
+              edge.ir.kind === "node" &&
+              edge.ir.variant !== "outlined" &&
+              /^#[0-9a-f]{6}$/i.test(edge.ir.style.fill)
+            ) {
+              const nodeFill = over(edge.ir.style.fill, edge.ir.style.opacity, fill);
+              if (contrastRatio(nodeFill, fill) >= 1.3) continue;
+            }
             const stroke = over(edge.ir.style.stroke, edge.ir.style.opacity, fill);
             const ratio = contrastRatio(stroke, fill);
             if (ratio < 3) {
