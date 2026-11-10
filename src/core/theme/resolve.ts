@@ -127,7 +127,7 @@ export function resolveStyle<K extends ComponentKind>(
       variant === "solid" && theme.toneOverrides?.get(tone ?? "gray")?.line === undefined
         ? theme.solidTones?.get(tone ?? "gray")
         : undefined;
-    const filled =
+    let filled =
       ink !== undefined && (variant === "solid" || fill !== undefined)
         ? solid === undefined
           ? filledToneNode(variant, fill ?? "#ffffff", ink, id === "sumi/stack")
@@ -137,6 +137,20 @@ export function resolveStyle<K extends ComponentKind>(
               fontColor: solid.text,
             }
         : undefined;
+    if (
+      variant === "tinted" &&
+      tone === "yellow" &&
+      filled !== undefined &&
+      theme.toneOverrides?.get(tone)?.line === undefined
+    ) {
+      const line = theme.toneLines.get(tone);
+      if (
+        line?.stroke !== undefined &&
+        line.fontColor !== undefined &&
+        line.fontColor !== line.stroke
+      )
+        filled = { ...filled, stroke: line.stroke, fontColor: line.fontColor };
+    }
     let paint = overriddenTone(filled, variant, theme.toneOverrides?.get(tone ?? "gray"));
     const solidFill = variant === "solid" ? theme.solidFillOverrides?.[tone ?? "gray"] : undefined;
     if (solidFill !== undefined)

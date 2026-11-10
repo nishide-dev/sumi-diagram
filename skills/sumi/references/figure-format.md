@@ -486,7 +486,7 @@ stay the theme's):
 - `tones: { blue: { fill: '#dfe1ea', line: '#5f6a95', text: '#000000' } }` recolours a tone
   everywhere it appears: `fill` = pale fills (default/filled/tinted, toned groups, matrix
   classes, legend samples); `line` = outlined/tinted frames, toned edges and arrowheads,
-  hatches, solid fills (`solidFills` wins), html `--sumi-accent` (blue); a `fill`-only override does not change solid fills. A `line` override replaces even the bright built-in yellow solid fill, and its text is adjusted to at least 4.5:1 (the built-in yellow's 7:1 does not apply); `text` =
+  hatches, solid fills (`solidFills` wins), html `--sumi-accent` (blue); a `fill`-only override does not change solid fills. A `line` override replaces even the bright built-in yellow solid fill, and its text is adjusted to at least 4.5:1; `text` =
   outlined/tinted text, toned edge labels, `\textcolor`, drawn as written. Without `text`,
   tinted text is the line darkened to 4.5:1 and white-ground text is the line. `text` never
   applies to solid nodes (white, contrast-adjusted) or default-variant text. Overriding
@@ -527,7 +527,7 @@ weights. The tones are derived from the palette too: `gray` is its neutral, and 
 `yellow`, `green`, `blue`, `purple`, `pink` keep their own hue (`tone: green` is still green) but
 take the palette's lightness and chroma (fills at its tint, lines at its strong colour), so a
 tone carries its meaning while the whole figure stays in one family of colours. Every text keeps
-4.5:1 on its fill in every palette. Yellow fills are kept light and warm; muted orange fills are kept peach-like. Orange and yellow lines remain vivid orange-red and ochre (#444, #455). List the colours and the derived tones with
+4.5:1 on its fill in every palette. Yellow fills are kept light and warm; muted orange fills are kept peach-like. Chromatic yellow uses a golden stroke and neutral ink for text; monochrome themes retain gray tones. List the colours and the derived tones with
 `sumi catalog --section palettes`; an unknown name is `schema/invalid-value` with the closest
 name. Explicit `tones`, `groupFill`, `groupStroke` and `solidFills` win over the palette, but
 tone colours of your own next to a palette are what `geometry/color-harmony` reports (it clashes

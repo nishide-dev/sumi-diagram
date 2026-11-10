@@ -134,7 +134,7 @@ describe("tone resolution", () => {
 
   test("solid line and fill overrides have distinct precedence", () => {
     for (const [override, fill] of [
-      [{ fill: "#112233" }, "#f5c518"],
+      [{ fill: "#112233" }, builtin("paper").solidTones?.get("yellow")?.fill ?? ""],
       [{ line: "#f5c518" }, "#f5c518"],
       [{ line: "#876200" }, "#876200"],
     ] as const) {

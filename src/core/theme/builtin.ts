@@ -50,7 +50,7 @@ import { errorAt } from "../figure/report";
 import type { Locator } from "../figure/yaml";
 import type { Result } from "../result";
 import { DEFAULT_FONT_SET_ID, LATIN_FONT_SET_ID } from "./fonts";
-import { WARM_SOLID_TONES } from "./node-variants";
+import { warmTones } from "./node-variants";
 import { type StyleLayerInput, type Theme, type ThemeDefinition, validateTheme } from "./schema";
 import { TONE_NAMES, type Tone } from "./tones";
 
@@ -934,7 +934,7 @@ export const BUILTIN_THEMES: ReadonlyMap<string, Theme> = new Map(
       const messages = result.diagnostics.map((d) => `${d.code}: ${d.message}`).join(" ");
       throw new Error(`internal error: invalid built-in theme "${definition.id}": ${messages}`);
     }
-    return [result.value.id, Object.freeze({ ...result.value, solidTones: WARM_SOLID_TONES })];
+    return [result.value.id, warmTones(result.value)];
   }),
 );
 

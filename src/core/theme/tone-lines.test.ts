@@ -65,9 +65,13 @@ describe("built-in tone lines", () => {
       expect([...theme.toneLines.keys()]).toEqual([...TONE_NAMES]);
       for (const layer of theme.toneLines.values()) {
         expect(Object.keys(layer).sort()).toEqual(["fontColor", "stroke"]);
-        expect(layer.fontColor).toBe(layer.stroke ?? "");
+        if (layer !== theme.toneLines.get("yellow") || !theme.solidTones?.has("yellow"))
+          expect(layer.fontColor).toBe(layer.stroke ?? "");
         // Readable as text on the white of an outlined node.
-        expect(contrastOnWhite(layer.stroke ?? "")).toBeGreaterThanOrEqual(4.5);
+        expect(contrastOnWhite(layer.fontColor ?? "")).toBeGreaterThanOrEqual(4.5);
+        expect(contrastOnWhite(layer.stroke ?? "")).toBeGreaterThanOrEqual(
+          layer === theme.toneLines.get("yellow") && theme.solidTones?.has("yellow") ? 3 : 4.5,
+        );
       }
     }
   });

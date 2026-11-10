@@ -34,6 +34,21 @@ function contrast(a: string, b: string): number {
 }
 
 describe("solid and tinted nodes", () => {
+  test("monochrome warm solids retain their gray line colors", () => {
+    for (const theme of BUILTIN_THEMES.values()) {
+      if (!["academic", "minimal", "slides"].includes(theme.id)) continue;
+      for (const tone of ["yellow", "orange"] as const) {
+        const style = resolveStyle(theme, {
+          kind: "node",
+          id: "sumi/box",
+          variant: "solid",
+          tone,
+        }).style;
+        expect(style.fill).toBe(theme.toneLines.get(tone)?.stroke ?? "");
+        expect(toOklch(style.fill).c).toBeLessThan(0.001);
+      }
+    }
+  });
   test("every shape, theme and tone has both variants and at least 4.5:1 text contrast", () => {
     expect(shapes).toHaveLength(14);
     for (const theme of BUILTIN_THEMES.values()) {
@@ -60,7 +75,8 @@ describe("solid and tinted nodes", () => {
               }
             } else {
               expect(fill).toBe(theme.tones.get(tone ?? "gray")?.fill ?? "");
-              expect(fontColor).toBe(stroke);
+              if (tone !== "yellow" || theme.solidTones?.has("yellow") !== true)
+                expect(fontColor).toBe(stroke);
             }
           }
         }
@@ -70,6 +86,7 @@ describe("solid and tinted nodes", () => {
 
   test("yellow is bright and has highly readable ink in every theme", () => {
     for (const theme of BUILTIN_THEMES.values()) {
+      if (!theme.solidTones?.has("yellow")) continue;
       const { fill, fontColor } = resolveStyle(theme, {
         kind: "node",
         id: "sumi/box",

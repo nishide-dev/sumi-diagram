@@ -67,6 +67,25 @@ async function contextOf(source: string, path?: string) {
 }
 
 describe("geometry/muddy-color (#440): the third trial", () => {
+  test("reports muddy strokes and text as well as fills", async () => {
+    const context = await contextOf(`version: 1
+figure:
+  id: ochre-lines
+  theme: paper
+  themeOverrides:
+    tones:
+      yellow: { line: '#876200', text: '#876200' }
+nodes:
+  - { id: yellow, component: box, label: yellow, tone: yellow, variant: outlined }
+`);
+    const findings = muddyColor.run(context, undefined);
+    expect(
+      findings.some((f) => f.message.includes("stroke") && f.message.includes("#876200")),
+    ).toBe(true);
+    expect(
+      findings.some((f) => f.message.includes("fontColor") && f.message.includes("#876200")),
+    ).toBe(true);
+  });
   test("reports an opaque khaki node and suggests a lighter fill", async () => {
     for (const fill of ["#d1bc79", "#d2b48c", "#808000", "#b5a642", "#c3b091"]) {
       const source = `version: 1

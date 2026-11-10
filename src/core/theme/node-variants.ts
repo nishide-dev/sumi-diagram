@@ -1,12 +1,37 @@
 /** Filled tone variants (#214, design doc §6.63). Existing palettes stay unchanged. */
-import type { StyleLayer } from "./style";
-import type { Tone } from "./tones";
 
-/** Solid warm fills are independent of the darker line colors (design #459). */
-export const WARM_SOLID_TONES: ReadonlyMap<Tone, { fill: string; text: string }> = new Map([
-  ["yellow", { fill: "#f5c518", text: "#1f2328" }],
-  ["orange", { fill: "#c2410c", text: "#ffffff" }],
-]);
+import { fromOklch, toOklch } from "./color-math";
+import type { Theme } from "./schema";
+import type { StyleLayer } from "./style";
+
+/** Derive warm paints only from chromatic tones, preserving monochrome themes. */
+export function warmTones(theme: Theme): Theme {
+  const lines = new Map(theme.toneLines);
+  const solids = new Map<"yellow" | "orange", { fill: string; text: string }>();
+  for (const tone of ["yellow", "orange"] as const) {
+    const layer = lines.get(tone);
+    const source = layer?.stroke;
+    if (source === undefined || !/^#[0-9a-f]{6}$/i.test(source)) continue;
+    const color = toOklch(source);
+    if (color.c < 0.03) continue;
+    const ink = theme.base.node.fontColor ?? "#1f2328";
+    if (tone === "yellow") {
+      const hue = Math.max(85, Math.min(100, color.h));
+      const stroke = fromOklch({ l: 0.665, c: Math.max(0.15, color.c), h: hue });
+      lines.set(tone, Object.freeze({ ...layer, stroke, fontColor: ink }));
+      solids.set(tone, {
+        fill: fromOklch({ l: 0.84, c: Math.max(0.16, color.c), h: hue }),
+        text: ink,
+      });
+    } else {
+      const fill = fromOklch({ l: 0.51, c: Math.max(0.18, color.c), h: Math.min(38, color.h) });
+      solids.set(tone, { fill, text: "#ffffff" });
+      if (theme.id === "llama" || theme.id === "color")
+        lines.set(tone, Object.freeze({ ...layer, stroke: fill, fontColor: fill }));
+    }
+  }
+  return Object.freeze({ ...theme, toneLines: lines, solidTones: solids });
+}
 
 /** WCAG relative luminance of a `#RRGGBB` color. */
 export function luminance(color: string): number {

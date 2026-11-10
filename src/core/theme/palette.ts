@@ -16,7 +16,7 @@
  * docs/design/decisions/417-palettes.md and 423-tone-harmony.md.
  */
 
-import { contrastRatio, luminance } from "./node-variants";
+import { contrastRatio, luminance, warmTones } from "./node-variants";
 import { type DerivedTone, type DerivedToneColors, deriveTones } from "./palette-tones";
 import type { Theme } from "./schema";
 import type { StyleLayer, TypedValue } from "./style";
@@ -419,16 +419,18 @@ export function withPalette(theme: Theme, name: string | undefined): Theme {
       return [name, target === undefined ? token : { type: "color", value: target }];
     }),
   );
-  return Object.freeze({
-    ...theme,
-    tokens,
-    base: Object.freeze({
-      node: recolor(theme.base.node),
-      group: recolor(theme.base.group),
-      edge: recolor(theme.base.edge),
+  return warmTones(
+    Object.freeze({
+      ...theme,
+      tokens,
+      base: Object.freeze({
+        node: recolor(theme.base.node),
+        group: recolor(theme.base.group),
+        edge: recolor(theme.base.edge),
+      }),
+      components,
+      tones,
+      toneLines,
     }),
-    components,
-    tones,
-    toneLines,
-  });
+  );
 }
