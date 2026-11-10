@@ -71,11 +71,11 @@ picture PPTX. Editable PPTX rejects its HTML/image nodes with located
 `pptx/unsupported-asset` diagnostics, an existing exporter limitation;
 the new palette/frame controls themselves support editable PPTX.
 
-The gallery generator requires **no errors and no warnings**; info diagnostics
-are allowed. These are the infos from each example as written (including
+The gallery generator requires **no errors and no warnings**, except for the
+four documented LLaDA warnings below; info diagnostics are allowed. These are the diagnostics from each example as written (including
 geometry lint):
 
-| Example | Info diagnostics |
+| Example | Expected diagnostics |
 | --- | --- |
 | `pipeline` | none |
 | `decision-flow` | none |
@@ -88,7 +88,7 @@ geometry lint):
 | `gcn` | 2: `geometry/group-empty-area` ×2 (the input and output layers: the graphs keep the original's sparse vertex positions) |
 | `tricl` | 3: `geometry/group-empty-area` ×3 (the three small hypergraph cards: vertices and hyperedges are drawn small, as in the original) |
 | `llama4-moe` | none |
-| `llada` | none |
+| `llada` | 4 warnings: `geometry/dash-hidden` ×4 (the original figure's short dashed remask arrows) |
 | `chat` | none |
 | `llm-dialogue` | none |
 

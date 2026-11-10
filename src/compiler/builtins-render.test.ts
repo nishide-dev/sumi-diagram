@@ -107,7 +107,9 @@ describe("structured-only built-in components render", () => {
         expect(rendered.diagnostics).toEqual([]);
         // A component catalog sheet is sparse by construction (slides text is large).
         expect(
-          lintGeometry(rendered.value, {}).filter((d) => d.code !== "geometry/sparse-figure"),
+          lintGeometry(rendered.value, {}).filter(
+            (d) => d.code !== "geometry/sparse-figure" && d.code !== "geometry/dash-hidden",
+          ),
         ).toEqual([]);
         const { ir } = rendered.value.compiled;
         expect(ir.meta.engine).toBe("structured");
@@ -312,6 +314,14 @@ describe.skipIf(!available)("built-in primitives render with D2", () => {
               ["info", "geometry/group-empty-area"],
               ["info", "geometry/group-empty-area"],
             ]);
+          } else if (example === "examples/llada/llada.sumi.yaml") {
+            // The original figure's short dashed remask arrows have the same limitation.
+            expect(stderr).toContain("0 errors, 4 warnings, 0 infos");
+            expect(
+              [...stderr.matchAll(/warning geometry\/dash-hidden Edge edges\[(\d+)\]/g)].map((m) =>
+                Number(m[1]),
+              ),
+            ).toEqual([4, 14, 15, 16]);
           } else if (example === "examples/tricl/tricl.sumi.yaml") {
             expect(stderr).toContain("0 errors, 0 warnings, 3 infos");
             expect(

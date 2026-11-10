@@ -434,6 +434,7 @@ export interface SetIR {
   readonly label: string;
   /** The enclosed nodes and groups, in the order written. */
   readonly members: readonly ElementKey[];
+  readonly enclose: "body" | "footprint";
   readonly shape: SetShape;
   /** An ellipse's orientation (#430): degrees, or `auto`; omitted means axis-parallel. */
   readonly angle?: number | "auto";
@@ -837,6 +838,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
         id: set.id,
         label: set.label,
         members: freeze(set.members.map(endpointKey)),
+        enclose: set.enclose ?? "body",
         shape: set.shape,
         ...(set.angle !== undefined && { angle: set.angle }),
         labelAt: set.labelAt ?? "top",

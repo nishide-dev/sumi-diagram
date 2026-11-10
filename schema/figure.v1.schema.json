@@ -864,6 +864,14 @@
             },
             "description": "IDs of the nodes and groups the set encloses (each listed once). A group stands for its whole frame; the nodes inside it are members too."
           },
+          "enclose": {
+            "description": "Whether to enclose member bodies (default) or their glyphs as well (footprint).",
+            "type": "string",
+            "enum": [
+              "body",
+              "footprint"
+            ]
+          },
           "shape": {
             "default": "circle",
             "description": "circle (default; the smallest circle around the members), ellipse (axis-parallel, up to 3:1, or tilted with angle), hull (rounded convex hull) or rect (rounded rectangle).",

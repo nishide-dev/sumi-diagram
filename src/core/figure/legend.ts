@@ -22,6 +22,8 @@
  */
 
 import { glyphSize } from "../../assets/glyphs";
+import { edgeArrowheadLength } from "../../layout/route/arrowhead";
+import { strokePattern } from "../../render/stroke";
 import {
   type CheckState,
   type ElementKey,
@@ -44,6 +46,7 @@ import type { Registry } from "../registry/registry";
 import { resolveComponents } from "../registry/resolve";
 import { getTheme } from "../theme/builtin";
 import { resolveStyle } from "../theme/resolve";
+import { withStrokes } from "../theme/strokes";
 import type { Tone } from "../theme/tones";
 import { recordExpanded, reportReservedId, takenIds } from "./expand";
 import type { MatrixExpansion } from "./matrix";
@@ -525,7 +528,33 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
         ]);
         takenEdges.set(ids.line, linePath);
         expansion.entries.push({ kind: "edge", sample, path: entryPath, label });
-        item = withText(row(sizes.line, [ids.start, ids.end]));
+        const theme = getTheme(doc.figure?.theme ?? "paper");
+        let line = sizes.line;
+        if (theme !== undefined) {
+          const resolved = registry.resolve(edge.component, "edge");
+          if (resolved.ok && resolved.value.kind === "edge") {
+            const id = componentId(resolved.value);
+            const base = resolveStyle(theme, { kind: "edge", id, variant: edge.variant });
+            const reference = resolveStyle(theme, { kind: "edge", id, variant: "default" });
+            const style = withStrokes(base.style, {
+              frame: false,
+              reference: reference.style.strokeWidth,
+              figure: doc.figure?.themeOverrides,
+              element: edge,
+            });
+            const pattern = strokePattern(style);
+            if (pattern) {
+              // Two heads, plus two complete periods; sizes here are in pt.
+              line = Math.max(
+                line,
+                Math.ceil(
+                  ((2 * edgeArrowheadLength(style) + 2 * (pattern[0] + pattern[1])) / 2) * 2,
+                ) / 2,
+              );
+            }
+          }
+        }
+        item = withText(row(line, [ids.start, ids.end]));
       } else if (matrixClass !== undefined) {
         // The sample box of a matrix class (#180): a box as the class's cells.
         const { matrix, name } = matrixClass;
