@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { glyphRects } from "../assets/glyphs";
 import type { Point } from "../layout/ir";
 import { outlinePolygon } from "../layout/set-shape";
 import { lintGeometry } from "../lint/geometry";
@@ -174,5 +175,99 @@ describe("PDF and PPTX", () => {
     expect(slide).toContain("custGeom");
     expect(slide).toContain('name="set e"');
     expect(slide).not.toContain("rot=");
+  });
+});
+
+describe("glyph footprint enclosures", () => {
+  const source = (shape: string, extra = "") => `version: 1
+figure:
+  id: footprints
+  theme: slides
+  layout:
+    arrange:
+      place:
+        unit: 10mm
+        items:
+          - { item: a, at: [0, 0] }
+          - { item: b, at: [2, 2] }
+          - { item: c, at: [4, 4] }
+nodes:
+  - id: a
+    component: label
+    icon: tabler/file-text
+    glyphs:
+      - { kind: vector, at: north, dy: -0.35 }
+      - { kind: vector, at: west, dx: -0.35 }
+  - { id: b, component: box, label: B }
+  - id: c
+    component: label
+    icon: tabler/file-text
+    glyphs:
+      - { kind: vector, at: south, dy: 0.35 }
+      - { kind: vector, at: east, dx: 0.35 }
+sets:
+  - { id: s, label: Members, members: [a, b, c], shape: ${shape}, enclose: footprint, padding: 3mm${extra} }
+`;
+  const insidePolygon = (p: Point, polygon: Point[]) => {
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const a = polygon[i] as Point,
+        b = polygon[j] as Point;
+      if (a.y > p.y !== b.y > p.y && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x)
+        inside = !inside;
+    }
+    return inside;
+  };
+  for (const [shape, extra] of [
+    ["circle", ""],
+    ["ellipse", ", angle: auto"],
+    ["hull", ""],
+    ["rect", ""],
+  ] as const) {
+    test(`${shape} encloses all four glyph footprints and places its label`, async () => {
+      const rendered = await render(source(shape, extra));
+      const set = rendered.layout.sets?.[0];
+      if (!set?.label) throw new Error("missing set or label");
+      const polygon = outlinePolygon(set.outline);
+      if (shape === "ellipse" && set.outline.kind === "ellipse")
+        expect(Math.abs(set.outline.angle ?? 0)).toBeGreaterThan(10);
+      for (const id of ["a", "c"]) {
+        const node = rendered.compiled.ir.nodes.find((n) => n.key === `n:${id}`);
+        const placed = rendered.layout.nodes.find((n) => n.key === `n:${id}`);
+        if (!node || !placed) throw new Error("missing node");
+        for (const r of glyphRects(node, placed.rect))
+          for (const p of [
+            { x: r.x, y: r.y },
+            { x: r.x + r.width, y: r.y },
+            { x: r.x, y: r.y + r.height },
+            { x: r.x + r.width, y: r.y + r.height },
+          ])
+            expect(insidePolygon(p, polygon)).toBe(true);
+      }
+      const label = set.label.box;
+      expect(
+        polygon.some(
+          (p) =>
+            p.x > label.x &&
+            p.x < label.x + label.width &&
+            p.y > label.y &&
+            p.y < label.y + label.height,
+        ),
+      ).toBe(false);
+    });
+  }
+  test("footprints export to PDF and PPTX and detect non-members", async () => {
+    const text = source("ellipse", ", angle: auto").replace(
+      "members: [a, b, c]",
+      "members: [a, c]",
+    );
+    const rendered = await render(text);
+    expect(
+      lintGeometry(rendered, { source: text }).some(
+        (d) => d.code === "geometry/set-contains-non-member",
+      ),
+    ).toBe(true);
+    expect(svgToPdf(rendered.svg).ok).toBe(true);
+    expect(svgToPptx(rendered.svg).ok).toBe(true);
   });
 });

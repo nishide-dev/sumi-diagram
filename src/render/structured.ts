@@ -452,7 +452,7 @@ export function openArrowheadGap(strokeUnits: number): number {
  * How far an arrowhead's base is from its tip: where the line stops. An
  * open chevron's line runs to its vertex (see {@link openArrowhead}).
  */
-function arrowheadInset(head: Arrowhead, length: number, strokeUnits: number): number {
+export function arrowheadInset(head: Arrowhead, length: number, strokeUnits: number): number {
   switch (head) {
     case "none":
     case "cross":

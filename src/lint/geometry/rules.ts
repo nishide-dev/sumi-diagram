@@ -25,6 +25,7 @@ import { type Point, type Rect, unitsToMm, unitsToPt } from "../../render/geomet
 import type { ProfileLimits } from "../../render/inspect";
 import { printedSize } from "../../render/size";
 import { strokePattern } from "../../render/stroke";
+import { arrowheadInset } from "../../render/structured";
 import { defineGeometryRule, type GeometryRule, type LintFinding } from "../rule";
 import { arrowheadStraightRun } from "./arrowheads";
 import { colorOnPanel, muddyColor, translucentOverColor } from "./color-composition";
@@ -1094,25 +1095,36 @@ export const dashHidden = defineGeometryRule({
       const style = edge.ir.style;
       const pattern = strokePattern(style);
       if (!pattern || style.stroke === "transparent" || style.strokeWidth.units <= 0) return [];
-      const total = edge.route.reduce(
-        (sum, line) =>
-          sum +
-          line
-            .slice(1)
-            .reduce(
-              (length, p, i) =>
-                length + Math.hypot(p.x - (line[i]?.x ?? p.x), p.y - (line[i]?.y ?? p.y)),
-              0,
-            ),
-        0,
-      );
-      const head = isStructured(context)
-        ? edgeArrowheadLength(style)
-        : 4 + 1.5 * style.strokeWidth.units;
-      const count =
-        Number(edge.ir.sourceArrowhead !== undefined) +
-        Number(edge.ir.targetArrowhead !== undefined);
-      const visible = Math.max(0, total - count * head);
+      const length = (line: readonly Point[]) =>
+        line.slice(1).reduce((sum, p, i) => {
+          const previous = line[i] ?? p;
+          return sum + Math.hypot(p.x - previous.x, p.y - previous.y);
+        }, 0);
+      const structured = isStructured(context);
+      let visible: number;
+      if (structured && context.inspection.painted !== undefined) {
+        const lengths = (edge.drawn ?? []).map(length);
+        // Curve samples and ordinary sharp bends are stroked continuously.
+        visible =
+          edge.ir.route === "curve" || context.ir.meta.themeOverrides?.edgeCorners === "sharp"
+            ? lengths.reduce((a, b) => a + b, 0)
+            : Math.max(0, ...lengths);
+      } else {
+        const total = edge.route.reduce((sum, line) => sum + length(line), 0);
+        const headLength = structured
+          ? edgeArrowheadLength(style)
+          : 4 + 1.5 * style.strokeWidth.units;
+        const inset = (head: typeof edge.ir.sourceArrowhead) =>
+          head === undefined
+            ? 0
+            : structured
+              ? arrowheadInset(head, headLength, style.strokeWidth.units)
+              : headLength;
+        visible = Math.max(
+          0,
+          total - inset(edge.ir.sourceArrowhead) - inset(edge.ir.targetArrowhead),
+        );
+      }
       if (visible + 0.002 >= 1.75 * (pattern[0] + pattern[1])) return [];
       return [
         {
