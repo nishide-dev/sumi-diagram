@@ -2,12 +2,12 @@
 
 [Gallery](README.md) · [Examples](examples.md) · [Legend samples](legend-samples.md) · [Themes](themes.md) · [Tones](tones.md) · [Dimmed groups](dim.md) · [Node glyphs](glyphs.md) · [Set enclosures](sets.md) · [Stroke options](strokes.md) · [Palettes](palettes.md) · [Profiles and comparison](compare.md)
 
-In knowledge distillation, per\-edge <code>lineWidth</code> and <code>arrowheadScale</code> distinguish the main training path from auxiliary teacher input\. Dashed arrows carry soft targets; dotted arrows show inference\. Group <code>cornerRadius</code> distinguishes the rounded training frame from the square, dotted inference frame\. The same options can also be set figure\-wide with <code>themeOverrides</code>\.
+In knowledge distillation, per\-edge <code>lineWidth</code> and <code>arrowheadScale</code> distinguish the main training path from auxiliary teacher input\. Dashed arrows carry soft targets; dotted arrows show inference\. Group <code>cornerRadius</code> distinguishes the rounded training frame from the square, dotted inference frame\. Element <code>lineWidth</code> is absolute: the 1\.5pt main path is thinner than the slides theme's 2pt default line\. The same options can also be set figure\-wide with <code>themeOverrides</code>\.
 
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> | <code>llama</code> |
 | --- | --- | --- | --- | --- | --- |
 | <img src="strokes/strokes.minimal.svg" alt="stroke options, theme minimal"> | <img src="strokes/strokes.academic.svg" alt="stroke options, theme academic"> | <img src="strokes/strokes.slides.svg" alt="stroke options, theme slides"> | <img src="strokes/strokes.color.svg" alt="stroke options, theme color"> | <img src="strokes/strokes.paper.svg" alt="stroke options, theme paper"> | <img src="strokes/strokes.llama.svg" alt="stroke options, theme llama"> |
-| <code>sumi render strokes\.sumi\.yaml</code><br>128\.76mm × 51\.33mm \(max width 180mm, max height 220mm\)<br>info geometry/group\-empty\-area \(×2\): Group &quot;training&quot; has 84\.8% empty bounding\-box area \(threshold 75%; edges excluded\)\. | <code>sumi render strokes\.sumi\.yaml \-\-theme academic</code><br>128\.76mm × 50\.8mm \(max width 180mm, max height 220mm\)<br>info geometry/group\-empty\-area \(×2\): Group &quot;training&quot; has 85\.0% empty bounding\-box area \(threshold 75%; edges excluded\)\. | <code>sumi render strokes\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>257\.7mm × 89\.61mm \(max width 338\.7mm, max height 190\.5mm\)<br>info geometry/group\-empty\-area \(×2\): Group &quot;training&quot; has 79\.0% empty bounding\-box area \(threshold 75%; edges excluded\)\. | <code>sumi render strokes\.sumi\.yaml \-\-theme color</code><br>128\.76mm × 51\.33mm \(max width 180mm, max height 220mm\)<br>info geometry/group\-empty\-area \(×2\): Group &quot;training&quot; has 84\.8% empty bounding\-box area \(threshold 75%; edges excluded\)\. | <code>sumi render strokes\.sumi\.yaml \-\-theme paper</code><br>116\.95mm × 51\.33mm \(max width 180mm, max height 220mm\)<br>info geometry/group\-empty\-area \(×2\): Group &quot;training&quot; has 84\.9% empty bounding\-box area \(threshold 75%; edges excluded\)\. | <code>sumi render strokes\.sumi\.yaml \-\-theme llama</code><br>116\.95mm × 51\.33mm \(max width 180mm, max height 220mm\)<br>info geometry/group\-empty\-area \(×2\): Group &quot;training&quot; has 85\.1% empty bounding\-box area \(threshold 75%; edges excluded\)\. |
+| <code>sumi render strokes\.sumi\.yaml</code><br>131\.94mm × 65\.44mm \(max width 180mm, max height 220mm\)<br>info geometry/group\-empty\-area \(×2\): Group &quot;training&quot; has 89\.1% empty bounding\-box area \(threshold 75%; edges excluded\)\. | <code>sumi render strokes\.sumi\.yaml \-\-theme academic</code><br>128\.76mm × 64\.91mm \(max width 180mm, max height 220mm\)<br>info geometry/group\-empty\-area \(×2\): Group &quot;training&quot; has 89\.3% empty bounding\-box area \(threshold 75%; edges excluded\)\. | <code>sumi render strokes\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>262\.11mm × 103\.72mm \(max width 338\.7mm, max height 190\.5mm\)<br>info geometry/group\-empty\-area \(×2\): Group &quot;training&quot; has 83\.0% empty bounding\-box area \(threshold 75%; edges excluded\)\. | <code>sumi render strokes\.sumi\.yaml \-\-theme color</code><br>131\.94mm × 65\.44mm \(max width 180mm, max height 220mm\)<br>info geometry/group\-empty\-area \(×2\): Group &quot;training&quot; has 89\.1% empty bounding\-box area \(threshold 75%; edges excluded\)\. | <code>sumi render strokes\.sumi\.yaml \-\-theme paper</code><br>116\.95mm × 65\.44mm \(max width 180mm, max height 220mm\)<br>info geometry/group\-empty\-area \(×2\): Group &quot;training&quot; has 89\.2% empty bounding\-box area \(threshold 75%; edges excluded\)\. | <code>sumi render strokes\.sumi\.yaml \-\-theme llama</code><br>118\.71mm × 65\.44mm \(max width 180mm, max height 220mm\)<br>info geometry/group\-empty\-area \(×2\): Group &quot;training&quot; has 89\.3% empty bounding\-box area \(threshold 75%; edges excluded\)\. |
 
 <details>
 <summary>Source: <code>strokes.sumi.yaml</code></summary>
@@ -34,13 +34,13 @@ groups:
     label: Training
     cornerRadius: 8pt
     arrange:
-      grid: { columns: 3, rowGap: 7mm, columnGap: 10mm, items: [ null, null, teacher, images, student, loss ] }
+      grid: { columns: 3, rowGap: 24mm, columnGap: 10mm, items: [ null, null, teacher, images, student, loss ] }
   - id: inference
     label: Inference only
     variant: dotted
     cornerRadius: 0pt
     arrange:
-      stack: { gap: 5mm, align: center, items: [ query, student-copy, answer ] }
+      stack: { gap: 12mm, align: center, items: [ query, student-copy, answer ] }
 
 nodes:
   - { id: images, component: label, icon: tabler/photo, iconSize: 1.6 }

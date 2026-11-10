@@ -270,3 +270,6 @@ and sparse trial figures (27-32%, 378-433mm² per node).
   the largest empty area: move the legend or scattered labels into it.
 - Text-heavy: a box holds a name, not a sentence. Move formulas and explanations to
   the caption, or split into a title and a short `sublabel`.
+# Patterned edges
+
+`geometry/dash-hidden` warns when less than two dash or dot periods fit between arrowheads, including legend samples. Increase the gap or edge length, or reduce `arrowheadScale`.

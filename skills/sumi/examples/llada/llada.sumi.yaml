@@ -339,7 +339,7 @@ edges:
   - { from: a-out1-s, to: a-out1-e, route: straight, lineWidth: 1pt }
   - { from: a-out2-s, to: a-out2-e, route: straight, lineWidth: 1pt }
   # Legend: mask token, non-mask token, remask, random mask
-  - { from: key-remask-s, to: key-remask-e, route: straight, variant: dashed, lineWidth: 1pt }
+  - { from: key-remask-s, to: key-remask-e, route: straight, variant: dashed, lineWidth: 0.5pt }
   - { from: key-random-s, to: key-random-e, route: straight, variant: dotted, lineWidth: 1pt }
   # (b) SFT: only the response can be masked
   - { from: b-mask-s, to: b-mask-e, route: straight, variant: dotted, lineWidth: 1pt }
@@ -351,9 +351,9 @@ edges:
   - { from: c-out1-s, to: c-out1-e, route: straight, lineWidth: 1pt }
   - { from: c-out2-s, to: c-out2-e, route: straight, lineWidth: 1pt }
   - { from: c-out3-s, to: c-out3-e, route: straight, lineWidth: 1pt }
-  - { from: c-rm1-s, to: c-rm1-e, route: straight, variant: dashed, lineWidth: 1pt }
-  - { from: c-rm2-s, to: c-rm2-e, route: straight, variant: dashed, lineWidth: 1pt }
-  - { from: c-rm3-s, to: c-rm3-e, route: straight, variant: dashed, lineWidth: 1pt }
+  - { from: c-rm1-s, to: c-rm1-e, route: straight, variant: dashed, lineWidth: 0.5pt }
+  - { from: c-rm2-s, to: c-rm2-e, route: straight, variant: dashed, lineWidth: 0.5pt }
+  - { from: c-rm3-s, to: c-rm3-e, route: straight, variant: dashed, lineWidth: 0.5pt }
   # Time arrow t = 1 -> t = 0
   - { from: t-top2, to: t-top, component: line, tone: red, lineWidth: 1pt }
   - { from: t-mid2, to: t-mid, component: line, tone: red, lineWidth: 1pt }

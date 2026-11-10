@@ -107,7 +107,9 @@ describe("structured-only built-in components render", () => {
         expect(rendered.diagnostics).toEqual([]);
         // A component catalog sheet is sparse by construction (slides text is large).
         expect(
-          lintGeometry(rendered.value, {}).filter((d) => d.code !== "geometry/sparse-figure"),
+          lintGeometry(rendered.value, {}).filter(
+            (d) => d.code !== "geometry/sparse-figure" && d.code !== "geometry/dash-hidden",
+          ),
         ).toEqual([]);
         const { ir } = rendered.value.compiled;
         expect(ir.meta.engine).toBe("structured");

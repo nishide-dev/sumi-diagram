@@ -74,7 +74,7 @@ figure:
     arrange:
       row:
         items:
-          - stack: { items: [box, square, circle, ellipse, diamond] }
+          - stack: { gap: 12mm, items: [box, square, circle, ellipse, diamond] }
           - stack: { items: [hexagon, parallelogram, cylinder, document] }
           - stack: { items: [trapezoid, stack, note, plus, dot, times] }
 nodes:

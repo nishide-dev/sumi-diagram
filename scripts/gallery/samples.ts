@@ -1311,13 +1311,13 @@ groups:
     label: Training
     cornerRadius: 8pt
     arrange:
-      grid: { columns: 3, rowGap: 7mm, columnGap: 10mm, items: [ null, null, teacher, images, student, loss ] }
+      grid: { columns: 3, rowGap: 24mm, columnGap: 10mm, items: [ null, null, teacher, images, student, loss ] }
   - id: inference
     label: Inference only
     variant: dotted
     cornerRadius: 0pt
     arrange:
-      stack: { gap: 5mm, align: center, items: [ query, student-copy, answer ] }
+      stack: { gap: 12mm, align: center, items: [ query, student-copy, answer ] }
 
 nodes:
   - { id: images, component: label, icon: tabler/photo, iconSize: 1.6 }
@@ -1500,7 +1500,7 @@ groups:
       grid:
         columns: 3
         rowGap: 9mm
-        columnGap: 14mm
+        columnGap: 20mm
         items: [f1, e1, g2, f2, e2, g1]
 
 nodes:

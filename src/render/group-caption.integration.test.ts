@@ -55,7 +55,7 @@ async function render(
   ).toBe(true);
   expect(
     geometry
-      .filter((d) => d.code !== "geometry/group-empty-area")
+      .filter((d) => d.code !== "geometry/group-empty-area" && d.code !== "geometry/dash-hidden")
       .map((d) => [d.code, d.severity, d.subject?.id]),
   ).toEqual(jogEdges.map((id) => ["geometry/edge-jog", "info", id]));
   return result.value;

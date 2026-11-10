@@ -325,7 +325,8 @@ const STROKES_NOTE =
   "In knowledge distillation, per-edge `lineWidth` and `arrowheadScale` distinguish the main " +
   "training path from auxiliary teacher input. Dashed arrows carry soft targets; dotted arrows " +
   "show inference. Group `cornerRadius` distinguishes the rounded training frame from the square, " +
-  "dotted inference frame. The same options can also be set figure-wide with `themeOverrides`.";
+  "dotted inference frame. Element `lineWidth` is absolute: the 1.5pt main path is thinner " +
+  "than the slides theme's 2pt default line. The same options can also be set figure-wide with `themeOverrides`.";
 
 const PALETTES_NOTE =
   "`figure.themeOverrides.palette: <name>` recolors a theme with four colors from a popular Color Hunt palette: " +

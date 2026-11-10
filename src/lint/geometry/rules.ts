@@ -24,6 +24,7 @@ import {
 import { type Point, type Rect, unitsToMm, unitsToPt } from "../../render/geometry";
 import type { ProfileLimits } from "../../render/inspect";
 import { printedSize } from "../../render/size";
+import { strokePattern } from "../../render/stroke";
 import { defineGeometryRule, type GeometryRule, type LintFinding } from "../rule";
 import { arrowheadStraightRun } from "./arrowheads";
 import { colorOnPanel, muddyColor, translucentOverColor } from "./color-composition";
@@ -1081,6 +1082,50 @@ export const edgeJog = defineGeometryRule({
   },
 });
 
+export const dashHidden = defineGeometryRule({
+  id: "geometry/dash-hidden",
+  description: "A patterned edge is too short between arrowheads to show two dash periods.",
+  defaultSeverity: "warning",
+  fixable: false,
+  run(context) {
+    return context.elements.flatMap((edge): LintFinding[] => {
+      if (edge.ir.kind !== "edge" || edge.route === undefined || edge.ir.routing === "zoom")
+        return [];
+      const style = edge.ir.style;
+      const pattern = strokePattern(style);
+      if (!pattern || style.stroke === "transparent" || style.strokeWidth.units <= 0) return [];
+      const total = edge.route.reduce(
+        (sum, line) =>
+          sum +
+          line
+            .slice(1)
+            .reduce(
+              (length, p, i) =>
+                length + Math.hypot(p.x - (line[i]?.x ?? p.x), p.y - (line[i]?.y ?? p.y)),
+              0,
+            ),
+        0,
+      );
+      const head = isStructured(context)
+        ? edgeArrowheadLength(style)
+        : 4 + 1.5 * style.strokeWidth.units;
+      const count =
+        Number(edge.ir.sourceArrowhead !== undefined) +
+        Number(edge.ir.targetArrowhead !== undefined);
+      const visible = Math.max(0, total - count * head);
+      if (visible + 0.002 >= 1.75 * (pattern[0] + pattern[1])) return [];
+      return [
+        {
+          message: `${capitalize(edge.name)} has too little visible line between arrowheads to show its dash pattern.`,
+          path: edge.docPath,
+          subject: edge.subject,
+          hint: "Increase the gap or edge length, or use a smaller arrowheadScale.",
+        },
+      ];
+    });
+  },
+});
+
 export const arrowheadOnBend = defineGeometryRule({
   id: "geometry/arrowhead-on-bend",
   description: "An arrowhead is longer than the straight run at its end of the painted edge.",
@@ -2006,6 +2051,7 @@ export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
   edgeCrossesLabel,
   edgeThroughNode,
   arrowheadOnBend,
+  dashHidden,
   arrowheadCramped,
   edgeJog,
   zoomCrossesNode,
