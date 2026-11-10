@@ -6,6 +6,8 @@
 
 全組み込みテーマとパレットで同じ solid 色を使う。モノクロテーマでも明示的に yellow / orange の solid を指定した場合は色が付く。既定・tinted・outlined・線色や他の tone は変えない。明示的な tone の line または solidFills の上書きは優先する。暗い黄色の塗りも muddy-color の対象にする。
 
+レビュー対応: tone を持つ emphasis は塗りと文字が 4.5:1 未満のときテーマの ink を使い、必要ならさらに暗くする。solid の優先順位は `solidFills`、tone の `line`、組み込み solid の順で、`fill` のみの指定は solid に影響しない。上書き色の文字は 4.5:1 を保証し、既定 yellow の 7:1 は保証しない。glyph と凡例も同じ解決済み solid 色を使う。黄土色の検出は色相に応じた連続的な明度境界を使い、75° の断絶を避ける。
+
 ## 変更前後の値
 
 表は変更前の solid 塗り。括弧は OKLCH の L、C、h。変更後は全行とも yellow `#f5c518` (0.842, 0.168, 90.4°)、orange `#c2410c` (0.553, 0.174, 38.4°)。無彩色の色相は参考値。

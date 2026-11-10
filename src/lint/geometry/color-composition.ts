@@ -66,7 +66,10 @@ export function muddinessOf(
   const minLightness = 0.7 - 0.15 * oliveShare;
   const maxLightness = 0.88 - 0.02 * oliveShare;
   if (
-    (final.h >= 75 && final.h <= 110 && final.l < 0.58 && final.c >= 0.045) ||
+    (final.h >= 65 &&
+      final.h <= 115 &&
+      final.l < 0.58 - Math.max(0, 75 - final.h, final.h - 110) * 0.01 &&
+      final.c >= 0.045) ||
     (final.h >= 52 &&
       final.h <= 115 &&
       final.l >= minLightness &&

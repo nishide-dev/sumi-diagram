@@ -166,6 +166,7 @@ describe("muddiness() thresholds", () => {
       "#e5c4a1",
       "#efcfab",
       "#9a6700",
+      "#996600",
       "#876200",
       "#8a6d00",
       "#7f6600",
@@ -177,6 +178,14 @@ describe("muddiness() thresholds", () => {
       const color = toOklch(hex);
       expect(muddinessOf(color, color), hex).toBeUndefined();
     }
+  });
+  test("dark ochre threshold tapers continuously at the hue boundary", () => {
+    for (const h of [74.7, 75, 75.3]) {
+      const color = { l: 0.55, c: 0.116, h };
+      expect(muddinessOf(color, color)).toBe("khaki");
+    }
+    const orange = { l: 0.55, c: 0.17, h: 40 };
+    expect(muddinessOf(orange, orange)).toBeUndefined();
   });
   test("a tone kept intact is fine; one that lost its chroma, darkened into gray or drifted is not", () => {
     const blue = toOklch("#d1e7ff");

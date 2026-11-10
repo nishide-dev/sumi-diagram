@@ -47,6 +47,8 @@ pipeline（[`examples/pipeline`](../examples/pipeline/pipeline.sumi.yaml)、自�
 
 `figure.themeOverrides.palette: <名前>` で、どのテーマにも 4 色の組み込みパレット（`cool-blue`・`slate`・`coral`・`terracotta`・`sage`・`lavender`・`cyan-pink`・`seafoam`）を重ねて図全体の色合いを変えられます。文字・枠・辺はパレットの ink、グループのパネルは最も淡い色、filled のノードと `gray` tone は tint、`solid` と `emphasis` は accent になります。大きさ・フォント・ほかの tone はテーマのままです。[パレットのギャラリー](gallery/palettes.md)と `sumi catalog --section palettes` を参照してください。
 
+`themeOverrides.tones.<tone>.line` を明示すると、黄色を含めその tone の solid の塗りになります。文字は 4.5:1 以上に調整され、組み込み黄色の 7:1 は保証されません。`fill` だけの上書きは solid を変えません。`solidFills.<tone>` は `line` より優先され、solid glyph と凡例の見本にも適用されます。
+
 ## 関連
 
 - [ギャラリー: テーマ](gallery/themes.md)・[tone](gallery/tones.md)・[dim](gallery/dim.md)・[テーマ × プロファイルの一覧](gallery/compare.md)
