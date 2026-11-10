@@ -121,6 +121,9 @@ export interface Theme {
   readonly tones: ReadonlyMap<Tone, StyleLayer>;
   /** Line and text color layers by tone (#177); a tone the theme does not define is not here. */
   readonly toneLines: ReadonlyMap<Tone, StyleLayer>;
+  /** Optional solid fill and text colors, independent of the line palette. */
+  readonly solidTones?: ReadonlyMap<Tone, { readonly fill: string; readonly text: string }>;
+  readonly solidFillOverrides?: Partial<Record<Tone, string>>;
   /** Colors of dimmed elements (#175); a theme without them draws `dim` groups as they are. */
   readonly dim?: DimColors;
   /**

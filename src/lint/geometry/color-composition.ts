@@ -66,6 +66,10 @@ export function muddinessOf(
   const minLightness = 0.7 - 0.15 * oliveShare;
   const maxLightness = 0.88 - 0.02 * oliveShare;
   if (
+    (final.h >= 65 &&
+      final.h <= 115 &&
+      final.l < 0.58 - Math.max(0, 75 - final.h, final.h - 110) * 0.01 &&
+      final.c >= 0.045) ||
     (final.h >= 52 &&
       final.h <= 115 &&
       final.l >= minLightness &&
@@ -91,7 +95,7 @@ const REASONS = {
   chroma: "it has lost most of its chroma",
   dull: "it is darkened into a dull gray",
   drift: "its hue has drifted",
-  khaki: "its mid-lightness yellow or orange is khaki or olive",
+  khaki: "its yellow or orange is ochre, khaki or olive",
 } as const;
 
 function namesOf(items: readonly PaintItem[], skip: ReadonlySet<string> = new Set()): string {
@@ -143,7 +147,25 @@ export const muddyColor = defineGeometryRule({
     "A chromatic fill comes out muddy: its chroma is lost, it darkens to gray, its hue drifts, or its yellow-orange color is khaki.",
   defaultSeverity: "warning",
   fixable: false,
-  run: (context) => muddyFindings(analysisOf(context)),
+  run: (context) => {
+    const findings = muddyFindings(analysisOf(context));
+    for (const element of [...context.elements, ...context.sets]) {
+      for (const property of ["stroke", "fontColor"] as const) {
+        const color = element.ir.style[property];
+        if (!/^#[0-9a-f]{6}$/i.test(color)) continue;
+        const value = toOklch(color);
+        if (value.c >= TONE_CHROMA && muddinessOf(value, value) === "khaki") {
+          findings.push({
+            message: `${capitalize(element.name)} ${property} is ${describe(color)}: ${REASONS.khaki}.`,
+            path: element.docPath,
+            subject: element.subject,
+            hint: "Use a clearer hue or neutral ink.",
+          });
+        }
+      }
+    }
+    return limited(findings, "muddy colors");
+  },
 });
 
 /** The findings of `geometry/muddy-color` on an analysis (also of one painted with translucent sets, to calibrate). */

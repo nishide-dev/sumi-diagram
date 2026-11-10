@@ -1,11 +1,14 @@
 import { describe, expect, test } from "bun:test";
+import { muddinessOf } from "../../lint/geometry/color-composition";
 import { renderFigure } from "../../render";
 import { attribute, descendants, parseXml } from "../../render/xml";
 import { checkFigure } from "../check";
 import { createBuiltinRegistry } from "../registry/builtins";
 import { buildCatalog } from "../registry/catalog";
 import { BUILTIN_THEMES } from "./builtin";
+import { toOklch } from "./color-math";
 import { dimStyle, lightenColor } from "./dim";
+import { getPalette, PALETTE_NAMES, withPalette } from "./palette";
 import { resolveStyle } from "./resolve";
 import { TONE_NAMES } from "./tones";
 
@@ -33,6 +36,59 @@ function contrast(a: string, b: string): number {
 }
 
 describe("solid and tinted nodes", () => {
+  test("chromatic yellow arrows and frames contrast with white and the default panel", () => {
+    for (const base of BUILTIN_THEMES.values()) {
+      for (const palette of [undefined, ...PALETTE_NAMES]) {
+        const theme = withPalette(base, palette);
+        if (!theme.solidTones?.has("yellow")) continue;
+        const arrow = resolveStyle(theme, {
+          kind: "edge",
+          id: "sumi/arrow",
+          variant: "default",
+          tone: "yellow",
+        }).style.stroke;
+        const frame = resolveStyle(theme, {
+          kind: "node",
+          id: "sumi/box",
+          variant: "outlined",
+          tone: "yellow",
+        }).style.stroke;
+        expect(frame).toBe(arrow);
+        const panels = ["default", ...(palette === undefined ? ["filled"] : [])].map(
+          (variant) =>
+            resolveStyle(theme, { kind: "group", id: "sumi/container", variant }).style.fill,
+        );
+        if (palette) {
+          const selected = getPalette(palette);
+          if (!selected) throw new Error(`missing palette ${palette}`);
+          panels.push(selected.roles.panel);
+        }
+        const yellow = toOklch(arrow);
+        expect(muddinessOf(yellow, yellow), `${base.id}/${palette ?? "default"}`).toBeUndefined();
+        for (const background of ["#ffffff", ...panels.filter((fill) => fill !== "transparent")]) {
+          expect(
+            contrast(arrow, background),
+            `${base.id}/${palette ?? "default"} on ${background}`,
+          ).toBeGreaterThanOrEqual(3);
+        }
+      }
+    }
+  });
+  test("monochrome warm solids retain their gray line colors", () => {
+    for (const theme of BUILTIN_THEMES.values()) {
+      if (!["academic", "minimal", "slides"].includes(theme.id)) continue;
+      for (const tone of ["yellow", "orange"] as const) {
+        const style = resolveStyle(theme, {
+          kind: "node",
+          id: "sumi/box",
+          variant: "solid",
+          tone,
+        }).style;
+        expect(style.fill).toBe(theme.toneLines.get(tone)?.stroke ?? "");
+        expect(toOklch(style.fill).c).toBeLessThan(0.001);
+      }
+    }
+  });
   test("every shape, theme and tone has both variants and at least 4.5:1 text contrast", () => {
     expect(shapes).toHaveLength(14);
     for (const theme of BUILTIN_THEMES.values()) {
@@ -49,8 +105,9 @@ describe("solid and tinted nodes", () => {
             if (shape.id === "sumi/bubble" && variant === "solid") expect(strokeWidth.pt).toBe(0);
             else expect(strokeWidth.pt).toBeGreaterThan(0);
             if (variant === "solid") {
-              expect(fontColor).toBe("#ffffff");
-              expect(fill).toBe(theme.toneLines.get(tone ?? "gray")?.stroke ?? "");
+              const solid = theme.solidTones?.get(tone ?? "gray");
+              expect(fontColor).toBe(solid?.text ?? "#ffffff");
+              expect(fill).toBe(solid?.fill ?? theme.toneLines.get(tone ?? "gray")?.stroke ?? "");
               if (shape.id === "sumi/stack") {
                 expect(contrast(fill, stroke)).toBeGreaterThanOrEqual(4.5);
               } else {
@@ -58,11 +115,29 @@ describe("solid and tinted nodes", () => {
               }
             } else {
               expect(fill).toBe(theme.tones.get(tone ?? "gray")?.fill ?? "");
-              expect(fontColor).toBe(stroke);
+              if (tone !== "yellow" || theme.solidTones?.has("yellow") !== true)
+                expect(fontColor).toBe(stroke);
             }
           }
         }
       }
+    }
+  });
+
+  test("yellow is bright and has highly readable ink in every theme", () => {
+    for (const theme of BUILTIN_THEMES.values()) {
+      if (!theme.solidTones?.has("yellow")) continue;
+      const { fill, fontColor } = resolveStyle(theme, {
+        kind: "node",
+        id: "sumi/box",
+        variant: "solid",
+        tone: "yellow",
+      }).style;
+      const color = toOklch(fill);
+      expect(color.l).toBeGreaterThanOrEqual(0.8);
+      expect(color.l).toBeLessThanOrEqual(0.88);
+      expect(color.c).toBeGreaterThan(0.13);
+      expect(contrast(fill, fontColor)).toBeGreaterThanOrEqual(7);
     }
   });
 

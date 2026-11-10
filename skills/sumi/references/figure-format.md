@@ -58,6 +58,11 @@ position the layout (`direction` in auto figures; arrange trees, `attach` and
 anchors in structured ones). Conversations use a [`chat` arrange box](structured.md#chat-conversations)
 with ordinary `bubble` nodes, speakers, meta notes and date dividers.
 
+In built-in chromatic themes, the yellow tone's line (edges and outlined or
+tinted frames; not a solid node, whose outline is its bright fill) has at least
+3:1 contrast on white and the theme's default group fill. Darker fills, including palette-filled panels, and
+explicit overrides are not guaranteed.
+
 ## Feature versions
 
 `sumi --version` prints the installed CLI's version. Newer fields are errors
@@ -213,7 +218,7 @@ edges also `dashed` and `dotted`) change how the tone is drawn:
 | `filled` | tone fill without outline (a block cannot be both `filled` and `muted`) | box-like shapes, `operator` (not `stack`) |
 | `outlined` | white node, outline and text in the tone's line colour (without a tone: gray's line) | box-like shapes, `operator`, `stack` |
 | `tinted` | pastel fill, matching coloured border and text (encoders, highlighted cells); text ink darkens just enough for 4.5:1 | box-like shapes, `operator`, `stack` |
-| `solid` | strong tone fill, white text (selected cells, operators); solid stacks use white separators | box-like shapes, `operator`, `stack` |
+| `solid` | strong tone fill with contrasting text (yellow uses dark ink); solid stacks use contrasting separators | box-like shapes, `operator`, `stack` |
 | `muted`, `emphasis` | quieter / heavier | most; `emphasis` on an edge: heavier line and head (`paper`: black 1pt vs 0.5pt) |
 
 `outlined`, `tinted`, `solid` can also be set on tokens cells and legend node
@@ -481,13 +486,13 @@ stay the theme's):
   `nodeCorners`.
 - `groupLabelWeight: regular | bold` sets every group heading's weight.
 - `solidFills: { blue: '#3d9df5', orange: '#e8a20c', red: '#e04848' }` replaces the solid
-  fill and border of those tones (expanded nodes too); white text stays if it meets 4.5:1,
+  fill and border of those tones (expanded nodes and solid glyphs/legend samples too); white text stays if it meets 4.5:1,
   else it darkens; other variants, tone-line text and edges keep the palette.
 - `dashedGroupStroke: '#527da5'` changes only dashed group borders.
 - `tones: { blue: { fill: '#dfe1ea', line: '#5f6a95', text: '#000000' } }` recolours a tone
   everywhere it appears: `fill` = pale fills (default/filled/tinted, toned groups, matrix
   classes, legend samples); `line` = outlined/tinted frames, toned edges and arrowheads,
-  hatches, solid fills (`solidFills` wins), html `--sumi-accent` (blue); `text` =
+  hatches, solid fills (`solidFills` wins), html `--sumi-accent` (blue); a `fill`-only override does not change solid fills. A `line` override replaces even the bright built-in yellow solid fill, and its text is adjusted to at least 4.5:1; `text` =
   outlined/tinted text, toned edge labels, `\textcolor`, drawn as written. Without `text`,
   tinted text is the line darkened to 4.5:1 and white-ground text is the line. `text` never
   applies to solid nodes (white, contrast-adjusted) or default-variant text. Overriding
@@ -528,7 +533,7 @@ weights. The tones are derived from the palette too: `gray` is its neutral, and 
 `yellow`, `green`, `blue`, `purple`, `pink` keep their own hue (`tone: green` is still green) but
 take the palette's lightness and chroma (fills at its tint, lines at its strong colour), so a
 tone carries its meaning while the whole figure stays in one family of colours. Every text keeps
-4.5:1 on its fill in every palette. Yellow fills are kept light and warm; muted orange fills are kept peach-like. Orange and yellow lines remain vivid orange-red and ochre (#444, #455). List the colours and the derived tones with
+4.5:1 on its fill in every palette. Yellow fills are kept light and warm; muted orange fills are kept peach-like. Chromatic yellow uses a golden stroke (at least 3:1 on white and the palette panel) and neutral ink for text; monochrome themes retain gray tones. Darker filled-group tint backgrounds can require a custom contrasting line. List the colours and the derived tones with
 `sumi catalog --section palettes`; an unknown name is `schema/invalid-value` with the closest
 name. Explicit `tones`, `groupFill`, `groupStroke` and `solidFills` win over the palette, but
 tone colours of your own next to a palette are what `geometry/color-harmony` reports (it clashes

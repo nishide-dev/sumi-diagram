@@ -56,6 +56,27 @@ sets:
   - { id: group, members: [paper, title], shape: ellipse, tone: green, padding: 3mm }
 `;
 
+test("solid node, glyph cells and legend sample share solid fill overrides", async () => {
+  const result = await renderFigure(`version: 1
+figure: { id: parity, theme: paper, themeOverrides: { tones: { yellow: { line: '#876200' } }, solidFills: { yellow: '#112233' } }, layout: { arrange: { stack: { items: [a, key] } } } }
+nodes:
+  - { id: a, component: box, variant: solid, tone: yellow, label: A, glyphs: [{ kind: vector, tones: [yellow, yellow], strength: solid }] }
+  - id: key
+    component: legend
+    props:
+      entries:
+        - { glyph: { kind: dot, tone: yellow, strength: solid }, label: Sample }
+`);
+  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+  const nodes = result.value.compiled.ir.nodes;
+  const node = nodes.find((n) => n.key === "n:a");
+  expect(node?.style.fill).toBe("#112233");
+  const parts = nodes.flatMap((n) => n.glyphs?.flatMap((g) => g.parts) ?? []);
+  expect(parts).toHaveLength(3);
+  expect(parts.map((p) => p.fill)).toEqual(["#112233", "#112233", "#112233"]);
+  expect(result.value.svg.match(/fill="#112233"/g)?.length).toBeGreaterThanOrEqual(4);
+});
+
 describe("every theme", () => {
   for (const theme of BUILTIN_THEMES.keys()) {
     test(`${theme}: renders with no finding, every part inside the frame`, async () => {

@@ -4,7 +4,7 @@
 
 ## Tones
 
-A node or group picks a color category with <code>tone</code> \(gray, red, orange, yellow, green, blue, purple, pink\); the theme decides the color\. <code>color</code> fills each tone with its own pastel hue\. The monochrome themes map the tones to three gray steps so a figure still prints in grayscale; tones in the same step look alike there\. A tone changes only colors, over the variant\.
+A node or group picks a color category with <code>tone</code> \(gray, red, orange, yellow, green, blue, purple, pink\); the theme decides the color\. <code>color</code> fills each tone with its own pastel hue\. The monochrome themes map tones to three gray steps, except solid yellow and orange; tones in the same step look alike there\. A tone changes only colors, over the variant\.
 
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> | <code>llama</code> |
 | --- | --- | --- | --- | --- | --- |
@@ -90,7 +90,7 @@ edges:
 
 ## Solid and tinted tones
 
-<code>solid</code> uses tone ink with white text; <code>tinted</code> uses a pastel fill with matching border and text, darkening the ink as needed for 4\.5:1 contrast\. Both default to gray and work in tokens and legends\.
+<code>solid</code> uses a strong tone fill with contrasting text \(yellow uses dark ink\); <code>tinted</code> uses a pastel fill with matching border and text, darkening the ink as needed for 4\.5:1 contrast\. Both default to gray and work in tokens and legends\.
 
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> | <code>llama</code> |
 | --- | --- | --- | --- | --- | --- |

@@ -296,7 +296,7 @@ const COMPARISON_NOTE =
 const TONES_NOTE =
   "A node or group picks a color category with `tone` (gray, red, orange, yellow, green, blue, " +
   "purple, pink); the theme decides the color. `color` fills each tone with its own pastel hue. " +
-  "The monochrome themes map the tones to three gray steps so a figure still prints in grayscale; " +
+  "The monochrome themes map tones to three gray steps, except solid yellow and orange; " +
   "tones in the same step look alike there. A tone changes only colors, over the variant.";
 
 const DIM_NOTE =
@@ -378,7 +378,7 @@ const OUTLINED_TONES_NOTE =
   "The right column shows the same tones as fills (default variant) for comparison.";
 
 const FILLED_TONES_NOTE =
-  "`solid` uses tone ink with white text; `tinted` uses a pastel fill with matching border and text, " +
+  "`solid` uses a strong tone fill with contrasting text (yellow uses dark ink); `tinted` uses a pastel fill with matching border and text, " +
   "darkening the ink as needed for 4.5:1 contrast. Both default to gray and work in tokens and legends.";
 
 function htmlTones(tones: GalleryModel["tones"], note = TONES_NOTE, alt = "every tone"): string {

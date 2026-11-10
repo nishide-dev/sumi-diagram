@@ -1,5 +1,57 @@
 /** Filled tone variants (#214, design doc §6.63). Existing palettes stay unchanged. */
+
+import { fromOklch, toOklch } from "./color-math";
+import type { Theme } from "./schema";
 import type { StyleLayer } from "./style";
+
+/** Derive warm paints only from chromatic tones, preserving monochrome themes. */
+export function warmTones(theme: Theme, palettePanel?: string): Theme {
+  const lines = new Map(theme.toneLines);
+  const solids = new Map<"yellow" | "orange", { fill: string; text: string }>();
+  for (const tone of ["yellow", "orange"] as const) {
+    const layer = lines.get(tone);
+    const source = layer?.stroke;
+    if (source === undefined || !/^#[0-9a-f]{6}$/i.test(source)) continue;
+    const color = toOklch(source);
+    if (color.c < 0.03) continue;
+    const ink = theme.base.node.fontColor ?? "#1f2328";
+    if (tone === "yellow") {
+      const hue = Math.max(85, Math.min(100, color.h));
+      const container = theme.components.get("sumi/container");
+      const panels = [
+        theme.base.group.fill,
+        container?.get("default")?.fill,
+        palettePanel ?? container?.get("filled")?.fill,
+      ];
+      const backgrounds = [
+        "#ffffff",
+        ...panels.filter(
+          (panel): panel is string => panel !== undefined && /^#[0-9a-f]{6}$/i.test(panel),
+        ),
+      ];
+      // Search from light to dark in fine OKLCH steps, testing the quantized sRGB paint.
+      let stroke = "#000000";
+      for (let step = 665; step >= 0; step--) {
+        const candidate = fromOklch({ l: step / 1000, c: Math.max(0.15, color.c), h: hue });
+        if (backgrounds.every((background) => contrastRatio(candidate, background) >= 3)) {
+          stroke = candidate;
+          break;
+        }
+      }
+      lines.set(tone, Object.freeze({ ...layer, stroke, fontColor: ink }));
+      solids.set(tone, {
+        fill: fromOklch({ l: 0.84, c: Math.max(0.16, color.c), h: hue }),
+        text: ink,
+      });
+    } else {
+      const fill = fromOklch({ l: 0.51, c: Math.max(0.18, color.c), h: Math.min(38, color.h) });
+      solids.set(tone, { fill, text: "#ffffff" });
+      if (theme.id === "llama" || theme.id === "color")
+        lines.set(tone, Object.freeze({ ...layer, stroke: fill, fontColor: fill }));
+    }
+  }
+  return Object.freeze({ ...theme, toneLines: lines, solidTones: solids });
+}
 
 /** WCAG relative luminance of a `#RRGGBB` color. */
 export function luminance(color: string): number {

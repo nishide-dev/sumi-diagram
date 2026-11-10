@@ -8,7 +8,7 @@
  * - `academic`: grayscale, print-friendly journal style. 0.5pt black lines,
  *   square corners, black text, groups without a fill (gray frame), tones as
  *   gray steps and emphasis by a light gray fill and a slightly heavier
- *   outline; no color anywhere, so it prints the same in black and white.
+ *   outline; solid yellow and orange are exceptions (#459).
  * - `slides`: for projection (#36). Text at least 14pt (the minimum of
  *   `presentation-16x9`) and lines twice as thick as `minimal`, matching the
  *   doubled text; darker grays so muted text stays readable on a projector.
@@ -50,6 +50,7 @@ import { errorAt } from "../figure/report";
 import type { Locator } from "../figure/yaml";
 import type { Result } from "../result";
 import { DEFAULT_FONT_SET_ID, LATIN_FONT_SET_ID } from "./fonts";
+import { warmTones } from "./node-variants";
 import { type StyleLayerInput, type Theme, type ThemeDefinition, validateTheme } from "./schema";
 import { TONE_NAMES, type Tone } from "./tones";
 
@@ -933,7 +934,7 @@ export const BUILTIN_THEMES: ReadonlyMap<string, Theme> = new Map(
       const messages = result.diagnostics.map((d) => `${d.code}: ${d.message}`).join(" ");
       throw new Error(`internal error: invalid built-in theme "${definition.id}": ${messages}`);
     }
-    return [result.value.id, result.value];
+    return [result.value.id, warmTones(result.value)];
   }),
 );
 
