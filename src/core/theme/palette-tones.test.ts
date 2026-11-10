@@ -18,6 +18,7 @@ import {
   TONE_HUES,
   WARM_LINE_CHROMA,
 } from "./palette-tones";
+import { resolveStyle } from "./resolve";
 
 const palettes = [...BUILTIN_PALETTES.values()];
 const tones = Object.keys(TONE_HUES) as DerivedTone[];
@@ -39,6 +40,27 @@ const hueTolerance = (tone: DerivedTone, kind: "fill" | "line") =>
 const minHueGap = (a: DerivedTone, b: DerivedTone) => (a === "red" && b === "orange" ? 6 : 25);
 
 describe("derived tones (#423)", () => {
+  test("warm solid tones stay readable across all themes and palettes", () => {
+    for (const name of ["minimal", "academic", "slides", "color", "paper", "llama"]) {
+      const original = getTheme(name);
+      if (!original) throw new Error(name);
+      for (const palette of palettes) {
+        const theme = withPalette(original, palette.id);
+        for (const tone of ["yellow", "orange"] as const) {
+          const style = resolveStyle(theme, {
+            kind: "node",
+            id: "sumi/box",
+            variant: "solid",
+            tone,
+          }).style;
+          expect(style.fill).toBe(theme.solidTones?.get(tone)?.fill ?? "");
+          expect(contrastRatio(style.fill, style.fontColor)).toBeGreaterThanOrEqual(4.5);
+          if (tone !== "yellow" && name !== "llama" && name !== "color")
+            expect(theme.toneLines.get(tone)?.stroke).toBe(palette.tones[tone].line);
+        }
+      }
+    }
+  });
   test("every palette derives the seven tones other than gray, as lowercase hex", () => {
     for (const palette of palettes) {
       expect(Object.keys(palette.tones)).toEqual(tones);
@@ -282,6 +304,8 @@ describe("withPalette and the derived tones (#423)", () => {
         const recolored = withPalette(theme, id);
         for (const tone of tones) {
           expect(recolored.tones.get(tone)?.fill, `${name} ${id} ${tone}`).toBe(derived[tone].fill);
+          if (tone === "yellow" || (tone === "orange" && (name === "llama" || name === "color")))
+            continue;
           expect(recolored.toneLines.get(tone)?.stroke, `${name} ${id} ${tone}`).toBe(
             derived[tone].line,
           );

@@ -13,6 +13,8 @@ import {
   type ThemeDefinition,
   validateTheme,
 } from ".";
+import { contrastRatio } from "./node-variants";
+import { figureTheme } from "./overrides";
 import { TONE_NAMES } from "./tones";
 
 const definition = (patch: Partial<ThemeDefinition> = {}): ThemeDefinition => ({
@@ -114,6 +116,39 @@ describe("theme tones", () => {
 });
 
 describe("tone resolution", () => {
+  test("emphasis text remains readable on every built-in tone fill", () => {
+    for (const theme of BUILTIN_THEMES.values())
+      for (const tone of TONE_NAMES) {
+        const style = resolveStyle(theme, {
+          kind: "node",
+          id: "sumi/box",
+          variant: "emphasis",
+          tone,
+        }).style;
+        expect(
+          contrastRatio(style.fill, style.fontColor),
+          `${theme.id}/${tone}`,
+        ).toBeGreaterThanOrEqual(4.5);
+      }
+  });
+
+  test("solid line and fill overrides have distinct precedence", () => {
+    for (const [override, fill] of [
+      [{ fill: "#112233" }, builtin("paper").solidTones?.get("yellow")?.fill ?? ""],
+      [{ line: "#f5c518" }, "#f5c518"],
+      [{ line: "#876200" }, "#876200"],
+    ] as const) {
+      const theme = figureTheme(builtin("paper"), { tones: { yellow: override } });
+      const style = resolveStyle(theme, {
+        kind: "node",
+        id: "sumi/box",
+        variant: "solid",
+        tone: "yellow",
+      }).style;
+      expect(style.fill).toBe(fill);
+      expect(contrastRatio(style.fill, style.fontColor)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
   const registry = createBuiltinRegistry();
   const target = (name: string, variant: string, tone?: (typeof TONE_NAMES)[number]) => {
     const manifest = registry.get(`sumi/${name}`);

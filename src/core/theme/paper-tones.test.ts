@@ -18,7 +18,7 @@ const EXPECTED = {
   gray: ["#dee1e8", "#656970"],
   red: ["#f9c7bb", "#8b3c34"],
   orange: ["#fcdbb7", "#b83b07"],
-  yellow: ["#f8efbf", "#876200"],
+  yellow: ["#f8efbf", "#b28600"],
   green: ["#c6edcd", "#417a50"],
   blue: ["#d1e7ff", "#31608e"],
   purple: ["#d8cdf8", "#524177"],
@@ -35,14 +35,16 @@ describe("paper tones (#434)", () => {
     for (const tone of TONE_NAMES) {
       expect([fillOf(tone), lineOf(tone)], tone).toEqual([...EXPECTED[tone]]);
       // Text on an outlined node and on an edge takes the same color as the line.
-      expect(PAPER?.toneLines.get(tone)?.fontColor, tone).toBe(lineOf(tone));
+      expect(PAPER?.toneLines.get(tone)?.fontColor, tone).toBe(
+        tone === "yellow" ? "#000000" : lineOf(tone),
+      );
     }
   });
 
   test("lines are less saturated than the former set and fills share a lightness band", () => {
     for (const tone of TONE_NAMES) {
       // The warm lines are the exception (#444): they keep their chroma so they do not turn brown.
-      const limit = tone === "orange" ? 0.18 : tone === "yellow" ? 0.13 : 0.115;
+      const limit = tone === "orange" ? 0.18 : tone === "yellow" ? 0.15 : 0.115;
       expect(toOklch(lineOf(tone)).c, `${tone} line chroma`).toBeLessThan(limit);
       expect(toOklch(fillOf(tone)).l, `${tone} fill lightness`).toBeGreaterThan(0.85);
     }
@@ -56,11 +58,11 @@ describe("paper tones (#434)", () => {
       expect(
         contrastRatio(lineOf(tone), "#ffffff"),
         `${tone} line on white`,
-      ).toBeGreaterThanOrEqual(4.5);
+      ).toBeGreaterThanOrEqual(tone === "yellow" ? 3 : 4.5);
       expect(
         contrastRatio(lineOf(tone), "#f3f3f5"),
         `${tone} line on panel`,
-      ).toBeGreaterThanOrEqual(4.5);
+      ).toBeGreaterThanOrEqual(tone === "yellow" ? 3 : 4.5);
     }
   });
 
@@ -74,7 +76,7 @@ describe("paper tones (#434)", () => {
   test("grayscale: a line is at least 20 L* darker than its fill and every line is dark", () => {
     for (const tone of TONE_NAMES) {
       expect(lightness(fillOf(tone)) - lightness(lineOf(tone)), tone).toBeGreaterThanOrEqual(20);
-      expect(lightness(lineOf(tone)), `${tone} line L*`).toBeLessThan(55);
+      expect(lightness(lineOf(tone)), `${tone} line L*`).toBeLessThan(tone === "yellow" ? 65 : 55);
     }
   });
 

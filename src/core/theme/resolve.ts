@@ -123,11 +123,43 @@ export function resolveStyle<K extends ComponentKind>(
   ) {
     const fill = theme.tones.get(tone ?? "gray")?.fill;
     const ink = theme.toneLines.get(tone ?? "gray")?.stroke;
-    const filled =
-      ink !== undefined && (variant === "solid" || fill !== undefined)
-        ? filledToneNode(variant, fill ?? "#ffffff", ink, id === "sumi/stack")
+    const solid =
+      variant === "solid" && theme.toneOverrides?.get(tone ?? "gray")?.line === undefined
+        ? theme.solidTones?.get(tone ?? "gray")
         : undefined;
-    const paint = overriddenTone(filled, variant, theme.toneOverrides?.get(tone ?? "gray"));
+    let filled =
+      ink !== undefined && (variant === "solid" || fill !== undefined)
+        ? solid === undefined
+          ? filledToneNode(variant, fill ?? "#ffffff", ink, id === "sumi/stack")
+          : {
+              fill: solid.fill,
+              stroke: id === "sumi/stack" ? solid.text : solid.fill,
+              fontColor: solid.text,
+            }
+        : undefined;
+    if (
+      variant === "tinted" &&
+      tone === "yellow" &&
+      filled !== undefined &&
+      theme.toneOverrides?.get(tone)?.line === undefined
+    ) {
+      const line = theme.toneLines.get(tone);
+      if (
+        line?.stroke !== undefined &&
+        line.fontColor !== undefined &&
+        line.fontColor !== line.stroke
+      )
+        filled = { ...filled, stroke: line.stroke, fontColor: line.fontColor };
+    }
+    let paint = overriddenTone(filled, variant, theme.toneOverrides?.get(tone ?? "gray"));
+    const solidFill = variant === "solid" ? theme.solidFillOverrides?.[tone ?? "gray"] : undefined;
+    if (solidFill !== undefined)
+      paint = {
+        ...paint,
+        fill: solidFill,
+        stroke: id === "sumi/stack" ? "#ffffff" : solidFill,
+        fontColor: readableInk(solidFill, "#ffffff"),
+      };
     return {
       style: mergeStyle(kind, [theme.base[kind], layers?.get("default"), variantLayer, paint]),
       missingVariant: false,
@@ -135,12 +167,19 @@ export function resolveStyle<K extends ComponentKind>(
         tone !== undefined && (ink === undefined || (variant === "tinted" && fill === undefined)),
     };
   }
-  const merged = mergeStyle(kind, [
+  let merged = mergeStyle(kind, [
     theme.base[kind],
     layers?.get("default"),
     variantLayer,
     toneLayer,
   ]);
+  if (kind === "node" && variant === "emphasis" && toneLayer?.fill !== undefined) {
+    const node = merged as NodeStyle;
+    if (contrast(node.fill, node.fontColor) < 4.5) {
+      const ink = theme.base.node.fontColor ?? "#000000";
+      merged = Object.freeze({ ...node, fontColor: readableInk(node.fill, ink) }) as StyleOf<K>;
+    }
+  }
   return {
     style:
       kind === "node" && FLOW_ARROW_IDS.includes(id) && variant !== OUTLINED_VARIANT
@@ -284,19 +323,6 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
       if (ink !== undefined && ink !== style.fontColor)
         style = Object.freeze({ ...style, fontColor: ink });
     }
-    const solidFill = overrides?.solidFills?.[tone ?? "gray"];
-    if (
-      solidFill !== undefined &&
-      style.kind === "node" &&
-      variant === "solid" &&
-      id !== SEPARATOR_ID
-    )
-      style = Object.freeze({
-        ...style,
-        fill: solidFill,
-        stroke: id === "sumi/stack" ? "#ffffff" : solidFill,
-        fontColor: readableInk(solidFill, "#ffffff"),
-      });
     if (
       overrides?.dashedGroupStroke !== undefined &&
       style.kind === "group" &&

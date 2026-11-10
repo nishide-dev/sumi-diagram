@@ -62,8 +62,12 @@ export function figureTheme(
     | {
         readonly palette?: string | undefined;
         readonly tones?: Partial<Record<Tone, ToneOverride>> | undefined;
+        readonly solidFills?: Partial<Record<Tone, string>> | undefined;
       }
     | undefined,
 ): Theme {
-  return withToneOverrides(withPalette(theme, overrides?.palette), overrides?.tones);
+  const resolved = withToneOverrides(withPalette(theme, overrides?.palette), overrides?.tones);
+  return overrides?.solidFills === undefined
+    ? resolved
+    : Object.freeze({ ...resolved, solidFillOverrides: overrides.solidFills });
 }

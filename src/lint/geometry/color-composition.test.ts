@@ -67,6 +67,25 @@ async function contextOf(source: string, path?: string) {
 }
 
 describe("geometry/muddy-color (#440): the third trial", () => {
+  test("reports muddy strokes and text as well as fills", async () => {
+    const context = await contextOf(`version: 1
+figure:
+  id: ochre-lines
+  theme: paper
+  themeOverrides:
+    tones:
+      yellow: { line: '#876200', text: '#876200' }
+nodes:
+  - { id: yellow, component: box, label: yellow, tone: yellow, variant: outlined }
+`);
+    const findings = muddyColor.run(context, undefined);
+    expect(
+      findings.some((f) => f.message.includes("stroke") && f.message.includes("#876200")),
+    ).toBe(true);
+    expect(
+      findings.some((f) => f.message.includes("fontColor") && f.message.includes("#876200")),
+    ).toBe(true);
+  });
   test("reports an opaque khaki node and suggests a lighter fill", async () => {
     for (const fill of ["#d1bc79", "#d2b48c", "#808000", "#b5a642", "#c3b091"]) {
       const source = `version: 1
@@ -165,6 +184,11 @@ describe("muddiness() thresholds", () => {
       "#deb59a",
       "#e5c4a1",
       "#efcfab",
+      "#9a6700",
+      "#996600",
+      "#876200",
+      "#8a6d00",
+      "#7f6600",
     ]) {
       const color = toOklch(hex);
       expect(muddinessOf(color, color), hex).toBe("khaki");
@@ -173,6 +197,14 @@ describe("muddiness() thresholds", () => {
       const color = toOklch(hex);
       expect(muddinessOf(color, color), hex).toBeUndefined();
     }
+  });
+  test("dark ochre threshold tapers continuously at the hue boundary", () => {
+    for (const h of [74.7, 75, 75.3]) {
+      const color = { l: 0.55, c: 0.116, h };
+      expect(muddinessOf(color, color)).toBe("khaki");
+    }
+    const orange = { l: 0.55, c: 0.17, h: 40 };
+    expect(muddinessOf(orange, orange)).toBeUndefined();
   });
   test("a tone kept intact is fine; one that lost its chroma, darkened into gray or drifted is not", () => {
     const blue = toOklch("#d1e7ff");
