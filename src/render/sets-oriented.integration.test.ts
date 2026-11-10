@@ -3,6 +3,7 @@ import { glyphRects } from "../assets/glyphs";
 import type { Point } from "../layout/ir";
 import { outlinePolygon } from "../layout/set-shape";
 import { lintGeometry } from "../lint/geometry";
+import { regionIntersectsRect } from "../lint/geometry/shapes";
 import { svgToPdf } from "./pdf";
 import { svgToEditablePptx, svgToPptx } from "./pptx";
 import { readPptx } from "./pptx/testing";
@@ -179,6 +180,18 @@ describe("PDF and PPTX", () => {
 });
 
 describe("glyph footprint enclosures", () => {
+  test("label overlap detects containment and crossings without enclosed polygon vertices", () => {
+    const polygon = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 10, y: 10 },
+      { x: 0, y: 10 },
+    ];
+    const region = { kind: "polygon" as const, points: polygon };
+    expect(regionIntersectsRect(region, { x: 4, y: 4, width: 2, height: 2 }, 0)).toBe(true);
+    expect(regionIntersectsRect(region, { x: -1, y: 4, width: 12, height: 2 }, 0)).toBe(true);
+    expect(regionIntersectsRect(region, { x: 11, y: 4, width: 2, height: 2 }, 0)).toBe(false);
+  });
   const source = (shape: string, extra = "") => `version: 1
 figure:
   id: footprints
@@ -245,15 +258,7 @@ sets:
             expect(insidePolygon(p, polygon)).toBe(true);
       }
       const label = set.label.box;
-      expect(
-        polygon.some(
-          (p) =>
-            p.x > label.x &&
-            p.x < label.x + label.width &&
-            p.y > label.y &&
-            p.y < label.y + label.height,
-        ),
-      ).toBe(false);
+      expect(regionIntersectsRect({ kind: "polygon", points: polygon }, label, 0)).toBe(false);
     });
   }
   test("footprints export to PDF and PPTX and detect non-members", async () => {

@@ -308,8 +308,9 @@ function renderStructured(
   diagnostics.push(...inspected.diagnostics);
   if (!inspected.ok) return fail();
   // What each edge paints (#156), which the merged wires in the SVG lose.
-  const painted = [...paintedEdges(ir, layout)].map(([key, { pieces, arcs }]) => ({
+  const painted = [...paintedEdges(ir, layout)].map(([key, { pieces, arcs, dashLengths }]) => ({
     key,
+    ...(dashLengths !== undefined && { dashLengths }),
     path: [
       ...pieces.flatMap(([from, to]): PathSegment[] => [
         { command: "M", to: from },

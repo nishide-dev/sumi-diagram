@@ -568,7 +568,7 @@ function wirePoints(edge: EdgeIR, points: readonly Point[]): Point[] {
 type Segment = readonly [Point, Point];
 
 /** Join deduplicated segments at ordinary bends, leaving branch trunks painted once. */
-function sharpPathData(segments: readonly Segment[]): string {
+function sharpPaths(segments: readonly Segment[]): Point[][] {
   const key = (p: Point) => `${p.x},${p.y}`;
   const touching = new Map<string, number[]>();
   for (const [i, segment] of segments.entries()) {
@@ -579,7 +579,7 @@ function sharpPathData(segments: readonly Segment[]): string {
     }
   }
   const used = new Set<number>();
-  const paths: string[] = [];
+  const paths: Point[][] = [];
   const walk = (i: number, start: Point) => {
     const points = [start];
     let at = start;
@@ -594,7 +594,7 @@ function sharpPathData(segments: readonly Segment[]): string {
       if (candidate === undefined) break;
       i = candidate;
     }
-    paths.push(key(at) === key(start) ? `${pathData(points.slice(0, -1))} Z` : pathData(points));
+    paths.push(points);
   };
   // Open chains first; any remaining segments form closed loops.
   for (const [i, segment] of segments.entries()) {
@@ -602,7 +602,33 @@ function sharpPathData(segments: readonly Segment[]): string {
     if (!used.has(i) && start !== undefined) walk(i, start);
   }
   for (const [i, [a]] of segments.entries()) if (!used.has(i)) walk(i, a);
-  return paths.join(" ");
+  return paths;
+}
+
+function sharpPathData(paths: readonly Point[][]): string {
+  return paths
+    .map((points) => {
+      const first = points[0];
+      const last = points.at(-1);
+      return first && last && first.x === last.x && first.y === last.y
+        ? `${pathData(points.slice(0, -1))} Z`
+        : pathData(points);
+    })
+    .join(" ");
+}
+
+/** Length of a piece contained in a rendered segment, including merged trunks. */
+function segmentOverlap([a, b]: Segment, [c, d]: Segment): number {
+  const dx = d.x - c.x,
+    dy = d.y - c.y;
+  const length = Math.hypot(dx, dy);
+  if (length === 0) return 0;
+  const cross = (p: Point) => Math.abs((p.x - c.x) * dy - (p.y - c.y) * dx);
+  if (cross(a) > 1e-6 * length || cross(b) > 1e-6 * length) return 0;
+  const project = (p: Point) => ((p.x - c.x) * dx + (p.y - c.y) * dy) / length;
+  const x = project(a),
+    y = project(b);
+  return Math.max(0, Math.min(length, Math.max(x, y)) - Math.max(0, Math.min(x, y)));
 }
 
 /**
@@ -677,6 +703,7 @@ const cubicData = (points: readonly Point[]): string =>
 export interface PaintedEdge {
   readonly pieces: readonly (readonly [Point, Point])[];
   readonly arcs: readonly Arc[];
+  readonly dashLengths?: readonly number[];
 }
 
 /**
@@ -721,7 +748,10 @@ function wires(
   // Dots are round caps, so a dotted wire keeps the cap `strokeAttributes()` gives it.
   const joinsOf = (style: EdgeIR["style"]) =>
     `${style.strokeDotted === true ? "" : `stroke-linecap="${sharp ? "butt" : "round"}" `}stroke-linejoin="${sharp ? "miter" : "round"}"`;
-  const painted = new Map<ElementKey, { pieces: [Point, Point][]; arcs: Arc[] }>();
+  const painted = new Map<
+    ElementKey,
+    { pieces: [Point, Point][]; arcs: Arc[]; dashLengths?: number[] }
+  >();
   // Correspondence lines are independent: no trunk merging or junction rounding.
   for (const placed of layout.edges) {
     const edge = edges.get(placed.key);
@@ -853,6 +883,27 @@ function wires(
         painted.set(key, own);
       }
       const merged = mergeSegments(rounded.pieces.flat());
+      const paths = sharp ? sharpPaths(merged) : [];
+      if (sharp) {
+        for (const [i, key] of keys.entries()) {
+          const own = painted.get(key);
+          if (!own) continue;
+          const pieces = rounded.pieces[i] ?? [];
+          own.dashLengths = paths.map((path) =>
+            path
+              .slice(1)
+              .reduce(
+                (sum, p, j) =>
+                  sum +
+                  pieces.reduce(
+                    (total, piece) => total + segmentOverlap(piece, [path[j] as Point, p]),
+                    0,
+                  ),
+                0,
+              ),
+          );
+        }
+      }
       const seen = new Set<string>();
       const curves: string[] = [];
       for (const a of rounded.arcs.flat()) {
@@ -863,7 +914,7 @@ function wires(
       }
       if (merged.length === 0 && curves.length === 0) continue;
       const d = sharp
-        ? sharpPathData(merged)
+        ? sharpPathData(paths)
         : [...merged.map(([a, b]) => pathData([a, b])), ...curves].join(" ");
       out.push(
         `<path class="sumi-wire" d="${d}" fill="none"${strokeAttributes(edge.style)} ${joinsOf(edge.style)}${opacity(edge.style)}/>`,

@@ -1104,11 +1104,12 @@ export const dashHidden = defineGeometryRule({
       let visible: number;
       if (structured && context.inspection.painted !== undefined) {
         const lengths = (edge.drawn ?? []).map(length);
-        // Curve samples and ordinary sharp bends are stroked continuously.
+        const groups = context.inspection.painted.find((p) => p.key === edge.ir.key)?.dashLengths;
+        // Curves are continuous; sharp paths use the renderer's junction groups.
         visible =
-          edge.ir.route === "curve" || context.ir.meta.themeOverrides?.edgeCorners === "sharp"
+          edge.ir.route === "curve"
             ? lengths.reduce((a, b) => a + b, 0)
-            : Math.max(0, ...lengths);
+            : Math.max(0, ...(groups ?? lengths));
       } else {
         const total = edge.route.reduce((sum, line) => sum + length(line), 0);
         const headLength = structured

@@ -166,7 +166,7 @@ export interface SvgInspection {
    * longer say which edge drew what). Absent for D2's output, which strokes
    * `path.connection` itself, and for an inspection of SVG text alone.
    */
-  painted?: { key: ElementKey; path: PathSegment[] }[];
+  painted?: { key: ElementKey; path: PathSegment[]; dashLengths?: readonly number[] }[];
 }
 
 const ELEMENT_CLASS = /^sumi-k-([nge])--(.+)$/;
