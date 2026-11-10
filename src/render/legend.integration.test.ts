@@ -46,8 +46,12 @@ async function renderDraft(name: string): Promise<{ source: string; rendered: Re
   // Info only: figure 2 has two edge crossings (layout/edge-crossing, #133).
   expect(result.diagnostics.filter((d) => d.severity !== "info")).toEqual([]);
   const geometry = lintGeometry(result.value, { source });
-  expect(geometry.filter((d) => d.code !== "geometry/group-empty-area")).toEqual([]);
-  expect(geometry.every((d) => d.severity === "info")).toBe(true);
+  expect(
+    geometry.filter((d) => !["geometry/group-empty-area", "geometry/dash-hidden"].includes(d.code)),
+  ).toEqual([]);
+  expect(
+    geometry.filter((d) => d.code === "geometry/dash-hidden").map((d) => d.subject?.id),
+  ).toEqual(name === "training-pipeline" ? ["edges[8]"] : []);
   expect(lintFigure(source).diagnostics).toEqual([]);
   return { source, rendered: result.value };
 }

@@ -31,6 +31,50 @@ import {
 
 const samples = componentSamples();
 
+test("legend story uses the same relations and symbols as its key", () => {
+  const source = legendSample().source;
+  expect(source.startsWith("# Contrastive pre-training")).toBe(true);
+  expect(source).toContain("from: f1, to: e1, component: double-arrow, tone: blue");
+  expect(source).toContain("from: e1, to: g2, component: double-arrow, variant: dashed, tone: red");
+  expect(source).toContain(
+    "edge: { component: double-arrow, variant: dashed, tone: red }, label: Negative",
+  );
+  expect(source).toContain("members: [d1, t1, s1]");
+  expect(source.match(/enclose: footprint/g)).toHaveLength(2);
+  expect(source).not.toContain("tabler/database");
+  expect(source).toContain("tabler/flask");
+});
+
+test("glyph and stroke stories preserve their visual semantics and slides profile", () => {
+  const glyph = glyphSample();
+  expect(glyph.source).toContain(
+    "tones: [blue, blue, blue, blue, orange, orange, orange, orange], strength: solid, direction: right",
+  );
+  expect(glyph.source).toContain("kind: dot, tone: green }, label: Trainable");
+  expect(glyph.source).toContain("kind: pill, tone: purple }, label: Frozen");
+  const stroke = strokeSample();
+  expect(stroke.source).toContain(
+    "from: images, to: student, lineWidth: 1.5pt, arrowheadScale: 1.3",
+  );
+  expect(stroke.source).toContain(
+    "from: images, to: teacher, lineWidth: 0.5pt, arrowheadScale: 0.7",
+  );
+  expect(stroke.source).toContain("from: teacher, to: loss, variant: dashed");
+  expect(stroke.source).toContain("from: query, to: student-copy, variant: dotted");
+  expect(stroke.source).toContain("cornerRadius: 8pt");
+  expect(stroke.source).toContain("variant: dotted\n    cornerRadius: 0pt");
+  for (const sample of [glyph, stroke]) {
+    for (const rendering of sample.renderings) {
+      expect(rendering.profile).toBe(
+        rendering.theme === "slides" ? WIDE_SAMPLE_PROFILE : SAMPLE_PROFILE,
+      );
+      expect(rendering.overrides.profile).toBe(
+        rendering.theme === "slides" ? WIDE_SAMPLE_PROFILE : undefined,
+      );
+    }
+  }
+});
+
 test("every catalog component has a sample, in catalog order", () => {
   expect(samples.map((s) => s.entry.id)).toEqual(
     buildCatalog(createBuiltinRegistry()).components.map((c) => c.id),

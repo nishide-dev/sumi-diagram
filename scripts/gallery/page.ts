@@ -307,12 +307,11 @@ const DIM_NOTE =
   "dimmed one and is drawn as written.";
 
 const GLYPHS_NOTE =
-  "A node's `glyphs` put small marks over its border: a feature vector (a short column or row of " +
-  "cells), a dot or a pill, centered on a corner or the middle of a side and moved by `dx` / `dy` " +
-  "(ems). A `tone` fills them from the theme's palette, as for a node, so the vector of a paper " +
-  "icon can change color per stage. `strength: solid` fills with the tone's accent and a thin ink " +
-  "outline for readable small cells. Layout reserves their room and edges attach to the node's body; " +
-  "SVG, PDF and PPTX draw them.";
+  "Two encoders turn a caption and an image into embeddings for a classifier. Soft gray vector " +
+  "glyphs mark raw features; solid blue and orange vectors distinguish the embeddings. Their " +
+  "concatenation uses multiple `tones` and `direction: right`. A dot marks a trainable model and a " +
+  "pill a frozen one. Glyphs attach to node borders, with `dx` / `dy` offsets in ems; layout reserves " +
+  "their room and edges attach to the node body.";
 const SETS_NOTE =
   "`sets` draws a translucent circle, ellipse (axis-parallel, or tilted to the members with " +
   "`angle: auto` or by a given `angle`), rounded hull or rounded rectangle around nodes and " +
@@ -323,12 +322,11 @@ const SETS_NOTE =
   "outline that is not a member is reported (`geometry/set-contains-non-member`).";
 
 const STROKES_NOTE =
-  "Edges, node frames and group, set and legend frames take a `lineWidth` (0.25pt steps, 0.25pt to " +
-  "4pt), edges an `arrowheadScale` (0.5 to 2; the router keeps room for the scaled head), frames a " +
-  "`cornerRadius`, and edges, containers and sets `variant: dotted` (round dots; dashes stay " +
-  "`dashed`). `figure.themeOverrides` `lineWidth`, `frameWidth`, `arrowheadScale` and " +
-  "`cornerRadius` set them for the whole figure, e.g. 0.5pt for the thin lines of a paper figure. " +
-  "Structured layout.";
+  "In knowledge distillation, per-edge `lineWidth` and `arrowheadScale` distinguish the main " +
+  "training path from auxiliary teacher input. Dashed arrows carry soft targets; dotted arrows " +
+  "show inference. Group `cornerRadius` distinguishes the rounded training frame from the square, " +
+  "dotted inference frame. Element `lineWidth` is absolute: the 1.5pt main path is thinner " +
+  "than the slides theme's 2pt default line. The same options can also be set figure-wide with `themeOverrides`.";
 
 const PALETTES_NOTE =
   "`figure.themeOverrides.palette: <name>` recolors a theme with four colors from a popular Color Hunt palette: " +
@@ -368,12 +366,9 @@ function htmlPalettes(palettes: GalleryModel["palettes"]): string {
 }
 
 const LEGENDS_NOTE =
-  "A `legend` entry takes one sample: an `edge` (a line with its dash, tone and arrowheads, e.g. " +
-  "`double-arrow` for a pair), a `node` box, an `icon` (`iconSize` makes it larger), a `glyph` (a feature vector, dot or pill with " +
-  "the fields of a node glyph) or a `set` swatch painted like a set enclosure. `flow: row` puts the " +
-  "entries on a line (`perRow` wraps them), `heading` starts a group on its own line, and `labelAt: " +
-  "left` puts the text before the sample. Every sample is drawn by the same theme rules as what it " +
-  "explains, so no colors are written.";
+  "A hypergraph encoder transforms document features into embeddings for contrastive learning. " +
+  "The legend identifies icon, glyph, set and edge samples, including positive and negative pairs. " +
+  "Entries use `flow: row`, `headings: inline` and `perRow` to group and wrap the samples.";
 
 const OUTLINED_TONES_NOTE =
   "With `variant: outlined` a tone colors the outline and the text of a node instead of its fill " +

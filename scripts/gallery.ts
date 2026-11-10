@@ -199,7 +199,9 @@ const model: GalleryModel = {
   filledTones: { sample: filledTones, outcomes: take(filledTones.renderings.length) },
 };
 
-// Component, tone and dim samples and examples allow infos, but no errors or warnings.
+// The original LLaDA figure has four short dashed remask arrows. Keep the
+// reproduction faithful while still rejecting any other warning or error.
+const lladaWarnings = new Set([4, 14, 15, 16]);
 const problems: string[] = [];
 const strict: [string, RenderOutcome][] = [
   ...model.components.flatMap(({ sample, outcomes }) =>
@@ -226,7 +228,19 @@ const strict: [string, RenderOutcome][] = [
   ]),
 ];
 for (const [name, outcome] of strict) {
-  const blocking = outcome.diagnostics.filter((d) => d.severity !== "info");
+  const blocking = outcome.diagnostics.filter(
+    (d) =>
+      d.severity !== "info" &&
+      !(
+        name === "examples/llada/llada.sumi.yaml" &&
+        d.severity === "warning" &&
+        d.code === "geometry/dash-hidden" &&
+        d.path?.length === 2 &&
+        d.path[0] === "edges" &&
+        typeof d.path[1] === "number" &&
+        lladaWarnings.has(d.path[1])
+      ),
+  );
   if (outcome.svg === undefined || blocking.length > 0) {
     problems.push(
       `${name}: ${outcome.svg === undefined ? "not rendered" : "rendered with errors or warnings"}`,

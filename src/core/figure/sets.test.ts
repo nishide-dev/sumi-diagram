@@ -15,6 +15,12 @@ const diagnostics = (source: string) =>
   checkFigure(source).state.diagnostics.map((d) => [d.code, d.path?.join("."), d.severity]);
 
 describe("sets: schema", () => {
+  test("accepts only the supported enclosure modes", () => {
+    const set = { id: "s", members: ["a"] };
+    expect(SetSchema.safeParse({ ...set, enclose: "body" }).success).toBe(true);
+    expect(SetSchema.safeParse({ ...set, enclose: "footprint" }).success).toBe(true);
+    expect(SetSchema.safeParse({ ...set, enclose: "glyph" }).success).toBe(false);
+  });
   test("a set normalizes its defaults and keeps every member", () => {
     const parsed = parseFigure(
       figure("sets:\n  - { id: s, members: [a, b], tone: blue, label: Group }"),

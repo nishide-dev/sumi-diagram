@@ -24,7 +24,7 @@ figure:
         gap: 5mm
         align: start
         items:
-          - row: { gap: 12mm, align: center, items: [paper, title, flask] }
+          - row: { gap: 20mm, align: center, items: [paper, title, flask] }
           - key
 nodes:
   - { id: paper, component: ${icons ? "label" : "box"}, ${icons ? "icon: tabler/file-text" : "label: Paper"}, glyphs: [{ kind: vector, tone: blue, strength: solid, dx: 0.3, dy: -0.25 }] }
@@ -47,11 +47,11 @@ ${
         - { heading: "Feature:", glyph: { kind: vector, tone: blue, strength: solid }, labelAt: left, label: Initial }
         - { glyph: { kind: dot, tone: red }, labelAt: left, label: Dot }
         - { heading: "Pairs:", edge: { component: double-arrow, tone: blue }, label: Positive }
-        - { edge: { component: double-arrow, tone: red }, label: Negative }
+        - { edge: { component: double-arrow, variant: dashed, tone: red }, label: Negative }
         - { set: { tone: green }, label: Hyperedge }
 edges:
   - { from: paper, to: title, component: double-arrow, tone: blue }
-  - { from: title, to: flask, component: double-arrow, tone: red }
+  - { from: title, to: flask, component: double-arrow, variant: dashed, tone: red }
 sets:
   - { id: group, members: [paper, title], shape: ellipse, tone: green, padding: 3mm }
 `;

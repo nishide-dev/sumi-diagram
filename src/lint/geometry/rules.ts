@@ -24,6 +24,8 @@ import {
 import { type Point, type Rect, unitsToMm, unitsToPt } from "../../render/geometry";
 import type { ProfileLimits } from "../../render/inspect";
 import { printedSize } from "../../render/size";
+import { strokePattern } from "../../render/stroke";
+import { arrowheadInset } from "../../render/structured";
 import { defineGeometryRule, type GeometryRule, type LintFinding } from "../rule";
 import { arrowheadStraightRun } from "./arrowheads";
 import { colorOnPanel, muddyColor, translucentOverColor } from "./color-composition";
@@ -1081,6 +1083,62 @@ export const edgeJog = defineGeometryRule({
   },
 });
 
+export const dashHidden = defineGeometryRule({
+  id: "geometry/dash-hidden",
+  description: "A patterned edge is too short between arrowheads to show two dash periods.",
+  defaultSeverity: "warning",
+  fixable: false,
+  run(context) {
+    return context.elements.flatMap((edge): LintFinding[] => {
+      if (edge.ir.kind !== "edge" || edge.route === undefined || edge.ir.routing === "zoom")
+        return [];
+      const style = edge.ir.style;
+      const pattern = strokePattern(style);
+      if (!pattern || style.stroke === "transparent" || style.strokeWidth.units <= 0) return [];
+      const length = (line: readonly Point[]) =>
+        line.slice(1).reduce((sum, p, i) => {
+          const previous = line[i] ?? p;
+          return sum + Math.hypot(p.x - previous.x, p.y - previous.y);
+        }, 0);
+      const structured = isStructured(context);
+      let visible: number;
+      if (structured && context.inspection.painted !== undefined) {
+        const lengths = (edge.drawn ?? []).map(length);
+        const groups = context.inspection.painted.find((p) => p.key === edge.ir.key)?.dashLengths;
+        // Curves are continuous; sharp paths use the renderer's junction groups.
+        visible =
+          edge.ir.route === "curve"
+            ? lengths.reduce((a, b) => a + b, 0)
+            : Math.max(0, ...(groups ?? lengths));
+      } else {
+        const total = edge.route.reduce((sum, line) => sum + length(line), 0);
+        const headLength = structured
+          ? edgeArrowheadLength(style)
+          : 4 + 1.5 * style.strokeWidth.units;
+        const inset = (head: typeof edge.ir.sourceArrowhead) =>
+          head === undefined
+            ? 0
+            : structured
+              ? arrowheadInset(head, headLength, style.strokeWidth.units)
+              : headLength;
+        visible = Math.max(
+          0,
+          total - inset(edge.ir.sourceArrowhead) - inset(edge.ir.targetArrowhead),
+        );
+      }
+      if (visible + 0.002 >= 1.75 * (pattern[0] + pattern[1])) return [];
+      return [
+        {
+          message: `${capitalize(edge.name)} has too little visible line between arrowheads to show its dash pattern.`,
+          path: edge.docPath,
+          subject: edge.subject,
+          hint: "Increase the gap or edge length, or use a smaller arrowheadScale.",
+        },
+      ];
+    });
+  },
+});
+
 export const arrowheadOnBend = defineGeometryRule({
   id: "geometry/arrowhead-on-bend",
   description: "An arrowhead is longer than the straight run at its end of the painted edge.",
@@ -2006,6 +2064,7 @@ export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
   edgeCrossesLabel,
   edgeThroughNode,
   arrowheadOnBend,
+  dashHidden,
   arrowheadCramped,
   edgeJog,
   zoomCrossesNode,
