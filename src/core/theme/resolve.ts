@@ -123,9 +123,19 @@ export function resolveStyle<K extends ComponentKind>(
   ) {
     const fill = theme.tones.get(tone ?? "gray")?.fill;
     const ink = theme.toneLines.get(tone ?? "gray")?.stroke;
+    const solid =
+      variant === "solid" && theme.toneOverrides?.get(tone ?? "gray")?.line === undefined
+        ? theme.solidTones?.get(tone ?? "gray")
+        : undefined;
     const filled =
       ink !== undefined && (variant === "solid" || fill !== undefined)
-        ? filledToneNode(variant, fill ?? "#ffffff", ink, id === "sumi/stack")
+        ? solid === undefined
+          ? filledToneNode(variant, fill ?? "#ffffff", ink, id === "sumi/stack")
+          : {
+              fill: solid.fill,
+              stroke: id === "sumi/stack" ? solid.text : solid.fill,
+              fontColor: solid.text,
+            }
         : undefined;
     const paint = overriddenTone(filled, variant, theme.toneOverrides?.get(tone ?? "gray"));
     return {

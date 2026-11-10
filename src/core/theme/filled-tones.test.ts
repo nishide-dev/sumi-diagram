@@ -5,6 +5,7 @@ import { checkFigure } from "../check";
 import { createBuiltinRegistry } from "../registry/builtins";
 import { buildCatalog } from "../registry/catalog";
 import { BUILTIN_THEMES } from "./builtin";
+import { toOklch } from "./color-math";
 import { dimStyle, lightenColor } from "./dim";
 import { resolveStyle } from "./resolve";
 import { TONE_NAMES } from "./tones";
@@ -49,8 +50,9 @@ describe("solid and tinted nodes", () => {
             if (shape.id === "sumi/bubble" && variant === "solid") expect(strokeWidth.pt).toBe(0);
             else expect(strokeWidth.pt).toBeGreaterThan(0);
             if (variant === "solid") {
-              expect(fontColor).toBe("#ffffff");
-              expect(fill).toBe(theme.toneLines.get(tone ?? "gray")?.stroke ?? "");
+              const solid = theme.solidTones?.get(tone ?? "gray");
+              expect(fontColor).toBe(solid?.text ?? "#ffffff");
+              expect(fill).toBe(solid?.fill ?? theme.toneLines.get(tone ?? "gray")?.stroke ?? "");
               if (shape.id === "sumi/stack") {
                 expect(contrast(fill, stroke)).toBeGreaterThanOrEqual(4.5);
               } else {
@@ -63,6 +65,22 @@ describe("solid and tinted nodes", () => {
           }
         }
       }
+    }
+  });
+
+  test("yellow is bright and has highly readable ink in every theme", () => {
+    for (const theme of BUILTIN_THEMES.values()) {
+      const { fill, fontColor } = resolveStyle(theme, {
+        kind: "node",
+        id: "sumi/box",
+        variant: "solid",
+        tone: "yellow",
+      }).style;
+      const color = toOklch(fill);
+      expect(color.l).toBeGreaterThanOrEqual(0.8);
+      expect(color.l).toBeLessThanOrEqual(0.88);
+      expect(color.c).toBeGreaterThan(0.13);
+      expect(contrast(fill, fontColor)).toBeGreaterThanOrEqual(7);
     }
   });
 

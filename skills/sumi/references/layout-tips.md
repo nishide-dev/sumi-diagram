@@ -484,7 +484,7 @@ the reference's arrangement), then map each look you want to a field:
 | rounded pastel boxes, thin black lines, small arrowheads, sans-serif | `figure.theme: paper` (`academic` for a grayscale, square-cornered figure) |
 | boxes without a border (pastel fill only) | `variant: filled` + `tone` ([variants](figure-format.md#tones-and-variants)) |
 | white boxes with a coloured frame and text (encoders, tokens) | `variant: outlined` + `tone` |
-| strong coloured cells or operators with white text | `variant: solid` + `tone` |
+| strong coloured cells or operators with contrasting text (dark ink on yellow) | `variant: solid` + `tone` |
 | pastel cells with matching coloured border and text | `variant: tinted` + `tone` |
 | coloured lines | `tone` on the edge |
 | thin 0.5pt frames and lines, small arrowheads (paper figures usually want this; heavy default lines are the commonest difference from the original) | `themeOverrides: { lineWidth: 0.5pt, frameWidth: 0.5pt, arrowheadScale: 0.6 }` ([line weights](figure-format.md#themes-and-profiles)) |

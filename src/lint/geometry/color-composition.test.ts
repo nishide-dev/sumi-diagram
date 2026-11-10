@@ -165,6 +165,10 @@ describe("muddiness() thresholds", () => {
       "#deb59a",
       "#e5c4a1",
       "#efcfab",
+      "#9a6700",
+      "#876200",
+      "#8a6d00",
+      "#7f6600",
     ]) {
       const color = toOklch(hex);
       expect(muddinessOf(color, color), hex).toBe("khaki");

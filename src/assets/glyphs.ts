@@ -76,7 +76,11 @@ export function glyphsOf(
     // theme without a line color for the tone gets its fill darkened.
     const accent =
       solid && tone !== undefined && isTone(tone)
-        ? (theme.toneLines.get(tone)?.stroke ?? darken(resolved.fill))
+        ? ((theme.toneOverrides?.get(tone)?.line === undefined
+            ? theme.solidTones?.get(tone)?.fill
+            : undefined) ??
+          theme.toneLines.get(tone)?.stroke ??
+          darken(resolved.fill))
         : resolved.fill;
     const base: NodeStyle = solid
       ? { ...resolved, fill: accent, stroke: resolved.fontColor, strokeWidth: SOLID_OUTLINE }

@@ -66,6 +66,7 @@ export function muddinessOf(
   const minLightness = 0.7 - 0.15 * oliveShare;
   const maxLightness = 0.88 - 0.02 * oliveShare;
   if (
+    (final.h >= 75 && final.h <= 110 && final.l < 0.58 && final.c >= 0.045) ||
     (final.h >= 52 &&
       final.h <= 115 &&
       final.l >= minLightness &&
@@ -91,7 +92,7 @@ const REASONS = {
   chroma: "it has lost most of its chroma",
   dull: "it is darkened into a dull gray",
   drift: "its hue has drifted",
-  khaki: "its mid-lightness yellow or orange is khaki or olive",
+  khaki: "its yellow or orange is ochre, khaki or olive",
 } as const;
 
 function namesOf(items: readonly PaintItem[], skip: ReadonlySet<string> = new Set()): string {

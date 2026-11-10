@@ -1,5 +1,12 @@
 /** Filled tone variants (#214, design doc §6.63). Existing palettes stay unchanged. */
 import type { StyleLayer } from "./style";
+import type { Tone } from "./tones";
+
+/** Solid warm fills are independent of the darker line colors (design #459). */
+export const WARM_SOLID_TONES: ReadonlyMap<Tone, { fill: string; text: string }> = new Map([
+  ["yellow", { fill: "#f5c518", text: "#1f2328" }],
+  ["orange", { fill: "#c2410c", text: "#ffffff" }],
+]);
 
 /** WCAG relative luminance of a `#RRGGBB` color. */
 export function luminance(color: string): number {

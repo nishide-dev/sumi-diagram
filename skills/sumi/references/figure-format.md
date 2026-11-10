@@ -212,7 +212,7 @@ edges also `dashed` and `dotted`) change how the tone is drawn:
 | `filled` | tone fill without outline (a block cannot be both `filled` and `muted`) | box-like shapes, `operator` (not `stack`) |
 | `outlined` | white node, outline and text in the tone's line colour (without a tone: gray's line) | box-like shapes, `operator`, `stack` |
 | `tinted` | pastel fill, matching coloured border and text (encoders, highlighted cells); text ink darkens just enough for 4.5:1 | box-like shapes, `operator`, `stack` |
-| `solid` | strong tone fill, white text (selected cells, operators); solid stacks use white separators | box-like shapes, `operator`, `stack` |
+| `solid` | strong tone fill with contrasting text (yellow uses dark ink); solid stacks use contrasting separators | box-like shapes, `operator`, `stack` |
 | `muted`, `emphasis` | quieter / heavier | most; `emphasis` on an edge: heavier line and head (`paper`: black 1pt vs 0.5pt) |
 
 `outlined`, `tinted`, `solid` can also be set on tokens cells and legend node
