@@ -58,8 +58,9 @@ position the layout (`direction` in auto figures; arrange trees, `attach` and
 anchors in structured ones). Conversations use a [`chat` arrange box](structured.md#chat-conversations)
 with ordinary `bubble` nodes, speakers, meta notes and date dividers.
 
-Built-in chromatic yellow strokes have at least 3:1 contrast on white and the
-theme's default group fill. Darker fills, including palette-filled panels, and
+In built-in chromatic themes, the yellow tone's line (edges and outlined or
+tinted frames; not a solid node, whose outline is its bright fill) has at least
+3:1 contrast on white and the theme's default group fill. Darker fills, including palette-filled panels, and
 explicit overrides are not guaranteed.
 
 ## Feature versions
