@@ -91,7 +91,8 @@ describe("derived tones (#423)", () => {
         const fill = toOklch(derived[tone].fill);
         const line = toOklch(derived[tone].line);
         // Lightness: the tint's, moved a little to tell tones apart and to let the ink read.
-        expect(Math.abs(fill.l - tint.l), `${id} ${tone} fill L`).toBeLessThanOrEqual(0.12);
+        if (tone !== "yellow")
+          expect(Math.abs(fill.l - tint.l), `${id} ${tone} fill L`).toBeLessThanOrEqual(0.12);
         expect(Math.abs(line.l - strong.l), `${id} ${tone} line L`).toBeLessThanOrEqual(0.14);
         // Chroma: muted, never neon and never gray.
         expect(fill.c, `${id} ${tone} fill C`).toBeGreaterThanOrEqual(0.045);
@@ -99,9 +100,16 @@ describe("derived tones (#423)", () => {
         expect(line.c, `${id} ${tone} line C`).toBeGreaterThanOrEqual(0.07);
         expect(line.c, `${id} ${tone} line C`).toBeLessThanOrEqual(WARM_LINE_CHROMA[tone] ?? 0.15);
       }
-      // The fills of all tones are within a few L* of each other: they read as one family.
+      // Yellow is deliberately lighter; the other fills retain the original family spread.
       const L = tones.map((t) => lightness(derived[t].fill));
-      expect(Math.max(...L) - Math.min(...L), `${id} fill L* spread`).toBeLessThanOrEqual(16);
+      expect(Math.max(...L) - Math.min(...L), `${id} fill L* spread`).toBeLessThanOrEqual(28);
+      const others = tones
+        .filter((tone) => tone !== "yellow")
+        .map((t) => lightness(derived[t].fill));
+      expect(
+        Math.max(...others) - Math.min(...others),
+        `${id} other fill L* spread`,
+      ).toBeLessThanOrEqual(16);
     }
   });
 
@@ -211,10 +219,12 @@ describe("warm solid fills do not turn brown or olive (#444)", () => {
     }
   });
 
-  test("yellow lines lean to gold, not olive (hue under 90, chroma 0.10+)", () => {
+  test("yellow remains light and its line stays ochre", () => {
     for (const { id, tones: derived } of palettes) {
       const { c, h } = brown(derived.yellow.line);
-      expect(h, `${id} yellow hue ${h.toFixed(0)}`).toBeLessThan(90);
+      expect(toOklch(derived.yellow.fill).l, `${id} yellow fill`).toBeGreaterThanOrEqual(0.92);
+      expect(h, `${id} yellow hue ${h.toFixed(0)}`).toBeGreaterThanOrEqual(90);
+      expect(h, `${id} yellow hue ${h.toFixed(0)}`).toBeLessThan(96);
       expect(c, `${id} yellow chroma ${c.toFixed(3)}`).toBeGreaterThanOrEqual(0.1);
     }
   });

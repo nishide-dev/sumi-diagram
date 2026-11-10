@@ -5,9 +5,9 @@
  *
  * - `geometry/muddy-color` (warning): a chromatic fill whose final color has
  *   lost most of its chroma, darkened into a dull gray, or drifted in hue,
- *   compared with the same fill on white. Translucent tints over panels and
- *   over each other are what do it; opaque fills and the products the
- *   renderers paint for overlapping sets do not.
+ *   compared with the same fill on white; mid-lightness, low-chroma yellow or
+ *   orange fills are also flagged even when opaque (#455). Products painted
+ *   for overlapping sets are still judged by chroma loss alone.
  * - `geometry/translucent-over-color` (warning): a fill with opacity below 1
  *   over a surface that is not white.
  * - `geometry/color-on-panel` (info): colored nodes and sets on a group that
@@ -58,7 +58,16 @@ const describe = (hex: string): string => {
 export function muddinessOf(
   reference: Oklch,
   final: Oklch,
-): "chroma" | "dull" | "drift" | undefined {
+): "chroma" | "dull" | "drift" | "khaki" | undefined {
+  if (
+    final.l >= 0.69 &&
+    final.l < 0.86 &&
+    final.c >= 0.045 &&
+    final.c < 0.105 &&
+    final.h >= 78 &&
+    final.h <= 115
+  )
+    return "khaki";
   if (final.c < reference.c * CHROMA_KEPT) return "chroma";
   if (reference.l - final.l >= DULL_LIGHTNESS_DROP && final.c < DULL_CHROMA) return "dull";
   if (hueGap(reference.h, final.h) >= HUE_DRIFT && final.c < DRIFT_CHROMA && reference.c > 0.005)
@@ -70,6 +79,7 @@ const REASONS = {
   chroma: "it has lost most of its chroma",
   dull: "it is darkened into a dull gray",
   drift: "its hue has drifted",
+  khaki: "its mid-lightness yellow or orange is khaki or olive",
 } as const;
 
 function namesOf(items: readonly PaintItem[], skip: ReadonlySet<string> = new Set()): string {
@@ -118,7 +128,7 @@ function limited(findings: LintFinding[], what: string): LintFinding[] {
 export const muddyColor = defineGeometryRule({
   id: "geometry/muddy-color",
   description:
-    "A chromatic fill is painted over a panel or another fill so that its color comes out muddy: most of its chroma lost, darkened to a dull gray, or its hue drifted.",
+    "A chromatic fill comes out muddy: its chroma is lost, it darkens to gray, its hue drifts, or its yellow-orange color is khaki.",
   defaultSeverity: "warning",
   fixable: false,
   run: (context) => muddyFindings(analysisOf(context)),
@@ -136,14 +146,19 @@ export function muddyFindings(analysis: readonly Analysis[]): LintFinding[] {
     findings.push({
       message:
         `${capitalize(item.name)} is painted ${describe(sample.final)}` +
-        (item.of === undefined
+        (item.of === undefined && muddy.reason !== "khaki"
           ? `, not the ${describe(a.onWhite)} it has on white`
-          : `, from the fills ${item.of.join(" and ")}`) +
+          : item.of !== undefined
+            ? `, from the fills ${item.of.join(" and ")}`
+            : "") +
         `: ${REASONS[muddy.reason]}.` +
         (under.length > 0 ? ` It lies over ${namesOf(under)}.` : ""),
       path: item.docPath,
       subject: item.subject,
-      hint: "Paint it on white (an unfilled or white panel), use opaque fills, or overlap fewer shapes: a translucent color over a gray or colored surface turns gray-brown.",
+      hint:
+        muddy.reason === "khaki"
+          ? "Use a lighter yellow fill or a more distinct hue."
+          : "Paint it on white (an unfilled or white panel), use opaque fills, or overlap fewer shapes: a translucent color over a gray or colored surface turns gray-brown.",
     });
   }
   return limited(findings, "muddy colors");

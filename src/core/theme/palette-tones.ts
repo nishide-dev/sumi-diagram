@@ -5,7 +5,8 @@
  * how colorful that hue is drawn. So each tone keeps its own hue (blue stays
  * blue) and takes its lightness and chroma from the palette, in OKLCH:
  *
- * - the fill sits at the lightness of the palette's tint (lightened where the
+ * - the fill sits at the lightness of the palette's tint (yellow is kept light,
+ *   and other fills are lightened where the
  *   palette's ink would not read on it at 4.5:1), with the chroma of
  *   the tint (never below {@link FILL_CHROMA}[0], so a tone is still told from
  *   the gray tone and from the other tones);
@@ -15,7 +16,8 @@
  *   on the panel, so a solid fill keeps its white text and an outlined node its
  *   text;
  * - every hue is pulled up to {@link HUE_PULL} degrees toward the palette's
- *   hue (its temperature), never far enough to change which tone it is.
+ *   hue (its temperature), never far enough to change which tone it is; the
+ *   yellow line uses paper's ochre hue instead (#455).
  *
  * The result is a pure function of the palette's roles: see
  * docs/design/decisions/423-tone-harmony.md.
@@ -80,21 +82,19 @@ export const LINE_CHROMA = [0.09, 0.14] as const;
 /**
  * Warm lines (#444): orange and yellow turn brown and olive when darkened for white text, so they
  * start from the lightest color that still reads (4.5:1 on white and on the panel), keep at least
- * this chroma (above the usual {@link LINE_CHROMA}) and lean a few degrees toward red.
+ * this chroma (above the usual {@link LINE_CHROMA}).
  */
 export const WARM_LINE_CHROMA: Readonly<Partial<Record<DerivedTone, number>>> = {
   orange: 0.17,
   yellow: 0.125,
 };
-/** The highest hue of a warm line: above these, orange reads brown and yellow reads olive. */
+/** The highest hue of the orange line. Yellow uses paper's ochre hue. */
 export const WARM_HUE_LIMIT: Readonly<Partial<Record<DerivedTone, number>>> = {
   orange: 40,
-  yellow: 82,
 };
-/** Degrees a warm line's hue leans toward red (orange away from brown, yellow away from olive). */
+/** Degrees the orange line's hue leans toward red, away from brown. */
 export const WARM_HUE_LEAN: Readonly<Partial<Record<DerivedTone, number>>> = {
   orange: -18,
-  yellow: -16,
 };
 /** The least CIE76 difference between a tone and the palette's gray tone (the tint and the strong color). */
 export const GRAY_SEPARATION = 9;
@@ -136,13 +136,16 @@ export function deriveTones(source: ToneSource): Record<DerivedTone, DerivedTone
     // The fill: the tint's lightness (and the tone's small offset), moved the least that lets the
     // palette's ink read on it (4.5:1) and, for the tone of the palette's own hue, tells it from
     // the gray tone (the tint): lighter first, darker where a lighter color would lose its chroma.
-    const fillAt = (shift: number) =>
-      fromOklch({ l: tint.l + FILL_LIGHTNESS[tone] + shift, c: fillChroma, h: hue });
+    const fillBase =
+      tone === "yellow"
+        ? Math.max(0.93, tint.l + FILL_LIGHTNESS[tone])
+        : tint.l + FILL_LIGHTNESS[tone];
+    const fillAt = (shift: number) => fromOklch({ l: fillBase + shift, c: fillChroma, h: hue });
     const usable = (color: string) =>
       contrastRatio(source.ink, color) >= 4.5 && deltaE(color, source.tint) >= GRAY_SEPARATION;
     let fill = fillAt(0);
     for (let step = 0; step <= SEPARATION_RANGE * 100 + 10 && !usable(fill); step++) {
-      const candidates = [step, -step].map((d) => fillAt(d / 100));
+      const candidates = (tone === "yellow" ? [step] : [step, -step]).map((d) => fillAt(d / 100));
       fill =
         candidates.find((c) => usable(c) && toOklch(c).c >= fillChroma * 0.9) ??
         (candidates[0] as string);
@@ -151,7 +154,10 @@ export function deriveTones(source: ToneSource): Record<DerivedTone, DerivedTone
     // text and the panel's outlined text read (4.5:1) and, for the tone of the palette's own hue,
     // tells it from the gray tone's line (the strong color): darker first.
     const warmChroma = WARM_LINE_CHROMA[tone];
-    const lineHue = Math.min(hue + (WARM_HUE_LEAN[tone] ?? 0), WARM_HUE_LIMIT[tone] ?? 360);
+    const lineHue =
+      tone === "yellow"
+        ? 92
+        : Math.min(hue + (WARM_HUE_LEAN[tone] ?? 0), WARM_HUE_LIMIT[tone] ?? 360);
     const chroma = Math.max(lineChroma, warmChroma ?? 0);
     const lineAt = (shift: number) =>
       fromOklch({ l: strong.l + LINE_LIGHTNESS[tone] + shift, c: chroma, h: lineHue });

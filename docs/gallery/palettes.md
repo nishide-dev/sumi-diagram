@@ -18,7 +18,7 @@
 | <code>cool\-blue</code> | <code>slate</code> | <code>coral</code> | <code>terracotta</code> | <code>sage</code> | <code>lavender</code> | <code>cyan\-pink</code> | <code>seafoam</code> |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | <img src="palettes/palettes.cool-blue.svg" alt="one figure, palette cool-blue"> | <img src="palettes/palettes.slate.svg" alt="one figure, palette slate"> | <img src="palettes/palettes.coral.svg" alt="one figure, palette coral"> | <img src="palettes/palettes.terracotta.svg" alt="one figure, palette terracotta"> | <img src="palettes/palettes.sage.svg" alt="one figure, palette sage"> | <img src="palettes/palettes.lavender.svg" alt="one figure, palette lavender"> | <img src="palettes/palettes.cyan-pink.svg" alt="one figure, palette cyan-pink"> | <img src="palettes/palettes.seafoam.svg" alt="one figure, palette seafoam"> |
-| <code>themeOverrides\.palette: cool\-blue</code><br>174\.1mm × 57\.33mm \(max width 180mm, max height 220mm\)<br>info geometry/dead\-space: The figure has large empty rectangles: bottom\-left 135\.64mm × 20\.55mm \(27\.9% of the canvas\)\. | <code>themeOverrides\.palette: slate</code><br>174\.1mm × 57\.33mm \(max width 180mm, max height 220mm\)<br>info geometry/dead\-space: The figure has large empty rectangles: bottom\-left 135\.64mm × 20\.55mm \(27\.9% of the canvas\)\. | <code>themeOverrides\.palette: coral</code><br>174\.1mm × 57\.33mm \(max width 180mm, max height 220mm\)<br>info geometry/dead\-space: The figure has large empty rectangles: bottom\-left 135\.64mm × 20\.55mm \(27\.9% of the canvas\)\. | <code>themeOverrides\.palette: terracotta</code><br>174\.1mm × 57\.33mm \(max width 180mm, max height 220mm\)<br>info geometry/dead\-space: The figure has large empty rectangles: bottom\-left 135\.64mm × 20\.55mm \(27\.9% of the canvas\)\. | <code>themeOverrides\.palette: sage</code><br>174\.1mm × 57\.33mm \(max width 180mm, max height 220mm\)<br>info geometry/dead\-space: The figure has large empty rectangles: bottom\-left 135\.64mm × 20\.55mm \(27\.9% of the canvas\)\. | <code>themeOverrides\.palette: lavender</code><br>174\.1mm × 57\.33mm \(max width 180mm, max height 220mm\)<br>info geometry/dead\-space: The figure has large empty rectangles: bottom\-left 135\.64mm × 20\.55mm \(27\.9% of the canvas\)\. | <code>themeOverrides\.palette: cyan\-pink</code><br>174\.1mm × 57\.33mm \(max width 180mm, max height 220mm\)<br>info geometry/dead\-space: The figure has large empty rectangles: bottom\-left 135\.64mm × 20\.55mm \(27\.9% of the canvas\)\. | <code>themeOverrides\.palette: seafoam</code><br>174\.1mm × 57\.33mm \(max width 180mm, max height 220mm\)<br>info geometry/dead\-space: The figure has large empty rectangles: bottom\-left 135\.64mm × 20\.55mm \(27\.9% of the canvas\)\. |
+| <code>themeOverrides\.palette: cool\-blue</code><br>174\.1mm × 45\.16mm \(max width 180mm, max height 220mm\) | <code>themeOverrides\.palette: slate</code><br>174\.1mm × 45\.16mm \(max width 180mm, max height 220mm\) | <code>themeOverrides\.palette: coral</code><br>174\.1mm × 45\.16mm \(max width 180mm, max height 220mm\) | <code>themeOverrides\.palette: terracotta</code><br>174\.1mm × 45\.16mm \(max width 180mm, max height 220mm\) | <code>themeOverrides\.palette: sage</code><br>174\.1mm × 45\.16mm \(max width 180mm, max height 220mm\) | <code>themeOverrides\.palette: lavender</code><br>174\.1mm × 45\.16mm \(max width 180mm, max height 220mm\) | <code>themeOverrides\.palette: cyan\-pink</code><br>174\.1mm × 45\.16mm \(max width 180mm, max height 220mm\) | <code>themeOverrides\.palette: seafoam</code><br>174\.1mm × 45\.16mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>palette.sumi.yaml</code></summary>
@@ -35,14 +35,17 @@ figure:
     palette: cool-blue
   layout:
     arrange:
-      stack:
-        gap: 6mm
+      row:
+        gap: 9mm
+        align: center
         items:
-          - row:
-              gap: 9mm
+          - stack:
+              gap: 6mm
               align: center
-              items: [input, encoder, head, out, key]
-          - row: { gap: 3mm, items: [t-gray, t-red, t-orange, t-yellow, t-green, t-blue, t-purple, t-pink] }
+              items:
+                - row: { gap: 9mm, align: center, items: [input, encoder, head, out] }
+                - row: { gap: 3mm, items: [t-gray, t-red, t-orange, t-yellow, t-green, t-blue, t-purple, t-pink] }
+          - key
 
 groups:
   - id: encoder
