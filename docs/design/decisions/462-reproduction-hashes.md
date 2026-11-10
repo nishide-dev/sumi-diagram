@@ -6,7 +6,7 @@
 
 ## 決定
 
-`examples/*/*.sumi.yaml` と `skills/sumi/examples/*/*.sumi.yaml` の各パスについて、リンク先を含むファイル内容の SHA-256 を記録する。テストはパスの追加・削除と内容の変更を検出し、明示的な `SUMI_UPDATE_REPRODUCTIONS=1 bun test src/compiler/reproduction-hashes.test.ts` の実行時だけマニフェストを更新する。lint の指摘は図を変更する代わりに期待診断として記録する。
+`examples/` と `skills/sumi/examples/` の下で git が追跡する通常ファイル（シンボリックリンクは除き、リンク先で確認する）のうち、図の YAML（`*.sumi.yaml`）、`assets/` 以下の参照素材、素材を生成するスクリプト（`generate*.ts`）を、深さを問わず対象に SHA-256 を記録する。シンボリックリンクを除くのは、リンクを扱えないチェックアウト（Windows の `core.symlinks=false`）でリンクの文字列をハッシュしないためである。テストはパスの追加・削除と内容の変更を検出し、明示的な `SUMI_UPDATE_REPRODUCTIONS=1 bun test src/compiler/reproduction-hashes.test.ts` の実行時だけマニフェストを更新する。lint の指摘は図を変更する代わりに期待診断として記録する。
 
 ## 採らなかった案と互換性
 
