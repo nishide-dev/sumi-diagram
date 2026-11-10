@@ -203,6 +203,20 @@ describe("derived tones (#423)", () => {
 });
 
 describe("warm solid fills do not turn brown or olive (#444)", () => {
+  test("a light yellow tint does not wash out the derived yellow fill", () => {
+    const roles = {
+      tint: "#f8efbf",
+      panel: "#ffffff",
+      ink: "#222222",
+      accent: "#a14b34",
+      strong: "#653725",
+    };
+    const { yellow, orange } = deriveTones(roles);
+    for (const { fill } of [yellow, orange]) {
+      expect(toOklch(fill).c).toBeGreaterThanOrEqual(0.045);
+      expect(contrastRatio(roles.ink, fill)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
   /** What a solid orange or yellow must be (OKLCH), whatever the palette. */
   const brown = (hex: string) => {
     const { l, c, h } = toOklch(hex);

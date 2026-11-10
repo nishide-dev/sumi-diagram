@@ -68,19 +68,24 @@ async function contextOf(source: string, path?: string) {
 
 describe("geometry/muddy-color (#440): the third trial", () => {
   test("reports an opaque khaki node and suggests a lighter fill", async () => {
-    const source = `version: 1
+    for (const fill of ["#d1bc79", "#d2b48c", "#808000", "#b5a642", "#c3b091"]) {
+      const source = `version: 1
 figure:
   id: khaki
   theme: paper
   themeOverrides:
     tones:
-      yellow: { fill: '#d1bc79' }
+      yellow: { fill: '${fill}' }
 nodes:
   - { id: yellow, component: box, label: yellow, tone: yellow }
 `;
-    const findings = muddyFindings(analyze(paintItems(await contextOf(source))));
-    expect(findings.some((finding) => finding.message.includes("khaki"))).toBe(true);
-    expect(findings[0]?.hint).toContain("lighter yellow");
+      const findings = muddyFindings(analyze(paintItems(await contextOf(source))));
+      expect(
+        findings.some((finding) => finding.message.includes("khaki")),
+        fill,
+      ).toBe(true);
+      expect(findings[0]?.hint).toContain("lighter yellow");
+    }
   });
   test("drawn as before (translucent tints over a gray panel) it is reported", async () => {
     const context = await contextOf(trial());
@@ -149,6 +154,10 @@ describe("muddiness() thresholds", () => {
     expect(muddinessOf(orange, orange)).toBe("khaki");
     for (const hex of [
       "#d1bc79",
+      "#d2b48c",
+      "#808000",
+      "#b5a642",
+      "#c3b091",
       "#a5a57a",
       "#b5b589",
       "#ebecbe",

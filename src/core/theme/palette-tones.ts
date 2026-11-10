@@ -153,15 +153,34 @@ export function deriveTones(source: ToneSource): Record<DerivedTone, DerivedTone
     const fillBase = Math.max(minimumLightness, tint.l + FILL_LIGHTNESS[tone]);
     const chromaFill = tone === "orange" ? Math.max(0.075, fillChroma) : fillChroma;
     const fillAt = (shift: number) => fromOklch({ l: fillBase + shift, c: chromaFill, h: hue });
+    const warm = tone === "yellow" || tone === "orange";
+    const readableFill = (color: string) =>
+      contrastRatio(source.ink, color) >= 4.5 && (!warm || toOklch(color).c >= 0.045);
     const usable = (color: string) =>
-      contrastRatio(source.ink, color) >= 4.5 && deltaE(color, source.tint) >= GRAY_SEPARATION;
+      readableFill(color) && deltaE(color, source.tint) >= GRAY_SEPARATION;
     let fill = fillAt(0);
+    let fallback = readableFill(fill) ? fill : undefined;
     for (let step = 0; step <= SEPARATION_RANGE * 100 + 10 && !usable(fill); step++) {
-      const candidates = (minimumLightness ? [step] : [step, -step]).map((d) => fillAt(d / 100));
+      const candidates = (minimumLightness && !warm ? [step] : [step, -step])
+        .filter((d) => !warm || fillBase + d / 100 >= minimumLightness)
+        .map((d) => fillAt(d / 100));
+      if (warm) {
+        for (const candidate of candidates) {
+          if (
+            readableFill(candidate) &&
+            (fallback === undefined ||
+              deltaE(candidate, source.tint) > deltaE(fallback, source.tint))
+          )
+            fallback = candidate;
+        }
+      }
       fill =
-        candidates.find((c) => usable(c) && toOklch(c).c >= fillChroma * 0.9) ??
+        candidates.find((c) => usable(c) && (warm || toOklch(c).c >= fillChroma * 0.9)) ??
         (candidates[0] as string);
     }
+    // When separation is impossible without washing out the hue, prefer the
+    // readable, chromatic candidate furthest from the tint.
+    if (warm && !usable(fill) && fallback !== undefined) fill = fallback;
     // The line: the strong color's lightness (and the tone's offset), moved the least that lets white
     // text and the panel's outlined text read (4.5:1) and, for the tone of the palette's own hue,
     // tells it from the gray tone's line (the strong color): darker first.

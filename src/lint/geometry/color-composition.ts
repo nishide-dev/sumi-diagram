@@ -59,22 +59,19 @@ export function muddinessOf(
   reference: Oklch,
   final: Oklch,
 ): "chroma" | "dull" | "drift" | "khaki" | undefined {
-  if (
-    final.l >= 0.69 &&
-    final.l < 0.86 &&
-    final.c >= 0.045 &&
-    final.c < 0.105 &&
-    final.h >= 78 &&
-    final.h <= 115
-  )
-    return "khaki";
+  // The orange-to-olive boundary varies continuously: yellow-green can look
+  // muddy at a higher chroma and lower lightness than orange.
+  const oliveShare = Math.max(0, Math.min(1, (final.h - 72) / 28));
+  const maxChroma = 0.065 + 0.07 * oliveShare;
+  const minLightness = 0.7 - 0.15 * oliveShare;
+  const maxLightness = 0.88 - 0.02 * oliveShare;
   if (
     (final.h >= 52 &&
-      final.h <= 72 &&
-      final.l >= 0.7 &&
-      final.l < (final.h >= 65 ? 0.88 : 0.85) &&
+      final.h <= 115 &&
+      final.l >= minLightness &&
+      final.l < (final.h < 65 ? 0.85 : maxLightness) &&
       final.c >= 0.045 &&
-      final.c < 0.065) ||
+      final.c < maxChroma) ||
     (final.h > 105 &&
       final.h <= 115 &&
       final.l >= 0.9 &&
