@@ -31,6 +31,21 @@ import {
 
 const samples = componentSamples();
 
+test("legend story uses the same relations and symbols as its key", () => {
+  const source = legendSample().source;
+  expect(source.startsWith("# Contrastive learning")).toBe(true);
+  expect(source).toContain("from: paper, to: title, component: double-arrow, tone: blue");
+  expect(source).toContain(
+    "from: other, to: abstract, component: double-arrow, variant: dashed, tone: red",
+  );
+  expect(source).toContain(
+    "edge: { component: double-arrow, variant: dashed, tone: red }, label: Negative pair",
+  );
+  expect(source).toContain("members: [paper, title]");
+  expect(source).not.toContain("tabler/database");
+  expect(source).not.toContain("tabler/flask");
+});
+
 test("every catalog component has a sample, in catalog order", () => {
   expect(samples.map((s) => s.entry.id)).toEqual(
     buildCatalog(createBuiltinRegistry()).components.map((c) => c.id),
