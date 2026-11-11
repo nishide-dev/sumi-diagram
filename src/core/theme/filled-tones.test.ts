@@ -8,6 +8,7 @@ import { buildCatalog } from "../registry/catalog";
 import { BUILTIN_THEMES } from "./builtin";
 import { toOklch } from "./color-math";
 import { dimStyle, lightenColor } from "./dim";
+import { contrastRatio } from "./node-variants";
 import { getPalette, PALETTE_NAMES, withPalette } from "./palette";
 import { resolveStyle } from "./resolve";
 import { TONE_NAMES } from "./tones";
@@ -254,4 +255,25 @@ ${TONE_NAMES.map((tone, i) => `  - { id: n${i}, component: stack, label: A, grou
       expect(rendered.value.svg).toContain(pale);
     });
   }
+});
+
+describe("yellow text (#465)", () => {
+  test("is the golden line's hue darkened to 4.5:1, never the palette's ink", () => {
+    for (const base of BUILTIN_THEMES.values()) {
+      for (const palette of [undefined, ...PALETTE_NAMES]) {
+        const theme = palette === undefined ? base : withPalette(base, palette);
+        const line = theme.toneLines.get("yellow");
+        if (line?.stroke === undefined || toOklch(line.stroke).c < 0.03) continue;
+        const text = line.fontColor ?? "";
+        const label = `${base.id}/${palette ?? "default"}`;
+        expect(Math.abs(toOklch(text).h - toOklch(line.stroke).h), label).toBeLessThan(3);
+        expect(toOklch(text).c, label).toBeGreaterThan(0.08);
+        const tint = theme.tones.get("yellow")?.fill ?? "#ffffff";
+        for (const surface of ["#ffffff", tint])
+          expect(contrastRatio(text, surface), `${label} on ${surface}`).toBeGreaterThanOrEqual(
+            4.5,
+          );
+      }
+    }
+  });
 });

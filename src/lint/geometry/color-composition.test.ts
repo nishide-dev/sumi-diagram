@@ -67,7 +67,7 @@ async function contextOf(source: string, path?: string) {
 }
 
 describe("geometry/muddy-color (#440): the third trial", () => {
-  test("reports muddy strokes and text as well as fills", async () => {
+  test("reports muddy strokes as well as fills, but not text", async () => {
     const context = await contextOf(`version: 1
 figure:
   id: ochre-lines
@@ -82,9 +82,7 @@ nodes:
     expect(
       findings.some((f) => f.message.includes("stroke") && f.message.includes("#876200")),
     ).toBe(true);
-    expect(
-      findings.some((f) => f.message.includes("fontColor") && f.message.includes("#876200")),
-    ).toBe(true);
+    expect(findings.some((f) => f.message.includes("fontColor"))).toBe(false);
   });
   test("reports an opaque khaki node and suggests a lighter fill", async () => {
     for (const fill of ["#d1bc79", "#d2b48c", "#808000", "#b5a642", "#c3b091"]) {

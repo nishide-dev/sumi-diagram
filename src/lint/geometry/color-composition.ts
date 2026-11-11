@@ -149,8 +149,10 @@ export const muddyColor = defineGeometryRule({
   fixable: false,
   run: (context) => {
     const findings = muddyFindings(analysisOf(context));
+    // Fills and lines, not text (#465): a small label in a dark tone of its hue reads as that
+    // hue, while a dark yellow line or area reads as ochre.
     for (const element of [...context.elements, ...context.sets]) {
-      for (const property of ["stroke", "fontColor"] as const) {
+      for (const property of ["stroke"] as const) {
         const color = element.ir.style[property];
         if (!/^#[0-9a-f]{6}$/i.test(color)) continue;
         const value = toOklch(color);
