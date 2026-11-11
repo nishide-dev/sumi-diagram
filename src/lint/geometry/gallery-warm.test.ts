@@ -2,11 +2,13 @@ import { expect, test } from "bun:test";
 import { toOklch } from "../../core/theme/color-math";
 import { muddinessOf } from "./color-composition";
 
+// Fills and lines, not text (#465): geometry/muddy-color does not judge text either.
 test("gallery warm paints avoid dark ochre and dull khaki", async () => {
   for (const directory of ["tones", "palettes", "sets"]) {
     for (const file of new Bun.Glob(`docs/gallery/${directory}/*.svg`).scanSync()) {
       const svg = await Bun.file(file).text();
-      for (const match of svg.matchAll(/(?:fill|stroke)="(#[0-9a-f]{6})"/gi)) {
+      const shapes = svg.replace(/<(text|tspan)\b[^>]*>/gi, "");
+      for (const match of shapes.matchAll(/(?:fill|stroke)="(#[0-9a-f]{6})"/gi)) {
         const color = match[1] as string;
         if (
           file.endsWith("palettes.terracotta.svg") &&

@@ -293,3 +293,57 @@ test.each([
     ),
   ).toBe(true);
 });
+
+test("a coloured run reads at 4.5:1 on another tone's fill (#465)", async () => {
+  const source = `version: 1
+figure:
+  id: runs
+  theme: paper
+  layout: { arrange: { row: { items: [red, purple] } } }
+nodes:
+  - { id: red, component: box, variant: tinted, tone: red, label: 'A $\\textcolor{yellow}{\\text{warm}}$' }
+  - { id: purple, component: box, variant: tinted, tone: purple, label: 'A $\\textcolor{yellow}{\\text{warm}}$' }
+`;
+  const result = await renderFigure(source);
+  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+  const svg = result.value.svg;
+  for (const fill of ["#f9c7bb", "#d8cdf8"]) expect(svg).toContain(`fill="${fill}"`);
+  const colours = [...svg.matchAll(/<tspan[^>]*fill="(#[0-9a-f]{6})"/gi)].map(
+    (m) => m[1] as string,
+  );
+  const golden = colours.filter((c) => c.toLowerCase() !== "#000000");
+  expect(golden.length).toBeGreaterThanOrEqual(2);
+  // In document order: the red node's run, then the purple node's.
+  for (const [i, colour] of golden.entries())
+    expect(
+      contrastRatio(colour, ["#f9c7bb", "#d8cdf8"][i] ?? "#ffffff"),
+      colour,
+    ).toBeGreaterThanOrEqual(4.5);
+});
+
+test("an edge label's coloured run is not adjusted against the edge's style fill (#465)", async () => {
+  const source = `version: 1
+figure:
+  id: edge-runs
+  theme: paper
+  themeOverrides:
+    groupFill: "#222222"
+    tones:
+      blue: { line: "#eeeeee" }
+  layout: { arrange: { stack: { items: [panel] } } }
+groups:
+  - id: panel
+    arrange: { row: { gap: 20mm, items: [a, b] } }
+nodes:
+  - { id: a, component: box, label: A }
+  - { id: b, component: box, label: B }
+edges:
+  - { from: a, to: b, label: '$\\textcolor{blue}{\\text{light}}$' }
+`;
+  const result = await renderFigure(source);
+  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+  const runs = [...result.value.svg.matchAll(/<tspan[^>]*fill="(#[0-9a-f]{6})"/gi)].map(
+    (m) => m[1] as string,
+  );
+  expect(runs).toContain("#eeeeee");
+});

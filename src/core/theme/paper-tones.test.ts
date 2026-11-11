@@ -34,9 +34,10 @@ describe("paper tones (#434)", () => {
   test("fill and line of every tone are the harmonized set", () => {
     for (const tone of TONE_NAMES) {
       expect([fillOf(tone), lineOf(tone)], tone).toEqual([...EXPECTED[tone]]);
-      // Text on an outlined node and on an edge takes the same color as the line.
+      // Text on an outlined node and on an edge takes the same color as the line; yellow's
+      // golden line is too light for text, so its text is the same hue darkened (#465).
       expect(PAPER?.toneLines.get(tone)?.fontColor, tone).toBe(
-        tone === "yellow" ? "#000000" : lineOf(tone),
+        tone === "yellow" ? "#896708" : lineOf(tone),
       );
     }
   });

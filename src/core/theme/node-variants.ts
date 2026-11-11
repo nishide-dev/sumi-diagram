@@ -38,7 +38,23 @@ export function warmTones(theme: Theme, palettePanel?: string): Theme {
           break;
         }
       }
-      lines.set(tone, Object.freeze({ ...layer, stroke, fontColor: ink }));
+      // Text in the stroke's hue, as for the other tones (#465), darkened until it reads at 4.5:1
+      // on white, on the panels and on the yellow tint it labels; the theme's ink would bring a
+      // palette's navy or maroon onto the yellow.
+      const tint = theme.tones.get(tone)?.fill;
+      const surfaces = [
+        ...backgrounds,
+        ...(tint !== undefined && /^#[0-9a-f]{6}$/i.test(tint) ? [tint] : []),
+      ];
+      let text = ink;
+      for (let step = Math.round(toOklch(stroke).l * 1000); step >= 0; step--) {
+        const candidate = fromOklch({ l: step / 1000, c: Math.max(0.1, color.c), h: hue });
+        if (surfaces.every((surface) => contrastRatio(candidate, surface) >= 4.5)) {
+          text = candidate;
+          break;
+        }
+      }
+      lines.set(tone, Object.freeze({ ...layer, stroke, fontColor: text }));
       solids.set(tone, {
         fill: fromOklch({ l: 0.84, c: Math.max(0.16, color.c), h: hue }),
         text: ink,
