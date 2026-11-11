@@ -1,0 +1,245 @@
+const GH = "https://github.com/nishide-dev/sumi-diagram/blob/main/";
+export const T = {
+  en: {
+    exLead:
+      "Figures from the repository's examples/. Reproductions of published figures link to the original.",
+    coLead:
+      "Every built-in component and drawing option. The theme and palette above apply to every preview and code sample.",
+    prLead:
+      "Pick the conditions of the figure and copy the instructions for your coding agent. The theme and palette above are included.",
+    reproductions: "Reproductions",
+    generic: "Generic",
+    original: "Original ↗",
+    preview: "Preview",
+    code: "Code",
+    copy: "Copy",
+    copied: "Copied",
+    copyFail: "Copy blocked; select the text instead",
+    jump: "Jump to",
+    kind: "Kind",
+    variants: "Variants",
+    props: "props",
+    option: "option",
+    refs: "Sources: URLs, papers, docs or files (one per line)",
+    target: "Figure or section to use",
+    figid: "File name",
+    content: "Notes on the content (leave empty to read it from the sources)",
+    maxh: "Maximum height in mm (optional)",
+    labellang: "Labels in the figure",
+    layoutnote: "More about the layout",
+    extra: "Anything else",
+    addTone: "+ Add a colour meaning",
+    styleHint: (t: string, p: string) =>
+      `Theme ${t}${p ? `, palette ${p}` : ""} (set above). Give colours a meaning here if the figure needs them.`,
+    toneMeaning: "Meaning, e.g. external service",
+    remove: "Remove",
+    ready: "Ready to copy",
+    missing: "Missing",
+    needSource: "a source or notes",
+    needTarget: "which figure to recreate",
+    needGoal: "the goal",
+    needKind: "the kind of figure",
+    chars: (n: number) => `${n} words`,
+    loadFail: "Could not load the figures. Reload the page.",
+    siteTheme: { system: "System", light: "Light", dark: "Dark" },
+    themeLabel: (c: string, n: string) => `Appearance: ${c}. Switches to ${n}.`,
+    none: "none",
+    langEn: "English",
+    langJa: "Japanese",
+  },
+  ja: {
+    exLead: "リポジトリの examples/ にある図です。論文の図の再現には原図へのリンクを付けています。",
+    coLead:
+      "組み込みのコンポーネントと描画オプションです。上のテーマとパレットが、すべての見本とコードに反映されます。",
+    prLead:
+      "図の条件を選ぶと、コーディングエージェントに渡す指示ができます。上で選んだテーマとパレットも入ります。",
+    reproductions: "論文の図の再現",
+    generic: "汎用",
+    original: "原図 ↗",
+    preview: "Preview",
+    code: "Code",
+    copy: "コピー",
+    copied: "コピーしました",
+    copyFail: "コピーできません。選択してコピーしてください",
+    jump: "移動",
+    kind: "Kind",
+    variants: "Variants",
+    props: "props",
+    option: "option",
+    refs: "参考資料: URL・論文・ドキュメント・ファイル（1 行に 1 つ）",
+    target: "使う図・節",
+    figid: "ファイル名",
+    content: "内容のメモ（空欄なら参考資料から読む）",
+    maxh: "高さの上限 mm（任意）",
+    labellang: "図中のラベル",
+    layoutnote: "レイアウトの補足",
+    extra: "その他の指示",
+    addTone: "+ 色の意味を追加",
+    styleHint: (t: string, p: string) =>
+      `テーマ ${t}${p ? `、パレット ${p}` : ""}（上で選択）。色に意味を持たせる場合はここで指定します。`,
+    toneMeaning: "意味（例: 外部サービス）",
+    remove: "削除",
+    ready: "コピーできます",
+    missing: "未入力",
+    needSource: "参考資料かメモ",
+    needTarget: "再現する図",
+    needGoal: "目的",
+    needKind: "図の種類",
+    chars: (n: number) => `${n} 文字`,
+    loadFail: "図を読み込めませんでした。ページを再読み込みしてください。",
+    siteTheme: { system: "システム設定", light: "ライト", dark: "ダーク" },
+    themeLabel: (c: string, n: string) => `表示: ${c}。切り替えると${n}になります`,
+    none: "なし",
+    langEn: "英語",
+    langJa: "日本語",
+  },
+};
+export const PH = {
+  en: {
+    refs: "https://arxiv.org/abs/...\nhttps://github.com/org/repo/blob/main/docs/architecture.md",
+    target: "Figure 2 / the Deployment section",
+    content: "Client → API gateway → three services. Orders and Billing share one database.",
+    layoutnote: "Clients on the left, data stores on the right",
+    extra: "Keep labels short. Put the legend at the bottom right.",
+    "purpose-custom": "e.g. Explain our onboarding flow to new team members",
+    "kind-custom": "e.g. A timeline of the release process with milestones",
+  },
+  ja: {
+    refs: "https://arxiv.org/abs/...\nhttps://github.com/org/repo/blob/main/docs/architecture.md",
+    target: "Figure 2 / デプロイの節",
+    content: "Client → API Gateway → 3 つのサービス。Orders と Billing は同じ DB を使う",
+    layoutnote: "左にクライアント、右にデータストア",
+    extra: "ラベルは短く。凡例は右下に",
+    "purpose-custom": "例: 新メンバーにオンボーディングの流れを説明する",
+    "kind-custom": "例: リリース工程をマイルストーン付きの時系列で",
+  },
+};
+
+export const HOME = {
+  en: {
+    tagline: "Diagrams as code, designed to fit.",
+    intro:
+      "Sumi turns YAML into SVG, PDF and PPTX using a component library, design-system themes and geometry lint that checks the rendered result. Output is deterministic with bundled fonts and a pinned layout backend, and ships as a single binary: no Bun or Node.js required. With the bundled Skill, Claude Code can discover components, write the YAML and validate the result for you.",
+    go: [
+      ["#examples", "Examples →"],
+      ["#components", "Components →"],
+      ["#prompt", "Write a prompt →"],
+    ],
+    install: "Install",
+    installText:
+      "macOS and Linux, x64 and arm64. The installer downloads the latest release, verifies SHA-256, keeps D2 and fonts beside the binary, links <code>~/.local/bin/sumi</code> and runs <code>sumi doctor</code>. It needs curl or wget, tar, and sha256sum or shasum; no sudo.",
+    installMore:
+      'Rerun the installer to upgrade. To pin a version or uninstall, see the <a href="' +
+      GH +
+      'docs/usage.md#manual-installation" target="_blank" rel="noreferrer">user guide ↗</a>.',
+    quick: "Quick start",
+    quickText: "Save as <code>hello.sumi.yaml</code>, then format, check and render it.",
+    quickOut:
+      "Render reports the measured size and whether it fits the output profile. Your YAML stays the source of truth.",
+    features: "Features",
+    feats: [
+      [
+        "Auto and structured layout",
+        "Auto layout for flows and graphs; nested rows and stacks, anchors and routed residual connections for precise block diagrams.",
+      ],
+      [
+        "Themes and profiles",
+        "minimal, academic, color, slides, paper and llama, with independent page-size and minimum-type constraints for papers and slides.",
+      ],
+      ["Math labels", "Inline math with bundled STIX Two fonts in structured figures."],
+      [
+        "Icons, emoji and images",
+        "Bundled Tabler icons, multicolor Fluent emoji, and local PNG, JPEG and SVG assets.",
+      ],
+      [
+        "PDF and PPTX",
+        "Vector PDF with embedded fonts, picture PPTX, and experimental editable PowerPoint objects.",
+      ],
+      [
+        "Lint and diagnostics",
+        "Schema and reference checks plus geometry checks on the rendered figure; JSON output for scripts and agents.",
+      ],
+    ],
+    claude: "Claude Code",
+    claudeText:
+      "Install the CLI, then add the Skill to your project. Ask, for example, “Use Sumi to draw this pipeline as a single-column paper figure.” The Skill writes the YAML, runs fmt → lint → render and inspects the result. The Prompt page helps you write a fuller request.",
+    docs: "Documentation",
+    license: "License",
+    licenseText:
+      "MIT. Bundled third-party components keep their own licenses; each release includes NOTICE and licenses/.",
+    docLinks: [
+      ["User guide", "docs/usage.md"],
+      ["Themes", "docs/themes.md"],
+      ["Figure format", "skills/sumi/references/figure-format.md"],
+      ["Structured layout", "skills/sumi/references/structured.md"],
+      ["Layout recipes", "skills/sumi/references/layout-tips.md"],
+      ["Lint rules", "docs/lint-rules.md"],
+      ["JSON Schema", "schema/figure.v1.schema.json"],
+      ["Contributing", "CONTRIBUTING.md"],
+    ],
+  },
+  ja: {
+    tagline: "コードで描き、出力先に収まる図を。",
+    intro:
+      "Sumi は、コンポーネントライブラリとデザインシステムのテーマを使い、YAML から SVG・PDF・PPTX を生成する Diagram-as-Code CLI です。描画結果を幾何 lint で検査し、同梱フォントと固定版のレイアウトバックエンドで決定的な出力を得られます。本体は単一バイナリで、Bun や Node.js は不要です。同梱の Skill を使うと、Claude Code が部品の探索、YAML の作成、検証まで進めます。",
+    go: [
+      ["#examples", "Examples →"],
+      ["#components", "Components →"],
+      ["#prompt", "プロンプトを作る →"],
+    ],
+    install: "Install",
+    installText:
+      "macOS / Linux の x64 / arm64 に対応。最新リリースをダウンロードして SHA-256 を検証し、D2 とフォントを本体の隣に置き、<code>~/.local/bin/sumi</code> にリンクして <code>sumi doctor</code> を実行します。curl または wget、tar、sha256sum または shasum が必要です。sudo は使いません。",
+    installMore:
+      '更新は同じインストーラーを再実行します。バージョン指定やアンインストールは<a href="' +
+      GH +
+      'docs/usage-ja.md" target="_blank" rel="noreferrer">利用ガイド ↗</a>を参照してください。',
+    quick: "Quick start",
+    quickText: "<code>hello.sumi.yaml</code> として保存し、整形・検査・描画します。",
+    quickOut: "描画すると実寸と、プロファイルに収まるかを表示します。一次ソースは YAML です。",
+    features: "Features",
+    feats: [
+      [
+        "自動・構造化レイアウト",
+        "フローやグラフは自動配置。ブロック図は入れ子の行・列、アンカー、残差接続の経路で正確に組めます。",
+      ],
+      [
+        "テーマとプロファイル",
+        "minimal・academic・color・slides・paper・llama。論文やスライドのページ寸法と最小文字サイズを独立して選べます。",
+      ],
+      [
+        "数式ラベル",
+        "構造化レイアウトで、同梱の STIX Two フォントによるインライン数式を使えます。",
+      ],
+      [
+        "アイコン・絵文字・画像",
+        "同梱の Tabler アイコン、多色 Fluent 絵文字、ローカルの PNG / JPEG / SVG を使えます。",
+      ],
+      [
+        "PDF・PPTX",
+        "フォント埋め込みのベクター PDF、画像方式の PPTX、実験的な編集可能 PowerPoint オブジェクト。",
+      ],
+      [
+        "lint と診断",
+        "スキーマと参照の検査に加え、描画後の幾何を検査。JSON 出力でスクリプトやエージェントと連携できます。",
+      ],
+    ],
+    claude: "Claude Code",
+    claudeText:
+      "CLI を導入したら、プロジェクトに Skill を追加します。たとえば「このパイプラインを Sumi で論文の 1 段組の図にして」と頼むと、Skill が YAML を書き、fmt → lint → render と目視確認まで行います。詳しい依頼文は Prompt ページで作れます。",
+    docs: "Documentation",
+    license: "License",
+    licenseText:
+      "MIT。同梱のサードパーティ部品はそれぞれのライセンスに従い、各リリースに NOTICE と licenses/ を含みます。",
+    docLinks: [
+      ["利用ガイド", "docs/usage-ja.md"],
+      ["テーマ", "docs/themes-ja.md"],
+      ["図の書式", "skills/sumi/references/figure-format.md"],
+      ["構造化レイアウト", "skills/sumi/references/structured.md"],
+      ["レイアウトのレシピ", "skills/sumi/references/layout-tips.md"],
+      ["lint ルール", "docs/lint-rules.md"],
+      ["JSON Schema", "schema/figure.v1.schema.json"],
+      ["コントリビュート", "CONTRIBUTING.md"],
+    ],
+  },
+};

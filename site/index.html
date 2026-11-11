@@ -1,9 +1,137 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <title>Sumi</title>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Noto+Sans+JP:wght@400;500;700&display=swap">
-  </head>
-  <body></body>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sumi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&family=Noto+Sans+JP:wght@400;500&display=swap">
+<link rel="stylesheet" href="./styles.css">
+<script type="module" src="./app.ts"></script>
+</head>
+<body>
+
+
+<header class="site">
+  <div class="wrap">
+    <div class="top">
+      <div class="name"><h1><a href="#home" id="nav-home">Sumi</a></h1><span class="meta" id="ver"></span></div>
+      <nav class="tg" aria-label="Pages">
+        <a href="#examples" id="nav-examples">Examples</a>
+        <a href="#components" id="nav-components">Components</a>
+        <a href="#prompt" id="nav-prompt">Prompt</a>
+        <a href="https://github.com/nishide-dev/sumi-diagram" target="_blank" rel="noreferrer">GitHub ↗</a>
+      </nav>
+      <div class="tools">
+        <nav class="tg" aria-label="Language" id="ui-lang">
+          <button type="button" data-l="en">EN</button>
+          <button type="button" data-l="ja">JA</button>
+        </nav>
+        <button class="icon-btn" id="site-theme" type="button"></button>
+      </div>
+    </div>
+    <div class="figbar" id="figbar">
+      <span class="label">Theme</span>
+      <div class="tg" id="sumi-theme"></div>
+      <span class="label">Palette</span>
+      <div class="tg" id="sumi-palette"></div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section id="page-home" class="home" aria-label="Sumi"></section>
+
+  <section id="page-examples" hidden aria-labelledby="ex-title">
+    <h2 id="ex-title" class="label">Examples</h2>
+    <p class="lead" data-i18n="exLead"></p>
+    <div id="examples"></div>
+  </section>
+
+  <section id="page-components" aria-labelledby="co-title" hidden>
+    <h2 id="co-title" class="label">Components</h2>
+    <p class="lead" data-i18n="coLead"></p>
+    <div class="lib" style="margin-top:32px">
+      <nav class="side" id="side" aria-label="Components"></nav>
+      <div style="min-width:0">
+        <div class="items" id="items"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="page-prompt" aria-labelledby="p-title" hidden>
+    <h2 id="p-title" class="label">Prompt</h2>
+    <p class="lead" data-i18n="prLead"></p>
+    <div class="composer">
+      <div class="fields">
+        <div class="field">
+          <span class="label">Goal</span>
+          <div class="body"><div class="seg" id="purpose"></div><input id="purpose-custom" type="text" hidden></div>
+        </div>
+        <div class="field">
+          <span class="label">Source</span>
+          <div class="body">
+            <label class="in" for="refs"><span data-i18n="refs">Sources</span><textarea id="refs" rows="2"></textarea></label>
+            <div class="pair">
+              <label class="in" for="target"><span data-i18n="target">Figure or section</span><input id="target" type="text"></label>
+              <label class="in" for="figid"><span data-i18n="figid">File name</span><input id="figid" type="text" placeholder="overview"></label>
+            </div>
+            <label class="in" for="content"><span data-i18n="content">Content notes</span><textarea id="content" rows="3"></textarea></label>
+          </div>
+        </div>
+        <div class="field">
+          <span class="label">Figure</span>
+          <div class="body"><div class="seg" id="kind"></div><input id="kind-custom" type="text" hidden></div>
+        </div>
+        <div class="field">
+          <span class="label">Placement</span>
+          <div class="body">
+            <div class="seg" id="place"></div>
+            <div class="pair">
+              <label class="in" for="maxh"><span data-i18n="maxh">Maximum height</span><input id="maxh" type="number" min="20" max="220" placeholder="60"></label>
+              <label class="in" for="labellang"><span data-i18n="labellang">Label language</span><select id="labellang"></select></label>
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <span class="label">Layout</span>
+          <div class="body">
+            <div class="seg" id="layout"></div>
+            <label class="in" for="layoutnote"><span data-i18n="layoutnote">Layout notes</span><textarea id="layoutnote" rows="2"></textarea></label>
+          </div>
+        </div>
+        <div class="field">
+          <span class="label">Colour</span>
+          <div class="body">
+            <p class="hint" id="style-hint"></p>
+            <div class="tones" id="tones"></div>
+            <button class="add" id="add-tone" type="button"></button>
+          </div>
+        </div>
+        <div class="field">
+          <span class="label">Agent</span>
+          <div class="body">
+            <div class="seg" id="agent"></div>
+            <label class="in" for="extra"><span data-i18n="extra">Other instructions</span><textarea id="extra" rows="2"></textarea></label>
+          </div>
+        </div>
+      </div>
+
+      <aside class="output" aria-labelledby="out-label">
+        <div class="output-inner">
+          <div class="out-head">
+            <span class="label" id="out-label">Output</span>
+            <button class="copy" id="copy" type="button"></button>
+          </div>
+          <pre class="prompt" id="prompt"></pre>
+          <div class="status meta" id="status"></div>
+        </div>
+      </aside>
+    </div>
+  </section>
+</main>
+
+
+</body>
 </html>

@@ -2,20 +2,7 @@ import { parseDocument } from "yaml";
 import type { ComponentSample, ToneSample } from "../gallery/samples";
 import { componentStem } from "../gallery/samples";
 
-/** Apply exactly the values used for the selected rendering, retaining YAML comments. */
-export function sampleSource(
-  source: string,
-  theme: string,
-  profile: string,
-  palette?: string,
-): string {
-  const doc = parseDocument(source);
-  if (doc.errors.length) throw new Error(`Invalid sample YAML: ${doc.errors.join(", ")}`);
-  doc.setIn(["figure", "theme"], theme);
-  doc.setIn(["figure", "profile"], profile);
-  if (palette !== undefined) doc.setIn(["figure", "themeOverrides", "palette"], palette);
-  return doc.toString();
-}
+export { sampleSource } from "../../site/source";
 
 const PAPER_URLS: Record<string, string> = {
   transformer: "https://arxiv.org/abs/1706.03762",
