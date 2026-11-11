@@ -30,7 +30,7 @@ Sumi-rendered recreations of public reference figures: the Transformer architect
   </tr>
 </table>
 
-Browse the [component gallery](docs/gallery/README.md) and [examples with YAML sources](examples/README.md).
+Browse the [website](https://nishide-dev.github.io/sumi-diagram/) (examples, components under every theme and palette, and a prompt builder for coding agents), the [component gallery](docs/gallery/README.md) and [examples with YAML sources](examples/README.md).
 
 ## Install
 
