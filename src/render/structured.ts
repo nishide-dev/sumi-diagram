@@ -70,6 +70,7 @@ import { readableInk } from "../core/theme/node-variants";
 import { figureTheme } from "../core/theme/overrides";
 import { multiplyTints } from "../core/theme/set-style";
 import type { CommonStyle } from "../core/theme/style";
+import type { Tone } from "../core/theme/tones";
 import { groupLayerRects } from "../layout/group-layers";
 import type { LayoutIR, Point, Rect, SetLayout, TextLayout, TextRun } from "../layout/ir";
 import { type Cubic, sampleCubic, trimCubic } from "../layout/route/cubic";
@@ -1088,10 +1089,14 @@ export function writeStructuredSvg(
   const builtin = getTheme(ir.meta.themeId);
   // Inline tone runs take the figure's tone colors (#380).
   const theme = builtin && figureTheme(builtin, ir.meta.themeOverrides);
-  // A coloured run is chosen to read on white and its own tone's tint; on another fill (a red
-  // node's \textcolor{yellow}{…}) it darkens until it reads at 4.5:1 there too (#465).
-  const onFill = (color: string, fill: string | undefined): string =>
-    fill === undefined || color === fill ? color : readableInk(fill, color);
+  // A coloured run keeps its tone's line color on white and on its own tone's tint (#186); on
+  // another fill (a red node's \textcolor{yellow}{…}) it darkens until it reads at 4.5:1 (#465).
+  const onFill = (color: string, fill: string | undefined, tone: Tone): string =>
+    fill === undefined ||
+    color === fill ||
+    fill.toLowerCase() === theme?.tones.get(tone)?.fill?.toLowerCase()
+      ? color
+      : readableInk(fill, color);
   const colored = (
     layout: TextLayout | undefined,
     element: {
@@ -1119,6 +1124,7 @@ export function writeStructuredSvg(
                     : onFill(
                         theme?.toneLines.get(run.tone)?.fontColor ?? color,
                         element.style.fill,
+                        run.tone,
                       ),
               },
         ),

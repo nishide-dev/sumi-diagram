@@ -314,10 +314,9 @@ nodes:
   const golden = colours.filter((c) => c.toLowerCase() !== "#000000");
   expect(golden.length).toBeGreaterThanOrEqual(2);
   // In document order: the red node's run, then the purple node's.
-  golden.forEach((colour, i) =>
+  for (const [i, colour] of golden.entries())
     expect(
       contrastRatio(colour, ["#f9c7bb", "#d8cdf8"][i] ?? "#ffffff"),
       colour,
-    ).toBeGreaterThanOrEqual(4.5),
-  );
+    ).toBeGreaterThanOrEqual(4.5);
 });
