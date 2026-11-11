@@ -66,6 +66,7 @@ import { SEPARATOR_ID } from "../core/registry/builtins";
 import type { Arrowhead } from "../core/registry/manifest";
 import { getTheme } from "../core/theme/builtin";
 import type { FontSet } from "../core/theme/fonts";
+import { readableInk } from "../core/theme/node-variants";
 import { figureTheme } from "../core/theme/overrides";
 import { multiplyTints } from "../core/theme/set-style";
 import type { CommonStyle } from "../core/theme/style";
@@ -1087,9 +1088,16 @@ export function writeStructuredSvg(
   const builtin = getTheme(ir.meta.themeId);
   // Inline tone runs take the figure's tone colors (#380).
   const theme = builtin && figureTheme(builtin, ir.meta.themeOverrides);
+  // A coloured run is chosen to read on white and its own tone's tint; on another fill (a red
+  // node's \textcolor{yellow}{…}) it darkens until it reads at 4.5:1 there too (#465).
+  const onFill = (color: string, fill: string | undefined): string =>
+    fill === undefined || color === fill ? color : readableInk(fill, color);
   const colored = (
     layout: TextLayout | undefined,
-    element: { readonly key: ElementKey; readonly style: { readonly fontColor: string } },
+    element: {
+      readonly key: ElementKey;
+      readonly style: { readonly fontColor: string; readonly fill?: string };
+    },
   ): TextLayout | undefined => {
     if (
       layout?.runs === undefined ||
@@ -1108,7 +1116,10 @@ export function writeStructuredSvg(
                 fill:
                   theme?.dim !== undefined && ir.dimmed?.includes(element.key)
                     ? color
-                    : (theme?.toneLines.get(run.tone)?.fontColor ?? color),
+                    : onFill(
+                        theme?.toneLines.get(run.tone)?.fontColor ?? color,
+                        element.style.fill,
+                      ),
               },
         ),
       ),
