@@ -499,7 +499,7 @@ function renderComposer() {
       (x, i) => `
     <div class="tone">
       <input type="text" id="tone-m-${i}" data-i="${i}" data-f="0" value="${esc(x[0])}" placeholder="${esc(t("toneMeaning"))}" aria-label="${esc(t("toneMeaning"))}">
-      <select id="tone-t-${i}" data-i="${i}" data-f="1" aria-label="tone ${i + 1}">${TONES.map((k) => `<option ${x[1] === k ? "selected" : ""}>${k}</option>`).join("")}</select>
+      <select id="tone-t-${i}" data-i="${i}" data-f="1" aria-label="${esc(t("toneColor")(i + 1))}">${TONES.map((k) => `<option ${x[1] === k ? "selected" : ""}>${k}</option>`).join("")}</select>
       <button type="button" class="x" data-del="${i}" aria-label="${t("remove")}">×</button>
     </div>`,
     )

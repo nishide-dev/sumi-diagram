@@ -49,6 +49,7 @@ export const T = {
     styleHint: (t: string, p: string) =>
       `Theme ${t}${p ? `, palette ${p}` : ""} (set above). Give colours a meaning here if the figure needs them.`,
     toneMeaning: "Meaning, e.g. external service",
+    toneColor: (n: number) => `Tone for meaning ${n}`,
     remove: "Remove",
     ready: "Ready to copy",
     missing: "Missing",
@@ -121,6 +122,7 @@ export const T = {
     styleHint: (t: string, p: string) =>
       `テーマ ${t}${p ? `、パレット ${p}` : ""}（上で選択）。色に意味を持たせる場合はここで指定します。`,
     toneMeaning: "意味（例: 外部サービス）",
+    toneColor: (n: number) => `意味 ${n} のトーン`,
     remove: "削除",
     ready: "コピーできます",
     missing: "未入力",
