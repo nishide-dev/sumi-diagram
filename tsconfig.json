@@ -13,6 +13,6 @@
     "noEmit": true,
     "types": ["bun"]
   },
-  "include": ["src/**/*.ts", "scripts/**/*.ts", "research/**/*.ts"],
+  "include": ["src/**/*.ts", "scripts/**/*.ts", "site/**/*.ts", "research/**/*.ts"],
   "exclude": ["research/277-html-subset/**"]
 }

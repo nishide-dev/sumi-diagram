@@ -25,6 +25,8 @@
     "example:render": "bun scripts/render-example.ts",
     "gallery": "bun scripts/gallery.ts",
     "gallery:check": "bun scripts/gallery.ts --check",
+    "site:build": "bun scripts/site/build.ts",
+    "site:serve": "bun scripts/site/serve.ts",
     "skill:previews": "bun scripts/skill-example-previews.ts",
     "commitlint": "bun scripts/commitlint.ts",
     "release:build": "bun scripts/build-release.ts",
