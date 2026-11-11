@@ -16,6 +16,8 @@ on:
       - "tests/fixtures/assets/**"
       - "package.json"
       - "bun.lock"
+      - ".bun-version"
+      - "scripts/install-d2.ts"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -69,6 +71,8 @@ jobs:
   deploy:
     name: Deploy
     needs: build
+    # A manual run from another branch builds but never replaces the published site.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
