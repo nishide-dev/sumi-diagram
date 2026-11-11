@@ -30,7 +30,7 @@
   </tr>
 </table>
 
-[コンポーネントギャラリー](gallery/README.md)と [YAML 付きの作例](../examples/README.md)をご覧ください。
+[Web サイト](https://nishide-dev.github.io/sumi-diagram/)（作例、全テーマ・パレットのコンポーネント、コーディングエージェント向けのプロンプト作成）、[コンポーネントギャラリー](gallery/README.md)、[YAML 付きの作例](../examples/README.md)をご覧ください。
 
 ## インストール
 
