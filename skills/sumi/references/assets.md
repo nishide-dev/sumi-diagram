@@ -162,8 +162,6 @@ feature vector a paper figure draws at the corner of an icon:
   separators, staying inside it (subdirectories fine; `..`, absolute paths and
   URLs are not; a symlink leading outside is refused at render). Copy the file
   next to the YAML if needed, after asking the user.
-- The website's `sumi/image` sample provides download links for its image files;
-  save them next to the copied YAML before rendering it.
 - `width` / `height`: at least one (lengths with a unit, multiples of 0.5pt); the
   other follows the aspect ratio. With both, `fit`: `contain` (whole image,
   margins), `cover` (fills, crops), `fill` (stretches).
