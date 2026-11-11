@@ -1,8 +1,16 @@
-// @ts-nocheck
 import { HOME, PH, T } from "./i18n";
-import { AGENTS, buildPrompt, KINDS, LAYOUTS, PLACES, PURPOSES, TONES } from "./prompt";
+import {
+  AGENTS,
+  buildPrompt,
+  KINDS,
+  LAYOUTS,
+  PLACES,
+  type PromptState,
+  PURPOSES,
+  TONES,
+} from "./prompt";
 import { sampleSource } from "./source";
-import { loadData } from "./types";
+import { loadData, type SiteData } from "./types";
 
 const ICON = {
   system:
@@ -14,26 +22,30 @@ const ICON = {
   check:
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
 };
-const $ = (id) => document.getElementById(id);
-const esc = (s) =>
+const $ = (id: string): HTMLElement => {
+  const el = document.getElementById(id);
+  if (!el) throw new Error(`Missing element: ${id}`);
+  return el;
+};
+const esc = (s: unknown) =>
   String(s).replace(
     /[&<>"]/g,
-    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] ?? c,
   );
-const lines = (s) =>
+const lines = (s: string) =>
   s
     .split(/\n+/)
     .map((x) => x.trim())
     .filter(Boolean);
 const store = {
-  get(k, d) {
+  get(k: string, d: string) {
     try {
       return localStorage.getItem(k) ?? d;
     } catch (e) {
       return d;
     }
   },
-  set(k, v) {
+  set(k: string, v: string) {
     try {
       localStorage.setItem(k, v);
     } catch (e) {}
@@ -42,8 +54,8 @@ const store = {
 
 /* ---------- UI strings ---------- */
 /* ---------- state ---------- */
-const state = {
-  ui: store.get("sumi-ui-lang", "en"),
+const state: PromptState = {
+  ui: store.get("sumi-ui-lang", "en") === "ja" ? "ja" : "en",
   theme: store.get("sumi-figure-theme", "paper"),
   palette: store.get("sumi-figure-palette", ""),
   purpose: "explain",
@@ -63,11 +75,10 @@ const state = {
   agent: "claude",
   extra: "",
 };
-const t = (k) => T[state.ui][k];
-/** @type {import("./types").SiteData | null} */
-let DATA = null;
+const t = <K extends keyof typeof T.en>(k: K): (typeof T.en)[K] => T[state.ui][k];
+let DATA: SiteData;
 
-async function copyText(text, el, labelKey) {
+async function copyText(text: string, el: HTMLElement, labelKey: "copy") {
   try {
     await navigator.clipboard.writeText(text);
     el.innerHTML = `${ICON.check}${t("copied")}`;
@@ -93,20 +104,22 @@ async function copyText(text, el, labelKey) {
 }
 
 /* ---------- site light/dark ---------- */
-const ORDER = ["system", "light", "dark"];
-let sitePref = store.get("sumi-site-theme", "system");
+const ORDER = ["system", "light", "dark"] as const;
+type SitePref = (typeof ORDER)[number];
+const savedPref = store.get("sumi-site-theme", "system");
+let sitePref: SitePref = ORDER.find((x) => x === savedPref) ?? "system";
 function applySiteTheme() {
   if (sitePref === "system") document.documentElement.removeAttribute("data-theme");
   else document.documentElement.setAttribute("data-theme", sitePref);
   const names = t("siteTheme"),
-    next = ORDER[(ORDER.indexOf(sitePref) + 1) % 3];
+    next = ORDER[(ORDER.indexOf(sitePref) + 1) % 3] ?? "system";
   const b = $("site-theme");
   b.innerHTML = ICON[sitePref];
   b.title = names[sitePref];
   b.setAttribute("aria-label", t("themeLabel")(names[sitePref], names[next]));
 }
 $("site-theme").onclick = () => {
-  sitePref = ORDER[(ORDER.indexOf(sitePref) + 1) % 3];
+  sitePref = ORDER[(ORDER.indexOf(sitePref) + 1) % 3] ?? "system";
   store.set("sumi-site-theme", sitePref);
   applySiteTheme();
 };
@@ -129,15 +142,15 @@ function renderFigbar() {
   $("sumi-palette").setAttribute("aria-label", "Palette");
 }
 $("sumi-theme").addEventListener("click", (e) => {
-  const b = e.target.closest("button");
-  if (!b) return;
+  const b = e.target instanceof Element ? e.target.closest("button") : null;
+  if (!b || b.dataset.t === undefined) return;
   state.theme = b.dataset.t;
   store.set("sumi-figure-theme", state.theme);
   figureChanged();
 });
 $("sumi-palette").addEventListener("click", (e) => {
-  const b = e.target.closest("button");
-  if (!b) return;
+  const b = e.target instanceof Element ? e.target.closest("button") : null;
+  if (!b || b.dataset.p === undefined) return;
   state.palette = b.dataset.p;
   store.set("sumi-figure-palette", state.palette);
   figureChanged();
@@ -145,17 +158,21 @@ $("sumi-palette").addEventListener("click", (e) => {
 async function figureChanged() {
   renderFigbar();
   renderComposer();
-  for (const el of document.querySelectorAll(".item pre"))
-    el.innerHTML = highlightYaml(yamlOfKey(el.closest(".item").dataset.key));
-  for (const el of document.querySelectorAll(".item")) {
+  for (const el of document.querySelectorAll<HTMLElement>(".item pre")) {
+    const key = el.closest<HTMLElement>(".item")?.dataset.key;
+    if (key) el.innerHTML = highlightYaml(yamlOfKey(key));
+  }
+  for (const el of document.querySelectorAll<HTMLElement>(".item")) {
     const img = el.querySelector("img");
-    img.src = `./figures/${state.theme}/${state.palette || "base"}/${ITEMS.get(el.dataset.key).slug}.svg`;
+    const item = el.dataset.key ? ITEMS.get(el.dataset.key) : undefined;
+    if (!img || !item) continue;
+    img.src = `./figures/${state.theme}/${state.palette || "base"}/${item.slug}.svg`;
     img.alt = `${el.dataset.title} (${state.theme}${state.palette ? `, ${state.palette}` : ""})`;
   }
 }
 
 /* ---------- YAML ---------- */
-function highlightYaml(y, marks = true) {
+function highlightYaml(y: string, marks = true) {
   return y
     .replace(/\n$/, "")
     .split("\n")
@@ -171,7 +188,7 @@ function highlightYaml(y, marks = true) {
     })
     .join("\n");
 }
-function viewer(key, title, extraClass = "") {
+function viewer(key: string, title: string, extraClass = "") {
   return `
     <div class="view" data-view-of="${key}">
       <div class="view-bar">
@@ -186,18 +203,22 @@ function viewer(key, title, extraClass = "") {
     </div>`;
 }
 document.addEventListener("click", (e) => {
-  const v = e.target.closest("[data-view]");
+  const target = e.target instanceof Element ? e.target : null;
+  const v = target?.closest<HTMLElement>("[data-view]");
   if (v) {
     const box = v.closest(".view");
     const code = v.dataset.view === "code";
-    box.querySelector(".stage").hidden = code;
-    box.querySelector("pre").hidden = !code;
+    const stage = box?.querySelector<HTMLElement>(".stage");
+    const pre = box?.querySelector("pre");
+    if (!box || !stage || !pre) return;
+    stage.hidden = code;
+    pre.hidden = !code;
     for (const b of box.querySelectorAll("[data-view]"))
       b.setAttribute("aria-pressed", String(b === v));
     return;
   }
-  const c = e.target.closest("[data-copy]");
-  if (c) copyText(yamlOfKey(c.dataset.copy), c, "copy");
+  const c = target?.closest<HTMLElement>("[data-copy]");
+  if (c?.dataset.copy) copyText(yamlOfKey(c.dataset.copy), c, "copy");
 });
 
 /* ---------- home (README) ---------- */
@@ -220,14 +241,14 @@ sumi lint hello.sumi.yaml
 sumi render hello.sumi.yaml                 # writes hello.svg
 sumi render hello.sumi.yaml -o hello.pdf    # writes a vector PDF`;
 const SNIP = { install: INSTALL, skill: SKILL, hello: HELLO, run: RUN };
-function cmd(key, yaml) {
+function cmd(key: keyof typeof SNIP, yaml = false) {
   return `<div class="cmd"><pre>${yaml ? highlightYaml(SNIP[key], false) : esc(SNIP[key])}</pre><button type="button" class="copy-sm" data-snip="${key}">${ICON.copy}${t("copy")}</button></div>`;
 }
 function renderHome() {
   const H = HOME[state.ui];
   const shown = ["transformer", "dit-block", "embedding-gemma", "clip"]
     .map((s) => DATA?.examples.find((x) => x.slug === s))
-    .filter(Boolean);
+    .filter((x) => x !== undefined);
   $("page-home").innerHTML = `
     <h2 class="tagline">${H.tagline}</h2>
     <p class="intro">${H.intro}</p>
@@ -242,13 +263,14 @@ function renderHome() {
     <div class="hrow"><span class="label">${H.license}</span><div class="body"><p class="sub">${H.licenseText}</p></div></div>`;
 }
 document.addEventListener("click", (e) => {
-  const b = e.target.closest("[data-snip]");
-  if (b) copyText(SNIP[b.dataset.snip], b, "copy");
+  const b = e.target instanceof Element ? e.target.closest<HTMLElement>("[data-snip]") : null;
+  const key = b?.dataset.snip;
+  if (b && key && key in SNIP) copyText(SNIP[key as keyof typeof SNIP], b, "copy");
 });
 
 /* ---------- examples ---------- */
 function renderExamples() {
-  const fig = (x) => `
+  const fig = (x: SiteData["examples"][number]) => `
     <li class="fig">
       <div class="cap">
         <h3>${esc(x.title)}</h3>
@@ -258,18 +280,21 @@ function renderExamples() {
     </li>`;
   const repro = DATA.examples.filter((x) => x.paperUrl),
     generic = DATA.examples.filter((x) => !x.paperUrl);
-  $("examples").innerHTML = `
+  $("example-list").innerHTML = `
     <div class="ex-group" style="margin-top:36px"><h3 class="label">${t("reproductions")} · ${repro.length}</h3><ul class="figs">${repro.map(fig).join("")}</ul></div>
     <div class="ex-group"><h3 class="label">${t("generic")} · ${generic.length}</h3><ul class="figs">${generic.map(fig).join("")}</ul></div>`;
   for (const x of DATA.examples) {
     const box = document.querySelector(`[data-view-of="e-${x.slug}"]`);
-    box.querySelector("img").src = `./examples/${x.slug}.svg`;
-    box.querySelector("pre").innerHTML = highlightYaml(x.source, false);
+    const img = box?.querySelector("img");
+    const pre = box?.querySelector("pre");
+    if (!img || !pre) continue;
+    img.src = `./examples/${x.slug}.svg`;
+    pre.innerHTML = highlightYaml(x.source, false);
   }
 }
 
 /* ---------- components ---------- */
-const GROUPS = [
+const GROUPS: [string, string[]][] = [
   [
     "Shapes",
     [
@@ -293,16 +318,38 @@ const GROUPS = [
   ["Groups", ["container"]],
   ["Edges", ["arrow", "line", "double-arrow", "zoom"]],
 ];
-function itemList() {
+type ComponentItem = {
+  key: string;
+  type: "component";
+  slug: string;
+  c: SiteData["components"][number];
+  title: string;
+};
+type FeatureItem = {
+  key: string;
+  type: "feature";
+  slug: string;
+  f: SiteData["options"][number];
+  title: string;
+};
+type Item = ComponentItem | FeatureItem;
+function itemList(): [string, Item[]][] {
   const comp = new Map(DATA.components.map((c) => [c.id.replace("sumi/", ""), c]));
-  const C = (i) => ({
-    key: `c-${comp.get(i).slug}`,
-    type: "component",
-    slug: comp.get(i).slug,
-    c: comp.get(i),
-    title: comp.get(i).id,
-  });
-  const groups = GROUPS.map(([name, ids]) => [name, ids.filter((i) => comp.has(i)).map(C)]);
+  const C = (i: string): ComponentItem => {
+    const c = comp.get(i);
+    if (!c) throw new Error(`Missing component: ${i}`);
+    return {
+      key: `c-${c.slug}`,
+      type: "component",
+      slug: c.slug,
+      c,
+      title: c.id,
+    };
+  };
+  const groups: [string, Item[]][] = GROUPS.map(([name, ids]) => [
+    name,
+    ids.filter((i) => comp.has(i)).map(C),
+  ]);
   const listed = new Set(GROUPS.flatMap((g) => g[1]));
   const rest = [...comp.keys()].filter((k) => !listed.has(k));
   if (rest.length) groups.push(["Other", rest.map(C)]);
@@ -318,17 +365,15 @@ function itemList() {
   ]);
   return groups;
 }
-let ITEMS = new Map();
-function yamlOfKey(key) {
-  if (key.startsWith("e-")) return DATA.examples.find((x) => `e-${x.slug}` === key).source;
+let ITEMS = new Map<string, Item>();
+function yamlOfKey(key: string): string {
+  if (key.startsWith("e-")) return DATA.examples.find((x) => `e-${x.slug}` === key)?.source ?? "";
   const it = ITEMS.get(key);
+  if (!it) throw new Error(`Missing item: ${key}`);
   const src = it.type === "component" ? it.c : it.f;
-  return sampleSource(
-    src.source,
-    state.theme,
-    src.profiles[state.theme],
-    state.palette || undefined,
-  );
+  const profile = src.profiles[state.theme];
+  if (!profile) throw new Error(`Missing profile for theme: ${state.theme}`);
+  return sampleSource(src.source, state.theme, profile, state.palette || undefined);
 }
 function renderLibrary() {
   const groups = itemList();
@@ -342,7 +387,13 @@ function renderLibrary() {
   $("items").innerHTML = [...ITEMS.values()]
     .map((it) => {
       const desc = it.type === "component" ? it.c.description : it.f.description;
-      const schema = it.type === "component" ? it.c.props : {};
+      const schema = (it.type === "component" ? it.c.props : {}) as {
+        properties?: Record<
+          string,
+          { enum?: unknown[]; type?: string | string[]; description?: string }
+        >;
+        required?: string[];
+      };
       const props = Object.entries(schema.properties || {}).map(([name, p]) => ({
         name,
         type: p.enum
@@ -373,28 +424,31 @@ function renderLibrary() {
     .join("");
   for (const el of document.querySelectorAll(".item")) spy.observe(el);
 }
-function go(key) {
-  $(key)?.scrollIntoView({
+function go(key: string) {
+  document.getElementById(key)?.scrollIntoView({
     behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
     block: "start",
   });
 }
 $("side").addEventListener("click", (e) => {
-  const b = e.target.closest("[data-go]");
-  if (b) go(b.dataset.go);
+  const b = e.target instanceof Element ? e.target.closest<HTMLElement>("[data-go]") : null;
+  if (b?.dataset.go) go(b.dataset.go);
 });
 const spy = new IntersectionObserver(
   (entries) => {
     for (const en of entries)
       if (en.isIntersecting)
-        for (const b of $("side").querySelectorAll("[data-go]"))
+        for (const b of $("side").querySelectorAll<HTMLElement>("[data-go]"))
           b.setAttribute("aria-current", String(b.dataset.go === en.target.id));
   },
   { rootMargin: "0px 0px -70% 0px" },
 );
 
 /* ---------- prompt ---------- */
-function seg(el, items, key, inner) {
+function seg<
+  K extends "purpose" | "kind" | "place" | "layout" | "agent",
+  I extends { id: PromptState[K] },
+>(el: HTMLElement, items: readonly I[], key: K, inner: (item: I) => string) {
   el.innerHTML = items
     .map(
       (it) =>
@@ -402,9 +456,10 @@ function seg(el, items, key, inner) {
     )
     .join("");
   el.onclick = (e) => {
-    const b = e.target.closest("button");
-    if (!b) return;
-    state[key] = b.dataset.v;
+    const b = e.target instanceof Element ? e.target.closest("button") : null;
+    const selected = items.find((item) => item.id === b?.dataset.v);
+    if (!selected) return;
+    state[key] = selected.id;
     renderComposer();
   };
 }
@@ -438,13 +493,19 @@ function renderComposer() {
 }
 $("tones").addEventListener("input", (e) => {
   const el = e.target;
-  if (el.dataset.i === undefined) return;
-  state.tones[+el.dataset.i][+el.dataset.f] = el.value;
+  if (
+    !(el instanceof HTMLInputElement || el instanceof HTMLSelectElement) ||
+    el.dataset.i === undefined
+  )
+    return;
+  const tone = state.tones[+el.dataset.i];
+  if (!tone || (el.dataset.f !== "0" && el.dataset.f !== "1")) return;
+  tone[+el.dataset.f as 0 | 1] = el.value;
   renderPrompt();
 });
 $("tones").addEventListener("click", (e) => {
-  const b = e.target.closest("[data-del]");
-  if (!b) return;
+  const b = e.target instanceof Element ? e.target.closest<HTMLElement>("[data-del]") : null;
+  if (!b || b.dataset.del === undefined) return;
   state.tones.splice(+b.dataset.del, 1);
   renderComposer();
 });
@@ -454,22 +515,30 @@ $("add-tone").onclick = () => {
   renderComposer();
 };
 $("purpose-custom").addEventListener("input", (e) => {
+  if (!(e.target instanceof HTMLInputElement)) return;
   state.purposeText = e.target.value;
   renderPrompt();
 });
 $("kind-custom").addEventListener("input", (e) => {
+  if (!(e.target instanceof HTMLInputElement)) return;
   state.kindText = e.target.value;
   renderPrompt();
 });
-for (const k of ["refs", "target", "figid", "content", "maxh", "layoutnote", "extra", "labellang"])
+for (const k of ["refs", "target", "figid", "content", "maxh", "layoutnote", "extra"] as const)
   $(k).addEventListener("input", (e) => {
+    if (!(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) return;
     state[k] = e.target.value;
     renderPrompt();
   });
+$("labellang").addEventListener("input", (e) => {
+  if (!(e.target instanceof HTMLSelectElement)) return;
+  state.labellang = e.target.value === "ja" ? "ja" : "en";
+  renderPrompt();
+});
 
 function renderPrompt() {
   const text = buildPrompt(state);
-  $("prompt").innerHTML = text
+  $("prompt-output").innerHTML = text
     .split("\n")
     .map((l) =>
       l.startsWith("## ")
@@ -499,11 +568,21 @@ function applyLang() {
   document.documentElement.lang = state.ui;
   for (const b of $("ui-lang").querySelectorAll("button"))
     b.setAttribute("aria-pressed", String(b.dataset.l === state.ui));
-  for (const el of document.querySelectorAll("[data-i18n]")) el.textContent = t(el.dataset.i18n);
-  for (const [k, v] of Object.entries(PH[state.ui])) $(k).placeholder = v;
+  for (const el of document.querySelectorAll<HTMLElement>("[data-i18n]")) {
+    const key = el.dataset.i18n;
+    if (key && key in T.en) {
+      const value = t(key as keyof typeof T.en);
+      if (typeof value === "string") el.textContent = value;
+    }
+  }
+  for (const [k, v] of Object.entries(PH[state.ui])) {
+    const el = $(k);
+    if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) el.placeholder = v;
+  }
   $("labellang").innerHTML =
     `<option value="en">${t("langEn")}</option><option value="ja">${t("langJa")}</option>`;
-  $("labellang").value = state.labellang;
+  const labelLang = $("labellang");
+  if (labelLang instanceof HTMLSelectElement) labelLang.value = state.labellang;
   $("add-tone").textContent = t("addTone");
   $("copy").innerHTML = `${ICON.copy}${t("copy")}`;
   applySiteTheme();
@@ -517,8 +596,8 @@ function applyLang() {
   renderComposer();
 }
 $("ui-lang").addEventListener("click", (e) => {
-  const b = e.target.closest("button");
-  if (!b) return;
+  const b = e.target instanceof Element ? e.target.closest("button") : null;
+  if (!b || (b.dataset.l !== "en" && b.dataset.l !== "ja")) return;
   state.ui = b.dataset.l;
   store.set("sumi-ui-lang", state.ui);
   applyLang();
@@ -542,11 +621,11 @@ applyLang();
 loadData()
   .then((d) => {
     DATA = d;
-    if (!d.themes.includes(state.theme)) state.theme = d.themes[0];
+    if (!d.themes.includes(state.theme)) state.theme = d.themes[0] ?? "paper";
     if (state.palette && !d.palettes.some((p) => p.id === state.palette)) state.palette = "";
     $("ver").textContent = `v${d.version}`;
     applyLang();
   })
   .catch(() => {
-    $("examples").innerHTML = `<p class="lead">${t("loadFail")}</p>`;
+    $("example-list").innerHTML = `<p class="lead">${t("loadFail")}</p>`;
   });

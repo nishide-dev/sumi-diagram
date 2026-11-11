@@ -147,6 +147,7 @@ code {
 /* text toggles: one control style for page nav, language, theme, palette, tabs */
 .tg {
   display: flex;
+  min-width: 0;
   flex-wrap: wrap;
   gap: 4px 14px;
   align-items: baseline;
@@ -504,6 +505,15 @@ main {
   display: grid;
   grid-template-columns: 12rem minmax(0, 1fr);
   gap: 48px;
+}
+main,
+section,
+.figbar > *,
+.lib > *,
+.view pre,
+.props-wrap,
+.output-inner {
+  min-width: 0;
 }
 .side {
   position: sticky;

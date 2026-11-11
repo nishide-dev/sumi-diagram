@@ -1,4 +1,13 @@
-import type { componentData, exampleMetadata, optionData } from "../scripts/site/data";
+import type { componentData, optionData } from "../scripts/site/data";
+
+export interface ExampleData {
+  slug: string;
+  title: string;
+  theme: string;
+  profile: string;
+  source: string;
+  paperUrl?: string;
+}
 
 export interface SiteData {
   version: string;
@@ -6,7 +15,7 @@ export interface SiteData {
   palettes: { id: string; colors: readonly string[] }[];
   components: ReturnType<typeof componentData>[];
   options: ReturnType<typeof optionData>[];
-  examples: ReturnType<typeof exampleMetadata>[];
+  examples: ExampleData[];
 }
 
 export async function loadData(): Promise<SiteData> {
