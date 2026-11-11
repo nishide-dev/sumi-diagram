@@ -1089,8 +1089,9 @@ export function writeStructuredSvg(
   const builtin = getTheme(ir.meta.themeId);
   // Inline tone runs take the figure's tone colors (#380).
   const theme = builtin && figureTheme(builtin, ir.meta.themeOverrides);
-  // A coloured run keeps its tone's line color on white and on its own tone's tint (#186); on
-  // another fill (a red node's \textcolor{yellow}{…}) it darkens until it reads at 4.5:1 (#465).
+  // A coloured run keeps its tone's line color on white and on its own tone's tint (#186); inside
+  // a node of another fill (a red node's \textcolor{yellow}{…}) it darkens until it reads at
+  // 4.5:1 there (#465).
   const onFill = (color: string, fill: string | undefined, tone: Tone): string =>
     fill === undefined ||
     color === fill ||
@@ -1099,10 +1100,10 @@ export function writeStructuredSvg(
       : readableInk(fill, color);
   const colored = (
     layout: TextLayout | undefined,
-    element: {
-      readonly key: ElementKey;
-      readonly style: { readonly fontColor: string; readonly fill?: string };
-    },
+    element: { readonly key: ElementKey; readonly style: { readonly fontColor: string } },
+    // The fill the text sits on, when it is known: a node's own fill. Group, set and edge labels
+    // may sit outside their frame or on whatever is painted below, so they pass none.
+    background?: string,
   ): TextLayout | undefined => {
     if (
       layout?.runs === undefined ||
@@ -1123,7 +1124,7 @@ export function writeStructuredSvg(
                     ? color
                     : onFill(
                         theme?.toneLines.get(run.tone)?.fontColor ?? color,
-                        element.style.fill,
+                        background,
                         run.tone,
                       ),
               },
@@ -1188,9 +1189,9 @@ export function writeStructuredSvg(
       objectGroup(
         node,
         nodeShape(imagePlaceholder(node), placed.rect),
-        colored(placed.label, node),
+        colored(placed.label, node, node.style.fill),
         asset,
-        colored(placed.sublabel, node),
+        colored(placed.sublabel, node, node.style.fill),
         badgeMarkup(node, assets?.badges?.get(node.key), placed.rect) +
           glyphMarkup(node, placed.rect),
       ),

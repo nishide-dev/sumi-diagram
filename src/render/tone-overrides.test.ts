@@ -320,3 +320,30 @@ nodes:
       colour,
     ).toBeGreaterThanOrEqual(4.5);
 });
+
+test("an edge label's coloured run is not adjusted against the edge's style fill (#465)", async () => {
+  const source = `version: 1
+figure:
+  id: edge-runs
+  theme: paper
+  themeOverrides:
+    groupFill: "#222222"
+    tones:
+      blue: { line: "#eeeeee" }
+  layout: { arrange: { stack: { items: [panel] } } }
+groups:
+  - id: panel
+    arrange: { row: { gap: 20mm, items: [a, b] } }
+nodes:
+  - { id: a, component: box, label: A }
+  - { id: b, component: box, label: B }
+edges:
+  - { from: a, to: b, label: '$\\textcolor{blue}{\\text{light}}$' }
+`;
+  const result = await renderFigure(source);
+  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+  const runs = [...result.value.svg.matchAll(/<tspan[^>]*fill="(#[0-9a-f]{6})"/gi)].map(
+    (m) => m[1] as string,
+  );
+  expect(runs).toContain("#eeeeee");
+});
