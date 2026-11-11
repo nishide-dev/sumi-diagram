@@ -438,8 +438,3 @@ Points to note (the YAML comments say the rest): (b) and (c) put their stack in 
 `row` with `align: end` so their inputs sit at the bottom, level with (a)'s; every panel
 reads bottom to top and repeats the tones of the same parts (norms `blue`). Had the
 figure been wider than 180mm, `render` would print `scaled to …%`: tell the user.
-
-# Website gallery
-
-In the repository, `bun run site:build` generates the static site with component previews, examples and a prompt composer; `bun run site:serve` serves the build locally.
-The site supports English and Japanese and shares figure theme and palette choices between the component previews and prompt composer.

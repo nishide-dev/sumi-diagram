@@ -56,6 +56,7 @@ PR を出す前に `bun run check`、`bun run typecheck`、`bun run test` がす
 | `bun run release:build --target <target>` | tarball を `dist/release/` に作成 |
 | `bun run release:smoke <tarball>` | 展開し、Bun・Node.js のない PATH で version・doctor・SVG/PDF/PPTX 描画とインストーラーを検証 |
 | `bun run gallery` / `gallery:check` | ギャラリーと examples の SVG/PDF を再生成 / 差分検査 |
+| `bun run site:build` / `site:serve` | GitHub Pages のサイトを `dist/site/` に生成（全テーマ × パレットの見本を描画） / ローカルで確認 |
 | `shellcheck --shell=sh install.sh` | POSIX インストーラーの静的検査 |
 
 ### ディレクトリ構成
