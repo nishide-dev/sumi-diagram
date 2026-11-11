@@ -1,3 +1,4 @@
+import { descriptionHtml } from "./description";
 import { HOME, PH, T } from "./i18n";
 import {
   AGENTS,
@@ -126,20 +127,28 @@ $("site-theme").onclick = () => {
 
 /* ---------- figure theme + palette (bundles) ---------- */
 function renderFigbar() {
-  $("sumi-theme").innerHTML = DATA.themes
-    .map(
-      (x) =>
-        `<button type="button" data-t="${x}" aria-pressed="${state.theme === x}">${x}</button>`,
-    )
-    .join("");
-  $("sumi-palette").innerHTML = [{ id: "", colors: [] }, ...DATA.palettes]
-    .map(
-      (p) =>
-        `<button type="button" data-p="${p.id}" aria-pressed="${state.palette === p.id}">${p.colors.length ? `<span class="sw" aria-hidden="true">${p.colors.map((c) => `<i style="background:${c}"></i>`).join("")}</span>` : ""}${p.id || t("none")}</button>`,
-    )
-    .join("");
-  $("sumi-theme").setAttribute("aria-label", "Theme");
-  $("sumi-palette").setAttribute("aria-label", "Palette");
+  if (!$("sumi-theme").children.length) {
+    $("sumi-theme").innerHTML = DATA.themes
+      .map(
+        (x) =>
+          `<button type="button" data-t="${x}" aria-pressed="${state.theme === x}">${x}</button>`,
+      )
+      .join("");
+    $("sumi-palette").innerHTML = [{ id: "", colors: [] }, ...DATA.palettes]
+      .map(
+        (p) =>
+          `<button type="button" data-p="${p.id}" aria-pressed="${state.palette === p.id}">${p.colors.length ? `<span class="sw" aria-hidden="true">${p.colors.map((c) => `<i style="background:${c}"></i>`).join("")}</span>` : ""}${p.id || t("none")}</button>`,
+      )
+      .join("");
+  }
+  for (const b of $("sumi-theme").querySelectorAll<HTMLElement>("button"))
+    b.setAttribute("aria-pressed", String(b.dataset.t === state.theme));
+  for (const b of $("sumi-palette").querySelectorAll<HTMLElement>("button")) {
+    b.setAttribute("aria-pressed", String(b.dataset.p === state.palette));
+    if (b.dataset.p === "") b.textContent = t("none");
+  }
+  $("sumi-theme").setAttribute("aria-label", t("theme"));
+  $("sumi-palette").setAttribute("aria-label", t("palette"));
 }
 $("sumi-theme").addEventListener("click", (e) => {
   const b = e.target instanceof Element ? e.target.closest("button") : null;
@@ -381,7 +390,7 @@ function renderLibrary() {
   $("side").innerHTML = groups
     .map(
       ([name, its]) =>
-        `<div><span class="label">${name}</span><ul>${its.map((it) => `<li><button type="button" data-go="${it.key}">${esc(it.type === "component" ? it.c.id.replace("sumi/", "") : it.title)}</button></li>`).join("")}</ul></div>`,
+        `<div><span class="label">${t("groups")[[...GROUPS.map(([group]) => group), "Other", "Options"].indexOf(name)] ?? name}</span><ul>${its.map((it) => `<li><button type="button" data-go="${it.key}">${esc(it.type === "component" ? it.c.id.replace("sumi/", "") : it.title)}</button></li>`).join("")}</ul></div>`,
     )
     .join("");
   $("items").innerHTML = [...ITEMS.values()]
@@ -416,8 +425,9 @@ function renderLibrary() {
       return `
       <article class="item" id="${it.key}" data-key="${it.key}" data-title="${esc(it.title)}">
         <div class="item-head"><h3>${esc(it.title)}</h3>${it.type === "feature" ? `<span class="meta">${t("option")}</span>` : ""}</div>
-        <p>${desc}</p>
+        <p>${descriptionHtml(desc)}</p>
         ${viewer(it.key, it.title)}
+        ${it.type === "component" && it.c.id === "sumi/image" ? `<p class="meta">${t("sampleAssets")} <a href="./sample-assets/gradient.png" download>gradient.png</a>, <a href="./sample-assets/shapes.svg" download>shapes.svg</a></p>` : ""}
         ${specs}
       </article>`;
     })
@@ -449,12 +459,17 @@ function seg<
   K extends "purpose" | "kind" | "place" | "layout" | "agent",
   I extends { id: PromptState[K] },
 >(el: HTMLElement, items: readonly I[], key: K, inner: (item: I) => string) {
-  el.innerHTML = items
-    .map(
-      (it) =>
-        `<button type="button" data-v="${it.id}" aria-pressed="${state[key] === it.id}">${inner(it)}</button>`,
-    )
-    .join("");
+  if (!el.children.length || el.dataset.lang !== state.ui) {
+    el.dataset.lang = state.ui;
+    el.innerHTML = items
+      .map(
+        (it) =>
+          `<button type="button" data-v="${it.id}" aria-pressed="${state[key] === it.id}">${inner(it)}</button>`,
+      )
+      .join("");
+  }
+  for (const button of el.querySelectorAll<HTMLElement>("button"))
+    button.setAttribute("aria-pressed", String(button.dataset.v === state[key]));
   el.onclick = (e) => {
     const b = e.target instanceof Element ? e.target.closest("button") : null;
     const selected = items.find((item) => item.id === b?.dataset.v);
@@ -579,6 +594,8 @@ function applyLang() {
     const el = $(k);
     if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) el.placeholder = v;
   }
+  $("purpose-custom").setAttribute("aria-label", t("customGoal"));
+  $("kind-custom").setAttribute("aria-label", t("customFigure"));
   $("labellang").innerHTML =
     `<option value="en">${t("langEn")}</option><option value="ja">${t("langJa")}</option>`;
   const labelLang = $("labellang");

@@ -65,6 +65,9 @@ for (const path of tracked.split("\0").filter(Boolean)) {
 examples.sort((a, b) => a.slug.localeCompare(b.slug));
 await rm(out, { recursive: true, force: true });
 await mkdir(`${out}/examples`, { recursive: true });
+await mkdir(`${out}/sample-assets`, { recursive: true });
+for (const name of ["gradient.png", "shapes.svg"])
+  await copyFile(`tests/fixtures/assets/${name}`, `${out}/sample-assets/${name}`);
 for (const example of examples)
   await copyFile(
     `examples/${example.slug}/${example.slug}.svg`,
