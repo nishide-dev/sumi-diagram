@@ -2,8 +2,6 @@
 
 Keep paper reproductions faithful to their originals; record lint findings as expected diagnostics rather than editing a figure to silence them. In the repository, intended bundled example changes also require the hash update described in CONTRIBUTING.md (design #462).
 
-In the repository, `bun run site:build` also prepares theme and palette previews from the gallery samples (design #469).
-
 These are runs of the workflow. For finished figures to look at before writing and compare with after rendering, see the [bundled reference figures](../examples/README.md) (PNG and YAML); they are idiom references, not content to copy.
 
 **Purpose.** Real runs of the workflow (outputs abbreviated); `sumi` is the

@@ -50,12 +50,17 @@ const options = [
   },
 ];
 const examples = [];
-const glob = new Bun.Glob("*/*.sumi.yaml");
-for await (const path of glob.scan({ cwd: "examples", followSymlinks: true })) {
-  const [slug, name] = path.split("/");
-  if (!slug || name !== `${slug}.sumi.yaml` || slug.includes("c-h3world")) continue;
-  const source = await Bun.file(`examples/${path}`).text();
-  examples.push(exampleMetadata(slug, source));
+// Only the committed examples: a local, untracked figure never reaches the public site.
+const tracked = Bun.spawnSync([
+  "git",
+  "ls-files",
+  "-z",
+  "examples/*/*.sumi.yaml",
+]).stdout.toString();
+for (const path of tracked.split("\0").filter(Boolean)) {
+  const [, slug, name] = path.split("/");
+  if (!slug || name !== `${slug}.sumi.yaml`) continue;
+  examples.push(exampleMetadata(slug, await Bun.file(path).text()));
 }
 examples.sort((a, b) => a.slug.localeCompare(b.slug));
 await rm(out, { recursive: true, force: true });
