@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { compileFigure } from "../compiler/compile";
 import { getOutlineRenderer } from "../core/outline/builtin";
 import { BUILTIN_THEMES } from "../core/theme/builtin";
+import { contrastRatio } from "../core/theme/node-variants";
 import { lintGeometry } from "../lint";
 import { svgToPdf } from "./pdf";
 import { svgToPptx } from "./pptx";
@@ -43,6 +44,33 @@ nodes:
       samples: ${samples}
       mode: ${mode}
 `;
+}
+
+for (const theme of BUILTIN_THEMES.keys()) {
+  for (const variant of ["default", "emphasis", "muted", "outlined"]) {
+    for (const engine of variant === "emphasis" ? ["auto", "structured"] : ["structured"]) {
+      test(`${theme}/${variant}/${engine}: signal is distinguishable from its fill`, async () => {
+        const text = source("[-1, 1]", "line", engine)
+          .replace("    variant: outlined", `    variant: ${variant}`)
+          .replace("    tone: red\n", "");
+        const result = await renderFigure(text, { overrides: { theme } });
+        if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+        const shape = required(
+          elements(result.value.svg).find((e) => classList(e).includes("shape")),
+        );
+        const paths = childElements(shape).filter((e) => e.name === "path");
+        const fill = attribute(required(paths[0]), "fill");
+        const signal = attribute(required(paths[1]), "stroke");
+        expect(signal).not.toBe(fill);
+        if (fill?.startsWith("#") && signal?.startsWith("#")) {
+          expect(contrastRatio(signal, fill)).toBeGreaterThanOrEqual(3);
+        }
+        if (variant === "emphasis") {
+          expect(signal).toBe(result.value.compiled.ir.nodes[0]?.style.fontColor);
+        }
+      });
+    }
+  }
 }
 
 for (const engine of ["auto", "structured"]) {

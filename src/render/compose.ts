@@ -163,12 +163,17 @@ export function composeOutlines(
                 ` ${a.name}="${escapeAttribute(
                   layer.role === "line" && a.name === "fill"
                     ? "none"
-                    : layer.role === "body" &&
+                    : layer.role === "line" &&
                         a.name === "stroke" &&
                         node.render?.renderer === "sumi/waveform" &&
-                        typeof node.render.params?.frameStroke === "string"
-                      ? node.render.params.frameStroke
-                      : a.value,
+                        node.variant === "emphasis"
+                      ? node.style.fontColor
+                      : layer.role === "body" &&
+                          a.name === "stroke" &&
+                          node.render?.renderer === "sumi/waveform" &&
+                          typeof node.render.params?.frameStroke === "string"
+                        ? node.render.params.frameStroke
+                        : a.value,
                 )}"`,
             )
             .join("");

@@ -366,7 +366,7 @@ their own `properties`, `enum`, `const` and `anyOf`.
   fit an optional label below, minimum 80×48pt); variants `default`, `emphasis`,
   `muted`, `outlined` (with a `tone` colours signal and frame; others tone the
   background); `props.frameStroke: '#RRGGBB'` sets the frame colour (overridden by
-  inherited `dim`). Both layouts and all outputs. Supply real data or explicitly
+  inherited `dim`); the emphasis signal uses the variant text colour. Both layouts and all outputs. Supply real data or explicitly
   marked illustrative samples; never invent measurements; no audio decoding.
 
   ```yaml
