@@ -10,57 +10,58 @@ figure:
   profile: paper-double
   layout:
     arrange:
-      row:
-        gap: 7mm
-        align: center
-        items: [agent, cli]
+      grid:
+        columns: 6
+        rowGap: 9mm
+        columnGap: 6mm
+        align: stretch
+        items:
+          - { item: agent-box, span: 2 }
+          - null
+          - null
+          - lint
+          - null
+          - catalog
+          - yaml
+          - compile
+          - layout
+          - render
+          - outputs
 
 groups:
-  - id: agent
-    label: Agent
+  - id: catalog
+    label: sumi catalog
+    labelAt: bottom
+    variant: dashed
     arrange:
-      stack: { gap: 3mm, align: stretch, items: [harness, skill] }
-  - id: cli
-    label: Sumi CLI
-    arrange:
-      stack:
-        gap: 7mm
-        align: start
-        items:
-          - catalog
-          - row:
-              gap: 3.5mm
-              align: start
-              items:
-                - yaml
-                - compile
-                - layout
-                - stack: { gap: 6mm, align: center, items: [render, lint] }
-                - outputs
+      row: { gap: 2mm, align: center, items: [ c-components, c-palette, c-profile ] }
   - id: outputs
     variant: plain
     arrange:
-      stack: { gap: 1mm, items: [svg, pdf, pptx] }
+      stack: { gap: 1mm, align: center, items: [ svg, pdf, pptx ] }
 
 nodes:
-  - { id: harness, component: box, label: Coding agent, sublabel: "Claude Code · Codex · …", tone: blue, variant: filled }
-  - { id: skill, component: document, label: Sumi Skill, sublabel: "workflow · references" }
-  - { id: catalog, component: box, label: sumi catalog, sublabel: "components · themes · profiles", variant: outlined }
+  - { id: agent-icon, component: label, icon: tabler/robot, iconSize: 2.4, tone: blue, attach: { to: agent-box, side: west, gap: 2mm } }
+  - { id: agent-box, component: box, label: Coding agent, sublabel: "Claude Code · Codex · …", tone: blue, variant: tinted }
+  - { id: skill, component: box, label: Sumi Skill, sublabel: "workflow · references", variant: outlined, attach: { to: agent-box, side: north, gap: 2mm } }
+  - { id: c-components, component: label, icon: tabler/components, iconSize: 1.8 }
+  - { id: c-palette, component: label, icon: tabler/palette, iconSize: 1.8 }
+  - { id: c-profile, component: label, icon: tabler/ruler-measure, iconSize: 1.8 }
   - { id: yaml, component: document, label: "*.sumi.yaml", tone: blue, variant: tinted }
-  - { id: compile, component: box, label: Compile, sublabel: "registry · theme\nprofile → IR" }
-  - { id: layout, component: box, label: Layout, sublabel: "structured · D2" }
-  - { id: render, component: box, label: Render, sublabel: "bundled fonts" }
-  - { id: svg, component: document, label: SVG }
-  - { id: pdf, component: document, label: PDF }
-  - { id: pptx, component: document, label: PPTX }
-  - { id: lint, component: box, label: Geometry lint, sublabel: "fit · overlap", tone: orange, variant: filled }
+  - { id: compile, component: box, label: Compile, sublabel: "schema · theme\nprofile → IR", variant: filled }
+  - { id: layout, component: box, label: Layout, sublabel: "structured · D2", variant: filled }
+  - { id: render, component: box, label: Render, sublabel: "bundled fonts", variant: filled }
+  - { id: svg, component: label, icon: tabler/file-type-svg, iconSize: 2.2, tone: green }
+  - { id: pdf, component: label, icon: tabler/file-type-pdf, iconSize: 2.2, tone: green }
+  - { id: pptx, component: label, icon: tabler/file-type-ppt, iconSize: 2.2, tone: green }
+  - { id: lint, component: box, label: Geometry lint, sublabel: "fit · overlap · contrast", tone: orange, variant: solid }
 
 edges:
-  - { from: harness, to: catalog }
-  - { from: harness, to: yaml }
+  - { from: catalog, to: agent-box, toAnchor: straight, label: read }
+  - { from: agent-box, to: yaml, fromAnchor: straight, toAnchor: north, label: write }
   - { from: yaml, to: compile }
   - { from: compile, to: layout }
   - { from: layout, to: render }
   - { from: render, to: outputs }
-  - { from: render, to: lint }
-  - { from: lint, to: agent, toAnchor: south, label: diagnostics, variant: dashed, tone: orange }
+  - { from: render, to: lint, toAnchor: straight, label: check }
+  - { from: lint, to: agent-box, label: diagnostics (JSON), tone: orange, variant: dashed }
