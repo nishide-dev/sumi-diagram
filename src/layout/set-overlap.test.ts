@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { Point } from "../core/geometry";
-import { clipConvex, setOverlaps } from "./set-overlap";
+import { clipConvex, SET_OVERLAP_BUDGET, setOverlaps } from "./set-overlap";
 
 const square = (x: number, y: number, size: number): Point[] => [
   { x, y },
@@ -20,6 +20,34 @@ const area = (polygon: readonly Point[]): number => {
 };
 
 describe("setOverlaps (#440)", () => {
+  test("collapses identical outlines, preserving all members", () => {
+    const start = performance.now();
+    const found = setOverlaps(
+      Array.from({ length: 18 }, (_, i) => (i % 2 ? square(0, 0, 10).reverse() : square(0, 0, 10))),
+    );
+    expect(found).toHaveLength(1);
+    expect(found[0]?.members).toEqual(Array.from({ length: 18 }, (_, i) => i));
+    expect(performance.now() - start).toBeLessThan(5000);
+  });
+
+  test("prunes a chain with only pairwise intersections", () => {
+    const found = setOverlaps(Array.from({ length: 20 }, (_, i) => square(i * 6, 0, 10)));
+    expect(found).toHaveLength(19);
+    expect(found.every((region) => region.members.length === 2)).toBe(true);
+  });
+
+  test("bounds dense intersections and signals truncation", () => {
+    let exceeded = false;
+    const found = setOverlaps(
+      Array.from({ length: 14 }, (_, i) => square(i * 0.1, 0, 10)),
+      () => {
+        exceeded = true;
+      },
+    );
+    expect(found).toHaveLength(SET_OVERLAP_BUDGET);
+    expect(exceeded).toBe(true);
+    expect(found.some((region) => region.members.length > 2)).toBe(true);
+  });
   test("two overlapping squares give one overlap with the common area", () => {
     const found = setOverlaps([square(0, 0, 10), square(5, 5, 10)]);
     expect(found).toHaveLength(1);

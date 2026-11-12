@@ -77,6 +77,7 @@ Apply one edit and re-check: independent savings are not additive.
 | `ref/unknown-cell` | `<node>.<cell>` names no cell: not a `tokens` node, or no cell with that `id` (unnamed cells count from 1, across `lines`) | use the hint's cell ([tokens](structured.md#token-sequences)) |
 | `ref/unknown-class` | a legend entry's `class` (`<matrix>.<class>`) names no matrix or class | use the hint's class ([matrices](structured.md#matrices)) |
 | `layout/structured-only` | a structured-only field or component in an auto figure ([engine rules](structured.md#engine-rules)) | remove it, or make the figure structured: root `figure.layout.arrange`, no `engine: auto`, every element placed |
+| `layout/set-overlap-budget` | more than 1024 overlap regions; deeper intersections may omit colors | reduce the overlapping sets or split the figure ([sets](structured.md#set-enclosures)) |
 | other `layout/*` (structure) | placement errors | [below](#fixing-layout) |
 | `layout/auto-only` | a component whose catalog `engines` excludes structured is used in a structured figure (no built-in does) | use another component |
 | `component/unknown` | name not in the registry (or a component newer than the CLI) | choose from `sumi catalog` (the hint lists the right kind) |

@@ -62,6 +62,38 @@ function contains(set: SetLayout, p: { x: number; y: number }): boolean {
 }
 
 describe("a Venn diagram of two sets", () => {
+  test("eighteen identical sets render one overlap with every tint promptly", async () => {
+    const tones = ["blue", "green", "red", "purple", "orange"];
+    const sets = Array.from(
+      { length: 18 },
+      (_, i) =>
+        `  - { id: set${i}, members: [shared], shape: rect, tone: ${tones[i % tones.length]}, padding: 4mm }`,
+    ).join("\n");
+    const start = performance.now();
+    const rendered = await render(venn("", "color", sets));
+    expect(performance.now() - start).toBeLessThan(10000);
+    expect([...rendered.svg.matchAll(/class="sumi-set-overlap"/g)]).toHaveLength(1);
+    const overlaps = paintItems(geometryContextFor(rendered)).filter(
+      (item) => item.kind === "overlap",
+    );
+    expect(overlaps).toHaveLength(1);
+    expect(overlaps[0]?.of).toHaveLength(18);
+  });
+
+  test("render reports the overlap budget with set names", async () => {
+    const sets = Array.from(
+      { length: 14 },
+      (_, i) =>
+        `  - { id: set${i}, members: [shared], shape: rect, tone: blue, padding: ${4 + i * 0.1}mm }`,
+    ).join("\n");
+    const result = await renderFigure(venn("", "color", sets));
+    expect(result.ok).toBe(true);
+    const warning = result.diagnostics.find((d) => d.code === "layout/set-overlap-budget");
+    expect(warning?.severity).toBe("warning");
+    expect(warning?.message).toContain('"set0"');
+    expect(warning?.message).toContain('"set13"');
+  });
+
   test("figure and per-set multiply preserve the old intersection", async () => {
     const sources = [
       venn().replace("  profile: paper-double", "  setOverlap: multiply\n  profile: paper-double"),

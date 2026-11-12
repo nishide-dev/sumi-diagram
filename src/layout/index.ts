@@ -10,6 +10,7 @@ import { hasErrors } from "../core/diagnostics";
 import type { Result } from "../core/result";
 import type { LayoutIR } from "./ir";
 import { routeEdges } from "./route/router";
+import { setOverlapDiagnostics } from "./set-overlap";
 import { placeStructured, type StructuredLayoutOptions } from "./structured/engine";
 
 export * from "./ir";
@@ -47,6 +48,7 @@ export function layoutStructuredFigure(
   });
   diagnostics.push(...placement.diagnostics);
   const placed = placement.layout;
+  diagnostics.push(...setOverlapDiagnostics(ir, placed));
   if (!route) return { ok: true, value: { ir, layout: placed }, diagnostics };
   const routed = routeEdges(ir, placed);
   diagnostics.push(...routed.diagnostics);

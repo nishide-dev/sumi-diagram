@@ -6,7 +6,11 @@
  * more sets, found on the sets' convex outlines as polygons.
  */
 
+import type { FigureIR } from "../compiler/ir";
+import type { Diagnostic } from "../core/diagnostics";
 import type { Point } from "../core/geometry";
+import type { LayoutIR } from "./ir";
+import { outlinePolygon } from "./set-shape";
 
 /** An overlap region: the sets (indices into the input, ascending) it lies in. */
 export interface SetOverlap {
@@ -17,6 +21,7 @@ export interface SetOverlap {
 
 /** An intersection smaller than this (square units) is a touch, not an overlap. */
 export const MIN_OVERLAP_AREA = 1;
+export const SET_OVERLAP_BUDGET = 1024;
 
 function area(polygon: readonly Point[]): number {
   let sum = 0;
@@ -62,27 +67,96 @@ export function clipConvex(subject: readonly Point[], clip: readonly Point[]): P
  * with no fill), smallest groups first (pairs, then triples), so painting
  * them in order puts a deeper overlap over the shallower ones.
  */
-export function setOverlaps(polygons: readonly (readonly Point[] | undefined)[]): SetOverlap[] {
-  const shapes = polygons.map((p) => (p === undefined ? undefined : oriented(p)));
-  const found: SetOverlap[] = [];
-  const extend = (members: number[], region: Point[]) => {
-    const last = members[members.length - 1] as number;
-    for (let j = last + 1; j < shapes.length; j++) {
-      const other = shapes[j];
-      if (other === undefined) continue;
-      const common = clipConvex(region, other);
-      if (common.length < 3 || Math.abs(area(common)) < MIN_OVERLAP_AREA) continue;
-      const next = [...members, j];
-      found.push({ members: next, polygon: common });
-      extend(next, common);
+export function setOverlaps(
+  polygons: readonly (readonly Point[] | undefined)[],
+  onBudget?: () => void,
+): SetOverlap[] {
+  const groups: { polygon: Point[]; members: number[] }[] = [];
+  const keys = new Map<string, number>();
+  polygons.forEach((polygon, i) => {
+    if (polygon === undefined || polygon.length < 3) return;
+    const shape = oriented(polygon);
+    const vertices = shape.map((p) => `${p.x},${p.y}`);
+    const key = vertices
+      .map((_, j) => [...vertices.slice(j), ...vertices.slice(0, j)].join(";"))
+      .sort()[0] as string;
+    const existing = keys.get(key);
+    if (existing !== undefined) (groups[existing] as { members: number[] }).members.push(i);
+    else {
+      keys.set(key, groups.length);
+      groups.push({ polygon: shape, members: [i] });
     }
-  };
-  shapes.forEach((shape, i) => {
-    if (shape !== undefined) extend([i], shape);
   });
-  return found.sort(
-    (a, b) =>
-      a.members.length - b.members.length ||
-      a.members.join(",").localeCompare(b.members.join(","), undefined, { numeric: true }),
+  const found: SetOverlap[] = [];
+  let level = groups.map((group, last) => ({ ...group, last }));
+  for (const group of level) {
+    if (group.members.length > 1 && Math.abs(area(group.polygon)) >= MIN_OVERLAP_AREA) {
+      if (found.length === SET_OVERLAP_BUDGET) {
+        onBudget?.();
+        return found;
+      }
+      found.push(group);
+    }
+  }
+  while (level.length > 0) {
+    const next: typeof level = [];
+    for (const region of level) {
+      for (let j = region.last + 1; j < groups.length; j++) {
+        const group = groups[j] as (typeof groups)[number];
+        const common = clipConvex(region.polygon, group.polygon);
+        if (common.length < 3 || Math.abs(area(common)) < MIN_OVERLAP_AREA) continue;
+        if (found.length === SET_OVERLAP_BUDGET) {
+          onBudget?.();
+          return found.sort(compareOverlaps);
+        }
+        const overlap = {
+          members: [...region.members, ...group.members].sort((a, b) => a - b),
+          polygon: common,
+          last: j,
+        };
+        found.push(overlap);
+        next.push(overlap);
+      }
+    }
+    level = next;
+  }
+  return found.sort(compareOverlaps);
+}
+
+function compareOverlaps(a: SetOverlap, b: SetOverlap): number {
+  return (
+    a.members.length - b.members.length ||
+    a.members.join(",").localeCompare(b.members.join(","), undefined, { numeric: true })
   );
+}
+
+/** Warn once, using the same sampled outlines and budget as the SVG writer. */
+export function setOverlapDiagnostics(ir: FigureIR, layout: LayoutIR): Diagnostic[] {
+  const sets = ir.sets ?? [];
+  let exceeded = false;
+  setOverlaps(
+    sets.map((set) => {
+      const placed = layout.sets?.find((item) => item.id === set.id);
+      return placed !== undefined && set.style.fill !== "transparent" && set.style.strength > 0
+        ? outlinePolygon(placed.outline)
+        : undefined;
+    }),
+    () => {
+      exceeded = true;
+    },
+  );
+  if (!exceeded) return [];
+  const names = sets
+    .filter((set) => set.style.fill !== "transparent" && set.style.strength > 0)
+    .map((set) => `"${set.id}"`)
+    .join(", ");
+  return [
+    {
+      code: "layout/set-overlap-budget",
+      severity: "warning",
+      message: `Set overlap region budget (${SET_OVERLAP_BUDGET}) exceeded for ${names}; deeper intersections may omit participating colors.`,
+      path: ["sets"],
+      hint: "Reduce the number of overlapping sets or split the figure.",
+    },
+  ];
 }
