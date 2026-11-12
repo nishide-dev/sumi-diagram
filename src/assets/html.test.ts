@@ -6,6 +6,7 @@ import { svgToEditablePptx, svgToPptx } from "../render/pptx";
 import { renderFigure } from "../render/render";
 import { HTML_LIMITS, htmlViewport, validateHtml } from "./html";
 import { validCssValue } from "./html-css";
+import { htmlRadius } from "./html-radius";
 import { htmlThemeVariables, renderHtmlAssets } from "./html-render";
 
 const source = (html: string, extra = "", engine = "structured") => `version: 1
@@ -25,6 +26,53 @@ ${html
 `;
 const content =
   '<div style="display:flex;flex-direction:column;padding:12px;width:320px;height:176px;background-color:var(--sumi-bg);border:2px solid var(--sumi-accent);border-radius:8px"><b style="font-size:24px">Hello 日本語</b><div style="font-family:var(--sumi-mono);white-space:pre">  code()</div></div>';
+
+test("framed HTML resolves root corners and draws the frame over the artwork", async () => {
+  expect(
+    htmlRadius(
+      '<div style="font-size:20px;border-radius:1em 12pt 10% 0;border-top-left-radius:4px 8px"></div>',
+      200,
+      100,
+    ),
+  ).toEqual([
+    [4, 8],
+    [16, 16],
+    [20, 10],
+    [0, 0],
+  ]);
+  expect(
+    htmlRadius(
+      '<div style="border-radius:4px;border-top-left-radius:8px;border-radius:12px"></div>',
+      200,
+      100,
+    ),
+  ).toEqual([
+    [12, 12],
+    [12, 12],
+    [12, 12],
+    [12, 12],
+  ]);
+  expect(htmlRadius('<div><span style="border-radius:8px">X</span></div>', 200, 100)).toEqual([
+    [0, 0],
+    [0, 0],
+    [0, 0],
+    [0, 0],
+  ]);
+  const framed = (html: string) =>
+    source(html).replace("    component: html\n", "    component: html\n    variant: framed\n");
+  const rounded = await renderFigure(
+    framed('<div style="width:320px;height:176px;border-radius:8px;background-color:red"></div>'),
+  );
+  expect(rounded.ok).toBe(true);
+  if (!rounded.ok) return;
+  expect(rounded.value.svg).toMatch(/<path class="sumi-image-frame"[^>]*A 12 12/);
+  const square = await renderFigure(
+    framed('<div style="width:320px;height:176px;background-color:red"></div>'),
+  );
+  expect(square.ok).toBe(true);
+  if (square.ok)
+    expect(square.value.svg).toMatch(/<rect class="sumi-image-frame"[^>]*height="264" fill="none"/);
+});
 
 test("HTML accepts the subset and rejects unsupported tags, attributes and CSS at YAML locations", () => {
   expect(validateHtml(content)).toEqual([]);

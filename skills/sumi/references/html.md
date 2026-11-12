@@ -31,7 +31,8 @@ Required props: `html` and `viewport: <W>x<H>` in CSS px (each side at most
 2048, at most 2,097,152 pixels). Optional `width`, `height` (one missing keeps
 the viewport's aspect ratio; neither means natural size, 0.75pt per CSS px
 rounded to 0.5pt), `fit: contain|cover|fill` (as for images) and variants
-`default|framed`. Use it as a standalone leaf or with `group:` inside a
+`default|framed`. The framed border follows the root element's `border-radius`
+(including individual corners); without a radius it is square. Use it as a standalone leaf or with `group:` inside a
 container; never put `props.html` on `image`.
 
 ## What is accepted

@@ -21,6 +21,7 @@ import type { ImageFit, NodeIR } from "../compiler/ir";
 import type { Rect } from "../core/geometry";
 import { labelCenter } from "../layout/structured/sizing";
 import { n, strokeAttributes } from "../render/stroke";
+import { htmlRadius } from "./html-radius";
 import { TABLER_SET } from "./icons";
 import { imageLayerRects } from "./layers";
 import type { LoadedAsset, LoadedIcon, LoadedImage } from "./load";
@@ -118,17 +119,57 @@ function imageMarkup(
   fit: ImageFit,
   rect: Rect,
   style: NodeIR["style"],
+  html?: { source: string; viewport: { width: number; height: number } },
 ): string {
   const picture = `<image class="sumi-image" xmlns:xlink="${XLINK}" x="${n(rect.x)}" y="${n(rect.y)}" width="${n(rect.width)}" height="${n(rect.height)}" preserveAspectRatio="${FIT[fit]}" xlink:href="${image.href}"/>`;
   if (style.strokeWidth.units <= 0 || style.stroke === "transparent") return picture;
-  const radius = Math.min(style.radius.units, rect.width / 2, rect.height / 2);
+  if (html) {
+    const corners = htmlRadius(
+      html.source,
+      image.htmlRootSize?.width ?? html.viewport.width,
+      image.htmlRootSize?.height ?? html.viewport.height,
+    );
+    if (corners.some(([x, y]) => x > 0 && y > 0)) {
+      const xScale = rect.width / html.viewport.width,
+        yScale = rect.height / html.viewport.height;
+      const sx =
+        fit === "fill"
+          ? xScale
+          : fit === "cover"
+            ? Math.max(xScale, yScale)
+            : Math.min(xScale, yScale);
+      const sy = fit === "fill" ? yScale : sx;
+      const [[tlx, tly], [trx, try_], [brx, bry], [blx, bly]] = corners.map(([x, y]) => [
+        x * sx,
+        y * sy,
+      ]) as [[number, number], [number, number], [number, number], [number, number]];
+      const x = rect.x,
+        y = rect.y,
+        r = x + rect.width,
+        b = y + rect.height;
+      const arc = (rx: number, ry: number, ex: number, ey: number) =>
+        rx && ry ? `A ${n(rx)} ${n(ry)} 0 0 1 ${n(ex)} ${n(ey)}` : `L ${n(ex)} ${n(ey)}`;
+      const d = `M ${n(x + tlx)} ${n(y)} L ${n(r - trx)} ${n(y)} ${arc(trx, try_, r, y + try_)} L ${n(r)} ${n(b - bry)} ${arc(brx, bry, r - brx, b)} L ${n(x + blx)} ${n(b)} ${arc(blx, bly, x, b - bly)} L ${n(x)} ${n(y + tly)} ${arc(tlx, tly, x + tlx, y)} Z`;
+      return `${picture}<path class="sumi-image-frame" d="${d}" fill="none"${strokeAttributes(style)}/>`;
+    }
+  }
+  const radius = html ? 0 : Math.min(style.radius.units, rect.width / 2, rect.height / 2);
   const rx = radius > 0 ? ` rx="${n(radius)}"` : "";
   return `${picture}<rect class="sumi-image-frame" x="${n(rect.x)}" y="${n(rect.y)}" width="${n(rect.width)}" height="${n(rect.height)}"${rx} fill="none"${strokeAttributes(style)}/>`;
 }
 
 /** Keep the union box measurable for layout/inspection, but paint each copy separately. */
 export function imagePlaceholder<T extends NodeIR>(node: T): T {
-  if (node.image?.layers === undefined) return node;
+  const html = node.image?.html;
+  const viewport = node.image?.viewport;
+  const roundedHtml =
+    html !== undefined &&
+    viewport !== undefined &&
+    node.style.strokeWidth.units > 0 &&
+    node.style.stroke !== "transparent" &&
+    (node.style.radius.units > 0 ||
+      htmlRadius(html, viewport.width, viewport.height).some(([x, y]) => x > 0 && y > 0));
+  if (node.image?.layers === undefined && !roundedHtml) return node;
   return {
     ...node,
     style: { ...node.style, fill: "transparent", stroke: "transparent" },
@@ -188,5 +229,13 @@ export function assetMarkup(
   }
   if (node.image === undefined) throw new Error(`internal error: ${node.key} is not an image`);
   if (node.image.layers !== undefined) return layeredImageMarkup(node, asset, rect);
-  return imageMarkup(asset, node.image.fit, rect, node.style);
+  return imageMarkup(
+    asset,
+    node.image.fit,
+    rect,
+    node.style,
+    node.image.html !== undefined && node.image.viewport
+      ? { source: node.image.html, viewport: node.image.viewport }
+      : undefined,
+  );
 }
