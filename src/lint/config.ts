@@ -56,6 +56,7 @@ export class LintConfigError extends Error {
 export interface ActiveRule {
   rule: AnyLintRule;
   severity: Severity;
+  explicitSeverity?: boolean;
   options: unknown;
 }
 
@@ -115,7 +116,16 @@ export function resolveLintConfig(
       }
       options = result.data;
     }
-    if (level !== "off") active.push({ rule, severity: level, options });
+    if (level !== "off")
+      active.push({
+        rule,
+        severity: level,
+        options,
+        ...((typeof setting === "string" ||
+          (typeof setting === "object" && setting.level !== undefined)) && {
+          explicitSeverity: true,
+        }),
+      });
   }
   if (problems.length > 0) throw new LintConfigError(problems);
   const { maxWarnings } = parsed.data;

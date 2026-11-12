@@ -271,3 +271,4 @@ and sparse trial figures (27-32%, 378-433mm² per node).
   the largest empty area: move the legend or scattered labels into it.
 - Text-heavy: a box holds a name, not a sentence. Move formulas and explanations to
   the caption, or split into a title and a short `sublabel`.
+# Experimental: `geometry/low-stroke-contrast` measures strokes against painted backgrounds; the current prototype can misidentify adjacent fills and does not yet inspect arrowheads.

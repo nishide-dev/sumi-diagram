@@ -8,6 +8,7 @@
  * and `geometry/color-on-panel`.
  */
 
+import type { ElementKey } from "../../core/check-state";
 import type { DiagnosticSubject, DocPath } from "../../core/diagnostics";
 import { getTheme } from "../../core/theme/builtin";
 import { multiplyTints } from "../../core/theme/set-style";
@@ -18,6 +19,7 @@ import { depthInside, type Region, rectPolygon } from "./shapes";
 
 /** One painted fill. */
 export interface PaintItem {
+  readonly key?: ElementKey;
   readonly kind: "group" | "node" | "set" | "overlap";
   /** `node "a" fill`, `the overlap of set "a" and set "b"`, for messages. */
   readonly name: string;
@@ -93,6 +95,7 @@ export function paintItems(context: GeometryContext, options: PaintOptions = {})
     const color = normalized(e.ir.style.fill);
     if (color === undefined || e.bbox === undefined || e.ir.style.opacity <= 0) return undefined;
     return {
+      key: e.key,
       kind,
       name: `${e.name} fill`,
       color,
@@ -190,6 +193,14 @@ const covers = (item: PaintItem, p: Point): boolean =>
   p.y >= item.bbox.y - 1e-6 &&
   p.y <= item.bbox.y + item.bbox.height + 1e-6 &&
   depthInside(item.region, p) >= 0;
+
+/** Composite the painted fills covering a point in drawing order. */
+export function surfaceAt(items: readonly PaintItem[], point: Point, canvas = WHITE): string {
+  return items.reduce(
+    (color, item) => (covers(item, point) ? over(item.color, item.alpha, color) : color),
+    canvas,
+  );
+}
 
 /** Every item with the samples at which it shows. */
 export function analyze(items: readonly PaintItem[], canvas = WHITE): Analysis[] {

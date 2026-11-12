@@ -1,5 +1,9 @@
 # Lint ルール
 
+## 線のコントラスト（#463、試作中）
+
+`geometry/low-stroke-contrast` は線と合成背景を測り、3:1 未満を info、1.5:1 未満を warning とする。現在の試作には隣接する塗りの境界で誤検出があり、矢印先端と作例全体の検証は未完了。詳細は[設計 #463](design/decisions/463-low-stroke-contrast.md)。
+
 ## 図全体の空白・大きな縮小（#330）
 
 `geometry/dead-space` と `geometry/heavy-scaling` は既定 **info**。
@@ -381,4 +385,3 @@ figure.sumi.yaml:21:5 warning lint/ancestor-edge Edge edges[1] connects group "o
 基準値は TriCL・LLaDA の再現図（指摘されない）と前回の試行の 3 図（指摘される）で校正した。
 測定値と採らなかった指標は [設計 #422](design/decisions/422-density-lint.md)。
 抑止は `--rule geometry/sparse-figure=off` などで、意図した疎らさや文章が図の主題のときだけ使う。
-
