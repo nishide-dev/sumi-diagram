@@ -159,8 +159,14 @@ export function resolveStyle<K extends ComponentKind>(
           stroke: id === "sumi/stack" ? theme.canvas : ink,
           fontColor: theme.canvas,
         };
-      } else if (variant === "tinted" && fill !== undefined && ink !== undefined) {
-        // As on a light canvas, a tinted node's text is its frame (the tone's line).
+      } else if (
+        variant === "tinted" &&
+        fill !== undefined &&
+        ink !== undefined &&
+        theme.toneOverrides?.get(tone ?? "gray")?.fill === undefined
+      ) {
+        // As on a light canvas, a tinted node's text is its frame (the tone's line). A fill of
+        // the figure's own keeps the contrast-adjusted text from filledToneNode instead.
         filled = { fill, stroke: ink, fontColor: ink };
       }
     }
