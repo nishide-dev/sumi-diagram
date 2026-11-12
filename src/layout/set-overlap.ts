@@ -76,10 +76,7 @@ export function setOverlaps(
   polygons.forEach((polygon, i) => {
     if (polygon === undefined || polygon.length < 3) return;
     const shape = oriented(polygon);
-    const vertices = shape.map((p) => `${p.x},${p.y}`);
-    const key = vertices
-      .map((_, j) => [...vertices.slice(j), ...vertices.slice(0, j)].join(";"))
-      .sort()[0] as string;
+    const key = rotationKey(shape.map((p) => `${p.x},${p.y}`));
     const existing = keys.get(key);
     if (existing !== undefined) (groups[existing] as { members: number[] }).members.push(i);
     else {
@@ -159,4 +156,32 @@ export function setOverlapDiagnostics(ir: FigureIR, layout: LayoutIR): Diagnosti
       hint: "Reduce the number of overlapping sets or split the figure.",
     },
   ];
+}
+
+/**
+ * The outline's identity regardless of its starting vertex, in linear memory (#492): the
+ * rotation starting at the smallest vertex, the ties among those compared lazily.
+ */
+export function rotationKey(vertices: readonly string[]): string {
+  const n = vertices.length;
+  let smallest = vertices[0] as string;
+  for (const v of vertices) if (v < smallest) smallest = v;
+  let best = -1;
+  for (let i = 0; i < n; i++) {
+    if (vertices[i] !== smallest) continue;
+    if (best < 0) {
+      best = i;
+      continue;
+    }
+    for (let k = 1; k < n; k++) {
+      const a = vertices[(i + k) % n] as string;
+      const b = vertices[(best + k) % n] as string;
+      if (a === b) continue;
+      if (a < b) best = i;
+      break;
+    }
+  }
+  const out: string[] = [];
+  for (let k = 0; k < n; k++) out.push(vertices[(best + k) % n] as string);
+  return out.join(";");
 }

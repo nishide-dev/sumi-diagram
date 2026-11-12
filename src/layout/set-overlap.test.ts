@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { Point } from "../core/geometry";
-import { clipConvex, SET_OVERLAP_BUDGET, setOverlaps } from "./set-overlap";
+import { clipConvex, rotationKey, SET_OVERLAP_BUDGET, setOverlaps } from "./set-overlap";
+import { outlinePolygon } from "./set-shape";
 
 const square = (x: number, y: number, size: number): Point[] => [
   { x, y },
@@ -94,5 +95,32 @@ describe("setOverlaps (#440)", () => {
   test("clipConvex keeps the subject when it lies inside the clip", () => {
     const inside = clipConvex(square(2, 2, 2), square(0, 0, 10));
     expect(area(inside)).toBeCloseTo(4, 6);
+  });
+});
+
+describe("outline identity (#492 review)", () => {
+  test("a square and a rounded rectangle with the same bounds are different outlines", () => {
+    const rect = { x: 0, y: 0, width: 100, height: 100 };
+    const sharp = outlinePolygon({ kind: "rect", rect, radius: 0 });
+    const rounded = outlinePolygon({ kind: "rect", rect, radius: 20 });
+    // A third set that touches only the square's corner, outside the rounded one.
+    const corner = square(-10, -10, 15);
+    const overlaps = setOverlaps([sharp, rounded, corner]);
+    expect(
+      overlaps.some(
+        (o) => o.members.length === 2 && o.members.includes(0) && o.members.includes(2),
+      ),
+    ).toBe(true);
+    expect(overlaps.some((o) => o.members.includes(1) && o.members.includes(2))).toBe(false);
+  });
+
+  test("the rotation key is the same for every starting vertex and linear for large outlines", () => {
+    const ring = Array.from({ length: 4000 }, (_, i) => `${Math.round(100 * Math.cos(i))},${i}`);
+    const rotated = [...ring.slice(1234), ...ring.slice(0, 1234)];
+    const started = performance.now();
+    expect(rotationKey(rotated)).toBe(rotationKey(ring));
+    expect(performance.now() - started).toBeLessThan(500);
+    const repeated = ["a", "b", "a", "c"];
+    expect(rotationKey(repeated)).toBe(rotationKey(["a", "c", "a", "b"]));
   });
 });
