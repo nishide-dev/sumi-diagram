@@ -1,68 +1,52 @@
 # Sumi
 
-[日本語](docs/README-ja.md)
+**Diagrams your coding agent can draw, check and fix.**
 
-**Diagrams as code, designed to fit.** Sumi turns YAML into SVG, PDF, and PPTX using a component library, design-system themes, and geometry lint that checks the rendered result. Get deterministic output with bundled fonts and a pinned layout backend, delivered as a single binary with its supporting assets—no Bun or Node.js required. Works great with Claude Code through the bundled Skill: describe a figure, then let the agent discover components, write YAML, and validate the result.
+Sumi is a diagram-as-code CLI built for AI coding agents. The agent looks up the components, themes and page profiles Sumi offers, writes a `*.sumi.yaml` file, and Sumi renders it to SVG, PDF or PPTX. Sumi then measures the rendered figure and returns machine-readable diagnostics, such as overflowing text, colliding labels, low contrast or a figure too wide for its page. The agent fixes them before you ever look. The YAML stays readable and reviewable, and the output is deterministic.
 
-## See what you can build
+[Website](https://nishide-dev.github.io/sumi-diagram/) · [Examples](https://nishide-dev.github.io/sumi-diagram/#examples) · [Components](https://nishide-dev.github.io/sumi-diagram/#components) · [Prompt builder](https://nishide-dev.github.io/sumi-diagram/#prompt) · [日本語](docs/README-ja.md)
 
-Sumi-rendered recreations of public reference figures: the Transformer architecture, a DiT block, the EmbeddingGemma 2 overview and the CLIP approach summary.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/architecture.dark.svg">
+  <img src="docs/assets/architecture.light.svg" alt="How Sumi works: a coding agent with the Sumi Skill discovers components with sumi catalog and writes a .sumi.yaml file; the Sumi CLI compiles, lays out and renders it to SVG, PDF and PPTX; geometry lint checks the rendered figure and sends diagnostics back to the agent.">
+</picture>
 
-<table>
-  <tr>
-    <th>Transformer</th>
-    <th>DiT block</th>
-  </tr>
-  <tr>
-    <td><img src="examples/transformer/transformer.svg" alt="Transformer architecture rendered by Sumi" height="280"></td>
-    <td><img src="examples/dit-block/dit-block.svg" alt="DiT block rendered by Sumi" height="280"></td>
-  </tr>
-</table>
+## Get started
 
-<table>
-  <tr>
-    <th>EmbeddingGemma 2</th>
-    <th>CLIP</th>
-  </tr>
-  <tr>
-    <td><img src="examples/embedding-gemma/embedding-gemma.svg" alt="EmbeddingGemma 2 overview rendered by Sumi" height="205"></td>
-    <td><img src="examples/clip/clip.svg" alt="CLIP overview rendered by Sumi" height="205"></td>
-  </tr>
-</table>
-
-Browse the [website](https://nishide-dev.github.io/sumi-diagram/) (examples, components under every theme and palette, and a prompt builder for coding agents), the [component gallery](docs/gallery/README.md) and [examples with YAML sources](examples/README.md).
-
-## Install
-
-macOS and Linux, x64 and arm64. No runtime installation required.
+**1. Install the CLI** (macOS and Linux, x64 and arm64; no runtime needed):
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/nishide-dev/sumi-diagram/main/install.sh | sh
 ```
 
-The installer downloads the latest release, verifies SHA-256, keeps D2 and fonts beside the binary, links `~/.local/bin/sumi`, and runs `sumi doctor`. Add `~/.local/bin` to `PATH` if prompted. It needs curl or wget, tar, and sha256sum or shasum; no sudo.
-
-To pin a version or choose directories (environment variables apply to `sh`):
+**2. Add the Skill to your agent.** [skills](https://github.com/vercel-labs/skills) installs it into the agent harnesses you choose:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/nishide-dev/sumi-diagram/main/install.sh | \
-  SUMI_VERSION=0.16.1 SUMI_HOME="$HOME/.local/share/sumi" SUMI_BIN_DIR="$HOME/.local/bin" sh
+npx skills add nishide-dev/sumi-diagram --skill sumi
 ```
 
-**Upgrade:** rerun the installer. Older version directories stay available; remove them when no longer needed. **Uninstall** with the default paths:
+**3. Ask for a figure**, for example: *“Use Sumi to draw our ingestion pipeline as a single-column paper figure.”* The Skill has the agent discover the catalog, write the YAML, run `fmt → lint → render` and look at the result. To write a fuller request, with sources, placement, layout and colours, use the [prompt builder](https://nishide-dev.github.io/sumi-diagram/#prompt).
 
-```sh
-rm "$HOME/.local/bin/sumi"
-rm -rf "$HOME/.local/share/sumi"
-```
+## Why agents work well with Sumi
 
-Use your chosen paths if customized. See [manual installation and macOS notes](docs/usage.md#manual-installation).
+| | |
+| --- | --- |
+| **Discoverable** | `sumi catalog --json` lists every component, variant, prop, theme, palette and profile, so the agent uses what exists instead of guessing. |
+| **Checked after rendering** | Schema and reference checks, then geometry lint on the rendered figure: page fit, overflow, collisions, crossings, contrast and colour. Diagnostics point to the place in the YAML and most carry a hint for the fix. |
+| **Machine-readable** | `--json` reports for `lint` and `render`, and stable exit codes, for scripts and agent loops. |
+| **Deterministic** | Bundled fonts and a pinned layout backend: with the same Sumi version and options, the same YAML renders the same bytes, so diffs are reviewable. |
+| **Made for the target** | Profiles for a paper column, a full-width figure or a 16:9 slide, with page limits and minimum text sizes. |
 
-## Quick start
+## What you can draw
 
-Save as `hello.sumi.yaml`:
+Flows and graphs with automatic layout; precise block diagrams with structured layout (rows, stacks, grids, anchors, residual connections). Eight themes: `minimal`, `academic`, `color`, `paper`, `slides`, `llama`, and `sumi` / `sumi-dark`, which match this project's site and are used for the figure above. Eight colour palettes, inline math, icons, emoji and images. Output as SVG, vector PDF with embedded fonts, or PPTX.
+
+Browse every component under every theme and palette on the [website](https://nishide-dev.github.io/sumi-diagram/#components).
+
+## Use the CLI yourself
 
 ```yaml
+# hello.sumi.yaml
 version: 1
 figure:
   id: hello
@@ -82,45 +66,38 @@ sumi render hello.sumi.yaml                 # writes hello.svg
 sumi render hello.sumi.yaml -o hello.pdf    # writes a vector PDF
 ```
 
-Example output:
+`render` reports the measured size and whether the figure fits its profile. See the [user guide](docs/usage.md) for every command, export option and the JSON output.
 
-```text
-Wrote hello.svg: 23.64mm × 33.69mm (paper-single, max width 88mm; theme minimal).
-```
+<details>
+<summary>Install options, upgrade and uninstall</summary>
 
-Render reports the measured size and whether it fits the output profile. Open `hello.svg` in a browser, or include `hello.pdf` in a paper. Your YAML remains the source of truth.
+The installer downloads the latest release, verifies SHA-256, keeps D2 and fonts beside the binary, links `~/.local/bin/sumi` and runs `sumi doctor`. Add `~/.local/bin` to `PATH` if prompted. It needs curl or wget, tar, and sha256sum or shasum; no sudo.
 
-## Features
-
-| Capability | What it gives you |
-| --- | --- |
-| [Auto and structured layout](skills/sumi/references/structured.md) | Auto layout for flows and graphs; nested rows/stacks, anchors, alignment, and routed residual connections for precise block diagrams. |
-| [Themes and profiles](docs/themes.md) | `minimal`, `academic` (grayscale, print-friendly), `color`, `slides`, and `paper` (color ML-paper style); independent page-size and minimum-type constraints for papers and presentations. |
-| [Math labels](skills/sumi/references/figure-format.md) | Inline math with bundled STIX Two fonts in structured figures. |
-| [Icons, emoji, and images](skills/sumi/references/assets.md) | Bundled Tabler icons, multicolor Fluent emoji, and local PNG/JPEG/SVG assets. |
-| [PDF and PPTX](docs/usage.md#export-formats) | Vector PDF with embedded fonts, picture-based PPTX, and experimental editable PowerPoint objects. |
-| [Lint and diagnostics](docs/lint-rules.md) | Schema and reference checks plus rendered geometry checks for page limits, overflow, and collisions. [JSON output](docs/usage.md#json-output) supports scripts and agents. |
-
-## Use with Claude Code
-
-Install the CLI above, then add the Skill to your project:
+To pin a version or choose directories (environment variables apply to `sh`):
 
 ```sh
-npx skills add nishide-dev/sumi-diagram --skill sumi -a claude-code -y
+curl -fsSL https://raw.githubusercontent.com/nishide-dev/sumi-diagram/main/install.sh | \
+  SUMI_VERSION=0.16.1 SUMI_HOME="$HOME/.local/share/sumi" SUMI_BIN_DIR="$HOME/.local/bin" sh
 ```
 
-For an interactive choice of agents, omit `-a claude-code -y`. The Skill drives the installed CLI; it does not include the executable. Make sure `sumi` is on `PATH` and `sumi doctor` passes.
+**Upgrade:** rerun the installer. Older version directories stay available; remove them when no longer needed. **Uninstall** with the default paths:
 
-Ask Claude Code: **“Use Sumi to draw this pipeline as a single-column paper figure.”** The Skill discovers the catalog, writes YAML, runs fmt → lint → render, and visually inspects the result. See the [Skill workflow](skills/sumi/SKILL.md) and [CLI discovery details](docs/usage.md#claude-code-skill).
+```sh
+rm "$HOME/.local/bin/sumi"
+rm -rf "$HOME/.local/share/sumi"
+```
+
+See [manual installation and macOS notes](docs/usage.md#manual-installation).
+
+</details>
 
 ## Documentation
 
-- [User guide](docs/usage.md) · [日本語利用ガイド](docs/usage-ja.md): commands, diagnostics, exports, installation, and environment options
-- [Themes](docs/themes.md) · [Component gallery](docs/gallery/README.md) · [Examples](examples/README.md)
-- [Figure format](skills/sumi/references/figure-format.md) · [Structured layout](skills/sumi/references/structured.md) · [Layout recipes](skills/sumi/references/layout-tips.md)
-- [JSON Schema for editor completion](schema/figure.v1.schema.json)
-- [Contributing](CONTRIBUTING.md)
+- [User guide](docs/usage.md) · [日本語利用ガイド](docs/usage-ja.md): commands, diagnostics, exports, installation and environment options
+- [Skill workflow](skills/sumi/SKILL.md) · [Figure format](skills/sumi/references/figure-format.md) · [Structured layout](skills/sumi/references/structured.md) · [Layout recipes](skills/sumi/references/layout-tips.md)
+- [Themes](docs/themes.md) · [Lint rules](docs/lint-rules.md) · [Component gallery](docs/gallery/README.md) · [Examples](examples/README.md)
+- [JSON Schema for editor completion](schema/figure.v1.schema.json) · [Contributing](CONTRIBUTING.md)
 
 ## License
 
-[MIT](LICENSE). Bundled third-party components retain their own licenses; each release includes `NOTICE` and `licenses/`.
+[MIT](LICENSE). Bundled third-party components keep their own licenses; each release includes `NOTICE` and `licenses/`.

@@ -73,6 +73,7 @@ PR を出す前に `bun run check`、`bun run typecheck`、`bun run test` がす
 | `tests/fixtures` | テスト用入力 |
 | `examples` | YAML と生成した SVG/PDF |
 | `docs/gallery` | 生成されたギャラリー（手で編集しない） |
+| `docs/assets` | README の仕組みの図（`architecture.sumi.yaml` が一次ソース。`bun run gallery` が `sumi` / `sumi-dark` で `architecture.{light,dark}.svg` を生成） |
 | `skills/sumi` | 配布する Skill。`.claude/skills/sumi` はここへのシンボリックリンク |
 
 ### テストをすべて実行する

@@ -6,7 +6,7 @@ Sumi keeps `*.sumi.yaml` as the primary source. Components, themes and profiles 
 
 ## Manual installation
 
-The [one-line installer](../README.md#install) is the simplest option. Alternatively, download a tarball from [GitHub Releases](https://github.com/nishide-dev/sumi-diagram/releases). Supported targets are `darwin-arm64`, `darwin-x64`, `linux-x64`, and `linux-arm64`; Windows is not supported. Bun and Node.js are unnecessary, and Sumi is not published to npm.
+The [one-line installer](../README.md#get-started) is the simplest option. Alternatively, download a tarball from [GitHub Releases](https://github.com/nishide-dev/sumi-diagram/releases). Supported targets are `darwin-arm64`, `darwin-x64`, `linux-x64`, and `linux-arm64`; Windows is not supported. Bun and Node.js are unnecessary, and Sumi is not published to npm.
 
 ```sh
 version=0.16.1 target=darwin-arm64
@@ -193,9 +193,9 @@ Discovery order (`doctor` reports `source`):
 
 Missing explicit option/environment paths fail rather than falling back. Set `SUMI_D2_PATH=/path/to/d2` to use another installation of the pinned version. See [development D2 installation](../CONTRIBUTING.md#開発環境のセットアップ).
 
-## Claude Code Skill
+## Agent Skill
 
-Install with `npx skills add nishide-dev/sumi-diagram --skill sumi -a claude-code -y`, or omit agent/yes flags for interactive selection. The Skill does not include the CLI: install Sumi, put it on PATH and run doctor first.
+Install with `npx skills add nishide-dev/sumi-diagram --skill sumi` and choose the coding agents to install it for ([skills](https://github.com/vercel-labs/skills) supports many harnesses); add `-a <agent> -y` (for example `-a claude-code -y`) to skip the prompt. The Skill does not include the CLI: install Sumi, put it on PATH and run doctor first.
 
 The [workflow](../skills/sumi/SKILL.md) clarifies content/output profile, checks doctor and catalog, writes YAML, formats/lints and fixes diagnostic paths/hints, renders with geometry checks, visually inspects a PNG preview, and reports files, dimensions, remaining warnings and assumptions. It asks when facts or output choices are missing or fixes stall.
 

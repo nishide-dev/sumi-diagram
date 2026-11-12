@@ -1,0 +1,66 @@
+# The README figure (#474): how Sumi works with a coding agent. The agent discovers
+# what Sumi provides, writes the YAML, and the CLI compiles, lays out, renders and checks
+# the figure; geometry diagnostics go back to the agent until it is clean. `bun run gallery`
+# renders it with the sumi and sumi-dark themes into architecture.{light,dark}.svg.
+version: 1
+figure:
+  id: sumi-architecture
+  title: How Sumi works with a coding agent
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      grid:
+        columns: 6
+        rowGap: 9mm
+        columnGap: 6mm
+        align: stretch
+        items:
+          - { item: agent-box, span: 2 }
+          - null
+          - null
+          - lint
+          - null
+          - catalog
+          - yaml
+          - compile
+          - layout
+          - render
+          - outputs
+
+groups:
+  - id: catalog
+    label: sumi catalog
+    labelAt: bottom
+    variant: dashed
+    arrange:
+      row: { gap: 2mm, align: center, items: [ c-components, c-palette, c-profile ] }
+  - id: outputs
+    variant: plain
+    arrange:
+      stack: { gap: 1mm, align: center, items: [ svg, pdf, pptx ] }
+
+nodes:
+  - { id: agent-box, component: box, label: Coding agent, sublabel: "Claude Code · Codex · …", tone: blue, variant: tinted }
+  - { id: skill, component: box, label: Sumi Skill, sublabel: "workflow · references", variant: outlined, attach: { to: agent-box, side: north, gap: 2mm } }
+  - { id: c-components, component: label, icon: tabler/components, iconSize: 1.8 }
+  - { id: c-palette, component: label, icon: tabler/palette, iconSize: 1.8 }
+  - { id: c-profile, component: label, icon: tabler/ruler-measure, iconSize: 1.8 }
+  - { id: yaml, component: document, label: "*.sumi.yaml", tone: blue, variant: tinted }
+  - { id: compile, component: box, label: Compile, sublabel: "schema · theme\nprofile → IR", variant: filled }
+  - { id: layout, component: box, label: Layout, sublabel: "structured · D2", variant: filled }
+  - { id: render, component: box, label: Render, sublabel: "bundled fonts", variant: filled }
+  - { id: svg, component: label, icon: tabler/file-type-svg, iconSize: 2.2, tone: green }
+  - { id: pdf, component: label, icon: tabler/file-type-pdf, iconSize: 2.2, tone: green }
+  - { id: pptx, component: label, icon: tabler/file-type-ppt, iconSize: 2.2, tone: green }
+  - { id: lint, component: box, label: Geometry lint, sublabel: "fit · overlap · contrast", tone: orange, variant: solid }
+
+edges:
+  - { from: catalog, to: agent-box, toAnchor: straight, label: read }
+  - { from: agent-box, to: yaml, fromAnchor: straight, toAnchor: north, label: write }
+  - { from: yaml, to: compile }
+  - { from: compile, to: layout }
+  - { from: layout, to: render }
+  - { from: render, to: outputs }
+  - { from: render, to: lint, toAnchor: straight, label: check }
+  - { from: lint, to: agent-box, label: diagnostics (JSON), tone: orange, variant: dashed }

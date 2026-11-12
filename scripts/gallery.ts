@@ -58,6 +58,7 @@ import {
   legendSample,
   outlinedToneSample,
   paletteSample,
+  type Rendering,
   setsSample,
   strokeSample,
   THEME_COMPARISON_EXAMPLE,
@@ -167,6 +168,23 @@ for (const rendering of outlinedTones.renderings) {
 for (const rendering of filledTones.renderings) {
   jobs.push({ file: filledTones.fileName, source: filledTones.source, rendering });
 }
+// The README's figure (#474) in the site's light and dark themes, for <picture>.
+const README_FIGURE = "docs/assets/architecture.sumi.yaml";
+const readmeFigureText = await read(README_FIGURE);
+const readmeFigure: Rendering[] = (
+  [
+    ["sumi", "light"],
+    ["sumi-dark", "dark"],
+  ] as const
+).map(([theme, mode]) => ({
+  output: `docs/assets/architecture.${mode}.svg`,
+  theme,
+  profile: "",
+  overrides: { theme },
+}));
+for (const rendering of readmeFigure) {
+  jobs.push({ file: README_FIGURE, source: readmeFigureText, rendering });
+}
 
 const outcomes = await renderAll(jobs);
 let cursor = 0;
@@ -198,6 +216,7 @@ const model: GalleryModel = {
   outlinedTones: { sample: outlinedTones, outcomes: take(outlinedTones.renderings.length) },
   filledTones: { sample: filledTones, outcomes: take(filledTones.renderings.length) },
 };
+const readmeFigureOutcomes = take(readmeFigure.length);
 
 // The original LLaDA figure has four short dashed remask arrows. Keep the
 // reproduction faithful while still rejecting any other warning or error.
@@ -226,6 +245,7 @@ const strict: [string, RenderOutcome][] = [
     `outlined tones (${o.theme})`,
     o,
   ]),
+  ...readmeFigureOutcomes.map((o): [string, RenderOutcome] => [`${README_FIGURE} (${o.theme})`, o]),
 ];
 for (const [name, outcome] of strict) {
   const blocking = outcome.diagnostics.filter(
