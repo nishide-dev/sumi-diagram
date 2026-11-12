@@ -3,11 +3,9 @@
  * registry component: its paint comes from the theme's group frame
  * (`sumi/container`: line width, text size and weight, corner radius) and
  * the tone's line color (`toneLines.<tone>`, gray's without a tone) that the
- * outline, the fill and the label all take. The fill is the line color mixed
- * into white at the set's strength, painted **opaque** (#440): the same pale
- * color on any background, so it shows in every theme, also the monochrome
- * ones, and never turns muddy over a panel. Where sets overlap, the renderer
- * paints the product of their fills ({@link multiplyTints}).
+ * outline, the fill and the label all take. The fill is mixed into white on
+ * light canvases and into the canvas on dark ones, then painted opaque (#440).
+ * Overlaps combine the tints relative to the canvas ({@link multiplyTints}).
  */
 
 import type { SetVariant } from "../figure/schema";
@@ -19,9 +17,9 @@ import type { Tone } from "./tones";
 
 export interface SetStyle extends CommonStyle {
   readonly kind: "set";
-  /** The tint, opaque: the line color mixed into white at `strength`; `transparent` for an outlined set. */
+  /** The opaque tint; `transparent` for an outlined set. */
   readonly fill: Color;
-  /** The share of the line color mixed into white (0 for an outlined set): `fillOpacity` as written, else the variant's. */
+  /** The share of the line color in the tint (0 for an outlined set). */
   readonly strength: number;
   /** Corner radius of a `rect` set. */
   readonly radius: StyleLength;
@@ -66,24 +64,45 @@ const hexOf = (c: readonly number[]): string =>
   `#${c.map((v) => Math.round(v).toString(16).padStart(2, "0")).join("")}`;
 
 /**
- * The opaque color of `ink` mixed into white at `strength` (0 is white, 1 is
- * `ink`): what a translucent fill of that opacity looks like on a white page,
- * painted opaque so that it looks the same on any background (#440). A color
+ * The opaque color of `ink` mixed into `canvas` at `strength` (0 is canvas, 1 is
+ * `ink`), painted opaque so it looks the same on any background (#440). A color
  * that is not `#rgb` / `#rrggbb` is returned as it is.
  */
-export function tintOver(ink: string, strength: number): string {
+export function tintOver(ink: string, strength: number, canvas = "#ffffff"): string {
   const c = channels(ink);
-  if (c === undefined) return ink;
-  return hexOf(c.map((v) => 255 + (v - 255) * strength));
+  const ground = channels(canvas);
+  if (c === undefined || ground === undefined) return ink;
+  return hexOf(c.map((v, i) => (ground[i] as number) + (v - (ground[i] as number)) * strength));
+}
+
+/** Preserve the historic white-ground treatment on light canvases. */
+function darkCanvas(canvas: string): boolean {
+  const c = channels(canvas);
+  return c !== undefined && 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2] < 128;
 }
 
 /**
  * The color where tints overlap: the multiply of the colors relative to white
  * (each channel's product over 255), so two pale fills give a darker one in
  * the hues of both instead of the gray-brown a stack of translucent fills
- * mixes to (#440). Colors that are not hex are skipped.
+ * mixes to (#440). On dark canvases, add attenuated differences from the canvas.
+ * Colors that are not hex are skipped.
  */
-export function multiplyTints(colors: readonly string[]): string {
+export function multiplyTints(colors: readonly string[], canvas = "#ffffff"): string {
+  if (darkCanvas(canvas)) {
+    const base = channels(canvas) as [number, number, number];
+    const out = [...base];
+    for (const color of colors) {
+      const c = channels(color);
+      if (c !== undefined)
+        for (let i = 0; i < 3; i++) {
+          const b = base[i] as number;
+          const delta = (c[i] as number) - b;
+          out[i] = (out[i] as number) + delta * 0.8;
+        }
+    }
+    return hexOf(out.map((v) => Math.max(0, Math.min(255, v))));
+  }
   let out: number[] = [255, 255, 255];
   for (const color of colors) {
     const c = channels(color);
@@ -139,7 +158,9 @@ export function resolveSetStyle(theme: Theme, options: SetStyleOptions): SetStyl
     bold: frame.bold,
     italic: frame.italic,
     mono: frame.mono,
-    fill: tinted ? tintOver(ink, strength) : "transparent",
+    fill: tinted
+      ? tintOver(ink, strength, darkCanvas(theme.canvas) ? theme.canvas : undefined)
+      : "transparent",
     strength: tinted ? strength : 0,
     radius,
   });

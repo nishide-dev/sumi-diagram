@@ -988,7 +988,12 @@ export function svgToEditablePptx(
           `set overlap ${members.map((m) => (drawnSets[m] as { set: { id: string } }).set.id).join(" + ")}`,
           bounds,
           geometry([{ segments: ring, filled: true }], bounds, emu),
-          paint(multiplyTints(members.map((m) => (drawnSets[m] as { set: SetIR }).set.style.fill))),
+          paint(
+            multiplyTints(
+              members.map((m) => (drawnSets[m] as { set: SetIR }).set.style.fill),
+              canvasColor,
+            ),
+          ),
           "<a:ln><a:noFill/></a:ln>",
         ),
       );

@@ -140,9 +140,9 @@ export function paintItems(context: GeometryContext, options: PaintOptions = {})
     items.push({
       kind: "overlap",
       name: `the overlap of ${sets.map((s) => s.name).join(" and ")}`,
-      color: multiplyTints(colors),
+      color: multiplyTints(colors, getTheme(context.ir.meta.themeId)?.canvas),
       alpha: 1,
-      ink: multiplyTints(colors),
+      ink: multiplyTints(colors, getTheme(context.ir.meta.themeId)?.canvas),
       region: { kind: "polygon", points: polygon },
       bbox: boundsOf(polygon),
       docPath: first.docPath,

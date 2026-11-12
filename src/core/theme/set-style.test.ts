@@ -5,6 +5,16 @@ import { resolveStyle } from "./resolve";
 import { multiplyTints, resolveSetStyle, SET_FILL_OPACITY, tintOver } from "./set-style";
 
 describe("set tints are opaque (#440)", () => {
+  test("dark canvas sets and their overlap stay dark and distinguishable", () => {
+    const theme = getTheme("sumi-dark");
+    if (!theme) throw new Error("missing theme");
+    const blue = resolveSetStyle(theme, { variant: "default", tone: "blue" });
+    const green = resolveSetStyle(theme, { variant: "default", tone: "green" });
+    const overlap = multiplyTints([blue.fill, green.fill], theme.canvas);
+    expect(toOklch(blue.fill).l).toBeLessThan(toOklch(blue.fontColor).l - 0.3);
+    expect(toOklch(overlap).l).toBeGreaterThan(toOklch(blue.fill).l);
+    expect(toOklch(overlap).l).toBeLessThan(toOklch(blue.fontColor).l - 0.2);
+  });
   test("tintOver mixes the ink into white: 0 is white, 1 is the ink", () => {
     expect(tintOver("#000000", 0)).toBe("#ffffff");
     expect(tintOver("#102030", 1)).toBe("#102030");

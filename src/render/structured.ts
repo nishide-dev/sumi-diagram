@@ -1181,7 +1181,7 @@ export function writeStructuredSvg(
       throw new Error(`internal error: set "${placed.id}" is not in the figure`);
     return { set, placed };
   });
-  const fills = setFills(drawnSets);
+  const fills = setFills(drawnSets, canvas);
   if (fills.markup !== "") body.push(fills.markup);
   painted.push(...fills.painted);
   for (const { set, placed } of drawnSets) {
@@ -1338,15 +1338,17 @@ const boundsOf = (polygon: readonly Point[]): Rect => {
 
 /**
  * The tints of the set enclosures (#440), opaque, in one `g.sumi-set-fills`:
- * each set's fill (the tone's line color mixed into white), then the regions
- * where two or more sets overlap, each painted with the product of their
- * fills (`multiplyTints()`), clipped to the sets with nested `clip-path`s.
+ * each set's fill, then the regions where two or more sets overlap, combined
+ * relative to the canvas (`multiplyTints()`), clipped with nested `clip-path`s.
  * Nothing is translucent, so the color is the same over a white page, a gray
  * panel or another set. It comes before every set's outline and label, so
  * the outlines of an earlier set are not covered by a later set's fill.
  * `painted` is what lies under an edge label: the fills, then the overlaps.
  */
-function setFills(drawn: readonly { set: SetIR; placed: SetLayout }[]): {
+function setFills(
+  drawn: readonly { set: SetIR; placed: SetLayout }[],
+  canvas: string,
+): {
   markup: string;
   painted: PaintedGroup[];
 } {
@@ -1379,7 +1381,10 @@ function setFills(drawn: readonly { set: SetIR; placed: SetLayout }[]): {
   const overlaps = setOverlaps(polygons);
   const regions: string[] = [];
   for (const { members, polygon } of overlaps) {
-    const color = multiplyTints(members.map((m) => (drawn[m] as { set: SetIR }).set.style.fill));
+    const color = multiplyTints(
+      members.map((m) => (drawn[m] as { set: SetIR }).set.style.fill),
+      canvas,
+    );
     const last = members[members.length - 1] as number;
     let region = outlineShape(
       (drawn[last] as { placed: SetLayout }).placed,
