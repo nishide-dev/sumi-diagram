@@ -8,7 +8,7 @@ Sumi is a diagram-as-code CLI built for AI coding agents. The agent looks up the
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/architecture.dark.svg">
-  <img src="docs/assets/architecture.light.svg" alt="How Sumi works: a coding agent with the Sumi Skill discovers components with sumi catalog and writes a .sumi.yaml file; the Sumi CLI compiles, lays out and renders it to SVG, PDF and PPTX; geometry lint checks the rendered figure and sends diagnostics back to the agent.">
+  <img src="docs/assets/architecture.light.svg" width="100%" alt="How Sumi works: a coding agent with the Sumi Skill discovers components with sumi catalog and writes a .sumi.yaml file; the Sumi CLI compiles, lays out and renders it to SVG, PDF and PPTX; geometry lint checks the rendered figure and sends diagnostics back to the agent.">
 </picture>
 
 ## Get started
