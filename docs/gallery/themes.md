@@ -10,6 +10,8 @@
 | <code>color</code> | General\-purpose theme with color: pastel tone fills, blue accent for emphasis | <code>sumi/biz\-ud\-gothic</code> |
 | <code>paper</code> | Color ML\-paper style: pastel tones, rounded corners, 1pt frames and 0\.5pt edges, white panels with a thin light gray frame \(gray only when asked: the filled variant, groupFill\), Inter for Latin text | <code>sumi/inter\-biz\-ud\-gothic</code> |
 | <code>llama</code> | After Meta's Llama 4 MoE figure: slate lines with open arrowheads, gray\-framed white blocks, dark slate solid blocks, blue accent emphasis, borderless pale panels, Inter for Latin text | <code>sumi/inter\-biz\-ud\-gothic</code> |
+| <code>sumi</code> | Warm cream canvas with navy ink and sand accents | <code>sumi/inter\-biz\-ud\-gothic</code> |
+| <code>sumi\-dark</code> | Navy canvas with cream ink and sand accents | <code>sumi/inter\-biz\-ud\-gothic</code> |
 
 ## The structured Transformer under every theme
 
@@ -24,6 +26,11 @@ The same structured figure \(the Transformer, <code>examples/transformer/</code>
 | --- | --- | --- |
 | <img src="themes/transformer.color.svg" alt="the structured Transformer, theme color"> | <img src="themes/transformer.paper.svg" alt="the structured Transformer, theme paper"> | <img src="themes/transformer.llama.svg" alt="the structured Transformer, theme llama"> |
 | <code>sumi render examples/transformer/transformer\.sumi\.yaml \-\-theme color \-\-profile paper\-double</code><br>87\.84mm × 114\.83mm \(max width 180mm, max height 220mm\)<br>info geometry/color\-on\-panel \(×2\): Group &quot;encoder&quot; is filled \#f2f2f2 and holds 4 colored elements \(node &quot;enc\-mha&quot;, node &quot;enc\-norm1&quot;, node &quot;enc\-ff&quot;, and 1 more\): the colors compete with the panel's\. | <code>sumi render examples/transformer/transformer\.sumi\.yaml \-\-theme paper \-\-profile paper\-double</code><br>83\.43mm × 114\.12mm \(max width 180mm, max height 220mm\)<br>info geometry/color\-on\-panel \(×2\): Group &quot;encoder&quot; is filled \#f2f2f2 and holds 4 colored elements \(node &quot;enc\-mha&quot;, node &quot;enc\-norm1&quot;, node &quot;enc\-ff&quot;, and 1 more\): the colors compete with the panel's\. | <code>sumi render examples/transformer/transformer\.sumi\.yaml \-\-theme llama \-\-profile paper\-double</code><br>83\.43mm × 114\.83mm \(max width 180mm, max height 220mm\)<br>info geometry/color\-on\-panel \(×2\): Group &quot;encoder&quot; is filled \#f2f2f2 and holds 4 colored elements \(node &quot;enc\-mha&quot;, node &quot;enc\-norm1&quot;, node &quot;enc\-ff&quot;, and 1 more\): the colors compete with the panel's\. |
+
+| <code>sumi</code> | <code>sumi\-dark</code> |
+| --- | --- |
+| <img src="themes/transformer.sumi.svg" alt="the structured Transformer, theme sumi"> | <img src="themes/transformer.sumi-dark.svg" alt="the structured Transformer, theme sumi-dark"> |
+| <code>sumi render examples/transformer/transformer\.sumi\.yaml \-\-theme sumi \-\-profile paper\-double</code><br>83\.43mm × 114\.83mm \(max width 180mm, max height 220mm\)<br>info geometry/color\-on\-panel \(×2\): Group &quot;encoder&quot; is filled \#f2f2f2 and holds 4 colored elements \(node &quot;enc\-mha&quot;, node &quot;enc\-norm1&quot;, node &quot;enc\-ff&quot;, and 1 more\): the colors compete with the panel's\. | <code>sumi render examples/transformer/transformer\.sumi\.yaml \-\-theme sumi\-dark \-\-profile paper\-double</code><br>83\.43mm × 114\.83mm \(max width 180mm, max height 220mm\)<br>info geometry/color\-on\-panel \(×2\): Group &quot;encoder&quot; is filled \#f2f2f2 and holds 4 colored elements \(node &quot;enc\-mha&quot;, node &quot;enc\-norm1&quot;, node &quot;enc\-ff&quot;, and 1 more\): the colors compete with the panel's\. |
 
 Source: [<code>examples/transformer/transformer\.sumi\.yaml</code>](../../examples/transformer/transformer.sumi.yaml)
 
@@ -40,5 +47,10 @@ The same auto\-layout figure \(D2 with ELK, <code>examples/pipeline/pipeline\.su
 | --- | --- | --- |
 | <img src="compare/pipeline.color.paper-single.svg" alt="the pipeline, theme color"> | <img src="compare/pipeline.paper.paper-single.svg" alt="the pipeline, theme paper"> | <img src="compare/pipeline.llama.paper-single.svg" alt="the pipeline, theme llama"> |
 | <code>sumi render examples/pipeline/pipeline\.sumi\.yaml \-\-theme color \-\-profile paper\-single</code><br>61\.74mm × 151\.34mm \(max width 88mm, max height 220mm\)<br>info geometry/edge\-touches\-label: Edge edges\[3\] touches the label of group &quot;storage&quot; \(0\.25mm from the letters\)\. | <code>sumi render examples/pipeline/pipeline\.sumi\.yaml \-\-theme paper \-\-profile paper\-single</code><br>61\.74mm × 151\.34mm \(max width 88mm, max height 220mm\)<br>info geometry/edge\-touches\-label: Edge edges\[3\] touches the label of group &quot;storage&quot; \(0\.34mm from the letters\)\. | <code>sumi render examples/pipeline/pipeline\.sumi\.yaml \-\-theme llama \-\-profile paper\-single</code><br>61\.56mm × 151\.17mm \(max width 88mm, max height 220mm\)<br>info geometry/edge\-touches\-label: Edge edges\[3\] touches the label of group &quot;storage&quot; \(0\.25mm from the letters\)\. |
+
+| <code>sumi</code> | <code>sumi\-dark</code> |
+| --- | --- |
+| <img src="compare/pipeline.sumi.paper-single.svg" alt="the pipeline, theme sumi"> | <img src="compare/pipeline.sumi-dark.paper-single.svg" alt="the pipeline, theme sumi-dark"> |
+| <code>sumi render examples/pipeline/pipeline\.sumi\.yaml \-\-theme sumi \-\-profile paper\-single</code><br>61\.74mm × 151\.34mm \(max width 88mm, max height 220mm\)<br>info geometry/edge\-touches\-label: Edge edges\[3\] touches the label of group &quot;storage&quot; \(touching the letters\)\. | <code>sumi render examples/pipeline/pipeline\.sumi\.yaml \-\-theme sumi\-dark \-\-profile paper\-single</code><br>61\.74mm × 151\.34mm \(max width 88mm, max height 220mm\)<br>info geometry/color\-on\-panel: Group &quot;stages&quot; is filled \#383f58 and holds 4 colored elements \(node &quot;input&quot;, node &quot;parse&quot;, node &quot;validate&quot;, and 1 more\): the colors compete with the panel's\.<br>info geometry/edge\-touches\-label: Edge edges\[3\] touches the label of group &quot;storage&quot; \(touching the letters\)\. |
 
 Source: [<code>examples/pipeline/pipeline\.sumi\.yaml</code>](../../examples/pipeline/pipeline.sumi.yaml)

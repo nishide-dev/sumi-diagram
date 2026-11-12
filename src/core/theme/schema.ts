@@ -89,6 +89,8 @@ export interface ThemeDefinition {
   version: 1;
   id: string;
   description?: string;
+  /** Opaque background color of the figure; defaults to white. */
+  canvas?: ValueInput;
   /** Font set ID, e.g. `sumi/biz-ud-gothic`. */
   fonts: string;
   tokens?: TokenTree;
@@ -112,6 +114,7 @@ export interface ThemeDefinition {
 export interface Theme {
   readonly id: string;
   readonly description?: string;
+  readonly canvas: Color;
   readonly fontSet: FontSet;
   /** Resolved tokens by dotted name, e.g. `color.fg`. */
   readonly tokens: ReadonlyMap<string, TypedValue>;
@@ -168,6 +171,7 @@ export const ThemeSchema = z.strictObject({
   version: z.literal(THEME_FORMAT_VERSION),
   id: z.string().regex(ID_PATTERN),
   description: z.string().optional(),
+  canvas: z.unknown().optional(),
   fonts: z.string(),
   tokens: z.record(z.string(), z.unknown()).optional(),
   base: z
@@ -328,10 +332,17 @@ class ThemeChecker {
     const toneLines = this.#checkTones("toneLines", TONE_LINE_PROPERTIES);
 
     const dim = theme.dim === undefined ? undefined : this.#checkDim(theme.dim);
+    const canvas =
+      theme.canvas === undefined ? "#ffffff" : this.#checkValue("fill", theme.canvas, ["canvas"]);
+    if (canvas === "transparent") {
+      this.error("theme/invalid-value", "Canvas must be an opaque color, not transparent.", [
+        "canvas",
+      ]);
+    }
 
     this.#checkFontCombinations(base, components, refs);
 
-    if (hasErrors(this.diagnostics) || this.#fontSet === undefined) {
+    if (hasErrors(this.diagnostics) || this.#fontSet === undefined || canvas === undefined) {
       return { ok: false, diagnostics: this.diagnostics };
     }
     const tokens = new Map<string, TypedValue>();
@@ -340,6 +351,7 @@ class ThemeChecker {
       ok: true,
       value: deepFreeze({
         id: theme.id,
+        canvas: canvas.replace(/^#([0-9a-f])([0-9a-f])([0-9a-f])$/i, "#$1$1$2$2$3$3").toLowerCase(),
         ...(theme.description !== undefined && { description: theme.description }),
         fontSet: this.#fontSet,
         tokens,

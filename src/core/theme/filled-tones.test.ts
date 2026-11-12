@@ -9,6 +9,7 @@ import { BUILTIN_THEMES } from "./builtin";
 import { toOklch } from "./color-math";
 import { dimStyle, lightenColor } from "./dim";
 import { contrastRatio } from "./node-variants";
+import { withToneOverrides } from "./overrides";
 import { getPalette, PALETTE_NAMES, withPalette } from "./palette";
 import { resolveStyle } from "./resolve";
 import { TONE_NAMES } from "./tones";
@@ -60,13 +61,16 @@ describe("solid and tinted nodes", () => {
             resolveStyle(theme, { kind: "group", id: "sumi/container", variant }).style.fill,
         );
         if (palette) {
-          const selected = getPalette(palette);
+          const selected = getPalette(palette, theme.canvas);
           if (!selected) throw new Error(`missing palette ${palette}`);
           panels.push(selected.roles.panel);
         }
         const yellow = toOklch(arrow);
         expect(muddinessOf(yellow, yellow), `${base.id}/${palette ?? "default"}`).toBeUndefined();
-        for (const background of ["#ffffff", ...panels.filter((fill) => fill !== "transparent")]) {
+        for (const background of [
+          theme.canvas,
+          ...panels.filter((fill) => fill !== "transparent"),
+        ]) {
           expect(
             contrast(arrow, background),
             `${base.id}/${palette ?? "default"} on ${background}`,
@@ -107,7 +111,10 @@ describe("solid and tinted nodes", () => {
             else expect(strokeWidth.pt).toBeGreaterThan(0);
             if (variant === "solid") {
               const solid = theme.solidTones?.get(tone ?? "gray");
-              expect(fontColor).toBe(solid?.text ?? "#ffffff");
+              // White text on a light canvas; on a dark canvas the light fill takes the canvas as text.
+              expect(fontColor).toBe(
+                solid?.text ?? (luminance(theme.canvas) < 0.2 ? theme.canvas : "#ffffff"),
+              );
               expect(fill).toBe(solid?.fill ?? theme.toneLines.get(tone ?? "gray")?.stroke ?? "");
               if (shape.id === "sumi/stack") {
                 expect(contrast(fill, stroke)).toBeGreaterThanOrEqual(4.5);
@@ -239,8 +246,8 @@ ${TONE_NAMES.map((tone, i) => `  - { id: n${i}, component: stack, label: A, grou
       ).toBeGreaterThanOrEqual(2);
       const dim = theme.dim;
       if (!dim) throw new Error("missing dim");
-      const pale = lightenColor(solid.fill, dim.lighten);
-      const faded = dimStyle(solid, dim, true);
+      const pale = lightenColor(solid.fill, dim.lighten, theme.canvas);
+      const faded = dimStyle(solid, dim, true, theme.canvas);
       expect(contrast(pale, faded.fontColor)).toBeGreaterThanOrEqual(3);
       expect(
         styles.filter(
@@ -269,10 +276,38 @@ describe("yellow text (#465)", () => {
         expect(Math.abs(toOklch(text).h - toOklch(line.stroke).h), label).toBeLessThan(3);
         expect(toOklch(text).c, label).toBeGreaterThan(0.08);
         const tint = theme.tones.get("yellow")?.fill ?? "#ffffff";
-        for (const surface of ["#ffffff", tint])
+        for (const surface of [theme.canvas, tint])
           expect(contrastRatio(text, surface), `${label} on ${surface}`).toBeGreaterThanOrEqual(
             4.5,
           );
+      }
+    }
+  });
+});
+
+describe("dark canvas with tone overrides", () => {
+  test("an override of one tone, fill-only or full, keeps the other tones' solid text readable", () => {
+    const base = BUILTIN_THEMES.get("sumi-dark");
+    if (base === undefined) throw new Error("sumi-dark missing");
+    for (const overrides of [
+      { red: { fill: "#333333" } },
+      { red: { fill: "#333333", line: "#ffaaaa" } },
+    ]) {
+      for (const palette of [undefined, ...PALETTE_NAMES]) {
+        const theme = withToneOverrides(withPalette(base, palette), overrides);
+        for (const tone of ["blue", "green", "yellow", "gray"] as const) {
+          const { fill, fontColor } = resolveStyle(theme, {
+            kind: "node",
+            id: "sumi/box",
+            variant: "solid",
+            tone,
+          }).style;
+          if (fill === undefined || fontColor === undefined) throw new Error(`${tone}: no colors`);
+          expect(
+            contrastRatio(fill, fontColor),
+            `${palette ?? "none"} ${tone}`,
+          ).toBeGreaterThanOrEqual(4.5);
+        }
       }
     }
   });

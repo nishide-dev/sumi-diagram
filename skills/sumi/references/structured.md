@@ -181,7 +181,7 @@ members are node or group IDs (a group stands for its whole frame; `unknown memb
 | `padding` | room between members and outline (default: the profile's group padding) |
 | `enclose` | `body` (default) fits member bodies and badges; `footprint` also includes their glyphs before adding padding. Larger outlines can cover nearby non-members. |
 | `label`, `labelAt` | outside the outline: `top` (default), `bottom`, `left`, `right`, or beside a diagonal extreme `top-left`, `top-right`, `bottom-left`, `bottom-right`. For a label inside, make a `label` node a member |
-| `tone`, `variant` | the tone's line color draws outline, label and, mixed into white, the opaque tint in every theme, gray without a tone. `default` tint + outline, `filled` tint, `outlined` outline, `dashed`; `fillOpacity` (0..1) is the tint's strength (the share of the line color mixed into white: 0.2 default, 0.28 `filled`), not a transparency, so the set looks the same on white and on a panel |
+| `tone`, `variant` | the tone's line color draws outline, label and an opaque tint, gray without a tone. Light canvases mix into white; dark canvases mix into the canvas color. `default` tint + outline, `filled` tint, `outlined` outline, `dashed`; `fillOpacity` (0..1) is the tint's strength (0.2 default, 0.28 `filled`), not transparency, so the set looks the same over a panel |
 
 - A member may be a whole [token sequence](#token-sequences) (the tokens node's ID): it
   gets its frame like a node named by an edge, so a dashed rectangle can enclose rows of cells.

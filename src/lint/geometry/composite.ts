@@ -9,6 +9,7 @@
  */
 
 import type { DiagnosticSubject, DocPath } from "../../core/diagnostics";
+import { getTheme } from "../../core/theme/builtin";
 import { multiplyTints } from "../../core/theme/set-style";
 import { setOverlaps } from "../../layout/set-overlap";
 import type { Point, Rect } from "../../render/geometry";
@@ -139,9 +140,9 @@ export function paintItems(context: GeometryContext, options: PaintOptions = {})
     items.push({
       kind: "overlap",
       name: `the overlap of ${sets.map((s) => s.name).join(" and ")}`,
-      color: multiplyTints(colors),
+      color: multiplyTints(colors, getTheme(context.ir.meta.themeId)?.canvas),
       alpha: 1,
-      ink: multiplyTints(colors),
+      ink: multiplyTints(colors, getTheme(context.ir.meta.themeId)?.canvas),
       region: { kind: "polygon", points: polygon },
       bbox: boundsOf(polygon),
       docPath: first.docPath,
@@ -171,6 +172,7 @@ export interface Sample {
 
 export interface Analysis {
   readonly item: PaintItem;
+  readonly canvas: string;
   readonly index: number;
   /** The item's color as it looks on white, the reference. */
   readonly onWhite: string;
@@ -190,7 +192,7 @@ const covers = (item: PaintItem, p: Point): boolean =>
   depthInside(item.region, p) >= 0;
 
 /** Every item with the samples at which it shows. */
-export function analyze(items: readonly PaintItem[]): Analysis[] {
+export function analyze(items: readonly PaintItem[], canvas = WHITE): Analysis[] {
   return items.map((item, index) => {
     const samples: Sample[] = [];
     for (let i = 0; i < GRID; i++) {
@@ -204,8 +206,8 @@ export function analyze(items: readonly PaintItem[]): Analysis[] {
         if (items.some((above, k) => k > index && above.alpha >= 1 && covers(above, point)))
           continue;
         const under = items.filter((below, k) => k < index && covers(below, point));
-        let below = WHITE;
-        let panel = WHITE;
+        let below = canvas;
+        let panel = canvas;
         for (const u of under) {
           below = over(u.color, u.alpha, below);
           if (u.kind === "group") panel = over(u.color, u.alpha, panel);
@@ -218,7 +220,7 @@ export function analyze(items: readonly PaintItem[]): Analysis[] {
         samples.push({ point, below, final, under, panel });
       }
     }
-    return { item, index, onWhite: over(item.color, item.alpha, WHITE), samples };
+    return { item, index, canvas, onWhite: over(item.color, item.alpha, canvas), samples };
   });
 }
 
@@ -228,7 +230,7 @@ const cache = new WeakMap<GeometryContext, Analysis[]>();
 export function analysisOf(context: GeometryContext): Analysis[] {
   let analysis = cache.get(context);
   if (analysis === undefined) {
-    analysis = analyze(paintItems(context));
+    analysis = analyze(paintItems(context), getTheme(context.ir.meta.themeId)?.canvas ?? WHITE);
     cache.set(context, analysis);
   }
   return analysis;

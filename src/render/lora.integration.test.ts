@@ -153,8 +153,10 @@ nodes:
           const geometry = geometryContextFor(result.value).get("n:a");
           if (!geometry?.bbox || !geometry.labelBoundaries) throw new Error("missing geometry");
           expect(geometry.labels).toHaveLength(1);
-          // llama's emphasis (#386) has white text on its accent fill, like solid.
-          const onPaint = variant === "solid" || (theme === "llama" && variant === "emphasis");
+          // These emphasis styles need the painted body for readable text.
+          const onPaint =
+            variant === "solid" ||
+            (["llama", "sumi", "sumi-dark"].includes(theme) && variant === "emphasis");
           for (const line of geometry.labels.flatMap((l) => l.visibleLines)) {
             const { x, y, width, height } = geometry.bbox;
             if (onPaint) {

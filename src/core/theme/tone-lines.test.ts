@@ -49,14 +49,18 @@ const target = (name: string, variant: string, tone?: Tone) => {
   return { kind: manifest.kind, id: componentId(manifest), variant, tone };
 };
 
-/** WCAG contrast ratio of `color` (`#rrggbb`) on white. */
-function contrastOnWhite(color: string): number {
-  const channel = (i: number) => {
-    const v = Number.parseInt(color.slice(i, i + 2), 16) / 255;
-    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+/** Independent WCAG contrast ratio for two opaque colors. */
+function contrastOnCanvas(color: string, canvas: string): number {
+  const luminance = (hex: string) => {
+    const channel = (i: number) => {
+      const v = Number.parseInt(hex.slice(i, i + 2), 16) / 255;
+      return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+    };
+    return 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
   };
-  const luminance = 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
-  return 1.05 / (luminance + 0.05);
+  const a = luminance(color);
+  const b = luminance(canvas);
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 }
 
 describe("built-in tone lines", () => {
@@ -67,9 +71,9 @@ describe("built-in tone lines", () => {
         expect(Object.keys(layer).sort()).toEqual(["fontColor", "stroke"]);
         if (layer !== theme.toneLines.get("yellow") || !theme.solidTones?.has("yellow"))
           expect(layer.fontColor).toBe(layer.stroke ?? "");
-        // Readable as text on the white of an outlined node.
-        expect(contrastOnWhite(layer.fontColor ?? "")).toBeGreaterThanOrEqual(4.5);
-        expect(contrastOnWhite(layer.stroke ?? "")).toBeGreaterThanOrEqual(
+        // An outlined node sits on the theme's canvas.
+        expect(contrastOnCanvas(layer.fontColor ?? "", theme.canvas)).toBeGreaterThanOrEqual(4.5);
+        expect(contrastOnCanvas(layer.stroke ?? "", theme.canvas)).toBeGreaterThanOrEqual(
           layer === theme.toneLines.get("yellow") && theme.solidTones?.has("yellow") ? 3 : 4.5,
         );
       }

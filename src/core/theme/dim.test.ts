@@ -13,6 +13,7 @@ import {
   validateTheme,
 } from ".";
 import { dimmedElements, dimStyle, lightenColor } from "./dim";
+import { contrastRatio } from "./node-variants";
 import { reportDim } from "./resolve";
 import type { ResolvedStyle } from "./style";
 
@@ -119,18 +120,27 @@ describe("dim colors", () => {
     expect(dimStyle(label.style, dim)).toMatchObject({ fill: "transparent" });
   });
 
-  test("every built-in theme defines dim; dimmed text and lines are lighter than the originals", () => {
+  test("every built-in theme dims text and lines toward its canvas", () => {
     for (const theme of BUILTIN_THEMES.values()) {
       const dim = theme.dim;
       expect(dim).toBeDefined();
       if (dim === undefined) continue;
       expect(dim.lighten).toBeGreaterThan(0);
       expect(dim.lighten).toBeLessThan(1);
-      const luminance = (c: string) => Number.parseInt(c.slice(1, 3), 16);
       const text = theme.base.node.fontColor ?? "#000000";
-      expect(luminance(dim.fontColor)).toBeGreaterThan(luminance(text));
+      const stroke = theme.base.edge.stroke ?? "#000000";
+      expect(contrastRatio(dim.fontColor, theme.canvas)).toBeLessThan(
+        contrastRatio(text, theme.canvas),
+      );
+      expect(contrastRatio(dim.stroke, theme.canvas)).toBeLessThan(
+        contrastRatio(stroke, theme.canvas),
+      );
       expect(dim.stroke).toMatch(/^#[0-9a-f]{6}$/);
     }
+  });
+
+  test("dark canvas draws dim fills toward the canvas", () => {
+    expect(lightenColor("#ffffff", 0.5, "#30364f")).toBe("#989ba7");
   });
 
   test("theme validation: tokens, missing fields, transparent, type and range", () => {
@@ -291,13 +301,15 @@ describe("dimmed styles", () => {
       for (const [key, before] of plain) {
         const after = style(dimmed, key);
         const inside = dimmedElements(checkFigure(FIGURE(id)).state.doc).has(key);
-        expect(after).toEqual(inside ? dimStyle(before, dim) : before);
+        expect(after).toEqual(inside ? dimStyle(before, dim, false, theme.canvas) : before);
       }
       // The inner group keeps its dashes and its tone's (now pale) fill.
       const inner = style(dimmed, groupKey("inner"));
       expect(inner.strokeDash).toBe(style(plain, groupKey("inner")).strokeDash);
       expect(inner.strokeDash).toBeGreaterThan(0);
-      expect(inner.fill).toBe(lightenColor(theme.tones.get("blue")?.fill ?? "", dim.lighten));
+      expect(inner.fill).toBe(
+        lightenColor(theme.tones.get("blue")?.fill ?? "", dim.lighten, theme.canvas),
+      );
       // The caption is gray; the edges into and out of the group are not.
       expect(style(dimmed, nodeKey("outer-caption")).fontColor).toBe(dim.fontColor);
       expect(style(dimmed, edgeKey(undefined, 2))).toEqual(style(plain, edgeKey(undefined, 2)));

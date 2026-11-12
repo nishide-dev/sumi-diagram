@@ -111,7 +111,7 @@ test("the arrow is sized from the theme's text size, and explicit lengths are D2
 });
 
 test("every theme resolves every variant and tone without fallback: ink by default, no outline, gray when muted", () => {
-  for (const theme of BUILTIN_THEMES.keys())
+  for (const [theme, definition] of BUILTIN_THEMES)
     for (const name of NAMES)
       for (const variant of ["default", "muted", "outlined"])
         for (const tone of [undefined, "blue"]) {
@@ -126,7 +126,7 @@ test("every theme resolves every variant and tone without fallback: ink by defau
           if (style === undefined) throw new Error("missing arrow");
           if (variant === "outlined") {
             expect(style.strokeWidth.pt).toBeGreaterThan(0);
-            expect(style.fill).toBe("#ffffff");
+            expect(style.fill).toBe(definition.canvas);
           } else {
             expect(style.strokeWidth.pt).toBe(0);
             expect(style.stroke).toBe(style.fill);

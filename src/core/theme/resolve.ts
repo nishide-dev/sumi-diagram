@@ -26,7 +26,7 @@ import { FLOW_ARROW_IDS, OPERATOR_SIZES, SEPARATOR_ID } from "../registry/builti
 import type { ComponentId, ComponentKind } from "../registry/manifest";
 import { resolveTheme } from "./builtin";
 import { dimmedElements, dimStyle } from "./dim";
-import { contrastRatio as contrast, filledToneNode, readableInk } from "./node-variants";
+import { contrastRatio as contrast, filledToneNode, luminance, readableInk } from "./node-variants";
 import { figureTheme } from "./overrides";
 import type { Theme, ToneOverride } from "./schema";
 import { withRadius, withStrokes } from "./strokes";
@@ -150,6 +150,21 @@ export function resolveStyle<K extends ComponentKind>(
         line.fontColor !== line.stroke
       )
         filled = { ...filled, stroke: line.stroke, fontColor: line.fontColor };
+    }
+    // Dark-canvas colors first; the selected tone's own override (if any) applies after.
+    if (filled !== undefined && luminance(theme.canvas) < 0.2) {
+      if (variant === "solid" && ink !== undefined) {
+        filled = {
+          fill: ink,
+          stroke: id === "sumi/stack" ? theme.canvas : ink,
+          fontColor: theme.canvas,
+        };
+      } else if (variant === "tinted" && fill !== undefined && ink !== undefined) {
+        // As on a light canvas, a tinted node's text is its frame (the tone's line). On a fill
+        // of the figure's own the text moves to whichever side of the fill reads (#473).
+        const own = theme.toneOverrides?.get(tone ?? "gray")?.fill !== undefined;
+        filled = { fill, stroke: ink, fontColor: own ? inkOnEitherSide(fill, ink) : ink };
+      }
     }
     let paint = overriddenTone(filled, variant, theme.toneOverrides?.get(tone ?? "gray"));
     const solidFill = variant === "solid" ? theme.solidFillOverrides?.[tone ?? "gray"] : undefined;
@@ -403,6 +418,7 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
             style,
             dim,
             manifest.kind === "node" && variant === "solid" && id !== SEPARATOR_ID,
+            theme.canvas,
           );
     styles.set(
       key,
@@ -457,8 +473,8 @@ function reportToneContrast(state: CheckState, locate: Locator, theme: Theme): v
       warn(
         override.text !== undefined ? "text" : "line",
         ink,
-        "#ffffff",
-        "on white (outlined text, toned edge labels, icon-only labels, \\textcolor runs)",
+        theme.canvas,
+        `on ${theme.canvas === "#ffffff" ? "white" : `canvas ${theme.canvas}`} (outlined text, toned edge labels, icon-only labels, \\textcolor runs)`,
       );
   }
 }
@@ -572,4 +588,32 @@ export function labelFontUsages(state: CheckState): FontUsage[] {
     }
   }
   return usages;
+}
+
+/**
+ * Text for an arbitrary fill on a dark canvas: the ink darkened (readableInk) or lightened
+ * toward white in whole percent steps, whichever first reaches 4.5:1; the higher contrast
+ * when neither does.
+ */
+function inkOnEitherSide(fill: string, ink: string): string {
+  const darker = readableInk(fill, ink);
+  if (!/^#[0-9a-f]{6}$/i.test(fill) || !/^#[0-9a-f]{6}$/i.test(ink)) return darker;
+  let lighter = "#ffffff";
+  for (let percent = 0; percent <= 100; percent++) {
+    const color = `#${[1, 3, 5]
+      .map((offset) => {
+        const v = Number.parseInt(ink.slice(offset, offset + 2), 16);
+        return Math.round(v + (255 - v) * (percent / 100))
+          .toString(16)
+          .padStart(2, "0");
+      })
+      .join("")}`;
+    if (contrast(fill, color) >= 4.5) {
+      lighter = color;
+      break;
+    }
+  }
+  const [dark, light] = [contrast(fill, darker), contrast(fill, lighter)];
+  if (dark >= 4.5 && light >= 4.5) return light >= dark ? lighter : darker;
+  return light > dark ? lighter : darker;
 }

@@ -60,7 +60,7 @@ with ordinary `bubble` nodes, speakers, meta notes and date dividers.
 
 In built-in chromatic themes, the yellow tone's line (edges and outlined or
 tinted frames; not a solid node, whose outline is its bright fill) has at least
-3:1 contrast on white and the theme's default group fill. Darker fills, including palette-filled panels, and
+3:1 contrast on the theme canvas and its default group fill. Darker fills, including palette-filled panels, and
 explicit overrides are not guaranteed.
 
 ## Feature versions
@@ -234,7 +234,7 @@ frames and toned edges take the dim gray.
 `dim: true` on a group draws it pale together with everything inside: nested groups, nodes
 (legends and tokens cells too), its caption and the edges whose two ends are both inside:
 the panels of variants a paper compares against. Text and lines take the theme's dim gray
-and fills move toward white (tones stay recognisable); sizes, dashes, fonts and layout do
+and fills move toward the theme canvas (white by default; dark in `sumi-dark`); sizes, dashes, fonts and layout do
 not change. Write it once on the group instead of `variant: muted` on every element (tone
 fills stay strong).
 
@@ -432,12 +432,14 @@ They are built in; a figure cannot define its own. `sumi catalog --json` lists t
 | `color` | general purpose with color: like `minimal`, but tones are pastel fills and emphasis is blue |
 | `paper` | color ML-paper style: pastel tone fills, rounded boxes (2pt) and groups (6pt), black 1pt frames, light gray groups, thin 0.5pt edges with small arrowheads, framed images with a 0.5pt border, Inter for Latin text |
 | `llama` | after Meta's Llama 4 MoE figure: 1pt slate lines and frames with **open chevron arrowheads** (a small gap before the box), white boxes with a gray frame, `solid` = dark slate block with white text, `emphasis` = blue accent block, `filled` = gray borderless block, `muted` = pale borderless block, borderless pale groups with a regular-weight title (`muted` group: white panel), rounded corners (3pt / 5pt), Inter for Latin text |
+| `sumi` | warm cream canvas, navy ink and sand accents |
+| `sumi-dark` | navy canvas, cream ink and sand accents |
 
 `minimal`, `academic`, `color`, `paper` and `llama` use 8pt text (7pt on edges). `academic` is
 for black-and-white journals, `paper` for the coloured figures of ML papers; both fit
 `paper-single` / `paper-double`, and the same YAML renders under either with
 `--theme`. Fonts: `minimal`, `academic`, `slides`, `color` use `sumi/biz-ud-gothic`
-(Latin and Japanese); `paper` and `llama` use `sumi/inter-biz-ud-gothic` (structured figures:
+(Latin and Japanese); `paper`, `llama`, `sumi` and `sumi-dark` use `sumi/inter-biz-ud-gothic` (structured figures:
 Inter for Latin, BIZ UDPGothic for Japanese; auto figures all BIZ UDPGothic). Inter's
 line box is taller (1.21em vs 1.00em), so a small node with explicit `width` /
 `height` can fail `geometry/label-overflow` under `paper`: a one-character key in a
@@ -533,11 +535,16 @@ weights. The tones are derived from the palette too: `gray` is its neutral, and 
 `yellow`, `green`, `blue`, `purple`, `pink` keep their own hue (`tone: green` is still green) but
 take the palette's lightness and chroma (fills at its tint, lines at its strong colour), so a
 tone carries its meaning while the whole figure stays in one family of colours. Every text keeps
-4.5:1 on its fill in every palette. Yellow fills are kept light and warm; muted orange fills are kept peach-like. Chromatic yellow uses a golden stroke (at least 3:1 on white and the palette panel) and neutral ink for text; monochrome themes retain gray tones. Darker filled-group tint backgrounds can require a custom contrasting line. List the colours and the derived tones with
+4.5:1 on its fill in every palette. Yellow fills are kept light and warm; muted orange fills are kept peach-like. Chromatic yellow uses a golden stroke (at least 3:1 on the canvas and the palette panel) and neutral ink for text; monochrome themes retain gray tones. Darker filled-group tint backgrounds can require a custom contrasting line. List the colours and the derived tones with
 `sumi catalog --section palettes`; an unknown name is `schema/invalid-value` with the closest
 name. Explicit `tones`, `groupFill`, `groupStroke` and `solidFills` win over the palette, but
 tone colours of your own next to a palette are what `geometry/color-harmony` reports (it clashes
-unless they match the palette's lightness and chroma): leave `tones` out.
+unless they match the palette's lightness and chroma): leave `tones` out. Contrasts are
+measured against the theme's canvas (`sumi`'s cream). On a dark canvas (`sumi-dark`) a palette
+draws its dark variant: the canvas stays, panels are a step lighter in the palette's hue, the ink
+is its palest colour (light text and lines), the accent and the strong colour are lightened in
+their hue until they read on the canvas, and `solid`/`emphasis` fills take the canvas colour as
+text; tone fills are dark and their lines light.
 
 ## Discovering themes and profiles
 

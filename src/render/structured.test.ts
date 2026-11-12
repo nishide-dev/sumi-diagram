@@ -842,6 +842,8 @@ edges:
     const outer = { rect: { x: 0, y: 0, width: 100, height: 100 }, fill: "#336699", opacity: 1 };
     const inner = { rect: { x: 10, y: 10, width: 40, height: 40 }, fill: "#eee", opacity: 1 };
     expect(backgroundAt({ x: 20, y: 20 }, [])).toBe(CANVAS_FILL);
+    expect(backgroundAt({ x: 20, y: 20 }, [], "#30364f")).toBe("#30364f");
+    expect(labelBackground({ x: 20, y: 20, width: 10, height: 4 }, [], "#30364f")).toBe("#30364f");
     expect(backgroundAt({ x: 20, y: 20 }, [outer, inner])).toBe("#eee");
     expect(backgroundAt({ x: 50, y: 20 }, [outer, inner])).toBe("#eee");
     expect(backgroundAt({ x: 50.001, y: 20 }, [outer, inner])).toBe("#336699");

@@ -2,8 +2,17 @@ import { describe, expect, test } from "bun:test";
 import { builtinRegistry, FLOW_ARROW_IDS } from "../registry/builtins";
 import { componentId } from "../registry/manifest";
 import { BUILTIN_THEMES, getTheme } from "./builtin";
+import { deltaE as deltaEOf, toOklch } from "./color-math";
 import { contrastRatio, luminance } from "./node-variants";
-import { BUILTIN_PALETTES, getPalette, PALETTE_NAMES, type Palette, withPalette } from "./palette";
+import {
+  BUILTIN_PALETTES,
+  getPalette,
+  isDarkCanvas,
+  PALETTE_NAMES,
+  type Palette,
+  withPalette,
+} from "./palette";
+import { GRAY_SEPARATION } from "./palette-tones";
 import { resolveStyle } from "./resolve";
 import { TONE_NAMES } from "./tones";
 
@@ -114,6 +123,81 @@ describe("the built-in palettes", () => {
   });
 });
 
+describe("a palette on a non-white canvas (#473)", () => {
+  const canvasOf = (id: string) => {
+    const theme = getTheme(id);
+    if (theme === undefined) throw new Error(id);
+    return theme.canvas;
+  };
+
+  test("is the listed palette on white", () => {
+    for (const { id } of palettes) expect(getPalette(id, WHITE)).toBe(PALETTE(id));
+  });
+
+  test("on a light canvas, measures the ink, muted text, accent and strong color against it", () => {
+    const canvas = canvasOf("sumi");
+    expect(isDarkCanvas(canvas)).toBe(false);
+    for (const { id } of palettes) {
+      const { roles: r } = PALETTE(id, canvas);
+      const at = (what: string, a: string, b: string, minimum = 4.5) =>
+        expect(contrastRatio(a, b), `${id} ${what}`).toBeGreaterThanOrEqual(minimum);
+      at("ink on canvas", r.ink, canvas, 9);
+      at("ink on panel", r.ink, r.panel);
+      at("ink on tint", r.ink, r.tint);
+      at("muted on canvas", r.muted, canvas);
+      at("muted on panel", r.muted, r.panel);
+      at("accent on canvas", r.accent, canvas);
+      at("strong on canvas", r.strong, canvas);
+      at("strong on panel", r.strong, r.panel);
+      at("white on strong", WHITE, r.strong);
+      // The panel is the palette's own, as on white.
+      expect(r.panel).toBe(PALETTE(id).roles.panel);
+    }
+  });
+
+  test("on a dark canvas, is a dark variant: light ink and lines, dark panels and fills", () => {
+    const canvas = canvasOf("sumi-dark");
+    expect(isDarkCanvas(canvas)).toBe(true);
+    for (const { id } of palettes) {
+      const { roles: r, tones } = PALETTE(id, canvas);
+      const at = (what: string, a: string, b: string, minimum = 4.5) =>
+        expect(contrastRatio(a, b), `${id} ${what}`).toBeGreaterThanOrEqual(minimum);
+      // Panels a step lighter than the canvas, the tint lighter again; all darker than the text.
+      expect(luminance(r.panel), `${id} panel`).toBeGreaterThan(luminance(canvas));
+      expect(luminance(r.tint), `${id} tint`).toBeGreaterThan(luminance(r.panel));
+      expect(luminance(r.soft), `${id} soft`).toBeLessThan(luminance(r.panel));
+      at("ink on canvas", r.ink, canvas, 9);
+      for (const ground of [r.panel, r.tint, r.soft]) at(`ink on ${ground}`, r.ink, ground);
+      at("muted on canvas", r.muted, canvas);
+      at("muted on panel", r.muted, r.panel);
+      // The accent keeps its hue and reads as text (and so as a line) on the canvas and the panel.
+      at("accent on canvas", r.accent, canvas);
+      at("accent on panel", r.accent, r.panel);
+      const hueGap = Math.abs(
+        ((toOklch(r.accent).h - toOklch(PALETTE(id).roles.accent).h + 540) % 360) - 180,
+      );
+      expect(hueGap, `${id} accent hue`).toBeLessThan(12);
+      // Solid fills take the canvas as text; outlined text sits on the panel; tinted gray on the tint.
+      at("canvas on strong", canvas, r.strong);
+      at("strong on panel", r.strong, r.panel);
+      at("strong on tint", r.strong, r.tint);
+      expect(contrastRatio(r.strong, r.accent), `${id} strong-accent`).toBeGreaterThanOrEqual(1.12);
+      for (const [tone, { fill, line }] of Object.entries(tones)) {
+        expect(luminance(fill), `${id} ${tone} fill darker than its text`).toBeLessThan(
+          luminance(line),
+        );
+        at(`${tone} line on canvas`, line, canvas);
+        at(`${tone} line on panel`, line, r.panel);
+        at(`${tone} line on its fill`, line, fill);
+        at(`ink on ${tone} fill`, r.ink, fill);
+        expect(deltaEOf(fill, r.tint), `${id} ${tone} apart from gray`).toBeGreaterThanOrEqual(
+          GRAY_SEPARATION,
+        );
+      }
+    }
+  });
+});
+
 describe("withPalette", () => {
   const theme = getTheme("paper");
   if (theme === undefined) throw new Error("paper");
@@ -177,7 +261,9 @@ describe("withPalette", () => {
 
   test("gives every theme the palette's ink, panel, tint and accent", () => {
     for (const theme of BUILTIN_THEMES.values()) {
-      for (const { id, roles } of palettes) {
+      for (const { id } of palettes) {
+        // The palette as derived for the theme's canvas (the listed palette on white).
+        const { roles } = PALETTE(id, theme.canvas);
         const recolored = withPalette(theme, id);
         const style = (component: string, variant = "default") =>
           resolveStyle(recolored, {
@@ -208,7 +294,8 @@ describe("withPalette", () => {
 
   test("a muted group takes the palette's soft fill and frame, not a neutral gray", () => {
     for (const base of BUILTIN_THEMES.values()) {
-      for (const { id, roles } of palettes) {
+      for (const { id } of palettes) {
+        const { roles } = PALETTE(id, base.canvas);
         const group = resolveStyle(withPalette(base, id), {
           kind: "group",
           id: "sumi/container",
@@ -240,10 +327,10 @@ describe("withPalette", () => {
                 tone,
               });
               if (!/^#[0-9a-f]{6}$/.test(style.fontColor) || style.fill === undefined) continue;
-              // A transparent fill sits on the page (white) or on a panel; test both.
+              // A transparent fill sits on the canvas or on a panel; test both.
               const grounds = /^#[0-9a-f]{6}$/.test(style.fill)
                 ? [style.fill]
-                : [WHITE, PALETTE(id).roles.panel];
+                : [base.canvas, PALETTE(id, base.canvas).roles.panel];
               // A muted or emphasized element with a tone keeps its own text color on the tone's
               // fill (the theme's own limit, with or without a palette).
               if (tone !== undefined && (variant === "muted" || variant === "emphasis")) continue;
@@ -264,8 +351,8 @@ describe("withPalette", () => {
   });
 });
 
-const PALETTE = (id: string): Palette => {
-  const palette = getPalette(id);
+const PALETTE = (id: string, canvas?: string): Palette => {
+  const palette = getPalette(id, canvas);
   if (palette === undefined) throw new Error(id);
   return palette;
 };

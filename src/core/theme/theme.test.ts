@@ -54,6 +54,25 @@ const first = (definition: unknown, options?: ValidateThemeOptions) => {
   return diagnostic;
 };
 
+describe("theme canvas", () => {
+  test("defaults to white and resolves a color token", () => {
+    expect(valid(theme()).canvas).toBe("#ffffff");
+    expect(
+      valid(theme({ canvas: "{color.ground}", tokens: { color: { ground: "#30364f" } } })).canvas,
+    ).toBe("#30364f");
+    for (const builtin of BUILTIN_THEMES.values())
+      expect(builtin.canvas).toBe(
+        builtin.id === "sumi" ? "#f8f8ee" : builtin.id === "sumi-dark" ? "#30364f" : "#ffffff",
+      );
+  });
+
+  test("rejects transparent, invalid and unknown canvas colors", () => {
+    for (const canvas of ["transparent", "not-a-color", "{color.missing}"]) {
+      expect(validateTheme(theme({ canvas })).ok).toBe(false);
+    }
+  });
+});
+
 describe("font sets", () => {
   test("the built-in font sets are registered by ID with existing absolute TTF paths", () => {
     expect([...BUILTIN_FONT_SETS.keys()]).toEqual(["sumi/biz-ud-gothic", LATIN_FONT_SET_ID]);
@@ -62,10 +81,12 @@ describe("font sets", () => {
     // The default set has no Latin slots (#172): built-in themes keep their glyphs.
     expect(set.latin).toBeUndefined();
     expect(set.latinBold).toBeUndefined();
-    // Only paper (#173) and llama (#386) use the Latin set.
+    // paper (#173), llama (#386) and the sumi themes (#473) use the Latin set.
     for (const theme of BUILTIN_THEMES.values()) {
       expect(theme.fontSet.id).toBe(
-        ["paper", "llama"].includes(theme.id) ? LATIN_FONT_SET_ID : DEFAULT_FONT_SET_ID,
+        ["paper", "llama", "sumi", "sumi-dark"].includes(theme.id)
+          ? LATIN_FONT_SET_ID
+          : DEFAULT_FONT_SET_ID,
       );
     }
     // The Latin set is the default set plus Inter for Latin text.
@@ -543,7 +564,7 @@ describe("resolveStyle", () => {
 describe("built-in themes", () => {
   const registry = createBuiltinRegistry();
 
-  test("minimal, academic, slides, color, paper and llama are registered with their font sets", () => {
+  test("all built-in themes are registered with their font sets", () => {
     expect([...BUILTIN_THEMES.keys()]).toEqual([
       "minimal",
       "academic",
@@ -551,10 +572,14 @@ describe("built-in themes", () => {
       "color",
       "paper",
       "llama",
+      "sumi",
+      "sumi-dark",
     ]);
     for (const t of BUILTIN_THEMES.values()) {
       expect(t.fontSet.id).toBe(
-        ["paper", "llama"].includes(t.id) ? LATIN_FONT_SET_ID : DEFAULT_FONT_SET_ID,
+        ["paper", "llama", "sumi", "sumi-dark"].includes(t.id)
+          ? LATIN_FONT_SET_ID
+          : DEFAULT_FONT_SET_ID,
       );
     }
     for (const definition of BUILTIN_THEME_DEFINITIONS) {
@@ -759,7 +784,7 @@ describe("built-in themes", () => {
       [
         "theme/unknown",
         ["figure", "theme"],
-        'Did you mean "minimal"? Available themes: minimal, academic, slides, color, paper, llama.',
+        'Did you mean "minimal"? Available themes: minimal, academic, slides, color, paper, llama, sumi, sumi-dark.',
       ],
     ]);
   });

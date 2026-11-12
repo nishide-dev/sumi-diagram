@@ -33,6 +33,7 @@ import type { Diagnostic } from "../core/diagnostics";
 import { SUMI_VERSION } from "../core/figure/validate";
 import { getProfile } from "../core/profile/builtin";
 import type { Result } from "../core/result";
+import { getTheme } from "../core/theme/builtin";
 import { PT_PER_D2_UNIT } from "../core/units";
 import { invalid, readD2Svg } from "./svg";
 import {
@@ -311,8 +312,23 @@ export function finalizeSvg(
   });
   if (artifact.d2Source !== compiled.d2Source) return mismatch("the D2 source");
   if (artifact.fontSetId !== compiled.fontSet.id) return mismatch("the font set");
+  const canvas = getTheme(compiled.ir.meta.themeId)?.canvas ?? "#ffffff";
+  let svg = artifact.svg;
+  if (canvas.toLowerCase() !== "#ffffff") {
+    const read = readD2Svg(svg);
+    if (read.ok) {
+      const background = childElements(read.doc.drawing).find((child) => child.name === "rect");
+      if (background) {
+        const tag = svg
+          .slice(background.start, background.startTagEnd)
+          .replace(/\sclass="[^"]*"/, "")
+          .replace(/fill="[^"]*"/, `fill="${escapeAttribute(canvas)}"`);
+        svg = svg.slice(0, background.start) + tag + svg.slice(background.startTagEnd);
+      }
+    }
+  }
   return finalizeDocument(
-    artifact.svg,
+    svg,
     {
       ...metadataBase(compiled, options),
       backend: { ...artifact.backend },

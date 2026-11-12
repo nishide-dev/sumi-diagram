@@ -108,7 +108,13 @@ ${axis === "natural" ? "" : "  - { id: extent, group: g, component: box, props: 
 `);
           if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
           const node = result.value.compiled.ir.nodes[0];
-          const left = dim ? variant !== "solid" : variant === "solid";
+          const left = dim
+            ? theme === "sumi"
+              ? false
+              : theme === "sumi-dark"
+                ? variant === "solid"
+                : variant !== "solid"
+            : variant === "solid";
           expect(node?.render?.params?.labelOnLeft === true).toBe(left);
           const geometry = geometryContextFor(result.value).get("n:a");
           const box = geometry?.bbox;

@@ -2,7 +2,7 @@
 
 A theme decides how a figure looks: colors, corners, line widths, groups and fonts. It never changes the layout rules or the page limits, which belong to the [profile](usage.md#themes-and-profiles). Choose one with `figure.theme` or `--theme`; the same YAML renders under every theme.
 
-Sumi has six built-in themes:
+Sumi has eight built-in themes:
 
 - **`minimal`** (default): monochrome with clear outlines. A neutral starting point.
 - **`academic`**: grayscale and print-friendly, in the manner of a journal. Nothing is colored, so the figure prints the same on a black-and-white printer.
@@ -10,6 +10,8 @@ Sumi has six built-in themes:
 - **`paper`**: color ML-paper style, after published Transformer and DiT figures: pastel tones, rounded corners, thin frames and edges, white framed panels (gray only when asked: `variant: filled`, `groupFill`), Inter for Latin text.
 - **`slides`**: large text and thick lines for projection, used with the `presentation-16x9` profile.
 - **`llama`**: after the mixture-of-experts figure of Meta's Llama 4 announcement: slate lines with open chevron arrowheads, gray-framed white boxes, dark slate `solid` blocks, a blue `emphasis` block, borderless pale panels, Inter for Latin text.
+- **`sumi`**: warm cream canvas with navy ink and sand accents, Inter for Latin text; the design system of the project site.
+- **`sumi-dark`**: the dark counterpart: navy canvas, cream ink and sand accents, Inter for Latin text.
 
 `academic` and `paper` are both for papers; choose by how the paper is printed. **Grayscale or black-and-white print: `academic`. A color ML paper: `paper`.**
 
@@ -45,7 +47,7 @@ The pipeline ([`examples/pipeline`](../examples/pipeline/pipeline.sumi.yaml), au
 
 ## Palettes
 
-`figure.themeOverrides.palette: <name>` recolors any theme with one of eight built-in four-color palettes (`cool-blue`, `slate`, `coral`, `terracotta`, `sage`, `lavender`, `cyan-pink`, `seafoam`): text, frames and edges take the palette's ink, group panels its palest color, filled nodes and the `gray` tone its tint, `solid` fills and `emphasis` its accent. Sizes, fonts and the other tones stay the theme's. See the [palette gallery](gallery/palettes.md) and `sumi catalog --section palettes`.
+`figure.themeOverrides.palette: <name>` recolors any theme with one of eight built-in four-color palettes (`cool-blue`, `slate`, `coral`, `terracotta`, `sage`, `lavender`, `cyan-pink`, `seafoam`): text, frames and edges take the palette's ink, group panels its palest color, filled nodes and the `gray` tone its tint, `solid` fills and `emphasis` its accent. Sizes and fonts stay the theme's. Contrasts are measured against the theme's canvas; on a dark canvas (`sumi-dark`) the palette draws a dark variant of itself (panels a step lighter than the canvas, light ink, the accent and tones lightened in their hue). See the [palette gallery](gallery/palettes.md) and `sumi catalog --section palettes`.
 
 An explicit `themeOverrides.tones.<tone>.line` sets that tone's solid fill, including yellow; its text is adjusted to at least 4.5:1 rather than the built-in yellow's 7:1. A `fill`-only tone override does not change solid fills. `solidFills.<tone>` takes precedence over `line` and also applies to solid glyphs and legend samples.
 

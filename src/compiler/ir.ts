@@ -699,7 +699,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
                   component.props.gap > 0 && {
                     gap: component.props.gap,
                     // Light text needs the painted body, not the unpainted gap.
-                    ...(pageTextContrast(style.fontColor, style.opacity) < 4.5 && {
+                    ...(pageTextContrast(style.fontColor, style.opacity, theme.canvas) < 4.5 && {
                       labelOnLeft: true,
                     }),
                   }),

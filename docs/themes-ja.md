@@ -2,7 +2,7 @@
 
 テーマは図の見た目（色・角・線の太さ・グループ・フォント）を決めます。レイアウトの規則やページの制約は変えません（それは[プロファイル](usage-ja.md#テーマとプロファイル)の役割です）。`figure.theme` または `--theme` で選び、同じ YAML をどのテーマでも描画できます。
 
-組み込みテーマは 6 つです。
+組み込みテーマは 8 つです。
 
 - **`minimal`**（既定）: 白黒で輪郭のはっきりしたテーマ。中立の出発点です。
 - **`academic`**: 白黒（グレースケール）で印刷できるジャーナル調。色を一切使わないので、白黒プリンターでも同じ見た目になります。
@@ -10,6 +10,8 @@
 - **`paper`**: カラーの ML 論文風。公開されている Transformer・DiT の図を手本に、パステルの tone、角丸、細い枠線とエッジ、白地に枠のパネル（灰色は `variant: filled` や `groupFill` で頼んだときだけ）、欧文は Inter です。
 - **`slides`**: 投影向けの大きな文字と太い線。`presentation-16x9` プロファイルと組み合わせます。
 - **`llama`**: Meta の Llama 4 の発表記事の Mixture-of-Experts の図にならったテーマ。青灰色の線と開いた山形の矢じり、灰色の枠の白い箱、濃い青灰色の `solid`、青い `emphasis`、枠のない淡いパネル、欧文は Inter です。
+- **`sumi`**: 温かみのあるクリーム色の地に紺色の文字と砂色のアクセント。欧文は Inter。プロジェクトのサイトと同じデザインです。
+- **`sumi-dark`**: その暗い版。紺色の地にクリーム色の文字と砂色のアクセント。欧文は Inter。
 
 `academic` と `paper` はどちらも論文向けです。**白黒・グレースケールで印刷するなら `academic`、カラーの ML 論文なら `paper`** を選びます。
 
@@ -45,7 +47,7 @@ pipeline（[`examples/pipeline`](../examples/pipeline/pipeline.sumi.yaml)、自�
 
 ## パレット
 
-`figure.themeOverrides.palette: <名前>` で、どのテーマにも 4 色の組み込みパレット（`cool-blue`・`slate`・`coral`・`terracotta`・`sage`・`lavender`・`cyan-pink`・`seafoam`）を重ねて図全体の色合いを変えられます。文字・枠・辺はパレットの ink、グループのパネルは最も淡い色、filled のノードと `gray` tone は tint、`solid` と `emphasis` は accent になります。大きさ・フォント・ほかの tone はテーマのままです。[パレットのギャラリー](gallery/palettes.md)と `sumi catalog --section palettes` を参照してください。
+`figure.themeOverrides.palette: <名前>` で、どのテーマにも 4 色の組み込みパレット（`cool-blue`・`slate`・`coral`・`terracotta`・`sage`・`lavender`・`cyan-pink`・`seafoam`）を重ねて図全体の色合いを変えられます。文字・枠・辺はパレットの ink、グループのパネルは最も淡い色、filled のノードと `gray` tone は tint、`solid` と `emphasis` は accent になります。大きさ・フォントはテーマのままです。コントラストはテーマのキャンバスを基準に測り、暗いキャンバス（`sumi-dark`）ではパレットの暗色版（キャンバスより一段明るいパネル、明るい ink、色相を保って明るくした accent と tone）になります。[パレットのギャラリー](gallery/palettes.md)と `sumi catalog --section palettes` を参照してください。
 
 `themeOverrides.tones.<tone>.line` を明示すると、黄色を含めその tone の solid の塗りになります。文字は 4.5:1 以上に調整され、組み込み黄色の 7:1 は保証されません。`fill` だけの上書きは solid を変えません。`solidFills.<tone>` は `line` より優先され、solid glyph と凡例の見本にも適用されます。
 

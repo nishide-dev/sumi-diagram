@@ -100,7 +100,7 @@ Apply one edit and re-check: independent savings are not additive.
 | `component/glyph-unsupported` | `glyphs` on a `legend`, `tokens`, `matrix`, point junction or `bracket` | put them on an ordinary shape, outline or image |
 | `component/deprecated` (warning) | still works but is being replaced | switch to the replacement named |
 | `asset/*` | icons, images, figure assets, HTML | [assets](assets.md#fixing-asset), [html](html.md#diagnostics) |
-| `theme/unknown` | `figure.theme` is not built in | `minimal`, `academic`, `slides`, `color` or `paper` |
+| `theme/unknown` | `figure.theme` is not built in | `minimal`, `academic`, `slides`, `color`, `paper`, `llama`, `sumi` or `sumi-dark` |
 | `theme/missing-variant`, `theme/missing-tone`, `theme/missing-dim` (warnings) | the theme lacks a style (built-ins define all) | usually ignore |
 | `theme/low-contrast` (warning) | an overridden tone's text (`themeOverrides.tones.<tone>.text`, else `line`) has under 4.5:1 on its fill (tinted) or on white (outlined, edge labels, icon-only labels, `\textcolor`) | darker `text`, paler `fill`, or omit `text` for tinted-only tones |
 | `theme/undimmed-image` (warning) | an `image` in a `dim: true` group is drawn at full colour (dimming is by colour, not opacity) | move it out, or use a paler file |
