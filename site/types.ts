@@ -11,6 +11,7 @@ export interface ExampleData {
 
 export interface SiteData {
   version: string;
+  home: { en: string; ja: string };
   themes: readonly string[];
   palettes: { id: string; colors: readonly string[] }[];
   components: ReturnType<typeof componentData>[];
