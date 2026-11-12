@@ -1,10 +1,11 @@
 import { expect, test } from "bun:test";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { readmeHtml } from "./readme";
 
 test("converts both README locations, copies pictures, and preserves escaping", async () => {
-  const root = await mkdtemp(resolve(".sumi/tmp/readme-"));
+  const root = await mkdtemp(join(tmpdir(), "sumi-readme-"));
   try {
     await mkdir(resolve(root, "docs"));
     await writeFile(resolve(root, "light.svg"), "light");
@@ -25,7 +26,9 @@ test("converts both README locations, copies pictures, and preserves escaping", 
       expect(html).toContain(
         'href="https://github.com/nishide-dev/sumi-diagram/blob/main/docs/usage.md#install"',
       );
-      expect(html).toContain('href="#local"');
+      expect(html).toContain(
+        `href="https://github.com/nishide-dev/sumi-diagram/blob/main/${file}#local"`,
+      );
       expect(html).toContain('href="#examples"');
       expect(html).toContain('src="./readme/dark.svg"');
       expect(html).toContain('src="./readme/light.svg"');
@@ -40,7 +43,7 @@ test("converts both README locations, copies pictures, and preserves escaping", 
 });
 
 test("marks the tagline, drops the link line after the intro, and drops an empty table header", async () => {
-  const root = await mkdtemp(resolve(".sumi/tmp/readme-"));
+  const root = await mkdtemp(join(tmpdir(), "sumi-readme-"));
   try {
     const html = await readmeHtml(
       "# Sumi\n\n**Draw, check, fix.**\n\nIntro with [a link](docs/usage.md).\n\n[Website](https://nishide-dev.github.io/sumi-diagram/) · [日本語](docs/README-ja.md)\n\n| | |\n| --- | --- |\n| **A** | b |\n",
@@ -53,6 +56,28 @@ test("marks the tagline, drops the link line after the intro, and drops an empty
     expect(html).not.toContain(">Website</a>");
     expect(html).not.toContain("<thead>");
     expect(html).toContain("<strong>A</strong>");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("keeps a lone link paragraph, splits a bold lead, and rewrites single-quoted attributes", async () => {
+  const root = await mkdtemp(join(tmpdir(), "sumi-readme-"));
+  try {
+    await writeFile(resolve(root, "a.svg"), "a");
+    const html = await readmeHtml(
+      "**Draw, check, fix.** Sumi is a CLI.\n\n[Read the guide](README.md)\n\n<p><img src='a.svg' alt=''><a href='docs/x.md'>x</a></p>\n",
+      "README.md",
+      root,
+      resolve(root, "out"),
+    );
+    expect(html).toContain('<p class="tagline">Draw, check, fix.</p>');
+    expect(html).toContain("<p>Sumi is a CLI.</p>");
+    expect(html).toContain(">Read the guide</a>");
+    expect(html).toContain('src="./readme/a.svg"');
+    expect(html).toContain(
+      'href="https://github.com/nishide-dev/sumi-diagram/blob/main/docs/x.md"',
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }

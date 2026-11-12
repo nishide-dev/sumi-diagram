@@ -19,7 +19,7 @@ export async function readmeHtml(markdown: string, readme: string, root: string,
     const rest = body
       .replace(/<a\s+[^>]*href="[^"]+"[^>]*>[\s\S]*?<\/a>/gi, "")
       .replace(/[\s|·・/—–-]|&nbsp;/g, "");
-    if (!links.length || rest) return whole;
+    if (links.length < 2 || rest) return whole;
     return links.every((m) => {
       const href = decodeHTML(m[1] ?? "");
       return (
@@ -31,7 +31,13 @@ export async function readmeHtml(markdown: string, readme: string, root: string,
       : whole;
   });
   // A leading paragraph that is only bold text is the tagline.
-  html = html.replace(/^\s*<p><strong>([^<]*)<\/strong><\/p>/i, '<p class="tagline">$1</p>');
+  html = html.replace(
+    /^\s*<p><strong>([^<]*)<\/strong>\s*([\s\S]*?)<\/p>/i,
+    (_m, lead: string, rest: string) =>
+      rest.trim()
+        ? `<p class="tagline">${lead}</p>\n<p>${rest.trim()}</p>`
+        : `<p class="tagline">${lead}</p>`,
+  );
   // A table whose header cells are all empty has no header (GitHub draws an empty row).
   html = html.replace(/<thead>\s*<tr>(?:\s*<th[^>]*>\s*<\/th>)+\s*<\/tr>\s*<\/thead>\s*/gi, "");
   html = html.replace(
@@ -55,16 +61,20 @@ export async function readmeHtml(markdown: string, readme: string, root: string,
     return escapeAttr(`./readme/${resolved}${suffix}`);
   };
   html = html.replace(/<(img|source)\b[^>]*>/gi, (tag: string) =>
-    tag.replace(/\b(src|srcset)="([^"]*)"/gi, (_m, attr: string, value: string) => {
-      const rewritten =
-        attr.toLowerCase() === "srcset"
-          ? value
-              .split(",")
-              .map((item) => item.trim().replace(/^(\S+)/, image))
-              .join(", ")
-          : image(value);
-      return `${attr}="${rewritten}"`;
-    }),
+    tag.replace(
+      /\b(src|srcset)=(?:"([^"]*)"|'([^']*)')/gi,
+      (_m, attr: string, dq?: string, sq?: string) => {
+        const value = dq ?? sq ?? "";
+        const rewritten =
+          attr.toLowerCase() === "srcset"
+            ? value
+                .split(",")
+                .map((item) => item.trim().replace(/^(\S+)/, image))
+                .join(", ")
+            : image(value);
+        return `${attr}="${rewritten}"`;
+      },
+    ),
   );
   html = html.replace(/<picture\b[^>]*>([\s\S]*?)<\/picture>/gi, (whole, content: string) => {
     const dark = content.match(
@@ -81,19 +91,24 @@ export async function readmeHtml(markdown: string, readme: string, root: string,
   });
   html = html.replace(/<a\b[^>]*>/gi, (tag: string) => {
     let external = false;
-    const result = tag.replace(/\bhref="([^"]*)"/i, (_m, raw: string) => {
-      let href = decodeHTML(raw);
-      if (href.startsWith(site)) {
-        const fragment = href.slice(site.length);
-        if (!fragment || /^#(?:home|examples|components|prompt)$/.test(fragment))
-          href = fragment || "#home";
-      } else if (relative(href)) {
-        const [path, suffix = ""] = href.split(/(?=[?#])/s, 2);
-        href = github + posix.normalize(posix.join(posix.dirname(readme), path ?? "")) + suffix;
-      }
-      external = /^(?:https?:)?\/\//i.test(href);
-      return `href="${escapeAttr(href)}"`;
-    });
+    const result = tag.replace(
+      /\bhref=(?:"([^"]*)"|'([^']*)')/i,
+      (_m, dq?: string, sq?: string) => {
+        let href = decodeHTML(dq ?? sq ?? "");
+        if (href.startsWith(site)) {
+          const fragment = href.slice(site.length);
+          if (!fragment || /^#(?:home|examples|components|prompt)$/.test(fragment))
+            href = fragment || "#home";
+        } else if (href.startsWith("#")) {
+          href = github + readme + href;
+        } else if (relative(href)) {
+          const [path, suffix = ""] = href.split(/(?=[?#])/s, 2);
+          href = github + posix.normalize(posix.join(posix.dirname(readme), path ?? "")) + suffix;
+        }
+        external = /^(?:https?:)?\/\//i.test(href);
+        return `href="${escapeAttr(href)}"`;
+      },
+    );
     return external
       ? result
           .replace(/\s(?:target|rel)="[^"]*"/gi, "")
