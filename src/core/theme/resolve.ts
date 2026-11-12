@@ -418,6 +418,7 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
             style,
             dim,
             manifest.kind === "node" && variant === "solid" && id !== SEPARATOR_ID,
+            theme.canvas,
           );
     styles.set(
       key,

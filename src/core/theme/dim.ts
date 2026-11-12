@@ -9,8 +9,8 @@
  * - every visible stroke (lines, borders, arrowheads, junction dots) and every
  *   text take `dim.stroke` and `dim.fontColor` (solid node text darkens as
  *   needed for 3:1 contrast; solid stack separators follow that text color);
- * - every fill moves toward white by `dim.lighten` (0 = unchanged, 1 =
- *   white), so tone fills become their pale versions and lighter / darker
+ * - every fill moves toward the canvas by `dim.lighten` (0 = unchanged, 1 =
+ *   canvas), so tone fills become their dimmed versions and lighter / darker
  *   fills keep their order. A fill painted in the element's own stroke color
  *   (ink, e.g. a junction's dot) follows the stroke instead;
  * - `transparent` stays transparent, and nothing else changes (sizes, fonts,
@@ -36,12 +36,9 @@ export interface DimColors {
   readonly fontColor: Color;
   /** Color of every visible stroke of a dimmed element. */
   readonly stroke: Color;
-  /** How far each fill moves toward white, from 0 (unchanged) to 1 (white). */
+  /** How far each fill moves toward the canvas, from 0 (unchanged) to 1 (canvas). */
   readonly lighten: number;
 }
-
-/** The color fills move toward: the page (the writers' canvas is white). */
-const PAPER = 0xff;
 
 /** `#rgb` / `#rrggbb` as lowercase `#rrggbb`; `transparent` as it is. */
 function expandColor(color: Color): Color {
@@ -50,24 +47,32 @@ function expandColor(color: Color): Color {
   return `#${hex.toLowerCase()}`;
 }
 
-/** `#rgb` / `#rrggbb` mixed toward white by `amount`, as lowercase `#rrggbb`. */
-export function lightenColor(color: Color, amount: number): Color {
+/** `#rgb` / `#rrggbb` mixed toward the canvas by `amount`, as lowercase `#rrggbb`. */
+export function lightenColor(color: Color, amount: number, canvas: Color = "#ffffff"): Color {
   if (color === "transparent") return color;
   const hex = expandColor(color).slice(1);
+  const ground = expandColor(canvas).slice(1);
   const channels = [0, 2, 4].map((i) => Number.parseInt(hex.slice(i, i + 2), 16));
-  const mixed = channels.map((c) => Math.round(c + (PAPER - c) * amount));
+  const mixed = channels.map((c, i) =>
+    Math.round(c + (Number.parseInt(ground.slice(i * 2, i * 2 + 2), 16) - c) * amount),
+  );
   return `#${mixed.map((c) => c.toString(16).padStart(2, "0")).join("")}`;
 }
 
 /** Solid areas lighten and keep at least 3:1 text contrast (#214). */
-export function dimStyle<S extends ResolvedStyle>(style: S, dim: DimColors, areaFill = false): S {
+export function dimStyle<S extends ResolvedStyle>(
+  style: S,
+  dim: DimColors,
+  areaFill = false,
+  canvas: Color = "#ffffff",
+): S {
   const visible = (color: Color, to: Color) => (color === "transparent" ? color : to);
   // Compared expanded, so `#000` and `#000000` are the same ink.
   const ink =
     !areaFill &&
     style.fill !== "transparent" &&
     expandColor(style.fill) === expandColor(style.stroke);
-  const fill = ink ? dim.stroke : lightenColor(style.fill, dim.lighten);
+  const fill = ink ? dim.stroke : lightenColor(style.fill, dim.lighten, canvas);
   const dimmed: S = {
     ...style,
     stroke: visible(style.stroke, dim.stroke),

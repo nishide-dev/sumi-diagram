@@ -234,7 +234,7 @@ frames and toned edges take the dim gray.
 `dim: true` on a group draws it pale together with everything inside: nested groups, nodes
 (legends and tokens cells too), its caption and the edges whose two ends are both inside:
 the panels of variants a paper compares against. Text and lines take the theme's dim gray
-and fills move toward white (tones stay recognisable); sizes, dashes, fonts and layout do
+and fills move toward the theme canvas (white by default; dark in `sumi-dark`); sizes, dashes, fonts and layout do
 not change. Write it once on the group instead of `variant: muted` on every element (tone
 fills stay strong).
 

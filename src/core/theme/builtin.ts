@@ -484,7 +484,7 @@ function sumiTheme(dark: boolean): ThemeDefinition {
       Object.entries(fills).map(([tone, fill]) => [tone, { fill }]),
     ) as Record<Tone, StyleLayerInput>,
     toneLines: toneLines(inks),
-    dim: { fontColor: muted, stroke: muted, lighten: dark ? 0 : 0.3 },
+    dim: { fontColor: muted, stroke: muted, lighten: 0.3 },
   };
 }
 

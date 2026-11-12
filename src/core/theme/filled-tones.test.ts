@@ -239,8 +239,8 @@ ${TONE_NAMES.map((tone, i) => `  - { id: n${i}, component: stack, label: A, grou
       ).toBeGreaterThanOrEqual(2);
       const dim = theme.dim;
       if (!dim) throw new Error("missing dim");
-      const pale = lightenColor(solid.fill, dim.lighten);
-      const faded = dimStyle(solid, dim, true);
+      const pale = lightenColor(solid.fill, dim.lighten, theme.canvas);
+      const faded = dimStyle(solid, dim, true, theme.canvas);
       expect(contrast(pale, faded.fontColor)).toBeGreaterThanOrEqual(3);
       expect(
         styles.filter(

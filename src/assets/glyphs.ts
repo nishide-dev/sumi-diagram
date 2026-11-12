@@ -83,7 +83,8 @@ export function glyphsOf(
     const base: NodeStyle = solid
       ? { ...resolved, fill: accent, stroke: resolved.fontColor, strokeWidth: SOLID_OUTLINE }
       : resolved;
-    const painted = dimmed && theme.dim !== undefined ? dimStyle(base, theme.dim, true) : base;
+    const painted =
+      dimmed && theme.dim !== undefined ? dimStyle(base, theme.dim, true, theme.canvas) : base;
     return { fill: painted.fill, stroke: painted.stroke, width: base.strokeWidth.units };
   };
   return glyphs.map((glyph): GlyphIR => {

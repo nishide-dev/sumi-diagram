@@ -60,7 +60,10 @@ describe("theme canvas", () => {
     expect(
       valid(theme({ canvas: "{color.ground}", tokens: { color: { ground: "#30364f" } } })).canvas,
     ).toBe("#30364f");
-    for (const builtin of BUILTIN_THEMES.values()) expect(builtin.canvas).toBe("#ffffff");
+    for (const builtin of BUILTIN_THEMES.values())
+      expect(builtin.canvas).toBe(
+        builtin.id === "sumi" ? "#f8f8ee" : builtin.id === "sumi-dark" ? "#30364f" : "#ffffff",
+      );
   });
 
   test("rejects transparent, invalid and unknown canvas colors", () => {
@@ -559,7 +562,7 @@ describe("resolveStyle", () => {
 describe("built-in themes", () => {
   const registry = createBuiltinRegistry();
 
-  test("minimal, academic, slides, color, paper and llama are registered with their font sets", () => {
+  test("all built-in themes are registered with their font sets", () => {
     expect([...BUILTIN_THEMES.keys()]).toEqual([
       "minimal",
       "academic",
@@ -567,6 +570,8 @@ describe("built-in themes", () => {
       "color",
       "paper",
       "llama",
+      "sumi",
+      "sumi-dark",
     ]);
     for (const t of BUILTIN_THEMES.values()) {
       expect(t.fontSet.id).toBe(
@@ -775,7 +780,7 @@ describe("built-in themes", () => {
       [
         "theme/unknown",
         ["figure", "theme"],
-        'Did you mean "minimal"? Available themes: minimal, academic, slides, color, paper, llama.',
+        'Did you mean "minimal"? Available themes: minimal, academic, slides, color, paper, llama, sumi, sumi-dark.',
       ],
     ]);
   });

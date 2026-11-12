@@ -113,6 +113,8 @@ describe("the theme's arrowhead field", () => {
       minimal: "triangle",
       academic: "triangle",
       slides: "triangle",
+      sumi: "triangle",
+      "sumi-dark": "triangle",
       color: "triangle",
       paper: "triangle",
       llama: "open",
