@@ -85,7 +85,7 @@ geometry lint):
 | `dit-block` | 5: `geometry/heavy-scaling` ×1 (81.38%, with the width breakdown before scaling); `geometry/script-too-small` ×1 (math scripts down to 3.99pt after scaling); `geometry/color-on-panel` ×1 (the original's gray adaLN-Zero panel holds the colored blocks, #441); `geometry/group-empty-area` ×2 (the equal-height Cross-Attention and In-Context panels) |
 | `embedding-gemma` | none (sharp joins and 1pt edges remove the previous three `geometry/edge-near-border` infos) |
 | `clip` | 2: `geometry/heavy-scaling` ×1 (71.81%, with the width breakdown before scaling); `geometry/script-too-small` ×1 (math scripts down to 4.02pt after scaling; body text is 5.74pt, above the 5pt scaled minimum) |
-| `gcn` | 2: `geometry/group-empty-area` ×2 (the input and output layers: the graphs keep the original's sparse vertex positions) |
+| `gcn` | 4: `geometry/group-empty-area` ×2 (the input and output layers: the graphs keep the original's sparse vertex positions); `geometry/low-stroke-contrast` ×2 (the original's pale graph edges, 2.51:1 on white) |
 | `tricl` | 3: `geometry/group-empty-area` ×3 (the three small hypergraph cards: vertices and hyperedges are drawn small, as in the original) |
 | `llama4-moe` | none |
 | `llada` | 4 warnings: `geometry/dash-hidden` ×4 (the original figure's short dashed remask arrows) |

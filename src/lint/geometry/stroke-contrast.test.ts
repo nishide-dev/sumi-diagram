@@ -51,3 +51,52 @@ nodes: [{ id: frame, component: box, group: panel, variant: filled, tone: yellow
   );
   expect(findings.filter((f) => f.subject?.id === "frame")).toEqual([]);
 });
+
+const code = "geometry/low-stroke-contrast";
+
+test("an edge that nearly vanishes is a warning", () => {
+  const compiled = compile(`version: 1
+figure:
+  id: faint
+  theme: color
+  themeOverrides: { tones: { blue: { line: "#f4f4f4" } } }
+nodes:
+  - { id: a, component: box }
+  - { id: b, component: box }
+edges: [{ id: e, from: a, to: b, tone: blue }]
+`);
+  const findings = lintSpec(
+    compiled,
+    {
+      elements: {
+        "e:e": {
+          path: [
+            { x: 20, y: 50 },
+            { x: 180, y: 50 },
+          ],
+        },
+      },
+    },
+    { code },
+  );
+  expect(findings.map((f) => f.severity)).toEqual(["warning"]);
+});
+
+test("group frames and dimmed elements are not checked", () => {
+  const compiled = compile(`version: 1
+figure: { id: quiet, theme: paper }
+groups: [{ id: g, label: G, dim: true }]
+nodes: [{ id: a, component: box, group: g }]
+`);
+  const findings = lintSpec(
+    compiled,
+    {
+      elements: {
+        "g:g": { bbox: { x: 0, y: 0, width: 200, height: 100 } },
+        "n:a": { bbox: { x: 40, y: 30, width: 80, height: 40 } },
+      },
+    },
+    { code },
+  );
+  expect(findings).toEqual([]);
+});

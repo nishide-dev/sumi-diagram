@@ -305,7 +305,8 @@ describe.skipIf(!available)("built-in primitives render with D2", () => {
               ["info", "geometry/script-too-small"],
             ]);
           } else if (example === "examples/gcn/gcn.sumi.yaml") {
-            expect(stderr).toContain("0 errors, 0 warnings, 2 infos");
+            // The original's sparse layers and its pale graph edges (#463).
+            expect(stderr).toContain("0 errors, 0 warnings, 4 infos");
             expect(
               [...stderr.matchAll(/^examples\/.*:\d+:\d+ (\w+) ([\w/-]+)/gm)].map(
                 ([, severity, code]) => [severity, code],
@@ -313,6 +314,8 @@ describe.skipIf(!available)("built-in primitives render with D2", () => {
             ).toEqual([
               ["info", "geometry/group-empty-area"],
               ["info", "geometry/group-empty-area"],
+              ["info", "geometry/low-stroke-contrast"],
+              ["info", "geometry/low-stroke-contrast"],
             ]);
           } else if (example === "examples/llada/llada.sumi.yaml") {
             // The original figure's short dashed remask arrows have the same limitation.
