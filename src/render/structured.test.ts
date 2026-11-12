@@ -491,19 +491,14 @@ edges:
   test("a filled group (minimal: surface)", async () => {
     const { rendered, svg } = await backgrounds(nested("minimal", "", ""));
     expect(groupFill(rendered, "inner")).toBe("#f6f8fa");
-    expect(svg).toEqual(
-      new Map([
-        [0, "#f6f8fa"],
-        [1, "#ffffff"],
-      ]),
-    );
+    expect([...svg.values()]).toEqual([undefined, undefined]);
   });
 
   test("a toned group", async () => {
     const { rendered, svg } = await backgrounds(nested("minimal", "", "    tone: yellow"));
     const fill = groupFill(rendered, "inner");
     expect(fill).not.toBe("#f6f8fa");
-    expect(svg.get(0)).toBe(fill);
+    expect(svg.get(0)).toBeUndefined();
   });
 
   test("a transparent inner group inside a colored outer one", async () => {
@@ -511,20 +506,15 @@ edges:
     expect(groupFill(rendered, "inner")).toBe("transparent");
     const outer = groupFill(rendered, "outer");
     expect(outer).not.toBe("transparent");
-    expect(svg.get(0)).toBe(outer);
-    expect(svg.get(1)).toBe("#ffffff");
+    expect(svg.get(0)).toBeUndefined();
+    expect(svg.get(1)).toBeUndefined();
   });
 
   test("transparent groups only, as academic draws them by default: the canvas", async () => {
     const { rendered, svg } = await backgrounds(nested("academic", "", ""));
     expect(groupFill(rendered, "outer")).toBe("transparent");
     expect(groupFill(rendered, "inner")).toBe("transparent");
-    expect(svg).toEqual(
-      new Map([
-        [0, "#ffffff"],
-        [1, "#ffffff"],
-      ]),
-    );
+    expect([...svg.values()]).toEqual([undefined, undefined]);
   });
 
   // #332 moves this short-span label beside the frame: its background is canvas.
@@ -551,7 +541,7 @@ edges:
     if (box === undefined || rect === undefined) throw new Error("no label or group");
     expect(box.x >= rect.x + rect.width || box.x + box.width <= rect.x).toBe(true);
     expect(groupFill(rendered, "grp")).toBe("#f6f8fa");
-    expect(svg.get(0)).toBe(CANVAS_FILL);
+    expect(svg.get(0)).toBeUndefined();
   });
 
   // A label centered exactly on a group's border counts as inside the group.
@@ -572,11 +562,11 @@ edges:
     // Inner group yellow, outer transparent: inside is yellow, outside the canvas.
     const groupFill = { inner: "#ffee00", outer: "transparent" };
     const on = redraw(rendered, { groupFill, layout: at(cy) });
-    expect(svgLabelBackgrounds(on.svg).get(0)).toBe("#ffee00");
-    expect(pptxLabelBackgrounds(on.svg, on.ir).get(0)).toBe("#ffee00");
+    expect(svgLabelBackgrounds(on.svg).get(0)).toBeUndefined();
+    expect(pptxLabelBackgrounds(on.svg, on.ir).get(0)).toBeUndefined();
     const below = redraw(rendered, { groupFill, layout: at(cy + 0.001) });
-    expect(svgLabelBackgrounds(below.svg).get(0)).toBe(CANVAS_FILL);
-    expect(pptxLabelBackgrounds(below.svg, below.ir).get(0)).toBe(CANVAS_FILL);
+    expect(svgLabelBackgrounds(below.svg).get(0)).toBeUndefined();
+    expect(pptxLabelBackgrounds(below.svg, below.ir).get(0)).toBeUndefined();
   });
 
   // The edge's `fill` (#31) turns the background on or off; its color is not used.
@@ -590,10 +580,7 @@ edges:
     expect(svgLabelBackgrounds(none.svg)).toEqual(nothing);
     expect(pptxLabelBackgrounds(none.svg, none.ir)).toEqual(nothing);
     const red = redraw(rendered, { edgeFill: "#ff0000" });
-    const beneath = new Map([
-      [0, "#f6f8fa"],
-      [1, "#ffffff"],
-    ]);
+    const beneath = nothing;
     expect(svgLabelBackgrounds(red.svg)).toEqual(beneath);
     expect(pptxLabelBackgrounds(red.svg, red.ir)).toEqual(beneath);
   });
@@ -703,14 +690,14 @@ edges:
   test("a filled group (minimal: surface), and the canvas outside it", async () => {
     const { rendered, fills } = await hollowFills(nested("minimal", "", ""));
     expect(groupFill(rendered, "inner")).toBe("#f6f8fa");
-    expect(fills).toEqual(["#f6f8fa", CANVAS_FILL]);
+    expect(fills).toEqual(["none", "none"]);
   });
 
   test("a toned group", async () => {
     const { rendered, fills } = await hollowFills(nested("minimal", "", "    tone: yellow"));
     const fill = groupFill(rendered, "inner");
     expect(fill).not.toBe("#f6f8fa");
-    expect(fills[0]).toBe(fill);
+    expect(fills[0]).toBe("none");
   });
 
   test("a transparent inner group inside a colored outer one", async () => {
@@ -718,12 +705,12 @@ edges:
     expect(groupFill(rendered, "inner")).toBe("transparent");
     const outer = groupFill(rendered, "outer");
     expect(outer).not.toBe("transparent");
-    expect(fills).toEqual([outer, CANVAS_FILL]);
+    expect(fills).toEqual(["none", "none"]);
   });
 
   test("transparent groups only, as academic draws them by default: the canvas", async () => {
     const { fills } = await hollowFills(nested("academic", "", ""));
-    expect(fills).toEqual([CANVAS_FILL, CANVAS_FILL]);
+    expect(fills).toEqual(["none", "none"]);
   });
 
   test("filled arrowheads keep the line color", async () => {
@@ -761,9 +748,9 @@ edges:
     for (const head of HOLLOW) {
       const changes = { groupFill, filled: false, targetArrowhead: head };
       const on = redraw(rendered, { ...changes, layout: at(cy) });
-      expect(svgHeadFills(on.svg).get(0)).toEqual(["#ffee00"]);
+      expect(svgHeadFills(on.svg).get(0)).toEqual(["none"]);
       const below = redraw(rendered, { ...changes, layout: at(cy + 0.001) });
-      expect(svgHeadFills(below.svg).get(0)).toEqual([CANVAS_FILL]);
+      expect(svgHeadFills(below.svg).get(0)).toEqual(["none"]);
     }
   });
 
@@ -811,8 +798,8 @@ edges:
       });
       const fills = svgHeadFills(svg);
       // Target head first, then source head.
-      expect(fills.get(0)).toEqual(["#0000ff", "#ff0000"]);
-      expect(fills.get(1)).toEqual(["#0000ff", "#0000ff"]);
+      expect(fills.get(0)).toEqual(["none", "none"]);
+      expect(fills.get(1)).toEqual(["none", "none"]);
     }
     // The groups swapped: the colors follow them.
     const swapped = redraw(rendered, {
@@ -821,7 +808,7 @@ edges:
       targetArrowhead: "triangle",
       sourceArrowhead: "circle",
     });
-    expect(svgHeadFills(swapped.svg).get(0)).toEqual(["#ff0000", "#0000ff"]);
+    expect(svgHeadFills(swapped.svg).get(0)).toEqual(["none", "none"]);
   });
 
   // DrawingML line ends have no interior: a hollow `arrow` is an open arrow,
@@ -910,21 +897,10 @@ describe("drawing helpers", () => {
       }
     }
     expect(drawArrowhead("none", tip, { x: 0, y: 1 }, edge as unknown as EdgeIR)).toBe("");
-    // A hollow head is painted with the color beneath its center (#192):
-    // half arrowheadLength() behind the tip.
     const hollow = { ...edge, style: { ...edge.style, filled: false } } as unknown as EdgeIR;
-    const half = arrowheadLength(2) / 2;
-    const fill = (groups: Parameters<typeof drawArrowhead>[4]) =>
-      /fill="([^"]*)"/.exec(drawArrowhead("triangle", tip, { x: 0, y: 1 }, hollow, groups))?.[1];
-    // A group whose bottom border runs through the center, or just above it.
-    const group = (bottom: number) => ({
-      rect: { x: 0, y: bottom - 100, width: 200, height: 100 },
-      fill: "#123456",
-      opacity: 1,
-    });
-    expect(fill([group(tip.y - half)])).toBe("#123456");
-    expect(fill([group(tip.y - half - 0.001)])).toBe(CANVAS_FILL);
-    expect(fill(undefined)).toBe(CANVAS_FILL);
+    for (const head of ["triangle", "arrow", "diamond", "circle", "box"] as const) {
+      expect(drawArrowhead(head, tip, { x: 0, y: 1 }, hollow)).toContain('fill="none"');
+    }
   });
 });
 

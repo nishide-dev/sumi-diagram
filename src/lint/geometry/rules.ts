@@ -786,7 +786,7 @@ export const labelCollision = defineGeometryRule({
     }
     // Labels on a group's border (#116): the border's stroke comes within the
     // tolerance of the text's line box, so it runs through or along the text
-    // (and an edge label's background hides it there), e.g. an edge label
+    // e.g. an edge label
     // where the edge crosses into a group. Inside or outside the group is
     // fine; the group's own label is left out, and so are groups drawn
     // without a border.
@@ -806,11 +806,8 @@ export const labelCollision = defineGeometryRule({
           height: r.height + 2 * reach,
         });
         // Layered cards reserve their exposed bands for labels, even though
-        // routes may cross them. Include the opaque edge-label background.
-        const boxes =
-          bands.length > 0 && a.kind === "edge"
-            ? a.labels.flatMap((l) => (l.box === undefined ? [] : [l.box]))
-            : boxesA;
+        // routes may cross them.
+        const boxes = boxesA;
         if (
           boxes.some(
             (r) =>

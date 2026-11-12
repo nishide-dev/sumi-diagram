@@ -470,18 +470,16 @@ export function arrowheadInset(head: Arrowhead, length: number, strokeUnits: num
 
 /**
  * An arrowhead at `tip`, pointing along `u`, no longer than
- * `arrowheadLength()` (the room the router keeps for it). A hollow one
- * (`filled: false`) is painted inside with the color beneath its center,
- * half its length behind the tip (#192, `backgroundAt()` over `groups`), so
- * it hides the lines it covers without showing white on a filled group.
+ * `arrowheadLength()` (the room the router keeps for it). Hollow heads are
+ * unfilled; the wire stops at their base.
  */
 export function drawArrowhead(
   head: Arrowhead,
   tip: Point,
   u: Point,
   edge: EdgeIR,
-  groups: readonly PaintedGroup[] = [],
-  canvas = CANVAS_FILL,
+  _groups: readonly PaintedGroup[] = [],
+  _canvas = CANVAS_FILL,
 ): string {
   if (head === "none") return "";
   const { style } = edge;
@@ -491,7 +489,7 @@ export function drawArrowhead(
     y: tip.y - u.y * along + u.x * across,
   });
   const color = paint(style.stroke);
-  const fill = style.filled ? color : backgroundAt(at(length / 2, 0), groups, canvas);
+  const fill = style.filled ? color : "none";
   const outline = style.filled
     ? ` fill="${fill}" stroke="none"`
     : ` fill="${fill}" stroke="${color}" stroke-width="${n(style.strokeWidth.units)}" stroke-linejoin="miter"`;
@@ -1039,16 +1037,7 @@ function edgeGroup(
     );
   let labelSvg = "";
   if (layoutLabel !== undefined) {
-    // The label's background, 1 unit around its line box: the router keeps
-    // the box 3 units off the line, so the line stays visible. The edge's
-    // `fill` turns it on (#31; `transparent`: none); its color is what is
-    // painted beneath the label (#170, `labelBackground()`).
-    const { box } = layoutLabel;
-    const background =
-      style.fill === "transparent"
-        ? ""
-        : `<rect x="${n(box.x - 1)}" y="${n(box.y - 1)}" width="${n(box.width + 2)}" height="${n(box.height + 2)}" fill="${labelBackground(box, groups, canvas)}"/>`;
-    labelSvg = background + label(layoutLabel, style.fontColor);
+    labelSvg = label(layoutLabel, style.fontColor);
   }
   return `<g class="${elementClass(edge.key)} sumi-kind-edge"${opacity(style)}>${connection}${heads}${labelSvg}</g>`;
 }
