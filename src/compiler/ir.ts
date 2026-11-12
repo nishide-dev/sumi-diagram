@@ -66,9 +66,10 @@ import {
 import { getTheme } from "../core/theme/builtin";
 import { dimmedElements } from "../core/theme/dim";
 import type { FontSetId } from "../core/theme/fonts";
-import { pageTextContrast } from "../core/theme/node-variants";
+import { contrastRatio, pageTextContrast } from "../core/theme/node-variants";
 import { figureTheme } from "../core/theme/overrides";
-import type { ThemeArrowhead } from "../core/theme/schema";
+import { resolveStyle } from "../core/theme/resolve";
+import type { Theme, ThemeArrowhead } from "../core/theme/schema";
 import { resolveSetStyle, type SetStyle } from "../core/theme/set-style";
 import {
   type EdgeStyle,
@@ -320,6 +321,14 @@ export interface NodeIR extends ObjectIRBase {
   readonly labelRotation?: LabelRotation;
   readonly textAlign?: "left" | "center" | "right";
   /**
+   * The label (and its sublabel) is a caption drawn outside the shape,
+   * centred below it with no gap between its line box and the shape, like a
+   * `label` node attached to the south side (#491). Set on a `sumi/waveform`
+   * with a visible label: its frame holds only the signal. The shape (the
+   * layout rect, the inspected bbox, edge contacts) stays the frame alone.
+   */
+  readonly labelBelow?: true;
+  /**
    * A second, smaller text drawn under the label (#184, design doc §6.51),
    * at `sublabelFontSize(style.fontSize)` in the label's font. Structured
    * layout only.
@@ -483,6 +492,22 @@ export interface FigureIR {
 const DEFAULT_ARROWHEAD: Arrowhead = "triangle";
 
 /**
+ * The style of a node whose label is a caption on the canvas below its shape
+ * (#491): text colored for the node's fill (light on a dark emphasis fill)
+ * would vanish on the canvas, so it takes a plain label's color there. Text
+ * that reads on the canvas at least as well as on the fill is kept.
+ */
+function captionStyle(style: NodeStyle, theme: Theme): NodeStyle {
+  const hex = /^#[0-9a-f]{6}$/i;
+  const { fill, fontColor } = style;
+  if (!hex.test(fill) || !hex.test(fontColor) || !hex.test(theme.canvas)) return style;
+  if (contrastRatio(fontColor, theme.canvas) >= contrastRatio(fontColor, fill)) return style;
+  if (pageTextContrast(fontColor, 1, theme.canvas) >= 4.5) return style;
+  const label = resolveStyle(theme, { kind: "node", id: "sumi/label", variant: "default" }).style;
+  return Object.freeze({ ...style, fontColor: label.fontColor });
+}
+
+/**
  * Builds the IR from a completed check (`checkFigure`). Throws if the check
  * has errors or is incomplete: generation stages only run on error-free input
  * (design doc §0).
@@ -602,6 +627,11 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
     if (component.manifest.kind !== "node") throw kindMismatch(key);
     const { width, height } = component.props;
     const style = styleOf(state, key, "node");
+    // A waveform's label is a caption below its frame (#491).
+    const captionBelow =
+      component.manifest.render?.renderer === "sumi/waveform" &&
+      n.icon === undefined &&
+      n.label.trim().length > 0;
     const { mark } = component.manifest;
     const markSize = mark && markSizeOf(mark, style);
     const wrapText = (text: string, fontSize = style.fontSize) =>
@@ -690,7 +720,9 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
                 ...(component.manifest.render.renderer === "sumi/waveform" && {
                   samples: (component.props.samples as number[]).join(","),
                   mode: component.props.mode as string,
-                  hasLabel: n.label.trim().length > 0 || n.icon !== undefined,
+                  // On emphasis the signal takes the text color made for the
+                  // fill; the caption below may take another one (#491).
+                  ...(component.variant === "emphasis" && { signalStroke: style.fontColor }),
                   ...(typeof component.props.frameStroke === "string" && {
                     frameStroke: dimmed.includes(key) ? style.stroke : component.props.frameStroke,
                   }),
@@ -738,7 +770,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
         ...(typeof width === "number" && { width: lengthOf(width) }),
         ...(typeof height === "number" && { height: lengthOf(height) }),
         ...(markSize !== undefined && { width: markSize, height: markSize }),
-        style,
+        style: captionBelow ? captionStyle(style, glyphTheme) : style,
         ...(n.attach !== undefined && {
           attach: freeze({
             to: attachTarget(n.attach),
@@ -747,6 +779,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
           }),
         }),
         ...(n.labelRotation !== undefined && { labelRotation: n.labelRotation }),
+        ...(captionBelow && { labelBelow: true as const }),
         ...((n.textAlign !== undefined || component.id === "sumi/bubble") && {
           textAlign: n.textAlign ?? "left",
         }),

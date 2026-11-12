@@ -67,6 +67,116 @@ test.each(["auto", "structured"])(
   },
 );
 
+test.each(["auto", "structured"])(
+  "%s: edges meet the frame and keep clear of the caption below it",
+  async (engine) => {
+    const arrange =
+      engine === "structured"
+        ? ", arrange: { stack: { items: [{ row: { items: [input, signal, output] } }, below] } }"
+        : "";
+    const text = `version: 1
+figure:
+  id: waveform-caption-edges
+  layout: { engine: ${engine}, direction: right${arrange} }
+nodes:
+  - { id: input, component: box, label: Input }
+  - { id: signal, component: waveform, label: A longer caption, props: { samples: [0, 1, -1, 0] } }
+  - { id: output, component: box, label: Output }
+${engine === "structured" ? "  - { id: below, component: box, label: Below }\n" : ""}edges:
+  - { from: input, to: signal }
+  - { from: signal, to: output }
+${engine === "structured" ? "  - { from: signal, to: below }\n" : ""}`;
+    const result = await renderFigure(text);
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    expect(lintGeometry(result.value, {})).toEqual([]);
+    const elements = result.value.inspection.elements;
+    const frame = required(elements.find((e) => e.key === "n:signal")?.bbox);
+    const fonts = required(getFontSet(result.value.compiled.ir.meta.fontSetId));
+    const signal = required(elements.find((e) => e.key === "n:signal"));
+    const caption = required(measureLabel(required(signal.labels[0]), fonts).box);
+    // The frame keeps its natural size: the caption adds no width or height to it.
+    expect(frame.width).toBe(160);
+    expect(frame.height).toBe(96);
+    expect(caption.width).toBeGreaterThan(0);
+    for (const edge of elements.filter((e) => e.kind === "edge")) {
+      const path = required(edge.path);
+      const ir = required(result.value.compiled.ir.edges.find((e) => e.key === edge.key));
+      const end =
+        ir.from === "n:signal" ? path[0]?.to : ir.to === "n:signal" ? path.at(-1)?.to : undefined;
+      if (end === undefined) continue;
+      // On (or, before an arrowhead, just off) the frame, never at the caption.
+      expect(end.y).toBeLessThanOrEqual(frame.y + frame.height + 1);
+      expect(end.y).toBeLessThan(caption.y);
+    }
+    if (engine === "auto") {
+      if (result.value.compiled.engine !== "auto") throw new Error("expected D2");
+      expect(result.value.compiled.d2Source).toContain("label.near: outside-bottom-center");
+    }
+  },
+  30_000,
+);
+
+test.each(["auto", "structured"])(
+  "%s: editable PPTX writes the caption as its own text box below the frame",
+  async (engine) => {
+    const text = source(undefined, undefined, engine).replace(
+      "    component: waveform",
+      "    component: waveform\n    label: Caption",
+    );
+    const result = await renderFigure(text);
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const pptx = svgToEditablePptx(result.value.svg, result.value.compiled.ir);
+    if (!pptx.ok) throw new Error(JSON.stringify(pptx.diagnostics));
+    const all = elements(
+      new TextDecoder().decode(readPptx(pptx.value).get("ppt/slides/slide1.xml")),
+    );
+    const named = (name: string) =>
+      required(
+        all.find(
+          (e) =>
+            e.name === "p:sp" &&
+            [...descendants(e)].some((p) => p.name === "p:cNvPr" && attribute(p, "name") === name),
+        ),
+      );
+    const frame = named("n:signal");
+    const caption = named("n:signal label");
+    expect([...descendants(frame)].some((e) => e.name === "a:t")).toBe(false);
+    expect([...descendants(caption)].some((e) => e.name === "a:t")).toBe(true);
+    const offset = (shape: typeof frame) => {
+      const off = required([...descendants(shape)].find((e) => e.name === "a:off"));
+      const ext = required([...descendants(shape)].find((e) => e.name === "a:ext"));
+      return {
+        y: Number(attribute(off, "y")),
+        bottom: Number(attribute(off, "y")) + Number(attribute(ext, "cy")),
+      };
+    };
+    expect(offset(caption).y).toBeGreaterThanOrEqual(offset(frame).bottom);
+  },
+  30_000,
+);
+
+for (const [theme, definition] of BUILTIN_THEMES) {
+  for (const variant of ["default", "emphasis", "muted", "outlined"]) {
+    test(`${theme}/${variant}: the caption below the frame reads on the canvas`, async () => {
+      const text = source("[-1, 1]", "line")
+        .replace("    variant: outlined", `    variant: ${variant}\n    label: Caption`)
+        .replace("    tone: red\n", "");
+      const result = await renderFigure(text, { overrides: { theme } });
+      if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+      expect(lintGeometry(result.value, {})).toEqual([]);
+      const node = required(result.value.compiled.ir.nodes[0]);
+      const shape = required(
+        elements(result.value.svg).find((e) => classList(e).includes("shape")),
+      );
+      const paths = childElements(shape).filter((e) => e.name === "path");
+      const fill = required(attribute(required(paths[0]), "fill"));
+      const signal = required(attribute(required(paths[1]), "stroke"));
+      expect(contrastRatio(node.style.fontColor, definition.canvas)).toBeGreaterThanOrEqual(3);
+      if (fill.startsWith("#")) expect(contrastRatio(signal, fill)).toBeGreaterThanOrEqual(3);
+    });
+  }
+}
+
 for (const theme of BUILTIN_THEMES.keys()) {
   for (const variant of ["default", "emphasis", "muted", "outlined"]) {
     for (const engine of variant === "emphasis" ? ["auto", "structured"] : ["structured"]) {
@@ -97,7 +207,7 @@ for (const theme of BUILTIN_THEMES.keys()) {
 for (const engine of ["auto", "structured"]) {
   for (const mode of ["bars", "line"]) {
     for (const label of [undefined, "", "Caption"]) {
-      test(`${engine}/${mode}/${JSON.stringify(label)}: center the signal unless an internal caption needs space`, async () => {
+      test(`${engine}/${mode}/${JSON.stringify(label)}: center the signal in the frame, caption or not`, async () => {
         const text = source("[-1, 0, 1]", mode, engine).replace(
           "    component: waveform",
           `    component: waveform${label === undefined ? "" : `\n    label: ${JSON.stringify(label)}`}`,
@@ -115,14 +225,10 @@ for (const engine of ["auto", "structured"]) {
         );
         const top = Math.min(...ys) - box.y;
         const bottom = box.y + box.height - Math.max(...ys);
-        if (label) {
-          // Keep the existing 10–60% signal region clear of the 70–90% caption.
-          expect(top).toBeCloseTo(box.height * 0.1, 3);
-          expect(bottom).toBeCloseTo(box.height * 0.4, 3);
-        } else {
-          expect(top).toBeCloseTo(bottom, 3);
-          expect(top).toBeCloseTo(box.height * 0.25, 3);
-        }
+        // The caption is below the frame (#491): it takes no room inside.
+        expect(top).toBeCloseTo(bottom, 3);
+        expect(top).toBeCloseTo(box.height * 0.25, 3);
+        expect(box.height).toBeCloseTo(104, 3);
       });
     }
   }
@@ -419,26 +525,26 @@ test("bars mirror amplitudes and line mode preserves signed values", () => {
   const renderer = getOutlineRenderer("sumi/waveform");
   if (!renderer) throw new Error("Missing waveform renderer");
   const rect = { x: 0, y: 0, width: 100, height: 100 };
-  const bars = renderer.draw(rect, renderer.params.parse({ samples: "-1,0,1", hasLabel: true }));
+  const bars = renderer.draw(rect, renderer.params.parse({ samples: "-1,0,1" }));
   expect(bars.layers.slice(1).map((l) => l.path.points)).toEqual([
     [
-      { x: 10, y: 10 },
-      { x: 10, y: 60 },
+      { x: 10, y: 25 },
+      { x: 10, y: 75 },
     ],
     [
-      { x: 90, y: 10 },
-      { x: 90, y: 60 },
+      { x: 90, y: 25 },
+      { x: 90, y: 75 },
     ],
   ]);
-  const line = renderer.draw(
-    rect,
-    renderer.params.parse({ samples: "-1,0,1", mode: "line", hasLabel: true }),
-  );
+  const line = renderer.draw(rect, renderer.params.parse({ samples: "-1,0,1", mode: "line" }));
   expect(line.layers[1]?.path.points).toEqual([
-    { x: 10, y: 60 },
-    { x: 50, y: 35 },
-    { x: 90, y: 10 },
+    { x: 10, y: 75 },
+    { x: 50, y: 50 },
+    { x: 90, y: 25 },
   ]);
+  // The label is a caption below the frame (#491), never a parameter of the drawing.
+  expect(renderer.labelless).toBe(true);
+  expect(renderer.params.safeParse({ hasLabel: true }).success).toBe(false);
 });
 
 for (const theme of BUILTIN_THEMES.keys()) {

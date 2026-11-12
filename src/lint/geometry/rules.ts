@@ -550,6 +550,20 @@ export const labelOverflow = defineGeometryRule({
     const findings: LintFinding[] = [];
     for (const element of context.elements) {
       const { labelArea, bbox } = element;
+      if (element.ir.kind === "node" && element.ir.labelBelow && bbox !== undefined) {
+        // A caption below its frame (#491) must stay clear of the frame.
+        const covered = element.labels
+          .flatMap((l) => l.visibleLines)
+          .some((line) => rectsOverlap(line, bbox, GEOMETRY_TOLERANCE_UNITS));
+        if (covered)
+          findings.push({
+            message: `The caption of ${element.name} overlaps its frame; it is drawn below the frame.`,
+            path: labelPath(element),
+            subject: element.subject,
+            hint: "Report the figure: the layout places the caption under the frame.",
+          });
+        continue;
+      }
       if (labelArea === undefined || bbox === undefined) continue;
       // The label must stay clear of the border's inner half.
       const margin = element.strokeInset - GEOMETRY_TOLERANCE_UNITS;
@@ -872,6 +886,12 @@ export function edgeCrossesLabelHint(context: GeometryContext, other: GeometryEl
     return isStructured(context)
       ? "A group's caption sits centred below the group. Move the edge's ends with fromAnchor / toAnchor (e.g. leave the group from a side), or change the arrangement so the edge does not pass below the group."
       : "A group's caption sits centred below the group, and the auto layout does not route edges around it: an edge that leaves or passes the group downwards crosses it. Change layout.direction so the edge leaves the group sideways, connect elements beside the group, or use the structured layout, whose router goes around captions.";
+  }
+  if (other.ir.kind === "node" && other.ir.labelBelow) {
+    // A waveform's caption (#491) is below its frame, where edges leave it downwards.
+    return isStructured(context)
+      ? "The caption sits centred below the frame. Move the edge's ends with fromAnchor / toAnchor (e.g. leave the frame from a side), or change the arrangement so the edge does not pass below the frame."
+      : "The caption sits centred below the frame, and the auto layout does not route edges around it: an edge that leaves or passes the frame downwards crosses it. Change layout.direction so the edge leaves the frame sideways, or use the structured layout, whose router goes around captions.";
   }
   const group =
     other.kind === "group" ? GROUP_LABEL_WORDS[groupLabelAt(context, other)] : undefined;
@@ -1656,7 +1676,8 @@ export const edgeNearEdge = defineGeometryRule({
 const isFreeText = (e: GeometryElement): boolean =>
   e.ir.legend === undefined &&
   isOpaque(e) &&
-  (e.ir.kind === "group" || (e.ir.kind === "node" && (isCaption(e) || e.ir.shape === "text")));
+  (e.ir.kind === "group" ||
+    (e.ir.kind === "node" && (isCaption(e) || e.ir.shape === "text" || e.ir.labelBelow === true)));
 
 export const edgeTouchesLabel = defineGeometryRule({
   id: "geometry/edge-touches-label",

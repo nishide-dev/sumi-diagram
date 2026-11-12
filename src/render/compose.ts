@@ -6,6 +6,7 @@ import type { Diagnostic } from "../core/diagnostics";
 import { getOutlineRenderer, type OutlineDrawing } from "../core/outline";
 import type { Result } from "../core/result";
 import { getFontSet } from "../core/theme/fonts";
+import { LINE_HEIGHT } from "../layout/text";
 import { measureLabel } from "../lint/geometry/measure";
 import { type PathSegment, type Point, parsePath, type Rect } from "./geometry";
 import { decodeElementClass, type SvgInspection } from "./inspect";
@@ -166,8 +167,8 @@ export function composeOutlines(
                     : layer.role === "line" &&
                         a.name === "stroke" &&
                         node.render?.renderer === "sumi/waveform" &&
-                        node.variant === "emphasis"
-                      ? node.style.fontColor
+                        typeof node.render.params?.signalStroke === "string"
+                      ? node.render.params.signalStroke
                       : layer.role === "body" &&
                           a.name === "stroke" &&
                           node.render?.renderer === "sumi/waveform" &&
@@ -197,9 +198,20 @@ export function composeOutlines(
           ),
         );
       let dx = drawing.safeArea.x + drawing.safeArea.width / 2 - bbox.x - bbox.width / 2;
-      const dy = drawing.safeArea.y + drawing.safeArea.height / 2 - bbox.y - bbox.height / 2;
+      let dy = drawing.safeArea.y + drawing.safeArea.height / 2 - bbox.y - bbox.height / 2;
       const align = node.render?.renderer === "sumi/bubble" ? node.textAlign : undefined;
-      if (align === "left" || align === "right") {
+      if (node.labelBelow) {
+        // D2 draws the caption outside, below the shape (#491): centre it and
+        // put its first line box right under the frame, as the structured
+        // engine places it (half-leading above the font's ascent).
+        const fonts = getFontSet(ir.meta.fontSetId);
+        const label = geometry.get(node.key)?.labels[0];
+        const line = fonts && label ? measureLabel(label, fonts).lines[0] : undefined;
+        if (!label || !line) throw new Error(`${node.key}: cannot measure the caption.`);
+        dx = bbox.x + bbox.width / 2 - label.anchor.x;
+        const lineHeight = Math.max(label.fontSizeUnits * LINE_HEIGHT, line.height);
+        dy = bbox.y + bbox.height + (lineHeight - line.height) / 2 - line.y;
+      } else if (align === "left" || align === "right") {
         const fonts = getFontSet(ir.meta.fontSetId);
         const label = geometry.get(node.key)?.labels[0];
         if (fonts && label) {

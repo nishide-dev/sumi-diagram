@@ -266,10 +266,16 @@ const stack: OutlineRenderer<z.output<typeof stackParams>> = {
   },
 };
 
-/** Sample-driven signal and a separate caption corridor, in the node's frame. */
+/**
+ * A sample-driven signal centred in a rectangular frame (#491). The frame
+ * holds only the signal: the node's label is a caption drawn outside it,
+ * centred below (`NodeIR.labelBelow`), so the footprint does not depend on
+ * the label.
+ */
 const waveform: OutlineRenderer = {
   id: "sumi/waveform",
   version: 1,
+  labelless: true,
   params: z.strictObject({
     samples: z
       .string()
@@ -285,14 +291,15 @@ const waveform: OutlineRenderer = {
         );
       }, "Expected 2–2048 comma-separated finite amplitudes in [-1, 1]"),
     mode: z.enum(["bars", "line"]).default("bars"),
-    hasLabel: z.boolean().default(false),
     frameStroke: z
       .string()
       .regex(/^#[0-9a-fA-F]{6}$/)
       .optional(),
+    // Paint only, not geometry: the emphasis signal's color (#491).
+    signalStroke: z.string().optional(),
   }),
   footprint({ width, height }) {
-    return { width: Math.max(160, width / 0.8), height: Math.max(96, height / 0.2) };
+    return { width: Math.max(160, width / 0.8), height: Math.max(96, height / 0.8) };
   },
   draw(rect, params) {
     const { x, y, width, height } = rect;
@@ -304,9 +311,7 @@ const waveform: OutlineRenderer = {
     // unexpanded rectangle: proportional insets do not absorb the cap radius.
     const left = x + width / 10;
     const span = width * 0.8;
-    // Only reserve the caption corridor when this node actually has a label.
-    // External caption nodes do not consume space inside the waveform frame.
-    const center = y + height * (params.hasLabel ? 0.35 : 0.5);
+    const center = y + height / 2;
     const amplitude = height * 0.25;
     const points = samples.map((value, i) => ({
       x: left + (span * i) / (samples.length - 1),
@@ -341,7 +346,9 @@ const waveform: OutlineRenderer = {
     return {
       layers: [body(outline), ...signal],
       outline,
-      safeArea: { x: left, y: y + height * 0.7, width: span, height: height * 0.2 },
+      // The interior: only an icon (#94) is drawn in the frame; a label is a
+      // caption below it.
+      safeArea: { x: left, y: y + height / 10, width: span, height: height * 0.8 },
     };
   },
 };

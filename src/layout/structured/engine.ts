@@ -232,6 +232,8 @@ class StructuredLayout {
   readonly #sublabels = new Map<ElementKey, TextMetrics>();
   readonly #leafSizes = new Map<ElementKey, Size>();
   readonly #badgeOverhangs = new Map<ElementKey, Overhang>();
+  /** The text block of a caption drawn below its node's frame (#491, `labelBelow`). */
+  readonly #captions = new Map<ElementKey, Size>();
   readonly #defaultGap: number;
   readonly #groupPadding: number;
   /** Padding added to sides of groups for the room before arrowheads (#171, `growPadding`). */
@@ -294,8 +296,9 @@ class StructuredLayout {
                 ? { x: padding.x / 2, y: 0 }
                 : padding,
             );
+      if (node.labelBelow && box !== undefined) this.#captions.set(node.key, box);
       const body = { x: 0, y: 0, ...size };
-      const extra = overhangOf(body, decorationRects(node, body));
+      const extra = overhangOf(body, this.#decorations(node, body));
       this.#badgeOverhangs.set(node.key, extra);
       this.#leafSizes.set(node.key, {
         width: size.width + extra.west + extra.east,
@@ -1011,10 +1014,32 @@ class StructuredLayout {
     return size;
   }
 
+  /**
+   * What hangs outside a node's body: its corner badge and glyphs (#408),
+   * and a caption below its frame (#491), centred under the body with its
+   * line box right below it, like a `label` node attached south with no gap.
+   */
+  #decorations(node: NodeIR, body: Rect): Rect[] {
+    const caption = this.#captions.get(node.key);
+    return [
+      ...decorationRects(node, body),
+      ...(caption === undefined
+        ? []
+        : [
+            {
+              x: body.x + (body.width - caption.width) / 2,
+              y: body.y + body.height,
+              width: caption.width,
+              height: caption.height,
+            },
+          ]),
+    ];
+  }
+
   #attachedRects(container: Container, rects: Map<ElementKey, Rect>): Rect[] {
     return (this.#attached.get(container) ?? []).flatMap((node) => {
       const rect = rects.get(node.key);
-      return rect === undefined ? [] : [rect, ...decorationRects(node, rect)];
+      return rect === undefined ? [] : [rect, ...this.#decorations(node, rect)];
     });
   }
 
@@ -1034,7 +1059,11 @@ class StructuredLayout {
       const metrics = this.#labels.get(node.key);
       const rect = this.#rect(node.key);
       if (metrics === undefined) continue;
-      const center = nodeLabelCenter(node, rect);
+      const caption = this.#captions.get(node.key);
+      const center =
+        caption === undefined
+          ? nodeLabelCenter(node, rect)
+          : { x: rect.x + rect.width / 2, y: rect.y + rect.height + caption.height / 2 };
       const sublabel = this.#sublabels.get(node.key);
       if (sublabel === undefined) {
         labels.set(node.key, placeText(metrics, center, node.labelRotation, node.textAlign));
@@ -1070,7 +1099,7 @@ class StructuredLayout {
     const all = [
       ...this.#rects.values(),
       ...setBoxes,
-      ...this.#ir.nodes.flatMap((node) => decorationRects(node, this.#rect(node.key))),
+      ...this.#ir.nodes.flatMap((node) => this.#decorations(node, this.#rect(node.key))),
       ...[...labels.values(), ...sublabels.values()].map((label) => label.box),
       ...this.#chatFrames.values(),
     ];

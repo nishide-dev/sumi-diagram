@@ -120,7 +120,19 @@ for (const item of corpus)
             ]);
           }
         } else if (element.label.trim()) {
-          const tx = childElements(shape).find((e) => e.name === "p:txBody");
+          // A caption below a waveform's frame (#491) is a text box of its own.
+          const textShape =
+            element.kind === "node" && element.labelBelow
+              ? all.find(
+                  (e) =>
+                    e.name === "p:sp" &&
+                    [...descendants(e)].some(
+                      (n) =>
+                        n.name === "p:cNvPr" && attribute(n, "name") === `${element.key} label`,
+                    ),
+                )
+              : shape;
+          const tx = textShape && childElements(textShape).find((e) => e.name === "p:txBody");
           expect(tx).toBeDefined();
           // Label math (#93) is written as its characters (a matrix's headers, #180).
           // A node's sublabel (#184) follows its label in the same text body, or,

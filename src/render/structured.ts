@@ -304,8 +304,8 @@ function nodeShape(node: NodeIR, r: Rect): string {
         const signalStroke =
           node.render?.renderer === "sumi/waveform" &&
           layer.role === "line" &&
-          node.variant === "emphasis"
-            ? style.fontColor
+          typeof node.render.params?.signalStroke === "string"
+            ? node.render.params.signalStroke
             : undefined;
         return `<path d="${pathData(layer.path.points, layer.path.closed)}" fill="${fill}"${strokeAttributes(typeof frameStroke === "string" || signalStroke !== undefined ? { ...style, stroke: signalStroke ?? (frameStroke as string) } : style)}${signal}/>`;
       })
