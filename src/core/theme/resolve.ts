@@ -151,11 +151,8 @@ export function resolveStyle<K extends ComponentKind>(
       )
         filled = { ...filled, stroke: line.stroke, fontColor: line.fontColor };
     }
-    if (
-      filled !== undefined &&
-      luminance(theme.canvas) < 0.2 &&
-      theme.toneOverrides === undefined
-    ) {
+    // Dark-canvas colors first; the selected tone's own override (if any) applies after.
+    if (filled !== undefined && luminance(theme.canvas) < 0.2) {
       if (variant === "solid" && ink !== undefined) {
         filled = {
           fill: ink,

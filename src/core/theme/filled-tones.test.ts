@@ -9,6 +9,7 @@ import { BUILTIN_THEMES } from "./builtin";
 import { toOklch } from "./color-math";
 import { dimStyle, lightenColor } from "./dim";
 import { contrastRatio } from "./node-variants";
+import { withToneOverrides } from "./overrides";
 import { getPalette, PALETTE_NAMES, withPalette } from "./palette";
 import { resolveStyle } from "./resolve";
 import { TONE_NAMES } from "./tones";
@@ -279,6 +280,34 @@ describe("yellow text (#465)", () => {
           expect(contrastRatio(text, surface), `${label} on ${surface}`).toBeGreaterThanOrEqual(
             4.5,
           );
+      }
+    }
+  });
+});
+
+describe("dark canvas with tone overrides", () => {
+  test("an override of one tone, fill-only or full, keeps the other tones' solid text readable", () => {
+    const base = BUILTIN_THEMES.get("sumi-dark");
+    if (base === undefined) throw new Error("sumi-dark missing");
+    for (const overrides of [
+      { red: { fill: "#333333" } },
+      { red: { fill: "#333333", line: "#ffaaaa" } },
+    ]) {
+      for (const palette of [undefined, ...PALETTE_NAMES]) {
+        const theme = withToneOverrides(withPalette(base, palette), overrides);
+        for (const tone of ["blue", "green", "yellow", "gray"] as const) {
+          const { fill, fontColor } = resolveStyle(theme, {
+            kind: "node",
+            id: "sumi/box",
+            variant: "solid",
+            tone,
+          }).style;
+          if (fill === undefined || fontColor === undefined) throw new Error(`${tone}: no colors`);
+          expect(
+            contrastRatio(fill, fontColor),
+            `${palette ?? "none"} ${tone}`,
+          ).toBeGreaterThanOrEqual(4.5);
+        }
       }
     }
   });

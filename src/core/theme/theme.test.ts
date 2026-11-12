@@ -81,10 +81,12 @@ describe("font sets", () => {
     // The default set has no Latin slots (#172): built-in themes keep their glyphs.
     expect(set.latin).toBeUndefined();
     expect(set.latinBold).toBeUndefined();
-    // Only paper (#173) and llama (#386) use the Latin set.
+    // paper (#173), llama (#386) and the sumi themes (#473) use the Latin set.
     for (const theme of BUILTIN_THEMES.values()) {
       expect(theme.fontSet.id).toBe(
-        ["paper", "llama"].includes(theme.id) ? LATIN_FONT_SET_ID : DEFAULT_FONT_SET_ID,
+        ["paper", "llama", "sumi", "sumi-dark"].includes(theme.id)
+          ? LATIN_FONT_SET_ID
+          : DEFAULT_FONT_SET_ID,
       );
     }
     // The Latin set is the default set plus Inter for Latin text.
@@ -575,7 +577,9 @@ describe("built-in themes", () => {
     ]);
     for (const t of BUILTIN_THEMES.values()) {
       expect(t.fontSet.id).toBe(
-        ["paper", "llama"].includes(t.id) ? LATIN_FONT_SET_ID : DEFAULT_FONT_SET_ID,
+        ["paper", "llama", "sumi", "sumi-dark"].includes(t.id)
+          ? LATIN_FONT_SET_ID
+          : DEFAULT_FONT_SET_ID,
       );
     }
     for (const definition of BUILTIN_THEME_DEFINITIONS) {

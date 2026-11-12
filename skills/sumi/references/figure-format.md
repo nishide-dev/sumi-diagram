@@ -438,8 +438,8 @@ They are built in; a figure cannot define its own. `sumi catalog --json` lists t
 `minimal`, `academic`, `color`, `paper` and `llama` use 8pt text (7pt on edges). `academic` is
 for black-and-white journals, `paper` for the coloured figures of ML papers; both fit
 `paper-single` / `paper-double`, and the same YAML renders under either with
-`--theme`. Fonts: `minimal`, `academic`, `slides`, `color`, `sumi` and `sumi-dark` use `sumi/biz-ud-gothic`
-(Latin and Japanese); `paper` and `llama` use `sumi/inter-biz-ud-gothic` (structured figures:
+`--theme`. Fonts: `minimal`, `academic`, `slides`, `color` use `sumi/biz-ud-gothic`
+(Latin and Japanese); `paper`, `llama`, `sumi` and `sumi-dark` use `sumi/inter-biz-ud-gothic` (structured figures:
 Inter for Latin, BIZ UDPGothic for Japanese; auto figures all BIZ UDPGothic). Inter's
 line box is taller (1.21em vs 1.00em), so a small node with explicit `width` /
 `height` can fail `geometry/label-overflow` under `paper`: a one-character key in a

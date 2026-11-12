@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { inflateSync } from "node:zlib";
 import { htmlThemeVariables } from "../assets/html-render";
 import { BUILTIN_THEMES } from "../core/theme/builtin";
 import { pageTextContrast } from "../core/theme/node-variants";
@@ -31,7 +32,9 @@ nodes:
       if (!rendered.ok) throw new Error(JSON.stringify(rendered.diagnostics));
       expect(rendered.value.svg).toContain('fill="#30364f"');
       const pdf = svgToPdf(rendered.value.svg);
-      expect(pdf.ok).toBe(true);
+      if (!pdf.ok) throw new Error(JSON.stringify(pdf.diagnostics));
+      // The first fill painted in the page content is the canvas (#30364f = 48/255, 54/255, 79/255).
+      expect(firstFill(pdf.value)).toEqual([0.1882, 0.2118, 0.3098]);
       const picture = svgToPptx(rendered.value.svg);
       const editable = svgToEditablePptx(rendered.value.svg, rendered.value.compiled.ir);
       for (const result of [picture, editable]) {
@@ -44,3 +47,22 @@ nodes:
     themes.set("minimal", original);
   }
 });
+
+/** The RGB of the first `rg` (non-stroking color) operator in the PDF's content streams. */
+function firstFill(pdf: Uint8Array): number[] | undefined {
+  const bytes = Buffer.from(pdf);
+  const text = bytes.toString("latin1");
+  for (const match of text.matchAll(/stream\r?\n/g)) {
+    const start = (match.index ?? 0) + match[0].length;
+    const end = text.indexOf("endstream", start);
+    let content: string;
+    try {
+      content = inflateSync(bytes.subarray(start, end)).toString("latin1");
+    } catch {
+      continue;
+    }
+    const rg = content.match(/([\d.]+) ([\d.]+) ([\d.]+) rg/);
+    if (rg) return rg.slice(1, 4).map((v) => Math.round(Number(v) * 10000) / 10000);
+  }
+  return undefined;
+}

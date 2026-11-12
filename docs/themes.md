@@ -10,8 +10,8 @@ Sumi has eight built-in themes:
 - **`paper`**: color ML-paper style, after published Transformer and DiT figures: pastel tones, rounded corners, thin frames and edges, white framed panels (gray only when asked: `variant: filled`, `groupFill`), Inter for Latin text.
 - **`slides`**: large text and thick lines for projection, used with the `presentation-16x9` profile.
 - **`llama`**: after the mixture-of-experts figure of Meta's Llama 4 announcement: slate lines with open chevron arrowheads, gray-framed white boxes, dark slate `solid` blocks, a blue `emphasis` block, borderless pale panels, Inter for Latin text.
-- **`sumi`**: warm cream canvas with navy ink and sand accents.
-- **`sumi-dark`**: navy canvas with cream ink and sand accents.
+- **`sumi`**: warm cream canvas with navy ink and sand accents, Inter for Latin text; the design system of the project site.
+- **`sumi-dark`**: the dark counterpart: navy canvas, cream ink and sand accents, Inter for Latin text.
 
 `academic` and `paper` are both for papers; choose by how the paper is printed. **Grayscale or black-and-white print: `academic`. A color ML paper: `paper`.**
 

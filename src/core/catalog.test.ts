@@ -58,9 +58,11 @@ describe("buildThemeCatalog", () => {
     for (const entry of buildThemeCatalog()) {
       expect(entry.missingVariants).toEqual({});
       expect(entry.tones).toEqual([...TONE_NAMES]);
-      // paper (#173) and llama (#386) use the Latin font set (#172), the others the default.
+      // paper (#173), llama (#386) and the sumi themes (#473) use the Latin font set (#172).
       expect(entry.fonts.id).toBe(
-        ["paper", "llama"].includes(entry.id) ? LATIN_FONT_SET_ID : DEFAULT_FONT_SET_ID,
+        ["paper", "llama", "sumi", "sumi-dark"].includes(entry.id)
+          ? LATIN_FONT_SET_ID
+          : DEFAULT_FONT_SET_ID,
       );
       expect(entry.fonts.styles).toEqual(["regular", "bold", "mono"]);
       expect(entry.description).toEqual(expect.any(String));

@@ -431,7 +431,7 @@ function sumiTheme(dark: boolean): ThemeDefinition {
       ? "Navy canvas with cream ink and sand accents"
       : "Warm cream canvas with navy ink and sand accents",
     canvas,
-    fonts: DEFAULT_FONT_SET_ID,
+    fonts: LATIN_FONT_SET_ID,
     tokens: {
       size: { text: "8pt", small: "7pt", heading: "9pt" },
       line: { regular: "1pt", bold: "2pt" },
