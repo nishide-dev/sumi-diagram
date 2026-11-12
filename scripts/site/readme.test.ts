@@ -10,12 +10,12 @@ test("converts both README locations, copies pictures, and preserves escaping", 
     await mkdir(resolve(root, "docs"));
     await writeFile(resolve(root, "light.svg"), "light");
     await writeFile(resolve(root, "dark.svg"), "dark");
-    for (const [file, prefix] of [
-      ["README.md", ""],
-      ["docs/README-ja.md", "../"],
+    for (const [file, prefix, other] of [
+      ["README.md", "", "docs/README-ja.md"],
+      ["docs/README-ja.md", "../", "../README.md"],
     ] as const) {
       const html = await readmeHtml(
-        `# Sumi\n\n[language](${prefix}README.md) | [site](https://nishide-dev.github.io/sumi-diagram/)\n\nTag & text.\n\n[doc](${prefix}docs/usage.md#install) [section](#local) [examples](https://nishide-dev.github.io/sumi-diagram/#examples)\n\n<picture><source media="(prefers-color-scheme: dark)" srcset="${prefix}dark.svg"><img src="${prefix}light.svg" alt="figure"></picture>\n\n<details><summary>More</summary>text</details>\n\n<script>alert(1)</script>`,
+        `# Sumi\n\n[language](${other}) | [site](https://nishide-dev.github.io/sumi-diagram/)\n\nTag & text.\n\n[doc](${prefix}docs/usage.md#install) [section](#local) [examples](https://nishide-dev.github.io/sumi-diagram/#examples)\n\n<picture><source media="(prefers-color-scheme: dark)" srcset="${prefix}dark.svg"><img src="${prefix}light.svg" alt="figure"></picture>\n\n<details><summary>More</summary>text</details>\n\n<script>alert(1)</script>`,
         file,
         root,
         resolve(root, "out"),
@@ -78,6 +78,23 @@ test("keeps a lone link paragraph, splits a bold lead, and rewrites single-quote
     expect(html).toContain(
       'href="https://github.com/nishide-dev/sumi-diagram/blob/main/docs/x.md"',
     );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("removes a lone language link before the bold lead and keeps external image URLs intact", async () => {
+  const root = await mkdtemp(join(tmpdir(), "sumi-readme-"));
+  try {
+    const html = await readmeHtml(
+      "# Sumi\n\n[日本語](docs/README-ja.md)\n\n**Draw, check, fix.** Sumi is a CLI.\n\n<img src='https://example.com/a\"b.svg' alt=''>\n",
+      "README.md",
+      root,
+      resolve(root, "out"),
+    );
+    expect(html).not.toContain(">日本語</a>");
+    expect(html).toContain('<p class="tagline">Draw, check, fix.</p>');
+    expect(html).toContain('src="https://example.com/a&quot;b.svg"');
   } finally {
     await rm(root, { recursive: true, force: true });
   }

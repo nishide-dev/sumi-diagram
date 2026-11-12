@@ -19,16 +19,17 @@ export async function readmeHtml(markdown: string, readme: string, root: string,
     const rest = body
       .replace(/<a\s+[^>]*href="[^"]+"[^>]*>[\s\S]*?<\/a>/gi, "")
       .replace(/[\s|·・/—–-]|&nbsp;/g, "");
-    if (links.length < 2 || rest) return whole;
-    return links.every((m) => {
-      const href = decodeHTML(m[1] ?? "");
-      return (
-        href.startsWith(site) ||
-        (relative(href) && /(?:^|\/)README(?:-ja)?\.md(?:#.*)?$/i.test(href))
-      );
-    })
-      ? ""
-      : whole;
+    if (!links.length || rest) return whole;
+    const hrefs = links.map((m) => decodeHTML(m[1] ?? ""));
+    // The other language's README: the site has its own language toggle.
+    const otherReadme = (href: string) =>
+      relative(href) &&
+      /(?:^|\/)README(?:-ja)?\.md$/i.test(href) &&
+      posix.normalize(posix.join(posix.dirname(readme), href)) !== readme;
+    const navigation = (href: string) => href.startsWith(site) || otherReadme(href);
+    // A lone link stays unless it is the language switch; a row of two or more is the nav line.
+    const remove = hrefs.length === 1 ? otherReadme(hrefs[0] ?? "") : hrefs.every(navigation);
+    return remove ? "" : whole;
   });
   // A leading paragraph that is only bold text is the tagline.
   html = html.replace(
@@ -47,7 +48,7 @@ export async function readmeHtml(markdown: string, readme: string, root: string,
   const pending: Promise<void>[] = [];
   const image = (raw: string) => {
     const value = decodeHTML(raw);
-    if (!relative(value)) return raw;
+    if (!relative(value)) return escapeAttr(value);
     const [path, suffix = ""] = value.split(/(?=[?#])/s, 2);
     const resolved = posix.normalize(posix.join(posix.dirname(readme), path ?? ""));
     if (resolved === ".." || resolved.startsWith("../"))
