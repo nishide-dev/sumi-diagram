@@ -1,6 +1,7 @@
 import { copyFile, mkdir, rm } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { version } from "../../package.json";
+import { getTheme } from "../../src/core/theme/builtin";
 import { getPalette, PALETTE_NAMES } from "../../src/core/theme/palette";
 import { type RenderJob, renderAll } from "../gallery/render";
 import {
@@ -86,6 +87,7 @@ const data = {
     ),
   },
   themes: THEMES,
+  canvases: Object.fromEntries(THEMES.map((t) => [t, getTheme(t)?.canvas ?? "#ffffff"])),
   palettes: PALETTE_NAMES.map((id) => ({ id, colors: getPalette(id)?.colors })),
   components: components.map(componentData),
   options: options.map(({ sample, title, description }) => optionData(sample, title, description)),
@@ -111,7 +113,12 @@ for (const { sample, slug, assetBase } of [
       jobs.push({
         file: sample.fileName,
         source: sampleSource(sample.source, rendering.theme, rendering.profile, palette),
-        rendering: { ...rendering, output },
+        // Transparent (#486): the page paints each preview's plate in the theme's canvas colour.
+        rendering: {
+          ...rendering,
+          output,
+          overrides: { ...rendering.overrides, background: "transparent" },
+        },
         ...(assetBase && { assetBase: resolve(assetBase) }),
       });
     }

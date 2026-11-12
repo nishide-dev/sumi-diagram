@@ -176,6 +176,8 @@ async function figureChanged() {
     const item = el.dataset.key ? ITEMS.get(el.dataset.key) : undefined;
     if (!img || !item) continue;
     img.src = `./figures/${state.theme}/${state.palette || "base"}/${item.slug}.svg`;
+    const stage = el.querySelector<HTMLElement>(".stage");
+    if (stage) stage.style.background = DATA.canvases[state.theme] ?? "";
     img.alt = `${el.dataset.title} (${state.theme}${state.palette ? `, ${state.palette}` : ""})`;
   }
 }

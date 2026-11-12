@@ -180,7 +180,8 @@ const readmeFigure: Rendering[] = (
   output: `docs/assets/architecture.${mode}.svg`,
   theme,
   profile: "",
-  overrides: { theme },
+  // Transparent (#479, #486): the figure sits on GitHub's and the site's own page colour.
+  overrides: { theme, background: "transparent" },
 }));
 for (const rendering of readmeFigure) {
   jobs.push({ file: README_FIGURE, source: readmeFigureText, rendering });
