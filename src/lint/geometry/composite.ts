@@ -187,7 +187,7 @@ export interface Analysis {
 const GRID = 4;
 const INSET = 1;
 
-const covers = (item: PaintItem, p: Point): boolean =>
+export const covers = (item: PaintItem, p: Point): boolean =>
   p.x >= item.bbox.x - 1e-6 &&
   p.x <= item.bbox.x + item.bbox.width + 1e-6 &&
   p.y >= item.bbox.y - 1e-6 &&

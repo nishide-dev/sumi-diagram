@@ -137,10 +137,24 @@ nodes:
     },
     { code },
   );
-  expect(findings.some((f) => f.subject?.id === "frame" && f.message.includes("#aaaaaa"))).toBe(
+  // The opaque node painted above hides the frame entirely: nothing to report.
+  expect(findings.some((f) => f.subject?.id === "frame")).toBe(false);
+  expect(findings.some((f) => f.subject?.id === "below")).toBe(false);
+  // Without the node above, the frame shows on the preceding gray fill and is reported.
+  const exposed = lintSpec(
+    compiled,
+    {
+      elements: {
+        "n:below": { bbox: rect },
+        "n:frame": { bbox: rect },
+        "n:above": { bbox: { x: 400, y: 400, width: 10, height: 10 } },
+      },
+    },
+    { code },
+  );
+  expect(exposed.some((f) => f.subject?.id === "frame" && f.message.includes("#aaaaaa"))).toBe(
     true,
   );
-  expect(findings.some((f) => f.subject?.id === "below")).toBe(false);
 });
 
 test("warning requires ten units below 1.5, independently of the info length", () => {

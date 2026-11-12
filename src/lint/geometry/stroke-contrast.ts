@@ -2,7 +2,7 @@ import { getTheme } from "../../core/theme/builtin";
 import { contrastRatio } from "../../core/theme/node-variants";
 import type { Point } from "../../render/geometry";
 import { defineGeometryRule, type LintFinding } from "../rule";
-import { normalized, over, paintItemsOf, surfaceAt } from "./composite";
+import { covers, normalized, over, paintItemsOf, surfaceAt } from "./composite";
 import type { Region } from "./shapes";
 
 function boundary(region: Region): Point[] {
@@ -67,6 +67,17 @@ export const strokeContrast = defineGeometryRule({
           item.bbox.y <= bottom + 1e-6 &&
           item.bbox.y + item.bbox.height >= top - 1e-6,
       );
+      // Opaque nodes painted after this node's frame hide it where they cover it.
+      const occluders =
+        element.kind === "edge"
+          ? []
+          : items.filter(
+              (item) =>
+                item.kind === "node" &&
+                item.alpha >= 1 &&
+                (order.get(item.key as typeof element.key) ?? -Infinity) >
+                  (order.get(element.key) ?? Infinity),
+            );
       // A node with a fill of its own is drawn by that fill; its frame is decoration.
       // Only an outline-only node (its fill matches what lies behind its centre) is checked.
       if (element.kind !== "edge") {
@@ -110,6 +121,7 @@ export const strokeContrast = defineGeometryRule({
           for (let j = 0; j < count; j++) {
             const t = (j + 0.5) / count;
             const point = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+            if (occluders.some((item) => covers(item, point))) continue;
             const fill = surfaceAt(segmentSurfaces, point, canvas);
             const ratio = contrastRatio(over(stroke, style.opacity, fill), fill);
             if (ratio < 1.5) severe += length / count;
