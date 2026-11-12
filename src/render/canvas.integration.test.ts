@@ -35,12 +35,25 @@ edges:
     expect(transparent.value.svg).toBe(expected);
     expect(transparent.value.metadata.background).toBe("transparent");
     const pdf = svgToPdf(transparent.value.svg);
-    const expectedPdf = svgToPdf(expected);
-    expect(pdf).toEqual(expectedPdf);
+    const opaquePdf = svgToPdf(normal.value.svg);
+    if (!pdf.ok || !opaquePdf.ok) throw new Error("PDF conversion failed");
+    const transparentPaint = pdfStreams(pdf.value);
+    const opaquePaint = pdfStreams(opaquePdf.value);
+    // The canvas colour also paints edge-label knockouts and must survive.
+    const canvasColor = /0\.\d+ 0\.\d+ 0\.\d+ rg/g;
+    expect(transparentPaint.match(canvasColor)?.length).toBeGreaterThan(0);
+    expect(opaquePaint.length).toBeGreaterThan(transparentPaint.length);
     const picture = svgToPptx(transparent.value.svg);
     const editable = svgToEditablePptx(transparent.value.svg, transparent.value.compiled.ir);
-    expect(picture).toEqual(svgToPptx(expected));
-    expect(editable).toEqual(svgToEditablePptx(expected, normal.value.compiled.ir));
+    if (!picture.ok || !editable.ok) throw new Error("PPTX conversion failed");
+    const media = readPptx(picture.value);
+    const svg = new TextDecoder().decode(media.get("ppt/media/figure.svg"));
+    expect(svg).toContain("<path");
+    expect(svg).not.toContain('<rect width="100%" height="100%"');
+    expect(media.get("ppt/media/figure.png")?.length).toBeGreaterThan(100);
+    const slide = new TextDecoder().decode(readPptx(editable.value).get("ppt/slides/slide1.xml"));
+    expect(slide).toContain("Hello");
+    expect(slide).toContain("World");
     for (const result of [picture, editable]) {
       if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
       const master = new TextDecoder().decode(
@@ -108,3 +121,59 @@ function firstFill(pdf: Uint8Array): number[] | undefined {
   }
   return undefined;
 }
+
+function pdfStreams(pdf: Uint8Array): string {
+  const bytes = Buffer.from(pdf);
+  const text = bytes.toString("latin1");
+  const streams: string[] = [];
+  for (const match of text.matchAll(/stream\r?\n/g)) {
+    const start = (match.index ?? 0) + match[0].length;
+    const end = text.indexOf("endstream", start);
+    try {
+      streams.push(inflateSync(bytes.subarray(start, end)).toString("latin1"));
+    } catch {
+      // Non-compressed streams are not page paint streams.
+    }
+  }
+  return streams.join("\n");
+}
+
+test("transparent keeps panels, sets, label knockouts and canvas-coloured nodes", async () => {
+  const source = `version: 1
+figure:
+  id: rich
+  theme: sumi-dark
+  layout: { arrange: { row: { gap: 12mm, items: [panel, c] } } }
+groups:
+  - { id: panel, label: Panel, variant: filled, arrange: { row: { gap: 10mm, items: [a, b] } } }
+sets: [{ id: s, members: [a, b], shape: rect, tone: blue }]
+nodes:
+  - { id: a, component: box, label: Hello }
+  - { id: b, component: box, label: World, tone: blue, variant: tinted }
+  - { id: c, component: box, label: Out }
+edges:
+  - { from: a, to: b, label: Link }
+  - { from: b, to: c, label: Next }
+`;
+  const normal = await renderFigure(source);
+  const transparent = await renderFigure(
+    source.replace("id: rich", "id: rich\n  background: transparent"),
+  );
+  if (!normal.ok || !transparent.ok) throw new Error("render failed");
+  // Exactly the first (outer) canvas rect is gone; every other paint, including the
+  // canvas-coloured node fills and label knockouts, is unchanged.
+  const canvasRect = /<rect x="0" y="0" width="[\d.]+" height="[\d.]+" fill="#30364f"\/>/;
+  expect(normal.value.svg).toMatch(canvasRect);
+  expect(transparent.value.svg).not.toMatch(canvasRect);
+  const strip = (svg: string) =>
+    svg
+      .replace(canvasRect, "")
+      .replace(/ background="transparent"/, "")
+      .replace(/input-sha256="[0-9a-f]+"/, "");
+  expect(strip(transparent.value.svg)).toBe(strip(normal.value.svg));
+  expect(transparent.value.svg.match(/fill="#30364f"/g)?.length).toBeGreaterThan(1);
+  // The PDF paints the panel, the set and the nodes but no full-page canvas first.
+  const pdf = svgToPdf(transparent.value.svg);
+  if (!pdf.ok) throw new Error("PDF conversion failed");
+  expect(firstFill(pdf.value)).not.toEqual([0.1882, 0.2118, 0.3098]);
+});

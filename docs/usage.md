@@ -58,13 +58,12 @@ sumi catalog --json --section themes --section profiles
 | Command | Behavior and options |
 | --- | --- |
 | `render <file>` | Compile and render SVG/PDF/PPTX; run geometry lint by default. `-o, --out`, `--format svg\|pdf\|pptx`, `--pptx-mode picture\|editable` (editable is experimental), `--pptx-connectors freeform\|glued` (editable only), `--emit-d2`, `--theme`, `--profile`, `--no-geometry`, `--json`. Only SVG supports `-o -` (stdout). |
-
-`--background canvas|transparent` overrides `figure.background` (default `canvas`) for SVG, PDF and both PPTX modes, including `--json`. Transparent removes only the outer canvas; label backgrounds and node fills remain. Contrast and lint still assume the theme canvas.
-The same override is available to `sumi lint --geometry`.
 | `lint <files...>` | Validate schema, references, components, assets, themes/profiles, and structural rules without drawing. `--geometry` also renders in memory and checks geometry without writing files. `--json`, `--config <lint.json>`, repeated `--rule <id>=<level>` (including `geometry/*`), `--max-warnings <n>` across all input files. See [lint rules](lint-rules.md). |
 | `fmt <files...>` | Format YAML without changing meaning; preserve comments, quotes, and key order. Invalid YAML is not rewritten. `--check` lists unformatted files without writing; `--stdout` prints YAML; `--canonical-order` sorts known keys into schema order. |
 | `doctor` | Check Sumi/runtime versions, D2, bundled font hashes and geometry metrics. `--json`. |
 | `catalog` | List components, themes, profiles, icon sets, placement targets and set enclosures. `--json`; repeated `--section components\|themes\|profiles\|icons\|targets\|sets`; `--kind node\|group\|edge` (without a section, returns only components); `--icons <words>` searches bundled icons, `--icons ""` lists all icon names. |
+
+`--background canvas|transparent` overrides `figure.background` (default `canvas`) for SVG, PDF and both PPTX modes, including `--json`. Transparent removes only the outer canvas; label backgrounds and node fills remain. Contrast and lint still assume the theme canvas. The same override is available to `sumi lint --geometry`.
 
 Format selection is explicit `--format`, otherwise a recognized `-o` extension, otherwise SVG. Conflicting format and extension is a usage error. The default output replaces the input YAML extension with the selected format. Files are written via temporary files. Geometry errors leave the rendered output available and return 1; conversion failures do not write output. `render` does not run structural `lint/*` rules, so run `lint` first.
 
