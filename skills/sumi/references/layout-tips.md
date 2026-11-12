@@ -590,7 +590,7 @@ edges:
   `width` / `height` unless sizes must match (a box smaller than its label
   overflows). `circle` / `square` keep 1:1, so long labels make them huge: use
   `ellipse` / `box`.
-- Auto edge labels get a background box and are placed by ELK, often near a bend: one
+- Auto edge labels mask the line beneath them and are placed by ELK, often near a bend: one
   or two words, only where meaningful (`"yes"` / `"no"`, a protocol).
 - Use groups for real structure (tiers, subsystems, phases), one level of nesting is
   usually enough. An element talking to several groups often lays out better outside
