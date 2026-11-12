@@ -2,8 +2,10 @@ import { expect, test } from "bun:test";
 import { compileFigure } from "../compiler/compile";
 import { getOutlineRenderer } from "../core/outline/builtin";
 import { BUILTIN_THEMES } from "../core/theme/builtin";
+import { getFontSet } from "../core/theme/fonts";
 import { contrastRatio } from "../core/theme/node-variants";
 import { lintGeometry } from "../lint";
+import { measureLabel } from "../lint/geometry/measure";
 import { svgToPdf } from "./pdf";
 import { svgToPptx } from "./pptx";
 import { svgToEditablePptx } from "./pptx/editable";
@@ -45,6 +47,25 @@ nodes:
       mode: ${mode}
 `;
 }
+
+test.each(["auto", "structured"])(
+  "%s: waveform caption is centered below the frame",
+  async (engine) => {
+    const text = source(undefined, undefined, engine).replace(
+      "    component: waveform",
+      "    component: waveform\n    label: Caption",
+    );
+    const result = await renderFigure(text);
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const geometry = required(result.value.inspection.elements.find((e) => e.key === "n:signal"));
+    const frame = required(geometry.bbox);
+    const fonts = required(getFontSet(result.value.compiled.ir.meta.fontSetId));
+    const caption = required(measureLabel(required(geometry.labels[0]), fonts).box);
+    expect(caption.x + caption.width / 2).toBeCloseTo(frame.x + frame.width / 2, 2);
+    expect(caption.y).toBeGreaterThan(frame.y + frame.height);
+    expect(lintGeometry(result.value, {})).toEqual([]);
+  },
+);
 
 for (const theme of BUILTIN_THEMES.keys()) {
   for (const variant of ["default", "emphasis", "muted", "outlined"]) {
