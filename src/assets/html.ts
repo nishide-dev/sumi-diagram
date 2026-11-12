@@ -196,6 +196,8 @@ function validateCss(
       .trim()
       .replace(/[A-Z]/g, (ch) => ch.toLowerCase());
     const value = declaration.slice(colon + 1).trim();
+    // Preserve the winning declaration's order relative to shorthands.
+    delete css[prop];
     css[prop] = value;
     const reject = (message: string) => fail("asset/unsupported-css", message, at);
     if (colon < 1) {

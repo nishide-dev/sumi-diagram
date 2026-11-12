@@ -8,7 +8,7 @@ Sumi は AI コーディングエージェントのための Diagram-as-Code CLI
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/architecture.dark.svg">
-  <img src="assets/architecture.light.svg" alt="Sumi の仕組み: Sumi Skill を使うコーディングエージェントが sumi catalog で部品を調べて .sumi.yaml を書き、Sumi CLI がコンパイル・レイアウト・描画して SVG・PDF・PPTX を出力する。幾何 lint が描画結果を検査し、診断をエージェントに返す。">
+  <img src="assets/architecture.light.svg" width="100%" alt="Sumi の仕組み: Sumi Skill を使うコーディングエージェントが sumi catalog で部品を調べて .sumi.yaml を書き、Sumi CLI がコンパイル・レイアウト・描画して SVG・PDF・PPTX を出力する。幾何 lint が描画結果を検査し、診断をエージェントに返す。">
 </picture>
 
 ## はじめる

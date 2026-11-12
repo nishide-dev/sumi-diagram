@@ -434,6 +434,8 @@ function sumiTheme(dark: boolean): ThemeDefinition {
     fonts: LATIN_FONT_SET_ID,
     tokens: {
       size: { text: "8pt", small: "7pt", heading: "9pt" },
+      // The html card variables (--sumi-fg, --sumi-muted, #496) read these.
+      color: { fg: text, bg: canvas, muted },
       line: { regular: "1pt", bold: "2pt" },
       dash: { regular: 4 },
     },

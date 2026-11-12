@@ -17,7 +17,7 @@
       "!research/233-lora/*.svg",
       "!research/248-fill/*.svg",
       "!docs/gallery",
-      "!docs/assets/*.svg",
+      "!docs/assets/**/*.svg",
       "!tests/fixtures/lint-output",
       "!tests/fixtures/layout",
       "!tests/fixtures/pptx-editable-japanese.svg",
