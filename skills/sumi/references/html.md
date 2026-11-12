@@ -95,6 +95,7 @@ result too.
   smaller axis, `cover` the larger, `fill` conservatively the smaller).
 - `lint/missing-glyph` (warning): change the family or text as above (whitespace,
   controls and `display:none` text are ignored).
-# Theme background
 
-`--sumi-bg` is the active theme's canvas color (white for the current built-in themes).
+## Theme background
+
+`--sumi-bg` is the active theme's canvas color: white, cream in `sumi`, navy in `sumi-dark`.
