@@ -5,10 +5,11 @@
  * the tone's line color (`toneLines.<tone>`, gray's without a tone) that the
  * outline, the fill and the label all take. The fill is mixed into white on
  * light canvases and into the canvas on dark ones, then painted opaque (#440).
- * Overlaps combine the tints relative to the canvas ({@link multiplyTints}).
+ * Overlaps combine the tints relative to the canvas ({@link overlapTint}).
  */
 
 import type { SetVariant } from "../figure/schema";
+import { fromOklch, toOklch } from "./color-math";
 import { resolveStyle } from "./resolve";
 import type { Theme } from "./schema";
 import type { ElementStrokes, FigureStrokes } from "./strokes";
@@ -109,6 +110,35 @@ export function multiplyTints(colors: readonly string[], canvas = "#ffffff"): st
     if (c !== undefined) out = out.map((v, i) => (v * (c[i] as number)) / 255);
   }
   return hexOf(out);
+}
+
+/** Mix opaque set tints perceptually, moving away from the canvas in lightness. */
+export function mixTints(colors: readonly string[], canvas = "#ffffff"): string {
+  const values = colors.filter((color) => channels(color) !== undefined).map(toOklch);
+  if (values.length === 0) return canvas;
+  const mean = (f: (value: (typeof values)[number]) => number) =>
+    values.reduce((sum, value) => sum + f(value), 0) / values.length;
+  // A neutral has no meaningful hue; its numerical OKLCH angle is noise.
+  const hues = values.filter((value) => value.c >= 0.005);
+  const x = hues.reduce((sum, v) => sum + Math.cos((v.h * Math.PI) / 180), 0);
+  const y = hues.reduce((sum, v) => sum + Math.sin((v.h * Math.PI) / 180), 0);
+  const h = Math.hypot(x, y) < 1e-10 ? 0 : (Math.atan2(y, x) * 180) / Math.PI;
+  return fromOklch({
+    l: Math.max(0, Math.min(1, mean((v) => v.l) + (darkCanvas(canvas) ? 0.05 : -0.05))),
+    c: mean((v) => v.c),
+    h: (h + 360) % 360,
+  });
+}
+
+/** A multiply preference on any participating set preserves its legacy intersection. */
+export function overlapTint(
+  sets: readonly { readonly style: SetStyle; readonly overlap?: "mix" | "multiply" }[],
+  canvas = "#ffffff",
+): string {
+  const colors = sets.map((set) => set.style.fill);
+  return sets.some((set) => set.overlap === "multiply")
+    ? multiplyTints(colors, canvas)
+    : mixTints(colors, canvas);
 }
 
 /** Resolves the style of a set under `theme` (already carrying the figure's tone overrides). */

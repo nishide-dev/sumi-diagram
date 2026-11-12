@@ -11,7 +11,7 @@ import { SEPARATOR_ID } from "../../core/registry/builtins";
 import type { Result } from "../../core/result";
 import { getTheme } from "../../core/theme/builtin";
 import { type FontSet, getFontSet } from "../../core/theme/fonts";
-import { multiplyTints } from "../../core/theme/set-style";
+import { overlapTint } from "../../core/theme/set-style";
 import { edgeArrowheadLength } from "../../layout/route/arrowhead";
 import { setOverlaps } from "../../layout/set-overlap";
 import { fontFileFor, measureLabel } from "../../lint/geometry/measure";
@@ -1108,7 +1108,7 @@ export function svgToEditablePptx(
       return emit("start", edge.sourceArrowhead) + emit("end", edge.targetArrowhead);
     };
     // Set enclosures (#407), as in the SVG (#440): every set's opaque tint, the regions where
-    // sets overlap (freeform polygons in the product of the tints), then each outline (no fill)
+    // sets overlap (freeform polygons in the combined tints), then each outline (no fill)
     // and label. They sit between the groups and the nodes.
     const setXml: string[] = [];
     const outlineXml: string[] = [];
@@ -1163,8 +1163,8 @@ export function svgToEditablePptx(
           bounds,
           geometry([{ segments: ring, filled: true }], bounds, emu),
           paint(
-            multiplyTints(
-              members.map((m) => (drawnSets[m] as { set: SetIR }).set.style.fill),
+            overlapTint(
+              members.map((m) => (drawnSets[m] as { set: SetIR }).set),
               canvasColor,
             ),
           ),

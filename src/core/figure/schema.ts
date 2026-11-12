@@ -910,6 +910,12 @@ export const FigureMetaSchema = z.strictObject({
     .describe(
       "scale: shrink the whole figure (layout unchanged) to the profile's maximum width if it is wider; text is then checked at its printed size. Omitted means the figure is printed at its natural size.",
     ),
+  setOverlap: z
+    .enum(["mix", "multiply"])
+    .optional()
+    .describe(
+      "Default blend for overlapping set tints: mix (default) or multiply. A set's overlap overrides this default; multiply wins if participating sets disagree.",
+    ),
   layout: LayoutSchema.prefault({}),
   assets: z
     .record(Id, FigureAssetSchema)
@@ -1104,6 +1110,12 @@ export const EdgeSchema = z.strictObject({
  */
 export const SetSchema = z.strictObject({
   id: Id.describe("Set ID (its own ID space, separate from nodes, groups and edges)."),
+  overlap: z
+    .enum(["mix", "multiply"])
+    .optional()
+    .describe(
+      "Blend for intersections involving this set, overriding figure.setOverlap. Multiply wins if participating sets disagree.",
+    ),
   label: Label,
   members: z
     .array(Id)
@@ -1142,7 +1154,7 @@ export const SetSchema = z.strictObject({
     .max(1)
     .optional()
     .describe(
-      "Strength of the tinted fill (0..1): the share of the tone's line color mixed into white. The fill is opaque, so it looks the same on a white page and on a gray panel; where sets overlap, the overlap is painted in the product of their fills. Omitted means the variant's own (0.2 for default and dashed, 0.28 for filled).",
+      "Strength of the tinted fill (0..1): the share of the tone's line color mixed into the canvas. The fill is opaque. Overlaps use mix by default; choose multiply with overlap or figure.setOverlap. Omitted means the variant's own (0.2 for default and dashed, 0.28 for filled).",
     ),
   variant: z
     .enum(SET_VARIANTS)

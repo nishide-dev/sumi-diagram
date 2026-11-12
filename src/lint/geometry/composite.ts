@@ -11,7 +11,7 @@
 import type { ElementKey } from "../../core/check-state";
 import type { DiagnosticSubject, DocPath } from "../../core/diagnostics";
 import { getTheme } from "../../core/theme/builtin";
-import { multiplyTints } from "../../core/theme/set-style";
+import { overlapTint } from "../../core/theme/set-style";
 import { setOverlaps } from "../../layout/set-overlap";
 import type { Point, Rect } from "../../render/geometry";
 import type { GeometryContext, GeometryElement, GeometrySet } from "./context";
@@ -21,6 +21,7 @@ import { depthInside, type Region, rectPolygon } from "./shapes";
 export interface PaintItem {
   readonly key?: ElementKey;
   readonly kind: "group" | "node" | "set" | "overlap";
+  readonly overlapMix?: boolean;
   /** `node "a" fill`, `the overlap of set "a" and set "b"`, for messages. */
   readonly name: string;
   /** `#rrggbb`. */
@@ -135,17 +136,24 @@ export function paintItems(context: GeometryContext, options: PaintOptions = {})
       subject: set.subject,
     });
   }
-  // The renderers paint an overlap in the product of its sets' (opaque) fills.
+  // Use the same opaque overlap paint as the renderers.
   for (const { members, polygon } of setOverlaps(polygons)) {
     const sets = members.map((m) => context.sets[m] as GeometrySet);
     const colors = sets.map((s) => normalized(s.ir.style.fill) ?? WHITE);
     const first = sets[0] as GeometrySet;
     items.push({
       kind: "overlap",
+      overlapMix: !sets.some((s) => s.ir.overlap === "multiply"),
       name: `the overlap of ${sets.map((s) => s.name).join(" and ")}`,
-      color: multiplyTints(colors, getTheme(context.ir.meta.themeId)?.canvas),
+      color: overlapTint(
+        sets.map((s) => s.ir),
+        getTheme(context.ir.meta.themeId)?.canvas,
+      ),
       alpha: 1,
-      ink: multiplyTints(colors, getTheme(context.ir.meta.themeId)?.canvas),
+      ink: overlapTint(
+        sets.map((s) => s.ir),
+        getTheme(context.ir.meta.themeId)?.canvas,
+      ),
       region: { kind: "polygon", points: polygon },
       bbox: boundsOf(polygon),
       docPath: first.docPath,
