@@ -214,3 +214,63 @@ edges: [{ id: e, from: a, to: b }]
   expect(run("#d3d3d3")[0]?.severity).toBe("warning");
   expect(run("#d3d3d3", true)).toHaveLength(0);
 });
+
+async function strokeFindings(yaml: string) {
+  const { renderFigure } = await import("../../render");
+  const { lintGeometry } = await import("./lint");
+  const rendered = await renderFigure(yaml, { file: "contrast.sumi.yaml" });
+  if (!rendered.ok) throw new Error(JSON.stringify(rendered.diagnostics));
+  return lintGeometry(rendered.value, { source: yaml, file: "contrast.sumi.yaml" }).filter(
+    (d) => d.code === code,
+  );
+}
+
+test("measures against a non-white theme canvas", async () => {
+  // #3d4560 is barely lighter than sumi-dark's #30364f canvas, though far from white.
+  const findings = await strokeFindings(`version: 1
+figure:
+  id: dark
+  theme: sumi-dark
+  themeOverrides: { tones: { blue: { line: "#3d4560" } } }
+  layout: { arrange: { row: { gap: 20mm, items: [a, b] } } }
+nodes:
+  - { id: a, component: box, label: A }
+  - { id: b, component: box, label: B }
+edges: [{ from: a, to: b, tone: blue }]
+`);
+  expect(findings).toHaveLength(1);
+  expect(findings[0]?.severity).toBe("warning");
+  expect(findings[0]?.message).toContain("#30364f");
+});
+
+test("measures an edge against the set tint it crosses", async () => {
+  const yaml = (line: string) => `version: 1
+figure:
+  id: set
+  theme: paper
+  themeOverrides: { tones: { green: { line: "${line}" } } }
+  layout: { arrange: { row: { gap: 24mm, items: [a, b] } } }
+sets: [{ id: s, members: [a, b], shape: rect, tone: blue, variant: filled, fillOpacity: 1 }]
+nodes:
+  - { id: a, component: box, label: A }
+  - { id: b, component: box, label: B }
+edges: [{ from: a, to: b, tone: green }]
+`;
+  const findings = await strokeFindings(yaml("#3f72af"));
+  // The edge runs inside the filled blue set, not on the white canvas.
+  expect(findings.some((f) => !f.message.includes("#ffffff"))).toBe(true);
+});
+
+test("an outline-only node's frame is reported under 2:1 and not at 2:1 or more", async () => {
+  const yaml = (line: string) => `version: 1
+figure:
+  id: frame
+  theme: paper
+  themeOverrides: { tones: { blue: { line: "${line}" } } }
+  layout: { arrange: { row: { items: [a] } } }
+nodes: [{ id: a, component: box, label: A, tone: blue, variant: outlined }]
+`;
+  // On white: #bebebe is 1.86:1, #b0b0b0 is 2.17:1.
+  expect((await strokeFindings(yaml("#bebebe"))).map((f) => f.severity)).toEqual(["info"]);
+  expect(await strokeFindings(yaml("#b0b0b0"))).toEqual([]);
+});
