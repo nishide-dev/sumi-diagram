@@ -1,7 +1,7 @@
 /**
  * Where tinted sets overlap (#440). Set fills are opaque, so an overlap does
  * not mix by itself: the renderers paint each overlapping region with the
- * product of the fills ({@link multiplyTints}), on top of all the fills and
+ * resolved overlap tint, on top of all the fills and
  * under the outlines. The regions are the non-empty intersections of two or
  * more sets, found on the sets' convex outlines as polygons.
  */
@@ -17,8 +17,6 @@ export interface SetOverlap {
 
 /** An intersection smaller than this (square units) is a touch, not an overlap. */
 export const MIN_OVERLAP_AREA = 1;
-/** The most sets whose common region is painted on its own; beyond it the region keeps the color of its first `MAX_OVERLAP_ORDER` sets. */
-export const MAX_OVERLAP_ORDER = 4;
 
 function area(polygon: readonly Point[]): number {
   let sum = 0;
@@ -76,7 +74,7 @@ export function setOverlaps(polygons: readonly (readonly Point[] | undefined)[])
       if (common.length < 3 || Math.abs(area(common)) < MIN_OVERLAP_AREA) continue;
       const next = [...members, j];
       found.push({ members: next, polygon: common });
-      if (next.length < MAX_OVERLAP_ORDER) extend(next, common);
+      extend(next, common);
     }
   };
   shapes.forEach((shape, i) => {

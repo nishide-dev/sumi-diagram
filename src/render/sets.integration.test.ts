@@ -4,6 +4,8 @@ import { toOklch } from "../core/theme/color-math";
 import { mixTints, multiplyTints, tintOver } from "../core/theme/set-style";
 import type { SetLayout } from "../layout/ir";
 import { lintGeometry } from "../lint/geometry";
+import { paintItems } from "../lint/geometry/composite";
+import { geometryContextFor } from "../lint/geometry/lint";
 import { svgToPdf } from "./pdf";
 import { parsePdf } from "./pdf/testing";
 import { svgToEditablePptx, svgToPptx } from "./pptx";
@@ -84,6 +86,39 @@ describe("a Venn diagram of two sets", () => {
     );
     expect(tints).toHaveLength(3);
     expect(svg).toContain(`fill="${mixTints(tints)}"`);
+  });
+  test("five-way overlap uses every tint and honors multiply in any position", async () => {
+    const tones = ["blue", "green", "red", "purple", "orange"];
+    for (const multiply of [false, true]) {
+      for (const order of [tones, [...tones].reverse()]) {
+        const sets = order
+          .map(
+            (tone) =>
+              `  - { id: s_${tone}, members: [shared], tone: ${tone}, padding: 4mm${multiply && tone === "blue" ? ", overlap: multiply" : ""} }`,
+          )
+          .join("\n");
+        const rendered = await render(venn("", "color", sets));
+        const { svg } = rendered;
+        const tints = [...svg.matchAll(/class="sumi-set-fill"[^>]*fill="(#[0-9a-f]{6})"/g)].map(
+          (m) => m[1] as string,
+        );
+        const paints = [...svg.matchAll(/class="sumi-set-overlap"[^>]*fill="(#[0-9a-f]{6})"/g)];
+        const expected = multiply ? multiplyTints(tints) : mixTints(tints);
+        expect(paints.at(-1)?.[1]).toBe(expected);
+        const overlaps = paintItems(geometryContextFor(rendered)).filter(
+          (i) => i.kind === "overlap",
+        );
+        expect(overlaps.at(-1)?.of).toHaveLength(5);
+        expect(overlaps.at(-1)?.color).toBe(expected);
+        const pptx = svgToEditablePptx(svg, rendered.compiled.ir);
+        if (!pptx.ok) throw new Error(JSON.stringify(pptx.diagnostics));
+        const slide = new TextDecoder().decode(readPptx(pptx.value).get("ppt/slides/slide1.xml"));
+        expect(slide).toContain(
+          `name="set overlap ${order.map((tone) => `s_${tone}`).join(" + ")}"`,
+        );
+        expect(slide).toContain(`<a:srgbClr val="${expected.slice(1).toUpperCase()}">`);
+      }
+    }
   });
   test("a node in both sets lies in the overlap, and every member is enclosed", async () => {
     const rendered = await render(venn());

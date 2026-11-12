@@ -242,6 +242,33 @@ describe("composite colors", () => {
     expect(over("#123456", 1, "#ffffff")).toBe("#123456");
   });
 
+  test("mixed overlaps inspect their own paint and translucent layers above", () => {
+    const mixed = (color: string) =>
+      item({
+        kind: "overlap",
+        name: "mixed overlap",
+        overlapMix: true,
+        color,
+        ink: color,
+        of: ["#ff0000", "#00ff00"],
+        region: box(0, 0, 100, 100),
+      });
+    expect(muddyFindings(analyze([mixed("#d1bc79")]))[0]?.message).toContain("khaki");
+    expect(muddyFindings(analyze([mixed("#d1e7ff")]))).toEqual([]);
+    const veil = item({
+      kind: "node",
+      color: "#808080",
+      ink: "#808080",
+      alpha: 0.8,
+      region: box(0, 0, 100, 100),
+    });
+    expect(
+      muddyFindings(analyze([mixed("#d1e7ff"), veil])).some((f) =>
+        f.message.includes("Mixed overlap"),
+      ),
+    ).toBe(true);
+  });
+
   test("a translucent blue over a gray panel is flagged by the two rules; an opaque one is not", () => {
     const panel = item({ region: box(0, 0, 100, 100) });
     const set = (alpha: number, color: string) =>

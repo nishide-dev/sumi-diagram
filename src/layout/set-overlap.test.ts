@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { Point } from "../core/geometry";
-import { clipConvex, MAX_OVERLAP_ORDER, setOverlaps } from "./set-overlap";
+import { clipConvex, setOverlaps } from "./set-overlap";
 
 const square = (x: number, y: number, size: number): Point[] => [
   { x, y },
@@ -56,10 +56,11 @@ describe("setOverlaps (#440)", () => {
     expect(area(found[3]?.polygon ?? [])).toBeCloseTo(20, 6);
   });
 
-  test("a region common to many sets stops at the maximum order", () => {
-    const stack = Array.from({ length: MAX_OVERLAP_ORDER + 2 }, (_, i) => square(i * 0.5, 0, 10));
-    const orders = setOverlaps(stack).map((o) => o.members.length);
-    expect(Math.max(...orders)).toBe(MAX_OVERLAP_ORDER);
+  test("a region common to six sets includes every member and paints last", () => {
+    const stack = Array.from({ length: 6 }, (_, i) => square(i * 0.5, 0, 10));
+    const found = setOverlaps(stack);
+    expect(found.at(-1)?.members).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(area(found.at(-1)?.polygon ?? [])).toBeCloseTo(75, 6);
   });
 
   test("clipConvex keeps the subject when it lies inside the clip", () => {
