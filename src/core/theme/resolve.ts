@@ -159,15 +159,11 @@ export function resolveStyle<K extends ComponentKind>(
           stroke: id === "sumi/stack" ? theme.canvas : ink,
           fontColor: theme.canvas,
         };
-      } else if (
-        variant === "tinted" &&
-        fill !== undefined &&
-        ink !== undefined &&
-        theme.toneOverrides?.get(tone ?? "gray")?.fill === undefined
-      ) {
-        // As on a light canvas, a tinted node's text is its frame (the tone's line). A fill of
-        // the figure's own keeps the contrast-adjusted text from filledToneNode instead.
-        filled = { fill, stroke: ink, fontColor: ink };
+      } else if (variant === "tinted" && fill !== undefined && ink !== undefined) {
+        // As on a light canvas, a tinted node's text is its frame (the tone's line). On a fill
+        // of the figure's own the text moves to whichever side of the fill reads (#473).
+        const own = theme.toneOverrides?.get(tone ?? "gray")?.fill !== undefined;
+        filled = { fill, stroke: ink, fontColor: own ? inkOnEitherSide(fill, ink) : ink };
       }
     }
     let paint = overriddenTone(filled, variant, theme.toneOverrides?.get(tone ?? "gray"));
@@ -592,4 +588,32 @@ export function labelFontUsages(state: CheckState): FontUsage[] {
     }
   }
   return usages;
+}
+
+/**
+ * Text for an arbitrary fill on a dark canvas: the ink darkened (readableInk) or lightened
+ * toward white in whole percent steps, whichever first reaches 4.5:1; the higher contrast
+ * when neither does.
+ */
+function inkOnEitherSide(fill: string, ink: string): string {
+  const darker = readableInk(fill, ink);
+  if (!/^#[0-9a-f]{6}$/i.test(fill) || !/^#[0-9a-f]{6}$/i.test(ink)) return darker;
+  let lighter = "#ffffff";
+  for (let percent = 0; percent <= 100; percent++) {
+    const color = `#${[1, 3, 5]
+      .map((offset) => {
+        const v = Number.parseInt(ink.slice(offset, offset + 2), 16);
+        return Math.round(v + (255 - v) * (percent / 100))
+          .toString(16)
+          .padStart(2, "0");
+      })
+      .join("")}`;
+    if (contrast(fill, color) >= 4.5) {
+      lighter = color;
+      break;
+    }
+  }
+  const [dark, light] = [contrast(fill, darker), contrast(fill, lighter)];
+  if (dark >= 4.5 && light >= 4.5) return light >= dark ? lighter : darker;
+  return light > dark ? lighter : darker;
 }
