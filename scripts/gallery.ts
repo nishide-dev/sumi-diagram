@@ -184,7 +184,13 @@ const readmeFigure: Rendering[] = (
   overrides: { theme, background: "transparent" },
 }));
 for (const rendering of readmeFigure) {
-  jobs.push({ file: README_FIGURE, source: readmeFigureText, rendering });
+  // Image paths (the agent marks) are relative to the figure's directory.
+  jobs.push({
+    file: README_FIGURE,
+    source: readmeFigureText,
+    rendering,
+    assetBase: join(ROOT, dirname(README_FIGURE)),
+  });
 }
 
 const outcomes = await renderAll(jobs);
