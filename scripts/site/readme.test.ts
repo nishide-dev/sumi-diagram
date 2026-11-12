@@ -38,3 +38,22 @@ test("converts both README locations, copies pictures, and preserves escaping", 
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("marks the tagline, drops the link line after the intro, and drops an empty table header", async () => {
+  const root = await mkdtemp(resolve(".sumi/tmp/readme-"));
+  try {
+    const html = await readmeHtml(
+      "# Sumi\n\n**Draw, check, fix.**\n\nIntro with [a link](docs/usage.md).\n\n[Website](https://nishide-dev.github.io/sumi-diagram/) · [日本語](docs/README-ja.md)\n\n| | |\n| --- | --- |\n| **A** | b |\n",
+      "README.md",
+      root,
+      resolve(root, "out"),
+    );
+    expect(html).toContain('<p class="tagline">Draw, check, fix.</p>');
+    expect(html).toContain(">a link</a>");
+    expect(html).not.toContain(">Website</a>");
+    expect(html).not.toContain("<thead>");
+    expect(html).toContain("<strong>A</strong>");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

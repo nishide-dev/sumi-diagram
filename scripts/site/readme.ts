@@ -14,7 +14,7 @@ export async function readmeHtml(markdown: string, readme: string, root: string,
   // Only remove a standalone navigation paragraph near the top, never prose containing links.
   let paragraphs = 0;
   html = html.replace(/<p>([\s\S]*?)<\/p>/gi, (whole, body: string) => {
-    if (++paragraphs > 2) return whole;
+    if (++paragraphs > 4) return whole;
     const links = [...body.matchAll(/<a\s+[^>]*href="([^"]+)"[^>]*>[\s\S]*?<\/a>/gi)];
     const rest = body
       .replace(/<a\s+[^>]*href="[^"]+"[^>]*>[\s\S]*?<\/a>/gi, "")
@@ -30,6 +30,10 @@ export async function readmeHtml(markdown: string, readme: string, root: string,
       ? ""
       : whole;
   });
+  // A leading paragraph that is only bold text is the tagline.
+  html = html.replace(/^\s*<p><strong>([^<]*)<\/strong><\/p>/i, '<p class="tagline">$1</p>');
+  // A table whose header cells are all empty has no header (GitHub draws an empty row).
+  html = html.replace(/<thead>\s*<tr>(?:\s*<th[^>]*>\s*<\/th>)+\s*<\/tr>\s*<\/thead>\s*/gi, "");
   html = html.replace(
     /<p>\s*(<(?:picture|details|table|div|figure)\b[\s\S]*?<\/(?:picture|details|table|div|figure)>)\s*<\/p>/gi,
     "$1",
