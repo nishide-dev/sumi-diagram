@@ -168,7 +168,7 @@ function slidePptx(
     },
     {
       name: "ppt/slideMasters/slideMaster1.xml",
-      data: `${XML}<p:sldMaster ${ns}><p:cSld><p:bg><p:bgPr><a:solidFill><a:srgbClr val="${canvas.slice(1).toUpperCase()}"/></a:solidFill><a:effectLst/></p:bgPr></p:bg><p:spTree>${tree}</p:spTree></p:cSld>${colors}<p:sldLayoutIdLst><p:sldLayoutId id="2147483649" r:id="rId1"/></p:sldLayoutIdLst><p:txStyles><p:titleStyle/><p:bodyStyle/><p:otherStyle/></p:txStyles></p:sldMaster>`,
+      data: `${XML}<p:sldMaster ${ns}><p:cSld><p:bg><p:bgPr>${metadata?.background === "transparent" ? "<a:noFill/>" : `<a:solidFill><a:srgbClr val="${canvas.slice(1).toUpperCase()}"/></a:solidFill>`}<a:effectLst/></p:bgPr></p:bg><p:spTree>${tree}</p:spTree></p:cSld>${colors}<p:sldLayoutIdLst><p:sldLayoutId id="2147483649" r:id="rId1"/></p:sldLayoutIdLst><p:txStyles><p:titleStyle/><p:bodyStyle/><p:otherStyle/></p:txStyles></p:sldMaster>`,
     },
     {
       name: "ppt/slideMasters/_rels/slideMaster1.xml.rels",

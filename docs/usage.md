@@ -44,6 +44,7 @@ Use `sumi --help` and `sumi <command> --help`. For source development, use `bun 
 
 ```sh
 sumi render figure.sumi.yaml
+sumi render figure.sumi.yaml --background transparent
 sumi render figure.sumi.yaml -o figure.pdf
 sumi render figure.sumi.yaml -o out.svg --emit-d2 out.d2 --profile paper-double --theme academic
 sumi lint figures/*.sumi.yaml --max-warnings 0
@@ -57,6 +58,9 @@ sumi catalog --json --section themes --section profiles
 | Command | Behavior and options |
 | --- | --- |
 | `render <file>` | Compile and render SVG/PDF/PPTX; run geometry lint by default. `-o, --out`, `--format svg\|pdf\|pptx`, `--pptx-mode picture\|editable` (editable is experimental), `--pptx-connectors freeform\|glued` (editable only), `--emit-d2`, `--theme`, `--profile`, `--no-geometry`, `--json`. Only SVG supports `-o -` (stdout). |
+
+`--background canvas|transparent` overrides `figure.background` (default `canvas`) for SVG, PDF and both PPTX modes, including `--json`. Transparent removes only the outer canvas; label backgrounds and node fills remain. Contrast and lint still assume the theme canvas.
+The same override is available to `sumi lint --geometry`.
 | `lint <files...>` | Validate schema, references, components, assets, themes/profiles, and structural rules without drawing. `--geometry` also renders in memory and checks geometry without writing files. `--json`, `--config <lint.json>`, repeated `--rule <id>=<level>` (including `geometry/*`), `--max-warnings <n>` across all input files. See [lint rules](lint-rules.md). |
 | `fmt <files...>` | Format YAML without changing meaning; preserve comments, quotes, and key order. Invalid YAML is not rewritten. `--check` lists unformatted files without writing; `--stdout` prints YAML; `--canonical-order` sorts known keys into schema order. |
 | `doctor` | Check Sumi/runtime versions, D2, bundled font hashes and geometry metrics. `--json`. |

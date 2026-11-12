@@ -178,6 +178,9 @@ export async function lintRenderedFigure(
     const result = await renderFigure(text, {
       ...(lintOptions.file !== undefined && { file: lintOptions.file }),
       ...(lintOptions.registry !== undefined && { registry: lintOptions.registry }),
+      ...(lintOptions.overrides?.background !== undefined && {
+        overrides: { background: lintOptions.overrides.background },
+      }),
       ...(backend !== undefined && { backend }),
       ...(sourceName !== undefined && { sourceName }),
       ...(assetBase !== undefined && { assetBase }),

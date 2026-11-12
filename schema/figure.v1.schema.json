@@ -27,6 +27,15 @@
           "type": "string",
           "minLength": 1
         },
+        "background": {
+          "default": "canvas",
+          "description": "Paint the theme canvas or leave the outer background transparent.",
+          "type": "string",
+          "enum": [
+            "canvas",
+            "transparent"
+          ]
+        },
         "themeOverrides": {
           "description": "Figure-wide refinements of the selected built-in theme. Omitted fields preserve the theme.",
           "type": "object",

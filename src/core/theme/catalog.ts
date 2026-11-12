@@ -27,6 +27,8 @@ export type FontStyle = "regular" | "bold" | "italic" | "mono";
 
 export interface ThemeCatalogEntry {
   id: string;
+  canvas: string;
+  backgroundModes: ["canvas", "transparent"];
   description: string | null;
   fonts: { id: string; description: string; styles: FontStyle[] };
   /** Effective font sizes in pt. */
@@ -106,6 +108,8 @@ export function themeCatalogEntry(
   const max = Math.max(...effective);
   return {
     id: theme.id,
+    canvas: theme.canvas,
+    backgroundModes: ["canvas", "transparent"],
     description: theme.description ?? null,
     fonts: {
       id: theme.fontSet.id,

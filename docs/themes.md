@@ -2,6 +2,8 @@
 
 A theme decides how a figure looks: colors, corners, line widths, groups and fonts. It never changes the layout rules or the page limits, which belong to the [profile](usage.md#themes-and-profiles). Choose one with `figure.theme` or `--theme`; the same YAML renders under every theme.
 
+`figure.background: transparent` (or `render --background transparent`) omits the outer canvas while retaining the theme canvas as the assumed ground for contrast and label backgrounds.
+
 Sumi has eight built-in themes:
 
 - **`minimal`** (default): monochrome with clear outlines. A neutral starting point.

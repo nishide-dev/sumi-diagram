@@ -97,6 +97,7 @@ export interface FigureMetaIR {
   readonly id: string;
   readonly title?: string;
   readonly themeId: string;
+  readonly transparentBackground?: boolean;
   readonly profileId: string;
   /** `figure.fit` (#183): `scale` shrinks the output to the profile's width. Absent when not written. */
   readonly fit?: FigureFit;
@@ -863,6 +864,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
         id: figure.id,
         ...(figure.title !== undefined && { title: figure.title }),
         themeId: theme.id,
+        ...(figure.background !== "canvas" && { transparentBackground: true }),
         profileId: profile.id,
         ...(figure.fit !== undefined && { fit: figure.fit }),
         ...(figure.target !== undefined && { target: freeze({ ...figure.target }) }),

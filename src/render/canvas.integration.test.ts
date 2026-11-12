@@ -9,6 +9,48 @@ import { svgToEditablePptx } from "./pptx/editable";
 import { svgToPptx } from "./pptx/pptx";
 import { readPptx } from "./pptx/testing";
 import { renderFigure } from "./render";
+import { readD2Svg } from "./svg";
+import { childElements } from "./xml";
+
+test("transparent removes only the outer canvas in both engines and exports", async () => {
+  for (const layout of ["direction: right", "arrange: { row: { items: [a, b] } }"]) {
+    const source = `version: 1
+figure: { id: transparent, theme: sumi-dark, layout: { ${layout} } }
+nodes:
+  - { id: a, component: box, label: Hello }
+  - { id: b, component: box, label: World }
+edges:
+  - { from: a, to: b, label: Link }
+`;
+    const normal = await renderFigure(source);
+    const transparent = await renderFigure(source, { overrides: { background: "transparent" } });
+    if (!normal.ok || !transparent.ok) throw new Error("render failed");
+    const read = readD2Svg(normal.value.svg);
+    if (!read.ok) throw new Error("invalid SVG");
+    const rect = childElements(read.doc.drawing).find((e) => e.name === "rect");
+    if (!rect) throw new Error("missing canvas");
+    const expected = (
+      normal.value.svg.slice(0, rect.start) + normal.value.svg.slice(rect.end)
+    ).replace(' theme="sumi-dark"', ' theme="sumi-dark" background="transparent"');
+    expect(transparent.value.svg).toBe(expected);
+    expect(transparent.value.metadata.background).toBe("transparent");
+    const pdf = svgToPdf(transparent.value.svg);
+    const expectedPdf = svgToPdf(expected);
+    expect(pdf).toEqual(expectedPdf);
+    const picture = svgToPptx(transparent.value.svg);
+    const editable = svgToEditablePptx(transparent.value.svg, transparent.value.compiled.ir);
+    expect(picture).toEqual(svgToPptx(expected));
+    expect(editable).toEqual(svgToEditablePptx(expected, normal.value.compiled.ir));
+    for (const result of [picture, editable]) {
+      if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+      const master = new TextDecoder().decode(
+        readPptx(result.value).get("ppt/slideMasters/slideMaster1.xml"),
+      );
+      expect(master).toContain("<a:noFill/>");
+      expect(master).not.toContain("<a:solidFill><a:srgbClr");
+    }
+  }
+});
 
 test("a dark theme canvas reaches both SVG engines and exports", async () => {
   const themes = BUILTIN_THEMES as Map<string, Theme>;

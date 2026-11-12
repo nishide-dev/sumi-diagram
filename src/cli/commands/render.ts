@@ -81,6 +81,7 @@ export interface RenderCommandOptions {
   pptxConnectors?: string;
   emitD2?: string;
   theme?: string;
+  background?: string;
   profile?: string;
   json?: boolean;
   /** Run the geometry rules on the rendered figure (default; `--no-geometry` turns it off). */
@@ -140,6 +141,9 @@ export async function renderCommand(
   context: CliContext,
 ): Promise<ExitCode> {
   const format = outputFormat(options.out, options.format);
+  if (options.background !== undefined && !["canvas", "transparent"].includes(options.background)) {
+    throw new UsageError("--background must be canvas or transparent.");
+  }
   if (options.pptxMode !== undefined && !["picture", "editable"].includes(options.pptxMode)) {
     throw new UsageError("--pptx-mode must be picture or editable (experimental).");
   }
@@ -206,6 +210,9 @@ export async function renderCommand(
     }
   };
   const overrides: FigureOverrides = {
+    ...(options.background !== undefined && {
+      background: options.background as "canvas" | "transparent",
+    }),
     ...(options.theme !== undefined && {
       theme: checkName("theme", options.theme, BUILTIN_THEMES.keys()),
     }),

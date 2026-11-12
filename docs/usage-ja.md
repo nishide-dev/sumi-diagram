@@ -109,6 +109,7 @@ sumi doctor
 
 ```sh
 sumi render figure.sumi.yaml                     # figure.svg を出力
+sumi render figure.sumi.yaml --background transparent  # 外側の地を透明にする
 sumi render figure.sumi.yaml -o figure.pdf       # ベクター PDF を出力（--format pdf でも可）
 sumi render figure.sumi.yaml -o out.svg --emit-d2 out.d2 --profile paper-double --theme academic
 sumi lint figures/*.sumi.yaml --max-warnings 0   # 描画せずに検査
@@ -123,6 +124,9 @@ sumi catalog --json --section themes --section profiles   # Theme と Profile �
 | コマンド | 内容 | 主なオプション |
 | --- | --- | --- |
 | `render <file>` | コンパイルと描画を実行し、SVG・PDF・PPTXを書き出す。描画結果（SVG）に幾何 lintを実行し、幾何errorでも出力を残してexit 1。変換失敗時は出力しない。形式は `--format`、なければ `-o` の既知の拡張子、どちらもなければSVG。既定は入力のYAML拡張子を出力形式へ替えたパス。一時ファイル経由で書き込む | `-o, --out <file>`（stdoutはSVGのみ）、`--format svg\|pdf\|pptx`（拡張子との矛盾はusage error）、`--pptx-mode picture\|editable`（editableは実験的）、`--pptx-connectors freeform\|glued`（editableのみ）、`--emit-d2 <file>`、`--theme <name>`・`--profile <name>`、`--no-geometry`、`--json` |
+
+`--background canvas|transparent` は `figure.background`（既定 `canvas`）を上書きします。SVG・PDF・両 PPTX 方式と `--json` で使えます。透明にするのは外側の地だけで、ノードの塗りやラベルの下地は残り、コントラストと lint はテーマの地の色を想定します。
+`sumi lint --geometry` でも同じ上書きを使えます。
 | `lint <files...>` | 描画せずに schema・参照・部品・Theme・Profile と構造 lint を検査する。`--geometry` を付けると描画し（ファイルは書かない）、幾何 lint も実行する（[規則の一覧](lint-rules.md)） | `--geometry`、`--json`、`--config <lint.json>`、`--rule <id>=<level>`（繰り返し可。`geometry/*` も可）、`--max-warnings <n>`（全ファイルの合計） |
 | `fmt <files...>` | YAML を意味を変えずに整形する（コメント・引用符・キー順は保つ）。YAML として不正なファイルは整形しない | `--check`（書き込まずに未整形のファイルを列挙）、`--stdout`、`--canonical-order`（既知のキーを schema の順に並べる） |
 | `doctor` | Sumi / Bun のバージョン、D2 の有無とバージョン、同梱フォントの sha256、幾何 lint 用のフォントの metrics を読めるかを確認する | `--json` |

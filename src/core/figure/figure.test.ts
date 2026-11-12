@@ -26,6 +26,7 @@ describe("valid fixtures", () => {
     expect(doc.figure).toEqual({
       id: "request-pipeline",
       theme: "minimal",
+      background: "canvas",
       profile: "paper-single",
       layout: { engine: "auto", direction: "right" },
     });
@@ -61,6 +62,7 @@ describe("valid fixtures", () => {
         figure: {
           id: "minimal",
           theme: "minimal",
+          background: "canvas",
           profile: "paper-single",
           layout: { engine: "auto", direction: "right" },
         },

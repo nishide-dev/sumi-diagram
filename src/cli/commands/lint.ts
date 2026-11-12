@@ -42,6 +42,7 @@ export interface LintCommandOptions {
   rule?: string[];
   /** Also render with D2 and run the `geometry/*` rules (#13). */
   geometry?: boolean;
+  background?: string;
   color: boolean;
 }
 
@@ -63,6 +64,13 @@ export async function lintCommand(
   options: LintCommandOptions,
   context: CliContext,
 ): Promise<ExitCode> {
+  if (options.background !== undefined && !["canvas", "transparent"].includes(options.background)) {
+    throw new UsageError("--background must be canvas or transparent.");
+  }
+  const overrides =
+    options.background === undefined
+      ? undefined
+      : { background: options.background as "canvas" | "transparent" };
   const config = await buildLintConfig(options, context);
   const { maxWarnings, ...perFile } = config;
 
@@ -83,12 +91,14 @@ export async function lintCommand(
       ? await lintRenderedFigure(text, {
           file,
           config: perFile,
+          ...(overrides && { overrides }),
           backend: createD2CliBackend({ projectRoot: context.cwd, env: context.env }),
           assetBase: dirname(resolve(context.cwd, file)),
         })
       : await lintFigureWithHtml(text, {
           file,
           config: perFile,
+          ...(overrides && { overrides }),
           backend: createD2CliBackend({ projectRoot: context.cwd, env: context.env }),
           assetBase: dirname(resolve(context.cwd, file)),
         });

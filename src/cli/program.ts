@@ -68,6 +68,7 @@ stack traces for internal errors. If the reader of the output exits early
     )
     .option("--emit-d2 <file>", "also write the generated D2 source")
     .option("--theme <name>", "use this built-in theme instead of figure.theme")
+    .option("--background <mode>", "canvas or transparent; overrides figure.background")
     .option("--profile <name>", "use this built-in profile instead of figure.profile")
     .option("--no-geometry", "skip the geometry rules on the rendered SVG")
     .option("--json", "print a JSON report to stdout instead of text")
@@ -96,6 +97,7 @@ stack traces for internal errors. If the reader of the output exits early
       collect,
     )
     .option("--geometry", "also render with D2 and run the geometry rules (geometry/*)")
+    .option("--background <mode>", "canvas or transparent; overrides figure.background")
     .action(async (files: string[], options, command: Command) => {
       setExitCode(
         await lintCommand(files, { ...options, color: colorFor(command, "stdout") }, context),
