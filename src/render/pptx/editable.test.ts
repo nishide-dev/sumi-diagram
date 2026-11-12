@@ -212,13 +212,17 @@ test("D2 edge labels: the SVG's label rect, else white under a mask, else no fil
   };
   const rect =
     /<rect x="[^"]*" y="[^"]*" width="[^"]*" height="[^"]*" rx="10" fill="#ffffff" \/>(?=<text)/g;
-  const count = item.svg.match(rect)?.length ?? 0;
+  const boxed = item.svg.replace(
+    /(?=<text[^>]*>)/g,
+    '<rect x="1" y="1" width="1" height="1" rx="10" fill="#ffffff" />',
+  );
+  const count = fills(item.svg).length;
   expect(count).toBeGreaterThan(0);
   expect(fills(item.svg)).toEqual(Array(count).fill("FFFFFF"));
-  expect(fills(item.svg.replace(rect, (r) => r.replace("#ffffff", "#ff0000")))).toEqual(
+  expect(fills(boxed.replace(rect, (r) => r.replace("#ffffff", "#ff0000")))).toEqual(
     Array(count).fill("FF0000"),
   );
-  const unboxed = item.svg.replace(rect, "");
+  const unboxed = item.svg;
   expect(unboxed).toContain('mask="url(#');
   expect(fills(unboxed)).toEqual(Array(count).fill("FFFFFF"));
   expect(fills(unboxed.replace(/ mask="url\(#[^"]*\)"/g, ""))).toEqual(Array(count).fill("none"));

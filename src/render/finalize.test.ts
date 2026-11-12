@@ -29,6 +29,18 @@ function failure(svg: string): Diagnostic[] {
 }
 
 describe("finalizeSvg", () => {
+  test("removes only masked edge label patches and preserves the mask", () => {
+    const patch = '<rect x="90" y="40" width="40" height="20" rx="10" fill="#ffffff" />';
+    const edge = TINY_PARTS.edge0.replace("<text ", `${patch}<text `);
+    const raw = tinySvg([TINY_PARTS.a, edge]);
+    const result = finalize(raw).svg;
+    expect(result).not.toContain(patch);
+    expect(result).toContain('mask="url(#d2-1)"');
+    expect(result).toContain('<mask id="d2-1"');
+    expect(finalize(tinySvg([TINY_PARTS.a, edge.replace(' mask="url(#d2-1)"', "")])).svg).toContain(
+      patch,
+    );
+  });
   test("sets the root size in pt from the viewBox (× 0.5) and keeps the viewBox", () => {
     for (const [viewBox, width, height] of [
       ["0 0 200 100", "100pt", "50pt"],
