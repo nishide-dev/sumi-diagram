@@ -75,7 +75,7 @@ describe("DiT with a plain left panel (structured)", () => {
   });
 });
 
-describe("edge-label backgrounds (structured, §6.41)", () => {
+describe("edge labels on group variants", () => {
   const figure = (variant: string) => `version: 1
 figure:
   id: label-background
@@ -94,12 +94,10 @@ edges:
     return /<g class="sumi-k-e--_0[^"]*">.*?<rect [^>]*fill="(#[0-9a-f]+)"\/><text/.exec(svg)?.[1];
   };
 
-  test("a plain group counts as transparent, a filled one as painted", async () => {
-    // The canvas, and color's group surface.
-    expect(await background("plain")).toBe("#ffffff");
-    expect(await background("dashed")).toBe("#ffffff");
-    expect(await background("filled")).toBe("#f6f8fa");
-    expect(await background("default")).toBe("#f6f8fa");
+  test("no variant paints a label patch", async () => {
+    for (const variant of ["plain", "dashed", "filled", "default"]) {
+      expect(await background(variant)).toBeUndefined();
+    }
   });
 });
 

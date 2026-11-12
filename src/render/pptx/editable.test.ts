@@ -5,7 +5,7 @@ import { editableCorpus } from "../../../scripts/pptx-validator/editable-corpus"
 import { parseLabel } from "../../core/label/math";
 import { DEFAULT_FONT_SET_ID, getFontSet } from "../../core/theme/fonts";
 import { attribute, childElements, descendants, parseXml, textContent } from "../xml";
-import { svgToEditablePptx } from "./editable";
+import { splitMaskedPath, svgToEditablePptx } from "./editable";
 import { readPptx } from "./testing";
 
 const root = resolve(import.meta.dir, "../../..");
@@ -192,12 +192,7 @@ test("unsupported native input is a diagnostic, not a damaged package", () => {
   expect(missing.diagnostics[0]?.code).toBe("pptx/missing-font");
 });
 
-// #170 (design doc §6.41): an edge label's box takes the fill of the <rect>
-// the SVG draws before the label. In D2's SVG that is the edge's `fill`
-// (white in the built-in themes, but any color is kept); without one, D2
-// masks the line under the label, so the box stays white; with neither
-// (structured SVG, edge `fill: transparent`), it has no fill.
-test("D2 edge labels: the SVG's label rect, else white under a mask, else no fill", () => {
+test("D2 edge labels honor an explicit rectangle but masks never paint a fill", () => {
   const item = corpus.find((c) => c.id === "examples/decision-flow/decision-flow");
   if (!item) throw new Error("missing decision-flow");
   const fills = (svg: string) => {
@@ -212,14 +207,90 @@ test("D2 edge labels: the SVG's label rect, else white under a mask, else no fil
   };
   const rect =
     /<rect x="[^"]*" y="[^"]*" width="[^"]*" height="[^"]*" rx="10" fill="#ffffff" \/>(?=<text)/g;
-  const count = item.svg.match(rect)?.length ?? 0;
+  const boxed = item.svg.replace(
+    /(?=<text[^>]*>)/g,
+    '<rect x="1" y="1" width="1" height="1" rx="10" fill="#ffffff" />',
+  );
+  const count = fills(item.svg).length;
   expect(count).toBeGreaterThan(0);
-  expect(fills(item.svg)).toEqual(Array(count).fill("FFFFFF"));
-  expect(fills(item.svg.replace(rect, (r) => r.replace("#ffffff", "#ff0000")))).toEqual(
+  expect(fills(item.svg)).toEqual(Array(count).fill("none"));
+  expect(fills(boxed.replace(rect, (r) => r.replace("#ffffff", "#ff0000")))).toEqual(
     Array(count).fill("FF0000"),
   );
-  const unboxed = item.svg.replace(rect, "");
+  const unboxed = item.svg;
   expect(unboxed).toContain('mask="url(#');
-  expect(fills(unboxed)).toEqual(Array(count).fill("FFFFFF"));
+  expect(fills(unboxed)).toEqual(Array(count).fill("none"));
   expect(fills(unboxed.replace(/ mask="url\(#[^"]*\)"/g, ""))).toEqual(Array(count).fill("none"));
+});
+
+test("mask rectangles split a line into separate visible segments", () => {
+  const parts = splitMaskedPath(
+    [
+      { command: "M", to: { x: 0, y: 5 } },
+      { command: "L", to: { x: 100, y: 5 } },
+    ],
+    [{ x: 40, y: 0, width: 20, height: 10 }],
+  );
+  expect(parts.map((part) => part.map((p) => p.to.x))).toEqual([
+    [0, 40],
+    [60, 100],
+  ]);
+});
+
+test("editable freeform writes separate arrow segments around a D2 label", () => {
+  const item = corpus.find((c) => c.id === "docs/gallery/components/sumi-double-arrow.minimal");
+  if (!item) throw new Error("missing double arrow");
+  const result = svgToEditablePptx(item.svg, item.ir);
+  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+  const slide = new TextDecoder().decode(readPptx(result.value).get("ppt/slides/slide1.xml"));
+  const edges = [
+    ...slide.matchAll(/<p:sp><p:nvSpPr><p:cNvPr id="\d+" name="e:#0"\/>.*?<\/p:sp>/g),
+  ].map((m) => m[0]);
+  expect(edges).toHaveLength(2);
+  expect(edges[0]).toContain("<a:headEnd ");
+  expect(edges[0]).not.toContain("<a:tailEnd ");
+  expect(edges[1]).toContain("<a:tailEnd ");
+  expect(edges[1]).not.toContain("<a:headEnd ");
+});
+
+test("glued masked labels use a canvas patch or split transparent edges", () => {
+  const item = corpus.find((c) => c.id === "docs/gallery/components/sumi-double-arrow.minimal");
+  if (!item) throw new Error("missing double arrow");
+  const slideFor = (transparent: boolean) => {
+    const ir = { ...item.ir, meta: { ...item.ir.meta, transparentBackground: transparent } };
+    const result = svgToEditablePptx(item.svg, ir, { connectors: "glued" });
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    return new TextDecoder().decode(readPptx(result.value).get("ppt/slides/slide1.xml"));
+  };
+  const opaque = slideFor(false);
+  expect(opaque).toContain("<a:stCxn ");
+  expect(opaque).toContain("<a:endCxn ");
+  expect(opaque).toMatch(/name="e:#0 label 0"\/>.*?<a:solidFill><a:srgbClr val="FFFFFF"/);
+  const transparent = slideFor(true);
+  expect(transparent).not.toContain("<a:stCxn ");
+  expect(transparent.match(/name="e:#0"\/>/g)).toHaveLength(2);
+  expect(transparent).toMatch(/name="e:#0 label 0"\/>.*?<a:noFill\/>/);
+});
+
+test("transparent glued exports split only edges whose route runs under a label mask", () => {
+  // D2 shares one label mask between all edges: an edge without a label of its
+  // own on its line has no gap to keep and stays a glued connector.
+  for (const id of ["examples/pipeline/pipeline", "examples/decision-flow/decision-flow"]) {
+    const item = corpus.find((c) => c.id === id);
+    if (!item) throw new Error(`missing ${id}`);
+    const ir = { ...item.ir, meta: { ...item.ir.meta, transparentBackground: true } };
+    const result = svgToEditablePptx(item.svg, ir, { connectors: "glued" });
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const slide = new TextDecoder().decode(readPptx(result.value).get("ppt/slides/slide1.xml"));
+    const glued = (key: string) =>
+      new RegExp(`<p:cxnSp><p:nvCxnSpPr><p:cNvPr id="\\d+" name="${key}"/>`).test(slide);
+    const labelled = ir.edges.filter((e) => e.label !== "");
+    const plain = ir.edges.filter((e) => e.label === "");
+    expect(labelled.length).toBeGreaterThan(0);
+    expect(plain.length).toBeGreaterThan(0);
+    for (const edge of labelled) expect([edge.key, glued(edge.key)]).toEqual([edge.key, false]);
+    for (const edge of plain) expect([edge.key, glued(edge.key)]).toEqual([edge.key, true]);
+    // No label of a transparent export gets a canvas patch.
+    expect(slide).not.toMatch(/label 0"\/>(?:(?!<\/p:sp>).)*<a:solidFill><a:srgbClr val="FFFFFF"/);
+  }
 });

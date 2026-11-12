@@ -163,8 +163,8 @@ describe("DiT with panels 3 and 4 dimmed (structured)", () => {
   });
 });
 
-describe("edge-label backgrounds over a dimmed group (structured, §6.41)", () => {
-  test("the background is the group's dimmed fill", async () => {
+describe("edge labels over a dimmed group", () => {
+  test("no background patch is painted", async () => {
     const source = (dim: string) => `version: 1
 figure:
   id: f
@@ -185,12 +185,8 @@ edges:
       const edge = [...chunks(svg)].find(([id]) => id.startsWith("sumi-k-e-"))?.[1] ?? "";
       return /<rect [^>]*fill="(#[0-9a-f]+)"/.exec(edge)?.[1];
     };
-    const minimal = getTheme("minimal");
-    const surface = "#f6f8fa";
-    expect(await background("")).toBe(surface);
-    expect(await background("    dim: true\n")).toBe(
-      lightenColor(surface, minimal?.dim?.lighten ?? 0),
-    );
+    expect(await background("")).toBeUndefined();
+    expect(await background("    dim: true\n")).toBeUndefined();
   });
 });
 

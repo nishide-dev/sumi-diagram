@@ -18,6 +18,7 @@ import { fontFileFor, measureLabel } from "../../lint/geometry/measure";
 import { FontParseError } from "../../lint/sfnt";
 import { readSvgMetadata } from "../finalize";
 import { BoundsBuilder, type PathSegment, type Point, parsePath, type Rect } from "../geometry";
+import { untrimmedRoutes } from "../hollow-arrowheads";
 import {
   decodeElementClass,
   inspectSvg,
@@ -233,6 +234,141 @@ function geometry(
     : sites;
   return `<a:custGeom><a:avLst/><a:gdLst/><a:ahLst/>${connections}<a:rect l="0" t="0" r="r" b="b"/><a:pathLst>${body}</a:pathLst></a:custGeom>`;
 }
+
+/** Cut masked portions out of a path, preserving untouched cubic segments. */
+/** How much of a route runs under the mask rectangles (the gaps `splitMaskedPath` leaves). */
+export function maskedLength(path: PathSegment[], masks: Rect[]): number {
+  const length = (parts: PathSegment[][]) => {
+    let total = 0;
+    for (const part of parts) {
+      let a = part[0]?.to;
+      for (const seg of part.slice(1)) {
+        if (!a) break;
+        const from = a;
+        if (seg.command === "C") {
+          // Cubics by 32 chords, so pieces of a split curve add up to the whole.
+          let p = from;
+          for (let k = 1; k <= 32; k++) {
+            const t = k / 32,
+              u = 1 - t;
+            const q = {
+              x:
+                u * u * u * from.x +
+                3 * u * u * t * seg.c1.x +
+                3 * u * t * t * seg.c2.x +
+                t * t * t * seg.to.x,
+              y:
+                u * u * u * from.y +
+                3 * u * u * t * seg.c1.y +
+                3 * u * t * t * seg.c2.y +
+                t * t * t * seg.to.y,
+            };
+            total += Math.hypot(q.x - p.x, q.y - p.y);
+            p = q;
+          }
+        } else total += Math.hypot(seg.to.x - from.x, seg.to.y - from.y);
+        a = seg.to;
+      }
+    }
+    return total;
+  };
+  return length(splitMaskedPath(path, [])) - length(splitMaskedPath(path, masks));
+}
+
+export function splitMaskedPath(path: PathSegment[], masks: Rect[]): PathSegment[][] {
+  const parts: PathSegment[][] = [];
+  let current: PathSegment[] | undefined;
+  const append = (a: Point, b: Point) => {
+    if (!current || current.at(-1)?.to.x !== a.x || current.at(-1)?.to.y !== a.y) {
+      current = [{ command: "M", to: a }];
+      parts.push(current);
+    }
+    current.push({ command: "L", to: b });
+  };
+  const cut = (a: Point, b: Point) => {
+    let intervals: [number, number][] = [[0, 1]];
+    for (const r of masks) {
+      let lo = 0,
+        hi = 1;
+      for (const [p, d, min, max] of [
+        [a.x, b.x - a.x, r.x, r.x + r.width],
+        [a.y, b.y - a.y, r.y, r.y + r.height],
+      ] as [number, number, number, number][]) {
+        if (d === 0) {
+          if (p < min || p > max) {
+            lo = 1;
+            hi = 0;
+            break;
+          }
+        } else {
+          lo = Math.max(lo, Math.min((min - p) / d, (max - p) / d));
+          hi = Math.min(hi, Math.max((min - p) / d, (max - p) / d));
+        }
+      }
+      if (lo < hi)
+        intervals = intervals.flatMap(([s, e]) =>
+          hi <= s || lo >= e
+            ? [[s, e]]
+            : [
+                ...(s < lo ? [[s, lo] as [number, number]] : []),
+                ...(hi < e ? [[hi, e] as [number, number]] : []),
+              ],
+        );
+    }
+    const at = (t: number) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+    for (const [s, e] of intervals) {
+      if (s > 0) current = undefined;
+      append(at(s), at(e));
+      if (e < 1) current = undefined;
+    }
+    if (intervals.length === 0) current = undefined;
+  };
+  const curve = (a: Point, c1: Point, c2: Point, b: Point, depth = 0): void => {
+    const points = [a, c1, c2, b];
+    const x = Math.min(...points.map((p) => p.x)),
+      y = Math.min(...points.map((p) => p.y));
+    const maxX = Math.max(...points.map((p) => p.x)),
+      maxY = Math.max(...points.map((p) => p.y));
+    const intersects = masks.some(
+      (r) => r.x <= maxX && r.x + r.width >= x && r.y <= maxY && r.y + r.height >= y,
+    );
+    if (
+      masks.some((r) => r.x <= x && r.x + r.width >= maxX && r.y <= y && r.y + r.height >= maxY)
+    ) {
+      current = undefined;
+    } else if (!intersects) {
+      if (!current) {
+        current = [{ command: "M", to: a }];
+        parts.push(current);
+      }
+      current.push({ command: "C", c1, c2, to: b });
+    } else if (depth >= 16 || Math.max(maxX - x, maxY - y) < 0.01) cut(a, b);
+    else {
+      const mid = (p: Point, q: Point): Point => ({ x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 });
+      const p = mid(a, c1),
+        q = mid(c1, c2),
+        r = mid(c2, b),
+        s = mid(p, q),
+        t = mid(q, r),
+        m = mid(s, t);
+      curve(a, p, s, m, depth + 1);
+      curve(m, t, r, b, depth + 1);
+    }
+  };
+  let prev: Point | undefined;
+  for (const segment of path) {
+    if (segment.command === "M") {
+      prev = segment.to;
+      current = undefined;
+      continue;
+    }
+    if (!prev) throw new Error("Invalid masked path");
+    if (segment.command === "L") cut(prev, segment.to);
+    else curve(prev, segment.c1, segment.c2, segment.to);
+    prev = segment.to;
+  }
+  return parts;
+}
 interface ObjectSite {
   id: number;
   box: Rect;
@@ -263,10 +399,13 @@ function site(shape: ObjectSite, p: Point) {
 }
 /** Input must be a finalized Sumi SVG with its matching IR and font set. */
 export function svgToEditablePptx(
-  svg: string,
+  finished: string,
   ir: FigureIR,
   options: EditablePptxOptions = {},
 ): Result<Uint8Array> {
+  // PowerPoint draws the heads at the line's ends: use D2's routes, not
+  // the lines cut short at hollow SVG heads (#483).
+  const svg = untrimmedRoutes(finished);
   const limit = exceedsPdfInputLimits(svg);
   if (limit)
     return {
@@ -1062,15 +1201,35 @@ export function svgToEditablePptx(
         last = geo.path.at(-1)?.to;
       if (!first || !last) throw new Error(`Empty edge ${key}`);
       const arrows = ends(element, path);
+      const maskId = /^url\(#(.+)\)$/.exec(attribute(path, "mask") ?? "")?.[1];
+      const mask =
+        maskId &&
+        [...descendants(read.doc.drawing)].find(
+          (el) => el.name === "mask" && attribute(el, "id") === maskId,
+        );
+      const masks = mask
+        ? childElements(mask)
+            .filter((el) => el.name === "rect" && property(el, "fill") === "black")
+            .map((el) => ({
+              x: value(el, "x"),
+              y: value(el, "y"),
+              width: value(el, "width"),
+              height: value(el, "height"),
+            }))
+        : [];
       const edgeStroke = ir.meta.themeOverrides?.edgeCorners === "sharp" ? "svg-default" : "round";
       // A zoom edge (#176) is two lines between corners, not a connector
       // between sites: it stays a freeform shape in either mode.
-      if (connectors === "glued" && element.route === "curve") {
+      // D2 shares one label mask between edges: only a route that runs under
+      // one of its rectangles has a gap to keep.
+      const crossesMask = masks.length > 0 && maskedLength(geo.path, masks) > 0.01;
+      const splitTransparent = ir.meta.transparentBackground === true && crossesMask;
+      if (connectors === "glued" && element.route === "curve" && !splitTransparent) {
         throw new Error(
           "Curved edges require freeform connectors; glued connectors cannot preserve cubic tangents. Use --pptx-connectors freeform.",
         );
       }
-      if (connectors === "glued" && element.routing !== "zoom") {
+      if (connectors === "glued" && element.routing !== "zoom" && !splitTransparent) {
         if (element.from === element.to)
           throw new Error("Glued self-loops are unsupported; use freeform connectors.");
         const src = objects.get(element.from),
@@ -1090,36 +1249,38 @@ export function svgToEditablePptx(
           `<p:cxnSp><p:nvCxnSpPr><p:cNvPr id="${id}" name="${escapeXml(key)}"/><p:cNvCxnSpPr><a:stCxn id="${src.id}" idx="${a.index}"/><a:endCxn id="${dst.id}" idx="${b.index}"/></p:cNvCxnSpPr><p:nvPr/></p:nvCxnSpPr><p:spPr>${xfrm(box, flip)}<a:prstGeom prst="straightConnector1"><a:avLst/></a:prstGeom>${line(path, element.style, arrows, edgeStroke)}</p:spPr></p:cxnSp>`,
         );
       } else {
-        const bounds = new BoundsBuilder().addPath(geo.path).rect();
-        if (!bounds) throw new Error(`Unbounded edge ${key}`);
+        const parts = masks.length ? splitMaskedPath(geo.path, masks) : [geo.path];
         const zoom = element.routing === "zoom";
         if (!zoom) firstRouted ??= output.length;
-        (zoom ? zooms : output).push(
-          shape(
-            id,
-            key,
-            bounds,
-            geometry([{ segments: geo.path, filled: false }], bounds, emu),
-            "<a:noFill/>",
-            line(path, element.style, arrows, edgeStroke),
-          ),
-        );
+        parts.forEach((part, index) => {
+          const bounds = new BoundsBuilder().addPath(part).rect();
+          if (!bounds) throw new Error(`Unbounded edge ${key}`);
+          const partArrows =
+            (index === 0 ? (arrows.match(/<a:headEnd[^>]*\/>/)?.[0] ?? "") : "") +
+            (index === parts.length - 1 ? (arrows.match(/<a:tailEnd[^>]*\/>/)?.[0] ?? "") : "");
+          (zoom ? zooms : output).push(
+            shape(
+              index === 0 ? id : next++,
+              key,
+              bounds,
+              geometry([{ segments: part, filled: false }], bounds, emu),
+              "<a:noFill/>",
+              line(path, element.style, partArrows, edgeStroke),
+            ),
+          );
+        });
       }
       const children = childElements(group);
       const texts = children.filter((e) => e.name === "text");
-      // The label's background is the `<rect>` the SVG draws right before its
-      // text (#170, design doc §6.41): in structured SVG the color painted
-      // beneath the label, in D2's the edge's `fill` (white in the built-in
-      // themes; any other color is kept, where this used to write white
-      // always). Without one, D2 still hides the line under the label with a
-      // mask: white here, as before. Structured SVG without one (an edge
-      // `fill` of `transparent`) draws nothing, so no fill.
+      // A glued connector cannot be interrupted; hide it on the canvas only.
       const before = children[children.indexOf(texts[0] as XmlElement) - 1];
-      const masked = attribute(path, "mask") !== undefined;
       const background =
         before?.name === "rect"
           ? paint(property(before, "fill") ?? "#ffffff")
-          : masked
+          : connectors === "glued" &&
+              element.routing !== "zoom" &&
+              !ir.meta.transparentBackground &&
+              masks.length > 0
             ? paint(canvasColor)
             : "<a:noFill/>";
       geo.labels.forEach((label, i) => {

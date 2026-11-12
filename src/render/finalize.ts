@@ -13,8 +13,7 @@
  *   byte-deterministic for the same input). A figure with icons or images
  *   (#94) also records `assets-sha256`, and one `<sumi:notice>` with the
  *   full license text per bundled icon set it uses (research #86 §6.4).
- * - Everything else is D2's output byte for byte: the root start tag is
- *   rewritten and the metadata spliced in; the rest is copied unparsed.
+ * - D2's edge-label background rectangles are removed; its line mask remains.
  *
  * Before that it checks the output: well-formed XML and D2's structure
  * (`svg/invalid`), a non-empty drawing (`svg/empty`) and embedded fonts for
@@ -317,6 +316,23 @@ export function finalizeSvg(
   if (artifact.fontSetId !== compiled.fontSet.id) return mismatch("the font set");
   const canvas = getTheme(compiled.ir.meta.themeId)?.canvas ?? "#ffffff";
   let svg = artifact.svg;
+  const parsed = readD2Svg(svg);
+  if (parsed.ok) {
+    const patches = [...descendants(parsed.doc.drawing)].flatMap((group) => {
+      if (group.name !== "g" || !classList(group).includes("sumi-kind-edge")) return [];
+      const children = childElements(group);
+      if (
+        !children.some((child) => child.name === "path" && attribute(child, "mask") !== undefined)
+      )
+        return [];
+      return children.filter(
+        (child, index) => child.name === "rect" && children[index + 1]?.name === "text",
+      );
+    });
+    for (const patch of patches.sort((a, b) => b.start - a.start)) {
+      svg = svg.slice(0, patch.start) + svg.slice(patch.end);
+    }
+  }
   if (canvas.toLowerCase() !== "#ffffff" || compiled.ir.meta.transparentBackground) {
     const read = readD2Svg(svg);
     if (read.ok) {

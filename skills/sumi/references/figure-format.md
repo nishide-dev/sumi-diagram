@@ -672,4 +672,4 @@ Per-code fixes: [diagnostics](diagnostics.md). The ones agents repeat:
 | `variant: muted` on every element of a panel | none | `dim: true` on the group |
 # Canvas background
 
-`figure.background` is `canvas` (default) or `transparent`. The latter omits only the outer canvas in SVG, PDF and PPTX; nodes, label knockouts and panels retain their theme colors. Contrast and lint still assume the theme canvas. `sumi render --background canvas|transparent` overrides the figure; `sumi lint --geometry` accepts the same override.
+`figure.background` is `canvas` (default) or `transparent`. The latter omits the outer canvas in SVG, PDF and PPTX; nodes and panels retain their theme colors. SVG edge labels have no background patch; auto labels retain D2's line mask. Editable freeform PPTX splits masked lines around labels. Glued PPTX uses a canvas-colored label patch on canvas backgrounds; with transparent backgrounds masked edges become unglued freeform segments. Contrast and lint still assume the theme canvas. `sumi render --background canvas|transparent` overrides the figure; `sumi lint --geometry` accepts the same override.
