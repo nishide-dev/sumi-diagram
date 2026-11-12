@@ -60,7 +60,7 @@ with ordinary `bubble` nodes, speakers, meta notes and date dividers.
 
 In built-in chromatic themes, the yellow tone's line (edges and outlined or
 tinted frames; not a solid node, whose outline is its bright fill) has at least
-3:1 contrast on white and the theme's default group fill. Darker fills, including palette-filled panels, and
+3:1 contrast on the theme canvas and its default group fill. Darker fills, including palette-filled panels, and
 explicit overrides are not guaranteed.
 
 ## Feature versions
