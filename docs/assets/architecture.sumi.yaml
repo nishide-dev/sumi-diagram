@@ -1,0 +1,66 @@
+# The README figure (#474): how Sumi works with a coding agent. The agent discovers
+# what Sumi provides, writes the YAML, and the CLI compiles, lays out, renders and checks
+# the figure; geometry diagnostics go back to the agent until it is clean. `bun run gallery`
+# renders it with the sumi and sumi-dark themes into architecture.{light,dark}.svg.
+version: 1
+figure:
+  id: sumi-architecture
+  title: How Sumi works with a coding agent
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      row:
+        gap: 7mm
+        align: center
+        items: [agent, cli]
+
+groups:
+  - id: agent
+    label: Agent
+    arrange:
+      stack: { gap: 3mm, align: stretch, items: [harness, skill] }
+  - id: cli
+    label: Sumi CLI
+    arrange:
+      stack:
+        gap: 7mm
+        align: start
+        items:
+          - catalog
+          - row:
+              gap: 3.5mm
+              align: start
+              items:
+                - yaml
+                - compile
+                - layout
+                - stack: { gap: 6mm, align: center, items: [render, lint] }
+                - outputs
+  - id: outputs
+    variant: plain
+    arrange:
+      stack: { gap: 1mm, items: [svg, pdf, pptx] }
+
+nodes:
+  - { id: harness, component: box, label: Coding agent, sublabel: "Claude Code · Codex · …", tone: blue, variant: filled }
+  - { id: skill, component: document, label: Sumi Skill, sublabel: "workflow · references" }
+  - { id: catalog, component: box, label: sumi catalog, sublabel: "components · themes · profiles", variant: outlined }
+  - { id: yaml, component: document, label: "*.sumi.yaml", tone: blue, variant: tinted }
+  - { id: compile, component: box, label: Compile, sublabel: "schema · themes" }
+  - { id: layout, component: box, label: Layout, sublabel: "structured · D2" }
+  - { id: render, component: box, label: Render, sublabel: "bundled fonts" }
+  - { id: svg, component: document, label: SVG }
+  - { id: pdf, component: document, label: PDF }
+  - { id: pptx, component: document, label: PPTX }
+  - { id: lint, component: box, label: Geometry lint, sublabel: "fit · overlap", tone: orange, variant: filled }
+
+edges:
+  - { from: harness, to: catalog }
+  - { from: harness, to: yaml }
+  - { from: yaml, to: compile }
+  - { from: compile, to: layout }
+  - { from: layout, to: render }
+  - { from: render, to: outputs }
+  - { from: render, to: lint }
+  - { from: lint, to: agent, toAnchor: south, label: diagnostics, variant: dashed, tone: orange }

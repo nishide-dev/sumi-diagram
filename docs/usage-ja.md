@@ -331,16 +331,16 @@ nodes:
   - { id: photo, component: image, props: { src: img/photo.png, height: 30pt } }
 ```
 
-## Claude Code から使う
+## エージェントから使う（Skill）
 
-Claude Code 用の Skill を [`skills/sumi/`](../skills/sumi/SKILL.md) で配布しています。[skills CLI](https://github.com/vercel-labs/skills) で、使いたいプロジェクトに導入します。
+コーディングエージェント向けの Skill を [`skills/sumi/`](../skills/sumi/SKILL.md) で配布しています。[skills CLI](https://github.com/vercel-labs/skills) で、使いたいプロジェクトとエージェントに導入します（多くのハーネスに対応しています）。
 
 ```sh
 npx skills add nishide-dev/sumi-diagram --skill sumi           # 対話的に導入先のエージェントを選ぶ
-npx skills add nishide-dev/sumi-diagram --skill sumi -a claude-code -y   # Claude Code のプロジェクト（.claude/skills/sumi）に導入
+npx skills add nishide-dev/sumi-diagram --skill sumi -a claude-code -y   # 例: 確認なしで Claude Code に導入（.claude/skills/sumi）
 ```
 
-Skill は CLI を含みません。先に[リリース版](#インストールリリース版)を導入して `sumi` を `PATH` に通し、`sumi doctor` で確認してください（D2 とフォントは tarball に同梱）。Claude Code で「この処理の流れを Sumi で図にして（論文の 1 段組）」のように頼むと、Skill が次の手順で図を作ります。
+Skill は CLI を含みません。先に[リリース版](#インストールリリース版)を導入して `sumi` を `PATH` に通し、`sumi doctor` で確認してください（D2 とフォントは tarball に同梱）。エージェントに「この処理の流れを Sumi で図にして（論文の 1 段組）」のように頼むと、Skill が次の手順で図を作ります。
 
 1. 図の内容と出力先（`paper-single` / `paper-double` / `presentation-16x9`）を確認する
 2. `sumi doctor` で環境を確認し、`sumi catalog --json` で使える部品・variant・props と Theme・Profile を調べる（存在しない部品やスタイルは使わない）
