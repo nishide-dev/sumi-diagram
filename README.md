@@ -32,9 +32,9 @@ npx skills add nishide-dev/sumi-diagram --skill sumi
 | | |
 | --- | --- |
 | **Discoverable** | `sumi catalog --json` lists every component, variant, prop, theme, palette and profile, so the agent uses what exists instead of guessing. |
-| **Checked after rendering** | Schema and reference checks, then geometry lint on the rendered figure: page fit, overflow, collisions, crossings, contrast and colour. Each diagnostic has a location in the YAML and a hint. |
+| **Checked after rendering** | Schema and reference checks, then geometry lint on the rendered figure: page fit, overflow, collisions, crossings, contrast and colour. Diagnostics point to the place in the YAML and most carry a hint for the fix. |
 | **Machine-readable** | `--json` reports for `lint` and `render`, and stable exit codes, for scripts and agent loops. |
-| **Deterministic** | Bundled fonts and a pinned layout backend: the same YAML renders the same bytes, so diffs are reviewable. |
+| **Deterministic** | Bundled fonts and a pinned layout backend: with the same Sumi version and options, the same YAML renders the same bytes, so diffs are reviewable. |
 | **Made for the target** | Profiles for a paper column, a full-width figure or a 16:9 slide, with page limits and minimum text sizes. |
 
 ## What you can draw

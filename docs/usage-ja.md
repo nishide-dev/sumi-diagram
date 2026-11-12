@@ -48,7 +48,7 @@ grid には指定できません。見出し／キャプションの帯が広い
 
 ## インストール（リリース版）
 
-通常は [README のワンラインインストール](README-ja.md#インストール) を使ってください。`SUMI_VERSION`（先頭の `v` は任意）で版を指定でき、省略すると GitHub API で最新リリースを解決します。`SUMI_HOME` は `~/.local/share/sumi`、`SUMI_BIN_DIR` は `~/.local/bin` が既定です。`SUMI_DOWNLOAD_BASE` には tarball と `SHA256SUMS` のある HTTP(S) URL、curl 用の `file://` URL、または絶対ディレクトリパスを指定できます。再実行で更新し、旧版ディレクトリは必要に応じて削除します。アンインストールはリンクと導入先を削除します。以下は手動で導入する場合です。
+通常は [README のワンラインインストール](README-ja.md#はじめる) を使ってください。`SUMI_VERSION`（先頭の `v` は任意）で版を指定でき、省略すると GitHub API で最新リリースを解決します。`SUMI_HOME` は `~/.local/share/sumi`、`SUMI_BIN_DIR` は `~/.local/bin` が既定です。`SUMI_DOWNLOAD_BASE` には tarball と `SHA256SUMS` のある HTTP(S) URL、curl 用の `file://` URL、または絶対ディレクトリパスを指定できます。再実行で更新し、旧版ディレクトリは必要に応じて削除します。アンインストールはリンクと導入先を削除します。以下は手動で導入する場合です。
 
 ミラーやオフライン導入用に、`SUMI_LATEST_URL` で最新リリース API の取得先を HTTP(S) URL、curl 用の `file://` URL、または `tag_name` を含むローカル JSON ファイルの絶対パスへ変更できます。同じ版を再導入するときは導入先内に新しいコピーを準備してから、その版のディレクトリを置き換えます。
 

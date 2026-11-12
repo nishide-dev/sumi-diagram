@@ -47,7 +47,7 @@ nodes:
   - { id: skill, component: document, label: Sumi Skill, sublabel: "workflow · references" }
   - { id: catalog, component: box, label: sumi catalog, sublabel: "components · themes · profiles", variant: outlined }
   - { id: yaml, component: document, label: "*.sumi.yaml", tone: blue, variant: tinted }
-  - { id: compile, component: box, label: Compile, sublabel: "schema · themes" }
+  - { id: compile, component: box, label: Compile, sublabel: "registry · theme\nprofile → IR" }
   - { id: layout, component: box, label: Layout, sublabel: "structured · D2" }
   - { id: render, component: box, label: Render, sublabel: "bundled fonts" }
   - { id: svg, component: document, label: SVG }

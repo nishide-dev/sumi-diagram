@@ -6,7 +6,7 @@ Sumi keeps `*.sumi.yaml` as the primary source. Components, themes and profiles 
 
 ## Manual installation
 
-The [one-line installer](../README.md#install) is the simplest option. Alternatively, download a tarball from [GitHub Releases](https://github.com/nishide-dev/sumi-diagram/releases). Supported targets are `darwin-arm64`, `darwin-x64`, `linux-x64`, and `linux-arm64`; Windows is not supported. Bun and Node.js are unnecessary, and Sumi is not published to npm.
+The [one-line installer](../README.md#get-started) is the simplest option. Alternatively, download a tarball from [GitHub Releases](https://github.com/nishide-dev/sumi-diagram/releases). Supported targets are `darwin-arm64`, `darwin-x64`, `linux-x64`, and `linux-arm64`; Windows is not supported. Bun and Node.js are unnecessary, and Sumi is not published to npm.
 
 ```sh
 version=0.16.1 target=darwin-arm64
