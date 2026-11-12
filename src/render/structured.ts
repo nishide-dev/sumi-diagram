@@ -36,7 +36,7 @@
  * Set enclosures (#407) are `g.sumi-set` groups between the groups and the
  * nodes (see `setGroup()`); they are not elements of the figure, so they
  * carry no `sumi-k-` class. Their tints (#440) are opaque and painted first,
- * in one `g.sumi-set-fills` (the overlaps with the product of the fills,
+ * in one `g.sumi-set-fills` (the overlaps with the combined fills,
  * clipped to the sets), so the outlines of all sets stay on top.
  *
  * A hatched matrix cell or legend sample box (#180) draws its hatch lines
@@ -68,7 +68,7 @@ import { getTheme } from "../core/theme/builtin";
 import type { FontSet } from "../core/theme/fonts";
 import { readableInk } from "../core/theme/node-variants";
 import { figureTheme } from "../core/theme/overrides";
-import { multiplyTints } from "../core/theme/set-style";
+import { overlapTint } from "../core/theme/set-style";
 import type { CommonStyle } from "../core/theme/style";
 import type { Tone } from "../core/theme/tones";
 import { groupLayerRects } from "../layout/group-layers";
@@ -1330,7 +1330,7 @@ const boundsOf = (polygon: readonly Point[]): Rect => {
 /**
  * The tints of the set enclosures (#440), opaque, in one `g.sumi-set-fills`:
  * each set's fill, then the regions where two or more sets overlap, combined
- * relative to the canvas (`multiplyTints()`), clipped with nested `clip-path`s.
+ * relative to the canvas (`overlapTint()`), clipped with nested `clip-path`s.
  * Nothing is translucent, so the color is the same over a white page, a gray
  * panel or another set. It comes before every set's outline and label, so
  * the outlines of an earlier set are not covered by a later set's fill.
@@ -1372,8 +1372,8 @@ function setFills(
   const overlaps = setOverlaps(polygons);
   const regions: string[] = [];
   for (const { members, polygon } of overlaps) {
-    const color = multiplyTints(
-      members.map((m) => (drawn[m] as { set: SetIR }).set.style.fill),
+    const color = overlapTint(
+      members.map((m) => (drawn[m] as { set: SetIR }).set),
       canvas,
     );
     const last = members[members.length - 1] as number;

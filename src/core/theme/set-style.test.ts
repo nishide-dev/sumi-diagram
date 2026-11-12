@@ -1,6 +1,19 @@
 import { describe, expect, test } from "bun:test";
 import { getTheme } from "./builtin";
 import { toOklch } from "./color-math";
+import { mixTints } from "./set-style";
+
+test("perceptual overlap mixing is symmetric for three tints and follows the canvas", () => {
+  const colors = ["#c9e2f5", "#d1ead5", "#f1d6d9"];
+  const mixed = mixTints(colors);
+  expect(mixTints([...colors].reverse())).toBe(mixed);
+  const average = colors.reduce((sum, c) => sum + toOklch(c).l, 0) / colors.length;
+  expect(toOklch(mixed).l).toBeCloseTo(average - 0.05, 2);
+  const dark = ["#36455a", "#435449", "#54434c"];
+  const darkAverage = dark.reduce((sum, c) => sum + toOklch(c).l, 0) / dark.length;
+  expect(toOklch(mixTints(dark, "#171b22")).l).toBeCloseTo(darkAverage + 0.05, 2);
+});
+
 import { resolveStyle } from "./resolve";
 import { multiplyTints, resolveSetStyle, SET_FILL_OPACITY, tintOver } from "./set-style";
 

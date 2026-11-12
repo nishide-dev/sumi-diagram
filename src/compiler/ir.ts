@@ -431,6 +431,7 @@ export type ElementIR = NodeIR | GroupIR | EdgeIR;
  */
 export interface SetIR {
   readonly id: string;
+  readonly overlap?: "mix" | "multiply";
   /** Plain-text label; `""` means no label. */
   readonly label: string;
   /** The enclosed nodes and groups, in the order written. */
@@ -837,6 +838,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
     sets.push(
       freeze({
         id: set.id,
+        ...((set.overlap ?? figure.setOverlap) === "multiply" && { overlap: "multiply" as const }),
         label: set.label,
         members: freeze(set.members.map(endpointKey)),
         enclose: set.enclose ?? "body",

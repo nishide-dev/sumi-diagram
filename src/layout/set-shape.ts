@@ -346,12 +346,29 @@ export function outlinePolygon(outline: SetOutline): Point[] {
     }
     case "rect": {
       const { x, y, width, height } = outline.rect;
-      return [
-        { x, y },
-        { x: x + width, y },
-        { x: x + width, y: y + height },
-        { x, y: y + height },
+      const r = outline.radius;
+      if (r <= 0)
+        return [
+          { x, y },
+          { x: x + width, y },
+          { x: x + width, y: y + height },
+          { x, y: y + height },
+        ];
+      // Rounded corners are sampled (#492): two rectangles with the same bounds but different
+      // radii are different outlines, and their overlaps differ near the corners.
+      const steps = 8;
+      const corners: [number, number, number][] = [
+        [x + width - r, y + r, -Math.PI / 2],
+        [x + width - r, y + height - r, 0],
+        [x + r, y + height - r, Math.PI / 2],
+        [x + r, y + r, Math.PI],
       ];
+      return corners.flatMap(([cx, cy, start]) =>
+        Array.from({ length: steps + 1 }, (_, i) => {
+          const a = start + (i / steps) * (Math.PI / 2);
+          return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
+        }),
+      );
     }
     case "path":
       return samplePath(outline.segments, 16);

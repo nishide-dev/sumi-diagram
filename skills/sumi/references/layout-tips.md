@@ -323,7 +323,7 @@ and do not mix per-element colours that fight it; for black-and-white print use 
   **at most 2–3 hues plus one accent** (a loss, the result), the palest tones at the
   same lightness. Never lay a translucent colour over a coloured or gray surface: it
   mixes into mud, and the overlap of two such colours more so. Sets are opaque pale
-  tints for that reason (an overlap is painted in the product of its tints); do not
+  tints for that reason (an overlap is painted in a perceptual mix of its tints); do not
   put colour-on-colour on a filled panel either. The colour exemplar is **LLaDA**
   (`examples/llada`: white ground, a few muted related tones, one red accent). TriCL is
   a density and composition benchmark, not a colour exemplar: copy its proportions, not

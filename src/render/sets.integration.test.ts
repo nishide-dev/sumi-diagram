@@ -1,9 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { BUILTIN_THEMES } from "../core/theme/builtin";
 import { toOklch } from "../core/theme/color-math";
-import { multiplyTints, tintOver } from "../core/theme/set-style";
+import { mixTints, multiplyTints, tintOver } from "../core/theme/set-style";
 import type { SetLayout } from "../layout/ir";
 import { lintGeometry } from "../lint/geometry";
+import { paintItems } from "../lint/geometry/composite";
+import { geometryContextFor } from "../lint/geometry/lint";
 import { svgToPdf } from "./pdf";
 import { parsePdf } from "./pdf/testing";
 import { svgToEditablePptx, svgToPptx } from "./pptx";
@@ -60,6 +62,96 @@ function contains(set: SetLayout, p: { x: number; y: number }): boolean {
 }
 
 describe("a Venn diagram of two sets", () => {
+  test("eighteen identical sets render one overlap with every tint promptly", async () => {
+    const tones = ["blue", "green", "red", "purple", "orange"];
+    const sets = Array.from(
+      { length: 18 },
+      (_, i) =>
+        `  - { id: set${i}, members: [shared], shape: rect, tone: ${tones[i % tones.length]}, padding: 4mm }`,
+    ).join("\n");
+    const start = performance.now();
+    const rendered = await render(venn("", "color", sets));
+    expect(performance.now() - start).toBeLessThan(10000);
+    expect([...rendered.svg.matchAll(/class="sumi-set-overlap"/g)]).toHaveLength(1);
+    const overlaps = paintItems(geometryContextFor(rendered)).filter(
+      (item) => item.kind === "overlap",
+    );
+    expect(overlaps).toHaveLength(1);
+    expect(overlaps[0]?.of).toHaveLength(18);
+  });
+
+  test("render reports the overlap budget with set names", async () => {
+    const sets = Array.from(
+      { length: 14 },
+      (_, i) =>
+        `  - { id: set${i}, members: [shared], shape: rect, tone: blue, padding: ${4 + i * 0.1}mm }`,
+    ).join("\n");
+    const result = await renderFigure(venn("", "color", sets));
+    expect(result.ok).toBe(true);
+    const warning = result.diagnostics.find((d) => d.code === "layout/set-overlap-budget");
+    expect(warning?.severity).toBe("warning");
+    expect(warning?.message).toContain('"set0"');
+    expect(warning?.message).toContain('"set13"');
+  });
+
+  test("figure and per-set multiply preserve the old intersection", async () => {
+    const sources = [
+      venn().replace("  profile: paper-double", "  setOverlap: multiply\n  profile: paper-double"),
+      venn().replace("id: left,", "id: left, overlap: multiply,"),
+    ];
+    for (const source of sources) {
+      const { svg } = await render(source);
+      const tints = [...svg.matchAll(/class="sumi-set-fill"[^>]*fill="(#[0-9a-f]{6})"/g)].map(
+        (m) => m[1] as string,
+      );
+      expect(svg).toContain(`class="sumi-set-overlap"`);
+      expect(svg).toContain(`fill="${multiplyTints(tints)}"`);
+    }
+  });
+  test("three painted sets use all three tints in their intersection", async () => {
+    const sets = `  - { id: left, members: [a1, a2, shared], tone: blue }
+  - { id: right, members: [shared, b1, b2], tone: green }
+  - { id: third, members: [shared], tone: red, padding: 4mm }`;
+    const { svg } = await render(venn("", "color", sets));
+    const tints = [...svg.matchAll(/class="sumi-set-fill"[^>]*fill="(#[0-9a-f]{6})"/g)].map(
+      (m) => m[1] as string,
+    );
+    expect(tints).toHaveLength(3);
+    expect(svg).toContain(`fill="${mixTints(tints)}"`);
+  });
+  test("five-way overlap uses every tint and honors multiply in any position", async () => {
+    const tones = ["blue", "green", "red", "purple", "orange"];
+    for (const multiply of [false, true]) {
+      for (const order of [tones, [...tones].reverse()]) {
+        const sets = order
+          .map(
+            (tone) =>
+              `  - { id: s_${tone}, members: [shared], tone: ${tone}, padding: 4mm${multiply && tone === "blue" ? ", overlap: multiply" : ""} }`,
+          )
+          .join("\n");
+        const rendered = await render(venn("", "color", sets));
+        const { svg } = rendered;
+        const tints = [...svg.matchAll(/class="sumi-set-fill"[^>]*fill="(#[0-9a-f]{6})"/g)].map(
+          (m) => m[1] as string,
+        );
+        const paints = [...svg.matchAll(/class="sumi-set-overlap"[^>]*fill="(#[0-9a-f]{6})"/g)];
+        const expected = multiply ? multiplyTints(tints) : mixTints(tints);
+        expect(paints.at(-1)?.[1]).toBe(expected);
+        const overlaps = paintItems(geometryContextFor(rendered)).filter(
+          (i) => i.kind === "overlap",
+        );
+        expect(overlaps.at(-1)?.of).toHaveLength(5);
+        expect(overlaps.at(-1)?.color).toBe(expected);
+        const pptx = svgToEditablePptx(svg, rendered.compiled.ir);
+        if (!pptx.ok) throw new Error(JSON.stringify(pptx.diagnostics));
+        const slide = new TextDecoder().decode(readPptx(pptx.value).get("ppt/slides/slide1.xml"));
+        expect(slide).toContain(
+          `name="set overlap ${order.map((tone) => `s_${tone}`).join(" + ")}"`,
+        );
+        expect(slide).toContain(`<a:srgbClr val="${expected.slice(1).toUpperCase()}">`);
+      }
+    }
+  });
   test("a node in both sets lies in the overlap, and every member is enclosed", async () => {
     const rendered = await render(venn());
     const { layout } = rendered;
@@ -154,13 +246,13 @@ describe("a Venn diagram of two sets", () => {
     expect(new Set(tints.map((s) => /fill="(#[0-9a-f]{6})"/.exec(s)?.[1])).size).toBe(2);
   });
 
-  test("an overlap is painted with the product of the two tints, clipped to the sets (#440)", async () => {
+  test("an overlap is painted with the mix of the two tints, clipped to the sets", async () => {
     const { svg } = await render(venn());
     const tints = [...svg.matchAll(/<circle class="sumi-set-fill"[^>]*fill="(#[0-9a-f]{6})"/g)].map(
       (m) => m[1] as string,
     );
     expect(tints).toHaveLength(2);
-    const product = multiplyTints(tints);
+    const product = mixTints(tints);
     const overlap =
       /<g clip-path="url\(#(sumi-clip-\d+)\)"><circle class="sumi-set-overlap"[^>]*>/.exec(svg);
     expect(overlap).not.toBeNull();
@@ -514,11 +606,11 @@ describe("PDF and PPTX", () => {
     expect(order("n:a1")).toBeGreaterThan(order("set right label"));
     expect(slide).not.toContain("<a:alpha");
     expect(slide).toContain("custGeom");
-    // The overlap is filled in the product of the two tints.
+    // The overlap is filled in the mix of the two tints.
     const tints = [
       ...rendered.svg.matchAll(/<circle class="sumi-set-fill"[^>]*fill="(#[0-9a-f]{6})"/g),
     ].map((m) => m[1] as string);
-    expect(slide).toContain(`<a:srgbClr val="${multiplyTints(tints).slice(1).toUpperCase()}">`);
+    expect(slide).toContain(`<a:srgbClr val="${mixTints(tints).slice(1).toUpperCase()}">`);
     // The tint shapes fill their path (the outline element is unfilled).
     expect(slide).not.toMatch(
       /name="set left"[\s\S]*?<a:path [^>]*fill="none"[\s\S]*?name="set right"/,

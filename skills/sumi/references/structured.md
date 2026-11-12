@@ -168,7 +168,7 @@ edges:
 `sets` draws a pale tinted shape around nodes and groups after they are placed: Venn
 diagrams, the hyperedges of a hypergraph, clusters, containment. Membership is
 many-to-many and independent of groups: a node listed in two sets lies in their overlap,
-which is painted in the product of the two tints (the fills are opaque, never translucent). Sets are a top-level list (own ID space);
+which is painted in a perceptual mix of the tints (the fills are opaque, never translucent). Sets are a top-level list (own ID space);
 members are node or group IDs (a group stands for its whole frame; `unknown member` is
 `ref/unknown-set-member`, a repeat `ref/duplicate-set-member`). Structured layout only
 (`layout/structured-only` in an auto figure).
@@ -180,6 +180,7 @@ members are node or group IDs (a group stands for its whole frame; `unknown memb
 | `angle` | `shape: ellipse` only (else `ref/set-angle-needs-ellipse`). `auto` turns the ellipse to the members (the smallest area; hugs diagonal members, like a hyperedge around a diagonal row), or degrees clockwise on the page (`rx` runs along it). Both fit the tightest ellipse that keeps `padding` clear of every member, with no 3:1 limit. Omitted: the axis-parallel ellipse above, unchanged |
 | `padding` | room between members and outline (default: the profile's group padding) |
 | `enclose` | `body` (default) fits member bodies and badges; `footprint` also includes their glyphs before adding padding. Larger outlines can cover nearby non-members. |
+| `overlap` | `mix` (default) or `multiply` (legacy). `figure.setOverlap` sets the figure-wide default; a set overrides it. All participating sets contribute, including five or more; if they disagree, `multiply` wins. Unfilled sets do not paint overlaps. At the 1024-region budget, `layout/set-overlap-budget` warns that deeper intersections can omit colors; reduce overlaps or split the figure. |
 | `label`, `labelAt` | outside the outline: `top` (default), `bottom`, `left`, `right`, or beside a diagonal extreme `top-left`, `top-right`, `bottom-left`, `bottom-right`. For a label inside, make a `label` node a member |
 | `tone`, `variant` | the tone's line color draws outline, label and an opaque tint, gray without a tone. Light canvases mix into white; dark canvases mix into the canvas color. `default` tint + outline, `filled` tint, `outlined` outline, `dashed`; `fillOpacity` (0..1) is the tint's strength (0.2 default, 0.28 `filled`), not transparency, so the set looks the same over a panel |
 
@@ -197,7 +198,7 @@ members are node or group IDs (a group stands for its whole frame; `unknown memb
   change `labelAt`. A subset's label inside its superset is fine.
 - The tints are opaque and painted first, then each outline and label on top, so an
   earlier set's outline stays visible under a later set's tint. SVG, PDF and picture PPTX
-  clip each overlap region to its sets and fill it with the product of their tints;
+  clip each overlap region to its sets and fill it with their mixed tint (or their product with `multiply`);
   editable PPTX draws opaque freeforms for the tints and for the overlap polygons (the
   overlap outlines are polygons sampled from the curves), an unfilled freeform for each
   outline and a text box for the label. A tilted ellipse is a path of
