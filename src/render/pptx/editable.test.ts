@@ -4,7 +4,14 @@ import { resolve } from "node:path";
 import { editableCorpus } from "../../../scripts/pptx-validator/editable-corpus";
 import { parseLabel } from "../../core/label/math";
 import { DEFAULT_FONT_SET_ID, getFontSet } from "../../core/theme/fonts";
-import { attribute, childElements, descendants, parseXml, textContent } from "../xml";
+import {
+  attribute,
+  childElements,
+  descendants,
+  parseXml,
+  textContent,
+  type XmlElement,
+} from "../xml";
 import { splitMaskedPath, svgToEditablePptx } from "./editable";
 import { readPptx } from "./testing";
 
@@ -68,11 +75,14 @@ for (const item of corpus)
           const group = all.find((e) => e.name === "p:grpSp" && childElements(e).includes(shape));
           expect(group).toBeDefined();
           if (!group) throw new Error(`Missing waveform group ${element.key}`);
+          // A caption below the frame (#491) is the group's third shape.
+          const captioned = element.labelBelow === true;
           expect(childElements(group).map((e) => e.name)).toEqual([
             "p:nvGrpSpPr",
             "p:grpSpPr",
             "p:sp",
             "p:sp",
+            ...(captioned ? ["p:sp"] : []),
           ]);
           const children = childElements(group).filter((e) => e.name === "p:sp");
           expect(children[0]).toBe(shape);
@@ -94,11 +104,37 @@ for (const item of corpus)
           ]);
           expect(chOff?.attributes).toEqual(off?.attributes);
           expect(chExt?.attributes).toEqual(ext?.attributes);
+          const transformOf = (child: XmlElement) => {
+            const t = [...descendants(child)].find((e) => e.name === "a:xfrm");
+            return t ? childElements(t).map((e) => e.attributes) : undefined;
+          };
+          const frameTransform = transformOf(shape);
+          expect(transformOf(signal)).toEqual(frameTransform);
+          if (!captioned) expect(frameTransform).toEqual([off.attributes, ext.attributes]);
+          // The group spans every child: the frame and signal, and the caption below.
+          const span = (child: XmlElement) => {
+            const t = [...descendants(child)].find((e) => e.name === "a:xfrm");
+            const o = t && childElements(t).find((e) => e.name === "a:off");
+            const e = t && childElements(t).find((e) => e.name === "a:ext");
+            if (!o || !e) throw new Error("Missing transform");
+            const x = Number(attribute(o, "x"));
+            const y = Number(attribute(o, "y"));
+            return { x, y, r: x + Number(attribute(e, "cx")), b: y + Number(attribute(e, "cy")) };
+          };
+          const outer = span(group);
           for (const child of children) {
-            const childTransform = [...descendants(child)].find((e) => e.name === "a:xfrm");
-            expect(
-              childTransform && childElements(childTransform).map((e) => e.attributes),
-            ).toEqual([off.attributes, ext.attributes]);
+            const inner = span(child);
+            expect(inner.x).toBeGreaterThanOrEqual(outer.x);
+            expect(inner.y).toBeGreaterThanOrEqual(outer.y);
+            expect(inner.r).toBeLessThanOrEqual(outer.r);
+            expect(inner.b).toBeLessThanOrEqual(outer.b);
+          }
+          if (captioned) {
+            const caption = children[2];
+            if (!caption) throw new Error("Missing waveform caption");
+            const name = [...descendants(caption)].find((e) => e.name === "p:cNvPr");
+            expect(name && attribute(name, "name")).toBe(`${element.key} label`);
+            expect(span(caption).y).toBeGreaterThanOrEqual(span(shape).b);
           }
           // Glued edges must keep referring to the frame inside the group.
           expect(names.get(element.key)).toBe(

@@ -21,7 +21,7 @@ import {
   edgeArrowheadLength,
   WIRE_CORNER_RADIUS,
 } from "../../layout/route/arrowhead";
-import { captionGap } from "../../layout/text";
+import { captionGap, LINE_HEIGHT } from "../../layout/text";
 import { type Point, type Rect, unitsToMm, unitsToPt } from "../../render/geometry";
 import type { ProfileLimits } from "../../render/inspect";
 import { printedSize } from "../../render/size";
@@ -552,22 +552,27 @@ export const labelOverflow = defineGeometryRule({
     for (const element of context.elements) {
       const { labelArea, bbox } = element;
       if (element.ir.kind === "node" && element.ir.labelBelow && bbox !== undefined) {
-        // A caption below its frame (#491) keeps its gap (0.3 em) to the frame.
-        const covered = element.labels.some((l) =>
-          l.visibleLines.some(
-            (line) =>
-              line.y <
-                bbox.y +
-                  bbox.height +
-                  captionGap(l.label.fontSizeUnits) -
-                  GEOMETRY_TOLERANCE_UNITS &&
-              line.x < bbox.x + bbox.width &&
-              line.x + line.width > bbox.x,
-          ),
-        );
+        // A caption below its frame (#491): its first line box starts at least
+        // captionGap() (0.3 em) below the frame, and the caption is centred under it.
+        const caption = element.labels[0];
+        const first = caption?.lines[0];
+        const covered =
+          caption !== undefined &&
+          first !== undefined &&
+          caption.box !== undefined &&
+          (() => {
+            const lineHeight = Math.max(caption.label.fontSizeUnits * LINE_HEIGHT, first.height);
+            const lineTop = first.y - (lineHeight - first.height) / 2;
+            const gap = captionGap(caption.label.fontSizeUnits);
+            const centre = caption.box.x + caption.box.width / 2;
+            return (
+              lineTop < bbox.y + bbox.height + gap - GEOMETRY_TOLERANCE_UNITS ||
+              Math.abs(centre - (bbox.x + bbox.width / 2)) > GEOMETRY_TOLERANCE_UNITS
+            );
+          })();
         if (covered)
           findings.push({
-            message: `The caption of ${element.name} is closer to its frame than its gap (0.3 em) or overlaps it; it is drawn below the frame.`,
+            message: `The caption of ${element.name} is not centred below its frame with a gap of at least 0.3 em between the frame and its line box.`,
             path: labelPath(element),
             subject: element.subject,
             hint: "Report the figure: the layout places the caption under the frame.",

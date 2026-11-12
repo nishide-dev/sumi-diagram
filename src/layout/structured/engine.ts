@@ -1025,20 +1025,20 @@ class StructuredLayout {
    * line box {@link captionGap} below it.
    */
   #decorations(node: NodeIR, body: Rect): Rect[] {
+    const caption = this.#captionRect(node, body);
+    return [...decorationRects(node, body), ...(caption === undefined ? [] : [caption])];
+  }
+
+  /** The box of a node's caption below its frame (#491), `body` being the frame. */
+  #captionRect(node: NodeIR, body: Rect): Rect | undefined {
     const caption = this.#captions.get(node.key);
-    return [
-      ...decorationRects(node, body),
-      ...(caption === undefined
-        ? []
-        : [
-            {
-              x: body.x + (body.width - caption.width) / 2,
-              y: body.y + body.height + caption.gap,
-              width: caption.width,
-              height: caption.height,
-            },
-          ]),
-    ];
+    if (caption === undefined) return undefined;
+    return {
+      x: body.x + (body.width - caption.width) / 2,
+      y: body.y + body.height + caption.gap,
+      width: caption.width,
+      height: caption.height,
+    };
   }
 
   #attachedRects(container: Container, rects: Map<ElementKey, Rect>): Rect[] {
@@ -1090,7 +1090,16 @@ class StructuredLayout {
     }
 
     // Set enclosures (#407) are fitted around the placed members; the canvas holds them and their labels.
-    const fitted = fitSets(this.#ir, (key) => this.#rect(key), this.#measurer, this.#groupPadding);
+    const fitted = fitSets(
+      this.#ir,
+      (key) => this.#rect(key),
+      this.#measurer,
+      this.#groupPadding,
+      (key) => {
+        const node = this.#nodes.get(key);
+        return node === undefined ? undefined : this.#captionRect(node, this.#rect(key));
+      },
+    );
     const setBoxes = fitted.flatMap(({ rect, label }) => [
       rect,
       ...(label === undefined
