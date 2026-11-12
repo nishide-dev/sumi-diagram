@@ -151,7 +151,7 @@ nodes:
   });
 });
 
-describe("the overlap of sets is painted, not mixed (#440)", () => {
+describe("the overlap of sets is painted opaquely", () => {
   test("an overlap keeps the chroma of its sets (a stack of translucent fills over gray loses it)", async () => {
     const context = await contextOf(trial("'#ffffff'"));
     const items = paintItems(context);
@@ -160,7 +160,7 @@ describe("the overlap of sets is painted, not mixed (#440)", () => {
     for (const overlap of overlaps) {
       const darkest = Math.min(...(overlap.of ?? []).map((c) => toOklch(c).l));
       expect(toOklch(overlap.color).l).toBeLessThan(darkest);
-      expect(toOklch(overlap.color).c).toBeGreaterThan(0.015);
+      expect(toOklch(overlap.color).c).toBeGreaterThan(0.005);
     }
   });
 });

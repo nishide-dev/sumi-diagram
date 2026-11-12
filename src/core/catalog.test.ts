@@ -233,6 +233,7 @@ describe("sets section (#407)", () => {
     expect(catalog.sets?.labelAt).toContain("top-left");
     expect(Object.keys(catalog.sets?.schema.properties ?? {})).toEqual([
       "id",
+      "overlap",
       "label",
       "members",
       "enclose",

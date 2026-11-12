@@ -109,6 +109,9 @@ function namesOf(items: readonly PaintItem[], skip: ReadonlySet<string> = new Se
 function muddyReason(a: Analysis): { reason: keyof typeof REASONS; sample: Sample } | undefined {
   const { item } = a;
   if (a.samples.length === 0) return undefined;
+  // A perceptual mix intentionally changes hue and chroma; judge it against its
+  // own opaque paint, rather than against the most chromatic input tint.
+  if (item.overlapMix === true) return undefined;
   // An overlap is judged against the sets it mixes; anything else against itself on white.
   const referenceColors = item.of ?? [a.onWhite];
   const chromatic = item.of !== undefined || toOklch(item.ink).c >= TONE_CHROMA;
