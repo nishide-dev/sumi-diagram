@@ -31,7 +31,9 @@ Required props: `html` and `viewport: <W>x<H>` in CSS px (each side at most
 2048, at most 2,097,152 pixels). Optional `width`, `height` (one missing keeps
 the viewport's aspect ratio; neither means natural size, 0.75pt per CSS px
 rounded to 0.5pt), `fit: contain|cover|fill` (as for images) and variants
-`default|framed`. Use it as a standalone leaf or with `group:` inside a
+`default|framed`. The framed border follows the root element's measured bounds and `border-radius`
+(including individual corners), transformed and clipped with the image fit; without a radius it is square. A root that is an inline element (`span`, `b`, `i`) has no box of its own, so its frame follows the whole viewport: give a framed card a `div` root.
+A node's tone remains visible behind transparent HTML. Use it as a standalone leaf or with `group:` inside a
 container; never put `props.html` on `image`.
 
 ## What is accepted

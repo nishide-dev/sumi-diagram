@@ -34,7 +34,10 @@ import { createHash } from "node:crypto";
 import type { FigureIR, NodeIR } from "../compiler/ir";
 import type { ElementKey } from "../core/check-state";
 import type { Diagnostic, RelatedInformation } from "../core/diagnostics";
+import type { Rect } from "../core/geometry";
 import type { Result } from "../core/result";
+import { parseHtml } from "./html";
+import type { HtmlMeasurement } from "./html-measure";
 import { iconLicense, iconSet, iconSvg } from "./icons";
 import { readAssetFile, srcProblem } from "./paths";
 import {
@@ -73,6 +76,7 @@ export interface LoadedImage {
   href: string;
   /** The node's box in units: the written size, completed from the aspect ratio. */
   size?: { width: number; height: number };
+  htmlRootBox?: Rect;
 }
 
 export type LoadedAsset = LoadedIcon | LoadedImage;
@@ -100,6 +104,7 @@ export interface FigureAssets {
 export interface LoadAssetsOptions {
   /** Generated HTML artwork, normalized by the bundled usvg engine. */
   htmlSvgs?: ReadonlyMap<ElementKey, string>;
+  htmlMeasurements?: ReadonlyMap<ElementKey, HtmlMeasurement>;
   /** The directory image paths are relative to: the figure's YAML file's directory. */
   base?: string;
 }
@@ -314,7 +319,22 @@ export function loadFigureAssets(
             ? `inline-svg ${node.id} ${digest}\n`
             : `image ${image.src} ${digest}\n`,
       );
-    nodes.set(node.key, { ...loaded.asset, size });
+    const root =
+      image.html === undefined
+        ? undefined
+        : parseHtml(image.html).tokens.find((t) => t.kind === "open");
+    const rootBox =
+      root?.kind === "open"
+        ? options.htmlMeasurements
+            ?.get(node.key)
+            ?.boxes.slice(1)
+            .find((entry) => entry.offset === root.offset)?.box
+        : undefined;
+    nodes.set(node.key, {
+      ...loaded.asset,
+      size,
+      ...(rootBox && { htmlRootBox: rootBox }),
+    });
   }
 
   if (diagnostics.length > 0) return { ok: false, diagnostics };
