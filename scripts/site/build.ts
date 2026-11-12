@@ -14,6 +14,7 @@ import {
   toneSample,
 } from "../gallery/samples";
 import { componentData, exampleMetadata, optionData, sampleSource } from "./data";
+import { readmeHtml } from "./readme";
 
 const out = "dist/site";
 const components = componentSamples();
@@ -75,6 +76,15 @@ for (const example of examples)
   );
 const data = {
   version,
+  home: {
+    en: await readmeHtml(await Bun.file("README.md").text(), "README.md", process.cwd(), out),
+    ja: await readmeHtml(
+      await Bun.file("docs/README-ja.md").text(),
+      "docs/README-ja.md",
+      process.cwd(),
+      out,
+    ),
+  },
   themes: THEMES,
   palettes: PALETTE_NAMES.map((id) => ({ id, colors: getPalette(id)?.colors })),
   components: components.map(componentData),

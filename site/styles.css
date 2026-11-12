@@ -27,6 +27,99 @@
   --radius: 0.3125rem;
   --container: 72rem;
 }
+
+#page-home {
+  max-width: 62rem;
+  overflow-wrap: anywhere;
+}
+#page-home h2 {
+  border-top: 1px solid var(--rule);
+  margin: 3rem 0 1rem;
+  padding-top: 1rem;
+  font: 500 1rem var(--font-mono);
+}
+#page-home h3,
+#page-home h4 {
+  font-family: var(--font-mono);
+  font-weight: 500;
+}
+#page-home a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+#page-home table {
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+  max-width: 100%;
+  margin: 1.5rem 0;
+}
+#page-home th,
+#page-home td {
+  border-bottom: 1px solid var(--rule);
+  padding: 0.65rem;
+  text-align: left;
+  vertical-align: top;
+}
+#page-home th {
+  font: 500 var(--text-micro) var(--font-mono);
+}
+#page-home img {
+  max-width: 100%;
+  height: auto;
+}
+#page-home td img {
+  background: var(--plate);
+}
+#page-home code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+#page-home :not(pre) > code {
+  background: var(--muted);
+  padding: 0.1em 0.25em;
+}
+#page-home .readme-code {
+  position: relative;
+  margin: 1rem 0;
+}
+#page-home pre {
+  background: var(--card);
+  border: 1px solid var(--rule);
+  padding: 2.75rem 1rem 1rem;
+  overflow-x: auto;
+  line-height: 1.6;
+}
+#page-home .readme-code button {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+}
+#page-home details {
+  border-block: 1px solid var(--rule);
+  padding: 0.75rem 0;
+}
+#page-home summary {
+  cursor: pointer;
+  font-family: var(--font-mono);
+}
+#page-home .readme-dark {
+  display: none;
+}
+:root[data-theme="dark"] #page-home .readme-dark {
+  display: inline;
+}
+:root[data-theme="dark"] #page-home .readme-light {
+  display: none;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) #page-home .readme-dark {
+    display: inline;
+  }
+  :root:not([data-theme="light"]) #page-home .readme-light {
+    display: none;
+  }
+}
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --background: var(--brand-navy);

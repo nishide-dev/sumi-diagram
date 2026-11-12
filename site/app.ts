@@ -1,5 +1,5 @@
 import { descriptionHtml } from "./description";
-import { HOME, PH, T } from "./i18n";
+import { PH, T } from "./i18n";
 import {
   AGENTS,
   buildPrompt,
@@ -231,51 +231,22 @@ document.addEventListener("click", (e) => {
 });
 
 /* ---------- home (README) ---------- */
-const GH = "https://github.com/nishide-dev/sumi-diagram/blob/main/";
-const INSTALL =
-  "curl -fsSL https://raw.githubusercontent.com/nishide-dev/sumi-diagram/main/install.sh | sh";
-const SKILL = "npx skills add nishide-dev/sumi-diagram --skill sumi -a claude-code -y";
-const HELLO = `version: 1
-figure:
-  id: hello
-  layout:
-    direction: down
-nodes:
-  - { id: input, component: box, label: Input }
-  - { id: output, component: box, label: Output }
-edges:
-  - { from: input, to: output }`;
-const RUN = `sumi fmt hello.sumi.yaml
-sumi lint hello.sumi.yaml
-sumi render hello.sumi.yaml                 # writes hello.svg
-sumi render hello.sumi.yaml -o hello.pdf    # writes a vector PDF`;
-const SNIP = { install: INSTALL, skill: SKILL, hello: HELLO, run: RUN };
-function cmd(key: keyof typeof SNIP, yaml = false) {
-  return `<div class="cmd"><pre>${yaml ? highlightYaml(SNIP[key], false) : esc(SNIP[key])}</pre><button type="button" class="copy-sm" data-snip="${key}">${ICON.copy}${t("copy")}</button></div>`;
-}
 function renderHome() {
-  const H = HOME[state.ui];
-  const shown = ["transformer", "dit-block", "embedding-gemma", "clip"]
-    .map((s) => DATA?.examples.find((x) => x.slug === s))
-    .filter((x) => x !== undefined);
-  $("page-home").innerHTML = `
-    <h2 class="tagline">${H.tagline}</h2>
-    <p class="intro">${H.intro}</p>
-    <div class="hero-cmd">${cmd("install")}</div>
-    <nav class="go">${H.go.map(([h, l]) => `<a href="${h}">${l}</a>`).join("")}</nav>
-    <div class="figs4">${shown.map((x) => `<figure><div class="stage fixed"><img loading="lazy" src="./examples/${x.slug}.svg" alt="${esc(x.title)}"></div><figcaption class="meta">${esc(x.title.split(" (")[0])}</figcaption></figure>`).join("")}</div>
-    <div class="hrow"><span class="label">${H.install}</span><div class="body"><p>${H.installText}</p>${cmd("install")}<p class="sub">${H.installMore}</p></div></div>
-    <div class="hrow"><span class="label">${H.quick}</span><div class="body"><p>${H.quickText}</p>${cmd("hello", true)}${cmd("run")}<p class="sub">${H.quickOut}</p></div></div>
-    <div class="hrow"><span class="label">${H.features}</span><div class="body"><ul class="feat">${H.feats.map(([a, b]) => `<li><b style="font-weight:500">${a}</b><span>${b}</span></li>`).join("")}</ul></div></div>
-    <div class="hrow"><span class="label">${H.claude}</span><div class="body"><p>${H.claudeText}</p>${cmd("skill")}</div></div>
-    <div class="hrow"><span class="label">${H.docs}</span><div class="body"><ul class="docs">${H.docLinks.map(([l, h]) => `<li><a class="ext" href="${GH}${h}" target="_blank" rel="noreferrer">${l} ↗</a></li>`).join("")}</ul></div></div>
-    <div class="hrow"><span class="label">${H.license}</span><div class="body"><p class="sub">${H.licenseText}</p></div></div>`;
+  if (!DATA) return;
+  $("page-home").innerHTML = DATA.home[state.ui];
+  for (const pre of $("page-home").querySelectorAll("pre")) {
+    const wrap = document.createElement("div");
+    wrap.className = "readme-code";
+    pre.before(wrap);
+    wrap.append(pre);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "copy-sm";
+    button.innerHTML = `${ICON.copy}${t("copy")}`;
+    button.onclick = () => copyText(pre.textContent ?? "", button, "copy");
+    wrap.append(button);
+  }
 }
-document.addEventListener("click", (e) => {
-  const b = e.target instanceof Element ? e.target.closest<HTMLElement>("[data-snip]") : null;
-  const key = b?.dataset.snip;
-  if (b && key && key in SNIP) copyText(SNIP[key as keyof typeof SNIP], b, "copy");
-});
 
 /* ---------- examples ---------- */
 function renderExamples() {
