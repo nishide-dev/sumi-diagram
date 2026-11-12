@@ -54,6 +54,22 @@ const first = (definition: unknown, options?: ValidateThemeOptions) => {
   return diagnostic;
 };
 
+describe("theme canvas", () => {
+  test("defaults to white and resolves a color token", () => {
+    expect(valid(theme()).canvas).toBe("#ffffff");
+    expect(
+      valid(theme({ canvas: "{color.ground}", tokens: { color: { ground: "#30364f" } } })).canvas,
+    ).toBe("#30364f");
+    for (const builtin of BUILTIN_THEMES.values()) expect(builtin.canvas).toBe("#ffffff");
+  });
+
+  test("rejects transparent, invalid and unknown canvas colors", () => {
+    for (const canvas of ["transparent", "not-a-color", "{color.missing}"]) {
+      expect(validateTheme(theme({ canvas })).ok).toBe(false);
+    }
+  });
+});
+
 describe("font sets", () => {
   test("the built-in font sets are registered by ID with existing absolute TTF paths", () => {
     expect([...BUILTIN_FONT_SETS.keys()]).toEqual(["sumi/biz-ud-gothic", LATIN_FONT_SET_ID]);

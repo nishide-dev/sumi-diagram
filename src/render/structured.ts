@@ -481,6 +481,7 @@ export function drawArrowhead(
   u: Point,
   edge: EdgeIR,
   groups: readonly PaintedGroup[] = [],
+  canvas = CANVAS_FILL,
 ): string {
   if (head === "none") return "";
   const { style } = edge;
@@ -490,7 +491,7 @@ export function drawArrowhead(
     y: tip.y - u.y * along + u.x * across,
   });
   const color = paint(style.stroke);
-  const fill = style.filled ? color : backgroundAt(at(length / 2, 0), groups);
+  const fill = style.filled ? color : backgroundAt(at(length / 2, 0), groups, canvas);
   const outline = style.filled
     ? ` fill="${fill}" stroke="none"`
     : ` fill="${fill}" stroke="${color}" stroke-width="${n(style.strokeWidth.units)}" stroke-linejoin="miter"`;
@@ -958,7 +959,11 @@ function over(top: string, alpha: number, bottom: string): string {
  * The color painted beneath an edge label (#170, design doc §6.41): the
  * color beneath the label box's center (`backgroundAt()`).
  */
-export function labelBackground(box: Rect, groups: readonly PaintedGroup[]): string {
+export function labelBackground(
+  box: Rect,
+  groups: readonly PaintedGroup[],
+  canvas = CANVAS_FILL,
+): string {
   // A set's tint (#407) has a curved edge: only a label wholly inside it gets the tinted
   // background; one that straddles the boundary keeps the colour beneath its other paint.
   const corners: Point[] = [
@@ -970,7 +975,7 @@ export function labelBackground(box: Rect, groups: readonly PaintedGroup[]): str
   const usable = groups.filter(
     (g) => g.inside === undefined || corners.every((p) => g.inside?.(p) === true),
   );
-  return backgroundAt({ x: box.x + box.width / 2, y: box.y + box.height / 2 }, usable);
+  return backgroundAt({ x: box.x + box.width / 2, y: box.y + box.height / 2 }, usable, canvas);
 }
 
 /**
@@ -987,8 +992,12 @@ export function labelBackground(box: Rect, groups: readonly PaintedGroup[]): str
  * placed off node boxes, and one left on a node is reported by
  * `geometry/label-collision`; an arrowhead lies outside the node it points at.
  */
-export function backgroundAt({ x: cx, y: cy }: Point, groups: readonly PaintedGroup[]): string {
-  let color = CANVAS_FILL;
+export function backgroundAt(
+  { x: cx, y: cy }: Point,
+  groups: readonly PaintedGroup[],
+  canvas = CANVAS_FILL,
+): string {
+  let color = canvas;
   for (const { rect, fill, opacity, inside } of groups) {
     if (fill === "transparent" || opacity <= 0) continue;
     if (cx < rect.x || cx > rect.x + rect.width || cy < rect.y || cy > rect.y + rect.height)
@@ -1004,6 +1013,7 @@ function edgeGroup(
   points: readonly Point[],
   layoutLabel: TextLayout | undefined,
   groups: readonly PaintedGroup[],
+  canvas: string,
 ): string {
   const { style } = edge;
   const width = style.strokeWidth.units;
@@ -1017,6 +1027,7 @@ function edgeGroup(
       unit(points[points.length - 2] as Point, last),
       edge,
       groups,
+      canvas,
     ) +
     drawArrowhead(
       edge.sourceArrowhead ?? "none",
@@ -1024,6 +1035,7 @@ function edgeGroup(
       unit(points[1] as Point, first),
       edge,
       groups,
+      canvas,
     );
   let labelSvg = "";
   if (layoutLabel !== undefined) {
@@ -1035,7 +1047,7 @@ function edgeGroup(
     const background =
       style.fill === "transparent"
         ? ""
-        : `<rect x="${n(box.x - 1)}" y="${n(box.y - 1)}" width="${n(box.width + 2)}" height="${n(box.height + 2)}" fill="${labelBackground(box, groups)}"/>`;
+        : `<rect x="${n(box.x - 1)}" y="${n(box.y - 1)}" width="${n(box.width + 2)}" height="${n(box.height + 2)}" fill="${labelBackground(box, groups, canvas)}"/>`;
     labelSvg = background + label(layoutLabel, style.fontColor);
   }
   return `<g class="${elementClass(edge.key)} sumi-kind-edge"${opacity(style)}>${connection}${heads}${labelSvg}</g>`;
@@ -1089,6 +1101,7 @@ export function writeStructuredSvg(
   const builtin = getTheme(ir.meta.themeId);
   // Inline tone runs take the figure's tone colors (#380).
   const theme = builtin && figureTheme(builtin, ir.meta.themeOverrides);
+  const canvas = theme?.canvas ?? CANVAS_FILL;
   // A coloured run keeps its tone's line color on white and on its own tone's tint (#186); inside
   // a node of another fill (a red node's \textcolor{yellow}{…}) it darkens until it reads at
   // 4.5:1 there (#465).
@@ -1211,7 +1224,7 @@ export function writeStructuredSvg(
       body.push(zoomGroup(edge, lines));
       continue;
     }
-    body.push(edgeGroup(edge, points, colored(placed.route?.label, edge), painted));
+    body.push(edgeGroup(edge, points, colored(placed.route?.label, edge), painted, canvas));
     useText(placed.route?.label);
   }
   const drawing = body.join("");
@@ -1228,7 +1241,7 @@ export function writeStructuredSvg(
     '<?xml version="1.0" encoding="utf-8"?>' +
     `<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMin meet" viewBox="${viewBox}">` +
     `<svg class="${attr(id)} d2-svg" width="${width}" height="${height}" viewBox="${viewBox}">` +
-    `<rect x="0" y="0" width="${width}" height="${height}" fill="${CANVAS_FILL}"/>` +
+    `<rect x="0" y="0" width="${width}" height="${height}" fill="${canvas}"/>` +
     style +
     drawing +
     "</svg></svg>"
