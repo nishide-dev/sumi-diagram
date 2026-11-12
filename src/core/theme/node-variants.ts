@@ -6,6 +6,7 @@ import type { StyleLayer } from "./style";
 
 /** Derive warm paints only from chromatic tones, preserving monochrome themes. */
 export function warmTones(theme: Theme, palettePanel?: string): Theme {
+  if (luminance(theme.canvas) < 0.2) return theme;
   const lines = new Map(theme.toneLines);
   const solids = new Map<"yellow" | "orange", { fill: string; text: string }>();
   for (const tone of ["yellow", "orange"] as const) {

@@ -369,6 +369,125 @@ function llamaComponents(): NonNullable<ThemeDefinition["components"]> {
   };
 }
 
+function sumiTheme(dark: boolean): ThemeDefinition {
+  const canvas = dark ? "#30364f" : "#f8f8ee";
+  const text = dark ? "#f0f0db" : "#30364f";
+  const muted = dark ? "#acbac4" : "#4e566b";
+  const panel = dark ? "#383f58" : "#efeddd";
+  const shade = dark ? "#3e4661" : "#e1d9bc";
+  const fills = dark
+    ? {
+        gray: "#454d64",
+        red: "#65454d",
+        orange: "#654b40",
+        yellow: "#5a543b",
+        green: "#3e574b",
+        blue: "#3e5068",
+        purple: "#514862",
+        pink: "#604653",
+      }
+    : {
+        gray: "#e1dece",
+        red: "#efd8d0",
+        orange: "#efdfce",
+        yellow: "#eee7c9",
+        green: "#dce7d3",
+        blue: "#d9e4e6",
+        purple: "#e2dce9",
+        pink: "#eedde2",
+      };
+  const inks = dark
+    ? {
+        gray: "#c4cbd0",
+        red: "#f0bdb5",
+        orange: "#f1c6a7",
+        yellow: "#e8d9a3",
+        green: "#b9d5b8",
+        blue: "#b9d0e5",
+        purple: "#d1c2e5",
+        pink: "#e8c1d1",
+      }
+    : {
+        gray: "#4e566b",
+        red: "#813f40",
+        orange: "#814b2d",
+        yellow: "#6f5a24",
+        green: "#426344",
+        blue: "#3d5d77",
+        purple: "#5f4f78",
+        pink: "#814b66",
+      };
+  return {
+    version: 1,
+    id: dark ? "sumi-dark" : "sumi",
+    description: dark
+      ? "Navy canvas with cream ink and sand accents"
+      : "Warm cream canvas with navy ink and sand accents",
+    canvas,
+    fonts: DEFAULT_FONT_SET_ID,
+    tokens: {
+      size: { text: "8pt", small: "7pt", heading: "9pt" },
+      line: { regular: "1pt", bold: "2pt" },
+      dash: { regular: 4 },
+    },
+    base: {
+      node: {
+        fill: canvas,
+        stroke: text,
+        strokeWidth: "{line.regular}",
+        fontSize: "{size.text}",
+        fontColor: text,
+      },
+      group: {
+        fill: panel,
+        stroke: muted,
+        strokeWidth: "{line.regular}",
+        fontSize: "{size.heading}",
+        fontColor: text,
+        bold: true,
+      },
+      edge: {
+        fill: canvas,
+        stroke: text,
+        strokeWidth: "{line.regular}",
+        fontSize: "{size.small}",
+        fontColor: text,
+        filled: true,
+      },
+    },
+    components: componentStyles({
+      shape: {
+        emphasis: {
+          fill: dark ? "#e1d9bc" : "#30364f",
+          stroke: dark ? "#e1d9bc" : "#30364f",
+          fontColor: dark ? "#30364f" : "#f8f8ee",
+          bold: true,
+        },
+        muted: { stroke: muted, fontColor: muted },
+        filled: filledNode(fills.gray),
+        outlined: outlinedNode(canvas, inks.gray),
+      },
+      label: { default: { fill: "transparent", strokeWidth: "0pt" }, muted: { fontColor: muted } },
+      junction: junctionStyles(text, muted),
+      container: {
+        muted: { fill: shade, stroke: muted, fontColor: muted },
+        ...outlineVariants(shade),
+      },
+      legend: legendStyles(canvas, muted),
+      edge: {
+        dashed: { strokeDash: "{dash.regular}" },
+        emphasis: { stroke: dark ? "#e1d9bc" : text, strokeWidth: "{line.bold}" },
+        muted: { stroke: muted, fontColor: muted },
+      },
+    }),
+    tones: Object.fromEntries(
+      Object.entries(fills).map(([tone, fill]) => [tone, { fill }]),
+    ) as Record<Tone, StyleLayerInput>,
+    toneLines: toneLines(inks),
+    dim: { fontColor: muted, stroke: muted, lighten: dark ? 0 : 0.3 },
+  };
+}
+
 export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
   {
     version: 1,
@@ -924,6 +1043,8 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
     toneLines: toneLines(toneTokens("ink")),
     dim: { fontColor: "#9aa5ae", stroke: "#9aa5ae", lighten: 0.5 },
   },
+  sumiTheme(false),
+  sumiTheme(true),
 ];
 
 /** Built-in themes by ID, validated once at load against the built-in components. */

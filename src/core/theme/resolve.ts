@@ -26,7 +26,7 @@ import { FLOW_ARROW_IDS, OPERATOR_SIZES, SEPARATOR_ID } from "../registry/builti
 import type { ComponentId, ComponentKind } from "../registry/manifest";
 import { resolveTheme } from "./builtin";
 import { dimmedElements, dimStyle } from "./dim";
-import { contrastRatio as contrast, filledToneNode, readableInk } from "./node-variants";
+import { contrastRatio as contrast, filledToneNode, luminance, readableInk } from "./node-variants";
 import { figureTheme } from "./overrides";
 import type { Theme, ToneOverride } from "./schema";
 import { withRadius, withStrokes } from "./strokes";
@@ -150,6 +150,21 @@ export function resolveStyle<K extends ComponentKind>(
         line.fontColor !== line.stroke
       )
         filled = { ...filled, stroke: line.stroke, fontColor: line.fontColor };
+    }
+    if (
+      filled !== undefined &&
+      luminance(theme.canvas) < 0.2 &&
+      theme.toneOverrides === undefined
+    ) {
+      if (variant === "solid" && ink !== undefined) {
+        filled = {
+          fill: ink,
+          stroke: id === "sumi/stack" ? theme.canvas : ink,
+          fontColor: theme.canvas,
+        };
+      } else if (variant === "tinted" && fill !== undefined && ink !== undefined) {
+        filled = { fill, stroke: ink, fontColor: theme.base.node.fontColor ?? "#f0f0db" };
+      }
     }
     let paint = overriddenTone(filled, variant, theme.toneOverrides?.get(tone ?? "gray"));
     const solidFill = variant === "solid" ? theme.solidFillOverrides?.[tone ?? "gray"] : undefined;
