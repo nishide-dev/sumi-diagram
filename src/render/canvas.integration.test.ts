@@ -39,21 +39,36 @@ edges:
     if (!pdf.ok || !opaquePdf.ok) throw new Error("PDF conversion failed");
     const transparentPaint = pdfStreams(pdf.value);
     const opaquePaint = pdfStreams(opaquePdf.value);
-    // The canvas colour also paints edge-label knockouts and must survive.
-    const canvasColor = /0\.\d+ 0\.\d+ 0\.\d+ rg/g;
-    expect(transparentPaint.match(canvasColor)?.length).toBeGreaterThan(0);
-    expect(opaquePaint.length).toBeGreaterThan(transparentPaint.length);
+    // Exactly one canvas-coloured paint (the outer canvas) is gone; the label knockouts and
+    // canvas-coloured node fills keep theirs.
+    const canvasPaint = /0\.1882353 0\.21176471 0\.30980393 rg/g;
+    const opaqueCount = opaquePaint.match(canvasPaint)?.length ?? 0;
+    expect(opaqueCount).toBeGreaterThan(1);
+    expect(transparentPaint.match(canvasPaint)?.length ?? 0).toBe(opaqueCount - 1);
+    expect(firstFill(opaquePdf.value)).toEqual([0.1882, 0.2118, 0.3098]);
     const picture = svgToPptx(transparent.value.svg);
     const editable = svgToEditablePptx(transparent.value.svg, transparent.value.compiled.ir);
-    if (!picture.ok || !editable.ok) throw new Error("PPTX conversion failed");
+    const opaqueEditable = svgToEditablePptx(normal.value.svg, normal.value.compiled.ir);
+    if (!picture.ok || !editable.ok || !opaqueEditable.ok)
+      throw new Error("PPTX conversion failed");
     const media = readPptx(picture.value);
-    const svg = new TextDecoder().decode(media.get("ppt/media/figure.svg"));
-    expect(svg).toContain("<path");
-    expect(svg).not.toContain('<rect width="100%" height="100%"');
-    expect(media.get("ppt/media/figure.png")?.length).toBeGreaterThan(100);
-    const slide = new TextDecoder().decode(readPptx(editable.value).get("ppt/slides/slide1.xml"));
-    expect(slide).toContain("Hello");
-    expect(slide).toContain("World");
+    // The picture is the transparent SVG itself and its PNG fallback is see-through at the corner.
+    const embedded = new TextDecoder().decode(media.get("ppt/media/figure.svg"));
+    const canvasFills = (svg: string) => svg.match(/fill="#30364f"/gi)?.length ?? 0;
+    expect(embedded).not.toMatch(
+      /<rect x="0" y="0" width="[\d.]+" height="[\d.]+" fill="#30364f"/i,
+    );
+    expect(canvasFills(embedded)).toBe(canvasFills(transparent.value.svg));
+    expect(canvasFills(embedded)).toBeGreaterThan(0);
+    const png = media.get("ppt/media/figure.png");
+    if (png === undefined) throw new Error("missing PNG");
+    expect(pngCornerAlpha(png)).toBe(0);
+    // The editable slide keeps every shape and colour of the opaque one.
+    const slide = (pptx: Uint8Array) =>
+      new TextDecoder().decode(readPptx(pptx).get("ppt/slides/slide1.xml"));
+    const colours = (xml: string) =>
+      [...xml.matchAll(/srgbClr val="([0-9A-F]{6})"/g)].map((m) => m[1]).sort();
+    expect(colours(slide(editable.value))).toEqual(colours(slide(opaqueEditable.value)));
     for (const result of [picture, editable]) {
       if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
       const master = new TextDecoder().decode(
@@ -175,5 +190,28 @@ edges:
   // The PDF paints the panel, the set and the nodes but no full-page canvas first.
   const pdf = svgToPdf(transparent.value.svg);
   if (!pdf.ok) throw new Error("PDF conversion failed");
-  expect(firstFill(pdf.value)).not.toEqual([0.1882, 0.2118, 0.3098]);
+  const first = firstFill(pdf.value);
+  expect(first).toBeDefined();
+  expect(first).not.toEqual([0.1882, 0.2118, 0.3098]);
 });
+
+/** Alpha of the top-left pixel of an 8-bit RGBA, non-interlaced PNG. */
+function pngCornerAlpha(png: Uint8Array): number {
+  const view = new DataView(png.buffer, png.byteOffset, png.byteLength);
+  let offset = 8;
+  const idat: Uint8Array[] = [];
+  let colourType = -1;
+  while (offset < png.length) {
+    const length = view.getUint32(offset);
+    const type = new TextDecoder().decode(png.subarray(offset + 4, offset + 8));
+    const data = png.subarray(offset + 8, offset + 8 + length);
+    if (type === "IHDR") colourType = data[9] ?? -1;
+    if (type === "IDAT") idat.push(data);
+    offset += 12 + length;
+  }
+  if (colourType !== 6) throw new Error(`PNG colour type ${colourType}, expected RGBA`);
+  const raw = inflateSync(Buffer.concat(idat));
+  // Row 0: one filter byte, then R G B A of pixel 0 (filters do not change the first pixel's alpha
+  // for None/Sub/Up on row 0, and Average/Paeth add only zero predictors there).
+  return raw[4] ?? -1;
+}

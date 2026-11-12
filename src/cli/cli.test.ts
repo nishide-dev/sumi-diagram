@@ -600,11 +600,15 @@ nodes:
       );
       const metadata = readSvgMetadata(await readFile(join(dir, "background.svg"), "utf8"));
       expect(metadata.ok && metadata.value?.background).toBe(background);
+      // Lint always measures against the theme canvas (#479): the same findings either way.
       const lint = await sumi(["lint", "--geometry", "--json", "background.sumi.yaml", ...args]);
       expect(
         JSON.parse(lint.stdout).results[0].diagnostics.map((d: { code: string }) => d.code),
       ).toContain("geometry/exceeds-page-width");
     }
+    expect(
+      (await sumi(["lint", "--geometry", "background.sumi.yaml", "--background", "none"])).exitCode,
+    ).toBe(2);
     await writeFile(
       join(dir, "invalid-background.sumi.yaml"),
       source.replace("background: transparent", "background: invalid"),
