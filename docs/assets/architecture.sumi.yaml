@@ -41,7 +41,6 @@ groups:
       stack: { gap: 1mm, align: center, items: [ svg, pdf, pptx ] }
 
 nodes:
-  - { id: agent-icon, component: label, icon: tabler/robot, iconSize: 2.4, tone: blue, attach: { to: agent-box, side: west, gap: 2mm } }
   - { id: agent-box, component: box, label: Coding agent, sublabel: "Claude Code · Codex · …", tone: blue, variant: tinted }
   - { id: skill, component: box, label: Sumi Skill, sublabel: "workflow · references", variant: outlined, attach: { to: agent-box, side: north, gap: 2mm } }
   - { id: c-components, component: label, icon: tabler/components, iconSize: 1.8 }
