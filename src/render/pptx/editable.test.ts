@@ -252,3 +252,22 @@ test("editable freeform writes separate arrow segments around a D2 label", () =>
   expect(edges[1]).toContain("<a:tailEnd ");
   expect(edges[1]).not.toContain("<a:headEnd ");
 });
+
+test("glued masked labels use a canvas patch or split transparent edges", () => {
+  const item = corpus.find((c) => c.id === "docs/gallery/components/sumi-double-arrow.minimal");
+  if (!item) throw new Error("missing double arrow");
+  const slideFor = (transparent: boolean) => {
+    const ir = { ...item.ir, meta: { ...item.ir.meta, transparentBackground: transparent } };
+    const result = svgToEditablePptx(item.svg, ir, { connectors: "glued" });
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    return new TextDecoder().decode(readPptx(result.value).get("ppt/slides/slide1.xml"));
+  };
+  const opaque = slideFor(false);
+  expect(opaque).toContain('<a:stCxn ');
+  expect(opaque).toContain('<a:endCxn ');
+  expect(opaque).toMatch(/name="e:#0 label 0"\/>.*?<a:solidFill><a:srgbClr val="FFFFFF"/);
+  const transparent = slideFor(true);
+  expect(transparent).not.toContain('<a:stCxn ');
+  expect(transparent.match(/name="e:#0"\/>/g)).toHaveLength(2);
+  expect(transparent).toMatch(/name="e:#0 label 0"\/>.*?<a:noFill\/>/);
+});

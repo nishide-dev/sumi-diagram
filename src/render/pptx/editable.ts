@@ -1177,12 +1177,13 @@ export function svgToEditablePptx(
       const edgeStroke = ir.meta.themeOverrides?.edgeCorners === "sharp" ? "svg-default" : "round";
       // A zoom edge (#176) is two lines between corners, not a connector
       // between sites: it stays a freeform shape in either mode.
-      if (connectors === "glued" && element.route === "curve") {
+      const splitTransparent = ir.meta.transparentBackground && masks.length > 0;
+      if (connectors === "glued" && element.route === "curve" && !splitTransparent) {
         throw new Error(
           "Curved edges require freeform connectors; glued connectors cannot preserve cubic tangents. Use --pptx-connectors freeform.",
         );
       }
-      if (connectors === "glued" && element.routing !== "zoom") {
+      if (connectors === "glued" && element.routing !== "zoom" && !splitTransparent) {
         if (element.from === element.to)
           throw new Error("Glued self-loops are unsupported; use freeform connectors.");
         const src = objects.get(element.from),
@@ -1225,10 +1226,14 @@ export function svgToEditablePptx(
       }
       const children = childElements(group);
       const texts = children.filter((e) => e.name === "text");
-      // Honor an explicit SVG rectangle; a mask never paints a label fill.
+      // A glued connector cannot be interrupted; hide it on the canvas only.
       const before = children[children.indexOf(texts[0] as XmlElement) - 1];
       const background =
-        before?.name === "rect" ? paint(property(before, "fill") ?? "#ffffff") : "<a:noFill/>";
+        before?.name === "rect"
+          ? paint(property(before, "fill") ?? "#ffffff")
+          : connectors === "glued" && element.routing !== "zoom" && !splitTransparent && masks.length > 0
+            ? paint(canvasColor)
+            : "<a:noFill/>";
       geo.labels.forEach((label, i) => {
         const el = texts[i];
         if (!el) throw new Error("Missing label text");
