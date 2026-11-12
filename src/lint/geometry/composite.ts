@@ -40,7 +40,7 @@ export interface PaintItem {
 const HEX = /^#[0-9a-f]{6}$/i;
 const WHITE = "#ffffff";
 
-function normalized(color: string | undefined): string | undefined {
+export function normalized(color: string | undefined): string | undefined {
   if (color === undefined) return undefined;
   const long = color.replace(/^#([0-9a-f])([0-9a-f])([0-9a-f])$/i, "#$1$1$2$2$3$3").toLowerCase();
   return HEX.test(long) ? long : undefined;
@@ -236,12 +236,23 @@ export function analyze(items: readonly PaintItem[], canvas = WHITE): Analysis[]
 }
 
 const cache = new WeakMap<GeometryContext, Analysis[]>();
+const paintCache = new WeakMap<GeometryContext, PaintItem[]>();
+
+/** Shared paint stack, including the calculated set overlaps. */
+export function paintItemsOf(context: GeometryContext): PaintItem[] {
+  let items = paintCache.get(context);
+  if (items === undefined) {
+    items = paintItems(context);
+    paintCache.set(context, items);
+  }
+  return items;
+}
 
 /** The analysis of the figure's painted fills, once per context. */
 export function analysisOf(context: GeometryContext): Analysis[] {
   let analysis = cache.get(context);
   if (analysis === undefined) {
-    analysis = analyze(paintItems(context), getTheme(context.ir.meta.themeId)?.canvas ?? WHITE);
+    analysis = analyze(paintItemsOf(context), getTheme(context.ir.meta.themeId)?.canvas ?? WHITE);
     cache.set(context, analysis);
   }
   return analysis;

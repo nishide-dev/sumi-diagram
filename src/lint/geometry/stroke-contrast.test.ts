@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import type { ElementIR } from "../../compiler/ir";
 import { compile, lintSpec } from "./testing";
 
 const source = `version: 1
@@ -99,4 +100,117 @@ nodes: [{ id: a, component: box, group: g }]
     { code },
   );
   expect(findings).toEqual([]);
+});
+
+test("transparent frames see preceding fills but not later fills, including short hex", () => {
+  const original = compile(`version: 1
+figure: { id: order, theme: paper }
+nodes:
+  - { id: below, component: box }
+  - { id: frame, component: box }
+  - { id: above, component: box }
+`);
+  const elements = new Map(original.ir.elements);
+  for (const [id, fill, stroke] of [
+    ["below", "#aaa", "#000"],
+    ["frame", "transparent", "#aaa"],
+    ["above", "#fff", "#000"],
+  ]) {
+    const key = `n:${id}` as const;
+    const element = elements.get(key);
+    if (element)
+      elements.set(key, {
+        ...element,
+        style: { ...element.style, fill: fill as string, stroke: stroke as string },
+      } as ElementIR);
+  }
+  const compiled = { ...original, ir: { ...original.ir, elements } };
+  const rect = { x: 0, y: 0, width: 100, height: 100 };
+  const findings = lintSpec(
+    compiled,
+    {
+      elements: {
+        "n:below": { bbox: rect },
+        "n:frame": { bbox: rect },
+        "n:above": { bbox: rect },
+      },
+    },
+    { code },
+  );
+  expect(findings.some((f) => f.subject?.id === "frame" && f.message.includes("#aaaaaa"))).toBe(
+    true,
+  );
+  expect(findings.some((f) => f.subject?.id === "below")).toBe(false);
+});
+
+test("warning requires ten units below 1.5, independently of the info length", () => {
+  const original = compile(`version: 1
+figure: { id: lengths, theme: paper }
+nodes: [{ id: a, component: box }, { id: b, component: box }, { id: patch, component: box }]
+edges: [{ id: e, from: a, to: b }]
+`);
+  const elements = new Map(original.ir.elements);
+  for (const [key, changes] of [
+    ["e:e", { stroke: "#aaa", opacity: 1 }],
+    ["n:patch", { fill: "#aaa" }],
+  ] as const) {
+    const element = elements.get(key);
+    if (element)
+      elements.set(key, { ...element, style: { ...element.style, ...changes } } as ElementIR);
+  }
+  const compiled = { ...original, ir: { ...original.ir, elements } };
+  const run = (length: number, patchWidth: number) =>
+    lintSpec(
+      compiled,
+      {
+        elements: {
+          "n:patch": { bbox: { x: 0, y: 0, width: patchWidth, height: 20 } },
+          "e:e": {
+            path: [
+              { x: 0, y: 10 },
+              { x: length, y: 10 },
+            ],
+          },
+        },
+      },
+      { code },
+    ).filter((f) => f.subject?.id === "e");
+  expect(run(8, 0)).toHaveLength(0);
+  expect(run(12, 0)[0]?.severity).toBe("info");
+  expect(run(100, 4)[0]?.severity).toBe("info");
+  expect(run(100, 12)[0]?.severity).toBe("warning");
+});
+
+test("edge thresholds and intentional dimming", () => {
+  const original = compile(`version: 1
+figure: { id: thresholds, theme: paper }
+nodes: [{ id: a, component: box }, { id: b, component: box }]
+edges: [{ id: e, from: a, to: b }]
+`);
+  const spec = {
+    elements: {
+      "e:e": {
+        path: [
+          { x: 0, y: 0 },
+          { x: 40, y: 0 },
+        ],
+      },
+    },
+  };
+  const run = (stroke: string, dimmed = false) => {
+    const elements = new Map(original.ir.elements);
+    const edge = elements.get("e:e");
+    if (edge?.kind !== "edge") throw new Error("missing edge");
+    elements.set("e:e", { ...edge, style: { ...edge.style, stroke } } as ElementIR);
+    return lintSpec(
+      { ...original, ir: { ...original.ir, elements, dimmed: dimmed ? ["e:e"] : [] } },
+      spec,
+      { code },
+    );
+  };
+  expect(run("#949494")).toHaveLength(0);
+  expect(run("#959595")[0]?.severity).toBe("info");
+  expect(run("#d2d2d2")[0]?.severity).toBe("info");
+  expect(run("#d3d3d3")[0]?.severity).toBe("warning");
+  expect(run("#d3d3d3", true)).toHaveLength(0);
 });

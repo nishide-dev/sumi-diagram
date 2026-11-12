@@ -272,4 +272,4 @@ and sparse trial figures (27-32%, 378-433mm² per node).
   the largest empty area: move the legend or scattered labels into it.
 - Text-heavy: a box holds a name, not a sentence. Move formulas and explanations to
   the caption, or split into a title and a short `sublabel`.
-- Low stroke contrast (`geometry/low-stroke-contrast`): an edge (info under 3:1, warning under 1.5:1) or the frame of an outline-only node (info under 2:1) barely stands out from what is painted behind it (canvas, panel, set). Darken the line or its tone, or lighten the panel; a paper reproduction keeps the original's pale lines and records the info.
+- Low stroke contrast (`geometry/low-stroke-contrast`): an edge (info under 3:1, warning under 1.5:1) or the frame of an outline-only node (info under 2:1) barely stands out from what is painted behind it (canvas, panel, set, earlier nodes). Each severity requires at least 10 units below its threshold. Darken the line or its tone, or lighten the panel; a paper reproduction keeps the original's pale lines and records the info.
