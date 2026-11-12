@@ -13,10 +13,11 @@ import { generateD2 } from "../compiler/d2";
 import { withStyles } from "../compiler/testing";
 import { createBuiltinRegistry } from "../core/registry/builtins";
 import type { Arrowhead } from "../core/registry/manifest";
+import { finalizeSvg } from "./finalize";
 import { parsePath } from "./geometry";
-import { cutPath } from "./hollow-arrowheads";
+import { cutPath, untrimmedRoutes } from "./hollow-arrowheads";
 import { svgToPdf } from "./pdf";
-import { svgToPptx } from "./pptx";
+import { svgToEditablePptx, svgToPptx } from "./pptx";
 import { readPptx } from "./pptx/testing";
 import { expectD2Rendered, renderCompiledFigure } from "./render";
 import { attribute, childElements, classList, descendants, parseXml, type XmlElement } from "./xml";
@@ -25,11 +26,15 @@ const binary = findD2Binary();
 const available = binary.ok && (await checkD2Version(binary.value.path)).ok;
 
 const HEADS = ["triangle", "diamond", "circle", "box", "cross"] as const;
+type Head = (typeof HEADS)[number];
 
 /** A figure with one edge per head (heads at both ends, all unfilled) and a dashed one. */
-async function render(background: "canvas" | "transparent" = "canvas") {
+async function render(
+  background: "canvas" | "transparent" = "canvas",
+  heads: readonly Head[] = HEADS,
+) {
   const registry = createBuiltinRegistry();
-  for (const head of HEADS) {
+  for (const head of heads) {
     const registered = registry.register({
       version: 1,
       kind: "edge",
@@ -48,11 +53,11 @@ async function render(background: "canvas" | "transparent" = "canvas") {
   const text = `version: 1
 figure: { id: hollow, theme: academic, background: ${background} }
 nodes:
-${HEADS.map((h) => `  - { id: a${h}, component: box, label: ${h} }\n  - { id: b${h}, component: box, label: ${h} }`).join("\n")}
+${heads.map((h) => `  - { id: a${h}, component: box, label: ${h} }\n  - { id: b${h}, component: box, label: ${h} }`).join("\n")}
   - { id: wide, component: box, label: wide }
   - { id: far, component: box, label: far }
 edges:
-${HEADS.map((h) => `  - { from: a${h}, to: b${h}, component: test/${h} }`).join("\n")}
+${heads.map((h) => `  - { from: a${h}, to: b${h}, component: test/${h} }`).join("\n")}
   - { from: wide, to: far, component: test/triangle, label: dashed }
 `;
   const compiled = compileFigure(text, { registry });
@@ -170,6 +175,32 @@ describe.skipIf(!available)("hollow arrowheads in auto", () => {
   });
 });
 
+describe.skipIf(!available)("hollow arrowheads in editable PPTX", () => {
+  test("the lines end where D2 drew them, not at the SVG's cut", async () => {
+    // Editable PPTX rejects unfilled native heads (#485); give it filled ones so it
+    // draws the cut SVG, and compare with D2's own SVG (before the cut).
+    const heads = ["triangle", "diamond", "circle"] as const;
+    const rendered = await render("canvas", heads);
+    const d2 = expectD2Rendered(rendered);
+    const uncut = finalizeSvg(d2.artifact, d2.compiled, { source: "hollow" });
+    if (!uncut.ok) throw new Error(JSON.stringify(uncut.diagnostics));
+    const ir = withStyles(
+      d2.compiled.ir,
+      Object.fromEntries(d2.compiled.ir.edges.map((e) => [e.key, { filled: true }])),
+    );
+    const slide = (svg: string) => {
+      const result = svgToEditablePptx(svg, ir);
+      if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+      return new TextDecoder().decode(readPptx(result.value).get("ppt/slides/slide1.xml"));
+    };
+    expect(rendered.svg).toContain("data-sumi-route=");
+    expect(slide(rendered.svg)).toBe(slide(uncut.value.svg));
+    // Without the recorded routes, the cut lines would reach PowerPoint.
+    const stripped = rendered.svg.replace(/\sdata-sumi-route="[^"]*"/g, "");
+    expect(slide(stripped)).not.toBe(slide(uncut.value.svg));
+  });
+});
+
 describe("cutPath", () => {
   const segments = (d: string) => {
     const parsed = parsePath(d);
@@ -196,5 +227,19 @@ describe("cutPath", () => {
     const path = segments("M 0 0 L 10 0");
     expect(cutPath(path, "end", insideBox(20, 30))).toEqual(path);
     expect(cutPath(path, "end", insideBox(-1, 11))).toBeUndefined();
+  });
+});
+
+describe("untrimmedRoutes", () => {
+  test("puts back D2's route and stroke, and leaves other paths alone", () => {
+    const svg =
+      '<g><path d="M 1 0 L 9 0" stroke="#000" data-sumi-route="M 0 0 L 10 0"/>' +
+      '<path d="M 0 5 L 4 5" stroke="none" data-sumi-route-stroke="#123"/>' +
+      '<path d="M 0 9 L 4 9" stroke="#000"/></g>';
+    expect(untrimmedRoutes(svg)).toBe(
+      '<g><path d="M 0 0 L 10 0" stroke="#000"/>' +
+        '<path d="M 0 5 L 4 5" stroke="#123"/>' +
+        '<path d="M 0 9 L 4 9" stroke="#000"/></g>',
+    );
   });
 });

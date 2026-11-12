@@ -271,3 +271,26 @@ test("glued masked labels use a canvas patch or split transparent edges", () => 
   expect(transparent.match(/name="e:#0"\/>/g)).toHaveLength(2);
   expect(transparent).toMatch(/name="e:#0 label 0"\/>.*?<a:noFill\/>/);
 });
+
+test("transparent glued exports split only edges whose route runs under a label mask", () => {
+  // D2 shares one label mask between all edges: an edge without a label of its
+  // own on its line has no gap to keep and stays a glued connector.
+  for (const id of ["examples/pipeline/pipeline", "examples/decision-flow/decision-flow"]) {
+    const item = corpus.find((c) => c.id === id);
+    if (!item) throw new Error(`missing ${id}`);
+    const ir = { ...item.ir, meta: { ...item.ir.meta, transparentBackground: true } };
+    const result = svgToEditablePptx(item.svg, ir, { connectors: "glued" });
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const slide = new TextDecoder().decode(readPptx(result.value).get("ppt/slides/slide1.xml"));
+    const glued = (key: string) =>
+      new RegExp(`<p:cxnSp><p:nvCxnSpPr><p:cNvPr id="\\d+" name="${key}"/>`).test(slide);
+    const labelled = ir.edges.filter((e) => e.label !== "");
+    const plain = ir.edges.filter((e) => e.label === "");
+    expect(labelled.length).toBeGreaterThan(0);
+    expect(plain.length).toBeGreaterThan(0);
+    for (const edge of labelled) expect([edge.key, glued(edge.key)]).toEqual([edge.key, false]);
+    for (const edge of plain) expect([edge.key, glued(edge.key)]).toEqual([edge.key, true]);
+    // No label of a transparent export gets a canvas patch.
+    expect(slide).not.toMatch(/label 0"\/>(?:(?!<\/p:sp>).)*<a:solidFill><a:srgbClr val="FFFFFF"/);
+  }
+});

@@ -18,6 +18,7 @@ import { fontFileFor, measureLabel } from "../../lint/geometry/measure";
 import { FontParseError } from "../../lint/sfnt";
 import { readSvgMetadata } from "../finalize";
 import { BoundsBuilder, type PathSegment, type Point, parsePath, type Rect } from "../geometry";
+import { untrimmedRoutes } from "../hollow-arrowheads";
 import {
   decodeElementClass,
   inspectSvg,
@@ -235,6 +236,45 @@ function geometry(
 }
 
 /** Cut masked portions out of a path, preserving untouched cubic segments. */
+/** How much of a route runs under the mask rectangles (the gaps `splitMaskedPath` leaves). */
+export function maskedLength(path: PathSegment[], masks: Rect[]): number {
+  const length = (parts: PathSegment[][]) => {
+    let total = 0;
+    for (const part of parts) {
+      let a = part[0]?.to;
+      for (const seg of part.slice(1)) {
+        if (!a) break;
+        const from = a;
+        if (seg.command === "C") {
+          // Cubics by 32 chords, so pieces of a split curve add up to the whole.
+          let p = from;
+          for (let k = 1; k <= 32; k++) {
+            const t = k / 32,
+              u = 1 - t;
+            const q = {
+              x:
+                u * u * u * from.x +
+                3 * u * u * t * seg.c1.x +
+                3 * u * t * t * seg.c2.x +
+                t * t * t * seg.to.x,
+              y:
+                u * u * u * from.y +
+                3 * u * u * t * seg.c1.y +
+                3 * u * t * t * seg.c2.y +
+                t * t * t * seg.to.y,
+            };
+            total += Math.hypot(q.x - p.x, q.y - p.y);
+            p = q;
+          }
+        } else total += Math.hypot(seg.to.x - from.x, seg.to.y - from.y);
+        a = seg.to;
+      }
+    }
+    return total;
+  };
+  return length(splitMaskedPath(path, [])) - length(splitMaskedPath(path, masks));
+}
+
 export function splitMaskedPath(path: PathSegment[], masks: Rect[]): PathSegment[][] {
   const parts: PathSegment[][] = [];
   let current: PathSegment[] | undefined;
@@ -359,10 +399,13 @@ function site(shape: ObjectSite, p: Point) {
 }
 /** Input must be a finalized Sumi SVG with its matching IR and font set. */
 export function svgToEditablePptx(
-  svg: string,
+  finished: string,
   ir: FigureIR,
   options: EditablePptxOptions = {},
 ): Result<Uint8Array> {
+  // PowerPoint draws the heads at the line's ends: use D2's routes, not
+  // the lines cut short at hollow SVG heads (#483).
+  const svg = untrimmedRoutes(finished);
   const limit = exceedsPdfInputLimits(svg);
   if (limit)
     return {
@@ -1177,7 +1220,10 @@ export function svgToEditablePptx(
       const edgeStroke = ir.meta.themeOverrides?.edgeCorners === "sharp" ? "svg-default" : "round";
       // A zoom edge (#176) is two lines between corners, not a connector
       // between sites: it stays a freeform shape in either mode.
-      const splitTransparent = ir.meta.transparentBackground && masks.length > 0;
+      // D2 shares one label mask between edges: only a route that runs under
+      // one of its rectangles has a gap to keep.
+      const crossesMask = masks.length > 0 && maskedLength(geo.path, masks) > 0.01;
+      const splitTransparent = ir.meta.transparentBackground === true && crossesMask;
       if (connectors === "glued" && element.route === "curve" && !splitTransparent) {
         throw new Error(
           "Curved edges require freeform connectors; glued connectors cannot preserve cubic tangents. Use --pptx-connectors freeform.",
@@ -1233,7 +1279,7 @@ export function svgToEditablePptx(
           ? paint(property(before, "fill") ?? "#ffffff")
           : connectors === "glued" &&
               element.routing !== "zoom" &&
-              !splitTransparent &&
+              !ir.meta.transparentBackground &&
               masks.length > 0
             ? paint(canvasColor)
             : "<a:noFill/>";

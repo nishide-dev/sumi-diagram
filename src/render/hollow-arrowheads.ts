@@ -175,8 +175,11 @@ export function composeHollowArrowheads(svg: string, ir: FigureIR): Result<strin
       }
       if (hidden) {
         // The path still places the heads; its line is not drawn.
+        tag = setAttribute(tag, ROUTE_STROKE, attribute(path, "stroke") ?? "");
         tag = setAttribute(tag, "stroke", "none");
       } else if (segments !== original) {
+        // Editable PPTX draws its own heads at the route's ends: keep D2's route for it.
+        tag = setAttribute(tag, ROUTE_D, d ?? "");
         tag = setAttribute(tag, "d", pathText(segments));
         // A dash pattern starts at the path's start: keep its phase where the line was cut.
         if (startCut > 0 && dashed(path)) tag = withDashOffset(tag, path, startCut);
@@ -202,6 +205,44 @@ export function composeHollowArrowheads(svg: string, ir: FigureIR): Result<strin
       ],
     };
   }
+}
+
+/** D2's route (`d`) of a line cut at a hollow head. */
+export const ROUTE_D = "data-sumi-route";
+/** D2's stroke of a line hidden between heads that meet. */
+export const ROUTE_STROKE = "data-sumi-route-stroke";
+
+/**
+ * The SVG with D2's routes back on the lines `composeHollowArrowheads()`
+ * cut or hid, for consumers that draw heads of their own at the route's
+ * ends (editable PPTX): only those paths' `d` and `stroke` change.
+ */
+export function untrimmedRoutes(svg: string): string {
+  if (!svg.includes(ROUTE_D) && !svg.includes(ROUTE_STROKE)) return svg;
+  return svg.replace(/<path\b[^>]*>/g, (tag) => {
+    let out = tag;
+    for (const [saved, name] of [
+      [ROUTE_D, "d"],
+      [ROUTE_STROKE, "stroke"],
+    ] as const) {
+      const value = new RegExp(`\\s${saved}="([^"]*)"`).exec(out)?.[1];
+      if (value === undefined) continue;
+      out = out.replace(new RegExp(`\\s${saved}="[^"]*"`), "");
+      out =
+        value === "" && name === "stroke"
+          ? out.replace(/\sstroke="[^"]*"/, "")
+          : setRaw(out, name, value);
+    }
+    return out;
+  });
+}
+
+/** Sets an attribute to an already escaped value. */
+function setRaw(tag: string, name: string, escaped: string): string {
+  const pattern = new RegExp(`(\\s${name}\\s*=\\s*)(?:"[^"]*"|'[^']*')`);
+  return pattern.test(tag)
+    ? tag.replace(pattern, (_, prefix: string) => `${prefix}"${escaped}"`)
+    : tag.replace(/(\s*\/?>)$/, ` ${name}="${escaped}"$1`);
 }
 
 /** Attributes a marker copy changes besides its id (numbers already formatted). */
