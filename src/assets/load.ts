@@ -34,6 +34,7 @@ import { createHash } from "node:crypto";
 import type { FigureIR, NodeIR } from "../compiler/ir";
 import type { ElementKey } from "../core/check-state";
 import type { Diagnostic, RelatedInformation } from "../core/diagnostics";
+import type { Rect } from "../core/geometry";
 import type { Result } from "../core/result";
 import { parseHtml } from "./html";
 import type { HtmlMeasurement } from "./html-measure";
@@ -75,7 +76,7 @@ export interface LoadedImage {
   href: string;
   /** The node's box in units: the written size, completed from the aspect ratio. */
   size?: { width: number; height: number };
-  htmlRootSize?: { width: number; height: number };
+  htmlRootBox?: Rect;
 }
 
 export type LoadedAsset = LoadedIcon | LoadedImage;
@@ -332,7 +333,7 @@ export function loadFigureAssets(
     nodes.set(node.key, {
       ...loaded.asset,
       size,
-      ...(rootBox && { htmlRootSize: { width: rootBox.width, height: rootBox.height } }),
+      ...(rootBox && { htmlRootBox: rootBox }),
     });
   }
 

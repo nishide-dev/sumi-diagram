@@ -4,6 +4,7 @@ import { BUILTIN_THEMES } from "../core/theme/builtin";
 import { svgToPdf } from "../render/pdf";
 import { svgToEditablePptx, svgToPptx } from "../render/pptx";
 import { renderFigure } from "../render/render";
+import { assetMarkup, imagePlaceholder } from "./draw";
 import { HTML_LIMITS, htmlViewport, validateHtml } from "./html";
 import { validCssValue } from "./html-css";
 import { htmlRadius } from "./html-radius";
@@ -72,6 +73,67 @@ test("framed HTML resolves root corners and draws the frame over the artwork", a
   expect(square.ok).toBe(true);
   if (square.ok)
     expect(square.value.svg).toMatch(/<rect class="sumi-image-frame"[^>]*height="264" fill="none"/);
+});
+
+test("framed HTML maps the measured root through each image fit and preserves tone", () => {
+  const input = source('<div style="width:100px;height:50px;margin:10px;border-radius:10px"></div>')
+    .replace("component: html", "component: html\n    variant: framed\n    tone: blue")
+    .replace("320x176", "200x100");
+  const compiled = compileFigure(input);
+  if (!compiled.ok) throw new Error(JSON.stringify(compiled.diagnostics));
+  const node = compiled.value.ir.nodes[0];
+  if (!node?.image) throw new Error("missing image");
+  expect(node.style.fill).not.toBe("transparent");
+  expect(imagePlaceholder(node).style.fill).toBe(node.style.fill);
+  expect(imagePlaceholder(node).style.stroke).toBe("transparent");
+  const image = {
+    kind: "image" as const,
+    format: "svg" as const,
+    intrinsic: { width: 200, height: 100 },
+    href: "data:image/svg+xml;base64,",
+    htmlRootBox: { x: 10, y: 10, width: 100, height: 50 },
+  };
+  for (const [fit, start, clip] of [
+    ["fill", "M 20 20", false],
+    ["contain", "M 20 60", false],
+    ["cover", "M -60 20", true],
+  ] as const) {
+    const markup = assetMarkup({ ...node, image: { ...node.image, fit } }, image, {
+      x: 0,
+      y: 0,
+      width: 200,
+      height: 200,
+    });
+    expect(markup).toContain(start);
+    expect(markup.includes("<clipPath")).toBe(clip);
+  }
+  const overflow = assetMarkup(
+    { ...node, image: { ...node.image, fit: "contain" } },
+    { ...image, htmlRootBox: { x: 10, y: -20, width: 100, height: 50 } },
+    { x: 0, y: 0, width: 200, height: 200 },
+  );
+  expect(overflow).toContain('<rect x="0" y="50" width="200" height="100"/>');
+});
+
+test("both engines place framed transparent HTML over its tone using the measured root", async () => {
+  for (const engine of ["structured", "auto"]) {
+    const input = source(
+      '<div style="width:100px;height:50px;margin:10px;border-radius:10px"></div>',
+      "      width: 150pt\n      height: 150pt\n      fit: contain\n",
+      engine,
+    )
+      .replace("component: html", "component: html\n    variant: framed\n    tone: blue")
+      .replace("320x176", "200x100");
+    const result = await renderFigure(input);
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const svg = result.value.svg;
+    const image = svg.match(/<image class="sumi-image"[^>]* x="([\d.]+)" y="([\d.]+)"/);
+    const frame = svg.match(/<path class="sumi-image-frame" d="M ([\d.]+) ([\d.]+)/);
+    if (!image || !frame) throw new Error("missing image or frame");
+    expect(Number(frame[1]) - Number(image[1])).toBe(30);
+    expect(Number(frame[2]) - Number(image[2])).toBe(90);
+    expect(svg).toContain(result.value.compiled.ir.nodes[0]?.style.fill ?? "missing fill");
+  }
 });
 
 test("HTML accepts the subset and rejects unsupported tags, attributes and CSS at YAML locations", () => {

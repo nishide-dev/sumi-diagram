@@ -120,16 +120,14 @@ function imageMarkup(
   rect: Rect,
   style: NodeIR["style"],
   html?: { source: string; viewport: { width: number; height: number } },
+  key?: string,
 ): string {
   const picture = `<image class="sumi-image" xmlns:xlink="${XLINK}" x="${n(rect.x)}" y="${n(rect.y)}" width="${n(rect.width)}" height="${n(rect.height)}" preserveAspectRatio="${FIT[fit]}" xlink:href="${image.href}"/>`;
   if (style.strokeWidth.units <= 0 || style.stroke === "transparent") return picture;
   if (html) {
-    const corners = htmlRadius(
-      html.source,
-      image.htmlRootSize?.width ?? html.viewport.width,
-      image.htmlRootSize?.height ?? html.viewport.height,
-    );
-    if (corners.some(([x, y]) => x > 0 && y > 0)) {
+    const root = image.htmlRootBox ?? { x: 0, y: 0, ...html.viewport };
+    const corners = htmlRadius(html.source, root.width, root.height);
+    {
       const xScale = rect.width / html.viewport.width,
         yScale = rect.height / html.viewport.height;
       const sx =
@@ -143,14 +141,25 @@ function imageMarkup(
         x * sx,
         y * sy,
       ]) as [[number, number], [number, number], [number, number], [number, number]];
-      const x = rect.x,
-        y = rect.y,
-        r = x + rect.width,
-        b = y + rect.height;
+      const x = rect.x + (rect.width - html.viewport.width * sx) / 2 + root.x * sx,
+        y = rect.y + (rect.height - html.viewport.height * sy) / 2 + root.y * sy,
+        r = x + root.width * sx,
+        b = y + root.height * sy;
       const arc = (rx: number, ry: number, ex: number, ey: number) =>
         rx && ry ? `A ${n(rx)} ${n(ry)} 0 0 1 ${n(ex)} ${n(ey)}` : `L ${n(ex)} ${n(ey)}`;
       const d = `M ${n(x + tlx)} ${n(y)} L ${n(r - trx)} ${n(y)} ${arc(trx, try_, r, y + try_)} L ${n(r)} ${n(b - bry)} ${arc(brx, bry, r - brx, b)} L ${n(x + blx)} ${n(b)} ${arc(blx, bly, x, b - bly)} L ${n(x)} ${n(y + tly)} ${arc(tlx, tly, x + tlx, y)} Z`;
-      return `${picture}<path class="sumi-image-frame" d="${d}" fill="none"${strokeAttributes(style)}/>`;
+      const frame = corners.some(([rx, ry]) => rx > 0 && ry > 0)
+        ? `<path class="sumi-image-frame" d="${d}" fill="none"${strokeAttributes(style)}/>`
+        : `<rect class="sumi-image-frame" x="${n(x)}" y="${n(y)}" width="${n(r - x)}" height="${n(b - y)}" fill="none"${strokeAttributes(style)}/>`;
+      const clipX = Math.max(rect.x, rect.x + (rect.width - html.viewport.width * sx) / 2);
+      const clipY = Math.max(rect.y, rect.y + (rect.height - html.viewport.height * sy) / 2);
+      const clipR = Math.min(rect.x + rect.width, clipX + html.viewport.width * sx);
+      const clipB = Math.min(rect.y + rect.height, clipY + html.viewport.height * sy);
+      if (x < clipX || y < clipY || r > clipR || b > clipB) {
+        const id = `sumi-html-frame-clip-${key}`;
+        return `${picture}<defs><clipPath id="${id}"><rect x="${n(clipX)}" y="${n(clipY)}" width="${n(clipR - clipX)}" height="${n(clipB - clipY)}"/></clipPath></defs><g clip-path="url(#${id})">${frame}</g>`;
+      }
+      return picture + frame;
     }
   }
   const radius = html ? 0 : Math.min(style.radius.units, rect.width / 2, rect.height / 2);
@@ -162,17 +171,19 @@ function imageMarkup(
 export function imagePlaceholder<T extends NodeIR>(node: T): T {
   const html = node.image?.html;
   const viewport = node.image?.viewport;
-  const roundedHtml =
+  const framedHtml =
     html !== undefined &&
     viewport !== undefined &&
     node.style.strokeWidth.units > 0 &&
-    node.style.stroke !== "transparent" &&
-    (node.style.radius.units > 0 ||
-      htmlRadius(html, viewport.width, viewport.height).some(([x, y]) => x > 0 && y > 0));
-  if (node.image?.layers === undefined && !roundedHtml) return node;
+    node.style.stroke !== "transparent";
+  if (node.image?.layers === undefined && !framedHtml) return node;
   return {
     ...node,
-    style: { ...node.style, fill: "transparent", stroke: "transparent" },
+    style: {
+      ...node.style,
+      ...(node.image?.layers !== undefined && { fill: "transparent" }),
+      stroke: "transparent",
+    },
   };
 }
 
@@ -237,5 +248,6 @@ export function assetMarkup(
     node.image.html !== undefined && node.image.viewport
       ? { source: node.image.html, viewport: node.image.viewport }
       : undefined,
+    node.key,
   );
 }
