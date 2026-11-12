@@ -100,9 +100,18 @@ export function runGeometryRules(
             related: finding.related.map((r) => ({ ...r, path: cellFieldPath(cells, r.path) })),
           }),
         };
-  return config.rules.flatMap(({ rule, severity, options }) =>
+  return config.rules.flatMap(({ rule, severity, options, explicitSeverity }) =>
     isGeometryRule(rule)
-      ? rule.run(context, options).map((f) => toDiagnostic(remap(f), rule.id, severity, locate))
+      ? rule
+          .run(context, options)
+          .map((f) =>
+            toDiagnostic(
+              remap(f),
+              rule.id,
+              explicitSeverity ? severity : (f.severity ?? severity),
+              locate,
+            ),
+          )
       : [],
   );
 }

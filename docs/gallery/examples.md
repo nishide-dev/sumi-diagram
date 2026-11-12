@@ -36,7 +36,7 @@ The committed SVGs of <code>examples/</code>, rendered from their sources as wri
 
 ## GCN — Graph Convolutional Network
 
-[<code>examples/gcn/gcn\.sumi\.yaml</code>](../../examples/gcn/gcn.sumi.yaml) · [PDF](../../examples/gcn/gcn.pdf) · theme <code>paper</code> · profile <code>paper\-double</code> · 178\.86mm × 65\.44mm \(max width 180mm, max height 220mm\)<br>info geometry/group\-empty\-area \(×2\): Group &quot;input&quot; has 86\.5% empty bounding\-box area \(threshold 75%; edges excluded\)\.
+[<code>examples/gcn/gcn\.sumi\.yaml</code>](../../examples/gcn/gcn.sumi.yaml) · [PDF](../../examples/gcn/gcn.pdf) · theme <code>paper</code> · profile <code>paper\-double</code> · 178\.86mm × 65\.44mm \(max width 180mm, max height 220mm\)<br>info geometry/group\-empty\-area \(×2\): Group &quot;input&quot; has 86\.5% empty bounding\-box area \(threshold 75%; edges excluded\)\.<br>info geometry/low\-stroke\-contrast \(×2\): edge edges\[7\] has a stroke contrast of 2\.51:1 against background \#ffffff \(minimum 3:1\)\.
 
 <img src="../../examples/gcn/gcn.svg" alt="GCN — Graph Convolutional Network">
 
