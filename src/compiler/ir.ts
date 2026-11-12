@@ -322,8 +322,8 @@ export interface NodeIR extends ObjectIRBase {
   readonly textAlign?: "left" | "center" | "right";
   /**
    * The label (and its sublabel) is a caption drawn outside the shape,
-   * centred below it with no gap between its line box and the shape, like a
-   * `label` node attached to the south side (#491). Set on a `sumi/waveform`
+   * centred below it, its line box `captionGap()` (0.3 em) below the shape
+   * (#491). Set on a `sumi/waveform`
    * with a visible label: its frame holds only the signal. The shape (the
    * layout rect, the inspected bbox, edge contacts) stays the frame alone.
    */

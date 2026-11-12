@@ -72,7 +72,7 @@ import {
   type TextMetrics,
 } from "../ir";
 import { arrowheadPaddingDeficits, type SidePadding } from "../route/padding";
-import { fontSetMeasurer, measureText, type TextMeasurer } from "../text";
+import { captionGap, fontSetMeasurer, measureText, type TextMeasurer } from "../text";
 import {
   type AlignLimits,
   type AlignStats,
@@ -233,7 +233,7 @@ class StructuredLayout {
   readonly #leafSizes = new Map<ElementKey, Size>();
   readonly #badgeOverhangs = new Map<ElementKey, Overhang>();
   /** The text block of a caption drawn below its node's frame (#491, `labelBelow`). */
-  readonly #captions = new Map<ElementKey, Size>();
+  readonly #captions = new Map<ElementKey, Size & { gap: number }>();
   readonly #defaultGap: number;
   readonly #groupPadding: number;
   /** Padding added to sides of groups for the room before arrowheads (#171, `growPadding`). */
@@ -296,7 +296,12 @@ class StructuredLayout {
                 ? { x: padding.x / 2, y: 0 }
                 : padding,
             );
-      if (node.labelBelow && box !== undefined) this.#captions.set(node.key, box);
+      if (node.labelBelow && box !== undefined)
+        this.#captions.set(node.key, {
+          width: box.width,
+          height: box.height,
+          gap: captionGap(node.style.fontSize.units),
+        });
       const body = { x: 0, y: 0, ...size };
       const extra = overhangOf(body, this.#decorations(node, body));
       this.#badgeOverhangs.set(node.key, extra);
@@ -1017,7 +1022,7 @@ class StructuredLayout {
   /**
    * What hangs outside a node's body: its corner badge and glyphs (#408),
    * and a caption below its frame (#491), centred under the body with its
-   * line box right below it, like a `label` node attached south with no gap.
+   * line box {@link captionGap} below it.
    */
   #decorations(node: NodeIR, body: Rect): Rect[] {
     const caption = this.#captions.get(node.key);
@@ -1028,7 +1033,7 @@ class StructuredLayout {
         : [
             {
               x: body.x + (body.width - caption.width) / 2,
-              y: body.y + body.height,
+              y: body.y + body.height + caption.gap,
               width: caption.width,
               height: caption.height,
             },
@@ -1063,7 +1068,10 @@ class StructuredLayout {
       const center =
         caption === undefined
           ? nodeLabelCenter(node, rect)
-          : { x: rect.x + rect.width / 2, y: rect.y + rect.height + caption.height / 2 };
+          : {
+              x: rect.x + rect.width / 2,
+              y: rect.y + rect.height + caption.gap + caption.height / 2,
+            };
       const sublabel = this.#sublabels.get(node.key);
       if (sublabel === undefined) {
         labels.set(node.key, placeText(metrics, center, node.labelRotation, node.textAlign));

@@ -4,6 +4,7 @@ import { getOutlineRenderer } from "../core/outline/builtin";
 import { BUILTIN_THEMES } from "../core/theme/builtin";
 import { getFontSet } from "../core/theme/fonts";
 import { contrastRatio } from "../core/theme/node-variants";
+import { captionGap, LINE_HEIGHT } from "../layout/text";
 import { lintGeometry } from "../lint";
 import { measureLabel } from "../lint/geometry/measure";
 import { svgToPdf } from "./pdf";
@@ -63,6 +64,14 @@ test.each(["auto", "structured"])(
     const caption = required(measureLabel(required(geometry.labels[0]), fonts).box);
     expect(caption.x + caption.width / 2).toBeCloseTo(frame.x + frame.width / 2, 2);
     expect(caption.y).toBeGreaterThan(frame.y + frame.height);
+    // A 0.3 em gap on the 0.5pt grid, then the line box's half-leading (#491).
+    const label = required(geometry.labels[0]);
+    const gap = captionGap(label.fontSizeUnits);
+    expect(gap).toBe(Math.round(0.3 * label.fontSizeUnits));
+    const halfLeading =
+      (label.fontSizeUnits * LINE_HEIGHT - required(measureLabel(label, fonts).lines[0]).height) /
+      2;
+    expect(caption.y).toBeCloseTo(frame.y + frame.height + gap + halfLeading, 2);
     expect(lintGeometry(result.value, {})).toEqual([]);
   },
 );

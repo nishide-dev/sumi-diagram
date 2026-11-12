@@ -18,6 +18,14 @@ import type { TextAccent, TextMetrics, TextRun } from "./ir";
 /** Baseline-to-baseline distance as a multiple of the font size (the #86 prototype's value). */
 export const LINE_HEIGHT = 1.25;
 
+/**
+ * The space (units) between a frame and its caption below it (#491): 0.3 em
+ * of the caption's font size, on the 0.5pt (1 unit) grid.
+ */
+export function captionGap(fontSizeUnits: number): number {
+  return Math.round(0.3 * fontSizeUnits);
+}
+
 /** Measures single lines of text. Injected into layout engines (tests use their own). */
 export interface TextMeasurer {
   /** Advance width of one line in units, drawn in `font` (a font class) at `sizeUnits`. */

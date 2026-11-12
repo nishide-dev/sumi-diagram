@@ -364,8 +364,8 @@ their own `properties`, `enum`, `const` and `anyOf`.
   evenly spaced, no resampling); `mode: bars` (default, mirrored absolute
   amplitudes) or `line` (signed values), centred in the frame; optional `width` /
   `height` size the frame alone (omitted: 80×48pt). The `label` is a caption
-  centred **below** the frame, outside it, like a `label` attached south (no extra
-  node needed); it adds height to the layout, edges still meet the frame, and on
+  centred **below** the frame, outside it, 0.3 em under its edge (no extra
+  label node needed); it adds height to the layout, edges still meet the frame, and on
   `emphasis` it takes the canvas text colour. Variants `default`, `emphasis`,
   `muted`, `outlined` (with a `tone` colours signal and frame; others tone the
   background); `props.frameStroke: '#RRGGBB'` sets the frame colour (overridden by

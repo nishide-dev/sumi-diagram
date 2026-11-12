@@ -21,6 +21,7 @@ import {
   edgeArrowheadLength,
   WIRE_CORNER_RADIUS,
 } from "../../layout/route/arrowhead";
+import { captionGap } from "../../layout/text";
 import { type Point, type Rect, unitsToMm, unitsToPt } from "../../render/geometry";
 import type { ProfileLimits } from "../../render/inspect";
 import { printedSize } from "../../render/size";
@@ -551,13 +552,22 @@ export const labelOverflow = defineGeometryRule({
     for (const element of context.elements) {
       const { labelArea, bbox } = element;
       if (element.ir.kind === "node" && element.ir.labelBelow && bbox !== undefined) {
-        // A caption below its frame (#491) must stay clear of the frame.
-        const covered = element.labels
-          .flatMap((l) => l.visibleLines)
-          .some((line) => rectsOverlap(line, bbox, GEOMETRY_TOLERANCE_UNITS));
+        // A caption below its frame (#491) keeps its gap (0.3 em) to the frame.
+        const covered = element.labels.some((l) =>
+          l.visibleLines.some(
+            (line) =>
+              line.y <
+                bbox.y +
+                  bbox.height +
+                  captionGap(l.label.fontSizeUnits) -
+                  GEOMETRY_TOLERANCE_UNITS &&
+              line.x < bbox.x + bbox.width &&
+              line.x + line.width > bbox.x,
+          ),
+        );
         if (covered)
           findings.push({
-            message: `The caption of ${element.name} overlaps its frame; it is drawn below the frame.`,
+            message: `The caption of ${element.name} is closer to its frame than its gap (0.3 em) or overlaps it; it is drawn below the frame.`,
             path: labelPath(element),
             subject: element.subject,
             hint: "Report the figure: the layout places the caption under the frame.",
