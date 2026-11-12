@@ -151,6 +151,7 @@ export async function renderCompiledFigure(
     if (!html.ok) return { ok: false, diagnostics };
     const loaded = loadFigureAssets(ir, {
       htmlSvgs: html.value,
+      htmlMeasurements,
       ...(assetBase !== undefined && { base: assetBase }),
     });
     diagnostics.push(...loaded.diagnostics);
