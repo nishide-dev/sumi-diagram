@@ -17,9 +17,9 @@ README は人が CLI を使う前提の書き方で、作例の画像を並べ�
 
 ## 図の作り直し（#493）
 
-最初の図は箱と矢印だけで簡素だったため、Sumi の表現力が伝わる図に作り直した。
+最初の図は箱と矢印だけで簡素だったため、Sumi Skill の手順（視覚言語の表、レイアウトの計画、3 案の比較、画像だけを見る別のエージェントによる批評）に沿って作り直した。計画と批評の記録は PR #494 に残す。
 
-- Sumi CLI の範囲を一つの枠で示し、その中に `sumi catalog --json` の出力、`figure.sumi.yaml` の抜粋、`sumi lint --geometry --json` の診断を、`html` の小さなコードのカードとして置く。出力は箱と線だけの小さなサムネイル（これも `html`）で示す。
-- 色はテーマ（`sumi` / `sumi-dark`）の色だけを使い、tone は使わない。カードの見出しは `--sumi-accent`（ライトは紺、ダークは砂色）。焦点のエージェントは `emphasis`。
-- 読みやすさの下限は印刷用の 7pt ではなく画面用に `figure.target.minFontSize: 6pt` とした（GitHub の表示幅で 6pt は読める）。
-- 背景は透明（#479）。ライトとダークの両方で目視して確かめた。
+- 上段にエージェント（Claude Code と Codex のマーク、`Coding agent` / `+ Sumi Skill`。見えないグループでまとめ、矢印はグループの縁に付ける）、`figure.sumi.yaml` のコードのカード、JSON の診断のカード。下段に「Sumi CLI」の範囲を細い枠で示し、catalog → Compile → Layout → Render → 出力のサムネイル → Geometry lint を `triangle-arrow` でつなぐ。discover → write → パイプライン → `--json` → agent fixes が一周の輪になる。
+- 色はテーマ（`sumi` / `sumi-dark`）の色と、確認と修正の輪だけに使う 1 つのアクセント（オレンジ）。塗りのパネルは使わず、背景は透明（#479）。カードは `--sumi-fg` / `--sumi-bg` だけを使い、両テーマで自動的に切り替わる。
+- エージェントのマークは LobeHub Icons（MIT）から取った（`docs/assets/icons/`、出典と変更は `icons/NOTICE.md`）。Codex の色付きのマークはグラデーションで Sumi の SVG の読み込みが受け付けないため、単色のマークをグラデーションの中間の色で塗った。
+- 画面で読むので `figure.target.minFontSize: 6pt`（GitHub の表示幅で約 10 px）。

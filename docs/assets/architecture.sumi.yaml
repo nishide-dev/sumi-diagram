@@ -1,99 +1,111 @@
-# The README figure (#474, #493): how Sumi works with a coding agent. The agent reads the
-# catalog, writes the YAML, and the CLI compiles, lays out, renders and checks it; geometry
-# diagnostics go back to the agent. `bun run gallery` renders it with the sumi and
-# sumi-dark themes, background transparent, into architecture.{light,dark}.svg.
+# The README figure (#474, #493): how Sumi works with a coding agent. The agent (with the
+# Sumi Skill) discovers the catalog and writes the YAML; the Sumi CLI compiles, lays out and
+# renders it, and geometry lint sends --json diagnostics back for the agent to fix.
+# `bun run gallery` renders it with the sumi and sumi-dark themes into
+# architecture.{light,dark}.svg. The agent marks in icons/ are from LobeHub Icons (icons/NOTICE.md).
 version: 1
 figure:
-  id: sumi-architecture
+  id: sumi-readme
   title: How Sumi works with a coding agent
   theme: sumi
   profile: paper-double
-  # A README figure read on screen, not in print: 6pt is legible at GitHub's width.
-  target: { minFontSize: 6pt }
+  background: transparent
+  # Read on screen at GitHub's ~880 px README width: 6pt is about 10 px there.
+  target: { minFontSize: 6pt, height: 70mm }
   layout:
     arrange:
-      row: { gap: 10mm, align: center, items: [ agent, cli ] }
-
-groups:
-  - id: cli
-    label: Sumi CLI
-    arrange:
       grid:
-        columns: 4
-        rowGap: 5mm
-        columnGap: 4mm
-        items: [ catalog, ~, ~, out, yaml, compile, layout, render, ~, ~, { item: diag, span: 2 } ]
-
-nodes:
+        columns: 11
+        rowGap: 10mm
+        columnGap: 1.1mm
+        items:
+          - { item: agent, span: 2 }
+          - { item: yaml, span: 3 }
+          - null
+          - { item: diag, span: 3 }
+          - { item: null, span: 2 }
+          - cli-title
+          - stack: { gap: 1.2mm, align: center, items: [ c-cmd, { row: { gap: 1mm, items: [ c-comp, c-theme, c-pal, c-prof ] } } ] }
+          - compile
+          - f1
+          - layout
+          - f2
+          - render
+          - f3
+          - out
+          - f4
+          - lint
+groups:
   - id: agent
-    component: box
-    label: Coding agent
-    sublabel: "with the Sumi Skill"
-    props: { height: 85pt }
-    variant: emphasis
-  - id: catalog
-    component: html
-    props:
-      viewport: 250x92
-      width: 106pt
-      html: |
-        <div style="padding:8px 10px;background-color:var(--sumi-bg);color:var(--sumi-fg);border:1.5px solid var(--sumi-muted);border-radius:6px;font-family:var(--sumi-mono);font-size:15px;line-height:1.45">
-          <div style="white-space:pre;color:var(--sumi-accent)">$ sumi catalog --json</div>
-          <div style="white-space:pre">32 components · 8 themes</div>
-          <div style="white-space:pre">8 palettes · 3 profiles</div>
-        </div>
+    variant: plain
+    arrange:
+      stack: { gap: 1mm, align: center, items: [ { row: { gap: 3mm, items: [ logo-cc, logo-codex ] } }, agent-name ] }
+sets:
+  - { id: cli, shape: rect, members: [ cli-title, c-cmd, c-comp, c-theme, c-pal, c-prof, compile, layout, render, out, f1, f2, f3, f4, lint ], padding: 2mm, tone: gray, variant: outlined }
+nodes:
+  - { id: logo-cc, component: image, props: { src: icons/claudecode.svg, width: 20pt, height: 20pt } }
+  - { id: logo-codex, component: image, props: { src: icons/codex.svg, width: 20pt, height: 20pt } }
+  - { id: agent-name, component: label, label: Coding agent, sublabel: "+ Sumi Skill" }
   - id: yaml
     component: html
     props:
-      viewport: 280x150
-      width: 119pt
-      html: |
-        <div style="padding:8px 10px;background-color:var(--sumi-bg);color:var(--sumi-fg);border:1.5px solid var(--sumi-fg);border-radius:6px;font-family:var(--sumi-mono);font-size:15px;line-height:1.45">
-          <div style="white-space:pre;color:var(--sumi-accent)">figure.sumi.yaml</div>
-          <div style="white-space:pre">figure: { theme: sumi }</div>
+      viewport: 250x166
+      width: 96pt
+      html: |-
+        <div style="width:250px;height:166px;padding:8px 12px;background-color:var(--sumi-bg);color:var(--sumi-fg);border:2px solid var(--sumi-fg);border-radius:7px;font-family:var(--sumi-mono);font-size:18px;line-height:1.3">
+          <div style="white-space:pre;padding-bottom:3px;margin-bottom:4px;border-bottom:1.5px solid var(--sumi-fg)">figure.sumi.yaml</div>
           <div style="white-space:pre">nodes:</div>
-          <div style="white-space:pre">- { id: api, component: box }</div>
+          <div style="white-space:pre">- id: api</div>
+          <div style="white-space:pre">  component: box</div>
           <div style="white-space:pre">edges:</div>
           <div style="white-space:pre">- { from: api, to: db }</div>
-        </div>
-  - { id: compile, component: box, label: Compile, sublabel: "→ figure IR" }
-  - { id: layout, component: box, label: Layout, sublabel: "structured · D2" }
-  - { id: render, component: box, label: Render, sublabel: "SVG · PDF · PPTX" }
-  - id: out
-    component: html
-    props:
-      viewport: 200x150
-      width: 86pt
-      html: |
-        <div style="padding:8px;background-color:var(--sumi-bg);color:var(--sumi-fg);border:1.5px solid var(--sumi-fg);border-radius:6px;display:flex;flex-direction:column;gap:8px;font-family:var(--sumi-mono);font-size:14px">
-          <div style="display:flex;align-items:center;gap:6px;height:64px">
-            <div style="width:34px;height:26px;border:2px solid var(--sumi-fg);border-radius:3px"></div>
-            <div style="width:18px;height:2px;background-color:var(--sumi-fg)"></div>
-            <div style="width:34px;height:26px;border:2px solid var(--sumi-fg);border-radius:3px;background-color:var(--sumi-accent)"></div>
-            <div style="width:18px;height:2px;background-color:var(--sumi-fg)"></div>
-            <div style="width:34px;height:26px;border:2px solid var(--sumi-fg);border-radius:3px"></div>
-          </div>
-          <div style="white-space:pre;color:var(--sumi-accent)">figure.svg</div>
         </div>
   - id: diag
     component: html
     props:
-      viewport: 300x118
-      width: 127pt
-      html: |
-        <div style="padding:8px 10px;background-color:var(--sumi-bg);color:var(--sumi-fg);border:1.5px solid var(--sumi-accent);border-radius:6px;font-family:var(--sumi-mono);font-size:15px;line-height:1.45">
-          <div style="white-space:pre;color:var(--sumi-accent)">$ sumi lint --geometry --json</div>
-          <div style="white-space:pre">code: geometry/label-collision</div>
-          <div style="white-space:pre">path: edges[2]</div>
-          <div style="white-space:pre">hint: move the label …</div>
+      viewport: 290x96
+      width: 111pt
+      html: |-
+        <div style="width:290px;height:96px;padding:8px 12px;background-color:var(--sumi-bg);color:var(--sumi-fg);border:2px solid var(--sumi-fg);border-radius:7px;font-family:var(--sumi-mono);font-size:18px;line-height:1.3">
+          <div style="white-space:pre">{ "code":</div>
+          <div style="white-space:pre">  "geometry/label-collision",</div>
+          <div style="white-space:pre">  "path": ["edges", 2] }</div>
         </div>
-
+  - { id: cli-title, component: label, label: Sumi CLI, labelRotation: -90 }
+  - { id: c-comp, component: label, icon: tabler/components, iconSize: 1.8 }
+  - { id: c-theme, component: label, icon: tabler/palette, iconSize: 1.8 }
+  - { id: c-pal, component: label, icon: tabler/layout-2, iconSize: 1.8 }
+  - { id: c-prof, component: label, icon: tabler/ruler-measure, iconSize: 1.8 }
+  - { id: c-cmd, component: label, label: catalog --json, mono: true }
+  - { id: compile, component: box, label: Compile, sublabel: "schema · theme → IR", props: { height: 32pt } }
+  - { id: layout, component: box, label: Layout, sublabel: "structured · D2", props: { height: 32pt } }
+  - { id: render, component: box, label: Render, sublabel: "bundled fonts", props: { height: 32pt } }
+  - id: out
+    component: html
+    props:
+      viewport: 190x86
+      width: 66pt
+      html: |-
+        <div style="width:190px;height:86px;padding:6px 8px;background-color:var(--sumi-bg);color:var(--sumi-fg);border:2px solid var(--sumi-fg);border-radius:7px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;font-family:var(--sumi-mono);font-size:19px">
+          <div style="display:flex;align-items:center;height:42px">
+            <div style="width:30px;height:24px;border:2px solid var(--sumi-fg);border-radius:4px"></div>
+            <div style="width:10px;height:2px;background-color:var(--sumi-fg)"></div>
+            <div style="width:0;height:0;border-top:5px solid transparent;border-bottom:5px solid transparent;border-left:7px solid var(--sumi-fg)"></div>
+            <div style="width:30px;height:24px;border-radius:4px;background-color:var(--sumi-fg)"></div>
+            <div style="width:10px;height:2px;background-color:var(--sumi-fg)"></div>
+            <div style="width:0;height:0;border-top:5px solid transparent;border-bottom:5px solid transparent;border-left:7px solid var(--sumi-fg)"></div>
+            <div style="width:24px;height:24px;border:2px solid var(--sumi-fg);border-radius:12px"></div>
+          </div>
+          <div style="white-space:pre">SVG PDF PPTX</div>
+        </div>
+  - { id: f1, component: triangle-arrow, props: { length: 5pt, thickness: 6pt } }
+  - { id: f2, component: triangle-arrow, props: { length: 5pt, thickness: 6pt } }
+  - { id: f3, component: triangle-arrow, props: { length: 5pt, thickness: 6pt } }
+  - { id: f4, component: triangle-arrow, props: { length: 5pt, thickness: 6pt } }
+  - { id: lint, component: box, label: Geometry lint, sublabel: "fit · overlap · contrast", tone: orange, variant: outlined, props: { height: 32pt } }
 edges:
-  - { from: catalog, to: agent, toAnchor: "east:0.2" }
-  - { from: agent, to: yaml, fromAnchor: "east:0.5" }
-  - { from: yaml, to: compile }
-  - { from: compile, to: layout }
-  - { from: layout, to: render }
-  - { from: render, to: out, toAnchor: straight }
-  - { from: render, to: diag, toAnchor: straight, label: check }
-  - { from: diag, to: agent, toAnchor: "east:0.8", label: diagnostics → fix, variant: dashed }
+  - { from: yaml, to: compile, fromAnchor: straight }
+  - { from: c-cmd, to: agent, toAnchor: straight, label: discover }
+  - { from: agent, to: yaml, toAnchor: straight, label: write }
+  - { from: lint, to: diag, fromAnchor: north, toAnchor: east, tone: orange, variant: dashed, label: "--json" }
+  - { from: diag, to: yaml, tone: orange, variant: dashed, label: agent fixes }
