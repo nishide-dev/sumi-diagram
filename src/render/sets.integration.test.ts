@@ -325,15 +325,14 @@ sets:
     expect(set.bbox.x + set.bbox.width).toBeGreaterThan(group.x + group.width);
   });
 
-  test("an edge label inside a set is backed by the blended tint, not plain white", async () => {
+  test("an edge label inside a set has no background patch", async () => {
     const source = venn().replace("sets:", "edges:\n  - { from: a1, to: a2, label: link }\nsets:");
     const { svg } = await render(source);
     const background =
       /<rect x="[\d.]+" y="[\d.]+" width="[\d.]+" height="[\d.]+" fill="(#[0-9a-f]{6})"\/><text[^>]*>link/.exec(
         svg,
       )?.[1];
-    expect(background).toBeDefined();
-    expect(background).not.toBe("#ffffff");
+    expect(background).toBeUndefined();
   });
 
   test("edges may cross set boundaries freely: no finding", async () => {
