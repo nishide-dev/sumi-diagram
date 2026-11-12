@@ -9,6 +9,7 @@ import { getOutlineRenderer } from "../../core/outline";
 import { type FlowArrowParams, flowArrow, flowArrowHead } from "../../core/outline/flow-arrow";
 import { SEPARATOR_ID } from "../../core/registry/builtins";
 import type { Result } from "../../core/result";
+import { getTheme } from "../../core/theme/builtin";
 import { type FontSet, getFontSet } from "../../core/theme/fonts";
 import { multiplyTints } from "../../core/theme/set-style";
 import { edgeArrowheadLength } from "../../layout/route/arrowhead";
@@ -359,6 +360,7 @@ export function svgToEditablePptx(
   if (metadata.value && metadata.value.figureId !== ir.meta.id)
     return fail("The SVG and Figure IR do not match.");
   const canvas = inspected.value.canvas;
+  const canvasColor = getTheme(ir.meta.themeId)?.canvas ?? "#ffffff";
   // A figure shrunk by `figure.fit: scale` (#183) is placed at its printed
   // size: every length, line width and font size times the scale.
   const scale = inspected.value.scale ?? 1;
@@ -1113,7 +1115,7 @@ export function svgToEditablePptx(
         before?.name === "rect"
           ? paint(property(before, "fill") ?? "#ffffff")
           : masked
-            ? paint("#ffffff")
+            ? paint(canvasColor)
             : "<a:noFill/>";
       geo.labels.forEach((label, i) => {
         const el = texts[i];
@@ -1164,6 +1166,7 @@ export function svgToEditablePptx(
         slide.height,
         metadata.value,
         connectors,
+        canvasColor,
       ),
       diagnostics,
     };

@@ -24,7 +24,7 @@ export function warmTones(theme: Theme, palettePanel?: string): Theme {
         palettePanel ?? container?.get("filled")?.fill,
       ];
       const backgrounds = [
-        "#ffffff",
+        theme.canvas,
         ...panels.filter(
           (panel): panel is string => panel !== undefined && /^#[0-9a-f]{6}$/i.test(panel),
         ),
@@ -85,17 +85,20 @@ export function contrastRatio(a: string, b: string): number {
 }
 
 /** Contrast against the white page, including the resolved element opacity. */
-export function pageTextContrast(ink: string, opacity = 1): number {
+export function pageTextContrast(ink: string, opacity = 1, canvas = "#ffffff"): number {
   if (ink === "transparent") return 1;
   const hex = ink.length === 4 ? `#${[...ink.slice(1)].map((c) => c + c).join("")}` : ink;
   const composite = `#${[1, 3, 5]
     .map((offset) =>
-      Math.round(255 + (Number.parseInt(hex.slice(offset, offset + 2), 16) - 255) * opacity)
+      Math.round(
+        Number.parseInt(canvas.slice(offset, offset + 2), 16) * (1 - opacity) +
+          Number.parseInt(hex.slice(offset, offset + 2), 16) * opacity,
+      )
         .toString(16)
         .padStart(2, "0"),
     )
     .join("")}`;
-  return 1.05 / (luminance(composite) + 0.05);
+  return contrastRatio(composite, canvas);
 }
 
 /** Keep passing ink on either light or dark fills; otherwise darken by whole percent steps. */

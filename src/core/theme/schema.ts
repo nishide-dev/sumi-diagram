@@ -351,7 +351,7 @@ class ThemeChecker {
       ok: true,
       value: deepFreeze({
         id: theme.id,
-        canvas,
+        canvas: canvas.replace(/^#([0-9a-f])([0-9a-f])([0-9a-f])$/i, "#$1$1$2$2$3$3").toLowerCase(),
         ...(theme.description !== undefined && { description: theme.description }),
         fontSet: this.#fontSet,
         tokens,

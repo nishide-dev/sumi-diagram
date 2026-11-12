@@ -457,8 +457,8 @@ function reportToneContrast(state: CheckState, locate: Locator, theme: Theme): v
       warn(
         override.text !== undefined ? "text" : "line",
         ink,
-        "#ffffff",
-        "on white (outlined text, toned edge labels, icon-only labels, \\textcolor runs)",
+        theme.canvas,
+        `on ${theme.canvas === "#ffffff" ? "white" : `canvas ${theme.canvas}`} (outlined text, toned edge labels, icon-only labels, \\textcolor runs)`,
       );
   }
 }

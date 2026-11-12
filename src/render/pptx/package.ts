@@ -49,8 +49,9 @@ export function picturePptx(
   widthPt: number,
   heightPt: number,
   metadata?: SumiSvgMetadata,
+  canvas = "#ffffff",
 ): Uint8Array {
-  return slidePptx(svg, png, widthPt, heightPt, metadata);
+  return slidePptx(svg, png, widthPt, heightPt, metadata, undefined, canvas);
 }
 
 /** Shared blank-slide packaging; picture output remains byte-identical. */
@@ -60,8 +61,17 @@ export function editablePptx(
   heightPt: number,
   metadata: SumiSvgMetadata | undefined,
   connectors: string,
+  canvas = "#ffffff",
 ): Uint8Array {
-  return slidePptx("", new Uint8Array(), widthPt, heightPt, metadata, { shapes, connectors });
+  return slidePptx(
+    "",
+    new Uint8Array(),
+    widthPt,
+    heightPt,
+    metadata,
+    { shapes, connectors },
+    canvas,
+  );
 }
 
 function slidePptx(
@@ -71,6 +81,7 @@ function slidePptx(
   heightPt: number,
   metadata?: SumiSvgMetadata,
   native?: { shapes: string; connectors: string },
+  canvas = "#ffffff",
 ): Uint8Array {
   const w = Math.max(1, Math.round(widthPt * 12700));
   const h = Math.max(1, Math.round(heightPt * 12700));
@@ -157,7 +168,7 @@ function slidePptx(
     },
     {
       name: "ppt/slideMasters/slideMaster1.xml",
-      data: `${XML}<p:sldMaster ${ns}><p:cSld><p:bg><p:bgPr><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill><a:effectLst/></p:bgPr></p:bg><p:spTree>${tree}</p:spTree></p:cSld>${colors}<p:sldLayoutIdLst><p:sldLayoutId id="2147483649" r:id="rId1"/></p:sldLayoutIdLst><p:txStyles><p:titleStyle/><p:bodyStyle/><p:otherStyle/></p:txStyles></p:sldMaster>`,
+      data: `${XML}<p:sldMaster ${ns}><p:cSld><p:bg><p:bgPr><a:solidFill><a:srgbClr val="${canvas.slice(1).toUpperCase()}"/></a:solidFill><a:effectLst/></p:bgPr></p:bg><p:spTree>${tree}</p:spTree></p:cSld>${colors}<p:sldLayoutIdLst><p:sldLayoutId id="2147483649" r:id="rId1"/></p:sldLayoutIdLst><p:txStyles><p:titleStyle/><p:bodyStyle/><p:otherStyle/></p:txStyles></p:sldMaster>`,
     },
     {
       name: "ppt/slideMasters/_rels/slideMaster1.xml.rels",

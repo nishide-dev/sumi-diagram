@@ -1,6 +1,7 @@
 /** Picture PPTX export: fonts outlined for portable SVG, resvg PNG fallback. */
 import type { Diagnostic } from "../../core/diagnostics";
 import type { Result } from "../../core/result";
+import { getTheme } from "../../core/theme/builtin";
 import { type FontSet, getFontSet } from "../../core/theme/fonts";
 import { readSvgMetadata } from "../finalize";
 import { loadEngine, runEngine } from "../pdf/engine";
@@ -82,7 +83,14 @@ export function svgToPptx(svg: string, options: SvgToPptxOptions = {}): Result<U
       throw new Error("Invalid outlined SVG");
     return {
       ok: true,
-      value: picturePptx(outlined, png, width, height, metadata.value),
+      value: picturePptx(
+        outlined,
+        png,
+        width,
+        height,
+        metadata.value,
+        getTheme(metadata.value?.theme ?? "")?.canvas,
+      ),
       diagnostics: [],
     };
   } catch (e) {

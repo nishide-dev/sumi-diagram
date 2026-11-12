@@ -42,7 +42,7 @@ export const SAMPLE_SHARE = 0.5;
 const MAX_FINDINGS = 6;
 
 const WHITE = "#ffffff";
-const isWhite = (color: string): boolean => deltaE(color, WHITE) < WHITE_DISTANCE;
+const isWhite = (color: string, ground = WHITE): boolean => deltaE(color, ground) < WHITE_DISTANCE;
 
 const hueGap = (a: number, b: number): number => {
   const d = Math.abs(a - b) % 360;
@@ -178,12 +178,12 @@ export function muddyFindings(analysis: readonly Analysis[]): LintFinding[] {
     if (muddy === undefined) continue;
     const { item } = a;
     const { sample } = muddy;
-    const under = sample.under.filter((u) => !isWhite(u.color) || u.alpha < 1);
+    const under = sample.under.filter((u) => !isWhite(u.color, a.canvas) || u.alpha < 1);
     findings.push({
       message:
         `${capitalize(item.name)} is painted ${describe(sample.final)}` +
         (item.of === undefined && muddy.reason !== "khaki"
-          ? `, not the ${describe(a.onWhite)} it has on white`
+          ? `, not the ${describe(a.onWhite)} it has on ${a.canvas === WHITE ? "white" : `canvas ${a.canvas}`}`
           : item.of !== undefined
             ? `, from the fills ${item.of.join(" and ")}`
             : "") +
@@ -194,7 +194,9 @@ export function muddyFindings(analysis: readonly Analysis[]): LintFinding[] {
       hint:
         muddy.reason === "khaki"
           ? "Use a lighter yellow fill or a more distinct hue."
-          : "Paint it on white (an unfilled or white panel), use opaque fills, or overlap fewer shapes: a translucent color over a gray or colored surface turns gray-brown.",
+          : a.canvas === WHITE
+            ? "Paint it on white (an unfilled or white panel), use opaque fills, or overlap fewer shapes: a translucent color over a gray or colored surface turns gray-brown."
+            : "Paint it on the canvas, use opaque fills, or overlap fewer shapes.",
     });
   }
   return limited(findings, "muddy colors");
@@ -216,14 +218,17 @@ export function translucentFindings(analysis: readonly Analysis[]): LintFinding[
   for (const a of analysis) {
     const { item } = a;
     if (item.alpha >= 1 || a.samples.length === 0) continue;
-    const over = a.samples.filter((s) => !isWhite(s.below));
+    const over = a.samples.filter((s) => !isWhite(s.below, a.canvas));
     if (over.length < a.samples.length * SAMPLE_SHARE) continue;
-    const surfaces = (over[0] as Sample).under.filter((u) => !isWhite(u.color));
+    const surfaces = (over[0] as Sample).under.filter((u) => !isWhite(u.color, a.canvas));
     findings.push({
       message: `${capitalize(item.name)} is translucent (opacity ${item.alpha}) over ${namesOf(surfaces)}, so its color depends on what lies beneath it.`,
       path: item.docPath,
       subject: item.subject,
-      hint: "Use an opaque pale color (a set's fill already is) and keep the panel white, or remove the opacity.",
+      hint:
+        a.canvas === WHITE
+          ? "Use an opaque pale color (a set's fill already is) and keep the panel white, or remove the opacity."
+          : "Use an opaque color, match the panel to the canvas, or remove the opacity.",
     });
   }
   return limited(findings, "translucent fills over colors");
@@ -250,7 +255,7 @@ export function panelFindings(analysis: readonly Analysis[]): LintFinding[] {
     const { item } = a;
     if ((item.kind !== "node" && item.kind !== "set") || a.samples.length === 0) continue;
     if (toOklch(item.ink).c < COLORED_CHROMA) continue;
-    const onPanel = a.samples.filter((s) => !isWhite(s.panel));
+    const onPanel = a.samples.filter((s) => !isWhite(s.panel, a.canvas));
     if (onPanel.length < a.samples.length * SAMPLE_SHARE) continue;
     const panel = [...(onPanel[0] as Sample).under].reverse().find((u) => u.kind === "group");
     if (panel === undefined) continue;

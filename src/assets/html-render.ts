@@ -47,7 +47,7 @@ export function htmlThemeVariables(theme: Theme, palette?: string): Record<strin
     "--sumi-accent":
       getPalette(palette ?? "")?.roles.accent ??
       String(theme.toneLines.get("blue")?.stroke ?? theme.base.node.stroke ?? "#333333"),
-    "--sumi-bg": color("color.bg", "#ffffff"),
+    "--sumi-bg": theme.canvas,
     "--sumi-font": theme.fontSet.latin ? "'Inter','BIZ UDPGothic'" : "'BIZ UDPGothic'",
     "--sumi-mono": "'BIZ UDGothic'",
   };
