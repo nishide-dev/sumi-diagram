@@ -69,7 +69,7 @@ export interface Rendering {
   theme: string;
   profile: string;
   /** Overrides passed to the renderer (`sumi render --theme/--profile`); empty for the source as written. */
-  overrides: { theme?: string; profile?: string };
+  overrides: { theme?: string; profile?: string; background?: "canvas" | "transparent" };
 }
 
 export interface ComponentSample {

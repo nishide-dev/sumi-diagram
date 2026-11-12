@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?><svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMin meet" viewBox="0 0 952 337" width="476pt" height="168.5pt"><metadata><sumi:render xmlns:sumi="https://github.com/nishide-dev/sumi-diagram/ns/svg-metadata/1" format="1" sumi-version="0.16.1" backend="sumi-structured" backend-version="0.16.1" figure-id="sumi-architecture" theme="sumi-dark" profile="paper-double" font-set="sumi/inter-biz-ud-gothic" input-sha256="5a5d1fec2b50eb38928dd10433d3c59af8b57bf42ba0a08a13f9af5cee08d5b5" assets-sha256="f9eb41abd963e307b43d16378723ee32bca5c4d7872a382b22ef158c43d4367a"/><sumi:notice xmlns:sumi="https://github.com/nishide-dev/sumi-diagram/ns/svg-metadata/1" name="Tabler Icons" version="3.49.0" license="MIT" source="https://github.com/tabler/tabler-icons">MIT License
+<?xml version="1.0" encoding="utf-8"?><svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMin meet" viewBox="0 0 952 337" width="476pt" height="168.5pt"><metadata><sumi:render xmlns:sumi="https://github.com/nishide-dev/sumi-diagram/ns/svg-metadata/1" format="1" sumi-version="0.16.1" backend="sumi-structured" backend-version="0.16.1" figure-id="sumi-architecture" theme="sumi-dark" background="transparent" profile="paper-double" font-set="sumi/inter-biz-ud-gothic" input-sha256="5a5d1fec2b50eb38928dd10433d3c59af8b57bf42ba0a08a13f9af5cee08d5b5" assets-sha256="f9eb41abd963e307b43d16378723ee32bca5c4d7872a382b22ef158c43d4367a"/><sumi:notice xmlns:sumi="https://github.com/nishide-dev/sumi-diagram/ns/svg-metadata/1" name="Tabler Icons" version="3.49.0" license="MIT" source="https://github.com/tabler/tabler-icons">MIT License
 
 Copyright (c) 2020-2026 Paweł Kuna
 
@@ -19,7 +19,7 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-</sumi:notice></metadata><svg class="sumi-166672648 d2-svg" width="952" height="337" viewBox="0 0 952 337"><rect x="0" y="0" width="952" height="337" fill="#30364f"/><style type="text/css"><![CDATA[
+</sumi:notice></metadata><svg class="sumi-166672648 d2-svg" width="952" height="337" viewBox="0 0 952 337"><style type="text/css"><![CDATA[
 .sumi-166672648 .text-latin-bold {
 	font-family: "sumi-166672648-font-latin-bold";
 }

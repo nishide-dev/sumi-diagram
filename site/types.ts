@@ -13,6 +13,8 @@ export interface SiteData {
   version: string;
   home: { en: string; ja: string };
   themes: readonly string[];
+  /** Each theme's canvas colour, painted behind its transparent previews (#486). */
+  canvases: Readonly<Record<string, string>>;
   palettes: { id: string; colors: readonly string[] }[];
   components: ReturnType<typeof componentData>[];
   options: ReturnType<typeof optionData>[];
