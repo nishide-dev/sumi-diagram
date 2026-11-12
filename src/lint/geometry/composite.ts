@@ -8,6 +8,7 @@
  * and `geometry/color-on-panel`.
  */
 
+import type { ElementKey } from "../../core/check-state";
 import type { DiagnosticSubject, DocPath } from "../../core/diagnostics";
 import { getTheme } from "../../core/theme/builtin";
 import { multiplyTints } from "../../core/theme/set-style";
@@ -18,6 +19,7 @@ import { depthInside, type Region, rectPolygon } from "./shapes";
 
 /** One painted fill. */
 export interface PaintItem {
+  readonly key?: ElementKey;
   readonly kind: "group" | "node" | "set" | "overlap";
   /** `node "a" fill`, `the overlap of set "a" and set "b"`, for messages. */
   readonly name: string;
@@ -38,7 +40,7 @@ export interface PaintItem {
 const HEX = /^#[0-9a-f]{6}$/i;
 const WHITE = "#ffffff";
 
-function normalized(color: string | undefined): string | undefined {
+export function normalized(color: string | undefined): string | undefined {
   if (color === undefined) return undefined;
   const long = color.replace(/^#([0-9a-f])([0-9a-f])([0-9a-f])$/i, "#$1$1$2$2$3$3").toLowerCase();
   return HEX.test(long) ? long : undefined;
@@ -93,6 +95,7 @@ export function paintItems(context: GeometryContext, options: PaintOptions = {})
     const color = normalized(e.ir.style.fill);
     if (color === undefined || e.bbox === undefined || e.ir.style.opacity <= 0) return undefined;
     return {
+      key: e.key,
       kind,
       name: `${e.name} fill`,
       color,
@@ -184,12 +187,20 @@ export interface Analysis {
 const GRID = 4;
 const INSET = 1;
 
-const covers = (item: PaintItem, p: Point): boolean =>
+export const covers = (item: PaintItem, p: Point): boolean =>
   p.x >= item.bbox.x - 1e-6 &&
   p.x <= item.bbox.x + item.bbox.width + 1e-6 &&
   p.y >= item.bbox.y - 1e-6 &&
   p.y <= item.bbox.y + item.bbox.height + 1e-6 &&
   depthInside(item.region, p) >= 0;
+
+/** Composite the painted fills covering a point in drawing order. */
+export function surfaceAt(items: readonly PaintItem[], point: Point, canvas = WHITE): string {
+  return items.reduce(
+    (color, item) => (covers(item, point) ? over(item.color, item.alpha, color) : color),
+    canvas,
+  );
+}
 
 /** Every item with the samples at which it shows. */
 export function analyze(items: readonly PaintItem[], canvas = WHITE): Analysis[] {
@@ -225,12 +236,23 @@ export function analyze(items: readonly PaintItem[], canvas = WHITE): Analysis[]
 }
 
 const cache = new WeakMap<GeometryContext, Analysis[]>();
+const paintCache = new WeakMap<GeometryContext, PaintItem[]>();
+
+/** Shared paint stack, including the calculated set overlaps. */
+export function paintItemsOf(context: GeometryContext): PaintItem[] {
+  let items = paintCache.get(context);
+  if (items === undefined) {
+    items = paintItems(context);
+    paintCache.set(context, items);
+  }
+  return items;
+}
 
 /** The analysis of the figure's painted fills, once per context. */
 export function analysisOf(context: GeometryContext): Analysis[] {
   let analysis = cache.get(context);
   if (analysis === undefined) {
-    analysis = analyze(paintItems(context), getTheme(context.ir.meta.themeId)?.canvas ?? WHITE);
+    analysis = analyze(paintItemsOf(context), getTheme(context.ir.meta.themeId)?.canvas ?? WHITE);
     cache.set(context, analysis);
   }
   return analysis;

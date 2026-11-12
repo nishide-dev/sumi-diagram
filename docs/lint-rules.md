@@ -1,5 +1,9 @@
 # Lint ルール
 
+## 線のコントラスト（#463、試作中）
+
+`geometry/low-stroke-contrast` は、エッジの線と、輪郭だけで形を示すノードの枠を、実際に描かれた背景（テーマの地・グループ・set の合成色）と比べる。エッジは 3:1 未満で info、1.5:1 未満で warning、ノードの枠は 2:1 未満で info。グループの枠、operator・junction・zoom、`dim` の中の要素は対象外。詳細は[設計 #463](design/decisions/463-low-stroke-contrast.md)。
+
 ## 図全体の空白・大きな縮小（#330）
 
 `geometry/dead-space` と `geometry/heavy-scaling` は既定 **info**。
@@ -50,6 +54,7 @@ set の塗りは tone の線の色を白に混ぜた不透明な淡い色で、�
 | --- | --- | --- |
 | `geometry/muddy-color` | warning | 有彩色（own の OKLCH 彩度 0.03 以上）の塗りが、同じ塗りを白に置いたときと比べて、最終の色で彩度の半分超を失う、または明度が 0.06 以上下がって彩度 0.045 未満の灰色になる、または色相が 30° 以上ずれて彩度 0.05 未満になる。set の重なりは、重なる set の最大の彩度の半分を下回るときだけ。見えている点（4×4 の格子）の半数以上で成り立つ塗りを、関わる要素の名前つきで報告する。あわせて、不透明な塗りと線（枠・エッジ）が黄〜橙の色相でカーキ・黄土色・オリーブ・タンになっていないかを、色相に応じた連続的な明度の境界で調べる（#455、#459）。文字は対象外（小さな文字は同じ色相の濃い色でもその色の系統として読めるため、#465） |
 | `geometry/translucent-over-color` | warning | 不透明度が 1 未満の塗りが、白以外の面（パネル・ほかの塗り）の上にある。色が下の面で変わる |
+| `geometry/low-stroke-contrast` | info / warning | エッジの線（3:1 未満で info、1.5:1 未満で warning）と、塗りが背後の色とほぼ同じで輪郭だけで形を示すノードの枠（2:1 未満で info）が、実際に描かれた背景（地・グループ・set の合成色）から区別しにくい。グループの枠、operator・junction・zoom、`dim` の中の要素は対象外（#463） |
 | `geometry/color-on-panel` | info | 白以外の塗りのグループが、有彩色（OKLCH 彩度 0.025 以上）のノードか set を 3 つ以上持つ。パネルの色と要素の色が競う。1〜2 個（Llama 4 のアクセント）は報告しない |
 
 warning にしたのは、最終の色を実際に合成して測る検査で、図の意図ではなく結果の濁りを見ているため。`geometry/color-on-panel` は好みと意図に左右されるので info とし、`maxWarnings` に含めない。
@@ -381,4 +386,3 @@ figure.sumi.yaml:21:5 warning lint/ancestor-edge Edge edges[1] connects group "o
 基準値は TriCL・LLaDA の再現図（指摘されない）と前回の試行の 3 図（指摘される）で校正した。
 測定値と採らなかった指標は [設計 #422](design/decisions/422-density-lint.md)。
 抑止は `--rule geometry/sparse-figure=off` などで、意図した疎らさや文章が図の主題のときだけ使う。
-

@@ -34,6 +34,8 @@ export type LintCode = StructuralLintCode | GeometryLintCode;
 export interface LintFinding {
   message: string;
   path: DocPath;
+  /** A measurement-dependent default, overridden by an explicit rule level. */
+  severity?: Severity;
   /**
    * UTF-16 offsets into the string value at `path`: the location then points
    * at those characters where the source maps to the value one to one.
