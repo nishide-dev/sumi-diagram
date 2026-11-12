@@ -8,6 +8,9 @@ on:
       - main
     paths:
       - "site/**"
+      - "README.md"
+      - "docs/README-ja.md"
+      - "docs/assets/**"
       - "scripts/site/**"
       - "scripts/gallery/**"
       - "src/**"
