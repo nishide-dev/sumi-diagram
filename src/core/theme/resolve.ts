@@ -163,7 +163,8 @@ export function resolveStyle<K extends ComponentKind>(
           fontColor: theme.canvas,
         };
       } else if (variant === "tinted" && fill !== undefined && ink !== undefined) {
-        filled = { fill, stroke: ink, fontColor: theme.base.node.fontColor ?? "#f0f0db" };
+        // As on a light canvas, a tinted node's text is its frame (the tone's line).
+        filled = { fill, stroke: ink, fontColor: ink };
       }
     }
     let paint = overriddenTone(filled, variant, theme.toneOverrides?.get(tone ?? "gray"));

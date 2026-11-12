@@ -45,7 +45,7 @@ export function htmlThemeVariables(theme: Theme, palette?: string): Record<strin
     "--sumi-muted": color("color.muted", "#666666"),
     // A palette's accent replaces the theme's blue (#417).
     "--sumi-accent":
-      getPalette(palette ?? "")?.roles.accent ??
+      getPalette(palette ?? "", theme.canvas)?.roles.accent ??
       String(theme.toneLines.get("blue")?.stroke ?? theme.base.node.stroke ?? "#333333"),
     "--sumi-bg": theme.canvas,
     "--sumi-font": theme.fontSet.latin ? "'Inter','BIZ UDPGothic'" : "'BIZ UDPGothic'",

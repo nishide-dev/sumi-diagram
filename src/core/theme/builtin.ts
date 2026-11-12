@@ -370,6 +370,13 @@ function llamaComponents(): NonNullable<ThemeDefinition["components"]> {
 }
 
 function sumiTheme(dark: boolean): ThemeDefinition {
+  // A chat bubble is white on a light page; on the navy canvas it is a panel under the cream text.
+  const darkBubble = (
+    components: NonNullable<ThemeDefinition["components"]>,
+  ): NonNullable<ThemeDefinition["components"]> =>
+    dark
+      ? { ...components, bubble: { ...components.bubble, default: { fill: panel } } }
+      : components;
   const canvas = dark ? "#30364f" : "#f8f8ee";
   const text = dark ? "#f0f0db" : "#30364f";
   const muted = dark ? "#acbac4" : "#4e566b";
@@ -401,7 +408,7 @@ function sumiTheme(dark: boolean): ThemeDefinition {
         gray: "#c4cbd0",
         red: "#f0bdb5",
         orange: "#f1c6a7",
-        yellow: "#e8d9a3",
+        yellow: "#ecd994",
         green: "#b9d5b8",
         blue: "#b9d0e5",
         purple: "#d1c2e5",
@@ -455,31 +462,36 @@ function sumiTheme(dark: boolean): ThemeDefinition {
         filled: true,
       },
     },
-    components: componentStyles({
-      shape: {
-        emphasis: {
-          fill: dark ? "#e1d9bc" : "#30364f",
-          stroke: dark ? "#e1d9bc" : "#30364f",
-          fontColor: dark ? "#30364f" : "#f8f8ee",
-          bold: true,
+    components: darkBubble(
+      componentStyles({
+        shape: {
+          emphasis: {
+            fill: dark ? "#e1d9bc" : "#30364f",
+            stroke: dark ? "#e1d9bc" : "#30364f",
+            fontColor: dark ? "#30364f" : "#f8f8ee",
+            bold: true,
+          },
+          muted: { stroke: muted, fontColor: muted },
+          filled: filledNode(fills.gray),
+          outlined: outlinedNode(canvas, inks.gray),
         },
-        muted: { stroke: muted, fontColor: muted },
-        filled: filledNode(fills.gray),
-        outlined: outlinedNode(canvas, inks.gray),
-      },
-      label: { default: { fill: "transparent", strokeWidth: "0pt" }, muted: { fontColor: muted } },
-      junction: junctionStyles(text, muted),
-      container: {
-        muted: { fill: shade, stroke: muted, fontColor: muted },
-        ...outlineVariants(shade),
-      },
-      legend: legendStyles(canvas, muted),
-      edge: {
-        dashed: { strokeDash: "{dash.regular}" },
-        emphasis: { stroke: dark ? "#e1d9bc" : text, strokeWidth: "{line.bold}" },
-        muted: { stroke: muted, fontColor: muted },
-      },
-    }),
+        label: {
+          default: { fill: "transparent", strokeWidth: "0pt" },
+          muted: { fontColor: muted },
+        },
+        junction: junctionStyles(text, muted),
+        container: {
+          muted: { fill: shade, stroke: muted, fontColor: muted },
+          ...outlineVariants(shade),
+        },
+        legend: legendStyles(canvas, muted),
+        edge: {
+          dashed: { strokeDash: "{dash.regular}" },
+          emphasis: { stroke: dark ? "#e1d9bc" : text, strokeWidth: "{line.bold}" },
+          muted: { stroke: muted, fontColor: muted },
+        },
+      }),
+    ),
     tones: Object.fromEntries(
       Object.entries(fills).map(([tone, fill]) => [tone, { fill }]),
     ) as Record<Tone, StyleLayerInput>,

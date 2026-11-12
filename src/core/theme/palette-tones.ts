@@ -120,10 +120,14 @@ export interface ToneSource {
   readonly ink: string;
   readonly accent: string;
   readonly strong: string;
+  /** The canvas the tones are drawn on (white when absent). */
+  readonly canvas?: string;
 }
 
 /** The eight palette-derived tones (all but `gray`), each as a fill and a line color. */
 export function deriveTones(source: ToneSource): Record<DerivedTone, DerivedToneColors> {
+  const canvas = source.canvas ?? "#ffffff";
+  if (toOklch(canvas).l < 0.6) return deriveDarkTones(source, canvas);
   const tint = toOklch(source.tint);
   const accent = toOklch(source.accent);
   const strong = toOklch(source.strong);
@@ -193,12 +197,12 @@ export function deriveTones(source: ToneSource): Record<DerivedTone, DerivedTone
     const lineAt = (shift: number) =>
       fromOklch({ l: strong.l + LINE_LIGHTNESS[tone] + shift, c: chroma, h: lineHue });
     const usableLine = (color: string) =>
-      readable(color, source.panel) && deltaE(color, source.strong) >= GRAY_SEPARATION;
+      readable(color, source.panel, canvas) && deltaE(color, source.strong) >= GRAY_SEPARATION;
     let line = lineAt(0);
     if (warmChroma !== undefined) {
       // Warm tone: the lightest line that reads, not the strong color's lightness.
       line = fromOklch({ l: 0.75, c: chroma, h: lineHue });
-      for (let l = 0.75; l > 0.2 && !readable(line, source.panel); l -= 0.005) {
+      for (let l = 0.75; l > 0.2 && !readable(line, source.panel, canvas); l -= 0.005) {
         line = fromOklch({ l, c: chroma, h: lineHue });
       }
     }
@@ -207,7 +211,7 @@ export function deriveTones(source: ToneSource): Record<DerivedTone, DerivedTone
       line = candidates.find(usableLine) ?? (candidates[0] as string);
     }
     // Still short (a gamut edge): darken until it reads.
-    for (let step = 1; step <= 100 && !readable(line, source.panel); step++) {
+    for (let step = 1; step <= 100 && !readable(line, source.panel, canvas); step++) {
       line = fromOklch({ ...toOklch(line), c: chroma, h: lineHue, l: toOklch(line).l - 0.005 });
     }
     return [tone, { fill, line }] as const;
@@ -215,5 +219,76 @@ export function deriveTones(source: ToneSource): Record<DerivedTone, DerivedTone
   return Object.fromEntries(entries) as Record<DerivedTone, DerivedToneColors>;
 }
 
-const readable = (line: string, panel: string): boolean =>
-  contrastRatio(line, "#ffffff") >= 4.5 && contrastRatio(line, panel) >= 4.5;
+/** A line reads as white text's fill and as text on the canvas and the panel (4.5:1). */
+const readable = (line: string, panel: string, canvas: string): boolean =>
+  contrastRatio(line, "#ffffff") >= 4.5 &&
+  contrastRatio(line, canvas) >= 4.5 &&
+  contrastRatio(line, panel) >= 4.5;
+
+/**
+ * OKLCH lightness of the lines on a dark canvas, before each tone's offset:
+ * light enough to read on the dark fills, dark enough to keep their chroma.
+ */
+export const DARK_LINE_LIGHTNESS = 0.8;
+
+/** The fills sit this much (OKLCH L) below a dark palette's tint, so the lines keep their chroma. */
+export const DARK_FILL_SHIFT = -0.03;
+
+/** Range of the fill chroma on a dark canvas: a dark fill holds less chroma before it glows. */
+export const DARK_FILL_CHROMA = [0.035, 0.06] as const;
+
+/**
+ * The tones on a dark canvas (`sumi-dark`): each keeps its hue (pulled toward
+ * the palette's, as on a light canvas), with lightness chosen for a dark
+ * ground. The fill sits near the palette's (dark) tint and is darkened until
+ * the palette's (light) ink reads on it at 4.5:1; the line sits at
+ * {@link DARK_LINE_LIGHTNESS} and is moved until it reads on the canvas,
+ * the panel and the tone's fill at 4.5:1 (a solid fill takes the canvas as
+ * its text, a tinted node the line). Both keep clear of the gray tone.
+ */
+function deriveDarkTones(
+  source: ToneSource,
+  canvas: string,
+): Record<DerivedTone, DerivedToneColors> {
+  const tint = toOklch(source.tint);
+  const accent = toOklch(source.accent);
+  const fillChroma = clamp(tint.c * 1.5, DARK_FILL_CHROMA);
+  const lineChroma = clamp(accent.c, LINE_CHROMA);
+  const temperature = accent.c >= tint.c ? accent.h : tint.h;
+  const entries = (Object.keys(TONE_HUES) as DerivedTone[]).map((tone) => {
+    const hue = pulled(TONE_HUES[tone], temperature);
+    const fillAt = (shift: number) =>
+      fromOklch({
+        l: tint.l + DARK_FILL_SHIFT + FILL_LIGHTNESS[tone] + shift,
+        c: fillChroma,
+        h: hue,
+      });
+    const readableFill = (color: string) => contrastRatio(source.ink, color) >= 4.5;
+    const usable = (color: string) =>
+      readableFill(color) && deltaE(color, source.tint) >= GRAY_SEPARATION;
+    let fill = fillAt(0);
+    for (let step = 0; step <= 30 && !usable(fill); step++) {
+      const candidates = [-step, step].map((d) => fillAt(d / 100));
+      fill = candidates.find(usable) ?? (candidates[0] as string);
+    }
+    for (let step = 1; step <= 100 && !readableFill(fill); step++)
+      fill = fromOklch({ ...toOklch(fill), c: fillChroma, h: hue, l: toOklch(fill).l - 0.005 });
+    const lineHue = tone === "yellow" ? 92 : hue;
+    const chroma = Math.max(lineChroma, WARM_LINE_CHROMA[tone] ?? 0);
+    const reads = (color: string) =>
+      [canvas, source.panel, fill].every((ground) => contrastRatio(color, ground) >= 4.5);
+    const usableLine = (color: string) =>
+      reads(color) && deltaE(color, source.strong) >= GRAY_SEPARATION;
+    const lineAt = (shift: number) =>
+      fromOklch({ l: DARK_LINE_LIGHTNESS + LINE_LIGHTNESS[tone] + shift, c: chroma, h: lineHue });
+    let line = lineAt(0);
+    for (let step = 0; step <= 40 && !usableLine(line); step++) {
+      const candidates = [step, -step].map((d) => lineAt(d / 100));
+      line = candidates.find(usableLine) ?? (candidates[0] as string);
+    }
+    for (let step = 1; step <= 100 && !reads(line); step++)
+      line = fromOklch({ ...toOklch(line), c: chroma, h: lineHue, l: toOklch(line).l + 0.005 });
+    return [tone, { fill, line }] as const;
+  });
+  return Object.fromEntries(entries) as Record<DerivedTone, DerivedToneColors>;
+}

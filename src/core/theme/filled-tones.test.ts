@@ -60,13 +60,16 @@ describe("solid and tinted nodes", () => {
             resolveStyle(theme, { kind: "group", id: "sumi/container", variant }).style.fill,
         );
         if (palette) {
-          const selected = getPalette(palette);
+          const selected = getPalette(palette, theme.canvas);
           if (!selected) throw new Error(`missing palette ${palette}`);
           panels.push(selected.roles.panel);
         }
         const yellow = toOklch(arrow);
         expect(muddinessOf(yellow, yellow), `${base.id}/${palette ?? "default"}`).toBeUndefined();
-        for (const background of ["#ffffff", ...panels.filter((fill) => fill !== "transparent")]) {
+        for (const background of [
+          theme.canvas,
+          ...panels.filter((fill) => fill !== "transparent"),
+        ]) {
           expect(
             contrast(arrow, background),
             `${base.id}/${palette ?? "default"} on ${background}`,
@@ -107,7 +110,10 @@ describe("solid and tinted nodes", () => {
             else expect(strokeWidth.pt).toBeGreaterThan(0);
             if (variant === "solid") {
               const solid = theme.solidTones?.get(tone ?? "gray");
-              expect(fontColor).toBe(solid?.text ?? "#ffffff");
+              // White text on a light canvas; on a dark canvas the light fill takes the canvas as text.
+              expect(fontColor).toBe(
+                solid?.text ?? (luminance(theme.canvas) < 0.2 ? theme.canvas : "#ffffff"),
+              );
               expect(fill).toBe(solid?.fill ?? theme.toneLines.get(tone ?? "gray")?.stroke ?? "");
               if (shape.id === "sumi/stack") {
                 expect(contrast(fill, stroke)).toBeGreaterThanOrEqual(4.5);
@@ -269,7 +275,7 @@ describe("yellow text (#465)", () => {
         expect(Math.abs(toOklch(text).h - toOklch(line.stroke).h), label).toBeLessThan(3);
         expect(toOklch(text).c, label).toBeGreaterThan(0.08);
         const tint = theme.tones.get("yellow")?.fill ?? "#ffffff";
-        for (const surface of ["#ffffff", tint])
+        for (const surface of [theme.canvas, tint])
           expect(contrastRatio(text, surface), `${label} on ${surface}`).toBeGreaterThanOrEqual(
             4.5,
           );
