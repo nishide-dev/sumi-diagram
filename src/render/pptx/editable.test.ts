@@ -263,11 +263,11 @@ test("glued masked labels use a canvas patch or split transparent edges", () => 
     return new TextDecoder().decode(readPptx(result.value).get("ppt/slides/slide1.xml"));
   };
   const opaque = slideFor(false);
-  expect(opaque).toContain('<a:stCxn ');
-  expect(opaque).toContain('<a:endCxn ');
+  expect(opaque).toContain("<a:stCxn ");
+  expect(opaque).toContain("<a:endCxn ");
   expect(opaque).toMatch(/name="e:#0 label 0"\/>.*?<a:solidFill><a:srgbClr val="FFFFFF"/);
   const transparent = slideFor(true);
-  expect(transparent).not.toContain('<a:stCxn ');
+  expect(transparent).not.toContain("<a:stCxn ");
   expect(transparent.match(/name="e:#0"\/>/g)).toHaveLength(2);
   expect(transparent).toMatch(/name="e:#0 label 0"\/>.*?<a:noFill\/>/);
 });

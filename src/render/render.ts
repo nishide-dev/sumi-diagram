@@ -35,6 +35,7 @@ import { composeJunctionEnds, composeOpenArrowheads, composeOutlines } from "./c
 import { composeAssets, withImageSizes } from "./compose-assets";
 import { type FinalizedSvg, finalizeStructuredSvg, finalizeSvg } from "./finalize";
 import type { PathSegment } from "./geometry";
+import { composeHollowArrowheads } from "./hollow-arrowheads";
 import { inspectSvg, type SvgInspection } from "./inspect";
 import { needsOutlineSizing, outlineMeasurementFigure, sizeOutlineNodes } from "./outline-sizing";
 import { paintedEdges, writeStructuredSvg } from "./structured";
@@ -233,9 +234,14 @@ async function renderD2(
   const opened = composeOpenArrowheads(joined.value, effective.ir);
   diagnostics.push(...opened.diagnostics);
   if (!opened.ok) return fail();
+  // Hollow arrowheads (#483): no canvas fill; the line stops at the head's base.
+  // After the inspection, which keeps D2's route to the tip.
+  const hollowed = composeHollowArrowheads(opened.value, effective.ir);
+  diagnostics.push(...hollowed.diagnostics);
+  if (!hollowed.ok) return fail();
   // Icons and images go into the placeholders' boxes; the inspection does not
   // read them, so it stays valid.
-  let svg = opened.value;
+  let svg = hollowed.value;
   // Glyphs (#408) need no asset: an empty set draws them.
   if (assets !== undefined || effective.ir.nodes.some((n) => n.glyphs !== undefined)) {
     const withAssets = composeAssets(

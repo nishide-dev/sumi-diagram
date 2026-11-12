@@ -1231,7 +1231,10 @@ export function svgToEditablePptx(
       const background =
         before?.name === "rect"
           ? paint(property(before, "fill") ?? "#ffffff")
-          : connectors === "glued" && element.routing !== "zoom" && !splitTransparent && masks.length > 0
+          : connectors === "glued" &&
+              element.routing !== "zoom" &&
+              !splitTransparent &&
+              masks.length > 0
             ? paint(canvasColor)
             : "<a:noFill/>";
       geo.labels.forEach((label, i) => {
