@@ -556,6 +556,68 @@ describe("sumi render (output paths)", () => {
     expect(pdf.info.SumiD2Sha256).toBeUndefined();
   });
 
+  test("background override applies to JSON rendering and rejects invalid values", async () => {
+    const example = join(import.meta.dir, "../../examples/dit-block/dit-block.sumi.yaml");
+    const result = await sumi([
+      "render",
+      example,
+      "-o",
+      "transparent.svg",
+      "--background",
+      "transparent",
+      "--json",
+    ]);
+    expect(result.exitCode).toBe(0);
+    expect(JSON.parse(result.stdout).output).toBe("transparent.svg");
+    const svg = await readFile(join(dir, "transparent.svg"), "utf8");
+    const metadata = readSvgMetadata(svg);
+    expect(metadata.ok && metadata.value?.background).toBe("transparent");
+    expect((await sumi(["render", example, "--background", "invalid"])).exitCode).toBe(2);
+  });
+
+  test("figure background and CLI override preserve geometry diagnostics", async () => {
+    const source = `version: 1
+figure: { id: background, background: transparent, profile: paper-single, layout: { arrange: { row: { items: [a] } } } }
+nodes:
+  - { id: a, component: box, label: Wide, props: { width: "850pt" } }
+`;
+    await writeFile(join(dir, "background.sumi.yaml"), source);
+    for (const [args, background] of [
+      [[], "transparent"],
+      [["--background", "canvas"], undefined],
+    ] as const) {
+      const result = await sumi([
+        "render",
+        "background.sumi.yaml",
+        "-o",
+        "background.svg",
+        "--json",
+        ...args,
+      ]);
+      const json = JSON.parse(result.stdout);
+      expect(json.diagnostics.map((d: { code: string }) => d.code)).toContain(
+        "geometry/exceeds-page-width",
+      );
+      const metadata = readSvgMetadata(await readFile(join(dir, "background.svg"), "utf8"));
+      expect(metadata.ok && metadata.value?.background).toBe(background);
+      // Lint always measures against the theme canvas (#479): the same findings either way.
+      const lint = await sumi(["lint", "--geometry", "--json", "background.sumi.yaml", ...args]);
+      expect(
+        JSON.parse(lint.stdout).results[0].diagnostics.map((d: { code: string }) => d.code),
+      ).toContain("geometry/exceeds-page-width");
+    }
+    expect(
+      (await sumi(["lint", "--geometry", "background.sumi.yaml", "--background", "none"])).exitCode,
+    ).toBe(2);
+    await writeFile(
+      join(dir, "invalid-background.sumi.yaml"),
+      source.replace("background: transparent", "background: invalid"),
+    );
+    const invalid = await sumi(["lint", "--json", "invalid-background.sumi.yaml"]);
+    expect(invalid.exitCode).toBe(1);
+    expect(JSON.parse(invalid.stdout).results[0].diagnostics[0].code).toMatch(/^schema\//);
+  });
+
   test("refuses outputs differing only by case on a case-insensitive file system", async () => {
     if (!(await isCaseInsensitiveDir(await realpath(dir)))) {
       console.warn("[cli render] the temp file system is case-sensitive; skipping the case test.");
@@ -633,6 +695,8 @@ describe("sumi catalog", () => {
     for (const theme of json.themes) {
       expect(Object.keys(theme)).toEqual([
         "id",
+        "canvas",
+        "backgroundModes",
         "description",
         "fonts",
         "fontSizePt",

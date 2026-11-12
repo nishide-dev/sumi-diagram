@@ -24,6 +24,7 @@ export interface CheckFigureOptions {
 export interface FigureOverrides {
   theme?: string;
   profile?: string;
+  background?: "canvas" | "transparent";
 }
 
 export interface FigureCheck {
@@ -61,11 +62,12 @@ export function checkFigureSource(text: string, options: CheckFigureOptions = {}
 
 function applyOverrides(doc: PartialFigure, overrides: FigureOverrides | undefined): void {
   if (doc.figure === undefined || overrides === undefined) return;
-  const { theme, profile } = overrides;
+  const { theme, profile, background } = overrides;
   doc.figure = {
     ...doc.figure,
     ...(theme !== undefined && { theme }),
     ...(profile !== undefined && { profile }),
+    ...(background !== undefined && { background }),
   };
 }
 

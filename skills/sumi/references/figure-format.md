@@ -562,6 +562,8 @@ searches icons). One entry of each:
   "themes": [
     {
       "id": "minimal",
+      "canvas": "#ffffff",
+      "backgroundModes": ["canvas", "transparent"],
       "description": "Monochrome theme with clear outlines",
       "fonts": {
         "id": "sumi/biz-ud-gothic",
@@ -668,3 +670,6 @@ Per-code fixes: [diagnostics](diagnostics.md). The ones agents repeat:
 | `labelAt: top-center` (group), `labelSide: above` | `schema/invalid-value` | group: `top-left`, `top`, `top-right`, `bottom-left`, `bottom`, `bottom-right`; edge `labelAt`: `start` / `middle` / `end`; `labelSide`: `left` / `right` |
 | `width: 10px`; `label: 2024`; `label: Step 1: parse` | `component/invalid-prop`, `schema/invalid-type`, `yaml/syntax` | `pt` / `mm` units; quote the label |
 | `variant: muted` on every element of a panel | none | `dim: true` on the group |
+# Canvas background
+
+`figure.background` is `canvas` (default) or `transparent`. The latter omits only the outer canvas in SVG, PDF and PPTX; nodes, label knockouts and panels retain their theme colors. Contrast and lint still assume the theme canvas. `sumi render --background canvas|transparent` overrides the figure; `sumi lint --geometry` accepts the same override.

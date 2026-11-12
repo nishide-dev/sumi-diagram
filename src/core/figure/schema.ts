@@ -817,6 +817,10 @@ export const FigureMetaSchema = z.strictObject({
   id: Id,
   title: z.string().optional(),
   theme: z.string().min(1).default("minimal").describe("Built-in theme name."),
+  background: z
+    .enum(["canvas", "transparent"])
+    .default("canvas")
+    .describe("Paint the theme canvas or leave the outer background transparent."),
   themeOverrides: z
     .strictObject({
       palette: z

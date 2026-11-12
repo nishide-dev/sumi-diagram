@@ -61,6 +61,7 @@ export interface SumiSvgMetadata {
   backend: { name: string; version: string };
   figureId: string;
   theme: string;
+  background?: "transparent";
   profile: string;
   fontSet: string;
   /** sha256 (hex) of the `*.sumi.yaml` source text (UTF-8). */
@@ -108,6 +109,7 @@ const METADATA_ATTRIBUTES = [
   ["backend-version", (m: SumiSvgMetadata) => m.backend.version],
   ["figure-id", (m: SumiSvgMetadata) => m.figureId],
   ["theme", (m: SumiSvgMetadata) => m.theme],
+  ["background", (m: SumiSvgMetadata) => m.background],
   ["profile", (m: SumiSvgMetadata) => m.profile],
   ["font-set", (m: SumiSvgMetadata) => m.fontSet],
   ["input-sha256", (m: SumiSvgMetadata) => m.inputSha256],
@@ -116,7 +118,7 @@ const METADATA_ATTRIBUTES = [
 ] as const;
 
 /** Attributes that may be absent: `d2-sha256` (structured backend) and `assets-sha256`. */
-const OPTIONAL_ATTRIBUTES = new Set(["assets-sha256"]);
+const OPTIONAL_ATTRIBUTES = new Set(["assets-sha256", "background"]);
 
 /** Attribute names of `<sumi:notice>`, in output order; its text is the license. */
 const NOTICE_ATTRIBUTES = ["name", "version", "license", "source"] as const;
@@ -204,6 +206,7 @@ export function readSvgMetadata(svg: string): Result<SumiSvgMetadata | undefined
       backend: { name: value("backend"), version: value("backend-version") },
       figureId: value("figure-id"),
       theme: value("theme"),
+      ...(get("background") === "transparent" && { background: "transparent" as const }),
       profile: value("profile"),
       fontSet: value("font-set"),
       inputSha256: value("input-sha256"),
@@ -314,16 +317,20 @@ export function finalizeSvg(
   if (artifact.fontSetId !== compiled.fontSet.id) return mismatch("the font set");
   const canvas = getTheme(compiled.ir.meta.themeId)?.canvas ?? "#ffffff";
   let svg = artifact.svg;
-  if (canvas.toLowerCase() !== "#ffffff") {
+  if (canvas.toLowerCase() !== "#ffffff" || compiled.ir.meta.transparentBackground) {
     const read = readD2Svg(svg);
     if (read.ok) {
       const background = childElements(read.doc.drawing).find((child) => child.name === "rect");
       if (background) {
-        const tag = svg
-          .slice(background.start, background.startTagEnd)
-          .replace(/\sclass="[^"]*"/, "")
-          .replace(/fill="[^"]*"/, `fill="${escapeAttribute(canvas)}"`);
-        svg = svg.slice(0, background.start) + tag + svg.slice(background.startTagEnd);
+        if (compiled.ir.meta.transparentBackground) {
+          svg = svg.slice(0, background.start) + svg.slice(background.end);
+        } else {
+          const tag = svg
+            .slice(background.start, background.startTagEnd)
+            .replace(/\sclass="[^"]*"/, "")
+            .replace(/fill="[^"]*"/, `fill="${escapeAttribute(canvas)}"`);
+          svg = svg.slice(0, background.start) + tag + svg.slice(background.startTagEnd);
+        }
       }
     }
   }
@@ -381,6 +388,7 @@ function metadataBase(
     sumiVersion: SUMI_VERSION,
     figureId: ir.meta.id,
     theme: ir.meta.themeId,
+    ...(ir.meta.transparentBackground && { background: "transparent" as const }),
     profile: ir.meta.profileId,
     fontSet: compiled.fontSet.id,
     inputSha256: sha256(options.source),
