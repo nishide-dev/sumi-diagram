@@ -4,6 +4,11 @@ import { decodeHTML } from "entities";
 
 const site = "https://nishide-dev.github.io/sumi-diagram/";
 const github = "https://github.com/nishide-dev/sumi-diagram/blob/main/";
+/** Each README's other-language version: a link to it is the language switch. */
+const COUNTERPART: Record<string, string> = {
+  "README.md": "docs/README-ja.md",
+  "docs/README-ja.md": "README.md",
+};
 const escapeAttr = (s: string) =>
   s.replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;");
 const relative = (url: string) => !/^(?:[a-z][\w+.-]*:|\/\/|\/|#)/i.test(url);
@@ -24,8 +29,8 @@ export async function readmeHtml(markdown: string, readme: string, root: string,
     // The other language's README: the site has its own language toggle.
     const otherReadme = (href: string) =>
       relative(href) &&
-      /(?:^|\/)README(?:-ja)?\.md$/i.test(href) &&
-      posix.normalize(posix.join(posix.dirname(readme), href)) !== readme;
+      posix.normalize(posix.join(posix.dirname(readme), href.split("#")[0] ?? "")) ===
+        COUNTERPART[readme];
     const navigation = (href: string) => href.startsWith(site) || otherReadme(href);
     // A lone link stays unless it is the language switch; a row of two or more is the nav line.
     const remove = hrefs.length === 1 ? otherReadme(hrefs[0] ?? "") : hrefs.every(navigation);

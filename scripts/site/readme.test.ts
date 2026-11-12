@@ -87,12 +87,13 @@ test("removes a lone language link before the bold lead and keeps external image
   const root = await mkdtemp(join(tmpdir(), "sumi-readme-"));
   try {
     const html = await readmeHtml(
-      "# Sumi\n\n[日本語](docs/README-ja.md)\n\n**Draw, check, fix.** Sumi is a CLI.\n\n<img src='https://example.com/a\"b.svg' alt=''>\n",
+      "# Sumi\n\n[日本語](docs/README-ja.md)\n\n**Draw, check, fix.** Sumi is a CLI.\n\n[Gallery](docs/gallery/README.md)\n\n<img src='https://example.com/a\"b.svg' alt=''>\n",
       "README.md",
       root,
       resolve(root, "out"),
     );
     expect(html).not.toContain(">日本語</a>");
+    expect(html).toContain(">Gallery</a>");
     expect(html).toContain('<p class="tagline">Draw, check, fix.</p>');
     expect(html).toContain('src="https://example.com/a&quot;b.svg"');
   } finally {
