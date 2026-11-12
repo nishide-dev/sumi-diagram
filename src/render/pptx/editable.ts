@@ -956,6 +956,9 @@ export function svgToEditablePptx(
       const before =
         label && sublabel && !turned ? sublabelSpaceBefore(label, sublabel.label) : undefined;
       const joined = before !== undefined && before >= -SPACING_TOLERANCE;
+      // A caption below its frame (#491) is a text box of its own: the
+      // frame's text body could only hold it inside the shape.
+      const below = element.kind === "node" && element.labelBelow === true && !turned;
       const ownBox = (part: { label: LabelGeometry; el: XmlElement }) => {
         const b = measureLabel(part.label, fonts).box;
         if (b === undefined) return "";
@@ -977,7 +980,7 @@ export function svgToEditablePptx(
         geom,
         fill,
         stroke,
-        label && text && !turned
+        label && text && !turned && !below
           ? textBody(
               label,
               text,
@@ -991,6 +994,31 @@ export function svgToEditablePptx(
         !first,
         flow?.turn,
       );
+      // A caption below its frame (#491) is a text box of its own, in the
+      // waveform's group so it moves and scales with the frame and signal.
+      let captionXml = "";
+      if (below && label && text && measured !== undefined) {
+        captionXml = shape(
+          next++,
+          `${element.key} label`,
+          measured,
+          '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>',
+          "<a:noFill/>",
+          "<a:ln><a:noFill/></a:ln>",
+          textBody(
+            label,
+            text,
+            measured,
+            element.style.opacity,
+            sublabel !== undefined && joined
+              ? { ...sublabel, before: Math.max(0, before) }
+              : undefined,
+          ),
+          true,
+        );
+        if (sublabel !== undefined && before !== undefined && !joined)
+          captionXml += ownBox(sublabel);
+      }
       if (signalPrimitives[0] !== undefined) {
         body += shape(
           next++,
@@ -1000,15 +1028,22 @@ export function svgToEditablePptx(
           "<a:noFill/>",
           line(signalPrimitives[0], element.style),
         );
-        // Keep the frame's connection id and the signal's paint order inside
-        // one editable object. Equal parent/child transforms preserve the
-        // children's slide coordinates while moving/scaling them together.
-        body = `<p:grpSp><p:nvGrpSpPr><p:cNvPr id="${next++}" name="${escapeXml(`${element.key} waveform`)}"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr>${xfrm(box, "", true)}</p:grpSpPr>${body}</p:grpSp>`;
-      }
+        // Keep the frame's connection id, the signal's paint order and the
+        // caption inside one editable object. Equal parent/child transforms
+        // (over the union of the children) preserve the children's slide
+        // coordinates while moving/scaling them together.
+        const extent =
+          captionXml === "" || measured === undefined
+            ? box
+            : (new BoundsBuilder().addRect(box).addRect(measured).rect() ?? box);
+        body = `<p:grpSp><p:nvGrpSpPr><p:cNvPr id="${next++}" name="${escapeXml(`${element.key} waveform`)}"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr>${xfrm(extent, "", true)}</p:grpSpPr>${body}${captionXml}</p:grpSp>`;
+      } else body += captionXml;
       objectXml.set(
         element.key,
         body +
-          (sublabel !== undefined && before !== undefined && !joined ? ownBox(sublabel) : "") +
+          (sublabel !== undefined && before !== undefined && !joined && !below
+            ? ownBox(sublabel)
+            : "") +
           (label && text && turned
             ? turnedLabel(`${element.key} label`, label, text, element.style.opacity) +
               (sublabel === undefined

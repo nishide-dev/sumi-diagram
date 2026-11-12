@@ -1256,14 +1256,17 @@ function resolveEndsWith(
     const side = treeSide(self.key, other.key) ?? facingSide(self.rect, other.rect);
     const host = hosts.get(self.key);
     if (
-      host?.blocked.has(side) === true &&
-      !host.members.some((m) => m === other.key || inside(other, element(m)))
+      (host?.blocked.has(side) === true &&
+        !host.members.some((m) => m === other.key || inside(other, element(m)))) ||
+      // A caption below the frame (#491) covers the south side's middle.
+      (side === "south" && self.node?.labelBelow === true)
     ) {
-      // The default side faces the side inputs: take a perpendicular side,
-      // the one with more free room, else the one nearer the other end.
+      // The default side faces the side inputs (or the caption): take a
+      // perpendicular side, the one with more free room, else the one
+      // nearer the other end.
       const sideways: Side[] =
         side === "north" || side === "south" ? ["west", "east"] : ["north", "south"];
-      const candidates = sideways.filter((c) => !host.blocked.has(c));
+      const candidates = sideways.filter((c) => host?.blocked.has(c) !== true);
       const rects = layout.nodes
         .filter((n) => n.key !== self.key && n.key !== other.key)
         .map((n) => n.rect);

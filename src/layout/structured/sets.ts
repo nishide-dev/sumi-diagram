@@ -30,13 +30,14 @@ export const setLabelGap = (fontSizeUnits: number): number => Math.round(fontSiz
 /**
  * Fits every set of `ir` around its members. `rectOf` gives a placed
  * element's box; `padding` is the default room in units (the profile's group
- * padding).
+ * padding); `captionOf` gives a node's caption box below its frame (#491).
  */
 export function fitSets(
   ir: FigureIR,
   rectOf: (key: ElementKey) => Rect,
   measurer: TextMeasurer,
   padding: number,
+  captionOf: (key: ElementKey) => Rect | undefined = () => undefined,
 ): FittedSet[] {
   const nodes = new Map(ir.nodes.map((n) => [n.key, n]));
   return (ir.sets ?? []).map((set) => {
@@ -45,9 +46,13 @@ export function fitSets(
       const node = nodes.get(key);
       const round = node !== undefined && (node.shape === "circle" || node.shape === "oval");
       const badge = node === undefined ? undefined : badgeRect(node, rect);
+      // A caption below its frame (#491) is text the outline must not cut:
+      // enclosed with either `enclose`, like the badge.
+      const caption = captionOf(key);
       return [
         { rect, round },
         ...(badge === undefined ? [] : [{ rect: badge, round: false }]),
+        ...(caption === undefined ? [] : [{ rect: caption, round: false }]),
         ...(node === undefined || set.enclose !== "footprint"
           ? []
           : glyphRects(node, rect).map((rect) => ({ rect, round: false }))),

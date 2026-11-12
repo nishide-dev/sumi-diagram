@@ -59,7 +59,12 @@ export function sizeOutlineNodes(
       );
       return node;
     }
-    const size = renderer.footprint(box, renderer.params.parse(node.render?.params ?? {}));
+    // A labelless drawing (#491: a waveform's caption is below its frame) is
+    // sized without its label, like the structured engine's `nodeSize()`.
+    const size = renderer.footprint(
+      renderer.labelless ? { width: 1, height: 1 } : box,
+      renderer.params.parse(node.render?.params ?? {}),
+    );
     const width = Math.ceil(size.width);
     const height = Math.ceil(size.height);
     if (![width, height].every((n) => Number.isSafeInteger(n) && n > 0)) {

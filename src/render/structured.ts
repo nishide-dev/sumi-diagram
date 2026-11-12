@@ -301,7 +301,13 @@ function nodeShape(node: NodeIR, r: Rect): string {
           node.render?.renderer === "sumi/waveform" && layer.role === "body"
             ? node.render.params?.frameStroke
             : undefined;
-        return `<path d="${pathData(layer.path.points, layer.path.closed)}" fill="${fill}"${strokeAttributes(typeof frameStroke === "string" ? { ...style, stroke: frameStroke } : style)}${signal}/>`;
+        const signalStroke =
+          node.render?.renderer === "sumi/waveform" &&
+          layer.role === "line" &&
+          typeof node.render.params?.signalStroke === "string"
+            ? node.render.params.signalStroke
+            : undefined;
+        return `<path d="${pathData(layer.path.points, layer.path.closed)}" fill="${fill}"${strokeAttributes(typeof frameStroke === "string" || signalStroke !== undefined ? { ...style, stroke: signalStroke ?? (frameStroke as string) } : style)}${signal}/>`;
       })
       .join("");
   }

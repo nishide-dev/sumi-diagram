@@ -322,6 +322,19 @@ class Owners {
 const sortedUnique = (values: Set<number>): number[] => [...values].sort((a, b) => a - b);
 
 /** First index with `values[i] >= v`. */
+/**
+ * Text boxes outside node shapes that routes keep clear of like group
+ * titles: a waveform's caption below its frame (#491, `labelBelow`).
+ */
+function captionBoxes(ir: FigureIR, layout: LayoutIR): Rect[] {
+  const below = new Set(ir.nodes.filter((n) => n.labelBelow).map((n) => n.key));
+  return layout.nodes.flatMap((node) =>
+    below.has(node.key)
+      ? [node.label?.box, node.sublabel?.box].filter((box): box is Rect => box !== undefined)
+      : [],
+  );
+}
+
 function lowerBound(values: readonly number[], v: number): number {
   let lo = 0;
   let hi = values.length;
@@ -658,6 +671,7 @@ class Router {
       [
         ...this.#obstacles.map((o) => o.rect),
         ...this.#layout.groups.flatMap((g) => (g.label ? [g.label.box] : [])),
+        ...captionBoxes(this.#ir, this.#layout),
       ],
       (a, b) =>
         sharable(
@@ -1068,6 +1082,7 @@ class Router {
       addRect(element?.kind === "group" ? groupFrontRect(element, group.rect) : group.rect, 0);
       if (group.label !== undefined) addRect(group.label.box, 0);
     }
+    for (const box of captionBoxes(this.#ir, layout)) addRect(box, 0);
     for (const node of junctions) {
       const c = { x: node.rect.x + node.rect.width / 2, y: node.rect.y + node.rect.height / 2 };
       xs.add(roundUnits(c.x));
@@ -1193,6 +1208,7 @@ class Router {
       }
       if (group.label !== undefined) markClosed(group.label.box, labelH, labelV);
     }
+    for (const box of captionBoxes(this.#ir, layout)) markClosed(box, labelH, labelV);
 
     this.#junctionAt = new Int32Array(NP).fill(-1);
     this.#junctions = junctions.map((n) => n.key);
@@ -1678,9 +1694,10 @@ class Router {
     // routes, nodes and borders only, so they are as before), then the
     // `labelAt` / `labelSide` ones in document order, which also keep clear
     // of group titles, every label placed before them and every arrowhead.
-    const labelBoxes = layout.groups.flatMap((group) =>
-      group.label === undefined ? [] : [group.label.box],
-    );
+    const labelBoxes = [
+      ...layout.groups.flatMap((group) => (group.label === undefined ? [] : [group.label.box])),
+      ...captionBoxes(this.#ir, layout),
+    ];
     const heads = new Map<ElementKey, Rect[]>();
     for (const [key, points] of routes) {
       const edge = irEdges.get(key);

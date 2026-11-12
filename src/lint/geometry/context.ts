@@ -160,13 +160,19 @@ export function createGeometryContext(
         if (!renderer)
           throw new Error(`internal error: unknown outline renderer ${element.render.renderer}`);
         const drawing = renderer.draw(bbox, renderer.params.parse(element.render.params ?? {}));
-        regions = {
-          ...outlineRegions(drawing),
-          labelBoundaries: (drawing.boundaries ?? [drawing.outline]).map((points) => [
-            ...points,
-            points[0] as Point,
-          ]),
-        };
+        const { outline, labelArea } = outlineRegions(drawing);
+        // A caption below the frame (#491) is not drawn in the shape: no label
+        // area; `label-overflow` checks that it stays clear of the frame.
+        regions = element.labelBelow
+          ? { outline }
+          : {
+              outline,
+              labelArea,
+              labelBoundaries: (drawing.boundaries ?? [drawing.outline]).map((points) => [
+                ...points,
+                points[0] as Point,
+              ]),
+            };
       } else regions = { outline: shapeOutline(shape, bbox), labelArea: labelArea(shape, bbox) };
     }
     elements.push({

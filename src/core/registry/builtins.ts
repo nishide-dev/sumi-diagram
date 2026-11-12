@@ -130,7 +130,7 @@ const waveform = {
   kind: "node",
   name: "waveform",
   description:
-    "A deterministic sample-driven waveform in a rectangular frame, with an optional label below the signal; no audio decoding or synthesis.",
+    "A deterministic sample-driven waveform centred in a rectangular frame; its optional label is a caption centred below the frame, outside it. No audio decoding or synthesis.",
   variants: ["default", "emphasis", "muted", "outlined"],
   shape: "rectangle",
   sizing: "auto",

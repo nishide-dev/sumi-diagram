@@ -362,11 +362,14 @@ their own `properties`, `enum`, `const` and `anyOf`.
   `html` (restricted HTML card): [html](html.md).
 - `waveform`: required `props.samples` (2–2048 finite amplitudes in [-1, 1],
   evenly spaced, no resampling); `mode: bars` (default, mirrored absolute
-  amplitudes) or `line` (signed values); optional `width` / `height` (omitted:
-  fit an optional label below, minimum 80×48pt); variants `default`, `emphasis`,
+  amplitudes) or `line` (signed values), centred in the frame; optional `width` /
+  `height` size the frame alone (omitted: 80×48pt). The `label` is a caption
+  centred **below** the frame, outside it, 0.3 em under its edge (no extra
+  label node needed); it adds height to the layout, edges still meet the frame, and on
+  `emphasis` it takes the canvas text colour. Variants `default`, `emphasis`,
   `muted`, `outlined` (with a `tone` colours signal and frame; others tone the
   background); `props.frameStroke: '#RRGGBB'` sets the frame colour (overridden by
-  inherited `dim`). Both layouts and all outputs. Supply real data or explicitly
+  inherited `dim`); the emphasis signal uses the variant text colour. Both layouts and all outputs. Supply real data or explicitly
   marked illustrative samples; never invent measurements; no audio decoding.
 
   ```yaml

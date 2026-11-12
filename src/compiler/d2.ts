@@ -128,8 +128,11 @@ export function generateD2(ir: FigureIR): string {
     }
     // D2 otherwise moves labels outside undersized explicit rectangles. Keep
     // outline labels centered so composition can translate into the safe area.
+    // A caption below its frame (#491) is outside: ELK then reserves its room
+    // under the shape, and edges still meet the shape; composition moves it
+    // to the structured engine's spacing.
     if (element.kind === "node" && element.render !== undefined)
-      write(body, "label.near: center-center");
+      write(body, `label.near: ${element.labelBelow ? "outside-bottom-center" : "center-center"}`);
     if (element.kind === "node") writeSize(element, body, write, padding);
     writeStyle(
       element.kind === "node" ? imagePlaceholder(element).style : element.style,
