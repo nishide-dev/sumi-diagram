@@ -18,6 +18,9 @@
 - `fanIn: merge` / `spread` を書いたときは従来どおり（幹を頼んだ扱い）。
 - 狭い側ではなく広い側に `straight` を置く。これは `layout/straight-off-side` の hint が勧める書き方と同じ。
 
+- 自動の `straight` で経路が引けない図（逆向きの 2 本が同じ口に固定されるなど）は、`fanIn: merge` を明示してもう一度引き、誤りが少なければそちらを使う（`fanIn: spread` の既存の再試行と同じ仕組み）。再試行は `fanIn: "merge"` を明示して行う（省略すると自動の `straight` が再び効く）。
+- トレードオフ: synthetic grid（100 ノード・146 本）の交差点は 1169 → 1170 と 1 つ増えた。まっすぐに降ろす分、別の線と 1 回交わる場所が増えるため。見た目の改善（段差・迂回の減少）を優先した。
+
 ## 結果
 
 - 1-vit-block/A draft1 の patch 5 → 射影層の迂回、4-train-infer/A draft1 の Decoder → 予測トークンの段差が消える。
