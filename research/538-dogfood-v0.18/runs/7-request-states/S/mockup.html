@@ -1,0 +1,59 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>mockup</title>
+<style>
+  :root {
+    --canvas: #f8f8ee; --ink: #30364f; --panel: #efeddd; --panel-line: #4e566b;
+    --green: #dce7d3; --green-line: #426344; --red: #efd8d0; --red-line: #813f40;
+    --gray: #e1dece; --gray-line: #4e566b;
+    --font: "Inter", "Hiragino Sans", "BIZ UDPGothic", sans-serif;
+    --fs-node: 12; --fs-group: 13.5; --fs-edge: 10.5;
+    --frame-w: 1.5; --edge-w: 1.5; --arrow: #30364f; --pt: 0.3528mm;
+  }
+  @page { size: 165mm 100mm; margin: 0 }
+  html, body { margin: 0; background: var(--canvas) }
+  #fig { position: relative; width: 165mm; height: 100mm; overflow: hidden; font: calc(var(--fs-node) * var(--pt)) var(--font); color: var(--ink) }
+  .box { position: absolute; box-sizing: border-box; display: flex; align-items: center; justify-content: center; height: 8.8mm;
+         text-align: center; border: calc(var(--frame-w) * var(--pt)) solid var(--ink); background: var(--canvas); border-radius: 1mm }
+  .green { background: var(--green); border-color: var(--green-line); color: var(--green-line) }
+  .red { background: var(--red); border-color: var(--red-line); color: var(--red-line) }
+  .gray { background: var(--gray); border-color: var(--gray-line); color: var(--gray-line) }
+  .group { position: absolute; box-sizing: border-box; background: var(--panel); border: calc(var(--frame-w) * var(--pt)) solid var(--panel-line); border-radius: 2mm }
+  .group > .title { position: absolute; left: 0; bottom: 100%; font-weight: bold; font-size: calc(var(--fs-group) * var(--pt)) }
+  .group > .cap { position: absolute; left: 0; right: 0; top: 100%; text-align: center; font-size: calc(var(--fs-group) * var(--pt)); font-weight: bold }
+  svg.edges { position: absolute; inset: 0; width: 165mm; height: 100mm; overflow: visible }
+  svg.edges path.e { fill: none; stroke: var(--arrow); stroke-width: calc(var(--edge-w) * 0.3528) }
+  svg.edges path.r { stroke: var(--red-line) } svg.edges path.g { stroke: var(--green-line) }
+  svg.edges text { font-size: calc(var(--fs-edge) * 0.3528px); fill: var(--ink); font-family: var(--font) }
+  svg.edges text.r { fill: var(--red-line) } svg.edges text.g { fill: var(--green-line) }
+</style>
+<div id="fig">
+  <div class="group" style="left:24mm; top:9.6mm; width:131mm; height:42.8mm"><span class="title">進行中</span></div>
+  <div class="group" style="left:18.5mm; top:67.6mm; width:139.5mm; height:20.8mm"><span class="cap">終端状態</span></div>
+  <div class="box" style="left:30mm; top:15.6mm; width:16mm">受付</div>
+  <div class="box" style="left:58mm; top:15.6mm; width:20mm">検証中</div>
+  <div class="box" style="left:94mm; top:15.6mm; width:16mm">待機</div>
+  <div class="box" style="left:129mm; top:15.6mm; width:20mm">実行中</div>
+  <div class="box" style="left:92mm; top:37.6mm; width:20mm">再試行</div>
+  <div class="box gray" style="left:24.5mm; top:73.6mm; width:27mm">キャンセル</div>
+  <div class="box red" style="left:94mm; top:73.6mm; width:16mm">失敗</div>
+  <div class="box green" style="left:136mm; top:73.6mm; width:16mm">完了</div>
+  <svg class="edges" viewBox="0 0 165 100">
+    <defs>
+      <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="2.2" markerHeight="2.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,1 L10,5 L0,9z" fill="#30364f"/></marker>
+      <marker id="ahr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="2.2" markerHeight="2.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,1 L10,5 L0,9z" fill="#813f40"/></marker>
+      <marker id="ahg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="2.2" markerHeight="2.2" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,1 L10,5 L0,9z" fill="#426344"/></marker>
+    </defs>
+    <circle cx="8" cy="20" r="2.65" fill="#30364f"/>
+    <path class="e" d="M10.7 20 H30" marker-end="url(#ah)"/><text x="19" y="18.5" text-anchor="middle">到着</text>
+    <path class="e" d="M46 20 H58" marker-end="url(#ah)"/><text x="52" y="18.5" text-anchor="middle">受理</text>
+    <path class="e" d="M78 20 H94" marker-end="url(#ah)"/><text x="86" y="18.5" text-anchor="middle">検証OK</text>
+    <path class="e" d="M110 20 H129" marker-end="url(#ah)"/><text x="119.5" y="14.5" text-anchor="middle">ワーカー</text><text x="119.5" y="18.5" text-anchor="middle">割当</text>
+    <path class="e r" d="M134 24.4 V42 H112" marker-end="url(#ahr)"/><text class="r" x="123" y="40.5" text-anchor="middle">エラー</text>
+    <path class="e" d="M102 37.6 V24.4" marker-end="url(#ah)"/><text x="104" y="32" >バックオフ後</text>
+    <path class="e r" d="M102 46.4 V73.6" marker-end="url(#ahr)"/><text class="r" x="104" y="62">上限超過</text>
+    <path class="e g" d="M144 24.4 V73.6" marker-end="url(#ahg)"/><text class="g" x="146" y="62">成功</text>
+    <path class="e r" d="M68 24.4 V78 H94" marker-end="url(#ahr)"/><text class="r" x="81" y="76.5" text-anchor="middle">検証エラー</text>
+    <path class="e" d="M38 52.4 V73.6" marker-end="url(#ah)"/><text x="36" y="62" text-anchor="end">キャンセル要求</text>
+  </svg>
+</div>

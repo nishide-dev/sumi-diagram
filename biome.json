@@ -18,6 +18,7 @@
       "!research/233-lora/*.svg",
       "!research/248-fill/*.svg",
       "!research/509-dogfood-v0.17/runs",
+      "!research/538-dogfood-v0.18/runs",
       "!docs/gallery",
       "!docs/assets/**/*.svg",
       "!tests/fixtures/lint-output",

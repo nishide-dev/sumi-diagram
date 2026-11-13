@@ -1,0 +1,41 @@
+# Data pipeline with a feedback loop (README figure, ~160mm wide, text >= 9pt).
+# Two rows snake into a ring: data preparation left to right, model lifecycle
+# right to left, so monitoring feeds back to collection with one short edge.
+# Red marks failure paths: quarantined data and the quality-drop feedback.
+version: 1
+figure:
+  id: data-pipeline
+  theme: sumi
+  profile: screen-doc
+  themeOverrides: {textScale: 1.5}
+  target: {minFontSize: 9pt}
+  layout:
+    arrange:
+      grid:
+        columns: 4
+        columnGap: 11mm
+        rowGap: 10mm
+        items:
+          [~, quarantine, ~, ~,
+           collect, validate, transform, store,
+           monitor, deploy, evaluate, train]
+nodes:
+  - {id: quarantine, component: cylinder, label: Quarantine, tone: red, variant: tinted}
+  - {id: collect, component: box, label: Collect}
+  - {id: validate, component: box, label: Validate}
+  - {id: transform, component: box, label: Transform}
+  - {id: store, component: cylinder, label: Feature store}
+  - {id: train, component: box, label: Train}
+  - {id: evaluate, component: box, label: Evaluate}
+  - {id: deploy, component: box, label: Deploy}
+  - {id: monitor, component: box, label: Monitor}
+edges:
+  - {from: collect, to: validate}
+  - {from: validate, to: transform}
+  - {from: transform, to: store}
+  - {from: store, to: train, fromAnchor: south, toAnchor: north}
+  - {from: train, to: evaluate}
+  - {from: evaluate, to: deploy}
+  - {from: deploy, to: monitor}
+  - {from: monitor, to: collect, fromAnchor: north, toAnchor: south, tone: red, variant: dashed, label: "quality drop:\nre-collect, relabel", labelSide: right}
+  - {from: validate, to: quarantine, fromAnchor: north, toAnchor: south, tone: red, variant: dashed, label: failed checks, labelSide: right}

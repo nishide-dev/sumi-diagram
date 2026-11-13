@@ -1,0 +1,76 @@
+# Web service system architecture for a 16:9 slide (theme sumi, textScale 2).
+# Reproduces mockup.html: tiers as columns, async processing below the
+# services and data tiers, the external payment API outside every tier.
+version: 1
+figure:
+  id: web-system
+  title: Web service system architecture
+  theme: sumi
+  profile: presentation-16x9
+  themeOverrides: {textScale: 2}
+  target: {minFontSize: 14pt}
+  layout:
+    arrange:
+      grid:
+        columns: 6
+        columnGap: 12mm
+        rowGap: 12mm
+        items:
+          - clients
+          - cdn
+          - gateway
+          - services
+          - data
+          - null
+          - {item: key, span: 3, align: start}
+          - queue
+          - worker
+          - payment
+groups:
+  - id: clients
+    label: Clients
+    arrange: {stack: {gap: 10mm, align: stretch, items: [browser, mobile]}}
+  - id: services
+    label: Services
+    arrange: {stack: {gap: 6mm, align: stretch, items: [auth, inventory, order]}}
+  - id: data
+    label: Data
+    arrange: {stack: {gap: 10mm, align: stretch, items: [redis, postgres]}}
+nodes:
+  - {id: browser, component: box, label: Browser}
+  - {id: mobile, component: box, label: Mobile app}
+  - {id: cdn, component: box, label: CDN, variant: outlined}
+  - {id: gateway, component: box, label: API gateway, variant: emphasis}
+  - {id: auth, component: box, label: Auth, tone: blue, variant: tinted}
+  - {id: inventory, component: box, label: Inventory, tone: blue, variant: tinted}
+  - {id: order, component: box, label: Order, tone: blue, variant: tinted}
+  - {id: redis, component: cylinder, label: Redis cache, tone: green, variant: tinted}
+  - {id: postgres, component: cylinder, label: PostgreSQL, tone: green, variant: tinted}
+  - {id: queue, component: box, label: Message queue, tone: orange, variant: tinted}
+  - {id: worker, component: box, label: Async worker, tone: orange, variant: tinted}
+  - {id: payment, component: box, label: "Payment API\n(external)", variant: dashed}
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      entries:
+        - {edge: {}, label: synchronous call}
+        - {edge: {variant: dashed, arrowheadScale: 0.5}, label: asynchronous message}
+edges:
+  - {from: clients, to: cdn}
+  - {from: cdn, to: gateway}
+  - {from: gateway, to: services}
+  - {from: services, to: data, component: double-arrow}
+  - {from: order, to: queue, variant: dashed, label: publish, labelAt: start}
+  - {from: queue, to: worker, variant: dashed}
+  - {from: worker, to: postgres, label: update}
+  - {from: worker, to: payment, label: charge}
+sets:
+  - id: async
+    label: Async processing
+    labelAt: bottom
+    shape: rect
+    members: [queue, worker]
+    variant: outlined
+    tone: orange
+    padding: 3mm

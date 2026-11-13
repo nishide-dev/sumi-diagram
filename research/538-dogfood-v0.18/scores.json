@@ -1,0 +1,583 @@
+{
+  "scores": [
+    {
+      "code": "1d1",
+      "request": "1-vit-block",
+      "stage": "draft1",
+      "condition": "509-B",
+      "overall": "minor"
+    },
+    {
+      "code": "1d2",
+      "request": "1-vit-block",
+      "stage": "draft1",
+      "condition": "509-A",
+      "overall": "minor"
+    },
+    {
+      "code": "1d3",
+      "request": "1-vit-block",
+      "stage": "draft1",
+      "condition": "S",
+      "overall": "asis"
+    },
+    {
+      "code": "1f1",
+      "request": "1-vit-block",
+      "stage": "final",
+      "condition": "S",
+      "align": 4,
+      "color": 5,
+      "comp": 4,
+      "content": 5,
+      "fit": 5,
+      "overall": "asis",
+      "read": 5
+    },
+    {
+      "code": "1f2",
+      "request": "1-vit-block",
+      "stage": "final",
+      "condition": "509-B",
+      "align": 4,
+      "color": 5,
+      "comp": 4,
+      "content": 5,
+      "fit": 5,
+      "overall": "asis",
+      "read": 5
+    },
+    {
+      "code": "1f3",
+      "request": "1-vit-block",
+      "stage": "final",
+      "condition": "509-A",
+      "align": 4,
+      "color": 2,
+      "comp": 3,
+      "content": 4,
+      "fit": 4,
+      "overall": "minor",
+      "read": 3
+    },
+    {
+      "code": "2d1",
+      "request": "2-web-system",
+      "stage": "draft1",
+      "condition": "S",
+      "note": "矢印や文字の被りが多い",
+      "overall": "minor"
+    },
+    {
+      "code": "2d2",
+      "request": "2-web-system",
+      "stage": "draft1",
+      "condition": "509-B",
+      "overall": "minor"
+    },
+    {
+      "code": "2d3",
+      "request": "2-web-system",
+      "stage": "draft1",
+      "condition": "509-A",
+      "overall": "no"
+    },
+    {
+      "code": "2f1",
+      "request": "2-web-system",
+      "stage": "final",
+      "condition": "509-A",
+      "align": 2,
+      "color": 4,
+      "comp": 2,
+      "content": 3,
+      "fit": 2,
+      "overall": "no",
+      "read": 2
+    },
+    {
+      "code": "2f2",
+      "request": "2-web-system",
+      "stage": "final",
+      "condition": "509-B",
+      "align": 4,
+      "color": 4,
+      "comp": 4,
+      "content": 4,
+      "fit": 4,
+      "overall": "asis",
+      "read": 4
+    },
+    {
+      "code": "2f3",
+      "request": "2-web-system",
+      "stage": "final",
+      "condition": "S",
+      "align": 4,
+      "color": 4,
+      "comp": 4,
+      "content": 4,
+      "fit": 5,
+      "overall": "asis",
+      "read": 4
+    },
+    {
+      "code": "3d1",
+      "request": "3-data-pipeline",
+      "stage": "draft1",
+      "condition": "509-A",
+      "overall": "minor"
+    },
+    {
+      "code": "3d2",
+      "request": "3-data-pipeline",
+      "stage": "draft1",
+      "condition": "509-B",
+      "overall": "no"
+    },
+    {
+      "code": "3d3",
+      "request": "3-data-pipeline",
+      "stage": "draft1",
+      "condition": "S",
+      "overall": "minor"
+    },
+    {
+      "code": "3f1",
+      "request": "3-data-pipeline",
+      "stage": "final",
+      "condition": "509-A",
+      "align": 4,
+      "color": 4,
+      "comp": 4,
+      "content": 4,
+      "fit": 3,
+      "overall": "minor",
+      "read": 4
+    },
+    {
+      "code": "3f2",
+      "request": "3-data-pipeline",
+      "stage": "final",
+      "condition": "S",
+      "align": 4,
+      "color": 4,
+      "comp": 3,
+      "content": 4,
+      "fit": 4,
+      "overall": "minor",
+      "read": 3
+    },
+    {
+      "code": "3f3",
+      "request": "3-data-pipeline",
+      "stage": "final",
+      "condition": "509-B",
+      "align": 3,
+      "color": 3,
+      "comp": 3,
+      "content": 3,
+      "fit": 3,
+      "overall": "minor",
+      "read": 3
+    },
+    {
+      "code": "4d1",
+      "request": "4-train-infer",
+      "stage": "draft1",
+      "condition": "S",
+      "overall": "asis"
+    },
+    {
+      "code": "4d2",
+      "request": "4-train-infer",
+      "stage": "draft1",
+      "condition": "509-A",
+      "overall": "no"
+    },
+    {
+      "code": "4d3",
+      "request": "4-train-infer",
+      "stage": "draft1",
+      "condition": "509-B",
+      "overall": "no"
+    },
+    {
+      "code": "4f1",
+      "request": "4-train-infer",
+      "stage": "final",
+      "condition": "509-B",
+      "align": 5,
+      "color": 4,
+      "comp": 5,
+      "content": 5,
+      "fit": 5,
+      "overall": "asis",
+      "read": 5
+    },
+    {
+      "code": "4f2",
+      "request": "4-train-infer",
+      "stage": "final",
+      "condition": "S",
+      "align": 5,
+      "color": 3,
+      "comp": 5,
+      "content": 5,
+      "fit": 5,
+      "overall": "asis",
+      "read": 5
+    },
+    {
+      "code": "4f3",
+      "request": "4-train-infer",
+      "stage": "final",
+      "condition": "509-A",
+      "align": 2,
+      "color": 2,
+      "comp": 2,
+      "content": 3,
+      "fit": 2,
+      "overall": "no",
+      "read": 2
+    },
+    {
+      "code": "5d1",
+      "request": "5-agent-loop",
+      "stage": "draft1",
+      "condition": "509-B",
+      "overall": "no"
+    },
+    {
+      "code": "5d2",
+      "request": "5-agent-loop",
+      "stage": "draft1",
+      "condition": "509-A",
+      "overall": "no"
+    },
+    {
+      "code": "5d3",
+      "request": "5-agent-loop",
+      "stage": "draft1",
+      "condition": "S",
+      "overall": "no"
+    },
+    {
+      "code": "5f1",
+      "request": "5-agent-loop",
+      "stage": "final",
+      "condition": "S",
+      "align": 4,
+      "color": 4,
+      "comp": 4,
+      "content": 4,
+      "fit": 4,
+      "overall": "asis",
+      "read": 5
+    },
+    {
+      "code": "5f2",
+      "request": "5-agent-loop",
+      "stage": "final",
+      "condition": "509-B",
+      "align": 3,
+      "color": 3,
+      "comp": 3,
+      "content": 3,
+      "fit": 3,
+      "overall": "minor",
+      "read": 3
+    },
+    {
+      "code": "5f3",
+      "request": "5-agent-loop",
+      "stage": "final",
+      "condition": "509-A",
+      "align": 2,
+      "color": 2,
+      "comp": 2,
+      "content": 3,
+      "fit": 2,
+      "overall": "no",
+      "read": 2
+    },
+    {
+      "code": "6d1",
+      "request": "6-rag-compare",
+      "stage": "draft1",
+      "condition": "S",
+      "overall": "asis"
+    },
+    {
+      "code": "6d2",
+      "request": "6-rag-compare",
+      "stage": "draft1",
+      "condition": "509-B",
+      "overall": "minor"
+    },
+    {
+      "code": "6d3",
+      "request": "6-rag-compare",
+      "stage": "draft1",
+      "condition": "509-A",
+      "overall": "asis"
+    },
+    {
+      "code": "6f1",
+      "request": "6-rag-compare",
+      "stage": "final",
+      "condition": "S",
+      "align": 5,
+      "color": 4,
+      "comp": 4,
+      "content": 4,
+      "fit": 5,
+      "overall": "asis",
+      "read": 4
+    },
+    {
+      "code": "6f2",
+      "request": "6-rag-compare",
+      "stage": "final",
+      "condition": "509-B",
+      "align": 3,
+      "color": 4,
+      "comp": 4,
+      "content": 4,
+      "fit": 4,
+      "overall": "asis",
+      "read": 5
+    },
+    {
+      "code": "6f3",
+      "request": "6-rag-compare",
+      "stage": "final",
+      "condition": "509-A",
+      "align": 4,
+      "color": 4,
+      "comp": 4,
+      "content": 4,
+      "fit": 4,
+      "overall": "asis",
+      "read": 4
+    },
+    {
+      "code": "7d1",
+      "request": "7-request-states",
+      "stage": "draft1",
+      "condition": "509-B",
+      "overall": "no"
+    },
+    {
+      "code": "7d2",
+      "request": "7-request-states",
+      "stage": "draft1",
+      "condition": "S",
+      "overall": "minor"
+    },
+    {
+      "code": "7d3",
+      "request": "7-request-states",
+      "stage": "draft1",
+      "condition": "509-A",
+      "overall": "no"
+    },
+    {
+      "code": "7f1",
+      "request": "7-request-states",
+      "stage": "final",
+      "condition": "S",
+      "align": 4,
+      "color": 4,
+      "comp": 4,
+      "content": 4,
+      "fit": 4,
+      "overall": "asis",
+      "read": 4
+    },
+    {
+      "code": "7f2",
+      "request": "7-request-states",
+      "stage": "final",
+      "condition": "509-A",
+      "align": 2,
+      "color": 2,
+      "comp": 2,
+      "content": 3,
+      "fit": 2,
+      "overall": "no",
+      "read": 2
+    },
+    {
+      "code": "7f3",
+      "request": "7-request-states",
+      "stage": "final",
+      "condition": "509-B",
+      "align": 2,
+      "color": 3,
+      "comp": 2,
+      "content": 3,
+      "fit": 3,
+      "overall": "no",
+      "read": 2
+    },
+    {
+      "code": "8d1",
+      "request": "8-method-taxonomy",
+      "stage": "draft1",
+      "condition": "509-A",
+      "overall": "no"
+    },
+    {
+      "code": "8d2",
+      "request": "8-method-taxonomy",
+      "stage": "draft1",
+      "condition": "509-B",
+      "overall": "minor"
+    },
+    {
+      "code": "8d3",
+      "request": "8-method-taxonomy",
+      "stage": "draft1",
+      "condition": "S",
+      "overall": "minor"
+    },
+    {
+      "code": "8f1",
+      "request": "8-method-taxonomy",
+      "stage": "final",
+      "condition": "509-B",
+      "align": 4,
+      "color": 4,
+      "comp": 4,
+      "content": 4,
+      "fit": 4,
+      "overall": "asis",
+      "read": 4
+    },
+    {
+      "code": "8f2",
+      "request": "8-method-taxonomy",
+      "stage": "final",
+      "condition": "S",
+      "align": 4,
+      "color": 4,
+      "comp": 4,
+      "content": 4,
+      "fit": 4,
+      "overall": "asis",
+      "read": 4
+    },
+    {
+      "code": "8f3",
+      "request": "8-method-taxonomy",
+      "stage": "final",
+      "condition": "509-A",
+      "align": 4,
+      "color": 4,
+      "comp": 3,
+      "content": 3,
+      "fit": 4,
+      "overall": "asis",
+      "read": 2
+    }
+  ],
+  "prefs": [
+    {
+      "request": "1",
+      "stage": "draft1",
+      "pick": "3",
+      "condition": "S"
+    },
+    {
+      "request": "1",
+      "stage": "final",
+      "pick": "1",
+      "condition": "S"
+    },
+    {
+      "request": "2",
+      "stage": "draft1",
+      "pick": "1",
+      "condition": "S"
+    },
+    {
+      "request": "2",
+      "stage": "final",
+      "pick": "3",
+      "condition": "S"
+    },
+    {
+      "request": "3",
+      "stage": "draft1",
+      "pick": "same",
+      "condition": "same"
+    },
+    {
+      "request": "3",
+      "stage": "final",
+      "pick": "1",
+      "condition": "509-A"
+    },
+    {
+      "request": "4",
+      "stage": "draft1",
+      "pick": "1",
+      "condition": "S"
+    },
+    {
+      "request": "4",
+      "stage": "final",
+      "pick": "1",
+      "condition": "509-B"
+    },
+    {
+      "request": "5",
+      "stage": "draft1",
+      "pick": "3",
+      "condition": "S"
+    },
+    {
+      "request": "5",
+      "stage": "final",
+      "pick": "1",
+      "condition": "S"
+    },
+    {
+      "request": "6",
+      "stage": "draft1",
+      "pick": "1",
+      "condition": "S"
+    },
+    {
+      "request": "6",
+      "stage": "final",
+      "pick": "same",
+      "condition": "same"
+    },
+    {
+      "request": "7",
+      "stage": "draft1",
+      "pick": "2",
+      "condition": "S"
+    },
+    {
+      "request": "7",
+      "stage": "final",
+      "pick": "1",
+      "condition": "S"
+    },
+    {
+      "request": "8",
+      "stage": "draft1",
+      "pick": "3",
+      "condition": "S"
+    },
+    {
+      "request": "8",
+      "stage": "final",
+      "pick": "same",
+      "condition": "same"
+    }
+  ]
+}

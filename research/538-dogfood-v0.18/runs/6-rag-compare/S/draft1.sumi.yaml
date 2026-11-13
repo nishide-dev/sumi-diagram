@@ -1,0 +1,64 @@
+version: 1
+figure:
+  id: rag-compare
+  theme: sumi
+  profile: presentation-16x9
+  themeOverrides:
+    textScale: 2
+  layout:
+    density: compact
+    arrange:
+      stack:
+        gap: 10mm
+        items:
+          - grid:
+              columns: 8
+              rowGap: 14mm
+              columnGap: 8mm
+              align: start
+              items:
+                [t1, q1, ~, r1, ~, ~, g1, a1,
+                 t2, q2, ~, r2, k2, ~, g2, a2,
+                 t3, q3, p3, r3, ~, v3, g3, a3]
+          - key
+nodes:
+  - {id: t1, component: label, label: "Naive RAG"}
+  - {id: q1, component: box, label: Query, variant: muted}
+  - {id: r1, component: box, label: Retrieve}
+  - {id: g1, component: box, label: Generate}
+  - {id: a1, component: box, label: Answer, variant: muted}
+  - {id: t2, component: label, label: "RAG with\nreranking"}
+  - {id: q2, component: box, label: Query, variant: muted}
+  - {id: r2, component: box, label: Retrieve}
+  - {id: k2, component: box, label: Rerank, tone: orange}
+  - {id: g2, component: box, label: Generate}
+  - {id: a2, component: box, label: Answer, variant: muted}
+  - {id: t3, component: label, label: "Agentic RAG"}
+  - {id: q3, component: box, label: Query, variant: muted}
+  - {id: p3, component: box, label: Plan, tone: orange}
+  - {id: r3, component: box, label: Retrieve}
+  - {id: v3, component: box, label: Verify, tone: orange}
+  - {id: g3, component: box, label: Generate}
+  - {id: a3, component: box, label: Answer, variant: muted}
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: row
+      entries:
+        - {node: {tone: orange}, label: step added to naive RAG}
+        - {edge: {variant: dashed}, label: iterative retrieval}
+edges:
+  - {from: q1, to: r1}
+  - {from: r1, to: g1}
+  - {from: g1, to: a1}
+  - {from: q2, to: r2}
+  - {from: r2, to: k2}
+  - {from: k2, to: g2}
+  - {from: g2, to: a2}
+  - {from: q3, to: p3}
+  - {from: p3, to: r3}
+  - {from: r3, to: v3}
+  - {from: v3, to: g3}
+  - {from: g3, to: a3}
+  - {from: v3, to: r3, fromAnchor: south, toAnchor: south, variant: dashed, label: retrieve again, labelAt: middle}

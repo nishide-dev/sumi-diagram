@@ -1,0 +1,81 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>mockup</title>
+<style>
+  :root {
+    --canvas: #f8f8ee; --ink: #30364f; --ink2: #4e566b;
+    --blue: #d9e4e6; --blue-line: #3d5d77;
+    --orange: #efdfce; --orange-line: #814b2d;
+    --green: #dce7d3; --gray: #e1dece;
+    --font: "Inter", "Helvetica Neue", Arial, sans-serif;
+    --fs-node: 8; --fs-group: 9; --fs-edge: 7;
+    --frame-w: 1; --edge-w: 1; --arrow: #30364f; --pt: 0.3528mm;
+  }
+  @page { size: 168mm 86mm; margin: 0 }
+  html, body { margin: 0; background: var(--canvas) }
+  #fig { position: relative; width: 168mm; height: 86mm; overflow: hidden; font: calc(var(--fs-node) * var(--pt)) var(--font); color: var(--ink) }
+  .box { position: absolute; box-sizing: border-box; display: flex; align-items: center; justify-content: center; text-align: center;
+         border: calc(var(--frame-w) * var(--pt)) solid var(--ink); border-radius: 0.6mm }
+  .mod { background: var(--orange); border-color: var(--orange-line); color: var(--orange-line) }
+  .loss { background: var(--ink); color: #fff; font-weight: bold }
+  .t { position: absolute; box-sizing: border-box; width: 7.8mm; height: 5.3mm; display: flex; align-items: center; justify-content: center;
+       border: calc(var(--frame-w) * var(--pt)) solid var(--ink2); font-style: italic; font-family: "Times New Roman", serif }
+  .b { background: var(--blue) } .g { background: var(--green) } .m { background: var(--gray); font-style: normal; font-family: var(--font) }
+  .lab { position: absolute; color: var(--ink2) }
+  .title { position: absolute; font-weight: bold; font-size: calc(var(--fs-group) * var(--pt)) }
+  .dash { position: absolute; box-sizing: border-box; border: calc(var(--frame-w) * var(--pt)) dashed var(--ink2) }
+  svg.edges { position: absolute; inset: 0; width: 168mm; height: 86mm; overflow: visible }
+  svg.edges path.e { fill: none; stroke: var(--arrow); stroke-width: 0.3528 }
+  svg.edges path.d { stroke-dasharray: 1.2 0.8; stroke: var(--orange-line) }
+  svg.edges text { font-size: 2.47px; fill: var(--ink2); font-family: var(--font) }
+  svg.edges marker path { fill: var(--arrow) }
+</style>
+<div id="fig">
+  <div class="title" style="left:4mm; top:2mm">(a) Training</div>
+  <div class="title" style="left:94mm; top:2mm">(b) Inference</div>
+  <!-- training -->
+  <div class="lab" style="left:19mm; top:7.5mm">Input with masked positions</div>
+  <div class="t b" style="left:16.6mm; top:11mm">x1</div><div class="t m" style="left:24.4mm; top:11mm">M</div>
+  <div class="t b" style="left:32.2mm; top:11mm">x3</div><div class="t m" style="left:40mm; top:11mm">M</div>
+  <div class="t m" style="left:47.8mm; top:11mm">M</div><div class="t b" style="left:55.6mm; top:11mm">x6</div>
+  <div class="box mod" style="left:10mm; top:22mm; width:60mm; height:6mm">Encoder</div>
+  <div class="box mod" style="left:10mm; top:35mm; width:60mm; height:6mm">Decoder</div>
+  <div class="t g" style="left:24.4mm; top:48mm">x̂2</div>
+  <div class="t g" style="left:40mm; top:48mm">x̂4</div><div class="t g" style="left:47.8mm; top:48mm">x̂5</div>
+  <div class="lab" style="left:57mm; top:49mm">predictions</div>
+  <div class="box loss" style="left:10mm; top:62mm; width:60mm; height:6mm">Loss on masked positions</div>
+  <!-- inference -->
+  <div class="lab" style="left:126mm; top:7.5mm">Input</div>
+  <div class="t b" style="left:114.4mm; top:11mm">x1</div><div class="t b" style="left:122.2mm; top:11mm">x2</div>
+  <div class="t b" style="left:130mm; top:11mm">x3</div><div class="t b" style="left:137.8mm; top:11mm">x4</div>
+  <div class="box mod" style="left:100mm; top:22mm; width:60mm; height:6mm">Encoder</div>
+  <div class="dash" style="left:95mm; top:32mm; width:71mm; height:26mm"></div>
+  <div class="title" style="left:97mm; top:53mm; font-size:calc(8*var(--pt))">Iterative generation (T steps)</div>
+  <div class="box mod" style="left:100mm; top:35mm; width:60mm; height:6mm">Decoder</div>
+  <div class="t g" style="left:114.4mm; top:46mm">ŷ1</div><div class="t m" style="left:122.2mm; top:46mm">M</div>
+  <div class="t g" style="left:130mm; top:46mm">ŷ3</div><div class="t m" style="left:137.8mm; top:46mm">M</div>
+  <div class="t g" style="left:114.4mm; top:62mm">ŷ1</div><div class="t g" style="left:122.2mm; top:62mm">ŷ2</div>
+  <div class="t g" style="left:130mm; top:62mm">ŷ3</div><div class="t g" style="left:137.8mm; top:62mm">ŷ4</div>
+  <div class="lab" style="left:147mm; top:63mm">output</div>
+  <!-- legend -->
+  <div class="t b" style="left:6mm; top:76mm; width:6mm; height:4mm"></div><div class="lab" style="left:13mm; top:76.5mm">input token</div>
+  <div class="t m" style="left:32mm; top:76mm; width:6mm; height:4mm"></div><div class="lab" style="left:39mm; top:76.5mm">mask</div>
+  <div class="t g" style="left:50mm; top:76mm; width:6mm; height:4mm"></div><div class="lab" style="left:57mm; top:76.5mm">predicted token</div>
+  <div class="box mod" style="left:80mm; top:76mm; width:6mm; height:4mm"></div><div class="lab" style="left:87mm; top:76.5mm">model module</div>
+  <svg class="edges" viewBox="0 0 168 86">
+    <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="2" markerHeight="2" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0,1 L10,5 L0,9z"/></marker></defs>
+    <path class="e" d="M40 16.3 V22" marker-end="url(#ah)"/>
+    <path class="e" d="M40 28 V35" marker-end="url(#ah)"/>
+    <path class="e" d="M28.3 41 V48" marker-end="url(#ah)"/><path class="e" d="M43.9 41 V48" marker-end="url(#ah)"/><path class="e" d="M51.7 41 V48" marker-end="url(#ah)"/>
+    <path class="e" d="M28.3 53.3 V62" marker-end="url(#ah)"/><path class="e" d="M43.9 53.3 V62" marker-end="url(#ah)"/><path class="e" d="M51.7 53.3 V62" marker-end="url(#ah)"/>
+    <path class="e" d="M130 16.3 V22" marker-end="url(#ah)"/>
+    <path class="e" d="M130 28 V35" marker-end="url(#ah)"/>
+    <path class="e" d="M130 41 V46" marker-end="url(#ah)"/>
+    <path class="e" d="M145.6 48.6 H155 V38 H160.2" marker-end="url(#ah)"/>
+    <text x="156" y="45">×T</text>
+    <path class="e" d="M130 58 V62" marker-end="url(#ah)"/>
+    <path class="e d" d="M70 25 H100" marker-start="url(#ah)" marker-end="url(#ah)"/>
+    <path class="e d" d="M70 38 H95" marker-start="url(#ah)" marker-end="url(#ah)"/>
+    <text x="74" y="23.6">shared weights</text><text x="74" y="36.6">shared weights</text>
+  </svg>
+</div>

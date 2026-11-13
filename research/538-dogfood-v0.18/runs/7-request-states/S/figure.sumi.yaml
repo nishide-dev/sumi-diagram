@@ -1,0 +1,60 @@
+version: 1
+figure:
+  id: request-states
+  title: リクエストのライフサイクル
+  theme: sumi
+  profile: screen-doc
+  themeOverrides: {textScale: 1.5}
+  target: {minFontSize: 8pt}
+  layout:
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: start, at: [8, 24.06]}
+          - {item: active, at: [89.5, 31], origin: body}
+          - {item: terminal, at: [88.25, 78], origin: body}
+groups:
+  - id: active
+    label: 進行中
+    labelAt: top-left
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: received, at: [38, 20]}
+          - {item: validating, at: [68, 20]}
+          - {item: queued, at: [102, 20]}
+          - {item: running, at: [139, 20]}
+          - {item: retrying, at: [102, 42]}
+  - id: terminal
+    label: 終端状態
+    labelAt: bottom
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: cancelled, at: [38, 78]}
+          - {item: failed, at: [102, 78]}
+          - {item: completed, at: [144, 78]}
+nodes:
+  - {id: start, component: initial}
+  - {id: received, component: box, label: 受付}
+  - {id: validating, component: box, label: 検証中}
+  - {id: queued, component: box, label: 待機}
+  - {id: running, component: box, label: 実行中}
+  - {id: retrying, component: box, label: 再試行}
+  - {id: cancelled, component: box, label: キャンセル, tone: gray, variant: tinted}
+  - {id: failed, component: box, label: 失敗, tone: red, variant: tinted}
+  - {id: completed, component: box, label: 完了, tone: green, variant: tinted}
+edges:
+  - {from: start, to: received, label: 到着}
+  - {from: received, to: validating, label: 受理}
+  - {from: validating, to: queued, label: 検証OK}
+  - {from: queued, to: running, label: "ワーカー\n割当"}
+  - {from: running, to: completed, label: 成功, tone: green, fromAnchor: "south:0.75", toAnchor: north}
+  - {from: running, to: retrying, label: エラー, tone: red, fromAnchor: "south:0.25", toAnchor: east}
+  - {from: retrying, to: queued, label: バックオフ後, fromAnchor: north, toAnchor: south}
+  - {from: retrying, to: failed, label: 上限超過, tone: red, fromAnchor: south, toAnchor: north}
+  - {from: validating, to: failed, label: 検証エラー, tone: red, fromAnchor: south, toAnchor: west}
+  - {from: active, to: cancelled, label: キャンセル要求, fromAnchor: straight, toAnchor: north}

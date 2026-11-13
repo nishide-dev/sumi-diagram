@@ -1,0 +1,41 @@
+# Data pipeline with a feedback loop (README figure, ~160mm wide, text >= 9pt).
+# Two rows snake into a ring: data preparation left to right, model lifecycle
+# right to left, so monitoring feeds back to collection with one short edge.
+# Red marks failure paths: quarantined data and the quality-drop feedback.
+version: 1
+figure:
+  id: data-pipeline
+  theme: sumi
+  profile: screen-doc
+  themeOverrides: {textScale: 1.5}
+  target: {minFontSize: 9pt}
+  layout:
+    arrange:
+      grid:
+        columns: 4
+        columnGap: 9mm
+        rowGap: 10mm
+        items:
+          [~, quarantine, ~, ~,
+           collect, validate, transform, store,
+           monitor, deploy, evaluate, train]
+nodes:
+  - {id: quarantine, component: cylinder, label: Quarantine, tone: red, variant: tinted, props: {width: 32mm, height: 18.5mm}}
+  - {id: collect, component: box, label: Collect, props: {width: 30mm}}
+  - {id: validate, component: box, label: Validate, props: {width: 30mm}}
+  - {id: transform, component: box, label: Transform, props: {width: 30mm}}
+  - {id: store, component: cylinder, label: Feature store, props: {width: 32mm, height: 18.5mm}}
+  - {id: train, component: box, label: Train, props: {width: 30mm}}
+  - {id: evaluate, component: box, label: Evaluate, props: {width: 30mm}}
+  - {id: deploy, component: box, label: Deploy, props: {width: 30mm}}
+  - {id: monitor, component: box, label: Monitor, props: {width: 30mm}}
+edges:
+  - {from: collect, to: validate}
+  - {from: validate, to: transform}
+  - {from: transform, to: store}
+  - {from: store, to: train, fromAnchor: south, toAnchor: north}
+  - {from: train, to: evaluate}
+  - {from: evaluate, to: deploy}
+  - {from: deploy, to: monitor}
+  - {from: monitor, to: collect, fromAnchor: north, toAnchor: south, tone: red, variant: dashed, label: "quality drop:\nre-collect, relabel", labelSide: right}
+  - {from: validate, to: quarantine, fromAnchor: north, toAnchor: south, tone: red, variant: dashed, label: failed checks, labelSide: right}

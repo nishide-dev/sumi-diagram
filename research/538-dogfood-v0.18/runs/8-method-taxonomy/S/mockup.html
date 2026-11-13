@@ -1,0 +1,50 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>mockup</title>
+<style>
+  :root {
+    --canvas: #f8f8ee; --ink: #30364f;
+    --blue: #d8dfe4; --blue-line: #3d5d77;
+    --green: #d9e0da; --green-line: #426344;
+    --orange: #e6dbd5; --orange-line: #814b2d;
+    --purple: #dfdce4; --purple-line: #5f4f78;
+    --font: "Inter", "Helvetica Neue", Arial, sans-serif;
+    --fs-node: 8; --fs-group: 9; --fs-edge: 7;
+    --frame-w: 0.75; --edge-w: 0.75;
+    --pt: 0.3528mm;
+  }
+  @page { size: 184mm 76mm; margin: 0 }
+  html, body { margin: 0; background: var(--canvas) }
+  #fig { position: relative; width: 184mm; height: 76mm; overflow: hidden; font: calc(var(--fs-node) * var(--pt)) var(--font); color: var(--ink) }
+  .box { position: absolute; box-sizing: border-box; display: flex; align-items: center; justify-content: center; transform: translate(-50%,-50%);
+         height: 6mm; padding: 0 2mm; white-space: nowrap; border: calc(var(--frame-w) * var(--pt)) solid var(--ink); background: var(--canvas); border-radius: 0.5mm }
+  .emph { background: var(--ink); color: var(--canvas); font-weight: bold; width: 17mm }
+  .title { position: absolute; transform: translateX(-50%); text-align: center; font-weight: bold; font-size: calc(var(--fs-group) * var(--pt)); line-height: 1.2 }
+  svg { position: absolute; inset: 0; width: 184mm; height: 76mm }
+  .leg { position: absolute; top: 66mm; display: flex; gap: 2mm; align-items: center }
+  .sw { width: 9mm; height: 3.5mm; box-sizing: border-box; border: calc(var(--frame-w) * var(--pt)) solid var(--ink) }
+</style>
+<div id="fig">
+  <svg viewBox="-4 0 184 76">
+    <ellipse cx="25" cy="35" rx="29" ry="24" fill="var(--blue)" stroke="var(--blue-line)" stroke-width="0.26"/>
+    <ellipse cx="68" cy="35" rx="29" ry="24" fill="var(--green)" stroke="var(--green-line)" stroke-width="0.26" fill-opacity="0.85"/>
+    <ellipse cx="108" cy="35" rx="29" ry="24" fill="var(--orange)" stroke="var(--orange-line)" stroke-width="0.26" fill-opacity="0.85"/>
+    <ellipse cx="151" cy="35" rx="27" ry="24" fill="var(--purple)" stroke="var(--purple-line)" stroke-width="0.26" fill-opacity="0.85"/>
+  </svg>
+  <div class="title" style="left:29mm; top:2mm; color:var(--blue-line)">Spectral<br>graph Fourier filters</div>
+  <div class="title" style="left:72mm; top:2mm; color:var(--green-line)">Spatial<br>neighbour aggregation</div>
+  <div class="title" style="left:112mm; top:2mm; color:var(--orange-line)">Attention<br>learned neighbour weights</div>
+  <div class="title" style="left:155mm; top:2mm; color:var(--purple-line)">Self-supervised<br>pretext objectives</div>
+  <div class="box" style="left:28mm; top:22mm">Spectral CNN</div>
+  <div class="box" style="left:28mm; top:48mm">ChebNet</div>
+  <div class="box" style="left:72mm; top:22mm">GraphSAGE</div>
+  <div class="box" style="left:72mm; top:48mm">GIN</div>
+  <div class="box" style="left:112mm; top:22mm">Graph Transformer</div>
+  <div class="box" style="left:112mm; top:48mm">Graphormer</div>
+  <div class="box" style="left:158mm; top:22mm">DGI</div>
+  <div class="box" style="left:158mm; top:48mm">GraphCL</div>
+  <div class="box emph" style="left:52mm; top:35mm">GCN</div>
+  <div class="box emph" style="left:92mm; top:35mm">GAT</div>
+  <div class="box emph" style="left:132mm; top:35mm">GraphMAE</div>
+  <div class="leg" style="left:46mm"><div class="sw"></div>method in one family<div class="sw" style="background:var(--ink); margin-left:9mm"></div>method in two families (overlap)</div>
+</div>
