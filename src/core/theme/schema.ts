@@ -22,6 +22,11 @@
  * default, filled) or `open` (a chevron of two strokes). It replaces every
  * `triangle` end, the one built-in arrows and unspecified ends use; other
  * shapes a component asks for are kept.
+ *
+ * `colorUse` (#513) is optional guidance on how the theme's colors are used:
+ * the most accent tones, the preferred and the heavy variants and the largest
+ * share of heavy area. It styles nothing; the `geometry/theme-color-use` rule
+ * and `sumi catalog` read it.
  */
 
 import { z } from "zod";
@@ -68,6 +73,28 @@ export const THEME_FORMAT_VERSION = 1;
 export const THEME_ARROWHEADS = ["triangle", "open"] as const;
 export type ThemeArrowhead = (typeof THEME_ARROWHEADS)[number];
 
+/**
+ * How a theme prefers its colors to be used (#513). Guidance, not a style:
+ * `geometry/theme-color-use` compares a figure against it.
+ */
+export interface ThemeColorUse {
+  /** The most chromatic tones (every tone but `gray`) one figure uses as accents. */
+  readonly maxAccentTones: number;
+  /** Variants the theme is at its best in: pale fills and outlines, one dark emphasis. */
+  readonly preferredVariants: readonly string[];
+  /** Variants that paint a block of the tone's color; large areas of them overpower the theme. */
+  readonly heavyVariants: readonly string[];
+  /** The most node area (0 to 1) that chromatic nodes of `heavyVariants` may cover. */
+  readonly maxHeavyShare: number;
+}
+
+const ColorUseSchema = z.strictObject({
+  maxAccentTones: z.number().int().min(0).max(TONE_NAMES.length),
+  preferredVariants: z.array(z.string().min(1)),
+  heavyVariants: z.array(z.string().min(1)),
+  maxHeavyShare: z.number().min(0).max(1),
+});
+
 /** A token group or leaf name. Dots separate the segments of a reference. */
 export const TOKEN_NAME_PATTERN = /^[a-zA-Z][a-zA-Z0-9_-]*$/;
 
@@ -108,6 +135,8 @@ export interface ThemeDefinition {
   dim?: { fontColor: ValueInput; stroke: ValueInput; lighten: ValueInput };
   /** Shape of the standard arrowhead (#386); omitted means `triangle`. */
   arrowhead?: ThemeArrowhead;
+  /** How the theme prefers its colors to be used (#513); omitted means no guidance. */
+  colorUse?: ThemeColorUse;
 }
 
 /** A validated theme. All values are checked and resolved; component keys are canonical. */
@@ -134,6 +163,8 @@ export interface Theme {
    * definition sets it (absent means `triangle`).
    */
   readonly arrowhead?: ThemeArrowhead;
+  /** Guidance on using the theme's colors (#513); present only when the definition sets it. */
+  readonly colorUse?: ThemeColorUse;
   /**
    * A figure's `themeOverrides.tones` (#380), already merged into `tones` and
    * `toneLines`; kept for the tinted and solid node variants, whose frame and
@@ -188,6 +219,7 @@ export const ThemeSchema = z.strictObject({
     .strictObject({ fontColor: z.unknown(), stroke: z.unknown(), lighten: z.unknown() })
     .optional(),
   arrowhead: z.enum(THEME_ARROWHEADS).optional(),
+  colorUse: ColorUseSchema.optional(),
 });
 
 export interface ValidateThemeOptions {
@@ -361,6 +393,7 @@ class ThemeChecker {
         toneLines,
         ...(dim !== undefined && { dim }),
         ...(theme.arrowhead !== undefined && { arrowhead: theme.arrowhead }),
+        ...(theme.colorUse !== undefined && { colorUse: theme.colorUse }),
       }),
       diagnostics: this.diagnostics,
     };

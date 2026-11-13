@@ -330,6 +330,12 @@ and do not mix per-element colours that fight it; for black-and-white print use 
   a density and composition benchmark, not a colour exemplar: copy its proportions, not
   its gray panels. `geometry/muddy-color` and `geometry/color-on-panel` check this
   ([diagnostics](diagnostics.md#geometry-lint-geometry)).
+- **Use the theme's colours (`sumi`, `sumi-dark`).** Check `sumi catalog --section themes`
+  for the theme's colour use. Keep the base neutral (`gray` or no tone), spend **1–2
+  accent tones** (three at most) on what carries meaning, and reach for `tinted` or
+  `outlined`, with `emphasis` on the one element that matters, before `filled` or
+  `solid`: blocks of solid colour in 4–5 hues read as a different theme.
+  `geometry/theme-color-use` names the tones and variants to change.
 - **Pictures for things, arrows for operations.** Objects and data are icons, glyphs
   and sets; an operation is an edge or at most a few short boxes. If a box holds a
   verb phrase plus a formula, it belongs in the paper body.

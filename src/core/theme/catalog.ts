@@ -18,7 +18,7 @@ import type { Registry } from "../registry/registry";
 import { BUILTIN_THEMES } from "./builtin";
 import type { FontSet } from "./fonts";
 import { resolveStyle } from "./resolve";
-import type { Theme, ThemeArrowhead } from "./schema";
+import type { Theme, ThemeArrowhead, ThemeColorUse } from "./schema";
 import { mergeStyle } from "./style";
 import { TONE_NAMES, type Tone } from "./tones";
 
@@ -64,6 +64,12 @@ export interface ThemeCatalogEntry {
   compatibleProfiles: string[];
   /** Shape of the standard arrowhead (#386): `triangle` (filled) or `open` (a chevron). */
   arrowhead: ThemeArrowhead;
+  /**
+   * How the theme prefers its colors to be used (#513): the most accent
+   * tones, the preferred and heavy variants and the largest share of heavy
+   * area, which `geometry/theme-color-use` checks. `null` when it gives none.
+   */
+  colorUse: ThemeColorUse | null;
 }
 
 export interface ThemeCatalogOptions {
@@ -124,6 +130,7 @@ export function themeCatalogEntry(
       .filter((profile) => profile.typography.minFontSize.pt <= min)
       .map((profile) => profile.id),
     arrowhead: theme.arrowhead ?? "triangle",
+    colorUse: theme.colorUse ?? null,
   };
 }
 

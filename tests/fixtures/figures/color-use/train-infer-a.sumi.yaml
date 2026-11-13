@@ -1,0 +1,119 @@
+version: 1
+figure:
+  id: train-infer
+  theme: sumi
+  profile: paper-double
+  target: { height: 80mm }
+  layout:
+    density: compact
+    arrange:
+      stack:
+        gap: 4mm
+        items:
+          - row: { gap: 16mm, align: stretch, items: [ train, divider, infer ] }
+          - key
+    align:
+      - { y: [ t-masked, i-input ] }
+      - { y: [ t-enc, i-enc ] }
+      - { y: [ t-dec, i-dec ] }
+      - { x: [ i-gen, i-output.4 ] }
+groups:
+  - id: train
+    caption: (a) Training
+    variant: plain
+    arrange:
+      stack:
+        gap: 4mm
+        items:
+          - t-input
+          - t-masked
+          - t-enc
+          - t-dec
+          - row: { gap: 4mm, items: [ t-pred, t-loss, t-target ] }
+  - id: infer
+    caption: (b) Inference
+    variant: plain
+    arrange:
+      stack:
+        gap: 4mm
+        items:
+          - i-input
+          - i-enc
+          - loop
+          - row: { items: [ i-output ] }
+  - id: loop
+    variant: dashed
+    arrange:
+      row: { gap: 8mm, items: [ i-dec, i-gen ] }
+nodes:
+  # (a) training
+  - id: t-input
+    component: tokens
+    tone: blue
+    props: { variant: filled, gap: 1.5pt, width: 16pt, cells: [ '$x_1$', '$x_2$', '$x_3$', '$x_4$', '$x_5$', '$x_6$' ] }
+  - id: t-masked
+    component: tokens
+    tone: blue
+    props:
+      variant: filled
+      gap: 1.5pt
+      width: 16pt
+      cells:
+        - '$x_1$'
+        - { id: m2, label: M, tone: gray, variant: solid }
+        - '$x_3$'
+        - { id: m4, label: M, tone: gray, variant: solid }
+        - '$x_5$'
+        - '$x_6$'
+  - { id: t-enc, component: box, label: Encoder, tone: purple, variant: filled, props: { width: 100pt } }
+  - { id: t-dec, component: box, label: Decoder, tone: purple, variant: filled, props: { width: 100pt } }
+  - id: t-pred
+    component: tokens
+    tone: orange
+    props: { variant: filled, gap: 1.5pt, width: 16pt, cells: [ '$\hat{x}_2$', '$\hat{x}_4$' ] }
+  - { id: t-loss, component: box, label: Loss, tone: red, variant: tinted }
+  - id: t-target
+    component: tokens
+    tone: blue
+    props: { variant: filled, gap: 1.5pt, width: 16pt, cells: [ '$x_2$', '$x_4$' ] }
+  # (b) inference
+  - id: i-input
+    component: tokens
+    tone: blue
+    props: { variant: filled, gap: 1.5pt, width: 16pt, cells: [ '$x_1$', '$x_2$', '$x_3$' ] }
+  - { id: i-enc, component: box, label: Encoder, tone: purple, variant: filled, props: { width: 100pt } }
+  - { id: i-dec, component: box, label: Decoder, tone: purple, variant: filled }
+  - id: i-gen
+    component: tokens
+    tone: orange
+    props: { variant: filled, width: 16pt, cells: [ '$\hat{y}_t$' ] }
+  - id: i-output
+    component: tokens
+    tone: orange
+    props: { variant: filled, gap: 1.5pt, width: 16pt, cells: [ '$\hat{y}_1$', '$\hat{y}_2$', { label: '…', component: label }, '$\hat{y}_T$' ] }
+  - { id: loop-label, component: label, label: "Iterative\ngeneration", attach: { to: loop, side: east, gap: 2mm } }
+  - { id: divider, component: separator, variant: dashed }
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: row
+      entries:
+        - { node: { tone: blue, variant: filled }, label: input token }
+        - { node: { tone: gray, variant: solid }, label: mask token }
+        - { node: { tone: orange, variant: filled }, label: predicted token }
+        - { edge: { component: double-arrow, variant: dashed }, label: shared weights }
+edges:
+  - { from: t-input, to: t-masked, label: mask }
+  - { from: t-masked, to: t-enc }
+  - { from: t-enc, to: t-dec }
+  - { from: t-dec, fromAnchor: straight, to: t-pred }
+  - { from: t-pred, to: t-loss }
+  - { from: t-target, to: t-loss }
+  - { from: i-input, to: i-enc }
+  - { from: i-enc, to: i-dec, toAnchor: "north:0.3" }
+  - { from: i-dec, to: i-gen }
+  - { from: i-gen, fromAnchor: north, to: i-dec, toAnchor: "north:0.8" }
+  - { from: i-gen, to: i-output.4 }
+  - { from: t-enc, to: i-enc, component: double-arrow, variant: dashed }
+  - { from: t-dec, to: i-dec, component: double-arrow, variant: dashed }

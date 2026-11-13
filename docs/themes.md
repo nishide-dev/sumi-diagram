@@ -47,6 +47,19 @@ The pipeline ([`examples/pipeline`](../examples/pipeline/pipeline.sumi.yaml), au
 
 `paper-single` imposes a minimum font size (7pt), not a maximum: `slides` text meets it. This pipeline renders within the page limits, with two collision warnings (`geometry/label-collision` and `geometry/edge-crosses-label`). These are distinct from the `geometry/exceeds-page-height` error under `presentation-16x9`, where the larger spacing makes this tall pipeline exceed the slide height; see the [profile comparison](gallery/compare.md). For projection, use `slides` with `presentation-16x9` and a shallower layout.
 
+## Color use
+
+A theme can say how its colors are meant to be used (`colorUse`; `sumi catalog --section themes`, and `--json` as `themes[].colorUse`, `null` when a theme gives none). `sumi` and `sumi-dark` do, so that a figure that picks them looks like them:
+
+| Field | `sumi`, `sumi-dark` | Meaning |
+| --- | --- | --- |
+| `maxAccentTones` | 3 | the most tones other than `gray` one figure uses; `gray` is the base |
+| `preferredVariants` | `tinted`, `outlined`, `emphasis` | pale fills, outlines, and one dark `emphasis` for the element that matters |
+| `heavyVariants` | `filled`, `solid` | variants that paint a block of the tone's color |
+| `maxHeavyShare` | 0.3 | the most node area that chromatic nodes of a heavy variant may cover |
+
+The info diagnostic `geometry/theme-color-use` compares a figure with it and names the tones and variants to change; icons, embedded images and legend samples do not count, and a theme without guidance reports nothing. Gray base, one or two accents, `tinted` for the rest: a figure that does this needs no change.
+
 ## Palettes
 
 `figure.themeOverrides.palette: <name>` recolors any theme with one of eight built-in four-color palettes (`cool-blue`, `slate`, `coral`, `terracotta`, `sage`, `lavender`, `cyan-pink`, `seafoam`): text, frames and edges take the palette's ink, group panels its palest color, filled nodes and the `gray` tone its tint, `solid` fills and `emphasis` its accent. Sizes and fonts stay the theme's. Contrasts are measured against the theme's canvas; on a dark canvas (`sumi-dark`) the palette draws a dark variant of itself (panels a step lighter than the canvas, light ink, the accent and tones lightened in their hue). See the [palette gallery](gallery/palettes.md) and `sumi catalog --section palettes`.
