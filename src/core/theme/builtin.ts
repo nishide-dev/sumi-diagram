@@ -505,6 +505,7 @@ function sumiTheme(dark: boolean): ThemeDefinition {
       preferredVariants: ["tinted", "outlined", "emphasis"],
       heavyVariants: ["filled", "solid"],
       maxHeavyShare: 0.3,
+      maxSolidNodes: 0,
     },
   };
 }

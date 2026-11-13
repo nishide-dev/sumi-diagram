@@ -57,6 +57,7 @@ A theme can say how its colors are meant to be used (`colorUse`; `sumi catalog -
 | `preferredVariants` | `tinted`, `outlined`, `emphasis` | pale fills, outlines, and one dark `emphasis` for the element that matters |
 | `heavyVariants` | `filled`, `solid` | variants that paint a block of the tone's color |
 | `maxHeavyShare` | 0.3 | the most node area that chromatic nodes of a heavy variant may cover |
+| `maxSolidNodes` | 0 | the most `solid` nodes with a tone other than `gray`; the theme's own dark block is `emphasis` |
 
 The info diagnostic `geometry/theme-color-use` compares a figure with it and names the tones and variants to change; icons, embedded images and legend samples do not count, and a theme without guidance reports nothing. Gray base, one or two accents, `tinted` for the rest: a figure that does this needs no change.
 

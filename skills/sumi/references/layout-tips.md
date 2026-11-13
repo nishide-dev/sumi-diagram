@@ -334,7 +334,7 @@ and do not mix per-element colours that fight it; for black-and-white print use 
   for the theme's colour use. Keep the base neutral (`gray` or no tone), spend **1–2
   accent tones** (three at most) on what carries meaning, and reach for `tinted` or
   `outlined`, with `emphasis` on the one element that matters, before `filled` or
-  `solid`: blocks of solid colour in 4–5 hues read as a different theme.
+  `solid` (never a toned `solid`: a saturated red or green block reads as another theme): blocks of solid colour in 4–5 hues read as a different theme.
   `geometry/theme-color-use` names the tones and variants to change.
 - **Pictures for things, arrows for operations.** Objects and data are icons, glyphs
   and sets; an operation is an edge or at most a few short boxes. If a box holds a

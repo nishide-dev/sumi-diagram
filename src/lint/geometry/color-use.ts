@@ -7,7 +7,10 @@
  * - **accents**: the chromatic tones (every tone but `gray`) that nodes and
  *   groups set, against `maxAccentTones`;
  * - **heavy area**: the share of node area (bounding boxes) that chromatic
- *   nodes of a `heavyVariants` variant cover, against `maxHeavyShare`.
+ *   nodes of a `heavyVariants` variant cover, against `maxHeavyShare`;
+ * - **solid hues**: nodes of variant `solid` with a chromatic tone, against
+ *   `maxSolidNodes`: sumi's dark block is the neutral `emphasis`, while a toned
+ *   `solid` is a saturated red, green or blue (5A, 7A and 1A of #509).
  *
  * Icons and embedded images, labels, junctions and the parts of legends do not
  * count. The rule is `info`: color taste is guidance, not a defect (like
@@ -38,6 +41,8 @@ export interface ColorUse {
   readonly heavy: readonly GeometryElement[];
   /** Their share of the painted node area (0 to 1). */
   readonly heavyShare: number;
+  /** Nodes of variant `solid` with a tone other than `gray`, in document order. */
+  readonly solid: readonly GeometryElement[];
 }
 
 const area = (element: GeometryElement): number =>
@@ -50,6 +55,7 @@ export function colorUseOf(
 ): ColorUse {
   const byTone = new Map<Tone, GeometryElement[]>();
   const heavy: GeometryElement[] = [];
+  const solid: GeometryElement[] = [];
   let painted = 0;
   let heavyArea = 0;
   for (const element of elements) {
@@ -66,13 +72,14 @@ export function colorUseOf(
     painted += area(element);
     if (tone !== undefined && tone !== "gray" && guidance.heavyVariants.includes(ir.variant)) {
       heavy.push(element);
+      if (ir.variant === "solid") solid.push(element);
       heavyArea += area(element);
     }
   }
   const accents = [...byTone]
     .map(([tone, list]) => ({ tone, elements: list }))
     .sort((a, b) => b.elements.length - a.elements.length);
-  return { accents, heavy, heavyShare: painted === 0 ? 0 : heavyArea / painted };
+  return { accents, heavy, heavyShare: painted === 0 ? 0 : heavyArea / painted, solid };
 }
 
 const names = (elements: readonly GeometryElement[], count = 4): string => {
@@ -123,6 +130,23 @@ export function colorUseFindings(
       related: use.heavy.slice(0, 3).map((e) => ({
         path: e.docPath,
         message: `${e.name[0]?.toUpperCase()}${e.name.slice(1)} is ${e.ir.variant} with tone ${e.ir.tone}.`,
+      })),
+    });
+  }
+  if (use.solid.length > guidance.maxSolidNodes) {
+    findings.push({
+      message: `${use.solid.length} ${use.solid.length === 1 ? "node is" : "nodes are"} solid with a tone (${use.solid
+        .slice(0, 4)
+        .map((e) => `${e.name} ${e.ir.tone}`)
+        .join(
+          ", ",
+        )}${use.solid.length > 4 ? `, and ${use.solid.length - 4} more` : ""}): a dark block of saturated hue; theme ${themeId} allows ${guidance.maxSolidNodes === 0 ? "none" : `${guidance.maxSolidNodes}`}.`,
+      path,
+      subject,
+      hint: `Use variant emphasis (the theme's own dark block) for the one element that matters and ${calm.join(" or ") || target} for the rest.`,
+      related: use.solid.slice(0, 3).map((e) => ({
+        path: e.docPath,
+        message: `${e.name[0]?.toUpperCase()}${e.name.slice(1)} is solid with tone ${e.ir.tone}.`,
       })),
     });
   }

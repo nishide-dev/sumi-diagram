@@ -21,7 +21,7 @@ async function findingsOf(source: string) {
 describe("geometry/theme-color-use (#513): the dogfood figures of #509", () => {
   test("1A (28 filled/solid blocks, 3 tones) is flagged for its blocks of color", async () => {
     const findings = await findingsOf(fixture("vit-block-a"));
-    expect(findings).toHaveLength(1);
+    expect(findings).toHaveLength(2);
     expect(findings[0]?.message).toMatch(/of the node area is a block of color/);
     expect(findings[0]?.hint).toMatch(/filled \/ solid to tinted/);
   });
@@ -37,12 +37,30 @@ describe("geometry/theme-color-use (#513): the dogfood figures of #509", () => {
     expect(findings.every((f) => f.severity === undefined)).toBe(true);
   });
 
-  test.each(["vit-block-b", "train-infer-b", "rag-compare-a"])(
-    "%s is not flagged",
-    async (name) => {
-      expect(await findingsOf(fixture(name))).toEqual([]);
-    },
-  );
+  test("5A (a solid blue block) and 7A (solid red and green) are flagged for solid hues", async () => {
+    for (const [name, tones] of [
+      ["agent-loop-a", ["blue"]],
+      ["request-states-a", ["green", "red"]],
+    ] as const) {
+      const findings = await findingsOf(fixture(name));
+      expect(findings, name).toHaveLength(1);
+      const [finding] = findings;
+      expect(finding?.message).toMatch(/solid with a tone/);
+      for (const tone of tones) expect(finding?.message).toContain(tone);
+      expect(finding?.hint).toMatch(/emphasis/);
+    }
+  });
+
+  test.each([
+    "vit-block-b",
+    "train-infer-b",
+    "rag-compare-a",
+    "agent-loop-b",
+    "request-states-b",
+    "method-taxonomy-b",
+  ])("%s is not flagged", async (name) => {
+    expect(await findingsOf(fixture(name))).toEqual([]);
+  });
 });
 
 describe("theme color guidance (#513)", () => {

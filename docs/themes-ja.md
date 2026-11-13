@@ -57,6 +57,7 @@ pipeline（[`examples/pipeline`](../examples/pipeline/pipeline.sumi.yaml)、自�
 | `preferredVariants` | `tinted`・`outlined`・`emphasis` | 淡い塗り、枠線、要点に 1 つだけ濃い `emphasis` |
 | `heavyVariants` | `filled`・`solid` | tone の色を面で塗る variant |
 | `maxHeavyShare` | 0.3 | 有彩色の tone を持つ heavy variant のノードが占めてよい面積の割合 |
+| `maxSolidNodes` | 0 | `gray` 以外の tone を持つ `solid` ノードの上限（テーマ自身の濃いブロックは `emphasis`） |
 
 info の診断 `geometry/theme-color-use` が図をこの目安と比べ、直す tone と variant を名指しします。アイコン・埋め込み画像・凡例の見本は数えず、目安を持たないテーマでは何も出ません。灰色を土台にアクセント 1〜2 色、ほかは `tinted` にした図は直す必要がありません。
 

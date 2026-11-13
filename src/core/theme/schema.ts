@@ -86,6 +86,11 @@ export interface ThemeColorUse {
   readonly heavyVariants: readonly string[];
   /** The most node area (0 to 1) that chromatic nodes of `heavyVariants` may cover. */
   readonly maxHeavyShare: number;
+  /**
+   * The most nodes of variant `solid` with a tone other than `gray` (a block of
+   * saturated hue; the theme's own dark block is `emphasis`).
+   */
+  readonly maxSolidNodes: number;
 }
 
 const ColorUseSchema = z.strictObject({
@@ -93,6 +98,7 @@ const ColorUseSchema = z.strictObject({
   preferredVariants: z.array(z.string().min(1)),
   heavyVariants: z.array(z.string().min(1)),
   maxHeavyShare: z.number().min(0).max(1),
+  maxSolidNodes: z.number().int().min(0),
 });
 
 /** A token group or leaf name. Dots separate the segments of a reference. */

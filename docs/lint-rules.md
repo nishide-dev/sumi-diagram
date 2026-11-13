@@ -52,6 +52,7 @@ info にしたのは、配色は好みと意図（分類のための多色）に
 | 信号 | 条件 |
 | --- | --- |
 | 色の数 | `gray` 以外の tone が `maxAccentTones`（3）を超える。使われる回数の少ない tone から直す対象にする |
+| 濃い色の塊 | `gray` 以外の tone を持つ `solid` ノードが `maxSolidNodes`（0）を超える。sumi の濃いブロックは中立の `emphasis` で、tone 付きの `solid` は彩度の高い赤・緑・青になる |
 | 面の塗り | 有彩色の tone を持つ `heavyVariants`（`filled`・`solid`）のノードの bbox 面積が、描かれるノードの面積の `maxHeavyShare`（30%）を超える |
 
 アイコン・埋め込み画像・凡例の部品・label / junction / separator / operator は数えない。info にしたのは、色の好みは図の意図に左右され、欠陥ではないため（`color-harmony`・`color-on-panel` と同じ）。

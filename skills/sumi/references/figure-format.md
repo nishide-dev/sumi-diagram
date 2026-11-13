@@ -615,8 +615,8 @@ searches icons). One entry of each:
   PPTX (editable PPTX: the native open `arrow` end).
 - `colorUse`: how the theme prefers its colours (`null` when it gives none; `sumi` and
   `sumi-dark` do): `maxAccentTones` (tones other than `gray`), `preferredVariants`,
-  `heavyVariants` (`filled`, `solid`: blocks of colour) and `maxHeavyShare` (of the node
-  area). `geometry/theme-color-use` (info) compares the figure with it.
+  `heavyVariants` (`filled`, `solid`: blocks of colour), `maxHeavyShare` (of the node
+  area) and `maxSolidNodes` (toned `solid` nodes). `geometry/theme-color-use` (info) compares the figure with it.
 - `page.maxWidth` / `maxHeight` (`null` = no limit) include the margin; `layerGap`
   is the space between layers (nodes in a layer are always 10pt apart);
   `typography.minScaledFontSize` is the minimum printed size under `fit: scale`.
