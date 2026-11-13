@@ -55,6 +55,7 @@ import {
 import { setContainsNonMember, setLabelCollision, setOutlineCrossesText } from "./sets";
 import {
   CUBIC_STEPS,
+  cylinderMinHeight,
   overhang,
   polylinesCrossRect,
   rectDepthInside,
@@ -541,6 +542,12 @@ function shapeName(element: GeometryElement): string {
   return "shape";
 }
 
+/** The vertical middle of a polygonal label area. */
+const areaCentre = (area: { points: readonly Point[] }): number => {
+  const ys = area.points.map((p) => p.y);
+  return (Math.min(...ys) + Math.max(...ys)) / 2;
+};
+
 export const labelOverflow = defineGeometryRule({
   id: "geometry/label-overflow",
   description:
@@ -597,15 +604,36 @@ export const labelOverflow = defineGeometryRule({
       const explicit =
         ir.kind === "node" && !ir.autoSized && (ir.width !== undefined || ir.height !== undefined);
       const outside = box !== undefined && !rectsOverlap(box, bbox, 0);
+      // A cylinder's label needs a body between the caps: say how tall it must be.
+      const minHeight =
+        explicit &&
+        element.ir.kind === "node" &&
+        element.ir.shape === "cylinder" &&
+        lines.length > 0 &&
+        labelArea.kind === "polygon"
+          ? cylinderMinHeight(
+              2 *
+                (Math.max(
+                  ...lines.flatMap((l) => [
+                    Math.abs(l.y - areaCentre(labelArea)),
+                    Math.abs(l.y + l.height - areaCentre(labelArea)),
+                  ]),
+                ) +
+                  Math.max(margin, 0)),
+            )
+          : undefined;
       findings.push({
         message: hasIcon(element)
           ? `The icon of ${element.name} (${box === undefined ? "" : formatOverflowSize(context, box)}${element.ir.kind === "node" && element.ir.iconSize !== undefined ? "" : `${box === undefined ? "" : ", "}1 em`}) does not fit inside its ${shapeName(element)} shape (${formatOverflowSize(context, bbox)})${outside ? "; it is drawn outside the shape" : ""}.`
           : `The label of ${element.name} (${box === undefined ? "" : `${formatOverflowSize(context, box)}, `}measured with the theme's fonts) does not fit inside its ${shapeName(element)} shape (${formatOverflowSize(context, bbox)})${outside ? "; it is drawn outside the shape" : ""}.`,
         path: explicit ? [...element.docPath, "props"] : labelPath(element),
         subject: element.subject,
-        hint: explicit
-          ? "Make props.width / props.height larger, or remove them so the node is sized to its label; or shorten the label or break it into lines (\\n)."
-          : "Shorten the label or break it into lines (\\n), or use a shape with more room for text (e.g. box instead of diamond or circle).",
+        hint:
+          minHeight !== undefined
+            ? `This label needs a cylinder with props.height of at least ${formatPt(Math.ceil(unitsToPt(minHeight)))} (its caps take part of the height); make it taller, or shorten the label or break it into lines (\\n).`
+            : explicit
+              ? "Make props.width / props.height larger, or remove them so the node is sized to its label; or shorten the label or break it into lines (\\n)."
+              : "Shorten the label or break it into lines (\\n), or use a shape with more room for text (e.g. box instead of diamond or circle).",
         ...(explicit && {
           related: [{ path: labelPath(element), message: "The label is defined here." }],
         }),

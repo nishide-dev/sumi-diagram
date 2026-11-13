@@ -8,6 +8,7 @@ import type { Result } from "../core/result";
 import { getFontSet } from "../core/theme/fonts";
 import { captionGap, LINE_HEIGHT } from "../layout/text";
 import { measureLabel } from "../lint/geometry/measure";
+import { CYLINDER_ARC_UNITS, cylinderArc, cylinderPathData } from "../lint/geometry/shapes";
 import { type PathSegment, type Point, parsePath, type Rect } from "./geometry";
 import { decodeElementClass, type SvgInspection } from "./inspect";
 import {
@@ -723,4 +724,93 @@ function chevronMarker(marker: XmlElement, id: string, width: number): string {
     .join("");
   const color = escapeAttribute(attribute(polygon, "fill") ?? "#000000");
   return `<marker id="${escapeAttribute(id)}"${keep}><path d="${d}" fill="none" stroke="${color}" stroke-width="${fmt(width)}" stroke-linecap="round" stroke-linejoin="round"/></marker>`;
+}
+
+/**
+ * Short cylinders (#516): D2 v0.9.0 draws every cylinder with 24-unit caps and
+ * puts the label in the body below them, so a cylinder under 100 units tall
+ * has no room for a line of text. Where `cylinderArc()` makes the caps
+ * shallower, redraws the two paths of the node's `g.shape` and moves the label
+ * up by half the difference, to the middle of the body the lint measures.
+ * Callers inspect the result again (the bounding box does not change).
+ */
+export function composeCylinders(
+  svg: string,
+  ir: FigureIR,
+  inspection: SvgInspection,
+): Result<string> {
+  const diagnostics: Diagnostic[] = [];
+  const geometry = new Map(inspection.elements.map((e) => [e.key, e]));
+  const short = ir.nodes.filter((n) => {
+    const bbox = geometry.get(n.key)?.bbox;
+    return (
+      n.shape === "cylinder" &&
+      n.render === undefined &&
+      bbox !== undefined &&
+      cylinderArc(bbox.height) < CYLINDER_ARC_UNITS
+    );
+  });
+  if (short.length === 0) return { ok: true, value: svg, diagnostics };
+  let current: ElementKey = (short[0] as (typeof short)[number]).key;
+  try {
+    const parsed = parseXml(svg);
+    if (!parsed.ok) throw new Error(parsed.message);
+    const groups = new Map<ElementKey, XmlElement>();
+    for (const element of descendants(parsed.root)) {
+      if (element.name !== "g") continue;
+      for (const name of classList(element)) {
+        const key = decodeElementClass(name);
+        if (key) groups.set(key, element);
+      }
+    }
+    const edits: Edit[] = [];
+    const setAttribute = (element: XmlElement, name: string, value: string) => {
+      const pattern = new RegExp(`(\\s${name}\\s*=\\s*)(?:"[^"]*"|'[^']*')`);
+      const tag = svg.slice(element.start, element.startTagEnd);
+      if (!pattern.test(tag)) throw new Error(`<${element.name}> lacks ${name}.`);
+      edits.push({
+        start: element.start,
+        end: element.startTagEnd,
+        text: tag.replace(pattern, (_, prefix: string) => `${prefix}"${escapeAttribute(value)}"`),
+      });
+    };
+    for (const node of short) {
+      current = node.key;
+      const group = groups.get(node.key);
+      const bbox = geometry.get(node.key)?.bbox;
+      if (!group || !bbox) throw new Error(`${node.key}: missing cylinder.`);
+      const shape = childElements(group).find(
+        (c) => c.name === "g" && classList(c).includes("shape"),
+      );
+      const paths = shape ? childElements(shape).filter((c) => c.name === "path") : [];
+      const [body, rim] = paths;
+      if (paths.length !== 2 || !body || !rim)
+        throw new Error(`${node.key}: expected a cylinder drawn as two paths.`);
+      const d = cylinderPathData(bbox, fmt);
+      setAttribute(body, "d", d.body);
+      setAttribute(rim, "d", d.rim);
+      const shift = (cylinderArc(bbox.height) - CYLINDER_ARC_UNITS) / 2;
+      for (const text of childElements(group).filter((c) => c.name === "text")) {
+        const y = Number(attribute(text, "y"));
+        if (!Number.isFinite(y)) throw new Error(`${node.key}: a cylinder label lacks y.`);
+        setAttribute(text, "y", fmt(y + shift));
+      }
+    }
+    let out = svg;
+    for (const edit of edits.sort((a, b) => b.start - a.start)) {
+      out = out.slice(0, edit.start) + edit.text + out.slice(edit.end);
+    }
+    return { ok: true, value: out, diagnostics };
+  } catch (cause) {
+    diagnostics.push(
+      outlineDiagnostic(
+        ir,
+        current,
+        "svg/unsupported-geometry",
+        "error",
+        cause instanceof Error ? cause.message : String(cause),
+      ),
+    );
+    return { ok: false, diagnostics };
+  }
 }
