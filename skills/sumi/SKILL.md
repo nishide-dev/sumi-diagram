@@ -113,10 +113,10 @@ groups:
   - id: backend
     label: Backend
 nodes:                     # label: plain text, \n breaks the line; group: set on the child
-  - { id: api, component: box, label: "API\nserver", group: backend }
-  - { id: db, component: cylinder, label: Database, group: backend }
+  - {id: api, component: box, label: "API\nserver", group: backend}
+  - {id: db, component: cylinder, label: Database, group: backend}
 edges:
-  - { from: api, to: db, label: query }
+  - {from: api, to: db, label: query}
 ```
 
 - Every node needs `component`; groups default to `container`, edges to `arrow`.

@@ -5,8 +5,9 @@
  * What changes (by default):
  * - indentation: 2 spaces, block sequences indented under their key;
  * - spacing: one space after `:` and `-` and before a trailing comment (column
- *   alignment of trailing comments is not kept), `{ a: 1 }` / `[ 1, 2 ]` in flow
- *   collections; no trailing whitespace; `\n` line endings; one final newline;
+ *   alignment of trailing comments is not kept), `{a: 1}` / `[1, 2]` in flow
+ *   collections (no padding inside the brackets, one space after each comma);
+ *   no trailing whitespace; `\n` line endings; one final newline;
  *   several blank lines in a row become one;
  * - plain scalars may be re-printed in their canonical form when the value is
  *   the same (e.g. `0x1F` → `0x1f`).
@@ -15,7 +16,16 @@
  * of untagged scalars (single-line quoted strings are kept byte for byte,
  * escapes included), block scalars (`|`, `>`), flow vs. block collections,
  * comments and whether entries are separated by a blank line. Long lines are
- * never folded. A document with only comments keeps its comments. Explicitly
+ * never folded, except that the flow-sequence `items` of a block `grid` with
+ * more than one row are printed one grid row per line (`columns` cells per
+ * line, counting `span`), so the row structure stays visible:
+ *
+ *     items:
+ *       [a, b, c,
+ *        d, e, f]
+ *
+ * A grid `items` that contains comments, a block-style `items`, or a grid
+ * written as a flow mapping is left to the generic rules. A document with only comments keeps its comments. Explicitly
  * tagged scalars (`!!int "123"`) keep their tag and value but are re-printed
  * by the YAML library (e.g. `!!int 123`, `!!str "123"`).
  *
@@ -33,15 +43,18 @@
 
 import {
   CST,
+  Document,
   isMap,
   isPair,
   isScalar,
   isSeq,
   Lexer,
+  type Node,
   parseDocument,
   Scalar,
   visit,
   type YAMLMap,
+  type YAMLSeq,
 } from "yaml";
 import type { Diagnostic } from "../diagnostics";
 import {
@@ -81,7 +94,7 @@ const STRINGIFY_OPTIONS = Object.freeze({
   indentSeq: true,
   lineWidth: 0,
   minContentWidth: 0,
-  flowCollectionPadding: true,
+  flowCollectionPadding: false,
 } as const);
 
 /** Key order of each schema object (Zod shapes keep declaration order). */
@@ -152,6 +165,7 @@ function print(text: string, canonicalOrder: boolean): string {
   const verbatim = new Map<string, string>();
   let nonce = 0;
   while (text.includes(`__sumi_fmt_${nonce}_`)) nonce++;
+  const rows = new Map<string, string[]>();
   visit(doc, {
     Scalar(key, node) {
       if (key === "key" || node.range === undefined || node.range === null) return;
@@ -167,9 +181,78 @@ function print(text: string, canonicalOrder: boolean): string {
       node.type = Scalar.PLAIN;
     },
   });
+  visit(doc, {
+    Pair(_key, pair) {
+      if (!isScalar(pair.key) || pair.key.value !== "grid") return;
+      const grid = pair.value;
+      if (!isMap(grid) || grid.flow) return;
+      const items = grid.get("items", true);
+      const columns = grid.get("columns");
+      if (
+        !isSeq(items) ||
+        !items.flow ||
+        items.tag !== undefined ||
+        typeof columns !== "number" ||
+        columns < 1
+      )
+        return;
+      const lines = gridRows(items, columns);
+      if (lines === undefined || lines.length < 2) return;
+      const placeholder = `__sumi_fmt_${nonce}_g${rows.size}__`;
+      rows.set(placeholder, lines);
+      grid.set("items", placeholder);
+    },
+  });
   return doc
     .toString(STRINGIFY_OPTIONS)
+    .replace(
+      /^( *)(\S+): (__sumi_fmt_\d+_g\d+__)$/gm,
+      (match, indent: string, key: string, placeholder) => {
+        const lines = rows.get(placeholder);
+        if (lines === undefined) return match;
+        const body = lines.map((line, i) => `${indent}${i === 0 ? "  [" : "   "}${line}`);
+        return `${indent}${key}:\n${body.join("\n")}]`;
+      },
+    )
     .replace(/__sumi_fmt_\d+_\d+__/g, (placeholder) => verbatim.get(placeholder) ?? placeholder);
+}
+
+/**
+ * The cells of a flow-sequence grid `items`, printed in flow style and joined
+ * per grid row (comma-terminated except the last). Undefined when a comment
+ * is inside, because comments cannot be kept in this layout.
+ */
+function gridRows(items: YAMLSeq, columns: number): string[] | undefined {
+  let commented = items.comment != null || items.commentBefore != null;
+  visit(items, {
+    Node(_key, node) {
+      if (node.comment != null || node.commentBefore != null) commented = true;
+    },
+  });
+  if (commented) return undefined;
+  // Row-major cursor of the layout engine: a cell starts a new line when its
+  // start position falls in a later row (a span that overflows a row pushes
+  // the remainder into the next one).
+  const lines: string[] = [];
+  let cells: string[] = [];
+  let cursor = 0;
+  let row = 0;
+  for (const item of items.items) {
+    if (cells.length > 0 && Math.floor(cursor / columns) !== row) {
+      lines.push(cells.join(", "));
+      cells = [];
+    }
+    row = Math.floor(cursor / columns);
+    const span = isMap(item) && item.has("item") ? item.get("span") : undefined;
+    cells.push(
+      new Document(item as Node)
+        .toString({ ...STRINGIFY_OPTIONS, flowCollectionPadding: false })
+        .trim(),
+    );
+    cursor += typeof span === "number" && Number.isInteger(span) && span > 1 ? span : 1;
+  }
+  if (cells.length > 0) lines.push(cells.join(", "));
+  return lines.map((line, i) => (i < lines.length - 1 ? `${line},` : line));
 }
 
 function reorderDocument(contents: unknown): void {

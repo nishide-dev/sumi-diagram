@@ -10,19 +10,19 @@ figure:
       chat:
         width: 80mm
         speakers:
-          friend: { side: left, avatar: friend-avatar }
-          me: { side: right, tone: green, variant: filled }
+          friend: {side: left, avatar: friend-avatar}
+          me: {side: right, tone: green, variant: filled}
         items:
           - divider: 今日
-          - { node: next-time, from: friend, meta: "23:10" }
-          - { node: anytime, from: me, meta: [ 既読, "23:11" ] }
-          - { node: festival, from: me, meta: [ 既読, "23:12" ] }
-          - { node: okay, from: friend, meta: "23:12" }
-          - { node: meeting, from: friend, meta: "23:12" }
+          - {node: next-time, from: friend, meta: "23:10"}
+          - {node: anytime, from: me, meta: [既読, "23:11"]}
+          - {node: festival, from: me, meta: [既読, "23:12"]}
+          - {node: okay, from: friend, meta: "23:12"}
+          - {node: meeting, from: friend, meta: "23:12"}
 nodes:
-  - { id: friend-avatar, component: circle, label: A, variant: filled, tone: gray, props: { width: 16pt, height: 16pt } }
-  - { id: next-time, component: bubble, label: 次いつ遊ぶ？？ }
-  - { id: anytime, component: bubble, label: いつでもー }
-  - { id: festival, component: bubble, label: あ、再来週ってお祭りじゃなかったっけ？どうよ？ }
-  - { id: okay, component: bubble, label: おけ！ }
-  - { id: meeting, component: bubble, label: 8/20 18:00 駅集合で！ }
+  - {id: friend-avatar, component: circle, label: A, variant: filled, tone: gray, props: {width: 16pt, height: 16pt}}
+  - {id: next-time, component: bubble, label: 次いつ遊ぶ？？}
+  - {id: anytime, component: bubble, label: いつでもー}
+  - {id: festival, component: bubble, label: あ、再来週ってお祭りじゃなかったっけ？どうよ？}
+  - {id: okay, component: bubble, label: おけ！}
+  - {id: meeting, component: bubble, label: 8/20 18:00 駅集合で！}
