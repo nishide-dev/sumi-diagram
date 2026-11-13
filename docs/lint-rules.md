@@ -47,7 +47,7 @@ info にしたのは、配色は好みと意図（分類のための多色）に
 ## テーマの色の使い方（#513）
 
 `geometry/theme-color-use` は既定 **info**（`render` / `lint --geometry`）。`maxWarnings` に含めず、描画は変えない。
-テーマが `colorUse` の目安（[テーマ](themes-ja.md#色の使い方)）を持つとき（組み込みでは `sumi`・`sumi-dark`）だけ、図のノードとグループを次の 2 つと比べ、該当した信号ごとに図に 1 件報告する。メッセージとヒントは、直す tone と variant を名指しする。
+テーマが `colorUse` の目安（[テーマ](themes-ja.md#色の使い方)）を持つとき（組み込みでは `sumi`・`sumi-dark`）だけ、図のノードとグループを次の 3 つと比べ、該当した信号ごとに図に 1 件報告する。メッセージとヒントは、直す tone と variant を名指しする。
 
 | 信号 | 条件 |
 | --- | --- |
@@ -55,7 +55,7 @@ info にしたのは、配色は好みと意図（分類のための多色）に
 | 濃い色の塊 | `gray` 以外の tone を持つ `solid` ノードが `maxSolidNodes`（0）を超える。sumi の濃いブロックは中立の `emphasis` で、tone 付きの `solid` は彩度の高い赤・緑・青になる |
 | 面の塗り | 有彩色の tone を持つ `heavyVariants`（`filled`・`solid`）のノードの bbox 面積が、描かれるノードの面積の `maxHeavyShare`（30%）を超える |
 
-アイコン・埋め込み画像・凡例の部品・label / junction / separator / operator は数えない。info にしたのは、色の好みは図の意図に左右され、欠陥ではないため（`color-harmony`・`color-on-panel` と同じ）。
+埋め込み画像・凡例の部品・label / junction / separator / operator は数えない（アイコン付きの箱は数える）。有彩色かどうかは、tone の名前ではなく、`solidFills`・`themeOverrides.tones`・パレットを反映した描画色で判断する（tone 名は報告にだけ使う）。info にしたのは、色の好みは図の意図に左右され、欠陥ではないため（`color-harmony`・`color-on-panel` と同じ）。
 `lint --geometry` での抑止は `--rule geometry/theme-color-use=off`。設計は [設計 #513](design/decisions/513-theme-color-use.md) を参照。
 
 ## 色の重なりと濁り（#440）

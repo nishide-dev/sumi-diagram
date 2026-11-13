@@ -82,3 +82,115 @@ describe("theme color guidance (#513)", () => {
     expect(await findingsOf(source)).toEqual([]);
   });
 });
+
+const figure = (extra: { overrides?: string; nodes: string; legend?: string }) => `version: 1
+figure:
+  id: t
+  theme: sumi
+  profile: paper-double
+${extra.overrides === undefined ? "" : `  themeOverrides: ${extra.overrides}\n`}  layout:
+    arrange: { row: { gap: 6mm, items: [ ${extra.legend === undefined ? "a, b, c, d, e, f" : "a, b, key"} ] } }
+nodes:
+${extra.nodes}${extra.legend === undefined ? "\n  - { id: c, component: box, label: C }\n  - { id: d, component: box, label: D }\n  - { id: e, component: box, label: E }\n  - { id: f, component: box, label: F }" : ""}
+`;
+
+const box = (id: string, props: string) =>
+  `  - { id: ${id}, component: box, label: ${id.toUpperCase()}, ${props} }`;
+
+describe("geometry/theme-color-use: what counts (#513 review)", () => {
+  test("legend samples are not accents; a legend alone adds none", async () => {
+    const legendOnly = figure({
+      legend: "k",
+      nodes: [
+        box("a", "variant: tinted, tone: blue"),
+        box("b", "variant: tinted, tone: blue"),
+        `  - id: key
+    component: legend
+    variant: plain
+    props:
+      entries:
+        - { node: { tone: red, variant: tinted }, label: r }
+        - { node: { tone: green, variant: tinted }, label: g }
+        - { node: { tone: purple, variant: tinted }, label: p }
+        - { node: { tone: orange, variant: tinted }, label: o }`,
+      ].join("\n"),
+    });
+    expect(await findingsOf(legendOnly)).toEqual([]);
+  });
+
+  test("a toned box with an icon counts; an icon-only label does not", async () => {
+    const withIcon = figure({
+      nodes: [
+        "  - { id: a, component: box, variant: solid, tone: blue, icon: tabler/repeat, props: { width: 40pt, height: 30pt } }",
+        box("b", "variant: tinted"),
+      ].join("\n"),
+    });
+    const finding = (await findingsOf(withIcon)).find((f) =>
+      /(is|are) solid with a tone/.test(f.message),
+    );
+    expect(finding?.message).toMatch(/solid with a tone \(node "a" blue\)/);
+    const iconOnly = figure({
+      nodes: [
+        `  - { id: a, component: label, icon: tabler/repeat, tone: blue }`,
+        box("b", "variant: tinted"),
+      ].join("\n"),
+    });
+    expect(await findingsOf(iconOnly)).toEqual([]);
+  });
+
+  test("overrides: a gray solid fill under a blue tone is neutral", async () => {
+    const nodes = [box("a", "variant: solid, tone: blue"), box("b", "variant: tinted")].join("\n");
+    expect(await findingsOf(figure({ nodes }))).toHaveLength(1);
+    expect(
+      await findingsOf(figure({ nodes, overrides: "{ solidFills: { blue: '#777777' } }" })),
+    ).toEqual([]);
+  });
+
+  test("overrides: a gray tone painted in a hue is chromatic, a hue tone painted gray is not", async () => {
+    const nodes = [box("a", "variant: solid, tone: gray"), box("b", "variant: tinted")].join("\n");
+    expect(await findingsOf(figure({ nodes }))).toEqual([]);
+    const [finding] = await findingsOf(
+      figure({ nodes, overrides: "{ solidFills: { gray: '#cc2222' } }" }),
+    );
+    expect(finding?.message).toMatch(/solid with a tone/);
+    const filled = [
+      box("a", "variant: filled, tone: blue"),
+      box("b", "variant: filled, tone: blue"),
+    ].join("\n");
+    expect(await findingsOf(figure({ nodes: filled }))).toHaveLength(1);
+    expect(
+      await findingsOf(
+        figure({
+          nodes: filled,
+          overrides: "{ tones: { blue: { fill: '#dddddd', line: '#555555' } } }",
+        }),
+      ),
+    ).toEqual([]);
+    const grays = [
+      box("a", "variant: filled, tone: gray"),
+      box("b", "variant: filled, tone: gray"),
+    ].join("\n");
+    expect(
+      await findingsOf(
+        figure({
+          nodes: grays,
+          overrides: "{ tones: { gray: { fill: '#f0a0a0', line: '#a02020' } } }",
+        }),
+      ),
+    ).toHaveLength(1);
+  });
+
+  test("the suggested edit (emphasis, no tone) yields a neutral block that passes", async () => {
+    const before = figure({
+      nodes: [box("a", "variant: solid, tone: blue"), box("b", "variant: tinted, tone: blue")].join(
+        "\n",
+      ),
+    });
+    const [finding] = await findingsOf(before);
+    expect(finding?.hint).toMatch(/set variant emphasis and delete its tone/);
+    const after = figure({
+      nodes: [box("a", "variant: emphasis"), box("b", "variant: tinted, tone: blue")].join("\n"),
+    });
+    expect(await findingsOf(after)).toEqual([]);
+  });
+});

@@ -20,40 +20,108 @@
  */
 
 import { getTheme } from "../../core/theme/builtin";
-import type { ThemeColorUse } from "../../core/theme/schema";
-import type { Tone } from "../../core/theme/tones";
+import { deltaE, toOklch } from "../../core/theme/color-math";
+import { resolveStyle } from "../../core/theme/resolve";
+import type { Theme, ThemeColorUse } from "../../core/theme/schema";
 import { defineGeometryRule, type LintFinding } from "../rule";
 import type { GeometryElement } from "./context";
 
-/** Components that draw no area of their own: text, junction dots, rules, operators. */
-const UNPAINTED = new Set(["sumi/label", "sumi/junction", "sumi/separator", "sumi/operator"]);
+/** Components that draw no area of their own: text, junction dots, rules, operators, images. */
+const UNPAINTED = new Set([
+  "sumi/label",
+  "sumi/junction",
+  "sumi/separator",
+  "sumi/operator",
+  "sumi/image",
+]);
+/** A paint within this CIE76 distance of the theme's own color for the tone is that color. */
+const SAME_PAINT = 4;
+/** A toned element painted below this OKLCH chroma (an override to gray) is neutral. */
+const NEUTRAL_CHROMA = 0.025;
+/** An untoned or gray-toned element painted at or above this chroma (an override to a hue) is chromatic. */
+const SATURATED_CHROMA = 0.06;
 
 export interface ToneUse {
-  readonly tone: Tone;
-  /** Names of the nodes and groups that set the tone, in document order. */
+  /** The tone's name; `gray` when an override paints the gray tone in a hue. */
+  readonly tone: string;
+  /** The nodes and groups that paint it, in document order. */
   readonly elements: readonly GeometryElement[];
 }
 
 export interface ColorUse {
-  /** The accent tones used, most used first. */
+  /** The accent hues used, most used first. */
   readonly accents: readonly ToneUse[];
   /** Chromatic nodes of a heavy variant, in document order. */
   readonly heavy: readonly GeometryElement[];
   /** Their share of the painted node area (0 to 1). */
   readonly heavyShare: number;
-  /** Nodes of variant `solid` with a tone other than `gray`, in document order. */
+  /** Chromatic nodes of variant `solid`, in document order. */
   readonly solid: readonly GeometryElement[];
 }
 
 const area = (element: GeometryElement): number =>
   element.bbox === undefined ? 0 : element.bbox.width * element.bbox.height;
 
+const isHex = (color: string): boolean => /^#[0-9a-f]{6}$/i.test(color);
+
+/** The color the element is mainly painted in: the fill of a block, else its frame. */
+function paintOf(element: GeometryElement, heavy: boolean): string | undefined {
+  const { style } = element.ir;
+  const frame = style.strokeWidth.units > 0 ? style.stroke : style.fill;
+  const color = heavy ? style.fill : frame;
+  return isHex(color) ? color.toLowerCase() : undefined;
+}
+
+/**
+ * The hue an element paints, or `undefined` if it paints a neutral. The tone's
+ * name says so unless the figure overrides the paint (`solidFills`,
+ * `themeOverrides.tones`, a palette): then the resolved color is judged.
+ */
+function hueOf(
+  element: GeometryElement,
+  theme: Theme | undefined,
+  heavy: boolean,
+): string | undefined {
+  const { ir } = element;
+  if (ir.kind === "edge") return undefined;
+  const tone = ir.tone ?? "gray";
+  const actual = paintOf(element, heavy);
+  const expected =
+    theme === undefined
+      ? undefined
+      : resolveStyle(theme, {
+          kind: ir.kind,
+          id: ir.component,
+          variant: ir.variant,
+          ...(ir.tone !== undefined && { tone: ir.tone }),
+        }).style;
+  const expectedPaint =
+    expected === undefined
+      ? undefined
+      : (() => {
+          const color = heavy
+            ? expected.fill
+            : expected.strokeWidth.units > 0
+              ? expected.stroke
+              : expected.fill;
+          return isHex(color) ? color : undefined;
+        })();
+  if (actual === undefined) return tone === "gray" ? undefined : tone;
+  if (expectedPaint !== undefined && deltaE(actual, expectedPaint) < SAME_PAINT) {
+    return tone === "gray" ? undefined : tone;
+  }
+  const { c } = toOklch(actual);
+  if (tone === "gray") return c >= SATURATED_CHROMA ? "gray" : undefined;
+  return c < NEUTRAL_CHROMA ? undefined : tone;
+}
+
 /** Measures what the figure's nodes and groups paint, against the heavy variants of `guidance`. */
 export function colorUseOf(
   elements: readonly GeometryElement[],
   guidance: Pick<ThemeColorUse, "heavyVariants">,
+  theme?: Theme,
 ): ColorUse {
-  const byTone = new Map<Tone, GeometryElement[]>();
+  const byTone = new Map<string, GeometryElement[]>();
   const heavy: GeometryElement[] = [];
   const solid: GeometryElement[] = [];
   let painted = 0;
@@ -61,16 +129,15 @@ export function colorUseOf(
   for (const element of elements) {
     const { ir } = element;
     if (ir.kind === "edge") continue;
-    if (ir.kind === "node" && (ir.icon !== undefined || ir.image !== undefined)) continue;
-    const isPart = ir.legend !== undefined;
-    const counts = !(ir.kind === "node" && UNPAINTED.has(ir.component));
-    const { tone } = ir;
-    if (tone !== undefined && tone !== "gray" && counts) {
-      byTone.set(tone, [...(byTone.get(tone) ?? []), element]);
-    }
-    if (ir.kind !== "node" || !counts || isPart) continue;
+    // A legend's samples repeat the figure's colors: they are not choices of their own.
+    if (ir.legend !== undefined) continue;
+    if (ir.kind === "node" && (ir.image !== undefined || UNPAINTED.has(ir.component))) continue;
+    const isHeavy = ir.kind === "node" && guidance.heavyVariants.includes(ir.variant);
+    const hue = hueOf(element, theme, isHeavy);
+    if (hue !== undefined) byTone.set(hue, [...(byTone.get(hue) ?? []), element]);
+    if (ir.kind !== "node") continue;
     painted += area(element);
-    if (tone !== undefined && tone !== "gray" && guidance.heavyVariants.includes(ir.variant)) {
+    if (isHeavy && hue !== undefined) {
       heavy.push(element);
       if (ir.variant === "solid") solid.push(element);
       heavyArea += area(element);
@@ -95,8 +162,9 @@ export function colorUseFindings(
   figureId: string,
   elements: readonly GeometryElement[],
   guidance: ThemeColorUse,
+  theme?: Theme,
 ): LintFinding[] {
-  const use = colorUseOf(elements, guidance);
+  const use = colorUseOf(elements, guidance, theme);
   const subject = { kind: "figure", id: figureId } as const;
   const path = ["figure", "theme"];
   const findings: LintFinding[] = [];
@@ -123,10 +191,10 @@ export function colorUseFindings(
   }
   if (use.heavyShare > guidance.maxHeavyShare) {
     findings.push({
-      message: `${percent(use.heavyShare)} of the node area is a block of color (${use.heavy.length} nodes of variant ${variants} with a tone: ${names(use.heavy)}); theme ${themeId} allows ${percent(guidance.maxHeavyShare)}.`,
+      message: `${percent(use.heavyShare)} of the node area is a block of color (${use.heavy.length} ${use.heavy.length === 1 ? "node" : "nodes"} of variant ${variants} with a tone: ${names(use.heavy)}); theme ${themeId} allows ${percent(guidance.maxHeavyShare)}.`,
       path,
       subject,
-      hint: `Change most of them from ${[...new Set(use.heavy.map((e) => e.ir.variant))].join(" / ")} to ${calm.join(" or ") || target}${guidance.preferredVariants.includes("emphasis") ? ", and keep emphasis for the one element that matters" : ""}.`,
+      hint: `Change most of them from ${[...new Set(use.heavy.map((e) => e.ir.variant))].join(" / ")} to ${calm.join(" or ") || target}${guidance.preferredVariants.includes("emphasis") ? ", and keep emphasis (without a tone) for the one element that matters" : ""}.`,
       related: use.heavy.slice(0, 3).map((e) => ({
         path: e.docPath,
         message: `${e.name[0]?.toUpperCase()}${e.name.slice(1)} is ${e.ir.variant} with tone ${e.ir.tone}.`,
@@ -143,7 +211,7 @@ export function colorUseFindings(
         )}${use.solid.length > 4 ? `, and ${use.solid.length - 4} more` : ""}): a dark block of saturated hue; theme ${themeId} allows ${guidance.maxSolidNodes === 0 ? "none" : `${guidance.maxSolidNodes}`}.`,
       path,
       subject,
-      hint: `Use variant emphasis (the theme's own dark block) for the one element that matters and ${calm.join(" or ") || target} for the rest.`,
+      hint: `For the one element that matters, set variant emphasis and delete its tone (emphasis keeps a node's tone, so it would stay a hue); give the rest ${calm.join(" or ") || target} with the tone.`,
       related: use.solid.slice(0, 3).map((e) => ({
         path: e.docPath,
         message: `${e.name[0]?.toUpperCase()}${e.name.slice(1)} is solid with tone ${e.ir.tone}.`,
@@ -161,8 +229,9 @@ export const themeColorUse = defineGeometryRule({
   fixable: false,
   run(context) {
     const { ir } = context;
-    const guidance = getTheme(ir.meta.themeId)?.colorUse;
+    const theme = getTheme(ir.meta.themeId);
+    const guidance = theme?.colorUse;
     if (guidance === undefined) return [];
-    return colorUseFindings(ir.meta.themeId, ir.meta.id, context.elements, guidance);
+    return colorUseFindings(ir.meta.themeId, ir.meta.id, context.elements, guidance, theme);
   },
 });
