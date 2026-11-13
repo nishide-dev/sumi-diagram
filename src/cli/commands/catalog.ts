@@ -148,9 +148,9 @@ function profileCell(entry: ThemeCatalogEntry): string {
   return scaled.length === 0 ? plain : `${plain}; with textScale: ${scaled.join(", ")}`;
 }
 
-/** One row per theme: ID, font sizes, font set, compatible profiles and description. */
+/** One row per theme: ID, font sizes, font set, compatible profiles and description; then the themes' color guidance (#513). */
 export function formatThemeTable(entries: readonly ThemeCatalogEntry[]): string {
-  return formatTable(
+  const table = formatTable(
     ["ID", "FONT SIZE", "FONTS", "PROFILES", "DESCRIPTION"],
     entries.map((entry) => {
       const { min, max } = entry.fontSizePt;
@@ -164,6 +164,13 @@ export function formatThemeTable(entries: readonly ThemeCatalogEntry[]): string 
       ];
     }),
   );
+  const guided = entries.filter((entry) => entry.colorUse !== null);
+  if (guided.length === 0) return table;
+  const lines = guided.map(({ id, colorUse }) => {
+    const use = colorUse as NonNullable<typeof colorUse>;
+    return `  ${id}: gray base, at most ${use.maxAccentTones} accent tones; prefer ${use.preferredVariants.join(", ")}; ${use.heavyVariants.join("/")} with a tone on at most ${Math.round(use.maxHeavyShare * 100)}% of the node area; ${use.maxSolidNodes === 0 ? "no" : `at most ${use.maxSolidNodes}`} solid node with a tone`;
+  });
+  return `${table}\nColor use (geometry/theme-color-use):\n${lines.join("\n")}`;
 }
 
 /** One row per profile: ID, page limits, minimum font size, spacing and description. */

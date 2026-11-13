@@ -706,6 +706,7 @@ describe("sumi catalog", () => {
         "compatibleProfiles",
         "textScaleFor",
         "arrowhead",
+        "colorUse",
       ]);
     }
     for (const profile of json.profiles) {

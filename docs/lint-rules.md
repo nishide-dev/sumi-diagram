@@ -44,6 +44,20 @@ info にしたのは、配色は好みと意図（分類のための多色）に
 `lint --geometry` での抑止は `--rule geometry/color-harmony=off`、または lint 設定の `{"rules":{"geometry/color-harmony":"off"}}`。
 設計と根拠は [設計 #423](design/decisions/423-tone-harmony.md) を参照。
 
+## テーマの色の使い方（#513）
+
+`geometry/theme-color-use` は既定 **info**（`render` / `lint --geometry`）。`maxWarnings` に含めず、描画は変えない。
+テーマが `colorUse` の目安（[テーマ](themes-ja.md#色の使い方)）を持つとき（組み込みでは `sumi`・`sumi-dark`）だけ、図のノードとグループを次の 3 つと比べ、該当した信号ごとに図に 1 件報告する。メッセージとヒントは、直す tone と variant を名指しする。
+
+| 信号 | 条件 |
+| --- | --- |
+| 色の数 | `gray` 以外の tone が `maxAccentTones`（3）を超える。使われる回数の少ない tone から直す対象にする |
+| 濃い色の塊 | `gray` 以外の tone を持つ `solid` ノードが `maxSolidNodes`（0）を超える。sumi の濃いブロックは中立の `emphasis` で、tone 付きの `solid` は彩度の高い赤・緑・青になる |
+| 面の塗り | 有彩色の tone を持つ `heavyVariants`（`filled`・`solid`）のノードの bbox 面積が、描かれるノードの面積の `maxHeavyShare`（30%）を超える |
+
+埋め込み画像・凡例の部品・label / junction / separator / operator は数えない（アイコン付きの箱は数える）。有彩色かどうかは描画色で判断する。テーマが解決する tone の色と同じ（CIE76 で 1 以下）なら tone 名どおり、テーマ自身の無彩色と同じなら無彩色、`solidFills`・`themeOverrides.tones`・パレットで上書きされた色は OKLCH 彩度 0.008 未満が無彩色、以上が有彩色（tone 名は報告にだけ使う）。彩度が非常に低い淡い色（暖かい灰色 #efeddd など）は有彩色になりうる。info にしたのは、色の好みは図の意図に左右され、欠陥ではないため（`color-harmony`・`color-on-panel` と同じ）。
+`lint --geometry` での抑止は `--rule geometry/theme-color-use=off`。設計は [設計 #513](design/decisions/513-theme-color-use.md) を参照。
+
 ## 色の重なりと濁り（#440）
 
 描かれた塗り（グループ・set・set の重なり・ノード）を、描画順に背景へ重ねた最終の色（`src/lint/geometry/composite.ts`）で判定する。

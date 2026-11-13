@@ -595,7 +595,8 @@ searches icons). One entry of each:
       "toneLines": ["gray", "red", "orange", "yellow", "green", "blue", "purple", "pink"],
       "compatibleProfiles": ["paper-single", "paper-double"],
       "textScaleFor": { "screen-doc": 1.5, "presentation-16x9": 2 },
-      "arrowhead": "triangle"
+      "arrowhead": "triangle",
+      "colorUse": null
     }
   ],
   "profiles": [
@@ -629,6 +630,10 @@ searches icons). One entry of each:
 - `arrowhead`: the theme's standard arrowhead, `triangle` (filled) or `open` (a
   chevron the line runs into; `llama`). It replaces every triangle end in SVG, PDF and
   PPTX (editable PPTX: the native open `arrow` end).
+- `colorUse`: how the theme prefers its colours (`null` when it gives none; `sumi` and
+  `sumi-dark` do): `maxAccentTones` (tones other than `gray`), `preferredVariants`,
+  `heavyVariants` (`filled`, `solid`: blocks of colour), `maxHeavyShare` (of the node
+  area) and `maxSolidNodes` (toned `solid` nodes). `geometry/theme-color-use` (info) compares the figure with it.
 - `page.maxWidth` / `maxHeight` (`null` = no limit) include the margin; `layerGap`
   is the space between layers (nodes in a layer are always 10pt apart);
   `typography.minScaledFontSize` is the minimum printed size under `fit: scale`.

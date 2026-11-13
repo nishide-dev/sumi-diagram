@@ -1,0 +1,54 @@
+# Agent tool-use loop, for a blog post (about 160mm wide, text 9pt or more).
+# Reproduces mockup.png (#509, condition B).
+version: 1
+figure:
+  id: agent-loop
+  theme: sumi
+  profile: paper-double
+  target: { minFontSize: 9pt }
+  themeOverrides: { groupLabelWeight: bold, cornerRadius: 4pt }
+  layout:
+    arrange:
+      row:
+        gap: 9mm
+        align: start
+        items:
+          - stack: { gap: 8mm, items: [ request, answer ] }
+          - stack: { gap: 9mm, items: [ memory, llm, observation ] }
+          - stack: { gap: 9mm, items: [ plan, loop-note ] }
+          - stack: { gap: 7mm, items: [ tools, environment ] }
+    alignGrowth: allow
+    align:
+      - { y: [ llm, request, plan, tools ] }
+      - { y: [ observation, answer, environment ] }
+groups:
+  - id: memory
+    label: Memory
+    arrange:
+      row: { gap: 2mm, items: [ short-term, long-term ] }
+  - id: tools
+    label: Tools
+    arrange:
+      stack: { gap: 3mm, items: [ search, code, files ] }
+nodes:
+  - { id: short-term, component: cylinder, label: Short-term, tone: orange, props: { width: 62.5pt, height: 48pt } }
+  - { id: long-term, component: cylinder, label: Long-term, tone: orange, props: { width: 62.5pt, height: 48pt } }
+  - { id: search, component: box, label: Search, tone: blue, props: { width: 73.5pt, height: 22.5pt }, cornerRadius: 2pt }
+  - { id: code, component: box, label: Code execution, tone: blue, props: { width: 73.5pt, height: 22.5pt }, cornerRadius: 2pt }
+  - { id: files, component: box, label: Files, tone: blue, props: { width: 73.5pt, height: 22.5pt }, cornerRadius: 2pt }
+  - { id: request, component: parallelogram, label: User request, props: { width: 79.5pt, height: 28.5pt } }
+  - { id: llm, component: box, label: LLM, variant: emphasis, props: { width: 73.5pt, height: 34pt }, cornerRadius: 2pt }
+  - { id: plan, component: box, label: Plan, props: { width: 62.5pt, height: 28.5pt }, cornerRadius: 2pt }
+  - { id: answer, component: parallelogram, label: Final answer, props: { width: 79.5pt, height: 28.5pt } }
+  - { id: observation, component: box, label: Observation, tone: green, props: { width: 73.5pt, height: 28.5pt }, cornerRadius: 2pt }
+  - { id: loop-note, component: label, label: repeat until done, variant: muted }
+  - { id: environment, component: box, label: Environment, tone: green, props: { width: 85pt, height: 28.5pt }, cornerRadius: 2pt }
+edges:
+  - { from: llm, to: plan, label: reason, variant: emphasis, arrowheadScale: 0.6 }
+  - { from: plan, to: tools, label: call, variant: emphasis, arrowheadScale: 0.6 }
+  - { from: tools, to: environment, label: act, variant: emphasis, arrowheadScale: 0.6 }
+  - { from: environment, to: observation, label: result, variant: emphasis, arrowheadScale: 0.6 }
+  - { from: observation, to: llm, label: observe, variant: emphasis, arrowheadScale: 0.6, fromAnchor: "north:0.75", toAnchor: "south:0.75" }
+  - { from: request, to: llm }
+  - { from: llm, to: memory, component: double-arrow, label: read / write }
+  - { from: llm, to: answer, label: done, fromAnchor: "south:0.25", toAnchor: north }
