@@ -3,12 +3,13 @@
 # Use when: a model is a stack of identical blocks and the reader needs both the whole
 #   pipeline (input -> pieces -> embedding -> stack -> head) and what one block does,
 #   with skip connections around its sub-layers (transformer, ResNet, U-Net stage).
-# Structure: row of two plain panels, (a) placed by `place` coordinates (unit 1 mm, `origin: body`),
+# Structure: row of two plain panels, (a) placed by `place` coordinates (unit 1 mm),
 #   (b) a bottom-up stack inside a framed group; `zoom` edge joins the stack box to the block;
 #   hidden junctions split each residual; the three norm -> mixing edges use fixed anchors.
-# Change: the labels; the number of sub-layers (copy a norm / layer / add triple in the block
-#   stack and its two edges); the tones (blue input, orange mixing, green transform);
-#   move the `place` coordinates only together, keep the vertical trunk aligned.
+# Change: the labels; the number of sub-layers (per sub-layer copy its split junction, norm,
+#   layer and add nodes with their edges: junction -> norm, norm -> layer, layer -> add and
+#   the residual junction -> add, then list them in the block stack); the tones (blue input,
+#   orange mixing, green transform); move the `place` coordinates only together.
 # Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
 version: 1
 figure:

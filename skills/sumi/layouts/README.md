@@ -13,13 +13,17 @@ placeholder.
 
 1. Match the request to the table below by structure, not by topic. None fits: use the
    closest [example](../examples/README.md) instead, or start from scratch.
-2. View the PNG, read the YAML header and the YAML. After the [mockup](../references/mockup.md)
-   step (step 4 of the workflow) decide what to keep, change, add or delete; say which
-   layout you started from in the report.
+2. View the PNG, read the YAML header and the YAML, and plan the adaptation: what to
+   keep, change, add or delete. Then mock it up when the [mockup](../references/mockup.md)
+   step requires it, and only then adapt the YAML. Say which layout you started from
+   in the report.
 3. Copy the directory, rename `figure.id`, replace every label, and change the count of
    stages, rows, items or sets by copying or deleting whole units (a node with its edges,
    a grid row of the same width). Keep the alignments (`align`, `place` coordinates,
-   shared columns) consistent when you do.
+   shared columns) consistent when you do. **Apply the theme, profile and `textScale`
+   chosen in step 1** to `figure.theme`, `figure.profile` and `figure.themeOverrides`:
+   the layout's own `sumi` / `paper-double` are only its defaults. A narrower profile or
+   another theme changes the fit, so recheck the size and geometry.
 4. Loop `fmt` → `lint --geometry` → `render` as usual, then check the figure by eye
    against the user's content (step 7). The layout is lint-clean; your adaptation must be too.
 
@@ -39,7 +43,9 @@ profile is the usual `figure.theme` / `figure.profile` edit (a slide needs
 ## Maintaining (in the repository)
 
 `bun run gallery` regenerates each SVG and `gallery:check` fails when one is stale; the
-PNGs come from `bun run skill:previews`. Tests (`src/cli/skill-layouts.test.ts`) check
+PNGs come from `bun run skill:previews` (needs Chrome or Quick Look), which also writes
+`previews.json`, the SHA-256 of each SVG its PNG was made from; the test fails when a PNG is older
+than its SVG, so rerun it after `gallery`. Tests (`src/cli/skill-layouts.test.ts`) check
 that every directory renders, is `fmt`- and `lint`-clean with no errors or warnings, that
 the SVG is current and that this table lists exactly the directories. Add a layout by
 drawing it with the Skill's workflow (mockup, YAML, review), giving it the header

@@ -101,8 +101,7 @@ arrangement is not obvious, however few nodes; skip only for an obvious one-dire
 in Sumi's vocabulary and theme colours, check it against the step 1 checklist, then reproduce it in YAML
 ([mockup](references/mockup.md), [template](references/mockup-template.html)).
 
-**Start from the closest base layout.** Match the request by structure in the [layouts index](layouts/README.md), view its PNG,
-copy its directory and adapt it (labels, counts, tones; delete or add whole units); mock up the adapted arrangement, and say which layout you used. None fits: go on.
+**Start from the closest base layout.** Pick one by structure in the [layouts index](layouts/README.md) and view its PNG; plan the adaptation (labels, counts, tones, theme and profile from step 1); mock it up if required; then copy its directory and adapt the YAML, saying which layout you used. None fits: go on.
 
 Then open the [examples index](examples/README.md), choose the 1–2 closest examples
 by figure type and features, view their PNGs (Read shows images) and read their YAML.

@@ -29,6 +29,7 @@ for (const name of [
 }
 
 // Base layouts (#511): PNG thumbnails of the gallery SVGs, through the Skill's own preview script.
+const manifest: Record<string, string> = {};
 const layouts = new Bun.Glob("skills/sumi/layouts/*/*.svg").scanSync({ cwd: root });
 for (const svg of [...layouts].sort()) {
   const png = join(root, svg.replace(/\.svg$/, ".png"));
@@ -37,4 +38,12 @@ for (const svg of [...layouts].sort()) {
     { stdout: "inherit", stderr: "inherit" },
   );
   if (run.exitCode !== 0) throw new Error(`preview failed for ${svg}.`);
+  // The SVG each PNG was made from, so the tests can tell a stale PNG.
+  manifest[svg.split("/")[3] ?? svg] = new Bun.CryptoHasher("sha256")
+    .update(await Bun.file(join(root, svg)).bytes())
+    .digest("hex");
 }
+await Bun.write(
+  join(root, "skills/sumi/layouts/previews.json"),
+  `${JSON.stringify(manifest, null, 2)}\n`,
+);
