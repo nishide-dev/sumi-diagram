@@ -1,0 +1,33 @@
+<!doctype html>
+<!-- Mockup template: edit the variables from the theme (see mockup.md), set the page size, draw in the <svg>. -->
+<meta charset="utf-8">
+<title>mockup</title>
+<style>
+  /* Fonts: @font-face for the theme's font files if you have them; else a close system face. */
+  :root {
+    --canvas: #ffffff; --ink: #000000; --panel: #f4f4f4;       /* theme canvas, text/line colour, group fill */
+    --blue: #dde6f0; --blue-line: #3d5d77;                     /* one fill + one line per tone you use */
+    --gray: #e6e6e6; --gray-line: #555555;
+    --font: "Helvetica Neue", Arial, sans-serif;               /* theme fonts */
+    --pt: 0.3528mm;                                            /* 1pt, to size text and lines */
+  }
+  @page { size: 160mm 100mm; margin: 0 }                       /* the real figure size */
+  html, body { margin: 0; background: var(--canvas) }
+  #fig { position: relative; width: 160mm; height: 100mm; overflow: hidden; font: calc(8 * var(--pt)) var(--font); color: var(--ink) }
+  /* Everything is positioned in mm so it maps 1:1 to `place` with unit: 1mm, origin: body. */
+  .box { position: absolute; box-sizing: border-box; display: flex; align-items: center; justify-content: center;
+         text-align: center; border: calc(0.75 * var(--pt)) solid var(--ink); background: var(--gray); border-radius: 0.5mm }
+  .tinted-blue { background: var(--blue); border-color: var(--blue-line) }
+  .group { position: absolute; box-sizing: border-box; background: var(--panel); border: calc(0.75 * var(--pt)) solid var(--ink) }
+  .group > .title { position: absolute; left: 0; bottom: 100%; font-weight: bold }  /* title above the border */
+  svg.edges { position: absolute; inset: 0; width: 160mm; height: 100mm; overflow: visible }
+  svg.edges path.e { fill: none; stroke: var(--ink); stroke-width: 0.265 }  /* inside the svg 1 unit = 1mm: 0.75pt = 0.265 */
+</style>
+<div id="fig">
+  <div class="box tinted-blue" style="left:20mm; top:20mm; width:30mm; height:10mm">Input</div>
+  <div class="box" style="left:80mm; top:20mm; width:30mm; height:10mm">Model</div>
+  <svg class="edges" viewBox="0 0 160 100" role="img" aria-label="edges">
+    <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="2" markerHeight="2" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,1 L10,5 L0,9z" fill="#000"/></marker></defs>
+    <path class="e" d="M50 25 H80" marker-end="url(#ah)"/>
+  </svg>
+</div>
