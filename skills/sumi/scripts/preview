@@ -230,10 +230,12 @@ elif [ "$tool" = chrome ]; then
     # Chrome shut down, probably Chrome signalling its process group. Run Chrome
     # in its own session, in the background so this shell's traps still run at
     # once: an interrupt is forwarded to Chrome's process group before exiting.
+    # The trap is set before the launch and reads `$!` (set as soon as the job
+    # starts; this is the script's only background job), so no signal can
+    # arrive between starting Chrome and being able to forward to it.
+    trap 'if [ -n "${!:-}" ]; then kill -TERM -- "-$!" 2>/dev/null || kill -TERM "$!" 2>/dev/null; fi; exit 130' INT TERM
     setsid "$chrome" "$@" >/dev/null 2>&1 &
-    cpid=$!
-    trap 'kill -TERM -- "-$cpid" 2>/dev/null || kill -TERM "$cpid" 2>/dev/null; exit 130' INT TERM
-    wait "$cpid" || true
+    wait "$!" || true
     trap 'exit 130' INT TERM
   else
     "$chrome" "$@" >/dev/null 2>&1 || true
