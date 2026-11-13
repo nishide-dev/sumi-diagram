@@ -1,0 +1,50 @@
+version: 1
+figure:
+  id: method-taxonomy
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      stack:
+        gap: 12mm
+        items:
+          - place:
+              unit: 1mm
+              items:
+                - {item: spectral-cnn, at: [26, 23]}
+                - {item: chebnet, at: [26, 49]}
+                - {item: graphsage, at: [70, 23]}
+                - {item: gin, at: [70, 49]}
+                - {item: graph-transformer, at: [110, 23]}
+                - {item: graphormer, at: [110, 49]}
+                - {item: dgi, at: [156, 23]}
+                - {item: graphcl, at: [156, 49]}
+                - {item: gcn, at: [50, 36]}
+                - {item: gat, at: [90, 36]}
+                - {item: graphmae, at: [130, 36]}
+          - key
+nodes:
+  - {id: spectral-cnn, component: box, label: Spectral CNN}
+  - {id: chebnet, component: box, label: ChebNet}
+  - {id: graphsage, component: box, label: GraphSAGE}
+  - {id: gin, component: box, label: GIN}
+  - {id: graph-transformer, component: box, label: Graph Transformer}
+  - {id: graphormer, component: box, label: Graphormer}
+  - {id: dgi, component: box, label: DGI}
+  - {id: graphcl, component: box, label: GraphCL}
+  - {id: gcn, component: box, label: GCN, props: {width: 37pt}, variant: emphasis}
+  - {id: gat, component: box, label: GAT, props: {width: 37pt}, variant: emphasis}
+  - {id: graphmae, component: box, label: GraphMAE, props: {width: 37pt}, variant: emphasis}
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: row
+      entries:
+        - {node: {}, label: method in one family}
+        - {node: {variant: emphasis}, label: method in two families (overlap)}
+sets:
+  - {id: spectral, label: "Spectral\ngraph Fourier filters", members: [spectral-cnn, chebnet, gcn], shape: ellipse, minWidth: 58mm, minHeight: 48mm, tone: blue}
+  - {id: spatial, label: "Spatial\nneighbour aggregation", members: [gcn, graphsage, gin, gat], shape: ellipse, minWidth: 58mm, minHeight: 48mm, tone: green}
+  - {id: attention, label: "Attention\nlearned neighbour weights", members: [gat, graph-transformer, graphormer, graphmae], shape: ellipse, minWidth: 58mm, minHeight: 48mm, tone: orange}
+  - {id: self-supervised, label: "Self-supervised\npretext objectives", members: [graphmae, dgi, graphcl], shape: ellipse, minWidth: 58mm, minHeight: 48mm, tone: purple}

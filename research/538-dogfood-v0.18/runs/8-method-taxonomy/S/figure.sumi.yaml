@@ -1,0 +1,50 @@
+version: 1
+figure:
+  id: method-taxonomy
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      stack:
+        gap: 12mm
+        items:
+          - place:
+              unit: 1mm
+              items:
+                - {item: spectral-cnn, at: [26, 25]}
+                - {item: chebnet, at: [26, 47]}
+                - {item: graphsage, at: [70, 25]}
+                - {item: gin, at: [70, 47]}
+                - {item: graphgps, at: [110, 25]}
+                - {item: graphormer, at: [110, 47]}
+                - {item: dgi, at: [156, 25]}
+                - {item: graphcl, at: [156, 47]}
+                - {item: gcn, at: [50, 36]}
+                - {item: gat, at: [90, 36]}
+                - {item: graphmae, at: [130, 36]}
+          - key
+nodes:
+  - {id: spectral-cnn, component: box, label: Spectral CNN, props: {width: 54pt}}
+  - {id: chebnet, component: box, label: ChebNet, props: {width: 54pt}}
+  - {id: graphsage, component: box, label: GraphSAGE, props: {width: 54pt}}
+  - {id: gin, component: box, label: GIN, props: {width: 54pt}}
+  - {id: graphgps, component: box, label: GraphGPS, props: {width: 54pt}}
+  - {id: graphormer, component: box, label: Graphormer, props: {width: 54pt}}
+  - {id: dgi, component: box, label: DGI, props: {width: 54pt}}
+  - {id: graphcl, component: box, label: GraphCL, props: {width: 54pt}}
+  - {id: gcn, component: box, label: GCN, props: {width: 46pt}, variant: emphasis}
+  - {id: gat, component: box, label: GAT, props: {width: 46pt}, variant: emphasis}
+  - {id: graphmae, component: box, label: GraphMAE, props: {width: 46pt}, variant: emphasis}
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: row
+      entries:
+        - {node: {}, label: method in one family}
+        - {node: {variant: emphasis}, label: method in two families (overlap)}
+sets:
+  - {id: spectral, label: "Spectral\ngraph Fourier filters", members: [spectral-cnn, chebnet, gcn], shape: ellipse, minWidth: 58mm, minHeight: 48mm, tone: blue}
+  - {id: spatial, label: "Spatial\nneighbour aggregation", members: [gcn, graphsage, gin, gat], shape: ellipse, minWidth: 58mm, minHeight: 48mm, tone: green}
+  - {id: attention, label: "Attention\nlearned edge weights", members: [gat, graphgps, graphormer, graphmae], shape: ellipse, minWidth: 58mm, minHeight: 48mm, tone: orange}
+  - {id: self-supervised, label: "Self-supervised\npretext objectives", members: [graphmae, dgi, graphcl], shape: ellipse, minWidth: 58mm, minHeight: 48mm, tone: purple}

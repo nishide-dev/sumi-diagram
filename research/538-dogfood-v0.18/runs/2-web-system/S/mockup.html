@@ -1,0 +1,75 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>web-system mockup</title>
+<style>
+  :root {
+    --canvas: #f8f8ee; --ink: #30364f; --panel: #efeddd;
+    --blue: #d9e4e6; --blue-line: #3d5d77;
+    --green: #dce7d3; --green-line: #426344;
+    --orange: #efdfce; --orange-line: #814b2d;
+    --font: "Inter", "Helvetica Neue", Arial, sans-serif;
+    --fs-node: 16; --fs-group: 18; --fs-edge: 14;
+    --frame-w: 2; --edge-w: 2;
+    --arrow: #30364f;
+    --pt: 0.3528mm;
+  }
+  @page { size: 338mm 180mm; margin: 0 }
+  html, body { margin: 0; background: var(--canvas) }
+  #fig { position: relative; width: 338mm; height: 180mm; overflow: hidden; font: calc(var(--fs-node) * var(--pt)) var(--font); color: var(--ink) }
+  .box { position: absolute; box-sizing: border-box; display: flex; align-items: center; justify-content: center; text-align: center;
+         border: calc(var(--frame-w) * var(--pt)) solid var(--ink); background: #fff; border-radius: 1.5mm; transform: translate(-50%, -50%) }
+  .blue { background: var(--blue); border-color: var(--blue-line); color: var(--blue-line) }
+  .green { background: var(--green); border-color: var(--green-line); color: var(--green-line); border-radius: 50% / 18% }
+  .orange { background: var(--orange); border-color: var(--orange-line); color: var(--orange-line) }
+  .emph { background: var(--ink); color: var(--canvas); font-weight: bold }
+  .outl { background: var(--canvas); border-color: #4e566b; color: #4e566b }
+  .dash { background: var(--canvas); border-style: dashed }
+  .group { position: absolute; box-sizing: border-box; background: var(--panel); border: calc(var(--frame-w) * var(--pt)) solid var(--ink); border-radius: 2mm }
+  .group > .title { position: absolute; left: 0; right: 0; text-align: center; top: 2mm; font-weight: bold; font-size: calc(var(--fs-group) * var(--pt)) }
+  svg.edges { position: absolute; inset: 0; width: 338mm; height: 180mm; overflow: visible }
+  svg.edges path.e { fill: none; stroke: var(--arrow); stroke-width: calc(var(--edge-w) * 0.3528) }
+  svg.edges path.d { stroke-dasharray: 3 2 }
+  svg.edges text { font-size: calc(var(--fs-edge) * 0.3528px); fill: var(--ink); font-family: var(--font) }
+  svg.edges marker path { fill: var(--arrow) }
+  .legend-unused { position: absolute; left: 110mm; top: 166mm; font-size: calc(var(--fs-edge) * var(--pt)); display: flex; gap: 12mm }
+</style>
+<div id="fig">
+  <div class="group" style="left:4mm; top:26mm; width:46mm; height:84mm"><div class="title">Clients</div></div>
+  <div class="group" style="left:160mm; top:16mm; width:54mm; height:94mm"><div class="title">Services</div></div>
+  <div class="group" style="left:240mm; top:16mm; width:54mm; height:94mm"><div class="title">Data</div></div>
+  <div class="group" style="left:160mm; top:120mm; width:134mm; height:46mm"><div class="title" style="top:auto; bottom:2mm">Async processing</div></div>
+
+  <div class="box" style="left:27mm; top:56mm; width:36mm; height:14mm">Browser</div>
+  <div class="box" style="left:27mm; top:88mm; width:36mm; height:14mm">Mobile app</div>
+  <div class="box outl" style="left:78mm; top:72mm; width:26mm; height:14mm">CDN</div>
+  <div class="box emph" style="left:128mm; top:72mm; width:40mm; height:16mm">API gateway</div>
+  <div class="box blue" style="left:187mm; top:40mm; width:38mm; height:14mm">Auth</div>
+  <div class="box blue" style="left:187mm; top:66mm; width:38mm; height:14mm">Inventory</div>
+  <div class="box blue" style="left:187mm; top:92mm; width:38mm; height:14mm">Order</div>
+  <div class="box green" style="left:267mm; top:46mm; width:40mm; height:22mm">Redis cache</div>
+  <div class="box green" style="left:267mm; top:86mm; width:40mm; height:22mm">PostgreSQL</div>
+  <div class="box orange" style="left:187mm; top:144mm; width:46mm; height:14mm">Message queue</div>
+  <div class="box orange" style="left:267mm; top:144mm; width:44mm; height:14mm">Async worker</div>
+  <div class="box dash" style="left:320mm; top:144mm; width:30mm; height:18mm">Payment<br>API</div>
+
+  <svg class="edges" viewBox="0 0 338 180">
+    <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="3" markerHeight="3" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0,1 L10,5 L0,9z"/></marker></defs>
+    <path class="e" d="M45 56 H55 V68 H65" marker-end="url(#ah)"/>
+    <path class="e" d="M45 88 H55 V76 H65" marker-end="url(#ah)"/>
+    <path class="e" d="M91 72 H108" marker-end="url(#ah)"/>
+    <path class="e" d="M148 68 H156 V40 H168" marker-end="url(#ah)"/>
+    <path class="e" d="M148 70 H156 V66 H168" marker-end="url(#ah)"/>
+    <path class="e" d="M148 76 H156 V92 H168" marker-end="url(#ah)"/>
+    <path class="e" d="M214 46 H247" marker-start="url(#ah)" marker-end="url(#ah)"/>
+    <path class="e" d="M214 86 H247" marker-start="url(#ah)" marker-end="url(#ah)"/>
+    <path class="e d" d="M187 99 V137" marker-end="url(#ah)"/>
+    <text x="189" y="116">publish</text>
+    <path class="e d" d="M210 144 H245" marker-end="url(#ah)"/>
+    <path class="e" d="M267 137 V97" marker-end="url(#ah)"/>
+    <text x="269" y="128">update</text>
+    <path class="e" d="M289 144 H305" marker-end="url(#ah)"/>
+    <text x="291" y="140">charge</text>
+    <path class="e" d="M10 140 H22"/><text x="24" y="141.5">synchronous call</text>
+    <path class="e d" d="M10 150 H22"/><text x="24" y="151.5">asynchronous message</text>
+  </svg>
+</div>

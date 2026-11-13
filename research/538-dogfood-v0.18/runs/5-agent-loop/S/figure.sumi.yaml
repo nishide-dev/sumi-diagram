@@ -1,0 +1,63 @@
+version: 1
+figure:
+  id: agent-loop
+  title: Tool-use loop of an LLM agent
+  theme: sumi
+  profile: screen-doc
+  themeOverrides: {textScale: 1.5}
+  target: {minFontSize: 9pt}
+  layout:
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: request, at: [56, 10.5]}
+          - {item: answer, at: [84, 10.5]}
+          - {item: memory, at: [21, 46], origin: body}
+          - {item: llm, at: [70, 40]}
+          - {item: plan, at: [136, 40]}
+          - {item: loop-icon, at: [97, 59]}
+          - {item: observation, at: [56, 81]}
+          - {item: environment, at: [99, 81]}
+          - {item: tools, at: [138, 81], origin: body}
+groups:
+  - id: memory
+    label: Memory
+    arrange:
+      stack: {gap: 6mm, align: stretch, items: [short-term, long-term]}
+  - id: tools
+    label: Tools
+    arrange:
+      stack: {gap: 4mm, align: stretch, items: [search, code, files]}
+nodes:
+  - {id: request, component: box, label: "User\nrequest", tone: orange, variant: outlined}
+  - {id: answer, component: box, label: "Final\nanswer", tone: orange, variant: outlined}
+  - {id: short-term, component: box, label: "Short-term\n(context)", tone: green, variant: tinted}
+  - {id: long-term, component: box, label: "Long-term\n(store)", tone: green, variant: tinted}
+  - id: llm
+    component: box
+    label: LLM
+    text: heading
+    variant: emphasis
+    props: {width: 40mm, height: 14mm}
+  - {id: plan, component: box, label: Plan, props: {width: 24mm}}
+  - {id: loop-icon, component: label, icon: tabler/refresh, iconSize: 1.5}
+  - {id: loop-note, component: label, label: until done, attach: {to: loop-icon, side: south, gap: 1mm}}
+  - {id: observation, component: box, label: Observation}
+  - {id: environment, component: box, label: Environment, variant: dashed}
+  - {id: search, component: box, label: Search, tone: blue, variant: tinted}
+  - {id: code, component: box, label: "Code\nexecution", tone: blue, variant: tinted}
+  - {id: files, component: box, label: Files, tone: blue, variant: tinted}
+edges:
+  # the loop, clockwise
+  - {from: llm, to: plan}
+  - {from: plan, to: tools, label: tool call}
+  - {from: tools, to: environment, fromAnchor: west, toAnchor: east}
+  - {from: environment, to: observation}
+  - {from: observation, to: llm, toAnchor: "south:0.15"}
+  # in and out
+  - {from: request, to: llm, toAnchor: "north:0.15"}
+  - {from: llm, to: answer, fromAnchor: "north:0.85", label: done}
+  # memory read / write
+  - {from: short-term, to: llm, component: double-arrow, toAnchor: west}
+  - {from: long-term, to: llm, component: double-arrow, toAnchor: "west:0.75"}

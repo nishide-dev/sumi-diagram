@@ -1,0 +1,71 @@
+<!doctype html>
+<!-- Mockup for run 5 (agent-loop): theme sumi, screen-doc, textScale 1.5. Values from a probe render. -->
+<meta charset="utf-8">
+<title>mockup</title>
+<style>
+  @font-face { font-family: InterM; src: url("../../../../../assets/fonts/inter/Inter-Regular.ttf"); font-weight: 400 }
+  @font-face { font-family: InterM; src: url("../../../../../assets/fonts/inter/Inter-Bold.ttf"); font-weight: 700 }
+  :root {
+    --canvas: #f8f8ee; --ink: #30364f; --panel: #efeddd; --panel-line: #4e566b;
+    --blue: #d9e4e6; --blue-line: #3d5d77;
+    --green: #dce7d3; --green-line: #426344;
+    --orange: #efdfce; --orange-line: #814b2d;
+    --font: InterM, "Helvetica Neue", Arial, sans-serif;
+    --fs-node: 12; --fs-group: 13.5; --fs-edge: 10.5;
+    --frame-w: 1.5; --edge-w: 1.5;
+    --arrow: #30364f;
+    --pt: 0.3528mm;
+  }
+  @page { size: 160mm 112mm; margin: 0 }
+  html, body { margin: 0; background: var(--canvas) }
+  #fig { position: relative; width: 160mm; height: 112mm; overflow: hidden; font: calc(var(--fs-node) * var(--pt)) var(--font); color: var(--ink); line-height: 1.2 }
+  .box { position: absolute; box-sizing: border-box; display: flex; align-items: center; justify-content: center;
+         text-align: center; border: calc(var(--frame-w) * var(--pt)) solid var(--ink); background: var(--canvas); border-radius: 1mm }
+  .emph { background: var(--ink); color: var(--canvas); font-weight: bold; font-size: calc(var(--fs-group) * var(--pt)) }
+  .t-blue { background: var(--blue); border-color: var(--blue-line); color: var(--blue-line) }
+  .t-green { background: var(--green); border-color: var(--green-line); color: var(--green-line) }
+  .o-orange { background: var(--canvas); border-color: var(--orange-line); color: var(--orange-line) }
+  .group { position: absolute; box-sizing: border-box; background: var(--panel); border: calc(var(--frame-w) * var(--pt)) solid var(--panel-line); border-radius: 1.5mm }
+  .group.dashed { background: transparent; border-style: dashed }
+  .group > .title { position: absolute; left: 0; right: 0; top: 1.2mm; text-align: center; font-weight: bold; font-size: calc(var(--fs-group) * var(--pt)) }
+  .note { position: absolute; font-size: calc(var(--fs-edge) * var(--pt)); text-align: center }
+  svg.edges { position: absolute; inset: 0; width: 160mm; height: 112mm; overflow: visible }
+  svg.edges path.e { fill: none; stroke: var(--arrow); stroke-width: calc(var(--edge-w) * 0.3528) }
+  svg.edges path.heavy { stroke-width: calc(2.25 * 0.3528) }
+  svg.edges text { font: calc(var(--fs-edge) * 0.3528px) InterM, sans-serif; fill: var(--ink) }
+  svg.edges marker path { fill: var(--arrow) }
+</style>
+<div id="fig">
+  <!-- in / out -->
+  <div class="box o-orange" style="left:47mm; top:4mm; width:22mm; height:13mm">User<br>request</div>
+  <div class="box o-orange" style="left:75mm; top:4mm; width:22mm; height:13mm">Final<br>answer</div>
+  <!-- memory -->
+  <div class="group" style="left:4mm; top:25mm; width:34mm; height:47mm"><div class="title">Memory</div></div>
+  <div class="box t-green" style="left:8mm; top:34mm; width:26mm; height:13mm">Short-term<br>(context)</div>
+  <div class="box t-green" style="left:8mm; top:53mm; width:26mm; height:13mm">Long-term<br>(store)</div>
+  <!-- LLM -->
+  <div class="box emph" style="left:48mm; top:33mm; width:48mm; height:14mm">LLM</div>
+  <!-- loop -->
+  <div class="box" style="left:118mm; top:35.5mm; width:28mm; height:9mm">Plan</div>
+  <div class="box" style="left:45mm; top:79.5mm; width:30mm; height:9mm">Observation</div>
+  <div class="box" style="left:82mm; top:79.5mm; width:28mm; height:9mm; border-style:dashed">Environment</div>
+  <div class="group" style="left:116mm; top:57mm; width:40mm; height:51mm"><div class="title">Tools</div></div>
+  <div class="box t-blue" style="left:119mm; top:66mm; width:34mm; height:9mm">Search</div>
+  <div class="box t-blue" style="left:119mm; top:79.5mm; width:34mm; height:9mm">Code exec.</div>
+  <div class="box t-blue" style="left:119mm; top:93mm; width:34mm; height:9mm">Files</div>
+  <div class="note" style="left:80mm; top:57mm; width:22mm">↻<br>until done</div>
+  <svg class="edges" viewBox="0 0 160 112" role="img" aria-label="edges">
+    <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="2.4" markerHeight="2.4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,1 L10,5 L0,9z"/></marker></defs>
+    <path class="e" d="M58 17 V33" marker-end="url(#ah)"/>
+    <path class="e" d="M86 33 V17" marker-end="url(#ah)"/><text x="88" y="27">done</text>
+    <!-- memory read/write -->
+    <path class="e" d="M36 40.5 H48" marker-start="url(#ah)" marker-end="url(#ah)"/>
+    <path class="e" d="M36 59.5 H40 V44 H48" marker-start="url(#ah)" marker-end="url(#ah)"/>
+    <!-- loop -->
+    <path class="e heavy" d="M96 40 H118" marker-end="url(#ah)"/>
+    <path class="e heavy" d="M132 44.5 V57" marker-end="url(#ah)"/><text x="134" y="52">tool call</text>
+    <path class="e heavy" d="M116 84 H110" marker-end="url(#ah)"/><text x="108" y="78">act</text>
+    <path class="e heavy" d="M82 84 H75" marker-end="url(#ah)"/><text x="73" y="78">result</text>
+    <path class="e heavy" d="M60 79.5 V47" marker-end="url(#ah)"/>
+  </svg>
+</div>

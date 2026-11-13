@@ -1,0 +1,63 @@
+<!doctype html>
+<!-- Mockup for run 3 data-pipeline: theme sumi, screen-doc, textScale 1.5. 160 x 58 mm. -->
+<meta charset="utf-8">
+<title>mockup</title>
+<style>
+  @font-face { font-family: "InterM"; src: url("../../../../../assets/fonts/inter/Inter-Regular.ttf"); }
+  @font-face { font-family: "InterM"; font-weight: bold; src: url("../../../../../assets/fonts/inter/Inter-Bold.ttf"); }
+  :root {
+    --canvas: #f8f8ee; --ink: #30364f;
+    --red: #efd8d0; --red-line: #813f40;
+    --font: "InterM", "Helvetica Neue", Arial, sans-serif;
+    --fs-node: 12; --fs-group: 13.5; --fs-edge: 10.5;
+    --frame-w: 1.5; --edge-w: 1.5;
+    --arrow: #30364f;
+    --pt: 0.3528mm;
+  }
+  @page { size: 160mm 58mm; margin: 0 }
+  html, body { margin: 0; background: var(--canvas) }
+  #fig { position: relative; width: 160mm; height: 58mm; overflow: hidden; font: calc(var(--fs-node) * var(--pt)) var(--font); color: var(--ink) }
+  .box { position: absolute; box-sizing: border-box; display: flex; align-items: center; justify-content: center;
+         text-align: center; border: calc(var(--frame-w) * var(--pt)) solid var(--ink); background: var(--canvas); border-radius: 1mm }
+  .cyl { border-radius: 50% / 18% }
+  .tinted-red { background: var(--red); border-color: var(--red-line); color: var(--red-line) }
+  svg.edges { position: absolute; inset: 0; width: 160mm; height: 58mm; overflow: visible }
+  svg.edges path.e { fill: none; stroke: var(--arrow); stroke-width: calc(var(--edge-w) * 0.3528) }
+  svg.edges path.r { stroke: var(--red-line); stroke-dasharray: 1.6 1.2 }
+  svg.edges text { font-family: var(--font); font-size: calc(var(--fs-edge) * 0.3528px); fill: var(--ink) }
+  svg.edges text.r { fill: var(--red-line) }
+  svg.edges marker path { fill: var(--arrow) }
+  svg.edges marker#ar path { fill: var(--red-line) }
+</style>
+<div id="fig">
+  <!-- row 0: quarantine above Validate -->
+  <div class="box cyl tinted-red" style="left:39mm; top:2mm; width:28mm; height:11mm">Quarantine</div>
+  <!-- row 1 (y centre 27) -->
+  <div class="box" style="left:4mm; top:22.5mm; width:24mm; height:9mm">Collect</div>
+  <div class="box" style="left:40mm; top:22.5mm; width:26mm; height:9mm">Validate</div>
+  <div class="box" style="left:77mm; top:22.5mm; width:30mm; height:9mm">Transform</div>
+  <div class="box cyl" style="left:119mm; top:21mm; width:36mm; height:12mm">Feature store</div>
+  <!-- row 2 (y centre 47), runs right to left -->
+  <div class="box" style="left:4mm; top:42.5mm; width:24mm; height:9mm">Monitor</div>
+  <div class="box" style="left:40mm; top:42.5mm; width:26mm; height:9mm">Deploy</div>
+  <div class="box" style="left:77mm; top:42.5mm; width:30mm; height:9mm">Evaluate</div>
+  <div class="box" style="left:122mm; top:42.5mm; width:30mm; height:9mm">Train</div>
+  <svg class="edges" viewBox="0 0 160 58">
+    <defs>
+      <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="2.4" markerHeight="2.4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,1 L10,5 L0,9z"/></marker>
+      <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="2.4" markerHeight="2.4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,1 L10,5 L0,9z"/></marker>
+    </defs>
+    <path class="e" d="M28 27 H40" marker-end="url(#ah)"/>
+    <path class="e" d="M66 27 H77" marker-end="url(#ah)"/>
+    <path class="e" d="M107 27 H119" marker-end="url(#ah)"/>
+    <path class="e" d="M137 33 V42.5" marker-end="url(#ah)"/>
+    <path class="e" d="M122 47 H107" marker-end="url(#ah)"/>
+    <path class="e" d="M77 47 H66" marker-end="url(#ah)"/>
+    <path class="e" d="M40 47 H28" marker-end="url(#ah)"/>
+    <path class="e r" d="M16 42.5 V31.5" marker-end="url(#ar)"/>
+    <text class="r" x="18.5" y="36">quality drop:</text>
+    <text class="r" x="18.5" y="40">re-collect, relabel</text>
+    <path class="e r" d="M53 22.5 V13" marker-end="url(#ar)"/>
+    <text class="r" x="55" y="19">failed checks</text>
+  </svg>
+</div>
