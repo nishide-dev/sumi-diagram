@@ -49,7 +49,7 @@ into panels. Measure candidates instead of applying a rule:
    | minimum final text size (venues differ widely, in print or on a slide) | yes | `figure.target.minFontSize`, `geometry/text-too-small`; math scripts (0.7×: 8pt → 5.6pt) are checked against it by `geometry/script-below-target` |
    | minimum line width, if the venue sets one | yes | `figure.target.minLineWidth`, `geometry/line-too-thin` |
    | height budget: what the document can spare | no | `figure.target.height`, `geometry/exceeds-target-height` |
-   | reading context: print, screen, projection; beside a caption or alone | no | theme; which sizes read comfortably |
+   | reading context: print, screen, projection; beside a caption or alone | no | profile (`paper-*`, `screen-doc` for a README or blog at about 760px, `presentation-16x9`) and `themeOverrides.textScale` so the theme's text meets its minimum ([text scale](figure-format.md#text-scale)); which sizes read comfortably |
 
    A full-width figure reserves the whole text width × its height, however narrow
    it is, so its cost is height and unused width is wasted; a column figure

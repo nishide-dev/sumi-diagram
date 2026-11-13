@@ -281,9 +281,10 @@ node と group の `tone`（`gray` / `red` / `orange` / `yellow` / `green` / `bl
 | --- | --- | --- | --- |
 | `paper-single`（既定） | 88mm | 220mm | 7pt |
 | `paper-double` | 180mm | 220mm | 7pt |
+| `screen-doc` | 200mm | 150mm | 10pt |
 | `presentation-16x9` | 338.7mm | 190.5mm | 14pt |
 
-スライドの図は `theme: slides` と `profile: presentation-16x9` で作ります。`presentation-16x9` は 14pt 以上の文字を求めるため、`minimal` / `academic` / `color` / `paper` では `profile/font-too-small` になります（意図どおり）。描き比べは[ギャラリー](gallery/compare.md)にあります。
+`screen-doc` は README・ブログ・文書ページに約 760px の幅で載せる図向けです。スライドの図は `theme: slides` と `profile: presentation-16x9` で作るか、ほかのテーマの文字を `figure.themeOverrides.textScale` で拡大します（`sumi` の文字は 7〜9pt なので、`presentation-16x9` には `textScale: 2`、`screen-doc` には `1.5`。テーマごとに必要な倍率は `sumi catalog --section themes` に出ます）。倍率なしで文字が最小に届かないテーマは `profile/font-too-small` になり、ヒントに直る倍率が出ます。描き比べは[ギャラリー](gallery/compare.md)にあります。
 
 ### データから波形を描く
 

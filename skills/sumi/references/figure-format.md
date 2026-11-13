@@ -452,7 +452,8 @@ square needs about 1.4× the text size (11pt for 8pt text); otherwise leave size
 | --- | --- | --- | --- | --- |
 | `paper-single` | 88mm | 220mm | 7pt | one column of a two-column paper (default) |
 | `paper-double` | 180mm | 220mm | 7pt | full page width |
-| `presentation-16x9` | 338.7mm | 190.5mm | 14pt | slides; only `slides` meets its 14pt minimum |
+| `screen-doc` | 200mm | 150mm | 10pt (scaled 8pt) | README, blog or document page, shown about 760px wide; 7-9pt themes need `textScale: 1.5` |
+| `presentation-16x9` | 338.7mm | 190.5mm | 14pt | slides; `slides` meets 14pt as it is, 7-9pt themes need `textScale: 2` |
 
 `sumi render --theme <name> --profile <name>` overrides them for one render. With
 `figure.fit: scale` a too-wide figure is printed smaller and text is checked at its
@@ -489,6 +490,8 @@ stay the theme's):
 - `edgeCorners: sharp` draws structured wires with sharp turns, T-joins at hidden junctions,
   butt caps and miter joins (zoom wires too; editable PPTX flat caps). Independent of
   `nodeCorners`.
+- `textScale: 2` scales the theme's text, line widths, arrowheads and corner radii together
+  ([below](#text-scale)); fonts, colours and the profile's spacing stay.
 - `groupLabelWeight: regular | bold` sets every group heading's weight.
 - `solidFills: { blue: '#3d9df5', orange: '#e8a20c', red: '#e04848' }` replaces the solid
   fill and border of those tones (expanded nodes and solid glyphs/legend samples too); white text stays if it meets 4.5:1,
@@ -524,6 +527,19 @@ Colours are strict `#RRGGBB` and apply before inherited dimming.
   on a node, group or set. `variant: dotted` on an edge, `container` or set draws round dots
   three line widths apart (the theme's `dashed` colours and fill); use `dashed` for dashes.
   Editable PPTX uses PowerPoint's round-dot preset and the nearest of its three head sizes.
+
+<a id="text-scale"></a>**Text scale.** `themeOverrides.textScale` (a multiple of 0.25, 0.5 to 4) multiplies the
+theme's font sizes, line widths, arrowheads (they follow the width) and corner radii; everything
+rounds to 0.5pt and lines stay at least 0.5pt. Sizes you write yourself (`lineWidth`, `frameWidth`,
+`cornerRadius`, `iconSize` in mm) stay as written; gaps and paddings are the profile's. Pick it from
+the placement, not by eye: `sumi catalog --json --section themes` lists, per theme, `textScaleFor`:
+the smallest scale that meets each profile's minimum (`sumi`: `screen-doc` 1.5, `presentation-16x9` 2;
+a theme that already meets a profile is absent from it). The same scale goes for `--theme sumi`
+with a slide or README profile: set `profile`, set `textScale`, then render; `profile/font-too-small`
+names the scale that fixes the figure. Text grows, so the figure grows by the same factor in width
+(`sumi` figure of 140mm at 2 is 280mm): check it against the profile's width, and shorten labels or
+fold rows rather than lower `target.minFontSize`. `fit: scale` only shrinks (and checks text against
+`minScaledFontSize`), so it never replaces a text scale. `target` states minima, not sizes.
 
 **Palettes.** `themeOverrides.palette: <name>` gives the figure one coherent colour scheme
 on any theme (`minimal`, `color`, `paper`, `llama`, …; `academic` is grayscale by design, so
@@ -578,6 +594,7 @@ searches icons). One entry of each:
       "tones": ["gray", "red", "orange", "yellow", "green", "blue", "purple", "pink"],
       "toneLines": ["gray", "red", "orange", "yellow", "green", "blue", "purple", "pink"],
       "compatibleProfiles": ["paper-single", "paper-double"],
+      "textScaleFor": { "screen-doc": 1.5, "presentation-16x9": 2 },
       "arrowhead": "triangle"
     }
   ],

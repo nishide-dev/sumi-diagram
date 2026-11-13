@@ -10,6 +10,7 @@ import type { CheckState, ElementKey } from "../check-state";
 import type { DiagnosticSubject, DocPath } from "../diagnostics";
 import { errorAt, relatedAt } from "../figure/report";
 import type { Locator } from "../figure/yaml";
+import { scaleToReach } from "../theme/text-scale";
 import { formatPt } from "../units";
 import { resolveProfile } from "./builtin";
 import type { Profile } from "./schema";
@@ -73,6 +74,9 @@ export function checkFontSizes(
   // before rendering (in particular when the author lowers the minimum).
   if (state.doc.figure?.target?.minFontSize !== undefined) return;
   const min = profile.typography.minFontSize.pt;
+  const current = state.doc.figure?.themeOverrides?.textScale ?? 1;
+  const list = [...fonts];
+  const scale = neededScale(list, min, current, state);
   for (const { key, fontSizePt, sublabel } of fonts) {
     if (state.invalid.has(key) || fontSizePt >= min) continue;
     const element = locateElement(state, key);
@@ -87,15 +91,48 @@ export function checkFontSizes(
         path,
         {
           subject,
-          hint: sublabel
-            ? "A sublabel is drawn at 7/8 of its node's font size (rounded down to 0.5pt): use a variant or theme with a larger font size, a profile with a smaller minimum, or put the text into the label."
-            : "Use a variant or theme with a larger font size, or a profile with a smaller minimum.",
+          hint: fontHint(scale, current, sublabel === true),
           related: [relatedAt(locate, PROFILE_PATH, `Profile "${profile.id}" is selected here.`)],
         },
       ),
     );
     state.invalid.add(key);
   }
+}
+
+/**
+ * The one text scale (#514) that lifts every text of the figure that is below
+ * `min` to it, as a multiple of 0.25 (the figure's own, `current`, replaced);
+ * `undefined` if the largest scale does not.
+ */
+function neededScale(
+  fonts: readonly FontUsage[],
+  min: number,
+  current: number,
+  state: CheckState,
+): number | undefined {
+  let needed = current;
+  for (const { key, fontSizePt, sublabel } of fonts) {
+    if (state.invalid.has(key) || fontSizePt >= min) continue;
+    // The size before the figure's own scale, as the label's (a sublabel is 7/8 of it).
+    const label = (sublabel ? (fontSizePt * 8) / 7 : fontSizePt) / current;
+    const scale = scaleToReach(label, min, sublabel === true);
+    if (scale === undefined) return undefined;
+    needed = Math.max(needed, scale);
+  }
+  return needed;
+}
+
+/** The hint of `profile/font-too-small`: the text scale that fixes the figure, then the other ways. */
+function fontHint(scale: number | undefined, current: number, sublabel: boolean): string {
+  const control =
+    scale !== undefined && scale > current
+      ? `Set figure.themeOverrides.textScale: ${scale} (scales the theme's text, lines and arrowheads together; now ${current}), or `
+      : "";
+  const others = sublabel
+    ? "use a variant or theme with a larger font size, a profile with a smaller minimum, or put the text into the label (a sublabel is drawn at 7/8 of its node's font size, rounded down to 0.5pt)."
+    : "use a variant or theme with a larger font size, or a profile with a smaller minimum.";
+  return control === "" ? `${others[0]?.toUpperCase()}${others.slice(1)}` : `${control}${others}`;
 }
 
 /**

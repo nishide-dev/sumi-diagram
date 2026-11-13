@@ -164,9 +164,10 @@ Nodes/groups accept `tone`: `gray`, `red`, `orange`, `yellow`, `green`, `blue`, 
 | --- | --- | --- | --- |
 | `paper-single` (default) | 88mm | 220mm | 7pt |
 | `paper-double` | 180mm | 220mm | 7pt |
+| `screen-doc` | 200mm | 150mm | 10pt |
 | `presentation-16x9` | 338.7mm | 190.5mm | 14pt |
 
-Use slides + presentation-16x9 together. Other built-in themes are too small for that profile and report `profile/font-too-small`. See [theme/profile comparisons](gallery/compare.md).
+`screen-doc` is for a README, blog post or document page shown about 760px wide. Use slides + presentation-16x9 together, or scale another theme's text with `figure.themeOverrides.textScale` (`sumi` text is 7-9pt: `textScale: 2` for `presentation-16x9`, `1.5` for `screen-doc`; `sumi catalog --section themes` lists the scale each theme needs). Without it, a theme whose text is below the profile's minimum reports `profile/font-too-small`, with the scale that fixes it in the hint. See [theme/profile comparisons](gallery/compare.md).
 
 ## Icons and images
 

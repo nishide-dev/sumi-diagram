@@ -10,6 +10,9 @@
  * doubled for the presentation profile. So is the compact set that
  * `figure.layout.density: compact` selects (#182, design doc §6.55).
  *
+ * The screen profile (#514) spaces by 1.5, its text scale for 7-9pt themes
+ * (minimum 10pt: sumi text 8pt x 1.5 = 12pt, edge labels 10.5pt).
+ *
  * The layer gap was 10mm (the design doc example) until #31: 6–7 layers then
  * came out about 165mm tall. 8mm shortens such figures by about 10% and still
  * leaves edge labels between layers clear of the nodes (6mm did not).
@@ -69,6 +72,29 @@ export const BUILTIN_PROFILE_DEFINITIONS: readonly ProfileDefinition[] = [
     page: { maxWidth: "180mm", maxHeight: PAPER_MAX_HEIGHT },
     ...PAPER_SPACING,
     typography: { minFontSize: "7pt", minScaledFontSize: PAPER_MIN_SCALED_FONT_SIZE },
+  },
+  {
+    version: 1,
+    id: "screen-doc",
+    description:
+      "Figure in a README, blog post or document page, shown about 200mm (760px) wide; with a 7-9pt theme use figure.themeOverrides.textScale: 1.5",
+    page: { maxWidth: "200mm", maxHeight: "150mm" },
+    margin: "3mm",
+    typography: { minFontSize: "10pt", minScaledFontSize: "8pt" },
+    layout: {
+      layerGap: "12mm",
+      containerPadding: "6mm",
+      arrangeGap: "6mm",
+      groupPadding: "12pt",
+      nodePaddingX: "10.5pt",
+      nodePaddingY: "5pt",
+      compact: {
+        arrangeGap: "4mm",
+        groupPadding: "9pt",
+        nodePaddingX: "10.5pt",
+        nodePaddingY: "2pt",
+      },
+    },
   },
   {
     version: 1,
