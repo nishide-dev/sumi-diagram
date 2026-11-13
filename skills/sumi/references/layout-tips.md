@@ -241,7 +241,7 @@ names its Sumi means.
 - **One reading direction.** The main path runs one way, inputs to outputs
   (e.g. bottom to top for a stack of layers); a fold or turn has a reason. Side paths
   (residuals, skips, feedback) run beside it, never back across it. *Sumi:* the
-  root `stack: { direction: up }` or `row`; side entries with `toAnchor: west`;
+  root `stack: {direction: up}` or `row`; side entries with `toAnchor: west`;
   main-path edges first in `edges` (earlier edges route straighter).
 - **One focus.** The one or two elements the figure is about stand out; the rest
   is quieter; a compared baseline is pale. *Sumi:* `emphasis`, `solid`, operator
@@ -489,7 +489,7 @@ the reference's arrangement), then map each look you want to a field:
 | strong coloured cells or operators with contrasting text (dark ink on yellow) | `variant: solid` + `tone` |
 | pastel cells with matching coloured border and text | `variant: tinted` + `tone` |
 | coloured lines | `tone` on the edge |
-| thin 0.5pt frames and lines, small arrowheads (paper figures usually want this; heavy default lines are the commonest difference from the original) | `themeOverrides: { lineWidth: 0.5pt, frameWidth: 0.5pt, arrowheadScale: 0.6 }` ([line weights](figure-format.md#themes-and-profiles)) |
+| thin 0.5pt frames and lines, small arrowheads (paper figures usually want this; heavy default lines are the commonest difference from the original) | `themeOverrides: {lineWidth: 0.5pt, frameWidth: 0.5pt, arrowheadScale: 0.6}` ([line weights](figure-format.md#themes-and-profiles)) |
 | dotted coloured lines | edge `variant: dotted` + `tone` (`lineWidth: 0.5pt` for one edge) |
 | a white framed panel (`paper`'s default), a panel without a frame, a shaded gray panel (only if the reference has one), a dashed panel | group (default) / `plain` / `filled` / `dashed`, with `caption: (a) …` |
 | panels of equal height with captions on one line | the panels in one `row` with `align: stretch` ([captions](structured.md#group-titles-and-captions)) |
@@ -500,16 +500,16 @@ the reference's arrangement), then map each look you want to a field:
 | a row of token cells or patches | `component: tokens`; edges name a cell `<node>.<cell>` or the whole node ([tokens](structured.md#token-sequences)); several rows of cells: `lines` + `lineAlign` |
 | patches cut from one picture | `figure.assets` + `crop` on images or tokens image cells ([assets](assets.md#patches-from-one-picture)) |
 | a framed photo, a bigger ⊕ | `variant: framed` on the image; operator `props.size: large` ([assets](assets.md#framed-images-and-operator-size)) |
-| an attention mask, a grid of classes with hatched cells | `component: matrix` + legend `{ class: … }` ([matrices](structured.md#matrices)) |
+| an attention mask, a grid of classes with hatched cells | `component: matrix` + legend `{class: …}` ([matrices](structured.md#matrices)) |
 | a size or shape in smaller text under a name | `sublabel` ([sublabels](structured.md#sublabels)) |
 | a vertical title (a tall encoder, an axis) | `labelRotation: -90` ([turned labels](structured.md#turned-labels)) |
 | left-aligned prompt text | `textAlign: left` ([text align](structured.md#text-align)) |
 | coloured words inside a label | `$\textcolor{orange}{\text{word}}$` ([labels](figure-format.md#labels)) |
-| a bowtie shape, an emoji on a corner | `component: bowtie`; `badge: { icon: emoji/fire, corner: north-east }` ([badges](assets.md#corner-badges)) |
+| a bowtie shape, an emoji on a corner | `component: bowtie`; `badge: {icon: emoji/fire, corner: north-east}` ([badges](assets.md#corner-badges)) |
 | a table: row headings, repeated columns | a `grid` ([tables](structured.md#tables)) |
 | boxes packed tightly | `figure.layout.density: compact`, without your own `gap`s |
 | the whole figure printed smaller than its natural size | `figure.fit: scale` ([shrinking](#shrinking-to-the-page-width-figurefit-scale); one of the [options](#when-width-runs-short)); say it is scaled |
-| repeated video frames | an image's `props.layers: { count: 4, offset: 3pt }` ([layers](assets.md#stacked-copies-layers)) |
+| repeated video frames | an image's `props.layers: {count: 4, offset: 3pt}` ([layers](assets.md#stacked-copies-layers)) |
 
 Order of work: content and arrangement first (the arrange tree, `align: stretch`
 panels), then the looks (`paper`, variants, tones, `dim`). Treat `density: compact`,

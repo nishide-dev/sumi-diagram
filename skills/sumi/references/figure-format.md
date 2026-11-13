@@ -164,9 +164,9 @@ real, searchable text in the bundled STIX Two math fonts:
   character outside `$...$` (`'$x \in$ ℝ$^d$'`). For a bar over several letters
   try `$\bar{x}\bar{y}$` or `$z^{*}$`.
 - **Quote math labels in single quotes** (backslashes stay literal:
-  `label: '$\alpha_1$'`). In a flow mapping `{ … }` a label with `,` must be
+  `label: '$\alpha_1$'`). In a flow mapping `{…}` a label with `,` must be
   quoted or YAML splits it (`schema/unknown-field`, `Unknown field "\beta_1$"`):
-  `{ id: ss, …, label: '$\gamma_1,\,\beta_1$' }`. In double quotes double every `\`.
+  `{id: ss, …, label: '$\gamma_1,\,\beta_1$'}`. In double quotes double every `\`.
 
 ### Math and line breaks in one label
 
@@ -374,7 +374,7 @@ their own `properties`, `enum`, `const` and `anyOf`.
 
   ```yaml
   version: 1
-  figure: { id: waveform-example }
+  figure: {id: waveform-example}
   nodes:
     - id: signal
       component: waveform
@@ -490,11 +490,11 @@ stay the theme's):
   butt caps and miter joins (zoom wires too; editable PPTX flat caps). Independent of
   `nodeCorners`.
 - `groupLabelWeight: regular | bold` sets every group heading's weight.
-- `solidFills: { blue: '#3d9df5', orange: '#e8a20c', red: '#e04848' }` replaces the solid
+- `solidFills: {blue: '#3d9df5', orange: '#e8a20c', red: '#e04848'}` replaces the solid
   fill and border of those tones (expanded nodes and solid glyphs/legend samples too); white text stays if it meets 4.5:1,
   else it darkens; other variants, tone-line text and edges keep the palette.
 - `dashedGroupStroke: '#527da5'` changes only dashed group borders.
-- `tones: { blue: { fill: '#dfe1ea', line: '#5f6a95', text: '#000000' } }` recolours a tone
+- `tones: {blue: {fill: '#dfe1ea', line: '#5f6a95', text: '#000000'}}` recolours a tone
   everywhere it appears: `fill` = pale fills (default/filled/tinted, toned groups, matrix
   classes, legend samples); `line` = outlined/tinted frames, toned edges and arrowheads,
   hatches, solid fills (`solidFills` wins), html `--sumi-accent` (blue); a `fill`-only override does not change solid fills. A `line` override replaces even the bright built-in yellow solid fill, and its text is adjusted to at least 4.5:1; `text` =
@@ -510,8 +510,8 @@ stay the theme's):
 Colours are strict `#RRGGBB` and apply before inherited dimming.
 
 **Line weights, dots and arrowheads** (structured layout; the options below give
-`layout/structured-only` in `auto`, where `dotted` is drawn as D2's finest dash). Paper figures want thin lines: `themeOverrides: { lineWidth: 0.5pt, frameWidth:
-0.5pt, arrowheadScale: 0.6, cornerRadius: 2pt }`.
+`layout/structured-only` in `auto`, where `dotted` is drawn as D2's finest dash). Paper figures want thin lines: `themeOverrides: {lineWidth: 0.5pt, frameWidth:
+0.5pt, arrowheadScale: 0.6, cornerRadius: 2pt}`.
 - `lineWidth` replaces the regular width of node frames and edges; widths are multiples of
   0.25pt from 0.25pt to 4pt. A heavier variant (`emphasis`) or lighter one (`zoom`) keeps its
   ratio to the theme's regular width; borderless stays borderless.
@@ -665,7 +665,7 @@ Per-code fixes: [diagnostics](diagnostics.md). The ones agents repeat:
 | Mistake | Diagnostic | Fix |
 | --- | --- | --- |
 | uppercase ID, invented component or variant, `color:` on a node | `schema/invalid-id`, `component/unknown`, `component/unknown-variant`, `schema/unknown-field` | lowercase ID; a catalog name; `tone` |
-| `label: $\gamma_1,\beta_1$` inside `{ … }` | `schema/unknown-field` | single-quote it: `'$\gamma_1,\,\beta_1$'` |
+| `label: $\gamma_1,\beta_1$` inside `{…}` | `schema/unknown-field` | single-quote it: `'$\gamma_1,\,\beta_1$'` |
 | `label: 'Scale\n$\gamma$'` | `lint/literal-newline` | `"Scale\n$\\gamma$"` or a `\|-` block |
 | math, `toAnchor`, edge `labelAt`, `align`, `legend`… in an auto figure | `component/unsupported-in-auto`, `layout/structured-only` | make the figure structured, or remove it |
 | `label:` and `icon:` on one node | `asset/icon-with-label` | keep one; attach a `label` node |

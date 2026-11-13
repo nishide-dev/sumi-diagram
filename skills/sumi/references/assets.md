@@ -60,8 +60,8 @@ Each line is a ready-made reference (`tabler/wave-sine`); use it verbatim. Table
 - **The icon replaces the label** (both: `asset/icon-with-label`). To caption an
   icon attach a `label` node beside it (structured) or use a neighbouring node.
   Icon and text on one block is not possible in one node: attach a `label` node
-  carrying the icon to a side without edges (`{ id: cond-icon, component: label,
-  icon: tabler/clock, attach: { to: cond, side: south, gap: 1mm } }`) and say so
+  carrying the icon to a side without edges (`{id: cond-icon, component: label,
+  icon: tabler/clock, attach: {to: cond, side: south, gap: 1mm}}`) and say so
   in the report.
 - The icon is one text line tall (1 em) unless `iconSize` sets it: a number is a
   multiple of the node's font size (`iconSize: 2.5`), a string a length
@@ -324,11 +324,11 @@ edges:
 
 ### Stacked copies (`layers`)
 
-Groups also accept `props.layers: { count, offset }` to repeat frames only;
+Groups also accept `props.layers: {count, offset}` to repeat frames only;
 see [stacked group frames](structured.md#group-titles-and-captions) for the
 structured-only layout, front-frame connections and export limitations.
 
-`layers: { count: 4, offset: 3pt }` on an image (file, inline or asset) repeats the
+`layers: {count: 4, offset: 3pt}` on an image (file, inline or asset) repeats the
 **same unchanged image** behind the front one, diagonally up-right (repeated video
 frames). `count` includes the front (integer 1–16); `offset` is positive, a multiple
 of 0.5pt; width and height size **one copy**. The node means the **whole stack**:
