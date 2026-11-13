@@ -188,7 +188,14 @@ function print(text: string, canonicalOrder: boolean): string {
       if (!isMap(grid) || grid.flow) return;
       const items = grid.get("items", true);
       const columns = grid.get("columns");
-      if (!isSeq(items) || !items.flow || typeof columns !== "number" || columns < 1) return;
+      if (
+        !isSeq(items) ||
+        !items.flow ||
+        items.tag !== undefined ||
+        typeof columns !== "number" ||
+        columns < 1
+      )
+        return;
       const lines = gridRows(items, columns);
       if (lines === undefined || lines.length < 2) return;
       const placeholder = `__sumi_fmt_${nonce}_g${rows.size}__`;
@@ -198,12 +205,15 @@ function print(text: string, canonicalOrder: boolean): string {
   });
   return doc
     .toString(STRINGIFY_OPTIONS)
-    .replace(/^( *)items: (__sumi_fmt_\d+_g\d+__)$/gm, (match, indent: string, placeholder) => {
-      const lines = rows.get(placeholder);
-      if (lines === undefined) return match;
-      const body = lines.map((line, i) => `${indent}${i === 0 ? "  [" : "   "}${line}`);
-      return `${indent}items:\n${body.join("\n")}]`;
-    })
+    .replace(
+      /^( *)(\S+): (__sumi_fmt_\d+_g\d+__)$/gm,
+      (match, indent: string, key: string, placeholder) => {
+        const lines = rows.get(placeholder);
+        if (lines === undefined) return match;
+        const body = lines.map((line, i) => `${indent}${i === 0 ? "  [" : "   "}${line}`);
+        return `${indent}${key}:\n${body.join("\n")}]`;
+      },
+    )
     .replace(/__sumi_fmt_\d+_\d+__/g, (placeholder) => verbatim.get(placeholder) ?? placeholder);
 }
 
@@ -220,22 +230,26 @@ function gridRows(items: YAMLSeq, columns: number): string[] | undefined {
     },
   });
   if (commented) return undefined;
+  // Row-major cursor of the layout engine: a cell starts a new line when its
+  // start position falls in a later row (a span that overflows a row pushes
+  // the remainder into the next one).
   const lines: string[] = [];
   let cells: string[] = [];
-  let filled = 0;
+  let cursor = 0;
+  let row = 0;
   for (const item of items.items) {
+    if (cells.length > 0 && Math.floor(cursor / columns) !== row) {
+      lines.push(cells.join(", "));
+      cells = [];
+    }
+    row = Math.floor(cursor / columns);
     const span = isMap(item) && item.has("item") ? item.get("span") : undefined;
     cells.push(
       new Document(item as Node)
         .toString({ ...STRINGIFY_OPTIONS, flowCollectionPadding: false })
         .trim(),
     );
-    filled += typeof span === "number" && span > 1 ? span : 1;
-    if (filled >= columns) {
-      lines.push(cells.join(", "));
-      cells = [];
-      filled = 0;
-    }
+    cursor += typeof span === "number" && Number.isInteger(span) && span > 1 ? span : 1;
   }
   if (cells.length > 0) lines.push(cells.join(", "));
   return lines.map((line, i) => (i < lines.length - 1 ? `${line},` : line));

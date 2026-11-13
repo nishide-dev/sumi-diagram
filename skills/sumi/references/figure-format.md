@@ -22,11 +22,11 @@ figure:                    # required
   id: request-flow         # required ID
   title: Request handling  # optional, not drawn
   theme: minimal           # optional, default minimal
-  # themeOverrides: { palette: cool-blue, nodeCorners: square, edgeCorners: sharp }
+  # themeOverrides: {palette: cool-blue, nodeCorners: square, edgeCorners: sharp}
   profile: paper-single    # optional, default paper-single
-  # target: { height: 60mm, minFontSize: 5pt, minLineWidth: 0.5pt } # placement lint
+  # target: {height: 60mm, minFontSize: 5pt, minLineWidth: 0.5pt} # placement lint
   # fit: scale             # optional: shrink a too-wide figure to the profile width (layout-tips)
-  # assets: { photo: { svg: … } }   # optional: pictures shared by image nodes (assets.md)
+  # assets: {photo: {svg: …}}   # optional: pictures shared by image nodes (assets.md)
   layout:
     direction: down        # optional: right (default) | down | left | up
     # arrange: …           # optional: switches to the structured layout (structured.md)
@@ -180,7 +180,7 @@ is one line with a visible `\n`; `lint/literal-newline`). Use either:
 
 ```yaml
 nodes:
-  - { id: ss1, component: box, label: "Scale, Shift\n$\\gamma_1,\\,\\beta_1$" }
+  - {id: ss1, component: box, label: "Scale, Shift\n$\\gamma_1,\\,\\beta_1$"}
   - id: ss2
     component: box
     label: |-
@@ -203,10 +203,10 @@ distinguishable colours use `color` (`paper` for a paper figure).
 
 ```yaml
 nodes:
-  - { id: attention, component: box, label: Attention, tone: orange }
-  - { id: encoder, component: box, label: Text Encoder, tone: purple, variant: outlined }
+  - {id: attention, component: box, label: Attention, tone: orange}
+  - {id: encoder, component: box, label: Text Encoder, tone: purple, variant: outlined}
 edges:
-  - { from: attention, to: encoder, tone: orange }
+  - {from: attention, to: encoder, tone: orange}
 ```
 
 Variants (closed list per component; typically `default`, `emphasis`, `muted`;
@@ -240,7 +240,7 @@ fills stay strong).
 
 ```yaml
 groups:
-  - { id: gated, caption: (c) Gated variant, dim: true, arrange: … }
+  - {id: gated, caption: (c) Gated variant, dim: true, arrange: …}
 ```
 
 - Only `true` is accepted; it cannot be turned off inside. An edge with one end outside is
@@ -411,14 +411,14 @@ figure:
   id: outline-pipeline
   theme: academic
   profile: paper-double
-  layout: { direction: right }
+  layout: {direction: right}
 groups:
-  - { id: processing, label: Processing }
+  - {id: processing, label: Processing}
 nodes:
-  - { id: filter, component: trapezoid, label: Filter, group: processing }
-  - { id: jobs, component: stack, label: Jobs, variant: emphasis, group: processing }
+  - {id: filter, component: trapezoid, label: Filter, group: processing}
+  - {id: jobs, component: stack, label: Jobs, variant: emphasis, group: processing}
 edges:
-  - { from: filter, to: jobs }
+  - {from: filter, to: jobs}
 ```
 
 ## Themes and profiles

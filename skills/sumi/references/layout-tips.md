@@ -155,25 +155,25 @@ figure:
         gap: 6mm
         align: end               # right-align the rows: batch sits above model
         items:
-          - row: { gap: 4mm, items: [ load, clean, split, batch ] }
-          - row: { gap: 4mm, direction: left, items: [ model, loss, update, save ] }
+          - row: {gap: 4mm, items: [load, clean, split, batch]}
+          - row: {gap: 4mm, direction: left, items: [model, loss, update, save]}
 nodes:
-  - { id: load, component: box, label: Load }
-  - { id: clean, component: box, label: Clean }
-  - { id: split, component: box, label: Split }
-  - { id: batch, component: box, label: Batch }
-  - { id: model, component: box, label: Model }
-  - { id: loss, component: box, label: Loss }
-  - { id: update, component: box, label: Update }
-  - { id: save, component: box, label: Save }
+  - {id: load, component: box, label: Load}
+  - {id: clean, component: box, label: Clean}
+  - {id: split, component: box, label: Split}
+  - {id: batch, component: box, label: Batch}
+  - {id: model, component: box, label: Model}
+  - {id: loss, component: box, label: Loss}
+  - {id: update, component: box, label: Update}
+  - {id: save, component: box, label: Save}
 edges:
-  - { from: load, to: clean }
-  - { from: clean, to: split }
-  - { from: split, to: batch }
-  - { from: batch, to: model }
-  - { from: model, to: loss }
-  - { from: loss, to: update }
-  - { from: update, to: save }
+  - {from: load, to: clean}
+  - {from: clean, to: split}
+  - {from: split, to: batch}
+  - {from: batch, to: model}
+  - {from: model, to: loss}
+  - {from: loss, to: update}
+  - {from: update, to: save}
 ```
 
 Split where the content has a natural break (data preparation, then training). If
@@ -547,16 +547,16 @@ figure:
           <circle cx="82" cy="78" r="9" fill="#c04050"/>
         </svg>
   layout:
-    arrange: { row: { gap: 5mm, align: stretch, items: [ overview, divider, detail ] } }
+    arrange: {row: {gap: 5mm, align: stretch, items: [overview, divider, detail]}}
 groups:
   - id: overview
     label: Inspection
     variant: plain
-    arrange: { stack: { gap: 5mm, align: stretch, items: [ tiles, encoder, scores ] } }
+    arrange: {stack: {gap: 5mm, align: stretch, items: [tiles, encoder, scores]}}
   - id: detail
     label: Tile Encoder
     variant: plain
-    arrange: { stack: { gap: 3mm, align: stretch, items: [ conv, norm, pool ] } }
+    arrange: {stack: {gap: 3mm, align: stretch, items: [conv, norm, pool]}}
 nodes:
   - id: tiles
     component: tokens
@@ -564,24 +564,24 @@ nodes:
       width: 24pt
       gap: 3pt
       cells:
-        - { asset: part, crop: [ 0, 0, 60, 60 ], variant: framed }
-        - { asset: part, crop: [ 60, 0, 60, 60 ], variant: framed }
-        - { asset: part, crop: [ 0, 60, 60, 60 ], variant: framed }
-        - { asset: part, crop: [ 60, 60, 60, 60 ], variant: framed }
-  - { id: encoder, component: box, label: Tile Encoder, tone: green, variant: filled }
+        - {asset: part, crop: [0, 0, 60, 60], variant: framed}
+        - {asset: part, crop: [60, 0, 60, 60], variant: framed}
+        - {asset: part, crop: [0, 60, 60, 60], variant: framed}
+        - {asset: part, crop: [60, 60, 60, 60], variant: framed}
+  - {id: encoder, component: box, label: Tile Encoder, tone: green, variant: filled}
   - id: scores
     component: tokens
     tone: purple
-    props: { variant: outlined, gap: 3pt, width: 24pt, cells: [ '$s_1$', '$s_2$', '$s_3$', '$s_4$' ] }
-  - { id: divider, component: separator, variant: dashed }
-  - { id: conv, component: box, label: Conv 3×3, tone: green, variant: filled }
-  - { id: norm, component: box, label: Norm, tone: green, variant: filled }
-  - { id: pool, component: box, label: Pooling, tone: green, variant: filled }
+    props: {variant: outlined, gap: 3pt, width: 24pt, cells: ['$s_1$', '$s_2$', '$s_3$', '$s_4$']}
+  - {id: divider, component: separator, variant: dashed}
+  - {id: conv, component: box, label: Conv 3×3, tone: green, variant: filled}
+  - {id: norm, component: box, label: Norm, tone: green, variant: filled}
+  - {id: pool, component: box, label: Pooling, tone: green, variant: filled}
 edges:
-  - { from: tiles, to: encoder }
-  - { from: encoder, to: scores }
-  - { from: conv, to: norm }
-  - { from: norm, to: pool }
+  - {from: tiles, to: encoder}
+  - {from: encoder, to: scores}
+  - {from: conv, to: norm}
+  - {from: norm, to: pool}
 ```
 
 ## Labels and groups

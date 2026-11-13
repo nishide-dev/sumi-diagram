@@ -297,8 +297,8 @@ figure:
       grid(`
           [a, b, c,
            d, ~, {item: e, span: 2},
-           f, {grid: {columns: 2, items: [x, y, z, w]}}, "q#",
-           g]`),
+           f, {grid: {columns: 2, items: [x, y, z, w]}},
+           "q#", g]`),
     );
     expect(parseYaml(out).source?.value).toEqual(parseYaml(input).source?.value);
     expect(format(out)).toBe(out);
@@ -311,5 +311,21 @@ figure:
     const commented = format(grid(" [a, b, c, # first row\n          d, e, f]"));
     expect(commented).toContain("# first row");
     expect(format(commented)).toBe(commented);
+  });
+
+  test("breaks rows like the layout cursor when a span overflows a row", () => {
+    const out = format(grid(" [a, b, {item: c, span: 2}, d, e, f]"));
+    expect(out).toBe(
+      grid("\n          [a, b, {item: c, span: 2},\n           d, e,\n           f]"),
+    );
+    expect(format(out)).toBe(out);
+  });
+
+  test("keeps a quoted items key and a collection tag", () => {
+    const quoted = format(grid("", 2).replace("items:", '"items": [a, b, c, d]'));
+    expect(quoted).toContain('"items":\n          [a, b,\n           c, d]');
+    expect(format(quoted)).toBe(quoted);
+    const tagged = grid(" !!seq [a, b, c, d]");
+    expect(format(tagged)).toBe(tagged);
   });
 });

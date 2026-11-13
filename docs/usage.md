@@ -59,7 +59,7 @@ sumi catalog --json --section themes --section profiles
 | --- | --- |
 | `render <file>` | Compile and render SVG/PDF/PPTX; run geometry lint by default. `-o, --out`, `--format svg\|pdf\|pptx`, `--pptx-mode picture\|editable` (editable is experimental), `--pptx-connectors freeform\|glued` (editable only), `--emit-d2`, `--theme`, `--profile`, `--no-geometry`, `--json`. Only SVG supports `-o -` (stdout). |
 | `lint <files...>` | Validate schema, references, components, assets, themes/profiles, and structural rules without drawing. `--geometry` also renders in memory and checks geometry without writing files. `--json`, `--config <lint.json>`, repeated `--rule <id>=<level>` (including `geometry/*`), `--max-warnings <n>` across all input files. See [lint rules](lint-rules.md). |
-| `fmt <files...>` | Format YAML without changing meaning; preserve comments, quotes, and key order. Invalid YAML is not rewritten. `--check` lists unformatted files without writing; `--stdout` prints YAML; `--canonical-order` sorts known keys into schema order. |
+| `fmt <files...>` | Format YAML without changing meaning; preserve comments, quotes, and key order. Invalid YAML is not rewritten. `--check` lists unformatted files without writing; `--stdout` prints YAML; `--canonical-order` sorts known keys into schema order. Flow collections print without inner padding (`{a: 1}`, `[a, b]`); a flow `grid` `items` with several rows prints one grid row per line (`columns` cells, counting `span`). |
 | `doctor` | Check Sumi/runtime versions, D2, bundled font hashes and geometry metrics. `--json`. |
 | `catalog` | List components, themes, profiles, icon sets, placement targets and set enclosures. `--json`; repeated `--section components\|themes\|profiles\|icons\|targets\|sets`; `--kind node\|group\|edge` (without a section, returns only components); `--icons <words>` searches bundled icons, `--icons ""` lists all icon names. |
 
@@ -174,8 +174,8 @@ Use `icon: tabler/<name>` instead of a node label for one of 4,808 bundled Table
 
 ```yaml
 nodes:
-  - { id: pe, component: circle, icon: tabler/wave-sine }
-  - { id: photo, component: image, props: { src: img/photo.png, height: 30pt } }
+  - {id: pe, component: circle, icon: tabler/wave-sine}
+  - {id: photo, component: image, props: {src: img/photo.png, height: 30pt}}
 ```
 
 A node's `glyphs` put small marks over its border: a feature vector (a short column or row of coloured cells, e.g. at the top right of an icon), a dot or a pill, at a corner or side with `dx` / `dy` offsets. Layout reserves their room, edges attach to the body, and SVG, PDF and PPTX draw them (see the [skill reference](../skills/sumi/references/assets.md#glyphs)).

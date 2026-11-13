@@ -26,15 +26,15 @@ figure:
   profile: paper-single
   layout:
     arrange:
-      row: { gap: 4mm, items: [ photo, model, result ] }
+      row: {gap: 4mm, items: [photo, model, result]}
 nodes:
-  - { id: photo, component: image, variant: framed, props: { src: gradient.png, height: 28pt } }
-  - { id: model, component: box, icon: tabler/brain, tone: purple }
-  - { id: result, component: label, label: '$p(y \mid x)$' }
-  - { id: model-name, component: label, label: Classifier, attach: { to: model, side: south, gap: 1mm } }
+  - {id: photo, component: image, variant: framed, props: {src: gradient.png, height: 28pt}}
+  - {id: model, component: box, icon: tabler/brain, tone: purple}
+  - {id: result, component: label, label: '$p(y \mid x)$'}
+  - {id: model-name, component: label, label: Classifier, attach: {to: model, side: south, gap: 1mm}}
 edges:
-  - { from: photo, to: model }
-  - { from: model, to: result }
+  - {from: photo, to: model}
+  - {from: model, to: result}
 ```
 
 ## Icons
@@ -49,9 +49,9 @@ Each line is a ready-made reference (`tabler/wave-sine`); use it verbatim. Table
 (`brain`, `database`, `photo`, `world`), not by the concept.
 
 ```yaml
-- { id: pe, component: circle, icon: tabler/wave-sine }
-- { id: model, component: box, icon: tabler/brain, tone: purple }
-- { id: hint, component: label, icon: tabler/bulb }          # a bare icon
+- {id: pe, component: circle, icon: tabler/wave-sine}
+- {id: model, component: box, icon: tabler/brain, tone: purple}
+- {id: hint, component: label, icon: tabler/bulb}          # a bare icon
 ```
 
 - `icon:` goes on a node with a plain shape (`box`, `circle`, `ellipse`,
@@ -95,8 +95,8 @@ sumi catalog --icons "" --json          # entries beginning with emoji/ are emoj
 ## Corner badges
 
 ```yaml
-- { id: lora, component: bowtie, label: LoRA, tone: pink, badge: { icon: emoji/fire, corner: north-east } }
-- { id: qkv, component: box, label: QKV, badge: { icon: emoji/snowflake, corner: north-east } }
+- {id: lora, component: bowtie, label: LoRA, tone: pink, badge: {icon: emoji/fire, corner: north-east}}
+- {id: qkv, component: box, label: QKV, badge: {icon: emoji/snowflake, corner: north-east}}
 ```
 
 `badge` is independent of `label` and replacement `icon`. Its one-em square is
@@ -117,9 +117,9 @@ rejects badges (`pptx/unsupported-asset`); picture PPTX keeps them. Exports keep
 feature vector a paper figure draws at the corner of an icon:
 
 ```yaml
-- { id: doc, component: label, icon: tabler/file-text,
-    glyphs: [{ kind: vector, cells: 3, tone: blue, dx: 0.3 }] }
-- { id: out, component: box, label: Out, glyphs: [{ kind: vector, direction: right, tones: [pink, none, green], at: south }, { kind: dot, at: north-west }] }
+- {id: doc, component: label, icon: tabler/file-text,
+    glyphs: [{kind: vector, cells: 3, tone: blue, dx: 0.3}]}
+- {id: out, component: box, label: Out, glyphs: [{kind: vector, direction: right, tones: [pink, none, green], at: south}, {kind: dot, at: north-west}]}
 ```
 
 - `kind`: `vector` (cells; `cells` default 3, `direction: down|right`, `tone` for
@@ -185,12 +185,12 @@ figure:
   id: logo-outside
   layout:
     arrange:
-      row: { items: [ logo, name ] }
+      row: {items: [logo, name]}
 nodes:
-  - { id: logo, component: image, props: { src: ../shared/logo.png, height: 20pt } }
-  - { id: name, component: label, label: Our method }
+  - {id: logo, component: image, props: {src: ../shared/logo.png, height: 20pt}}
+  - {id: name, component: label, label: Our method}
 edges:
-  - { from: logo, to: name, component: line }
+  - {from: logo, to: name, component: line}
 ```
 
 Fix: copy (with the user's consent) `logo.png` next to the figure and write
@@ -269,20 +269,20 @@ figure:
     arrange:
       row:
         gap: 12mm
-        items: [whole, { grid: { columns: 3, items: [p0, p1, p2, p3, p4, p5, p6, p7, p8] } }]
+        items: [whole, {grid: {columns: 3, items: [p0, p1, p2, p3, p4, p5, p6, p7, p8]}}]
 nodes:
-  - { id: whole, component: image, props: { asset: photo, width: 60pt } }
-  - { id: p0, component: image, variant: framed, props: { asset: photo, crop: [0, 0, 40, 40], width: 40pt } }
-  - { id: p1, component: image, variant: framed, props: { asset: photo, crop: [40, 0, 40, 40], width: 40pt } }
-  - { id: p2, component: image, variant: framed, props: { asset: photo, crop: [80, 0, 40, 40], width: 40pt } }
-  - { id: p3, component: image, variant: framed, props: { asset: photo, crop: [0, 40, 40, 40], width: 40pt } }
-  - { id: p4, component: image, variant: framed, props: { asset: photo, crop: [40, 40, 40, 40], width: 40pt } }
-  - { id: p5, component: image, variant: framed, props: { asset: photo, crop: [80, 40, 40, 40], width: 40pt } }
-  - { id: p6, component: image, variant: framed, props: { asset: photo, crop: [0, 80, 40, 40], width: 40pt } }
-  - { id: p7, component: image, variant: framed, props: { asset: photo, crop: [40, 80, 40, 40], width: 40pt } }
-  - { id: p8, component: image, variant: framed, props: { asset: photo, crop: [80, 80, 40, 40], width: 40pt } }
+  - {id: whole, component: image, props: {asset: photo, width: 60pt}}
+  - {id: p0, component: image, variant: framed, props: {asset: photo, crop: [0, 0, 40, 40], width: 40pt}}
+  - {id: p1, component: image, variant: framed, props: {asset: photo, crop: [40, 0, 40, 40], width: 40pt}}
+  - {id: p2, component: image, variant: framed, props: {asset: photo, crop: [80, 0, 40, 40], width: 40pt}}
+  - {id: p3, component: image, variant: framed, props: {asset: photo, crop: [0, 40, 40, 40], width: 40pt}}
+  - {id: p4, component: image, variant: framed, props: {asset: photo, crop: [40, 40, 40, 40], width: 40pt}}
+  - {id: p5, component: image, variant: framed, props: {asset: photo, crop: [80, 40, 40, 40], width: 40pt}}
+  - {id: p6, component: image, variant: framed, props: {asset: photo, crop: [0, 80, 40, 40], width: 40pt}}
+  - {id: p7, component: image, variant: framed, props: {asset: photo, crop: [40, 80, 40, 40], width: 40pt}}
+  - {id: p8, component: image, variant: framed, props: {asset: photo, crop: [80, 80, 40, 40], width: 40pt}}
 edges:
-  - { from: whole, to: p3 }
+  - {from: whole, to: p3}
 ```
 
 For a **row or column** of patches use one `tokens` node with image cells instead
@@ -306,7 +306,7 @@ figure:
           <circle cx="60" cy="60" r="45" fill="#c04050"/>
         </svg>
   layout:
-    arrange: { stack: { direction: up, gap: 6mm, items: [patches, proj] } }
+    arrange: {stack: {direction: up, gap: 6mm, items: [patches, proj]}}
 nodes:
   - id: patches
     component: tokens
@@ -314,12 +314,12 @@ nodes:
       width: 30pt
       gap: 4pt
       cells:
-        - { asset: photo, crop: [0, 0, 60, 60], variant: framed }
-        - { asset: photo, crop: [60, 0, 60, 60], variant: framed }
+        - {asset: photo, crop: [0, 0, 60, 60], variant: framed}
+        - {asset: photo, crop: [60, 0, 60, 60], variant: framed}
         - "…"
-  - { id: proj, component: box, label: Projection, tone: green, variant: filled }
+  - {id: proj, component: box, label: Projection, tone: green, variant: filled}
 edges:
-  - { from: patches, to: proj }
+  - {from: patches, to: proj}
 ```
 
 ### Stacked copies (`layers`)
@@ -353,14 +353,14 @@ figure:
   id: framed-add
   theme: paper
   layout:
-    arrange: { row: { gap: 8mm, align: center, items: [photo, add, result] } }
+    arrange: {row: {gap: 8mm, align: center, items: [photo, add, result]}}
 nodes:
-  - { id: photo, component: image, variant: framed, props: { src: gradient.png, height: 32pt } }
-  - { id: add, component: operator, props: { symbol: plus, size: large } }
-  - { id: result, component: image, variant: framed, props: { src: gradient.jpg, height: 32pt } }
+  - {id: photo, component: image, variant: framed, props: {src: gradient.png, height: 32pt}}
+  - {id: add, component: operator, props: {symbol: plus, size: large}}
+  - {id: result, component: image, variant: framed, props: {src: gradient.jpg, height: 32pt}}
 edges:
-  - { from: photo, to: add, component: line }
-  - { from: add, to: result }
+  - {from: photo, to: add, component: line}
+  - {from: add, to: result}
 ```
 
 ## Fixing `asset/*`
