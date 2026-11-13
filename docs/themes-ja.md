@@ -47,6 +47,20 @@ pipeline（[`examples/pipeline`](../examples/pipeline/pipeline.sumi.yaml)、自�
 
 `paper-single` が定めるのはフォントサイズの下限（7pt）であり、上限ではありません。`slides` の文字はこの下限を満たし、この pipeline はページ内に収まりますが、衝突の warning が 2 件（`geometry/label-collision`・`geometry/edge-crosses-label`）出ます。これは、間隔が広がって縦長の pipeline がスライドの高さを超える `presentation-16x9` の error（`geometry/exceeds-page-height`）とは別です（[プロファイルの比較](gallery/compare.md)）。投影には `slides` と `presentation-16x9` を使い、段数を減らしたレイアウトにしてください。
 
+## 色の使い方
+
+テーマは、自分の色をどう使ってほしいかを `colorUse` として持てます（`sumi catalog --section themes`、`--json` では `themes[].colorUse`。持たないテーマは `null`）。`sumi` と `sumi-dark` が持ち、選んだ図がそのテーマらしく見えるようにします。
+
+| 項目 | `sumi`・`sumi-dark` | 意味 |
+| --- | --- | --- |
+| `maxAccentTones` | 3 | 1 枚の図で使う `gray` 以外の tone の上限（`gray` が土台） |
+| `preferredVariants` | `tinted`・`outlined`・`emphasis` | 淡い塗り、枠線、要点に 1 つだけ濃い `emphasis` |
+| `heavyVariants` | `filled`・`solid` | tone の色を面で塗る variant |
+| `maxHeavyShare` | 0.3 | 有彩色の tone を持つ heavy variant のノードが占めてよい面積の割合 |
+| `maxSolidNodes` | 0 | `gray` 以外の tone を持つ `solid` ノードの上限（テーマ自身の濃いブロックは `emphasis`） |
+
+info の診断 `geometry/theme-color-use` が図をこの目安と比べ、直す tone と variant を名指しします。アイコン・埋め込み画像・凡例の見本は数えず、目安を持たないテーマでは何も出ません。灰色を土台にアクセント 1〜2 色、ほかは `tinted` にした図は直す必要がありません。
+
 ## パレット
 
 `figure.themeOverrides.palette: <名前>` で、どのテーマにも 4 色の組み込みパレット（`cool-blue`・`slate`・`coral`・`terracotta`・`sage`・`lavender`・`cyan-pink`・`seafoam`）を重ねて図全体の色合いを変えられます。文字・枠・辺はパレットの ink、グループのパネルは最も淡い色、filled のノードと `gray` tone は tint、`solid` と `emphasis` は accent になります。大きさ・フォントはテーマのままです。コントラストはテーマのキャンバスを基準に測り、暗いキャンバス（`sumi-dark`）ではパレットの暗色版（キャンバスより一段明るいパネル、明るい ink、色相を保って明るくした accent と tone）になります。[パレットのギャラリー](gallery/palettes.md)と `sumi catalog --section palettes` を参照してください。

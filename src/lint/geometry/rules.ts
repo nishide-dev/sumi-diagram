@@ -31,6 +31,7 @@ import { defineGeometryRule, type GeometryRule, type LintFinding } from "../rule
 import { arrowheadStraightRun } from "./arrowheads";
 import { colorOnPanel, muddyColor, translucentOverColor } from "./color-composition";
 import { colorHarmony } from "./color-harmony";
+import { themeColorUse } from "./color-use";
 import type { GeometryContext, GeometryElement } from "./context";
 import { deadSpace } from "./dead-space";
 import { sparseFigure, textHeavy } from "./density";
@@ -2110,6 +2111,7 @@ export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
   exceedsTargetHeight,
   placementUsage,
   colorHarmony,
+  themeColorUse,
   strokeContrast,
   muddyColor,
   translucentOverColor,

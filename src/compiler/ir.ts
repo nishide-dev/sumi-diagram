@@ -79,6 +79,7 @@ import {
   type StyleLength,
   sublabelFontSize,
 } from "../core/theme/style";
+import type { Tone } from "../core/theme/tones";
 import { wrapBubbleText } from "./bubble";
 import { withStretchOutlines } from "./stretch-outlines";
 
@@ -230,6 +231,8 @@ interface ElementIRBase {
   /** Canonical component ID. */
   readonly component: ComponentId;
   readonly variant: string;
+  /** The `tone` the element sets (#513), if any: the lint reads which hues a figure uses. */
+  readonly tone?: Tone;
   /**
    * Set on the frame group of a legend and on every part it was expanded
    * into (#131, design doc §6.34): the legend node's ID, and how messages
@@ -577,6 +580,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
       label: element.label,
       component: component.id,
       variant: component.variant,
+      ...(element.tone !== undefined && { tone: element.tone }),
       ...legendPartOf(doc, key),
       ...tokensCellOf(doc, key),
       ...matrixPartOf(doc, key),

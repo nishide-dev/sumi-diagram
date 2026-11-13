@@ -1,0 +1,152 @@
+# Vision Transformer: overview (a) and one encoder block (b), reproduced from
+# mockup.png. Panel (a) is placed by the mockup's coordinates (unit 1mm).
+version: 1
+figure:
+  id: vit-block
+  theme: sumi
+  profile: paper-double
+  themeOverrides:
+    lineWidth: 0.75pt
+    frameWidth: 0.75pt
+    arrowheadScale: 0.6
+    solidFills: { gray: "#30364f" }
+  layout:
+    arrange:
+      row:
+        gap: 14mm
+        align: stretch
+        items: [ overview, detail ]
+
+groups:
+  - id: overview
+    variant: plain
+    caption: (a) Overview
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - { item: cls-out, at: [ 24.8, 6 ] }
+          - { item: head, at: [ 24.8, 18 ] }
+          - { item: encoder, at: [ 53.8, 33 ] }
+          - { item: emb, at: [ 45.5, 53.3 ] }
+          - { item: linear, at: [ 57.0, 66.5 ] }
+          - { item: patches, at: [ 57.0, 78.8 ] }
+          - { item: image, at: [ 9.8, 78.8 ] }
+  - id: detail
+    variant: plain
+    caption: (b) Encoder block
+    arrange:
+      stack:
+        direction: up
+        items: [ embedded, block, output ]
+  - id: block
+    arrange:
+      stack:
+        direction: up
+        align: stretch
+        items:
+          - split1
+          - norm1
+          - attn
+          - add1
+          - split2
+          - norm2
+          - mlp
+          - add2
+
+nodes:
+  # (a) overview
+  - id: image
+    component: tokens
+    tone: blue
+    props:
+      component: square
+      variant: tinted
+      width: 12pt
+      height: 12pt
+      gap: 1pt
+      lineGap: 1pt
+      lines: [ [ "", "", "" ], [ "", "", "" ], [ "", "", "" ] ]
+  - { id: image-label, component: label, label: Image, attach: { to: image, side: south, gap: 1.5mm } }
+  - id: patches
+    component: tokens
+    tone: blue
+    props:
+      variant: tinted
+      width: 16pt
+      height: 17pt
+      gap: 2pt
+      cells: [ "", "", "", "", "", "", "", "", "" ]
+  - { id: patches-label, component: label, variant: muted, label: Flattened patches, attach: { to: patches, side: south, gap: 1.5mm } }
+  - { id: linear, component: box, label: Linear projection, tone: gray, props: { width: 160pt, height: 20pt } }
+  - id: emb
+    component: tokens
+    tone: blue
+    props:
+      variant: tinted
+      width: 16pt
+      gap: 2pt
+      lineGap: 1.5pt
+      lines:
+        - - { id: p0, label: "0", tone: gray, height: 12pt }
+          - { id: p1, label: "1", tone: gray, height: 12pt }
+          - { label: "2", tone: gray, height: 12pt }
+          - { label: "3", tone: gray, height: 12pt }
+          - { label: "4", tone: gray, height: 12pt }
+          - { label: "5", tone: gray, height: 12pt }
+          - { label: "6", tone: gray, height: 12pt }
+          - { label: "7", tone: gray, height: 12pt }
+          - { label: "8", tone: gray, height: 12pt }
+          - { label: "9", tone: gray, height: 12pt }
+        - - { id: cls, label: "*", variant: solid, tone: gray, height: 17pt }
+          - { id: e1, label: "", height: 17pt }
+          - { label: "", height: 17pt }
+          - { label: "", height: 17pt }
+          - { label: "", height: 17pt }
+          - { label: "", height: 17pt }
+          - { label: "", height: 17pt }
+          - { label: "", height: 17pt }
+          - { label: "", height: 17pt }
+          - { label: "", height: 17pt }
+  - { id: pos-label, component: label, label: Position, attach: { to: emb.p0, side: west, gap: 1.5mm } }
+  - { id: emb-label, component: label, label: "Patch\nembedding", attach: { to: emb.cls, side: west, gap: 1.5mm } }
+  - { id: cls-label, component: label, variant: muted, label: "class\ntoken", attach: { to: emb.cls, side: south, gap: 1mm } }
+  - { id: encoder, component: box, variant: emphasis, label: Transformer encoder, props: { width: 180pt, height: 28pt } }
+  - { id: head, component: box, label: MLP head, tone: green, props: { width: 56pt } }
+  - { id: cls-out, component: label, label: Class }
+  # (b) encoder block
+  - { id: embedded, component: label, label: Embedded patches }
+  - { id: split1, component: junction, variant: hidden }
+  - { id: norm1, component: box, label: LayerNorm, tone: gray, props: { width: 80pt } }
+  - { id: attn, component: box, label: "Multi-head\nattention", tone: orange }
+  - { id: add1, component: operator, props: { symbol: plus } }
+  - { id: split2, component: junction, variant: hidden }
+  - { id: norm2, component: box, label: LayerNorm, tone: gray }
+  - { id: mlp, component: box, label: MLP, tone: green }
+  - { id: add2, component: operator, props: { symbol: plus } }
+  - { id: output, component: label, label: Output }
+  - { id: repeat, component: label, label: "L×", attach: { to: block, side: east, gap: 2mm } }
+
+edges:
+  # (a)
+  - { from: image, to: patches, label: split }
+  - { from: patches, to: linear }
+  - { from: linear, to: emb, toAnchor: straight }
+  - { from: emb, to: encoder, toAnchor: straight }
+  - { from: encoder, to: head, fromAnchor: straight }
+  - { from: head, to: cls-out }
+  - { from: encoder, to: block, component: zoom }
+  # (b)
+  - { from: embedded, to: split1, component: line }
+  - { from: split1, to: norm1 }
+  - { from: norm1, fromAnchor: "north:0.2", to: attn, toAnchor: "south:0.2" }
+  - { from: norm1, to: attn, toAnchor: "south:0.5" }
+  - { from: norm1, fromAnchor: "north:0.8", to: attn, toAnchor: "south:0.8" }
+  - { from: attn, to: add1 }
+  - { from: split1, to: add1, toAnchor: west }
+  - { from: add1, to: split2, component: line }
+  - { from: split2, to: norm2 }
+  - { from: norm2, to: mlp }
+  - { from: mlp, to: add2 }
+  - { from: split2, to: add2, toAnchor: west }
+  - { from: add2, to: output }

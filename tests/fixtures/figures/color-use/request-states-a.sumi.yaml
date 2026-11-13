@@ -1,0 +1,79 @@
+version: 1
+figure:
+  id: request-states
+  title: Request lifecycle states
+  theme: sumi
+  profile: paper-double
+  target:
+    minFontSize: 8pt
+  layout:
+    arrange:
+      row:
+        gap: 2.5mm
+        align: start
+        items:
+          - active
+          - stack:
+              gap: 4mm
+              align: start
+              items: [ c-success, c-cancel ]
+          - terminal
+    align:
+      - { y: [ running, c-success, completed ] }
+      - { y: [ c-cancel, cancelled ] }
+groups:
+  - id: terminal
+    label: Terminal states
+    variant: plain
+    arrange:
+      stack: { gap: 4mm, items: [ failed, completed, cancelled ] }
+  - id: active
+    label: Active (can be cancelled)
+    labelAt: bottom-left
+    arrange:
+      grid:
+        columns: 7
+        rowGap: 4mm
+        columnGap: 2.5mm
+        items: [ start, null, c-invalid, null, null, null, null, c-submit, null, null, null, null, null, c-exhausted, received, c-accepted, validating, c-valid, queued, c-dispatched, running, null, null, null, null, c-backoff, null, c-error, null, null, null, null, null, retrying, null ]
+nodes:
+  - { id: start, component: junction }
+  - { id: received, component: box, label: Received }
+  - { id: validating, component: box, label: Validating }
+  - { id: queued, component: box, label: Queued }
+  - { id: running, component: box, label: Running }
+  - { id: retrying, component: box, label: Retrying }
+  - { id: completed, component: box, props: { width: 64pt }, label: Completed, variant: solid, tone: green }
+  - { id: failed, component: box, props: { width: 64pt }, label: Failed, variant: solid, tone: red }
+  - { id: cancelled, component: box, props: { width: 64pt }, label: Cancelled, variant: solid, tone: gray }
+  - { id: c-submit, component: label, label: submitted }
+  - { id: c-accepted, component: label, label: accepted }
+  - { id: c-valid, component: label, label: valid }
+  - { id: c-invalid, component: label, label: invalid }
+  - { id: c-dispatched, component: label, label: worker free }
+  - { id: c-success, component: label, label: succeeded }
+  - { id: c-error, component: label, label: "error,\nretries left" }
+  - { id: c-backoff, component: label, label: "backoff\nelapsed" }
+  - { id: c-exhausted, component: label, label: "error, no\nretries left" }
+  - { id: c-cancel, component: label, label: cancel }
+edges:
+  - { from: start, to: c-submit, component: line }
+  - { from: c-submit, to: received }
+  - { from: received, to: c-accepted, component: line }
+  - { from: c-accepted, to: validating }
+  - { from: validating, to: c-valid, component: line }
+  - { from: c-valid, to: queued }
+  - { from: queued, to: c-dispatched, component: line }
+  - { from: c-dispatched, to: running }
+  - { from: running, to: c-success, component: line }
+  - { from: c-success, to: completed }
+  - { from: running, to: c-error, component: line }
+  - { from: c-error, to: retrying }
+  - { from: retrying, to: c-backoff, component: line }
+  - { from: c-backoff, to: queued }
+  - { from: running, to: c-exhausted, component: line }
+  - { from: c-exhausted, to: failed, toAnchor: "west:0.7" }
+  - { from: validating, to: c-invalid, component: line }
+  - { from: c-invalid, to: failed, toAnchor: "west:0.3" }
+  - { from: active, to: c-cancel, component: line, fromAnchor: straight }
+  - { from: c-cancel, to: cancelled }

@@ -522,6 +522,14 @@ function sumiTheme(dark: boolean): ThemeDefinition {
     ) as Record<Tone, StyleLayerInput>,
     toneLines: toneLines(inks),
     dim: { fontColor: muted, stroke: muted, lighten: 0.3 },
+    // A neutral base (gray) with up to three accents, in pale or outlined variants (#513).
+    colorUse: {
+      maxAccentTones: 3,
+      preferredVariants: ["tinted", "outlined", "emphasis"],
+      heavyVariants: ["filled", "solid"],
+      maxHeavyShare: 0.3,
+      maxSolidNodes: 0,
+    },
   };
 }
 
