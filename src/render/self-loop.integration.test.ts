@@ -9,7 +9,7 @@ import { checkRoutes } from "../layout/route/check";
 import type { Cubic } from "../layout/route/cubic";
 import { lintRenderedFigure } from "../lint";
 import { svgToPdf } from "./pdf";
-import { inspectPdf, textLines } from "./pdf/testing";
+import { inspectPdf, PdfRef, parsePdf, textLines } from "./pdf/testing";
 import { svgToEditablePptx } from "./pptx";
 import { readPptx } from "./pptx/testing";
 import { renderFigure } from "./render";
@@ -204,4 +204,35 @@ test("a loop that overflows the content moves the sets with the nodes", async ()
       expect(moved?.label?.anchor.y).toBeCloseTo(set.label.anchor.y + dy, 1);
     }
   }
+});
+
+/** Every stream of the PDF as text (inflated), where the page's operators are; binary fonts add no operator lines. */
+function content(pdf: Uint8Array): string {
+  return [...parsePdf(pdf).objects.values()]
+    .map((o) => (o.stream === undefined ? "" : new TextDecoder("latin1").decode(o.stream)))
+    .join("\n");
+}
+
+test("the PDF draws the loop as a curve operator and its arrowhead as a filled polygon", async () => {
+  const count = (text: string, op: string) =>
+    text.split("\n").filter((l) => l.trimEnd().endsWith(` ${op}`) || l.trim() === op).length;
+  const withLoop = await render(figure({}));
+  const plain = await render(figure({}).replace(/\n {2}- id: loop[\s\S]*$/, "\n"));
+  const a = svgToPdf(withLoop.svg);
+  const b = svgToPdf(plain.svg);
+  if (!a.ok || !b.ok) throw new Error("pdf");
+  const [x, y] = [content(a.value), content(b.value)];
+  expect(count(x, "c")).toBeGreaterThan(count(y, "c"));
+  expect(count(x, "f") + count(x, "f*")).toBeGreaterThan(count(y, "f") + count(y, "f*"));
+});
+
+test("the editable PPTX loop is a freeform curve with an arrowhead end", async () => {
+  const r = await render(figure({}));
+  const pptx = svgToEditablePptx(r.svg, r.compiled.ir);
+  if (!pptx.ok) throw new Error("pptx");
+  const xml = new TextDecoder().decode(readPptx(pptx.value).get("ppt/slides/slide1.xml"));
+  const shape =
+    /<p:sp>(?:(?!<\/p:sp>).)*name="e:loop"(?:(?!<\/p:sp>).)*<\/p:sp>/s.exec(xml)?.[0] ?? "";
+  expect(shape).toContain("a:cubicBezTo");
+  expect(shape).toContain("<a:tailEnd");
 });

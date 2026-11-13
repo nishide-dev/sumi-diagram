@@ -128,7 +128,11 @@ test("a muted sublabel reads on solid, emphasis, tinted, overridden and dimmed f
         const ink = node.style.sublabel?.fontColor;
         if (ink === undefined || !/^#[0-9a-f]{6}$/i.test(node.style.fill)) continue;
         checked++;
-        expect(ratio(ink, node.style.fill), `${theme} ${node.id}`).toBeGreaterThanOrEqual(3);
+        // The rule promises 4.5:1 unless even the label's own ink is below it (the fallback).
+        const own = ratio(node.style.fontColor, node.style.fill);
+        expect(ratio(ink, node.style.fill), `${theme} ${node.id}`).toBeGreaterThanOrEqual(
+          Math.min(4.5, own),
+        );
       }
     }
   }
@@ -190,4 +194,19 @@ test("sublabelInk without a sublabel is reported", () => {
   );
   const { state } = checkFigure(text);
   expect(state.diagnostics.map((d) => d.code)).toContain("component/sublabel-ink-without-sublabel");
+});
+
+test("a tone override whose text cannot be read is reported, and the sublabel is no better than its label", async () => {
+  const text = source(
+    "  themeOverrides: { tones: { blue: { fill: '#1d3557', text: '#30364f' } } }\n",
+    "  - { id: a, component: box, label: A, sublabel: s, sublabelInk: muted, variant: tinted, tone: blue }\n",
+  ).replace("items: [a, b, c, d, e]", "items: [a]");
+  const { state } = checkFigure(text);
+  const found = state.diagnostics.filter((d) => d.code === "theme/low-contrast");
+  expect(found.length).toBeGreaterThan(0);
+  const result = await renderFigure(text);
+  if (!result.ok) return;
+  const a = result.value.compiled.ir.nodes.find((n) => n.id === "a");
+  // The documented fallback: the label's ink itself.
+  expect(a?.style.sublabel?.fontColor).toBe(a?.style.fontColor);
 });
