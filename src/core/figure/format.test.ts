@@ -308,7 +308,7 @@ figure:
     expect(format(grid(" [a, b, c]"))).toBe(grid(" [a, b, c]"));
     const block = grid("\n          - a\n          - b\n          - c\n          - d");
     expect(format(block)).toBe(block);
-    const commented = format(grid(" [a, b, c, # first row\n d, e, f]"));
+    const commented = format(grid(" [a, b, c, # first row\n          d, e, f]"));
     expect(commented).toContain("# first row");
     expect(format(commented)).toBe(commented);
   });
