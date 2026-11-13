@@ -222,15 +222,22 @@ elif [ "$tool" = chrome ]; then
     printf '<!doctype html><meta charset="utf-8"><style>html,body{margin:0;background:#fff}body>svg{display:block;width:%spx;height:%spx}</style>\n' "$fw" "$fh"
     cat "$svg_abs"
   } >"$out/page.html"
-  # Headless Chrome on Linux can signal its whole process group on exit; run it
-  # in its own session (setsid) so that signal never reaches this script.
-  # `--wait` keeps setsid in the foreground even if it has to fork.
-  launch=
-  if setsid --wait true >/dev/null 2>&1; then launch="setsid --wait"; fi
-  $launch "$chrome" --headless --disable-gpu --no-sandbox --hide-scrollbars \
+  set -- --headless --disable-gpu --no-sandbox --hide-scrollbars \
     --user-data-dir="$out/profile" --default-background-color=FFFFFFFF \
-    --window-size="$fw,$fh" --screenshot="$out/figure.png" "file://$out/page.html" \
-    >/dev/null 2>&1 || true
+    --window-size="$fw,$fh" --screenshot="$out/figure.png" "file://$out/page.html"
+  if command -v setsid >/dev/null 2>&1; then
+    # On Linux CI the script was seen ending with 130 (its INT/TERM trap) while
+    # Chrome shut down, probably Chrome signalling its process group. Run Chrome
+    # in its own session, in the background so this shell's traps still run at
+    # once: an interrupt is forwarded to Chrome's process group before exiting.
+    setsid "$chrome" "$@" >/dev/null 2>&1 &
+    cpid=$!
+    trap 'kill -TERM -- "-$cpid" 2>/dev/null || kill -TERM "$cpid" 2>/dev/null; exit 130' INT TERM
+    wait "$cpid" || true
+    trap 'exit 130' INT TERM
+  else
+    "$chrome" "$@" >/dev/null 2>&1 || true
+  fi
   rm -rf "$out/profile" "$out/page.html"
   if [ ! -s "$out/figure.png" ]; then
     echo "preview: $chrome failed to rasterize the SVG" >&2
