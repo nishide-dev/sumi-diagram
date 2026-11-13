@@ -1,0 +1,42 @@
+# Layout: a classic three-set Venn diagram with one item in each of its seven regions.
+#
+# Use when: three properties or families and the items that have one, two or all three of
+#   them (methods by capability, features shared across systems, requirements met by options).
+# Structure: `place` (unit 1 mm) puts the seven items, equally wide (40pt), with 3-fold
+#   symmetry: the shared item (`emphasis`) at the centre, each pair item midway along its
+#   two-set region, each single item midway along its own region; three circle `sets` with
+#   one `minWidth` (68 mm) and `padding: 1.5mm`, so every fitted circle is smaller than the
+#   minimum and all three get one radius about centres on an equilateral triangle.
+# Change: labels (keep the items' width so the fits stay symmetric); more items per region:
+#   stack two boxes about the region's point; for two sets redraw it (see set-taxonomy). If you
+#   move items, check that each circle still comes out at the minimum (all `r` equal in the SVG).
+# Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
+version: 1
+figure:
+  id: venn-three
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: a, at: [15.5, 21.1]}
+          - {item: b, at: [78.5, 21.1]}
+          - {item: c, at: [47, 75.7]}
+          - {item: ab, at: [47, 10.2]}
+          - {item: ac, at: [21.8, 53.9]}
+          - {item: bc, at: [72.2, 53.9]}
+          - {item: abc, at: [47, 39.3]}
+nodes:
+  - {id: a, component: box, label: Item A, props: {width: 40pt}}
+  - {id: b, component: box, label: Item B, props: {width: 40pt}}
+  - {id: c, component: box, label: Item C, props: {width: 40pt}}
+  - {id: ab, component: box, label: Item AB, props: {width: 40pt}}
+  - {id: ac, component: box, label: Item AC, props: {width: 40pt}}
+  - {id: bc, component: box, label: Item BC, props: {width: 40pt}}
+  - {id: abc, component: box, label: Item ABC, props: {width: 40pt}, variant: emphasis}
+sets:
+  - {id: set-a, label: Set A, members: [a, ab, ac, abc], shape: circle, minWidth: 68mm, padding: 1.5mm, tone: blue, labelAt: top-left}
+  - {id: set-b, label: Set B, members: [b, ab, bc, abc], shape: circle, minWidth: 68mm, padding: 1.5mm, tone: orange, labelAt: top-right}
+  - {id: set-c, label: Set C, members: [c, ac, bc, abc], shape: circle, minWidth: 68mm, padding: 1.5mm, tone: green, labelAt: bottom}

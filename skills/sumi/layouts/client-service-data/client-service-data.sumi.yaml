@@ -1,0 +1,56 @@
+# Layout: a tiered architecture, clients | entry | services | data stores, left to right.
+#
+# Use when: a system overview where requests flow from clients through a gateway to services
+#   and each service owns or shares data stores (web apps, backends, ML serving stacks).
+# Structure: one 4-column `grid`: a row of bold tier headings (`label`, `text: heading`), then
+#   one row per service, so each client, service and store shares a line with its partners
+#   (`~` leaves a cell empty); `fanIn: spread` brings the clients into the gateway at separate
+#   points; services tinted blue, stores tinted orange, the gateway `emphasis`; one shared
+#   store edge enters at a fixed anchor (`toAnchor: "west:0.25"`).
+# Change: the labels; clients, services or stores (append a row of four cells, `~` where a
+#   tier has nothing); drop the entry column for direct calls (edges from clients to
+#   services); keep each service on the row of the store it mainly uses.
+# Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
+version: 1
+figure:
+  id: client-service-data
+  theme: sumi
+  profile: paper-double
+  layout:
+    fanIn: spread
+    arrange:
+      grid:
+        columns: 4
+        rowGap: 4mm
+        columnGap: 14mm
+        items:
+          [h-clients, h-gateway, h-services, h-data,
+           web, ~, svc-a, db-a,
+           mobile, gateway, svc-b, cache,
+           cli, ~, svc-c, db-b]
+nodes:
+  - {id: h-clients, component: label, label: Clients, text: heading, weight: bold}
+  - {id: h-gateway, component: label, label: Entry, text: heading, weight: bold}
+  - {id: h-services, component: label, label: Services, text: heading, weight: bold}
+  - {id: h-data, component: label, label: Data stores, text: heading, weight: bold}
+  - {id: web, component: box, label: Client A}
+  - {id: mobile, component: box, label: Client B}
+  - {id: cli, component: box, label: Client C}
+  - {id: gateway, component: box, label: "API\ngateway", variant: emphasis}
+  - {id: svc-a, component: box, label: Service A, tone: blue, variant: tinted}
+  - {id: svc-b, component: box, label: Service B, tone: blue, variant: tinted}
+  - {id: svc-c, component: box, label: Service C, tone: blue, variant: tinted}
+  - {id: db-a, component: cylinder, label: Store A, props: {height: 24pt}, tone: orange, variant: tinted}
+  - {id: cache, component: box, label: Cache, tone: orange, variant: tinted}
+  - {id: db-b, component: cylinder, label: Store B, props: {height: 24pt}, tone: orange, variant: tinted}
+edges:
+  - {from: web, to: gateway}
+  - {from: mobile, to: gateway}
+  - {from: cli, to: gateway}
+  - {from: gateway, to: svc-a}
+  - {from: gateway, to: svc-b}
+  - {from: gateway, to: svc-c}
+  - {from: svc-a, to: db-a}
+  - {from: svc-b, to: cache}
+  - {from: svc-c, to: db-b}
+  - {from: svc-a, to: cache, toAnchor: "west:0.25"}

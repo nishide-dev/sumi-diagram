@@ -1,0 +1,79 @@
+# Layout: two side-by-side panels, a baseline and the proposed method, split by a dashed divider.
+#
+# Use when: the figure contrasts how an existing method works with how the new one changes it
+#   (baseline vs ours, before vs after, standard vs modified pipeline), with the shared steps
+#   drawn identically so the reader sees only what the method adds.
+# Structure: root `row` (align stretch) of two plain panels titled `top-left` and a dashed
+#   `separator`; each panel a top-down stack of equal-width steps; `align` pins the shared steps
+#   to the same height, so the baseline shows an open gap where the new module sits; orange
+#   tinted box = added module, a dashed orange side input `attach`ed east of it, a muted note
+#   beside the baseline, the method's output as `emphasis`, a legend under both panels.
+# Change: the panel titles and step labels; the added module(s) (orange) and side input; keep
+#   every shared step in both stacks and in `align`; drop the note or side input if unused.
+# Lint: `lint --geometry` 0 errors, 0 warnings; two infos, geometry/group-empty-area (about 80%
+#   per panel): the narrow step column and the open gap in the baseline are deliberate.
+version: 1
+figure:
+  id: two-panel-compare
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      stack:
+        gap: 4mm
+        items:
+          - row: {gap: 10mm, align: stretch, items: [base, divider, ours]}
+          - key
+    align:
+      - {y: [b_a, o_a]}
+      - {y: [b_b, o_b]}
+      - {y: [b_out, o_out]}
+    alignGrowth: allow
+groups:
+  - id: base
+    label: (a) Baseline
+    labelAt: top-left
+    variant: plain
+    arrange:
+      stack: {gap: 5mm, items: [b_in, b_a, b_b, b_out]}
+  - id: ours
+    label: (b) Proposed method
+    labelAt: top-left
+    variant: plain
+    arrange:
+      stack:
+        gap: 5mm
+        items: [o_in, o_a, o_x, o_b, o_out]
+nodes:
+  # (a) baseline
+  - {id: b_in, component: box, label: Input, variant: muted}
+  - {id: b_a, component: box, label: Stage A, props: {width: 110pt}}
+  - {id: b_b, component: box, label: Stage B, props: {width: 110pt}}
+  - {id: b_out, component: box, label: Output, variant: muted}
+  - {id: b_note, component: label, variant: muted, label: "limitation\nof the baseline", attach: {to: b_a, side: east, gap: 3mm}}
+  # (b) proposed
+  - {id: o_in, component: box, label: Input, variant: muted}
+  - {id: o_a, component: box, label: Stage A, props: {width: 110pt}}
+  - {id: o_x, component: box, label: New module, tone: orange, variant: tinted, props: {width: 110pt}}
+  - {id: o_side, component: box, label: Extra input, tone: orange, variant: dashed, attach: {to: o_x, side: east, gap: 6mm}}
+  - {id: o_b, component: box, label: Stage B, props: {width: 110pt}}
+  - {id: o_out, component: box, label: Output, variant: emphasis}
+  - {id: divider, component: separator, variant: dashed}
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: row
+      entries:
+        - {node: {}, label: shared step}
+        - {node: {tone: orange, variant: tinted}, label: added by the method}
+        - {node: {tone: orange, variant: dashed}, label: optional input}
+edges:
+  - {from: b_in, to: b_a}
+  - {from: b_a, to: b_b}
+  - {from: b_b, to: b_out}
+  - {from: o_in, to: o_a}
+  - {from: o_a, to: o_x}
+  - {from: o_side, to: o_x}
+  - {from: o_x, to: o_b}
+  - {from: o_b, to: o_out}

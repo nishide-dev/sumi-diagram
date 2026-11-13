@@ -1,0 +1,62 @@
+# Layout: one flow that forks into parallel branches and joins again before the output.
+#
+# Use when: the same input is processed by two to four parallel paths whose results are
+#   combined (ensembles, multi-view or multi-scale features, parallel experts, map-reduce).
+# Structure: a `row` of input, stage A, a `junction` (the fork), the dashed `branches` group
+#   (title `above-left`; a stack of one row per branch), a concat `operator` (the merge),
+#   stage D and an emphasis output. Fork and merge edges are `route: curve` with `west` / `east`
+#   anchors so they fan out smoothly and cross the frame cleanly; the orange branch marks the
+#   path that differs (drop the tone if none does).
+# Change: the labels; the number of branches (copy or delete a branch row with its three edges)
+#   and steps per branch (add a box and an edge to each row); the operator `symbol` (plus,
+#   times, concat) or a box for a learned merge.
+# Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
+version: 1
+figure:
+  id: pipeline-branch-merge
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      row:
+        gap: 8mm
+        items: [input, stage_a, split, branches, merge, stage_d, output]
+groups:
+  - id: branches
+    label: Parallel branches
+    labelAt: above-left
+    variant: dashed
+    arrange:
+      stack:
+        gap: 3mm
+        items:
+          - row: {gap: 7mm, items: [b1, b1x]}
+          - row: {gap: 7mm, items: [b2, b2x]}
+          - row: {gap: 7mm, items: [b3, b3x]}
+nodes:
+  - {id: input, component: box, label: Input, variant: muted}
+  - {id: stage_a, component: box, label: Stage A, tone: blue, variant: tinted}
+  - {id: b1, component: box, label: Branch 1, tone: blue, variant: tinted}
+  - {id: b1x, component: box, label: Step 1, tone: blue, variant: tinted}
+  - {id: b2, component: box, label: Branch 2, tone: blue, variant: tinted}
+  - {id: b2x, component: box, label: Step 2, tone: blue, variant: tinted}
+  - {id: b3, component: box, label: Branch 3, tone: orange, variant: tinted}
+  - {id: b3x, component: box, label: Step 3, tone: orange, variant: tinted}
+  - {id: split, component: junction}
+  - {id: merge, component: operator, props: {symbol: concat}}
+  - {id: stage_d, component: box, label: Stage D, tone: blue, variant: tinted}
+  - {id: output, component: box, label: Output, variant: emphasis}
+edges:
+  - {from: input, to: stage_a}
+  - {from: stage_a, to: split, component: line}
+  - {from: split, to: b2, toAnchor: west, route: curve}
+  - {from: split, to: b1, toAnchor: west, route: curve}
+  - {from: split, to: b3, toAnchor: west, route: curve}
+  - {from: b1, to: b1x}
+  - {from: b2, to: b2x}
+  - {from: b3, to: b3x}
+  - {from: b2x, fromAnchor: east, to: merge, route: curve}
+  - {from: b1x, fromAnchor: east, to: merge, route: curve}
+  - {from: b3x, fromAnchor: east, to: merge, route: curve}
+  - {from: merge, to: stage_d}
+  - {from: stage_d, to: output}

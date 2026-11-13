@@ -1,0 +1,49 @@
+# Layout: stacked full-width bands (higher layers on top), each a framed row of items, one path drawn through them.
+#
+# Use when: a system described as layers that build on one another (application / middleware /
+#   OS, protocol stacks, a software platform, levels of abstraction) and one request or
+#   dependency path through them.
+# Structure: a `stack` with `align: stretch` makes every band (a default group) equally wide;
+#   each band's `row` uses `justify: stretch` so its items fill the band; the bold band titles
+#   are `label` nodes attached west; the orange tinted item and orange edges mark the path, the
+#   edges enter with `toAnchor: straight` so they drop without jogs.
+# Change: the labels; the number of bands (copy a group, its title node and its stack entry) and of
+#   items per band; the path (keep each edge's source over its target, else drop `straight`);
+#   keep at most two coloured items per band (three on a filled band report geometry/color-on-panel).
+# Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
+version: 1
+figure:
+  id: layered-stack
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      stack:
+        gap: 6mm
+        align: stretch
+        items: [top, middle, base]
+groups:
+  - id: top
+    arrange:
+      row: {gap: 3mm, justify: stretch, items: [c1, c2, c3, c4]}
+  - id: middle
+    arrange:
+      row: {gap: 3mm, justify: stretch, items: [b1, b2, b3]}
+  - id: base
+    arrange:
+      row: {gap: 3mm, justify: stretch, items: [a1]}
+nodes:
+  - {id: top-title, component: label, label: Layer C, weight: bold, attach: {to: top, side: west, gap: 3mm}}
+  - {id: middle-title, component: label, label: Layer B, weight: bold, attach: {to: middle, side: west, gap: 3mm}}
+  - {id: base-title, component: label, label: Layer A, weight: bold, attach: {to: base, side: west, gap: 3mm}}
+  - {id: c1, component: box, label: Item C1}
+  - {id: c2, component: box, label: Item C2}
+  - {id: c3, component: box, label: Item C3}
+  - {id: c4, component: box, label: Item C4}
+  - {id: b1, component: box, label: Item B1}
+  - {id: b2, component: box, label: Item B2, tone: orange, variant: tinted}
+  - {id: b3, component: box, label: Item B3}
+  - {id: a1, component: box, label: Item A1}
+edges:
+  - {from: c2, to: b2, toAnchor: straight, tone: orange, label: request}
+  - {from: b2, to: a1, toAnchor: straight, tone: orange}

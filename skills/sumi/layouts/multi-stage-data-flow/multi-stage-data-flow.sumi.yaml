@@ -1,0 +1,60 @@
+# Layout: a four-stage data pipeline (data, preprocessing, model, evaluation) with a store under each stage.
+#
+# Use when: the figure must show both the processing chain and what each stage saves or loads
+#   (ML pipelines with datasets, feature stores, checkpoints and metrics; ETL; build systems).
+# Structure: a stack of a 4-column `grid` (stages on top, `cylinder` stores below, each store in
+#   its stage's column) and a legend; solid arrows are the data flow, dashed arrows save to the
+#   store below or load from the previous column's store into the next stage (`east` to
+#   `west:0.85`, so it does not merge with the solid arrow); stages blue tinted with a bold name
+#   and muted sublabel, the final stage orange, stores neutral.
+# Change: the labels and sublabels; the number of stages (add or delete a column: one item in
+#   each grid row and `columns`; on insert replace the stage edge across the insertion point
+#   by two, on delete join predecessor to successor, and remove or redirect the store and
+#   load edges that touched the removed node); which stores are loaded downstream (one dashed
+#   edge each); use `~` for a stage with no store.
+# Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
+version: 1
+figure:
+  id: multi-stage-data-flow
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      stack:
+        gap: 3mm
+        items:
+          - grid:
+              columns: 4
+              rowGap: 9mm
+              columnGap: 14mm
+              items:
+                [data, prep, model, eval,
+                 raw, features, ckpt, metrics]
+          - key
+nodes:
+  - {id: data, component: box, label: Data, weight: bold, sublabel: collect, sublabelInk: muted, tone: blue, variant: tinted, props: {width: 28mm}}
+  - {id: prep, component: box, label: Preprocessing, weight: bold, sublabel: clean and split, sublabelInk: muted, tone: blue, variant: tinted, props: {width: 28mm}}
+  - {id: model, component: box, label: Model, weight: bold, sublabel: train, sublabelInk: muted, tone: blue, variant: tinted, props: {width: 28mm}}
+  - {id: eval, component: box, label: Evaluation, weight: bold, sublabel: score, sublabelInk: muted, tone: orange, variant: tinted, props: {width: 28mm}}
+  - {id: raw, component: cylinder, label: Store A, props: {width: 20mm, height: 11mm}}
+  - {id: features, component: cylinder, label: Store B, props: {width: 20mm, height: 11mm}}
+  - {id: ckpt, component: cylinder, label: Store C, props: {width: 20mm, height: 11mm}}
+  - {id: metrics, component: cylinder, label: Store D, props: {width: 20mm, height: 11mm}}
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: row
+      entries:
+        - {edge: {}, label: data flow}
+        - {edge: {variant: dashed}, label: save / load}
+edges:
+  - {from: data, to: prep}
+  - {from: prep, to: model}
+  - {from: model, to: eval}
+  - {from: data, to: raw, variant: dashed}
+  - {from: prep, to: features, variant: dashed}
+  - {from: model, to: ckpt, variant: dashed}
+  - {from: eval, to: metrics, variant: dashed}
+  - {from: features, to: model, fromAnchor: east, toAnchor: "west:0.85", variant: dashed}
+  - {from: ckpt, to: eval, fromAnchor: east, toAnchor: "west:0.85", variant: dashed}

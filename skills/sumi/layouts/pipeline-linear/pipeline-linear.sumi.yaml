@@ -1,0 +1,43 @@
+# Layout: a one-directional pipeline: input, four framed stages, output, in one row.
+#
+# Use when: the content is a single chain with no loops or branches (a processing pipeline,
+#   a method overview, a data path); the frame groups the stages the method owns, input and
+#   output stay outside it.
+# Structure: a `row` of input, the `stages` group (title `above-left`, its own row of four
+#   blue tinted boxes with a bold name and a muted sublabel) and output; parallelograms mark
+#   input (muted) and output (emphasis); edge labels name what passes between stages.
+# Change: the labels, sublabels and edge labels; the number of stages (copy or delete a box, its
+#   `groups` row entry and `nodes` entry, and rewire the chain: on insert replace the edge
+#   across the insertion point by two, on delete join the predecessor to the successor; four
+#   fill paper-double's 180 mm, so for five or six drop the edge labels and narrow the inner
+#   `gap` to 7 mm); drop the group when no stage set needs a frame.
+# Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
+version: 1
+figure:
+  id: pipeline-linear
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      row:
+        gap: 6mm
+        items: [input, stages, output]
+groups:
+  - id: stages
+    label: Pipeline
+    labelAt: above-left
+    arrange:
+      row: {gap: 12mm, items: [stage_a, stage_b, stage_c, stage_d]}
+nodes:
+  - {id: input, component: parallelogram, label: Input, variant: muted}
+  - {id: stage_a, component: box, label: Stage A, weight: bold, sublabel: what it does, sublabelInk: muted, tone: blue, variant: tinted}
+  - {id: stage_b, component: box, label: Stage B, weight: bold, sublabel: what it does, sublabelInk: muted, tone: blue, variant: tinted}
+  - {id: stage_c, component: box, label: Stage C, weight: bold, sublabel: what it does, sublabelInk: muted, tone: blue, variant: tinted}
+  - {id: stage_d, component: box, label: Stage D, weight: bold, sublabel: what it does, sublabelInk: muted, tone: blue, variant: tinted}
+  - {id: output, component: parallelogram, label: Output, variant: emphasis}
+edges:
+  - {from: input, to: stage_a}
+  - {from: stage_a, to: stage_b, label: data A}
+  - {from: stage_b, to: stage_c, label: data B}
+  - {from: stage_c, to: stage_d, label: data C}
+  - {from: stage_d, to: output}
