@@ -10,8 +10,8 @@ A square bracket or curly brace that gathers a column or row of elements; takes 
 | --- | --- | --- | --- |
 | <code>form</code> | <code>&quot;square&quot; &#124; &quot;curly&quot;</code> | no | square: a square bracket \(the default\)\. curly: a curly brace with a pointed tip\. |
 | <code>points</code> | <code>&quot;east&quot; &#124; &quot;west&quot; &#124; &quot;north&quot; &#124; &quot;south&quot;</code> | no | The side the spine or tip is on, where edges leave: east gathers the elements to its west \(the default\), west those to its east, south those above it and north those below it\. |
-| <code>width</code> | <code>string</code> | no | Explicit width as a length such as &quot;10pt&quot; \(a multiple of 0\.5pt\)\. Omitted means 6pt deep for east / west, or as long as the attach target's side \(24pt without one\) for north / south\. |
-| <code>height</code> | <code>string</code> | no | Explicit height as a length such as &quot;40pt&quot; \(a multiple of 0\.5pt\)\. Omitted means as long as the attach target's side \(24pt without one\) for east / west, or 6pt deep for north / south\. |
+| <code>width</code> | <code>string</code> | no | Explicit width as a length such as &quot;10pt&quot; \(rounded to the nearest 0\.5pt\)\. Omitted means 6pt deep for east / west, or as long as the attach target's side \(24pt without one\) for north / south\. |
+| <code>height</code> | <code>string</code> | no | Explicit height as a length such as &quot;40pt&quot; \(rounded to the nearest 0\.5pt\)\. Omitted means as long as the attach target's side \(24pt without one\) for east / west, or 6pt deep for north / south\. |
 
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> | <code>llama</code> | <code>sumi</code> | <code>sumi\-dark</code> |
 | --- | --- | --- | --- | --- | --- | --- | --- |

@@ -465,17 +465,50 @@ describe("validateUsage", () => {
     [true, 'Expected a length such as "2mm", got a boolean'],
     ["-4mm", 'Size "-4mm" must be positive'],
     ["0pt", 'Size "0pt" must be positive'],
-    [
-      "15mm",
-      'Size "15mm" (42.52pt) is not a multiple of 0.5pt, the D2 unit',
-      'The nearest valid size is "42.5pt".',
-    ],
-    [
-      "0.1pt",
-      'Size "0.1pt" (0.1pt) is not a multiple of 0.5pt, the D2 unit',
-      'The nearest valid size is "0.5pt".',
-    ],
   ];
+  test("rounds sizes that are not on the 0.5pt grid instead of rejecting them", () => {
+    const cases: [string, number][] = [
+      ["18mm", 51],
+      ["22mm", 62.5],
+      ["26mm", 73.5],
+      ["9mm", 25.5],
+      ["15mm", 42.5],
+      ["0.1pt", 0.5],
+      ["0.75pt", 1],
+      ["0.25pt", 0.5],
+      // Either side of a tie (half a unit = 0.25pt; ties round up).
+      ["0.7499pt", 0.5],
+      ["0.75pt", 1],
+      ["0.7501pt", 1],
+      ["1.2499pt", 1],
+      ["1.25pt", 1.5],
+      // Fractional inches and centimetres.
+      ["0.25in", 18],
+      ["0.2501in", 18],
+      ["0.0174in", 1.5],
+      ["0.0173in", 1],
+      ["0.44cm", 12.5],
+      ["0.1cm", 3],
+    ];
+    for (const [width, pt] of cases) {
+      const result = registry.validateUsage(box, { props: { width, height: width } });
+      expect(result.ok).toBe(true);
+      if (result.ok) expect(result.value.props).toMatchObject({ width: pt, height: pt });
+    }
+  });
+
+  test("a rounded group layer offset reaches the component props", () => {
+    const container = registry.resolve("container", "group");
+    if (!container.ok) throw new Error("missing container");
+    const result = registry.validateUsage(container.value, {
+      props: { layers: { count: 3, offset: "1.1mm" } },
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.props).toMatchObject({ layers: { count: 3, offset: 3 } });
+    }
+  });
+
   for (const [width, message, hint] of invalidSizes) {
     test(`rejects the width ${JSON.stringify(width)}`, () => {
       const [d, ...rest] = registry.validateUsage(box, { props: { width } }).diagnostics;

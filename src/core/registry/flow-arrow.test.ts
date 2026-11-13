@@ -50,7 +50,7 @@ test("manifests, catalog and defaults describe the public flow-marker components
   }
   const block = builtinRegistry().resolve("block-arrow", "node");
   if (!block.ok) throw new Error("missing block-arrow");
-  for (const props of [{ head: 0 }, { head: 2 }, { shaft: 1 }, { length: "1.1pt" }])
+  for (const props of [{ head: 0 }, { head: 2 }, { shaft: 1 }])
     expect(builtinRegistry().validateUsage(block.value, { props }).ok).toBe(false);
 });
 
