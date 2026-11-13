@@ -8,8 +8,8 @@ A trapezoid with a wider top and a narrower bottom\.
 
 | prop | type | required | description |
 | --- | --- | --- | --- |
-| <code>width</code> | <code>string</code> | no | Explicit width as a length such as &quot;30mm&quot; or &quot;40pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
-| <code>height</code> | <code>string</code> | no | Explicit height as a length such as &quot;10mm&quot; or &quot;20pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
+| <code>width</code> | <code>string</code> | no | Explicit width as a length such as &quot;30mm&quot; or &quot;40pt&quot; \(rounded to the nearest 0\.5pt\)\. Omitted means sized to the label\. |
+| <code>height</code> | <code>string</code> | no | Explicit height as a length such as &quot;10mm&quot; or &quot;20pt&quot; \(rounded to the nearest 0\.5pt\)\. Omitted means sized to the label\. |
 | <code>narrow</code> | <code>&quot;south&quot; &#124; &quot;north&quot; &#124; &quot;east&quot; &#124; &quot;west&quot;</code> | no | Side with the narrow parallel edge; omitted means south \(wide top\)\. |
 
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> | <code>llama</code> | <code>sumi</code> | <code>sumi\-dark</code> |

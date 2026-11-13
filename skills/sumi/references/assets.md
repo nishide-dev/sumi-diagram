@@ -162,7 +162,7 @@ feature vector a paper figure draws at the corner of an icon:
   separators, staying inside it (subdirectories fine; `..`, absolute paths and
   URLs are not; a symlink leading outside is refused at render). Copy the file
   next to the YAML if needed, after asking the user.
-- `width` / `height`: at least one (lengths with a unit, multiples of 0.5pt); the
+- `width` / `height`: at least one (lengths with a unit, rounded to the nearest 0.5pt, at least 0.5pt); the
   other follows the aspect ratio. With both, `fit`: `contain` (whole image,
   margins), `cover` (fills, crops), `fill` (stretches).
 - PNG, JPEG, SVG only (no WebP / GIF); at most 16 MiB per file, 32 MiB per figure,
@@ -330,8 +330,8 @@ structured-only layout, front-frame connections and export limitations.
 
 `layers: { count: 4, offset: 3pt }` on an image (file, inline or asset) repeats the
 **same unchanged image** behind the front one, diagonally up-right (repeated video
-frames). `count` includes the front (integer 1–16); `offset` is positive, a multiple
-of 0.5pt; width and height size **one copy**. The node means the **whole stack**:
+frames). `count` includes the front (integer 1–16); `offset` is positive, rounded to
+the nearest 0.5pt (at least 0.5pt); width and height size **one copy**. The node means the **whole stack**:
 layout, obstacles, geometry lint, attached labels and group captions use the footprint
 (each side grows by `(count - 1) × offset`; a south-centred attachment sits right of
 the front image's centre by half that spread). Edge ports are chosen on the footprint

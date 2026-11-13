@@ -1381,7 +1381,7 @@ function imageIR(
   });
 }
 
-/** A size prop in pt (an exact multiple of 0.5pt, checked by the manifest). */
+/** A size prop in pt (rounded to a multiple of 0.5pt by the manifest). */
 function lengthOf(pt: number): StyleLength {
   return freeze({ pt, units: pt * 2 });
 }

@@ -499,7 +499,7 @@ edges:
 
 **Stacked group frames.** Use `props.layers: { count: 4, offset: 3pt }` on a
 group (structured layout). `count` includes the front card (1–16); `offset` is
-a positive length on the 0.5pt grid, diagonally up-right, matching image layers.
+a positive length rounded to the nearest 0.5pt (at least 0.5pt), diagonally up-right, matching image layers.
 Only frames repeat, with the same fill/stroke, tone and dim colors; the front
 keeps its title, children and padding. Rows, stacks, grids, obstacles, geometry
 lint and the centred caption reserve the whole footprint. `label: '$C$'` with
