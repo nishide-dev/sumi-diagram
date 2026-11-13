@@ -193,4 +193,17 @@ describe("geometry/theme-color-use: what counts (#513 review)", () => {
     });
     expect(await findingsOf(after)).toEqual([]);
   });
+
+  test("a near-gray override of a pale tone is neutral (sumi blue #d9e4e6 vs #e1e1e1)", async () => {
+    const nodes = [
+      box("a", "variant: filled, tone: blue"),
+      box("b", "variant: filled, tone: blue"),
+    ].join("\n");
+    expect(await findingsOf(figure({ nodes }))).toHaveLength(1);
+    expect(
+      await findingsOf(
+        figure({ nodes, overrides: "{ tones: { blue: { fill: '#e1e1e1', line: '#555555' } } }" }),
+      ),
+    ).toEqual([]);
+  });
 });

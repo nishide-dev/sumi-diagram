@@ -34,8 +34,12 @@ const UNPAINTED = new Set([
   "sumi/operator",
   "sumi/image",
 ]);
-/** A paint within this CIE76 distance of the theme's own color for the tone is that color. */
-const SAME_PAINT = 4;
+/**
+ * A paint within this CIE76 distance of the theme's own color for the tone is that color
+ * (a rounding apart). Pale tones have chroma below the neutral threshold, so only an
+ * identical paint may take its verdict from the tone's name.
+ */
+const SAME_PAINT = 1;
 /** A toned element painted below this OKLCH chroma (an override to gray) is neutral. */
 const NEUTRAL_CHROMA = 0.025;
 /** An untoned or gray-toned element painted at or above this chroma (an override to a hue) is chromatic. */
