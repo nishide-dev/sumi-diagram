@@ -539,7 +539,7 @@ with a slide or README profile: set `profile`, set `textScale`, then render; `pr
 names the scale that fixes the figure. Text grows, so the figure grows by the same factor in width
 (`sumi` figure of 140mm at 2 is 280mm): check it against the profile's width, and shorten labels or
 fold rows rather than lower `target.minFontSize`. `fit: scale` only shrinks (and checks text against
-`minScaledFontSize`), so it never replaces a text scale. `target` states minima, not sizes.
+`minScaledFontSize`), so it never replaces a text scale. `target` states minima, not sizes. In the `auto` layout D2 places edge labels itself, so their gap to lines and frames does not follow the scale (text, lines and arrowheads do; the structured router also scales label gap and border clearance): if labels touch lines, shorten them or use the structured layout.
 
 **Palettes.** `themeOverrides.palette: <name>` gives the figure one coherent colour scheme
 on any theme (`minimal`, `color`, `paper`, `llama`, …; `academic` is grayscale by design, so

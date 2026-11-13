@@ -49,9 +49,13 @@ SVG は mm 単位の固有の大きさを持つが、画面ではページが列
 - `target.minFontSize` は検査の下限で、図を大きくしない。文字を大きくする手段は `textScale` だけ。
 - 「印刷より大きく表示する置き場所を target で書けない」（#514 の最後の項目）は、`target` に表示倍率を足さない。表示の拡縮は SVG の viewBox がすでに担っており、Sumi が検査するのは最終の印刷寸法だからである。置き場所が決める文字の大きさは、プロファイルの最小と `textScale` で表す。
 
+### auto レイアウト（D2）の制限
+
+上の 2 つの距離は structured レイアウトのルーターだけが持つ。auto では辺ラベルの位置と枠・矢じりとの距離は D2（ELK）が決め、Sumi が渡せるのはプロファイル由来の `--pad`・`--elk-nodeNodeBetweenLayers`・`--elk-edgeNodeBetweenLayers`・`--elk-padding` だけで、ラベルの間隔の設定はない。事後にラベルを動かす処理も Sumi にはなく、作る価値もない（D2 の配置を壊す）。したがって auto の図では、ラベルの余裕は倍率に従わず、D2 の既定（文字サイズに比例する）と、倍率に合わせたプロファイルの間隔（`presentation-16x9` は paper の 2 倍）に頼る。文字・線・矢じり・角は auto でも倍率に従う。ラベルが線や枠に接するときは、structured にするか、ラベルを短くする。この制限は `figure-format.md#text-scale` に書いた。
+
 ## 既存の図への影響
 
-`textScale` を使わない図は変わらない（ギャラリー・examples・固定した論文再現のハッシュは同一）。既存のプロファイル（`paper-*`、`presentation-16x9`）の値も変えない。`screen-doc` は新しいプロファイルで、`compatibleProfiles` に現れる（`slides` のみ）。
+`textScale` を使わない図は変わらない（ギャラリー・examples・固定した論文再現のハッシュは同一。`gallery:check` が全 438 ファイルを、加えて origin/main の `examples/pipeline`（auto）と `examples/transformer`（structured）の SVG とのバイト一致を直接確かめた）。既存のプロファイル（`paper-*`、`presentation-16x9`）の値も変えない。`screen-doc` は新しいプロファイルで、`compatibleProfiles` に現れる（`slides` のみ）。
 
 ## 検証
 
