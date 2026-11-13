@@ -8,7 +8,7 @@
 #   one `minWidth` (68 mm) and `padding: 1.5mm`, so every fitted circle is smaller than the
 #   minimum and all three get one radius about centres on an equilateral triangle.
 # Change: labels (keep the items' width so the fits stay symmetric); more items per region:
-#   stack two boxes about the region's point; a two-set Venn: drop set C and its items. If you
+#   stack two boxes about the region's point; for two sets redraw it (see set-taxonomy). If you
 #   move items, check that each circle still comes out at the minimum (all `r` equal in the SVG).
 # Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
 version: 1

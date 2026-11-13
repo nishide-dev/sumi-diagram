@@ -10,7 +10,9 @@
 #   call / result); panel titles sit above the frames (`labelAt: above-left`); one orange box
 #   marks the step the figure is about, blue the stored state.
 # Change: the step, resource and edge labels; the number of tools (add a box to the Tools
-#   stack); move the orange to another step; drop Memory with its edge if there is none.
+#   stack; only Tool 2 has an edge from Act, so add an edge for each tool that is callable);
+#   move the orange to another step; drop Memory with its edge, its `memory` row in the
+#   arrangement and its `align` entry if there is none.
 # Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
 version: 1
 figure:

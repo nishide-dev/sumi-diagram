@@ -6,8 +6,10 @@
 # Structure: nested stacks and rows, one level per tier: each question is a `diamond` above
 #   a row holding its two subtrees; branches leave the diamond's west ("yes") and east ("no")
 #   corners and drop into the child's top; outcomes are blue tinted boxes on one bottom line.
-# Change: the question, outcome and branch labels; deepen a branch by replacing a leaf with a
-#   `stack: [diamond, row: [leaf, leaf]]` subtree; keep "yes" on the same side everywhere.
+# Change: the question, outcome and branch labels; deepen a branch by replacing a leaf (e.g. o1)
+#   with a nested `{stack: {gap: 6mm, items: [q4, {row: {gap: 8mm, items: [o5, o6]}}]}}` in the
+#   leaf row, add node q4 and leaves, replace the old `q2 -> o1` edge with `q2 -> q4` and add
+#   both labelled "yes" / "no" edges from q4; keep "yes" on the same side everywhere.
 # Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
 version: 1
 figure:

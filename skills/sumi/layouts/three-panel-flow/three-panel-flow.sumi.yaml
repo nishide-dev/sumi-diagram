@@ -9,7 +9,9 @@
 #   token row into an `emphasis` result; the "xN" label is `attach`ed east of the looped box so
 #   it reserves the loop's room inside the frame.
 # Change: the captions, labels and token texts; the content of each panel (keep it a short
-#   stack); a fourth panel = one more block arrow and group; drop the loop if nothing repeats.
+#   stack); a fourth panel = one more block arrow and group; drop the loop if nothing repeats;
+#   the loop's `east:0.3` / `east:0.7` anchors keep its ends apart, so recheck them when box
+#   sizes change.
 # Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
 version: 1
 figure:

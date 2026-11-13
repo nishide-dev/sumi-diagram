@@ -9,10 +9,13 @@
 #   hidden junctions (cell `align: start` / `end`) joined by the time arrow; dashed edges are
 #   dependencies, drawn
 #   vertically between activities that share a period; one orange box marks a milestone; a legend underneath.
-# Change: the lane, period and activity labels; add a period by adding a column (every row
-#   grows by one item); add a lane by inserting a row of five; keep each activity's `span`
-#   inside its row and the 24mm width on single-cell items; a dependency leaving a two-period
-#   box at its second period uses anchor 0.7692 (first period 0.2308) so it drops straight.
+# Change: the lane, period and activity labels; add a period: raise `columns`, add a period label
+#   and make every row consume the new count (a `span` counts, so extend a span instead where
+#   the activity lasts longer), then move the time arrow's end junction to the last column;
+#   add a lane by inserting a row of `columns` cells; keep the 24mm width on single-cell items;
+#   a dependency anchor is the centre of a period inside the spanned box: with span width
+#   2*24+4 = 52mm the first period is 12/52 = 0.2308 and the second 40/52 = 0.7692, so
+#   recompute it (centre / box width) whenever widths, gaps or spans change.
 # Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
 version: 1
 figure:

@@ -6,9 +6,11 @@
 # Structure: a `row` of input, the `stages` group (title `above-left`, its own row of four
 #   blue tinted boxes with a bold name and a muted sublabel) and output; parallelograms mark
 #   input (muted) and output (emphasis); edge labels name what passes between stages.
-# Change: the labels, sublabels and edge labels; the number of stages (copy or delete a box
-#   with its edge; four fill paper-double's 180 mm, so for five or six drop the edge labels
-#   and narrow the inner `gap` to 7 mm); drop the group when no stage set needs a frame.
+# Change: the labels, sublabels and edge labels; the number of stages (copy or delete a box, its
+#   `groups` row entry and `nodes` entry, and rewire the chain: on insert replace the edge
+#   across the insertion point by two, on delete join the predecessor to the successor; four
+#   fill paper-double's 180 mm, so for five or six drop the edge labels and narrow the inner
+#   `gap` to 7 mm); drop the group when no stage set needs a frame.
 # Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
 version: 1
 figure:

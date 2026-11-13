@@ -8,8 +8,10 @@
 #   `west:0.85`, so it does not merge with the solid arrow); stages blue tinted with a bold name
 #   and muted sublabel, the final stage orange, stores neutral.
 # Change: the labels and sublabels; the number of stages (add or delete a column: one item in
-#   each grid row and `columns`); which stores are loaded downstream (one dashed edge each);
-#   use `~` for a stage with no store.
+#   each grid row and `columns`; on insert replace the stage edge across the insertion point
+#   by two, on delete join predecessor to successor, and remove or redirect the store and
+#   load edges that touched the removed node); which stores are loaded downstream (one dashed
+#   edge each); use `~` for a stage with no store.
 # Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
 version: 1
 figure:

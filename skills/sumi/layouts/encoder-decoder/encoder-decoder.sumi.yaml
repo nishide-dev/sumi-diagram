@@ -6,10 +6,12 @@
 #   head, output); a hidden junction between the columns, held level with the last encoder layer by
 #   `align`, splits the blue "context" line into one arrow per decoder layer (west side); blue = encoder,
 #   green = decoder, the dark emphasis box = the head; the inputs share one baseline by `align`.
-# Change: the labels; the layer count (copy a box and its chain edge; on the decoder side also its
-#   `mem` edge); per-layer cross links instead (E_i -> D_i): drop `mem`, align each pair on `y`
-#   and draw `{from: e_i, to: d_i}`; keep the groups `plain` (a filled frame under three tinted
-#   boxes reports geometry/color-on-panel).
+# Change: the labels; the layer count (copy or delete a box in its group, the chain edge, and on the
+#   decoder side its `mem` edge); when the encoder depth changes, point the `align` pair
+#   `{y: [e3, mem]}` and the `e3 -> mem` edge at the new last encoder layer; per-layer cross
+#   links instead (E_i -> D_i): remove `mem`, its stack placement, its `align` entry and its
+#   edges, align each pair on `y` and draw `{from: e_i, to: d_i}`; keep the groups `plain` (a
+#   filled frame under three tinted boxes reports geometry/color-on-panel).
 # Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
 version: 1
 figure:

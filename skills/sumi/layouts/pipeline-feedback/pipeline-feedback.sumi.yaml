@@ -6,9 +6,11 @@
 #   orange tinted `diamond` check to an emphasis output and an end ring (`final`); a dashed
 #   feedback edge from the check's south to stage A's south runs under the row with its label
 #   below it; a self-loop on stage B (`route: curve`) marks a repeated step.
-# Change: the labels; the stage count (copy or delete a box with its edge; keep the row under
-#   180 mm); the feedback target (any earlier stage, both anchors south); drop the self-loop or
-#   the start / end markers when not needed.
+# Change: the labels; the stage count (copy or delete a box, its `row` entry and `nodes` entry,
+#   and rewire the chain: on insert replace the edge across the insertion point by two, on delete
+#   join predecessor to successor; also fix the feedback edge or self-loop if they touch a removed
+#   stage; keep the row under 180 mm); the feedback target (any earlier stage, both anchors
+#   south); drop the self-loop or the start / end markers when not needed.
 # Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
 version: 1
 figure:

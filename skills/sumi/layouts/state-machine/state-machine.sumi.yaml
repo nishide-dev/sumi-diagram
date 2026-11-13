@@ -7,8 +7,10 @@
 #   (`sumi/initial` → State A → State B → State C → `sumi/final`); the failure state sits under
 #   State B, and its return edge goes back to State A with an elbow; the self-loop on State B is
 #   `route: curve` out of its north side; one orange state marks the focus.
-# Change: the state and event labels; add a state on the main line by shifting the later
-#   x coordinates by 32; keep the self-loop's side free (about 8mm above the node).
+# Change: the state and event labels; add a state on the main line: add its node and `place`
+#   item, shift the later x coordinates by 32, split the transition it sits on into two
+#   labelled edges, and adjust edges that depended on the shifted positions (the failure
+#   state's x and its return edge); keep the self-loop's side free (about 8mm above the node).
 # Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
 version: 1
 figure:
