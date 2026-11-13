@@ -397,3 +397,25 @@ test.each([
     location: { line: 5, column, endLine: 5, endColumn: column + token.length },
   });
 });
+
+test("dashedGroupStroke frames filled-dashed groups like dashed ones and wins over groupStroke (#519)", async () => {
+  const result = await renderFigure(`version: 1
+figure:
+  id: frames
+  theme: paper
+  themeOverrides: { dashedGroupStroke: '#527da5', groupStroke: '#a05252' }
+  layout: { arrange: { row: { items: [d, f, p] } } }
+groups:
+  - { id: d, variant: dashed, arrange: { row: { items: [a] } } }
+  - { id: f, variant: filled-dashed, arrange: { row: { items: [b] } } }
+  - { id: p, variant: default, arrange: { row: { items: [c] } } }
+nodes:
+  - { id: a, component: box, label: A }
+  - { id: b, component: box, label: B }
+  - { id: c, component: box, label: C }
+`);
+  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+  const stroke = (id: string) =>
+    result.value.compiled.ir.groups.find((g) => g.id === id)?.style.stroke;
+  expect([stroke("d"), stroke("f"), stroke("p")]).toEqual(["#527da5", "#527da5", "#a05252"]);
+});

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { builtinRegistry, FLOW_ARROW_IDS } from "../registry/builtins";
+import { builtinRegistry, FLOW_ARROW_IDS, STATE_MARKER_IDS } from "../registry/builtins";
 import { componentId } from "../registry/manifest";
 import { BUILTIN_THEMES, getTheme } from "./builtin";
 import { deltaE as deltaEOf, toOklch } from "./color-math";
@@ -338,6 +338,8 @@ describe("withPalette", () => {
               if (cid === "sumi/junction") continue;
               // A flow arrow (#426) is a solid shape: its fill is its ink, and it has no text.
               if (FLOW_ARROW_IDS.includes(cid)) continue;
+              // A state marker (#519) is a solid dot or ring, with no text.
+              if (STATE_MARKER_IDS.includes(cid)) continue;
               for (const ground of grounds)
                 expect(
                   contrastRatio(style.fontColor, ground),

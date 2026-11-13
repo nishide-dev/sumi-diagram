@@ -43,7 +43,7 @@ import type { Diagnostic, DiagnosticSubject, DocPath } from "../diagnostics";
 import type { ArrangeBox } from "../figure/schema";
 import type { Locator } from "../figure/yaml";
 import { hasLabelMarkup, looksLikeMath, parseLabel } from "../label/math";
-import { BRACKET_ID, FLOW_ARROW_IDS, SEPARATOR_ID } from "./builtins";
+import { BRACKET_ID, FLOW_ARROW_IDS, SEPARATOR_ID, STATE_MARKER_IDS } from "./builtins";
 import { type ComponentKind, componentId, type ResolvedComponent } from "./manifest";
 import type { Registry } from "./registry";
 
@@ -288,7 +288,9 @@ export function resolveComponents(
     const mark = manifest.kind === "node" ? manifest.mark : undefined;
     const embed = manifest.kind === "node" ? manifest.embed : undefined;
     // A bracket (#281) is a line with no label, label turn or sublabel.
-    const bracket = [BRACKET_ID, SEPARATOR_ID, ...FLOW_ARROW_IDS].includes(componentId(manifest));
+    const bracket = [BRACKET_ID, SEPARATOR_ID, ...FLOW_ARROW_IDS, ...STATE_MARKER_IDS].includes(
+      componentId(manifest),
+    );
     const noBody =
       [
         "sumi/legend",
@@ -297,6 +299,7 @@ export function resolveComponents(
         BRACKET_ID,
         SEPARATOR_ID,
         ...FLOW_ARROW_IDS,
+        ...STATE_MARKER_IDS,
       ].includes(componentId(manifest)) || mark?.type === "point";
     const badgeUnsupported = element.badge && noBody;
     const glyphsUnsupported = element.glyphs && noBody;
@@ -334,13 +337,15 @@ export function resolveComponents(
         severity: "error",
         message: zoom
           ? `${componentId(manifest)} draws two lines between corners of its ends, so it takes no label.`
-          : bracket
-            ? `${componentId(manifest)} draws only a line, so it takes no label.`
-            : mark === undefined
-              ? `${componentId(manifest)} draws the image file of props.src, so it takes no label.`
-              : mark.type === "glyph"
-                ? `${componentId(manifest)} draws the symbol chosen by props.${mark.prop}, so it takes no label.`
-                : `${componentId(manifest)} is drawn as a point, so it takes no label.`,
+          : STATE_MARKER_IDS.includes(componentId(manifest))
+            ? `${componentId(manifest)} draws a dot or a ring, so it takes no label.`
+            : bracket
+              ? `${componentId(manifest)} draws only a line, so it takes no label.`
+              : mark === undefined
+                ? `${componentId(manifest)} draws the image file of props.src, so it takes no label.`
+                : mark.type === "glyph"
+                  ? `${componentId(manifest)} draws the symbol chosen by props.${mark.prop}, so it takes no label.`
+                  : `${componentId(manifest)} is drawn as a point, so it takes no label.`,
         hint: zoom
           ? "Remove the label; name the zoomed-in view with its group's label or caption instead."
           : "Remove the label; put text next to it with a label node if needed.",

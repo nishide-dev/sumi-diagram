@@ -32,7 +32,12 @@ import type { LayoutIR } from "../layout/ir";
 import { routeEdges } from "../layout/route/router";
 import { setOverlapDiagnostics } from "../layout/set-overlap";
 import { placeStructured } from "../layout/structured/engine";
-import { composeJunctionEnds, composeOpenArrowheads, composeOutlines } from "./compose";
+import {
+  composeCylinders,
+  composeJunctionEnds,
+  composeOpenArrowheads,
+  composeOutlines,
+} from "./compose";
 import { composeAssets, withImageSizes } from "./compose-assets";
 import { type FinalizedSvg, finalizeStructuredSvg, finalizeSvg } from "./finalize";
 import type { PathSegment } from "./geometry";
@@ -232,8 +237,17 @@ async function renderD2(
     diagnostics.push(...inspected.diagnostics);
     if (!inspected.ok) return fail();
   }
+  // Short cylinders (#516): shallower caps, the label in the middle of the body.
+  const cylinders = composeCylinders(joined.value, effective.ir, inspected.value);
+  diagnostics.push(...cylinders.diagnostics);
+  if (!cylinders.ok) return fail();
+  if (cylinders.value !== joined.value) {
+    inspected = inspectSvg(cylinders.value, effective.ir);
+    diagnostics.push(...inspected.diagnostics);
+    if (!inspected.ok) return fail();
+  }
   // Open arrowheads (#386): D2 drew triangles; the inspection reads no markers.
-  const opened = composeOpenArrowheads(joined.value, effective.ir);
+  const opened = composeOpenArrowheads(cylinders.value, effective.ir);
   diagnostics.push(...opened.diagnostics);
   if (!opened.ok) return fail();
   // Hollow arrowheads (#483): no canvas fill; the line stops at the head's base.

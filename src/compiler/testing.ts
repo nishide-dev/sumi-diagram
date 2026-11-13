@@ -12,6 +12,7 @@ import {
   BUILTIN_MANIFESTS,
   createBuiltinRegistry,
   FLOW_ARROW_IDS,
+  STATE_MARKER_IDS,
 } from "../core/registry/builtins";
 import type { ComponentManifest, EdgeManifest } from "../core/registry/manifest";
 import type { ResolvedStyle } from "../core/theme/style";
@@ -305,7 +306,7 @@ export function structuredPrimitivesFigure(theme: string): string {
       }
       continue;
     }
-    if (FLOW_ARROW_IDS.includes(id)) {
+    if (FLOW_ARROW_IDS.includes(id) || STATE_MARKER_IDS.includes(id)) {
       // The flow markers (#426) of every component and variant, side by side.
       for (const variant of m.variants) {
         const name = `${m.name}-${variant}`;

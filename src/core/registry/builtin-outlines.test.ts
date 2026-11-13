@@ -22,6 +22,7 @@ for (const [name, params] of [
         "default",
         "emphasis",
         "muted",
+        "dashed",
         ...(name === "stack" ? [] : ["filled"]),
         "outlined",
         "solid",

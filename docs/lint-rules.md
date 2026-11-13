@@ -266,7 +266,7 @@ outline 部品では safeArea への包含に加え、輪郭線を実際に描�
 | `diamond` | 4 辺の中点を結ぶ菱形 |
 | `hexagon` | 幅の 1/4 で折れる六角形 |
 | `parallelogram` | 斜辺の水平方向のずれ 26 unit（D2 の固定値。幅の半分まで） |
-| `cylinder` | 上の蓋の手前の縁（上端から 2 × 24 unit）から、下の蓋の上端（下端から 24 unit）までの胴体。24 unit は D2 の固定値（高さの 1/3 まで） |
+| `cylinder` | 上の蓋の手前の縁（上端から 2 × 蓋の深さ）から、下の蓋の上端（下端から蓋の深さ）までの胴体。蓋の深さは高さ 100 unit 以上で D2 の 24 unit、それより低いと 32 unit の 2 unit まで線形に浅くなる（#516）。入らない高さには、診断のヒントが必要な最小の `props.height` を示す |
 | `document` | 波形の下端より上（高さの 14 / 18.925） |
 | `label`（shape `text`） | 図形がないので検査しない |
 | カスタム輪郭（manifest の `render.type: outline`） | renderer が実際の footprint に返す `safeArea` の矩形。台形の斜辺・stack の前面レイヤーなどを考慮する |
