@@ -86,7 +86,7 @@ export function buildSetCatalog() {
   return {
     path: "sets",
     description:
-      "Set enclosures for Venn diagrams and hyperedges: a tinted circle, ellipse (axis-parallel, or tilted with angle: auto or a number of degrees), rounded hull or rounded rectangle fitted around nodes and groups after they are placed. A node can be a member of several sets; sets may overlap (the fills are opaque pale tones; an overlap is painted in the product of the fills), are drawn below nodes and edges, take no space in the arrange trees and need the structured layout. Place the members with arrange (place for exact positions); a node inside the outline that is not a member is reported (geometry/set-contains-non-member).",
+      "Set enclosures for Venn diagrams and hyperedges: a tinted circle, ellipse (axis-parallel, or tilted with angle: auto or a number of degrees), rounded hull or rounded rectangle fitted around nodes and groups after they are placed. A node can be a member of several sets; sets may overlap (the fills are opaque pale tones; an overlap is painted in the product of the fills), are drawn below nodes and edges, take no space in the arrange trees and need the structured layout. Place the members with arrange (place for exact positions); a node inside the outline that is not a member is reported (geometry/set-contains-non-member), as is one the outline cuts (geometry/set-outline-crosses-node); minWidth / minHeight give an outline a least size.",
     shapes: [...SET_SHAPES],
     variants: [...SET_VARIANTS],
     labelAt: [...SET_LABEL_POSITIONS],

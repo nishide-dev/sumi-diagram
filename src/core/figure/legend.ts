@@ -72,7 +72,7 @@ export interface LegendEntry {
     lineWidth?: number;
     arrowheadScale?: number;
   };
-  node?: { component?: string; variant?: string; tone?: Tone };
+  node?: { component?: string; variant?: string; tone?: Tone; cornerRadius?: number };
   /** A matrix class (#180): `<matrix>.<class>`. */
   class?: string;
   /** An icon sample (#409), e.g. `tabler/file-text`. */
@@ -654,6 +654,7 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
           box.props = sampleBoxSize(resolved.value, sizes);
         }
         if (fields.tone !== undefined) box.tone = fields.tone;
+        if (fields.cornerRadius !== undefined) box.cornerRadius = fields.cornerRadius;
         addNode(box, boxPath, `the sample box ${of}`);
         expansion.entries.push({
           kind: "node",

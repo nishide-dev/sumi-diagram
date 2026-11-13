@@ -8,6 +8,7 @@
 import { validRange } from "semver";
 import { z } from "zod";
 import { ICON_REF_MAX_LENGTH, ICON_REF_PATTERN } from "../../assets/icon-ref";
+import { SizeLength } from "../registry/length";
 import { PALETTE_NAMES } from "../theme/palette";
 import { TEXT_SCALE_MAX, TEXT_SCALE_MIN, TEXT_SCALE_STEP } from "../theme/text-scale";
 import { TONE_NAMES } from "../theme/tones";
@@ -267,7 +268,7 @@ const CORNER_RADIUS_VALUES = Array.from({ length: 21 }, (_, i) => String(i / 2))
 const CORNER_RADIUS_PATTERN = new RegExp(
   `^(?:${CORNER_RADIUS_VALUES.map((v) => v.replace(".", "\\.")).join("|")})pt$`,
 );
-const CornerRadius = z
+export const CornerRadius = z
   .string()
   .regex(CORNER_RADIUS_PATTERN, {
     error: `A corner radius is a multiple of 0.5pt from 0pt to ${CORNER_RADIUS_MAX_PT}pt, in pt, e.g. "3pt".`,
@@ -1181,6 +1182,12 @@ export const SetSchema = z.strictObject({
     ),
   padding: LayoutLength.optional().describe(
     "Room between the members and the outline. Omitted means the profile's group padding.",
+  ),
+  minWidth: SizeLength.optional().describe(
+    'Least width of the outline (circle, ellipse or rect, not hull), e.g. "50mm", rounded to the nearest 0.5pt like a component width: a smaller fit grows about its center, so sets can share one size without hidden anchor nodes. A tilted ellipse takes it along its first axis; a circle takes the larger of minWidth and minHeight.',
+  ),
+  minHeight: SizeLength.optional().describe(
+    "Least height of the outline (circle, ellipse or rect, not hull), as minWidth (positive, rounded to 0.5pt). A tilted ellipse takes it along its second axis.",
   ),
   fillOpacity: z
     .number()
