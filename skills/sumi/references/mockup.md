@@ -34,7 +34,8 @@ any theme.
 Fill these CSS variables in [mockup-template.html](mockup-template.html) (a page at the real
 size, boxes positioned in mm, an inline SVG layer for arrows): `--canvas`; `--ink` and the
 tone fills and lines from the probe; `--font`; `--fs-node`, `--fs-group`, `--fs-edge` in pt
-(`fontSizePt.base` times the profile's `textScale`, `figure.themeOverrides.textScale`);
+(`fontSizePt.base` times `figure.themeOverrides.textScale`, rounded to 0.5pt as Sumi does; the
+catalog's `textScaleFor` gives the scale a profile needs);
 `--frame-w` and `--edge-w` in pt (the theme's line widths: `themeOverrides` `frameWidth` / `lineWidth` when set, else
 measure the probe SVG's `stroke-width` against its width in mm; `paper` draws 1pt frames and 0.5pt edges);
 `--arrow` (the arrowhead's colour: the edge colour). Nothing in the page uses a literal colour.
@@ -42,8 +43,8 @@ measure the probe SVG's `stroke-width` against its width in mm; `paper` draws 1p
 ## 2. Draw only what Sumi can draw
 
 Real size: the page is the figure's width and height in CSS `mm` (`@page` and a `#fig` box), text
-in `pt` (`calc(8 * 0.3528mm)`), lines 0.75pt. Position everything in mm so a coordinate maps to
-`place` (`unit: 1mm`). Inside inline SVG one user unit is 1mm: `stroke-width` 0.265 is 0.75pt, and
+in `pt` via the `--fs-*` variables, lines via `--frame-w` / `--edge-w`. Position everything in mm so a
+coordinate maps to `place` (`unit: 1mm`). Inside inline SVG one user unit is 1mm (1pt = 0.3528mm), and
 use `markerUnits="userSpaceOnUse"` for arrowheads.
 
 Vocabulary (confirm names with `sumi catalog --json`, never invent):
@@ -74,14 +75,14 @@ same everywhere.
 Chrome headless at 3 device pixels per CSS px (1mm = 3.78px; window = mm * 3.78, rounded up):
 
 ```sh
-"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless --disable-gpu \
-  --hide-scrollbars --force-device-scale-factor=3 --window-size=605,378 \
-  --screenshot="$PWD/mockup.png" "file://$PWD/mockup.html"   # 160 x 100mm
+chrome="${SUMI_CHROME:-$(command -v google-chrome || command -v chromium || echo "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")}"
+url="$(python3 -c 'import pathlib,sys; print(pathlib.Path(sys.argv[1]).resolve().as_uri())' mockup.html)"
+"$chrome" --headless --disable-gpu --hide-scrollbars --force-device-scale-factor=3 \
+  --window-size=605,378 --screenshot="$PWD/mockup.png" "$url"   # 160 x 100mm
 ```
 
-The executable is `$SUMI_CHROME`, else `google-chrome` / `chromium` on `PATH`, else the macOS path
-above; quote it, and percent-encode the file URL if the path has spaces or non-ASCII characters
-(`scripts/preview` finds the same binaries but rasterises SVG only, not HTML). Open the PNG with Read. Without Chrome: the mockup is a disposable sketch, not a deliverable (SKILL.md's rule against
+The first line picks `$SUMI_CHROME`, else `google-chrome` / `chromium` on `PATH`, else the macOS
+path; the second builds a percent-encoded `file://` URL (`scripts/preview` finds the same binaries but rasterises SVG only, not HTML). Open the PNG with Read. Without Chrome: the mockup is a disposable sketch, not a deliverable (SKILL.md's rule against
 drawing SVG is about the figure itself), so you may write it as plain SVG at real size and
 rasterise it with `scripts/preview` (Quick Look, or `rsvg-convert`, which ignores embedded fonts:
 judge layout, not typography). With no rasteriser at all, write the sketch as a table of boxes
