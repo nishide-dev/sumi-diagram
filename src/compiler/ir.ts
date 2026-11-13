@@ -763,6 +763,12 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
                     shaft: component.props.shaft,
                   }),
                 }),
+                ...(component.manifest.render.renderer === "sumi/state-marker" && {
+                  em: style.fontSize.units,
+                  ...(typeof component.props.size === "number" && {
+                    size: component.props.size * 2,
+                  }),
+                }),
                 ...(component.manifest.render.renderer === "sumi/trapezoid" &&
                   typeof component.props.narrow === "string" &&
                   component.props.narrow !== "south" && { narrow: component.props.narrow }),
