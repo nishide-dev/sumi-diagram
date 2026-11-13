@@ -4,11 +4,14 @@
  */
 import { expect, test } from "bun:test";
 import { stringify } from "yaml";
+import type { Point } from "../layout/ir";
 import { checkRoutes } from "../layout/route/check";
 import type { Cubic } from "../layout/route/cubic";
 import { lintRenderedFigure } from "../lint";
 import { svgToPdf } from "./pdf";
+import { inspectPdf, textLines } from "./pdf/testing";
 import { svgToEditablePptx } from "./pptx";
+import { readPptx } from "./pptx/testing";
 import { renderFigure } from "./render";
 
 function figure(edge: Record<string, unknown>, component = "box") {
@@ -123,8 +126,82 @@ test("a loop survives PDF and editable PPTX as a curve; glued connectors refuse 
   const r = await render(figure({ label: "retry" }));
   const pdf = svgToPdf(r.svg);
   expect(pdf.ok).toBe(true);
+  if (!pdf.ok) throw new Error("pdf");
+  expect(inspectPdf(pdf.value).images).toBe(0);
+  expect(textLines(inspectPdf(pdf.value).glyphs).some((l) => l.text === "retry")).toBe(true);
   const freeform = svgToEditablePptx(r.svg, r.compiled.ir);
   expect(freeform.ok).toBe(true);
+  if (!freeform.ok) throw new Error("pptx");
+  const xml = new TextDecoder().decode(readPptx(freeform.value).get("ppt/slides/slide1.xml"));
+  expect(xml).toContain("a:cubicBezTo");
+  // The SVG's arrowhead on the loop has its tip at the loop's end and points along the end tangent.
+  const p = loopOf(r)?.route?.points as Cubic;
+  const length = Math.hypot(p[3].x - p[2].x, p[3].y - p[2].y);
+  const dir = { x: (p[3].x - p[2].x) / length, y: (p[3].y - p[2].y) / length };
+  const heads = [...r.svg.matchAll(/<polygon points="([^"]+)" fill="[^"]+" stroke="none"/g)].map(
+    (m) =>
+      (m[1] as string).split(" ").map((pt) => {
+        const [x, y] = pt.split(",").map(Number);
+        return { x: x as number, y: y as number };
+      }),
+  );
+  const head = heads.find(
+    (h) => Math.hypot((h[0] as Point).x - p[3].x, (h[0] as Point).y - p[3].y) < 0.5,
+  );
+  expect(head).toBeDefined();
+  if (head === undefined) return;
+  const baseMid = {
+    x: ((head[1] as Point).x + (head[2] as Point).x) / 2,
+    y: ((head[1] as Point).y + (head[2] as Point).y) / 2,
+  };
+  const back = Math.hypot((head[0] as Point).x - baseMid.x, (head[0] as Point).y - baseMid.y);
+  const along =
+    (((head[0] as Point).x - baseMid.x) * dir.x + ((head[0] as Point).y - baseMid.y) * dir.y) /
+    back;
+  expect(along).toBeGreaterThan(0.99);
+  expect(dir.y).toBeGreaterThan(0.5); // entering the north side: pointing down
   const glued = svgToEditablePptx(r.svg, r.compiled.ir, { connectors: "glued" });
   expect(glued.diagnostics.some((d) => d.code === "pptx/unsupported-geometry")).toBe(true);
+});
+
+test("a loop that overflows the content moves the sets with the nodes", async () => {
+  const text = (loop: boolean) =>
+    stringify({
+      version: 1,
+      figure: {
+        id: "loop-set",
+        theme: "sumi",
+        profile: "paper-double",
+        layout: { arrange: { row: { gap: "12mm", items: ["a", "b"] } } },
+      },
+      nodes: [
+        { id: "a", component: "box", label: "Agent" },
+        { id: "b", component: "box", label: "Tool" },
+      ],
+      sets: [
+        { id: "s", members: ["a"], shape: "rect", label: "Loop" },
+        { id: "t", members: ["b"], shape: "circle" },
+        { id: "u", members: ["a", "b"], shape: "hull" },
+        { id: "v", members: ["a"], shape: "ellipse" },
+      ],
+      edges: [
+        { from: "a", to: "b" },
+        ...(loop ? [{ from: "a", to: "a", route: "curve", label: "repeat many times over" }] : []),
+      ],
+    });
+  const plain = await render(text(false));
+  const looped = await render(text(true));
+  const nodeA = (r: typeof plain) => r.layout.nodes.find((n) => n.key === "n:a")?.rect;
+  const dx = (nodeA(looped)?.x ?? 0) - (nodeA(plain)?.x ?? 0);
+  const dy = (nodeA(looped)?.y ?? 0) - (nodeA(plain)?.y ?? 0);
+  expect(dx !== 0 || dy !== 0).toBe(true); // the loop did overflow and move everything
+  for (const set of plain.layout.sets ?? []) {
+    const moved = looped.layout.sets?.find((s) => s.id === set.id);
+    expect(moved?.rect.x).toBeCloseTo(set.rect.x + dx, 1);
+    expect(moved?.rect.y).toBeCloseTo(set.rect.y + dy, 1);
+    if (set.label !== undefined) {
+      expect(moved?.label?.anchor.x).toBeCloseTo(set.label.anchor.x + dx, 1);
+      expect(moved?.label?.anchor.y).toBeCloseTo(set.label.anchor.y + dy, 1);
+    }
+  }
 });

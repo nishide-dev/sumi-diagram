@@ -41,7 +41,7 @@ export interface DimColors {
 }
 
 /** `#rgb` / `#rrggbb` as lowercase `#rrggbb`; `transparent` as it is. */
-function expandColor(color: Color): Color {
+export function expandColor(color: Color): Color {
   if (color === "transparent") return color;
   const hex = color.length === 4 ? [...color.slice(1)].map((c) => c + c).join("") : color.slice(1);
   return `#${hex.toLowerCase()}`;
@@ -84,6 +84,12 @@ export function dimStyle<S extends ResolvedStyle>(
     // Hatch lines (#180) are lines.
     ...("hatch" in style && style.hatch !== undefined && { hatch: dim.stroke }),
   };
+  // A muted sublabel (#519) is dimmed with its label.
+  if (style.kind === "node" && style.sublabel?.fontColor !== undefined)
+    (dimmed as { sublabel?: unknown }).sublabel = {
+      ...style.sublabel,
+      fontColor: dimmed.fontColor,
+    };
   return Object.freeze(dimmed);
 }
 

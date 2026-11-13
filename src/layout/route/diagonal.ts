@@ -5,7 +5,7 @@ import type { Diagnostic } from "../../core/diagnostics";
 import { getOutlineRenderer } from "../../core/outline";
 import { segmentCrossesRegion } from "../../lint/geometry/edges";
 import { rectPolygon } from "../../lint/geometry/shapes";
-import type { EdgeLayout, LayoutIR, Point, Rect, TextLayout } from "../ir";
+import type { EdgeLayout, LayoutIR, Point, Rect, SetOutline, TextLayout } from "../ir";
 import { roundUnits } from "../ir";
 import { edgeArrowheadLength } from "./arrowhead";
 import { sampleCubic } from "./cubic";
@@ -316,6 +316,14 @@ function growForStraightLabels(layout: LayoutIR): LayoutIR {
             },
           },
     ),
+    ...(layout.sets && {
+      sets: layout.sets.map((set) => ({
+        ...set,
+        rect: rect(set.rect),
+        outline: shiftOutline(set.outline, dx, dy),
+        ...(set.label && { label: text(set.label) }),
+      })),
+    }),
     ...(layout.nets && {
       nets: layout.nets.map((n) => ({
         ...n,
@@ -323,4 +331,24 @@ function growForStraightLabels(layout: LayoutIR): LayoutIR {
       })),
     }),
   };
+}
+
+/** A set outline (#407) moved by (dx, dy), like the nodes it encloses. */
+function shiftOutline(outline: SetOutline, dx: number, dy: number): SetOutline {
+  const at = (p: Point): Point => ({ x: roundUnits(p.x + dx), y: roundUnits(p.y + dy) });
+  switch (outline.kind) {
+    case "ellipse":
+      return { ...outline, cx: roundUnits(outline.cx + dx), cy: roundUnits(outline.cy + dy) };
+    case "rect":
+      return { ...outline, rect: { ...outline.rect, ...at(outline.rect) } };
+    case "path":
+      return {
+        kind: "path",
+        segments: outline.segments.map((seg) =>
+          seg.command === "C"
+            ? { command: "C", c1: at(seg.c1), c2: at(seg.c2), to: at(seg.to) }
+            : { command: seg.command, to: at(seg.to) },
+        ),
+      };
+  }
 }

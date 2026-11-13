@@ -84,6 +84,67 @@ test("the roles follow textScale and the sizes reach the PDF and the editable PP
   const slideXml = new TextDecoder().decode(readPptx(pptx.value).get("ppt/slides/slide1.xml"));
   expect(slideXml).toMatch(/sz="2400"[^>]*b="1"/);
   expect(slideXml).toMatch(/sz="1400"/);
+  // The styled sublabel (7/8 of 8pt x 2 = 14pt), regular and muted, in the PDF and the PPTX.
+  const detail = textLines(inspectPdf(pdf.value).glyphs).find((l) => l.text === "detail");
+  expect(detail?.size).toBeCloseTo(14, 3);
+  const glyph = inspectPdf(pdf.value).glyphs.find((g) => g.text === "d" && g.size === 14);
+  expect(glyph?.font).not.toMatch(/bold/i);
+  expect(glyph?.color?.map((c) => Math.round(c * 255))).toEqual([0x4e, 0x56, 0x6b]);
+  const run = /<a:r><a:rPr[^>]*>(?:(?!<\/a:r>).)*detail<\/a:t><\/a:r>/s.exec(slideXml)?.[0] ?? "";
+  expect(run).toContain('sz="1400"');
+  expect(run).not.toContain('b="1"');
+  expect(run.toLowerCase()).toContain("4e566b");
+});
+
+/** WCAG contrast of two #rrggbb colors. */
+function ratio(a: string, b: string): number {
+  const lum = (c: string) => {
+    const v = [1, 3, 5].map((o) => {
+      const x = Number.parseInt(c.slice(o, o + 2), 16) / 255;
+      return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * (v[0] ?? 0) + 0.7152 * (v[1] ?? 0) + 0.0722 * (v[2] ?? 0);
+  };
+  const [x, y] = [lum(a), lum(b)];
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+}
+
+test("a muted sublabel reads on solid, emphasis, tinted, overridden and dimmed fills", async () => {
+  const nodes = [
+    "  - { id: a, component: box, label: A, sublabel: s, sublabelInk: muted, variant: solid, tone: blue }",
+    "  - { id: b, component: box, label: B, sublabel: s, sublabelInk: muted, variant: emphasis }",
+    "  - { id: c, component: box, label: C, sublabel: s, sublabelInk: muted, variant: tinted, tone: orange }",
+    "  - { id: d, component: box, label: D, sublabel: s, sublabelInk: muted, variant: tinted, tone: green }",
+    "  - { id: e, component: box, label: E, sublabel: s, sublabelInk: muted, variant: filled, tone: gray }",
+  ].join("\n");
+  let checked = 0;
+  for (const theme of ["sumi", "sumi-dark", "color", "paper"]) {
+    for (const extra of ["", "  themeOverrides: { tones: { blue: { fill: '#1d3557' } } }\n"]) {
+      const text = source(extra, `${nodes}\n`).replace("theme: sumi", `theme: ${theme}`);
+      const result = await renderFigure(text);
+      if (!result.ok) continue; // a theme without these variants is not this test's subject
+      const { ir } = result.value.compiled;
+      for (const node of ir.nodes) {
+        const ink = node.style.sublabel?.fontColor;
+        if (ink === undefined || !/^#[0-9a-f]{6}$/i.test(node.style.fill)) continue;
+        checked++;
+        expect(ratio(ink, node.style.fill), `${theme} ${node.id}`).toBeGreaterThanOrEqual(3);
+      }
+    }
+  }
+  expect(checked).toBeGreaterThanOrEqual(20);
+  // Dimming: the sublabel follows the dim ink with its label.
+  const dimmed = await render(
+    `version: 1
+figure: { id: d, theme: sumi, profile: paper-double, layout: { arrange: { stack: { items: [g] } } } }
+groups:
+  - { id: g, dim: true, arrange: { stack: { items: [a] } } }
+nodes:
+  - { id: a, component: box, label: A, sublabel: s, sublabelInk: muted }
+`,
+  );
+  const a = dimmed.compiled.ir.nodes.find((n) => n.id === "a");
+  expect(a?.style.sublabel?.fontColor).toBe(a?.style.fontColor);
 });
 
 test("text-too-small reads the role's size", async () => {
