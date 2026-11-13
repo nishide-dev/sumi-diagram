@@ -1,0 +1,452 @@
+{
+  "scores": [
+    {
+      "code": "1d1",
+      "request": "1-vit-block",
+      "stage": "draft1",
+      "condition": "A",
+      "note": "矢印が必要のない迂回をしていたり、赤色位置が縦方向に揃っていなかったりする。sumiのテーマカラーにあまり沿っていない",
+      "overall": "no"
+    },
+    {
+      "code": "1d2",
+      "request": "1-vit-block",
+      "stage": "draft1",
+      "condition": "B",
+      "note": "sumiのテーマカラーにはある程度沿っているように見える。迂回が発生している矢印を直したりMLP headの位置の調整などが必要",
+      "overall": "minor"
+    },
+    {
+      "code": "1f1",
+      "request": "1-vit-block",
+      "stage": "final",
+      "condition": "A",
+      "align": 4,
+      "color": 2,
+      "comp": 4,
+      "content": 4,
+      "fit": 4,
+      "note": "色があまりsumiぽくないくらい。",
+      "overall": "minor",
+      "read": 4
+    },
+    {
+      "code": "1f2",
+      "request": "1-vit-block",
+      "stage": "final",
+      "condition": "B",
+      "align": 5,
+      "color": 4,
+      "comp": 5,
+      "content": 4,
+      "fit": 4,
+      "overall": "asis",
+      "read": 4
+    },
+    {
+      "code": "2d1",
+      "request": "2-web-system",
+      "stage": "draft1",
+      "condition": "A",
+      "note": "横長になりすぎてバランスが悪い。右上によりすぎている。色は良い",
+      "overall": "no"
+    },
+    {
+      "code": "2d2",
+      "request": "2-web-system",
+      "stage": "draft1",
+      "condition": "B",
+      "note": "あまり色はsumiに合っていない気もするが図自体はそこそこ見やすい",
+      "overall": "minor"
+    },
+    {
+      "code": "2f1",
+      "request": "2-web-system",
+      "stage": "final",
+      "condition": "A",
+      "align": 3,
+      "color": 4,
+      "comp": 3,
+      "content": 4,
+      "fit": 3,
+      "note": "色は悪くない。矢印の無駄がある。色はsumiっぽい。",
+      "overall": "minor",
+      "read": 3
+    },
+    {
+      "code": "2f2",
+      "request": "2-web-system",
+      "stage": "final",
+      "condition": "B",
+      "align": 4,
+      "color": 3,
+      "comp": 4,
+      "content": 4,
+      "fit": 4,
+      "note": "若干矢印の無駄があるくらい。",
+      "overall": "minor",
+      "read": 4
+    },
+    {
+      "code": "3d1",
+      "request": "3-data-pipeline",
+      "stage": "draft1",
+      "condition": "A",
+      "note": "横向きのパイプラインとしては綺麗。な一方で物足りない印象を受ける",
+      "overall": "minor"
+    },
+    {
+      "code": "3d2",
+      "request": "3-data-pipeline",
+      "stage": "draft1",
+      "condition": "B",
+      "note": "字が被っていたり、パイプラインとしてベースは1方向になっていたほうが良いきがするがあまりパイプライン感が薄い",
+      "overall": "no"
+    },
+    {
+      "code": "3f1",
+      "request": "3-data-pipeline",
+      "stage": "final",
+      "condition": "B",
+      "align": 3,
+      "color": 3,
+      "comp": 3,
+      "content": 3,
+      "fit": 4,
+      "note": "あまりパイプライン感がない",
+      "overall": "no",
+      "read": 3
+    },
+    {
+      "code": "3f2",
+      "request": "3-data-pipeline",
+      "stage": "final",
+      "condition": "A",
+      "align": 3,
+      "color": 3,
+      "comp": 4,
+      "content": 4,
+      "fit": 3,
+      "note": "パイプライン感があるのは良い。余白が多い（内容的にしょうがない気がしますが）",
+      "overall": "minor",
+      "read": 4
+    },
+    {
+      "code": "4d1",
+      "request": "4-train-infer",
+      "stage": "draft1",
+      "condition": "A",
+      "note": "四角お大きさが違ったり文字が被っていたりバランスがおかしかったりする",
+      "overall": "no"
+    },
+    {
+      "code": "4d2",
+      "request": "4-train-infer",
+      "stage": "draft1",
+      "condition": "B",
+      "note": "矢印がおかしいが構成としては悪くない",
+      "overall": "no"
+    },
+    {
+      "code": "4f1",
+      "request": "4-train-infer",
+      "stage": "final",
+      "condition": "B",
+      "align": 4,
+      "color": 4,
+      "comp": 4,
+      "content": 4,
+      "fit": 4,
+      "note": "良い。",
+      "overall": "asis",
+      "read": 4
+    },
+    {
+      "code": "4f2",
+      "request": "4-train-infer",
+      "stage": "final",
+      "condition": "A",
+      "align": 2,
+      "color": 2,
+      "comp": 2,
+      "content": 3,
+      "fit": 3,
+      "note": "色があまりsumiポックない。矢印の無駄が多い。",
+      "overall": "no",
+      "read": 2
+    },
+    {
+      "code": "5d1",
+      "request": "5-agent-loop",
+      "stage": "draft1",
+      "condition": "A",
+      "note": "矢印の無駄が多い。色がsumiっぽくない",
+      "overall": "no"
+    },
+    {
+      "code": "5d2",
+      "request": "5-agent-loop",
+      "stage": "draft1",
+      "condition": "B",
+      "note": "色はsumiっぽいが矢印の無駄が多い",
+      "overall": "no"
+    },
+    {
+      "code": "5f1",
+      "request": "5-agent-loop",
+      "stage": "final",
+      "condition": "B",
+      "align": 3,
+      "color": 4,
+      "comp": 4,
+      "content": 4,
+      "fit": 4,
+      "note": "悪くないfinal answerの位置は気になる",
+      "overall": "minor",
+      "read": 4
+    },
+    {
+      "code": "5f2",
+      "request": "5-agent-loop",
+      "stage": "final",
+      "condition": "A",
+      "align": 3,
+      "color": 2,
+      "comp": 3,
+      "content": 3,
+      "fit": 3,
+      "note": "色がsumiっぽくない。",
+      "overall": "minor",
+      "read": 3
+    },
+    {
+      "code": "6d1",
+      "request": "6-rag-compare",
+      "stage": "draft1",
+      "condition": "B",
+      "note": "色があまりsumiっぽくない。re-rankingの外枠の大きさが合っていない。",
+      "overall": "minor"
+    },
+    {
+      "code": "6d2",
+      "request": "6-rag-compare",
+      "stage": "draft1",
+      "condition": "A",
+      "note": "色や流れはわかりやすい。少し物足りない印象くらい。",
+      "overall": "minor"
+    },
+    {
+      "code": "6f1",
+      "request": "6-rag-compare",
+      "stage": "final",
+      "condition": "A",
+      "align": 4,
+      "color": 4,
+      "comp": 4,
+      "content": 4,
+      "fit": 4,
+      "note": "悪くない",
+      "overall": "asis",
+      "read": 4
+    },
+    {
+      "code": "6f2",
+      "request": "6-rag-compare",
+      "stage": "final",
+      "condition": "B",
+      "align": 3,
+      "color": 3,
+      "comp": 3,
+      "content": 4,
+      "fit": 3,
+      "note": "コンポーネント間の矢印が詰まっているところが気になる",
+      "overall": "minor",
+      "read": 3
+    },
+    {
+      "code": "7d1",
+      "request": "7-request-states",
+      "stage": "draft1",
+      "condition": "A",
+      "note": "色があまりsumiっぽくない矢印の無駄が多い。スペースの無駄も多い。",
+      "overall": "no"
+    },
+    {
+      "code": "7d2",
+      "request": "7-request-states",
+      "stage": "draft1",
+      "condition": "B",
+      "note": "矢印の無駄が多い",
+      "overall": "no"
+    },
+    {
+      "code": "7f1",
+      "request": "7-request-states",
+      "stage": "final",
+      "condition": "A",
+      "align": 2,
+      "color": 2,
+      "comp": 2,
+      "content": 3,
+      "fit": 2,
+      "note": "色があまり良くない。矢印の無駄が多い。",
+      "overall": "no",
+      "read": 2
+    },
+    {
+      "code": "7f2",
+      "request": "7-request-states",
+      "stage": "final",
+      "condition": "B",
+      "align": 3,
+      "color": 4,
+      "comp": 3,
+      "content": 3,
+      "fit": 3,
+      "overall": "minor",
+      "read": 3
+    },
+    {
+      "code": "8d1",
+      "request": "8-method-taxonomy",
+      "stage": "draft1",
+      "condition": "B",
+      "note": "少し文字が被っていたりする",
+      "overall": "minor"
+    },
+    {
+      "code": "8d2",
+      "request": "8-method-taxonomy",
+      "stage": "draft1",
+      "condition": "A",
+      "note": "文字が被っている。separaterの位置がいまいち",
+      "overall": "no"
+    },
+    {
+      "code": "8f1",
+      "request": "8-method-taxonomy",
+      "stage": "final",
+      "condition": "B",
+      "align": 4,
+      "color": 3,
+      "comp": 4,
+      "content": 4,
+      "fit": 4,
+      "note": "悪くない",
+      "overall": "asis",
+      "read": 4
+    },
+    {
+      "code": "8f2",
+      "request": "8-method-taxonomy",
+      "stage": "final",
+      "condition": "A",
+      "align": 3,
+      "color": 3,
+      "comp": 3,
+      "content": 4,
+      "fit": 4,
+      "note": "区切りがあるのはわかりやすい。一方で楕円の方が良いと思う。",
+      "overall": "no",
+      "read": 3
+    }
+  ],
+  "prefs": [
+    {
+      "request": "1-vit-block",
+      "stage": "draft1",
+      "pick": "2",
+      "condition": "B"
+    },
+    {
+      "request": "1-vit-block",
+      "stage": "final",
+      "pick": "2",
+      "condition": "B"
+    },
+    {
+      "request": "2-web-system",
+      "stage": "draft1",
+      "pick": "2",
+      "condition": "B"
+    },
+    {
+      "request": "2-web-system",
+      "stage": "final",
+      "pick": "2",
+      "condition": "B"
+    },
+    {
+      "request": "3-data-pipeline",
+      "stage": "draft1",
+      "pick": "1",
+      "condition": "A"
+    },
+    {
+      "request": "3-data-pipeline",
+      "stage": "final",
+      "pick": "2",
+      "condition": "A"
+    },
+    {
+      "request": "4-train-infer",
+      "stage": "draft1",
+      "pick": "2",
+      "condition": "B"
+    },
+    {
+      "request": "4-train-infer",
+      "stage": "final",
+      "pick": "1",
+      "condition": "B"
+    },
+    {
+      "request": "5-agent-loop",
+      "stage": "draft1",
+      "pick": "same",
+      "condition": "same"
+    },
+    {
+      "request": "5-agent-loop",
+      "stage": "final",
+      "pick": "1",
+      "condition": "B"
+    },
+    {
+      "request": "6-rag-compare",
+      "stage": "draft1",
+      "pick": "2",
+      "condition": "A"
+    },
+    {
+      "request": "6-rag-compare",
+      "stage": "final",
+      "pick": "1",
+      "condition": "A"
+    },
+    {
+      "request": "7-request-states",
+      "stage": "draft1",
+      "pick": "same",
+      "condition": "same"
+    },
+    {
+      "request": "7-request-states",
+      "stage": "final",
+      "pick": "2",
+      "condition": "B"
+    },
+    {
+      "request": "8-method-taxonomy",
+      "stage": "draft1",
+      "pick": "1",
+      "condition": "B"
+    },
+    {
+      "request": "8-method-taxonomy",
+      "stage": "final",
+      "pick": "1",
+      "condition": "B"
+    }
+  ]
+}

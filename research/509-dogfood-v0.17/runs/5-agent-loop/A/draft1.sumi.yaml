@@ -1,0 +1,55 @@
+version: 1
+figure:
+  id: agent-loop
+  theme: sumi
+  profile: paper-double
+  target: { minFontSize: 9pt }
+  layout:
+    arrange:
+      grid:
+        columns: 4
+        rowGap: 8mm
+        columnGap: 10mm
+        items:
+          - null
+          - memory
+          - null
+          - null
+          - { stack: { gap: 6mm, items: [ request, answer ] } }
+          - llm
+          - plan
+          - tools
+          - null
+          - observation
+          - null
+          - environment
+groups:
+  - id: memory
+    label: Memory
+    arrange:
+      row: { gap: 4mm, items: [ short-term, long-term ] }
+  - id: tools
+    label: Tools
+    arrange:
+      stack: { gap: 3mm, align: stretch, items: [ search, code, files ] }
+nodes:
+  - { id: request, component: parallelogram, label: User request }
+  - { id: answer, component: parallelogram, label: Final answer }
+  - { id: llm, component: box, label: LLM, variant: solid, tone: blue }
+  - { id: plan, component: box, label: Plan, variant: tinted, tone: blue }
+  - { id: search, component: box, label: Search }
+  - { id: code, component: box, label: Code execution }
+  - { id: files, component: box, label: Files }
+  - { id: environment, component: box, label: Environment, tone: green }
+  - { id: observation, component: box, label: Observation, variant: tinted, tone: blue }
+  - { id: short-term, component: cylinder, label: "Short-term\n(context)", tone: orange }
+  - { id: long-term, component: cylinder, label: "Long-term\n(store)", tone: orange }
+edges:
+  - { from: request, to: llm }
+  - { from: llm, to: plan, variant: emphasis }
+  - { from: plan, to: tools, label: tool call, variant: emphasis }
+  - { from: tools, to: environment, label: act, variant: emphasis }
+  - { from: environment, to: observation, label: result, variant: emphasis }
+  - { from: observation, to: llm, variant: emphasis }
+  - { from: llm, to: answer, label: done }
+  - { from: llm, to: memory, component: double-arrow, variant: dashed, label: read / write }

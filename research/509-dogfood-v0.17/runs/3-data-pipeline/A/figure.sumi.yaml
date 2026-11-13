@@ -1,0 +1,40 @@
+version: 1
+figure:
+  id: data-pipeline
+  title: Data pipeline with a monitoring feedback loop
+  theme: sumi
+  profile: paper-double
+  target: { minFontSize: 9pt }
+  layout:
+    arrange:
+      grid:
+        columns: 7
+        rowGap: 6mm
+        columnGap: 5mm
+        items: [ ~, ~, ~, ~, ~, ~, monitor, ingest, validate, transform, features, train, evaluate, deploy, ~, quarantine, ~, ~, ~, ~, ~ ]
+groups:
+  - id: ingest
+    label: Ingest
+    arrange:
+      stack: { gap: 3mm, align: stretch, items: [ collect, label ] }
+nodes:
+  - { id: collect, component: box, label: Collect, props: { width: 51pt } }
+  - { id: label, component: box, label: Label, props: { width: 51pt } }
+  - { id: validate, component: box, label: Validate, props: { width: 51pt } }
+  - { id: transform, component: box, label: Transform, props: { width: 51pt } }
+  - { id: features, component: cylinder, label: "Feature\nstore", props: { width: 51pt } }
+  - { id: train, component: box, label: Train, props: { width: 51pt } }
+  - { id: evaluate, component: box, label: Evaluate, props: { width: 51pt } }
+  - { id: deploy, component: box, label: Deploy, variant: emphasis, props: { width: 51pt } }
+  - { id: monitor, component: box, label: Monitor, tone: orange, props: { width: 51pt } }
+  - { id: quarantine, component: cylinder, label: Quarantine, tone: red, props: { width: 56.5pt } }
+edges:
+  - { from: ingest, to: validate }
+  - { from: validate, to: transform }
+  - { from: transform, to: features }
+  - { from: features, to: train }
+  - { from: train, to: evaluate }
+  - { from: evaluate, to: deploy }
+  - { from: deploy, to: monitor }
+  - { from: validate, to: quarantine, label: failed, tone: red }
+  - { from: monitor, to: ingest, toAnchor: north, label: "quality drop: re-collect, relabel", labelAt: middle, tone: orange, variant: dashed }

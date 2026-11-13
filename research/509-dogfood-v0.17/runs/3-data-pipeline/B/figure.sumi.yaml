@@ -1,0 +1,35 @@
+version: 1
+figure:
+  id: data-pipeline
+  theme: sumi
+  profile: paper-double
+  target: { minFontSize: 9pt }
+  layout:
+    arrange:
+      grid:
+        columns: 4
+        columnGap: 10mm
+        rowGap: 7mm
+        items: [ collect, validate, transform, store, labeling, quarantine, ~, ~, monitor, deploy, evaluate, train ]
+nodes:
+  - { id: collect, component: box, label: Collect, props: { width: 74pt, height: 25.5pt } }
+  - { id: validate, component: box, label: Validate, props: { width: 74pt, height: 25.5pt } }
+  - { id: transform, component: box, label: Transform, props: { width: 74pt, height: 25.5pt } }
+  - { id: store, component: cylinder, label: Feature store, props: { width: 74pt, height: 46pt } }
+  - { id: labeling, component: box, label: Labeling, tone: orange, variant: tinted, props: { width: 74pt, height: 25.5pt } }
+  - { id: quarantine, component: cylinder, label: Quarantine, tone: red, variant: tinted, props: { width: 74pt, height: 46pt } }
+  - { id: train, component: box, label: Train, props: { width: 74pt, height: 25.5pt } }
+  - { id: evaluate, component: box, label: Evaluate, props: { width: 74pt, height: 25.5pt } }
+  - { id: deploy, component: box, label: Deploy, variant: emphasis, props: { width: 74pt, height: 25.5pt } }
+  - { id: monitor, component: box, label: Monitor, tone: orange, variant: tinted, props: { width: 74pt, height: 25.5pt } }
+edges:
+  - { from: collect, to: validate }
+  - { from: validate, to: transform }
+  - { from: transform, to: store }
+  - { from: store, to: train }
+  - { from: train, to: evaluate }
+  - { from: evaluate, to: deploy }
+  - { from: deploy, to: monitor }
+  - { from: validate, to: quarantine, tone: red, label: failed checks, labelSide: left }
+  - { from: monitor, to: labeling, tone: orange, variant: dashed, label: quality drop, labelSide: right }
+  - { from: labeling, to: collect, tone: orange, variant: dashed, label: "relabel, recollect", labelSide: right }

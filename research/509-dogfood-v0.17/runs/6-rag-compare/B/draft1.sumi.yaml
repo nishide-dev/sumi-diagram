@@ -1,0 +1,63 @@
+version: 1
+figure:
+  id: rag-compare
+  theme: sumi
+  profile: presentation-16x9
+  target: { minFontSize: 7pt }
+  layout:
+    arrange:
+      stack:
+        gap: 5mm
+        items:
+          - grid:
+              columns: 8
+              rowGap: 7mm
+              columnGap: 4mm
+              align: center
+              items: [ m1, q1, ~, r1, ~, ~, g1, a1, m2, q2, ~, r2, k2, ~, g2, a2, m3, q3, p3, r3, ~, v3, g3, a3 ]
+          - key
+nodes:
+  - { id: m1, component: label, label: Naive RAG, sublabel: retrieve once, textAlign: left }
+  - { id: m2, component: label, label: Re-ranking RAG, sublabel: "re-order, keep the best", textAlign: left }
+  - { id: m3, component: label, label: Agentic RAG, sublabel: "plan, loop, check", textAlign: left }
+  - { id: q1, component: label, label: Query }
+  - { id: q2, component: label, label: Query }
+  - { id: q3, component: label, label: Query }
+  - { id: a1, component: label, label: Answer }
+  - { id: a2, component: label, label: Answer }
+  - { id: a3, component: label, label: Answer }
+  - { id: r1, component: box, label: Retrieve }
+  - { id: r2, component: box, label: Retrieve }
+  - { id: r3, component: box, label: Retrieve }
+  - { id: g1, component: box, label: Generate }
+  - { id: g2, component: box, label: Generate }
+  - { id: g3, component: box, label: Generate }
+  - { id: k2, component: box, label: Re-rank, tone: orange, variant: tinted }
+  - { id: p3, component: box, label: Plan, tone: orange, variant: tinted }
+  - { id: v3, component: box, label: Verify, tone: orange, variant: tinted }
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: row
+      entries:
+        - { node: {}, label: step shared with naive RAG }
+        - { node: { tone: orange, variant: tinted }, label: step the variant adds }
+edges:
+  - { from: q1, to: r1 }
+  - { from: r1, to: g1, label: top-k passages }
+  - { from: g1, to: a1 }
+  - { from: q2, to: r2 }
+  - { from: r2, to: k2 }
+  - { from: k2, to: g2, label: top-n }
+  - { from: g2, to: a2 }
+  - { from: q3, to: p3 }
+  - { from: p3, to: r3 }
+  - { from: r3, to: v3, label: passages }
+  - { from: v3, to: g3 }
+  - { from: g3, to: a3 }
+  - { from: v3, to: r3, fromAnchor: south, toAnchor: south, label: "not enough evidence: re-query" }
+sets:
+  - { id: band1, members: [ m1, q1, r1, g1, a1 ], shape: rect, variant: filled, tone: yellow, fillOpacity: 0.1 }
+  - { id: band2, members: [ m2, q2, r2, k2, g2, a2 ], shape: rect, variant: filled, tone: yellow, fillOpacity: 0.1 }
+  - { id: band3, members: [ m3, q3, p3, r3, v3, g3, a3 ], shape: rect, variant: filled, tone: yellow, fillOpacity: 0.1 }

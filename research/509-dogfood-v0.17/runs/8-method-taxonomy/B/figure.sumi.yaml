@@ -1,0 +1,70 @@
+version: 1
+figure:
+  id: method-taxonomy
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      stack:
+        gap: 5mm
+        items:
+          - place:
+              unit: 1mm
+              items:
+                - { item: spectral-top, at: [ 30, 14.5 ] }
+                - { item: spectral-bottom, at: [ 30, 57.5 ] }
+                - { item: spatial-top, at: [ 68, 14.5 ] }
+                - { item: spatial-bottom, at: [ 68, 57.5 ] }
+                - { item: attention-top, at: [ 106, 14.5 ] }
+                - { item: attention-bottom, at: [ 106, 57.5 ] }
+                - { item: ssl-top, at: [ 144, 14.5 ] }
+                - { item: ssl-bottom, at: [ 144, 57.5 ] }
+                - { item: spectral-side, at: [ 11, 36 ] }
+                - { item: ssl-side, at: [ 163, 36 ] }
+                - { item: spectral-cnn, at: [ 30, 21.5 ] }
+                - { item: chebnet, at: [ 30, 50.5 ] }
+                - { item: graphsage, at: [ 68, 21.5 ] }
+                - { item: gin, at: [ 68, 50.5 ] }
+                - { item: graph-transformer, at: [ 106, 21.5 ] }
+                - { item: san, at: [ 106, 50.5 ] }
+                - { item: dgi, at: [ 144, 21.5 ] }
+                - { item: graphcl, at: [ 144, 50.5 ] }
+                - { item: gcn, at: [ 49, 36 ] }
+                - { item: gat, at: [ 87, 36 ] }
+                - { item: graph-bert, at: [ 125, 36 ] }
+          - key
+nodes:
+  - { id: spectral-top, component: junction, variant: hidden }
+  - { id: spectral-bottom, component: junction, variant: hidden }
+  - { id: spatial-top, component: junction, variant: hidden }
+  - { id: spatial-bottom, component: junction, variant: hidden }
+  - { id: attention-top, component: junction, variant: hidden }
+  - { id: attention-bottom, component: junction, variant: hidden }
+  - { id: ssl-top, component: junction, variant: hidden }
+  - { id: ssl-bottom, component: junction, variant: hidden }
+  - { id: spectral-side, component: junction, variant: hidden }
+  - { id: ssl-side, component: junction, variant: hidden }
+  - { id: spectral-cnn, component: box, label: Spectral CNN }
+  - { id: chebnet, component: box, label: ChebNet }
+  - { id: graphsage, component: box, label: GraphSAGE }
+  - { id: gin, component: box, label: GIN }
+  - { id: graph-transformer, component: box, label: "Graph\nTransformer" }
+  - { id: san, component: box, label: SAN }
+  - { id: dgi, component: box, label: DGI }
+  - { id: graphcl, component: box, label: GraphCL }
+  - { id: gcn, component: box, label: GCN, props: { width: 37pt }, variant: emphasis }
+  - { id: gat, component: box, label: GAT, props: { width: 37pt }, variant: emphasis }
+  - { id: graph-bert, component: box, label: "Graph-\nBERT", props: { width: 37pt }, variant: emphasis }
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: row
+      entries:
+        - { node: {}, label: method in one family }
+        - { node: { variant: emphasis }, label: method in two families (overlap) }
+sets:
+  - { id: spectral, label: "Spectral\ngraph Fourier filters", members: [ spectral-top, spectral-bottom, spectral-side, spectral-cnn, chebnet, gcn ], shape: ellipse, tone: blue }
+  - { id: spatial, label: "Spatial\nneighbour aggregation", members: [ spatial-top, spatial-bottom, gcn, graphsage, gin, gat ], shape: ellipse, tone: green }
+  - { id: attention, label: "Attention\nlearned edge weights", members: [ attention-top, attention-bottom, gat, graph-transformer, san, graph-bert ], shape: ellipse, tone: orange }
+  - { id: ssl, label: "Self-supervised\npretext objectives", members: [ ssl-top, ssl-bottom, graph-bert, dgi, graphcl, ssl-side ], shape: ellipse, tone: purple }

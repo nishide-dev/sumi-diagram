@@ -1,0 +1,76 @@
+version: 1
+figure:
+  id: web-system
+  title: Web service architecture
+  theme: sumi
+  profile: presentation-16x9
+  target:
+    minFontSize: 7pt
+  layout:
+    density: compact
+    arrange:
+      row:
+        gap: 6mm
+        align: center
+        items:
+          - clients
+          - cdn
+          - gateway
+          - row:
+              gap: 14mm
+              items:
+                - stack: { gap: 10mm, items: [ services, async ] }
+                - stack: { gap: 10mm, items: [ data, external ] }
+groups:
+  - id: clients
+    label: Clients
+    variant: muted
+    arrange:
+      stack: { gap: 3mm, align: stretch, items: [ browser, mobile ] }
+  - id: services
+    label: Services
+    arrange:
+      stack: { gap: 3mm, align: stretch, items: [ auth, inventory, order ] }
+  - id: data
+    label: Data
+    variant: muted
+    arrange:
+      stack: { gap: 3mm, align: stretch, items: [ redis, postgres ] }
+  - id: async
+    label: Async processing
+    labelAt: bottom
+    variant: muted
+    arrange:
+      stack: { gap: 8mm, items: [ queue, worker ] }
+  - id: external
+    label: External
+    labelAt: bottom
+    variant: dashed
+    arrange:
+      stack: { items: [ payment ] }
+nodes:
+  - { id: browser, component: box, label: Browser }
+  - { id: mobile, component: box, label: Mobile app }
+  - { id: cdn, component: hexagon, label: CDN }
+  - { id: gateway, component: hexagon, label: "API\ngateway", variant: emphasis }
+  - { id: auth, component: box, label: Auth service }
+  - { id: inventory, component: box, label: Inventory service }
+  - { id: order, component: box, label: Order service }
+  - { id: redis, component: cylinder, label: Redis cache }
+  - { id: postgres, component: cylinder, label: PostgreSQL }
+  - { id: queue, component: stack, label: Message queue }
+  - { id: worker, component: box, label: Async worker }
+  - { id: payment, component: box, label: Payment API }
+edges:
+  - { from: browser, to: cdn }
+  - { from: mobile, to: cdn }
+  - { from: cdn, to: gateway }
+  - { from: gateway, to: auth }
+  - { from: gateway, to: inventory }
+  - { from: gateway, to: order }
+  - { from: auth, to: redis, component: double-arrow }
+  - { from: inventory, to: postgres, component: double-arrow }
+  - { from: order, to: postgres, component: double-arrow }
+  - { from: order, to: queue, label: publish }
+  - { from: queue, to: worker }
+  - { from: worker, to: payment, label: charge, variant: dashed }

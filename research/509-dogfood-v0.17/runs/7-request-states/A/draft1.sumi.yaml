@@ -1,0 +1,36 @@
+version: 1
+figure:
+  id: request-states
+  title: Request lifecycle states
+  theme: sumi
+  profile: paper-double
+  target:
+    minFontSize: 8pt
+  layout:
+    direction: right
+groups:
+  - id: active
+    label: Active (cancellable)
+  - id: terminal
+    label: Terminal states
+nodes:
+  - { id: start, component: junction }
+  - { id: received, component: box, label: Received, group: active }
+  - { id: validating, component: box, label: Validating, group: active }
+  - { id: queued, component: box, label: Queued, group: active }
+  - { id: running, component: box, label: Running, group: active }
+  - { id: retrying, component: box, label: Retrying, group: active }
+  - { id: completed, component: box, label: Completed, variant: solid, tone: green, group: terminal }
+  - { id: failed, component: box, label: Failed, variant: solid, tone: red, group: terminal }
+  - { id: cancelled, component: box, label: Cancelled, variant: solid, tone: gray, group: terminal }
+edges:
+  - { from: start, to: received, label: submit }
+  - { from: received, to: validating, label: accepted }
+  - { from: validating, to: queued, label: valid }
+  - { from: validating, to: failed, label: invalid }
+  - { from: queued, to: running, label: worker free }
+  - { from: running, to: completed, label: success }
+  - { from: running, to: retrying, label: "error, attempts left" }
+  - { from: retrying, to: queued, label: backoff elapsed, variant: dashed }
+  - { from: running, to: failed, label: retries exhausted }
+  - { from: active, to: cancelled, label: cancel }

@@ -1,0 +1,61 @@
+# Taxonomy of graph representation learning methods.
+# Architecture families (spectral, spatial, attention) overlap where a method
+# belongs to two of them; self-supervised learning is a training perspective.
+version: 1
+figure:
+  id: gnn-taxonomy
+  theme: sumi
+  profile: paper-double
+  target: { height: 70mm }
+  layout:
+    arrange:
+      row:
+        gap: 6mm
+        align: stretch
+        items:
+          - stack:
+              gap: 4mm
+              items:
+                - arch-title
+                - place:
+                    unit: 1mm
+                    items:
+                      - { item: spectral-cnn, at: [ 0, -8 ] }
+                      - { item: chebnet, at: [ 0, 8 ] }
+                      - { item: gcn, at: [ 24, 0 ] }
+                      - { item: graphsage, at: [ 46, -8 ] }
+                      - { item: gin, at: [ 46, 8 ] }
+                      - { item: gat, at: [ 68, 0 ] }
+                      - { item: graph-transformer, at: [ 92, -8 ] }
+                      - { item: graphormer, at: [ 92, 8 ] }
+          - divider
+          - stack:
+              gap: 4mm
+              items:
+                - ssl-title
+                - place:
+                    unit: 1mm
+                    items:
+                      - { item: dgi, at: [ 0, -8 ] }
+                      - { item: graphcl, at: [ 0, 8 ] }
+                      - { item: grace, at: [ 22, 0 ] }
+nodes:
+  - { id: arch-title, component: label, label: "Architecture: how neighbours are aggregated" }
+  - { id: ssl-title, component: label, label: "Training: learning without labels" }
+  - { id: divider, component: separator, variant: dashed }
+  - { id: spectral-cnn, component: box, label: Spectral CNN, sublabel: "2014" }
+  - { id: chebnet, component: box, label: ChebNet, sublabel: "2016" }
+  - { id: gcn, component: box, label: GCN, sublabel: "2017", variant: emphasis }
+  - { id: graphsage, component: box, label: GraphSAGE, sublabel: "2017" }
+  - { id: gin, component: box, label: GIN, sublabel: "2019" }
+  - { id: gat, component: box, label: GAT, sublabel: "2018", variant: emphasis }
+  - { id: graph-transformer, component: box, label: "Graph\nTransformer", sublabel: "2020" }
+  - { id: graphormer, component: box, label: Graphormer, sublabel: "2021" }
+  - { id: dgi, component: box, label: DGI, sublabel: "2019" }
+  - { id: graphcl, component: box, label: GraphCL, sublabel: "2020" }
+  - { id: grace, component: box, label: GRACE, sublabel: "2020" }
+sets:
+  - { id: spectral, label: Spectral, members: [ spectral-cnn, chebnet, gcn ], shape: ellipse, tone: blue }
+  - { id: spatial, label: Spatial, members: [ gcn, graphsage, gin, gat ], shape: ellipse, tone: green }
+  - { id: attention, label: Attention, members: [ gat, graph-transformer, graphormer ], shape: ellipse, tone: orange }
+  - { id: self-supervised, label: Self-supervised, members: [ dgi, graphcl, grace ], shape: ellipse, variant: dashed }

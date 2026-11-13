@@ -1,0 +1,198 @@
+# Vision Transformer (ViT): patch embedding, class token and position
+# embeddings, L stacked encoder blocks, MLP head on the class token.
+# Panel (a) overview, read bottom to top; panel (b) one encoder block, zoomed
+# from the encoder in (a). The picture is a synthetic illustration.
+version: 1
+requires: ">=0.17.0"
+figure:
+  id: vit-block
+  title: Vision Transformer encoder
+  theme: sumi
+  profile: paper-double
+  target: { height: 90mm }
+  assets:
+    picture:
+      svg: |
+        <svg viewBox="0 0 90 90">
+          <rect width="90" height="90" fill="#cfe0ec"/>
+          <circle cx="66" cy="22" r="10" fill="#e8b04a"/>
+          <path d="M0 70L28 34L50 60L64 46L90 72V90H0Z" fill="#6f8f6a"/>
+          <path d="M0 78Q45 66 90 80V90H0Z" fill="#4b6b4f"/>
+        </svg>
+  layout:
+    arrange:
+      row:
+        gap: 8mm
+        align: stretch
+        items: [ overview, detail ]
+    align:
+      - { x: [ head, out.c0 ] }
+
+groups:
+  - id: overview
+    variant: plain
+    caption: (a) Vision Transformer
+    arrange:
+      stack:
+        direction: up
+        gap: 4mm
+        items:
+          - row: { gap: 5mm, align: center, items: [ image, patches ] }
+          - proj
+          - emb
+          - encoder
+          - out
+          - row:
+              gap: 8mm
+              align: center
+              items:
+                - stack: { direction: up, gap: 3mm, items: [ head, class ] }
+                - key
+  - id: detail
+    variant: plain
+    caption: (b) Transformer encoder block
+    arrange:
+      stack:
+        direction: up
+        gap: 3mm
+        items: [ b-in, block, b-out ]
+  - id: block
+    arrange:
+      stack:
+        direction: up
+        align: stretch
+        gap: 3mm
+        items: [ b-split1, b-ln1, b-qkv, b-mha, b-add1, b-split2, b-ln2, b-mlp, b-add2 ]
+
+nodes:
+  # (a) overview
+  - { id: image, component: image, variant: framed, props: { asset: picture, width: 44pt } }
+  - id: patches
+    component: tokens
+    props:
+      width: 16pt
+      gap: 3pt
+      cells:
+        - { asset: picture, crop: [ 0, 0, 30, 30 ], variant: framed }
+        - { asset: picture, crop: [ 30, 0, 30, 30 ], variant: framed }
+        - { asset: picture, crop: [ 60, 0, 30, 30 ], variant: framed }
+        - { asset: picture, crop: [ 0, 30, 30, 30 ], variant: framed }
+        - { asset: picture, crop: [ 30, 30, 30, 30 ], variant: framed }
+        - { asset: picture, crop: [ 60, 30, 30, 30 ], variant: framed }
+        - { asset: picture, crop: [ 0, 60, 30, 30 ], variant: framed }
+        - { asset: picture, crop: [ 30, 60, 30, 30 ], variant: framed }
+        - { asset: picture, crop: [ 60, 60, 30, 30 ], variant: framed }
+  - { id: proj, component: box, label: Linear Projection of Flattened Patches, tone: blue, variant: filled, props: { width: 187pt } }
+  - id: emb
+    component: tokens
+    props:
+      width: 16pt
+      height: 13pt
+      gap: 3pt
+      lineGap: 1pt
+      lines:
+        - - { id: p0, label: "0", tone: gray, variant: outlined }
+          - { id: p1, label: "1", tone: gray, variant: outlined }
+          - { id: p2, label: "2", tone: gray, variant: outlined }
+          - { id: p3, label: "3", tone: gray, variant: outlined }
+          - { id: p4, label: "4", tone: gray, variant: outlined }
+          - { id: p5, label: "5", tone: gray, variant: outlined }
+          - { id: p6, label: "6", tone: gray, variant: outlined }
+          - { id: p7, label: "7", tone: gray, variant: outlined }
+          - { id: p8, label: "8", tone: gray, variant: outlined }
+          - { id: p9, label: "9", tone: gray, variant: outlined }
+        - - { id: cls, label: "*", tone: orange, variant: solid }
+          - { id: e1, tone: blue, variant: filled }
+          - { id: e2, tone: blue, variant: filled }
+          - { id: e3, tone: blue, variant: filled }
+          - { id: e4, tone: blue, variant: filled }
+          - { id: e5, tone: blue, variant: filled }
+          - { id: e6, tone: blue, variant: filled }
+          - { id: e7, tone: blue, variant: filled }
+          - { id: e8, tone: blue, variant: filled }
+          - { id: e9, tone: blue, variant: filled }
+  - { id: encoder, component: box, label: Transformer Encoder, tone: green, variant: filled, props: { width: 187pt, height: 24pt } }
+  - { id: enc-n, component: label, label: L×, attach: { to: encoder, side: west, gap: 2mm } }
+  - id: out
+    component: tokens
+    props:
+      width: 16pt
+      height: 13pt
+      gap: 3pt
+      cells:
+        - { id: c0, tone: orange, variant: solid }
+        - { tone: blue, variant: filled }
+        - { tone: blue, variant: filled }
+        - { tone: blue, variant: filled }
+        - { tone: blue, variant: filled }
+        - { tone: blue, variant: filled }
+        - { tone: blue, variant: filled }
+        - { tone: blue, variant: filled }
+        - { tone: blue, variant: filled }
+        - { tone: blue, variant: filled }
+  - { id: head, component: box, label: MLP Head, tone: orange, variant: filled }
+  - { id: class, component: label, label: Class }
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      entries:
+        - { node: { tone: orange, variant: solid }, label: Class token }
+        - { node: { tone: blue, variant: filled }, label: Patch embedding }
+        - { node: { tone: gray, variant: outlined }, label: Position embedding }
+  # (b) encoder block
+  - { id: b-in, component: label, label: Embedded tokens }
+  - { id: b-split1, component: junction, variant: hidden }
+  - { id: b-ln1, component: box, label: LayerNorm, tone: gray, variant: filled }
+  - { id: b-qkv, component: junction, variant: hidden }
+  - { id: b-mha, component: box, label: "Multi-Head\nAttention", tone: green, variant: filled }
+  - { id: b-add1, component: operator, props: { symbol: plus } }
+  - { id: b-split2, component: junction, variant: hidden }
+  - { id: b-ln2, component: box, label: LayerNorm, tone: gray, variant: filled }
+  - { id: b-mlp, component: box, label: MLP, tone: green, variant: filled }
+  - { id: b-add2, component: operator, props: { symbol: plus } }
+  - { id: b-out, component: junction, variant: hidden }
+  - { id: block-n, component: label, label: L×, attach: { to: block, side: east, gap: 2mm } }
+
+edges:
+  # (a) main flow
+  - { from: image, to: patches }
+  - { from: patches, to: proj }
+  - { from: proj, fromAnchor: straight, to: emb.e1 }
+  - { from: proj, fromAnchor: straight, to: emb.e2 }
+  - { from: proj, fromAnchor: straight, to: emb.e3 }
+  - { from: proj, fromAnchor: straight, to: emb.e4 }
+  - { from: proj, fromAnchor: straight, to: emb.e5 }
+  - { from: proj, fromAnchor: straight, to: emb.e6 }
+  - { from: proj, fromAnchor: straight, to: emb.e7 }
+  - { from: proj, fromAnchor: straight, to: emb.e8 }
+  - { from: proj, fromAnchor: straight, to: emb.e9 }
+  - { from: emb.p0, to: encoder, toAnchor: straight }
+  - { from: emb.p1, to: encoder, toAnchor: straight }
+  - { from: emb.p2, to: encoder, toAnchor: straight }
+  - { from: emb.p3, to: encoder, toAnchor: straight }
+  - { from: emb.p4, to: encoder, toAnchor: straight }
+  - { from: emb.p5, to: encoder, toAnchor: straight }
+  - { from: emb.p6, to: encoder, toAnchor: straight }
+  - { from: emb.p7, to: encoder, toAnchor: straight }
+  - { from: emb.p8, to: encoder, toAnchor: straight }
+  - { from: emb.p9, to: encoder, toAnchor: straight }
+  - { from: encoder, fromAnchor: straight, to: out.c0 }
+  - { from: out.c0, to: head }
+  - { from: head, to: class }
+  - { from: encoder, to: block, component: zoom }
+  # (b) encoder block
+  - { from: b-in, to: b-split1, component: line }
+  - { from: b-split1, to: b-ln1 }
+  - { from: b-split1, to: b-add1, toAnchor: west }
+  - { from: b-ln1, to: b-qkv, component: line }
+  - { from: b-qkv, to: b-mha, toAnchor: "south:0.2" }
+  - { from: b-qkv, to: b-mha, toAnchor: "south:0.5" }
+  - { from: b-qkv, to: b-mha, toAnchor: "south:0.8" }
+  - { from: b-mha, to: b-add1 }
+  - { from: b-add1, to: b-split2, component: line }
+  - { from: b-split2, to: b-ln2 }
+  - { from: b-split2, to: b-add2, toAnchor: west }
+  - { from: b-ln2, to: b-mlp }
+  - { from: b-mlp, to: b-add2 }
+  - { from: b-add2, to: b-out }

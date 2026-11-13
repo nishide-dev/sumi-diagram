@@ -1,0 +1,75 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Web system mockup</title>
+<style>
+@font-face { font-family: InterM; src: url(/Users/ryusei0623/projects/sumi-diagram/assets/fonts/inter/Inter-Regular.ttf); }
+@font-face { font-family: InterM; font-weight: bold; src: url(/Users/ryusei0623/projects/sumi-diagram/assets/fonts/inter/Inter-Bold.ttf); }
+:root { --canvas:#f8f8ee; --ink:#30364f; --muted:#4e566b; --panel:#efeddd; --shade:#e1d9bc;
+  --blue:#d9e4e6; --blueL:#3d5d77; --green:#dce7d3; --greenL:#426344; --orange:#efdfce; --orangeL:#814b2d; }
+html,body { margin:0; background:var(--canvas); }
+.page { position:relative; width:180mm; height:101.25mm; font-family:InterM, sans-serif; color:var(--ink); }
+.n { position:absolute; box-sizing:border-box; display:flex; align-items:center; justify-content:center; text-align:center;
+  font-size:8pt; line-height:1.2; border:1pt solid var(--ink); background:var(--canvas); }
+.g { position:absolute; box-sizing:border-box; border:1pt solid var(--muted); background:var(--panel); }
+.g .t { position:absolute; top:1.6mm; left:0; right:0; text-align:center; font-size:9pt; font-weight:bold; }
+.g.ext { background:transparent; border-style:dashed; }
+.g.ext .t { color:var(--muted); }
+.blue { background:var(--blue); border-color:var(--blueL); }
+.green { background:var(--green); border-color:var(--greenL); }
+.orange { background:var(--orange); border-color:var(--orangeL); }
+.emph { background:var(--ink); color:var(--canvas); font-weight:bold; border-color:var(--ink); }
+svg { position:absolute; left:0; top:0; overflow:visible; }
+.el { font-size:7pt; fill:var(--ink); font-family:InterM; }
+.lg { position:absolute; font-size:7pt; display:flex; align-items:center; gap:1.5mm; }
+</style></head>
+<body><div class="page">
+  <div class="g" style="left:3mm;top:20mm;width:26mm;height:42mm"><div class="t">Clients</div></div>
+  <div class="g" style="left:98mm;top:5mm;width:30mm;height:63mm"><div class="t">Services</div></div>
+  <div class="g" style="left:146mm;top:5mm;width:30mm;height:63mm"><div class="t">Data</div></div>
+  <div class="g" style="left:98mm;top:76mm;width:42mm;height:23mm"><div class="t" style="top:auto;bottom:1.4mm">Async processing</div></div>
+  <div class="g ext" style="left:146mm;top:76mm;width:30mm;height:23mm"><div class="t" style="top:auto;bottom:1.4mm">External</div></div>
+
+  <div class="n" style="left:6mm;top:29mm;width:20mm;height:10mm">Browser</div>
+  <div class="n" style="left:6mm;top:47mm;width:20mm;height:10mm">Mobile app</div>
+  <div class="n" style="left:38mm;top:36mm;width:18mm;height:10mm">CDN</div>
+  <div class="n blue" style="left:101mm;top:15mm;width:24mm;height:10mm">Auth</div>
+  <div class="n blue" style="left:101mm;top:36mm;width:24mm;height:10mm">Inventory</div>
+  <div class="n blue" style="left:101mm;top:55mm;width:24mm;height:10mm">Order</div>
+  <div class="n orange" style="left:101mm;top:79mm;width:16mm;height:10mm">Message<br>queue</div>
+  <div class="n orange" style="left:122mm;top:79mm;width:15mm;height:10mm">Worker</div>
+  <div class="n" style="left:149mm;top:79mm;width:24mm;height:10mm;border-style:dashed;border-color:var(--muted)">Payment API</div>
+  <svg width="680" height="383" style="width:180mm;height:101.25mm" viewBox="0 0 180 101.25">
+    <polygon points="63,41 66,35 83,35 86,41 83,47 66,47" fill="#30364f" stroke="#30364f" stroke-width="0.35"/>
+    <text x="74.5" y="40" text-anchor="middle" font-size="2.82" font-weight="bold" fill="#f8f8ee" font-family="InterM">API</text>
+    <text x="74.5" y="43.4" text-anchor="middle" font-size="2.82" font-weight="bold" fill="#f8f8ee" font-family="InterM">gateway</text>
+    <g fill="#dce7d3" stroke="#426344" stroke-width="0.35">
+      <path d="M149,16 a12,2.2 0 0 1 24,0 v9 a12,2.2 0 0 1 -24,0 z"/><path d="M149,16 a12,2.2 0 0 0 24,0" fill="none"/>
+      <path d="M149,56 a12,2.2 0 0 1 24,0 v9 a12,2.2 0 0 1 -24,0 z" /><path d="M149,56 a12,2.2 0 0 0 24,0" fill="none"/>
+    </g>
+    <text x="161" y="22.6" text-anchor="middle" font-size="2.82" fill="#30364f" font-family="InterM">Redis cache</text>
+    <text x="161" y="62.6" text-anchor="middle" font-size="2.82" fill="#30364f" font-family="InterM">PostgreSQL</text>
+    <defs><marker id="a" viewBox="0 0 6 6" refX="6" refY="3" markerWidth="2" markerHeight="2" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0.5 L6,3 L0,5.5z" fill="#30364f"/></marker></defs>
+    <g fill="none" stroke="#30364f" stroke-width="0.35" marker-end="url(#a)">
+      <path d="M26,34 H32 V39 H38"/>
+      <path d="M26,52 H32 V43 H38"/>
+      <path d="M56,41 H63"/>
+      <path d="M86,41 H92 V20 H101"/>
+      <path d="M86,41 H101"/>
+      <path d="M86,41 H92 V60 H101"/>
+      <path d="M125,20 H149"/>
+      <path d="M125,39 H137 V22 H149"/>
+      <path d="M125,43 H137 V58 H149"/>
+      <path d="M125,60 H149"/>
+      <path d="M109,65 V79" stroke-dasharray="1.4 0.8"/>
+      <path d="M117,84 H122" stroke-dasharray="1.4 0.8"/>
+      <path d="M137,84 H149"/>
+    </g>
+    <g font-size="2.47" fill="#30364f" font-family="InterM">
+      <text x="110.5" y="73">order placed</text>
+      <text x="138.5" y="82.6">charge</text>
+      <line x1="6" y1="81" x2="14" y2="81" stroke="#30364f" stroke-width="0.35" marker-end="url(#a)"/>
+      <text x="16" y="81.9">synchronous request</text>
+      <line x1="6" y1="87" x2="14" y2="87" stroke="#30364f" stroke-width="0.35" stroke-dasharray="1.4 0.8" marker-end="url(#a)"/>
+      <text x="16" y="87.9">asynchronous message</text>
+    </g>
+  </svg>
+</div></body></html>

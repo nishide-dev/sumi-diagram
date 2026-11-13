@@ -1,0 +1,55 @@
+version: 1
+figure:
+  id: web-system
+  title: Web service architecture
+  theme: sumi
+  profile: presentation-16x9
+  target:
+    minFontSize: 7pt
+  layout:
+    direction: right
+groups:
+  - id: clients
+    label: Clients
+    variant: muted
+  - id: edge
+    label: Edge
+    variant: muted
+  - id: services
+    label: Services
+  - id: data
+    label: Data
+    variant: muted
+  - id: async
+    label: Async processing
+    variant: muted
+  - id: external
+    label: External
+    variant: dashed
+nodes:
+  - { id: browser, component: box, label: Browser, group: clients }
+  - { id: mobile, component: box, label: Mobile app, group: clients }
+  - { id: cdn, component: hexagon, label: CDN, group: edge }
+  - { id: gateway, component: hexagon, label: API gateway, variant: emphasis, group: edge }
+  - { id: auth, component: box, label: Auth service, group: services }
+  - { id: order, component: box, label: Order service, group: services }
+  - { id: inventory, component: box, label: Inventory service, group: services }
+  - { id: postgres, component: cylinder, label: PostgreSQL, group: data }
+  - { id: redis, component: cylinder, label: Redis cache, variant: muted, group: data }
+  - { id: queue, component: stack, label: Message queue, group: async }
+  - { id: worker, component: box, label: Async worker, group: async }
+  - { id: payment, component: box, label: Payment API, group: external }
+edges:
+  - { from: browser, to: cdn }
+  - { from: mobile, to: cdn }
+  - { from: cdn, to: gateway }
+  - { from: gateway, to: auth }
+  - { from: gateway, to: order }
+  - { from: gateway, to: inventory }
+  - { from: auth, to: redis, component: double-arrow, variant: muted }
+  - { from: inventory, to: redis, component: double-arrow, variant: muted }
+  - { from: order, to: postgres, component: double-arrow }
+  - { from: inventory, to: postgres, component: double-arrow }
+  - { from: order, to: queue, label: publish }
+  - { from: queue, to: worker, label: consume }
+  - { from: worker, to: payment, variant: dashed, label: charge }

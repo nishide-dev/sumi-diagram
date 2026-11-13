@@ -1,0 +1,83 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Request lifecycle mockup</title>
+<style>
+@font-face { font-family: "InterM"; src: url("file:///private/tmp/claude-501/-Users-ryusei0623-projects-sumi-diagram/74e76402-151b-4c53-9b81-178b74b55e4d/scratchpad/rel0171/home/sumi-0.17.1-darwin-arm64/share/sumi/fonts/inter/Inter-Regular.ttf"); font-weight: 400; }
+@font-face { font-family: "InterM"; src: url("file:///private/tmp/claude-501/-Users-ryusei0623-projects-sumi-diagram/74e76402-151b-4c53-9b81-178b74b55e4d/scratchpad/rel0171/home/sumi-0.17.1-darwin-arm64/share/sumi/fonts/inter/Inter-Bold.ttf"); font-weight: 700; }
+:root { --canvas:#f8f8ee; --ink:#30364f; --muted:#4e566b;
+  --green:#dce7d3; --red:#efd8d0; --gray:#e1dece; }
+html, body { margin:0; background:var(--canvas); }
+#page { position:relative; width:160mm; height:64mm; font-family:InterM, sans-serif; color:var(--ink); }
+.state { position:absolute; box-sizing:border-box; height:8mm; display:flex; align-items:center; justify-content:center;
+  font-size:8pt; border:1pt solid var(--ink); background:var(--canvas); }
+.term { border:none; }
+.lab { position:absolute; font-size:8pt; line-height:1.15; white-space:nowrap; }
+.group { position:absolute; box-sizing:border-box; border:1pt dashed var(--muted); }
+.gtitle { position:absolute; font-size:9pt; font-weight:700; }
+svg { position:absolute; left:0; top:0; overflow:visible; }
+</style>
+</head>
+<body>
+<div id="page">
+  <!-- terminal group -->
+  <div class="group" style="left:130mm; top:0.5mm; width:29mm; height:56.5mm"></div>
+  <div class="gtitle" style="left:130mm; width:29mm; text-align:center; top:1.6mm">Terminal states</div>
+
+  <!-- states -->
+  <div class="state" style="left:2mm;  top:26mm; width:19mm">Received</div>
+  <div class="state" style="left:35mm; top:26mm; width:19mm">Validating</div>
+  <div class="state" style="left:65mm; top:26mm; width:19mm">Queued</div>
+  <div class="state" style="left:97mm; top:26mm; width:19mm">Running</div>
+  <div class="state" style="left:79mm; top:44mm; width:23mm">Retrying</div>
+  <div class="state term" style="left:135mm; top:8mm;  width:19mm; background:var(--gray)">Cancelled</div>
+  <div class="state term" style="left:135mm; top:26mm; width:19mm; background:var(--green)">Completed</div>
+  <div class="state term" style="left:135mm; top:44mm; width:19mm; background:var(--red)">Failed</div>
+
+  <svg width="160mm" height="64mm" viewBox="0 0 160 64">
+    <defs>
+      <marker id="h" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="1.9" markerHeight="1.9" markerUnits="userSpaceOnUse" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#30364f"/>
+      </marker>
+      <marker id="hb" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="2.5" markerHeight="2.5" markerUnits="userSpaceOnUse" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="#30364f"/>
+      </marker>
+    </defs>
+    <g fill="none" stroke="#30364f" stroke-width="0.353">
+      <!-- start -->
+      <circle cx="11.5" cy="13" r="1.3" fill="#30364f" stroke="none"/>
+      <path d="M11.5 14.3 V26" marker-end="url(#h)"/>
+      <!-- happy path (emphasis 2pt) -->
+      <g stroke-width="0.706">
+        <path d="M21 30 H35" marker-end="url(#hb)"/>
+        <path d="M54 30 H65" marker-end="url(#hb)"/>
+        <path d="M84 30 H97" marker-end="url(#hb)"/>
+        <path d="M116 30 H135" marker-end="url(#hb)"/>
+      </g>
+      <!-- retry loop -->
+      <path d="M99 34 V44" marker-end="url(#h)"/>
+      <path d="M82.5 44 V34" marker-end="url(#h)"/>
+      <path d="M102 48 H135" marker-end="url(#h)"/>
+      <!-- invalid -->
+      <path d="M44.5 34 V58 Q44.5 60 46.5 60 H142.5 Q144.5 60 144.5 58 V52" marker-end="url(#h)"/>
+      <!-- cancel (shared trunk) -->
+      <path d="M74.5 26 V14 Q74.5 12 76.5 12 H135" marker-end="url(#h)"/>
+      <path d="M106.5 26 V12"/>
+    </g>
+  </svg>
+
+  <!-- transition labels (8pt) -->
+  <div class="lab" style="left:13.3mm; top:16.6mm">submitted</div>
+  <div class="lab" style="left:22.6mm; top:24.4mm">parsed</div>
+  <div class="lab" style="left:55.3mm; top:24.4mm">valid</div>
+  <div class="lab" style="left:85.6mm; top:20.8mm; text-align:center">worker<br>free</div>
+  <div class="lab" style="left:117.6mm; top:24.4mm">success</div>
+  <div class="lab" style="left:100.4mm; top:36.6mm">error</div>
+  <div class="lab" style="left:68.2mm; top:35.6mm; text-align:right">attempts<br>left</div>
+  <div class="lab" style="left:104mm; top:44.3mm">retries exhausted</div>
+  <div class="lab" style="left:47mm; top:56.4mm">invalid</div>
+  <div class="lab" style="left:79mm; top:8.4mm">cancel requested</div>
+</div>
+</body>
+</html>

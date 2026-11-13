@@ -1,0 +1,61 @@
+version: 1
+figure:
+  id: data-pipeline
+  title: Data pipeline with a monitoring feedback loop
+  theme: sumi
+  profile: paper-double
+  target: { minFontSize: 9pt }
+  layout:
+    arrange:
+      grid:
+        columns: 7
+        rowGap: 7mm
+        columnGap: 6mm
+        items:
+          - ~
+          - quarantine
+          - ~
+          - ~
+          - ~
+          - ~
+          - ~
+          - ingest
+          - validate
+          - transform
+          - features
+          - train
+          - evaluate
+          - deploy
+          - ~
+          - ~
+          - ~
+          - ~
+          - ~
+          - ~
+          - monitor
+groups:
+  - id: ingest
+    label: Ingest
+    arrange:
+      stack: { gap: 3mm, align: stretch, items: [ collect, label ] }
+nodes:
+  - { id: collect, component: box, label: Collect }
+  - { id: label, component: box, label: Label }
+  - { id: validate, component: box, label: Validate }
+  - { id: transform, component: box, label: Transform }
+  - { id: features, component: cylinder, label: "Feature\nstore" }
+  - { id: train, component: box, label: Train }
+  - { id: evaluate, component: box, label: Evaluate }
+  - { id: deploy, component: box, label: Deploy, variant: emphasis }
+  - { id: monitor, component: box, label: Monitor, tone: orange }
+  - { id: quarantine, component: cylinder, label: Quarantine, tone: red }
+edges:
+  - { from: ingest, to: validate }
+  - { from: validate, to: transform }
+  - { from: transform, to: features }
+  - { from: features, to: train }
+  - { from: train, to: evaluate }
+  - { from: evaluate, to: deploy }
+  - { from: deploy, to: monitor }
+  - { from: validate, to: quarantine, label: failed, tone: red }
+  - { from: monitor, to: ingest, toAnchor: south, label: quality drop, tone: orange, variant: dashed }

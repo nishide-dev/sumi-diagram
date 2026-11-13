@@ -1,0 +1,128 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>ViT mockup</title>
+<style>
+  @font-face { font-family: InterM; src: url("file:///private/tmp/claude-501/-Users-ryusei0623-projects-sumi-diagram/74e76402-151b-4c53-9b81-178b74b55e4d/scratchpad/rel0171/home/sumi-0.17.1-darwin-arm64/share/sumi/fonts/inter/Inter-Regular.ttf"); font-weight: 400; }
+  @font-face { font-family: InterM; src: url("file:///private/tmp/claude-501/-Users-ryusei0623-projects-sumi-diagram/74e76402-151b-4c53-9b81-178b74b55e4d/scratchpad/rel0171/home/sumi-0.17.1-darwin-arm64/share/sumi/fonts/inter/Inter-Bold.ttf"); font-weight: 700; }
+  :root {
+    --canvas: #f8f8ee; --ink: #30364f; --muted: #4e566b; --panel: #efeddd;
+    --gray: #e1dece; --blue: #d9e4e6; --blue-ink: #3d5d77;
+    --orange: #efdfce; --green: #dce7d3;
+  }
+  html, body { margin: 0; background: var(--canvas); }
+  svg { display: block; width: 160mm; height: 100mm; font-family: InterM, sans-serif; }
+  text { fill: var(--ink); }
+</style>
+</head>
+<body>
+<svg id="fig" viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="1.9" markerHeight="1.9" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M0,1 L10,5 L0,9 z" fill="#30364f"/>
+    </marker>
+  </defs>
+</svg>
+<script>
+const NS = "http://www.w3.org/2000/svg";
+const svg = document.getElementById("fig");
+const PT = 0.3528; // mm per pt
+const LW = 0.75 * PT;
+function el(tag, attrs, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (text !== undefined) e.textContent = text;
+  svg.appendChild(e);
+  return e;
+}
+function box(x, y, w, h, fill, label, opts = {}) {
+  el("rect", { x, y, width: w, height: h, rx: opts.rx ?? 1, fill, stroke: opts.stroke ?? "#30364f", "stroke-width": opts.sw ?? LW });
+  if (label) text(x + w / 2, y + h / 2, label, opts);
+}
+function text(x, y, s, opts = {}) {
+  const size = (opts.size ?? 8) * PT;
+  const lines = s.split("\n");
+  lines.forEach((ln, i) => {
+    el("text", {
+      x, y: y + (i - (lines.length - 1) / 2) * size * 1.2,
+      "font-size": size, "text-anchor": opts.anchor ?? "middle", "dominant-baseline": "central",
+      "font-weight": opts.bold ? 700 : 400, style: `fill:${opts.color ?? "#30364f"}`,
+    }, ln);
+  });
+}
+function path(d, opts = {}) {
+  el("path", { d, fill: "none", stroke: opts.stroke ?? "#30364f", "stroke-width": opts.sw ?? LW,
+    "stroke-dasharray": opts.dash ?? "none", "stroke-linejoin": "round",
+    ...(opts.arrow === false ? {} : { "marker-end": "url(#ah)" }) });
+}
+function plus(cx, cy, r = 2) {
+  el("circle", { cx, cy, r, fill: "#f8f8ee", stroke: "#30364f", "stroke-width": LW });
+  path(`M${cx - r * 0.55},${cy} H${cx + r * 0.55} M${cx},${cy - r * 0.55} V${cy + r * 0.55}`, { arrow: false });
+}
+
+// ---------- (a) overview ----------
+const P = 6.4, C = 5.6;          // token pitch / cell width
+const X0 = 22;                    // class-token column
+// input image: 3x3 patches
+const img = ["#d9e4e6", "#e1dece", "#d9e4e6", "#e1dece", "#d9e4e6", "#e1dece", "#d9e4e6", "#e1dece", "#d9e4e6"];
+for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++)
+  box(3 + c * 4.6, 72 + r * 4.6, 4.2, 4.2, "#d9e4e6", "", { rx: 0.4, stroke: "#3d5d77" });
+text(9.8, 88.5, "Image", { size: 7 });
+path("M18.5,78.8 H26.6");
+text(22.4, 75.6, "split", { size: 7, color: "#4e566b" });
+// flattened patches
+for (let i = 0; i < 9; i++) box(X0 + P * (i + 1), 75.8, C, 6, "#d9e4e6", "", { rx: 0.5, stroke: "#3d5d77" });
+text(56.8, 85.6, "Flattened patches", { size: 7, color: "#4e566b" });
+path("M56.8,75.8 V70.2");
+box(X0 + P, 63, 9 * P - 0.8, 7, "#e1dece", "Linear projection");
+path("M56.8,63 V57.2");
+// embeddings row (bottom line) and position row (top line)
+for (let i = 0; i < 10; i++) {
+  if (i === 0) box(X0, 51, C, 6, "#30364f", "", { rx: 0.5 });
+  else box(X0 + P * i, 51, C, 6, "#d9e4e6", "", { rx: 0.5, stroke: "#3d5d77" });
+  box(X0 + P * i, 46.4, C, 4.2, "#e1dece", String(i), { rx: 0.5, size: 7, stroke: "#4e566b" });
+}
+text(X0 + C / 2, 54, "*", { size: 9, bold: true, color: "#f8f8ee" });
+text(20.5, 48.5, "Position", { size: 7, anchor: "end" });
+text(20.5, 54, "Patch\nembedding", { size: 7, anchor: "end" });
+text(X0 + C / 2, 60.3, "class\ntoken", { size: 7, color: "#4e566b" });
+path("M56.8,46.4 V39.2");
+box(X0, 29, 9 * P + C - 0.0, 10, "#30364f", "Transformer encoder", { bold: true, color: "#f8f8ee", size: 9 });
+path(`M${X0 + C / 2},29 V21.2`);
+box(X0 + C / 2 - 10, 15, 20, 6, "#dce7d3", "MLP head");
+path(`M${X0 + C / 2},15 V9.2`);
+text(X0 + C / 2, 6, "Class", { size: 8 });
+text(45, 96.5, "(a) Overview", { size: 8 });
+
+// ---------- (b) encoder block ----------
+const CX = 128, BX = 114, BW = 28;
+box(101, 12, 51, 70, "#efeddd", "", { stroke: "#4e566b", rx: 1.5 });
+// zoom lines
+path(`M${X0 + 9 * P + C},29 L101,12 M${X0 + 9 * P + C},39 L101,82`, { arrow: false, dash: "0.8 0.8", stroke: "#4e566b", sw: 0.5 * PT });
+text(CX, 92, "Embedded patches", { size: 7 });
+path(`M${CX},89.6 V77`, { arrow: false });
+// residual 1
+path(`M${CX},77 H105 V50 H${CX - 2.2}`);
+path(`M${CX},77 V71.2`);
+box(BX, 66, BW, 5, "#e1dece", "LayerNorm");
+for (const f of [0.2, 0.5, 0.8]) path(`M${BX + BW * f},66 V62.2`);
+box(BX, 54.5, BW, 7.7, "#efdfce", "Multi-head\nattention");
+path(`M${CX},54.5 V52.2`);
+plus(CX, 50);
+path(`M${CX},48 V45`, { arrow: false });
+// residual 2
+path(`M${CX},45 H105 V20 H${CX - 2.2}`);
+path(`M${CX},45 V41.2`);
+box(BX, 36, BW, 5, "#e1dece", "LayerNorm");
+path(`M${CX},36 V32.2`);
+box(BX, 25, BW, 7, "#dce7d3", "MLP");
+path(`M${CX},25 V22.2`);
+plus(CX, 20);
+path(`M${CX},18 V7.2`);
+text(CX, 4.5, "Output", { size: 7 });
+text(154, 47, "L×", { size: 9, bold: true, anchor: "start" });
+text(126, 96.5, "(b) Encoder block", { size: 8 });
+</script>
+</body>
+</html>

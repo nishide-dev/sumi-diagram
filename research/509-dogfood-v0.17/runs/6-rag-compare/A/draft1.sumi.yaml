@@ -1,0 +1,46 @@
+version: 1
+figure:
+  id: rag-compare
+  theme: sumi
+  profile: presentation-16x9
+  target: { minFontSize: 7pt }
+  layout:
+    arrange:
+      grid:
+        columns: 7
+        rowGap: 14mm
+        columnGap: 10mm
+        items: [ t1, q1, ~, r1, ~, g1, a1, t2, q2, ~, r2, k2, g2, a2, t3, q3, p3, r3, v3, g3, a3 ]
+nodes:
+  - { id: t1, component: label, label: "Naive RAG" }
+  - { id: q1, component: parallelogram, label: Query }
+  - { id: r1, component: box, label: Retrieve }
+  - { id: g1, component: box, label: Generate }
+  - { id: a1, component: parallelogram, label: Answer }
+  - { id: t2, component: label, label: "RAG with\nreranking" }
+  - { id: q2, component: parallelogram, label: Query }
+  - { id: r2, component: box, label: Retrieve }
+  - { id: k2, component: box, label: Rerank, tone: orange }
+  - { id: g2, component: box, label: Generate }
+  - { id: a2, component: parallelogram, label: Answer }
+  - { id: t3, component: label, label: "Agentic RAG" }
+  - { id: q3, component: parallelogram, label: Query }
+  - { id: p3, component: box, label: Plan, tone: orange }
+  - { id: r3, component: box, label: "Retrieve\n(iterative)" }
+  - { id: v3, component: box, label: Verify, tone: orange }
+  - { id: g3, component: box, label: Generate }
+  - { id: a3, component: parallelogram, label: Answer }
+edges:
+  - { from: q1, to: r1 }
+  - { from: r1, to: g1 }
+  - { from: g1, to: a1 }
+  - { from: q2, to: r2 }
+  - { from: r2, to: k2 }
+  - { from: k2, to: g2 }
+  - { from: g2, to: a2 }
+  - { from: q3, to: p3 }
+  - { from: p3, to: r3 }
+  - { from: r3, to: v3 }
+  - { from: v3, to: g3 }
+  - { from: g3, to: a3 }
+  - { from: v3, to: r3, fromAnchor: south, toAnchor: south, variant: dashed, label: not enough evidence }
