@@ -9,6 +9,7 @@ import { validRange } from "semver";
 import { z } from "zod";
 import { ICON_REF_MAX_LENGTH, ICON_REF_PATTERN } from "../../assets/icon-ref";
 import { PALETTE_NAMES } from "../theme/palette";
+import { TEXT_SCALE_MAX, TEXT_SCALE_MIN, TEXT_SCALE_STEP } from "../theme/text-scale";
 import { TONE_NAMES } from "../theme/tones";
 import { MAX_LENGTH_PT, parseLength } from "../units";
 
@@ -252,6 +253,9 @@ export const StrokeWidth = z
     description:
       'A line width in pt: a multiple of 0.25pt from 0.25pt to 4pt, e.g. "0.5pt" (thin lines of paper figures) or "1pt".',
   });
+
+/** `themeOverrides.textScale` (#514): multiples of 0.25 from 0.5 to 4. */
+const TextScale = z.number().min(TEXT_SCALE_MIN).max(TEXT_SCALE_MAX).multipleOf(TEXT_SCALE_STEP);
 
 /** The corner radius a figure may set (#427): multiples of 0.5pt (one D2 unit) up to 10pt. */
 export const CORNER_RADIUS_MAX_PT = 10;
@@ -877,6 +881,9 @@ export const FigureMetaSchema = z.strictObject({
         .describe(
           "Exact #RRGGBB colors of tones, applied wherever the tone is used; dimming still applies.",
         ),
+      textScale: TextScale.optional().describe(
+        "Scales the theme's text as a whole (a multiple of 0.25 from 0.5 to 4): font sizes, and in proportion line widths, arrowheads and corner radii; colors and fonts stay. Every size is rounded to 0.5pt (a line stays at least 0.5pt). Lengths written in the figure (lineWidth, frameWidth, cornerRadius) are final and not scaled; gaps and paddings are the profile's. 2 takes `sumi` text from 7-9pt to 14-18pt for presentation-16x9 (sumi catalog --section themes lists the scale each theme needs per profile).",
+      ),
       lineWidth: StrokeWidth.optional().describe(
         "Width of the lines of edges and node frames (except legends; see frameWidth): replaces the theme's regular width, e.g. 0.5pt for the thin lines of a paper figure. A variant the theme draws heavier or lighter (emphasis, zoom lines) keeps its ratio to the regular width; a borderless element stays borderless. Per element: lineWidth.",
       ),

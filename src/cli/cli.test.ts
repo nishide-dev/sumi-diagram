@@ -704,6 +704,7 @@ describe("sumi catalog", () => {
         "tones",
         "toneLines",
         "compatibleProfiles",
+        "textScaleFor",
         "arrowhead",
       ]);
     }

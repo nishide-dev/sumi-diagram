@@ -377,6 +377,8 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
       });
       if (frame) style = withRadius(style, overrides?.cornerRadius);
     }
+    if (style.kind === "edge" && overrides?.textScale !== undefined && overrides.textScale !== 1)
+      style = Object.freeze({ ...style, textScale: overrides.textScale });
     if (overrides?.nodeCorners === "square" && style.kind !== "edge")
       style = Object.freeze({ ...style, radius: { pt: 0, units: 0 } });
     style = withRadius(style, entry.kind === "edge" ? undefined : entry.element.cornerRadius);
