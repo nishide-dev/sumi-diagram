@@ -15,15 +15,15 @@ figure:
     groupFill: "#f1f4f7"
     groupStroke: "#f1f4f7"
     tones:
-      gray: { fill: "#cbd2d9", line: "#465a69" }
-      blue: { fill: "#ffffff", line: "#ffffff" }
+      gray: {fill: "#cbd2d9", line: "#465a69"}
+      blue: {fill: "#ffffff", line: "#ffffff"}
   profile: paper-double
   layout:
     arrange:
       row:
         gap: 14mm
         align: center
-        items: [ stack-col, moe-col ]
+        items: [stack-col, moe-col]
 groups:
   - id: stack-col
     variant: plain
@@ -31,14 +31,14 @@ groups:
       stack:
         direction: up
         gap: 5mm
-        items: [ dots-in, attn1, ffn1, attn2, ffn2, attn3, ffn3, dots-out ]
+        items: [dots-in, attn1, ffn1, attn2, ffn2, attn3, ffn3, dots-out]
   - id: moe-col
     variant: plain
     arrange:
       stack:
         direction: up
         gap: 4mm
-        items: [ attn-in, fork, moe, attn-out ]
+        items: [attn-in, fork, moe, attn-out]
   - id: moe
     label: Mixture of Experts
     labelAt: top-left
@@ -47,7 +47,7 @@ groups:
         direction: up
         gap: 4mm
         items:
-          - row: { gap: 8mm, align: center, items: [ routed, shared ] }
+          - row: {gap: 8mm, align: center, items: [routed, shared]}
           - add
   - id: routed
     label: Routed Experts
@@ -57,44 +57,44 @@ groups:
       stack:
         direction: up
         gap: 4mm
-        items: [ router, split, { row: { gap: 3mm, items: [ e0, e1, more, e15 ] } } ]
+        items: [router, split, {row: {gap: 3mm, items: [e0, e1, more, e15]}}]
 nodes:
-  - { id: dots-in, component: label, label: "···" }
-  - { id: attn1, component: box, label: Attention, variant: solid }
-  - { id: ffn1, component: box, label: FFN, variant: muted, props: { width: 66pt, height: 36pt } }
-  - { id: attn2, component: box, label: Attention, variant: solid }
-  - { id: ffn2, component: box, label: FFN, variant: muted, props: { width: 66pt, height: 36pt } }
-  - { id: attn3, component: box, label: Attention, variant: solid }
-  - { id: ffn3, component: box, label: FFN, variant: muted, props: { width: 66pt, height: 36pt } }
-  - { id: dots-out, component: label, label: "···" }
-  - { id: attn-in, component: box, label: Attention, variant: solid }
-  - { id: fork, component: junction, variant: hidden }
-  - { id: router, component: box, label: Router, variant: filled, props: { width: 64pt } }
-  - { id: split, component: junction, variant: hidden }
-  - { id: e0, component: box, label: Expert 0 }
-  - { id: e1, component: box, label: Expert 1 }
-  - { id: more, component: label, label: "···" }
-  - { id: e15, component: box, label: Expert 15 }
-  - { id: shared, component: box, label: Shared Expert, variant: emphasis }
-  - { id: add, component: operator, props: { symbol: plus, size: large } }
-  - { id: attn-out, component: box, label: Attention, variant: solid }
+  - {id: dots-in, component: label, label: "···"}
+  - {id: attn1, component: box, label: Attention, variant: solid}
+  - {id: ffn1, component: box, label: FFN, variant: muted, props: {width: 66pt, height: 36pt}}
+  - {id: attn2, component: box, label: Attention, variant: solid}
+  - {id: ffn2, component: box, label: FFN, variant: muted, props: {width: 66pt, height: 36pt}}
+  - {id: attn3, component: box, label: Attention, variant: solid}
+  - {id: ffn3, component: box, label: FFN, variant: muted, props: {width: 66pt, height: 36pt}}
+  - {id: dots-out, component: label, label: "···"}
+  - {id: attn-in, component: box, label: Attention, variant: solid}
+  - {id: fork, component: junction, variant: hidden}
+  - {id: router, component: box, label: Router, variant: filled, props: {width: 64pt}}
+  - {id: split, component: junction, variant: hidden}
+  - {id: e0, component: box, label: Expert 0}
+  - {id: e1, component: box, label: Expert 1}
+  - {id: more, component: label, label: "···"}
+  - {id: e15, component: box, label: Expert 15}
+  - {id: shared, component: box, label: Shared Expert, variant: emphasis}
+  - {id: add, component: operator, props: {symbol: plus, size: large}}
+  - {id: attn-out, component: box, label: Attention, variant: solid}
 edges:
-  - { from: dots-in, to: attn1 }
-  - { from: attn1, to: ffn1 }
-  - { from: ffn1, to: attn2 }
-  - { from: attn2, to: ffn2 }
-  - { from: ffn2, to: attn3 }
-  - { from: attn3, to: ffn3 }
-  - { from: ffn3, to: dots-out }
-  - { from: attn-in, to: fork, component: line }
-  - { from: fork, to: router }
-  - { from: fork, to: shared }
-  - { from: router, to: split, component: line }
-  - { from: split, to: e0 }
-  - { from: split, to: e1 }
-  - { from: split, to: more }
-  - { from: split, to: e15 }
-  - { from: routed, to: add, toAnchor: west }
-  - { from: shared, to: add, toAnchor: east }
-  - { from: add, to: attn-out }
-  - { from: ffn2, to: moe, component: zoom }
+  - {from: dots-in, to: attn1}
+  - {from: attn1, to: ffn1}
+  - {from: ffn1, to: attn2}
+  - {from: attn2, to: ffn2}
+  - {from: ffn2, to: attn3}
+  - {from: attn3, to: ffn3}
+  - {from: ffn3, to: dots-out}
+  - {from: attn-in, to: fork, component: line}
+  - {from: fork, to: router}
+  - {from: fork, to: shared}
+  - {from: router, to: split, component: line}
+  - {from: split, to: e0}
+  - {from: split, to: e1}
+  - {from: split, to: more}
+  - {from: split, to: e15}
+  - {from: routed, to: add, toAnchor: west}
+  - {from: shared, to: add, toAnchor: east}
+  - {from: add, to: attn-out}
+  - {from: ffn2, to: moe, component: zoom}
