@@ -1,0 +1,73 @@
+# Layout: nested containment, a system frame holding two subsystem frames of components,
+#   with external actors outside it.
+#
+# Use when: the point is what lives inside what (system > subsystem > component, cluster >
+#   node > process, package > module > class) and which parts talk across the boundaries.
+# Structure: a `row` of the external input, the system group and the external output, the
+#   externals each in their own `stack` so `align` can put them on the main flow's line; the
+#   system group is a `row` (`align: start`) of two toned subsystem groups (a `grid` and a
+#   `stack`); titles sit above each frame (`labelAt: above-left`), so frames hold only their
+#   content; dashed boxes = outside the system.
+# Change: the labels; components per subsystem (a node, its edges and its id in the grid or
+#   stack); a third subsystem is one more group in the system row; another level is a group
+#   inside a subsystem with its own `labelAt: above-left` title; keep the main-flow ids in
+#   `align` and make the subsystems' contents about equally tall so their frames end together.
+# Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
+version: 1
+figure:
+  id: nested-containers
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      row:
+        gap: 10mm
+        align: start
+        items: [{stack: {items: [client]}}, system, {stack: {items: [ext]}}]
+    alignGrowth: allow
+    align:
+      - {y: [client, a1, a2, b1, ext]}
+groups:
+  - id: system
+    label: System
+    labelAt: above-left
+    arrange:
+      row:
+        gap: 10mm
+        align: start
+        items: [sub-a, sub-b]
+  - id: sub-a
+    label: Subsystem A
+    labelAt: above-left
+    tone: blue
+    arrange:
+      grid:
+        columns: 2
+        rowGap: 6mm
+        columnGap: 6mm
+        items:
+          [a1, a2,
+           ~, a3]
+  - id: sub-b
+    label: Subsystem B
+    labelAt: above-left
+    tone: green
+    arrange:
+      stack:
+        gap: 4.5mm
+        items: [b1, b2]
+nodes:
+  - {id: client, component: box, label: "External\ninput", variant: dashed}
+  - {id: a1, component: box, label: Component A1}
+  - {id: a2, component: box, label: Component A2}
+  - {id: a3, component: box, label: Component A3}
+  - {id: b1, component: box, label: Component B1}
+  - {id: b2, component: cylinder, label: Store B2, props: {height: 22pt}}
+  - {id: ext, component: box, label: "External\noutput", variant: dashed}
+edges:
+  - {from: client, to: a1}
+  - {from: a1, to: a2}
+  - {from: a2, to: a3}
+  - {from: a2, to: b1}
+  - {from: b1, to: b2}
+  - {from: b1, to: ext}

@@ -1,0 +1,43 @@
+# Layout: a binary decision tree: one root question, two follow-up questions, four outcome leaves.
+#
+# Use when: a choice is made by a few yes/no questions in a fixed order (picking a method,
+#   a triage rule, a classifier's splits, a "which variant to use" guide) and every path ends
+#   in one outcome.
+# Structure: nested stacks and rows, one level per tier: each question is a `diamond` above
+#   a row holding its two subtrees; branches leave the diamond's west ("yes") and east ("no")
+#   corners and drop into the child's top; outcomes are blue tinted boxes on one bottom line.
+# Change: the question, outcome and branch labels; deepen a branch by replacing a leaf with a
+#   `stack: [diamond, row: [leaf, leaf]]` subtree; keep "yes" on the same side everywhere.
+# Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
+version: 1
+figure:
+  id: decision-tree
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      stack:
+        gap: 6mm
+        items:
+          - q1
+          - row:
+              gap: 8mm
+              align: start
+              items:
+                - stack: {gap: 6mm, items: [q2, {row: {gap: 22mm, items: [o1, o2]}}]}
+                - stack: {gap: 6mm, items: [q3, {row: {gap: 22mm, items: [o3, o4]}}]}
+nodes:
+  - {id: q1, component: diamond, label: Condition 1?, props: {width: 34mm, height: 13mm}}
+  - {id: q2, component: diamond, label: Condition 2?, props: {width: 34mm, height: 13mm}}
+  - {id: q3, component: diamond, label: Condition 3?, props: {width: 34mm, height: 13mm}}
+  - {id: o1, component: box, label: Outcome A, tone: blue, variant: tinted, props: {width: 20mm}}
+  - {id: o2, component: box, label: Outcome B, tone: blue, variant: tinted, props: {width: 20mm}}
+  - {id: o3, component: box, label: Outcome C, tone: blue, variant: tinted, props: {width: 20mm}}
+  - {id: o4, component: box, label: Outcome D, tone: blue, variant: tinted, props: {width: 20mm}}
+edges:
+  - {from: q1, to: q2, fromAnchor: west, toAnchor: north, label: "yes"}
+  - {from: q1, to: q3, fromAnchor: east, toAnchor: north, label: "no"}
+  - {from: q2, to: o1, fromAnchor: west, toAnchor: north, label: "yes"}
+  - {from: q2, to: o2, fromAnchor: east, toAnchor: north, label: "no"}
+  - {from: q3, to: o3, fromAnchor: west, toAnchor: north, label: "yes"}
+  - {from: q3, to: o4, fromAnchor: east, toAnchor: north, label: "no"}

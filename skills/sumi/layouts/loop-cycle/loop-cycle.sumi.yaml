@@ -1,0 +1,40 @@
+# Layout: an iterative cycle drawn as a ring of three stages, entered from above and left at the side.
+#
+# Use when: a method repeats a few steps until it stops (generate, evaluate, update; propose,
+#   check, refine; sample, score, select) and the figure must read as a loop, not a pipeline.
+# Structure: one `place` (unit 1mm); three stages on a triangle, joined by `route: curve` edges
+#   between facing sides so the ring reads clockwise; the bottom arc is an arch (both anchors
+#   south); a muted label in the middle names the repetition; Input enters the first stage from
+#   above, Output leaves the last stage east; one orange stage marks the step the figure is about.
+# Change: the stage, edge and centre labels; a fourth stage goes on a square (top, right,
+#   bottom, left) with curves between neighbouring sides; move Output to the stage that exits.
+# Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
+version: 1
+figure:
+  id: loop-cycle
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: input, at: [40, 0]}
+          - {item: gen, at: [40, 16]}
+          - {item: evaluate, at: [66, 44]}
+          - {item: update, at: [14, 44]}
+          - {item: repeat, at: [40, 34]}
+          - {item: output, at: [97, 44]}
+nodes:
+  - {id: input, component: box, label: Input, variant: muted}
+  - {id: gen, component: box, label: Generate, tone: orange, variant: tinted, props: {width: 24mm}}
+  - {id: evaluate, component: box, label: Evaluate, props: {width: 24mm}}
+  - {id: update, component: box, label: Update, props: {width: 24mm}}
+  - {id: repeat, component: label, label: "repeat\nT times", variant: muted}
+  - {id: output, component: box, label: Output, variant: muted}
+edges:
+  - {from: input, to: gen}
+  - {from: gen, to: evaluate, route: curve, fromAnchor: east, toAnchor: north, label: candidates}
+  - {from: evaluate, to: update, route: curve, fromAnchor: south, toAnchor: south, label: scores}
+  - {from: update, to: gen, route: curve, fromAnchor: north, toAnchor: west, label: new state}
+  - {from: evaluate, to: output, label: done}

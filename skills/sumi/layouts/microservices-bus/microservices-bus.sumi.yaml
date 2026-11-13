@@ -1,0 +1,45 @@
+# Layout: several services sharing one message bus, producers above it and consumers below.
+#
+# Use when: services talk only through a shared channel (an event bus, a message queue, a
+#   pub/sub broker, a shared blackboard) and the figure must show who publishes and who
+#   listens. Profile `paper-single`: three services a side make it about 75 mm wide.
+# Structure: a `stack` (`align: stretch`) of a producer `row`, the bus (one wide tinted box
+#   stretched to the rows' width) and a consumer `row`; publish edges end on the bus and
+#   subscribe edges leave it (`toAnchor` / `fromAnchor: straight` on the bus end), so each
+#   drops straight from its service; a double arrow marks a service that does both; a store
+#   hangs under one consumer in its own `stack`.
+# Change: the labels; services per row (a node, its edge and its id in the row; four a side
+#   need `paper-double`); a service that only listens moves to the lower row; keep the bus the
+#   only path between services.
+# Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
+version: 1
+figure:
+  id: microservices-bus
+  theme: sumi
+  profile: paper-single
+  layout:
+    arrange:
+      stack:
+        gap: 8mm
+        align: stretch
+        items:
+          - row: {gap: 8mm, items: [svc-a, svc-b, svc-c]}
+          - bus
+          - row: {gap: 8mm, align: start, items: [svc-d, {stack: {gap: 6mm, items: [svc-e, store-e]}}, svc-f]}
+nodes:
+  - {id: svc-a, component: box, label: Service A}
+  - {id: svc-b, component: box, label: Service B}
+  - {id: svc-c, component: box, label: Service C}
+  - {id: bus, component: box, label: Message bus, tone: orange, variant: tinted, weight: bold}
+  - {id: svc-d, component: box, label: Service D}
+  - {id: svc-e, component: box, label: Service E}
+  - {id: svc-f, component: box, label: Service F}
+  - {id: store-e, component: cylinder, label: Store E, tone: blue, variant: tinted, props: {height: 24pt}}
+edges:
+  - {from: svc-a, to: bus, toAnchor: straight, label: publish}
+  - {from: svc-b, to: bus, toAnchor: straight}
+  - {from: svc-c, to: bus, toAnchor: straight, component: double-arrow, label: both}
+  - {from: bus, to: svc-d, fromAnchor: straight, label: subscribe}
+  - {from: bus, to: svc-e, fromAnchor: straight}
+  - {from: bus, to: svc-f, fromAnchor: straight}
+  - {from: svc-e, to: store-e}

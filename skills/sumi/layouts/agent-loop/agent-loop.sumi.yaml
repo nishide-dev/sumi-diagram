@@ -1,0 +1,58 @@
+# Layout: an agent's observe → plan → act loop closed through the environment, with memory and tools beside it.
+#
+# Use when: a system repeats observe, plan and act against an environment and uses side
+#   resources while doing so (an LLM agent with tools and memory, a robot controller with a
+#   map and skills, a planner with a cache and solvers).
+# Structure: a stack of three tiers: Memory (cylinder) on top, a row of the Agent panel
+#   (Observe → Plan → Act) and the Tools panel, then a wide Environment box; `align` puts Memory
+#   over Plan and the Environment under the Agent panel; the loop closes through the
+#   environment (Act → Environment → Observe); double arrows for two-way use (read / write,
+#   call / result); panel titles sit above the frames (`labelAt: above-left`); one orange box
+#   marks the step the figure is about, blue the stored state.
+# Change: the step, resource and edge labels; the number of tools (add a box to the Tools
+#   stack); move the orange to another step; drop Memory with its edge if there is none.
+# Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
+version: 1
+figure:
+  id: agent-loop
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      stack:
+        gap: 9mm
+        align: start
+        items:
+          - row: {items: [memory]}
+          - row: {gap: 14mm, align: center, items: [agent, tools]}
+          - row: {items: [env]}
+    align:
+      - {x: [memory, plan]}
+      - {x: [env, agent]}
+groups:
+  - id: agent
+    label: Agent
+    labelAt: above-left
+    arrange:
+      row: {gap: 10mm, items: [observe, plan, act]}
+  - id: tools
+    label: Tools
+    labelAt: above-left
+    arrange:
+      stack: {gap: 3mm, items: [tool1, tool2, tool3]}
+nodes:
+  - {id: memory, component: cylinder, label: Memory, tone: blue, variant: tinted, props: {width: 22mm, height: 11mm}}
+  - {id: observe, component: box, label: Observe, props: {width: 20mm}}
+  - {id: plan, component: box, label: Plan, tone: orange, variant: tinted, props: {width: 20mm}}
+  - {id: act, component: box, label: Act, props: {width: 20mm}}
+  - {id: tool1, component: box, label: Tool 1, props: {width: 20mm}}
+  - {id: tool2, component: box, label: Tool 2, props: {width: 20mm}}
+  - {id: tool3, component: box, label: Tool 3, props: {width: 20mm}}
+  - {id: env, component: box, label: Environment, variant: muted, props: {width: 86mm}}
+edges:
+  - {from: observe, to: plan}
+  - {from: plan, to: act}
+  - {from: act, to: env, toAnchor: straight, label: action, labelAt: middle}
+  - {from: env, to: observe, fromAnchor: straight, label: observation, labelAt: middle}
+  - {from: memory, to: plan, component: double-arrow, label: read / write, labelAt: middle}
+  - {from: act, to: tool2, component: double-arrow, label: call / result}

@@ -1,0 +1,69 @@
+# Layout: three framed panels (a) (b) (c) in a row, joined by block arrows.
+#
+# Use when: a method runs in three stages that each need a small picture of their own
+#   (prepare -> process -> evaluate, data -> model -> result, stage-by-stage overview), and the
+#   stages are read left to right without edges between the panels.
+# Structure: root `row` (align stretch, so the panels are equally tall and the captions share a
+#   line) of three framed groups with `caption`s and two `block-arrow`s between them; each panel
+#   a top-down stack: a token row into a step, two steps with a `route: curve` self-loop, a
+#   token row into an `emphasis` result; the "xN" label is `attach`ed east of the looped box so
+#   it reserves the loop's room inside the frame.
+# Change: the captions, labels and token texts; the content of each panel (keep it a short
+#   stack); a fourth panel = one more block arrow and group; drop the loop if nothing repeats.
+# Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
+version: 1
+figure:
+  id: three-panel-flow
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      row:
+        gap: 4mm
+        align: stretch
+        items: [pa, flow1, pb, flow2, pc]
+groups:
+  - id: pa
+    caption: (a) Stage A
+    arrange:
+      stack: {gap: 5mm, items: [a_in, a_step]}
+  - id: pb
+    caption: (b) Stage B
+    arrange:
+      stack: {gap: 5mm, items: [b_1, b_2]}
+  - id: pc
+    caption: (c) Stage C
+    arrange:
+      stack: {gap: 5mm, items: [c_out, c_eval]}
+nodes:
+  # (a)
+  - id: a_in
+    component: tokens
+    tone: blue
+    props:
+      variant: tinted
+      width: 18pt
+      gap: 2pt
+      cells: ['$x_1$', '$x_2$', '$x_3$', '$x_4$']
+  - {id: a_step, component: box, label: Step 1, props: {width: 90pt}}
+  # (b)
+  - {id: b_1, component: box, label: Step 2, props: {width: 90pt}}
+  - {id: b_2, component: box, label: Step 3, tone: orange, variant: tinted, props: {width: 90pt}}
+  - {id: b_times, component: label, label: ×N, attach: {to: b_2, side: east, gap: 6mm}}
+  # (c)
+  - id: c_out
+    component: tokens
+    tone: blue
+    props:
+      variant: tinted
+      width: 18pt
+      gap: 2pt
+      cells: ['$y_1$', '$y_2$', '$y_3$', '$y_4$']
+  - {id: c_eval, component: box, label: Result, variant: emphasis, props: {width: 90pt}}
+  - {id: flow1, component: block-arrow}
+  - {id: flow2, component: block-arrow}
+edges:
+  - {from: a_in, to: a_step}
+  - {from: b_1, to: b_2}
+  - {from: b_2, to: b_2, route: curve, fromAnchor: "east:0.3", toAnchor: "east:0.7"}
+  - {from: c_out, to: c_eval}

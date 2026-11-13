@@ -1,0 +1,47 @@
+# Layout: one bottom-up column of layers whose early layers skip across the middle to their mirror layers (U-Net unrolled).
+#
+# Use when: a single path of layers with long skip connections between matching levels (U-Net,
+#   hourglass, autoencoder with skips, residual stages); one column of the paper (`paper-single`,
+#   because the figure is narrow and tall).
+# Structure: one `stack` (`direction: up`, `align: stretch`) from input label to output label;
+#   blue = down path, the dark emphasis box = middle, green = up path; each skip is a dashed
+#   `route: curve` arch from one east side to the other, so the arches nest without crossing;
+#   the outermost one carries the "skip" label on its outer side.
+# Change: the labels; the depth (add a level by copying an A box, its B mirror, their chain edges
+#   and one dashed arch, and keep the stack symmetric about the middle); short residuals around
+#   one layer instead: arches between neighbours (a_i -> a_i+2).
+# Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
+version: 1
+figure:
+  id: residual-skip-stack
+  theme: sumi
+  profile: paper-single
+  layout:
+    arrange:
+      stack:
+        direction: up
+        gap: 4mm
+        align: stretch
+        items: [x, a1, a2, a3, mid, b3, b2, b1, y]
+nodes:
+  - {id: x, component: label, label: Input}
+  - {id: a1, component: box, label: Layer A1, tone: blue, variant: tinted, props: {width: 36mm}}
+  - {id: a2, component: box, label: Layer A2, tone: blue, variant: tinted}
+  - {id: a3, component: box, label: Layer A3, tone: blue, variant: tinted}
+  - {id: mid, component: box, label: Middle, variant: emphasis}
+  - {id: b3, component: box, label: Layer B3, tone: green, variant: tinted}
+  - {id: b2, component: box, label: Layer B2, tone: green, variant: tinted}
+  - {id: b1, component: box, label: Layer B1, tone: green, variant: tinted}
+  - {id: y, component: label, label: Output}
+edges:
+  - {from: x, to: a1}
+  - {from: a1, to: a2}
+  - {from: a2, to: a3}
+  - {from: a3, to: mid}
+  - {from: mid, to: b3}
+  - {from: b3, to: b2}
+  - {from: b2, to: b1}
+  - {from: b1, to: y}
+  - {from: a3, to: b3, fromAnchor: east, toAnchor: east, variant: dashed, route: curve}
+  - {from: a2, to: b2, fromAnchor: east, toAnchor: east, variant: dashed, route: curve}
+  - {from: a1, to: b1, fromAnchor: east, toAnchor: east, variant: dashed, route: curve, label: skip, labelAt: middle, labelSide: right}

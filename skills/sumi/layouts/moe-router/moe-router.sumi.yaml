@@ -1,0 +1,66 @@
+# Layout: a router dispatching one input to a column of experts, the chosen ones merged by a weighted sum.
+#
+# Use when: conditional computation where a gate picks some of several parallel branches and
+#   mixes their outputs (mixture of experts, top-k routing, ensembles with learned weights).
+# Structure: a row (input token, router, a stack of four experts, a large ⊕, output token) and a
+#   legend below; every fan-out and fan-in edge is an independent `route: curve` from one point,
+#   so the dashed "not routed" edges stay distinct; orange tinted = chosen expert, muted = idle;
+#   the gate weights label the edges into the ⊕.
+# Change: the labels; the expert count (copy an expert box and its router edge; a chosen one also
+#   gets an edge into `sum`); which experts are chosen (tone + variant on the box, solid vs dashed
+#   router edge, weight label); add a shared expert as a box below the column with an emphasis variant.
+# Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
+version: 1
+figure:
+  id: moe-router
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      stack:
+        gap: 3mm
+        items:
+          - row:
+              gap: 10mm
+              items:
+                - x
+                - router
+                - stack: {gap: 3mm, items: [e1, e2, e3, e4]}
+                - sum
+                - y
+          - key
+nodes:
+  - id: x
+    component: tokens
+    tone: gray
+    props: {variant: tinted, width: 16pt, height: 16pt, cells: ['$x$']}
+  - {id: x-label, component: label, variant: muted, label: Input, attach: {to: x, side: south, gap: 1.5mm}}
+  - {id: router, component: box, label: Router, tone: blue, variant: tinted}
+  - {id: e1, component: box, label: Expert 1, tone: orange, variant: tinted, props: {width: 26mm}}
+  - {id: e2, component: box, label: Expert 2, variant: muted, props: {width: 26mm}}
+  - {id: e3, component: box, label: Expert 3, tone: orange, variant: tinted, props: {width: 26mm}}
+  - {id: e4, component: box, label: Expert 4, variant: muted, props: {width: 26mm}}
+  - {id: sum, component: operator, props: {symbol: plus, size: large}}
+  - id: y
+    component: tokens
+    tone: gray
+    props: {variant: tinted, width: 16pt, height: 16pt, cells: ['$y$']}
+  - {id: y-label, component: label, variant: muted, label: Output, attach: {to: y, side: south, gap: 1.5mm}}
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: row
+      entries:
+        - {node: {tone: orange, variant: tinted}, label: chosen expert (top-k)}
+        - {node: {variant: muted}, label: idle expert}
+        - {edge: {variant: dashed}, label: not routed}
+edges:
+  - {from: x, to: router}
+  - {from: router, to: e1, fromAnchor: east, toAnchor: west, route: curve}
+  - {from: router, to: e2, fromAnchor: east, toAnchor: west, route: curve, variant: dashed}
+  - {from: router, to: e3, fromAnchor: east, toAnchor: west, route: curve}
+  - {from: router, to: e4, fromAnchor: east, toAnchor: west, route: curve, variant: dashed}
+  - {from: e1, to: sum, fromAnchor: east, toAnchor: west, route: curve, label: '$\times g_1$', labelAt: start}
+  - {from: e3, to: sum, fromAnchor: east, toAnchor: west, route: curve, label: '$\times g_3$', labelAt: start, labelSide: right}
+  - {from: sum, to: y}

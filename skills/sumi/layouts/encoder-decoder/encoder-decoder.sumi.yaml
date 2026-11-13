@@ -1,0 +1,68 @@
+# Layout: an encoder stack and a decoder stack side by side; the encoder's last layer feeds every decoder layer.
+#
+# Use when: two stacks of layers where one reads the input and the other produces the output while
+#   consulting the first (seq2seq models, encoder-decoder transformers, query and context towers).
+# Structure: a row of two bottom-up columns (input label, plain titled group with `labelAt: above-left`,
+#   head, output); a hidden junction between the columns, held level with the last encoder layer by
+#   `align`, splits the blue "context" line into one arrow per decoder layer (west side); blue = encoder,
+#   green = decoder, the dark emphasis box = the head; the inputs share one baseline by `align`.
+# Change: the labels; the layer count (copy a box and its chain edge; on the decoder side also its
+#   `mem` edge); per-layer cross links instead (E_i -> D_i): drop `mem`, align each pair on `y`
+#   and draw `{from: e_i, to: d_i}`; keep the groups `plain` (a filled frame under three tinted
+#   boxes reports geometry/color-on-panel).
+# Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
+version: 1
+figure:
+  id: encoder-decoder
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      row:
+        gap: 9mm
+        align: end
+        items:
+          - stack: {direction: up, gap: 4mm, items: [src, encoder]}
+          - stack: {items: [mem]}
+          - stack: {direction: up, gap: 4mm, items: [tgt, decoder, head, out]}
+    align:
+      - {y: [src, tgt]}
+      - {y: [e3, mem]}
+groups:
+  - id: encoder
+    label: Encoder
+    labelAt: above-left
+    variant: plain
+    arrange:
+      stack: {direction: up, gap: 5mm, align: stretch, items: [e1, e2, e3]}
+  - id: decoder
+    label: Decoder
+    labelAt: above-left
+    variant: plain
+    arrange:
+      stack: {direction: up, gap: 5mm, align: stretch, items: [d1, d2, d3]}
+nodes:
+  - {id: src, component: label, label: Input sequence}
+  - {id: e1, component: box, label: Layer E1, tone: blue, variant: tinted, props: {width: 40mm}}
+  - {id: e2, component: box, label: Layer E2, tone: blue, variant: tinted}
+  - {id: e3, component: box, label: Layer E3, tone: blue, variant: tinted}
+  - {id: mem, component: junction, variant: hidden}
+  - {id: tgt, component: label, label: Output so far}
+  - {id: d1, component: box, label: Layer D1, tone: green, variant: tinted, props: {width: 40mm}}
+  - {id: d2, component: box, label: Layer D2, tone: green, variant: tinted}
+  - {id: d3, component: box, label: Layer D3, tone: green, variant: tinted}
+  - {id: head, component: box, label: Head, variant: emphasis, props: {width: 40mm}}
+  - {id: out, component: label, label: Next item}
+edges:
+  - {from: src, to: e1}
+  - {from: e1, to: e2}
+  - {from: e2, to: e3}
+  - {from: tgt, to: d1}
+  - {from: d1, to: d2}
+  - {from: d2, to: d3}
+  - {from: d3, to: head}
+  - {from: head, to: out}
+  - {from: e3, to: mem, component: line, tone: blue, label: context}
+  - {from: mem, to: d3, toAnchor: west, tone: blue}
+  - {from: mem, to: d2, toAnchor: west, tone: blue}
+  - {from: mem, to: d1, toAnchor: west, tone: blue}
