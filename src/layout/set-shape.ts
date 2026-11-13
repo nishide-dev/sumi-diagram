@@ -246,6 +246,57 @@ export function fitSetOutline(
   padding: number,
   radius = 0,
   angle?: number | "auto",
+  min?: SetMinSize,
+): SetOutline {
+  return growToMinimum(fitTight(members, shape, padding, radius, angle), shape, min);
+}
+
+/** The least size of a set's outline in units (#518): its width and height, either may be omitted. */
+export interface SetMinSize {
+  readonly width?: number;
+  readonly height?: number;
+}
+
+/**
+ * Grows an outline to at least `min`, about its own center (so it still
+ * holds the members): a circle stays a circle (it takes the larger of the two), an
+ * ellipse grows along its own axes, a rectangle on its sides. A hull has no
+ * size to set; the `ref` stage rejects the fields there.
+ */
+function growToMinimum(
+  outline: SetOutline,
+  shape: SetShape,
+  min: SetMinSize | undefined,
+): SetOutline {
+  if (min === undefined) return outline;
+  const w = min.width ?? 0;
+  const h = min.height ?? 0;
+  switch (outline.kind) {
+    case "ellipse": {
+      if (shape === "circle") {
+        const r = Math.max(outline.rx, w / 2, h / 2);
+        return { ...outline, rx: r, ry: r };
+      }
+      return { ...outline, rx: Math.max(outline.rx, w / 2), ry: Math.max(outline.ry, h / 2) };
+    }
+    case "rect": {
+      const { x, y, width, height } = outline.rect;
+      const nw = Math.max(width, w);
+      const nh = Math.max(height, h);
+      const rect = { x: x - (nw - width) / 2, y: y - (nh - height) / 2, width: nw, height: nh };
+      return { ...outline, rect, radius: Math.min(outline.radius, nw / 2, nh / 2) };
+    }
+    case "path":
+      return outline;
+  }
+}
+
+function fitTight(
+  members: readonly MemberFootprint[],
+  shape: SetShape,
+  padding: number,
+  radius: number,
+  angle: number | "auto" | undefined,
 ): SetOutline {
   const points = members.flatMap(footprintPoints);
   if (points.length === 0) throw new Error("internal error: a set without members");

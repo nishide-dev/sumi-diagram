@@ -170,3 +170,17 @@ describe("sets: angle (#430)", () => {
     ]);
   });
 });
+
+describe("sets: minimum size (#518)", () => {
+  const set = (fields: string) => `sets:\n  - { id: s, members: [a, b], ${fields} }`;
+
+  test("minWidth and minHeight are lengths; a hull rejects them", () => {
+    expect(diagnostics(figure(set("shape: ellipse, minWidth: 50mm, minHeight: 30mm")))).toEqual([]);
+    expect(diagnostics(figure(set("shape: rect, minWidth: 50mm")))).toEqual([]);
+    const check = checkFigure(figure(set("shape: hull, minHeight: 30mm")));
+    expect(check.state.diagnostics.map((d) => [d.code, d.path?.join(".")])).toEqual([
+      ["ref/set-min-size-needs-fixed-shape", "sets.0.minHeight"],
+    ]);
+    expect(check.state.doc.sets).toEqual([undefined]);
+  });
+});

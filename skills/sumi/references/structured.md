@@ -179,6 +179,7 @@ members are node or group IDs (a group stands for its whole frame; `unknown memb
 | `shape` | `circle` (default: the smallest circle around the members, like a classic Venn), `ellipse` (axis-parallel, at most 3:1, for a row of members; tilt it with `angle`), `hull` (rounded convex hull, for irregular members), `rect` (rounded rectangle) |
 | `angle` | `shape: ellipse` only (else `ref/set-angle-needs-ellipse`). `auto` turns the ellipse to the members (the smallest area; hugs diagonal members, like a hyperedge around a diagonal row), or degrees clockwise on the page (`rx` runs along it). Both fit the tightest ellipse that keeps `padding` clear of every member, with no 3:1 limit. Omitted: the axis-parallel ellipse above, unchanged |
 | `padding` | room between members and outline (default: the profile's group padding) |
+| `minWidth`, `minHeight` | least size of the outline (`circle`, `ellipse`, `rect`; `ref/set-min-size-needs-fixed-shape` on a hull). A smaller fit grows about its own center, so several sets can share one size or aspect without hidden `junction` anchors; a circle takes the larger of the two. The fit's center is unchanged, so place the members symmetrically if the sets should line up |
 | `enclose` | `body` (default) fits member bodies and badges; `footprint` also includes their glyphs before adding padding. Larger outlines can cover nearby non-members. |
 | `overlap` | `mix` (default) or `multiply` (legacy). `figure.setOverlap` sets the figure-wide default; a set overrides it. All participating sets contribute, including five or more; if they disagree, `multiply` wins. Unfilled sets do not paint overlaps. At the 1024-region budget, `layout/set-overlap-budget` warns that deeper intersections can omit colors; reduce overlaps or split the figure. |
 | `label`, `labelAt` | outside the outline: `top` (default), `bottom`, `left`, `right`, or beside a diagonal extreme `top-left`, `top-right`, `bottom-left`, `bottom-right`. For a label inside, make a `label` node a member |
@@ -193,7 +194,7 @@ members are node or group IDs (a group stands for its whole frame; `unknown memb
 - Put the shared member where the shapes overlap. A node inside an outline that is not a
   member reads as one: `geometry/set-contains-non-member` (warning) names it; add it to
   `members`, move it, or fit closer (`hull`, `ellipse` with `angle: auto`, smaller
-  `padding`). A set label
+  `padding`); a non-member cut by the outline is `geometry/set-outline-crosses-node`. A set label
   over text, a node, an edge or another set's boundary is `geometry/set-label-collision`:
   change `labelAt`. A subset's label inside its superset is fine.
 - The tints are opaque and painted first, then each outline and label on top, so an
@@ -1099,7 +1100,7 @@ icon one text line tall, or `iconSize` / `iconTone` as `iconSize` / `tone` on a 
 rectangle painted like a [set](#set-enclosures)). A paired arrow is
 `edge: { component: double-arrow, tone: red }`; edge variants are `default`,
 `dashed`, `emphasis`, `muted` (there is no dotted line). Samples are drawn by the
-same theme rules as real edges, nodes, glyphs and sets, so no colours are written. The legend's own `label` is its title;
+same theme rules as real edges, nodes, glyphs and sets, so no colours are written. A `node` sample takes `component`, `variant`, `tone` and `cornerRadius` (e.g. `3pt`, to match rounded nodes). The legend's own `label` is its title;
 `variant: plain` drops the frame; `tone` colours it. Entry text is left-aligned (a
 wrapped `\n` entry keeps its lines flush left); `textAlign: center | right` on the legend
 changes it.

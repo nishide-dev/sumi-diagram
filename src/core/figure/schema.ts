@@ -259,7 +259,7 @@ const CORNER_RADIUS_VALUES = Array.from({ length: 21 }, (_, i) => String(i / 2))
 const CORNER_RADIUS_PATTERN = new RegExp(
   `^(?:${CORNER_RADIUS_VALUES.map((v) => v.replace(".", "\\.")).join("|")})pt$`,
 );
-const CornerRadius = z
+export const CornerRadius = z
   .string()
   .regex(CORNER_RADIUS_PATTERN, {
     error: `A corner radius is a multiple of 0.5pt from 0pt to ${CORNER_RADIUS_MAX_PT}pt, in pt, e.g. "3pt".`,
@@ -1147,6 +1147,12 @@ export const SetSchema = z.strictObject({
     ),
   padding: LayoutLength.optional().describe(
     "Room between the members and the outline. Omitted means the profile's group padding.",
+  ),
+  minWidth: LayoutLength.optional().describe(
+    'Least width of the outline (circle, ellipse or rect, not hull), e.g. "50mm": a smaller fit grows about its center, so sets can share one size without hidden anchor nodes. A tilted ellipse takes it along its first axis; a circle takes the larger of minWidth and minHeight.',
+  ),
+  minHeight: LayoutLength.optional().describe(
+    "Least height of the outline (circle, ellipse or rect, not hull), as minWidth. A tilted ellipse takes it along its second axis.",
   ),
   fillOpacity: z
     .number()

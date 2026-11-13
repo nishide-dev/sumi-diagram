@@ -109,6 +109,40 @@ export const setContainsNonMember = defineGeometryRule({
   },
 });
 
+export const setOutlineCrossesNode = defineGeometryRule({
+  id: "geometry/set-outline-crosses-node",
+  description:
+    "A set's outline runs through a node that is not one of its members, so the node looks half inside the set.",
+  defaultSeverity: "warning",
+  fixable: false,
+  run(context) {
+    const findings: LintFinding[] = [];
+    for (const set of context.sets) {
+      // Nodes mostly or wholly inside are set-contains-non-member's.
+      const covered = new Set(coveredNonMembers(context, set));
+      const crossed = context.elements.filter((node) => {
+        if (node.kind !== "node" || node.ir.kind !== "node" || covered.has(node)) return false;
+        if (node.ir.mark?.type === "point" || isMember(context, set, node)) return false;
+        const rect = footprint(node);
+        return rect !== undefined && regionIntersectsRect(set.geometry.region, rect, TOLERANCE);
+      });
+      if (crossed.length === 0) continue;
+      const names = crossed.map((n) => n.name);
+      findings.push({
+        message: `The outline of ${set.name} crosses ${names.length === 1 ? names[0] : `${names.length} nodes (${names.join(", ")})`}, which ${names.length === 1 ? "is" : "are"} not ${names.length === 1 ? "a member" : "members"}.`,
+        path: set.docPath,
+        subject: set.subject,
+        hint: "A node cut by an outline reads as half in the set. Move it clear of the outline (the `place` coordinates or a gap), narrow it, or fit the set closer: shape: hull or rect, a tilted ellipse (angle: auto), a smaller padding or minWidth / minHeight.",
+        related: crossed.map((n) => ({
+          path: n.docPath,
+          message: `${capitalize(n.name)} is defined here.`,
+        })),
+      });
+    }
+    return findings;
+  },
+});
+
 /** How close (units) the outline may come to a text box before it counts as touching it. */
 const TEXT_TOUCH = 1;
 

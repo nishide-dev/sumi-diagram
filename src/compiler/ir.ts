@@ -453,6 +453,9 @@ export interface SetIR {
   readonly labelAt: SetLabelPosition;
   /** Room between the members and the outline in pt; omitted means the profile's group padding. */
   readonly paddingPt?: number;
+  /** Least outline size in pt (#518); omitted means none. */
+  readonly minWidthPt?: number;
+  readonly minHeightPt?: number;
   readonly variant: string;
   readonly style: SetStyle;
   /** Where the set is written (`sets[i]`), for diagnostics. */
@@ -879,6 +882,8 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
         ...(set.angle !== undefined && { angle: set.angle }),
         labelAt: set.labelAt ?? "top",
         ...(set.padding !== undefined && { paddingPt: set.padding }),
+        ...(set.minWidth !== undefined && { minWidthPt: set.minWidth }),
+        ...(set.minHeight !== undefined && { minHeightPt: set.minHeight }),
         variant: set.variant,
         style: resolveSetStyle(setTheme, {
           variant: set.variant,
