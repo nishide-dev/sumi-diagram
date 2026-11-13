@@ -101,7 +101,10 @@ arrangement is not obvious, however few nodes; skip only for an obvious one-dire
 in Sumi's vocabulary and theme colours, check it against the step 1 checklist, then reproduce it in YAML
 ([mockup](references/mockup.md), [template](references/mockup-template.html)).
 
-First open the [examples index](examples/README.md), choose the 1–2 closest examples
+**Start from the closest base layout.** Match the request by structure in the [layouts index](layouts/README.md), view its PNG,
+copy its directory and adapt it (labels, counts, tones; delete or add whole units); mock up the adapted arrangement, and say which layout you used. None fits: go on.
+
+Then open the [examples index](examples/README.md), choose the 1–2 closest examples
 by figure type and features, view their PNGs (Read shows images) and read their YAML.
 Reuse their idioms (arrange boxes, tones, notes), never their content. Then read
 [references/figure-format.md](references/figure-format.md) before your first figure. Essentials:
@@ -238,7 +241,7 @@ Stop, report the state (last diagnostics, attempts) and ask when:
 - a command exits 2 for a reason you cannot fix (e.g. D2 missing).
 
 ## References
-[Examples](examples/README.md): look at the closest ones before writing and after
+[Layouts](layouts/README.md): generic starting skeletons to adapt (step 4) · [Examples](examples/README.md): look at the closest ones before writing and after
 rendering (steps 4 and 7); they are references for idioms, not content to copy.
 [figure-format](references/figure-format.md) (fields, labels, math, tones, groups, themes,
 profiles, target) · [structured](references/structured.md) (arrange trees, grids, attach,

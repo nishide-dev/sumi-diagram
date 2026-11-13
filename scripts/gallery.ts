@@ -23,6 +23,8 @@
  * - one figure under every built-in palette (#417) → docs/gallery/palettes/
  * - legend entries with icon, glyph, edge and set samples under every theme (#409) →
  *   docs/gallery/legend-samples/
+ * - every `skills/sumi/layouts/<name>/<name>.sumi.yaml` (#511) → the SVG next to it; each must
+ *   render without errors or warnings (infos allowed)
  * - `examples/transformer` (structured layout) under every built-in theme →
  *   docs/gallery/themes/ (#264)
  *
@@ -193,6 +195,24 @@ for (const rendering of readmeFigure) {
   });
 }
 
+// The Skill's base layouts (#511): SVGs next to their sources, guarded like the examples.
+const layoutSources = [...new Bun.Glob("skills/sumi/layouts/*/*.sumi.yaml").scanSync({ cwd: ROOT })]
+  .map((p) => p.split("\\").join("/"))
+  .sort();
+for (const source of layoutSources) {
+  jobs.push({
+    file: source,
+    source: await read(source),
+    assetBase: join(ROOT, dirname(source)),
+    rendering: {
+      output: source.replace(/\.sumi\.yaml$/, ".svg"),
+      theme: "",
+      profile: "",
+      overrides: {},
+    },
+  });
+}
+
 const outcomes = await renderAll(jobs);
 let cursor = 0;
 const take = (n: number) => {
@@ -224,6 +244,7 @@ const model: GalleryModel = {
   filledTones: { sample: filledTones, outcomes: take(filledTones.renderings.length) },
 };
 const readmeFigureOutcomes = take(readmeFigure.length);
+const layoutOutcomes = take(layoutSources.length);
 
 // The original LLaDA figure has four short dashed remask arrows. Keep the
 // reproduction faithful while still rejecting any other warning or error.
@@ -253,6 +274,7 @@ const strict: [string, RenderOutcome][] = [
     o,
   ]),
   ...readmeFigureOutcomes.map((o): [string, RenderOutcome] => [`${README_FIGURE} (${o.theme})`, o]),
+  ...layoutOutcomes.map((o, i): [string, RenderOutcome] => [layoutSources[i] ?? "layout", o]),
 ];
 for (const [name, outcome] of strict) {
   const blocking = outcome.diagnostics.filter(
@@ -342,7 +364,10 @@ async function listFiles(dir: string): Promise<string[]> {
 const exampleSvgs = [...new Bun.Glob("examples/*/*.{svg,pdf}").scanSync(ROOT)].map((p) =>
   p.split("\\").join("/"),
 );
-const stale = [...(await listFiles(GALLERY_DIR)), ...exampleSvgs]
+const layoutSvgs = [...new Bun.Glob("skills/sumi/layouts/*/*.svg").scanSync(ROOT)].map((p) =>
+  p.split("\\").join("/"),
+);
+const stale = [...(await listFiles(GALLERY_DIR)), ...exampleSvgs, ...layoutSvgs]
   .filter((path) => !files.has(path))
   .sort();
 const changed: string[] = [];
