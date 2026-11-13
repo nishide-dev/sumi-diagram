@@ -1023,6 +1023,24 @@ export const NodeSchema = z.strictObject({
     .describe(
       'Structured layout: a second, smaller text under the label, e.g. a size "32 × 32 × 4" under "Noise". Drawn at 7/8 of the label\'s font size (rounded down to 0.5pt); newlines break lines and label math is allowed. Needs a label.',
     ),
+  text: z
+    .enum(["small", "body", "heading", "large"])
+    .optional()
+    .describe(
+      "Structured layout: the size of the node's label as a role of the theme's text, not a free size: small (the theme's small text, e.g. a caption or a muted note), body (the variant's own size, the default), heading (the theme's group-title size, e.g. a row title or a method name) or large (1.5 times the body size, e.g. a repeat count like \"L×\"). The sublabel is drawn at 7/8 of it. Follows figure.themeOverrides.textScale.",
+    ),
+  weight: z
+    .enum(["regular", "bold"])
+    .optional()
+    .describe(
+      "Structured layout: the weight of the node's label, replacing the variant's (bold needs a bold face in the theme's font). The sublabel is then always regular, so a bold name sits over a plain subtitle. Omitted means the variant's.",
+    ),
+  sublabelInk: z
+    .enum(["default", "muted"])
+    .optional()
+    .describe(
+      "Structured layout: the color of the node's sublabel (needs sublabel). muted is the theme's muted ink (the muted label variant's), e.g. a grey subtitle under a name. Omitted or default keeps the label's color.",
+    ),
   textAlign: z
     .enum(["left", "center", "right"])
     .optional()
@@ -1097,7 +1115,7 @@ export const EdgeSchema = z.strictObject({
     .enum(["straight", "curve"])
     .optional()
     .describe(
-      "Join endpoints with one straight segment (straight) or cubic Bézier (curve), without obstacle avoidance or shared trunks (structured layout only). Curves share the through tangent at junctions. Omitted keeps orthogonal routing.",
+      "Join endpoints with one straight segment (straight) or cubic Bézier (curve), without obstacle avoidance or shared trunks (structured layout only). Curves share the through tangent at junctions. On an edge from a node to itself, curve draws a loop out of one side of the node and back into it (clockwise; fromAnchor and toAnchor name that side and the two ends, e.g. south:0.3 and south:0.7; default north, label on the outside), e.g. a repeat or agent loop. Omitted keeps orthogonal routing.",
     ),
   id: Id.optional().describe("Optional edge ID (separate ID space from nodes and groups)."),
   from: Ref.describe("Source node or group ID, or a cell of a tokens node as <node>.<cell>."),

@@ -418,8 +418,16 @@ function objectGroup(
   overlay = "",
 ): string {
   // A sublabel (#184) is a <text> of its own after the label's, at its own size.
+  const subInk = element.kind === "node" ? element.style.sublabel?.fontColor : undefined;
   const labelSvg = [layout, sublabel]
-    .map((text) => (text === undefined ? "" : label(text, element.style.fontColor)))
+    .map((text) =>
+      text === undefined
+        ? ""
+        : label(
+            text,
+            text === sublabel ? (subInk ?? element.style.fontColor) : element.style.fontColor,
+          ),
+    )
     .join("");
   return `<g class="${elementClass(element.key)} sumi-kind-${element.kind}"${opacity(element.style)}><g class="shape">${shape}</g>${asset}${labelSvg}${overlay}</g>`;
 }

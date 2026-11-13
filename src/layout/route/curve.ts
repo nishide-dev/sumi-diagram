@@ -1,6 +1,7 @@
 /** Independent cubic routes with a shared through direction at junctions (#366). */
 import type { EdgeIR, FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
+import type { Anchor } from "../../core/figure/layout";
 import { getOutlineRenderer } from "../../core/outline";
 import type { LayoutIR, Point, Rect, TextLayout, TextMetrics } from "../ir";
 import { roundUnits } from "../ir";
@@ -156,4 +157,59 @@ export function curveLabel(metrics: TextMetrics, points: Cubic, edge: EdgeIR): T
     { x: p.x + v.x, y: p.y + v.y },
     { ...edge, labelAt: "middle" },
   );
+}
+
+/** The anchors of a self-loop (#519): both on one side, by default the north side at 0.7 and 0.3 (clockwise). */
+export function selfLoopAnchors(edge: EdgeIR): { from: Anchor; to: Anchor } | string {
+  const given = (anchor: EdgeIR["fromAnchor"]) =>
+    anchor === undefined || anchor === "straight" ? undefined : anchor;
+  const from = given(edge.fromAnchor);
+  const to = given(edge.toAnchor);
+  if (edge.fromAnchor === "straight" || edge.toAnchor === "straight")
+    return 'a loop needs side anchors, not "straight"';
+  if (from !== undefined && to !== undefined && from.side !== to.side)
+    return "the loop's two anchors are on different sides; use one side for both";
+  const side = from?.side ?? to?.side ?? "north";
+  return {
+    from: from ?? { side, offset: to === undefined ? 0.7 : 1 - to.offset },
+    to: to ?? { side, offset: from === undefined ? 0.3 : 1 - from.offset },
+  };
+}
+
+/**
+ * The cubic of a self-loop (#519): out of `a`, away from the node by 2.25 times the
+ * edge's font size (the controls rise 3 times, a cubic's peak is 3/4 of that) leaning outward, and back into
+ * `b`; the loop turns clockwise unless the anchors are given the other way
+ * round. The arrowhead takes the exact end tangent like any cubic.
+ */
+export function selfLoopPoints(edge: EdgeIR, a: Point, b: Point, side: Anchor["side"]): Cubic {
+  const n = DIRS[SIDE_DIR[side]] as Point;
+  const chord = Math.hypot(a.x - b.x, a.y - b.y);
+  const u = { x: (a.x - b.x) / chord, y: (a.y - b.y) / chord };
+  const height = edge.style.fontSize.units * 3;
+  const spread = chord / 2;
+  return [
+    a,
+    {
+      x: roundUnits(a.x + n.x * height + u.x * spread),
+      y: roundUnits(a.y + n.y * height + u.y * spread),
+    },
+    {
+      x: roundUnits(b.x + n.x * height - u.x * spread),
+      y: roundUnits(b.y + n.y * height - u.y * spread),
+    },
+    b,
+  ];
+}
+
+/**
+ * The edge a self-loop's label is placed by: its default side is the outside
+ * of the loop, which is the right of the tangent when the loop turns
+ * clockwise (see {@link selfLoopPoints}) and the left otherwise.
+ */
+export function loopLabelEdge(edge: EdgeIR, a: Point, b: Point, side: Anchor["side"]): EdgeIR {
+  if (edge.labelSide !== undefined) return edge;
+  const n = DIRS[SIDE_DIR[side]] as Point;
+  const clockwise = (a.x - b.x) * -n.y + (a.y - b.y) * n.x > 0;
+  return { ...edge, labelSide: clockwise ? "right" : "left" };
 }

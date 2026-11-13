@@ -54,6 +54,7 @@ import { getProfile } from "../../core/profile/builtin";
 import { type Profile, spacedProfile } from "../../core/profile/schema";
 import { SEPARATOR_ID } from "../../core/registry/builtins";
 import { getFontSet } from "../../core/theme/fonts";
+import { sublabelTextStyle } from "../../core/theme/style";
 import { roundToD2Units } from "../../core/units";
 import { groupFrontRect, groupLayerSpread } from "../group-layers";
 import { hintLayoutOptions, inHintTrial } from "../hint-trials";
@@ -278,7 +279,7 @@ class StructuredLayout {
           ? undefined
           : measureText(
               node.sublabel.text,
-              { ...node.style, fontSize: node.sublabel.fontSize },
+              sublabelTextStyle(node.style, node.sublabel.fontSize),
               measurer,
             );
       if (sublabel !== undefined) this.#sublabels.set(node.key, sublabel);

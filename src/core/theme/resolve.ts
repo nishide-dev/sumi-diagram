@@ -25,7 +25,7 @@ import type { FontUsage } from "../profile/constrain";
 import { FLOW_ARROW_IDS, OPERATOR_SIZES, SEPARATOR_ID } from "../registry/builtins";
 import type { ComponentId, ComponentKind } from "../registry/manifest";
 import { resolveTheme } from "./builtin";
-import { dimmedElements, dimStyle } from "./dim";
+import { dimmedElements, dimStyle, expandColor } from "./dim";
 import { contrastRatio as contrast, filledToneNode, luminance, readableInk } from "./node-variants";
 import { figureTheme } from "./overrides";
 import type { Theme, ToneOverride } from "./schema";
@@ -35,6 +35,7 @@ import {
   type NodeStyle,
   type ResolvedStyle,
   type StyleLayer,
+  type StyleLength,
   type StyleOf,
   sublabelFontSize,
 } from "./style";
@@ -253,6 +254,79 @@ function overriddenTone(
 }
 
 /**
+ * A node's text style (#519, `text`, `weight`, `sublabelInk`): its label's size as a role of
+ * the theme's text (the theme's small edge text, the variant's own size, the group title size
+ * or 1.5 times the body), its label's weight, and its sublabel's weight and ink. Resolved from
+ * the figure's (text-scaled) theme, so it follows `textScale`.
+ */
+function withTextStyle(
+  style: NodeStyle,
+  theme: Theme,
+  node: {
+    readonly text?: string | undefined;
+    readonly weight?: string | undefined;
+    readonly sublabelInk?: string | undefined;
+  },
+): NodeStyle {
+  let next = style;
+  if (node.text !== undefined && node.text !== "body") {
+    const sized = (kind: "group" | "edge", id: ComponentId) =>
+      resolveStyle(theme, { kind, id, variant: "default" }).style.fontSize;
+    const body = style.fontSize;
+    const fontSize =
+      node.text === "small"
+        ? smaller(sized("edge", "sumi/line"), body)
+        : node.text === "heading"
+          ? larger(sized("group", CONTAINER_ID), body)
+          : { pt: Math.round(body.units * 1.5) / 2, units: Math.round(body.units * 1.5) };
+    next = Object.freeze({ ...next, fontSize });
+  }
+  if (node.weight !== undefined) next = Object.freeze({ ...next, bold: node.weight === "bold" });
+  const sublabel: { bold?: boolean; fontColor?: string } = {};
+  if (node.weight !== undefined) sublabel.bold = false;
+  if (node.sublabelInk === "muted") {
+    const muted = resolveStyle(theme, {
+      kind: "node",
+      id: "sumi/label",
+      variant: "muted",
+    }).style.fontColor;
+    sublabel.fontColor = mutedInkOn(muted, next, theme.canvas);
+  }
+  return Object.keys(sublabel).length === 0 ? next : Object.freeze({ ...next, sublabel });
+}
+
+/**
+ * The muted ink of a sublabel on the node's own fill (the canvas when it has none): the theme's
+ * muted ink when it reads there (4.5:1), else the label's ink, chosen for that fill, blended
+ * toward the fill (kept at 3:1 or more), else the label's ink itself.
+ */
+function mutedInkOn(muted: string, style: NodeStyle, canvas: string): string {
+  const hex = (c: string) => /^#[0-9a-f]{6}$/i.test(expandColor(c));
+  const fill = style.fill === "transparent" ? canvas : style.fill;
+  if (!hex(fill) || !hex(muted) || !hex(style.fontColor)) return muted;
+  const bg = expandColor(fill);
+  if (contrast(expandColor(muted), bg) >= 4.5) return muted;
+  const ink = expandColor(style.fontColor);
+  for (const share of [0.35, 0.25, 0.15]) {
+    const mix = `#${[1, 3, 5]
+      .map((o) =>
+        Math.round(
+          Number.parseInt(ink.slice(o, o + 2), 16) * (1 - share) +
+            Number.parseInt(bg.slice(o, o + 2), 16) * share,
+        )
+          .toString(16)
+          .padStart(2, "0"),
+      )
+      .join("")}`;
+    if (contrast(mix, bg) >= 4.5) return mix;
+  }
+  return style.fontColor;
+}
+
+const smaller = (a: StyleLength, b: StyleLength): StyleLength => (a.units < b.units ? a : b);
+const larger = (a: StyleLength, b: StyleLength): StyleLength => (a.units > b.units ? a : b);
+
+/**
  * Runs the `theme` stage: resolves `figure.theme` (reporting `theme/unknown`)
  * and records the effective style of every valid element with a resolved
  * component in `state.styles`. Returns the theme, or `undefined` if the figure
@@ -377,6 +451,8 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
       });
       if (frame) style = withRadius(style, overrides?.cornerRadius);
     }
+    if (style.kind === "node" && entry.kind === "node")
+      style = withTextStyle(style, theme, entry.element);
     if (style.kind === "edge" && overrides?.textScale !== undefined && overrides.textScale !== 1)
       style = Object.freeze({ ...style, textScale: overrides.textScale });
     if (overrides?.nodeCorners === "square" && style.kind !== "edge")

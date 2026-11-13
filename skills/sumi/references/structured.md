@@ -671,6 +671,37 @@ edges:
   - {from: features, to: mask}
 ```
 
+## Text styles
+
+A node's label is one style by default. **`text`** picks its size from the
+theme's text roles, never a free size: `small` (the theme's small text, also
+edge labels), `body` (the variant's own, the default), `heading` (the group-title
+size) or `large` (1.5 times the body, e.g. "L×"). **`weight: bold | regular`**
+replaces the variant's weight. With `weight`, the **sublabel** stays regular, and
+**`sublabelInk: muted`** draws it in the theme's muted ink: a bold name over a
+grey subtitle. All three follow `themeOverrides.textScale`, are structured only
+(`layout/structured-only` in `auto`), and are measured like any text
+(`profile/font-too-small`, `geometry/text-too-small` see the role's size; a
+sublabel is 7/8 of it). `sublabelInk` without a sublabel is
+`component/sublabel-ink-without-sublabel` (warning). Use roles for row titles,
+method names and repeat marks instead of an `html` node.
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: text-styles
+  theme: sumi
+  layout:
+    arrange: {row: {gap: 8mm, align: center, items: [rag, block, repeat]}}
+nodes:
+  - {id: rag, component: box, label: Vanilla RAG, weight: bold, sublabel: "retrieve, then read", sublabelInk: muted}
+  - {id: block, component: box, label: Encoder, text: heading, weight: bold}
+  - {id: repeat, component: label, label: "L×", text: large, weight: bold}
+edges:
+  - {from: rag, to: block}
+```
+
 ## Turned labels
 
 **`labelRotation: -90`** draws a node's label reading bottom to top (`90`: top
@@ -995,7 +1026,7 @@ Shared trunks keep their existing routing. There is no per-edge lane coordinate.
   or brushes a node or tokens cell: its stroke touches the outline),
   `geometry/edge-crosses-label` and `geometry/label-collision` locate overlaps;
   move endpoints, labels or nodes, or use side anchors.
-  Self-loops, overlapping endpoint boxes, missing outline intersections, inward-facing anchors, insufficient
+  Self-loops (use `route: curve`, see [loops](#loops)), overlapping endpoint boxes, missing outline intersections, inward-facing anchors, insufficient
   arrowhead room and `component: zoom` conflicts are `layout/no-route` errors.
   PDF and picture/editable PPTX support the line; glued PPTX snaps to its connection
   sites as usual. Omit `route` for the existing orthogonal router.
@@ -1038,6 +1069,33 @@ edges:
   - {from: j1, to: j2, component: line, variant: dashed}
   - {from: j2, to: z1, route: curve, tone: blue}
   - {from: j2, to: z2, route: curve, tone: orange}
+```
+
+- <a id="loops"></a>**Loops**: `route: curve` on an edge from a node to itself draws a
+  loop out of one side and back into it (a repeat, a retry, an agent loop), clockwise
+  by default out of the north side (leaving at 0.7, entering at 0.3), about 2.25
+  times the edge's text size high. `fromAnchor` / `toAnchor` choose the side and the ends
+  (`"south:0.3"` and `"south:0.7"`; both on one side, different offsets; one given
+  mirrors the other); the label sits outside the loop. The loop does not reserve
+  space: leave room beside the node, or `geometry/edge-through-node` reports it. A
+  loop between *two* nodes is `route: curve` with anchors on the same side (an arch).
+  Same output formats as other curves; not for a junction or `straight` anchors
+  (`layout/no-route`).
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: loop
+  theme: sumi
+  layout:
+    arrange: {row: {gap: 14mm, items: [plan, act]}}
+nodes:
+  - {id: plan, component: box, label: Plan}
+  - {id: act, component: box, label: Act}
+edges:
+  - {from: plan, to: act}
+  - {from: act, to: act, route: curve, label: repeat T times}
 ```
 
 - **Anchors**: `fromAnchor` / `toAnchor` pick the side of an end: `west`, or
