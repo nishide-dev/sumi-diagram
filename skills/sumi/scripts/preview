@@ -222,7 +222,12 @@ elif [ "$tool" = chrome ]; then
     printf '<!doctype html><meta charset="utf-8"><style>html,body{margin:0;background:#fff}body>svg{display:block;width:%spx;height:%spx}</style>\n' "$fw" "$fh"
     cat "$svg_abs"
   } >"$out/page.html"
-  "$chrome" --headless --disable-gpu --no-sandbox --hide-scrollbars \
+  # Headless Chrome on Linux can signal its whole process group on exit; run it
+  # in its own session (setsid) so that signal never reaches this script.
+  # `--wait` keeps setsid in the foreground even if it has to fork.
+  launch=
+  if setsid --wait true >/dev/null 2>&1; then launch="setsid --wait"; fi
+  $launch "$chrome" --headless --disable-gpu --no-sandbox --hide-scrollbars \
     --user-data-dir="$out/profile" --default-background-color=FFFFFFFF \
     --window-size="$fw,$fh" --screenshot="$out/figure.png" "file://$out/page.html" \
     >/dev/null 2>&1 || true
