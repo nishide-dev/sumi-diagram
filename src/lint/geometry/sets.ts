@@ -46,16 +46,11 @@ function nodeRegion(element: GeometryElement): Region | undefined {
   return rect === undefined ? undefined : rectPolygon(rect);
 }
 
-/** Points inside the region (a grid over its bounds) and on its boundary. */
-function sampleRegion(region: Region): { inside: Point[]; boundary: Point[] } {
+/** Points inside the region, on a grid over its bounds (for a share of its area). */
+function sampleInside(region: Region): Point[] {
   const inside: Point[] = [];
-  const boundary: Point[] = [];
   if (region.kind === "ellipse") {
     const { cx, cy, rx, ry } = region;
-    for (let i = 0; i < 32; i++) {
-      const a = (i / 32) * 2 * Math.PI;
-      boundary.push({ x: cx + rx * Math.cos(a), y: cy + ry * Math.sin(a) });
-    }
     for (let i = 0; i < GRID; i++)
       for (let j = 0; j < GRID; j++) {
         const p = {
@@ -64,7 +59,7 @@ function sampleRegion(region: Region): { inside: Point[]; boundary: Point[] } {
         };
         if (depthInside(region, p) >= 0) inside.push(p);
       }
-    return { inside, boundary };
+    return inside;
   }
   const { points } = region;
   const xs = points.map((p) => p.x);
@@ -73,18 +68,124 @@ function sampleRegion(region: Region): { inside: Point[]; boundary: Point[] } {
   const y0 = Math.min(...ys);
   const w = Math.max(...xs) - x0;
   const h = Math.max(...ys) - y0;
-  for (let i = 0; i < points.length; i++) {
-    const a = points[i] as Point;
-    const b = points[(i + 1) % points.length] as Point;
-    for (let k = 0; k < 4; k++)
-      boundary.push({ x: a.x + ((b.x - a.x) * k) / 4, y: a.y + ((b.y - a.y) * k) / 4 });
-  }
   for (let i = 0; i < GRID; i++)
     for (let j = 0; j < GRID; j++) {
       const p = { x: x0 + ((i + 0.5) / GRID) * w, y: y0 + ((j + 0.5) / GRID) * h };
       if (depthInside(region, p) >= 0) inside.push(p);
     }
-  return { inside, boundary };
+  return inside;
+}
+
+/** Sides of the polygon that stands for a node's ellipse: circumscribed, so it never falls short. */
+const ELLIPSE_SIDES = 64;
+
+/** The vertices of a convex region as a polygon (an ellipse as a circumscribed polygon). */
+function polygonOf(region: Region): Point[] {
+  if (region.kind === "polygon") return [...region.points];
+  const { cx, cy, rx, ry } = region;
+  const k = 1 / Math.cos(Math.PI / ELLIPSE_SIDES);
+  return Array.from({ length: ELLIPSE_SIDES }, (_, i) => {
+    const a = (i / ELLIPSE_SIDES) * 2 * Math.PI;
+    return { x: cx + rx * k * Math.cos(a), y: cy + ry * k * Math.sin(a) };
+  });
+}
+
+const signedArea2 = (pts: readonly Point[]): number =>
+  pts.reduce((sum, a, i) => {
+    const b = pts[(i + 1) % pts.length] as Point;
+    return sum + (a.x * b.y - b.x * a.y);
+  }, 0);
+
+/**
+ * The convex polygon moved `distance` inward on every side (each edge's
+ * half-plane shifted, by clipping): empty when nothing is left.
+ */
+function erodePolygon(points: readonly Point[], distance: number): Point[] {
+  const sign = Math.sign(signedArea2(points)) || 1;
+  let out = [...points];
+  for (let i = 0; i < points.length && out.length > 0; i++) {
+    const a = points[i] as Point;
+    const b = points[(i + 1) % points.length] as Point;
+    const length = Math.hypot(b.x - a.x, b.y - a.y);
+    if (length < 1e-9) continue;
+    // Signed distance inside the edge: positive inward, minus the margin.
+    const side = (p: Point) =>
+      (sign * ((b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x))) / length - distance;
+    const next: Point[] = [];
+    for (let j = 0; j < out.length; j++) {
+      const p = out[j] as Point;
+      const q = out[(j + 1) % out.length] as Point;
+      const sp = side(p);
+      const sq = side(q);
+      if (sp >= 0) next.push(p);
+      if (sp >= 0 !== sq >= 0) {
+        const t = sp / (sp - sq);
+        next.push({ x: p.x + (q.x - p.x) * t, y: p.y + (q.y - p.y) * t });
+      }
+    }
+    out = next;
+  }
+  return out.length >= 3 ? out : [];
+}
+
+const project = (pts: readonly Point[], axis: Point): [number, number] => {
+  let lo = Number.POSITIVE_INFINITY;
+  let hi = Number.NEGATIVE_INFINITY;
+  for (const p of pts) {
+    const v = p.x * axis.x + p.y * axis.y;
+    lo = Math.min(lo, v);
+    hi = Math.max(hi, v);
+  }
+  return [lo, hi];
+};
+
+/** Whether two convex polygons share interior points (separating axes, exact). */
+function polygonsOverlap(a: readonly Point[], b: readonly Point[]): boolean {
+  for (const poly of [a, b]) {
+    for (let i = 0; i < poly.length; i++) {
+      const p = poly[i] as Point;
+      const q = poly[(i + 1) % poly.length] as Point;
+      if (Math.hypot(q.x - p.x, q.y - p.y) < 1e-9) continue;
+      const axis = { x: p.y - q.y, y: q.x - p.x };
+      const [minA, maxA] = project(a, axis);
+      const [minB, maxB] = project(b, axis);
+      const scale = Math.hypot(axis.x, axis.y);
+      if (maxA - minB <= 1e-9 * scale || maxB - minA <= 1e-9 * scale) return false;
+    }
+  }
+  return true;
+}
+
+/** Distance from the origin to the segment ab. */
+function originToSegment(a: Point, b: Point): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len2 = dx * dx + dy * dy;
+  const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, -(a.x * dx + a.y * dy) / len2));
+  return Math.hypot(a.x + t * dx, a.y + t * dy);
+}
+
+/**
+ * Whether the node's region lies more than `distance` inside the set's
+ * outline anywhere: the node meets the set's region moved `distance` inward.
+ * Exact for polygons (clipping and separating axes) and for ellipses (the
+ * node's polygon against the set's ellipse, taken to a unit circle), so a
+ * long thin node cut between any two sample points is still found.
+ */
+export function overlapsBeyond(setRegion: Region, node: Region, distance: number): boolean {
+  const nodePoly = polygonOf(node);
+  if (setRegion.kind === "polygon") {
+    const eroded = erodePolygon(setRegion.points, distance);
+    return eroded.length > 0 && polygonsOverlap(eroded, nodePoly);
+  }
+  const rx = setRegion.rx - distance;
+  const ry = setRegion.ry - distance;
+  if (rx <= 0 || ry <= 0) return false;
+  // Into the frame where the eroded ellipse is the unit circle.
+  const pts = nodePoly.map((p) => ({ x: (p.x - setRegion.cx) / rx, y: (p.y - setRegion.cy) / ry }));
+  const inside = depthInside({ kind: "polygon", points: pts }, { x: 0, y: 0 }) > 0;
+  if (inside) return true;
+  return pts.some((a, i) => originToSegment(a, pts[(i + 1) % pts.length] as Point) < 1 - 1e-9);
 }
 
 /**
@@ -104,7 +205,7 @@ export function classifyAgainstSet(
 ): "covered" | "crossed" | "clear" {
   const region = nodeRegion(node);
   if (region === undefined) return "clear";
-  const { inside, boundary } = sampleRegion(region);
+  const inside = sampleInside(region);
   const centerOf = footprint(node);
   const center =
     node.outline?.kind === "ellipse"
@@ -118,10 +219,7 @@ export function classifyAgainstSet(
       ? 0
       : inside.filter((p) => depthInside(set.geometry.region, p) >= 0).length / inside.length;
   if (share >= COVERED_SHARE) return "covered";
-  const cut = [...inside, ...boundary].some(
-    (p) => depthInside(set.geometry.region, p) >= TOLERANCE,
-  );
-  return cut ? "crossed" : "clear";
+  return overlapsBeyond(set.geometry.region, region, TOLERANCE) ? "crossed" : "clear";
 }
 
 /** Whether a node is a member of the set, directly or through a member group. */
