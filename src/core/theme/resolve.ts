@@ -341,7 +341,7 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
     if (
       overrides?.dashedGroupStroke !== undefined &&
       style.kind === "group" &&
-      variant === "dashed"
+      (variant === "dashed" || variant === "filled-dashed")
     )
       style = Object.freeze({ ...style, stroke: overrides.dashedGroupStroke });
     else if (overrides?.groupStroke !== undefined && id === CONTAINER_ID && style.kind === "group")

@@ -4,18 +4,18 @@
 
 A trapezoid with a wider top and a narrower bottom\.
 
-**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, filled, outlined, solid, tinted</code> · **since**: <code>0\.3\.0</code> · **shape**: <code>rectangle</code> · **sizing**: <code>auto</code> · **render**: <code>\{&quot;type&quot;:&quot;outline&quot;,&quot;renderer&quot;:&quot;sumi/trapezoid&quot;,&quot;params&quot;:\{&quot;slant&quot;:0\.4\}\}</code>
+**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, dashed, filled, outlined, solid, tinted</code> · **since**: <code>0\.3\.0</code> · **shape**: <code>rectangle</code> · **sizing**: <code>auto</code> · **render**: <code>\{&quot;type&quot;:&quot;outline&quot;,&quot;renderer&quot;:&quot;sumi/trapezoid&quot;,&quot;params&quot;:\{&quot;slant&quot;:0\.4\}\}</code>
 
 | prop | type | required | description |
 | --- | --- | --- | --- |
-| <code>width</code> | <code>string</code> | no | Explicit width as a length such as &quot;30mm&quot; or &quot;40pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
-| <code>height</code> | <code>string</code> | no | Explicit height as a length such as &quot;10mm&quot; or &quot;20pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
+| <code>width</code> | <code>string</code> | no | Explicit width as a length such as &quot;30mm&quot; or &quot;40pt&quot; \(rounded to the nearest 0\.5pt\)\. Omitted means sized to the label\. |
+| <code>height</code> | <code>string</code> | no | Explicit height as a length such as &quot;10mm&quot; or &quot;20pt&quot; \(rounded to the nearest 0\.5pt\)\. Omitted means sized to the label\. |
 | <code>narrow</code> | <code>&quot;south&quot; &#124; &quot;north&quot; &#124; &quot;east&quot; &#124; &quot;west&quot;</code> | no | Side with the narrow parallel edge; omitted means south \(wide top\)\. |
 
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> | <code>llama</code> | <code>sumi</code> | <code>sumi\-dark</code> |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | <img src="sumi-trapezoid.minimal.svg" alt="sumi/trapezoid, theme minimal"> | <img src="sumi-trapezoid.academic.svg" alt="sumi/trapezoid, theme academic"> | <img src="sumi-trapezoid.slides.svg" alt="sumi/trapezoid, theme slides"> | <img src="sumi-trapezoid.color.svg" alt="sumi/trapezoid, theme color"> | <img src="sumi-trapezoid.paper.svg" alt="sumi/trapezoid, theme paper"> | <img src="sumi-trapezoid.llama.svg" alt="sumi/trapezoid, theme llama"> | <img src="sumi-trapezoid.sumi.svg" alt="sumi/trapezoid, theme sumi"> | <img src="sumi-trapezoid.sumi-dark.svg" alt="sumi/trapezoid, theme sumi-dark"> |
-| <code>sumi render sumi\-trapezoid\.sumi\.yaml</code><br>143\.05mm × 137\.05mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-trapezoid\.sumi\.yaml \-\-theme academic</code><br>143\.05mm × 137\.05mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-trapezoid\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>199\.67mm × 181\.33mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-trapezoid\.sumi\.yaml \-\-theme color</code><br>143\.05mm × 137\.05mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-trapezoid\.sumi\.yaml \-\-theme paper</code><br>143\.05mm × 137\.05mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-trapezoid\.sumi\.yaml \-\-theme llama</code><br>143\.05mm × 137\.05mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-trapezoid\.sumi\.yaml \-\-theme sumi</code><br>143\.05mm × 137\.05mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-trapezoid\.sumi\.yaml \-\-theme sumi\-dark</code><br>143\.05mm × 137\.05mm \(max width 180mm, max height 220mm\) |
+| <code>sumi render sumi\-trapezoid\.sumi\.yaml</code><br>143\.05mm × 137\.05mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-trapezoid\.sumi\.yaml \-\-theme academic</code><br>143\.05mm × 137\.05mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-trapezoid\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>206\.2mm × 181\.33mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-trapezoid\.sumi\.yaml \-\-theme color</code><br>143\.05mm × 137\.05mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-trapezoid\.sumi\.yaml \-\-theme paper</code><br>143\.05mm × 137\.05mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-trapezoid\.sumi\.yaml \-\-theme llama</code><br>143\.05mm × 137\.05mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-trapezoid\.sumi\.yaml \-\-theme sumi</code><br>143\.05mm × 137\.05mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-trapezoid\.sumi\.yaml \-\-theme sumi\-dark</code><br>143\.05mm × 137\.05mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-trapezoid.sumi.yaml</code></summary>
@@ -32,14 +32,14 @@ figure:
     arrange:
       stack:
         items:
-          - row: { items: [default, emphasis, muted, filled] }
-          - row: { items: [outlined, solid, tinted] }
-          - row: { items: [north-default, north-emphasis, north-muted, north-filled] }
-          - row: { items: [north-outlined, north-solid, north-tinted] }
-          - row: { items: [east-default, east-emphasis, east-muted, east-filled] }
-          - row: { items: [east-outlined, east-solid, east-tinted] }
-          - row: { items: [west-default, west-emphasis, west-muted, west-filled] }
-          - row: { items: [west-outlined, west-solid, west-tinted] }
+          - row: { items: [default, emphasis, muted, dashed] }
+          - row: { items: [filled, outlined, solid, tinted] }
+          - row: { items: [north-default, north-emphasis, north-muted, north-dashed] }
+          - row: { items: [north-filled, north-outlined, north-solid, north-tinted] }
+          - row: { items: [east-default, east-emphasis, east-muted, east-dashed] }
+          - row: { items: [east-filled, east-outlined, east-solid, east-tinted] }
+          - row: { items: [west-default, west-emphasis, west-muted, west-dashed] }
+          - row: { items: [west-filled, west-outlined, west-solid, west-tinted] }
 
 nodes:
   - id: default
@@ -53,6 +53,10 @@ nodes:
     component: sumi/trapezoid
     label: muted
     variant: muted
+  - id: dashed
+    component: sumi/trapezoid
+    label: dashed
+    variant: dashed
   - id: filled
     component: sumi/trapezoid
     label: filled
@@ -72,6 +76,7 @@ nodes:
   - { id: north-default, component: trapezoid, label: "north", variant: default, props: { narrow: north, width: 90pt, height: 44pt } }
   - { id: north-emphasis, component: trapezoid, label: "north", variant: emphasis, props: { narrow: north, width: 90pt, height: 44pt } }
   - { id: north-muted, component: trapezoid, label: "north", variant: muted, props: { narrow: north, width: 90pt, height: 44pt } }
+  - { id: north-dashed, component: trapezoid, label: "north", variant: dashed, props: { narrow: north, width: 90pt, height: 44pt } }
   - { id: north-filled, component: trapezoid, label: "north", variant: filled, props: { narrow: north, width: 90pt, height: 44pt } }
   - { id: north-outlined, component: trapezoid, label: "north", variant: outlined, props: { narrow: north, width: 90pt, height: 44pt } }
   - { id: north-solid, component: trapezoid, label: "north", variant: solid, props: { narrow: north, width: 90pt, height: 44pt } }
@@ -79,6 +84,7 @@ nodes:
   - { id: east-default, component: trapezoid, label: "east", variant: default, props: { narrow: east, width: 90pt, height: 44pt } }
   - { id: east-emphasis, component: trapezoid, label: "east", variant: emphasis, props: { narrow: east, width: 90pt, height: 44pt } }
   - { id: east-muted, component: trapezoid, label: "east", variant: muted, props: { narrow: east, width: 90pt, height: 44pt } }
+  - { id: east-dashed, component: trapezoid, label: "east", variant: dashed, props: { narrow: east, width: 90pt, height: 44pt } }
   - { id: east-filled, component: trapezoid, label: "east", variant: filled, props: { narrow: east, width: 90pt, height: 44pt } }
   - { id: east-outlined, component: trapezoid, label: "east", variant: outlined, props: { narrow: east, width: 90pt, height: 44pt } }
   - { id: east-solid, component: trapezoid, label: "east", variant: solid, props: { narrow: east, width: 90pt, height: 44pt } }
@@ -86,6 +92,7 @@ nodes:
   - { id: west-default, component: trapezoid, label: "west", variant: default, props: { narrow: west, width: 90pt, height: 44pt } }
   - { id: west-emphasis, component: trapezoid, label: "west", variant: emphasis, props: { narrow: west, width: 90pt, height: 44pt } }
   - { id: west-muted, component: trapezoid, label: "west", variant: muted, props: { narrow: west, width: 90pt, height: 44pt } }
+  - { id: west-dashed, component: trapezoid, label: "west", variant: dashed, props: { narrow: west, width: 90pt, height: 44pt } }
   - { id: west-filled, component: trapezoid, label: "west", variant: filled, props: { narrow: west, width: 90pt, height: 44pt } }
   - { id: west-outlined, component: trapezoid, label: "west", variant: outlined, props: { narrow: west, width: 90pt, height: 44pt } }
   - { id: west-solid, component: trapezoid, label: "west", variant: solid, props: { narrow: west, width: 90pt, height: 44pt } }

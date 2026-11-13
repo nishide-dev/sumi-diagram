@@ -55,6 +55,8 @@ describe("built-in components", () => {
       ["sumi/block-arrow", "node"],
       ["sumi/triangle-arrow", "node"],
       ["sumi/chevron", "node"],
+      ["sumi/initial", "node"],
+      ["sumi/final", "node"],
       ["sumi/label", "node"],
       ["sumi/operator", "node"],
       ["sumi/junction", "node"],
@@ -85,6 +87,7 @@ describe("built-in components", () => {
       "default",
       "emphasis",
       "muted",
+      "dashed",
       "filled",
       "outlined",
       "solid",
@@ -146,6 +149,7 @@ describe("builtinRegistry", () => {
       "default",
       "emphasis",
       "muted",
+      "dashed",
       "filled",
       "outlined",
       "solid",
@@ -304,7 +308,7 @@ describe("resolve", () => {
         code: "component/unknown",
         severity: "error",
         message: 'Unknown node component "rectangel".',
-        hint: "Known node components: box, square, circle, ellipse, diamond, hexagon, parallelogram, cylinder, document, trapezoid, bowtie, stack, bracket, bubble, separator, block-arrow, triangle-arrow, chevron, label, operator, junction, image, html, waveform, legend, tokens, matrix.",
+        hint: "Known node components: box, square, circle, ellipse, diamond, hexagon, parallelogram, cylinder, document, trapezoid, bowtie, stack, bracket, bubble, separator, block-arrow, triangle-arrow, chevron, initial, final, label, operator, junction, image, html, waveform, legend, tokens, matrix.",
       },
     ]);
     expect(registry.resolve("arow", "edge").diagnostics[0]?.hint).toBe('Did you mean "arrow"?');
@@ -327,7 +331,7 @@ describe("resolve", () => {
         severity: "error",
         message:
           'Component "arrow" (sumi/arrow) is an edge component, but a node component is required here.',
-        hint: "Known node components: box, square, circle, ellipse, diamond, hexagon, parallelogram, cylinder, document, trapezoid, bowtie, stack, bracket, bubble, separator, block-arrow, triangle-arrow, chevron, label, operator, junction, image, html, waveform, legend, tokens, matrix.",
+        hint: "Known node components: box, square, circle, ellipse, diamond, hexagon, parallelogram, cylinder, document, trapezoid, bowtie, stack, bracket, bubble, separator, block-arrow, triangle-arrow, chevron, initial, final, label, operator, junction, image, html, waveform, legend, tokens, matrix.",
       },
     ]);
     expect(codes(registry.resolve("container", "node"))).toEqual(["component/wrong-kind"]);
@@ -442,7 +446,7 @@ describe("validateUsage", () => {
       hint: 'Did you mean "muted"?',
     });
     expect(registry.validateUsage(box, { variant: "loud" }).diagnostics[0]?.hint).toBe(
-      "Variants of sumi/box: default, emphasis, muted, filled, outlined, solid, tinted.",
+      "Variants of sumi/box: default, emphasis, muted, dashed, filled, outlined, solid, tinted.",
     );
   });
 
@@ -465,17 +469,50 @@ describe("validateUsage", () => {
     [true, 'Expected a length such as "2mm", got a boolean'],
     ["-4mm", 'Size "-4mm" must be positive'],
     ["0pt", 'Size "0pt" must be positive'],
-    [
-      "15mm",
-      'Size "15mm" (42.52pt) is not a multiple of 0.5pt, the D2 unit',
-      'The nearest valid size is "42.5pt".',
-    ],
-    [
-      "0.1pt",
-      'Size "0.1pt" (0.1pt) is not a multiple of 0.5pt, the D2 unit',
-      'The nearest valid size is "0.5pt".',
-    ],
   ];
+  test("rounds sizes that are not on the 0.5pt grid instead of rejecting them", () => {
+    const cases: [string, number][] = [
+      ["18mm", 51],
+      ["22mm", 62.5],
+      ["26mm", 73.5],
+      ["9mm", 25.5],
+      ["15mm", 42.5],
+      ["0.1pt", 0.5],
+      ["0.75pt", 1],
+      ["0.25pt", 0.5],
+      // Either side of a tie (half a unit = 0.25pt; ties round up).
+      ["0.7499pt", 0.5],
+      ["0.75pt", 1],
+      ["0.7501pt", 1],
+      ["1.2499pt", 1],
+      ["1.25pt", 1.5],
+      // Fractional inches and centimetres.
+      ["0.25in", 18],
+      ["0.2501in", 18],
+      ["0.0174in", 1.5],
+      ["0.0173in", 1],
+      ["0.44cm", 12.5],
+      ["0.1cm", 3],
+    ];
+    for (const [width, pt] of cases) {
+      const result = registry.validateUsage(box, { props: { width, height: width } });
+      expect(result.ok).toBe(true);
+      if (result.ok) expect(result.value.props).toMatchObject({ width: pt, height: pt });
+    }
+  });
+
+  test("a rounded group layer offset reaches the component props", () => {
+    const container = registry.resolve("container", "group");
+    if (!container.ok) throw new Error("missing container");
+    const result = registry.validateUsage(container.value, {
+      props: { layers: { count: 3, offset: "1.1mm" } },
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.props).toMatchObject({ layers: { count: 3, offset: 3 } });
+    }
+  });
+
   for (const [width, message, hint] of invalidSizes) {
     test(`rejects the width ${JSON.stringify(width)}`, () => {
       const [d, ...rest] = registry.validateUsage(box, { props: { width } }).diagnostics;
@@ -541,7 +578,7 @@ describe("catalog", () => {
       namespace: "sumi",
       name: "box",
       description: "A rectangle; the general-purpose node.",
-      variants: ["default", "emphasis", "muted", "filled", "outlined", "solid", "tinted"],
+      variants: ["default", "emphasis", "muted", "dashed", "filled", "outlined", "solid", "tinted"],
       since: "0.1.0",
       shape: "rectangle",
       sizing: "auto",

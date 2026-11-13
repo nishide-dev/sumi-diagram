@@ -13,6 +13,7 @@ import { getOutlineRenderer } from "../../core/outline";
 import type { NodeShape } from "../../core/registry/manifest";
 import {
   CYLINDER_ARC_UNITS,
+  cylinderArc,
   DOCUMENT_BODY_RATIO,
   PARALLELOGRAM_WEDGE_UNITS,
 } from "../../lint/geometry/shapes";
@@ -128,7 +129,7 @@ export function labelCenter(
   const x = rect.x + rect.width / 2;
   switch (shape) {
     case "cylinder": {
-      const arc = Math.min(CYLINDER_ARC_UNITS, rect.height / 3);
+      const arc = cylinderArc(rect.height);
       return { x, y: rect.y + 2 * arc + (rect.height - 3 * arc) / 2 };
     }
     case "document":

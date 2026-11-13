@@ -87,10 +87,10 @@ sumi catalog --icons "wave sine" # bundled icons whose names contain all the wor
 ```
 
 Pick each component from `components` by its `description` (`diamond` for a decision,
-`cylinder` for storage). Use only listed variants and props; `engines`, when present,
-lists the only layout engines it works in. The theme's
+`cylinder` for storage). Symbols are components too: `operator` draws ⊕ ⊗ ⊖ ⊙ and
+concat (`props.symbol: plus | times | minus | dot | concat`), `junction` a branch dot. Use only listed variants and props; `engines`, when present, lists the only layout engines it works in. The theme's
 `compatibleProfiles` must include the profile, else labelled elements fail with
-`profile/font-too-small`
+`profile/font-too-small` (text scaling for `sumi` x slides: #514)
 ([figure-format](references/figure-format.md#discovering-themes-and-profiles)). Icons:
 [assets](references/assets.md#icons).
 
@@ -185,9 +185,9 @@ Geometry errors exit 1 but **the SVG is still written**. It prints `Wrote figure
 
 ### 7. Check content, then readability
 
-Clean diagnostics prove neither. The script rasterizes the SVG (Quick Look or
-`rsvg-convert`; exit 1 if neither: skip the PNG, say so); open the PNG with Read,
-~6 px per printed mm of the larger side:
+Clean diagnostics prove neither. The script rasterizes the SVG (Quick Look, Chrome, else
+`rsvg-convert`, which ignores embedded fonts: regular-looking bold is a preview artefact; exit 1
+if none: skip the PNG, say so); open the PNG with Read, ~6 px per printed mm of the larger side:
 
 ```sh
 <skill-dir>/scripts/preview figure.svg 1080   # 180 × 60mm; writes figure.png beside the SVG (-o <png> to move it)

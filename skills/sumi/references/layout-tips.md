@@ -20,7 +20,8 @@ Contents: [choose the engine](#choose-the-engine-first) ·
 
 | The figure is… | Use |
 | --- | --- |
-| a flow: flowchart, pipeline, decision flow, state machine, dependency or call graph, an architecture overview where only the connections matter | **auto** (default): `figure.layout.direction` |
+| a flow: flowchart, pipeline, decision flow, dependency or call graph, an architecture overview where only the connections matter | **auto** (default): `figure.layout.direction` |
+| a state machine | **auto** only when it is small and mostly linear (about 6 states or fewer, few back-edges); ELK spreads a cyclic graph into a very wide draft (514 × 361mm seen). Otherwise **structured**: put the main path in one `row`, extra states in a second row or `place` coordinates, and route back-edges with `route`/anchors ([structured](structured.md)); render and measure either way |
 | a paper block diagram: stacked layers, residual or skip connections, columns that must line up, blocks of equal width, notes beside a block (`N×`), operators (⊕) and split points, math labels, token rows, patches | **structured**: `figure.layout.arrange` ([structured](structured.md)) |
 | a small graph/network with authored vertex positions, or matching input/output graph shapes | **structured**: [`place`](structured.md#coordinate-placement) with the same unit and coordinates in each group; `line` + `route: straight` for undirected edges |
 

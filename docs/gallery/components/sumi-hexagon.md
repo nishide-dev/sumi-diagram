@@ -4,17 +4,17 @@
 
 A hexagon\.
 
-**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, filled, outlined, solid, tinted</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>hexagon</code> · **sizing**: <code>auto</code>
+**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, dashed, filled, outlined, solid, tinted</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>hexagon</code> · **sizing**: <code>auto</code>
 
 | prop | type | required | description |
 | --- | --- | --- | --- |
-| <code>width</code> | <code>string</code> | no | Explicit width as a length such as &quot;30mm&quot; or &quot;40pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
-| <code>height</code> | <code>string</code> | no | Explicit height as a length such as &quot;10mm&quot; or &quot;20pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
+| <code>width</code> | <code>string</code> | no | Explicit width as a length such as &quot;30mm&quot; or &quot;40pt&quot; \(rounded to the nearest 0\.5pt\)\. Omitted means sized to the label\. |
+| <code>height</code> | <code>string</code> | no | Explicit height as a length such as &quot;10mm&quot; or &quot;20pt&quot; \(rounded to the nearest 0\.5pt\)\. Omitted means sized to the label\. |
 
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> | <code>llama</code> | <code>sumi</code> | <code>sumi\-dark</code> |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | <img src="sumi-hexagon.minimal.svg" alt="sumi/hexagon, theme minimal"> | <img src="sumi-hexagon.academic.svg" alt="sumi/hexagon, theme academic"> | <img src="sumi-hexagon.slides.svg" alt="sumi/hexagon, theme slides"> | <img src="sumi-hexagon.color.svg" alt="sumi/hexagon, theme color"> | <img src="sumi-hexagon.paper.svg" alt="sumi/hexagon, theme paper"> | <img src="sumi-hexagon.llama.svg" alt="sumi/hexagon, theme llama"> | <img src="sumi-hexagon.sumi.svg" alt="sumi/hexagon, theme sumi"> | <img src="sumi-hexagon.sumi-dark.svg" alt="sumi/hexagon, theme sumi-dark"> |
-| <code>sumi render sumi\-hexagon\.sumi\.yaml</code><br>107\.95mm × 19\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-hexagon\.sumi\.yaml \-\-theme academic</code><br>107\.6mm × 19\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-hexagon\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>214\.84mm × 40\.22mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-hexagon\.sumi\.yaml \-\-theme color</code><br>107\.95mm × 19\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-hexagon\.sumi\.yaml \-\-theme paper</code><br>97\.9mm × 19\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-hexagon\.sumi\.yaml \-\-theme llama</code><br>97\.19mm × 19\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-hexagon\.sumi\.yaml \-\-theme sumi</code><br>97\.9mm × 19\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-hexagon\.sumi\.yaml \-\-theme sumi\-dark</code><br>97\.9mm × 19\.93mm \(max width 180mm, max height 220mm\) |
+| <code>sumi render sumi\-hexagon\.sumi\.yaml</code><br>112\.36mm × 19\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-hexagon\.sumi\.yaml \-\-theme academic</code><br>112\.01mm × 19\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-hexagon\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>224\.01mm × 40\.22mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-hexagon\.sumi\.yaml \-\-theme color</code><br>112\.36mm × 19\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-hexagon\.sumi\.yaml \-\-theme paper</code><br>102\.48mm × 19\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-hexagon\.sumi\.yaml \-\-theme llama</code><br>101\.78mm × 19\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-hexagon\.sumi\.yaml \-\-theme sumi</code><br>102\.48mm × 19\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-hexagon\.sumi\.yaml \-\-theme sumi\-dark</code><br>102\.48mm × 19\.93mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-hexagon.sumi.yaml</code></summary>
@@ -31,8 +31,8 @@ figure:
     arrange:
       stack:
         items:
-          - row: { items: [default, emphasis, muted, filled] }
-          - row: { items: [outlined, solid, tinted] }
+          - row: { items: [default, emphasis, muted, dashed] }
+          - row: { items: [filled, outlined, solid, tinted] }
 
 nodes:
   - id: default
@@ -46,6 +46,10 @@ nodes:
     component: sumi/hexagon
     label: muted
     variant: muted
+  - id: dashed
+    component: sumi/hexagon
+    label: dashed
+    variant: dashed
   - id: filled
     component: sumi/hexagon
     label: filled

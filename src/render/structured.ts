@@ -79,7 +79,7 @@ import { edgeArrowheadLength, WIRE_CORNER_RADIUS } from "../layout/route/router"
 import { setOverlaps } from "../layout/set-overlap";
 import { ellipseSegments, outlinePolygon } from "../layout/set-shape";
 import { fontFileFor } from "../lint/geometry/measure";
-import { CYLINDER_ARC_UNITS, shapeOutline } from "../lint/geometry/shapes";
+import { cylinderPathData, shapeOutline } from "../lint/geometry/shapes";
 import { drawNodeOutline } from "./compose";
 import { subsetFont } from "./font-subset";
 import { HATCH, hatchSegments } from "./hatch";
@@ -307,6 +307,10 @@ function nodeShape(node: NodeIR, r: Rect): string {
           typeof node.render.params?.signalStroke === "string"
             ? node.render.params.signalStroke
             : undefined;
+        // A state marker (#519) is painted by its fill alone: a stroke would grow it past its
+        // size and close the gap between a final marker's ring and dot.
+        if (node.render?.renderer === "sumi/state-marker")
+          return `<path d="${pathData(layer.path.points, layer.path.closed)}" fill="${fill}" stroke="none"/>`;
         return `<path d="${pathData(layer.path.points, layer.path.closed)}" fill="${fill}"${strokeAttributes(typeof frameStroke === "string" || signalStroke !== undefined ? { ...style, stroke: signalStroke ?? (frameStroke as string) } : style)}${signal}/>`;
       })
       .join("");
@@ -337,18 +341,7 @@ function nodeShape(node: NodeIR, r: Rect): string {
       return polygon(outline.points, paints);
     }
     case "cylinder": {
-      // D2 v0.9.0's cylinder: elliptical caps `arc` deep, curve handles 5% of the width from the middle.
-      const arc = Math.min(CYLINDER_ARC_UNITS, h / 3);
-      const cx = x + w / 2;
-      const k = w * 0.05;
-      const body =
-        `M ${n(x)} ${n(y + arc)} C ${n(x)} ${n(y)} ${n(cx - k)} ${n(y)} ${n(cx)} ${n(y)} ` +
-        `C ${n(cx + k)} ${n(y)} ${n(x + w)} ${n(y)} ${n(x + w)} ${n(y + arc)} V ${n(y + h - arc)} ` +
-        `C ${n(x + w)} ${n(y + h)} ${n(cx + k)} ${n(y + h)} ${n(cx)} ${n(y + h)} ` +
-        `C ${n(cx - k)} ${n(y + h)} ${n(x)} ${n(y + h)} ${n(x)} ${n(y + h - arc)} V ${n(y + arc)} Z`;
-      const rim =
-        `M ${n(x)} ${n(y + arc)} C ${n(x)} ${n(y + 2 * arc)} ${n(cx - k)} ${n(y + 2 * arc)} ${n(cx)} ${n(y + 2 * arc)} ` +
-        `C ${n(cx + k)} ${n(y + 2 * arc)} ${n(x + w)} ${n(y + 2 * arc)} ${n(x + w)} ${n(y + arc)}`;
+      const { body, rim } = cylinderPathData(r, n);
       return `<path d="${body}"${paints}/><path d="${rim}"${paints}/>`;
     }
     case "document": {

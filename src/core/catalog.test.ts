@@ -150,6 +150,7 @@ describe("buildThemeCatalog", () => {
     if (box === undefined) throw new Error("no box");
     expect(entry.missingVariants[componentId(box)]).toEqual([
       "muted",
+      "dashed",
       "filled",
       "outlined",
       "solid",

@@ -9,8 +9,8 @@ A chevron \(a bent arrowhead, 0\.7 em long and 1 em thick by default\) that mark
 | prop | type | required | description |
 | --- | --- | --- | --- |
 | <code>direction</code> | <code>&quot;right&quot; &#124; &quot;left&quot; &#124; &quot;up&quot; &#124; &quot;down&quot;</code> | no | The way it points: right \(the default\), left, up or down\. |
-| <code>length</code> | <code>string</code> | no | Explicit length along the arrow as a length such as &quot;24pt&quot; \(a multiple of 0\.5pt\), whichever way it points\. Omitted means a multiple of the theme text size\. |
-| <code>thickness</code> | <code>string</code> | no | Explicit thickness across the arrow as a length such as &quot;12pt&quot; \(a multiple of 0\.5pt\)\. Omitted means the theme text size \(1 em\)\. |
+| <code>length</code> | <code>string</code> | no | Explicit length along the arrow as a length such as &quot;24pt&quot; \(rounded to the nearest 0\.5pt\), whichever way it points\. Omitted means a multiple of the theme text size\. |
+| <code>thickness</code> | <code>string</code> | no | Explicit thickness across the arrow as a length such as &quot;12pt&quot; \(rounded to the nearest 0\.5pt\)\. Omitted means the theme text size \(1 em\)\. |
 | <code>head</code> | <code>number</code> | no | Depth of the point and the notch as a fraction of the shorter side, from 0\.1 to 1\. Omitted means 0\.5\. |
 
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> | <code>llama</code> | <code>sumi</code> | <code>sumi\-dark</code> |

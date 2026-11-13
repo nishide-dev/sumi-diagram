@@ -297,7 +297,7 @@ omitted value, `required` lists mandatory props; nested objects and unions keep
 their own `properties`, `enum`, `const` and `anyOf`.
 
 - Sizes (`props.width` / `height`): lengths with a unit (`mm`, `cm`, `in`, `pt`),
-  a multiple of 0.5pt (`12mm` = 34.02pt is not: prefer `pt`). Omit sizes unless
+  rounded to the nearest 0.5pt (`12mm` = 34.02pt becomes 34pt, silently). Omit sizes unless
   needed: nodes are sized to their labels.
 - `label` (`sumi/label`) draws text without a border and needs a non-empty label.
 - **Shapes**: `box`, `square`, `circle`, `ellipse`, `diamond`, `hexagon`,
