@@ -27,6 +27,7 @@ import { cp, mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { inflateSync } from "node:zlib";
 import { parse as parseYaml } from "yaml";
 import { z } from "zod";
 import { checkD2Version, findD2Binary } from "../backends/d2/binary";
@@ -948,6 +949,198 @@ describe("scripts/preview", () => {
   });
 });
 
+/** Minimal 8-bit RGB/RGBA non-interlaced PNG decoder for pixel checks. */
+function decodePng(bytes: Buffer) {
+  const width = bytes.readUInt32BE(16);
+  const height = bytes.readUInt32BE(20);
+  const channels = bytes[25] === 6 ? 4 : 3;
+  const chunks: Buffer[] = [];
+  for (let at = 8; at < bytes.length; ) {
+    const length = bytes.readUInt32BE(at);
+    if (bytes.toString("latin1", at + 4, at + 8) === "IDAT")
+      chunks.push(bytes.subarray(at + 8, at + 8 + length));
+    at += 12 + length;
+  }
+  const raw = inflateSync(Buffer.concat(chunks));
+  const stride = width * channels;
+  const out = Buffer.alloc(stride * height);
+  for (let y = 0; y < height; y++) {
+    const filter = raw[y * (stride + 1)] ?? 0;
+    for (let x = 0; x < stride; x++) {
+      const v = raw[y * (stride + 1) + 1 + x] ?? 0;
+      const a = x >= channels ? (out[y * stride + x - channels] ?? 0) : 0;
+      const b = y > 0 ? (out[(y - 1) * stride + x] ?? 0) : 0;
+      const c = x >= channels && y > 0 ? (out[(y - 1) * stride + x - channels] ?? 0) : 0;
+      const p = a + b - c;
+      const pa = Math.abs(p - a);
+      const pb = Math.abs(p - b);
+      const pc = Math.abs(p - c);
+      const paeth = pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
+      const add = [0, a, b, (a + b) >> 1, paeth][filter] ?? 0;
+      out[y * stride + x] = (v + add) & 255;
+    }
+  }
+  return {
+    width,
+    height,
+    pixel: (x: number, y: number) => [0, 1, 2].map((i) => out[y * stride + x * channels + i] ?? 0),
+  };
+}
+
+/** `scripts/preview` on non-macOS renderers: forced with SUMI_PREVIEW_TOOL, stand-ins on PATH (#521). */
+describe("scripts/preview renderers", () => {
+  async function withTools(fn: (env: Record<string, string>, work: string) => Promise<void>) {
+    const work = await mkdtemp(join(tmpdir(), "sumi-preview-tool-"));
+    const bin = join(work, "bin");
+    await mkdir(bin);
+    await writeFile(
+      join(bin, "fake-chrome"),
+      [
+        "#!/bin/sh",
+        'for a in "$@"; do case $a in --screenshot=*) out=${a#--screenshot=} ;; --window-size=*) echo "$a" > "$FAKE_CHROME_ARGS" ;; esac; done',
+        'printf png > "$out"',
+        "",
+      ].join("\n"),
+      { mode: 0o755 },
+    );
+    await writeFile(
+      join(bin, "rsvg-convert"),
+      ["#!/bin/sh", "for a; do o=$a; done", 'printf png > "$o"', ""].join("\n"),
+      {
+        mode: 0o755,
+      },
+    );
+    try {
+      await fn(
+        {
+          PATH: `${bin}:${process.env.PATH ?? ""}`,
+          SUMI_CHROME: join(bin, "fake-chrome"),
+          FAKE_CHROME_ARGS: join(work, "chrome-args.txt"),
+        },
+        work,
+      );
+    } finally {
+      await rm(work, { recursive: true, force: true });
+    }
+  }
+  const SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100"/>';
+
+  test("chrome renders at the viewBox's aspect ratio", async () => {
+    await withTools(async (env, work) => {
+      const svg = join(work, "fig.svg");
+      await writeFile(svg, SVG);
+      const run = await runScript("preview", [svg, "600"], { ...env, SUMI_PREVIEW_TOOL: "chrome" });
+      expect(run.exitCode, run.stderr).toBe(0);
+      expect(run.stderr).toBe("");
+      expect(run.stdout.trim()).toBe(join(work, "fig.png"));
+      expect(readFileSync(env.FAKE_CHROME_ARGS ?? "", "utf8").trim()).toBe("--window-size=600,300");
+    });
+  });
+
+  test("rsvg-convert works but warns that embedded fonts are ignored", async () => {
+    await withTools(async (env, work) => {
+      const svg = join(work, "fig.svg");
+      await writeFile(svg, SVG);
+      const run = await runScript("preview", [svg], { ...env, SUMI_PREVIEW_TOOL: "rsvg-convert" });
+      expect(run.exitCode, run.stderr).toBe(0);
+      expect(run.stderr).toContain("ignores the fonts embedded");
+      expect(existsSync(join(work, "fig.png"))).toBe(true);
+    });
+  });
+
+  test("an invalid SUMI_CHROME is an error when forced and a fallback to rsvg-convert otherwise", async () => {
+    await withTools(async (env, work) => {
+      const svg = join(work, "fig.svg");
+      await writeFile(svg, SVG);
+      const bad = { ...env, SUMI_CHROME: join(work, "no-such-chrome") };
+      const forced = await runScript("preview", [svg], { ...bad, SUMI_PREVIEW_TOOL: "chrome" });
+      expect(forced.exitCode).toBe(1);
+      expect(forced.stderr).toContain("SUMI_CHROME is not an executable file");
+      expect(forced.stderr).toContain("no Chrome");
+      // Automatic selection on a PATH without qlmanage and Chrome ends at rsvg-convert.
+      const tools = join(work, "tools");
+      await mkdir(tools);
+      for (const command of [
+        "awk",
+        "basename",
+        "cat",
+        "cp",
+        "dirname",
+        "head",
+        "mkdir",
+        "mktemp",
+        "mv",
+        "rm",
+        "rmdir",
+        "sed",
+        "tr",
+      ]) {
+        const target = Bun.which(command, { PATH: "/usr/bin:/bin" });
+        expect(target, command).not.toBeNull();
+        await symlink(target ?? "", join(tools, command));
+      }
+      await symlink(join(work, "bin", "rsvg-convert"), join(tools, "rsvg-convert"));
+      const auto = await runScript("preview", [svg], { ...bad, PATH: tools });
+      expect(auto.exitCode, auto.stderr).toBe(0);
+      expect(auto.stderr).toContain("SUMI_CHROME is not an executable file");
+      expect(auto.stderr).toContain("ignores the fonts embedded");
+    });
+  });
+
+  // Real Chrome (skipped without one): a nested <svg> keeps its own coordinate
+  // system when the preview size differs from the viewBox.
+  const realChrome = [
+    "google-chrome",
+    "google-chrome-stable",
+    "chromium",
+    "chromium-browser",
+    "chrome",
+    "microsoft-edge",
+  ]
+    .map((c) => Bun.which(c))
+    .concat([
+      "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+      "/Applications/Chromium.app/Contents/MacOS/Chromium",
+    ])
+    .find((c) => c !== null && existsSync(c));
+  test.skipIf(realChrome === undefined)(
+    "chrome keeps nested SVGs in their own coordinates",
+    async () => {
+      const work = await mkdtemp(join(tmpdir(), "sumi-preview-real-"));
+      try {
+        const svg = join(work, "nested.svg");
+        await writeFile(
+          svg,
+          '<svg xmlns="http://www.w3.org/2000/svg" width="200mm" height="100mm" viewBox="0 0 200 100">' +
+            '<svg x="100" y="0" width="100" height="50" viewBox="0 0 10 5"><rect width="10" height="5" fill="#ff0000"/></svg></svg>',
+        );
+        const run = await runScript("preview", [svg, "400"], {
+          SUMI_PREVIEW_TOOL: "chrome",
+          SUMI_CHROME: realChrome ?? "",
+        });
+        expect(run.exitCode, run.stderr).toBe(0);
+        const png = decodePng(readFileSync(join(work, "nested.png")));
+        expect([png.width, png.height]).toEqual([400, 200]);
+        expect(png.pixel(300, 50)).toEqual([255, 0, 0]);
+        expect(png.pixel(390, 90)).toEqual([255, 0, 0]);
+        expect(png.pixel(100, 50)).toEqual([255, 255, 255]);
+        expect(png.pixel(300, 150)).toEqual([255, 255, 255]);
+      } finally {
+        await rm(work, { recursive: true, force: true });
+      }
+    },
+  );
+
+  test("an unknown SUMI_PREVIEW_TOOL is a usage error", async () => {
+    await withTools(async (env, work) => {
+      const svg = join(work, "fig.svg");
+      await writeFile(svg, SVG);
+      const run = await runScript("preview", [svg], { ...env, SUMI_PREVIEW_TOOL: "x" });
+      expect(run.exitCode).toBe(2);
+    });
+  });
+});
+
 /**
  * `scripts/compare` with stand-in `magick` and `pdftoppm` first on PATH (no
  * network, no real image tools needed): the stand-in `magick` logs its
@@ -1062,6 +1255,34 @@ describe("scripts/compare", () => {
     });
   });
 
+  test("accepts options after the images (#521)", async () => {
+    await withFakeMagick(async (env, { work }) => {
+      const [fig, ref] = await pngs(work, "mine.png", "ref.png");
+      const out = join(work, "after.png");
+      const run = await runScript(
+        "compare",
+        [fig ?? "", ref ?? "", "-o", out, "--side", "-w", "900"],
+        env,
+      );
+      expect(run.exitCode, run.stderr).toBe(0);
+      expect(run.stdout.trim()).toBe(out);
+      expect(existsSync(out)).toBe(true);
+      expect(existsSync(join(work, "mine-compare.png"))).toBe(false);
+    });
+  });
+
+  test("keeps file names with newlines and glob characters intact", async () => {
+    await withFakeMagick(async (env, { work }) => {
+      const [fig, ref] = await pngs(work, "a*b?[c].png", "line\nbreak ref.png");
+      await writeFile(join(work, "aXb1c.png"), "decoy");
+      const out = join(work, "glob.png");
+      const run = await runScript("compare", [fig ?? "", ref ?? "", "-o", out], env);
+      expect(run.exitCode, run.stderr).toBe(0);
+      expect(run.stdout.trim()).toBe(out);
+      expect(existsSync(out)).toBe(true);
+    });
+  });
+
   test("rejects bad usage with exit 2 and writes nothing", async () => {
     await withFakeMagick(async (env, { work }) => {
       const [fig, ref] = await pngs(work, "mine.png", "ref.png");
@@ -1070,7 +1291,8 @@ describe("scripts/compare", () => {
         [["-o", join(work, "x.txt"), fig ?? "", ref ?? ""], "must end in .png"],
         [["-w", "0", fig ?? "", ref ?? ""], "width must be a positive integer"],
         [[fig ?? "", join(work, "missing.png")], "no such file"],
-        [[join(work, "ref.png"), join(work, "mine.png"), "-w", "5"], "no such file"],
+        [[fig ?? "", ref ?? "", "-w", "x"], "width must be a positive integer"],
+        [[fig ?? "", ref ?? "", "--bogus"], "usage:"],
       ];
       for (const [args, message] of cases) {
         const run = await runScript("compare", args, env);
