@@ -476,11 +476,36 @@ describe("validateUsage", () => {
       ["0.1pt", 0.5],
       ["0.75pt", 1],
       ["0.25pt", 0.5],
+      // Either side of a tie (half a unit = 0.25pt; ties round up).
+      ["0.7499pt", 0.5],
+      ["0.75pt", 1],
+      ["0.7501pt", 1],
+      ["1.2499pt", 1],
+      ["1.25pt", 1.5],
+      // Fractional inches and centimetres.
+      ["0.25in", 18],
+      ["0.2501in", 18],
+      ["0.0174in", 1.5],
+      ["0.0173in", 1],
+      ["0.44cm", 12.5],
+      ["0.1cm", 3],
     ];
     for (const [width, pt] of cases) {
       const result = registry.validateUsage(box, { props: { width, height: width } });
       expect(result.ok).toBe(true);
       if (result.ok) expect(result.value.props).toMatchObject({ width: pt, height: pt });
+    }
+  });
+
+  test("a rounded group layer offset reaches the component props", () => {
+    const container = registry.resolve("container", "group");
+    if (!container.ok) throw new Error("missing container");
+    const result = registry.validateUsage(container.value, {
+      props: { layers: { count: 3, offset: "1.1mm" } },
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.props).toMatchObject({ layers: { count: 3, offset: 3 } });
     }
   });
 

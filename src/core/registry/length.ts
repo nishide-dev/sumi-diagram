@@ -1,8 +1,10 @@
 /**
  * Length props for component manifests, parsed with the shared unit parser
  * (design doc §5.1). Sizes are passed to D2 as integer D2 units (0.5pt). A size
- * is a layout value, so it is rounded to the nearest 0.5pt (error at most
- * 0.25pt, #515) rather than rejected; visual values (stroke widths, corner
+ * is a layout value, so it is rounded to the nearest 0.5pt rather than
+ * rejected (#515). The error is at most 0.25pt for sizes of 0.25pt or more;
+ * smaller positive sizes are clamped up to 0.5pt so a size never collapses to
+ * zero; visual values (stroke widths, corner
  * radii) stay exact in the theme module.
  */
 
@@ -15,7 +17,8 @@ const SIZE_PATTERN = /^\d+(\.\d+)?(mm|cm|in|pt)$/;
 /**
  * A positive length with a unit (`"40pt"`, `"15mm"`), rounded to the nearest
  * 0.5pt (at least 0.5pt) so it is a whole number of D2 units. Parses to pt (an
- * exact multiple of 0.5). The rounding is silent: the error is at most 0.25pt.
+ * exact multiple of 0.5). The rounding is silent: at most 0.25pt off for sizes of 0.25pt or more; a
+ * smaller positive size becomes 0.5pt.
  * Validation issues carry `params.hint`.
  *
  * The input is `unknown` so that every wrong input (including bare numbers)
