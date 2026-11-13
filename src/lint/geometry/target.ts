@@ -107,6 +107,7 @@ export const lineTooThin = defineGeometryRule({
         (ir.image !== undefined ||
           ir.mark?.type === "point" ||
           ir.tokens?.separator !== undefined ||
+          ir.tokens?.blank !== undefined ||
           ir.shape === "text")
       )
         return [];

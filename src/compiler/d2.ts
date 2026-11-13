@@ -42,6 +42,10 @@ const GROUP_LABEL_NEAR = "top-left";
 
 /** D2's `label.near` for each `groups[].labelAt` (#127, verified with D2 v0.9.0 in #124). */
 const GROUP_LABEL_NEAR_AT: Readonly<Record<GroupLabelPosition, string>> = {
+  // Structured only (#517): the auto engine rejects them, so these are never drawn.
+  "above-left": "top-left",
+  above: "top-center",
+  "above-right": "top-right",
   "top-left": "top-left",
   top: "top-center",
   "top-right": "top-right",

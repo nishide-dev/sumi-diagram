@@ -127,6 +127,10 @@ export const GROUP_LABEL_POSITIONS = [
   "bottom-left",
   "bottom",
   "bottom-right",
+  // Above the border, outside the frame (#517): no row inside, structured layout only.
+  "above-left",
+  "above",
+  "above-right",
 ] as const;
 export type GroupLabelPosition = (typeof GROUP_LABEL_POSITIONS)[number];
 
@@ -335,6 +339,12 @@ export const GridCellSchema = z.strictObject({
     return ArrangeItemSchema.nullable();
   },
   span: z.int().positive().optional().describe("Number of columns occupied (default 1)."),
+  align: z
+    .enum(ARRANGE_ALIGNS)
+    .optional()
+    .describe(
+      "Horizontal alignment of this cell inside its columns, replacing the grid's align for this cell only (since 0.18.0). The column widths still come from the grid's align.",
+    ),
 });
 
 /** Row-major grid. Rows must be complete; null reserves a blank cell. */
@@ -367,14 +377,30 @@ export const PlaceSchema = z
             item: ArrangeItemSchema,
             at: z
               .tuple([z.number(), z.number()])
-              .describe("Item center [x, y] in units; y grows downward."),
+              .describe(
+                "Item center [x, y] in units; y grows downward. By default a group's (or a whole tokens sequence's) center is that of its frame including the nodes attached to it; origin: body gives the frame without them.",
+              ),
+            origin: z
+              .enum(["footprint", "body"])
+              .optional()
+              .describe(
+                "What `at` is the center of for a group or whole tokens sequence: footprint (default) is its frame, which grows to hold attached nodes; body is the same frame without them, so a sketch's centers carry over. A plain node's center is always its body. Only on a node or group ID.",
+              ),
           }),
         )
         .min(1);
     },
   })
   .check((ctx) => {
-    for (const [index, cell] of ctx.value.items.entries())
+    for (const [index, cell] of ctx.value.items.entries()) {
+      if (cell.origin !== undefined && typeof cell.item !== "string") {
+        ctx.issues.push({
+          code: "custom",
+          input: cell.origin,
+          path: ["items", index, "origin"],
+          message: "origin applies to a node or group ID, not to a nested arrange box.",
+        });
+      }
       for (const [axis, coordinate] of cell.at.entries()) {
         if (Math.abs(coordinate * ctx.value.unit) <= MAX_LENGTH_PT) continue;
         ctx.issues.push({
@@ -384,6 +410,7 @@ export const PlaceSchema = z
           message: `Coordinate times place.unit must be within ±${MAX_LENGTH_PT}pt.`,
         });
       }
+    }
   });
 
 /** Conversation column; message content remains ordinary, addressable bubble nodes. */
@@ -944,7 +971,7 @@ export const GroupSchema = z.strictObject({
     .enum(GROUP_LABEL_POSITIONS)
     .optional()
     .describe(
-      "Where the label sits inside the group's border, relative to the full frame including attached members, not just the arrange tree. Omitted means top (top centre) in structured layout and top-left in auto layout.",
+      "Where the label sits inside the group's border, relative to the full frame including attached members, not just the arrange tree. Omitted means top (top centre) in structured layout and top-left in auto layout. above-left, above and above-right (since 0.18.0, structured layout only) put the title outside, above the border: it takes no row inside the frame, so the content and the frame keep their size and line up with neighbours.",
     ),
   caption: z
     .string()

@@ -84,6 +84,8 @@ export type TokenCell =
       fit?: string;
       /** A divider cell has no label, component or variant. */
       separator?: "dotted";
+      /** A blank cell reserves its box and draws nothing (#517). */
+      blank?: true;
     };
 
 /** The props of a tokens node, as validated by the manifest. */
@@ -122,6 +124,8 @@ export interface TokensCellExpansion {
   fields: Readonly<Record<string, DocPath>>;
   /** Divider orientation, perpendicular to the token direction (#216). */
   separator?: "vertical" | "horizontal";
+  /** A blank cell (#517): its box is reserved and nothing is drawn. */
+  blank?: true;
 }
 
 /** A tokens node and what it was expanded into (`doc.tokens`). */
@@ -308,7 +312,7 @@ export function expandTokens(state: CheckState, registry: Registry, locate: Loca
     }
     // 3. Every cell's component must be a shape or text.
     for (const { cell, path } of written) {
-      if (cell.separator !== undefined) continue;
+      if (cell.separator !== undefined || cell.blank !== undefined) continue;
       if (cell.asset !== undefined) {
         // An image cell is drawn as the image component whatever the tokens' component.
         const clash = [
@@ -469,14 +473,14 @@ export function expandTokens(state: CheckState, registry: Registry, locate: Loca
       const part: FigureNode = {
         id,
         component:
-          separator !== undefined
+          separator !== undefined || cell.blank !== undefined
             ? "box"
             : asset !== undefined
               ? "image"
               : (cell.component ?? props.component),
         label: cell.label ?? "",
         variant:
-          separator !== undefined
+          separator !== undefined || cell.blank !== undefined
             ? "outlined"
             : asset !== undefined
               ? (cell.variant ?? "default")
@@ -507,6 +511,7 @@ export function expandTokens(state: CheckState, registry: Registry, locate: Loca
         path,
         fields,
         ...(separator !== undefined && { separator }),
+        ...(cell.blank !== undefined && { blank: true as const }),
       });
       lineItems[line]?.push(id);
     }

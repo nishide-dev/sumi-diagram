@@ -8,6 +8,7 @@ A rectangular container that groups nodes and other groups\. Variant muted: a da
 
 | prop | type | required | description |
 | --- | --- | --- | --- |
+| <code>padding</code> | <code>string</code> | no | Space between the frame and its content on every side, replacing the profile's group padding \(since 0\.18\.0, structured layout only\), e\.g\. &quot;3pt&quot; for a tight frame\. The title band above the content scales with it\. Positive, a multiple of 0\.5pt\. |
 | <code>layers</code> | <code>object</code> | no | Repeat the frame behind the front card, offset up\-right\. The footprint includes every card; only the front contains children and a title\. Structured layout only; plain is unsupported\. |
 
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> | <code>llama</code> | <code>sumi</code> | <code>sumi\-dark</code> |

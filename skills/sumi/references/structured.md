@@ -127,6 +127,16 @@ footprints, without reserving space back to the origin. Nodes/groups retain labe
 tones, captions, attach and edges; nested arrange boxes work too. A node's badge or
 a group's caption extends its footprint without changing the body's authored center.
 
+**`at` is the body's center, with one exception.** For a node it is always the
+node's own center (attached labels and badges do not move it). For a group, or a
+whole `tokens` sequence (a frame group), the frame grows to hold the nodes
+attached to its members, so by default `at` is the center of that larger frame:
+a sketch's centers then shift by half the label's width. Write
+**`origin: body`** on the item (`{item: emb, at: [45.5, 53.3], origin: body}`) to
+make `at` the center of the frame without that room; the default is
+`origin: footprint` (existing figures keep their positions). `origin` is only for a
+node or group ID, not a nested box.
+
 The parent places the box like any other item; extra space centers the whole shape
 without stretching its contents. `place` has no `gap`, `align`, `justify` or `centerOn`;
 use those on its parent. Cross-tree `align` can move the whole box via an enclosing
@@ -363,6 +373,12 @@ edges:
   tokens node ID for a whole sequence, not a cell). The box reserves symmetric
   main-axis space about that item's body center; its opposite side can contain
   blank space, especially inside a framed group. It does not change membership.
+- **`centerOn` is symmetric by design**: the box is as long on the short side as
+  on the long one, so a long tail of inputs on one side leaves an equal empty
+  space on the other (`layout/center-on-void`, info, when it is more than 5mm and
+  a quarter of the box). Keep it when the room is wanted; otherwise drop
+  `centerOn`, put some inputs on the other side, or line the node up with
+  `align` (`x` / `y`), which only adds space where needed.
 - To put the inputs **above**, use `direction: up` and reverse the input edge's
   anchors. For side inputs beside a vertical flow, put a `row` with `centerOn`
   inside a centered `stack` (`right`/`left` selects the side).
@@ -405,6 +421,11 @@ arrange:
   places items horizontally in each cell; stretch changes resizable widths
   only. Grid alignment is not inherited. Omitted gaps use the profile's arrange
   gap (compact density included). Extra room centres the whole grid.
+- **A cell can have its own horizontal `align`**: `{item: note, align: end}` (and
+  `span`) replaces the grid's `align` for that cell only (`start` / `center` /
+  `end` / `stretch`). Column widths still come from the grid's `align`, so the
+  override moves a cell inside its columns and never resizes them. Vertical
+  position inside a row is always centred.
 - Cells take no `align` struts (nested stack / row boxes and ancestors still
   can): to align a grid cell vertically with something in another tree, wrap
   it (`{stack: {items: [cell]}}` for `y`, a row for `x`). Sumi suggests
@@ -421,7 +442,11 @@ keep their width). `straight` lines up an endpoint but does not widen the box; i
 outer columns miss its sides `layout/straight-off-side` (sometimes `layout/no-route`)
 explains the span / natural-width cause, and recommends stretch or removing
 `props.width` only after an in-memory trial confirmed it (else neutral wording).
-Put `straight` at the wide box's end and check the routes.
+Put `straight` at the wide box's end and check the routes. `straight` needs the
+narrow end's **center** over the wide box's side (3pt inside its corners); when it
+is not but the two sides overlap, the warning's hint names the anchors for the
+shared span (`south:0.126` / `north:0.937`). Without anchors Sumi already draws a
+straight line when a wide end faces a narrower one whose center is over it.
 
 ## Panel separators
 
@@ -524,6 +549,23 @@ the group still covers the centre and the edge detours **without any diagnostic*
 the preview. `labelAt` without a `label` is `component/label-at-without-label`. Both `labelAt`
 and `caption` work in auto figures too (default place `top-left`; at `bottom*` D2 still leaves
 the space at the top, and edges leaving the group downwards cross its caption).
+
+**A title above the border.** `labelAt: above-left`, `above` or `above-right`
+(structured only; auto reports `layout/structured-only`) draws the title
+**outside the frame, over its top border**, instead of in a row inside. The frame
+keeps exactly the size its content needs, so the content of a titled panel lines
+up with an untitled one, `place` centers stay on the frame, and inner and outer
+rows align without `align` struts. The title's room is reserved above the frame
+for its neighbours (like a badge): in a row, `align: center` or `end` lines the
+frames up (`start` lines the tops of the footprints up, title included).
+Edges entering from above pass the title like a caption. `labelAt: top*` /
+`bottom*` still put it inside.
+
+**Group padding.** `props: {padding: 3pt}` on a group (structured only) replaces the
+profile's group padding on every side (positive, a multiple of 0.5pt; the title band
+scales with it). Use it for a tight frame around a small cluster; `0` is not allowed
+(a borderless cluster is `variant: plain`, a frame hugging cells is a whole `tokens`
+sequence).
 
 **Attachments and title centring.** The title is centred on the **whole group
 frame**, attached members included, even with `variant: plain`: an input
@@ -763,6 +805,19 @@ figure:
   = tops, `at: end` = bottoms) or `x: [ids]` (centres on one vertical; `start` =
   left edges, `end` = right edges), with at least two node or group IDs
   (attached nodes too: they move with their target).
+- **Which side moves.** Sumi never shrinks or moves anything by itself: each round
+  it tries (1) space **before** the higher / further-left item (pushes it down /
+  right) and (2) space **after** the lower / further-right one (pushes it up / left
+  only inside an `end`-aligned or centred box; in a `start`-aligned box it only
+  grows the box), then keeps the trial with the smaller remaining distance, then
+  the smaller canvas, then the first. So the item that moves depends on the
+  enclosing box's `align` (a centred box splits the move between both branches),
+  and a move shifts everything after it in that stack / row. The space lands
+  inside one gap, so that gap is larger than the written `gap` and the others
+  stay as written: that is the uneven gap. To keep gaps even, align an item that
+  sits alone in a box of its own (wrap it in a `stack` / `row`), choose the box
+  `align` that moves the side you want (`start` pushes only down / right),
+  or write the `gap`s so nothing needs to move.
 - Sumi only **adds space** before or after items in a stack (for `y`) or row
   (for `x`) that holds just one of them, never inside a `gap: 0` box. So it
   aligns elements in different branches (`y` across stacks side by side in a
@@ -770,6 +825,12 @@ figure:
   one row on `x`. Two items of one row on `y` need a stack around one:
   `items: [a, {stack: {items: [key]}}]`. Put the element **in the tree**
   (not `attach`ed into a gap).
+- **A cell of a one-line `tokens` row is not a box of its own**: aligning
+  `{x: [patches.3, emb.2]}` adds space inside the `emb` row, pulling its cells apart
+  (`layout/align-splits-tokens`, warning, no other signal). Align the whole
+  sequences instead (`{x: [patches, emb], at: start}`), or give both the same cell
+  width and `gap` so the cells line up without `align`. Cells of multi-line
+  `tokens` keep their block and report `layout/unsatisfied-align` instead.
 - An unmeetable constraint is `layout/unsatisfied-align` (warning; from `sumi
   render` / `lint --geometry`, not plain `lint`): the figure is drawn with the
   closest placement; the message gives the distance left, the hint whether the
@@ -1328,6 +1389,12 @@ edges:
   Whole-sequence edge endpoints use the cells' bounding rectangle, excluding
   attached annotations, even when a wide note enlarges the layout frame or
   `align: stretch` widens it (`fromAnchor: east` starts at the last cell).
+- **Blank cells.** `{blank: true}` (optionally `id`, `width`, `height`) keeps a
+  slot in the sequence: it reserves the cell's size, draws nothing (no frame, no
+  text, no `component/missing-label`) and counts in positions, so a sparse row
+  (cells only at some positions) stays one `tokens` node whose cells line up with
+  another row. `''` is **not** blank: it draws an empty frame. A `label` cell with
+  an empty label is `component/missing-label`; use `blank` there.
 - **Dividers.** `{separator: dotted}` (optionally `id`, `tone`, `width`, `height`;
   no label, component or variant) draws a dotted line across the sequence (vertical
   for `right` / `left`, horizontal for `down` / `up`), reserving 6pt along the

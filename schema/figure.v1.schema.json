@@ -340,7 +340,7 @@
             "type": "string"
           },
           "labelAt": {
-            "description": "Where the label sits inside the group's border, relative to the full frame including attached members, not just the arrange tree. Omitted means top (top centre) in structured layout and top-left in auto layout.",
+            "description": "Where the label sits inside the group's border, relative to the full frame including attached members, not just the arrange tree. Omitted means top (top centre) in structured layout and top-left in auto layout. above-left, above and above-right (since 0.18.0, structured layout only) put the title outside, above the border: it takes no row inside the frame, so the content and the frame keep their size and line up with neighbours.",
             "type": "string",
             "enum": [
               "top-left",
@@ -348,7 +348,10 @@
               "top-right",
               "bottom-left",
               "bottom",
-              "bottom-right"
+              "bottom-right",
+              "above-left",
+              "above",
+              "above-right"
             ]
           },
           "caption": {
@@ -1242,6 +1245,16 @@
                         "type": "integer",
                         "exclusiveMinimum": 0,
                         "maximum": 9007199254740991
+                      },
+                      "align": {
+                        "description": "Horizontal alignment of this cell inside its columns, replacing the grid's align for this cell only (since 0.18.0). The column widths still come from the grid's align.",
+                        "type": "string",
+                        "enum": [
+                          "start",
+                          "center",
+                          "end",
+                          "stretch"
+                        ]
                       }
                     },
                     "required": [
@@ -1300,7 +1313,15 @@
                     "items": false,
                     "minItems": 2,
                     "maxItems": 2,
-                    "description": "Item center [x, y] in units; y grows downward."
+                    "description": "Item center [x, y] in units; y grows downward. By default a group's (or a whole tokens sequence's) center is that of its frame including the nodes attached to it; origin: body gives the frame without them."
+                  },
+                  "origin": {
+                    "description": "What `at` is the center of for a group or whole tokens sequence: footprint (default) is its frame, which grows to hold attached nodes; body is the same frame without them, so a sketch's centers carry over. A plain node's center is always its body. Only on a node or group ID.",
+                    "type": "string",
+                    "enum": [
+                      "footprint",
+                      "body"
+                    ]
                   }
                 },
                 "required": [

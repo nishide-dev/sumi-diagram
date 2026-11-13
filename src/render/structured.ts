@@ -283,7 +283,7 @@ function nodeShape(node: NodeIR, r: Rect): string {
       { x: x + w, y: y + h },
     ])}" fill="none"${strokeAttributes(style)}/>`;
   }
-  if (node.tokens?.separator !== undefined) {
+  if (node.tokens?.separator !== undefined || node.tokens?.blank !== undefined) {
     return `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" fill="none" stroke="none"/>`;
   }
   if (node.mark?.type === "point") {
