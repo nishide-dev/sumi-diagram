@@ -184,3 +184,35 @@ describe("sets: minimum size (#518)", () => {
     expect(check.state.doc.sets).toEqual([undefined]);
   });
 });
+
+describe("sets: minimum size rounds like component sizes (#518, #515)", () => {
+  const parse = (fields: Record<string, unknown>) =>
+    SetSchema.safeParse({ id: "s", members: ["a"], ...fields });
+
+  test("equivalent units give one size, rounded to 0.5pt", () => {
+    const pt = (v: unknown) => {
+      const r = parse({ minWidth: v });
+      return r.success ? r.data.minWidth : undefined;
+    };
+    expect(pt("18mm")).toBe(51); // 51.02pt to the nearest 0.5pt
+    expect(pt("51pt")).toBe(51);
+    expect(pt("18mm")).toBe(pt("51pt"));
+    expect(pt("0.7in")).toBe(50.5);
+    expect(pt("50.2pt")).toBe(50);
+    expect(pt("50.25pt")).toBe(50.5);
+    expect(pt("0.1pt")).toBe(0.5);
+  });
+
+  test("zero and non-lengths are rejected", () => {
+    expect(parse({ minWidth: "0pt" }).success).toBe(false);
+    expect(parse({ minHeight: "0mm" }).success).toBe(false);
+    expect(parse({ minWidth: 10 }).success).toBe(false);
+    expect(parse({ minWidth: "-3mm" }).success).toBe(false);
+  });
+
+  test("the two minimums are rounded independently (a circle then takes the larger)", () => {
+    const r = parse({ minWidth: "18mm", minHeight: "30.2pt" });
+    if (!r.success) throw new Error("expected success");
+    expect([r.data.minWidth, r.data.minHeight]).toEqual([51, 30]);
+  });
+});

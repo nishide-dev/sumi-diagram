@@ -15,6 +15,7 @@ import {
   polylinesCrossRect,
   type Region,
   rectDepthInside,
+  rectPolygon,
   rectsOverlap,
   regionIntersectsRect,
 } from "./shapes";
@@ -24,7 +25,7 @@ const TOLERANCE = 1;
 /** A node counts as covered when this share of its footprint lies inside the outline... */
 const COVERED_SHARE = 0.25;
 /** ...or when its center does. The footprint is sampled on a grid this many points a side. */
-const GRID = 5;
+const GRID = 7;
 
 const capitalize = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
 
@@ -38,19 +39,89 @@ function footprint(element: GeometryElement): Rect | undefined {
   return unionOf(element.labels.flatMap((l) => l.visibleLines));
 }
 
-/** The share of `rect` (sampled on a grid) that lies inside the region. */
-export function insideShare(region: Region, rect: Rect): number {
-  let inside = 0;
-  for (let i = 0; i < GRID; i++) {
-    for (let j = 0; j < GRID; j++) {
-      const p: Point = {
-        x: rect.x + ((i + 0.5) / GRID) * rect.width,
-        y: rect.y + ((j + 0.5) / GRID) * rect.height,
-      };
-      if (depthInside(region, p) >= 0) inside++;
+/** The region a node occupies: its drawn outline, or the box of its text. */
+function nodeRegion(element: GeometryElement): Region | undefined {
+  if (element.outline !== undefined) return element.outline;
+  const rect = footprint(element);
+  return rect === undefined ? undefined : rectPolygon(rect);
+}
+
+/** Points inside the region (a grid over its bounds) and on its boundary. */
+function sampleRegion(region: Region): { inside: Point[]; boundary: Point[] } {
+  const inside: Point[] = [];
+  const boundary: Point[] = [];
+  if (region.kind === "ellipse") {
+    const { cx, cy, rx, ry } = region;
+    for (let i = 0; i < 32; i++) {
+      const a = (i / 32) * 2 * Math.PI;
+      boundary.push({ x: cx + rx * Math.cos(a), y: cy + ry * Math.sin(a) });
     }
+    for (let i = 0; i < GRID; i++)
+      for (let j = 0; j < GRID; j++) {
+        const p = {
+          x: cx + rx * (((i + 0.5) / GRID) * 2 - 1),
+          y: cy + ry * (((j + 0.5) / GRID) * 2 - 1),
+        };
+        if (depthInside(region, p) >= 0) inside.push(p);
+      }
+    return { inside, boundary };
   }
-  return inside / (GRID * GRID);
+  const { points } = region;
+  const xs = points.map((p) => p.x);
+  const ys = points.map((p) => p.y);
+  const x0 = Math.min(...xs);
+  const y0 = Math.min(...ys);
+  const w = Math.max(...xs) - x0;
+  const h = Math.max(...ys) - y0;
+  for (let i = 0; i < points.length; i++) {
+    const a = points[i] as Point;
+    const b = points[(i + 1) % points.length] as Point;
+    for (let k = 0; k < 4; k++)
+      boundary.push({ x: a.x + ((b.x - a.x) * k) / 4, y: a.y + ((b.y - a.y) * k) / 4 });
+  }
+  for (let i = 0; i < GRID; i++)
+    for (let j = 0; j < GRID; j++) {
+      const p = { x: x0 + ((i + 0.5) / GRID) * w, y: y0 + ((j + 0.5) / GRID) * h };
+      if (depthInside(region, p) >= 0) inside.push(p);
+    }
+  return { inside, boundary };
+}
+
+/**
+ * How a set's outline meets a non-member node, by the node's drawn shape (a
+ * diamond's empty corner does not count) and without shrinking it, so a thin
+ * node is judged like any other:
+ * - `covered`: the node's center, or a quarter or more of its shape, is inside;
+ * - `crossed`: not covered, but part of the shape lies more than TOLERANCE
+ *   inside the outline (the outline cuts it);
+ * - `clear`: otherwise.
+ * Each node is exactly one of the three, so the two rules never both report it
+ * and none is missed.
+ */
+export function classifyAgainstSet(
+  set: GeometrySet,
+  node: GeometryElement,
+): "covered" | "crossed" | "clear" {
+  const region = nodeRegion(node);
+  if (region === undefined) return "clear";
+  const { inside, boundary } = sampleRegion(region);
+  const centerOf = footprint(node);
+  const center =
+    node.outline?.kind === "ellipse"
+      ? { x: node.outline.cx, y: node.outline.cy }
+      : centerOf === undefined
+        ? undefined
+        : { x: centerOf.x + centerOf.width / 2, y: centerOf.y + centerOf.height / 2 };
+  if (center !== undefined && depthInside(set.geometry.region, center) >= 0) return "covered";
+  const share =
+    inside.length === 0
+      ? 0
+      : inside.filter((p) => depthInside(set.geometry.region, p) >= 0).length / inside.length;
+  if (share >= COVERED_SHARE) return "covered";
+  const cut = [...inside, ...boundary].some(
+    (p) => depthInside(set.geometry.region, p) >= TOLERANCE,
+  );
+  return cut ? "crossed" : "clear";
 }
 
 /** Whether a node is a member of the set, directly or through a member group. */
@@ -64,23 +135,24 @@ function isMember(context: GeometryContext, set: GeometrySet, node: GeometryElem
   );
 }
 
-/** The nodes the outline of `set` covers although they are no members. */
-export function coveredNonMembers(context: GeometryContext, set: GeometrySet): GeometryElement[] {
+/** The non-member nodes of `set` of the given kind (see classifyAgainstSet). */
+function nonMembersBy(
+  context: GeometryContext,
+  set: GeometrySet,
+  kind: "covered" | "crossed",
+): GeometryElement[] {
   return context.elements.filter((node) => {
     if (node.kind !== "node" || node.ir.kind !== "node") return false;
     // A junction is a point on a wire, not a thing the set could claim.
     if (node.ir.mark?.type === "point") return false;
     if (isMember(context, set, node)) return false;
-    const rect = footprint(node);
-    if (rect === undefined || !regionIntersectsRect(set.geometry.region, rect, TOLERANCE))
-      return false;
-    const center = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
-    return (
-      depthInside(set.geometry.region, center) >= 0 ||
-      insideShare(set.geometry.region, rect) >= COVERED_SHARE
-    );
+    return classifyAgainstSet(set, node) === kind;
   });
 }
+
+/** The nodes the outline of `set` covers although they are no members. */
+export const coveredNonMembers = (context: GeometryContext, set: GeometrySet) =>
+  nonMembersBy(context, set, "covered");
 
 export const setContainsNonMember = defineGeometryRule({
   id: "geometry/set-contains-non-member",
@@ -118,14 +190,7 @@ export const setOutlineCrossesNode = defineGeometryRule({
   run(context) {
     const findings: LintFinding[] = [];
     for (const set of context.sets) {
-      // Nodes mostly or wholly inside are set-contains-non-member's.
-      const covered = new Set(coveredNonMembers(context, set));
-      const crossed = context.elements.filter((node) => {
-        if (node.kind !== "node" || node.ir.kind !== "node" || covered.has(node)) return false;
-        if (node.ir.mark?.type === "point" || isMember(context, set, node)) return false;
-        const rect = footprint(node);
-        return rect !== undefined && regionIntersectsRect(set.geometry.region, rect, TOLERANCE);
-      });
+      const crossed = nonMembersBy(context, set, "crossed");
       if (crossed.length === 0) continue;
       const names = crossed.map((n) => n.name);
       findings.push({

@@ -8,6 +8,7 @@
 import { validRange } from "semver";
 import { z } from "zod";
 import { ICON_REF_MAX_LENGTH, ICON_REF_PATTERN } from "../../assets/icon-ref";
+import { SizeLength } from "../registry/length";
 import { PALETTE_NAMES } from "../theme/palette";
 import { TONE_NAMES } from "../theme/tones";
 import { MAX_LENGTH_PT, parseLength } from "../units";
@@ -1148,11 +1149,11 @@ export const SetSchema = z.strictObject({
   padding: LayoutLength.optional().describe(
     "Room between the members and the outline. Omitted means the profile's group padding.",
   ),
-  minWidth: LayoutLength.optional().describe(
-    'Least width of the outline (circle, ellipse or rect, not hull), e.g. "50mm": a smaller fit grows about its center, so sets can share one size without hidden anchor nodes. A tilted ellipse takes it along its first axis; a circle takes the larger of minWidth and minHeight.',
+  minWidth: SizeLength.optional().describe(
+    'Least width of the outline (circle, ellipse or rect, not hull), e.g. "50mm", rounded to the nearest 0.5pt like a component width: a smaller fit grows about its center, so sets can share one size without hidden anchor nodes. A tilted ellipse takes it along its first axis; a circle takes the larger of minWidth and minHeight.',
   ),
-  minHeight: LayoutLength.optional().describe(
-    "Least height of the outline (circle, ellipse or rect, not hull), as minWidth. A tilted ellipse takes it along its second axis.",
+  minHeight: SizeLength.optional().describe(
+    "Least height of the outline (circle, ellipse or rect, not hull), as minWidth (positive, rounded to 0.5pt). A tilted ellipse takes it along its second axis.",
   ),
   fillOpacity: z
     .number()
