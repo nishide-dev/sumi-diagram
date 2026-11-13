@@ -112,7 +112,7 @@ export function multiplyTints(colors: readonly string[], canvas = "#ffffff"): st
   return hexOf(out);
 }
 
-/** Mix opaque set tints perceptually, moving away from the canvas in lightness. */
+/** Mix opaque set tints as their perceptual (OKLCH) average; `canvas` is the result of no tint. */
 export function mixTints(colors: readonly string[], canvas = "#ffffff"): string {
   const values = colors.filter((color) => channels(color) !== undefined).map(toOklch);
   if (values.length === 0) return canvas;
@@ -124,7 +124,7 @@ export function mixTints(colors: readonly string[], canvas = "#ffffff"): string 
   const y = hues.reduce((sum, v) => sum + Math.sin((v.h * Math.PI) / 180), 0);
   const h = Math.hypot(x, y) < 1e-10 ? 0 : (Math.atan2(y, x) * 180) / Math.PI;
   return fromOklch({
-    l: Math.max(0, Math.min(1, mean((v) => v.l) + (darkCanvas(canvas) ? 0.05 : -0.05))),
+    l: mean((v) => v.l),
     c: mean((v) => v.c),
     h: (h + 360) % 360,
   });
