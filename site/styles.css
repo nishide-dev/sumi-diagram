@@ -120,6 +120,9 @@
   cursor: pointer;
   font-family: var(--font-mono);
 }
+#page-home .readme-picture img {
+  max-width: min(100%, 46rem);
+}
 #page-home .readme-dark {
   display: none;
 }
