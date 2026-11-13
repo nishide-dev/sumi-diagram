@@ -75,13 +75,13 @@ describe("formatFigureSource", () => {
         "version: 1",
         "figure:",
         "  id: x # trailing",
-        "  layout: { direction: down }",
+        "  layout: {direction: down}",
         "",
         "nodes:",
         "  - id: a",
         "    component: box",
-        "    props: { width: 10mm }",
-        "edges: [ { from: a, to: a } ]",
+        "    props: {width: 10mm}",
+        "edges: [{from: a, to: a}]",
         "",
       ].join("\n"),
     );
@@ -162,7 +162,7 @@ nodes:
     # the component
     component: box
     id: a
-    props: { width: 10mm, height: 5mm }
+    props: {width: 10mm, height: 5mm}
 version: 1
 `;
     expect(format(input)).toBe(input);
@@ -176,7 +176,7 @@ nodes:
     # the component
     component: box
     label: A # the label
-    props: { width: 10mm, height: 5mm }
+    props: {width: 10mm, height: 5mm}
     custom: 1
 `);
   });
@@ -212,17 +212,17 @@ figure:
       row:
         gap: 3mm
         items:
-          - stack: { direction: up, gap: 0, align: stretch, items: [ a ] }
+          - stack: {direction: up, gap: 0, align: stretch, items: [a]}
           - g
 groups:
   - id: g
-    arrange: { stack: { direction: down, items: [ b ] } }
+    arrange: {stack: {direction: down, items: [b]}}
 nodes:
-  - { id: a, component: box }
-  - { id: b, component: box }
-  - { id: c, component: box, attach: { to: a, side: west, gap: 1mm } }
+  - {id: a, component: box}
+  - {id: b, component: box}
+  - {id: c, component: box, attach: {to: a, side: west, gap: 1mm}}
 edges:
-  - { from: a, fromAnchor: "north:0.25", to: b, toAnchor: south }
+  - {from: a, fromAnchor: "north:0.25", to: b, toAnchor: south}
 `);
   });
 
@@ -249,8 +249,8 @@ edges:
     const result = formatFigureSource("version: 2\nfigure: {id: Bad}\n");
     expect(result).toEqual({
       ok: true,
-      text: "version: 2\nfigure: { id: Bad }\n",
-      changed: true,
+      text: "version: 2\nfigure: {id: Bad}\n",
+      changed: false,
       diagnostics: [],
     });
   });
@@ -267,7 +267,49 @@ sets:
 `;
   const result = formatFigureSource(source, { canonicalOrder: true });
   if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
-  expect(result.text).toContain(
-    "- { id: s, label: S, members: [ a, b ], shape: hull, tone: blue }",
-  );
+  expect(result.text).toContain("- {id: s, label: S, members: [a, b], shape: hull, tone: blue}");
+});
+
+describe("grid items (#520)", () => {
+  const grid = (items: string, columns = 3) => `version: 1
+figure:
+  id: f
+  layout:
+    arrange:
+      grid:
+        columns: ${columns}
+        items:${items}
+`;
+
+  test("prints a flow-sequence grid one row per line without bracket padding", () => {
+    const out = format(grid(" [ a,b,c,d,e,f ]"));
+    expect(out).toBe(grid("\n          [a, b, c,\n           d, e, f]"));
+    expect(format(out)).toBe(out);
+  });
+
+  test("re-wraps hand-written rows, keeps null cells, spans and nested grids", () => {
+    const input = grid(`
+          [a, b, c, d,
+           ~, {item: e, span: 2}, f,
+           {grid: {columns: 2, items: [x, y, z, w]}}, "q#", g]`);
+    const out = format(input);
+    expect(out).toBe(
+      grid(`
+          [a, b, c,
+           d, ~, {item: e, span: 2},
+           f, {grid: {columns: 2, items: [x, y, z, w]}}, "q#",
+           g]`),
+    );
+    expect(parseYaml(out).source?.value).toEqual(parseYaml(input).source?.value);
+    expect(format(out)).toBe(out);
+  });
+
+  test("keeps a single row inline and block or commented items as they are", () => {
+    expect(format(grid(" [a, b, c]"))).toBe(grid(" [a, b, c]"));
+    const block = grid("\n          - a\n          - b\n          - c\n          - d");
+    expect(format(block)).toBe(block);
+    const commented = format(grid(" [a, b, c, # first row\n d, e, f]"));
+    expect(commented).toContain("# first row");
+    expect(format(commented)).toBe(commented);
+  });
 });
