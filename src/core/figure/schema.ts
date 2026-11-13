@@ -339,6 +339,12 @@ export const GridCellSchema = z.strictObject({
     return ArrangeItemSchema.nullable();
   },
   span: z.int().positive().optional().describe("Number of columns occupied (default 1)."),
+  align: z
+    .enum(ARRANGE_ALIGNS)
+    .optional()
+    .describe(
+      "Horizontal alignment of this cell inside its columns, replacing the grid's align for this cell only (since 0.18.0). The column widths still come from the grid's align.",
+    ),
 });
 
 /** Row-major grid. Rows must be complete; null reserves a blank cell. */

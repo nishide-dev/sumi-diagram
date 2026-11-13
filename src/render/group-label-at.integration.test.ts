@@ -82,7 +82,9 @@ function expectTitlesAt(rendered: RenderedFigure): void {
     else expect(Math.abs(left - right)).toBeLessThanOrEqual(1);
     seen.add(at);
   }
-  expect([...seen].sort()).toEqual([...GROUP_LABEL_POSITIONS].sort());
+  // The positions above the border (#517) have their own tests: this one checks inside titles.
+  const inside = GROUP_LABEL_POSITIONS.filter((p) => !p.startsWith("above"));
+  expect([...seen].sort()).toEqual([...inside].sort());
 }
 
 describe("structured", () => {

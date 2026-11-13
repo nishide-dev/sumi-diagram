@@ -212,6 +212,9 @@ const container: GroupManifest = {
     "A rectangular container that groups nodes and other groups. Variant muted: a dashed border in academic (easy to confuse with dashed edges), a white background instead of the shaded fill (without a tone) and a gray title in the other themes. Variant plain: no border and no fill, only the title or caption; filled: a shaded fill without a border; dashed: a dashed border without a fill; filled-dashed: a dashed border and a shaded fill; dotted: a dashed border with round dots and no fill. A tone sets the fill of any variant.",
   variants: ["default", "muted", "plain", "filled", "dashed", "filled-dashed", "dotted"],
   props: z.strictObject({
+    padding: SizeLength.optional().describe(
+      'Space between the frame and its content on every side, replacing the profile\'s group padding (since 0.18.0, structured layout only), e.g. "3pt" for a tight frame. The title band above the content scales with it. Positive, a multiple of 0.5pt.',
+    ),
     layers: LayersSchema.optional().describe(
       "Repeat the frame behind the front card, offset up-right. The footprint includes every card; only the front contains children and a title. Structured layout only; plain is unsupported.",
     ),

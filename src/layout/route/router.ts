@@ -71,6 +71,7 @@
 import type { ArrangeBoxIR, EdgeIR, FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import { type Diagnostic, hasErrors } from "../../core/diagnostics";
+import type { Side } from "../../core/figure/schema";
 import { SEPARATOR_ID } from "../../core/registry/builtins";
 import { groupFrontRect, groupLayerObstacles } from "../group-layers";
 import {
@@ -872,7 +873,7 @@ class Router {
         subject: { kind: "edge", id: edge.id ?? `edges[${edge.index}]` },
         hint: `${gridHint === undefined ? "" : `${gridHint} `}${
           at.off === "beyond"
-            ? `Bring ${them} over ${me} (the order or align of the arrange box, or figure.layout.align), widen ${me}, or write a side anchor instead (e.g. "${at.side}:0.5").`
+            ? `Bring ${them} over ${me} (the order or align of the arrange box, or figure.layout.align), widen ${me}, or write a side anchor instead (e.g. "${at.side}:0.5").${at.side === undefined ? "" : sharedSpan(selfRect, otherRect, at.side, me, them)}`
             : `Put ${me} and ${them} in line (one above the other in a stack, or side by side in a row), or write a side anchor instead (e.g. "north:0.5").`
         }`,
       });
@@ -2211,4 +2212,22 @@ export function mergeSegments(lines: readonly (readonly Point[])[]): [Point, Poi
     }
   }
   return out;
+}
+
+/**
+ * The anchors that draw a straight line over the span two facing sides share
+ * when neither centre is over the other element (#517), or `""` when they
+ * share too little room for a line with the corner margin.
+ */
+function sharedSpan(self: Rect, other: Rect, side: Side, me: string, them: string): string {
+  const horizontal = side === "north" || side === "south";
+  const [a0, aLength] = horizontal ? [self.x, self.width] : [self.y, self.height];
+  const [b0, bLength] = horizontal ? [other.x, other.width] : [other.y, other.height];
+  const start = Math.max(a0, b0);
+  const end = Math.min(a0 + aLength, b0 + bLength);
+  if (end - start < 2 * STRAIGHT_MARGIN) return "";
+  const mid = (start + end) / 2;
+  const at = (offset: number) => Math.round(offset * 1000) / 1000;
+  const opposite = { north: "south", south: "north", east: "west", west: "east" } as const;
+  return ` The two overlap across the same span, so a straight line fits there: anchor ${me} at "${side}:${at((mid - a0) / aLength)}" and ${them} at "${opposite[side]}:${at((mid - b0) / bLength)}".`;
 }

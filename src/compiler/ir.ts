@@ -132,6 +132,8 @@ export interface ArrangeBoxIR {
   /** Grid-only track count, spans (parallel to items), and gaps in pt. */
   readonly columns?: number;
   readonly spans?: readonly number[];
+  /** Grid-only per-cell horizontal alignment overrides (#517), parallel to items. */
+  readonly cellAligns?: readonly (ArrangeAlign | undefined)[];
   readonly rowGapPt?: number;
   readonly columnGapPt?: number;
   /** stack: `down` | `up`; row: `right` | `left`. */
@@ -403,6 +405,8 @@ export interface GroupIR extends ObjectIRBase {
   /** The label node expanded from the group's `caption` (#130). */
   readonly caption?: ElementKey;
   readonly layers?: { readonly count: number; readonly offset: StyleLength };
+  /** `props.padding` in pt (#517): replaces the profile's group padding. */
+  readonly paddingPt?: number;
 }
 
 export interface EdgeIR extends ElementIRBase {
@@ -848,6 +852,9 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
       children: freeze(childrenOf.get(g.id) ?? []),
       style: styleOf(state, key, "group"),
       ...groupLayers(componentOf(state, key).props),
+      ...(typeof componentOf(state, key).props.padding === "number" && {
+        paddingPt: componentOf(state, key).props.padding as number,
+      }),
       ...(g.arrange !== undefined && {
         arrange: arrangeOf(g.arrange, ["groups", index, "arrange"]),
       }),
@@ -1191,6 +1198,13 @@ function arrangeIR(
           c !== null && typeof c === "object" && "item" in c ? (c.span ?? 1) : 1,
         ),
       ),
+      ...(grid.items.some((c) => c !== null && typeof c === "object" && "item" in c && c.align) && {
+        cellAligns: freeze(
+          grid.items.map((c) =>
+            c !== null && typeof c === "object" && "item" in c ? c.align : undefined,
+          ),
+        ),
+      }),
       items: freeze(
         grid.items.map((c, index) =>
           item(c !== null && typeof c === "object" && "item" in c ? c.item : c, index),

@@ -351,7 +351,8 @@ function splitTokens(
       const tokens = element.tokens;
       if (reported.has(tokens.id)) continue;
       const cells = step.box.items.filter(
-        (i): i is ElementKey => typeof i === "string" && ir.elements.get(i)?.tokens?.id === tokens.id,
+        (i): i is ElementKey =>
+          typeof i === "string" && ir.elements.get(i)?.tokens?.id === tokens.id,
       );
       if (cells.length < 2 || cells.length !== step.box.items.length) continue;
       const reversed = step.box.direction === "left" || step.box.direction === "up";

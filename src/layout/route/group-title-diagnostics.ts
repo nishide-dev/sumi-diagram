@@ -64,7 +64,7 @@ export function groupTitleDiagnostics(ir: FigureIR, layout: LayoutIR): Diagnosti
       path: source?.path ?? ["edges", edge.index],
       ...(source?.location !== undefined && { location: source.location }),
       subject: { kind: "edge", id: edge.id ?? `edges[${edge.index}]` },
-      hint: `Options: (1) align the connected nodes instead of their frames with figure.layout.align: [{ y: [${fromId}, ${toId}] }]; this moves those nodes and may shift the surrounding frames or add bends on other edges, so re-check the render and the geometry warnings. (2) Use a caption or an untitled group where no header space is wanted. (3) For an attached input, attach to the connected node instead of its frame.`,
+      hint: `Options: (1) align the connected nodes instead of their frames with figure.layout.align: [{ y: [${fromId}, ${toId}] }]; this moves those nodes and may shift the surrounding frames or add bends on other edges, so re-check the render and the geometry warnings. (2) Put the title above the border with labelAt: above (above-left, above-right), which takes no space inside the frame, or use a caption or an untitled group where no header space is wanted. (3) For an attached input, attach to the connected node instead of its frame.`,
     });
   }
   return diagnostics;
