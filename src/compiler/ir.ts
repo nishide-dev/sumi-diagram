@@ -257,6 +257,8 @@ export interface TokensCellIR {
   readonly line?: number;
   /** A dotted separator cell (#216), drawn within its reserved box. */
   readonly separator?: "vertical" | "horizontal";
+  /** A blank cell (#517): its box is reserved and nothing is drawn. */
+  readonly blank?: true;
   /** The ID of the tokens node (which names no element of its own), or of the matrix. */
   readonly id: string;
   /** The tokens or matrix node's variant. */
@@ -1260,6 +1262,7 @@ function tokensCellOf(doc: PartialFigure, key: ElementKey): { tokens?: TokensCel
       fields: freeze({ ...fields }),
       ...(cell?.path[3] === "lines" && { line: cell.path[4] as number }),
       ...(cell?.separator !== undefined && { separator: cell.separator }),
+      ...(cell?.blank !== undefined && { blank: true as const }),
     }),
   };
 }

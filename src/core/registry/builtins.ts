@@ -859,6 +859,20 @@ const tokenCellFields = {
 const tokenCell = z.union([
   z.string().describe("A cell with this label (math allowed); the other fields as the tokens'."),
   z.strictObject({
+    blank: z
+      .literal(true)
+      .describe(
+        "An empty cell that keeps its place in the sequence: it reserves the cell's size, draws nothing and takes no edges' attention (since 0.18.0). Counts in positional cell references.",
+      ),
+    id: z
+      .string()
+      .regex(ID_PATTERN)
+      .optional()
+      .describe("The blank cell's name, as for other cells."),
+    width: SizeLength.optional().describe("Reserved width. Omitted means the tokens' width."),
+    height: SizeLength.optional().describe("Reserved height. Omitted means the tokens' height."),
+  }),
+  z.strictObject({
     separator: z
       .literal("dotted")
       .describe("A dotted divider perpendicular to the token direction."),
