@@ -107,7 +107,7 @@ describe("structured: #167 figures B and C on paper-double", () => {
     const all = lintGeometry(b);
     expect(
       all.filter((d) => d.code === "geometry/arrowhead-cramped").map((d) => d.subject?.id),
-    ).toEqual(["edges[6]", "edges[7]"]);
+    ).toEqual([]);
     const diagnostics = all.filter((d) => d.code !== "geometry/arrowhead-cramped");
     expect(diagnostics.map((d) => [d.code, d.severity, d.subject?.id])).toEqual([
       ["geometry/heavy-scaling", "info", "stage-c-dit"],
@@ -132,14 +132,13 @@ describe("structured: #167 figures B and C on paper-double", () => {
     const all = lintGeometry(c);
     expect(
       all.filter((d) => d.code === "geometry/arrowhead-cramped").map((d) => d.subject?.id),
-    ).toEqual(["edges[16]", "edges[20]", "edges[26]", "edges[28]", "edges[31]"]);
+    ).toEqual(["edges[26]", "edges[31]"]);
     const diagnostics = all.filter((d) => d.code !== "geometry/arrowhead-cramped");
     expect(diagnostics.map((d) => [d.code, d.severity, d.subject?.id])).toEqual([
       ["geometry/heavy-scaling", "info", "stage-c-h3world"],
       ["geometry/script-too-small", "info", "stage-c-h3world"],
       ["geometry/text-heavy-nodes", "info", "stage-c-h3world"],
       ["geometry/edge-jog", "info", "edges[17]"],
-      ["geometry/edge-jog", "info", "edges[20]"],
     ]);
     expect(diagnostics[1]?.message).toContain("down to 4.34pt (5.6pt shrunk to 77.4%");
   });
