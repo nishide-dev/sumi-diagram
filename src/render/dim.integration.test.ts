@@ -84,8 +84,6 @@ describe("DiT with panels 3 and 4 dimmed (structured)", () => {
       "geometry/sparse-figure",
       "geometry/color-on-panel",
       "geometry/group-empty-area",
-      "geometry/arrowhead-cramped",
-      "geometry/arrowhead-cramped",
     ]);
     expect(await codes(DIT)).toEqual(await codes(UNDIMMED));
   });

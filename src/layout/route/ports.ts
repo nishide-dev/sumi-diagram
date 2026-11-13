@@ -183,6 +183,12 @@ interface Element {
   readonly parent?: ElementKey;
 }
 
+const within = (inner: Rect, outer: Rect): boolean =>
+  inner.x >= outer.x &&
+  inner.y >= outer.y &&
+  rightOf(inner) <= rightOf(outer) &&
+  bottomOf(inner) <= bottomOf(outer);
+
 const center = (r: Rect): Point => ({ x: r.x + r.width / 2, y: r.y + r.height / 2 });
 
 /**
@@ -1287,6 +1293,54 @@ function resolveEndsWith(
     }
     return { side, inward: false, anchored: false };
   };
+  /**
+   * An end nobody anchored, on a node wider than the node at the other end
+   * and over it with that node's centre in line with the facing side,
+   * is `straight` (#512, unless `figure.layout.fanIn` is written): the line drops straight onto the narrower node
+   * instead of running to the wide node's middle and jogging (fan-out and
+   * fan-in then keep their own points rather than one trunk). An explicit
+   * anchor on either end keeps the written route.
+   */
+  const autoStraight = (
+    edge: EdgeIR,
+    self: Element,
+    other: Element,
+    otherWritten: EdgeAnchor | undefined,
+  ): typeof STRAIGHT_ANCHOR | undefined => {
+    // `figure.layout.fanIn` written (merge or spread) is the author's choice of trunk.
+    if (ir.meta.fanIn !== undefined) return undefined;
+    if (otherWritten !== undefined || edge.from === edge.to) return undefined;
+    if (isJunction(self.node) || isJunction(other.node)) return undefined;
+    const at = straightPlacement(self.rect, other.rect);
+    if (!("offset" in at)) return undefined;
+    const vertical = at.side === "north" || at.side === "south";
+    const wide = vertical ? self.rect.width : self.rect.height;
+    const narrow = vertical ? other.rect.width : other.rect.height;
+    // Only a clearly wider node: equal sizes are already in line.
+    if (!(wide > narrow + STRAIGHTEN_TOLERANCE * 2)) return undefined;
+    // The straight line must not run over a title or caption: the router
+    // would take it around, which is better than a line through text.
+    const o = center(other.rect);
+    const x = vertical ? o.x : at.side === "west" ? self.rect.x : rightOf(self.rect);
+    const y = vertical ? (at.side === "north" ? self.rect.y : bottomOf(self.rect)) : o.y;
+    const t = vertical ? (at.side === "north" ? bottomOf(other.rect) : other.rect.y) : o.x;
+    const line: Rect = vertical
+      ? { x: x - 1, y: Math.min(y, t), width: 2, height: Math.abs(t - y) }
+      : { x: Math.min(x, t), y: y - 1, width: Math.abs(t - x), height: 2 };
+    const boxes = [...layout.groups, ...layout.nodes].flatMap((l) =>
+      l.label === undefined ? [] : [l.label.box],
+    );
+    const hits = boxes.some(
+      (b) =>
+        b.x < rightOf(line) &&
+        rightOf(b) > line.x &&
+        b.y < bottomOf(line) &&
+        bottomOf(b) > line.y &&
+        !within(b, self.rect) &&
+        !within(b, other.rect),
+    );
+    return hits ? undefined : STRAIGHT_ANCHOR;
+  };
   const treeSide = arrangeSides(ir, (key) => element(key).rect);
   const hosts = sideInputHosts(ir, (key) => element(key).rect);
 
@@ -1295,8 +1349,22 @@ function resolveEndsWith(
     const to = element(edge.to);
     return {
       edge,
-      from: choose(edge, from, to, edge.fromAnchor, true, spread.get(endKey(index, true))),
-      to: choose(edge, to, from, edge.toAnchor, false, spread.get(endKey(index, false))),
+      from: choose(
+        edge,
+        from,
+        to,
+        edge.fromAnchor ?? autoStraight(edge, from, to, edge.toAnchor),
+        true,
+        spread.get(endKey(index, true)),
+      ),
+      to: choose(
+        edge,
+        to,
+        from,
+        edge.toAnchor ?? autoStraight(edge, to, from, edge.fromAnchor),
+        false,
+        spread.get(endKey(index, false)),
+      ),
     };
   });
 

@@ -71,7 +71,6 @@ describe("DiT (paper, paper-double, fit: scale)", () => {
       "info geometry/script-too-small",
       "info geometry/group-empty-area",
       "info geometry/group-empty-area",
-      ...Array(2).fill("info geometry/arrowhead-cramped"),
     ]);
   });
 

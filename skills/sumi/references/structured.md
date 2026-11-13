@@ -999,7 +999,13 @@ edges:
   full arrowhead room for every target. The shorter target gets a longer arrow;
   obstacles and tight gaps can still force a detour. Equal-height targets keep
   their existing routing.
-- **Fan-in (`figure.layout.fanIn`)**: by default (`merge`) edges from different elements
+- **Wide node over narrower ones (v0.18)**: when `fanIn` is not written, an end on a node
+  that is clearly wider than the node at the other end (and has no anchor on either end)
+  drops straight onto the narrower node's centre, as `fromAnchor: straight` would, so a wide
+  box fanning out to (or taking in) narrower boxes does not merge into a trunk or jog. It
+  is skipped when the straight line would cross a title or caption. Write `fanIn: merge`
+  for the trunk.
+- **Fan-in (`figure.layout.fanIn`)**: written as `merge`, edges from different elements
   entering one side without a `toAnchor` merge into one trunk. `fanIn: spread` (next to
   `arrange`) **tries** to bring them in at separate points ordered by their sources; if
   that would put two ends on one point or leave an edge unrouted, the **whole figure** is
