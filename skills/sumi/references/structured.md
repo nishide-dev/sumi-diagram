@@ -28,14 +28,14 @@ figure:
   theme: paper
   layout:
     arrange:                    # its presence makes the figure structured
-      stack: { direction: up, gap: 4mm, items: [ x, block, y ] }   # first item at the bottom
+      stack: {direction: up, gap: 4mm, items: [x, block, y]}   # first item at the bottom
 nodes:
-  - { id: x, component: label, label: $x$ }
-  - { id: block, component: box, label: Layer Norm, tone: blue, variant: filled }
-  - { id: y, component: label, label: $y$ }
+  - {id: x, component: label, label: $x$}
+  - {id: block, component: box, label: Layer Norm, tone: blue, variant: filled}
+  - {id: y, component: label, label: $y$}
 edges:
-  - { from: x, to: block }
-  - { from: block, to: y }
+  - {from: x, to: block}
+  - {from: block, to: y}
 ```
 
 ## Engine rules
@@ -67,13 +67,13 @@ figure:
         gap: 6mm               # default 4mm (8mm on slides; 2.5mm with density: compact)
         align: end             # start | center | end | stretch (cross axis)
         items:                 # IDs of nodes / groups, or nested boxes
-          - stack: { direction: up, items: [ a, b, c ] }
+          - stack: {direction: up, items: [a, b, c]}
           - encoder            # a group: its own children go in its own tree
 groups:
   - id: encoder
     label: Encoder
     arrange:                   # the group's tree places its children
-      stack: { gap: 3mm, align: stretch, items: [ d, e ] }
+      stack: {gap: 3mm, align: stretch, items: [d, e]}
 ```
 
 - `stack` runs top to bottom (`direction: down`, default) or bottom to top
@@ -148,19 +148,19 @@ figure:
       place:
         unit: 6mm
         items:
-          - { item: a, at: [1.5, 0] }
-          - { item: b, at: [0, 2] }
-          - { item: c, at: [0.5, 4] }
-          - { item: d, at: [3, 3] }
+          - {item: a, at: [1.5, 0]}
+          - {item: b, at: [0, 2]}
+          - {item: c, at: [0.5, 4]}
+          - {item: d, at: [3, 3]}
 nodes:
-  - { id: a, component: circle, label: A, tone: blue }
-  - { id: b, component: circle, label: B, tone: orange }
-  - { id: c, component: circle, label: C, tone: green }
-  - { id: d, component: circle, label: D, tone: purple }
+  - {id: a, component: circle, label: A, tone: blue}
+  - {id: b, component: circle, label: B, tone: orange}
+  - {id: c, component: circle, label: C, tone: green}
+  - {id: d, component: circle, label: D, tone: purple}
 edges:
-  - { from: a, to: b, component: line, route: straight }
-  - { from: b, to: c, component: line, route: straight }
-  - { from: b, to: d, component: line, route: straight }
+  - {from: a, to: b, component: line, route: straight}
+  - {from: b, to: c, component: line, route: straight}
+  - {from: b, to: d, component: line, route: straight}
 ```
 
 ## Set enclosures
@@ -215,22 +215,22 @@ figure:
       place:
         unit: 7mm
         items:
-          - { item: p1, at: [0, 0.3] }
-          - { item: p2, at: [0.2, 1.9] }
-          - { item: shared, at: [1.5, 1.1] }
-          - { item: title, at: [2.8, 0.3] }
-          - { item: abstract, at: [2.8, 1.9] }
+          - {item: p1, at: [0, 0.3]}
+          - {item: p2, at: [0.2, 1.9]}
+          - {item: shared, at: [1.5, 1.1]}
+          - {item: title, at: [2.8, 0.3]}
+          - {item: abstract, at: [2.8, 1.9]}
 nodes:
-  - { id: p1, component: circle, icon: tabler/file-text, tone: blue, variant: tinted }
-  - { id: p2, component: circle, icon: tabler/file-text, tone: blue, variant: tinted }
-  - { id: shared, component: circle, icon: tabler/file-text, tone: gray, variant: tinted }
-  - { id: title, component: circle, icon: tabler/letter-t, tone: green, variant: tinted }
-  - { id: abstract, component: circle, icon: tabler/align-left, tone: green, variant: tinted }
+  - {id: p1, component: circle, icon: tabler/file-text, tone: blue, variant: tinted}
+  - {id: p2, component: circle, icon: tabler/file-text, tone: blue, variant: tinted}
+  - {id: shared, component: circle, icon: tabler/file-text, tone: gray, variant: tinted}
+  - {id: title, component: circle, icon: tabler/letter-t, tone: green, variant: tinted}
+  - {id: abstract, component: circle, icon: tabler/align-left, tone: green, variant: tinted}
 edges:
-  - { from: shared, to: abstract, component: line }
+  - {from: shared, to: abstract, component: line}
 sets:
-  - { id: e1, label: Entities, members: [p1, p2, shared], tone: blue, labelAt: top-left }
-  - { id: e2, label: Attributes, members: [shared, title, abstract], tone: green, labelAt: top-right }
+  - {id: e1, label: Entities, members: [p1, p2, shared], tone: blue, labelAt: top-left}
+  - {id: e2, label: Attributes, members: [shared, title, abstract], tone: green, labelAt: top-right}
 ```
 
 `angle: auto` tilts an ellipse to diagonal members (a hyperedge around a diagonal row);
@@ -247,17 +247,17 @@ figure:
       place:
         unit: 7mm
         items:
-          - { item: a, at: [0, 3] }
-          - { item: b, at: [1.4, 1.8] }
-          - { item: c, at: [2.6, 2.8] }
-          - { item: d, at: [3, 0.4] }
+          - {item: a, at: [0, 3]}
+          - {item: b, at: [1.4, 1.8]}
+          - {item: c, at: [2.6, 2.8]}
+          - {item: d, at: [3, 0.4]}
 nodes:
-  - { id: a, component: circle, label: a }
-  - { id: b, component: circle, label: b }
-  - { id: c, component: circle, label: c }
-  - { id: d, component: circle, label: d }
+  - {id: a, component: circle, label: a}
+  - {id: b, component: circle, label: b}
+  - {id: c, component: circle, label: c}
+  - {id: d, component: circle, label: d}
 sets:
-  - { id: e, label: e, members: [a, b, c, d], shape: ellipse, angle: auto, variant: dashed, padding: 4mm }
+  - {id: e, label: e, members: [a, b, c, d], shape: ellipse, angle: auto, variant: dashed, padding: 4mm}
 ```
 
 ## Chat conversations
@@ -277,16 +277,16 @@ figure:
         width: 80mm
         maxWidth: 0.7
         speakers:
-          friend: { side: left, avatar: avatar }
-          me: { side: right, tone: green, variant: filled }
+          friend: {side: left, avatar: avatar}
+          me: {side: right, tone: green, variant: filled}
         items:
           - divider: 今日
-          - { node: hello, from: friend, meta: "23:10" }
-          - { node: reply, from: me, meta: [既読, "23:11"] }
+          - {node: hello, from: friend, meta: "23:10"}
+          - {node: reply, from: me, meta: [既読, "23:11"]}
 nodes:
-  - { id: avatar, component: circle, label: Y, variant: filled, tone: gray, props: { width: 16pt, height: 16pt } }
-  - { id: hello, component: bubble, label: 次いつ遊ぶ？ }
-  - { id: reply, component: bubble, label: いつでも！ }
+  - {id: avatar, component: circle, label: Y, variant: filled, tone: gray, props: {width: 16pt, height: 16pt}}
+  - {id: hello, component: bubble, label: 次いつ遊ぶ？}
+  - {id: reply, component: bubble, label: いつでも！}
 ```
 
 `width` defaults from the profile's page width, margins and one group's padding.
@@ -347,16 +347,16 @@ figure:
               items: [decoder, queries]
           - output
 nodes:
-  - { id: encoder, component: box, label: Encoder }
-  - { id: decoder, component: box, label: Decoder }
-  - { id: output, component: box, label: Output }
+  - {id: encoder, component: box, label: Encoder}
+  - {id: decoder, component: box, label: Decoder}
+  - {id: output, component: box, label: Output}
   - id: queries
     component: tokens
-    props: { cells: [q1, q2, q3] }
+    props: {cells: [q1, q2, q3]}
 edges:
-  - { from: encoder, to: decoder }
-  - { from: decoder, to: output }
-  - { from: queries, to: decoder, fromAnchor: north, toAnchor: south }
+  - {from: encoder, to: decoder}
+  - {from: decoder, to: output}
+  - {from: queries, to: decoder, fromAnchor: north, toAnchor: south}
 ```
 
 - `centerOn` names a **direct node or group item** in that stack/row (use the
@@ -387,16 +387,16 @@ arrange:
     rowGap: 6mm
     columnGap: 4mm
     align: start
-    items: [ dataset, sample, augment, augmented, model, loss, { item: optimizer, span: 2 } ]
+    items: [dataset, sample, augment, augmented, model, loss, {item: optimizer, span: 2}]
 ```
 
 - Items fill left to right, then top to bottom; `direction` is not accepted.
   An item is an ID, a nested stack / row / grid / place, `null` (YAML `~`), or
-  `{ item: ID-or-box-or-null, span: N }` (spans cover columns only).
+  `{item: ID-or-box-or-null, span: N}` (spans cover columns only).
 - **Every row must be complete**: crossing a row boundary is
   `layout/grid-span-overflow`, an incomplete last row `layout/grid-item-count`.
   Empty lists and strings are invalid. A deliberate blank cell is `null` (or
-  `{ item: null, span: N }`): zero size, no node, obstacle or net endpoint,
+  `{item: null, span: N}`): zero size, no node, obstacle or net endpoint,
   edges may pass through; a hidden junction is not a blank cell.
   `fmt --canonical-order` writes blanks as `null`.
 - Column widths are the widest single-cell item; a spanning deficit is shared
@@ -407,13 +407,13 @@ arrange:
   gap (compact density included). Extra room centres the whole grid.
 - Cells take no `align` struts (nested stack / row boxes and ancestors still
   can): to align a grid cell vertically with something in another tree, wrap
-  it (`{ stack: { items: [cell] } }` for `y`, a row for `x`). Sumi suggests
+  it (`{stack: {items: [cell]}}` for `y`, a row for `x`). Sumi suggests
   the wrapper only after a trial layout shows it removes the diagnostic. Cells
   of the same grid are tracks of that grid: no wrapper separates them, so put
   them in the same grid row (`y`) or column (`x`). `layout/unsatisfied-align`
   names this limit.
 
-**Span does not imply stretch.** `{ item: projection, span: 9 }` reserves nine
+**Span does not imply stretch.** `{item: projection, span: 9}` reserves nine
 columns, but with the default `align: center` the box keeps its natural width. For
 a box that must cover the columns below it set **`align: stretch` on the grid** and
 leave `props.width` unset (fixed-width and non-resizable components, e.g. circles,
@@ -444,17 +444,17 @@ figure:
   id: two-panels
   theme: paper
   layout:
-    arrange: { row: { gap: 6mm, items: [left, divider, right] } }
+    arrange: {row: {gap: 6mm, items: [left, divider, right]}}
 groups:
-  - { id: left, variant: plain, arrange: { stack: { items: [a, b] } } }
-  - { id: right, variant: plain, arrange: { stack: { items: [c] } } }
+  - {id: left, variant: plain, arrange: {stack: {items: [a, b]}}}
+  - {id: right, variant: plain, arrange: {stack: {items: [c]}}}
 nodes:
-  - { id: a, component: box, label: Input }
-  - { id: b, component: box, label: Encoder }
-  - { id: divider, component: separator, variant: dashed }
-  - { id: c, component: box, label: Detail }
+  - {id: a, component: box, label: Input}
+  - {id: b, component: box, label: Encoder}
+  - {id: divider, component: separator, variant: dashed}
+  - {id: c, component: box, label: Detail}
 edges:
-  - { from: a, to: b }
+  - {from: a, to: b}
 ```
 
 ## Flow arrows
@@ -478,26 +478,26 @@ figure:
   id: stage-flow
   theme: paper
   layout:
-    arrange: { row: { gap: 3mm, align: center, items: [views, flow1, encoder, flow2, heads] } }
+    arrange: {row: {gap: 3mm, align: center, items: [views, flow1, encoder, flow2, heads]}}
 groups:
-  - { id: views, arrange: { stack: { items: [v1, v2] } } }
-  - { id: encoder, arrange: { stack: { items: [enc] } } }
-  - { id: heads, arrange: { stack: { items: [h1, h2] } } }
+  - {id: views, arrange: {stack: {items: [v1, v2]}}}
+  - {id: encoder, arrange: {stack: {items: [enc]}}}
+  - {id: heads, arrange: {stack: {items: [h1, h2]}}}
 nodes:
-  - { id: v1, component: box, label: View 1 }
-  - { id: v2, component: box, label: View 2 }
-  - { id: flow1, component: block-arrow }
-  - { id: enc, component: box, label: Encoder }
-  - { id: flow2, component: triangle-arrow, variant: muted }
-  - { id: h1, component: box, label: Head 1 }
-  - { id: h2, component: box, label: Head 2 }
+  - {id: v1, component: box, label: View 1}
+  - {id: v2, component: box, label: View 2}
+  - {id: flow1, component: block-arrow}
+  - {id: enc, component: box, label: Encoder}
+  - {id: flow2, component: triangle-arrow, variant: muted}
+  - {id: h1, component: box, label: Head 1}
+  - {id: h2, component: box, label: Head 2}
 edges:
-  - { from: v1, to: v2 }
+  - {from: v1, to: v2}
 ```
 
 ## Group titles and captions
 
-**Stacked group frames.** Use `props.layers: { count: 4, offset: 3pt }` on a
+**Stacked group frames.** Use `props.layers: {count: 4, offset: 3pt}` on a
 group (structured layout). `count` includes the front card (1–16); `offset` is
 a positive length rounded to the nearest 0.5pt (at least 0.5pt), diagonally up-right, matching image layers.
 Only frames repeat, with the same fill/stroke, tone and dim colors; the front
@@ -540,20 +540,20 @@ figure:
   id: body-title
   theme: paper
   layout:
-    arrange: { row: { items: [panel] } }
+    arrange: {row: {items: [panel]}}
 groups:
   - id: panel
     variant: plain
-    arrange: { stack: { items: [body] } }
+    arrange: {stack: {items: [body]}}
   - id: body
     label: Body
     variant: plain
-    arrange: { stack: { items: [block] } }
+    arrange: {stack: {items: [block]}}
 nodes:
-  - { id: block, component: box, label: Block }
-  - { id: input, component: box, label: Input, attach: { to: body, side: west, gap: 6pt } }
+  - {id: block, component: box, label: Block}
+  - {id: input, component: box, label: Input, attach: {to: body, side: west, gap: 6pt}}
 edges:
-  - { from: input, to: block }
+  - {from: input, to: block}
 ```
 
 **`caption`** puts text centred **under** the border, outside it (`(a) …`; line breaks
@@ -571,8 +571,8 @@ stretch` grow to the tallest so captions share a line. A frameless panel next to
 ones is a group with `variant: plain` and a `caption`, not a stack with a `label` node
 under it (its items are centred in the extra height). A stretched group's tree is
 **centred vertically**; to sit content at the bottom make the tree a `row` with `align:
-end` around the stack: `arrange: { row: { align: end, items: [ { stack: { direction: up,
-items: […] } } ] } }` ([example 6](examples.md#6-success-a-paper-figure)).
+end` around the stack: `arrange: {row: {align: end, items: [{stack: {direction: up,
+items: […]}}]}}` ([example 6](examples.md#6-success-a-paper-figure)).
 
 ```yaml
 # expect-render: fits
@@ -583,21 +583,21 @@ figure:
   profile: paper-single
   layout:
     arrange:
-      stack: { gap: 4mm, items: [ batch, train ] }
+      stack: {gap: 4mm, items: [batch, train]}
 groups:
   - id: train
     label: Training step
     labelAt: bottom              # the edge from batch enters at the top centre
     caption: (b) one optimisation step
     arrange:
-      stack: { gap: 3mm, items: [ model, loss ] }
+      stack: {gap: 3mm, items: [model, loss]}
 nodes:
-  - { id: batch, component: box, label: Batch }
-  - { id: model, component: box, label: Model }
-  - { id: loss, component: box, label: Loss }
+  - {id: batch, component: box, label: Batch}
+  - {id: model, component: box, label: Model}
+  - {id: loss, component: box, label: Loss}
 edges:
-  - { from: batch, to: model }
-  - { from: model, to: loss }
+  - {from: batch, to: model}
+  - {from: model, to: loss}
 ```
 
 ## Sublabels
@@ -620,12 +620,12 @@ figure:
   id: sublabels
   theme: color
   layout:
-    arrange: { row: { gap: 6mm, items: [features, mask] } }
+    arrange: {row: {gap: 6mm, items: [features, mask]}}
 nodes:
-  - { id: features, component: box, label: "Feature\nMap", sublabel: "64 × 64 × 3", tone: gray }
-  - { id: mask, component: box, label: Mask, sublabel: "64 × 64", tone: gray }
+  - {id: features, component: box, label: "Feature\nMap", sublabel: "64 × 64 × 3", tone: gray}
+  - {id: mask, component: box, label: Mask, sublabel: "64 × 64", tone: gray}
 edges:
-  - { from: features, to: mask }
+  - {from: features, to: mask}
 ```
 
 ## Turned labels
@@ -646,21 +646,57 @@ figure:
   id: turned-labels
   theme: academic
   layout:
-    arrange: { row: { gap: 6mm, items: [query, backbone, out] } }
+    arrange: {row: {gap: 6mm, items: [query, backbone, out]}}
 nodes:
-  - { id: query, component: label, label: Query, labelRotation: -90 }
-  - { id: backbone, component: box, label: Shared Backbone, labelRotation: -90 }
-  - { id: out, component: box, label: Latent }
+  - {id: query, component: label, label: Query, labelRotation: -90}
+  - {id: backbone, component: box, label: Shared Backbone, labelRotation: -90}
+  - {id: out, component: box, label: Latent}
 edges:
-  - { from: query, to: backbone }
-  - { from: backbone, to: out }
+  - {from: query, to: backbone}
+  - {from: backbone, to: out}
+```
+
+## State machines, dashed nodes and filled dashed groups
+
+`component: initial` is the start of a state machine (a solid dot) and `final`
+its end (a ring around a smaller dot). Both take no label, are ordinary edge
+endpoints, and default to 1.25 em and 1.75 em across; `props.size` sets the
+diameter. Variant: `default` (the ink). `variant: dashed` on any box-like node
+draws a dashed outline on the default fill (a tone still sets the fill), e.g. an
+external system. A group's `variant: filled-dashed` has the dashed frame of
+`dashed` and the shaded fill of `filled`.
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: states
+  theme: sumi
+  layout:
+    arrange: { row: { gap: 10mm, items: [start, idle, external, done] } }
+nodes:
+  - { id: start, component: initial }
+  - { id: idle, component: box, label: Idle }
+  - { id: api, component: box, label: Payment API, variant: dashed }
+  - { id: done, component: final }
+groups:
+  - id: external
+    variant: filled-dashed
+    arrange: { stack: { items: [api] } }
+edges:
+  - { from: start, to: idle }
+  - { from: idle, to: api }
+  - { from: api, to: done }
 ```
 
 ## Text align
 
 `textAlign: left | center | right` on a node aligns its label and sublabel
 lines within their shared, widest-line text block (default centred). It does
-not wrap text or change padding: add line breaks yourself. Typical use: left-aligned prompt boxes.
+not wrap text or change padding: add line breaks yourself. In a box or label
+wider than its text (an explicit `width`, or `align: stretch`), a left or right
+`textAlign` also moves the block to that side, inside the node's padding.
+Typical use: left-aligned prompt boxes and row headings.
 
 ```yaml
 # expect-render: fits
@@ -669,20 +705,20 @@ figure:
   id: prompt-box
   theme: paper
   layout:
-    arrange: { stack: { items: [prompt] } }
+    arrange: {stack: {items: [prompt]}}
 nodes:
-  - { id: prompt, component: box, label: "A photo of a cat\nsitting on a mat", textAlign: left, mono: true }
+  - {id: prompt, component: box, label: "A photo of a cat\nsitting on a mat", textAlign: left, mono: true}
 ```
 
 ## Attach: side notes
 
 ```yaml
-- { id: config, component: label, icon: tabler/adjustments, iconSize: 1.5, attach: { to: add, side: west, gap: 1mm } }
-- { id: config-label, component: label, label: "Sensor\nconfig", attach: { to: config, side: west, gap: 0.5mm } }
-- { id: repeat, component: label, label: "N×", attach: { to: encoder, side: east, gap: 2mm } }
+- {id: config, component: label, icon: tabler/adjustments, iconSize: 1.5, attach: {to: add, side: west, gap: 1mm}}
+- {id: config-label, component: label, label: "Sensor\nconfig", attach: {to: config, side: west, gap: 0.5mm}}
+- {id: repeat, component: label, label: "N×", attach: {to: encoder, side: east, gap: 2mm}}
 ```
 
-`attach: { to, side, gap }` puts a node outside the trees, centred on the
+`attach: {to, side, gap}` puts a node outside the trees, centred on the
 `side` of a node or group, `gap` away (default 0); chains work (`config-label` →
 `config` → `add`). The attached node joins its target's group, which (or the
 canvas) grows to hold it. Corner sides `north-east`, `south-east`,
@@ -695,7 +731,7 @@ A `label` has no size choice (the theme's text size; `paper`: 8pt). A larger ann
 an `html` leaf with an inline `font-size` ([html](html.md); not editable PPTX):
 
 ```yaml
-- { id: lx, component: html, props: { viewport: 40x20, width: 40pt, html: '<span style="font-family:var(--sumi-font);font-size:14px">L×</span>' } }
+- {id: lx, component: html, props: {viewport: 40x20, width: 40pt, html: '<span style="font-family:var(--sumi-font);font-size:14px">L×</span>'}}
 ```
 
 **An attached node takes no space in the tree**: neighbours are placed as if
@@ -703,7 +739,7 @@ it were absent. Attached into the `gap` between two items it can overlap the
 next one (`geometry/node-overlap`, `geometry/label-collision`) or block the
 edges that need the gap (`layout/no-route`): e.g. a ⊕ attached `south` of `a`
 in a stack with `gap: 3mm` is drawn on top of `b`. Instead put the element **in
-the tree** between the two items (`items: [ a, op, b ]`, edges `a → op → b`), or
+the tree** between the two items (`items: [a, op, b]`, edges `a → op → b`), or
 widen that `gap` beyond the attach `gap` plus the node's size (more if an edge
 must pass beside it; the ⊕ above needs `gap: 7mm`). Attach on a side where no
 other item is placed (beside a stack, above or below a row).
@@ -717,10 +753,10 @@ straight) list them in **`figure.layout.align`** instead of tuning `gap`s:
 ```yaml
 figure:
   layout:
-    arrange: { … }
+    arrange: {…}
     align:
-      - { y: [ enc1, cat1 ] }            # same height: one horizontal line
-      - { x: [ head, legend ], at: start } # same left edge: one vertical line
+      - {y: [enc1, cat1]}            # same height: one horizontal line
+      - {x: [head, legend], at: start} # same left edge: one vertical line
 ```
 
 - A constraint is exactly one of `y: [ids]` (centres at one height; `at: start`
@@ -732,7 +768,7 @@ figure:
   aligns elements in different branches (`y` across stacks side by side in a
   row, `x` across rows in a stack), not two items of one stack on `y` nor of
   one row on `x`. Two items of one row on `y` need a stack around one:
-  `items: [ a, { stack: { items: [ key ] } } ]`. Put the element **in the tree**
+  `items: [a, {stack: {items: [key]}}]`. Put the element **in the tree**
   (not `attach`ed into a gap).
 - An unmeetable constraint is `layout/unsatisfied-align` (warning; from `sumi
   render` / `lint --geometry`, not plain `lint`): the figure is drawn with the
@@ -769,37 +805,37 @@ figure:
               gap: 12mm
               align: start
               items:
-                - stack: { gap: 6mm, items: [ enc1, enc2 ] }
-                - stack: { gap: 3mm, items: [ y, dec1, cat1, dec2, cat2 ] }
+                - stack: {gap: 6mm, items: [enc1, enc2]}
+                - stack: {gap: 3mm, items: [y, dec1, cat1, dec2, cat2]}
           - bottleneck
           - key
     align: # straight skips: each concat level with its encoder level
-      - { y: [ enc1, cat1 ] }
-      - { y: [ enc2, cat2 ] }
+      - {y: [enc1, cat1]}
+      - {y: [enc2, cat2]}
 nodes:
-  - { id: enc1, component: box, label: "Conv ×2\n64", tone: blue }
-  - { id: enc2, component: box, label: "Conv ×2\n128", tone: blue }
-  - { id: bottleneck, component: box, label: "Conv ×2\n256", variant: emphasis }
-  - { id: cat2, component: operator, props: { symbol: concat } }
-  - { id: dec2, component: box, label: "Conv ×2\n128", tone: green }
-  - { id: cat1, component: operator, props: { symbol: concat } }
-  - { id: dec1, component: box, label: "Conv ×2\n64", tone: green }
-  - { id: y, component: label, label: '$\hat{y}$' }
+  - {id: enc1, component: box, label: "Conv ×2\n64", tone: blue}
+  - {id: enc2, component: box, label: "Conv ×2\n128", tone: blue}
+  - {id: bottleneck, component: box, label: "Conv ×2\n256", variant: emphasis}
+  - {id: cat2, component: operator, props: {symbol: concat}}
+  - {id: dec2, component: box, label: "Conv ×2\n128", tone: green}
+  - {id: cat1, component: operator, props: {symbol: concat}}
+  - {id: dec1, component: box, label: "Conv ×2\n64", tone: green}
+  - {id: y, component: label, label: '$\hat{y}$'}
   - id: key
     component: legend
     props:
       entries:
-        - { edge: { variant: dashed }, label: skip connection }
+        - {edge: {variant: dashed}, label: skip connection}
 edges:
-  - { from: enc1, to: enc2, label: pool, labelSide: right }
-  - { from: enc2, to: bottleneck, fromAnchor: south, toAnchor: west, label: pool }
-  - { from: bottleneck, to: cat2, fromAnchor: east, toAnchor: south, label: up }
-  - { from: cat2, to: dec2 }
-  - { from: dec2, to: cat1 }
-  - { from: cat1, to: dec1 }
-  - { from: dec1, to: y }
-  - { from: enc2, to: cat2, variant: dashed }
-  - { from: enc1, to: cat1, variant: dashed }
+  - {from: enc1, to: enc2, label: pool, labelSide: right}
+  - {from: enc2, to: bottleneck, fromAnchor: south, toAnchor: west, label: pool}
+  - {from: bottleneck, to: cat2, fromAnchor: east, toAnchor: south, label: up}
+  - {from: cat2, to: dec2}
+  - {from: dec2, to: cat1}
+  - {from: cat1, to: dec1}
+  - {from: dec1, to: y}
+  - {from: enc2, to: cat2, variant: dashed}
+  - {from: enc1, to: cat1, variant: dashed}
 ```
 
 The concat operators are items of the decoder stack (not attached), and the two
@@ -846,25 +882,25 @@ figure:
           - p1
           - p2
           - null                      # blank under the headings
-          - { item: merge, span: 3 }
+          - {item: merge, span: 3}
 nodes:
-  - { id: h-data, component: label, label: Data }
-  - { id: h-flags, component: label, label: Options }
-  - { id: h-model, component: label, label: Models }
-  - { id: d0, component: box, label: Split 0, tone: gray, variant: filled }
-  - { id: d1, component: box, label: Split 1, tone: gray, variant: filled }
-  - { id: d2, component: box, label: Split 2, tone: gray, variant: filled }
-  - { id: k0, component: tokens, tone: orange, props: { component: square, variant: outlined, gap: 1pt, width: 11pt, height: 11pt, cells: [ a, b, c ] } }
-  - { id: k1, component: tokens, tone: orange, props: { component: square, variant: outlined, gap: 1pt, width: 11pt, height: 11pt, cells: [ { label: a, variant: filled }, b, c ] } }
-  - { id: k2, component: tokens, tone: orange, props: { component: square, variant: outlined, gap: 1pt, width: 11pt, height: 11pt, cells: [ a, b, { label: c, variant: filled } ] } }
-  - { id: p0, component: box, label: Model, tone: purple, variant: outlined }
-  - { id: p1, component: box, label: Model, tone: purple, variant: outlined }
-  - { id: p2, component: box, label: Model, tone: purple, variant: outlined }
-  - { id: merge, component: box, label: Ensemble, tone: gray, variant: filled }
+  - {id: h-data, component: label, label: Data}
+  - {id: h-flags, component: label, label: Options}
+  - {id: h-model, component: label, label: Models}
+  - {id: d0, component: box, label: Split 0, tone: gray, variant: filled}
+  - {id: d1, component: box, label: Split 1, tone: gray, variant: filled}
+  - {id: d2, component: box, label: Split 2, tone: gray, variant: filled}
+  - {id: k0, component: tokens, tone: orange, props: {component: square, variant: outlined, gap: 1pt, width: 11pt, height: 11pt, cells: [a, b, c]}}
+  - {id: k1, component: tokens, tone: orange, props: {component: square, variant: outlined, gap: 1pt, width: 11pt, height: 11pt, cells: [{label: a, variant: filled}, b, c]}}
+  - {id: k2, component: tokens, tone: orange, props: {component: square, variant: outlined, gap: 1pt, width: 11pt, height: 11pt, cells: [a, b, {label: c, variant: filled}]}}
+  - {id: p0, component: box, label: Model, tone: purple, variant: outlined}
+  - {id: p1, component: box, label: Model, tone: purple, variant: outlined}
+  - {id: p2, component: box, label: Model, tone: purple, variant: outlined}
+  - {id: merge, component: box, label: Ensemble, tone: gray, variant: filled}
 edges:
-  - { from: p0, to: merge, toAnchor: straight }
-  - { from: p1, to: merge, toAnchor: straight }
-  - { from: p2, to: merge, toAnchor: straight }
+  - {from: p0, to: merge, toAnchor: straight}
+  - {from: p1, to: merge, toAnchor: straight}
+  - {from: p2, to: merge, toAnchor: straight}
 ```
 
 ## Edges: anchors, junctions and trunks
@@ -882,8 +918,8 @@ ports (anchors or cell spacing); a larger row gap alone does not separate them.
 Shared trunks keep their existing routing. There is no per-edge lane coordinate.
 
 - **Diagonal correspondences**: use `route: straight` on each correspondence,
-  e.g. for stacked rows `{ from: predictions.1, to: targets.3, route: straight,
-  fromAnchor: south, toAnchor: north }` (side by side: `east` / `west`). Each is one
+  e.g. for stacked rows `{from: predictions.1, to: targets.3, route: straight,
+  fromAnchor: south, toAnchor: north}` (side by side: `east` / `west`). Each is one
   independent segment with **no obstacle avoidance**: centre-to-centre ends between
   tokens cells can cut through neighbouring cells, so give side anchors. Where edge
   labels crowd, use an attached `label` node instead.
@@ -926,20 +962,20 @@ figure:
     arrange:
       row:
         gap: 10mm
-        items: [{ stack: { items: [x1, x2] } }, j1, j2, { stack: { items: [z1, z2] } }]
+        items: [{stack: {items: [x1, x2]}}, j1, j2, {stack: {items: [z1, z2]}}]
 nodes:
-  - { id: x1, component: circle, label: X1 }
-  - { id: x2, component: circle, label: X2 }
-  - { id: j1, component: junction, variant: hidden }
-  - { id: j2, component: junction, variant: hidden }
-  - { id: z1, component: circle, label: Z1 }
-  - { id: z2, component: circle, label: Z2 }
+  - {id: x1, component: circle, label: X1}
+  - {id: x2, component: circle, label: X2}
+  - {id: j1, component: junction, variant: hidden}
+  - {id: j2, component: junction, variant: hidden}
+  - {id: z1, component: circle, label: Z1}
+  - {id: z2, component: circle, label: Z2}
 edges:
-  - { from: x1, to: j1, route: curve, component: line, tone: blue }
-  - { from: x2, to: j1, route: curve, component: line, tone: orange }
-  - { from: j1, to: j2, component: line, variant: dashed }
-  - { from: j2, to: z1, route: curve, tone: blue }
-  - { from: j2, to: z2, route: curve, tone: orange }
+  - {from: x1, to: j1, route: curve, component: line, tone: blue}
+  - {from: x2, to: j1, route: curve, component: line, tone: orange}
+  - {from: j1, to: j2, component: line, variant: dashed}
+  - {from: j2, to: z1, route: curve, tone: blue}
+  - {from: j2, to: z2, route: curve, tone: orange}
 ```
 
 - **Anchors**: `fromAnchor` / `toAnchor` pick the side of an end: `west`, or
@@ -977,21 +1013,21 @@ edges:
   `component: line` (an arrowhead would hide the dot); every edge touching it is one
   connected net. `variant: hidden` draws no dot: lines fork smoothly as in paper figures
   (keep the dot where another line crosses nearby). A hidden junction with one incoming
-  arrow is an **open end** (`{ id: out, component: junction, variant: hidden }`,
-  `{ from: add, to: out }`); put it straight in line, since an arrowhead needs a straight
+  arrow is an **open end** (`{id: out, component: junction, variant: hidden}`,
+  `{from: add, to: out}`); put it straight in line, since an arrowhead needs a straight
   stretch. Lines meet a junction at its centre: anchors on a junction end are ignored
   (`component/anchor-on-junction`, warning).
 
   ```yaml
   # one input entering a block at three points, plus a bypass to the side of the ⊕
-  - { from: split, to: mixer, toAnchor: "south:0.2" }
-  - { from: split, to: mixer, toAnchor: "south:0.5" }
-  - { from: split, to: mixer, toAnchor: "south:0.8" }
-  - { from: split, to: add, toAnchor: west }               # bypass
+  - {from: split, to: mixer, toAnchor: "south:0.2"}
+  - {from: split, to: mixer, toAnchor: "south:0.5"}
+  - {from: split, to: mixer, toAnchor: "south:0.8"}
+  - {from: split, to: add, toAnchor: west}               # bypass
   ```
 
 - **Shared trunk (bus)**: edges leaving one element at the same anchor share a line until
-  they branch (`{ from: mlp, fromAnchor: north, to: ss1, toAnchor: east }`, … per
+  they branch (`{from: mlp, fromAnchor: north, to: ss1, toAnchor: east}`, … per
   target). An edge entering a port and one leaving it never share a line; both anchored
   at one point is `layout/no-route`.
   A hidden junction feeding the same vertical side of unequal-height targets
@@ -1014,7 +1050,7 @@ edges:
   and junction ends are not moved; to merge on purpose use a `junction`. Spread can add
   crossings (one measured figure: detours 3 → 0, crossings 3 → 6): use it when several
   sources feed several targets and merged trunks wrap around blocks.
-- **Operator** (`component: operator`, `props: { symbol: plus }`; also `minus`, `times`,
+- **Operator** (`component: operator`, `props: {symbol: plus}`; also `minus`, `times`,
   `dot`, `concat`): a small circle with a symbol, no label; arrows may end on it, a side
   input usually comes from an attached node through a `line`. `props.size: regular |
   large | xlarge` (1x / 1.5x / 2x) makes it more visible
@@ -1036,7 +1072,7 @@ edges:
 - **Titled group alignment**: frame centers and content centers differ because the
   title reserves space. `layout/group-title-offset` (info) explains a horizontal jog
   between aligned frames. Align the connected nodes, e.g.
-  `figure.layout.align: [{ y: [encoderOut, decoderIn] }]`, or use a caption/untitled group.
+  `figure.layout.align: [{y: [encoderOut, decoderIn]}]`, or use a caption/untitled group.
 - **Corners and arrowheads**: lines are drawn rounded (radius up to 4pt).
   `figure.themeOverrides.edgeCorners: sharp` gives sharp turns with butt caps and miter
   joins (zoom wires too; editable PPTX keeps sharp centrelines). The router keeps a
@@ -1067,17 +1103,17 @@ figure:
       stack:
         gap: 6mm
         items:
-          - row: { gap: 4mm, items: [ infer, train, prep ] }
+          - row: {gap: 4mm, items: [infer, train, prep]}
           - store
 nodes:
-  - { id: infer, component: box, label: Inference }
-  - { id: train, component: box, label: Training }
-  - { id: prep, component: box, label: Preprocess }
-  - { id: store, component: cylinder, label: Feature store }
+  - {id: infer, component: box, label: Inference}
+  - {id: train, component: box, label: Training}
+  - {id: prep, component: box, label: Preprocess}
+  - {id: store, component: cylinder, label: Feature store}
 edges:
-  - { from: infer, to: store }
-  - { from: train, to: store }
-  - { from: prep, to: store }
+  - {from: infer, to: store}
+  - {from: train, to: store}
+  - {from: prep, to: store}
 ```
 
 ### Crossings (`layout/edge-crossing`)
@@ -1098,12 +1134,12 @@ text. An entry has exactly one of `edge` (a sample line: `component` default
 `box`, `variant`, `tone`) or `class` (the sample of a [matrix](#matrices) class,
 `<matrix>.<class>`), plus `label` (math allowed; a `class` entry defaults to the
 class's label). Since 0.16.0 three more samples: `icon: tabler/file-text` (an
-icon one text line tall, or `iconSize` / `iconTone` as `iconSize` / `tone` on a node), `glyph: { kind: vector, tone: blue, strength: solid }`
+icon one text line tall, or `iconSize` / `iconTone` as `iconSize` / `tone` on a node), `glyph: {kind: vector, tone: blue, strength: solid}`
 (the fields of a node [glyph](assets.md#glyphs) except `at` / `dx` / `dy`: `kind`,
 `cells`, `direction`, `tone`, `tones`, `strength`, `size`, `width`, `outline`) and
-`set: { tone: green, variant: dashed, fillOpacity: 0.3 }` (a small tinted
+`set: {tone: green, variant: dashed, fillOpacity: 0.3}` (a small tinted
 rectangle painted like a [set](#set-enclosures)). A paired arrow is
-`edge: { component: double-arrow, tone: red }`; edge variants are `default`,
+`edge: {component: double-arrow, tone: red}`; edge variants are `default`,
 `dashed`, `emphasis`, `muted` (there is no dotted line). Samples are drawn by the
 same theme rules as real edges, nodes, glyphs and sets, so no colours are written. The legend's own `label` is its title;
 `variant: plain` drops the frame; `tone` colours it. Entry text is left-aligned (a
@@ -1115,11 +1151,11 @@ changes it.
   component: legend
   props:
     entries:
-      - { edge: { variant: dashed }, label: parameter update }
-      - { edge: { component: line }, label: data flow }
-      - { node: { tone: red }, label: loss terms }
-      - { node: { variant: outlined, tone: purple }, label: encoders }
-      - { edge: { tone: orange }, label: latent path }
+      - {edge: {variant: dashed}, label: parameter update}
+      - {edge: {component: line}, label: data flow}
+      - {node: {tone: red}, label: loss terms}
+      - {node: {variant: outlined, tone: purple}, label: encoders}
+      - {edge: {tone: orange}, label: latent path}
 ```
 
 **Layout** (since 0.16.0): `flow: column` (default, one entry per line) or
@@ -1140,11 +1176,11 @@ sample (Paper followed by its icon). One legend can hold a whole paper key at th
   props:
     flow: row
     entries:
-      - { heading: "Entity:", icon: tabler/file-text, labelAt: left, label: Paper }
-      - { heading: "Feature:", glyph: { kind: vector, tone: blue, strength: solid }, labelAt: left, label: Initial }
-      - { glyph: { kind: vector, tone: orange, strength: solid }, labelAt: left, label: Integrated }
-      - { heading: "Pairs:", edge: { component: double-arrow, tone: blue }, label: Positive }
-      - { set: { tone: green }, label: Hyperedge }
+      - {heading: "Entity:", icon: tabler/file-text, labelAt: left, label: Paper}
+      - {heading: "Feature:", glyph: {kind: vector, tone: blue, strength: solid}, labelAt: left, label: Initial}
+      - {glyph: {kind: vector, tone: orange, strength: solid}, labelAt: left, label: Integrated}
+      - {heading: "Pairs:", edge: {component: double-arrow, tone: blue}, label: Positive}
+      - {set: {tone: green}, label: Hyperedge}
 ```
 
 - Place it in the tree like a node; `align` and edges can name it; it cannot be attached
@@ -1169,7 +1205,7 @@ label or anchors (`component/unexpected-label`, `component/anchor-on-zoom`).
 
 ```yaml
 edges:
-  - { from: block, to: block-detail, component: zoom }
+  - {from: block, to: block-detail, component: zoom}
 ```
 
 The corners follow where the target lies (to the right: source top-right and bottom-right
@@ -1203,18 +1239,18 @@ figure:
   id: bracketed-sequence
   theme: paper
   layout:
-    arrange: { row: { gap: 18mm, items: [seq, out] } }
+    arrange: {row: {gap: 18mm, items: [seq, out]}}
 nodes:
   - id: seq
     component: tokens
-    props: { direction: down, gap: 0, width: 40pt, height: 22pt, cells: [a, b, c] }
+    props: {direction: down, gap: 0, width: 40pt, height: 22pt, cells: [a, b, c]}
   - id: br
     component: bracket
-    attach: { to: seq, side: east, gap: 2pt }
-    props: { form: curly, points: east }
-  - { id: out, component: box, label: Output }
+    attach: {to: seq, side: east, gap: 2pt}
+    props: {form: curly, points: east}
+  - {id: out, component: box, label: Output}
 edges:
-  - { from: br, to: out }
+  - {from: br, to: out}
 ```
 
 ## Token sequences
@@ -1234,9 +1270,9 @@ figure:
         gap: 5mm
         items:
           - pool
-          - row: { gap: 6mm, align: end, items: [seq, cluster] }
+          - row: {gap: 6mm, align: end, items: [seq, cluster]}
 nodes:
-  - { id: pool, component: box, label: Pooling, tone: gray }
+  - {id: pool, component: box, label: Pooling, tone: gray}
   - id: seq
     component: tokens
     tone: purple
@@ -1244,21 +1280,21 @@ nodes:
       gap: 1.5pt
       height: 14pt
       cells:
-        - { id: prefix, label: Prefix, tone: gray }
-        - { id: x1, label: '$x_1$' }
-        - { id: x2, label: '$x_2$' }
-        - { label: '…', component: label }
+        - {id: prefix, label: Prefix, tone: gray}
+        - {id: x1, label: '$x_1$'}
+        - {id: x2, label: '$x_2$'}
+        - {label: '…', component: label}
   - id: cluster
     component: tokens
-    props: { gap: 1pt, component: square, lineAlign: center, lines: [[a], [{ label: b, tone: orange }, c, d]] }
+    props: {gap: 1pt, component: square, lineAlign: center, lines: [[a], [{label: b, tone: orange}, c, d]]}
 edges:
-  - { from: pool, to: seq.x2 }
+  - {from: pool, to: seq.x2}
 ```
 
-- **Cells.** A cell is a label string or `{ id, label, tone, mono, component,
-  variant, width, height }`; `props.component` / `variant` / `width` / `height`
-  and the node's `tone` are the defaults. An ellipsis is `{ label: '…',
-  component: label }` or math such as `'$A_{\ldots}$'`. A `props.variant`
+- **Cells.** A cell is a label string or `{id, label, tone, mono, component,
+  variant, width, height}`; `props.component` / `variant` / `width` / `height`
+  and the node's `tone` are the defaults. An ellipsis is `{label: '…',
+  component: label}` or math such as `'$A_{\ldots}$'`. A `props.variant`
   must be supported by the node's own component (`props.component`, default
   `box`), or it is an error at `props.variant`. A cell that overrides the
   component with one lacking that variant (the `label` component in the
@@ -1286,19 +1322,19 @@ edges:
   `lines: [["0", "1"], [a, b]]`, `emb.1` is `"0"`, `emb.2` is `"1"`, `emb.3` is
   `a`, `emb.4` is `b`. A cell with an `id` uses it (and still counts toward later
   positions): prefer ids when editing lines. The node's own ID names the **whole
-  sequence** (`{ from: encoder, to: seq }`; an [attached bracket](#brackets)
+  sequence** (`{from: encoder, to: seq}`; an [attached bracket](#brackets)
   gathers it): Sumi lays the cells out in a frame group with that ID (no border,
   fill or padding); tokens that nothing names as a whole get no frame.
   Whole-sequence edge endpoints use the cells' bounding rectangle, excluding
   attached annotations, even when a wide note enlarges the layout frame or
   `align: stretch` widens it (`fromAnchor: east` starts at the last cell).
-- **Dividers.** `{ separator: dotted }` (optionally `id`, `tone`, `width`, `height`;
+- **Dividers.** `{separator: dotted}` (optionally `id`, `tone`, `width`, `height`;
   no label, component or variant) draws a dotted line across the sequence (vertical
   for `right` / `left`, horizontal for `down` / `up`), reserving 6pt along the
   direction and inheriting the other size from the tokens (14pt if absent); `gap`
   applies on both sides. It counts as a cell for positions. An edge to one targets
   its invisible reserved rectangle, **not the dotted line**; PDF and PPTX keep the line.
-- **Image cells.** `{ asset: photo, crop: [0, 0, 40, 40], variant: framed }`
+- **Image cells.** `{asset: photo, crop: [0, 0, 40, 40], variant: framed}`
   draws an entry of `figure.assets` as a picture cell: a column of patches is one
   node instead of nine `image` nodes and edges
   ([assets](assets.md#reusing-one-picture-figureassets)).
@@ -1317,7 +1353,7 @@ figure:
   id: cluster-lines
   theme: paper
   layout:
-    arrange: { row: { gap: 10mm, align: center, items: [cluster, select] } }
+    arrange: {row: {gap: 10mm, align: center, items: [cluster, select]}}
 nodes:
   - id: cluster
     component: tokens
@@ -1329,9 +1365,9 @@ nodes:
       lineGap: 2pt
       lineAlign: center      # start | center | end | stretch: the short first line sits over the middle
       lines: [[a], [b, c, d]]
-  - { id: select, component: box, label: Selection, tone: orange, variant: filled }
+  - {id: select, component: box, label: Selection, tone: orange, variant: filled}
 edges:
-  - { from: cluster.4, to: select }   # d: lines count 1 (a), 2 (b), 3 (c), 4 (d)
+  - {from: cluster.4, to: select}   # d: lines count 1 (a), 2 (b), 3 (c), 4 (d)
 ```
 
 ## Matrices
@@ -1346,41 +1382,41 @@ figure:
   id: pair-mask
   theme: paper
   layout:
-    arrange: { row: { gap: 5mm, align: center, items: [scores, mask, key] } }
+    arrange: {row: {gap: 5mm, align: center, items: [scores, mask, key]}}
 nodes:
-  - { id: scores, component: box, label: Scores, tone: blue, variant: filled }
+  - {id: scores, component: box, label: Scores, tone: blue, variant: filled}
   - id: mask
     component: matrix
     props:
       corner: i / j
-      rows: [P, { label: '$x_1$', tone: purple }, { label: '$y_1$', tone: orange }]
-      columns: [P, { label: '$x_1$', tone: purple }, { label: '$y_1$', tone: orange }]
+      rows: [P, {label: '$x_1$', tone: purple}, {label: '$y_1$', tone: orange}]
+      columns: [P, {label: '$x_1$', tone: purple}, {label: '$y_1$', tone: orange}]
       cellWidth: 12pt
       gap: 1.5pt
       variant: filled
       classes:
-        o: { tone: green, label: Allowed }
-        L: { tone: orange, label: "x–y pair" }
-        .: { pattern: hatch, label: Masked }
+        o: {tone: green, label: Allowed}
+        L: {tone: orange, label: "x–y pair"}
+        .: {pattern: hatch, label: Masked}
       cells: [o.o, ooL, oLo]
   - id: key
     component: legend
     props:
-      entries: [{ class: mask.o }, { class: mask.L }, { class: mask.. }]
+      entries: [{class: mask.o}, {class: mask.L}, {class: mask..}]
 edges:
-  - { from: scores, to: mask }
+  - {from: scores, to: mask}
 ```
 
 - `classes` names each class (1–16 characters, e.g. `o`, `.`) with a `tone`, box `variant`,
   `pattern: hatch` (diagonal lines in the tone's line colour) and a legend `label`. `cells`
   lists rows top to bottom: class names in a list, or a string (names separated by spaces,
   or the characters themselves when every name is one character: `"o..L"`). `rows` /
-  `columns` are headers (text, math allowed, or `{ label, tone }`); `corner` sits between
+  `columns` are headers (text, math allowed, or `{label, tone}`); `corner` sits between
   them (needs both). Tuning: `cellWidth` (10pt), `cellHeight` (= width), `gap` (0),
   `headerGap`, `headerWidth`, `rowsAt: right`, `columnsAt: bottom`, `variant`. A legend
-  entry `{ class: <matrix>.<class> }` draws a class's sample with its label.
-- **Text and ellipsis cells.** A list-row cell may be `{ class, text }` (text, math allowed,
-  in a cell keeping its class's look) or `{ ellipsis: "…" | "⋮" | "⋱" }`; `ellipsisRows:
+  entry `{class: <matrix>.<class>}` draws a class's sample with its label.
+- **Text and ellipsis cells.** A list-row cell may be `{class, text}` (text, math allowed,
+  in a cell keeping its class's look) or `{ellipsis: "…" | "⋮" | "⋱"}`; `ellipsisRows:
   [4]` / `ellipsisColumns: [4]` (1-based) turn whole rows / columns into ellipsis slots
   (`⋮`, `…`, `⋱` at crossings) that keep the cell size and draw only the symbol. `flush:
   true` removes the frame's padding so other nodes' headers can touch the matrix (no
@@ -1394,7 +1430,7 @@ edges:
   must match the grid (`component/invalid-prop`). An unused class is
   `lint/unused-matrix-class`; a legend `class` naming none is `ref/unknown-class`.
 
-Text and ellipsis cells (`{ class, text }`, `{ ellipsis }`, `ellipsisRows`, `ellipsisColumns`):
+Text and ellipsis cells (`{class, text}`, `{ellipsis}`, `ellipsisRows`, `ellipsisColumns`):
 
 ```yaml
 # expect-render: fits
@@ -1402,21 +1438,21 @@ version: 1
 figure:
   id: similarity
   theme: paper
-  layout: { arrange: { row: { items: [sim] } } }
+  layout: {arrange: {row: {items: [sim]}}}
 nodes:
   - id: sim
     component: matrix
     props:
       cellWidth: 30pt
       cellHeight: 18pt
-      classes: { d: { tone: blue, variant: tinted }, o: {} }
+      classes: {d: {tone: blue, variant: tinted}, o: {}}
       ellipsisRows: [3]
       ellipsisColumns: [3]
       cells:
-        - [{ class: d, text: '$a_1\cdot b_1$' }, o, o, { class: o, text: '$a_1\cdot b_N$' }]
-        - [o, { class: d, text: '$a_2\cdot b_2$' }, o, o]
+        - [{class: d, text: '$a_1\cdot b_1$'}, o, o, {class: o, text: '$a_1\cdot b_N$'}]
+        - [o, {class: d, text: '$a_2\cdot b_2$'}, o, o]
         - [o, o, o, o]
-        - [{ class: o, text: '$a_N\cdot b_1$' }, o, o, { ellipsis: "…" }]
+        - [{class: o, text: '$a_N\cdot b_1$'}, o, o, {ellipsis: "…"}]
 ```
 
 ## Spacing that routes

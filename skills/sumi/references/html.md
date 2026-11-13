@@ -13,7 +13,7 @@ editable in PPTX. Contents: [minimal example](#minimal-example) ·
 ```yaml
 # expect-render: fits
 version: 1
-figure: { id: html-card, theme: paper, layout: { arrange: { row: { items: [card] } } } }
+figure: {id: html-card, theme: paper, layout: {arrange: {row: {items: [card]}}}}
 nodes:
   - id: card
     component: html

@@ -236,7 +236,7 @@ test("formatter orders place and its wrappers recursively", () => {
   const formatted = formatFigureSource(text, { canonicalOrder: true });
   expect(formatted.ok).toBe(true);
   if (formatted.ok) {
-    expect(formatted.text).toContain("place: { unit: 6mm, items: [ { item: a, at: [ 0, 0 ] } ] }");
+    expect(formatted.text).toContain("place: {unit: 6mm, items: [{item: a, at: [0, 0]}]}");
     expect(formatFigureSource(formatted.text, { canonicalOrder: true })).toMatchObject({
       ok: true,
       text: formatted.text,

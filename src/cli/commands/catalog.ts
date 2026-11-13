@@ -141,6 +141,13 @@ export function formatCatalogTable(entries: readonly CatalogEntry[]): string {
   );
 }
 
+/** The profiles a theme meets, then those it meets with `themeOverrides.textScale` (#514). */
+function profileCell(entry: ThemeCatalogEntry): string {
+  const scaled = Object.entries(entry.textScaleFor).map(([id, scale]) => `${id} x${scale}`);
+  const plain = entry.compatibleProfiles.join(",") || "-";
+  return scaled.length === 0 ? plain : `${plain}; with textScale: ${scaled.join(", ")}`;
+}
+
 /** One row per theme: ID, font sizes, font set, compatible profiles and description. */
 export function formatThemeTable(entries: readonly ThemeCatalogEntry[]): string {
   return formatTable(
@@ -152,7 +159,7 @@ export function formatThemeTable(entries: readonly ThemeCatalogEntry[]): string 
         entry.id,
         min === max ? `${min}pt` : `${min}-${max}pt`,
         entry.fonts.id,
-        entry.compatibleProfiles.join(",") || "-",
+        profileCell(entry),
         `${entry.description ?? ""}${missing === 0 ? "" : ` (${missing} variants unstyled)`}`,
       ];
     }),

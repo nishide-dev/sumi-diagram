@@ -136,6 +136,13 @@
                 "additionalProperties": false
               }
             },
+            "textScale": {
+              "description": "Scales the theme's text as a whole (a multiple of 0.25 from 0.5 to 4): font sizes, and in proportion line widths, arrowheads and corner radii; colors and fonts stay. Every size is rounded to 0.5pt (a line stays at least 0.5pt). Lengths written in the figure (lineWidth, frameWidth, cornerRadius) are final and not scaled; gaps and paddings are the profile's. 2 takes `sumi` text from 7-9pt to 14-18pt for presentation-16x9 (sumi catalog --section themes lists the scale each theme needs per profile).",
+              "type": "number",
+              "minimum": 0.5,
+              "maximum": 4,
+              "multipleOf": 0.25
+            },
             "lineWidth": {
               "description": "Width of the lines of edges and node frames (except legends; see frameWidth): replaces the theme's regular width, e.g. 0.5pt for the thin lines of a paper figure. A variant the theme draws heavier or lighter (emphasis, zoom lines) keeps its ratio to the regular width; a borderless element stays borderless. Per element: lineWidth.",
               "type": "string",

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { z } from "zod";
 import { BUILTIN_OUTLINE_RENDERERS } from "../outline";
-import { createBuiltinRegistry, FLOW_ARROW_IDS } from "./builtins";
+import { createBuiltinRegistry, FLOW_ARROW_IDS, STATE_MARKER_IDS } from "./builtins";
 import { buildCatalog } from "./catalog";
 import type { ComponentManifest, NodeManifest, OutlineRender } from "./manifest";
 import { Registry } from "./registry";
@@ -169,6 +169,7 @@ describe("outline manifests", () => {
           "sumi/waveform",
           "sumi/bubble",
           ...FLOW_ARROW_IDS,
+          ...STATE_MARKER_IDS,
         ].includes(entry.id)
       )
         expect(entry).not.toHaveProperty("render");

@@ -2,6 +2,9 @@ import { describe, expect, test } from "bun:test";
 import { getFontSet } from "../../core/theme/fonts";
 import { fontFileFor, measureLabel, renderedLines } from "./measure";
 import {
+  cylinderArc,
+  cylinderBodyHeight,
+  cylinderMinHeight,
   depthInside,
   flattenPath,
   labelArea,
@@ -74,6 +77,32 @@ describe("regions", () => {
       9,
     );
     expect(labelArea("rectangle", tall)).toEqual(rectPolygon(tall));
+  });
+
+  test("a short cylinder has shallower caps and a body that grows with its height (#516)", () => {
+    expect(cylinderArc(200)).toBe(24);
+    expect(cylinderArc(110)).toBe(24);
+    expect(cylinderArc(32)).toBe(2);
+    expect(cylinderArc(6)).toBe(2);
+    let previous = 0;
+    for (let h = 12; h <= 160; h += 2) {
+      const arc = cylinderArc(h);
+      expect(arc).toBeLessThanOrEqual(h / 3);
+      expect(cylinderBodyHeight(h)).toBeGreaterThanOrEqual(previous);
+      previous = cylinderBodyHeight(h);
+    }
+    const flat = { x: 0, y: 0, width: 148, height: 68 };
+    const area = labelArea("cylinder", flat);
+    expect(area.kind === "polygon" && area.points[2]?.y).toBeCloseTo(68 - cylinderArc(68), 9);
+    expect(cylinderBodyHeight(68)).toBeGreaterThan(24);
+  });
+
+  test("cylinderMinHeight is the least height whose body holds the content", () => {
+    for (const content of [10, 24, 30, 60]) {
+      const h = cylinderMinHeight(content);
+      expect(cylinderBodyHeight(h)).toBeGreaterThanOrEqual(content);
+      expect(cylinderBodyHeight(h - 0.5)).toBeLessThan(content);
+    }
   });
 
   test("intersections need more overlap than the tolerance", () => {

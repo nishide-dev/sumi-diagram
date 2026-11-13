@@ -411,14 +411,14 @@ describe("diagnostics (#180)", () => {
 
   test("an unknown cell variant is reported once, where it is written", () => {
     const source = figure(
-      PROPS.replace("x: { pattern: hatch,", "x: { pattern: hatch, variant: dashed,"),
+      PROPS.replace("x: { pattern: hatch,", "x: { pattern: hatch, variant: loud,"),
     );
     const { state } = checkFigure(source);
     expect(summarize(state.diagnostics)).toEqual([
       ["component/unknown-variant", ["nodes", 1, "props", "classes", "x", "variant"], 21, 39],
     ]);
     expect(state.diagnostics[0]?.message).toBe(
-      'Unknown variant "dashed" for the cells of sumi/matrix (sumi/box).',
+      'Unknown variant "loud" for the cells of sumi/matrix (sumi/box).',
     );
     expect(codesOf(figure(PROPS.replace("variant: filled", "variant: fill")))).toEqual([
       ["component/unknown-variant", ["nodes", 1, "props", "variant"]],

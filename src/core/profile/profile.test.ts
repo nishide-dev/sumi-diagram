@@ -34,6 +34,7 @@ describe("built-in profiles", () => {
     expect([...BUILTIN_PROFILES.keys()]).toEqual([
       "paper-single",
       "paper-double",
+      "screen-doc",
       "presentation-16x9",
     ]);
     for (const definition of BUILTIN_PROFILE_DEFINITIONS) {
@@ -344,12 +345,12 @@ describe("resolveProfile", () => {
           severity: "error",
           message: 'Unknown profile "paper-singel".',
           path: ["figure", "profile"],
-          hint: 'Did you mean "paper-single"? Available profiles: paper-single, paper-double, presentation-16x9.',
+          hint: 'Did you mean "paper-single"? Available profiles: paper-single, paper-double, screen-doc, presentation-16x9.',
         },
       ],
     });
     expect(resolveProfile("poster").diagnostics[0]?.hint).toBe(
-      "Available profiles: paper-single, paper-double, presentation-16x9.",
+      "Available profiles: paper-single, paper-double, screen-doc, presentation-16x9.",
     );
   });
 });
