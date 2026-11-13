@@ -12,6 +12,7 @@
       "!assets/fonts",
       "!examples/**/*.svg",
       "!skills/sumi/examples/**/*.svg",
+      "!skills/sumi/layouts/**/*.svg",
       "!research/*/out",
       "!research/188-badges-emoji-bowtie/*.svg",
       "!research/233-lora/*.svg",

@@ -1,0 +1,73 @@
+# Layout: three methods as rows of one shared column grid, each row an aligned left-to-right chain.
+#
+# Use when: comparing two or three variants of one pipeline, where later rows add or change
+#   steps; the shared columns make the added steps and the feedback loop obvious
+#   (baseline vs improved vs iterative methods, ablation of components).
+# Structure: a `grid` of 7 columns (row title, then six step slots; `~` leaves a slot empty so
+#   common steps stay in one column across rows), box chains per row, orange boxes = steps
+#   added to the baseline, one dashed feedback edge routed under its row, a legend underneath.
+# Change: the row titles, step labels and which slots are empty; keep every step in the
+#   same column in every row; add a row by appending seven items; keep at most one feedback edge per row.
+# Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
+version: 1
+figure:
+  id: compare-rows
+  theme: sumi
+  profile: paper-double
+  layout:
+    density: compact
+    arrange:
+      stack:
+        gap: 8mm
+        items:
+          - grid:
+              columns: 7
+              rowGap: 12mm
+              columnGap: 5mm
+              align: start
+              items:
+                [t1, q1, ~, r1, ~, g1, a1,
+                 t2, q2, ~, r2, k2, g2, a2,
+                 t3, q3, p3, r3, v3, g3, a3]
+          - key
+nodes:
+  - {id: t1, component: label, label: "Baseline"}
+  - {id: q1, component: box, label: Input, variant: muted}
+  - {id: r1, component: box, label: Step A}
+  - {id: g1, component: box, label: Step B}
+  - {id: a1, component: box, label: Output, variant: muted}
+  - {id: t2, component: label, label: "Baseline +\nextra step", textAlign: left}
+  - {id: q2, component: box, label: Input, variant: muted}
+  - {id: r2, component: box, label: Step A}
+  - {id: k2, component: box, label: Step X, tone: orange}
+  - {id: g2, component: box, label: Step B}
+  - {id: a2, component: box, label: Output, variant: muted}
+  - {id: t3, component: label, label: "Method with\nfeedback"}
+  - {id: q3, component: box, label: Input, variant: muted}
+  - {id: p3, component: box, label: Step Y, tone: orange}
+  - {id: r3, component: box, label: Step A}
+  - {id: v3, component: box, label: Step X, tone: orange}
+  - {id: g3, component: box, label: Step B}
+  - {id: a3, component: box, label: Output, variant: muted}
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: row
+      entries:
+        - {node: {tone: orange}, label: step added to the baseline}
+        - {edge: {variant: dashed}, label: feedback}
+edges:
+  - {from: q1, to: r1}
+  - {from: r1, to: g1}
+  - {from: g1, to: a1}
+  - {from: q2, to: r2}
+  - {from: r2, to: k2}
+  - {from: k2, to: g2}
+  - {from: g2, to: a2}
+  - {from: q3, to: p3}
+  - {from: p3, to: r3}
+  - {from: r3, to: v3}
+  - {from: v3, to: g3, label: accepted}
+  - {from: g3, to: a3}
+  - {from: v3, to: r3, fromAnchor: south, toAnchor: south, variant: dashed, label: not good enough, labelAt: middle}

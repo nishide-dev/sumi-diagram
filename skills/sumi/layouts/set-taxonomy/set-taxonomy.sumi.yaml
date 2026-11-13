@@ -1,0 +1,62 @@
+# Layout: a row of overlapping sets (Venn chain) with items inside and shared items in the overlaps.
+#
+# Use when: a taxonomy where families are not exclusive and some items belong to two of them
+#   (methods by technique, papers by topic, features by capability); four ellipses in a row,
+#   each overlapping its neighbours.
+# Structure: `place` (unit 1 mm) puts every item; four `sets` (ellipse, one tone each) enclose
+#   their members; `minWidth` / `minHeight` give all four ellipses one size and the shared
+#   items sit where two ellipses meet; emphasised boxes = items in two families; legend below.
+# Change: labels; items per family (keep the x positions of a family's items in the column of
+#   its ellipse, shared items midway between two families, and the symmetry about each
+#   ellipse's centre); for a three-set Venn drop one family.
+# Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
+version: 1
+figure:
+  id: set-taxonomy
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      stack:
+        gap: 12mm
+        items:
+          - place:
+              unit: 1mm
+              items:
+                - {item: a1, at: [26, 23]}
+                - {item: a2, at: [26, 49]}
+                - {item: b1, at: [70, 23]}
+                - {item: b2, at: [70, 49]}
+                - {item: c1, at: [110, 23]}
+                - {item: c2, at: [110, 49]}
+                - {item: d1, at: [156, 23]}
+                - {item: d2, at: [156, 49]}
+                - {item: ab, at: [50, 36]}
+                - {item: bc, at: [90, 36]}
+                - {item: cd, at: [130, 36]}
+          - key
+nodes:
+  - {id: a1, component: box, label: Item A1}
+  - {id: a2, component: box, label: Item A2}
+  - {id: b1, component: box, label: Item B1}
+  - {id: b2, component: box, label: Item B2}
+  - {id: c1, component: box, label: "Item C1"}
+  - {id: c2, component: box, label: Item C2}
+  - {id: d1, component: box, label: Item D1}
+  - {id: d2, component: box, label: Item D2}
+  - {id: ab, component: box, label: Item AB, props: {width: 37pt}, variant: emphasis}
+  - {id: bc, component: box, label: Item BC, props: {width: 37pt}, variant: emphasis}
+  - {id: cd, component: box, label: "Item CD", props: {width: 37pt}, variant: emphasis}
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: row
+      entries:
+        - {node: {}, label: item in one family}
+        - {node: {variant: emphasis}, label: item in two families (overlap)}
+sets:
+  - {id: fam-a, label: "Family A\nits defining idea", members: [a1, a2, ab], shape: ellipse, minWidth: 58mm, minHeight: 48mm, tone: blue}
+  - {id: fam-b, label: "Family B\nits defining idea", members: [ab, b1, b2, bc], shape: ellipse, minWidth: 58mm, minHeight: 48mm, tone: green}
+  - {id: fam-c, label: "Family C\nits defining idea", members: [bc, c1, c2, cd], shape: ellipse, minWidth: 58mm, minHeight: 48mm, tone: orange}
+  - {id: fam-d, label: "Family D\nits defining idea", members: [cd, d1, d2], shape: ellipse, minWidth: 58mm, minHeight: 48mm, tone: purple}
