@@ -68,19 +68,25 @@ export const noEdges = defineRule({
     const chatNodes = new Set(
       (doc.chats ?? []).flatMap((chat) => chat.rows.flatMap(chatKeys)).map(nodeKey),
     );
-    const nodeCount = context.elements.filter(
-      (e) =>
+    const authored = context.elements.filter(
+      (e): e is Extract<ValidElement, { kind: "node" }> =>
         e.kind === "node" &&
         !chatNodes.has(e.key) &&
         e.component?.id !== SEPARATOR_ID &&
-        (e.origin === undefined || e.origin.from === "tokens") &&
-        !inSet(e.element.id, e.element.group),
-    ).length;
+        (e.origin === undefined || e.origin.from === "tokens"),
+    );
+    const nodeCount = authored.filter((e) => !inSet(e.element.id, e.element.group)).length;
     if (nodeCount < 2) return [];
+    // Say so when set members were left out, so the count is not read as the
+    // figure's node total (#521).
+    const inSets = authored.length - nodeCount;
     const subject = figureSubject(context);
     return [
       {
-        message: `The figure has ${nodeCount} nodes but no edges.`,
+        message:
+          inSets > 0
+            ? `The figure has ${nodeCount} nodes outside any set (${inSets} more are set members) but no edges.`
+            : `The figure has ${nodeCount} nodes but no edges.`,
         path: ["edges"],
         ...(subject !== undefined && { subject }),
         hint: "Connect the nodes with edges, or turn off lint/no-edges if unconnected nodes are intended.",

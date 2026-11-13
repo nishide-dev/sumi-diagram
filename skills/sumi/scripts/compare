@@ -2,6 +2,7 @@
 # Put a rendered Sumi figure next to reference figures in one labelled PNG, all
 # at the same width, for a visual critique. Prints the PNG's path.
 # Usage: compare [-o <out.png>] [-w <width-px, default 1200>] [--side]
+#       (options may also follow the images)
 #                <figure.svg|figure.pdf|figure.png> <reference.png>...
 #
 # The first image is yours; the rest are references (for example
@@ -26,6 +27,9 @@ usage() {
 dest=
 width=1200
 side=
+# Options may come before or after the images (#521); `--` ends them.
+files=
+nfiles=0
 while [ $# -gt 0 ]; do
   case $1 in
     -o | --out)
@@ -46,10 +50,29 @@ while [ $# -gt 0 ]; do
       shift
       break
       ;;
-    -*) usage ;;
-    *) break ;;
+    -?*) usage ;;
+    *)
+      files="$files
+$1"
+      nfiles=$((nfiles + 1))
+      shift
+      ;;
   esac
 done
+for f in "$@"; do
+  files="$files
+$f"
+  nfiles=$((nfiles + 1))
+done
+set --
+if [ "$nfiles" -gt 0 ]; then
+  oldifs=$IFS
+  IFS='
+'
+  # shellcheck disable=SC2086
+  set -- $files
+  IFS=$oldifs
+fi
 if [ $# -lt 2 ]; then usage; fi
 case $width in
   '' | *[!0-9]* | 0)

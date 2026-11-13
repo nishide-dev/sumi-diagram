@@ -227,7 +227,7 @@ nodes:
     expect(message(base("sets:\n  - { id: s, members: [g, c] }"))).toBeUndefined();
     // c and d are not members: two unrelated nodes remain.
     expect(message(base("sets:\n  - { id: s, members: [g] }"))).toBe(
-      "The figure has 2 nodes but no edges.",
+      "The figure has 2 nodes outside any set (2 more are set members) but no edges.",
     );
     expect(message(base("sets:\n  - { id: s, members: [a, b, c, d] }"))).toBeUndefined();
   });

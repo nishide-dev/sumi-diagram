@@ -948,6 +948,77 @@ describe("scripts/preview", () => {
   });
 });
 
+/** `scripts/preview` on non-macOS renderers: forced with SUMI_PREVIEW_TOOL, stand-ins on PATH (#521). */
+describe("scripts/preview renderers", () => {
+  async function withTools(fn: (env: Record<string, string>, work: string) => Promise<void>) {
+    const work = await mkdtemp(join(tmpdir(), "sumi-preview-tool-"));
+    const bin = join(work, "bin");
+    await mkdir(bin);
+    await writeFile(
+      join(bin, "fake-chrome"),
+      [
+        "#!/bin/sh",
+        'for a in "$@"; do case $a in --screenshot=*) out=${a#--screenshot=} ;; --window-size=*) echo "$a" > "$FAKE_CHROME_ARGS" ;; esac; done',
+        'printf png > "$out"',
+        "",
+      ].join("\n"),
+      { mode: 0o755 },
+    );
+    await writeFile(
+      join(bin, "rsvg-convert"),
+      ["#!/bin/sh", "for a; do o=$a; done", 'printf png > "$o"', ""].join("\n"),
+      {
+        mode: 0o755,
+      },
+    );
+    try {
+      await fn(
+        {
+          PATH: `${bin}:${process.env.PATH ?? ""}`,
+          SUMI_CHROME: join(bin, "fake-chrome"),
+          FAKE_CHROME_ARGS: join(work, "chrome-args.txt"),
+        },
+        work,
+      );
+    } finally {
+      await rm(work, { recursive: true, force: true });
+    }
+  }
+  const SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100"/>';
+
+  test("chrome renders at the viewBox's aspect ratio", async () => {
+    await withTools(async (env, work) => {
+      const svg = join(work, "fig.svg");
+      await writeFile(svg, SVG);
+      const run = await runScript("preview", [svg, "600"], { ...env, SUMI_PREVIEW_TOOL: "chrome" });
+      expect(run.exitCode, run.stderr).toBe(0);
+      expect(run.stderr).toBe("");
+      expect(run.stdout.trim()).toBe(join(work, "fig.png"));
+      expect(readFileSync(env.FAKE_CHROME_ARGS ?? "", "utf8").trim()).toBe("--window-size=600,300");
+    });
+  });
+
+  test("rsvg-convert works but warns that embedded fonts are ignored", async () => {
+    await withTools(async (env, work) => {
+      const svg = join(work, "fig.svg");
+      await writeFile(svg, SVG);
+      const run = await runScript("preview", [svg], { ...env, SUMI_PREVIEW_TOOL: "rsvg-convert" });
+      expect(run.exitCode, run.stderr).toBe(0);
+      expect(run.stderr).toContain("ignores the fonts embedded");
+      expect(existsSync(join(work, "fig.png"))).toBe(true);
+    });
+  });
+
+  test("an unknown SUMI_PREVIEW_TOOL is a usage error", async () => {
+    await withTools(async (env, work) => {
+      const svg = join(work, "fig.svg");
+      await writeFile(svg, SVG);
+      const run = await runScript("preview", [svg], { ...env, SUMI_PREVIEW_TOOL: "x" });
+      expect(run.exitCode).toBe(2);
+    });
+  });
+});
+
 /**
  * `scripts/compare` with stand-in `magick` and `pdftoppm` first on PATH (no
  * network, no real image tools needed): the stand-in `magick` logs its
@@ -1062,6 +1133,22 @@ describe("scripts/compare", () => {
     });
   });
 
+  test("accepts options after the images (#521)", async () => {
+    await withFakeMagick(async (env, { work }) => {
+      const [fig, ref] = await pngs(work, "mine.png", "ref.png");
+      const out = join(work, "after.png");
+      const run = await runScript(
+        "compare",
+        [fig ?? "", ref ?? "", "-o", out, "--side", "-w", "900"],
+        env,
+      );
+      expect(run.exitCode, run.stderr).toBe(0);
+      expect(run.stdout.trim()).toBe(out);
+      expect(existsSync(out)).toBe(true);
+      expect(existsSync(join(work, "mine-compare.png"))).toBe(false);
+    });
+  });
+
   test("rejects bad usage with exit 2 and writes nothing", async () => {
     await withFakeMagick(async (env, { work }) => {
       const [fig, ref] = await pngs(work, "mine.png", "ref.png");
@@ -1070,7 +1157,8 @@ describe("scripts/compare", () => {
         [["-o", join(work, "x.txt"), fig ?? "", ref ?? ""], "must end in .png"],
         [["-w", "0", fig ?? "", ref ?? ""], "width must be a positive integer"],
         [[fig ?? "", join(work, "missing.png")], "no such file"],
-        [[join(work, "ref.png"), join(work, "mine.png"), "-w", "5"], "no such file"],
+        [[fig ?? "", ref ?? "", "-w", "x"], "width must be a positive integer"],
+        [[fig ?? "", ref ?? "", "--bogus"], "usage:"],
       ];
       for (const [args, message] of cases) {
         const run = await runScript("compare", args, env);
