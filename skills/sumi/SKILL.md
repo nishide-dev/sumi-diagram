@@ -7,7 +7,7 @@ description: Build, check and render diagrams as code with the Sumi CLI (*.sumi.
 
 Sumi turns declarative `*.sumi.yaml` into SVG using predefined components, themes and
 profiles. Write YAML from the user's content and drive the CLI until clean. Never draw
-SVG yourself or edit generated `.svg` / `.d2` files.
+SVG yourself or edit generated `.svg` / `.d2` files (a throwaway [mockup](references/mockup.md) is the exception).
 
 ## Ground rules
 
@@ -97,7 +97,7 @@ is the `figure.themeOverrides.textScale` that fixes it (`sumi`: 2 for slides, 1.
 ### 4. Write the figure
 
 **Non-trivial layout? Mock it up first** (several panels, loops, state machines, sets, taxonomies, anything whose
-arrangement is not obvious; skip for a one-directional flow or a small figure): sketch an HTML/CSS page at real size
+arrangement is not obvious, however few nodes; skip only for an obvious one-directional flow): sketch an HTML/CSS page at real size
 in Sumi's vocabulary and theme colours, check it against the step 1 checklist, then reproduce it in YAML
 ([mockup](references/mockup.md), [template](references/mockup-template.html)).
 

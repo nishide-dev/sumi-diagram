@@ -7,9 +7,11 @@ composition. The gain was largest for several panels, loops, state machines, set
 taxonomies; one-directional flows (a pipeline, a three-row comparison) did better directly. The
 mockup's quality caps the result, so fix the mockup, not the YAML, when the picture is wrong.
 
-Use it for: several panels, loops or feedback, state machines, sets and taxonomies, anything
-whose arrangement you cannot see before drawing. Skip it for: a one-directional flow, a small
-figure (about 6 nodes or fewer), an edit to an existing figure.
+Rule: if the arrangement is not obvious, mock it up, however few nodes there are (a three-state
+machine with a loop, two panels, a Venn pair). Several panels, loops or feedback, state machines,
+sets and taxonomies qualify. Skip it only when the arrangement is obvious: a one-directional flow
+(a pipeline, a three-row comparison). Size and editing an existing figure are secondary: a small
+edit that keeps the layout needs none.
 
 ## 1. Take the theme's values from Sumi
 
@@ -29,8 +31,13 @@ any theme.
 - Text sizes come from the theme and profile (times `textScale`), in pt. A mockup text smaller
   than the profile minimum is a defect.
 
-Start from [mockup-template.html](mockup-template.html): CSS variables for these values, a page
-at the real size, boxes positioned in mm, an inline SVG layer for arrows.
+Fill these CSS variables in [mockup-template.html](mockup-template.html) (a page at the real
+size, boxes positioned in mm, an inline SVG layer for arrows): `--canvas`; `--ink` and the
+tone fills and lines from the probe; `--font`; `--fs-node`, `--fs-group`, `--fs-edge` in pt
+(`fontSizePt.base` times the profile's `textScale`, `figure.themeOverrides.textScale`);
+`--frame-w` and `--edge-w` in pt (the theme's line widths: `themeOverrides` `frameWidth` / `lineWidth` when set, else
+measure the probe SVG's `stroke-width` against its width in mm; `paper` draws 1pt frames and 0.5pt edges);
+`--arrow` (the arrowhead's colour: the edge colour). Nothing in the page uses a literal colour.
 
 ## 2. Draw only what Sumi can draw
 
@@ -45,9 +52,9 @@ Vocabulary (confirm names with `sumi catalog --json`, never invent):
   components; symbols (`operator`, `junction`), `label`, icons, `tokens`, `matrix`, `bracket`,
   `separator`, `legend`, flow markers (`block-arrow`, `triangle-arrow`, `chevron`), `zoom`;
   blank token cells.
-- Looks: a tone from the theme's list; variants `default`, `emphasis`, `muted`, `dashed`,
-  `dotted`, `filled`, `outlined`, `solid`, `tinted`, `plain`; state markers; corner radius and
-  line width only through `themeOverrides`. One font size per role, regular or bold only.
+- Looks: a tone from the theme's list; a variant from that component's own entry in the catalog
+  (variants differ by component, e.g. `tinted`, `outlined`, `emphasis`, `dashed`); state markers
+  (`sumi/initial`, `sumi/final`); corner radius and line width only through `themeOverrides`. One font size per role, regular or bold only.
 - Groups: a frame with the title above the border or a `caption`; nest them; `dim`.
 - `sets`: overlapping ellipses (Venn) or hyperedge enclosures; nothing freehand.
 - Edges: straight, orthogonal or curved lines between element sides, an arrowhead from the
@@ -56,25 +63,30 @@ Vocabulary (confirm names with `sumi catalog --json`, never invent):
 - Layout: it must be expressible as `row` / `stack` / `grid` / `place` / `chat`. Free positions
   go on a mm grid so each box has one centre.
 
-Colour as the theme's `colorUse` says: white (canvas) ground, at most `maxAccentTones` accent
-tones, `preferredVariants` for most boxes, heavy fills (`heavyVariants`) for one focus at most
-and within `maxHeavyShare`. The same kind of thing looks the same everywhere.
+Ground: the theme's `canvas` (`sumi` #f8f8ee, `sumi-dark` #30364f, `minimal` white). Where
+`colorUse` is not `null`, follow it: at most `maxAccentTones` accent tones, `preferredVariants`
+for most boxes, heavy fills (`heavyVariants`) for one focus at most and within `maxHeavyShare`.
+Otherwise colour only for meaning, 2-3 hues plus one accent. The same kind of thing looks the
+same everywhere.
 
 ## 3. Screenshot and check the mockup
 
 Chrome headless at 3 device pixels per CSS px (1mm = 3.78px; window = mm * 3.78, rounded up):
 
 ```sh
-chrome --headless --disable-gpu --hide-scrollbars --force-device-scale-factor=3 \
-  --window-size=605,378 --screenshot=mockup.png file://$PWD/mockup.html   # 160 x 100mm
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless --disable-gpu \
+  --hide-scrollbars --force-device-scale-factor=3 --window-size=605,378 \
+  --screenshot="$PWD/mockup.png" "file://$PWD/mockup.html"   # 160 x 100mm
 ```
 
-`chrome` is `$SUMI_CHROME`, `google-chrome`, `chromium`, or on macOS
-`/Applications/Google Chrome.app/Contents/MacOS/Google Chrome` (`scripts/preview` finds the same
-binaries but rasterises SVG only, not HTML). Open the PNG with Read. Without Chrome: draw the
-mockup as a plain SVG at real size and rasterise it with `scripts/preview` (Quick Look,
-`rsvg-convert`), or write the sketch as a table of boxes with mm centres and sizes and judge it
-from the first render of the YAML; say that no mockup image was checked.
+The executable is `$SUMI_CHROME`, else `google-chrome` / `chromium` on `PATH`, else the macOS path
+above; quote it, and percent-encode the file URL if the path has spaces or non-ASCII characters
+(`scripts/preview` finds the same binaries but rasterises SVG only, not HTML). Open the PNG with Read. Without Chrome: the mockup is a disposable sketch, not a deliverable (SKILL.md's rule against
+drawing SVG is about the figure itself), so you may write it as plain SVG at real size and
+rasterise it with `scripts/preview` (Quick Look, or `rsvg-convert`, which ignores embedded fonts:
+judge layout, not typography). With no rasteriser at all, write the sketch as a table of boxes
+with mm centres and sizes, check it against the checklist as text, go on to the YAML, and tell the
+user that no mockup image was checked.
 
 Check the mockup with the Skill's step 1 checklist (every element, labelled directed edge, input
 and output present, arrows the right way) and the readability and visual-language checks of step
@@ -84,17 +96,20 @@ void without a reason). Fix the mockup until it passes; then reproduce.
 ## 4. Reproduce it in YAML
 
 - Free layouts (panels, loops, state machines): one `place` per panel with `unit: 1mm`, each
-  item at its mockup centre with **`origin: body`** on groups and token sequences, so `at` is the
-  body centre and not the larger footprint. Nodes keep their own centre, but a node with an
-  attached label or badge grows its footprint: measure the first render and correct by that offset.
+  item at its mockup centre. A node's `at` is always its own body centre (attached labels and
+  badges do not move it); write **`origin: body`** on groups and token sequences, whose default
+  `at` is the centre of the frame grown to hold attached nodes. A `place` box is normalised to
+  its contents: page coordinates do not keep outer whitespace, nor the alignment between
+  separately placed panels, so put panels in a `row` / `stack` / `grid` (or one `place`) and align
+  them there, then check the render against the mockup.
 - Regular layouts: `row` / `stack` / `grid` for aligned parts (taxonomy columns, token rows); `gap` in
   mm. Sizes: `width` / `height` in mm are fine (rounded to 0.5pt); text sizes and weights come
   from the theme, not the mockup.
 - Edges: `from` / `to` plus `fromAnchor` / `toAnchor` for the sides the mockup uses; loops and
   jogs need both anchors. Tone and variant from the mockup's colour roles.
 - Sets: `sets` with `shape: ellipse` and the mockup's `angle`; group titles `labelAt`.
-- Render, `lint --geometry`, compare the SVG with the mockup PNG side by side (`scripts/compare`
-  stacks images), and correct YAML toward the mockup; change the mockup only when it was wrong.
+- Render, `lint --geometry`, compare the SVG with the mockup PNG (`scripts/compare --side figure.svg mockup.png`
+  puts them side by side; without `--side` they are stacked), and correct YAML toward the mockup; change the mockup only when it was wrong.
 
 Keep a short log beside the figure (a few lines, not a report): the mockup rounds, and each place
 Sumi did not match it, for example text weight or size not settable, corner radius, a footprint
