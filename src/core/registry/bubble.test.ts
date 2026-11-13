@@ -11,11 +11,11 @@ test("bubble has documented props, variants, defaults and strict length validati
   for (const tail of ["none", "left", "right", "top", "bottom"])
     for (const tailAt of ["start", "center", "end", "12pt"])
       expect(manifest.props.safeParse({ tail, tailAt, tailSize: "4pt" }).success).toBe(true);
+  expect(manifest.props.parse({ tailSize: "1.1pt" })).toMatchObject({ tailSize: 1 });
   for (const props of [
     { tail: "north" },
     { tailAt: -1 },
     { tailSize: "0pt" },
-    { tailSize: "1.1pt" },
     { maxWidth: 80 },
     { unknown: true },
   ])

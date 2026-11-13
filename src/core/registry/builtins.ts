@@ -61,14 +61,14 @@ const EDGE_VARIANTS = ["default", "dashed", "dotted", "emphasis", "muted"];
 
 const sizeProps = z.strictObject({
   width: SizeLength.optional().describe(
-    'Explicit width as a length such as "30mm" or "40pt" (a multiple of 0.5pt). Omitted means sized to the label.',
+    'Explicit width as a length such as "30mm" or "40pt" (rounded to the nearest 0.5pt). Omitted means sized to the label.',
   ),
   height: SizeLength.optional().describe(
-    'Explicit height as a length such as "10mm" or "20pt" (a multiple of 0.5pt). Omitted means sized to the label.',
+    'Explicit height as a length such as "10mm" or "20pt" (rounded to the nearest 0.5pt). Omitted means sized to the label.',
   ),
 });
 
-// Sizes parse to exact multiples of 0.5pt, so comparing them is exact.
+// Sizes parse to multiples of 0.5pt (rounded), so comparing them is exact.
 const squareSizeProps = sizeProps.refine(
   ({ width, height }) => width === undefined || height === undefined || width === height,
   { error: "width and height must be equal for a fixed aspect ratio", path: ["height"] },
@@ -199,7 +199,7 @@ function edge(
 export const LayersSchema = z.strictObject({
   count: z.int().min(1).max(16).describe("Total cards, including the front card (1–16)."),
   offset: SizeLength.describe(
-    'Positive distance up and right between copies, e.g. "3pt" (a multiple of 0.5pt).',
+    'Positive distance up and right between copies, e.g. "3pt" (rounded to the nearest 0.5pt).',
   ),
 });
 
@@ -259,10 +259,10 @@ const flowDirection = z
   .optional()
   .describe("The way it points: right (the default), left, up or down.");
 const flowLength = SizeLength.optional().describe(
-  'Explicit length along the arrow as a length such as "24pt" (a multiple of 0.5pt), whichever way it points. Omitted means a multiple of the theme text size.',
+  'Explicit length along the arrow as a length such as "24pt" (rounded to the nearest 0.5pt), whichever way it points. Omitted means a multiple of the theme text size.',
 );
 const flowThickness = SizeLength.optional().describe(
-  'Explicit thickness across the arrow as a length such as "12pt" (a multiple of 0.5pt). Omitted means the theme text size (1 em).',
+  'Explicit thickness across the arrow as a length such as "12pt" (rounded to the nearest 0.5pt). Omitted means the theme text size (1 em).',
 );
 
 function flowArrow(
@@ -365,10 +365,10 @@ const bracket: NodeManifest = {
         "The side the spine or tip is on, where edges leave: east gathers the elements to its west (the default), west those to its east, south those above it and north those below it.",
       ),
     width: SizeLength.optional().describe(
-      'Explicit width as a length such as "10pt" (a multiple of 0.5pt). Omitted means 6pt deep for east / west, or as long as the attach target\'s side (24pt without one) for north / south.',
+      'Explicit width as a length such as "10pt" (rounded to the nearest 0.5pt). Omitted means 6pt deep for east / west, or as long as the attach target\'s side (24pt without one) for north / south.',
     ),
     height: SizeLength.optional().describe(
-      'Explicit height as a length such as "40pt" (a multiple of 0.5pt). Omitted means as long as the attach target\'s side (24pt without one) for east / west, or 6pt deep for north / south.',
+      'Explicit height as a length such as "40pt" (rounded to the nearest 0.5pt). Omitted means as long as the attach target\'s side (24pt without one) for east / west, or 6pt deep for north / south.',
     ),
   }),
   shape: "rectangle",
@@ -490,10 +490,10 @@ const image: NodeManifest = {
           "contain: the whole image, centered, keeping its aspect ratio (the default). cover: fills the box, keeping the aspect ratio and clipping the overflow. fill: stretched to the box.",
         ),
       width: SizeLength.optional().describe(
-        'Width as a length such as "30mm" (a multiple of 0.5pt). Omitted means from the height and the image\'s aspect ratio.',
+        'Width as a length such as "30mm" (rounded to the nearest 0.5pt). Omitted means from the height and the image\'s aspect ratio.',
       ),
       height: SizeLength.optional().describe(
-        'Height as a length such as "20mm" (a multiple of 0.5pt). Omitted means from the width and the image\'s aspect ratio.',
+        'Height as a length such as "20mm" (rounded to the nearest 0.5pt). Omitted means from the width and the image\'s aspect ratio.',
       ),
       layers: LayersSchema.extend({
         count: z.int().min(1).max(16).describe("Total images, including the front image (1–16)."),

@@ -83,7 +83,7 @@ Apply one edit and re-check: independent savings are not additive.
 | `component/unknown` | name not in the registry (or a component newer than the CLI) | choose from `sumi catalog` (the hint lists the right kind) |
 | `component/wrong-kind` | a node component on an edge, etc. | a component of the right kind |
 | `component/unknown-variant` | variant not listed for that component | one from the hint / catalog |
-| `component/unknown-prop`, `component/invalid-prop` | prop not in the schema, or a bad value (e.g. `px`, not a multiple of 0.5pt; an `image` without `width` or `height`) | remove it or use the hint's value |
+| `component/unknown-prop`, `component/invalid-prop` | prop not in the schema, or a bad value (e.g. `px`, a bare number; an `image` without `width` or `height`) | remove it or use the hint's value |
 | `component/missing-label` | a text-only component (`label`) has no text | give it a label |
 | `component/unexpected-label` | `operator`, `junction`, `image`, `bracket`, `separator`, a flow arrow or a `zoom` edge has a label | remove it; put a `label` node next to it (for `zoom`, title the zoomed-in group) |
 | `component/invalid-math` | unsupported or malformed `$...$` (the message gives the characters) | use the supported subset, close the `$`, or write `\$` ([label math](figure-format.md#label-math)) |

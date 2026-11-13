@@ -465,17 +465,25 @@ describe("validateUsage", () => {
     [true, 'Expected a length such as "2mm", got a boolean'],
     ["-4mm", 'Size "-4mm" must be positive'],
     ["0pt", 'Size "0pt" must be positive'],
-    [
-      "15mm",
-      'Size "15mm" (42.52pt) is not a multiple of 0.5pt, the D2 unit',
-      'The nearest valid size is "42.5pt".',
-    ],
-    [
-      "0.1pt",
-      'Size "0.1pt" (0.1pt) is not a multiple of 0.5pt, the D2 unit',
-      'The nearest valid size is "0.5pt".',
-    ],
   ];
+  test("rounds sizes that are not on the 0.5pt grid instead of rejecting them", () => {
+    const cases: [string, number][] = [
+      ["18mm", 51],
+      ["22mm", 62.5],
+      ["26mm", 73.5],
+      ["9mm", 25.5],
+      ["15mm", 42.5],
+      ["0.1pt", 0.5],
+      ["0.75pt", 1],
+      ["0.25pt", 0.5],
+    ];
+    for (const [width, pt] of cases) {
+      const result = registry.validateUsage(box, { props: { width, height: width } });
+      expect(result.ok).toBe(true);
+      if (result.ok) expect(result.value.props).toMatchObject({ width: pt, height: pt });
+    }
+  });
+
   for (const [width, message, hint] of invalidSizes) {
     test(`rejects the width ${JSON.stringify(width)}`, () => {
       const [d, ...rest] = registry.validateUsage(box, { props: { width } }).diagnostics;
