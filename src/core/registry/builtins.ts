@@ -10,6 +10,7 @@ import { didYouMean } from "../diagnostics";
 import {
   ARRANGE_ALIGNS,
   ArrowheadScale,
+  CornerRadius,
   checkGlyph,
   glyphShape,
   IconSize,
@@ -642,6 +643,9 @@ const legendEntry = z
           .enum(TONE_NAMES)
           .optional()
           .describe("The tone of the sample box, as on a node. Omitted means none."),
+        cornerRadius: CornerRadius.optional().describe(
+          "The corner radius of the sample box, as a node's cornerRadius (a multiple of 0.5pt up to 10pt), so the sample matches rounded nodes. Omitted means the theme's.",
+        ),
       })
       .optional()
       .describe(

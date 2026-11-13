@@ -242,6 +242,8 @@ describe("sets section (#407)", () => {
       "angle",
       "labelAt",
       "padding",
+      "minWidth",
+      "minHeight",
       "fillOpacity",
       "variant",
       "lineWidth",

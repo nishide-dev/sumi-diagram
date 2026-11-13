@@ -958,6 +958,16 @@
               }
             ]
           },
+          "minWidth": {
+            "description": "Least width of the outline (circle, ellipse or rect, not hull), e.g. \"50mm\", rounded to the nearest 0.5pt like a component width: a smaller fit grows about its center, so sets can share one size without hidden anchor nodes. A tilted ellipse takes it along its first axis; a circle takes the larger of minWidth and minHeight.",
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d+)?(mm|cm|in|pt)$"
+          },
+          "minHeight": {
+            "description": "Least height of the outline (circle, ellipse or rect, not hull), as minWidth (positive, rounded to 0.5pt). A tilted ellipse takes it along its second axis.",
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d+)?(mm|cm|in|pt)$"
+          },
           "fillOpacity": {
             "description": "Strength of the tinted fill (0..1): the share of the tone's line color mixed into the canvas. The fill is opaque. Overlaps use mix by default; choose multiply with overlap or figure.setOverlap. Omitted means the variant's own (0.2 for default and dashed, 0.28 for filled).",
             "type": "number",

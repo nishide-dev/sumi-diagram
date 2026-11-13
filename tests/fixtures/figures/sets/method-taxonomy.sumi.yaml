@@ -1,0 +1,50 @@
+version: 1
+figure:
+  id: method-taxonomy
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      stack:
+        gap: 8mm
+        items:
+          - place:
+              unit: 1mm
+              items:
+                - { item: spectral-cnn, at: [ 26, 23 ] }
+                - { item: chebnet, at: [ 26, 49 ] }
+                - { item: graphsage, at: [ 70, 23 ] }
+                - { item: gin, at: [ 70, 49 ] }
+                - { item: graph-transformer, at: [ 110, 23 ] }
+                - { item: san, at: [ 110, 49 ] }
+                - { item: dgi, at: [ 156, 23 ] }
+                - { item: graphcl, at: [ 156, 49 ] }
+                - { item: gcn, at: [ 50, 36 ] }
+                - { item: gat, at: [ 90, 36 ] }
+                - { item: graph-bert, at: [ 130, 36 ] }
+          - key
+nodes:
+  - { id: spectral-cnn, component: box, label: Spectral CNN, cornerRadius: 3pt }
+  - { id: chebnet, component: box, label: ChebNet, cornerRadius: 3pt }
+  - { id: graphsage, component: box, label: GraphSAGE, cornerRadius: 3pt }
+  - { id: gin, component: box, label: GIN, cornerRadius: 3pt }
+  - { id: graph-transformer, component: box, label: "Graph\nTransformer", cornerRadius: 3pt }
+  - { id: san, component: box, label: SAN, cornerRadius: 3pt }
+  - { id: dgi, component: box, label: DGI, cornerRadius: 3pt }
+  - { id: graphcl, component: box, label: GraphCL, cornerRadius: 3pt }
+  - { id: gcn, component: box, label: GCN, props: { width: 37pt }, variant: emphasis, cornerRadius: 3pt }
+  - { id: gat, component: box, label: GAT, props: { width: 37pt }, variant: emphasis, cornerRadius: 3pt }
+  - { id: graph-bert, component: box, label: "Graph-\nBERT", props: { width: 37pt }, variant: emphasis, cornerRadius: 3pt }
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: row
+      entries:
+        - { node: { cornerRadius: 3pt }, label: method in one family }
+        - { node: { variant: emphasis, cornerRadius: 3pt }, label: method in two families (overlap) }
+sets:
+  - { id: spectral, label: "Spectral\ngraph Fourier filters", members: [ spectral-cnn, chebnet, gcn ], shape: ellipse, minWidth: 58mm, minHeight: 48mm, tone: blue }
+  - { id: spatial, label: "Spatial\nneighbour aggregation", members: [ gcn, graphsage, gin, gat ], shape: ellipse, minWidth: 58mm, minHeight: 48mm, tone: green }
+  - { id: attention, label: "Attention\nlearned edge weights", members: [ gat, graph-transformer, san, graph-bert ], shape: ellipse, minWidth: 58mm, minHeight: 48mm, tone: orange }
+  - { id: ssl, label: "Self-supervised\npretext objectives", members: [ graph-bert, dgi, graphcl ], shape: ellipse, minWidth: 58mm, minHeight: 48mm, tone: purple }

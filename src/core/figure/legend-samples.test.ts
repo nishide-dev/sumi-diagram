@@ -300,3 +300,20 @@ describe("IR", () => {
     ]);
   });
 });
+
+describe("node sample cornerRadius (#518)", () => {
+  test("cornerRadius reaches the sample box, so it matches rounded nodes", () => {
+    const { state } = checkFigure(
+      figure(
+        entries("{ node: { cornerRadius: 3pt }, label: Rounded }", "{ node: {}, label: Plain }"),
+      ),
+    );
+    expect(state.diagnostics).toEqual([]);
+    const boxes = (state.doc.nodes ?? []).filter((n) => n?.id.endsWith("-box"));
+    expect(boxes.map((n) => n?.cornerRadius)).toEqual([3, undefined]);
+  });
+
+  test("a radius that is not a multiple of 0.5pt is rejected", () => {
+    expect(codes(figure(entries("{ node: { cornerRadius: 3.3pt }, label: R }")))).not.toEqual([]);
+  });
+});

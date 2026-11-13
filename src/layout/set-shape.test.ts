@@ -470,3 +470,31 @@ describe("oriented ellipses (#430)", () => {
     expect(top.y + 5).toBeLessThanOrEqual(outlineBounds(e).y - 4 + 1e-9);
   });
 });
+
+describe("fitSetOutline: minimum size (#518)", () => {
+  const members = [box(0, 0), box(20, 0)];
+
+  test("a fit smaller than the minimum grows about its center, and still holds the members", () => {
+    const tight = fitSetOutline(members, "ellipse", 4);
+    const grown = fitSetOutline(members, "ellipse", 4, 0, undefined, { width: 200, height: 120 });
+    if (tight.kind !== "ellipse" || grown.kind !== "ellipse") throw new Error("expected ellipses");
+    expect([grown.cx, grown.cy]).toEqual([tight.cx, tight.cy]);
+    expect([grown.rx, grown.ry]).toEqual([100, 60]);
+    const polygon = outlinePolygon(grown);
+    for (const m of members)
+      for (const p of footprintPoints(m)) expect(insidePolygon(polygon, p)).toBe(true);
+  });
+
+  test("a larger fit is kept; a circle stays a circle; a rect grows on its sides", () => {
+    const big = fitSetOutline(members, "ellipse", 4, 0, undefined, { width: 2, height: 2 });
+    expect(big).toEqual(fitSetOutline(members, "ellipse", 4));
+    const circle = fitSetOutline(members, "circle", 4, 0, undefined, { width: 100, height: 160 });
+    if (circle.kind !== "ellipse") throw new Error("expected a circle");
+    expect([circle.rx, circle.ry]).toEqual([80, 80]);
+    const rect = fitSetOutline(members, "rect", 4, 0, undefined, { width: 100 });
+    if (rect.kind !== "rect") throw new Error("expected a rect");
+    expect(rect.rect.width).toBe(100);
+    expect(rect.rect.height).toBe(18);
+    expect(rect.rect.x + rect.rect.width / 2).toBeCloseTo(15);
+  });
+});
