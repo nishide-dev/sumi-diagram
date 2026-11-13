@@ -22,4 +22,4 @@
 
 ## 互換性
 
-既存の図は変わらない。`gallery` が layouts の SVG を新たに生成し、biome の対象から layouts の SVG を除外する（examples と同じ）。種の 4 枚は #509 の 1B・4B・6A・8B から。8B は set の `minWidth` / `minHeight` が基点に入っていなかったため、隠し junction のまま。
+既存の図は変わらない。`gallery` が layouts の SVG を新たに生成し、biome の対象から layouts の SVG を除外する（examples と同じ）。種の 4 枚は #509 の 1B・4B・6A・8B から。8B は set の `minWidth` / `minHeight`（#518）で隠し junction を置き換えた。

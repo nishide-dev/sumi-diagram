@@ -4,11 +4,11 @@
 #   (methods by technique, papers by topic, features by capability); four ellipses in a row,
 #   each overlapping its neighbours.
 # Structure: `place` (unit 1 mm) puts every item; four `sets` (ellipse, one tone each) enclose
-#   their members; two hidden junctions per set at the top and bottom edges and one at the
-#   far side give each ellipse its height and width (the shared items sit where two
-#   ellipses meet); emphasised boxes = items in two families; legend underneath.
-# Change: labels; items per family (keep each family's junction anchors and the item
-#   x positions in the column of its ellipse); for a three-set Venn drop one family.
+#   their members; `minWidth` / `minHeight` give all four ellipses one size and the shared
+#   items sit where two ellipses meet; emphasised boxes = items in two families; legend below.
+# Change: labels; items per family (keep the x positions of a family's items in the column of
+#   its ellipse, shared items midway between two families, and the symmetry about each
+#   ellipse's centre); for a three-set Venn drop one family.
 # Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
 version: 1
 figure:
@@ -18,44 +18,24 @@ figure:
   layout:
     arrange:
       stack:
-        gap: 5mm
+        gap: 12mm
         items:
           - place:
               unit: 1mm
               items:
-                - {item: fam-a-top, at: [30, 14.5]}
-                - {item: fam-a-bottom, at: [30, 57.5]}
-                - {item: fam-b-top, at: [68, 14.5]}
-                - {item: fam-b-bottom, at: [68, 57.5]}
-                - {item: fam-c-top, at: [106, 14.5]}
-                - {item: fam-c-bottom, at: [106, 57.5]}
-                - {item: fam-d-top, at: [144, 14.5]}
-                - {item: fam-d-bottom, at: [144, 57.5]}
-                - {item: fam-a-side, at: [11, 36]}
-                - {item: fam-d-side, at: [163, 36]}
-                - {item: a1, at: [30, 21.5]}
-                - {item: a2, at: [30, 50.5]}
-                - {item: b1, at: [68, 21.5]}
-                - {item: b2, at: [68, 50.5]}
-                - {item: c1, at: [106, 21.5]}
-                - {item: c2, at: [106, 50.5]}
-                - {item: d1, at: [144, 21.5]}
-                - {item: d2, at: [144, 50.5]}
-                - {item: ab, at: [49, 36]}
-                - {item: bc, at: [87, 36]}
-                - {item: cd, at: [125, 36]}
+                - {item: a1, at: [26, 23]}
+                - {item: a2, at: [26, 49]}
+                - {item: b1, at: [70, 23]}
+                - {item: b2, at: [70, 49]}
+                - {item: c1, at: [110, 23]}
+                - {item: c2, at: [110, 49]}
+                - {item: d1, at: [156, 23]}
+                - {item: d2, at: [156, 49]}
+                - {item: ab, at: [50, 36]}
+                - {item: bc, at: [90, 36]}
+                - {item: cd, at: [130, 36]}
           - key
 nodes:
-  - {id: fam-a-top, component: junction, variant: hidden}
-  - {id: fam-a-bottom, component: junction, variant: hidden}
-  - {id: fam-b-top, component: junction, variant: hidden}
-  - {id: fam-b-bottom, component: junction, variant: hidden}
-  - {id: fam-c-top, component: junction, variant: hidden}
-  - {id: fam-c-bottom, component: junction, variant: hidden}
-  - {id: fam-d-top, component: junction, variant: hidden}
-  - {id: fam-d-bottom, component: junction, variant: hidden}
-  - {id: fam-a-side, component: junction, variant: hidden}
-  - {id: fam-d-side, component: junction, variant: hidden}
   - {id: a1, component: box, label: Item A1}
   - {id: a2, component: box, label: Item A2}
   - {id: b1, component: box, label: Item B1}
@@ -76,7 +56,7 @@ nodes:
         - {node: {}, label: item in one family}
         - {node: {variant: emphasis}, label: item in two families (overlap)}
 sets:
-  - {id: fam-a, label: "Family A\nits defining idea", members: [fam-a-top, fam-a-bottom, fam-a-side, a1, a2, ab], shape: ellipse, tone: blue}
-  - {id: fam-b, label: "Family B\nits defining idea", members: [fam-b-top, fam-b-bottom, ab, b1, b2, bc], shape: ellipse, tone: green}
-  - {id: fam-c, label: "Family C\nits defining idea", members: [fam-c-top, fam-c-bottom, bc, c1, c2, cd], shape: ellipse, tone: orange}
-  - {id: fam-d, label: "Family D\nits defining idea", members: [fam-d-top, fam-d-bottom, cd, d1, d2, fam-d-side], shape: ellipse, tone: purple}
+  - {id: fam-a, label: "Family A\nits defining idea", members: [a1, a2, ab], shape: ellipse, minWidth: 58mm, minHeight: 48mm, tone: blue}
+  - {id: fam-b, label: "Family B\nits defining idea", members: [ab, b1, b2, bc], shape: ellipse, minWidth: 58mm, minHeight: 48mm, tone: green}
+  - {id: fam-c, label: "Family C\nits defining idea", members: [bc, c1, c2, cd], shape: ellipse, minWidth: 58mm, minHeight: 48mm, tone: orange}
+  - {id: fam-d, label: "Family D\nits defining idea", members: [cd, d1, d2], shape: ellipse, minWidth: 58mm, minHeight: 48mm, tone: purple}
