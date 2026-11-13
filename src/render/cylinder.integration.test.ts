@@ -10,7 +10,14 @@
 import { describe, expect, test } from "bun:test";
 import { checkD2Version, findD2Binary } from "../backends/d2/binary";
 import { lintGeometry } from "../lint/geometry";
-import { CYLINDER_ARC_UNITS, cylinderArc } from "../lint/geometry/shapes";
+import {
+  CYLINDER_ARC_UNITS,
+  cylinderArc,
+  cylinderPathData,
+  depthInside,
+  flattenPath,
+} from "../lint/geometry/shapes";
+import { parsePath } from "./geometry";
 import { svgToPdf } from "./pdf";
 import { svgToEditablePptx, svgToPptx } from "./pptx";
 import { type RenderedFigure, renderFigure } from "./render";
@@ -94,12 +101,13 @@ function check(rendered: RenderedFigure, variant: string) {
   ];
   expect(paint(paths[0]?.[2] ?? "")).toEqual(paint(paths[1]?.[2] ?? ""));
   if (variant === "emphasis") expect(paint(paths[0]?.[2] ?? "")[0]).not.toBe("#ffffff");
-  // The label sits in the body: its baseline is below the front of the top cap, above the bottom.
+  // The label sits in the body, clear of the bottom cap: same offset from the middle of
+  // the body as in a tall cylinder of the same engine, and its line box ends above the cap.
   const labelY = Number(/<text [^>]*\by="([\d.]+)"/.exec(group)?.[1]);
+  const middle = bbox.y + bbox.height / 2 + arc / 2;
   expect(labelY).toBeGreaterThan(bbox.y + 2 * arc);
   expect(labelY).toBeLessThan(bbox.y + bbox.height);
-  // The label is inside the shape for the geometry lint, as long as the height allows.
-  return { bbox, arc };
+  return { bbox, arc, labelOffset: labelY - middle };
 }
 
 describe.each([
@@ -111,7 +119,16 @@ describe.each([
       test.each(HEIGHTS)(`${variant}, height %s`, async (height) => {
         const rendered = await render(source(height, variant));
         expect(rendered.compiled.engine).toBe(engine === "d2" ? "auto" : "structured");
-        const { bbox, arc } = check(rendered, variant);
+        const { bbox, arc, labelOffset } = check(rendered, variant);
+        // Centred in the body as in a tall cylinder (80pt), and clear of the bottom cap.
+        const tall = check(await render(source("80pt", variant)), variant);
+        expect(tall.arc).toBe(CYLINDER_ARC_UNITS);
+        expect(Math.abs(labelOffset - tall.labelOffset)).toBeLessThan(0.5);
+        if (bbox.height >= 40) {
+          const baseline = bbox.y + bbox.height / 2 + arc / 2 + labelOffset;
+          expect(baseline + 2).toBeLessThanOrEqual(bbox.y + bbox.height - arc + 0.5);
+          expect(baseline - 14).toBeGreaterThanOrEqual(bbox.y + 2 * arc - 0.5);
+        }
         // Shorter than 100 units: shallower caps; from 100 units: D2's 24.
         expect(arc).toBe(bbox.height >= 100 ? CYLINDER_ARC_UNITS : cylinderArc(bbox.height));
         if (bbox.height < 100) expect(arc).toBeLessThan(CYLINDER_ARC_UNITS);
@@ -161,4 +178,107 @@ describe.skipIf(!d2Available && !inCI)("D2 edges at a shortened cap (#516)", () 
       }
     },
   );
+});
+
+/** The flattened outline of a cylinder drawn in `bbox`. */
+function outlineOf(bbox: { x: number; y: number; width: number; height: number }) {
+  const parsed = parsePath(cylinderPathData(bbox, (v) => String(v)).body);
+  if (!parsed.ok) throw new Error(parsed.message);
+  return { kind: "polygon" as const, points: flattenPath(parsed.segments)[0] ?? [] };
+}
+
+/** The shortest distance from `p` to a polygon's boundary. */
+function distanceToOutline(
+  points: readonly { x: number; y: number }[],
+  p: { x: number; y: number },
+): number {
+  let best = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < points.length; i++) {
+    const a = points[i] as { x: number; y: number };
+    const b = points[(i + 1) % points.length] as { x: number; y: number };
+    const [dx, dy] = [b.x - a.x, b.y - a.y];
+    const t =
+      dx === 0 && dy === 0 ? 0 : ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy);
+    const c = Math.max(0, Math.min(1, t));
+    best = Math.min(best, Math.hypot(p.x - (a.x + c * dx), p.y - (a.y + c * dy)));
+  }
+  return best;
+}
+
+/** Fan-in and fan-out around one cylinder: angled entries on its sides, top and bottom. */
+const fanSource = (height: string, direction: "right" | "down") => `version: 1
+figure: { id: fan, profile: paper-double, layout: { direction: ${direction} } }
+nodes:
+  - { id: a, component: box, label: A, props: { width: 20pt, height: 14pt } }
+  - { id: b, component: box, label: B, props: { width: 20pt, height: 14pt } }
+  - { id: e, component: box, label: E, props: { width: 20pt, height: 14pt } }
+  - { id: db, component: cylinder, label: PostgreSQL, props: { width: 74pt, height: ${height} } }
+  - { id: c, component: box, label: C, props: { width: 20pt, height: 14pt } }
+  - { id: d, component: box, label: D, props: { width: 20pt, height: 14pt } }
+  - { id: f, component: box, label: F, props: { width: 20pt, height: 14pt } }
+edges:
+  - { from: a, to: db }
+  - { from: b, to: db }
+  - { from: e, to: db }
+  - { from: db, to: c }
+  - { from: db, to: d }
+  - { from: db, to: f }
+  - { from: a, to: d }
+`;
+
+const gridSource = (height: string) => `version: 1
+figure:
+  id: grid
+  profile: paper-double
+  layout:
+    arrange:
+      row:
+        gap: 10mm
+        items:
+          - stack: { gap: 6mm, items: [a, b, e] }
+          - db
+          - stack: { gap: 6mm, items: [c, d] }
+nodes:
+  - { id: a, component: box, label: A }
+  - { id: b, component: box, label: B }
+  - { id: e, component: box, label: E }
+  - { id: db, component: cylinder, label: PostgreSQL, props: { width: 74pt, height: ${height} } }
+  - { id: c, component: box, label: C }
+  - { id: d, component: box, label: D }
+edges:
+  - { from: a, to: db }
+  - { from: b, to: db }
+  - { from: e, to: db }
+  - { from: db, to: c }
+  - { from: db, to: d }
+`;
+
+describe.each([
+  ["d2 right fan", (h: string) => fanSource(h, "right"), d2Available || inCI],
+  ["d2 down fan", (h: string) => fanSource(h, "down"), d2Available || inCI],
+  ["structured grid", gridSource, true],
+] as const)("edge ends at a shortened cylinder: %s (#516)", (_name, source, enabled) => {
+  describe.skipIf(!enabled)("ends", () => {
+    test.each(["20pt", "34pt", "49.5pt", "50pt"])("height %s", async (height) => {
+      const rendered = await render(source(height));
+      const bbox = rendered.inspection.elements.find((e) => e.key === "n:db")?.bbox;
+      if (bbox === undefined) throw new Error("no cylinder");
+      const outline = outlineOf(bbox);
+      let touching = 0;
+      for (const edge of rendered.compiled.ir.edges) {
+        const route = rendered.inspection.elements.find((e) => e.key === edge.key)?.path ?? [];
+        const ends: { x: number; y: number }[] = [];
+        if (edge.from === "n:db" && route[0]) ends.push(route[0].to);
+        if (edge.to === "n:db" && route.length > 0)
+          ends.push(route[route.length - 1]?.to ?? route[0]?.to ?? { x: 0, y: 0 });
+        for (const end of ends) {
+          // Never inside the replacement shape, and within a cap of its outline.
+          expect(depthInside(outline, end)).toBeLessThanOrEqual(0.05);
+          expect(distanceToOutline(outline.points, end)).toBeLessThan(8);
+          touching += 1;
+        }
+      }
+      expect(touching).toBeGreaterThanOrEqual(5);
+    });
+  });
 });

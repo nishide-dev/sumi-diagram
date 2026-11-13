@@ -89,7 +89,7 @@ nodes:
     }
     const report = await lintRenderedFigure(figure("10pt"), { file: "cyl.sumi.yaml" });
     const overflow = report.diagnostics.find((d) => d.code === "geometry/label-overflow");
-    expect(overflow?.hint).toMatch(/props\.height of at least 1[5-9]pt/);
+    expect(overflow?.hint).toMatch(/props\.height of at least \d+pt/);
     const minimum = Number(/at least (\d+)pt/.exec(overflow?.hint ?? "")?.[1]);
     const fixed = await lintRenderedFigure(figure(`${minimum}pt`), { file: "cyl.sumi.yaml" });
     expect(fixed.diagnostics.filter((d) => d.severity === "error")).toEqual([]);

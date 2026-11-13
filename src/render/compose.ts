@@ -8,7 +8,13 @@ import type { Result } from "../core/result";
 import { getFontSet } from "../core/theme/fonts";
 import { captionGap, LINE_HEIGHT } from "../layout/text";
 import { measureLabel } from "../lint/geometry/measure";
-import { CYLINDER_ARC_UNITS, cylinderArc, cylinderPathData } from "../lint/geometry/shapes";
+import {
+  CYLINDER_ARC_UNITS,
+  cylinderArc,
+  cylinderPathData,
+  depthInside,
+  flattenPath,
+} from "../lint/geometry/shapes";
 import { type PathSegment, type Point, parsePath, type Rect } from "./geometry";
 import { decodeElementClass, type SvgInspection } from "./inspect";
 import {
@@ -731,7 +737,7 @@ function chevronMarker(marker: XmlElement, id: string, width: number): string {
  * puts the label in the body below them, so a cylinder under 100 units tall
  * has no room for a line of text. Where `cylinderArc()` makes the caps
  * shallower, redraws the two paths of the node's `g.shape` and moves the label
- * up by half the difference, to the middle of the body the lint measures.
+ * to the middle of the body the lint measures.
  * Callers inspect the result again (the bounding box does not change).
  */
 export function composeCylinders(
@@ -789,12 +795,95 @@ export function composeCylinders(
       const d = cylinderPathData(bbox, fmt);
       setAttribute(body, "d", d.body);
       setAttribute(rim, "d", d.rim);
-      const shift = (cylinderArc(bbox.height) - CYLINDER_ARC_UNITS) / 2;
+      // D2 puts the label half a cap below the middle, its cap being at most a quarter
+      // of the height deep (measured: 12 units from 48 units up, h / 4 below).
+      const shift =
+        cylinderArc(bbox.height) / 2 - Math.min(CYLINDER_ARC_UNITS / 2, bbox.height / 4);
       for (const text of childElements(group).filter((c) => c.name === "text")) {
         const y = Number(attribute(text, "y"));
         if (!Number.isFinite(y)) throw new Error(`${node.key}: a cylinder label lacks y.`);
         setAttribute(text, "y", fmt(y + shift));
       }
+    }
+    // D2 ended the edges on its own 24-unit caps: an end that now lies inside the
+    // shallower shape is pulled back along its last segment to the new outline.
+    const outlines = new Map(
+      short.map((node) => {
+        const bbox = geometry.get(node.key)?.bbox as Rect;
+        const parsedBody = parsePath(cylinderPathData(bbox, fmt).body);
+        if (!parsedBody.ok) throw new Error(parsedBody.message);
+        const points = flattenPath(parsedBody.segments)[0] ?? [];
+        return [node.key, { kind: "polygon" as const, points }] as const;
+      }),
+    );
+    for (const edge of ir.edges) {
+      const ends = (["source", "target"] as const).filter((end) =>
+        outlines.has(end === "source" ? edge.from : edge.to),
+      );
+      if (ends.length === 0) continue;
+      current = edge.key;
+      const original = geometry.get(edge.key)?.path;
+      const group = groups.get(edge.key);
+      const path =
+        group &&
+        childElements(group).find((c) => c.name === "path" && classList(c).includes("connection"));
+      if (!original || original.length < 2 || !path) continue;
+      const route = original.map((seg) => structuredClone(seg));
+      let changed = false;
+      for (const end of ends) {
+        const outline = outlines.get(end === "source" ? edge.from : edge.to);
+        if (outline === undefined) continue;
+        const index = end === "source" ? 0 : route.length - 1;
+        const segment = route[index] as PathSegment;
+        const point = segment.to;
+        const next = route[1] as PathSegment;
+        const neighbour =
+          end === "source"
+            ? next.command === "C"
+              ? next.c1
+              : next.to
+            : segment.command === "C"
+              ? segment.c2
+              : (route[index - 1] as PathSegment).to;
+        const length = Math.hypot(point.x - neighbour.x, point.y - neighbour.y);
+        if (length <= 1e-9 || depthInside(outline, point) <= 0.01) continue;
+        // Back along the last segment, from the end towards the neighbour, to the outline.
+        const toward = { x: (neighbour.x - point.x) / length, y: (neighbour.y - point.y) / length };
+        let lo = 0;
+        let hi = length;
+        if (depthInside(outline, neighbour) > 0) hi = length * 4;
+        for (let i = 0; i < 40; i++) {
+          const mid = (lo + hi) / 2;
+          const inside =
+            depthInside(outline, {
+              x: point.x + toward.x * mid,
+              y: point.y + toward.y * mid,
+            }) > 0;
+          if (inside) lo = mid;
+          else hi = mid;
+        }
+        const moved = { x: point.x + toward.x * hi, y: point.y + toward.y * hi };
+        const shift = { x: moved.x - point.x, y: moved.y - point.y };
+        route[index] = { ...segment, to: moved };
+        if (end === "source" && route[1]?.command === "C")
+          route[1] = {
+            ...route[1],
+            c1: { x: route[1].c1.x + shift.x, y: route[1].c1.y + shift.y },
+          };
+        const last = route[index];
+        if (end === "target" && last?.command === "C")
+          route[index] = { ...last, c2: { x: last.c2.x + shift.x, y: last.c2.y + shift.y } };
+        changed = true;
+      }
+      if (!changed) continue;
+      const tag = svg.slice(path.start, path.startTagEnd);
+      const pattern = /(\sd\s*=\s*)(?:"[^"]*"|'[^']*')/;
+      if (!pattern.test(tag)) throw new Error(`<${path.name}> lacks d.`);
+      edits.push({
+        start: path.start,
+        end: path.startTagEnd,
+        text: tag.replace(pattern, (_, prefix: string) => `${prefix}"${pathText(route)}"`),
+      });
     }
     let out = svg;
     for (const edit of edits.sort((a, b) => b.start - a.start)) {
