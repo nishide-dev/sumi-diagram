@@ -4,7 +4,7 @@
 
 A cylinder, e\.g\. for storage\.
 
-**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, filled, outlined, solid, tinted</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>cylinder</code> · **sizing**: <code>auto</code>
+**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, dashed, filled, outlined, solid, tinted</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>cylinder</code> · **sizing**: <code>auto</code>
 
 | prop | type | required | description |
 | --- | --- | --- | --- |
@@ -14,7 +14,7 @@ A cylinder, e\.g\. for storage\.
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> | <code>llama</code> | <code>sumi</code> | <code>sumi\-dark</code> |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | <img src="sumi-cylinder.minimal.svg" alt="sumi/cylinder, theme minimal"> | <img src="sumi-cylinder.academic.svg" alt="sumi/cylinder, theme academic"> | <img src="sumi-cylinder.slides.svg" alt="sumi/cylinder, theme slides"> | <img src="sumi-cylinder.color.svg" alt="sumi/cylinder, theme color"> | <img src="sumi-cylinder.paper.svg" alt="sumi/cylinder, theme paper"> | <img src="sumi-cylinder.llama.svg" alt="sumi/cylinder, theme llama"> | <img src="sumi-cylinder.sumi.svg" alt="sumi/cylinder, theme sumi"> | <img src="sumi-cylinder.sumi-dark.svg" alt="sumi/cylinder, theme sumi-dark"> |
-| <code>sumi render sumi\-cylinder\.sumi\.yaml</code><br>80\.61mm × 45\.33mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-cylinder\.sumi\.yaml \-\-theme academic</code><br>80\.43mm × 45\.33mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-cylinder\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>160\.87mm × 65\.62mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-cylinder\.sumi\.yaml \-\-theme color</code><br>80\.61mm × 45\.33mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-cylinder\.sumi\.yaml \-\-theme paper</code><br>73\.55mm × 45\.33mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-cylinder\.sumi\.yaml \-\-theme llama</code><br>73\.03mm × 45\.33mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-cylinder\.sumi\.yaml \-\-theme sumi</code><br>73\.55mm × 45\.33mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-cylinder\.sumi\.yaml \-\-theme sumi\-dark</code><br>73\.55mm × 45\.33mm \(max width 180mm, max height 220mm\) |
+| <code>sumi render sumi\-cylinder\.sumi\.yaml</code><br>83\.78mm × 45\.33mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-cylinder\.sumi\.yaml \-\-theme academic</code><br>83\.61mm × 45\.33mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-cylinder\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>167\.39mm × 65\.62mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-cylinder\.sumi\.yaml \-\-theme color</code><br>83\.78mm × 45\.33mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-cylinder\.sumi\.yaml \-\-theme paper</code><br>76\.91mm × 45\.33mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-cylinder\.sumi\.yaml \-\-theme llama</code><br>76\.38mm × 45\.33mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-cylinder\.sumi\.yaml \-\-theme sumi</code><br>76\.91mm × 45\.33mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-cylinder\.sumi\.yaml \-\-theme sumi\-dark</code><br>76\.91mm × 45\.33mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-cylinder.sumi.yaml</code></summary>
@@ -31,8 +31,8 @@ figure:
     arrange:
       stack:
         items:
-          - row: { items: [default, emphasis, muted, filled] }
-          - row: { items: [outlined, solid, tinted] }
+          - row: { items: [default, emphasis, muted, dashed] }
+          - row: { items: [filled, outlined, solid, tinted] }
 
 nodes:
   - id: default
@@ -46,6 +46,10 @@ nodes:
     component: sumi/cylinder
     label: muted
     variant: muted
+  - id: dashed
+    component: sumi/cylinder
+    label: dashed
+    variant: dashed
   - id: filled
     component: sumi/cylinder
     label: filled

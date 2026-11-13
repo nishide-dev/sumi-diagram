@@ -656,11 +656,47 @@ edges:
   - { from: backbone, to: out }
 ```
 
+## State machines, dashed nodes and filled dashed groups
+
+`component: initial` is the start of a state machine (a solid dot) and `final`
+its end (a ring around a smaller dot). Both take no label, are ordinary edge
+endpoints, and default to 1.25 em and 1.75 em across; `props.size` sets the
+diameter. Variants: `default`, `muted`. `variant: dashed` on any box-like node
+draws a dashed outline on the default fill (a tone still sets the fill), e.g. an
+external system. A group's `variant: filled-dashed` has the dashed frame of
+`dashed` and the shaded fill of `filled`.
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: states
+  theme: sumi
+  layout:
+    arrange: { row: { gap: 10mm, items: [start, idle, external, done] } }
+nodes:
+  - { id: start, component: initial }
+  - { id: idle, component: box, label: Idle }
+  - { id: api, component: box, label: Payment API, variant: dashed }
+  - { id: done, component: final }
+groups:
+  - id: external
+    variant: filled-dashed
+    arrange: { stack: { items: [api] } }
+edges:
+  - { from: start, to: idle }
+  - { from: idle, to: api }
+  - { from: api, to: done }
+```
+
 ## Text align
 
 `textAlign: left | center | right` on a node aligns its label and sublabel
 lines within their shared, widest-line text block (default centred). It does
-not wrap text or change padding: add line breaks yourself. Typical use: left-aligned prompt boxes.
+not wrap text or change padding: add line breaks yourself. In a box or label
+wider than its text (an explicit `width`, or `align: stretch`), a left or right
+`textAlign` also moves the block to that side, inside the node's padding.
+Typical use: left-aligned prompt boxes and row headings.
 
 ```yaml
 # expect-render: fits

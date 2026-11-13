@@ -4,7 +4,7 @@
 
 A rounded speech bubble or callout with an optional curved hook and left\-aligned wrapped text, including Japanese; edges attach to the body, never the tail tip\.
 
-**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, filled, outlined, solid, tinted</code> · **since**: <code>0\.15\.2</code> · **shape**: <code>rectangle</code> · **sizing**: <code>auto</code> · **render**: <code>\{&quot;type&quot;:&quot;outline&quot;,&quot;renderer&quot;:&quot;sumi/bubble&quot;,&quot;params&quot;:\{&quot;tail&quot;:&quot;none&quot;,&quot;tailAt&quot;:&quot;start&quot;,&quot;tailSize&quot;:8\.4,&quot;radius&quot;:28\}\}</code>
+**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, dashed, filled, outlined, solid, tinted</code> · **since**: <code>0\.15\.2</code> · **shape**: <code>rectangle</code> · **sizing**: <code>auto</code> · **render**: <code>\{&quot;type&quot;:&quot;outline&quot;,&quot;renderer&quot;:&quot;sumi/bubble&quot;,&quot;params&quot;:\{&quot;tail&quot;:&quot;none&quot;,&quot;tailAt&quot;:&quot;start&quot;,&quot;tailSize&quot;:8\.4,&quot;radius&quot;:28\}\}</code>
 
 | prop | type | required | description |
 | --- | --- | --- | --- |
@@ -18,7 +18,7 @@ A rounded speech bubble or callout with an optional curved hook and left\-aligne
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> | <code>llama</code> | <code>sumi</code> | <code>sumi\-dark</code> |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | <img src="sumi-bubble.minimal.svg" alt="sumi/bubble, theme minimal"> | <img src="sumi-bubble.academic.svg" alt="sumi/bubble, theme academic"> | <img src="sumi-bubble.slides.svg" alt="sumi/bubble, theme slides"> | <img src="sumi-bubble.color.svg" alt="sumi/bubble, theme color"> | <img src="sumi-bubble.paper.svg" alt="sumi/bubble, theme paper"> | <img src="sumi-bubble.llama.svg" alt="sumi/bubble, theme llama"> | <img src="sumi-bubble.sumi.svg" alt="sumi/bubble, theme sumi"> | <img src="sumi-bubble.sumi-dark.svg" alt="sumi/bubble, theme sumi-dark"> |
-| <code>sumi render sumi\-bubble\.sumi\.yaml</code><br>100\.37mm × 65\.26mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-bubble\.sumi\.yaml \-\-theme academic</code><br>100\.19mm × 65\.26mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-bubble\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>200\.38mm × 137\.76mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-bubble\.sumi\.yaml \-\-theme color</code><br>100\.37mm × 65\.26mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-bubble\.sumi\.yaml \-\-theme paper</code><br>101\.95mm × 65\.26mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-bubble\.sumi\.yaml \-\-theme llama</code><br>101\.95mm × 65\.26mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-bubble\.sumi\.yaml \-\-theme sumi</code><br>101\.95mm × 65\.26mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-bubble\.sumi\.yaml \-\-theme sumi\-dark</code><br>101\.95mm × 65\.26mm \(max width 180mm, max height 220mm\) |
+| <code>sumi render sumi\-bubble\.sumi\.yaml</code><br>103\.54mm × 65\.26mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-bubble\.sumi\.yaml \-\-theme academic</code><br>103\.36mm × 65\.26mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-bubble\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>206\.9mm × 137\.76mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-bubble\.sumi\.yaml \-\-theme color</code><br>103\.54mm × 65\.26mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-bubble\.sumi\.yaml \-\-theme paper</code><br>101\.95mm × 65\.26mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-bubble\.sumi\.yaml \-\-theme llama</code><br>101\.95mm × 65\.26mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-bubble\.sumi\.yaml \-\-theme sumi</code><br>101\.95mm × 65\.26mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-bubble\.sumi\.yaml \-\-theme sumi\-dark</code><br>101\.95mm × 65\.26mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-bubble.sumi.yaml</code></summary>
@@ -35,8 +35,8 @@ figure:
     arrange:
       stack:
         items:
-          - row: { items: [default, emphasis, muted, filled] }
-          - row: { items: [outlined, solid, tinted] }
+          - row: { items: [default, emphasis, muted, dashed] }
+          - row: { items: [filled, outlined, solid, tinted] }
           - row: { items: [tail-left, tail-right, tail-top, tail-bottom] }
           - row: { items: [english, japanese] }
 
@@ -52,6 +52,10 @@ nodes:
     component: sumi/bubble
     label: muted
     variant: muted
+  - id: dashed
+    component: sumi/bubble
+    label: dashed
+    variant: dashed
   - id: filled
     component: sumi/bubble
     label: filled

@@ -4,7 +4,7 @@
 
 A diamond, e\.g\. for decisions\.
 
-**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, filled, outlined, solid, tinted</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>diamond</code> · **sizing**: <code>auto</code>
+**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, dashed, filled, outlined, solid, tinted</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>diamond</code> · **sizing**: <code>auto</code>
 
 | prop | type | required | description |
 | --- | --- | --- | --- |
@@ -14,7 +14,7 @@ A diamond, e\.g\. for decisions\.
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> | <code>llama</code> | <code>sumi</code> | <code>sumi\-dark</code> |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | <img src="sumi-diamond.minimal.svg" alt="sumi/diamond, theme minimal"> | <img src="sumi-diamond.academic.svg" alt="sumi/diamond, theme academic"> | <img src="sumi-diamond.slides.svg" alt="sumi/diamond, theme slides"> | <img src="sumi-diamond.color.svg" alt="sumi/diamond, theme color"> | <img src="sumi-diamond.paper.svg" alt="sumi/diamond, theme paper"> | <img src="sumi-diamond.llama.svg" alt="sumi/diamond, theme llama"> | <img src="sumi-diamond.sumi.svg" alt="sumi/diamond, theme sumi"> | <img src="sumi-diamond.sumi-dark.svg" alt="sumi/diamond, theme sumi-dark"> |
-| <code>sumi render sumi\-diamond\.sumi\.yaml</code><br>145\.17mm × 31\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-diamond\.sumi\.yaml \-\-theme academic</code><br>144\.82mm × 31\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-diamond\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>289\.45mm × 64\.21mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-diamond\.sumi\.yaml \-\-theme color</code><br>145\.17mm × 31\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-diamond\.sumi\.yaml \-\-theme paper</code><br>131\.06mm × 31\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-diamond\.sumi\.yaml \-\-theme llama</code><br>130mm × 31\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-diamond\.sumi\.yaml \-\-theme sumi</code><br>131\.06mm × 31\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-diamond\.sumi\.yaml \-\-theme sumi\-dark</code><br>131\.06mm × 31\.93mm \(max width 180mm, max height 220mm\) |
+| <code>sumi render sumi\-diamond\.sumi\.yaml</code><br>151\.52mm × 31\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-diamond\.sumi\.yaml \-\-theme academic</code><br>151\.17mm × 31\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-diamond\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>302\.51mm × 64\.21mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-diamond\.sumi\.yaml \-\-theme color</code><br>151\.52mm × 31\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-diamond\.sumi\.yaml \-\-theme paper</code><br>137\.76mm × 31\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-diamond\.sumi\.yaml \-\-theme llama</code><br>136\.7mm × 31\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-diamond\.sumi\.yaml \-\-theme sumi</code><br>137\.76mm × 31\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-diamond\.sumi\.yaml \-\-theme sumi\-dark</code><br>137\.76mm × 31\.93mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-diamond.sumi.yaml</code></summary>
@@ -31,8 +31,8 @@ figure:
     arrange:
       stack:
         items:
-          - row: { items: [default, emphasis, muted, filled] }
-          - row: { items: [outlined, solid, tinted] }
+          - row: { items: [default, emphasis, muted, dashed] }
+          - row: { items: [filled, outlined, solid, tinted] }
 
 nodes:
   - id: default
@@ -46,6 +46,10 @@ nodes:
     component: sumi/diamond
     label: muted
     variant: muted
+  - id: dashed
+    component: sumi/diamond
+    label: dashed
+    variant: dashed
   - id: filled
     component: sumi/diamond
     label: filled

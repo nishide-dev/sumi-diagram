@@ -4,7 +4,7 @@
 
 A parallelogram, e\.g\. for input or output\.
 
-**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, filled, outlined, solid, tinted</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>parallelogram</code> · **sizing**: <code>auto</code>
+**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, dashed, filled, outlined, solid, tinted</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>parallelogram</code> · **sizing**: <code>auto</code>
 
 | prop | type | required | description |
 | --- | --- | --- | --- |
@@ -14,7 +14,7 @@ A parallelogram, e\.g\. for input or output\.
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> | <code>llama</code> | <code>sumi</code> | <code>sumi\-dark</code> |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | <img src="sumi-parallelogram.minimal.svg" alt="sumi/parallelogram, theme minimal"> | <img src="sumi-parallelogram.academic.svg" alt="sumi/parallelogram, theme academic"> | <img src="sumi-parallelogram.slides.svg" alt="sumi/parallelogram, theme slides"> | <img src="sumi-parallelogram.color.svg" alt="sumi/parallelogram, theme color"> | <img src="sumi-parallelogram.paper.svg" alt="sumi/parallelogram, theme paper"> | <img src="sumi-parallelogram.llama.svg" alt="sumi/parallelogram, theme llama"> | <img src="sumi-parallelogram.sumi.svg" alt="sumi/parallelogram, theme sumi"> | <img src="sumi-parallelogram.sumi-dark.svg" alt="sumi/parallelogram, theme sumi-dark"> |
-| <code>sumi render sumi\-parallelogram\.sumi\.yaml</code><br>109\.71mm × 19\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-parallelogram\.sumi\.yaml \-\-theme academic</code><br>109\.54mm × 19\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-parallelogram\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>189\.79mm × 40\.22mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-parallelogram\.sumi\.yaml \-\-theme color</code><br>109\.71mm × 19\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-parallelogram\.sumi\.yaml \-\-theme paper</code><br>102\.83mm × 19\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-parallelogram\.sumi\.yaml \-\-theme llama</code><br>102\.13mm × 19\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-parallelogram\.sumi\.yaml \-\-theme sumi</code><br>102\.83mm × 19\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-parallelogram\.sumi\.yaml \-\-theme sumi\-dark</code><br>102\.83mm × 19\.93mm \(max width 180mm, max height 220mm\) |
+| <code>sumi render sumi\-parallelogram\.sumi\.yaml</code><br>113\.07mm × 19\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-parallelogram\.sumi\.yaml \-\-theme academic</code><br>112\.89mm × 19\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-parallelogram\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>196\.32mm × 40\.22mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-parallelogram\.sumi\.yaml \-\-theme color</code><br>113\.07mm × 19\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-parallelogram\.sumi\.yaml \-\-theme paper</code><br>106\.36mm × 19\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-parallelogram\.sumi\.yaml \-\-theme llama</code><br>105\.66mm × 19\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-parallelogram\.sumi\.yaml \-\-theme sumi</code><br>106\.36mm × 19\.93mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-parallelogram\.sumi\.yaml \-\-theme sumi\-dark</code><br>106\.36mm × 19\.93mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-parallelogram.sumi.yaml</code></summary>
@@ -31,8 +31,8 @@ figure:
     arrange:
       stack:
         items:
-          - row: { items: [default, emphasis, muted, filled] }
-          - row: { items: [outlined, solid, tinted] }
+          - row: { items: [default, emphasis, muted, dashed] }
+          - row: { items: [filled, outlined, solid, tinted] }
 
 nodes:
   - id: default
@@ -46,6 +46,10 @@ nodes:
     component: sumi/parallelogram
     label: muted
     variant: muted
+  - id: dashed
+    component: sumi/parallelogram
+    label: dashed
+    variant: dashed
   - id: filled
     component: sumi/parallelogram
     label: filled

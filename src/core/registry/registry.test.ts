@@ -55,6 +55,8 @@ describe("built-in components", () => {
       ["sumi/block-arrow", "node"],
       ["sumi/triangle-arrow", "node"],
       ["sumi/chevron", "node"],
+      ["sumi/initial", "node"],
+      ["sumi/final", "node"],
       ["sumi/label", "node"],
       ["sumi/operator", "node"],
       ["sumi/junction", "node"],
@@ -85,6 +87,7 @@ describe("built-in components", () => {
       "default",
       "emphasis",
       "muted",
+      "dashed",
       "filled",
       "outlined",
       "solid",
@@ -146,6 +149,7 @@ describe("builtinRegistry", () => {
       "default",
       "emphasis",
       "muted",
+      "dashed",
       "filled",
       "outlined",
       "solid",
@@ -304,7 +308,7 @@ describe("resolve", () => {
         code: "component/unknown",
         severity: "error",
         message: 'Unknown node component "rectangel".',
-        hint: "Known node components: box, square, circle, ellipse, diamond, hexagon, parallelogram, cylinder, document, trapezoid, bowtie, stack, bracket, bubble, separator, block-arrow, triangle-arrow, chevron, label, operator, junction, image, html, waveform, legend, tokens, matrix.",
+        hint: "Known node components: box, square, circle, ellipse, diamond, hexagon, parallelogram, cylinder, document, trapezoid, bowtie, stack, bracket, bubble, separator, block-arrow, triangle-arrow, chevron, initial, final, label, operator, junction, image, html, waveform, legend, tokens, matrix.",
       },
     ]);
     expect(registry.resolve("arow", "edge").diagnostics[0]?.hint).toBe('Did you mean "arrow"?');
@@ -327,7 +331,7 @@ describe("resolve", () => {
         severity: "error",
         message:
           'Component "arrow" (sumi/arrow) is an edge component, but a node component is required here.',
-        hint: "Known node components: box, square, circle, ellipse, diamond, hexagon, parallelogram, cylinder, document, trapezoid, bowtie, stack, bracket, bubble, separator, block-arrow, triangle-arrow, chevron, label, operator, junction, image, html, waveform, legend, tokens, matrix.",
+        hint: "Known node components: box, square, circle, ellipse, diamond, hexagon, parallelogram, cylinder, document, trapezoid, bowtie, stack, bracket, bubble, separator, block-arrow, triangle-arrow, chevron, initial, final, label, operator, junction, image, html, waveform, legend, tokens, matrix.",
       },
     ]);
     expect(codes(registry.resolve("container", "node"))).toEqual(["component/wrong-kind"]);
@@ -442,7 +446,7 @@ describe("validateUsage", () => {
       hint: 'Did you mean "muted"?',
     });
     expect(registry.validateUsage(box, { variant: "loud" }).diagnostics[0]?.hint).toBe(
-      "Variants of sumi/box: default, emphasis, muted, filled, outlined, solid, tinted.",
+      "Variants of sumi/box: default, emphasis, muted, dashed, filled, outlined, solid, tinted.",
     );
   });
 
@@ -541,7 +545,7 @@ describe("catalog", () => {
       namespace: "sumi",
       name: "box",
       description: "A rectangle; the general-purpose node.",
-      variants: ["default", "emphasis", "muted", "filled", "outlined", "solid", "tinted"],
+      variants: ["default", "emphasis", "muted", "dashed", "filled", "outlined", "solid", "tinted"],
       since: "0.1.0",
       shape: "rectangle",
       sizing: "auto",
