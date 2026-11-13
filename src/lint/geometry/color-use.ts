@@ -34,16 +34,14 @@ const UNPAINTED = new Set([
   "sumi/operator",
   "sumi/image",
 ]);
-/**
- * A paint within this CIE76 distance of the theme's own color for the tone is that color
- * (a rounding apart). Pale tones have chroma below the neutral threshold, so only an
- * identical paint may take its verdict from the tone's name.
- */
+/** A paint within this CIE76 distance of the theme's own color for the tone is that color. */
 const SAME_PAINT = 1;
-/** A toned element painted below this OKLCH chroma (an override to gray) is neutral. */
-const NEUTRAL_CHROMA = 0.025;
-/** An untoned or gray-toned element painted at or above this chroma (an override to a hue) is chromatic. */
-const SATURATED_CHROMA = 0.06;
+/**
+ * An overriding paint below this OKLCH chroma is a true gray. Pale tones sit
+ * just above it (sumi's blue fill has 0.012), so a pale tint overridden with
+ * another pale tint stays chromatic; a warm gray such as #efeddd (0.016) too.
+ */
+const NEUTRAL_CHROMA = 0.008;
 
 export interface ToneUse {
   /** The tone's name; `gray` when an override paints the gray tone in a hue. */
@@ -81,6 +79,33 @@ function paintOf(element: GeometryElement, heavy: boolean): string | undefined {
  * name says so unless the figure overrides the paint (`solidFills`,
  * `themeOverrides.tones`, a palette): then the resolved color is judged.
  */
+const NEUTRALS = new WeakMap<Theme, readonly string[]>();
+const NEUTRAL_VARIANTS = ["default", "emphasis", "muted", "solid", "filled", "outlined", "tinted"];
+
+/** Colors the theme paints in gray (tone `gray` or none) on a box, for every variant. */
+function neutralsOf(theme: Theme | undefined): readonly string[] {
+  if (theme === undefined) return [];
+  const known = NEUTRALS.get(theme);
+  if (known !== undefined) return known;
+  const colors = new Set<string>();
+  for (const variant of NEUTRAL_VARIANTS) {
+    for (const tone of [undefined, "gray"] as const) {
+      const { style } = resolveStyle(theme, {
+        kind: "node",
+        id: "sumi/box",
+        variant,
+        ...(tone !== undefined && { tone }),
+      });
+      for (const color of [style.fill, style.stroke, style.fontColor]) {
+        if (isHex(color)) colors.add(color.toLowerCase());
+      }
+    }
+  }
+  const list = [...colors];
+  NEUTRALS.set(theme, list);
+  return list;
+}
+
 function hueOf(
   element: GeometryElement,
   theme: Theme | undefined,
@@ -90,33 +115,25 @@ function hueOf(
   if (ir.kind === "edge") return undefined;
   const tone = ir.tone ?? "gray";
   const actual = paintOf(element, heavy);
-  const expected =
-    theme === undefined
-      ? undefined
-      : resolveStyle(theme, {
-          kind: ir.kind,
-          id: ir.component,
-          variant: ir.variant,
-          ...(ir.tone !== undefined && { tone: ir.tone }),
-        }).style;
-  const expectedPaint =
-    expected === undefined
-      ? undefined
-      : (() => {
-          const color = heavy
-            ? expected.fill
-            : expected.strokeWidth.units > 0
-              ? expected.stroke
-              : expected.fill;
-          return isHex(color) ? color : undefined;
-        })();
+  const paintFor = (withTone: boolean): string | undefined => {
+    if (theme === undefined) return undefined;
+    const { style } = resolveStyle(theme, {
+      kind: ir.kind,
+      id: ir.component,
+      variant: ir.variant,
+      ...(withTone && ir.tone !== undefined && { tone: ir.tone }),
+    });
+    const color = heavy ? style.fill : style.strokeWidth.units > 0 ? style.stroke : style.fill;
+    return isHex(color) ? color : undefined;
+  };
   if (actual === undefined) return tone === "gray" ? undefined : tone;
-  if (expectedPaint !== undefined && deltaE(actual, expectedPaint) < SAME_PAINT) {
+  const own = paintFor(true);
+  if (own !== undefined && deltaE(actual, own) <= SAME_PAINT)
     return tone === "gray" ? undefined : tone;
-  }
-  const { c } = toOklch(actual);
-  if (tone === "gray") return c >= SATURATED_CHROMA ? "gray" : undefined;
-  return c < NEUTRAL_CHROMA ? undefined : tone;
+  // The theme's own neutrals (ink, canvas, gray tone and the dark block) are no hue.
+  if (neutralsOf(theme).some((color) => deltaE(actual, color) <= SAME_PAINT)) return undefined;
+  // An override: judge the painted color, whatever the tone's name.
+  return toOklch(actual).c < NEUTRAL_CHROMA ? undefined : tone;
 }
 
 /** Measures what the figure's nodes and groups paint, against the heavy variants of `guidance`. */

@@ -206,4 +206,28 @@ describe("geometry/theme-color-use: what counts (#513 review)", () => {
       ),
     ).toEqual([]);
   });
+
+  test("an override is judged by its chroma: #d6e4e6 is still blue, #efeddd (a warm gray) counts as a hue", async () => {
+    const nodes = [
+      box("a", "variant: filled, tone: blue"),
+      box("b", "variant: filled, tone: blue"),
+    ].join("\n");
+    const blue = (fill: string) => `{ tones: { blue: { fill: '${fill}', line: '#555555' } } }`;
+    expect(await findingsOf(figure({ nodes, overrides: blue("#d6e4e6") }))).toHaveLength(1);
+    expect(await findingsOf(figure({ nodes, overrides: blue("#e1e1e1") }))).toEqual([]);
+    // Chroma 0.016 is above the true-gray threshold: a warm gray override is reported, the
+    // residual ambiguity of very low-chroma tints (documented in design #513).
+    expect(await findingsOf(figure({ nodes, overrides: blue("#efeddd") }))).toHaveLength(1);
+  });
+
+  test("the gray tone's defaults (sumi, sumi-dark) are neutral through the shortcut", async () => {
+    const grays = [
+      box("a", "variant: filled, tone: gray"),
+      box("b", "variant: solid, tone: gray"),
+    ].join("\n");
+    for (const theme of ["sumi", "sumi-dark"]) {
+      const source = figure({ nodes: grays }).replace("theme: sumi", `theme: ${theme}`);
+      expect(await findingsOf(source), theme).toEqual([]);
+    }
+  });
 });

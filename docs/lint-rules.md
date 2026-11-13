@@ -55,7 +55,7 @@ info にしたのは、配色は好みと意図（分類のための多色）に
 | 濃い色の塊 | `gray` 以外の tone を持つ `solid` ノードが `maxSolidNodes`（0）を超える。sumi の濃いブロックは中立の `emphasis` で、tone 付きの `solid` は彩度の高い赤・緑・青になる |
 | 面の塗り | 有彩色の tone を持つ `heavyVariants`（`filled`・`solid`）のノードの bbox 面積が、描かれるノードの面積の `maxHeavyShare`（30%）を超える |
 
-埋め込み画像・凡例の部品・label / junction / separator / operator は数えない（アイコン付きの箱は数える）。有彩色かどうかは、tone の名前ではなく、`solidFills`・`themeOverrides.tones`・パレットを反映した描画色で判断する（tone 名は報告にだけ使う）。info にしたのは、色の好みは図の意図に左右され、欠陥ではないため（`color-harmony`・`color-on-panel` と同じ）。
+埋め込み画像・凡例の部品・label / junction / separator / operator は数えない（アイコン付きの箱は数える）。有彩色かどうかは描画色で判断する。テーマが解決する tone の色と同じ（CIE76 で 1 以下）なら tone 名どおり、テーマ自身の無彩色と同じなら無彩色、`solidFills`・`themeOverrides.tones`・パレットで上書きされた色は OKLCH 彩度 0.008 未満が無彩色、以上が有彩色（tone 名は報告にだけ使う）。彩度が非常に低い淡い色（暖かい灰色 #efeddd など）は有彩色になりうる。info にしたのは、色の好みは図の意図に左右され、欠陥ではないため（`color-harmony`・`color-on-panel` と同じ）。
 `lint --geometry` での抑止は `--rule geometry/theme-color-use=off`。設計は [設計 #513](design/decisions/513-theme-color-use.md) を参照。
 
 ## 色の重なりと濁り（#440）
