@@ -48,7 +48,10 @@ ${extraSets}`;
       d.code === "geometry/set-contains-non-member",
   );
   const by: Record<string, string[]> = {};
-  for (const d of findings) (by[d.subject?.id ?? ""] ??= []).push(d.code);
+  for (const d of findings) {
+    const id = d.subject?.id ?? "";
+    by[id] = [...(by[id] ?? []), d.code];
+  }
   return { codes: by.s ?? [], by };
 }
 
