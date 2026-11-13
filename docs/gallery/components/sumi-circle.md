@@ -4,17 +4,17 @@
 
 A circle\.
 
-**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, filled, outlined, solid, tinted</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>circle</code> · **sizing**: <code>fixed\-aspect\-1</code>
+**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, dashed, filled, outlined, solid, tinted</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>circle</code> · **sizing**: <code>fixed\-aspect\-1</code>
 
 | prop | type | required | description |
 | --- | --- | --- | --- |
-| <code>width</code> | <code>string</code> | no | Explicit width as a length such as &quot;30mm&quot; or &quot;40pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
-| <code>height</code> | <code>string</code> | no | Explicit height as a length such as &quot;10mm&quot; or &quot;20pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
+| <code>width</code> | <code>string</code> | no | Explicit width as a length such as &quot;30mm&quot; or &quot;40pt&quot; \(rounded to the nearest 0\.5pt\)\. Omitted means sized to the label\. |
+| <code>height</code> | <code>string</code> | no | Explicit height as a length such as &quot;10mm&quot; or &quot;20pt&quot; \(rounded to the nearest 0\.5pt\)\. Omitted means sized to the label\. |
 
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> | <code>llama</code> | <code>sumi</code> | <code>sumi\-dark</code> |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | <img src="sumi-circle.minimal.svg" alt="sumi/circle, theme minimal"> | <img src="sumi-circle.academic.svg" alt="sumi/circle, theme academic"> | <img src="sumi-circle.slides.svg" alt="sumi/circle, theme slides"> | <img src="sumi-circle.color.svg" alt="sumi/circle, theme color"> | <img src="sumi-circle.paper.svg" alt="sumi/circle, theme paper"> | <img src="sumi-circle.llama.svg" alt="sumi/circle, theme llama"> | <img src="sumi-circle.sumi.svg" alt="sumi/circle, theme sumi"> | <img src="sumi-circle.sumi-dark.svg" alt="sumi/circle, theme sumi-dark"> |
-| <code>sumi render sumi\-circle\.sumi\.yaml</code><br>69\.32mm × 40\.04mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-circle\.sumi\.yaml \-\-theme academic</code><br>68\.97mm × 39\.69mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-circle\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>138\.64mm × 80\.08mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-circle\.sumi\.yaml \-\-theme color</code><br>69\.32mm × 40\.04mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-circle\.sumi\.yaml \-\-theme paper</code><br>63\.32mm × 36\.34mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-circle\.sumi\.yaml \-\-theme llama</code><br>62\.62mm × 35\.63mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-circle\.sumi\.yaml \-\-theme sumi</code><br>63\.32mm × 36\.34mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-circle\.sumi\.yaml \-\-theme sumi\-dark</code><br>63\.32mm × 36\.34mm \(max width 180mm, max height 220mm\) |
+| <code>sumi render sumi\-circle\.sumi\.yaml</code><br>72\.32mm × 40\.04mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-circle\.sumi\.yaml \-\-theme academic</code><br>71\.97mm × 39\.69mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-circle\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>144\.64mm × 80\.08mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-circle\.sumi\.yaml \-\-theme color</code><br>72\.32mm × 40\.04mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-circle\.sumi\.yaml \-\-theme paper</code><br>66\.32mm × 36\.34mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-circle\.sumi\.yaml \-\-theme llama</code><br>65\.62mm × 35\.63mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-circle\.sumi\.yaml \-\-theme sumi</code><br>66\.32mm × 36\.34mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-circle\.sumi\.yaml \-\-theme sumi\-dark</code><br>66\.32mm × 36\.34mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-circle.sumi.yaml</code></summary>
@@ -31,8 +31,8 @@ figure:
     arrange:
       stack:
         items:
-          - row: { items: [default, emphasis, muted, filled] }
-          - row: { items: [outlined, solid, tinted] }
+          - row: { items: [default, emphasis, muted, dashed] }
+          - row: { items: [filled, outlined, solid, tinted] }
 
 nodes:
   - id: default
@@ -46,6 +46,10 @@ nodes:
     component: sumi/circle
     label: muted
     variant: muted
+  - id: dashed
+    component: sumi/circle
+    label: dashed
+    variant: dashed
   - id: filled
     component: sumi/circle
     label: filled

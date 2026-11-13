@@ -14,8 +14,8 @@ A PNG, JPEG or SVG file, safe inline SVG drawing or named figure asset \(optiona
 | <code>crop</code> | <code>array</code> | no | \[x, y, width, height\] in the asset SVG's viewBox coordinates \(since 0\.12\.0\): draws only that rectangle, to cut a patch from one picture\. Only with asset, on an SVG asset, inside its viewBox\. |
 | <code>sha256</code> | <code>string</code> | no | Expected sha256 of the file bytes or UTF\-8 inline SVG source in hex\. Rendering fails if the input has changed\. Omitted means not checked\. With asset, write it on the figure\.assets entry instead\. |
 | <code>fit</code> | <code>&quot;contain&quot; &#124; &quot;cover&quot; &#124; &quot;fill&quot;</code> | no | contain: the whole image, centered, keeping its aspect ratio \(the default\)\. cover: fills the box, keeping the aspect ratio and clipping the overflow\. fill: stretched to the box\. |
-| <code>width</code> | <code>string</code> | no | Width as a length such as &quot;30mm&quot; \(a multiple of 0\.5pt\)\. Omitted means from the height and the image's aspect ratio\. |
-| <code>height</code> | <code>string</code> | no | Height as a length such as &quot;20mm&quot; \(a multiple of 0\.5pt\)\. Omitted means from the width and the image's aspect ratio\. |
+| <code>width</code> | <code>string</code> | no | Width as a length such as &quot;30mm&quot; \(rounded to the nearest 0\.5pt\)\. Omitted means from the height and the image's aspect ratio\. |
+| <code>height</code> | <code>string</code> | no | Height as a length such as &quot;20mm&quot; \(rounded to the nearest 0\.5pt\)\. Omitted means from the width and the image's aspect ratio\. |
 | <code>layers</code> | <code>object</code> | no | Repeat the unchanged image behind the front one, offset up\-right\. Width and height size each copy; the node footprint includes the whole stack\. |
 
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> | <code>llama</code> | <code>sumi</code> | <code>sumi\-dark</code> |

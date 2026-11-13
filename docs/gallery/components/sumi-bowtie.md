@@ -4,18 +4,18 @@
 
 A bowtie silhouette with two opposing tapered halves and a central waist\.
 
-**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, filled, outlined, solid, tinted</code> · **since**: <code>0\.7\.0</code> · **shape**: <code>rectangle</code> · **sizing**: <code>auto</code> · **render**: <code>\{&quot;type&quot;:&quot;outline&quot;,&quot;renderer&quot;:&quot;sumi/bowtie&quot;,&quot;params&quot;:\{\}\}</code>
+**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, dashed, filled, outlined, solid, tinted</code> · **since**: <code>0\.7\.0</code> · **shape**: <code>rectangle</code> · **sizing**: <code>auto</code> · **render**: <code>\{&quot;type&quot;:&quot;outline&quot;,&quot;renderer&quot;:&quot;sumi/bowtie&quot;,&quot;params&quot;:\{\}\}</code>
 
 | prop | type | required | description |
 | --- | --- | --- | --- |
-| <code>width</code> | <code>string</code> | no | Explicit width as a length such as &quot;30mm&quot; or &quot;40pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
-| <code>height</code> | <code>string</code> | no | Explicit height as a length such as &quot;10mm&quot; or &quot;20pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
+| <code>width</code> | <code>string</code> | no | Explicit width as a length such as &quot;30mm&quot; or &quot;40pt&quot; \(rounded to the nearest 0\.5pt\)\. Omitted means sized to the label\. |
+| <code>height</code> | <code>string</code> | no | Explicit height as a length such as &quot;10mm&quot; or &quot;20pt&quot; \(rounded to the nearest 0\.5pt\)\. Omitted means sized to the label\. |
 | <code>gap</code> | <code>number</code> | no | Horizontal separation of the two tapered halves in D2 units \(0\.5pt each\), from 0 to 64; omitted or 0 keeps the joined silhouette\. One label is centered across both halves and the gap when readable on the page; low\-contrast text \(including solid\) sits on the sized left painted body\. Borderless filled may overlay the bodies, while stroked outline crossings are reported by geometry lint\. Clamped to half the drawn width for small explicit sizes\. |
 
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> | <code>llama</code> | <code>sumi</code> | <code>sumi\-dark</code> |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | <img src="sumi-bowtie.minimal.svg" alt="sumi/bowtie, theme minimal"> | <img src="sumi-bowtie.academic.svg" alt="sumi/bowtie, theme academic"> | <img src="sumi-bowtie.slides.svg" alt="sumi/bowtie, theme slides"> | <img src="sumi-bowtie.color.svg" alt="sumi/bowtie, theme color"> | <img src="sumi-bowtie.paper.svg" alt="sumi/bowtie, theme paper"> | <img src="sumi-bowtie.llama.svg" alt="sumi/bowtie, theme llama"> | <img src="sumi-bowtie.sumi.svg" alt="sumi/bowtie, theme sumi"> | <img src="sumi-bowtie.sumi-dark.svg" alt="sumi/bowtie, theme sumi-dark"> |
-| <code>sumi render sumi\-bowtie\.sumi\.yaml</code><br>97\.01mm × 64\.03mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-bowtie\.sumi\.yaml \-\-theme academic</code><br>97\.01mm × 64\.03mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-bowtie\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>160\.87mm × 128\.23mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-bowtie\.sumi\.yaml \-\-theme color</code><br>97\.01mm × 64\.03mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-bowtie\.sumi\.yaml \-\-theme paper</code><br>95\.25mm × 64\.03mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-bowtie\.sumi\.yaml \-\-theme llama</code><br>97\.72mm × 64\.03mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-bowtie\.sumi\.yaml \-\-theme sumi</code><br>97\.72mm × 64\.03mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-bowtie\.sumi\.yaml \-\-theme sumi\-dark</code><br>97\.72mm × 64\.03mm \(max width 180mm, max height 220mm\) |
+| <code>sumi render sumi\-bowtie\.sumi\.yaml</code><br>106\.36mm × 64\.03mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-bowtie\.sumi\.yaml \-\-theme academic</code><br>106\.36mm × 64\.03mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-bowtie\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>167\.39mm × 128\.23mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-bowtie\.sumi\.yaml \-\-theme color</code><br>106\.36mm × 64\.03mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-bowtie\.sumi\.yaml \-\-theme paper</code><br>106\.36mm × 64\.03mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-bowtie\.sumi\.yaml \-\-theme llama</code><br>108\.83mm × 64\.03mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-bowtie\.sumi\.yaml \-\-theme sumi</code><br>108\.83mm × 64\.03mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-bowtie\.sumi\.yaml \-\-theme sumi\-dark</code><br>108\.83mm × 64\.03mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-bowtie.sumi.yaml</code></summary>
@@ -32,10 +32,10 @@ figure:
     arrange:
       stack:
         items:
-          - row: { items: [default, emphasis, muted, filled] }
-          - row: { items: [outlined, solid, tinted] }
-          - row: { items: [split-default, split-emphasis, split-muted, split-filled] }
-          - row: { items: [split-outlined, split-solid, split-tinted] }
+          - row: { items: [default, emphasis, muted, dashed] }
+          - row: { items: [filled, outlined, solid, tinted] }
+          - row: { items: [split-default, split-emphasis, split-muted, split-dashed] }
+          - row: { items: [split-filled, split-outlined, split-solid, split-tinted] }
 
 nodes:
   - id: default
@@ -49,6 +49,10 @@ nodes:
     component: sumi/bowtie
     label: muted
     variant: muted
+  - id: dashed
+    component: sumi/bowtie
+    label: dashed
+    variant: dashed
   - id: filled
     component: sumi/bowtie
     label: filled
@@ -68,6 +72,7 @@ nodes:
   - { id: split-default, component: bowtie, label: "S", variant: default, props: { gap: 64 } }
   - { id: split-emphasis, component: bowtie, label: "S", variant: emphasis, props: { gap: 64 } }
   - { id: split-muted, component: bowtie, label: "S", variant: muted, props: { gap: 64 } }
+  - { id: split-dashed, component: bowtie, label: "S", variant: dashed, props: { gap: 64 } }
   - { id: split-filled, component: bowtie, label: "filled", variant: filled, props: { gap: 8 } }
   - { id: split-outlined, component: bowtie, label: "S", variant: outlined, props: { gap: 64 } }
   - { id: split-solid, component: bowtie, label: "S", variant: solid, props: { gap: 64 } }

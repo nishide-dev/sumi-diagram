@@ -760,6 +760,12 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
                     shaft: component.props.shaft,
                   }),
                 }),
+                ...(component.manifest.render.renderer === "sumi/state-marker" && {
+                  em: style.fontSize.units,
+                  ...(typeof component.props.size === "number" && {
+                    size: component.props.size * 2,
+                  }),
+                }),
                 ...(component.manifest.render.renderer === "sumi/trapezoid" &&
                   typeof component.props.narrow === "string" &&
                   component.props.narrow !== "south" && { narrow: component.props.narrow }),
@@ -1375,7 +1381,7 @@ function imageIR(
   });
 }
 
-/** A size prop in pt (an exact multiple of 0.5pt, checked by the manifest). */
+/** A size prop in pt (rounded to a multiple of 0.5pt by the manifest). */
 function lengthOf(pt: number): StyleLength {
   return freeze({ pt, units: pt * 2 });
 }

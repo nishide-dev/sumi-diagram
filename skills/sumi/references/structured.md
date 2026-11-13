@@ -499,7 +499,7 @@ edges:
 
 **Stacked group frames.** Use `props.layers: { count: 4, offset: 3pt }` on a
 group (structured layout). `count` includes the front card (1–16); `offset` is
-a positive length on the 0.5pt grid, diagonally up-right, matching image layers.
+a positive length rounded to the nearest 0.5pt (at least 0.5pt), diagonally up-right, matching image layers.
 Only frames repeat, with the same fill/stroke, tone and dim colors; the front
 keeps its title, children and padding. Rows, stacks, grids, obstacles, geometry
 lint and the centred caption reserve the whole footprint. `label: '$C$'` with
@@ -656,11 +656,47 @@ edges:
   - { from: backbone, to: out }
 ```
 
+## State machines, dashed nodes and filled dashed groups
+
+`component: initial` is the start of a state machine (a solid dot) and `final`
+its end (a ring around a smaller dot). Both take no label, are ordinary edge
+endpoints, and default to 1.25 em and 1.75 em across; `props.size` sets the
+diameter. Variant: `default` (the ink). `variant: dashed` on any box-like node
+draws a dashed outline on the default fill (a tone still sets the fill), e.g. an
+external system. A group's `variant: filled-dashed` has the dashed frame of
+`dashed` and the shaded fill of `filled`.
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: states
+  theme: sumi
+  layout:
+    arrange: { row: { gap: 10mm, items: [start, idle, external, done] } }
+nodes:
+  - { id: start, component: initial }
+  - { id: idle, component: box, label: Idle }
+  - { id: api, component: box, label: Payment API, variant: dashed }
+  - { id: done, component: final }
+groups:
+  - id: external
+    variant: filled-dashed
+    arrange: { stack: { items: [api] } }
+edges:
+  - { from: start, to: idle }
+  - { from: idle, to: api }
+  - { from: api, to: done }
+```
+
 ## Text align
 
 `textAlign: left | center | right` on a node aligns its label and sublabel
 lines within their shared, widest-line text block (default centred). It does
-not wrap text or change padding: add line breaks yourself. Typical use: left-aligned prompt boxes.
+not wrap text or change padding: add line breaks yourself. In a box or label
+wider than its text (an explicit `width`, or `align: stretch`), a left or right
+`textAlign` also moves the block to that side, inside the node's padding.
+Typical use: left-aligned prompt boxes and row headings.
 
 ```yaml
 # expect-render: fits

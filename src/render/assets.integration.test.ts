@@ -561,7 +561,6 @@ nodes:
       "{ count: 2.5, offset: 3pt }",
       "{ count: 4, offset: 0pt }",
       "{ count: 4, offset: -3pt }",
-      "{ count: 4, offset: 0.1pt }",
       "{ count: 4 }",
       "{ count: 4, offset: 3pt, direction: left }",
       "4",

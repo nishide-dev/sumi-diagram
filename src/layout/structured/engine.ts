@@ -239,6 +239,7 @@ class StructuredLayout {
   /** Padding added to sides of groups for the room before arrowheads (#171, `growPadding`). */
   readonly #extraPadding = new Map<ElementKey, Overhang>();
   readonly #margin: number;
+  readonly #nodePaddingX: number;
 
   // The state of one pass (`run`).
   #struts: Struts = NO_STRUTS;
@@ -263,6 +264,7 @@ class StructuredLayout {
       x: units(profile.layout.nodePaddingX.pt),
       y: units(profile.layout.nodePaddingY.pt),
     };
+    this.#nodePaddingX = padding.x;
     for (const node of ir.nodes) {
       this.#nodes.set(node.key, node);
       const label = measureText(node.label, node.style, measurer);
@@ -1057,6 +1059,35 @@ class StructuredLayout {
 
   // --- Result ----------------------------------------------------------------
 
+  /**
+   * Where the text block of a node goes. The block is centered in the node,
+   * but a left or right `textAlign` on a node wider than its text (a fixed
+   * `width`, a stretched box) moves the whole block to that side of the
+   * padded node, so the alignment shows (#519). Rectangular nodes only.
+   */
+  #alignedCenter(
+    node: NodeIR,
+    rect: Rect,
+    center: { x: number; y: number },
+    metrics: TextMetrics,
+    sublabel: TextMetrics | undefined,
+  ): { x: number; y: number } {
+    const side = node.textAlign;
+    const plain = node.shape === "rectangle" || node.shape === "text" || node.shape === "square";
+    if ((side !== "left" && side !== "right") || !plain || node.render !== undefined) return center;
+    if (node.labelRotation !== undefined || this.#captions.has(node.key)) return center;
+    const block = Math.max(metrics.width, sublabel?.width ?? 0);
+    const inset = node.shape === "text" ? 0 : this.#nodePaddingX;
+    // A node only as wide as its text (the size is rounded up to a whole unit) keeps its center.
+    if (rect.width - (block + 2 * inset) <= 1) return center;
+    const x =
+      side === "left" ? rect.x + inset + block / 2 : rect.x + rect.width - inset - block / 2;
+    // Never move toward the middle: a node as wide as its text keeps its center.
+    return side === "left"
+      ? { ...center, x: Math.min(center.x, x) }
+      : { ...center, x: Math.max(center.x, x) };
+  }
+
   #result(): LayoutIR {
     const labels = new Map<ElementKey, TextLayout>();
     const sublabels = new Map<ElementKey, TextLayout>();
@@ -1073,11 +1104,18 @@ class StructuredLayout {
               y: rect.y + rect.height + caption.gap + caption.height / 2,
             };
       const sublabel = this.#sublabels.get(node.key);
+      const anchored = this.#alignedCenter(node, rect, center, metrics, sublabel);
       if (sublabel === undefined) {
-        labels.set(node.key, placeText(metrics, center, node.labelRotation, node.textAlign));
+        labels.set(node.key, placeText(metrics, anchored, node.labelRotation, node.textAlign));
         continue;
       }
-      const placed = placeTextBlock(metrics, sublabel, center, node.labelRotation, node.textAlign);
+      const placed = placeTextBlock(
+        metrics,
+        sublabel,
+        anchored,
+        node.labelRotation,
+        node.textAlign,
+      );
       labels.set(node.key, placed.label);
       sublabels.set(node.key, placed.sublabel);
     }

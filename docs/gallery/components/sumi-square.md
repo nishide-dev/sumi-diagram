@@ -4,17 +4,17 @@
 
 A square\.
 
-**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, filled, outlined, solid, tinted</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>square</code> · **sizing**: <code>fixed\-aspect\-1</code>
+**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, dashed, filled, outlined, solid, tinted</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>square</code> · **sizing**: <code>fixed\-aspect\-1</code>
 
 | prop | type | required | description |
 | --- | --- | --- | --- |
-| <code>width</code> | <code>string</code> | no | Explicit width as a length such as &quot;30mm&quot; or &quot;40pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
-| <code>height</code> | <code>string</code> | no | Explicit height as a length such as &quot;10mm&quot; or &quot;20pt&quot; \(a multiple of 0\.5pt\)\. Omitted means sized to the label\. |
+| <code>width</code> | <code>string</code> | no | Explicit width as a length such as &quot;30mm&quot; or &quot;40pt&quot; \(rounded to the nearest 0\.5pt\)\. Omitted means sized to the label\. |
+| <code>height</code> | <code>string</code> | no | Explicit height as a length such as &quot;10mm&quot; or &quot;20pt&quot; \(rounded to the nearest 0\.5pt\)\. Omitted means sized to the label\. |
 
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> | <code>llama</code> | <code>sumi</code> | <code>sumi\-dark</code> |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | <img src="sumi-square.minimal.svg" alt="sumi/square, theme minimal"> | <img src="sumi-square.academic.svg" alt="sumi/square, theme academic"> | <img src="sumi-square.slides.svg" alt="sumi/square, theme slides"> | <img src="sumi-square.color.svg" alt="sumi/square, theme color"> | <img src="sumi-square.paper.svg" alt="sumi/square, theme paper"> | <img src="sumi-square.llama.svg" alt="sumi/square, theme llama"> | <img src="sumi-square.sumi.svg" alt="sumi/square, theme sumi"> | <img src="sumi-square.sumi-dark.svg" alt="sumi/square, theme sumi-dark"> |
-| <code>sumi render sumi\-square\.sumi\.yaml</code><br>80\.61mm × 45\.86mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-square\.sumi\.yaml \-\-theme academic</code><br>80\.43mm × 45\.68mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-square\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>160\.87mm × 91\.9mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-square\.sumi\.yaml \-\-theme color</code><br>80\.61mm × 45\.86mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-square\.sumi\.yaml \-\-theme paper</code><br>73\.55mm × 41\.98mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-square\.sumi\.yaml \-\-theme llama</code><br>73\.03mm × 41\.45mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-square\.sumi\.yaml \-\-theme sumi</code><br>73\.55mm × 41\.98mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-square\.sumi\.yaml \-\-theme sumi\-dark</code><br>73\.55mm × 41\.98mm \(max width 180mm, max height 220mm\) |
+| <code>sumi render sumi\-square\.sumi\.yaml</code><br>83\.78mm × 45\.86mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-square\.sumi\.yaml \-\-theme academic</code><br>83\.61mm × 45\.68mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-square\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>167\.39mm × 91\.9mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-square\.sumi\.yaml \-\-theme color</code><br>83\.78mm × 45\.86mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-square\.sumi\.yaml \-\-theme paper</code><br>76\.91mm × 41\.98mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-square\.sumi\.yaml \-\-theme llama</code><br>76\.38mm × 41\.45mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-square\.sumi\.yaml \-\-theme sumi</code><br>76\.91mm × 41\.98mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-square\.sumi\.yaml \-\-theme sumi\-dark</code><br>76\.91mm × 41\.98mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-square.sumi.yaml</code></summary>
@@ -31,8 +31,8 @@ figure:
     arrange:
       stack:
         items:
-          - row: { items: [default, emphasis, muted, filled] }
-          - row: { items: [outlined, solid, tinted] }
+          - row: { items: [default, emphasis, muted, dashed] }
+          - row: { items: [filled, outlined, solid, tinted] }
 
 nodes:
   - id: default
@@ -46,6 +46,10 @@ nodes:
     component: sumi/square
     label: muted
     variant: muted
+  - id: dashed
+    component: sumi/square
+    label: dashed
+    variant: dashed
   - id: filled
     component: sumi/square
     label: filled

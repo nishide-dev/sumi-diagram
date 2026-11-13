@@ -12,8 +12,11 @@
 #   the figure is placed centred at its own aspect ratio and the
 #   square is cropped to it with `sips` (skipped when `sips` or the SVG's
 #   viewBox is unavailable).
-# Elsewhere: `rsvg-convert` (librsvg) if installed; it may substitute a
-#   system font for the embedded one, so judge layout, not typography.
+# Elsewhere: headless Chrome / Chromium / Edge if installed (`$SUMI_CHROME`
+#   names the binary), which also uses the embedded fonts. Else `rsvg-convert`
+#   (librsvg), which ignores them: bold looks regular and a fallback face is
+#   drawn, so a warning is printed; judge layout, not typography or weights.
+# `SUMI_PREVIEW_TOOL=qlmanage|chrome|rsvg-convert` forces one renderer.
 #
 # On success only the PNG is written; on failure nothing is left behind.
 set -eu
@@ -45,12 +48,59 @@ case $size in
     ;;
 esac
 
-if command -v qlmanage >/dev/null 2>&1; then
-  tool=qlmanage
-elif command -v rsvg-convert >/dev/null 2>&1; then
-  tool=rsvg-convert
-else
-  echo "preview: neither qlmanage (macOS) nor rsvg-convert is available" >&2
+chrome=
+find_chrome() {
+  if [ -n "${SUMI_CHROME:-}" ]; then
+    if [ -x "$SUMI_CHROME" ] && [ ! -d "$SUMI_CHROME" ]; then
+      chrome=$SUMI_CHROME
+    else
+      echo "preview: warning: SUMI_CHROME is not an executable file: $SUMI_CHROME" >&2
+    fi
+    return 0
+  fi
+  for c in google-chrome google-chrome-stable chromium chromium-browser chrome microsoft-edge; do
+    if command -v "$c" >/dev/null 2>&1; then
+      chrome=$(command -v "$c")
+      return 0
+    fi
+  done
+  for c in "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+    "/Applications/Chromium.app/Contents/MacOS/Chromium" \
+    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"; do
+    if [ -x "$c" ]; then
+      chrome=$c
+      return 0
+    fi
+  done
+  return 0
+}
+tool=${SUMI_PREVIEW_TOOL:-}
+case $tool in
+  qlmanage | rsvg-convert) ;;
+  chrome) find_chrome ;;
+  '')
+    if command -v qlmanage >/dev/null 2>&1; then
+      tool=qlmanage
+    else
+      find_chrome
+      if [ -n "$chrome" ]; then
+        tool=chrome
+      elif command -v rsvg-convert >/dev/null 2>&1; then
+        tool=rsvg-convert
+      fi
+    fi
+    ;;
+  *)
+    echo "preview: SUMI_PREVIEW_TOOL must be qlmanage, chrome or rsvg-convert" >&2
+    exit 2
+    ;;
+esac
+if [ "$tool" = chrome ] && [ -z "$chrome" ]; then
+  echo "preview: no Chrome / Chromium / Edge found" >&2
+  exit 1
+fi
+if [ -z "$tool" ]; then
+  echo "preview: none of qlmanage (macOS), Chrome / Chromium or rsvg-convert is available" >&2
   exit 1
 fi
 
@@ -143,7 +193,46 @@ EOF
     sips -c "$fh" "$fw" "$out/figure.png" --out "$out/cropped.png" >/dev/null 2>&1 &&
       mv "$out/cropped.png" "$out/figure.png" || rm -f "$out/cropped.png"
   fi
+elif [ "$tool" = chrome ]; then
+  # The SVG is inlined in a page sized to its viewBox (larger side = size px), so
+  # the embedded fonts are used and the PNG has the figure's own aspect ratio.
+  vb=$(head -c 8192 "$svg_abs" | tr '\n\t,' '   ' |
+    awk '{ if (match($0, /<svg[^>]*>/)) print substr($0, RSTART, RLENGTH) }' |
+    sed -n 's/.* viewBox="\([^"]*\)".*/\1/p')
+  # shellcheck disable=SC2086
+  set -- $vb
+  fw=$size fh=$size
+  if [ $# -eq 4 ]; then
+    box=$(awk -v w="$3" -v h="$4" -v s="$size" 'BEGIN {
+      if (w > 0 && h > 0) {
+        if (w >= h) { bw = s; bh = int(s * h / w + 0.5) }
+        else { bh = s; bw = int(s * w / h + 0.5) }
+        if (bw < 1) bw = 1
+        if (bh < 1) bh = 1
+        printf "%d %d", bw, bh
+      }
+    }')
+    if [ -n "$box" ]; then
+      # shellcheck disable=SC2086
+      set -- $box
+      fw=$1 fh=$2
+    fi
+  fi
+  {
+    printf '<!doctype html><meta charset="utf-8"><style>html,body{margin:0;background:#fff}body>svg{display:block;width:%spx;height:%spx}</style>\n' "$fw" "$fh"
+    cat "$svg_abs"
+  } >"$out/page.html"
+  "$chrome" --headless --disable-gpu --no-sandbox --hide-scrollbars \
+    --user-data-dir="$out/profile" --default-background-color=FFFFFFFF \
+    --window-size="$fw,$fh" --screenshot="$out/figure.png" "file://$out/page.html" \
+    >/dev/null 2>&1 || true
+  rm -rf "$out/profile" "$out/page.html"
+  if [ ! -s "$out/figure.png" ]; then
+    echo "preview: $chrome failed to rasterize the SVG" >&2
+    exit 1
+  fi
 else
+  echo "preview: warning: rsvg-convert ignores the fonts embedded in the SVG, so bold looks regular and a fallback face is drawn; judge layout only, not typography or weights (install Chrome or Chromium for a faithful preview)" >&2
   rsvg-convert -a -w "$size" -h "$size" -b white "$svg_abs" -o "$out/figure.png"
 fi
 mkdir -p -- "$(dirname -- "$dest")"
