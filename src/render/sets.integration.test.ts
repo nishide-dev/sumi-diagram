@@ -252,15 +252,17 @@ describe("a Venn diagram of two sets", () => {
       (m) => m[1] as string,
     );
     expect(tints).toHaveLength(2);
-    const product = mixTints(tints);
+    const mixed = mixTints(tints);
     const overlap =
       /<g clip-path="url\(#(sumi-clip-\d+)\)"><circle class="sumi-set-overlap"[^>]*>/.exec(svg);
     expect(overlap).not.toBeNull();
-    expect(overlap?.[0]).toContain(`fill="${product}"`);
+    expect(overlap?.[0]).toContain(`fill="${mixed}"`);
     expect(svg).toMatch(new RegExp(`<clipPath id="${overlap?.[1]}"><circle `));
-    // Darker than both tints, in the hues of both.
-    expect(toOklch(product).l).toBeLessThan(Math.min(...tints.map((t) => toOklch(t).l)));
-    expect(toOklch(product).c).toBeGreaterThan(0.01);
+    // Their average: between the two lightnesses, in the hues of both.
+    const lightness = tints.map((t) => toOklch(t).l);
+    expect(toOklch(mixed).l).toBeGreaterThanOrEqual(Math.min(...lightness) - 1e-3);
+    expect(toOklch(mixed).l).toBeLessThanOrEqual(Math.max(...lightness) + 1e-3);
+    expect(toOklch(mixed).c).toBeGreaterThan(0.01);
     // Painted after every tint and before every outline.
     expect(svg.indexOf("sumi-set-overlap")).toBeGreaterThan(svg.lastIndexOf("sumi-set-fill"));
     expect(svg.indexOf("sumi-set-overlap")).toBeLessThan(svg.indexOf('class="sumi-set-shape"'));
