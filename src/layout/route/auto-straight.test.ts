@@ -9,6 +9,7 @@ import type { Diagnostic } from "../../core/diagnostics";
 import type { RenderedStructuredFigure } from "../../render/render";
 import { renderFigure } from "../../render/render";
 import type { Point, Rect } from "../ir";
+import { routeEdges, withMergedFanIn } from "./router";
 
 const box = (id: string, width = 40, extra = "") =>
   `  - { id: ${id}, component: box, label: ${id}, props: { width: ${width}pt }${extra} }`;
@@ -160,9 +161,19 @@ describe("auto straight ends (#512)", () => {
     expect(drop).toHaveLength(2);
   });
 
-  test("spread that falls back keeps merge, not the straight ends", async () => {
-    const text = fan("    fanIn: spread\n");
-    const result = await render(text);
-    expect(errors(result.diagnostics)).toEqual([]);
+  test("the merge retry writes fanIn merge, for spread and for unwritten fanIn", async () => {
+    for (const extra of ["", "    fanIn: spread\n"]) {
+      const { compiled } = (await render(fan(extra))).value as RenderedStructuredFigure;
+      expect(compiled.ir.meta.fanIn).toBe(extra === "" ? undefined : "spread");
+      expect(withMergedFanIn(compiled.ir).meta.fanIn).toBe("merge");
+    }
+  });
+
+  test("routing the retry's figure gives the merge trunk, not the straight drops", async () => {
+    const { compiled, layout } = (await render(fan())).value as RenderedStructuredFigure;
+    const unrouted = { ...layout, edges: layout.edges.map(({ route: _, ...e }) => e) };
+    const merged = routeEdges(withMergedFanIn(compiled.ir), unrouted as typeof layout);
+    const [p, q] = merged.layout.edges.map((e) => e.route?.points[0]) as [Point, Point];
+    expect(p).toEqual(q);
   });
 });

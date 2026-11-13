@@ -226,6 +226,15 @@ export function routeEdges(
   };
 }
 
+/**
+ * The figure for the merge retry: `fanIn: "merge"` written, never dropped.
+ * Unwritten means the ends on wide nodes drop straight (#512), which is the
+ * very thing the retry falls back from.
+ */
+export function withMergedFanIn(ir: FigureIR): FigureIR {
+  return { ...ir, meta: { ...ir.meta, fanIn: "merge" } };
+}
+
 function routeWithoutZoom(ir: FigureIR, layout: LayoutIR, options: RouteOptions): RouteResult {
   const routeFigure = (figure: FigureIR) =>
     chooseRouting(figure, (stubLines: boolean) =>
@@ -246,7 +255,7 @@ function routeWithoutZoom(ir: FigureIR, layout: LayoutIR, options: RouteOptions)
   // the ends dropped straight onto narrower nodes when `fanIn` is unwritten
   // (#512): where they pin two opposite edges to one port, merge routes.
   // Merge is set explicitly: unwritten would drop the ends straight again.
-  const merged = routeFigure({ ...ir, meta: { ...ir.meta, fanIn: "merge" } });
+  const merged = routeFigure(withMergedFanIn(ir));
   const errors = (r: RouteResult) => r.diagnostics.filter((d) => d.severity === "error").length;
   return errors(merged) < errors(result) ? merged : result;
 }
