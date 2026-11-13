@@ -7,7 +7,7 @@ description: Build, check and render diagrams as code with the Sumi CLI (*.sumi.
 
 Sumi turns declarative `*.sumi.yaml` into SVG using predefined components, themes and
 profiles. Write YAML from the user's content and drive the CLI until clean. Never draw
-SVG yourself or edit generated `.svg` / `.d2` files.
+SVG yourself or edit generated `.svg` / `.d2` files (a throwaway [mockup](references/mockup.md) is the exception).
 
 ## Ground rules
 
@@ -96,6 +96,11 @@ is the `figure.themeOverrides.textScale` that fixes it (`sumi`: 2 for slides, 1.
 
 ### 4. Write the figure
 
+**Non-trivial layout? Mock it up first** (several panels, loops, state machines, sets, taxonomies, anything whose
+arrangement is not obvious, however few nodes; skip only for an obvious one-directional flow): sketch an HTML/CSS page at real size
+in Sumi's vocabulary and theme colours, check it against the step 1 checklist, then reproduce it in YAML
+([mockup](references/mockup.md), [template](references/mockup-template.html)).
+
 First open the [examples index](examples/README.md), choose the 1–2 closest examples
 by figure type and features, view their PNGs (Read shows images) and read their YAML.
 Reuse their idioms (arrange boxes, tones, notes), never their content. Then read
@@ -168,11 +173,7 @@ Write PDF or PPTX (one picture) only when asked ([output formats](references/fig
 Geometry errors exit 1 but **the SVG is still written**. It prints `Wrote figure.svg:
 <W>mm × <H>mm (…)`; `--json` has `size` (`widthMm`, `heightMm`, limits, `fits`; `scale` if scaled).
 
-- `geometry/exceeds-page-width` / `-height`: the width hint measures where the width
-  goes and, if a trial verified it, names an edit: apply one, re-run ([width
-  breakdown](references/diagnostics.md#too-wide-the-width-breakdown)). Else compare
-  the [options](references/layout-tips.md#when-width-runs-short) and what each costs.
-  A wider profile is the user's choice: ask, never switch on your own.
+- `geometry/exceeds-page-width` / `-height`: the width hint measures where the width goes and, if a trial verified it, names an edit: apply one, re-run ([width breakdown](references/diagnostics.md#too-wide-the-width-breakdown)). Else compare the [options](references/layout-tips.md#when-width-runs-short) and what each costs. A wider profile is the user's choice: ask, never switch on your own.
 - `figure.target` adds `geometry/exceeds-target-height` (over budget) and
   `geometry/placement-usage` (reserved area: compare candidates by it).
 - Geometry warnings (`edge-crosses-label`, `label-collision`, …): try the
@@ -210,19 +211,14 @@ if none: skip the PNG, say so); open the PNG with Read, ~6 px per printed mm of 
 
 ### 8. Report
 
-Tell the user: files written (YAML, SVG), size and profile, placement constraints,
-candidates compared and why, final lint and render summaries (kept warnings with
-reasons), assumptions, what you could not verify. Show the YAML only if asked or short.
+Tell the user: files written (YAML, SVG), size and profile, placement constraints, candidates compared and why, final lint and render summaries (kept warnings with reasons), assumptions, what you could not verify. Show the YAML only if asked or short.
 
 ## Paper figure workflow
 
 Paper figures are structured, theme `paper`, built to the [design principles](references/layout-tips.md#design-principles).
 With **content only** (the usual case), first [plan the visual language](references/layout-tips.md#plan-the-visual-language-before-drawing)
-(a table: each kind of thing, one visual form and tone), then [plan the layout](references/layout-tips.md#plan-the-layout-before-writing-yaml):
-roles, placement constraints, candidates rendered and compared.
-Objects and data are pictures (icons, glyphs, `sets`), operations arrows; minimal text;
-one vocabulary and tone meaning in every panel; one legend; numbered stage columns. With **a
-reference figure**, map each look to a field ([recipe](references/layout-tips.md#paper-figure-recipe))
+(a table: each kind of thing, one visual form and tone), then [plan the layout](references/layout-tips.md#plan-the-layout-before-writing-yaml): roles, placement constraints, candidates rendered and compared.
+Objects and data are pictures (icons, glyphs, `sets`), operations arrows; minimal text; one vocabulary and tone meaning in every panel; one legend; numbered stage columns. With **a reference figure**, map each look to a field ([recipe](references/layout-tips.md#paper-figure-recipe))
 and keep its arrangement unless it breaks the placement or the principles (say so). Read as needed:
 
 1. [Example 6](references/examples.md#6-success-a-paper-figure) (three panels, zoom, dimmed variant).
@@ -247,6 +243,6 @@ rendering (steps 4 and 7); they are references for idioms, not content to copy.
 [figure-format](references/figure-format.md) (fields, labels, math, tones, groups, themes,
 profiles, target) · [structured](references/structured.md) (arrange trees, grids, attach,
 align, anchors, sets, legends, zoom, tokens, matrices) · [assets](references/assets.md) ·
-[html](references/html.md) · [diagnostics](references/diagnostics.md) (fixes by code) ·
+[html](references/html.md) · [mockup](references/mockup.md) · [diagnostics](references/diagnostics.md) (fixes by code) ·
 [layout-tips](references/layout-tips.md) (engine, placement, width options, design
 principles, planning, paper recipe) · [examples](references/examples.md)
