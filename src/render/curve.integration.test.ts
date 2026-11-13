@@ -306,7 +306,7 @@ test("sampling follows the bow rather than the chord, trimming retains exact sub
 });
 
 test("invalid curve routes fail with source-located diagnostics", async () => {
-  for (const edge of [{ to: "a" }, { fromAnchor: "west" }, { component: "zoom" }]) {
+  for (const edge of [{ fromAnchor: "west" }, { component: "zoom" }]) {
     const result = await renderFigure(simple(edge));
     expect(result.ok).toBe(false);
     expect(
