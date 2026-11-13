@@ -255,13 +255,7 @@ export const StrokeWidth = z
   });
 
 /** `themeOverrides.textScale` (#514): multiples of 0.25 from 0.5 to 4. */
-const TextScale = z
-  .number()
-  .min(TEXT_SCALE_MIN)
-  .max(TEXT_SCALE_MAX)
-  .refine((scale) => Number.isInteger(scale / TEXT_SCALE_STEP), {
-    error: "A text scale is a multiple of 0.25, e.g. 1.5 or 2.",
-  });
+const TextScale = z.number().min(TEXT_SCALE_MIN).max(TEXT_SCALE_MAX).multipleOf(TEXT_SCALE_STEP);
 
 /** The corner radius a figure may set (#427): multiples of 0.5pt (one D2 unit) up to 10pt. */
 export const CORNER_RADIUS_MAX_PT = 10;

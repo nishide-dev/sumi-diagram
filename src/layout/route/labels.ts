@@ -22,6 +22,15 @@ import { placeText } from "../structured/engine";
 /** Space between a label and its line, and between the label and the arrowhead, in units. */
 export const EDGE_LABEL_GAP = 3;
 
+/**
+ * The gap of an edge's label (#514): {@link EDGE_LABEL_GAP}, times the
+ * figure's `textScale` so the label keeps its distance to the line as the text
+ * grows (whole units).
+ */
+export function labelGap(style: Pick<EdgeIR["style"], "textScale"> | undefined): number {
+  return Math.round(EDGE_LABEL_GAP * (style?.textScale ?? 1));
+}
+
 /** A place for a label: its center. */
 interface Candidate {
   readonly center: Point;
@@ -40,8 +49,8 @@ function beside(
   h: number,
   back: number,
   side: 1 | -1,
+  g: number,
 ): Candidate {
-  const g = EDGE_LABEL_GAP;
   if (Math.abs(prev.y - tip.y) < 1e-9) {
     const dir = Math.sign(tip.x - prev.x) || 1;
     const x = dir > 0 ? tip.x - back - w : tip.x + back;
@@ -123,6 +132,7 @@ function shortSpanCandidates(
   h: number,
   sides: readonly (1 | -1)[],
   obstacles: readonly Rect[],
+  g: number,
 ): Candidate[] {
   const flat = Math.abs(a.y - b.y) < 1e-9;
   const across = flat ? a.y : a.x;
@@ -130,11 +140,11 @@ function shortSpanCandidates(
   const candidates: Candidate[] = [];
   for (const side of sides) {
     const sign = flat ? -side : side;
-    const distances = new Set([EDGE_LABEL_GAP + half]);
+    const distances = new Set([g + half]);
     for (const r of obstacles) {
       const boundary = flat ? (sign > 0 ? r.y + r.height : r.y) : sign > 0 ? r.x + r.width : r.x;
-      const distance = (boundary - across) * sign + EDGE_LABEL_GAP + half;
-      const usual = EDGE_LABEL_GAP + half;
+      const distance = (boundary - across) * sign + g + half;
+      const usual = g + half;
       if (distance >= usual && distance <= usual + MAX_LIFT_HEIGHTS * h) distances.add(distance);
     }
     for (const distance of distances) {
@@ -243,7 +253,7 @@ export function placeEdgeLabel(
   const line = atSource ? [...points].reverse() : points;
   const w = metrics.width;
   const h = metrics.height;
-  const g = EDGE_LABEL_GAP;
+  const g = labelGap(edge.style);
   if (edge.targetArrowhead === undefined && edge.sourceArrowhead === undefined) {
     // The middle of the longest segment (the first of equals).
     let best = 1;
@@ -262,7 +272,7 @@ export function placeEdgeLabel(
     const middle = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
     // Centered on the middle along the segment.
     const back = -(Math.abs(b.x - a.x) > 0 ? w : h) / 2;
-    const candidate = beside(a, middle, w, h, back, 1);
+    const candidate = beside(a, middle, w, h, back, 1, g);
     const box = boxOf(candidate.center, w, h);
     const crossesFrame = (surroundings.groups ?? []).some((r) =>
       [
@@ -326,7 +336,7 @@ export function placeEdgeLabel(
   }
   const candidates: Candidate[] = [...stops]
     .sort((p, q) => p - q)
-    .flatMap((d) => [beside(prev, tip, w, h, d, 1), beside(prev, tip, w, h, d, -1)]);
+    .flatMap((d) => [beside(prev, tip, w, h, d, 1, g), beside(prev, tip, w, h, d, -1, g)]);
   if (n >= 3) {
     // Beside the segment before, its near end the gap away from the corner,
     // on the side the last segment does not leave to.
@@ -336,7 +346,7 @@ export function placeEdgeLabel(
     const away = horizontal ? tip.y - corner.y : tip.x - corner.x;
     // `beside()`'s +1 side is above (negative y) or right (positive x).
     const side: 1 | -1 = (horizontal ? away > 0 : away < 0) ? 1 : -1;
-    candidates.push(beside(before, corner, w, h, g, side));
+    candidates.push(beside(before, corner, w, h, g, side, g));
     // Then slid along that segment on either side (#411), past the routes and
     // borders that cross it, so a label next to a trunk near a group's border
     // can take the free side or a free stretch of the trunk. These come after
@@ -360,7 +370,7 @@ export function placeEdgeLabel(
     }
     for (const d of [...slides].sort((p, q) => p - q)) {
       for (const sideOf of [side, -side as 1 | -1]) {
-        candidates.push(beside(before, corner, w, h, d, sideOf));
+        candidates.push(beside(before, corner, w, h, d, sideOf, g));
       }
     }
   }
@@ -397,6 +407,7 @@ export function placeEdgeLabel(
       h,
       [1, -1],
       [...(surroundings.nodes ?? []), ...segments, ...borders, head],
+      g,
     ).find(
       (c) =>
         clearOfRoutes(c) &&
@@ -478,7 +489,7 @@ function placeRequestedLabel(
   arrowhead: number,
   surroundings: EdgeLabelSurroundings,
 ): TextLayout {
-  const g = EDGE_LABEL_GAP;
+  const g = labelGap(edge.style);
   const w = metrics.width;
   const h = metrics.height;
   const n = points.length;
@@ -560,12 +571,15 @@ function placeRequestedLabel(
     clear[0] ??
     (candidates[0] as Candidate);
   if (length < len + arrowhead + g && !clearOfBoxes(chosen)) {
-    const lifted = shortSpanCandidates(a, b, w, h, sides, [
-      ...boxes,
-      ...segments,
-      ...borders,
-      ...heads,
-    ]).find((c) => clearOfRoutes(c) && clearOfBorders(c) && clearOfBoxes(c) && true);
+    const lifted = shortSpanCandidates(
+      a,
+      b,
+      w,
+      h,
+      sides,
+      [...boxes, ...segments, ...borders, ...heads],
+      g,
+    ).find((c) => clearOfRoutes(c) && clearOfBorders(c) && clearOfBoxes(c) && true);
     if (lifted !== undefined) return placeText(metrics, lifted.center);
   }
   return placeText(metrics, chosen.center);

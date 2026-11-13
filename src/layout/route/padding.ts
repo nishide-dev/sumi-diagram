@@ -34,6 +34,11 @@ import { withoutZoomEdges } from "./zoom";
  */
 export const BORDER_CLEARANCE = 6;
 
+/** {@link BORDER_CLEARANCE} times the figure's `textScale` (#514), in whole units. */
+export function borderClearance(style: { readonly textScale?: number }): number {
+  return Math.round(BORDER_CLEARANCE * (style.textScale ?? 1));
+}
+
 /** Extra padding per side of a group, in units. */
 export type SidePadding = Readonly<Record<Side, number>>;
 
@@ -72,9 +77,10 @@ export function arrowheadPaddingDeficits(
   routed.edges.forEach((edge, index) => {
     const ends = resolved[index];
     if (ends === undefined || "error" in ends) return;
-    const stub = Math.max(BORDER_CLEARANCE, edgeArrowheadLength(edge.style) + ARROWHEAD_STEM_UNITS);
+    const clearance = borderClearance(edge.style);
+    const stub = Math.max(clearance, edgeArrowheadLength(edge.style) + ARROWHEAD_STEM_UNITS);
     // The end segment holds a small rounded corner before the stem (#260).
-    const need = stub + GROUP_STEM_CORNER_UNITS + BORDER_CLEARANCE;
+    const need = stub + GROUP_STEM_CORNER_UNITS + clearance;
     const check = (end: End, other: End) => {
       if (end.junction || end.dir < 0) return;
       let nearest: { key: ElementKey; free: number; depth: number } | undefined;
@@ -133,9 +139,9 @@ export function groupArrowheadStems(ir: FigureIR, layout: LayoutIR) {
   routed.edges.forEach((edge, index) => {
     const ends = resolved[index];
     if (ends === undefined || "error" in ends) return;
+    const clearance = borderClearance(edge.style);
     const need =
-      Math.max(BORDER_CLEARANCE, edgeArrowheadLength(edge.style) + ARROWHEAD_STEM_UNITS) +
-      BORDER_CLEARANCE;
+      Math.max(clearance, edgeArrowheadLength(edge.style) + ARROWHEAD_STEM_UNITS) + clearance;
     const stem = (end: End, other: End) => {
       if (end.junction || end.dir < 0) return 0;
       return layout.groups.some((group) => {

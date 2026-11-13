@@ -64,3 +64,9 @@ test("screen-doc is sized for sumi text at 1.5", () => {
   );
   expect(Math.min(...sizes)).toBeGreaterThanOrEqual(10);
 });
+
+test("the JSON Schema states the same step as the validator", async () => {
+  const schema = JSON.parse(await Bun.file("schema/figure.v1.schema.json").text());
+  const field = schema.properties.figure.properties.themeOverrides.properties.textScale;
+  expect(field).toMatchObject({ minimum: 0.5, maximum: 4, multipleOf: 0.25 });
+});

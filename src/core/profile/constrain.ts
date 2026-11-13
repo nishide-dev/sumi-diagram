@@ -10,7 +10,8 @@ import type { CheckState, ElementKey } from "../check-state";
 import type { DiagnosticSubject, DocPath } from "../diagnostics";
 import { errorAt, relatedAt } from "../figure/report";
 import type { Locator } from "../figure/yaml";
-import { scaleToReach } from "../theme/text-scale";
+import { sublabelFontSize } from "../theme/style";
+import { scaleFontSize, scaleToReach } from "../theme/text-scale";
 import { formatPt } from "../units";
 import { resolveProfile } from "./builtin";
 import type { Profile } from "./schema";
@@ -104,6 +105,11 @@ export function checkFontSizes(
  * The one text scale (#514) that lifts every text of the figure that is below
  * `min` to it, as a multiple of 0.25 (the figure's own, `current`, replaced);
  * `undefined` if the largest scale does not.
+ *
+ * A drawn size is the theme's size scaled and rounded, which cannot be undone
+ * by a division (rounding, the 4pt floor). So the theme sizes (whole 0.5pt)
+ * that draw as `fontSizePt` at the `current` scale (a sublabel: as its
+ * label's 7/8) are listed, and the scale must serve the worst of them.
  */
 function neededScale(
   fonts: readonly FontUsage[],
@@ -114,11 +120,16 @@ function neededScale(
   let needed = current;
   for (const { key, fontSizePt, sublabel } of fonts) {
     if (state.invalid.has(key) || fontSizePt >= min) continue;
-    // The size before the figure's own scale, as the label's (a sublabel is 7/8 of it).
-    const label = (sublabel ? (fontSizePt * 8) / 7 : fontSizePt) / current;
-    const scale = scaleToReach(label, min, sublabel === true);
-    if (scale === undefined) return undefined;
-    needed = Math.max(needed, scale);
+    const drawn = (units: number): number => {
+      const label = scaleFontSize({ pt: units / 2, units }, current);
+      return sublabel === true ? sublabelFontSize(label).units : label.units;
+    };
+    for (let units = 8; units <= 100; units++) {
+      if (drawn(units) !== Math.round(fontSizePt * 2)) continue;
+      const scale = scaleToReach(units / 2, min, sublabel === true);
+      if (scale === undefined) return undefined;
+      needed = Math.max(needed, scale);
+    }
   }
   return needed;
 }

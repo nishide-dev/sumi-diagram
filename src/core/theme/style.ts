@@ -83,6 +83,12 @@ export interface EdgeStyle extends CommonStyle {
    * 1, so every other style is unchanged. Structured layout only.
    */
   readonly arrowheadScale?: number;
+  /**
+   * The figure's `themeOverrides.textScale` (#514), when it is not 1: the
+   * label gap and the border clearance of the router follow it. Structured
+   * layout only.
+   */
+  readonly textScale?: number;
 }
 
 /** The complete, immutable effective style of one element. */
