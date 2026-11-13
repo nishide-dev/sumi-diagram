@@ -1037,6 +1037,44 @@ describe("scripts/preview renderers", () => {
     });
   });
 
+  // A Chrome that signals its own process group on exit must not end the
+  // script (#535). Without its own session the signal would reach the script
+  // (and this test runner), so the stand-in refuses and fails instead.
+  test.skipIf(Bun.which("setsid") === null)(
+    "chrome signalling its process group does not end the script",
+    async () => {
+      await withTools(async (env, work) => {
+        const runnerGroup = Bun.spawnSync(["ps", "-o", "pgid=", "-p", String(process.pid)])
+          .stdout.toString()
+          .trim();
+        const chrome = join(work, "bin", "group-signal-chrome");
+        await writeFile(
+          chrome,
+          [
+            "#!/bin/sh",
+            'for a in "$@"; do case $a in --screenshot=*) out=${a#--screenshot=} ;; esac; done',
+            'group=$(ps -o pgid= -p $$ | tr -d " ")',
+            '[ "$group" = "$RUNNER_GROUP" ] && exit 1',
+            'printf png > "$out"',
+            'kill -TERM -- "-$group"',
+            "",
+          ].join("\n"),
+          { mode: 0o755 },
+        );
+        const svg = join(work, "fig.svg");
+        await writeFile(svg, SVG);
+        const run = await runScript("preview", [svg, "600"], {
+          ...env,
+          SUMI_CHROME: chrome,
+          SUMI_PREVIEW_TOOL: "chrome",
+          RUNNER_GROUP: runnerGroup,
+        });
+        expect(run.exitCode, run.stderr).toBe(0);
+        expect(existsSync(join(work, "fig.png"))).toBe(true);
+      });
+    },
+  );
+
   test("rsvg-convert works but warns that embedded fonts are ignored", async () => {
     await withTools(async (env, work) => {
       const svg = join(work, "fig.svg");
