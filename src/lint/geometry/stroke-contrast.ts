@@ -31,7 +31,12 @@ export const strokeContrast = defineGeometryRule({
     for (const element of context.elements) {
       // Group frames are structure styled by the theme, and an operator or junction is read
       // by its symbol: neither is a line the figure depends on (#463).
-      if (element.kind === "group" || dimmed.has(element.key)) continue;
+      // A filled dashed group (#519) is the exception: its frame is the only border of its fill.
+      if (
+        (element.kind === "group" && element.ir.variant !== "filled-dashed") ||
+        dimmed.has(element.key)
+      )
+        continue;
       // A zoom callout's guide lines are pale on purpose.
       if (
         element.ir.component === "sumi/operator" ||
@@ -92,7 +97,8 @@ export const strokeContrast = defineGeometryRule({
                 }
               : { x: region.cx, y: region.cy };
         const fill = normalized(style.fill);
-        if (centre !== undefined && fill !== undefined) {
+        // A dashed frame (#519) is the border of a filled shape: a fill does not carry it.
+        if (centre !== undefined && fill !== undefined && !(Number(style.strokeDash) > 0)) {
           const behind = surfaceAt(surfaces, centre, canvas);
           if (contrastRatio(over(fill, style.opacity, behind), behind) >= 1.2) continue;
         }

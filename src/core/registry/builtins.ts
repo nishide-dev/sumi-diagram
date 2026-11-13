@@ -42,7 +42,7 @@ const SINCE = "0.1.0";
  * `solid` adds an ink fill with white text; `tinted` combines a pastel fill
  * with matching ink for the border and text (#214, design doc §6.63).
  */
-const NODE_VARIANTS = ["default", "emphasis", "muted", "outlined", "solid", "tinted"];
+const NODE_VARIANTS = ["default", "emphasis", "muted", "dashed", "outlined", "solid", "tinted"];
 /**
  * The variants of the shapes that read as a filled area (#174): `filled`
  * draws the fill without the outline. `stack` is left out, since its
@@ -52,6 +52,7 @@ const FILLABLE_NODE_VARIANTS = [
   "default",
   "emphasis",
   "muted",
+  "dashed",
   "filled",
   "outlined",
   "solid",
@@ -208,8 +209,8 @@ const container: GroupManifest = {
   kind: "group",
   name: "container",
   description:
-    "A rectangular container that groups nodes and other groups. Variant muted: a dashed border in academic (easy to confuse with dashed edges), a white background instead of the shaded fill (without a tone) and a gray title in the other themes. Variant plain: no border and no fill, only the title or caption; filled: a shaded fill without a border; dashed: a dashed border without a fill; dotted: the same with round dots. A tone sets the fill of any variant.",
-  variants: ["default", "muted", "plain", "filled", "dashed", "dotted"],
+    "A rectangular container that groups nodes and other groups. Variant muted: a dashed border in academic (easy to confuse with dashed edges), a white background instead of the shaded fill (without a tone) and a gray title in the other themes. Variant plain: no border and no fill, only the title or caption; filled: a shaded fill without a border; dashed: a dashed border without a fill; filled-dashed: a dashed border and a shaded fill; dotted: a dashed border with round dots and no fill. A tone sets the fill of any variant.",
+  variants: ["default", "muted", "plain", "filled", "dashed", "filled-dashed", "dotted"],
   props: z.strictObject({
     layers: LayersSchema.optional().describe(
       "Repeat the frame behind the front card, offset up-right. The footprint includes every card; only the front contains children and a title. Structured layout only; plain is unsupported.",
@@ -377,6 +378,38 @@ const bracket: NodeManifest = {
   engines: ["structured"],
 };
 
+export const STATE_MARKER_IDS = ["sumi/initial", "sumi/final"];
+
+function stateMarker(name: "initial" | "final", description: string): NodeManifest {
+  return {
+    ...base,
+    since: "0.18.0",
+    kind: "node",
+    name,
+    description,
+    variants: ["default"],
+    props: z.strictObject({
+      size: SizeLength.optional().describe(
+        'Explicit diameter as a length such as "10pt" (a multiple of 0.5pt). Omitted means a multiple of the theme text size.',
+      ),
+    }),
+    shape: "rectangle",
+    sizing: "auto",
+    render: { type: "outline", renderer: "sumi/state-marker", params: { kind: name } },
+    engines: ["structured"],
+  };
+}
+
+/** Start and end markers of a state machine (#519): usable as edge endpoints, no label. */
+const initial = stateMarker(
+  "initial",
+  "The start of a state machine: a solid dot (1.25 em across by default); takes no label. Connect it with an edge to the first state.",
+);
+const final = stateMarker(
+  "final",
+  "The end of a state machine: a ring around a smaller solid dot (1.75 em across by default); takes no label. Connect the last state to it with an edge. Structured layout only.",
+);
+
 /** Glyphs of `sumi/operator`, by `symbol` (all in the bundled font set). */
 export const OPERATOR_GLYPHS = {
   plus: "+",
@@ -399,7 +432,7 @@ const operator: NodeManifest = {
   name: "operator",
   description:
     "A small circle with an operator symbol, e.g. where inputs are added or combined; takes no label.",
-  variants: FILLABLE_NODE_VARIANTS,
+  variants: FILLABLE_NODE_VARIANTS.filter((variant) => variant !== "dashed"),
   props: z.strictObject({
     symbol: z
       .enum(Object.keys(OPERATOR_GLYPHS) as [keyof typeof OPERATOR_GLYPHS])
@@ -1282,6 +1315,8 @@ export const BUILTIN_MANIFESTS: readonly ComponentManifest[] = [
   blockArrow,
   triangleArrow,
   chevron,
+  initial,
+  final,
   node("label", "text", "Text without a border.", { variants: ["default", "muted"] }),
   operator,
   junction,

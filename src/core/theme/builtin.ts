@@ -135,6 +135,8 @@ const outlineVariants = (shaded: string): Omit<VariantStyles["container"], "mute
   dashed: { fill: "transparent", strokeDash: "{dash.regular}" },
 });
 
+const withoutDashed = <T extends { dashed: unknown }>({ dashed: _, ...rest }: T) => rest;
+
 /** Expands per-category variant styles to every built-in component. */
 function componentStyles(styles: VariantStyles): NonNullable<ThemeDefinition["components"]> {
   const shape = {
@@ -145,11 +147,18 @@ function componentStyles(styles: VariantStyles): NonNullable<ThemeDefinition["co
       fontColor: "#ffffff",
     },
     tinted: { ...styles.shape.outlined, fill: styles.shape.filled.fill ?? "#ffffff" },
+    // A dashed outline on the default fill; a tone still sets the fill (#519).
+    dashed: { strokeDash: "{dash.regular}" },
   };
   const { filled: _, ...stack } = shape;
   return {
-    ...Object.fromEntries(SHAPE_NODES.map((name) => [name, shape])),
-    ...(styles.operator && { operator: { ...shape, ...styles.operator } }),
+    ...Object.fromEntries(
+      SHAPE_NODES.map((name) => [name, name === "operator" ? withoutDashed(shape) : shape]),
+    ),
+    ...(styles.operator && {
+      // An operator is a small glyph circle with no dashed variant.
+      operator: { ...withoutDashed(shape), ...styles.operator },
+    }),
     bubble: {
       ...shape,
       default: { fill: "#ffffff" },
@@ -173,6 +182,13 @@ function componentStyles(styles: VariantStyles): NonNullable<ThemeDefinition["co
           },
           outlined: shape.outlined,
         },
+      ]),
+    ),
+    // State markers (#519): a solid dot, the ink of a `solid` node.
+    ...Object.fromEntries(
+      ["initial", "final"].map((name) => [
+        name,
+        { default: { fill: shape.solid.fill, stroke: shape.solid.stroke } },
       ]),
     ),
     separator: {
@@ -199,7 +215,14 @@ function componentStyles(styles: VariantStyles): NonNullable<ThemeDefinition["co
       muted: styles.shape.muted,
       outlined: styles.shape.outlined,
     },
-    container: styles.container,
+    // `filled-dashed` (#519): the dashed frame of `dashed` on the fill of `filled`.
+    container: {
+      ...styles.container,
+      "filled-dashed": {
+        ...styles.container.dashed,
+        ...(styles.container.filled.fill !== undefined && { fill: styles.container.filled.fill }),
+      },
+    },
     legend: styles.legend,
     ...Object.fromEntries(EDGES.map((name) => [name, styles.edge])),
     // A zoom callout (#176) is dashed like a dashed edge; `solid` drops the

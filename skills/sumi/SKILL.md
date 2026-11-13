@@ -54,9 +54,9 @@ Before writing YAML, make sure you know:
 - **Target** (the user's decision): where it goes (one column of a two-column paper,
   full width, a single-column paper's text width, a first-page overview, a README or
   web page, a slide), the venue's minimum text and line sizes and the height it may
-  take. Width picks the profile; minimums and the height budget go in `figure.target`
+  take. Width picks the profile (`screen-doc` for a README or web page, `presentation-16x9` for a slide); minimums and the height budget go in `figure.target`
   (a venue maximum below the profile's: set `height`, which only warns) ([placement](references/layout-tips.md#fit-the-placement)).
-- **Theme**: `minimal` (default), `academic`, `color`, `slides` (needed for a slide)
+- **Theme**: `minimal` (default), `academic`, `color`, `slides` (a slide; any 7-9pt theme needs `textScale: 2` there)
   or `paper` — **recommend `paper` for a color paper figure** (`academic` if grayscale).
   Colour: white ground, colour only for meaning (2–3 hues + one accent), nothing translucent over colour; LLaDA is the exemplar ([colour](references/layout-tips.md#plan-the-visual-language-before-drawing)).
   Output: next to the user's files, `<figure-id>.sumi.yaml`.
@@ -89,9 +89,9 @@ sumi catalog --icons "wave sine" # bundled icons whose names contain all the wor
 Pick each component from `components` by its `description` (`diamond` for a decision,
 `cylinder` for storage). Symbols are components too: `operator` draws ⊕ ⊗ ⊖ ⊙ and
 concat (`props.symbol: plus | times | minus | dot | concat`), `junction` a branch dot. Use only listed variants and props; `engines`, when present, lists the only layout engines it works in. The theme's
-`compatibleProfiles` must include the profile, else labelled elements fail with
-`profile/font-too-small` (text scaling for `sumi` x slides: #514)
-([figure-format](references/figure-format.md#discovering-themes-and-profiles)). Icons:
+`compatibleProfiles` must include the profile, else labels fail with `profile/font-too-small`: `textScaleFor.<profile>`
+is the `figure.themeOverrides.textScale` that fixes it (`sumi`: 2 for slides, 1.5 for `screen-doc`, a README); never lower
+`target.minFontSize` or draw small and enlarge ([text scale](references/figure-format.md#text-scale)). Icons:
 [assets](references/assets.md#icons).
 
 ### 4. Write the figure
@@ -113,10 +113,10 @@ groups:
   - id: backend
     label: Backend
 nodes:                     # label: plain text, \n breaks the line; group: set on the child
-  - { id: api, component: box, label: "API\nserver", group: backend }
-  - { id: db, component: cylinder, label: Database, group: backend }
+  - {id: api, component: box, label: "API\nserver", group: backend}
+  - {id: db, component: cylinder, label: Database, group: backend}
 edges:
-  - { from: api, to: db, label: query }
+  - {from: api, to: db, label: query}
 ```
 
 - Every node needs `component`; groups default to `container`, edges to `arrow`.

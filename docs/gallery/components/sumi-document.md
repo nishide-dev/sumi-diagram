@@ -4,7 +4,7 @@
 
 A page with a wavy bottom edge, e\.g\. for documents\.
 
-**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, filled, outlined, solid, tinted</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>document</code> · **sizing**: <code>auto</code>
+**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, dashed, filled, outlined, solid, tinted</code> · **since**: <code>0\.1\.0</code> · **shape**: <code>document</code> · **sizing**: <code>auto</code>
 
 | prop | type | required | description |
 | --- | --- | --- | --- |
@@ -14,7 +14,7 @@ A page with a wavy bottom edge, e\.g\. for documents\.
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> | <code>llama</code> | <code>sumi</code> | <code>sumi\-dark</code> |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | <img src="sumi-document.minimal.svg" alt="sumi/document, theme minimal"> | <img src="sumi-document.academic.svg" alt="sumi/document, theme academic"> | <img src="sumi-document.slides.svg" alt="sumi/document, theme slides"> | <img src="sumi-document.color.svg" alt="sumi/document, theme color"> | <img src="sumi-document.paper.svg" alt="sumi/document, theme paper"> | <img src="sumi-document.llama.svg" alt="sumi/document, theme llama"> | <img src="sumi-document.sumi.svg" alt="sumi/document, theme sumi"> | <img src="sumi-document.sumi-dark.svg" alt="sumi/document, theme sumi-dark"> |
-| <code>sumi render sumi\-document\.sumi\.yaml</code><br>80\.61mm × 24\.17mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-document\.sumi\.yaml \-\-theme academic</code><br>80\.43mm × 24\.17mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-document\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>160\.87mm × 48\.68mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-document\.sumi\.yaml \-\-theme color</code><br>80\.61mm × 24\.17mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-document\.sumi\.yaml \-\-theme paper</code><br>73\.55mm × 24\.17mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-document\.sumi\.yaml \-\-theme llama</code><br>73\.03mm × 24\.17mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-document\.sumi\.yaml \-\-theme sumi</code><br>73\.55mm × 24\.17mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-document\.sumi\.yaml \-\-theme sumi\-dark</code><br>73\.55mm × 24\.17mm \(max width 180mm, max height 220mm\) |
+| <code>sumi render sumi\-document\.sumi\.yaml</code><br>83\.78mm × 24\.17mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-document\.sumi\.yaml \-\-theme academic</code><br>83\.61mm × 24\.17mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-document\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>167\.39mm × 48\.68mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-document\.sumi\.yaml \-\-theme color</code><br>83\.78mm × 24\.17mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-document\.sumi\.yaml \-\-theme paper</code><br>76\.91mm × 24\.17mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-document\.sumi\.yaml \-\-theme llama</code><br>76\.38mm × 24\.17mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-document\.sumi\.yaml \-\-theme sumi</code><br>76\.91mm × 24\.17mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-document\.sumi\.yaml \-\-theme sumi\-dark</code><br>76\.91mm × 24\.17mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-document.sumi.yaml</code></summary>
@@ -31,8 +31,8 @@ figure:
     arrange:
       stack:
         items:
-          - row: { items: [default, emphasis, muted, filled] }
-          - row: { items: [outlined, solid, tinted] }
+          - row: { items: [default, emphasis, muted, dashed] }
+          - row: { items: [filled, outlined, solid, tinted] }
 
 nodes:
   - id: default
@@ -46,6 +46,10 @@ nodes:
     component: sumi/document
     label: muted
     variant: muted
+  - id: dashed
+    component: sumi/document
+    label: dashed
+    variant: dashed
   - id: filled
     component: sumi/document
     label: filled

@@ -39,6 +39,61 @@ function inscribedEllipse({ x, y, width, height }: Rect): Region {
 export const PARALLELOGRAM_WEDGE_UNITS = 26;
 /** D2 v0.9.0: depth of a cylinder's elliptical caps (`defaultArcDepth`). */
 export const CYLINDER_ARC_UNITS = 24;
+/** Smallest cap depth: a flat cylinder keeps a visible ellipse. */
+export const CYLINDER_MIN_ARC_UNITS = 2;
+/** Height up to which the caps scale down; from `CYLINDER_FULL_HEIGHT_UNITS` they are D2's 24 units. */
+const CYLINDER_FLAT_HEIGHT_UNITS = 32;
+const CYLINDER_FULL_HEIGHT_UNITS = 100;
+
+/**
+ * The depth of a cylinder's elliptical caps for a cylinder `height` tall: D2's
+ * 24 units from 100 units up, shrinking linearly to 2 units at 32 units (and to
+ * a third of the height below that), so a short cylinder keeps room for a line
+ * of text between its caps (#516).
+ */
+export function cylinderArc(height: number): number {
+  if (height >= CYLINDER_FULL_HEIGHT_UNITS) return CYLINDER_ARC_UNITS;
+  const t = Math.max(
+    0,
+    (height - CYLINDER_FLAT_HEIGHT_UNITS) /
+      (CYLINDER_FULL_HEIGHT_UNITS - CYLINDER_FLAT_HEIGHT_UNITS),
+  );
+  const arc = CYLINDER_MIN_ARC_UNITS + t * (CYLINDER_ARC_UNITS - CYLINDER_MIN_ARC_UNITS);
+  return Math.min(arc, height / 3);
+}
+
+/**
+ * The `d` of a cylinder's two paths in `bbox`: the body (outline with the
+ * front of the bottom cap) and the rim (front of the top cap). D2 v0.9.0's
+ * shape: curve handles 5% of the width from the middle.
+ */
+export function cylinderPathData(
+  { x, y, width: w, height: h }: Rect,
+  n: (value: number) => string,
+): { body: string; rim: string } {
+  const arc = cylinderArc(h);
+  const cx = x + w / 2;
+  const k = w * 0.05;
+  const body =
+    `M ${n(x)} ${n(y + arc)} C ${n(x)} ${n(y)} ${n(cx - k)} ${n(y)} ${n(cx)} ${n(y)} ` +
+    `C ${n(cx + k)} ${n(y)} ${n(x + w)} ${n(y)} ${n(x + w)} ${n(y + arc)} V ${n(y + h - arc)} ` +
+    `C ${n(x + w)} ${n(y + h)} ${n(cx + k)} ${n(y + h)} ${n(cx)} ${n(y + h)} ` +
+    `C ${n(cx - k)} ${n(y + h)} ${n(x)} ${n(y + h)} ${n(x)} ${n(y + h - arc)} V ${n(y + arc)} Z`;
+  const rim =
+    `M ${n(x)} ${n(y + arc)} C ${n(x)} ${n(y + 2 * arc)} ${n(cx - k)} ${n(y + 2 * arc)} ${n(cx)} ${n(y + 2 * arc)} ` +
+    `C ${n(cx + k)} ${n(y + 2 * arc)} ${n(x + w)} ${n(y + 2 * arc)} ${n(x + w)} ${n(y + arc)}`;
+  return { body, rim };
+}
+
+/** The height of a cylinder's body between the caps, where its label goes. */
+export const cylinderBodyHeight = (height: number): number => height - 3 * cylinderArc(height);
+
+/** The smallest height (in 0.25-unit steps) whose body is at least `content` tall. */
+export function cylinderMinHeight(content: number): number {
+  let h = Math.max(0, content);
+  while (cylinderBodyHeight(h) < content) h += 0.25;
+  return h;
+}
 /** D2 v0.9.0: fraction of a document's height above its wavy bottom edge (14 / 18.925). */
 export const DOCUMENT_BODY_RATIO = 14 / 18.925;
 
@@ -94,7 +149,7 @@ export function labelArea(shape: DrawnShape, bbox: Rect): Region {
   const { x, y, width, height } = bbox;
   switch (shape) {
     case "cylinder": {
-      const arc = Math.min(CYLINDER_ARC_UNITS, height / 3);
+      const arc = cylinderArc(height);
       return rectPolygon({ x, y: y + 2 * arc, width, height: height - 3 * arc });
     }
     case "document":

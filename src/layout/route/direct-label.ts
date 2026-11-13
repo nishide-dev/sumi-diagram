@@ -3,19 +3,20 @@ import type { Point, TextLayout, TextMetrics } from "../ir";
 import { roundUnits } from "../ir";
 import { placeText } from "../structured/engine";
 import { edgeArrowheadLength } from "./arrowhead";
-import { EDGE_LABEL_GAP } from "./labels";
+import { labelGap } from "./labels";
 
 /** Horizontal text, offset by its support radius along the line's normal. */
 export function straightLabel(metrics: TextMetrics, a: Point, b: Point, edge: EdgeIR): TextLayout {
   const length = Math.hypot(b.x - a.x, b.y - a.y);
   const ux = (b.x - a.x) / length;
   const uy = (b.y - a.y) / length;
+  const gap = labelGap(edge.style);
   const along = (Math.abs(ux) * metrics.width + Math.abs(uy) * metrics.height) / 2;
-  const away = (Math.abs(uy) * metrics.width + Math.abs(ux) * metrics.height) / 2 + EDGE_LABEL_GAP;
+  const away = (Math.abs(uy) * metrics.width + Math.abs(ux) * metrics.height) / 2 + gap;
   const at = edge.labelAt ?? "middle";
   const head = edgeArrowheadLength(edge.style);
-  const start = along + EDGE_LABEL_GAP + (edge.sourceArrowhead === undefined ? 0 : head);
-  const end = length - along - EDGE_LABEL_GAP - (edge.targetArrowhead === undefined ? 0 : head);
+  const start = along + gap + (edge.sourceArrowhead === undefined ? 0 : head);
+  const end = length - along - gap - (edge.targetArrowhead === undefined ? 0 : head);
   const t =
     at === "start"
       ? Math.min(length / 2, start)

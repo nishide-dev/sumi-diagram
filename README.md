@@ -53,10 +53,10 @@ figure:
   layout:
     direction: down
 nodes:
-  - { id: input, component: box, label: Input }
-  - { id: output, component: box, label: Output }
+  - {id: input, component: box, label: Input}
+  - {id: output, component: box, label: Output}
 edges:
-  - { from: input, to: output }
+  - {from: input, to: output}
 ```
 
 ```sh

@@ -89,6 +89,8 @@ export const emptyLabel = defineRule({
         manifest.render?.renderer === "sumi/bracket" ||
         // A flow arrow (#426) is a shape that marks the flow between stages.
         manifest.render?.renderer === "sumi/flow-arrow" ||
+        // A state marker (#519) is a dot or a ring and takes no label.
+        manifest.render?.renderer === "sumi/state-marker" ||
         (manifest.namespace === "sumi" && manifest.name === "separator") ||
         manifest.render?.renderer === "sumi/waveform" ||
         element.element.icon !== undefined ||
