@@ -126,6 +126,8 @@ export interface ArrangeBoxIR {
   readonly chat?: { readonly widthPt: number; readonly rows: readonly ChatRowIR[] };
   /** Coordinate centers in pt, parallel to items; place boxes are rigid. */
   readonly positionsPt?: readonly (readonly [number, number])[];
+  /** Place boxes only: items whose center is the body without attached nodes (#517), parallel to items. */
+  readonly bodyCentered?: readonly boolean[];
   readonly placementSources?: readonly SourceMapEntry[];
   /** Grid-only track count, spans (parallel to items), and gaps in pt. */
   readonly columns?: number;
@@ -1202,6 +1204,9 @@ function arrangeIR(
       kind: "place",
       direction: "right",
       positionsPt: freeze(items.map(({ at }) => freeze([at[0] * unit, at[1] * unit] as const))),
+      ...(items.some((cell) => cell.origin === "body") && {
+        bodyCentered: freeze(items.map((cell) => cell.origin === "body")),
+      }),
       ...(sourceEntry && {
         placementSources: freeze(
           items.map((_, i) => sourceEntry([...path, "place", "items", i, "at"])),

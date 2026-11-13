@@ -552,6 +552,8 @@ export const labelOverflow = defineGeometryRule({
     const findings: LintFinding[] = [];
     for (const element of context.elements) {
       const { labelArea, bbox } = element;
+      // A title above the border (#517) is outside the frame by design.
+      if (element.ir.kind === "group" && element.ir.labelAt?.startsWith("above") === true) continue;
       if (element.ir.kind === "node" && element.ir.labelBelow && bbox !== undefined) {
         // A caption below its frame (#491): its first line box starts at least
         // captionGap() (0.3 em) below the frame, and the caption is centred under it.
@@ -898,6 +900,9 @@ const GROUP_LABEL_WORDS: Readonly<Record<GroupLabelPosition, { at: string; other
   "bottom-left": { at: "bottom-left corner", others: "bottom-right or top" },
   bottom: { at: "bottom centre", others: "bottom-left, bottom-right or top" },
   "bottom-right": { at: "bottom-right corner", others: "bottom-left or top" },
+  "above-left": { at: "top-left, above the border", others: "above-right or bottom" },
+  above: { at: "top centre, above the border", others: "above-left, above-right or bottom" },
+  "above-right": { at: "top-right, above the border", others: "above-left or bottom" },
 };
 
 /** A group's effective `labelAt`: the engine's default when omitted (#127). */

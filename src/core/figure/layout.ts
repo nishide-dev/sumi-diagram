@@ -176,6 +176,9 @@ function checkAuto(state: CheckState, locate: Locator): void {
       if (group[field] !== undefined)
         report(field, ["groups", index, field], groupKey(group.id), subject);
     }
+    // A title above the border (#517) is placed by the structured engine only.
+    if (group.labelAt?.startsWith("above") === true)
+      report(`labelAt: ${group.labelAt}`, ["groups", index, "labelAt"], groupKey(group.id), subject);
   }
   for (const [index, node] of (doc.nodes ?? []).entries()) {
     if (node === undefined || invalid.has(nodeKey(node.id))) continue;
