@@ -80,6 +80,8 @@ interface Element {
   labelRotation: number | undefined;
   /** Nodes only (#184). */
   sublabel: string | undefined;
+  /** Nodes only (#519). */
+  sublabelInk: string | undefined;
   props: Record<string, unknown>;
   /** How messages name the element (an expanded caption or legend part names its origin). */
   name: string;
@@ -439,6 +441,15 @@ export function resolveComponents(
       };
       report([diagnostic], () => [...element.path, "sublabel"]);
     }
+    if (element.sublabelInk !== undefined && element.sublabel === undefined) {
+      const diagnostic: Diagnostic = {
+        code: "component/sublabel-ink-without-sublabel",
+        severity: "warning",
+        message: "sublabelInk colors the node's sublabel, but the node has none.",
+        hint: "Add a sublabel, or remove sublabelInk.",
+      };
+      report([diagnostic], () => [...element.path, "sublabelInk"]);
+    }
     const toneUnsupported = mark?.type === "point" && element.tone !== undefined;
     if (toneUnsupported) {
       const diagnostic: Diagnostic = {
@@ -630,6 +641,7 @@ function* elements(state: CheckState): Generator<Element> {
       labelAt: entry.kind === "group" ? entry.element.labelAt : undefined,
       labelRotation: entry.kind === "node" ? entry.element.labelRotation : undefined,
       sublabel: entry.kind === "node" ? entry.element.sublabel : undefined,
+      sublabelInk: entry.kind === "node" ? entry.element.sublabelInk : undefined,
       badge: entry.kind === "node" && entry.element.badge !== undefined,
       glyphs: entry.kind === "node" && entry.element.glyphs !== undefined,
       grow: entry.kind === "node" ? entry.element.grow : undefined,

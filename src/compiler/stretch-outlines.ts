@@ -4,6 +4,7 @@ import { getOutlineRenderer } from "../core/outline";
 import { getProfile } from "../core/profile/builtin";
 import { spacedProfile } from "../core/profile/schema";
 import { getFontSet } from "../core/theme/fonts";
+import { sublabelTextStyle } from "../core/theme/style";
 import { textBlock } from "../layout/structured/engine";
 import { nodeSize } from "../layout/structured/sizing";
 import { fontSetMeasurer, measureText } from "../layout/text";
@@ -35,7 +36,7 @@ export function withStretchOutlines(ir: FigureIR): FigureIR {
       node.sublabel &&
       measureText(
         node.sublabel.text,
-        { ...node.style, fontSize: node.sublabel.fontSize },
+        sublabelTextStyle(node.style, node.sublabel.fontSize),
         measurer,
       );
     const text = label && textBlock(label, sub);

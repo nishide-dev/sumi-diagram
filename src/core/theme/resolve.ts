@@ -35,6 +35,7 @@ import {
   type NodeStyle,
   type ResolvedStyle,
   type StyleLayer,
+  type StyleLength,
   type StyleOf,
   sublabelFontSize,
 } from "./style";
@@ -253,6 +254,49 @@ function overriddenTone(
 }
 
 /**
+ * A node's text style (#519, `text`, `weight`, `sublabelInk`): its label's size as a role of
+ * the theme's text (the theme's small edge text, the variant's own size, the group title size
+ * or 1.5 times the body), its label's weight, and its sublabel's weight and ink. Resolved from
+ * the figure's (text-scaled) theme, so it follows `textScale`.
+ */
+function withTextStyle(
+  style: NodeStyle,
+  theme: Theme,
+  node: {
+    readonly text?: string | undefined;
+    readonly weight?: string | undefined;
+    readonly sublabelInk?: string | undefined;
+  },
+): NodeStyle {
+  let next = style;
+  if (node.text !== undefined && node.text !== "body") {
+    const sized = (kind: "group" | "edge", id: ComponentId) =>
+      resolveStyle(theme, { kind, id, variant: "default" }).style.fontSize;
+    const body = style.fontSize;
+    const fontSize =
+      node.text === "small"
+        ? smaller(sized("edge", "sumi/line"), body)
+        : node.text === "heading"
+          ? larger(sized("group", CONTAINER_ID), body)
+          : { pt: Math.round(body.units * 1.5) / 2, units: Math.round(body.units * 1.5) };
+    next = Object.freeze({ ...next, fontSize });
+  }
+  if (node.weight !== undefined) next = Object.freeze({ ...next, bold: node.weight === "bold" });
+  const sublabel: { bold?: boolean; fontColor?: string } = {};
+  if (node.weight !== undefined) sublabel.bold = false;
+  if (node.sublabelInk === "muted")
+    sublabel.fontColor = resolveStyle(theme, {
+      kind: "node",
+      id: "sumi/label",
+      variant: "muted",
+    }).style.fontColor;
+  return Object.keys(sublabel).length === 0 ? next : Object.freeze({ ...next, sublabel });
+}
+
+const smaller = (a: StyleLength, b: StyleLength): StyleLength => (a.units < b.units ? a : b);
+const larger = (a: StyleLength, b: StyleLength): StyleLength => (a.units > b.units ? a : b);
+
+/**
  * Runs the `theme` stage: resolves `figure.theme` (reporting `theme/unknown`)
  * and records the effective style of every valid element with a resolved
  * component in `state.styles`. Returns the theme, or `undefined` if the figure
@@ -377,6 +421,8 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
       });
       if (frame) style = withRadius(style, overrides?.cornerRadius);
     }
+    if (style.kind === "node" && entry.kind === "node")
+      style = withTextStyle(style, theme, entry.element);
     if (style.kind === "edge" && overrides?.textScale !== undefined && overrides.textScale !== 1)
       style = Object.freeze({ ...style, textScale: overrides.textScale });
     if (overrides?.nodeCorners === "square" && style.kind !== "edge")

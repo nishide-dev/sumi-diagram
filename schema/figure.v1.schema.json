@@ -446,6 +446,32 @@
             "type": "string",
             "pattern": "\\S"
           },
+          "text": {
+            "description": "Structured layout: the size of the node's label as a role of the theme's text, not a free size: small (the theme's small text, e.g. a caption or a muted note), body (the variant's own size, the default), heading (the theme's group-title size, e.g. a row title or a method name) or large (1.5 times the body size, e.g. a repeat count like \"L×\"). The sublabel is drawn at 7/8 of it. Follows figure.themeOverrides.textScale.",
+            "type": "string",
+            "enum": [
+              "small",
+              "body",
+              "heading",
+              "large"
+            ]
+          },
+          "weight": {
+            "description": "Structured layout: the weight of the node's label, replacing the variant's (bold needs a bold face in the theme's font). The sublabel is then always regular, so a bold name sits over a plain subtitle. Omitted means the variant's.",
+            "type": "string",
+            "enum": [
+              "regular",
+              "bold"
+            ]
+          },
+          "sublabelInk": {
+            "description": "Structured layout: the color of the node's sublabel (needs sublabel). muted is the theme's muted ink (the muted label variant's), e.g. a grey subtitle under a name. Omitted or default keeps the label's color.",
+            "type": "string",
+            "enum": [
+              "default",
+              "muted"
+            ]
+          },
           "textAlign": {
             "description": "Horizontal alignment of the node's label and sublabel within their shared text block (structured layout, or bubble in either layout). Omitted means center (left for bubbles and the entries of a legend).",
             "type": "string",
@@ -759,7 +785,7 @@
         "type": "object",
         "properties": {
           "route": {
-            "description": "Join endpoints with one straight segment (straight) or cubic Bézier (curve), without obstacle avoidance or shared trunks (structured layout only). Curves share the through tangent at junctions. Omitted keeps orthogonal routing.",
+            "description": "Join endpoints with one straight segment (straight) or cubic Bézier (curve), without obstacle avoidance or shared trunks (structured layout only). Curves share the through tangent at junctions. On an edge from a node to itself, curve draws a loop out of one side of the node and back into it (clockwise; fromAnchor and toAnchor name that side and the two ends, e.g. south:0.3 and south:0.7; default north, label on the outside), e.g. a repeat or agent loop. Omitted keeps orthogonal routing.",
             "type": "string",
             "enum": [
               "straight",

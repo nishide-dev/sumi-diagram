@@ -9,7 +9,14 @@ import type { EdgeLayout, LayoutIR, Point, Rect, TextLayout } from "../ir";
 import { roundUnits } from "../ir";
 import { edgeArrowheadLength } from "./arrowhead";
 import { sampleCubic } from "./cubic";
-import { curveLabel, curvePoints, junctionTangents } from "./curve";
+import {
+  curveLabel,
+  curvePoints,
+  junctionTangents,
+  loopLabelEdge,
+  selfLoopAnchors,
+  selfLoopPoints,
+} from "./curve";
 import { straightLabel } from "./direct-label";
 import { endpointRects } from "./endpoint-rects";
 import {
@@ -62,7 +69,14 @@ export function addDirectRoutes(
       return e;
     };
     if (edge.routing === "zoom") return fail("zoom callouts already define their two lines");
-    if (zoomSide(source, target) === undefined) return fail("the endpoint boxes overlap");
+    // `route: curve` on an edge from a node to itself draws a loop on one side of it (#519).
+    const loop = edge.route === "curve" && edge.from === edge.to;
+    if (!loop && zoomSide(source, target) === undefined) return fail("the endpoint boxes overlap");
+    const loopAnchors = loop ? selfLoopAnchors(edge) : undefined;
+    if (loop && (isJunction(nodes.get(edge.from)) || typeof loopAnchors === "string"))
+      return fail(
+        typeof loopAnchors === "string" ? loopAnchors : "a junction has no side to loop out of",
+      );
     const raw = (r: Rect, anchor: EdgeIR["fromAnchor"]): Point =>
       anchor === undefined || anchor === "straight" ? center(r) : anchorPoint(r, anchor);
     const drawing = (key: ElementKey, r: Rect) => {
@@ -108,15 +122,29 @@ export function addDirectRoutes(
         y: roundUnits(from.y + (to.y - from.y) * f),
       };
     };
-    const a = end(edge.from, source, s, t, edge.fromAnchor);
-    const b = end(edge.to, target, t, s, edge.toAnchor);
+    const a =
+      loopAnchors === undefined || typeof loopAnchors === "string"
+        ? end(edge.from, source, s, t, edge.fromAnchor)
+        : end(
+            edge.from,
+            source,
+            anchorPoint(source, loopAnchors.from),
+            center(source),
+            loopAnchors.from,
+          );
+    const b =
+      loopAnchors === undefined || typeof loopAnchors === "string"
+        ? end(edge.to, target, t, s, edge.toAnchor)
+        : end(edge.to, target, anchorPoint(target, loopAnchors.to), center(target), loopAnchors.to);
     if (a === undefined || b === undefined)
       return fail("the line does not meet an endpoint outline; choose another anchor");
+    if (loop && Math.hypot(b.x - a.x, b.y - a.y) < 2)
+      return fail("the loop's two ends are at the same point; give the anchors different offsets");
     for (const [fixed, p, q] of [
       [sourceDrawing?.fixedPort, a, b],
       [targetDrawing?.fixedPort, b, a],
     ] as const) {
-      if (fixed === undefined) continue;
+      if (fixed === undefined || loop) continue;
       const normal = DIRS[SIDE_DIR[fixed.side]] as Point;
       if ((q.x - p.x) * normal.x + (q.y - p.y) * normal.y <= 0.001)
         return fail("the line cannot approach the fixed port from its outward side");
@@ -126,7 +154,7 @@ export function addDirectRoutes(
     const needed =
       (edge.sourceArrowhead === undefined ? 0 : head) +
       (edge.targetArrowhead === undefined ? 0 : head);
-    if (length <= Math.max(0.001, needed))
+    if (!loop && length <= Math.max(0.001, needed))
       return fail("there is no room for the line and its arrowheads");
     // A side explicitly facing away would make the line pass through its end.
     const enters = (key: ElementKey, r: Rect, p: Point, q: Point) => {
@@ -150,7 +178,14 @@ export function addDirectRoutes(
     )
       return fail("an anchor faces into its endpoint");
     if (edge.route === "curve") {
-      const points = curvePoints(edge, a, b, ir, rects, tangents);
+      const loopSide =
+        loopAnchors === undefined || typeof loopAnchors === "string"
+          ? undefined
+          : loopAnchors.from.side;
+      const points =
+        loopSide === undefined
+          ? curvePoints(edge, a, b, ir, rects, tangents)
+          : selfLoopPoints(edge, a, b, loopSide);
       const samples = sampleCubic(points);
       if (
         samples.slice(1).some((q, i) => {
@@ -163,7 +198,13 @@ export function addDirectRoutes(
         ...e,
         route: {
           points,
-          ...(e.labelMetrics !== undefined && { label: curveLabel(e.labelMetrics, points, edge) }),
+          ...(e.labelMetrics !== undefined && {
+            label: curveLabel(
+              e.labelMetrics,
+              points,
+              loopSide === undefined ? edge : loopLabelEdge(edge, a, b, loopSide),
+            ),
+          }),
         },
       };
     }

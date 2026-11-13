@@ -91,6 +91,7 @@ Apply one edit and re-check: independent savings are not additive.
 | `component/unsupported-in-auto` (warning) | label math with a command, `_` or `^` in an auto figure, drawn as written | use the structured layout or drop the `$...$` |
 | `component/label-at-without-label`, `component/label-rotation-without-label`, `component/sublabel-without-label` | `labelAt` / `labelRotation` / `sublabel` without a (non-empty) label (the sublabel one is an error) | add the label, or remove the field |
 | `component/label-rotation-unsupported`, `component/sublabel-unsupported` | on an icon, `operator`, `junction`, `image`, `bracket` or `legend` node | remove it; put a `label` node next to it |
+| `component/sublabel-ink-without-sublabel` (warning) | `sublabelInk` on a node with no `sublabel` | add the sublabel, or remove `sublabelInk` ([text styles](structured.md#text-styles)) |
 | `component/invalid-prop` on a legend entry | both or neither of `edge` / `node` / `class` / `icon` / `glyph` / `set`, `perRow` or `headings` without `flow: row`, or a sample box that is a mark, text or picture | one sample per entry; a shape such as `box` |
 | `component/tone-unsupported` | `tone` on a `junction` | remove it |
 | `component/anchor-on-junction`, `component/anchor-on-zoom` (warnings) | an anchor on an end at a `junction` (every line meets the dot's centre) or on a `zoom` edge (corners follow the target's place) | remove the anchor; anchor the other end or move the junction / target |
@@ -123,6 +124,7 @@ Apply one edit and re-check: independent savings are not additive.
 | `layout/group-mismatch` | `group:` disagrees with the tree: delete `group:` or move the ID into that group's `arrange` |
 | `layout/group-cycle`, `layout/attach-cycle` | a group placed inside itself, or attachments in a loop |
 | `layout/invalid-anchor` | `north`, `east`, `south`, `west`, optionally `:` and 0..1; or `straight` (no side) |
+| `layout/no-route` with a `route: curve` self-loop | anchors on two sides, `straight`, or the same point; or a junction | both anchors on one side with different offsets, or one anchor; no `route` on a junction ([loops](structured.md#loops)) |
 | `layout/no-route` with `route: straight` | separate overlapping ends, choose anchors meeting their outlines and facing outwards, increase the gap for arrowheads, or omit `route` (also on zoom callouts); obstacle and label overlaps are geometry warnings |
 | `layout/attached-legend`, `layout/attached-tokens`, `layout/attached-matrix` | these cannot be attached: list them in an arrange tree |
 | `layout/grid-span-overflow`, `layout/grid-item-count` | a grid item crosses its row boundary / the last row is incomplete: reduce the span or complete the row; `null` for a deliberate blank ([grids](structured.md#grids)) |

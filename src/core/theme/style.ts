@@ -58,6 +58,12 @@ export interface NodeStyle extends CommonStyle {
    * a theme layer.
    */
   readonly hatch?: Color;
+  /**
+   * How the node's sublabel differs from its label (#519), set only when the
+   * node writes `weight` or `sublabelInk`: a regular face under a bold label,
+   * the theme's muted ink. Absent: the sublabel takes the label's.
+   */
+  readonly sublabel?: { readonly bold?: boolean; readonly fontColor?: Color };
 }
 
 export interface GroupStyle extends CommonStyle {
@@ -226,6 +232,11 @@ export const SUBLABEL_SCALE = 7 / 8;
 export function sublabelFontSize(fontSize: StyleLength): StyleLength {
   const units = Math.floor(fontSize.units * SUBLABEL_SCALE);
   return { pt: units / 2, units };
+}
+
+/** The text of a node's sublabel (#519): the node's style at the sublabel's size, weight and ink. */
+export function sublabelTextStyle(style: NodeStyle, fontSize: StyleLength): NodeStyle {
+  return { ...style, fontSize, ...style.sublabel };
 }
 
 /**

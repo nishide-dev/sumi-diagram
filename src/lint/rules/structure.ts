@@ -158,14 +158,17 @@ export const selfLoop = defineRule({
   defaultSeverity: "info",
   fixable: false,
   run(context) {
-    return edgesOf(context)
-      .filter((edge) => edge.element.from === edge.element.to)
-      .map((edge) => ({
-        message: `Edge ${edgeName(edge)} connects "${edge.element.from}" to itself.`,
-        path: edge.path,
-        subject: edge.subject,
-        hint: "Self-loops are allowed; remove the edge if it is unintended.",
-      }));
+    return (
+      edgesOf(context)
+        // A `route: curve` loop (#519) is drawn on purpose.
+        .filter((edge) => edge.element.from === edge.element.to && edge.element.route !== "curve")
+        .map((edge) => ({
+          message: `Edge ${edgeName(edge)} connects "${edge.element.from}" to itself.`,
+          path: edge.path,
+          subject: edge.subject,
+          hint: "Self-loops are allowed; remove the edge if it is unintended.",
+        }))
+    );
   },
 });
 
