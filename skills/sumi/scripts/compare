@@ -27,52 +27,38 @@ usage() {
 dest=
 width=1200
 side=
-# Options may come before or after the images (#521); `--` ends them.
-files=
-nfiles=0
-while [ $# -gt 0 ]; do
-  case $1 in
+# Options may come before or after the images (#521); `--` ends them. Images are
+# rotated to the end of "$@" as they are met, so no file name is re-split.
+n=$#
+while [ "$n" -gt 0 ]; do
+  a=$1
+  shift
+  n=$((n - 1))
+  case $a in
     -o | --out)
-      [ $# -ge 2 ] || usage
-      dest=$2
-      shift 2
+      [ "$n" -ge 1 ] || usage
+      dest=$1
+      shift
+      n=$((n - 1))
       ;;
     -w | --width)
-      [ $# -ge 2 ] || usage
-      width=$2
-      shift 2
-      ;;
-    --side)
-      side=1
+      [ "$n" -ge 1 ] || usage
+      width=$1
       shift
+      n=$((n - 1))
       ;;
+    --side) side=1 ;;
     --)
-      shift
-      break
+      while [ "$n" -gt 0 ]; do
+        set -- "$@" "$1"
+        shift
+        n=$((n - 1))
+      done
       ;;
     -?*) usage ;;
-    *)
-      files="$files
-$1"
-      nfiles=$((nfiles + 1))
-      shift
-      ;;
+    *) set -- "$@" "$a" ;;
   esac
 done
-for f in "$@"; do
-  files="$files
-$f"
-  nfiles=$((nfiles + 1))
-done
-set --
-if [ "$nfiles" -gt 0 ]; then
-  oldifs=$IFS
-  IFS='
-'
-  # shellcheck disable=SC2086
-  set -- $files
-  IFS=$oldifs
-fi
 if [ $# -lt 2 ]; then usage; fi
 case $width in
   '' | *[!0-9]* | 0)

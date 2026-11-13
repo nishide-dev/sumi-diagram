@@ -51,13 +51,17 @@ esac
 chrome=
 find_chrome() {
   if [ -n "${SUMI_CHROME:-}" ]; then
-    [ -x "$SUMI_CHROME" ] && chrome=$SUMI_CHROME
-    return
+    if [ -x "$SUMI_CHROME" ] && [ ! -d "$SUMI_CHROME" ]; then
+      chrome=$SUMI_CHROME
+    else
+      echo "preview: warning: SUMI_CHROME is not an executable file: $SUMI_CHROME" >&2
+    fi
+    return 0
   fi
   for c in google-chrome google-chrome-stable chromium chromium-browser chrome microsoft-edge; do
     if command -v "$c" >/dev/null 2>&1; then
       chrome=$(command -v "$c")
-      return
+      return 0
     fi
   done
   for c in "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
@@ -65,9 +69,10 @@ find_chrome() {
     "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"; do
     if [ -x "$c" ]; then
       chrome=$c
-      return
+      return 0
     fi
   done
+  return 0
 }
 tool=${SUMI_PREVIEW_TOOL:-}
 case $tool in
@@ -214,7 +219,7 @@ elif [ "$tool" = chrome ]; then
     fi
   fi
   {
-    printf '<!doctype html><meta charset="utf-8"><style>html,body{margin:0;background:#fff}svg{display:block;width:%spx;height:%spx}</style>\n' "$fw" "$fh"
+    printf '<!doctype html><meta charset="utf-8"><style>html,body{margin:0;background:#fff}body>svg{display:block;width:%spx;height:%spx}</style>\n' "$fw" "$fh"
     cat "$svg_abs"
   } >"$out/page.html"
   "$chrome" --headless --disable-gpu --no-sandbox --hide-scrollbars \
