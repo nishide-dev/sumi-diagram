@@ -65,4 +65,18 @@ describe("Skill base layouts (#511)", () => {
       expect(result.value.svg).toBe(read(name, "svg"));
     },
   );
+
+  // `bun run skill:previews` writes the PNGs and records the SVG each was made
+  // from, so a PNG left behind after its SVG changed fails here.
+  test("previews.json records the current SVG of every layout's PNG", () => {
+    const manifest = JSON.parse(readFileSync(join(LAYOUTS, "previews.json"), "utf8")) as Record<
+      string,
+      string
+    >;
+    expect(Object.keys(manifest).sort()).toEqual(NAMES);
+    for (const name of NAMES) {
+      const sha = createHash("sha256").update(read(name, "svg")).digest("hex");
+      expect(manifest[name], `${name}: run bun run skill:previews`).toBe(sha);
+    }
+  });
 });
