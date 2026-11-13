@@ -417,3 +417,84 @@ describe("group props.padding", () => {
     );
   });
 });
+
+describe("place-overlap honours origin: body (#517 review)", () => {
+  const groups = [{ id: "g", variant: "plain", arrange: { stack: { items: ["inner"] } } }];
+  const nodes = (extra: object[]) => [
+    box("inner", "40pt", "20pt"),
+    {
+      id: "tag",
+      component: "label",
+      label: "long tag text",
+      attach: { to: "inner", side: "east", gap: "4pt" },
+    },
+    ...extra,
+  ];
+  const overlaps = (origin: string | undefined, other: [number, number]) =>
+    lay(
+      doc(
+        {
+          place: {
+            unit: "1pt",
+            items: [
+              { item: "g", at: [0, 0], ...(origin && { origin }) },
+              { item: "o", at: other },
+            ],
+          },
+        },
+        nodes([box("o", "20pt", "20pt")]),
+        { groups },
+      ),
+    ).diagnostics.filter((d) => d.code === "layout/place-overlap").length;
+
+  test("no false overlap on the left, a real one on the right", () => {
+    // Body is 40pt wide (±20); the tag extends the footprint east.
+    expect(overlaps("body", [-40, 0])).toBe(0);
+    expect(overlaps("body", [40, 0])).toBe(1);
+  });
+});
+
+describe("a title above layered and nested groups", () => {
+  test("sits above the whole layered footprint and lints clean", async () => {
+    const { renderFigure } = await import("../../render/render");
+    const { lintGeometry } = await import("../../lint");
+    const text = stringify(
+      doc({ row: { items: ["outer"] } }, [box("a")], {
+        groups: [
+          {
+            id: "outer",
+            label: "Outer",
+            labelAt: "above",
+            arrange: { stack: { items: ["stacked"] } },
+          },
+          {
+            id: "stacked",
+            label: "Stacked",
+            labelAt: "above-left",
+            props: { layers: { count: 3, offset: "10pt" } },
+            arrange: { stack: { items: ["a"] } },
+          },
+        ],
+      }),
+    );
+    const result = await renderFigure(text);
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const find = (id: string) => result.value.inspection.elements.find((e) => e.key === `g:${id}`);
+    const { getFontSet } = await import("../../core/theme/fonts");
+    const { measureLabel } = await import("../../lint/geometry/measure");
+    const fonts = getFontSet(result.value.compiled.ir.meta.fontSetId);
+    if (fonts === undefined) throw new Error("no font set");
+    const boxOf = (g: typeof stacked) => measureLabel(g?.labels[0] as never, fonts).box as Rect;
+    const stacked = find("stacked");
+    const outer = find("outer");
+    const label = boxOf(stacked);
+    // Above the layered footprint (the rear card's top edge), not just the front card.
+    expect(label.y + label.height).toBeLessThanOrEqual((stacked?.bbox?.y ?? 0) + 0.5);
+    // The outer title is above the outer frame, which holds the stacked title.
+    const outerLabel = boxOf(outer);
+    expect(outerLabel.y + outerLabel.height).toBeLessThanOrEqual((outer?.bbox?.y ?? 0) + 0.5);
+    expect(
+      lintGeometry(result.value, { source: text }).filter((d) => d.severity !== "info"),
+    ).toEqual([]);
+  });
+});

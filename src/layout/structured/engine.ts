@@ -408,7 +408,7 @@ class StructuredLayout {
       }
       if (box.kind !== "place") continue;
       const rects = box.items.map((item, i) =>
-        this.#coordinateRect(item, box.positionsPt?.[i] ?? [0, 0]),
+        this.#coordinateRect(item, box.positionsPt?.[i] ?? [0, 0], box.bodyCentered?.[i] === true),
       );
       for (const [i, a] of rects.entries())
         for (let j = i + 1; j < rects.length; j++) {
@@ -1189,9 +1189,13 @@ class StructuredLayout {
     }
     for (const group of this.#ir.groups) {
       const metrics = this.#labels.get(group.key);
-      const rect = groupFrontRect(group, this.#rect(group.key));
+      const footprint = this.#rect(group.key);
+      const rect = groupFrontRect(group, footprint);
       if (metrics !== undefined) {
-        labels.set(group.key, placeText(metrics, this.#groupLabelCenter(group, rect, metrics)));
+        labels.set(
+          group.key,
+          placeText(metrics, this.#groupLabelCenter(group, rect, metrics, footprint.y)),
+        );
       }
     }
 
@@ -1335,7 +1339,12 @@ class StructuredLayout {
    * left, centre or right (#127). Omitted `labelAt` is top centre. The frame
    * includes attached members; the arrange tree alone is not the reference (#312).
    */
-  #groupLabelCenter(group: GroupIR, rect: Rect, metrics: TextMetrics): { x: number; y: number } {
+  #groupLabelCenter(
+    group: GroupIR,
+    rect: Rect,
+    metrics: TextMetrics,
+    footprintTop: number,
+  ): { x: number; y: number } {
     const p = this.#padOf(group);
     const at = group.labelAt ?? "top";
     const above = at.startsWith("above");
@@ -1345,7 +1354,7 @@ class StructuredLayout {
         ? rect.x + rect.width - p - metrics.width / 2
         : rect.x + rect.width / 2;
     const y = above
-      ? rect.y - p / 2 - metrics.height / 2
+      ? footprintTop - p / 2 - metrics.height / 2
       : labelAtBottom(at)
         ? rect.y + rect.height - p - metrics.height / 2
         : rect.y + p + metrics.height / 2;
