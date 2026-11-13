@@ -313,6 +313,7 @@ export function solveAlignment(
     });
   }
   diagnostics.push(...unsatisfiedDiagnostics);
+  diagnostics.push(...splitTokens(ir, constraints, struts, pathOf));
   const growth = ir.meta.alignGrowth === "allow" ? undefined : grewFigure(ir, plain, layout);
   if (growth !== undefined) diagnostics.push(growth);
   const stats: AlignStats = {
@@ -322,6 +323,61 @@ export function solveAlignment(
     struts: strutRecord(struts),
   };
   return { layout, diagnostics, stats };
+}
+
+/**
+ * `layout/align-splits-tokens` (#517): a strut inside a single-line tokens
+ * node pulls its cells apart (the row of cells gains a gap that its siblings
+ * do not have). The constraint is met, but the sequence is no longer a
+ * sequence, and nothing else says so.
+ */
+function splitTokens(
+  ir: FigureIR,
+  constraints: readonly AlignIR[],
+  struts: Struts,
+  pathOf: ReadonlyMap<ElementKey, Step[]>,
+): Diagnostic[] {
+  const out: Diagnostic[] = [];
+  const reported = new Set<string>();
+  for (const [kind, map] of [
+    ["lead", struts.lead],
+    ["trail", struts.trail],
+  ] as const) {
+    for (const [item, value] of map) {
+      if (typeof item !== "string" || value <= ALIGN_EPSILON) continue;
+      const element = ir.elements.get(item as ElementKey);
+      const step = pathOf.get(item as ElementKey)?.at(-1);
+      if (element?.kind !== "node" || element.tokens === undefined || step === undefined) continue;
+      const tokens = element.tokens;
+      if (reported.has(tokens.id)) continue;
+      const cells = step.box.items.filter(
+        (i): i is ElementKey =>
+          typeof i === "string" && ir.elements.get(i)?.tokens?.id === tokens.id,
+      );
+      if (cells.length < 2 || cells.length !== step.box.items.length) continue;
+      const reversed = step.box.direction === "left" || step.box.direction === "up";
+      const index = cells.indexOf(item as ElementKey);
+      const visual = reversed ? cells.length - 1 - index : index;
+      const inside = kind === "lead" ? visual > 0 : visual < cells.length - 1;
+      if (!inside) continue;
+      reported.add(tokens.id);
+      const cellRef = (key: string) => {
+        const e = ir.elements.get(key as ElementKey);
+        return e?.kind === "node" ? e.id.replace(`${tokens.id}-`, `${tokens.id}.`) : key;
+      };
+      const constraint = constraints.find((c) => c.items.includes(item as ElementKey));
+      out.push({
+        code: "layout/align-splits-tokens",
+        severity: "warning",
+        message: `figure.layout.align adds ${(value * MM_PER_UNIT).toFixed(2)}mm ${kind === "lead" ? "before" : "after"} cell "${cellRef(item)}" of the tokens "${tokens.id}", which pulls its cells apart.`,
+        path: constraint?.srcAt.path ?? ["figure", "layout", "align"],
+        ...(constraint?.srcAt.location !== undefined && { location: constraint.srcAt.location }),
+        subject: { kind: "figure", id: ir.meta.id },
+        hint: `Align the whole sequence instead (\`${tokens.id}\` in the constraint, with \`at: start\` or \`end\` for an edge), or give both sequences the same cell width and gap so the cells line up without align; one cell of a row cannot move without moving the cells next to it.`,
+      });
+    }
+  }
+  return out;
 }
 
 interface Coordinate {

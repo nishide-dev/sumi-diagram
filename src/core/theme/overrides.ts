@@ -14,6 +14,7 @@
 import { withPalette } from "./palette";
 import type { Theme, ToneOverride } from "./schema";
 import type { StyleLayer } from "./style";
+import { withTextScale } from "./text-scale";
 import type { Tone } from "./tones";
 
 /** The theme with the figure's tone colors, or the theme itself without any. */
@@ -54,19 +55,24 @@ const layer = (values: StyleLayer): StyleLayer => Object.freeze(values);
 /**
  * The theme a figure is drawn with: the built-in theme in the figure's
  * palette (#417), then its tone colors (#380), so an explicit tone color wins
- * over the palette. The theme itself without either.
+ * over the palette; the figure's text scale (#514) first of all. The theme
+ * itself without any of them.
  */
 export function figureTheme(
   theme: Theme,
   overrides:
     | {
         readonly palette?: string | undefined;
+        readonly textScale?: number | undefined;
         readonly tones?: Partial<Record<Tone, ToneOverride>> | undefined;
         readonly solidFills?: Partial<Record<Tone, string>> | undefined;
       }
     | undefined,
 ): Theme {
-  const resolved = withToneOverrides(withPalette(theme, overrides?.palette), overrides?.tones);
+  const resolved = withToneOverrides(
+    withPalette(withTextScale(theme, overrides?.textScale), overrides?.palette),
+    overrides?.tones,
+  );
   return overrides?.solidFills === undefined
     ? resolved
     : Object.freeze({ ...resolved, solidFillOverrides: overrides.solidFills });

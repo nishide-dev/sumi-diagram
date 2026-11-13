@@ -108,6 +108,10 @@ interface Overhang {
   west: number;
 }
 
+/** `layout/center-on-void`: the empty room (units) above which it is reported (5mm), and its share of the box. */
+const CENTER_VOID_MIN = (5 * 72) / 25.4 / 0.5;
+const CENTER_VOID_RATIO = 0.25;
+
 const NO_OVERHANG: Readonly<Overhang> = Object.freeze({ north: 0, east: 0, south: 0, west: 0 });
 
 /** The root container (the figure itself). */
@@ -341,12 +345,17 @@ class StructuredLayout {
     }
   }
 
+  /** The padding (units) of `group`: its own `props.padding` (#517), else the profile's. */
+  #padOf(group: GroupIR | undefined): number {
+    return group?.paddingPt === undefined ? this.#groupPadding : group.paddingPt * 2;
+  }
+
   /** A group's padding per side: the profile's, plus any `growPadding` added. */
   #padding(key: ElementKey): Overhang {
     // The frame of a tokens node (#281) is exactly its cells, and a flush
     // matrix's frame (#280) has no padding of its own either.
     const group = this.#groups.get(key);
-    const p = group?.tokens !== undefined || group?.matrix?.flush === true ? 0 : this.#groupPadding;
+    const p = group?.tokens !== undefined || group?.matrix?.flush === true ? 0 : this.#padOf(group);
     const extra = this.#extraPadding.get(key) ?? NO_OVERHANG;
     return {
       north: p + extra.north,
@@ -380,9 +389,26 @@ class StructuredLayout {
     const diagnostics: Diagnostic[] = [];
     for (const box of this.#boxSizes.keys()) {
       if (box.kind === "chat") diagnostics.push(...this.#chatGeometry(box).diagnostics);
+      if (box.centerOn !== undefined) {
+        const padding = this.#centerPadding(box);
+        const size = this.#boxSize(box);
+        const emptyRoom = Math.max(padding.before, padding.after);
+        const main = box.kind === "stack" ? size.height : size.width;
+        if (emptyRoom > CENTER_VOID_MIN && emptyRoom >= main * CENTER_VOID_RATIO) {
+          const name = box.centerOn.slice(2);
+          diagnostics.push({
+            code: "layout/center-on-void",
+            severity: "info",
+            message: `centerOn "${name}" reserves ${((emptyRoom * 0.5 * 25.4) / 72).toFixed(1)}mm of empty room on one side of its ${box.kind === "stack" ? "stack" : "row"} to keep "${name}" at the center of the box.`,
+            path: ["figure", "layout", "arrange"],
+            subject: { kind: "figure", id: this.#ir.meta.id },
+            hint: `The box is as long on the empty side as on the side that holds the other items. Drop centerOn and line "${name}" up with an align constraint (x or y) instead, or move some items to the empty side. Keep it if the symmetric room is intended.`,
+          });
+        }
+      }
       if (box.kind !== "place") continue;
       const rects = box.items.map((item, i) =>
-        this.#coordinateRect(item, box.positionsPt?.[i] ?? [0, 0]),
+        this.#coordinateRect(item, box.positionsPt?.[i] ?? [0, 0], box.bodyCentered?.[i] === true),
       );
       for (const [i, a] of rects.entries())
         for (let j = i + 1; j < rects.length; j++) {
@@ -420,7 +446,17 @@ class StructuredLayout {
     const cached = this.#itemSizes.get(item);
     if (cached !== undefined) return cached;
     const leaf = this.#leafSizes.get(item);
-    const size = leaf ?? this.#groupSize(this.#group(item));
+    let size = leaf;
+    if (size === undefined) {
+      const group = this.#group(item);
+      size = this.#groupSize(group);
+      // A title above the border (#517) hangs outside the frame, like a badge.
+      const above = this.#titleAbove(group);
+      if (above > 0) {
+        this.#badgeOverhangs.set(item, { north: above, east: 0, south: 0, west: 0 });
+        size = { width: size.width, height: size.height + above };
+      }
+    }
     this.#itemSizes.set(item, size);
     return size;
   }
@@ -549,16 +585,27 @@ class StructuredLayout {
         p.east +
         groupLayerSpread(group),
       height:
-        content.height + p.north + p.south + this.#labelSpace(label) + groupLayerSpread(group),
+        content.height +
+        p.north +
+        p.south +
+        (this.#titleAbove(group) > 0 ? 0 : this.#labelSpace(label, group)) +
+        groupLayerSpread(group),
     };
+  }
+
+  /** The room (units) a title above the border (#517) takes outside the frame, or 0. */
+  #titleAbove(group: GroupIR): number {
+    const label = this.#labels.get(group.key);
+    if (label === undefined || group.labelAt?.startsWith("above") !== true) return 0;
+    return Math.ceil(label.height) + this.#padOf(group) / 2;
   }
 
   /**
    * Height a group's label band takes above (or below) its content: the label
    * and half the padding between it and the content.
    */
-  #labelSpace(label: TextMetrics | undefined): number {
-    return label === undefined ? 0 : Math.ceil(label.height) + this.#groupPadding / 2;
+  #labelSpace(label: TextMetrics | undefined, group: GroupIR): number {
+    return label === undefined ? 0 : Math.ceil(label.height) + this.#padOf(group) / 2;
   }
 
   /**
@@ -590,7 +637,7 @@ class StructuredLayout {
   /** Union of natural footprints around the authored centers, without grid quantization. */
   #placeBounds(box: ArrangeBoxIR): Rect {
     const rects = box.items.map((item, i) =>
-      this.#coordinateRect(item, box.positionsPt?.[i] ?? [0, 0]),
+      this.#coordinateRect(item, box.positionsPt?.[i] ?? [0, 0], box.bodyCentered?.[i] === true),
     );
     const x = Math.min(...rects.map((r) => r.x));
     const y = Math.min(...rects.map((r) => r.y));
@@ -603,11 +650,27 @@ class StructuredLayout {
   }
 
   /** Center a node/group body; its badge or caption still contributes to the footprint. */
-  #coordinateRect(item: ArrangeItemIR, [x, y]: readonly [number, number]): Rect {
+  #coordinateRect(
+    item: ArrangeItemIR,
+    [x, y]: readonly [number, number],
+    withoutAttached = false,
+  ): Rect {
     const size = this.#itemSize(item);
     let body = { x: 0, y: 0, ...size };
-    if (typeof item === "string") body = this.#bodyRect(item, body);
-    else if (item?.growFirst === true) {
+    if (typeof item === "string") {
+      body = this.#bodyRect(item, body);
+      // #517: a group's frame grows to hold the nodes attached to it; the
+      // body is the frame without that room.
+      const room = withoutAttached ? this.#overhangs.get(item) : undefined;
+      if (room !== undefined) {
+        body = {
+          x: body.x + room.west,
+          y: body.y + room.north,
+          width: body.width - room.west - room.east,
+          height: body.height - room.north - room.south,
+        };
+      }
+    } else if (item?.growFirst === true) {
       const key = item.items[0];
       this.#placeBox(item, body, "center", (k, rect) => {
         if (k === key) body = rect;
@@ -623,7 +686,11 @@ class StructuredLayout {
   ): void {
     const bounds = this.#placeBounds(box);
     box.items.forEach((item, i) => {
-      const local = this.#coordinateRect(item, box.positionsPt?.[i] ?? [0, 0]);
+      const local = this.#coordinateRect(
+        item,
+        box.positionsPt?.[i] ?? [0, 0],
+        box.bodyCentered?.[i] === true,
+      );
       const rect = {
         ...local,
         x: frame.x + (frame.width - bounds.width) / 2 - bounds.x + local.x,
@@ -712,13 +779,14 @@ class StructuredLayout {
 
   #placeGrid(box: ArrangeBoxIR, frame: Rect, visit: (key: ElementKey, rect: Rect) => void): void {
     const tracks = this.#gridTracks(box);
-    const align = box.align ?? "center";
     const xs = [frame.x + (frame.width - tracks.size.width) / 2];
     const ys = [frame.y + (frame.height - tracks.size.height) / 2];
     for (const w of tracks.widths) xs.push((xs.at(-1) as number) + w + tracks.columnGap);
     for (const h of tracks.heights) ys.push((ys.at(-1) as number) + h + tracks.rowGap);
-    for (const cell of tracks.cells) {
+    for (const [index, cell] of tracks.cells.entries()) {
       if (cell.item === null) continue;
+      // A cell's own align (#517) replaces the grid's for this cell.
+      const align = box.cellAligns?.[index] ?? box.align ?? "center";
       const available =
         tracks.widths.slice(cell.column, cell.column + cell.span).reduce((a, b) => a + b, 0) +
         tracks.columnGap * (cell.span - 1);
@@ -960,7 +1028,7 @@ class StructuredLayout {
     if (group === undefined) return;
     rect = groupFrontRect(group, rect);
     const p = this.#padding(key);
-    const band = this.#labelSpace(this.#labels.get(key));
+    const band = this.#titleAbove(group) > 0 ? 0 : this.#labelSpace(this.#labels.get(key), group);
     // The label band is above the content, or below it for a bottom label (#127).
     const top = labelAtBottom(group.labelAt) ? 0 : band;
     const content: Rect = {
@@ -1121,9 +1189,13 @@ class StructuredLayout {
     }
     for (const group of this.#ir.groups) {
       const metrics = this.#labels.get(group.key);
-      const rect = groupFrontRect(group, this.#rect(group.key));
+      const footprint = this.#rect(group.key);
+      const rect = groupFrontRect(group, footprint);
       if (metrics !== undefined) {
-        labels.set(group.key, placeText(metrics, this.#groupLabelCenter(group, rect, metrics)));
+        labels.set(
+          group.key,
+          placeText(metrics, this.#groupLabelCenter(group, rect, metrics, footprint.y)),
+        );
       }
     }
 
@@ -1267,17 +1339,25 @@ class StructuredLayout {
    * left, centre or right (#127). Omitted `labelAt` is top centre. The frame
    * includes attached members; the arrange tree alone is not the reference (#312).
    */
-  #groupLabelCenter(group: GroupIR, rect: Rect, metrics: TextMetrics): { x: number; y: number } {
-    const p = this.#groupPadding;
+  #groupLabelCenter(
+    group: GroupIR,
+    rect: Rect,
+    metrics: TextMetrics,
+    footprintTop: number,
+  ): { x: number; y: number } {
+    const p = this.#padOf(group);
     const at = group.labelAt ?? "top";
+    const above = at.startsWith("above");
     const x = at.endsWith("-left")
       ? rect.x + p + metrics.width / 2
       : at.endsWith("-right")
         ? rect.x + rect.width - p - metrics.width / 2
         : rect.x + rect.width / 2;
-    const y = labelAtBottom(at)
-      ? rect.y + rect.height - p - metrics.height / 2
-      : rect.y + p + metrics.height / 2;
+    const y = above
+      ? footprintTop - p / 2 - metrics.height / 2
+      : labelAtBottom(at)
+        ? rect.y + rect.height - p - metrics.height / 2
+        : rect.y + p + metrics.height / 2;
     return { x, y };
   }
 

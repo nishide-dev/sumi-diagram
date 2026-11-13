@@ -22,11 +22,11 @@ figure:                    # required
   id: request-flow         # required ID
   title: Request handling  # optional, not drawn
   theme: minimal           # optional, default minimal
-  # themeOverrides: { palette: cool-blue, nodeCorners: square, edgeCorners: sharp }
+  # themeOverrides: {palette: cool-blue, nodeCorners: square, edgeCorners: sharp}
   profile: paper-single    # optional, default paper-single
-  # target: { height: 60mm, minFontSize: 5pt, minLineWidth: 0.5pt } # placement lint
+  # target: {height: 60mm, minFontSize: 5pt, minLineWidth: 0.5pt} # placement lint
   # fit: scale             # optional: shrink a too-wide figure to the profile width (layout-tips)
-  # assets: { photo: { svg: … } }   # optional: pictures shared by image nodes (assets.md)
+  # assets: {photo: {svg: …}}   # optional: pictures shared by image nodes (assets.md)
   layout:
     direction: down        # optional: right (default) | down | left | up
     # arrange: …           # optional: switches to the structured layout (structured.md)
@@ -164,9 +164,9 @@ real, searchable text in the bundled STIX Two math fonts:
   character outside `$...$` (`'$x \in$ ℝ$^d$'`). For a bar over several letters
   try `$\bar{x}\bar{y}$` or `$z^{*}$`.
 - **Quote math labels in single quotes** (backslashes stay literal:
-  `label: '$\alpha_1$'`). In a flow mapping `{ … }` a label with `,` must be
+  `label: '$\alpha_1$'`). In a flow mapping `{…}` a label with `,` must be
   quoted or YAML splits it (`schema/unknown-field`, `Unknown field "\beta_1$"`):
-  `{ id: ss, …, label: '$\gamma_1,\,\beta_1$' }`. In double quotes double every `\`.
+  `{id: ss, …, label: '$\gamma_1,\,\beta_1$'}`. In double quotes double every `\`.
 
 ### Math and line breaks in one label
 
@@ -180,7 +180,7 @@ is one line with a visible `\n`; `lint/literal-newline`). Use either:
 
 ```yaml
 nodes:
-  - { id: ss1, component: box, label: "Scale, Shift\n$\\gamma_1,\\,\\beta_1$" }
+  - {id: ss1, component: box, label: "Scale, Shift\n$\\gamma_1,\\,\\beta_1$"}
   - id: ss2
     component: box
     label: |-
@@ -203,10 +203,10 @@ distinguishable colours use `color` (`paper` for a paper figure).
 
 ```yaml
 nodes:
-  - { id: attention, component: box, label: Attention, tone: orange }
-  - { id: encoder, component: box, label: Text Encoder, tone: purple, variant: outlined }
+  - {id: attention, component: box, label: Attention, tone: orange}
+  - {id: encoder, component: box, label: Text Encoder, tone: purple, variant: outlined}
 edges:
-  - { from: attention, to: encoder, tone: orange }
+  - {from: attention, to: encoder, tone: orange}
 ```
 
 Variants (closed list per component; typically `default`, `emphasis`, `muted`;
@@ -240,7 +240,7 @@ fills stay strong).
 
 ```yaml
 groups:
-  - { id: gated, caption: (c) Gated variant, dim: true, arrange: … }
+  - {id: gated, caption: (c) Gated variant, dim: true, arrange: …}
 ```
 
 - Only `true` is accepted; it cannot be turned off inside. An edge with one end outside is
@@ -374,7 +374,7 @@ their own `properties`, `enum`, `const` and `anyOf`.
 
   ```yaml
   version: 1
-  figure: { id: waveform-example }
+  figure: {id: waveform-example}
   nodes:
     - id: signal
       component: waveform
@@ -411,14 +411,14 @@ figure:
   id: outline-pipeline
   theme: academic
   profile: paper-double
-  layout: { direction: right }
+  layout: {direction: right}
 groups:
-  - { id: processing, label: Processing }
+  - {id: processing, label: Processing}
 nodes:
-  - { id: filter, component: trapezoid, label: Filter, group: processing }
-  - { id: jobs, component: stack, label: Jobs, variant: emphasis, group: processing }
+  - {id: filter, component: trapezoid, label: Filter, group: processing}
+  - {id: jobs, component: stack, label: Jobs, variant: emphasis, group: processing}
 edges:
-  - { from: filter, to: jobs }
+  - {from: filter, to: jobs}
 ```
 
 ## Themes and profiles
@@ -452,7 +452,8 @@ square needs about 1.4× the text size (11pt for 8pt text); otherwise leave size
 | --- | --- | --- | --- | --- |
 | `paper-single` | 88mm | 220mm | 7pt | one column of a two-column paper (default) |
 | `paper-double` | 180mm | 220mm | 7pt | full page width |
-| `presentation-16x9` | 338.7mm | 190.5mm | 14pt | slides; only `slides` meets its 14pt minimum |
+| `screen-doc` | 200mm | 150mm | 10pt (scaled 8pt) | README, blog or document page, shown about 760px wide; 7-9pt themes need `textScale: 1.5` |
+| `presentation-16x9` | 338.7mm | 190.5mm | 14pt | slides; `slides` meets 14pt as it is, 7-9pt themes need `textScale: 2` |
 
 `sumi render --theme <name> --profile <name>` overrides them for one render. With
 `figure.fit: scale` a too-wide figure is printed smaller and text is checked at its
@@ -489,12 +490,14 @@ stay the theme's):
 - `edgeCorners: sharp` draws structured wires with sharp turns, T-joins at hidden junctions,
   butt caps and miter joins (zoom wires too; editable PPTX flat caps). Independent of
   `nodeCorners`.
+- `textScale: 2` scales the theme's text, line widths, arrowheads and corner radii together
+  ([below](#text-scale)); fonts, colours and the profile's spacing stay.
 - `groupLabelWeight: regular | bold` sets every group heading's weight.
-- `solidFills: { blue: '#3d9df5', orange: '#e8a20c', red: '#e04848' }` replaces the solid
+- `solidFills: {blue: '#3d9df5', orange: '#e8a20c', red: '#e04848'}` replaces the solid
   fill and border of those tones (expanded nodes and solid glyphs/legend samples too); white text stays if it meets 4.5:1,
   else it darkens; other variants, tone-line text and edges keep the palette.
 - `dashedGroupStroke: '#527da5'` changes only dashed group borders.
-- `tones: { blue: { fill: '#dfe1ea', line: '#5f6a95', text: '#000000' } }` recolours a tone
+- `tones: {blue: {fill: '#dfe1ea', line: '#5f6a95', text: '#000000'}}` recolours a tone
   everywhere it appears: `fill` = pale fills (default/filled/tinted, toned groups, matrix
   classes, legend samples); `line` = outlined/tinted frames, toned edges and arrowheads,
   hatches, solid fills (`solidFills` wins), html `--sumi-accent` (blue); a `fill`-only override does not change solid fills. A `line` override replaces even the bright built-in yellow solid fill, and its text is adjusted to at least 4.5:1; `text` =
@@ -510,8 +513,8 @@ stay the theme's):
 Colours are strict `#RRGGBB` and apply before inherited dimming.
 
 **Line weights, dots and arrowheads** (structured layout; the options below give
-`layout/structured-only` in `auto`, where `dotted` is drawn as D2's finest dash). Paper figures want thin lines: `themeOverrides: { lineWidth: 0.5pt, frameWidth:
-0.5pt, arrowheadScale: 0.6, cornerRadius: 2pt }`.
+`layout/structured-only` in `auto`, where `dotted` is drawn as D2's finest dash). Paper figures want thin lines: `themeOverrides: {lineWidth: 0.5pt, frameWidth:
+0.5pt, arrowheadScale: 0.6, cornerRadius: 2pt}`.
 - `lineWidth` replaces the regular width of node frames and edges; widths are multiples of
   0.25pt from 0.25pt to 4pt. A heavier variant (`emphasis`) or lighter one (`zoom`) keeps its
   ratio to the theme's regular width; borderless stays borderless.
@@ -524,6 +527,19 @@ Colours are strict `#RRGGBB` and apply before inherited dimming.
   on a node, group or set. `variant: dotted` on an edge, `container` or set draws round dots
   three line widths apart (the theme's `dashed` colours and fill); use `dashed` for dashes.
   Editable PPTX uses PowerPoint's round-dot preset and the nearest of its three head sizes.
+
+<a id="text-scale"></a>**Text scale.** `themeOverrides.textScale` (a multiple of 0.25, 0.5 to 4) multiplies the
+theme's font sizes, line widths, arrowheads (they follow the width) and corner radii; everything
+rounds to 0.5pt and lines stay at least 0.5pt. Sizes you write yourself (`lineWidth`, `frameWidth`,
+`cornerRadius`, `iconSize` in mm) stay as written; gaps and paddings are the profile's. Pick it from
+the placement, not by eye: `sumi catalog --json --section themes` lists, per theme, `textScaleFor`:
+the smallest scale that meets each profile's minimum (`sumi`: `screen-doc` 1.5, `presentation-16x9` 2;
+a theme that already meets a profile is absent from it). The same scale goes for `--theme sumi`
+with a slide or README profile: set `profile`, set `textScale`, then render; `profile/font-too-small`
+names the scale that fixes the figure. Text grows, so the figure grows by the same factor in width
+(`sumi` figure of 140mm at 2 is 280mm): check it against the profile's width, and shorten labels or
+fold rows rather than lower `target.minFontSize`. `fit: scale` only shrinks (and checks text against
+`minScaledFontSize`), so it never replaces a text scale. `target` states minima, not sizes. In the `auto` layout D2 places edge labels itself, so their gap to lines and frames does not follow the scale (text, lines and arrowheads do; the structured router also scales label gap and border clearance): if labels touch lines, shorten them or use the structured layout.
 
 **Palettes.** `themeOverrides.palette: <name>` gives the figure one coherent colour scheme
 on any theme (`minimal`, `color`, `paper`, `llama`, …; `academic` is grayscale by design, so
@@ -578,7 +594,9 @@ searches icons). One entry of each:
       "tones": ["gray", "red", "orange", "yellow", "green", "blue", "purple", "pink"],
       "toneLines": ["gray", "red", "orange", "yellow", "green", "blue", "purple", "pink"],
       "compatibleProfiles": ["paper-single", "paper-double"],
-      "arrowhead": "triangle"
+      "textScaleFor": { "screen-doc": 1.5, "presentation-16x9": 2 },
+      "arrowhead": "triangle",
+      "colorUse": null
     }
   ],
   "profiles": [
@@ -612,6 +630,10 @@ searches icons). One entry of each:
 - `arrowhead`: the theme's standard arrowhead, `triangle` (filled) or `open` (a
   chevron the line runs into; `llama`). It replaces every triangle end in SVG, PDF and
   PPTX (editable PPTX: the native open `arrow` end).
+- `colorUse`: how the theme prefers its colours (`null` when it gives none; `sumi` and
+  `sumi-dark` do): `maxAccentTones` (tones other than `gray`), `preferredVariants`,
+  `heavyVariants` (`filled`, `solid`: blocks of colour), `maxHeavyShare` (of the node
+  area) and `maxSolidNodes` (toned `solid` nodes). `geometry/theme-color-use` (info) compares the figure with it.
 - `page.maxWidth` / `maxHeight` (`null` = no limit) include the margin; `layerGap`
   is the space between layers (nodes in a layer are always 10pt apart);
   `typography.minScaledFontSize` is the minimum printed size under `fit: scale`.
@@ -665,7 +687,7 @@ Per-code fixes: [diagnostics](diagnostics.md). The ones agents repeat:
 | Mistake | Diagnostic | Fix |
 | --- | --- | --- |
 | uppercase ID, invented component or variant, `color:` on a node | `schema/invalid-id`, `component/unknown`, `component/unknown-variant`, `schema/unknown-field` | lowercase ID; a catalog name; `tone` |
-| `label: $\gamma_1,\beta_1$` inside `{ … }` | `schema/unknown-field` | single-quote it: `'$\gamma_1,\,\beta_1$'` |
+| `label: $\gamma_1,\beta_1$` inside `{…}` | `schema/unknown-field` | single-quote it: `'$\gamma_1,\,\beta_1$'` |
 | `label: 'Scale\n$\gamma$'` | `lint/literal-newline` | `"Scale\n$\\gamma$"` or a `\|-` block |
 | math, `toAnchor`, edge `labelAt`, `align`, `legend`… in an auto figure | `component/unsupported-in-auto`, `layout/structured-only` | make the figure structured, or remove it |
 | `label:` and `icon:` on one node | `asset/icon-with-label` | keep one; attach a `label` node |

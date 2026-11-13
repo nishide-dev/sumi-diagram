@@ -211,6 +211,23 @@ export function resolveComponents(
       );
     const usage = registry.validateUsage(manifest, element);
     report(usage.diagnostics, (d) => [...element.path, ...(d.path ?? [])]);
+    if (
+      element.kind === "group" &&
+      element.props.padding !== undefined &&
+      engine !== "structured"
+    ) {
+      report(
+        [
+          {
+            code: "layout/structured-only",
+            severity: "error",
+            message: "A group's padding is set by the structured layout engine only.",
+            hint: "Set figure.layout.arrange and the group's arrange tree, or remove props.padding.",
+          },
+        ],
+        () => [...element.path, "props", "padding"],
+      );
+    }
     if (element.kind === "group" && element.props.layers !== undefined) {
       if (engine !== "structured") {
         report(

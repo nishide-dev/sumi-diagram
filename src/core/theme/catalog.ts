@@ -18,8 +18,9 @@ import type { Registry } from "../registry/registry";
 import { BUILTIN_THEMES } from "./builtin";
 import type { FontSet } from "./fonts";
 import { resolveStyle } from "./resolve";
-import type { Theme, ThemeArrowhead } from "./schema";
+import type { Theme, ThemeArrowhead, ThemeColorUse } from "./schema";
 import { mergeStyle } from "./style";
+import { scaleToReach } from "./text-scale";
 import { TONE_NAMES, type Tone } from "./tones";
 
 /** Font styles a font set provides; `italic: true` / `mono: true` need theirs. */
@@ -62,8 +63,21 @@ export interface ThemeCatalogEntry {
    * meets, so the theme never causes `profile/font-too-small` with them.
    */
   compatibleProfiles: string[];
+  /**
+   * The text scale (#514, `figure.themeOverrides.textScale`) that makes the
+   * theme meet the minimum font size of each profile it does not meet at
+   * scale 1: the smallest multiple of 0.25, sublabels of the base node text included. A profile
+   * absent from both lists needs more than the largest scale.
+   */
+  textScaleFor: Record<string, number>;
   /** Shape of the standard arrowhead (#386): `triangle` (filled) or `open` (a chevron). */
   arrowhead: ThemeArrowhead;
+  /**
+   * How the theme prefers its colors to be used (#513): the most accent
+   * tones, the preferred and heavy variants and the largest share of heavy
+   * area, which `geometry/theme-color-use` checks. `null` when it gives none.
+   */
+  colorUse: ThemeColorUse | null;
 }
 
 export interface ThemeCatalogOptions {
@@ -123,7 +137,20 @@ export function themeCatalogEntry(
     compatibleProfiles: [...profiles.values()]
       .filter((profile) => profile.typography.minFontSize.pt <= min)
       .map((profile) => profile.id),
+    textScaleFor: Object.fromEntries(
+      [...profiles.values()]
+        .filter((profile) => profile.typography.minFontSize.pt > min)
+        .flatMap((profile) => {
+          const need = profile.typography.minFontSize.pt;
+          const text = scaleToReach(min, need, false);
+          const sublabel = scaleToReach(base.node, need, true);
+          return text === undefined || sublabel === undefined
+            ? []
+            : [[profile.id, Math.max(text, sublabel)]];
+        }),
+    ),
     arrowhead: theme.arrowhead ?? "triangle",
+    colorUse: theme.colorUse ?? null,
   };
 }
 

@@ -1,0 +1,50 @@
+version: 1
+figure:
+  id: agent-loop
+  theme: sumi
+  profile: paper-double
+  target: { minFontSize: 9pt }
+  layout:
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - { item: request, at: [ 14, 34 ] }
+          - { item: answer, at: [ 14, 52 ] }
+          - { item: short-term, at: [ 37.5, 12 ] }
+          - { item: long-term, at: [ 62.5, 12 ] }
+          - { item: llm, at: [ 50, 43 ] }
+          - { item: plan, at: [ 83, 43 ] }
+          - { item: tools, at: [ 116, 43 ] }
+          - { item: loop, at: [ 85, 62 ] }
+          - { item: observation, at: [ 50, 78 ] }
+          - { item: environment, at: [ 116, 78 ] }
+groups:
+  - id: tools
+    label: Tools
+    arrange:
+      stack: { gap: 2mm, align: stretch, items: [ search, code, files ] }
+nodes:
+  - { id: request, component: parallelogram, label: User request }
+  - { id: answer, component: parallelogram, label: Final answer }
+  - { id: llm, component: box, label: LLM, variant: solid, tone: blue, props: { width: 80pt, height: 34pt } }
+  - { id: plan, component: box, label: Plan, props: { width: 64pt }, variant: tinted, tone: blue }
+  - { id: search, component: box, label: Search, variant: outlined }
+  - { id: code, component: box, label: Code exec, variant: outlined }
+  - { id: files, component: box, label: Files, variant: outlined }
+  - { id: environment, component: box, label: Environment, props: { width: 64pt }, variant: tinted, tone: green }
+  - { id: observation, component: box, label: Observation, props: { width: 64pt }, variant: tinted, tone: blue }
+  - { id: loop, component: label, label: "repeat until done", tone: blue }
+  - { id: loop-icon, component: label, icon: tabler/repeat, iconSize: 1.5, tone: blue, attach: { to: loop, side: west, gap: 1mm } }
+  - { id: short-term, component: cylinder, label: "Short-term\nmemory", tone: orange }
+  - { id: long-term, component: cylinder, label: "Long-term\nmemory", tone: orange }
+edges:
+  - { from: llm, to: plan, tone: blue }
+  - { from: plan, to: tools, label: call, tone: blue }
+  - { from: tools, to: environment, label: act, tone: blue }
+  - { from: environment, to: observation, label: result, tone: blue }
+  - { from: observation, to: llm, tone: blue }
+  - { from: request, to: llm, toAnchor: "west:0.3" }
+  - { from: llm, to: answer, fromAnchor: "west:0.7", label: done }
+  - { from: llm, to: short-term, fromAnchor: straight, component: double-arrow, variant: dashed }
+  - { from: llm, to: long-term, fromAnchor: straight, component: double-arrow, variant: dashed, label: read / write }

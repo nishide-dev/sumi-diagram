@@ -76,6 +76,37 @@ describe.skipIf(!available && !inCI)("geometry lint with D2", () => {
     expect(geometry[0]?.location?.line).toBe(15);
   });
 
+  test("a short cylinder holds a one-line label; a too-short one names the minimum height (#516)", async () => {
+    const figure = (height: string) =>
+      `version: 1
+figure: { id: cyl, profile: paper-double }
+nodes:
+  - { id: db, component: cylinder, label: PostgreSQL, props: { width: 74pt, height: ${height} } }
+`;
+    for (const height of ["34pt", "20pt", "16pt"]) {
+      const report = await lintRenderedFigure(figure(height), { file: "cyl.sumi.yaml" });
+      expect(report.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+    }
+    const report = await lintRenderedFigure(figure("10pt"), { file: "cyl.sumi.yaml" });
+    const overflow = report.diagnostics.find((d) => d.code === "geometry/label-overflow");
+    expect(overflow?.hint).toMatch(/props\.height of at least \d+pt/);
+    const minimum = Number(/at least (\d+)pt/.exec(overflow?.hint ?? "")?.[1]);
+    const fixed = await lintRenderedFigure(figure(`${minimum}pt`), { file: "cyl.sumi.yaml" });
+    expect(fixed.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+  });
+
+  test("a cylinder whose label is too wide gets width guidance, not a height (#516)", async () => {
+    const source = `version: 1
+figure: { id: cyl, profile: paper-double }
+nodes:
+  - { id: db, component: cylinder, label: "A very long database name", props: { width: 30pt, height: 60pt } }
+`;
+    const report = await lintRenderedFigure(source, { file: "cyl.sumi.yaml" });
+    const overflow = report.diagnostics.find((d) => d.code === "geometry/label-overflow");
+    expect(overflow?.hint).toMatch(/wider than the cylinder: make props\.width larger/);
+    expect(overflow?.hint).not.toMatch(/props\.height of at least/);
+  });
+
   test("labels with blank lines render; D2's line advances are measured as written", async () => {
     const { report, geometry } = await lintFile(join(FIXTURES, "geometry", "whitespace.sumi.yaml"));
     expect(geometry.map((d) => [d.severity, d.code])).toEqual([["info", "geometry/dead-space"]]);

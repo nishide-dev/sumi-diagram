@@ -20,10 +20,10 @@ figure:
     groupFill: "#ffffff"
     groupStroke: "#000000"
     tones:
-      gray: { fill: "#d9d9d9", line: "#000000", text: "#000000" }
-      blue: { fill: "#d6dcfb", line: "#1942f3", text: "#1942f3" }
-      red: { fill: "#f4d6d4", line: "#d0352b", text: "#d0352b" }
-      green: { fill: "#d4e2d0", line: "#296218", text: "#296218" }
+      gray: {fill: "#d9d9d9", line: "#000000", text: "#000000"}
+      blue: {fill: "#d6dcfb", line: "#1942f3", text: "#1942f3"}
+      red: {fill: "#f4d6d4", line: "#d0352b", text: "#d0352b"}
+      green: {fill: "#d4e2d0", line: "#296218", text: "#296218"}
   profile: paper-double
   layout:
     density: compact
@@ -34,43 +34,43 @@ figure:
           # Every element is placed by coordinates (1pt = 3.3 px of the original), so
           # the three gray panels can be rect sets behind their members and the
           # P/Q/Z/Y lines run straight.
-          - { item: key, at: [ 100.5, 45 ] }
-          - { item: contrast-key, at: [ 300, 12.9 ] }
-          - { item: hyper, at: [ 108.6, 101.4 ] }
-          - { item: view1, at: [ 214.8, 61.7 ] }
-          - { item: view2, at: [ 214.8, 141.1 ] }
-          - { item: stage1, at: [ 264, 62.4 ] }
-          - { item: stage2, at: [ 264, 140.4 ] }
-          - { item: enc1, at: [ 312.9, 62.4 ] }
-          - { item: shared, at: [ 312.9, 102 ] }
-          - { item: enc2, at: [ 312.9, 140.4 ] }
-          - { item: phi1, at: [ 392.7, 49.5 ] }
-          - { item: node-head-label, at: [ 392.4, 93 ] }
-          - { item: phi2, at: [ 392.7, 128.1 ] }
-          - { item: psi1, at: [ 445.2, 75 ] }
-          - { item: edge-head-label, at: [ 444.9, 110.1 ] }
-          - { item: psi2, at: [ 445.2, 153 ] }
-          - { item: lab-p1, at: [ 361.2, 42.3 ] }
-          - { item: lab-q1, at: [ 361.2, 68.1 ] }
-          - { item: lab-p2, at: [ 361.2, 119.4 ] }
-          - { item: lab-q2, at: [ 361.2, 145.2 ] }
-          - { item: z1, at: [ 495.6, 49.5 ] }
-          - { item: y1, at: [ 495.6, 75 ] }
-          - { item: z2, at: [ 495.6, 128.1 ] }
-          - { item: y2, at: [ 495.6, 153 ] }
-          - { item: m-node, at: [ 529.8, 88.8 ] }
-          - { item: m-group, at: [ 530.1, 114 ] }
-          - { item: m-mem-a, at: [ 518.4, 101.4 ] }
-          - { item: m-mem-b, at: [ 539.1, 101.4 ] }
+          - {item: key, at: [100.5, 45]}
+          - {item: contrast-key, at: [300, 12.9]}
+          - {item: hyper, at: [108.6, 101.4]}
+          - {item: view1, at: [214.8, 61.7]}
+          - {item: view2, at: [214.8, 141.1]}
+          - {item: stage1, at: [264, 62.4]}
+          - {item: stage2, at: [264, 140.4]}
+          - {item: enc1, at: [312.9, 62.4]}
+          - {item: shared, at: [312.9, 102]}
+          - {item: enc2, at: [312.9, 140.4]}
+          - {item: phi1, at: [392.7, 49.5]}
+          - {item: node-head-label, at: [392.4, 93]}
+          - {item: phi2, at: [392.7, 128.1]}
+          - {item: psi1, at: [445.2, 75]}
+          - {item: edge-head-label, at: [444.9, 110.1]}
+          - {item: psi2, at: [445.2, 153]}
+          - {item: lab-p1, at: [361.2, 42.3]}
+          - {item: lab-q1, at: [361.2, 68.1]}
+          - {item: lab-p2, at: [361.2, 119.4]}
+          - {item: lab-q2, at: [361.2, 145.2]}
+          - {item: z1, at: [495.6, 49.5]}
+          - {item: y1, at: [495.6, 75]}
+          - {item: z2, at: [495.6, 128.1]}
+          - {item: y2, at: [495.6, 153]}
+          - {item: m-node, at: [529.8, 88.8]}
+          - {item: m-group, at: [530.1, 114]}
+          - {item: m-mem-a, at: [518.4, 101.4]}
+          - {item: m-mem-b, at: [539.1, 101.4]}
 groups:
   - id: contrast-key
     arrange:
       row:
         gap: 5mm
         items:
-          - { row: { gap: 2mm, items: [ { row: { gap: 9pt, items: [ lk-n-a, lk-n-m, lk-n-b ] } }, lk-n ] } }
-          - { row: { gap: 2mm, items: [ { row: { gap: 9pt, items: [ lk-g-a, lk-g-m, lk-g-b ] } }, lk-g ] } }
-          - { row: { gap: 2mm, items: [ { row: { gap: 9pt, items: [ lk-m-a, lk-m-m, lk-m-b ] } }, lk-m ] } }
+          - {row: {gap: 2mm, items: [{row: {gap: 9pt, items: [lk-n-a, lk-n-m, lk-n-b]}}, lk-n]}}
+          - {row: {gap: 2mm, items: [{row: {gap: 9pt, items: [lk-g-a, lk-g-m, lk-g-b]}}, lk-g]}}
+          - {row: {gap: 2mm, items: [{row: {gap: 9pt, items: [lk-m-a, lk-m-m, lk-m-b]}}, lk-m]}}
   - id: hyper
     label: "$\\mathit{H}=(\\mathit{X},\\mathit{H})$"
     labelAt: bottom
@@ -78,17 +78,17 @@ groups:
       place:
         unit: 1pt
         items:
-          - { item: o-a, at: [ 97.1, 82.6 ] }
-          - { item: o-b, at: [ 114.1, 83.0 ] }
-          - { item: o-c, at: [ 127.4, 80.9 ] }
-          - { item: o-d, at: [ 88.1, 96.3 ] }
-          - { item: o-e, at: [ 110.2, 96.2 ] }
-          - { item: o-f, at: [ 131.0, 96.2 ] }
-          - { item: o-j, at: [ 137.8, 107.2 ] }
-          - { item: o-g, at: [ 85.2, 105.7 ] }
-          - { item: o-h, at: [ 101.8, 105.7 ] }
-          - { item: o-i, at: [ 121.7, 106.1 ] }
-          - { item: o-k, at: [ 92.0, 115.5 ] }
+          - {item: o-a, at: [97.1, 82.6]}
+          - {item: o-b, at: [114.1, 83.0]}
+          - {item: o-c, at: [127.4, 80.9]}
+          - {item: o-d, at: [88.1, 96.3]}
+          - {item: o-e, at: [110.2, 96.2]}
+          - {item: o-f, at: [131.0, 96.2]}
+          - {item: o-j, at: [137.8, 107.2]}
+          - {item: o-g, at: [85.2, 105.7]}
+          - {item: o-h, at: [101.8, 105.7]}
+          - {item: o-i, at: [121.7, 106.1]}
+          - {item: o-k, at: [92.0, 115.5]}
   - id: view1
     label: "$\\mathit{H}_1=(\\mathit{X}_1,\\mathit{H}_1)$"
     labelAt: bottom
@@ -96,17 +96,17 @@ groups:
       place:
         unit: 1pt
         items:
-          - { item: p-a, at: [ 226.3, 42.9 ] }
-          - { item: p-b, at: [ 209.3, 43.3 ] }
-          - { item: p-c, at: [ 196.0, 41.2 ] }
-          - { item: p-d, at: [ 235.3, 56.6 ] }
-          - { item: p-e, at: [ 213.2, 56.5 ] }
-          - { item: p-f, at: [ 192.4, 56.5 ] }
-          - { item: p-j, at: [ 185.6, 67.5 ] }
-          - { item: p-g, at: [ 238.2, 66.0 ] }
-          - { item: p-h, at: [ 221.6, 66.0 ] }
-          - { item: p-i, at: [ 201.7, 66.4 ] }
-          - { item: p-k, at: [ 231.4, 75.8 ] }
+          - {item: p-a, at: [226.3, 42.9]}
+          - {item: p-b, at: [209.3, 43.3]}
+          - {item: p-c, at: [196.0, 41.2]}
+          - {item: p-d, at: [235.3, 56.6]}
+          - {item: p-e, at: [213.2, 56.5]}
+          - {item: p-f, at: [192.4, 56.5]}
+          - {item: p-j, at: [185.6, 67.5]}
+          - {item: p-g, at: [238.2, 66.0]}
+          - {item: p-h, at: [221.6, 66.0]}
+          - {item: p-i, at: [201.7, 66.4]}
+          - {item: p-k, at: [231.4, 75.8]}
   - id: view2
     label: "$\\mathit{H}_2=(\\mathit{X}_2,\\mathit{H}_2)$"
     labelAt: bottom
@@ -114,128 +114,128 @@ groups:
       place:
         unit: 1pt
         items:
-          - { item: q-a, at: [ 203.3, 155.9 ] }
-          - { item: q-b, at: [ 220.3, 155.5 ] }
-          - { item: q-c, at: [ 233.6, 157.6 ] }
-          - { item: q-d, at: [ 194.3, 142.2 ] }
-          - { item: q-e, at: [ 216.4, 142.3 ] }
-          - { item: q-f, at: [ 237.2, 142.3 ] }
-          - { item: q-j, at: [ 244.0, 131.3 ] }
-          - { item: q-g, at: [ 191.4, 132.8 ] }
-          - { item: q-h, at: [ 208.0, 132.8 ] }
-          - { item: q-i, at: [ 227.9, 132.4 ] }
-          - { item: q-k, at: [ 198.2, 123.0 ] }
+          - {item: q-a, at: [203.3, 155.9]}
+          - {item: q-b, at: [220.3, 155.5]}
+          - {item: q-c, at: [233.6, 157.6]}
+          - {item: q-d, at: [194.3, 142.2]}
+          - {item: q-e, at: [216.4, 142.3]}
+          - {item: q-f, at: [237.2, 142.3]}
+          - {item: q-j, at: [244.0, 131.3]}
+          - {item: q-g, at: [191.4, 132.8]}
+          - {item: q-h, at: [208.0, 132.8]}
+          - {item: q-i, at: [227.9, 132.4]}
+          - {item: q-k, at: [198.2, 123.0]}
 nodes:
-  - { id: o-a, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, gray, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: o-b, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, none, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: o-c, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, none, gray ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: o-d, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, gray, gray ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: o-e, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ gray, none, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: o-f, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, gray, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: o-j, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ gray, none, gray ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: o-g, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, none, gray ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: o-h, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, none, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: o-i, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ gray, none, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: o-k, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, gray, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: p-a, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ gray, none, gray ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: p-b, component: circle, variant: filled, tone: gray, props: { width: 5pt } }
-  - { id: p-c, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, gray, gray ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: p-d, component: circle, variant: filled, tone: gray, props: { width: 5pt } }
-  - { id: p-e, component: circle, variant: filled, tone: gray, props: { width: 5pt } }
-  - { id: p-f, component: circle, variant: filled, tone: gray, props: { width: 5pt } }
-  - { id: p-j, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, none, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: p-g, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, gray, gray ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: p-h, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, none, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: p-i, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, gray, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: p-k, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, none, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: q-a, component: circle, variant: filled, tone: gray, props: { width: 5pt } }
-  - { id: q-b, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, none, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: q-c, component: circle, variant: filled, tone: gray, props: { width: 5pt } }
-  - { id: q-d, component: circle, variant: filled, tone: gray, props: { width: 5pt } }
-  - { id: q-e, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ gray, none, gray ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: q-f, component: circle, variant: filled, tone: gray, props: { width: 5pt } }
-  - { id: q-j, component: circle, variant: filled, tone: gray, props: { width: 5pt } }
-  - { id: q-g, component: circle, variant: filled, tone: gray, props: { width: 5pt } }
-  - { id: q-h, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, none, none ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
-  - { id: q-i, component: circle, variant: filled, tone: gray, props: { width: 5pt } }
-  - { id: q-k, component: ellipse, props: { width: 6pt, height: 4.5pt }, glyphs: [ { kind: vector, tones: [ none, none, gray ], strength: solid, size: 2.5pt, at: west, dx: -0.6 } ] }
+  - {id: o-a, component: ellipse, props: {width: 6pt, height: 4.5pt}, glyphs: [{kind: vector, tones: [none, gray, none], strength: solid, size: 2.5pt, at: west, dx: -0.6}]}
+  - {id: o-b, component: ellipse, props: {width: 6pt, height: 4.5pt}, glyphs: [{kind: vector, tones: [none, none, none], strength: solid, size: 2.5pt, at: west, dx: -0.6}]}
+  - {id: o-c, component: ellipse, props: {width: 6pt, height: 4.5pt}, glyphs: [{kind: vector, tones: [none, none, gray], strength: solid, size: 2.5pt, at: west, dx: -0.6}]}
+  - {id: o-d, component: ellipse, props: {width: 6pt, height: 4.5pt}, glyphs: [{kind: vector, tones: [none, gray, gray], strength: solid, size: 2.5pt, at: west, dx: -0.6}]}
+  - {id: o-e, component: ellipse, props: {width: 6pt, height: 4.5pt}, glyphs: [{kind: vector, tones: [gray, none, none], strength: solid, size: 2.5pt, at: west, dx: -0.6}]}
+  - {id: o-f, component: ellipse, props: {width: 6pt, height: 4.5pt}, glyphs: [{kind: vector, tones: [none, gray, none], strength: solid, size: 2.5pt, at: west, dx: -0.6}]}
+  - {id: o-j, component: ellipse, props: {width: 6pt, height: 4.5pt}, glyphs: [{kind: vector, tones: [gray, none, gray], strength: solid, size: 2.5pt, at: west, dx: -0.6}]}
+  - {id: o-g, component: ellipse, props: {width: 6pt, height: 4.5pt}, glyphs: [{kind: vector, tones: [none, none, gray], strength: solid, size: 2.5pt, at: west, dx: -0.6}]}
+  - {id: o-h, component: ellipse, props: {width: 6pt, height: 4.5pt}, glyphs: [{kind: vector, tones: [none, none, none], strength: solid, size: 2.5pt, at: west, dx: -0.6}]}
+  - {id: o-i, component: ellipse, props: {width: 6pt, height: 4.5pt}, glyphs: [{kind: vector, tones: [gray, none, none], strength: solid, size: 2.5pt, at: west, dx: -0.6}]}
+  - {id: o-k, component: ellipse, props: {width: 6pt, height: 4.5pt}, glyphs: [{kind: vector, tones: [none, gray, none], strength: solid, size: 2.5pt, at: west, dx: -0.6}]}
+  - {id: p-a, component: ellipse, props: {width: 6pt, height: 4.5pt}, glyphs: [{kind: vector, tones: [gray, none, gray], strength: solid, size: 2.5pt, at: west, dx: -0.6}]}
+  - {id: p-b, component: circle, variant: filled, tone: gray, props: {width: 5pt}}
+  - {id: p-c, component: ellipse, props: {width: 6pt, height: 4.5pt}, glyphs: [{kind: vector, tones: [none, gray, gray], strength: solid, size: 2.5pt, at: west, dx: -0.6}]}
+  - {id: p-d, component: circle, variant: filled, tone: gray, props: {width: 5pt}}
+  - {id: p-e, component: circle, variant: filled, tone: gray, props: {width: 5pt}}
+  - {id: p-f, component: circle, variant: filled, tone: gray, props: {width: 5pt}}
+  - {id: p-j, component: ellipse, props: {width: 6pt, height: 4.5pt}, glyphs: [{kind: vector, tones: [none, none, none], strength: solid, size: 2.5pt, at: west, dx: -0.6}]}
+  - {id: p-g, component: ellipse, props: {width: 6pt, height: 4.5pt}, glyphs: [{kind: vector, tones: [none, gray, gray], strength: solid, size: 2.5pt, at: west, dx: -0.6}]}
+  - {id: p-h, component: ellipse, props: {width: 6pt, height: 4.5pt}, glyphs: [{kind: vector, tones: [none, none, none], strength: solid, size: 2.5pt, at: west, dx: -0.6}]}
+  - {id: p-i, component: ellipse, props: {width: 6pt, height: 4.5pt}, glyphs: [{kind: vector, tones: [none, gray, none], strength: solid, size: 2.5pt, at: west, dx: -0.6}]}
+  - {id: p-k, component: ellipse, props: {width: 6pt, height: 4.5pt}, glyphs: [{kind: vector, tones: [none, none, none], strength: solid, size: 2.5pt, at: west, dx: -0.6}]}
+  - {id: q-a, component: circle, variant: filled, tone: gray, props: {width: 5pt}}
+  - {id: q-b, component: ellipse, props: {width: 6pt, height: 4.5pt}, glyphs: [{kind: vector, tones: [none, none, none], strength: solid, size: 2.5pt, at: west, dx: -0.6}]}
+  - {id: q-c, component: circle, variant: filled, tone: gray, props: {width: 5pt}}
+  - {id: q-d, component: circle, variant: filled, tone: gray, props: {width: 5pt}}
+  - {id: q-e, component: ellipse, props: {width: 6pt, height: 4.5pt}, glyphs: [{kind: vector, tones: [gray, none, gray], strength: solid, size: 2.5pt, at: west, dx: -0.6}]}
+  - {id: q-f, component: circle, variant: filled, tone: gray, props: {width: 5pt}}
+  - {id: q-j, component: circle, variant: filled, tone: gray, props: {width: 5pt}}
+  - {id: q-g, component: circle, variant: filled, tone: gray, props: {width: 5pt}}
+  - {id: q-h, component: ellipse, props: {width: 6pt, height: 4.5pt}, glyphs: [{kind: vector, tones: [none, none, none], strength: solid, size: 2.5pt, at: west, dx: -0.6}]}
+  - {id: q-i, component: circle, variant: filled, tone: gray, props: {width: 5pt}}
+  - {id: q-k, component: ellipse, props: {width: 6pt, height: 4.5pt}, glyphs: [{kind: vector, tones: [none, none, gray], strength: solid, size: 2.5pt, at: west, dx: -0.6}]}
   # Not-yet-expressible original detail: the hatched circle of membership masking
   # is a filled dot, and the contrast lines are dotted.
-  - { id: key, component: legend, variant: plain, props: { entries: [ { glyph: { kind: vector, tones: [ gray, none, none ], strength: solid, size: 2.5pt }, label: Node feature masking }, { node: { component: circle, variant: filled, tone: gray }, label: Membership masking } ] } }
+  - {id: key, component: legend, variant: plain, props: {entries: [{glyph: {kind: vector, tones: [gray, none, none], strength: solid, size: 2.5pt}, label: Node feature masking}, {node: {component: circle, variant: filled, tone: gray}, label: Membership masking}]}}
   # The key: a sample line with the marker of its contrast in the middle, then its name.
-  - { id: lk-n-a, component: junction, variant: hidden }
-  - { id: lk-n-m, component: circle, variant: solid, tone: blue, props: { width: 6pt } }
-  - { id: lk-n-b, component: junction, variant: hidden }
-  - { id: lk-n, component: label, label: Node-level contrast }
-  - { id: lk-g-a, component: junction, variant: hidden }
-  - { id: lk-g-m, component: square, variant: solid, tone: red, cornerRadius: 0pt, props: { width: 6pt } }
-  - { id: lk-g-b, component: junction, variant: hidden }
-  - { id: lk-g, component: label, label: Group-level contrast }
-  - { id: lk-m-a, component: junction, variant: hidden }
-  - { id: lk-m-m, component: diamond, variant: solid, tone: green, props: { width: 7pt, height: 7pt } }
-  - { id: lk-m-b, component: junction, variant: hidden }
-  - { id: lk-m, component: label, label: Membership-level contrast }
-  - { id: stage1, component: block-arrow, props: { length: 11pt, thickness: 6pt } }
-  - { id: stage2, component: block-arrow, props: { length: 11pt, thickness: 6pt } }
-  - { id: enc1, component: box, label: "Hypergraph\nEncoder\n$f_\\theta(\\cdot)$", props: { width: 70pt, height: 50pt } }
-  - { id: enc2, component: box, label: "Hypergraph\nEncoder\n$f_\\theta(\\cdot)$", props: { width: 70pt, height: 50pt } }
-  - { id: shared, component: label, label: Shared weights }
-  - { id: phi1, component: box, label: "$g_\\phi(\\cdot)$", props: { width: 35pt, height: 20pt } }
-  - { id: phi2, component: box, label: "$g_\\phi(\\cdot)$", props: { width: 35pt, height: 20pt } }
-  - { id: node-head-label, component: label, label: "Node\nProjection\nHead" }
-  - { id: psi1, component: box, label: "$g_\\psi(\\cdot)$", props: { width: 35pt, height: 20pt } }
-  - { id: psi2, component: box, label: "$g_\\psi(\\cdot)$", props: { width: 35pt, height: 20pt } }
-  - { id: edge-head-label, component: label, label: "Hyperedge\nProjection\nHead" }
-  - { id: lab-p1, component: label, label: "$\\mathit{P}_1$" }
-  - { id: lab-q1, component: label, label: "$\\mathit{Q}_1$" }
-  - { id: lab-p2, component: label, label: "$\\mathit{P}_2$" }
-  - { id: lab-q2, component: label, label: "$\\mathit{Q}_2$" }
-  - { id: z1, component: box, label: "$\\mathit{Z}_1$", props: { width: 25pt, height: 17pt } }
-  - { id: y1, component: box, label: "$\\mathit{Y}_1$", props: { width: 25pt, height: 17pt } }
-  - { id: z2, component: box, label: "$\\mathit{Z}_2$", props: { width: 25pt, height: 17pt } }
-  - { id: y2, component: box, label: "$\\mathit{Y}_2$", props: { width: 25pt, height: 17pt } }
-  - { id: m-node, component: circle, variant: solid, tone: blue, props: { width: 6pt } }
-  - { id: m-group, component: square, variant: solid, tone: red, cornerRadius: 0pt, props: { width: 6pt } }
-  - { id: m-mem-a, component: diamond, variant: solid, tone: green, props: { width: 7pt, height: 7pt } }
-  - { id: m-mem-b, component: diamond, variant: solid, tone: green, props: { width: 7pt, height: 7pt } }
+  - {id: lk-n-a, component: junction, variant: hidden}
+  - {id: lk-n-m, component: circle, variant: solid, tone: blue, props: {width: 6pt}}
+  - {id: lk-n-b, component: junction, variant: hidden}
+  - {id: lk-n, component: label, label: Node-level contrast}
+  - {id: lk-g-a, component: junction, variant: hidden}
+  - {id: lk-g-m, component: square, variant: solid, tone: red, cornerRadius: 0pt, props: {width: 6pt}}
+  - {id: lk-g-b, component: junction, variant: hidden}
+  - {id: lk-g, component: label, label: Group-level contrast}
+  - {id: lk-m-a, component: junction, variant: hidden}
+  - {id: lk-m-m, component: diamond, variant: solid, tone: green, props: {width: 7pt, height: 7pt}}
+  - {id: lk-m-b, component: junction, variant: hidden}
+  - {id: lk-m, component: label, label: Membership-level contrast}
+  - {id: stage1, component: block-arrow, props: {length: 11pt, thickness: 6pt}}
+  - {id: stage2, component: block-arrow, props: {length: 11pt, thickness: 6pt}}
+  - {id: enc1, component: box, label: "Hypergraph\nEncoder\n$f_\\theta(\\cdot)$", props: {width: 70pt, height: 50pt}}
+  - {id: enc2, component: box, label: "Hypergraph\nEncoder\n$f_\\theta(\\cdot)$", props: {width: 70pt, height: 50pt}}
+  - {id: shared, component: label, label: Shared weights}
+  - {id: phi1, component: box, label: "$g_\\phi(\\cdot)$", props: {width: 35pt, height: 20pt}}
+  - {id: phi2, component: box, label: "$g_\\phi(\\cdot)$", props: {width: 35pt, height: 20pt}}
+  - {id: node-head-label, component: label, label: "Node\nProjection\nHead"}
+  - {id: psi1, component: box, label: "$g_\\psi(\\cdot)$", props: {width: 35pt, height: 20pt}}
+  - {id: psi2, component: box, label: "$g_\\psi(\\cdot)$", props: {width: 35pt, height: 20pt}}
+  - {id: edge-head-label, component: label, label: "Hyperedge\nProjection\nHead"}
+  - {id: lab-p1, component: label, label: "$\\mathit{P}_1$"}
+  - {id: lab-q1, component: label, label: "$\\mathit{Q}_1$"}
+  - {id: lab-p2, component: label, label: "$\\mathit{P}_2$"}
+  - {id: lab-q2, component: label, label: "$\\mathit{Q}_2$"}
+  - {id: z1, component: box, label: "$\\mathit{Z}_1$", props: {width: 25pt, height: 17pt}}
+  - {id: y1, component: box, label: "$\\mathit{Y}_1$", props: {width: 25pt, height: 17pt}}
+  - {id: z2, component: box, label: "$\\mathit{Z}_2$", props: {width: 25pt, height: 17pt}}
+  - {id: y2, component: box, label: "$\\mathit{Y}_2$", props: {width: 25pt, height: 17pt}}
+  - {id: m-node, component: circle, variant: solid, tone: blue, props: {width: 6pt}}
+  - {id: m-group, component: square, variant: solid, tone: red, cornerRadius: 0pt, props: {width: 6pt}}
+  - {id: m-mem-a, component: diamond, variant: solid, tone: green, props: {width: 7pt, height: 7pt}}
+  - {id: m-mem-b, component: diamond, variant: solid, tone: green, props: {width: 7pt, height: 7pt}}
 edges:
   # The key's sample lines have their marker in the middle, so they are drawn as
   # nodes and edges (the legend component has no middle marker).
-  - { from: lk-n-m, to: lk-n-a, variant: dotted, tone: blue }
-  - { from: lk-n-m, to: lk-n-b, variant: dotted, tone: blue }
-  - { from: lk-g-m, to: lk-g-a, variant: dotted, tone: red }
-  - { from: lk-g-m, to: lk-g-b, variant: dotted, tone: red }
-  - { from: lk-m-m, to: lk-m-a, variant: dotted, tone: green }
-  - { from: lk-m-m, to: lk-m-b, variant: dotted, tone: green }
-  - { from: hyper, to: view1, route: curve, fromAnchor: east, toAnchor: west, label: "$\\mathit{T}_1$" }
-  - { from: hyper, to: view2, route: curve, fromAnchor: east, toAnchor: west, label: "$\\mathit{T}_2$" }
-  - { from: enc1, to: phi1, fromAnchor: "east:0.24", toAnchor: west }
-  - { from: enc1, to: psi1, fromAnchor: "east:0.75", toAnchor: west }
-  - { from: enc2, to: phi2, fromAnchor: "east:0.24", toAnchor: west }
-  - { from: enc2, to: psi2, fromAnchor: "east:0.75", toAnchor: west }
-  - { from: phi1, to: z1 }
-  - { from: psi1, to: y1 }
-  - { from: phi2, to: z2 }
-  - { from: psi2, to: y2 }
-  - { from: m-node, to: z1, route: curve, variant: dotted, lineWidth: 0.75pt, arrowheadScale: 0.8, tone: blue, fromAnchor: north, toAnchor: "east:0.3" }
-  - { from: m-node, to: z2, route: curve, variant: dotted, lineWidth: 0.75pt, arrowheadScale: 0.8, tone: blue, fromAnchor: south, toAnchor: "east:0.3" }
-  - { from: m-group, to: y1, route: curve, variant: dotted, lineWidth: 0.75pt, arrowheadScale: 0.8, tone: red, fromAnchor: north, toAnchor: "east:0.3" }
-  - { from: m-group, to: y2, route: curve, variant: dotted, lineWidth: 0.75pt, arrowheadScale: 0.8, tone: red, fromAnchor: south, toAnchor: "east:0.3" }
-  - { from: m-mem-a, to: y1, route: curve, variant: dotted, lineWidth: 0.75pt, arrowheadScale: 0.8, tone: green, fromAnchor: north, toAnchor: "east:0.7" }
-  - { from: m-mem-a, to: z2, route: curve, variant: dotted, lineWidth: 0.75pt, arrowheadScale: 0.8, tone: green, fromAnchor: south, toAnchor: "east:0.7" }
-  - { from: m-mem-b, to: z1, route: curve, variant: dotted, lineWidth: 0.75pt, arrowheadScale: 0.8, tone: green, fromAnchor: north, toAnchor: "east:0.7" }
-  - { from: m-mem-b, to: y2, route: curve, variant: dotted, lineWidth: 0.75pt, arrowheadScale: 0.8, tone: green, fromAnchor: south, toAnchor: "east:0.7" }
+  - {from: lk-n-m, to: lk-n-a, variant: dotted, tone: blue}
+  - {from: lk-n-m, to: lk-n-b, variant: dotted, tone: blue}
+  - {from: lk-g-m, to: lk-g-a, variant: dotted, tone: red}
+  - {from: lk-g-m, to: lk-g-b, variant: dotted, tone: red}
+  - {from: lk-m-m, to: lk-m-a, variant: dotted, tone: green}
+  - {from: lk-m-m, to: lk-m-b, variant: dotted, tone: green}
+  - {from: hyper, to: view1, route: curve, fromAnchor: east, toAnchor: west, label: "$\\mathit{T}_1$"}
+  - {from: hyper, to: view2, route: curve, fromAnchor: east, toAnchor: west, label: "$\\mathit{T}_2$"}
+  - {from: enc1, to: phi1, fromAnchor: "east:0.24", toAnchor: west}
+  - {from: enc1, to: psi1, fromAnchor: "east:0.75", toAnchor: west}
+  - {from: enc2, to: phi2, fromAnchor: "east:0.24", toAnchor: west}
+  - {from: enc2, to: psi2, fromAnchor: "east:0.75", toAnchor: west}
+  - {from: phi1, to: z1}
+  - {from: psi1, to: y1}
+  - {from: phi2, to: z2}
+  - {from: psi2, to: y2}
+  - {from: m-node, to: z1, route: curve, variant: dotted, lineWidth: 0.75pt, arrowheadScale: 0.8, tone: blue, fromAnchor: north, toAnchor: "east:0.3"}
+  - {from: m-node, to: z2, route: curve, variant: dotted, lineWidth: 0.75pt, arrowheadScale: 0.8, tone: blue, fromAnchor: south, toAnchor: "east:0.3"}
+  - {from: m-group, to: y1, route: curve, variant: dotted, lineWidth: 0.75pt, arrowheadScale: 0.8, tone: red, fromAnchor: north, toAnchor: "east:0.3"}
+  - {from: m-group, to: y2, route: curve, variant: dotted, lineWidth: 0.75pt, arrowheadScale: 0.8, tone: red, fromAnchor: south, toAnchor: "east:0.3"}
+  - {from: m-mem-a, to: y1, route: curve, variant: dotted, lineWidth: 0.75pt, arrowheadScale: 0.8, tone: green, fromAnchor: north, toAnchor: "east:0.7"}
+  - {from: m-mem-a, to: z2, route: curve, variant: dotted, lineWidth: 0.75pt, arrowheadScale: 0.8, tone: green, fromAnchor: south, toAnchor: "east:0.7"}
+  - {from: m-mem-b, to: z1, route: curve, variant: dotted, lineWidth: 0.75pt, arrowheadScale: 0.8, tone: green, fromAnchor: north, toAnchor: "east:0.7"}
+  - {from: m-mem-b, to: y2, route: curve, variant: dotted, lineWidth: 0.75pt, arrowheadScale: 0.8, tone: green, fromAnchor: south, toAnchor: "east:0.7"}
 sets:
   # The gray panels of the original: rect sets around their members.
-  - { id: encoder, members: [ enc1, shared, enc2 ], shape: rect, padding: 4.5pt, fillOpacity: 0.1 }
-  - { id: node-head, members: [ phi1, node-head-label, phi2 ], shape: rect, padding: 4.5pt, fillOpacity: 0.1 }
-  - { id: edge-head, members: [ psi1, edge-head-label, psi2 ], shape: rect, padding: 4.5pt, fillOpacity: 0.1 }
-  - { id: o-e1, members: [ o-a, o-b, o-c, o-e, o-f ], shape: ellipse, angle: auto, padding: 2.5pt, variant: dashed, fillOpacity: 0 }
-  - { id: o-e2, members: [ o-d, o-g, o-e, o-h, o-k ], shape: ellipse, angle: auto, padding: 2.5pt, variant: dashed, fillOpacity: 0 }
-  - { id: o-e3, members: [ o-e, o-f, o-i, o-j, o-h ], shape: ellipse, angle: auto, padding: 2.5pt, variant: dashed, fillOpacity: 0 }
-  - { id: p-e1, members: [ p-a, p-b, p-c, p-e, p-f ], shape: ellipse, angle: auto, padding: 2.5pt, variant: dashed, fillOpacity: 0 }
-  - { id: p-e2, members: [ p-d, p-g, p-e, p-h, p-k ], shape: ellipse, angle: auto, padding: 2.5pt, variant: dashed, fillOpacity: 0 }
-  - { id: p-e3, members: [ p-e, p-f, p-i, p-j, p-h ], shape: ellipse, angle: auto, padding: 2.5pt, variant: dashed, fillOpacity: 0 }
-  - { id: q-e1, members: [ q-a, q-b, q-e, q-f ], shape: ellipse, angle: auto, padding: 2.5pt, variant: dashed, fillOpacity: 0 }
-  - { id: q-e2, members: [ q-d, q-g, q-e, q-h, q-k ], shape: ellipse, angle: auto, padding: 2.5pt, variant: dashed, fillOpacity: 0 }
-  - { id: q-e3, members: [ q-e, q-f, q-i, q-j, q-h ], shape: ellipse, angle: auto, padding: 2.5pt, variant: dashed, fillOpacity: 0 }
+  - {id: encoder, members: [enc1, shared, enc2], shape: rect, padding: 4.5pt, fillOpacity: 0.1}
+  - {id: node-head, members: [phi1, node-head-label, phi2], shape: rect, padding: 4.5pt, fillOpacity: 0.1}
+  - {id: edge-head, members: [psi1, edge-head-label, psi2], shape: rect, padding: 4.5pt, fillOpacity: 0.1}
+  - {id: o-e1, members: [o-a, o-b, o-c, o-e, o-f], shape: ellipse, angle: auto, padding: 2.5pt, variant: dashed, fillOpacity: 0}
+  - {id: o-e2, members: [o-d, o-g, o-e, o-h, o-k], shape: ellipse, angle: auto, padding: 2.5pt, variant: dashed, fillOpacity: 0}
+  - {id: o-e3, members: [o-e, o-f, o-i, o-j, o-h], shape: ellipse, angle: auto, padding: 2.5pt, variant: dashed, fillOpacity: 0}
+  - {id: p-e1, members: [p-a, p-b, p-c, p-e, p-f], shape: ellipse, angle: auto, padding: 2.5pt, variant: dashed, fillOpacity: 0}
+  - {id: p-e2, members: [p-d, p-g, p-e, p-h, p-k], shape: ellipse, angle: auto, padding: 2.5pt, variant: dashed, fillOpacity: 0}
+  - {id: p-e3, members: [p-e, p-f, p-i, p-j, p-h], shape: ellipse, angle: auto, padding: 2.5pt, variant: dashed, fillOpacity: 0}
+  - {id: q-e1, members: [q-a, q-b, q-e, q-f], shape: ellipse, angle: auto, padding: 2.5pt, variant: dashed, fillOpacity: 0}
+  - {id: q-e2, members: [q-d, q-g, q-e, q-h, q-k], shape: ellipse, angle: auto, padding: 2.5pt, variant: dashed, fillOpacity: 0}
+  - {id: q-e3, members: [q-e, q-f, q-i, q-j, q-h], shape: ellipse, angle: auto, padding: 2.5pt, variant: dashed, fillOpacity: 0}

@@ -318,16 +318,20 @@ describe("figure.layout.fanIn", () => {
       ),
     );
 
-  test("merge (the default): the edges from different sources join into one port and one net", () => {
-    const value = fan();
+  test("merge: the edges from different sources join into one port and one net", () => {
+    const value = fan("merge");
     const t = rectOf(value.layout, "t");
     for (const index of [0, 1, 2]) {
       expect(lastPoint(value.layout, index)).toEqual({ x: t.x + t.width / 2, y: t.y });
     }
     expect(new Set([0, 1, 2].map((i) => routeOf(value.layout, i).net)).size).toBe(1);
     expectClean(value);
-    // Written out, `merge` is the default.
-    expect(JSON.stringify(fan("merge").layout)).toBe(JSON.stringify(value.layout));
+    // Not written, the unanchored ends on the wide node drop straight (#512).
+    const dropped = fan();
+    for (const index of [0, 1, 2]) {
+      const points = routeOf(dropped.layout, index).points;
+      expect(points).toHaveLength(2);
+    }
   });
 
   test("spread: side by side at 1/4, 2/4, 3/4 in the order of the sources, each its own net", () => {
@@ -643,9 +647,15 @@ describe("#109's figure 3 without anchors (#124 §3.7)", () => {
     expect(result.diagnostics.filter((d) => d.code === "layout/edge-crossing")).toHaveLength(6);
   });
 
-  test("merge (the default) keeps the detours the spread removes", () => {
-    const result = layoutStructuredFigure(withoutAnchors());
+  test("merge keeps the detours the spread removes", () => {
+    const result = layoutStructuredFigure(withoutAnchors("merge"));
     if (!result.ok) throw new Error(JSON.stringify(result.diagnostics, null, 2));
     expect(excessOf(result.value.layout).filter((e) => e > 10)).toHaveLength(3);
+  });
+
+  test("not written, the ends on wide nodes drop straight and most detours go (#512)", () => {
+    const result = layoutStructuredFigure(withoutAnchors());
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics, null, 2));
+    expect(excessOf(result.value.layout).filter((e) => e > 10).length).toBeLessThan(3);
   });
 });

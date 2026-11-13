@@ -10,6 +10,7 @@ import { z } from "zod";
 import { ICON_REF_MAX_LENGTH, ICON_REF_PATTERN } from "../../assets/icon-ref";
 import { SizeLength } from "../registry/length";
 import { PALETTE_NAMES } from "../theme/palette";
+import { TEXT_SCALE_MAX, TEXT_SCALE_MIN, TEXT_SCALE_STEP } from "../theme/text-scale";
 import { TONE_NAMES } from "../theme/tones";
 import { MAX_LENGTH_PT, parseLength } from "../units";
 
@@ -127,6 +128,10 @@ export const GROUP_LABEL_POSITIONS = [
   "bottom-left",
   "bottom",
   "bottom-right",
+  // Above the border, outside the frame (#517): no row inside, structured layout only.
+  "above-left",
+  "above",
+  "above-right",
 ] as const;
 export type GroupLabelPosition = (typeof GROUP_LABEL_POSITIONS)[number];
 
@@ -254,6 +259,9 @@ export const StrokeWidth = z
       'A line width in pt: a multiple of 0.25pt from 0.25pt to 4pt, e.g. "0.5pt" (thin lines of paper figures) or "1pt".',
   });
 
+/** `themeOverrides.textScale` (#514): multiples of 0.25 from 0.5 to 4. */
+const TextScale = z.number().min(TEXT_SCALE_MIN).max(TEXT_SCALE_MAX).multipleOf(TEXT_SCALE_STEP);
+
 /** The corner radius a figure may set (#427): multiples of 0.5pt (one D2 unit) up to 10pt. */
 export const CORNER_RADIUS_MAX_PT = 10;
 const CORNER_RADIUS_VALUES = Array.from({ length: 21 }, (_, i) => String(i / 2));
@@ -332,6 +340,12 @@ export const GridCellSchema = z.strictObject({
     return ArrangeItemSchema.nullable();
   },
   span: z.int().positive().optional().describe("Number of columns occupied (default 1)."),
+  align: z
+    .enum(ARRANGE_ALIGNS)
+    .optional()
+    .describe(
+      "Horizontal alignment of this cell inside its columns, replacing the grid's align for this cell only (since 0.18.0). The column widths still come from the grid's align.",
+    ),
 });
 
 /** Row-major grid. Rows must be complete; null reserves a blank cell. */
@@ -364,14 +378,30 @@ export const PlaceSchema = z
             item: ArrangeItemSchema,
             at: z
               .tuple([z.number(), z.number()])
-              .describe("Item center [x, y] in units; y grows downward."),
+              .describe(
+                "Item center [x, y] in units; y grows downward. By default a group's (or a whole tokens sequence's) center is that of its frame including the nodes attached to it; origin: body gives the frame without them.",
+              ),
+            origin: z
+              .enum(["footprint", "body"])
+              .optional()
+              .describe(
+                "What `at` is the center of for a group or whole tokens sequence: footprint (default) is its frame, which grows to hold attached nodes; body is the same frame without them, so a sketch's centers carry over. A plain node's center is always its body. Only on a node or group ID.",
+              ),
           }),
         )
         .min(1);
     },
   })
   .check((ctx) => {
-    for (const [index, cell] of ctx.value.items.entries())
+    for (const [index, cell] of ctx.value.items.entries()) {
+      if (cell.origin !== undefined && typeof cell.item !== "string") {
+        ctx.issues.push({
+          code: "custom",
+          input: cell.origin,
+          path: ["items", index, "origin"],
+          message: "origin applies to a node or group ID, not to a nested arrange box.",
+        });
+      }
       for (const [axis, coordinate] of cell.at.entries()) {
         if (Math.abs(coordinate * ctx.value.unit) <= MAX_LENGTH_PT) continue;
         ctx.issues.push({
@@ -381,6 +411,7 @@ export const PlaceSchema = z
           message: `Coordinate times place.unit must be within ±${MAX_LENGTH_PT}pt.`,
         });
       }
+    }
   });
 
 /** Conversation column; message content remains ordinary, addressable bubble nodes. */
@@ -706,7 +737,7 @@ export const LayoutFieldsSchema = z.strictObject({
     .enum(FAN_IN_MODES)
     .optional()
     .describe(
-      "Edges from different elements entering the same point of an element without an anchor: merge joins them into one line, spread enters them side by side in the order of their other ends. Omitted means merge (structured layout only).",
+      "Edges from different elements entering the same point of an element without an anchor: merge joins them into one line, spread enters them side by side in the order of their other ends. Omitted: an unanchored end on a node clearly wider than the other end's node drops straight onto it (as straight does), and other ends merge (structured layout only).",
     ),
   density: z
     .enum(LAYOUT_DENSITIES)
@@ -878,6 +909,9 @@ export const FigureMetaSchema = z.strictObject({
         .describe(
           "Exact #RRGGBB colors of tones, applied wherever the tone is used; dimming still applies.",
         ),
+      textScale: TextScale.optional().describe(
+        "Scales the theme's text as a whole (a multiple of 0.25 from 0.5 to 4): font sizes, and in proportion line widths, arrowheads and corner radii; colors and fonts stay. Every size is rounded to 0.5pt (a line stays at least 0.5pt). Lengths written in the figure (lineWidth, frameWidth, cornerRadius) are final and not scaled; gaps and paddings are the profile's. 2 takes `sumi` text from 7-9pt to 14-18pt for presentation-16x9 (sumi catalog --section themes lists the scale each theme needs per profile).",
+      ),
       lineWidth: StrokeWidth.optional().describe(
         "Width of the lines of edges and node frames (except legends; see frameWidth): replaces the theme's regular width, e.g. 0.5pt for the thin lines of a paper figure. A variant the theme draws heavier or lighter (emphasis, zoom lines) keeps its ratio to the regular width; a borderless element stays borderless. Per element: lineWidth.",
       ),
@@ -938,7 +972,7 @@ export const GroupSchema = z.strictObject({
     .enum(GROUP_LABEL_POSITIONS)
     .optional()
     .describe(
-      "Where the label sits inside the group's border, relative to the full frame including attached members, not just the arrange tree. Omitted means top (top centre) in structured layout and top-left in auto layout.",
+      "Where the label sits inside the group's border, relative to the full frame including attached members, not just the arrange tree. Omitted means top (top centre) in structured layout and top-left in auto layout. above-left, above and above-right (since 0.18.0, structured layout only) put the title outside, above the border: it takes no row inside the frame, so the content and the frame keep their size and line up with neighbours.",
     ),
   caption: z
     .string()

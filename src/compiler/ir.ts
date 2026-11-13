@@ -79,6 +79,7 @@ import {
   type StyleLength,
   sublabelFontSize,
 } from "../core/theme/style";
+import type { Tone } from "../core/theme/tones";
 import { wrapBubbleText } from "./bubble";
 import { withStretchOutlines } from "./stretch-outlines";
 
@@ -109,7 +110,7 @@ export interface FigureMetaIR {
   readonly engine: LayoutEngine;
   /** Structured layout: `figure.layout.alignGrowth` (#333). Absent when not written (report). */
   readonly alignGrowth?: AlignGrowthMode;
-  /** Structured layout: `figure.layout.fanIn` (#134). Absent when not written (merge). */
+  /** Structured layout: `figure.layout.fanIn` (#134). Absent when not written (merge, except ends on a wide node, which drop straight, #512). */
   readonly fanIn?: FanInMode;
   /** Structured layout: `figure.layout.density` (#182). Absent when not written (normal). */
   readonly density?: LayoutDensity;
@@ -126,10 +127,14 @@ export interface ArrangeBoxIR {
   readonly chat?: { readonly widthPt: number; readonly rows: readonly ChatRowIR[] };
   /** Coordinate centers in pt, parallel to items; place boxes are rigid. */
   readonly positionsPt?: readonly (readonly [number, number])[];
+  /** Place boxes only: items whose center is the body without attached nodes (#517), parallel to items. */
+  readonly bodyCentered?: readonly boolean[];
   readonly placementSources?: readonly SourceMapEntry[];
   /** Grid-only track count, spans (parallel to items), and gaps in pt. */
   readonly columns?: number;
   readonly spans?: readonly number[];
+  /** Grid-only per-cell horizontal alignment overrides (#517), parallel to items. */
+  readonly cellAligns?: readonly (ArrangeAlign | undefined)[];
   readonly rowGapPt?: number;
   readonly columnGapPt?: number;
   /** stack: `down` | `up`; row: `right` | `left`. */
@@ -230,6 +235,8 @@ interface ElementIRBase {
   /** Canonical component ID. */
   readonly component: ComponentId;
   readonly variant: string;
+  /** The `tone` the element sets (#513), if any: the lint reads which hues a figure uses. */
+  readonly tone?: Tone;
   /**
    * Set on the frame group of a legend and on every part it was expanded
    * into (#131, design doc §6.34): the legend node's ID, and how messages
@@ -257,6 +264,8 @@ export interface TokensCellIR {
   readonly line?: number;
   /** A dotted separator cell (#216), drawn within its reserved box. */
   readonly separator?: "vertical" | "horizontal";
+  /** A blank cell (#517): its box is reserved and nothing is drawn. */
+  readonly blank?: true;
   /** The ID of the tokens node (which names no element of its own), or of the matrix. */
   readonly id: string;
   /** The tokens or matrix node's variant. */
@@ -399,6 +408,8 @@ export interface GroupIR extends ObjectIRBase {
   /** The label node expanded from the group's `caption` (#130). */
   readonly caption?: ElementKey;
   readonly layers?: { readonly count: number; readonly offset: StyleLength };
+  /** `props.padding` in pt (#517): replaces the profile's group padding. */
+  readonly paddingPt?: number;
 }
 
 export interface EdgeIR extends ElementIRBase {
@@ -580,6 +591,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
       label: element.label,
       component: component.id,
       variant: component.variant,
+      ...(element.tone !== undefined && { tone: element.tone }),
       ...legendPartOf(doc, key),
       ...tokensCellOf(doc, key),
       ...matrixPartOf(doc, key),
@@ -847,6 +859,9 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
       children: freeze(childrenOf.get(g.id) ?? []),
       style: styleOf(state, key, "group"),
       ...groupLayers(componentOf(state, key).props),
+      ...(typeof componentOf(state, key).props.padding === "number" && {
+        paddingPt: componentOf(state, key).props.padding as number,
+      }),
       ...(g.arrange !== undefined && {
         arrange: arrangeOf(g.arrange, ["groups", index, "arrange"]),
       }),
@@ -1192,6 +1207,13 @@ function arrangeIR(
           c !== null && typeof c === "object" && "item" in c ? (c.span ?? 1) : 1,
         ),
       ),
+      ...(grid.items.some((c) => c !== null && typeof c === "object" && "item" in c && c.align) && {
+        cellAligns: freeze(
+          grid.items.map((c) =>
+            c !== null && typeof c === "object" && "item" in c ? c.align : undefined,
+          ),
+        ),
+      }),
       items: freeze(
         grid.items.map((c, index) =>
           item(c !== null && typeof c === "object" && "item" in c ? c.item : c, index),
@@ -1205,6 +1227,9 @@ function arrangeIR(
       kind: "place",
       direction: "right",
       positionsPt: freeze(items.map(({ at }) => freeze([at[0] * unit, at[1] * unit] as const))),
+      ...(items.some((cell) => cell.origin === "body") && {
+        bodyCentered: freeze(items.map((cell) => cell.origin === "body")),
+      }),
       ...(sourceEntry && {
         placementSources: freeze(
           items.map((_, i) => sourceEntry([...path, "place", "items", i, "at"])),
@@ -1265,6 +1290,7 @@ function tokensCellOf(doc: PartialFigure, key: ElementKey): { tokens?: TokensCel
       fields: freeze({ ...fields }),
       ...(cell?.path[3] === "lines" && { line: cell.path[4] as number }),
       ...(cell?.separator !== undefined && { separator: cell.separator }),
+      ...(cell?.blank !== undefined && { blank: true as const }),
     }),
   };
 }

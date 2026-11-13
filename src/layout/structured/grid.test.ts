@@ -135,10 +135,10 @@ test("canonical order descends through spanning items and nested grids", () => {
   expect(result.ok).toBe(true);
   if (result.ok) {
     expect(result.text).toContain(
-      "grid: { columns: 2, rowGap: 3pt, columnGap: 2pt, align: stretch, items:",
+      "grid: {columns: 2, rowGap: 3pt, columnGap: 2pt, align: stretch, items:",
     );
     expect(result.text).toContain(
-      "{ item: { grid: { columns: 1, align: start, items: [ a ] } }, span: 2 }",
+      "{item: {grid: {columns: 1, align: start, items: [a]}}, span: 2}",
     );
   }
 });
@@ -149,7 +149,7 @@ test("canonical blanks use null, including spanning cells, and format idempotent
   const result = formatFigureSource(input, { canonicalOrder: true });
   expect(result.ok).toBe(true);
   if (!result.ok) return;
-  expect(result.text).toContain("items: [ null, { item: null, span: 2 } ]");
+  expect(result.text).toContain("items: [null, {item: null, span: 2}]");
   expect(formatFigureSource(result.text, { canonicalOrder: true })).toMatchObject({
     changed: false,
   });

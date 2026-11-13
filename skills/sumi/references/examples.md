@@ -39,20 +39,20 @@ figure:
     direction: down
 
 nodes:
-  - { id: request, component: ellipse, label: Request }
-  - { id: cached, component: diamond, label: "In cache?" }
-  - { id: fresh, component: diamond, label: "Fresh?" }
-  - { id: fetch, component: box, label: "Fetch from\norigin" }
-  - { id: update, component: box, label: Update cache }
-  - { id: respond, component: ellipse, label: Response, variant: emphasis }
+  - {id: request, component: ellipse, label: Request}
+  - {id: cached, component: diamond, label: "In cache?"}
+  - {id: fresh, component: diamond, label: "Fresh?"}
+  - {id: fetch, component: box, label: "Fetch from\norigin"}
+  - {id: update, component: box, label: Update cache}
+  - {id: respond, component: ellipse, label: Response, variant: emphasis}
 edges:
-  - { from: request, to: cached }
-  - { from: cached, to: fresh, label: "yes" }
-  - { from: cached, to: fetch, label: "no" }
-  - { from: fresh, to: respond, label: "yes" }
-  - { from: fresh, to: fetch, label: "no", variant: dashed }
-  - { from: fetch, to: update }
-  - { from: update, to: respond }
+  - {from: request, to: cached}
+  - {from: cached, to: fresh, label: "yes"}
+  - {from: cached, to: fetch, label: "no"}
+  - {from: fresh, to: respond, label: "yes"}
+  - {from: fresh, to: fetch, label: "no", variant: dashed}
+  - {from: fetch, to: update}
+  - {from: update, to: respond}
 ```
 
 ```sh
@@ -87,10 +87,10 @@ groups:
   - id: data
     label: Data
 nodes:
-  - { id: api, component: box, label: API }
-  - { id: db, component: database, label: Database, group: data }
+  - {id: api, component: box, label: API}
+  - {id: db, component: database, label: Database, group: data}
 edges:
-  - { from: api, to: db }
+  - {from: api, to: db}
 ```
 
 ```sh
@@ -120,19 +120,19 @@ figure:
   layout:
     direction: right
 nodes:
-  - { id: sources, component: parallelogram, label: Raw files }
-  - { id: extract, component: box, label: Extract }
-  - { id: clean, component: box, label: Clean }
-  - { id: load, component: box, label: Load, variant: emphasis }
-  - { id: warehouse, component: cylinder, label: Warehouse }
-  - { id: report, component: document, label: Report }
+  - {id: sources, component: parallelogram, label: Raw files}
+  - {id: extract, component: box, label: Extract}
+  - {id: clean, component: box, label: Clean}
+  - {id: load, component: box, label: Load, variant: emphasis}
+  - {id: warehouse, component: cylinder, label: Warehouse}
+  - {id: report, component: document, label: Report}
 edges:
-  - { from: sources, to: extract }
-  - { from: extract, to: clean }
-  - { from: clean, to: load }
-  - { from: load, to: warehouse }
-  - { from: warehouse, to: report }
-  - { from: clean, to: report, label: rejects, variant: dashed }
+  - {from: sources, to: extract}
+  - {from: extract, to: clean}
+  - {from: clean, to: load}
+  - {from: load, to: warehouse}
+  - {from: warehouse, to: report}
+  - {from: clean, to: report, label: rejects, variant: dashed}
 ```
 
 ```sh
@@ -153,21 +153,21 @@ to 51%, its 8pt text to 4.1pt: an error). The fixed figure, checked by the tests
 ```yaml
 # expect-render: fits
 version: 1
-figure: { id: etl-pipeline, theme: academic, profile: paper-single, layout: { direction: down } }
+figure: {id: etl-pipeline, theme: academic, profile: paper-single, layout: {direction: down}}
 nodes:
-  - { id: sources, component: parallelogram, label: Raw files }
-  - { id: extract, component: box, label: Extract }
-  - { id: clean, component: box, label: Clean }
-  - { id: load, component: box, label: Load, variant: emphasis }
-  - { id: warehouse, component: cylinder, label: Warehouse }
-  - { id: report, component: document, label: Report }
+  - {id: sources, component: parallelogram, label: Raw files}
+  - {id: extract, component: box, label: Extract}
+  - {id: clean, component: box, label: Clean}
+  - {id: load, component: box, label: Load, variant: emphasis}
+  - {id: warehouse, component: cylinder, label: Warehouse}
+  - {id: report, component: document, label: Report}
 edges:
-  - { from: sources, to: extract }
-  - { from: extract, to: clean }
-  - { from: clean, to: load }
-  - { from: load, to: warehouse }
-  - { from: warehouse, to: report }
-  - { from: clean, to: report, label: rejects, variant: dashed }
+  - {from: sources, to: extract}
+  - {from: extract, to: clean}
+  - {from: clean, to: load}
+  - {from: load, to: warehouse}
+  - {from: warehouse, to: report}
+  - {from: clean, to: report, label: rejects, variant: dashed}
 ```
 
 ```sh
@@ -202,7 +202,7 @@ figure:
       stack:
         direction: up # first item at the bottom
         gap: 4mm
-        items: [ raw, calibrate, stage, clean ]
+        items: [raw, calibrate, stage, clean]
 
 groups:
   - id: stage
@@ -217,43 +217,43 @@ groups:
               gap: 3mm
               items:
                 # one touching filter + gain pair per band
-                - stack: { direction: up, gap: 0, align: stretch, items: [ low, gain-low ] }
-                - stack: { direction: up, gap: 0, align: stretch, items: [ band, gain-band ] }
-                - stack: { direction: up, gap: 0, align: stretch, items: [ high, gain-high ] }
+                - stack: {direction: up, gap: 0, align: stretch, items: [low, gain-low]}
+                - stack: {direction: up, gap: 0, align: stretch, items: [band, gain-band]}
+                - stack: {direction: up, gap: 0, align: stretch, items: [high, gain-high]}
           - combine
           - add
 
 nodes:
-  - { id: raw, component: label, label: '$u_t$' }
-  - { id: calibrate, component: box, label: Calibration, tone: gray }
-  - { id: config, component: label, icon: tabler/adjustments, iconSize: 1.5, attach: { to: calibrate, side: west, gap: 2mm } }
-  - { id: config-label, component: label, label: "Sensor\nconfig", attach: { to: config, side: west, gap: 0.5mm } }
-  - { id: split, component: junction, variant: hidden }
-  - { id: low, component: box, label: Low-pass, tone: blue }
-  - { id: gain-low, component: box, label: '$g_1$', tone: yellow }
-  - { id: band, component: box, label: Band-pass, tone: blue }
-  - { id: gain-band, component: box, label: '$g_2$', tone: yellow }
-  - { id: high, component: box, label: High-pass, tone: blue }
-  - { id: gain-high, component: box, label: '$g_3$', tone: yellow }
-  - { id: combine, component: box, label: Combine, tone: green }
-  - { id: add, component: operator, props: { symbol: plus } }
-  - { id: repeat, component: label, label: '$K \times$', attach: { to: stage, side: east, gap: 2mm } }
-  - { id: clean, component: label, label: '$\hat{y}_t$' }
+  - {id: raw, component: label, label: '$u_t$'}
+  - {id: calibrate, component: box, label: Calibration, tone: gray}
+  - {id: config, component: label, icon: tabler/adjustments, iconSize: 1.5, attach: {to: calibrate, side: west, gap: 2mm}}
+  - {id: config-label, component: label, label: "Sensor\nconfig", attach: {to: config, side: west, gap: 0.5mm}}
+  - {id: split, component: junction, variant: hidden}
+  - {id: low, component: box, label: Low-pass, tone: blue}
+  - {id: gain-low, component: box, label: '$g_1$', tone: yellow}
+  - {id: band, component: box, label: Band-pass, tone: blue}
+  - {id: gain-band, component: box, label: '$g_2$', tone: yellow}
+  - {id: high, component: box, label: High-pass, tone: blue}
+  - {id: gain-high, component: box, label: '$g_3$', tone: yellow}
+  - {id: combine, component: box, label: Combine, tone: green}
+  - {id: add, component: operator, props: {symbol: plus}}
+  - {id: repeat, component: label, label: '$K \times$', attach: {to: stage, side: east, gap: 2mm}}
+  - {id: clean, component: label, label: '$\hat{y}_t$'}
 
 edges:
-  - { from: raw, to: calibrate }
-  - { from: config, to: calibrate, component: line }
-  - { from: calibrate, to: split, component: line }
+  - {from: raw, to: calibrate}
+  - {from: config, to: calibrate, component: line}
+  - {from: calibrate, to: split, component: line}
   # one hidden junction fans out to the three bands and the bypass
-  - { from: split, to: low }
-  - { from: split, to: band }
-  - { from: split, to: high }
-  - { from: gain-low, to: combine, toAnchor: straight }
-  - { from: gain-band, to: combine, toAnchor: straight }
-  - { from: gain-high, to: combine, toAnchor: straight }
-  - { from: combine, to: add }
-  - { from: split, to: add, toAnchor: west } # bypass around the filters
-  - { from: add, to: clean }
+  - {from: split, to: low}
+  - {from: split, to: band}
+  - {from: split, to: high}
+  - {from: gain-low, to: combine, toAnchor: straight}
+  - {from: gain-band, to: combine, toAnchor: straight}
+  - {from: gain-high, to: combine, toAnchor: straight}
+  - {from: combine, to: add}
+  - {from: split, to: add, toAnchor: west} # bypass around the filters
+  - {from: add, to: clean}
 ```
 
 ```sh
@@ -286,21 +286,21 @@ figure:
   profile: paper-single
   layout:
     arrange:
-      stack: { direction: up, gap: 1.5mm, align: stretch, items: [ x, split, norm, mlp, add, y ] }
+      stack: {direction: up, gap: 1.5mm, align: stretch, items: [x, split, norm, mlp, add, y]}
 nodes:
-  - { id: x, component: label, label: $x$ }
-  - { id: split, component: junction }
-  - { id: norm, component: box, label: Layer Norm, tone: yellow }
-  - { id: mlp, component: box, label: MLP, tone: blue }
-  - { id: add, component: operator, props: { symbol: plus } }
-  - { id: y, component: label, label: $y$ }
+  - {id: x, component: label, label: $x$}
+  - {id: split, component: junction}
+  - {id: norm, component: box, label: Layer Norm, tone: yellow}
+  - {id: mlp, component: box, label: MLP, tone: blue}
+  - {id: add, component: operator, props: {symbol: plus}}
+  - {id: y, component: label, label: $y$}
 edges:
-  - { from: x, to: split, component: line }
-  - { from: split, to: norm }
-  - { from: norm, to: mlp }
-  - { from: mlp, to: add }
-  - { from: split, to: add, toAnchor: west } # residual
-  - { from: add, to: y }
+  - {from: x, to: split, component: line}
+  - {from: split, to: norm}
+  - {from: norm, to: mlp}
+  - {from: mlp, to: add}
+  - {from: split, to: add, toAnchor: west} # residual
+  - {from: add, to: y}
 ```
 
 ```sh
@@ -323,21 +323,21 @@ version: 1
 figure:
   id: mlp-block
   theme: color
-  layout: { arrange: { stack: { direction: up, gap: 3mm, align: stretch, items: [ x, split, norm, mlp, add, y ] } } }
+  layout: {arrange: {stack: {direction: up, gap: 3mm, align: stretch, items: [x, split, norm, mlp, add, y]}}}
 nodes:
-  - { id: x, component: label, label: $x$ }
-  - { id: split, component: junction }
-  - { id: norm, component: box, label: Layer Norm, tone: yellow }
-  - { id: mlp, component: box, label: MLP, tone: blue }
-  - { id: add, component: operator, props: { symbol: plus } }
-  - { id: y, component: label, label: $y$ }
+  - {id: x, component: label, label: $x$}
+  - {id: split, component: junction}
+  - {id: norm, component: box, label: Layer Norm, tone: yellow}
+  - {id: mlp, component: box, label: MLP, tone: blue}
+  - {id: add, component: operator, props: {symbol: plus}}
+  - {id: y, component: label, label: $y$}
 edges:
-  - { from: x, to: split, component: line }
-  - { from: split, to: norm }
-  - { from: norm, to: mlp }
-  - { from: mlp, to: add }
-  - { from: split, to: add, toAnchor: west }
-  - { from: add, to: y }
+  - {from: x, to: split, component: line}
+  - {from: split, to: norm}
+  - {from: norm, to: mlp}
+  - {from: mlp, to: add}
+  - {from: split, to: add, toAnchor: west}
+  - {from: add, to: y}
 ```
 
 `render` then prints `Wrote mlp-block.svg: 27.52mm × 44.8mm (paper-single, max
@@ -365,7 +365,7 @@ figure:
     arrange:
       row:
         align: stretch # panels equally tall, so the captions share a line
-        items: [ model, block, gated ]
+        items: [model, block, gated]
 groups:
   - id: model
     caption: (a) Model
@@ -374,57 +374,57 @@ groups:
       stack:
         direction: up
         align: stretch
-        items: [ chunks, backbone, norm, head, { row: { items: [ mean, scale ] } } ]
+        items: [chunks, backbone, norm, head, {row: {items: [mean, scale]}}]
   - id: block # the paper container: light gray, rounded
     caption: (b) Backbone block
     arrange:
       # a stretched group centres its tree vertically: a row with align: end moves it to the bottom
-      row: { align: end, items: [ { stack: { direction: up, align: stretch, items: [ b-in, b-norm, b-conv, b-add, b-out ] } } ] }
+      row: {align: end, items: [{stack: {direction: up, align: stretch, items: [b-in, b-norm, b-conv, b-add, b-out]}}]}
   - id: gated
     caption: (c) Gated variant
     dim: true # the compared variant: pale, with everything inside
     arrange:
-      row: { align: end, items: [ { stack: { direction: up, align: stretch, items: [ g-in, g-norm, g-conv, g-add, g-out ] } } ] }
+      row: {align: end, items: [{stack: {direction: up, align: stretch, items: [g-in, g-norm, g-conv, g-add, g-out]}}]}
 nodes:
   - id: chunks
     component: tokens # one node for a row of cells; edges name a cell
     tone: purple
-    props: { variant: outlined, gap: 1.5pt, cells: [ C1, C2, C3, C4 ] }
-  - { id: backbone, component: box, label: Backbone, props: { height: 28pt } }
-  - { id: norm, component: box, label: Norm, tone: blue, variant: filled }
-  - { id: head, component: box, label: Linear, tone: green, variant: filled }
-  - { id: mean, component: box, label: Mean, sublabel: 64 × 64, tone: gray, variant: filled }
-  - { id: scale, component: box, label: Scale, sublabel: 64 × 64, tone: gray, variant: filled }
-  - { id: b-in, component: box, label: Input, tone: gray, variant: filled }
-  - { id: b-norm, component: box, label: Norm, tone: blue, variant: filled }
-  - { id: b-conv, component: box, label: Conv 3×3, tone: orange, variant: filled }
-  - { id: b-add, component: operator, props: { symbol: plus } }
-  - { id: b-out, component: junction, variant: hidden }
-  - { id: g-in, component: box, label: Input, tone: gray, variant: filled }
-  - { id: g-norm, component: box, label: Norm, tone: blue, variant: filled }
-  - { id: g-conv, component: box, label: Gated Conv, tone: red, variant: filled }
-  - { id: g-add, component: operator, props: { symbol: plus } }
-  - { id: g-out, component: junction, variant: hidden }
+    props: {variant: outlined, gap: 1.5pt, cells: [C1, C2, C3, C4]}
+  - {id: backbone, component: box, label: Backbone, props: {height: 28pt}}
+  - {id: norm, component: box, label: Norm, tone: blue, variant: filled}
+  - {id: head, component: box, label: Linear, tone: green, variant: filled}
+  - {id: mean, component: box, label: Mean, sublabel: 64 × 64, tone: gray, variant: filled}
+  - {id: scale, component: box, label: Scale, sublabel: 64 × 64, tone: gray, variant: filled}
+  - {id: b-in, component: box, label: Input, tone: gray, variant: filled}
+  - {id: b-norm, component: box, label: Norm, tone: blue, variant: filled}
+  - {id: b-conv, component: box, label: Conv 3×3, tone: orange, variant: filled}
+  - {id: b-add, component: operator, props: {symbol: plus}}
+  - {id: b-out, component: junction, variant: hidden}
+  - {id: g-in, component: box, label: Input, tone: gray, variant: filled}
+  - {id: g-norm, component: box, label: Norm, tone: blue, variant: filled}
+  - {id: g-conv, component: box, label: Gated Conv, tone: red, variant: filled}
+  - {id: g-add, component: operator, props: {symbol: plus}}
+  - {id: g-out, component: junction, variant: hidden}
 edges:
-  - { from: chunks.1, to: backbone, toAnchor: straight } # each cell straight up
-  - { from: chunks.2, to: backbone, toAnchor: straight }
-  - { from: chunks.3, to: backbone, toAnchor: straight }
-  - { from: chunks.4, to: backbone, toAnchor: straight }
-  - { from: backbone, to: norm, component: line }
-  - { from: norm, to: head, component: line }
-  - { from: head, fromAnchor: straight, to: mean } # leaves the wide box in line
-  - { from: head, fromAnchor: straight, to: scale }
-  - { from: backbone, to: block, component: zoom } # dashed corner-to-corner callout
-  - { from: b-in, to: b-norm, component: line }
-  - { from: b-norm, to: b-conv, component: line }
-  - { from: b-conv, to: b-add, component: line }
-  - { from: b-in, to: b-add, toAnchor: west, tone: blue } # residual, colored
-  - { from: b-add, to: b-out }
-  - { from: g-in, to: g-norm, component: line }
-  - { from: g-norm, to: g-conv, component: line }
-  - { from: g-conv, to: g-add, component: line }
-  - { from: g-in, to: g-add, toAnchor: west }
-  - { from: g-add, to: g-out }
+  - {from: chunks.1, to: backbone, toAnchor: straight} # each cell straight up
+  - {from: chunks.2, to: backbone, toAnchor: straight}
+  - {from: chunks.3, to: backbone, toAnchor: straight}
+  - {from: chunks.4, to: backbone, toAnchor: straight}
+  - {from: backbone, to: norm, component: line}
+  - {from: norm, to: head, component: line}
+  - {from: head, fromAnchor: straight, to: mean} # leaves the wide box in line
+  - {from: head, fromAnchor: straight, to: scale}
+  - {from: backbone, to: block, component: zoom} # dashed corner-to-corner callout
+  - {from: b-in, to: b-norm, component: line}
+  - {from: b-norm, to: b-conv, component: line}
+  - {from: b-conv, to: b-add, component: line}
+  - {from: b-in, to: b-add, toAnchor: west, tone: blue} # residual, colored
+  - {from: b-add, to: b-out}
+  - {from: g-in, to: g-norm, component: line}
+  - {from: g-norm, to: g-conv, component: line}
+  - {from: g-conv, to: g-add, component: line}
+  - {from: g-in, to: g-add, toAnchor: west}
+  - {from: g-add, to: g-out}
 ```
 
 ```sh

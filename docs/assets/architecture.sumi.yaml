@@ -11,7 +11,7 @@ figure:
   profile: paper-double
   background: transparent
   # Read on screen at GitHub's ~880 px README width: 6pt is about 10 px there.
-  target: { minFontSize: 6pt, height: 70mm }
+  target: {minFontSize: 6pt, height: 70mm}
   layout:
     arrange:
       grid:
@@ -19,13 +19,13 @@ figure:
         rowGap: 10mm
         columnGap: 1.1mm
         items:
-          - { item: agent, span: 2 }
-          - { item: yaml, span: 3 }
+          - {item: agent, span: 2}
+          - {item: yaml, span: 3}
           - null
-          - { item: diag, span: 3 }
-          - { item: null, span: 2 }
+          - {item: diag, span: 3}
+          - {item: null, span: 2}
           - cli-title
-          - stack: { gap: 1.2mm, align: center, items: [ c-cmd, { row: { gap: 1mm, items: [ c-comp, c-theme, c-pal, c-prof ] } } ] }
+          - stack: {gap: 1.2mm, align: center, items: [c-cmd, {row: {gap: 1mm, items: [c-comp, c-theme, c-pal, c-prof]}}]}
           - compile
           - f1
           - layout
@@ -39,13 +39,13 @@ groups:
   - id: agent
     variant: plain
     arrange:
-      stack: { gap: 1mm, align: center, items: [ { row: { gap: 3mm, items: [ logo-cc, logo-codex ] } }, agent-name ] }
+      stack: {gap: 1mm, align: center, items: [{row: {gap: 3mm, items: [logo-cc, logo-codex]}}, agent-name]}
 sets:
-  - { id: cli, shape: rect, members: [ cli-title, c-cmd, c-comp, c-theme, c-pal, c-prof, compile, layout, render, out, f1, f2, f3, f4, lint ], padding: 2mm, tone: gray, variant: outlined }
+  - {id: cli, shape: rect, members: [cli-title, c-cmd, c-comp, c-theme, c-pal, c-prof, compile, layout, render, out, f1, f2, f3, f4, lint], padding: 2mm, tone: gray, variant: outlined}
 nodes:
-  - { id: logo-cc, component: image, props: { src: icons/claudecode.svg, width: 20pt, height: 20pt } }
-  - { id: logo-codex, component: image, props: { src: icons/codex.svg, width: 20pt, height: 20pt } }
-  - { id: agent-name, component: label, label: Coding agent, sublabel: "+ Sumi Skill" }
+  - {id: logo-cc, component: image, props: {src: icons/claudecode.svg, width: 20pt, height: 20pt}}
+  - {id: logo-codex, component: image, props: {src: icons/codex.svg, width: 20pt, height: 20pt}}
+  - {id: agent-name, component: label, label: Coding agent, sublabel: "+ Sumi Skill"}
   - id: yaml
     component: html
     props:
@@ -71,15 +71,15 @@ nodes:
           <div style="white-space:pre">  "geometry/label-collision",</div>
           <div style="white-space:pre">  "path": ["edges", 2] }</div>
         </div>
-  - { id: cli-title, component: label, label: Sumi CLI, labelRotation: -90 }
-  - { id: c-comp, component: label, icon: tabler/components, iconSize: 1.8 }
-  - { id: c-theme, component: label, icon: tabler/palette, iconSize: 1.8 }
-  - { id: c-pal, component: label, icon: tabler/layout-2, iconSize: 1.8 }
-  - { id: c-prof, component: label, icon: tabler/ruler-measure, iconSize: 1.8 }
-  - { id: c-cmd, component: label, label: catalog --json, mono: true }
-  - { id: compile, component: box, label: Compile, sublabel: "schema · theme → IR", props: { height: 32pt } }
-  - { id: layout, component: box, label: Layout, sublabel: "structured · D2", props: { height: 32pt } }
-  - { id: render, component: box, label: Render, sublabel: "bundled fonts", props: { height: 32pt } }
+  - {id: cli-title, component: label, label: Sumi CLI, labelRotation: -90}
+  - {id: c-comp, component: label, icon: tabler/components, iconSize: 1.8}
+  - {id: c-theme, component: label, icon: tabler/palette, iconSize: 1.8}
+  - {id: c-pal, component: label, icon: tabler/layout-2, iconSize: 1.8}
+  - {id: c-prof, component: label, icon: tabler/ruler-measure, iconSize: 1.8}
+  - {id: c-cmd, component: label, label: catalog --json, mono: true}
+  - {id: compile, component: box, label: Compile, sublabel: "schema · theme → IR", props: {height: 32pt}}
+  - {id: layout, component: box, label: Layout, sublabel: "structured · D2", props: {height: 32pt}}
+  - {id: render, component: box, label: Render, sublabel: "bundled fonts", props: {height: 32pt}}
   - id: out
     component: html
     props:
@@ -98,14 +98,14 @@ nodes:
           </div>
           <div style="white-space:pre">SVG PDF PPTX</div>
         </div>
-  - { id: f1, component: triangle-arrow, props: { length: 5pt, thickness: 6pt } }
-  - { id: f2, component: triangle-arrow, props: { length: 5pt, thickness: 6pt } }
-  - { id: f3, component: triangle-arrow, props: { length: 5pt, thickness: 6pt } }
-  - { id: f4, component: triangle-arrow, props: { length: 5pt, thickness: 6pt } }
-  - { id: lint, component: box, label: Geometry lint, sublabel: "fit · overlap · contrast", tone: orange, variant: outlined, props: { height: 32pt } }
+  - {id: f1, component: triangle-arrow, props: {length: 5pt, thickness: 6pt}}
+  - {id: f2, component: triangle-arrow, props: {length: 5pt, thickness: 6pt}}
+  - {id: f3, component: triangle-arrow, props: {length: 5pt, thickness: 6pt}}
+  - {id: f4, component: triangle-arrow, props: {length: 5pt, thickness: 6pt}}
+  - {id: lint, component: box, label: Geometry lint, sublabel: "fit · overlap · contrast", tone: orange, variant: outlined, props: {height: 32pt}}
 edges:
-  - { from: yaml, to: compile, fromAnchor: straight }
-  - { from: c-cmd, to: agent, toAnchor: straight, label: discover }
-  - { from: agent, to: yaml, toAnchor: straight, label: write }
-  - { from: lint, to: diag, fromAnchor: north, toAnchor: east, tone: orange, variant: dashed, label: "--json" }
-  - { from: diag, to: yaml, tone: orange, variant: dashed, label: agent fixes }
+  - {from: yaml, to: compile, fromAnchor: straight}
+  - {from: c-cmd, to: agent, toAnchor: straight, label: discover}
+  - {from: agent, to: yaml, toAnchor: straight, label: write}
+  - {from: lint, to: diag, fromAnchor: north, toAnchor: east, tone: orange, variant: dashed, label: "--json"}
+  - {from: diag, to: yaml, tone: orange, variant: dashed, label: agent fixes}

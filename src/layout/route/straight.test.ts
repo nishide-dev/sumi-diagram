@@ -163,8 +163,8 @@ describe("toAnchor: straight", () => {
     expectClean(value);
   });
 
-  test("without it, the edges merge at the target's centre and bend", () => {
-    const l = layout(fanIn(undefined)).layout;
+  test("without it (fanIn: merge), the edges merge at the target's centre and bend", () => {
+    const l = layout(fanIn(undefined, { fanIn: "merge" })).layout;
     expect([0, 1, 2].filter((i) => pointsOf(l, i).length > 2).length).toBeGreaterThanOrEqual(2);
     expect(netOf(l, 0)).toBe(netOf(l, 2));
   });
@@ -274,6 +274,8 @@ describe("layout/straight-off-side", () => {
         { stack: { gap: "20pt", align: "start", items: ["a", "t"] } },
         [box("a", "200pt"), box("t")],
         [{ id: "in", from: "a", to: "t", ...(anchor && { toAnchor: "straight" }) }],
+        // Written, fanIn keeps the route as without the (#512) default straight end.
+        { fanIn: "merge" },
       );
     const value = layout(text(true));
     const [d, ...rest] = offSide(value.diagnostics);

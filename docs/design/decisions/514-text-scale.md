@@ -1,0 +1,62 @@
+# 514: 文字の倍率（textScale）と画面向けプロファイル
+
+## 背景
+
+#509 の 16 回のうち 10 回で文字の大きさが問題になった。`sumi` テーマの文字は 7〜9pt に固定で、`themeOverrides` では変えられない。`presentation-16x9`（最小 14pt）と組み合わせると全ラベルが `profile/font-too-small` になり、エージェントは `target.minFontSize` を下げて「小さく描いて拡大して貼る」回避をした。README・ブログ・文書の図にはプロファイルがなく、`paper-double`（最小 7pt）で代用していた。
+
+## 決定
+
+### `figure.themeOverrides.textScale`
+
+0.25 の倍数、0.5 から 4。省略は 1（テーマそのまま。`figureTheme` がテーマ自身を返すので、使わない図は 1 バイトも変わらない）。
+
+`figureTheme` の最初の段階で、テーマのコピーの全レイヤー（`base` と全部品・全バリアント）に次を掛ける。
+
+| 値 | 倍率の扱い |
+| --- | --- |
+| 文字サイズ | 倍率を掛け、0.5pt（D2 の 1 unit）に丸める。4pt 未満・50pt 超は範囲に収める |
+| 線の太さ | 同じ倍率で 0.5pt に丸める。0 は 0 のまま（枠なしは枠なし）、正の値は 0.5pt 未満にしない。7.5pt が上限 |
+| 角の丸み | 同じ倍率で 0.5pt に丸める。0 は 0 のまま |
+| 矢じり | 掛けない。矢じりは辺の線の太さから決まるので、線と一緒に大きくなる |
+| サブラベル・演算子・アイコン・チャット注釈 | 掛けない。ラベルの文字サイズから導くので、一緒に大きくなる |
+
+色・破線・フォント・余白・間隔は変えない。ただし structured レイアウトのルーターが使う固定の距離のうち、文字との距離を表す 2 つは倍率に従う（辺のスタイルに `textScale` を持たせ、倍率が 1 でなければ設定する）。
+
+- 辺ラベルと線・矢じりの間隔（`EDGE_LABEL_GAP`、3 unit）: 倍率を掛けて整数 unit に丸める。掛けないと、2 倍の文字ではラベルが線に接して見えた（`slides` テーマでも同じ状態で、倍率なしの既存の図は変えない）。
+- 矢じりの手前の枠との余裕（`BORDER_CLEARANCE`、6 unit）: 同様。
+
+- 丸めを 0.5pt にそろえた理由: auto レイアウトは `stroke-width` と `font-size` を D2 の整数 unit で書く。線だけ 0.25pt に丸めると 1.75 倍などで内部エラーになった（structured だけが 0.25pt の線を扱える）。1 つの規則に統一した。
+- 図が自分で書く長さ（`lineWidth`・`frameWidth`・要素の `lineWidth`・`cornerRadius`・mm の `iconSize`）は最終の値であり、倍率を掛けない。`themeOverrides.lineWidth` の「重いバリアントはテーマの通常幅との比を保つ」規則は、倍率を掛けたテーマに対して働くので、比は保たれる。
+- 余白・間隔（gap, padding, margin, layerGap）は倍率に追従させない。ノードの文字の内側の余白（nodePadding）とグループ見出しの余白もこちらで、プロファイルの値（`presentation-16x9` は paper の 2 倍）が 2 倍の文字に釣り合うよう決めてある。見出しと中身の間隔（caption gap）は元から文字サイズに比例する。図に書いた間隔（`columnGap: 10mm` など）は小さい文字のつもりで書かれていれば、倍率をかけたあとに詰まって見えるので、書き手が見直す（#509 の web-system を `textScale: 2` で描くと、10mm・6mm の間隔では辺ラベルが隣のグループの枠にかかった。倍率で間隔まで変えると、書かれた長さを変えない原則と衝突する）。これらはプロファイルの値で、プロファイルが文字の大きさと釣り合うよう決める（`presentation-16x9` は paper の 2 倍、`screen-doc` は 1.5 倍）。倍率に自動で追従させると、同じ図をプロファイルだけ替えて描いたときに間隔が二重に変わる。
+
+### 自動の倍率は作らない
+
+`textScale: auto`（プロファイルの最小に届く最小の倍率）は採らなかった。テーマの解決はプロファイルを知らない段階（`figureTheme`）が 4 か所にあり、明示の `target.minFontSize` と競合し、図の書き手が書いていない倍率で寸法が変わる。代わりに次を出す。
+
+- `profile/font-too-small` のヒントに（描かれた大きさは「テーマの大きさ × 倍率」を丸めたもので、割り算では戻せない。0.5pt 単位のテーマの大きさのうち、現在の倍率でその大きさに描かれるものを全部数え、最悪のものが満たされる倍率を探す。直す前の倍率からでも、示された倍率で必ず通ることをテストしている）、図全体の文字をそのプロファイルの最小に届かせる倍率（0.25 刻み、サブラベルは 7/8 で切り捨てるので含める）を名指しする。例: `Set figure.themeOverrides.textScale: 2 ...`
+- `sumi catalog` のテーマに `textScaleFor`（プロファイル ID → 倍率）を足す。最初の lint の前に、`sumi` × スライドが 2、`sumi` × `screen-doc` が 1.5 と分かる。テキスト表の PROFILES 列にも `with textScale: ...` として出す。サブラベルは基本ノードの文字サイズで見る（部品ごとの最小で見ると、サブラベルを使わない 7pt の部品に引きずられて過大になるため。図ごとの正確な検査は lint が行う）。
+- Skill の手順 3 と `figure-format.md#text-scale` に、置き場所から倍率を選ぶ手順と「`target.minFontSize` を下げない」を書いた。
+
+### プロファイル `screen-doc`
+
+README・ブログ・文書ページ向け。最大幅 200mm（96dpi で約 760px。GitHub の README の本文幅に近い）、最大高さ 150mm（約 570px、画面 1 つに収まる縦横比の目安）、最小文字 10pt（約 13px。README の本文は 16px = 12pt）、`fit: scale` で縮めた後は 8pt。`sumi` の文字（8pt、エッジ 7pt、サブラベル 7pt）は 1.5 倍で 12 / 10.5 / 10pt になって最小を満たす。余白と間隔は paper の 1.5 倍（margin 3mm、layerGap 12mm、containerPadding 6mm、arrangeGap 6mm、groupPadding 12pt、nodePadding 10.5pt / 5pt）。
+
+SVG は mm 単位の固有の大きさを持つが、画面ではページが列の幅に拡縮する。200mm はその「自然な幅」の目安で、実際の表示幅が違っても文字の比は保たれる。
+
+### `fit` と `target` との関係
+
+- `fit: scale` は幅を超えた図を縮めるだけで、拡大しない。倍率で大きくした図が幅を超えると `fit: scale` が縮め、文字は印刷後の大きさで `minScaledFontSize` と比べられる（`screen-doc` は 8pt）。したがって「倍率で大きくして、`fit` で縮める」と相殺する。幅が足りないときは、倍率を上げずにラベルを短くするか行を折る。
+- `target.minFontSize` は検査の下限で、図を大きくしない。文字を大きくする手段は `textScale` だけ。
+- 「印刷より大きく表示する置き場所を target で書けない」（#514 の最後の項目）は、`target` に表示倍率を足さない。表示の拡縮は SVG の viewBox がすでに担っており、Sumi が検査するのは最終の印刷寸法だからである。置き場所が決める文字の大きさは、プロファイルの最小と `textScale` で表す。
+
+### auto レイアウト（D2）の制限
+
+上の 2 つの距離は structured レイアウトのルーターだけが持つ。auto では辺ラベルの位置と枠・矢じりとの距離は D2（ELK）が決め、Sumi が渡せるのはプロファイル由来の `--pad`・`--elk-nodeNodeBetweenLayers`・`--elk-edgeNodeBetweenLayers`・`--elk-padding` だけで、ラベルの間隔の設定はない。事後にラベルを動かす処理も Sumi にはなく、作る価値もない（D2 の配置を壊す）。したがって auto の図では、ラベルの余裕は倍率に従わず、D2 の既定（文字サイズに比例する）と、倍率に合わせたプロファイルの間隔（`presentation-16x9` は paper の 2 倍）に頼る。文字・線・矢じり・角は auto でも倍率に従う。ラベルが線や枠に接するときは、structured にするか、ラベルを短くする。この制限は `figure-format.md#text-scale` に書いた。
+
+## 既存の図への影響
+
+`textScale` を使わない図は変わらない（ギャラリー・examples・固定した論文再現のハッシュは同一。`gallery:check` が全 438 ファイルを、加えて origin/main の `examples/pipeline`（auto）と `examples/transformer`（structured）の SVG とのバイト一致を直接確かめた）。既存のプロファイル（`paper-*`、`presentation-16x9`）の値も変えない。`screen-doc` は新しいプロファイルで、`compatibleProfiles` に現れる（`slides` のみ）。
+
+## 検証
+
+`src/render/text-scale.integration.test.ts`: 倍率 2 の `sumi` が `presentation-16x9` を満たすこと、SVG・PDF の文字・編集可能 PPTX の `sz` が 14pt 以上であること（auto と structured）、サブラベルの切り捨て、倍率 1 が無指定と同じ描画になること、不正な値の拒否、`screen-doc` の倍率 1.5。16:9 のスライドに置いた `sumi` の図を Chrome ヘッドレスで確認した。

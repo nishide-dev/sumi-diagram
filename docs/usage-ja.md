@@ -24,7 +24,7 @@ arrange:
   row:
     align: stretch
     items:
-      - stack: { gap: 6mm, justify: stretch, items: [projection1, projection2] }
+      - stack: {gap: 6mm, justify: stretch, items: [projection1, projection2]}
       - matrix
 ```
 
@@ -125,7 +125,7 @@ sumi catalog --json --section themes --section profiles   # Theme と Profile �
 | --- | --- | --- |
 | `render <file>` | コンパイルと描画を実行し、SVG・PDF・PPTXを書き出す。描画結果（SVG）に幾何 lintを実行し、幾何errorでも出力を残してexit 1。変換失敗時は出力しない。形式は `--format`、なければ `-o` の既知の拡張子、どちらもなければSVG。既定は入力のYAML拡張子を出力形式へ替えたパス。一時ファイル経由で書き込む | `-o, --out <file>`（stdoutはSVGのみ）、`--format svg\|pdf\|pptx`（拡張子との矛盾はusage error）、`--pptx-mode picture\|editable`（editableは実験的）、`--pptx-connectors freeform\|glued`（editableのみ）、`--emit-d2 <file>`、`--theme <name>`・`--profile <name>`、`--no-geometry`、`--json` |
 | `lint <files...>` | 描画せずに schema・参照・部品・Theme・Profile と構造 lint を検査する。`--geometry` を付けると描画し（ファイルは書かない）、幾何 lint も実行する（[規則の一覧](lint-rules.md)） | `--geometry`、`--json`、`--config <lint.json>`、`--rule <id>=<level>`（繰り返し可。`geometry/*` も可）、`--max-warnings <n>`（全ファイルの合計） |
-| `fmt <files...>` | YAML を意味を変えずに整形する（コメント・引用符・キー順は保つ）。YAML として不正なファイルは整形しない | `--check`（書き込まずに未整形のファイルを列挙）、`--stdout`、`--canonical-order`（既知のキーを schema の順に並べる） |
+| `fmt <files...>` | YAML を意味を変えずに整形する（コメント・引用符・キー順は保つ）。YAML として不正なファイルは整形しない。flow の括弧の内側に空白を入れず（`{a: 1}`、`[a, b]`）、flow 形式の grid の `items` が複数 row なら 1 row（`columns` セル、`span` 込み）ごとに改行する | `--check`（書き込まずに未整形のファイルを列挙）、`--stdout`、`--canonical-order`（既知のキーを schema の順に並べる） |
 | `doctor` | Sumi / Bun のバージョン、D2 の有無とバージョン、同梱フォントの sha256、幾何 lint 用のフォントの metrics を読めるかを確認する | `--json` |
 | `catalog` | 部品・Theme・Profile の一覧、同梱アイコンの検索 | `--json`、`--section components\|themes\|profiles\|icons\|targets\|sets`（繰り返し可）、`--kind node\|group\|edge`（`--section` なしでは部品だけを出す）、`--icons <語>`（アイコンを検索）、`--icons ""`（全アイコン名） |
 
@@ -281,9 +281,10 @@ node と group の `tone`（`gray` / `red` / `orange` / `yellow` / `green` / `bl
 | --- | --- | --- | --- |
 | `paper-single`（既定） | 88mm | 220mm | 7pt |
 | `paper-double` | 180mm | 220mm | 7pt |
+| `screen-doc` | 200mm | 150mm | 10pt |
 | `presentation-16x9` | 338.7mm | 190.5mm | 14pt |
 
-スライドの図は `theme: slides` と `profile: presentation-16x9` で作ります。`presentation-16x9` は 14pt 以上の文字を求めるため、`minimal` / `academic` / `color` / `paper` では `profile/font-too-small` になります（意図どおり）。描き比べは[ギャラリー](gallery/compare.md)にあります。
+`screen-doc` は README・ブログ・文書ページに約 760px の幅で載せる図向けです。スライドの図は `theme: slides` と `profile: presentation-16x9` で作るか、ほかのテーマの文字を `figure.themeOverrides.textScale` で拡大します（`sumi` の文字は 7〜9pt なので、`presentation-16x9` には `textScale: 2`、`screen-doc` には `1.5`。テーマごとに必要な倍率は `sumi catalog --section themes` に出ます）。倍率なしで文字が最小に届かないテーマは `profile/font-too-small` になり、ヒントに直る倍率が出ます。描き比べは[ギャラリー](gallery/compare.md)にあります。
 
 ### データから波形を描く
 
@@ -291,7 +292,7 @@ node と group の `tone`（`gray` / `red` / `orange` / `yellow` / `green` / `bl
 
 ```yaml
 version: 1
-figure: { id: waveform-example, theme: color }
+figure: {id: waveform-example, theme: color}
 nodes:
   - id: signal
     component: waveform
@@ -330,8 +331,8 @@ node の `icon: tabler/<name>` で、同梱の [Tabler Icons](https://github.com
 
 ```yaml
 nodes:
-  - { id: pe, component: circle, icon: tabler/wave-sine }
-  - { id: photo, component: image, props: { src: img/photo.png, height: 30pt } }
+  - {id: pe, component: circle, icon: tabler/wave-sine}
+  - {id: photo, component: image, props: {src: img/photo.png, height: 30pt}}
 ```
 
 ## エージェントから使う（Skill）
