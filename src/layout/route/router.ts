@@ -226,6 +226,15 @@ export function routeEdges(
   };
 }
 
+/**
+ * The figure for the merge retry: `fanIn: "merge"` written, never dropped.
+ * Unwritten means the ends on wide nodes drop straight (#512), which is the
+ * very thing the retry falls back from.
+ */
+export function withMergedFanIn(ir: FigureIR): FigureIR {
+  return { ...ir, meta: { ...ir.meta, fanIn: "merge" } };
+}
+
 function routeWithoutZoom(ir: FigureIR, layout: LayoutIR, options: RouteOptions): RouteResult {
   const routeFigure = (figure: FigureIR) =>
     chooseRouting(figure, (stubLines: boolean) =>
@@ -238,13 +247,15 @@ function routeWithoutZoom(ir: FigureIR, layout: LayoutIR, options: RouteOptions)
       ).run(),
     );
   const result = routeFigure(ir);
-  if (ir.meta.fanIn !== "spread" || !hasErrors(result.diagnostics)) return result;
+  if (ir.meta.fanIn === "merge" || !hasErrors(result.diagnostics)) return result;
   // Fan-in spreading must not lose an edge merge mode routes (#134, design
   // doc §6.33): the spread ends can leave a stub no room (a box in the way)
   // where the merged port had it. Only then, route in merge mode too and
-  // keep it for the whole figure if it has fewer errors.
-  const { fanIn: _, ...meta } = ir.meta;
-  const merged = routeFigure({ ...ir, meta });
+  // keep it for the whole figure if it has fewer errors. The same goes for
+  // the ends dropped straight onto narrower nodes when `fanIn` is unwritten
+  // (#512): where they pin two opposite edges to one port, merge routes.
+  // Merge is set explicitly: unwritten would drop the ends straight again.
+  const merged = routeFigure(withMergedFanIn(ir));
   const errors = (r: RouteResult) => r.diagnostics.filter((d) => d.severity === "error").length;
   return errors(merged) < errors(result) ? merged : result;
 }

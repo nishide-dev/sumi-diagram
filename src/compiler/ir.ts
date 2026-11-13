@@ -110,7 +110,7 @@ export interface FigureMetaIR {
   readonly engine: LayoutEngine;
   /** Structured layout: `figure.layout.alignGrowth` (#333). Absent when not written (report). */
   readonly alignGrowth?: AlignGrowthMode;
-  /** Structured layout: `figure.layout.fanIn` (#134). Absent when not written (merge). */
+  /** Structured layout: `figure.layout.fanIn` (#134). Absent when not written (merge, except ends on a wide node, which drop straight, #512). */
   readonly fanIn?: FanInMode;
   /** Structured layout: `figure.layout.density` (#182). Absent when not written (normal). */
   readonly density?: LayoutDensity;

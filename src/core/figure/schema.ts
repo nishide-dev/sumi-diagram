@@ -709,7 +709,7 @@ export const LayoutFieldsSchema = z.strictObject({
     .enum(FAN_IN_MODES)
     .optional()
     .describe(
-      "Edges from different elements entering the same point of an element without an anchor: merge joins them into one line, spread enters them side by side in the order of their other ends. Omitted means merge (structured layout only).",
+      "Edges from different elements entering the same point of an element without an anchor: merge joins them into one line, spread enters them side by side in the order of their other ends. Omitted: an unanchored end on a node clearly wider than the other end's node drops straight onto it (as straight does), and other ends merge (structured layout only).",
     ),
   density: z
     .enum(LAYOUT_DENSITIES)

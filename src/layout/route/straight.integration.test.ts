@@ -87,6 +87,8 @@ function withStraight(text: string, c: Case, straight = true): string {
     delete edge.toAnchor;
     if (straight) edge[end === "to" ? "toAnchor" : "fromAnchor"] = "straight";
   }
+  // Not anchored, an end on a wide node is straight anyway (#512); `merge` is the trunk.
+  if (!straight) doc.figure.layout.fanIn = "merge";
   return stringify(doc);
 }
 
