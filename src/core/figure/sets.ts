@@ -10,6 +10,8 @@
  * - `angle` turns an ellipse (#430): on another shape it is an error
  *   (`ref/set-angle-needs-ellipse`), since a circle, hull or rectangle has
  *   no orientation to set.
+ * - `minWidth` / `minHeight` set the least size of the outline (#518): on a
+ *   hull they are an error (`ref/set-min-size-needs-fixed-shape`).
  * - Sets are drawn by the structured layout only (`layout/structured-only`).
  *
  * A set with an error is dropped from the document (`doc.sets[i]` becomes
@@ -92,6 +94,22 @@ export function checkSets(state: CheckState, locate: Locator): void {
           {
             subject: subject(set.id),
             hint: "Use shape: ellipse (angle: auto fits the tilt to the members), or remove angle.",
+          },
+        ),
+      );
+      continue;
+    }
+    if (set.shape === "hull" && (set.minWidth !== undefined || set.minHeight !== undefined)) {
+      report(
+        index,
+        errorAt(
+          locate,
+          "ref/set-min-size-needs-fixed-shape",
+          `Set "${set.id}" has minWidth or minHeight, but its shape is hull; a hull follows its members and has no size to set.`,
+          [...path, set.minWidth !== undefined ? "minWidth" : "minHeight"],
+          {
+            subject: subject(set.id),
+            hint: "Use shape: circle, ellipse or rect, or remove the minimum size.",
           },
         ),
       );

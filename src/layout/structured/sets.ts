@@ -59,7 +59,11 @@ export function fitSets(
       ];
     });
     const room = set.paddingPt === undefined ? padding : set.paddingPt * 2;
-    const outline = fitSetOutline(members, set.shape, room, set.style.radius.units, set.angle);
+    const min = {
+      ...(set.minWidthPt !== undefined && { width: set.minWidthPt * 2 }),
+      ...(set.minHeightPt !== undefined && { height: set.minHeightPt * 2 }),
+    };
+    const outline = fitSetOutline(members, set.shape, room, set.style.radius.units, set.angle, min);
     const rect = outlineBounds(outline);
     const metrics = measureText(set.label, set.style, measurer);
     return {

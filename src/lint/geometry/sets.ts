@@ -15,6 +15,7 @@ import {
   polylinesCrossRect,
   type Region,
   rectDepthInside,
+  rectPolygon,
   rectsOverlap,
   regionIntersectsRect,
 } from "./shapes";
@@ -24,7 +25,7 @@ const TOLERANCE = 1;
 /** A node counts as covered when this share of its footprint lies inside the outline... */
 const COVERED_SHARE = 0.25;
 /** ...or when its center does. The footprint is sampled on a grid this many points a side. */
-const GRID = 5;
+const GRID = 7;
 
 const capitalize = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
 
@@ -38,19 +39,187 @@ function footprint(element: GeometryElement): Rect | undefined {
   return unionOf(element.labels.flatMap((l) => l.visibleLines));
 }
 
-/** The share of `rect` (sampled on a grid) that lies inside the region. */
-export function insideShare(region: Region, rect: Rect): number {
-  let inside = 0;
-  for (let i = 0; i < GRID; i++) {
+/** The region a node occupies: its drawn outline, or the box of its text. */
+function nodeRegion(element: GeometryElement): Region | undefined {
+  if (element.outline !== undefined) return element.outline;
+  const rect = footprint(element);
+  return rect === undefined ? undefined : rectPolygon(rect);
+}
+
+/** Points inside the region, on a grid over its bounds (for a share of its area). */
+function sampleInside(region: Region): Point[] {
+  const inside: Point[] = [];
+  if (region.kind === "ellipse") {
+    const { cx, cy, rx, ry } = region;
+    for (let i = 0; i < GRID; i++)
+      for (let j = 0; j < GRID; j++) {
+        const p = {
+          x: cx + rx * (((i + 0.5) / GRID) * 2 - 1),
+          y: cy + ry * (((j + 0.5) / GRID) * 2 - 1),
+        };
+        if (depthInside(region, p) >= 0) inside.push(p);
+      }
+    return inside;
+  }
+  const { points } = region;
+  const xs = points.map((p) => p.x);
+  const ys = points.map((p) => p.y);
+  const x0 = Math.min(...xs);
+  const y0 = Math.min(...ys);
+  const w = Math.max(...xs) - x0;
+  const h = Math.max(...ys) - y0;
+  for (let i = 0; i < GRID; i++)
     for (let j = 0; j < GRID; j++) {
-      const p: Point = {
-        x: rect.x + ((i + 0.5) / GRID) * rect.width,
-        y: rect.y + ((j + 0.5) / GRID) * rect.height,
-      };
-      if (depthInside(region, p) >= 0) inside++;
+      const p = { x: x0 + ((i + 0.5) / GRID) * w, y: y0 + ((j + 0.5) / GRID) * h };
+      if (depthInside(region, p) >= 0) inside.push(p);
+    }
+  return inside;
+}
+
+/** Sides of the polygon that stands for a node's ellipse: circumscribed, so it never falls short. */
+const ELLIPSE_SIDES = 64;
+
+/** The vertices of a convex region as a polygon (an ellipse as a circumscribed polygon). */
+function polygonOf(region: Region): Point[] {
+  if (region.kind === "polygon") return [...region.points];
+  const { cx, cy, rx, ry } = region;
+  const k = 1 / Math.cos(Math.PI / ELLIPSE_SIDES);
+  return Array.from({ length: ELLIPSE_SIDES }, (_, i) => {
+    const a = (i / ELLIPSE_SIDES) * 2 * Math.PI;
+    return { x: cx + rx * k * Math.cos(a), y: cy + ry * k * Math.sin(a) };
+  });
+}
+
+const signedArea2 = (pts: readonly Point[]): number =>
+  pts.reduce((sum, a, i) => {
+    const b = pts[(i + 1) % pts.length] as Point;
+    return sum + (a.x * b.y - b.x * a.y);
+  }, 0);
+
+/**
+ * The convex polygon moved `distance` inward on every side (each edge's
+ * half-plane shifted, by clipping): empty when nothing is left.
+ */
+function erodePolygon(points: readonly Point[], distance: number): Point[] {
+  const sign = Math.sign(signedArea2(points)) || 1;
+  let out = [...points];
+  for (let i = 0; i < points.length && out.length > 0; i++) {
+    const a = points[i] as Point;
+    const b = points[(i + 1) % points.length] as Point;
+    const length = Math.hypot(b.x - a.x, b.y - a.y);
+    if (length < 1e-9) continue;
+    // Signed distance inside the edge: positive inward, minus the margin.
+    const side = (p: Point) =>
+      (sign * ((b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x))) / length - distance;
+    const next: Point[] = [];
+    for (let j = 0; j < out.length; j++) {
+      const p = out[j] as Point;
+      const q = out[(j + 1) % out.length] as Point;
+      const sp = side(p);
+      const sq = side(q);
+      if (sp >= 0) next.push(p);
+      if (sp >= 0 !== sq >= 0) {
+        const t = sp / (sp - sq);
+        next.push({ x: p.x + (q.x - p.x) * t, y: p.y + (q.y - p.y) * t });
+      }
+    }
+    out = next;
+  }
+  return out.length >= 3 ? out : [];
+}
+
+const project = (pts: readonly Point[], axis: Point): [number, number] => {
+  let lo = Number.POSITIVE_INFINITY;
+  let hi = Number.NEGATIVE_INFINITY;
+  for (const p of pts) {
+    const v = p.x * axis.x + p.y * axis.y;
+    lo = Math.min(lo, v);
+    hi = Math.max(hi, v);
+  }
+  return [lo, hi];
+};
+
+/** Whether two convex polygons share interior points (separating axes, exact). */
+function polygonsOverlap(a: readonly Point[], b: readonly Point[]): boolean {
+  for (const poly of [a, b]) {
+    for (let i = 0; i < poly.length; i++) {
+      const p = poly[i] as Point;
+      const q = poly[(i + 1) % poly.length] as Point;
+      if (Math.hypot(q.x - p.x, q.y - p.y) < 1e-9) continue;
+      const axis = { x: p.y - q.y, y: q.x - p.x };
+      const [minA, maxA] = project(a, axis);
+      const [minB, maxB] = project(b, axis);
+      const scale = Math.hypot(axis.x, axis.y);
+      if (maxA - minB <= 1e-9 * scale || maxB - minA <= 1e-9 * scale) return false;
     }
   }
-  return inside / (GRID * GRID);
+  return true;
+}
+
+/** Distance from the origin to the segment ab. */
+function originToSegment(a: Point, b: Point): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len2 = dx * dx + dy * dy;
+  const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, -(a.x * dx + a.y * dy) / len2));
+  return Math.hypot(a.x + t * dx, a.y + t * dy);
+}
+
+/**
+ * Whether the node's region lies more than `distance` inside the set's
+ * outline anywhere: the node meets the set's region moved `distance` inward.
+ * Exact for polygons (clipping and separating axes) and for ellipses (the
+ * node's polygon against the set's ellipse, taken to a unit circle), so a
+ * long thin node cut between any two sample points is still found.
+ */
+export function overlapsBeyond(setRegion: Region, node: Region, distance: number): boolean {
+  const nodePoly = polygonOf(node);
+  if (setRegion.kind === "polygon") {
+    const eroded = erodePolygon(setRegion.points, distance);
+    return eroded.length > 0 && polygonsOverlap(eroded, nodePoly);
+  }
+  const rx = setRegion.rx - distance;
+  const ry = setRegion.ry - distance;
+  if (rx <= 0 || ry <= 0) return false;
+  // Into the frame where the eroded ellipse is the unit circle.
+  const pts = nodePoly.map((p) => ({ x: (p.x - setRegion.cx) / rx, y: (p.y - setRegion.cy) / ry }));
+  const inside = depthInside({ kind: "polygon", points: pts }, { x: 0, y: 0 }) > 0;
+  if (inside) return true;
+  return pts.some((a, i) => originToSegment(a, pts[(i + 1) % pts.length] as Point) < 1 - 1e-9);
+}
+
+/**
+ * How a set's outline meets a non-member node, by the node's drawn shape (a
+ * diamond's empty corner does not count) and without shrinking it, so a thin
+ * node is judged like any other:
+ * - `covered`: the node's center, or a quarter or more of its shape, is inside;
+ * - `crossed`: not covered, but part of the shape lies more than TOLERANCE
+ *   inside the outline (the outline cuts it);
+ * - `clear`: otherwise.
+ * Each node is exactly one of the three, so the two rules never both report it
+ * and none is missed.
+ */
+export function classifyAgainstSet(
+  set: GeometrySet,
+  node: GeometryElement,
+): "covered" | "crossed" | "clear" {
+  const region = nodeRegion(node);
+  if (region === undefined) return "clear";
+  const inside = sampleInside(region);
+  const centerOf = footprint(node);
+  const center =
+    node.outline?.kind === "ellipse"
+      ? { x: node.outline.cx, y: node.outline.cy }
+      : centerOf === undefined
+        ? undefined
+        : { x: centerOf.x + centerOf.width / 2, y: centerOf.y + centerOf.height / 2 };
+  if (center !== undefined && depthInside(set.geometry.region, center) >= 0) return "covered";
+  const share =
+    inside.length === 0
+      ? 0
+      : inside.filter((p) => depthInside(set.geometry.region, p) >= 0).length / inside.length;
+  if (share >= COVERED_SHARE) return "covered";
+  return overlapsBeyond(set.geometry.region, region, TOLERANCE) ? "crossed" : "clear";
 }
 
 /** Whether a node is a member of the set, directly or through a member group. */
@@ -64,23 +233,24 @@ function isMember(context: GeometryContext, set: GeometrySet, node: GeometryElem
   );
 }
 
-/** The nodes the outline of `set` covers although they are no members. */
-export function coveredNonMembers(context: GeometryContext, set: GeometrySet): GeometryElement[] {
+/** The non-member nodes of `set` of the given kind (see classifyAgainstSet). */
+function nonMembersBy(
+  context: GeometryContext,
+  set: GeometrySet,
+  kind: "covered" | "crossed",
+): GeometryElement[] {
   return context.elements.filter((node) => {
     if (node.kind !== "node" || node.ir.kind !== "node") return false;
     // A junction is a point on a wire, not a thing the set could claim.
     if (node.ir.mark?.type === "point") return false;
     if (isMember(context, set, node)) return false;
-    const rect = footprint(node);
-    if (rect === undefined || !regionIntersectsRect(set.geometry.region, rect, TOLERANCE))
-      return false;
-    const center = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
-    return (
-      depthInside(set.geometry.region, center) >= 0 ||
-      insideShare(set.geometry.region, rect) >= COVERED_SHARE
-    );
+    return classifyAgainstSet(set, node) === kind;
   });
 }
+
+/** The nodes the outline of `set` covers although they are no members. */
+export const coveredNonMembers = (context: GeometryContext, set: GeometrySet) =>
+  nonMembersBy(context, set, "covered");
 
 export const setContainsNonMember = defineGeometryRule({
   id: "geometry/set-contains-non-member",
@@ -100,6 +270,33 @@ export const setContainsNonMember = defineGeometryRule({
         subject: set.subject,
         hint: "A node inside a set's outline reads as a member. Add it to members, or move it clear of the outline (the `place` coordinates or a gap), or fit the set closer with shape: hull, rect, a tilted ellipse (shape: ellipse with angle: auto), or a smaller padding.",
         related: covered.map((n) => ({
+          path: n.docPath,
+          message: `${capitalize(n.name)} is defined here.`,
+        })),
+      });
+    }
+    return findings;
+  },
+});
+
+export const setOutlineCrossesNode = defineGeometryRule({
+  id: "geometry/set-outline-crosses-node",
+  description:
+    "A set's outline runs through a node that is not one of its members, so the node looks half inside the set.",
+  defaultSeverity: "warning",
+  fixable: false,
+  run(context) {
+    const findings: LintFinding[] = [];
+    for (const set of context.sets) {
+      const crossed = nonMembersBy(context, set, "crossed");
+      if (crossed.length === 0) continue;
+      const names = crossed.map((n) => n.name);
+      findings.push({
+        message: `The outline of ${set.name} crosses ${names.length === 1 ? names[0] : `${names.length} nodes (${names.join(", ")})`}, which ${names.length === 1 ? "is" : "are"} not ${names.length === 1 ? "a member" : "members"}.`,
+        path: set.docPath,
+        subject: set.subject,
+        hint: "A node cut by an outline reads as half in the set. Move it clear of the outline (the `place` coordinates or a gap), narrow it, or fit the set closer: shape: hull or rect, a tilted ellipse (angle: auto), a smaller padding or minWidth / minHeight.",
+        related: crossed.map((n) => ({
           path: n.docPath,
           message: `${capitalize(n.name)} is defined here.`,
         })),
