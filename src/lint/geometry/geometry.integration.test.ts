@@ -95,6 +95,18 @@ nodes:
     expect(fixed.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
   });
 
+  test("a cylinder whose label is too wide gets width guidance, not a height (#516)", async () => {
+    const source = `version: 1
+figure: { id: cyl, profile: paper-double }
+nodes:
+  - { id: db, component: cylinder, label: "A very long database name", props: { width: 30pt, height: 60pt } }
+`;
+    const report = await lintRenderedFigure(source, { file: "cyl.sumi.yaml" });
+    const overflow = report.diagnostics.find((d) => d.code === "geometry/label-overflow");
+    expect(overflow?.hint).toMatch(/wider than the cylinder: make props\.width larger/);
+    expect(overflow?.hint).not.toMatch(/props\.height of at least/);
+  });
+
   test("labels with blank lines render; D2's line advances are measured as written", async () => {
     const { report, geometry } = await lintFile(join(FIXTURES, "geometry", "whitespace.sumi.yaml"));
     expect(geometry.map((d) => [d.severity, d.code])).toEqual([["info", "geometry/dead-space"]]);

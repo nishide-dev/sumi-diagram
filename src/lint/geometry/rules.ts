@@ -542,12 +542,6 @@ function shapeName(element: GeometryElement): string {
   return "shape";
 }
 
-/** The vertical middle of a polygonal label area. */
-const areaCentre = (area: { points: readonly Point[] }): number => {
-  const ys = area.points.map((p) => p.y);
-  return (Math.min(...ys) + Math.max(...ys)) / 2;
-};
-
 export const labelOverflow = defineGeometryRule({
   id: "geometry/label-overflow",
   description:
@@ -604,24 +598,31 @@ export const labelOverflow = defineGeometryRule({
       const explicit =
         ir.kind === "node" && !ir.autoSized && (ir.width !== undefined || ir.height !== undefined);
       const outside = box !== undefined && !rectsOverlap(box, bbox, 0);
-      // A cylinder's label needs a body between the caps: say how tall it must be.
-      const minHeight =
-        explicit &&
-        element.ir.kind === "node" &&
-        element.ir.shape === "cylinder" &&
-        lines.length > 0 &&
-        labelArea.kind === "polygon"
+      // A cylinder's label needs a body between the caps: when it is too tall for
+      // the body (not merely too wide), say how tall the cylinder must be.
+      const cylinder = explicit && element.ir.kind === "node" && element.ir.shape === "cylinder";
+      const area = labelArea.kind === "polygon" ? labelArea.points : [];
+      const [top, bottom] = [Math.min(...area.map((p) => p.y)), Math.max(...area.map((p) => p.y))];
+      const [left, right] = [Math.min(...area.map((p) => p.x)), Math.max(...area.map((p) => p.x))];
+      // A label D2 drew outside the shape (it is wider than the shape) is a width problem.
+      const tallLabel =
+        !outside && lines.some((l) => l.y < top + margin || l.y + l.height > bottom - margin);
+      const wideLabel = lines.some((l) => l.x < left + margin || l.x + l.width > right - margin);
+      const centre = (top + bottom) / 2;
+      const needed =
+        cylinder && tallLabel && area.length > 0
           ? cylinderMinHeight(
               2 *
                 (Math.max(
                   ...lines.flatMap((l) => [
-                    Math.abs(l.y - areaCentre(labelArea)),
-                    Math.abs(l.y + l.height - areaCentre(labelArea)),
+                    Math.abs(l.y - centre),
+                    Math.abs(l.y + l.height - centre),
                   ]),
                 ) +
                   Math.max(margin, 0)),
             )
           : undefined;
+      const minHeight = needed !== undefined && needed > bbox.height ? needed : undefined;
       findings.push({
         message: hasIcon(element)
           ? `The icon of ${element.name} (${box === undefined ? "" : formatOverflowSize(context, box)}${element.ir.kind === "node" && element.ir.iconSize !== undefined ? "" : `${box === undefined ? "" : ", "}1 em`}) does not fit inside its ${shapeName(element)} shape (${formatOverflowSize(context, bbox)})${outside ? "; it is drawn outside the shape" : ""}.`
@@ -630,10 +631,12 @@ export const labelOverflow = defineGeometryRule({
         subject: element.subject,
         hint:
           minHeight !== undefined
-            ? `This label needs a cylinder with props.height of at least ${formatPt(Math.ceil(unitsToPt(minHeight)))} (its caps take part of the height); make it taller, or shorten the label or break it into lines (\\n).`
-            : explicit
-              ? "Make props.width / props.height larger, or remove them so the node is sized to its label; or shorten the label or break it into lines (\\n)."
-              : "Shorten the label or break it into lines (\\n), or use a shape with more room for text (e.g. box instead of diamond or circle).",
+            ? `This label needs a cylinder with props.height of at least ${formatPt(Math.ceil(unitsToPt(minHeight)))} (its caps take part of the height); make it taller${wideLabel ? " and wider (props.width)" : ""}, or shorten the label or break it into lines (\\n).`
+            : cylinder && wideLabel && !tallLabel
+              ? "The label is wider than the cylinder: make props.width larger, or shorten the label or break it into lines (\\n)."
+              : explicit
+                ? "Make props.width / props.height larger, or remove them so the node is sized to its label; or shorten the label or break it into lines (\\n)."
+                : "Shorten the label or break it into lines (\\n), or use a shape with more room for text (e.g. box instead of diamond or circle).",
         ...(explicit && {
           related: [{ path: labelPath(element), message: "The label is defined here." }],
         }),
