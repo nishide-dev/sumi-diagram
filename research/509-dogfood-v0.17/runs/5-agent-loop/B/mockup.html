@@ -1,0 +1,67 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Agent loop mockup</title>
+<style>
+@font-face{font-family:InterL;src:url(file:///Users/ryusei0623/projects/sumi-diagram/assets/fonts/inter/Inter-Regular.ttf);font-weight:400}
+@font-face{font-family:InterL;src:url(file:///Users/ryusei0623/projects/sumi-diagram/assets/fonts/inter/Inter-Bold.ttf);font-weight:700}
+:root{--canvas:#f8f8ee;--ink:#30364f;--muted:#4e566b;--panel:#efeddd;
+ --blue-f:#d9e4e6;--blue-l:#3d5d77;--green-f:#dce7d3;--green-l:#426344;--orange-f:#efdfce;--orange-l:#814b2d;--gray-f:#e1dece}
+html,body{margin:0;background:var(--canvas)}
+.page{position:relative;width:160mm;height:80mm;font-family:InterL,sans-serif;color:var(--ink);font-size:9pt}
+.n{position:absolute;box-sizing:border-box;display:flex;align-items:center;justify-content:center;text-align:center;
+ border:1pt solid var(--ink);border-radius:2pt;background:var(--canvas);line-height:1.15}
+.g{position:absolute;box-sizing:border-box;border:1pt solid var(--muted);border-radius:4pt;background:var(--panel)}
+.g .t{position:absolute;left:0;right:0;top:1.2mm;text-align:center;font-weight:700;font-size:9pt}
+.blue{background:var(--blue-f)} .green{background:var(--green-f)} .orange{background:var(--orange-f)}
+.emph{background:var(--ink);color:var(--canvas);font-weight:700;border-color:var(--ink);font-size:9pt}
+.para{border:none;background:none}
+.lbl{position:absolute;font-size:9pt;white-space:nowrap}
+.mut{color:var(--muted)}
+svg{position:absolute;left:0;top:0}
+</style></head><body><div class="page">
+
+<div class="g" style="left:33mm;top:3mm;width:50mm;height:21mm"><div class="t">Memory</div></div>
+<div class="n orange" style="left:36mm;top:10mm;width:21mm;height:10mm;border-radius:50%/22%">Short-term</div>
+<div class="n orange" style="left:59mm;top:10mm;width:21mm;height:10mm;border-radius:50%/22%">Long-term</div>
+
+<div class="g" style="left:123mm;top:18mm;width:34mm;height:40mm"><div class="t">Tools</div></div>
+<div class="n blue" style="left:127mm;top:25mm;width:26mm;height:8mm">Search</div>
+<div class="n blue" style="left:127mm;top:36mm;width:26mm;height:8mm">Code execution</div>
+<div class="n blue" style="left:127mm;top:47mm;width:26mm;height:8mm">Files</div>
+
+<div class="n emph" style="left:45mm;top:34mm;width:26mm;height:12mm">LLM</div>
+<div class="n" style="left:89mm;top:35mm;width:22mm;height:10mm">Plan</div>
+<div class="n green" style="left:125mm;top:66mm;width:30mm;height:10mm">Environment</div>
+<div class="n green" style="left:45mm;top:66mm;width:26mm;height:10mm">Observation</div>
+
+<svg width="160mm" height="80mm" viewBox="0 0 160 80">
+ <defs>
+  <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,1 L10,5 L0,9z" fill="#30364f"/></marker>
+  <marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="3.6" markerHeight="3.6" orient="auto-start-reverse"><path d="M0,1 L10,5 L0,9z" fill="#30364f"/></marker>
+ </defs>
+ <!-- I/O parallelograms -->
+ <polygon points="5,35 30,35 27,45 2,45" fill="#f8f8ee" stroke="#30364f" stroke-width="0.353"/>
+ <polygon points="5,66 30,66 27,76 2,76" fill="#f8f8ee" stroke="#30364f" stroke-width="0.353"/>
+ <g fill="none" stroke="#30364f" stroke-width="0.353">
+  <path d="M29,40 H44.6" marker-end="url(#a)"/>
+  <path d="M58,33.6 V24.4" marker-end="url(#a)" marker-start="url(#a)"/>
+  <path d="M51,46.4 V56 Q51,57 50,57 H17 Q16,57 16,58 V65.6" marker-end="url(#a)"/>
+ </g>
+ <g fill="none" stroke="#30364f" stroke-width="0.706">
+  <path d="M71.4,40 H88.4" marker-end="url(#b)"/>
+  <path d="M111.4,40 H122.4" marker-end="url(#b)"/>
+  <path d="M140,58.4 V65.4" marker-end="url(#b)"/>
+  <path d="M124.6,71 H71.6" marker-end="url(#b)"/>
+  <path d="M65,65.6 V46.6" marker-end="url(#b)"/>
+ </g>
+</svg>
+<div class="lbl" style="left:5mm;top:38mm;width:22mm;text-align:center">User request</div>
+<div class="lbl" style="left:5mm;top:69mm;width:22mm;text-align:center">Final answer</div>
+<div class="lbl" style="left:59.5mm;top:26.3mm">read / write</div>
+<div class="lbl" style="left:74mm;top:35.2mm">reason</div>
+<div class="lbl" style="left:113.2mm;top:35.2mm">call</div>
+<div class="lbl" style="left:141.5mm;top:59.3mm">act</div>
+<div class="lbl" style="left:90mm;top:66.6mm">result</div>
+<div class="lbl" style="left:66.3mm;top:54mm">observe</div>
+<div class="lbl" style="left:28mm;top:52.6mm">done</div>
+<div class="lbl mut" style="left:80mm;top:52mm;width:36mm;text-align:center">repeat until done</div>
+</div></body></html>

@@ -1,0 +1,34 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;background:#f8f8ee}
+.page{width:172mm;height:70mm;position:relative;font-family:Inter,sans-serif;color:#30364f}
+svg{position:absolute;left:0;top:0}
+.chip{position:absolute;transform:translate(-50%,-50%);height:5.6mm;line-height:5.6mm;padding:0 2.2mm;border:1pt solid #30364f;border-radius:1mm;background:#f8f8ee;font-size:8pt;white-space:nowrap;box-sizing:border-box}
+.chip.two{height:auto;line-height:1.15;padding:1mm 2.2mm;text-align:center}
+.chip.hy{background:#30364f;color:#f8f8ee;font-weight:700}
+.set{position:absolute;transform:translateX(-50%);text-align:center;font-size:9pt;font-weight:700;white-space:nowrap;line-height:1.2}
+.set small{display:block;font-size:7pt;font-weight:400;color:#4e566b}
+.legend{position:absolute;font-size:7pt;color:#4e566b;display:flex;gap:2mm;align-items:center}
+.legend .s{width:7mm;height:3.2mm;border-radius:.8mm;border:1pt solid #30364f}
+</style></head><body><div class="page">
+<svg width="172mm" height="70mm" viewBox="0 0 172 70"><defs><clipPath id="c0"><ellipse cx="30" cy="36" rx="28" ry="23.5"/></clipPath><clipPath id="c1"><ellipse cx="67" cy="36" rx="28" ry="23.5"/></clipPath><clipPath id="c2"><ellipse cx="104" cy="36" rx="28" ry="23.5"/></clipPath></defs><ellipse cx="30" cy="36" rx="28" ry="23.5" fill="#d8dfe4"/><ellipse cx="67" cy="36" rx="28" ry="23.5" fill="#d9e0d9"/><ellipse cx="104" cy="36" rx="28" ry="23.5" fill="#e6dbd5"/><ellipse cx="141" cy="36" rx="28" ry="23.5" fill="#dfdce4"/><ellipse cx="67" cy="36" rx="28" ry="23.5" fill="#d8e0df" clip-path="url(#c0)"/><ellipse cx="104" cy="36" rx="28" ry="23.5" fill="#e0ded7" clip-path="url(#c1)"/><ellipse cx="141" cy="36" rx="28" ry="23.5" fill="#e3dbdc" clip-path="url(#c2)"/><g fill="none" stroke-width="0.35"><ellipse cx="30" cy="36" rx="28" ry="23.5" stroke="#3d5d77"/><ellipse cx="67" cy="36" rx="28" ry="23.5" stroke="#426344"/><ellipse cx="104" cy="36" rx="28" ry="23.5" stroke="#814b2d"/><ellipse cx="141" cy="36" rx="28" ry="23.5" stroke="#5f4f78"/></g></svg>
+<div class="set" style="left:30mm;top:2.5mm;color:#3d5d77">Spectral<small>graph Fourier filters</small></div>
+<div class="set" style="left:67mm;top:2.5mm;color:#426344">Spatial<small>neighbour aggregation</small></div>
+<div class="set" style="left:104mm;top:2.5mm;color:#814b2d">Attention<small>learned neighbour weights</small></div>
+<div class="set" style="left:141mm;top:2.5mm;color:#5f4f78">Self-supervised<small>pretext objectives</small></div>
+
+<div class="chip" style="left:25mm;top:25mm">Spectral CNN</div>
+<div class="chip" style="left:25mm;top:45mm">ChebNet</div>
+<div class="chip hy" style="left:48.5mm;top:36mm">GCN</div>
+<div class="chip" style="left:67mm;top:25mm">GraphSAGE</div>
+<div class="chip" style="left:67mm;top:45mm">GIN</div>
+<div class="chip hy" style="left:85.5mm;top:36mm">GAT</div>
+<div class="chip two" style="left:104mm;top:24mm">Graph<br>Transformer</div>
+<div class="chip" style="left:104mm;top:45mm">SAN</div>
+<div class="chip hy two" style="left:122.5mm;top:36mm">Graph-<br>BERT</div>
+<div class="chip" style="left:146mm;top:25mm">DGI</div>
+<div class="chip" style="left:146mm;top:45mm">GraphCL</div>
+
+<div class="legend" style="left:46mm;top:63mm"><span class="s" style="background:#f8f8ee"></span>method in one family <span style="width:4mm"></span><span class="s" style="background:#30364f"></span>method in two families (overlap)</div>
+</div></body></html>

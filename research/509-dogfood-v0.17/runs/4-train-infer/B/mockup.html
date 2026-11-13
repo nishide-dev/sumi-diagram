@@ -1,0 +1,86 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>train-infer mockup</title>
+<style>
+  :root{--canvas:#f8f8ee;--ink:#30364f;--muted:#4e566b;--panel:#efeddd;--shade:#e1d9bc;
+    --blue:#d9e4e6;--blueL:#3d5d77;--orange:#efdfce;--orangeL:#814b2d;--green:#dce7d3;--greenL:#426344;--gray:#e1dece;--grayL:#4e566b;}
+  html,body{margin:0;background:var(--canvas);}
+  body{font-family:Inter,Helvetica,Arial,sans-serif;color:var(--ink);}
+  .page{position:relative;width:160mm;height:84mm;background:var(--canvas);}
+  .abs{position:absolute;box-sizing:border-box;}
+  .panel{}
+  .title{font-size:9pt;font-weight:700;}
+  .box{display:flex;align-items:center;justify-content:center;font-size:8pt;border:1pt solid var(--ink);}
+  .enc{background:var(--blue);border-color:var(--blueL);}
+  .dec{background:var(--orange);border-color:var(--orangeL);}
+  .loss{background:var(--ink);color:var(--canvas);font-weight:700;border-color:var(--ink);}
+  .tok{display:flex;}
+  .tok div{width:8mm;height:5.5mm;box-sizing:border-box;border:0.75pt solid var(--grayL);margin-left:-0.75pt;display:flex;align-items:center;justify-content:center;font-size:7pt;}
+  .t{background:var(--blue);} .m{background:var(--gray);color:var(--muted);} .p{background:var(--green);}
+  .cap{font-size:7pt;color:var(--muted);}
+  .group{border:1pt dashed var(--muted);background:var(--shade);}
+  svg{position:absolute;left:0;top:0;width:160mm;height:84mm;overflow:visible}
+</style></head>
+<body><div class="page">
+  <!-- panels -->
+  <div class="abs panel" style="left:2mm;top:2mm;width:74mm;height:72mm"></div>
+  <div class="abs panel" style="left:84mm;top:2mm;width:74mm;height:72mm"></div>
+  <div class="abs title" style="left:4mm;top:3mm">(a) Training</div>
+  <div class="abs title" style="left:86mm;top:3mm">(b) Inference</div>
+
+  <!-- training -->
+  <div class="abs cap" style="left:15mm;top:8mm">Input with random masks</div>
+  <div class="abs tok" style="left:15mm;top:12mm"><div class="t">x<sub>1</sub></div><div class="m">M</div><div class="t">x<sub>3</sub></div><div class="m">M</div><div class="m">M</div><div class="t">x<sub>6</sub></div></div>
+  <div class="abs box enc" style="left:15mm;top:23mm;width:47.5mm;height:8mm">Encoder</div>
+  <div class="abs box dec" style="left:15mm;top:37mm;width:47.5mm;height:8mm">Decoder</div>
+  <div class="abs tok" style="left:22.75mm;top:51mm"><div class="p">x̂<sub>2</sub></div></div>
+  <div class="abs tok" style="left:38.25mm;top:51mm"><div class="p">x̂<sub>4</sub></div><div class="p">x̂<sub>5</sub></div></div>
+  <div class="abs box loss" style="left:15mm;top:64mm;width:47.5mm;height:7mm">Loss on masked tokens</div>
+  <div class="abs cap" style="left:56mm;top:52.2mm">predictions</div>
+
+  <!-- inference -->
+  <div class="abs cap" style="left:97mm;top:8mm">Prompt + masked answer</div>
+  <div class="abs tok" style="left:97mm;top:12mm"><div class="t">x<sub>1</sub></div><div class="t">x<sub>2</sub></div><div class="t">x<sub>3</sub></div><div class="m">M</div><div class="m">M</div><div class="m">M</div></div>
+  <div class="abs box enc" style="left:97mm;top:23mm;width:47.5mm;height:8mm">Encoder</div>
+  <div class="abs group" style="left:92mm;top:35mm;width:66mm;height:24.5mm"></div>
+  <div class="abs cap" style="left:93.5mm;top:60.2mm;font-weight:700;color:var(--ink)">Iterative generation</div>
+  <div class="abs box dec" style="left:97mm;top:39mm;width:47.5mm;height:8mm">Decoder</div>
+  <div class="abs tok" style="left:97mm;top:51mm"><div class="t">x<sub>1</sub></div><div class="t">x<sub>2</sub></div><div class="t">x<sub>3</sub></div><div class="p">ŷ<sub>4</sub></div><div class="m">M</div><div class="p">ŷ<sub>6</sub></div></div>
+  <div class="abs tok" style="left:97mm;top:65mm"><div class="t">x<sub>1</sub></div><div class="t">x<sub>2</sub></div><div class="t">x<sub>3</sub></div><div class="p">ŷ<sub>4</sub></div><div class="p">ŷ<sub>5</sub></div><div class="p">ŷ<sub>6</sub></div></div>
+  <div class="abs cap" style="left:145.5mm;top:66.2mm">output</div>
+
+  <!-- legend -->
+  <div class="abs" style="left:2mm;top:77mm;font-size:7pt;display:flex;gap:5mm;align-items:center">
+    <span style="display:flex;align-items:center;gap:1.5mm"><span class="tok"><div class="t" style="width:4mm;height:3.5mm"></div></span>token</span>
+    <span style="display:flex;align-items:center;gap:1.5mm"><span class="tok"><div class="m" style="width:4mm;height:3.5mm"></div></span>mask</span>
+    <span style="display:flex;align-items:center;gap:1.5mm"><span class="tok"><div class="p" style="width:4mm;height:3.5mm"></div></span>prediction</span>
+  </div>
+
+  <svg viewBox="0 0 160 84">
+    <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="#30364f"/></marker></defs>
+    <g stroke="#30364f" stroke-width="0.35" fill="none">
+      <!-- training flow -->
+      <line x1="38.75" y1="17.5" x2="38.75" y2="22.8" marker-end="url(#a)"/>
+      <line x1="38.75" y1="31" x2="38.75" y2="36.8" marker-end="url(#a)"/>
+      <line x1="26.6" y1="45" x2="26.6" y2="50.8" marker-end="url(#a)"/>
+      <line x1="42.1" y1="45" x2="42.1" y2="50.8" marker-end="url(#a)"/>
+      <line x1="50" y1="45" x2="50" y2="50.8" marker-end="url(#a)"/>
+      <line x1="26.6" y1="56.5" x2="26.6" y2="63.8" marker-end="url(#a)"/>
+      <line x1="42.1" y1="56.5" x2="42.1" y2="63.8" marker-end="url(#a)"/>
+      <line x1="50" y1="56.5" x2="50" y2="63.8" marker-end="url(#a)"/>
+      <!-- inference flow -->
+      <line x1="120.75" y1="17.5" x2="120.75" y2="22.8" marker-end="url(#a)"/>
+      <line x1="120.75" y1="31" x2="120.75" y2="38.8" marker-end="url(#a)"/>
+      <line x1="120.75" y1="47" x2="120.75" y2="50.8" marker-end="url(#a)"/>
+      <path d="M144.5,53.75 H147.5 V43 H144.7" marker-end="url(#a)"/>
+      <line x1="136.4" y1="59.5" x2="136.4" y2="64.8" marker-end="url(#a)"/>
+      <!-- shared weights -->
+      <line x1="62.5" y1="27" x2="96.8" y2="27" stroke-dasharray="1.4 1" marker-start="url(#a)" marker-end="url(#a)"/>
+      <line x1="62.5" y1="41" x2="96.8" y2="41" stroke-dasharray="1.4 1" marker-start="url(#a)" marker-end="url(#a)"/>
+    </g>
+    <g font-size="2.47" fill="#30364f" font-family="Inter,Helvetica,Arial">
+      <text x="79.8" y="25.8" text-anchor="middle">shared weights</text>
+      <text x="79.8" y="39.8" text-anchor="middle">shared weights</text>
+      <text x="148.5" y="47.6" font-size="2.47" fill="#4e566b">remask,</text><text x="148.5" y="50.6" font-size="2.47" fill="#4e566b">× T</text>
+    </g>
+  </svg>
+</div></body></html>

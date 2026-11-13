@@ -1,0 +1,137 @@
+version: 1
+figure:
+  id: train-infer
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      stack:
+        gap: 4mm
+        align: start
+        items:
+          - row: { gap: 26mm, align: start, items: [ train, infer ] }
+          - key
+    align:
+      - { y: [ train_enc, infer_enc ] }
+      - { y: [ train_dec, infer_dec ] }
+      - { y: [ pred_a, gen_seq ] }
+      - { x: [ train_in.2, pred_a.p2 ] }
+      - { x: [ train_in.4, pred_b.p4 ] }
+      - { y: [ train_loss, infer_out ] }
+groups:
+  - id: train
+    label: (a) Training
+    labelAt: top-left
+    variant: plain
+    arrange:
+      stack: { gap: 5mm, items: [ train_cap, train_in, train_enc, train_dec, { row: { gap: 1pt, items: [ pred_a, pred_b ] } }, train_loss ] }
+  - id: infer
+    label: (b) Inference
+    labelAt: top-left
+    variant: plain
+    arrange:
+      stack: { gap: 5mm, items: [ infer_cap, infer_in, infer_enc, gen, infer_out ] }
+  - id: gen
+    label: Iterative generation
+    labelAt: bottom-left
+    variant: dashed
+    arrange:
+      stack: { gap: 4mm, items: [ infer_dec, gen_seq ] }
+nodes:
+  # training
+  - { id: train_cap, component: label, variant: muted, label: Input with random masks }
+  - id: train_in
+    component: tokens
+    tone: blue
+    props:
+      cells:
+        - '$x_1$'
+        - { label: M, tone: gray }
+        - '$x_3$'
+        - { label: M, tone: gray }
+        - { label: M, tone: gray }
+        - '$x_6$'
+  - { id: train_enc, component: box, label: Encoder, tone: blue, variant: tinted, props: { width: 135pt } }
+  - { id: train_dec, component: box, label: Decoder, tone: orange, variant: tinted, props: { width: 135pt } }
+  - id: pred_a
+    component: tokens
+    tone: green
+    props:
+      cells:
+        - { id: p2, label: '$\hat{x}_2$' }
+  - id: pred_b
+    component: tokens
+    tone: green
+    props:
+      cells:
+        - { id: p4, label: '$\hat{x}_4$' }
+        - { id: p5, label: '$\hat{x}_5$' }
+  - { id: pred_note, component: label, variant: muted, label: predictions, attach: { to: pred_b, side: east, gap: 3pt } }
+  - { id: train_loss, component: box, variant: emphasis, label: Loss on masked tokens, props: { width: 135pt } }
+  # inference
+  - { id: infer_cap, component: label, variant: muted, label: Prompt + masked answer }
+  - id: infer_in
+    component: tokens
+    tone: blue
+    props:
+      cells:
+        - '$x_1$'
+        - '$x_2$'
+        - '$x_3$'
+        - { label: M, tone: gray }
+        - { label: M, tone: gray }
+        - { label: M, tone: gray }
+  - { id: infer_enc, component: box, label: Encoder, tone: blue, variant: tinted, props: { width: 135pt } }
+  - { id: infer_dec, component: box, label: Decoder, tone: orange, variant: tinted, props: { width: 135pt } }
+  - id: gen_seq
+    component: tokens
+    tone: blue
+    props:
+      cells:
+        - '$x_1$'
+        - '$x_2$'
+        - '$x_3$'
+        - { label: '$\hat{y}_4$', tone: green }
+        - { label: M, tone: gray }
+        - { label: '$\hat{y}_6$', tone: green }
+  - id: infer_out
+    component: tokens
+    tone: blue
+    props:
+      cells:
+        - '$x_1$'
+        - '$x_2$'
+        - '$x_3$'
+        - { label: '$\hat{y}_4$', tone: green }
+        - { label: '$\hat{y}_5$', tone: green }
+        - { label: '$\hat{y}_6$', tone: green }
+  - { id: out_note, component: label, variant: muted, label: output, attach: { to: infer_out, side: east, gap: 3pt } }
+  # key
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: row
+      entries:
+        - { node: { tone: blue }, label: token }
+        - { node: { tone: gray }, label: mask }
+        - { node: { tone: green }, label: prediction }
+edges:
+  # training flow
+  - { from: train_in, to: train_enc }
+  - { from: train_enc, to: train_dec }
+  - { from: train_dec, to: pred_a.p2 }
+  - { from: train_dec, to: pred_b.p4 }
+  - { from: train_dec, to: pred_b.p5 }
+  - { from: pred_a.p2, to: train_loss }
+  - { from: pred_b.p4, to: train_loss }
+  - { from: pred_b.p5, to: train_loss }
+  # inference flow
+  - { from: infer_in, to: infer_enc }
+  - { from: infer_enc, to: infer_dec }
+  - { from: infer_dec, to: gen_seq }
+  - { from: gen_seq, to: infer_dec, fromAnchor: east, toAnchor: east, label: "remask, ×T" }
+  - { from: gen, to: infer_out }
+  # shared weights
+  - { from: train_enc, to: infer_enc, component: double-arrow, variant: dashed, label: shared weights }
+  - { from: train_dec, to: infer_dec, component: double-arrow, variant: dashed, label: shared weights }

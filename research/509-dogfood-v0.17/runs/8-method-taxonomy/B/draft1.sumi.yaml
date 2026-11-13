@@ -1,0 +1,50 @@
+version: 1
+figure:
+  id: method-taxonomy
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      stack:
+        gap: 6mm
+        items:
+          - place:
+              unit: 1mm
+              items:
+                - { item: spectral-cnn, at: [ 25, 26 ] }
+                - { item: chebnet, at: [ 25, 46 ] }
+                - { item: gcn, at: [ 48.5, 36 ] }
+                - { item: graphsage, at: [ 67, 26 ] }
+                - { item: gin, at: [ 67, 46 ] }
+                - { item: gat, at: [ 85.5, 36 ] }
+                - { item: graph-transformer, at: [ 104, 25 ] }
+                - { item: san, at: [ 104, 46 ] }
+                - { item: graph-bert, at: [ 122.5, 36 ] }
+                - { item: dgi, at: [ 146, 26 ] }
+                - { item: graphcl, at: [ 146, 46 ] }
+          - key
+nodes:
+  - { id: spectral-cnn, component: box, label: Spectral CNN }
+  - { id: chebnet, component: box, label: ChebNet }
+  - { id: gcn, component: box, label: GCN, variant: emphasis }
+  - { id: graphsage, component: box, label: GraphSAGE }
+  - { id: gin, component: box, label: GIN }
+  - { id: gat, component: box, label: GAT, variant: emphasis }
+  - { id: graph-transformer, component: box, label: "Graph\nTransformer" }
+  - { id: san, component: box, label: SAN }
+  - { id: graph-bert, component: box, label: "Graph-\nBERT", variant: emphasis }
+  - { id: dgi, component: box, label: DGI }
+  - { id: graphcl, component: box, label: GraphCL }
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: row
+      entries:
+        - { node: {}, label: method in one family }
+        - { node: { variant: emphasis }, label: method in two families (overlap) }
+sets:
+  - { id: spectral, label: "Spectral\ngraph Fourier filters", members: [ spectral-cnn, chebnet, gcn ], shape: ellipse, tone: blue }
+  - { id: spatial, label: "Spatial\nneighbour aggregation", members: [ gcn, graphsage, gin, gat ], shape: ellipse, tone: green }
+  - { id: attention, label: "Attention\nlearned neighbour weights", members: [ gat, graph-transformer, san, graph-bert ], shape: ellipse, tone: orange }
+  - { id: self-supervised, label: "Self-supervised\npretext objectives", members: [ graph-bert, dgi, graphcl ], shape: ellipse, tone: purple }

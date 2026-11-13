@@ -1,0 +1,66 @@
+version: 1
+figure:
+  id: request-states
+  theme: sumi
+  profile: paper-double
+  target: { minFontSize: 8pt }
+  layout:
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - { item: start, at: [ 11.5, 13 ] }
+          - { item: received, at: [ 11.5, 30 ] }
+          - { item: validating, at: [ 44.5, 30 ] }
+          - { item: queued, at: [ 74.5, 30 ] }
+          - { item: running, at: [ 106.5, 30 ] }
+          - { item: retrying, at: [ 90.5, 48 ] }
+          - { item: terminal, at: [ 144.5, 28.5 ] }
+          - { item: l-submitted, at: [ 21, 18.5 ] }
+          - { item: l-parsed, at: [ 27.5, 26.3 ] }
+          - { item: l-valid, at: [ 59.5, 26.3 ] }
+          - { item: l-worker, at: [ 90.5, 24.6 ] }
+          - { item: l-success, at: [ 125.5, 26.3 ] }
+          - { item: l-error, at: [ 104, 38.5 ] }
+          - { item: l-attempts, at: [ 75, 39 ] }
+          - { item: l-exhausted, at: [ 117, 46.2 ] }
+          - { item: l-invalid, at: [ 52, 58.3 ] }
+          - { item: l-cancel, at: [ 91, 10.3 ] }
+groups:
+  - id: terminal
+    label: Terminal states
+    variant: dashed
+    arrange:
+      stack: { gap: 10mm, items: [ cancelled, completed, failed ] }
+nodes:
+  - { id: start, component: junction }
+  - { id: received, component: box, label: Received, props: { width: 54pt, height: 22.5pt } }
+  - { id: validating, component: box, label: Validating, props: { width: 54pt, height: 22.5pt } }
+  - { id: queued, component: box, label: Queued, props: { width: 54pt, height: 22.5pt } }
+  - { id: running, component: box, label: Running, props: { width: 54pt, height: 22.5pt } }
+  - { id: retrying, component: box, label: Retrying, props: { width: 65pt, height: 22.5pt } }
+  - { id: cancelled, component: box, label: Cancelled, variant: filled, tone: gray, props: { width: 54pt, height: 22.5pt } }
+  - { id: completed, component: box, label: Completed, variant: filled, tone: green, props: { width: 54pt, height: 22.5pt } }
+  - { id: failed, component: box, label: Failed, variant: filled, tone: red, props: { width: 54pt, height: 22.5pt } }
+  - { id: l-submitted, component: label, label: submitted }
+  - { id: l-parsed, component: label, label: parsed }
+  - { id: l-valid, component: label, label: valid }
+  - { id: l-worker, component: label, label: "worker\nfree" }
+  - { id: l-success, component: label, label: success }
+  - { id: l-error, component: label, label: error }
+  - { id: l-attempts, component: label, label: "attempts\nleft", textAlign: right }
+  - { id: l-exhausted, component: label, label: retries exhausted }
+  - { id: l-invalid, component: label, label: invalid }
+  - { id: l-cancel, component: label, label: cancel requested }
+edges:
+  - { from: start, to: received }
+  - { from: received, to: validating, variant: emphasis }
+  - { from: validating, to: queued, variant: emphasis }
+  - { from: queued, to: running, variant: emphasis }
+  - { from: running, to: completed, variant: emphasis }
+  - { from: running, to: retrying, fromAnchor: "south:0.1", toAnchor: "north:0.87" }
+  - { from: retrying, to: queued, fromAnchor: "north:0.15", toAnchor: "south:0.92" }
+  - { from: retrying, to: failed, fromAnchor: east, toAnchor: west }
+  - { from: queued, to: cancelled, fromAnchor: north, toAnchor: west }
+  - { from: running, to: cancelled, fromAnchor: north, toAnchor: west }
+  - { from: validating, to: failed, fromAnchor: south, toAnchor: south }

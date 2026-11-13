@@ -1,0 +1,53 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+/* sumi theme: canvas #f8f8ee, ink #30364f, muted #4e566b; tones: orange fill #efdfce line #814b2d, red fill #efd8d0 line #813f40 */
+html,body{margin:0;background:#f8f8ee}
+.page{position:relative;width:140mm;height:50mm;font-family:Inter,sans-serif;color:#30364f}
+.n{position:absolute;box-sizing:border-box;height:9mm;width:26mm;border:1pt solid #30364f;border-radius:2pt;
+   background:#f8f8ee;display:flex;align-items:center;justify-content:center;font-size:8pt;text-align:center;line-height:1.15}
+.emph{background:#30364f;color:#f8f8ee;font-weight:700}
+.or{background:#efdfce;border-color:#814b2d;color:#814b2d}
+.rd{background:#efd8d0;border-color:#813f40;color:#813f40}
+.lab{position:absolute;font-size:8pt;white-space:nowrap}
+svg{position:absolute;left:0;top:0}
+</style></head><body>
+<div class="page">
+<svg width="140mm" height="50mm" viewBox="0 0 140 50">
+ <defs>
+  <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10z" fill="#30364f"/></marker>
+  <marker id="o" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10z" fill="#814b2d"/></marker>
+  <marker id="r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10z" fill="#813f40"/></marker>
+ </defs>
+ <g stroke="#30364f" stroke-width="0.353" fill="none" marker-end="url(#a)">
+  <line x1="29" y1="8" x2="39" y2="8"/><line x1="65" y1="8" x2="75" y2="8"/><line x1="101" y1="8" x2="111" y2="8"/>
+  <line x1="124" y1="13" x2="124" y2="37.5"/>
+  <line x1="111" y1="42" x2="101" y2="42"/><line x1="75" y1="42" x2="65" y2="42"/><line x1="39" y1="42" x2="29" y2="42"/>
+ </g>
+ <g stroke="#814b2d" stroke-width="0.353" stroke-dasharray="1.4 1" fill="none" marker-end="url(#o)">
+  <line x1="16" y1="37.5" x2="16" y2="29.5"/><line x1="16" y1="20.5" x2="16" y2="12.5"/>
+ </g>
+ <g stroke="#813f40" stroke-width="0.353" fill="none" marker-end="url(#r)"><line x1="52" y1="12.5" x2="52" y2="20.5"/></g>
+ <!-- cylinders -->
+ <g stroke="#30364f" stroke-width="0.353" fill="#f8f8ee">
+  <path d="M111,5 v7.5 a13,1.6 0 0 0 26,0 v-7.5"/><ellipse cx="124" cy="5" rx="13" ry="1.6"/>
+ </g>
+ <g stroke="#813f40" stroke-width="0.353" fill="#efd8d0">
+  <path d="M39,22 v6.5 a13,1.6 0 0 0 26,0 v-6.5"/><ellipse cx="52" cy="22" rx="13" ry="1.6"/>
+ </g>
+</svg>
+<div class="n" style="left:3mm;top:3.5mm">Collect</div>
+<div class="n" style="left:39mm;top:3.5mm">Validate</div>
+<div class="n" style="left:75mm;top:3.5mm">Transform</div>
+<div class="lab" style="left:111mm;top:6mm;width:26mm;text-align:center">Feature store</div>
+<div class="n or" style="left:3mm;top:20.5mm">Labeling</div>
+<div class="lab" style="left:39mm;top:24mm;width:26mm;text-align:center;color:#813f40">Quarantine</div>
+<div class="n" style="left:111mm;top:37.5mm">Train</div>
+<div class="n" style="left:75mm;top:37.5mm">Evaluate</div>
+<div class="n emph" style="left:39mm;top:37.5mm">Deploy</div>
+<div class="n or" style="left:3mm;top:37.5mm">Monitor</div>
+<div class="lab" style="left:54mm;top:14.3mm;color:#813f40">failed checks</div>
+<div class="lab" style="left:18mm;top:31.3mm;color:#814b2d">quality drop</div>
+<div class="lab" style="left:18mm;top:14.3mm;color:#814b2d">relabel, recollect</div>
+</div></body></html>

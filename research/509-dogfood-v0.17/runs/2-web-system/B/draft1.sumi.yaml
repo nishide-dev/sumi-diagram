@@ -1,0 +1,79 @@
+version: 1
+figure:
+  id: web-system
+  title: Web service system architecture
+  theme: sumi
+  profile: presentation-16x9
+  target: { minFontSize: 8pt }
+  layout:
+    arrange:
+      grid:
+        columns: 5
+        columnGap: 9mm
+        rowGap: 6mm
+        align: start
+        items:
+          - clients
+          - cdn
+          - gateway
+          - services
+          - data
+          - { item: key, span: 3 }
+          - async
+          - external
+    align:
+      - { y: [ auth, redis ] }
+      - { y: [ order, postgres ] }
+groups:
+  - id: clients
+    label: Clients
+    arrange: { stack: { gap: 8mm, items: [ browser, mobile ] } }
+  - id: services
+    label: Services
+    arrange: { stack: { gap: 10mm, align: stretch, items: [ auth, inventory, order ] } }
+  - id: data
+    label: Data
+    arrange: { stack: { gap: 10mm, items: [ redis, postgres ] } }
+  - id: async
+    label: Async processing
+    labelAt: bottom
+    arrange: { row: { gap: 5mm, items: [ queue, worker ] } }
+  - id: external
+    label: External
+    labelAt: bottom
+    variant: dashed
+    arrange: { stack: { items: [ payment ] } }
+nodes:
+  - { id: browser, component: box, label: Browser }
+  - { id: mobile, component: box, label: Mobile app }
+  - { id: cdn, component: box, label: CDN }
+  - { id: gateway, component: hexagon, label: "API\ngateway", variant: emphasis }
+  - { id: auth, component: box, label: Auth, tone: blue, variant: tinted }
+  - { id: inventory, component: box, label: Inventory, tone: blue, variant: tinted }
+  - { id: order, component: box, label: Order, tone: blue, variant: tinted }
+  - { id: redis, component: cylinder, label: Redis cache, tone: green, variant: tinted }
+  - { id: postgres, component: cylinder, label: PostgreSQL, tone: green, variant: tinted }
+  - { id: queue, component: box, label: "Message\nqueue", tone: orange, variant: tinted }
+  - { id: worker, component: box, label: Worker, tone: orange, variant: tinted }
+  - { id: payment, component: box, label: Payment API, variant: muted }
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      entries:
+        - { edge: {}, label: synchronous request }
+        - { edge: { variant: dashed }, label: asynchronous message }
+edges:
+  - { from: browser, to: cdn, toAnchor: "west:0.3" }
+  - { from: mobile, to: cdn, toAnchor: "west:0.7" }
+  - { from: cdn, to: gateway }
+  - { from: gateway, to: inventory, fromAnchor: east }
+  - { from: gateway, to: auth, fromAnchor: east, toAnchor: west }
+  - { from: gateway, to: order, fromAnchor: east, toAnchor: west }
+  - { from: auth, to: redis }
+  - { from: order, to: postgres }
+  - { from: inventory, to: redis, fromAnchor: "east:0.3", toAnchor: "west:0.7" }
+  - { from: inventory, to: postgres, fromAnchor: "east:0.7", toAnchor: "west:0.3" }
+  - { from: order, to: queue, variant: dashed, label: order placed, fromAnchor: south, toAnchor: north }
+  - { from: queue, to: worker, variant: dashed }
+  - { from: worker, to: payment, label: charge }

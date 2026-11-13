@@ -1,0 +1,105 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>RAG variants mockup</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  /* sumi theme tokens */
+  :root {
+    --canvas: #f8f8ee; --ink: #30364f; --muted: #4e566b; --panel: #efeddd; --shade: #e1d9bc;
+    --or-fill: #efdfce; --or-line: #814b2d;
+  }
+  html, body { margin: 0; padding: 0; background: var(--canvas); }
+  .page { position: relative; width: 160mm; height: 70mm; background: var(--canvas);
+          font-family: Inter, sans-serif; color: var(--ink); overflow: hidden; }
+  .band { position: absolute; left: 3mm; width: 154mm; background: var(--panel); border-radius: 2mm; }
+  .method { position: absolute; left: 6mm; width: 30mm; font-size: 9pt; font-weight: 700; line-height: 1.2; }
+  .method small { display: block; font-weight: 400; font-size: 7pt; color: var(--muted); margin-top: 0.6mm; }
+  .box { position: absolute; width: 16mm; height: 8mm; box-sizing: border-box;
+         border: 1pt solid var(--ink); background: var(--canvas); border-radius: 1mm;
+         display: flex; align-items: center; justify-content: center; font-size: 8pt; }
+  .box.add { background: var(--or-fill); border-color: var(--or-line); color: var(--or-line); }
+  .io { position: absolute; font-size: 8pt; display: flex; align-items: center; justify-content: center;
+        width: 12mm; height: 8mm; }
+  .hdr { position: absolute; top: 3mm; font-size: 7pt; color: var(--muted); width: 19mm; text-align: center; }
+  svg { position: absolute; left: 0; top: 0; }
+  .elab { font-size: 2.47px; fill: var(--ink); font-family: Inter, sans-serif; }
+  .legend { position: absolute; left: 36mm; top: 65mm; font-size: 7pt; display: flex; gap: 6mm; align-items: center; }
+  .legend span.sw { display: inline-block; width: 5mm; height: 3mm; border: 1pt solid var(--ink); background: var(--canvas); border-radius: 0.6mm; vertical-align: middle; margin-right: 1.5mm; box-sizing: border-box; }
+  .legend span.sw.add { background: var(--or-fill); border-color: var(--or-line); }
+</style>
+</head>
+<body>
+<div class="page">
+  <!-- row bands -->
+  <div class="band" style="top:6mm;height:14mm"></div>
+  <div class="band" style="top:23mm;height:14mm"></div>
+  <div class="band" style="top:40mm;height:22mm"></div>
+
+  <!-- method names -->
+  <div class="method" style="top:9.5mm">Naive RAG<small>retrieve once</small></div>
+  <div class="method" style="top:26.5mm">Re-ranking RAG<small>re-order, keep the best</small></div>
+  <div class="method" style="top:43.5mm">Agentic RAG<small>plan, loop, check</small></div>
+
+  <!-- row 1 (centre y = 13) -->
+  <div class="io" style="left:34mm;top:9mm">Query</div>
+  <div class="box" style="left:66.5mm;top:9mm">Retrieve</div>
+  <div class="box" style="left:123.5mm;top:9mm">Generate</div>
+  <div class="io" style="left:145mm;top:9mm">Answer</div>
+
+  <!-- row 2 (centre y = 30) -->
+  <div class="io" style="left:34mm;top:26mm">Query</div>
+  <div class="box" style="left:66.5mm;top:26mm">Retrieve</div>
+  <div class="box add" style="left:85.5mm;top:26mm">Re-rank</div>
+  <div class="box" style="left:123.5mm;top:26mm">Generate</div>
+  <div class="io" style="left:145mm;top:26mm">Answer</div>
+
+  <!-- row 3 (centre y = 47) -->
+  <div class="io" style="left:34mm;top:43mm">Query</div>
+  <div class="box add" style="left:47.5mm;top:43mm">Plan</div>
+  <div class="box" style="left:66.5mm;top:43mm">Retrieve</div>
+  <div class="box add" style="left:104.5mm;top:43mm">Verify</div>
+  <div class="box" style="left:123.5mm;top:43mm">Generate</div>
+  <div class="io" style="left:145mm;top:43mm">Answer</div>
+
+  <svg width="160mm" height="70mm" viewBox="0 0 160 70">
+    <defs>
+      <marker id="ah" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#30364f"/>
+      </marker>
+    </defs>
+    <g stroke="#30364f" stroke-width="0.35" fill="none" marker-end="url(#ah)">
+      <!-- row 1 -->
+      <path d="M44.5,13 H66.5"/>
+      <path d="M82.5,13 H123.5"/>
+      <path d="M139.5,13 H145.2"/>
+      <!-- row 2 -->
+      <path d="M44.5,30 H66.5"/>
+      <path d="M82.5,30 H85.5"/>
+      <path d="M101.5,30 H123.5"/>
+      <path d="M139.5,30 H145.2"/>
+      <!-- row 3 -->
+      <path d="M44.5,47 H47.5"/>
+      <path d="M63.5,47 H66.5"/>
+      <path d="M82.5,47 H104.5"/>
+      <path d="M120.5,47 H123.5"/>
+      <path d="M139.5,47 H145.2"/>
+      <!-- loop: verify -> retrieve, below -->
+      <path d="M112.5,51 V59 H74.5 V51"/>
+    </g>
+    <text class="elab" x="103" y="11.8" text-anchor="middle">top-k passages</text>
+    <text class="elab" x="93.5" y="24.6" text-anchor="middle"></text>
+    <text class="elab" x="112.5" y="28.8" text-anchor="middle">top-n</text>
+    <text class="elab" x="93.5" y="45.8" text-anchor="middle">passages</text>
+    
+    <text class="elab" x="93.5" y="57" text-anchor="middle">not enough evidence: re-query</text>
+  </svg>
+
+  <div class="legend">
+    <div><span class="sw"></span>step shared with naive RAG</div>
+    <div><span class="sw add"></span>step the variant adds</div>
+  </div>
+</div>
+</body>
+</html>

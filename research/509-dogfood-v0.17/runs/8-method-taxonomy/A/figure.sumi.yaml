@@ -1,0 +1,63 @@
+# Taxonomy of graph representation learning methods.
+# Architecture families (spectral, spatial, attention) overlap where a method
+# belongs to two of them; self-supervised learning is a training perspective.
+version: 1
+figure:
+  id: gnn-taxonomy
+  theme: sumi
+  profile: paper-double
+  target: { height: 70mm }
+  layout:
+    arrange:
+      row:
+        gap: 10mm
+        align: stretch
+        items:
+          - stack:
+              gap: 6mm
+              justify: space-between
+              items:
+                - place:
+                    unit: 1mm
+                    items:
+                      - { item: spectral-cnn, at: [ 0, -7 ] }
+                      - { item: chebnet, at: [ 0, 7 ] }
+                      - { item: gcn, at: [ 21, 0 ] }
+                      - { item: graphsage, at: [ 42, -7 ] }
+                      - { item: gin, at: [ 42, 7 ] }
+                      - { item: gat, at: [ 63, 0 ] }
+                      - { item: graph-transformer, at: [ 84, -7 ] }
+                      - { item: graphormer, at: [ 84, 7 ] }
+                - arch-title
+          - divider
+          - stack:
+              gap: 6mm
+              justify: space-between
+              items:
+                - place:
+                    unit: 1mm
+                    items:
+                      - { item: dgi, at: [ 0, -7 ] }
+                      - { item: graphcl, at: [ 19, 0 ] }
+                      - { item: grace, at: [ 0, 7 ] }
+                - ssl-title
+nodes:
+  - { id: arch-title, component: label, label: "Architecture: neighbour aggregation" }
+  - { id: ssl-title, component: label, label: "Training: no labels needed" }
+  - { id: divider, component: separator, variant: dashed }
+  - { id: spectral-cnn, component: box, label: Spectral CNN, props: { height: 25.5pt } }
+  - { id: chebnet, component: box, label: ChebNet, props: { height: 25.5pt } }
+  - { id: gcn, component: box, label: GCN, props: { height: 25.5pt } }
+  - { id: graphsage, component: box, label: GraphSAGE, props: { height: 25.5pt } }
+  - { id: gin, component: box, label: GIN, props: { height: 25.5pt } }
+  - { id: gat, component: box, label: GAT, props: { height: 25.5pt } }
+  - { id: graph-transformer, component: box, label: "Graph\nTransformer", props: { height: 25.5pt } }
+  - { id: graphormer, component: box, label: Graphormer, props: { height: 25.5pt } }
+  - { id: dgi, component: box, label: DGI, props: { height: 25.5pt } }
+  - { id: graphcl, component: box, label: GraphCL, props: { height: 25.5pt } }
+  - { id: grace, component: box, label: GRACE, props: { height: 25.5pt } }
+sets:
+  - { id: spectral, label: Spectral, members: [ spectral-cnn, chebnet, gcn ], shape: hull, padding: 3mm, tone: blue }
+  - { id: spatial, label: Spatial, members: [ gcn, graphsage, gin, gat ], shape: hull, padding: 3mm, tone: green }
+  - { id: attention, label: Attention, members: [ gat, graph-transformer, graphormer ], shape: hull, padding: 3mm, tone: orange }
+  - { id: self-supervised, label: Self-supervised, members: [ dgi, graphcl, grace ], shape: hull, padding: 3mm, variant: dashed }
