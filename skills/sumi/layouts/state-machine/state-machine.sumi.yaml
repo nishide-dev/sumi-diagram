@@ -1,0 +1,45 @@
+# Layout: a state machine with a start dot, four states, labelled transitions, a self-loop and an end ring.
+#
+# Use when: something moves between a few named states on events (a protocol, a training
+#   schedule, a request's lifecycle, an agent's modes) and the figure must show which events
+#   lead where, including retries and the way back after a failure.
+# Structure: one `place` (unit 1mm); the main path runs left to right on one line
+#   (`sumi/initial` → State A → State B → State C → `sumi/final`); the failure state sits under
+#   State B, and its return edge goes back to State A with an elbow; the self-loop on State B is
+#   `route: curve` out of its north side; one orange state marks the focus.
+# Change: the state and event labels; add a state on the main line: add its node and `place`
+#   item, shift the later x coordinates by 32, split the transition it sits on into two
+#   labelled edges, and adjust edges that depended on the shifted positions (the failure
+#   state's x and its return edge); keep the self-loop's side free (about 8mm above the node).
+# Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
+version: 1
+figure:
+  id: state-machine
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: start, at: [0, 0]}
+          - {item: a, at: [18, 0]}
+          - {item: b, at: [50, 0]}
+          - {item: c, at: [82, 0]}
+          - {item: end, at: [101, 0]}
+          - {item: d, at: [50, 22]}
+nodes:
+  - {id: start, component: initial}
+  - {id: a, component: box, label: State A, props: {width: 20mm}}
+  - {id: b, component: box, label: State B, tone: orange, variant: tinted, props: {width: 20mm}}
+  - {id: c, component: box, label: State C, props: {width: 20mm}}
+  - {id: end, component: final}
+  - {id: d, component: box, label: State D, props: {width: 20mm}}
+edges:
+  - {from: start, to: a}
+  - {from: a, to: b, label: start}
+  - {from: b, to: b, route: curve, label: retry}
+  - {from: b, to: c, label: succeed}
+  - {from: c, to: end}
+  - {from: b, to: d, label: fail}
+  - {from: d, to: a, fromAnchor: west, toAnchor: south, label: reset}

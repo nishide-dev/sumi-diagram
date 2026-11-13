@@ -1,0 +1,43 @@
+# Layout: a pipeline with a check that sends work back to an earlier stage, plus a repeated stage.
+#
+# Use when: a chain of stages ends in a test whose failure loops back (iterative refinement,
+#   validate-and-retry, an agent that revises its plan); the main flow stays on one straight row.
+# Structure: a `row` from a start dot (`initial`) through input, three blue tinted stages and an
+#   orange tinted `diamond` check to an emphasis output and an end ring (`final`); a dashed
+#   feedback edge from the check's south to stage A's south runs under the row with its label
+#   below it; a self-loop on stage B (`route: curve`) marks a repeated step.
+# Change: the labels; the stage count (copy or delete a box, its `row` entry and `nodes` entry,
+#   and rewire the chain: on insert replace the edge across the insertion point by two, on delete
+#   join predecessor to successor; also fix the feedback edge or self-loop if they touch a removed
+#   stage; keep the row under 180 mm); the feedback target (any earlier stage, both anchors
+#   south); drop the self-loop or the start / end markers when not needed.
+# Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
+version: 1
+figure:
+  id: pipeline-feedback
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      row:
+        gap: 8mm
+        items: [start, input, stage_a, stage_b, stage_c, check, output, done]
+nodes:
+  - {id: start, component: initial}
+  - {id: input, component: box, label: Input, variant: muted}
+  - {id: stage_a, component: box, label: Stage A, tone: blue, variant: tinted}
+  - {id: stage_b, component: box, label: Stage B, tone: blue, variant: tinted}
+  - {id: stage_c, component: box, label: Stage C, tone: blue, variant: tinted}
+  - {id: check, component: diamond, label: Check, tone: orange, variant: tinted, props: {width: 19mm, height: 11mm}}
+  - {id: output, component: box, label: Output, variant: emphasis}
+  - {id: done, component: final}
+edges:
+  - {from: start, to: input}
+  - {from: input, to: stage_a}
+  - {from: stage_a, to: stage_b}
+  - {from: stage_b, to: stage_c}
+  - {from: stage_c, to: check}
+  - {from: check, to: output, label: pass}
+  - {from: output, to: done}
+  - {from: check, to: stage_a, fromAnchor: south, toAnchor: south, variant: dashed, label: "fail: revise", labelAt: middle, labelSide: left}
+  - {from: stage_b, to: stage_b, route: curve, label: repeat ×N}

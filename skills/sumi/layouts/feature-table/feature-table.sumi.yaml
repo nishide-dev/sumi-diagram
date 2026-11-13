@@ -1,0 +1,49 @@
+# Layout: a methods x properties comparison table drawn as one `matrix`.
+#
+# Use when: the figure compares several methods by which properties each has (related-work
+#   table, capability checklist, which models support which input), and the proposed method
+#   should stand out as the row that has them all.
+# Structure: a `matrix` (flush, headers `rows` = methods, `columns` = properties) whose three
+#   `classes` are the answers: green tinted = supported, green outlined = partly, plain muted =
+#   not supported, each cell also carrying a text mark (`{class, text}`) so the table reads in
+#   grayscale; the proposed method's row header is orange; a legend from the classes below.
+# Change: the row and column headers and the cells (every row as many cells as `columns`);
+#   add a class for another answer (and its legend entry); `cellWidth` for longer headers.
+#   Profile `paper-single`: a table this size belongs in one column (about 85 mm wide).
+# Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
+version: 1
+figure:
+  id: feature-table
+  theme: sumi
+  profile: paper-single
+  layout:
+    arrange:
+      stack:
+        gap: 3mm
+        items: [table, key]
+nodes:
+  - id: table
+    component: matrix
+    props:
+      columns: [Property A, Property B, Property C, Property D]
+      rows: [Method 1, Method 2, Method 3, {label: Proposed, tone: orange}]
+      cellWidth: 46pt
+      cellHeight: 16pt
+      gap: 2pt
+      flush: true
+      headerGap: 3pt
+      classes:
+        y: {tone: green, variant: tinted, label: supported}
+        p: {tone: green, variant: outlined, label: partly}
+        n: {variant: muted, label: not supported}
+      cells:
+        - [{class: y, text: ✓}, {class: n, text: –}, {class: p, text: "(✓)"}, {class: n, text: –}]
+        - [{class: y, text: ✓}, {class: y, text: ✓}, {class: n, text: –}, {class: n, text: –}]
+        - [{class: p, text: "(✓)"}, {class: y, text: ✓}, {class: y, text: ✓}, {class: n, text: –}]
+        - [{class: y, text: ✓}, {class: y, text: ✓}, {class: y, text: ✓}, {class: y, text: ✓}]
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: row
+      entries: [{class: table.y}, {class: table.p}, {class: table.n}]

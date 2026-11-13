@@ -1,0 +1,59 @@
+# Layout: a top-down hierarchy tree (root, categories, items, sub-items) with shared trunks.
+#
+# Use when: a taxonomy, a class hierarchy, an org chart or a decomposition, where each item
+#   has exactly one parent and the reader scans level by level.
+# Structure: a `stack` of the root over a `row` of subtrees (`align: start`, so every level
+#   starts on one line); each subtree is a `stack` of its parent over a `row` of children, one
+#   level deeper per nesting (Item B2 shows the third level); every parent's edges leave its
+#   south side at one anchor (`fromAnchor: south`), so they share a trunk and branch like a
+#   tree. Root `emphasis`, categories tinted blue, items default, sub-items `muted`.
+# Change: the labels; children per parent (a node, its edge and its id in the parent's row);
+#   a fourth category is one more subtree in the root row; give any item children by
+#   replacing its id with `{stack: {gap: 7mm, items: [item, {row: {gap: 3mm, items: [...]}}]}}`
+#   and set `align: start` on the row that holds it.
+# Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
+version: 1
+figure:
+  id: hierarchy-tree
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      stack:
+        gap: 8mm
+        items:
+          - root
+          - row:
+              gap: 10mm
+              align: start
+              items:
+                - stack: {gap: 7mm, items: [cat-a, {row: {gap: 3mm, items: [a1, a2]}}]}
+                - stack: {gap: 7mm, items: [cat-b, {row: {gap: 3mm, align: start, items: [b1, {stack: {gap: 7mm, items: [b2, {row: {gap: 3mm, items: [b2a, b2b]}}]}}, b3]}}]}
+                - stack: {gap: 7mm, items: [cat-c, {row: {gap: 3mm, items: [c1, c2]}}]}
+nodes:
+  - {id: root, component: box, label: Root concept, variant: emphasis, weight: bold}
+  - {id: cat-a, component: box, label: Category A, tone: blue, variant: tinted}
+  - {id: cat-b, component: box, label: Category B, tone: blue, variant: tinted}
+  - {id: cat-c, component: box, label: Category C, tone: blue, variant: tinted}
+  - {id: a1, component: box, label: Item A1}
+  - {id: a2, component: box, label: Item A2}
+  - {id: b1, component: box, label: Item B1}
+  - {id: b2, component: box, label: Item B2}
+  - {id: b3, component: box, label: Item B3}
+  - {id: b2a, component: box, label: Item B2a, variant: muted}
+  - {id: b2b, component: box, label: Item B2b, variant: muted}
+  - {id: c1, component: box, label: Item C1}
+  - {id: c2, component: box, label: Item C2}
+edges:
+  - {from: root, to: cat-a, fromAnchor: south}
+  - {from: root, to: cat-b, fromAnchor: south}
+  - {from: root, to: cat-c, fromAnchor: south}
+  - {from: cat-a, to: a1, fromAnchor: south}
+  - {from: cat-a, to: a2, fromAnchor: south}
+  - {from: cat-b, to: b1, fromAnchor: south}
+  - {from: cat-b, to: b2, fromAnchor: south}
+  - {from: cat-b, to: b3, fromAnchor: south}
+  - {from: b2, to: b2a, fromAnchor: south}
+  - {from: b2, to: b2b, fromAnchor: south}
+  - {from: cat-c, to: c1, fromAnchor: south}
+  - {from: cat-c, to: c2, fromAnchor: south}

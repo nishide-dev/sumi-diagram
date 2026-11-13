@@ -1,0 +1,72 @@
+# Layout: a time axis with three parallel lanes of activities that span one or more periods.
+#
+# Use when: work runs in parallel tracks over time and the figure must show when each activity
+#   happens, how long it lasts and what waits for what (a project plan, a training schedule
+#   with stages per component, pipelined execution, a curriculum).
+# Structure: one `grid` of 5 columns (lane title, then four equal periods: every single-cell
+#   item is 24mm wide, so the periods line up); activities span their periods (`span`, grid
+#   `align: stretch`), `~` leaves a period empty; period titles on top; the bottom row holds two
+#   hidden junctions (cell `align: start` / `end`) joined by the time arrow; dashed edges are
+#   dependencies, drawn
+#   vertically between activities that share a period; one orange box marks a milestone; a legend underneath.
+# Change: the lane, period and activity labels; add a period: raise `columns`, add a period label
+#   and make every row consume the new count (a `span` counts, so extend a span instead where
+#   the activity lasts longer), then move the time arrow's end junction to the last column;
+#   add a lane by inserting a row of `columns` cells; keep the 24mm width on single-cell items;
+#   a dependency anchor is the centre of a period inside the spanned box: with span width
+#   2*24+4 = 52mm the first period is 12/52 = 0.2308 and the second 40/52 = 0.7692, so
+#   recompute it (centre / box width) whenever widths, gaps or spans change.
+# Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
+version: 1
+figure:
+  id: timeline-lanes
+  theme: sumi
+  profile: paper-double
+  layout:
+    density: compact
+    arrange:
+      stack:
+        gap: 6mm
+        items:
+          - grid:
+              columns: 5
+              rowGap: 8mm
+              columnGap: 4mm
+              align: stretch
+              items:
+                [~, p1, p2, p3, p4,
+                 la, {item: a1, span: 2}, a2, a3,
+                 lb, ~, {item: b1, span: 2}, b2,
+                 lc, c1, ~, {item: c2, span: 2},
+                 ~, {item: t0, align: start}, ~, ~, {item: t1, align: end}]
+          - key
+nodes:
+  - {id: p1, component: label, label: Period 1, variant: muted, props: {width: 24mm}}
+  - {id: p2, component: label, label: Period 2, variant: muted, props: {width: 24mm}}
+  - {id: p3, component: label, label: Period 3, variant: muted, props: {width: 24mm}}
+  - {id: p4, component: label, label: Period 4, variant: muted, props: {width: 24mm}}
+  - {id: la, component: label, label: Lane A, weight: bold, textAlign: left}
+  - {id: lb, component: label, label: Lane B, weight: bold, textAlign: left}
+  - {id: lc, component: label, label: Lane C, weight: bold, textAlign: left}
+  - {id: a1, component: box, label: Activity A1}
+  - {id: a2, component: box, label: Activity A2, props: {width: 24mm}}
+  - {id: a3, component: box, label: Activity A3, props: {width: 24mm}}
+  - {id: b1, component: box, label: Activity B1}
+  - {id: b2, component: box, label: Milestone, tone: orange, variant: tinted, props: {width: 24mm}}
+  - {id: c1, component: box, label: Activity C1, props: {width: 24mm}}
+  - {id: c2, component: box, label: Activity C2}
+  - {id: t0, component: junction, variant: hidden}
+  - {id: t1, component: junction, variant: hidden}
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: row
+      entries:
+        - {node: {tone: orange, variant: tinted}, label: milestone}
+        - {edge: {variant: dashed}, label: depends on}
+edges:
+  - {from: t0, to: t1, label: time}
+  - {from: a1, to: b1, fromAnchor: "south:0.7692", toAnchor: "north:0.2308", variant: dashed}
+  - {from: b1, to: c2, fromAnchor: "south:0.7692", toAnchor: "north:0.2308", variant: dashed}
+  - {from: a3, to: b2, variant: dashed}
