@@ -307,6 +307,10 @@ function nodeShape(node: NodeIR, r: Rect): string {
           typeof node.render.params?.signalStroke === "string"
             ? node.render.params.signalStroke
             : undefined;
+        // A state marker (#519) is painted by its fill alone: a stroke would grow it past its
+        // size and close the gap between a final marker's ring and dot.
+        if (node.render?.renderer === "sumi/state-marker")
+          return `<path d="${pathData(layer.path.points, layer.path.closed)}" fill="${fill}" stroke="none"/>`;
         return `<path d="${pathData(layer.path.points, layer.path.closed)}" fill="${fill}"${strokeAttributes(typeof frameStroke === "string" || signalStroke !== undefined ? { ...style, stroke: signalStroke ?? (frameStroke as string) } : style)}${signal}/>`;
       })
       .join("");

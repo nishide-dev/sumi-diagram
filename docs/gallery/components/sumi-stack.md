@@ -4,7 +4,7 @@
 
 Three overlapping rectangles, e\.g\. for a collection of documents or layers\.
 
-**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, outlined, solid, tinted</code> · **since**: <code>0\.3\.0</code> · **shape**: <code>rectangle</code> · **sizing**: <code>auto</code> · **render**: <code>\{&quot;type&quot;:&quot;outline&quot;,&quot;renderer&quot;:&quot;sumi/stack&quot;,&quot;params&quot;:\{&quot;layers&quot;:3,&quot;offset&quot;:8\}\}</code>
+**kind**: <code>node</code> · **variants**: <code>default, emphasis, muted, dashed, outlined, solid, tinted</code> · **since**: <code>0\.3\.0</code> · **shape**: <code>rectangle</code> · **sizing**: <code>auto</code> · **render**: <code>\{&quot;type&quot;:&quot;outline&quot;,&quot;renderer&quot;:&quot;sumi/stack&quot;,&quot;params&quot;:\{&quot;layers&quot;:3,&quot;offset&quot;:8\}\}</code>
 
 | prop | type | required | description |
 | --- | --- | --- | --- |
@@ -14,7 +14,7 @@ Three overlapping rectangles, e\.g\. for a collection of documents or layers\.
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> | <code>llama</code> | <code>sumi</code> | <code>sumi\-dark</code> |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | <img src="sumi-stack.minimal.svg" alt="sumi/stack, theme minimal"> | <img src="sumi-stack.academic.svg" alt="sumi/stack, theme academic"> | <img src="sumi-stack.slides.svg" alt="sumi/stack, theme slides"> | <img src="sumi-stack.color.svg" alt="sumi/stack, theme color"> | <img src="sumi-stack.paper.svg" alt="sumi/stack, theme paper"> | <img src="sumi-stack.llama.svg" alt="sumi/stack, theme llama"> | <img src="sumi-stack.sumi.svg" alt="sumi/stack, theme sumi"> | <img src="sumi-stack.sumi-dark.svg" alt="sumi/stack, theme sumi-dark"> |
-| <code>sumi render sumi\-stack\.sumi\.yaml</code><br>96\.66mm × 25\.58mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-stack\.sumi\.yaml \-\-theme academic</code><br>96\.48mm × 25\.58mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-stack\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>181\.86mm × 45\.86mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-stack\.sumi\.yaml \-\-theme color</code><br>96\.66mm × 25\.58mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-stack\.sumi\.yaml \-\-theme paper</code><br>89\.08mm × 25\.58mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-stack\.sumi\.yaml \-\-theme llama</code><br>88\.55mm × 25\.58mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-stack\.sumi\.yaml \-\-theme sumi</code><br>89\.08mm × 25\.58mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-stack\.sumi\.yaml \-\-theme sumi\-dark</code><br>89\.08mm × 25\.58mm \(max width 180mm, max height 220mm\) |
+| <code>sumi render sumi\-stack\.sumi\.yaml</code><br>95\.07mm × 25\.58mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-stack\.sumi\.yaml \-\-theme academic</code><br>94\.9mm × 25\.58mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-stack\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>178\.68mm × 45\.86mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-stack\.sumi\.yaml \-\-theme color</code><br>95\.07mm × 25\.58mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-stack\.sumi\.yaml \-\-theme paper</code><br>88\.19mm × 25\.58mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-stack\.sumi\.yaml \-\-theme llama</code><br>87\.67mm × 25\.58mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-stack\.sumi\.yaml \-\-theme sumi</code><br>88\.19mm × 25\.58mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-stack\.sumi\.yaml \-\-theme sumi\-dark</code><br>88\.19mm × 25\.58mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-stack.sumi.yaml</code></summary>
@@ -31,8 +31,8 @@ figure:
     arrange:
       stack:
         items:
-          - row: { items: [default, emphasis, muted, outlined] }
-          - row: { items: [solid, tinted] }
+          - row: { items: [default, emphasis, muted, dashed] }
+          - row: { items: [outlined, solid, tinted] }
 
 nodes:
   - id: default
@@ -46,6 +46,10 @@ nodes:
     component: sumi/stack
     label: muted
     variant: muted
+  - id: dashed
+    component: sumi/stack
+    label: dashed
+    variant: dashed
   - id: outlined
     component: sumi/stack
     label: outlined

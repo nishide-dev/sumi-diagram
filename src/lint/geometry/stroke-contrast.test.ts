@@ -288,3 +288,18 @@ nodes: [{ id: a, component: box, label: A, tone: blue, variant: outlined }]
   expect((await strokeFindings(yaml("#bebebe"))).map((f) => f.severity)).toEqual(["info"]);
   expect(await strokeFindings(yaml("#b0b0b0"))).toEqual([]);
 });
+
+test("a low-contrast frame of a filled dashed group is reported, and dashed filled nodes are checked (#519)", async () => {
+  const yaml = (line: string) => `version: 1
+figure:
+  id: dashed
+  theme: paper
+  themeOverrides: { dashedGroupStroke: "${line}" }
+  layout: { arrange: { row: { items: [g] } } }
+groups:
+  - { id: g, variant: filled-dashed, label: G, arrange: { row: { items: [a] } } }
+nodes: [{ id: a, component: box, label: A, tone: blue, variant: dashed }]
+`;
+  expect((await strokeFindings(yaml("#f4f4f4"))).map((f) => f.subject?.id)).toEqual(["g"]);
+  expect(await strokeFindings(yaml("#505050"))).toEqual([]);
+});
