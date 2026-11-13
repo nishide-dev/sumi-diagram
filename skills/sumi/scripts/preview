@@ -233,7 +233,7 @@ elif [ "$tool" = chrome ]; then
     # The trap is set before the launch and reads `$!` (set as soon as the job
     # starts; this is the script's only background job), so no signal can
     # arrive between starting Chrome and being able to forward to it.
-    trap 'if [ -n "${!:-}" ]; then kill -TERM -- "-$!" 2>/dev/null || kill -TERM "$!" 2>/dev/null; fi; exit 130' INT TERM
+    trap 'if [ -n "${!:-}" ]; then kill -TERM "-$!" 2>/dev/null || kill -TERM "$!" 2>/dev/null; fi; exit 130' INT TERM
     setsid "$chrome" "$@" >/dev/null 2>&1 &
     wait "$!" || true
     trap 'exit 130' INT TERM
