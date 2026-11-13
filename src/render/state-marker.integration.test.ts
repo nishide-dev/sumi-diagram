@@ -3,6 +3,8 @@ import type { Point } from "../core/geometry";
 import { boundaryEntry } from "../layout/route/ports";
 import { lintGeometry } from "../lint";
 import { shapeOutline } from "../lint/geometry/shapes";
+import { svgToPdf } from "./pdf";
+import { svgToEditablePptx } from "./pptx";
 import { renderFigure } from "./render";
 
 const rendered = async (source: string) => {
@@ -106,6 +108,18 @@ for (const [component, shape] of [
     expect(hit).toBeDefined();
     expect(hit ?? 0).toBeGreaterThan(0.99);
     expect(end.x).toBeGreaterThanOrEqual(target.x);
+    // The arrowhead's base corners lie outside the shape, clear of the slanted boundary.
+    const head = /<polygon points="([^"]*)" fill="#[0-9a-f]{6}" stroke="none"\/>/.exec(svg);
+    if (!head?.[1]) throw new Error("no arrowhead");
+    const corners = head[1].split(" ").map((pair) => {
+      const [x, y] = pair.split(",").map(Number);
+      return { x: x as number, y: y as number };
+    });
+    for (const corner of corners.slice(1)) {
+      const entry = boundaryEntry(corner, { x: corner.x + 1000, y: corner.y }, region);
+      // Not inside the shape: a ray to the right meets it only beyond the corner itself.
+      expect(entry === undefined || entry > 0).toBe(true);
+    }
   });
 }
 
@@ -139,4 +153,30 @@ nodes:
   expect(anchors[2]?.[1]).toBe("end");
   expect(anchors[2]?.[0] as number).toBeLessThan(right + 227);
   expect(anchors[2]?.[0] as number).toBeGreaterThan(right + 227 - 20);
+});
+
+test("a state marker is painted by its fill alone, at any size, in SVG, PDF and editable PPTX (#519)", async () => {
+  for (const size of ["2pt", "6pt", "30pt"]) {
+    const { value } = await rendered(`version: 1
+figure:
+  id: small
+  theme: sumi
+  profile: paper-double
+  layout: { arrange: { row: { gap: 8mm, items: [a, f] } } }
+nodes:
+  - { id: a, component: initial, props: { size: ${size} } }
+  - { id: f, component: final, props: { size: ${size} } }
+`);
+    const { svg, layout } = value as unknown as {
+      svg: string;
+      layout: { nodes: { key: string; rect: { width: number } }[] };
+    };
+    const paths = svg.match(/<path d="[^"]*" fill="[^"]*" stroke="none"\/>/g) ?? [];
+    // One dot, plus two half rings and a dot.
+    expect(paths).toHaveLength(4);
+    const f = layout.nodes.find((n) => n.key === "n:f")?.rect.width ?? 0;
+    expect(f).toBeGreaterThanOrEqual(12);
+    expect(svgToPdf(svg).ok).toBe(true);
+    expect(svgToEditablePptx(svg, value.compiled.ir).ok).toBe(true);
+  }
 });

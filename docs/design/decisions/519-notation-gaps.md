@@ -28,7 +28,8 @@
   輪郭は円を 48 角形で近似した閉じた polygon で、辺はその輪郭に付く。ラベルは取らない
   （`component/unexpected-label`）。既定の直径は文字サイズの 1.25 em（initial）・1.75 em（final）で、
   `props.size` で変えられる。junction の点（線幅の 3 倍）では小さすぎたため、点の仕組みとは分けた。
-  色は `solid` の塗り（ink）で、variant は `default` / `muted`。
+  色は `solid` の塗り（ink）で、variant は `default` のみ（muted は sumi テーマで既定と同色になるため置かない）。枠線は引かず塗りだけで描く（線が径を広げ、final の輪と点の隙間を埋めるため）。最小の直径は 6pt。
+- `filled-dashed` の枠色は `themeOverrides.dashedGroupStroke` が `dashed` と同じく優先する。破線の枠は塗りがあっても `low-stroke-contrast` の検査対象にする。
 
 ## 後続
 

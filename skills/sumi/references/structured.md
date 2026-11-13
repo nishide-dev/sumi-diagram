@@ -661,7 +661,7 @@ edges:
 `component: initial` is the start of a state machine (a solid dot) and `final`
 its end (a ring around a smaller dot). Both take no label, are ordinary edge
 endpoints, and default to 1.25 em and 1.75 em across; `props.size` sets the
-diameter. Variants: `default`, `muted`. `variant: dashed` on any box-like node
+diameter. Variant: `default` (the ink). `variant: dashed` on any box-like node
 draws a dashed outline on the default fill (a tone still sets the fill), e.g. an
 external system. A group's `variant: filled-dashed` has the dashed frame of
 `dashed` and the shaded fill of `filled`.

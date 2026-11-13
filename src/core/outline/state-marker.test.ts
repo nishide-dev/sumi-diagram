@@ -25,6 +25,15 @@ describe("sumi/state-marker (#519)", () => {
     });
   });
 
+  test("a small explicit size is raised to the minimum that keeps a final marker's gap", () => {
+    expect(
+      stateMarker.footprint({ width: 1, height: 1 }, parse({ kind: "final", size: 4 })),
+    ).toEqual({
+      width: 12,
+      height: 12,
+    });
+  });
+
   for (const kind of STATE_MARKER_KINDS) {
     test(`${kind}: a closed circle in its footprint`, () => {
       const footprint = Object.freeze({ x: 3, y: 5, width: 24, height: 24 });

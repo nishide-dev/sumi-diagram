@@ -31,8 +31,11 @@ export const stateMarkerParams = z.strictObject({
 });
 export type StateMarkerParams = z.output<typeof stateMarkerParams>;
 
+/** Smallest diameter, in D2 units (6pt): below it a final marker's ring and gap vanish. */
+export const STATE_MARKER_MIN_DIAMETER = 12;
+
 export function stateMarkerDiameter({ kind, em, size }: StateMarkerParams): number {
-  return size ?? em * STATE_MARKER_DIAMETERS[kind];
+  return Math.max(STATE_MARKER_MIN_DIAMETER, size ?? em * STATE_MARKER_DIAMETERS[kind]);
 }
 
 function circle(cx: number, cy: number, r: number): Point[] {
@@ -43,7 +46,7 @@ function circle(cx: number, cy: number, r: number): Point[] {
 }
 
 /** The ring of a final marker, relative to its radius: from `RING_INNER` to 1. */
-const RING_INNER = 0.92;
+const RING_INNER = 0.84;
 /**
  * An annulus as two half rings, each a simple polygon (the right half from the
  * top to the bottom, then the left half back), so no polygon touches itself.
