@@ -251,6 +251,93 @@ export function fitSetOutline(
   return growToMinimum(fitTight(members, shape, padding, radius, angle), shape, min);
 }
 
+/** The outcome of {@link fitSetOutlineExact}: the outline, and the axes whose exact size the members do not fit. */
+export interface ExactSetOutline {
+  readonly outline: SetOutline;
+  readonly unmet: readonly ("width" | "height")[];
+}
+
+/**
+ * Fits an outline of exactly `exact` (units; either axis may be omitted: that
+ * axis is fitted) about the center of the tight fit (#545). It keeps the
+ * padding clear of every member. When the members do not fit that size the
+ * outline is the tight fit grown to at least `exact` (the members stay inside)
+ * and `unmet` names the axes that stayed larger than written.
+ */
+export function fitSetOutlineExact(
+  members: readonly MemberFootprint[],
+  shape: SetShape,
+  padding: number,
+  radius: number,
+  angle: number | "auto" | undefined,
+  exact: SetMinSize,
+  min?: SetMinSize,
+): ExactSetOutline {
+  const tight = fitTight(members, shape, padding, radius, angle);
+  const w = exact.width;
+  const h = exact.height;
+  const points = members.flatMap(footprintPoints);
+  let target: SetOutline | undefined;
+  const unmet: ("width" | "height")[] = [];
+  switch (tight.kind) {
+    case "ellipse": {
+      const circle = shape === "circle";
+      const rx = circle ? Math.max(w ?? 0, h ?? 0) / 2 || tight.rx : (w ?? tight.rx * 2) / 2;
+      const ry = circle ? rx : (h ?? tight.ry * 2) / 2;
+      const turn = ((tight.angle ?? 0) * Math.PI) / 180;
+      const [cos, sin] = [Math.cos(turn), Math.sin(turn)];
+      const inside = points.every((p) => {
+        const dx = p.x - tight.cx;
+        const dy = p.y - tight.cy;
+        const lx = dx * cos + dy * sin;
+        const ly = -dx * sin + dy * cos;
+        const ax = rx - padding;
+        const ay = ry - padding;
+        return ax > 0 && ay > 0 && (lx / ax) ** 2 + (ly / ay) ** 2 <= 1 + 1e-6;
+      });
+      if (inside) target = { ...tight, rx, ry };
+      else {
+        if (w !== undefined && tight.rx * 2 > w + EPSILON) unmet.push("width");
+        if (h !== undefined && tight.ry * 2 > h + EPSILON) unmet.push("height");
+        if (unmet.length === 0) unmet.push(w !== undefined ? "width" : "height");
+      }
+      break;
+    }
+    case "rect": {
+      const r = tight.rect;
+      if (
+        (w === undefined || r.width <= w + EPSILON) &&
+        (h === undefined || r.height <= h + EPSILON)
+      ) {
+        const nw = w ?? r.width;
+        const nh = h ?? r.height;
+        target = {
+          ...tight,
+          rect: {
+            x: r.x - (nw - r.width) / 2,
+            y: r.y - (nh - r.height) / 2,
+            width: nw,
+            height: nh,
+          },
+          radius: Math.min(tight.radius, nw / 2, nh / 2),
+        };
+      } else {
+        if (w !== undefined && r.width > w + EPSILON) unmet.push("width");
+        if (h !== undefined && r.height > h + EPSILON) unmet.push("height");
+      }
+      break;
+    }
+    case "path":
+      return { outline: tight, unmet };
+  }
+  if (target !== undefined) return { outline: growToMinimum(target, shape, min), unmet };
+  const lower = {
+    width: Math.max(w ?? 0, min?.width ?? 0),
+    height: Math.max(h ?? 0, min?.height ?? 0),
+  };
+  return { outline: growToMinimum(tight, shape, lower), unmet };
+}
+
 /** The least size of a set's outline in units (#518): its width and height, either may be omitted. */
 export interface SetMinSize {
   readonly width?: number;

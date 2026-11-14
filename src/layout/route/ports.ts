@@ -269,7 +269,12 @@ export function straightMarginDistance(rect: Rect, side: Side, at: number): numb
  * (`resolveEndsWith`), which for an end at the middle of its side is the
  * same point.
  */
-export function straightPlacement(self: Rect, other: Rect): StraightPlacement {
+export function straightPlacement(self: Rect, other: Rect, span = false): StraightPlacement {
+  const centred = straightCentred(self, other);
+  return span ? sharedSpan(self, other, centred) : centred;
+}
+
+function straightCentred(self: Rect, other: Rect): StraightPlacement {
   const apartY = bottomOf(self) <= other.y || bottomOf(other) <= self.y;
   const apartX = rightOf(self) <= other.x || rightOf(other) <= self.x;
   if (apartX && apartY) return { off: "diagonal" };
@@ -284,6 +289,31 @@ export function straightPlacement(self: Rect, other: Rect): StraightPlacement {
       : "east";
   const offset = straightOffset(self, side, apartY ? c.x : c.y);
   return offset === undefined ? { off: "beyond", side } : { side, offset };
+}
+
+/**
+ * `straight:span` (#545): where `centred` is `beyond` (the other's centre is
+ * not in line with the facing side) but the two extents overlap, the middle
+ * of the span they share: the one point both ends can take, so the line is
+ * straight without a fractional anchor. It must keep {@link STRAIGHT_MARGIN}
+ * from the corners of both sides.
+ */
+function sharedSpan(self: Rect, other: Rect, centred: StraightPlacement): StraightPlacement {
+  if (!("off" in centred) || centred.off !== "beyond" || centred.side === undefined) return centred;
+  const side = centred.side;
+  const vertical = side === "north" || side === "south";
+  const lo = Math.max(vertical ? self.x : self.y, vertical ? other.x : other.y);
+  const hi = Math.min(
+    vertical ? rightOf(self) : bottomOf(self),
+    vertical ? rightOf(other) : bottomOf(other),
+  );
+  if (!(hi > lo)) return centred;
+  const middle = (lo + hi) / 2;
+  const offset = straightOffset(self, side, middle);
+  if (offset === undefined || straightOffset(other, OPPOSITE_SIDE[side], middle) === undefined) {
+    return centred;
+  }
+  return { side, offset };
 }
 
 /** The side opposite `side`. */
@@ -717,7 +747,9 @@ function arrangeSides(
 function holdsPosition(edge: EdgeIR, rectOf: (key: ElementKey) => Rect): boolean {
   if (edge.toAnchor === undefined) return false;
   if (edge.toAnchor !== STRAIGHT_ANCHOR) return true;
-  return "offset" in straightPlacement(rectOf(edge.to), rectOf(edge.from));
+  return (
+    "offset" in straightPlacement(rectOf(edge.to), rectOf(edge.from), edge.straightSpan === true)
+  );
 }
 
 /** The key of an edge's end in the positions {@link spreadFanIn} returns. */
@@ -1217,7 +1249,7 @@ function resolveEndsWith(
     // `straight` (#179): in line with the other end on the facing side; where
     // there is none (`layout/straight-off-side`), the end is a default one.
     if (written === STRAIGHT_ANCHOR) {
-      const at = straightPlacement(self.rect, other.rect);
+      const at = straightPlacement(self.rect, other.rect, edge.straightSpan === true);
       if ("offset" in at) {
         return { side: at.side, offset: at.offset, inward, anchored: true, straight: true };
       }
@@ -1252,7 +1284,7 @@ function resolveEndsWith(
     // straight whatever side the arrange tree would pick.
     const facingStraight = isSource ? edge.toAnchor : edge.fromAnchor;
     if (facingStraight === STRAIGHT_ANCHOR && !isJunction(other.node)) {
-      const at = straightPlacement(other.rect, self.rect);
+      const at = straightPlacement(other.rect, self.rect, edge.straightSpan === true);
       if ("offset" in at) return { side: OPPOSITE_SIDE[at.side], inward: false, anchored: false };
     }
     if (inward) return { side: nearestSide(self.rect, other.rect), inward, anchored: false };
@@ -1421,7 +1453,7 @@ function resolveEndsWith(
         other === undefined || (other.side === OPPOSITE_SIDE[self.side] && !other.inward);
       const p = portAt(otherKey, other);
       const inLine = facingPort ? straightOffset(rect, self.side, vertical ? p.x : p.y) : undefined;
-      const centred = straightPlacement(rect, element(otherKey).rect);
+      const centred = straightPlacement(rect, element(otherKey).rect, edge.straightSpan === true);
       if (inLine !== undefined) self.offset = inLine;
       else if (!sharedOut.has(self)) self.offset = "offset" in centred ? centred.offset : 0.5;
     }

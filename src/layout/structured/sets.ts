@@ -11,7 +11,13 @@ import { glyphRects } from "../../assets/glyphs";
 import type { FigureIR, SetIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type { Point, Rect, SetOutline, TextMetrics } from "../ir";
-import { fitSetOutline, type MemberFootprint, outlineBounds, setLabelCenter } from "../set-shape";
+import {
+  fitSetOutline,
+  fitSetOutlineExact,
+  type MemberFootprint,
+  outlineBounds,
+  setLabelCenter,
+} from "../set-shape";
 import { measureText, type TextMeasurer } from "../text";
 
 /** A set fitted around its members, in the engine's coordinates (before the canvas shift). */
@@ -20,6 +26,8 @@ export interface FittedSet {
   readonly outline: SetOutline;
   /** The outline's bounding box. */
   readonly rect: Rect;
+  /** The axes whose exact `width` / `height` (#545) the members do not fit; empty when met. */
+  readonly unmet: readonly ("width" | "height")[];
   /** The measured label and where its center goes; omitted without a label. */
   readonly label?: { readonly metrics: TextMetrics; readonly center: Point };
 }
@@ -63,13 +71,39 @@ export function fitSets(
       ...(set.minWidthPt !== undefined && { width: set.minWidthPt * 2 }),
       ...(set.minHeightPt !== undefined && { height: set.minHeightPt * 2 }),
     };
-    const outline = fitSetOutline(members, set.shape, room, set.style.radius.units, set.angle, min);
+    const exact = {
+      ...(set.widthPt !== undefined && { width: set.widthPt * 2 }),
+      ...(set.heightPt !== undefined && { height: set.heightPt * 2 }),
+    };
+    const { outline, unmet } =
+      set.widthPt === undefined && set.heightPt === undefined
+        ? {
+            outline: fitSetOutline(
+              members,
+              set.shape,
+              room,
+              set.style.radius.units,
+              set.angle,
+              min,
+            ),
+            unmet: [] as ("width" | "height")[],
+          }
+        : fitSetOutlineExact(
+            members,
+            set.shape,
+            room,
+            set.style.radius.units,
+            set.angle,
+            exact,
+            min,
+          );
     const rect = outlineBounds(outline);
     const metrics = measureText(set.label, set.style, measurer);
     return {
       set,
       outline,
       rect,
+      unmet,
       ...(metrics !== undefined && {
         label: {
           metrics,

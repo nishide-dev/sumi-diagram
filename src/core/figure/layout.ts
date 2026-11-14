@@ -66,6 +66,15 @@ export interface Anchor {
  */
 export const STRAIGHT_ANCHOR = "straight";
 
+/**
+ * `straight:span` (#545): `straight`, and where the other end's centre is not
+ * over this side but the two overlap (boxes spanning several grid columns,
+ * offset by one), the end sits at the middle of the span they share, so the
+ * line is straight without a fractional anchor. Parsed as `straight`; the
+ * edge IR records the spelling (`straightSpan`).
+ */
+export const STRAIGHT_SPAN_ANCHOR = "straight:span";
+
 /** An edge anchor as written: a side and position, or {@link STRAIGHT_ANCHOR}. */
 export type EdgeAnchor = Anchor | typeof STRAIGHT_ANCHOR;
 
@@ -74,7 +83,7 @@ export type EdgeAnchor = Anchor | typeof STRAIGHT_ANCHOR;
  * (see `ANCHOR_PATTERN`).
  */
 export function parseAnchor(value: string): EdgeAnchor | undefined {
-  if (value === STRAIGHT_ANCHOR) return STRAIGHT_ANCHOR;
+  if (value === STRAIGHT_ANCHOR || value === STRAIGHT_SPAN_ANCHOR) return STRAIGHT_ANCHOR;
   const match = /^([a-z]+)(?::(\d+(?:\.\d+)?))?$/.exec(value);
   if (match === null) return undefined;
   const side = match[1] as Side;
@@ -197,6 +206,7 @@ function checkAuto(state: CheckState, locate: Locator): void {
       "sublabelInk",
       "textAlign",
       "grow",
+      "matchWidth",
       "lineWidth",
       "cornerRadius",
     ] as const) {
@@ -650,7 +660,7 @@ function checkStructured(state: CheckState, locate: Locator): void {
         errorAt(
           locate,
           "layout/invalid-anchor",
-          `Invalid anchor ${JSON.stringify(value)} at edges[${index}].${field}; expected "<side>", "<side>:<position>" or "straight".`,
+          `Invalid anchor ${JSON.stringify(value)} at edges[${index}].${field}; expected "<side>", "<side>:<position>", "straight" or "straight:span".`,
           ["edges", index, field],
           {
             subject: { kind: "edge", id: edge.id ?? `edges[${index}]` },
@@ -861,7 +871,7 @@ function anchorHint(value: string): string {
   const side = /^([a-z]+)/.exec(value.toLowerCase())?.[1];
   const suggestion =
     side === undefined ? undefined : closestMatch(side, [...SIDES, STRAIGHT_ANCHOR]);
-  const sides = `Sides: ${SIDES.join(", ")}; the position is a number from 0 to 1 (default 0.5), e.g. "south:0.25". Or "straight": in line with the other end, on the side facing it.`;
+  const sides = `Sides: ${SIDES.join(", ")}; the position is a number from 0 to 1 (default 0.5), e.g. "south:0.25". Or "straight": in line with the other end, on the side facing it ("straight:span": at the middle of the span the two share, for boxes that span several grid columns).`;
   return suggestion !== undefined && suggestion !== side
     ? `Did you mean "${suggestion}"? ${sides}`
     : sides;

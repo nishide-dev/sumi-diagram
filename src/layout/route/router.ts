@@ -829,7 +829,7 @@ class Router {
       const selfRect = rectOf(selfKey);
       const otherRect = rectOf(otherKey);
       if (selfRect === undefined || otherRect === undefined) continue;
-      const at = straightPlacement(selfRect, otherRect);
+      const at = straightPlacement(selfRect, otherRect, edge.straightSpan === true);
       const me = `"${this.#id(selfKey)}"`;
       const them = `"${this.#id(otherKey)}"`;
       const name = edge.id === undefined ? `edges[${edge.index}]` : `"${edge.id}"`;
@@ -2229,5 +2229,5 @@ function sharedSpan(self: Rect, other: Rect, side: Side, me: string, them: strin
   const mid = (start + end) / 2;
   const at = (offset: number) => Math.round(offset * 1000) / 1000;
   const opposite = { north: "south", south: "north", east: "west", west: "east" } as const;
-  return ` The two overlap across the same span, so a straight line fits there: anchor ${me} at "${side}:${at((mid - a0) / aLength)}" and ${them} at "${opposite[side]}:${at((mid - b0) / bLength)}".`;
+  return ` The two overlap across the same span, so a straight line fits there: write "straight:span" at both ends of the edge, or anchor ${me} at "${side}:${at((mid - a0) / aLength)}" and ${them} at "${opposite[side]}:${at((mid - b0) / bLength)}".`;
 }

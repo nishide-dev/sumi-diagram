@@ -13,9 +13,9 @@
 #   and make every row consume the new count (a `span` counts, so extend a span instead where
 #   the activity lasts longer), then move the time arrow's end junction to the last column;
 #   add a lane by inserting a row of `columns` cells; keep the 24mm width on single-cell items;
-#   a dependency anchor is the centre of a period inside the spanned box: with span width
-#   2*24+4 = 52mm the first period is 12/52 = 0.2308 and the second 40/52 = 0.7692, so
-#   recompute it (centre / box width) whenever widths, gaps or spans change.
+#   a dependency between two activities that overlap in some periods is `straight:span` at both
+#   ends: it drops through the middle of the periods they share, so no anchor needs recomputing
+#   when widths, gaps or spans change.
 # Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
 version: 1
 figure:
@@ -67,6 +67,6 @@ nodes:
         - {edge: {variant: dashed}, label: depends on}
 edges:
   - {from: t0, to: t1, label: time}
-  - {from: a1, to: b1, fromAnchor: "south:0.7692", toAnchor: "north:0.2308", variant: dashed}
-  - {from: b1, to: c2, fromAnchor: "south:0.7692", toAnchor: "north:0.2308", variant: dashed}
+  - {from: a1, to: b1, fromAnchor: "straight:span", toAnchor: "straight:span", variant: dashed}
+  - {from: b1, to: c2, fromAnchor: "straight:span", toAnchor: "straight:span", variant: dashed}
   - {from: a3, to: b2, variant: dashed}

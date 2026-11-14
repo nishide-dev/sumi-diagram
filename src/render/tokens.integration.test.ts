@@ -213,13 +213,16 @@ nodes:
       const bottom = layout.nodes.find((n) => n.key === `n:emb-${i + 4}`);
       expect(top?.rect.x).toBe(bottom?.rect.x);
     }
+    // The block cannot move; `head` takes cross-axis space instead (#545), so the constraint is met.
     expect(report.diagnostics.filter((d) => d.severity !== "info").map((d) => d.code)).toEqual([
       "lint/no-edges",
-      "layout/unsatisfied-align",
     ]);
-    const warning = report.diagnostics.find((d) => d.code === "layout/unsatisfied-align");
-    expect(warning?.path).toEqual(["figure", "layout", "align", 0]);
-    expect(warning?.location?.line).toBe(7);
+    const head = layout.nodes.find((n) => n.key === "n:head");
+    const cell = layout.nodes.find((n) => n.key === "n:emb-1");
+    expect((head?.rect.x ?? 0) + (head?.rect.width ?? 0) / 2).toBeCloseTo(
+      (cell?.rect.x ?? 0) + (cell?.rect.width ?? 0) / 2,
+      1,
+    );
   }
 });
 

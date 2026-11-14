@@ -20,7 +20,7 @@ import {
 import { type DocPath, hasErrors, type SourceLocation } from "../core/diagnostics";
 import { type ChatExpansion, chatKeys, chatVisuals } from "../core/figure/chat";
 import type { FigureCheck } from "../core/figure/check";
-import { type EdgeAnchor, parseAnchor } from "../core/figure/layout";
+import { type EdgeAnchor, parseAnchor, STRAIGHT_SPAN_ANCHOR } from "../core/figure/layout";
 import type {
   AlignConstraint,
   AlignGrowthMode,
@@ -307,6 +307,8 @@ export interface NodeIR extends ObjectIRBase {
   readonly sizing: NodeSizing;
   /** Relative share of opt-in main-axis growth; omitted means 1. */
   readonly grow?: number;
+  /** Nodes with the same name share the widest width (#545). */
+  readonly matchWidth?: string;
   /** Fixed, validated outline metadata; omitted for ordinary D2 shapes. */
   readonly render?: Readonly<OutlineRender>;
   /**
@@ -432,6 +434,8 @@ export interface EdgeIR extends ElementIRBase {
   readonly fromAnchor?: EdgeAnchor;
   /** Structured layout: where the edge enters the target (`straight`: in line with the source, #179). */
   readonly toAnchor?: EdgeAnchor;
+  /** An end is written `straight:span` (#545): straight through the middle of the span the ends share. */
+  readonly straightSpan?: true;
   /** Structured layout: where along the route the label sits (#128). Absent when not written. */
   readonly labelAt?: EdgeLabelPosition;
   /** Structured layout: the side of the line, facing from source to target (#128). Absent when not written. */
@@ -467,6 +471,9 @@ export interface SetIR {
   /** Least outline size in pt (#518); omitted means none. */
   readonly minWidthPt?: number;
   readonly minHeightPt?: number;
+  /** Exact outline size in pt (#545); omitted means fitted. */
+  readonly widthPt?: number;
+  readonly heightPt?: number;
   readonly variant: string;
   readonly style: SetStyle;
   /** Where the set is written (`sets[i]`), for diagnostics. */
@@ -704,6 +711,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
         shape: component.manifest.shape,
         sizing: component.manifest.sizing,
         ...(n.grow !== undefined && { grow: n.grow }),
+        ...(n.matchWidth !== undefined && { matchWidth: n.matchWidth }),
         ...(component.manifest.render !== undefined && {
           render: freeze({
             ...component.manifest.render,
@@ -905,6 +913,8 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
         ...(set.padding !== undefined && { paddingPt: set.padding }),
         ...(set.minWidth !== undefined && { minWidthPt: set.minWidth }),
         ...(set.minHeight !== undefined && { minHeightPt: set.minHeight }),
+        ...(set.width !== undefined && { widthPt: set.width }),
+        ...(set.height !== undefined && { heightPt: set.height }),
         variant: set.variant,
         style: resolveSetStyle(setTheme, {
           variant: set.variant,
@@ -1078,6 +1088,9 @@ function edgeIR(
     style: styleOf(state, key, "edge"),
     ...anchorIR("fromAnchor", e.fromAnchor),
     ...anchorIR("toAnchor", e.toAnchor),
+    ...(e.fromAnchor === STRAIGHT_SPAN_ANCHOR || e.toAnchor === STRAIGHT_SPAN_ANCHOR
+      ? { straightSpan: true as const }
+      : {}),
     ...(e.labelAt !== undefined && { labelAt: e.labelAt }),
     ...(e.labelSide !== undefined && { labelSide: e.labelSide }),
     ...(e.route !== undefined && { route: e.route }),
