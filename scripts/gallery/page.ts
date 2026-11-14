@@ -48,7 +48,6 @@ export interface GalleryModel {
   /** One figure under every built-in palette (#417). */
   palettes: { sample: PaletteSample; outcomes: RenderOutcome[] };
   /** Legend entries with icon, glyph, edge and set samples under every theme (#409). */
-  legends: { sample: ToneSample; outcomes: RenderOutcome[] };
   /** Every tone as an outline and on edges under every theme (#177). */
   outlinedTones: { sample: ToneSample; outcomes: RenderOutcome[] };
   filledTones: { sample: ToneSample; outcomes: RenderOutcome[] };
@@ -365,11 +364,6 @@ function htmlPalettes(palettes: GalleryModel["palettes"]): string {
 <details><summary>Source: <code>${escapeHtml(palettes.sample.fileName)}</code> (palette ${escapeHtml(palettes.sample.renderings[0]?.palette ?? "")})</summary><pre>${escapeHtml(palettes.sample.source)}</pre></details>`;
 }
 
-const LEGENDS_NOTE =
-  "A hypergraph encoder transforms document features into embeddings for contrastive learning. " +
-  "The legend identifies icon, glyph, set and edge samples, including positive and negative pairs. " +
-  "Entries use `flow: row`, `headings: inline` and `perRow` to group and wrap the samples.";
-
 const OUTLINED_TONES_NOTE =
   "With `variant: outlined` a tone colors the outline and the text of a node instead of its fill " +
   "(left column; without a tone, tone gray's). An edge's `tone` colors its line, arrowheads and " +
@@ -459,7 +453,7 @@ export function galleryHtml(model: GalleryModel): string {
 <main>
 <h1>Sumi component gallery</h1>
 <p class="note">${inlineCode(GENERATED_NOTE)}</p>
-<nav aria-label="Contents"><ul><li><a href="#components">Components</a></li><li><a href="#examples">Examples</a></li><li><a href="#themes">Themes</a></li><li><a href="#tones">Tones</a></li><li><a href="#dim">Dimmed groups</a></li><li><a href="#glyphs">Node glyphs</a></li><li><a href="#sets">Set enclosures</a></li><li><a href="#strokes">Stroke options</a></li><li><a href="#palettes">Palettes</a></li><li><a href="#legends">Legend samples</a></li><li><a href="#comparison">Profiles</a></li></ul><ul>${toc}</ul></nav>
+<nav aria-label="Contents"><ul><li><a href="#components">Components</a></li><li><a href="#examples">Examples</a></li><li><a href="#themes">Themes</a></li><li><a href="#tones">Tones</a></li><li><a href="#dim">Dimmed groups</a></li><li><a href="#glyphs">Node glyphs</a></li><li><a href="#sets">Set enclosures</a></li><li><a href="#strokes">Stroke options</a></li><li><a href="#palettes">Palettes</a></li><li><a href="#comparison">Profiles</a></li></ul><ul>${toc}</ul></nav>
 
 <h2 id="components">Components</h2>
 <p class="note">${inlineCode(`Every built-in component with every variant, under every built-in theme (profile \`${model.components[0]?.outcomes[0]?.profile ?? ""}\`). Each sample is the source shown below it; the other themes are rendered from the same source with \`--theme\`.`)}</p>
@@ -495,9 +489,6 @@ ${htmlTones(model.strokes, STROKES_NOTE, "stroke options")}
 
 <h2 id="palettes">Palettes</h2>
 ${htmlPalettes(model.palettes)}
-
-<h2 id="legends">Legend samples</h2>
-${htmlTones(model.legends, LEGENDS_NOTE, "legend samples")}
 
 <h2 id="comparison">Profiles</h2>
 ${profilesTable()}
@@ -657,11 +648,6 @@ const TOPICS = [
     "examples.md",
     "Examples",
     "The committed examples of `examples/`, rendered from their sources.",
-  ],
-  [
-    "legend-samples.md",
-    "Legend samples",
-    "Legend entries with icon, glyph, edge and set samples in rows under headings, under every theme.",
   ],
   [
     "themes.md",
@@ -879,20 +865,6 @@ function mdPalettes(model: GalleryModel): string {
   ]);
 }
 
-function mdLegends(model: GalleryModel): string {
-  return mdTopic("Legend samples", undefined, [
-    mdInline(LEGENDS_NOTE),
-    "",
-    ...mdThemeRow(
-      model.legends.outcomes,
-      model.legends.sample.fileName,
-      (o) => `legend samples, theme ${o.theme}`,
-      GALLERY_DIR,
-    ),
-    ...mdSource(model.legends.sample.fileName, model.legends.sample.source),
-  ]);
-}
-
 function mdCompare(model: GalleryModel): string {
   const lines = [
     "## Profiles",
@@ -946,7 +918,6 @@ function mdIndex(model: GalleryModel): string {
     "sets.md": ["Set enclosures"],
     "strokes.md": ["Stroke options"],
     "palettes.md": ["Palettes"],
-    "legend-samples.md": ["Legend samples"],
     "compare.md": ["Profiles", "One figure, every theme × profile"],
   };
   return [
@@ -1007,7 +978,6 @@ export function galleryMarkdownPages(model: GalleryModel): Map<string, string> {
   pages.set(`${GALLERY_DIR}/sets.md`, mdSets(model));
   pages.set(`${GALLERY_DIR}/strokes.md`, mdStrokes(model));
   pages.set(`${GALLERY_DIR}/palettes.md`, mdPalettes(model));
-  pages.set(`${GALLERY_DIR}/legend-samples.md`, mdLegends(model));
   pages.set(`${GALLERY_DIR}/compare.md`, mdCompare(model));
   return pages;
 }

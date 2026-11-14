@@ -1,6 +1,6 @@
 # Node glyphs
 
-[Gallery](README.md) · [Examples](examples.md) · [Legend samples](legend-samples.md) · [Themes](themes.md) · [Tones](tones.md) · [Dimmed groups](dim.md) · [Node glyphs](glyphs.md) · [Set enclosures](sets.md) · [Stroke options](strokes.md) · [Palettes](palettes.md) · [Profiles and comparison](compare.md)
+[Gallery](README.md) · [Examples](examples.md) · [Themes](themes.md) · [Tones](tones.md) · [Dimmed groups](dim.md) · [Node glyphs](glyphs.md) · [Set enclosures](sets.md) · [Stroke options](strokes.md) · [Palettes](palettes.md) · [Profiles and comparison](compare.md)
 
 Two encoders turn a caption and an image into embeddings for a classifier\. Soft gray vector glyphs mark raw features; solid blue and orange vectors distinguish the embeddings\. Their concatenation uses multiple <code>tones</code> and <code>direction: right</code>\. A dot marks a trainable model and a pill a frozen one\. Glyphs attach to node borders, with <code>dx</code> / <code>dy</code> offsets in ems; layout reserves their room and edges attach to the node body\.
 

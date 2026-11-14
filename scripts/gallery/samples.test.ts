@@ -16,7 +16,6 @@ import {
   dimSample,
   filledToneSample,
   glyphSample,
-  legendSample,
   outlinedToneSample,
   PROFILES,
   SAMPLE_PROFILE,
@@ -31,18 +30,16 @@ import {
 
 const samples = componentSamples();
 
-test("legend story uses the same relations and symbols as its key", () => {
-  const source = legendSample().source;
-  expect(source.startsWith("# Contrastive pre-training")).toBe(true);
-  expect(source).toContain("from: f1, to: e1, component: double-arrow, tone: blue");
-  expect(source).toContain("from: e1, to: g2, component: double-arrow, variant: dashed, tone: red");
-  expect(source).toContain(
-    "edge: { component: double-arrow, variant: dashed, tone: red }, label: Negative",
-  );
-  expect(source).toContain("members: [d1, t1, s1]");
-  expect(source.match(/enclose: footprint/g)).toHaveLength(2);
-  expect(source).not.toContain("tabler/database");
-  expect(source).toContain("tabler/flask");
+test("the sumi/legend sample shows every sample kind in every variant (#550)", () => {
+  const sample = samples.find((s) => s.entry.id === "sumi/legend");
+  if (!sample) throw new Error("no sumi/legend sample");
+  const source = sample.source;
+  expect(source).toContain("items: [default, plain]");
+  expect(source.match(/node: \{ tone: blue \}/g)).toHaveLength(2);
+  expect(source.match(/edge: \{ variant: dashed \}/g)).toHaveLength(2);
+  expect(source.match(/set: \{ tone: gray \}/g)).toHaveLength(2);
+  expect(source.match(/glyph: \{ kind: vector/g)).toHaveLength(2);
+  expect(source).toContain("members: [input, model]");
 });
 
 test("glyph and stroke stories preserve their visual semantics and slides profile", () => {
@@ -141,6 +138,8 @@ test("only slides rows of more than three node or group variants use the wide pr
     "sumi/stack",
     "sumi/bubble",
     "sumi/waveform",
+    // Two legends side by side (#550).
+    "sumi/legend",
     "sumi/container",
   ]);
   for (const sample of samples) {
@@ -180,7 +179,6 @@ test("every theme-wide sample passes structural lint under every theme (#177)", 
     glyphSample(),
     setsSample(),
     strokeSample(),
-    legendSample(),
   ]) {
     for (const theme of THEMES) {
       const source = sample.source.replace(/^ {2}theme: .*$/m, `  theme: ${theme}`);
