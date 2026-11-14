@@ -334,6 +334,12 @@ const number = (element: XmlElement, name: string, fallback?: number): number =>
   return value;
 };
 
+/** One shape of a head in user space. */
+export interface HeadOutline {
+  segments: PathSegment[];
+  closed: boolean;
+}
+
 /** A head placed at one end of a path, in the marker's coordinates. */
 export interface HeadFrame {
   refX: number;
@@ -344,8 +350,8 @@ export interface HeadFrame {
   toMarker(p: Point): Point;
   /** `true` inside the head's outline (at its stroke's center), in marker coordinates. */
   inside(p: Point): boolean;
-  /** The head's outlines (closed; a circle is four cubics) in user space. */
-  outlines(): PathSegment[][];
+  /** The head's shapes in user space (a circle is four cubics; a `path` of an open chevron is open). */
+  outlines(): HeadOutline[];
 }
 
 /**
@@ -382,7 +388,7 @@ export function headFrame(
   const scale = viewScale * unitScale;
   const shapes: ((p: Point) => boolean)[] = [];
   /** Each shape's outline in marker coordinates. */
-  const outlines: ((toUser: (p: Point) => Point) => PathSegment[])[] = [];
+  const outlines: ((toUser: (p: Point) => Point) => HeadOutline)[] = [];
   for (const shape of descendants(marker)) {
     if (shape === marker) continue;
     if (attribute(shape, "transform") !== undefined)
@@ -398,11 +404,14 @@ export function headFrame(
       for (let i = 0; i < values.length; i += 2)
         vertices.push({ x: values[i] as number, y: values[i + 1] as number });
       shapes.push((p) => insidePolygon(vertices, p));
-      outlines.push((toUser) => [
-        { command: "M", to: toUser(vertices[0] as Point) },
-        ...vertices.slice(1).map((v): PathSegment => ({ command: "L", to: toUser(v) })),
-        { command: "L", to: toUser(vertices[0] as Point) },
-      ]);
+      outlines.push((toUser) => ({
+        closed: true,
+        segments: [
+          { command: "M", to: toUser(vertices[0] as Point) },
+          ...vertices.slice(1).map((v): PathSegment => ({ command: "L", to: toUser(v) })),
+          { command: "L", to: toUser(vertices[0] as Point) },
+        ],
+      }));
     } else if (shape.name === "circle") {
       const cx = number(shape, "cx", 0);
       const cy = number(shape, "cy", 0);
@@ -412,14 +421,30 @@ export function headFrame(
         // Four cubics, 0.5523 of the radius for the control points.
         const k = 0.5522847498 * r;
         const at = (x: number, y: number) => toUser({ x: cx + x, y: cy + y });
-        return [
-          { command: "M", to: at(r, 0) },
-          { command: "C", c1: at(r, k), c2: at(k, r), to: at(0, r) },
-          { command: "C", c1: at(-k, r), c2: at(-r, k), to: at(-r, 0) },
-          { command: "C", c1: at(-r, -k), c2: at(-k, -r), to: at(0, -r) },
-          { command: "C", c1: at(k, -r), c2: at(r, -k), to: at(r, 0) },
-        ];
+        return {
+          closed: true,
+          segments: [
+            { command: "M", to: at(r, 0) },
+            { command: "C", c1: at(r, k), c2: at(k, r), to: at(0, r) },
+            { command: "C", c1: at(-k, r), c2: at(-r, k), to: at(-r, 0) },
+            { command: "C", c1: at(-r, -k), c2: at(-k, -r), to: at(0, -r) },
+            { command: "C", c1: at(k, -r), c2: at(r, -k), to: at(r, 0) },
+          ],
+        };
       });
+    } else if (shape.name === "path") {
+      // An open chevron (`composeOpenArrowheads()`): a stroke, no interior.
+      const parsed = parsePath(attribute(shape, "d") ?? "");
+      if (!parsed.ok) throw new Error("Unreadable path in an arrowhead marker.");
+      shapes.push(() => false);
+      outlines.push((toUser) => ({
+        closed: false,
+        segments: parsed.segments.map((seg): PathSegment => {
+          if (seg.command === "C")
+            return { command: "C", c1: toUser(seg.c1), c2: toUser(seg.c2), to: toUser(seg.to) };
+          return { command: seg.command, to: toUser(seg.to) };
+        }),
+      }));
     } else {
       throw new Error(`Unsupported <${shape.name}> in a hollow arrowhead marker.`);
     }

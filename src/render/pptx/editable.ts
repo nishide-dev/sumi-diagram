@@ -1514,7 +1514,7 @@ export function svgToEditablePptx(
             .filter((e) => e !== marker)
             .forEach((el, k) => {
               const outline = frame.outlines()[k];
-              const bounds = outline && new BoundsBuilder().addPath(outline).rect();
+              const bounds = outline && new BoundsBuilder().addPath(outline.segments).rect();
               if (!outline || !bounds) throw new Error(`Unbounded arrowhead of edge ${key}`);
               const fill = property(el, "fill");
               output.push(
@@ -1522,13 +1522,16 @@ export function svgToEditablePptx(
                   next++,
                   key,
                   bounds,
-                  geometry([{ segments: outline, filled: true }], bounds, emu),
-                  fill && fill !== "none"
-                    ? paint(fill, element.style.opacity)
-                    : paint(
-                        property(path, "stroke") ?? element.style.stroke,
-                        element.style.opacity,
-                      ),
+                  geometry([{ segments: outline.segments, filled: outline.closed }], bounds, emu),
+                  // An open chevron has no interior; a filled head takes its own fill.
+                  !outline.closed
+                    ? "<a:noFill/>"
+                    : fill && fill !== "none"
+                      ? paint(fill, element.style.opacity)
+                      : paint(
+                          property(path, "stroke") ?? element.style.stroke,
+                          element.style.opacity,
+                        ),
                   line(el, element.style, "", edgeStroke, true),
                 ),
               );
@@ -1548,14 +1551,14 @@ export function svgToEditablePptx(
           const drawn = [...descendants(marker)].filter((e) => e !== marker);
           drawn.forEach((el, k) => {
             const outline = frame.outlines()[k];
-            const bounds = outline && new BoundsBuilder().addPath(outline).rect();
+            const bounds = outline && new BoundsBuilder().addPath(outline.segments).rect();
             if (!outline || !bounds) throw new Error(`Unbounded arrowhead of edge ${key}`);
             output.push(
               shape(
                 next++,
                 key,
                 bounds,
-                geometry([{ segments: outline, filled: true }], bounds, emu),
+                geometry([{ segments: outline.segments, filled: outline.closed }], bounds, emu),
                 "<a:noFill/>",
                 line(el, element.style, "", edgeStroke),
               ),

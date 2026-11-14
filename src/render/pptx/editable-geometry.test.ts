@@ -221,3 +221,42 @@ test("a tail part too short to align draws only what the SVG pattern draws in it
   const longer = alignDashPhase(route, [[...line(9, 20)]], [4, 2], 0)[0]?.part ?? [];
   expect([longer[0]?.to.x, longer.at(-1)?.to.x]).toEqual([12, 20]);
 });
+
+test("a dashed tail ending in a gap keeps its head as a shape: filled triangle and open chevron", () => {
+  // 4 on / 2 off along 140..199; the label mask hides 130..197, leaving 197..199: the part
+  // starts 3 into the period and ends at 59 (5 in, a gap), shorter than the shift to 12.
+  const marker = (head: "triangle" | "open") =>
+    `<marker id="mk" markerWidth="12" markerHeight="12" refX="10.5" refY="6" viewBox="0 0 12 12" orient="auto" markerUnits="userSpaceOnUse">${
+      head === "triangle"
+        ? '<polygon points="0,0 12,6 0,12" fill="#112233" class="connection" stroke-width="1"/>'
+        : '<path d="M 0 0 L 12 6 L 0 12" fill="none" stroke="#112233" stroke-width="1"/>'
+    }</marker>`;
+  const source = (head: "triangle" | "open") =>
+    svg(200, 100, "M140 120L199 120").replace(
+      /<path class="connection"[^>]*\/>/,
+      `<mask id="m"><rect x="0" y="0" width="400" height="400" fill="white"/><rect x="130" y="110" width="67" height="20" fill="black"/></mask>${marker(head)}<path class="connection" d="M140 120L199 120" stroke="#000000" fill="none" style="stroke-dasharray:4,2;" marker-end="url(#mk)" mask="url(#m)"/>`,
+    );
+  for (const head of ["triangle", "open"] as const) {
+    const result = svgToEditablePptx(
+      source(head),
+      withEdge((e) => ({ ...e, targetArrowhead: head })),
+    );
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const slide = new TextDecoder().decode(readPptx(result.value).get("ppt/slides/slide1.xml"));
+    const shapes = (slide.match(/<p:sp>.*?<\/p:sp>/g) ?? []).filter((x) =>
+      x.includes('name="e:#0"'),
+    );
+    // No native head on a line that would paint into the gap; the head is its own shape.
+    expect(shapes.join("")).not.toMatch(/<a:(headEnd|tailEnd)/);
+    const tip = shapes.find((x) =>
+      head === "triangle"
+        ? x.includes("<a:close/>")
+        : /<a:lnTo>.*<a:lnTo>/.test(x) &&
+          !x.includes("<a:close/>") &&
+          x.includes('<a:path w="76200"'),
+    );
+    expect(tip).toBeDefined();
+    if (head === "triangle") expect(tip).toContain('<a:srgbClr val="112233">');
+    else expect(tip).toContain("<a:noFill/><a:ln");
+  }
+});
