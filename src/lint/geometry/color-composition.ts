@@ -238,6 +238,12 @@ export function translucentFindings(analysis: readonly Analysis[]): LintFinding[
 
 /** Colored nodes and sets have at least this chroma (OKLCH) in their own color. */
 export const COLORED_CHROMA = 0.025;
+/**
+ * A node that sets a tone other than `gray` is colored from this chroma, though
+ * below `COLORED_CHROMA`: sumi's pale blue fill has 0.012 and reads as blue just
+ * like the pale green (0.029). A white or gray fill (below this) is never colored (#548).
+ */
+export const TONED_CHROMA = 0.008;
 /** A panel is reported from this many colored elements: one or two accents on a pale panel (Llama 4's shared expert, an emphasized pair) are normal. */
 export const MIN_COLORED_ON_PANEL = 3;
 
@@ -256,7 +262,9 @@ export function panelFindings(analysis: readonly Analysis[]): LintFinding[] {
   for (const a of analysis) {
     const { item } = a;
     if ((item.kind !== "node" && item.kind !== "set") || a.samples.length === 0) continue;
-    if (toOklch(item.ink).c < COLORED_CHROMA) continue;
+    const chroma = toOklch(item.ink).c;
+    const toned = item.tone !== undefined && item.tone !== "gray";
+    if (chroma < (toned ? TONED_CHROMA : COLORED_CHROMA)) continue;
     const onPanel = a.samples.filter((s) => !isWhite(s.panel, a.canvas));
     if (onPanel.length < a.samples.length * SAMPLE_SHARE) continue;
     const panel = [...(onPanel[0] as Sample).under].reverse().find((u) => u.kind === "group");
