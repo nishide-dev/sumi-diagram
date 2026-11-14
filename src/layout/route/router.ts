@@ -829,7 +829,11 @@ class Router {
       const selfRect = rectOf(selfKey);
       const otherRect = rectOf(otherKey);
       if (selfRect === undefined || otherRect === undefined) continue;
-      const at = straightPlacement(selfRect, otherRect, edge.straightSpan === true);
+      const at = straightPlacement(
+        selfRect,
+        otherRect,
+        (leaving ? edge.fromSpan : edge.toSpan) === true,
+      );
       const me = `"${this.#id(selfKey)}"`;
       const them = `"${this.#id(otherKey)}"`;
       const name = edge.id === undefined ? `edges[${edge.index}]` : `"${edge.id}"`;

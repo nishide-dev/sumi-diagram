@@ -434,8 +434,9 @@ export interface EdgeIR extends ElementIRBase {
   readonly fromAnchor?: EdgeAnchor;
   /** Structured layout: where the edge enters the target (`straight`: in line with the source, #179). */
   readonly toAnchor?: EdgeAnchor;
-  /** An end is written `straight:span` (#545): straight through the middle of the span the ends share. */
-  readonly straightSpan?: true;
+  /** The end is written `straight:span` (#545): straight through the middle of the span the ends share. */
+  readonly fromSpan?: true;
+  readonly toSpan?: true;
   /** Structured layout: where along the route the label sits (#128). Absent when not written. */
   readonly labelAt?: EdgeLabelPosition;
   /** Structured layout: the side of the line, facing from source to target (#128). Absent when not written. */
@@ -1088,9 +1089,8 @@ function edgeIR(
     style: styleOf(state, key, "edge"),
     ...anchorIR("fromAnchor", e.fromAnchor),
     ...anchorIR("toAnchor", e.toAnchor),
-    ...(e.fromAnchor === STRAIGHT_SPAN_ANCHOR || e.toAnchor === STRAIGHT_SPAN_ANCHOR
-      ? { straightSpan: true as const }
-      : {}),
+    ...(e.fromAnchor === STRAIGHT_SPAN_ANCHOR && { fromSpan: true as const }),
+    ...(e.toAnchor === STRAIGHT_SPAN_ANCHOR && { toSpan: true as const }),
     ...(e.labelAt !== undefined && { labelAt: e.labelAt }),
     ...(e.labelSide !== undefined && { labelSide: e.labelSide }),
     ...(e.route !== undefined && { route: e.route }),

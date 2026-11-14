@@ -120,6 +120,30 @@ export function checkSets(state: CheckState, locate: Locator): void {
         ),
       );
     }
+    // A circle has one size: an exact width cannot meet a minimum on the other axis.
+    if (
+      set.shape === "circle" &&
+      ((set.width !== undefined && set.minHeight !== undefined) ||
+        (set.height !== undefined && set.minWidth !== undefined))
+    ) {
+      const [exact, least] =
+        set.width !== undefined
+          ? (["width", "minHeight"] as const)
+          : (["height", "minWidth"] as const);
+      report(
+        index,
+        errorAt(
+          locate,
+          "ref/set-size-conflict",
+          `Set "${set.id}" is a circle with ${exact} and ${least}; a circle has one size, so the minimum on the other axis would change the exact one.`,
+          [...path, least],
+          {
+            subject: subject(set.id),
+            hint: `Use shape: ellipse for different sizes per axis, or write only ${exact} (a circle is as large as the larger of width and height).`,
+          },
+        ),
+      );
+    }
     if (sets[index] === undefined) continue;
     if (
       set.shape === "hull" &&

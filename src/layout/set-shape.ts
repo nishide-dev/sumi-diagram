@@ -282,8 +282,11 @@ export function fitSetOutlineExact(
   switch (tight.kind) {
     case "ellipse": {
       const circle = shape === "circle";
-      const rx = circle ? Math.max(w ?? 0, h ?? 0) / 2 || tight.rx : (w ?? tight.rx * 2) / 2;
-      const ry = circle ? rx : (h ?? tight.ry * 2) / 2;
+      // The other axis keeps its fit, or the minimum written for it, before the test.
+      const rx = circle
+        ? Math.max(w ?? 0, h ?? 0) / 2 || tight.rx
+        : (w ?? Math.max(tight.rx * 2, min?.width ?? 0)) / 2;
+      const ry = circle ? rx : (h ?? Math.max(tight.ry * 2, min?.height ?? 0)) / 2;
       const turn = ((tight.angle ?? 0) * Math.PI) / 180;
       const [cos, sin] = [Math.cos(turn), Math.sin(turn)];
       const inside = points.every((p) => {
@@ -309,8 +312,8 @@ export function fitSetOutlineExact(
         (w === undefined || r.width <= w + EPSILON) &&
         (h === undefined || r.height <= h + EPSILON)
       ) {
-        const nw = w ?? r.width;
-        const nh = h ?? r.height;
+        const nw = w ?? Math.max(r.width, min?.width ?? 0);
+        const nh = h ?? Math.max(r.height, min?.height ?? 0);
         target = {
           ...tight,
           rect: {

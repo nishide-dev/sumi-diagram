@@ -70,6 +70,100 @@ describe("straight:span", () => {
     expect(points[0]?.x).toBeCloseTo(shared, 1);
   });
 
+  test("is always the middle of the shared span, even when the centre is over the side", () => {
+    // a spans [11, 111], b spans [51, 151]: a's centre (61) is over b, yet the line runs at 81.
+    const { layout, diagnostics } = lay(
+      doc(
+        {
+          arrange: {
+            stack: {
+              align: "start",
+              gap: "30pt",
+              items: [
+                { row: { gap: "0", items: ["p", "a"] } },
+                { row: { gap: "0", items: ["q", "b"] } },
+              ],
+            },
+          },
+        },
+        [box("p", "11pt"), box("a", "100pt"), box("q", "51pt"), box("b", "100pt")],
+        { edges: [edge("straight:span")] },
+      ),
+    );
+    expect(diagnostics.filter((d) => d.code === "layout/straight-off-side")).toEqual([]);
+    const points = layout.edges[0]?.route?.points ?? [];
+    const a = rect(layout, "a");
+    const b = rect(layout, "b");
+    expect(points[0]?.x).toBeCloseTo(
+      (Math.max(a.x, b.x) + Math.min(a.x + a.width, b.x + b.width)) / 2,
+      1,
+    );
+    expect(points[0]?.x).toBe(points[1]?.x);
+  });
+
+  test("without a shared span it warns", () => {
+    const { diagnostics } = lay(
+      doc(
+        {
+          arrange: {
+            stack: {
+              align: "start",
+              gap: "30pt",
+              items: [
+                { row: { gap: "0", items: ["a"] } },
+                { row: { gap: "0", items: ["q", "b"] } },
+              ],
+            },
+          },
+        },
+        [box("a", "40pt"), box("q", "100pt"), box("b", "40pt")],
+        { edges: [edge("straight:span")] },
+      ),
+    );
+    expect(codes(diagnostics)).toContain("layout/straight-off-side");
+  });
+
+  test("is per end: a plain straight end keeps its own rule", () => {
+    const { diagnostics } = lay(
+      doc({ arrange }, nodes, {
+        edges: [{ from: "a", to: "b", fromAnchor: "straight:span", toAnchor: "straight" }],
+      }),
+    );
+    // The `straight` end has no effect here (centre past the corner); the span end does not rescue it.
+    const found = diagnostics.filter((d) => d.code === "layout/straight-off-side");
+    expect(found.some((d) => d.path?.at(-1) === "toAnchor")).toBe(true);
+  });
+
+  test("two edges into one box, both ends straight:span, stay vertical", () => {
+    const { layout } = lay(
+      doc(
+        {
+          arrange: {
+            stack: {
+              align: "start",
+              gap: "30pt",
+              items: [
+                { row: { gap: "0", items: ["a", "p"] } },
+                { row: { gap: "0", items: ["q", "b"] } },
+              ],
+            },
+          },
+        },
+        nodes,
+        {
+          edges: [
+            edge("straight:span"),
+            { from: "p", to: "b", fromAnchor: "straight:span", toAnchor: "straight:span" },
+          ],
+        },
+      ),
+    );
+    for (const e of layout.edges) {
+      const points = e.route?.points ?? [];
+      expect(points.length).toBeGreaterThanOrEqual(2);
+    }
+  });
+
   test("plain straight keeps its rule (no effect, with the warning)", () => {
     const { diagnostics } = lay(doc({ arrange }, nodes, { edges: [edge("straight")] }));
     expect(codes(diagnostics)).toContain("layout/straight-off-side");
@@ -149,6 +243,12 @@ describe("align across a stack (cross-axis struts)", () => {
     );
     expect(codes(withAlign.diagnostics)).not.toContain("layout/unsatisfied-align");
     expect(rect(withAlign.layout, "b2").y).toBeCloseTo(rect(withAlign.layout, "a1").y, 2);
+    // Fixed baseline (the main-axis solution, recorded before cross-axis space existed).
+    expect(["a1", "b1", "b2"].map((id) => rect(withAlign.layout, id))).toEqual([
+      { x: 11, y: 67.677, width: 44, height: 34 },
+      { x: 75, y: 11, width: 44, height: 34 },
+      { x: 75, y: 67.677, width: 44, height: 34 },
+    ]);
   });
 });
 
@@ -173,6 +273,28 @@ describe("matchWidth", () => {
   test("leaves fixed-aspect shapes alone", () => {
     const placed = lay(doc(layout, nodes)).layout;
     expect(rect(placed, "o").width).toBe(rect(placed, "o").height);
+  });
+
+  test("warns when a grid stretch widens one member after the match", () => {
+    const { diagnostics } = lay(
+      doc(
+        { arrange: { grid: { columns: 2, align: "stretch", items: ["long", "x", "m1", "m2"] } } },
+        [
+          box("long", undefined, { label: "A very very very very long label here" }),
+          box("x"),
+          box("m1", undefined, { matchWidth: "k" }),
+          box("m2", undefined, { matchWidth: "k" }),
+        ],
+      ),
+    );
+    const found = diagnostics.find((d) => d.code === "layout/match-width-unmet");
+    expect(found?.severity).toBe("warning");
+    expect(found?.path).toEqual(["nodes", 3, "matchWidth"]);
+  });
+
+  test("is silent when the match holds", () => {
+    const { diagnostics } = lay(doc(layout, nodes));
+    expect(codes(diagnostics)).not.toContain("layout/match-width-unmet");
   });
 
   test("needs the structured layout", () => {
@@ -232,6 +354,23 @@ describe("set width and height", () => {
   test("a met size is silent", () => {
     const { diagnostics } = lay(doc({ arrange }, nodes, set({ width: "70mm", height: "60mm" })));
     expect(codes(diagnostics)).not.toContain("layout/set-size-too-small");
+  });
+
+  test("the minimum of the other axis applies before the fit test", () => {
+    const { layout, diagnostics } = lay(
+      doc({ arrange }, nodes, set({ width: "70mm", minHeight: "120mm" })),
+    );
+    expect(codes(diagnostics)).not.toContain("layout/set-size-too-small");
+    const o = outline(layout);
+    expect(o.rx * 2).toBeCloseTo((70 * 72) / 25.4 / 0.5, 0);
+    expect(o.ry * 2).toBeGreaterThanOrEqual((120 * 72) / 25.4 / 0.5 - 1);
+  });
+
+  test("a circle cannot take an exact size and a minimum on the other axis", () => {
+    const bad = checked(
+      doc({ arrange }, nodes, set({ shape: "circle", width: "70mm", minHeight: "90mm" })),
+    );
+    expect(codes(bad)).toContain("ref/set-size-conflict");
   });
 
   test("a rect takes the exact size too", () => {

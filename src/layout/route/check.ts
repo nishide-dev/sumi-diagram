@@ -412,7 +412,8 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
         const at = straightPlacement(
           rect,
           rects.get(other) as Rect,
-          edgeIR.get(edge.key)?.straightSpan === true,
+          (which === "from" ? edgeIR.get(edge.key)?.fromSpan : edgeIR.get(edge.key)?.toSpan) ===
+            true,
         );
         if ("offset" in at) {
           const along = SIDE_DIR[side] % 2 === 1 ? end.x : end.y;

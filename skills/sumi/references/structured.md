@@ -125,7 +125,8 @@ is written (or recomputed when a label changes). A node's own `props.width` coun
 its width in the comparison. Boxes only: circles, squares and outline components
 (`bowtie`, `trapezoid`, ...) keep their size; it needs the structured layout
 (`layout/structured-only`). A grid's `align: stretch` widens boxes to their column
-instead, which is the other way to a column of equal boxes.
+instead, which is the other way to a column of equal boxes; if a stretch widens only some
+members of one name, `layout/match-width-unmet` says so.
 
 ## Coordinate placement
 
@@ -200,7 +201,7 @@ members are node or group IDs (a group stands for its whole frame; `unknown memb
 | `angle` | `shape: ellipse` only (else `ref/set-angle-needs-ellipse`). `auto` turns the ellipse to the members (the smallest area; hugs diagonal members, like a hyperedge around a diagonal row), or degrees clockwise on the page (`rx` runs along it). Both fit the tightest ellipse that keeps `padding` clear of every member, with no 3:1 limit. Omitted: the axis-parallel ellipse above, unchanged |
 | `padding` | room between members and outline (default: the profile's group padding) |
 | `minWidth`, `minHeight` | least size of the outline (`circle`, `ellipse`, `rect`; `ref/set-min-size-needs-fixed-shape` on a hull). Lengths are rounded to the nearest 0.5pt like component sizes (`18mm` is the same for a box and a set minimum) and must be positive. A smaller fit grows about its own center, so several sets can share one size or aspect without hidden `junction` anchors; a circle takes the larger of the two. The fit's center is unchanged, so place the members symmetrically if the sets should line up |
-| `width`, `height` | the **exact** size of the outline (`circle`, `ellipse`, `rect`; a hull has no size), the same lengths as `minWidth`. The outline is that size about the center of the fit, so four sets can be exactly 58mm × 48mm without a `junction` to widen them; one axis alone leaves the other fitted. Members that do not fit inside it (with `padding`) keep the outline as large as they need and `layout/set-size-too-small` (warning) gives both sizes: make the size larger, bring the members closer or drop it. With `minWidth` / `minHeight` of the same axis it is `ref/set-size-conflict` |
+| `width`, `height` | the **exact** size of the outline (`circle`, `ellipse`, `rect`; a hull has no size), the same lengths as `minWidth`. The outline is that size about the center of the fit, so four sets can be exactly 58mm × 48mm without a `junction` to widen them; one axis alone leaves the other fitted. Members that do not fit inside it (with `padding`) keep the outline as large as they need and `layout/set-size-too-small` (warning) gives both sizes: make the size larger, bring the members closer or drop it. With `minWidth` / `minHeight` of the same axis it is `ref/set-size-conflict`; the minimum of the other axis applies first (`width` + `minHeight` is fine), but a `circle` cannot take both |
 | `enclose` | `body` (default) fits member bodies and badges; `footprint` also includes their glyphs before adding padding. Larger outlines can cover nearby non-members. |
 | `overlap` | `mix` (default) or `multiply` (legacy). `figure.setOverlap` sets the figure-wide default; a set overrides it. All participating sets contribute, including five or more; if they disagree, `multiply` wins. Unfilled sets do not paint overlaps. At the 1024-region budget, `layout/set-overlap-budget` warns that deeper intersections can omit colors; reduce overlaps or split the figure. |
 | `label`, `labelAt` | outside the outline: `top` (default), `bottom`, `left`, `right`, or beside a diagonal extreme `top-left`, `top-right`, `bottom-left`, `bottom-right`. For a label inside, make a `label` node a member |
@@ -464,7 +465,7 @@ straight line when a wide end faces a narrower one whose center is over it.
 several columns and are offset by one (a plan whose activities last two periods and
 follow each other) share a stretch of columns, but neither centre is over the other,
 so `straight` has no effect (`layout/straight-off-side`). Write `straight:span` at both
-ends instead: the line drops through the middle of the span the two share (3pt inside
+ends instead (the mode is per end; a written end always takes the middle, even when the other centre is over the side): the line drops through the middle of the span the two share (3pt inside
 the corners of both sides), with no fractional anchor such as `south:0.7692` to
 recompute when a width or gap changes. Without a shared span, or too narrow a one, it
 is the same off-side warning as `straight`. `straight` keeps its rule everywhere else.

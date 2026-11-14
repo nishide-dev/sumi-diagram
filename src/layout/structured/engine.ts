@@ -348,13 +348,41 @@ class StructuredLayout {
    * `matchWidth` (#545): the nodes that write one name take the widest body
    * among them. Fixed-aspect shapes and outline components keep their size.
    */
-  #matchWidths(ir: FigureIR): void {
+  #matchGroups(ir: FigureIR): Map<string, NodeIR[]> {
     const named = new Map<string, NodeIR[]>();
     for (const node of ir.nodes) {
       if (node.matchWidth === undefined || node.sizing === "fixed-aspect-1") continue;
       if (node.render !== undefined || node.component === SEPARATOR_ID) continue;
       named.set(node.matchWidth, [...(named.get(node.matchWidth) ?? []), node]);
     }
+    return named;
+  }
+
+  /** `layout/match-width-unmet`: a stretch (grid / stack `align: stretch`) widened a member after matching. */
+  #matchWidthDiagnostics(): Diagnostic[] {
+    const out: Diagnostic[] = [];
+    for (const [name, nodes] of this.#matchGroups(this.#ir)) {
+      const widths = nodes.map((n) => this.#rects.get(n.key)?.width ?? 0);
+      const widest = Math.max(...widths);
+      const odd = nodes.filter((_, i) => widest - (widths[i] ?? 0) > 0.5);
+      if (odd.length === 0) continue;
+      const first = odd[0] as NodeIR;
+      const source = this.#ir.sourceMap.get(first.key);
+      out.push({
+        code: "layout/match-width-unmet",
+        severity: "warning",
+        message: `The nodes of matchWidth "${name}" end up with different widths (${odd.map((n) => `"${n.id}"`).join(", ")} narrower than the widest): an align: stretch widened another member to its cell after the widths were matched.`,
+        path: [...(source?.path ?? ["nodes"]), "matchWidth"],
+        ...(source?.location !== undefined && { location: source.location }),
+        subject: { kind: "node", id: first.id },
+        hint: "Use either matchWidth or align: stretch for these nodes (stretch makes a node as wide as its column or stack), or give every member the same column width.",
+      });
+    }
+    return out;
+  }
+
+  #matchWidths(ir: FigureIR): void {
+    const named = this.#matchGroups(ir);
     const bodyWidth = (node: NodeIR) => {
       const extra = this.#badgeOverhangs.get(node.key) ?? NO_OVERHANG;
       return (this.#leafSizes.get(node.key)?.width ?? 0) - extra.west - extra.east;
@@ -449,7 +477,7 @@ class StructuredLayout {
   }
 
   placementDiagnostics(): Diagnostic[] {
-    const diagnostics: Diagnostic[] = [...this.#setDiagnostics];
+    const diagnostics: Diagnostic[] = [...this.#setDiagnostics, ...this.#matchWidthDiagnostics()];
     for (const box of this.#boxSizes.keys()) {
       if (box.kind === "chat") diagnostics.push(...this.#chatGeometry(box).diagnostics);
       if (box.centerOn !== undefined) {
