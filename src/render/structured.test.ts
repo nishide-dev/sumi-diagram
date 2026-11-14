@@ -265,6 +265,8 @@ describe("geometry lint on structured SVGs", () => {
               ["info", "geometry/color-on-panel"],
               ["info", "geometry/group-empty-area"],
               ["info", "geometry/group-empty-area"],
+              // The original's edge label sits 0.25mm from its line (#546).
+              ["info", "geometry/edge-label-hugging"],
             ]
           : path === "examples/transformer/transformer.sumi.yaml"
             ? [
