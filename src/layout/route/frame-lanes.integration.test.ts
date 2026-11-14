@@ -121,3 +121,84 @@ describe("fan padding (#512)", () => {
     expect(await width(edges(["a", "b", "c"]))).toBeGreaterThan(single);
   });
 });
+
+describe("trunks between boxes beside a frame (#512)", () => {
+  const nearBorder = async (source: string) =>
+    lintGeometry((await routes(source)).rendered).filter(
+      (d) => d.code === "geometry/edge-near-border",
+    );
+
+  // The 2-web-system case: two services, one below the other, both write to
+  // one store inside the next group. Their shared trunk turns in that
+  // group's padding.
+  const FAN_IN = `
+version: 1
+figure:
+  id: fan-in
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      row: {gap: 14mm, align: start, items: [services, data]}
+groups:
+  - id: services
+    label: Services
+    arrange: {stack: {gap: 4mm, items: [a, b]}}
+  - id: data
+    label: Data
+    arrange: {stack: {gap: 14mm, items: [top, store]}}
+nodes:
+  - {id: a, component: box, label: A}
+  - {id: b, component: box, label: B}
+  - {id: top, component: box, label: Top}
+  - {id: store, component: cylinder, label: Store}
+edges:
+  - {from: a, to: store}
+  - {from: b, to: store}
+`;
+
+  test("edges from several boxes into one member keep their trunk off the frame", async () => {
+    const { paths, svg } = await routes(FAN_IN);
+    const frames = [...svg.matchAll(/<rect x="([\d.]+)"[^>]*fill="#efeddd"/g)].map((m) =>
+      Number(m[1]),
+    );
+    const trunk = (paths[0] as { x: number }[])[1]?.x as number;
+    const frame = Math.max(...frames);
+    expect(trunk - frame).toBeGreaterThanOrEqual(6);
+    expect(await nearBorder(FAN_IN)).toEqual([]);
+  });
+
+  // The 7-request-states case: an edge reaches a member's south port from
+  // above, so it turns below the member, in the group's padding.
+  const U_TURN = `
+version: 1
+figure:
+  id: u-turn
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      row: {gap: 14mm, align: start, items: [src, grp]}
+groups:
+  - id: grp
+    label: Group
+    labelAt: above-left
+    arrange: {stack: {gap: 5mm, items: [a, b]}}
+nodes:
+  - {id: src, component: box, label: Source}
+  - {id: a, component: box, label: A}
+  - {id: b, component: box, label: B}
+edges:
+  - {from: src, to: b, fromAnchor: south, toAnchor: south}
+`;
+
+  test("a U-turn into a member's far side keeps its trunk off the frame", async () => {
+    expect(await nearBorder(U_TURN)).toEqual([]);
+    const { paths, svg } = await routes(U_TURN);
+    const frame =
+      /<rect x="[\d.]+" y="([\d.]+)" width="[\d.]+" height="([\d.]+)"[^>]*fill="#efeddd"/.exec(svg);
+    const bottom = Number(frame?.[1]) + Number(frame?.[2]);
+    const lowest = Math.max(...(paths[0] as { y: number }[]).map((p) => p.y));
+    expect(Math.abs(lowest - bottom)).toBeGreaterThanOrEqual(6);
+  });
+});
