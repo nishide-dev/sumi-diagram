@@ -30,6 +30,8 @@ export interface PaintItem {
   readonly alpha: number;
   /** The color the author chose before it was mixed into white: a set's line color (its tint is the pale mix). */
   readonly ink: string;
+  /** The `tone` a node or group sets, if any (#548): its name says whether it is a hue when a pale tone's chroma is too low to. */
+  readonly tone?: string;
   readonly region: Region;
   readonly bbox: Rect;
   readonly docPath: DocPath;
@@ -102,6 +104,7 @@ export function paintItems(context: GeometryContext, options: PaintOptions = {})
       color,
       alpha: e.ir.style.opacity,
       ink: color,
+      ...(e.ir.kind !== "edge" && e.ir.tone !== undefined && { tone: e.ir.tone }),
       region: kind === "group" ? rectPolygon(e.bbox) : (e.outline ?? rectPolygon(e.bbox)),
       bbox: e.bbox,
       docPath: e.docPath,

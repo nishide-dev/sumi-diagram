@@ -20,7 +20,7 @@
  * (docs/design/decisions/440-color-composition.md).
  */
 
-import { deltaE, type Oklch, toOklab, toOklch } from "../../core/theme/color-math";
+import { deltaE, type Oklch, toOklch } from "../../core/theme/color-math";
 import { defineGeometryRule, type LintFinding } from "../rule";
 import { type Analysis, analysisOf, type PaintItem, type Sample } from "./composite";
 
@@ -239,11 +239,11 @@ export function translucentFindings(analysis: readonly Analysis[]): LintFinding[
 /** Colored nodes and sets have at least this chroma (OKLCH) in their own color. */
 export const COLORED_CHROMA = 0.025;
 /**
- * An element whose chroma is below `COLORED_CHROMA` is still colored when its hue and chroma
- * differ from the panel's by this much (OKLab a/b distance): sumi's pale blue (chroma 0.012)
- * on the warm gray panel reads as a blue block like the pale green (0.029) does (#548).
+ * A node that sets a tone other than `gray` is colored from this chroma, though
+ * below `COLORED_CHROMA`: sumi's pale blue fill has 0.012 and reads as blue just
+ * like the pale green (0.029). A white or gray fill (below this) is never colored (#548).
  */
-export const COLORED_FROM_PANEL = 0.02;
+export const TONED_CHROMA = 0.008;
 /** A panel is reported from this many colored elements: one or two accents on a pale panel (Llama 4's shared expert, an emphasized pair) are normal. */
 export const MIN_COLORED_ON_PANEL = 3;
 
@@ -256,13 +256,6 @@ export const colorOnPanel = defineGeometryRule({
   run: (context) => panelFindings(analysisOf(context)),
 });
 
-/** The distance between two colors in the OKLab a/b plane: hue and chroma, not lightness. */
-const abDistance = (a: string, b: string): number => {
-  const [, a1, b1] = toOklab(a);
-  const [, a2, b2] = toOklab(b);
-  return Math.hypot(a1 - a2, b1 - b2);
-};
-
 /** The findings of `geometry/color-on-panel` on an analysis. */
 export function panelFindings(analysis: readonly Analysis[]): LintFinding[] {
   const byPanel = new Map<PaintItem, PaintItem[]>();
@@ -270,11 +263,12 @@ export function panelFindings(analysis: readonly Analysis[]): LintFinding[] {
     const { item } = a;
     if ((item.kind !== "node" && item.kind !== "set") || a.samples.length === 0) continue;
     const chroma = toOklch(item.ink).c;
+    const toned = item.tone !== undefined && item.tone !== "gray";
+    if (chroma < (toned ? TONED_CHROMA : COLORED_CHROMA)) continue;
     const onPanel = a.samples.filter((s) => !isWhite(s.panel, a.canvas));
     if (onPanel.length < a.samples.length * SAMPLE_SHARE) continue;
     const panel = [...(onPanel[0] as Sample).under].reverse().find((u) => u.kind === "group");
     if (panel === undefined) continue;
-    if (chroma < COLORED_CHROMA && abDistance(item.ink, panel.color) < COLORED_FROM_PANEL) continue;
     byPanel.set(panel, [...(byPanel.get(panel) ?? []), item]);
   }
   const findings: LintFinding[] = [...byPanel]

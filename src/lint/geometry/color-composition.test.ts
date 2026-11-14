@@ -343,30 +343,40 @@ describe("calibration on the repository's figures (#440)", () => {
   });
 });
 
-describe("geometry/color-on-panel across tones of the sumi theme (#548)", () => {
-  const panelOf = (tone: string) => `version: 1
+describe("geometry/color-on-panel across tones (#548)", () => {
+  const TONES = ["red", "orange", "yellow", "green", "blue", "purple", "pink"];
+  const panelOf = (theme: string, panel: string, tone: string, variant = "filled") => `version: 1
 figure:
   id: tones
-  theme: sumi
+  theme: ${theme}
   layout:
     arrange: { row: { gap: 4mm, items: [g] } }
 groups:
   - id: g
     caption: Panel
-    tone: gray
+    tone: ${panel}
     variant: filled
     arrange: { row: { gap: 4mm, items: [a, b, c] } }
 nodes:
-${["a", "b", "c"].map((id) => `  - { id: ${id}, component: box, label: ${id}, tone: ${tone}, variant: filled }`).join("\n")}
+${["a", "b", "c"].map((id) => `  - { id: ${id}, component: box, label: ${id}, ${tone === "none" ? "" : `tone: ${tone}, `}variant: ${variant} }`).join("\n")}
 edges: []
 `;
+  const count = async (source: string) =>
+    panelFindings(analyze(paintItems(await contextOf(source)))).length;
 
-  test("every chromatic tone is reported alike, pale blue as much as pale green; gray is not", async () => {
-    for (const tone of ["red", "orange", "yellow", "green", "blue", "purple", "pink"]) {
-      const context = await contextOf(panelOf(tone));
-      expect(panelFindings(analyze(paintItems(context))), tone).toHaveLength(1);
+  test("in sumi every chromatic tone is reported alike, on a gray panel and on a panel of its own tone", async () => {
+    for (const tone of TONES) {
+      expect(await count(panelOf("sumi", "gray", tone)), `${tone} on gray`).toBe(1);
+      expect(await count(panelOf("sumi", tone, tone)), `${tone} on ${tone}`).toBe(1);
     }
-    const gray = await contextOf(panelOf("gray"));
-    expect(panelFindings(analyze(paintItems(gray)))).toEqual([]);
+    expect(await count(panelOf("sumi", "gray", "gray"))).toBe(0);
+  });
+
+  test("neutral boxes (default outlined, white) on a colored panel are not colored, in any theme", async () => {
+    for (const theme of ["sumi", "paper", "color", "llama", "academic"]) {
+      for (const panel of ["blue", "green", "gray"]) {
+        expect(await count(panelOf(theme, panel, "none", "outlined")), `${theme} ${panel}`).toBe(0);
+      }
+    }
   });
 });
