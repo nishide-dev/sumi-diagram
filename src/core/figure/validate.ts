@@ -18,13 +18,7 @@ import {
   nodeKey,
   type PartialFigure,
 } from "../check-state";
-import {
-  closestMatch,
-  type Diagnostic,
-  type DocPath,
-  didYouMean,
-  formatDocPath,
-} from "../diagnostics";
+import { type Diagnostic, type DocPath, didYouMean, formatDocPath } from "../diagnostics";
 import { builtinRegistry } from "../registry/builtins";
 import { RESERVED_KEY, reservedKeyMessage, reservedKeyPaths } from "../reserved-keys";
 import { errorAt } from "./report";
@@ -249,8 +243,10 @@ function issueToDiagnostics(
     case "unrecognized_keys": {
       const known = objectKeysAt(schema, relative);
       // Elements (nodes, edges, groups) carry component options under `props`.
-      const props = known.includes("props") ? componentPropNames() : [];
-      return issue.keys.map((key) => errorAt(locate, ...unknownField(key, path, known, props)));
+      const component = known.includes("props")
+        ? elementComponent(valueAt(root, relative), path)
+        : undefined;
+      return issue.keys.map((key) => errorAt(locate, ...unknownField(key, path, known, component)));
     }
     case "invalid_type":
       if (actual === undefined) {
@@ -341,16 +337,15 @@ function unknownField(
   key: string,
   path: DocPath,
   known: readonly string[],
-  props: readonly string[] = [],
+  component?: { id: string; props: readonly string[] },
 ): ErrorArgs {
   // A component option written beside the element's own fields (`height: 10`
-  // on a node) belongs under `props`; that beats a near-miss field name such
-  // as `weight` (#549).
-  // Props come first so that they win ties in the edit distance.
-  const near = closestMatch(key, [...props, ...known]);
+  // on a node) belongs under `props`. Only the exact name of one of the
+  // element's own component's props says so; a near miss stays a typo of an
+  // element field (#549).
   const suggestion =
-    near !== undefined && props.includes(near) && !known.includes(near)
-      ? `"${near}" is a component option: write it under props (props: { ${near}: ... }).`
+    component?.props.includes(key) && !known.includes(key)
+      ? `"${key}" is an option of ${component.id}: write it under props (props: { ${key}: ... }).`
       : didYouMean(key, known);
   return [
     "schema/unknown-field",
@@ -363,18 +358,23 @@ function unknownField(
   ];
 }
 
-let propNames: string[] | undefined;
+const DEFAULT_COMPONENT: Record<string, string> = { groups: "container", edges: "arrow" };
 
-/** Every option name any built-in component takes under `props`. */
-function componentPropNames(): string[] {
-  propNames ??= [
-    ...new Set(
-      builtinRegistry()
-        .list()
-        .flatMap((manifest) => objectKeysAt(manifest.props, [])),
-    ),
-  ].sort();
-  return propNames;
+/**
+ * The built-in component of a node, group or edge and the names of its props,
+ * or `undefined` when the component is not a built-in (custom components are
+ * resolved later, so no claim is made about their props).
+ */
+function elementComponent(
+  element: unknown,
+  path: DocPath,
+): { id: string; props: readonly string[] } | undefined {
+  const ref = isRecord(element) ? element.component : undefined;
+  const name = typeof ref === "string" ? ref : DEFAULT_COMPONENT[String(path[0])];
+  if (name === undefined) return undefined;
+  const id = name.includes("/") ? name : `sumi/${name}`;
+  const manifest = builtinRegistry().get(id);
+  return manifest === undefined ? undefined : { id, props: objectKeysAt(manifest.props, []) };
 }
 
 /** Keys of the object schema at `path` inside `schema`, or `[]`. */

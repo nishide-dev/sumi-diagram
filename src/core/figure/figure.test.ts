@@ -135,25 +135,24 @@ describe("diagnostic details", () => {
   });
 
   test("a component option beside the element's fields is pointed to props (#549)", () => {
-    const source = [
-      "version: 1",
-      "figure:",
-      "  id: t",
-      "nodes:",
-      "  - id: a",
-      "    component: box",
-      "    height: 10",
-      "    heigth: 10",
-      "    wieght: 3",
-      "",
-    ].join("\n");
-    const { state } = checkFigureSource(source, { file: "t.sumi.yaml" });
-    const hints = state.diagnostics.map((d) => d.hint ?? "");
-    expect(hints[0]).toContain('"height" is a component option');
-    expect(hints[0]).toContain("props");
-    expect(hints[0]).not.toContain("weight");
-    expect(hints[1]).toContain('"height" is a component option');
-    expect(hints[2]).toContain('Did you mean "weight"?');
+    const hintsFor = (component: string, keys: string[]) => {
+      const lines = keys.map((k) => `    ${k}: 10`);
+      const source = `version: 1\nfigure:\n  id: t\nnodes:\n  - id: a\n    component: ${component}\n${lines.join("\n")}\n`;
+      return checkFigureSource(source, { file: "t.sumi.yaml" }).state.diagnostics.map(
+        (d) => d.hint ?? "",
+      );
+    };
+    const [exact, typo, shifted] = hintsFor("box", ["height", "heigth", "eight"]);
+    expect(exact).toContain('"height" is an option of sumi/box: write it under props');
+    expect(exact).not.toContain("weight");
+    // Near misses stay typos of an element field.
+    expect(typo).not.toContain("under props");
+    expect(shifted).toContain('Did you mean "weight"?');
+    expect(hintsFor("box", ["gruop"])[0]).toContain('Did you mean "group"?');
+    // Only the element's own component counts: a label takes no `direction`.
+    expect(hintsFor("label", ["direction"])[0]).not.toContain("under props");
+    // A component that is not built in makes no claim.
+    expect(hintsFor("acme/thing", ["height"])[0]).not.toContain("under props");
   });
 
   test("unknown references suggest the closest ID", async () => {

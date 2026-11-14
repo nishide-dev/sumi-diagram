@@ -9,7 +9,7 @@
  * the element's path.
  */
 
-import type { z } from "zod";
+import { z } from "zod";
 import { type Diagnostic, type DocPath, didYouMean, formatDocPath } from "../diagnostics";
 import { getOutlineRenderer } from "../outline";
 import type { Result } from "../result";
@@ -292,7 +292,9 @@ function propIssue(
     }
   }
   if (issue.code === "unrecognized_keys") {
-    const known = Object.keys(manifest.props.shape);
+    // The object that holds the unknown key: the props, or a nested object
+    // reached through a union (a matrix cell).
+    const known = Object.keys(objectAt(manifest.props, relative)?.shape ?? manifest.props.shape);
     return issue.keys.map((key) =>
       error("component/unknown-prop", `Unknown prop "${key}" for ${id}.`, [...path, key], {
         hint:
@@ -309,13 +311,53 @@ function propIssue(
     issue.code === "custom"
       ? issue.params?.hint
       : issue.code === "invalid_type" && issue.message.endsWith("received null")
-        ? "A null value (`~`) is not accepted here: omit the key, or write the value."
+        ? nullHint(manifest, relative)
         : undefined;
   return [
     error("component/invalid-prop", `Invalid ${subject} for ${id}: ${message}.`, path, {
       ...(typeof hint === "string" && { hint }),
     }),
   ];
+}
+
+/** What to do about a null (`~`) value: omit an optional field, give a required one a value. */
+function nullHint(manifest: ComponentManifest, relative: readonly PropertyKey[]): string {
+  const key = relative.at(-1);
+  const parent = objectAt(manifest.props, relative.slice(0, -1));
+  const field = typeof key === "string" ? parent?.shape[key] : undefined;
+  return field?.safeParse(undefined).success
+    ? "A null value (`~`) is not accepted here: omit the key, or write the value."
+    : "A null value (`~`) is not accepted here: this field is required, so write a value.";
+}
+
+/** The object schema at `path` inside `schema`, looking through wrappers, arrays and unions. */
+function objectAt(schema: z.ZodType, path: readonly PropertyKey[]): z.ZodObject | undefined {
+  const [head, ...rest] = path;
+  let current: unknown = schema;
+  while (
+    current instanceof z.ZodOptional ||
+    current instanceof z.ZodDefault ||
+    current instanceof z.ZodPrefault ||
+    current instanceof z.ZodPipe
+  ) {
+    current = current instanceof z.ZodPipe ? current.in : current.unwrap();
+  }
+  if (current instanceof z.ZodUnion) {
+    for (const option of current.options) {
+      const found = objectAt(option as z.ZodType, path);
+      if (found !== undefined) return found;
+    }
+    return undefined;
+  }
+  if (head === undefined) return current instanceof z.ZodObject ? current : undefined;
+  if (current instanceof z.ZodArray && typeof head === "number") {
+    return objectAt(current.element as z.ZodType, rest);
+  }
+  if (current instanceof z.ZodObject && typeof head === "string") {
+    const next = current.shape[head];
+    return next === undefined ? undefined : objectAt(next as z.ZodType, rest);
+  }
+  return undefined;
 }
 
 function error(

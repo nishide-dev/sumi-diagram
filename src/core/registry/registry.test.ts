@@ -538,8 +538,25 @@ describe("validateUsage", () => {
       code: "component/invalid-prop",
       path: ["props", "cells", 0, 0, "text"],
     });
-    expect(d?.message).not.toBe('Invalid prop "cells[0]" for sumi/matrix: Invalid input.');
     expect(d?.hint).toContain("omit the key");
+  });
+
+  test("a null required field is told to take a value; nested unknown keys suggest nested keys (#549)", () => {
+    const matrix = builtinRegistry().get("sumi/matrix") as ComponentManifest;
+    const header = registry.validateUsage(matrix, {
+      props: { cells: ["o"], classes: { o: {} }, rows: [{ label: null }] },
+    }).diagnostics;
+    const required = header.find((d) => d.hint?.includes("null"));
+    expect(required?.hint).toContain("required");
+    expect(required?.hint).not.toContain("omit");
+    const cell = registry.validateUsage(matrix, {
+      props: { classes: { o: {} }, cells: [[{ class: "o", tex: "hi" }]] },
+    }).diagnostics;
+    expect(cell[0]).toMatchObject({
+      code: "component/unknown-prop",
+      path: ["props", "cells", 0, 0, "tex"],
+      hint: 'Did you mean "text"?',
+    });
   });
 
   test("fixed-aspect components need equal width and height, compared exactly", () => {
