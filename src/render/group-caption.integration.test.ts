@@ -38,6 +38,7 @@ async function render(
   source: string,
   assetBase?: string,
   jogEdges: readonly string[] = [],
+  hugEdges: readonly string[] = [],
 ): Promise<RenderedFigure> {
   const result = await renderFigure(source, {
     backend: createD2CliBackend(),
@@ -55,15 +56,13 @@ async function render(
   ).toBe(true);
   expect(
     geometry
-      .filter(
-        (d) =>
-          d.code !== "geometry/group-empty-area" &&
-          d.code !== "geometry/dash-hidden" &&
-          // The draft's 7pt labels sit 0.35mm from their lines (#546).
-          d.code !== "geometry/edge-label-hugging",
-      )
+      .filter((d) => d.code !== "geometry/group-empty-area" && d.code !== "geometry/dash-hidden")
       .map((d) => [d.code, d.severity, d.subject?.id]),
-  ).toEqual(jogEdges.map((id) => ["geometry/edge-jog", "info", id]));
+  ).toEqual([
+    ...jogEdges.map((id) => ["geometry/edge-jog", "info", id]),
+    // Labels pressed against their lines (#546).
+    ...hugEdges.map((id) => ["geometry/edge-label-hugging", "info", id]),
+  ]);
   return result.value;
 }
 
@@ -293,7 +292,7 @@ describe("the stage-B draft of figure 2 (research/124-stage-b)", () => {
       "(a) data and augmentation",
       "(b) one optimisation step",
     ]);
-    const rendered = await render(stringify(draft), dir);
+    const rendered = await render(stringify(draft), dir, [], ["edges[5]", "edges[6]"]);
     for (const [id, text] of [
       ["data-stage", "(a) data and augmentation"],
       ["train-step", "(b) one optimisation step"],

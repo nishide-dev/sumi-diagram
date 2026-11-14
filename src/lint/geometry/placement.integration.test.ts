@@ -127,3 +127,64 @@ describe("geometry/arrowhead-cramped on straight edges", () => {
     }
   });
 });
+
+describe("geometry/token-column-drift: which rows are compared", () => {
+  const code = "geometry/token-column-drift";
+  const file = join(ROOT, "tokens.sumi.yaml");
+
+  test("stacks (direction: down) and separate demos are not rows to line up", async () => {
+    const column = (id: string, width: string) =>
+      `  - { id: ${id}, component: sumi/tokens, props: { direction: down, gap: 2mm, width: ${width}, cells: [p, q, r, s] } }\n`;
+    const source = `version: 1
+figure:
+  id: stacks
+  theme: minimal
+  profile: paper-double
+  layout: { arrange: { stack: { gap: 8mm, items: [a, b] } } }
+nodes:
+${column("a", "12mm")}${column("b", "12.5mm")}`;
+    expect(await findings(source, file, code)).toEqual([]);
+  });
+
+  test("a row is compared only with the nearest row below, once", async () => {
+    const row = (id: string, width: string) =>
+      `  - { id: ${id}, component: sumi/tokens, props: { gap: 2mm, width: ${width}, cells: [x1, x2, x3, x4] } }\n`;
+    const source = `version: 1
+figure:
+  id: three
+  theme: minimal
+  profile: paper-double
+  layout: { arrange: { stack: { gap: 4mm, items: [a, b, c] } } }
+nodes:
+${row("a", "12mm")}${row("b", "12.5mm")}${row("c", "13mm")}`;
+    const found = await findings(source, file, code);
+    // a-b and b-c, not a-c as well.
+    expect(found.map((d) => d.subject)).toEqual([
+      { kind: "node", id: "b" },
+      { kind: "node", id: "c" },
+    ]);
+  });
+
+  test("a figure of 200 token rows is linted in one pass", async () => {
+    const ids = Array.from({ length: 200 }, (_, i) => `r${i}`);
+    const nodes = ids
+      .map(
+        (id, i) =>
+          `  - { id: ${id}, component: sumi/tokens, props: { gap: 1mm, width: ${12 + (i % 2) * 0.4}mm, cells: [a, b, c] } }\n`,
+      )
+      .join("");
+    const source = `version: 1
+figure:
+  id: many
+  theme: minimal
+  profile: paper-double
+  layout: { arrange: { stack: { gap: 1mm, items: [${ids.join(", ")}] } } }
+nodes:
+${nodes}`;
+    const start = performance.now();
+    const found = await findings(source, file, code);
+    expect(found.length).toBeLessThanOrEqual(199);
+    expect(found.length).toBeGreaterThan(100);
+    expect(performance.now() - start).toBeLessThan(30000);
+  });
+});

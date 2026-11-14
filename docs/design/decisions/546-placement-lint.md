@@ -17,10 +17,14 @@
 | --- | --- |
 | `geometry/edge-label-hugging` | structured。ラベルの字の輪郭から自分の線（描かれる線）まで、線幅の半分を除いて印刷時 1pt 未満（触れる・重なるものは除く）。 |
 | `geometry/edge-label-on-corner` | 行の外接矩形から、ノードの輪郭の頂点（多角形の図形）まで印刷時 1.5pt 未満。図形に重なるものは `label-collision` に任せる。円・楕円は頂点がないので対象外。 |
-| `geometry/token-column-drift` | 同じ個数（2 以上）のトークン列で、対応するセルが幅の 75% 以上重なり、中心のずれが 0.5pt 超かつ幅の 25% 以下。 |
+| `geometry/token-column-drift` | 横並びのトークン列（縦積みは除く）と、すぐ下の最も近い列（行の高さの 3 倍以内）の 1 組だけを比べる。列ごとに最大 1 件で、全組の比較はしない。同じ個数（2 以上）で、対応するセルが幅の 75% 以上重なり、中心のずれが 0.5pt 超かつ幅の 25% 以下。 |
 | `geometry/arrowhead-cramped`（拡張） | 曲がりのない辺で、全長から矢じり（両端なら 2 本）を引いた見える直線が印刷時 1pt 未満。辺ごとに 1 件。 |
 
 共通の補助（印刷時の大きさへの換算、`isDrawnEdge` など）は `common.ts` に移した。新しい規則は `placement.ts` にあり、`rules.ts` を読み込まない（循環を避ける）。
+
+## 約 0.5mm の例の証拠
+
+`research/538-dogfood-v0.18/runs/3-data-pipeline/S/log.md` に「Edge labels sit very close (~0.5mm) to their dashed lines; not reported by lint」とある。ルータの既定の間隔（0.4〜0.5mm）そのもので、点線の脇の 10.5pt ラベルの図だった。この証拠でも、既定を誤りとする代償（上の表のとおり 10 以上の出荷図とテストが影響を受ける）は変わらないので、1pt を保つ。
 
 ## 採らなかった案
 
@@ -34,7 +38,7 @@
 出力（SVG・PDF・PPTX）は変わらない。変わるのは診断（すべて info）と、それを載せる文書・テストの期待値。
 
 - `edge-label-hugging` が出る図: `skills/sumi/examples/dit-block`（edges[28] が線から 0.25mm）。ほかは `tests/fixtures/figures/` の再現図（`fit/b-dit`・`variants/b-dit-plain`・`dim/b-dit`・`sublabel/b-dit` の edges[29]、`color-use/agent-loop-b`、`layout/grid-training`）。Skill のレイアウト・ギャラリー・`docs/assets` では出ない。しきい値は `LABEL_HUG_UNITS`（`placement.ts`）の 1 か所。
-- `token-column-drift`: ギャラリーの `sumi/bracket` の図（`default-curly-set` と `muted-curly-set` の 2 行が 2.5〜4pt ずれる。2 件）で出る。`examples/`・Skill の例・レイアウトでは出ない。ほかは `tests/fixtures/` の図。
+- `token-column-drift`: `examples/`・Skill の例・レイアウト・ギャラリーでは出ない（当初 `sumi/bracket` で出ていたのは、`direction: down` の別々の見本を比べた誤検出で、横並びの列だけを近い列と比べるよう直した）。出るのは `tests/fixtures/` の図だけ。
 - `edge-label-on-corner`: `examples/`・Skill の例・レイアウト・ギャラリーでは出ない。出るのは `tests/fixtures/figures/` と `research/` の再現図（`fit/c-h3world` の edges[19]、`density/text-heavy-boxes`、stage-B の図 2）。
 - 直線の `arrowhead-cramped`: `fit/b-dit`（edges[6]・[7]・[24]・[46]・[59]）と `fit/c-h3world`（edges[11]〜[16]）の再現図で出る。`examples/` では出ない。
 - 再現図は編集しない。診断の件数を固定していたテスト（`fit.integration`、`structured`、`dim.integration`、`edge-label-at.integration`）の期待値に、新しい info を記録した。`bun run gallery` でギャラリーの診断の表示を更新した。

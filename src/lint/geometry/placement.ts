@@ -4,6 +4,7 @@
  * and a row of tokens that drifts off the column of the row above it.
  */
 
+import type { Rect } from "../../render/geometry";
 import { unitsToPt } from "../../render/geometry";
 import { defineGeometryRule, type LintFinding } from "../rule";
 import { capitalize, drawnUnits, isDrawnEdge, isStructured, mmText, printedUnits } from "./common";
@@ -102,72 +103,110 @@ export const edgeLabelOnCorner = defineGeometryRule({
   },
 });
 
-/** One row of the cells of a tokens node (one line of it), left to right. */
+/** One horizontal row of the cells of a tokens node (one line of it), left to right. */
 interface TokenRow {
-  readonly name: string;
   readonly cells: readonly GeometryElement[];
+  readonly left: number;
+  readonly right: number;
+  readonly top: number;
+  readonly bottom: number;
 }
 
+/**
+ * The horizontal token rows: a stack (`direction: down`) or a single cell is
+ * not a row to line up with another.
+ */
 function tokenRows(elements: readonly GeometryElement[]): TokenRow[] {
-  const rows = new Map<string, GeometryElement[]>();
+  const groups = new Map<string, GeometryElement[]>();
   for (const e of elements) {
     const t = e.ir.tokens;
     if (e.ir.kind !== "node" || t === undefined || e.bbox === undefined) continue;
     if (t.separator !== undefined || t.blank !== undefined) continue;
     const key = `${t.id}\0${t.line ?? 0}`;
-    rows.set(key, [...(rows.get(key) ?? []), e]);
+    groups.set(key, [...(groups.get(key) ?? []), e]);
   }
-  return [...rows.values()].map((cells) => ({
-    name: cells[0]?.ir.tokens?.name ?? "",
-    cells: cells.sort((a, b) => (a.bbox?.x ?? 0) - (b.bbox?.x ?? 0)),
-  }));
+  const rows: TokenRow[] = [];
+  for (const group of groups.values()) {
+    const cells = group.sort((a, b) => (a.bbox?.x ?? 0) - (b.bbox?.x ?? 0));
+    const boxes = cells.map((c) => c.bbox as Rect);
+    const first = boxes[0];
+    const last = boxes.at(-1);
+    if (first === undefined || last === undefined || cells.length < 2) continue;
+    const top = Math.min(...boxes.map((r) => r.y));
+    const bottom = Math.max(...boxes.map((r) => r.y + r.height));
+    // Side by side: each cell starts at or after the end of the one before.
+    const horizontal = boxes.every(
+      (r, i) => i === 0 || r.x >= (boxes[i - 1] as Rect).x + (boxes[i - 1] as Rect).width - 1,
+    );
+    if (!horizontal) continue;
+    rows.push({ cells, left: first.x, right: last.x + last.width, top, bottom });
+  }
+  return rows.sort((a, b) => a.top - b.top);
+}
+
+/** How many row heights below a row another row still counts as its neighbour. */
+const NEIGHBOUR_ROW_HEIGHTS = 3;
+
+/** The most drifted cell of `lower` under `upper`, if the rows are columns of one grid that slipped. */
+function worstDrift(
+  upper: TokenRow,
+  lower: TokenRow,
+  tolerance: number,
+): { cell: GeometryElement; other: GeometryElement; drift: number } | undefined {
+  if (upper.cells.length !== lower.cells.length) return undefined;
+  let worst: { cell: GeometryElement; other: GeometryElement; drift: number } | undefined;
+  for (const [n, a] of upper.cells.entries()) {
+    const b = lower.cells[n] as GeometryElement;
+    const ra = a.bbox;
+    const rb = b.bbox;
+    if (ra === undefined || rb === undefined) return undefined;
+    const drift = Math.abs(rb.x + rb.width / 2 - (ra.x + ra.width / 2));
+    const overlap = Math.min(ra.x + ra.width, rb.x + rb.width) - Math.max(ra.x, rb.x);
+    const narrow = Math.min(ra.width, rb.width);
+    // Columns of one grid, not two unrelated rows: every pair is under the
+    // other, and the miss is a small fraction of the cell.
+    if (overlap < 0.75 * narrow || drift > 0.25 * narrow) return undefined;
+    if (drift > tolerance && (worst === undefined || drift > worst.drift))
+      worst = { cell: b, other: a, drift };
+  }
+  return worst;
 }
 
 export const tokenColumnDrift = defineGeometryRule({
   id: "geometry/token-column-drift",
   description:
-    "Two token rows with the same number of cells almost line up column by column, but a cell sits off the centre of the cell above it.",
+    "A horizontal token row almost lines up, column by column, with the row just below it, but a cell sits off the centre of the cell above it.",
   defaultSeverity: "info",
   fixable: false,
   run(context) {
     const findings: LintFinding[] = [];
     const rows = tokenRows(context.elements);
     const tolerance = drawnUnits(context, TOKEN_DRIFT_UNITS);
-    for (const [i, upper] of rows.entries()) {
-      for (const lower of rows.slice(i + 1)) {
-        if (upper.cells.length !== lower.cells.length || upper.cells.length < 2) continue;
-        let worst: { cell: GeometryElement; other: GeometryElement; drift: number } | undefined;
-        let aligned = true;
-        for (const [n, a] of upper.cells.entries()) {
-          const b = lower.cells[n] as GeometryElement;
-          const ra = a.bbox;
-          const rb = b.bbox;
-          if (ra === undefined || rb === undefined) {
-            aligned = false;
-            break;
-          }
-          const drift = Math.abs(rb.x + rb.width / 2 - (ra.x + ra.width / 2));
-          const overlap = Math.min(ra.x + ra.width, rb.x + rb.width) - Math.max(ra.x, rb.x);
-          const narrow = Math.min(ra.width, rb.width);
-          // Columns of one grid, not two unrelated rows: every pair is under
-          // the other, and the miss is a small fraction of the cell.
-          if (overlap < 0.75 * narrow || drift > 0.25 * narrow) {
-            aligned = false;
-            break;
-          }
-          if (drift > tolerance && (worst === undefined || drift > worst.drift))
-            worst = { cell: b, other: a, drift };
+    for (let i = 0; i < rows.length; i++) {
+      const upper = rows[i] as TokenRow;
+      // Only the nearest row below that shares columns with this one, within a
+      // few row heights, so every row is compared once and at most once.
+      const reach = upper.bottom + NEIGHBOUR_ROW_HEIGHTS * (upper.bottom - upper.top);
+      let lower: TokenRow | undefined;
+      for (let j = i + 1; j < rows.length; j++) {
+        const row = rows[j] as TokenRow;
+        if (row.top > reach) break;
+        if (row.top < upper.bottom - 1) continue;
+        if (row.left < upper.right && upper.left < row.right) {
+          lower = row;
+          break;
         }
-        if (!aligned || worst === undefined) continue;
-        const { cell, other, drift } = worst;
-        findings.push({
-          message: `${capitalize(cell.name)} sits ${mmText(context, drift, 2)} (${unitsToPt(printedUnits(context, drift)).toFixed(1)}pt) off the centre of ${other.name}, so the two token rows drift apart column by column.`,
-          path: cell.docPath,
-          subject: cell.subject,
-          hint: "Give the cells of both rows the same width and gap (props.width, props.gap), or lay the rows out as one sumi/matrix, so the columns line up exactly.",
-          related: [{ path: other.docPath, message: `${capitalize(other.name)} is defined here.` }],
-        });
       }
+      const worst = lower === undefined ? undefined : worstDrift(upper, lower, tolerance);
+      if (worst === undefined) continue;
+      const { cell, other, drift } = worst;
+      findings.push({
+        message: `${capitalize(cell.name)} sits ${mmText(context, drift, 2)} (${unitsToPt(printedUnits(context, drift)).toFixed(1)}pt) off the centre of ${other.name}, so the two token rows drift apart column by column.`,
+        path: cell.docPath,
+        subject: cell.subject,
+        hint: "Give the cells of both rows the same width and gap (props.width, props.gap), or lay the rows out as one sumi/matrix, so the columns line up exactly.",
+        related: [{ path: other.docPath, message: `${capitalize(other.name)} is defined here.` }],
+      });
     }
     return findings;
   },

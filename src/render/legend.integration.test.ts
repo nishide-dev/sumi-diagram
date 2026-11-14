@@ -56,6 +56,10 @@ async function renderDraft(name: string): Promise<{ source: string; rendered: Re
         ].includes(d.code),
     ),
   ).toEqual([]);
+  // Figure 2's 7pt labels sit 0.35mm from their lines (#546).
+  expect(
+    geometry.filter((d) => d.code === "geometry/edge-label-hugging").map((d) => d.subject?.id),
+  ).toEqual(name === "training-pipeline" ? ["edges[5]", "edges[6]"] : []);
   expect(
     geometry.filter((d) => d.code === "geometry/dash-hidden").map((d) => d.subject?.id),
   ).toEqual(name === "training-pipeline" ? ["edges[8]"] : []);
