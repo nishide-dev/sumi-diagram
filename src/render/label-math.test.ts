@@ -147,7 +147,10 @@ describe("rendering", () => {
     expect(rendered.inspection.elements.flatMap((e) => e.labels.map((l) => l.text))).toEqual(
       expect.arrayContaining(["Timestep t", "t steps and x1 next", "予測 ŷ と x", "at t"]),
     );
-    expect(lintGeometry(rendered, { source })).toEqual([]);
+    // The one note: "at t" sits 0.35mm from its line (#546).
+    expect(
+      lintGeometry(rendered, { source }).map((d) => [d.code, d.severity, d.subject?.id]),
+    ).toEqual([["geometry/edge-label-hugging", "info", "edges[0]"]]);
     await expectPdfMatchesMeasure(source);
     const editable = svgToEditablePptx(rendered.svg, rendered.compiled.ir);
     if (!editable.ok) throw new Error(JSON.stringify(editable.diagnostics));
